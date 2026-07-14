@@ -1,0 +1,94 @@
+server:
+  port: ${PORT:8080}
+
+spring:
+  application:
+    name: cash
+  lifecycle:
+    timeout-per-shutdown-phase: 60s
+  threads:
+    virtual:
+      enabled: true
+  messages:
+    basename: i18n/messages
+    encoding: UTF-8
+  config:
+    import: optional:classpath:.env[.properties]
+  # Jackson 配置项
+  jackson:
+    serialization:
+      write-dates-as-timestamps: true # 设置 Date 的格式，使用时间戳
+      write-date-timestamps-as-nanoseconds: false # 设置不使用 nanoseconds 的格式。例如说 1611460870.401，而是直接 1611460870401
+      write-durations-as-timestamps: true # 设置 Duration 的格式，使用时间戳
+      fail-on-empty-beans: false # 允许序列化无属性的 Bean
+  # 数据源配置项
+  datasource:
+    # druid 连接池
+    type: com.alibaba.druid.pool.DruidDataSource
+    driver-class-name: org.postgresql.Driver
+    url: ${DATASOURCE_URL}
+    username: ${DATASOURCE_USERNAME}
+    password: ${DATASOURCE_PASSWORD}
+  data:
+    redis:
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT}
+      user: default
+      password: ${REDIS_PASSWORD}
+      database: 0
+      lettuce:
+        pool:
+          max-active: 2  # 连接池最大连接数
+          max-wait: -1    # 最大阻塞等待时间（负数表示无限制）
+          max-idle: 1     # 最大空闲连接数
+          min-idle: 0     # 最小空闲连接数
+
+#################### 框架相关配置 ####################
+
+migoo:
+  debug: ${DEBUG_STATUS:false}
+  xss:
+    enable: true
+  security:
+    authorization:
+      access-token-expires: 24H
+      secret-key: 9aef92670f10242388d55d2ffc0eeb43
+    password-secret: 17c553e34228909b1f8cef6d1de0b53d
+    logout-url: /logout
+    permit-all-urls:
+      - /blockchains
+      - /blockchains/**
+      - /exchange/orders/crypto
+      - /exchange/orders/crypto/**
+      - /exchange/quote
+      - /exchange/crypto/pairs
+      - /webhooks/**
+      - /debug/**
+
+# MyBatis Plus 的配置项
+mybatis-plus:
+  encryptor:
+    password: b334ee7b6b01717024814e72b726b24d
+  #  在 mybatis-config/mybatis-config.xml 中设置
+  configuration:
+    map-underscore-to-camel-case: true # 虽然默认为 true ，但是还是显示去指定下。
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl # 打印日志
+    lazy-loading-enabled: false
+  global-config:
+    db-config:
+      logic-delete-value: true # 逻辑已删除值(默认为 1)
+      logic-not-delete-value: false # 逻辑未删除值(默认为 0)
+  mapper-locations: classpath*:mapper/*.xml
+  type-handlers-package: ${migoo.framework.biz-package-name}.framework.mybatis
+  configuration-properties:
+    prefix: ""
+    wildcardEscapeClause: ""
+    limitBefore: ""
+    limitAfter: "LIMIT #{maxResults} OFFSET #{firstResult}"
+    limitBetween: ""
+    limitOuterJoinBetween: ""
+    limitBeforeNativeQuery: ""
+    orderBy: "order by ${orderByColumns}"
+    blobType: "BLOB"
+    boolValue: "TRUE"
+  #  type-aliases-package:
