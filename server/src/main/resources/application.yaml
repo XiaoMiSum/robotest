@@ -3,7 +3,7 @@ server:
 
 spring:
   application:
-    name: cash
+    name: robotest-server
   lifecycle:
     timeout-per-shutdown-phase: 60s
   threads:
@@ -14,34 +14,31 @@ spring:
     encoding: UTF-8
   config:
     import: optional:classpath:.env[.properties]
-  # Jackson 配置项
   jackson:
     serialization:
-      write-dates-as-timestamps: true # 设置 Date 的格式，使用时间戳
-      write-date-timestamps-as-nanoseconds: false # 设置不使用 nanoseconds 的格式。例如说 1611460870.401，而是直接 1611460870401
-      write-durations-as-timestamps: true # 设置 Duration 的格式，使用时间戳
-      fail-on-empty-beans: false # 允许序列化无属性的 Bean
-  # 数据源配置项
+      write-dates-as-timestamps: true
+      write-date-timestamps-as-nanoseconds: false
+      write-durations-as-timestamps: true
+      fail-on-empty-beans: false
   datasource:
-    # druid 连接池
     type: com.alibaba.druid.pool.DruidDataSource
     driver-class-name: org.postgresql.Driver
-    url: ${DATASOURCE_URL}
-    username: ${DATASOURCE_USERNAME}
-    password: ${DATASOURCE_PASSWORD}
+    url: ${DATASOURCE_URL:jdbc:postgresql://localhost:5432/robotest}
+    username: ${DATASOURCE_USERNAME:robotest}
+    password: ${DATASOURCE_PASSWORD:robotest}
   data:
     redis:
-      host: ${REDIS_HOST}
-      port: ${REDIS_PORT}
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
       user: default
-      password: ${REDIS_PASSWORD}
+      password: ${REDIS_PASSWORD:}
       database: 0
       lettuce:
         pool:
-          max-active: 2  # 连接池最大连接数
-          max-wait: -1    # 最大阻塞等待时间（负数表示无限制）
-          max-idle: 1     # 最大空闲连接数
-          min-idle: 0     # 最小空闲连接数
+          max-active: 8
+          max-wait: -1
+          max-idle: 8
+          min-idle: 0
 
 #################### 框架相关配置 ####################
 
@@ -52,43 +49,22 @@ migoo:
   security:
     authorization:
       access-token-expires: 24H
-      secret-key: 9aef92670f10242388d55d2ffc0eeb43
-    password-secret: 17c553e34228909b1f8cef6d1de0b53d
+      secret-key: ${JWT_SECRET_KEY:9aef92670f10242388d55d2ffc0eeb43}
+    password-secret: ${PASSWORD_SECRET:17c553e34228909b1f8cef6d1de0b53d}
     logout-url: /logout
     permit-all-urls:
-      - /blockchains
-      - /blockchains/**
-      - /exchange/orders/crypto
-      - /exchange/orders/crypto/**
-      - /exchange/quote
-      - /exchange/crypto/pairs
-      - /webhooks/**
+      - /api/workspace/invitations/verify
+      - /api/workspace/invitations/join
       - /debug/**
 
-# MyBatis Plus 的配置项
+# MyBatis Plus 配置
 mybatis-plus:
-  encryptor:
-    password: b334ee7b6b01717024814e72b726b24d
-  #  在 mybatis-config/mybatis-config.xml 中设置
   configuration:
-    map-underscore-to-camel-case: true # 虽然默认为 true ，但是还是显示去指定下。
-    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl # 打印日志
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
     lazy-loading-enabled: false
   global-config:
     db-config:
-      logic-delete-value: true # 逻辑已删除值(默认为 1)
-      logic-not-delete-value: false # 逻辑未删除值(默认为 0)
+      logic-delete-value: true
+      logic-not-delete-value: false
   mapper-locations: classpath*:mapper/*.xml
-  type-handlers-package: ${migoo.framework.biz-package-name}.framework.mybatis
-  configuration-properties:
-    prefix: ""
-    wildcardEscapeClause: ""
-    limitBefore: ""
-    limitAfter: "LIMIT #{maxResults} OFFSET #{firstResult}"
-    limitBetween: ""
-    limitOuterJoinBetween: ""
-    limitBeforeNativeQuery: ""
-    orderBy: "order by ${orderByColumns}"
-    blobType: "BLOB"
-    boolValue: "TRUE"
-  #  type-aliases-package:
