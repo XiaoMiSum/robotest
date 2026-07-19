@@ -11,7 +11,7 @@
 | 技术                         | 版本     | 说明                                 |
 | -------------------------- | ------ | ---------------------------------- |
 | Java                       | 21     | LTS 版本                             |
-| migoo-springboot-framework | 1.3.15 | 最新版本                               |
+| migoo-springboot-framework | 1.3.16 | 最新版本                               |
 | Spring Boot                | 4.x    | 由migoo-springboot-framework提供      |
 | MyBatis-Plus               | 最新     | 复杂查询，由migoo-springboot-framework提供 |
 | Spring Security            | 最新     | 认证授权，由migoo-springboot-framework提供 |
