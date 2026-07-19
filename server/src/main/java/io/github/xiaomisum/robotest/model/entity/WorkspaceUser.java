@@ -18,5 +18,6 @@ public class WorkspaceUser extends BaseDO {
     private String userId;
     private String workspaceId;
     private String workspaceRole;
+    private String defaultProjectId;
     private LocalDateTime joinedAt;
 }

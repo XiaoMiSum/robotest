@@ -6,17 +6,20 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import xyz.migoo.framework.mybatis.core.dataobject.BaseDO;
 
+import java.time.LocalDateTime;
+
 @Data
 @EqualsAndHashCode(callSuper = true)
-@TableName("sys_user")
-public class SysUser extends BaseDO {
+@TableName("project")
+public class Project extends BaseDO {
 
     @TableId
     private String id;
-    private String username;
-    private String email;
-    private String passwordHash;
-    private String avatarUrl;
+    private String workspaceId;
+    private String name;
+    private String description;
     private String status;
-    private String lastActiveWorkspaceId;
+    private LocalDateTime startTime;
+    private LocalDateTime endTime;
+    private String createdBy;
 }
