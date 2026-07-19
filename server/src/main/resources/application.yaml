@@ -47,12 +47,18 @@ migoo:
   xss:
     enable: true
   security:
-    authorization:
-      access-token-expires: 24H
+    mode: jwt
+    jwt:
       secret-key: ${JWT_SECRET_KEY:9aef92670f10242388d55d2ffc0eeb43}
+      access-token-expires: PT24H
+      refresh-token-expires: P7D
+      header-name: Authorization
+      refresh-header-name: X-Refresh-Token
     password-secret: ${PASSWORD_SECRET:17c553e34228909b1f8cef6d1de0b53d}
-    logout-url: /logout
+    logout-url: /api/auth/logout
     permit-all-urls:
+      - /api/auth/login
+      - /api/auth/logout
       - /api/workspace/invitations/verify
       - /api/workspace/invitations/join
       - /debug/**
