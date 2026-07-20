@@ -58,7 +58,7 @@ public class WorkspaceContextServiceImpl implements WorkspaceContextService {
                 new LambdaQueryWrapper<WorkspaceUser>()
                         .eq(WorkspaceUser::getUserId, userId)
                         .eq(WorkspaceUser::getWorkspaceId, workspaceId));
-        if (workspaceUser == null || !"admin".equals(workspaceUser.getWorkspaceRole())) {
+        if (workspaceUser == null || !ErrorCodeConstants.WORKSPACE_ROLE_ADMIN_ID.equals(workspaceUser.getWorkspaceRole())) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.NO_PERMISSION);
         }
 

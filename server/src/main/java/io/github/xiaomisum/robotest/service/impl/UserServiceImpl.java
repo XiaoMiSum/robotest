@@ -121,7 +121,7 @@ public class UserServiceImpl implements UserService {
                 wu.setId(UUID.randomUUID().toString());
                 wu.setUserId(user.getId());
                 wu.setWorkspaceId(wsId);
-                wu.setWorkspaceRole("member");
+                wu.setWorkspaceRole(ErrorCodeConstants.WORKSPACE_ROLE_MEMBER_ID);
                 wu.setJoinedAt(LocalDateTime.now());
                 return wu;
             }).collect(Collectors.toList());
@@ -170,7 +170,7 @@ public class UserServiceImpl implements UserService {
                     wu.setId(UUID.randomUUID().toString());
                     wu.setUserId(id);
                     wu.setWorkspaceId(wsId);
-                    wu.setWorkspaceRole("member");
+                    wu.setWorkspaceRole(ErrorCodeConstants.WORKSPACE_ROLE_MEMBER_ID);
                     wu.setJoinedAt(LocalDateTime.now());
                     return wu;
                 }).collect(Collectors.toList());
