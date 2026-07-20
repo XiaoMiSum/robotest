@@ -83,7 +83,7 @@ public class WorkspaceMemberServiceImpl implements WorkspaceMemberService {
                 new LambdaQueryWrapper<WorkspaceUser>()
                         .eq(WorkspaceUser::getUserId, userId)
                         .eq(WorkspaceUser::getWorkspaceId, workspaceId));
-        if (adminUser == null || !"admin".equals(adminUser.getWorkspaceRole())) {
+        if (adminUser == null || !ErrorCodeConstants.WORKSPACE_ROLE_ADMIN_ID.equals(adminUser.getWorkspaceRole())) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.NO_PERMISSION);
         }
 
@@ -110,7 +110,7 @@ public class WorkspaceMemberServiceImpl implements WorkspaceMemberService {
             workspaceUser.setUserId(member.getUserId());
             workspaceUser.setWorkspaceId(workspaceId);
             workspaceUser.setWorkspaceRole(StringUtils.hasText(member.getWorkspaceRole())
-                    ? member.getWorkspaceRole() : "member");
+                    ? member.getWorkspaceRole() : ErrorCodeConstants.WORKSPACE_ROLE_MEMBER_ID);
             workspaceUser.setJoinedAt(LocalDateTime.now());
             workspaceUserMapper.insert(workspaceUser);
             successCount++;
@@ -129,7 +129,7 @@ public class WorkspaceMemberServiceImpl implements WorkspaceMemberService {
                 new LambdaQueryWrapper<WorkspaceUser>()
                         .eq(WorkspaceUser::getUserId, userId)
                         .eq(WorkspaceUser::getWorkspaceId, workspaceId));
-        if (adminUser == null || !"admin".equals(adminUser.getWorkspaceRole())) {
+        if (adminUser == null || !ErrorCodeConstants.WORKSPACE_ROLE_ADMIN_ID.equals(adminUser.getWorkspaceRole())) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.NO_PERMISSION);
         }
 
@@ -141,11 +141,12 @@ public class WorkspaceMemberServiceImpl implements WorkspaceMemberService {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.USER_NOT_FOUND);
         }
 
-        if ("admin".equals(targetMember.getWorkspaceRole()) && !"admin".equals(workspaceRole)) {
+        if (ErrorCodeConstants.WORKSPACE_ROLE_ADMIN_ID.equals(targetMember.getWorkspaceRole())
+                && !ErrorCodeConstants.WORKSPACE_ROLE_ADMIN_ID.equals(workspaceRole)) {
             Long adminCount = workspaceUserMapper.selectCount(
                     new LambdaQueryWrapper<WorkspaceUser>()
                             .eq(WorkspaceUser::getWorkspaceId, workspaceId)
-                            .eq(WorkspaceUser::getWorkspaceRole, "admin"));
+                            .eq(WorkspaceUser::getWorkspaceRole, ErrorCodeConstants.WORKSPACE_ROLE_ADMIN_ID));
             if (adminCount <= 1) {
                 throw ServiceExceptionUtil.get(ErrorCodeConstants.MUST_KEEP_ONE_WORKSPACE_ADMIN);
             }
@@ -167,7 +168,7 @@ public class WorkspaceMemberServiceImpl implements WorkspaceMemberService {
         }
 
         boolean isSelf = userId.equals(targetUserId);
-        if (!isSelf && !"admin".equals(currentUser.getWorkspaceRole())) {
+        if (!isSelf && !ErrorCodeConstants.WORKSPACE_ROLE_ADMIN_ID.equals(currentUser.getWorkspaceRole())) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.NO_PERMISSION);
         }
 
@@ -179,11 +180,11 @@ public class WorkspaceMemberServiceImpl implements WorkspaceMemberService {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.USER_NOT_FOUND);
         }
 
-        if ("admin".equals(targetMember.getWorkspaceRole())) {
+        if (ErrorCodeConstants.WORKSPACE_ROLE_ADMIN_ID.equals(targetMember.getWorkspaceRole())) {
             Long adminCount = workspaceUserMapper.selectCount(
                     new LambdaQueryWrapper<WorkspaceUser>()
                             .eq(WorkspaceUser::getWorkspaceId, workspaceId)
-                            .eq(WorkspaceUser::getWorkspaceRole, "admin"));
+                            .eq(WorkspaceUser::getWorkspaceRole, ErrorCodeConstants.WORKSPACE_ROLE_ADMIN_ID));
             if (adminCount <= 1) {
                 throw ServiceExceptionUtil.get(ErrorCodeConstants.MUST_KEEP_ONE_WORKSPACE_ADMIN);
             }

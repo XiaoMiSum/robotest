@@ -197,7 +197,7 @@ public class WorkspaceServiceImpl implements WorkspaceService {
             wu.setId(UUID.randomUUID().toString());
             wu.setUserId(member.getUserId());
             wu.setWorkspaceId(id);
-            wu.setWorkspaceRole(StringUtils.hasText(member.getWorkspaceRole()) ? member.getWorkspaceRole() : "member");
+            wu.setWorkspaceRole(StringUtils.hasText(member.getWorkspaceRole()) ? member.getWorkspaceRole() : ErrorCodeConstants.WORKSPACE_ROLE_MEMBER_ID);
             wu.setJoinedAt(LocalDateTime.now());
             workspaceUserMapper.insert(wu);
         }
@@ -213,10 +213,11 @@ public class WorkspaceServiceImpl implements WorkspaceService {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.USER_NOT_FOUND);
         }
         // 检查是否是降级唯一管理员
-        if ("admin".equals(wu.getWorkspaceRole()) && "member".equals(workspaceRole)) {
+        if (ErrorCodeConstants.WORKSPACE_ROLE_ADMIN_ID.equals(wu.getWorkspaceRole())
+                && !ErrorCodeConstants.WORKSPACE_ROLE_ADMIN_ID.equals(workspaceRole)) {
             Long adminCount = workspaceUserMapper.selectCount(new LambdaQueryWrapper<WorkspaceUser>()
                     .eq(WorkspaceUser::getWorkspaceId, id)
-                    .eq(WorkspaceUser::getWorkspaceRole, "admin"));
+                    .eq(WorkspaceUser::getWorkspaceRole, ErrorCodeConstants.WORKSPACE_ROLE_ADMIN_ID));
             if (adminCount <= 1) {
                 throw ServiceExceptionUtil.get(ErrorCodeConstants.MUST_KEEP_ONE_WORKSPACE_ADMIN);
             }
@@ -234,10 +235,10 @@ public class WorkspaceServiceImpl implements WorkspaceService {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.USER_NOT_FOUND);
         }
         // 检查是否是移除唯一管理员
-        if ("admin".equals(wu.getWorkspaceRole())) {
+        if (ErrorCodeConstants.WORKSPACE_ROLE_ADMIN_ID.equals(wu.getWorkspaceRole())) {
             Long adminCount = workspaceUserMapper.selectCount(new LambdaQueryWrapper<WorkspaceUser>()
                     .eq(WorkspaceUser::getWorkspaceId, id)
-                    .eq(WorkspaceUser::getWorkspaceRole, "admin"));
+                    .eq(WorkspaceUser::getWorkspaceRole, ErrorCodeConstants.WORKSPACE_ROLE_ADMIN_ID));
             if (adminCount <= 1) {
                 throw ServiceExceptionUtil.get(ErrorCodeConstants.MUST_KEEP_ONE_WORKSPACE_ADMIN);
             }

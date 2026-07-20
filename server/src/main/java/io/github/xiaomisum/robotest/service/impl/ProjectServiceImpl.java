@@ -138,7 +138,7 @@ public class ProjectServiceImpl implements ProjectService {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.NO_PERMISSION);
         }
 
-        boolean isAdmin = "admin".equals(workspaceUser.getWorkspaceRole());
+        boolean isAdmin = ErrorCodeConstants.WORKSPACE_ROLE_ADMIN_ID.equals(workspaceUser.getWorkspaceRole());
         boolean isCreator = userId.equals(project.getCreatedBy());
         if (!isAdmin && !isCreator) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.NO_PERMISSION);
@@ -182,7 +182,7 @@ public class ProjectServiceImpl implements ProjectService {
                 new LambdaQueryWrapper<WorkspaceUser>()
                         .eq(WorkspaceUser::getUserId, userId)
                         .eq(WorkspaceUser::getWorkspaceId, workspaceId));
-        if (workspaceUser == null || !"admin".equals(workspaceUser.getWorkspaceRole())) {
+        if (workspaceUser == null || !ErrorCodeConstants.WORKSPACE_ROLE_ADMIN_ID.equals(workspaceUser.getWorkspaceRole())) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.NO_PERMISSION);
         }
 
@@ -214,7 +214,7 @@ public class ProjectServiceImpl implements ProjectService {
                 new LambdaQueryWrapper<WorkspaceUser>()
                         .eq(WorkspaceUser::getUserId, userId)
                         .eq(WorkspaceUser::getWorkspaceId, workspaceId));
-        if (workspaceUser == null || !"admin".equals(workspaceUser.getWorkspaceRole())) {
+        if (workspaceUser == null || !ErrorCodeConstants.WORKSPACE_ROLE_ADMIN_ID.equals(workspaceUser.getWorkspaceRole())) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.NO_PERMISSION);
         }
 

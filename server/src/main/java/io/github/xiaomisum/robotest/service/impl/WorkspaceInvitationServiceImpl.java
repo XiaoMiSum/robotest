@@ -167,7 +167,7 @@ public class WorkspaceInvitationServiceImpl implements WorkspaceInvitationServic
                 new LambdaQueryWrapper<WorkspaceUser>()
                         .eq(WorkspaceUser::getUserId, userId)
                         .eq(WorkspaceUser::getWorkspaceId, workspaceId));
-        if (workspaceUser == null || !"admin".equals(workspaceUser.getWorkspaceRole())) {
+        if (workspaceUser == null || !ErrorCodeConstants.WORKSPACE_ROLE_ADMIN_ID.equals(workspaceUser.getWorkspaceRole())) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.NO_PERMISSION);
         }
     }
@@ -236,7 +236,7 @@ public class WorkspaceInvitationServiceImpl implements WorkspaceInvitationServic
         workspaceUser.setId(UUID.randomUUID().toString());
         workspaceUser.setUserId(userId);
         workspaceUser.setWorkspaceId(workspaceId);
-        workspaceUser.setWorkspaceRole("member");
+        workspaceUser.setWorkspaceRole(ErrorCodeConstants.WORKSPACE_ROLE_MEMBER_ID);
         workspaceUser.setJoinedAt(LocalDateTime.now());
         workspaceUserMapper.insert(workspaceUser);
         return workspaceUser;
