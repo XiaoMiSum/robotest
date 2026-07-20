@@ -6,6 +6,7 @@ import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import xyz.migoo.framework.common.pojo.Result;
@@ -23,6 +24,13 @@ public class AuthController {
     public Result<LoginResult<LoginUser>> login(@RequestBody @Valid LoginReqDTO reqDTO) {
         LoginResult<LoginUser> loginResult = authUserDetailsFetcher.authenticate(
                 reqDTO.getIdentifier(), reqDTO.getPassword());
+        return Result.ok(loginResult);
+    }
+
+    @PostMapping("/refresh")
+    public Result<LoginResult<LoginUser>> refresh(
+            @RequestHeader("X-Refresh-Token") String refreshToken) {
+        LoginResult<LoginUser> loginResult = authUserDetailsFetcher.refreshToken(refreshToken);
         return Result.ok(loginResult);
     }
 }
