@@ -220,6 +220,7 @@ cd server && mvn test
 
 ### 4.3 参考文档
 
+- [MiGoo Spring Boot 框架文档](https://xiaomisum.github.io/springboot-migoo-framework/)
 - 《软件测试平台需求规格说明书》
 - 《软件测试平台概要设计说明书》
 - 《软件测试平台项目仓库框架与技术架构设计》

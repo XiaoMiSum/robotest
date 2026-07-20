@@ -12,6 +12,7 @@
 - 管理端接口要求用户拥有至少一个系统角色。
 - 业务端接口强制校验 `X-Active-Workspace` 头，验证用户工作空间归属。
 - 项目内操作另需 `X-Active-Project` 头，验证项目归属。
+- 业务端请求经由 `WorkspaceRoleFilter` 处理：读取 `X-Active-Workspace` 头，查询 `workspace_user` + `sys_role`，将空间角色对应的权限码注入 `LoginUser.authorities`，供后续 `@PreAuthorize` 等注解使用。
 - 角色或权限变更后，强制 Token 失效（通过 Redis 黑名单或版本号机制）。
 
 ---
