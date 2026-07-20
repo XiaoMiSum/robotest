@@ -61,6 +61,7 @@ migoo:
       - /api/auth/logout
       - /api/workspace/invitations/verify
       - /api/workspace/invitations/join
+      - /ws/**
       - /debug/**
 
 # MyBatis Plus 配置

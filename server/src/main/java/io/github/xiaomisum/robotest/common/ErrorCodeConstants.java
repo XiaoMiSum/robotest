@@ -4,6 +4,10 @@ import xyz.migoo.framework.common.exception.ErrorCode;
 
 public class ErrorCodeConstants {
 
+    // ========== 预置工作空间角色 ID（与 V5 迁移脚本一致） ==========
+    public static final String WORKSPACE_ROLE_ADMIN_ID  = "c0000000-0000-0000-0000-000000000001";
+    public static final String WORKSPACE_ROLE_MEMBER_ID = "c0000000-0000-0000-0000-000000000002";
+
     // ========== 参数校验 1,000,001,001-1,000,001,009 ==========
     public static final ErrorCode VALIDATION_FAILED = ErrorCode.of(1000001001, "参数校验失败");
     public static final ErrorCode USERNAME_EXISTS = ErrorCode.of(1000001002, "用户名已存在");
@@ -48,4 +52,20 @@ public class ErrorCodeConstants {
     public static final ErrorCode INVITATION_MAX_USES = ErrorCode.of(1000010030, "邀请链接已达到最大使用次数");
     public static final ErrorCode INVITATION_EXPIRED = ErrorCode.of(1000010031, "邀请链接已过期");
     public static final ErrorCode INVITATION_REVOKED = ErrorCode.of(1000010032, "邀请链接已被撤销");
+
+    // ========== 功能测试模块 1,000,011,001-1,000,011,017 ==========
+    public static final ErrorCode TEST_PLAN_NOT_FOUND = ErrorCode.of(1000011010, "测试计划不存在");
+    public static final ErrorCode TEST_REVIEW_NOT_FOUND = ErrorCode.of(1000011011, "评审不存在");
+    public static final ErrorCode REVIEW_NOT_INITIATOR = ErrorCode.of(1000011012, "非发起人不能完成评审");
+    public static final ErrorCode PLAN_HAS_UNTESTED_CASES = ErrorCode.of(1000011013, "计划关闭时存在未执行用例");
+    public static final ErrorCode NODE_VERSION_CONFLICT = ErrorCode.of(1000011014, "节点版本冲突，请刷新后重试");
+    public static final ErrorCode ONLY_CASE_NODE_CAN_MARK_REVIEW = ErrorCode.of(1000011015, "只有用例节点可标记评审结果");
+    public static final ErrorCode ONLY_ASSOCIATED_CASE_CAN_MARK_PLAN = ErrorCode.of(1000011016, "只有关联的用例节点可标记执行结果");
+    public static final ErrorCode ROOT_NODE_NOT_EXECUTABLE = ErrorCode.of(1000011017, "默认根节点不可执行");
+    public static final ErrorCode TEST_CASE_MODULE_NOT_FOUND = ErrorCode.of(1000011018, "模块不存在");
+    public static final ErrorCode TEST_CASE_MODULE_NAME_EXISTS = ErrorCode.of(1000011019, "同级模块名称已存在");
+    public static final ErrorCode TEST_CASE_MODULE_NOT_EMPTY = ErrorCode.of(1000011020, "目录不为空，无法删除");
+    public static final ErrorCode TEST_CASE_DOCUMENT_NOT_FOUND = ErrorCode.of(1000011021, "文档不存在");
+    public static final ErrorCode TEST_CASE_NODE_NOT_FOUND = ErrorCode.of(1000011022, "用例节点不存在");
+    public static final ErrorCode BUG_NOT_FOUND = ErrorCode.of(1000011023, "缺陷不存在");
 }
