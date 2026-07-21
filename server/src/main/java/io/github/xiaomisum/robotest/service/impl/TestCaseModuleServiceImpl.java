@@ -2,6 +2,7 @@ package io.github.xiaomisum.robotest.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import io.github.xiaomisum.robotest.common.ErrorCodeConstants;
+import io.github.xiaomisum.robotest.convert.TestCaseModuleConvertMapper;
 import io.github.xiaomisum.robotest.model.dto.request.TestCaseModuleCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.TestCaseModuleUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.TestCaseModuleTreeRespDTO;
@@ -70,9 +71,8 @@ public class TestCaseModuleServiceImpl implements TestCaseModuleService {
         }
 
         TestCaseModule module = new TestCaseModule();
-        module.setId(UUID.randomUUID());
         module.setProjectId(projectId);
-        module.setParentId(reqDTO.getParentId());
+        module.setParentId(reqDTO.getParentId() != null ? reqDTO.getParentId().toString() : null);
         module.setType(reqDTO.getType());
         module.setName(reqDTO.getName());
         module.setSortOrder(0);
@@ -80,7 +80,6 @@ public class TestCaseModuleServiceImpl implements TestCaseModuleService {
 
         if (TYPE_DOCUMENT.equals(reqDTO.getType())) {
             TestCaseNode rootNode = new TestCaseNode();
-            rootNode.setId(UUID.randomUUID());
             rootNode.setDocumentId(module.getId().toString());
             rootNode.setParentId(null);
             rootNode.setType("normal");
@@ -147,7 +146,7 @@ public class TestCaseModuleServiceImpl implements TestCaseModuleService {
     private List<TestCaseModuleTreeRespDTO> buildTree(List<TestCaseModuleTreeRespDTO> nodes) {
         Map<String, List<TestCaseModuleTreeRespDTO>> parentMap = nodes.stream()
                 .collect(Collectors.groupingBy(
-                        n -> n.getParentId() != null ? n.getParentId() : "root"));
+                        n -> n.getParentId() != null ? n.getParentId().toString() : "root"));
 
         List<TestCaseModuleTreeRespDTO> roots = parentMap.getOrDefault("root", new ArrayList<>());
         roots.forEach(root -> fillChildren(root, parentMap));
@@ -162,13 +161,6 @@ public class TestCaseModuleServiceImpl implements TestCaseModuleService {
     }
 
     private TestCaseModuleTreeRespDTO convertToTreeDTO(TestCaseModule module) {
-        TestCaseModuleTreeRespDTO dto = new TestCaseModuleTreeRespDTO();
-        dto.setId(module.getId().toString());
-        dto.setParentId(module.getParentId());
-        dto.setType(module.getType());
-        dto.setName(module.getName());
-        dto.setSortOrder(module.getSortOrder());
-        dto.setCreatedAt(module.getCreatedAt());
-        return dto;
+        return TestCaseModuleConvertMapper.INSTANCE.toTreeDTO(module);
     }
 }

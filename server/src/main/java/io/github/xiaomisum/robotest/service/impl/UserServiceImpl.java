@@ -3,6 +3,7 @@ package io.github.xiaomisum.robotest.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import io.github.xiaomisum.robotest.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.common.util.PasswordValidator;
+import io.github.xiaomisum.robotest.convert.UserConvertMapper;
 import io.github.xiaomisum.robotest.model.dto.request.UserBatchStatusReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.UserCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.UserUpdateReqDTO;
@@ -97,7 +98,6 @@ public class UserServiceImpl implements UserService {
         }
         // 创建用户
         SysUser user = new SysUser();
-        user.setId(UUID.randomUUID());
         user.setUsername(reqDTO.getUsername());
         user.setEmail(reqDTO.getEmail());
         user.setPasswordHash(passwordEncoder.encode(reqDTO.getPassword()));
@@ -108,9 +108,8 @@ public class UserServiceImpl implements UserService {
         if (!CollectionUtils.isEmpty(reqDTO.getRoleIds())) {
             List<SysUserRole> userRoles = reqDTO.getRoleIds().stream().map(roleId -> {
                 SysUserRole userRole = new SysUserRole();
-                userRole.setId(UUID.randomUUID());
                 userRole.setUserId(user.getId().toString());
-                userRole.setRoleId(roleId);
+                userRole.setRoleId(roleId.toString());
                 userRole.setAssignedAt(LocalDateTime.now());
                 return userRole;
             }).collect(Collectors.toList());
@@ -121,9 +120,8 @@ public class UserServiceImpl implements UserService {
         if (!CollectionUtils.isEmpty(reqDTO.getWorkspaceIds())) {
             List<WorkspaceUser> workspaceUsers = reqDTO.getWorkspaceIds().stream().map(wsId -> {
                 WorkspaceUser wu = new WorkspaceUser();
-                wu.setId(UUID.randomUUID());
                 wu.setUserId(user.getId().toString());
-                wu.setWorkspaceId(wsId);
+                wu.setWorkspaceId(wsId.toString());
                 wu.setWorkspaceRole(ErrorCodeConstants.WORKSPACE_ROLE_MEMBER_ID);
                 wu.setJoinedAt(LocalDateTime.now());
                 return wu;
@@ -154,9 +152,8 @@ public class UserServiceImpl implements UserService {
             if (!reqDTO.getRoleIds().isEmpty()) {
                 List<SysUserRole> userRoles = reqDTO.getRoleIds().stream().map(roleId -> {
                     SysUserRole userRole = new SysUserRole();
-                    userRole.setId(UUID.randomUUID());
                     userRole.setUserId(id);
-                    userRole.setRoleId(roleId);
+                    userRole.setRoleId(roleId.toString());
                     userRole.setAssignedAt(LocalDateTime.now());
                     return userRole;
                 }).collect(Collectors.toList());
@@ -170,9 +167,8 @@ public class UserServiceImpl implements UserService {
             if (!reqDTO.getWorkspaceIds().isEmpty()) {
                 List<WorkspaceUser> workspaceUsers = reqDTO.getWorkspaceIds().stream().map(wsId -> {
                     WorkspaceUser wu = new WorkspaceUser();
-                    wu.setId(UUID.randomUUID());
                     wu.setUserId(id);
-                    wu.setWorkspaceId(wsId);
+                    wu.setWorkspaceId(wsId.toString());
                     wu.setWorkspaceRole(ErrorCodeConstants.WORKSPACE_ROLE_MEMBER_ID);
                     wu.setJoinedAt(LocalDateTime.now());
                     return wu;
@@ -198,7 +194,7 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void batchUpdateStatus(UserBatchStatusReqDTO reqDTO) {
-        for (String userId : reqDTO.getUserIds()) {
+        for (UUID userId : reqDTO.getUserIds()) {
             SysUser user = userMapper.selectById(userId);
             if (user != null) {
                 user.setStatus(reqDTO.getStatus());
@@ -229,46 +225,26 @@ public class UserServiceImpl implements UserService {
     }
 
     private UserRespDTO convertToUserRespDTO(SysUser user) {
-        UserRespDTO dto = new UserRespDTO();
-        dto.setId(user.getId().toString());
-        dto.setUsername(user.getUsername());
-        dto.setEmail(user.getEmail());
-        dto.setAvatarUrl(user.getAvatarUrl());
-        dto.setStatus(user.getStatus());
-        dto.setCreatedAt(user.getCreatedAt());
-        dto.setUpdatedAt(user.getUpdatedAt());
+        UserRespDTO dto = UserConvertMapper.INSTANCE.toRespDTO(user);
 
-        // 查询角色
         List<SysUserRole> userRoles = userRoleMapper.selectList(SysUserRole::getUserId, user.getId());
         if (!userRoles.isEmpty()) {
             List<String> roleIds = userRoles.stream().map(SysUserRole::getRoleId).collect(Collectors.toList());
             List<SysRole> roles = roleMapper.selectList(SysRole::getId, roleIds);
-            dto.setRoles(roles.stream().map(r -> {
-                UserRespDTO.RoleSimple roleSimple = new UserRespDTO.RoleSimple();
-                roleSimple.setId(r.getId().toString());
-                roleSimple.setName(r.getName());
-                roleSimple.setType(r.getType());
-                return roleSimple;
-            }).collect(Collectors.toList()));
+            dto.setRoles(roles.stream().map(UserConvertMapper.INSTANCE::toRoleSimple).collect(Collectors.toList()));
         } else {
             dto.setRoles(new ArrayList<>());
         }
 
-        // 查询工作空间
         List<WorkspaceUser> workspaceUsers = workspaceUserMapper.selectList(WorkspaceUser::getUserId, user.getId());
         if (!workspaceUsers.isEmpty()) {
             List<String> wsIds = workspaceUsers.stream().map(WorkspaceUser::getWorkspaceId).collect(Collectors.toList());
             List<Workspace> workspaces = workspaceMapper.selectList(Workspace::getId, wsIds);
             dto.setWorkspaces(workspaces.stream().map(ws -> {
-                UserRespDTO.WorkspaceSimple wsSimple = new UserRespDTO.WorkspaceSimple();
-                wsSimple.setId(ws.getId().toString());
-                wsSimple.setName(ws.getName());
-                // 找到对应的 workspaceRole
-                workspaceUsers.stream()
+                WorkspaceUser matchedWs = workspaceUsers.stream()
                         .filter(wu -> wu.getWorkspaceId().equals(ws.getId()))
-                        .findFirst()
-                        .ifPresent(wu -> wsSimple.setWorkspaceRole(wu.getWorkspaceRole()));
-                return wsSimple;
+                        .findFirst().orElse(null);
+                return UserConvertMapper.INSTANCE.toWorkspaceSimple(ws, matchedWs);
             }).collect(Collectors.toList()));
         } else {
             dto.setWorkspaces(new ArrayList<>());
