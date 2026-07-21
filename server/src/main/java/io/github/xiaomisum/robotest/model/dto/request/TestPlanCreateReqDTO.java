@@ -6,6 +6,7 @@ import lombok.Data;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 @Data
 public class TestPlanCreateReqDTO {
@@ -15,7 +16,7 @@ public class TestPlanCreateReqDTO {
 
     private String description;
 
-    private String executorId;
+    private UUID executorId;
 
     private LocalDateTime startTime;
 
@@ -29,9 +30,9 @@ public class TestPlanCreateReqDTO {
     @Data
     public static class SelectedNode {
 
-        private String documentId;
+        private UUID documentId;
 
         @NotEmpty(message = "请选择用例")
-        private List<String> caseIds;
+        private List<UUID> caseIds;
     }
 }

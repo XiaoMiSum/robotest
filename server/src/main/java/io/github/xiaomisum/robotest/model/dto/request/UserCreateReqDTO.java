@@ -6,6 +6,7 @@ import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 import java.util.List;
+import java.util.UUID;
 
 @Data
 public class UserCreateReqDTO {
@@ -22,6 +23,6 @@ public class UserCreateReqDTO {
     @Size(min = 8, max = 64, message = "密码长度为8-64个字符")
     private String password;
 
-    private List<String> roleIds;
-    private List<String> workspaceIds;
+    private List<UUID> roleIds;
+    private List<UUID> workspaceIds;
 }

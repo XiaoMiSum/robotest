@@ -5,6 +5,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.UUID;
+
 @Data
 @Builder
 @NoArgsConstructor
@@ -23,7 +25,7 @@ public class InvitationJoinRespDTO {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class UserInfo {
-        private String id;
+        private UUID id;
         private String username;
         private String email;
     }
@@ -33,7 +35,7 @@ public class InvitationJoinRespDTO {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class ActiveWorkspaceInfo {
-        private String id;
+        private UUID id;
         private String name;
         private String workspaceRole;
     }

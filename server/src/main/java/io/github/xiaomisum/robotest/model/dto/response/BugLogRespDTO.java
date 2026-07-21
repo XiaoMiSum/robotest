@@ -3,12 +3,13 @@ package io.github.xiaomisum.robotest.model.dto.response;
 import lombok.Data;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Data
 public class BugLogRespDTO {
 
-    private String id;
-    private String operatorId;
+    private UUID id;
+    private UUID operatorId;
     private String operatorName;
     private String operationType;
     private String content;

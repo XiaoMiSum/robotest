@@ -44,7 +44,7 @@ public class BugController {
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestHeader("X-Active-Project") String projectId,
             @RequestBody @Valid BugCreateReqDTO reqDTO) {
-        return bugService.createBug(projectId, loginUser.getId(), reqDTO);
+        return bugService.createBug(projectId, loginUser.getId().toString(), reqDTO);
     }
 
     @PutMapping("/{id}")
@@ -52,7 +52,7 @@ public class BugController {
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable String id,
             @RequestBody @Valid BugUpdateReqDTO reqDTO) {
-        bugService.updateBug(id, loginUser.getId(), reqDTO);
+        bugService.updateBug(id, loginUser.getId().toString(), reqDTO);
     }
 
     @GetMapping("/{id}/logs")

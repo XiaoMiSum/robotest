@@ -3,11 +3,12 @@ package io.github.xiaomisum.robotest.model.dto.response;
 import lombok.Data;
 
 import java.util.List;
+import java.util.UUID;
 
 @Data
 public class RoleRespDTO {
 
-    private String id;
+    private UUID id;
     private String name;
     private String description;
     private String type;

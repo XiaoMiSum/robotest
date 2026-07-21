@@ -18,6 +18,7 @@ import xyz.migoo.framework.common.exception.util.ServiceExceptionUtil;
 
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -66,9 +67,9 @@ public class MyWorkspaceServiceimpl implements MyWorkspaceService {
         // 组装响应
         List<WorkspaceMyRespDTO> records = workspaceUserPage.getList().stream().map(wu -> {
             WorkspaceMyRespDTO dto = new WorkspaceMyRespDTO();
-            dto.setId(wu.getWorkspaceId());
+            dto.setId(UUID.fromString(wu.getWorkspaceId()));
             dto.setWorkspaceRole(wu.getWorkspaceRole());
-            dto.setDefaultProjectId(wu.getDefaultProjectId());
+            dto.setDefaultProjectId(wu.getDefaultProjectId() != null ? UUID.fromString(wu.getDefaultProjectId()) : null);
 
             Workspace workspace = workspaceMap.get(wu.getWorkspaceId());
             if (workspace != null) {

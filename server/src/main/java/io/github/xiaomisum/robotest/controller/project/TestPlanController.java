@@ -38,7 +38,7 @@ public class TestPlanController {
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestHeader("X-Active-Project") String projectId,
             @RequestBody @Valid TestPlanCreateReqDTO reqDTO) {
-        return testPlanService.createPlan(projectId, loginUser.getId(), reqDTO);
+        return testPlanService.createPlan(projectId, loginUser.getId().toString(), reqDTO);
     }
 
     @GetMapping("/{id}")
@@ -61,7 +61,7 @@ public class TestPlanController {
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable String id,
             @RequestBody @Valid TestPlanRecordReqDTO reqDTO) {
-        testPlanService.submitExecutionRecord(id, loginUser.getId(), reqDTO);
+        testPlanService.submitExecutionRecord(id, loginUser.getId().toString(), reqDTO);
     }
 
     @GetMapping("/{id}/nodes/{nodeId}/records")
@@ -76,13 +76,13 @@ public class TestPlanController {
     public void syncPlan(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable String id) {
-        testPlanService.syncPlan(id, loginUser.getId());
+        testPlanService.syncPlan(id, loginUser.getId().toString());
     }
 
     @PostMapping("/{id}/close")
     public void closePlan(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable String id) {
-        testPlanService.closePlan(id, loginUser.getId());
+        testPlanService.closePlan(id, loginUser.getId().toString());
     }
 }

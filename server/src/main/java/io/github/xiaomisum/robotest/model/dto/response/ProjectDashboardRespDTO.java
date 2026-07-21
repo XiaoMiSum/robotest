@@ -4,6 +4,7 @@ import lombok.Data;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 @Data
 public class ProjectDashboardRespDTO {
@@ -17,7 +18,7 @@ public class ProjectDashboardRespDTO {
 
     @Data
     public static class RecentItem {
-        private String id;
+        private UUID id;
         private String title;
         private String status;
         private LocalDateTime createdAt;

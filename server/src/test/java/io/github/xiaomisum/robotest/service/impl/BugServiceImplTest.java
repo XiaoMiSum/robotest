@@ -97,11 +97,23 @@ class BugServiceImplTest {
 
     @Test
     void createBug_success() {
+        doAnswer(inv -> {
+            ((Bug) inv.getArgument(0)).setId(UUID.randomUUID());
+            return 1;
+        }).when(bugMapper).insert(any(Bug.class));
+        doAnswer(inv -> {
+            ((BugLog) inv.getArgument(0)).setId(UUID.randomUUID());
+            return 1;
+        }).when(bugLogMapper).insert(any(BugLog.class));
+
         BugCreateReqDTO reqDTO = new BugCreateReqDTO();
         reqDTO.setTitle("New Bug");
         reqDTO.setSeverity("high");
         reqDTO.setPriority("high");
         reqDTO.setDescription("desc");
+        reqDTO.setAssigneeId(UUID.fromString("00000000-0000-0000-0000-000000000005"));
+        reqDTO.setRelatedCaseId(UUID.fromString("00000000-0000-0000-0000-000000000006"));
+        reqDTO.setRelatedPlanId(UUID.fromString("00000000-0000-0000-0000-000000000007"));
 
         String result = bugService.createBug(projectId, userId, reqDTO);
 

@@ -38,7 +38,7 @@ public class TestReviewController {
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestHeader("X-Active-Project") String projectId,
             @RequestBody @Valid TestReviewCreateReqDTO reqDTO) {
-        return testReviewService.createReview(projectId, loginUser.getId(), reqDTO);
+        return testReviewService.createReview(projectId, loginUser.getId().toString(), reqDTO);
     }
 
     @GetMapping("/{id}")
@@ -61,7 +61,7 @@ public class TestReviewController {
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable String id,
             @RequestBody @Valid TestReviewRecordReqDTO reqDTO) {
-        testReviewService.submitReviewRecord(id, loginUser.getId(), reqDTO);
+        testReviewService.submitReviewRecord(id, loginUser.getId().toString(), reqDTO);
     }
 
     @GetMapping("/{id}/nodes/{nodeId}/records")
@@ -76,13 +76,13 @@ public class TestReviewController {
     public void completeReview(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable String id) {
-        testReviewService.completeReview(id, loginUser.getId());
+        testReviewService.completeReview(id, loginUser.getId().toString());
     }
 
     @PostMapping("/{id}/sync")
     public void syncReview(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable String id) {
-        testReviewService.syncReview(id, loginUser.getId());
+        testReviewService.syncReview(id, loginUser.getId().toString());
     }
 }

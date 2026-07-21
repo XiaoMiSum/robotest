@@ -38,7 +38,7 @@ public class WorkspaceMemberController {
             @RequestHeader("X-Active-Workspace") String workspaceId,
             @RequestBody @Valid WorkspaceMembersAddReqDTO reqDTO) {
         WorkspaceMemberAddResultRespDTO result = workspaceMemberService.addMembers(
-                loginUser.getId(), workspaceId, reqDTO);
+                loginUser.getId().toString(), workspaceId, reqDTO);
         return Result.ok(result);
     }
 
@@ -48,7 +48,7 @@ public class WorkspaceMemberController {
             @RequestHeader("X-Active-Workspace") String workspaceId,
             @PathVariable String userId,
             @RequestBody WorkspaceMemberRoleUpdateReqDTO reqDTO) {
-        workspaceMemberService.updateMemberRole(loginUser.getId(), workspaceId, userId, reqDTO.getWorkspaceRole());
+        workspaceMemberService.updateMemberRole(loginUser.getId().toString(), workspaceId, userId, reqDTO.getWorkspaceRole());
         return Result.ok();
     }
 
@@ -57,7 +57,7 @@ public class WorkspaceMemberController {
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestHeader("X-Active-Workspace") String workspaceId,
             @PathVariable String userId) {
-        workspaceMemberService.removeMember(loginUser.getId(), workspaceId, userId);
+        workspaceMemberService.removeMember(loginUser.getId().toString(), workspaceId, userId);
         return Result.ok();
     }
 }

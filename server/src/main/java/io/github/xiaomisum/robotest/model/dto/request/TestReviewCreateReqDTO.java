@@ -5,6 +5,7 @@ import jakarta.validation.constraints.NotEmpty;
 import lombok.Data;
 
 import java.util.List;
+import java.util.UUID;
 
 @Data
 public class TestReviewCreateReqDTO {
@@ -15,7 +16,7 @@ public class TestReviewCreateReqDTO {
     private String description;
 
     @NotEmpty(message = "参与者不能为空")
-    private List<String> participantIds;
+    private List<UUID> participantIds;
 
     @NotEmpty(message = "请选择用例节点")
     private List<SelectedNode> selectedNodes;
@@ -23,9 +24,9 @@ public class TestReviewCreateReqDTO {
     @Data
     public static class SelectedNode {
 
-        private String documentId;
+        private UUID documentId;
 
         @NotEmpty(message = "请选择用例")
-        private List<String> caseIds;
+        private List<UUID> caseIds;
     }
 }

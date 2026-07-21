@@ -3,11 +3,12 @@ package io.github.xiaomisum.robotest.model.dto.response;
 import lombok.Data;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Data
 public class InvitationRespDTO {
 
-    private String id;
+    private UUID id;
     private String token;
     private LocalDateTime expiresAt;
     private Integer maxUses;
