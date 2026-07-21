@@ -4,7 +4,6 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.github.xiaomisum.robotest.common.Constants;
 import io.github.xiaomisum.robotest.model.entity.TestCaseDocumentLayout;
 import io.github.xiaomisum.robotest.model.entity.TestCaseNode;
 import io.github.xiaomisum.robotest.common.ErrorCodeConstants;
@@ -45,14 +44,14 @@ public class DocumentPersistenceHandler {
             JsonNode root = objectMapper.readTree(message);
             String type = root.has("type") ? root.get("type").asText() : null;
 
-            if (Constants.WebSocket.MSG_UPDATE_LAYOUT.equals(type)) {
+            if ("update_layout".equals(type)) {
                 persistLayout(docId, root);
             } else {
                 persistNodeUpdate(docId, root);
             }
         } catch (Exception e) {
             log.error("Persist error for doc {}: {}", docId, e.getMessage(), e);
-            sendError(session, Constants.WebSocket.ERROR_PERSIST_FAILED, "持久化失败: " + e.getMessage());
+            sendError(session, "PERSIST_FAILED", "持久化失败: " + e.getMessage());
         }
     }
 
@@ -62,7 +61,7 @@ public class DocumentPersistenceHandler {
         }
         try {
             String errorJson = objectMapper.writeValueAsString(
-                    Map.of("type", Constants.WebSocket.MSG_TYPE_ERROR, "code", code, "message", message));
+                    Map.of("type", "error", "code", code, "message", message));
             session.getBasicRemote().sendText(errorJson);
         } catch (IOException e) {
             log.warn("Failed to send error to client: {}", e.getMessage());
@@ -107,10 +106,10 @@ public class DocumentPersistenceHandler {
         }
 
         switch (op) {
-            case Constants.WebSocket.MSG_ADD_NODE -> handleAddNode(docId, data);
-            case Constants.WebSocket.MSG_UPDATE_ATTRS -> handleUpdateAttrs(data);
-            case Constants.WebSocket.MSG_DELETE_NODE -> handleDeleteNode(data);
-            case Constants.WebSocket.MSG_MOVE_NODE -> handleMoveNode(data);
+            case "add_node" -> handleAddNode(docId, data);
+            case "update_attrs" -> handleUpdateAttrs(data);
+            case "delete_node" -> handleDeleteNode(data);
+            case "move_node" -> handleMoveNode(data);
             default -> log.debug("Unknown op: {}", op);
         }
     }
@@ -130,7 +129,7 @@ public class DocumentPersistenceHandler {
         node.setId(UUID.fromString(nodeId));
         node.setDocumentId(docId);
         node.setParentId(data.has("parentId") ? data.get("parentId").asText(null) : null);
-        node.setType(data.has("type") ? data.get("type").asText(Constants.NodeType.NORMAL) : Constants.NodeType.NORMAL);
+        node.setType(data.has("type") ? data.get("type").asText("normal") : "normal");
         node.setTitle(data.has("title") ? data.get("title").asText("") : "");
         node.setPriority(data.has("priority") ? data.get("priority").asText(null) : null);
         node.setSortOrder(data.has("sortOrder") ? data.get("sortOrder").asInt(0) : 0);

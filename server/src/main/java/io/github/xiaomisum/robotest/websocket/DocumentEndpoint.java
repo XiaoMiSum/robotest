@@ -1,6 +1,5 @@
 package io.github.xiaomisum.robotest.websocket;
 
-import io.github.xiaomisum.robotest.common.Constants;
 import jakarta.websocket.*;
 import jakarta.websocket.server.PathParam;
 import jakarta.websocket.server.ServerEndpoint;
@@ -38,7 +37,7 @@ public class DocumentEndpoint {
     public void onOpen(Session session, @PathParam("docId") String docId) {
         this.docId = docId;
         this.session = session;
-        this.userId = session.getUserProperties().getOrDefault("userId", Constants.WebSocket.USER_ANONYMOUS).toString();
+        this.userId = session.getUserProperties().getOrDefault("userId", "anonymous").toString();
 
         roomManager.joinRoom(docId, session);
         log.info("User {} joined document room {}", userId, docId);

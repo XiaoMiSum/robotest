@@ -1,7 +1,6 @@
 package io.github.xiaomisum.robotest.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import io.github.xiaomisum.robotest.common.Constants;
 import io.github.xiaomisum.robotest.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.convert.TestReviewConvertMapper;
 import io.github.xiaomisum.robotest.model.dto.request.TestReviewCreateReqDTO;
@@ -88,7 +87,7 @@ public class TestReviewServiceImpl implements TestReviewService {
         review.setDescription(reqDTO.getDescription());
         review.setInitiatorId(userId);
         review.setParticipantIds(reqDTO.getParticipantIds());
-        review.setStatus(Constants.Status.IN_PROGRESS);
+        review.setStatus("in_progress");
         testReviewMapper.insert(review);
 
         generateSnapshots(review.getId().toString(), reqDTO.getSelectedNodes());
@@ -134,7 +133,7 @@ public class TestReviewServiceImpl implements TestReviewService {
         if (review == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_REVIEW_NOT_FOUND);
         }
-        if (!Constants.Status.IN_PROGRESS.equals(review.getStatus())) {
+        if (!"in_progress".equals(review.getStatus())) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.VALIDATION_FAILED);
         }
 
@@ -144,11 +143,11 @@ public class TestReviewServiceImpl implements TestReviewService {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_CASE_NODE_NOT_FOUND);
         }
 
-        if (Constants.ReviewOperation.MARK.equals(reqDTO.getOperationType())) {
-            if (!Constants.NodeType.CASE.equals(snapshotNode.getType())) {
+        if ("mark".equals(reqDTO.getOperationType())) {
+            if (!"case".equals(snapshotNode.getType())) {
                 throw ServiceExceptionUtil.get(ErrorCodeConstants.ONLY_CASE_NODE_CAN_MARK_REVIEW);
             }
-            if (!Constants.ReviewMark.PASS.equals(reqDTO.getMark()) && !Constants.ReviewMark.FAIL.equals(reqDTO.getMark())) {
+            if (!"pass".equals(reqDTO.getMark()) && !"fail".equals(reqDTO.getMark())) {
                 throw ServiceExceptionUtil.get(ErrorCodeConstants.VALIDATION_FAILED);
             }
             snapshotNode.setLastMark(reqDTO.getMark());
@@ -203,7 +202,7 @@ public class TestReviewServiceImpl implements TestReviewService {
         if (!review.getInitiatorId().equals(userId)) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.REVIEW_NOT_INITIATOR);
         }
-        review.setStatus(Constants.Status.COMPLETED);
+        review.setStatus("completed");
         testReviewMapper.updateById(review);
     }
 
@@ -217,7 +216,7 @@ public class TestReviewServiceImpl implements TestReviewService {
         if (!review.getInitiatorId().equals(userId)) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.REVIEW_NOT_INITIATOR);
         }
-        if (!Constants.Status.IN_PROGRESS.equals(review.getStatus())) {
+        if (!"in_progress".equals(review.getStatus())) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.VALIDATION_FAILED);
         }
 

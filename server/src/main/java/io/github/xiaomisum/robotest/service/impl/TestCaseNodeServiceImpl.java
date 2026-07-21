@@ -1,7 +1,6 @@
 package io.github.xiaomisum.robotest.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import io.github.xiaomisum.robotest.common.Constants;
 import io.github.xiaomisum.robotest.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.convert.TestCaseNodeConvertMapper;
 import io.github.xiaomisum.robotest.model.dto.response.TestCaseDocumentNodesRespDTO;
@@ -36,7 +35,7 @@ public class TestCaseNodeServiceImpl implements TestCaseNodeService {
     @Override
     public TestCaseDocumentNodesRespDTO getDocumentNodes(String documentId) {
         TestCaseModule document = testCaseModuleMapper.selectById(documentId);
-        if (document == null || !Constants.ModuleType.DOCUMENT.equals(document.getType())) {
+        if (document == null || !"document".equals(document.getType())) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_CASE_DOCUMENT_NOT_FOUND);
         }
 
@@ -74,9 +73,9 @@ public class TestCaseNodeServiceImpl implements TestCaseNodeService {
     private TestCaseNodeTreeRespDTO buildNodeTree(List<TestCaseNodeTreeRespDTO> nodes) {
         Map<String, List<TestCaseNodeTreeRespDTO>> parentMap = nodes.stream()
                 .collect(Collectors.groupingBy(
-                        n -> n.getParentId() != null ? n.getParentId().toString() : Constants.Tree.ROOT_KEY));
+                        n -> n.getParentId() != null ? n.getParentId().toString() : "root"));
 
-        List<TestCaseNodeTreeRespDTO> roots = parentMap.getOrDefault(Constants.Tree.ROOT_KEY, new ArrayList<>());
+        List<TestCaseNodeTreeRespDTO> roots = parentMap.getOrDefault("root", new ArrayList<>());
         roots.forEach(root -> fillChildren(root, parentMap));
         return roots.isEmpty() ? null : roots.get(0);
     }

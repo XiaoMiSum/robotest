@@ -2,7 +2,6 @@ package io.github.xiaomisum.robotest.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import tools.jackson.core.type.TypeReference;
-import io.github.xiaomisum.robotest.common.Constants;
 import io.github.xiaomisum.robotest.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.convert.RoleConvertMapper;
 import io.github.xiaomisum.robotest.model.dto.request.RoleCreateReqDTO;
@@ -48,12 +47,12 @@ public class RoleServiceImpl implements RoleService {
     @Override
     public List<RoleTreeRespDTO> getRoleTree() {
         List<SysRole> roles = roleMapper.selectList(new LambdaQueryWrapper<SysRole>()
-                .eq(SysRole::getType, Constants.RoleType.SYSTEM));
+                .eq(SysRole::getType, "system"));
 
         RoleTreeRespDTO groupNode = new RoleTreeRespDTO();
         groupNode.setId(UUID.nameUUIDFromBytes("type-system".getBytes()));
         groupNode.setName("系统角色");
-        groupNode.setType(Constants.RoleType.SYSTEM);
+        groupNode.setType("system");
         groupNode.setIsGroup(true);
         groupNode.setChildren(roles.stream().map(role -> {
             RoleTreeRespDTO node = new RoleTreeRespDTO();
@@ -78,7 +77,7 @@ public class RoleServiceImpl implements RoleService {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.ROLE_NAME_EXISTS);
         }
         // 校验类型
-        if (!Constants.RoleType.SYSTEM.equals(reqDTO.getType())) {
+        if (!"system".equals(reqDTO.getType())) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.ROLE_TYPE_ERROR);
         }
 

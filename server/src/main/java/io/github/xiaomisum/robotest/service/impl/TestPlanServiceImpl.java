@@ -1,7 +1,6 @@
 package io.github.xiaomisum.robotest.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import io.github.xiaomisum.robotest.common.Constants;
 import io.github.xiaomisum.robotest.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.convert.TestPlanConvertMapper;
 import io.github.xiaomisum.robotest.model.dto.request.TestPlanCreateReqDTO;
@@ -90,7 +89,7 @@ public class TestPlanServiceImpl implements TestPlanService {
         plan.setProjectId(projectId);
         plan.setName(reqDTO.getName());
         plan.setDescription(reqDTO.getDescription());
-        plan.setStatus(Constants.Status.NEW);
+        plan.setStatus("new");
         plan.setExecutorId(reqDTO.getExecutorId() != null ? reqDTO.getExecutorId().toString() : null);
         plan.setStartTime(reqDTO.getStartTime());
         plan.setEndTime(reqDTO.getEndTime());
@@ -140,7 +139,7 @@ public class TestPlanServiceImpl implements TestPlanService {
         if (plan == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_PLAN_NOT_FOUND);
         }
-        if (!Constants.Status.IN_PROGRESS.equals(plan.getStatus())) {
+        if (!"in_progress".equals(plan.getStatus())) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.VALIDATION_FAILED);
         }
 
@@ -152,7 +151,7 @@ public class TestPlanServiceImpl implements TestPlanService {
         if (!Boolean.TRUE.equals(snapshotNode.getIsAssociated())) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.ONLY_ASSOCIATED_CASE_CAN_MARK_PLAN);
         }
-        if (!Constants.NodeType.CASE.equals(snapshotNode.getType())) {
+        if (!"case".equals(snapshotNode.getType())) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.ONLY_ASSOCIATED_CASE_CAN_MARK_PLAN);
         }
 
@@ -207,7 +206,7 @@ public class TestPlanServiceImpl implements TestPlanService {
         if (!userId.equals(plan.getExecutorId())) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.NO_PERMISSION);
         }
-        if (!Constants.Status.IN_PROGRESS.equals(plan.getStatus())) {
+        if (!"in_progress".equals(plan.getStatus())) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.VALIDATION_FAILED);
         }
 
@@ -247,12 +246,12 @@ public class TestPlanServiceImpl implements TestPlanService {
                 new LambdaQueryWrapper<TestPlanNodeSnapshot>()
                         .eq(TestPlanNodeSnapshot::getPlanId, planId)
                         .eq(TestPlanNodeSnapshot::getIsAssociated, true)
-                        .eq(TestPlanNodeSnapshot::getLastResult, Constants.Status.UNTESTED));
+                        .eq(TestPlanNodeSnapshot::getLastResult, "untested"));
         if (untestedCount > 0) {
             log.warn("Plan {} closed with {} untested associated cases", planId, untestedCount);
         }
 
-        plan.setStatus(Constants.Status.CLOSED);
+        plan.setStatus("closed");
         testPlanMapper.updateById(plan);
     }
 
@@ -306,7 +305,7 @@ public class TestPlanServiceImpl implements TestPlanService {
                 nodeSnapshot.setType(node.getType());
                 nodeSnapshot.setPriority(node.getPriority());
                 nodeSnapshot.setIsAssociated(caseIds.contains(node.getId().toString()));
-                nodeSnapshot.setLastResult(Constants.Status.UNTESTED);
+                nodeSnapshot.setLastResult("untested");
                 nodeSnapshot.setSortOrder(node.getSortOrder());
                 planNodeSnapshotMapper.insert(nodeSnapshot);
             }
@@ -405,9 +404,9 @@ public class TestPlanServiceImpl implements TestPlanService {
             List<TestPlanSnapshotNodeRespDTO> nodes) {
         Map<String, List<TestPlanSnapshotNodeRespDTO>> parentMap = nodes.stream()
                 .collect(Collectors.groupingBy(
-                        n -> n.getParentId() != null ? n.getParentId().toString() : Constants.Tree.ROOT_KEY));
+                        n -> n.getParentId() != null ? n.getParentId().toString() : "root"));
 
-        List<TestPlanSnapshotNodeRespDTO> roots = parentMap.getOrDefault(Constants.Tree.ROOT_KEY, new ArrayList<>());
+        List<TestPlanSnapshotNodeRespDTO> roots = parentMap.getOrDefault("root", new ArrayList<>());
         roots.forEach(root -> fillSnapshotChildren(root, parentMap));
         return roots;
     }

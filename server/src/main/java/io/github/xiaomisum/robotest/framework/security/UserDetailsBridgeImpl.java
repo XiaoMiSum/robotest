@@ -1,7 +1,6 @@
 package io.github.xiaomisum.robotest.framework.security;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import io.github.xiaomisum.robotest.common.Constants;
 import io.github.xiaomisum.robotest.model.entity.SysRole;
 import io.github.xiaomisum.robotest.model.entity.SysUser;
 import io.github.xiaomisum.robotest.model.entity.SysUserRole;
@@ -9,13 +8,14 @@ import io.github.xiaomisum.robotest.repository.SysRoleMapper;
 import io.github.xiaomisum.robotest.repository.SysUserMapper;
 import io.github.xiaomisum.robotest.repository.SysUserRoleMapper;
 import jakarta.annotation.Resource;
-import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.stereotype.Component;
+import tools.jackson.core.type.TypeReference;
+import xyz.migoo.framework.common.util.json.JsonUtils;
 import xyz.migoo.framework.security.core.AuthUserDetails;
 import xyz.migoo.framework.security.core.authentication.UserDetailsBridge;
 
-import java.util.List;
+import java.util.*;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 @Component
@@ -36,13 +36,19 @@ public class UserDetailsBridgeImpl implements UserDetailsBridge {
                         .or()
                         .eq(SysUser::getEmail, username)
         );
-        return user != null ? toLoginUser(user) : null;
+        if (user == null) {
+            return null;
+        }
+        return toLoginUser(user);
     }
 
     @Override
     public AuthUserDetails<?, ?> loadByUserId(String userId) {
         SysUser user = userMapper.selectById(userId);
-        return user != null ? toLoginUser(user) : null;
+        if (user == null) {
+            return null;
+        }
+        return toLoginUser(user);
     }
 
     private LoginUser toLoginUser(SysUser user) {
@@ -52,25 +58,29 @@ public class UserDetailsBridgeImpl implements UserDetailsBridge {
         loginUser.setName(user.getUsername());
         loginUser.setEmail(user.getEmail());
         loginUser.setPassword(user.getPasswordHash());
-        loginUser.setEnabled(Constants.Status.ACTIVE.equals(user.getStatus()));
-        loginUser.setAuthorities(loadAuthorities(user.getId().toString()));
-        return loginUser;
-    }
+        loginUser.setEnabled("active".equals(user.getStatus()));
 
-    private List<? extends GrantedAuthority> loadAuthorities(String userId) {
-        List<SysUserRole> userRoles = userRoleMapper.selectList(SysUserRole::getUserId, userId);
-        if (userRoles.isEmpty()) {
-            return List.of();
+        List<SysUserRole> userRoles = userRoleMapper.selectList(SysUserRole::getUserId, user.getId());
+        if (!userRoles.isEmpty()) {
+            List<String> roleIds = userRoles.stream()
+                    .map(SysUserRole::getRoleId)
+                    .toList();
+            List<SysRole> roles = roleMapper.selectList(SysRole::getId, roleIds);
+            loginUser.setRoleNames(roles.stream()
+                    .map(SysRole::getName)
+                    .collect(Collectors.toSet()));
+            loginUser.setPermissionCodes(roles.stream()
+                    .flatMap(role -> {
+                        List<String> perms = role.getPermissions() != null ? role.getPermissions() : List.<String>of();
+                        return perms.stream();
+                    })
+                    .distinct()
+                    .collect(Collectors.toSet()));
+        } else {
+            loginUser.setRoleNames(Collections.emptySet());
+            loginUser.setPermissionCodes(Collections.emptySet());
         }
-        List<String> roleIds = userRoles.stream().map(SysUserRole::getRoleId).toList();
-        List<SysRole> roles = roleMapper.selectList(SysRole::getId, roleIds);
-        return roles.stream()
-                .flatMap(role -> Stream.concat(
-                        Stream.of(new SimpleGrantedAuthority(Constants.Auth.ROLE_PREFIX + role.getName())),
-                        role.getPermissions() != null
-                                ? role.getPermissions().stream().map(SimpleGrantedAuthority::new)
-                                : Stream.empty()))
-                .distinct()
-                .toList();
+
+        return loginUser;
     }
 }

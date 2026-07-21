@@ -1,6 +1,5 @@
 package io.github.xiaomisum.robotest.websocket;
 
-import io.github.xiaomisum.robotest.common.Constants;
 import io.github.xiaomisum.robotest.framework.security.LoginUser;
 import jakarta.websocket.HandshakeResponse;
 import jakarta.websocket.server.HandshakeRequest;
@@ -24,14 +23,14 @@ public class WebSocketAuthConfig {
                                          HandshakeRequest request,
                                          HandshakeResponse response) {
                 Map<String, List<String>> params = request.getParameterMap();
-                List<String> tokens = params.get(Constants.WebSocket.PARAM_TOKEN);
+                List<String> tokens = params.get("token");
                 if (tokens != null && !tokens.isEmpty()) {
                     String token = tokens.get(0);
                     try {
                         LoginUser loginUser = authUserDetailsFetcher.verifyToken(token);
                         if (loginUser != null) {
-                            sec.getUserProperties().put(Constants.WebSocket.PROP_USER_ID, loginUser.getId());
-                            sec.getUserProperties().put(Constants.WebSocket.PROP_LOGIN_USER, loginUser);
+                            sec.getUserProperties().put("userId", loginUser.getId());
+                            sec.getUserProperties().put("loginUser", loginUser);
                         }
                     } catch (Exception e) {
                         // Token invalid, userId stays null

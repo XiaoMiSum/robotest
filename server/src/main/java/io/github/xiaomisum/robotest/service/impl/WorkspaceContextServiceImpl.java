@@ -1,7 +1,6 @@
 package io.github.xiaomisum.robotest.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import io.github.xiaomisum.robotest.common.Constants;
 import io.github.xiaomisum.robotest.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.model.dto.request.WorkspaceDefaultProjectReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.WorkspaceUpdateReqDTO;
@@ -104,7 +103,7 @@ public class WorkspaceContextServiceImpl implements WorkspaceContextService {
             if (project == null || !project.getWorkspaceId().equals(workspaceId)) {
                 throw ServiceExceptionUtil.get(ErrorCodeConstants.PROJECT_NOT_FOUND);
             }
-            if (!Constants.Status.ACTIVE.equals(project.getStatus())) {
+            if (!"active".equals(project.getStatus())) {
                 throw ServiceExceptionUtil.get(ErrorCodeConstants.DEFAULT_PROJECT_MUST_BE_ACTIVE);
             }
         }
