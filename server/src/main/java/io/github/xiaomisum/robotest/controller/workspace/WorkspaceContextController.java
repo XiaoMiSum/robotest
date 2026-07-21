@@ -23,7 +23,7 @@ public class WorkspaceContextController {
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestHeader("X-Active-Workspace") String workspaceId) {
         WorkspaceContextRespDTO result = workspaceContextService.getWorkspaceContext(
-                loginUser.getId(), workspaceId);
+                loginUser.getId().toString(), workspaceId);
         return Result.ok(result);
     }
 
@@ -33,7 +33,7 @@ public class WorkspaceContextController {
             @RequestHeader("X-Active-Workspace") String workspaceId,
             @RequestBody @Valid WorkspaceUpdateReqDTO reqDTO) {
         WorkspaceContextRespDTO result = workspaceContextService.updateWorkspace(
-                loginUser.getId(), workspaceId, reqDTO);
+                loginUser.getId().toString(), workspaceId, reqDTO);
         return Result.ok(result);
     }
 
@@ -43,7 +43,7 @@ public class WorkspaceContextController {
             @RequestHeader("X-Active-Workspace") String workspaceId,
             @RequestBody WorkspaceDefaultProjectReqDTO reqDTO) {
         WorkspaceContextRespDTO result = workspaceContextService.setDefaultProject(
-                loginUser.getId(), workspaceId, reqDTO);
+                loginUser.getId().toString(), workspaceId, reqDTO);
         return Result.ok(result);
     }
 }

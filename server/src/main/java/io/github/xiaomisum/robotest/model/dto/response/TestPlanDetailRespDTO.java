@@ -4,11 +4,12 @@ import lombok.Data;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 @Data
 public class TestPlanDetailRespDTO {
 
-    private String id;
+    private UUID id;
     private String name;
     private String description;
     private String status;
@@ -20,7 +21,7 @@ public class TestPlanDetailRespDTO {
 
     @Data
     public static class ExecutorInfo {
-        private String id;
+        private UUID id;
         private String name;
     }
 }

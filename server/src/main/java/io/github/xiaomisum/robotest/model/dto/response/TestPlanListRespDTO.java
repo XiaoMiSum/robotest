@@ -3,11 +3,12 @@ package io.github.xiaomisum.robotest.model.dto.response;
 import lombok.Data;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Data
 public class TestPlanListRespDTO {
 
-    private String id;
+    private UUID id;
     private String name;
     private String status;
     private String environment;
@@ -18,7 +19,7 @@ public class TestPlanListRespDTO {
 
     @Data
     public static class ExecutorInfo {
-        private String id;
+        private UUID id;
         private String name;
     }
 }

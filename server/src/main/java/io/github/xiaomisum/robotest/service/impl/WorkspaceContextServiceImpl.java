@@ -18,6 +18,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import xyz.migoo.framework.common.exception.util.ServiceExceptionUtil;
 
+import java.util.UUID;
+
 @Service
 public class WorkspaceContextServiceImpl implements WorkspaceContextService {
 
@@ -96,8 +98,8 @@ public class WorkspaceContextServiceImpl implements WorkspaceContextService {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.NO_PERMISSION);
         }
 
-        if (StringUtils.hasText(reqDTO.getProjectId())) {
-            Project project = projectMapper.selectById(reqDTO.getProjectId());
+        if (reqDTO.getProjectId() != null) {
+            Project project = projectMapper.selectById(reqDTO.getProjectId().toString());
             if (project == null || !project.getWorkspaceId().equals(workspaceId)) {
                 throw ServiceExceptionUtil.get(ErrorCodeConstants.PROJECT_NOT_FOUND);
             }
@@ -106,7 +108,7 @@ public class WorkspaceContextServiceImpl implements WorkspaceContextService {
             }
         }
 
-        workspaceUser.setDefaultProjectId(reqDTO.getProjectId());
+        workspaceUser.setDefaultProjectId(reqDTO.getProjectId().toString());
         workspaceUserMapper.updateById(workspaceUser);
 
         return buildContextRespDTO(workspace, workspaceUser);
@@ -114,13 +116,13 @@ public class WorkspaceContextServiceImpl implements WorkspaceContextService {
 
     private WorkspaceContextRespDTO buildContextRespDTO(Workspace workspace, WorkspaceUser workspaceUser) {
         WorkspaceContextRespDTO dto = new WorkspaceContextRespDTO();
-        dto.setId(workspace.getId().toString());
+        dto.setId(workspace.getId());
         dto.setName(workspace.getName());
         dto.setDescription(workspace.getDescription());
         dto.setStatus(workspace.getStatus());
         dto.setCreatedAt(workspace.getCreatedAt());
         dto.setWorkspaceRole(workspaceUser.getWorkspaceRole());
-        dto.setDefaultProjectId(workspaceUser.getDefaultProjectId());
+        dto.setDefaultProjectId(workspaceUser.getDefaultProjectId() != null ? UUID.fromString(workspaceUser.getDefaultProjectId()) : null);
 
         Long memberCount = workspaceUserMapper.selectCount(
                 WorkspaceUser::getWorkspaceId, workspace.getId());

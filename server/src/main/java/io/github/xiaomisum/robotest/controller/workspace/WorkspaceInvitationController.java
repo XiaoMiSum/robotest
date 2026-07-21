@@ -27,7 +27,7 @@ public class WorkspaceInvitationController {
             @RequestHeader("X-Active-Workspace") String workspaceId,
             @RequestBody @Valid InvitationCreateReqDTO reqDTO) {
         InvitationRespDTO result = invitationService.createInvitation(
-                loginUser.getId(), workspaceId, reqDTO);
+                loginUser.getId().toString(), workspaceId, reqDTO);
         return Result.ok(result);
     }
 
@@ -47,7 +47,7 @@ public class WorkspaceInvitationController {
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestHeader("X-Active-Workspace") String workspaceId,
             @PathVariable String id) {
-        invitationService.revokeInvitation(loginUser.getId(), workspaceId, id);
+        invitationService.revokeInvitation(loginUser.getId().toString(), workspaceId, id);
         return Result.ok();
     }
 }

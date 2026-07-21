@@ -2,6 +2,8 @@ package io.github.xiaomisum.robotest.model.dto.request;
 
 import lombok.Data;
 
+import java.util.UUID;
+
 @Data
 public class BugUpdateReqDTO {
 
@@ -13,7 +15,7 @@ public class BugUpdateReqDTO {
 
     private String description;
 
-    private String assigneeId;
+    private UUID assigneeId;
 
     private String status;
 }

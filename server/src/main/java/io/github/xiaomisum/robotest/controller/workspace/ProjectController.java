@@ -30,7 +30,7 @@ public class ProjectController {
             @RequestParam(defaultValue = "1") Integer pageNo,
             @RequestParam(defaultValue = "20") Integer pageSize) {
         PageResult<ProjectRespDTO> result = projectService.getProjectPage(
-                workspaceId, loginUser.getId(), keyword, status, pageNo, pageSize);
+                workspaceId, loginUser.getId().toString(), keyword, status, pageNo, pageSize);
         return Result.ok(result);
     }
 
@@ -50,7 +50,7 @@ public class ProjectController {
             @RequestHeader("X-Active-Workspace") String workspaceId,
             @RequestBody @Valid ProjectCreateReqDTO reqDTO) {
         ProjectRespDTO result = projectService.createProject(
-                loginUser.getId(), workspaceId, reqDTO);
+                loginUser.getId().toString(), workspaceId, reqDTO);
         return Result.ok(result);
     }
 
@@ -61,7 +61,7 @@ public class ProjectController {
             @PathVariable String id,
             @RequestBody @Valid ProjectUpdateReqDTO reqDTO) {
         ProjectRespDTO result = projectService.updateProject(
-                loginUser.getId(), workspaceId, id, reqDTO);
+                loginUser.getId().toString(), workspaceId, id, reqDTO);
         return Result.ok(result);
     }
 
@@ -71,7 +71,7 @@ public class ProjectController {
             @RequestHeader("X-Active-Workspace") String workspaceId,
             @PathVariable String id,
             @RequestBody @Valid ProjectArchiveReqDTO reqDTO) {
-        projectService.archiveProject(loginUser.getId(), workspaceId, id, reqDTO);
+        projectService.archiveProject(loginUser.getId().toString(), workspaceId, id, reqDTO);
         return Result.ok();
     }
 
@@ -80,7 +80,7 @@ public class ProjectController {
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestHeader("X-Active-Workspace") String workspaceId,
             @PathVariable String id) {
-        projectService.deleteProject(loginUser.getId(), workspaceId, id);
+        projectService.deleteProject(loginUser.getId().toString(), workspaceId, id);
         return Result.ok();
     }
 }

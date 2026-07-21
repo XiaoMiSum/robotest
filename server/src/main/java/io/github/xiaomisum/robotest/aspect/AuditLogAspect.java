@@ -52,7 +52,7 @@ public class AuditLogAspect {
             // operator
             Authentication auth = SecurityContextHolder.getContext().getAuthentication();
             if (auth != null && auth.getPrincipal() instanceof io.github.xiaomisum.robotest.framework.security.LoginUser loginUser) {
-                record.setOperatorId(loginUser.getId());
+                record.setOperatorId(loginUser.getId().toString());
                 record.setOperatorName(loginUser.getUsername());
             }
 

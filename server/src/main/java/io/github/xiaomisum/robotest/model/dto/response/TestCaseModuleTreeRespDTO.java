@@ -4,12 +4,13 @@ import lombok.Data;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 @Data
 public class TestCaseModuleTreeRespDTO {
 
-    private String id;
-    private String parentId;
+    private UUID id;
+    private UUID parentId;
     private String type;
     private String name;
     private Integer sortOrder;

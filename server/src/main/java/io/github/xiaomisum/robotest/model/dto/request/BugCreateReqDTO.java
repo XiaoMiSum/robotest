@@ -3,6 +3,8 @@ package io.github.xiaomisum.robotest.model.dto.request;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 
+import java.util.UUID;
+
 @Data
 public class BugCreateReqDTO {
 
@@ -17,9 +19,9 @@ public class BugCreateReqDTO {
 
     private String description;
 
-    private String assigneeId;
+    private UUID assigneeId;
 
-    private String relatedCaseId;
+    private UUID relatedCaseId;
 
-    private String relatedPlanId;
+    private UUID relatedPlanId;
 }

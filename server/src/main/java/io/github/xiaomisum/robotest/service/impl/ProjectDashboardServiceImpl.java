@@ -67,7 +67,7 @@ public class ProjectDashboardServiceImpl implements ProjectDashboardService {
                         .last("LIMIT 5"));
         dto.setRecentReviews(recentReviews.stream().map(r -> {
             ProjectDashboardRespDTO.RecentItem item = new ProjectDashboardRespDTO.RecentItem();
-            item.setId(r.getId().toString());
+            item.setId(r.getId());
             item.setTitle(r.getTitle());
             item.setStatus(r.getStatus());
             item.setCreatedAt(r.getCreatedAt());
@@ -81,7 +81,7 @@ public class ProjectDashboardServiceImpl implements ProjectDashboardService {
                         .last("LIMIT 5"));
         dto.setRecentPlans(recentPlans.stream().map(p -> {
             ProjectDashboardRespDTO.RecentItem item = new ProjectDashboardRespDTO.RecentItem();
-            item.setId(p.getId().toString());
+            item.setId(p.getId());
             item.setTitle(p.getName());
             item.setStatus(p.getStatus());
             item.setCreatedAt(p.getCreatedAt());

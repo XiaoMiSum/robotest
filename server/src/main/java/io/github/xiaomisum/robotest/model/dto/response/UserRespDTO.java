@@ -4,11 +4,12 @@ import lombok.Data;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 @Data
 public class UserRespDTO {
 
-    private String id;
+    private UUID id;
     private String username;
     private String email;
     private String avatarUrl;
@@ -20,14 +21,14 @@ public class UserRespDTO {
 
     @Data
     public static class RoleSimple {
-        private String id;
+        private UUID id;
         private String name;
         private String type;
     }
 
     @Data
     public static class WorkspaceSimple {
-        private String id;
+        private UUID id;
         private String name;
         private String workspaceRole;
     }

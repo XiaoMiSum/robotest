@@ -56,7 +56,7 @@ public class WorkspaceMemberServiceImpl implements WorkspaceMemberService {
 
         List<WorkspaceMemberRespDTO> records = page.getList().stream().map(wu -> {
             WorkspaceMemberRespDTO dto = new WorkspaceMemberRespDTO();
-            dto.setUserId(wu.getUserId());
+            dto.setUserId(UUID.fromString(wu.getUserId()));
             dto.setWorkspaceRole(wu.getWorkspaceRole());
             dto.setJoinedAt(wu.getJoinedAt());
 
@@ -87,7 +87,7 @@ public class WorkspaceMemberServiceImpl implements WorkspaceMemberService {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.NO_PERMISSION);
         }
 
-        List<String> skippedUserIds = new ArrayList<>();
+        List<UUID> skippedUserIds = new ArrayList<>();
         int successCount = 0;
 
         for (WorkspaceMembersAddReqDTO.MemberItem member : reqDTO.getMembers()) {
@@ -106,8 +106,7 @@ public class WorkspaceMemberServiceImpl implements WorkspaceMemberService {
             }
 
             WorkspaceUser workspaceUser = new WorkspaceUser();
-            workspaceUser.setId(UUID.randomUUID());
-            workspaceUser.setUserId(member.getUserId());
+            workspaceUser.setUserId(member.getUserId().toString());
             workspaceUser.setWorkspaceId(workspaceId);
             workspaceUser.setWorkspaceRole(StringUtils.hasText(member.getWorkspaceRole())
                     ? member.getWorkspaceRole() : ErrorCodeConstants.WORKSPACE_ROLE_MEMBER_ID);

@@ -4,21 +4,22 @@ import lombok.Data;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 @Data
 public class TestReviewDetailRespDTO {
 
-    private String id;
+    private UUID id;
     private String title;
     private String description;
     private String status;
     private InitiatorInfo initiator;
-    private List<String> participantIds;
+    private List<UUID> participantIds;
     private LocalDateTime createdAt;
 
     @Data
     public static class InitiatorInfo {
-        private String id;
+        private UUID id;
         private String name;
     }
 }

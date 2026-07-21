@@ -4,10 +4,12 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
+import java.util.UUID;
+
 @Data
 public class TestCaseModuleCreateReqDTO {
 
-    private String parentId;
+    private UUID parentId;
 
     @NotBlank(message = "模块类型不能为空")
     private String type;

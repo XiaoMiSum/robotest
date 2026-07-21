@@ -16,6 +16,8 @@ import xyz.migoo.framework.common.pojo.PageResult;
 import xyz.migoo.framework.common.pojo.Result;
 
 import java.util.List;
+import java.util.UUID;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/admin/roles")
@@ -62,7 +64,7 @@ public class AdminRoleController {
     @PostMapping("/{id}/users")
     public Result<Void> addRoleUsers(@PathVariable String id,
                                       @RequestBody @Valid RoleUsersAddReqDTO reqDTO) {
-        roleService.addRoleUsers(id, reqDTO.getUserIds());
+        roleService.addRoleUsers(id, reqDTO.getUserIds().stream().map(UUID::toString).collect(Collectors.toList()));
         return Result.ok();
     }
 
