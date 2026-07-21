@@ -21,6 +21,7 @@ import xyz.migoo.framework.common.pojo.PageResult;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -53,15 +54,15 @@ class TestReviewServiceImplTest {
 
     @BeforeEach
     void setUp() {
-        projectId = "proj-1";
-        userId = "user-1";
-        reviewId = "review-1";
+        projectId = "00000000-0000-0000-0000-000000000001";
+        userId = "00000000-0000-0000-0000-000000000002";
+        reviewId = "00000000-0000-0000-0000-000000000003";
     }
 
     @Test
     void getReviewPage_success() {
         TestReview review = new TestReview();
-        review.setId(reviewId);
+        review.setId(UUID.fromString(reviewId));
         review.setTitle("Review 1");
         review.setStatus("in_progress");
         review.setInitiatorId(userId);
@@ -71,7 +72,7 @@ class TestReviewServiceImplTest {
         doReturn(page).when(testReviewMapper).selectPage(any(PageParam.class), any(LambdaQueryWrapper.class));
 
         SysUser initiator = new SysUser();
-        initiator.setId(userId);
+        initiator.setId(UUID.fromString(userId));
         initiator.setUsername("reviewer");
         when(userMapper.selectById(userId)).thenReturn(initiator);
 
@@ -113,7 +114,7 @@ class TestReviewServiceImplTest {
     @Test
     void getReviewDetail_success() {
         TestReview review = new TestReview();
-        review.setId(reviewId);
+        review.setId(UUID.fromString(reviewId));
         review.setTitle("Review");
         review.setInitiatorId(userId);
 
@@ -137,12 +138,12 @@ class TestReviewServiceImplTest {
     @Test
     void getReviewSnapshotTree_success() {
         TestReview review = new TestReview();
-        review.setId(reviewId);
+        review.setId(UUID.fromString(reviewId));
 
         when(testReviewMapper.selectById(reviewId)).thenReturn(review);
 
         TestReviewNodeSnapshot snapshot = new TestReviewNodeSnapshot();
-        snapshot.setId("snap-1");
+        snapshot.setId(UUID.fromString("00000000-0000-0000-0000-000000000004"));
         snapshot.setReviewId(reviewId);
         snapshot.setIsAssociated(true);
         snapshot.setParentId(null);
@@ -168,20 +169,20 @@ class TestReviewServiceImplTest {
     @Test
     void submitReviewRecord_success() {
         TestReview review = new TestReview();
-        review.setId(reviewId);
+        review.setId(UUID.fromString(reviewId));
         review.setStatus("in_progress");
 
         when(testReviewMapper.selectById(reviewId)).thenReturn(review);
 
         TestReviewNodeSnapshot snapshot = new TestReviewNodeSnapshot();
-        snapshot.setId("snap-1");
+        snapshot.setId(UUID.fromString("00000000-0000-0000-0000-000000000004"));
         snapshot.setReviewId(reviewId);
         snapshot.setType("case");
 
-        when(reviewNodeSnapshotMapper.selectById("snap-1")).thenReturn(snapshot);
+        when(reviewNodeSnapshotMapper.selectById("00000000-0000-0000-0000-000000000004")).thenReturn(snapshot);
 
         TestReviewRecordReqDTO reqDTO = new TestReviewRecordReqDTO();
-        reqDTO.setSnapshotNodeId("snap-1");
+        reqDTO.setSnapshotNodeId("00000000-0000-0000-0000-000000000004");
         reqDTO.setOperationType("mark");
         reqDTO.setMark("pass");
 
@@ -206,7 +207,7 @@ class TestReviewServiceImplTest {
     @Test
     void submitReviewRecord_notInProgress_throws() {
         TestReview review = new TestReview();
-        review.setId(reviewId);
+        review.setId(UUID.fromString(reviewId));
         review.setStatus("completed");
 
         when(testReviewMapper.selectById(reviewId)).thenReturn(review);
@@ -222,14 +223,14 @@ class TestReviewServiceImplTest {
     @Test
     void submitReviewRecord_snapshotNotFound_throws() {
         TestReview review = new TestReview();
-        review.setId(reviewId);
+        review.setId(UUID.fromString(reviewId));
         review.setStatus("in_progress");
 
         when(testReviewMapper.selectById(reviewId)).thenReturn(review);
-        when(reviewNodeSnapshotMapper.selectById("snap-1")).thenReturn(null);
+        when(reviewNodeSnapshotMapper.selectById("00000000-0000-0000-0000-000000000004")).thenReturn(null);
 
         TestReviewRecordReqDTO reqDTO = new TestReviewRecordReqDTO();
-        reqDTO.setSnapshotNodeId("snap-1");
+        reqDTO.setSnapshotNodeId("00000000-0000-0000-0000-000000000004");
         reqDTO.setOperationType("comment");
 
         assertThrows(ServiceException.class,
@@ -239,20 +240,20 @@ class TestReviewServiceImplTest {
     @Test
     void submitReviewRecord_markNonCaseNode_throws() {
         TestReview review = new TestReview();
-        review.setId(reviewId);
+        review.setId(UUID.fromString(reviewId));
         review.setStatus("in_progress");
 
         when(testReviewMapper.selectById(reviewId)).thenReturn(review);
 
         TestReviewNodeSnapshot snapshot = new TestReviewNodeSnapshot();
-        snapshot.setId("snap-1");
+        snapshot.setId(UUID.fromString("00000000-0000-0000-0000-000000000004"));
         snapshot.setReviewId(reviewId);
         snapshot.setType("normal");
 
-        when(reviewNodeSnapshotMapper.selectById("snap-1")).thenReturn(snapshot);
+        when(reviewNodeSnapshotMapper.selectById("00000000-0000-0000-0000-000000000004")).thenReturn(snapshot);
 
         TestReviewRecordReqDTO reqDTO = new TestReviewRecordReqDTO();
-        reqDTO.setSnapshotNodeId("snap-1");
+        reqDTO.setSnapshotNodeId("00000000-0000-0000-0000-000000000004");
         reqDTO.setOperationType("mark");
         reqDTO.setMark("pass");
 
@@ -263,9 +264,9 @@ class TestReviewServiceImplTest {
     @Test
     void getNodeReviewRecords_success() {
         TestReviewRecord record = new TestReviewRecord();
-        record.setId("rec-1");
+        record.setId(UUID.fromString("00000000-0000-0000-0000-000000000005"));
         record.setReviewId(reviewId);
-        record.setSnapshotNodeId("snap-1");
+        record.setSnapshotNodeId("00000000-0000-0000-0000-000000000004");
         record.setReviewerId(userId);
         record.setOperationType("mark");
         record.setMark("pass");
@@ -275,7 +276,7 @@ class TestReviewServiceImplTest {
         when(userMapper.selectById(userId)).thenReturn(null);
 
         List<TestReviewRecordRespDTO> result =
-                reviewService.getNodeReviewRecords(reviewId, "snap-1");
+                reviewService.getNodeReviewRecords(reviewId, "00000000-0000-0000-0000-000000000004");
 
         assertNotNull(result);
         assertEquals(1, result.size());
@@ -285,7 +286,7 @@ class TestReviewServiceImplTest {
     @Test
     void completeReview_success() {
         TestReview review = new TestReview();
-        review.setId(reviewId);
+        review.setId(UUID.fromString(reviewId));
         review.setInitiatorId(userId);
         review.setStatus("in_progress");
 
@@ -300,7 +301,7 @@ class TestReviewServiceImplTest {
     @Test
     void completeReview_notInitiator_throws() {
         TestReview review = new TestReview();
-        review.setId(reviewId);
+        review.setId(UUID.fromString(reviewId));
         review.setInitiatorId("other-user");
 
         when(testReviewMapper.selectById(reviewId)).thenReturn(review);
@@ -320,16 +321,16 @@ class TestReviewServiceImplTest {
     @Test
     void syncReview_success() {
         TestReview review = new TestReview();
-        review.setId(reviewId);
+        review.setId(UUID.fromString(reviewId));
         review.setInitiatorId(userId);
         review.setStatus("in_progress");
 
         when(testReviewMapper.selectById(reviewId)).thenReturn(review);
 
         TestReviewNodeSnapshot snapshot = new TestReviewNodeSnapshot();
-        snapshot.setId("snap-1");
+        snapshot.setId(UUID.fromString("00000000-0000-0000-0000-000000000004"));
         snapshot.setReviewId(reviewId);
-        snapshot.setOriginalNodeId("orig-1");
+        snapshot.setOriginalNodeId("00000000-0000-0000-0000-000000000006");
         snapshot.setTitle("Old Title");
         snapshot.setType("normal");
 
@@ -337,14 +338,14 @@ class TestReviewServiceImplTest {
                 .thenReturn(List.of(snapshot));
 
         TestCaseNode currentNode = new TestCaseNode();
-        currentNode.setId("orig-1");
+        currentNode.setId(UUID.fromString("00000000-0000-0000-0000-000000000006"));
         currentNode.setTitle("Updated Title");
         currentNode.setType("case");
         currentNode.setPriority("high");
         currentNode.setSortOrder(0);
         currentNode.setIsDeleted(false);
 
-        when(testCaseNodeMapper.selectById("orig-1")).thenReturn(currentNode);
+        when(testCaseNodeMapper.selectById("00000000-0000-0000-0000-000000000006")).thenReturn(currentNode);
 
         reviewService.syncReview(reviewId, userId);
 
@@ -356,7 +357,7 @@ class TestReviewServiceImplTest {
     @Test
     void syncReview_notInitiator_throws() {
         TestReview review = new TestReview();
-        review.setId(reviewId);
+        review.setId(UUID.fromString(reviewId));
         review.setInitiatorId("other-user");
         review.setStatus("in_progress");
 
@@ -369,7 +370,7 @@ class TestReviewServiceImplTest {
     @Test
     void syncReview_notInProgress_throws() {
         TestReview review = new TestReview();
-        review.setId(reviewId);
+        review.setId(UUID.fromString(reviewId));
         review.setInitiatorId(userId);
         review.setStatus("completed");
 
@@ -382,20 +383,20 @@ class TestReviewServiceImplTest {
     @Test
     void syncReview_deletedOriginal_marksDeleted() {
         TestReview review = new TestReview();
-        review.setId(reviewId);
+        review.setId(UUID.fromString(reviewId));
         review.setInitiatorId(userId);
         review.setStatus("in_progress");
 
         when(testReviewMapper.selectById(reviewId)).thenReturn(review);
 
         TestReviewNodeSnapshot snapshot = new TestReviewNodeSnapshot();
-        snapshot.setId("snap-1");
+        snapshot.setId(UUID.fromString("00000000-0000-0000-0000-000000000004"));
         snapshot.setReviewId(reviewId);
-        snapshot.setOriginalNodeId("orig-1");
+        snapshot.setOriginalNodeId("00000000-0000-0000-0000-000000000006");
 
         when(reviewNodeSnapshotMapper.selectList(any(LambdaQueryWrapper.class)))
                 .thenReturn(List.of(snapshot));
-        when(testCaseNodeMapper.selectById("orig-1")).thenReturn(null);
+        when(testCaseNodeMapper.selectById("00000000-0000-0000-0000-000000000006")).thenReturn(null);
 
         reviewService.syncReview(reviewId, userId);
 

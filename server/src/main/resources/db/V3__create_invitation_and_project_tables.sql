@@ -10,9 +10,9 @@ CREATE TABLE workspace_invitation (
     max_uses INT NULL,
     use_count INT NOT NULL DEFAULT 0,
     status VARCHAR(20) NOT NULL DEFAULT 'active',
+    is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    is_deleted BOOLEAN NOT NULL DEFAULT FALSE
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE UNIQUE INDEX uk_invitation_token ON workspace_invitation (token);
@@ -28,9 +28,9 @@ CREATE TABLE project (
     start_time TIMESTAMP NULL,
     end_time TIMESTAMP NULL,
     created_by UUID NOT NULL,
+    is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    is_deleted BOOLEAN NOT NULL DEFAULT FALSE
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE UNIQUE INDEX uk_project_workspace_name ON project (workspace_id, name);

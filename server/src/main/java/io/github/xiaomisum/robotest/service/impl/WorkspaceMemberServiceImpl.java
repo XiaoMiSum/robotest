@@ -106,7 +106,7 @@ public class WorkspaceMemberServiceImpl implements WorkspaceMemberService {
             }
 
             WorkspaceUser workspaceUser = new WorkspaceUser();
-            workspaceUser.setId(UUID.randomUUID().toString());
+            workspaceUser.setId(UUID.randomUUID());
             workspaceUser.setUserId(member.getUserId());
             workspaceUser.setWorkspaceId(workspaceId);
             workspaceUser.setWorkspaceRole(StringUtils.hasText(member.getWorkspaceRole())

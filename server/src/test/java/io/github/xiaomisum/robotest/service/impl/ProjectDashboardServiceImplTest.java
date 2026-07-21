@@ -13,6 +13,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -45,7 +46,7 @@ class ProjectDashboardServiceImplTest {
     @Test
     void getDashboard_withData() {
         TestCaseModule doc = new TestCaseModule();
-        doc.setId("doc-1");
+        doc.setId(UUID.fromString("00000000-0000-0000-0000-000000000001"));
         when(testCaseModuleMapper.selectList(any(LambdaQueryWrapper.class)))
                 .thenReturn(List.of(doc));
         when(testCaseNodeMapper.selectCount(any(LambdaQueryWrapper.class)))

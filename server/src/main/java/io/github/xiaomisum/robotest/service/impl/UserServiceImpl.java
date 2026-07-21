@@ -97,7 +97,7 @@ public class UserServiceImpl implements UserService {
         }
         // 创建用户
         SysUser user = new SysUser();
-        user.setId(UUID.randomUUID().toString());
+        user.setId(UUID.randomUUID());
         user.setUsername(reqDTO.getUsername());
         user.setEmail(reqDTO.getEmail());
         user.setPasswordHash(passwordEncoder.encode(reqDTO.getPassword()));
@@ -108,8 +108,8 @@ public class UserServiceImpl implements UserService {
         if (!CollectionUtils.isEmpty(reqDTO.getRoleIds())) {
             List<SysUserRole> userRoles = reqDTO.getRoleIds().stream().map(roleId -> {
                 SysUserRole userRole = new SysUserRole();
-                userRole.setId(UUID.randomUUID().toString());
-                userRole.setUserId(user.getId());
+                userRole.setId(UUID.randomUUID());
+                userRole.setUserId(user.getId().toString());
                 userRole.setRoleId(roleId);
                 userRole.setAssignedAt(LocalDateTime.now());
                 return userRole;
@@ -121,8 +121,8 @@ public class UserServiceImpl implements UserService {
         if (!CollectionUtils.isEmpty(reqDTO.getWorkspaceIds())) {
             List<WorkspaceUser> workspaceUsers = reqDTO.getWorkspaceIds().stream().map(wsId -> {
                 WorkspaceUser wu = new WorkspaceUser();
-                wu.setId(UUID.randomUUID().toString());
-                wu.setUserId(user.getId());
+                wu.setId(UUID.randomUUID());
+                wu.setUserId(user.getId().toString());
                 wu.setWorkspaceId(wsId);
                 wu.setWorkspaceRole(ErrorCodeConstants.WORKSPACE_ROLE_MEMBER_ID);
                 wu.setJoinedAt(LocalDateTime.now());
@@ -131,7 +131,7 @@ public class UserServiceImpl implements UserService {
             workspaceUsers.forEach(workspaceUserMapper::insert);
         }
 
-        return user.getId();
+        return user.getId().toString();
     }
 
     @Override
@@ -154,7 +154,7 @@ public class UserServiceImpl implements UserService {
             if (!reqDTO.getRoleIds().isEmpty()) {
                 List<SysUserRole> userRoles = reqDTO.getRoleIds().stream().map(roleId -> {
                     SysUserRole userRole = new SysUserRole();
-                    userRole.setId(UUID.randomUUID().toString());
+                    userRole.setId(UUID.randomUUID());
                     userRole.setUserId(id);
                     userRole.setRoleId(roleId);
                     userRole.setAssignedAt(LocalDateTime.now());
@@ -170,7 +170,7 @@ public class UserServiceImpl implements UserService {
             if (!reqDTO.getWorkspaceIds().isEmpty()) {
                 List<WorkspaceUser> workspaceUsers = reqDTO.getWorkspaceIds().stream().map(wsId -> {
                     WorkspaceUser wu = new WorkspaceUser();
-                    wu.setId(UUID.randomUUID().toString());
+                    wu.setId(UUID.randomUUID());
                     wu.setUserId(id);
                     wu.setWorkspaceId(wsId);
                     wu.setWorkspaceRole(ErrorCodeConstants.WORKSPACE_ROLE_MEMBER_ID);
@@ -230,7 +230,7 @@ public class UserServiceImpl implements UserService {
 
     private UserRespDTO convertToUserRespDTO(SysUser user) {
         UserRespDTO dto = new UserRespDTO();
-        dto.setId(user.getId());
+        dto.setId(user.getId().toString());
         dto.setUsername(user.getUsername());
         dto.setEmail(user.getEmail());
         dto.setAvatarUrl(user.getAvatarUrl());
@@ -245,7 +245,7 @@ public class UserServiceImpl implements UserService {
             List<SysRole> roles = roleMapper.selectList(SysRole::getId, roleIds);
             dto.setRoles(roles.stream().map(r -> {
                 UserRespDTO.RoleSimple roleSimple = new UserRespDTO.RoleSimple();
-                roleSimple.setId(r.getId());
+                roleSimple.setId(r.getId().toString());
                 roleSimple.setName(r.getName());
                 roleSimple.setType(r.getType());
                 return roleSimple;
@@ -261,7 +261,7 @@ public class UserServiceImpl implements UserService {
             List<Workspace> workspaces = workspaceMapper.selectList(Workspace::getId, wsIds);
             dto.setWorkspaces(workspaces.stream().map(ws -> {
                 UserRespDTO.WorkspaceSimple wsSimple = new UserRespDTO.WorkspaceSimple();
-                wsSimple.setId(ws.getId());
+                wsSimple.setId(ws.getId().toString());
                 wsSimple.setName(ws.getName());
                 // 找到对应的 workspaceRole
                 workspaceUsers.stream()

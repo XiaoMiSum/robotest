@@ -53,7 +53,7 @@ public class MyWorkspaceServiceimpl implements MyWorkspaceService {
                 .collect(Collectors.toList());
         Map<String, Workspace> workspaceMap = workspaceMapper.selectList(Workspace::getId, workspaceIds)
                 .stream()
-                .collect(Collectors.toMap(Workspace::getId, w -> w));
+                .collect(Collectors.toMap(w -> w.getId().toString(), w -> w));
 
         // 批量查询每个工作空间的成员数
         Map<String, Long> memberCountMap = workspaceUserPage.getList().stream()

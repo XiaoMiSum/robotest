@@ -24,6 +24,7 @@ import xyz.migoo.framework.common.pojo.PageResult;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -48,28 +49,28 @@ class BugServiceImplTest {
 
     @BeforeEach
     void setUp() {
-        projectId = "proj-1";
-        userId = "user-1";
-        bugId = "bug-1";
+        projectId = "00000000-0000-0000-0000-000000000001";
+        userId = "00000000-0000-0000-0000-000000000002";
+        bugId = "00000000-0000-0000-0000-000000000003";
     }
 
     @Test
     void getBugPage_withFilters() {
         Bug bug = new Bug();
-        bug.setId(bugId);
+        bug.setId(UUID.fromString(bugId));
         bug.setTitle("Test Bug");
         bug.setSeverity("high");
         bug.setPriority("high");
         bug.setStatus("new");
-        bug.setReporterId("user-1");
+        bug.setReporterId("00000000-0000-0000-0000-000000000004");
 
         PageResult<Bug> pageResult = new PageResult<>(List.of(bug), 1L);
         doReturn(pageResult).when(bugMapper).selectPage(any(PageParam.class), any(LambdaQueryWrapper.class));
 
         SysUser reporter = new SysUser();
-        reporter.setId("user-1");
+        reporter.setId(UUID.fromString("00000000-0000-0000-0000-000000000004"));
         reporter.setUsername("reporter");
-        when(userMapper.selectById("user-1")).thenReturn(reporter);
+        when(userMapper.selectById("00000000-0000-0000-0000-000000000004")).thenReturn(reporter);
 
         PageResult<BugListRespDTO> result = bugService.getBugPage(
                 projectId, "new", "high", "high", null, null, 1, 10);
@@ -112,7 +113,7 @@ class BugServiceImplTest {
     @Test
     void updateBug_success() {
         Bug bug = new Bug();
-        bug.setId(bugId);
+        bug.setId(UUID.fromString(bugId));
         bug.setTitle("Old Title");
         bug.setSeverity("low");
         bug.setPriority("low");
@@ -144,9 +145,9 @@ class BugServiceImplTest {
     @Test
     void getBugLogs_returnsLogs() {
         BugLog log = new BugLog();
-        log.setId("log-1");
+        log.setId(UUID.fromString("00000000-0000-0000-0000-000000000005"));
         log.setBugId(bugId);
-        log.setOperatorId("user-1");
+        log.setOperatorId("00000000-0000-0000-0000-000000000004");
         log.setOperationType("create");
         log.setContent("Created");
 
@@ -154,9 +155,9 @@ class BugServiceImplTest {
                 .thenReturn(List.of(log));
 
         SysUser operator = new SysUser();
-        operator.setId("user-1");
+        operator.setId(UUID.fromString("00000000-0000-0000-0000-000000000004"));
         operator.setUsername("operator");
-        when(userMapper.selectById("user-1")).thenReturn(operator);
+        when(userMapper.selectById("00000000-0000-0000-0000-000000000004")).thenReturn(operator);
 
         List<BugLogRespDTO> result = bugService.getBugLogs(bugId);
 

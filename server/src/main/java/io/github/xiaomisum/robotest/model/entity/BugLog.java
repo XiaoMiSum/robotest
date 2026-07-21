@@ -1,18 +1,15 @@
 package io.github.xiaomisum.robotest.model.entity;
 
-import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
-import xyz.migoo.framework.mybatis.core.dataobject.BaseDO;
+import xyz.migoo.framework.mybatis.core.dataobject.BaseUuidDO;
 
 @Data
 @EqualsAndHashCode(callSuper = true)
 @TableName("bug_log")
-public class BugLog extends BaseDO {
+public class BugLog extends BaseUuidDO<BugLog> {
 
-    @TableId
-    private String id;
     private String bugId;
     private String operatorId;
     private String operationType;

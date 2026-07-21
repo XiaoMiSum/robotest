@@ -57,7 +57,7 @@ public class TestPlanServiceImpl implements TestPlanService {
 
         List<TestPlanListRespDTO> dtos = page.getList().stream().map(plan -> {
             TestPlanListRespDTO dto = new TestPlanListRespDTO();
-            dto.setId(plan.getId());
+            dto.setId(plan.getId().toString());
             dto.setName(plan.getName());
             dto.setStatus(plan.getStatus());
             dto.setEnvironment(plan.getEnvironment());
@@ -69,7 +69,7 @@ public class TestPlanServiceImpl implements TestPlanService {
                 SysUser executor = userMapper.selectById(plan.getExecutorId());
                 if (executor != null) {
                     TestPlanListRespDTO.ExecutorInfo info = new TestPlanListRespDTO.ExecutorInfo();
-                    info.setId(executor.getId());
+                    info.setId(executor.getId().toString());
                     info.setName(executor.getUsername());
                     dto.setExecutor(info);
                 }
@@ -85,7 +85,7 @@ public class TestPlanServiceImpl implements TestPlanService {
     public TestPlanDetailRespDTO createPlan(String projectId, String userId,
                                              TestPlanCreateReqDTO reqDTO) {
         TestPlan plan = new TestPlan();
-        plan.setId(UUID.randomUUID().toString());
+        plan.setId(UUID.randomUUID());
         plan.setProjectId(projectId);
         plan.setName(reqDTO.getName());
         plan.setDescription(reqDTO.getDescription());
@@ -96,7 +96,7 @@ public class TestPlanServiceImpl implements TestPlanService {
         plan.setEnvironment(reqDTO.getEnvironment());
         testPlanMapper.insert(plan);
 
-        generateSnapshots(plan.getId(), reqDTO.getSelectedNodes());
+        generateSnapshots(plan.getId().toString(), reqDTO.getSelectedNodes());
 
         return convertToDetailDTO(plan);
     }
@@ -161,7 +161,7 @@ public class TestPlanServiceImpl implements TestPlanService {
         planNodeSnapshotMapper.updateById(snapshotNode);
 
         TestPlanExecutionRecord record = new TestPlanExecutionRecord();
-        record.setId(UUID.randomUUID().toString());
+        record.setId(UUID.randomUUID());
         record.setPlanId(planId);
         record.setSnapshotNodeId(reqDTO.getSnapshotNodeId());
         record.setExecutorId(userId);
@@ -181,7 +181,7 @@ public class TestPlanServiceImpl implements TestPlanService {
 
         return records.stream().map(record -> {
             TestPlanExecutionRecordRespDTO dto = new TestPlanExecutionRecordRespDTO();
-            dto.setId(record.getId());
+            dto.setId(record.getId().toString());
             dto.setSnapshotNodeId(record.getSnapshotNodeId());
             dto.setExecutorId(record.getExecutorId());
             dto.setResult(record.getResult());
@@ -279,9 +279,9 @@ public class TestPlanServiceImpl implements TestPlanService {
                     continue;
                 }
                 TestPlanModuleSnapshot snapshot = new TestPlanModuleSnapshot();
-                snapshot.setId(UUID.randomUUID().toString());
+                snapshot.setId(UUID.randomUUID());
                 snapshot.setPlanId(planId);
-                snapshot.setOriginalModuleId(original.getId());
+                snapshot.setOriginalModuleId(original.getId().toString());
                 snapshot.setParentId(findCopiedModuleParentId(original.getParentId(), planId));
                 snapshot.setName(original.getName());
                 snapshot.setType(original.getType());
@@ -298,15 +298,15 @@ public class TestPlanServiceImpl implements TestPlanService {
 
             for (TestCaseNode node : docNodes) {
                 TestPlanNodeSnapshot nodeSnapshot = new TestPlanNodeSnapshot();
-                nodeSnapshot.setId(UUID.randomUUID().toString());
+                nodeSnapshot.setId(UUID.randomUUID());
                 nodeSnapshot.setPlanId(planId);
-                nodeSnapshot.setOriginalNodeId(node.getId());
+                nodeSnapshot.setOriginalNodeId(node.getId().toString());
                 nodeSnapshot.setDocumentSnapshotId(snapshotDocId);
                 nodeSnapshot.setParentId(findCopiedNodeParentId(node.getParentId(), planId));
                 nodeSnapshot.setTitle(node.getTitle());
                 nodeSnapshot.setType(node.getType());
                 nodeSnapshot.setPriority(node.getPriority());
-                nodeSnapshot.setIsAssociated(caseIds.contains(node.getId()));
+                nodeSnapshot.setIsAssociated(caseIds.contains(node.getId().toString()));
                 nodeSnapshot.setLastResult("untested");
                 nodeSnapshot.setSortOrder(node.getSortOrder());
                 planNodeSnapshotMapper.insert(nodeSnapshot);
@@ -336,7 +336,7 @@ public class TestPlanServiceImpl implements TestPlanService {
                 new LambdaQueryWrapper<TestPlanModuleSnapshot>()
                         .eq(TestPlanModuleSnapshot::getPlanId, planId)
                         .eq(TestPlanModuleSnapshot::getOriginalModuleId, originalParentId));
-        return snapshot != null ? snapshot.getId() : null;
+        return snapshot != null ? snapshot.getId().toString() : null;
     }
 
     private String findSnapshotModuleId(String originalModuleId, String planId) {
@@ -344,7 +344,7 @@ public class TestPlanServiceImpl implements TestPlanService {
                 new LambdaQueryWrapper<TestPlanModuleSnapshot>()
                         .eq(TestPlanModuleSnapshot::getPlanId, planId)
                         .eq(TestPlanModuleSnapshot::getOriginalModuleId, originalModuleId));
-        return snapshot != null ? snapshot.getId() : null;
+        return snapshot != null ? snapshot.getId().toString() : null;
     }
 
     private String findCopiedNodeParentId(String originalParentId, String planId) {
@@ -355,7 +355,7 @@ public class TestPlanServiceImpl implements TestPlanService {
                 new LambdaQueryWrapper<TestPlanNodeSnapshot>()
                         .eq(TestPlanNodeSnapshot::getPlanId, planId)
                         .eq(TestPlanNodeSnapshot::getOriginalNodeId, originalParentId));
-        return snapshot != null ? snapshot.getId() : null;
+        return snapshot != null ? snapshot.getId().toString() : null;
     }
 
     private List<TestPlanSnapshotNodeRespDTO> pruneSnapshotTree(
@@ -422,7 +422,7 @@ public class TestPlanServiceImpl implements TestPlanService {
 
     private TestPlanDetailRespDTO convertToDetailDTO(TestPlan plan) {
         TestPlanDetailRespDTO dto = new TestPlanDetailRespDTO();
-        dto.setId(plan.getId());
+        dto.setId(plan.getId().toString());
         dto.setName(plan.getName());
         dto.setDescription(plan.getDescription());
         dto.setStatus(plan.getStatus());
@@ -435,7 +435,7 @@ public class TestPlanServiceImpl implements TestPlanService {
             SysUser executor = userMapper.selectById(plan.getExecutorId());
             if (executor != null) {
                 TestPlanDetailRespDTO.ExecutorInfo info = new TestPlanDetailRespDTO.ExecutorInfo();
-                info.setId(executor.getId());
+                info.setId(executor.getId().toString());
                 info.setName(executor.getUsername());
                 dto.setExecutor(info);
             }
@@ -445,7 +445,7 @@ public class TestPlanServiceImpl implements TestPlanService {
 
     private TestPlanSnapshotNodeRespDTO convertToSnapshotNodeDTO(TestPlanNodeSnapshot snapshot) {
         TestPlanSnapshotNodeRespDTO dto = new TestPlanSnapshotNodeRespDTO();
-        dto.setId(snapshot.getId());
+        dto.setId(snapshot.getId().toString());
         dto.setOriginalNodeId(snapshot.getOriginalNodeId());
         dto.setParentId(snapshot.getParentId());
         dto.setTitle(snapshot.getTitle());

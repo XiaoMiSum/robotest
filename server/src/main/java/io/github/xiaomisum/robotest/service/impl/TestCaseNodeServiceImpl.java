@@ -86,7 +86,7 @@ public class TestCaseNodeServiceImpl implements TestCaseNodeService {
 
     private TestCaseNodeTreeRespDTO convertToNodeDTO(TestCaseNode node) {
         TestCaseNodeTreeRespDTO dto = new TestCaseNodeTreeRespDTO();
-        dto.setId(node.getId());
+        dto.setId(node.getId().toString());
         dto.setParentId(node.getParentId());
         dto.setType(node.getType());
         dto.setTitle(node.getTitle());

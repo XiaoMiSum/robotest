@@ -18,6 +18,7 @@ import xyz.migoo.framework.common.exception.ServiceException;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -44,7 +45,7 @@ class TestCaseModuleServiceImplTest {
     @Test
     void getModuleTree_withModules() {
         TestCaseModule root = new TestCaseModule();
-        root.setId("root-1");
+        root.setId(UUID.fromString("00000000-0000-0000-0000-000000000001"));
         root.setProjectId(projectId);
         root.setParentId(null);
         root.setType("directory");
@@ -122,7 +123,7 @@ class TestCaseModuleServiceImplTest {
         reqDTO.setName("Existing");
 
         TestCaseModule existing = new TestCaseModule();
-        existing.setId("exist-1");
+        existing.setId(UUID.fromString("00000000-0000-0000-0000-00000000000c"));
         when(testCaseModuleMapper.selectOne(any(LambdaQueryWrapper.class)))
                 .thenReturn(existing);
 
@@ -146,7 +147,7 @@ class TestCaseModuleServiceImplTest {
     @Test
     void updateModule_success() {
         TestCaseModule module = new TestCaseModule();
-        module.setId("mod-1");
+        module.setId(UUID.fromString("00000000-0000-0000-0000-00000000000a"));
         module.setProjectId(projectId);
         module.setParentId(null);
         module.setName("Old Name");
@@ -179,7 +180,7 @@ class TestCaseModuleServiceImplTest {
     @Test
     void updateModule_duplicateName_throws() {
         TestCaseModule module = new TestCaseModule();
-        module.setId("mod-1");
+        module.setId(UUID.fromString("00000000-0000-0000-0000-00000000000a"));
         module.setProjectId(projectId);
         module.setParentId(null);
         module.setName("Old Name");
@@ -187,7 +188,7 @@ class TestCaseModuleServiceImplTest {
         when(testCaseModuleMapper.selectById("mod-1")).thenReturn(module);
 
         TestCaseModule duplicate = new TestCaseModule();
-        duplicate.setId("mod-2");
+        duplicate.setId(UUID.fromString("00000000-0000-0000-0000-00000000000b"));
         when(testCaseModuleMapper.selectOne(any(LambdaQueryWrapper.class)))
                 .thenReturn(duplicate);
 
@@ -209,7 +210,7 @@ class TestCaseModuleServiceImplTest {
     @Test
     void deleteModule_directoryWithChildren_throws() {
         TestCaseModule module = new TestCaseModule();
-        module.setId("mod-1");
+        module.setId(UUID.fromString("00000000-0000-0000-0000-00000000000a"));
         module.setType("directory");
 
         when(testCaseModuleMapper.selectById("mod-1")).thenReturn(module);
@@ -223,7 +224,7 @@ class TestCaseModuleServiceImplTest {
     @Test
     void deleteModule_directoryEmpty_success() {
         TestCaseModule module = new TestCaseModule();
-        module.setId("mod-1");
+        module.setId(UUID.fromString("00000000-0000-0000-0000-00000000000a"));
         module.setType("directory");
 
         when(testCaseModuleMapper.selectById("mod-1")).thenReturn(module);
@@ -238,7 +239,7 @@ class TestCaseModuleServiceImplTest {
     @Test
     void deleteModule_document_deletesNodes() {
         TestCaseModule module = new TestCaseModule();
-        module.setId("doc-1");
+        module.setId(UUID.fromString("00000000-0000-0000-0000-000000000005"));
         module.setType("document");
 
         when(testCaseModuleMapper.selectById("doc-1")).thenReturn(module);

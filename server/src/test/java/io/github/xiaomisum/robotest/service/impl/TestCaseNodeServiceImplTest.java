@@ -19,6 +19,7 @@ import xyz.migoo.framework.common.exception.ServiceException;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -42,20 +43,20 @@ class TestCaseNodeServiceImplTest {
 
     @BeforeEach
     void setUp() {
-        documentId = "doc-1";
-        caseId = "case-1";
+        documentId = "00000000-0000-0000-0000-000000000001";
+        caseId = "00000000-0000-0000-0000-000000000002";
     }
 
     @Test
     void getDocumentNodes_success() {
         TestCaseModule doc = new TestCaseModule();
-        doc.setId(documentId);
+        doc.setId(UUID.fromString(documentId));
         doc.setType("document");
 
         when(testCaseModuleMapper.selectById(documentId)).thenReturn(doc);
 
         TestCaseNode root = new TestCaseNode();
-        root.setId("node-1");
+        root.setId(UUID.fromString("00000000-0000-0000-0000-000000000003"));
         root.setDocumentId(documentId);
         root.setParentId(null);
         root.setType("normal");
@@ -67,7 +68,7 @@ class TestCaseNodeServiceImplTest {
                 .thenReturn(List.of(root));
 
         TestCaseDocumentLayout layout = new TestCaseDocumentLayout();
-        layout.setId("layout-1");
+        layout.setId(UUID.fromString("00000000-0000-0000-0000-000000000004"));
         layout.setDocumentId(documentId);
         layout.setLayoutJson("{\"x\":0,\"y\":0}");
         when(testCaseDocumentLayoutMapper.selectOne(any(LambdaQueryWrapper.class)))
@@ -84,7 +85,7 @@ class TestCaseNodeServiceImplTest {
     @Test
     void getDocumentNodes_noLayout() {
         TestCaseModule doc = new TestCaseModule();
-        doc.setId(documentId);
+        doc.setId(UUID.fromString(documentId));
         doc.setType("document");
 
         when(testCaseModuleMapper.selectById(documentId)).thenReturn(doc);
@@ -110,7 +111,7 @@ class TestCaseNodeServiceImplTest {
     @Test
     void getDocumentNodes_notDocumentType_throws() {
         TestCaseModule module = new TestCaseModule();
-        module.setId(documentId);
+        module.setId(UUID.fromString(documentId));
         module.setType("directory");
 
         when(testCaseModuleMapper.selectById(documentId)).thenReturn(module);
@@ -122,7 +123,7 @@ class TestCaseNodeServiceImplTest {
     @Test
     void getCaseDetail_success() {
         TestCaseNode node = new TestCaseNode();
-        node.setId(caseId);
+        node.setId(UUID.fromString(caseId));
         node.setDocumentId(documentId);
         node.setType("case");
         node.setTitle("Test Case");

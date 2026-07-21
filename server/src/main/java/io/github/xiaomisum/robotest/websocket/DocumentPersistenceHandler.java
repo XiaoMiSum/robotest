@@ -23,6 +23,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Component
 public class DocumentPersistenceHandler {
@@ -84,7 +85,7 @@ public class DocumentPersistenceHandler {
             testCaseDocumentLayoutMapper.updateById(existing);
         } else {
             TestCaseDocumentLayout layout = new TestCaseDocumentLayout();
-            layout.setId(UUID.randomUUID().toString());
+            layout.setId(UUID.randomUUID());
             layout.setDocumentId(docId);
             layout.setLayoutJson(layoutJson);
             testCaseDocumentLayoutMapper.insert(layout);
@@ -119,13 +120,13 @@ public class DocumentPersistenceHandler {
             return;
         }
 
-        TestCaseNode existing = testCaseNodeMapper.selectById(nodeId);
+        TestCaseNode existing = testCaseNodeMapper.selectById(UUID.fromString(nodeId));
         if (existing != null) {
             return;
         }
 
         TestCaseNode node = new TestCaseNode();
-        node.setId(nodeId);
+        node.setId(UUID.fromString(nodeId));
         node.setDocumentId(docId);
         node.setParentId(data.has("parentId") ? data.get("parentId").asText(null) : null);
         node.setType(data.has("type") ? data.get("type").asText("normal") : "normal");
@@ -142,7 +143,7 @@ public class DocumentPersistenceHandler {
             return;
         }
 
-        TestCaseNode node = testCaseNodeMapper.selectById(nodeId);
+        TestCaseNode node = testCaseNodeMapper.selectById(UUID.fromString(nodeId));
         if (node == null) {
             return;
         }
@@ -151,7 +152,7 @@ public class DocumentPersistenceHandler {
         int newVersion = currentVersion + 1;
 
         LambdaUpdateWrapper<TestCaseNode> updateWrapper = new LambdaUpdateWrapper<TestCaseNode>()
-                .eq(TestCaseNode::getId, nodeId)
+                .eq(TestCaseNode::getId, UUID.fromString(nodeId))
                 .eq(TestCaseNode::getVersion, currentVersion)
                 .set(TestCaseNode::getVersion, newVersion);
 
@@ -182,16 +183,16 @@ public class DocumentPersistenceHandler {
         List<String> toDelete = new ArrayList<>();
         collectDescendants(nodeId, toDelete);
         toDelete.add(nodeId);
-        testCaseNodeMapper.deleteBatchIds(toDelete);
+        testCaseNodeMapper.deleteBatchIds(toDelete.stream().map(UUID::fromString).collect(Collectors.toList()));
     }
 
     private void collectDescendants(String parentId, List<String> result) {
         List<TestCaseNode> children = testCaseNodeMapper.selectList(
                 new LambdaQueryWrapper<TestCaseNode>()
-                        .eq(TestCaseNode::getParentId, parentId));
+                        .eq(TestCaseNode::getParentId, UUID.fromString(parentId)));
         for (TestCaseNode child : children) {
-            result.add(child.getId());
-            collectDescendants(child.getId(), result);
+            result.add(child.getId().toString());
+            collectDescendants(child.getId().toString(), result);
         }
     }
 
@@ -204,7 +205,7 @@ public class DocumentPersistenceHandler {
             return;
         }
 
-        TestCaseNode node = testCaseNodeMapper.selectById(nodeId);
+        TestCaseNode node = testCaseNodeMapper.selectById(UUID.fromString(nodeId));
         if (node == null) {
             return;
         }
@@ -213,12 +214,12 @@ public class DocumentPersistenceHandler {
         int newVersion = currentVersion + 1;
 
         LambdaUpdateWrapper<TestCaseNode> updateWrapper = new LambdaUpdateWrapper<TestCaseNode>()
-                .eq(TestCaseNode::getId, nodeId)
+                .eq(TestCaseNode::getId, UUID.fromString(nodeId))
                 .eq(TestCaseNode::getVersion, currentVersion)
                 .set(TestCaseNode::getVersion, newVersion);
 
         if (newParentId != null) {
-            updateWrapper.set(TestCaseNode::getParentId, newParentId);
+            updateWrapper.set(TestCaseNode::getParentId, UUID.fromString(newParentId));
         }
         if (sortOrder != null) {
             updateWrapper.set(TestCaseNode::getSortOrder, sortOrder);
