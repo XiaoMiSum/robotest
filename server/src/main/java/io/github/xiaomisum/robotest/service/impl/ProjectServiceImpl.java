@@ -3,6 +3,7 @@ package io.github.xiaomisum.robotest.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import io.github.xiaomisum.robotest.common.ErrorCodeConstants;
+import io.github.xiaomisum.robotest.convert.ProjectConvertMapper;
 import io.github.xiaomisum.robotest.model.dto.request.ProjectArchiveReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.ProjectCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.ProjectUpdateReqDTO;
@@ -64,7 +65,14 @@ public class ProjectServiceImpl implements ProjectService {
         String defaultProjectId = currentUser != null ? currentUser.getDefaultProjectId() : null;
 
         List<ProjectRespDTO> records = page.getList().stream()
-                .map(p -> convertToRespDTO(p, defaultProjectId))
+                .map(p -> {
+                    ProjectRespDTO dto = ProjectConvertMapper.INSTANCE.toRespDTO(p, defaultProjectId);
+                    SysUser creator = userMapper.selectById(p.getCreatedBy());
+                    dto.setCreatedBy(ProjectConvertMapper.INSTANCE.toCreatorInfo(
+                            creator != null ? creator.getId() : null,
+                            creator != null ? creator.getUsername() : null));
+                    return dto;
+                })
                 .collect(Collectors.toList());
 
         return new PageResult<>(records, page.getTotal());
@@ -76,7 +84,12 @@ public class ProjectServiceImpl implements ProjectService {
         if (project == null || !project.getWorkspaceId().equals(workspaceId)) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.PROJECT_NOT_FOUND);
         }
-        return convertToRespDTO(project, null);
+        ProjectRespDTO dto = ProjectConvertMapper.INSTANCE.toRespDTO(project, null);
+        SysUser creator = userMapper.selectById(project.getCreatedBy());
+        dto.setCreatedBy(ProjectConvertMapper.INSTANCE.toCreatorInfo(
+                creator != null ? creator.getId() : null,
+                creator != null ? creator.getUsername() : null));
+        return dto;
     }
 
     @Override
@@ -104,7 +117,6 @@ public class ProjectServiceImpl implements ProjectService {
         }
 
         Project project = new Project();
-        project.setId(UUID.randomUUID());
         project.setWorkspaceId(workspaceId);
         project.setName(reqDTO.getName());
         project.setDescription(reqDTO.getDescription());
@@ -114,7 +126,12 @@ public class ProjectServiceImpl implements ProjectService {
         project.setCreatedBy(userId);
         projectMapper.insert(project);
 
-        return convertToRespDTO(project, null);
+        ProjectRespDTO dto = ProjectConvertMapper.INSTANCE.toRespDTO(project, null);
+        SysUser creator = userMapper.selectById(project.getCreatedBy());
+        dto.setCreatedBy(ProjectConvertMapper.INSTANCE.toCreatorInfo(
+                creator != null ? creator.getId() : null,
+                creator != null ? creator.getUsername() : null));
+        return dto;
     }
 
     @Override
@@ -166,7 +183,12 @@ public class ProjectServiceImpl implements ProjectService {
         }
         projectMapper.updateById(project);
 
-        return convertToRespDTO(project, null);
+        ProjectRespDTO dto = ProjectConvertMapper.INSTANCE.toRespDTO(project, null);
+        SysUser creator = userMapper.selectById(project.getCreatedBy());
+        dto.setCreatedBy(ProjectConvertMapper.INSTANCE.toCreatorInfo(
+                creator != null ? creator.getId() : null,
+                creator != null ? creator.getUsername() : null));
+        return dto;
     }
 
     @Override
@@ -225,27 +247,5 @@ public class ProjectServiceImpl implements ProjectService {
                         .eq(WorkspaceUser::getWorkspaceId, workspaceId)
                         .eq(WorkspaceUser::getDefaultProjectId, projectId)
                         .set(WorkspaceUser::getDefaultProjectId, null));
-    }
-
-    private ProjectRespDTO convertToRespDTO(Project project, String defaultProjectId) {
-        ProjectRespDTO dto = new ProjectRespDTO();
-        dto.setId(project.getId().toString());
-        dto.setName(project.getName());
-        dto.setDescription(project.getDescription());
-        dto.setStatus(project.getStatus());
-        dto.setIsDefault(project.getId().equals(defaultProjectId));
-        dto.setStartTime(project.getStartTime());
-        dto.setEndTime(project.getEndTime());
-        dto.setCreatedAt(project.getCreatedAt());
-
-        SysUser creator = userMapper.selectById(project.getCreatedBy());
-        if (creator != null) {
-            ProjectRespDTO.CreatorInfo creatorInfo = new ProjectRespDTO.CreatorInfo();
-            creatorInfo.setId(creator.getId().toString());
-            creatorInfo.setName(creator.getUsername());
-            dto.setCreatedBy(creatorInfo);
-        }
-
-        return dto;
     }
 }
