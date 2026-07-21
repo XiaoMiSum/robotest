@@ -3,6 +3,7 @@ package io.github.xiaomisum.robotest.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import tools.jackson.core.type.TypeReference;
 import io.github.xiaomisum.robotest.common.ErrorCodeConstants;
+import io.github.xiaomisum.robotest.convert.RoleConvertMapper;
 import io.github.xiaomisum.robotest.model.dto.request.RoleCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.RolePermissionsUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.RoleUpdateReqDTO;
@@ -49,13 +50,13 @@ public class RoleServiceImpl implements RoleService {
                 .eq(SysRole::getType, "system"));
 
         RoleTreeRespDTO groupNode = new RoleTreeRespDTO();
-        groupNode.setId("type-system");
+        groupNode.setId(UUID.nameUUIDFromBytes("type-system".getBytes()));
         groupNode.setName("系统角色");
         groupNode.setType("system");
         groupNode.setIsGroup(true);
         groupNode.setChildren(roles.stream().map(role -> {
             RoleTreeRespDTO node = new RoleTreeRespDTO();
-            node.setId(role.getId().toString());
+            node.setId(role.getId());
             node.setName(role.getName());
             node.setType(role.getType());
             node.setIsSystem(role.getIsSystem());
@@ -81,11 +82,10 @@ public class RoleServiceImpl implements RoleService {
         }
 
         SysRole role = new SysRole();
-        role.setId(UUID.randomUUID());
         role.setName(reqDTO.getName());
         role.setType(reqDTO.getType());
         role.setIsSystem(false);
-        role.setPermissions("[]");
+        role.setPermissions(List.of());
         roleMapper.insert(role);
         return role.getId().toString();
     }
@@ -103,7 +103,9 @@ public class RoleServiceImpl implements RoleService {
         }
         role.setName(reqDTO.getName());
         roleMapper.updateById(role);
-        return convertToRoleRespDTO(role);
+        RoleRespDTO dto = RoleConvertMapper.INSTANCE.toRespDTO(role);
+        dto.setUserCount(Math.toIntExact(userRoleMapper.selectCount(SysUserRole::getRoleId, role.getId())));
+        return dto;
     }
 
     @Override
@@ -129,7 +131,9 @@ public class RoleServiceImpl implements RoleService {
         if (role == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.ROLE_NOT_FOUND);
         }
-        return convertToRoleRespDTO(role);
+        RoleRespDTO dto = RoleConvertMapper.INSTANCE.toRespDTO(role);
+        dto.setUserCount(Math.toIntExact(userRoleMapper.selectCount(SysUserRole::getRoleId, role.getId())));
+        return dto;
     }
 
     @Override
@@ -152,7 +156,7 @@ public class RoleServiceImpl implements RoleService {
             SysUser user = userMapper.selectById(ur.getUserId());
             if (user == null) return null;
             RoleUserRespDTO dto = new RoleUserRespDTO();
-            dto.setId(user.getId().toString());
+            dto.setId(user.getId());
             dto.setUsername(user.getUsername());
             dto.setEmail(user.getEmail());
             dto.setStatus(user.getStatus());
@@ -178,7 +182,6 @@ public class RoleServiceImpl implements RoleService {
             if (count > 0) continue;
 
             SysUserRole userRole = new SysUserRole();
-            userRole.setId(UUID.randomUUID());
             userRole.setUserId(userId);
             userRole.setRoleId(id);
             userRole.setAssignedAt(java.time.LocalDateTime.now());
@@ -201,17 +204,18 @@ public class RoleServiceImpl implements RoleService {
         }
         if (Boolean.TRUE.equals(role.getIsSystem())) {
             // 系统预置角色的已有权限不可移除
-            List<String> currentPerms = JsonUtils.parseObject(role.getPermissions(),
-                    new TypeReference<List<String>>() {});
+            List<String> currentPerms = role.getPermissions() != null ? role.getPermissions() : List.of();
             List<String> newPerms = reqDTO.getPermissions();
             // 检查新权限列表是否包含所有已有权限
             if (!currentPerms.containsAll(newPerms)) {
                 throw ServiceExceptionUtil.get(ErrorCodeConstants.SYSTEM_ROLE_PERMISSION_NOT_MODIFIABLE);
             }
         }
-        role.setPermissions(JsonUtils.toJsonString(reqDTO.getPermissions()));
+        role.setPermissions(reqDTO.getPermissions());
         roleMapper.updateById(role);
-        return convertToRoleRespDTO(role);
+        RoleRespDTO dto = RoleConvertMapper.INSTANCE.toRespDTO(role);
+        dto.setUserCount(Math.toIntExact(userRoleMapper.selectCount(SysUserRole::getRoleId, role.getId())));
+        return dto;
     }
 
     @Override
@@ -250,24 +254,10 @@ public class RoleServiceImpl implements RoleService {
 
         return roles.stream()
                 .flatMap(role -> {
-                    List<String> perms = JsonUtils.parseObject(role.getPermissions(),
-                            new TypeReference<List<String>>() {});
+                    List<String> perms = role.getPermissions() != null ? role.getPermissions() : List.of();
                     return perms != null ? perms.stream() : new ArrayList<String>().stream();
                 })
                 .distinct()
                 .collect(Collectors.toList());
-    }
-
-    private RoleRespDTO convertToRoleRespDTO(SysRole role) {
-        RoleRespDTO dto = new RoleRespDTO();
-        dto.setId(role.getId().toString());
-        dto.setName(role.getName());
-        dto.setDescription(role.getDescription());
-        dto.setType(role.getType());
-        dto.setIsSystem(role.getIsSystem());
-        dto.setPermissions(JsonUtils.parseObject(role.getPermissions(),
-                new TypeReference<List<String>>() {}));
-        dto.setUserCount(Math.toIntExact(userRoleMapper.selectCount(SysUserRole::getRoleId, role.getId())));
-        return dto;
     }
 }

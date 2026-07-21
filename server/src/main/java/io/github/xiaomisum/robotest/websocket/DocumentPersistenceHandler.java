@@ -74,20 +74,20 @@ public class DocumentPersistenceHandler {
             return;
         }
 
-        String layoutJson = payload.toString();
+        @SuppressWarnings("unchecked")
+        Map<String, Object> layoutMap = objectMapper.convertValue(payload, Map.class);
 
         TestCaseDocumentLayout existing = testCaseDocumentLayoutMapper.selectOne(
                 new LambdaQueryWrapper<TestCaseDocumentLayout>()
                         .eq(TestCaseDocumentLayout::getDocumentId, docId));
 
         if (existing != null) {
-            existing.setLayoutJson(layoutJson);
+            existing.setLayoutJson(layoutMap);
             testCaseDocumentLayoutMapper.updateById(existing);
         } else {
             TestCaseDocumentLayout layout = new TestCaseDocumentLayout();
-            layout.setId(UUID.randomUUID());
             layout.setDocumentId(docId);
-            layout.setLayoutJson(layoutJson);
+            layout.setLayoutJson(layoutMap);
             testCaseDocumentLayoutMapper.insert(layout);
         }
     }

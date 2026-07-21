@@ -2,6 +2,7 @@ package io.github.xiaomisum.robotest.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import io.github.xiaomisum.robotest.common.ErrorCodeConstants;
+import io.github.xiaomisum.robotest.convert.TestCaseNodeConvertMapper;
 import io.github.xiaomisum.robotest.model.dto.response.TestCaseDocumentNodesRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.TestCaseNodeTreeRespDTO;
 import io.github.xiaomisum.robotest.model.entity.TestCaseDocumentLayout;
@@ -18,6 +19,7 @@ import xyz.migoo.framework.common.exception.util.ServiceExceptionUtil;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -54,7 +56,8 @@ public class TestCaseNodeServiceImpl implements TestCaseNodeService {
 
         TestCaseDocumentNodesRespDTO result = new TestCaseDocumentNodesRespDTO();
         result.setNode(rootNode);
-        result.setLayout(layout != null ? layout.getLayoutJson() : null);
+        result.setLayout(layout != null && layout.getLayoutJson() != null
+                ? layout.getLayoutJson().toString() : null);
         return result;
     }
 
@@ -70,7 +73,7 @@ public class TestCaseNodeServiceImpl implements TestCaseNodeService {
     private TestCaseNodeTreeRespDTO buildNodeTree(List<TestCaseNodeTreeRespDTO> nodes) {
         Map<String, List<TestCaseNodeTreeRespDTO>> parentMap = nodes.stream()
                 .collect(Collectors.groupingBy(
-                        n -> n.getParentId() != null ? n.getParentId() : "root"));
+                        n -> n.getParentId() != null ? n.getParentId().toString() : "root"));
 
         List<TestCaseNodeTreeRespDTO> roots = parentMap.getOrDefault("root", new ArrayList<>());
         roots.forEach(root -> fillChildren(root, parentMap));
@@ -85,14 +88,6 @@ public class TestCaseNodeServiceImpl implements TestCaseNodeService {
     }
 
     private TestCaseNodeTreeRespDTO convertToNodeDTO(TestCaseNode node) {
-        TestCaseNodeTreeRespDTO dto = new TestCaseNodeTreeRespDTO();
-        dto.setId(node.getId().toString());
-        dto.setParentId(node.getParentId());
-        dto.setType(node.getType());
-        dto.setTitle(node.getTitle());
-        dto.setPriority(node.getPriority());
-        dto.setSortOrder(node.getSortOrder());
-        dto.setVersion(node.getVersion());
-        return dto;
+        return TestCaseNodeConvertMapper.INSTANCE.toTreeDTO(node);
     }
 }

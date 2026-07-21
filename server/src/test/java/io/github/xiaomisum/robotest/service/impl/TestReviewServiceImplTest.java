@@ -66,7 +66,7 @@ class TestReviewServiceImplTest {
         review.setTitle("Review 1");
         review.setStatus("in_progress");
         review.setInitiatorId(userId);
-        review.setParticipantIds("[\"user-1\",\"user-2\"]");
+        review.setParticipantIds(List.of(UUID.fromString("00000000-0000-0000-0000-000000000010"), UUID.fromString("00000000-0000-0000-0000-000000000011")));
 
         PageResult<TestReview> page = new PageResult<>(List.of(review), 1L);
         doReturn(page).when(testReviewMapper).selectPage(any(PageParam.class), any(LambdaQueryWrapper.class));
@@ -99,9 +99,14 @@ class TestReviewServiceImplTest {
 
     @Test
     void createReview_success() {
+        doAnswer(inv -> {
+            ((TestReview) inv.getArgument(0)).setId(UUID.randomUUID());
+            return 1;
+        }).when(testReviewMapper).insert(any(TestReview.class));
+
         TestReviewCreateReqDTO reqDTO = new TestReviewCreateReqDTO();
         reqDTO.setTitle("New Review");
-        reqDTO.setParticipantIds(List.of("user-1"));
+        reqDTO.setParticipantIds(List.of(UUID.fromString("00000000-0000-0000-0000-000000000098")));
         reqDTO.setSelectedNodes(Collections.emptyList());
 
         TestReviewDetailRespDTO result = reviewService.createReview(projectId, userId, reqDTO);
@@ -179,10 +184,10 @@ class TestReviewServiceImplTest {
         snapshot.setReviewId(reviewId);
         snapshot.setType("case");
 
-        when(reviewNodeSnapshotMapper.selectById("00000000-0000-0000-0000-000000000004")).thenReturn(snapshot);
+        when(reviewNodeSnapshotMapper.selectById(UUID.fromString("00000000-0000-0000-0000-000000000004"))).thenReturn(snapshot);
 
         TestReviewRecordReqDTO reqDTO = new TestReviewRecordReqDTO();
-        reqDTO.setSnapshotNodeId("00000000-0000-0000-0000-000000000004");
+        reqDTO.setSnapshotNodeId(UUID.fromString("00000000-0000-0000-0000-000000000004"));
         reqDTO.setOperationType("mark");
         reqDTO.setMark("pass");
 
@@ -197,7 +202,7 @@ class TestReviewServiceImplTest {
         when(testReviewMapper.selectById(reviewId)).thenReturn(null);
 
         TestReviewRecordReqDTO reqDTO = new TestReviewRecordReqDTO();
-        reqDTO.setSnapshotNodeId("snap-1");
+        reqDTO.setSnapshotNodeId(UUID.fromString("00000000-0000-0000-0000-000000000099"));
         reqDTO.setOperationType("comment");
 
         assertThrows(ServiceException.class,
@@ -213,7 +218,7 @@ class TestReviewServiceImplTest {
         when(testReviewMapper.selectById(reviewId)).thenReturn(review);
 
         TestReviewRecordReqDTO reqDTO = new TestReviewRecordReqDTO();
-        reqDTO.setSnapshotNodeId("snap-1");
+        reqDTO.setSnapshotNodeId(UUID.fromString("00000000-0000-0000-0000-000000000099"));
         reqDTO.setOperationType("comment");
 
         assertThrows(ServiceException.class,
@@ -227,10 +232,10 @@ class TestReviewServiceImplTest {
         review.setStatus("in_progress");
 
         when(testReviewMapper.selectById(reviewId)).thenReturn(review);
-        when(reviewNodeSnapshotMapper.selectById("00000000-0000-0000-0000-000000000004")).thenReturn(null);
+        when(reviewNodeSnapshotMapper.selectById(UUID.fromString("00000000-0000-0000-0000-000000000004"))).thenReturn(null);
 
         TestReviewRecordReqDTO reqDTO = new TestReviewRecordReqDTO();
-        reqDTO.setSnapshotNodeId("00000000-0000-0000-0000-000000000004");
+        reqDTO.setSnapshotNodeId(UUID.fromString("00000000-0000-0000-0000-000000000004"));
         reqDTO.setOperationType("comment");
 
         assertThrows(ServiceException.class,
@@ -250,10 +255,10 @@ class TestReviewServiceImplTest {
         snapshot.setReviewId(reviewId);
         snapshot.setType("normal");
 
-        when(reviewNodeSnapshotMapper.selectById("00000000-0000-0000-0000-000000000004")).thenReturn(snapshot);
+        when(reviewNodeSnapshotMapper.selectById(UUID.fromString("00000000-0000-0000-0000-000000000004"))).thenReturn(snapshot);
 
         TestReviewRecordReqDTO reqDTO = new TestReviewRecordReqDTO();
-        reqDTO.setSnapshotNodeId("00000000-0000-0000-0000-000000000004");
+        reqDTO.setSnapshotNodeId(UUID.fromString("00000000-0000-0000-0000-000000000004"));
         reqDTO.setOperationType("mark");
         reqDTO.setMark("pass");
 

@@ -53,7 +53,7 @@ public class UserDetailsBridgeImpl implements UserDetailsBridge {
 
     private LoginUser toLoginUser(SysUser user) {
         LoginUser loginUser = new LoginUser();
-        loginUser.setId(user.getId().toString());
+        loginUser.setId(user.getId());
         loginUser.setUsername(user.getUsername());
         loginUser.setName(user.getUsername());
         loginUser.setEmail(user.getEmail());
@@ -71,9 +71,8 @@ public class UserDetailsBridgeImpl implements UserDetailsBridge {
                     .collect(Collectors.toSet()));
             loginUser.setPermissionCodes(roles.stream()
                     .flatMap(role -> {
-                        List<String> perms = JsonUtils.parseObject(role.getPermissions(),
-                                new TypeReference<List<String>>() {});
-                        return perms != null ? perms.stream() : Stream.empty();
+                        List<String> perms = role.getPermissions() != null ? role.getPermissions() : List.<String>of();
+                        return perms.stream();
                     })
                     .distinct()
                     .collect(Collectors.toSet()));

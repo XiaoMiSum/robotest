@@ -2,6 +2,7 @@ package io.github.xiaomisum.robotest.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import io.github.xiaomisum.robotest.common.ErrorCodeConstants;
+import io.github.xiaomisum.robotest.convert.TestReviewConvertMapper;
 import io.github.xiaomisum.robotest.model.dto.request.TestReviewCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.TestReviewRecordReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.*;
@@ -53,7 +54,7 @@ public class TestReviewServiceImpl implements TestReviewService {
 
         List<TestReviewListRespDTO> dtos = page.getList().stream().map(review -> {
             TestReviewListRespDTO dto = new TestReviewListRespDTO();
-            dto.setId(review.getId().toString());
+            dto.setId(review.getId());
             dto.setTitle(review.getTitle());
             dto.setStatus(review.getStatus());
             dto.setCreatedAt(review.getCreatedAt());
@@ -61,12 +62,14 @@ public class TestReviewServiceImpl implements TestReviewService {
             SysUser initiator = userMapper.selectById(review.getInitiatorId());
             if (initiator != null) {
                 TestReviewListRespDTO.InitiatorInfo info = new TestReviewListRespDTO.InitiatorInfo();
-                info.setId(initiator.getId().toString());
+                info.setId(initiator.getId());
                 info.setName(initiator.getUsername());
                 dto.setInitiator(info);
             }
 
-            List<String> participantIds = parseParticipantIds(review.getParticipantIds());
+            List<UUID> participantIds = review.getParticipantIds() != null
+                    ? review.getParticipantIds()
+                    : new ArrayList<>();
             dto.setParticipantCount(participantIds.size());
             return dto;
         }).collect(Collectors.toList());
@@ -79,12 +82,11 @@ public class TestReviewServiceImpl implements TestReviewService {
     public TestReviewDetailRespDTO createReview(String projectId, String userId,
                                                  TestReviewCreateReqDTO reqDTO) {
         TestReview review = new TestReview();
-        review.setId(UUID.randomUUID());
         review.setProjectId(projectId);
         review.setTitle(reqDTO.getTitle());
         review.setDescription(reqDTO.getDescription());
         review.setInitiatorId(userId);
-        review.setParticipantIds(toJsonArray(reqDTO.getParticipantIds()));
+        review.setParticipantIds(reqDTO.getParticipantIds());
         review.setStatus("in_progress");
         testReviewMapper.insert(review);
 
@@ -155,9 +157,8 @@ public class TestReviewServiceImpl implements TestReviewService {
         }
 
         TestReviewRecord record = new TestReviewRecord();
-        record.setId(UUID.randomUUID());
         record.setReviewId(reviewId);
-        record.setSnapshotNodeId(reqDTO.getSnapshotNodeId());
+        record.setSnapshotNodeId(reqDTO.getSnapshotNodeId().toString());
         record.setReviewerId(userId);
         record.setOperationType(reqDTO.getOperationType());
         record.setMark(reqDTO.getMark());
@@ -175,9 +176,9 @@ public class TestReviewServiceImpl implements TestReviewService {
 
         return records.stream().map(record -> {
             TestReviewRecordRespDTO dto = new TestReviewRecordRespDTO();
-            dto.setId(record.getId().toString());
-            dto.setSnapshotNodeId(record.getSnapshotNodeId());
-            dto.setReviewerId(record.getReviewerId());
+            dto.setId(record.getId());
+            dto.setSnapshotNodeId(record.getSnapshotNodeId() != null ? UUID.fromString(record.getSnapshotNodeId()) : null);
+            dto.setReviewerId(record.getReviewerId() != null ? UUID.fromString(record.getReviewerId()) : null);
             dto.setOperationType(record.getOperationType());
             dto.setMark(record.getMark());
             dto.setComment(record.getComment());
@@ -243,7 +244,7 @@ public class TestReviewServiceImpl implements TestReviewService {
     private void generateSnapshots(String reviewId, List<TestReviewCreateReqDTO.SelectedNode> selectedNodes) {
         Map<String, Set<String>> docCaseMap = new LinkedHashMap<>();
         for (TestReviewCreateReqDTO.SelectedNode sn : selectedNodes) {
-            docCaseMap.put(sn.getDocumentId(), new HashSet<>(sn.getCaseIds()));
+            docCaseMap.put(sn.getDocumentId().toString(), sn.getCaseIds().stream().map(UUID::toString).collect(Collectors.toSet()));
         }
 
         Set<String> copiedModuleIds = new HashSet<>();
@@ -263,7 +264,6 @@ public class TestReviewServiceImpl implements TestReviewService {
                     continue;
                 }
                 TestReviewModuleSnapshot snapshot = new TestReviewModuleSnapshot();
-                snapshot.setId(UUID.randomUUID());
                 snapshot.setReviewId(reviewId);
                 snapshot.setOriginalModuleId(original.getId().toString());
                 snapshot.setParentId(findCopiedParentId(original.getParentId(), copiedModuleIds, reviewId));
@@ -282,7 +282,6 @@ public class TestReviewServiceImpl implements TestReviewService {
 
             for (TestCaseNode node : docNodes) {
                 TestReviewNodeSnapshot nodeSnapshot = new TestReviewNodeSnapshot();
-                nodeSnapshot.setId(UUID.randomUUID());
                 nodeSnapshot.setReviewId(reviewId);
                 nodeSnapshot.setOriginalNodeId(node.getId().toString());
                 nodeSnapshot.setDocumentSnapshotId(snapshotDocId);
@@ -344,19 +343,19 @@ public class TestReviewServiceImpl implements TestReviewService {
     private List<TestReviewSnapshotNodeRespDTO> pruneSnapshotTree(
             List<TestReviewSnapshotNodeRespDTO> allNodes) {
 
-        Set<String> associatedIds = allNodes.stream()
+        Set<UUID> associatedIds = allNodes.stream()
                 .filter(n -> Boolean.TRUE.equals(n.getIsAssociated()))
                 .map(TestReviewSnapshotNodeRespDTO::getId)
                 .collect(Collectors.toSet());
 
-        Map<String, TestReviewSnapshotNodeRespDTO> nodeMap = allNodes.stream()
+        Map<UUID, TestReviewSnapshotNodeRespDTO> nodeMap = allNodes.stream()
                 .collect(Collectors.toMap(
                         TestReviewSnapshotNodeRespDTO::getId, n -> n));
 
-        Set<String> keepIds = new HashSet<>(associatedIds);
+        Set<UUID> keepIds = new HashSet<>(associatedIds);
 
-        for (String assocId : associatedIds) {
-            String parentId = nodeMap.get(assocId) != null ? nodeMap.get(assocId).getParentId() : null;
+        for (UUID assocId : associatedIds) {
+            UUID parentId = nodeMap.get(assocId) != null ? nodeMap.get(assocId).getParentId() : null;
             while (parentId != null) {
                 keepIds.add(parentId);
                 TestReviewSnapshotNodeRespDTO parentNode = nodeMap.get(parentId);
@@ -364,7 +363,7 @@ public class TestReviewServiceImpl implements TestReviewService {
             }
         }
 
-        for (String assocId : associatedIds) {
+        for (UUID assocId : associatedIds) {
             collectDescendants(assocId, nodeMap, keepIds);
         }
 
@@ -375,8 +374,8 @@ public class TestReviewServiceImpl implements TestReviewService {
         return buildSnapshotTree(filtered);
     }
 
-    private void collectDescendants(String nodeId, Map<String, TestReviewSnapshotNodeRespDTO> nodeMap,
-                                     Set<String> keepIds) {
+    private void collectDescendants(UUID nodeId, Map<UUID, TestReviewSnapshotNodeRespDTO> nodeMap,
+                                     Set<UUID> keepIds) {
         for (TestReviewSnapshotNodeRespDTO node : nodeMap.values()) {
             if (nodeId.equals(node.getParentId())) {
                 keepIds.add(node.getId());
@@ -387,35 +386,31 @@ public class TestReviewServiceImpl implements TestReviewService {
 
     private List<TestReviewSnapshotNodeRespDTO> buildSnapshotTree(
             List<TestReviewSnapshotNodeRespDTO> nodes) {
-        Map<String, List<TestReviewSnapshotNodeRespDTO>> parentMap = nodes.stream()
-                .collect(Collectors.groupingBy(
-                        n -> n.getParentId() != null ? n.getParentId() : "root"));
+        Map<UUID, List<TestReviewSnapshotNodeRespDTO>> parentMap = nodes.stream()
+                .filter(n -> n.getParentId() != null)
+                .collect(Collectors.groupingBy(TestReviewSnapshotNodeRespDTO::getParentId));
 
-        List<TestReviewSnapshotNodeRespDTO> roots = parentMap.getOrDefault("root", new ArrayList<>());
+        List<TestReviewSnapshotNodeRespDTO> roots = nodes.stream()
+                .filter(n -> n.getParentId() == null)
+                .collect(Collectors.toList());
         roots.forEach(root -> fillSnapshotChildren(root, parentMap));
         return roots;
     }
 
     private void fillSnapshotChildren(TestReviewSnapshotNodeRespDTO node,
-                                       Map<String, List<TestReviewSnapshotNodeRespDTO>> parentMap) {
+                                       Map<UUID, List<TestReviewSnapshotNodeRespDTO>> parentMap) {
         List<TestReviewSnapshotNodeRespDTO> children = parentMap.getOrDefault(node.getId(), new ArrayList<>());
         node.setChildren(children);
         children.forEach(child -> fillSnapshotChildren(child, parentMap));
     }
 
     private TestReviewDetailRespDTO convertToDetailDTO(TestReview review) {
-        TestReviewDetailRespDTO dto = new TestReviewDetailRespDTO();
-        dto.setId(review.getId().toString());
-        dto.setTitle(review.getTitle());
-        dto.setDescription(review.getDescription());
-        dto.setStatus(review.getStatus());
-        dto.setParticipantIds(parseParticipantIds(review.getParticipantIds()));
-        dto.setCreatedAt(review.getCreatedAt());
+        TestReviewDetailRespDTO dto = TestReviewConvertMapper.INSTANCE.toDetailDTO(review);
 
         SysUser initiator = userMapper.selectById(review.getInitiatorId());
         if (initiator != null) {
             TestReviewDetailRespDTO.InitiatorInfo info = new TestReviewDetailRespDTO.InitiatorInfo();
-            info.setId(initiator.getId().toString());
+            info.setId(initiator.getId());
             info.setName(initiator.getUsername());
             dto.setInitiator(info);
         }
@@ -423,38 +418,6 @@ public class TestReviewServiceImpl implements TestReviewService {
     }
 
     private TestReviewSnapshotNodeRespDTO convertToSnapshotNodeDTO(TestReviewNodeSnapshot snapshot) {
-        TestReviewSnapshotNodeRespDTO dto = new TestReviewSnapshotNodeRespDTO();
-        dto.setId(snapshot.getId().toString());
-        dto.setOriginalNodeId(snapshot.getOriginalNodeId());
-        dto.setParentId(snapshot.getParentId());
-        dto.setTitle(snapshot.getTitle());
-        dto.setType(snapshot.getType());
-        dto.setPriority(snapshot.getPriority());
-        dto.setIsAssociated(snapshot.getIsAssociated());
-        dto.setLastMark(snapshot.getLastMark());
-        dto.setLastReviewerId(snapshot.getLastReviewerId());
-        dto.setLastReviewedAt(snapshot.getLastReviewedAt());
-        dto.setSortOrder(snapshot.getSortOrder());
-        return dto;
-    }
-
-    private List<String> parseParticipantIds(String json) {
-        if (!StringUtils.hasText(json) || "[]".equals(json)) {
-            return new ArrayList<>();
-        }
-        String cleaned = json.replaceAll("[\"\\s]", "");
-        if (cleaned.isEmpty()) {
-            return new ArrayList<>();
-        }
-        return Arrays.asList(cleaned.split(","));
-    }
-
-    private String toJsonArray(List<String> list) {
-        if (list == null || list.isEmpty()) {
-            return "[]";
-        }
-        return "[" + list.stream()
-                .map(id -> "\"" + id + "\"")
-                .collect(Collectors.joining(",")) + "]";
+        return TestReviewConvertMapper.INSTANCE.toSnapshotNodeDTO(snapshot);
     }
 }

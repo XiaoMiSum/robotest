@@ -99,6 +99,11 @@ class TestPlanServiceImplTest {
 
     @Test
     void createPlan_success() {
+        doAnswer(inv -> {
+            ((TestPlan) inv.getArgument(0)).setId(UUID.randomUUID());
+            return 1;
+        }).when(testPlanMapper).insert(any(TestPlan.class));
+
         TestPlanCreateReqDTO reqDTO = new TestPlanCreateReqDTO();
         reqDTO.setName("New Plan");
         reqDTO.setSelectedNodes(Collections.emptyList());
@@ -179,10 +184,10 @@ class TestPlanServiceImplTest {
         snapshot.setIsAssociated(true);
         snapshot.setType("case");
 
-        when(planNodeSnapshotMapper.selectById("00000000-0000-0000-0000-000000000004")).thenReturn(snapshot);
+        when(planNodeSnapshotMapper.selectById(UUID.fromString("00000000-0000-0000-0000-000000000004"))).thenReturn(snapshot);
 
         TestPlanRecordReqDTO reqDTO = new TestPlanRecordReqDTO();
-        reqDTO.setSnapshotNodeId("00000000-0000-0000-0000-000000000004");
+        reqDTO.setSnapshotNodeId(UUID.fromString("00000000-0000-0000-0000-000000000004"));
         reqDTO.setResult("pass");
         reqDTO.setNote("Looks good");
 
@@ -199,7 +204,7 @@ class TestPlanServiceImplTest {
         when(testPlanMapper.selectById(planId)).thenReturn(null);
 
         TestPlanRecordReqDTO reqDTO = new TestPlanRecordReqDTO();
-        reqDTO.setSnapshotNodeId("snap-1");
+        reqDTO.setSnapshotNodeId(UUID.fromString("00000000-0000-0000-0000-000000000099"));
         reqDTO.setResult("pass");
 
         assertThrows(ServiceException.class,
@@ -215,7 +220,7 @@ class TestPlanServiceImplTest {
         when(testPlanMapper.selectById(planId)).thenReturn(plan);
 
         TestPlanRecordReqDTO reqDTO = new TestPlanRecordReqDTO();
-        reqDTO.setSnapshotNodeId("snap-1");
+        reqDTO.setSnapshotNodeId(UUID.fromString("00000000-0000-0000-0000-000000000099"));
         reqDTO.setResult("pass");
 
         assertThrows(ServiceException.class,
@@ -229,10 +234,10 @@ class TestPlanServiceImplTest {
         plan.setStatus("in_progress");
 
         when(testPlanMapper.selectById(planId)).thenReturn(plan);
-        when(planNodeSnapshotMapper.selectById("00000000-0000-0000-0000-000000000004")).thenReturn(null);
+        when(planNodeSnapshotMapper.selectById(UUID.fromString("00000000-0000-0000-0000-000000000004"))).thenReturn(null);
 
         TestPlanRecordReqDTO reqDTO = new TestPlanRecordReqDTO();
-        reqDTO.setSnapshotNodeId("00000000-0000-0000-0000-000000000004");
+        reqDTO.setSnapshotNodeId(UUID.fromString("00000000-0000-0000-0000-000000000004"));
         reqDTO.setResult("pass");
 
         assertThrows(ServiceException.class,
@@ -253,10 +258,10 @@ class TestPlanServiceImplTest {
         snapshot.setIsAssociated(false);
         snapshot.setType("case");
 
-        when(planNodeSnapshotMapper.selectById("00000000-0000-0000-0000-000000000004")).thenReturn(snapshot);
+        when(planNodeSnapshotMapper.selectById(UUID.fromString("00000000-0000-0000-0000-000000000004"))).thenReturn(snapshot);
 
         TestPlanRecordReqDTO reqDTO = new TestPlanRecordReqDTO();
-        reqDTO.setSnapshotNodeId("00000000-0000-0000-0000-000000000004");
+        reqDTO.setSnapshotNodeId(UUID.fromString("00000000-0000-0000-0000-000000000004"));
         reqDTO.setResult("pass");
 
         assertThrows(ServiceException.class,
@@ -277,10 +282,10 @@ class TestPlanServiceImplTest {
         snapshot.setIsAssociated(true);
         snapshot.setType("normal");
 
-        when(planNodeSnapshotMapper.selectById("00000000-0000-0000-0000-000000000004")).thenReturn(snapshot);
+        when(planNodeSnapshotMapper.selectById(UUID.fromString("00000000-0000-0000-0000-000000000004"))).thenReturn(snapshot);
 
         TestPlanRecordReqDTO reqDTO = new TestPlanRecordReqDTO();
-        reqDTO.setSnapshotNodeId("00000000-0000-0000-0000-000000000004");
+        reqDTO.setSnapshotNodeId(UUID.fromString("00000000-0000-0000-0000-000000000004"));
         reqDTO.setResult("pass");
 
         assertThrows(ServiceException.class,

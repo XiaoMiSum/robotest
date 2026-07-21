@@ -67,12 +67,8 @@ public class WorkspaceRoleInterceptor implements HandlerInterceptor {
 
         // 追加角色的 permissions JSONB 中的权限码
         List<String> wsPermCodes = new ArrayList<>();
-        if (StringUtils.hasText(role.getPermissions())) {
-            List<String> perms = JsonUtils.parseObject(role.getPermissions(),
-                    new TypeReference<List<String>>() {});
-            if (perms != null) {
-                wsPermCodes.addAll(perms);
-            }
+        if (role.getPermissions() != null && !role.getPermissions().isEmpty()) {
+            wsPermCodes.addAll(role.getPermissions());
         }
 
         // 转为 GrantedAuthority 并追加到 LoginUser
