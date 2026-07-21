@@ -42,12 +42,12 @@ class WorkspaceRoleInterceptorTest {
     private WorkspaceRoleInterceptor interceptor;
 
     private LoginUser loginUser;
-    private String userId;
+    private UUID userId;
     private String workspaceId;
 
     @BeforeEach
     void setUp() {
-        userId = "user-001";
+        userId = UUID.fromString("00000000-0000-0000-0000-000000000001");
         workspaceId = "ws-001";
 
         loginUser = new LoginUser();
@@ -162,7 +162,7 @@ class WorkspaceRoleInterceptorTest {
         SysRole adminRole = new SysRole();
         adminRole.setId(UUID.fromString(ErrorCodeConstants.WORKSPACE_ROLE_ADMIN_ID));
         adminRole.setName("workspace_admin");
-        adminRole.setPermissions("[\"project:create\",\"project:edit\"]");
+        adminRole.setPermissions(List.of("project:create", "project:edit"));
         when(roleMapper.selectById(ErrorCodeConstants.WORKSPACE_ROLE_ADMIN_ID)).thenReturn(adminRole);
 
         // when
@@ -191,7 +191,7 @@ class WorkspaceRoleInterceptorTest {
         SysRole memberRole = new SysRole();
         memberRole.setId(UUID.fromString(ErrorCodeConstants.WORKSPACE_ROLE_MEMBER_ID));
         memberRole.setName("workspace_member");
-        memberRole.setPermissions("[]");
+        memberRole.setPermissions(List.of());
         when(roleMapper.selectById(ErrorCodeConstants.WORKSPACE_ROLE_MEMBER_ID)).thenReturn(memberRole);
 
         // when

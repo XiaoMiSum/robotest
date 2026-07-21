@@ -18,7 +18,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import xyz.migoo.framework.common.exception.ServiceException;
 
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -70,7 +72,10 @@ class TestCaseNodeServiceImplTest {
         TestCaseDocumentLayout layout = new TestCaseDocumentLayout();
         layout.setId(UUID.fromString("00000000-0000-0000-0000-000000000004"));
         layout.setDocumentId(documentId);
-        layout.setLayoutJson("{\"x\":0,\"y\":0}");
+        LinkedHashMap<String, Object> layoutMap = new LinkedHashMap<>();
+        layoutMap.put("x", 0);
+        layoutMap.put("y", 0);
+        layout.setLayoutJson(layoutMap);
         when(testCaseDocumentLayoutMapper.selectOne(any(LambdaQueryWrapper.class)))
                 .thenReturn(layout);
 
@@ -79,7 +84,7 @@ class TestCaseNodeServiceImplTest {
         assertNotNull(result);
         assertNotNull(result.getNode());
         assertEquals("Root", result.getNode().getTitle());
-        assertEquals("{\"x\":0,\"y\":0}", result.getLayout());
+        assertEquals("{x=0, y=0}", result.getLayout());
     }
 
     @Test

@@ -81,6 +81,10 @@ class TestCaseModuleServiceImplTest {
 
         when(testCaseModuleMapper.selectOne(any(LambdaQueryWrapper.class)))
                 .thenReturn(null);
+        doAnswer(inv -> {
+            ((TestCaseModule) inv.getArgument(0)).setId(UUID.randomUUID());
+            return 1;
+        }).when(testCaseModuleMapper).insert(any(TestCaseModule.class));
 
         TestCaseModuleTreeRespDTO result = moduleService.createModule(projectId, reqDTO);
 
@@ -98,6 +102,14 @@ class TestCaseModuleServiceImplTest {
 
         when(testCaseModuleMapper.selectOne(any(LambdaQueryWrapper.class)))
                 .thenReturn(null);
+        doAnswer(inv -> {
+            ((TestCaseModule) inv.getArgument(0)).setId(UUID.randomUUID());
+            return 1;
+        }).when(testCaseModuleMapper).insert(any(TestCaseModule.class));
+        doAnswer(inv -> {
+            ((TestCaseNode) inv.getArgument(0)).setId(UUID.randomUUID());
+            return 1;
+        }).when(testCaseNodeMapper).insert(any(TestCaseNode.class));
 
         TestCaseModuleTreeRespDTO result = moduleService.createModule(projectId, reqDTO);
 
@@ -136,9 +148,9 @@ class TestCaseModuleServiceImplTest {
         TestCaseModuleCreateReqDTO reqDTO = new TestCaseModuleCreateReqDTO();
         reqDTO.setType("directory");
         reqDTO.setName("Child");
-        reqDTO.setParentId("parent-1");
+        reqDTO.setParentId(UUID.fromString("00000000-0000-0000-0000-000000000099"));
 
-        when(testCaseModuleMapper.selectById("parent-1")).thenReturn(null);
+        when(testCaseModuleMapper.selectById(UUID.fromString("00000000-0000-0000-0000-000000000099"))).thenReturn(null);
 
         assertThrows(ServiceException.class,
                 () -> moduleService.createModule(projectId, reqDTO));
