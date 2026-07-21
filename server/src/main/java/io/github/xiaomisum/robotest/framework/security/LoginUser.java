@@ -7,16 +7,12 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import xyz.migoo.framework.security.core.AuthUserDetails;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Stream;
 
 @Getter
 @Setter
-public class LoginUser extends AuthUserDetails<LoginUser, String> {
+public class LoginUser extends AuthUserDetails<LoginUser, UUID> {
 
     private String email;
 
@@ -54,30 +50,5 @@ public class LoginUser extends AuthUserDetails<LoginUser, String> {
         if (authorities != null) {
             this.workspaceAuthorities.addAll(authorities);
         }
-    }
-
-    @Override
-    public LoginUser setId(String id) {
-        return super.setId(id);
-    }
-
-    @Override
-    public LoginUser setUsername(String username) {
-        return super.setUsername(username);
-    }
-
-    @Override
-    public LoginUser setPassword(String password) {
-        return super.setPassword(password);
-    }
-
-    @Override
-    public LoginUser setName(String name) {
-        return super.setName(name);
-    }
-
-    @Override
-    public LoginUser setEnabled(boolean enabled) {
-        return super.setEnabled(enabled);
     }
 }
