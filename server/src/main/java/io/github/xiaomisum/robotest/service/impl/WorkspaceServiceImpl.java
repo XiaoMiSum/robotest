@@ -53,7 +53,7 @@ public class WorkspaceServiceImpl implements WorkspaceService {
 
         List<WorkspaceRespDTO> records = page.getList().stream().map(ws -> {
             WorkspaceRespDTO dto = new WorkspaceRespDTO();
-            dto.setId(ws.getId());
+            dto.setId(ws.getId().toString());
             dto.setName(ws.getName());
             dto.setDescription(ws.getDescription());
             dto.setStatus(ws.getStatus());
@@ -75,12 +75,12 @@ public class WorkspaceServiceImpl implements WorkspaceService {
         }
 
         Workspace workspace = new Workspace();
-        workspace.setId(UUID.randomUUID().toString());
+        workspace.setId(UUID.randomUUID());
         workspace.setName(reqDTO.getName());
         workspace.setDescription(reqDTO.getDescription());
         workspace.setStatus("active");
         workspaceMapper.insert(workspace);
-        return workspace.getId();
+        return workspace.getId().toString();
     }
 
     @Override
@@ -90,7 +90,7 @@ public class WorkspaceServiceImpl implements WorkspaceService {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.WORKSPACE_NOT_FOUND);
         }
         WorkspaceRespDTO dto = new WorkspaceRespDTO();
-        dto.setId(workspace.getId());
+        dto.setId(workspace.getId().toString());
         dto.setName(workspace.getName());
         dto.setDescription(workspace.getDescription());
         dto.setStatus(workspace.getStatus());
@@ -158,7 +158,7 @@ public class WorkspaceServiceImpl implements WorkspaceService {
             SysUser user = userMapper.selectById(wu.getUserId());
             if (user == null) return null;
             WorkspaceMemberRespDTO dto = new WorkspaceMemberRespDTO();
-            dto.setUserId(user.getId());
+            dto.setUserId(user.getId().toString());
             dto.setUsername(user.getUsername());
             dto.setEmail(user.getEmail());
             dto.setAvatarUrl(user.getAvatarUrl());
@@ -194,7 +194,7 @@ public class WorkspaceServiceImpl implements WorkspaceService {
             }
 
             WorkspaceUser wu = new WorkspaceUser();
-            wu.setId(UUID.randomUUID().toString());
+            wu.setId(UUID.randomUUID());
             wu.setUserId(member.getUserId());
             wu.setWorkspaceId(id);
             wu.setWorkspaceRole(StringUtils.hasText(member.getWorkspaceRole()) ? member.getWorkspaceRole() : ErrorCodeConstants.WORKSPACE_ROLE_MEMBER_ID);

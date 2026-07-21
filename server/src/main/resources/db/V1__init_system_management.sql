@@ -9,9 +9,9 @@ CREATE TABLE sys_user (
     password_hash VARCHAR(255) NOT NULL,
     avatar_url   VARCHAR(500),
     status       VARCHAR(20)  NOT NULL DEFAULT 'active',
+    is_deleted   BOOLEAN      NOT NULL DEFAULT FALSE,
     created_at   TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at   TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    is_deleted   BOOLEAN      NOT NULL DEFAULT FALSE
+    updated_at   TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE UNIQUE INDEX uk_username ON sys_user (username);
@@ -25,9 +25,9 @@ CREATE TABLE sys_role (
     type         VARCHAR(20)  NOT NULL,
     is_system    BOOLEAN      NOT NULL DEFAULT FALSE,
     permissions  JSONB        NOT NULL DEFAULT '[]',
+    is_deleted   BOOLEAN      NOT NULL DEFAULT FALSE,
     created_at   TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at   TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    is_deleted   BOOLEAN      NOT NULL DEFAULT FALSE
+    updated_at   TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE UNIQUE INDEX uk_role_name ON sys_role (name);
@@ -39,9 +39,9 @@ CREATE TABLE sys_user_role (
     user_id     UUID      NOT NULL,
     role_id     UUID      NOT NULL,
     assigned_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    is_deleted  BOOLEAN   NOT NULL DEFAULT FALSE,
     created_at  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    is_deleted  BOOLEAN   NOT NULL DEFAULT FALSE
+    updated_at  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE UNIQUE INDEX uk_user_role ON sys_user_role (user_id, role_id);
@@ -53,9 +53,9 @@ CREATE TABLE workspace (
     name        VARCHAR(50)  NOT NULL,
     description VARCHAR(500),
     status      VARCHAR(20)  NOT NULL DEFAULT 'active',
+    is_deleted  BOOLEAN      NOT NULL DEFAULT FALSE,
     created_at  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    is_deleted  BOOLEAN      NOT NULL DEFAULT FALSE
+    updated_at  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE UNIQUE INDEX uk_workspace_name ON workspace (name);
@@ -67,7 +67,9 @@ CREATE TABLE workspace_user (
     workspace_id   UUID      NOT NULL,
     workspace_role VARCHAR(20) NOT NULL DEFAULT 'member',
     joined_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    is_deleted     BOOLEAN   NOT NULL DEFAULT FALSE
+    is_deleted     BOOLEAN   NOT NULL DEFAULT FALSE,
+    created_at     TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at     TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE UNIQUE INDEX uk_user_workspace ON workspace_user (user_id, workspace_id);
@@ -81,9 +83,9 @@ CREATE TABLE sys_permission (
     parent_code VARCHAR(100),
     module      VARCHAR(50)  NOT NULL,
     sort_order  INT          NOT NULL DEFAULT 0,
+    is_deleted  BOOLEAN      NOT NULL DEFAULT FALSE,
     created_at  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    is_deleted  BOOLEAN      NOT NULL DEFAULT FALSE
+    updated_at  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE UNIQUE INDEX uk_permission_code ON sys_permission (code);

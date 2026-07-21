@@ -10,7 +10,8 @@ CREATE TABLE IF NOT EXISTS audit_log (
     changes       JSONB        NOT NULL DEFAULT '{}',
     request_ip    VARCHAR(64)  NOT NULL DEFAULT '',
     created_at    TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
-    updated_at    TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+    updated_at    TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+    is_deleted    BOOLEAN      NOT NULL DEFAULT FALSE
 );
 CREATE INDEX idx_audit_log_operator ON audit_log (operator_id);
 CREATE INDEX idx_audit_log_entity   ON audit_log (entity_type, entity_id);

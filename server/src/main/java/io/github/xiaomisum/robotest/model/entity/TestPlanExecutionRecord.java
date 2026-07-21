@@ -1,20 +1,17 @@
 package io.github.xiaomisum.robotest.model.entity;
 
-import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
-import xyz.migoo.framework.mybatis.core.dataobject.BaseDO;
+import xyz.migoo.framework.mybatis.core.dataobject.BaseUuidDO;
 
 import java.time.LocalDateTime;
 
 @Data
 @EqualsAndHashCode(callSuper = true)
 @TableName("test_plan_execution_record")
-public class TestPlanExecutionRecord extends BaseDO {
+public class TestPlanExecutionRecord extends BaseUuidDO<TestPlanExecutionRecord> {
 
-    @TableId
-    private String id;
     private String planId;
     private String snapshotNodeId;
     private String executorId;

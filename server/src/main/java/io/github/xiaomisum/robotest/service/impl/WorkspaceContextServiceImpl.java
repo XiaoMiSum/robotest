@@ -114,7 +114,7 @@ public class WorkspaceContextServiceImpl implements WorkspaceContextService {
 
     private WorkspaceContextRespDTO buildContextRespDTO(Workspace workspace, WorkspaceUser workspaceUser) {
         WorkspaceContextRespDTO dto = new WorkspaceContextRespDTO();
-        dto.setId(workspace.getId());
+        dto.setId(workspace.getId().toString());
         dto.setName(workspace.getName());
         dto.setDescription(workspace.getDescription());
         dto.setStatus(workspace.getStatus());

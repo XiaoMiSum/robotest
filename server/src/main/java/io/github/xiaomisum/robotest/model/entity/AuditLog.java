@@ -1,18 +1,15 @@
 package io.github.xiaomisum.robotest.model.entity;
 
-import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.baomidou.mybatisplus.extension.handlers.JacksonTypeHandler;
 import lombok.Data;
-
-import java.time.LocalDateTime;
+import lombok.EqualsAndHashCode;
+import xyz.migoo.framework.mybatis.core.dataobject.BaseUuidDO;
 
 @Data
+@EqualsAndHashCode(callSuper = true)
 @TableName(value = "audit_log", autoResultMap = true)
-public class AuditLog {
-
-    @TableId
-    private Long id;
+public class AuditLog extends BaseUuidDO<AuditLog> {
 
     private String operatorId;
     private String operatorName;
@@ -24,6 +21,4 @@ public class AuditLog {
     private java.util.Map<String, Object> changes;
 
     private String requestIp;
-    private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
 }

@@ -104,7 +104,7 @@ public class ProjectServiceImpl implements ProjectService {
         }
 
         Project project = new Project();
-        project.setId(UUID.randomUUID().toString());
+        project.setId(UUID.randomUUID());
         project.setWorkspaceId(workspaceId);
         project.setName(reqDTO.getName());
         project.setDescription(reqDTO.getDescription());
@@ -229,7 +229,7 @@ public class ProjectServiceImpl implements ProjectService {
 
     private ProjectRespDTO convertToRespDTO(Project project, String defaultProjectId) {
         ProjectRespDTO dto = new ProjectRespDTO();
-        dto.setId(project.getId());
+        dto.setId(project.getId().toString());
         dto.setName(project.getName());
         dto.setDescription(project.getDescription());
         dto.setStatus(project.getStatus());
@@ -241,7 +241,7 @@ public class ProjectServiceImpl implements ProjectService {
         SysUser creator = userMapper.selectById(project.getCreatedBy());
         if (creator != null) {
             ProjectRespDTO.CreatorInfo creatorInfo = new ProjectRespDTO.CreatorInfo();
-            creatorInfo.setId(creator.getId());
+            creatorInfo.setId(creator.getId().toString());
             creatorInfo.setName(creator.getUsername());
             dto.setCreatedBy(creatorInfo);
         }

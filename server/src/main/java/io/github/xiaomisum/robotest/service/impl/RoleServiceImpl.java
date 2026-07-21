@@ -55,7 +55,7 @@ public class RoleServiceImpl implements RoleService {
         groupNode.setIsGroup(true);
         groupNode.setChildren(roles.stream().map(role -> {
             RoleTreeRespDTO node = new RoleTreeRespDTO();
-            node.setId(role.getId());
+            node.setId(role.getId().toString());
             node.setName(role.getName());
             node.setType(role.getType());
             node.setIsSystem(role.getIsSystem());
@@ -81,13 +81,13 @@ public class RoleServiceImpl implements RoleService {
         }
 
         SysRole role = new SysRole();
-        role.setId(UUID.randomUUID().toString());
+        role.setId(UUID.randomUUID());
         role.setName(reqDTO.getName());
         role.setType(reqDTO.getType());
         role.setIsSystem(false);
         role.setPermissions("[]");
         roleMapper.insert(role);
-        return role.getId();
+        return role.getId().toString();
     }
 
     @Override
@@ -152,7 +152,7 @@ public class RoleServiceImpl implements RoleService {
             SysUser user = userMapper.selectById(ur.getUserId());
             if (user == null) return null;
             RoleUserRespDTO dto = new RoleUserRespDTO();
-            dto.setId(user.getId());
+            dto.setId(user.getId().toString());
             dto.setUsername(user.getUsername());
             dto.setEmail(user.getEmail());
             dto.setStatus(user.getStatus());
@@ -178,7 +178,7 @@ public class RoleServiceImpl implements RoleService {
             if (count > 0) continue;
 
             SysUserRole userRole = new SysUserRole();
-            userRole.setId(UUID.randomUUID().toString());
+            userRole.setId(UUID.randomUUID());
             userRole.setUserId(userId);
             userRole.setRoleId(id);
             userRole.setAssignedAt(java.time.LocalDateTime.now());
@@ -260,7 +260,7 @@ public class RoleServiceImpl implements RoleService {
 
     private RoleRespDTO convertToRoleRespDTO(SysRole role) {
         RoleRespDTO dto = new RoleRespDTO();
-        dto.setId(role.getId());
+        dto.setId(role.getId().toString());
         dto.setName(role.getName());
         dto.setDescription(role.getDescription());
         dto.setType(role.getType());

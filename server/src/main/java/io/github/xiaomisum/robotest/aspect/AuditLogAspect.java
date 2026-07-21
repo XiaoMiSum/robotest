@@ -20,7 +20,6 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
-import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.Set;
 
@@ -49,8 +48,6 @@ public class AuditLogAspect {
             AuditLog record = new AuditLog();
             record.setOperation(annotation.operation());
             record.setEntityType(annotation.entityType());
-            record.setCreatedAt(LocalDateTime.now());
-            record.setUpdatedAt(LocalDateTime.now());
 
             // operator
             Authentication auth = SecurityContextHolder.getContext().getAuthentication();

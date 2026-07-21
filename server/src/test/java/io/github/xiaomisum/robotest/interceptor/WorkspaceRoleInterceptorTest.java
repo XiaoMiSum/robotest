@@ -24,6 +24,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -159,7 +160,7 @@ class WorkspaceRoleInterceptorTest {
         when(workspaceUserMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(workspaceUser);
 
         SysRole adminRole = new SysRole();
-        adminRole.setId(ErrorCodeConstants.WORKSPACE_ROLE_ADMIN_ID);
+        adminRole.setId(UUID.fromString(ErrorCodeConstants.WORKSPACE_ROLE_ADMIN_ID));
         adminRole.setName("workspace_admin");
         adminRole.setPermissions("[\"project:create\",\"project:edit\"]");
         when(roleMapper.selectById(ErrorCodeConstants.WORKSPACE_ROLE_ADMIN_ID)).thenReturn(adminRole);
@@ -188,7 +189,7 @@ class WorkspaceRoleInterceptorTest {
         when(workspaceUserMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(workspaceUser);
 
         SysRole memberRole = new SysRole();
-        memberRole.setId(ErrorCodeConstants.WORKSPACE_ROLE_MEMBER_ID);
+        memberRole.setId(UUID.fromString(ErrorCodeConstants.WORKSPACE_ROLE_MEMBER_ID));
         memberRole.setName("workspace_member");
         memberRole.setPermissions("[]");
         when(roleMapper.selectById(ErrorCodeConstants.WORKSPACE_ROLE_MEMBER_ID)).thenReturn(memberRole);
@@ -213,7 +214,7 @@ class WorkspaceRoleInterceptorTest {
         when(workspaceUserMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(workspaceUser);
 
         SysRole adminRole = new SysRole();
-        adminRole.setId(ErrorCodeConstants.WORKSPACE_ROLE_ADMIN_ID);
+        adminRole.setId(UUID.fromString(ErrorCodeConstants.WORKSPACE_ROLE_ADMIN_ID));
         adminRole.setName("workspace_admin");
         adminRole.setPermissions(null);
         when(roleMapper.selectById(ErrorCodeConstants.WORKSPACE_ROLE_ADMIN_ID)).thenReturn(adminRole);

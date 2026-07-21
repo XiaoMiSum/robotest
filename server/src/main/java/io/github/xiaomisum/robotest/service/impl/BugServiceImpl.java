@@ -63,7 +63,7 @@ public class BugServiceImpl implements BugService {
 
         List<BugListRespDTO> dtos = page.getList().stream().map(bug -> {
             BugListRespDTO dto = new BugListRespDTO();
-            dto.setId(bug.getId());
+            dto.setId(bug.getId().toString());
             dto.setTitle(bug.getTitle());
             dto.setSeverity(bug.getSeverity());
             dto.setPriority(bug.getPriority());
@@ -73,7 +73,7 @@ public class BugServiceImpl implements BugService {
             SysUser reporter = userMapper.selectById(bug.getReporterId());
             if (reporter != null) {
                 BugListRespDTO.UserInfo info = new BugListRespDTO.UserInfo();
-                info.setId(reporter.getId());
+                info.setId(reporter.getId().toString());
                 info.setName(reporter.getUsername());
                 dto.setReporter(info);
             }
@@ -81,7 +81,7 @@ public class BugServiceImpl implements BugService {
                 SysUser assignee = userMapper.selectById(bug.getAssigneeId());
                 if (assignee != null) {
                     BugListRespDTO.UserInfo info = new BugListRespDTO.UserInfo();
-                    info.setId(assignee.getId());
+                    info.setId(assignee.getId().toString());
                     info.setName(assignee.getUsername());
                     dto.setAssignee(info);
                 }
@@ -96,7 +96,7 @@ public class BugServiceImpl implements BugService {
     @Transactional(rollbackFor = Exception.class)
     public String createBug(String projectId, String userId, BugCreateReqDTO reqDTO) {
         Bug bug = new Bug();
-        bug.setId(UUID.randomUUID().toString());
+        bug.setId(UUID.randomUUID());
         bug.setProjectId(projectId);
         bug.setTitle(reqDTO.getTitle());
         bug.setSeverity(reqDTO.getSeverity());
@@ -109,9 +109,9 @@ public class BugServiceImpl implements BugService {
         bug.setRelatedPlanId(reqDTO.getRelatedPlanId());
         bugMapper.insert(bug);
 
-        writeBugLog(bug.getId(), userId, "create", "创建缺陷");
+        writeBugLog(bug.getId().toString(), userId, "create", "创建缺陷");
 
-        return bug.getId();
+        return bug.getId().toString();
     }
 
     @Override
@@ -154,7 +154,7 @@ public class BugServiceImpl implements BugService {
 
         return logs.stream().map(log -> {
             BugLogRespDTO dto = new BugLogRespDTO();
-            dto.setId(log.getId());
+            dto.setId(log.getId().toString());
             dto.setOperatorId(log.getOperatorId());
             dto.setOperationType(log.getOperationType());
             dto.setContent(log.getContent());
@@ -170,7 +170,7 @@ public class BugServiceImpl implements BugService {
 
     private void writeBugLog(String bugId, String userId, String operationType, String content) {
         BugLog log = new BugLog();
-        log.setId(UUID.randomUUID().toString());
+        log.setId(UUID.randomUUID());
         log.setBugId(bugId);
         log.setOperatorId(userId);
         log.setOperationType(operationType);

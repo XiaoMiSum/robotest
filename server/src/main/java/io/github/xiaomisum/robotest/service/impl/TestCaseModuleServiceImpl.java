@@ -70,7 +70,7 @@ public class TestCaseModuleServiceImpl implements TestCaseModuleService {
         }
 
         TestCaseModule module = new TestCaseModule();
-        module.setId(UUID.randomUUID().toString());
+        module.setId(UUID.randomUUID());
         module.setProjectId(projectId);
         module.setParentId(reqDTO.getParentId());
         module.setType(reqDTO.getType());
@@ -80,8 +80,8 @@ public class TestCaseModuleServiceImpl implements TestCaseModuleService {
 
         if (TYPE_DOCUMENT.equals(reqDTO.getType())) {
             TestCaseNode rootNode = new TestCaseNode();
-            rootNode.setId(UUID.randomUUID().toString());
-            rootNode.setDocumentId(module.getId());
+            rootNode.setId(UUID.randomUUID());
+            rootNode.setDocumentId(module.getId().toString());
             rootNode.setParentId(null);
             rootNode.setType("normal");
             rootNode.setTitle(reqDTO.getName());
@@ -163,7 +163,7 @@ public class TestCaseModuleServiceImpl implements TestCaseModuleService {
 
     private TestCaseModuleTreeRespDTO convertToTreeDTO(TestCaseModule module) {
         TestCaseModuleTreeRespDTO dto = new TestCaseModuleTreeRespDTO();
-        dto.setId(module.getId());
+        dto.setId(module.getId().toString());
         dto.setParentId(module.getParentId());
         dto.setType(module.getType());
         dto.setName(module.getName());

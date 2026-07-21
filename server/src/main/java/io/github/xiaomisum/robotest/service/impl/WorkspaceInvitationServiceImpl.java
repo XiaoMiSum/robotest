@@ -54,7 +54,7 @@ public class WorkspaceInvitationServiceImpl implements WorkspaceInvitationServic
         checkAdminPermission(userId, workspaceId);
 
         WorkspaceInvitation invitation = new WorkspaceInvitation();
-        invitation.setId(UUID.randomUUID().toString());
+        invitation.setId(UUID.randomUUID());
         invitation.setWorkspaceId(workspaceId);
         invitation.setToken(generateToken());
         invitation.setCreatedBy(userId);
@@ -138,7 +138,7 @@ public class WorkspaceInvitationServiceImpl implements WorkspaceInvitationServic
             userMapper.insert(user);
         }
 
-        WorkspaceUser workspaceUser = addMemberToWorkspace(user.getId(), invitation.getWorkspaceId());
+        WorkspaceUser workspaceUser = addMemberToWorkspace(user.getId().toString(), invitation.getWorkspaceId());
         incrementInvitationUseCount(invitation);
 
         Workspace workspace = workspaceMapper.selectById(invitation.getWorkspaceId());
@@ -149,12 +149,12 @@ public class WorkspaceInvitationServiceImpl implements WorkspaceInvitationServic
                 .refreshToken(jwtTokenProvider.createRefreshToken(loginUser))
                 .tokenType("Bearer")
                 .user(InvitationJoinRespDTO.UserInfo.builder()
-                        .id(user.getId())
+                        .id(user.getId().toString())
                         .username(user.getUsername())
                         .email(user.getEmail())
                         .build())
                 .activeWorkspace(InvitationJoinRespDTO.ActiveWorkspaceInfo.builder()
-                        .id(workspace.getId())
+                        .id(workspace.getId().toString())
                         .name(workspace.getName())
                         .workspaceRole(workspaceUser.getWorkspaceRole())
                         .build())
@@ -214,7 +214,7 @@ public class WorkspaceInvitationServiceImpl implements WorkspaceInvitationServic
         }
 
         SysUser newUser = new SysUser();
-        newUser.setId(UUID.randomUUID().toString());
+        newUser.setId(UUID.randomUUID());
         newUser.setUsername(generateUsername(email));
         newUser.setEmail(email);
         newUser.setPasswordHash(passwordEncoder.encode(password));
@@ -233,7 +233,7 @@ public class WorkspaceInvitationServiceImpl implements WorkspaceInvitationServic
         }
 
         WorkspaceUser workspaceUser = new WorkspaceUser();
-        workspaceUser.setId(UUID.randomUUID().toString());
+        workspaceUser.setId(UUID.randomUUID());
         workspaceUser.setUserId(userId);
         workspaceUser.setWorkspaceId(workspaceId);
         workspaceUser.setWorkspaceRole(ErrorCodeConstants.WORKSPACE_ROLE_MEMBER_ID);
@@ -249,7 +249,7 @@ public class WorkspaceInvitationServiceImpl implements WorkspaceInvitationServic
 
     private LoginUser buildLoginUser(SysUser user) {
         LoginUser loginUser = new LoginUser();
-        loginUser.setId(user.getId());
+        loginUser.setId(user.getId().toString());
         loginUser.setUsername(user.getUsername());
         loginUser.setName(user.getUsername());
         loginUser.setEmail(user.getEmail());
@@ -276,7 +276,7 @@ public class WorkspaceInvitationServiceImpl implements WorkspaceInvitationServic
 
     private InvitationRespDTO convertToRespDTO(WorkspaceInvitation invitation) {
         InvitationRespDTO dto = new InvitationRespDTO();
-        dto.setId(invitation.getId());
+        dto.setId(invitation.getId().toString());
         dto.setToken(invitation.getToken());
         dto.setExpiresAt(invitation.getExpiresAt());
         dto.setMaxUses(invitation.getMaxUses());

@@ -53,7 +53,7 @@ public class UserDetailsBridgeImpl implements UserDetailsBridge {
 
     private LoginUser toLoginUser(SysUser user) {
         LoginUser loginUser = new LoginUser();
-        loginUser.setId(user.getId());
+        loginUser.setId(user.getId().toString());
         loginUser.setUsername(user.getUsername());
         loginUser.setName(user.getUsername());
         loginUser.setEmail(user.getEmail());

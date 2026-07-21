@@ -34,7 +34,7 @@ public class ProjectDashboardServiceImpl implements ProjectDashboardService {
                 new LambdaQueryWrapper<TestCaseModule>()
                         .eq(TestCaseModule::getProjectId, projectId)
                         .eq(TestCaseModule::getType, "document"))
-                .stream().map(TestCaseModule::getId).collect(Collectors.toList());
+                .stream().map(m -> m.getId().toString()).collect(Collectors.toList());
 
         long caseCount = 0;
         if (!projectDocIds.isEmpty()) {
@@ -67,7 +67,7 @@ public class ProjectDashboardServiceImpl implements ProjectDashboardService {
                         .last("LIMIT 5"));
         dto.setRecentReviews(recentReviews.stream().map(r -> {
             ProjectDashboardRespDTO.RecentItem item = new ProjectDashboardRespDTO.RecentItem();
-            item.setId(r.getId());
+            item.setId(r.getId().toString());
             item.setTitle(r.getTitle());
             item.setStatus(r.getStatus());
             item.setCreatedAt(r.getCreatedAt());
@@ -81,7 +81,7 @@ public class ProjectDashboardServiceImpl implements ProjectDashboardService {
                         .last("LIMIT 5"));
         dto.setRecentPlans(recentPlans.stream().map(p -> {
             ProjectDashboardRespDTO.RecentItem item = new ProjectDashboardRespDTO.RecentItem();
-            item.setId(p.getId());
+            item.setId(p.getId().toString());
             item.setTitle(p.getName());
             item.setStatus(p.getStatus());
             item.setCreatedAt(p.getCreatedAt());

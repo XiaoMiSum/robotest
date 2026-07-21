@@ -10,9 +10,9 @@ CREATE TABLE test_case_module (
     type        VARCHAR(20)  NOT NULL, -- directory / document
     name        VARCHAR(100) NOT NULL,
     sort_order  INT          NOT NULL DEFAULT 0,
+    is_deleted  BOOLEAN      NOT NULL DEFAULT FALSE,
     created_at  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    is_deleted  BOOLEAN      NOT NULL DEFAULT FALSE
+    updated_at  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX idx_test_case_module_project_id ON test_case_module (project_id);
@@ -28,9 +28,9 @@ CREATE TABLE test_case_node (
     priority     VARCHAR(2)   NULL,     -- P0 / P1 / P2 / P3（仅 case 节点）
     sort_order   INT          NOT NULL DEFAULT 0,
     version      INT          NOT NULL DEFAULT 1,
+    is_deleted   BOOLEAN      NOT NULL DEFAULT FALSE,
     created_at   TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at   TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    is_deleted   BOOLEAN      NOT NULL DEFAULT FALSE
+    updated_at   TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX idx_test_case_node_document_id ON test_case_node (document_id);
@@ -41,9 +41,9 @@ CREATE TABLE test_case_document_layout (
     id           UUID      PRIMARY KEY,
     document_id  UUID      NOT NULL,
     layout_json  JSONB     NOT NULL,
+    is_deleted   BOOLEAN   NOT NULL DEFAULT FALSE,
     created_at   TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at   TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    is_deleted   BOOLEAN   NOT NULL DEFAULT FALSE
+    updated_at   TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE UNIQUE INDEX uk_test_case_document_layout_doc ON test_case_document_layout (document_id);
@@ -61,9 +61,9 @@ CREATE TABLE test_plan (
     start_time   TIMESTAMP    NULL,
     end_time     TIMESTAMP    NULL,
     environment  VARCHAR(200) NULL,
+    is_deleted   BOOLEAN      NOT NULL DEFAULT FALSE,
     created_at   TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at   TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    is_deleted   BOOLEAN      NOT NULL DEFAULT FALSE
+    updated_at   TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX idx_test_plan_project_id ON test_plan (project_id);
@@ -96,11 +96,11 @@ CREATE TABLE test_plan_node_snapshot (
     type                   VARCHAR(20)  NOT NULL, -- case / normal / precondition / step / expected
     priority               VARCHAR(2)   NULL,
     is_associated          BOOLEAN      NOT NULL DEFAULT FALSE,
-    is_deleted             BOOLEAN      NOT NULL DEFAULT FALSE,
     last_result            VARCHAR(20)  DEFAULT 'untested', -- pass / fail / block / untested
     last_executor_id       UUID         NULL,
     last_executed_at       TIMESTAMP    NULL,
     sort_order             INT          NOT NULL DEFAULT 0,
+    is_deleted             BOOLEAN      NOT NULL DEFAULT FALSE,
     created_at             TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at             TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
@@ -117,9 +117,9 @@ CREATE TABLE test_plan_execution_record (
     result            VARCHAR(20) NOT NULL, -- pass / fail / block / untested
     note              TEXT      NULL,
     executed_at       TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    is_deleted        BOOLEAN   NOT NULL DEFAULT FALSE,
     created_at        TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at        TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    is_deleted        BOOLEAN   NOT NULL DEFAULT FALSE
+    updated_at        TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX idx_test_plan_execution_record_plan_id ON test_plan_execution_record (plan_id);
@@ -136,9 +136,9 @@ CREATE TABLE test_review (
     initiator_id    UUID         NOT NULL,
     participant_ids JSONB        NOT NULL DEFAULT '[]',
     status          VARCHAR(20)  NOT NULL DEFAULT 'in_progress', -- in_progress / completed
+    is_deleted      BOOLEAN      NOT NULL DEFAULT FALSE,
     created_at      TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at      TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    is_deleted      BOOLEAN      NOT NULL DEFAULT FALSE
+    updated_at      TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX idx_test_review_project_id ON test_review (project_id);
@@ -171,11 +171,11 @@ CREATE TABLE test_review_node_snapshot (
     type                   VARCHAR(20)  NOT NULL, -- case / normal / precondition / step / expected
     priority               VARCHAR(2)   NULL,
     is_associated          BOOLEAN      NOT NULL DEFAULT FALSE,
-    is_deleted             BOOLEAN      NOT NULL DEFAULT FALSE,
     last_mark              VARCHAR(10)  NULL,     -- pass / fail
     last_reviewer_id       UUID         NULL,
     last_reviewed_at       TIMESTAMP    NULL,
     sort_order             INT          NOT NULL DEFAULT 0,
+    is_deleted             BOOLEAN      NOT NULL DEFAULT FALSE,
     created_at             TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at             TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
@@ -192,9 +192,9 @@ CREATE TABLE test_review_record (
     operation_type    VARCHAR(20)  NOT NULL, -- mark / comment
     mark              VARCHAR(10)  NULL,     -- pass / fail
     comment           TEXT         NULL,
+    is_deleted        BOOLEAN      NOT NULL DEFAULT FALSE,
     created_at        TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at        TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    is_deleted        BOOLEAN      NOT NULL DEFAULT FALSE
+    updated_at        TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX idx_test_review_record_review_id ON test_review_record (review_id);
@@ -215,9 +215,9 @@ CREATE TABLE bug (
     assignee_id      UUID         NULL,
     related_case_id  UUID         NULL,
     related_plan_id  UUID         NULL,
+    is_deleted       BOOLEAN      NOT NULL DEFAULT FALSE,
     created_at       TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at       TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    is_deleted       BOOLEAN      NOT NULL DEFAULT FALSE
+    updated_at       TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX idx_bug_project_id ON bug (project_id);
@@ -231,9 +231,9 @@ CREATE TABLE bug_log (
     operator_id    UUID         NOT NULL,
     operation_type VARCHAR(50)  NOT NULL,
     content        TEXT         NULL,
+    is_deleted     BOOLEAN      NOT NULL DEFAULT FALSE,
     created_at     TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at     TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    is_deleted     BOOLEAN      NOT NULL DEFAULT FALSE
+    updated_at     TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX idx_bug_log_bug_id ON bug_log (bug_id);

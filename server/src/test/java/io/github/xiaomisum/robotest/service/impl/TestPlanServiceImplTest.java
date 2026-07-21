@@ -22,6 +22,7 @@ import xyz.migoo.framework.common.pojo.PageResult;
 import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -54,15 +55,15 @@ class TestPlanServiceImplTest {
 
     @BeforeEach
     void setUp() {
-        projectId = "proj-1";
-        userId = "user-1";
-        planId = "plan-1";
+        projectId = "00000000-0000-0000-0000-000000000001";
+        userId = "00000000-0000-0000-0000-000000000002";
+        planId = "00000000-0000-0000-0000-000000000003";
     }
 
     @Test
     void getPlanPage_success() {
         TestPlan plan = new TestPlan();
-        plan.setId(planId);
+        plan.setId(UUID.fromString(planId));
         plan.setName("Plan 1");
         plan.setStatus("new");
         plan.setExecutorId(userId);
@@ -71,7 +72,7 @@ class TestPlanServiceImplTest {
         doReturn(page).when(testPlanMapper).selectPage(any(PageParam.class), any(LambdaQueryWrapper.class));
 
         SysUser executor = new SysUser();
-        executor.setId(userId);
+        executor.setId(UUID.fromString(userId));
         executor.setUsername("executor");
         when(userMapper.selectById(userId)).thenReturn(executor);
 
@@ -112,7 +113,7 @@ class TestPlanServiceImplTest {
     @Test
     void getPlanDetail_success() {
         TestPlan plan = new TestPlan();
-        plan.setId(planId);
+        plan.setId(UUID.fromString(planId));
         plan.setName("Plan");
         plan.setExecutorId(userId);
 
@@ -136,12 +137,12 @@ class TestPlanServiceImplTest {
     @Test
     void getPlanSnapshotTree_success() {
         TestPlan plan = new TestPlan();
-        plan.setId(planId);
+        plan.setId(UUID.fromString(planId));
 
         when(testPlanMapper.selectById(planId)).thenReturn(plan);
 
         TestPlanNodeSnapshot snapshot = new TestPlanNodeSnapshot();
-        snapshot.setId("snap-1");
+        snapshot.setId(UUID.fromString("00000000-0000-0000-0000-000000000004"));
         snapshot.setPlanId(planId);
         snapshot.setIsAssociated(true);
         snapshot.setParentId(null);
@@ -167,21 +168,21 @@ class TestPlanServiceImplTest {
     @Test
     void submitExecutionRecord_success() {
         TestPlan plan = new TestPlan();
-        plan.setId(planId);
+        plan.setId(UUID.fromString(planId));
         plan.setStatus("in_progress");
 
         when(testPlanMapper.selectById(planId)).thenReturn(plan);
 
         TestPlanNodeSnapshot snapshot = new TestPlanNodeSnapshot();
-        snapshot.setId("snap-1");
+        snapshot.setId(UUID.fromString("00000000-0000-0000-0000-000000000004"));
         snapshot.setPlanId(planId);
         snapshot.setIsAssociated(true);
         snapshot.setType("case");
 
-        when(planNodeSnapshotMapper.selectById("snap-1")).thenReturn(snapshot);
+        when(planNodeSnapshotMapper.selectById("00000000-0000-0000-0000-000000000004")).thenReturn(snapshot);
 
         TestPlanRecordReqDTO reqDTO = new TestPlanRecordReqDTO();
-        reqDTO.setSnapshotNodeId("snap-1");
+        reqDTO.setSnapshotNodeId("00000000-0000-0000-0000-000000000004");
         reqDTO.setResult("pass");
         reqDTO.setNote("Looks good");
 
@@ -208,7 +209,7 @@ class TestPlanServiceImplTest {
     @Test
     void submitExecutionRecord_notInProgress_throws() {
         TestPlan plan = new TestPlan();
-        plan.setId(planId);
+        plan.setId(UUID.fromString(planId));
         plan.setStatus("completed");
 
         when(testPlanMapper.selectById(planId)).thenReturn(plan);
@@ -224,14 +225,14 @@ class TestPlanServiceImplTest {
     @Test
     void submitExecutionRecord_snapshotNotFound_throws() {
         TestPlan plan = new TestPlan();
-        plan.setId(planId);
+        plan.setId(UUID.fromString(planId));
         plan.setStatus("in_progress");
 
         when(testPlanMapper.selectById(planId)).thenReturn(plan);
-        when(planNodeSnapshotMapper.selectById("snap-1")).thenReturn(null);
+        when(planNodeSnapshotMapper.selectById("00000000-0000-0000-0000-000000000004")).thenReturn(null);
 
         TestPlanRecordReqDTO reqDTO = new TestPlanRecordReqDTO();
-        reqDTO.setSnapshotNodeId("snap-1");
+        reqDTO.setSnapshotNodeId("00000000-0000-0000-0000-000000000004");
         reqDTO.setResult("pass");
 
         assertThrows(ServiceException.class,
@@ -241,21 +242,21 @@ class TestPlanServiceImplTest {
     @Test
     void submitExecutionRecord_notAssociated_throws() {
         TestPlan plan = new TestPlan();
-        plan.setId(planId);
+        plan.setId(UUID.fromString(planId));
         plan.setStatus("in_progress");
 
         when(testPlanMapper.selectById(planId)).thenReturn(plan);
 
         TestPlanNodeSnapshot snapshot = new TestPlanNodeSnapshot();
-        snapshot.setId("snap-1");
+        snapshot.setId(UUID.fromString("00000000-0000-0000-0000-000000000004"));
         snapshot.setPlanId(planId);
         snapshot.setIsAssociated(false);
         snapshot.setType("case");
 
-        when(planNodeSnapshotMapper.selectById("snap-1")).thenReturn(snapshot);
+        when(planNodeSnapshotMapper.selectById("00000000-0000-0000-0000-000000000004")).thenReturn(snapshot);
 
         TestPlanRecordReqDTO reqDTO = new TestPlanRecordReqDTO();
-        reqDTO.setSnapshotNodeId("snap-1");
+        reqDTO.setSnapshotNodeId("00000000-0000-0000-0000-000000000004");
         reqDTO.setResult("pass");
 
         assertThrows(ServiceException.class,
@@ -265,21 +266,21 @@ class TestPlanServiceImplTest {
     @Test
     void submitExecutionRecord_notCaseType_throws() {
         TestPlan plan = new TestPlan();
-        plan.setId(planId);
+        plan.setId(UUID.fromString(planId));
         plan.setStatus("in_progress");
 
         when(testPlanMapper.selectById(planId)).thenReturn(plan);
 
         TestPlanNodeSnapshot snapshot = new TestPlanNodeSnapshot();
-        snapshot.setId("snap-1");
+        snapshot.setId(UUID.fromString("00000000-0000-0000-0000-000000000004"));
         snapshot.setPlanId(planId);
         snapshot.setIsAssociated(true);
         snapshot.setType("normal");
 
-        when(planNodeSnapshotMapper.selectById("snap-1")).thenReturn(snapshot);
+        when(planNodeSnapshotMapper.selectById("00000000-0000-0000-0000-000000000004")).thenReturn(snapshot);
 
         TestPlanRecordReqDTO reqDTO = new TestPlanRecordReqDTO();
-        reqDTO.setSnapshotNodeId("snap-1");
+        reqDTO.setSnapshotNodeId("00000000-0000-0000-0000-000000000004");
         reqDTO.setResult("pass");
 
         assertThrows(ServiceException.class,
@@ -289,9 +290,9 @@ class TestPlanServiceImplTest {
     @Test
     void getNodeExecutionRecords_success() {
         TestPlanExecutionRecord record = new TestPlanExecutionRecord();
-        record.setId("rec-1");
+        record.setId(UUID.fromString("00000000-0000-0000-0000-000000000005"));
         record.setPlanId(planId);
-        record.setSnapshotNodeId("snap-1");
+        record.setSnapshotNodeId("00000000-0000-0000-0000-000000000004");
         record.setExecutorId(userId);
         record.setResult("pass");
 
@@ -300,7 +301,7 @@ class TestPlanServiceImplTest {
         when(userMapper.selectById(userId)).thenReturn(null);
 
         List<TestPlanExecutionRecordRespDTO> result =
-                planService.getNodeExecutionRecords(planId, "snap-1");
+                planService.getNodeExecutionRecords(planId, "00000000-0000-0000-0000-000000000004");
 
         assertNotNull(result);
         assertEquals(1, result.size());
@@ -310,16 +311,16 @@ class TestPlanServiceImplTest {
     @Test
     void syncPlan_success() {
         TestPlan plan = new TestPlan();
-        plan.setId(planId);
+        plan.setId(UUID.fromString(planId));
         plan.setExecutorId(userId);
         plan.setStatus("in_progress");
 
         when(testPlanMapper.selectById(planId)).thenReturn(plan);
 
         TestPlanNodeSnapshot snapshot = new TestPlanNodeSnapshot();
-        snapshot.setId("snap-1");
+        snapshot.setId(UUID.fromString("00000000-0000-0000-0000-000000000004"));
         snapshot.setPlanId(planId);
-        snapshot.setOriginalNodeId("orig-1");
+        snapshot.setOriginalNodeId("00000000-0000-0000-0000-000000000006");
         snapshot.setTitle("Old Title");
         snapshot.setType("normal");
 
@@ -327,14 +328,14 @@ class TestPlanServiceImplTest {
                 .thenReturn(List.of(snapshot));
 
         TestCaseNode currentNode = new TestCaseNode();
-        currentNode.setId("orig-1");
+        currentNode.setId(UUID.fromString("00000000-0000-0000-0000-000000000006"));
         currentNode.setTitle("Updated Title");
         currentNode.setType("case");
         currentNode.setPriority("high");
         currentNode.setSortOrder(0);
         currentNode.setIsDeleted(false);
 
-        when(testCaseNodeMapper.selectById("orig-1")).thenReturn(currentNode);
+        when(testCaseNodeMapper.selectById("00000000-0000-0000-0000-000000000006")).thenReturn(currentNode);
 
         planService.syncPlan(planId, userId);
 
@@ -346,7 +347,7 @@ class TestPlanServiceImplTest {
     @Test
     void syncPlan_notExecutor_throws() {
         TestPlan plan = new TestPlan();
-        plan.setId(planId);
+        plan.setId(UUID.fromString(planId));
         plan.setExecutorId("other-user");
         plan.setStatus("in_progress");
 
@@ -359,7 +360,7 @@ class TestPlanServiceImplTest {
     @Test
     void syncPlan_notInProgress_throws() {
         TestPlan plan = new TestPlan();
-        plan.setId(planId);
+        plan.setId(UUID.fromString(planId));
         plan.setExecutorId(userId);
         plan.setStatus("completed");
 
@@ -372,20 +373,20 @@ class TestPlanServiceImplTest {
     @Test
     void syncPlan_deletedOriginal_marksDeleted() {
         TestPlan plan = new TestPlan();
-        plan.setId(planId);
+        plan.setId(UUID.fromString(planId));
         plan.setExecutorId(userId);
         plan.setStatus("in_progress");
 
         when(testPlanMapper.selectById(planId)).thenReturn(plan);
 
         TestPlanNodeSnapshot snapshot = new TestPlanNodeSnapshot();
-        snapshot.setId("snap-1");
+        snapshot.setId(UUID.fromString("00000000-0000-0000-0000-000000000004"));
         snapshot.setPlanId(planId);
-        snapshot.setOriginalNodeId("orig-1");
+        snapshot.setOriginalNodeId("00000000-0000-0000-0000-000000000006");
 
         when(planNodeSnapshotMapper.selectList(any(LambdaQueryWrapper.class)))
                 .thenReturn(List.of(snapshot));
-        when(testCaseNodeMapper.selectById("orig-1")).thenReturn(null);
+        when(testCaseNodeMapper.selectById("00000000-0000-0000-0000-000000000006")).thenReturn(null);
 
         planService.syncPlan(planId, userId);
 
@@ -396,7 +397,7 @@ class TestPlanServiceImplTest {
     @Test
     void closePlan_success() {
         TestPlan plan = new TestPlan();
-        plan.setId(planId);
+        plan.setId(UUID.fromString(planId));
         plan.setExecutorId(userId);
         plan.setStatus("in_progress");
 
@@ -413,7 +414,7 @@ class TestPlanServiceImplTest {
     @Test
     void closePlan_withUntestedCases_warns() {
         TestPlan plan = new TestPlan();
-        plan.setId(planId);
+        plan.setId(UUID.fromString(planId));
         plan.setExecutorId(userId);
         plan.setStatus("in_progress");
 
@@ -430,7 +431,7 @@ class TestPlanServiceImplTest {
     @Test
     void closePlan_notExecutor_throws() {
         TestPlan plan = new TestPlan();
-        plan.setId(planId);
+        plan.setId(UUID.fromString(planId));
         plan.setExecutorId("other-user");
 
         when(testPlanMapper.selectById(planId)).thenReturn(plan);
