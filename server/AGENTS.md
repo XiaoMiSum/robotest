@@ -56,3 +56,69 @@ mvn checkstyle:check && mvn test
 - Controller 仅负责路由与参数校验，业务逻辑在 Service 层（C2）
 - 上下文标识（如 workspaceId）仅通过请求头 `X-Active-Workspace` 传递（C4），不出现在 URL 或请求体中
 - 避免新增外部依赖，确有必要时需经团队讨论
+
+## 框架集成（migoo-spring-boot-starter v1.3.17）
+
+> 完整规范见 `docs/spec/migoo-framework.md`，框架文档：https://xiaomisum.github.io/springboot-migoo-framework/
+
+### 响应与异常
+
+```java
+return Result.ok(data);                    // 成功
+return Result.error(ErrorCodeConstants.X); // 错误
+throw ServiceExceptionUtil.get(ErrorCodeConstants.X); // 业务异常
+```
+
+### 实体与 Mapper
+
+```java
+// 实体：继承 BaseUuidDO（UUID 主键，自动填充 createdAt/updatedAt/isDeleted）
+public class SysUser extends BaseUuidDO<SysUser> {
+    private String username;
+}
+
+// Mapper：继承 BaseMapperX（selectOne/selectCount/selectPage/insertBatch/updateBatch）
+public interface SysUserMapper extends BaseMapperX<SysUser> {}
+
+// Wrapper：使用 LambdaQueryWrapperX（xxxIfPresent 自动跳过 null）
+new LambdaQueryWrapperX<SysUser>()
+    .likeIfPresent(SysUser::getName, name)
+    .eqIfPresent(SysUser::getStatus, status);
+```
+
+### 分页
+
+```java
+// 请求 DTO 继承 PageParam（pageNo/pageSize）
+// Service 返回 PageResult<T>（list/total）
+PageResult<SysUser> page = userMapper.selectPage(
+    new PageParam() {{ setPageNo(1); setPageSize(10); }}, wrapper);
+```
+
+### 对象转换（MapStruct）
+
+```java
+// 定义 Mapper 接口
+@Mapper(componentModel = "spring")
+public interface UserConvertMapper {
+    UserConvertMapper INSTANCE = Mappers.getMapper(UserConvertMapper.class);
+
+    UserVO toVO(SysUser entity);
+    List<UserVO> toVOList(List<SysUser> entities);
+    SysUser toEntity(UserCreateReqDTO dto);
+}
+
+// Service 中使用
+UserVO vo = UserConvertMapper.INSTANCE.toVO(user);
+// 或注入使用（推荐）
+@Resource
+private UserConvertMapper userConvertMapper;
+```
+
+### 工具类速查
+
+| 类 | 用途 |
+|----|------|
+| `JsonUtils` | `toJsonString(obj)` / `parseObject(json, Class)` / `parseObject(json, TypeReference)` |
+| `CollectionUtils` | `convertList` / `convertMap` / `filterList` |
+| `ServiceExceptionUtil` | `get(ErrorCode)` / `get(ErrorCode, args...)` — 抛出业务异常 |
