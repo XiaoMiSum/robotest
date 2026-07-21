@@ -2,6 +2,7 @@ package io.github.xiaomisum.robotest.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import io.github.xiaomisum.robotest.common.ErrorCodeConstants;
+import io.github.xiaomisum.robotest.common.util.PasswordValidator;
 import io.github.xiaomisum.robotest.model.dto.request.UserBatchStatusReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.UserCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.UserUpdateReqDTO;
@@ -84,6 +85,8 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public String createUser(UserCreateReqDTO reqDTO) {
+        // 校验密码强度
+        PasswordValidator.validate(reqDTO.getPassword());
         // 校验用户名唯一
         if (userMapper.selectOne(SysUser::getUsername, reqDTO.getUsername()) != null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.USERNAME_EXISTS);
@@ -206,6 +209,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public void resetPassword(String id, String newPassword) {
+        PasswordValidator.validate(newPassword);
         SysUser user = userMapper.selectById(id);
         if (user == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.USER_NOT_FOUND);

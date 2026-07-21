@@ -48,7 +48,7 @@ public class DocumentEndpoint {
         roomManager.broadcast(docId, message, session);
 
         try {
-            persistenceHandler.persist(docId, message);
+            persistenceHandler.persist(docId, message, session);
         } catch (Exception e) {
             log.error("Failed to persist WebSocket message for doc {}: {}", docId, e.getMessage(), e);
         }
