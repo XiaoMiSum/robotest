@@ -1,8 +1,8 @@
 package io.github.xiaomisum.robotest.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import io.github.xiaomisum.robotest.common.Constants;
-import io.github.xiaomisum.robotest.common.ErrorCodeConstants;
+import io.github.xiaomisum.robotest.framework.common.Constants;
+import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.model.dto.request.WorkspaceCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.WorkspaceMembersAddReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.WorkspaceUpdateReqDTO;
@@ -130,10 +130,10 @@ public class WorkspaceServiceImpl implements WorkspaceService {
         if (workspace == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.WORKSPACE_NOT_FOUND);
         }
-        // TODO: 检查工作空间下是否有项目
+        // TODO: 检查工作空间下是否有项�?
         workspace.setStatus(Constants.Status.DISSOLVED);
         workspaceMapper.updateById(workspace);
-        // 删除所有成员关联
+        // 删除所有成员关�?
         workspaceUserMapper.delete(new LambdaQueryWrapper<WorkspaceUser>()
                 .eq(WorkspaceUser::getWorkspaceId, id));
     }
@@ -184,7 +184,7 @@ public class WorkspaceServiceImpl implements WorkspaceService {
             if (user == null || !Constants.Status.ACTIVE.equals(user.getStatus())) {
                 continue;
             }
-            // 检查是否已在工作空间
+            // 检查是否已在工作空�?
             Long count = workspaceUserMapper.selectCount(new LambdaQueryWrapper<WorkspaceUser>()
                     .eq(WorkspaceUser::getUserId, member.getUserId())
                     .eq(WorkspaceUser::getWorkspaceId, id));
@@ -211,7 +211,7 @@ public class WorkspaceServiceImpl implements WorkspaceService {
         if (wu == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.USER_NOT_FOUND);
         }
-        // 检查是否是降级唯一管理员
+        // 检查是否是降级唯一管理�?
         if (ErrorCodeConstants.WORKSPACE_ROLE_ADMIN_ID.equals(wu.getWorkspaceRole())
                 && !ErrorCodeConstants.WORKSPACE_ROLE_ADMIN_ID.equals(workspaceRole)) {
             Long adminCount = workspaceUserMapper.selectCount(new LambdaQueryWrapper<WorkspaceUser>()
@@ -233,7 +233,7 @@ public class WorkspaceServiceImpl implements WorkspaceService {
         if (wu == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.USER_NOT_FOUND);
         }
-        // 检查是否是移除唯一管理员
+        // 检查是否是移除唯一管理�?
         if (ErrorCodeConstants.WORKSPACE_ROLE_ADMIN_ID.equals(wu.getWorkspaceRole())) {
             Long adminCount = workspaceUserMapper.selectCount(new LambdaQueryWrapper<WorkspaceUser>()
                     .eq(WorkspaceUser::getWorkspaceId, id)

@@ -1,8 +1,7 @@
-package io.github.xiaomisum.robotest.aspect;
+package io.github.xiaomisum.robotest.framework.audit;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import io.github.xiaomisum.robotest.annotation.AuditOperation;
 import io.github.xiaomisum.robotest.model.entity.AuditLog;
 import io.github.xiaomisum.robotest.repository.AuditLogMapper;
 import jakarta.servlet.http.HttpServletRequest;
@@ -36,7 +35,7 @@ public class AuditLogAspect {
             "password", "passwordHash", "token", "accessToken", "refreshToken", "secret"
     );
 
-    @Around("@annotation(io.github.xiaomisum.robotest.annotation.AuditOperation)")
+    @Around("@annotation(io.github.xiaomisum.robotest.framework.audit.AuditOperation)")
     public Object around(ProceedingJoinPoint joinPoint) throws Throwable {
         Object result = joinPoint.proceed();
 

@@ -1,7 +1,7 @@
 package io.github.xiaomisum.robotest.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import io.github.xiaomisum.robotest.common.ErrorCodeConstants;
+import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.model.dto.response.WorkspaceMyRespDTO;
 import io.github.xiaomisum.robotest.model.entity.SysUser;
 import io.github.xiaomisum.robotest.model.entity.Workspace;
@@ -33,7 +33,7 @@ public class MyWorkspaceServiceimpl implements MyWorkspaceService {
 
     @Override
     public PageResult<WorkspaceMyRespDTO> getMyWorkspacePage(String userId, Integer pageNo, Integer pageSize) {
-        // 查询用户关联的工作空间
+        // 查询用户关联的工作空�?
         LambdaQueryWrapper<WorkspaceUser> wrapper = new LambdaQueryWrapper<WorkspaceUser>()
                 .eq(WorkspaceUser::getUserId, userId)
                 .orderByDesc(WorkspaceUser::getJoinedAt);
@@ -103,7 +103,7 @@ public class MyWorkspaceServiceimpl implements MyWorkspaceService {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.WORKSPACE_NOT_FOUND);
         }
 
-        // 校验用户属于该工作空间
+        // 校验用户属于该工作空�?
         WorkspaceUser workspaceUser = workspaceUserMapper.selectOne(
                 new LambdaQueryWrapper<WorkspaceUser>()
                         .eq(WorkspaceUser::getUserId, userId)
@@ -112,7 +112,7 @@ public class MyWorkspaceServiceimpl implements MyWorkspaceService {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.NO_PERMISSION);
         }
 
-        // 更新用户的活跃工作空间
+        // 更新用户的活跃工作空�?
         user.setLastActiveWorkspaceId(workspaceId);
         userMapper.updateById(user);
     }

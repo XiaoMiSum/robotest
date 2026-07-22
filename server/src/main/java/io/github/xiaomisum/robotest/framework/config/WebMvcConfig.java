@@ -1,6 +1,6 @@
 package io.github.xiaomisum.robotest.framework.config;
 
-import io.github.xiaomisum.robotest.interceptor.WorkspaceRoleInterceptor;
+import io.github.xiaomisum.robotest.framework.interceptor.WorkspaceRoleInterceptor;
 import jakarta.annotation.Resource;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
