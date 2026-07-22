@@ -45,6 +45,7 @@ mvn checkstyle:check && mvn test
 
 | 编号  | 规则                                                    | 检查方式      |
 | --- | ----------------------------------------------------- | --------- |
+| C1  | 优先使用 migoo 框架提供的基础功能（验证注解、工具类等），禁止重复造轮子     | 代码审查      |
 | C2  | Controller 不允许包含业务逻辑，只能路由+校验                        | 代码审查      |
 | C3  | 所有业务异常必须抛出 `BusinessException(code, msg)`，不抛原始异常      | 代码审查      |
 | C5  | 数据库每表必须有 `id`（自增或雪花）、`created_at`、`updated_at`，禁止物理外键 | 数据库审查     |
@@ -122,3 +123,12 @@ private UserConvertMapper userConvertMapper;
 | `JsonUtils` | `toJsonString(obj)` / `parseObject(json, Class)` / `parseObject(json, TypeReference)` |
 | `CollectionUtils` | `convertList` / `convertMap` / `filterList` |
 | `ServiceExceptionUtil` | `get(ErrorCode)` / `get(ErrorCode, args...)` — 抛出业务异常 |
+
+### 验证注解（`xyz.migoo.framework.common.validation`）
+
+| 注解 | 用途 | 示例 |
+|------|------|------|
+| `@Password` | 密码强度校验（大小写+数字+特殊字符） | `@Password private String password;` |
+| `@Email` | 邮箱格式校验 | `@Email private String email;` |
+| `@Mobile` | 手机号格式校验 | `@Mobile private String phone;` |
+| `@InEnum` | 枚举值范围校验 | `@InEnum(StatusEnum.class) private Integer status;` |
