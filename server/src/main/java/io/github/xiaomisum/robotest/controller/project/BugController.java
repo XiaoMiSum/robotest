@@ -5,7 +5,7 @@ import io.github.xiaomisum.robotest.model.dto.request.BugCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.BugUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.BugListRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.BugLogRespDTO;
-import io.github.xiaomisum.robotest.service.BugService;
+import io.github.xiaomisum.robotest.service.project.BugService;
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;

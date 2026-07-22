@@ -8,7 +8,7 @@ import io.github.xiaomisum.robotest.model.dto.response.PermissionTableRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.RoleRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.RoleTreeRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.RoleUserRespDTO;
-import io.github.xiaomisum.robotest.service.RoleService;
+import io.github.xiaomisum.robotest.service.admin.RoleService;
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;

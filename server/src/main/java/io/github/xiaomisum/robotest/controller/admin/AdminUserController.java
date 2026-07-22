@@ -6,7 +6,7 @@ import io.github.xiaomisum.robotest.model.dto.request.UserPasswordResetReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.UserStatusUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.UserUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.UserRespDTO;
-import io.github.xiaomisum.robotest.service.UserService;
+import io.github.xiaomisum.robotest.service.admin.UserService;
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;

@@ -5,7 +5,7 @@ import io.github.xiaomisum.robotest.model.dto.request.WorkspaceMembersAddReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.WorkspaceMemberRoleUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.WorkspaceMemberAddResultRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.WorkspaceMemberRespDTO;
-import io.github.xiaomisum.robotest.service.WorkspaceMemberService;
+import io.github.xiaomisum.robotest.service.workspace.WorkspaceMemberService;
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
