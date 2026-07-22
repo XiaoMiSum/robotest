@@ -35,24 +35,26 @@ feature/*     ──●──●──        ──●
 
 ## 2. 提交规范
 
-采用 **Conventional Commits**：
+采用 **Conventional Commits + GitHub Emoji**：
 
 ```
-<type>(<scope>): <description>
+<emoji> <type>(<scope>): <description>
 ```
 
-**type 类型**：
+**type 类型与 Emoji 前缀**：
 
-| type       | 说明          |
-| ---------- | ----------- |
-| `feat`     | 新功能         |
-| `fix`      | Bug 修复      |
-| `refactor` | 重构（非功能非修复）  |
-| `style`    | 代码格式（不影响逻辑） |
-| `docs`     | 文档变更        |
-| `test`     | 测试相关        |
-| `chore`    | 构建、CI、依赖等   |
-| `perf`     | 性能优化        |
+| Emoji | type       | 说明          |
+|-------| ---------- | ----------- |
+| ✨    | `feat`     | 新功能         |
+| 🐛    | `fix`      | Bug 修复      |
+| ♻️    | `refactor` | 重构（非功能非修复）  |
+| 💄    | `style`    | 代码格式（不影响逻辑） |
+| 📝    | `docs`     | 文档变更        |
+| ✅    | `test`     | 测试相关        |
+| 🔧    | `chore`    | 构建、CI、依赖等   |
+| ⚡    | `perf`     | 性能优化        |
+| ⬆️    | `deps`     | 依赖升级        |
+| 🔒    | `security` | 安全相关        |
 
 **scope 约定**：
 
@@ -61,16 +63,17 @@ feature/*     ──●──●──        ──●
 | `admin`     | 系统管理模块  |
 | `workspace` | 空间管理模块  |
 | `project`   | 功能测试模块  |
+| `server`    | 后端通用变更  |
+| `web`       | 前端通用变更  |
 | `shared`    | 跨模块公共变更 |
 | `config`    | 配置类变更   |
-| `deps`      | 依赖变更    |
 
 **示例**：
 
 ```
-feat(admin): 新增用户批量禁用功能
-fix(project): 修复评审快照树裁剪时空指针异常
-refactor(workspace): 抽取成员权限校验逻辑为公共方法
+✨ feat(admin): 新增用户批量禁用功能
+🐛 fix(project): 修复评审快照树裁剪时空指针异常
+♻️ refactor(workspace): 抽取成员权限校验逻辑为公共方法
 ```
 
 ### 提交粒度

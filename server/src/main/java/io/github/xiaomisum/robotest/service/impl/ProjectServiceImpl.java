@@ -2,6 +2,7 @@ package io.github.xiaomisum.robotest.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import io.github.xiaomisum.robotest.common.Constants;
 import io.github.xiaomisum.robotest.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.convert.ProjectConvertMapper;
 import io.github.xiaomisum.robotest.model.dto.request.ProjectArchiveReqDTO;
@@ -120,7 +121,7 @@ public class ProjectServiceImpl implements ProjectService {
         project.setWorkspaceId(workspaceId);
         project.setName(reqDTO.getName());
         project.setDescription(reqDTO.getDescription());
-        project.setStatus("active");
+        project.setStatus(Constants.Status.ACTIVE);
         project.setStartTime(reqDTO.getStartTime());
         project.setEndTime(reqDTO.getEndTime());
         project.setCreatedBy(userId);
@@ -143,7 +144,7 @@ public class ProjectServiceImpl implements ProjectService {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.PROJECT_NOT_FOUND);
         }
 
-        if ("archived".equals(project.getStatus())) {
+        if (Constants.Status.ARCHIVED.equals(project.getStatus())) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.PROJECT_ARCHIVED);
         }
 
@@ -209,9 +210,9 @@ public class ProjectServiceImpl implements ProjectService {
         }
 
         if (reqDTO.getArchived()) {
-            project.setStatus("archived");
+            project.setStatus(Constants.Status.ARCHIVED);
         } else {
-            project.setStatus("active");
+            project.setStatus(Constants.Status.ACTIVE);
         }
         projectMapper.updateById(project);
 

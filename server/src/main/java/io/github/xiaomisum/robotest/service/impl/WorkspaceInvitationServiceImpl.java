@@ -1,6 +1,7 @@
 package io.github.xiaomisum.robotest.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import io.github.xiaomisum.robotest.common.Constants;
 import io.github.xiaomisum.robotest.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.convert.WorkspaceInvitationConvertMapper;
 import io.github.xiaomisum.robotest.framework.security.LoginUser;
@@ -61,7 +62,7 @@ public class WorkspaceInvitationServiceImpl implements WorkspaceInvitationServic
         invitation.setExpiresAt(reqDTO.getExpiresAt());
         invitation.setMaxUses(reqDTO.getMaxUses());
         invitation.setUseCount(0);
-        invitation.setStatus("active");
+        invitation.setStatus(Constants.Status.ACTIVE);
         invitationMapper.insert(invitation);
 
         return convertToRespDTO(invitation);
@@ -96,7 +97,7 @@ public class WorkspaceInvitationServiceImpl implements WorkspaceInvitationServic
             throw ServiceExceptionUtil.get(ErrorCodeConstants.INVITATION_INVALID);
         }
 
-        invitation.setStatus("revoked");
+        invitation.setStatus(Constants.Status.REVOKED);
         invitationMapper.updateById(invitation);
     }
 
@@ -147,7 +148,7 @@ public class WorkspaceInvitationServiceImpl implements WorkspaceInvitationServic
         return InvitationJoinRespDTO.builder()
                 .accessToken(jwtTokenProvider.createAccessToken(loginUser))
                 .refreshToken(jwtTokenProvider.createRefreshToken(loginUser))
-                .tokenType("Bearer")
+                .tokenType(Constants.Auth.TOKEN_TYPE_BEARER)
                 .user(InvitationJoinRespDTO.UserInfo.builder()
                         .id(user.getId())
                         .username(user.getUsername())
@@ -173,7 +174,7 @@ public class WorkspaceInvitationServiceImpl implements WorkspaceInvitationServic
     }
 
     private boolean isValidInvitation(WorkspaceInvitation invitation) {
-        if (invitation == null || !"active".equals(invitation.getStatus())) {
+        if (invitation == null || !Constants.Status.ACTIVE.equals(invitation.getStatus())) {
             return false;
         }
         if (invitation.getExpiresAt() != null && invitation.getExpiresAt().isBefore(LocalDateTime.now())) {
@@ -190,7 +191,7 @@ public class WorkspaceInvitationServiceImpl implements WorkspaceInvitationServic
         if (invitation == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.INVITATION_INVALID);
         }
-        if (!"active".equals(invitation.getStatus())) {
+        if (!Constants.Status.ACTIVE.equals(invitation.getStatus())) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.INVITATION_REVOKED);
         }
         if (invitation.getExpiresAt() != null && invitation.getExpiresAt().isBefore(LocalDateTime.now())) {
@@ -217,7 +218,7 @@ public class WorkspaceInvitationServiceImpl implements WorkspaceInvitationServic
         newUser.setUsername(generateUsername(email));
         newUser.setEmail(email);
         newUser.setPasswordHash(passwordEncoder.encode(password));
-        newUser.setStatus("active");
+        newUser.setStatus(Constants.Status.ACTIVE);
         return newUser;
     }
 
@@ -252,7 +253,7 @@ public class WorkspaceInvitationServiceImpl implements WorkspaceInvitationServic
         loginUser.setName(user.getUsername());
         loginUser.setEmail(user.getEmail());
         loginUser.setPassword(user.getPasswordHash());
-        loginUser.setEnabled("active".equals(user.getStatus()));
+        loginUser.setEnabled(Constants.Status.ACTIVE.equals(user.getStatus()));
         return loginUser;
     }
 

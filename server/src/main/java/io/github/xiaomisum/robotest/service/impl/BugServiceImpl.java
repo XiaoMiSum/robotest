@@ -1,6 +1,7 @@
 package io.github.xiaomisum.robotest.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import io.github.xiaomisum.robotest.common.Constants;
 import io.github.xiaomisum.robotest.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.model.dto.request.BugCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.BugUpdateReqDTO;
@@ -100,7 +101,7 @@ public class BugServiceImpl implements BugService {
         bug.setTitle(reqDTO.getTitle());
         bug.setSeverity(reqDTO.getSeverity());
         bug.setPriority(reqDTO.getPriority());
-        bug.setStatus("new");
+        bug.setStatus(Constants.Status.NEW);
         bug.setDescription(reqDTO.getDescription());
         bug.setReporterId(userId);
         bug.setAssigneeId(reqDTO.getAssigneeId().toString());
@@ -108,7 +109,7 @@ public class BugServiceImpl implements BugService {
         bug.setRelatedPlanId(reqDTO.getRelatedPlanId().toString());
         bugMapper.insert(bug);
 
-        writeBugLog(bug.getId().toString(), userId, "create", "创建缺陷");
+        writeBugLog(bug.getId().toString(), userId, Constants.BugOperation.CREATE, "创建缺陷");
 
         return bug.getId().toString();
     }
@@ -141,7 +142,7 @@ public class BugServiceImpl implements BugService {
         }
         bugMapper.updateById(bug);
 
-        writeBugLog(bugId, userId, "update", "更新缺陷");
+        writeBugLog(bugId, userId, Constants.BugOperation.UPDATE, "更新缺陷");
     }
 
     @Override

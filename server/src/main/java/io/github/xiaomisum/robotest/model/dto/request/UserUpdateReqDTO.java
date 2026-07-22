@@ -1,7 +1,7 @@
 package io.github.xiaomisum.robotest.model.dto.request;
 
-import jakarta.validation.constraints.Email;
 import lombok.Data;
+import xyz.migoo.framework.common.validation.Email;
 
 import java.util.List;
 import java.util.UUID;
