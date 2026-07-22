@@ -4,7 +4,7 @@ import io.github.xiaomisum.robotest.framework.security.LoginUser;
 import io.github.xiaomisum.robotest.model.dto.request.TestCaseModuleCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.TestCaseModuleUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.TestCaseModuleTreeRespDTO;
-import io.github.xiaomisum.robotest.service.TestCaseModuleService;
+import io.github.xiaomisum.robotest.service.project.TestCaseModuleService;
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;

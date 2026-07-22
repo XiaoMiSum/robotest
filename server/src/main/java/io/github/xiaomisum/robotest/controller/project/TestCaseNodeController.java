@@ -3,7 +3,7 @@ package io.github.xiaomisum.robotest.controller.project;
 import io.github.xiaomisum.robotest.framework.security.LoginUser;
 import io.github.xiaomisum.robotest.model.dto.response.TestCaseDocumentNodesRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.TestCaseNodeTreeRespDTO;
-import io.github.xiaomisum.robotest.service.TestCaseNodeService;
+import io.github.xiaomisum.robotest.service.project.TestCaseNodeService;
 import jakarta.annotation.Resource;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;

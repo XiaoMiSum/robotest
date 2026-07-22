@@ -29,15 +29,15 @@ mvn checkstyle:check && mvn test
 分层：**Controller → Service → Repository**
 
 - `controller/{admin,workspace,project}/`：仅路由 + 参数校验（`@Valid`），无业务逻辑
-- `service/impl/`：业务逻辑，`@Transactional`，抛出 `BusinessException`
+- `service/{admin,workspace,project}/`：接口 + 实现同包，按业务域分组
 - `service/websocket/`：业务 WebSocket 处理（DocumentEndpoint、DocumentPersistenceHandler）
 - `repository/`：JPA / MyBatis-Plus 数据访问
 - `model/entity/` ↔ `model/dto/request|response/`
-- `convert/`：MapStruct 对象转换
 - `framework/`：基础框架层（与业务无关）
   - `audit/`：审计注解 + AOP 切面
   - `common/`：`Constants` / `ErrorCodeConstants`
   - `config/`：Spring MVC 配置
+  - `convert/`：MapStruct 对象转换
   - `interceptor/`：工作空间角色权限拦截器
   - `security/`：JWT 双令牌 + RBAC（LoginUser、UserDetailsBridgeImpl）
   - `websocket/`：WebSocket 基础设施（WebSocketConfig、WebSocketAuthConfig、RoomManager）

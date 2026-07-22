@@ -5,7 +5,7 @@ import io.github.xiaomisum.robotest.model.dto.request.ProjectArchiveReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.ProjectCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.ProjectUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ProjectRespDTO;
-import io.github.xiaomisum.robotest.service.ProjectService;
+import io.github.xiaomisum.robotest.service.project.ProjectService;
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
