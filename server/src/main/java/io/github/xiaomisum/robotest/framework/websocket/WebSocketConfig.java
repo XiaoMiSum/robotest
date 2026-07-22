@@ -1,4 +1,4 @@
-package io.github.xiaomisum.robotest.websocket;
+package io.github.xiaomisum.robotest.framework.websocket;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
