@@ -1,6 +1,7 @@
 package io.github.xiaomisum.robotest.interceptor;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import io.github.xiaomisum.robotest.common.Constants;
 import io.github.xiaomisum.robotest.framework.security.LoginUser;
 import io.github.xiaomisum.robotest.model.entity.SysRole;
 import io.github.xiaomisum.robotest.model.entity.WorkspaceUser;
@@ -9,14 +10,13 @@ import io.github.xiaomisum.robotest.repository.WorkspaceUserMapper;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.jspecify.annotations.NonNull;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.servlet.HandlerInterceptor;
-import tools.jackson.core.type.TypeReference;
-import xyz.migoo.framework.common.util.json.JsonUtils;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -37,7 +37,7 @@ public class WorkspaceRoleInterceptor implements HandlerInterceptor {
     private SysRoleMapper roleMapper;
 
     @Override
-    public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
+    public boolean preHandle(@NonNull HttpServletRequest request, @NonNull HttpServletResponse response, @NonNull Object handler) {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth == null || !(auth.getPrincipal() instanceof LoginUser loginUser)) {
             return true;
@@ -74,7 +74,7 @@ public class WorkspaceRoleInterceptor implements HandlerInterceptor {
         // 转为 GrantedAuthority 并追加到 LoginUser
         List<org.springframework.security.core.GrantedAuthority> authorities = new ArrayList<>();
         wsRoleNames.forEach(name ->
-                authorities.add(new SimpleGrantedAuthority("ROLE_" + name)));
+                authorities.add(new SimpleGrantedAuthority(Constants.Auth.ROLE_PREFIX + name)));
         wsPermCodes.forEach(code ->
                 authorities.add(new SimpleGrantedAuthority(code)));
         loginUser.appendWorkspaceAuthorities(authorities);

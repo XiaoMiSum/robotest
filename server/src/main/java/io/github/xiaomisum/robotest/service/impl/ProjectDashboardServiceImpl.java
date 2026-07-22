@@ -1,6 +1,7 @@
 package io.github.xiaomisum.robotest.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import io.github.xiaomisum.robotest.common.Constants;
 import io.github.xiaomisum.robotest.model.dto.response.ProjectDashboardRespDTO;
 import io.github.xiaomisum.robotest.model.entity.*;
 import io.github.xiaomisum.robotest.repository.*;
@@ -33,7 +34,7 @@ public class ProjectDashboardServiceImpl implements ProjectDashboardService {
         List<String> projectDocIds = testCaseModuleMapper.selectList(
                 new LambdaQueryWrapper<TestCaseModule>()
                         .eq(TestCaseModule::getProjectId, projectId)
-                        .eq(TestCaseModule::getType, "document"))
+                        .eq(TestCaseModule::getType, Constants.ModuleType.DOCUMENT))
                 .stream().map(m -> m.getId().toString()).collect(Collectors.toList());
 
         long caseCount = 0;
@@ -41,24 +42,24 @@ public class ProjectDashboardServiceImpl implements ProjectDashboardService {
             caseCount = testCaseNodeMapper.selectCount(
                     new LambdaQueryWrapper<TestCaseNode>()
                             .in(TestCaseNode::getDocumentId, projectDocIds)
-                            .eq(TestCaseNode::getType, "case"));
+                            .eq(TestCaseNode::getType, Constants.NodeType.CASE));
         }
         dto.setCaseCount(caseCount);
 
         dto.setActiveReviewCount(testReviewMapper.selectCount(
                 new LambdaQueryWrapper<TestReview>()
                         .eq(TestReview::getProjectId, projectId)
-                        .eq(TestReview::getStatus, "in_progress")));
+                        .eq(TestReview::getStatus, Constants.Status.IN_PROGRESS)));
 
         dto.setActivePlanCount(testPlanMapper.selectCount(
                 new LambdaQueryWrapper<TestPlan>()
                         .eq(TestPlan::getProjectId, projectId)
-                        .in(TestPlan::getStatus, "new", "in_progress")));
+                        .in(TestPlan::getStatus, Constants.Status.NEW, Constants.Status.IN_PROGRESS)));
 
         dto.setOpenBugCount(bugMapper.selectCount(
                 new LambdaQueryWrapper<Bug>()
                         .eq(Bug::getProjectId, projectId)
-                        .in(Bug::getStatus, "new", "assigned", "fixing")));
+                        .in(Bug::getStatus, Constants.Status.NEW, Constants.Status.ASSIGNED, Constants.Status.FIXING)));
 
         List<TestReview> recentReviews = testReviewMapper.selectList(
                 new LambdaQueryWrapper<TestReview>()

@@ -1,6 +1,7 @@
 package io.github.xiaomisum.robotest.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import io.github.xiaomisum.robotest.common.Constants;
 import io.github.xiaomisum.robotest.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.model.dto.request.WorkspaceCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.WorkspaceMembersAddReqDTO;
@@ -77,7 +78,7 @@ public class WorkspaceServiceImpl implements WorkspaceService {
         Workspace workspace = new Workspace();
         workspace.setName(reqDTO.getName());
         workspace.setDescription(reqDTO.getDescription());
-        workspace.setStatus("active");
+        workspace.setStatus(Constants.Status.ACTIVE);
         workspaceMapper.insert(workspace);
         return workspace.getId().toString();
     }
@@ -105,7 +106,7 @@ public class WorkspaceServiceImpl implements WorkspaceService {
         if (workspace == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.WORKSPACE_NOT_FOUND);
         }
-        if ("dissolved".equals(workspace.getStatus())) {
+        if (Constants.Status.DISSOLVED.equals(workspace.getStatus())) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.WORKSPACE_NOT_FOUND);
         }
         if (StringUtils.hasText(reqDTO.getName())) {
@@ -130,7 +131,7 @@ public class WorkspaceServiceImpl implements WorkspaceService {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.WORKSPACE_NOT_FOUND);
         }
         // TODO: 检查工作空间下是否有项目
-        workspace.setStatus("dissolved");
+        workspace.setStatus(Constants.Status.DISSOLVED);
         workspaceMapper.updateById(workspace);
         // 删除所有成员关联
         workspaceUserMapper.delete(new LambdaQueryWrapper<WorkspaceUser>()
@@ -180,7 +181,7 @@ public class WorkspaceServiceImpl implements WorkspaceService {
         List<String> skippedUserIds = new ArrayList<>();
         for (WorkspaceMembersAddReqDTO.MemberItem member : members) {
             SysUser user = userMapper.selectById(member.getUserId());
-            if (user == null || !"active".equals(user.getStatus())) {
+            if (user == null || !Constants.Status.ACTIVE.equals(user.getStatus())) {
                 continue;
             }
             // 检查是否已在工作空间

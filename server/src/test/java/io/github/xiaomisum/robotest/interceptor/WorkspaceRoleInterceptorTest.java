@@ -54,8 +54,7 @@ class WorkspaceRoleInterceptorTest {
         loginUser.setId(userId);
         loginUser.setUsername("testuser");
         loginUser.setName("testuser");
-        loginUser.setRoleNames(Collections.emptySet());
-        loginUser.setPermissionCodes(Collections.emptySet());
+        loginUser.setAuthorities(Collections.emptyList());
         loginUser.setWorkspaceAuthorities(new ArrayList<>());
 
         // 设置 SecurityContext
