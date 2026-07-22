@@ -6,7 +6,7 @@ import io.github.xiaomisum.robotest.model.dto.request.WorkspaceMemberRoleUpdateR
 import io.github.xiaomisum.robotest.model.dto.request.WorkspaceUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.WorkspaceMemberRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.WorkspaceRespDTO;
-import io.github.xiaomisum.robotest.service.WorkspaceService;
+import io.github.xiaomisum.robotest.service.workspace.WorkspaceService;
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;

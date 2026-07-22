@@ -3,7 +3,7 @@ package io.github.xiaomisum.robotest.controller;
 import io.github.xiaomisum.robotest.model.dto.request.InvitationJoinReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.InvitationJoinRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.InvitationVerifyRespDTO;
-import io.github.xiaomisum.robotest.service.WorkspaceInvitationService;
+import io.github.xiaomisum.robotest.service.workspace.WorkspaceInvitationService;
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
