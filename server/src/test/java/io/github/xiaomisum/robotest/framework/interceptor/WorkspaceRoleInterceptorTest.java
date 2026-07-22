@@ -1,7 +1,7 @@
-package io.github.xiaomisum.robotest.interceptor;
+package io.github.xiaomisum.robotest.framework.interceptor;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import io.github.xiaomisum.robotest.common.ErrorCodeConstants;
+import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.framework.security.LoginUser;
 import io.github.xiaomisum.robotest.model.entity.SysRole;
 import io.github.xiaomisum.robotest.model.entity.WorkspaceUser;
@@ -66,7 +66,7 @@ class WorkspaceRoleInterceptorTest {
 
     @Test
     void preHandle_noLoginUser_returnsTrue() {
-        // given — override the SecurityContext set in setUp
+        // given �?override the SecurityContext set in setUp
         SecurityContext securityContext = mock(SecurityContext.class);
         lenient().when(securityContext.getAuthentication()).thenReturn(null);
         SecurityContextHolder.setContext(securityContext);

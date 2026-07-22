@@ -30,13 +30,17 @@ mvn checkstyle:check && mvn test
 
 - `controller/{admin,workspace,project}/`：仅路由 + 参数校验（`@Valid`），无业务逻辑
 - `service/impl/`：业务逻辑，`@Transactional`，抛出 `BusinessException`
+- `service/websocket/`：业务 WebSocket 处理（DocumentEndpoint、DocumentPersistenceHandler）
 - `repository/`：JPA / MyBatis-Plus 数据访问
 - `model/entity/` ↔ `model/dto/request|response/`
-- `framework/security/`：JWT 双令牌 + RBAC（LoginUser、UserDetailsBridgeImpl）
-- `framework/config/`：Spring MVC 配置（WebMvcConfig）
-- `framework/websocket/`：WebSocket 基础设施（WebSocketConfig、WebSocketAuthConfig、RoomManager）
-- `websocket/`：业务 WebSocket 处理（DocumentEndpoint、DocumentPersistenceHandler）
-- `common/`：`Constants` / `ErrorCodeConstants`
+- `convert/`：MapStruct 对象转换
+- `framework/`：基础框架层（与业务无关）
+  - `audit/`：审计注解 + AOP 切面
+  - `common/`：`Constants` / `ErrorCodeConstants`
+  - `config/`：Spring MVC 配置
+  - `interceptor/`：工作空间角色权限拦截器
+  - `security/`：JWT 双令牌 + RBAC（LoginUser、UserDetailsBridgeImpl）
+  - `websocket/`：WebSocket 基础设施（WebSocketConfig、WebSocketAuthConfig、RoomManager）
 
 **核心子系统**：认证授权 → 上下文（workspace）隔离 → 评审/计划快照 → WebSocket 协作  
 （详见 `docs/spec/security.md`、`docs/spec/api.md`、`docs/架构/`、`docs/详细设计/`）

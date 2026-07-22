@@ -1,6 +1,6 @@
 package io.github.xiaomisum.robotest.framework.websocket;
 
-import io.github.xiaomisum.robotest.common.Constants;
+import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.security.LoginUser;
 import jakarta.websocket.HandshakeResponse;
 import jakarta.websocket.server.HandshakeRequest;

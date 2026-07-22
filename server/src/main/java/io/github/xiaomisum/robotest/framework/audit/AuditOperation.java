@@ -1,4 +1,4 @@
-package io.github.xiaomisum.robotest.annotation;
+package io.github.xiaomisum.robotest.framework.audit;
 
 import java.lang.annotation.*;
 

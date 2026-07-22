@@ -2,8 +2,8 @@ package io.github.xiaomisum.robotest.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
-import io.github.xiaomisum.robotest.common.Constants;
-import io.github.xiaomisum.robotest.common.ErrorCodeConstants;
+import io.github.xiaomisum.robotest.framework.common.Constants;
+import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.convert.ProjectConvertMapper;
 import io.github.xiaomisum.robotest.model.dto.request.ProjectArchiveReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.ProjectCreateReqDTO;

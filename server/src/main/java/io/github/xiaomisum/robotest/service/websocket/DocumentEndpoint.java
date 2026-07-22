@@ -1,6 +1,6 @@
-package io.github.xiaomisum.robotest.websocket;
+package io.github.xiaomisum.robotest.service.websocket;
 
-import io.github.xiaomisum.robotest.common.Constants;
+import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.websocket.RoomManager;
 import jakarta.websocket.*;
 import jakarta.websocket.server.PathParam;
@@ -9,8 +9,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
-
-import java.io.IOException;
 
 @Component
 @ServerEndpoint("/ws/documents/{docId}")

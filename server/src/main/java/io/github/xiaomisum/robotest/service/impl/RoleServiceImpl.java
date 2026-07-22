@@ -2,8 +2,8 @@ package io.github.xiaomisum.robotest.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import tools.jackson.core.type.TypeReference;
-import io.github.xiaomisum.robotest.common.Constants;
-import io.github.xiaomisum.robotest.common.ErrorCodeConstants;
+import io.github.xiaomisum.robotest.framework.common.Constants;
+import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.convert.RoleConvertMapper;
 import io.github.xiaomisum.robotest.model.dto.request.RoleCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.RolePermissionsUpdateReqDTO;
@@ -204,10 +204,10 @@ public class RoleServiceImpl implements RoleService {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.ROLE_NOT_FOUND);
         }
         if (Boolean.TRUE.equals(role.getIsSystem())) {
-            // 系统预置角色的已有权限不可移除
+            // 系统预置角色的已有权限不可移�?
             List<String> currentPerms = role.getPermissions() != null ? role.getPermissions() : List.of();
             List<String> newPerms = reqDTO.getPermissions();
-            // 检查新权限列表是否包含所有已有权限
+            // 检查新权限列表是否包含所有已有权�?
             if (!currentPerms.containsAll(newPerms)) {
                 throw ServiceExceptionUtil.get(ErrorCodeConstants.SYSTEM_ROLE_PERMISSION_NOT_MODIFIABLE);
             }
@@ -224,7 +224,7 @@ public class RoleServiceImpl implements RoleService {
         List<SysPermission> permissions = permissionMapper.selectList(
                 new LambdaQueryWrapper<SysPermission>().orderByAsc(SysPermission::getModule, SysPermission::getSortOrder));
 
-        // 按模块分组
+        // 按模块分�?
         return permissions.stream()
                 .filter(p -> p.getParentCode() != null) // 只返回叶子权限点
                 .collect(Collectors.groupingBy(SysPermission::getModule))
