@@ -1,4 +1,4 @@
-package io.github.xiaomisum.robotest.websocket;
+package io.github.xiaomisum.robotest.framework.websocket;
 
 import io.github.xiaomisum.robotest.common.Constants;
 import io.github.xiaomisum.robotest.framework.security.LoginUser;
@@ -26,7 +26,7 @@ public class WebSocketAuthConfig {
                 Map<String, List<String>> params = request.getParameterMap();
                 List<String> tokens = params.get(Constants.WebSocket.PARAM_TOKEN);
                 if (tokens != null && !tokens.isEmpty()) {
-                    String token = tokens.get(0);
+                    String token = tokens.getFirst();
                     try {
                         LoginUser loginUser = authUserDetailsFetcher.verifyToken(token);
                         if (loginUser != null) {

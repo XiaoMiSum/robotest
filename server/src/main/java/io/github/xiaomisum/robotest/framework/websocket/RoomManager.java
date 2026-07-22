@@ -1,4 +1,4 @@
-package io.github.xiaomisum.robotest.websocket;
+package io.github.xiaomisum.robotest.framework.websocket;
 
 import jakarta.websocket.Session;
 import org.slf4j.Logger;

@@ -1,4 +1,4 @@
-package io.github.xiaomisum.robotest.config;
+package io.github.xiaomisum.robotest.framework.config;
 
 import io.github.xiaomisum.robotest.interceptor.WorkspaceRoleInterceptor;
 import jakarta.annotation.Resource;

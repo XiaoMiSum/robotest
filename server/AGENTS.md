@@ -32,9 +32,11 @@ mvn checkstyle:check && mvn test
 - `service/impl/`：业务逻辑，`@Transactional`，抛出 `BusinessException`
 - `repository/`：JPA / MyBatis-Plus 数据访问
 - `model/entity/` ↔ `model/dto/request|response/`
-- `security/`：JWT 双令牌 + RBAC
-- `websocket/`：Yjs CRDT 协作
-- `common/`：`ApiResponse<T>` / `PageResult<T>`
+- `framework/security/`：JWT 双令牌 + RBAC（LoginUser、UserDetailsBridgeImpl）
+- `framework/config/`：Spring MVC 配置（WebMvcConfig）
+- `framework/websocket/`：WebSocket 基础设施（WebSocketConfig、WebSocketAuthConfig、RoomManager）
+- `websocket/`：业务 WebSocket 处理（DocumentEndpoint、DocumentPersistenceHandler）
+- `common/`：`Constants` / `ErrorCodeConstants`
 
 **核心子系统**：认证授权 → 上下文（workspace）隔离 → 评审/计划快照 → WebSocket 协作  
 （详见 `docs/spec/security.md`、`docs/spec/api.md`、`docs/架构/`、`docs/详细设计/`）

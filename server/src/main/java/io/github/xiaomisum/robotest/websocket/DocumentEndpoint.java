@@ -1,6 +1,7 @@
 package io.github.xiaomisum.robotest.websocket;
 
 import io.github.xiaomisum.robotest.common.Constants;
+import io.github.xiaomisum.robotest.framework.websocket.RoomManager;
 import jakarta.websocket.*;
 import jakarta.websocket.server.PathParam;
 import jakarta.websocket.server.ServerEndpoint;
