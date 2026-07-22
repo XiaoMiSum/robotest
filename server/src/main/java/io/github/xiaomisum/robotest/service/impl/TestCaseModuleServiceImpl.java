@@ -1,6 +1,7 @@
 package io.github.xiaomisum.robotest.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import io.github.xiaomisum.robotest.common.Constants;
 import io.github.xiaomisum.robotest.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.convert.TestCaseModuleConvertMapper;
 import io.github.xiaomisum.robotest.model.dto.request.TestCaseModuleCreateReqDTO;
@@ -25,9 +26,6 @@ import java.util.stream.Collectors;
 @Service
 public class TestCaseModuleServiceImpl implements TestCaseModuleService {
 
-    private static final String TYPE_DIRECTORY = "directory";
-    private static final String TYPE_DOCUMENT = "document";
-
     @Resource
     private TestCaseModuleMapper testCaseModuleMapper;
     @Resource
@@ -50,7 +48,7 @@ public class TestCaseModuleServiceImpl implements TestCaseModuleService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public TestCaseModuleTreeRespDTO createModule(String projectId, TestCaseModuleCreateReqDTO reqDTO) {
-        if (!TYPE_DIRECTORY.equals(reqDTO.getType()) && !TYPE_DOCUMENT.equals(reqDTO.getType())) {
+        if (!Constants.ModuleType.DIRECTORY.equals(reqDTO.getType()) && !Constants.ModuleType.DOCUMENT.equals(reqDTO.getType())) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.VALIDATION_FAILED);
         }
 
@@ -78,11 +76,11 @@ public class TestCaseModuleServiceImpl implements TestCaseModuleService {
         module.setSortOrder(0);
         testCaseModuleMapper.insert(module);
 
-        if (TYPE_DOCUMENT.equals(reqDTO.getType())) {
+        if (Constants.ModuleType.DOCUMENT.equals(reqDTO.getType())) {
             TestCaseNode rootNode = new TestCaseNode();
             rootNode.setDocumentId(module.getId().toString());
             rootNode.setParentId(null);
-            rootNode.setType("normal");
+            rootNode.setType(Constants.NodeType.NORMAL);
             rootNode.setTitle(reqDTO.getName());
             rootNode.setSortOrder(0);
             rootNode.setVersion(1);
@@ -125,7 +123,7 @@ public class TestCaseModuleServiceImpl implements TestCaseModuleService {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_CASE_MODULE_NOT_FOUND);
         }
 
-        if (TYPE_DIRECTORY.equals(module.getType())) {
+        if (Constants.ModuleType.DIRECTORY.equals(module.getType())) {
             Long childCount = testCaseModuleMapper.selectCount(
                     new LambdaQueryWrapper<TestCaseModule>()
                             .eq(TestCaseModule::getParentId, moduleId));
@@ -134,7 +132,7 @@ public class TestCaseModuleServiceImpl implements TestCaseModuleService {
             }
         }
 
-        if (TYPE_DOCUMENT.equals(module.getType())) {
+        if (Constants.ModuleType.DOCUMENT.equals(module.getType())) {
             testCaseNodeMapper.delete(
                     new LambdaQueryWrapper<TestCaseNode>()
                             .eq(TestCaseNode::getDocumentId, moduleId));
@@ -146,9 +144,9 @@ public class TestCaseModuleServiceImpl implements TestCaseModuleService {
     private List<TestCaseModuleTreeRespDTO> buildTree(List<TestCaseModuleTreeRespDTO> nodes) {
         Map<String, List<TestCaseModuleTreeRespDTO>> parentMap = nodes.stream()
                 .collect(Collectors.groupingBy(
-                        n -> n.getParentId() != null ? n.getParentId().toString() : "root"));
+                        n -> n.getParentId() != null ? n.getParentId().toString() : Constants.Tree.ROOT_KEY));
 
-        List<TestCaseModuleTreeRespDTO> roots = parentMap.getOrDefault("root", new ArrayList<>());
+        List<TestCaseModuleTreeRespDTO> roots = parentMap.getOrDefault(Constants.Tree.ROOT_KEY, new ArrayList<>());
         roots.forEach(root -> fillChildren(root, parentMap));
         return roots;
     }

@@ -1,6 +1,7 @@
 package io.github.xiaomisum.robotest.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import io.github.xiaomisum.robotest.common.Constants;
 import io.github.xiaomisum.robotest.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.model.dto.request.WorkspaceMembersAddReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.WorkspaceMemberAddResultRespDTO;
@@ -92,7 +93,7 @@ public class WorkspaceMemberServiceImpl implements WorkspaceMemberService {
 
         for (WorkspaceMembersAddReqDTO.MemberItem member : reqDTO.getMembers()) {
             SysUser user = userMapper.selectById(member.getUserId());
-            if (user == null || !"active".equals(user.getStatus())) {
+            if (user == null || !Constants.Status.ACTIVE.equals(user.getStatus())) {
                 continue;
             }
 
