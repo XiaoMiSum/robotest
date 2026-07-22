@@ -1,8 +1,8 @@
 package io.github.xiaomisum.robotest.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import io.github.xiaomisum.robotest.common.Constants;
-import io.github.xiaomisum.robotest.common.ErrorCodeConstants;
+import io.github.xiaomisum.robotest.framework.common.Constants;
+import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.convert.UserConvertMapper;
 import io.github.xiaomisum.robotest.model.dto.request.UserBatchStatusReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.UserCreateReqDTO;

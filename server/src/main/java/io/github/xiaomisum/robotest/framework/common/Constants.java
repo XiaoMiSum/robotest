@@ -1,4 +1,4 @@
-package io.github.xiaomisum.robotest.common;
+package io.github.xiaomisum.robotest.framework.common;
 
 public final class Constants {
 
