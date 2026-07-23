@@ -11,6 +11,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import xyz.migoo.framework.common.pojo.Result;
+
 import java.util.List;
 
 @RestController
@@ -21,33 +23,34 @@ public class TestCaseModuleController {
     private TestCaseModuleService testCaseModuleService;
 
     @GetMapping
-    public List<TestCaseModuleTreeRespDTO> getModuleTree(
+    public Result<List<TestCaseModuleTreeRespDTO>> getModuleTree(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestHeader("X-Active-Project") String projectId) {
-        return testCaseModuleService.getModuleTree(projectId);
+        return Result.ok(testCaseModuleService.getModuleTree(projectId));
     }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public TestCaseModuleTreeRespDTO createModule(
+    public Result<TestCaseModuleTreeRespDTO> createModule(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestHeader("X-Active-Project") String projectId,
             @RequestBody @Valid TestCaseModuleCreateReqDTO reqDTO) {
-        return testCaseModuleService.createModule(projectId, reqDTO);
+        return Result.ok(testCaseModuleService.createModule(projectId, reqDTO));
     }
 
     @PutMapping("/{id}")
-    public TestCaseModuleTreeRespDTO updateModule(
+    public Result<TestCaseModuleTreeRespDTO> updateModule(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable String id,
             @RequestBody @Valid TestCaseModuleUpdateReqDTO reqDTO) {
-        return testCaseModuleService.updateModule(id, reqDTO);
+        return Result.ok(testCaseModuleService.updateModule(id, reqDTO));
     }
 
     @DeleteMapping("/{id}")
-    public void deleteModule(
+    public Result<Void> deleteModule(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable String id) {
         testCaseModuleService.deleteModule(id);
+        return Result.ok();
     }
 }
