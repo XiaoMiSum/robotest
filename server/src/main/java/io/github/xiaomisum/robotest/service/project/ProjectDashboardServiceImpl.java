@@ -8,8 +8,11 @@ import io.github.xiaomisum.robotest.repository.*;
 import io.github.xiaomisum.robotest.service.project.ProjectDashboardService;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -25,6 +28,8 @@ public class ProjectDashboardServiceImpl implements ProjectDashboardService {
     private TestPlanMapper testPlanMapper;
     @Resource
     private BugMapper bugMapper;
+    @Resource
+    private SysUserMapper userMapper;
 
     @Override
     public ProjectDashboardRespDTO getDashboard(String projectId) {
@@ -59,7 +64,56 @@ public class ProjectDashboardServiceImpl implements ProjectDashboardService {
         dto.setOpenBugCount(bugMapper.selectCount(
                 new LambdaQueryWrapper<Bug>()
                         .eq(Bug::getProjectId, projectId)
-                        .in(Bug::getStatus, Constants.Status.NEW, Constants.Status.ASSIGNED, Constants.Status.FIXING)));
+                        .in(Bug::getStatus,
+                                Constants.BugStatus.NEW,
+                                Constants.BugStatus.ASSIGNED,
+                                Constants.BugStatus.FIXING)));
+
+        // 最近 5 条缺陷
+        List<Bug> recentBugs = bugMapper.selectList(
+                new LambdaQueryWrapper<Bug>()
+                        .eq(Bug::getProjectId, projectId)
+                        .orderByDesc(Bug::getCreatedAt)
+                        .last("LIMIT 5"));
+
+        // 批量解析 assignee 姓名
+        Set<String> assigneeIds = recentBugs.stream()
+                .map(Bug::getAssigneeId)
+                .filter(StringUtils::hasText)
+                .collect(Collectors.toSet());
+        if (!assigneeIds.isEmpty()) {
+            Map<String, String> nameMap = userMapper.selectBatchIds(assigneeIds)
+                    .stream()
+                    .collect(Collectors.toMap(
+                            u -> u.getId().toString(),
+                            SysUser::getUsername,
+                            (a, b) -> a));
+
+            dto.setRecentBugs(recentBugs.stream().map(b -> {
+                ProjectDashboardRespDTO.RecentBugItem item = new ProjectDashboardRespDTO.RecentBugItem();
+                item.setId(b.getId());
+                item.setTitle(b.getTitle());
+                item.setSeverity(b.getSeverity());
+                item.setPriority(b.getPriority());
+                item.setStatus(b.getStatus());
+                if (StringUtils.hasText(b.getAssigneeId())) {
+                    item.setAssignee(nameMap.get(b.getAssigneeId()));
+                }
+                item.setCreatedAt(b.getCreatedAt());
+                return item;
+            }).collect(Collectors.toList()));
+        } else {
+            dto.setRecentBugs(recentBugs.stream().map(b -> {
+                ProjectDashboardRespDTO.RecentBugItem item = new ProjectDashboardRespDTO.RecentBugItem();
+                item.setId(b.getId());
+                item.setTitle(b.getTitle());
+                item.setSeverity(b.getSeverity());
+                item.setPriority(b.getPriority());
+                item.setStatus(b.getStatus());
+                item.setCreatedAt(b.getCreatedAt());
+                return item;
+            }).collect(Collectors.toList()));
+        }
 
         List<TestReview> recentReviews = testReviewMapper.selectList(
                 new LambdaQueryWrapper<TestReview>()

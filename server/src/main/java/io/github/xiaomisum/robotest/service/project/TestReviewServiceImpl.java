@@ -39,6 +39,10 @@ public class TestReviewServiceImpl implements TestReviewService {
     private TestCaseNodeMapper testCaseNodeMapper;
     @Resource
     private SysUserMapper userMapper;
+    @Resource
+    private ProjectMapper projectMapper;
+    @Resource
+    private WorkspaceUserMapper workspaceUserMapper;
 
     @Override
     public PageResult<TestReviewListRespDTO> getReviewPage(String projectId, String status,
@@ -82,6 +86,22 @@ public class TestReviewServiceImpl implements TestReviewService {
     @Transactional(rollbackFor = Exception.class)
     public TestReviewDetailRespDTO createReview(String projectId, String userId,
                                                  TestReviewCreateReqDTO reqDTO) {
+        // 校验所有参与者是当前工作空间成员
+        Project project = projectMapper.selectById(projectId);
+        if (project == null) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.PROJECT_NOT_FOUND);
+        }
+        String workspaceId = project.getWorkspaceId();
+        for (UUID participantId : reqDTO.getParticipantIds()) {
+            WorkspaceUser wu = workspaceUserMapper.selectOne(
+                    new LambdaQueryWrapper<WorkspaceUser>()
+                            .eq(WorkspaceUser::getUserId, participantId.toString())
+                            .eq(WorkspaceUser::getWorkspaceId, workspaceId));
+            if (wu == null) {
+                throw ServiceExceptionUtil.get(ErrorCodeConstants.NO_PERMISSION);
+            }
+        }
+
         TestReview review = new TestReview();
         review.setProjectId(projectId);
         review.setTitle(reqDTO.getTitle());
@@ -205,6 +225,45 @@ public class TestReviewServiceImpl implements TestReviewService {
         }
         review.setStatus(Constants.Status.COMPLETED);
         testReviewMapper.updateById(review);
+    }
+
+    @Override
+    public TestReviewProgressRespDTO getReviewProgress(String reviewId) {
+        TestReview review = testReviewMapper.selectById(reviewId);
+        if (review == null) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_REVIEW_NOT_FOUND);
+        }
+
+        List<TestReviewNodeSnapshot> snapshots = reviewNodeSnapshotMapper.selectList(
+                new LambdaQueryWrapper<TestReviewNodeSnapshot>()
+                        .eq(TestReviewNodeSnapshot::getReviewId, reviewId)
+                        .eq(TestReviewNodeSnapshot::getIsAssociated, true)
+                        .eq(TestReviewNodeSnapshot::getType, Constants.NodeType.CASE));
+
+        TestReviewProgressRespDTO dto = new TestReviewProgressRespDTO();
+        dto.setTotalAssociated(snapshots.size());
+
+        long passed = 0, failed = 0, pending = 0;
+        for (TestReviewNodeSnapshot snap : snapshots) {
+            String mark = snap.getLastMark();
+            if (mark == null || mark.isBlank()) {
+                pending++;
+            } else if (Constants.ReviewMark.PASS.equals(mark)) {
+                passed++;
+            } else {
+                failed++;
+            }
+        }
+        dto.setPassed(passed);
+        dto.setFailed(failed);
+        dto.setPending(pending);
+
+        long total = dto.getTotalAssociated();
+        dto.setProgressPercent(total > 0
+                ? Math.round((total - pending) * 10000.0 / total) / 100.0
+                : 0.0);
+
+        return dto;
     }
 
     @Override

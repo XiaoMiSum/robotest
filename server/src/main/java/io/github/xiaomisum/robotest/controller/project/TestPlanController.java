@@ -79,6 +79,20 @@ public class TestPlanController {
         testPlanService.syncPlan(id, loginUser.getId().toString());
     }
 
+    @PostMapping("/{id}/start")
+    public void startPlan(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @PathVariable String id) {
+        testPlanService.startPlan(id, loginUser.getId().toString());
+    }
+
+    @GetMapping("/{id}/progress")
+    public TestPlanProgressRespDTO getPlanProgress(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @PathVariable String id) {
+        return testPlanService.getPlanProgress(id);
+    }
+
     @PostMapping("/{id}/close")
     public void closePlan(
             @AuthenticationPrincipal LoginUser loginUser,

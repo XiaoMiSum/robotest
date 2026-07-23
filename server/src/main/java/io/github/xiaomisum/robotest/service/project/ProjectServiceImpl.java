@@ -11,9 +11,11 @@ import io.github.xiaomisum.robotest.model.dto.request.ProjectUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ProjectRespDTO;
 import io.github.xiaomisum.robotest.model.entity.Project;
 import io.github.xiaomisum.robotest.model.entity.SysUser;
+import io.github.xiaomisum.robotest.model.entity.TestPlan;
 import io.github.xiaomisum.robotest.model.entity.WorkspaceUser;
 import io.github.xiaomisum.robotest.repository.ProjectMapper;
 import io.github.xiaomisum.robotest.repository.SysUserMapper;
+import io.github.xiaomisum.robotest.repository.TestPlanMapper;
 import io.github.xiaomisum.robotest.repository.WorkspaceUserMapper;
 import io.github.xiaomisum.robotest.service.project.ProjectService;
 import jakarta.annotation.Resource;
@@ -38,6 +40,8 @@ public class ProjectServiceImpl implements ProjectService {
     private SysUserMapper userMapper;
     @Resource
     private WorkspaceUserMapper workspaceUserMapper;
+    @Resource
+    private TestPlanMapper testPlanMapper;
 
     @Override
     public PageResult<ProjectRespDTO> getProjectPage(String workspaceId, String userId, String keyword,
@@ -210,6 +214,14 @@ public class ProjectServiceImpl implements ProjectService {
         }
 
         if (reqDTO.getArchived()) {
+            // 归档前校验无进行中的测试计划
+            Long activePlanCount = testPlanMapper.selectCount(
+                    new LambdaQueryWrapper<TestPlan>()
+                            .eq(TestPlan::getProjectId, projectId)
+                            .in(TestPlan::getStatus, Constants.Status.NEW, Constants.Status.IN_PROGRESS));
+            if (activePlanCount > 0) {
+                throw ServiceExceptionUtil.get(ErrorCodeConstants.PROJECT_HAS_ACTIVE_PLANS);
+            }
             project.setStatus(Constants.Status.ARCHIVED);
         } else {
             project.setStatus(Constants.Status.ACTIVE);

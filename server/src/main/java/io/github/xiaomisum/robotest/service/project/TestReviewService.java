@@ -24,5 +24,13 @@ public interface TestReviewService {
 
     void completeReview(String reviewId, String userId);
 
+    /**
+     * 获取评审进度统计
+     *
+     * @param reviewId 评审 ID
+     * @return 评审进度
+     */
+    TestReviewProgressRespDTO getReviewProgress(String reviewId);
+
     void syncReview(String reviewId, String userId);
 }

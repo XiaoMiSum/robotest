@@ -1,10 +1,14 @@
 package io.github.xiaomisum.robotest.controller.project;
 
 import io.github.xiaomisum.robotest.framework.security.LoginUser;
+import io.github.xiaomisum.robotest.model.dto.request.BugAssignReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.BugCreateReqDTO;
+import io.github.xiaomisum.robotest.model.dto.request.BugStatusChangeReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.BugUpdateReqDTO;
+import io.github.xiaomisum.robotest.model.dto.response.BugDetailRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.BugListRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.BugLogRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.BugStatisticsRespDTO;
 import io.github.xiaomisum.robotest.service.project.BugService;
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
@@ -13,6 +17,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import xyz.migoo.framework.common.pojo.PageResult;
+import xyz.migoo.framework.common.pojo.Result;
 
 import java.util.List;
 
@@ -24,7 +29,7 @@ public class BugController {
     private BugService bugService;
 
     @GetMapping
-    public PageResult<BugListRespDTO> getBugPage(
+    public Result<PageResult<BugListRespDTO>> getBugPage(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestHeader("X-Active-Project") String projectId,
             @RequestParam(required = false) String status,
@@ -34,31 +39,66 @@ public class BugController {
             @RequestParam(required = false) String keyword,
             @RequestParam(defaultValue = "1") Integer pageNo,
             @RequestParam(defaultValue = "20") Integer pageSize) {
-        return bugService.getBugPage(projectId, status, severity, priority,
-                assigneeId, keyword, pageNo, pageSize);
+        return Result.ok(bugService.getBugPage(projectId, status, severity, priority,
+                assigneeId, keyword, pageNo, pageSize));
     }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public String createBug(
+    public Result<String> createBug(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestHeader("X-Active-Project") String projectId,
             @RequestBody @Valid BugCreateReqDTO reqDTO) {
-        return bugService.createBug(projectId, loginUser.getId().toString(), reqDTO);
+        return Result.ok(bugService.createBug(projectId, loginUser.getId().toString(), reqDTO));
+    }
+
+    @GetMapping("/{id}")
+    public Result<BugDetailRespDTO> getBugDetail(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @PathVariable String id) {
+        return Result.ok(bugService.getBugDetail(id));
     }
 
     @PutMapping("/{id}")
-    public void updateBug(
+    public Result<Void> updateBug(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable String id,
             @RequestBody @Valid BugUpdateReqDTO reqDTO) {
         bugService.updateBug(id, loginUser.getId().toString(), reqDTO);
+        return Result.ok();
     }
 
     @GetMapping("/{id}/logs")
-    public List<BugLogRespDTO> getBugLogs(
+    public Result<List<BugLogRespDTO>> getBugLogs(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable String id) {
-        return bugService.getBugLogs(id);
+        return Result.ok(bugService.getBugLogs(id));
+    }
+
+    @PatchMapping("/{id}/status")
+    public Result<Void> changeBugStatus(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @PathVariable String id,
+            @RequestBody @Valid BugStatusChangeReqDTO reqDTO) {
+        bugService.changeBugStatus(id, loginUser.getId().toString(),
+                reqDTO.getStatus(), reqDTO.getComment());
+        return Result.ok();
+    }
+
+    @PutMapping("/{id}/assign")
+    public Result<Void> assignBug(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @PathVariable String id,
+            @RequestBody @Valid BugAssignReqDTO reqDTO) {
+        bugService.assignBug(id, loginUser.getId().toString(),
+                reqDTO.getAssigneeId().toString());
+        return Result.ok();
+    }
+
+    @GetMapping("/statistics")
+    public Result<BugStatisticsRespDTO> getBugStatistics(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @RequestHeader("X-Active-Project") String projectId) {
+        return Result.ok(bugService.getBugStatistics(projectId));
     }
 }

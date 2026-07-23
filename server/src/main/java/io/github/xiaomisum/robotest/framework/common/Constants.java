@@ -19,6 +19,34 @@ public final class Constants {
         String FIXING = "fixing";
     }
 
+    /**
+     * 缺陷状态流转常量
+     * <p>
+     * 状态机：NEW → ASSIGNED → FIXING → FIXED → VERIFIED → CLOSED
+     * 重开：CLOSED/VERIFIED → FIXING（需填写说明）
+     */
+    public interface BugStatus {
+        String NEW = "new";
+        String ASSIGNED = "assigned";
+        String FIXING = "fixing";
+        String FIXED = "fixed";
+        String VERIFIED = "verified";
+        String CLOSED = "closed";
+    }
+
+    /**
+     * 缺陷状态流转合法路径
+     */
+    public interface BugTransition {
+        String NEW_TO_ASSIGNED = "new→assigned";
+        String ASSIGNED_TO_FIXING = "assigned→fixing";
+        String FIXING_TO_FIXED = "fixing→fixed";
+        String FIXED_TO_VERIFIED = "fixed→verified";
+        String VERIFIED_TO_CLOSED = "verified→closed";
+        String VERIFIED_TO_FIXING = "verified→fixing";
+        String CLOSED_TO_FIXING = "closed→fixing";
+    }
+
     public interface RoleType {
         String SYSTEM = "system";
     }
@@ -45,6 +73,9 @@ public final class Constants {
     public interface BugOperation {
         String CREATE = "create";
         String UPDATE = "update";
+        String ASSIGN = "assign";
+        String STATUS_CHANGE = "status_change";
+        String REOPEN = "reopen";
     }
 
     public interface WebSocket {
