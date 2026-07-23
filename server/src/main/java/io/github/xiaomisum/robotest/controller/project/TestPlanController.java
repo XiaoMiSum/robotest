@@ -12,6 +12,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import xyz.migoo.framework.common.pojo.PageResult;
+import xyz.migoo.framework.common.pojo.Result;
 
 import java.util.List;
 
@@ -23,80 +24,84 @@ public class TestPlanController {
     private TestPlanService testPlanService;
 
     @GetMapping
-    public PageResult<TestPlanListRespDTO> getPlanPage(
+    public Result<PageResult<TestPlanListRespDTO>> getPlanPage(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestHeader("X-Active-Project") String projectId,
             @RequestParam(required = false) String status,
             @RequestParam(defaultValue = "1") Integer pageNo,
             @RequestParam(defaultValue = "20") Integer pageSize) {
-        return testPlanService.getPlanPage(projectId, status, pageNo, pageSize);
+        return Result.ok(testPlanService.getPlanPage(projectId, status, pageNo, pageSize));
     }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public TestPlanDetailRespDTO createPlan(
+    public Result<TestPlanDetailRespDTO> createPlan(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestHeader("X-Active-Project") String projectId,
             @RequestBody @Valid TestPlanCreateReqDTO reqDTO) {
-        return testPlanService.createPlan(projectId, loginUser.getId().toString(), reqDTO);
+        return Result.ok(testPlanService.createPlan(projectId, loginUser.getId().toString(), reqDTO));
     }
 
     @GetMapping("/{id}")
-    public TestPlanDetailRespDTO getPlanDetail(
+    public Result<TestPlanDetailRespDTO> getPlanDetail(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable String id) {
-        return testPlanService.getPlanDetail(id);
+        return Result.ok(testPlanService.getPlanDetail(id));
     }
 
     @GetMapping("/{id}/modules")
-    public List<TestPlanSnapshotNodeRespDTO> getPlanSnapshotTree(
+    public Result<List<TestPlanSnapshotNodeRespDTO>> getPlanSnapshotTree(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable String id,
             @RequestParam(required = false) String documentId) {
-        return testPlanService.getPlanSnapshotTree(id, documentId);
+        return Result.ok(testPlanService.getPlanSnapshotTree(id, documentId));
     }
 
     @PostMapping("/{id}/records")
-    public void submitExecutionRecord(
+    public Result<Void> submitExecutionRecord(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable String id,
             @RequestBody @Valid TestPlanRecordReqDTO reqDTO) {
         testPlanService.submitExecutionRecord(id, loginUser.getId().toString(), reqDTO);
+        return Result.ok();
     }
 
     @GetMapping("/{id}/nodes/{nodeId}/records")
-    public List<TestPlanExecutionRecordRespDTO> getNodeExecutionRecords(
+    public Result<List<TestPlanExecutionRecordRespDTO>> getNodeExecutionRecords(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable String id,
             @PathVariable String nodeId) {
-        return testPlanService.getNodeExecutionRecords(id, nodeId);
+        return Result.ok(testPlanService.getNodeExecutionRecords(id, nodeId));
     }
 
     @PostMapping("/{id}/sync")
-    public void syncPlan(
+    public Result<Void> syncPlan(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable String id) {
         testPlanService.syncPlan(id, loginUser.getId().toString());
+        return Result.ok();
     }
 
     @PostMapping("/{id}/start")
-    public void startPlan(
+    public Result<Void> startPlan(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable String id) {
         testPlanService.startPlan(id, loginUser.getId().toString());
+        return Result.ok();
     }
 
     @GetMapping("/{id}/progress")
-    public TestPlanProgressRespDTO getPlanProgress(
+    public Result<TestPlanProgressRespDTO> getPlanProgress(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable String id) {
-        return testPlanService.getPlanProgress(id);
+        return Result.ok(testPlanService.getPlanProgress(id));
     }
 
     @PostMapping("/{id}/close")
-    public void closePlan(
+    public Result<Void> closePlan(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable String id) {
         testPlanService.closePlan(id, loginUser.getId().toString());
+        return Result.ok();
     }
 }
