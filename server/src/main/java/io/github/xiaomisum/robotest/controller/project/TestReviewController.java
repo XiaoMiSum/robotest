@@ -79,6 +79,13 @@ public class TestReviewController {
         testReviewService.completeReview(id, loginUser.getId().toString());
     }
 
+    @GetMapping("/{id}/progress")
+    public TestReviewProgressRespDTO getReviewProgress(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @PathVariable String id) {
+        return testReviewService.getReviewProgress(id);
+    }
+
     @PostMapping("/{id}/sync")
     public void syncReview(
             @AuthenticationPrincipal LoginUser loginUser,

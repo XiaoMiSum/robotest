@@ -24,5 +24,21 @@ public interface TestPlanService {
 
     void syncPlan(String planId, String userId);
 
+    /**
+     * 启动计划（NEW → IN_PROGRESS）
+     *
+     * @param planId 计划 ID
+     * @param userId 操作用户 ID
+     */
+    void startPlan(String planId, String userId);
+
+    /**
+     * 获取计划执行进度统计
+     *
+     * @param planId 计划 ID
+     * @return 执行进度
+     */
+    TestPlanProgressRespDTO getPlanProgress(String planId);
+
     void closePlan(String planId, String userId);
 }

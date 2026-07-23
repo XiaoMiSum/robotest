@@ -4,6 +4,8 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.framework.convert.TestCaseNodeConvertMapper;
+import io.github.xiaomisum.robotest.model.dto.request.TestCaseNodeUpdateReqDTO;
+import io.github.xiaomisum.robotest.model.dto.response.TestCaseCaseListRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.TestCaseDocumentNodesRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.TestCaseNodeTreeRespDTO;
 import io.github.xiaomisum.robotest.model.entity.TestCaseDocumentLayout;
@@ -15,7 +17,10 @@ import io.github.xiaomisum.robotest.repository.TestCaseNodeMapper;
 import io.github.xiaomisum.robotest.service.project.TestCaseNodeService;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
+import xyz.migoo.framework.common.pojo.PageParam;
+import xyz.migoo.framework.common.pojo.PageResult;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -69,6 +74,77 @@ public class TestCaseNodeServiceImpl implements TestCaseNodeService {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_CASE_NODE_NOT_FOUND);
         }
         return convertToNodeDTO(node);
+    }
+
+    @Override
+    public PageResult<TestCaseCaseListRespDTO> getCaseList(String projectId, String keyword,
+                                                            String priority, Integer pageNo, Integer pageSize) {
+        // 查询项目下所有 document 的 ID
+        List<TestCaseModule> documents = testCaseModuleMapper.selectList(
+                new LambdaQueryWrapper<TestCaseModule>()
+                        .eq(TestCaseModule::getProjectId, projectId)
+                        .eq(TestCaseModule::getType, Constants.ModuleType.DOCUMENT));
+        List<String> documentIds = documents.stream()
+                .map(doc -> doc.getId().toString())
+                .collect(Collectors.toList());
+
+        if (documentIds.isEmpty()) {
+            return new PageResult<>(List.of(), 0L);
+        }
+
+        // 查询所有 case 节点，按标题/优先级过滤
+        LambdaQueryWrapper<TestCaseNode> wrapper = new LambdaQueryWrapper<TestCaseNode>()
+                .in(TestCaseNode::getDocumentId, documentIds)
+                .eq(TestCaseNode::getType, Constants.NodeType.CASE);
+        if (StringUtils.hasText(keyword)) {
+            wrapper.like(TestCaseNode::getTitle, keyword);
+        }
+        if (StringUtils.hasText(priority)) {
+            wrapper.eq(TestCaseNode::getPriority, priority);
+        }
+        wrapper.orderByAsc(TestCaseNode::getSortOrder);
+
+        PageResult<TestCaseNode> page = testCaseNodeMapper.selectPage(
+                new PageParam() {{ setPageNo(pageNo); setPageSize(pageSize); }}, wrapper);
+
+        // 构建 documentId → documentName 映射
+        Map<String, String> docNameMap = documents.stream()
+                .collect(Collectors.toMap(doc -> doc.getId().toString(), TestCaseModule::getName));
+
+        List<TestCaseCaseListRespDTO> dtos = page.getList().stream().map(node -> {
+            TestCaseCaseListRespDTO dto = new TestCaseCaseListRespDTO();
+            dto.setId(node.getId());
+            dto.setTitle(node.getTitle());
+            dto.setType(node.getType());
+            dto.setPriority(node.getPriority());
+            dto.setDocumentId(UUID.fromString(node.getDocumentId()));
+            dto.setDocumentName(docNameMap.get(node.getDocumentId()));
+            dto.setSortOrder(node.getSortOrder());
+            dto.setVersion(node.getVersion());
+            dto.setCreatedAt(node.getCreatedAt());
+            dto.setUpdatedAt(node.getUpdatedAt());
+            return dto;
+        }).collect(Collectors.toList());
+
+        return new PageResult<>(dtos, page.getTotal());
+    }
+
+    @Override
+    public void updateCaseNode(String caseId, TestCaseNodeUpdateReqDTO reqDTO) {
+        TestCaseNode node = testCaseNodeMapper.selectById(caseId);
+        if (node == null) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_CASE_NODE_NOT_FOUND);
+        }
+        if (!Constants.NodeType.CASE.equals(node.getType())) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_CASE_NODE_NOT_FOUND);
+        }
+        if (StringUtils.hasText(reqDTO.getTitle())) {
+            node.setTitle(reqDTO.getTitle());
+        }
+        if (StringUtils.hasText(reqDTO.getPriority())) {
+            node.setPriority(reqDTO.getPriority());
+        }
+        testCaseNodeMapper.updateById(node);
     }
 
     private TestCaseNodeTreeRespDTO buildNodeTree(List<TestCaseNodeTreeRespDTO> nodes) {

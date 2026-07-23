@@ -68,4 +68,12 @@ public class ErrorCodeConstants {
     public static final ErrorCode TEST_CASE_DOCUMENT_NOT_FOUND = ErrorCode.of(1000011021, "文档不存在");
     public static final ErrorCode TEST_CASE_NODE_NOT_FOUND = ErrorCode.of(1000011022, "用例节点不存在");
     public static final ErrorCode BUG_NOT_FOUND = ErrorCode.of(1000011023, "缺陷不存在");
+
+    // ========== 缺陷管理模块 1,000,012,001-1,000,012,010 ==========
+    public static final ErrorCode BUG_INVALID_STATUS_TRANSITION = ErrorCode.of(1000012001, "缺陷状态流转不合法");
+    public static final ErrorCode BUG_ALREADY_CLOSED = ErrorCode.of(1000012002, "缺陷已关闭，不可再修改状态");
+    public static final ErrorCode BUG_REOPEN_COMMENT_REQUIRED = ErrorCode.of(1000012003, "重开缺陷时必须填写说明");
+    public static final ErrorCode BUG_CLOSE_COMMENT_REQUIRED = ErrorCode.of(1000012004, "关闭缺陷时必须填写关闭说明");
+    public static final ErrorCode BUG_ASSIGNEE_NOT_IN_WORKSPACE = ErrorCode.of(1000012005, "处理人不在当前工作空间中");
+    public static final ErrorCode PROJECT_NOT_ACTIVE = ErrorCode.of(1000012006, "项目已归档，不可操作");
 }
