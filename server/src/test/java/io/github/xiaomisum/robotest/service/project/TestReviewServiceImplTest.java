@@ -19,6 +19,10 @@ import xyz.migoo.framework.common.exception.ServiceException;
 import xyz.migoo.framework.common.pojo.PageParam;
 import xyz.migoo.framework.common.pojo.PageResult;
 
+import io.github.xiaomisum.robotest.framework.common.Constants;
+import io.github.xiaomisum.robotest.model.dto.response.TestReviewProgressRespDTO;
+
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
@@ -44,6 +48,10 @@ class TestReviewServiceImplTest {
     private TestCaseNodeMapper testCaseNodeMapper;
     @Mock
     private SysUserMapper userMapper;
+    @Mock
+    private ProjectMapper projectMapper;
+    @Mock
+    private WorkspaceUserMapper workspaceUserMapper;
 
     @InjectMocks
     private TestReviewServiceImpl reviewService;
@@ -99,6 +107,18 @@ class TestReviewServiceImplTest {
 
     @Test
     void createReview_success() {
+        // Mock project lookup for workspace membership validation
+        Project project = new Project();
+        project.setId(UUID.fromString(projectId));
+        project.setWorkspaceId("00000000-0000-0000-0000-000000000010");
+        when(projectMapper.selectById(projectId)).thenReturn(project);
+
+        // Mock workspace membership validation for participant
+        WorkspaceUser wu = new WorkspaceUser();
+        wu.setUserId("00000000-0000-0000-0000-000000000098");
+        wu.setWorkspaceId("00000000-0000-0000-0000-000000000010");
+        when(workspaceUserMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(wu);
+
         doAnswer(inv -> {
             ((TestReview) inv.getArgument(0)).setId(UUID.randomUUID());
             return 1;
@@ -407,5 +427,156 @@ class TestReviewServiceImplTest {
 
         verify(reviewNodeSnapshotMapper).updateById(any(TestReviewNodeSnapshot.class));
         assertTrue(snapshot.getIsDeleted());
+    }
+
+    // ========== getReviewProgress ==========
+
+    @Test
+    void getReviewProgress_success() {
+        TestReview review = new TestReview();
+        review.setId(UUID.fromString(reviewId));
+        when(testReviewMapper.selectById(reviewId)).thenReturn(review);
+
+        TestReviewNodeSnapshot snap1 = new TestReviewNodeSnapshot();
+        snap1.setLastMark("pass");
+        TestReviewNodeSnapshot snap2 = new TestReviewNodeSnapshot();
+        snap2.setLastMark("fail");
+        TestReviewNodeSnapshot snap3 = new TestReviewNodeSnapshot();
+        snap3.setLastMark(null);
+
+        when(reviewNodeSnapshotMapper.selectList(any(LambdaQueryWrapper.class)))
+                .thenReturn(List.of(snap1, snap2, snap3));
+
+        TestReviewProgressRespDTO result = reviewService.getReviewProgress(reviewId);
+
+        assertEquals(3, result.getTotalAssociated());
+        assertEquals(1, result.getPassed());
+        assertEquals(1, result.getFailed());
+        assertEquals(1, result.getPending());
+    }
+
+    @Test
+    void getReviewProgress_notFound_throws() {
+        when(testReviewMapper.selectById(reviewId)).thenReturn(null);
+
+        assertThrows(ServiceException.class,
+                () -> reviewService.getReviewProgress(reviewId));
+    }
+
+    @Test
+    void getReviewProgress_emptySnapshots() {
+        TestReview review = new TestReview();
+        review.setId(UUID.fromString(reviewId));
+        when(testReviewMapper.selectById(reviewId)).thenReturn(review);
+        when(reviewNodeSnapshotMapper.selectList(any(LambdaQueryWrapper.class)))
+                .thenReturn(new ArrayList<>());
+
+        TestReviewProgressRespDTO result = reviewService.getReviewProgress(reviewId);
+
+        assertEquals(0, result.getTotalAssociated());
+        assertEquals(0.0, result.getProgressPercent());
+    }
+
+    // ========== syncReview module snapshot ==========
+
+    @Test
+    void syncReview_syncsModuleName() {
+        TestReview review = new TestReview();
+        review.setId(UUID.fromString(reviewId));
+        review.setInitiatorId(userId);
+        review.setStatus(Constants.Status.IN_PROGRESS);
+
+        when(testReviewMapper.selectById(reviewId)).thenReturn(review);
+
+        UUID moduleSnapId = UUID.randomUUID();
+        TestReviewModuleSnapshot moduleSnap = new TestReviewModuleSnapshot();
+        moduleSnap.setId(moduleSnapId);
+        moduleSnap.setOriginalModuleId("00000000-0000-0000-0000-000000000010");
+        moduleSnap.setName("old name");
+        moduleSnap.setSortOrder(1);
+
+        when(reviewModuleSnapshotMapper.selectList(any(LambdaQueryWrapper.class)))
+                .thenReturn(List.of(moduleSnap));
+        when(reviewNodeSnapshotMapper.selectList(any(LambdaQueryWrapper.class)))
+                .thenReturn(new ArrayList<>());
+
+        TestCaseModule originalModule = new TestCaseModule();
+        originalModule.setName("new name");
+        originalModule.setSortOrder(2);
+        originalModule.setIsDeleted(false);
+        when(testCaseModuleMapper.selectById("00000000-0000-0000-0000-000000000010"))
+                .thenReturn(originalModule);
+
+        reviewService.syncReview(reviewId, userId);
+
+        assertEquals("new name", moduleSnap.getName());
+        assertEquals(2, moduleSnap.getSortOrder());
+        verify(reviewModuleSnapshotMapper).updateById(moduleSnap);
+    }
+
+    @Test
+    void syncReview_deletesRemovedModule() {
+        TestReview review = new TestReview();
+        review.setId(UUID.fromString(reviewId));
+        review.setInitiatorId(userId);
+        review.setStatus(Constants.Status.IN_PROGRESS);
+
+        when(testReviewMapper.selectById(reviewId)).thenReturn(review);
+
+        UUID moduleSnapId = UUID.randomUUID();
+        TestReviewModuleSnapshot moduleSnap = new TestReviewModuleSnapshot();
+        moduleSnap.setId(moduleSnapId);
+        moduleSnap.setOriginalModuleId("00000000-0000-0000-0000-000000000010");
+
+        when(reviewModuleSnapshotMapper.selectList(any(LambdaQueryWrapper.class)))
+                .thenReturn(List.of(moduleSnap));
+        when(reviewNodeSnapshotMapper.selectList(any(LambdaQueryWrapper.class)))
+                .thenReturn(new ArrayList<>());
+        when(testCaseModuleMapper.selectById("00000000-0000-0000-0000-000000000010"))
+                .thenReturn(null);
+
+        reviewService.syncReview(reviewId, userId);
+
+        verify(reviewModuleSnapshotMapper).deleteById(moduleSnapId);
+    }
+
+    @Test
+    void syncReview_deletedModule_cascadesNodeDeletion() {
+        TestReview review = new TestReview();
+        review.setId(UUID.fromString(reviewId));
+        review.setInitiatorId(userId);
+        review.setStatus(Constants.Status.IN_PROGRESS);
+
+        when(testReviewMapper.selectById(reviewId)).thenReturn(review);
+
+        UUID moduleSnapId = UUID.randomUUID();
+        TestReviewModuleSnapshot moduleSnap = new TestReviewModuleSnapshot();
+        moduleSnap.setId(moduleSnapId);
+        moduleSnap.setOriginalModuleId("00000000-0000-0000-0000-000000000010");
+
+        UUID nodeSnapId = UUID.randomUUID();
+        TestReviewNodeSnapshot nodeSnap = new TestReviewNodeSnapshot();
+        nodeSnap.setId(nodeSnapId);
+        nodeSnap.setDocumentSnapshotId(moduleSnapId.toString());
+
+        when(reviewModuleSnapshotMapper.selectList(any(LambdaQueryWrapper.class)))
+                .thenReturn(List.of(moduleSnap));
+        when(reviewNodeSnapshotMapper.selectList(any(LambdaQueryWrapper.class)))
+                .thenReturn(List.of(nodeSnap));
+        when(testCaseModuleMapper.selectById("00000000-0000-0000-0000-000000000010"))
+                .thenReturn(null);
+
+        reviewService.syncReview(reviewId, userId);
+
+        verify(reviewModuleSnapshotMapper).deleteById(moduleSnapId);
+        verify(reviewNodeSnapshotMapper).deleteById(nodeSnapId);
+    }
+
+    @Test
+    void syncReview_notFound_throws() {
+        when(testReviewMapper.selectById(reviewId)).thenReturn(null);
+
+        assertThrows(ServiceException.class,
+                () -> reviewService.syncReview(reviewId, userId));
     }
 }

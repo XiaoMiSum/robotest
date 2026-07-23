@@ -1,6 +1,9 @@
 package io.github.xiaomisum.robotest.service.project;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import io.github.xiaomisum.robotest.framework.common.Constants;
+import io.github.xiaomisum.robotest.model.dto.request.TestCaseNodeUpdateReqDTO;
+import io.github.xiaomisum.robotest.model.dto.response.TestCaseCaseListRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.TestCaseDocumentNodesRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.TestCaseNodeTreeRespDTO;
 import io.github.xiaomisum.robotest.model.entity.TestCaseDocumentLayout;
@@ -16,6 +19,8 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import xyz.migoo.framework.common.exception.ServiceException;
+import xyz.migoo.framework.common.pojo.PageParam;
+import xyz.migoo.framework.common.pojo.PageResult;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -25,7 +30,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class TestCaseNodeServiceImplTest {
@@ -152,5 +157,103 @@ class TestCaseNodeServiceImplTest {
 
         assertThrows(ServiceException.class,
                 () -> nodeService.getCaseDetail(caseId));
+    }
+
+    // ========== getCaseList ==========
+
+    @Test
+    void getCaseList_success() {
+        String projectId = "proj-1";
+
+        TestCaseModule doc = new TestCaseModule();
+        doc.setId(UUID.fromString(documentId));
+        doc.setName("Doc 1");
+        when(testCaseModuleMapper.selectList(any(LambdaQueryWrapper.class)))
+                .thenReturn(List.of(doc));
+
+        TestCaseNode node = new TestCaseNode();
+        node.setId(UUID.fromString(caseId));
+        node.setDocumentId(documentId);
+        node.setType("case");
+        node.setTitle("Test Case");
+        node.setPriority("high");
+        node.setSortOrder(0);
+        node.setVersion(1);
+
+        PageResult<TestCaseNode> page = new PageResult<>(List.of(node), 1L);
+        doReturn(page).when(testCaseNodeMapper).selectPage(
+                any(PageParam.class), any(LambdaQueryWrapper.class));
+
+        PageResult<TestCaseCaseListRespDTO> result = nodeService.getCaseList(
+                projectId, null, null, 1, 10);
+
+        assertNotNull(result);
+        assertEquals(1, result.getList().size());
+        assertEquals("Test Case", result.getList().get(0).getTitle());
+        assertEquals("Doc 1", result.getList().get(0).getDocumentName());
+    }
+
+    @Test
+    void getCaseList_noDocuments() {
+        String projectId = "proj-1";
+        when(testCaseModuleMapper.selectList(any(LambdaQueryWrapper.class)))
+                .thenReturn(Collections.emptyList());
+
+        PageResult<TestCaseCaseListRespDTO> result = nodeService.getCaseList(
+                projectId, null, null, 1, 10);
+
+        assertNotNull(result);
+        assertTrue(result.getList().isEmpty());
+        assertEquals(0L, result.getTotal());
+    }
+
+    // ========== updateCaseNode ==========
+
+    @Test
+    void updateCaseNode_success() {
+        TestCaseNode node = new TestCaseNode();
+        node.setId(UUID.fromString(caseId));
+        node.setType("case");
+        node.setTitle("Old Title");
+        node.setPriority("low");
+
+        when(testCaseNodeMapper.selectById(caseId)).thenReturn(node);
+
+        TestCaseNodeUpdateReqDTO reqDTO = new TestCaseNodeUpdateReqDTO();
+        reqDTO.setTitle("New Title");
+        reqDTO.setPriority("high");
+
+        nodeService.updateCaseNode(caseId, reqDTO);
+
+        assertEquals("New Title", node.getTitle());
+        assertEquals("high", node.getPriority());
+        verify(testCaseNodeMapper).updateById(node);
+    }
+
+    @Test
+    void updateCaseNode_notFound_throws() {
+        when(testCaseNodeMapper.selectById(caseId)).thenReturn(null);
+
+        TestCaseNodeUpdateReqDTO reqDTO = new TestCaseNodeUpdateReqDTO();
+        reqDTO.setTitle("New Title");
+
+        assertThrows(ServiceException.class,
+                () -> nodeService.updateCaseNode(caseId, reqDTO));
+    }
+
+    @Test
+    void updateCaseNode_notCaseType_throws() {
+        TestCaseNode node = new TestCaseNode();
+        node.setId(UUID.fromString(caseId));
+        node.setType("normal");
+        node.setTitle("Folder");
+
+        when(testCaseNodeMapper.selectById(caseId)).thenReturn(node);
+
+        TestCaseNodeUpdateReqDTO reqDTO = new TestCaseNodeUpdateReqDTO();
+        reqDTO.setTitle("New Title");
+
+        assertThrows(ServiceException.class,
+                () -> nodeService.updateCaseNode(caseId, reqDTO));
     }
 }
