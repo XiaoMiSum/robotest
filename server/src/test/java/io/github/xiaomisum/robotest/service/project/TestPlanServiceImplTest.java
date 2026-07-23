@@ -19,7 +19,11 @@ import xyz.migoo.framework.common.exception.ServiceException;
 import xyz.migoo.framework.common.pojo.PageParam;
 import xyz.migoo.framework.common.pojo.PageResult;
 
+import io.github.xiaomisum.robotest.framework.common.Constants;
+import io.github.xiaomisum.robotest.model.dto.response.TestPlanProgressRespDTO;
+
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
@@ -451,5 +455,199 @@ class TestPlanServiceImplTest {
 
         assertThrows(ServiceException.class,
                 () -> planService.closePlan(planId, userId));
+    }
+
+    // ========== startPlan ==========
+
+    @Test
+    void startPlan_success() {
+        TestPlan plan = new TestPlan();
+        plan.setId(UUID.fromString(planId));
+        plan.setExecutorId(userId);
+        plan.setStatus(Constants.Status.NEW);
+
+        when(testPlanMapper.selectById(planId)).thenReturn(plan);
+
+        planService.startPlan(planId, userId);
+
+        assertEquals(Constants.Status.IN_PROGRESS, plan.getStatus());
+        verify(testPlanMapper).updateById(plan);
+    }
+
+    @Test
+    void startPlan_notFound_throws() {
+        when(testPlanMapper.selectById(planId)).thenReturn(null);
+
+        assertThrows(ServiceException.class,
+                () -> planService.startPlan(planId, userId));
+    }
+
+    @Test
+    void startPlan_notExecutor_throws() {
+        TestPlan plan = new TestPlan();
+        plan.setId(UUID.fromString(planId));
+        plan.setExecutorId("other-user");
+        plan.setStatus(Constants.Status.NEW);
+
+        when(testPlanMapper.selectById(planId)).thenReturn(plan);
+
+        assertThrows(ServiceException.class,
+                () -> planService.startPlan(planId, userId));
+    }
+
+    @Test
+    void startPlan_notNewStatus_throws() {
+        TestPlan plan = new TestPlan();
+        plan.setId(UUID.fromString(planId));
+        plan.setExecutorId(userId);
+        plan.setStatus(Constants.Status.IN_PROGRESS);
+
+        when(testPlanMapper.selectById(planId)).thenReturn(plan);
+
+        assertThrows(ServiceException.class,
+                () -> planService.startPlan(planId, userId));
+    }
+
+    // ========== getPlanProgress ==========
+
+    @Test
+    void getPlanProgress_success() {
+        TestPlan plan = new TestPlan();
+        plan.setId(UUID.fromString(planId));
+        when(testPlanMapper.selectById(planId)).thenReturn(plan);
+
+        TestPlanNodeSnapshot snap1 = new TestPlanNodeSnapshot();
+        snap1.setLastResult("pass");
+        TestPlanNodeSnapshot snap2 = new TestPlanNodeSnapshot();
+        snap2.setLastResult("fail");
+        TestPlanNodeSnapshot snap3 = new TestPlanNodeSnapshot();
+        snap3.setLastResult(null);
+
+        when(planNodeSnapshotMapper.selectList(any(LambdaQueryWrapper.class)))
+                .thenReturn(List.of(snap1, snap2, snap3));
+
+        TestPlanProgressRespDTO result = planService.getPlanProgress(planId);
+
+        assertEquals(3, result.getTotalAssociated());
+        assertEquals(1, result.getPassed());
+        assertEquals(1, result.getFailed());
+        assertEquals(1, result.getUntested());
+    }
+
+    @Test
+    void getPlanProgress_notFound_throws() {
+        when(testPlanMapper.selectById(planId)).thenReturn(null);
+
+        assertThrows(ServiceException.class,
+                () -> planService.getPlanProgress(planId));
+    }
+
+    @Test
+    void getPlanProgress_emptySnapshots() {
+        TestPlan plan = new TestPlan();
+        plan.setId(UUID.fromString(planId));
+        when(testPlanMapper.selectById(planId)).thenReturn(plan);
+        when(planNodeSnapshotMapper.selectList(any(LambdaQueryWrapper.class)))
+                .thenReturn(new ArrayList<>());
+
+        TestPlanProgressRespDTO result = planService.getPlanProgress(planId);
+
+        assertEquals(0, result.getTotalAssociated());
+        assertEquals(0.0, result.getProgressPercent());
+    }
+
+    // ========== syncPlan module snapshot ==========
+
+    @Test
+    void syncPlan_syncsModuleName() {
+        TestPlan plan = new TestPlan();
+        plan.setId(UUID.fromString(planId));
+        plan.setExecutorId(userId);
+        plan.setStatus("in_progress");
+
+        when(testPlanMapper.selectById(planId)).thenReturn(plan);
+
+        UUID moduleSnapId = UUID.randomUUID();
+        TestPlanModuleSnapshot moduleSnap = new TestPlanModuleSnapshot();
+        moduleSnap.setId(moduleSnapId);
+        moduleSnap.setOriginalModuleId("00000000-0000-0000-0000-000000000010");
+        moduleSnap.setName("old name");
+        moduleSnap.setSortOrder(1);
+
+        when(planModuleSnapshotMapper.selectList(any(LambdaQueryWrapper.class)))
+                .thenReturn(List.of(moduleSnap));
+        when(planNodeSnapshotMapper.selectList(any(LambdaQueryWrapper.class)))
+                .thenReturn(new ArrayList<>());
+
+        TestCaseModule originalModule = new TestCaseModule();
+        originalModule.setName("new name");
+        originalModule.setSortOrder(2);
+        originalModule.setIsDeleted(false);
+        when(testCaseModuleMapper.selectById("00000000-0000-0000-0000-000000000010"))
+                .thenReturn(originalModule);
+
+        planService.syncPlan(planId, userId);
+
+        assertEquals("new name", moduleSnap.getName());
+        assertEquals(2, moduleSnap.getSortOrder());
+        verify(planModuleSnapshotMapper).updateById(moduleSnap);
+    }
+
+    @Test
+    void syncPlan_deletesRemovedModule() {
+        TestPlan plan = new TestPlan();
+        plan.setId(UUID.fromString(planId));
+        plan.setExecutorId(userId);
+        plan.setStatus("in_progress");
+
+        when(testPlanMapper.selectById(planId)).thenReturn(plan);
+
+        UUID moduleSnapId = UUID.randomUUID();
+        TestPlanModuleSnapshot moduleSnap = new TestPlanModuleSnapshot();
+        moduleSnap.setId(moduleSnapId);
+        moduleSnap.setOriginalModuleId("00000000-0000-0000-0000-000000000010");
+
+        when(planModuleSnapshotMapper.selectList(any(LambdaQueryWrapper.class)))
+                .thenReturn(List.of(moduleSnap));
+        when(planNodeSnapshotMapper.selectList(any(LambdaQueryWrapper.class)))
+                .thenReturn(new ArrayList<>());
+        when(testCaseModuleMapper.selectById("00000000-0000-0000-0000-000000000010"))
+                .thenReturn(null);
+
+        planService.syncPlan(planId, userId);
+
+        verify(planModuleSnapshotMapper).deleteById(moduleSnapId);
+    }
+
+    @Test
+    void syncPlan_deletedModule_cascadesNodeDeletion() {
+        TestPlan plan = new TestPlan();
+        plan.setId(UUID.fromString(planId));
+        plan.setExecutorId(userId);
+        plan.setStatus("in_progress");
+
+        when(testPlanMapper.selectById(planId)).thenReturn(plan);
+
+        UUID moduleSnapId = UUID.randomUUID();
+        TestPlanModuleSnapshot moduleSnap = new TestPlanModuleSnapshot();
+        moduleSnap.setId(moduleSnapId);
+        moduleSnap.setOriginalModuleId("00000000-0000-0000-0000-000000000010");
+
+        UUID nodeSnapId = UUID.randomUUID();
+        TestPlanNodeSnapshot nodeSnap = new TestPlanNodeSnapshot();
+        nodeSnap.setId(nodeSnapId);
+        nodeSnap.setDocumentSnapshotId(moduleSnapId.toString());
+
+        when(planModuleSnapshotMapper.selectList(any(LambdaQueryWrapper.class)))
+                .thenReturn(List.of(moduleSnap));
+        when(planNodeSnapshotMapper.selectList(any(LambdaQueryWrapper.class)))
+                .thenReturn(List.of(nodeSnap));
+        when(testCaseModuleMapper.selectById("00000000-0000-0000-0000-000000000010"))
+                .thenReturn(null);
+
+        planService.syncPlan(planId, userId);
+
+        verify(planModuleSnapshotMapper).deleteById(moduleSnapId);
+        verify(planNodeSnapshotMapper).deleteById(nodeSnapId);
     }
 }
