@@ -7,17 +7,17 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.model.entity.TestCaseDocumentLayout;
 import io.github.xiaomisum.robotest.model.entity.TestCaseNode;
-import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.repository.TestCaseDocumentLayoutMapper;
 import io.github.xiaomisum.robotest.repository.TestCaseNodeMapper;
 import jakarta.annotation.Resource;
-import jakarta.websocket.Session;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
+import org.springframework.web.socket.TextMessage;
+import org.springframework.web.socket.WebSocketSession;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -40,7 +40,7 @@ public class DocumentPersistenceHandler {
 
     @Async
     @Transactional(rollbackFor = Exception.class)
-    public void persist(String docId, String message, Session session) {
+    public void persist(String docId, String message, WebSocketSession session) {
         try {
             JsonNode root = objectMapper.readTree(message);
             String type = root.has("type") ? root.get("type").asText() : null;
@@ -52,18 +52,20 @@ public class DocumentPersistenceHandler {
             }
         } catch (Exception e) {
             log.error("Persist error for doc {}: {}", docId, e.getMessage(), e);
-            sendError(session, Constants.WebSocket.ERROR_PERSIST_FAILED, "持久化失败: " + e.getMessage());
+            sendError(session, "PERSIST_FAILED", "持久化失败: " + e.getMessage());
         }
     }
 
-    private void sendError(Session session, String code, String message) {
+    private void sendError(WebSocketSession session, String code, String message) {
         if (session == null || !session.isOpen()) {
             return;
         }
         try {
             String errorJson = objectMapper.writeValueAsString(
                     Map.of("type", Constants.WebSocket.MSG_TYPE_ERROR, "code", code, "message", message));
-            session.getBasicRemote().sendText(errorJson);
+            synchronized (session) {
+                session.sendMessage(new TextMessage(errorJson));
+            }
         } catch (IOException e) {
             log.warn("Failed to send error to client: {}", e.getMessage());
         }

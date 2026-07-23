@@ -20,7 +20,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import xyz.migoo.framework.common.pojo.PageResult;
-import xyz.migoo.framework.common.exception.util.ServiceExceptionUtil;
+import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;

@@ -30,7 +30,7 @@ mvn checkstyle:check && mvn test
 
 - `controller/{admin,workspace,project}/`：仅路由 + 参数校验（`@Valid`），无业务逻辑
 - `service/{admin,workspace,project}/`：接口 + 实现同包，按业务域分组
-- `service/websocket/`：业务 WebSocket 处理（DocumentEndpoint、DocumentPersistenceHandler）
+- `service/websocket/`：业务 WebSocket 处理（DocumentHandler、DocumentPersistenceHandler）
 - `repository/`：JPA / MyBatis-Plus 数据访问
 - `model/entity/` ↔ `model/dto/request|response/`
 - `framework/`：基础框架层（与业务无关）
@@ -40,7 +40,7 @@ mvn checkstyle:check && mvn test
   - `convert/`：MapStruct 对象转换
   - `interceptor/`：工作空间角色权限拦截器
   - `security/`：JWT 双令牌 + RBAC（LoginUser、UserDetailsBridgeImpl）
-  - `websocket/`：WebSocket 基础设施（WebSocketConfig、WebSocketAuthConfig、RoomManager）
+  - `websocket/`：已移除（房间管理由框架 `migoo-spring-boot-starter-websocket` 原生支持）
 
 **核心子系统**：认证授权 → 上下文（workspace）隔离 → 评审/计划快照 → WebSocket 协作  
 （详见 `docs/spec/security.md`、`docs/spec/api.md`、`docs/架构/`、`docs/详细设计/`）
