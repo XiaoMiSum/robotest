@@ -46,6 +46,15 @@ migoo:
   debug: ${DEBUG_STATUS:false}
   xss:
     enable: true
+  websocket:
+    enabled: true
+    distributed: false
+    endpoints:
+      - /ws/documents/*
+    allowed-origins: "*"
+    token-header: Authorization
+    token-prefix: "Bearer "
+    max-session-timeout: 1800000
   security:
     mode: jwt
     jwt:

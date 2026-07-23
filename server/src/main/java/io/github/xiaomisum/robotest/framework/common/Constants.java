@@ -54,11 +54,6 @@ public final class Constants {
         String MSG_DELETE_NODE = "delete_node";
         String MSG_MOVE_NODE = "move_node";
         String MSG_TYPE_ERROR = "error";
-        String ERROR_PERSIST_FAILED = "PERSIST_FAILED";
-        String USER_ANONYMOUS = "anonymous";
-        String PROP_USER_ID = "userId";
-        String PROP_LOGIN_USER = "loginUser";
-        String PARAM_TOKEN = "token";
     }
 
     public interface Tree {
