@@ -15,7 +15,7 @@ import io.github.xiaomisum.robotest.repository.TestCaseNodeMapper;
 import io.github.xiaomisum.robotest.service.project.TestCaseNodeService;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
-import xyz.migoo.framework.common.exception.util.ServiceExceptionUtil;
+import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
 
 import java.util.ArrayList;
 import java.util.List;
