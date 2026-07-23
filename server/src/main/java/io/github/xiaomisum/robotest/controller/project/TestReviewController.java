@@ -12,6 +12,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import xyz.migoo.framework.common.pojo.PageResult;
+import xyz.migoo.framework.common.pojo.Result;
 
 import java.util.List;
 
@@ -23,73 +24,76 @@ public class TestReviewController {
     private TestReviewService testReviewService;
 
     @GetMapping
-    public PageResult<TestReviewListRespDTO> getReviewPage(
+    public Result<PageResult<TestReviewListRespDTO>> getReviewPage(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestHeader("X-Active-Project") String projectId,
             @RequestParam(required = false) String status,
             @RequestParam(defaultValue = "1") Integer pageNo,
             @RequestParam(defaultValue = "20") Integer pageSize) {
-        return testReviewService.getReviewPage(projectId, status, pageNo, pageSize);
+        return Result.ok(testReviewService.getReviewPage(projectId, status, pageNo, pageSize));
     }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public TestReviewDetailRespDTO createReview(
+    public Result<TestReviewDetailRespDTO> createReview(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestHeader("X-Active-Project") String projectId,
             @RequestBody @Valid TestReviewCreateReqDTO reqDTO) {
-        return testReviewService.createReview(projectId, loginUser.getId().toString(), reqDTO);
+        return Result.ok(testReviewService.createReview(projectId, loginUser.getId().toString(), reqDTO));
     }
 
     @GetMapping("/{id}")
-    public TestReviewDetailRespDTO getReviewDetail(
+    public Result<TestReviewDetailRespDTO> getReviewDetail(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable String id) {
-        return testReviewService.getReviewDetail(id);
+        return Result.ok(testReviewService.getReviewDetail(id));
     }
 
     @GetMapping("/{id}/modules")
-    public List<TestReviewSnapshotNodeRespDTO> getReviewSnapshotTree(
+    public Result<List<TestReviewSnapshotNodeRespDTO>> getReviewSnapshotTree(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable String id,
             @RequestParam(required = false) String documentId) {
-        return testReviewService.getReviewSnapshotTree(id, documentId);
+        return Result.ok(testReviewService.getReviewSnapshotTree(id, documentId));
     }
 
     @PostMapping("/{id}/records")
-    public void submitReviewRecord(
+    public Result<Void> submitReviewRecord(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable String id,
             @RequestBody @Valid TestReviewRecordReqDTO reqDTO) {
         testReviewService.submitReviewRecord(id, loginUser.getId().toString(), reqDTO);
+        return Result.ok();
     }
 
     @GetMapping("/{id}/nodes/{nodeId}/records")
-    public List<TestReviewRecordRespDTO> getNodeReviewRecords(
+    public Result<List<TestReviewRecordRespDTO>> getNodeReviewRecords(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable String id,
             @PathVariable String nodeId) {
-        return testReviewService.getNodeReviewRecords(id, nodeId);
+        return Result.ok(testReviewService.getNodeReviewRecords(id, nodeId));
     }
 
     @PostMapping("/{id}/complete")
-    public void completeReview(
+    public Result<Void> completeReview(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable String id) {
         testReviewService.completeReview(id, loginUser.getId().toString());
+        return Result.ok();
     }
 
     @GetMapping("/{id}/progress")
-    public TestReviewProgressRespDTO getReviewProgress(
+    public Result<TestReviewProgressRespDTO> getReviewProgress(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable String id) {
-        return testReviewService.getReviewProgress(id);
+        return Result.ok(testReviewService.getReviewProgress(id));
     }
 
     @PostMapping("/{id}/sync")
-    public void syncReview(
+    public Result<Void> syncReview(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable String id) {
         testReviewService.syncReview(id, loginUser.getId().toString());
+        return Result.ok();
     }
 }

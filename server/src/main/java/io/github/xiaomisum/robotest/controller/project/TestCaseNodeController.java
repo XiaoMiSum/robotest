@@ -11,6 +11,7 @@ import jakarta.validation.Valid;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import xyz.migoo.framework.common.pojo.PageResult;
+import xyz.migoo.framework.common.pojo.Result;
 
 @RestController
 @RequestMapping("/api/project")
@@ -20,38 +21,39 @@ public class TestCaseNodeController {
     private TestCaseNodeService testCaseNodeService;
 
     @GetMapping("/documents/{docId}/nodes")
-    public TestCaseDocumentNodesRespDTO getDocumentNodes(
+    public Result<TestCaseDocumentNodesRespDTO> getDocumentNodes(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestHeader("X-Active-Project") String projectId,
             @PathVariable String docId) {
-        return testCaseNodeService.getDocumentNodes(docId);
+        return Result.ok(testCaseNodeService.getDocumentNodes(docId));
     }
 
     @GetMapping("/cases/{caseId}")
-    public TestCaseNodeTreeRespDTO getCaseDetail(
+    public Result<TestCaseNodeTreeRespDTO> getCaseDetail(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestHeader("X-Active-Project") String projectId,
             @PathVariable String caseId) {
-        return testCaseNodeService.getCaseDetail(caseId);
+        return Result.ok(testCaseNodeService.getCaseDetail(caseId));
     }
 
     @GetMapping("/cases")
-    public PageResult<TestCaseCaseListRespDTO> getCaseList(
+    public Result<PageResult<TestCaseCaseListRespDTO>> getCaseList(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestHeader("X-Active-Project") String projectId,
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) String priority,
             @RequestParam(defaultValue = "1") Integer pageNo,
             @RequestParam(defaultValue = "20") Integer pageSize) {
-        return testCaseNodeService.getCaseList(projectId, keyword, priority, pageNo, pageSize);
+        return Result.ok(testCaseNodeService.getCaseList(projectId, keyword, priority, pageNo, pageSize));
     }
 
     @PutMapping("/cases/{caseId}")
-    public void updateCaseNode(
+    public Result<Void> updateCaseNode(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestHeader("X-Active-Project") String projectId,
             @PathVariable String caseId,
             @RequestBody @Valid TestCaseNodeUpdateReqDTO reqDTO) {
         testCaseNodeService.updateCaseNode(caseId, reqDTO);
+        return Result.ok();
     }
 }
