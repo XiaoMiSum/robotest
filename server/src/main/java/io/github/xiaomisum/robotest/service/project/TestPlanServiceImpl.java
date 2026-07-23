@@ -215,8 +215,44 @@ public class TestPlanServiceImpl implements TestPlanService {
                 new LambdaQueryWrapper<TestPlanNodeSnapshot>()
                         .eq(TestPlanNodeSnapshot::getPlanId, planId));
 
+        // 1. 同步模块快照：名称、排序与原始模块保持一致；已删除的模块移除快照
+        List<TestPlanModuleSnapshot> snapshotModules = planModuleSnapshotMapper.selectList(
+                new LambdaQueryWrapper<TestPlanModuleSnapshot>()
+                        .eq(TestPlanModuleSnapshot::getPlanId, planId));
+
+        Set<String> validModuleSnapshotIds = new HashSet<>();
+        for (TestPlanModuleSnapshot moduleSnap : snapshotModules) {
+            if (moduleSnap.getOriginalModuleId() == null) {
+                validModuleSnapshotIds.add(moduleSnap.getId().toString());
+                continue;
+            }
+            TestCaseModule originalModule = testCaseModuleMapper.selectById(moduleSnap.getOriginalModuleId());
+            if (originalModule == null || originalModule.getIsDeleted()) {
+                // 原始模块已删除，移除对应的模块快照和节点快照
+                planModuleSnapshotMapper.deleteById(moduleSnap.getId());
+                // 移除属于该模块快照的节点快照
+                for (TestPlanNodeSnapshot nodeSnap : snapshotNodes) {
+                    if (moduleSnap.getId().toString().equals(nodeSnap.getDocumentSnapshotId())) {
+                        planNodeSnapshotMapper.deleteById(nodeSnap.getId());
+                    }
+                }
+            } else {
+                // 原始模块仍存在，同步名称和排序
+                moduleSnap.setName(originalModule.getName());
+                moduleSnap.setSortOrder(originalModule.getSortOrder());
+                planModuleSnapshotMapper.updateById(moduleSnap);
+                validModuleSnapshotIds.add(moduleSnap.getId().toString());
+            }
+        }
+
+        // 2. 同步节点快照：标题、类型、优先级、排序与原始节点保持一致；已删除的节点标记 isDeleted
         for (TestPlanNodeSnapshot snapshot : snapshotNodes) {
             if (snapshot.getOriginalNodeId() == null) {
+                continue;
+            }
+            // 如果所属模块快照已被删除，跳过
+            if (snapshot.getDocumentSnapshotId() != null
+                    && !validModuleSnapshotIds.contains(snapshot.getDocumentSnapshotId())) {
                 continue;
             }
             TestCaseNode currentNode = testCaseNodeMapper.selectById(snapshot.getOriginalNodeId());
@@ -230,6 +266,66 @@ public class TestPlanServiceImpl implements TestPlanService {
             }
             planNodeSnapshotMapper.updateById(snapshot);
         }
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void startPlan(String planId, String userId) {
+        TestPlan plan = testPlanMapper.selectById(planId);
+        if (plan == null) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_PLAN_NOT_FOUND);
+        }
+        if (!userId.equals(plan.getExecutorId())) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.NO_PERMISSION);
+        }
+        if (!Constants.Status.NEW.equals(plan.getStatus())) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.VALIDATION_FAILED);
+        }
+        plan.setStatus(Constants.Status.IN_PROGRESS);
+        testPlanMapper.updateById(plan);
+    }
+
+    @Override
+    public TestPlanProgressRespDTO getPlanProgress(String planId) {
+        TestPlan plan = testPlanMapper.selectById(planId);
+        if (plan == null) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_PLAN_NOT_FOUND);
+        }
+
+        List<TestPlanNodeSnapshot> snapshots = planNodeSnapshotMapper.selectList(
+                new LambdaQueryWrapper<TestPlanNodeSnapshot>()
+                        .eq(TestPlanNodeSnapshot::getPlanId, planId)
+                        .eq(TestPlanNodeSnapshot::getIsAssociated, true)
+                        .eq(TestPlanNodeSnapshot::getType, Constants.NodeType.CASE));
+
+        TestPlanProgressRespDTO dto = new TestPlanProgressRespDTO();
+        dto.setTotalAssociated(snapshots.size());
+
+        long passed = 0, failed = 0, blocked = 0, untested = 0;
+        for (TestPlanNodeSnapshot snap : snapshots) {
+            String result = snap.getLastResult();
+            if (result == null || Constants.Status.UNTESTED.equals(result)) {
+                untested++;
+            } else {
+                switch (result) {
+                    case "pass" -> passed++;
+                    case "fail" -> failed++;
+                    case "blocked" -> blocked++;
+                    default -> untested++;
+                }
+            }
+        }
+        dto.setPassed(passed);
+        dto.setFailed(failed);
+        dto.setBlocked(blocked);
+        dto.setUntested(untested);
+
+        long total = dto.getTotalAssociated();
+        dto.setProgressPercent(total > 0
+                ? Math.round((total - untested) * 10000.0 / total) / 100.0
+                : 0.0);
+
+        return dto;
     }
 
     @Override

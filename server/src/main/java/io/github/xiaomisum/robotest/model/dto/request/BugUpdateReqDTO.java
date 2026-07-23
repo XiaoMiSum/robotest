@@ -17,5 +17,5 @@ public class BugUpdateReqDTO {
 
     private UUID assigneeId;
 
-    private String status;
+    // status 字段已移除，状态变更请通过 changeBugStatus 接口
 }

@@ -15,12 +15,24 @@ public class ProjectDashboardRespDTO {
     private Long openBugCount;
     private List<RecentItem> recentReviews;
     private List<RecentItem> recentPlans;
+    private List<RecentBugItem> recentBugs;
 
     @Data
     public static class RecentItem {
         private UUID id;
         private String title;
         private String status;
+        private LocalDateTime createdAt;
+    }
+
+    @Data
+    public static class RecentBugItem {
+        private UUID id;
+        private String title;
+        private String severity;
+        private String priority;
+        private String status;
+        private String assignee;
         private LocalDateTime createdAt;
     }
 }
