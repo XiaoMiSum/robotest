@@ -16,16 +16,12 @@ spring:
     import: optional:classpath:.env[.properties]
   jackson:
     serialization:
-      write-dates-as-timestamps: true
-      write-date-timestamps-as-nanoseconds: false
-      write-durations-as-timestamps: true
       fail-on-empty-beans: false
   datasource:
-    type: com.alibaba.druid.pool.DruidDataSource
     driver-class-name: org.postgresql.Driver
     url: ${DATASOURCE_URL:jdbc:postgresql://localhost:5432/robotest}
-    username: ${DATASOURCE_USERNAME:robotest}
-    password: ${DATASOURCE_PASSWORD:robotest}
+    username: ${DATASOURCE_USERNAME:postgres}
+    password: ${DATASOURCE_PASSWORD:123456}
   data:
     redis:
       host: ${REDIS_HOST:localhost}
@@ -48,10 +44,9 @@ migoo:
     enable: true
   websocket:
     enabled: true
-    distributed: false
+    distributed: true
     endpoints:
       - /ws/documents/*
-    allowed-origins: "*"
     token-header: Authorization
     token-prefix: "Bearer "
     max-session-timeout: 1800000
@@ -79,6 +74,7 @@ mybatis-plus:
     map-underscore-to-camel-case: true
     log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
     lazy-loading-enabled: false
+    #type-handlers-package: org.apache.ibatis.type
   global-config:
     db-config:
       id-type: assign_uuid
