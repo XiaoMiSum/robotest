@@ -1,7 +1,7 @@
 package io.github.xiaomisum.robotest.framework.audit;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.node.ObjectNode;
 import io.github.xiaomisum.robotest.model.entity.AuditLog;
 import io.github.xiaomisum.robotest.repository.AuditLogMapper;
 import jakarta.servlet.http.HttpServletRequest;
@@ -21,6 +21,7 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 
 @Slf4j
 @Aspect
@@ -51,7 +52,7 @@ public class AuditLogAspect {
             // operator
             Authentication auth = SecurityContextHolder.getContext().getAuthentication();
             if (auth != null && auth.getPrincipal() instanceof io.github.xiaomisum.robotest.framework.security.LoginUser loginUser) {
-                record.setOperatorId(loginUser.getId().toString());
+                record.setOperatorId(loginUser.getId());
                 record.setOperatorName(loginUser.getUsername());
             }
 
@@ -62,13 +63,13 @@ public class AuditLogAspect {
                 record.setRequestIp(getClientIp(request));
             }
 
-            // entityId：取第一个 String 参数
+            // entityId：取第一个 UUID 参数
             Parameter[] params = method.getParameters();
             for (int i = 0; i < params.length; i++) {
-                if (params[i].getType() == String.class) {
+                if (params[i].getType() == UUID.class) {
                     Object val = joinPoint.getArgs()[i];
-                    if (val != null) {
-                        record.setEntityId(val.toString());
+                    if (val instanceof UUID uuid) {
+                        record.setEntityId(uuid);
                         break;
                     }
                 }

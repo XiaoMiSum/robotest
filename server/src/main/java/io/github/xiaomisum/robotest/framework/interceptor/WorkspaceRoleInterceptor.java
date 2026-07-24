@@ -20,6 +20,7 @@ import org.springframework.web.servlet.HandlerInterceptor;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * 工作空间角色权限拦截器。
@@ -43,16 +44,17 @@ public class WorkspaceRoleInterceptor implements HandlerInterceptor {
             return true;
         }
 
-        String workspaceId = request.getHeader("X-Active-Workspace");
-        if (!StringUtils.hasText(workspaceId)) {
+        String workspaceIdStr = request.getHeader("X-Active-Workspace");
+        if (!StringUtils.hasText(workspaceIdStr)) {
             return true;
         }
+        UUID workspaceId = UUID.fromString(workspaceIdStr);
 
         WorkspaceUser workspaceUser = workspaceUserMapper.selectOne(
                 new LambdaQueryWrapper<WorkspaceUser>()
                         .eq(WorkspaceUser::getUserId, loginUser.getId())
                         .eq(WorkspaceUser::getWorkspaceId, workspaceId));
-        if (workspaceUser == null || !StringUtils.hasText(workspaceUser.getWorkspaceRole())) {
+        if (workspaceUser == null || workspaceUser.getWorkspaceRole() == null) {
             return true;
         }
 

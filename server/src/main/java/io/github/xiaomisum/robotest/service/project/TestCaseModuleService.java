@@ -5,6 +5,7 @@ import io.github.xiaomisum.robotest.model.dto.request.TestCaseModuleUpdateReqDTO
 import io.github.xiaomisum.robotest.model.dto.response.TestCaseModuleTreeRespDTO;
 
 import java.util.List;
+import java.util.UUID;
 
 public interface TestCaseModuleService {
 
@@ -12,7 +13,7 @@ public interface TestCaseModuleService {
 
     TestCaseModuleTreeRespDTO createModule(String projectId, TestCaseModuleCreateReqDTO reqDTO);
 
-    TestCaseModuleTreeRespDTO updateModule(String moduleId, TestCaseModuleUpdateReqDTO reqDTO);
+    TestCaseModuleTreeRespDTO updateModule(UUID moduleId, TestCaseModuleUpdateReqDTO reqDTO);
 
-    void deleteModule(String moduleId);
+    void deleteModule(UUID moduleId);
 }

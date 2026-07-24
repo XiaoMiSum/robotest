@@ -32,7 +32,7 @@ public class MyWorkspaceServiceImpl implements MyWorkspaceService {
     private WorkspaceUserMapper workspaceUserMapper;
 
     @Override
-    public PageResult<WorkspaceMyRespDTO> getMyWorkspacePage(String userId, Integer pageNo, Integer pageSize) {
+    public PageResult<WorkspaceMyRespDTO> getMyWorkspacePage(UUID userId, Integer pageNo, Integer pageSize) {
         // 鏌ヨ鐢ㄦ埛鍏宠仈鐨勫伐浣滅┖闂?
         LambdaQueryWrapper<WorkspaceUser> wrapper = new LambdaQueryWrapper<WorkspaceUser>()
                 .eq(WorkspaceUser::getUserId, userId)
@@ -49,15 +49,15 @@ public class MyWorkspaceServiceImpl implements MyWorkspaceService {
         }
 
         // 鎵归噺鏌ヨ宸ヤ綔绌洪棿淇℃伅
-        List<String> workspaceIds = workspaceUserPage.getList().stream()
+        List<UUID> workspaceIds = workspaceUserPage.getList().stream()
                 .map(WorkspaceUser::getWorkspaceId)
                 .collect(Collectors.toList());
-        Map<String, Workspace> workspaceMap = workspaceMapper.selectList(Workspace::getId, workspaceIds)
+        Map<UUID, Workspace> workspaceMap = workspaceMapper.selectList(Workspace::getId, workspaceIds)
                 .stream()
-                .collect(Collectors.toMap(w -> w.getId().toString(), w -> w));
+                .collect(Collectors.toMap(Workspace::getId, w -> w));
 
         // 鎵归噺鏌ヨ姣忎釜宸ヤ綔绌洪棿鐨勬垚鍛樻暟
-        Map<String, Long> memberCountMap = workspaceUserPage.getList().stream()
+        Map<UUID, Long> memberCountMap = workspaceUserPage.getList().stream()
                 .collect(Collectors.toMap(
                         WorkspaceUser::getWorkspaceId,
                         wu -> workspaceUserMapper.selectCount(WorkspaceUser::getWorkspaceId, wu.getWorkspaceId()),
@@ -67,9 +67,9 @@ public class MyWorkspaceServiceImpl implements MyWorkspaceService {
         // 缁勮鍝嶅簲
         List<WorkspaceMyRespDTO> records = workspaceUserPage.getList().stream().map(wu -> {
             WorkspaceMyRespDTO dto = new WorkspaceMyRespDTO();
-            dto.setId(UUID.fromString(wu.getWorkspaceId()));
-            dto.setWorkspaceRole(wu.getWorkspaceRole());
-            dto.setDefaultProjectId(wu.getDefaultProjectId() != null ? UUID.fromString(wu.getDefaultProjectId()) : null);
+            dto.setId(wu.getWorkspaceId());
+            dto.setWorkspaceRole(wu.getWorkspaceRole().toString());
+            dto.setDefaultProjectId(wu.getDefaultProjectId());
 
             Workspace workspace = workspaceMap.get(wu.getWorkspaceId());
             if (workspace != null) {
@@ -90,7 +90,7 @@ public class MyWorkspaceServiceImpl implements MyWorkspaceService {
     }
 
     @Override
-    public void setActiveWorkspace(String userId, String workspaceId) {
+    public void setActiveWorkspace(UUID userId, UUID workspaceId) {
         // 鏍￠獙鐢ㄦ埛瀛樺湪
         SysUser user = userMapper.selectById(userId);
         if (user == null) {
@@ -113,7 +113,7 @@ public class MyWorkspaceServiceImpl implements MyWorkspaceService {
         }
 
         // 鏇存柊鐢ㄦ埛鐨勬椿璺冨伐浣滅┖闂?
-        user.setLastActiveWorkspaceId(workspaceId);
+        user.setLastActiveWorkspaceId(workspaceId.toString());
         userMapper.updateById(user);
     }
 }

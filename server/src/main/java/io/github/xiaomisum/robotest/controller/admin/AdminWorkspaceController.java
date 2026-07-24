@@ -14,6 +14,7 @@ import xyz.migoo.framework.common.pojo.PageResult;
 import xyz.migoo.framework.common.pojo.Result;
 
 import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/admin/workspaces")
@@ -36,47 +37,47 @@ public class AdminWorkspaceController {
     }
 
     @GetMapping("/{id}")
-    public Result<WorkspaceRespDTO> getWorkspaceDetail(@PathVariable String id) {
+    public Result<WorkspaceRespDTO> getWorkspaceDetail(@PathVariable UUID id) {
         return Result.ok(workspaceService.getWorkspaceDetail(id));
     }
 
     @PutMapping("/{id}")
-    public Result<WorkspaceRespDTO> updateWorkspace(@PathVariable String id,
+    public Result<WorkspaceRespDTO> updateWorkspace(@PathVariable UUID id,
                                                     @RequestBody @Valid WorkspaceUpdateReqDTO reqDTO) {
         return Result.ok(workspaceService.updateWorkspace(id, reqDTO));
     }
 
     @DeleteMapping("/{id}")
-    public Result<Void> dissolveWorkspace(@PathVariable String id) {
+    public Result<Void> dissolveWorkspace(@PathVariable UUID id) {
         workspaceService.dissolveWorkspace(id);
         return Result.ok();
     }
 
     @GetMapping("/{id}/members")
     public Result<PageResult<WorkspaceMemberRespDTO>> getWorkspaceMembers(
-            @PathVariable String id,
+            @PathVariable UUID id,
             @RequestParam(defaultValue = "1") Integer pageNo,
             @RequestParam(defaultValue = "20") Integer pageSize) {
         return Result.ok(workspaceService.getWorkspaceMembers(id, pageNo, pageSize));
     }
 
     @PostMapping("/{id}/members")
-    public Result<List<String>> addWorkspaceMembers(@PathVariable String id,
+    public Result<List<String>> addWorkspaceMembers(@PathVariable UUID id,
                                                     @RequestBody @Valid WorkspaceMembersAddReqDTO reqDTO) {
         return Result.ok(workspaceService.addWorkspaceMembers(id, reqDTO.getMembers()));
     }
 
     @PutMapping("/{id}/members/{userId}")
-    public Result<Void> updateWorkspaceMemberRole(@PathVariable String id,
-                                                   @PathVariable String userId,
+    public Result<Void> updateWorkspaceMemberRole(@PathVariable UUID id,
+                                                   @PathVariable UUID userId,
                                                    @RequestBody @Valid WorkspaceMemberRoleUpdateReqDTO reqDTO) {
         workspaceService.updateWorkspaceMemberRole(id, userId, reqDTO.getWorkspaceRole());
         return Result.ok();
     }
 
     @DeleteMapping("/{id}/members/{userId}")
-    public Result<Void> removeWorkspaceMember(@PathVariable String id,
-                                              @PathVariable String userId) {
+    public Result<Void> removeWorkspaceMember(@PathVariable UUID id,
+                                              @PathVariable UUID userId) {
         workspaceService.removeWorkspaceMember(id, userId);
         return Result.ok();
     }

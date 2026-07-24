@@ -37,6 +37,6 @@ public class InvitationJoinRespDTO {
     public static class ActiveWorkspaceInfo {
         private UUID id;
         private String name;
-        private String workspaceRole;
+        private UUID workspaceRole;
     }
 }

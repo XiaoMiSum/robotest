@@ -41,7 +41,8 @@ public interface UserConvertMapper {
         simple.setId(workspace.getId());
         simple.setName(workspace.getName());
         if (workspaceUser != null) {
-            simple.setWorkspaceRole(workspaceUser.getWorkspaceRole());
+            simple.setWorkspaceRole(workspaceUser.getWorkspaceRole() != null
+                    ? workspaceUser.getWorkspaceRole().toString() : null);
         }
         return simple;
     }

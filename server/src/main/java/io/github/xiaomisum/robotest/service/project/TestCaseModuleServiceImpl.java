@@ -69,8 +69,8 @@ public class TestCaseModuleServiceImpl implements TestCaseModuleService {
         }
 
         TestCaseModule module = new TestCaseModule();
-        module.setProjectId(projectId);
-        module.setParentId(reqDTO.getParentId() != null ? reqDTO.getParentId().toString() : null);
+        module.setProjectId(UUID.fromString(projectId));
+        module.setParentId(reqDTO.getParentId());
         module.setType(reqDTO.getType());
         module.setName(reqDTO.getName());
         module.setSortOrder(0);
@@ -78,7 +78,7 @@ public class TestCaseModuleServiceImpl implements TestCaseModuleService {
 
         if (Constants.ModuleType.DOCUMENT.equals(reqDTO.getType())) {
             TestCaseNode rootNode = new TestCaseNode();
-            rootNode.setDocumentId(module.getId().toString());
+            rootNode.setDocumentId(module.getId());
             rootNode.setParentId(null);
             rootNode.setType(Constants.NodeType.NORMAL);
             rootNode.setTitle(reqDTO.getName());
@@ -92,7 +92,7 @@ public class TestCaseModuleServiceImpl implements TestCaseModuleService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public TestCaseModuleTreeRespDTO updateModule(String moduleId, TestCaseModuleUpdateReqDTO reqDTO) {
+    public TestCaseModuleTreeRespDTO updateModule(UUID moduleId, TestCaseModuleUpdateReqDTO reqDTO) {
         TestCaseModule module = testCaseModuleMapper.selectById(moduleId);
         if (module == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_CASE_MODULE_NOT_FOUND);
@@ -117,7 +117,7 @@ public class TestCaseModuleServiceImpl implements TestCaseModuleService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void deleteModule(String moduleId) {
+    public void deleteModule(UUID moduleId) {
         TestCaseModule module = testCaseModuleMapper.selectById(moduleId);
         if (module == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_CASE_MODULE_NOT_FOUND);

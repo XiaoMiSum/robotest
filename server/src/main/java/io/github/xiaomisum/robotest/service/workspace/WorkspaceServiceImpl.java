@@ -14,17 +14,17 @@ import io.github.xiaomisum.robotest.model.entity.WorkspaceUser;
 import io.github.xiaomisum.robotest.repository.SysUserMapper;
 import io.github.xiaomisum.robotest.repository.WorkspaceMapper;
 import io.github.xiaomisum.robotest.repository.WorkspaceUserMapper;
-import io.github.xiaomisum.robotest.service.workspace.WorkspaceService;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
-import xyz.migoo.framework.common.pojo.PageResult;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
+import xyz.migoo.framework.common.pojo.PageResult;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -84,7 +84,7 @@ public class WorkspaceServiceImpl implements WorkspaceService {
     }
 
     @Override
-    public WorkspaceRespDTO getWorkspaceDetail(String id) {
+    public WorkspaceRespDTO getWorkspaceDetail(UUID id) {
         Workspace workspace = workspaceMapper.selectById(id);
         if (workspace == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.WORKSPACE_NOT_FOUND);
@@ -101,7 +101,7 @@ public class WorkspaceServiceImpl implements WorkspaceService {
     }
 
     @Override
-    public WorkspaceRespDTO updateWorkspace(String id, WorkspaceUpdateReqDTO reqDTO) {
+    public WorkspaceRespDTO updateWorkspace(UUID id, WorkspaceUpdateReqDTO reqDTO) {
         Workspace workspace = workspaceMapper.selectById(id);
         if (workspace == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.WORKSPACE_NOT_FOUND);
@@ -125,7 +125,7 @@ public class WorkspaceServiceImpl implements WorkspaceService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void dissolveWorkspace(String id) {
+    public void dissolveWorkspace(UUID id) {
         Workspace workspace = workspaceMapper.selectById(id);
         if (workspace == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.WORKSPACE_NOT_FOUND);
@@ -139,7 +139,7 @@ public class WorkspaceServiceImpl implements WorkspaceService {
     }
 
     @Override
-    public PageResult<WorkspaceMemberRespDTO> getWorkspaceMembers(String id, Integer pageNo, Integer pageSize) {
+    public PageResult<WorkspaceMemberRespDTO> getWorkspaceMembers(UUID id, Integer pageNo, Integer pageSize) {
         Workspace workspace = workspaceMapper.selectById(id);
         if (workspace == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.WORKSPACE_NOT_FOUND);
@@ -165,14 +165,14 @@ public class WorkspaceServiceImpl implements WorkspaceService {
             dto.setWorkspaceRole(wu.getWorkspaceRole());
             dto.setJoinedAt(wu.getJoinedAt());
             return dto;
-        }).filter(dto -> dto != null).collect(Collectors.toList());
+        }).filter(Objects::nonNull).collect(Collectors.toList());
 
         return new PageResult<>(records, page.getTotal());
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public List<String> addWorkspaceMembers(String id, List<WorkspaceMembersAddReqDTO.MemberItem> members) {
+    public List<String> addWorkspaceMembers(UUID id, List<WorkspaceMembersAddReqDTO.MemberItem> members) {
         Workspace workspace = workspaceMapper.selectById(id);
         if (workspace == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.WORKSPACE_NOT_FOUND);
@@ -194,9 +194,10 @@ public class WorkspaceServiceImpl implements WorkspaceService {
             }
 
             WorkspaceUser wu = new WorkspaceUser();
-            wu.setUserId(member.getUserId().toString());
+            wu.setUserId(member.getUserId());
             wu.setWorkspaceId(id);
-            wu.setWorkspaceRole(StringUtils.hasText(member.getWorkspaceRole()) ? member.getWorkspaceRole() : ErrorCodeConstants.WORKSPACE_ROLE_MEMBER_ID);
+            wu.setWorkspaceRole(member.getWorkspaceRole() != null
+                    ? member.getWorkspaceRole() : Constants.WorkspaceRole.MEMBER_ID);
             wu.setJoinedAt(LocalDateTime.now());
             workspaceUserMapper.insert(wu);
         }
@@ -204,7 +205,7 @@ public class WorkspaceServiceImpl implements WorkspaceService {
     }
 
     @Override
-    public void updateWorkspaceMemberRole(String id, String userId, String workspaceRole) {
+    public void updateWorkspaceMemberRole(UUID id, UUID userId, UUID workspaceRole) {
         WorkspaceUser wu = workspaceUserMapper.selectOne(new LambdaQueryWrapper<WorkspaceUser>()
                 .eq(WorkspaceUser::getUserId, userId)
                 .eq(WorkspaceUser::getWorkspaceId, id));
@@ -212,11 +213,11 @@ public class WorkspaceServiceImpl implements WorkspaceService {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.USER_NOT_FOUND);
         }
         // 妫€鏌ユ槸鍚︽槸闄嶇骇鍞竴绠＄悊鍛?
-        if (ErrorCodeConstants.WORKSPACE_ROLE_ADMIN_ID.equals(wu.getWorkspaceRole())
-                && !ErrorCodeConstants.WORKSPACE_ROLE_ADMIN_ID.equals(workspaceRole)) {
+        if (Constants.WorkspaceRole.ADMIN_ID.equals(wu.getWorkspaceRole())
+                && !Constants.WorkspaceRole.ADMIN_ID.equals(workspaceRole)) {
             Long adminCount = workspaceUserMapper.selectCount(new LambdaQueryWrapper<WorkspaceUser>()
                     .eq(WorkspaceUser::getWorkspaceId, id)
-                    .eq(WorkspaceUser::getWorkspaceRole, ErrorCodeConstants.WORKSPACE_ROLE_ADMIN_ID));
+                    .eq(WorkspaceUser::getWorkspaceRole, Constants.WorkspaceRole.ADMIN_ID));
             if (adminCount <= 1) {
                 throw ServiceExceptionUtil.get(ErrorCodeConstants.MUST_KEEP_ONE_WORKSPACE_ADMIN);
             }
@@ -226,18 +227,18 @@ public class WorkspaceServiceImpl implements WorkspaceService {
     }
 
     @Override
-    public void removeWorkspaceMember(String id, String userId) {
+    public void removeWorkspaceMember(UUID id, UUID userId) {
         WorkspaceUser wu = workspaceUserMapper.selectOne(new LambdaQueryWrapper<WorkspaceUser>()
                 .eq(WorkspaceUser::getUserId, userId)
                 .eq(WorkspaceUser::getWorkspaceId, id));
         if (wu == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.USER_NOT_FOUND);
         }
-        // 妫€鏌ユ槸鍚︽槸绉婚櫎鍞竴绠＄悊鍛?
-        if (ErrorCodeConstants.WORKSPACE_ROLE_ADMIN_ID.equals(wu.getWorkspaceRole())) {
+        // 妫€鏌ユ槸鍚ユ槸鍚︽槸绉婚櫎鍞竴绠＄悊鍛?
+        if (Constants.WorkspaceRole.ADMIN_ID.equals(wu.getWorkspaceRole())) {
             Long adminCount = workspaceUserMapper.selectCount(new LambdaQueryWrapper<WorkspaceUser>()
                     .eq(WorkspaceUser::getWorkspaceId, id)
-                    .eq(WorkspaceUser::getWorkspaceRole, ErrorCodeConstants.WORKSPACE_ROLE_ADMIN_ID));
+                    .eq(WorkspaceUser::getWorkspaceRole, Constants.WorkspaceRole.ADMIN_ID));
             if (adminCount <= 1) {
                 throw ServiceExceptionUtil.get(ErrorCodeConstants.MUST_KEEP_ONE_WORKSPACE_ADMIN);
             }

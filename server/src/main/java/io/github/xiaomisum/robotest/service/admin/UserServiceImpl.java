@@ -18,7 +18,6 @@ import io.github.xiaomisum.robotest.repository.SysUserMapper;
 import io.github.xiaomisum.robotest.repository.SysUserRoleMapper;
 import io.github.xiaomisum.robotest.repository.WorkspaceMapper;
 import io.github.xiaomisum.robotest.repository.WorkspaceUserMapper;
-import io.github.xiaomisum.robotest.service.admin.UserService;
 import jakarta.annotation.Resource;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -51,7 +50,7 @@ public class UserServiceImpl implements UserService {
     private PasswordEncoder passwordEncoder;
 
     @Override
-    public PageResult<UserRespDTO> getUserPage(String keyword, String status, String roleId, String workspaceId,
+    public PageResult<UserRespDTO> getUserPage(String keyword, String status, UUID roleId, UUID workspaceId,
                                                 Integer pageNo, Integer pageSize) {
         LambdaQueryWrapper<SysUser> wrapper = new LambdaQueryWrapper<>();
         if (StringUtils.hasText(keyword)) {
@@ -75,7 +74,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public UserRespDTO getUserDetail(String id) {
+    public UserRespDTO getUserDetail(UUID id) {
         SysUser user = userMapper.selectById(id);
         if (user == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.USER_NOT_FOUND);
@@ -106,25 +105,12 @@ public class UserServiceImpl implements UserService {
         if (!CollectionUtils.isEmpty(reqDTO.getRoleIds())) {
             List<SysUserRole> userRoles = reqDTO.getRoleIds().stream().map(roleId -> {
                 SysUserRole userRole = new SysUserRole();
-                userRole.setUserId(user.getId().toString());
-                userRole.setRoleId(roleId.toString());
+                userRole.setUserId(user.getId());
+                userRole.setRoleId(roleId);
                 userRole.setAssignedAt(LocalDateTime.now());
                 return userRole;
-            }).collect(Collectors.toList());
+            }).toList();
             userRoles.forEach(userRoleMapper::insert);
-        }
-
-        // 鍒嗛厤宸ヤ綔绌洪棿
-        if (!CollectionUtils.isEmpty(reqDTO.getWorkspaceIds())) {
-            List<WorkspaceUser> workspaceUsers = reqDTO.getWorkspaceIds().stream().map(wsId -> {
-                WorkspaceUser wu = new WorkspaceUser();
-                wu.setUserId(user.getId().toString());
-                wu.setWorkspaceId(wsId.toString());
-                wu.setWorkspaceRole(ErrorCodeConstants.WORKSPACE_ROLE_MEMBER_ID);
-                wu.setJoinedAt(LocalDateTime.now());
-                return wu;
-            }).collect(Collectors.toList());
-            workspaceUsers.forEach(workspaceUserMapper::insert);
         }
 
         return user.getId().toString();
@@ -132,7 +118,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public UserRespDTO updateUser(String id, UserUpdateReqDTO reqDTO) {
+    public UserRespDTO updateUser(UUID id, UserUpdateReqDTO reqDTO) {
         SysUser user = userMapper.selectById(id);
         if (user == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.USER_NOT_FOUND);
@@ -151,27 +137,11 @@ public class UserServiceImpl implements UserService {
                 List<SysUserRole> userRoles = reqDTO.getRoleIds().stream().map(roleId -> {
                     SysUserRole userRole = new SysUserRole();
                     userRole.setUserId(id);
-                    userRole.setRoleId(roleId.toString());
+                    userRole.setRoleId(roleId);
                     userRole.setAssignedAt(LocalDateTime.now());
                     return userRole;
-                }).collect(Collectors.toList());
+                }).toList();
                 userRoles.forEach(userRoleMapper::insert);
-            }
-        }
-
-        // 鍏ㄩ噺鏇挎崲宸ヤ綔绌洪棿
-        if (reqDTO.getWorkspaceIds() != null) {
-            workspaceUserMapper.delete(new LambdaQueryWrapper<WorkspaceUser>().eq(WorkspaceUser::getUserId, id));
-            if (!reqDTO.getWorkspaceIds().isEmpty()) {
-                List<WorkspaceUser> workspaceUsers = reqDTO.getWorkspaceIds().stream().map(wsId -> {
-                    WorkspaceUser wu = new WorkspaceUser();
-                    wu.setUserId(id);
-                    wu.setWorkspaceId(wsId.toString());
-                    wu.setWorkspaceRole(ErrorCodeConstants.WORKSPACE_ROLE_MEMBER_ID);
-                    wu.setJoinedAt(LocalDateTime.now());
-                    return wu;
-                }).collect(Collectors.toList());
-                workspaceUsers.forEach(workspaceUserMapper::insert);
             }
         }
 
@@ -179,7 +149,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public UserRespDTO updateUserStatus(String id, String status) {
+    public UserRespDTO updateUserStatus(UUID id, String status) {
         SysUser user = userMapper.selectById(id);
         if (user == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.USER_NOT_FOUND);
@@ -202,7 +172,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public void resetPassword(String id, String newPassword) {
+    public void resetPassword(UUID id, String newPassword) {
         SysUser user = userMapper.selectById(id);
         if (user == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.USER_NOT_FOUND);
@@ -226,7 +196,7 @@ public class UserServiceImpl implements UserService {
 
         List<SysUserRole> userRoles = userRoleMapper.selectList(SysUserRole::getUserId, user.getId());
         if (!userRoles.isEmpty()) {
-            List<String> roleIds = userRoles.stream().map(SysUserRole::getRoleId).collect(Collectors.toList());
+            List<UUID> roleIds = userRoles.stream().map(SysUserRole::getRoleId).collect(Collectors.toList());
             List<SysRole> roles = roleMapper.selectList(SysRole::getId, roleIds);
             dto.setRoles(roles.stream().map(UserConvertMapper.INSTANCE::toRoleSimple).collect(Collectors.toList()));
         } else {
@@ -235,7 +205,7 @@ public class UserServiceImpl implements UserService {
 
         List<WorkspaceUser> workspaceUsers = workspaceUserMapper.selectList(WorkspaceUser::getUserId, user.getId());
         if (!workspaceUsers.isEmpty()) {
-            List<String> wsIds = workspaceUsers.stream().map(WorkspaceUser::getWorkspaceId).collect(Collectors.toList());
+            List<UUID> wsIds = workspaceUsers.stream().map(WorkspaceUser::getWorkspaceId).collect(Collectors.toList());
             List<Workspace> workspaces = workspaceMapper.selectList(Workspace::getId, wsIds);
             dto.setWorkspaces(workspaces.stream().map(ws -> {
                 WorkspaceUser matchedWs = workspaceUsers.stream()

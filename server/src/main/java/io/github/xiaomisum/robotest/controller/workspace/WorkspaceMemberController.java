@@ -13,6 +13,8 @@ import org.springframework.web.bind.annotation.*;
 import xyz.migoo.framework.common.pojo.PageResult;
 import xyz.migoo.framework.common.pojo.Result;
 
+import java.util.UUID;
+
 @RestController
 @RequestMapping("/api/workspace/members")
 public class WorkspaceMemberController {
@@ -38,7 +40,7 @@ public class WorkspaceMemberController {
             @RequestHeader("X-Active-Workspace") String workspaceId,
             @RequestBody @Valid WorkspaceMembersAddReqDTO reqDTO) {
         WorkspaceMemberAddResultRespDTO result = workspaceMemberService.addMembers(
-                loginUser.getId().toString(), workspaceId, reqDTO);
+                loginUser.getId(), workspaceId, reqDTO);
         return Result.ok(result);
     }
 
@@ -46,9 +48,9 @@ public class WorkspaceMemberController {
     public Result<Void> updateMemberRole(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestHeader("X-Active-Workspace") String workspaceId,
-            @PathVariable String userId,
+            @PathVariable UUID userId,
             @RequestBody WorkspaceMemberRoleUpdateReqDTO reqDTO) {
-        workspaceMemberService.updateMemberRole(loginUser.getId().toString(), workspaceId, userId, reqDTO.getWorkspaceRole());
+        workspaceMemberService.updateMemberRole(loginUser.getId(), workspaceId, userId, reqDTO.getWorkspaceRole());
         return Result.ok();
     }
 
@@ -56,8 +58,8 @@ public class WorkspaceMemberController {
     public Result<Void> removeMember(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestHeader("X-Active-Workspace") String workspaceId,
-            @PathVariable String userId) {
-        workspaceMemberService.removeMember(loginUser.getId().toString(), workspaceId, userId);
+            @PathVariable UUID userId) {
+        workspaceMemberService.removeMember(loginUser.getId(), workspaceId, userId);
         return Result.ok();
     }
 }

@@ -8,6 +8,7 @@ import io.github.xiaomisum.robotest.model.dto.response.WorkspaceRespDTO;
 import xyz.migoo.framework.common.pojo.PageResult;
 
 import java.util.List;
+import java.util.UUID;
 
 public interface WorkspaceService {
 
@@ -15,17 +16,17 @@ public interface WorkspaceService {
 
     String createWorkspace(WorkspaceCreateReqDTO reqDTO);
 
-    WorkspaceRespDTO getWorkspaceDetail(String id);
+    WorkspaceRespDTO getWorkspaceDetail(UUID id);
 
-    WorkspaceRespDTO updateWorkspace(String id, WorkspaceUpdateReqDTO reqDTO);
+    WorkspaceRespDTO updateWorkspace(UUID id, WorkspaceUpdateReqDTO reqDTO);
 
-    void dissolveWorkspace(String id);
+    void dissolveWorkspace(UUID id);
 
-    PageResult<WorkspaceMemberRespDTO> getWorkspaceMembers(String id, Integer pageNo, Integer pageSize);
+    PageResult<WorkspaceMemberRespDTO> getWorkspaceMembers(UUID id, Integer pageNo, Integer pageSize);
 
-    List<String> addWorkspaceMembers(String id, List<WorkspaceMembersAddReqDTO.MemberItem> members);
+    List<String> addWorkspaceMembers(UUID id, List<WorkspaceMembersAddReqDTO.MemberItem> members);
 
-    void updateWorkspaceMemberRole(String id, String userId, String workspaceRole);
+    void updateWorkspaceMemberRole(UUID id, UUID userId, UUID workspaceRole);
 
-    void removeWorkspaceMember(String id, String userId);
+    void removeWorkspaceMember(UUID id, UUID userId);
 }

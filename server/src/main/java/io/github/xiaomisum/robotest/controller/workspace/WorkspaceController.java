@@ -24,7 +24,7 @@ public class WorkspaceController {
             @RequestParam(defaultValue = "1") Integer pageNo,
             @RequestParam(defaultValue = "10") Integer pageSize) {
         PageResult<WorkspaceMyRespDTO> result = myWorkspaceService.getMyWorkspacePage(
-                loginUser.getId().toString(), pageNo, pageSize);
+                loginUser.getId(), pageNo, pageSize);
         return Result.ok(result);
     }
 
@@ -32,7 +32,7 @@ public class WorkspaceController {
     public Result<Void> setActiveWorkspace(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestBody @Valid WorkspaceActiveSetReqDTO reqDTO) {
-        myWorkspaceService.setActiveWorkspace(loginUser.getId().toString(), reqDTO.getWorkspaceId().toString());
+        myWorkspaceService.setActiveWorkspace(loginUser.getId(), reqDTO.getWorkspaceId());
         return Result.ok();
     }
 }

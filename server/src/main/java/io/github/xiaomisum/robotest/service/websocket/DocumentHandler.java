@@ -10,6 +10,8 @@ import xyz.migoo.framework.websocket.core.MiGooWebSocketHandler;
 import xyz.migoo.framework.websocket.core.WebSocketSessionManager;
 
 import java.net.URI;
+import java.util.UUID;
+import java.util.UUID;
 
 /**
  * 文档协作 WebSocket 处理器
@@ -76,7 +78,8 @@ public class DocumentHandler extends MiGooWebSocketHandler {
 
         // 委托持久化
         try {
-            persistenceHandler.persist(docId, message.getPayload(), session);
+            UUID docIdUuid = UUID.fromString(docId);
+            persistenceHandler.persist(docIdUuid, message.getPayload(), session);
         } catch (Exception e) {
             log.error("[handleTextMessage][文档 {} 持久化失败: {}]", docId, e.getMessage(), e);
         }

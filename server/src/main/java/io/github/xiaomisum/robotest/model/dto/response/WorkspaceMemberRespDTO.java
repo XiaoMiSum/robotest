@@ -12,6 +12,6 @@ public class WorkspaceMemberRespDTO {
     private String username;
     private String email;
     private String avatarUrl;
-    private String workspaceRole;
+    private UUID workspaceRole;
     private LocalDateTime joinedAt;
 }

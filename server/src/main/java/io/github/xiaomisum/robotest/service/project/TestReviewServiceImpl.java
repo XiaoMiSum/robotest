@@ -48,7 +48,7 @@ public class TestReviewServiceImpl implements TestReviewService {
     public PageResult<TestReviewListRespDTO> getReviewPage(String projectId, String status,
                                                       Integer pageNo, Integer pageSize) {
         LambdaQueryWrapper<TestReview> wrapper = new LambdaQueryWrapper<TestReview>()
-                .eq(TestReview::getProjectId, projectId);
+                .eq(TestReview::getProjectId, UUID.fromString(projectId));
         if (StringUtils.hasText(status)) {
             wrapper.eq(TestReview::getStatus, status);
         }
@@ -84,18 +84,18 @@ public class TestReviewServiceImpl implements TestReviewService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public TestReviewDetailRespDTO createReview(String projectId, String userId,
+    public TestReviewDetailRespDTO createReview(String projectId, UUID userId,
                                                  TestReviewCreateReqDTO reqDTO) {
         // 校验所有参与者是当前工作空间成员
         Project project = projectMapper.selectById(projectId);
         if (project == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.PROJECT_NOT_FOUND);
         }
-        String workspaceId = project.getWorkspaceId();
+        UUID workspaceId = project.getWorkspaceId();
         for (UUID participantId : reqDTO.getParticipantIds()) {
             WorkspaceUser wu = workspaceUserMapper.selectOne(
                     new LambdaQueryWrapper<WorkspaceUser>()
-                            .eq(WorkspaceUser::getUserId, participantId.toString())
+                            .eq(WorkspaceUser::getUserId, participantId)
                             .eq(WorkspaceUser::getWorkspaceId, workspaceId));
             if (wu == null) {
                 throw ServiceExceptionUtil.get(ErrorCodeConstants.NO_PERMISSION);
@@ -103,21 +103,21 @@ public class TestReviewServiceImpl implements TestReviewService {
         }
 
         TestReview review = new TestReview();
-        review.setProjectId(projectId);
+        review.setProjectId(UUID.fromString(projectId));
         review.setTitle(reqDTO.getTitle());
         review.setDescription(reqDTO.getDescription());
-        review.setInitiatorId(userId);
+        review.setInitiatorId(userId.toString());
         review.setParticipantIds(reqDTO.getParticipantIds());
         review.setStatus(Constants.Status.IN_PROGRESS);
         testReviewMapper.insert(review);
 
-        generateSnapshots(review.getId().toString(), reqDTO.getSelectedNodes());
+        generateSnapshots(review.getId(), reqDTO.getSelectedNodes());
 
         return convertToDetailDTO(review);
     }
 
     @Override
-    public TestReviewDetailRespDTO getReviewDetail(String reviewId) {
+    public TestReviewDetailRespDTO getReviewDetail(UUID reviewId) {
         TestReview review = testReviewMapper.selectById(reviewId);
         if (review == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_REVIEW_NOT_FOUND);
@@ -126,7 +126,7 @@ public class TestReviewServiceImpl implements TestReviewService {
     }
 
     @Override
-    public List<TestReviewSnapshotNodeRespDTO> getReviewSnapshotTree(String reviewId, String documentId) {
+    public List<TestReviewSnapshotNodeRespDTO> getReviewSnapshotTree(UUID reviewId, UUID documentId) {
         TestReview review = testReviewMapper.selectById(reviewId);
         if (review == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_REVIEW_NOT_FOUND);
@@ -134,7 +134,7 @@ public class TestReviewServiceImpl implements TestReviewService {
 
         LambdaQueryWrapper<TestReviewNodeSnapshot> wrapper = new LambdaQueryWrapper<TestReviewNodeSnapshot>()
                 .eq(TestReviewNodeSnapshot::getReviewId, reviewId);
-        if (StringUtils.hasText(documentId)) {
+        if (documentId != null) {
             wrapper.eq(TestReviewNodeSnapshot::getDocumentSnapshotId, documentId);
         }
 
@@ -148,7 +148,7 @@ public class TestReviewServiceImpl implements TestReviewService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void submitReviewRecord(String reviewId, String userId,
+    public void submitReviewRecord(UUID reviewId, UUID userId,
                                     TestReviewRecordReqDTO reqDTO) {
         TestReview review = testReviewMapper.selectById(reviewId);
         if (review == null) {
@@ -179,7 +179,7 @@ public class TestReviewServiceImpl implements TestReviewService {
 
         TestReviewRecord record = new TestReviewRecord();
         record.setReviewId(reviewId);
-        record.setSnapshotNodeId(reqDTO.getSnapshotNodeId().toString());
+        record.setSnapshotNodeId(reqDTO.getSnapshotNodeId());
         record.setReviewerId(userId);
         record.setOperationType(reqDTO.getOperationType());
         record.setMark(reqDTO.getMark());
@@ -188,7 +188,7 @@ public class TestReviewServiceImpl implements TestReviewService {
     }
 
     @Override
-    public List<TestReviewRecordRespDTO> getNodeReviewRecords(String reviewId, String nodeId) {
+    public List<TestReviewRecordRespDTO> getNodeReviewRecords(UUID reviewId, UUID nodeId) {
         List<TestReviewRecord> records = reviewRecordMapper.selectList(
                 new LambdaQueryWrapper<TestReviewRecord>()
                         .eq(TestReviewRecord::getReviewId, reviewId)
@@ -198,8 +198,8 @@ public class TestReviewServiceImpl implements TestReviewService {
         return records.stream().map(record -> {
             TestReviewRecordRespDTO dto = new TestReviewRecordRespDTO();
             dto.setId(record.getId());
-            dto.setSnapshotNodeId(record.getSnapshotNodeId() != null ? UUID.fromString(record.getSnapshotNodeId()) : null);
-            dto.setReviewerId(record.getReviewerId() != null ? UUID.fromString(record.getReviewerId()) : null);
+            dto.setSnapshotNodeId(record.getSnapshotNodeId());
+            dto.setReviewerId(record.getReviewerId());
             dto.setOperationType(record.getOperationType());
             dto.setMark(record.getMark());
             dto.setComment(record.getComment());
@@ -215,12 +215,12 @@ public class TestReviewServiceImpl implements TestReviewService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void completeReview(String reviewId, String userId) {
+    public void completeReview(UUID reviewId, UUID userId) {
         TestReview review = testReviewMapper.selectById(reviewId);
         if (review == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_REVIEW_NOT_FOUND);
         }
-        if (!review.getInitiatorId().equals(userId)) {
+        if (!review.getInitiatorId().equals(userId.toString())) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.REVIEW_NOT_INITIATOR);
         }
         review.setStatus(Constants.Status.COMPLETED);
@@ -228,7 +228,7 @@ public class TestReviewServiceImpl implements TestReviewService {
     }
 
     @Override
-    public TestReviewProgressRespDTO getReviewProgress(String reviewId) {
+    public TestReviewProgressRespDTO getReviewProgress(UUID reviewId) {
         TestReview review = testReviewMapper.selectById(reviewId);
         if (review == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_REVIEW_NOT_FOUND);
@@ -268,12 +268,12 @@ public class TestReviewServiceImpl implements TestReviewService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void syncReview(String reviewId, String userId) {
+    public void syncReview(UUID reviewId, UUID userId) {
         TestReview review = testReviewMapper.selectById(reviewId);
         if (review == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_REVIEW_NOT_FOUND);
         }
-        if (!review.getInitiatorId().equals(userId)) {
+        if (!review.getInitiatorId().equals(userId.toString())) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.REVIEW_NOT_INITIATOR);
         }
         if (!Constants.Status.IN_PROGRESS.equals(review.getStatus())) {
@@ -289,10 +289,10 @@ public class TestReviewServiceImpl implements TestReviewService {
                 new LambdaQueryWrapper<TestReviewModuleSnapshot>()
                         .eq(TestReviewModuleSnapshot::getReviewId, reviewId));
 
-        Set<String> validModuleSnapshotIds = new HashSet<>();
+        Set<UUID> validModuleSnapshotIds = new HashSet<>();
         for (TestReviewModuleSnapshot moduleSnap : snapshotModules) {
             if (moduleSnap.getOriginalModuleId() == null) {
-                validModuleSnapshotIds.add(moduleSnap.getId().toString());
+                validModuleSnapshotIds.add(moduleSnap.getId());
                 continue;
             }
             TestCaseModule originalModule = testCaseModuleMapper.selectById(moduleSnap.getOriginalModuleId());
@@ -300,7 +300,7 @@ public class TestReviewServiceImpl implements TestReviewService {
                 // 原始模块已删除，移除对应的模块快照和节点快照
                 reviewModuleSnapshotMapper.deleteById(moduleSnap.getId());
                 for (TestReviewNodeSnapshot nodeSnap : snapshotNodes) {
-                    if (moduleSnap.getId().toString().equals(nodeSnap.getDocumentSnapshotId())) {
+                    if (moduleSnap.getId().equals(nodeSnap.getDocumentSnapshotId())) {
                         reviewNodeSnapshotMapper.deleteById(nodeSnap.getId());
                     }
                 }
@@ -309,7 +309,7 @@ public class TestReviewServiceImpl implements TestReviewService {
                 moduleSnap.setName(originalModule.getName());
                 moduleSnap.setSortOrder(originalModule.getSortOrder());
                 reviewModuleSnapshotMapper.updateById(moduleSnap);
-                validModuleSnapshotIds.add(moduleSnap.getId().toString());
+                validModuleSnapshotIds.add(moduleSnap.getId());
             }
         }
 
@@ -336,19 +336,19 @@ public class TestReviewServiceImpl implements TestReviewService {
         }
     }
 
-    private void generateSnapshots(String reviewId, List<TestReviewCreateReqDTO.SelectedNode> selectedNodes) {
-        Map<String, Set<String>> docCaseMap = new LinkedHashMap<>();
+    private void generateSnapshots(UUID reviewId, List<TestReviewCreateReqDTO.SelectedNode> selectedNodes) {
+        Map<UUID, Set<UUID>> docCaseMap = new LinkedHashMap<>();
         for (TestReviewCreateReqDTO.SelectedNode sn : selectedNodes) {
-            docCaseMap.put(sn.getDocumentId().toString(), sn.getCaseIds().stream().map(UUID::toString).collect(Collectors.toSet()));
+            docCaseMap.put(sn.getDocumentId(), new HashSet<>(sn.getCaseIds()));
         }
 
-        Set<String> copiedModuleIds = new HashSet<>();
+        Set<UUID> copiedModuleIds = new HashSet<>();
 
-        for (Map.Entry<String, Set<String>> entry : docCaseMap.entrySet()) {
-            String documentId = entry.getKey();
+        for (Map.Entry<UUID, Set<UUID>> entry : docCaseMap.entrySet()) {
+            UUID documentId = entry.getKey();
 
-            List<String> modulePath = getModulePath(documentId);
-            for (String moduleId : modulePath) {
+            List<UUID> modulePath = getModulePath(documentId);
+            for (UUID moduleId : modulePath) {
                 if (copiedModuleIds.contains(moduleId)) {
                     continue;
                 }
@@ -360,7 +360,7 @@ public class TestReviewServiceImpl implements TestReviewService {
                 }
                 TestReviewModuleSnapshot snapshot = new TestReviewModuleSnapshot();
                 snapshot.setReviewId(reviewId);
-                snapshot.setOriginalModuleId(original.getId().toString());
+                snapshot.setOriginalModuleId(original.getId());
                 snapshot.setParentId(findCopiedParentId(original.getParentId(), copiedModuleIds, reviewId));
                 snapshot.setName(original.getName());
                 snapshot.setType(original.getType());
@@ -372,28 +372,28 @@ public class TestReviewServiceImpl implements TestReviewService {
                     new LambdaQueryWrapper<TestCaseNode>()
                             .eq(TestCaseNode::getDocumentId, documentId));
 
-            String snapshotDocId = findSnapshotModuleId(documentId, reviewId);
-            Set<String> caseIds = entry.getValue();
+            UUID snapshotDocId = findSnapshotModuleId(documentId, reviewId);
+            Set<UUID> caseIds = entry.getValue();
 
             for (TestCaseNode node : docNodes) {
                 TestReviewNodeSnapshot nodeSnapshot = new TestReviewNodeSnapshot();
                 nodeSnapshot.setReviewId(reviewId);
-                nodeSnapshot.setOriginalNodeId(node.getId().toString());
+                nodeSnapshot.setOriginalNodeId(node.getId());
                 nodeSnapshot.setDocumentSnapshotId(snapshotDocId);
                 nodeSnapshot.setParentId(findCopiedNodeParentId(node.getParentId(), reviewId));
                 nodeSnapshot.setTitle(node.getTitle());
                 nodeSnapshot.setType(node.getType());
                 nodeSnapshot.setPriority(node.getPriority());
-                nodeSnapshot.setIsAssociated(caseIds.contains(node.getId().toString()));
+                nodeSnapshot.setIsAssociated(caseIds.contains(node.getId()));
                 nodeSnapshot.setSortOrder(node.getSortOrder());
                 reviewNodeSnapshotMapper.insert(nodeSnapshot);
             }
         }
     }
 
-    private List<String> getModulePath(String documentId) {
-        List<String> path = new ArrayList<>();
-        String currentId = documentId;
+    private List<UUID> getModulePath(UUID documentId) {
+        List<UUID> path = new ArrayList<>();
+        UUID currentId = documentId;
         while (currentId != null) {
             path.add(0, currentId);
             TestCaseModule module = testCaseModuleMapper.selectById(currentId);
@@ -405,7 +405,7 @@ public class TestReviewServiceImpl implements TestReviewService {
         return path;
     }
 
-    private String findCopiedParentId(String originalParentId, Set<String> copiedModuleIds, String reviewId) {
+    private UUID findCopiedParentId(UUID originalParentId, Set<UUID> copiedModuleIds, UUID reviewId) {
         if (originalParentId == null) {
             return null;
         }
@@ -413,18 +413,18 @@ public class TestReviewServiceImpl implements TestReviewService {
                 new LambdaQueryWrapper<TestReviewModuleSnapshot>()
                         .eq(TestReviewModuleSnapshot::getReviewId, reviewId)
                         .eq(TestReviewModuleSnapshot::getOriginalModuleId, originalParentId));
-        return snapshot != null ? snapshot.getId().toString() : null;
+        return snapshot != null ? snapshot.getId() : null;
     }
 
-    private String findSnapshotModuleId(String originalModuleId, String reviewId) {
+    private UUID findSnapshotModuleId(UUID originalModuleId, UUID reviewId) {
         TestReviewModuleSnapshot snapshot = reviewModuleSnapshotMapper.selectOne(
                 new LambdaQueryWrapper<TestReviewModuleSnapshot>()
                         .eq(TestReviewModuleSnapshot::getReviewId, reviewId)
                         .eq(TestReviewModuleSnapshot::getOriginalModuleId, originalModuleId));
-        return snapshot != null ? snapshot.getId().toString() : null;
+        return snapshot != null ? snapshot.getId() : null;
     }
 
-    private String findCopiedNodeParentId(String originalParentId, String reviewId) {
+    private UUID findCopiedNodeParentId(UUID originalParentId, UUID reviewId) {
         if (originalParentId == null) {
             return null;
         }
@@ -432,7 +432,7 @@ public class TestReviewServiceImpl implements TestReviewService {
                 new LambdaQueryWrapper<TestReviewNodeSnapshot>()
                         .eq(TestReviewNodeSnapshot::getReviewId, reviewId)
                         .eq(TestReviewNodeSnapshot::getOriginalNodeId, originalParentId));
-        return snapshot != null ? snapshot.getId().toString() : null;
+        return snapshot != null ? snapshot.getId() : null;
     }
 
     private List<TestReviewSnapshotNodeRespDTO> pruneSnapshotTree(

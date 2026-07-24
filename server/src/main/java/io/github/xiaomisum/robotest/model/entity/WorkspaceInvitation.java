@@ -6,13 +6,14 @@ import lombok.EqualsAndHashCode;
 import xyz.migoo.framework.mybatis.core.dataobject.BaseUuidDO;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Data
 @EqualsAndHashCode(callSuper = true)
 @TableName("workspace_invitation")
 public class WorkspaceInvitation extends BaseUuidDO<WorkspaceInvitation> {
 
-    private String workspaceId;
+    private UUID workspaceId;
     private String token;
     private String createdBy;
     private LocalDateTime expiresAt;

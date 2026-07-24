@@ -48,7 +48,7 @@ public class TestPlanServiceImpl implements TestPlanService {
     public PageResult<TestPlanListRespDTO> getPlanPage(String projectId, String status,
                                                   Integer pageNo, Integer pageSize) {
         LambdaQueryWrapper<TestPlan> wrapper = new LambdaQueryWrapper<TestPlan>()
-                .eq(TestPlan::getProjectId, projectId);
+                .eq(TestPlan::getProjectId, UUID.fromString(projectId));
         if (StringUtils.hasText(status)) {
             wrapper.eq(TestPlan::getStatus, status);
         }
@@ -67,7 +67,7 @@ public class TestPlanServiceImpl implements TestPlanService {
             dto.setEndTime(plan.getEndTime());
             dto.setCreatedAt(plan.getCreatedAt());
 
-            if (StringUtils.hasText(plan.getExecutorId())) {
+            if (plan.getExecutorId() != null) {
                 SysUser executor = userMapper.selectById(plan.getExecutorId());
                 if (executor != null) {
                     TestPlanListRespDTO.ExecutorInfo info = new TestPlanListRespDTO.ExecutorInfo();
@@ -84,26 +84,26 @@ public class TestPlanServiceImpl implements TestPlanService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public TestPlanDetailRespDTO createPlan(String projectId, String userId,
+    public TestPlanDetailRespDTO createPlan(String projectId, UUID userId,
                                              TestPlanCreateReqDTO reqDTO) {
         TestPlan plan = new TestPlan();
-        plan.setProjectId(projectId);
+        plan.setProjectId(UUID.fromString(projectId));
         plan.setName(reqDTO.getName());
         plan.setDescription(reqDTO.getDescription());
         plan.setStatus(Constants.Status.NEW);
-        plan.setExecutorId(reqDTO.getExecutorId() != null ? reqDTO.getExecutorId().toString() : null);
+        plan.setExecutorId(reqDTO.getExecutorId());
         plan.setStartTime(reqDTO.getStartTime());
         plan.setEndTime(reqDTO.getEndTime());
         plan.setEnvironment(reqDTO.getEnvironment());
         testPlanMapper.insert(plan);
 
-        generateSnapshots(plan.getId().toString(), reqDTO.getSelectedNodes());
+        generateSnapshots(plan.getId(), reqDTO.getSelectedNodes());
 
         return convertToDetailDTO(plan);
     }
 
     @Override
-    public TestPlanDetailRespDTO getPlanDetail(String planId) {
+    public TestPlanDetailRespDTO getPlanDetail(UUID planId) {
         TestPlan plan = testPlanMapper.selectById(planId);
         if (plan == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_PLAN_NOT_FOUND);
@@ -112,7 +112,7 @@ public class TestPlanServiceImpl implements TestPlanService {
     }
 
     @Override
-    public List<TestPlanSnapshotNodeRespDTO> getPlanSnapshotTree(String planId, String documentId) {
+    public List<TestPlanSnapshotNodeRespDTO> getPlanSnapshotTree(UUID planId, UUID documentId) {
         TestPlan plan = testPlanMapper.selectById(planId);
         if (plan == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_PLAN_NOT_FOUND);
@@ -120,7 +120,7 @@ public class TestPlanServiceImpl implements TestPlanService {
 
         LambdaQueryWrapper<TestPlanNodeSnapshot> wrapper = new LambdaQueryWrapper<TestPlanNodeSnapshot>()
                 .eq(TestPlanNodeSnapshot::getPlanId, planId);
-        if (StringUtils.hasText(documentId)) {
+        if (documentId != null) {
             wrapper.eq(TestPlanNodeSnapshot::getDocumentSnapshotId, documentId);
         }
 
@@ -134,7 +134,7 @@ public class TestPlanServiceImpl implements TestPlanService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void submitExecutionRecord(String planId, String userId,
+    public void submitExecutionRecord(UUID planId, UUID userId,
                                        TestPlanRecordReqDTO reqDTO) {
         TestPlan plan = testPlanMapper.selectById(planId);
         if (plan == null) {
@@ -163,7 +163,7 @@ public class TestPlanServiceImpl implements TestPlanService {
 
         TestPlanExecutionRecord record = new TestPlanExecutionRecord();
         record.setPlanId(planId);
-        record.setSnapshotNodeId(reqDTO.getSnapshotNodeId().toString());
+        record.setSnapshotNodeId(reqDTO.getSnapshotNodeId());
         record.setExecutorId(userId);
         record.setResult(reqDTO.getResult());
         record.setNote(reqDTO.getNote());
@@ -172,7 +172,7 @@ public class TestPlanServiceImpl implements TestPlanService {
     }
 
     @Override
-    public List<TestPlanExecutionRecordRespDTO> getNodeExecutionRecords(String planId, String nodeId) {
+    public List<TestPlanExecutionRecordRespDTO> getNodeExecutionRecords(UUID planId, UUID nodeId) {
         List<TestPlanExecutionRecord> records = planExecutionRecordMapper.selectList(
                 new LambdaQueryWrapper<TestPlanExecutionRecord>()
                         .eq(TestPlanExecutionRecord::getPlanId, planId)
@@ -182,8 +182,8 @@ public class TestPlanServiceImpl implements TestPlanService {
         return records.stream().map(record -> {
             TestPlanExecutionRecordRespDTO dto = new TestPlanExecutionRecordRespDTO();
             dto.setId(record.getId());
-            dto.setSnapshotNodeId(UUID.fromString(record.getSnapshotNodeId()));
-            dto.setExecutorId(record.getExecutorId() != null ? UUID.fromString(record.getExecutorId()) : null);
+            dto.setSnapshotNodeId(record.getSnapshotNodeId());
+            dto.setExecutorId(record.getExecutorId());
             dto.setResult(record.getResult());
             dto.setNote(record.getNote());
             dto.setExecutedAt(record.getExecutedAt());
@@ -199,7 +199,7 @@ public class TestPlanServiceImpl implements TestPlanService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void syncPlan(String planId, String userId) {
+    public void syncPlan(UUID planId, UUID userId) {
         TestPlan plan = testPlanMapper.selectById(planId);
         if (plan == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_PLAN_NOT_FOUND);
@@ -220,10 +220,10 @@ public class TestPlanServiceImpl implements TestPlanService {
                 new LambdaQueryWrapper<TestPlanModuleSnapshot>()
                         .eq(TestPlanModuleSnapshot::getPlanId, planId));
 
-        Set<String> validModuleSnapshotIds = new HashSet<>();
+        Set<UUID> validModuleSnapshotIds = new HashSet<>();
         for (TestPlanModuleSnapshot moduleSnap : snapshotModules) {
             if (moduleSnap.getOriginalModuleId() == null) {
-                validModuleSnapshotIds.add(moduleSnap.getId().toString());
+                validModuleSnapshotIds.add(moduleSnap.getId());
                 continue;
             }
             TestCaseModule originalModule = testCaseModuleMapper.selectById(moduleSnap.getOriginalModuleId());
@@ -232,7 +232,7 @@ public class TestPlanServiceImpl implements TestPlanService {
                 planModuleSnapshotMapper.deleteById(moduleSnap.getId());
                 // 移除属于该模块快照的节点快照
                 for (TestPlanNodeSnapshot nodeSnap : snapshotNodes) {
-                    if (moduleSnap.getId().toString().equals(nodeSnap.getDocumentSnapshotId())) {
+                    if (moduleSnap.getId().equals(nodeSnap.getDocumentSnapshotId())) {
                         planNodeSnapshotMapper.deleteById(nodeSnap.getId());
                     }
                 }
@@ -241,7 +241,7 @@ public class TestPlanServiceImpl implements TestPlanService {
                 moduleSnap.setName(originalModule.getName());
                 moduleSnap.setSortOrder(originalModule.getSortOrder());
                 planModuleSnapshotMapper.updateById(moduleSnap);
-                validModuleSnapshotIds.add(moduleSnap.getId().toString());
+                validModuleSnapshotIds.add(moduleSnap.getId());
             }
         }
 
@@ -270,7 +270,7 @@ public class TestPlanServiceImpl implements TestPlanService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void startPlan(String planId, String userId) {
+    public void startPlan(UUID planId, UUID userId) {
         TestPlan plan = testPlanMapper.selectById(planId);
         if (plan == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_PLAN_NOT_FOUND);
@@ -286,7 +286,7 @@ public class TestPlanServiceImpl implements TestPlanService {
     }
 
     @Override
-    public TestPlanProgressRespDTO getPlanProgress(String planId) {
+    public TestPlanProgressRespDTO getPlanProgress(UUID planId) {
         TestPlan plan = testPlanMapper.selectById(planId);
         if (plan == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_PLAN_NOT_FOUND);
@@ -330,7 +330,7 @@ public class TestPlanServiceImpl implements TestPlanService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void closePlan(String planId, String userId) {
+    public void closePlan(UUID planId, UUID userId) {
         TestPlan plan = testPlanMapper.selectById(planId);
         if (plan == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_PLAN_NOT_FOUND);
@@ -352,20 +352,19 @@ public class TestPlanServiceImpl implements TestPlanService {
         testPlanMapper.updateById(plan);
     }
 
-    private void generateSnapshots(String planId, List<TestPlanCreateReqDTO.SelectedNode> selectedNodes) {
-        Map<String, Set<String>> docCaseMap = new LinkedHashMap<>();
+    private void generateSnapshots(UUID planId, List<TestPlanCreateReqDTO.SelectedNode> selectedNodes) {
+        Map<UUID, Set<UUID>> docCaseMap = new LinkedHashMap<>();
         for (TestPlanCreateReqDTO.SelectedNode sn : selectedNodes) {
-            docCaseMap.put(sn.getDocumentId().toString(),
-                    sn.getCaseIds().stream().map(UUID::toString).collect(Collectors.toSet()));
+            docCaseMap.put(sn.getDocumentId(), new HashSet<>(sn.getCaseIds()));
         }
 
-        Set<String> copiedModuleIds = new HashSet<>();
+        Set<UUID> copiedModuleIds = new HashSet<>();
 
-        for (Map.Entry<String, Set<String>> entry : docCaseMap.entrySet()) {
-            String documentId = entry.getKey();
+        for (Map.Entry<UUID, Set<UUID>> entry : docCaseMap.entrySet()) {
+            UUID documentId = entry.getKey();
 
-            List<String> modulePath = getModulePath(documentId);
-            for (String moduleId : modulePath) {
+            List<UUID> modulePath = getModulePath(documentId);
+            for (UUID moduleId : modulePath) {
                 if (copiedModuleIds.contains(moduleId)) {
                     continue;
                 }
@@ -377,7 +376,7 @@ public class TestPlanServiceImpl implements TestPlanService {
                 }
                 TestPlanModuleSnapshot snapshot = new TestPlanModuleSnapshot();
                 snapshot.setPlanId(planId);
-                snapshot.setOriginalModuleId(original.getId().toString());
+                snapshot.setOriginalModuleId(original.getId());
                 snapshot.setParentId(findCopiedModuleParentId(original.getParentId(), planId));
                 snapshot.setName(original.getName());
                 snapshot.setType(original.getType());
@@ -389,19 +388,19 @@ public class TestPlanServiceImpl implements TestPlanService {
                     new LambdaQueryWrapper<TestCaseNode>()
                             .eq(TestCaseNode::getDocumentId, documentId));
 
-            String snapshotDocId = findSnapshotModuleId(documentId, planId);
-            Set<String> caseIds = entry.getValue();
+            UUID snapshotDocId = findSnapshotModuleId(documentId, planId);
+            Set<UUID> caseIds = entry.getValue();
 
             for (TestCaseNode node : docNodes) {
                 TestPlanNodeSnapshot nodeSnapshot = new TestPlanNodeSnapshot();
                 nodeSnapshot.setPlanId(planId);
-                nodeSnapshot.setOriginalNodeId(node.getId().toString());
+                nodeSnapshot.setOriginalNodeId(node.getId());
                 nodeSnapshot.setDocumentSnapshotId(snapshotDocId);
                 nodeSnapshot.setParentId(findCopiedNodeParentId(node.getParentId(), planId));
                 nodeSnapshot.setTitle(node.getTitle());
                 nodeSnapshot.setType(node.getType());
                 nodeSnapshot.setPriority(node.getPriority());
-                nodeSnapshot.setIsAssociated(caseIds.contains(node.getId().toString()));
+                nodeSnapshot.setIsAssociated(caseIds.contains(node.getId()));
                 nodeSnapshot.setLastResult(Constants.Status.UNTESTED);
                 nodeSnapshot.setSortOrder(node.getSortOrder());
                 planNodeSnapshotMapper.insert(nodeSnapshot);
@@ -409,9 +408,9 @@ public class TestPlanServiceImpl implements TestPlanService {
         }
     }
 
-    private List<String> getModulePath(String documentId) {
-        List<String> path = new ArrayList<>();
-        String currentId = documentId;
+    private List<UUID> getModulePath(UUID documentId) {
+        List<UUID> path = new ArrayList<>();
+        UUID currentId = documentId;
         while (currentId != null) {
             path.add(0, currentId);
             TestCaseModule module = testCaseModuleMapper.selectById(currentId);
@@ -423,7 +422,7 @@ public class TestPlanServiceImpl implements TestPlanService {
         return path;
     }
 
-    private String findCopiedModuleParentId(String originalParentId, String planId) {
+    private UUID findCopiedModuleParentId(UUID originalParentId, UUID planId) {
         if (originalParentId == null) {
             return null;
         }
@@ -431,18 +430,18 @@ public class TestPlanServiceImpl implements TestPlanService {
                 new LambdaQueryWrapper<TestPlanModuleSnapshot>()
                         .eq(TestPlanModuleSnapshot::getPlanId, planId)
                         .eq(TestPlanModuleSnapshot::getOriginalModuleId, originalParentId));
-        return snapshot != null ? snapshot.getId().toString() : null;
+        return snapshot != null ? snapshot.getId() : null;
     }
 
-    private String findSnapshotModuleId(String originalModuleId, String planId) {
+    private UUID findSnapshotModuleId(UUID originalModuleId, UUID planId) {
         TestPlanModuleSnapshot snapshot = planModuleSnapshotMapper.selectOne(
                 new LambdaQueryWrapper<TestPlanModuleSnapshot>()
                         .eq(TestPlanModuleSnapshot::getPlanId, planId)
                         .eq(TestPlanModuleSnapshot::getOriginalModuleId, originalModuleId));
-        return snapshot != null ? snapshot.getId().toString() : null;
+        return snapshot != null ? snapshot.getId() : null;
     }
 
-    private String findCopiedNodeParentId(String originalParentId, String planId) {
+    private UUID findCopiedNodeParentId(UUID originalParentId, UUID planId) {
         if (originalParentId == null) {
             return null;
         }
@@ -450,7 +449,7 @@ public class TestPlanServiceImpl implements TestPlanService {
                 new LambdaQueryWrapper<TestPlanNodeSnapshot>()
                         .eq(TestPlanNodeSnapshot::getPlanId, planId)
                         .eq(TestPlanNodeSnapshot::getOriginalNodeId, originalParentId));
-        return snapshot != null ? snapshot.getId().toString() : null;
+        return snapshot != null ? snapshot.getId() : null;
     }
 
     private List<TestPlanSnapshotNodeRespDTO> pruneSnapshotTree(
@@ -518,7 +517,7 @@ public class TestPlanServiceImpl implements TestPlanService {
     private TestPlanDetailRespDTO convertToDetailDTO(TestPlan plan) {
         TestPlanDetailRespDTO dto = TestPlanConvertMapper.INSTANCE.toDetailDTO(plan);
 
-        if (StringUtils.hasText(plan.getExecutorId())) {
+        if (plan.getExecutorId() != null) {
             SysUser executor = userMapper.selectById(plan.getExecutorId());
             if (executor != null) {
                 TestPlanDetailRespDTO.ExecutorInfo info = new TestPlanDetailRespDTO.ExecutorInfo();
