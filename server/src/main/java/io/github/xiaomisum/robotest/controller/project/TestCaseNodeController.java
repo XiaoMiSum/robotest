@@ -13,6 +13,8 @@ import org.springframework.web.bind.annotation.*;
 import xyz.migoo.framework.common.pojo.PageResult;
 import xyz.migoo.framework.common.pojo.Result;
 
+import java.util.UUID;
+
 @RestController
 @RequestMapping("/api/project")
 public class TestCaseNodeController {
@@ -24,7 +26,7 @@ public class TestCaseNodeController {
     public Result<TestCaseDocumentNodesRespDTO> getDocumentNodes(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestHeader("X-Active-Project") String projectId,
-            @PathVariable String docId) {
+            @PathVariable UUID docId) {
         return Result.ok(testCaseNodeService.getDocumentNodes(docId));
     }
 
@@ -32,7 +34,7 @@ public class TestCaseNodeController {
     public Result<TestCaseNodeTreeRespDTO> getCaseDetail(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestHeader("X-Active-Project") String projectId,
-            @PathVariable String caseId) {
+            @PathVariable UUID caseId) {
         return Result.ok(testCaseNodeService.getCaseDetail(caseId));
     }
 
@@ -51,7 +53,7 @@ public class TestCaseNodeController {
     public Result<Void> updateCaseNode(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestHeader("X-Active-Project") String projectId,
-            @PathVariable String caseId,
+            @PathVariable UUID caseId,
             @RequestBody @Valid TestCaseNodeUpdateReqDTO reqDTO) {
         testCaseNodeService.updateCaseNode(caseId, reqDTO);
         return Result.ok();

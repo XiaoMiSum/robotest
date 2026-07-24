@@ -15,6 +15,6 @@ public class WorkspaceMembersAddReqDTO {
     public static class MemberItem {
         @NotBlank(message = "用户ID不能为空")
         private UUID userId;
-        private String workspaceRole;
+        private UUID workspaceRole;
     }
 }

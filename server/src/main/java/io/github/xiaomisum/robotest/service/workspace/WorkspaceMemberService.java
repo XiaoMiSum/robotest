@@ -5,13 +5,15 @@ import io.github.xiaomisum.robotest.model.dto.response.WorkspaceMemberAddResultR
 import io.github.xiaomisum.robotest.model.dto.response.WorkspaceMemberRespDTO;
 import xyz.migoo.framework.common.pojo.PageResult;
 
+import java.util.UUID;
+
 public interface WorkspaceMemberService {
 
     PageResult<WorkspaceMemberRespDTO> getMemberPage(String workspaceId, String keyword, Integer pageNo, Integer pageSize);
 
-    WorkspaceMemberAddResultRespDTO addMembers(String userId, String workspaceId, WorkspaceMembersAddReqDTO reqDTO);
+    WorkspaceMemberAddResultRespDTO addMembers(UUID userId, String workspaceId, WorkspaceMembersAddReqDTO reqDTO);
 
-    void updateMemberRole(String userId, String workspaceId, String targetUserId, String workspaceRole);
+    void updateMemberRole(UUID userId, String workspaceId, UUID targetUserId, UUID workspaceRole);
 
-    void removeMember(String userId, String workspaceId, String targetUserId);
+    void removeMember(UUID userId, String workspaceId, UUID targetUserId);
 }

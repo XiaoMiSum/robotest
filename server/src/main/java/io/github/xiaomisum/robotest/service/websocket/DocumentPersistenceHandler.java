@@ -2,8 +2,8 @@ package io.github.xiaomisum.robotest.service.websocket;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.model.entity.TestCaseDocumentLayout;
 import io.github.xiaomisum.robotest.model.entity.TestCaseNode;
@@ -40,7 +40,7 @@ public class DocumentPersistenceHandler {
 
     @Async
     @Transactional(rollbackFor = Exception.class)
-    public void persist(String docId, String message, WebSocketSession session) {
+    public void persist(UUID docId, String message, WebSocketSession session) {
         try {
             JsonNode root = objectMapper.readTree(message);
             String type = root.has("type") ? root.get("type").asText() : null;
@@ -71,7 +71,7 @@ public class DocumentPersistenceHandler {
         }
     }
 
-    private void persistLayout(String docId, JsonNode message) {
+    private void persistLayout(UUID docId, JsonNode message) {
         JsonNode payload = message.has("payload") ? message.get("payload") : null;
         if (payload == null) {
             return;
@@ -95,7 +95,7 @@ public class DocumentPersistenceHandler {
         }
     }
 
-    private void persistNodeUpdate(String docId, JsonNode message) {
+    private void persistNodeUpdate(UUID docId, JsonNode message) {
         JsonNode payload = message.has("payload") ? message.get("payload") : null;
         if (payload == null) {
             return;
@@ -117,7 +117,7 @@ public class DocumentPersistenceHandler {
         }
     }
 
-    private void handleAddNode(String docId, JsonNode data) {
+    private void handleAddNode(UUID docId, JsonNode data) {
         String nodeId = data.has("id") ? data.get("id").asText() : null;
         if (!StringUtils.hasText(nodeId)) {
             return;
@@ -131,7 +131,7 @@ public class DocumentPersistenceHandler {
         TestCaseNode node = new TestCaseNode();
         node.setId(UUID.fromString(nodeId));
         node.setDocumentId(docId);
-        node.setParentId(data.has("parentId") ? data.get("parentId").asText(null) : null);
+        node.setParentId(data.has("parentId") ? UUID.fromString(data.get("parentId").asText()) : null);
         node.setType(data.has("type") ? data.get("type").asText(Constants.NodeType.NORMAL) : Constants.NodeType.NORMAL);
         node.setTitle(data.has("title") ? data.get("title").asText("") : "");
         node.setPriority(data.has("priority") ? data.get("priority").asText(null) : null);

@@ -7,22 +7,23 @@ import io.github.xiaomisum.robotest.model.dto.response.*;
 import xyz.migoo.framework.common.pojo.PageResult;
 
 import java.util.List;
+import java.util.UUID;
 
 public interface TestPlanService {
 
     PageResult<TestPlanListRespDTO> getPlanPage(String projectId, String status, Integer pageNo, Integer pageSize);
 
-    TestPlanDetailRespDTO createPlan(String projectId, String userId, TestPlanCreateReqDTO reqDTO);
+    TestPlanDetailRespDTO createPlan(String projectId, UUID userId, TestPlanCreateReqDTO reqDTO);
 
-    TestPlanDetailRespDTO getPlanDetail(String planId);
+    TestPlanDetailRespDTO getPlanDetail(UUID planId);
 
-    List<TestPlanSnapshotNodeRespDTO> getPlanSnapshotTree(String planId, String documentId);
+    List<TestPlanSnapshotNodeRespDTO> getPlanSnapshotTree(UUID planId, UUID documentId);
 
-    void submitExecutionRecord(String planId, String userId, TestPlanRecordReqDTO reqDTO);
+    void submitExecutionRecord(UUID planId, UUID userId, TestPlanRecordReqDTO reqDTO);
 
-    List<TestPlanExecutionRecordRespDTO> getNodeExecutionRecords(String planId, String nodeId);
+    List<TestPlanExecutionRecordRespDTO> getNodeExecutionRecords(UUID planId, UUID nodeId);
 
-    void syncPlan(String planId, String userId);
+    void syncPlan(UUID planId, UUID userId);
 
     /**
      * 启动计划（NEW → IN_PROGRESS）
@@ -30,7 +31,7 @@ public interface TestPlanService {
      * @param planId 计划 ID
      * @param userId 操作用户 ID
      */
-    void startPlan(String planId, String userId);
+    void startPlan(UUID planId, UUID userId);
 
     /**
      * 获取计划执行进度统计
@@ -38,7 +39,7 @@ public interface TestPlanService {
      * @param planId 计划 ID
      * @return 执行进度
      */
-    TestPlanProgressRespDTO getPlanProgress(String planId);
+    TestPlanProgressRespDTO getPlanProgress(UUID planId);
 
-    void closePlan(String planId, String userId);
+    void closePlan(UUID planId, UUID userId);
 }

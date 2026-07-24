@@ -20,6 +20,7 @@ import xyz.migoo.framework.common.pojo.PageResult;
 import xyz.migoo.framework.common.pojo.Result;
 
 import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/project/bugs")
@@ -35,7 +36,7 @@ public class BugController {
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String severity,
             @RequestParam(required = false) String priority,
-            @RequestParam(required = false) String assigneeId,
+            @RequestParam(required = false) UUID assigneeId,
             @RequestParam(required = false) String keyword,
             @RequestParam(defaultValue = "1") Integer pageNo,
             @RequestParam(defaultValue = "20") Integer pageSize) {
@@ -49,38 +50,38 @@ public class BugController {
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestHeader("X-Active-Project") String projectId,
             @RequestBody @Valid BugCreateReqDTO reqDTO) {
-        return Result.ok(bugService.createBug(projectId, loginUser.getId().toString(), reqDTO));
+        return Result.ok(bugService.createBug(projectId, loginUser.getId(), reqDTO));
     }
 
     @GetMapping("/{id}")
     public Result<BugDetailRespDTO> getBugDetail(
             @AuthenticationPrincipal LoginUser loginUser,
-            @PathVariable String id) {
+            @PathVariable UUID id) {
         return Result.ok(bugService.getBugDetail(id));
     }
 
     @PutMapping("/{id}")
     public Result<Void> updateBug(
             @AuthenticationPrincipal LoginUser loginUser,
-            @PathVariable String id,
+            @PathVariable UUID id,
             @RequestBody @Valid BugUpdateReqDTO reqDTO) {
-        bugService.updateBug(id, loginUser.getId().toString(), reqDTO);
+        bugService.updateBug(id, loginUser.getId(), reqDTO);
         return Result.ok();
     }
 
     @GetMapping("/{id}/logs")
     public Result<List<BugLogRespDTO>> getBugLogs(
             @AuthenticationPrincipal LoginUser loginUser,
-            @PathVariable String id) {
+            @PathVariable UUID id) {
         return Result.ok(bugService.getBugLogs(id));
     }
 
     @PatchMapping("/{id}/status")
     public Result<Void> changeBugStatus(
             @AuthenticationPrincipal LoginUser loginUser,
-            @PathVariable String id,
+            @PathVariable UUID id,
             @RequestBody @Valid BugStatusChangeReqDTO reqDTO) {
-        bugService.changeBugStatus(id, loginUser.getId().toString(),
+        bugService.changeBugStatus(id, loginUser.getId(),
                 reqDTO.getStatus(), reqDTO.getComment());
         return Result.ok();
     }
@@ -88,10 +89,10 @@ public class BugController {
     @PutMapping("/{id}/assign")
     public Result<Void> assignBug(
             @AuthenticationPrincipal LoginUser loginUser,
-            @PathVariable String id,
+            @PathVariable UUID id,
             @RequestBody @Valid BugAssignReqDTO reqDTO) {
-        bugService.assignBug(id, loginUser.getId().toString(),
-                reqDTO.getAssigneeId().toString());
+        bugService.assignBug(id, loginUser.getId(),
+                reqDTO.getAssigneeId());
         return Result.ok();
     }
 

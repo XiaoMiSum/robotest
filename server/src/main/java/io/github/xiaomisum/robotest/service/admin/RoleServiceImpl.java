@@ -29,6 +29,7 @@ import xyz.migoo.framework.common.util.JsonUtils;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -92,7 +93,7 @@ public class RoleServiceImpl implements RoleService {
     }
 
     @Override
-    public RoleRespDTO updateRole(String id, RoleUpdateReqDTO reqDTO) {
+    public RoleRespDTO updateRole(UUID id, RoleUpdateReqDTO reqDTO) {
         SysRole role = roleMapper.selectById(id);
         if (role == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.ROLE_NOT_FOUND);
@@ -110,7 +111,7 @@ public class RoleServiceImpl implements RoleService {
     }
 
     @Override
-    public void deleteRole(String id) {
+    public void deleteRole(UUID id) {
         SysRole role = roleMapper.selectById(id);
         if (role == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.ROLE_NOT_FOUND);
@@ -127,7 +128,7 @@ public class RoleServiceImpl implements RoleService {
     }
 
     @Override
-    public RoleRespDTO getRoleDetail(String id) {
+    public RoleRespDTO getRoleDetail(UUID id) {
         SysRole role = roleMapper.selectById(id);
         if (role == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.ROLE_NOT_FOUND);
@@ -138,7 +139,7 @@ public class RoleServiceImpl implements RoleService {
     }
 
     @Override
-    public PageResult<RoleUserRespDTO> getRoleUsers(String id, Integer pageNo, Integer pageSize) {
+    public PageResult<RoleUserRespDTO> getRoleUsers(UUID id, Integer pageNo, Integer pageSize) {
         SysRole role = roleMapper.selectById(id);
         if (role == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.ROLE_NOT_FOUND);
@@ -170,12 +171,12 @@ public class RoleServiceImpl implements RoleService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void addRoleUsers(String id, List<String> userIds) {
+    public void addRoleUsers(UUID id, List<UUID> userIds) {
         SysRole role = roleMapper.selectById(id);
         if (role == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.ROLE_NOT_FOUND);
         }
-        for (String userId : userIds) {
+        for (UUID userId : userIds) {
             // 璺宠繃宸插瓨鍦ㄧ殑
             Long count = userRoleMapper.selectCount(new LambdaQueryWrapper<SysUserRole>()
                     .eq(SysUserRole::getUserId, userId)
@@ -191,14 +192,14 @@ public class RoleServiceImpl implements RoleService {
     }
 
     @Override
-    public void removeRoleUser(String id, String userId) {
+    public void removeRoleUser(UUID id, UUID userId) {
         userRoleMapper.delete(new LambdaQueryWrapper<SysUserRole>()
                 .eq(SysUserRole::getUserId, userId)
                 .eq(SysUserRole::getRoleId, id));
     }
 
     @Override
-    public RoleRespDTO updateRolePermissions(String id, RolePermissionsUpdateReqDTO reqDTO) {
+    public RoleRespDTO updateRolePermissions(UUID id, RolePermissionsUpdateReqDTO reqDTO) {
         SysRole role = roleMapper.selectById(id);
         if (role == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.ROLE_NOT_FOUND);
@@ -208,7 +209,7 @@ public class RoleServiceImpl implements RoleService {
             List<String> currentPerms = role.getPermissions() != null ? role.getPermissions() : List.of();
             List<String> newPerms = reqDTO.getPermissions();
             // 妫€鏌ユ柊鏉冮檺鍒楄〃鏄惁鍖呭惈鎵€鏈夊凡鏈夋潈闄?
-            if (!currentPerms.containsAll(newPerms)) {
+            if (!new HashSet<>(currentPerms).containsAll(newPerms)) {
                 throw ServiceExceptionUtil.get(ErrorCodeConstants.SYSTEM_ROLE_PERMISSION_NOT_MODIFIABLE);
             }
         }
@@ -244,19 +245,19 @@ public class RoleServiceImpl implements RoleService {
     }
 
     @Override
-    public List<String> getUserPermissionCodes(String userId) {
+    public List<String> getUserPermissionCodes(UUID userId) {
         List<SysUserRole> userRoles = userRoleMapper.selectList(SysUserRole::getUserId, userId);
         if (userRoles.isEmpty()) {
             return new ArrayList<>();
         }
 
-        List<String> roleIds = userRoles.stream().map(SysUserRole::getRoleId).collect(Collectors.toList());
+        List<UUID> roleIds = userRoles.stream().map(SysUserRole::getRoleId).collect(Collectors.toList());
         List<SysRole> roles = roleMapper.selectList(SysRole::getId, roleIds);
 
         return roles.stream()
                 .flatMap(role -> {
                     List<String> perms = role.getPermissions() != null ? role.getPermissions() : List.of();
-                    return perms != null ? perms.stream() : new ArrayList<String>().stream();
+                    return perms.stream();
                 })
                 .distinct()
                 .collect(Collectors.toList());

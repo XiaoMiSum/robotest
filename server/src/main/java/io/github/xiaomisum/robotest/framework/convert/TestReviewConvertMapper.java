@@ -20,9 +20,6 @@ public interface TestReviewConvertMapper {
     @Mapping(target = "initiator", ignore = true)
     TestReviewDetailRespDTO toDetailDTO(TestReview review);
 
-    @Mapping(target = "originalNodeId", expression = "java(snapshot.getOriginalNodeId() != null ? java.util.UUID.fromString(snapshot.getOriginalNodeId()) : null)")
-    @Mapping(target = "parentId", expression = "java(snapshot.getParentId() != null ? java.util.UUID.fromString(snapshot.getParentId()) : null)")
-    @Mapping(target = "lastReviewerId", expression = "java(snapshot.getLastReviewerId() != null ? java.util.UUID.fromString(snapshot.getLastReviewerId()) : null)")
     @Mapping(target = "children", ignore = true)
     TestReviewSnapshotNodeRespDTO toSnapshotNodeDTO(TestReviewNodeSnapshot snapshot);
 

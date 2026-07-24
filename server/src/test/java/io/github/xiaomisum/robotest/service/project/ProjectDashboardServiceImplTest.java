@@ -127,7 +127,7 @@ class ProjectDashboardServiceImplTest {
         bug.setSeverity("high");
         bug.setPriority("high");
         bug.setStatus("new");
-        bug.setAssigneeId("00000000-0000-0000-0000-000000000011");
+        bug.setAssigneeId(UUID.fromString("00000000-0000-0000-0000-000000000011"));
 
         when(bugMapper.selectList(any(LambdaQueryWrapper.class)))
                 .thenReturn(List.of(bug));

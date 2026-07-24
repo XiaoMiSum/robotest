@@ -52,13 +52,14 @@ public class WorkspaceInvitationServiceImpl implements WorkspaceInvitationServic
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public InvitationRespDTO createInvitation(String userId, String workspaceId, InvitationCreateReqDTO reqDTO) {
-        checkAdminPermission(userId, workspaceId);
+    public InvitationRespDTO createInvitation(UUID userId, String workspaceId, InvitationCreateReqDTO reqDTO) {
+        UUID wsId = UUID.fromString(workspaceId);
+        checkAdminPermission(userId, wsId);
 
         WorkspaceInvitation invitation = new WorkspaceInvitation();
-        invitation.setWorkspaceId(workspaceId);
+        invitation.setWorkspaceId(wsId);
         invitation.setToken(generateToken());
-        invitation.setCreatedBy(userId);
+        invitation.setCreatedBy(userId.toString());
         invitation.setExpiresAt(reqDTO.getExpiresAt());
         invitation.setMaxUses(reqDTO.getMaxUses());
         invitation.setUseCount(0);
@@ -71,7 +72,7 @@ public class WorkspaceInvitationServiceImpl implements WorkspaceInvitationServic
     @Override
     public PageResult<InvitationRespDTO> getInvitationPage(String workspaceId, Integer pageNo, Integer pageSize) {
         LambdaQueryWrapper<WorkspaceInvitation> wrapper = new LambdaQueryWrapper<WorkspaceInvitation>()
-                .eq(WorkspaceInvitation::getWorkspaceId, workspaceId)
+                .eq(WorkspaceInvitation::getWorkspaceId, UUID.fromString(workspaceId))
                 .orderByDesc(WorkspaceInvitation::getCreatedAt);
 
         PageResult<WorkspaceInvitation> page = invitationMapper.selectPage(
@@ -89,11 +90,12 @@ public class WorkspaceInvitationServiceImpl implements WorkspaceInvitationServic
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void revokeInvitation(String userId, String workspaceId, String invitationId) {
-        checkAdminPermission(userId, workspaceId);
+    public void revokeInvitation(UUID userId, String workspaceId, UUID invitationId) {
+        UUID wsId = UUID.fromString(workspaceId);
+        checkAdminPermission(userId, wsId);
 
         WorkspaceInvitation invitation = invitationMapper.selectById(invitationId);
-        if (invitation == null || !invitation.getWorkspaceId().equals(workspaceId)) {
+        if (invitation == null || !invitation.getWorkspaceId().equals(wsId)) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.INVITATION_INVALID);
         }
 
@@ -139,7 +141,7 @@ public class WorkspaceInvitationServiceImpl implements WorkspaceInvitationServic
             userMapper.insert(user);
         }
 
-        WorkspaceUser workspaceUser = addMemberToWorkspace(user.getId().toString(), invitation.getWorkspaceId());
+        WorkspaceUser workspaceUser = addMemberToWorkspace(user.getId(), invitation.getWorkspaceId());
         incrementInvitationUseCount(invitation);
 
         Workspace workspace = workspaceMapper.selectById(invitation.getWorkspaceId());
@@ -163,12 +165,12 @@ public class WorkspaceInvitationServiceImpl implements WorkspaceInvitationServic
                 .build();
     }
 
-    private void checkAdminPermission(String userId, String workspaceId) {
+    private void checkAdminPermission(UUID userId, UUID workspaceId) {
         WorkspaceUser workspaceUser = workspaceUserMapper.selectOne(
                 new LambdaQueryWrapper<WorkspaceUser>()
                         .eq(WorkspaceUser::getUserId, userId)
                         .eq(WorkspaceUser::getWorkspaceId, workspaceId));
-        if (workspaceUser == null || !ErrorCodeConstants.WORKSPACE_ROLE_ADMIN_ID.equals(workspaceUser.getWorkspaceRole())) {
+        if (workspaceUser == null || !Constants.WorkspaceRole.ADMIN_ID.equals(workspaceUser.getWorkspaceRole())) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.NO_PERMISSION);
         }
     }
@@ -222,7 +224,7 @@ public class WorkspaceInvitationServiceImpl implements WorkspaceInvitationServic
         return newUser;
     }
 
-    private WorkspaceUser addMemberToWorkspace(String userId, String workspaceId) {
+    private WorkspaceUser addMemberToWorkspace(UUID userId, UUID workspaceId) {
         WorkspaceUser existing = workspaceUserMapper.selectOne(
                 new LambdaQueryWrapper<WorkspaceUser>()
                         .eq(WorkspaceUser::getUserId, userId)
@@ -235,7 +237,7 @@ public class WorkspaceInvitationServiceImpl implements WorkspaceInvitationServic
         WorkspaceUser workspaceUser = new WorkspaceUser();
         workspaceUser.setUserId(userId);
         workspaceUser.setWorkspaceId(workspaceId);
-        workspaceUser.setWorkspaceRole(ErrorCodeConstants.WORKSPACE_ROLE_MEMBER_ID);
+        workspaceUser.setWorkspaceRole(Constants.WorkspaceRole.MEMBER_ID);
         workspaceUser.setJoinedAt(LocalDateTime.now());
         workspaceUserMapper.insert(workspaceUser);
         return workspaceUser;

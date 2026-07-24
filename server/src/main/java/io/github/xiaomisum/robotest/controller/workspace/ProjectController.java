@@ -14,6 +14,8 @@ import org.springframework.web.bind.annotation.*;
 import xyz.migoo.framework.common.pojo.PageResult;
 import xyz.migoo.framework.common.pojo.Result;
 
+import java.util.UUID;
+
 @RestController
 @RequestMapping("/api/workspace/projects")
 public class ProjectController {
@@ -30,7 +32,7 @@ public class ProjectController {
             @RequestParam(defaultValue = "1") Integer pageNo,
             @RequestParam(defaultValue = "20") Integer pageSize) {
         PageResult<ProjectRespDTO> result = projectService.getProjectPage(
-                workspaceId, loginUser.getId().toString(), keyword, status, pageNo, pageSize);
+                workspaceId, loginUser.getId(), keyword, status, pageNo, pageSize);
         return Result.ok(result);
     }
 
@@ -38,7 +40,7 @@ public class ProjectController {
     public Result<ProjectRespDTO> getProjectDetail(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestHeader("X-Active-Workspace") String workspaceId,
-            @PathVariable String id) {
+            @PathVariable UUID id) {
         ProjectRespDTO result = projectService.getProjectDetail(workspaceId, id);
         return Result.ok(result);
     }
@@ -50,7 +52,7 @@ public class ProjectController {
             @RequestHeader("X-Active-Workspace") String workspaceId,
             @RequestBody @Valid ProjectCreateReqDTO reqDTO) {
         ProjectRespDTO result = projectService.createProject(
-                loginUser.getId().toString(), workspaceId, reqDTO);
+                loginUser.getId(), workspaceId, reqDTO);
         return Result.ok(result);
     }
 
@@ -58,10 +60,10 @@ public class ProjectController {
     public Result<ProjectRespDTO> updateProject(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestHeader("X-Active-Workspace") String workspaceId,
-            @PathVariable String id,
+            @PathVariable UUID id,
             @RequestBody @Valid ProjectUpdateReqDTO reqDTO) {
         ProjectRespDTO result = projectService.updateProject(
-                loginUser.getId().toString(), workspaceId, id, reqDTO);
+                loginUser.getId(), workspaceId, id, reqDTO);
         return Result.ok(result);
     }
 
@@ -69,9 +71,9 @@ public class ProjectController {
     public Result<Void> archiveProject(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestHeader("X-Active-Workspace") String workspaceId,
-            @PathVariable String id,
+            @PathVariable UUID id,
             @RequestBody @Valid ProjectArchiveReqDTO reqDTO) {
-        projectService.archiveProject(loginUser.getId().toString(), workspaceId, id, reqDTO);
+        projectService.archiveProject(loginUser.getId(), workspaceId, id, reqDTO);
         return Result.ok();
     }
 
@@ -79,8 +81,8 @@ public class ProjectController {
     public Result<Void> deleteProject(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestHeader("X-Active-Workspace") String workspaceId,
-            @PathVariable String id) {
-        projectService.deleteProject(loginUser.getId().toString(), workspaceId, id);
+            @PathVariable UUID id) {
+        projectService.deleteProject(loginUser.getId(), workspaceId, id);
         return Result.ok();
     }
 }

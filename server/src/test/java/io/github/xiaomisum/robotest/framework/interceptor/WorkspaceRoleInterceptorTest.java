@@ -1,6 +1,7 @@
 package io.github.xiaomisum.robotest.framework.interceptor;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.framework.security.LoginUser;
 import io.github.xiaomisum.robotest.model.entity.SysRole;
@@ -159,7 +160,7 @@ class WorkspaceRoleInterceptorTest {
         when(workspaceUserMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(workspaceUser);
 
         SysRole adminRole = new SysRole();
-        adminRole.setId(UUID.fromString(ErrorCodeConstants.WORKSPACE_ROLE_ADMIN_ID));
+        adminRole.setId(Constants.WorkspaceRole.ADMIN_ID);
         adminRole.setName("workspace_admin");
         adminRole.setPermissions(List.of("project:create", "project:edit"));
         when(roleMapper.selectById(ErrorCodeConstants.WORKSPACE_ROLE_ADMIN_ID)).thenReturn(adminRole);
@@ -188,7 +189,7 @@ class WorkspaceRoleInterceptorTest {
         when(workspaceUserMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(workspaceUser);
 
         SysRole memberRole = new SysRole();
-        memberRole.setId(UUID.fromString(ErrorCodeConstants.WORKSPACE_ROLE_MEMBER_ID));
+        memberRole.setId(Constants.WorkspaceRole.MEMBER_ID);
         memberRole.setName("workspace_member");
         memberRole.setPermissions(List.of());
         when(roleMapper.selectById(ErrorCodeConstants.WORKSPACE_ROLE_MEMBER_ID)).thenReturn(memberRole);
@@ -213,7 +214,7 @@ class WorkspaceRoleInterceptorTest {
         when(workspaceUserMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(workspaceUser);
 
         SysRole adminRole = new SysRole();
-        adminRole.setId(UUID.fromString(ErrorCodeConstants.WORKSPACE_ROLE_ADMIN_ID));
+        adminRole.setId(Constants.WorkspaceRole.ADMIN_ID);
         adminRole.setName("workspace_admin");
         adminRole.setPermissions(null);
         when(roleMapper.selectById(ErrorCodeConstants.WORKSPACE_ROLE_ADMIN_ID)).thenReturn(adminRole);

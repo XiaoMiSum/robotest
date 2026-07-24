@@ -47,10 +47,10 @@ public class BugServiceImpl implements BugService {
 
     @Override
     public PageResult<BugListRespDTO> getBugPage(String projectId, String status, String severity,
-                                             String priority, String assigneeId, String keyword,
+                                             String priority, UUID assigneeId, String keyword,
                                              Integer pageNo, Integer pageSize) {
         LambdaQueryWrapper<Bug> wrapper = new LambdaQueryWrapper<Bug>()
-                .eq(Bug::getProjectId, projectId);
+                .eq(Bug::getProjectId, UUID.fromString(projectId));
         if (StringUtils.hasText(status)) {
             wrapper.eq(Bug::getStatus, status);
         }
@@ -60,7 +60,7 @@ public class BugServiceImpl implements BugService {
         if (StringUtils.hasText(priority)) {
             wrapper.eq(Bug::getPriority, priority);
         }
-        if (StringUtils.hasText(assigneeId)) {
+        if (assigneeId != null) {
             wrapper.eq(Bug::getAssigneeId, assigneeId);
         }
         if (StringUtils.hasText(keyword)) {
@@ -87,7 +87,7 @@ public class BugServiceImpl implements BugService {
                 info.setName(reporter.getUsername());
                 dto.setReporter(info);
             }
-            if (StringUtils.hasText(bug.getAssigneeId())) {
+            if (bug.getAssigneeId() != null) {
                 SysUser assignee = userMapper.selectById(bug.getAssigneeId());
                 if (assignee != null) {
                     BugListRespDTO.UserInfo info = new BugListRespDTO.UserInfo();
@@ -103,7 +103,7 @@ public class BugServiceImpl implements BugService {
     }
 
     @Override
-    public BugDetailRespDTO getBugDetail(String bugId) {
+    public BugDetailRespDTO getBugDetail(UUID bugId) {
         Bug bug = bugMapper.selectById(bugId);
         if (bug == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.BUG_NOT_FOUND);
@@ -119,11 +119,11 @@ public class BugServiceImpl implements BugService {
         dto.setCreatedAt(bug.getCreatedAt());
         dto.setUpdatedAt(bug.getUpdatedAt());
 
-        if (StringUtils.hasText(bug.getRelatedCaseId())) {
-            dto.setRelatedCaseId(UUID.fromString(bug.getRelatedCaseId()));
+        if (bug.getRelatedCaseId() != null) {
+            dto.setRelatedCaseId(bug.getRelatedCaseId());
         }
-        if (StringUtils.hasText(bug.getRelatedPlanId())) {
-            dto.setRelatedPlanId(UUID.fromString(bug.getRelatedPlanId()));
+        if (bug.getRelatedPlanId() != null) {
+            dto.setRelatedPlanId(bug.getRelatedPlanId());
         }
 
         SysUser reporter = userMapper.selectById(bug.getReporterId());
@@ -133,7 +133,7 @@ public class BugServiceImpl implements BugService {
             info.setName(reporter.getUsername());
             dto.setReporter(info);
         }
-        if (StringUtils.hasText(bug.getAssigneeId())) {
+        if (bug.getAssigneeId() != null) {
             SysUser assignee = userMapper.selectById(bug.getAssigneeId());
             if (assignee != null) {
                 BugDetailRespDTO.UserInfo info = new BugDetailRespDTO.UserInfo();
@@ -152,7 +152,7 @@ public class BugServiceImpl implements BugService {
         dto.setRecentLogs(recentLogs.stream().map(log -> {
             BugLogRespDTO logDto = new BugLogRespDTO();
             logDto.setId(log.getId());
-            logDto.setOperatorId(UUID.fromString(log.getOperatorId()));
+            logDto.setOperatorId(log.getOperatorId());
             logDto.setOperationType(log.getOperationType());
             logDto.setContent(log.getContent());
             logDto.setCreatedAt(log.getCreatedAt());
@@ -168,14 +168,14 @@ public class BugServiceImpl implements BugService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public String createBug(String projectId, String userId, BugCreateReqDTO reqDTO) {
+    public String createBug(String projectId, UUID userId, BugCreateReqDTO reqDTO) {
         // 校验指派人是当前工作空间成员
         if (reqDTO.getAssigneeId() != null) {
             Project project = projectMapper.selectById(projectId);
             if (project != null) {
                 WorkspaceUser wu = workspaceUserMapper.selectOne(
                         new LambdaQueryWrapper<WorkspaceUser>()
-                                .eq(WorkspaceUser::getUserId, reqDTO.getAssigneeId().toString())
+                                .eq(WorkspaceUser::getUserId, reqDTO.getAssigneeId())
                                 .eq(WorkspaceUser::getWorkspaceId, project.getWorkspaceId()));
                 if (wu == null) {
                     throw ServiceExceptionUtil.get(ErrorCodeConstants.BUG_ASSIGNEE_NOT_IN_WORKSPACE);
@@ -184,26 +184,26 @@ public class BugServiceImpl implements BugService {
         }
 
         Bug bug = new Bug();
-        bug.setProjectId(projectId);
+        bug.setProjectId(UUID.fromString(projectId));
         bug.setTitle(reqDTO.getTitle());
         bug.setSeverity(reqDTO.getSeverity());
         bug.setPriority(reqDTO.getPriority());
         bug.setStatus(Constants.Status.NEW);
         bug.setDescription(reqDTO.getDescription());
         bug.setReporterId(userId);
-        bug.setAssigneeId(reqDTO.getAssigneeId() != null ? reqDTO.getAssigneeId().toString() : null);
-        bug.setRelatedCaseId(reqDTO.getRelatedCaseId() != null ? reqDTO.getRelatedCaseId().toString() : null);
-        bug.setRelatedPlanId(reqDTO.getRelatedPlanId() != null ? reqDTO.getRelatedPlanId().toString() : null);
+        bug.setAssigneeId(reqDTO.getAssigneeId());
+        bug.setRelatedCaseId(reqDTO.getRelatedCaseId());
+        bug.setRelatedPlanId(reqDTO.getRelatedPlanId());
         bugMapper.insert(bug);
 
-        writeBugLog(bug.getId().toString(), userId, Constants.BugOperation.CREATE, "鍒涘缓缂洪櫡");
+        writeBugLog(bug.getId(), userId, Constants.BugOperation.CREATE, "创建缺陷");
 
         return bug.getId().toString();
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void updateBug(String bugId, String userId, BugUpdateReqDTO reqDTO) {
+    public void updateBug(UUID bugId, UUID userId, BugUpdateReqDTO reqDTO) {
         Bug bug = bugMapper.selectById(bugId);
         if (bug == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.BUG_NOT_FOUND);
@@ -222,17 +222,17 @@ public class BugServiceImpl implements BugService {
             bug.setDescription(reqDTO.getDescription());
         }
         if (reqDTO.getAssigneeId() != null) {
-            bug.setAssigneeId(reqDTO.getAssigneeId().toString());
+            bug.setAssigneeId(reqDTO.getAssigneeId());
         }
         // status 不再通过 updateBug 修改，须走 changeBugStatus 状态机
         bugMapper.updateById(bug);
 
-        writeBugLog(bugId, userId, Constants.BugOperation.UPDATE, "鏇存柊缂洪櫡");
+        writeBugLog(bugId, userId, Constants.BugOperation.UPDATE, "更新缺陷");
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void changeBugStatus(String bugId, String userId, String targetStatus, String comment) {
+    public void changeBugStatus(UUID bugId, UUID userId, String targetStatus, String comment) {
         Bug bug = bugMapper.selectById(bugId);
         if (bug == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.BUG_NOT_FOUND);
@@ -276,7 +276,7 @@ public class BugServiceImpl implements BugService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void assignBug(String bugId, String userId, String assigneeId) {
+    public void assignBug(UUID bugId, UUID userId, UUID assigneeId) {
         Bug bug = bugMapper.selectById(bugId);
         if (bug == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.BUG_NOT_FOUND);
@@ -297,7 +297,7 @@ public class BugServiceImpl implements BugService {
     @Override
     public BugStatisticsRespDTO getBugStatistics(String projectId) {
         List<Bug> bugs = bugMapper.selectList(
-                new LambdaQueryWrapper<Bug>().eq(Bug::getProjectId, projectId));
+                new LambdaQueryWrapper<Bug>().eq(Bug::getProjectId, UUID.fromString(projectId)));
 
         BugStatisticsRespDTO stats = new BugStatisticsRespDTO();
         stats.setTotal(bugs.size());
@@ -311,10 +311,10 @@ public class BugServiceImpl implements BugService {
                 .filter(b -> StringUtils.hasText(b.getPriority()))
                 .collect(Collectors.groupingBy(Bug::getPriority, Collectors.counting())));
         stats.setByAssignee(bugs.stream()
-                .filter(b -> StringUtils.hasText(b.getAssigneeId()))
+                .filter(b -> b.getAssigneeId() != null)
                 .collect(Collectors.groupingBy(Bug::getAssigneeId, Collectors.counting())));
         stats.setByReporter(bugs.stream()
-                .filter(b -> StringUtils.hasText(b.getReporterId()))
+                .filter(b -> b.getReporterId() != null)
                 .collect(Collectors.groupingBy(Bug::getReporterId, Collectors.counting())));
         return stats;
     }
@@ -334,7 +334,7 @@ public class BugServiceImpl implements BugService {
     }
 
     @Override
-    public List<BugLogRespDTO> getBugLogs(String bugId) {
+    public List<BugLogRespDTO> getBugLogs(UUID bugId) {
         List<BugLog> logs = bugLogMapper.selectList(
                 new LambdaQueryWrapper<BugLog>()
                         .eq(BugLog::getBugId, bugId)
@@ -343,7 +343,7 @@ public class BugServiceImpl implements BugService {
         return logs.stream().map(log -> {
             BugLogRespDTO dto = new BugLogRespDTO();
             dto.setId(log.getId());
-            dto.setOperatorId(UUID.fromString(log.getOperatorId()));
+            dto.setOperatorId(log.getOperatorId());
             dto.setOperationType(log.getOperationType());
             dto.setContent(log.getContent());
             dto.setCreatedAt(log.getCreatedAt());
@@ -356,7 +356,7 @@ public class BugServiceImpl implements BugService {
         }).collect(Collectors.toList());
     }
 
-    private void writeBugLog(String bugId, String userId, String operationType, String content) {
+    private void writeBugLog(UUID bugId, UUID userId, String operationType, String content) {
         BugLog log = new BugLog();
         log.setBugId(bugId);
         log.setOperatorId(userId);

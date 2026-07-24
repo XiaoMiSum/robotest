@@ -7,22 +7,23 @@ import io.github.xiaomisum.robotest.model.dto.response.*;
 import xyz.migoo.framework.common.pojo.PageResult;
 
 import java.util.List;
+import java.util.UUID;
 
 public interface TestReviewService {
 
     PageResult<TestReviewListRespDTO> getReviewPage(String projectId, String status, Integer pageNo, Integer pageSize);
 
-    TestReviewDetailRespDTO createReview(String projectId, String userId, TestReviewCreateReqDTO reqDTO);
+    TestReviewDetailRespDTO createReview(String projectId, UUID userId, TestReviewCreateReqDTO reqDTO);
 
-    TestReviewDetailRespDTO getReviewDetail(String reviewId);
+    TestReviewDetailRespDTO getReviewDetail(UUID reviewId);
 
-    List<TestReviewSnapshotNodeRespDTO> getReviewSnapshotTree(String reviewId, String documentId);
+    List<TestReviewSnapshotNodeRespDTO> getReviewSnapshotTree(UUID reviewId, UUID documentId);
 
-    void submitReviewRecord(String reviewId, String userId, TestReviewRecordReqDTO reqDTO);
+    void submitReviewRecord(UUID reviewId, UUID userId, TestReviewRecordReqDTO reqDTO);
 
-    List<TestReviewRecordRespDTO> getNodeReviewRecords(String reviewId, String nodeId);
+    List<TestReviewRecordRespDTO> getNodeReviewRecords(UUID reviewId, UUID nodeId);
 
-    void completeReview(String reviewId, String userId);
+    void completeReview(UUID reviewId, UUID userId);
 
     /**
      * 获取评审进度统计
@@ -30,7 +31,7 @@ public interface TestReviewService {
      * @param reviewId 评审 ID
      * @return 评审进度
      */
-    TestReviewProgressRespDTO getReviewProgress(String reviewId);
+    TestReviewProgressRespDTO getReviewProgress(UUID reviewId);
 
-    void syncReview(String reviewId, String userId);
+    void syncReview(UUID reviewId, UUID userId);
 }

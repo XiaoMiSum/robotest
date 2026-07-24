@@ -6,13 +6,14 @@ import lombok.EqualsAndHashCode;
 import xyz.migoo.framework.mybatis.core.dataobject.BaseUuidDO;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Data
 @EqualsAndHashCode(callSuper = true)
 @TableName("project")
 public class Project extends BaseUuidDO<Project> {
 
-    private String workspaceId;
+    private UUID workspaceId;
     private String name;
     private String description;
     private String status;

@@ -2,6 +2,8 @@ package io.github.xiaomisum.robotest.model.dto.request;
 
 import lombok.Data;
 
+import java.util.UUID;
+
 /**
  * 用例列表查询请求 DTO
  */
@@ -11,7 +13,7 @@ public class TestCaseCaseListReqDTO {
     /**
      * 项目 ID（通过 Header 传递）
      */
-    private String projectId;
+    private UUID projectId;
 
     /**
      * 标题关键词（模糊搜索）

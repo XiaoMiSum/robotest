@@ -2,7 +2,7 @@ package io.github.xiaomisum.robotest.model.entity;
 
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
-import com.baomidou.mybatisplus.extension.handlers.JacksonTypeHandler;
+import com.baomidou.mybatisplus.extension.handlers.Jackson3TypeHandler;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import xyz.migoo.framework.mybatis.core.dataobject.BaseUuidDO;
@@ -19,6 +19,6 @@ public class SysRole extends BaseUuidDO<SysRole> {
     private String type;
     private Boolean isSystem;
 
-    @TableField(typeHandler = JacksonTypeHandler.class)
+    @TableField(typeHandler = Jackson3TypeHandler.class)
     private List<String> permissions;
 }

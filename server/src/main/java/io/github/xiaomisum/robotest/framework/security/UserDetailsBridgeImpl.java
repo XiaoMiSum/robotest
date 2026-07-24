@@ -16,6 +16,7 @@ import xyz.migoo.framework.security.core.AuthUserDetails;
 import xyz.migoo.framework.security.core.authentication.UserDetailsBridge;
 
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Stream;
 
 @Component
@@ -53,16 +54,16 @@ public class UserDetailsBridgeImpl implements UserDetailsBridge {
         loginUser.setEmail(user.getEmail());
         loginUser.setPassword(user.getPasswordHash());
         loginUser.setEnabled(Constants.Status.ACTIVE.equals(user.getStatus()));
-        loginUser.setAuthorities(loadAuthorities(user.getId().toString()));
+        loginUser.setAuthorities(loadAuthorities(user.getId()));
         return loginUser;
     }
 
-    private List<? extends GrantedAuthority> loadAuthorities(String userId) {
+    private List<? extends GrantedAuthority> loadAuthorities(UUID userId) {
         List<SysUserRole> userRoles = userRoleMapper.selectList(SysUserRole::getUserId, userId);
         if (userRoles.isEmpty()) {
             return List.of();
         }
-        List<String> roleIds = userRoles.stream().map(SysUserRole::getRoleId).toList();
+        List<UUID> roleIds = userRoles.stream().map(SysUserRole::getRoleId).toList();
         List<SysRole> roles = roleMapper.selectList(SysRole::getId, roleIds);
         return roles.stream()
                 .flatMap(role -> Stream.concat(

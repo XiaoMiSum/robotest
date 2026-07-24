@@ -13,6 +13,8 @@ import org.springframework.web.bind.annotation.*;
 import xyz.migoo.framework.common.pojo.PageResult;
 import xyz.migoo.framework.common.pojo.Result;
 
+import java.util.UUID;
+
 @RestController
 @RequestMapping("/api/admin/users")
 public class AdminUserController {
@@ -24,8 +26,8 @@ public class AdminUserController {
     public Result<PageResult<UserRespDTO>> getUserPage(
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) String status,
-            @RequestParam(required = false) String roleId,
-            @RequestParam(required = false) String workspaceId,
+            @RequestParam(required = false) UUID roleId,
+            @RequestParam(required = false) UUID workspaceId,
             @RequestParam(defaultValue = "1") Integer pageNo,
             @RequestParam(defaultValue = "20") Integer pageSize) {
         return Result.ok(userService.getUserPage(keyword, status, roleId, workspaceId, pageNo, pageSize));
@@ -37,18 +39,18 @@ public class AdminUserController {
     }
 
     @GetMapping("/{id}")
-    public Result<UserRespDTO> getUserDetail(@PathVariable String id) {
+    public Result<UserRespDTO> getUserDetail(@PathVariable UUID id) {
         return Result.ok(userService.getUserDetail(id));
     }
 
     @PutMapping("/{id}")
-    public Result<UserRespDTO> updateUser(@PathVariable String id,
+    public Result<UserRespDTO> updateUser(@PathVariable UUID id,
                                           @RequestBody @Valid UserUpdateReqDTO reqDTO) {
         return Result.ok(userService.updateUser(id, reqDTO));
     }
 
     @PatchMapping("/{id}/status")
-    public Result<UserRespDTO> updateUserStatus(@PathVariable String id,
+    public Result<UserRespDTO> updateUserStatus(@PathVariable UUID id,
                                                 @RequestBody @Valid UserStatusUpdateReqDTO reqDTO) {
         return Result.ok(userService.updateUserStatus(id, reqDTO.getStatus()));
     }
@@ -60,7 +62,7 @@ public class AdminUserController {
     }
 
     @PostMapping("/{id}/reset-password")
-    public Result<Void> resetPassword(@PathVariable String id,
+    public Result<Void> resetPassword(@PathVariable UUID id,
                                        @RequestBody @Valid UserPasswordResetReqDTO reqDTO) {
         userService.resetPassword(id, reqDTO.getNewPassword());
         return Result.ok();

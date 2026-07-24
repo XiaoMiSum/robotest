@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.*;
 import xyz.migoo.framework.common.pojo.Result;
 
 import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/project/modules")
@@ -41,7 +42,7 @@ public class TestCaseModuleController {
     @PutMapping("/{id}")
     public Result<TestCaseModuleTreeRespDTO> updateModule(
             @AuthenticationPrincipal LoginUser loginUser,
-            @PathVariable String id,
+            @PathVariable UUID id,
             @RequestBody @Valid TestCaseModuleUpdateReqDTO reqDTO) {
         return Result.ok(testCaseModuleService.updateModule(id, reqDTO));
     }
@@ -49,7 +50,7 @@ public class TestCaseModuleController {
     @DeleteMapping("/{id}")
     public Result<Void> deleteModule(
             @AuthenticationPrincipal LoginUser loginUser,
-            @PathVariable String id) {
+            @PathVariable UUID id) {
         testCaseModuleService.deleteModule(id);
         return Result.ok();
     }

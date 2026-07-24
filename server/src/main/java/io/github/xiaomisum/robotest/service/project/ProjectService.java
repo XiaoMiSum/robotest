@@ -6,18 +6,20 @@ import io.github.xiaomisum.robotest.model.dto.request.ProjectUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ProjectRespDTO;
 import xyz.migoo.framework.common.pojo.PageResult;
 
+import java.util.UUID;
+
 public interface ProjectService {
 
-    PageResult<ProjectRespDTO> getProjectPage(String workspaceId, String userId, String keyword,
+    PageResult<ProjectRespDTO> getProjectPage(String workspaceId, UUID userId, String keyword,
                                                String status, Integer pageNo, Integer pageSize);
 
-    ProjectRespDTO getProjectDetail(String workspaceId, String projectId);
+    ProjectRespDTO getProjectDetail(String workspaceId, UUID projectId);
 
-    ProjectRespDTO createProject(String userId, String workspaceId, ProjectCreateReqDTO reqDTO);
+    ProjectRespDTO createProject(UUID userId, String workspaceId, ProjectCreateReqDTO reqDTO);
 
-    ProjectRespDTO updateProject(String userId, String workspaceId, String projectId, ProjectUpdateReqDTO reqDTO);
+    ProjectRespDTO updateProject(UUID userId, String workspaceId, UUID projectId, ProjectUpdateReqDTO reqDTO);
 
-    void archiveProject(String userId, String workspaceId, String projectId, ProjectArchiveReqDTO reqDTO);
+    void archiveProject(UUID userId, String workspaceId, UUID projectId, ProjectArchiveReqDTO reqDTO);
 
-    void deleteProject(String userId, String workspaceId, String projectId);
+    void deleteProject(UUID userId, String workspaceId, UUID projectId);
 }
