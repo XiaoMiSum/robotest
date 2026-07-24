@@ -159,8 +159,6 @@ public class UserCreateDTO {
 
     @NotEmpty
     private List<Long> roleIds;
-
-    private List<Long> workspaceIds;
 }
 ```
 
