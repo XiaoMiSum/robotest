@@ -37,46 +37,46 @@ public class AdminRoleController {
     }
 
     @PutMapping("/{id}")
-    public Result<RoleRespDTO> updateRole(@PathVariable String id,
+    public Result<RoleRespDTO> updateRole(@PathVariable UUID id,
                                           @RequestBody @Valid RoleUpdateReqDTO reqDTO) {
         return Result.ok(roleService.updateRole(id, reqDTO));
     }
 
     @DeleteMapping("/{id}")
-    public Result<Void> deleteRole(@PathVariable String id) {
+    public Result<Void> deleteRole(@PathVariable UUID id) {
         roleService.deleteRole(id);
         return Result.ok();
     }
 
     @GetMapping("/{id}")
-    public Result<RoleRespDTO> getRoleDetail(@PathVariable String id) {
+    public Result<RoleRespDTO> getRoleDetail(@PathVariable UUID id) {
         return Result.ok(roleService.getRoleDetail(id));
     }
 
     @GetMapping("/{id}/users")
     public Result<PageResult<RoleUserRespDTO>> getRoleUsers(
-            @PathVariable String id,
+            @PathVariable UUID id,
             @RequestParam(defaultValue = "1") Integer pageNo,
             @RequestParam(defaultValue = "20") Integer pageSize) {
         return Result.ok(roleService.getRoleUsers(id, pageNo, pageSize));
     }
 
     @PostMapping("/{id}/users")
-    public Result<Void> addRoleUsers(@PathVariable String id,
+    public Result<Void> addRoleUsers(@PathVariable UUID id,
                                       @RequestBody @Valid RoleUsersAddReqDTO reqDTO) {
-        roleService.addRoleUsers(id, reqDTO.getUserIds().stream().map(UUID::toString).collect(Collectors.toList()));
+        roleService.addRoleUsers(id, reqDTO.getUserIds());
         return Result.ok();
     }
 
     @DeleteMapping("/{id}/users/{userId}")
-    public Result<Void> removeRoleUser(@PathVariable String id,
-                                        @PathVariable String userId) {
+    public Result<Void> removeRoleUser(@PathVariable UUID id,
+                                        @PathVariable UUID userId) {
         roleService.removeRoleUser(id, userId);
         return Result.ok();
     }
 
     @PutMapping("/{id}/permissions")
-    public Result<RoleRespDTO> updateRolePermissions(@PathVariable String id,
+    public Result<RoleRespDTO> updateRolePermissions(@PathVariable UUID id,
                                                      @RequestBody @Valid RolePermissionsUpdateReqDTO reqDTO) {
         return Result.ok(roleService.updateRolePermissions(id, reqDTO));
     }

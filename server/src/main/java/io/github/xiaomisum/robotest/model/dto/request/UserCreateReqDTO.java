@@ -26,5 +26,4 @@ public class UserCreateReqDTO {
     private String password;
 
     private List<UUID> roleIds;
-    private List<UUID> workspaceIds;
 }

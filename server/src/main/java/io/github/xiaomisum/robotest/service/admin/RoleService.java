@@ -10,6 +10,7 @@ import io.github.xiaomisum.robotest.model.dto.response.RoleUserRespDTO;
 import xyz.migoo.framework.common.pojo.PageResult;
 
 import java.util.List;
+import java.util.UUID;
 
 public interface RoleService {
 
@@ -17,21 +18,21 @@ public interface RoleService {
 
     String createRole(RoleCreateReqDTO reqDTO);
 
-    RoleRespDTO updateRole(String id, RoleUpdateReqDTO reqDTO);
+    RoleRespDTO updateRole(UUID id, RoleUpdateReqDTO reqDTO);
 
-    void deleteRole(String id);
+    void deleteRole(UUID id);
 
-    RoleRespDTO getRoleDetail(String id);
+    RoleRespDTO getRoleDetail(UUID id);
 
-    PageResult<RoleUserRespDTO> getRoleUsers(String id, Integer pageNo, Integer pageSize);
+    PageResult<RoleUserRespDTO> getRoleUsers(UUID id, Integer pageNo, Integer pageSize);
 
-    void addRoleUsers(String id, List<String> userIds);
+    void addRoleUsers(UUID id, List<UUID> userIds);
 
-    void removeRoleUser(String id, String userId);
+    void removeRoleUser(UUID id, UUID userId);
 
-    RoleRespDTO updateRolePermissions(String id, RolePermissionsUpdateReqDTO reqDTO);
+    RoleRespDTO updateRolePermissions(UUID id, RolePermissionsUpdateReqDTO reqDTO);
 
     List<PermissionTableRespDTO> getPermissionTable();
 
-    List<String> getUserPermissionCodes(String userId);
+    List<String> getUserPermissionCodes(UUID userId);
 }

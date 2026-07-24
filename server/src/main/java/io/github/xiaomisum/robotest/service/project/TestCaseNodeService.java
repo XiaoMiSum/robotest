@@ -6,11 +6,13 @@ import io.github.xiaomisum.robotest.model.dto.response.TestCaseDocumentNodesResp
 import io.github.xiaomisum.robotest.model.dto.response.TestCaseNodeTreeRespDTO;
 import xyz.migoo.framework.common.pojo.PageResult;
 
+import java.util.UUID;
+
 public interface TestCaseNodeService {
 
-    TestCaseDocumentNodesRespDTO getDocumentNodes(String documentId);
+    TestCaseDocumentNodesRespDTO getDocumentNodes(UUID documentId);
 
-    TestCaseNodeTreeRespDTO getCaseDetail(String caseId);
+    TestCaseNodeTreeRespDTO getCaseDetail(UUID caseId);
 
     /**
      * 查询项目下的用例列表（支持按标题关键词、优先级过滤）
@@ -31,5 +33,5 @@ public interface TestCaseNodeService {
      * @param caseId 用例节点 ID
      * @param reqDTO 更新内容
      */
-    void updateCaseNode(String caseId, TestCaseNodeUpdateReqDTO reqDTO);
+    void updateCaseNode(UUID caseId, TestCaseNodeUpdateReqDTO reqDTO);
 }

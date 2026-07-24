@@ -1,5 +1,7 @@
 package io.github.xiaomisum.robotest.framework.common;
 
+import java.util.UUID;
+
 public final class Constants {
 
     private Constants() {
@@ -94,5 +96,13 @@ public final class Constants {
     public interface Auth {
         String ROLE_PREFIX = "ROLE_";
         String TOKEN_TYPE_BEARER = "Bearer";
+    }
+
+    /**
+     * 预置工作空间角色 ID（与 V5 迁移脚本一致）
+     */
+    public interface WorkspaceRole {
+        UUID ADMIN_ID = UUID.fromString("c0000000-0000-0000-0000-000000000001");
+        UUID MEMBER_ID = UUID.fromString("c0000000-0000-0000-0000-000000000002");
     }
 }

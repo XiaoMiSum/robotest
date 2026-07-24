@@ -12,7 +12,9 @@ import org.springframework.util.StringUtils;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -79,7 +81,8 @@ public class ProjectDashboardServiceImpl implements ProjectDashboardService {
         // 批量解析 assignee 姓名
         Set<String> assigneeIds = recentBugs.stream()
                 .map(Bug::getAssigneeId)
-                .filter(StringUtils::hasText)
+                .filter(Objects::nonNull)
+                .map(UUID::toString)
                 .collect(Collectors.toSet());
         if (!assigneeIds.isEmpty()) {
             Map<String, String> nameMap = userMapper.selectBatchIds(assigneeIds)
@@ -96,8 +99,8 @@ public class ProjectDashboardServiceImpl implements ProjectDashboardService {
                 item.setSeverity(b.getSeverity());
                 item.setPriority(b.getPriority());
                 item.setStatus(b.getStatus());
-                if (StringUtils.hasText(b.getAssigneeId())) {
-                    item.setAssignee(nameMap.get(b.getAssigneeId()));
+                if (b.getAssigneeId() != null) {
+                    item.setAssignee(nameMap.get(b.getAssigneeId().toString()));
                 }
                 item.setCreatedAt(b.getCreatedAt());
                 return item;

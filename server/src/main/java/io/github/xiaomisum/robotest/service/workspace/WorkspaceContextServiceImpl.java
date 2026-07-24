@@ -16,7 +16,6 @@ import io.github.xiaomisum.robotest.service.workspace.WorkspaceContextService;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.StringUtils;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
 
 import java.util.UUID;
@@ -33,15 +32,17 @@ public class WorkspaceContextServiceImpl implements WorkspaceContextService {
 
     @Override
     public WorkspaceContextRespDTO getWorkspaceContext(String userId, String workspaceId) {
-        Workspace workspace = workspaceMapper.selectById(workspaceId);
+        UUID wsId = UUID.fromString(workspaceId);
+        UUID uid = UUID.fromString(userId);
+        Workspace workspace = workspaceMapper.selectById(wsId);
         if (workspace == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.WORKSPACE_NOT_FOUND);
         }
 
         WorkspaceUser workspaceUser = workspaceUserMapper.selectOne(
                 new LambdaQueryWrapper<WorkspaceUser>()
-                        .eq(WorkspaceUser::getUserId, userId)
-                        .eq(WorkspaceUser::getWorkspaceId, workspaceId));
+                        .eq(WorkspaceUser::getUserId, uid)
+                        .eq(WorkspaceUser::getWorkspaceId, wsId));
         if (workspaceUser == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.NO_PERMISSION);
         }
@@ -52,24 +53,26 @@ public class WorkspaceContextServiceImpl implements WorkspaceContextService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public WorkspaceContextRespDTO updateWorkspace(String userId, String workspaceId, WorkspaceUpdateReqDTO reqDTO) {
-        Workspace workspace = workspaceMapper.selectById(workspaceId);
+        UUID wsId = UUID.fromString(workspaceId);
+        UUID uid = UUID.fromString(userId);
+        Workspace workspace = workspaceMapper.selectById(wsId);
         if (workspace == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.WORKSPACE_NOT_FOUND);
         }
 
         WorkspaceUser workspaceUser = workspaceUserMapper.selectOne(
                 new LambdaQueryWrapper<WorkspaceUser>()
-                        .eq(WorkspaceUser::getUserId, userId)
-                        .eq(WorkspaceUser::getWorkspaceId, workspaceId));
-        if (workspaceUser == null || !ErrorCodeConstants.WORKSPACE_ROLE_ADMIN_ID.equals(workspaceUser.getWorkspaceRole())) {
+                        .eq(WorkspaceUser::getUserId, uid)
+                        .eq(WorkspaceUser::getWorkspaceId, wsId));
+        if (workspaceUser == null || !Constants.WorkspaceRole.ADMIN_ID.equals(workspaceUser.getWorkspaceRole())) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.NO_PERMISSION);
         }
 
-        if (StringUtils.hasText(reqDTO.getName())) {
+        if (reqDTO.getName() != null && !reqDTO.getName().isEmpty()) {
             Workspace existing = workspaceMapper.selectOne(
                     new LambdaQueryWrapper<Workspace>()
                             .eq(Workspace::getName, reqDTO.getName())
-                            .ne(Workspace::getId, workspaceId));
+                            .ne(Workspace::getId, wsId));
             if (existing != null) {
                 throw ServiceExceptionUtil.get(ErrorCodeConstants.WORKSPACE_NAME_EXISTS);
             }
@@ -86,22 +89,24 @@ public class WorkspaceContextServiceImpl implements WorkspaceContextService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public WorkspaceContextRespDTO setDefaultProject(String userId, String workspaceId, WorkspaceDefaultProjectReqDTO reqDTO) {
-        Workspace workspace = workspaceMapper.selectById(workspaceId);
+        UUID wsId = UUID.fromString(workspaceId);
+        UUID uid = UUID.fromString(userId);
+        Workspace workspace = workspaceMapper.selectById(wsId);
         if (workspace == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.WORKSPACE_NOT_FOUND);
         }
 
         WorkspaceUser workspaceUser = workspaceUserMapper.selectOne(
                 new LambdaQueryWrapper<WorkspaceUser>()
-                        .eq(WorkspaceUser::getUserId, userId)
-                        .eq(WorkspaceUser::getWorkspaceId, workspaceId));
+                        .eq(WorkspaceUser::getUserId, uid)
+                        .eq(WorkspaceUser::getWorkspaceId, wsId));
         if (workspaceUser == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.NO_PERMISSION);
         }
 
         if (reqDTO.getProjectId() != null) {
-            Project project = projectMapper.selectById(reqDTO.getProjectId().toString());
-            if (project == null || !project.getWorkspaceId().equals(workspaceId)) {
+            Project project = projectMapper.selectById(reqDTO.getProjectId());
+            if (project == null || !project.getWorkspaceId().equals(wsId)) {
                 throw ServiceExceptionUtil.get(ErrorCodeConstants.PROJECT_NOT_FOUND);
             }
             if (!Constants.Status.ACTIVE.equals(project.getStatus())) {
@@ -109,7 +114,7 @@ public class WorkspaceContextServiceImpl implements WorkspaceContextService {
             }
         }
 
-        workspaceUser.setDefaultProjectId(reqDTO.getProjectId().toString());
+        workspaceUser.setDefaultProjectId(reqDTO.getProjectId());
         workspaceUserMapper.updateById(workspaceUser);
 
         return buildContextRespDTO(workspace, workspaceUser);
@@ -122,8 +127,8 @@ public class WorkspaceContextServiceImpl implements WorkspaceContextService {
         dto.setDescription(workspace.getDescription());
         dto.setStatus(workspace.getStatus());
         dto.setCreatedAt(workspace.getCreatedAt());
-        dto.setWorkspaceRole(workspaceUser.getWorkspaceRole());
-        dto.setDefaultProjectId(workspaceUser.getDefaultProjectId() != null ? UUID.fromString(workspaceUser.getDefaultProjectId()) : null);
+        dto.setWorkspaceRole(workspaceUser.getWorkspaceRole().toString());
+        dto.setDefaultProjectId(workspaceUser.getDefaultProjectId());
 
         Long memberCount = workspaceUserMapper.selectCount(
                 WorkspaceUser::getWorkspaceId, workspace.getId());
@@ -133,7 +138,7 @@ public class WorkspaceContextServiceImpl implements WorkspaceContextService {
                 Project::getWorkspaceId, workspace.getId());
         dto.setProjectCount(projectCount);
 
-        if (StringUtils.hasText(workspaceUser.getDefaultProjectId())) {
+        if (workspaceUser.getDefaultProjectId() != null) {
             Project defaultProject = projectMapper.selectById(workspaceUser.getDefaultProjectId());
             if (defaultProject != null) {
                 dto.setDefaultProjectName(defaultProject.getName());

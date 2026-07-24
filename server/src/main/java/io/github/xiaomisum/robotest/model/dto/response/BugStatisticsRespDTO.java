@@ -3,6 +3,7 @@ package io.github.xiaomisum.robotest.model.dto.response;
 import lombok.Data;
 
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * 缺陷统计响应 DTO
@@ -33,10 +34,10 @@ public class BugStatisticsRespDTO {
     /**
      * 按处理人统计：{ "user_id": 6, ... }
      */
-    private Map<String, Long> byAssignee;
+    private Map<UUID, Long> byAssignee;
 
     /**
      * 按报告人统计：{ "user_id": 8, ... }
      */
-    private Map<String, Long> byReporter;
+    private Map<UUID, Long> byReporter;
 }

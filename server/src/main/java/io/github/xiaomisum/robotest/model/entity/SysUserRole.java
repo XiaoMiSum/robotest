@@ -6,13 +6,14 @@ import lombok.EqualsAndHashCode;
 import xyz.migoo.framework.mybatis.core.dataobject.BaseUuidDO;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Data
 @EqualsAndHashCode(callSuper = true)
 @TableName("sys_user_role")
 public class SysUserRole extends BaseUuidDO<SysUserRole> {
 
-    private String userId;
-    private String roleId;
+    private UUID userId;
+    private UUID roleId;
     private LocalDateTime assignedAt;
 }

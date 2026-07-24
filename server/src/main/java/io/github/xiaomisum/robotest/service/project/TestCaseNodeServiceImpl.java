@@ -39,7 +39,7 @@ public class TestCaseNodeServiceImpl implements TestCaseNodeService {
     private TestCaseModuleMapper testCaseModuleMapper;
 
     @Override
-    public TestCaseDocumentNodesRespDTO getDocumentNodes(String documentId) {
+    public TestCaseDocumentNodesRespDTO getDocumentNodes(UUID documentId) {
         TestCaseModule document = testCaseModuleMapper.selectById(documentId);
         if (document == null || !Constants.ModuleType.DOCUMENT.equals(document.getType())) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_CASE_DOCUMENT_NOT_FOUND);
@@ -68,7 +68,7 @@ public class TestCaseNodeServiceImpl implements TestCaseNodeService {
     }
 
     @Override
-    public TestCaseNodeTreeRespDTO getCaseDetail(String caseId) {
+    public TestCaseNodeTreeRespDTO getCaseDetail(UUID caseId) {
         TestCaseNode node = testCaseNodeMapper.selectById(caseId);
         if (node == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_CASE_NODE_NOT_FOUND);
@@ -117,7 +117,7 @@ public class TestCaseNodeServiceImpl implements TestCaseNodeService {
             dto.setTitle(node.getTitle());
             dto.setType(node.getType());
             dto.setPriority(node.getPriority());
-            dto.setDocumentId(UUID.fromString(node.getDocumentId()));
+            dto.setDocumentId(node.getDocumentId());
             dto.setDocumentName(docNameMap.get(node.getDocumentId()));
             dto.setSortOrder(node.getSortOrder());
             dto.setVersion(node.getVersion());
@@ -130,7 +130,7 @@ public class TestCaseNodeServiceImpl implements TestCaseNodeService {
     }
 
     @Override
-    public void updateCaseNode(String caseId, TestCaseNodeUpdateReqDTO reqDTO) {
+    public void updateCaseNode(UUID caseId, TestCaseNodeUpdateReqDTO reqDTO) {
         TestCaseNode node = testCaseNodeMapper.selectById(caseId);
         if (node == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_CASE_NODE_NOT_FOUND);

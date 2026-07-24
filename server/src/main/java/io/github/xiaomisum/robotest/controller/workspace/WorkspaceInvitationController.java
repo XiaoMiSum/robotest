@@ -14,6 +14,8 @@ import org.springframework.web.bind.annotation.*;
 import xyz.migoo.framework.common.pojo.PageResult;
 import xyz.migoo.framework.common.pojo.Result;
 
+import java.util.UUID;
+
 @RestController
 @RequestMapping("/api/workspace/invitations")
 public class WorkspaceInvitationController {
@@ -27,7 +29,7 @@ public class WorkspaceInvitationController {
             @RequestHeader("X-Active-Workspace") String workspaceId,
             @RequestBody @Valid InvitationCreateReqDTO reqDTO) {
         InvitationRespDTO result = invitationService.createInvitation(
-                loginUser.getId().toString(), workspaceId, reqDTO);
+                loginUser.getId(), workspaceId, reqDTO);
         return Result.ok(result);
     }
 
@@ -46,8 +48,8 @@ public class WorkspaceInvitationController {
     public Result<Void> revokeInvitation(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestHeader("X-Active-Workspace") String workspaceId,
-            @PathVariable String id) {
-        invitationService.revokeInvitation(loginUser.getId().toString(), workspaceId, id);
+            @PathVariable UUID id) {
+        invitationService.revokeInvitation(loginUser.getId(), workspaceId, id);
         return Result.ok();
     }
 }

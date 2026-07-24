@@ -13,5 +13,4 @@ public class UserUpdateReqDTO {
     private String email;
 
     private List<UUID> roleIds;
-    private List<UUID> workspaceIds;
 }

@@ -4,10 +4,6 @@ import xyz.migoo.framework.common.exception.ErrorCode;
 
 public class ErrorCodeConstants {
 
-    // ========== 预置工作空间角色 ID（与 V5 迁移脚本一致） ==========
-    public static final String WORKSPACE_ROLE_ADMIN_ID  = "c0000000-0000-0000-0000-000000000001";
-    public static final String WORKSPACE_ROLE_MEMBER_ID = "c0000000-0000-0000-0000-000000000002";
-
     // ========== 参数校验 1,000,001,001-1,000,001,009 ==========
     public static final ErrorCode VALIDATION_FAILED = ErrorCode.of(1000001001, "参数校验失败");
     public static final ErrorCode USERNAME_EXISTS = ErrorCode.of(1000001002, "用户名已存在");
