@@ -52,7 +52,8 @@ public class MyWorkspaceServiceImpl implements MyWorkspaceService {
         List<UUID> workspaceIds = workspaceUserPage.getList().stream()
                 .map(WorkspaceUser::getWorkspaceId)
                 .collect(Collectors.toList());
-        Map<UUID, Workspace> workspaceMap = workspaceMapper.selectList(Workspace::getId, workspaceIds)
+        Map<UUID, Workspace> workspaceMap = workspaceMapper.selectList(
+                new LambdaQueryWrapper<Workspace>().in(Workspace::getId, workspaceIds))
                 .stream()
                 .collect(Collectors.toMap(Workspace::getId, w -> w));
 
@@ -60,7 +61,8 @@ public class MyWorkspaceServiceImpl implements MyWorkspaceService {
         Map<UUID, Long> memberCountMap = workspaceUserPage.getList().stream()
                 .collect(Collectors.toMap(
                         WorkspaceUser::getWorkspaceId,
-                        wu -> workspaceUserMapper.selectCount(WorkspaceUser::getWorkspaceId, wu.getWorkspaceId()),
+                        wu -> workspaceUserMapper.selectCount(
+                                new LambdaQueryWrapper<WorkspaceUser>().eq(WorkspaceUser::getWorkspaceId, wu.getWorkspaceId())),
                         (v1, v2) -> v1
                 ));
 

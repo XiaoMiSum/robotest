@@ -120,7 +120,8 @@ public class RoleServiceImpl implements RoleService {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.SYSTEM_ROLE_NOT_DELETABLE);
         }
         // 妫€鏌ユ槸鍚︽湁鐢ㄦ埛寮曠敤
-        Long userCount = userRoleMapper.selectCount(SysUserRole::getRoleId, id);
+        Long userCount = userRoleMapper.selectCount(
+                new LambdaQueryWrapper<SysUserRole>().eq(SysUserRole::getRoleId, id));
         if (userCount > 0) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.ROLE_IN_USE);
         }
@@ -246,13 +247,15 @@ public class RoleServiceImpl implements RoleService {
 
     @Override
     public List<String> getUserPermissionCodes(UUID userId) {
-        List<SysUserRole> userRoles = userRoleMapper.selectList(SysUserRole::getUserId, userId);
+        List<SysUserRole> userRoles = userRoleMapper.selectList(
+                new LambdaQueryWrapper<SysUserRole>().eq(SysUserRole::getUserId, userId));
         if (userRoles.isEmpty()) {
             return new ArrayList<>();
         }
 
         List<UUID> roleIds = userRoles.stream().map(SysUserRole::getRoleId).collect(Collectors.toList());
-        List<SysRole> roles = roleMapper.selectList(SysRole::getId, roleIds);
+        List<SysRole> roles = roleMapper.selectList(
+                new LambdaQueryWrapper<SysRole>().in(SysRole::getId, roleIds));
 
         return roles.stream()
                 .flatMap(role -> {

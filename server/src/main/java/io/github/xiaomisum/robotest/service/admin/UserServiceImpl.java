@@ -194,19 +194,23 @@ public class UserServiceImpl implements UserService {
     private UserRespDTO convertToUserRespDTO(SysUser user) {
         UserRespDTO dto = UserConvertMapper.INSTANCE.toRespDTO(user);
 
-        List<SysUserRole> userRoles = userRoleMapper.selectList(SysUserRole::getUserId, user.getId());
+        List<SysUserRole> userRoles = userRoleMapper.selectList(
+                new LambdaQueryWrapper<SysUserRole>().eq(SysUserRole::getUserId, user.getId()));
         if (!userRoles.isEmpty()) {
             List<UUID> roleIds = userRoles.stream().map(SysUserRole::getRoleId).collect(Collectors.toList());
-            List<SysRole> roles = roleMapper.selectList(SysRole::getId, roleIds);
+            List<SysRole> roles = roleMapper.selectList(
+                    new LambdaQueryWrapper<SysRole>().in(SysRole::getId, roleIds));
             dto.setRoles(roles.stream().map(UserConvertMapper.INSTANCE::toRoleSimple).collect(Collectors.toList()));
         } else {
             dto.setRoles(new ArrayList<>());
         }
 
-        List<WorkspaceUser> workspaceUsers = workspaceUserMapper.selectList(WorkspaceUser::getUserId, user.getId());
+        List<WorkspaceUser> workspaceUsers = workspaceUserMapper.selectList(
+                new LambdaQueryWrapper<WorkspaceUser>().eq(WorkspaceUser::getUserId, user.getId()));
         if (!workspaceUsers.isEmpty()) {
             List<UUID> wsIds = workspaceUsers.stream().map(WorkspaceUser::getWorkspaceId).collect(Collectors.toList());
-            List<Workspace> workspaces = workspaceMapper.selectList(Workspace::getId, wsIds);
+            List<Workspace> workspaces = workspaceMapper.selectList(
+                    new LambdaQueryWrapper<Workspace>().in(Workspace::getId, wsIds));
             dto.setWorkspaces(workspaces.stream().map(ws -> {
                 WorkspaceUser matchedWs = workspaceUsers.stream()
                         .filter(wu -> wu.getWorkspaceId().equals(ws.getId()))
