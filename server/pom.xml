@@ -56,6 +56,13 @@
         </dependency>
 
         <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+
+        <dependency>
             <groupId>xyz.migoo.springboot</groupId>
             <artifactId>migoo-spring-boot-starter-redis</artifactId>
         </dependency>
