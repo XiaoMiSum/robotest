@@ -42,7 +42,7 @@ public class UserDetailsBridgeImpl implements UserDetailsBridge {
 
     @Override
     public AuthUserDetails<?, ?> loadByUserId(String userId) {
-        SysUser user = userMapper.selectById(userId);
+        SysUser user = userMapper.selectById(UUID.fromString(userId));
         return user != null ? toLoginUser(user) : null;
     }
 
@@ -59,12 +59,14 @@ public class UserDetailsBridgeImpl implements UserDetailsBridge {
     }
 
     private List<? extends GrantedAuthority> loadAuthorities(UUID userId) {
-        List<SysUserRole> userRoles = userRoleMapper.selectList(SysUserRole::getUserId, userId);
+        List<SysUserRole> userRoles = userRoleMapper.selectList(
+                new LambdaQueryWrapper<SysUserRole>().eq(SysUserRole::getUserId, userId));
         if (userRoles.isEmpty()) {
             return List.of();
         }
         List<UUID> roleIds = userRoles.stream().map(SysUserRole::getRoleId).toList();
-        List<SysRole> roles = roleMapper.selectList(SysRole::getId, roleIds);
+        List<SysRole> roles = roleMapper.selectList(
+                new LambdaQueryWrapper<SysRole>().in(SysRole::getId, roleIds));
         return roles.stream()
                 .flatMap(role -> Stream.concat(
                         Stream.of(new SimpleGrantedAuthority(Constants.Auth.ROLE_PREFIX + role.getName())),

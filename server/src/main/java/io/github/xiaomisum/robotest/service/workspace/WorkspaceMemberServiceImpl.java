@@ -53,7 +53,8 @@ public class WorkspaceMemberServiceImpl implements WorkspaceMemberService {
         List<UUID> userIds = page.getList().stream()
                 .map(WorkspaceUser::getUserId)
                 .collect(Collectors.toList());
-        List<SysUser> users = userMapper.selectList(SysUser::getId, userIds);
+        List<SysUser> users = userMapper.selectList(
+                new LambdaQueryWrapper<SysUser>().in(SysUser::getId, userIds));
 
         List<WorkspaceMemberRespDTO> records = page.getList().stream().map(wu -> {
             WorkspaceMemberRespDTO dto = new WorkspaceMemberRespDTO();
