@@ -11,6 +11,7 @@ import io.github.xiaomisum.robotest.model.dto.response.RoleUserRespDTO;
 import io.github.xiaomisum.robotest.service.admin.RoleService;
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import xyz.migoo.framework.common.pojo.PageResult;
 import xyz.migoo.framework.common.pojo.Result;
@@ -27,33 +28,39 @@ public class AdminRoleController {
     private RoleService roleService;
 
     @GetMapping("/tree")
+    @PreAuthorize("hasAuthority('role:view')")
     public Result<List<RoleTreeRespDTO>> getRoleTree() {
         return Result.ok(roleService.getRoleTree());
     }
 
     @PostMapping
+    @PreAuthorize("hasAuthority('role:create')")
     public Result<String> createRole(@RequestBody @Valid RoleCreateReqDTO reqDTO) {
         return Result.ok(roleService.createRole(reqDTO));
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('role:edit')")
     public Result<RoleRespDTO> updateRole(@PathVariable UUID id,
                                           @RequestBody @Valid RoleUpdateReqDTO reqDTO) {
         return Result.ok(roleService.updateRole(id, reqDTO));
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('role:delete')")
     public Result<Void> deleteRole(@PathVariable UUID id) {
         roleService.deleteRole(id);
         return Result.ok();
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasAuthority('role:view')")
     public Result<RoleRespDTO> getRoleDetail(@PathVariable UUID id) {
         return Result.ok(roleService.getRoleDetail(id));
     }
 
     @GetMapping("/{id}/users")
+    @PreAuthorize("hasAuthority('role:view')")
     public Result<PageResult<RoleUserRespDTO>> getRoleUsers(
             @PathVariable UUID id,
             @RequestParam(defaultValue = "1") Integer pageNo,
@@ -62,6 +69,7 @@ public class AdminRoleController {
     }
 
     @PostMapping("/{id}/users")
+    @PreAuthorize("hasAuthority('role:edit')")
     public Result<Void> addRoleUsers(@PathVariable UUID id,
                                       @RequestBody @Valid RoleUsersAddReqDTO reqDTO) {
         roleService.addRoleUsers(id, reqDTO.getUserIds());
@@ -69,6 +77,7 @@ public class AdminRoleController {
     }
 
     @DeleteMapping("/{id}/users/{userId}")
+    @PreAuthorize("hasAuthority('role:edit')")
     public Result<Void> removeRoleUser(@PathVariable UUID id,
                                         @PathVariable UUID userId) {
         roleService.removeRoleUser(id, userId);
@@ -76,12 +85,14 @@ public class AdminRoleController {
     }
 
     @PutMapping("/{id}/permissions")
+    @PreAuthorize("hasAuthority('role:edit')")
     public Result<RoleRespDTO> updateRolePermissions(@PathVariable UUID id,
                                                      @RequestBody @Valid RolePermissionsUpdateReqDTO reqDTO) {
         return Result.ok(roleService.updateRolePermissions(id, reqDTO));
     }
 
     @GetMapping("/permissions/table")
+    @PreAuthorize("hasAuthority('role:view')")
     public Result<List<PermissionTableRespDTO>> getPermissionTable() {
         return Result.ok(roleService.getPermissionTable());
     }

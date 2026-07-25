@@ -2,7 +2,6 @@ package io.github.xiaomisum.robotest.framework.interceptor;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import io.github.xiaomisum.robotest.framework.common.Constants;
-import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.framework.security.LoginUser;
 import io.github.xiaomisum.robotest.model.entity.SysRole;
 import io.github.xiaomisum.robotest.model.entity.WorkspaceUser;
@@ -16,10 +15,9 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.ArrayList;
@@ -49,7 +47,7 @@ class WorkspaceRoleInterceptorTest {
     @BeforeEach
     void setUp() {
         userId = UUID.fromString("00000000-0000-0000-0000-000000000001");
-        workspaceId = "ws-001";
+        workspaceId = "00000000-0000-0000-0000-000000000099";
 
         loginUser = new LoginUser();
         loginUser.setId(userId);
@@ -67,7 +65,7 @@ class WorkspaceRoleInterceptorTest {
 
     @Test
     void preHandle_noLoginUser_returnsTrue() {
-        // given �?override the SecurityContext set in setUp
+        // given
         SecurityContext securityContext = mock(SecurityContext.class);
         lenient().when(securityContext.getAuthentication()).thenReturn(null);
         SecurityContextHolder.setContext(securityContext);
@@ -137,9 +135,9 @@ class WorkspaceRoleInterceptorTest {
         request.addHeader("X-Active-Workspace", workspaceId);
 
         WorkspaceUser workspaceUser = new WorkspaceUser();
-        workspaceUser.setWorkspaceRole(ErrorCodeConstants.WORKSPACE_ROLE_ADMIN_ID);
+        workspaceUser.setWorkspaceRole(Constants.WorkspaceRole.ADMIN_ID);
         when(workspaceUserMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(workspaceUser);
-        when(roleMapper.selectById(ErrorCodeConstants.WORKSPACE_ROLE_ADMIN_ID)).thenReturn(null);
+        when(roleMapper.selectById(Constants.WorkspaceRole.ADMIN_ID)).thenReturn(null);
 
         // when
         boolean result = interceptor.preHandle(request, new MockHttpServletResponse(), new Object());
@@ -156,14 +154,14 @@ class WorkspaceRoleInterceptorTest {
         request.addHeader("X-Active-Workspace", workspaceId);
 
         WorkspaceUser workspaceUser = new WorkspaceUser();
-        workspaceUser.setWorkspaceRole(ErrorCodeConstants.WORKSPACE_ROLE_ADMIN_ID);
+        workspaceUser.setWorkspaceRole(Constants.WorkspaceRole.ADMIN_ID);
         when(workspaceUserMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(workspaceUser);
 
         SysRole adminRole = new SysRole();
         adminRole.setId(Constants.WorkspaceRole.ADMIN_ID);
         adminRole.setName("workspace_admin");
         adminRole.setPermissions(List.of("project:create", "project:edit"));
-        when(roleMapper.selectById(ErrorCodeConstants.WORKSPACE_ROLE_ADMIN_ID)).thenReturn(adminRole);
+        when(roleMapper.selectById(Constants.WorkspaceRole.ADMIN_ID)).thenReturn(adminRole);
 
         // when
         boolean result = interceptor.preHandle(request, new MockHttpServletResponse(), new Object());
@@ -185,14 +183,14 @@ class WorkspaceRoleInterceptorTest {
         request.addHeader("X-Active-Workspace", workspaceId);
 
         WorkspaceUser workspaceUser = new WorkspaceUser();
-        workspaceUser.setWorkspaceRole(ErrorCodeConstants.WORKSPACE_ROLE_MEMBER_ID);
+        workspaceUser.setWorkspaceRole(Constants.WorkspaceRole.MEMBER_ID);
         when(workspaceUserMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(workspaceUser);
 
         SysRole memberRole = new SysRole();
         memberRole.setId(Constants.WorkspaceRole.MEMBER_ID);
         memberRole.setName("workspace_member");
         memberRole.setPermissions(List.of());
-        when(roleMapper.selectById(ErrorCodeConstants.WORKSPACE_ROLE_MEMBER_ID)).thenReturn(memberRole);
+        when(roleMapper.selectById(Constants.WorkspaceRole.MEMBER_ID)).thenReturn(memberRole);
 
         // when
         boolean result = interceptor.preHandle(request, new MockHttpServletResponse(), new Object());
@@ -210,14 +208,14 @@ class WorkspaceRoleInterceptorTest {
         request.addHeader("X-Active-Workspace", workspaceId);
 
         WorkspaceUser workspaceUser = new WorkspaceUser();
-        workspaceUser.setWorkspaceRole(ErrorCodeConstants.WORKSPACE_ROLE_ADMIN_ID);
+        workspaceUser.setWorkspaceRole(Constants.WorkspaceRole.ADMIN_ID);
         when(workspaceUserMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(workspaceUser);
 
         SysRole adminRole = new SysRole();
         adminRole.setId(Constants.WorkspaceRole.ADMIN_ID);
         adminRole.setName("workspace_admin");
         adminRole.setPermissions(null);
-        when(roleMapper.selectById(ErrorCodeConstants.WORKSPACE_ROLE_ADMIN_ID)).thenReturn(adminRole);
+        when(roleMapper.selectById(Constants.WorkspaceRole.ADMIN_ID)).thenReturn(adminRole);
 
         // when
         boolean result = interceptor.preHandle(request, new MockHttpServletResponse(), new Object());

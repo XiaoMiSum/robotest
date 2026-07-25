@@ -9,6 +9,7 @@ import io.github.xiaomisum.robotest.model.dto.response.WorkspaceRespDTO;
 import io.github.xiaomisum.robotest.service.workspace.WorkspaceService;
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import xyz.migoo.framework.common.pojo.PageResult;
 import xyz.migoo.framework.common.pojo.Result;
@@ -24,6 +25,7 @@ public class AdminWorkspaceController {
     private WorkspaceService workspaceService;
 
     @GetMapping
+    @PreAuthorize("hasAuthority('workspace:view')")
     public Result<PageResult<WorkspaceRespDTO>> getWorkspacePage(
             @RequestParam(required = false) String keyword,
             @RequestParam(defaultValue = "1") Integer pageNo,
@@ -32,28 +34,33 @@ public class AdminWorkspaceController {
     }
 
     @PostMapping
+    @PreAuthorize("hasAuthority('workspace:create')")
     public Result<String> createWorkspace(@RequestBody @Valid WorkspaceCreateReqDTO reqDTO) {
         return Result.ok(workspaceService.createWorkspace(reqDTO));
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasAuthority('workspace:view')")
     public Result<WorkspaceRespDTO> getWorkspaceDetail(@PathVariable UUID id) {
         return Result.ok(workspaceService.getWorkspaceDetail(id));
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('workspace:edit')")
     public Result<WorkspaceRespDTO> updateWorkspace(@PathVariable UUID id,
                                                     @RequestBody @Valid WorkspaceUpdateReqDTO reqDTO) {
         return Result.ok(workspaceService.updateWorkspace(id, reqDTO));
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('workspace:delete')")
     public Result<Void> dissolveWorkspace(@PathVariable UUID id) {
         workspaceService.dissolveWorkspace(id);
         return Result.ok();
     }
 
     @GetMapping("/{id}/members")
+    @PreAuthorize("hasAuthority('workspace:view')")
     public Result<PageResult<WorkspaceMemberRespDTO>> getWorkspaceMembers(
             @PathVariable UUID id,
             @RequestParam(defaultValue = "1") Integer pageNo,
@@ -62,12 +69,14 @@ public class AdminWorkspaceController {
     }
 
     @PostMapping("/{id}/members")
+    @PreAuthorize("hasAuthority('workspace:manage-members')")
     public Result<List<String>> addWorkspaceMembers(@PathVariable UUID id,
                                                     @RequestBody @Valid WorkspaceMembersAddReqDTO reqDTO) {
         return Result.ok(workspaceService.addWorkspaceMembers(id, reqDTO.getMembers()));
     }
 
     @PutMapping("/{id}/members/{userId}")
+    @PreAuthorize("hasAuthority('workspace:manage-members')")
     public Result<Void> updateWorkspaceMemberRole(@PathVariable UUID id,
                                                    @PathVariable UUID userId,
                                                    @RequestBody @Valid WorkspaceMemberRoleUpdateReqDTO reqDTO) {
@@ -76,6 +85,7 @@ public class AdminWorkspaceController {
     }
 
     @DeleteMapping("/{id}/members/{userId}")
+    @PreAuthorize("hasAuthority('workspace:manage-members')")
     public Result<Void> removeWorkspaceMember(@PathVariable UUID id,
                                               @PathVariable UUID userId) {
         workspaceService.removeWorkspaceMember(id, userId);
