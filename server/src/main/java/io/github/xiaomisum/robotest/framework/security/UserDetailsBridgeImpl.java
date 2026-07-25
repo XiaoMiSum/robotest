@@ -1,6 +1,5 @@
 package io.github.xiaomisum.robotest.framework.security;
 
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.model.entity.SysRole;
 import io.github.xiaomisum.robotest.model.entity.SysUser;
@@ -33,7 +32,7 @@ public class UserDetailsBridgeImpl implements UserDetailsBridge {
     @Override
     public AuthUserDetails<?, ?> loadByUsername(String username) {
         SysUser user = userMapper.selectOne(
-                new LambdaQueryWrapper<SysUser>()
+                new LambdaQueryWrapperX<SysUser>()
                         .eq(SysUser::getUsername, username)
                         .or()
                         .eq(SysUser::getEmail, username)

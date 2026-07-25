@@ -1,6 +1,5 @@
 package io.github.xiaomisum.robotest.service.admin;
 
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.model.dto.response.WorkspaceMyRespDTO;
 import io.github.xiaomisum.robotest.model.entity.SysUser;
@@ -9,12 +8,12 @@ import io.github.xiaomisum.robotest.model.entity.WorkspaceUser;
 import io.github.xiaomisum.robotest.repository.SysUserMapper;
 import io.github.xiaomisum.robotest.repository.WorkspaceMapper;
 import io.github.xiaomisum.robotest.repository.WorkspaceUserMapper;
-import io.github.xiaomisum.robotest.service.admin.MyWorkspaceService;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
+import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
 import xyz.migoo.framework.common.pojo.PageParam;
 import xyz.migoo.framework.common.pojo.PageResult;
-import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
+import xyz.migoo.framework.mybatis.core.LambdaQueryWrapperX;
 
 import java.util.List;
 import java.util.Map;
@@ -34,7 +33,7 @@ public class MyWorkspaceServiceImpl implements MyWorkspaceService {
     @Override
     public PageResult<WorkspaceMyRespDTO> getMyWorkspacePage(UUID userId, Integer pageNo, Integer pageSize) {
         // 鏌ヨ鐢ㄦ埛鍏宠仈鐨勫伐浣滅┖闂?
-        LambdaQueryWrapper<WorkspaceUser> wrapper = new LambdaQueryWrapper<WorkspaceUser>()
+        LambdaQueryWrapperX<WorkspaceUser> wrapper = new LambdaQueryWrapperX<WorkspaceUser>()
                 .eq(WorkspaceUser::getUserId, userId)
                 .orderByDesc(WorkspaceUser::getJoinedAt);
 
@@ -53,7 +52,7 @@ public class MyWorkspaceServiceImpl implements MyWorkspaceService {
                 .map(WorkspaceUser::getWorkspaceId)
                 .collect(Collectors.toList());
         Map<UUID, Workspace> workspaceMap = workspaceMapper.selectList(
-                new LambdaQueryWrapper<Workspace>().in(Workspace::getId, workspaceIds))
+                        new LambdaQueryWrapperX<Workspace>().in(Workspace::getId, workspaceIds))
                 .stream()
                 .collect(Collectors.toMap(Workspace::getId, w -> w));
 
@@ -62,7 +61,7 @@ public class MyWorkspaceServiceImpl implements MyWorkspaceService {
                 .collect(Collectors.toMap(
                         WorkspaceUser::getWorkspaceId,
                         wu -> workspaceUserMapper.selectCount(
-                                new LambdaQueryWrapper<WorkspaceUser>().eq(WorkspaceUser::getWorkspaceId, wu.getWorkspaceId())),
+                                new LambdaQueryWrapperX<WorkspaceUser>().eq(WorkspaceUser::getWorkspaceId, wu.getWorkspaceId())),
                         (v1, v2) -> v1
                 ));
 
@@ -107,7 +106,7 @@ public class MyWorkspaceServiceImpl implements MyWorkspaceService {
 
         // 鏍￠獙鐢ㄦ埛灞炰簬璇ュ伐浣滅┖闂?
         WorkspaceUser workspaceUser = workspaceUserMapper.selectOne(
-                new LambdaQueryWrapper<WorkspaceUser>()
+                new LambdaQueryWrapperX<WorkspaceUser>()
                         .eq(WorkspaceUser::getUserId, userId)
                         .eq(WorkspaceUser::getWorkspaceId, workspaceId));
         if (workspaceUser == null) {

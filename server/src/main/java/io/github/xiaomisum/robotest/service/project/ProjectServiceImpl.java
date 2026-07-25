@@ -1,7 +1,5 @@
 package io.github.xiaomisum.robotest.service.project;
 
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.framework.convert.ProjectConvertMapper;
@@ -17,16 +15,16 @@ import io.github.xiaomisum.robotest.repository.ProjectMapper;
 import io.github.xiaomisum.robotest.repository.SysUserMapper;
 import io.github.xiaomisum.robotest.repository.TestPlanMapper;
 import io.github.xiaomisum.robotest.repository.WorkspaceUserMapper;
-import io.github.xiaomisum.robotest.service.project.ProjectService;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
+import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
 import xyz.migoo.framework.common.pojo.PageParam;
 import xyz.migoo.framework.common.pojo.PageResult;
-import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
+import xyz.migoo.framework.mybatis.core.LambdaQueryWrapperX;
+import xyz.migoo.framework.mybatis.core.LambdaUpdateWrapperX;
 
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -45,9 +43,9 @@ public class ProjectServiceImpl implements ProjectService {
 
     @Override
     public PageResult<ProjectRespDTO> getProjectPage(String workspaceId, UUID userId, String keyword,
-                                                       String status, Integer pageNo, Integer pageSize) {
+                                                     String status, Integer pageNo, Integer pageSize) {
         UUID wsId = UUID.fromString(workspaceId);
-        LambdaQueryWrapper<Project> wrapper = new LambdaQueryWrapper<Project>()
+        LambdaQueryWrapperX<Project> wrapper = new LambdaQueryWrapperX<Project>()
                 .eq(Project::getWorkspaceId, wsId);
 
         if (StringUtils.hasText(keyword)) {
@@ -65,7 +63,7 @@ public class ProjectServiceImpl implements ProjectService {
                 }}, wrapper);
 
         WorkspaceUser currentUser = workspaceUserMapper.selectOne(
-                new LambdaQueryWrapper<WorkspaceUser>()
+                new LambdaQueryWrapperX<WorkspaceUser>()
                         .eq(WorkspaceUser::getUserId, userId)
                         .eq(WorkspaceUser::getWorkspaceId, wsId));
 
@@ -105,7 +103,7 @@ public class ProjectServiceImpl implements ProjectService {
     public ProjectRespDTO createProject(UUID userId, String workspaceId, ProjectCreateReqDTO reqDTO) {
         UUID wsId = UUID.fromString(workspaceId);
         WorkspaceUser workspaceUser = workspaceUserMapper.selectOne(
-                new LambdaQueryWrapper<WorkspaceUser>()
+                new LambdaQueryWrapperX<WorkspaceUser>()
                         .eq(WorkspaceUser::getUserId, userId)
                         .eq(WorkspaceUser::getWorkspaceId, wsId));
         if (workspaceUser == null) {
@@ -113,7 +111,7 @@ public class ProjectServiceImpl implements ProjectService {
         }
 
         Project existing = projectMapper.selectOne(
-                new LambdaQueryWrapper<Project>()
+                new LambdaQueryWrapperX<Project>()
                         .eq(Project::getWorkspaceId, wsId)
                         .eq(Project::getName, reqDTO.getName()));
         if (existing != null) {
@@ -146,7 +144,7 @@ public class ProjectServiceImpl implements ProjectService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public ProjectRespDTO updateProject(UUID userId, String workspaceId, UUID projectId,
-                                          ProjectUpdateReqDTO reqDTO) {
+                                        ProjectUpdateReqDTO reqDTO) {
         UUID wsId = UUID.fromString(workspaceId);
         Project project = projectMapper.selectById(projectId);
         if (project == null || !project.getWorkspaceId().equals(wsId)) {
@@ -158,7 +156,7 @@ public class ProjectServiceImpl implements ProjectService {
         }
 
         WorkspaceUser workspaceUser = workspaceUserMapper.selectOne(
-                new LambdaQueryWrapper<WorkspaceUser>()
+                new LambdaQueryWrapperX<WorkspaceUser>()
                         .eq(WorkspaceUser::getUserId, userId)
                         .eq(WorkspaceUser::getWorkspaceId, wsId));
         if (workspaceUser == null) {
@@ -173,7 +171,7 @@ public class ProjectServiceImpl implements ProjectService {
 
         if (StringUtils.hasText(reqDTO.getName())) {
             Project existing = projectMapper.selectOne(
-                    new LambdaQueryWrapper<Project>()
+                    new LambdaQueryWrapperX<Project>()
                             .eq(Project::getWorkspaceId, wsId)
                             .eq(Project::getName, reqDTO.getName())
                             .ne(Project::getId, projectId));
@@ -204,7 +202,7 @@ public class ProjectServiceImpl implements ProjectService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void archiveProject(UUID userId, String workspaceId, UUID projectId,
-                                ProjectArchiveReqDTO reqDTO) {
+                               ProjectArchiveReqDTO reqDTO) {
         UUID wsId = UUID.fromString(workspaceId);
         Project project = projectMapper.selectById(projectId);
         if (project == null || !project.getWorkspaceId().equals(wsId)) {
@@ -212,7 +210,7 @@ public class ProjectServiceImpl implements ProjectService {
         }
 
         WorkspaceUser workspaceUser = workspaceUserMapper.selectOne(
-                new LambdaQueryWrapper<WorkspaceUser>()
+                new LambdaQueryWrapperX<WorkspaceUser>()
                         .eq(WorkspaceUser::getUserId, userId)
                         .eq(WorkspaceUser::getWorkspaceId, wsId));
         if (workspaceUser == null || !Constants.WorkspaceRole.ADMIN_ID.equals(workspaceUser.getWorkspaceRole())) {
@@ -222,7 +220,7 @@ public class ProjectServiceImpl implements ProjectService {
         if (reqDTO.getArchived()) {
             // 归档前校验无进行中的测试计划
             Long activePlanCount = testPlanMapper.selectCount(
-                    new LambdaQueryWrapper<TestPlan>()
+                    new LambdaQueryWrapperX<TestPlan>()
                             .eq(TestPlan::getProjectId, projectId)
                             .in(TestPlan::getStatus, Constants.Status.NEW, Constants.Status.IN_PROGRESS));
             if (activePlanCount > 0) {
@@ -236,7 +234,7 @@ public class ProjectServiceImpl implements ProjectService {
 
         if (reqDTO.getArchived()) {
             workspaceUserMapper.update(null,
-                    new LambdaUpdateWrapper<WorkspaceUser>()
+                    new LambdaUpdateWrapperX<WorkspaceUser>()
                             .eq(WorkspaceUser::getWorkspaceId, wsId)
                             .eq(WorkspaceUser::getDefaultProjectId, projectId)
                             .set(WorkspaceUser::getDefaultProjectId, null));
@@ -253,7 +251,7 @@ public class ProjectServiceImpl implements ProjectService {
         }
 
         WorkspaceUser workspaceUser = workspaceUserMapper.selectOne(
-                new LambdaQueryWrapper<WorkspaceUser>()
+                new LambdaQueryWrapperX<WorkspaceUser>()
                         .eq(WorkspaceUser::getUserId, userId)
                         .eq(WorkspaceUser::getWorkspaceId, wsId));
         if (workspaceUser == null || !Constants.WorkspaceRole.ADMIN_ID.equals(workspaceUser.getWorkspaceRole())) {
@@ -263,7 +261,7 @@ public class ProjectServiceImpl implements ProjectService {
         projectMapper.deleteById(projectId);
 
         workspaceUserMapper.update(null,
-                new LambdaUpdateWrapper<WorkspaceUser>()
+                new LambdaUpdateWrapperX<WorkspaceUser>()
                         .eq(WorkspaceUser::getWorkspaceId, wsId)
                         .eq(WorkspaceUser::getDefaultProjectId, projectId)
                         .set(WorkspaceUser::getDefaultProjectId, null));

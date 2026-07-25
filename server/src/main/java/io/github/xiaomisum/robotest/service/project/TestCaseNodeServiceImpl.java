@@ -1,6 +1,6 @@
 package io.github.xiaomisum.robotest.service.project;
 
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import xyz.migoo.framework.mybatis.core.LambdaQueryWrapperX;
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.framework.convert.TestCaseNodeConvertMapper;
@@ -46,7 +46,7 @@ public class TestCaseNodeServiceImpl implements TestCaseNodeService {
         }
 
         List<TestCaseNode> nodes = testCaseNodeMapper.selectList(
-                new LambdaQueryWrapper<TestCaseNode>()
+                new LambdaQueryWrapperX<TestCaseNode>()
                         .eq(TestCaseNode::getDocumentId, documentId)
                         .orderByAsc(TestCaseNode::getSortOrder));
 
@@ -57,7 +57,7 @@ public class TestCaseNodeServiceImpl implements TestCaseNodeService {
         TestCaseNodeTreeRespDTO rootNode = buildNodeTree(dtos);
 
         TestCaseDocumentLayout layout = testCaseDocumentLayoutMapper.selectOne(
-                new LambdaQueryWrapper<TestCaseDocumentLayout>()
+                new LambdaQueryWrapperX<TestCaseDocumentLayout>()
                         .eq(TestCaseDocumentLayout::getDocumentId, documentId));
 
         TestCaseDocumentNodesRespDTO result = new TestCaseDocumentNodesRespDTO();
@@ -81,7 +81,7 @@ public class TestCaseNodeServiceImpl implements TestCaseNodeService {
                                                             String priority, Integer pageNo, Integer pageSize) {
         // 查询项目下所有 document 的 ID
         List<TestCaseModule> documents = testCaseModuleMapper.selectList(
-                new LambdaQueryWrapper<TestCaseModule>()
+                new LambdaQueryWrapperX<TestCaseModule>()
                         .eq(TestCaseModule::getProjectId, projectId)
                         .eq(TestCaseModule::getType, Constants.ModuleType.DOCUMENT));
         List<String> documentIds = documents.stream()
@@ -93,7 +93,7 @@ public class TestCaseNodeServiceImpl implements TestCaseNodeService {
         }
 
         // 查询所有 case 节点，按标题/优先级过滤
-        LambdaQueryWrapper<TestCaseNode> wrapper = new LambdaQueryWrapper<TestCaseNode>()
+        LambdaQueryWrapperX<TestCaseNode> wrapper = new LambdaQueryWrapperX<TestCaseNode>()
                 .in(TestCaseNode::getDocumentId, documentIds)
                 .eq(TestCaseNode::getType, Constants.NodeType.CASE);
         if (StringUtils.hasText(keyword)) {
@@ -118,7 +118,7 @@ public class TestCaseNodeServiceImpl implements TestCaseNodeService {
             dto.setType(node.getType());
             dto.setPriority(node.getPriority());
             dto.setDocumentId(node.getDocumentId());
-            dto.setDocumentName(docNameMap.get(node.getDocumentId()));
+            dto.setDocumentName(docNameMap.get(node.getDocumentId().toString()));
             dto.setSortOrder(node.getSortOrder());
             dto.setVersion(node.getVersion());
             dto.setCreatedAt(node.getCreatedAt());

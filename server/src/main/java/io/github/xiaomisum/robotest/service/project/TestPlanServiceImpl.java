@@ -1,6 +1,6 @@
 package io.github.xiaomisum.robotest.service.project;
 
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import xyz.migoo.framework.mybatis.core.LambdaQueryWrapperX;
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.framework.convert.TestPlanConvertMapper;
@@ -47,7 +47,7 @@ public class TestPlanServiceImpl implements TestPlanService {
     @Override
     public PageResult<TestPlanListRespDTO> getPlanPage(String projectId, String status,
                                                   Integer pageNo, Integer pageSize) {
-        LambdaQueryWrapper<TestPlan> wrapper = new LambdaQueryWrapper<TestPlan>()
+        LambdaQueryWrapperX<TestPlan> wrapper = new LambdaQueryWrapperX<TestPlan>()
                 .eq(TestPlan::getProjectId, UUID.fromString(projectId));
         if (StringUtils.hasText(status)) {
             wrapper.eq(TestPlan::getStatus, status);
@@ -118,7 +118,7 @@ public class TestPlanServiceImpl implements TestPlanService {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_PLAN_NOT_FOUND);
         }
 
-        LambdaQueryWrapper<TestPlanNodeSnapshot> wrapper = new LambdaQueryWrapper<TestPlanNodeSnapshot>()
+        LambdaQueryWrapperX<TestPlanNodeSnapshot> wrapper = new LambdaQueryWrapperX<TestPlanNodeSnapshot>()
                 .eq(TestPlanNodeSnapshot::getPlanId, planId);
         if (documentId != null) {
             wrapper.eq(TestPlanNodeSnapshot::getDocumentSnapshotId, documentId);
@@ -174,7 +174,7 @@ public class TestPlanServiceImpl implements TestPlanService {
     @Override
     public List<TestPlanExecutionRecordRespDTO> getNodeExecutionRecords(UUID planId, UUID nodeId) {
         List<TestPlanExecutionRecord> records = planExecutionRecordMapper.selectList(
-                new LambdaQueryWrapper<TestPlanExecutionRecord>()
+                new LambdaQueryWrapperX<TestPlanExecutionRecord>()
                         .eq(TestPlanExecutionRecord::getPlanId, planId)
                         .eq(TestPlanExecutionRecord::getSnapshotNodeId, nodeId)
                         .orderByAsc(TestPlanExecutionRecord::getExecutedAt));
@@ -212,12 +212,12 @@ public class TestPlanServiceImpl implements TestPlanService {
         }
 
         List<TestPlanNodeSnapshot> snapshotNodes = planNodeSnapshotMapper.selectList(
-                new LambdaQueryWrapper<TestPlanNodeSnapshot>()
+                new LambdaQueryWrapperX<TestPlanNodeSnapshot>()
                         .eq(TestPlanNodeSnapshot::getPlanId, planId));
 
         // 1. 同步模块快照：名称、排序与原始模块保持一致；已删除的模块移除快照
         List<TestPlanModuleSnapshot> snapshotModules = planModuleSnapshotMapper.selectList(
-                new LambdaQueryWrapper<TestPlanModuleSnapshot>()
+                new LambdaQueryWrapperX<TestPlanModuleSnapshot>()
                         .eq(TestPlanModuleSnapshot::getPlanId, planId));
 
         Set<UUID> validModuleSnapshotIds = new HashSet<>();
@@ -293,7 +293,7 @@ public class TestPlanServiceImpl implements TestPlanService {
         }
 
         List<TestPlanNodeSnapshot> snapshots = planNodeSnapshotMapper.selectList(
-                new LambdaQueryWrapper<TestPlanNodeSnapshot>()
+                new LambdaQueryWrapperX<TestPlanNodeSnapshot>()
                         .eq(TestPlanNodeSnapshot::getPlanId, planId)
                         .eq(TestPlanNodeSnapshot::getIsAssociated, true)
                         .eq(TestPlanNodeSnapshot::getType, Constants.NodeType.CASE));
@@ -340,7 +340,7 @@ public class TestPlanServiceImpl implements TestPlanService {
         }
 
         Long untestedCount = planNodeSnapshotMapper.selectCount(
-                new LambdaQueryWrapper<TestPlanNodeSnapshot>()
+                new LambdaQueryWrapperX<TestPlanNodeSnapshot>()
                         .eq(TestPlanNodeSnapshot::getPlanId, planId)
                         .eq(TestPlanNodeSnapshot::getIsAssociated, true)
                         .eq(TestPlanNodeSnapshot::getLastResult, Constants.Status.UNTESTED));
@@ -385,7 +385,7 @@ public class TestPlanServiceImpl implements TestPlanService {
             }
 
             List<TestCaseNode> docNodes = testCaseNodeMapper.selectList(
-                    new LambdaQueryWrapper<TestCaseNode>()
+                    new LambdaQueryWrapperX<TestCaseNode>()
                             .eq(TestCaseNode::getDocumentId, documentId));
 
             UUID snapshotDocId = findSnapshotModuleId(documentId, planId);
@@ -427,7 +427,7 @@ public class TestPlanServiceImpl implements TestPlanService {
             return null;
         }
         TestPlanModuleSnapshot snapshot = planModuleSnapshotMapper.selectOne(
-                new LambdaQueryWrapper<TestPlanModuleSnapshot>()
+                new LambdaQueryWrapperX<TestPlanModuleSnapshot>()
                         .eq(TestPlanModuleSnapshot::getPlanId, planId)
                         .eq(TestPlanModuleSnapshot::getOriginalModuleId, originalParentId));
         return snapshot != null ? snapshot.getId() : null;
@@ -435,7 +435,7 @@ public class TestPlanServiceImpl implements TestPlanService {
 
     private UUID findSnapshotModuleId(UUID originalModuleId, UUID planId) {
         TestPlanModuleSnapshot snapshot = planModuleSnapshotMapper.selectOne(
-                new LambdaQueryWrapper<TestPlanModuleSnapshot>()
+                new LambdaQueryWrapperX<TestPlanModuleSnapshot>()
                         .eq(TestPlanModuleSnapshot::getPlanId, planId)
                         .eq(TestPlanModuleSnapshot::getOriginalModuleId, originalModuleId));
         return snapshot != null ? snapshot.getId() : null;
@@ -446,7 +446,7 @@ public class TestPlanServiceImpl implements TestPlanService {
             return null;
         }
         TestPlanNodeSnapshot snapshot = planNodeSnapshotMapper.selectOne(
-                new LambdaQueryWrapper<TestPlanNodeSnapshot>()
+                new LambdaQueryWrapperX<TestPlanNodeSnapshot>()
                         .eq(TestPlanNodeSnapshot::getPlanId, planId)
                         .eq(TestPlanNodeSnapshot::getOriginalNodeId, originalParentId));
         return snapshot != null ? snapshot.getId() : null;

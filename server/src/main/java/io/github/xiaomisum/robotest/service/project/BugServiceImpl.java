@@ -1,6 +1,6 @@
 package io.github.xiaomisum.robotest.service.project;
 
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import xyz.migoo.framework.mybatis.core.LambdaQueryWrapperX;
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.model.dto.request.BugCreateReqDTO;
@@ -49,7 +49,7 @@ public class BugServiceImpl implements BugService {
     public PageResult<BugListRespDTO> getBugPage(String projectId, String status, String severity,
                                              String priority, UUID assigneeId, String keyword,
                                              Integer pageNo, Integer pageSize) {
-        LambdaQueryWrapper<Bug> wrapper = new LambdaQueryWrapper<Bug>()
+        LambdaQueryWrapperX<Bug> wrapper = new LambdaQueryWrapperX<Bug>()
                 .eq(Bug::getProjectId, UUID.fromString(projectId));
         if (StringUtils.hasText(status)) {
             wrapper.eq(Bug::getStatus, status);
@@ -145,7 +145,7 @@ public class BugServiceImpl implements BugService {
 
         // 返回最近 10 条操作日志
         List<BugLog> recentLogs = bugLogMapper.selectList(
-                new LambdaQueryWrapper<BugLog>()
+                new LambdaQueryWrapperX<BugLog>()
                         .eq(BugLog::getBugId, bugId)
                         .orderByDesc(BugLog::getCreatedAt)
                         .last("LIMIT 10"));
@@ -174,7 +174,7 @@ public class BugServiceImpl implements BugService {
             Project project = projectMapper.selectById(projectId);
             if (project != null) {
                 WorkspaceUser wu = workspaceUserMapper.selectOne(
-                        new LambdaQueryWrapper<WorkspaceUser>()
+                        new LambdaQueryWrapperX<WorkspaceUser>()
                                 .eq(WorkspaceUser::getUserId, reqDTO.getAssigneeId())
                                 .eq(WorkspaceUser::getWorkspaceId, project.getWorkspaceId()));
                 if (wu == null) {
@@ -297,7 +297,7 @@ public class BugServiceImpl implements BugService {
     @Override
     public BugStatisticsRespDTO getBugStatistics(String projectId) {
         List<Bug> bugs = bugMapper.selectList(
-                new LambdaQueryWrapper<Bug>().eq(Bug::getProjectId, UUID.fromString(projectId)));
+                new LambdaQueryWrapperX<Bug>().eq(Bug::getProjectId, UUID.fromString(projectId)));
 
         BugStatisticsRespDTO stats = new BugStatisticsRespDTO();
         stats.setTotal(bugs.size());
@@ -336,7 +336,7 @@ public class BugServiceImpl implements BugService {
     @Override
     public List<BugLogRespDTO> getBugLogs(UUID bugId) {
         List<BugLog> logs = bugLogMapper.selectList(
-                new LambdaQueryWrapper<BugLog>()
+                new LambdaQueryWrapperX<BugLog>()
                         .eq(BugLog::getBugId, bugId)
                         .orderByAsc(BugLog::getCreatedAt));
 

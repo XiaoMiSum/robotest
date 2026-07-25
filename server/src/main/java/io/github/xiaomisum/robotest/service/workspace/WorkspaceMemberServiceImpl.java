@@ -1,6 +1,6 @@
 package io.github.xiaomisum.robotest.service.workspace;
 
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import xyz.migoo.framework.mybatis.core.LambdaQueryWrapperX;
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.model.dto.request.WorkspaceMembersAddReqDTO;
@@ -36,7 +36,7 @@ public class WorkspaceMemberServiceImpl implements WorkspaceMemberService {
     public PageResult<WorkspaceMemberRespDTO> getMemberPage(String workspaceId, String keyword,
                                                              Integer pageNo, Integer pageSize) {
         UUID wsId = UUID.fromString(workspaceId);
-        LambdaQueryWrapper<WorkspaceUser> wrapper = new LambdaQueryWrapper<WorkspaceUser>()
+        LambdaQueryWrapperX<WorkspaceUser> wrapper = new LambdaQueryWrapperX<WorkspaceUser>()
                 .eq(WorkspaceUser::getWorkspaceId, wsId)
                 .orderByDesc(WorkspaceUser::getJoinedAt);
 
@@ -54,7 +54,7 @@ public class WorkspaceMemberServiceImpl implements WorkspaceMemberService {
                 .map(WorkspaceUser::getUserId)
                 .collect(Collectors.toList());
         List<SysUser> users = userMapper.selectList(
-                new LambdaQueryWrapper<SysUser>().in(SysUser::getId, userIds));
+                new LambdaQueryWrapperX<SysUser>().in(SysUser::getId, userIds));
 
         List<WorkspaceMemberRespDTO> records = page.getList().stream().map(wu -> {
             WorkspaceMemberRespDTO dto = new WorkspaceMemberRespDTO();
@@ -83,7 +83,7 @@ public class WorkspaceMemberServiceImpl implements WorkspaceMemberService {
                                                        WorkspaceMembersAddReqDTO reqDTO) {
         UUID wsId = UUID.fromString(workspaceId);
         WorkspaceUser adminUser = workspaceUserMapper.selectOne(
-                new LambdaQueryWrapper<WorkspaceUser>()
+                new LambdaQueryWrapperX<WorkspaceUser>()
                         .eq(WorkspaceUser::getUserId, userId)
                         .eq(WorkspaceUser::getWorkspaceId, wsId));
         if (adminUser == null || !Constants.WorkspaceRole.ADMIN_ID.equals(adminUser.getWorkspaceRole())) {
@@ -100,7 +100,7 @@ public class WorkspaceMemberServiceImpl implements WorkspaceMemberService {
             }
 
             WorkspaceUser existing = workspaceUserMapper.selectOne(
-                    new LambdaQueryWrapper<WorkspaceUser>()
+                    new LambdaQueryWrapperX<WorkspaceUser>()
                             .eq(WorkspaceUser::getUserId, member.getUserId())
                             .eq(WorkspaceUser::getWorkspaceId, wsId));
             if (existing != null) {
@@ -129,7 +129,7 @@ public class WorkspaceMemberServiceImpl implements WorkspaceMemberService {
     public void updateMemberRole(UUID userId, String workspaceId, UUID targetUserId, UUID workspaceRole) {
         UUID wsId = UUID.fromString(workspaceId);
         WorkspaceUser adminUser = workspaceUserMapper.selectOne(
-                new LambdaQueryWrapper<WorkspaceUser>()
+                new LambdaQueryWrapperX<WorkspaceUser>()
                         .eq(WorkspaceUser::getUserId, userId)
                         .eq(WorkspaceUser::getWorkspaceId, wsId));
         if (adminUser == null || !Constants.WorkspaceRole.ADMIN_ID.equals(adminUser.getWorkspaceRole())) {
@@ -137,7 +137,7 @@ public class WorkspaceMemberServiceImpl implements WorkspaceMemberService {
         }
 
         WorkspaceUser targetMember = workspaceUserMapper.selectOne(
-                new LambdaQueryWrapper<WorkspaceUser>()
+                new LambdaQueryWrapperX<WorkspaceUser>()
                         .eq(WorkspaceUser::getUserId, targetUserId)
                         .eq(WorkspaceUser::getWorkspaceId, wsId));
         if (targetMember == null) {
@@ -147,7 +147,7 @@ public class WorkspaceMemberServiceImpl implements WorkspaceMemberService {
         if (Constants.WorkspaceRole.ADMIN_ID.equals(targetMember.getWorkspaceRole())
                 && !Constants.WorkspaceRole.ADMIN_ID.equals(workspaceRole)) {
             Long adminCount = workspaceUserMapper.selectCount(
-                    new LambdaQueryWrapper<WorkspaceUser>()
+                    new LambdaQueryWrapperX<WorkspaceUser>()
                             .eq(WorkspaceUser::getWorkspaceId, wsId)
                             .eq(WorkspaceUser::getWorkspaceRole, Constants.WorkspaceRole.ADMIN_ID));
             if (adminCount <= 1) {
@@ -164,7 +164,7 @@ public class WorkspaceMemberServiceImpl implements WorkspaceMemberService {
     public void removeMember(UUID userId, String workspaceId, UUID targetUserId) {
         UUID wsId = UUID.fromString(workspaceId);
         WorkspaceUser currentUser = workspaceUserMapper.selectOne(
-                new LambdaQueryWrapper<WorkspaceUser>()
+                new LambdaQueryWrapperX<WorkspaceUser>()
                         .eq(WorkspaceUser::getUserId, userId)
                         .eq(WorkspaceUser::getWorkspaceId, wsId));
         if (currentUser == null) {
@@ -177,7 +177,7 @@ public class WorkspaceMemberServiceImpl implements WorkspaceMemberService {
         }
 
         WorkspaceUser targetMember = workspaceUserMapper.selectOne(
-                new LambdaQueryWrapper<WorkspaceUser>()
+                new LambdaQueryWrapperX<WorkspaceUser>()
                         .eq(WorkspaceUser::getUserId, targetUserId)
                         .eq(WorkspaceUser::getWorkspaceId, wsId));
         if (targetMember == null) {
@@ -186,7 +186,7 @@ public class WorkspaceMemberServiceImpl implements WorkspaceMemberService {
 
         if (Constants.WorkspaceRole.ADMIN_ID.equals(targetMember.getWorkspaceRole())) {
             Long adminCount = workspaceUserMapper.selectCount(
-                    new LambdaQueryWrapper<WorkspaceUser>()
+                    new LambdaQueryWrapperX<WorkspaceUser>()
                             .eq(WorkspaceUser::getWorkspaceId, wsId)
                             .eq(WorkspaceUser::getWorkspaceRole, Constants.WorkspaceRole.ADMIN_ID));
             if (adminCount <= 1) {

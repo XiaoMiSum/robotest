@@ -1,7 +1,5 @@
 package io.github.xiaomisum.robotest.service.admin;
 
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import tools.jackson.core.type.TypeReference;
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.framework.convert.RoleConvertMapper;
@@ -20,13 +18,12 @@ import io.github.xiaomisum.robotest.repository.SysPermissionMapper;
 import io.github.xiaomisum.robotest.repository.SysRoleMapper;
 import io.github.xiaomisum.robotest.repository.SysUserMapper;
 import io.github.xiaomisum.robotest.repository.SysUserRoleMapper;
-import io.github.xiaomisum.robotest.service.admin.RoleService;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import xyz.migoo.framework.common.pojo.PageResult;
-import xyz.migoo.framework.common.util.JsonUtils;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
+import xyz.migoo.framework.common.pojo.PageResult;
+import xyz.migoo.framework.mybatis.core.LambdaQueryWrapperX;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -48,7 +45,7 @@ public class RoleServiceImpl implements RoleService {
 
     @Override
     public List<RoleTreeRespDTO> getRoleTree() {
-        List<SysRole> roles = roleMapper.selectList(new LambdaQueryWrapper<SysRole>()
+        List<SysRole> roles = roleMapper.selectList(new LambdaQueryWrapperX<SysRole>()
                 .eq(SysRole::getType, Constants.RoleType.SYSTEM));
 
         RoleTreeRespDTO groupNode = new RoleTreeRespDTO();
@@ -121,7 +118,7 @@ public class RoleServiceImpl implements RoleService {
         }
         // 妫€鏌ユ槸鍚︽湁鐢ㄦ埛寮曠敤
         Long userCount = userRoleMapper.selectCount(
-                new LambdaQueryWrapper<SysUserRole>().eq(SysUserRole::getRoleId, id));
+                new LambdaQueryWrapperX<SysUserRole>().eq(SysUserRole::getRoleId, id));
         if (userCount > 0) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.ROLE_IN_USE);
         }
@@ -146,7 +143,7 @@ public class RoleServiceImpl implements RoleService {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.ROLE_NOT_FOUND);
         }
 
-        LambdaQueryWrapper<SysUserRole> wrapper = new LambdaQueryWrapper<SysUserRole>()
+        LambdaQueryWrapperX<SysUserRole> wrapper = new LambdaQueryWrapperX<SysUserRole>()
                 .eq(SysUserRole::getRoleId, id);
 
         PageResult<SysUserRole> userRolePage = userRoleMapper.selectPage(
@@ -179,7 +176,7 @@ public class RoleServiceImpl implements RoleService {
         }
         for (UUID userId : userIds) {
             // 璺宠繃宸插瓨鍦ㄧ殑
-            Long count = userRoleMapper.selectCount(new LambdaQueryWrapper<SysUserRole>()
+            Long count = userRoleMapper.selectCount(new LambdaQueryWrapperX<SysUserRole>()
                     .eq(SysUserRole::getUserId, userId)
                     .eq(SysUserRole::getRoleId, id));
             if (count > 0) continue;
@@ -194,7 +191,7 @@ public class RoleServiceImpl implements RoleService {
 
     @Override
     public void removeRoleUser(UUID id, UUID userId) {
-        userRoleMapper.delete(new LambdaQueryWrapper<SysUserRole>()
+        userRoleMapper.delete(new LambdaQueryWrapperX<SysUserRole>()
                 .eq(SysUserRole::getUserId, userId)
                 .eq(SysUserRole::getRoleId, id));
     }
@@ -224,7 +221,7 @@ public class RoleServiceImpl implements RoleService {
     @Override
     public List<PermissionTableRespDTO> getPermissionTable() {
         List<SysPermission> permissions = permissionMapper.selectList(
-                new LambdaQueryWrapper<SysPermission>().orderByAsc(SysPermission::getModule, SysPermission::getSortOrder));
+                new LambdaQueryWrapperX<SysPermission>().orderByAsc(SysPermission::getModule, SysPermission::getSortOrder));
 
         // 鎸夋ā鍧楀垎缁?
         return permissions.stream()
@@ -248,14 +245,14 @@ public class RoleServiceImpl implements RoleService {
     @Override
     public List<String> getUserPermissionCodes(UUID userId) {
         List<SysUserRole> userRoles = userRoleMapper.selectList(
-                new LambdaQueryWrapper<SysUserRole>().eq(SysUserRole::getUserId, userId));
+                new LambdaQueryWrapperX<SysUserRole>().eq(SysUserRole::getUserId, userId));
         if (userRoles.isEmpty()) {
             return new ArrayList<>();
         }
 
         List<UUID> roleIds = userRoles.stream().map(SysUserRole::getRoleId).collect(Collectors.toList());
         List<SysRole> roles = roleMapper.selectList(
-                new LambdaQueryWrapper<SysRole>().in(SysRole::getId, roleIds));
+                new LambdaQueryWrapperX<SysRole>().in(SysRole::getId, roleIds));
 
         return roles.stream()
                 .flatMap(role -> {

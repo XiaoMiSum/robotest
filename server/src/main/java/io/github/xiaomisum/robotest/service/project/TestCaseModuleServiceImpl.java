@@ -1,6 +1,6 @@
 package io.github.xiaomisum.robotest.service.project;
 
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import xyz.migoo.framework.mybatis.core.LambdaQueryWrapperX;
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.framework.convert.TestCaseModuleConvertMapper;
@@ -34,7 +34,7 @@ public class TestCaseModuleServiceImpl implements TestCaseModuleService {
     @Override
     public List<TestCaseModuleTreeRespDTO> getModuleTree(String projectId) {
         List<TestCaseModule> modules = testCaseModuleMapper.selectList(
-                new LambdaQueryWrapper<TestCaseModule>()
+                new LambdaQueryWrapperX<TestCaseModule>()
                         .eq(TestCaseModule::getProjectId, projectId)
                         .orderByAsc(TestCaseModule::getSortOrder));
 
@@ -60,7 +60,7 @@ public class TestCaseModuleServiceImpl implements TestCaseModuleService {
         }
 
         TestCaseModule existing = testCaseModuleMapper.selectOne(
-                new LambdaQueryWrapper<TestCaseModule>()
+                new LambdaQueryWrapperX<TestCaseModule>()
                         .eq(TestCaseModule::getProjectId, projectId)
                         .eq(TestCaseModule::getParentId, reqDTO.getParentId())
                         .eq(TestCaseModule::getName, reqDTO.getName()));
@@ -100,7 +100,7 @@ public class TestCaseModuleServiceImpl implements TestCaseModuleService {
 
         if (reqDTO.getName() != null) {
             TestCaseModule existing = testCaseModuleMapper.selectOne(
-                    new LambdaQueryWrapper<TestCaseModule>()
+                    new LambdaQueryWrapperX<TestCaseModule>()
                             .eq(TestCaseModule::getProjectId, module.getProjectId())
                             .eq(TestCaseModule::getParentId, module.getParentId())
                             .eq(TestCaseModule::getName, reqDTO.getName())
@@ -125,7 +125,7 @@ public class TestCaseModuleServiceImpl implements TestCaseModuleService {
 
         if (Constants.ModuleType.DIRECTORY.equals(module.getType())) {
             Long childCount = testCaseModuleMapper.selectCount(
-                    new LambdaQueryWrapper<TestCaseModule>()
+                    new LambdaQueryWrapperX<TestCaseModule>()
                             .eq(TestCaseModule::getParentId, moduleId));
             if (childCount > 0) {
                 throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_CASE_MODULE_NOT_EMPTY);
@@ -134,7 +134,7 @@ public class TestCaseModuleServiceImpl implements TestCaseModuleService {
 
         if (Constants.ModuleType.DOCUMENT.equals(module.getType())) {
             testCaseNodeMapper.delete(
-                    new LambdaQueryWrapper<TestCaseNode>()
+                    new LambdaQueryWrapperX<TestCaseNode>()
                             .eq(TestCaseNode::getDocumentId, moduleId));
         }
 
