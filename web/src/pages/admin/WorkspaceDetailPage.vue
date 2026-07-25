@@ -167,7 +167,10 @@ async function searchUsers(keyword: string) {
   userSearchLoading.value = true
   try {
     const page = await fetchUsers({ keyword, status: 'active', pageNo: 1, pageSize: 20 })
-    userOptions.value = page.list.map((u) => ({ id: u.id, username: u.username, email: u.email }))
+    // 系统管理员不能被添加为工作空间成员（需求 3.1.2），过滤掉含系统角色的用户
+    userOptions.value = page.list
+      .filter((u) => !u.roles.some((r) => r.type === 'system'))
+      .map((u) => ({ id: u.id, username: u.username, email: u.email }))
   } catch {
     userOptions.value = []
   } finally {
@@ -416,7 +419,7 @@ onMounted(() => {
   </div>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .ws-detail__header {
   display: flex;
   align-items: center;

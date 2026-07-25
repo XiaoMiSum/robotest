@@ -2,10 +2,12 @@
 import { computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { useNavStore } from '@/stores/nav'
 
 const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
+const navStore = useNavStore()
 
 /** Left sidebar menu items for admin mode */
 const sidebarMenu = [
@@ -25,6 +27,11 @@ function handleLogout() {
   authStore.logout()
   router.push('/login')
 }
+
+function goMyWorkspaces() {
+  navStore.setMode('none')
+  router.push('/workspaces')
+}
 </script>
 
 <template>
@@ -39,6 +46,29 @@ function handleLogout() {
       </div>
 
       <div class="admin-layout__topbar-right">
+        <el-tooltip content="我的空间" :show-after="1000">
+          <div class="admin-layout__icon-btn" @click="goMyWorkspaces">
+            <el-icon><FolderOpened /></el-icon>
+            <span>我的空间</span>
+          </div>
+        </el-tooltip>
+
+        <el-tooltip content="系统管理" :show-after="1000">
+          <div class="admin-layout__icon-btn admin-layout__icon-btn--active">
+            <el-icon><Monitor /></el-icon>
+            <span>系统管理</span>
+          </div>
+        </el-tooltip>
+
+        <el-tooltip content="消息通知" :show-after="1000">
+          <div class="admin-layout__icon-btn">
+            <el-badge :is-dot="true">
+              <el-icon><Bell /></el-icon>
+            </el-badge>
+            <span>消息</span>
+          </div>
+        </el-tooltip>
+
         <el-dropdown
           trigger="click"
           @command="(cmd: string) => (cmd === 'logout' ? handleLogout() : null)"
@@ -65,9 +95,9 @@ function handleLogout() {
       <aside class="admin-layout__sidebar">
         <el-menu
           :default-active="activeSidebarPath"
-          background-color="#1d1e2c"
-          text-color="rgba(255, 255, 255, 0.7)"
-          active-text-color="#409eff"
+          background-color="#1E293B"
+          text-color="#CBD5E1"
+          active-text-color="#3B82F6"
           class="admin-layout__sidebar-menu"
           @select="handleSidebarSelect"
         >
@@ -86,7 +116,7 @@ function handleLogout() {
   </div>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .admin-layout {
   display: flex;
   flex-direction: column;
@@ -97,9 +127,9 @@ function handleLogout() {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 48px;
-  border-bottom: 1px solid var(--el-border-color-lighter);
-  background: #fff;
+  height: var(--header-height);
+  border-bottom: 1px solid var(--color-neutral-200);
+  background: var(--color-neutral-0);
   padding: 0 16px;
   z-index: 100;
   flex-shrink: 0;
@@ -124,6 +154,31 @@ function handleLogout() {
 .admin-layout__topbar-right {
   display: flex;
   align-items: center;
+  gap: 8px;
+}
+
+.admin-layout__icon-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  color: var(--color-neutral-600);
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+
+  &:hover {
+    color: var(--color-primary-500);
+    background: var(--color-primary-50);
+  }
+
+  &--active {
+    color: var(--color-primary-500);
+    font-weight: 500;
+    box-shadow: 0 0 6px rgba(59, 130, 246, 0.3);
+  }
 }
 
 .admin-layout__user {
@@ -152,8 +207,8 @@ function handleLogout() {
 }
 
 .admin-layout__sidebar {
-  width: 240px;
-  background-color: #1d1e2c;
+  width: var(--sidebar-width);
+  background-color: var(--color-admin-sidebar-bg);
   flex-shrink: 0;
   overflow-y: auto;
 }
@@ -165,7 +220,7 @@ function handleLogout() {
 .admin-layout__content {
   flex: 1;
   overflow: auto;
-  background-color: var(--el-fill-color-lighter);
+  background-color: var(--color-admin-bg);
   padding: 16px;
 }
 </style>

@@ -8,6 +8,12 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/pages/auth/LoginPage.vue'),
     meta: { public: true },
   },
+  {
+    path: '/join',
+    name: 'Join',
+    component: () => import('@/pages/workspace/JoinPage.vue'),
+    meta: { public: true },
+  },
   // === Admin routes ===
   {
     path: '/admin',
@@ -75,7 +81,7 @@ const routes: RouteRecordRaw[] = [
       },
       // Workspace context
       {
-        path: 'workspace/info',
+        path: 'workspace/:workspaceId',
         name: 'WorkspaceInfo',
         component: () => import('@/pages/workspace/WorkspaceInfoPage.vue'),
         meta: { title: '空间信息' },
@@ -91,6 +97,67 @@ const routes: RouteRecordRaw[] = [
         name: 'WorkspaceProjects',
         component: () => import('@/pages/workspace/ProjectListPage.vue'),
         meta: { title: '项目列表' },
+      },
+      // Project workspace routes
+      {
+        path: 'workspace/projects/dashboard',
+        name: 'ProjectDashboard',
+        component: () => import('@/pages/project/DashboardPage.vue'),
+        meta: { title: '项目工作台' },
+      },
+      {
+        path: 'workspace/projects/cases',
+        name: 'TestCases',
+        component: () => import('@/pages/project/TestCasePage.vue'),
+        meta: { title: '功能测试' },
+      },
+      {
+        path: 'workspace/projects/reviews',
+        name: 'ReviewList',
+        component: () => import('@/pages/project/ReviewListPage.vue'),
+        meta: { title: '测试评审' },
+      },
+      {
+        path: 'workspace/projects/reviews/:reviewId',
+        name: 'ReviewDetail',
+        component: () => import('@/pages/project/ReviewDetailPage.vue'),
+        meta: { title: '评审详情' },
+      },
+      {
+        path: 'workspace/projects/plans',
+        name: 'PlanList',
+        component: () => import('@/pages/project/PlanListPage.vue'),
+        meta: { title: '测试计划' },
+      },
+      {
+        path: 'workspace/projects/plans/:planId',
+        name: 'PlanDetail',
+        component: () => import('@/pages/project/PlanDetailPage.vue'),
+        meta: { title: '计划详情' },
+      },
+      {
+        path: 'workspace/projects/api-test',
+        name: 'ApiTest',
+        component: () => import('@/pages/project/ApiTestPage.vue'),
+        meta: { title: '接口测试' },
+      },
+      {
+        path: 'workspace/projects/bugs',
+        name: 'BugList',
+        component: () => import('@/pages/project/BugListPage.vue'),
+        meta: { title: '缺陷管理' },
+      },
+      {
+        path: 'workspace/projects/bugs/create',
+        name: 'BugCreate',
+        component: () => import('@/pages/project/BugCreatePage.vue'),
+        meta: { title: '提交缺陷' },
+      },
+      {
+        path: 'workspace/projects/bugs/:bugId',
+        name: 'BugDetail',
+        component: () => import('@/pages/project/BugDetailPage.vue'),
+        meta: { title: '缺陷详情' },
       },
     ],
   },

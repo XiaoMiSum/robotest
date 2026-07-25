@@ -121,7 +121,7 @@ watch(
   </div>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .role-users__toolbar {
   margin-bottom: 12px;
 }

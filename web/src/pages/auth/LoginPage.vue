@@ -88,7 +88,7 @@ async function handleLogin() {
   </div>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .login-page {
   display: flex;
   justify-content: center;

@@ -180,7 +180,7 @@ onMounted(loadWorkspaces)
   </div>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .workspace-list__header {
   display: flex;
   align-items: center;

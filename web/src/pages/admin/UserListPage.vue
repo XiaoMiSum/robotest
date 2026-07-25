@@ -6,17 +6,11 @@ import {
   batchUpdateUserStatus,
   fetchRoleTree,
   fetchUsers,
-  fetchWorkspaces,
   resetUserPassword,
   updateUserStatus,
 } from '@/services/admin'
 import type { AdminUser, RoleSimple, UserStatus } from '@/types'
 import { formatDateTime } from '@/utils/format'
-
-/** 拼接用户所属工作空间名称（模板内联类型注解会干扰编译器，抽为独立函数） */
-function workspaceNames(user: AdminUser): string {
-  return user.workspaces.map((w) => w.name).join('、')
-}
 
 const router = useRouter()
 
@@ -29,13 +23,11 @@ const query = reactive({
   keyword: '',
   status: '' as UserStatus | '',
   roleId: '',
-  workspaceId: '',
   pageNo: 1,
   pageSize: 20,
 })
 
 const roleOptions = ref<RoleSimple[]>([])
-const workspaceOptions = ref<{ id: string; name: string }[]>([])
 
 async function loadUsers() {
   loading.value = true
@@ -44,7 +36,6 @@ async function loadUsers() {
       keyword: query.keyword || undefined,
       status: query.status || undefined,
       roleId: query.roleId || undefined,
-      workspaceId: query.workspaceId || undefined,
       pageNo: query.pageNo,
       pageSize: query.pageSize,
     })
@@ -59,17 +50,13 @@ async function loadUsers() {
 
 async function loadFilterOptions() {
   try {
-    const [tree, wsPage] = await Promise.all([
-      fetchRoleTree(),
-      fetchWorkspaces({ pageNo: 1, pageSize: 100 }),
-    ])
+    const tree = await fetchRoleTree()
     const systemGroup = tree.find((node) => node.type === 'system')
     roleOptions.value = (systemGroup?.children ?? []).map((r) => ({
       id: r.id,
       name: r.name,
       type: 'system',
     }))
-    workspaceOptions.value = wsPage.list.map((w) => ({ id: w.id, name: w.name }))
   } catch {
     // 筛选项加载失败不阻塞主列表
   }
@@ -84,7 +71,6 @@ function handleReset() {
   query.keyword = ''
   query.status = ''
   query.roleId = ''
-  query.workspaceId = ''
   query.pageNo = 1
   loadUsers()
 }
@@ -191,7 +177,7 @@ onMounted(() => {
           />
         </el-form-item>
         <el-form-item>
-          <el-select v-model="query.status" placeholder="状态" clearable style="width: 120px">
+          <el-select v-model="query.status" placeholder="状态" clearable style="width: 120px" @change="handleSearch">
             <el-option label="启用" value="active" />
             <el-option label="禁用" value="disabled" />
           </el-select>
@@ -203,28 +189,13 @@ onMounted(() => {
             clearable
             filterable
             style="width: 160px"
+            @change="handleSearch"
           >
             <el-option
               v-for="role in roleOptions"
               :key="role.id"
               :label="role.name"
               :value="role.id"
-            />
-          </el-select>
-        </el-form-item>
-        <el-form-item>
-          <el-select
-            v-model="query.workspaceId"
-            placeholder="工作空间"
-            clearable
-            filterable
-            style="width: 180px"
-          >
-            <el-option
-              v-for="ws in workspaceOptions"
-              :key="ws.id"
-              :label="ws.name"
-              :value="ws.id"
             />
           </el-select>
         </el-form-item>
@@ -267,14 +238,6 @@ onMounted(() => {
             <el-tag :type="row.status === 'active' ? 'success' : 'info'" size="small">
               {{ row.status === 'active' ? '启用' : '禁用' }}
             </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column label="工作空间" min-width="160">
-          <template #default="{ row }">
-            <span v-if="row.workspaces.length">
-              {{ workspaceNames(row as AdminUser) }}
-            </span>
-            <span v-else class="user-list__muted">-</span>
           </template>
         </el-table-column>
         <el-table-column label="创建时间" width="160">
@@ -337,7 +300,7 @@ onMounted(() => {
   </div>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .user-list__header {
   display: flex;
   align-items: center;
