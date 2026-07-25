@@ -1,6 +1,7 @@
 package io.github.xiaomisum.robotest.service.project;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import xyz.migoo.framework.mybatis.core.LambdaQueryWrapperX;
 import io.github.xiaomisum.robotest.model.dto.response.ProjectDashboardRespDTO;
 import io.github.xiaomisum.robotest.model.entity.*;
 import io.github.xiaomisum.robotest.repository.*;
@@ -18,7 +19,6 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -135,7 +135,7 @@ class ProjectDashboardServiceImplTest {
         SysUser assignee = new SysUser();
         assignee.setId(UUID.fromString("00000000-0000-0000-0000-000000000011"));
         assignee.setUsername("assignee");
-        when(userMapper.selectBatchIds(anyCollection()))
+        when(userMapper.selectList(any(LambdaQueryWrapperX.class)))
                 .thenReturn(List.of(assignee));
 
         ProjectDashboardRespDTO result = dashboardService.getDashboard(projectId);
