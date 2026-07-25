@@ -19,7 +19,7 @@ spring:
       fail-on-empty-beans: false
   datasource:
     driver-class-name: org.postgresql.Driver
-    url: ${DATASOURCE_URL:jdbc:postgresql://localhost:5432/robotest}
+    url: ${DATASOURCE_URL:jdbc:postgresql://localhost:5432/robotest?stringtype=unspecified}
     username: ${DATASOURCE_USERNAME:postgres}
     password: ${DATASOURCE_PASSWORD:123456}
   data:
@@ -74,7 +74,6 @@ mybatis-plus:
     map-underscore-to-camel-case: true
     log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
     lazy-loading-enabled: false
-    #type-handlers-package: org.apache.ibatis.type
   global-config:
     db-config:
       id-type: assign_uuid

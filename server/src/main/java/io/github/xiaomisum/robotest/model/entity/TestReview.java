@@ -6,6 +6,7 @@ import com.baomidou.mybatisplus.extension.handlers.Jackson3TypeHandler;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import xyz.migoo.framework.mybatis.core.dataobject.BaseUuidDO;
+import xyz.migoo.framework.mybatis.core.handler.UUIDTypeHandler;
 
 import java.util.List;
 import java.util.UUID;
@@ -15,6 +16,7 @@ import java.util.UUID;
 @TableName(value = "test_review", autoResultMap = true)
 public class TestReview extends BaseUuidDO<TestReview> {
 
+    @TableField(typeHandler = UUIDTypeHandler.class)
     private UUID projectId;
     private String title;
     private String description;

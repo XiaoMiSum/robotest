@@ -6,6 +6,7 @@ import com.baomidou.mybatisplus.extension.handlers.Jackson3TypeHandler;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import xyz.migoo.framework.mybatis.core.dataobject.BaseUuidDO;
+import xyz.migoo.framework.mybatis.core.handler.UUIDTypeHandler;
 
 import java.util.Map;
 import java.util.UUID;
@@ -15,6 +16,7 @@ import java.util.UUID;
 @TableName(value = "test_case_document_layout", autoResultMap = true)
 public class TestCaseDocumentLayout extends BaseUuidDO<TestCaseDocumentLayout> {
 
+    @TableField(typeHandler = UUIDTypeHandler.class)
     private UUID documentId;
 
     @TableField(typeHandler = Jackson3TypeHandler.class)
