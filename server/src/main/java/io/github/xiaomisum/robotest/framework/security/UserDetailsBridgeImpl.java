@@ -12,6 +12,7 @@ import jakarta.annotation.Resource;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.stereotype.Component;
+import xyz.migoo.framework.mybatis.core.LambdaQueryWrapperX;
 import xyz.migoo.framework.security.core.AuthUserDetails;
 import xyz.migoo.framework.security.core.authentication.UserDetailsBridge;
 
@@ -59,14 +60,15 @@ public class UserDetailsBridgeImpl implements UserDetailsBridge {
     }
 
     private List<? extends GrantedAuthority> loadAuthorities(UUID userId) {
+
         List<SysUserRole> userRoles = userRoleMapper.selectList(
-                new LambdaQueryWrapper<SysUserRole>().eq(SysUserRole::getUserId, userId));
+                new LambdaQueryWrapperX<SysUserRole>().eq(SysUserRole::getUserId, userId));
         if (userRoles.isEmpty()) {
             return List.of();
         }
         List<UUID> roleIds = userRoles.stream().map(SysUserRole::getRoleId).toList();
         List<SysRole> roles = roleMapper.selectList(
-                new LambdaQueryWrapper<SysRole>().in(SysRole::getId, roleIds));
+                new LambdaQueryWrapperX<SysRole>().in(SysRole::getId, roleIds));
         return roles.stream()
                 .flatMap(role -> Stream.concat(
                         Stream.of(new SimpleGrantedAuthority(Constants.Auth.ROLE_PREFIX + role.getName())),
