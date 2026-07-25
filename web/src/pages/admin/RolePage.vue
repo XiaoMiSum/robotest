@@ -40,7 +40,7 @@ function handleCleared() {
   </div>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .role-page__title {
   font-size: 20px;
   font-weight: 600;

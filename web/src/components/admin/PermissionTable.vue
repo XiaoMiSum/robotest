@@ -98,7 +98,7 @@ watch(() => props.roleId, load, { immediate: true })
   </div>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .perm-table__item {
   margin-right: 20px;
 }

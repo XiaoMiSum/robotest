@@ -10,7 +10,7 @@ import {
   resetUserPassword,
   updateUser,
 } from '@/services/admin'
-import type { RoleSimple, WorkspaceSimple } from '@/types'
+import type { RoleSimple } from '@/types'
 
 const route = useRoute()
 const router = useRouter()
@@ -30,7 +30,6 @@ const form = reactive({
 })
 
 const roleOptions = ref<RoleSimple[]>([])
-const workspaces = ref<WorkspaceSimple[]>([])
 
 /** 密码强度：8-64 字符，且包含大写、小写、数字、特殊字符中至少三种 */
 function validatePassword(_rule: unknown, value: string, callback: (error?: Error) => void) {
@@ -89,7 +88,6 @@ async function loadUser() {
     form.username = user.username
     form.email = user.email
     form.roleIds = user.roles.map((r) => r.id)
-    workspaces.value = user.workspaces
   } catch (err) {
     ElMessage.error(err instanceof Error ? err.message : '加载用户信息失败')
   } finally {
@@ -211,15 +209,6 @@ onMounted(() => {
           </el-select>
         </el-form-item>
 
-        <el-form-item v-if="isEdit" label="所属空间">
-          <template v-if="workspaces.length">
-            <el-tag v-for="ws in workspaces" :key="ws.id" class="user-form__ws-tag" type="info">
-              {{ ws.name }}
-            </el-tag>
-          </template>
-          <span v-else class="user-form__muted">暂无所属工作空间</span>
-        </el-form-item>
-
         <el-form-item>
           <el-button type="primary" :loading="submitting" @click="handleSave">保存</el-button>
           <el-button @click="router.push('/admin/users')">取消</el-button>
@@ -243,7 +232,7 @@ onMounted(() => {
   </div>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .user-form__header {
   margin-bottom: 16px;
 }
@@ -251,10 +240,6 @@ onMounted(() => {
 .user-form__title {
   font-size: 18px;
   font-weight: 600;
-}
-
-.user-form__ws-tag {
-  margin-right: 6px;
 }
 
 .user-form__muted {

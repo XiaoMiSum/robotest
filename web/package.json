@@ -17,9 +17,12 @@
     "@element-plus/icons-vue": "^2.3.1",
     "axios": "^1.7.9",
     "element-plus": "^2.9.1",
+    "kityminder-core": "^1.4.50",
     "pinia": "^2.3.0",
     "vue": "^3.5.13",
-    "vue-router": "^4.5.0"
+    "vue-router": "^4.5.0",
+    "y-websocket": "^3.0.0",
+    "yjs": "^13.6.31"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
@@ -30,6 +33,7 @@
     "eslint-plugin-vue": "^10.10.0",
     "globals": "^17.7.0",
     "prettier": "^3.9.6",
+    "sass": "^1.102.0",
     "typescript": "~5.7.0",
     "typescript-eslint": "^8.65.0",
     "unplugin-auto-import": "^19.0.0",

@@ -143,7 +143,7 @@ onMounted(load)
   </div>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .role-tree {
   height: 100%;
 }

@@ -125,7 +125,7 @@ onMounted(loadDashboard)
   </div>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .dashboard__title {
   font-size: 20px;
   font-weight: 600;
