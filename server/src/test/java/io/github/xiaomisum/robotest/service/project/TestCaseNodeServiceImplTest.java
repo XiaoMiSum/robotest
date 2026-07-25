@@ -1,7 +1,6 @@
 package io.github.xiaomisum.robotest.service.project;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.model.dto.request.TestCaseNodeUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.TestCaseCaseListRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.TestCaseDocumentNodesRespDTO;
@@ -25,7 +24,6 @@ import xyz.migoo.framework.common.pojo.PageResult;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -45,19 +43,19 @@ class TestCaseNodeServiceImplTest {
     @InjectMocks
     private TestCaseNodeServiceImpl nodeService;
 
-    private String documentId;
-    private String caseId;
+    private UUID documentId;
+    private UUID caseId;
 
     @BeforeEach
     void setUp() {
-        documentId = "00000000-0000-0000-0000-000000000001";
-        caseId = "00000000-0000-0000-0000-000000000002";
+        documentId = UUID.fromString("00000000-0000-0000-0000-000000000001");
+        caseId = UUID.fromString("00000000-0000-0000-0000-000000000002");
     }
 
     @Test
     void getDocumentNodes_success() {
         TestCaseModule doc = new TestCaseModule();
-        doc.setId(UUID.fromString(documentId));
+        doc.setId(documentId);
         doc.setType("document");
 
         when(testCaseModuleMapper.selectById(documentId)).thenReturn(doc);
@@ -95,7 +93,7 @@ class TestCaseNodeServiceImplTest {
     @Test
     void getDocumentNodes_noLayout() {
         TestCaseModule doc = new TestCaseModule();
-        doc.setId(UUID.fromString(documentId));
+        doc.setId(documentId);
         doc.setType("document");
 
         when(testCaseModuleMapper.selectById(documentId)).thenReturn(doc);
@@ -121,7 +119,7 @@ class TestCaseNodeServiceImplTest {
     @Test
     void getDocumentNodes_notDocumentType_throws() {
         TestCaseModule module = new TestCaseModule();
-        module.setId(UUID.fromString(documentId));
+        module.setId(documentId);
         module.setType("directory");
 
         when(testCaseModuleMapper.selectById(documentId)).thenReturn(module);
@@ -133,7 +131,7 @@ class TestCaseNodeServiceImplTest {
     @Test
     void getCaseDetail_success() {
         TestCaseNode node = new TestCaseNode();
-        node.setId(UUID.fromString(caseId));
+        node.setId(caseId);
         node.setDocumentId(documentId);
         node.setType("case");
         node.setTitle("Test Case");
@@ -163,16 +161,16 @@ class TestCaseNodeServiceImplTest {
 
     @Test
     void getCaseList_success() {
-        String projectId = "proj-1";
+        String projId = "00000000-0000-0000-0000-000000000008";
 
         TestCaseModule doc = new TestCaseModule();
-        doc.setId(UUID.fromString(documentId));
+        doc.setId(documentId);
         doc.setName("Doc 1");
         when(testCaseModuleMapper.selectList(any(LambdaQueryWrapper.class)))
                 .thenReturn(List.of(doc));
 
         TestCaseNode node = new TestCaseNode();
-        node.setId(UUID.fromString(caseId));
+        node.setId(caseId);
         node.setDocumentId(documentId);
         node.setType("case");
         node.setTitle("Test Case");
@@ -185,7 +183,7 @@ class TestCaseNodeServiceImplTest {
                 any(PageParam.class), any(LambdaQueryWrapper.class));
 
         PageResult<TestCaseCaseListRespDTO> result = nodeService.getCaseList(
-                projectId, null, null, 1, 10);
+                projId, null, null, 1, 10);
 
         assertNotNull(result);
         assertEquals(1, result.getList().size());
@@ -195,12 +193,12 @@ class TestCaseNodeServiceImplTest {
 
     @Test
     void getCaseList_noDocuments() {
-        String projectId = "proj-1";
+        String projId = "00000000-0000-0000-0000-000000000008";
         when(testCaseModuleMapper.selectList(any(LambdaQueryWrapper.class)))
                 .thenReturn(Collections.emptyList());
 
         PageResult<TestCaseCaseListRespDTO> result = nodeService.getCaseList(
-                projectId, null, null, 1, 10);
+                projId, null, null, 1, 10);
 
         assertNotNull(result);
         assertTrue(result.getList().isEmpty());
@@ -212,7 +210,7 @@ class TestCaseNodeServiceImplTest {
     @Test
     void updateCaseNode_success() {
         TestCaseNode node = new TestCaseNode();
-        node.setId(UUID.fromString(caseId));
+        node.setId(caseId);
         node.setType("case");
         node.setTitle("Old Title");
         node.setPriority("low");
@@ -244,7 +242,7 @@ class TestCaseNodeServiceImplTest {
     @Test
     void updateCaseNode_notCaseType_throws() {
         TestCaseNode node = new TestCaseNode();
-        node.setId(UUID.fromString(caseId));
+        node.setId(caseId);
         node.setType("normal");
         node.setTitle("Folder");
 

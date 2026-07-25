@@ -36,17 +36,23 @@ class TestCaseModuleServiceImplTest {
     private TestCaseModuleServiceImpl moduleService;
 
     private String projectId;
+    private UUID moduleId1;
+    private UUID moduleId2;
+    private UUID documentId1;
 
     @BeforeEach
     void setUp() {
-        projectId = "proj-1";
+        projectId = "00000000-0000-0000-0000-000000000001";
+        moduleId1 = UUID.fromString("00000000-0000-0000-0000-00000000000a");
+        moduleId2 = UUID.fromString("00000000-0000-0000-0000-00000000000b");
+        documentId1 = UUID.fromString("00000000-0000-0000-0000-000000000005");
     }
 
     @Test
     void getModuleTree_withModules() {
         TestCaseModule root = new TestCaseModule();
         root.setId(UUID.fromString("00000000-0000-0000-0000-000000000001"));
-        root.setProjectId(projectId);
+        root.setProjectId(UUID.fromString(projectId));
         root.setParentId(null);
         root.setType("directory");
         root.setName("Root");
@@ -159,19 +165,19 @@ class TestCaseModuleServiceImplTest {
     @Test
     void updateModule_success() {
         TestCaseModule module = new TestCaseModule();
-        module.setId(UUID.fromString("00000000-0000-0000-0000-00000000000a"));
-        module.setProjectId(projectId);
+        module.setId(moduleId1);
+        module.setProjectId(UUID.fromString(projectId));
         module.setParentId(null);
         module.setName("Old Name");
 
-        when(testCaseModuleMapper.selectById("mod-1")).thenReturn(module);
+        when(testCaseModuleMapper.selectById(moduleId1)).thenReturn(module);
         when(testCaseModuleMapper.selectOne(any(LambdaQueryWrapper.class)))
                 .thenReturn(null);
 
         TestCaseModuleUpdateReqDTO reqDTO = new TestCaseModuleUpdateReqDTO();
         reqDTO.setName("New Name");
 
-        TestCaseModuleTreeRespDTO result = moduleService.updateModule("mod-1", reqDTO);
+        TestCaseModuleTreeRespDTO result = moduleService.updateModule(moduleId1, reqDTO);
 
         assertNotNull(result);
         assertEquals("New Name", result.getName());
@@ -180,27 +186,27 @@ class TestCaseModuleServiceImplTest {
 
     @Test
     void updateModule_notFound_throws() {
-        when(testCaseModuleMapper.selectById("mod-1")).thenReturn(null);
+        when(testCaseModuleMapper.selectById(moduleId1)).thenReturn(null);
 
         TestCaseModuleUpdateReqDTO reqDTO = new TestCaseModuleUpdateReqDTO();
         reqDTO.setName("New Name");
 
         assertThrows(ServiceException.class,
-                () -> moduleService.updateModule("mod-1", reqDTO));
+                () -> moduleService.updateModule(moduleId1, reqDTO));
     }
 
     @Test
     void updateModule_duplicateName_throws() {
         TestCaseModule module = new TestCaseModule();
-        module.setId(UUID.fromString("00000000-0000-0000-0000-00000000000a"));
-        module.setProjectId(projectId);
+        module.setId(moduleId1);
+        module.setProjectId(UUID.fromString(projectId));
         module.setParentId(null);
         module.setName("Old Name");
 
-        when(testCaseModuleMapper.selectById("mod-1")).thenReturn(module);
+        when(testCaseModuleMapper.selectById(moduleId1)).thenReturn(module);
 
         TestCaseModule duplicate = new TestCaseModule();
-        duplicate.setId(UUID.fromString("00000000-0000-0000-0000-00000000000b"));
+        duplicate.setId(moduleId2);
         when(testCaseModuleMapper.selectOne(any(LambdaQueryWrapper.class)))
                 .thenReturn(duplicate);
 
@@ -208,57 +214,57 @@ class TestCaseModuleServiceImplTest {
         reqDTO.setName("Duplicate");
 
         assertThrows(ServiceException.class,
-                () -> moduleService.updateModule("mod-1", reqDTO));
+                () -> moduleService.updateModule(moduleId1, reqDTO));
     }
 
     @Test
     void deleteModule_notFound_throws() {
-        when(testCaseModuleMapper.selectById("mod-1")).thenReturn(null);
+        when(testCaseModuleMapper.selectById(moduleId1)).thenReturn(null);
 
         assertThrows(ServiceException.class,
-                () -> moduleService.deleteModule("mod-1"));
+                () -> moduleService.deleteModule(moduleId1));
     }
 
     @Test
     void deleteModule_directoryWithChildren_throws() {
         TestCaseModule module = new TestCaseModule();
-        module.setId(UUID.fromString("00000000-0000-0000-0000-00000000000a"));
+        module.setId(moduleId1);
         module.setType("directory");
 
-        when(testCaseModuleMapper.selectById("mod-1")).thenReturn(module);
+        when(testCaseModuleMapper.selectById(moduleId1)).thenReturn(module);
         when(testCaseModuleMapper.selectCount(any(LambdaQueryWrapper.class)))
                 .thenReturn(2L);
 
         assertThrows(ServiceException.class,
-                () -> moduleService.deleteModule("mod-1"));
+                () -> moduleService.deleteModule(moduleId1));
     }
 
     @Test
     void deleteModule_directoryEmpty_success() {
         TestCaseModule module = new TestCaseModule();
-        module.setId(UUID.fromString("00000000-0000-0000-0000-00000000000a"));
+        module.setId(moduleId1);
         module.setType("directory");
 
-        when(testCaseModuleMapper.selectById("mod-1")).thenReturn(module);
+        when(testCaseModuleMapper.selectById(moduleId1)).thenReturn(module);
         when(testCaseModuleMapper.selectCount(any(LambdaQueryWrapper.class)))
                 .thenReturn(0L);
 
-        moduleService.deleteModule("mod-1");
+        moduleService.deleteModule(moduleId1);
 
-        verify(testCaseModuleMapper).deleteById("mod-1");
+        verify(testCaseModuleMapper).deleteById(moduleId1);
     }
 
     @Test
     void deleteModule_document_deletesNodes() {
         TestCaseModule module = new TestCaseModule();
-        module.setId(UUID.fromString("00000000-0000-0000-0000-000000000005"));
+        module.setId(documentId1);
         module.setType("document");
 
-        when(testCaseModuleMapper.selectById("doc-1")).thenReturn(module);
+        when(testCaseModuleMapper.selectById(documentId1)).thenReturn(module);
 
-        moduleService.deleteModule("doc-1");
+        moduleService.deleteModule(documentId1);
 
         verify(testCaseNodeMapper).delete(any(LambdaQueryWrapper.class));
-        verify(testCaseModuleMapper).deleteById("doc-1");
+        verify(testCaseModuleMapper).deleteById(documentId1);
     }
 }

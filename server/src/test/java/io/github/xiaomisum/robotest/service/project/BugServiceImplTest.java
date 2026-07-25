@@ -2,7 +2,6 @@ package io.github.xiaomisum.robotest.service.project;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import io.github.xiaomisum.robotest.framework.common.Constants;
-import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.model.dto.request.BugCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.BugUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.BugDetailRespDTO;
@@ -56,14 +55,14 @@ class BugServiceImplTest {
     private BugServiceImpl bugService;
 
     private String projectId;
-    private String userId;
-    private String bugId;
+    private UUID userId;
+    private UUID bugId;
 
     @BeforeEach
     void setUp() {
         projectId = "00000000-0000-0000-0000-000000000001";
-        userId = "00000000-0000-0000-0000-000000000002";
-        bugId = "00000000-0000-0000-0000-000000000003";
+        userId = UUID.fromString("00000000-0000-0000-0000-000000000002");
+        bugId = UUID.fromString("00000000-0000-0000-0000-000000000003");
     }
 
     // ========== getBugPage ==========
@@ -71,12 +70,12 @@ class BugServiceImplTest {
     @Test
     void getBugPage_withFilters() {
         Bug bug = new Bug();
-        bug.setId(UUID.fromString(bugId));
+        bug.setId(bugId);
         bug.setTitle("Test Bug");
         bug.setSeverity("high");
         bug.setPriority("high");
         bug.setStatus("new");
-        bug.setReporterId("00000000-0000-0000-0000-000000000004");
+        bug.setReporterId(UUID.fromString("00000000-0000-0000-0000-000000000004"));
 
         PageResult<Bug> pageResult = new PageResult<>(List.of(bug), 1L);
         doReturn(pageResult).when(bugMapper).selectPage(any(PageParam.class), any(LambdaQueryWrapper.class));
@@ -84,7 +83,7 @@ class BugServiceImplTest {
         SysUser reporter = new SysUser();
         reporter.setId(UUID.fromString("00000000-0000-0000-0000-000000000004"));
         reporter.setUsername("reporter");
-        when(userMapper.selectById("00000000-0000-0000-0000-000000000004")).thenReturn(reporter);
+        when(userMapper.selectById(UUID.fromString("00000000-0000-0000-0000-000000000004"))).thenReturn(reporter);
 
         PageResult<BugListRespDTO> result = bugService.getBugPage(
                 projectId, "new", "high", "high", null, null, 1, 10);
@@ -143,7 +142,7 @@ class BugServiceImplTest {
     @Test
     void updateBug_success() {
         Bug bug = new Bug();
-        bug.setId(UUID.fromString(bugId));
+        bug.setId(bugId);
         bug.setTitle("Old Title");
         bug.setSeverity("low");
         bug.setPriority("low");
@@ -177,26 +176,26 @@ class BugServiceImplTest {
     @Test
     void getBugDetail_success() {
         Bug bug = new Bug();
-        bug.setId(UUID.fromString(bugId));
+        bug.setId(bugId);
         bug.setTitle("Detail Bug");
         bug.setSeverity("fatal");
         bug.setPriority("high");
         bug.setStatus("new");
         bug.setDescription("desc");
-        bug.setReporterId("00000000-0000-0000-0000-000000000004");
-        bug.setAssigneeId("00000000-0000-0000-0000-000000000005");
+        bug.setReporterId(UUID.fromString("00000000-0000-0000-0000-000000000004"));
+        bug.setAssigneeId(UUID.fromString("00000000-0000-0000-0000-000000000005"));
 
         when(bugMapper.selectById(bugId)).thenReturn(bug);
 
         SysUser reporter = new SysUser();
         reporter.setId(UUID.fromString("00000000-0000-0000-0000-000000000004"));
         reporter.setUsername("reporter");
-        when(userMapper.selectById("00000000-0000-0000-0000-000000000004")).thenReturn(reporter);
+        when(userMapper.selectById(UUID.fromString("00000000-0000-0000-0000-000000000004"))).thenReturn(reporter);
 
         SysUser assignee = new SysUser();
         assignee.setId(UUID.fromString("00000000-0000-0000-0000-000000000005"));
         assignee.setUsername("assignee");
-        when(userMapper.selectById("00000000-0000-0000-0000-000000000005")).thenReturn(assignee);
+        when(userMapper.selectById(UUID.fromString("00000000-0000-0000-0000-000000000005"))).thenReturn(assignee);
 
         when(bugLogMapper.selectList(any(LambdaQueryWrapper.class)))
                 .thenReturn(Collections.emptyList());
@@ -224,7 +223,7 @@ class BugServiceImplTest {
     @Test
     void changeBugStatus_validTransition_success() {
         Bug bug = new Bug();
-        bug.setId(UUID.fromString(bugId));
+        bug.setId(bugId);
         bug.setStatus(Constants.BugStatus.NEW);
 
         when(bugMapper.selectById(bugId)).thenReturn(bug);
@@ -244,7 +243,7 @@ class BugServiceImplTest {
     @Test
     void changeBugStatus_invalidTransition_throws() {
         Bug bug = new Bug();
-        bug.setId(UUID.fromString(bugId));
+        bug.setId(bugId);
         bug.setStatus(Constants.BugStatus.CLOSED);
 
         when(bugMapper.selectById(bugId)).thenReturn(bug);
@@ -256,7 +255,7 @@ class BugServiceImplTest {
     @Test
     void changeBugStatus_reopenWithoutComment_throws() {
         Bug bug = new Bug();
-        bug.setId(UUID.fromString(bugId));
+        bug.setId(bugId);
         bug.setStatus(Constants.BugStatus.CLOSED);
 
         when(bugMapper.selectById(bugId)).thenReturn(bug);
@@ -270,7 +269,7 @@ class BugServiceImplTest {
     @Test
     void assignBug_success() {
         Bug bug = new Bug();
-        bug.setId(UUID.fromString(bugId));
+        bug.setId(bugId);
         bug.setReporterId(userId);
 
         when(bugMapper.selectById(bugId)).thenReturn(bug);
@@ -278,13 +277,13 @@ class BugServiceImplTest {
         SysUser assignee = new SysUser();
         assignee.setId(UUID.fromString("00000000-0000-0000-0000-000000000005"));
         assignee.setUsername("assignee");
-        when(userMapper.selectById("00000000-0000-0000-0000-000000000005")).thenReturn(assignee);
+        when(userMapper.selectById(UUID.fromString("00000000-0000-0000-0000-000000000005"))).thenReturn(assignee);
         doAnswer(inv -> {
             ((BugLog) inv.getArgument(0)).setId(UUID.randomUUID());
             return 1;
         }).when(bugLogMapper).insert(any(BugLog.class));
 
-        bugService.assignBug(bugId, userId, "00000000-0000-0000-0000-000000000005");
+        bugService.assignBug(bugId, userId, UUID.fromString("00000000-0000-0000-0000-000000000005"));
 
         verify(bugMapper).updateById(any(Bug.class));
         verify(bugLogMapper).insert(any(BugLog.class));
@@ -295,18 +294,18 @@ class BugServiceImplTest {
         when(bugMapper.selectById(bugId)).thenReturn(null);
 
         assertThrows(ServiceException.class,
-                () -> bugService.assignBug(bugId, userId, "00000000-0000-0000-0000-000000000005"));
+                () -> bugService.assignBug(bugId, userId, UUID.fromString("00000000-0000-0000-0000-000000000005")));
     }
 
     @Test
     void assignBug_assigneeNotFound_throws() {
         Bug bug = new Bug();
-        bug.setId(UUID.fromString(bugId));
+        bug.setId(bugId);
         when(bugMapper.selectById(bugId)).thenReturn(bug);
-        when(userMapper.selectById("00000000-0000-0000-0000-000000000005")).thenReturn(null);
+        when(userMapper.selectById(UUID.fromString("00000000-0000-0000-0000-000000000005"))).thenReturn(null);
 
         assertThrows(ServiceException.class,
-                () -> bugService.assignBug(bugId, userId, "00000000-0000-0000-0000-000000000005"));
+                () -> bugService.assignBug(bugId, userId, UUID.fromString("00000000-0000-0000-0000-000000000005")));
     }
 
     // ========== getBugStatistics ==========
@@ -318,15 +317,15 @@ class BugServiceImplTest {
         b1.setStatus("new");
         b1.setSeverity("fatal");
         b1.setPriority("high");
-        b1.setReporterId("00000000-0000-0000-0000-000000000004");
-        b1.setAssigneeId("00000000-0000-0000-0000-000000000005");
+        b1.setReporterId(UUID.fromString("00000000-0000-0000-0000-000000000004"));
+        b1.setAssigneeId(UUID.fromString("00000000-0000-0000-0000-000000000005"));
 
         Bug b2 = new Bug();
         b2.setId(UUID.randomUUID());
         b2.setStatus("new");
         b2.setSeverity("general");
         b2.setPriority("low");
-        b2.setReporterId("00000000-0000-0000-0000-000000000004");
+        b2.setReporterId(UUID.fromString("00000000-0000-0000-0000-000000000004"));
 
         when(bugMapper.selectList(any(LambdaQueryWrapper.class)))
                 .thenReturn(List.of(b1, b2));
@@ -338,7 +337,7 @@ class BugServiceImplTest {
         assertEquals(2L, result.getByStatus().get("new"));
         assertEquals(1L, result.getBySeverity().get("fatal"));
         assertEquals(1L, result.getBySeverity().get("general"));
-        assertEquals(2L, result.getByReporter().get("00000000-0000-0000-0000-000000000004"));
+        assertEquals(2L, result.getByReporter().get(UUID.fromString("00000000-0000-0000-0000-000000000004")));
     }
 
     @Test
@@ -359,7 +358,7 @@ class BugServiceImplTest {
         BugLog log = new BugLog();
         log.setId(UUID.fromString("00000000-0000-0000-0000-000000000005"));
         log.setBugId(bugId);
-        log.setOperatorId("00000000-0000-0000-0000-000000000004");
+        log.setOperatorId(UUID.fromString("00000000-0000-0000-0000-000000000004"));
         log.setOperationType("create");
         log.setContent("Created");
 
@@ -369,7 +368,7 @@ class BugServiceImplTest {
         SysUser operator = new SysUser();
         operator.setId(UUID.fromString("00000000-0000-0000-0000-000000000004"));
         operator.setUsername("operator");
-        when(userMapper.selectById("00000000-0000-0000-0000-000000000004")).thenReturn(operator);
+        when(userMapper.selectById(UUID.fromString("00000000-0000-0000-0000-000000000004"))).thenReturn(operator);
 
         List<BugLogRespDTO> result = bugService.getBugLogs(bugId);
 
