@@ -1,6 +1,6 @@
 package io.github.xiaomisum.robotest.service.project;
 
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import xyz.migoo.framework.mybatis.core.LambdaQueryWrapperX;
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.model.dto.response.ProjectDashboardRespDTO;
 import io.github.xiaomisum.robotest.model.entity.*;
@@ -39,7 +39,7 @@ public class ProjectDashboardServiceImpl implements ProjectDashboardService {
 
         // Count case nodes belonging to this project's documents
         List<String> projectDocIds = testCaseModuleMapper.selectList(
-                new LambdaQueryWrapper<TestCaseModule>()
+                new LambdaQueryWrapperX<TestCaseModule>()
                         .eq(TestCaseModule::getProjectId, projectId)
                         .eq(TestCaseModule::getType, Constants.ModuleType.DOCUMENT))
                 .stream().map(m -> m.getId().toString()).collect(Collectors.toList());
@@ -47,24 +47,24 @@ public class ProjectDashboardServiceImpl implements ProjectDashboardService {
         long caseCount = 0;
         if (!projectDocIds.isEmpty()) {
             caseCount = testCaseNodeMapper.selectCount(
-                    new LambdaQueryWrapper<TestCaseNode>()
+                    new LambdaQueryWrapperX<TestCaseNode>()
                             .in(TestCaseNode::getDocumentId, projectDocIds)
                             .eq(TestCaseNode::getType, Constants.NodeType.CASE));
         }
         dto.setCaseCount(caseCount);
 
         dto.setActiveReviewCount(testReviewMapper.selectCount(
-                new LambdaQueryWrapper<TestReview>()
+                new LambdaQueryWrapperX<TestReview>()
                         .eq(TestReview::getProjectId, projectId)
                         .eq(TestReview::getStatus, Constants.Status.IN_PROGRESS)));
 
         dto.setActivePlanCount(testPlanMapper.selectCount(
-                new LambdaQueryWrapper<TestPlan>()
+                new LambdaQueryWrapperX<TestPlan>()
                         .eq(TestPlan::getProjectId, projectId)
                         .in(TestPlan::getStatus, Constants.Status.NEW, Constants.Status.IN_PROGRESS)));
 
         dto.setOpenBugCount(bugMapper.selectCount(
-                new LambdaQueryWrapper<Bug>()
+                new LambdaQueryWrapperX<Bug>()
                         .eq(Bug::getProjectId, projectId)
                         .in(Bug::getStatus,
                                 Constants.BugStatus.NEW,
@@ -73,7 +73,7 @@ public class ProjectDashboardServiceImpl implements ProjectDashboardService {
 
         // 最近 5 条缺陷
         List<Bug> recentBugs = bugMapper.selectList(
-                new LambdaQueryWrapper<Bug>()
+                new LambdaQueryWrapperX<Bug>()
                         .eq(Bug::getProjectId, projectId)
                         .orderByDesc(Bug::getCreatedAt)
                         .last("LIMIT 5"));
@@ -85,7 +85,8 @@ public class ProjectDashboardServiceImpl implements ProjectDashboardService {
                 .map(UUID::toString)
                 .collect(Collectors.toSet());
         if (!assigneeIds.isEmpty()) {
-            Map<String, String> nameMap = userMapper.selectBatchIds(assigneeIds)
+            Map<String, String> nameMap = userMapper.selectList(
+                    new LambdaQueryWrapperX<SysUser>().in(SysUser::getId, assigneeIds.stream().map(UUID::fromString).collect(Collectors.toList())))
                     .stream()
                     .collect(Collectors.toMap(
                             u -> u.getId().toString(),
@@ -119,7 +120,7 @@ public class ProjectDashboardServiceImpl implements ProjectDashboardService {
         }
 
         List<TestReview> recentReviews = testReviewMapper.selectList(
-                new LambdaQueryWrapper<TestReview>()
+                new LambdaQueryWrapperX<TestReview>()
                         .eq(TestReview::getProjectId, projectId)
                         .orderByDesc(TestReview::getCreatedAt)
                         .last("LIMIT 5"));
@@ -133,7 +134,7 @@ public class ProjectDashboardServiceImpl implements ProjectDashboardService {
         }).collect(Collectors.toList()));
 
         List<TestPlan> recentPlans = testPlanMapper.selectList(
-                new LambdaQueryWrapper<TestPlan>()
+                new LambdaQueryWrapperX<TestPlan>()
                         .eq(TestPlan::getProjectId, projectId)
                         .orderByDesc(TestPlan::getCreatedAt)
                         .last("LIMIT 5"));
