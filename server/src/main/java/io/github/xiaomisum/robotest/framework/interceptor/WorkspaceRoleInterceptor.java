@@ -1,6 +1,6 @@
 package io.github.xiaomisum.robotest.framework.interceptor;
 
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import xyz.migoo.framework.mybatis.core.LambdaQueryWrapperX;
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.security.LoginUser;
 import io.github.xiaomisum.robotest.model.entity.SysRole;
@@ -51,7 +51,7 @@ public class WorkspaceRoleInterceptor implements HandlerInterceptor {
         UUID workspaceId = UUID.fromString(workspaceIdStr);
 
         WorkspaceUser workspaceUser = workspaceUserMapper.selectOne(
-                new LambdaQueryWrapper<WorkspaceUser>()
+                new LambdaQueryWrapperX<WorkspaceUser>()
                         .eq(WorkspaceUser::getUserId, loginUser.getId())
                         .eq(WorkspaceUser::getWorkspaceId, workspaceId));
         if (workspaceUser == null || workspaceUser.getWorkspaceRole() == null) {

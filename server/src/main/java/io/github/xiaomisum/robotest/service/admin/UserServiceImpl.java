@@ -1,6 +1,5 @@
 package io.github.xiaomisum.robotest.service.admin;
 
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.framework.convert.UserConvertMapper;
@@ -8,24 +7,16 @@ import io.github.xiaomisum.robotest.model.dto.request.UserBatchStatusReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.UserCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.UserUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.UserRespDTO;
-import io.github.xiaomisum.robotest.model.entity.SysRole;
-import io.github.xiaomisum.robotest.model.entity.SysUser;
-import io.github.xiaomisum.robotest.model.entity.SysUserRole;
-import io.github.xiaomisum.robotest.model.entity.Workspace;
-import io.github.xiaomisum.robotest.model.entity.WorkspaceUser;
-import io.github.xiaomisum.robotest.repository.SysRoleMapper;
-import io.github.xiaomisum.robotest.repository.SysUserMapper;
-import io.github.xiaomisum.robotest.repository.SysUserRoleMapper;
-import io.github.xiaomisum.robotest.repository.WorkspaceMapper;
-import io.github.xiaomisum.robotest.repository.WorkspaceUserMapper;
+import io.github.xiaomisum.robotest.model.entity.*;
+import io.github.xiaomisum.robotest.repository.*;
 import jakarta.annotation.Resource;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
-import xyz.migoo.framework.common.pojo.PageResult;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
+import xyz.migoo.framework.common.pojo.PageResult;
+import xyz.migoo.framework.mybatis.core.LambdaQueryWrapperX;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -51,8 +42,8 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public PageResult<UserRespDTO> getUserPage(String keyword, String status, UUID roleId, UUID workspaceId,
-                                                Integer pageNo, Integer pageSize) {
-        LambdaQueryWrapper<SysUser> wrapper = new LambdaQueryWrapper<>();
+                                               Integer pageNo, Integer pageSize) {
+        LambdaQueryWrapperX<SysUser> wrapper = new LambdaQueryWrapperX<>();
         if (StringUtils.hasText(keyword)) {
             wrapper.and(w -> w.like(SysUser::getUsername, keyword).or().like(SysUser::getEmail, keyword));
         }
@@ -102,7 +93,7 @@ public class UserServiceImpl implements UserService {
         userMapper.insert(user);
 
         // 鍒嗛厤瑙掕壊
-        if (!CollectionUtils.isEmpty(reqDTO.getRoleIds())) {
+        if (reqDTO.getRoleIds() != null && !reqDTO.getRoleIds().isEmpty()) {
             List<SysUserRole> userRoles = reqDTO.getRoleIds().stream().map(roleId -> {
                 SysUserRole userRole = new SysUserRole();
                 userRole.setUserId(user.getId());
@@ -132,7 +123,7 @@ public class UserServiceImpl implements UserService {
 
         // 鍏ㄩ噺鏇挎崲瑙掕壊
         if (reqDTO.getRoleIds() != null) {
-            userRoleMapper.delete(new LambdaQueryWrapper<SysUserRole>().eq(SysUserRole::getUserId, id));
+            userRoleMapper.delete(new LambdaQueryWrapperX<SysUserRole>().eq(SysUserRole::getUserId, id));
             if (!reqDTO.getRoleIds().isEmpty()) {
                 List<SysUserRole> userRoles = reqDTO.getRoleIds().stream().map(roleId -> {
                     SysUserRole userRole = new SysUserRole();
@@ -195,22 +186,22 @@ public class UserServiceImpl implements UserService {
         UserRespDTO dto = UserConvertMapper.INSTANCE.toRespDTO(user);
 
         List<SysUserRole> userRoles = userRoleMapper.selectList(
-                new LambdaQueryWrapper<SysUserRole>().eq(SysUserRole::getUserId, user.getId()));
+                new LambdaQueryWrapperX<SysUserRole>().eq(SysUserRole::getUserId, user.getId()));
         if (!userRoles.isEmpty()) {
             List<UUID> roleIds = userRoles.stream().map(SysUserRole::getRoleId).collect(Collectors.toList());
             List<SysRole> roles = roleMapper.selectList(
-                    new LambdaQueryWrapper<SysRole>().in(SysRole::getId, roleIds));
+                    new LambdaQueryWrapperX<SysRole>().in(SysRole::getId, roleIds));
             dto.setRoles(roles.stream().map(UserConvertMapper.INSTANCE::toRoleSimple).collect(Collectors.toList()));
         } else {
             dto.setRoles(new ArrayList<>());
         }
 
         List<WorkspaceUser> workspaceUsers = workspaceUserMapper.selectList(
-                new LambdaQueryWrapper<WorkspaceUser>().eq(WorkspaceUser::getUserId, user.getId()));
+                new LambdaQueryWrapperX<WorkspaceUser>().eq(WorkspaceUser::getUserId, user.getId()));
         if (!workspaceUsers.isEmpty()) {
             List<UUID> wsIds = workspaceUsers.stream().map(WorkspaceUser::getWorkspaceId).collect(Collectors.toList());
             List<Workspace> workspaces = workspaceMapper.selectList(
-                    new LambdaQueryWrapper<Workspace>().in(Workspace::getId, wsIds));
+                    new LambdaQueryWrapperX<Workspace>().in(Workspace::getId, wsIds));
             dto.setWorkspaces(workspaces.stream().map(ws -> {
                 WorkspaceUser matchedWs = workspaceUsers.stream()
                         .filter(wu -> wu.getWorkspaceId().equals(ws.getId()))

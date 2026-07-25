@@ -1,6 +1,5 @@
 package io.github.xiaomisum.robotest.service.workspace;
 
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.model.dto.request.WorkspaceCreateReqDTO;
@@ -20,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
 import xyz.migoo.framework.common.pojo.PageResult;
+import xyz.migoo.framework.mybatis.core.LambdaQueryWrapperX;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -40,7 +40,7 @@ public class WorkspaceServiceImpl implements WorkspaceService {
 
     @Override
     public PageResult<WorkspaceRespDTO> getWorkspacePage(String keyword, Integer pageNo, Integer pageSize) {
-        LambdaQueryWrapper<Workspace> wrapper = new LambdaQueryWrapper<>();
+        LambdaQueryWrapperX<Workspace> wrapper = new LambdaQueryWrapperX<>();
         if (StringUtils.hasText(keyword)) {
             wrapper.like(Workspace::getName, keyword);
         }
@@ -134,7 +134,7 @@ public class WorkspaceServiceImpl implements WorkspaceService {
         workspace.setStatus(Constants.Status.DISSOLVED);
         workspaceMapper.updateById(workspace);
         // 鍒犻櫎鎵€鏈夋垚鍛樺叧鑱?
-        workspaceUserMapper.delete(new LambdaQueryWrapper<WorkspaceUser>()
+        workspaceUserMapper.delete(new LambdaQueryWrapperX<WorkspaceUser>()
                 .eq(WorkspaceUser::getWorkspaceId, id));
     }
 
@@ -145,7 +145,7 @@ public class WorkspaceServiceImpl implements WorkspaceService {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.WORKSPACE_NOT_FOUND);
         }
 
-        LambdaQueryWrapper<WorkspaceUser> wrapper = new LambdaQueryWrapper<WorkspaceUser>()
+        LambdaQueryWrapperX<WorkspaceUser> wrapper = new LambdaQueryWrapperX<WorkspaceUser>()
                 .eq(WorkspaceUser::getWorkspaceId, id);
 
         PageResult<WorkspaceUser> page = workspaceUserMapper.selectPage(
@@ -185,7 +185,7 @@ public class WorkspaceServiceImpl implements WorkspaceService {
                 continue;
             }
             // 妫€鏌ユ槸鍚﹀凡鍦ㄥ伐浣滅┖闂?
-            Long count = workspaceUserMapper.selectCount(new LambdaQueryWrapper<WorkspaceUser>()
+            Long count = workspaceUserMapper.selectCount(new LambdaQueryWrapperX<WorkspaceUser>()
                     .eq(WorkspaceUser::getUserId, member.getUserId())
                     .eq(WorkspaceUser::getWorkspaceId, id));
             if (count > 0) {
@@ -206,7 +206,7 @@ public class WorkspaceServiceImpl implements WorkspaceService {
 
     @Override
     public void updateWorkspaceMemberRole(UUID id, UUID userId, UUID workspaceRole) {
-        WorkspaceUser wu = workspaceUserMapper.selectOne(new LambdaQueryWrapper<WorkspaceUser>()
+        WorkspaceUser wu = workspaceUserMapper.selectOne(new LambdaQueryWrapperX<WorkspaceUser>()
                 .eq(WorkspaceUser::getUserId, userId)
                 .eq(WorkspaceUser::getWorkspaceId, id));
         if (wu == null) {
@@ -215,7 +215,7 @@ public class WorkspaceServiceImpl implements WorkspaceService {
         // 妫€鏌ユ槸鍚︽槸闄嶇骇鍞竴绠＄悊鍛?
         if (Constants.WorkspaceRole.ADMIN_ID.equals(wu.getWorkspaceRole())
                 && !Constants.WorkspaceRole.ADMIN_ID.equals(workspaceRole)) {
-            Long adminCount = workspaceUserMapper.selectCount(new LambdaQueryWrapper<WorkspaceUser>()
+            Long adminCount = workspaceUserMapper.selectCount(new LambdaQueryWrapperX<WorkspaceUser>()
                     .eq(WorkspaceUser::getWorkspaceId, id)
                     .eq(WorkspaceUser::getWorkspaceRole, Constants.WorkspaceRole.ADMIN_ID));
             if (adminCount <= 1) {
@@ -228,7 +228,7 @@ public class WorkspaceServiceImpl implements WorkspaceService {
 
     @Override
     public void removeWorkspaceMember(UUID id, UUID userId) {
-        WorkspaceUser wu = workspaceUserMapper.selectOne(new LambdaQueryWrapper<WorkspaceUser>()
+        WorkspaceUser wu = workspaceUserMapper.selectOne(new LambdaQueryWrapperX<WorkspaceUser>()
                 .eq(WorkspaceUser::getUserId, userId)
                 .eq(WorkspaceUser::getWorkspaceId, id));
         if (wu == null) {
@@ -236,7 +236,7 @@ public class WorkspaceServiceImpl implements WorkspaceService {
         }
         // 妫€鏌ユ槸鍚ユ槸鍚︽槸绉婚櫎鍞竴绠＄悊鍛?
         if (Constants.WorkspaceRole.ADMIN_ID.equals(wu.getWorkspaceRole())) {
-            Long adminCount = workspaceUserMapper.selectCount(new LambdaQueryWrapper<WorkspaceUser>()
+            Long adminCount = workspaceUserMapper.selectCount(new LambdaQueryWrapperX<WorkspaceUser>()
                     .eq(WorkspaceUser::getWorkspaceId, id)
                     .eq(WorkspaceUser::getWorkspaceRole, Constants.WorkspaceRole.ADMIN_ID));
             if (adminCount <= 1) {

@@ -1,6 +1,6 @@
 package io.github.xiaomisum.robotest.service.workspace;
 
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import xyz.migoo.framework.mybatis.core.LambdaQueryWrapperX;
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.framework.convert.WorkspaceInvitationConvertMapper;
@@ -71,7 +71,7 @@ public class WorkspaceInvitationServiceImpl implements WorkspaceInvitationServic
 
     @Override
     public PageResult<InvitationRespDTO> getInvitationPage(String workspaceId, Integer pageNo, Integer pageSize) {
-        LambdaQueryWrapper<WorkspaceInvitation> wrapper = new LambdaQueryWrapper<WorkspaceInvitation>()
+        LambdaQueryWrapperX<WorkspaceInvitation> wrapper = new LambdaQueryWrapperX<WorkspaceInvitation>()
                 .eq(WorkspaceInvitation::getWorkspaceId, UUID.fromString(workspaceId))
                 .orderByDesc(WorkspaceInvitation::getCreatedAt);
 
@@ -108,7 +108,7 @@ public class WorkspaceInvitationServiceImpl implements WorkspaceInvitationServic
         InvitationVerifyRespDTO result = new InvitationVerifyRespDTO();
 
         WorkspaceInvitation invitation = invitationMapper.selectOne(
-                new LambdaQueryWrapper<WorkspaceInvitation>()
+                new LambdaQueryWrapperX<WorkspaceInvitation>()
                         .eq(WorkspaceInvitation::getToken, token));
 
         if (!isValidInvitation(invitation)) {
@@ -167,7 +167,7 @@ public class WorkspaceInvitationServiceImpl implements WorkspaceInvitationServic
 
     private void checkAdminPermission(UUID userId, UUID workspaceId) {
         WorkspaceUser workspaceUser = workspaceUserMapper.selectOne(
-                new LambdaQueryWrapper<WorkspaceUser>()
+                new LambdaQueryWrapperX<WorkspaceUser>()
                         .eq(WorkspaceUser::getUserId, userId)
                         .eq(WorkspaceUser::getWorkspaceId, workspaceId));
         if (workspaceUser == null || !Constants.WorkspaceRole.ADMIN_ID.equals(workspaceUser.getWorkspaceRole())) {
@@ -187,7 +187,7 @@ public class WorkspaceInvitationServiceImpl implements WorkspaceInvitationServic
 
     private WorkspaceInvitation validateAndGetInvitation(String token) {
         WorkspaceInvitation invitation = invitationMapper.selectOne(
-                new LambdaQueryWrapper<WorkspaceInvitation>()
+                new LambdaQueryWrapperX<WorkspaceInvitation>()
                         .eq(WorkspaceInvitation::getToken, token));
 
         if (invitation == null) {
@@ -207,7 +207,7 @@ public class WorkspaceInvitationServiceImpl implements WorkspaceInvitationServic
 
     private SysUser findOrCreateUser(String email, String password) {
         SysUser existingUser = userMapper.selectOne(
-                new LambdaQueryWrapper<SysUser>().eq(SysUser::getEmail, email));
+                new LambdaQueryWrapperX<SysUser>().eq(SysUser::getEmail, email));
 
         if (existingUser != null) {
             if (!passwordEncoder.matches(password, existingUser.getPasswordHash())) {
@@ -226,7 +226,7 @@ public class WorkspaceInvitationServiceImpl implements WorkspaceInvitationServic
 
     private WorkspaceUser addMemberToWorkspace(UUID userId, UUID workspaceId) {
         WorkspaceUser existing = workspaceUserMapper.selectOne(
-                new LambdaQueryWrapper<WorkspaceUser>()
+                new LambdaQueryWrapperX<WorkspaceUser>()
                         .eq(WorkspaceUser::getUserId, userId)
                         .eq(WorkspaceUser::getWorkspaceId, workspaceId));
 

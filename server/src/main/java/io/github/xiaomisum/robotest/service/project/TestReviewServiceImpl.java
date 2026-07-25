@@ -1,6 +1,6 @@
 package io.github.xiaomisum.robotest.service.project;
 
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import xyz.migoo.framework.mybatis.core.LambdaQueryWrapperX;
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.framework.convert.TestReviewConvertMapper;
@@ -47,7 +47,7 @@ public class TestReviewServiceImpl implements TestReviewService {
     @Override
     public PageResult<TestReviewListRespDTO> getReviewPage(String projectId, String status,
                                                       Integer pageNo, Integer pageSize) {
-        LambdaQueryWrapper<TestReview> wrapper = new LambdaQueryWrapper<TestReview>()
+        LambdaQueryWrapperX<TestReview> wrapper = new LambdaQueryWrapperX<TestReview>()
                 .eq(TestReview::getProjectId, UUID.fromString(projectId));
         if (StringUtils.hasText(status)) {
             wrapper.eq(TestReview::getStatus, status);
@@ -94,7 +94,7 @@ public class TestReviewServiceImpl implements TestReviewService {
         UUID workspaceId = project.getWorkspaceId();
         for (UUID participantId : reqDTO.getParticipantIds()) {
             WorkspaceUser wu = workspaceUserMapper.selectOne(
-                    new LambdaQueryWrapper<WorkspaceUser>()
+                    new LambdaQueryWrapperX<WorkspaceUser>()
                             .eq(WorkspaceUser::getUserId, participantId)
                             .eq(WorkspaceUser::getWorkspaceId, workspaceId));
             if (wu == null) {
@@ -132,7 +132,7 @@ public class TestReviewServiceImpl implements TestReviewService {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_REVIEW_NOT_FOUND);
         }
 
-        LambdaQueryWrapper<TestReviewNodeSnapshot> wrapper = new LambdaQueryWrapper<TestReviewNodeSnapshot>()
+        LambdaQueryWrapperX<TestReviewNodeSnapshot> wrapper = new LambdaQueryWrapperX<TestReviewNodeSnapshot>()
                 .eq(TestReviewNodeSnapshot::getReviewId, reviewId);
         if (documentId != null) {
             wrapper.eq(TestReviewNodeSnapshot::getDocumentSnapshotId, documentId);
@@ -190,7 +190,7 @@ public class TestReviewServiceImpl implements TestReviewService {
     @Override
     public List<TestReviewRecordRespDTO> getNodeReviewRecords(UUID reviewId, UUID nodeId) {
         List<TestReviewRecord> records = reviewRecordMapper.selectList(
-                new LambdaQueryWrapper<TestReviewRecord>()
+                new LambdaQueryWrapperX<TestReviewRecord>()
                         .eq(TestReviewRecord::getReviewId, reviewId)
                         .eq(TestReviewRecord::getSnapshotNodeId, nodeId)
                         .orderByAsc(TestReviewRecord::getCreatedAt));
@@ -235,7 +235,7 @@ public class TestReviewServiceImpl implements TestReviewService {
         }
 
         List<TestReviewNodeSnapshot> snapshots = reviewNodeSnapshotMapper.selectList(
-                new LambdaQueryWrapper<TestReviewNodeSnapshot>()
+                new LambdaQueryWrapperX<TestReviewNodeSnapshot>()
                         .eq(TestReviewNodeSnapshot::getReviewId, reviewId)
                         .eq(TestReviewNodeSnapshot::getIsAssociated, true)
                         .eq(TestReviewNodeSnapshot::getType, Constants.NodeType.CASE));
@@ -281,12 +281,12 @@ public class TestReviewServiceImpl implements TestReviewService {
         }
 
         List<TestReviewNodeSnapshot> snapshotNodes = reviewNodeSnapshotMapper.selectList(
-                new LambdaQueryWrapper<TestReviewNodeSnapshot>()
+                new LambdaQueryWrapperX<TestReviewNodeSnapshot>()
                         .eq(TestReviewNodeSnapshot::getReviewId, reviewId));
 
         // 1. 同步模块快照：名称、排序与原始模块保持一致；已删除的模块移除快照
         List<TestReviewModuleSnapshot> snapshotModules = reviewModuleSnapshotMapper.selectList(
-                new LambdaQueryWrapper<TestReviewModuleSnapshot>()
+                new LambdaQueryWrapperX<TestReviewModuleSnapshot>()
                         .eq(TestReviewModuleSnapshot::getReviewId, reviewId));
 
         Set<UUID> validModuleSnapshotIds = new HashSet<>();
@@ -369,7 +369,7 @@ public class TestReviewServiceImpl implements TestReviewService {
             }
 
             List<TestCaseNode> docNodes = testCaseNodeMapper.selectList(
-                    new LambdaQueryWrapper<TestCaseNode>()
+                    new LambdaQueryWrapperX<TestCaseNode>()
                             .eq(TestCaseNode::getDocumentId, documentId));
 
             UUID snapshotDocId = findSnapshotModuleId(documentId, reviewId);
@@ -410,7 +410,7 @@ public class TestReviewServiceImpl implements TestReviewService {
             return null;
         }
         TestReviewModuleSnapshot snapshot = reviewModuleSnapshotMapper.selectOne(
-                new LambdaQueryWrapper<TestReviewModuleSnapshot>()
+                new LambdaQueryWrapperX<TestReviewModuleSnapshot>()
                         .eq(TestReviewModuleSnapshot::getReviewId, reviewId)
                         .eq(TestReviewModuleSnapshot::getOriginalModuleId, originalParentId));
         return snapshot != null ? snapshot.getId() : null;
@@ -418,7 +418,7 @@ public class TestReviewServiceImpl implements TestReviewService {
 
     private UUID findSnapshotModuleId(UUID originalModuleId, UUID reviewId) {
         TestReviewModuleSnapshot snapshot = reviewModuleSnapshotMapper.selectOne(
-                new LambdaQueryWrapper<TestReviewModuleSnapshot>()
+                new LambdaQueryWrapperX<TestReviewModuleSnapshot>()
                         .eq(TestReviewModuleSnapshot::getReviewId, reviewId)
                         .eq(TestReviewModuleSnapshot::getOriginalModuleId, originalModuleId));
         return snapshot != null ? snapshot.getId() : null;
@@ -429,7 +429,7 @@ public class TestReviewServiceImpl implements TestReviewService {
             return null;
         }
         TestReviewNodeSnapshot snapshot = reviewNodeSnapshotMapper.selectOne(
-                new LambdaQueryWrapper<TestReviewNodeSnapshot>()
+                new LambdaQueryWrapperX<TestReviewNodeSnapshot>()
                         .eq(TestReviewNodeSnapshot::getReviewId, reviewId)
                         .eq(TestReviewNodeSnapshot::getOriginalNodeId, originalParentId));
         return snapshot != null ? snapshot.getId() : null;

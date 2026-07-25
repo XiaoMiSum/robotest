@@ -1,6 +1,5 @@
 package io.github.xiaomisum.robotest.service.workspace;
 
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.model.dto.request.WorkspaceDefaultProjectReqDTO;
@@ -12,11 +11,11 @@ import io.github.xiaomisum.robotest.model.entity.WorkspaceUser;
 import io.github.xiaomisum.robotest.repository.ProjectMapper;
 import io.github.xiaomisum.robotest.repository.WorkspaceMapper;
 import io.github.xiaomisum.robotest.repository.WorkspaceUserMapper;
-import io.github.xiaomisum.robotest.service.workspace.WorkspaceContextService;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
+import xyz.migoo.framework.mybatis.core.LambdaQueryWrapperX;
 
 import java.util.UUID;
 
@@ -40,7 +39,7 @@ public class WorkspaceContextServiceImpl implements WorkspaceContextService {
         }
 
         WorkspaceUser workspaceUser = workspaceUserMapper.selectOne(
-                new LambdaQueryWrapper<WorkspaceUser>()
+                new LambdaQueryWrapperX<WorkspaceUser>()
                         .eq(WorkspaceUser::getUserId, uid)
                         .eq(WorkspaceUser::getWorkspaceId, wsId));
         if (workspaceUser == null) {
@@ -61,7 +60,7 @@ public class WorkspaceContextServiceImpl implements WorkspaceContextService {
         }
 
         WorkspaceUser workspaceUser = workspaceUserMapper.selectOne(
-                new LambdaQueryWrapper<WorkspaceUser>()
+                new LambdaQueryWrapperX<WorkspaceUser>()
                         .eq(WorkspaceUser::getUserId, uid)
                         .eq(WorkspaceUser::getWorkspaceId, wsId));
         if (workspaceUser == null || !Constants.WorkspaceRole.ADMIN_ID.equals(workspaceUser.getWorkspaceRole())) {
@@ -70,7 +69,7 @@ public class WorkspaceContextServiceImpl implements WorkspaceContextService {
 
         if (reqDTO.getName() != null && !reqDTO.getName().isEmpty()) {
             Workspace existing = workspaceMapper.selectOne(
-                    new LambdaQueryWrapper<Workspace>()
+                    new LambdaQueryWrapperX<Workspace>()
                             .eq(Workspace::getName, reqDTO.getName())
                             .ne(Workspace::getId, wsId));
             if (existing != null) {
@@ -97,7 +96,7 @@ public class WorkspaceContextServiceImpl implements WorkspaceContextService {
         }
 
         WorkspaceUser workspaceUser = workspaceUserMapper.selectOne(
-                new LambdaQueryWrapper<WorkspaceUser>()
+                new LambdaQueryWrapperX<WorkspaceUser>()
                         .eq(WorkspaceUser::getUserId, uid)
                         .eq(WorkspaceUser::getWorkspaceId, wsId));
         if (workspaceUser == null) {
