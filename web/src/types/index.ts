@@ -80,7 +80,7 @@ export interface WorkspaceContext {
 export type UserStatus = 'active' | 'disabled'
 
 /** 角色类型 */
-export type RoleType = 'system' | 'business' | 'workspace'
+export type RoleType = 'system' | 'workspace'
 
 /** 用户所属角色的精简信息（内嵌于用户列表/详情） */
 export interface RoleSimple {
@@ -161,6 +161,7 @@ export interface RoleTreeNode {
   type: RoleType
   isGroup?: boolean
   isSystem?: boolean
+  fullAccess?: boolean
   userCount?: number
   children?: RoleTreeNode[]
 }
@@ -172,6 +173,7 @@ export interface RoleDetail {
   description?: string
   type: RoleType
   isSystem: boolean
+  fullAccess: boolean
   permissions: string[]
   userCount: number
 }
