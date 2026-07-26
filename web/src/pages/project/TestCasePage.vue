@@ -23,9 +23,8 @@ function handleSelectDocument(docId: string, docName: string) {
 
 <template>
   <div class="test-case-page">
-    <!-- 左侧菜单 -->
     <aside class="test-case-page__aside">
-      <el-menu :default-active="activeMenu" @select="(key: string) => (activeMenu = key)">
+      <el-menu :default-active="activeMenu" class="test-case-page__menu" @select="(key: string) => (activeMenu = key)">
         <el-menu-item v-for="item in menuItems" :key="item.key" :index="item.key">
           <el-icon><component :is="item.icon" /></el-icon>
           <span>{{ item.label }}</span>
@@ -33,9 +32,7 @@ function handleSelectDocument(docId: string, docName: string) {
       </el-menu>
     </aside>
 
-    <!-- 右侧内容 -->
     <main class="test-case-page__main">
-      <!-- 测试用例：模块树 + 脑图 -->
       <template v-if="activeMenu === 'cases'">
         <div class="test-case-page__workspace">
           <div class="test-case-page__tree-panel">
@@ -70,12 +67,13 @@ function handleSelectDocument(docId: string, docName: string) {
 .test-case-page__aside {
   width: 140px;
   flex-shrink: 0;
-  border-right: 1px solid var(--el-border-color-lighter);
-  background: var(--el-bg-color);
+  border-right: 1px solid var(--color-neutral-200);
+  background: var(--color-neutral-0);
 }
 
-.test-case-page__aside :deep(.el-menu) {
+.test-case-page__menu {
   border-right: none;
+  padding: var(--space-xs) 0;
 }
 
 .test-case-page__main {
@@ -94,7 +92,7 @@ function handleSelectDocument(docId: string, docName: string) {
 .test-case-page__tree-panel {
   width: 220px;
   flex-shrink: 0;
-  border-right: 1px solid var(--el-border-color-lighter);
+  border-right: 1px solid var(--color-neutral-200);
   overflow: auto;
 }
 
@@ -108,11 +106,12 @@ function handleSelectDocument(docId: string, docName: string) {
 .test-case-page__doc-header {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 12px;
-  font-size: 14px;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  font-size: var(--font-size-sm);
   font-weight: 500;
-  border-bottom: 1px solid var(--el-border-color-lighter);
+  color: var(--color-neutral-700);
+  border-bottom: 1px solid var(--color-neutral-200);
   flex-shrink: 0;
 }
 

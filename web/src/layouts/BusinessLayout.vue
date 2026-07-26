@@ -9,7 +9,6 @@ const route = useRoute()
 const authStore = useAuthStore()
 const navStore = useNavStore()
 
-// 根据路由自动感知导航模式
 watch(
   () => route.path,
   (path) => {
@@ -26,7 +25,6 @@ watch(
   { immediate: true },
 )
 
-// 动态菜单激活项
 const activeDynamicMenu = computed(() => {
   const p = route.path
   const items = navStore.dynamicMenuItems
@@ -34,7 +32,6 @@ const activeDynamicMenu = computed(() => {
   return match?.path ?? ''
 })
 
-// 图标显隐逻辑（按全局导航设计文档 Section 3）
 const showMyProject = computed(() => navStore.isProjectMode)
 const showWorkspaceManage = computed(() => navStore.isWorkspaceMode || navStore.isProjectMode)
 const isSystemActive = computed(() => navStore.isAdminMode)
@@ -46,10 +43,6 @@ function handleDynamicMenuClick(path: string) {
 function goHome() {
   router.push('/workspaces')
   navStore.setMode('none')
-}
-
-function goMyWorkspaces() {
-  router.push('/workspaces')
 }
 
 function goMyProjects() {
@@ -78,12 +71,10 @@ function handleLogout() {
 <template>
   <div class="business-layout">
     <header class="top-nav">
-      <!-- Logo -->
       <div class="top-nav__logo" @click="goHome">
         <span class="top-nav__logo-text">RoboTest</span>
       </div>
 
-      <!-- 动态菜单区 -->
       <nav class="top-nav__dynamic-menu">
         <template v-if="navStore.dynamicMenuItems.length">
           <div
@@ -100,73 +91,58 @@ function handleLogout() {
         <span v-else class="top-nav__menu-hint">请选择一个工作空间</span>
       </nav>
 
-      <!-- 右侧图标组 -->
       <div class="top-nav__icons">
-        <!-- 我的空间（始终显示） -->
-        <el-tooltip content="我的空间" :show-after="1000">
-          <div class="top-nav__icon-btn" @click="goMyWorkspaces">
-            <el-icon><FolderOpened /></el-icon>
-            <span>我的空间</span>
-          </div>
-        </el-tooltip>
+        <div class="top-nav__icon-btn" @click="goHome">
+          <el-icon><FolderOpened /></el-icon>
+          <span>我的空间</span>
+        </div>
 
-        <!-- 我的项目（进入项目后显示） -->
-        <el-tooltip v-if="showMyProject" content="我的项目" :show-after="1000">
-          <div class="top-nav__icon-btn top-nav__icon-btn--active" @click="goMyProjects">
-            <el-icon><Folder /></el-icon>
-            <span>我的项目</span>
-          </div>
-        </el-tooltip>
+        <div v-if="showMyProject" class="top-nav__icon-btn top-nav__icon-btn--active" @click="goMyProjects">
+          <el-icon><Folder /></el-icon>
+          <span>我的项目</span>
+        </div>
 
-        <!-- 空间管理（进入空间后显示） -->
-        <el-tooltip v-if="showWorkspaceManage" content="空间管理" :show-after="1000">
-          <div class="top-nav__icon-btn" @click="goWorkspaceManage">
-            <el-icon><Setting /></el-icon>
-            <span>空间管理</span>
-          </div>
-        </el-tooltip>
+        <div v-if="showWorkspaceManage" class="top-nav__icon-btn" @click="goWorkspaceManage">
+          <el-icon><Setting /></el-icon>
+          <span>空间管理</span>
+        </div>
 
-        <!-- 系统管理（始终显示） -->
-        <el-tooltip content="系统管理" :show-after="1000">
-          <div
-            class="top-nav__icon-btn"
-            :class="{ 'top-nav__icon-btn--active': isSystemActive }"
-            @click="goSystemAdmin"
-          >
-            <el-icon><Monitor /></el-icon>
-            <span>系统管理</span>
-          </div>
-        </el-tooltip>
+        <div
+          class="top-nav__icon-btn"
+          :class="{ 'top-nav__icon-btn--active': isSystemActive }"
+          @click="goSystemAdmin"
+        >
+          <el-icon><Monitor /></el-icon>
+          <span>系统管理</span>
+        </div>
 
-        <!-- 消息通知（始终显示） -->
-        <el-tooltip content="消息通知" :show-after="1000">
-          <div class="top-nav__icon-btn">
-            <el-badge :is-dot="true">
-              <el-icon><Bell /></el-icon>
-            </el-badge>
-            <span>消息</span>
-          </div>
-        </el-tooltip>
+        <div class="top-nav__icon-btn">
+          <el-badge :is-dot="true">
+            <el-icon><Bell /></el-icon>
+          </el-badge>
+          <span>消息</span>
+        </div>
 
-        <!-- 用户头像 -->
+        <el-divider direction="vertical" />
+
         <el-dropdown trigger="click" @command="(cmd: string) => (cmd === 'logout' ? handleLogout() : null)">
           <div class="top-nav__user">
-            <el-avatar :size="28" :src="authStore.avatarUrl || undefined">
+            <el-avatar :size="30" :src="authStore.avatarUrl || undefined">
               {{ authStore.username?.charAt(0)?.toUpperCase() }}
             </el-avatar>
             <span class="top-nav__username">{{ authStore.username }}</span>
           </div>
           <template #dropdown>
             <el-dropdown-menu>
-              <el-dropdown-item command="profile">个人资料</el-dropdown-item>
-              <el-dropdown-item divided command="logout">退出登录</el-dropdown-item>
+              <el-dropdown-item command="logout">
+                <el-icon><SwitchButton /></el-icon>退出登录
+              </el-dropdown-item>
             </el-dropdown-menu>
           </template>
         </el-dropdown>
       </div>
     </header>
 
-    <!-- 内容区 -->
     <main class="business-layout__content">
       <RouterView />
     </main>
@@ -186,28 +162,30 @@ function handleLogout() {
   height: var(--header-height);
   border-bottom: 1px solid var(--color-neutral-200);
   background: var(--color-neutral-0);
-  padding: 0 16px;
+  padding: 0 20px;
   z-index: 100;
   flex-shrink: 0;
   gap: 8px;
+  box-shadow: var(--shadow-sm);
 }
 
 .top-nav__logo {
   cursor: pointer;
-  margin-right: 16px;
+  margin-right: 12px;
   flex-shrink: 0;
 }
 
 .top-nav__logo-text {
-  font-size: 16px;
+  font-size: 17px;
   font-weight: 700;
-  color: var(--color-primary-500);
+  color: var(--color-primary-600);
+  letter-spacing: -0.02em;
 }
 
 .top-nav__dynamic-menu {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 2px;
   flex: 1;
   min-width: 0;
 }
@@ -215,30 +193,32 @@ function handleLogout() {
 .top-nav__menu-item {
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 6px 12px;
-  border-radius: 4px;
-  font-size: 14px;
-  color: var(--color-neutral-700);
+  gap: 5px;
+  padding: 6px 14px;
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-neutral-600);
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all var(--transition-fast);
   white-space: nowrap;
+  user-select: none;
 
   &:hover {
     background: var(--color-primary-50);
-    color: var(--color-primary-500);
+    color: var(--color-primary-600);
   }
 
   &--active {
     background: var(--color-primary-50);
-    color: var(--color-primary-500);
-    font-weight: 500;
+    color: var(--color-primary-600);
+    font-weight: 600;
     position: relative;
 
     &::after {
       content: '';
       position: absolute;
-      bottom: -7px;
+      bottom: -10px;
       left: 50%;
       transform: translateX(-50%);
       width: 60%;
@@ -257,21 +237,22 @@ function handleLogout() {
 .top-nav__icons {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 2px;
   flex-shrink: 0;
 }
 
 .top-nav__icon-btn {
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 4px 8px;
-  border-radius: 4px;
+  gap: 5px;
+  padding: 6px 10px;
+  border-radius: var(--radius-md);
   font-size: 12px;
-  color: var(--color-neutral-600);
+  color: var(--color-neutral-500);
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all var(--transition-fast);
   white-space: nowrap;
+  user-select: none;
 
   &:hover {
     color: var(--color-primary-500);
@@ -279,20 +260,20 @@ function handleLogout() {
   }
 
   &--active {
-    color: var(--color-primary-500);
+    color: var(--color-primary-600);
+    background: var(--color-primary-50);
     font-weight: 500;
-    box-shadow: 0 0 6px rgba(59, 130, 246, 0.3);
   }
 }
 
 .top-nav__user {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   padding: 4px 8px;
-  border-radius: 4px;
+  border-radius: var(--radius-md);
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: background-color var(--transition-fast);
 
   &:hover {
     background: var(--color-neutral-100);
@@ -301,6 +282,7 @@ function handleLogout() {
 
 .top-nav__username {
   font-size: 13px;
+  font-weight: 500;
   color: var(--color-neutral-700);
   max-width: 80px;
   overflow: hidden;
@@ -312,5 +294,6 @@ function handleLogout() {
   flex: 1;
   overflow: auto;
   background-color: var(--color-neutral-50);
+  padding: var(--space-xl);
 }
 </style>

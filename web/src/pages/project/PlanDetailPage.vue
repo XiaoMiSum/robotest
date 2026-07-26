@@ -70,7 +70,7 @@ onMounted(load)
 </script>
 
 <template>
-  <div class="plan-detail" v-loading="loading">
+  <div v-loading="loading" class="plan-detail">
     <el-page-header @back="router.push('/workspace/projects/cases')">
       <template #content><span class="plan-detail__title">{{ detail?.name ?? '计划详情' }}</span></template>
     </el-page-header>
@@ -79,7 +79,7 @@ onMounted(load)
       <el-descriptions :column="3" border>
         <el-descriptions-item label="负责人">{{ detail.executor?.name ?? '-' }}</el-descriptions-item>
         <el-descriptions-item label="状态">
-          <el-tag size="small">{{ statusLabel[detail.status] }}</el-tag>
+          <el-tag size="small" effect="light" round>{{ statusLabel[detail.status] }}</el-tag>
         </el-descriptions-item>
         <el-descriptions-item label="起止时间">
           {{ detail.startTime ? formatDate(detail.startTime) : '?' }} ~ {{ detail.endTime ? formatDate(detail.endTime) : '?' }}
@@ -109,10 +109,34 @@ onMounted(load)
 </template>
 
 <style scoped lang="scss">
-.plan-detail__title { font-size: 18px; font-weight: 600; }
-.plan-detail__info { margin-top: 16px; }
-.plan-detail__progress { margin-top: 16px; }
-.plan-detail__stats { margin-top: 8px; font-size: 13px; color: var(--el-text-color-secondary); }
-.plan-detail__actions { margin-top: 16px; display: flex; gap: 8px; }
-.plan-detail__body { margin-top: 16px; min-height: 300px; }
+.plan-detail__title {
+  font-size: var(--font-size-lg);
+  font-weight: 700;
+  color: var(--color-neutral-800);
+}
+
+.plan-detail__info {
+  margin-top: var(--space-lg);
+}
+
+.plan-detail__progress {
+  margin-top: var(--space-lg);
+}
+
+.plan-detail__stats {
+  margin-top: var(--space-sm);
+  font-size: var(--font-size-xs);
+  color: var(--color-neutral-500);
+}
+
+.plan-detail__actions {
+  margin-top: var(--space-lg);
+  display: flex;
+  gap: var(--space-sm);
+}
+
+.plan-detail__body {
+  margin-top: var(--space-lg);
+  min-height: 300px;
+}
 </style>

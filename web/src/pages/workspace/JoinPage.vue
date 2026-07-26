@@ -23,12 +23,11 @@ const email = ref('')
 const password = ref('')
 const submitting = ref(false)
 
-/** 密码强度（0-4级，映射为 弱/中/强） */
 const passwordStrength = computed(() => {
   const val = password.value
   if (!val || val.length < 8) return 0
   const kinds = [/[A-Z]/, /[a-z]/, /[0-9]/, /[^A-Za-z0-9]/].filter((re) => re.test(val)).length
-  return kinds // 1=弱, 2=弱, 3=中, 4=强
+  return kinds
 })
 const strengthLabel = computed(() => {
   const s = passwordStrength.value
@@ -39,12 +38,11 @@ const strengthLabel = computed(() => {
 })
 const strengthColor = computed(() => {
   const s = passwordStrength.value
-  if (s <= 2) return 'var(--el-color-danger)'
-  if (s === 3) return 'var(--el-color-warning)'
-  return 'var(--el-color-success)'
+  if (s <= 2) return 'var(--color-danger-500)'
+  if (s === 3) return 'var(--color-warning-500)'
+  return 'var(--color-success-500)'
 })
 
-/** 密码强度校验 */
 function validatePassword(value: string): string | null {
   if (!value) return '请输入密码'
   if (value.length < 8 || value.length > 64) return '密码长度为 8-64 个字符'
@@ -115,27 +113,28 @@ onMounted(verify)
 <template>
   <div class="join-page">
     <div class="join-page__card">
-      <!-- 验证中 -->
       <div v-if="verifying" class="join-page__loading">
         <el-icon class="is-loading" :size="32"><Loading /></el-icon>
         <p>正在验证邀请链接...</p>
       </div>
 
-      <!-- 验证失败 -->
       <div v-else-if="!valid" class="join-page__error">
-        <el-icon :size="48" color="var(--el-color-danger)"><CircleCloseFilled /></el-icon>
-        <h2>邀请链接无效</h2>
-        <p>{{ errorMsg }}</p>
+        <div class="join-page__icon join-page__icon--danger">
+          <el-icon :size="40"><CircleCloseFilled /></el-icon>
+        </div>
+        <div class="join-page__heading">邀请链接无效</div>
+        <p class="join-page__hint">{{ errorMsg }}</p>
         <el-button @click="router.push('/login')">返回登录</el-button>
       </div>
 
-      <!-- 验证通过 -->
       <div v-else class="join-page__form">
-        <el-icon :size="48" color="var(--el-color-primary)"><Link /></el-icon>
-        <h2>加入工作空间</h2>
+        <div class="join-page__icon join-page__icon--primary">
+          <el-icon :size="40"><Link /></el-icon>
+        </div>
+        <div class="join-page__heading">加入工作空间</div>
         <p class="join-page__hint">您将被加入「{{ workspaceName }}」工作空间</p>
 
-        <el-form @submit.prevent="handleSubmit" label-position="top" style="width: 100%">
+        <el-form label-position="top" class="join-page__el-form" @submit.prevent="handleSubmit">
           <el-form-item label="邮箱">
             <el-input v-model="email" type="email" placeholder="请输入邮箱" />
           </el-form-item>
@@ -152,7 +151,7 @@ onMounted(verify)
             </div>
           </el-form-item>
           <el-form-item>
-            <el-button type="primary" :loading="submitting" style="width: 100%" @click="handleSubmit">
+            <el-button type="primary" :loading="submitting" class="join-page__submit" @click="handleSubmit">
               加入并登录
             </el-button>
           </el-form-item>
@@ -173,15 +172,16 @@ onMounted(verify)
   align-items: center;
   justify-content: center;
   min-height: 100vh;
-  background-color: var(--el-fill-color-lighter);
+  background: linear-gradient(135deg, var(--color-primary-50) 0%, var(--color-neutral-100) 50%, #eef2ff 100%);
 }
 
 .join-page__card {
   width: 420px;
-  padding: 40px 32px;
-  background: #fff;
-  border-radius: 8px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  padding: var(--space-2xl) var(--space-xl);
+  background: var(--color-neutral-0);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
+  border: 1px solid var(--color-neutral-200);
 }
 
 .join-page__loading,
@@ -193,29 +193,56 @@ onMounted(verify)
   text-align: center;
 }
 
-.join-page__loading p,
-.join-page__error p {
-  color: var(--el-text-color-secondary);
-  margin: 12px 0 0;
+.join-page__icon {
+  width: 72px;
+  height: 72px;
+  border-radius: var(--radius-xl);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: var(--space-md);
 }
 
-.join-page__error h2 {
-  margin: 16px 0 8px;
+.join-page__icon--primary {
+  background: var(--color-primary-50);
+  color: var(--color-primary-600);
 }
 
-.join-page__form h2 {
-  margin: 16px 0 8px;
+.join-page__icon--danger {
+  background: var(--color-danger-50);
+  color: var(--color-danger-500);
+}
+
+.join-page__heading {
+  font-size: var(--font-size-xl);
+  font-weight: 700;
+  color: var(--color-neutral-800);
+  margin: 0 0 var(--space-sm);
 }
 
 .join-page__hint {
-  color: var(--el-text-color-secondary);
-  margin: 0 0 24px;
+  color: var(--color-neutral-500);
+  margin: 0 0 var(--space-xl);
+  font-size: var(--font-size-sm);
+}
+
+.join-page__loading p {
+  color: var(--color-neutral-500);
+  margin: var(--space-md) 0 0;
+}
+
+.join-page__el-form {
+  width: 100%;
+}
+
+.join-page__submit {
+  width: 100%;
 }
 
 .join-page__tips {
-  margin-top: 16px;
-  font-size: 12px;
-  color: var(--el-text-color-secondary);
+  margin-top: var(--space-lg);
+  font-size: var(--font-size-2xs);
+  color: var(--color-neutral-400);
   line-height: 1.8;
 }
 
@@ -226,7 +253,7 @@ onMounted(verify)
 .pwd-strength {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-sm);
   margin-top: 6px;
   width: 100%;
 }
@@ -234,19 +261,20 @@ onMounted(verify)
 .pwd-strength__bar {
   flex: 1;
   height: 4px;
-  background-color: var(--el-border-color-lighter);
-  border-radius: 2px;
+  background-color: var(--color-neutral-200);
+  border-radius: var(--radius-full);
   overflow: hidden;
 }
 
 .pwd-strength__fill {
   height: 100%;
-  border-radius: 2px;
-  transition: width 0.2s, background-color 0.2s;
+  border-radius: var(--radius-full);
+  transition: all 0.3s ease;
 }
 
 .pwd-strength__label {
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
+  font-weight: 500;
   white-space: nowrap;
 }
 </style>

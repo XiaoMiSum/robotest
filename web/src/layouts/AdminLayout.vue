@@ -9,7 +9,6 @@ const route = useRoute()
 const authStore = useAuthStore()
 const navStore = useNavStore()
 
-/** Left sidebar menu items for admin mode */
 const sidebarMenu = [
   { label: '仪表盘', path: '/admin/dashboard', icon: 'Odometer' },
   { label: '用户管理', path: '/admin/users', icon: 'User' },
@@ -36,68 +35,63 @@ function goMyWorkspaces() {
 
 <template>
   <div class="admin-layout">
-    <!-- 48px top nav bar (shared height with sidebar) -->
     <header class="admin-layout__topbar">
       <div class="admin-layout__topbar-left">
         <span class="admin-layout__logo">RoboTest</span>
-        <el-tag type="danger" size="small" effect="dark" class="admin-layout__mode-tag"
-          >系统管理</el-tag
-        >
+        <el-tag type="danger" size="small" effect="dark" class="admin-layout__mode-tag">
+          系统管理
+        </el-tag>
       </div>
 
       <div class="admin-layout__topbar-right">
-        <el-tooltip content="我的空间" :show-after="1000">
-          <div class="admin-layout__icon-btn" @click="goMyWorkspaces">
-            <el-icon><FolderOpened /></el-icon>
-            <span>我的空间</span>
-          </div>
-        </el-tooltip>
+        <div class="admin-layout__icon-btn" @click="goMyWorkspaces">
+          <el-icon><FolderOpened /></el-icon>
+          <span>我的空间</span>
+        </div>
 
-        <el-tooltip content="系统管理" :show-after="1000">
-          <div class="admin-layout__icon-btn admin-layout__icon-btn--active">
-            <el-icon><Monitor /></el-icon>
-            <span>系统管理</span>
-          </div>
-        </el-tooltip>
+        <div class="admin-layout__icon-btn admin-layout__icon-btn--active">
+          <el-icon><Monitor /></el-icon>
+          <span>系统管理</span>
+        </div>
 
-        <el-tooltip content="消息通知" :show-after="1000">
-          <div class="admin-layout__icon-btn">
-            <el-badge :is-dot="true">
-              <el-icon><Bell /></el-icon>
-            </el-badge>
-            <span>消息</span>
-          </div>
-        </el-tooltip>
+        <div class="admin-layout__icon-btn">
+          <el-badge :is-dot="true">
+            <el-icon><Bell /></el-icon>
+          </el-badge>
+          <span>消息</span>
+        </div>
+
+        <el-divider direction="vertical" />
 
         <el-dropdown
           trigger="click"
           @command="(cmd: string) => (cmd === 'logout' ? handleLogout() : null)"
         >
           <span class="admin-layout__user">
-            <el-avatar :size="28" :src="authStore.avatarUrl || undefined">
+            <el-avatar :size="30" :src="authStore.avatarUrl || undefined">
               {{ authStore.username?.charAt(0)?.toUpperCase() }}
             </el-avatar>
             <span class="admin-layout__username">{{ authStore.username }}</span>
-            <el-icon><ArrowDown /></el-icon>
+            <el-icon class="admin-layout__user-arrow"><ArrowDown /></el-icon>
           </span>
           <template #dropdown>
             <el-dropdown-menu>
-              <el-dropdown-item command="logout">退出登录</el-dropdown-item>
+              <el-dropdown-item command="logout">
+                <el-icon><SwitchButton /></el-icon>退出登录
+              </el-dropdown-item>
             </el-dropdown-menu>
           </template>
         </el-dropdown>
       </div>
     </header>
 
-    <!-- Body: sidebar + content -->
     <div class="admin-layout__body">
-      <!-- 240px dark sidebar -->
       <aside class="admin-layout__sidebar">
         <el-menu
           :default-active="activeSidebarPath"
-          background-color="#1E293B"
-          text-color="#CBD5E1"
-          active-text-color="#3B82F6"
+          background-color="transparent"
+          text-color="#94a3b8"
+          active-text-color="#ffffff"
           class="admin-layout__sidebar-menu"
           @select="handleSidebarSelect"
         >
@@ -108,7 +102,6 @@ function goMyWorkspaces() {
         </el-menu>
       </aside>
 
-      <!-- Main content -->
       <main class="admin-layout__content">
         <RouterView />
       </main>
@@ -130,44 +123,49 @@ function goMyWorkspaces() {
   height: var(--header-height);
   border-bottom: 1px solid var(--color-neutral-200);
   background: var(--color-neutral-0);
-  padding: 0 16px;
+  padding: 0 20px;
   z-index: 100;
   flex-shrink: 0;
+  box-shadow: var(--shadow-sm);
 }
 
 .admin-layout__topbar-left {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
 }
 
 .admin-layout__logo {
-  font-size: 16px;
+  font-size: 17px;
   font-weight: 700;
-  color: var(--el-color-primary);
+  color: var(--color-primary-600);
+  letter-spacing: -0.02em;
 }
 
 .admin-layout__mode-tag {
-  font-size: 11px;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  padding: 2px 8px;
 }
 
 .admin-layout__topbar-right {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 4px;
 }
 
 .admin-layout__icon-btn {
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 4px 8px;
-  border-radius: 4px;
+  gap: 5px;
+  padding: 6px 10px;
+  border-radius: var(--radius-md);
   font-size: 12px;
-  color: var(--color-neutral-600);
+  color: var(--color-neutral-500);
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all var(--transition-fast);
   white-space: nowrap;
+  user-select: none;
 
   &:hover {
     color: var(--color-primary-500);
@@ -175,9 +173,9 @@ function goMyWorkspaces() {
   }
 
   &--active {
-    color: var(--color-primary-500);
+    color: var(--color-primary-600);
+    background: var(--color-primary-50);
     font-weight: 500;
-    box-shadow: 0 0 6px rgba(59, 130, 246, 0.3);
   }
 }
 
@@ -187,17 +185,23 @@ function goMyWorkspaces() {
   gap: 8px;
   cursor: pointer;
   padding: 4px 8px;
-  border-radius: 4px;
-  transition: background-color 0.2s;
+  border-radius: var(--radius-md);
+  transition: background-color var(--transition-fast);
 }
 
 .admin-layout__user:hover {
-  background-color: var(--el-fill-color-light);
+  background-color: var(--color-neutral-100);
 }
 
 .admin-layout__username {
-  font-size: 14px;
-  color: var(--el-text-color-primary);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-neutral-700);
+}
+
+.admin-layout__user-arrow {
+  font-size: 12px;
+  color: var(--color-neutral-400);
 }
 
 .admin-layout__body {
@@ -208,19 +212,57 @@ function goMyWorkspaces() {
 
 .admin-layout__sidebar {
   width: var(--sidebar-width);
-  background-color: var(--color-admin-sidebar-bg);
+  background: linear-gradient(180deg, var(--color-neutral-800) 0%, var(--color-neutral-900) 100%);
   flex-shrink: 0;
   overflow-y: auto;
+  border-right: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .admin-layout__sidebar-menu {
   border-right: none;
+  padding: 8px 0;
+
+  :deep(.el-menu-item) {
+    height: 42px;
+    line-height: 42px;
+    margin: 2px 8px;
+    border-radius: var(--radius-md);
+    font-size: 13px;
+    transition: all var(--transition-fast);
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.06) !important;
+      color: #e2e8f0 !important;
+    }
+
+    &.is-active {
+      background: rgba(59, 130, 246, 0.18) !important;
+      color: #60a5fa !important;
+      font-weight: 500;
+
+      &::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 3px;
+        height: 16px;
+        background: var(--color-primary-400);
+        border-radius: 0 2px 2px 0;
+      }
+    }
+
+    .el-icon {
+      font-size: 16px;
+    }
+  }
 }
 
 .admin-layout__content {
   flex: 1;
   overflow: auto;
   background-color: var(--color-admin-bg);
-  padding: 16px;
+  padding: var(--space-xl);
 }
 </style>

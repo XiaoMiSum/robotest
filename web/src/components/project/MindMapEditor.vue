@@ -380,34 +380,34 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="mindmap-container" v-loading="loading">
+  <div v-loading="loading" class="mindmap-container">
     <!-- 断线提示横幅 -->
     <div v-if="isEdit && !isConnected" class="mindmap-disconnect-banner">
       连接已断开，正在重连...
     </div>
 
     <!-- 编辑模式工具栏 -->
-    <div class="mindmap-toolbar" v-if="isEdit">
+    <div v-if="isEdit" class="mindmap-toolbar">
       <el-button-group size="small" class="type-group">
-        <el-button @click="markAs('case')" :type="selectedType==='case'?'primary':''">📋用例</el-button>
-        <el-button @click="markAs('precondition')" :type="selectedType==='precondition'?'primary':''">📘前置</el-button>
-        <el-button @click="markAs('step')" :type="selectedType==='step'?'primary':''">📗步骤</el-button>
-        <el-button @click="markAs('expected')" :type="selectedType==='expected'?'primary':''">📙预期</el-button>
+        <el-button :type="selectedType==='case'?'primary':''" @click="markAs('case')">📋用例</el-button>
+        <el-button :type="selectedType==='precondition'?'primary':''" @click="markAs('precondition')">📘前置</el-button>
+        <el-button :type="selectedType==='step'?'primary':''" @click="markAs('step')">📗步骤</el-button>
+        <el-button :type="selectedType==='expected'?'primary':''" @click="markAs('expected')">📙预期</el-button>
       </el-button-group>
       <el-divider direction="vertical" />
       <el-button-group size="small" class="priority-group">
-        <el-button v-for="p in priorities" :key="p" @click="markPriority(p)" :type="selectedPriority===p?'warning':''">{{ p }}</el-button>
+        <el-button v-for="p in priorities" :key="p" :type="selectedPriority===p?'warning':''" @click="markPriority(p)">{{ p }}</el-button>
       </el-button-group>
       <el-divider direction="vertical" />
       <el-button-group size="small">
-        <el-button @click="addChild" title="添加子节点 (Tab)">＋子</el-button>
-        <el-button @click="addSibling" title="添加兄弟节点 (Enter)">＋兄</el-button>
-        <el-button @click="deleteNode" title="删除 (Delete)">🗑</el-button>
+        <el-button title="添加子节点 (Tab)" @click="addChild">＋子</el-button>
+        <el-button title="添加兄弟节点 (Enter)" @click="addSibling">＋兄</el-button>
+        <el-button title="删除 (Delete)" @click="deleteNode">🗑</el-button>
       </el-button-group>
       <el-divider direction="vertical" />
       <el-button-group size="small">
-        <el-button @click="undo" :disabled="!canUndo">↩</el-button>
-        <el-button @click="redo" :disabled="!canRedo">↪</el-button>
+        <el-button :disabled="!canUndo" @click="undo">↩</el-button>
+        <el-button :disabled="!canRedo" @click="redo">↪</el-button>
       </el-button-group>
       <el-divider direction="vertical" />
       <el-button-group size="small">
@@ -416,9 +416,9 @@ onBeforeUnmount(() => {
         <el-button @click="fitToScreen">⊞</el-button>
       </el-button-group>
       <el-divider direction="vertical" />
-      <el-button @click="toggleGrab" size="small" :type="isGrabMode?'success':''">✋</el-button>
+      <el-button size="small" :type="isGrabMode?'success':''" @click="toggleGrab">✋</el-button>
       <!-- 在线用户头像 -->
-      <div class="online-users" v-if="onlineUsers.length">
+      <div v-if="onlineUsers.length" class="online-users">
         <el-avatar v-for="user in onlineUsers" :key="user.id" :size="24" :style="{ border: `2px solid ${user.color}` }">
           {{ user.name.charAt(0) }}
         </el-avatar>
@@ -426,11 +426,11 @@ onBeforeUnmount(() => {
     </div>
 
     <!-- 评审模式工具栏 -->
-    <div class="mindmap-toolbar" v-else-if="isReview">
+    <div v-else-if="isReview" class="mindmap-toolbar">
       <el-button-group size="small">
-        <el-button @click="markReview('pass')" :type="reviewResult==='pass'?'success':''">✅通过</el-button>
-        <el-button @click="markReview('fail')" :type="reviewResult==='fail'?'danger':''">❌不通过</el-button>
-        <el-button @click="markReview(null)" :type="reviewResult===null?'info':''">❓待评审</el-button>
+        <el-button :type="reviewResult==='pass'?'success':''" @click="markReview('pass')">✅通过</el-button>
+        <el-button :type="reviewResult==='fail'?'danger':''" @click="markReview('fail')">❌不通过</el-button>
+        <el-button :type="reviewResult===null?'info':''" @click="markReview(null)">❓待评审</el-button>
       </el-button-group>
       <el-button size="small" @click="openComments">💬评论</el-button>
       <el-divider direction="vertical" />
@@ -439,16 +439,16 @@ onBeforeUnmount(() => {
         <el-button @click="zoomOut">🔍-</el-button>
         <el-button @click="fitToScreen">⊞</el-button>
       </el-button-group>
-      <el-button @click="toggleGrab" size="small" :type="isGrabMode?'success':''">✋</el-button>
+      <el-button size="small" :type="isGrabMode?'success':''" @click="toggleGrab">✋</el-button>
     </div>
 
     <!-- 计划模式工具栏 -->
-    <div class="mindmap-toolbar" v-else-if="isPlan">
+    <div v-else-if="isPlan" class="mindmap-toolbar">
       <el-button-group size="small">
-        <el-button @click="markExecution('pass')" :type="execResult==='pass'?'success':''">✅通过</el-button>
-        <el-button @click="markExecution('fail')" :type="execResult==='fail'?'danger':''">❌失败</el-button>
-        <el-button @click="markExecution('block')" :type="execResult==='block'?'warning':''">❓阻塞</el-button>
-        <el-button @click="markExecution('untested')" :type="execResult==='untested'?'info':''">🔄未执行</el-button>
+        <el-button :type="execResult==='pass'?'success':''" @click="markExecution('pass')">✅通过</el-button>
+        <el-button :type="execResult==='fail'?'danger':''" @click="markExecution('fail')">❌失败</el-button>
+        <el-button :type="execResult==='block'?'warning':''" @click="markExecution('block')">❓阻塞</el-button>
+        <el-button :type="execResult==='untested'?'info':''" @click="markExecution('untested')">🔄未执行</el-button>
       </el-button-group>
       <el-divider direction="vertical" />
       <el-button-group size="small">
@@ -456,7 +456,7 @@ onBeforeUnmount(() => {
         <el-button @click="zoomOut">🔍-</el-button>
         <el-button @click="fitToScreen">⊞</el-button>
       </el-button-group>
-      <el-button @click="toggleGrab" size="small" :type="isGrabMode?'success':''">✋</el-button>
+      <el-button size="small" :type="isGrabMode?'success':''" @click="toggleGrab">✋</el-button>
     </div>
 
     <!-- 脑图画布 -->
@@ -539,7 +539,7 @@ onBeforeUnmount(() => {
       </div>
       <div class="comment-input">
         <el-input v-model="newComment" placeholder="输入评论..." @keyup.enter="addCommentFn" />
-        <el-button type="primary" size="small" @click="addCommentFn" :disabled="!newComment.trim()">发送</el-button>
+        <el-button type="primary" size="small" :disabled="!newComment.trim()" @click="addCommentFn">发送</el-button>
       </div>
     </el-drawer>
   </div>

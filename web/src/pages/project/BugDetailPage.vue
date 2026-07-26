@@ -96,28 +96,28 @@ onMounted(load)
 </script>
 
 <template>
-  <div class="bug-detail" v-loading="loading">
+  <div v-loading="loading" class="bug-detail">
     <el-page-header @back="router.push('/workspace/projects/bugs')">
       <template #content><span class="bug-detail__title">缺陷详情</span></template>
     </el-page-header>
 
     <el-card v-if="detail" shadow="never" class="bug-detail__card">
-      <el-form label-width="96px" style="max-width: 640px">
+      <el-form label-width="96px" class="bug-detail__form">
         <el-form-item label="标题">
           <el-input v-if="!isClosed" v-model="form.title" />
-          <span v-else>{{ detail.title }}</span>
+          <span v-else class="bug-detail__text">{{ detail.title }}</span>
         </el-form-item>
         <el-form-item label="严重等级">
           <el-select v-if="!isClosed" v-model="form.severity" style="width: 160px">
             <el-option v-for="(label, key) in severityLabel" :key="key" :label="label" :value="key" />
           </el-select>
-          <span v-else>{{ severityLabel[detail.severity] }}</span>
+          <el-tag v-else size="small" effect="light" round>{{ severityLabel[detail.severity] }}</el-tag>
         </el-form-item>
         <el-form-item label="优先级">
           <el-select v-if="!isClosed" v-model="form.priority" style="width: 160px">
             <el-option v-for="(label, key) in priorityLabel" :key="key" :label="label" :value="key" />
           </el-select>
-          <span v-else>{{ priorityLabel[detail.priority] }}</span>
+          <span v-else class="bug-detail__text">{{ priorityLabel[detail.priority] }}</span>
         </el-form-item>
         <el-form-item label="状态">
           <el-select v-if="!isClosed" v-model="form.status" style="width: 160px" @change="handleStatusChange">
@@ -127,16 +127,16 @@ onMounted(load)
         </el-form-item>
         <el-form-item label="描述">
           <el-input v-if="!isClosed" v-model="form.description" type="textarea" :rows="4" />
-          <span v-else>{{ detail.description || '-' }}</span>
+          <span v-else class="bug-detail__text">{{ detail.description || '-' }}</span>
         </el-form-item>
         <el-form-item label="处理人">
           <el-select v-if="!isClosed" v-model="form.assigneeId" filterable clearable style="width: 240px">
             <el-option v-for="m in memberOptions" :key="m.userId" :label="m.username" :value="m.userId" />
           </el-select>
-          <span v-else>{{ detail.assignee?.name ?? '-' }}</span>
+          <span v-else class="bug-detail__text">{{ detail.assignee?.name ?? '-' }}</span>
         </el-form-item>
         <el-form-item label="报告人">
-          <span>{{ detail.reporter.name }}</span>
+          <span class="bug-detail__text">{{ detail.reporter.name }}</span>
         </el-form-item>
         <el-form-item v-if="!isClosed">
           <el-button type="primary" :loading="saving" @click="handleSave">保存</el-button>
@@ -145,7 +145,6 @@ onMounted(load)
       </el-form>
     </el-card>
 
-    <!-- 操作日志 -->
     <el-card v-if="logs.length" shadow="never" class="bug-detail__logs">
       <template #header><span class="bug-detail__section">操作记录</span></template>
       <el-timeline>
@@ -165,24 +164,37 @@ onMounted(load)
 
 <style scoped lang="scss">
 .bug-detail__title {
-  font-size: 18px;
-  font-weight: 600;
+  font-size: var(--font-size-lg);
+  font-weight: 700;
+  color: var(--color-neutral-800);
 }
 
 .bug-detail__card {
-  margin-top: 16px;
+  margin-top: var(--space-lg);
+}
+
+.bug-detail__form {
+  max-width: 640px;
+}
+
+.bug-detail__text {
+  font-size: var(--font-size-sm);
+  color: var(--color-neutral-700);
+  line-height: 1.6;
 }
 
 .bug-detail__logs {
-  margin-top: 16px;
+  margin-top: var(--space-lg);
 }
 
 .bug-detail__section {
   font-weight: 600;
+  font-size: var(--font-size-sm);
 }
 
 .bug-detail__log-content {
-  color: var(--el-text-color-secondary);
-  margin-left: 8px;
+  color: var(--color-neutral-500);
+  margin-left: var(--space-sm);
+  font-size: var(--font-size-xs);
 }
 </style>

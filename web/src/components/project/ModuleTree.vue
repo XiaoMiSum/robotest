@@ -91,7 +91,7 @@ onMounted(load)
 </script>
 
 <template>
-  <div class="module-tree" v-loading="loading">
+  <div v-loading="loading" class="module-tree">
     <div class="module-tree__toolbar">
       <el-dropdown trigger="click" @command="(cmd: string) => handleCreate(null, cmd as 'directory' | 'document')">
         <el-button size="small" type="primary">

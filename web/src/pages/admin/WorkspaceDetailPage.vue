@@ -25,7 +25,6 @@ const roleOptions = [
   { value: WORKSPACE_ROLE.MEMBER, label: '成员' },
 ]
 
-// --- 基本信息 ---
 const detail = ref<AdminWorkspace | null>(null)
 const infoLoading = ref(false)
 const infoSaving = ref(false)
@@ -74,12 +73,10 @@ async function saveInfo() {
   }
 }
 
-// --- 成员管理 ---
 const members = ref<WorkspaceMember[]>([])
 const membersLoading = ref(false)
 const memberTotal = ref(0)
 const memberQuery = reactive({ pageNo: 1, pageSize: 20 })
-// 已加载成员中的管理员数量，用于阻止降级/移除唯一管理员（后端为最终裁决方）
 const adminCount = computed(
   () => members.value.filter((m) => m.workspaceRole === WORKSPACE_ROLE.ADMIN).length,
 )
@@ -101,7 +98,6 @@ async function loadMembers() {
 }
 
 async function handleRoleChange(member: WorkspaceMember, next: string) {
-  // 降级唯一管理员前置拦截：仅当当前页仅剩一名管理员时提示
   if (
     member.workspaceRole === WORKSPACE_ROLE.ADMIN &&
     next !== WORKSPACE_ROLE.ADMIN &&
@@ -116,7 +112,6 @@ async function handleRoleChange(member: WorkspaceMember, next: string) {
     ElMessage.success('角色已更新')
   } catch (err) {
     ElMessage.error(err instanceof Error ? err.message : '更新角色失败')
-    // 失败时重新拉取以复原下拉框显示
     loadMembers()
   }
 }
@@ -143,13 +138,11 @@ async function handleRemoveMember(member: WorkspaceMember) {
   }
 }
 
-// --- 添加成员弹窗 ---
 const addDialogVisible = ref(false)
 const addSubmitting = ref(false)
 const userSearchLoading = ref(false)
 const userOptions = ref<{ id: string; username: string; email: string }[]>([])
 const selectedUserIds = ref<string[]>([])
-// 每个待添加用户的角色选择
 const pendingRoles = reactive<Record<string, string>>({})
 
 function openAddDialog() {
@@ -167,7 +160,6 @@ async function searchUsers(keyword: string) {
   userSearchLoading.value = true
   try {
     const page = await fetchUsers({ keyword, status: 'active', pageNo: 1, pageSize: 20 })
-    // 系统管理员不能被添加为工作空间成员（需求 3.1.2），过滤掉含系统角色的用户
     userOptions.value = page.list
       .filter((u) => !u.roles.some((r) => r.type === 'system'))
       .map((u) => ({ id: u.id, username: u.username, email: u.email }))
@@ -178,7 +170,6 @@ async function searchUsers(keyword: string) {
   }
 }
 
-// 选中用户后为其分配默认角色（成员），取消选中则清理
 function handleUserSelectChange(ids: string[]) {
   ids.forEach((id) => {
     if (!pendingRoles[id]) pendingRoles[id] = WORKSPACE_ROLE.MEMBER
@@ -220,7 +211,6 @@ async function submitAddMembers() {
   }
 }
 
-// --- 解散工作空间 ---
 async function handleDissolve() {
   if (!detail.value) return
   if (detail.value.projectCount > 0) {
@@ -258,13 +248,13 @@ onMounted(() => {
 <template>
   <div class="ws-detail">
     <div class="ws-detail__header">
-      <el-button link @click="router.push('/admin/workspaces')">
-        <el-icon><ArrowLeft /></el-icon>返回列表
-      </el-button>
-      <h2 class="ws-detail__title">{{ detail?.name || '工作空间详情' }}</h2>
+      <el-page-header @back="router.push('/admin/workspaces')">
+        <template #content>
+          <span class="ws-detail__title">{{ detail?.name || '工作空间详情' }}</span>
+        </template>
+      </el-page-header>
     </div>
 
-    <!-- 基本信息 -->
     <el-card v-loading="infoLoading" shadow="never" class="ws-detail__section">
       <template #header><span class="ws-detail__section-title">基本信息</span></template>
       <el-form
@@ -272,7 +262,7 @@ onMounted(() => {
         :model="infoForm"
         :rules="infoRules"
         label-width="80px"
-        style="max-width: 560px"
+        class="ws-detail__form"
       >
         <el-form-item label="名称" prop="name">
           <el-input v-model="infoForm.name" maxlength="50" show-word-limit />
@@ -287,9 +277,16 @@ onMounted(() => {
           />
         </el-form-item>
         <el-form-item label="统计">
-          <span class="ws-detail__stat">成员数 {{ detail?.memberCount ?? 0 }}</span>
-          <el-divider direction="vertical" />
-          <span class="ws-detail__stat">项目数 {{ detail?.projectCount ?? 0 }}</span>
+          <div class="ws-detail__stats">
+            <div class="ws-detail__stat-badge ws-detail__stat-badge--primary">
+              <el-icon><User /></el-icon>
+              成员 {{ detail?.memberCount ?? 0 }}
+            </div>
+            <div class="ws-detail__stat-badge ws-detail__stat-badge--blue">
+              <el-icon><Folder /></el-icon>
+              项目 {{ detail?.projectCount ?? 0 }}
+            </div>
+          </div>
         </el-form-item>
         <el-form-item>
           <el-button type="primary" :loading="infoSaving" @click="saveInfo">保存</el-button>
@@ -297,7 +294,6 @@ onMounted(() => {
       </el-form>
     </el-card>
 
-    <!-- 成员管理 -->
     <el-card shadow="never" class="ws-detail__section">
       <template #header>
         <div class="ws-detail__section-header">
@@ -311,7 +307,7 @@ onMounted(() => {
         <el-table-column label="用户名" min-width="140">
           <template #default="{ row }">
             <div class="ws-detail__user">
-              <el-avatar :size="26" :src="row.avatarUrl || undefined">
+              <el-avatar :size="28" :src="row.avatarUrl || undefined">
                 {{ row.username.charAt(0).toUpperCase() }}
               </el-avatar>
               <span>{{ row.username }}</span>
@@ -340,9 +336,7 @@ onMounted(() => {
         </el-table-column>
         <el-table-column label="操作" width="90" fixed="right">
           <template #default="{ row }">
-            <el-button link type="danger" @click="handleRemoveMember(row as WorkspaceMember)"
-              >移除</el-button
-            >
+            <el-button link type="danger" @click="handleRemoveMember(row as WorkspaceMember)">移除</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -359,7 +353,6 @@ onMounted(() => {
       </div>
     </el-card>
 
-    <!-- 危险操作 -->
     <el-card shadow="never" class="ws-detail__section ws-detail__danger">
       <template #header><span class="ws-detail__section-title">危险操作</span></template>
       <div class="ws-detail__danger-body">
@@ -371,7 +364,6 @@ onMounted(() => {
       </div>
     </el-card>
 
-    <!-- 添加成员弹窗 -->
     <el-dialog v-model="addDialogVisible" title="添加成员" width="520px">
       <el-form label-width="80px">
         <el-form-item label="选择用户">
@@ -411,9 +403,7 @@ onMounted(() => {
       </div>
       <template #footer>
         <el-button @click="addDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="addSubmitting" @click="submitAddMembers"
-          >确定</el-button
-        >
+        <el-button type="primary" :loading="addSubmitting" @click="submitAddMembers">确定</el-button>
       </template>
     </el-dialog>
   </div>
@@ -421,24 +411,22 @@ onMounted(() => {
 
 <style scoped lang="scss">
 .ws-detail__header {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 16px;
+  margin-bottom: var(--space-xl);
 }
 
 .ws-detail__title {
-  font-size: 20px;
-  font-weight: 600;
-  margin: 0;
+  font-size: var(--font-size-lg);
+  font-weight: 700;
+  color: var(--color-neutral-800);
 }
 
 .ws-detail__section {
-  margin-bottom: 16px;
+  margin-bottom: var(--space-lg);
 }
 
 .ws-detail__section-title {
   font-weight: 600;
+  font-size: var(--font-size-sm);
 }
 
 .ws-detail__section-header {
@@ -447,24 +435,50 @@ onMounted(() => {
   justify-content: space-between;
 }
 
-.ws-detail__stat {
-  color: var(--el-text-color-regular);
+.ws-detail__form {
+  max-width: 560px;
+}
+
+.ws-detail__stats {
+  display: flex;
+  gap: var(--space-md);
+}
+
+.ws-detail__stat-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-xs) var(--space-md);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+}
+
+.ws-detail__stat-badge--primary {
+  background: var(--color-primary-50);
+  color: var(--color-primary-700);
+}
+
+.ws-detail__stat-badge--blue {
+  background: #eff6ff;
+  color: #1d4ed8;
 }
 
 .ws-detail__user {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-sm);
 }
 
 .ws-detail__pager {
   display: flex;
   justify-content: flex-end;
-  margin-top: 16px;
+  margin-top: var(--space-lg);
 }
 
 .ws-detail__danger {
-  border: 1px solid var(--el-color-danger-light-5);
+  border: 1px solid var(--color-danger-200);
+  background: var(--color-danger-50);
 }
 
 .ws-detail__danger-body {
@@ -475,29 +489,29 @@ onMounted(() => {
 
 .ws-detail__danger-label {
   font-weight: 600;
-  color: var(--el-color-danger);
+  color: var(--color-danger-700);
 }
 
 .ws-detail__danger-tip {
   margin-top: 4px;
-  font-size: 13px;
-  color: var(--el-text-color-secondary);
+  font-size: var(--font-size-xs);
+  color: var(--color-danger-500);
 }
 
 .ws-detail__pending {
-  border-top: 1px solid var(--el-border-color-lighter);
-  padding-top: 12px;
+  border-top: 1px solid var(--color-neutral-200);
+  padding-top: var(--space-md);
 }
 
 .ws-detail__pending-item {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 6px 0;
+  padding: var(--space-sm) 0;
 }
 
 .ws-detail__pending-name {
-  font-size: 14px;
-  color: var(--el-text-color-primary);
+  font-size: var(--font-size-sm);
+  color: var(--color-neutral-700);
 }
 </style>

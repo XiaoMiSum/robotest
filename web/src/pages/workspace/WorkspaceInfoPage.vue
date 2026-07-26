@@ -29,7 +29,6 @@ const rules: FormRules = {
 }
 
 async function load() {
-  // 若路由参数的 workspaceId 与 store 不一致，以路由为准同步 store
   const routeWsId = route.params.workspaceId as string | undefined
   if (routeWsId && authStore.activeWorkspace?.id !== routeWsId) {
     authStore.setActiveWorkspace({ id: routeWsId, name: '', workspaceRole: '' })
@@ -61,7 +60,6 @@ async function handleSave() {
       description: form.description.trim(),
     })
     detail.value = updated
-    // 同步更新 store 中的空间名称
     if (authStore.activeWorkspace) {
       authStore.setActiveWorkspace({ ...authStore.activeWorkspace, name: updated.name })
     }
@@ -77,8 +75,7 @@ onMounted(load)
 </script>
 
 <template>
-  <div class="ws-info" v-loading="loading">
-    <h2 class="ws-info__title">空间信息</h2>
+  <div v-loading="loading" class="ws-info">
 
     <el-card shadow="never" class="ws-info__card">
       <template #header><span class="ws-info__section">基本信息</span></template>
@@ -87,7 +84,7 @@ onMounted(load)
         :model="form"
         :rules="rules"
         label-width="80px"
-        style="max-width: 560px"
+        class="ws-info__form"
       >
         <el-form-item label="名称" prop="name">
           <el-input v-model="form.name" :disabled="!isAdmin" maxlength="50" show-word-limit />
@@ -103,12 +100,19 @@ onMounted(load)
           />
         </el-form-item>
         <el-form-item label="统计">
-          <span class="ws-info__stat">成员 {{ detail?.memberCount ?? 0 }}</span>
-          <el-divider direction="vertical" />
-          <span class="ws-info__stat">项目 {{ detail?.projectCount ?? 0 }}</span>
+          <div class="ws-info__stats">
+            <div class="ws-info__stat-badge ws-info__stat-badge--primary">
+              <el-icon><User /></el-icon>
+              成员 {{ detail?.memberCount ?? 0 }}
+            </div>
+            <div class="ws-info__stat-badge ws-info__stat-badge--blue">
+              <el-icon><Folder /></el-icon>
+              项目 {{ detail?.projectCount ?? 0 }}
+            </div>
+          </div>
         </el-form-item>
         <el-form-item label="创建时间">
-          <span class="ws-info__stat">{{ formatDateTime(detail?.createdAt) }}</span>
+          <span class="ws-info__meta">{{ formatDateTime(detail?.createdAt) }}</span>
         </el-form-item>
         <el-form-item v-if="isAdmin">
           <el-button type="primary" :loading="saving" @click="handleSave">保存修改</el-button>
@@ -119,21 +123,46 @@ onMounted(load)
 </template>
 
 <style scoped lang="scss">
-.ws-info__title {
-  font-size: 20px;
-  font-weight: 600;
-  margin: 0 0 16px;
-}
-
 .ws-info__card {
   max-width: 720px;
 }
 
 .ws-info__section {
   font-weight: 600;
+  font-size: var(--font-size-sm);
 }
 
-.ws-info__stat {
-  color: var(--el-text-color-regular);
+.ws-info__form {
+  max-width: 560px;
+}
+
+.ws-info__stats {
+  display: flex;
+  gap: var(--space-md);
+}
+
+.ws-info__stat-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-xs) var(--space-md);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+}
+
+.ws-info__stat-badge--primary {
+  background: var(--color-primary-50);
+  color: var(--color-primary-700);
+}
+
+.ws-info__stat-badge--blue {
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.ws-info__meta {
+  font-size: var(--font-size-xs);
+  color: var(--color-neutral-500);
 }
 </style>
