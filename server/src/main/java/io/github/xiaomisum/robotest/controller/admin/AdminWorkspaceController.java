@@ -28,9 +28,10 @@ public class AdminWorkspaceController {
     @PreAuthorize("hasAuthority('workspace:view')")
     public Result<PageResult<WorkspaceRespDTO>> getWorkspacePage(
             @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String status,
             @RequestParam(defaultValue = "1") Integer pageNo,
             @RequestParam(defaultValue = "20") Integer pageSize) {
-        return Result.ok(workspaceService.getWorkspacePage(keyword, pageNo, pageSize));
+        return Result.ok(workspaceService.getWorkspacePage(keyword, status, pageNo, pageSize));
     }
 
     @PostMapping
