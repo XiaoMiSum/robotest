@@ -78,6 +78,7 @@ export function resetUserPassword(id: string, newPassword: string): Promise<void
 
 export function fetchWorkspaces(params: {
   keyword?: string
+  status?: string
   pageNo?: number
   pageSize?: number
 }): Promise<PageResult<AdminWorkspace>> {
@@ -131,7 +132,7 @@ export function removeWorkspaceMember(id: string, userId: string): Promise<void>
 
 // ==================== 角色与权限管理 ====================
 
-export function fetchRoleTree(): Promise<RoleTreeNode[]> {
+export function fetchRoleList(): Promise<RoleTreeNode[]> {
   return get('/admin/roles/tree')
 }
 

@@ -8,7 +8,7 @@ import io.github.xiaomisum.robotest.model.dto.request.RolePermissionsUpdateReqDT
 import io.github.xiaomisum.robotest.model.dto.request.RoleUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.PermissionTableRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.RoleRespDTO;
-import io.github.xiaomisum.robotest.model.dto.response.RoleTreeRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.RoleSimpleRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.RoleUserRespDTO;
 import io.github.xiaomisum.robotest.model.entity.SysPermission;
 import io.github.xiaomisum.robotest.model.entity.SysRole;
@@ -44,28 +44,19 @@ public class RoleServiceImpl implements RoleService {
     private SysPermissionMapper permissionMapper;
 
     @Override
-    public List<RoleTreeRespDTO> getRoleTree() {
+    public List<RoleSimpleRespDTO> getRoleList() {
         List<SysRole> roles = roleMapper.selectList(new LambdaQueryWrapperX<SysRole>()
-                .eq(SysRole::getType, Constants.RoleType.SYSTEM));
+                .orderByAsc(SysRole::getType, SysRole::getName));
 
-        RoleTreeRespDTO groupNode = new RoleTreeRespDTO();
-        groupNode.setId(UUID.nameUUIDFromBytes("type-system".getBytes()));
-        groupNode.setName("绯荤粺瑙掕壊");
-        groupNode.setType(Constants.RoleType.SYSTEM);
-        groupNode.setIsGroup(true);
-        groupNode.setChildren(roles.stream().map(role -> {
-            RoleTreeRespDTO node = new RoleTreeRespDTO();
+        return roles.stream().map(role -> {
+            RoleSimpleRespDTO node = new RoleSimpleRespDTO();
             node.setId(role.getId());
             node.setName(role.getName());
             node.setType(role.getType());
             node.setIsSystem(role.getIsSystem());
             node.setUserCount(Math.toIntExact(userRoleMapper.selectCount(SysUserRole::getRoleId, role.getId())));
             return node;
-        }).collect(Collectors.toList()));
-
-        List<RoleTreeRespDTO> result = new ArrayList<>();
-        result.add(groupNode);
-        return result;
+        }).collect(Collectors.toList());
     }
 
     @Override
@@ -75,8 +66,9 @@ public class RoleServiceImpl implements RoleService {
         if (roleMapper.selectOne(SysRole::getName, reqDTO.getName()) != null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.ROLE_NAME_EXISTS);
         }
-        // 鏍￠獙绫诲瀷
-        if (!Constants.RoleType.SYSTEM.equals(reqDTO.getType())) {
+        // 校验类型
+        if (!Constants.RoleType.SYSTEM.equals(reqDTO.getType())
+                && !Constants.RoleType.WORKSPACE.equals(reqDTO.getType())) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.ROLE_TYPE_ERROR);
         }
 

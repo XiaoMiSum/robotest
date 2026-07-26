@@ -51,6 +51,7 @@ public final class Constants {
 
     public interface RoleType {
         String SYSTEM = "system";
+        String WORKSPACE = "workspace";
     }
 
     public interface ModuleType {

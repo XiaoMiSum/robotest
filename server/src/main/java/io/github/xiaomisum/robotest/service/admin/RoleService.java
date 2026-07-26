@@ -5,7 +5,7 @@ import io.github.xiaomisum.robotest.model.dto.request.RolePermissionsUpdateReqDT
 import io.github.xiaomisum.robotest.model.dto.request.RoleUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.PermissionTableRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.RoleRespDTO;
-import io.github.xiaomisum.robotest.model.dto.response.RoleTreeRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.RoleSimpleRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.RoleUserRespDTO;
 import xyz.migoo.framework.common.pojo.PageResult;
 
@@ -14,7 +14,7 @@ import java.util.UUID;
 
 public interface RoleService {
 
-    List<RoleTreeRespDTO> getRoleTree();
+    List<RoleSimpleRespDTO> getRoleList();
 
     String createRole(RoleCreateReqDTO reqDTO);
 

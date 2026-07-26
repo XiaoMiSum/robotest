@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { createRole, deleteRole, fetchRoleTree, updateRole } from '@/services/admin'
-import type { RoleTreeNode } from '@/types'
+import { createRole, deleteRole, fetchRoleList, updateRole } from '@/services/admin'
+import type { RoleTreeNode, RoleType } from '@/types'
 
 const emit = defineEmits<{
   select: [node: { id: string; isSystem: boolean }]
@@ -14,10 +14,37 @@ const treeData = ref<RoleTreeNode[]>([])
 const loading = ref(false)
 const currentId = ref('')
 
+const GROUP_CONFIG: Record<RoleType, { label: string; id: string }> = {
+  system: { label: '系统角色', id: 'type-system' },
+  workspace: { label: '工作空间角色', id: 'type-workspace' },
+  business: { label: '业务角色', id: 'type-business' },
+}
+
+function buildTree(roles: RoleTreeNode[]): RoleTreeNode[] {
+  const groups = new Map<RoleType, RoleTreeNode>()
+  for (const [type, cfg] of Object.entries(GROUP_CONFIG) as [RoleType, { label: string; id: string }][]) {
+    groups.set(type, {
+      id: cfg.id,
+      name: cfg.label,
+      type,
+      isGroup: true,
+      children: [],
+    })
+  }
+  for (const role of roles) {
+    const group = groups.get(role.type)
+    if (group) {
+      group.children!.push(role)
+    }
+  }
+  return Array.from(groups.values()).filter((g) => g.children!.length > 0 || g.type === 'system' || g.type === 'workspace')
+}
+
 async function load() {
   loading.value = true
   try {
-    treeData.value = await fetchRoleTree()
+    const flat = await fetchRoleList()
+    treeData.value = buildTree(flat)
   } catch (err) {
     ElMessage.error(err instanceof Error ? err.message : '加载角色树失败')
   } finally {
@@ -26,7 +53,6 @@ async function load() {
 }
 
 function handleNodeClick(node: RoleTreeNode) {
-  // 分组节点仅用于归类，不可选中
   if (node.isGroup) return
   currentId.value = node.id
   emit('select', { id: node.id, isSystem: node.isSystem ?? false })
@@ -167,10 +193,6 @@ onMounted(load)
 }
 
 .role-tree__actions {
-  visibility: hidden;
-}
-
-.role-tree__node:hover .role-tree__actions {
   visibility: visible;
 }
 </style>

@@ -6,7 +6,7 @@ import io.github.xiaomisum.robotest.model.dto.request.RoleUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.RoleUsersAddReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.PermissionTableRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.RoleRespDTO;
-import io.github.xiaomisum.robotest.model.dto.response.RoleTreeRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.RoleSimpleRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.RoleUserRespDTO;
 import io.github.xiaomisum.robotest.service.admin.RoleService;
 import jakarta.annotation.Resource;
@@ -29,8 +29,8 @@ public class AdminRoleController {
 
     @GetMapping("/tree")
     @PreAuthorize("hasAuthority('role:view')")
-    public Result<List<RoleTreeRespDTO>> getRoleTree() {
-        return Result.ok(roleService.getRoleTree());
+    public Result<List<RoleSimpleRespDTO>> getRoleList() {
+        return Result.ok(roleService.getRoleList());
     }
 
     @PostMapping
