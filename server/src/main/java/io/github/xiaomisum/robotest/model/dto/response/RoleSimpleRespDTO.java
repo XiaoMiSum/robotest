@@ -11,5 +11,6 @@ public class RoleSimpleRespDTO {
     private String name;
     private String type;
     private Boolean isSystem;
+    private Boolean fullAccess;
     private Integer userCount;
 }

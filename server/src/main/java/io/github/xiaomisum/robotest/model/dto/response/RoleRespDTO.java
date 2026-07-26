@@ -13,6 +13,7 @@ public class RoleRespDTO {
     private String description;
     private String type;
     private Boolean isSystem;
+    private Boolean fullAccess;
     private List<String> permissions;
     private Integer userCount;
 }

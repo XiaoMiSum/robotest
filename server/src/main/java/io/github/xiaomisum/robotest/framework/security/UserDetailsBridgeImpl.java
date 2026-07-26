@@ -1,9 +1,11 @@
 package io.github.xiaomisum.robotest.framework.security;
 
 import io.github.xiaomisum.robotest.framework.common.Constants;
+import io.github.xiaomisum.robotest.model.entity.SysPermission;
 import io.github.xiaomisum.robotest.model.entity.SysRole;
 import io.github.xiaomisum.robotest.model.entity.SysUser;
 import io.github.xiaomisum.robotest.model.entity.SysUserRole;
+import io.github.xiaomisum.robotest.repository.SysPermissionMapper;
 import io.github.xiaomisum.robotest.repository.SysRoleMapper;
 import io.github.xiaomisum.robotest.repository.SysUserMapper;
 import io.github.xiaomisum.robotest.repository.SysUserRoleMapper;
@@ -28,6 +30,8 @@ public class UserDetailsBridgeImpl implements UserDetailsBridge {
     private SysUserRoleMapper userRoleMapper;
     @Resource
     private SysRoleMapper roleMapper;
+    @Resource
+    private SysPermissionMapper permissionMapper;
 
     @Override
     public AuthUserDetails<?, ?> loadByUsername(String username) {
@@ -69,12 +73,25 @@ public class UserDetailsBridgeImpl implements UserDetailsBridge {
         List<SysRole> roles = roleMapper.selectList(
                 new LambdaQueryWrapperX<SysRole>().in(SysRole::getId, roleIds));
         return roles.stream()
-                .flatMap(role -> Stream.concat(
-                        Stream.of(new SimpleGrantedAuthority(Constants.Auth.ROLE_PREFIX + role.getName())),
-                        role.getPermissions() != null
-                                ? role.getPermissions().stream().map(SimpleGrantedAuthority::new)
-                                : Stream.empty()))
+                .flatMap(role -> {
+                    Stream<GrantedAuthority> roleAuth = Stream.of(new SimpleGrantedAuthority(Constants.Auth.ROLE_PREFIX + role.getName()));
+                    if (Boolean.TRUE.equals(role.getFullAccess())) {
+                        return Stream.concat(roleAuth, getAllScopePermissions("global").stream().map(SimpleGrantedAuthority::new));
+                    }
+                    Stream<GrantedAuthority> permAuth = role.getPermissions() != null
+                            ? role.getPermissions().stream().map(SimpleGrantedAuthority::new)
+                            : Stream.empty();
+                    return Stream.concat(roleAuth, permAuth);
+                })
                 .distinct()
                 .toList();
+    }
+
+    private List<String> getAllScopePermissions(String scope) {
+        return permissionMapper.selectList(
+                new LambdaQueryWrapperX<SysPermission>()
+                        .eq(SysPermission::getScope, scope)
+                        .ne(SysPermission::getParentCode, null))
+                .stream().map(SysPermission::getCode).toList();
     }
 }

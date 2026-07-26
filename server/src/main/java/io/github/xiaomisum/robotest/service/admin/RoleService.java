@@ -32,7 +32,7 @@ public interface RoleService {
 
     RoleRespDTO updateRolePermissions(UUID id, RolePermissionsUpdateReqDTO reqDTO);
 
-    List<PermissionTableRespDTO> getPermissionTable();
+    List<PermissionTableRespDTO> getPermissionTable(String roleType);
 
     List<String> getUserPermissionCodes(UUID userId);
 }
