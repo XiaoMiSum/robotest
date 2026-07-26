@@ -139,7 +139,7 @@ onMounted(() => { if (props.modelValue) loadModules() })
   >
     <div class="case-selector">
       <!-- 左侧模块树 -->
-      <div class="case-selector__tree" v-loading="loading">
+      <div v-loading="loading" class="case-selector__tree">
         <el-tree
           :data="modules"
           :props="{ label: 'name', children: 'children' }"

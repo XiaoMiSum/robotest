@@ -58,7 +58,7 @@ onMounted(load)
 </script>
 
 <template>
-  <div class="review-detail" v-loading="loading">
+  <div v-loading="loading" class="review-detail">
     <el-page-header @back="router.push('/workspace/projects/cases')">
       <template #content><span class="review-detail__title">{{ detail?.title ?? '评审详情' }}</span></template>
     </el-page-header>
@@ -67,7 +67,7 @@ onMounted(load)
       <el-descriptions :column="3" border>
         <el-descriptions-item label="发起人">{{ detail.initiator.name }}</el-descriptions-item>
         <el-descriptions-item label="状态">
-          <el-tag :type="detail.status === 'completed' ? 'success' : 'warning'" size="small">
+          <el-tag :type="detail.status === 'completed' ? 'success' : 'warning'" size="small" effect="light" round>
             {{ detail.status === 'completed' ? '已完成' : '评审中' }}
           </el-tag>
         </el-descriptions-item>
@@ -94,10 +94,34 @@ onMounted(load)
 </template>
 
 <style scoped lang="scss">
-.review-detail__title { font-size: 18px; font-weight: 600; }
-.review-detail__info { margin-top: 16px; }
-.review-detail__progress { margin-top: 16px; }
-.review-detail__stats { margin-top: 8px; font-size: 13px; color: var(--el-text-color-secondary); }
-.review-detail__actions { margin-top: 16px; display: flex; gap: 8px; }
-.review-detail__body { margin-top: 16px; min-height: 300px; }
+.review-detail__title {
+  font-size: var(--font-size-lg);
+  font-weight: 700;
+  color: var(--color-neutral-800);
+}
+
+.review-detail__info {
+  margin-top: var(--space-lg);
+}
+
+.review-detail__progress {
+  margin-top: var(--space-lg);
+}
+
+.review-detail__stats {
+  margin-top: var(--space-sm);
+  font-size: var(--font-size-xs);
+  color: var(--color-neutral-500);
+}
+
+.review-detail__actions {
+  margin-top: var(--space-lg);
+  display: flex;
+  gap: var(--space-sm);
+}
+
+.review-detail__body {
+  margin-top: var(--space-lg);
+  min-height: 300px;
+}
 </style>

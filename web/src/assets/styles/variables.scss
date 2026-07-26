@@ -59,7 +59,7 @@
   --color-node-expected: #d97706;
 
   /* ==================== 管理端 ==================== */
-  --color-admin-bg: #f8fafc;
+  --color-admin-bg: #f1f5f9;
   --color-admin-sidebar-bg: #1e293b;
   --color-admin-sidebar-text: #cbd5e1;
   --color-admin-sidebar-active: #3b82f6;
@@ -70,7 +70,256 @@
   --color-project-active: #3b82f6;
 
   /* ==================== 布局尺寸 ==================== */
-  --header-height: 48px;
-  --sidebar-width: 240px;
+  --header-height: 52px;
+  --sidebar-width: 220px;
   --sidebar-collapsed-width: 48px;
+
+  /* ==================== 间距系统 ==================== */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 12px;
+  --space-lg: 16px;
+  --space-xl: 24px;
+  --space-2xl: 32px;
+
+  /* ==================== 圆角 ==================== */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+
+  /* ==================== 阴影 ==================== */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.04);
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-card-hover: 0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.04);
+
+  /* ==================== 过渡 ==================== */
+  --transition-fast: 0.15s ease;
+  --transition-base: 0.2s ease;
+  --transition-slow: 0.3s ease;
+}
+
+/* ==================== Element Plus 全局覆盖 ==================== */
+
+/* 卡片 */
+.el-card {
+  border-radius: var(--radius-lg) !important;
+  border: 1px solid var(--color-neutral-200) !important;
+  box-shadow: var(--shadow-card) !important;
+  transition: box-shadow var(--transition-base), border-color var(--transition-base) !important;
+}
+
+.el-card:hover {
+  box-shadow: var(--shadow-card-hover) !important;
+}
+
+.el-card--hoverable:hover {
+  box-shadow: var(--shadow-card-hover) !important;
+  border-color: var(--color-primary-200) !important;
+}
+
+.el-card__header {
+  padding: 16px 20px !important;
+  border-bottom: 1px solid var(--color-neutral-100) !important;
+  font-weight: 600 !important;
+}
+
+.el-card__body {
+  padding: 20px !important;
+}
+
+/* 表格 */
+.el-table {
+  --el-table-border-color: var(--color-neutral-100);
+  --el-table-header-bg-color: var(--color-neutral-50);
+  --el-table-header-text-color: var(--color-neutral-600);
+  --el-table-row-hover-bg-color: var(--color-primary-50);
+  --el-table-text-color: var(--color-neutral-700);
+  border-radius: var(--radius-md) !important;
+  font-size: 13px !important;
+}
+
+.el-table th.el-table__cell {
+  font-weight: 600 !important;
+  font-size: 12px !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.02em !important;
+}
+
+.el-table--striped .el-table__body tr.el-table__row--striped td.el-table__cell {
+  background: var(--color-neutral-50) !important;
+}
+
+/* 按钮 */
+.el-button {
+  border-radius: var(--radius-md) !important;
+  font-weight: 500 !important;
+  transition: all var(--transition-fast) !important;
+}
+
+.el-button--primary:not(.el-button--link) {
+  box-shadow: 0 1px 2px rgba(37, 99, 235, 0.2) !important;
+}
+
+.el-button--primary:not(.el-button--link):hover {
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3) !important;
+}
+
+/* 输入框 */
+.el-input__wrapper {
+  border-radius: var(--radius-md) !important;
+  box-shadow: 0 0 0 1px var(--color-neutral-200) inset !important;
+  transition: all var(--transition-fast) !important;
+}
+
+.el-input__wrapper:hover {
+  box-shadow: 0 0 0 1px var(--color-neutral-300) inset !important;
+}
+
+.el-input__wrapper.is-focus {
+  box-shadow: 0 0 0 1px var(--color-primary-500) inset, 0 0 0 3px rgba(59, 130, 246, 0.1) inset !important;
+}
+
+/* 下拉框 */
+.el-select__wrapper {
+  border-radius: var(--radius-md) !important;
+}
+
+/* 标签 */
+.el-tag {
+  border-radius: var(--radius-sm) !important;
+  font-weight: 500 !important;
+  border: none !important;
+}
+
+.el-tag--small {
+  padding: 0 6px !important;
+  height: 20px !important;
+  font-size: 11px !important;
+}
+
+/* 分页 */
+.el-pagination {
+  --el-pagination-button-bg-color: var(--color-neutral-0);
+  --el-pagination-hover-color: var(--color-primary-500);
+}
+
+.el-pagination .el-pager li {
+  border-radius: var(--radius-sm) !important;
+  font-weight: 500 !important;
+  min-width: 32px !important;
+  height: 32px !important;
+  line-height: 32px !important;
+}
+
+.el-pagination .el-pager li.is-active {
+  background-color: var(--color-primary-500) !important;
+  color: white !important;
+}
+
+/* 对话框 */
+.el-dialog {
+  border-radius: var(--radius-xl) !important;
+  overflow: hidden;
+}
+
+.el-dialog__header {
+  padding: 20px 24px 16px !important;
+  border-bottom: 1px solid var(--color-neutral-100) !important;
+  margin-right: 0 !important;
+}
+
+.el-dialog__title {
+  font-weight: 600 !important;
+  font-size: 16px !important;
+}
+
+.el-dialog__body {
+  padding: 20px 24px !important;
+}
+
+.el-dialog__footer {
+  padding: 12px 24px 20px !important;
+  border-top: 1px solid var(--color-neutral-100) !important;
+}
+
+/* 表单 */
+.el-form-item__label {
+  font-weight: 500 !important;
+  color: var(--color-neutral-700) !important;
+}
+
+/* 消息框 */
+.el-message-box {
+  border-radius: var(--radius-xl) !important;
+}
+
+/* Tabs */
+.el-tabs__header {
+  margin-bottom: 20px !important;
+}
+
+.el-tabs__item {
+  font-weight: 500 !important;
+}
+
+/* 面包屑 / 链接 */
+.el-link {
+  font-weight: 500 !important;
+}
+
+/* Tooltip */
+.el-tooltip__popper {
+  border-radius: var(--radius-md) !important;
+}
+
+/* Badge */
+.el-badge__content {
+  border-radius: 50% !important;
+}
+
+/* Empty */
+.el-empty {
+  padding: 40px 0 !important;
+}
+
+/* Dropdown */
+.el-dropdown-menu {
+  border-radius: var(--radius-lg) !important;
+  border: 1px solid var(--color-neutral-200) !important;
+  box-shadow: var(--shadow-lg) !important;
+  padding: 4px !important;
+}
+
+.el-dropdown-menu__item {
+  border-radius: var(--radius-sm) !important;
+  padding: 8px 12px !important;
+  font-size: 13px !important;
+}
+
+/* Loading */
+.el-loading-mask {
+  background-color: rgba(255, 255, 255, 0.85) !important;
+  backdrop-filter: blur(2px);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-neutral-300);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-neutral-400);
 }

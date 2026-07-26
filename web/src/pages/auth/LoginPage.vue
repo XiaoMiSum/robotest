@@ -31,7 +31,6 @@ async function handleLogin() {
 
     authStore.setLogin(result.accessToken, result.refreshToken, result.user, result.activeWorkspace)
 
-    // Set workspace context in localStorage for API interceptor
     if (result.activeWorkspace) {
       authStore.setActiveWorkspace(result.activeWorkspace)
     }
@@ -50,7 +49,10 @@ async function handleLogin() {
 <template>
   <div class="login-page">
     <div class="login-card">
-      <h2 class="login-card__title">软件测试平台</h2>
+      <div class="login-card__brand">
+        <span class="login-card__logo">RoboTest</span>
+      </div>
+      <div class="login-card__title">软件测试平台</div>
       <el-form :model="form" class="login-card__form" @submit.prevent="handleLogin">
         <el-form-item>
           <el-input
@@ -94,23 +96,36 @@ async function handleLogin() {
   justify-content: center;
   align-items: center;
   height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, var(--color-primary-600) 0%, #4f46e5 50%, #7c3aed 100%);
 }
 
 .login-card {
   width: 400px;
-  padding: 40px;
-  background: #fff;
-  border-radius: 8px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+  padding: var(--space-2xl) var(--space-xl);
+  background: var(--color-neutral-0);
+  border-radius: var(--radius-xl);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.login-card__brand {
+  text-align: center;
+  margin-bottom: var(--space-md);
+}
+
+.login-card__logo {
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--color-primary-600);
+  letter-spacing: -0.03em;
 }
 
 .login-card__title {
   text-align: center;
-  font-size: 22px;
+  font-size: var(--font-size-xl);
   font-weight: 700;
-  color: var(--el-text-color-primary);
-  margin-bottom: 32px;
+  color: var(--color-neutral-800);
+  margin-bottom: var(--space-xl);
 }
 
 .login-card__form {

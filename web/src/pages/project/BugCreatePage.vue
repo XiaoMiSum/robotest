@@ -24,7 +24,6 @@ const form = reactive({
 const caseSelectorVisible = ref(false)
 const selectedCaseTitle = ref('')
 function handleCaseSelected(nodes: { documentId: string; caseIds: string[] }[]) {
-  // 缺陷只关联单个用例
   if (nodes.length && nodes[0].caseIds.length) {
     form.relatedCaseId = nodes[0].caseIds[0]
     selectedCaseTitle.value = `已选 1 个用例`
@@ -92,7 +91,7 @@ async function handleSubmit() {
     </el-page-header>
 
     <el-card shadow="never" class="bug-create__card">
-      <el-form ref="formRef" :model="form" :rules="rules" label-width="96px" style="max-width: 640px">
+      <el-form ref="formRef" :model="form" :rules="rules" label-width="96px" class="bug-create__form">
         <el-form-item label="标题" prop="title">
           <el-input v-model="form.title" placeholder="请输入缺陷标题" maxlength="300" show-word-limit />
         </el-form-item>
@@ -121,7 +120,7 @@ async function handleSubmit() {
         </el-form-item>
         <el-form-item label="关联用例">
           <el-button @click="caseSelectorVisible = true">选择用例</el-button>
-          <span v-if="selectedCaseTitle" style="margin-left: 8px; font-size: 12px; color: var(--el-text-color-secondary)">{{ selectedCaseTitle }}</span>
+          <span v-if="selectedCaseTitle" class="bug-create__case-hint">{{ selectedCaseTitle }}</span>
         </el-form-item>
         <el-form-item label="关联计划">
           <el-select v-model="form.relatedPlanId" filterable clearable placeholder="选择计划（可选）" style="width: 240px">
@@ -141,11 +140,22 @@ async function handleSubmit() {
 
 <style scoped lang="scss">
 .bug-create__title {
-  font-size: 18px;
-  font-weight: 600;
+  font-size: var(--font-size-lg);
+  font-weight: 700;
+  color: var(--color-neutral-800);
 }
 
 .bug-create__card {
-  margin-top: 16px;
+  margin-top: var(--space-lg);
+}
+
+.bug-create__form {
+  max-width: 640px;
+}
+
+.bug-create__case-hint {
+  margin-left: var(--space-sm);
+  font-size: var(--font-size-2xs);
+  color: var(--color-neutral-400);
 }
 </style>
