@@ -94,7 +94,9 @@ bash scripts/deploy-merged.sh
 
 ## 6. AI 任务执行流程
 
-当被指派开发任务时，严格遵循以下步骤：
+当被指派开发任务时，**必须**严格遵循以下步骤。每一步完成后再进入下一步，禁止跳步。
+
+### 6.1 执行步骤
 
 1. **理解**  
    - 阅读相关 `docs/spec/` 规范（优先），再阅读 `docs/需求/`、`docs/概要/`、`docs/架构/`、`docs/详细设计/`、`docs/交互设计/` 中对应的业务文档。  
@@ -104,14 +106,16 @@ bash scripts/deploy-merged.sh
    - 查看相邻层级的现有代码（同模块的 Controller / Service / Repository，或同页面的 components / services / stores）。  
    - 确认命名模式、导入路径、类型定义，保持风格一致。
 
-3. **方案**  
+3. **方案** ← **必须输出方案并等待用户确认**  
    - 确定需新建/修改哪些文件（Controller、Service、Repository、DTO、Entity、页面、组件、API、类型等）。  
    - 若涉及数据库，提供 DDL 变更（需符合 C5）；若涉及 API，先确定 URL、方法、请求/响应结构。  
-   - 评估是否需要新增依赖（**尽量避免**，除非确有必要并经过讨论）。
+   - 评估是否需要新增依赖（**尽量避免**，除非确有必要并经过讨论）。  
+   - 输出方案后**暂停**，等待用户确认再进入编码。
 
 4. **编码**  
    - 严格遵守端内约定（C1–C3、C6、C8），详见各端 `AGENTS.md`。
    - 所有跨域上下文（workspace）通过请求头传递（C4）。
+   - 每完成一个逻辑单元（一个功能点或一个修复），立即 commit，禁止堆积多个不相关变更。
 
 5. **验证**  
    - 运行对应端的 lint、类型检查、单元测试（参见第 3 节命令）。  
@@ -125,6 +129,54 @@ bash scripts/deploy-merged.sh
 7. **交付**  
    - 将变更提交至对应的 `feature/*` 或 `fix/*` 分支（提交格式符合 C7）。  
    - 向用户说明改动内容、测试结果，**不主动合并或 push**（待用户确认后发起 PR）。
+
+### 6.2 强制输出格式
+
+每完成一个任务，**必须**在最终回复中包含以下 checklist（可直接复制填写）：
+
+```
+## 任务完成报告
+
+### 变更摘要
+- [文件列表及变更说明]
+
+### 自检清单（C1–C8）
+- [ ] C1 无 `any`（前端）
+- [ ] C2 无业务逻辑在 Controller
+- [ ] C3 异常使用 BusinessException
+- [ ] C4 上下文头传递，不出现在 URL
+- [ ] C5 数据库迁移说明，无物理外键
+- [ ] C6 注释只写 why
+- [ ] C7 提交格式 `<emoji> <type>(<scope>): <description>`
+- [ ] C8 覆盖率达标
+
+### 已执行验证
+- [ ] lint 通过
+- [ ] typecheck 通过（前端）
+- [ ] 测试通过
+
+### 提交记录
+- [commit hash] <commit message>
+```
+
+### 6.3 工具与脚本
+
+- 任务执行模板：`docs/spec/task-template.md` — 编码前必须按模板填写理解、探查、方案
+- 质量验证脚本：`bash scripts/validate.sh` — 提交前运行，检查提交格式、lint、typecheck、test
+  - `bash scripts/validate.sh --frontend` 仅检查前端
+  - `bash scripts/validate.sh --backend` 仅检查后端
+  - `bash scripts/validate.sh --all` 全量检查（默认）
+
+### 6.4 禁止行为
+
+- ❌ 不读文档直接编码
+- ❌ 不探查现有代码直接新建文件
+- ❌ 不输出方案直接动手
+- ❌ 编码完成后不验证（lint/typecheck/test）
+- ❌ 验证失败后不修复直接交付
+- ❌ 一个提交混合多个不相关变更
+- ❌ 不提交就声称完成
+- ❌ 不运行 `scripts/validate.sh` 就提交
 
 ---
 
