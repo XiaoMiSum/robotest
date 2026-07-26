@@ -12,7 +12,7 @@ import java.util.UUID;
 
 public interface WorkspaceService {
 
-    PageResult<WorkspaceRespDTO> getWorkspacePage(String keyword, Integer pageNo, Integer pageSize);
+    PageResult<WorkspaceRespDTO> getWorkspacePage(String keyword, String status, Integer pageNo, Integer pageSize);
 
     String createWorkspace(WorkspaceCreateReqDTO reqDTO);
 

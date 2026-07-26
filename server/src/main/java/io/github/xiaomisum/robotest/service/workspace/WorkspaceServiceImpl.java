@@ -39,12 +39,11 @@ public class WorkspaceServiceImpl implements WorkspaceService {
     private SysUserMapper userMapper;
 
     @Override
-    public PageResult<WorkspaceRespDTO> getWorkspacePage(String keyword, Integer pageNo, Integer pageSize) {
+    public PageResult<WorkspaceRespDTO> getWorkspacePage(String keyword, String status, Integer pageNo, Integer pageSize) {
         LambdaQueryWrapperX<Workspace> wrapper = new LambdaQueryWrapperX<>();
-        if (StringUtils.hasText(keyword)) {
-            wrapper.like(Workspace::getName, keyword);
-        }
-        wrapper.orderByDesc(Workspace::getCreatedAt);
+        wrapper.likeIfPresent(Workspace::getName, keyword)
+               .eqIfPresent(Workspace::getStatus, status)
+               .orderByDesc(Workspace::getCreatedAt);
 
         PageResult<Workspace> page = workspaceMapper.selectPage(
                 new xyz.migoo.framework.common.pojo.PageParam() {{
