@@ -10,9 +10,9 @@ const authStore = useAuthStore()
 const navStore = useNavStore()
 
 const sidebarMenu = [
-  { label: '仪表盘', path: '/admin/dashboard', icon: 'Odometer' },
+  { label: '数据概览', path: '/admin/dashboard', icon: 'Odometer' },
   { label: '用户管理', path: '/admin/users', icon: 'User' },
-  { label: '工作空间管理', path: '/admin/workspaces', icon: 'OfficeBuilding' },
+  { label: '空间管理', path: '/admin/workspaces', icon: 'OfficeBuilding' },
   { label: '角色管理', path: '/admin/roles', icon: 'Lock' },
 ]
 
@@ -58,7 +58,7 @@ function goMyWorkspaces() {
           <el-badge :is-dot="true">
             <el-icon><Bell /></el-icon>
           </el-badge>
-          <span>消息</span>
+          <span>消息中心</span>
         </div>
 
         <el-divider direction="vertical" />
@@ -90,7 +90,7 @@ function goMyWorkspaces() {
         <el-menu
           :default-active="activeSidebarPath"
           background-color="transparent"
-          text-color="#94a3b8"
+          text-color="rgba(255,255,255,0.65)"
           active-text-color="#ffffff"
           class="admin-layout__sidebar-menu"
           @select="handleSidebarSelect"
@@ -121,12 +121,11 @@ function goMyWorkspaces() {
   align-items: center;
   justify-content: space-between;
   height: var(--header-height);
-  border-bottom: 1px solid var(--color-neutral-200);
-  background: var(--color-neutral-0);
+  background: linear-gradient(90deg, var(--color-neutral-800) 0%, var(--color-neutral-900) 100%);
   padding: 0 20px;
   z-index: 100;
   flex-shrink: 0;
-  box-shadow: var(--shadow-sm);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .admin-layout__topbar-left {
@@ -138,7 +137,7 @@ function goMyWorkspaces() {
 .admin-layout__logo {
   font-size: 17px;
   font-weight: 700;
-  color: var(--color-primary-600);
+  color: #ffffff;
   letter-spacing: -0.02em;
 }
 
@@ -161,20 +160,20 @@ function goMyWorkspaces() {
   padding: 6px 10px;
   border-radius: var(--radius-md);
   font-size: 12px;
-  color: var(--color-neutral-500);
+  color: rgba(255, 255, 255, 0.55);
   cursor: pointer;
   transition: all var(--transition-fast);
   white-space: nowrap;
   user-select: none;
 
   &:hover {
-    color: var(--color-primary-500);
-    background: var(--color-primary-50);
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.08);
   }
 
   &--active {
-    color: var(--color-primary-600);
-    background: var(--color-primary-50);
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.1);
     font-weight: 500;
   }
 }
@@ -187,21 +186,21 @@ function goMyWorkspaces() {
   padding: 4px 8px;
   border-radius: var(--radius-md);
   transition: background-color var(--transition-fast);
-}
 
-.admin-layout__user:hover {
-  background-color: var(--color-neutral-100);
+  &:hover {
+    background: rgba(255, 255, 255, 0.08);
+  }
 }
 
 .admin-layout__username {
   font-size: 13px;
   font-weight: 500;
-  color: var(--color-neutral-700);
+  color: rgba(255, 255, 255, 0.85);
 }
 
 .admin-layout__user-arrow {
   font-size: 12px;
-  color: var(--color-neutral-400);
+  color: rgba(255, 255, 255, 0.45);
 }
 
 .admin-layout__body {
@@ -215,7 +214,6 @@ function goMyWorkspaces() {
   background: linear-gradient(180deg, var(--color-neutral-800) 0%, var(--color-neutral-900) 100%);
   flex-shrink: 0;
   overflow-y: auto;
-  border-right: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .admin-layout__sidebar-menu {

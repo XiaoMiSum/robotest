@@ -120,7 +120,7 @@ function handleLogout() {
           <el-badge :is-dot="true">
             <el-icon><Bell /></el-icon>
           </el-badge>
-          <span>消息</span>
+          <span>消息中心</span>
         </div>
 
         <el-divider direction="vertical" />
@@ -160,13 +160,12 @@ function handleLogout() {
   display: flex;
   align-items: center;
   height: var(--header-height);
-  border-bottom: 1px solid var(--color-neutral-200);
-  background: var(--color-neutral-0);
+  background: linear-gradient(90deg, var(--color-neutral-800) 0%, var(--color-neutral-900) 100%);
   padding: 0 20px;
   z-index: 100;
   flex-shrink: 0;
   gap: 8px;
-  box-shadow: var(--shadow-sm);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .top-nav__logo {
@@ -178,7 +177,7 @@ function handleLogout() {
 .top-nav__logo-text {
   font-size: 17px;
   font-weight: 700;
-  color: var(--color-primary-600);
+  color: #ffffff;
   letter-spacing: -0.02em;
 }
 
@@ -198,20 +197,20 @@ function handleLogout() {
   border-radius: var(--radius-md);
   font-size: 13px;
   font-weight: 500;
-  color: var(--color-neutral-600);
+  color: rgba(255, 255, 255, 0.6);
   cursor: pointer;
   transition: all var(--transition-fast);
   white-space: nowrap;
   user-select: none;
 
   &:hover {
-    background: var(--color-primary-50);
-    color: var(--color-primary-600);
+    background: rgba(255, 255, 255, 0.08);
+    color: #ffffff;
   }
 
   &--active {
-    background: var(--color-primary-50);
-    color: var(--color-primary-600);
+    background: rgba(255, 255, 255, 0.1);
+    color: #ffffff;
     font-weight: 600;
     position: relative;
 
@@ -223,7 +222,7 @@ function handleLogout() {
       transform: translateX(-50%);
       width: 60%;
       height: 2px;
-      background: var(--color-primary-500);
+      background: var(--color-primary-400);
       border-radius: 1px;
     }
   }
@@ -231,7 +230,7 @@ function handleLogout() {
 
 .top-nav__menu-hint {
   font-size: 13px;
-  color: var(--color-neutral-400);
+  color: rgba(255, 255, 255, 0.4);
 }
 
 .top-nav__icons {
@@ -248,20 +247,20 @@ function handleLogout() {
   padding: 6px 10px;
   border-radius: var(--radius-md);
   font-size: 12px;
-  color: var(--color-neutral-500);
+  color: rgba(255, 255, 255, 0.55);
   cursor: pointer;
   transition: all var(--transition-fast);
   white-space: nowrap;
   user-select: none;
 
   &:hover {
-    color: var(--color-primary-500);
-    background: var(--color-primary-50);
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.08);
   }
 
   &--active {
-    color: var(--color-primary-600);
-    background: var(--color-primary-50);
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.1);
     font-weight: 500;
   }
 }
@@ -276,14 +275,14 @@ function handleLogout() {
   transition: background-color var(--transition-fast);
 
   &:hover {
-    background: var(--color-neutral-100);
+    background: rgba(255, 255, 255, 0.08);
   }
 }
 
 .top-nav__username {
   font-size: 13px;
   font-weight: 500;
-  color: var(--color-neutral-700);
+  color: rgba(255, 255, 255, 0.85);
   max-width: 80px;
   overflow: hidden;
   text-overflow: ellipsis;
