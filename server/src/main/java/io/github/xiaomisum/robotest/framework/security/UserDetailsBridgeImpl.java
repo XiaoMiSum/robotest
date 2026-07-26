@@ -58,30 +58,55 @@ public class UserDetailsBridgeImpl implements UserDetailsBridge {
         loginUser.setEmail(user.getEmail());
         loginUser.setPassword(user.getPasswordHash());
         loginUser.setEnabled(Constants.Status.ACTIVE.equals(user.getStatus()));
-        loginUser.setAuthorities(loadAuthorities(user.getId()));
+        List<SysRole> roles = loadRoles(user.getId());
+        loginUser.setAuthorities(buildAuthorities(roles));
+        loginUser.setPermissions(buildPermissionCodes(roles));
         return loginUser;
     }
 
-    private List<? extends GrantedAuthority> loadAuthorities(UUID userId) {
-
+    private List<SysRole> loadRoles(UUID userId) {
         List<SysUserRole> userRoles = userRoleMapper.selectList(
                 new LambdaQueryWrapperX<SysUserRole>().eq(SysUserRole::getUserId, userId));
         if (userRoles.isEmpty()) {
             return List.of();
         }
         List<UUID> roleIds = userRoles.stream().map(SysUserRole::getRoleId).toList();
-        List<SysRole> roles = roleMapper.selectList(
+        return roleMapper.selectList(
                 new LambdaQueryWrapperX<SysRole>().in(SysRole::getId, roleIds));
+    }
+
+    private List<? extends GrantedAuthority> buildAuthorities(List<SysRole> roles) {
         return roles.stream()
                 .flatMap(role -> {
-                    Stream<GrantedAuthority> roleAuth = Stream.of(new SimpleGrantedAuthority(Constants.Auth.ROLE_PREFIX + role.getName()));
+                    Stream<GrantedAuthority> roleAuth = Stream.of(
+                            new SimpleGrantedAuthority(Constants.Auth.ROLE_PREFIX + role.getName()));
                     if (Boolean.TRUE.equals(role.getFullAccess())) {
-                        return Stream.concat(roleAuth, getAllScopePermissions("global").stream().map(SimpleGrantedAuthority::new));
+                        return Stream.concat(roleAuth,
+                                getAllScopePermissions("global").stream().map(SimpleGrantedAuthority::new));
                     }
                     Stream<GrantedAuthority> permAuth = role.getPermissions() != null
                             ? role.getPermissions().stream().map(SimpleGrantedAuthority::new)
                             : Stream.empty();
                     return Stream.concat(roleAuth, permAuth);
+                })
+                .distinct()
+                .toList();
+    }
+
+    private List<String> buildPermissionCodes(List<SysRole> roles) {
+        return roles.stream()
+                .flatMap(role -> {
+                    if (Boolean.TRUE.equals(role.getFullAccess())) {
+                        return Stream.concat(
+                                Stream.of(Constants.Auth.ROLE_PREFIX + role.getName()),
+                                getAllScopePermissions("global").stream());
+                    }
+                    Stream<String> permCodes = role.getPermissions() != null
+                            ? role.getPermissions().stream()
+                            : Stream.empty();
+                    return Stream.concat(
+                            Stream.of(Constants.Auth.ROLE_PREFIX + role.getName()),
+                            permCodes);
                 })
                 .distinct()
                 .toList();

@@ -90,9 +90,10 @@ async function handleSubmit() {
     authStore.setLogin(
       result.accessToken,
       result.refreshToken,
-      { id: result.user.id, username: result.user.username, email: result.user.email, status: 'active', roles: [] },
+      { id: result.user.id, username: result.user.username, email: result.user.email, status: 'active', roles: [], permissions: [] },
       { id: result.activeWorkspace.id, name: result.activeWorkspace.name, workspaceRole: result.activeWorkspace.workspaceRole },
     )
+    await authStore.loadPermissions()
     navStore.setMode('workspace')
     if (result.isNewUser) {
       ElMessage.success('欢迎加入！已自动创建账号并登录。')

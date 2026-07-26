@@ -21,11 +21,10 @@ export interface LoginReqDTO {
 export interface LoginResult {
   accessToken: string
   refreshToken: string
-  tokenType: string
   accessExpiry: string
   refreshExpiry: string
   user: LoginUser
-  activeWorkspace: ActiveWorkspace | null
+  hasWorkspace: boolean
 }
 
 export interface LoginUser {
@@ -35,6 +34,7 @@ export interface LoginUser {
   avatarUrl?: string
   status: string
   roles: string[]
+  permissions: string[]
 }
 
 export interface ActiveWorkspace {

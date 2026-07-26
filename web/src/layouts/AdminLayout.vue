@@ -9,12 +9,15 @@ const route = useRoute()
 const authStore = useAuthStore()
 const navStore = useNavStore()
 
-const sidebarMenu = [
-  { label: '数据概览', path: '/admin/dashboard', icon: 'Odometer' },
-  { label: '用户管理', path: '/admin/users', icon: 'User' },
-  { label: '空间管理', path: '/admin/workspaces', icon: 'OfficeBuilding' },
-  { label: '角色管理', path: '/admin/roles', icon: 'Lock' },
-]
+const sidebarMenu = computed(() => {
+  const has = (code: string) => authStore.hasPermission(code)
+  const items: Array<{ label: string; path: string; icon: string }> = []
+  items.push({ label: '数据概览', path: '/admin/dashboard', icon: 'Odometer' })
+  if (has('user:view')) items.push({ label: '用户管理', path: '/admin/users', icon: 'User' })
+  if (has('workspace:view')) items.push({ label: '空间管理', path: '/admin/workspaces', icon: 'OfficeBuilding' })
+  if (has('role:view')) items.push({ label: '角色管理', path: '/admin/roles', icon: 'Lock' })
+  return items
+})
 
 const activeSidebarPath = computed(() => route.path)
 
