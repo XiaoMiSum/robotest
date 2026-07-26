@@ -56,7 +56,6 @@ function handleSearch() {
   loadProjects()
 }
 
-// --- 设为默认项目 ---
 async function handleSetDefault(project: Project) {
   try {
     await setDefaultProject(project.id)
@@ -67,7 +66,6 @@ async function handleSetDefault(project: Project) {
   }
 }
 
-// --- 归档/启封 ---
 async function handleArchive(project: Project, archived: boolean) {
   const action = archived ? '归档' : '启封'
   try {
@@ -88,7 +86,6 @@ async function handleArchive(project: Project, archived: boolean) {
   }
 }
 
-// --- 删除 ---
 async function handleDelete(project: Project) {
   try {
     await ElMessageBox.confirm(
@@ -108,13 +105,11 @@ async function handleDelete(project: Project) {
   }
 }
 
-// --- 进入项目 → 跳转项目工作台 ---
 function handleEnterProject(project: Project) {
   authStore.setActiveProject(project.id)
   router.push('/workspace/projects/dashboard')
 }
 
-// --- 创建/编辑弹窗 ---
 const formDialogVisible = ref(false)
 const formDialogTitle = ref('创建项目')
 const editingProject = ref<Project | null>(null)
@@ -199,27 +194,21 @@ onMounted(loadProjects)
 
 <template>
   <div class="project-page">
-    <!-- 空间无项目时的引导区域 -->
     <template v-if="!loading && total === 0 && !query.keyword && !query.status">
       <div class="project-page__onboarding">
-        <el-icon :size="64" class="project-page__onboarding-icon"><Rocket /></el-icon>
+        <div class="project-page__onboarding-icon">
+          <el-icon :size="48"><Rocket /></el-icon>
+        </div>
         <h2>欢迎来到「{{ authStore.activeWorkspace?.name }}」</h2>
         <p>当前工作空间还没有任何项目，创建您的第一个项目开始测试管理</p>
         <el-button type="primary" size="large" @click="openCreateDialog">创建第一个项目</el-button>
       </div>
     </template>
 
-    <!-- 有项目的正常列表 -->
     <template v-else>
-      <div class="project-page__header">
-        <h2 class="project-page__title">项目管理</h2>
-        <el-button type="primary" @click="openCreateDialog">
-          <el-icon><Plus /></el-icon>创建项目
-        </el-button>
-      </div>
 
       <el-card shadow="never" class="project-page__filters">
-        <el-form :inline="true" @submit.prevent>
+        <el-form :inline="true" class="project-page__filter-form" @submit.prevent>
           <el-form-item>
             <el-select
               v-model="query.status"
@@ -242,6 +231,12 @@ onMounted(loadProjects)
               @clear="handleSearch"
             />
           </el-form-item>
+          <el-form-item class="project-page__filter-spacer" />
+          <el-form-item>
+            <el-button type="primary" @click="openCreateDialog">
+              <el-icon><Plus /></el-icon>创建项目
+            </el-button>
+          </el-form-item>
         </el-form>
       </el-card>
 
@@ -249,11 +244,11 @@ onMounted(loadProjects)
         <el-empty v-if="!loading && !projects.length" description="未找到匹配的项目" />
         <el-row v-else :gutter="16">
           <el-col v-for="p in projects" :key="p.id" :xs="24" :sm="12" :md="8" :lg="6">
-            <el-card shadow="hover" class="proj-card" @click="handleEnterProject(p)">
+            <div class="proj-card" @click="handleEnterProject(p)">
               <div class="proj-card__header">
                 <el-icon v-if="p.isDefault" class="proj-card__star"><StarFilled /></el-icon>
                 <span class="proj-card__name">{{ p.name }}</span>
-                <el-tag :type="p.status === 'active' ? 'success' : 'info'" size="small">
+                <el-tag :type="p.status === 'active' ? 'success' : 'info'" size="small" effect="light" round>
                   {{ p.status === 'active' ? '活跃' : '已归档' }}
                 </el-tag>
               </div>
@@ -269,12 +264,8 @@ onMounted(loadProjects)
                 >
                   设为默认
                 </el-button>
-                <el-button link size="small" type="primary" @click="handleEnterProject(p)">
-                  进入
-                </el-button>
-                <el-button v-if="canEdit(p) && p.status === 'active'" link size="small" @click="openEditDialog(p)">
-                  编辑
-                </el-button>
+                <el-button link size="small" type="primary" @click="handleEnterProject(p)">进入</el-button>
+                <el-button v-if="canEdit(p) && p.status === 'active'" link size="small" @click="openEditDialog(p)">编辑</el-button>
                 <el-button
                   v-if="isAdmin && p.status === 'active'"
                   link
@@ -292,17 +283,9 @@ onMounted(loadProjects)
                 >
                   启封
                 </el-button>
-                <el-button
-                  v-if="isAdmin"
-                  link
-                  size="small"
-                  type="danger"
-                  @click="handleDelete(p)"
-                >
-                  删除
-                </el-button>
+                <el-button v-if="isAdmin" link size="small" type="danger" @click="handleDelete(p)">删除</el-button>
               </div>
-            </el-card>
+            </div>
           </el-col>
         </el-row>
       </div>
@@ -320,7 +303,6 @@ onMounted(loadProjects)
       </div>
     </template>
 
-    <!-- 创建/编辑项目弹窗 -->
     <el-dialog v-model="formDialogVisible" :title="formDialogTitle" width="520px">
       <el-form ref="formRef" :model="form" :rules="formRules" label-width="80px">
         <el-form-item label="名称" prop="name">
@@ -347,25 +329,23 @@ onMounted(loadProjects)
 </template>
 
 <style scoped lang="scss">
-.project-page__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 16px;
-}
-
-.project-page__title {
-  font-size: 20px;
-  font-weight: 600;
-  margin: 0;
-}
-
 .project-page__filters {
-  margin-bottom: 16px;
+  margin-bottom: var(--space-lg);
 }
 
 .project-page__filters :deep(.el-form-item) {
   margin-bottom: 0;
+}
+
+.project-page__filter-form {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0;
+}
+
+.project-page__filter-spacer {
+  flex: 1;
 }
 
 .project-page__body {
@@ -375,7 +355,7 @@ onMounted(loadProjects)
 .project-page__pager {
   display: flex;
   justify-content: center;
-  margin-top: 16px;
+  margin-top: var(--space-xl);
 }
 
 .project-page__onboarding {
@@ -388,44 +368,62 @@ onMounted(loadProjects)
 }
 
 .project-page__onboarding-icon {
-  color: var(--el-color-primary);
-  margin-bottom: 16px;
+  width: 80px;
+  height: 80px;
+  border-radius: var(--radius-xl);
+  background: var(--color-primary-50);
+  color: var(--color-primary-500);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: var(--space-lg);
 }
 
 .project-page__onboarding h2 {
-  margin: 0 0 8px;
+  margin: 0 0 var(--space-sm);
+  font-size: var(--font-size-xl);
+  font-weight: 700;
+  color: var(--color-neutral-800);
 }
 
 .project-page__onboarding p {
-  color: var(--el-text-color-secondary);
-  margin: 0 0 24px;
+  color: var(--color-neutral-500);
+  margin: 0 0 var(--space-xl);
+  font-size: var(--font-size-sm);
 }
 
 .proj-card {
   cursor: pointer;
-  margin-bottom: 16px;
-  transition: transform 0.15s;
-}
+  margin-bottom: var(--space-lg);
+  padding: var(--space-lg);
+  background: var(--color-neutral-0);
+  border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-lg);
+  transition: all var(--transition-base);
 
-.proj-card:hover {
-  transform: translateY(-2px);
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+    border-color: var(--color-primary-200);
+  }
 }
 
 .proj-card__header {
   display: flex;
   align-items: center;
   gap: 6px;
-  margin-bottom: 8px;
+  margin-bottom: var(--space-sm);
 }
 
 .proj-card__star {
-  color: var(--el-color-warning);
+  color: var(--color-warning-500);
   font-size: 16px;
 }
 
 .proj-card__name {
-  font-size: 15px;
+  font-size: var(--font-size-sm);
   font-weight: 600;
+  color: var(--color-neutral-800);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -433,31 +431,32 @@ onMounted(loadProjects)
 }
 
 .proj-card__desc {
-  font-size: 13px;
-  color: var(--el-text-color-secondary);
+  font-size: var(--font-size-xs);
+  color: var(--color-neutral-500);
   height: 36px;
   overflow: hidden;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
+  line-height: 1.6;
 }
 
 .proj-card__time {
-  margin-top: 8px;
-  font-size: 12px;
-  color: var(--el-text-color-regular);
+  margin-top: var(--space-sm);
+  font-size: var(--font-size-2xs);
+  color: var(--color-neutral-500);
 }
 
 .proj-card__creator {
   margin-top: 4px;
-  font-size: 12px;
-  color: var(--el-text-color-secondary);
+  font-size: var(--font-size-2xs);
+  color: var(--color-neutral-400);
 }
 
 .proj-card__actions {
-  margin-top: 12px;
-  padding-top: 10px;
-  border-top: 1px solid var(--el-border-color-lighter);
+  margin-top: var(--space-md);
+  padding-top: var(--space-sm);
+  border-top: 1px solid var(--color-neutral-100);
   display: flex;
   flex-wrap: wrap;
   gap: 4px;

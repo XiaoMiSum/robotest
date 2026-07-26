@@ -5,7 +5,7 @@ import { ElMessage } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 import {
   createUser,
-  fetchRoleTree,
+  fetchRoleList,
   fetchUserDetail,
   resetUserPassword,
   updateUser,
@@ -31,7 +31,6 @@ const form = reactive({
 
 const roleOptions = ref<RoleSimple[]>([])
 
-/** 密码强度：8-64 字符，且包含大写、小写、数字、特殊字符中至少三种 */
 function validatePassword(_rule: unknown, value: string, callback: (error?: Error) => void) {
   if (!isEdit.value && !value) {
     callback(new Error('请输入密码'))
@@ -68,7 +67,7 @@ const rules: FormRules = {
 
 async function loadRoleOptions() {
   try {
-    const tree = await fetchRoleTree()
+    const tree = await fetchRoleList()
     const systemGroup = tree.find((node) => node.type === 'system')
     roleOptions.value = (systemGroup?.children ?? []).map((r) => ({
       id: r.id,
@@ -123,7 +122,6 @@ async function handleSave() {
   }
 }
 
-// --- 修改密码（编辑态） ---
 const pwdDialogVisible = ref(false)
 const newPassword = ref('')
 const pwdSubmitting = ref(false)
@@ -166,7 +164,7 @@ onMounted(() => {
         :model="form"
         :rules="rules"
         label-width="96px"
-        style="max-width: 560px"
+        class="user-form__el-form"
       >
         <el-form-item label="用户名" prop="username">
           <el-input
@@ -216,17 +214,14 @@ onMounted(() => {
       </el-form>
     </el-card>
 
-    <!-- 修改密码弹窗 -->
     <el-dialog v-model="pwdDialogVisible" title="修改密码" width="420px">
-      <p class="user-form__muted user-form__pwd-tip">
+      <p class="user-form__pwd-tip">
         新密码需 8-64 字符，且包含大写、小写、数字、特殊字符中至少三种。
       </p>
       <el-input v-model="newPassword" type="password" show-password placeholder="请输入新密码" />
       <template #footer>
         <el-button @click="pwdDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="pwdSubmitting" @click="submitChangePassword"
-          >确定</el-button
-        >
+        <el-button type="primary" :loading="pwdSubmitting" @click="submitChangePassword">确定</el-button>
       </template>
     </el-dialog>
   </div>
@@ -234,21 +229,23 @@ onMounted(() => {
 
 <style scoped lang="scss">
 .user-form__header {
-  margin-bottom: 16px;
+  margin-bottom: var(--space-xl);
 }
 
 .user-form__title {
-  font-size: 18px;
-  font-weight: 600;
+  font-size: var(--font-size-lg);
+  font-weight: 700;
+  color: var(--color-neutral-800);
 }
 
-.user-form__muted {
-  color: var(--el-text-color-secondary);
+.user-form__el-form {
+  max-width: 560px;
 }
 
 .user-form__pwd-tip {
-  margin: 0 0 12px;
-  font-size: 13px;
+  font-size: var(--font-size-xs);
+  color: var(--color-neutral-500);
+  margin: 0 0 var(--space-md);
   line-height: 1.6;
 }
 </style>

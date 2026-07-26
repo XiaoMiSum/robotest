@@ -4,7 +4,7 @@ import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   batchUpdateUserStatus,
-  fetchRoleTree,
+  fetchRoleList,
   fetchUsers,
   resetUserPassword,
   updateUserStatus,
@@ -50,7 +50,7 @@ async function loadUsers() {
 
 async function loadFilterOptions() {
   try {
-    const tree = await fetchRoleTree()
+    const tree = await fetchRoleList()
     const systemGroup = tree.find((node) => node.type === 'system')
     roleOptions.value = (systemGroup?.children ?? []).map((r) => ({
       id: r.id,
@@ -119,7 +119,6 @@ async function handleBatchStatus(status: UserStatus) {
   }
 }
 
-// --- 重置密码 ---
 const resetDialogVisible = ref(false)
 const resetTarget = ref<AdminUser | null>(null)
 const resetPassword = ref('')
@@ -157,21 +156,14 @@ onMounted(() => {
 
 <template>
   <div class="user-list">
-    <div class="user-list__header">
-      <h2 class="user-list__title">用户管理</h2>
-      <el-button type="primary" @click="router.push('/admin/users/create')">
-        <el-icon><Plus /></el-icon>新建用户
-      </el-button>
-    </div>
-
-    <!-- 搜索筛选栏 -->
     <el-card shadow="never" class="user-list__filters">
-      <el-form :inline="true" @submit.prevent>
+      <el-form :inline="true" class="user-list__filter-form" @submit.prevent>
         <el-form-item>
           <el-input
             v-model="query.keyword"
             placeholder="搜索用户名 / 邮箱"
             clearable
+            :prefix-icon="'Search'"
             style="width: 220px"
             @keyup.enter="handleSearch"
           />
@@ -203,10 +195,15 @@ onMounted(() => {
           <el-button type="primary" @click="handleSearch">查询</el-button>
           <el-button @click="handleReset">重置</el-button>
         </el-form-item>
+        <el-form-item class="user-list__filter-spacer" />
+        <el-form-item>
+          <el-button type="primary" @click="router.push('/admin/users/create')">
+            <el-icon><Plus /></el-icon>新建用户
+          </el-button>
+        </el-form-item>
       </el-form>
     </el-card>
 
-    <!-- 用户表格 -->
     <el-card shadow="never">
       <el-table
         v-loading="loading"
@@ -217,7 +214,7 @@ onMounted(() => {
         <el-table-column type="selection" width="48" />
         <el-table-column label="用户名" min-width="140">
           <template #default="{ row }">
-            <el-link type="primary" @click="router.push(`/admin/users/${row.id}`)">
+            <el-link type="primary" :underline="false" @click="router.push(`/admin/users/${row.id}`)">
               {{ row.username }}
             </el-link>
           </template>
@@ -235,7 +232,7 @@ onMounted(() => {
         </el-table-column>
         <el-table-column label="状态" width="90">
           <template #default="{ row }">
-            <el-tag :type="row.status === 'active' ? 'success' : 'info'" size="small">
+            <el-tag :type="row.status === 'active' ? 'success' : 'info'" size="small" effect="light" round>
               {{ row.status === 'active' ? '启用' : '禁用' }}
             </el-tag>
           </template>
@@ -245,9 +242,7 @@ onMounted(() => {
         </el-table-column>
         <el-table-column label="操作" width="200" fixed="right">
           <template #default="{ row }">
-            <el-button link type="primary" @click="router.push(`/admin/users/${row.id}`)"
-              >编辑</el-button
-            >
+            <el-button link type="primary" @click="router.push(`/admin/users/${row.id}`)">编辑</el-button>
             <el-button
               link
               :type="row.status === 'active' ? 'warning' : 'success'"
@@ -255,14 +250,11 @@ onMounted(() => {
             >
               {{ row.status === 'active' ? '禁用' : '启用' }}
             </el-button>
-            <el-button link type="primary" @click="openResetDialog(row as AdminUser)"
-              >重置密码</el-button
-            >
+            <el-button link type="primary" @click="openResetDialog(row as AdminUser)">重置密码</el-button>
           </template>
         </el-table-column>
       </el-table>
 
-      <!-- 批量操作 + 分页 -->
       <div class="user-list__footer">
         <div class="user-list__batch">
           <template v-if="selectedIds.length">
@@ -283,7 +275,6 @@ onMounted(() => {
       </div>
     </el-card>
 
-    <!-- 重置密码弹窗 -->
     <el-dialog v-model="resetDialogVisible" title="重置密码" width="420px">
       <p class="user-list__reset-tip">
         为用户「{{ resetTarget?.username }}」设置新密码（8-64
@@ -292,34 +283,30 @@ onMounted(() => {
       <el-input v-model="resetPassword" type="password" placeholder="请输入新密码" show-password />
       <template #footer>
         <el-button @click="resetDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="resetSubmitting" @click="submitResetPassword"
-          >确定</el-button
-        >
+        <el-button type="primary" :loading="resetSubmitting" @click="submitResetPassword">确定</el-button>
       </template>
     </el-dialog>
   </div>
 </template>
 
 <style scoped lang="scss">
-.user-list__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 16px;
-}
-
-.user-list__title {
-  font-size: 20px;
-  font-weight: 600;
-  margin: 0;
-}
-
 .user-list__filters {
-  margin-bottom: 16px;
+  margin-bottom: var(--space-lg);
 }
 
 .user-list__filters :deep(.el-form-item) {
   margin-bottom: 0;
+}
+
+.user-list__filter-form {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0;
+}
+
+.user-list__filter-spacer {
+  flex: 1;
 }
 
 .user-list__tag {
@@ -327,26 +314,29 @@ onMounted(() => {
 }
 
 .user-list__muted {
-  color: var(--el-text-color-secondary);
+  color: var(--color-neutral-400);
+  font-size: var(--font-size-xs);
 }
 
 .user-list__footer {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-top: 16px;
+  margin-top: var(--space-lg);
+  padding-top: var(--space-lg);
+  border-top: 1px solid var(--color-neutral-100);
 }
 
 .user-list__batch {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-sm);
 }
 
 .user-list__reset-tip {
-  font-size: 13px;
-  color: var(--el-text-color-secondary);
-  margin: 0 0 12px;
+  font-size: var(--font-size-xs);
+  color: var(--color-neutral-500);
+  margin: 0 0 var(--space-md);
   line-height: 1.6;
 }
 </style>

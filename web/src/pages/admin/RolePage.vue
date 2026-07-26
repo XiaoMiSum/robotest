@@ -19,7 +19,6 @@ function handleCleared() {
 
 <template>
   <div class="role-page">
-    <h2 class="role-page__title">角色管理</h2>
     <div class="role-page__body">
       <el-card shadow="never" class="role-page__aside">
         <RoleTreePanel @select="handleSelect" @cleared="handleCleared" />
@@ -41,15 +40,9 @@ function handleCleared() {
 </template>
 
 <style scoped lang="scss">
-.role-page__title {
-  font-size: 20px;
-  font-weight: 600;
-  margin: 0 0 16px;
-}
-
 .role-page__body {
   display: flex;
-  gap: 16px;
+  gap: var(--space-lg);
   align-items: flex-start;
 }
 
@@ -63,7 +56,6 @@ function handleCleared() {
   min-width: 0;
 }
 
-/* 小屏下左右分栏切换为上下布局 */
 @media (max-width: 768px) {
   .role-page__body {
     flex-direction: column;

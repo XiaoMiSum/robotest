@@ -105,25 +105,25 @@ async function submitCreate() {
 
 <template>
   <div class="review-list">
-    <div class="review-list__header">
-      <h2 class="review-list__title">测试评审</h2>
-      <el-button type="primary" @click="openCreateDialog">
-        <el-icon><Plus /></el-icon>发起评审
-      </el-button>
-    </div>
 
     <el-card shadow="never" class="review-list__filters">
-      <el-select v-model="query.status" placeholder="状态" clearable style="width: 140px" @change="handleSearch">
-        <el-option label="评审中" value="in_progress" />
-        <el-option label="已完成" value="completed" />
-      </el-select>
+      <div class="review-list__filter-bar">
+        <el-select v-model="query.status" placeholder="状态" clearable style="width: 140px" @change="handleSearch">
+          <el-option label="评审中" value="in_progress" />
+          <el-option label="已完成" value="completed" />
+        </el-select>
+        <div class="review-list__filter-spacer" />
+        <el-button type="primary" @click="openCreateDialog">
+          <el-icon><Plus /></el-icon>发起评审
+        </el-button>
+      </div>
     </el-card>
 
-    <el-card shadow="never" v-loading="loading">
+    <el-card v-loading="loading" shadow="never">
       <el-table :data="reviews" row-key="id">
         <el-table-column label="标题" min-width="200">
           <template #default="{ row }">
-            <el-link type="primary" @click="router.push(`/workspace/projects/reviews/${row.id}`)">{{ row.title }}</el-link>
+            <el-link type="primary" :underline="false" @click="router.push(`/workspace/projects/reviews/${row.id}`)">{{ row.title }}</el-link>
           </template>
         </el-table-column>
         <el-table-column label="发起人" width="120">
@@ -131,7 +131,7 @@ async function submitCreate() {
         </el-table-column>
         <el-table-column label="状态" width="100">
           <template #default="{ row }">
-            <el-tag :type="row.status === 'completed' ? 'success' : 'warning'" size="small">
+            <el-tag :type="row.status === 'completed' ? 'success' : 'warning'" size="small" effect="light" round>
               {{ row.status === 'completed' ? '已完成' : '评审中' }}
             </el-tag>
           </template>
@@ -161,7 +161,6 @@ async function submitCreate() {
       </div>
     </el-card>
 
-    <!-- 创建评审弹窗 -->
     <el-dialog v-model="createDialogVisible" title="发起评审" width="560px">
       <el-form ref="createFormRef" :model="createForm" :rules="createRules" label-width="80px">
         <el-form-item label="标题" prop="title">
@@ -193,28 +192,31 @@ async function submitCreate() {
 </template>
 
 <style scoped lang="scss">
-.review-list__header {
+.review-list__filters {
+  margin-bottom: var(--space-lg);
+}
+
+.review-list__filter-bar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  margin-bottom: 16px;
+  gap: var(--space-md);
 }
-.review-list__title {
-  font-size: 20px;
-  font-weight: 600;
-  margin: 0;
+
+.review-list__filter-spacer {
+  flex: 1;
 }
-.review-list__filters {
-  margin-bottom: 16px;
-}
+
 .review-list__pager {
   display: flex;
   justify-content: flex-end;
-  margin-top: 16px;
+  margin-top: var(--space-lg);
+  padding-top: var(--space-lg);
+  border-top: 1px solid var(--color-neutral-100);
 }
+
 .review-list__case-count {
-  margin-left: 8px;
-  font-size: 12px;
-  color: var(--el-text-color-secondary);
+  margin-left: var(--space-sm);
+  font-size: var(--font-size-2xs);
+  color: var(--color-neutral-400);
 }
 </style>

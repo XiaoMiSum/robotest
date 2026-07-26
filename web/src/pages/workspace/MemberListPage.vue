@@ -30,7 +30,6 @@ const roleOptions = [
   { value: WORKSPACE_ROLE.MEMBER, label: '成员' },
 ]
 
-// ==================== 成员列表 ====================
 const members = ref<WorkspaceMember[]>([])
 const membersLoading = ref(false)
 const memberTotal = ref(0)
@@ -97,7 +96,6 @@ async function handleRemoveMember(member: WorkspaceMember) {
   }
 }
 
-// --- 添加成员弹窗 ---
 const addDialogVisible = ref(false)
 const addSubmitting = ref(false)
 const userSearchLoading = ref(false)
@@ -148,7 +146,6 @@ async function submitAddMembers() {
   }
 }
 
-// ==================== 邀请链接 ====================
 const invitations = ref<Invitation[]>([])
 const invitationsLoading = ref(false)
 const invitationTotal = ref(0)
@@ -167,7 +164,6 @@ async function loadInvitations() {
   }
 }
 
-// --- 创建邀请链接 ---
 const createDialogVisible = ref(false)
 const createForm = reactive({ expiresAt: '' as string, maxUses: null as number | null })
 const createSubmitting = ref(false)
@@ -234,11 +230,9 @@ onMounted(loadMembers)
 
 <template>
   <div class="member-page">
-    <h2 class="member-page__title">成员管理</h2>
 
     <el-card shadow="never">
       <el-tabs v-model="activeTab" @tab-change="handleTabChange">
-        <!-- 成员列表 Tab -->
         <el-tab-pane label="成员列表" name="members">
           <div class="member-page__toolbar">
             <el-input
@@ -249,6 +243,7 @@ onMounted(loadMembers)
               @keyup.enter="() => { memberQuery.pageNo = 1; loadMembers() }"
               @clear="() => { memberQuery.pageNo = 1; loadMembers() }"
             />
+            <div class="member-page__toolbar-spacer" />
             <el-button v-if="isAdmin" type="primary" size="small" @click="openAddDialog">
               <el-icon><Plus /></el-icon>添加成员
             </el-button>
@@ -257,11 +252,11 @@ onMounted(loadMembers)
             <el-table-column label="用户" min-width="180">
               <template #default="{ row }">
                 <div class="member-page__user">
-                  <el-avatar :size="28" :src="row.avatarUrl || undefined">
+                  <el-avatar :size="30" :src="row.avatarUrl || undefined">
                     {{ row.username.charAt(0).toUpperCase() }}
                   </el-avatar>
                   <div>
-                    <div>{{ row.username }}</div>
+                    <div class="member-page__username">{{ row.username }}</div>
                     <div class="member-page__email">{{ row.email }}</div>
                   </div>
                 </div>
@@ -277,7 +272,7 @@ onMounted(loadMembers)
                 >
                   <el-option v-for="opt in roleOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
                 </el-select>
-                <el-tag v-else size="small">{{ workspaceRoleLabel(row.workspaceRole) }}</el-tag>
+                <el-tag v-else size="small" effect="light" round>{{ workspaceRoleLabel(row.workspaceRole) }}</el-tag>
               </template>
             </el-table-column>
             <el-table-column label="加入时间" width="170">
@@ -307,7 +302,6 @@ onMounted(loadMembers)
           </div>
         </el-tab-pane>
 
-        <!-- 邀请链接 Tab（仅管理员可见） -->
         <el-tab-pane v-if="isAdmin" label="邀请链接" name="invitations">
           <div class="member-page__toolbar">
             <el-button type="primary" size="small" @click="openCreateDialog">
@@ -332,7 +326,7 @@ onMounted(loadMembers)
             </el-table-column>
             <el-table-column label="状态" width="90">
               <template #default="{ row }">
-                <el-tag :type="row.status === 'active' ? 'success' : 'info'" size="small">
+                <el-tag :type="row.status === 'active' ? 'success' : 'info'" size="small" effect="light" round>
                   {{ row.status === 'active' ? '有效' : '已撤销' }}
                 </el-tag>
               </template>
@@ -366,7 +360,6 @@ onMounted(loadMembers)
       </el-tabs>
     </el-card>
 
-    <!-- 添加成员弹窗 -->
     <el-dialog v-model="addDialogVisible" title="添加成员" width="480px">
       <el-select
         v-model="selectedUserIds"
@@ -392,7 +385,6 @@ onMounted(loadMembers)
       </template>
     </el-dialog>
 
-    <!-- 创建邀请链接弹窗 -->
     <el-dialog v-model="createDialogVisible" title="创建邀请链接" width="440px">
       <el-form label-width="100px">
         <el-form-item label="过期时间">
@@ -416,33 +408,37 @@ onMounted(loadMembers)
 </template>
 
 <style scoped lang="scss">
-.member-page__title {
-  font-size: 20px;
-  font-weight: 600;
-  margin: 0 0 16px;
-}
-
 .member-page__toolbar {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 12px;
+  gap: var(--space-md);
+  margin-bottom: var(--space-md);
+}
+
+.member-page__toolbar-spacer {
+  flex: 1;
 }
 
 .member-page__user {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-sm);
+}
+
+.member-page__username {
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: var(--color-neutral-800);
 }
 
 .member-page__email {
-  font-size: 12px;
-  color: var(--el-text-color-secondary);
+  font-size: var(--font-size-2xs);
+  color: var(--color-neutral-400);
 }
 
 .member-page__pager {
   display: flex;
   justify-content: flex-end;
-  margin-top: 16px;
+  margin-top: var(--space-lg);
 }
 </style>

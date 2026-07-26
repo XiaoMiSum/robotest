@@ -120,24 +120,24 @@ async function submitCreate() {
 
 <template>
   <div class="plan-list">
-    <div class="plan-list__header">
-      <h2 class="plan-list__title">测试计划</h2>
-      <el-button type="primary" @click="openCreateDialog">
-        <el-icon><Plus /></el-icon>创建计划
-      </el-button>
-    </div>
 
     <el-card shadow="never" class="plan-list__filters">
-      <el-select v-model="query.status" placeholder="状态" clearable style="width: 140px" @change="handleSearch">
-        <el-option v-for="(label, key) in statusLabel" :key="key" :label="label" :value="key" />
-      </el-select>
+      <div class="plan-list__filter-bar">
+        <el-select v-model="query.status" placeholder="状态" clearable style="width: 140px" @change="handleSearch">
+          <el-option v-for="(label, key) in statusLabel" :key="key" :label="label" :value="key" />
+        </el-select>
+        <div class="plan-list__filter-spacer" />
+        <el-button type="primary" @click="openCreateDialog">
+          <el-icon><Plus /></el-icon>创建计划
+        </el-button>
+      </div>
     </el-card>
 
-    <el-card shadow="never" v-loading="loading">
+    <el-card v-loading="loading" shadow="never">
       <el-table :data="plans" row-key="id">
         <el-table-column label="名称" min-width="180">
           <template #default="{ row }">
-            <el-link type="primary" @click="router.push(`/workspace/projects/plans/${row.id}`)">{{ row.name }}</el-link>
+            <el-link type="primary" :underline="false" @click="router.push(`/workspace/projects/plans/${row.id}`)">{{ row.name }}</el-link>
           </template>
         </el-table-column>
         <el-table-column label="负责人" width="100">
@@ -151,7 +151,7 @@ async function submitCreate() {
         </el-table-column>
         <el-table-column label="状态" width="100">
           <template #default="{ row }">
-            <el-tag :type="statusType[row.status] ?? 'info'" size="small">{{ statusLabel[row.status] }}</el-tag>
+            <el-tag :type="statusType[row.status] ?? 'info'" size="small" effect="light" round>{{ statusLabel[row.status] }}</el-tag>
           </template>
         </el-table-column>
         <el-table-column label="创建时间" width="160">
@@ -176,7 +176,6 @@ async function submitCreate() {
       </div>
     </el-card>
 
-    <!-- 创建计划弹窗 -->
     <el-dialog v-model="createDialogVisible" title="创建计划" width="600px">
       <el-form ref="createFormRef" :model="createForm" :rules="createRules" label-width="80px">
         <el-form-item label="名称" prop="name">
@@ -217,23 +216,31 @@ async function submitCreate() {
 </template>
 
 <style scoped lang="scss">
-.plan-list__header {
+.plan-list__filters {
+  margin-bottom: var(--space-lg);
+}
+
+.plan-list__filter-bar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  margin-bottom: 16px;
+  gap: var(--space-md);
 }
-.plan-list__title {
-  font-size: 20px;
-  font-weight: 600;
-  margin: 0;
+
+.plan-list__filter-spacer {
+  flex: 1;
 }
-.plan-list__filters {
-  margin-bottom: 16px;
-}
+
 .plan-list__pager {
   display: flex;
   justify-content: flex-end;
-  margin-top: 16px;
+  margin-top: var(--space-lg);
+  padding-top: var(--space-lg);
+  border-top: 1px solid var(--color-neutral-100);
+}
+
+.plan-list__case-count {
+  margin-left: var(--space-sm);
+  font-size: var(--font-size-2xs);
+  color: var(--color-neutral-400);
 }
 </style>
