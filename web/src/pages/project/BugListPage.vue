@@ -62,22 +62,9 @@ onMounted(loadBugs)
 
 <template>
   <div class="bug-page">
-    <div class="bug-page__header">
-      <h2 class="bug-page__title">缺陷管理</h2>
-      <div class="bug-page__actions">
-        <el-radio-group v-model="viewMode" size="small">
-          <el-radio-button value="list">列表</el-radio-button>
-          <el-radio-button value="board">看板</el-radio-button>
-        </el-radio-group>
-        <el-button type="primary" @click="router.push('/workspace/projects/bugs/create')">
-          <el-icon><Plus /></el-icon>提交缺陷
-        </el-button>
-      </div>
-    </div>
 
-    <!-- 筛选栏 -->
     <el-card shadow="never" class="bug-page__filters">
-      <el-form :inline="true" @submit.prevent>
+      <el-form :inline="true" class="bug-page__filter-form" @submit.prevent>
         <el-form-item>
           <el-select v-model="query.status" placeholder="状态" clearable style="width: 120px" @change="handleSearch">
             <el-option v-for="(label, key) in statusLabel" :key="key" :label="label" :value="key" />
@@ -96,20 +83,31 @@ onMounted(loadBugs)
         <el-form-item>
           <el-input v-model="query.keyword" placeholder="搜索标题" clearable style="width: 180px" @keyup.enter="handleSearch" @clear="handleSearch" />
         </el-form-item>
+        <el-form-item class="bug-page__filter-spacer" />
+        <el-form-item>
+          <el-radio-group v-model="viewMode" size="small">
+            <el-radio-button value="list">列表</el-radio-button>
+            <el-radio-button value="board">看板</el-radio-button>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" @click="router.push('/workspace/projects/bugs/create')">
+            <el-icon><Plus /></el-icon>提交缺陷
+          </el-button>
+        </el-form-item>
       </el-form>
     </el-card>
 
-    <!-- 列表视图 -->
-    <el-card v-if="viewMode === 'list'" shadow="never" v-loading="loading">
+    <el-card v-if="viewMode === 'list'" v-loading="loading" shadow="never">
       <el-table :data="bugs" row-key="id">
         <el-table-column label="标题" min-width="200">
           <template #default="{ row }">
-            <el-link type="primary" @click="router.push(`/workspace/projects/bugs/${row.id}`)">{{ row.title }}</el-link>
+            <el-link type="primary" :underline="false" @click="router.push(`/workspace/projects/bugs/${row.id}`)">{{ row.title }}</el-link>
           </template>
         </el-table-column>
         <el-table-column label="严重等级" width="100">
           <template #default="{ row }">
-            <el-tag :type="severityType[row.severity]" size="small">{{ severityLabel[row.severity] }}</el-tag>
+            <el-tag :type="severityType[row.severity]" size="small" effect="light" round>{{ severityLabel[row.severity] }}</el-tag>
           </template>
         </el-table-column>
         <el-table-column label="优先级" width="80">
@@ -117,7 +115,7 @@ onMounted(loadBugs)
         </el-table-column>
         <el-table-column label="状态" width="90">
           <template #default="{ row }">
-            <el-tag size="small">{{ statusLabel[row.status] }}</el-tag>
+            <el-tag size="small" effect="light" round>{{ statusLabel[row.status] }}</el-tag>
           </template>
         </el-table-column>
         <el-table-column label="处理人" width="100">
@@ -145,11 +143,11 @@ onMounted(loadBugs)
       </div>
     </el-card>
 
-    <!-- 看板视图 -->
-    <div v-else class="bug-board" v-loading="loading">
+    <div v-else v-loading="loading" class="bug-board">
       <div v-for="status in boardStatuses" :key="status" class="bug-board__column">
         <div class="bug-board__col-header">
-          {{ statusLabel[status] }} ({{ bugsByStatus(status).length }})
+          <span class="bug-board__col-title">{{ statusLabel[status] }}</span>
+          <span class="bug-board__col-count">{{ bugsByStatus(status).length }}</span>
         </div>
         <div class="bug-board__col-body">
           <div
@@ -160,8 +158,8 @@ onMounted(loadBugs)
           >
             <div class="bug-board__card-title">{{ bug.title }}</div>
             <div class="bug-board__card-meta">
-              <el-tag :type="severityType[bug.severity]" size="small">{{ severityLabel[bug.severity] }}</el-tag>
-              <span v-if="bug.assignee">{{ bug.assignee.name }}</span>
+              <el-tag :type="severityType[bug.severity]" size="small" effect="light" round>{{ severityLabel[bug.severity] }}</el-tag>
+              <span v-if="bug.assignee" class="bug-board__card-assignee">{{ bug.assignee.name }}</span>
             </div>
           </div>
           <el-empty v-if="!bugsByStatus(status).length" description="" :image-size="30" />
@@ -172,87 +170,99 @@ onMounted(loadBugs)
 </template>
 
 <style scoped lang="scss">
-.bug-page__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 16px;
-}
-
-.bug-page__title {
-  font-size: 20px;
-  font-weight: 600;
-  margin: 0;
-}
-
-.bug-page__actions {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
 .bug-page__filters {
-  margin-bottom: 16px;
+  margin-bottom: var(--space-lg);
 }
 
 .bug-page__filters :deep(.el-form-item) {
   margin-bottom: 0;
 }
 
+.bug-page__filter-form {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0;
+}
+
+.bug-page__filter-spacer {
+  flex: 1;
+}
+
 .bug-page__pager {
   display: flex;
   justify-content: flex-end;
-  margin-top: 16px;
+  margin-top: var(--space-lg);
+  padding-top: var(--space-lg);
+  border-top: 1px solid var(--color-neutral-100);
 }
 
-/* 看板样式 */
 .bug-board {
   display: flex;
-  gap: 12px;
+  gap: var(--space-md);
   overflow-x: auto;
   min-height: 400px;
 }
 
 .bug-board__column {
   flex: 1;
-  min-width: 180px;
-  background: var(--el-fill-color-lighter);
-  border-radius: 6px;
+  min-width: 200px;
+  background: var(--color-neutral-50);
+  border-radius: var(--radius-lg);
   display: flex;
   flex-direction: column;
+  border: 1px solid var(--color-neutral-200);
 }
 
 .bug-board__col-header {
-  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-sm) var(--space-md);
+  border-bottom: 1px solid var(--color-neutral-200);
+}
+
+.bug-board__col-title {
   font-weight: 600;
-  font-size: 13px;
-  border-bottom: 1px solid var(--el-border-color-lighter);
+  font-size: var(--font-size-xs);
+  color: var(--color-neutral-700);
+}
+
+.bug-board__col-count {
+  font-size: var(--font-size-2xs);
+  color: var(--color-neutral-400);
+  background: var(--color-neutral-200);
+  border-radius: var(--radius-full);
+  padding: 1px 6px;
+  font-weight: 500;
 }
 
 .bug-board__col-body {
-  padding: 8px;
+  padding: var(--space-sm);
   flex: 1;
   overflow-y: auto;
 }
 
 .bug-board__card {
-  background: var(--el-bg-color);
-  border-radius: 4px;
-  padding: 10px;
-  margin-bottom: 8px;
+  background: var(--color-neutral-0);
+  border-radius: var(--radius-md);
+  padding: var(--space-sm) var(--space-md);
+  margin-bottom: var(--space-sm);
   cursor: pointer;
-  box-shadow: var(--el-box-shadow-lighter);
-  transition: box-shadow 0.15s;
-}
+  border: 1px solid var(--color-neutral-200);
+  transition: all var(--transition-fast);
 
-.bug-board__card:hover {
-  box-shadow: var(--el-box-shadow-light);
+  &:hover {
+    box-shadow: var(--shadow-sm);
+    border-color: var(--color-primary-200);
+  }
 }
 
 .bug-board__card-title {
-  font-size: 13px;
+  font-size: var(--font-size-xs);
   font-weight: 500;
-  margin-bottom: 6px;
+  color: var(--color-neutral-800);
+  margin-bottom: var(--space-xs);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -261,8 +271,11 @@ onMounted(loadBugs)
 .bug-board__card-meta {
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  color: var(--el-text-color-secondary);
+  gap: var(--space-sm);
+}
+
+.bug-board__card-assignee {
+  font-size: var(--font-size-2xs);
+  color: var(--color-neutral-500);
 }
 </style>

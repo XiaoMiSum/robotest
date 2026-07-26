@@ -14,8 +14,9 @@ const total = ref(0)
 
 const query = reactive({
   keyword: '',
+  status: '' as string,
   pageNo: 1,
-  pageSize: 12,
+  pageSize: 20,
 })
 
 async function loadWorkspaces() {
@@ -23,6 +24,7 @@ async function loadWorkspaces() {
   try {
     const page = await fetchWorkspaces({
       keyword: query.keyword || undefined,
+      status: query.status || undefined,
       pageNo: query.pageNo,
       pageSize: query.pageSize,
     })
@@ -40,11 +42,17 @@ function handleSearch() {
   loadWorkspaces()
 }
 
+function handleReset() {
+  query.keyword = ''
+  query.status = ''
+  query.pageNo = 1
+  loadWorkspaces()
+}
+
 function goDetail(id: string) {
   router.push(`/admin/workspaces/${id}`)
 }
 
-// --- 新建工作空间 ---
 const createDialogVisible = ref(false)
 const createFormRef = ref<FormInstance>()
 const createSubmitting = ref(false)
@@ -93,64 +101,83 @@ onMounted(loadWorkspaces)
 
 <template>
   <div class="workspace-list">
-    <div class="workspace-list__header">
-      <h2 class="workspace-list__title">工作空间管理</h2>
-      <el-button type="primary" @click="openCreateDialog">
-        <el-icon><Plus /></el-icon>新建工作空间
-      </el-button>
-    </div>
-
     <el-card shadow="never" class="workspace-list__filters">
-      <el-input
-        v-model="query.keyword"
-        placeholder="搜索工作空间名称"
-        clearable
-        style="width: 260px"
-        @keyup.enter="handleSearch"
-        @clear="handleSearch"
-      >
-        <template #append>
-          <el-button @click="handleSearch">
-            <el-icon><Search /></el-icon>
+      <el-form :inline="true" class="workspace-list__filter-form" @submit.prevent>
+        <el-form-item>
+          <el-input
+            v-model="query.keyword"
+            placeholder="搜索工作空间名称"
+            clearable
+            :prefix-icon="'Search'"
+            style="width: 220px"
+            @keyup.enter="handleSearch"
+          />
+        </el-form-item>
+        <el-form-item>
+          <el-select v-model="query.status" placeholder="状态" clearable style="width: 120px" @change="handleSearch">
+            <el-option label="活跃" value="active" />
+            <el-option label="已解散" value="dissolved" />
+          </el-select>
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" @click="handleSearch">查询</el-button>
+          <el-button @click="handleReset">重置</el-button>
+        </el-form-item>
+        <el-form-item class="workspace-list__filter-spacer" />
+        <el-form-item>
+          <el-button type="primary" @click="openCreateDialog">
+            <el-icon><Plus /></el-icon>新建工作空间
           </el-button>
-        </template>
-      </el-input>
+        </el-form-item>
+      </el-form>
     </el-card>
 
-    <div v-loading="loading" class="workspace-list__body">
-      <el-empty v-if="!loading && !workspaces.length" description="暂无工作空间" />
-      <el-row v-else :gutter="16">
-        <el-col v-for="ws in workspaces" :key="ws.id" :xs="24" :sm="12" :md="8" :lg="6">
-          <el-card shadow="hover" class="ws-card" @click="goDetail(ws.id)">
-            <div class="ws-card__name">{{ ws.name }}</div>
-            <div class="ws-card__desc">{{ ws.description || '暂无描述' }}</div>
-            <div class="ws-card__meta">
-              <span>成员 {{ ws.memberCount }}</span>
-              <el-divider direction="vertical" />
-              <span>项目 {{ ws.projectCount }}</span>
-            </div>
-            <div class="ws-card__footer">
-              <span class="ws-card__date">创建于 {{ formatDate(ws.createdAt) }}</span>
-              <el-button link type="primary" @click.stop="goDetail(ws.id)">查看详情</el-button>
-            </div>
-          </el-card>
-        </el-col>
-      </el-row>
-    </div>
+    <el-card shadow="never">
+      <el-table v-loading="loading" :data="workspaces" row-key="id">
+        <el-table-column label="名称" min-width="160">
+          <template #default="{ row }">
+            <el-link type="primary" :underline="false" @click="goDetail(row.id)">
+              {{ row.name }}
+            </el-link>
+          </template>
+        </el-table-column>
+        <el-table-column prop="description" label="描述" min-width="200" show-overflow-tooltip />
+        <el-table-column label="状态" width="100">
+          <template #default="{ row }">
+            <el-tag :type="row.status === 'active' ? 'success' : 'info'" size="small" effect="light" round>
+              {{ row.status === 'active' ? '活跃' : '已解散' }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="成员" width="80" align="center">
+          <template #default="{ row }">{{ row.memberCount }}</template>
+        </el-table-column>
+        <el-table-column label="项目" width="80" align="center">
+          <template #default="{ row }">{{ row.projectCount }}</template>
+        </el-table-column>
+        <el-table-column label="创建时间" width="160">
+          <template #default="{ row }">{{ formatDate(row.createdAt) }}</template>
+        </el-table-column>
+        <el-table-column label="操作" width="100" fixed="right">
+          <template #default="{ row }">
+            <el-button link type="primary" @click="goDetail(row.id)">查看详情</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
 
-    <div class="workspace-list__pager">
-      <el-pagination
-        v-model:current-page="query.pageNo"
-        v-model:page-size="query.pageSize"
-        :total="total"
-        :page-sizes="[12, 24, 48]"
-        layout="total, sizes, prev, pager, next"
-        @current-change="loadWorkspaces"
-        @size-change="handleSearch"
-      />
-    </div>
+      <div class="workspace-list__pager">
+        <el-pagination
+          v-model:current-page="query.pageNo"
+          v-model:page-size="query.pageSize"
+          :total="total"
+          :page-sizes="[10, 20, 50, 100]"
+          layout="total, sizes, prev, pager, next"
+          @current-change="loadWorkspaces"
+          @size-change="handleSearch"
+        />
+      </div>
+    </el-card>
 
-    <!-- 新建工作空间弹窗 -->
     <el-dialog v-model="createDialogVisible" title="新建工作空间" width="480px">
       <el-form ref="createFormRef" :model="createForm" :rules="createRules" label-width="80px">
         <el-form-item label="名称" prop="name">
@@ -181,80 +208,30 @@ onMounted(loadWorkspaces)
 </template>
 
 <style scoped lang="scss">
-.workspace-list__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 16px;
-}
-
-.workspace-list__title {
-  font-size: 20px;
-  font-weight: 600;
-  margin: 0;
-}
-
 .workspace-list__filters {
-  margin-bottom: 16px;
+  margin-bottom: var(--space-lg);
 }
 
-.workspace-list__body {
-  min-height: 200px;
+.workspace-list__filters :deep(.el-form-item) {
+  margin-bottom: 0;
 }
 
-.ws-card {
-  cursor: pointer;
-  margin-bottom: 16px;
-  transition: transform 0.15s;
-}
-
-.ws-card:hover {
-  transform: translateY(-2px);
-}
-
-.ws-card__name {
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--el-text-color-primary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.ws-card__desc {
-  margin-top: 8px;
-  height: 40px;
-  font-size: 13px;
-  color: var(--el-text-color-secondary);
-  overflow: hidden;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-}
-
-.ws-card__meta {
-  margin-top: 12px;
-  font-size: 13px;
-  color: var(--el-text-color-regular);
-}
-
-.ws-card__footer {
+.workspace-list__filter-form {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid var(--el-border-color-lighter);
+  flex-wrap: wrap;
+  gap: 0;
 }
 
-.ws-card__date {
-  font-size: 12px;
-  color: var(--el-text-color-secondary);
+.workspace-list__filter-spacer {
+  flex: 1;
 }
 
 .workspace-list__pager {
   display: flex;
   justify-content: flex-end;
-  margin-top: 8px;
+  margin-top: var(--space-lg);
+  padding-top: var(--space-lg);
+  border-top: 1px solid var(--color-neutral-100);
 }
 </style>
