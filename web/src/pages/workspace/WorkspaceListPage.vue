@@ -50,16 +50,15 @@ onMounted(loadWorkspaces)
 
 <template>
   <div class="my-workspaces">
-    <h2 class="my-workspaces__title">我的工作空间</h2>
 
     <div v-loading="loading" class="my-workspaces__body">
       <el-empty v-if="!loading && !workspaces.length" description="暂无归属的工作空间，请联系管理员" />
       <el-row v-else :gutter="16">
         <el-col v-for="ws in workspaces" :key="ws.id" :xs="24" :sm="12" :md="8" :lg="6">
-          <el-card shadow="hover" class="ws-card" @click="enterWorkspace(ws)">
+          <div class="ws-card" @click="enterWorkspace(ws)">
             <div class="ws-card__header">
               <span class="ws-card__name">{{ ws.name }}</span>
-              <el-tag :type="roleTagType(ws.workspaceRole)" size="small">
+              <el-tag :type="roleTagType(ws.workspaceRole)" size="small" effect="light" round>
                 {{ workspaceRoleLabel(ws.workspaceRole) }}
               </el-tag>
             </div>
@@ -80,7 +79,7 @@ onMounted(loadWorkspaces)
                 进入工作空间
               </el-button>
             </div>
-          </el-card>
+          </div>
         </el-col>
       </el-row>
     </div>
@@ -100,12 +99,6 @@ onMounted(loadWorkspaces)
 </template>
 
 <style scoped lang="scss">
-.my-workspaces__title {
-  font-size: 20px;
-  font-weight: 600;
-  margin: 0 0 16px;
-}
-
 .my-workspaces__body {
   min-height: 200px;
 }
@@ -113,67 +106,74 @@ onMounted(loadWorkspaces)
 .my-workspaces__pager {
   display: flex;
   justify-content: center;
-  margin-top: 16px;
+  margin-top: var(--space-xl);
 }
 
 .ws-card {
   cursor: pointer;
-  margin-bottom: 16px;
-  transition: transform 0.15s;
-}
+  margin-bottom: var(--space-lg);
+  padding: var(--space-lg);
+  background: var(--color-neutral-0);
+  border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-lg);
+  transition: all var(--transition-base);
 
-.ws-card:hover {
-  transform: translateY(-2px);
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+    border-color: var(--color-primary-200);
+  }
 }
 
 .ws-card__header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 8px;
+  margin-bottom: var(--space-sm);
 }
 
 .ws-card__name {
-  font-size: 16px;
+  font-size: var(--font-size-base);
   font-weight: 600;
-  color: var(--el-text-color-primary);
+  color: var(--color-neutral-800);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .ws-card__desc {
-  font-size: 13px;
-  color: var(--el-text-color-secondary);
+  font-size: var(--font-size-xs);
+  color: var(--color-neutral-500);
   height: 36px;
   overflow: hidden;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
+  line-height: 1.6;
 }
 
 .ws-card__info {
-  margin-top: 10px;
-  font-size: 12px;
+  margin-top: var(--space-sm);
+  font-size: var(--font-size-2xs);
 }
 
 .ws-card__default {
-  color: var(--el-text-color-regular);
+  color: var(--color-neutral-600);
 }
 
 .ws-card__muted {
-  color: var(--el-text-color-secondary);
+  color: var(--color-neutral-400);
 }
 
 .ws-card__meta {
-  margin-top: 8px;
-  font-size: 13px;
-  color: var(--el-text-color-regular);
+  margin-top: var(--space-sm);
+  font-size: var(--font-size-xs);
+  color: var(--color-neutral-500);
 }
 
 .ws-card__footer {
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid var(--el-border-color-lighter);
+  margin-top: var(--space-md);
+  padding-top: var(--space-md);
+  border-top: 1px solid var(--color-neutral-100);
 }
 </style>
