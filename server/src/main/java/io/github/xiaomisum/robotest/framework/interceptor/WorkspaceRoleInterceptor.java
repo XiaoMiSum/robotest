@@ -3,8 +3,10 @@ package io.github.xiaomisum.robotest.framework.interceptor;
 import xyz.migoo.framework.mybatis.core.LambdaQueryWrapperX;
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.security.LoginUser;
+import io.github.xiaomisum.robotest.model.entity.SysPermission;
 import io.github.xiaomisum.robotest.model.entity.SysRole;
 import io.github.xiaomisum.robotest.model.entity.WorkspaceUser;
+import io.github.xiaomisum.robotest.repository.SysPermissionMapper;
 import io.github.xiaomisum.robotest.repository.SysRoleMapper;
 import io.github.xiaomisum.robotest.repository.WorkspaceUserMapper;
 import jakarta.annotation.Resource;
@@ -36,6 +38,8 @@ public class WorkspaceRoleInterceptor implements HandlerInterceptor {
     private WorkspaceUserMapper workspaceUserMapper;
     @Resource
     private SysRoleMapper roleMapper;
+    @Resource
+    private SysPermissionMapper permissionMapper;
 
     @Override
     public boolean preHandle(@NonNull HttpServletRequest request, @NonNull HttpServletResponse response, @NonNull Object handler) {
@@ -69,7 +73,10 @@ public class WorkspaceRoleInterceptor implements HandlerInterceptor {
 
         // 追加角色的 permissions JSONB 中的权限码
         List<String> wsPermCodes = new ArrayList<>();
-        if (role.getPermissions() != null && !role.getPermissions().isEmpty()) {
+        if (Boolean.TRUE.equals(role.getFullAccess())) {
+            // full_access 角色：注入该 scope 下所有权限码
+            wsPermCodes.addAll(getAllScopePermissions("workspace"));
+        } else if (role.getPermissions() != null && !role.getPermissions().isEmpty()) {
             wsPermCodes.addAll(role.getPermissions());
         }
 
@@ -82,5 +89,13 @@ public class WorkspaceRoleInterceptor implements HandlerInterceptor {
         loginUser.appendWorkspaceAuthorities(authorities);
 
         return true;
+    }
+
+    private List<String> getAllScopePermissions(String scope) {
+        return permissionMapper.selectList(
+                new LambdaQueryWrapperX<SysPermission>()
+                        .eq(SysPermission::getScope, scope)
+                        .ne(SysPermission::getParentCode, null))
+                .stream().map(SysPermission::getCode).toList();
     }
 }

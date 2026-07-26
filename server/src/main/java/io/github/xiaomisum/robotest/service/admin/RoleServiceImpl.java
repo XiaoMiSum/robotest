@@ -26,7 +26,6 @@ import xyz.migoo.framework.common.pojo.PageResult;
 import xyz.migoo.framework.mybatis.core.LambdaQueryWrapperX;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -54,6 +53,7 @@ public class RoleServiceImpl implements RoleService {
             node.setName(role.getName());
             node.setType(role.getType());
             node.setIsSystem(role.getIsSystem());
+            node.setFullAccess(role.getFullAccess());
             node.setUserCount(Math.toIntExact(userRoleMapper.selectCount(SysUserRole::getRoleId, role.getId())));
             return node;
         }).collect(Collectors.toList());
@@ -194,14 +194,8 @@ public class RoleServiceImpl implements RoleService {
         if (role == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.ROLE_NOT_FOUND);
         }
-        if (Boolean.TRUE.equals(role.getIsSystem())) {
-            // 绯荤粺棰勭疆瑙掕壊鐨勫凡鏈夋潈闄愪笉鍙Щ闄?
-            List<String> currentPerms = role.getPermissions() != null ? role.getPermissions() : List.of();
-            List<String> newPerms = reqDTO.getPermissions();
-            // 妫€鏌ユ柊鏉冮檺鍒楄〃鏄惁鍖呭惈鎵€鏈夊凡鏈夋潈闄?
-            if (!new HashSet<>(currentPerms).containsAll(newPerms)) {
-                throw ServiceExceptionUtil.get(ErrorCodeConstants.SYSTEM_ROLE_PERMISSION_NOT_MODIFIABLE);
-            }
+        if (Boolean.TRUE.equals(role.getIsSystem()) || Boolean.TRUE.equals(role.getFullAccess())) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.SYSTEM_ROLE_PERMISSION_NOT_MODIFIABLE);
         }
         role.setPermissions(reqDTO.getPermissions());
         roleMapper.updateById(role);
@@ -211,13 +205,15 @@ public class RoleServiceImpl implements RoleService {
     }
 
     @Override
-    public List<PermissionTableRespDTO> getPermissionTable() {
+    public List<PermissionTableRespDTO> getPermissionTable(String roleType) {
+        String scope = Constants.RoleType.WORKSPACE.equals(roleType) ? "workspace" : "global";
         List<SysPermission> permissions = permissionMapper.selectList(
-                new LambdaQueryWrapperX<SysPermission>().orderByAsc(SysPermission::getModule, SysPermission::getSortOrder));
+                new LambdaQueryWrapperX<SysPermission>()
+                        .eq(SysPermission::getScope, scope)
+                        .orderByAsc(SysPermission::getModule, SysPermission::getSortOrder));
 
-        // 鎸夋ā鍧楀垎缁?
         return permissions.stream()
-                .filter(p -> p.getParentCode() != null) // 鍙繑鍥炲彾瀛愭潈闄愮偣
+                .filter(p -> p.getParentCode() != null)
                 .collect(Collectors.groupingBy(SysPermission::getModule))
                 .entrySet().stream()
                 .map(entry -> {

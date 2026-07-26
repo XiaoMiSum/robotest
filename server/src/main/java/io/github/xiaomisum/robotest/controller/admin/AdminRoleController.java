@@ -93,7 +93,8 @@ public class AdminRoleController {
 
     @GetMapping("/permissions/table")
     @PreAuthorize("hasAuthority('role:view')")
-    public Result<List<PermissionTableRespDTO>> getPermissionTable() {
-        return Result.ok(roleService.getPermissionTable());
+    public Result<List<PermissionTableRespDTO>> getPermissionTable(
+            @RequestParam(required = false) String roleType) {
+        return Result.ok(roleService.getPermissionTable(roleType));
     }
 }
