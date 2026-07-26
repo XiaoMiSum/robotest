@@ -4,10 +4,10 @@ import RoleTreePanel from '@/components/admin/RoleTreePanel.vue'
 import PermissionTable from '@/components/admin/PermissionTable.vue'
 import RoleUsersTable from '@/components/admin/RoleUsersTable.vue'
 
-const selectedRole = ref<{ id: string; isSystem: boolean } | null>(null)
+const selectedRole = ref<{ id: string; isSystem: boolean; type: string; fullAccess: boolean } | null>(null)
 const activeTab = ref<'permissions' | 'users'>('permissions')
 
-function handleSelect(node: { id: string; isSystem: boolean }) {
+function handleSelect(node: { id: string; isSystem: boolean; type: string; fullAccess: boolean }) {
   selectedRole.value = node
   activeTab.value = 'permissions'
 }
@@ -28,7 +28,7 @@ function handleCleared() {
         <el-empty v-if="!selectedRole" description="请选择左侧角色查看详情" />
         <el-tabs v-else v-model="activeTab">
           <el-tab-pane label="权限配置" name="permissions">
-            <PermissionTable :role-id="selectedRole.id" :is-system="selectedRole.isSystem" />
+            <PermissionTable :role-id="selectedRole.id" :is-system="selectedRole.isSystem" :role-type="selectedRole.type" :full-access="selectedRole.fullAccess" />
           </el-tab-pane>
           <el-tab-pane label="关联用户" name="users">
             <RoleUsersTable :role-id="selectedRole.id" />

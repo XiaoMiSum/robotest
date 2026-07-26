@@ -7,13 +7,14 @@ import type { PermissionModule } from '@/types'
 const props = defineProps<{
   roleId: string
   isSystem: boolean
+  roleType: string
+  fullAccess: boolean
 }>()
 
 const loading = ref(false)
 const saving = ref(false)
 const modules = ref<PermissionModule[]>([])
 const checkedCodes = ref<string[]>([])
-// 上次保存时的权限快照：用于撤销修改，以及系统角色已有权限的禁用判定
 const savedCodes = ref<string[]>([])
 
 const dirty = computed(() => {
@@ -22,19 +23,18 @@ const dirty = computed(() => {
   return checkedCodes.value.some((code) => !saved.has(code))
 })
 
-// 权限点全集只需加载一次
-async function ensureModules() {
-  if (modules.value.length) return
-  modules.value = await fetchPermissionTable()
-}
-
 async function load() {
   if (!props.roleId) return
   loading.value = true
   try {
-    const [, detail] = await Promise.all([ensureModules(), fetchRoleDetail(props.roleId)])
-    checkedCodes.value = [...detail.permissions]
+    const [perms, detail] = await Promise.all([fetchPermissionTable(props.roleType), fetchRoleDetail(props.roleId)])
+    modules.value = perms
     savedCodes.value = [...detail.permissions]
+    if (props.fullAccess) {
+      checkedCodes.value = perms.flatMap((m) => m.permissions.map((p) => p.code))
+    } else {
+      checkedCodes.value = [...detail.permissions]
+    }
   } catch (err) {
     ElMessage.error(err instanceof Error ? err.message : '加载权限配置失败')
   } finally {
@@ -42,8 +42,8 @@ async function load() {
   }
 }
 
-// 系统预置角色的已有权限不可取消
 function isLocked(code: string): boolean {
+  if (props.fullAccess) return true
   return props.isSystem && savedCodes.value.includes(code)
 }
 
@@ -65,6 +65,25 @@ async function handleSave() {
   }
 }
 
+const allVisibleCodes = computed(() =>
+  modules.value.flatMap((m) => m.permissions.filter((p) => !isLocked(p.code)).map((p) => p.code)),
+)
+const allChecked = computed(() => allVisibleCodes.value.length > 0 && allVisibleCodes.value.every((c) => checkedCodes.value.includes(c)))
+const indeterminate = computed(() => {
+  const checked = allVisibleCodes.value.filter((c) => checkedCodes.value.includes(c))
+  return checked.length > 0 && checked.length < allVisibleCodes.value.length
+})
+
+function toggleAll() {
+  if (allChecked.value) {
+    const remove = new Set(allVisibleCodes.value)
+    checkedCodes.value = checkedCodes.value.filter((c) => !remove.has(c))
+  } else {
+    const add = allVisibleCodes.value.filter((c) => !checkedCodes.value.includes(c))
+    checkedCodes.value = [...checkedCodes.value, ...add]
+  }
+}
+
 watch(() => props.roleId, load, { immediate: true })
 </script>
 
@@ -74,6 +93,15 @@ watch(() => props.roleId, load, { immediate: true })
       <el-table :data="modules" border>
         <el-table-column label="操作对象" prop="module" width="160" />
         <el-table-column label="权限点">
+          <template #header>
+            <el-checkbox
+              :model-value="allChecked"
+              :indeterminate="indeterminate"
+              @change="toggleAll"
+            >
+              权限点
+            </el-checkbox>
+          </template>
           <template #default="{ row }">
             <el-checkbox
               v-for="p in row.permissions"
@@ -89,7 +117,7 @@ watch(() => props.roleId, load, { immediate: true })
       </el-table>
     </el-checkbox-group>
 
-    <div class="perm-table__actions">
+    <div v-if="!fullAccess" class="perm-table__actions">
       <el-button :disabled="!dirty" @click="handleRevert">撤销修改</el-button>
       <el-button type="primary" :loading="saving" :disabled="!dirty" @click="handleSave">
         保存权限

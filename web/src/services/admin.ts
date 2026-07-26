@@ -171,6 +171,6 @@ export function removeRoleUser(id: string, userId: string): Promise<void> {
   return del(`/admin/roles/${id}/users/${userId}`)
 }
 
-export function fetchPermissionTable(): Promise<PermissionModule[]> {
-  return get('/admin/roles/permissions/table')
+export function fetchPermissionTable(roleType?: string): Promise<PermissionModule[]> {
+  return get('/admin/roles/permissions/table', { roleType })
 }
