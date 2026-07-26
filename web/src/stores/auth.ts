@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { LoginUser, ActiveWorkspace } from '@/types'
 import { getAccessToken, setTokens, clearTokens } from '@/services'
+import { fetchPermissions } from '@/services/auth'
 
 const USER_KEY = 'robotest_user'
 const WORKSPACE_KEY = 'robotest_active_workspace'
@@ -19,6 +20,7 @@ function loadUser(): LoginUser | null {
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<LoginUser | null>(loadUser())
   const activeWorkspace = ref<ActiveWorkspace | null>(null)
+  const permissions = ref<string[]>(user.value?.permissions ?? [])
 
   const isLoggedIn = computed(() => !!getAccessToken() && !!user.value)
   const username = computed(() => user.value?.username ?? '')
@@ -28,6 +30,27 @@ export const useAuthStore = defineStore('auth', () => {
     return user.value.roles.some((r) => r === 'system' || r === 'SYSTEM')
   })
 
+  const hasSystemPermission = computed(() => {
+    return permissions.value.some((p) => p.startsWith('user:') || p.startsWith('workspace:') || p.startsWith('role:'))
+  })
+
+  const hasWorkspaceAccess = computed(() => {
+    return permissions.value.some((p) => p.startsWith('ws-'))
+  })
+
+  function hasPermission(code: string): boolean {
+    return permissions.value.includes(code)
+  }
+
+  async function loadPermissions(): Promise<void> {
+    try {
+      const list = await fetchPermissions()
+      permissions.value = list
+    } catch {
+      permissions.value = []
+    }
+  }
+
   function setLogin(
     accessToken: string,
     refreshToken: string,
@@ -36,6 +59,7 @@ export const useAuthStore = defineStore('auth', () => {
   ) {
     setTokens(accessToken, refreshToken)
     user.value = loginUser
+    permissions.value = loginUser.permissions ?? []
     localStorage.setItem(USER_KEY, JSON.stringify(loginUser))
     activeWorkspace.value = workspace
   }
@@ -44,8 +68,10 @@ export const useAuthStore = defineStore('auth', () => {
     activeWorkspace.value = workspace
     if (workspace) {
       localStorage.setItem(WORKSPACE_KEY, workspace.id)
+      loadPermissions()
     } else {
       localStorage.removeItem(WORKSPACE_KEY)
+      permissions.value = []
     }
   }
 
@@ -60,6 +86,7 @@ export const useAuthStore = defineStore('auth', () => {
   function logout() {
     user.value = null
     activeWorkspace.value = null
+    permissions.value = []
     clearTokens()
     localStorage.removeItem(USER_KEY)
     localStorage.removeItem(WORKSPACE_KEY)
@@ -69,10 +96,15 @@ export const useAuthStore = defineStore('auth', () => {
   return {
     user,
     activeWorkspace,
+    permissions,
     isLoggedIn,
     username,
     avatarUrl,
     hasSystemRole,
+    hasSystemPermission,
+    hasWorkspaceAccess,
+    hasPermission,
+    loadPermissions,
     setLogin,
     setActiveWorkspace,
     setActiveProject,

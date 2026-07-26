@@ -1,14 +1,15 @@
 <script setup lang="ts">
 import { reactive, ref } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
+import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { useNavStore } from '@/stores/nav'
 import api from '@/services'
 import type { Result, LoginResult } from '@/types'
 import { ElMessage } from 'element-plus'
 
 const router = useRouter()
-const route = useRoute()
 const authStore = useAuthStore()
+const navStore = useNavStore()
 
 const form = reactive({
   identifier: '',
@@ -29,14 +30,18 @@ async function handleLogin() {
       password: form.password,
     })) as unknown as LoginResult
 
-    authStore.setLogin(result.accessToken, result.refreshToken, result.user, result.activeWorkspace)
+    authStore.setLogin(result.accessToken, result.refreshToken, result.user, null)
 
-    if (result.activeWorkspace) {
-      authStore.setActiveWorkspace(result.activeWorkspace)
+    await authStore.loadPermissions()
+
+    if (result.hasWorkspace) {
+      router.push('/workspaces')
+    } else if (authStore.hasSystemPermission) {
+      navStore.setMode('admin')
+      router.push('/admin/dashboard')
+    } else {
+      router.push('/workspaces')
     }
-
-    const redirect = (route.query.redirect as string) || '/'
-    router.push(redirect)
     ElMessage.success('登录成功')
   } catch (err) {
     ElMessage.error(err instanceof Error ? err.message : '登录失败')

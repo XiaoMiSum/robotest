@@ -17,6 +17,12 @@ public class LoginUser extends AuthUserDetails<LoginUser, UUID> {
     private String email;
 
     /**
+     * 当前用户的权限码列表（系统权限 + 工作空间权限），序列化返回前端。
+     */
+    @Setter
+    private List<String> permissions = new ArrayList<>();
+
+    /**
      * 工作空间角色追加的权限（由 WorkspaceRoleInterceptor 注入），与系统权限合并后返回。
      */
     @JsonIgnore

@@ -33,7 +33,8 @@ const activeDynamicMenu = computed(() => {
 })
 
 const showMyProject = computed(() => navStore.isProjectMode)
-const showWorkspaceManage = computed(() => navStore.isWorkspaceMode || navStore.isProjectMode)
+const showWorkspaceManage = computed(() => (navStore.isWorkspaceMode || navStore.isProjectMode) && authStore.hasWorkspaceAccess)
+const showSystemAdmin = computed(() => authStore.hasSystemPermission)
 const isSystemActive = computed(() => navStore.isAdminMode)
 
 function handleDynamicMenuClick(path: string) {
@@ -108,6 +109,7 @@ function handleLogout() {
         </div>
 
         <div
+          v-if="showSystemAdmin"
           class="top-nav__icon-btn"
           :class="{ 'top-nav__icon-btn--active': isSystemActive }"
           @click="goSystemAdmin"
