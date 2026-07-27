@@ -150,12 +150,22 @@ function openAddDialog() {
 
 async function searchUsers(keyword: string) {
   if (!keyword) {
-    userOptions.value = []
+    // 保留已选用户，避免再次打开下拉时显示为 ID
+    userOptions.value = userOptions.value.filter((u) => selectedUserIds.value.includes(u.id))
     return
   }
   userSearchLoading.value = true
   try {
-    userOptions.value = await fetchSimpleUserList(keyword)
+    const results = await fetchSimpleUserList(keyword)
+    // 保留已选用户，避免再次打开下拉时显示为 ID
+    const selected = userOptions.value.filter((u) => selectedUserIds.value.includes(u.id))
+    const merged = [...selected]
+    for (const u of results) {
+      if (!merged.some((m) => m.id === u.id)) {
+        merged.push(u)
+      }
+    }
+    userOptions.value = merged
   } catch {
     userOptions.value = []
   } finally {
@@ -385,7 +395,7 @@ onMounted(() => {
       <div v-if="selectedUsers.length" class="ws-detail__pending">
         <div v-for="u in selectedUsers" :key="u.id" class="ws-detail__pending-item">
           <span class="ws-detail__pending-name">{{ u.name }}</span>
-          <el-select v-model="pendingRoles[u.id]" size="small" style="width: 120px">
+          <el-select v-model="pendingRoles[u.id]" size="small" style="width: 180px">
             <el-option
               v-for="opt in roleOptions"
               :key="opt.value"
