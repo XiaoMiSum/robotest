@@ -5,13 +5,13 @@ import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'elem
 import {
   addWorkspaceMembers,
   dissolveWorkspace,
+  fetchRoleList,
   fetchUsers,
   fetchWorkspaceDetail,
   fetchWorkspaceMembers,
   removeWorkspaceMember,
   updateWorkspace,
   updateWorkspaceMemberRole,
-  WORKSPACE_ROLE,
 } from '@/services/admin'
 import type { AdminWorkspace, WorkspaceMember } from '@/types'
 import { formatDateTime } from '@/utils/format'
@@ -20,10 +20,21 @@ const route = useRoute()
 const router = useRouter()
 const workspaceId = route.params.id as string
 
-const roleOptions = [
-  { value: WORKSPACE_ROLE.ADMIN, label: '管理员' },
-  { value: WORKSPACE_ROLE.MEMBER, label: '成员' },
-]
+const roleOptions = ref<{ value: string; label: string }[]>([])
+const defaultRoleId = ref('')
+
+async function loadRoleOptions() {
+  try {
+    const list = await fetchRoleList('workspace')
+    roleOptions.value = list.map((r) => ({ value: r.id, label: r.name }))
+    // 默认选中第一个角色
+    if (list.length > 0) {
+      defaultRoleId.value = list[0].id
+    }
+  } catch {
+    // 角色选项加载失败不阻塞页面
+  }
+}
 
 const detail = ref<AdminWorkspace | null>(null)
 const infoLoading = ref(false)
@@ -77,9 +88,6 @@ const members = ref<WorkspaceMember[]>([])
 const membersLoading = ref(false)
 const memberTotal = ref(0)
 const memberQuery = reactive({ pageNo: 1, pageSize: 20 })
-const adminCount = computed(
-  () => members.value.filter((m) => m.workspaceRole === WORKSPACE_ROLE.ADMIN).length,
-)
 
 async function loadMembers() {
   membersLoading.value = true
@@ -98,14 +106,6 @@ async function loadMembers() {
 }
 
 async function handleRoleChange(member: WorkspaceMember, next: string) {
-  if (
-    member.workspaceRole === WORKSPACE_ROLE.ADMIN &&
-    next !== WORKSPACE_ROLE.ADMIN &&
-    adminCount.value <= 1
-  ) {
-    ElMessage.warning('至少保留一名管理员，无法降级')
-    return
-  }
   try {
     await updateWorkspaceMemberRole(workspaceId, member.userId, next)
     member.workspaceRole = next
@@ -117,10 +117,6 @@ async function handleRoleChange(member: WorkspaceMember, next: string) {
 }
 
 async function handleRemoveMember(member: WorkspaceMember) {
-  if (member.workspaceRole === WORKSPACE_ROLE.ADMIN && adminCount.value <= 1) {
-    ElMessage.warning('至少保留一名管理员，无法移除')
-    return
-  }
   try {
     await ElMessageBox.confirm(`确定要移除成员「${member.username}」吗？`, '确认移除', {
       type: 'warning',
@@ -172,7 +168,7 @@ async function searchUsers(keyword: string) {
 
 function handleUserSelectChange(ids: string[]) {
   ids.forEach((id) => {
-    if (!pendingRoles[id]) pendingRoles[id] = WORKSPACE_ROLE.MEMBER
+    if (!pendingRoles[id]) pendingRoles[id] = defaultRoleId.value
   })
   Object.keys(pendingRoles).forEach((id) => {
     if (!ids.includes(id)) delete pendingRoles[id]
@@ -197,7 +193,7 @@ async function submitAddMembers() {
       workspaceId,
       selectedUserIds.value.map((id) => ({
         userId: id,
-        workspaceRole: pendingRoles[id] ?? WORKSPACE_ROLE.MEMBER,
+        workspaceRole: pendingRoles[id] ?? defaultRoleId.value,
       })),
     )
     ElMessage.success('成员已添加')
@@ -240,6 +236,7 @@ async function handleDissolve() {
 }
 
 onMounted(() => {
+  loadRoleOptions()
   loadDetail()
   loadMembers()
 })

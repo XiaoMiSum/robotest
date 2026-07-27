@@ -12,7 +12,7 @@ import {
   revokeInvitation,
   updateMemberRole,
 } from '@/services/workspace'
-import { fetchUsers, WORKSPACE_ROLE, workspaceRoleLabel } from '@/services/admin'
+import { fetchRoleList, fetchUsers } from '@/services/admin'
 import type { Invitation, WorkspaceMember } from '@/types'
 import { formatDateTime } from '@/utils/format'
 
@@ -20,23 +20,35 @@ const router = useRouter()
 const authStore = useAuthStore()
 
 const isAdmin = computed(
-  () => authStore.activeWorkspace?.workspaceRole === WORKSPACE_ROLE.ADMIN,
+  () => authStore.activeWorkspace?.workspaceRole === roleOptions.value[0]?.value,
 )
 const currentUserId = computed(() => authStore.user?.id ?? '')
 const activeTab = ref('members')
 
-const roleOptions = [
-  { value: WORKSPACE_ROLE.ADMIN, label: '管理员' },
-  { value: WORKSPACE_ROLE.MEMBER, label: '成员' },
-]
+const roleOptions = ref<{ value: string; label: string }[]>([])
+const defaultRoleId = ref('')
+
+async function loadRoleOptions() {
+  try {
+    const list = await fetchRoleList('workspace')
+    roleOptions.value = list.map((r) => ({ value: r.id, label: r.name }))
+    if (list.length > 0) {
+      defaultRoleId.value = list[0].id
+    }
+  } catch {
+    // 角色选项加载失败不阻塞页面
+  }
+}
+
+function workspaceRoleLabel(roleId: string): string {
+  const role = roleOptions.value.find((r) => r.value === roleId)
+  return role?.label ?? '未知'
+}
 
 const members = ref<WorkspaceMember[]>([])
 const membersLoading = ref(false)
 const memberTotal = ref(0)
 const memberQuery = reactive({ keyword: '', pageNo: 1, pageSize: 20 })
-const adminCount = computed(
-  () => members.value.filter((m) => m.workspaceRole === WORKSPACE_ROLE.ADMIN).length,
-)
 
 async function loadMembers() {
   membersLoading.value = true
@@ -52,14 +64,6 @@ async function loadMembers() {
 }
 
 async function handleRoleChange(member: WorkspaceMember, next: string) {
-  if (
-    member.workspaceRole === WORKSPACE_ROLE.ADMIN &&
-    next !== WORKSPACE_ROLE.ADMIN &&
-    adminCount.value <= 1
-  ) {
-    ElMessage.warning('至少保留一名管理员，无法降级')
-    return
-  }
   try {
     await updateMemberRole(member.userId, next)
     member.workspaceRole = next
@@ -71,10 +75,6 @@ async function handleRoleChange(member: WorkspaceMember, next: string) {
 }
 
 async function handleRemoveMember(member: WorkspaceMember) {
-  if (member.workspaceRole === WORKSPACE_ROLE.ADMIN && adminCount.value <= 1) {
-    ElMessage.warning('至少保留一名管理员，无法移除')
-    return
-  }
   const isSelf = member.userId === currentUserId.value
   const msg = isSelf ? '确定退出该工作空间？退出后将无法访问此空间的资源。' : `确定要移除成员「${member.username}」吗？`
   try {
@@ -131,7 +131,7 @@ async function submitAddMembers() {
   addSubmitting.value = true
   try {
     const result = await addMembers(
-      selectedUserIds.value.map((id) => ({ userId: id, workspaceRole: WORKSPACE_ROLE.MEMBER })),
+      selectedUserIds.value.map((id) => ({ userId: id, workspaceRole: defaultRoleId.value })),
     )
     const msg = result.skippedUserIds.length
       ? `成功添加 ${result.successCount} 人，${result.skippedUserIds.length} 人已在空间中跳过`
@@ -225,7 +225,10 @@ function handleTabChange(tab: string | number) {
   }
 }
 
-onMounted(loadMembers)
+onMounted(() => {
+  loadRoleOptions()
+  loadMembers()
+})
 </script>
 
 <template>
