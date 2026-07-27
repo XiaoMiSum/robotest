@@ -32,7 +32,7 @@ function loadActiveWorkspace(): ActiveWorkspace | null {
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<LoginUser | null>(loadUser())
   const activeWorkspace = ref<ActiveWorkspace | null>(loadActiveWorkspace())
-  const permissions = ref<string[]>(user.value?.permissions ?? [])
+  const permissions = ref<string[]>([])
 
   // 页面刷新时 activeWorkspace 已从 localStorage 恢复，需重新加载含工作空间权限的完整权限列表
   if (user.value && activeWorkspace.value) {
@@ -77,8 +77,9 @@ export const useAuthStore = defineStore('auth', () => {
   ) {
     setTokens(accessToken, refreshToken)
     user.value = loginUser
-    permissions.value = loginUser.permissions ?? []
     localStorage.setItem(USER_KEY, JSON.stringify(loginUser))
+    // 从 authorities 初始化权限（过滤 ROLE_ 前缀的角色名）
+    permissions.value = loginUser.authorities?.filter((a) => !a.startsWith('ROLE_')) ?? []
     setActiveWorkspace(workspace)
   }
 

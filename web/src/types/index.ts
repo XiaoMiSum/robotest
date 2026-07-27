@@ -33,7 +33,7 @@ export interface LoginUser {
   avatarUrl?: string
   status: string
   roles: string[]
-  permissions: string[]
+  authorities: string[]
   hasWorkspace: boolean
 }
 
