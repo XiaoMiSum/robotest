@@ -132,8 +132,8 @@ export function removeWorkspaceMember(id: string, userId: string): Promise<void>
 
 // ==================== 角色与权限管理 ====================
 
-export function fetchRoleList(): Promise<RoleTreeNode[]> {
-  return get('/admin/roles/tree')
+export function fetchRoleList(type?: string): Promise<RoleTreeNode[]> {
+  return get('/admin/roles', { type })
 }
 
 export function fetchRoleDetail(id: string): Promise<RoleDetail> {

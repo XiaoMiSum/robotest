@@ -14,7 +14,7 @@ import java.util.UUID;
 
 public interface RoleService {
 
-    List<RoleSimpleRespDTO> getRoleList();
+    List<RoleSimpleRespDTO> getRoleList(String type);
 
     String createRole(RoleCreateReqDTO reqDTO);
 
