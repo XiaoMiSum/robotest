@@ -106,20 +106,19 @@ async function submitCreate() {
 <template>
   <div class="review-list">
 
-    <el-card shadow="never" class="review-list__filters">
-      <div class="review-list__filter-bar">
-        <el-select v-model="query.status" placeholder="状态" clearable style="width: 140px" @change="handleSearch">
-          <el-option label="评审中" value="in_progress" />
-          <el-option label="已完成" value="completed" />
-        </el-select>
-        <div class="review-list__filter-spacer" />
-        <el-button type="primary" @click="openCreateDialog">
-          <el-icon><Plus /></el-icon>发起评审
-        </el-button>
-      </div>
-    </el-card>
-
     <el-card v-loading="loading" shadow="never">
+      <template #header>
+        <div class="review-list__header">
+          <el-select v-model="query.status" placeholder="状态" clearable style="width: 140px" @change="handleSearch">
+            <el-option label="评审中" value="in_progress" />
+            <el-option label="已完成" value="completed" />
+          </el-select>
+          <div class="review-list__header-spacer" />
+          <el-button type="primary" @click="openCreateDialog">
+            <el-icon><Plus /></el-icon>发起评审
+          </el-button>
+        </div>
+      </template>
       <el-table :data="reviews" row-key="id">
         <el-table-column label="标题" min-width="200">
           <template #default="{ row }">
@@ -192,17 +191,13 @@ async function submitCreate() {
 </template>
 
 <style scoped lang="scss">
-.review-list__filters {
-  margin-bottom: var(--space-lg);
-}
-
-.review-list__filter-bar {
+.review-list__header {
   display: flex;
   align-items: center;
   gap: var(--space-md);
 }
 
-.review-list__filter-spacer {
+.review-list__header-spacer {
   flex: 1;
 }
 
