@@ -1,7 +1,14 @@
 <script setup lang="ts">
 import { reactive, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { addRoleUsers, fetchRoleWorkspaceUsers, fetchUsers, removeRoleUser, removeWorkspaceRoleUser } from '@/services/admin'
+import {
+  addRoleUsers,
+  addWorkspaceRoleUsers,
+  fetchRoleWorkspaceUsers,
+  fetchUsers,
+  removeRoleUser,
+  removeWorkspaceRoleUser,
+} from '@/services/admin'
 import type { AdminUser, RoleWorkspaceUser } from '@/types'
 import { formatDateTime } from '@/utils/format'
 import UserPickerDialog from '@/components/admin/UserPickerDialog.vue'
@@ -17,6 +24,11 @@ const workspaceUsers = ref<RoleWorkspaceUser[]>([])
 const total = ref(0)
 const query = reactive({ pageNo: 1, pageSize: 20 })
 const pickerVisible = ref(false)
+
+// 多空间移除弹窗
+const wsRemoveVisible = ref(false)
+const wsRemoveTarget = ref<RoleWorkspaceUser | null>(null)
+const wsRemoveSelected = ref<string[]>([])
 
 const isWorkspaceRole = () => props.roleType === 'workspace'
 
@@ -42,9 +54,17 @@ async function load() {
   }
 }
 
-async function handleAddUsers(userIds: string[]) {
+async function handleAddUsers(userIds: string[], workspaceIds?: string[]) {
   try {
-    await addRoleUsers(props.roleId, userIds)
+    if (isWorkspaceRole()) {
+      if (!workspaceIds?.length) {
+        ElMessage.warning('请至少选择一个空间')
+        return
+      }
+      await addWorkspaceRoleUsers(props.roleId, userIds, workspaceIds)
+    } else {
+      await addRoleUsers(props.roleId, userIds)
+    }
     ElMessage.success('已添加用户')
     pickerVisible.value = false
     query.pageNo = 1
@@ -73,7 +93,7 @@ async function handleRemove(user: AdminUser) {
 
 async function handleRemoveWorkspace(user: RoleWorkspaceUser) {
   if (user.workspaces.length === 1) {
-    // 只有一个空间，直接移除
+    // 只有一个空间，确认后直接移除
     const ws = user.workspaces[0]
     try {
       await ElMessageBox.confirm(
@@ -92,17 +112,29 @@ async function handleRemoveWorkspace(user: RoleWorkspaceUser) {
       ElMessage.error(err instanceof Error ? err.message : '移除失败')
     }
   } else {
-    // 多个空间，弹窗选择
-    const workspaceNames = user.workspaces.map((ws) => ws.workspaceName).join('、')
-    try {
-      await ElMessageBox.confirm(
-        `用户「${user.name || user.username}」在以下空间中拥有该角色：${workspaceNames}\n\n注意：移除操作需要到对应空间中单独操作。\n如需移除，请到「空间管理」中操作。`,
-        '归属多个空间',
-        { type: 'info', showCancelButton: false },
-      )
-    } catch {
-      // 用户关闭弹窗
-    }
+    // 多个空间，弹窗选择要移除的空间
+    wsRemoveTarget.value = user
+    wsRemoveSelected.value = []
+    wsRemoveVisible.value = true
+  }
+}
+
+async function handleWsRemoveConfirm() {
+  if (!wsRemoveSelected.value.length) {
+    ElMessage.warning('请至少选择一个空间')
+    return
+  }
+  const user = wsRemoveTarget.value
+  if (!user) return
+  try {
+    await Promise.all(
+      wsRemoveSelected.value.map((wsId) => removeWorkspaceRoleUser(props.roleId, user.userId, wsId)),
+    )
+    ElMessage.success('已移除')
+    wsRemoveVisible.value = false
+    load()
+  } catch (err) {
+    ElMessage.error(err instanceof Error ? err.message : '移除失败')
   }
 }
 
@@ -187,12 +219,34 @@ watch(
       </el-table>
     </template>
 
+    <!-- 用户选择弹窗 -->
     <UserPickerDialog
       v-model="pickerVisible"
-      title="添加关联用户"
+      :title="isWorkspaceRole() ? '添加关联用户与空间' : '添加关联用户'"
+      :show-workspace="isWorkspaceRole()"
       :exclude-ids="isWorkspaceRole() ? workspaceUsers.map((u) => u.userId) : users.map((u) => u.id)"
       @confirm="handleAddUsers"
     />
+
+    <!-- 多空间移除弹窗 -->
+    <el-dialog
+      v-model="wsRemoveVisible"
+      title="选择要移除的空间"
+      width="400px"
+    >
+      <p v-if="wsRemoveTarget" class="role-users__ws-remove-tip">
+        用户「{{ wsRemoveTarget.name || wsRemoveTarget.username }}」在以下空间中拥有该角色，请选择要移除的空间：
+      </p>
+      <el-checkbox-group v-model="wsRemoveSelected">
+        <div v-for="ws in wsRemoveTarget?.workspaces" :key="ws.workspaceId" class="role-users__ws-checkbox">
+          <el-checkbox :value="ws.workspaceId">{{ ws.workspaceName }}</el-checkbox>
+        </div>
+      </el-checkbox-group>
+      <template #footer>
+        <el-button @click="wsRemoveVisible = false">取消</el-button>
+        <el-button type="danger" @click="handleWsRemoveConfirm">移除</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -210,5 +264,15 @@ watch(
 .role-users__ws-tag {
   margin-right: 4px;
   margin-bottom: 2px;
+}
+
+.role-users__ws-remove-tip {
+  margin-bottom: 12px;
+  color: var(--el-text-color-secondary);
+  font-size: 14px;
+}
+
+.role-users__ws-checkbox {
+  padding: 6px 0;
 }
 </style>
