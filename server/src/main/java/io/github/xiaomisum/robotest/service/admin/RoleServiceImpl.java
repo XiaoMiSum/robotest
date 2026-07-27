@@ -9,20 +9,16 @@ import io.github.xiaomisum.robotest.model.dto.request.RoleUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.PermissionTableRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.RoleRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.RoleSimpleRespDTO;
-import io.github.xiaomisum.robotest.model.dto.response.RoleUserRespDTO;
 import io.github.xiaomisum.robotest.model.entity.SysPermission;
 import io.github.xiaomisum.robotest.model.entity.SysRole;
-import io.github.xiaomisum.robotest.model.entity.SysUser;
 import io.github.xiaomisum.robotest.model.entity.SysUserRole;
 import io.github.xiaomisum.robotest.repository.SysPermissionMapper;
 import io.github.xiaomisum.robotest.repository.SysRoleMapper;
-import io.github.xiaomisum.robotest.repository.SysUserMapper;
 import io.github.xiaomisum.robotest.repository.SysUserRoleMapper;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
-import xyz.migoo.framework.common.pojo.PageResult;
 import xyz.migoo.framework.mybatis.core.LambdaQueryWrapperX;
 
 import java.util.ArrayList;
@@ -37,8 +33,6 @@ public class RoleServiceImpl implements RoleService {
     private SysRoleMapper roleMapper;
     @Resource
     private SysUserRoleMapper userRoleMapper;
-    @Resource
-    private SysUserMapper userMapper;
     @Resource
     private SysPermissionMapper permissionMapper;
 
@@ -127,37 +121,6 @@ public class RoleServiceImpl implements RoleService {
         RoleRespDTO dto = RoleConvertMapper.INSTANCE.toRespDTO(role);
         dto.setUserCount(Math.toIntExact(userRoleMapper.selectCount(SysUserRole::getRoleId, role.getId())));
         return dto;
-    }
-
-    @Override
-    public PageResult<RoleUserRespDTO> getRoleUsers(UUID id, Integer pageNo, Integer pageSize) {
-        SysRole role = roleMapper.selectById(id);
-        if (role == null) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.ROLE_NOT_FOUND);
-        }
-
-        LambdaQueryWrapperX<SysUserRole> wrapper = new LambdaQueryWrapperX<SysUserRole>()
-                .eq(SysUserRole::getRoleId, id);
-
-        PageResult<SysUserRole> userRolePage = userRoleMapper.selectPage(
-                new xyz.migoo.framework.common.pojo.PageParam() {{
-                    setPageNo(pageNo);
-                    setPageSize(pageSize);
-                }}, wrapper);
-
-        List<RoleUserRespDTO> records = userRolePage.getList().stream().map(ur -> {
-            SysUser user = userMapper.selectById(ur.getUserId());
-            if (user == null) return null;
-            RoleUserRespDTO dto = new RoleUserRespDTO();
-            dto.setId(user.getId());
-            dto.setUsername(user.getUsername());
-            dto.setEmail(user.getEmail());
-            dto.setStatus(user.getStatus());
-            dto.setCreatedAt(user.getCreatedAt());
-            return dto;
-        }).filter(dto -> dto != null).collect(Collectors.toList());
-
-        return new PageResult<>(records, userRolePage.getTotal());
     }
 
     @Override

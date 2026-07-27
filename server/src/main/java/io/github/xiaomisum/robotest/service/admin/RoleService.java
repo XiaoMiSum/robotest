@@ -6,8 +6,6 @@ import io.github.xiaomisum.robotest.model.dto.request.RoleUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.PermissionTableRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.RoleRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.RoleSimpleRespDTO;
-import io.github.xiaomisum.robotest.model.dto.response.RoleUserRespDTO;
-import xyz.migoo.framework.common.pojo.PageResult;
 
 import java.util.List;
 import java.util.UUID;
@@ -23,8 +21,6 @@ public interface RoleService {
     void deleteRole(UUID id);
 
     RoleRespDTO getRoleDetail(UUID id);
-
-    PageResult<RoleUserRespDTO> getRoleUsers(UUID id, Integer pageNo, Integer pageSize);
 
     void addRoleUsers(UUID id, List<UUID> userIds);
 

@@ -6,7 +6,6 @@ import type {
   PermissionModule,
   RoleDetail,
   RoleTreeNode,
-  RoleUser,
   UserCreatePayload,
   UserQueryParams,
   UserSimple,
@@ -159,13 +158,6 @@ export function deleteRole(id: string): Promise<void> {
 
 export function updateRolePermissions(id: string, permissions: string[]): Promise<RoleDetail> {
   return put(`/admin/roles/${id}/permissions`, { permissions })
-}
-
-export function fetchRoleUsers(
-  id: string,
-  params: { pageNo?: number; pageSize?: number },
-): Promise<PageResult<RoleUser>> {
-  return get(`/admin/roles/${id}/users`, { ...params })
 }
 
 export function addRoleUsers(id: string, userIds: string[]): Promise<void> {

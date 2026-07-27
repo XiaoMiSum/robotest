@@ -7,18 +7,15 @@ import io.github.xiaomisum.robotest.model.dto.request.RoleUsersAddReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.PermissionTableRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.RoleRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.RoleSimpleRespDTO;
-import io.github.xiaomisum.robotest.model.dto.response.RoleUserRespDTO;
 import io.github.xiaomisum.robotest.service.admin.RoleService;
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
-import xyz.migoo.framework.common.pojo.PageResult;
 import xyz.migoo.framework.common.pojo.Result;
 
 import java.util.List;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/admin/roles")
@@ -58,15 +55,6 @@ public class AdminRoleController {
     @PreAuthorize("hasAuthority('role:view')")
     public Result<RoleRespDTO> getRoleDetail(@PathVariable UUID id) {
         return Result.ok(roleService.getRoleDetail(id));
-    }
-
-    @GetMapping("/{id}/users")
-    @PreAuthorize("hasAuthority('role:view')")
-    public Result<PageResult<RoleUserRespDTO>> getRoleUsers(
-            @PathVariable UUID id,
-            @RequestParam(defaultValue = "1") Integer pageNo,
-            @RequestParam(defaultValue = "20") Integer pageSize) {
-        return Result.ok(roleService.getRoleUsers(id, pageNo, pageSize));
     }
 
     @PostMapping("/{id}/users")

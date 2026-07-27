@@ -53,6 +53,15 @@ public class UserServiceImpl implements UserService {
         if (StringUtils.hasText(status)) {
             wrapper.eq(SysUser::getStatus, status);
         }
+        if (roleId != null) {
+            List<SysUserRole> userRoles = userRoleMapper.selectList(
+                    new LambdaQueryWrapperX<SysUserRole>().eq(SysUserRole::getRoleId, roleId));
+            List<UUID> userIds = userRoles.stream().map(SysUserRole::getUserId).collect(Collectors.toList());
+            if (userIds.isEmpty()) {
+                return new PageResult<>(List.of(), 0L);
+            }
+            wrapper.in(SysUser::getId, userIds);
+        }
         wrapper.orderByDesc(SysUser::getCreatedAt);
 
         PageResult<SysUser> userPage = userMapper.selectPage(new xyz.migoo.framework.common.pojo.PageParam() {{

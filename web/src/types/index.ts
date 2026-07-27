@@ -191,6 +191,7 @@ export interface RoleDetail {
 export interface RoleUser {
   id: string
   username: string
+  name: string
   email: string
   status: UserStatus
   createdAt: string
