@@ -217,6 +217,7 @@ public class WorkspaceInvitationServiceImpl implements WorkspaceInvitationServic
         }
 
         SysUser newUser = new SysUser();
+        newUser.setName(generateUsername(email));
         newUser.setUsername(generateUsername(email));
         newUser.setEmail(email);
         newUser.setPasswordHash(passwordEncoder.encode(password));
