@@ -69,13 +69,13 @@ public class AuthController {
         boolean hasWorkspace = workspaceUserMapper.selectCount(
                 new LambdaQueryWrapperX<WorkspaceUser>()
                         .eq(WorkspaceUser::getUserId, user.getId())) > 0;
+        user.setHasWorkspace(hasWorkspace);
         return LoginRespDTO.builder()
                 .accessToken(loginResult.getAccessToken())
                 .refreshToken(loginResult.getRefreshToken())
                 .accessExpiry(loginResult.getAccessExpiry() != null ? loginResult.getAccessExpiry().toString() : null)
                 .refreshExpiry(loginResult.getRefreshExpiry() != null ? loginResult.getRefreshExpiry().toString() : null)
                 .user(user)
-                .hasWorkspace(hasWorkspace)
                 .build();
     }
 }

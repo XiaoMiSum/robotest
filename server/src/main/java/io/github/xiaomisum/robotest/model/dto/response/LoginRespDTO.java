@@ -17,5 +17,4 @@ public class LoginRespDTO {
     private String accessExpiry;
     private String refreshExpiry;
     private LoginUser user;
-    private boolean hasWorkspace;
 }

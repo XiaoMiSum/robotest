@@ -23,6 +23,11 @@ public class LoginUser extends AuthUserDetails<LoginUser, UUID> {
     private List<String> permissions = new ArrayList<>();
 
     /**
+     * 是否拥有至少一个工作空间
+     */
+    private boolean hasWorkspace;
+
+    /**
      * 工作空间角色追加的权限（由 WorkspaceRoleInterceptor 注入），与系统权限合并后返回。
      */
     @JsonIgnore
