@@ -27,10 +27,11 @@ public class AdminRoleController {
     @Resource
     private RoleService roleService;
 
-    @GetMapping("/tree")
+    @GetMapping
     @PreAuthorize("hasAuthority('role:view')")
-    public Result<List<RoleSimpleRespDTO>> getRoleList() {
-        return Result.ok(roleService.getRoleList());
+    public Result<List<RoleSimpleRespDTO>> getRoleList(
+            @RequestParam(required = false) String type) {
+        return Result.ok(roleService.getRoleList(type));
     }
 
     @PostMapping

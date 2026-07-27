@@ -43,8 +43,9 @@ public class RoleServiceImpl implements RoleService {
     private SysPermissionMapper permissionMapper;
 
     @Override
-    public List<RoleSimpleRespDTO> getRoleList() {
+    public List<RoleSimpleRespDTO> getRoleList(String type) {
         List<SysRole> roles = roleMapper.selectList(new LambdaQueryWrapperX<SysRole>()
+                .eqIfPresent(SysRole::getType, type)
                 .orderByAsc(SysRole::getType, SysRole::getName));
 
         return roles.stream().map(role -> {
