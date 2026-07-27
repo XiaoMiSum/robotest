@@ -45,11 +45,6 @@ function validatePassword(_rule: unknown, value: string, callback: (error?: Erro
     callback(new Error('密码长度为 8-64 个字符'))
     return
   }
-  const kinds = [/[A-Z]/, /[a-z]/, /[0-9]/, /[^A-Za-z0-9]/].filter((re) => re.test(value)).length
-  if (kinds < 3) {
-    callback(new Error('需包含大写、小写、数字、特殊字符中至少三种'))
-    return
-  }
   callback()
 }
 
