@@ -25,7 +25,6 @@ public class AdminWorkspaceController {
     private WorkspaceService workspaceService;
 
     @GetMapping
-    @PreAuthorize("hasAuthority('workspace:view')")
     public Result<PageResult<WorkspaceRespDTO>> getWorkspacePage(
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) String status,

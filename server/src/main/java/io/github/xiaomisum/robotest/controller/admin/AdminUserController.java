@@ -26,7 +26,6 @@ public class AdminUserController {
     private UserService userService;
 
     @GetMapping
-    @PreAuthorize("hasAuthority('user:view')")
     public Result<PageResult<UserRespDTO>> getUserPage(
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) String status,
