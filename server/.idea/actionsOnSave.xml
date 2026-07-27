@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project>
+    <component name="ActionsOnSaveOptions">
+        <option name="allFileTypes" value="true" />
+        <option name="enabledActions">
+            <set>
+                <option value="ReformatCode" />
+                <option value="OptimizeImports" />
+                <option value="Prettier" />
+            </set>
+        </option>
+    </component>
+</project>

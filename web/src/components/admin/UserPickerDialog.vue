@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
-import { fetchUsers } from '@/services/admin'
+import { fetchSimpleUserList } from '@/services/admin'
 
 const props = defineProps<{
   modelValue: boolean
@@ -16,7 +16,7 @@ const emit = defineEmits<{
 }>()
 
 const loading = ref(false)
-const options = ref<{ id: string; username: string; email: string }[]>([])
+const options = ref<{ id: string; name: string }[]>([])
 const selectedIds = ref<string[]>([])
 
 async function searchUsers(keyword: string) {
@@ -26,11 +26,9 @@ async function searchUsers(keyword: string) {
   }
   loading.value = true
   try {
-    const page = await fetchUsers({ keyword, status: 'active', pageNo: 1, pageSize: 20 })
+    const list = await fetchSimpleUserList(keyword)
     const exclude = props.excludeIds ?? []
-    options.value = page.list
-      .filter((u) => !exclude.includes(u.id))
-      .map((u) => ({ id: u.id, username: u.username, email: u.email }))
+    options.value = list.filter((u) => !exclude.includes(u.id))
   } catch {
     options.value = []
   } finally {
@@ -75,7 +73,7 @@ watch(
       filterable
       remote
       reserve-keyword
-      placeholder="输入用户名 / 邮箱搜索（仅活跃用户）"
+      placeholder="输入用户姓名搜索（仅活跃用户）"
       :remote-method="searchUsers"
       :loading="loading"
       style="width: 100%"
@@ -83,7 +81,7 @@ watch(
       <el-option
         v-for="u in options"
         :key="u.id"
-        :label="`${u.username} (${u.email})`"
+        :label="u.name"
         :value="u.id"
       />
     </el-select>
