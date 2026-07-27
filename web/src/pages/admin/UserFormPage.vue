@@ -11,6 +11,7 @@ import {
   updateUser,
 } from '@/services/admin'
 import type { RoleSimple } from '@/types'
+import PasswordStrengthBar from '@/components/common/PasswordStrengthBar.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -194,8 +195,9 @@ onMounted(() => {
             v-model="form.password"
             type="password"
             show-password
-            placeholder="8-64 字符，至少三种字符类型"
+            placeholder="8-64 字符"
           />
+          <PasswordStrengthBar :password="form.password" />
         </el-form-item>
         <el-form-item v-else label="密码">
           <el-button link type="primary" @click="pwdDialogVisible = true">修改密码</el-button>
@@ -227,10 +229,8 @@ onMounted(() => {
     </el-card>
 
     <el-dialog v-model="pwdDialogVisible" title="修改密码" width="420px">
-      <p class="user-form__pwd-tip">
-        新密码需 8-64 字符，且包含大写、小写、数字、特殊字符中至少三种。
-      </p>
       <el-input v-model="newPassword" type="password" show-password placeholder="请输入新密码" />
+      <PasswordStrengthBar :password="newPassword" />
       <template #footer>
         <el-button @click="pwdDialogVisible = false">取消</el-button>
         <el-button type="primary" :loading="pwdSubmitting" @click="submitChangePassword">确定</el-button>
@@ -254,10 +254,4 @@ onMounted(() => {
   max-width: 560px;
 }
 
-.user-form__pwd-tip {
-  font-size: var(--font-size-xs);
-  color: var(--color-neutral-500);
-  margin: 0 0 var(--space-md);
-  line-height: 1.6;
-}
 </style>

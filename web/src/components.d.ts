@@ -53,6 +53,7 @@ declare module 'vue' {
     ElTree: typeof import('element-plus/es')['ElTree']
     MindMapEditor: typeof import('./components/project/MindMapEditor.vue')['default']
     ModuleTree: typeof import('./components/project/ModuleTree.vue')['default']
+    PasswordStrengthBar: typeof import('./components/common/PasswordStrengthBar.vue')['default']
     PermissionTable: typeof import('./components/admin/PermissionTable.vue')['default']
     RoleTreePanel: typeof import('./components/admin/RoleTreePanel.vue')['default']
     RoleUsersTable: typeof import('./components/admin/RoleUsersTable.vue')['default']
