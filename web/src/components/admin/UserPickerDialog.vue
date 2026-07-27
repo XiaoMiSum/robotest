@@ -1,23 +1,33 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
-import { fetchSimpleUserList } from '@/services/admin'
+import { fetchSimpleUserList, fetchWorkspaces } from '@/services/admin'
 
-const props = defineProps<{
-  modelValue: boolean
-  title?: string
-  // 已关联用户 ID，用于在候选中过滤
-  excludeIds?: string[]
-}>()
+const props = withDefaults(
+  defineProps<{
+    modelValue: boolean
+    title?: string
+    // 已关联用户 ID，用于在候选中过滤
+    excludeIds?: string[]
+    // 是否显示空间选择器
+    showWorkspace?: boolean
+  }>(),
+  { title: '选择用户', excludeIds: () => [], showWorkspace: false },
+)
 
 const emit = defineEmits<{
   'update:modelValue': [value: boolean]
-  confirm: [userIds: string[]]
+  confirm: [userIds: string[], workspaceIds?: string[]]
 }>()
 
 const loading = ref(false)
 const options = ref<{ id: string; name: string }[]>([])
 const selectedIds = ref<string[]>([])
+
+// 空间选择
+const wsLoading = ref(false)
+const wsOptions = ref<{ id: string; name: string }[]>([])
+const selectedWsIds = ref<string[]>([])
 
 async function searchUsers(keyword: string) {
   if (!keyword) {
@@ -36,6 +46,18 @@ async function searchUsers(keyword: string) {
   }
 }
 
+async function loadWorkspaces() {
+  wsLoading.value = true
+  try {
+    const page = await fetchWorkspaces({ pageNo: 1, pageSize: 100 })
+    wsOptions.value = page.list.map((w) => ({ id: w.id, name: w.name }))
+  } catch {
+    wsOptions.value = []
+  } finally {
+    wsLoading.value = false
+  }
+}
+
 function close() {
   emit('update:modelValue', false)
 }
@@ -45,7 +67,11 @@ function handleConfirm() {
     ElMessage.warning('请至少选择一个用户')
     return
   }
-  emit('confirm', [...selectedIds.value])
+  if (props.showWorkspace && !selectedWsIds.value.length) {
+    ElMessage.warning('请至少选择一个空间')
+    return
+  }
+  emit('confirm', [...selectedIds.value], props.showWorkspace ? [...selectedWsIds.value] : undefined)
 }
 
 // 每次打开重置选择态
@@ -55,6 +81,8 @@ watch(
     if (val) {
       selectedIds.value = []
       options.value = []
+      selectedWsIds.value = []
+      if (props.showWorkspace) loadWorkspaces()
     }
   },
 )
@@ -85,9 +113,38 @@ watch(
         :value="u.id"
       />
     </el-select>
+
+    <!-- 空间选择（仅空间角色） -->
+    <template v-if="showWorkspace">
+      <div class="user-picker__ws-divider">选择要关联的空间</div>
+      <el-select
+        v-model="selectedWsIds"
+        multiple
+        filterable
+        placeholder="搜索并选择空间（可多选）"
+        :loading="wsLoading"
+        style="width: 100%"
+      >
+        <el-option
+          v-for="ws in wsOptions"
+          :key="ws.id"
+          :label="ws.name"
+          :value="ws.id"
+        />
+      </el-select>
+    </template>
+
     <template #footer>
       <el-button @click="close">取消</el-button>
       <el-button type="primary" @click="handleConfirm">确定</el-button>
     </template>
   </el-dialog>
 </template>
+
+<style scoped lang="scss">
+.user-picker__ws-divider {
+  margin: 16px 0 8px;
+  font-size: 14px;
+  color: var(--el-text-color-secondary);
+}
+</style>

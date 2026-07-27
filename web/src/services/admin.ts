@@ -165,6 +165,10 @@ export function addRoleUsers(id: string, userIds: string[]): Promise<void> {
   return post(`/admin/roles/${id}/users`, { userIds })
 }
 
+export function addWorkspaceRoleUsers(id: string, userIds: string[], workspaceIds: string[]): Promise<void> {
+  return post(`/admin/roles/${id}/workspace-users`, { userIds, workspaceIds })
+}
+
 export function removeRoleUser(id: string, userId: string): Promise<void> {
   return del(`/admin/roles/${id}/users/${userId}`)
 }
