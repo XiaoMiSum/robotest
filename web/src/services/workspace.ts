@@ -1,6 +1,7 @@
 import api from '@/services'
 import type {
   Invitation,
+  InvitationCheckEmailResult,
   InvitationJoinResult,
   InvitationVerifyResult,
   MemberAddResult,
@@ -106,10 +107,15 @@ export function verifyInvitation(token: string): Promise<InvitationVerifyResult>
   return get('/workspace/invitations/verify', { token })
 }
 
+export function checkEmail(token: string, email: string): Promise<InvitationCheckEmailResult> {
+  return post('/workspace/invitations/check-email', { token, email })
+}
+
 export function joinByInvitation(data: {
   token: string
   email: string
   password: string
+  name?: string
 }): Promise<InvitationJoinResult> {
   return post('/workspace/invitations/join', data)
 }

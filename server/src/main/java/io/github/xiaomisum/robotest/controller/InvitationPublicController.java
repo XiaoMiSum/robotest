@@ -1,6 +1,8 @@
 package io.github.xiaomisum.robotest.controller;
 
+import io.github.xiaomisum.robotest.model.dto.request.InvitationCheckEmailReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.InvitationJoinReqDTO;
+import io.github.xiaomisum.robotest.model.dto.response.InvitationCheckEmailRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.InvitationJoinRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.InvitationVerifyRespDTO;
 import io.github.xiaomisum.robotest.service.workspace.WorkspaceInvitationService;
@@ -19,6 +21,12 @@ public class InvitationPublicController {
     @GetMapping("/verify")
     public Result<InvitationVerifyRespDTO> verifyInvitation(@RequestParam String token) {
         InvitationVerifyRespDTO result = invitationService.verifyInvitation(token);
+        return Result.ok(result);
+    }
+
+    @PostMapping("/check-email")
+    public Result<InvitationCheckEmailRespDTO> checkEmail(@RequestBody @Valid InvitationCheckEmailReqDTO reqDTO) {
+        InvitationCheckEmailRespDTO result = invitationService.checkEmail(reqDTO.getToken(), reqDTO.getEmail());
         return Result.ok(result);
     }
 

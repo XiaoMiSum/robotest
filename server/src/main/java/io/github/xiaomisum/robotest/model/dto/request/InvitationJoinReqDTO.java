@@ -18,4 +18,7 @@ public class InvitationJoinReqDTO {
     @NotBlank(message = "密码不能为空")
     @Password(message = "密码强度不够，需包含大小写字母、数字和特殊字符")
     private String password;
+
+    /** 新用户时传入的姓名，已有用户时忽略 */
+    private String name;
 }

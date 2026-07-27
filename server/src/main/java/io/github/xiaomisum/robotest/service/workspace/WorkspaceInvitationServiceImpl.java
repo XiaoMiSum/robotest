@@ -7,6 +7,7 @@ import io.github.xiaomisum.robotest.framework.convert.WorkspaceInvitationConvert
 import io.github.xiaomisum.robotest.framework.security.LoginUser;
 import io.github.xiaomisum.robotest.model.dto.request.InvitationCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.InvitationJoinReqDTO;
+import io.github.xiaomisum.robotest.model.dto.response.InvitationCheckEmailRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.InvitationJoinRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.InvitationRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.InvitationVerifyRespDTO;
@@ -131,11 +132,21 @@ public class WorkspaceInvitationServiceImpl implements WorkspaceInvitationServic
     }
 
     @Override
+    public InvitationCheckEmailRespDTO checkEmail(String token, String email) {
+        validateAndGetInvitation(token);
+        SysUser existingUser = userMapper.selectOne(
+                new LambdaQueryWrapperX<SysUser>().eq(SysUser::getEmail, email));
+        return InvitationCheckEmailRespDTO.builder()
+                .exists(existingUser != null)
+                .build();
+    }
+
+    @Override
     @Transactional(rollbackFor = Exception.class)
     public InvitationJoinRespDTO joinByInvitation(InvitationJoinReqDTO reqDTO) {
         WorkspaceInvitation invitation = validateAndGetInvitation(reqDTO.getToken());
 
-        SysUser user = findOrCreateUser(reqDTO.getEmail(), reqDTO.getPassword());
+        SysUser user = findOrCreateUser(reqDTO.getEmail(), reqDTO.getPassword(), reqDTO.getName());
         boolean isNewUser = userMapper.selectById(user.getId()) == null;
         if (isNewUser) {
             userMapper.insert(user);
@@ -205,7 +216,7 @@ public class WorkspaceInvitationServiceImpl implements WorkspaceInvitationServic
         return invitation;
     }
 
-    private SysUser findOrCreateUser(String email, String password) {
+    private SysUser findOrCreateUser(String email, String password, String name) {
         SysUser existingUser = userMapper.selectOne(
                 new LambdaQueryWrapperX<SysUser>().eq(SysUser::getEmail, email));
 
@@ -216,8 +227,9 @@ public class WorkspaceInvitationServiceImpl implements WorkspaceInvitationServic
             return existingUser;
         }
 
+        String displayName = (name != null && !name.isBlank()) ? name : generateUsername(email);
         SysUser newUser = new SysUser();
-        newUser.setName(generateUsername(email));
+        newUser.setName(displayName);
         newUser.setUsername(generateUsername(email));
         newUser.setEmail(email);
         newUser.setPasswordHash(passwordEncoder.encode(password));

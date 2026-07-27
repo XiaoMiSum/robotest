@@ -259,6 +259,11 @@ export interface InvitationVerifyResult {
   expiresAt: string | null
 }
 
+/** 邀请邮箱查询响应 */
+export interface InvitationCheckEmailResult {
+  exists: boolean
+}
+
 /** 邀请加入响应 */
 export interface InvitationJoinResult {
   accessToken: string
