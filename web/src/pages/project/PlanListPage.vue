@@ -120,20 +120,17 @@ async function submitCreate() {
 
 <template>
   <div class="plan-list">
-
-    <el-card shadow="never" class="plan-list__filters">
-      <div class="plan-list__filter-bar">
-        <el-select v-model="query.status" placeholder="状态" clearable style="width: 140px" @change="handleSearch">
-          <el-option v-for="(label, key) in statusLabel" :key="key" :label="label" :value="key" />
-        </el-select>
-        <div class="plan-list__filter-spacer" />
-        <el-button type="primary" @click="openCreateDialog">
-          <el-icon><Plus /></el-icon>创建计划
-        </el-button>
-      </div>
-    </el-card>
-
     <el-card v-loading="loading" shadow="never">
+      <template #header>
+        <div class="plan-list__header">
+          <el-select v-model="query.status" placeholder="状态" clearable style="width: 140px" @change="handleSearch">
+            <el-option v-for="(label, key) in statusLabel" :key="key" :label="label" :value="key" />
+          </el-select>
+          <el-button type="primary" @click="openCreateDialog">
+            <el-icon><Plus /></el-icon>创建计划
+          </el-button>
+        </div>
+      </template>
       <el-table :data="plans" row-key="id">
         <el-table-column label="名称" min-width="180">
           <template #default="{ row }">
@@ -216,18 +213,10 @@ async function submitCreate() {
 </template>
 
 <style scoped lang="scss">
-.plan-list__filters {
-  margin-bottom: var(--space-lg);
-}
-
-.plan-list__filter-bar {
+.plan-list__header {
   display: flex;
   align-items: center;
-  gap: var(--space-md);
-}
-
-.plan-list__filter-spacer {
-  flex: 1;
+  justify-content: space-between;
 }
 
 .plan-list__pager {
@@ -238,6 +227,7 @@ async function submitCreate() {
   border-top: 1px solid var(--color-neutral-100);
 }
 
+/* 用于创建对话框，非布局样式 */
 .plan-list__case-count {
   margin-left: var(--space-sm);
   font-size: var(--font-size-2xs);

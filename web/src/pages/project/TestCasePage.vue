@@ -15,10 +15,10 @@ function handleSelectDocument(docId: string, docName: string) {
 <template>
   <div class="test-case-page">
     <div class="test-case-page__workspace">
-      <div class="test-case-page__tree-panel">
+      <el-card shadow="never" class="test-case-page__tree-card">
         <ModuleTree @select-document="handleSelectDocument" />
-      </div>
-      <div class="test-case-page__editor-panel">
+      </el-card>
+      <el-card shadow="never" class="test-case-page__editor-card">
         <div v-if="!selectedDocId" class="test-case-page__placeholder">
           <el-empty description="请在左侧模块树中选择一个文档" />
         </div>
@@ -29,7 +29,7 @@ function handleSelectDocument(docId: string, docName: string) {
           </div>
           <MindMapEditor :doc-id="selectedDocId" mode="edit" />
         </template>
-      </div>
+      </el-card>
     </div>
   </div>
 </template>
@@ -42,22 +42,31 @@ function handleSelectDocument(docId: string, docName: string) {
 
 .test-case-page__workspace {
   display: flex;
+  gap: var(--space-lg);
   flex: 1;
   overflow: hidden;
 }
 
-.test-case-page__tree-panel {
-  width: 220px;
+.test-case-page__tree-card {
+  width: 240px;
   flex-shrink: 0;
-  border-right: 1px solid var(--color-neutral-200);
-  overflow: auto;
+  :deep(.el-card__body) {
+    padding: 0;
+    overflow: auto;
+    height: 100%;
+  }
 }
 
-.test-case-page__editor-panel {
+.test-case-page__editor-card {
   flex: 1;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
+  min-width: 0;
+  :deep(.el-card__body) {
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+  }
 }
 
 .test-case-page__doc-header {
