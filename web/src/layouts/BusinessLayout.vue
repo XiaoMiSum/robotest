@@ -42,7 +42,9 @@ function handleDynamicMenuClick(path: string) {
 }
 
 function goHome() {
-  if (navStore.isProjectMode) {
+  if (navStore.isAdminMode) {
+    router.push('/admin/dashboard')
+  } else if (navStore.isProjectMode) {
     router.push('/workspace/projects/dashboard')
   } else {
     router.push('/workspaces')
