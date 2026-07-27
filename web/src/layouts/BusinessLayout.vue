@@ -42,8 +42,12 @@ function handleDynamicMenuClick(path: string) {
 }
 
 function goHome() {
-  router.push('/workspaces')
-  navStore.setMode('none')
+  if (navStore.isProjectMode) {
+    router.push('/workspace/projects/dashboard')
+  } else {
+    router.push('/workspaces')
+    navStore.setMode('none')
+  }
 }
 
 function goMyProjects() {
