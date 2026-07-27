@@ -77,7 +77,7 @@ public class TestCaseNodeServiceImpl implements TestCaseNodeService {
     }
 
     @Override
-    public PageResult<TestCaseCaseListRespDTO> getCaseList(String projectId, String keyword,
+    public PageResult<TestCaseCaseListRespDTO> getCaseList(UUID projectId, String keyword,
                                                             String priority, Integer pageNo, Integer pageSize) {
         // 查询项目下所有 document 的 ID
         List<TestCaseModule> documents = testCaseModuleMapper.selectList(

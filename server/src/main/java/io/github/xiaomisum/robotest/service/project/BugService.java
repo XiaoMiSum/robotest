@@ -14,11 +14,11 @@ import java.util.UUID;
 
 public interface BugService {
 
-    PageResult<BugListRespDTO> getBugPage(String projectId, String status, String severity,
+    PageResult<BugListRespDTO> getBugPage(UUID projectId, String status, String severity,
                                      String priority, UUID assigneeId, String keyword,
                                      Integer pageNo, Integer pageSize);
 
-    String createBug(String projectId, UUID userId, BugCreateReqDTO reqDTO);
+    String createBug(UUID projectId, UUID userId, BugCreateReqDTO reqDTO);
 
     void updateBug(UUID bugId, UUID userId, BugUpdateReqDTO reqDTO);
 
@@ -55,7 +55,7 @@ public interface BugService {
      * @param projectId 项目 ID
      * @return 按状态/严重等级/优先级/处理人/报告人分组统计
      */
-    BugStatisticsRespDTO getBugStatistics(String projectId);
+    BugStatisticsRespDTO getBugStatistics(UUID projectId);
 
     List<BugLogRespDTO> getBugLogs(UUID bugId);
 }

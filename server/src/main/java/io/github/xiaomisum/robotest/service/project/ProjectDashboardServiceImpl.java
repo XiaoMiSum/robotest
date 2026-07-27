@@ -34,7 +34,7 @@ public class ProjectDashboardServiceImpl implements ProjectDashboardService {
     private SysUserMapper userMapper;
 
     @Override
-    public ProjectDashboardRespDTO getDashboard(String projectId) {
+    public ProjectDashboardRespDTO getDashboard(UUID projectId) {
         ProjectDashboardRespDTO dto = new ProjectDashboardRespDTO();
 
         // Count case nodes belonging to this project's documents

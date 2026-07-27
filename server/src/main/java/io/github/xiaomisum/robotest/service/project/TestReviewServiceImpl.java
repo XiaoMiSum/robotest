@@ -45,10 +45,10 @@ public class TestReviewServiceImpl implements TestReviewService {
     private WorkspaceUserMapper workspaceUserMapper;
 
     @Override
-    public PageResult<TestReviewListRespDTO> getReviewPage(String projectId, String status,
-                                                      Integer pageNo, Integer pageSize) {
+    public PageResult<TestReviewListRespDTO> getReviewPage(UUID projectId, String status,
+                                                       Integer pageNo, Integer pageSize) {
         LambdaQueryWrapperX<TestReview> wrapper = new LambdaQueryWrapperX<TestReview>()
-                .eq(TestReview::getProjectId, UUID.fromString(projectId));
+                .eq(TestReview::getProjectId, projectId);
         if (StringUtils.hasText(status)) {
             wrapper.eq(TestReview::getStatus, status);
         }
@@ -84,8 +84,8 @@ public class TestReviewServiceImpl implements TestReviewService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public TestReviewDetailRespDTO createReview(String projectId, UUID userId,
-                                                 TestReviewCreateReqDTO reqDTO) {
+    public TestReviewDetailRespDTO createReview(UUID projectId, UUID userId,
+                                                  TestReviewCreateReqDTO reqDTO) {
         // 校验所有参与者是当前工作空间成员
         Project project = projectMapper.selectById(projectId);
         if (project == null) {
@@ -103,7 +103,7 @@ public class TestReviewServiceImpl implements TestReviewService {
         }
 
         TestReview review = new TestReview();
-        review.setProjectId(UUID.fromString(projectId));
+        review.setProjectId(projectId);
         review.setTitle(reqDTO.getTitle());
         review.setDescription(reqDTO.getDescription());
         review.setInitiatorId(userId.toString());

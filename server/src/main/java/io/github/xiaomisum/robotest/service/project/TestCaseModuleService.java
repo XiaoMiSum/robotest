@@ -9,9 +9,9 @@ import java.util.UUID;
 
 public interface TestCaseModuleService {
 
-    List<TestCaseModuleTreeRespDTO> getModuleTree(String projectId);
+    List<TestCaseModuleTreeRespDTO> getModuleTree(UUID projectId);
 
-    TestCaseModuleTreeRespDTO createModule(String projectId, TestCaseModuleCreateReqDTO reqDTO);
+    TestCaseModuleTreeRespDTO createModule(UUID projectId, TestCaseModuleCreateReqDTO reqDTO);
 
     TestCaseModuleTreeRespDTO updateModule(UUID moduleId, TestCaseModuleUpdateReqDTO reqDTO);
 

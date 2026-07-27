@@ -45,10 +45,10 @@ public class TestPlanServiceImpl implements TestPlanService {
     private SysUserMapper userMapper;
 
     @Override
-    public PageResult<TestPlanListRespDTO> getPlanPage(String projectId, String status,
+    public PageResult<TestPlanListRespDTO> getPlanPage(UUID projectId, String status,
                                                   Integer pageNo, Integer pageSize) {
         LambdaQueryWrapperX<TestPlan> wrapper = new LambdaQueryWrapperX<TestPlan>()
-                .eq(TestPlan::getProjectId, UUID.fromString(projectId));
+                .eq(TestPlan::getProjectId, projectId);
         if (StringUtils.hasText(status)) {
             wrapper.eq(TestPlan::getStatus, status);
         }
@@ -84,10 +84,10 @@ public class TestPlanServiceImpl implements TestPlanService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public TestPlanDetailRespDTO createPlan(String projectId, UUID userId,
+    public TestPlanDetailRespDTO createPlan(UUID projectId, UUID userId,
                                              TestPlanCreateReqDTO reqDTO) {
         TestPlan plan = new TestPlan();
-        plan.setProjectId(UUID.fromString(projectId));
+        plan.setProjectId(projectId);
         plan.setName(reqDTO.getName());
         plan.setDescription(reqDTO.getDescription());
         plan.setStatus(Constants.Status.NEW);

@@ -9,11 +9,11 @@ import java.util.UUID;
 
 public interface WorkspaceMemberService {
 
-    PageResult<WorkspaceMemberRespDTO> getMemberPage(String workspaceId, String keyword, Integer pageNo, Integer pageSize);
+    PageResult<WorkspaceMemberRespDTO> getMemberPage(UUID workspaceId, String keyword, Integer pageNo, Integer pageSize);
 
-    WorkspaceMemberAddResultRespDTO addMembers(UUID userId, String workspaceId, WorkspaceMembersAddReqDTO reqDTO);
+    WorkspaceMemberAddResultRespDTO addMembers(UUID userId, UUID workspaceId, WorkspaceMembersAddReqDTO reqDTO);
 
-    void updateMemberRole(UUID userId, String workspaceId, UUID targetUserId, UUID workspaceRole);
+    void updateMemberRole(UUID userId, UUID workspaceId, UUID targetUserId, UUID workspaceRole);
 
-    void removeMember(UUID userId, String workspaceId, UUID targetUserId);
+    void removeMember(UUID userId, UUID workspaceId, UUID targetUserId);
 }

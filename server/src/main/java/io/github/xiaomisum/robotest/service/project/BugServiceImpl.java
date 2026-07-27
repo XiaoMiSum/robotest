@@ -46,11 +46,11 @@ public class BugServiceImpl implements BugService {
     private WorkspaceUserMapper workspaceUserMapper;
 
     @Override
-    public PageResult<BugListRespDTO> getBugPage(String projectId, String status, String severity,
+    public PageResult<BugListRespDTO> getBugPage(UUID projectId, String status, String severity,
                                              String priority, UUID assigneeId, String keyword,
                                              Integer pageNo, Integer pageSize) {
         LambdaQueryWrapperX<Bug> wrapper = new LambdaQueryWrapperX<Bug>()
-                .eq(Bug::getProjectId, UUID.fromString(projectId));
+                .eq(Bug::getProjectId, projectId);
         if (StringUtils.hasText(status)) {
             wrapper.eq(Bug::getStatus, status);
         }
@@ -168,7 +168,7 @@ public class BugServiceImpl implements BugService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public String createBug(String projectId, UUID userId, BugCreateReqDTO reqDTO) {
+    public String createBug(UUID projectId, UUID userId, BugCreateReqDTO reqDTO) {
         // 校验指派人是当前工作空间成员
         if (reqDTO.getAssigneeId() != null) {
             Project project = projectMapper.selectById(projectId);
@@ -184,7 +184,7 @@ public class BugServiceImpl implements BugService {
         }
 
         Bug bug = new Bug();
-        bug.setProjectId(UUID.fromString(projectId));
+        bug.setProjectId(projectId);
         bug.setTitle(reqDTO.getTitle());
         bug.setSeverity(reqDTO.getSeverity());
         bug.setPriority(reqDTO.getPriority());
@@ -295,9 +295,9 @@ public class BugServiceImpl implements BugService {
     }
 
     @Override
-    public BugStatisticsRespDTO getBugStatistics(String projectId) {
+    public BugStatisticsRespDTO getBugStatistics(UUID projectId) {
         List<Bug> bugs = bugMapper.selectList(
-                new LambdaQueryWrapperX<Bug>().eq(Bug::getProjectId, UUID.fromString(projectId)));
+                new LambdaQueryWrapperX<Bug>().eq(Bug::getProjectId, projectId));
 
         BugStatisticsRespDTO stats = new BugStatisticsRespDTO();
         stats.setTotal(bugs.size());

@@ -27,7 +27,7 @@ public class TestReviewController {
     @GetMapping
     public Result<PageResult<TestReviewListRespDTO>> getReviewPage(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Project") String projectId,
+            @RequestHeader("X-Active-Project") UUID projectId,
             @RequestParam(required = false) String status,
             @RequestParam(defaultValue = "1") Integer pageNo,
             @RequestParam(defaultValue = "20") Integer pageSize) {
@@ -38,7 +38,7 @@ public class TestReviewController {
     @ResponseStatus(HttpStatus.CREATED)
     public Result<TestReviewDetailRespDTO> createReview(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Project") String projectId,
+            @RequestHeader("X-Active-Project") UUID projectId,
             @RequestBody @Valid TestReviewCreateReqDTO reqDTO) {
         return Result.ok(testReviewService.createReview(projectId, loginUser.getId(), reqDTO));
     }

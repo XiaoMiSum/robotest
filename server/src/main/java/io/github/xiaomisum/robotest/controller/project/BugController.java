@@ -32,7 +32,7 @@ public class BugController {
     @GetMapping
     public Result<PageResult<BugListRespDTO>> getBugPage(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Project") String projectId,
+            @RequestHeader("X-Active-Project") UUID projectId,
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String severity,
             @RequestParam(required = false) String priority,
@@ -48,7 +48,7 @@ public class BugController {
     @ResponseStatus(HttpStatus.CREATED)
     public Result<String> createBug(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Project") String projectId,
+            @RequestHeader("X-Active-Project") UUID projectId,
             @RequestBody @Valid BugCreateReqDTO reqDTO) {
         return Result.ok(bugService.createBug(projectId, loginUser.getId(), reqDTO));
     }
@@ -99,7 +99,7 @@ public class BugController {
     @GetMapping("/statistics")
     public Result<BugStatisticsRespDTO> getBugStatistics(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Project") String projectId) {
+            @RequestHeader("X-Active-Project") UUID projectId) {
         return Result.ok(bugService.getBugStatistics(projectId));
     }
 }

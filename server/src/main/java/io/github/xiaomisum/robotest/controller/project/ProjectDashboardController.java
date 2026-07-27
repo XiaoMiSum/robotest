@@ -8,6 +8,8 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import xyz.migoo.framework.common.pojo.Result;
 
+import java.util.UUID;
+
 @RestController
 @RequestMapping("/api/project/dashboard")
 public class ProjectDashboardController {
@@ -18,7 +20,7 @@ public class ProjectDashboardController {
     @GetMapping
     public Result<ProjectDashboardRespDTO> getDashboard(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Project") String projectId) {
+            @RequestHeader("X-Active-Project") UUID projectId) {
         return Result.ok(projectDashboardService.getDashboard(projectId));
     }
 }

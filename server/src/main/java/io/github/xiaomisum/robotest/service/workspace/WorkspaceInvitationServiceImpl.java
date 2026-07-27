@@ -53,12 +53,11 @@ public class WorkspaceInvitationServiceImpl implements WorkspaceInvitationServic
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public InvitationRespDTO createInvitation(UUID userId, String workspaceId, InvitationCreateReqDTO reqDTO) {
-        UUID wsId = UUID.fromString(workspaceId);
-        checkAdminPermission(userId, wsId);
+    public InvitationRespDTO createInvitation(UUID userId, UUID workspaceId, InvitationCreateReqDTO reqDTO) {
+        checkAdminPermission(userId, workspaceId);
 
         WorkspaceInvitation invitation = new WorkspaceInvitation();
-        invitation.setWorkspaceId(wsId);
+        invitation.setWorkspaceId(workspaceId);
         invitation.setToken(generateToken());
         invitation.setCreatedBy(userId.toString());
         invitation.setExpiresAt(reqDTO.getExpiresAt());
@@ -71,9 +70,9 @@ public class WorkspaceInvitationServiceImpl implements WorkspaceInvitationServic
     }
 
     @Override
-    public PageResult<InvitationRespDTO> getInvitationPage(String workspaceId, Integer pageNo, Integer pageSize) {
+    public PageResult<InvitationRespDTO> getInvitationPage(UUID workspaceId, Integer pageNo, Integer pageSize) {
         LambdaQueryWrapperX<WorkspaceInvitation> wrapper = new LambdaQueryWrapperX<WorkspaceInvitation>()
-                .eq(WorkspaceInvitation::getWorkspaceId, UUID.fromString(workspaceId))
+                .eq(WorkspaceInvitation::getWorkspaceId, workspaceId)
                 .orderByDesc(WorkspaceInvitation::getCreatedAt);
 
         PageResult<WorkspaceInvitation> page = invitationMapper.selectPage(
@@ -91,12 +90,11 @@ public class WorkspaceInvitationServiceImpl implements WorkspaceInvitationServic
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void revokeInvitation(UUID userId, String workspaceId, UUID invitationId) {
-        UUID wsId = UUID.fromString(workspaceId);
-        checkAdminPermission(userId, wsId);
+    public void revokeInvitation(UUID userId, UUID workspaceId, UUID invitationId) {
+        checkAdminPermission(userId, workspaceId);
 
         WorkspaceInvitation invitation = invitationMapper.selectById(invitationId);
-        if (invitation == null || !invitation.getWorkspaceId().equals(wsId)) {
+        if (invitation == null || !invitation.getWorkspaceId().equals(workspaceId)) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.INVITATION_INVALID);
         }
 
