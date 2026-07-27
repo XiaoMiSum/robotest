@@ -42,9 +42,10 @@ async function load() {
   }
 }
 
-function isLocked(code: string): boolean {
+function isLocked(_code: string): boolean {
   if (props.fullAccess) return true
-  return props.isSystem && savedCodes.value.includes(code)
+  if (props.isSystem) return true
+  return false
 }
 
 function handleRevert() {
@@ -97,6 +98,7 @@ watch(() => props.roleId, load, { immediate: true })
             <el-checkbox
               :model-value="allChecked"
               :indeterminate="indeterminate"
+              :disabled="isSystem"
               @change="toggleAll"
             >
               权限点
@@ -117,7 +119,7 @@ watch(() => props.roleId, load, { immediate: true })
       </el-table>
     </el-checkbox-group>
 
-    <div v-if="!fullAccess" class="perm-table__actions">
+    <div v-if="!fullAccess && !isSystem" class="perm-table__actions">
       <el-button :disabled="!dirty" @click="handleRevert">撤销修改</el-button>
       <el-button type="primary" :loading="saving" :disabled="!dirty" @click="handleSave">
         保存权限
