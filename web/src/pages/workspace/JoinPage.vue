@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useAuthStore } from '@/stores/auth'
 import { useNavStore } from '@/stores/nav'
 import { checkEmail, joinByInvitation, verifyInvitation } from '@/services/workspace'
 import { setTokens } from '@/services'
+import PasswordStrengthBar from '@/components/common/PasswordStrengthBar.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -25,27 +26,6 @@ const email = ref('')
 const name = ref('')
 const password = ref('')
 const submitting = ref(false)
-
-const STRENGTH_COLORS = ['var(--color-danger)', 'var(--color-warning)', '#f97316', 'var(--color-success)']
-
-const passwordStrength = computed(() => {
-  const val = password.value
-  if (!val || val.length < 8) return 0
-  return [/[A-Z]/, /[a-z]/, /[0-9]/, /[^A-Za-z0-9]/].filter((re) => re.test(val)).length
-})
-const strengthLabel = computed(() => {
-  const s = passwordStrength.value
-  if (s <= 0) return ''
-  if (s <= 1) return '弱'
-  if (s === 2) return '较弱'
-  if (s === 3) return '中'
-  return '强'
-})
-const strengthColor = computed(() => {
-  const s = passwordStrength.value
-  if (s <= 0) return 'var(--color-neutral-300)'
-  return STRENGTH_COLORS[s - 1]
-})
 
 function validatePassword(value: string): string | null {
   if (!value) return '请输入密码'
@@ -212,18 +192,7 @@ onMounted(verify)
           </el-form-item>
           <el-form-item label="密码">
             <el-input v-model="password" type="password" show-password placeholder="8-64 字符" />
-            <div v-if="password" class="pwd-strength">
-              <div class="pwd-strength__bar">
-                <div
-                  v-for="i in 4"
-                  :key="i"
-                  class="pwd-strength__segment"
-                  :class="{ 'pwd-strength__segment--active': i <= passwordStrength }"
-                  :style="i <= passwordStrength ? { backgroundColor: STRENGTH_COLORS[i - 1] } : undefined"
-                />
-              </div>
-              <span class="pwd-strength__label" :style="{ color: strengthColor }">{{ strengthLabel }}</span>
-            </div>
+            <PasswordStrengthBar :password="password" />
           </el-form-item>
           <el-form-item>
             <el-button type="primary" :loading="submitting" class="join-page__submit" @click="handleLoginJoin">
@@ -253,19 +222,8 @@ onMounted(verify)
             <el-input v-model="name" placeholder="请输入姓名" maxlength="50" />
           </el-form-item>
           <el-form-item label="密码">
-            <el-input v-model="password" type="password" show-password placeholder="8-64 字符，至少三种字符类型" />
-            <div v-if="password" class="pwd-strength">
-              <div class="pwd-strength__bar">
-                <div
-                  v-for="i in 4"
-                  :key="i"
-                  class="pwd-strength__segment"
-                  :class="{ 'pwd-strength__segment--active': i <= passwordStrength }"
-                  :style="i <= passwordStrength ? { backgroundColor: STRENGTH_COLORS[i - 1] } : undefined"
-                />
-              </div>
-              <span class="pwd-strength__label" :style="{ color: strengthColor }">{{ strengthLabel }}</span>
-            </div>
+            <el-input v-model="password" type="password" show-password placeholder="8-64 字符" />
+            <PasswordStrengthBar :password="password" />
           </el-form-item>
           <el-form-item>
             <el-button type="primary" :loading="submitting" class="join-page__submit" @click="handleCreateJoin">
@@ -357,33 +315,5 @@ onMounted(verify)
 
 .join-page__back {
   margin-top: var(--space-md);
-}
-
-.pwd-strength {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-  margin-top: 6px;
-  width: 100%;
-}
-
-.pwd-strength__bar {
-  flex: 1;
-  display: flex;
-  gap: 4px;
-}
-
-.pwd-strength__segment {
-  flex: 1;
-  height: 4px;
-  border-radius: var(--radius-full);
-  background-color: var(--color-neutral-200);
-  transition: background-color 0.3s ease;
-}
-
-.pwd-strength__label {
-  font-size: var(--font-size-2xs);
-  font-weight: 500;
-  white-space: nowrap;
 }
 </style>
