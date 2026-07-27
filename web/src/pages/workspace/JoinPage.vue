@@ -26,6 +26,8 @@ const name = ref('')
 const password = ref('')
 const submitting = ref(false)
 
+const STRENGTH_COLORS = ['var(--color-danger-500)', 'var(--color-warning-500)', 'var(--color-warning-600)', 'var(--color-success-500)']
+
 const passwordStrength = computed(() => {
   const val = password.value
   if (!val || val.length < 8) return 0
@@ -34,15 +36,15 @@ const passwordStrength = computed(() => {
 const strengthLabel = computed(() => {
   const s = passwordStrength.value
   if (s <= 0) return ''
-  if (s <= 2) return '弱'
+  if (s <= 1) return '弱'
+  if (s === 2) return '较弱'
   if (s === 3) return '中'
   return '强'
 })
 const strengthColor = computed(() => {
   const s = passwordStrength.value
-  if (s <= 2) return 'var(--color-danger-500)'
-  if (s === 3) return 'var(--color-warning-500)'
-  return 'var(--color-success-500)'
+  if (s <= 0) return 'var(--color-neutral-300)'
+  return STRENGTH_COLORS[s - 1]
 })
 
 function validatePassword(value: string): string | null {
@@ -245,8 +247,11 @@ onMounted(verify)
             <div v-if="password" class="pwd-strength">
               <div class="pwd-strength__bar">
                 <div
-                  class="pwd-strength__fill"
-                  :style="{ width: `${passwordStrength * 25}%`, backgroundColor: strengthColor }"
+                  v-for="i in 4"
+                  :key="i"
+                  class="pwd-strength__segment"
+                  :class="{ 'pwd-strength__segment--active': i <= passwordStrength }"
+                  :style="i <= passwordStrength ? { backgroundColor: STRENGTH_COLORS[i - 1] } : undefined"
                 />
               </div>
               <span class="pwd-strength__label" :style="{ color: strengthColor }">{{ strengthLabel }}</span>
@@ -354,16 +359,16 @@ onMounted(verify)
 
 .pwd-strength__bar {
   flex: 1;
-  height: 4px;
-  background-color: var(--color-neutral-200);
-  border-radius: var(--radius-full);
-  overflow: hidden;
+  display: flex;
+  gap: 4px;
 }
 
-.pwd-strength__fill {
-  height: 100%;
+.pwd-strength__segment {
+  flex: 1;
+  height: 4px;
   border-radius: var(--radius-full);
-  transition: all 0.3s ease;
+  background-color: var(--color-neutral-200);
+  transition: background-color 0.3s ease;
 }
 
 .pwd-strength__label {
