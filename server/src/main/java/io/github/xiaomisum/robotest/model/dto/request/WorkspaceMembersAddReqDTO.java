@@ -1,6 +1,6 @@
 package io.github.xiaomisum.robotest.model.dto.request;
 
-import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
 import java.util.List;
@@ -13,7 +13,7 @@ public class WorkspaceMembersAddReqDTO {
 
     @Data
     public static class MemberItem {
-        @NotBlank(message = "用户ID不能为空")
+        @NotNull(message = "用户ID不能为空")
         private UUID userId;
         private UUID workspaceRole;
     }
