@@ -9,12 +9,19 @@ import io.github.xiaomisum.robotest.model.dto.request.RoleUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.PermissionTableRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.RoleRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.RoleSimpleRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.RoleWorkspaceUserRespDTO;
 import io.github.xiaomisum.robotest.model.entity.SysPermission;
 import io.github.xiaomisum.robotest.model.entity.SysRole;
 import io.github.xiaomisum.robotest.model.entity.SysUserRole;
+import io.github.xiaomisum.robotest.model.entity.SysUser;
+import io.github.xiaomisum.robotest.model.entity.Workspace;
+import io.github.xiaomisum.robotest.model.entity.WorkspaceUser;
 import io.github.xiaomisum.robotest.repository.SysPermissionMapper;
 import io.github.xiaomisum.robotest.repository.SysRoleMapper;
+import io.github.xiaomisum.robotest.repository.SysUserMapper;
 import io.github.xiaomisum.robotest.repository.SysUserRoleMapper;
+import io.github.xiaomisum.robotest.repository.WorkspaceMapper;
+import io.github.xiaomisum.robotest.repository.WorkspaceUserMapper;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,6 +30,7 @@ import xyz.migoo.framework.mybatis.core.LambdaQueryWrapperX;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -35,6 +43,12 @@ public class RoleServiceImpl implements RoleService {
     private SysUserRoleMapper userRoleMapper;
     @Resource
     private SysPermissionMapper permissionMapper;
+    @Resource
+    private WorkspaceUserMapper workspaceUserMapper;
+    @Resource
+    private SysUserMapper userMapper;
+    @Resource
+    private WorkspaceMapper workspaceMapper;
 
     @Override
     public List<RoleSimpleRespDTO> getRoleList(String type) {
@@ -124,6 +138,63 @@ public class RoleServiceImpl implements RoleService {
     }
 
     @Override
+    public List<RoleWorkspaceUserRespDTO> getRoleWorkspaceUsers(UUID roleId) {
+        SysRole role = roleMapper.selectById(roleId);
+        if (role == null) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.ROLE_NOT_FOUND);
+        }
+
+        // 查询所有拥有该空间角色的 workspace_user 记录
+        List<WorkspaceUser> workspaceUsers = workspaceUserMapper.selectList(
+                new LambdaQueryWrapperX<WorkspaceUser>()
+                        .eq(WorkspaceUser::getWorkspaceRole, roleId));
+
+        if (workspaceUsers.isEmpty()) {
+            return List.of();
+        }
+
+        // 按 userId 分组
+        Map<UUID, List<WorkspaceUser>> grouped = workspaceUsers.stream()
+                .collect(Collectors.groupingBy(WorkspaceUser::getUserId));
+
+        // 批量查询用户信息
+        List<UUID> userIds = new ArrayList<>(grouped.keySet());
+        List<SysUser> users = userMapper.selectList(
+                new LambdaQueryWrapperX<SysUser>().in(SysUser::getId, userIds));
+        Map<UUID, SysUser> userMap = users.stream()
+                .collect(Collectors.toMap(SysUser::getId, u -> u));
+
+        // 批量查询空间信息
+        List<UUID> workspaceIds = workspaceUsers.stream()
+                .map(WorkspaceUser::getWorkspaceId)
+                .distinct()
+                .collect(Collectors.toList());
+        List<Workspace> workspaces = workspaceMapper.selectList(
+                new LambdaQueryWrapperX<Workspace>().in(Workspace::getId, workspaceIds));
+        Map<UUID, String> workspaceNameMap = workspaces.stream()
+                .collect(Collectors.toMap(Workspace::getId, Workspace::getName));
+
+        // 组装结果
+        return grouped.entrySet().stream().map(entry -> {
+            UUID userId = entry.getKey();
+            List<WorkspaceUser> wuList = entry.getValue();
+            SysUser user = userMap.get(userId);
+
+            RoleWorkspaceUserRespDTO dto = new RoleWorkspaceUserRespDTO();
+            dto.setUserId(userId);
+            dto.setUsername(user != null ? user.getUsername() : null);
+            dto.setName(user != null ? user.getName() : null);
+            dto.setWorkspaces(wuList.stream().map(wu -> {
+                RoleWorkspaceUserRespDTO.WorkspaceInfo info = new RoleWorkspaceUserRespDTO.WorkspaceInfo();
+                info.setWorkspaceId(wu.getWorkspaceId());
+                info.setWorkspaceName(workspaceNameMap.get(wu.getWorkspaceId()));
+                return info;
+            }).collect(Collectors.toList()));
+            return dto;
+        }).collect(Collectors.toList());
+    }
+
+    @Override
     @Transactional(rollbackFor = Exception.class)
     public void addRoleUsers(UUID id, List<UUID> userIds) {
         SysRole role = roleMapper.selectById(id);
@@ -150,6 +221,14 @@ public class RoleServiceImpl implements RoleService {
         userRoleMapper.delete(new LambdaQueryWrapperX<SysUserRole>()
                 .eq(SysUserRole::getUserId, userId)
                 .eq(SysUserRole::getRoleId, id));
+    }
+
+    @Override
+    public void removeWorkspaceRoleUser(UUID roleId, UUID userId, UUID workspaceId) {
+        workspaceUserMapper.delete(new LambdaQueryWrapperX<WorkspaceUser>()
+                .eq(WorkspaceUser::getUserId, userId)
+                .eq(WorkspaceUser::getWorkspaceId, workspaceId)
+                .eq(WorkspaceUser::getWorkspaceRole, roleId));
     }
 
     @Override

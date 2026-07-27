@@ -6,6 +6,7 @@ import io.github.xiaomisum.robotest.model.dto.request.RoleUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.PermissionTableRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.RoleRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.RoleSimpleRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.RoleWorkspaceUserRespDTO;
 
 import java.util.List;
 import java.util.UUID;
@@ -22,9 +23,13 @@ public interface RoleService {
 
     RoleRespDTO getRoleDetail(UUID id);
 
+    List<RoleWorkspaceUserRespDTO> getRoleWorkspaceUsers(UUID roleId);
+
     void addRoleUsers(UUID id, List<UUID> userIds);
 
     void removeRoleUser(UUID id, UUID userId);
+
+    void removeWorkspaceRoleUser(UUID roleId, UUID userId, UUID workspaceId);
 
     RoleRespDTO updateRolePermissions(UUID id, RolePermissionsUpdateReqDTO reqDTO);
 
