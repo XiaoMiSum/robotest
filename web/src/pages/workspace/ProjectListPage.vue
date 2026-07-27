@@ -2,6 +2,7 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
+import { Search } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/stores/auth'
 import {
   archiveProject,
@@ -52,6 +53,13 @@ async function loadProjects() {
 }
 
 function handleSearch() {
+  query.pageNo = 1
+  loadProjects()
+}
+
+function handleReset() {
+  query.keyword = ''
+  query.status = ''
   query.pageNo = 1
   loadProjects()
 }
@@ -230,6 +238,12 @@ onMounted(loadProjects)
               @keyup.enter="handleSearch"
               @clear="handleSearch"
             />
+          </el-form-item>
+          <el-form-item>
+            <el-button type="primary" @click="handleSearch">
+              <el-icon><Search /></el-icon>搜索
+            </el-button>
+            <el-button @click="handleReset">重置</el-button>
           </el-form-item>
           <el-form-item class="project-page__filter-spacer" />
           <el-form-item>
