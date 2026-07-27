@@ -4,6 +4,7 @@ import io.github.xiaomisum.robotest.model.dto.request.RoleCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.RolePermissionsUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.RoleUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.RoleUsersAddReqDTO;
+import io.github.xiaomisum.robotest.model.dto.request.WorkspaceRoleUsersAddReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.PermissionTableRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.RoleRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.RoleSimpleRespDTO;
@@ -69,6 +70,14 @@ public class AdminRoleController {
     public Result<Void> addRoleUsers(@PathVariable UUID id,
                                       @RequestBody @Valid RoleUsersAddReqDTO reqDTO) {
         roleService.addRoleUsers(id, reqDTO.getUserIds());
+        return Result.ok();
+    }
+
+    @PostMapping("/{id}/workspace-users")
+    @PreAuthorize("hasAuthority('role:edit')")
+    public Result<Void> addWorkspaceRoleUsers(@PathVariable UUID id,
+                                               @RequestBody @Valid WorkspaceRoleUsersAddReqDTO reqDTO) {
+        roleService.addWorkspaceRoleUsers(id, reqDTO.getUserIds(), reqDTO.getWorkspaceIds());
         return Result.ok();
     }
 

@@ -27,6 +27,8 @@ public interface RoleService {
 
     void addRoleUsers(UUID id, List<UUID> userIds);
 
+    void addWorkspaceRoleUsers(UUID roleId, List<UUID> userIds, List<UUID> workspaceIds);
+
     void removeRoleUser(UUID id, UUID userId);
 
     void removeWorkspaceRoleUser(UUID roleId, UUID userId, UUID workspaceId);

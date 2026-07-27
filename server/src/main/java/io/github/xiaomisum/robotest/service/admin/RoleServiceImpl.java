@@ -217,6 +217,32 @@ public class RoleServiceImpl implements RoleService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void addWorkspaceRoleUsers(UUID roleId, List<UUID> userIds, List<UUID> workspaceIds) {
+        SysRole role = roleMapper.selectById(roleId);
+        if (role == null) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.ROLE_NOT_FOUND);
+        }
+        for (UUID userId : userIds) {
+            for (UUID workspaceId : workspaceIds) {
+                // 跳过已存在的记录
+                Long count = workspaceUserMapper.selectCount(new LambdaQueryWrapperX<WorkspaceUser>()
+                        .eq(WorkspaceUser::getUserId, userId)
+                        .eq(WorkspaceUser::getWorkspaceId, workspaceId)
+                        .eq(WorkspaceUser::getWorkspaceRole, roleId));
+                if (count > 0) continue;
+
+                WorkspaceUser workspaceUser = new WorkspaceUser();
+                workspaceUser.setUserId(userId);
+                workspaceUser.setWorkspaceId(workspaceId);
+                workspaceUser.setWorkspaceRole(roleId);
+                workspaceUser.setJoinedAt(java.time.LocalDateTime.now());
+                workspaceUserMapper.insert(workspaceUser);
+            }
+        }
+    }
+
+    @Override
     public void removeRoleUser(UUID id, UUID userId) {
         userRoleMapper.delete(new LambdaQueryWrapperX<SysUserRole>()
                 .eq(SysUserRole::getUserId, userId)
