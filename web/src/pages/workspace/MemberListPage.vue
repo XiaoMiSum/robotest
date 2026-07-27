@@ -2,6 +2,7 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { Search } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/stores/auth'
 import {
   addMembers,
@@ -61,6 +62,12 @@ async function loadMembers() {
   } finally {
     membersLoading.value = false
   }
+}
+
+function handleResetMembers() {
+  memberQuery.keyword = ''
+  memberQuery.pageNo = 1
+  loadMembers()
 }
 
 async function handleRoleChange(member: WorkspaceMember, next: string) {
@@ -243,6 +250,10 @@ onMounted(() => {
               @keyup.enter="() => { memberQuery.pageNo = 1; loadMembers() }"
               @clear="() => { memberQuery.pageNo = 1; loadMembers() }"
             />
+            <el-button type="primary" @click="() => { memberQuery.pageNo = 1; loadMembers() }">
+              <el-icon><Search /></el-icon>搜索
+            </el-button>
+            <el-button @click="handleResetMembers">重置</el-button>
             <div class="member-page__toolbar-spacer" />
             <el-button v-if="canManageMember" type="primary" size="small" @click="openAddDialog">
               <el-icon><Plus /></el-icon>添加成员
