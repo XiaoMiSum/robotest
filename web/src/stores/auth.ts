@@ -34,6 +34,11 @@ export const useAuthStore = defineStore('auth', () => {
   const activeWorkspace = ref<ActiveWorkspace | null>(loadActiveWorkspace())
   const permissions = ref<string[]>(user.value?.permissions ?? [])
 
+  // 页面刷新时 activeWorkspace 已从 localStorage 恢复，需重新加载含工作空间权限的完整权限列表
+  if (user.value && activeWorkspace.value) {
+    loadPermissions()
+  }
+
   const isLoggedIn = computed(() => !!getAccessToken() && !!user.value)
   const username = computed(() => user.value?.username ?? '')
   const avatarUrl = computed(() => user.value?.avatarUrl ?? '')
