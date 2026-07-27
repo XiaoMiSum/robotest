@@ -54,7 +54,7 @@ public class TestCaseModuleServiceImpl implements TestCaseModuleService {
 
         if (reqDTO.getParentId() != null) {
             TestCaseModule parent = testCaseModuleMapper.selectById(reqDTO.getParentId());
-            if (parent == null || !parent.getProjectId().equals(projectId)) {
+            if (parent == null || !parent.getProjectId().equals(UUID.fromString(projectId))) {
                 throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_CASE_MODULE_NOT_FOUND);
             }
         }
@@ -153,7 +153,7 @@ public class TestCaseModuleServiceImpl implements TestCaseModuleService {
 
     private void fillChildren(TestCaseModuleTreeRespDTO node,
                                Map<String, List<TestCaseModuleTreeRespDTO>> parentMap) {
-        List<TestCaseModuleTreeRespDTO> children = parentMap.getOrDefault(node.getId(), new ArrayList<>());
+        List<TestCaseModuleTreeRespDTO> children = parentMap.getOrDefault(node.getId().toString(), new ArrayList<>());
         node.setChildren(children);
         children.forEach(child -> fillChildren(child, parentMap));
     }
