@@ -19,9 +19,9 @@ import { formatDateTime } from '@/utils/format'
 const router = useRouter()
 const authStore = useAuthStore()
 
-const isAdmin = computed(
-  () => authStore.activeWorkspace?.workspaceRole === roleOptions.value[0]?.value,
-)
+const canManageMember = computed(() => authStore.hasPermission('ws-member:manage'))
+const canViewInvitation = computed(() => authStore.hasPermission('ws-invitation:view'))
+const canManageInvitation = computed(() => authStore.hasPermission('ws-invitation:manage'))
 const currentUserId = computed(() => authStore.user?.id ?? '')
 const activeTab = ref('members')
 
@@ -244,7 +244,7 @@ onMounted(() => {
               @clear="() => { memberQuery.pageNo = 1; loadMembers() }"
             />
             <div class="member-page__toolbar-spacer" />
-            <el-button v-if="isAdmin" type="primary" size="small" @click="openAddDialog">
+            <el-button v-if="canManageMember" type="primary" size="small" @click="openAddDialog">
               <el-icon><Plus /></el-icon>添加成员
             </el-button>
           </div>
@@ -265,7 +265,7 @@ onMounted(() => {
             <el-table-column label="角色" width="140">
               <template #default="{ row }">
                 <el-select
-                  v-if="isAdmin"
+                  v-if="canManageMember"
                   :model-value="row.workspaceRole"
                   size="small"
                   @change="(val: string) => handleRoleChange(row as WorkspaceMember, val)"
@@ -281,7 +281,7 @@ onMounted(() => {
             <el-table-column label="操作" width="90" fixed="right">
               <template #default="{ row }">
                 <el-button
-                  v-if="isAdmin || row.userId === currentUserId"
+                  v-if="canManageMember || row.userId === currentUserId"
                   link
                   type="danger"
                   @click="handleRemoveMember(row as WorkspaceMember)"
@@ -302,9 +302,9 @@ onMounted(() => {
           </div>
         </el-tab-pane>
 
-        <el-tab-pane v-if="isAdmin" label="邀请链接" name="invitations">
+        <el-tab-pane v-if="canViewInvitation" label="邀请链接" name="invitations">
           <div class="member-page__toolbar">
-            <el-button type="primary" size="small" @click="openCreateDialog">
+            <el-button v-if="canManageInvitation" type="primary" size="small" @click="openCreateDialog">
               <el-icon><Link /></el-icon>创建邀请链接
             </el-button>
           </div>

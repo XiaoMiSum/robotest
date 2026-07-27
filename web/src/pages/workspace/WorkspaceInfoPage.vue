@@ -4,7 +4,6 @@ import { useRoute } from 'vue-router'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import { useAuthStore } from '@/stores/auth'
 import { fetchWorkspaceContext, updateWorkspaceInfo } from '@/services/workspace'
-import { WORKSPACE_ROLE } from '@/services/admin'
 import type { WorkspaceContext } from '@/types'
 import { formatDateTime } from '@/utils/format'
 
@@ -17,9 +16,7 @@ const detail = ref<WorkspaceContext | null>(null)
 const formRef = ref<FormInstance>()
 const form = reactive({ name: '', description: '' })
 
-const isAdmin = computed(
-  () => authStore.activeWorkspace?.workspaceRole === WORKSPACE_ROLE.ADMIN,
-)
+const canEdit = computed(() => authStore.hasPermission('ws-info:edit'))
 
 const rules: FormRules = {
   name: [
@@ -87,14 +84,14 @@ onMounted(load)
         class="ws-info__form"
       >
         <el-form-item label="名称" prop="name">
-          <el-input v-model="form.name" :disabled="!isAdmin" maxlength="50" show-word-limit />
+          <el-input v-model="form.name" :disabled="!canEdit" maxlength="50" show-word-limit />
         </el-form-item>
         <el-form-item label="描述">
           <el-input
             v-model="form.description"
             type="textarea"
             :rows="3"
-            :disabled="!isAdmin"
+            :disabled="!canEdit"
             maxlength="500"
             show-word-limit
           />
@@ -114,7 +111,7 @@ onMounted(load)
         <el-form-item label="创建时间">
           <span class="ws-info__meta">{{ formatDateTime(detail?.createdAt) }}</span>
         </el-form-item>
-        <el-form-item v-if="isAdmin">
+        <el-form-item v-if="canEdit">
           <el-button type="primary" :loading="saving" @click="handleSave">保存修改</el-button>
         </el-form-item>
       </el-form>

@@ -12,16 +12,16 @@ import {
   setDefaultProject,
   updateProject,
 } from '@/services/workspace'
-import { WORKSPACE_ROLE } from '@/services/admin'
 import type { Project, ProjectStatus } from '@/types'
 import { formatDate } from '@/utils/format'
 
 const authStore = useAuthStore()
 const router = useRouter()
 
-const isAdmin = computed(
-  () => authStore.activeWorkspace?.workspaceRole === WORKSPACE_ROLE.ADMIN,
-)
+const canEditProject = computed(() => authStore.hasPermission('project:edit'))
+const canDeleteProject = computed(() => authStore.hasPermission('project:delete'))
+const canArchiveProject = computed(() => authStore.hasPermission('project:archive'))
+const canSetDefaultProject = computed(() => authStore.hasPermission('project:set-default'))
 const currentUserId = computed(() => authStore.user?.id ?? '')
 
 const loading = ref(false)
@@ -194,7 +194,7 @@ function timeRange(project: Project): string {
 }
 
 function canEdit(project: Project): boolean {
-  return isAdmin.value || project.createdBy.id === currentUserId.value
+  return canEditProject.value || project.createdBy.id === currentUserId.value
 }
 
 onMounted(loadProjects)
@@ -271,7 +271,7 @@ onMounted(loadProjects)
               <div class="proj-card__creator">创建者: {{ p.createdBy.name }}</div>
               <div class="proj-card__actions" @click.stop>
                 <el-button
-                  v-if="!p.isDefault && p.status === 'active'"
+                  v-if="canSetDefaultProject && !p.isDefault && p.status === 'active'"
                   link
                   size="small"
                   @click="handleSetDefault(p)"
@@ -281,7 +281,7 @@ onMounted(loadProjects)
                 <el-button link size="small" type="primary" @click="handleEnterProject(p)">进入</el-button>
                 <el-button v-if="canEdit(p) && p.status === 'active'" link size="small" @click="openEditDialog(p)">编辑</el-button>
                 <el-button
-                  v-if="isAdmin && p.status === 'active'"
+                  v-if="canArchiveProject && p.status === 'active'"
                   link
                   size="small"
                   type="warning"
@@ -290,14 +290,14 @@ onMounted(loadProjects)
                   归档
                 </el-button>
                 <el-button
-                  v-if="isAdmin && p.status === 'archived'"
+                  v-if="canArchiveProject && p.status === 'archived'"
                   link
                   size="small"
                   @click="handleArchive(p, false)"
                 >
                   启封
                 </el-button>
-                <el-button v-if="isAdmin" link size="small" type="danger" @click="handleDelete(p)">删除</el-button>
+                <el-button v-if="canDeleteProject" link size="small" type="danger" @click="handleDelete(p)">删除</el-button>
               </div>
             </div>
           </el-col>
