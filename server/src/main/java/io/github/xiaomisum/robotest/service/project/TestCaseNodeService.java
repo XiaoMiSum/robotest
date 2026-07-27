@@ -24,7 +24,7 @@ public interface TestCaseNodeService {
      * @param pageSize  每页大小
      * @return 分页用例列表
      */
-    PageResult<TestCaseCaseListRespDTO> getCaseList(String projectId, String keyword,
+    PageResult<TestCaseCaseListRespDTO> getCaseList(UUID projectId, String keyword,
                                                      String priority, Integer pageNo, Integer pageSize);
 
     /**

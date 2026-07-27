@@ -12,11 +12,11 @@ import java.util.UUID;
 
 public interface WorkspaceInvitationService {
 
-    InvitationRespDTO createInvitation(UUID userId, String workspaceId, InvitationCreateReqDTO reqDTO);
+    InvitationRespDTO createInvitation(UUID userId, UUID workspaceId, InvitationCreateReqDTO reqDTO);
 
-    PageResult<InvitationRespDTO> getInvitationPage(String workspaceId, Integer pageNo, Integer pageSize);
+    PageResult<InvitationRespDTO> getInvitationPage(UUID workspaceId, Integer pageNo, Integer pageSize);
 
-    void revokeInvitation(UUID userId, String workspaceId, UUID invitationId);
+    void revokeInvitation(UUID userId, UUID workspaceId, UUID invitationId);
 
     InvitationVerifyRespDTO verifyInvitation(String token);
 

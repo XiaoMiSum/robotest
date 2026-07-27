@@ -32,7 +32,7 @@ public class TestCaseModuleServiceImpl implements TestCaseModuleService {
     private TestCaseNodeMapper testCaseNodeMapper;
 
     @Override
-    public List<TestCaseModuleTreeRespDTO> getModuleTree(String projectId) {
+    public List<TestCaseModuleTreeRespDTO> getModuleTree(UUID projectId) {
         List<TestCaseModule> modules = testCaseModuleMapper.selectList(
                 new LambdaQueryWrapperX<TestCaseModule>()
                         .eq(TestCaseModule::getProjectId, projectId)
@@ -47,14 +47,14 @@ public class TestCaseModuleServiceImpl implements TestCaseModuleService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public TestCaseModuleTreeRespDTO createModule(String projectId, TestCaseModuleCreateReqDTO reqDTO) {
+    public TestCaseModuleTreeRespDTO createModule(UUID projectId, TestCaseModuleCreateReqDTO reqDTO) {
         if (!Constants.ModuleType.DIRECTORY.equals(reqDTO.getType()) && !Constants.ModuleType.DOCUMENT.equals(reqDTO.getType())) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.VALIDATION_FAILED);
         }
 
         if (reqDTO.getParentId() != null) {
             TestCaseModule parent = testCaseModuleMapper.selectById(reqDTO.getParentId());
-            if (parent == null || !parent.getProjectId().equals(UUID.fromString(projectId))) {
+            if (parent == null || !parent.getProjectId().equals(projectId)) {
                 throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_CASE_MODULE_NOT_FOUND);
             }
         }
@@ -69,7 +69,7 @@ public class TestCaseModuleServiceImpl implements TestCaseModuleService {
         }
 
         TestCaseModule module = new TestCaseModule();
-        module.setProjectId(UUID.fromString(projectId));
+        module.setProjectId(projectId);
         module.setParentId(reqDTO.getParentId());
         module.setType(reqDTO.getType());
         module.setName(reqDTO.getName());

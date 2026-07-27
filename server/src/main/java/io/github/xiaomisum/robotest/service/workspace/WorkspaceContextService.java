@@ -4,11 +4,13 @@ import io.github.xiaomisum.robotest.model.dto.request.WorkspaceDefaultProjectReq
 import io.github.xiaomisum.robotest.model.dto.request.WorkspaceUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.WorkspaceContextRespDTO;
 
+import java.util.UUID;
+
 public interface WorkspaceContextService {
 
-    WorkspaceContextRespDTO getWorkspaceContext(String userId, String workspaceId);
+    WorkspaceContextRespDTO getWorkspaceContext(UUID userId, UUID workspaceId);
 
-    WorkspaceContextRespDTO updateWorkspace(String userId, String workspaceId, WorkspaceUpdateReqDTO reqDTO);
+    WorkspaceContextRespDTO updateWorkspace(UUID userId, UUID workspaceId, WorkspaceUpdateReqDTO reqDTO);
 
-    WorkspaceContextRespDTO setDefaultProject(String userId, String workspaceId, WorkspaceDefaultProjectReqDTO reqDTO);
+    WorkspaceContextRespDTO setDefaultProject(UUID userId, UUID workspaceId, WorkspaceDefaultProjectReqDTO reqDTO);
 }

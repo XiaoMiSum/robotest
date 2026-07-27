@@ -26,7 +26,7 @@ public class TestCaseModuleController {
     @GetMapping
     public Result<List<TestCaseModuleTreeRespDTO>> getModuleTree(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Project") String projectId) {
+            @RequestHeader("X-Active-Project") UUID projectId) {
         return Result.ok(testCaseModuleService.getModuleTree(projectId));
     }
 
@@ -34,7 +34,7 @@ public class TestCaseModuleController {
     @ResponseStatus(HttpStatus.CREATED)
     public Result<TestCaseModuleTreeRespDTO> createModule(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Project") String projectId,
+            @RequestHeader("X-Active-Project") UUID projectId,
             @RequestBody @Valid TestCaseModuleCreateReqDTO reqDTO) {
         return Result.ok(testCaseModuleService.createModule(projectId, reqDTO));
     }

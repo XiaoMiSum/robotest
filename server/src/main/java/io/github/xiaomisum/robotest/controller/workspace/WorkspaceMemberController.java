@@ -25,7 +25,7 @@ public class WorkspaceMemberController {
     @GetMapping
     public Result<PageResult<WorkspaceMemberRespDTO>> getMembers(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") String workspaceId,
+            @RequestHeader("X-Active-Workspace") UUID workspaceId,
             @RequestParam(required = false) String keyword,
             @RequestParam(defaultValue = "1") Integer pageNo,
             @RequestParam(defaultValue = "20") Integer pageSize) {
@@ -37,7 +37,7 @@ public class WorkspaceMemberController {
     @PostMapping
     public Result<WorkspaceMemberAddResultRespDTO> addMembers(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") String workspaceId,
+            @RequestHeader("X-Active-Workspace") UUID workspaceId,
             @RequestBody @Valid WorkspaceMembersAddReqDTO reqDTO) {
         WorkspaceMemberAddResultRespDTO result = workspaceMemberService.addMembers(
                 loginUser.getId(), workspaceId, reqDTO);
@@ -47,7 +47,7 @@ public class WorkspaceMemberController {
     @PutMapping("/{userId}")
     public Result<Void> updateMemberRole(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") String workspaceId,
+            @RequestHeader("X-Active-Workspace") UUID workspaceId,
             @PathVariable UUID userId,
             @RequestBody WorkspaceMemberRoleUpdateReqDTO reqDTO) {
         workspaceMemberService.updateMemberRole(loginUser.getId(), workspaceId, userId, reqDTO.getWorkspaceRole());
@@ -57,7 +57,7 @@ public class WorkspaceMemberController {
     @DeleteMapping("/{userId}")
     public Result<Void> removeMember(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") String workspaceId,
+            @RequestHeader("X-Active-Workspace") UUID workspaceId,
             @PathVariable UUID userId) {
         workspaceMemberService.removeMember(loginUser.getId(), workspaceId, userId);
         return Result.ok();

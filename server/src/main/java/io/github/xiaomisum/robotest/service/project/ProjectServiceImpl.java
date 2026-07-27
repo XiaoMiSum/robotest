@@ -42,11 +42,10 @@ public class ProjectServiceImpl implements ProjectService {
     private TestPlanMapper testPlanMapper;
 
     @Override
-    public PageResult<ProjectRespDTO> getProjectPage(String workspaceId, UUID userId, String keyword,
+    public PageResult<ProjectRespDTO> getProjectPage(UUID workspaceId, UUID userId, String keyword,
                                                      String status, Integer pageNo, Integer pageSize) {
-        UUID wsId = UUID.fromString(workspaceId);
         LambdaQueryWrapperX<Project> wrapper = new LambdaQueryWrapperX<Project>()
-                .eq(Project::getWorkspaceId, wsId);
+                .eq(Project::getWorkspaceId, workspaceId);
 
         if (StringUtils.hasText(keyword)) {
             wrapper.like(Project::getName, keyword);
@@ -65,7 +64,7 @@ public class ProjectServiceImpl implements ProjectService {
         WorkspaceUser currentUser = workspaceUserMapper.selectOne(
                 new LambdaQueryWrapperX<WorkspaceUser>()
                         .eq(WorkspaceUser::getUserId, userId)
-                        .eq(WorkspaceUser::getWorkspaceId, wsId));
+                        .eq(WorkspaceUser::getWorkspaceId, workspaceId));
 
         List<ProjectRespDTO> records = page.getList().stream()
                 .map(p -> {
@@ -84,10 +83,9 @@ public class ProjectServiceImpl implements ProjectService {
     }
 
     @Override
-    public ProjectRespDTO getProjectDetail(String workspaceId, UUID projectId) {
-        UUID wsId = UUID.fromString(workspaceId);
+    public ProjectRespDTO getProjectDetail(UUID workspaceId, UUID projectId) {
         Project project = projectMapper.selectById(projectId);
-        if (project == null || !project.getWorkspaceId().equals(wsId)) {
+        if (project == null || !project.getWorkspaceId().equals(workspaceId)) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.PROJECT_NOT_FOUND);
         }
         ProjectRespDTO dto = ProjectConvertMapper.INSTANCE.toRespDTO(project, null);
@@ -100,19 +98,18 @@ public class ProjectServiceImpl implements ProjectService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public ProjectRespDTO createProject(UUID userId, String workspaceId, ProjectCreateReqDTO reqDTO) {
-        UUID wsId = UUID.fromString(workspaceId);
+    public ProjectRespDTO createProject(UUID userId, UUID workspaceId, ProjectCreateReqDTO reqDTO) {
         WorkspaceUser workspaceUser = workspaceUserMapper.selectOne(
                 new LambdaQueryWrapperX<WorkspaceUser>()
                         .eq(WorkspaceUser::getUserId, userId)
-                        .eq(WorkspaceUser::getWorkspaceId, wsId));
+                        .eq(WorkspaceUser::getWorkspaceId, workspaceId));
         if (workspaceUser == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.NO_PERMISSION);
         }
 
         Project existing = projectMapper.selectOne(
                 new LambdaQueryWrapperX<Project>()
-                        .eq(Project::getWorkspaceId, wsId)
+                        .eq(Project::getWorkspaceId, workspaceId)
                         .eq(Project::getName, reqDTO.getName()));
         if (existing != null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.PROJECT_NAME_EXISTS);
@@ -124,7 +121,7 @@ public class ProjectServiceImpl implements ProjectService {
         }
 
         Project project = new Project();
-        project.setWorkspaceId(wsId);
+        project.setWorkspaceId(workspaceId);
         project.setName(reqDTO.getName());
         project.setDescription(reqDTO.getDescription());
         project.setStatus(Constants.Status.ACTIVE);
@@ -143,11 +140,10 @@ public class ProjectServiceImpl implements ProjectService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public ProjectRespDTO updateProject(UUID userId, String workspaceId, UUID projectId,
+    public ProjectRespDTO updateProject(UUID userId, UUID workspaceId, UUID projectId,
                                         ProjectUpdateReqDTO reqDTO) {
-        UUID wsId = UUID.fromString(workspaceId);
         Project project = projectMapper.selectById(projectId);
-        if (project == null || !project.getWorkspaceId().equals(wsId)) {
+        if (project == null || !project.getWorkspaceId().equals(workspaceId)) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.PROJECT_NOT_FOUND);
         }
 
@@ -158,7 +154,7 @@ public class ProjectServiceImpl implements ProjectService {
         WorkspaceUser workspaceUser = workspaceUserMapper.selectOne(
                 new LambdaQueryWrapperX<WorkspaceUser>()
                         .eq(WorkspaceUser::getUserId, userId)
-                        .eq(WorkspaceUser::getWorkspaceId, wsId));
+                        .eq(WorkspaceUser::getWorkspaceId, workspaceId));
         if (workspaceUser == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.NO_PERMISSION);
         }
@@ -172,7 +168,7 @@ public class ProjectServiceImpl implements ProjectService {
         if (StringUtils.hasText(reqDTO.getName())) {
             Project existing = projectMapper.selectOne(
                     new LambdaQueryWrapperX<Project>()
-                            .eq(Project::getWorkspaceId, wsId)
+                            .eq(Project::getWorkspaceId, workspaceId)
                             .eq(Project::getName, reqDTO.getName())
                             .ne(Project::getId, projectId));
             if (existing != null) {
@@ -201,18 +197,17 @@ public class ProjectServiceImpl implements ProjectService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void archiveProject(UUID userId, String workspaceId, UUID projectId,
-                               ProjectArchiveReqDTO reqDTO) {
-        UUID wsId = UUID.fromString(workspaceId);
+    public void archiveProject(UUID userId, UUID workspaceId, UUID projectId,
+                                ProjectArchiveReqDTO reqDTO) {
         Project project = projectMapper.selectById(projectId);
-        if (project == null || !project.getWorkspaceId().equals(wsId)) {
+        if (project == null || !project.getWorkspaceId().equals(workspaceId)) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.PROJECT_NOT_FOUND);
         }
 
         WorkspaceUser workspaceUser = workspaceUserMapper.selectOne(
                 new LambdaQueryWrapperX<WorkspaceUser>()
                         .eq(WorkspaceUser::getUserId, userId)
-                        .eq(WorkspaceUser::getWorkspaceId, wsId));
+                        .eq(WorkspaceUser::getWorkspaceId, workspaceId));
         if (workspaceUser == null || !Constants.WorkspaceRole.ADMIN_ID.equals(workspaceUser.getWorkspaceRole())) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.NO_PERMISSION);
         }
@@ -235,7 +230,7 @@ public class ProjectServiceImpl implements ProjectService {
         if (reqDTO.getArchived()) {
             workspaceUserMapper.update(null,
                     new LambdaUpdateWrapperX<WorkspaceUser>()
-                            .eq(WorkspaceUser::getWorkspaceId, wsId)
+                            .eq(WorkspaceUser::getWorkspaceId, workspaceId)
                             .eq(WorkspaceUser::getDefaultProjectId, projectId)
                             .set(WorkspaceUser::getDefaultProjectId, null));
         }
@@ -243,17 +238,16 @@ public class ProjectServiceImpl implements ProjectService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void deleteProject(UUID userId, String workspaceId, UUID projectId) {
-        UUID wsId = UUID.fromString(workspaceId);
+    public void deleteProject(UUID userId, UUID workspaceId, UUID projectId) {
         Project project = projectMapper.selectById(projectId);
-        if (project == null || !project.getWorkspaceId().equals(wsId)) {
+        if (project == null || !project.getWorkspaceId().equals(workspaceId)) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.PROJECT_NOT_FOUND);
         }
 
         WorkspaceUser workspaceUser = workspaceUserMapper.selectOne(
                 new LambdaQueryWrapperX<WorkspaceUser>()
                         .eq(WorkspaceUser::getUserId, userId)
-                        .eq(WorkspaceUser::getWorkspaceId, wsId));
+                        .eq(WorkspaceUser::getWorkspaceId, workspaceId));
         if (workspaceUser == null || !Constants.WorkspaceRole.ADMIN_ID.equals(workspaceUser.getWorkspaceRole())) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.NO_PERMISSION);
         }
@@ -262,7 +256,7 @@ public class ProjectServiceImpl implements ProjectService {
 
         workspaceUserMapper.update(null,
                 new LambdaUpdateWrapperX<WorkspaceUser>()
-                        .eq(WorkspaceUser::getWorkspaceId, wsId)
+                        .eq(WorkspaceUser::getWorkspaceId, workspaceId)
                         .eq(WorkspaceUser::getDefaultProjectId, projectId)
                         .set(WorkspaceUser::getDefaultProjectId, null));
     }

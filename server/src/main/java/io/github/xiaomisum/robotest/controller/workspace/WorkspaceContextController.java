@@ -11,6 +11,8 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import xyz.migoo.framework.common.pojo.Result;
 
+import java.util.UUID;
+
 @RestController
 @RequestMapping("/api/workspace")
 public class WorkspaceContextController {
@@ -21,29 +23,29 @@ public class WorkspaceContextController {
     @GetMapping
     public Result<WorkspaceContextRespDTO> getWorkspaceContext(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") String workspaceId) {
+            @RequestHeader("X-Active-Workspace") UUID workspaceId) {
         WorkspaceContextRespDTO result = workspaceContextService.getWorkspaceContext(
-                loginUser.getId().toString(), workspaceId);
+                loginUser.getId(), workspaceId);
         return Result.ok(result);
     }
 
     @PutMapping
     public Result<WorkspaceContextRespDTO> updateWorkspace(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") String workspaceId,
+            @RequestHeader("X-Active-Workspace") UUID workspaceId,
             @RequestBody @Valid WorkspaceUpdateReqDTO reqDTO) {
         WorkspaceContextRespDTO result = workspaceContextService.updateWorkspace(
-                loginUser.getId().toString(), workspaceId, reqDTO);
+                loginUser.getId(), workspaceId, reqDTO);
         return Result.ok(result);
     }
 
     @PutMapping("/default-project")
     public Result<WorkspaceContextRespDTO> setDefaultProject(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") String workspaceId,
+            @RequestHeader("X-Active-Workspace") UUID workspaceId,
             @RequestBody WorkspaceDefaultProjectReqDTO reqDTO) {
         WorkspaceContextRespDTO result = workspaceContextService.setDefaultProject(
-                loginUser.getId().toString(), workspaceId, reqDTO);
+                loginUser.getId(), workspaceId, reqDTO);
         return Result.ok(result);
     }
 }

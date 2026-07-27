@@ -26,7 +26,7 @@ public class ProjectController {
     @GetMapping
     public Result<PageResult<ProjectRespDTO>> getProjects(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") String workspaceId,
+            @RequestHeader("X-Active-Workspace") UUID workspaceId,
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) String status,
             @RequestParam(defaultValue = "1") Integer pageNo,
@@ -39,7 +39,7 @@ public class ProjectController {
     @GetMapping("/{id}")
     public Result<ProjectRespDTO> getProjectDetail(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") String workspaceId,
+            @RequestHeader("X-Active-Workspace") UUID workspaceId,
             @PathVariable UUID id) {
         ProjectRespDTO result = projectService.getProjectDetail(workspaceId, id);
         return Result.ok(result);
@@ -49,7 +49,7 @@ public class ProjectController {
     @ResponseStatus(HttpStatus.CREATED)
     public Result<ProjectRespDTO> createProject(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") String workspaceId,
+            @RequestHeader("X-Active-Workspace") UUID workspaceId,
             @RequestBody @Valid ProjectCreateReqDTO reqDTO) {
         ProjectRespDTO result = projectService.createProject(
                 loginUser.getId(), workspaceId, reqDTO);
@@ -59,7 +59,7 @@ public class ProjectController {
     @PutMapping("/{id}")
     public Result<ProjectRespDTO> updateProject(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") String workspaceId,
+            @RequestHeader("X-Active-Workspace") UUID workspaceId,
             @PathVariable UUID id,
             @RequestBody @Valid ProjectUpdateReqDTO reqDTO) {
         ProjectRespDTO result = projectService.updateProject(
@@ -70,7 +70,7 @@ public class ProjectController {
     @PostMapping("/{id}/archive")
     public Result<Void> archiveProject(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") String workspaceId,
+            @RequestHeader("X-Active-Workspace") UUID workspaceId,
             @PathVariable UUID id,
             @RequestBody @Valid ProjectArchiveReqDTO reqDTO) {
         projectService.archiveProject(loginUser.getId(), workspaceId, id, reqDTO);
@@ -80,7 +80,7 @@ public class ProjectController {
     @DeleteMapping("/{id}")
     public Result<Void> deleteProject(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") String workspaceId,
+            @RequestHeader("X-Active-Workspace") UUID workspaceId,
             @PathVariable UUID id) {
         projectService.deleteProject(loginUser.getId(), workspaceId, id);
         return Result.ok();

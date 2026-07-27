@@ -10,16 +10,16 @@ import java.util.UUID;
 
 public interface ProjectService {
 
-    PageResult<ProjectRespDTO> getProjectPage(String workspaceId, UUID userId, String keyword,
+    PageResult<ProjectRespDTO> getProjectPage(UUID workspaceId, UUID userId, String keyword,
                                                String status, Integer pageNo, Integer pageSize);
 
-    ProjectRespDTO getProjectDetail(String workspaceId, UUID projectId);
+    ProjectRespDTO getProjectDetail(UUID workspaceId, UUID projectId);
 
-    ProjectRespDTO createProject(UUID userId, String workspaceId, ProjectCreateReqDTO reqDTO);
+    ProjectRespDTO createProject(UUID userId, UUID workspaceId, ProjectCreateReqDTO reqDTO);
 
-    ProjectRespDTO updateProject(UUID userId, String workspaceId, UUID projectId, ProjectUpdateReqDTO reqDTO);
+    ProjectRespDTO updateProject(UUID userId, UUID workspaceId, UUID projectId, ProjectUpdateReqDTO reqDTO);
 
-    void archiveProject(UUID userId, String workspaceId, UUID projectId, ProjectArchiveReqDTO reqDTO);
+    void archiveProject(UUID userId, UUID workspaceId, UUID projectId, ProjectArchiveReqDTO reqDTO);
 
-    void deleteProject(UUID userId, String workspaceId, UUID projectId);
+    void deleteProject(UUID userId, UUID workspaceId, UUID projectId);
 }

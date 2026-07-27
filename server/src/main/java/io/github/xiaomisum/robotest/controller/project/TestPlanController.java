@@ -27,7 +27,7 @@ public class TestPlanController {
     @GetMapping
     public Result<PageResult<TestPlanListRespDTO>> getPlanPage(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Project") String projectId,
+            @RequestHeader("X-Active-Project") UUID projectId,
             @RequestParam(required = false) String status,
             @RequestParam(defaultValue = "1") Integer pageNo,
             @RequestParam(defaultValue = "20") Integer pageSize) {
@@ -38,7 +38,7 @@ public class TestPlanController {
     @ResponseStatus(HttpStatus.CREATED)
     public Result<TestPlanDetailRespDTO> createPlan(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Project") String projectId,
+            @RequestHeader("X-Active-Project") UUID projectId,
             @RequestBody @Valid TestPlanCreateReqDTO reqDTO) {
         return Result.ok(testPlanService.createPlan(projectId, loginUser.getId(), reqDTO));
     }

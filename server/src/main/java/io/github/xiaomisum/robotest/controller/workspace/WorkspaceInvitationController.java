@@ -26,7 +26,7 @@ public class WorkspaceInvitationController {
     @PostMapping
     public Result<InvitationRespDTO> createInvitation(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") String workspaceId,
+            @RequestHeader("X-Active-Workspace") UUID workspaceId,
             @RequestBody @Valid InvitationCreateReqDTO reqDTO) {
         InvitationRespDTO result = invitationService.createInvitation(
                 loginUser.getId(), workspaceId, reqDTO);
@@ -36,7 +36,7 @@ public class WorkspaceInvitationController {
     @GetMapping
     public Result<PageResult<InvitationRespDTO>> getInvitations(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") String workspaceId,
+            @RequestHeader("X-Active-Workspace") UUID workspaceId,
             @RequestParam(defaultValue = "1") Integer pageNo,
             @RequestParam(defaultValue = "20") Integer pageSize) {
         PageResult<InvitationRespDTO> result = invitationService.getInvitationPage(
@@ -47,7 +47,7 @@ public class WorkspaceInvitationController {
     @PutMapping("/{id}/revoke")
     public Result<Void> revokeInvitation(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") String workspaceId,
+            @RequestHeader("X-Active-Workspace") UUID workspaceId,
             @PathVariable UUID id) {
         invitationService.revokeInvitation(loginUser.getId(), workspaceId, id);
         return Result.ok();
