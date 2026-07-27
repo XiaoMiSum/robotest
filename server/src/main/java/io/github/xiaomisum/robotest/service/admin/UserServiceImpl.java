@@ -46,7 +46,9 @@ public class UserServiceImpl implements UserService {
                                                Integer pageNo, Integer pageSize) {
         LambdaQueryWrapperX<SysUser> wrapper = new LambdaQueryWrapperX<>();
         if (StringUtils.hasText(keyword)) {
-            wrapper.and(w -> w.like(SysUser::getUsername, keyword).or().like(SysUser::getEmail, keyword));
+            wrapper.like(SysUser::getUsername, keyword)
+                    .or().like(SysUser::getEmail, keyword)
+                    .or().like(SysUser::getName, keyword);
         }
         if (StringUtils.hasText(status)) {
             wrapper.eq(SysUser::getStatus, status);
@@ -70,10 +72,9 @@ public class UserServiceImpl implements UserService {
         LambdaQueryWrapperX<SysUser> wrapper = new LambdaQueryWrapperX<SysUser>()
                 .eq(SysUser::getStatus, Constants.Status.ACTIVE);
         if (StringUtils.hasText(keyword)) {
-            String like = "%" + keyword + "%";
-            wrapper.and(w -> w.like(SysUser::getName, keyword)
+            wrapper.like(SysUser::getName, keyword)
                     .or().like(SysUser::getUsername, keyword)
-                    .or().like(SysUser::getEmail, keyword));
+                    .or().like(SysUser::getEmail, keyword);
         }
         wrapper.orderByAsc(SysUser::getName);
 
