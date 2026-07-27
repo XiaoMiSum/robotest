@@ -36,8 +36,23 @@ public class WorkspaceMemberServiceImpl implements WorkspaceMemberService {
     public PageResult<WorkspaceMemberRespDTO> getMemberPage(String workspaceId, String keyword,
                                                              Integer pageNo, Integer pageSize) {
         UUID wsId = UUID.fromString(workspaceId);
+
+        // keyword 搜索：先从 sys_user 表匹配 username/email，再过滤 workspace_user
+        List<UUID> matchedUserIds = null;
+        if (keyword != null && !keyword.isBlank()) {
+            matchedUserIds = userMapper.selectList(
+                    new LambdaQueryWrapperX<SysUser>()
+                            .likeIfPresent(SysUser::getUsername, keyword)
+                            .likeIfPresent(SysUser::getEmail, keyword))
+                    .stream().map(SysUser::getId).collect(Collectors.toList());
+            if (matchedUserIds.isEmpty()) {
+                return new PageResult<>(List.of(), 0L);
+            }
+        }
+
         LambdaQueryWrapperX<WorkspaceUser> wrapper = new LambdaQueryWrapperX<WorkspaceUser>()
                 .eq(WorkspaceUser::getWorkspaceId, wsId)
+                .inIfPresent(WorkspaceUser::getUserId, matchedUserIds)
                 .orderByDesc(WorkspaceUser::getJoinedAt);
 
         PageResult<WorkspaceUser> page = workspaceUserMapper.selectPage(
