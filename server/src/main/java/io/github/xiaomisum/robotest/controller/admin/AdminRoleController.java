@@ -1,10 +1,6 @@
 package io.github.xiaomisum.robotest.controller.admin;
 
-import io.github.xiaomisum.robotest.model.dto.request.RoleCreateReqDTO;
-import io.github.xiaomisum.robotest.model.dto.request.RolePermissionsUpdateReqDTO;
-import io.github.xiaomisum.robotest.model.dto.request.RoleUpdateReqDTO;
-import io.github.xiaomisum.robotest.model.dto.request.RoleUsersAddReqDTO;
-import io.github.xiaomisum.robotest.model.dto.request.WorkspaceRoleUsersAddReqDTO;
+import io.github.xiaomisum.robotest.model.dto.request.*;
 import io.github.xiaomisum.robotest.model.dto.response.PermissionTableRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.RoleRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.RoleSimpleRespDTO;
@@ -27,7 +23,6 @@ public class AdminRoleController {
     private RoleService roleService;
 
     @GetMapping
-    @PreAuthorize("hasAuthority('role:view')")
     public Result<List<RoleSimpleRespDTO>> getRoleList(
             @RequestParam(required = false) String type) {
         return Result.ok(roleService.getRoleList(type));
@@ -68,7 +63,7 @@ public class AdminRoleController {
     @PostMapping("/{id}/users")
     @PreAuthorize("hasAuthority('role:edit')")
     public Result<Void> addRoleUsers(@PathVariable UUID id,
-                                      @RequestBody @Valid RoleUsersAddReqDTO reqDTO) {
+                                     @RequestBody @Valid RoleUsersAddReqDTO reqDTO) {
         roleService.addRoleUsers(id, reqDTO.getUserIds());
         return Result.ok();
     }
@@ -76,7 +71,7 @@ public class AdminRoleController {
     @PostMapping("/{id}/workspace-users")
     @PreAuthorize("hasAuthority('role:edit')")
     public Result<Void> addWorkspaceRoleUsers(@PathVariable UUID id,
-                                               @RequestBody @Valid WorkspaceRoleUsersAddReqDTO reqDTO) {
+                                              @RequestBody @Valid WorkspaceRoleUsersAddReqDTO reqDTO) {
         roleService.addWorkspaceRoleUsers(id, reqDTO.getUserIds(), reqDTO.getWorkspaceIds());
         return Result.ok();
     }
@@ -84,7 +79,7 @@ public class AdminRoleController {
     @DeleteMapping("/{id}/users/{userId}")
     @PreAuthorize("hasAuthority('role:edit')")
     public Result<Void> removeRoleUser(@PathVariable UUID id,
-                                        @PathVariable UUID userId) {
+                                       @PathVariable UUID userId) {
         roleService.removeRoleUser(id, userId);
         return Result.ok();
     }
