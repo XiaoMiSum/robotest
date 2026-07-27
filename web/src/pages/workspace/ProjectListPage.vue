@@ -267,8 +267,10 @@ onMounted(loadProjects)
                 </el-tag>
               </div>
               <div class="proj-card__desc">{{ p.description || '暂无描述' }}</div>
-              <div v-if="timeRange(p)" class="proj-card__time">{{ timeRange(p) }}</div>
-              <div class="proj-card__creator">创建者: {{ p.createdBy.name }}</div>
+              <div class="proj-card__meta">
+                <span v-if="timeRange(p)" class="proj-card__time">{{ timeRange(p) }}</span>
+                <span class="proj-card__creator">{{ p.createdBy.name }}</span>
+              </div>
               <div class="proj-card__actions" @click.stop>
                 <el-button
                   v-if="canSetDefaultProject && !p.isDefault && p.status === 'active'"
@@ -408,17 +410,23 @@ onMounted(loadProjects)
 
 .proj-card {
   cursor: pointer;
-  margin-bottom: var(--space-lg);
-  padding: var(--space-lg);
+  margin-bottom: var(--space-md);
+  padding: var(--space-md);
   background: var(--color-neutral-0);
   border: 1px solid var(--color-neutral-200);
   border-radius: var(--radius-lg);
   transition: all var(--transition-base);
+  position: relative;
 
   &:hover {
     transform: translateY(-2px);
     box-shadow: var(--shadow-md);
     border-color: var(--color-primary-200);
+
+    .proj-card__actions {
+      opacity: 1;
+      visibility: visible;
+    }
   }
 }
 
@@ -426,12 +434,12 @@ onMounted(loadProjects)
   display: flex;
   align-items: center;
   gap: 6px;
-  margin-bottom: var(--space-sm);
+  margin-bottom: 4px;
 }
 
 .proj-card__star {
   color: var(--color-warning-500);
-  font-size: 16px;
+  font-size: 14px;
 }
 
 .proj-card__name {
@@ -446,33 +454,37 @@ onMounted(loadProjects)
 
 .proj-card__desc {
   font-size: var(--font-size-xs);
-  color: var(--color-neutral-500);
-  height: 36px;
+  color: var(--color-neutral-400);
+  height: 32px;
   overflow: hidden;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   line-height: 1.6;
+  margin-bottom: 4px;
 }
 
-.proj-card__time {
-  margin-top: var(--space-sm);
-  font-size: var(--font-size-2xs);
-  color: var(--color-neutral-500);
-}
-
-.proj-card__creator {
-  margin-top: 4px;
+.proj-card__meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
   font-size: var(--font-size-2xs);
   color: var(--color-neutral-400);
 }
 
+.proj-card__creator::before {
+  content: '';
+}
+
 .proj-card__actions {
-  margin-top: var(--space-md);
-  padding-top: var(--space-sm);
+  margin-top: var(--space-sm);
+  padding-top: var(--space-xs);
   border-top: 1px solid var(--color-neutral-100);
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s ease, visibility 0.2s ease;
 }
 </style>
