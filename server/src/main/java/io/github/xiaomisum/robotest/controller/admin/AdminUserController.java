@@ -6,6 +6,7 @@ import io.github.xiaomisum.robotest.model.dto.request.UserPasswordResetReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.UserStatusUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.UserUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.UserRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.UserSimpleRespDTO;
 import io.github.xiaomisum.robotest.service.admin.UserService;
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
@@ -14,6 +15,7 @@ import org.springframework.web.bind.annotation.*;
 import xyz.migoo.framework.common.pojo.PageResult;
 import xyz.migoo.framework.common.pojo.Result;
 
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -29,10 +31,15 @@ public class AdminUserController {
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) String status,
             @RequestParam(required = false) UUID roleId,
-            @RequestParam(required = false) UUID workspaceId,
             @RequestParam(defaultValue = "1") Integer pageNo,
             @RequestParam(defaultValue = "20") Integer pageSize) {
-        return Result.ok(userService.getUserPage(keyword, status, roleId, workspaceId, pageNo, pageSize));
+        return Result.ok(userService.getUserPage(keyword, status, roleId, pageNo, pageSize));
+    }
+
+    @GetMapping("/simple")
+    public Result<List<UserSimpleRespDTO>> getUserSimpleList(
+            @RequestParam(required = false) String keyword) {
+        return Result.ok(userService.getUserSimpleList(keyword));
     }
 
     @PostMapping

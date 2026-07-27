@@ -9,6 +9,7 @@ import type {
   RoleUser,
   UserCreatePayload,
   UserQueryParams,
+  UserSimple,
   UserStatus,
   UserUpdatePayload,
   WorkspaceMember,
@@ -48,6 +49,10 @@ export function workspaceRoleLabel(roleId: string): string {
 
 export function fetchUsers(params: UserQueryParams): Promise<PageResult<AdminUser>> {
   return get('/admin/users', { ...params })
+}
+
+export function fetchSimpleUserList(keyword?: string): Promise<UserSimple[]> {
+  return get('/admin/users/simple', { keyword })
 }
 
 export function fetchUserDetail(id: string): Promise<AdminUser> {

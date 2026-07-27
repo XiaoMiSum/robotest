@@ -110,6 +110,12 @@ export interface AdminUser {
   updatedAt: string
 }
 
+/** 用户精简信息（用于下拉选择） */
+export interface UserSimple {
+  id: string
+  name: string
+}
+
 /** 用户列表查询参数 */
 export interface UserQueryParams {
   keyword?: string
