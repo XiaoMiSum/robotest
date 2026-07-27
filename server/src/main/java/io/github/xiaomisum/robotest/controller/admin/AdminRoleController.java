@@ -7,6 +7,7 @@ import io.github.xiaomisum.robotest.model.dto.request.RoleUsersAddReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.PermissionTableRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.RoleRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.RoleSimpleRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.RoleWorkspaceUserRespDTO;
 import io.github.xiaomisum.robotest.service.admin.RoleService;
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
@@ -57,6 +58,12 @@ public class AdminRoleController {
         return Result.ok(roleService.getRoleDetail(id));
     }
 
+    @GetMapping("/{id}/workspace-users")
+    @PreAuthorize("hasAuthority('role:view')")
+    public Result<List<RoleWorkspaceUserRespDTO>> getRoleWorkspaceUsers(@PathVariable UUID id) {
+        return Result.ok(roleService.getRoleWorkspaceUsers(id));
+    }
+
     @PostMapping("/{id}/users")
     @PreAuthorize("hasAuthority('role:edit')")
     public Result<Void> addRoleUsers(@PathVariable UUID id,
@@ -70,6 +77,15 @@ public class AdminRoleController {
     public Result<Void> removeRoleUser(@PathVariable UUID id,
                                         @PathVariable UUID userId) {
         roleService.removeRoleUser(id, userId);
+        return Result.ok();
+    }
+
+    @DeleteMapping("/{id}/users/{userId}/workspace/{workspaceId}")
+    @PreAuthorize("hasAuthority('role:edit')")
+    public Result<Void> removeWorkspaceRoleUser(@PathVariable UUID id,
+                                                @PathVariable UUID userId,
+                                                @PathVariable UUID workspaceId) {
+        roleService.removeWorkspaceRoleUser(id, userId, workspaceId);
         return Result.ok();
     }
 

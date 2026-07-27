@@ -197,6 +197,17 @@ export interface RoleUser {
   createdAt: string
 }
 
+/** 空间角色关联用户（含归属空间） */
+export interface RoleWorkspaceUser {
+  userId: string
+  username: string
+  name: string
+  workspaces: {
+    workspaceId: string
+    workspaceName: string
+  }[]
+}
+
 /** 权限点 */
 export interface PermissionItem {
   code: string

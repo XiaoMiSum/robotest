@@ -6,6 +6,7 @@ import type {
   PermissionModule,
   RoleDetail,
   RoleTreeNode,
+  RoleWorkspaceUser,
   UserCreatePayload,
   UserQueryParams,
   UserSimple,
@@ -166,6 +167,14 @@ export function addRoleUsers(id: string, userIds: string[]): Promise<void> {
 
 export function removeRoleUser(id: string, userId: string): Promise<void> {
   return del(`/admin/roles/${id}/users/${userId}`)
+}
+
+export function fetchRoleWorkspaceUsers(id: string): Promise<RoleWorkspaceUser[]> {
+  return get(`/admin/roles/${id}/workspace-users`)
+}
+
+export function removeWorkspaceRoleUser(roleId: string, userId: string, workspaceId: string): Promise<void> {
+  return del(`/admin/roles/${roleId}/users/${userId}/workspace/${workspaceId}`)
 }
 
 export function fetchPermissionTable(roleType?: string): Promise<PermissionModule[]> {

@@ -31,7 +31,7 @@ function handleCleared() {
             <PermissionTable :role-id="selectedRole.id" :is-system="selectedRole.isSystem" :role-type="selectedRole.type" :full-access="selectedRole.fullAccess" />
           </el-tab-pane>
           <el-tab-pane label="关联用户" name="users">
-            <RoleUsersTable :role-id="selectedRole.id" />
+            <RoleUsersTable :role-id="selectedRole.id" :role-type="selectedRole.type" />
           </el-tab-pane>
         </el-tabs>
       </el-card>
