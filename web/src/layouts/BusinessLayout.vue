@@ -37,6 +37,9 @@ const showWorkspaceManage = computed(() => (navStore.isWorkspaceMode || navStore
 const showSystemAdmin = computed(() => authStore.hasSystemPermission)
 const isSystemActive = computed(() => navStore.isAdminMode)
 
+// full-height pages (e.g. functional-testing) need content-area padding: 0 so sidebar/breadcrumbs extend edge-to-edge
+const isFullHeightPage = computed(() => route.path.startsWith('/workspace/projects/functional-testing'))
+
 function handleDynamicMenuClick(path: string) {
   router.push(path)
 }
@@ -151,7 +154,10 @@ function handleLogout() {
       </div>
     </header>
 
-    <main class="business-layout__content">
+    <main
+      class="business-layout__content"
+      :class="{ 'business-layout__content--full': isFullHeightPage }"
+    >
       <RouterView />
     </main>
   </div>
@@ -302,5 +308,9 @@ function handleLogout() {
   overflow: auto;
   background-color: var(--color-neutral-50);
   padding: var(--space-xl);
+
+  &--full {
+    padding: 0;
+  }
 }
 </style>

@@ -71,7 +71,7 @@ onMounted(load)
 
 <template>
   <div v-loading="loading" class="plan-detail">
-    <el-page-header @back="router.push('/workspace/projects/cases')">
+    <el-page-header @back="router.push('/workspace/projects/functional-testing')">
       <template #content><span class="plan-detail__title">{{ detail?.name ?? '计划详情' }}</span></template>
     </el-page-header>
 
