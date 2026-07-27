@@ -60,7 +60,6 @@ public class UserDetailsBridgeImpl implements UserDetailsBridge {
         loginUser.setEnabled(Constants.Status.ACTIVE.equals(user.getStatus()));
         List<SysRole> roles = loadRoles(user.getId());
         loginUser.setAuthorities(buildAuthorities(roles));
-        loginUser.setPermissions(buildPermissionCodes(roles));
         return loginUser;
     }
 
@@ -88,25 +87,6 @@ public class UserDetailsBridgeImpl implements UserDetailsBridge {
                             ? role.getPermissions().stream().map(SimpleGrantedAuthority::new)
                             : Stream.empty();
                     return Stream.concat(roleAuth, permAuth);
-                })
-                .distinct()
-                .toList();
-    }
-
-    private List<String> buildPermissionCodes(List<SysRole> roles) {
-        return roles.stream()
-                .flatMap(role -> {
-                    if (Boolean.TRUE.equals(role.getFullAccess())) {
-                        return Stream.concat(
-                                Stream.of(Constants.Auth.ROLE_PREFIX + role.getName()),
-                                getAllScopePermissions("global").stream());
-                    }
-                    Stream<String> permCodes = role.getPermissions() != null
-                            ? role.getPermissions().stream()
-                            : Stream.empty();
-                    return Stream.concat(
-                            Stream.of(Constants.Auth.ROLE_PREFIX + role.getName()),
-                            permCodes);
                 })
                 .distinct()
                 .toList();

@@ -15,10 +15,11 @@ public class WebMvcConfig implements WebMvcConfigurer {
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(workspaceRoleInterceptor)
-                .addPathPatterns("/api/workspace/**", "/api/project/**")
+                .addPathPatterns("/api/workspace/**", "/api/project/**", "/api/auth/permissions")
                 .excludePathPatterns(
                         "/api/admin/**",
-                        "/api/auth/**",
+                        "/api/auth/login",
+                        "/api/auth/refresh",
                         "/api/workspace/invitations/verify",
                         "/api/workspace/invitations/join",
                         "/ws/**",

@@ -7,18 +7,16 @@ import io.github.xiaomisum.robotest.model.entity.WorkspaceUser;
 import io.github.xiaomisum.robotest.repository.WorkspaceUserMapper;
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import xyz.migoo.framework.common.pojo.Result;
 import xyz.migoo.framework.mybatis.core.LambdaQueryWrapperX;
 import xyz.migoo.framework.security.core.authentication.AuthUserDetailsFetcher;
 import xyz.migoo.framework.security.core.authentication.AuthUserDetailsFetcher.LoginResult;
 
 import java.util.List;
+import java.util.Objects;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -48,7 +46,7 @@ public class AuthController {
             @AuthenticationPrincipal LoginUser loginUser) {
         // getAuthorities() 合并了系统权限 + WorkspaceRoleInterceptor 注入的工作空间权限
         List<String> permissions = loginUser.getAuthorities().stream()
-                .map(org.springframework.security.core.GrantedAuthority::getAuthority)
+                .map(GrantedAuthority::getAuthority).filter(Objects::nonNull)
                 .filter(auth -> !auth.startsWith("ROLE_"))
                 .distinct()
                 .toList();
