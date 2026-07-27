@@ -11,6 +11,7 @@ import xyz.migoo.framework.mybatis.core.dataobject.BaseUuidDO;
 public class SysUser extends BaseUuidDO<SysUser> {
 
     private String username;
+    private String name;
     private String email;
     private String passwordHash;
     private String avatarUrl;

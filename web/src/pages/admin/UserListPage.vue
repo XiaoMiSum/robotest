@@ -219,6 +219,7 @@ onMounted(() => {
             </el-link>
           </template>
         </el-table-column>
+        <el-table-column prop="name" label="姓名" min-width="120" show-overflow-tooltip />
         <el-table-column prop="email" label="邮箱" min-width="200" show-overflow-tooltip />
         <el-table-column label="角色" min-width="180">
           <template #default="{ row }">

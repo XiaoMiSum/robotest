@@ -87,6 +87,7 @@ public class UserServiceImpl implements UserService {
         // 鍒涘缓鐢ㄦ埛
         SysUser user = new SysUser();
         user.setUsername(reqDTO.getUsername());
+        user.setName(reqDTO.getName());
         user.setEmail(reqDTO.getEmail());
         user.setPasswordHash(passwordEncoder.encode(reqDTO.getPassword()));
         user.setStatus(Constants.Status.ACTIVE);
@@ -115,9 +116,18 @@ public class UserServiceImpl implements UserService {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.USER_NOT_FOUND);
         }
 
+        boolean updated = false;
+        // 鏇存柊濮撳悕
+        if (StringUtils.hasText(reqDTO.getName())) {
+            user.setName(reqDTO.getName());
+            updated = true;
+        }
         // 鏇存柊閭
         if (StringUtils.hasText(reqDTO.getEmail())) {
             user.setEmail(reqDTO.getEmail());
+            updated = true;
+        }
+        if (updated) {
             userMapper.updateById(user);
         }
 

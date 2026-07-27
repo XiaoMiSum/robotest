@@ -11,6 +11,7 @@ public class UserRespDTO {
 
     private UUID id;
     private String username;
+    private String name;
     private String email;
     private String avatarUrl;
     private String status;
