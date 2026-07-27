@@ -93,7 +93,7 @@ function handleLogout() {
       </nav>
 
       <div class="top-nav__icons">
-        <div class="top-nav__icon-btn" @click="goHome">
+        <div v-if="authStore.hasWorkspace" class="top-nav__icon-btn" @click="goHome">
           <el-icon><FolderOpened /></el-icon>
           <span>我的空间</span>
         </div>

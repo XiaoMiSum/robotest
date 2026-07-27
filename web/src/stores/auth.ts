@@ -25,6 +25,7 @@ export const useAuthStore = defineStore('auth', () => {
   const isLoggedIn = computed(() => !!getAccessToken() && !!user.value)
   const username = computed(() => user.value?.username ?? '')
   const avatarUrl = computed(() => user.value?.avatarUrl ?? '')
+  const hasWorkspace = computed(() => user.value?.hasWorkspace ?? false)
   const hasSystemRole = computed(() => {
     if (!user.value?.roles) return false
     return user.value.roles.some((r) => r === 'system' || r === 'SYSTEM')
@@ -100,6 +101,7 @@ export const useAuthStore = defineStore('auth', () => {
     isLoggedIn,
     username,
     avatarUrl,
+    hasWorkspace,
     hasSystemRole,
     hasSystemPermission,
     hasWorkspaceAccess,

@@ -34,7 +34,7 @@ async function handleLogin() {
 
     await authStore.loadPermissions()
 
-    if (result.hasWorkspace) {
+    if (result.user.hasWorkspace) {
       router.push('/workspaces')
     } else if (authStore.hasSystemPermission) {
       navStore.setMode('admin')

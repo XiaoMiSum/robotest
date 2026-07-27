@@ -24,7 +24,6 @@ export interface LoginResult {
   accessExpiry: string
   refreshExpiry: string
   user: LoginUser
-  hasWorkspace: boolean
 }
 
 export interface LoginUser {
@@ -35,6 +34,7 @@ export interface LoginUser {
   status: string
   roles: string[]
   permissions: string[]
+  hasWorkspace: boolean
 }
 
 export interface ActiveWorkspace {

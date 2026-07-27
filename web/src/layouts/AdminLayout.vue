@@ -47,7 +47,7 @@ function goMyWorkspaces() {
       </div>
 
       <div class="admin-layout__topbar-right">
-        <div class="admin-layout__icon-btn" @click="goMyWorkspaces">
+        <div v-if="authStore.hasWorkspace" class="admin-layout__icon-btn" @click="goMyWorkspaces">
           <el-icon><FolderOpened /></el-icon>
           <span>我的空间</span>
         </div>
