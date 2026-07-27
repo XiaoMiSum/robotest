@@ -106,9 +106,9 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '项目工作台' },
       },
       {
-        path: 'workspace/projects/cases',
-        name: 'TestCases',
-        component: () => import('@/pages/project/TestCasePage.vue'),
+        path: 'workspace/projects/functional-testing',
+        name: 'FunctionalTesting',
+        component: () => import('@/pages/project/FunctionalTestingPage.vue'),
         meta: { title: '功能测试' },
       },
       {

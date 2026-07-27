@@ -32,7 +32,7 @@ export const useNavStore = defineStore('nav', () => {
       }
       case 'project': {
         const items: Array<{ label: string; path: string; icon: string }> = []
-        if (has('case:view')) items.push({ label: '功能测试', path: '/workspace/projects/cases', icon: 'Monitor' })
+        if (has('case:view')) items.push({ label: '功能测试', path: '/workspace/projects/functional-testing', icon: 'Monitor' })
         if (has('bug:view')) items.push({ label: '缺陷管理', path: '/workspace/projects/bugs', icon: 'Warning' })
         return items
       }

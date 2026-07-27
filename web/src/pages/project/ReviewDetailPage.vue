@@ -59,7 +59,7 @@ onMounted(load)
 
 <template>
   <div v-loading="loading" class="review-detail">
-    <el-page-header @back="router.push('/workspace/projects/cases')">
+    <el-page-header @back="router.push('/workspace/projects/functional-testing')">
       <template #content><span class="review-detail__title">{{ detail?.title ?? '评审详情' }}</span></template>
     </el-page-header>
 

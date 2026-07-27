@@ -24,7 +24,7 @@ async function load() {
 onMounted(load)
 
 const statCards = [
-  { key: 'cases', label: '用例总数', icon: 'Document', to: '/workspace/projects/cases', colorClass: 'stat-card--primary', valueKey: 'caseCount' as const },
+  { key: 'cases', label: '用例总数', icon: 'Document', to: '/workspace/projects/functional-testing', colorClass: 'stat-card--primary', valueKey: 'caseCount' as const },
   { key: 'reviews', label: '进行中评审', icon: 'Checked', to: '/workspace/projects/reviews', colorClass: 'stat-card--blue', valueKey: 'activeReviewCount' as const },
   { key: 'plans', label: '进行中计划', icon: 'Calendar', to: '/workspace/projects/plans', colorClass: 'stat-card--teal', valueKey: 'activePlanCount' as const },
   { key: 'bugs', label: '未关闭缺陷', icon: 'WarningFilled', to: '/workspace/projects/bugs', colorClass: 'stat-card--danger', valueKey: 'openBugCount' as const },
