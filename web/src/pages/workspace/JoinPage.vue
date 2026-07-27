@@ -90,7 +90,7 @@ async function handleSubmit() {
     authStore.setLogin(
       result.accessToken,
       result.refreshToken,
-      { id: result.user.id, username: result.user.username, email: result.user.email, status: 'active', roles: [], permissions: [] },
+      { id: result.user.id, username: result.user.username, email: result.user.email, status: 'active', roles: [], permissions: [], hasWorkspace: result.activeWorkspace != null },
       { id: result.activeWorkspace.id, name: result.activeWorkspace.name, workspaceRole: result.activeWorkspace.workspaceRole },
     )
     await authStore.loadPermissions()
