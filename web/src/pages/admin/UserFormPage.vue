@@ -52,7 +52,7 @@ function validatePassword(_rule: unknown, value: string, callback: (error?: Erro
   callback()
 }
 
-const rules: FormRules = {
+const rules = computed<FormRules>(() => ({
   username: [
     { required: true, message: '请输入用户名', trigger: 'blur' },
     { min: 3, max: 30, message: '用户名长度为 3-30 个字符', trigger: 'blur' },
@@ -62,8 +62,11 @@ const rules: FormRules = {
     { required: true, message: '请输入邮箱', trigger: 'blur' },
     { type: 'email', message: '邮箱格式不正确', trigger: 'blur' },
   ],
-  password: [{ validator: validatePassword, trigger: 'blur' }],
-}
+  password: [
+    { required: !isEdit.value, message: '请输入密码', trigger: 'blur' },
+    { validator: validatePassword, trigger: 'blur' },
+  ],
+}))
 
 async function loadRoleOptions() {
   try {
