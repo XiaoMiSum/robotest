@@ -4,9 +4,7 @@ import io.github.xiaomisum.robotest.framework.security.LoginUser;
 import io.github.xiaomisum.robotest.model.dto.request.LoginReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.LoginRespDTO;
 import io.github.xiaomisum.robotest.model.entity.WorkspaceUser;
-import io.github.xiaomisum.robotest.repository.SysPermissionMapper;
 import io.github.xiaomisum.robotest.repository.WorkspaceUserMapper;
-import io.github.xiaomisum.robotest.model.entity.SysPermission;
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -20,7 +18,6 @@ import xyz.migoo.framework.mybatis.core.LambdaQueryWrapperX;
 import xyz.migoo.framework.security.core.authentication.AuthUserDetailsFetcher;
 import xyz.migoo.framework.security.core.authentication.AuthUserDetailsFetcher.LoginResult;
 
-import java.util.ArrayList;
 import java.util.List;
 
 @RestController
@@ -29,8 +26,6 @@ public class AuthController {
 
     @Resource
     private AuthUserDetailsFetcher<LoginUser> authUserDetailsFetcher;
-    @Resource
-    private SysPermissionMapper permissionMapper;
     @Resource
     private WorkspaceUserMapper workspaceUserMapper;
 
@@ -50,18 +45,14 @@ public class AuthController {
 
     @PostMapping("/permissions")
     public Result<List<String>> getPermissions(
-            @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader(value = "X-Active-Workspace", required = false) String workspaceId) {
-        List<String> permissions = new ArrayList<>(loginUser.getPermissions());
-        if (workspaceId != null && !workspaceId.isBlank()) {
-            List<String> wsPermissions = permissionMapper.selectList(
-                    new LambdaQueryWrapperX<SysPermission>()
-                            .eq(SysPermission::getScope, "workspace")
-                            .ne(SysPermission::getParentCode, null))
-                    .stream().map(SysPermission::getCode).toList();
-            permissions.addAll(wsPermissions);
-        }
-        return Result.ok(permissions.stream().distinct().toList());
+            @AuthenticationPrincipal LoginUser loginUser) {
+        // getAuthorities() 合并了系统权限 + WorkspaceRoleInterceptor 注入的工作空间权限
+        List<String> permissions = loginUser.getAuthorities().stream()
+                .map(org.springframework.security.core.GrantedAuthority::getAuthority)
+                .filter(auth -> !auth.startsWith("ROLE_"))
+                .distinct()
+                .toList();
+        return Result.ok(permissions);
     }
 
     private LoginRespDTO toLoginRespDTO(LoginResult<LoginUser> loginResult) {
