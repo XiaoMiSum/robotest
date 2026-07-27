@@ -96,5 +96,6 @@ const menuItems = [
 .func-testing__main {
   flex: 1;
   overflow: hidden;
+  padding: var(--space-xl);
 }
 </style>
