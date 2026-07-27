@@ -186,13 +186,6 @@ async function submitForm() {
   }
 }
 
-function timeRange(project: Project): string {
-  const s = project.startTime ? formatDate(project.startTime) : ''
-  const e = project.endTime ? formatDate(project.endTime) : ''
-  if (!s && !e) return ''
-  return `${s || '?'} ~ ${e || '?'}`
-}
-
 function canEdit(project: Project): boolean {
   return canEditProject.value || project.createdBy.id === currentUserId.value
 }
@@ -266,10 +259,9 @@ onMounted(loadProjects)
                   {{ p.status === 'active' ? '活跃' : '已归档' }}
                 </el-tag>
               </div>
-              <div class="proj-card__desc">{{ p.description || '暂无描述' }}</div>
+              <div class="proj-card__desc" :title="p.description || '暂无描述'">{{ p.description || '暂无描述' }}</div>
               <div class="proj-card__meta">
-                <span v-if="timeRange(p)" class="proj-card__time">{{ timeRange(p) }}</span>
-                <span class="proj-card__creator">{{ p.createdBy.name }}</span>
+                <span class="proj-card__meta-item">{{ p.createdBy.name }} 创建于 {{ formatDate(p.createdAt) }}</span>
               </div>
               <div class="proj-card__actions" @click.stop>
                 <el-button
@@ -461,19 +453,22 @@ onMounted(loadProjects)
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   line-height: 1.6;
-  margin-bottom: 4px;
+  margin-bottom: var(--space-sm);
 }
 
 .proj-card__meta {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
   font-size: var(--font-size-2xs);
   color: var(--color-neutral-400);
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.proj-card__creator::before {
-  content: '';
+.proj-card__meta-item {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .proj-card__actions {
