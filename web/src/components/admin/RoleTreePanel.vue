@@ -133,6 +133,14 @@ onMounted(load)
           <span class="role-tree__label">
             {{ data.name }}
             <el-tag
+              v-if="!data.isGroup && data.isSystem"
+              size="small"
+              type="warning"
+              class="role-tree__system-tag"
+            >
+              预置
+            </el-tag>
+            <el-tag
               v-if="data.isGroup && data.userCount != null"
               size="small"
               type="info"
@@ -148,7 +156,12 @@ onMounted(load)
             </el-button>
             <!-- 具体角色：重命名 / 删除（系统预置角色不可删除） -->
             <template v-else>
-              <el-button link size="small" @click.stop="handleRename(data)">
+              <el-button
+                v-if="!data.isSystem"
+                link
+                size="small"
+                @click.stop="handleRename(data)"
+              >
                 <el-icon><EditPen /></el-icon>
               </el-button>
               <el-button
@@ -188,6 +201,10 @@ onMounted(load)
 }
 
 .role-tree__count {
+  transform: scale(0.85);
+}
+
+.role-tree__system-tag {
   transform: scale(0.85);
 }
 
