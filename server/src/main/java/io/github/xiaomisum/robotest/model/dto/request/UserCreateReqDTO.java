@@ -16,6 +16,10 @@ public class UserCreateReqDTO {
     @Size(min = 3, max = 30, message = "用户名长度为3-30个字符")
     private String username;
 
+    @NotBlank(message = "姓名不能为空")
+    @Size(max = 50, message = "姓名长度不能超过50个字符")
+    private String name;
+
     @NotBlank(message = "邮箱不能为空")
     @Email(message = "邮箱格式不正确")
     private String email;

@@ -24,6 +24,7 @@ const loading = ref(false)
 
 const form = reactive({
   username: '',
+  name: '',
   email: '',
   password: '',
   roleIds: [] as string[],
@@ -58,6 +59,10 @@ const rules = computed<FormRules>(() => ({
     { min: 3, max: 30, message: '用户名长度为 3-30 个字符', trigger: 'blur' },
     { pattern: /^[a-zA-Z0-9_-]+$/, message: '只能包含字母、数字、下划线、连字符', trigger: 'blur' },
   ],
+  name: [
+    { required: true, message: '请输入姓名', trigger: 'blur' },
+    { max: 50, message: '姓名长度不能超过 50 个字符', trigger: 'blur' },
+  ],
   email: [
     { required: true, message: '请输入邮箱', trigger: 'blur' },
     { type: 'email', message: '邮箱格式不正确', trigger: 'blur' },
@@ -87,6 +92,7 @@ async function loadUser() {
   try {
     const user = await fetchUserDetail(userId.value)
     form.username = user.username
+    form.name = user.name
     form.email = user.email
     form.roleIds = user.roles.map((r) => r.id)
   } catch (err) {
@@ -106,10 +112,11 @@ async function handleSave() {
   submitting.value = true
   try {
     if (isEdit.value) {
-      await updateUser(userId.value, { email: form.email, roleIds: form.roleIds })
+      await updateUser(userId.value, { name: form.name, email: form.email, roleIds: form.roleIds })
     } else {
       await createUser({
         username: form.username,
+        name: form.name,
         email: form.email,
         password: form.password,
         roleIds: form.roleIds,
@@ -173,6 +180,14 @@ onMounted(() => {
             v-model="form.username"
             :disabled="isEdit"
             placeholder="3-30 个字符，字母/数字/_/-"
+          />
+        </el-form-item>
+        <el-form-item label="姓名" prop="name">
+          <el-input
+            v-model="form.name"
+            placeholder="请输入姓名"
+            maxlength="50"
+            show-word-limit
           />
         </el-form-item>
         <el-form-item label="邮箱" prop="email">

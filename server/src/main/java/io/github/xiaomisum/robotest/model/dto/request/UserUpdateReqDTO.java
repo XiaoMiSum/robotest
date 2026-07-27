@@ -9,6 +9,8 @@ import java.util.UUID;
 @Data
 public class UserUpdateReqDTO {
 
+    private String name;
+
     @Email(message = "邮箱格式不正确")
     private String email;
 

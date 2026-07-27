@@ -100,6 +100,7 @@ export interface WorkspaceSimple {
 export interface AdminUser {
   id: string
   username: string
+  name: string
   email: string
   avatarUrl?: string
   status: UserStatus
@@ -122,6 +123,7 @@ export interface UserQueryParams {
 /** 创建用户请求体 */
 export interface UserCreatePayload {
   username: string
+  name: string
   email: string
   password: string
   roleIds?: string[]
@@ -129,6 +131,7 @@ export interface UserCreatePayload {
 
 /** 更新用户请求体 */
 export interface UserUpdatePayload {
+  name?: string
   email?: string
   roleIds?: string[]
 }
