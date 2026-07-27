@@ -7,6 +7,7 @@ import io.github.xiaomisum.robotest.model.dto.request.UserBatchStatusReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.UserCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.UserUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.UserRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.UserSimpleRespDTO;
 import io.github.xiaomisum.robotest.model.entity.*;
 import io.github.xiaomisum.robotest.repository.*;
 import jakarta.annotation.Resource;
@@ -41,7 +42,7 @@ public class UserServiceImpl implements UserService {
     private PasswordEncoder passwordEncoder;
 
     @Override
-    public PageResult<UserRespDTO> getUserPage(String keyword, String status, UUID roleId, UUID workspaceId,
+    public PageResult<UserRespDTO> getUserPage(String keyword, String status, UUID roleId,
                                                Integer pageNo, Integer pageSize) {
         LambdaQueryWrapperX<SysUser> wrapper = new LambdaQueryWrapperX<>();
         if (StringUtils.hasText(keyword)) {
@@ -62,6 +63,27 @@ public class UserServiceImpl implements UserService {
                 .collect(Collectors.toList());
 
         return new PageResult<>(records, userPage.getTotal());
+    }
+
+    @Override
+    public List<UserSimpleRespDTO> getUserSimpleList(String keyword) {
+        LambdaQueryWrapperX<SysUser> wrapper = new LambdaQueryWrapperX<SysUser>()
+                .eq(SysUser::getStatus, Constants.Status.ACTIVE);
+        if (StringUtils.hasText(keyword)) {
+            String like = "%" + keyword + "%";
+            wrapper.and(w -> w.like(SysUser::getName, keyword)
+                    .or().like(SysUser::getUsername, keyword)
+                    .or().like(SysUser::getEmail, keyword));
+        }
+        wrapper.orderByAsc(SysUser::getName);
+
+        List<SysUser> users = userMapper.selectList(wrapper);
+        return users.stream().map(user -> {
+            UserSimpleRespDTO dto = new UserSimpleRespDTO();
+            dto.setId(user.getId());
+            dto.setName(user.getName());
+            return dto;
+        }).collect(Collectors.toList());
     }
 
     @Override

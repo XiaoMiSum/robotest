@@ -12,8 +12,8 @@ import {
   revokeInvitation,
   updateMemberRole,
 } from '@/services/workspace'
-import { fetchRoleList, fetchUsers } from '@/services/admin'
-import type { Invitation, WorkspaceMember } from '@/types'
+import { fetchRoleList, fetchSimpleUserList } from '@/services/admin'
+import type { Invitation, UserSimple, WorkspaceMember } from '@/types'
 import { formatDateTime } from '@/utils/format'
 
 const router = useRouter()
@@ -99,7 +99,7 @@ async function handleRemoveMember(member: WorkspaceMember) {
 const addDialogVisible = ref(false)
 const addSubmitting = ref(false)
 const userSearchLoading = ref(false)
-const userOptions = ref<{ id: string; username: string; email: string }[]>([])
+const userOptions = ref<UserSimple[]>([])
 const selectedUserIds = ref<string[]>([])
 
 function openAddDialog() {
@@ -112,10 +112,7 @@ async function searchUsers(keyword: string) {
   if (!keyword) { userOptions.value = []; return }
   userSearchLoading.value = true
   try {
-    const page = await fetchUsers({ keyword, status: 'active', pageNo: 1, pageSize: 20 })
-    userOptions.value = page.list
-      .filter((u) => !u.roles.some((r) => r.type === 'system'))
-      .map((u) => ({ id: u.id, username: u.username, email: u.email }))
+    userOptions.value = await fetchSimpleUserList(keyword)
   } catch {
     userOptions.value = []
   } finally {
@@ -370,7 +367,7 @@ onMounted(() => {
         filterable
         remote
         reserve-keyword
-        placeholder="输入用户名/邮箱搜索（仅活跃业务用户）"
+        placeholder="输入姓名/用户名/邮箱搜索"
         :remote-method="searchUsers"
         :loading="userSearchLoading"
         style="width: 100%"
@@ -378,7 +375,7 @@ onMounted(() => {
         <el-option
           v-for="u in userOptions"
           :key="u.id"
-          :label="`${u.username} (${u.email})`"
+          :label="u.name"
           :value="u.id"
         />
       </el-select>

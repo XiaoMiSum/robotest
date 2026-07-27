@@ -6,14 +6,14 @@ import {
   addWorkspaceMembers,
   dissolveWorkspace,
   fetchRoleList,
-  fetchUsers,
+  fetchSimpleUserList,
   fetchWorkspaceDetail,
   fetchWorkspaceMembers,
   removeWorkspaceMember,
   updateWorkspace,
   updateWorkspaceMemberRole,
 } from '@/services/admin'
-import type { AdminWorkspace, WorkspaceMember } from '@/types'
+import type { AdminWorkspace, UserSimple, WorkspaceMember } from '@/types'
 import { formatDateTime } from '@/utils/format'
 
 const route = useRoute()
@@ -137,7 +137,7 @@ async function handleRemoveMember(member: WorkspaceMember) {
 const addDialogVisible = ref(false)
 const addSubmitting = ref(false)
 const userSearchLoading = ref(false)
-const userOptions = ref<{ id: string; username: string; email: string }[]>([])
+const userOptions = ref<UserSimple[]>([])
 const selectedUserIds = ref<string[]>([])
 const pendingRoles = reactive<Record<string, string>>({})
 
@@ -155,10 +155,7 @@ async function searchUsers(keyword: string) {
   }
   userSearchLoading.value = true
   try {
-    const page = await fetchUsers({ keyword, status: 'active', pageNo: 1, pageSize: 20 })
-    userOptions.value = page.list
-      .filter((u) => !u.roles.some((r) => r.type === 'system'))
-      .map((u) => ({ id: u.id, username: u.username, email: u.email }))
+    userOptions.value = await fetchSimpleUserList(keyword)
   } catch {
     userOptions.value = []
   } finally {
@@ -178,7 +175,7 @@ function handleUserSelectChange(ids: string[]) {
 const selectedUsers = computed(() =>
   selectedUserIds.value.map((id) => {
     const opt = userOptions.value.find((u) => u.id === id)
-    return { id, username: opt?.username ?? id, email: opt?.email ?? '' }
+    return { id, name: opt?.name ?? id }
   }),
 )
 
@@ -379,7 +376,7 @@ onMounted(() => {
             <el-option
               v-for="u in userOptions"
               :key="u.id"
-              :label="`${u.username} (${u.email})`"
+              :label="u.name"
               :value="u.id"
             />
           </el-select>
@@ -387,7 +384,7 @@ onMounted(() => {
       </el-form>
       <div v-if="selectedUsers.length" class="ws-detail__pending">
         <div v-for="u in selectedUsers" :key="u.id" class="ws-detail__pending-item">
-          <span class="ws-detail__pending-name">{{ u.username }}</span>
+          <span class="ws-detail__pending-name">{{ u.name }}</span>
           <el-select v-model="pendingRoles[u.id]" size="small" style="width: 120px">
             <el-option
               v-for="opt in roleOptions"
