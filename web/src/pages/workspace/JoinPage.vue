@@ -26,7 +26,7 @@ const name = ref('')
 const password = ref('')
 const submitting = ref(false)
 
-const STRENGTH_COLORS = ['var(--color-danger-500)', 'var(--color-warning-500)', 'var(--color-warning-600)', 'var(--color-success-500)']
+const STRENGTH_COLORS = ['var(--color-danger)', 'var(--color-warning)', '#f97316', 'var(--color-success)']
 
 const passwordStrength = computed(() => {
   const val = password.value
@@ -50,8 +50,6 @@ const strengthColor = computed(() => {
 function validatePassword(value: string): string | null {
   if (!value) return '请输入密码'
   if (value.length < 8 || value.length > 64) return '密码长度为 8-64 个字符'
-  const kinds = [/[A-Z]/, /[a-z]/, /[0-9]/, /[^A-Za-z0-9]/].filter((re) => re.test(value)).length
-  if (kinds < 3) return '需包含大写、小写、数字、特殊字符中至少三种'
   return null
 }
 
@@ -213,7 +211,19 @@ onMounted(verify)
             <el-input :model-value="email" disabled />
           </el-form-item>
           <el-form-item label="密码">
-            <el-input v-model="password" type="password" show-password placeholder="请输入密码" @keyup.enter="handleLoginJoin" />
+            <el-input v-model="password" type="password" show-password placeholder="8-64 字符" />
+            <div v-if="password" class="pwd-strength">
+              <div class="pwd-strength__bar">
+                <div
+                  v-for="i in 4"
+                  :key="i"
+                  class="pwd-strength__segment"
+                  :class="{ 'pwd-strength__segment--active': i <= passwordStrength }"
+                  :style="i <= passwordStrength ? { backgroundColor: STRENGTH_COLORS[i - 1] } : undefined"
+                />
+              </div>
+              <span class="pwd-strength__label" :style="{ color: strengthColor }">{{ strengthLabel }}</span>
+            </div>
           </el-form-item>
           <el-form-item>
             <el-button type="primary" :loading="submitting" class="join-page__submit" @click="handleLoginJoin">
