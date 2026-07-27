@@ -38,7 +38,7 @@ async function enterWorkspace(ws: WorkspaceItem) {
   } catch {
     // 偏好保存失败不阻塞进入
   }
-  router.push('/workspace/projects')
+  router.push(ws.defaultProjectId ? '/workspace/projects/dashboard' : '/workspace/projects')
 }
 
 function roleTagType(role: string): 'warning' | 'info' {
