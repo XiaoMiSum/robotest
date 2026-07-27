@@ -50,9 +50,8 @@ async function loadUsers() {
 
 async function loadFilterOptions() {
   try {
-    const tree = await fetchRoleList()
-    const systemGroup = tree.find((node) => node.type === 'system')
-    roleOptions.value = (systemGroup?.children ?? []).map((r) => ({
+    const list = await fetchRoleList('system')
+    roleOptions.value = list.map((r) => ({
       id: r.id,
       name: r.name,
       type: 'system',
