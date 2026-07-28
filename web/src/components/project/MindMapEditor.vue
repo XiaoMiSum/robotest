@@ -799,17 +799,20 @@ onBeforeUnmount(() => {
   height: 100%;
 }
 
-/* 键盘接收器（编辑内核注入）：平时隐藏只接收键盘，进入 input 态叠加到节点文本上形成原位编辑框 */
+/* 键盘接收器（编辑内核注入）：平时隐藏只接收键盘；
+   进入 input 态时节点自身文本被隐藏，接收器透明叠合在文本位置上，
+   字号/字色/行高由 input runtime 内联设置，形成“直接在节点内编辑”的观感 */
 .minder-canvas :deep(.km-receiver) {
   position: absolute;
   z-index: 20;
   opacity: 0;
   pointer-events: none;
-  padding: 3px 6px;
-  min-width: 40px;
+  padding: 0;
+  min-width: 1em;
   max-width: 300px;
+  border: none;
   outline: none;
-  line-height: 1.4;
+  background: transparent;
   white-space: pre-wrap;
   word-break: break-all;
 }
@@ -817,11 +820,7 @@ onBeforeUnmount(() => {
 .minder-canvas :deep(.km-receiver.input) {
   opacity: 1;
   pointer-events: auto;
-  border: 2px solid var(--el-color-primary);
-  border-radius: 4px;
-  background: var(--el-bg-color);
-  color: var(--el-text-color-primary);
-  box-shadow: var(--el-box-shadow-light);
+  caret-color: var(--el-color-primary);
 }
 
 /* 右键菜单 */

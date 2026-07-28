@@ -10,6 +10,17 @@ export interface RenderBox {
   height: number
 }
 
+// 节点渲染图形（kity Shape）：原位编辑时需要隐藏节点文本并读取字色
+// 注意：core 每次 noderender 会强制 setVisible(true)，隐藏必须用 setOpacity(0)
+export interface RenderShape {
+  setOpacity(value: number): unknown
+  node: SVGElement
+}
+
+export interface NodeRenderer {
+  getRenderShape(): RenderShape | null
+}
+
 export interface MinderNode {
   data: Record<string, unknown>
   getData(key: string): unknown
@@ -18,6 +29,7 @@ export interface MinderNode {
   getChildren(): MinderNode[]
   getChild(index: number): MinderNode
   getRenderBox(rendererType?: string, refer?: unknown): RenderBox
+  getRenderer(rendererType: string): NodeRenderer | null
   render(): MinderNode
 }
 
