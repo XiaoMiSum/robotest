@@ -13,6 +13,7 @@ import {
   getNodeReviewRecords,
 } from '@/services/project'
 import type { ReviewMark, ReviewRecord } from '@/types'
+import { formatDateTime } from '@/utils/format'
 // window.kity / window.kityminder 的类型声明在 minder/types.ts 中统一维护
 import { reviewNodeToKm } from './minder/adapter'
 import { loadMinderEngine } from './minder/loader'
@@ -205,23 +206,37 @@ onBeforeUnmount(() => {
     </MinderContextMenu>
 
     <!-- 评论抽屉 -->
-    <el-drawer v-model="commentVisible" title="评论" :size="360">
+    <el-drawer v-model="commentVisible" title="评审记录" :size="380" class="comment-drawer">
       <div class="comment-list">
         <div v-for="c in comments" :key="c.id" class="comment-item">
-          <div class="comment-item__header">
-            <strong>{{ c.reviewerName }}</strong>
-            <el-tag v-if="c.operationType === 'mark'" size="small" :type="c.mark === 'pass' ? 'success' : c.mark === 'fail' ? 'danger' : 'info'">
-              {{ c.mark === 'pass' ? '通过' : c.mark === 'fail' ? '不通过' : '待评审' }}
-            </el-tag>
-            <small>{{ c.createdAt }}</small>
+          <div class="comment-item__avatar">{{ c.reviewerName.charAt(0).toUpperCase() }}</div>
+          <div class="comment-item__main">
+            <div class="comment-item__header">
+              <span class="comment-item__name">{{ c.reviewerName }}</span>
+              <el-tag v-if="c.operationType === 'mark'" size="small" effect="light" round :type="c.mark === 'pass' ? 'success' : c.mark === 'fail' ? 'danger' : 'info'">
+                {{ c.mark === 'pass' ? '标记通过' : c.mark === 'fail' ? '标记不通过' : '重置待评审' }}
+              </el-tag>
+            </div>
+            <p v-if="c.comment" class="comment-item__body">{{ c.comment }}</p>
+            <div class="comment-item__time">{{ formatDateTime(c.createdAt) }}</div>
           </div>
-          <p v-if="c.comment" class="comment-item__body">{{ c.comment }}</p>
         </div>
-        <el-empty v-if="!comments.length" description="暂无评论或标记记录" :image-size="40" />
+        <el-empty v-if="!comments.length" description="暂无评论或标记记录" :image-size="48" />
       </div>
       <div class="comment-input">
-        <el-input v-model="newComment" placeholder="输入评论..." @keyup.enter="addCommentFn" />
-        <el-button type="primary" size="small" :disabled="!newComment.trim()" @click="addCommentFn">发送</el-button>
+        <el-input
+          v-model="newComment"
+          type="textarea"
+          :rows="2"
+          resize="none"
+          maxlength="500"
+          show-word-limit
+          placeholder="输入评论，Enter 发送"
+          @keydown.enter.prevent="addCommentFn"
+        />
+        <div class="comment-input__footer">
+          <el-button type="primary" size="small" :disabled="!newComment.trim()" @click="addCommentFn">发送</el-button>
+        </div>
       </div>
     </el-drawer>
   </div>
@@ -230,42 +245,89 @@ onBeforeUnmount(() => {
 <style scoped lang="scss">
 @use './minder/minder-base';
 
-/* 评论 */
+/* 评论抽屉：body 撑满成 flex 列，列表滚动、输入区固定底部；
+   drawer 会 teleport 到 body，scoped :deep 命中不了，须用 :global */
+:global(.comment-drawer .el-drawer__body) {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+}
+
 .comment-list {
   flex: 1;
   overflow-y: auto;
-  margin-bottom: 12px;
+  padding: var(--space-md) var(--space-lg);
 }
 
 .comment-item {
+  display: flex;
+  gap: 10px;
   padding: 10px 0;
-  border-bottom: 1px solid var(--el-border-color-lighter);
+
+  & + .comment-item {
+    border-top: 1px solid var(--el-border-color-lighter);
+  }
+}
+
+.comment-item__avatar {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--el-color-primary-light-8);
+  color: var(--el-color-primary);
+  font-size: 13px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.comment-item__main {
+  flex: 1;
+  min-width: 0;
 }
 
 .comment-item__header {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 4px;
 }
 
-.comment-item__header small {
-  margin-left: auto;
-  color: var(--el-text-color-secondary);
-  font-size: 11px;
+.comment-item__name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--el-text-color-primary);
 }
 
 .comment-item__body {
-  margin: 0;
+  margin: 6px 0 0;
+  padding: 8px 10px;
   font-size: 13px;
+  line-height: 1.6;
   color: var(--el-text-color-regular);
-  line-height: 1.5;
+  background: var(--el-fill-color-light);
+  border-radius: 6px;
+  word-break: break-word;
+}
+
+.comment-item__time {
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--el-text-color-secondary);
 }
 
 .comment-input {
-  display: flex;
-  gap: 8px;
-  padding-top: 12px;
+  flex-shrink: 0;
+  padding: var(--space-md) var(--space-lg);
   border-top: 1px solid var(--el-border-color-lighter);
+  background: #fff;
+}
+
+.comment-input__footer {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 8px;
 }
 </style>
