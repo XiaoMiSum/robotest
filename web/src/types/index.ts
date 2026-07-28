@@ -33,7 +33,7 @@ export interface LoginUser {
   avatarUrl?: string
   status: string
   roles: string[]
-  authorities: string[]
+  permissions: string[]
   hasWorkspace: boolean
 }
 
@@ -311,10 +311,16 @@ export interface TestCaseNode {
   children: TestCaseNode[]
 }
 
+/** 文档布局：模板名 + 各节点自由拖拽偏移（键为节点 data 中的 layout_*_offset 原始键名） */
+export interface DocumentLayout {
+  template?: string
+  offsets?: Record<string, Record<string, { x: number; y: number }>>
+}
+
 /** 文档节点响应（脑图根节点 + 布局） */
 export interface DocumentNodes {
   node: TestCaseNode
-  layout: string | null
+  layout: DocumentLayout | null
 }
 
 /** 用例列表项 */
