@@ -5,13 +5,13 @@ import type { InputRuntime } from './input'
 import type { History } from './history'
 
 /**
- * 键盘导流（移植自 kityminder-editor 的 jumping runtime）：
- * normal 态下选中节点直接打字即进入编辑（打字即编辑）、F2 编辑；
+ * 键盘导流（移植自 kityminder-editor 的 jumping runtime，去掉了打字即编辑）：
+ * normal 态下 F2 进入编辑（双击编辑由 input runtime 监听），普通打字吞掉；
  * 其余按键转发给 core 的键盘系统（Tab 插入子节点、Enter 插入兄弟、Delete 删除、方向键导航等）。
  * input 态下 Enter 提交、Esc 取消、Tab 拦截（避免焦点跳出接收器）。
  */
 
-// 判断按键意图是否为“开始输入文字”：字母、数字、小键盘（除除号）、IME 组合键
+// 判断按键意图是否为“输入文字”：字母、数字、小键盘（除除号）、IME 组合键
 function isIntendToInput(e: KeyboardEvent): boolean {
   if (e.ctrlKey || e.metaKey || e.altKey) return false
   const keyCode = e.keyCode
@@ -53,7 +53,8 @@ export function setupJumping(options: {
         return true
       }
       if (isIntendToInput(e)) {
-        fsm.jump('input', 'user-input')
+        // 编辑需双击/F2 显式激活，普通打字吞掉，避免字符污染隐藏的接收器
+        e.preventDefault()
         return true
       }
     } else {
