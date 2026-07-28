@@ -6,17 +6,34 @@
   position: relative;
 }
 
+/* 悬浮胶囊工具栏：对齐交互设计文档"悬浮于画布顶部、水平居中、半透明磨砂"，
+   absolute 定位不占画布高度 */
 .mindmap-toolbar {
+  position: absolute;
+  top: var(--space-md);
+  left: 50%;
+  transform: translateX(-50%);
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 8px 12px;
-  background: var(--el-bg-color-overlay);
+  justify-content: center;
+  gap: var(--space-xs);
+  padding: 4px 8px;
+  max-width: calc(100% - var(--space-xl));
+  background: rgba(255, 255, 255, 0.88);
   backdrop-filter: blur(8px);
-  border-bottom: 1px solid var(--el-border-color-lighter);
-  flex-shrink: 0;
+  border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
   flex-wrap: wrap;
   z-index: 10;
+}
+
+/* 工具栏功能域分组：不用 el-button-group 是因为按钮需包 el-tooltip，
+   tooltip 包裹会破坏 button-group 的相邻边框合并 */
+.toolbar-group {
+  display: flex;
+  align-items: center;
+  gap: 2px;
 }
 
 .minder-canvas {

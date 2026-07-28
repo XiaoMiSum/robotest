@@ -486,52 +486,70 @@ onBeforeUnmount(() => {
       连接已断开，正在重连...
     </div>
 
-    <!-- 编辑工具栏 -->
+    <!-- 编辑工具栏：按操作频率分域——历史 | 节点结构 | 标记（类型+优先级） | 视图布局 -->
     <div class="mindmap-toolbar">
-      <el-button-group size="small" class="type-group">
-        <el-button :type="selectedType==='case'?'primary':''" @click="markAs('case')">📋用例</el-button>
-        <el-button :type="selectedType==='precondition'?'primary':''" @click="markAs('precondition')">📘前置</el-button>
-        <el-button :type="selectedType==='step'?'primary':''" @click="markAs('step')">📗步骤</el-button>
-        <el-button :type="selectedType==='expected'?'primary':''" @click="markAs('expected')">📙预期</el-button>
-      </el-button-group>
+      <div class="toolbar-group">
+        <el-tooltip content="撤销 (Ctrl+Z)" placement="bottom">
+          <el-button size="small" text :disabled="!canUndo" @click="undo"><el-icon><RefreshLeft /></el-icon></el-button>
+        </el-tooltip>
+        <el-tooltip content="重做 (Ctrl+Y)" placement="bottom">
+          <el-button size="small" text :disabled="!canRedo" @click="redo"><el-icon><RefreshRight /></el-icon></el-button>
+        </el-tooltip>
+      </div>
       <el-divider direction="vertical" />
-      <el-button-group size="small" class="priority-group">
-        <el-button v-for="p in priorities" :key="p" :type="selectedPriority===p?'warning':''" @click="markPriority(p)">{{ p }}</el-button>
-      </el-button-group>
+      <div class="toolbar-group">
+        <el-tooltip content="添加子节点 (Tab)" placement="bottom">
+          <el-button size="small" text @click="addChild"><el-icon><Plus /></el-icon><span>子级</span></el-button>
+        </el-tooltip>
+        <el-tooltip content="添加兄弟节点 (Enter)" placement="bottom">
+          <el-button size="small" text @click="addSibling"><el-icon><Plus /></el-icon><span>同级</span></el-button>
+        </el-tooltip>
+        <el-tooltip content="编辑内容 (双击节点/F2)" placement="bottom">
+          <el-button size="small" text @click="editSelectedText"><el-icon><EditPen /></el-icon></el-button>
+        </el-tooltip>
+        <el-tooltip content="删除 (Delete)" placement="bottom">
+          <el-button size="small" text class="toolbar-btn--danger" @click="deleteNode"><el-icon><Delete /></el-icon></el-button>
+        </el-tooltip>
+      </div>
       <el-divider direction="vertical" />
-      <el-button-group size="small">
-        <el-button title="编辑内容 (双击节点/F2)" @click="editSelectedText">✏️编辑</el-button>
-        <el-button title="添加子节点 (Tab)" @click="addChild">＋子</el-button>
-        <el-button title="添加兄弟节点 (Enter)" @click="addSibling">＋兄</el-button>
-        <el-button title="删除 (Delete)" @click="deleteNode">🗑</el-button>
-      </el-button-group>
+      <div class="toolbar-group">
+        <el-button size="small" text :class="['type-btn', { 'is-selected': selectedType === 'case' }]" @click="markAs('case')"><span class="type-dot type-dot--case" /><span>用例</span></el-button>
+        <el-button size="small" text :class="['type-btn', { 'is-selected': selectedType === 'precondition' }]" @click="markAs('precondition')"><span class="type-dot type-dot--precondition" /><span>前置</span></el-button>
+        <el-button size="small" text :class="['type-btn', { 'is-selected': selectedType === 'step' }]" @click="markAs('step')"><span class="type-dot type-dot--step" /><span>步骤</span></el-button>
+        <el-button size="small" text :class="['type-btn', { 'is-selected': selectedType === 'expected' }]" @click="markAs('expected')"><span class="type-dot type-dot--expected" /><span>预期</span></el-button>
+      </div>
+      <div class="toolbar-group">
+        <el-button
+          v-for="p in priorities"
+          :key="p"
+          size="small"
+          text
+          :class="['priority-btn', `priority-btn--${p.toLowerCase()}`, { 'is-selected': selectedPriority === p }]"
+          @click="markPriority(p)"
+        >{{ p }}</el-button>
+      </div>
       <el-divider direction="vertical" />
-      <el-button-group size="small">
-        <el-button :disabled="!canUndo" @click="undo">↩</el-button>
-        <el-button :disabled="!canRedo" @click="redo">↪</el-button>
-      </el-button-group>
-      <el-divider direction="vertical" />
-      <el-dropdown size="small" @command="switchTemplate">
-        <el-button size="small" title="切换布局模板">🗺{{ currentTemplateLabel }} ▾</el-button>
-        <template #dropdown>
-          <el-dropdown-menu>
-            <el-dropdown-item
-              v-for="t in templates"
-              :key="t.name"
-              :command="t.name"
-              :disabled="t.name === currentTemplate"
-            >
-              {{ t.label }}
-            </el-dropdown-item>
-          </el-dropdown-menu>
-        </template>
-      </el-dropdown>
-      <el-button size="small" title="清除手动拖拽的节点偏移，恢复自动排版" @click="tidyLayout">🧹整理</el-button>
-      <!-- 在线用户头像 -->
-      <div v-if="onlineUsers.length" class="online-users">
-        <el-avatar v-for="user in onlineUsers" :key="user.id" :size="24" :style="{ border: `2px solid ${user.color}` }">
-          {{ user.name.charAt(0) }}
-        </el-avatar>
+      <div class="toolbar-group">
+        <el-dropdown size="small" @command="switchTemplate">
+          <el-button size="small" text>
+            <el-icon><Grid /></el-icon><span>{{ currentTemplateLabel }}</span><el-icon class="toolbar-caret"><ArrowDown /></el-icon>
+          </el-button>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item
+                v-for="t in templates"
+                :key="t.name"
+                :command="t.name"
+                :disabled="t.name === currentTemplate"
+              >
+                {{ t.label }}
+              </el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
+        <el-tooltip content="清除手动拖拽的节点偏移，恢复自动排版" placement="bottom">
+          <el-button size="small" text @click="tidyLayout"><el-icon><MagicStick /></el-icon></el-button>
+        </el-tooltip>
       </div>
     </div>
 
@@ -541,6 +559,13 @@ onBeforeUnmount(() => {
       class="minder-canvas"
       @contextmenu.prevent="onContextMenu"
     />
+
+    <!-- 在线用户头像：悬浮画布右上角，状态展示不进操作条 -->
+    <div v-if="onlineUsers.length" class="online-users">
+      <el-avatar v-for="user in onlineUsers" :key="user.id" :size="24" :style="{ border: `2px solid ${user.color}` }">
+        {{ user.name.charAt(0) }}
+      </el-avatar>
+    </div>
 
     <!-- 导航器：缩放条/定位根节点/抓手/缩略图/全屏；minder 切换文档重建时随 v-if 重建 -->
     <MinderNavigator v-if="minder && !loading" :minder="minder" />
@@ -586,10 +611,77 @@ onBeforeUnmount(() => {
   flex-shrink: 0;
 }
 
+/* 横幅出现时悬浮元素整体下移，避免叠在横幅上 */
+.mindmap-disconnect-banner + .mindmap-toolbar,
+.mindmap-disconnect-banner ~ .online-users {
+  top: 40px;
+}
+
 .online-users {
-  margin-left: auto;
+  position: absolute;
+  top: var(--space-md);
+  right: var(--space-md);
+  z-index: 10;
   display: flex;
   gap: 4px;
+}
+
+/* 类型标记按钮：左侧色点与节点渲染色一一对应，选中态主色浅底 */
+.type-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 4px;
+  flex-shrink: 0;
+}
+
+.type-dot--case { background: var(--color-node-case); }
+.type-dot--precondition { background: var(--color-node-precondition); }
+.type-dot--step { background: var(--color-node-step); }
+.type-dot--expected { background: var(--color-node-expected); }
+
+.type-btn.is-selected {
+  background-color: var(--color-primary-50);
+  /* text 按钮 hover 底色取自该变量，选中态下悬停加深一档 */
+  --el-fill-color-light: var(--color-primary-100);
+  --el-button-text-color: var(--color-primary-600);
+  --el-button-hover-text-color: var(--color-primary-600);
+}
+
+/* 优先级按钮：选中态底色直接用优先级令牌色，与节点徽标颜色一致 */
+.priority-btn.is-selected {
+  --el-button-text-color: #fff;
+  --el-button-hover-text-color: #fff;
+}
+
+.priority-btn--p0.is-selected {
+  background-color: var(--color-priority-p0);
+  --el-fill-color-light: var(--color-priority-p0);
+}
+
+.priority-btn--p1.is-selected {
+  background-color: var(--color-priority-p1);
+  --el-fill-color-light: var(--color-priority-p1);
+}
+
+.priority-btn--p2.is-selected {
+  background-color: var(--color-priority-p2);
+  --el-fill-color-light: var(--color-priority-p2);
+}
+
+.priority-btn--p3.is-selected {
+  background-color: var(--color-priority-p3);
+  --el-fill-color-light: var(--color-priority-p3);
+}
+
+.toolbar-btn--danger {
+  --el-button-hover-text-color: var(--color-danger);
+}
+
+.toolbar-caret {
+  margin-left: 2px;
+  font-size: 10px;
 }
 
 /* 键盘接收器（编辑内核注入）：平时隐藏只接收键盘；
