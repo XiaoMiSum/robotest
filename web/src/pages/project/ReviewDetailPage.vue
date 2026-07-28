@@ -2,11 +2,20 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { completeReview, getReviewDetail, getReviewModuleTree, getReviewProgress, syncReview } from '@/services/project'
-import type { SnapshotModule, TestReviewDetail, TestReviewProgress } from '@/types'
+import {
+  completeReview,
+  getReviewDetail,
+  getReviewModuleTree,
+  getReviewPlannedCases,
+  getReviewProgress,
+  syncReview,
+  updateReviewCases,
+} from '@/services/project'
+import type { PlannedCases, SnapshotModule, TestReviewDetail, TestReviewProgress } from '@/types'
 import { formatDateTime } from '@/utils/format'
 import ReviewMindMap from '@/components/project/ReviewMindMap.vue'
 import SnapshotModuleTree from '@/components/project/SnapshotModuleTree.vue'
+import CaseSelector from '@/components/project/CaseSelector.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -93,6 +102,30 @@ async function handleSync() {
   }
 }
 
+// 调整规划用例：弹窗回显当前选择，确认后提交差量并整页重载
+const selectorVisible = ref(false)
+const plannedCases = ref<PlannedCases[]>([])
+
+async function openCaseSelector() {
+  try {
+    plannedCases.value = await getReviewPlannedCases(reviewId)
+    selectorVisible.value = true
+  } catch (err) {
+    ElMessage.error(err instanceof Error ? err.message : '加载规划用例失败')
+  }
+}
+
+async function handleCasesConfirm(selectedNodes: PlannedCases[]) {
+  try {
+    await updateReviewCases(reviewId, selectedNodes)
+    ElMessage.success('规划用例已更新')
+    await load()
+    mindMapRef.value?.reload()
+  } catch (err) {
+    ElMessage.error(err instanceof Error ? err.message : '更新规划用例失败')
+  }
+}
+
 onMounted(load)
 </script>
 
@@ -126,6 +159,7 @@ onMounted(load)
             </div>
           </div>
           <div v-if="detail?.status === 'in_progress'" class="review-detail__actions">
+            <el-button size="small" @click="openCaseSelector">调整用例</el-button>
             <el-button size="small" @click="handleSync">同步最新用例</el-button>
             <el-tooltip :disabled="canComplete" content="全部用例评审通过后才能完成评审" placement="bottom">
               <span>
@@ -152,6 +186,8 @@ onMounted(load)
         <ReviewMindMap v-else ref="mindMapRef" :review-id="reviewId" :document-id="selectedDocId" />
       </el-card>
     </div>
+
+    <CaseSelector v-model="selectorVisible" :initial-selected="plannedCases" @confirm="handleCasesConfirm" />
   </div>
 </template>
 

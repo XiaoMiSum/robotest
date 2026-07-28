@@ -12,6 +12,7 @@ import type {
   ExecutionRecord,
   ExecutionResult,
   PageResult,
+  PlannedCases,
   PlanStatus,
   ProjectDashboard,
   ReviewMark,
@@ -142,6 +143,14 @@ export function getPlanModuleTree(id: string): Promise<SnapshotModule[]> {
   return get(`/project/plans/${id}/module-tree`)
 }
 
+export function getPlanPlannedCases(id: string): Promise<PlannedCases[]> {
+  return get(`/project/plans/${id}/cases`)
+}
+
+export function updatePlanCases(id: string, selectedNodes: PlannedCases[]): Promise<void> {
+  return put(`/project/plans/${id}/cases`, { selectedNodes })
+}
+
 export function submitExecutionRecord(
   planId: string,
   data: { snapshotNodeId: string; result: ExecutionResult; note?: string },
@@ -204,6 +213,14 @@ export function getReviewSnapshotTree(
 
 export function getReviewModuleTree(id: string): Promise<SnapshotModule[]> {
   return get(`/project/reviews/${id}/module-tree`)
+}
+
+export function getReviewPlannedCases(id: string): Promise<PlannedCases[]> {
+  return get(`/project/reviews/${id}/cases`)
+}
+
+export function updateReviewCases(id: string, selectedNodes: PlannedCases[]): Promise<void> {
+  return put(`/project/reviews/${id}/cases`, { selectedNodes })
 }
 
 export function submitReviewRecord(
