@@ -17,6 +17,9 @@ importers:
       element-plus:
         specifier: ^2.9.1
         version: 2.14.3(vue@3.5.40(typescript@5.7.3))
+      kity:
+        specifier: 2.0.4
+        version: 2.0.4
       kityminder-core:
         specifier: ^1.4.50
         version: 1.4.50
