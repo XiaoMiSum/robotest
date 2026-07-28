@@ -296,6 +296,16 @@ export interface TestCaseModule {
   children: TestCaseModule[]
 }
 
+/** 评审/计划模块快照树节点（目录/文档层级，供详情页左侧文档切换） */
+export interface SnapshotModule {
+  id: string
+  parentId: string | null
+  name: string
+  type: ModuleType
+  sortOrder: number
+  children: SnapshotModule[]
+}
+
 /** 用例节点类型 */
 export type CaseNodeType = 'case' | 'normal' | 'precondition' | 'step' | 'expected'
 

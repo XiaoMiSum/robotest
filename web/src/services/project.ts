@@ -17,6 +17,7 @@ import type {
   ReviewMark,
   ReviewRecord,
   ReviewStatus,
+  SnapshotModule,
   TestCaseModule,
   TestCaseNode,
   TestPlanDetail,
@@ -137,6 +138,10 @@ export function getPlanSnapshotTree(
   return get(`/project/plans/${id}/modules`, documentId ? { documentId } : undefined)
 }
 
+export function getPlanModuleTree(id: string): Promise<SnapshotModule[]> {
+  return get(`/project/plans/${id}/module-tree`)
+}
+
 export function submitExecutionRecord(
   planId: string,
   data: { snapshotNodeId: string; result: ExecutionResult; note?: string },
@@ -195,6 +200,10 @@ export function getReviewSnapshotTree(
   documentId?: string,
 ): Promise<TestReviewSnapshotNode[]> {
   return get(`/project/reviews/${id}/modules`, documentId ? { documentId } : undefined)
+}
+
+export function getReviewModuleTree(id: string): Promise<SnapshotModule[]> {
+  return get(`/project/reviews/${id}/module-tree`)
 }
 
 export function submitReviewRecord(

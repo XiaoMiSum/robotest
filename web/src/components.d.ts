@@ -64,6 +64,7 @@ declare module 'vue' {
     RoleUsersTable: typeof import('./components/admin/RoleUsersTable.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
+    SnapshotModuleTree: typeof import('./components/project/SnapshotModuleTree.vue')['default']
     UserPickerDialog: typeof import('./components/admin/UserPickerDialog.vue')['default']
   }
   export interface GlobalDirectives {
