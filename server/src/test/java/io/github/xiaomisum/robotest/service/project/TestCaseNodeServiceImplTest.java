@@ -87,7 +87,7 @@ class TestCaseNodeServiceImplTest {
         assertNotNull(result);
         assertNotNull(result.getNode());
         assertEquals("Root", result.getNode().getTitle());
-        assertEquals("{x=0, y=0}", result.getLayout());
+        assertEquals(layoutMap, result.getLayout());
     }
 
     @Test
