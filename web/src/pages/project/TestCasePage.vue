@@ -3,7 +3,7 @@ import { ref } from 'vue'
 import { onBeforeRouteLeave } from 'vue-router'
 import { ElMessageBox } from 'element-plus'
 import ModuleTree from '@/components/project/ModuleTree.vue'
-import MindMapEditor from '@/components/project/MindMapEditor.vue'
+import CaseMindMap from '@/components/project/CaseMindMap.vue'
 
 const selectedDocId = ref('')
 const selectedDocName = ref('')
@@ -45,7 +45,7 @@ defineExpose({ confirmLeave })
             <el-icon><Document /></el-icon>
             <span>{{ selectedDocName }}</span>
           </div>
-          <MindMapEditor :doc-id="selectedDocId" mode="edit" />
+          <CaseMindMap :doc-id="selectedDocId" />
         </template>
       </el-card>
     </div>

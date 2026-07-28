@@ -1,7 +1,7 @@
 import type { TestCaseNode, TestReviewSnapshotNode, TestPlanSnapshotNode } from '@/types'
 
 /**
- * 后端节点树 ⇄ kityminder JSON 的映射（从 MindMapEditor.vue 抽出以便单测）。
+ * 后端节点树 ⇄ kityminder JSON 的映射（从各模式脑图组件抽出以便单测）。
  * 落库字段格式不变：type 为原枚举、priority 为 'P0'-'P3'。
  */
 export function caseNodeToKm(node: TestCaseNode): Record<string, unknown> {

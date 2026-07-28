@@ -1,52 +1,34 @@
 <script setup lang="ts">
 /**
- * MindMapEditor 直接调用 services 而非通过 props 接收数据，
+ * CaseMindMap 直接调用 services 而非通过 props 接收数据，
  * 因为脑图组件承担"容器组件"角色：需管理 WebSocket 连接生命周期、
- * 响应用户标记操作并即时提交，数据流与交互深度耦合，
- * 抽到 page 层会导致大量 props/emit 透传且破坏协作状态一致性。
- * 设计文档第 13 节代码骨架同样在组件内直接调用 API。
+ * 编辑操作与持久化/协同深度耦合，抽到 page 层会导致大量 props/emit
+ * 透传且破坏协作状态一致性。设计文档第 13 节代码骨架同样在组件内直接调用 API。
  */
 import { onMounted, onBeforeUnmount, ref, watch, computed, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
-import {
-  fetchDocumentNodes,
-  getReviewSnapshotTree,
-  getPlanSnapshotTree,
-  submitReviewRecord,
-  submitExecutionRecord,
-  getNodeReviewRecords,
-} from '@/services/project'
+import { fetchDocumentNodes } from '@/services/project'
 import { getAccessToken } from '@/services'
-import type { DocumentLayout, ExecutionResult, ReviewMark, ReviewRecord } from '@/types'
+import type { DocumentLayout } from '@/types'
 import * as Y from 'yjs'
 import { WebsocketProvider } from 'y-websocket'
 // window.kity / window.kityminder 的类型声明在 minder/types.ts 中统一维护
 import { KMEditor } from './minder/editor'
 import { DEFAULT_NODE_TEXT } from './minder/jumping'
-import { caseNodeToKm, reviewNodeToKm, planNodeToKm, uuidv7, UUID_RE } from './minder/adapter'
+import { caseNodeToKm, uuidv7, UUID_RE } from './minder/adapter'
 import { loadMinderEngine } from './minder/loader'
 import { useMinderInstance } from './minder/useMinderInstance'
 import { useContextMenu, type ContextMenuAnchorNode } from './minder/useContextMenu'
 import MinderContextMenu from './minder/MinderContextMenu.vue'
 import MinderNavigator from './minder/MinderNavigator.vue'
 
-const props = defineProps<{
-  docId?: string
-  reviewId?: string
-  planId?: string
-  mode: 'edit' | 'review' | 'plan'
-  readonly?: boolean
-}>()
+const props = defineProps<{ docId: string }>()
 
-const emit = defineEmits<{ nodeSelect: [nodeId: string, nodeType: string] }>()
-
-// 编辑内核（仅 edit 模式创建）：contenteditable 接收器统一接管键盘，提供原位编辑与打字即编辑
+// 编辑内核：contenteditable 接收器统一接管键盘，提供原位编辑与打字即编辑
 let kmEditor: KMEditor | null = null
 
-// 各模式在基座选中状态（id/type）之上的扩展字段
+// 基座选中状态（id/type）之上的扩展字段
 const selectedPriority = ref('')
-const reviewResult = ref<string | null>(null)
-const execResult = ref<string | null>(null)
 const canUndo = ref(false)
 const canRedo = ref(false)
 
@@ -66,28 +48,16 @@ const {
 } = useMinderInstance({
   onSelectionChange(data) {
     selectedPriority.value = data ? (data.priority as string) || '' : ''
-    reviewResult.value = data ? (data.lastMark as string) || null : null
-    execResult.value = data ? (data.lastResult as string) || null : null
-    if (data) emit('nodeSelect', selectedNodeId.value, selectedType.value)
   },
 })
 
-// 评论抽屉
-const commentVisible = ref(false)
-const comments = ref<ReviewRecord[]>([])
-const newComment = ref('')
-
-// Yjs 实时协作（仅 edit 模式）
+// Yjs 实时协作
 let ydoc: Y.Doc | null = null
 let wsProvider: WebsocketProvider | null = null
 const onlineUsers = ref<{ id: string; name: string; color: string }[]>([])
 const isConnected = ref(true)
 
 const priorities = ['P0', 'P1', 'P2', 'P3']
-
-const isEdit = computed(() => props.mode === 'edit' && !props.readonly)
-const isReview = computed(() => props.mode === 'review' && !props.readonly)
-const isPlan = computed(() => props.mode === 'plan' && !props.readonly)
 
 // ==================== 文档持久化（JSON 操作通路） ====================
 // Yjs 二进制帧仅做实时协同转发、不落库；节点增删改需经同一连接的文本帧
@@ -178,7 +148,7 @@ function sendPersistOp(socket: WebSocket, type: string, data: Record<string, unk
 }
 
 function flushPersistence() {
-  if (!isEdit.value || !getMinder()) return
+  if (!getMinder()) return
   const socket = getProviderSocket()
   if (!socket) return
   const current = collectLiveNodes()
@@ -270,7 +240,7 @@ function flushPersistenceNow() {
   flushPersistence()
 }
 
-// ==================== Yjs 实时协作（编辑模式） ====================
+// ==================== Yjs 实时协作 ====================
 function setupYjs(docId: string) {
   destroyYjs()
   ydoc = new Y.Doc()
@@ -291,7 +261,7 @@ function setupYjs(docId: string) {
     }
   })
 
-// 协作感知：跟踪其他在线用户以渲染彩色光标
+  // 协作感知：跟踪其他在线用户以渲染彩色光标
   const awareness = wsProvider.awareness
   awareness.setLocalStateField('user', { name: 'me', color: '#4A90D9' })
   awareness.on('change', () => {
@@ -345,14 +315,14 @@ function destroyYjs() {
 }
 
 // ==================== 初始化 ====================
-// edit 模式的实例经编辑内核创建，销毁也须走内核（接收器/历史等 runtime 一并清理）
+// 实例经编辑内核创建，销毁也须走内核（接收器/历史等 runtime 一并清理）
 function teardownMinder() {
   destroyMinder(kmEditor ? () => kmEditor?.destroy() : undefined)
   kmEditor = null
 }
 
 async function initMinder() {
-  if (!containerRef.value) return
+  if (!containerRef.value || !props.docId) return
   const token = beginInit()
   loading.value = true
   // 切换文档前冲刷防抖中的增量编辑，避免旧文档最后一次修改丢失
@@ -360,65 +330,40 @@ async function initMinder() {
   destroyYjs()
   teardownMinder()
   try {
-    let kmData: Record<string, unknown>
+    const docData = await fetchDocumentNodes(props.docId)
+    const root = caseNodeToKm(docData.node)
+    // 应用已保存的布局：模板 + 自由拖拽偏移；无记录时回退默认右侧分布
+    applyLayoutOffsets(root, docData.layout?.offsets)
+    const template = docData.layout?.template || 'right'
+    currentTemplate.value = template
+    const kmData = { root, template, theme: 'fresh-blue' }
 
-    if (props.mode === 'edit' && props.docId) {
-      const docData = await fetchDocumentNodes(props.docId)
-      const root = caseNodeToKm(docData.node)
-      // 应用已保存的布局：模板 + 自由拖拽偏移；无记录时回退默认右侧分布
-      applyLayoutOffsets(root, docData.layout?.offsets)
-      const template = docData.layout?.template || 'right'
-      currentTemplate.value = template
-      kmData = { root, template, theme: 'fresh-blue' }
-    } else if (props.mode === 'review' && props.reviewId) {
-      const tree = await getReviewSnapshotTree(props.reviewId)
-      const root = tree.length ? reviewNodeToKm(tree[0]) : { data: { text: '空快照' }, children: [] }
-      kmData = { root, template: 'right', theme: 'fresh-green' }
-    } else if (props.mode === 'plan' && props.planId) {
-      const tree = await getPlanSnapshotTree(props.planId)
-      const root = tree.length ? planNodeToKm(tree[0]) : { data: { text: '空快照' }, children: [] }
-      kmData = { root, template: 'right', theme: 'fresh-purple' }
-    } else {
-      return
-    }
-
-    const km = await loadMinderEngine()
+    await loadMinderEngine()
     // 异步等待期间组件可能已卸载或已切换文档，过期结果直接丢弃
     if (isStale(token) || !containerRef.value) return
 
-    // edit 模式经编辑内核创建（键盘接收器/原位编辑/撤销重做）；review/plan 只读，裸 minder 即可
-    let instance: unknown
-    if (props.mode === 'edit') {
-      kmEditor = new KMEditor(containerRef.value, {
-        // 远端协同回放不入本地撤销栈，避免撤销掉他人的编辑
-        historyFrozen: () => applyingRemote,
-        onHistoryChange: () => {
-          canUndo.value = kmEditor?.history.hasUndo() ?? false
-          canRedo.value = kmEditor?.history.hasRedo() ?? false
-        },
-        // 空格唤醒右键菜单（内核仅在选中节点时触发）
-        onMenuRequest: openContextMenuAtSelection,
-      })
-      instance = kmEditor.minder
-    } else {
-      instance = new km.Minder({ renderTo: containerRef.value })
-    }
+    kmEditor = new KMEditor(containerRef.value, {
+      // 远端协同回放不入本地撤销栈，避免撤销掉他人的编辑
+      historyFrozen: () => applyingRemote,
+      onHistoryChange: () => {
+        canUndo.value = kmEditor?.history.hasUndo() ?? false
+        canRedo.value = kmEditor?.history.hasRedo() ?? false
+      },
+      // 空格唤醒右键菜单（内核仅在选中节点时触发）
+      onMenuRequest: openContextMenuAtSelection,
+    })
+    const instance: unknown = kmEditor.minder
     minder.value = instance
     const m = instance as Record<string, (...args: unknown[]) => unknown>
     m.importJson(kmData)
-
-    // review/plan 模式禁用画布编辑以防止用户修改快照原始数据
-    if (props.mode !== 'edit') {
-      m.disable?.()
-    }
 
     // 监听事件
     m.on('selectionchange', updateSelectedState)
     m.on('contentchange', () => {
       // 撤销/重做/远端回放均可能改变模板，跟随刷新工具栏下拉显示
       currentTemplate.value = (m.queryCommandValue?.('template') as string) || currentTemplate.value
-      // 编辑模式：内容变化同步到 Yjs 并防抖落库；远端回放不回写以免循环与重复持久化
-      if (props.mode === 'edit' && !applyingRemote) {
+      // 内容变化同步到 Yjs 并防抖落库；远端回放不回写以免循环与重复持久化
+      if (!applyingRemote) {
         // 先把新节点的短 id 归一化为 UUID 再写入 Yjs，否则各端会各自生成不同 id 导致数据分裂
         collectLiveNodes()
         syncToYjs()
@@ -427,15 +372,13 @@ async function initMinder() {
     })
 
     // 基线快照对齐服务端存量数据，避免首次 diff 把已有节点误判为新增
-    persistedSnapshot = props.mode === 'edit' ? collectLiveNodes() : new Map()
-    persistedLayoutJson = props.mode === 'edit' ? JSON.stringify(collectLayout()) : ''
+    persistedSnapshot = collectLiveNodes()
+    persistedLayoutJson = JSON.stringify(collectLayout())
 
-    // 编辑模式建立 WebSocket 协作
-    if (props.mode === 'edit' && props.docId) {
-      await nextTick()
-      if (isStale(token)) return
-      setupYjs(props.docId)
-    }
+    // 建立 WebSocket 协作
+    await nextTick()
+    if (isStale(token)) return
+    setupYjs(props.docId)
   } catch (err) {
     ElMessage.error(err instanceof Error ? err.message : '加载脑图失败')
   } finally {
@@ -443,7 +386,7 @@ async function initMinder() {
   }
 }
 
-// ==================== Edit 模式工具栏操作 ====================
+// ==================== 工具栏操作 ====================
 function exec(command: string, ...args: unknown[]) {
   getMinder()?.execCommand?.(command, ...args)
   // 命令执行后焦点回到键盘接收器，保证快捷键持续可用
@@ -454,7 +397,6 @@ function exec(command: string, ...args: unknown[]) {
 // 原位编辑由编辑内核（minder/input.ts）经 contenteditable 接收器实现，
 // 双击节点由内核监听，这里只是工具栏 / 右键菜单的编辑入口
 function editSelectedText() {
-  if (!isEdit.value) return
   kmEditor?.editText()
 }
 
@@ -513,79 +455,6 @@ function tidyLayout() {
   exec('resetlayout')
 }
 
-// ==================== Review 模式操作 ====================
-async function markReview(mark: ReviewMark | null) {
-  if (!props.reviewId || !selectedNodeId.value) return
-  // 仅 case 节点可标记
-  if (selectedType.value !== 'case' && mark !== null) {
-    ElMessage.warning('仅用例节点可标记评审结果')
-    return
-  }
-  try {
-    await submitReviewRecord(props.reviewId, {
-      snapshotNodeId: selectedNodeId.value,
-      operationType: 'mark',
-      mark: mark ?? undefined,
-    })
-    reviewResult.value = mark
-    const data = getSelectedNodeData()
-    if (data) { data.lastMark = mark; data.reviewStatus = mark ? { result: mark } : null }
-    getMinder()?.refresh?.()
-    ElMessage.success(mark ? `已标记${mark === 'pass' ? '通过' : '不通过'}` : '已清除标记')
-  } catch (err) {
-    ElMessage.error(err instanceof Error ? err.message : '提交标记失败')
-  }
-}
-
-async function openComments() {
-  if (!props.reviewId || !selectedNodeId.value) {
-    ElMessage.warning('请先选中一个节点')
-    return
-  }
-  commentVisible.value = true
-  try {
-    comments.value = await getNodeReviewRecords(props.reviewId, selectedNodeId.value)
-  } catch {
-    comments.value = []
-  }
-}
-
-async function addCommentFn() {
-  if (!newComment.value.trim() || !props.reviewId || !selectedNodeId.value) return
-  try {
-    await submitReviewRecord(props.reviewId, {
-      snapshotNodeId: selectedNodeId.value,
-      operationType: 'comment',
-      comment: newComment.value.trim(),
-    })
-    ElMessage.success('评论已发送')
-    newComment.value = ''
-    comments.value = await getNodeReviewRecords(props.reviewId, selectedNodeId.value)
-  } catch (err) {
-    ElMessage.error(err instanceof Error ? err.message : '发送评论失败')
-  }
-}
-
-// ==================== Plan 模式操作 ====================
-async function markExecution(result: ExecutionResult) {
-  if (!props.planId || !selectedNodeId.value) return
-  if (selectedType.value !== 'case') {
-    ElMessage.warning('仅关联用例节点可标记执行结果')
-    return
-  }
-  try {
-    await submitExecutionRecord(props.planId, { snapshotNodeId: selectedNodeId.value, result })
-    execResult.value = result
-    const data = getSelectedNodeData()
-    if (data) { data.lastResult = result; data.executionStatus = { result } }
-    getMinder()?.refresh?.()
-    const labels: Record<string, string> = { pass: '通过', fail: '失败', block: '阻塞', untested: '未执行' }
-    ElMessage.success(`已标记${labels[result]}`)
-  } catch (err) {
-    ElMessage.error(err instanceof Error ? err.message : '提交执行结果失败')
-  }
-}
-
 // ==================== 右键菜单 ====================
 const {
   visible: menuVisible,
@@ -599,16 +468,8 @@ const {
     getMinder()?.getSelectedNode?.() as ContextMenuAnchorNode | null | undefined,
 })
 
-// ==================== Bug 链接跳转 ====================
-// 暴露给 kityminder 扩展节点渲染模板通过 ref 调用，避免事件冒泡干扰节点选中
-function openBug(bugId: string) {
-  window.open(`/workspace/projects/bugs/${bugId}`, '_blank')
-}
-
-defineExpose({ openBug })
-
 // ==================== 生命周期 ====================
-watch([() => props.docId, () => props.reviewId, () => props.planId], initMinder)
+watch(() => props.docId, initMinder)
 onMounted(initMinder)
 onBeforeUnmount(() => {
   invalidate()
@@ -621,12 +482,12 @@ onBeforeUnmount(() => {
 <template>
   <div v-loading="loading" class="mindmap-container">
     <!-- 断线提示横幅 -->
-    <div v-if="isEdit && !isConnected" class="mindmap-disconnect-banner">
+    <div v-if="!isConnected" class="mindmap-disconnect-banner">
       连接已断开，正在重连...
     </div>
 
-    <!-- 编辑模式工具栏 -->
-    <div v-if="isEdit" class="mindmap-toolbar">
+    <!-- 编辑工具栏 -->
+    <div class="mindmap-toolbar">
       <el-button-group size="small" class="type-group">
         <el-button :type="selectedType==='case'?'primary':''" @click="markAs('case')">📋用例</el-button>
         <el-button :type="selectedType==='precondition'?'primary':''" @click="markAs('precondition')">📘前置</el-button>
@@ -674,27 +535,7 @@ onBeforeUnmount(() => {
       </div>
     </div>
 
-    <!-- 评审模式工具栏 -->
-    <div v-else-if="isReview" class="mindmap-toolbar">
-      <el-button-group size="small">
-        <el-button :type="reviewResult==='pass'?'success':''" @click="markReview('pass')">✅通过</el-button>
-        <el-button :type="reviewResult==='fail'?'danger':''" @click="markReview('fail')">❌不通过</el-button>
-        <el-button :type="reviewResult===null?'info':''" @click="markReview(null)">❓待评审</el-button>
-      </el-button-group>
-      <el-button size="small" @click="openComments">💬评论</el-button>
-    </div>
-
-    <!-- 计划模式工具栏 -->
-    <div v-else-if="isPlan" class="mindmap-toolbar">
-      <el-button-group size="small">
-        <el-button :type="execResult==='pass'?'success':''" @click="markExecution('pass')">✅通过</el-button>
-        <el-button :type="execResult==='fail'?'danger':''" @click="markExecution('fail')">❌失败</el-button>
-        <el-button :type="execResult==='block'?'warning':''" @click="markExecution('block')">❓阻塞</el-button>
-        <el-button :type="execResult==='untested'?'info':''" @click="markExecution('untested')">🔄未执行</el-button>
-      </el-button-group>
-    </div>
-
-    <!-- 脑图画布（编辑模式下内核会向容器注入 .km-receiver 接收器元素，双击节点进入编辑） -->
+    <!-- 脑图画布（编辑内核会向容器注入 .km-receiver 接收器元素，双击节点进入编辑） -->
     <div
       ref="containerRef"
       class="minder-canvas"
@@ -704,9 +545,9 @@ onBeforeUnmount(() => {
     <!-- 导航器：缩放条/定位根节点/抓手/缩略图/全屏；minder 切换文档重建时随 v-if 重建 -->
     <MinderNavigator v-if="minder && !loading" :minder="minder" />
 
-    <!-- 右键菜单（编辑模式） -->
+    <!-- 右键菜单 -->
     <MinderContextMenu
-      v-if="menuVisible && isEdit"
+      v-if="menuVisible"
       :x="menuPos.x"
       :y="menuPos.y"
       @close="closeContextMenu"
@@ -730,56 +571,6 @@ onBeforeUnmount(() => {
       <div class="mindmap-context-menu__divider" />
       <div class="mindmap-context-menu__item mindmap-context-menu__item--danger" @click="deleteNode">删除节点</div>
     </MinderContextMenu>
-
-    <!-- 右键菜单（评审模式） -->
-    <MinderContextMenu
-      v-if="menuVisible && isReview"
-      :x="menuPos.x"
-      :y="menuPos.y"
-      @close="closeContextMenu"
-    >
-      <div class="mindmap-context-menu__subtitle">标记评审结果 ▸</div>
-      <div class="mindmap-context-menu__item mindmap-context-menu__item--indent" @click="markReview('pass')">通过</div>
-      <div class="mindmap-context-menu__item mindmap-context-menu__item--indent" @click="markReview('fail')">不通过</div>
-      <div class="mindmap-context-menu__item mindmap-context-menu__item--indent" @click="markReview(null)">待评审</div>
-      <div class="mindmap-context-menu__divider" />
-      <div class="mindmap-context-menu__item" @click="openComments">添加评论</div>
-    </MinderContextMenu>
-
-    <!-- 右键菜单（计划模式） -->
-    <MinderContextMenu
-      v-if="menuVisible && isPlan"
-      :x="menuPos.x"
-      :y="menuPos.y"
-      @close="closeContextMenu"
-    >
-      <div class="mindmap-context-menu__subtitle">标记执行结果 ▸</div>
-      <div class="mindmap-context-menu__item mindmap-context-menu__item--indent" @click="markExecution('pass')">通过</div>
-      <div class="mindmap-context-menu__item mindmap-context-menu__item--indent" @click="markExecution('fail')">失败</div>
-      <div class="mindmap-context-menu__item mindmap-context-menu__item--indent" @click="markExecution('block')">阻塞</div>
-      <div class="mindmap-context-menu__item mindmap-context-menu__item--indent" @click="markExecution('untested')">未执行</div>
-    </MinderContextMenu>
-
-    <!-- 评论抽屉（评审模式） -->
-    <el-drawer v-model="commentVisible" title="评论" :size="360">
-      <div class="comment-list">
-        <div v-for="c in comments" :key="c.id" class="comment-item">
-          <div class="comment-item__header">
-            <strong>{{ c.reviewerName }}</strong>
-            <el-tag v-if="c.operationType === 'mark'" size="small" :type="c.mark === 'pass' ? 'success' : 'danger'">
-              {{ c.mark === 'pass' ? '通过' : '不通过' }}
-            </el-tag>
-            <small>{{ c.createdAt }}</small>
-          </div>
-          <p v-if="c.comment" class="comment-item__body">{{ c.comment }}</p>
-        </div>
-        <el-empty v-if="!comments.length" description="暂无评论或标记记录" :image-size="40" />
-      </div>
-      <div class="comment-input">
-        <el-input v-model="newComment" placeholder="输入评论..." @keyup.enter="addCommentFn" />
-        <el-button type="primary" size="small" :disabled="!newComment.trim()" @click="addCommentFn">发送</el-button>
-      </div>
-    </el-drawer>
   </div>
 </template>
 
@@ -825,44 +616,5 @@ onBeforeUnmount(() => {
   opacity: 1;
   pointer-events: auto;
   caret-color: var(--el-color-primary);
-}
-
-/* 评论 */
-.comment-list {
-  flex: 1;
-  overflow-y: auto;
-  margin-bottom: 12px;
-}
-
-.comment-item {
-  padding: 10px 0;
-  border-bottom: 1px solid var(--el-border-color-lighter);
-}
-
-.comment-item__header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 4px;
-}
-
-.comment-item__header small {
-  margin-left: auto;
-  color: var(--el-text-color-secondary);
-  font-size: 11px;
-}
-
-.comment-item__body {
-  margin: 0;
-  font-size: 13px;
-  color: var(--el-text-color-regular);
-  line-height: 1.5;
-}
-
-.comment-input {
-  display: flex;
-  gap: 8px;
-  padding-top: 12px;
-  border-top: 1px solid var(--el-border-color-lighter);
 }
 </style>

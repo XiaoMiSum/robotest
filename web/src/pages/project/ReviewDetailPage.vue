@@ -5,7 +5,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { completeReview, getReviewDetail, getReviewProgress, syncReview } from '@/services/project'
 import type { TestReviewDetail, TestReviewProgress } from '@/types'
 import { formatDateTime } from '@/utils/format'
-import MindMapEditor from '@/components/project/MindMapEditor.vue'
+import ReviewMindMap from '@/components/project/ReviewMindMap.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -88,7 +88,7 @@ onMounted(load)
     </el-card>
 
     <el-card shadow="never" class="review-detail__body">
-      <MindMapEditor :review-id="reviewId" mode="review" />
+      <ReviewMindMap :review-id="reviewId" />
     </el-card>
   </div>
 </template>
