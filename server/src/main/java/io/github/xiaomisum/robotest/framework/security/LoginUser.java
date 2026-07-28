@@ -1,5 +1,6 @@
 package io.github.xiaomisum.robotest.framework.security;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Getter;
 import lombok.Setter;
 import org.jspecify.annotations.NonNull;
@@ -29,6 +30,7 @@ public class LoginUser extends AuthUserDetails<LoginUser, UUID> {
     private List<GrantedAuthority> workspaceAuthorities = new ArrayList<>();
 
     @Override
+    @JsonIgnore
     @NonNull
     public Collection<? extends GrantedAuthority> getAuthorities() {
         Stream<? extends GrantedAuthority> baseStream = super.getAuthorities().stream();
@@ -46,4 +48,9 @@ public class LoginUser extends AuthUserDetails<LoginUser, UUID> {
             this.workspaceAuthorities.addAll(authorities);
         }
     }
+
+    public List<String> getPermissions() {
+        return getAuthorities().stream().map(GrantedAuthority::getAuthority).distinct().toList();
+    }
+
 }

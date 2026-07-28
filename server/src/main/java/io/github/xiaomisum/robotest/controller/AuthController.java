@@ -2,16 +2,12 @@ package io.github.xiaomisum.robotest.controller;
 
 import io.github.xiaomisum.robotest.framework.security.LoginUser;
 import io.github.xiaomisum.robotest.model.dto.request.LoginReqDTO;
-import io.github.xiaomisum.robotest.model.dto.response.LoginRespDTO;
-import io.github.xiaomisum.robotest.model.entity.WorkspaceUser;
-import io.github.xiaomisum.robotest.repository.WorkspaceUserMapper;
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import xyz.migoo.framework.common.pojo.Result;
-import xyz.migoo.framework.mybatis.core.LambdaQueryWrapperX;
 import xyz.migoo.framework.security.core.authentication.AuthUserDetailsFetcher;
 import xyz.migoo.framework.security.core.authentication.AuthUserDetailsFetcher.LoginResult;
 
@@ -24,21 +20,19 @@ public class AuthController {
 
     @Resource
     private AuthUserDetailsFetcher<LoginUser> authUserDetailsFetcher;
-    @Resource
-    private WorkspaceUserMapper workspaceUserMapper;
 
     @PostMapping("/login")
-    public Result<LoginRespDTO> login(@RequestBody @Valid LoginReqDTO reqDTO) {
+    public Result<LoginResult<LoginUser>> login(@RequestBody @Valid LoginReqDTO reqDTO) {
         LoginResult<LoginUser> loginResult = authUserDetailsFetcher.authenticate(
                 reqDTO.getIdentifier(), reqDTO.getPassword());
-        return Result.ok(toLoginRespDTO(loginResult));
+        return Result.ok(loginResult);
     }
 
     @PostMapping("/refresh")
-    public Result<LoginRespDTO> refresh(
+    public Result<LoginResult<LoginUser>> refresh(
             @RequestHeader("X-Refresh-Token") String refreshToken) {
         LoginResult<LoginUser> loginResult = authUserDetailsFetcher.refreshToken(refreshToken);
-        return Result.ok(toLoginRespDTO(loginResult));
+        return Result.ok(loginResult);
     }
 
     @PostMapping("/permissions")
@@ -51,20 +45,5 @@ public class AuthController {
                 .distinct()
                 .toList();
         return Result.ok(permissions);
-    }
-
-    private LoginRespDTO toLoginRespDTO(LoginResult<LoginUser> loginResult) {
-        LoginUser user = loginResult.getUserInfo();
-        boolean hasWorkspace = workspaceUserMapper.selectCount(
-                new LambdaQueryWrapperX<WorkspaceUser>()
-                        .eq(WorkspaceUser::getUserId, user.getId())) > 0;
-        user.setHasWorkspace(hasWorkspace);
-        return LoginRespDTO.builder()
-                .accessToken(loginResult.getAccessToken())
-                .refreshToken(loginResult.getRefreshToken())
-                .accessExpiry(loginResult.getAccessExpiry() != null ? loginResult.getAccessExpiry().toString() : null)
-                .refreshExpiry(loginResult.getRefreshExpiry() != null ? loginResult.getRefreshExpiry().toString() : null)
-                .user(user)
-                .build();
     }
 }
