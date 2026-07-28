@@ -1,6 +1,7 @@
 package io.github.xiaomisum.robotest.service.project;
 
 import xyz.migoo.framework.mybatis.core.LambdaQueryWrapperX;
+import xyz.migoo.framework.mybatis.core.LambdaUpdateWrapperX;
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.framework.convert.TestReviewConvertMapper;
@@ -46,7 +47,7 @@ public class TestReviewServiceImpl implements TestReviewService {
 
     @Override
     public PageResult<TestReviewListRespDTO> getReviewPage(UUID projectId, String status,
-                                                       Integer pageNo, Integer pageSize) {
+            Integer pageNo, Integer pageSize) {
         LambdaQueryWrapperX<TestReview> wrapper = new LambdaQueryWrapperX<TestReview>()
                 .eq(TestReview::getProjectId, projectId);
         if (StringUtils.hasText(status)) {
@@ -55,7 +56,12 @@ public class TestReviewServiceImpl implements TestReviewService {
         wrapper.orderByDesc(TestReview::getCreatedAt);
 
         PageResult<TestReview> page = testReviewMapper.selectPage(
-                new PageParam() {{ setPageNo(pageNo); setPageSize(pageSize); }}, wrapper);
+                new PageParam() {
+                    {
+                        setPageNo(pageNo);
+                        setPageSize(pageSize);
+                    }
+                }, wrapper);
 
         List<TestReviewListRespDTO> dtos = page.getList().stream().map(review -> {
             TestReviewListRespDTO dto = new TestReviewListRespDTO();
@@ -85,7 +91,7 @@ public class TestReviewServiceImpl implements TestReviewService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public TestReviewDetailRespDTO createReview(UUID projectId, UUID userId,
-                                                  TestReviewCreateReqDTO reqDTO) {
+            TestReviewCreateReqDTO reqDTO) {
         // 校验所有参与者是当前工作空间成员
         Project project = projectMapper.selectById(projectId);
         if (project == null) {
@@ -149,7 +155,7 @@ public class TestReviewServiceImpl implements TestReviewService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void submitReviewRecord(UUID reviewId, UUID userId,
-                                    TestReviewRecordReqDTO reqDTO) {
+            TestReviewRecordReqDTO reqDTO) {
         TestReview review = testReviewMapper.selectById(reviewId);
         if (review == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_REVIEW_NOT_FOUND);
@@ -168,13 +174,26 @@ public class TestReviewServiceImpl implements TestReviewService {
             if (!Constants.NodeType.CASE.equals(snapshotNode.getType())) {
                 throw ServiceExceptionUtil.get(ErrorCodeConstants.ONLY_CASE_NODE_CAN_MARK_REVIEW);
             }
-            if (!Constants.ReviewMark.PASS.equals(reqDTO.getMark()) && !Constants.ReviewMark.FAIL.equals(reqDTO.getMark())) {
+            String mark = reqDTO.getMark();
+            // 空值兼容历史调用，与显式 pending 等价：重置回待评审
+            boolean isPending = mark == null || mark.isBlank() || Constants.ReviewMark.PENDING.equals(mark);
+            if (!isPending && !Constants.ReviewMark.PASS.equals(mark) && !Constants.ReviewMark.FAIL.equals(mark)) {
                 throw ServiceExceptionUtil.get(ErrorCodeConstants.VALIDATION_FAILED);
             }
-            snapshotNode.setLastMark(reqDTO.getMark());
-            snapshotNode.setLastReviewerId(userId);
-            snapshotNode.setLastReviewedAt(LocalDateTime.now());
-            reviewNodeSnapshotMapper.updateById(snapshotNode);
+            if (isPending) {
+                // 待评审即初始态 last_mark = NULL；updateById 会忽略 null 字段，须显式 set
+                reviewNodeSnapshotMapper.update(null,
+                        new LambdaUpdateWrapperX<TestReviewNodeSnapshot>()
+                                .eq(TestReviewNodeSnapshot::getId, snapshotNode.getId())
+                                .set(TestReviewNodeSnapshot::getLastMark, null)
+                                .set(TestReviewNodeSnapshot::getLastReviewerId, userId)
+                                .set(TestReviewNodeSnapshot::getLastReviewedAt, LocalDateTime.now()));
+            } else {
+                snapshotNode.setLastMark(mark);
+                snapshotNode.setLastReviewerId(userId);
+                snapshotNode.setLastReviewedAt(LocalDateTime.now());
+                reviewNodeSnapshotMapper.updateById(snapshotNode);
+            }
         }
 
         TestReviewRecord record = new TestReviewRecord();
@@ -470,7 +489,7 @@ public class TestReviewServiceImpl implements TestReviewService {
     }
 
     private void collectDescendants(UUID nodeId, Map<UUID, TestReviewSnapshotNodeRespDTO> nodeMap,
-                                     Set<UUID> keepIds) {
+            Set<UUID> keepIds) {
         for (TestReviewSnapshotNodeRespDTO node : nodeMap.values()) {
             if (nodeId.equals(node.getParentId())) {
                 keepIds.add(node.getId());
@@ -493,7 +512,7 @@ public class TestReviewServiceImpl implements TestReviewService {
     }
 
     private void fillSnapshotChildren(TestReviewSnapshotNodeRespDTO node,
-                                       Map<UUID, List<TestReviewSnapshotNodeRespDTO>> parentMap) {
+            Map<UUID, List<TestReviewSnapshotNodeRespDTO>> parentMap) {
         List<TestReviewSnapshotNodeRespDTO> children = parentMap.getOrDefault(node.getId(), new ArrayList<>());
         node.setChildren(children);
         children.forEach(child -> fillSnapshotChildren(child, parentMap));

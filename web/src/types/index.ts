@@ -465,7 +465,7 @@ export interface ReviewRecord {
   reviewerId: string
   reviewerName: string
   operationType: 'mark' | 'comment'
-  mark: ReviewMark | null
+  mark: ReviewMark | 'pending' | null
   comment: string | null
   createdAt: string
 }

@@ -27,6 +27,19 @@ const PRIORITY_BADGES: Record<string, Badge> = {
   P3: { label: 'P3', color: '#909399' },
 }
 
+// 评审标记与执行结果回显在节点右侧，与左侧类型/优先级徽标区分开；
+// 待评审/未执行是默认态，不渲染徽标以免满屏噪音
+const REVIEW_MARK_BADGES: Record<string, Badge> = {
+  pass: { label: '✓ 通过', color: '#67C23A' },
+  fail: { label: '✕ 不通过', color: '#F56C6C' },
+}
+
+const EXECUTION_RESULT_BADGES: Record<string, Badge> = {
+  pass: { label: '✓ 通过', color: '#67C23A' },
+  fail: { label: '✕ 失败', color: '#F56C6C' },
+  block: { label: '⚠ 阻塞', color: '#E6A23C' },
+}
+
 /** normal 节点与未知类型不显示徽标 */
 export function typeBadge(type: unknown): Badge | null {
   return typeof type === 'string' ? (TYPE_BADGES[type] ?? null) : null
@@ -34,6 +47,14 @@ export function typeBadge(type: unknown): Badge | null {
 
 export function priorityBadge(priority: unknown): Badge | null {
   return typeof priority === 'string' ? (PRIORITY_BADGES[priority] ?? null) : null
+}
+
+export function reviewMarkBadge(mark: unknown): Badge | null {
+  return typeof mark === 'string' ? (REVIEW_MARK_BADGES[mark] ?? null) : null
+}
+
+export function executionResultBadge(result: unknown): Badge | null {
+  return typeof result === 'string' ? (EXECUTION_RESULT_BADGES[result] ?? null) : null
 }
 
 const BADGE_HEIGHT = 16
@@ -81,9 +102,15 @@ type BadgeShape = KityGroup & { badgeRect: KityRect; badgeText: KityText; badgeK
 
 interface ContentBox {
   left: number
+  right: number
 }
 
-function defineBadgeRenderer(kity: KityStatic, base: unknown, getBadge: (node: MinderNode) => Badge | null): unknown {
+function defineBadgeRenderer(
+  kity: KityStatic,
+  base: unknown,
+  getBadge: (node: MinderNode) => Badge | null,
+  side: 'left' | 'right' = 'left',
+): unknown {
   return kity.createClass('TestBadgeRenderer', {
     base,
     create(): unknown {
@@ -115,7 +142,8 @@ function defineBadgeRenderer(kity: KityStatic, base: unknown, getBadge: (node: M
         shape.badgeText.setContent(badge.label).setX(width / 2).setY(BADGE_HEIGHT / 2)
       }
       const space = Number(node.getStyle('space-left') ?? 6) || 6
-      const x = box.left - width - space
+      // 左侧徽标向文本左侧堆叠，右侧徽标向文本右侧堆叠，均参与 contentBox 合并
+      const x = side === 'left' ? box.left - width - space : box.right + space
       const y = -BADGE_HEIGHT / 2
       shape.setTranslate(x, y)
       // 返回徽标占用的盒子，参与 contentBox 合并，多个徽标自然向左堆叠
@@ -141,12 +169,18 @@ export function registerBadgesModule(): boolean {
 
   const typeRenderer = defineBadgeRenderer(kity, km.Render, (node) => typeBadge(node.getData('type')))
   const priorityRenderer = defineBadgeRenderer(kity, km.Render, (node) => priorityBadge(node.getData('priority')))
+  // 评审/计划模式下节点 data 才有 lastMark/lastResult，编辑模式自然不渲染，无需按模式区分注册
+  const reviewMarkRenderer = defineBadgeRenderer(kity, km.Render, (node) => reviewMarkBadge(node.getData('lastMark')), 'right')
+  const executionResultRenderer = defineBadgeRenderer(kity, km.Render, (node) => executionResultBadge(node.getData('lastResult')), 'right')
 
   // 同名覆盖 core 内置 PriorityModule（_modules[name] 纯赋值）：
   // 其 shouldRender 对 'P0' 字符串判真，会渲染无填充色的隐形图标白占 20px 布局空间
   km.Module.register('PriorityModule', () => ({}))
   km.Module.register('TestBadgesModule', () => ({
-    renderers: { left: [typeRenderer, priorityRenderer] },
+    renderers: {
+      left: [typeRenderer, priorityRenderer],
+      right: [reviewMarkRenderer, executionResultRenderer],
+    },
   }))
   registeredTargets.add(km)
   return true

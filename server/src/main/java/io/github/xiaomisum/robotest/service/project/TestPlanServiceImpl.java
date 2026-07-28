@@ -46,7 +46,7 @@ public class TestPlanServiceImpl implements TestPlanService {
 
     @Override
     public PageResult<TestPlanListRespDTO> getPlanPage(UUID projectId, String status,
-                                                  Integer pageNo, Integer pageSize) {
+            Integer pageNo, Integer pageSize) {
         LambdaQueryWrapperX<TestPlan> wrapper = new LambdaQueryWrapperX<TestPlan>()
                 .eq(TestPlan::getProjectId, projectId);
         if (StringUtils.hasText(status)) {
@@ -55,7 +55,12 @@ public class TestPlanServiceImpl implements TestPlanService {
         wrapper.orderByDesc(TestPlan::getCreatedAt);
 
         PageResult<TestPlan> page = testPlanMapper.selectPage(
-                new PageParam() {{ setPageNo(pageNo); setPageSize(pageSize); }}, wrapper);
+                new PageParam() {
+                    {
+                        setPageNo(pageNo);
+                        setPageSize(pageSize);
+                    }
+                }, wrapper);
 
         List<TestPlanListRespDTO> dtos = page.getList().stream().map(plan -> {
             TestPlanListRespDTO dto = new TestPlanListRespDTO();
@@ -85,7 +90,7 @@ public class TestPlanServiceImpl implements TestPlanService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public TestPlanDetailRespDTO createPlan(UUID projectId, UUID userId,
-                                             TestPlanCreateReqDTO reqDTO) {
+            TestPlanCreateReqDTO reqDTO) {
         TestPlan plan = new TestPlan();
         plan.setProjectId(projectId);
         plan.setName(reqDTO.getName());
@@ -135,7 +140,7 @@ public class TestPlanServiceImpl implements TestPlanService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void submitExecutionRecord(UUID planId, UUID userId,
-                                       TestPlanRecordReqDTO reqDTO) {
+            TestPlanRecordReqDTO reqDTO) {
         TestPlan plan = testPlanMapper.selectById(planId);
         if (plan == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_PLAN_NOT_FOUND);
@@ -156,7 +161,14 @@ public class TestPlanServiceImpl implements TestPlanService {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.ONLY_ASSOCIATED_CASE_CAN_MARK_PLAN);
         }
 
-        snapshotNode.setLastResult(reqDTO.getResult());
+        String result = reqDTO.getResult();
+        if (!Constants.ExecutionResult.PASS.equals(result) && !Constants.ExecutionResult.FAIL.equals(result)
+                && !Constants.ExecutionResult.BLOCK.equals(result)
+                && !Constants.ExecutionResult.UNTESTED.equals(result)) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.VALIDATION_FAILED);
+        }
+
+        snapshotNode.setLastResult(result);
         snapshotNode.setLastExecutorId(userId);
         snapshotNode.setLastExecutedAt(LocalDateTime.now());
         planNodeSnapshotMapper.updateById(snapshotNode);
@@ -304,13 +316,14 @@ public class TestPlanServiceImpl implements TestPlanService {
         long passed = 0, failed = 0, blocked = 0, untested = 0;
         for (TestPlanNodeSnapshot snap : snapshots) {
             String result = snap.getLastResult();
-            if (result == null || Constants.Status.UNTESTED.equals(result)) {
+            if (result == null || Constants.ExecutionResult.UNTESTED.equals(result)) {
                 untested++;
             } else {
                 switch (result) {
-                    case "pass" -> passed++;
-                    case "fail" -> failed++;
-                    case "blocked" -> blocked++;
+                    case Constants.ExecutionResult.PASS -> passed++;
+                    case Constants.ExecutionResult.FAIL -> failed++;
+                    // 历史脏数据兼容：旧统计误用 blocked，前端一贯发 block
+                    case Constants.ExecutionResult.BLOCK, "blocked" -> blocked++;
                     default -> untested++;
                 }
             }
@@ -487,7 +500,7 @@ public class TestPlanServiceImpl implements TestPlanService {
     }
 
     private void collectDescendants(UUID nodeId, Map<UUID, TestPlanSnapshotNodeRespDTO> nodeMap,
-                                     Set<UUID> keepIds) {
+            Set<UUID> keepIds) {
         for (TestPlanSnapshotNodeRespDTO node : nodeMap.values()) {
             if (nodeId.equals(node.getParentId())) {
                 keepIds.add(node.getId());
@@ -508,7 +521,7 @@ public class TestPlanServiceImpl implements TestPlanService {
     }
 
     private void fillSnapshotChildren(TestPlanSnapshotNodeRespDTO node,
-                                       Map<String, List<TestPlanSnapshotNodeRespDTO>> parentMap) {
+            Map<String, List<TestPlanSnapshotNodeRespDTO>> parentMap) {
         List<TestPlanSnapshotNodeRespDTO> children = parentMap.getOrDefault(node.getId().toString(), new ArrayList<>());
         node.setChildren(children);
         children.forEach(child -> fillSnapshotChildren(child, parentMap));

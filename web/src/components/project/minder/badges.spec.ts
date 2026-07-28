@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { typeBadge, priorityBadge, badgeWidth } from './badges'
+import { typeBadge, priorityBadge, reviewMarkBadge, executionResultBadge, badgeWidth } from './badges'
 
 describe('typeBadge', () => {
   it('四种业务类型映射到文案与颜色', () => {
@@ -29,6 +29,32 @@ describe('priorityBadge', () => {
     expect(priorityBadge(null)).toBeNull()
     expect(priorityBadge('P4')).toBeNull()
     expect(priorityBadge('p0')).toBeNull()
+  })
+})
+
+describe('reviewMarkBadge', () => {
+  it('通过/不通过映射到文案与颜色（通过绿 / 不通过红）', () => {
+    expect(reviewMarkBadge('pass')).toEqual({ label: '✓ 通过', color: '#67C23A' })
+    expect(reviewMarkBadge('fail')).toEqual({ label: '✕ 不通过', color: '#F56C6C' })
+  })
+
+  it('待评审（空值）与非法标记不显示徽标', () => {
+    expect(reviewMarkBadge(null)).toBeNull()
+    expect(reviewMarkBadge(undefined)).toBeNull()
+    expect(reviewMarkBadge('block')).toBeNull()
+  })
+})
+
+describe('executionResultBadge', () => {
+  it('通过/失败/阻塞映射到文案与颜色', () => {
+    expect(executionResultBadge('pass')).toEqual({ label: '✓ 通过', color: '#67C23A' })
+    expect(executionResultBadge('fail')).toEqual({ label: '✕ 失败', color: '#F56C6C' })
+    expect(executionResultBadge('block')).toEqual({ label: '⚠ 阻塞', color: '#E6A23C' })
+  })
+
+  it('未执行是默认态不显示徽标', () => {
+    expect(executionResultBadge('untested')).toBeNull()
+    expect(executionResultBadge(null)).toBeNull()
   })
 })
 
