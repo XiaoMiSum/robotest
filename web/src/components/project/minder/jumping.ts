@@ -7,9 +7,14 @@ import type { History } from './history'
 /**
  * 键盘导流（移植自 kityminder-editor 的 jumping runtime，去掉了打字即编辑）：
  * normal 态下 F2 进入编辑（双击编辑由 input runtime 监听），普通打字吞掉；
- * 其余按键转发给 core 的键盘系统（Tab 插入子节点、Enter 插入兄弟、Delete 删除、方向键导航等）。
+ * Tab/Enter 新建子/兄弟节点（携默认名称，core 原生快捷键不带文本会产生空节点）；
+ * 空格唤醒菜单（回调由组件层注入，内核不感知菜单 UI）；
+ * 其余按键转发给 core 的键盘系统（Delete 删除、方向键导航等）。
  * input 态下 Enter 提交、Esc 取消、Tab 拦截（避免焦点跳出接收器）。
  */
+
+// 新建节点的默认名称，快捷键/工具栏/右键菜单共用，保证各入口行为一致
+export const DEFAULT_NODE_TEXT = '分支主题'
 
 // 判断按键意图是否为“输入文字”：字母、数字、小键盘（除除号）、IME 组合键
 function isIntendToInput(e: KeyboardEvent): boolean {
@@ -29,8 +34,10 @@ export function setupJumping(options: {
   receiver: Receiver
   input: InputRuntime
   history: History
+  /** 空格唤醒菜单（组件层展示右键菜单，仅选中节点时触发） */
+  onMenuRequest?: () => void
 }): void {
-  const { minder, fsm, receiver, input, history } = options
+  const { minder, fsm, receiver, input, history, onMenuRequest } = options
 
   receiver.listen('normal', (e: ReceiverKeyEvent) => {
     receiver.enable()
@@ -50,6 +57,22 @@ export function setupJumping(options: {
       if (e.is('f2')) {
         e.preventDefault()
         input.editText()
+        return true
+      }
+      // core 原生 Tab/Enter 快捷键不带文本会产生空节点，这里拦截并携默认名称
+      if (e.is('tab')) {
+        e.preventDefault()
+        minder.execCommand('AppendChildNode', DEFAULT_NODE_TEXT)
+        return true
+      }
+      if (e.is('enter')) {
+        e.preventDefault()
+        minder.execCommand('AppendSiblingNode', DEFAULT_NODE_TEXT)
+        return true
+      }
+      if (e.is('space')) {
+        e.preventDefault()
+        onMenuRequest?.()
         return true
       }
       if (isIntendToInput(e)) {
