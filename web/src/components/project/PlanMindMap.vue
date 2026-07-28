@@ -111,7 +111,8 @@ function openBug(bugId: string) {
   window.open(`/workspace/projects/bugs/${bugId}`, '_blank')
 }
 
-defineExpose({ openBug })
+// reload 供详情页同步快照后刷新画布（planId 不变，watch 不会触发）
+defineExpose({ openBug, reload: initMinder })
 
 // ==================== 生命周期 ====================
 watch(() => props.planId, initMinder)
