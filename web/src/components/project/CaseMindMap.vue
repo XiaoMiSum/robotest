@@ -406,6 +406,8 @@ function markAs(type: string) {
   data.type = type
   // 标记联动规则：标记为用例时无优先级默认P2
   if (type === 'case' && !data.priority) data.priority = 'P2'
+  // 标记联动规则：优先级只对用例有意义，改标非用例类型时连带清除，避免残留 P 徽标
+  if (type !== 'case') delete data.priority
   getMinder()?.refresh?.()
   updateSelectedState()
 }
