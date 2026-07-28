@@ -420,6 +420,16 @@ function markPriority(p: string) {
   updateSelectedState()
 }
 
+// 取消标记：恢复普通节点并连带清掉优先级，否则残留的 P 徽标会造成"已取消却仍有等级"的歧义
+function clearMark() {
+  const data = getSelectedNodeData()
+  if (!data) return
+  data.type = 'normal'
+  delete data.priority
+  getMinder()?.refresh?.()
+  updateSelectedState()
+}
+
 // 新建节点统一携默认名称（与 Tab/Enter 快捷键行为一致，见 minder/jumping.ts）
 function addChild() { exec('AppendChildNode', DEFAULT_NODE_TEXT) }
 function addSibling() { exec('AppendSiblingNode', DEFAULT_NODE_TEXT) }
@@ -517,7 +527,11 @@ onBeforeUnmount(() => {
         <el-button size="small" text :class="['type-btn', { 'is-selected': selectedType === 'precondition' }]" @click="markAs('precondition')"><span class="type-dot type-dot--precondition" /><span>前置</span></el-button>
         <el-button size="small" text :class="['type-btn', { 'is-selected': selectedType === 'step' }]" @click="markAs('step')"><span class="type-dot type-dot--step" /><span>步骤</span></el-button>
         <el-button size="small" text :class="['type-btn', { 'is-selected': selectedType === 'expected' }]" @click="markAs('expected')"><span class="type-dot type-dot--expected" /><span>预期</span></el-button>
+        <el-tooltip content="取消标记，恢复普通节点" placement="bottom">
+          <el-button size="small" text @click="clearMark"><el-icon><CircleClose /></el-icon></el-button>
+        </el-tooltip>
       </div>
+      <el-divider direction="vertical" />
       <div class="toolbar-group">
         <el-button
           v-for="p in priorities"
@@ -582,7 +596,7 @@ onBeforeUnmount(() => {
       <div class="mindmap-context-menu__item" @click="addSibling">新建兄弟节点</div>
       <div class="mindmap-context-menu__divider" />
       <div class="mindmap-context-menu__subtitle">标记类型 ▸</div>
-      <div class="mindmap-context-menu__item mindmap-context-menu__item--indent" @click="markAs('normal')">普通</div>
+      <div class="mindmap-context-menu__item mindmap-context-menu__item--indent" @click="clearMark">普通</div>
       <div class="mindmap-context-menu__item mindmap-context-menu__item--indent" @click="markAs('precondition')">前置条件</div>
       <div class="mindmap-context-menu__item mindmap-context-menu__item--indent" @click="markAs('step')">执行步骤</div>
       <div class="mindmap-context-menu__item mindmap-context-menu__item--indent" @click="markAs('expected')">预期结果</div>
