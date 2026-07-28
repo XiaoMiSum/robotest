@@ -649,7 +649,28 @@ onBeforeUnmount(() => {
   --el-button-hover-text-color: var(--color-primary-600);
 }
 
-/* 优先级按钮：选中态底色直接用优先级令牌色，与节点徽标颜色一致 */
+/* 优先级按钮：未选中态文字即着优先级令牌色，选中态翻转为同色实底白字，
+   与节点徽标颜色保持一致 */
+.priority-btn--p0 {
+  --el-button-text-color: var(--color-priority-p0);
+  --el-button-hover-text-color: var(--color-priority-p0);
+}
+
+.priority-btn--p1 {
+  --el-button-text-color: var(--color-priority-p1);
+  --el-button-hover-text-color: var(--color-priority-p1);
+}
+
+.priority-btn--p2 {
+  --el-button-text-color: var(--color-priority-p2);
+  --el-button-hover-text-color: var(--color-priority-p2);
+}
+
+.priority-btn--p3 {
+  --el-button-text-color: var(--color-priority-p3);
+  --el-button-hover-text-color: var(--color-priority-p3);
+}
+
 .priority-btn.is-selected {
   --el-button-text-color: #fff;
   --el-button-hover-text-color: #fff;
