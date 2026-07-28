@@ -140,6 +140,11 @@ function patchProviderSocket() {
   const origin = ws.onmessage?.bind(ws)
   ws.onmessage = (event: MessageEvent) => {
     if (typeof event.data === 'string') {
+      // 文本帧被截流后 y-websocket 感知不到，需手动刷新活跃时间戳，
+      // 否则其 30 秒假死检测会误判断连（二进制帧走 origin 由其自行刷新）；
+      // lib0 的 getUnixTime 就是 Date.now（毫秒），此处单位须一致
+      const p = wsProvider as unknown as { wsLastMessageReceived?: number } | null
+      if (p) p.wsLastMessageReceived = Date.now()
       handleServerTextFrame(event.data)
       return
     }
