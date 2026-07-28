@@ -24,6 +24,7 @@ export interface MinderNode {
 export interface MinderEvent {
   type: string
   patch?: { express: string; node: MinderNode; index: number }
+  zoom?: number
 }
 
 export type MinderEventHandler = (e: MinderEvent) => void
@@ -56,6 +57,41 @@ export interface Minder {
   refresh(): Minder
   layout(duration?: number): Minder
   destroy(): void
+}
+
+// ==================== 导航器（MinderNavigator）所需扩展类型 ====================
+// kity 的 Box 实例（getBoundaryBox/getView 返回值），比纯数据 RenderBox 多出几何运算方法
+export interface KityBox extends RenderBox {
+  intersect(another: KityBox): KityBox
+}
+
+export interface KityPoint {
+  x: number
+  y: number
+  offset(dx: number, dy: number): KityPoint
+}
+
+// 缩略图遍历所需的节点布局/连线信息（编辑内核的 MinderNode 未覆盖）
+export interface NavNode {
+  parent: NavNode | null
+  traverse(fn: (node: NavNode) => void): void
+  getLayoutBox(): RenderBox
+  getConnection(): { getPathData(): unknown } | null
+  isExpanded(): boolean
+}
+
+// 导航器只依赖视图层 API，与编辑内核的 Minder 接口独立维护
+export interface NavMinder {
+  on(events: string, handler: MinderEventHandler): NavMinder
+  off(events: string, handler: MinderEventHandler): NavMinder
+  execCommand(name: string, ...args: unknown[]): unknown
+  queryCommandState(name: string): number
+  getRoot(): NavNode
+  getOption(key: string): unknown
+  getStyle(name: string): unknown
+  getRenderContainer(): { getBoundaryBox(): KityBox }
+  getViewDragger(): { getView(): KityBox; moveTo(position: KityPoint, duration?: number): void }
+  getPaper(): { getViewPortMatrix(): { transformBox(box: KityBox): KityBox } }
 }
 
 export interface KityMinderGlobal {
