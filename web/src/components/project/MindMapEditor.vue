@@ -6,7 +6,7 @@
  * 抽到 page 层会导致大量 props/emit 透传且破坏协作状态一致性。
  * 设计文档第 13 节代码骨架同样在组件内直接调用 API。
  */
-import { onMounted, onBeforeUnmount, ref, watch, computed, nextTick } from 'vue'
+import { onMounted, onBeforeUnmount, ref, shallowRef, watch, computed, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
 import {
   fetchDocumentNodes,
@@ -16,16 +16,17 @@ import {
   submitExecutionRecord,
   getNodeReviewRecords,
 } from '@/services/project'
+import { getAccessToken } from '@/services'
 import type { TestCaseNode, TestReviewSnapshotNode, TestPlanSnapshotNode, ExecutionResult, ReviewMark, ReviewRecord } from '@/types'
 import 'kityminder-core/dist/kityminder.core.css'
+// kity/kityminder-core 是 2014 年的老库：给原始值挂属性、使用 arguments.callee，
+// 均与 ESM 强制的严格模式冲突，只能以经典 script 标签（非严格模式）加载
+import kityUrl from 'kity/dist/kity.js?url'
+import kityminderUrl from 'kityminder-core/dist/kityminder.core.js?url'
 import * as Y from 'yjs'
 import { WebsocketProvider } from 'y-websocket'
-
-declare global {
-  interface Window {
-    kityminder?: { Minder: new (options: Record<string, unknown>) => unknown }
-  }
-}
+// window.kity / window.kityminder 的类型声明在 minder/types.ts 中统一维护
+import { KMEditor } from './minder/editor'
 
 const props = defineProps<{
   docId?: string
@@ -39,7 +40,10 @@ const emit = defineEmits<{ nodeSelect: [nodeId: string, nodeType: string] }>()
 
 const containerRef = ref<HTMLDivElement>()
 const loading = ref(false)
-const minder = ref<unknown>(null)
+// shallowRef：kity 实例重度依赖原型链与 this 身份，深度 reactive 代理会破坏内部调用
+const minder = shallowRef<unknown>(null)
+// 编辑内核（仅 edit 模式创建）：contenteditable 接收器统一接管键盘，提供原位编辑与打字即编辑
+let kmEditor: KMEditor | null = null
 
 // 选中节点状态
 const selectedNodeId = ref('')
@@ -112,8 +116,8 @@ function getMinder(): Record<string, (...args: unknown[]) => unknown> | null {
 function getSelectedNodeData(): Record<string, unknown> | null {
   const m = getMinder()
   if (!m) return null
-  const getter = (m as unknown as Record<string, unknown>).getSelectedNode as (() => Record<string, unknown> | null) | undefined
-  const node = getter?.()
+  // 必须以方法调用保留 this，kityminder 内部依赖 this.getSelectedNodes
+  const node = m.getSelectedNode?.() as Record<string, unknown> | null | undefined
   return node ? ((node.data ?? {}) as Record<string, unknown>) : null
 }
 
@@ -135,15 +139,175 @@ function updateSelectedState() {
   }
 }
 
+// ==================== 文档持久化（JSON 操作通路） ====================
+// Yjs 二进制帧仅做实时协同转发、不落库；节点增删改需经同一连接的文本帧
+// 提交给后端 DocumentPersistenceHandler 持久化，否则刷新后编辑内容丢失
+interface PersistSnap {
+  title: string
+  type: string
+  priority: string | null
+  parentId: string | null
+  sortOrder: number
+}
+
+let persistedSnapshot = new Map<string, PersistSnap>()
+let persistTimer: ReturnType<typeof setTimeout> | null = null
+// 远端变更经 importJson 回放时不产生本地持久化操作，避免多端重复落库
+let applyingRemote = false
+
+function getProviderSocket(): WebSocket | null {
+  const ws = (wsProvider as unknown as { ws?: WebSocket | null } | null)?.ws
+  return ws && ws.readyState === WebSocket.OPEN ? ws : null
+}
+
+// y-websocket 把收到的所有帧按二进制协议解码，服务端的 JSON 文本帧
+// （持久化错误回执/操作广播）会令其解码抛错，因此接管 onmessage 截流文本帧
+function patchProviderSocket() {
+  const ws = (wsProvider as unknown as { ws?: (WebSocket & { __textPatched?: boolean }) | null } | null)?.ws
+  if (!ws || ws.__textPatched) return
+  ws.__textPatched = true
+  const origin = ws.onmessage?.bind(ws)
+  ws.onmessage = (event: MessageEvent) => {
+    if (typeof event.data === 'string') {
+      handleServerTextFrame(event.data)
+      return
+    }
+    origin?.(event)
+  }
+}
+
+function handleServerTextFrame(raw: string) {
+  try {
+    const msg = JSON.parse(raw) as { type?: string; message?: string }
+    if (msg.type === 'error') {
+      ElMessage.error(msg.message ?? '文档保存失败')
+    }
+    // 其他客户端操作的 JSON 广播无需处理：画布同步依赖 Yjs 二进制通路
+  } catch {
+    /* 非 JSON 文本帧，忽略 */
+  }
+}
+
+interface LiveNode {
+  data: Record<string, unknown>
+  getChildren: () => LiveNode[]
+}
+
+// kityminder 新建节点会自行生成短随机 id（如 dk9uc1zn6q00），后端主键是 UUID，非 UUID 一律重发
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+// UUID v7：时间有序，作数据库主键可保持索引局部性、减少页分裂（randomUUID 是无序的 v4）
+function uuidv7(): string {
+  const bytes = new Uint8Array(16)
+  crypto.getRandomValues(bytes)
+  const ts = Date.now()
+  // 前 48 位写入毫秒时间戳（大端序）
+  for (let i = 5; i >= 0; i--) {
+    bytes[i] = Math.floor(ts / 2 ** (8 * (5 - i))) & 0xff
+  }
+  bytes[6] = (bytes[6] & 0x0f) | 0x70
+  bytes[8] = (bytes[8] & 0x3f) | 0x80
+  const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('')
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`
+}
+
+// 遍历画布真实节点（exportJson 是拷贝，写不回 id），顺便为新节点生成 UUID
+function collectLiveNodes(): Map<string, PersistSnap> {
+  const result = new Map<string, PersistSnap>()
+  const m = getMinder() as unknown as { getRoot?: () => LiveNode | null } | null
+  const root = m?.getRoot?.()
+  if (!root) return result
+  const walk = (node: LiveNode, parentId: string | null, sortOrder: number) => {
+    const data = node.data
+    if (typeof data.id !== 'string' || !UUID_RE.test(data.id)) {
+      data.id = uuidv7()
+    }
+    const id = data.id as string
+    result.set(id, {
+      title: (data.text as string) ?? '',
+      type: (data.type as string) || 'normal',
+      priority: (data.priority as string) ?? null,
+      parentId,
+      sortOrder,
+    })
+    node.getChildren().forEach((child, index) => walk(child, id, index))
+  }
+  walk(root, null, 0)
+  return result
+}
+
+function sendPersistOp(socket: WebSocket, type: string, data: Record<string, unknown>) {
+  socket.send(JSON.stringify({ type, payload: { data } }))
+}
+
+function flushPersistence() {
+  if (!isEdit.value || !getMinder()) return
+  const socket = getProviderSocket()
+  if (!socket) return
+  const current = collectLiveNodes()
+
+  for (const [id, snap] of current) {
+    const prev = persistedSnapshot.get(id)
+    if (!prev) {
+      sendPersistOp(socket, 'add_node', { id, ...snap })
+      continue
+    }
+    if (prev.title !== snap.title || prev.type !== snap.type || prev.priority !== snap.priority) {
+      sendPersistOp(socket, 'update_attrs', { id, title: snap.title, type: snap.type, priority: snap.priority })
+    }
+    if (prev.parentId !== snap.parentId || prev.sortOrder !== snap.sortOrder) {
+      sendPersistOp(socket, 'move_node', { id, parentId: snap.parentId, sortOrder: snap.sortOrder })
+    }
+  }
+
+  for (const [id, snap] of persistedSnapshot) {
+    if (current.has(id)) continue
+    // 后端会级联删除子树，只需提交被删子树的顶层节点
+    const parentAlsoDeleted = snap.parentId !== null && persistedSnapshot.has(snap.parentId) && !current.has(snap.parentId)
+    if (!parentAlsoDeleted) {
+      sendPersistOp(socket, 'delete_node', { id })
+    }
+  }
+
+  persistedSnapshot = current
+}
+
+function schedulePersist() {
+  if (persistTimer) clearTimeout(persistTimer)
+  persistTimer = setTimeout(() => {
+    persistTimer = null
+    flushPersistence()
+  }, 400)
+}
+
+// 立即冲刷未落库的增量编辑（切换文档/卸载前调用）
+function flushPersistenceNow() {
+  if (persistTimer) {
+    clearTimeout(persistTimer)
+    persistTimer = null
+  }
+  flushPersistence()
+}
+
 // ==================== Yjs 实时协作（编辑模式） ====================
 function setupYjs(docId: string) {
   destroyYjs()
   ydoc = new Y.Doc()
-  const wsUrl = `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws/documents/${docId}`
-  wsProvider = new WebsocketProvider(wsUrl, docId, ydoc)
+  // WebsocketProvider 会自动把房间名（docId）拼到 URL 尾部，serverUrl 不能重复携带；
+  // 浏览器 WebSocket 无法携带 Authorization 头，token 走查询参数供后端握手拦截器校验
+  const wsUrl = `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws/documents`
+  wsProvider = new WebsocketProvider(wsUrl, docId, ydoc, {
+    params: { token: getAccessToken() ?? '' },
+  })
 
   wsProvider.on('status', (event: { status: string }) => {
     isConnected.value = event.status === 'connected'
+    if (event.status === 'connected') {
+      // 重连会创建新的 WebSocket 实例，需要重新拦截文本帧；
+      // 断线期间的本地编辑在重连后重新 diff 补发
+      patchProviderSocket()
+      flushPersistence()
+    }
   })
 
 // 协作感知：跟踪其他在线用户以渲染彩色光标
@@ -162,13 +326,21 @@ function setupYjs(docId: string) {
 
   // 远端 Yjs 变更同步到本地画布，确保多人编辑一致性
   const ymap = ydoc.getMap('mindmap')
-  ymap.observe(() => {
+  ymap.observe((_event, transaction) => {
+    // 本地 syncToYjs 触发的 observe 无需回放，否则 importJson→contentchange→set 死循环
+    if (transaction.local) return
     const m = getMinder()
     if (!m) return
     const remoteData = ymap.get('data')
-    if (remoteData) {
+    if (!remoteData) return
+    applyingRemote = true
+    try {
       m.importJson(remoteData)
+    } finally {
+      applyingRemote = false
     }
+    // 远端操作由发起方负责落库，本端只需对齐快照防止重复 diff 提交
+    persistedSnapshot = collectLiveNodes()
   })
 }
 
@@ -191,10 +363,54 @@ function destroyYjs() {
 }
 
 // ==================== 初始化 ====================
+const loadedScripts = new Map<string, Promise<void>>()
+
+// 以经典 script 标签加载（脚本在非严格模式下执行），并发调用时复用同一 Promise
+function loadLegacyScript(src: string): Promise<void> {
+  let pending = loadedScripts.get(src)
+  if (!pending) {
+    pending = new Promise<void>((resolve, reject) => {
+      const el = document.createElement('script')
+      el.src = src
+      el.onload = () => resolve()
+      el.onerror = () => {
+        loadedScripts.delete(src)
+        el.remove()
+        reject(new Error(`脚本加载失败: ${src}`))
+      }
+      document.head.appendChild(el)
+    })
+    loadedScripts.set(src, pending)
+  }
+  return pending
+}
+
+// 竞态令牌：快速切换文档/页面时丢弃过期的异步初始化结果
+let initToken = 0
+
+function destroyMinder() {
+  const m = getMinder()
+  minder.value = null
+  // 画布 DOM 可能已被 Vue 卸载，destroy 内部的选区/布局清理会抛 parentNode 错误，
+  // 必须吞掉，否则未捕获异常会阻断路由导航
+  try {
+    if (kmEditor) kmEditor.destroy()
+    else m?.destroy?.()
+  } catch {
+    /* 画布已脱离 DOM，忽略清理异常 */
+  }
+  kmEditor = null
+  if (containerRef.value) containerRef.value.innerHTML = ''
+}
+
 async function initMinder() {
   if (!containerRef.value) return
+  const token = ++initToken
   loading.value = true
+  // 切换文档前冲刷防抖中的增量编辑，避免旧文档最后一次修改丢失
+  flushPersistenceNow()
   destroyYjs()
+  destroyMinder()
   try {
     let kmData: Record<string, unknown>
 
@@ -213,11 +429,22 @@ async function initMinder() {
       return
     }
 
-    await import('kityminder-core' as string)
+    // kityminder-core 求值时直接读取 window.kity，必须保证 kity 先完成加载
+    await loadLegacyScript(kityUrl)
+    await loadLegacyScript(kityminderUrl)
+    // 异步等待期间组件可能已卸载或已切换文档，过期结果直接丢弃
+    if (token !== initToken || !containerRef.value) return
     const MinderClass = window.kityminder?.Minder
     if (!MinderClass) { ElMessage.error('脑图引擎加载失败'); return }
 
-    const instance = new MinderClass({ renderTo: containerRef.value })
+    // edit 模式经编辑内核创建（键盘接收器/原位编辑）；review/plan 只读，裸 minder 即可
+    let instance: unknown
+    if (props.mode === 'edit') {
+      kmEditor = new KMEditor(containerRef.value)
+      instance = kmEditor.minder
+    } else {
+      instance = new MinderClass({ renderTo: containerRef.value })
+    }
     minder.value = instance
     const m = instance as Record<string, (...args: unknown[]) => unknown>
     m.importJson(kmData)
@@ -232,15 +459,22 @@ async function initMinder() {
     m.on('contentchange', () => {
       canUndo.value = !!(m.queryCommandState?.('Undo') === 0)
       canRedo.value = !!(m.queryCommandState?.('Redo') === 0)
-      // 编辑模式：内容变化同步到 Yjs
-      if (props.mode === 'edit') {
+      // 编辑模式：内容变化同步到 Yjs 并防抖落库；远端回放不回写以免循环与重复持久化
+      if (props.mode === 'edit' && !applyingRemote) {
+        // 先把新节点的短 id 归一化为 UUID 再写入 Yjs，否则各端会各自生成不同 id 导致数据分裂
+        collectLiveNodes()
         syncToYjs()
+        schedulePersist()
       }
     })
+
+    // 基线快照对齐服务端存量数据，避免首次 diff 把已有节点误判为新增
+    persistedSnapshot = props.mode === 'edit' ? collectLiveNodes() : new Map()
 
     // 编辑模式建立 WebSocket 协作
     if (props.mode === 'edit' && props.docId) {
       await nextTick()
+      if (token !== initToken) return
       setupYjs(props.docId)
     }
   } catch (err) {
@@ -251,7 +485,31 @@ async function initMinder() {
 }
 
 // ==================== Edit 模式工具栏操作 ====================
-function exec(command: string) { getMinder()?.execCommand?.(command) }
+function exec(command: string) {
+  getMinder()?.execCommand?.(command)
+  // 命令执行后焦点回到键盘接收器，保证快捷键与打字即编辑持续可用
+  kmEditor?.minder.fire('receiverfocus')
+}
+
+// ==================== 节点原位编辑 ====================
+// 原位编辑由编辑内核（minder/input.ts）经 contenteditable 接收器实现，
+// 这里只是工具栏 / 右键菜单 / 单击节点的编辑入口
+function editSelectedText() {
+  if (!isEdit.value) return
+  kmEditor?.editText()
+}
+
+// 点击节点直接进入原位编辑；记录按下位置以区分单击与拖拽（拖拽节点/框选不触发编辑）
+let mousedownPos = { x: 0, y: 0 }
+function onCanvasMousedown(e: MouseEvent) {
+  mousedownPos = { x: e.clientX, y: e.clientY }
+}
+function onCanvasClick(e: MouseEvent) {
+  if (!isEdit.value) return
+  if (Math.abs(e.clientX - mousedownPos.x) > 3 || Math.abs(e.clientY - mousedownPos.y) > 3) return
+  // 点击空白处 selectionchange 已清空选中态，不会误开编辑框
+  if (selectedNodeId.value) editSelectedText()
+}
 
 function markAs(type: string) {
   const data = getSelectedNodeData()
@@ -374,8 +632,10 @@ defineExpose({ openBug })
 watch([() => props.docId, () => props.reviewId, () => props.planId], initMinder)
 onMounted(initMinder)
 onBeforeUnmount(() => {
+  initToken++
+  flushPersistenceNow()
   destroyYjs()
-  ;(getMinder() as Record<string, () => void> | null)?.destroy?.()
+  destroyMinder()
 })
 </script>
 
@@ -400,6 +660,7 @@ onBeforeUnmount(() => {
       </el-button-group>
       <el-divider direction="vertical" />
       <el-button-group size="small">
+        <el-button title="编辑内容 (点击节点/F2)" @click="editSelectedText">✏️编辑</el-button>
         <el-button title="添加子节点 (Tab)" @click="addChild">＋子</el-button>
         <el-button title="添加兄弟节点 (Enter)" @click="addSibling">＋兄</el-button>
         <el-button title="删除 (Delete)" @click="deleteNode">🗑</el-button>
@@ -459,8 +720,14 @@ onBeforeUnmount(() => {
       <el-button size="small" :type="isGrabMode?'success':''" @click="toggleGrab">✋</el-button>
     </div>
 
-    <!-- 脑图画布 -->
-    <div ref="containerRef" class="minder-canvas" @contextmenu.prevent="onContextMenu" />
+    <!-- 脑图画布（编辑模式下内核会向容器注入 .km-receiver 接收器元素） -->
+    <div
+      ref="containerRef"
+      class="minder-canvas"
+      @contextmenu.prevent="onContextMenu"
+      @mousedown="onCanvasMousedown"
+      @click="onCanvasClick"
+    />
 
     <!-- 右键菜单（编辑模式） -->
     <teleport to="body">
@@ -471,6 +738,7 @@ onBeforeUnmount(() => {
         @click="contextMenuVisible = false"
         @mouseleave="contextMenuVisible = false"
       >
+        <div class="mindmap-context-menu__item" @click="editSelectedText">编辑内容</div>
         <div class="mindmap-context-menu__item" @click="addChild">新建子节点</div>
         <div class="mindmap-context-menu__item" @click="addSibling">新建兄弟节点</div>
         <div class="mindmap-context-menu__divider" />
@@ -591,6 +859,31 @@ onBeforeUnmount(() => {
 .minder-canvas :deep(svg) {
   width: 100%;
   height: 100%;
+}
+
+/* 键盘接收器（编辑内核注入）：平时隐藏只接收键盘，进入 input 态叠加到节点文本上形成原位编辑框 */
+.minder-canvas :deep(.km-receiver) {
+  position: absolute;
+  z-index: 20;
+  opacity: 0;
+  pointer-events: none;
+  padding: 3px 6px;
+  min-width: 40px;
+  max-width: 300px;
+  outline: none;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.minder-canvas :deep(.km-receiver.input) {
+  opacity: 1;
+  pointer-events: auto;
+  border: 2px solid var(--el-color-primary);
+  border-radius: 4px;
+  background: var(--el-bg-color);
+  color: var(--el-text-color-primary);
+  box-shadow: var(--el-box-shadow-light);
 }
 
 /* 右键菜单 */
