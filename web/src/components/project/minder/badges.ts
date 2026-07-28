@@ -124,17 +124,20 @@ function defineBadgeRenderer(kity: KityStatic, base: unknown, getBadge: (node: M
   })
 }
 
-let registered = false
+// 幂等粒度必须是"每个 window.kityminder 对象一次"而非进程级布尔：
+// HMR 后脚本重新注入会整体替换 kityminder 全局对象（连同其内部模块池），
+// 进程级标志不会重置，短路后徽标模块永远进不了新模块池，徽标静默消失
+const registeredTargets = new WeakSet<object>()
 
 /**
  * 注册徽标渲染模块（幂等）。Module.register 是全局模块池，
  * 须在 loadLegacyScript 完成后、new Minder 之前调用，对之后创建的所有实例生效。
  */
 export function registerBadgesModule(): boolean {
-  if (registered) return true
   const km = window.kityminder
   const kity = window.kity as KityStatic | undefined
   if (!km || !kity) return false
+  if (registeredTargets.has(km)) return true
 
   const typeRenderer = defineBadgeRenderer(kity, km.Render, (node) => typeBadge(node.getData('type')))
   const priorityRenderer = defineBadgeRenderer(kity, km.Render, (node) => priorityBadge(node.getData('priority')))
@@ -145,6 +148,6 @@ export function registerBadgesModule(): boolean {
   km.Module.register('TestBadgesModule', () => ({
     renderers: { left: [typeRenderer, priorityRenderer] },
   }))
-  registered = true
+  registeredTargets.add(km)
   return true
 }

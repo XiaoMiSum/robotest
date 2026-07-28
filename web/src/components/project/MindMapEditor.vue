@@ -372,17 +372,23 @@ const loadedScripts = new Map<string, Promise<void>>()
 function loadLegacyScript(src: string): Promise<void> {
   let pending = loadedScripts.get(src)
   if (!pending) {
-    pending = new Promise<void>((resolve, reject) => {
-      const el = document.createElement('script')
-      el.src = src
-      el.onload = () => resolve()
-      el.onerror = () => {
-        loadedScripts.delete(src)
-        el.remove()
-        reject(new Error(`脚本加载失败: ${src}`))
-      }
-      document.head.appendChild(el)
-    })
+    // HMR 重求值会清空模块级缓存，但 head 中的 script 标签仍在；
+    // 直接复用可避免脚本二次执行整体替换 window.kityminder（连同已注册的模块池）
+    if (document.querySelector(`script[src="${src}"]`)) {
+      pending = Promise.resolve()
+    } else {
+      pending = new Promise<void>((resolve, reject) => {
+        const el = document.createElement('script')
+        el.src = src
+        el.onload = () => resolve()
+        el.onerror = () => {
+          loadedScripts.delete(src)
+          el.remove()
+          reject(new Error(`脚本加载失败: ${src}`))
+        }
+        document.head.appendChild(el)
+      })
+    }
     loadedScripts.set(src, pending)
   }
   return pending
@@ -444,8 +450,10 @@ async function initMinder() {
     if (token !== initToken || !containerRef.value) return
     const MinderClass = window.kityminder?.Minder
     if (!MinderClass) { ElMessage.error('脑图引擎加载失败'); return }
-    // 徽标模块须在 new Minder 之前注册，三种模式均可见
-    registerBadgesModule()
+    // 徽标模块须在 new Minder 之前注册，三种模式均可见；失败不阻断加载但必须留痕
+    if (!registerBadgesModule()) {
+      console.warn('[MindMapEditor] 徽标模块注册失败，节点类型/优先级色标将不可见')
+    }
 
     // edit 模式经编辑内核创建（键盘接收器/原位编辑/撤销重做）；review/plan 只读，裸 minder 即可
     let instance: unknown
