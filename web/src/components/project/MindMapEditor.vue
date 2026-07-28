@@ -6,7 +6,7 @@
  * 抽到 page 层会导致大量 props/emit 透传且破坏协作状态一致性。
  * 设计文档第 13 节代码骨架同样在组件内直接调用 API。
  */
-import { onMounted, onBeforeUnmount, ref, shallowRef, watch, computed, nextTick } from 'vue'
+import { onMounted, onBeforeUnmount, ref, watch, computed, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
 import {
   fetchDocumentNodes,
@@ -18,18 +18,16 @@ import {
 } from '@/services/project'
 import { getAccessToken } from '@/services'
 import type { DocumentLayout, ExecutionResult, ReviewMark, ReviewRecord } from '@/types'
-import 'kityminder-core/dist/kityminder.core.css'
-// kity/kityminder-core 是 2014 年的老库：给原始值挂属性、使用 arguments.callee，
-// 均与 ESM 强制的严格模式冲突，只能以经典 script 标签（非严格模式）加载
-import kityUrl from 'kity/dist/kity.js?url'
-import kityminderUrl from 'kityminder-core/dist/kityminder.core.js?url'
 import * as Y from 'yjs'
 import { WebsocketProvider } from 'y-websocket'
 // window.kity / window.kityminder 的类型声明在 minder/types.ts 中统一维护
 import { KMEditor } from './minder/editor'
 import { DEFAULT_NODE_TEXT } from './minder/jumping'
-import { registerBadgesModule } from './minder/badges'
 import { caseNodeToKm, reviewNodeToKm, planNodeToKm, uuidv7, UUID_RE } from './minder/adapter'
+import { loadMinderEngine } from './minder/loader'
+import { useMinderInstance } from './minder/useMinderInstance'
+import { useContextMenu, type ContextMenuAnchorNode } from './minder/useContextMenu'
+import MinderContextMenu from './minder/MinderContextMenu.vue'
 import MinderNavigator from './minder/MinderNavigator.vue'
 
 const props = defineProps<{
@@ -42,30 +40,42 @@ const props = defineProps<{
 
 const emit = defineEmits<{ nodeSelect: [nodeId: string, nodeType: string] }>()
 
-const containerRef = ref<HTMLDivElement>()
-const loading = ref(false)
-// shallowRef：kity 实例重度依赖原型链与 this 身份，深度 reactive 代理会破坏内部调用
-const minder = shallowRef<unknown>(null)
 // 编辑内核（仅 edit 模式创建）：contenteditable 接收器统一接管键盘，提供原位编辑与打字即编辑
 let kmEditor: KMEditor | null = null
 
-// 选中节点状态
-const selectedNodeId = ref('')
-const selectedType = ref('')
+// 各模式在基座选中状态（id/type）之上的扩展字段
 const selectedPriority = ref('')
 const reviewResult = ref<string | null>(null)
 const execResult = ref<string | null>(null)
 const canUndo = ref(false)
 const canRedo = ref(false)
 
+const {
+  containerRef,
+  loading,
+  minder,
+  selectedNodeId,
+  selectedType,
+  beginInit,
+  isStale,
+  invalidate,
+  getMinder,
+  getSelectedNodeData,
+  updateSelectedState,
+  destroyMinder,
+} = useMinderInstance({
+  onSelectionChange(data) {
+    selectedPriority.value = data ? (data.priority as string) || '' : ''
+    reviewResult.value = data ? (data.lastMark as string) || null : null
+    execResult.value = data ? (data.lastResult as string) || null : null
+    if (data) emit('nodeSelect', selectedNodeId.value, selectedType.value)
+  },
+})
+
 // 评论抽屉
 const commentVisible = ref(false)
 const comments = ref<ReviewRecord[]>([])
 const newComment = ref('')
-
-// 右键菜单
-const contextMenuVisible = ref(false)
-const contextMenuPos = ref({ x: 0, y: 0 })
 
 // Yjs 实时协作（仅 edit 模式）
 let ydoc: Y.Doc | null = null
@@ -78,37 +88,6 @@ const priorities = ['P0', 'P1', 'P2', 'P3']
 const isEdit = computed(() => props.mode === 'edit' && !props.readonly)
 const isReview = computed(() => props.mode === 'review' && !props.readonly)
 const isPlan = computed(() => props.mode === 'plan' && !props.readonly)
-
-// ==================== Minder 操作封装 ====================
-function getMinder(): Record<string, (...args: unknown[]) => unknown> | null {
-  return minder.value as Record<string, (...args: unknown[]) => unknown> | null
-}
-
-function getSelectedNodeData(): Record<string, unknown> | null {
-  const m = getMinder()
-  if (!m) return null
-  // 必须以方法调用保留 this，kityminder 内部依赖 this.getSelectedNodes
-  const node = m.getSelectedNode?.() as Record<string, unknown> | null | undefined
-  return node ? ((node.data ?? {}) as Record<string, unknown>) : null
-}
-
-function updateSelectedState() {
-  const data = getSelectedNodeData()
-  if (data) {
-    selectedNodeId.value = (data.id as string) || ''
-    selectedType.value = (data.type as string) || ''
-    selectedPriority.value = (data.priority as string) || ''
-    reviewResult.value = (data.lastMark as string) || null
-    execResult.value = (data.lastResult as string) || null
-    emit('nodeSelect', selectedNodeId.value, selectedType.value)
-  } else {
-    selectedNodeId.value = ''
-    selectedType.value = ''
-    selectedPriority.value = ''
-    reviewResult.value = null
-    execResult.value = null
-  }
-}
 
 // ==================== 文档持久化（JSON 操作通路） ====================
 // Yjs 二进制帧仅做实时协同转发、不落库；节点增删改需经同一连接的文本帧
@@ -366,60 +345,20 @@ function destroyYjs() {
 }
 
 // ==================== 初始化 ====================
-const loadedScripts = new Map<string, Promise<void>>()
-
-// 以经典 script 标签加载（脚本在非严格模式下执行），并发调用时复用同一 Promise
-function loadLegacyScript(src: string): Promise<void> {
-  let pending = loadedScripts.get(src)
-  if (!pending) {
-    // HMR 重求值会清空模块级缓存，但 head 中的 script 标签仍在；
-    // 直接复用可避免脚本二次执行整体替换 window.kityminder（连同已注册的模块池）
-    if (document.querySelector(`script[src="${src}"]`)) {
-      pending = Promise.resolve()
-    } else {
-      pending = new Promise<void>((resolve, reject) => {
-        const el = document.createElement('script')
-        el.src = src
-        el.onload = () => resolve()
-        el.onerror = () => {
-          loadedScripts.delete(src)
-          el.remove()
-          reject(new Error(`脚本加载失败: ${src}`))
-        }
-        document.head.appendChild(el)
-      })
-    }
-    loadedScripts.set(src, pending)
-  }
-  return pending
-}
-
-// 竞态令牌：快速切换文档/页面时丢弃过期的异步初始化结果
-let initToken = 0
-
-function destroyMinder() {
-  const m = getMinder()
-  minder.value = null
-  // 画布 DOM 可能已被 Vue 卸载，destroy 内部的选区/布局清理会抛 parentNode 错误，
-  // 必须吞掉，否则未捕获异常会阻断路由导航
-  try {
-    if (kmEditor) kmEditor.destroy()
-    else m?.destroy?.()
-  } catch {
-    /* 画布已脱离 DOM，忽略清理异常 */
-  }
+// edit 模式的实例经编辑内核创建，销毁也须走内核（接收器/历史等 runtime 一并清理）
+function teardownMinder() {
+  destroyMinder(kmEditor ? () => kmEditor?.destroy() : undefined)
   kmEditor = null
-  if (containerRef.value) containerRef.value.innerHTML = ''
 }
 
 async function initMinder() {
   if (!containerRef.value) return
-  const token = ++initToken
+  const token = beginInit()
   loading.value = true
   // 切换文档前冲刷防抖中的增量编辑，避免旧文档最后一次修改丢失
   flushPersistenceNow()
   destroyYjs()
-  destroyMinder()
+  teardownMinder()
   try {
     let kmData: Record<string, unknown>
 
@@ -443,17 +382,9 @@ async function initMinder() {
       return
     }
 
-    // kityminder-core 求值时直接读取 window.kity，必须保证 kity 先完成加载
-    await loadLegacyScript(kityUrl)
-    await loadLegacyScript(kityminderUrl)
+    const km = await loadMinderEngine()
     // 异步等待期间组件可能已卸载或已切换文档，过期结果直接丢弃
-    if (token !== initToken || !containerRef.value) return
-    const MinderClass = window.kityminder?.Minder
-    if (!MinderClass) { ElMessage.error('脑图引擎加载失败'); return }
-    // 徽标模块须在 new Minder 之前注册，三种模式均可见；失败不阻断加载但必须留痕
-    if (!registerBadgesModule()) {
-      console.warn('[MindMapEditor] 徽标模块注册失败，节点类型/优先级色标将不可见')
-    }
+    if (isStale(token) || !containerRef.value) return
 
     // edit 模式经编辑内核创建（键盘接收器/原位编辑/撤销重做）；review/plan 只读，裸 minder 即可
     let instance: unknown
@@ -470,7 +401,7 @@ async function initMinder() {
       })
       instance = kmEditor.minder
     } else {
-      instance = new MinderClass({ renderTo: containerRef.value })
+      instance = new km.Minder({ renderTo: containerRef.value })
     }
     minder.value = instance
     const m = instance as Record<string, (...args: unknown[]) => unknown>
@@ -502,7 +433,7 @@ async function initMinder() {
     // 编辑模式建立 WebSocket 协作
     if (props.mode === 'edit' && props.docId) {
       await nextTick()
-      if (token !== initToken) return
+      if (isStale(token)) return
       setupYjs(props.docId)
     }
   } catch (err) {
@@ -656,50 +587,16 @@ async function markExecution(result: ExecutionResult) {
 }
 
 // ==================== 右键菜单 ====================
-function onContextMenu(e: MouseEvent) {
-  // 仅选中节点时展示（右键节点时 core 已先行选中；空白处右键不弹菜单）
-  if (!selectedNodeId.value) return
-  contextMenuPos.value = { x: e.clientX, y: e.clientY }
-  contextMenuVisible.value = true
-}
-
-// 空格唤醒菜单：定位到选中节点下方（'screen' 参照系坐标即 client 坐标，菜单为 fixed 定位）
-function openContextMenuAtSelection() {
-  const node = getMinder()?.getSelectedNode?.() as
-    | { getRenderBox?: (rendererType?: unknown, refer?: unknown) => { x: number; y: number; height: number } }
-    | null
-    | undefined
-  if (!node?.getRenderBox) return
-  const box = node.getRenderBox(undefined, 'screen')
-  contextMenuPos.value = { x: Math.round(box.x), y: Math.round(box.y + box.height + 4) }
-  contextMenuVisible.value = true
-}
-
-// 菜单展示期间挂全局监听：点击菜单外、Esc、滚轮均关闭。
-// 不用 mouseleave（划过即消失不友好，且空格唤醒时鼠标可能根本不在菜单上）
-function closeMenuOnOutsidePress(e: MouseEvent) {
-  if ((e.target as HTMLElement | null)?.closest?.('.mindmap-context-menu')) return
-  contextMenuVisible.value = false
-}
-function closeMenuOnEsc(e: KeyboardEvent) {
-  if (e.key !== 'Escape') return
-  // 吞掉按键，避免同时被键盘接收器转发给 core 造成取消选中等副作用
-  e.stopPropagation()
-  contextMenuVisible.value = false
-}
-function closeMenu() { contextMenuVisible.value = false }
-
-watch(contextMenuVisible, (visible) => {
-  // capture 阶段监听，画布等内部元素 stopPropagation 也不影响菜单关闭
-  if (visible) {
-    document.addEventListener('mousedown', closeMenuOnOutsidePress, true)
-    document.addEventListener('keydown', closeMenuOnEsc, true)
-    document.addEventListener('wheel', closeMenu, true)
-  } else {
-    document.removeEventListener('mousedown', closeMenuOnOutsidePress, true)
-    document.removeEventListener('keydown', closeMenuOnEsc, true)
-    document.removeEventListener('wheel', closeMenu, true)
-  }
+const {
+  visible: menuVisible,
+  pos: menuPos,
+  onContextMenu,
+  openAtSelection: openContextMenuAtSelection,
+  close: closeContextMenu,
+} = useContextMenu({
+  hasSelection: () => !!selectedNodeId.value,
+  getSelectedNode: () =>
+    getMinder()?.getSelectedNode?.() as ContextMenuAnchorNode | null | undefined,
 })
 
 // ==================== Bug 链接跳转 ====================
@@ -714,15 +611,10 @@ defineExpose({ openBug })
 watch([() => props.docId, () => props.reviewId, () => props.planId], initMinder)
 onMounted(initMinder)
 onBeforeUnmount(() => {
-  initToken++
+  invalidate()
   flushPersistenceNow()
   destroyYjs()
-  destroyMinder()
-  // 菜单开着时卸载组件，watch 不再触发，需兜底摘除全局监听
-  contextMenuVisible.value = false
-  document.removeEventListener('mousedown', closeMenuOnOutsidePress, true)
-  document.removeEventListener('keydown', closeMenuOnEsc, true)
-  document.removeEventListener('wheel', closeMenu, true)
+  teardownMinder()
 })
 </script>
 
@@ -813,62 +705,60 @@ onBeforeUnmount(() => {
     <MinderNavigator v-if="minder && !loading" :minder="minder" />
 
     <!-- 右键菜单（编辑模式） -->
-    <teleport to="body">
-      <div
-        v-if="contextMenuVisible && isEdit"
-        class="mindmap-context-menu"
-        :style="{ left: contextMenuPos.x + 'px', top: contextMenuPos.y + 'px' }"
-        @click="contextMenuVisible = false"
-      >
-        <div class="mindmap-context-menu__item" @click="editSelectedText">编辑内容</div>
-        <div class="mindmap-context-menu__item" @click="addChild">新建子节点</div>
-        <div class="mindmap-context-menu__item" @click="addSibling">新建兄弟节点</div>
-        <div class="mindmap-context-menu__divider" />
-        <div class="mindmap-context-menu__subtitle">标记类型 ▸</div>
-        <div class="mindmap-context-menu__item mindmap-context-menu__item--indent" @click="markAs('normal')">普通</div>
-        <div class="mindmap-context-menu__item mindmap-context-menu__item--indent" @click="markAs('precondition')">前置条件</div>
-        <div class="mindmap-context-menu__item mindmap-context-menu__item--indent" @click="markAs('step')">执行步骤</div>
-        <div class="mindmap-context-menu__item mindmap-context-menu__item--indent" @click="markAs('expected')">预期结果</div>
-        <div class="mindmap-context-menu__item mindmap-context-menu__item--indent" @click="markAs('case')">测试用例</div>
-        <div class="mindmap-context-menu__divider" />
-        <div class="mindmap-context-menu__subtitle">标记优先级 ▸</div>
-        <div class="mindmap-context-menu__item mindmap-context-menu__item--indent" @click="markPriority('P0')">P0</div>
-        <div class="mindmap-context-menu__item mindmap-context-menu__item--indent" @click="markPriority('P1')">P1</div>
-        <div class="mindmap-context-menu__item mindmap-context-menu__item--indent" @click="markPriority('P2')">P2</div>
-        <div class="mindmap-context-menu__item mindmap-context-menu__item--indent" @click="markPriority('P3')">P3</div>
-        <div class="mindmap-context-menu__divider" />
-        <div class="mindmap-context-menu__item mindmap-context-menu__item--danger" @click="deleteNode">删除节点</div>
-      </div>
+    <MinderContextMenu
+      v-if="menuVisible && isEdit"
+      :x="menuPos.x"
+      :y="menuPos.y"
+      @close="closeContextMenu"
+    >
+      <div class="mindmap-context-menu__item" @click="editSelectedText">编辑内容</div>
+      <div class="mindmap-context-menu__item" @click="addChild">新建子节点</div>
+      <div class="mindmap-context-menu__item" @click="addSibling">新建兄弟节点</div>
+      <div class="mindmap-context-menu__divider" />
+      <div class="mindmap-context-menu__subtitle">标记类型 ▸</div>
+      <div class="mindmap-context-menu__item mindmap-context-menu__item--indent" @click="markAs('normal')">普通</div>
+      <div class="mindmap-context-menu__item mindmap-context-menu__item--indent" @click="markAs('precondition')">前置条件</div>
+      <div class="mindmap-context-menu__item mindmap-context-menu__item--indent" @click="markAs('step')">执行步骤</div>
+      <div class="mindmap-context-menu__item mindmap-context-menu__item--indent" @click="markAs('expected')">预期结果</div>
+      <div class="mindmap-context-menu__item mindmap-context-menu__item--indent" @click="markAs('case')">测试用例</div>
+      <div class="mindmap-context-menu__divider" />
+      <div class="mindmap-context-menu__subtitle">标记优先级 ▸</div>
+      <div class="mindmap-context-menu__item mindmap-context-menu__item--indent" @click="markPriority('P0')">P0</div>
+      <div class="mindmap-context-menu__item mindmap-context-menu__item--indent" @click="markPriority('P1')">P1</div>
+      <div class="mindmap-context-menu__item mindmap-context-menu__item--indent" @click="markPriority('P2')">P2</div>
+      <div class="mindmap-context-menu__item mindmap-context-menu__item--indent" @click="markPriority('P3')">P3</div>
+      <div class="mindmap-context-menu__divider" />
+      <div class="mindmap-context-menu__item mindmap-context-menu__item--danger" @click="deleteNode">删除节点</div>
+    </MinderContextMenu>
 
-      <!-- 右键菜单（评审模式） -->
-      <div
-        v-if="contextMenuVisible && isReview"
-        class="mindmap-context-menu"
-        :style="{ left: contextMenuPos.x + 'px', top: contextMenuPos.y + 'px' }"
-        @click="contextMenuVisible = false"
-      >
-        <div class="mindmap-context-menu__subtitle">标记评审结果 ▸</div>
-        <div class="mindmap-context-menu__item mindmap-context-menu__item--indent" @click="markReview('pass')">通过</div>
-        <div class="mindmap-context-menu__item mindmap-context-menu__item--indent" @click="markReview('fail')">不通过</div>
-        <div class="mindmap-context-menu__item mindmap-context-menu__item--indent" @click="markReview(null)">待评审</div>
-        <div class="mindmap-context-menu__divider" />
-        <div class="mindmap-context-menu__item" @click="openComments">添加评论</div>
-      </div>
+    <!-- 右键菜单（评审模式） -->
+    <MinderContextMenu
+      v-if="menuVisible && isReview"
+      :x="menuPos.x"
+      :y="menuPos.y"
+      @close="closeContextMenu"
+    >
+      <div class="mindmap-context-menu__subtitle">标记评审结果 ▸</div>
+      <div class="mindmap-context-menu__item mindmap-context-menu__item--indent" @click="markReview('pass')">通过</div>
+      <div class="mindmap-context-menu__item mindmap-context-menu__item--indent" @click="markReview('fail')">不通过</div>
+      <div class="mindmap-context-menu__item mindmap-context-menu__item--indent" @click="markReview(null)">待评审</div>
+      <div class="mindmap-context-menu__divider" />
+      <div class="mindmap-context-menu__item" @click="openComments">添加评论</div>
+    </MinderContextMenu>
 
-      <!-- 右键菜单（计划模式） -->
-      <div
-        v-if="contextMenuVisible && isPlan"
-        class="mindmap-context-menu"
-        :style="{ left: contextMenuPos.x + 'px', top: contextMenuPos.y + 'px' }"
-        @click="contextMenuVisible = false"
-      >
-        <div class="mindmap-context-menu__subtitle">标记执行结果 ▸</div>
-        <div class="mindmap-context-menu__item mindmap-context-menu__item--indent" @click="markExecution('pass')">通过</div>
-        <div class="mindmap-context-menu__item mindmap-context-menu__item--indent" @click="markExecution('fail')">失败</div>
-        <div class="mindmap-context-menu__item mindmap-context-menu__item--indent" @click="markExecution('block')">阻塞</div>
-        <div class="mindmap-context-menu__item mindmap-context-menu__item--indent" @click="markExecution('untested')">未执行</div>
-      </div>
-    </teleport>
+    <!-- 右键菜单（计划模式） -->
+    <MinderContextMenu
+      v-if="menuVisible && isPlan"
+      :x="menuPos.x"
+      :y="menuPos.y"
+      @close="closeContextMenu"
+    >
+      <div class="mindmap-context-menu__subtitle">标记执行结果 ▸</div>
+      <div class="mindmap-context-menu__item mindmap-context-menu__item--indent" @click="markExecution('pass')">通过</div>
+      <div class="mindmap-context-menu__item mindmap-context-menu__item--indent" @click="markExecution('fail')">失败</div>
+      <div class="mindmap-context-menu__item mindmap-context-menu__item--indent" @click="markExecution('block')">阻塞</div>
+      <div class="mindmap-context-menu__item mindmap-context-menu__item--indent" @click="markExecution('untested')">未执行</div>
+    </MinderContextMenu>
 
     <!-- 评论抽屉（评审模式） -->
     <el-drawer v-model="commentVisible" title="评论" :size="360">
@@ -894,12 +784,7 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped lang="scss">
-.mindmap-container {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  position: relative;
-}
+@use './minder/minder-base';
 
 .mindmap-disconnect-banner {
   background: var(--el-color-warning-light-9);
@@ -910,35 +795,10 @@ onBeforeUnmount(() => {
   flex-shrink: 0;
 }
 
-.mindmap-toolbar {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 8px 12px;
-  background: var(--el-bg-color-overlay);
-  backdrop-filter: blur(8px);
-  border-bottom: 1px solid var(--el-border-color-lighter);
-  flex-shrink: 0;
-  flex-wrap: wrap;
-  z-index: 10;
-}
-
 .online-users {
   margin-left: auto;
   display: flex;
   gap: 4px;
-}
-
-.minder-canvas {
-  flex: 1;
-  min-height: 400px;
-  overflow: hidden;
-  position: relative;
-}
-
-.minder-canvas :deep(svg) {
-  width: 100%;
-  height: 100%;
 }
 
 /* 键盘接收器（编辑内核注入）：平时隐藏只接收键盘；
@@ -965,50 +825,6 @@ onBeforeUnmount(() => {
   opacity: 1;
   pointer-events: auto;
   caret-color: var(--el-color-primary);
-}
-
-/* 右键菜单 */
-.mindmap-context-menu {
-  position: fixed;
-  z-index: 9999;
-  background: var(--el-bg-color);
-  border: 1px solid var(--el-border-color-lighter);
-  border-radius: 6px;
-  box-shadow: var(--el-box-shadow-light);
-  padding: 4px 0;
-  min-width: 170px;
-}
-
-.mindmap-context-menu__item {
-  padding: 7px 16px;
-  font-size: 13px;
-  cursor: pointer;
-  transition: background 0.15s;
-}
-
-.mindmap-context-menu__item:hover {
-  background: var(--el-fill-color-light);
-}
-
-.mindmap-context-menu__item--danger {
-  color: var(--el-color-danger);
-}
-
-.mindmap-context-menu__item--indent {
-  padding-left: 28px;
-}
-
-.mindmap-context-menu__subtitle {
-  padding: 5px 16px;
-  font-size: 12px;
-  color: var(--el-text-color-secondary);
-  cursor: default;
-}
-
-.mindmap-context-menu__divider {
-  height: 1px;
-  background: var(--el-border-color-lighter);
-  margin: 4px 0;
 }
 
 /* 评论 */
