@@ -17,7 +17,7 @@ import {
   getNodeReviewRecords,
 } from '@/services/project'
 import { getAccessToken } from '@/services'
-import type { TestCaseNode, TestReviewSnapshotNode, TestPlanSnapshotNode, ExecutionResult, ReviewMark, ReviewRecord } from '@/types'
+import type { ExecutionResult, ReviewMark, ReviewRecord } from '@/types'
 import 'kityminder-core/dist/kityminder.core.css'
 // kity/kityminder-core 是 2014 年的老库：给原始值挂属性、使用 arguments.callee，
 // 均与 ESM 强制的严格模式冲突，只能以经典 script 标签（非严格模式）加载
@@ -27,6 +27,8 @@ import * as Y from 'yjs'
 import { WebsocketProvider } from 'y-websocket'
 // window.kity / window.kityminder 的类型声明在 minder/types.ts 中统一维护
 import { KMEditor } from './minder/editor'
+import { registerBadgesModule } from './minder/badges'
+import { caseNodeToKm, reviewNodeToKm, planNodeToKm, uuidv7, UUID_RE } from './minder/adapter'
 
 const props = defineProps<{
   docId?: string
@@ -75,38 +77,6 @@ const priorities = ['P0', 'P1', 'P2', 'P3']
 const isEdit = computed(() => props.mode === 'edit' && !props.readonly)
 const isReview = computed(() => props.mode === 'review' && !props.readonly)
 const isPlan = computed(() => props.mode === 'plan' && !props.readonly)
-
-// ==================== 数据转换 ====================
-function caseNodeToKm(node: TestCaseNode): Record<string, unknown> {
-  return {
-    data: { id: node.id, text: node.title, type: node.type, priority: node.priority },
-    children: node.children.map(caseNodeToKm),
-  }
-}
-
-function reviewNodeToKm(node: TestReviewSnapshotNode): Record<string, unknown> {
-  return {
-    data: {
-      id: node.id, text: node.title, type: node.type, priority: node.priority,
-      isAssociated: node.isAssociated, lastMark: node.lastMark,
-      reviewStatus: node.lastMark ? { result: node.lastMark } : null,
-      relatedBugIds: [],
-    },
-    children: node.children.map(reviewNodeToKm),
-  }
-}
-
-function planNodeToKm(node: TestPlanSnapshotNode): Record<string, unknown> {
-  return {
-    data: {
-      id: node.id, text: node.title, type: node.type, priority: node.priority,
-      isAssociated: node.isAssociated, lastResult: node.lastResult,
-      executionStatus: node.lastResult ? { result: node.lastResult } : null,
-      relatedBugIds: [],
-    },
-    children: node.children.map(planNodeToKm),
-  }
-}
 
 // ==================== Minder 操作封装 ====================
 function getMinder(): Record<string, (...args: unknown[]) => unknown> | null {
@@ -191,24 +161,6 @@ function handleServerTextFrame(raw: string) {
 interface LiveNode {
   data: Record<string, unknown>
   getChildren: () => LiveNode[]
-}
-
-// kityminder 新建节点会自行生成短随机 id（如 dk9uc1zn6q00），后端主键是 UUID，非 UUID 一律重发
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-
-// UUID v7：时间有序，作数据库主键可保持索引局部性、减少页分裂（randomUUID 是无序的 v4）
-function uuidv7(): string {
-  const bytes = new Uint8Array(16)
-  crypto.getRandomValues(bytes)
-  const ts = Date.now()
-  // 前 48 位写入毫秒时间戳（大端序）
-  for (let i = 5; i >= 0; i--) {
-    bytes[i] = Math.floor(ts / 2 ** (8 * (5 - i))) & 0xff
-  }
-  bytes[6] = (bytes[6] & 0x0f) | 0x70
-  bytes[8] = (bytes[8] & 0x3f) | 0x80
-  const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('')
-  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`
 }
 
 // 遍历画布真实节点（exportJson 是拷贝，写不回 id），顺便为新节点生成 UUID
@@ -436,6 +388,8 @@ async function initMinder() {
     if (token !== initToken || !containerRef.value) return
     const MinderClass = window.kityminder?.Minder
     if (!MinderClass) { ElMessage.error('脑图引擎加载失败'); return }
+    // 徽标模块须在 new Minder 之前注册，三种模式均可见
+    registerBadgesModule()
 
     // edit 模式经编辑内核创建（键盘接收器/原位编辑/撤销重做）；review/plan 只读，裸 minder 即可
     let instance: unknown
