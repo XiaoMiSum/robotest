@@ -437,10 +437,17 @@ async function initMinder() {
     const MinderClass = window.kityminder?.Minder
     if (!MinderClass) { ElMessage.error('脑图引擎加载失败'); return }
 
-    // edit 模式经编辑内核创建（键盘接收器/原位编辑）；review/plan 只读，裸 minder 即可
+    // edit 模式经编辑内核创建（键盘接收器/原位编辑/撤销重做）；review/plan 只读，裸 minder 即可
     let instance: unknown
     if (props.mode === 'edit') {
-      kmEditor = new KMEditor(containerRef.value)
+      kmEditor = new KMEditor(containerRef.value, {
+        // 远端协同回放不入本地撤销栈，避免撤销掉他人的编辑
+        historyFrozen: () => applyingRemote,
+        onHistoryChange: () => {
+          canUndo.value = kmEditor?.history.hasUndo() ?? false
+          canRedo.value = kmEditor?.history.hasRedo() ?? false
+        },
+      })
       instance = kmEditor.minder
     } else {
       instance = new MinderClass({ renderTo: containerRef.value })
@@ -457,8 +464,6 @@ async function initMinder() {
     // 监听事件
     m.on('selectionchange', updateSelectedState)
     m.on('contentchange', () => {
-      canUndo.value = !!(m.queryCommandState?.('Undo') === 0)
-      canRedo.value = !!(m.queryCommandState?.('Redo') === 0)
       // 编辑模式：内容变化同步到 Yjs 并防抖落库；远端回放不回写以免循环与重复持久化
       if (props.mode === 'edit' && !applyingRemote) {
         // 先把新节点的短 id 归一化为 UUID 再写入 Yjs，否则各端会各自生成不同 id 导致数据分裂
@@ -534,12 +539,19 @@ function markPriority(p: string) {
 function addChild() { exec('AppendChildNode') }
 function addSibling() { exec('AppendSiblingNode') }
 function deleteNode() { exec('RemoveNode') }
-function undo() { exec('Undo') }
-function redo() { exec('Redo') }
+// 撤销/重做由编辑内核的 history 提供（core 无 Undo/Redo 命令）
+function undo() { kmEditor?.history.undo() }
+function redo() { kmEditor?.history.redo() }
 function zoomIn() { exec('ZoomIn') }
 function zoomOut() { exec('ZoomOut') }
 function fitToScreen() { exec('Camera') }
-function toggleGrab() { isGrabMode.value = !isGrabMode.value }
+// 抓手接 core 原生 hand 命令（enableReadOnly，review/plan 只读态同样可用）
+function toggleGrab() {
+  const m = getMinder()
+  if (!m) return
+  m.execCommand?.('hand')
+  isGrabMode.value = m.queryCommandState?.('hand') === 1
+}
 
 // ==================== Review 模式操作 ====================
 async function markReview(mark: ReviewMark | null) {
