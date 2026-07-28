@@ -51,6 +51,7 @@ declare module 'vue' {
     ElTimeline: typeof import('element-plus/es')['ElTimeline']
     ElTimelineItem: typeof import('element-plus/es')['ElTimelineItem']
     ElTree: typeof import('element-plus/es')['ElTree']
+    MinderNavigator: typeof import('./components/project/minder/MinderNavigator.vue')['default']
     MindMapEditor: typeof import('./components/project/MindMapEditor.vue')['default']
     ModuleTree: typeof import('./components/project/ModuleTree.vue')['default']
     PasswordStrengthBar: typeof import('./components/common/PasswordStrengthBar.vue')['default']

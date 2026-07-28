@@ -29,6 +29,7 @@ import { WebsocketProvider } from 'y-websocket'
 import { KMEditor } from './minder/editor'
 import { registerBadgesModule } from './minder/badges'
 import { caseNodeToKm, reviewNodeToKm, planNodeToKm, uuidv7, UUID_RE } from './minder/adapter'
+import MinderNavigator from './minder/MinderNavigator.vue'
 
 const props = defineProps<{
   docId?: string
@@ -53,7 +54,6 @@ const selectedType = ref('')
 const selectedPriority = ref('')
 const reviewResult = ref<string | null>(null)
 const execResult = ref<string | null>(null)
-const isGrabMode = ref(false)
 const canUndo = ref(false)
 const canRedo = ref(false)
 
@@ -496,16 +496,7 @@ function deleteNode() { exec('RemoveNode') }
 // 撤销/重做由编辑内核的 history 提供（core 无 Undo/Redo 命令）
 function undo() { kmEditor?.history.undo() }
 function redo() { kmEditor?.history.redo() }
-function zoomIn() { exec('ZoomIn') }
-function zoomOut() { exec('ZoomOut') }
-function fitToScreen() { exec('Camera') }
-// 抓手接 core 原生 hand 命令（enableReadOnly，review/plan 只读态同样可用）
-function toggleGrab() {
-  const m = getMinder()
-  if (!m) return
-  m.execCommand?.('hand')
-  isGrabMode.value = m.queryCommandState?.('hand') === 1
-}
+// 缩放/定位/抓手/缩略图/全屏由导航器（minder/MinderNavigator.vue）提供
 
 // ==================== Review 模式操作 ====================
 async function markReview(mark: ReviewMark | null) {
@@ -636,14 +627,6 @@ onBeforeUnmount(() => {
         <el-button :disabled="!canUndo" @click="undo">↩</el-button>
         <el-button :disabled="!canRedo" @click="redo">↪</el-button>
       </el-button-group>
-      <el-divider direction="vertical" />
-      <el-button-group size="small">
-        <el-button @click="zoomIn">🔍+</el-button>
-        <el-button @click="zoomOut">🔍-</el-button>
-        <el-button @click="fitToScreen">⊞</el-button>
-      </el-button-group>
-      <el-divider direction="vertical" />
-      <el-button size="small" :type="isGrabMode?'success':''" @click="toggleGrab">✋</el-button>
       <!-- 在线用户头像 -->
       <div v-if="onlineUsers.length" class="online-users">
         <el-avatar v-for="user in onlineUsers" :key="user.id" :size="24" :style="{ border: `2px solid ${user.color}` }">
@@ -660,13 +643,6 @@ onBeforeUnmount(() => {
         <el-button :type="reviewResult===null?'info':''" @click="markReview(null)">❓待评审</el-button>
       </el-button-group>
       <el-button size="small" @click="openComments">💬评论</el-button>
-      <el-divider direction="vertical" />
-      <el-button-group size="small">
-        <el-button @click="zoomIn">🔍+</el-button>
-        <el-button @click="zoomOut">🔍-</el-button>
-        <el-button @click="fitToScreen">⊞</el-button>
-      </el-button-group>
-      <el-button size="small" :type="isGrabMode?'success':''" @click="toggleGrab">✋</el-button>
     </div>
 
     <!-- 计划模式工具栏 -->
@@ -677,13 +653,6 @@ onBeforeUnmount(() => {
         <el-button :type="execResult==='block'?'warning':''" @click="markExecution('block')">❓阻塞</el-button>
         <el-button :type="execResult==='untested'?'info':''" @click="markExecution('untested')">🔄未执行</el-button>
       </el-button-group>
-      <el-divider direction="vertical" />
-      <el-button-group size="small">
-        <el-button @click="zoomIn">🔍+</el-button>
-        <el-button @click="zoomOut">🔍-</el-button>
-        <el-button @click="fitToScreen">⊞</el-button>
-      </el-button-group>
-      <el-button size="small" :type="isGrabMode?'success':''" @click="toggleGrab">✋</el-button>
     </div>
 
     <!-- 脑图画布（编辑模式下内核会向容器注入 .km-receiver 接收器元素） -->
@@ -694,6 +663,9 @@ onBeforeUnmount(() => {
       @mousedown="onCanvasMousedown"
       @click="onCanvasClick"
     />
+
+    <!-- 导航器：缩放条/定位根节点/抓手/缩略图/全屏；minder 切换文档重建时随 v-if 重建 -->
+    <MinderNavigator v-if="minder && !loading" :minder="minder" />
 
     <!-- 右键菜单（编辑模式） -->
     <teleport to="body">
