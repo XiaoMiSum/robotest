@@ -5,7 +5,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { closePlan, getPlanDetail, getPlanProgress, startPlan, syncPlan } from '@/services/project'
 import type { TestPlanDetail, TestPlanProgress } from '@/types'
 import { formatDateTime, formatDate } from '@/utils/format'
-import MindMapEditor from '@/components/project/MindMapEditor.vue'
+import PlanMindMap from '@/components/project/PlanMindMap.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -103,7 +103,7 @@ onMounted(load)
     </el-card>
 
     <el-card shadow="never" class="plan-detail__body">
-      <MindMapEditor :plan-id="planId" mode="plan" />
+      <PlanMindMap :plan-id="planId" />
     </el-card>
   </div>
 </template>

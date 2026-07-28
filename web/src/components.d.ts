@@ -8,6 +8,7 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
+    CaseMindMap: typeof import('./components/project/CaseMindMap.vue')['default']
     CaseSelector: typeof import('./components/project/CaseSelector.vue')['default']
     ElAvatar: typeof import('element-plus/es')['ElAvatar']
     ElBadge: typeof import('element-plus/es')['ElBadge']
@@ -51,11 +52,13 @@ declare module 'vue' {
     ElTimeline: typeof import('element-plus/es')['ElTimeline']
     ElTimelineItem: typeof import('element-plus/es')['ElTimelineItem']
     ElTree: typeof import('element-plus/es')['ElTree']
+    MinderContextMenu: typeof import('./components/project/minder/MinderContextMenu.vue')['default']
     MinderNavigator: typeof import('./components/project/minder/MinderNavigator.vue')['default']
-    MindMapEditor: typeof import('./components/project/MindMapEditor.vue')['default']
     ModuleTree: typeof import('./components/project/ModuleTree.vue')['default']
     PasswordStrengthBar: typeof import('./components/common/PasswordStrengthBar.vue')['default']
     PermissionTable: typeof import('./components/admin/PermissionTable.vue')['default']
+    PlanMindMap: typeof import('./components/project/PlanMindMap.vue')['default']
+    ReviewMindMap: typeof import('./components/project/ReviewMindMap.vue')['default']
     RoleTreePanel: typeof import('./components/admin/RoleTreePanel.vue')['default']
     RoleUsersTable: typeof import('./components/admin/RoleUsersTable.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']

@@ -1,5 +1,5 @@
 /**
- * kityminder-core 以经典 script 标签加载（原因见 MindMapEditor.vue 头部说明），
+ * kityminder-core 以经典 script 标签加载（原因见 loader.ts 头部说明），
  * 无法从 npm 包获得类型声明，这里为编辑内核维护最小结构化类型，
  * 避免各 runtime 中散落 unknown 断言（C1：禁止 any）。
  */
