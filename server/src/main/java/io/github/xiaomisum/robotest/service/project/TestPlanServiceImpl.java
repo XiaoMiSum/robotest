@@ -4,6 +4,7 @@ import xyz.migoo.framework.mybatis.core.LambdaQueryWrapperX;
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.framework.convert.TestPlanConvertMapper;
+import io.github.xiaomisum.robotest.model.dto.request.TestPlanCasesUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.TestPlanCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.TestPlanRecordReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.*;
@@ -176,6 +177,183 @@ public class TestPlanServiceImpl implements TestPlanService {
         List<SnapshotModuleTreeRespDTO> children = parentMap.getOrDefault(node.getId().toString(), new ArrayList<>());
         node.setChildren(children);
         children.forEach(child -> fillModuleChildren(child, parentMap));
+    }
+
+    @Override
+    public List<PlannedCasesRespDTO> getPlanPlannedCases(UUID planId) {
+        TestPlan plan = testPlanMapper.selectById(planId);
+        if (plan == null) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_PLAN_NOT_FOUND);
+        }
+
+        List<PlannedCasesRespDTO> result = new ArrayList<>();
+        for (TestPlanModuleSnapshot docSnap : selectDocumentSnapshots(planId)) {
+            List<UUID> caseIds = planNodeSnapshotMapper.selectList(
+                    new LambdaQueryWrapperX<TestPlanNodeSnapshot>()
+                            .eq(TestPlanNodeSnapshot::getPlanId, planId)
+                            .eq(TestPlanNodeSnapshot::getDocumentSnapshotId, docSnap.getId())
+                            .eq(TestPlanNodeSnapshot::getIsAssociated, true))
+                    .stream()
+                    .map(TestPlanNodeSnapshot::getOriginalNodeId)
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toList());
+            if (caseIds.isEmpty()) {
+                continue;
+            }
+            PlannedCasesRespDTO dto = new PlannedCasesRespDTO();
+            dto.setDocumentId(docSnap.getOriginalModuleId());
+            dto.setCaseIds(caseIds);
+            result.add(dto);
+        }
+        return result;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void updatePlanCases(UUID planId, TestPlanCasesUpdateReqDTO reqDTO) {
+        TestPlan plan = testPlanMapper.selectById(planId);
+        if (plan == null) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_PLAN_NOT_FOUND);
+        }
+        // 未结束（待开始/进行中）才允许调整规划
+        if (!Constants.Status.NEW.equals(plan.getStatus())
+                && !Constants.Status.IN_PROGRESS.equals(plan.getStatus())) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_PLAN_FINISHED);
+        }
+
+        Map<UUID, Set<UUID>> newSelection = new LinkedHashMap<>();
+        for (TestPlanCreateReqDTO.SelectedNode sn : reqDTO.getSelectedNodes()) {
+            TestCaseModule doc = testCaseModuleMapper.selectById(sn.getDocumentId());
+            if (doc == null || !doc.getProjectId().equals(plan.getProjectId())
+                    || !Constants.ModuleType.DOCUMENT.equals(doc.getType())) {
+                throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_CASE_MODULE_NOT_FOUND);
+            }
+            newSelection.put(sn.getDocumentId(), new HashSet<>(sn.getCaseIds()));
+        }
+
+        Map<UUID, TestPlanModuleSnapshot> existingDocs = selectDocumentSnapshots(planId).stream()
+                .collect(Collectors.toMap(TestPlanModuleSnapshot::getOriginalModuleId, m -> m));
+
+        // 1. 移除文档：删节点快照与文档快照（执行记录保留作审计），再清理空目录快照
+        for (Map.Entry<UUID, TestPlanModuleSnapshot> entry : existingDocs.entrySet()) {
+            if (newSelection.containsKey(entry.getKey())) {
+                continue;
+            }
+            planNodeSnapshotMapper.delete(
+                    new LambdaQueryWrapperX<TestPlanNodeSnapshot>()
+                            .eq(TestPlanNodeSnapshot::getPlanId, planId)
+                            .eq(TestPlanNodeSnapshot::getDocumentSnapshotId, entry.getValue().getId()));
+            planModuleSnapshotMapper.deleteById(entry.getValue().getId());
+        }
+        pruneEmptyDirectorySnapshots(planId);
+
+        // 2. 新增文档：复用创建时的快照生成（内部已预置库中已有模块，不会重复复制目录）
+        List<TestPlanCreateReqDTO.SelectedNode> added = reqDTO.getSelectedNodes().stream()
+                .filter(sn -> !existingDocs.containsKey(sn.getDocumentId()))
+                .collect(Collectors.toList());
+        if (!added.isEmpty()) {
+            generateSnapshots(planId, added);
+        }
+
+        // 3. 保留文档：补全快照后新增的节点，并按新选择重刷关联标记
+        for (Map.Entry<UUID, Set<UUID>> entry : newSelection.entrySet()) {
+            TestPlanModuleSnapshot docSnap = existingDocs.get(entry.getKey());
+            if (docSnap != null) {
+                refreshDocumentSnapshot(planId, docSnap, entry.getValue());
+            }
+        }
+    }
+
+    private List<TestPlanModuleSnapshot> selectDocumentSnapshots(UUID planId) {
+        return planModuleSnapshotMapper.selectList(
+                new LambdaQueryWrapperX<TestPlanModuleSnapshot>()
+                        .eq(TestPlanModuleSnapshot::getPlanId, planId)
+                        .eq(TestPlanModuleSnapshot::getType, Constants.ModuleType.DOCUMENT))
+                .stream()
+                .filter(m -> m.getOriginalModuleId() != null)
+                .collect(Collectors.toList());
+    }
+
+    // 移除文档后其祖先目录可能不再挂任何快照，自底向上循环清理，避免快照树残留空目录
+    private void pruneEmptyDirectorySnapshots(UUID planId) {
+        boolean removed = true;
+        while (removed) {
+            removed = false;
+            List<TestPlanModuleSnapshot> all = planModuleSnapshotMapper.selectList(
+                    new LambdaQueryWrapperX<TestPlanModuleSnapshot>()
+                            .eq(TestPlanModuleSnapshot::getPlanId, planId));
+            Set<UUID> referencedParents = all.stream()
+                    .map(TestPlanModuleSnapshot::getParentId)
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toSet());
+            for (TestPlanModuleSnapshot snap : all) {
+                if (Constants.ModuleType.DIRECTORY.equals(snap.getType())
+                        && !referencedParents.contains(snap.getId())) {
+                    planModuleSnapshotMapper.deleteById(snap.getId());
+                    removed = true;
+                }
+            }
+        }
+    }
+
+    // 补全快照缺失节点（快照后新建的用例，sync 只更新不新增）并重刷 isAssociated
+    private void refreshDocumentSnapshot(UUID planId, TestPlanModuleSnapshot docSnap, Set<UUID> caseIds) {
+        Map<UUID, TestPlanNodeSnapshot> snapByOriginal = planNodeSnapshotMapper.selectList(
+                new LambdaQueryWrapperX<TestPlanNodeSnapshot>()
+                        .eq(TestPlanNodeSnapshot::getPlanId, planId)
+                        .eq(TestPlanNodeSnapshot::getDocumentSnapshotId, docSnap.getId()))
+                .stream()
+                .filter(s -> s.getOriginalNodeId() != null)
+                .collect(Collectors.toMap(TestPlanNodeSnapshot::getOriginalNodeId, s -> s, (a, b) -> a));
+
+        Map<UUID, TestCaseNode> currentById = testCaseNodeMapper.selectList(
+                new LambdaQueryWrapperX<TestCaseNode>()
+                        .eq(TestCaseNode::getDocumentId, docSnap.getOriginalModuleId()))
+                .stream()
+                .collect(Collectors.toMap(TestCaseNode::getId, n -> n));
+
+        for (TestCaseNode node : currentById.values()) {
+            ensureNodeSnapshot(planId, docSnap.getId(), node, currentById, snapByOriginal);
+        }
+
+        for (TestPlanNodeSnapshot snap : snapByOriginal.values()) {
+            boolean associated = caseIds.contains(snap.getOriginalNodeId());
+            if (!Objects.equals(associated, snap.getIsAssociated())) {
+                snap.setIsAssociated(associated);
+                planNodeSnapshotMapper.updateById(snap);
+            }
+        }
+    }
+
+    // 递归保证父链先于子节点入快照，返回该节点的快照 ID
+    private UUID ensureNodeSnapshot(UUID planId, UUID docSnapshotId, TestCaseNode node,
+            Map<UUID, TestCaseNode> currentById,
+            Map<UUID, TestPlanNodeSnapshot> snapByOriginal) {
+        TestPlanNodeSnapshot existing = snapByOriginal.get(node.getId());
+        if (existing != null) {
+            return existing.getId();
+        }
+        UUID parentSnapshotId = null;
+        if (node.getParentId() != null) {
+            TestCaseNode parent = currentById.get(node.getParentId());
+            if (parent != null) {
+                parentSnapshotId = ensureNodeSnapshot(planId, docSnapshotId, parent, currentById, snapByOriginal);
+            }
+        }
+        TestPlanNodeSnapshot snapshot = new TestPlanNodeSnapshot();
+        snapshot.setPlanId(planId);
+        snapshot.setOriginalNodeId(node.getId());
+        snapshot.setDocumentSnapshotId(docSnapshotId);
+        snapshot.setParentId(parentSnapshotId);
+        snapshot.setTitle(node.getTitle());
+        snapshot.setType(node.getType());
+        snapshot.setPriority(node.getPriority());
+        snapshot.setIsAssociated(false);
+        snapshot.setLastResult(Constants.ExecutionResult.UNTESTED);
+        snapshot.setSortOrder(node.getSortOrder());
+        planNodeSnapshotMapper.insert(snapshot);
+        snapByOriginal.put(node.getId(), snapshot);
+        return snapshot.getId();
     }
 
     @Override
@@ -412,7 +590,13 @@ public class TestPlanServiceImpl implements TestPlanService {
             docCaseMap.put(sn.getDocumentId(), new HashSet<>(sn.getCaseIds()));
         }
 
-        Set<UUID> copiedModuleIds = new HashSet<>();
+        Set<UUID> copiedModuleIds = planModuleSnapshotMapper.selectList(
+                new LambdaQueryWrapperX<TestPlanModuleSnapshot>()
+                        .eq(TestPlanModuleSnapshot::getPlanId, planId))
+                .stream()
+                .map(TestPlanModuleSnapshot::getOriginalModuleId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toCollection(HashSet::new));
 
         for (Map.Entry<UUID, Set<UUID>> entry : docCaseMap.entrySet()) {
             UUID documentId = entry.getKey();

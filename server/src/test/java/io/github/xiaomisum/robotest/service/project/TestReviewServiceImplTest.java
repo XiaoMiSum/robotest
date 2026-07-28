@@ -4,8 +4,10 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
+import io.github.xiaomisum.robotest.model.dto.request.TestReviewCasesUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.TestReviewCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.TestReviewRecordReqDTO;
+import io.github.xiaomisum.robotest.model.dto.response.PlannedCasesRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.SnapshotModuleTreeRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.TestReviewDetailRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.TestReviewListRespDTO;
@@ -256,6 +258,134 @@ class TestReviewServiceImplTest {
                 assertEquals("目录", tree.get(0).getName());
                 assertEquals(1, tree.get(0).getChildren().size());
                 assertEquals("文档", tree.get(0).getChildren().get(0).getName());
+        }
+
+        @Test
+        void updateReviewCases_notInProgress_throws() {
+                TestReview review = new TestReview();
+                review.setId(reviewId);
+                review.setStatus("completed");
+                when(testReviewMapper.selectById(reviewId)).thenReturn(review);
+
+                TestReviewCasesUpdateReqDTO reqDTO = new TestReviewCasesUpdateReqDTO();
+                TestReviewCreateReqDTO.SelectedNode sn = new TestReviewCreateReqDTO.SelectedNode();
+                sn.setDocumentId(UUID.fromString("00000000-0000-0000-0000-0000000000d1"));
+                sn.setCaseIds(List.of(UUID.fromString("00000000-0000-0000-0000-0000000000c1")));
+                reqDTO.setSelectedNodes(List.of(sn));
+
+                assertThrows(ServiceException.class,
+                                () -> reviewService.updateReviewCases(reviewId, reqDTO));
+        }
+
+        @Test
+        void updateReviewCases_removesDocAndRefreshesAssociation() {
+                UUID docA = UUID.fromString("00000000-0000-0000-0000-0000000000a1");
+                UUID docB = UUID.fromString("00000000-0000-0000-0000-0000000000b1");
+                UUID caseC1 = UUID.fromString("00000000-0000-0000-0000-0000000000c1");
+                UUID caseC2 = UUID.fromString("00000000-0000-0000-0000-0000000000c2");
+
+                TestReview review = new TestReview();
+                review.setId(reviewId);
+                review.setProjectId(projectId);
+                review.setStatus("in_progress");
+                when(testReviewMapper.selectById(reviewId)).thenReturn(review);
+
+                TestCaseModule docModuleB = new TestCaseModule();
+                docModuleB.setId(docB);
+                docModuleB.setProjectId(projectId);
+                docModuleB.setType("document");
+                when(testCaseModuleMapper.selectById(docB)).thenReturn(docModuleB);
+
+                TestReviewModuleSnapshot snapA = new TestReviewModuleSnapshot();
+                snapA.setId(UUID.fromString("00000000-0000-0000-0000-0000000000aa"));
+                snapA.setOriginalModuleId(docA);
+                snapA.setType("document");
+                TestReviewModuleSnapshot snapB = new TestReviewModuleSnapshot();
+                snapB.setId(UUID.fromString("00000000-0000-0000-0000-0000000000bb"));
+                snapB.setOriginalModuleId(docB);
+                snapB.setType("document");
+
+                // 第一次：文档快照查询；第二次：空目录清理循环（无目录即退出）
+                when(reviewModuleSnapshotMapper.selectList(any(LambdaQueryWrapper.class)))
+                                .thenReturn(List.of(snapA, snapB), List.of(snapB));
+
+                TestReviewNodeSnapshot rootSnap = new TestReviewNodeSnapshot();
+                rootSnap.setId(UUID.fromString("00000000-0000-0000-0000-0000000000e1"));
+                rootSnap.setOriginalNodeId(UUID.fromString("00000000-0000-0000-0000-0000000000f1"));
+                rootSnap.setType("normal");
+                rootSnap.setIsAssociated(false);
+                TestReviewNodeSnapshot caseSnap1 = new TestReviewNodeSnapshot();
+                caseSnap1.setId(UUID.fromString("00000000-0000-0000-0000-0000000000e2"));
+                caseSnap1.setOriginalNodeId(caseC1);
+                caseSnap1.setType("case");
+                caseSnap1.setIsAssociated(true);
+                when(reviewNodeSnapshotMapper.selectList(any(LambdaQueryWrapper.class)))
+                                .thenReturn(List.of(rootSnap, caseSnap1));
+
+                TestCaseNode rootNode = new TestCaseNode();
+                rootNode.setId(rootSnap.getOriginalNodeId());
+                rootNode.setParentId(null);
+                rootNode.setType("normal");
+                rootNode.setTitle("root");
+                TestCaseNode caseNode1 = new TestCaseNode();
+                caseNode1.setId(caseC1);
+                caseNode1.setParentId(rootNode.getId());
+                caseNode1.setType("case");
+                caseNode1.setTitle("case1");
+                TestCaseNode caseNode2 = new TestCaseNode();
+                caseNode2.setId(caseC2);
+                caseNode2.setParentId(rootNode.getId());
+                caseNode2.setType("case");
+                caseNode2.setTitle("case2");
+                when(testCaseNodeMapper.selectList(any(LambdaQueryWrapper.class)))
+                                .thenReturn(List.of(rootNode, caseNode1, caseNode2));
+
+                TestReviewCasesUpdateReqDTO reqDTO = new TestReviewCasesUpdateReqDTO();
+                TestReviewCreateReqDTO.SelectedNode sn = new TestReviewCreateReqDTO.SelectedNode();
+                sn.setDocumentId(docB);
+                sn.setCaseIds(List.of(caseC2));
+                reqDTO.setSelectedNodes(List.of(sn));
+
+                reviewService.updateReviewCases(reviewId, reqDTO);
+
+                // docA 被移除：节点快照批删 + 文档快照删除
+                verify(reviewNodeSnapshotMapper).delete(any(LambdaQueryWrapper.class));
+                verify(reviewModuleSnapshotMapper).deleteById(snapA.getId());
+                // 快照后新增的 case2 被补入快照
+                verify(reviewNodeSnapshotMapper).insert(any(TestReviewNodeSnapshot.class));
+                // c1 取消关联、c2 新关联，各落库一次
+                verify(reviewNodeSnapshotMapper, times(2)).updateById(any(TestReviewNodeSnapshot.class));
+                assertFalse(caseSnap1.getIsAssociated());
+        }
+
+        @Test
+        void getReviewPlannedCases_returnsOriginalIds() {
+                UUID docA = UUID.fromString("00000000-0000-0000-0000-0000000000a1");
+                UUID caseC1 = UUID.fromString("00000000-0000-0000-0000-0000000000c1");
+
+                TestReview review = new TestReview();
+                review.setId(reviewId);
+                when(testReviewMapper.selectById(reviewId)).thenReturn(review);
+
+                TestReviewModuleSnapshot snapA = new TestReviewModuleSnapshot();
+                snapA.setId(UUID.fromString("00000000-0000-0000-0000-0000000000aa"));
+                snapA.setOriginalModuleId(docA);
+                snapA.setType("document");
+                when(reviewModuleSnapshotMapper.selectList(any(LambdaQueryWrapper.class)))
+                                .thenReturn(List.of(snapA));
+
+                TestReviewNodeSnapshot caseSnap = new TestReviewNodeSnapshot();
+                caseSnap.setId(UUID.fromString("00000000-0000-0000-0000-0000000000e2"));
+                caseSnap.setOriginalNodeId(caseC1);
+                caseSnap.setIsAssociated(true);
+                when(reviewNodeSnapshotMapper.selectList(any(LambdaQueryWrapper.class)))
+                                .thenReturn(List.of(caseSnap));
+
+                List<PlannedCasesRespDTO> result = reviewService.getReviewPlannedCases(reviewId);
+
+                assertEquals(1, result.size());
+                assertEquals(docA, result.get(0).getDocumentId());
+                assertEquals(List.of(caseC1), result.get(0).getCaseIds());
         }
 
         @Test

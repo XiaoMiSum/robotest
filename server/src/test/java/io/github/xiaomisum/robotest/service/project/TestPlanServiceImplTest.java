@@ -1,8 +1,10 @@
 package io.github.xiaomisum.robotest.service.project;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import io.github.xiaomisum.robotest.model.dto.request.TestPlanCasesUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.TestPlanCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.TestPlanRecordReqDTO;
+import io.github.xiaomisum.robotest.model.dto.response.PlannedCasesRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.TestPlanDetailRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.TestPlanExecutionRecordRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.TestPlanListRespDTO;
@@ -203,6 +205,53 @@ class TestPlanServiceImplTest {
                 verify(planExecutionRecordMapper).insert(any(TestPlanExecutionRecord.class));
                 assertEquals("pass", snapshot.getLastResult());
                 assertEquals(userId, snapshot.getLastExecutorId());
+        }
+
+        @Test
+        void updatePlanCases_finished_throws() {
+                TestPlan plan = new TestPlan();
+                plan.setId(planId);
+                plan.setStatus("closed");
+                when(testPlanMapper.selectById(planId)).thenReturn(plan);
+
+                TestPlanCasesUpdateReqDTO reqDTO = new TestPlanCasesUpdateReqDTO();
+                TestPlanCreateReqDTO.SelectedNode sn = new TestPlanCreateReqDTO.SelectedNode();
+                sn.setDocumentId(UUID.fromString("00000000-0000-0000-0000-0000000000d1"));
+                sn.setCaseIds(List.of(UUID.fromString("00000000-0000-0000-0000-0000000000c1")));
+                reqDTO.setSelectedNodes(List.of(sn));
+
+                assertThrows(ServiceException.class,
+                                () -> planService.updatePlanCases(planId, reqDTO));
+        }
+
+        @Test
+        void getPlanPlannedCases_returnsOriginalIds() {
+                UUID docA = UUID.fromString("00000000-0000-0000-0000-0000000000a1");
+                UUID caseC1 = UUID.fromString("00000000-0000-0000-0000-0000000000c1");
+
+                TestPlan plan = new TestPlan();
+                plan.setId(planId);
+                when(testPlanMapper.selectById(planId)).thenReturn(plan);
+
+                TestPlanModuleSnapshot snapA = new TestPlanModuleSnapshot();
+                snapA.setId(UUID.fromString("00000000-0000-0000-0000-0000000000aa"));
+                snapA.setOriginalModuleId(docA);
+                snapA.setType("document");
+                when(planModuleSnapshotMapper.selectList(any(LambdaQueryWrapper.class)))
+                                .thenReturn(List.of(snapA));
+
+                TestPlanNodeSnapshot caseSnap = new TestPlanNodeSnapshot();
+                caseSnap.setId(UUID.fromString("00000000-0000-0000-0000-0000000000e2"));
+                caseSnap.setOriginalNodeId(caseC1);
+                caseSnap.setIsAssociated(true);
+                when(planNodeSnapshotMapper.selectList(any(LambdaQueryWrapper.class)))
+                                .thenReturn(List.of(caseSnap));
+
+                List<PlannedCasesRespDTO> result = planService.getPlanPlannedCases(planId);
+
+                assertEquals(1, result.size());
+                assertEquals(docA, result.get(0).getDocumentId());
+                assertEquals(List.of(caseC1), result.get(0).getCaseIds());
         }
 
         @Test

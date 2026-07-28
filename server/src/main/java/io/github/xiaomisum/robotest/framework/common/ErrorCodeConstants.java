@@ -67,6 +67,7 @@ public class ErrorCodeConstants {
     public static final ErrorCode TEST_CASE_MODULE_MOVE_TARGET_INVALID = ErrorCode.of(1000011024, "移动目标不存在或不是目录");
     public static final ErrorCode TEST_CASE_MODULE_MOVE_CYCLE = ErrorCode.of(1000011025, "不能移动到自身或其子级目录下");
     public static final ErrorCode TEST_REVIEW_NOT_IN_PROGRESS = ErrorCode.of(1000011026, "评审不在进行中状态，无法执行该操作");
+    public static final ErrorCode TEST_PLAN_FINISHED = ErrorCode.of(1000011027, "计划已结束，无法执行该操作");
 
     // ========== 缺陷管理模块 1,000,012,001-1,000,012,010 ==========
     public static final ErrorCode BUG_INVALID_STATUS_TRANSITION = ErrorCode.of(1000012001, "缺陷状态流转不合法");
