@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox, ElTree } from 'element-plus'
 import { createModule, deleteModule, fetchModuleTree, updateModule } from '@/services/project'
 import type { TestCaseModule } from '@/types'
@@ -13,6 +13,16 @@ const treeRef = ref<InstanceType<typeof ElTree>>()
 const treeData = ref<TestCaseModule[]>([])
 const loading = ref(false)
 const currentDocId = ref('')
+const filterKeyword = ref('')
+
+// el-tree 自带过滤：命中节点自动展开其祖先链，清空关键字即还原
+watch(filterKeyword, (val) => treeRef.value?.filter(val))
+
+// filter 回调的 data 是 el-tree 的宽松 TreeNodeData，业务上只需 name 字段
+function filterNode(value: string, data: Record<string, unknown>): boolean {
+  if (!value) return true
+  return String(data.name ?? '').toLowerCase().includes(value.toLowerCase())
+}
 
 async function load() {
   loading.value = true
@@ -118,6 +128,11 @@ onMounted(load)
 <template>
   <div v-loading="loading" class="module-tree">
     <div class="module-tree__toolbar">
+      <el-input v-model="filterKeyword" size="small" placeholder="搜索目录 / 文档" clearable class="module-tree__search">
+        <template #prefix>
+          <el-icon><Search /></el-icon>
+        </template>
+      </el-input>
       <el-dropdown trigger="click" @command="(cmd: string) => handleCreate(null, cmd as 'directory' | 'document')">
         <el-button size="small" type="primary">
           <el-icon><Plus /></el-icon>新建
@@ -139,6 +154,7 @@ onMounted(load)
       :indent="12"
       default-expand-all
       :expand-on-click-node="false"
+      :filter-node-method="filterNode"
       highlight-current
       :current-node-key="currentDocId"
       @node-click="handleNodeClick"
@@ -209,9 +225,15 @@ onMounted(load)
 .module-tree__toolbar {
   display: flex;
   align-items: center;
+  gap: var(--space-xs);
   padding: 2px;
   border-bottom: 1px solid var(--color-neutral-100);
   background: var(--color-neutral-50);
+}
+
+.module-tree__search {
+  flex: 1;
+  min-width: 0;
 }
 
 .module-tree__node {
