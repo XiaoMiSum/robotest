@@ -92,7 +92,7 @@ interface KityPaper {
   setViewBox(x: number, y: number, width: number, height: number): void
   setStyle(name: string, value: unknown): void
   on(type: string, handler: (e: KityPaperEvent) => void): void
-  remove(): void
+  getNode(): SVGSVGElement
 }
 
 interface NavKityStatic {
@@ -223,7 +223,9 @@ onBeforeUnmount(() => {
   document.removeEventListener('fullscreenchange', onFullscreenChange)
   window.removeEventListener('mouseup', onWindowMouseUp)
   unbindNav()
-  paper?.remove()
+  // kity Paper 无 remove()，直接摘除其 SVG 节点；否则 beforeUnmount 抛错会打断
+  // 切换文档时的整条卸载链路，旧 Yjs 连接清理不掉导致持续重连
+  paper?.getNode().remove()
   paper = null
 })
 </script>
