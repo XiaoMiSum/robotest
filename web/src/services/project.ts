@@ -66,7 +66,11 @@ export function createModule(data: {
   return post('/project/modules', data)
 }
 
-export function updateModule(id: string, data: { name: string }): Promise<TestCaseModule> {
+// targetIndex 非空时为拖拽移动：parentId 为目标父目录（null 表示根层级）
+export function updateModule(
+  id: string,
+  data: { name?: string; parentId?: string | null; targetIndex?: number },
+): Promise<TestCaseModule> {
   return put(`/project/modules/${id}`, data)
 }
 

@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue'
+import { onMounted, nextTick, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox, ElTree } from 'element-plus'
+import type Node from 'element-plus/es/components/tree/src/model/node'
 import { createModule, deleteModule, fetchModuleTree, updateModule } from '@/services/project'
 import type { TestCaseModule } from '@/types'
 
@@ -123,6 +124,40 @@ async function handleDelete(node: TestCaseModule) {
 
 defineExpose({ reload: load })
 onMounted(load)
+
+// el-tree 拖拽回调的 Node.data 是宽松的 TreeNodeData，业务上即模块节点
+function nodeData(node: Node): TestCaseModule {
+  return node.data as TestCaseModule
+}
+
+function allowDrop(_dragging: Node, drop: Node, type: 'prev' | 'inner' | 'next'): boolean {
+  // 文档是叶子节点，只允许放入目录内部；同级前后排序不限
+  if (type === 'inner') return nodeData(drop).type === 'directory'
+  return true
+}
+
+async function handleNodeDrop(dragging: Node, drop: Node, dropType: 'before' | 'after' | 'inner') {
+  // node-drop 触发时 el-tree 已完成本地移动，新父级与下标直接从树结构反推
+  const parentNode = dropType === 'inner' ? drop : drop.parent
+  // 顶层节点的 parent 是 el-tree 虚拟根（level 0），对应后端根层级 null
+  const parentId = parentNode && parentNode.level > 0 ? nodeData(parentNode).id : null
+  const siblings = parentNode?.childNodes ?? []
+  const dragId = nodeData(dragging).id
+  const targetIndex = Math.max(0, siblings.findIndex((n) => nodeData(n).id === dragId))
+  try {
+    await updateModule(dragId, { parentId, targetIndex })
+    ElMessage.success('已移动')
+  } catch (err) {
+    ElMessage.error(err instanceof Error ? err.message : '移动失败')
+  }
+  // 成功时同步后端重排后的 sortOrder，失败时回滚 el-tree 的本地变更
+  await load()
+  // 整树重载会丢失高亮，恢复当前打开的文档
+  if (currentDocId.value) {
+    await nextTick()
+    treeRef.value?.setCurrentKey(currentDocId.value)
+  }
+}
 </script>
 
 <template>
@@ -157,6 +192,9 @@ onMounted(load)
       :filter-node-method="filterNode"
       highlight-current
       :current-node-key="currentDocId"
+      draggable
+      :allow-drop="allowDrop"
+      @node-drop="handleNodeDrop"
       @node-click="handleNodeClick"
     >
       <template #default="{ data }">
