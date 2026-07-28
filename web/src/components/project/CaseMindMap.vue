@@ -523,7 +523,7 @@ onBeforeUnmount(() => {
       <el-divider direction="vertical" />
       <div class="toolbar-group">
         <el-tooltip content="添加子节点 (Tab)" placement="bottom">
-          <el-button size="small" text @click="addChild"><el-icon><Plus /></el-icon><span>子级</span></el-button>
+          <el-button size="small" text @click="addChild"><el-icon><Plus /></el-icon><span>下级</span></el-button>
         </el-tooltip>
         <el-tooltip content="添加兄弟节点 (Enter)" placement="bottom">
           <el-button size="small" text @click="addSibling"><el-icon><Plus /></el-icon><span>同级</span></el-button>
@@ -605,9 +605,8 @@ onBeforeUnmount(() => {
       :y="menuPos.y"
       @close="closeContextMenu"
     >
-      <div class="mindmap-context-menu__item menu-action" @click="editSelectedText"><span>编辑内容</span></div>
-      <div class="mindmap-context-menu__item menu-action" @click="addChild"><span>新建子节点</span><span class="menu-shortcut">Tab</span></div>
-      <div class="mindmap-context-menu__item menu-action" @click="addSibling"><span>新建兄弟节点</span><span class="menu-shortcut">Enter</span></div>
+      <div class="mindmap-context-menu__item menu-action" @click="addChild"><span>新建下级节点</span><span class="menu-shortcut">Tab</span></div>
+      <div class="mindmap-context-menu__item menu-action" @click="addSibling"><span>新建同级节点</span><span class="menu-shortcut">Enter</span></div>
       <div class="mindmap-context-menu__divider" />
       <div class="mindmap-context-menu__item menu-action" @click="copyNode"><span>复制</span><span class="menu-shortcut">Ctrl+C</span></div>
       <div class="mindmap-context-menu__item menu-action" @click="cutNode"><span>剪切</span><span class="menu-shortcut">Ctrl+X</span></div>
