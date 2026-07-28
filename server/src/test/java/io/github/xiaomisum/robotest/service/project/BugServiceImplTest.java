@@ -54,13 +54,13 @@ class BugServiceImplTest {
     @InjectMocks
     private BugServiceImpl bugService;
 
-    private String projectId;
+    private UUID projectId;
     private UUID userId;
     private UUID bugId;
 
     @BeforeEach
     void setUp() {
-        projectId = "00000000-0000-0000-0000-000000000001";
+        projectId = UUID.fromString("00000000-0000-0000-0000-000000000001");
         userId = UUID.fromString("00000000-0000-0000-0000-000000000002");
         bugId = UUID.fromString("00000000-0000-0000-0000-000000000003");
     }

@@ -161,7 +161,7 @@ class TestCaseNodeServiceImplTest {
 
     @Test
     void getCaseList_success() {
-        String projId = "00000000-0000-0000-0000-000000000008";
+        UUID projId = UUID.fromString("00000000-0000-0000-0000-000000000008");
 
         TestCaseModule doc = new TestCaseModule();
         doc.setId(documentId);
@@ -193,7 +193,7 @@ class TestCaseNodeServiceImplTest {
 
     @Test
     void getCaseList_noDocuments() {
-        String projId = "00000000-0000-0000-0000-000000000008";
+        UUID projId = UUID.fromString("00000000-0000-0000-0000-000000000008");
         when(testCaseModuleMapper.selectList(any(LambdaQueryWrapper.class)))
                 .thenReturn(Collections.emptyList());
 

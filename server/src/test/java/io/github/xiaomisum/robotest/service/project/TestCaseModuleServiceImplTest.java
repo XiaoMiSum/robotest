@@ -35,14 +35,14 @@ class TestCaseModuleServiceImplTest {
     @InjectMocks
     private TestCaseModuleServiceImpl moduleService;
 
-    private String projectId;
+    private UUID projectId;
     private UUID moduleId1;
     private UUID moduleId2;
     private UUID documentId1;
 
     @BeforeEach
     void setUp() {
-        projectId = "00000000-0000-0000-0000-000000000001";
+        projectId = UUID.fromString("00000000-0000-0000-0000-000000000001");
         moduleId1 = UUID.fromString("00000000-0000-0000-0000-00000000000a");
         moduleId2 = UUID.fromString("00000000-0000-0000-0000-00000000000b");
         documentId1 = UUID.fromString("00000000-0000-0000-0000-000000000005");
@@ -52,7 +52,7 @@ class TestCaseModuleServiceImplTest {
     void getModuleTree_withModules() {
         TestCaseModule root = new TestCaseModule();
         root.setId(UUID.fromString("00000000-0000-0000-0000-000000000001"));
-        root.setProjectId(UUID.fromString(projectId));
+        root.setProjectId(projectId);
         root.setParentId(null);
         root.setType("directory");
         root.setName("Root");
@@ -166,7 +166,7 @@ class TestCaseModuleServiceImplTest {
     void updateModule_success() {
         TestCaseModule module = new TestCaseModule();
         module.setId(moduleId1);
-        module.setProjectId(UUID.fromString(projectId));
+        module.setProjectId(projectId);
         module.setParentId(null);
         module.setName("Old Name");
 
@@ -199,7 +199,7 @@ class TestCaseModuleServiceImplTest {
     void updateModule_duplicateName_throws() {
         TestCaseModule module = new TestCaseModule();
         module.setId(moduleId1);
-        module.setProjectId(UUID.fromString(projectId));
+        module.setProjectId(projectId);
         module.setParentId(null);
         module.setName("Old Name");
 

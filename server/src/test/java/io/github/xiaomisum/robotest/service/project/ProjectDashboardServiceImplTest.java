@@ -40,11 +40,11 @@ class ProjectDashboardServiceImplTest {
     @InjectMocks
     private ProjectDashboardServiceImpl dashboardService;
 
-    private String projectId;
+    private UUID projectId;
 
     @BeforeEach
     void setUp() {
-        projectId = "proj-1";
+        projectId = UUID.fromString("00000000-0000-0000-0000-000000000001");
     }
 
     @Test

@@ -56,14 +56,14 @@ class TestReviewServiceImplTest {
     @InjectMocks
     private TestReviewServiceImpl reviewService;
 
-    private String projectId;
+    private UUID projectId;
     private UUID userId;
     private UUID reviewId;
     private UUID otherUserId;
 
     @BeforeEach
     void setUp() {
-        projectId = "00000000-0000-0000-0000-000000000001";
+        projectId = UUID.fromString("00000000-0000-0000-0000-000000000001");
         userId = UUID.fromString("00000000-0000-0000-0000-000000000002");
         reviewId = UUID.fromString("00000000-0000-0000-0000-000000000003");
         otherUserId = UUID.fromString("00000000-0000-0000-0000-000000000011");
@@ -110,7 +110,7 @@ class TestReviewServiceImplTest {
     @Test
     void createReview_success() {
         Project project = new Project();
-        project.setId(UUID.fromString(projectId));
+        project.setId(projectId);
         project.setWorkspaceId(UUID.fromString("00000000-0000-0000-0000-000000000010"));
         when(projectMapper.selectById(projectId)).thenReturn(project);
 
