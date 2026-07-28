@@ -58,6 +58,13 @@ public class TestPlanController {
         return Result.ok(testPlanService.getPlanSnapshotTree(id, documentId));
     }
 
+    @GetMapping("/{id}/module-tree")
+    public Result<List<SnapshotModuleTreeRespDTO>> getPlanModuleTree(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @PathVariable UUID id) {
+        return Result.ok(testPlanService.getPlanModuleTree(id));
+    }
+
     @PostMapping("/{id}/records")
     public Result<Void> submitExecutionRecord(
             @AuthenticationPrincipal LoginUser loginUser,

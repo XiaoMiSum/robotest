@@ -6,6 +6,7 @@ import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
 import io.github.xiaomisum.robotest.model.dto.request.TestReviewCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.TestReviewRecordReqDTO;
+import io.github.xiaomisum.robotest.model.dto.response.SnapshotModuleTreeRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.TestReviewDetailRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.TestReviewListRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.TestReviewRecordRespDTO;
@@ -67,10 +68,10 @@ class TestReviewServiceImplTest {
 
         @BeforeEach
         void setUp() {
-            // LambdaUpdateWrapper 解析实体列名依赖 TableInfo 缓存，纯 Mockito 环境无 starter 初始化，需手动注册
-            TableInfoHelper.initTableInfo(
-                    new MapperBuilderAssistant(new MybatisConfiguration(), ""),
-                    TestReviewNodeSnapshot.class);
+                // LambdaUpdateWrapper 解析实体列名依赖 TableInfo 缓存，纯 Mockito 环境无 starter 初始化，需手动注册
+                TableInfoHelper.initTableInfo(
+                                new MapperBuilderAssistant(new MybatisConfiguration(), ""),
+                                TestReviewNodeSnapshot.class);
                 projectId = UUID.fromString("00000000-0000-0000-0000-000000000001");
                 userId = UUID.fromString("00000000-0000-0000-0000-000000000002");
                 reviewId = UUID.fromString("00000000-0000-0000-0000-000000000003");
@@ -224,6 +225,45 @@ class TestReviewServiceImplTest {
 
                 verify(reviewNodeSnapshotMapper).updateById(any(TestReviewNodeSnapshot.class));
                 verify(reviewRecordMapper).insert(any(TestReviewRecord.class));
+        }
+
+        @Test
+        void getReviewModuleTree_buildsHierarchy() {
+                TestReview review = new TestReview();
+                review.setId(reviewId);
+                when(testReviewMapper.selectById(reviewId)).thenReturn(review);
+
+                TestReviewModuleSnapshot dir = new TestReviewModuleSnapshot();
+                dir.setId(UUID.fromString("00000000-0000-0000-0000-00000000000a"));
+                dir.setParentId(null);
+                dir.setName("目录");
+                dir.setType("directory");
+                dir.setSortOrder(0);
+
+                TestReviewModuleSnapshot doc = new TestReviewModuleSnapshot();
+                doc.setId(UUID.fromString("00000000-0000-0000-0000-00000000000b"));
+                doc.setParentId(dir.getId());
+                doc.setName("文档");
+                doc.setType("document");
+                doc.setSortOrder(0);
+
+                when(reviewModuleSnapshotMapper.selectList(any(LambdaQueryWrapper.class)))
+                                .thenReturn(List.of(dir, doc));
+
+                List<SnapshotModuleTreeRespDTO> tree = reviewService.getReviewModuleTree(reviewId);
+
+                assertEquals(1, tree.size());
+                assertEquals("目录", tree.get(0).getName());
+                assertEquals(1, tree.get(0).getChildren().size());
+                assertEquals("文档", tree.get(0).getChildren().get(0).getName());
+        }
+
+        @Test
+        void getReviewModuleTree_reviewNotFound_throws() {
+                when(testReviewMapper.selectById(reviewId)).thenReturn(null);
+
+                assertThrows(ServiceException.class,
+                                () -> reviewService.getReviewModuleTree(reviewId));
         }
 
         @Test

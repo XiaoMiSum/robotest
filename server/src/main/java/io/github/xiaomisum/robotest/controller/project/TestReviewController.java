@@ -58,6 +58,13 @@ public class TestReviewController {
         return Result.ok(testReviewService.getReviewSnapshotTree(id, documentId));
     }
 
+    @GetMapping("/{id}/module-tree")
+    public Result<List<SnapshotModuleTreeRespDTO>> getReviewModuleTree(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @PathVariable UUID id) {
+        return Result.ok(testReviewService.getReviewModuleTree(id));
+    }
+
     @PostMapping("/{id}/records")
     public Result<Void> submitReviewRecord(
             @AuthenticationPrincipal LoginUser loginUser,

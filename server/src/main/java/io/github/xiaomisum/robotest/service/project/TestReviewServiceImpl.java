@@ -153,6 +153,47 @@ public class TestReviewServiceImpl implements TestReviewService {
     }
 
     @Override
+    public List<SnapshotModuleTreeRespDTO> getReviewModuleTree(UUID reviewId) {
+        TestReview review = testReviewMapper.selectById(reviewId);
+        if (review == null) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_REVIEW_NOT_FOUND);
+        }
+
+        List<TestReviewModuleSnapshot> modules = reviewModuleSnapshotMapper.selectList(
+                new LambdaQueryWrapperX<TestReviewModuleSnapshot>()
+                        .eq(TestReviewModuleSnapshot::getReviewId, reviewId)
+                        .orderByAsc(TestReviewModuleSnapshot::getSortOrder));
+
+        List<SnapshotModuleTreeRespDTO> dtos = modules.stream().map(m -> {
+            SnapshotModuleTreeRespDTO dto = new SnapshotModuleTreeRespDTO();
+            dto.setId(m.getId());
+            dto.setParentId(m.getParentId());
+            dto.setName(m.getName());
+            dto.setType(m.getType());
+            dto.setSortOrder(m.getSortOrder());
+            return dto;
+        }).collect(Collectors.toList());
+
+        return buildModuleTree(dtos);
+    }
+
+    private List<SnapshotModuleTreeRespDTO> buildModuleTree(List<SnapshotModuleTreeRespDTO> nodes) {
+        Map<String, List<SnapshotModuleTreeRespDTO>> parentMap = nodes.stream()
+                .collect(Collectors.groupingBy(
+                        n -> n.getParentId() != null ? n.getParentId().toString() : Constants.Tree.ROOT_KEY));
+        List<SnapshotModuleTreeRespDTO> roots = parentMap.getOrDefault(Constants.Tree.ROOT_KEY, new ArrayList<>());
+        roots.forEach(root -> fillModuleChildren(root, parentMap));
+        return roots;
+    }
+
+    private void fillModuleChildren(SnapshotModuleTreeRespDTO node,
+            Map<String, List<SnapshotModuleTreeRespDTO>> parentMap) {
+        List<SnapshotModuleTreeRespDTO> children = parentMap.getOrDefault(node.getId().toString(), new ArrayList<>());
+        node.setChildren(children);
+        children.forEach(child -> fillModuleChildren(child, parentMap));
+    }
+
+    @Override
     @Transactional(rollbackFor = Exception.class)
     public void submitReviewRecord(UUID reviewId, UUID userId,
             TestReviewRecordReqDTO reqDTO) {
