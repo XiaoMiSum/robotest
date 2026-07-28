@@ -583,6 +583,33 @@ function openContextMenuAtSelection() {
   contextMenuVisible.value = true
 }
 
+// 菜单展示期间挂全局监听：点击菜单外、Esc、滚轮均关闭。
+// 不用 mouseleave（划过即消失不友好，且空格唤醒时鼠标可能根本不在菜单上）
+function closeMenuOnOutsidePress(e: MouseEvent) {
+  if ((e.target as HTMLElement | null)?.closest?.('.mindmap-context-menu')) return
+  contextMenuVisible.value = false
+}
+function closeMenuOnEsc(e: KeyboardEvent) {
+  if (e.key !== 'Escape') return
+  // 吞掉按键，避免同时被键盘接收器转发给 core 造成取消选中等副作用
+  e.stopPropagation()
+  contextMenuVisible.value = false
+}
+function closeMenu() { contextMenuVisible.value = false }
+
+watch(contextMenuVisible, (visible) => {
+  // capture 阶段监听，画布等内部元素 stopPropagation 也不影响菜单关闭
+  if (visible) {
+    document.addEventListener('mousedown', closeMenuOnOutsidePress, true)
+    document.addEventListener('keydown', closeMenuOnEsc, true)
+    document.addEventListener('wheel', closeMenu, true)
+  } else {
+    document.removeEventListener('mousedown', closeMenuOnOutsidePress, true)
+    document.removeEventListener('keydown', closeMenuOnEsc, true)
+    document.removeEventListener('wheel', closeMenu, true)
+  }
+})
+
 // ==================== Bug 链接跳转 ====================
 // 暴露给 kityminder 扩展节点渲染模板通过 ref 调用，避免事件冒泡干扰节点选中
 function openBug(bugId: string) {
@@ -599,6 +626,11 @@ onBeforeUnmount(() => {
   flushPersistenceNow()
   destroyYjs()
   destroyMinder()
+  // 菜单开着时卸载组件，watch 不再触发，需兜底摘除全局监听
+  contextMenuVisible.value = false
+  document.removeEventListener('mousedown', closeMenuOnOutsidePress, true)
+  document.removeEventListener('keydown', closeMenuOnEsc, true)
+  document.removeEventListener('wheel', closeMenu, true)
 })
 </script>
 
@@ -678,7 +710,6 @@ onBeforeUnmount(() => {
         class="mindmap-context-menu"
         :style="{ left: contextMenuPos.x + 'px', top: contextMenuPos.y + 'px' }"
         @click="contextMenuVisible = false"
-        @mouseleave="contextMenuVisible = false"
       >
         <div class="mindmap-context-menu__item" @click="editSelectedText">编辑内容</div>
         <div class="mindmap-context-menu__item" @click="addChild">新建子节点</div>
@@ -706,7 +737,6 @@ onBeforeUnmount(() => {
         class="mindmap-context-menu"
         :style="{ left: contextMenuPos.x + 'px', top: contextMenuPos.y + 'px' }"
         @click="contextMenuVisible = false"
-        @mouseleave="contextMenuVisible = false"
       >
         <div class="mindmap-context-menu__subtitle">标记评审结果 ▸</div>
         <div class="mindmap-context-menu__item mindmap-context-menu__item--indent" @click="markReview('pass')">通过</div>
@@ -722,7 +752,6 @@ onBeforeUnmount(() => {
         class="mindmap-context-menu"
         :style="{ left: contextMenuPos.x + 'px', top: contextMenuPos.y + 'px' }"
         @click="contextMenuVisible = false"
-        @mouseleave="contextMenuVisible = false"
       >
         <div class="mindmap-context-menu__subtitle">标记执行结果 ▸</div>
         <div class="mindmap-context-menu__item mindmap-context-menu__item--indent" @click="markExecution('pass')">通过</div>
