@@ -13,7 +13,6 @@ import {
   updatePlanCases,
 } from '@/services/project'
 import type { PlannedCases, SnapshotModule, TestPlanDetail, TestPlanProgress } from '@/types'
-import { formatDate } from '@/utils/format'
 import PlanMindMap from '@/components/project/PlanMindMap.vue'
 import SnapshotModuleTree from '@/components/project/SnapshotModuleTree.vue'
 import CaseSelector from '@/components/project/CaseSelector.vue'
@@ -143,16 +142,7 @@ onMounted(load)
       <template #content>
         <div class="plan-detail__header">
           <span class="plan-detail__title">{{ detail?.name ?? '计划详情' }}</span>
-          <template v-if="detail">
-            <el-tag size="small" effect="light" round>{{ statusLabel[detail.status] }}</el-tag>
-            <span class="plan-detail__meta-item">负责人：{{ detail.executor?.name ?? '-' }}</span>
-            <el-divider direction="vertical" />
-            <span class="plan-detail__meta-item">
-              起止：{{ detail.startTime ? formatDate(detail.startTime) : '?' }} ~ {{ detail.endTime ? formatDate(detail.endTime) : '?' }}
-            </span>
-            <el-divider direction="vertical" />
-            <span class="plan-detail__meta-item">环境：{{ detail.environment || '-' }}</span>
-          </template>
+          <el-tag v-if="detail" size="small" effect="light" round>{{ statusLabel[detail.status] }}</el-tag>
         </div>
       </template>
       <template #extra>
@@ -250,13 +240,6 @@ onMounted(load)
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.plan-detail__meta-item {
-  font-size: var(--font-size-sm);
-  font-weight: 400;
-  color: var(--color-neutral-600);
-  white-space: nowrap;
 }
 
 // 标题行右侧：进度/统计 + 操作按钮同行排布
