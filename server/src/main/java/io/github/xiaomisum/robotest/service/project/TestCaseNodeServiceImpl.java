@@ -1,6 +1,5 @@
 package io.github.xiaomisum.robotest.service.project;
 
-import xyz.migoo.framework.mybatis.core.LambdaQueryWrapperX;
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.framework.convert.TestCaseNodeConvertMapper;
@@ -14,13 +13,13 @@ import io.github.xiaomisum.robotest.model.entity.TestCaseNode;
 import io.github.xiaomisum.robotest.repository.TestCaseDocumentLayoutMapper;
 import io.github.xiaomisum.robotest.repository.TestCaseModuleMapper;
 import io.github.xiaomisum.robotest.repository.TestCaseNodeMapper;
-import io.github.xiaomisum.robotest.service.project.TestCaseNodeService;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
 import xyz.migoo.framework.common.pojo.PageParam;
 import xyz.migoo.framework.common.pojo.PageResult;
+import xyz.migoo.framework.mybatis.core.LambdaQueryWrapperX;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -62,8 +61,7 @@ public class TestCaseNodeServiceImpl implements TestCaseNodeService {
 
         TestCaseDocumentNodesRespDTO result = new TestCaseDocumentNodesRespDTO();
         result.setNode(rootNode);
-        result.setLayout(layout != null && layout.getLayoutJson() != null
-                ? layout.getLayoutJson().toString() : null);
+        result.setLayout(layout != null ? layout.getLayoutJson() : null);
         return result;
     }
 
@@ -78,7 +76,7 @@ public class TestCaseNodeServiceImpl implements TestCaseNodeService {
 
     @Override
     public PageResult<TestCaseCaseListRespDTO> getCaseList(UUID projectId, String keyword,
-                                                            String priority, Integer pageNo, Integer pageSize) {
+                                                           String priority, Integer pageNo, Integer pageSize) {
         // 查询项目下所有 document 的 ID
         List<TestCaseModule> documents = testCaseModuleMapper.selectList(
                 new LambdaQueryWrapperX<TestCaseModule>()
@@ -105,7 +103,10 @@ public class TestCaseNodeServiceImpl implements TestCaseNodeService {
         wrapper.orderByAsc(TestCaseNode::getSortOrder);
 
         PageResult<TestCaseNode> page = testCaseNodeMapper.selectPage(
-                new PageParam() {{ setPageNo(pageNo); setPageSize(pageSize); }}, wrapper);
+                new PageParam() {{
+                    setPageNo(pageNo);
+                    setPageSize(pageSize);
+                }}, wrapper);
 
         // 构建 documentId → documentName 映射
         Map<String, String> docNameMap = documents.stream()
@@ -154,11 +155,11 @@ public class TestCaseNodeServiceImpl implements TestCaseNodeService {
 
         List<TestCaseNodeTreeRespDTO> roots = parentMap.getOrDefault(Constants.Tree.ROOT_KEY, new ArrayList<>());
         roots.forEach(root -> fillChildren(root, parentMap));
-        return roots.isEmpty() ? null : roots.get(0);
+        return roots.isEmpty() ? null : roots.getFirst();
     }
 
     private void fillChildren(TestCaseNodeTreeRespDTO node,
-                               Map<String, List<TestCaseNodeTreeRespDTO>> parentMap) {
+                              Map<String, List<TestCaseNodeTreeRespDTO>> parentMap) {
         List<TestCaseNodeTreeRespDTO> children = parentMap.getOrDefault(node.getId().toString(), new ArrayList<>());
         node.setChildren(children);
         children.forEach(child -> fillChildren(child, parentMap));
