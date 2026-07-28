@@ -151,11 +151,17 @@ onMounted(load)
             </div>
           </div>
           <div v-if="detail?.status === 'in_progress'" class="review-detail__actions">
-            <el-button size="small" @click="openCaseSelector">调整用例</el-button>
-            <el-button size="small" @click="handleSync">同步最新用例</el-button>
+            <el-button size="small" plain @click="openCaseSelector">
+              <el-icon><EditPen /></el-icon>调整用例
+            </el-button>
+            <el-button size="small" plain @click="handleSync">
+              <el-icon><Refresh /></el-icon>同步用例
+            </el-button>
             <el-tooltip :disabled="canComplete" content="全部用例评审通过后才能完成评审" placement="bottom">
               <span>
-                <el-button size="small" type="primary" :disabled="!canComplete" @click="handleComplete">完成评审</el-button>
+                <el-button size="small" type="primary" :disabled="!canComplete" @click="handleComplete">
+                  <el-icon><CircleCheck /></el-icon>完成评审
+                </el-button>
               </span>
             </el-tooltip>
           </div>
@@ -239,9 +245,21 @@ onMounted(load)
 
 .review-detail__actions {
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
   // 与左侧进度统计区用竖线分隔，避免同行内容粘连
   padding-left: var(--space-lg);
   border-left: 1px solid var(--color-neutral-200);
+
+  // 间距由 gap 统一控制，去除 el-button 相邻默认 margin（tooltip 包裹导致间距不均）
+  :deep(.el-button + .el-button) {
+    margin-left: 0;
+  }
+
+  :deep(.el-button .el-icon) {
+    margin-right: 4px;
+  }
 }
 
 .review-detail__progress-row {

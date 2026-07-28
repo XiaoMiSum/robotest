@@ -168,10 +168,18 @@ onMounted(load)
             </div>
           </div>
           <div v-if="detail" class="plan-detail__actions">
-            <el-button v-if="canAdjustCases" size="small" @click="openCaseSelector">调整用例</el-button>
-            <el-button v-if="detail.status === 'new'" size="small" type="primary" @click="handleStart">开始执行</el-button>
-            <el-button v-if="detail.status === 'in_progress'" size="small" @click="handleSync">同步最新用例</el-button>
-            <el-button v-if="detail.status === 'in_progress'" size="small" type="danger" @click="handleClose">关闭计划</el-button>
+            <el-button v-if="canAdjustCases" size="small" plain @click="openCaseSelector">
+              <el-icon><EditPen /></el-icon>调整用例
+            </el-button>
+            <el-button v-if="detail.status === 'in_progress'" size="small" plain @click="handleSync">
+              <el-icon><Refresh /></el-icon>同步用例
+            </el-button>
+            <el-button v-if="detail.status === 'new'" size="small" type="primary" @click="handleStart">
+              <el-icon><VideoPlay /></el-icon>开始执行
+            </el-button>
+            <el-button v-if="detail.status === 'in_progress'" size="small" type="danger" plain @click="handleClose">
+              <el-icon><CircleClose /></el-icon>关闭计划
+            </el-button>
           </div>
         </div>
       </template>
@@ -260,9 +268,21 @@ onMounted(load)
 
 .plan-detail__actions {
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
   // 与左侧进度统计区用竖线分隔，避免同行内容粘连
   padding-left: var(--space-lg);
   border-left: 1px solid var(--color-neutral-200);
+
+  // 间距由 gap 统一控制，去除 el-button 相邻默认 margin
+  :deep(.el-button + .el-button) {
+    margin-left: 0;
+  }
+
+  :deep(.el-button .el-icon) {
+    margin-right: 4px;
+  }
 }
 
 .plan-detail__progress-row {
