@@ -2,6 +2,7 @@ import type { Minder } from './types'
 import type { Fsm } from './fsm'
 import type { Receiver, ReceiverKeyEvent } from './receiver'
 import type { InputRuntime } from './input'
+import type { History } from './history'
 
 /**
  * 键盘导流（移植自 kityminder-editor 的 jumping runtime）：
@@ -27,12 +28,24 @@ export function setupJumping(options: {
   fsm: Fsm
   receiver: Receiver
   input: InputRuntime
+  history: History
 }): void {
-  const { minder, fsm, receiver, input } = options
+  const { minder, fsm, receiver, input, history } = options
 
   receiver.listen('normal', (e: ReceiverKeyEvent) => {
     receiver.enable()
     if (e.type !== 'keydown') return
+    // 撤销/重做由自建 history 实现（core 无 Undo/Redo 命令），不能进 dispatchKeyEvent
+    if (e.is('ctrl + z')) {
+      e.preventDefault()
+      history.undo()
+      return true
+    }
+    if (e.is('ctrl + y|ctrl + shift + z')) {
+      e.preventDefault()
+      history.redo()
+      return true
+    }
     if (minder.getSelectedNode()) {
       if (e.is('f2')) {
         e.preventDefault()
