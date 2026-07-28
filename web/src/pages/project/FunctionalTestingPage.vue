@@ -1,19 +1,24 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+import { useRoute } from 'vue-router'
 import type { MenuInstance } from 'element-plus'
 import TestCasePage from '@/pages/project/TestCasePage.vue'
 import ReviewListPage from '@/pages/project/ReviewListPage.vue'
 import PlanListPage from '@/pages/project/PlanListPage.vue'
 
-const activeMenu = ref('cases')
-const menuRef = ref<MenuInstance>()
-const testCaseRef = ref<InstanceType<typeof TestCasePage>>()
+const route = useRoute()
 
 const menuItems = [
   { key: 'cases', label: '测试用例', icon: 'Document' },
   { key: 'reviews', label: '测试评审', icon: 'Checked' },
   { key: 'plans', label: '测试计划', icon: 'Calendar' },
 ]
+
+// 详情页返回时通过 ?tab= 指定激活子模块（子页切换不走路由，仅初始化读取）
+const initialTab = String(route.query.tab ?? '')
+const activeMenu = ref(menuItems.some((m) => m.key === initialTab) ? initialTab : 'cases')
+const menuRef = ref<MenuInstance>()
+const testCaseRef = ref<InstanceType<typeof TestCasePage>>()
 
 // 子页面切换不走路由，TestCasePage 的路由守卫覆盖不到，需在此拦截确认
 async function handleMenuSelect(key: string) {
