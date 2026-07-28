@@ -21,7 +21,7 @@ import { useContextMenu, type ContextMenuAnchorNode } from './minder/useContextM
 import MinderContextMenu from './minder/MinderContextMenu.vue'
 import MinderNavigator from './minder/MinderNavigator.vue'
 
-const props = defineProps<{ reviewId: string }>()
+const props = defineProps<{ reviewId: string; documentId?: string }>()
 
 // 基座选中状态（id/type）之上的扩展字段：当前节点的评审标记
 const reviewResult = ref<string | null>(null)
@@ -57,7 +57,8 @@ async function initMinder() {
   loading.value = true
   destroyMinder()
   try {
-    const tree = await getReviewSnapshotTree(props.reviewId)
+    // documentId 限定单文档快照；不传时后端返回多文档多根，仅取首个，页面应始终传入
+    const tree = await getReviewSnapshotTree(props.reviewId, props.documentId || undefined)
     const root = tree.length ? reviewNodeToKm(tree[0]) : { data: { text: '空快照' }, children: [] }
     const kmData = { root, template: 'default', theme: 'fresh-green' }
 
@@ -158,7 +159,7 @@ function openBug(bugId: string) {
 defineExpose({ openBug, reload: initMinder })
 
 // ==================== 生命周期 ====================
-watch(() => props.reviewId, initMinder)
+watch(() => [props.reviewId, props.documentId], initMinder)
 onMounted(initMinder)
 onBeforeUnmount(() => {
   invalidate()

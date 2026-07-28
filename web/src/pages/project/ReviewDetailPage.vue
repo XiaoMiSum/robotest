@@ -2,10 +2,11 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { completeReview, getReviewDetail, getReviewProgress, syncReview } from '@/services/project'
-import type { TestReviewDetail, TestReviewProgress } from '@/types'
+import { completeReview, getReviewDetail, getReviewModuleTree, getReviewProgress, syncReview } from '@/services/project'
+import type { SnapshotModule, TestReviewDetail, TestReviewProgress } from '@/types'
 import { formatDateTime } from '@/utils/format'
 import ReviewMindMap from '@/components/project/ReviewMindMap.vue'
+import SnapshotModuleTree from '@/components/project/SnapshotModuleTree.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -15,6 +16,18 @@ const loading = ref(false)
 const detail = ref<TestReviewDetail | null>(null)
 const progress = ref<TestReviewProgress | null>(null)
 const mindMapRef = ref<InstanceType<typeof ReviewMindMap>>()
+const moduleTree = ref<SnapshotModule[]>([])
+const selectedDocId = ref('')
+
+// 多文档评审需逐文档切换脑图，默认选中快照树中首个文档
+function firstDocument(nodes: SnapshotModule[]): SnapshotModule | null {
+  for (const node of nodes) {
+    if (node.type === 'document') return node
+    const found = firstDocument(node.children ?? [])
+    if (found) return found
+  }
+  return null
+}
 
 // 全部用例评审通过（无待评审、无不通过）才允许完成评审
 const canComplete = computed(
@@ -24,14 +37,27 @@ const canComplete = computed(
 async function load() {
   loading.value = true
   try {
-    const [d, p] = await Promise.all([getReviewDetail(reviewId), getReviewProgress(reviewId)])
+    const [d, p, tree] = await Promise.all([
+      getReviewDetail(reviewId),
+      getReviewProgress(reviewId),
+      getReviewModuleTree(reviewId),
+    ])
     detail.value = d
     progress.value = p
+    moduleTree.value = tree
+    // 同步后重载时若当前文档已被移除，回退到首个文档
+    if (!selectedDocId.value || !findDoc(tree, selectedDocId.value)) {
+      selectedDocId.value = firstDocument(tree)?.id ?? ''
+    }
   } catch (err) {
     ElMessage.error(err instanceof Error ? err.message : '加载评审详情失败')
   } finally {
     loading.value = false
   }
+}
+
+function findDoc(nodes: SnapshotModule[], id: string): boolean {
+  return nodes.some((n) => n.id === id || findDoc(n.children ?? [], id))
 }
 
 async function handleComplete() {
@@ -111,9 +137,21 @@ onMounted(load)
       </template>
     </el-page-header>
 
-    <el-card shadow="never" class="review-detail__body">
-      <ReviewMindMap ref="mindMapRef" :review-id="reviewId" />
-    </el-card>
+    <div class="review-detail__workspace">
+      <el-card shadow="never" class="review-detail__tree-card">
+        <SnapshotModuleTree
+          :data="moduleTree"
+          :current-doc-id="selectedDocId"
+          @select-document="(id: string) => (selectedDocId = id)"
+        />
+      </el-card>
+      <el-card shadow="never" class="review-detail__body">
+        <div v-if="!selectedDocId" class="review-detail__placeholder">
+          <el-empty description="请在左侧选择一个文档" />
+        </div>
+        <ReviewMindMap v-else ref="mindMapRef" :review-id="reviewId" :document-id="selectedDocId" />
+      </el-card>
+    </div>
   </div>
 </template>
 
@@ -215,10 +253,35 @@ onMounted(load)
   color: var(--color-warning);
 }
 
-.review-detail__body {
+.review-detail__workspace {
   margin-top: var(--space-lg);
   flex: 1;
   min-height: 0;
+  display: flex;
+  gap: var(--space-lg);
+}
+
+.review-detail__tree-card {
+  width: 240px;
+  flex-shrink: 0;
+
+  :deep(.el-card__body) {
+    padding: 0;
+    overflow: auto;
+    height: 100%;
+  }
+}
+
+.review-detail__placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+}
+
+.review-detail__body {
+  flex: 1;
+  min-width: 0;
 
   :deep(.el-card__body) {
     height: 100%;
