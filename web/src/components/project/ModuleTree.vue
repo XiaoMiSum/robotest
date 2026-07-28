@@ -25,7 +25,22 @@ async function load() {
   }
 }
 
-async function handleNodeClick(data: TestCaseModule) {
+// el-tree 节点对象仅取展开切换所需的最小结构（完整 Node 类型未随组件导出）
+interface TreeNodeToggle {
+  expanded: boolean
+  expand(): void
+  collapse(): void
+}
+
+async function handleNodeClick(data: TestCaseModule, node: TreeNodeToggle) {
+  // 目录整行点击即切换展开/收起（expand-on-click-node 关闭是为了文档点击不误触展开）
+  if (data.type === 'directory') {
+    if (node.expanded) node.collapse()
+    else node.expand()
+    // el-tree 点击已把高亮抢到目录上，回退到已打开的文档
+    if (currentDocId.value) treeRef.value?.setCurrentKey(currentDocId.value)
+    return
+  }
   if (data.type !== 'document' || data.id === currentDocId.value) return
   // 已打开文档时切换需二次确认，防止误触打断编辑
   if (currentDocId.value) {
@@ -121,6 +136,7 @@ onMounted(load)
       :data="treeData"
       :props="treeProps"
       node-key="id"
+      :indent="12"
       default-expand-all
       :expand-on-click-node="false"
       highlight-current
@@ -130,9 +146,9 @@ onMounted(load)
       <template #default="{ data }">
         <div class="module-tree__node">
           <span class="module-tree__label">
-            <el-icon v-if="data.type === 'directory'"><Folder /></el-icon>
-            <el-icon v-else><Document /></el-icon>
-            {{ data.name }}
+            <el-icon v-if="data.type === 'directory'" class="module-tree__icon module-tree__icon--folder"><Folder /></el-icon>
+            <el-icon v-else class="module-tree__icon module-tree__icon--doc"><Document /></el-icon>
+            <span class="module-tree__name">{{ data.name }}</span>
           </span>
           <span class="module-tree__actions">
             <el-dropdown v-if="data.type === 'directory'" trigger="click" size="small" @command="(cmd: string) => handleCreate(data, cmd as 'directory' | 'document')">
@@ -160,35 +176,96 @@ onMounted(load)
   height: 100%;
   display: flex;
   flex-direction: column;
+
+  :deep(.el-tree) {
+    --el-tree-node-content-height: 32px;
+    flex: 1;
+    padding: 2px;
+    overflow: auto;
+    background: transparent;
+  }
+
+  :deep(.el-tree-node__content) {
+    border-radius: var(--radius-md);
+    margin-bottom: 2px;
+    transition: background-color var(--transition-fast);
+
+    &:hover {
+      background-color: var(--color-neutral-100);
+    }
+  }
+
+  :deep(.el-tree-node.is-current > .el-tree-node__content) {
+    background-color: var(--color-primary-50);
+    color: var(--color-primary-600);
+    font-weight: 500;
+
+    .module-tree__icon--doc {
+      color: var(--color-primary-500);
+    }
+  }
 }
 
 .module-tree__toolbar {
-  padding: 8px;
-  border-bottom: 1px solid var(--el-border-color-lighter);
+  display: flex;
+  align-items: center;
+  padding: 2px;
+  border-bottom: 1px solid var(--color-neutral-100);
+  background: var(--color-neutral-50);
 }
 
 .module-tree__node {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  width: 100%;
-  padding-right: 4px;
+  flex: 1;
+  min-width: 0;
+  padding-right: var(--space-xs);
 }
 
 .module-tree__label {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
+  min-width: 0;
   font-size: 13px;
 }
 
+.module-tree__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.module-tree__icon {
+  flex-shrink: 0;
+  font-size: 14px;
+  transition: color var(--transition-fast);
+
+  // 目录用警示黄贴近文件夹隐喻，文档用中性灰避免喧宾夺主
+  &--folder {
+    color: var(--color-warning);
+  }
+
+  &--doc {
+    color: var(--color-neutral-400);
+  }
+}
+
 .module-tree__actions {
-  visibility: hidden;
   display: flex;
   align-items: center;
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+
+  .el-button + .el-button,
+  .el-dropdown + .el-button {
+    margin-left: 2px;
+  }
 }
 
 .module-tree__node:hover .module-tree__actions {
-  visibility: visible;
+  opacity: 1;
 }
 </style>
