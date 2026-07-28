@@ -100,7 +100,7 @@ onMounted(load)
               <span class="plan-detail__stat plan-detail__stat--pass">通过 {{ progress.passed }}</span>
               <span class="plan-detail__stat plan-detail__stat--fail">失败 {{ progress.failed }}</span>
               <span class="plan-detail__stat plan-detail__stat--blocked">阻塞 {{ progress.blocked }}</span>
-              <span class="plan-detail__stat">未执行 {{ progress.untested }}</span>
+              <span class="plan-detail__stat">待执行 {{ progress.untested }}</span>
               <span class="plan-detail__stat">共 {{ progress.totalAssociated }}</span>
             </div>
           </div>

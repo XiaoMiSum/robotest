@@ -86,7 +86,7 @@ async function markExecution(result: ExecutionResult) {
     const data = getSelectedNodeData()
     if (data) { data.lastResult = result; data.executionStatus = { result } }
     getMinder()?.refresh?.()
-    const labels: Record<string, string> = { pass: '通过', fail: '失败', block: '阻塞', untested: '未执行' }
+    const labels: Record<string, string> = { pass: '通过', fail: '失败', block: '阻塞', untested: '待执行' }
     ElMessage.success(`已标记${labels[result]}`)
   } catch (err) {
     ElMessage.error(err instanceof Error ? err.message : '提交执行结果失败')
@@ -131,7 +131,7 @@ onBeforeUnmount(() => {
         <el-button :type="execResult==='pass'?'success':''" @click="markExecution('pass')">✅通过</el-button>
         <el-button :type="execResult==='fail'?'danger':''" @click="markExecution('fail')">❌失败</el-button>
         <el-button :type="execResult==='block'?'warning':''" @click="markExecution('block')">❓阻塞</el-button>
-        <el-button :type="execResult==='untested'?'info':''" @click="markExecution('untested')">🔄未执行</el-button>
+        <el-button :type="execResult==='untested'?'info':''" @click="markExecution('untested')">🔄待执行</el-button>
       </el-button-group>
     </div>
 
@@ -156,7 +156,7 @@ onBeforeUnmount(() => {
       <div class="mindmap-context-menu__item mindmap-context-menu__item--indent" @click="markExecution('pass')">通过</div>
       <div class="mindmap-context-menu__item mindmap-context-menu__item--indent" @click="markExecution('fail')">失败</div>
       <div class="mindmap-context-menu__item mindmap-context-menu__item--indent" @click="markExecution('block')">阻塞</div>
-      <div class="mindmap-context-menu__item mindmap-context-menu__item--indent" @click="markExecution('untested')">未执行</div>
+      <div class="mindmap-context-menu__item mindmap-context-menu__item--indent" @click="markExecution('untested')">待执行</div>
     </MinderContextMenu>
   </div>
 </template>

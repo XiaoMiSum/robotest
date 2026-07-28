@@ -94,13 +94,14 @@ async function markReview(mark: ReviewMark | null) {
     await submitReviewRecord(props.reviewId, {
       snapshotNodeId: selectedNodeId.value,
       operationType: 'mark',
-      mark: mark ?? undefined,
+      // 后端以显式 pending 表示重置回待评审（落库 last_mark = null）
+      mark: mark ?? 'pending',
     })
     reviewResult.value = mark
     const data = getSelectedNodeData()
     if (data) { data.lastMark = mark; data.reviewStatus = mark ? { result: mark } : null }
     getMinder()?.refresh?.()
-    ElMessage.success(mark ? `已标记${mark === 'pass' ? '通过' : '不通过'}` : '已清除标记')
+    ElMessage.success(mark ? `已标记${mark === 'pass' ? '通过' : '不通过'}` : '已重置为待评审')
   } catch (err) {
     ElMessage.error(err instanceof Error ? err.message : '提交标记失败')
   }
@@ -208,8 +209,8 @@ onBeforeUnmount(() => {
         <div v-for="c in comments" :key="c.id" class="comment-item">
           <div class="comment-item__header">
             <strong>{{ c.reviewerName }}</strong>
-            <el-tag v-if="c.operationType === 'mark'" size="small" :type="c.mark === 'pass' ? 'success' : 'danger'">
-              {{ c.mark === 'pass' ? '通过' : '不通过' }}
+            <el-tag v-if="c.operationType === 'mark'" size="small" :type="c.mark === 'pass' ? 'success' : c.mark === 'fail' ? 'danger' : 'info'">
+              {{ c.mark === 'pass' ? '通过' : c.mark === 'fail' ? '不通过' : '待评审' }}
             </el-tag>
             <small>{{ c.createdAt }}</small>
           </div>

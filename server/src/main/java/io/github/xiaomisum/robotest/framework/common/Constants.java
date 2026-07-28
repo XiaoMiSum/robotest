@@ -67,10 +67,20 @@ public final class Constants {
     public interface ReviewMark {
         String PASS = "pass";
         String FAIL = "fail";
+        // 待评审：仅作为 API 交互值，落库时 last_mark 置 NULL 回到初始态
+        String PENDING = "pending";
     }
 
     public interface ReviewOperation {
         String MARK = "mark";
+    }
+
+    // 计划执行结果：block 与前端 ExecutionResult 联合类型保持一致（非 blocked）
+    public interface ExecutionResult {
+        String PASS = "pass";
+        String FAIL = "fail";
+        String BLOCK = "block";
+        String UNTESTED = "untested";
     }
 
     public interface BugOperation {

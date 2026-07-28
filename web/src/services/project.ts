@@ -199,7 +199,13 @@ export function getReviewSnapshotTree(
 
 export function submitReviewRecord(
   reviewId: string,
-  data: { snapshotNodeId: string; operationType: 'mark' | 'comment'; mark?: ReviewMark; comment?: string },
+  data: {
+    snapshotNodeId: string
+    operationType: 'mark' | 'comment'
+    // pending 为显式重置回待评审，后端落库 last_mark = null
+    mark?: ReviewMark | 'pending'
+    comment?: string
+  },
 ): Promise<void> {
   return post(`/project/reviews/${reviewId}/records`, data)
 }
