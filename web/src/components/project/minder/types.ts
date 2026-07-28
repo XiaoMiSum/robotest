@@ -28,6 +28,7 @@ export interface MinderNode {
   getText(): string
   getChildren(): MinderNode[]
   getChild(index: number): MinderNode
+  traverse(fn: (node: MinderNode) => void): void
   getRenderBox(rendererType?: string, refer?: unknown): RenderBox
   getRenderer(rendererType: string): NodeRenderer | null
   render(): MinderNode
@@ -37,6 +38,8 @@ export interface MinderEvent {
   type: string
   patch?: { express: string; node: MinderNode; index: number }
   zoom?: number
+  /** statuschange 事件：切换前的状态（如 'dragtree'） */
+  lastStatus?: string
 }
 
 export type MinderEventHandler = (e: MinderEvent) => void
