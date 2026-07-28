@@ -19,6 +19,14 @@ public interface TestReviewService {
 
     List<TestReviewSnapshotNodeRespDTO> getReviewSnapshotTree(UUID reviewId, UUID documentId);
 
+    /**
+     * 获取模块快照树（目录/文档层级），供详情页左侧文档切换
+     *
+     * @param reviewId 评审 ID
+     * @return 模块快照树
+     */
+    List<SnapshotModuleTreeRespDTO> getReviewModuleTree(UUID reviewId);
+
     void submitReviewRecord(UUID reviewId, UUID userId, TestReviewRecordReqDTO reqDTO);
 
     List<TestReviewRecordRespDTO> getNodeReviewRecords(UUID reviewId, UUID nodeId);

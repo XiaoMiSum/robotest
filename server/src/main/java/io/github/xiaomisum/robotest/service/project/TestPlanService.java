@@ -19,6 +19,14 @@ public interface TestPlanService {
 
     List<TestPlanSnapshotNodeRespDTO> getPlanSnapshotTree(UUID planId, UUID documentId);
 
+    /**
+     * 获取模块快照树（目录/文档层级），供详情页左侧文档切换
+     *
+     * @param planId 计划 ID
+     * @return 模块快照树
+     */
+    List<SnapshotModuleTreeRespDTO> getPlanModuleTree(UUID planId);
+
     void submitExecutionRecord(UUID planId, UUID userId, TestPlanRecordReqDTO reqDTO);
 
     List<TestPlanExecutionRecordRespDTO> getNodeExecutionRecords(UUID planId, UUID nodeId);

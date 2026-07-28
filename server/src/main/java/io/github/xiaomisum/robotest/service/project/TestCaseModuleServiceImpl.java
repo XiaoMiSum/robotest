@@ -48,7 +48,8 @@ public class TestCaseModuleServiceImpl implements TestCaseModuleService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public TestCaseModuleTreeRespDTO createModule(UUID projectId, TestCaseModuleCreateReqDTO reqDTO) {
-        if (!Constants.ModuleType.DIRECTORY.equals(reqDTO.getType()) && !Constants.ModuleType.DOCUMENT.equals(reqDTO.getType())) {
+        if (!Constants.ModuleType.DIRECTORY.equals(reqDTO.getType())
+                && !Constants.ModuleType.DOCUMENT.equals(reqDTO.getType())) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.VALIDATION_FAILED);
         }
 
@@ -217,7 +218,7 @@ public class TestCaseModuleServiceImpl implements TestCaseModuleService {
     }
 
     private void fillChildren(TestCaseModuleTreeRespDTO node,
-                               Map<String, List<TestCaseModuleTreeRespDTO>> parentMap) {
+            Map<String, List<TestCaseModuleTreeRespDTO>> parentMap) {
         List<TestCaseModuleTreeRespDTO> children = parentMap.getOrDefault(node.getId().toString(), new ArrayList<>());
         node.setChildren(children);
         children.forEach(child -> fillChildren(child, parentMap));
