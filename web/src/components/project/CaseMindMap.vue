@@ -192,7 +192,7 @@ let persistedLayoutJson = ''
 
 function collectLayout(): DocumentLayout {
   const m = getMinder()
-  const template = (m?.queryCommandValue?.('template') as string) || 'right'
+  const template = (m?.queryCommandValue?.('template') as string) || 'default'
   const offsets: NonNullable<DocumentLayout['offsets']> = {}
   const root = (m as unknown as { getRoot?: () => LiveNode | null } | null)?.getRoot?.()
   const walk = (node: LiveNode) => {
@@ -332,9 +332,9 @@ async function initMinder() {
   try {
     const docData = await fetchDocumentNodes(props.docId)
     const root = caseNodeToKm(docData.node)
-    // 应用已保存的布局：模板 + 自由拖拽偏移；无记录时回退默认右侧分布
+    // 应用已保存的布局：模板 + 自由拖拽偏移；无记录时回退默认思维导图
     applyLayoutOffsets(root, docData.layout?.offsets)
-    const template = docData.layout?.template || 'right'
+    const template = docData.layout?.template || 'default'
     currentTemplate.value = template
     const kmData = { root, template, theme: 'fresh-blue' }
 
@@ -432,14 +432,14 @@ function redo() { kmEditor?.history.redo() }
 // ==================== 布局模板 ====================
 // core 原生 6 模板；template 命令触发 contentchange，自动搭上 Yjs 同步与落库管道
 const templates = [
-  { name: 'right', label: '右侧分布' },
   { name: 'default', label: '思维导图' },
+  { name: 'right', label: '右侧分布' },
   { name: 'structure', label: '组织结构' },
   { name: 'filetree', label: '目录' },
   { name: 'fish-bone', label: '鱼骨图' },
   { name: 'tianpan', label: '天盘' },
 ]
-const currentTemplate = ref('right')
+const currentTemplate = ref('default')
 const currentTemplateLabel = computed(
   () => templates.find((t) => t.name === currentTemplate.value)?.label ?? currentTemplate.value,
 )
