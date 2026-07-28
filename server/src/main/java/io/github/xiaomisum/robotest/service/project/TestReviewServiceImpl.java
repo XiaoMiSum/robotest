@@ -155,7 +155,7 @@ public class TestReviewServiceImpl implements TestReviewService {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_REVIEW_NOT_FOUND);
         }
         if (!Constants.Status.IN_PROGRESS.equals(review.getStatus())) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.VALIDATION_FAILED);
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_REVIEW_NOT_IN_PROGRESS);
         }
 
         TestReviewNodeSnapshot snapshotNode = reviewNodeSnapshotMapper.selectById(
@@ -277,7 +277,7 @@ public class TestReviewServiceImpl implements TestReviewService {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.REVIEW_NOT_INITIATOR);
         }
         if (!Constants.Status.IN_PROGRESS.equals(review.getStatus())) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.VALIDATION_FAILED);
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_REVIEW_NOT_IN_PROGRESS);
         }
 
         List<TestReviewNodeSnapshot> snapshotNodes = reviewNodeSnapshotMapper.selectList(
