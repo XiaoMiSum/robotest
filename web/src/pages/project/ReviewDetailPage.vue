@@ -76,24 +76,23 @@ onMounted(load)
         </div>
       </template>
       <template #extra>
-        <div v-if="detail?.status === 'in_progress'" class="review-detail__actions">
-          <el-button size="small" @click="handleSync">同步最新用例</el-button>
-          <el-button size="small" type="primary" @click="handleComplete">完成评审</el-button>
+        <div class="review-detail__extra">
+          <div v-if="progress" class="review-detail__progress-row">
+            <el-progress class="review-detail__progress" :percentage="progress.progressPercent" :stroke-width="8" />
+            <div class="review-detail__stats">
+              <span class="review-detail__stat review-detail__stat--pass">通过 {{ progress.passed }}</span>
+              <span class="review-detail__stat review-detail__stat--fail">不通过 {{ progress.failed }}</span>
+              <span class="review-detail__stat review-detail__stat--pending">待评审 {{ progress.pending }}</span>
+              <span class="review-detail__stat">共 {{ progress.totalAssociated }}</span>
+            </div>
+          </div>
+          <div v-if="detail?.status === 'in_progress'" class="review-detail__actions">
+            <el-button size="small" @click="handleSync">同步最新用例</el-button>
+            <el-button size="small" type="primary" @click="handleComplete">完成评审</el-button>
+          </div>
         </div>
       </template>
     </el-page-header>
-
-    <el-card v-if="progress" shadow="never" class="review-detail__info">
-      <div class="review-detail__progress-row">
-        <el-progress class="review-detail__progress" :percentage="progress.progressPercent" :stroke-width="8" />
-        <div class="review-detail__stats">
-          <span class="review-detail__stat review-detail__stat--pass">通过 {{ progress.passed }}</span>
-          <span class="review-detail__stat review-detail__stat--fail">不通过 {{ progress.failed }}</span>
-          <span class="review-detail__stat review-detail__stat--pending">待评审 {{ progress.pending }}</span>
-          <span class="review-detail__stat">共 {{ progress.totalAssociated }}</span>
-        </div>
-      </div>
-    </el-card>
 
     <el-card shadow="never" class="review-detail__body">
       <ReviewMindMap :review-id="reviewId" />
@@ -130,13 +129,11 @@ onMounted(load)
   white-space: nowrap;
 }
 
-.review-detail__info {
-  margin-top: var(--space-lg);
-  flex-shrink: 0;
-
-  :deep(.el-card__body) {
-    padding: var(--space-md) var(--space-lg);
-  }
+// 标题行右侧：进度/统计 + 操作按钮同行排布
+.review-detail__extra {
+  display: flex;
+  align-items: center;
+  gap: var(--space-lg);
 }
 
 .review-detail__actions {
@@ -146,11 +143,11 @@ onMounted(load)
 .review-detail__progress-row {
   display: flex;
   align-items: center;
-  gap: var(--space-lg);
+  gap: var(--space-md);
 }
 
 .review-detail__progress {
-  flex: 1;
+  width: 140px;
 }
 
 .review-detail__stats {

@@ -90,26 +90,25 @@ onMounted(load)
         </div>
       </template>
       <template #extra>
-        <div v-if="detail" class="plan-detail__actions">
-          <el-button v-if="detail.status === 'new'" size="small" type="primary" @click="handleStart">开始执行</el-button>
-          <el-button v-if="detail.status === 'in_progress'" size="small" @click="handleSync">同步最新用例</el-button>
-          <el-button v-if="detail.status === 'in_progress'" size="small" type="danger" @click="handleClose">关闭计划</el-button>
+        <div class="plan-detail__extra">
+          <div v-if="progress" class="plan-detail__progress-row">
+            <el-progress class="plan-detail__progress" :percentage="progress.progressPercent" :stroke-width="8" />
+            <div class="plan-detail__stats">
+              <span class="plan-detail__stat plan-detail__stat--pass">通过 {{ progress.passed }}</span>
+              <span class="plan-detail__stat plan-detail__stat--fail">失败 {{ progress.failed }}</span>
+              <span class="plan-detail__stat plan-detail__stat--blocked">阻塞 {{ progress.blocked }}</span>
+              <span class="plan-detail__stat">未执行 {{ progress.untested }}</span>
+              <span class="plan-detail__stat">共 {{ progress.totalAssociated }}</span>
+            </div>
+          </div>
+          <div v-if="detail" class="plan-detail__actions">
+            <el-button v-if="detail.status === 'new'" size="small" type="primary" @click="handleStart">开始执行</el-button>
+            <el-button v-if="detail.status === 'in_progress'" size="small" @click="handleSync">同步最新用例</el-button>
+            <el-button v-if="detail.status === 'in_progress'" size="small" type="danger" @click="handleClose">关闭计划</el-button>
+          </div>
         </div>
       </template>
     </el-page-header>
-
-    <el-card v-if="progress" shadow="never" class="plan-detail__info">
-      <div class="plan-detail__progress-row">
-        <el-progress class="plan-detail__progress" :percentage="progress.progressPercent" :stroke-width="8" />
-        <div class="plan-detail__stats">
-          <span class="plan-detail__stat plan-detail__stat--pass">通过 {{ progress.passed }}</span>
-          <span class="plan-detail__stat plan-detail__stat--fail">失败 {{ progress.failed }}</span>
-          <span class="plan-detail__stat plan-detail__stat--blocked">阻塞 {{ progress.blocked }}</span>
-          <span class="plan-detail__stat">未执行 {{ progress.untested }}</span>
-          <span class="plan-detail__stat">共 {{ progress.totalAssociated }}</span>
-        </div>
-      </div>
-    </el-card>
 
     <el-card shadow="never" class="plan-detail__body">
       <PlanMindMap :plan-id="planId" />
@@ -146,13 +145,11 @@ onMounted(load)
   white-space: nowrap;
 }
 
-.plan-detail__info {
-  margin-top: var(--space-lg);
-  flex-shrink: 0;
-
-  :deep(.el-card__body) {
-    padding: var(--space-md) var(--space-lg);
-  }
+// 标题行右侧：进度/统计 + 操作按钮同行排布
+.plan-detail__extra {
+  display: flex;
+  align-items: center;
+  gap: var(--space-lg);
 }
 
 .plan-detail__actions {
@@ -162,11 +159,11 @@ onMounted(load)
 .plan-detail__progress-row {
   display: flex;
   align-items: center;
-  gap: var(--space-lg);
+  gap: var(--space-md);
 }
 
 .plan-detail__progress {
-  flex: 1;
+  width: 140px;
 }
 
 .plan-detail__stats {
