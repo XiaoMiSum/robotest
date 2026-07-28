@@ -1,10 +1,11 @@
-import type { Minder, MinderEventHandler } from './types'
+import type { Minder, MinderEventHandler, MinderNode, RenderShape } from './types'
 import type { Fsm } from './fsm'
 import type { Receiver } from './receiver'
 
 /**
- * 原位内联编辑（移植自 kityminder-editor 的 input runtime）：
- * 接收器元素定位到选中节点的文本渲染框上，进入 input 态时显示为输入框；
+ * 原位内联编辑（移植自 kityminder-editor 的 input runtime，去掉了可见输入框外观）：
+ * 进入 input 态时隐藏节点自身的 SVG 文本，接收器以相同字号/字色透明叠合在文本位置上，
+ * 形成“直接在节点内打字”的观感；
  * Enter/失焦提交（经 execCommand('text') 触发 contentchange，走同步与落库管道），
  * Esc 取消；布局/视图/选区变化时跟随重定位。
  */
@@ -17,6 +18,7 @@ export function createInput(options: { minder: Minder; fsm: Fsm; receiver: Recei
   const { minder, fsm, receiver } = options
   const element = receiver.element
   let positionTimer = 0
+  let hiddenTextShape: RenderShape | null = null
 
   // 输入框内的点击不能冒泡为画布 mousedown，否则会触发提交并切换选区
   element.onmousedown = (e) => e.stopPropagation()
@@ -58,12 +60,26 @@ export function createInput(options: { minder: Minder; fsm: Fsm; receiver: Recei
     receiver.selectAll()
   }
 
+  function getTextShape(node: MinderNode): RenderShape | null {
+    return node.getRenderer('TextRenderer')?.getRenderShape() ?? null
+  }
+
   function enterInputMode() {
     const node = minder.getSelectedNode()
     if (!node) return
-    // 输入框字号与节点文本一致，保证原位编辑的视觉连续性
+    // 字号随视图缩放、行高取主题值，保证与节点文本逐行重合
+    const zoom = minder.getZoomValue() / 100
     const fontSize = Number(node.getData('font-size') ?? node.getStyle('font-size') ?? 14)
-    element.style.fontSize = `${fontSize}px`
+    const lineHeight = Number(node.getStyle('line-height') ?? 1.4)
+    element.style.fontSize = `${fontSize * zoom}px`
+    element.style.lineHeight = String(lineHeight)
+    // 隐藏节点自身文本，接收器用相同字色透明叠合，避免双重文字/输入框观感
+    const shape = getTextShape(node)
+    if (shape) {
+      element.style.color = window.getComputedStyle(shape.node).fill || ''
+      shape.setOpacity(0)
+      hiddenTextShape = shape
+    }
     element.style.minWidth = '0'
     element.style.minWidth = `${element.clientWidth}px`
     element.classList.add('input')
@@ -87,6 +103,9 @@ export function createInput(options: { minder: Minder; fsm: Fsm; receiver: Recei
   }
 
   function exitInputMode() {
+    // 必须先恢复可见再提交：execCommand('text') 复用同一 textGroup，不恢复会导致节点文字持续隐形
+    hiddenTextShape?.setOpacity(1)
+    hiddenTextShape = null
     element.classList.remove('input')
     receiver.selectAll()
   }
@@ -98,11 +117,17 @@ export function createInput(options: { minder: Minder; fsm: Fsm; receiver: Recei
       positionTimer = 0
       const node = minder.getSelectedNode()
       if (!node) return
-      // 默认以 paper 为参照系（含视图平移/缩放变换），坐标即画布容器内像素；
-      // 不可传 DOM 元素作 refer：kity.Matrix.getCTM 只认 kity 对象，否则退化为单位矩阵导致定位落在左上角
-      const box = node.getRenderBox('TextRenderer')
-      element.style.left = `${Math.round(box.x)}px`
-      element.style.top = `${Math.round(box.y)}px`
+      // zoom 经 paper viewBox 实现，'paper' 参照系不含缩放变换，
+      // 必须取 'screen' 坐标再换算回容器坐标才能在任意缩放下贴合
+      const box = node.getRenderBox('TextRenderer', 'screen')
+      const rect = minder.getRenderTarget().getBoundingClientRect()
+      // SVG 文本盒顶部即首行文字顶部，而 HTML 行盒含半行距，向上补偿使两者逐行重合
+      const zoom = minder.getZoomValue() / 100
+      const fontSize = Number(node.getData('font-size') ?? node.getStyle('font-size') ?? 14)
+      const lineHeight = Number(node.getStyle('line-height') ?? 1.4)
+      const halfLeading = ((lineHeight - 1) / 2) * fontSize * zoom
+      element.style.left = `${Math.round(box.x - rect.left)}px`
+      element.style.top = `${Math.round(box.y - rect.top - halfLeading)}px`
     })
   }
 
@@ -110,6 +135,8 @@ export function createInput(options: { minder: Minder; fsm: Fsm; receiver: Recei
     editText,
     destroy() {
       if (positionTimer) window.clearTimeout(positionTimer)
+      hiddenTextShape?.setOpacity(1)
+      hiddenTextShape = null
       minder.off('beforemousedown', commitBeforeMousedown)
       minder.off('dblclick', editOnDblclick)
       minder.off(followEvents, follow)
