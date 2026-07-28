@@ -48,9 +48,11 @@ public class TestReviewServiceImpl implements TestReviewService {
 
     @Override
     public PageResult<TestReviewListRespDTO> getReviewPage(UUID projectId, String status,
-            Integer pageNo, Integer pageSize) {
+            String keyword, Integer pageNo, Integer pageSize) {
         LambdaQueryWrapperX<TestReview> wrapper = new LambdaQueryWrapperX<TestReview>()
-                .eq(TestReview::getProjectId, projectId);
+                .eq(TestReview::getProjectId, projectId)
+                // 标题关键字模糊匹配，空值自动忽略
+                .likeIfPresent(TestReview::getTitle, keyword);
         if (StringUtils.hasText(status)) {
             wrapper.eq(TestReview::getStatus, status);
         }

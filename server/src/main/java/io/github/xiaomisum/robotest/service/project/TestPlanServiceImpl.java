@@ -47,9 +47,11 @@ public class TestPlanServiceImpl implements TestPlanService {
 
     @Override
     public PageResult<TestPlanListRespDTO> getPlanPage(UUID projectId, String status,
-            Integer pageNo, Integer pageSize) {
+            String keyword, Integer pageNo, Integer pageSize) {
         LambdaQueryWrapperX<TestPlan> wrapper = new LambdaQueryWrapperX<TestPlan>()
-                .eq(TestPlan::getProjectId, projectId);
+                .eq(TestPlan::getProjectId, projectId)
+                // 名称关键字模糊匹配，空值自动忽略
+                .likeIfPresent(TestPlan::getName, keyword);
         if (StringUtils.hasText(status)) {
             wrapper.eq(TestPlan::getStatus, status);
         }
