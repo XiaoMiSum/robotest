@@ -64,6 +64,8 @@ public class ErrorCodeConstants {
     public static final ErrorCode TEST_CASE_DOCUMENT_NOT_FOUND = ErrorCode.of(1000011021, "文档不存在");
     public static final ErrorCode TEST_CASE_NODE_NOT_FOUND = ErrorCode.of(1000011022, "用例节点不存在");
     public static final ErrorCode BUG_NOT_FOUND = ErrorCode.of(1000011023, "缺陷不存在");
+    public static final ErrorCode TEST_CASE_MODULE_MOVE_TARGET_INVALID = ErrorCode.of(1000011024, "移动目标不存在或不是目录");
+    public static final ErrorCode TEST_CASE_MODULE_MOVE_CYCLE = ErrorCode.of(1000011025, "不能移动到自身或其子级目录下");
 
     // ========== 缺陷管理模块 1,000,012,001-1,000,012,010 ==========
     public static final ErrorCode BUG_INVALID_STATUS_TRANSITION = ErrorCode.of(1000012001, "缺陷状态流转不合法");

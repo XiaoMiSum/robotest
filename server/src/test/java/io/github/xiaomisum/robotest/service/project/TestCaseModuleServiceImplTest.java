@@ -16,6 +16,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import xyz.migoo.framework.common.exception.ServiceException;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
@@ -212,6 +213,186 @@ class TestCaseModuleServiceImplTest {
 
         TestCaseModuleUpdateReqDTO reqDTO = new TestCaseModuleUpdateReqDTO();
         reqDTO.setName("Duplicate");
+
+        assertThrows(ServiceException.class,
+                () -> moduleService.updateModule(moduleId1, reqDTO));
+    }
+
+    @Test
+    void updateModule_move_intoDirectory_resequencesSiblings() {
+        TestCaseModule module = new TestCaseModule();
+        module.setId(moduleId1);
+        module.setProjectId(projectId);
+        module.setParentId(null);
+        module.setType("document");
+        module.setName("Doc");
+        module.setSortOrder(0);
+
+        TestCaseModule targetDir = new TestCaseModule();
+        targetDir.setId(moduleId2);
+        targetDir.setProjectId(projectId);
+        targetDir.setParentId(null);
+        targetDir.setType("directory");
+        targetDir.setName("Dir");
+
+        TestCaseModule existingChild = new TestCaseModule();
+        existingChild.setId(documentId1);
+        existingChild.setProjectId(projectId);
+        existingChild.setParentId(moduleId2);
+        existingChild.setType("document");
+        existingChild.setName("Other");
+        existingChild.setSortOrder(0);
+
+        when(testCaseModuleMapper.selectById(moduleId1)).thenReturn(module);
+        when(testCaseModuleMapper.selectById(moduleId2)).thenReturn(targetDir);
+        when(testCaseModuleMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(null);
+        when(testCaseModuleMapper.selectList(any(LambdaQueryWrapper.class)))
+                .thenReturn(new ArrayList<>(List.of(existingChild)));
+
+        TestCaseModuleUpdateReqDTO reqDTO = new TestCaseModuleUpdateReqDTO();
+        reqDTO.setParentId(moduleId2);
+        reqDTO.setTargetIndex(0);
+
+        moduleService.updateModule(moduleId1, reqDTO);
+
+        assertEquals(moduleId2, module.getParentId());
+        assertEquals(0, module.getSortOrder());
+        assertEquals(1, existingChild.getSortOrder());
+        // 被挤开的兄弟节点 + 被移动节点各落库一次
+        verify(testCaseModuleMapper, times(2)).updateById(any(TestCaseModule.class));
+    }
+
+    @Test
+    void updateModule_move_toRoot() {
+        TestCaseModule module = new TestCaseModule();
+        module.setId(moduleId1);
+        module.setProjectId(projectId);
+        module.setParentId(moduleId2);
+        module.setType("document");
+        module.setName("Doc");
+        module.setSortOrder(0);
+
+        TestCaseModule rootSibling = new TestCaseModule();
+        rootSibling.setId(documentId1);
+        rootSibling.setProjectId(projectId);
+        rootSibling.setParentId(null);
+        rootSibling.setType("directory");
+        rootSibling.setName("Root Dir");
+        rootSibling.setSortOrder(0);
+
+        when(testCaseModuleMapper.selectById(moduleId1)).thenReturn(module);
+        when(testCaseModuleMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(null);
+        when(testCaseModuleMapper.selectList(any(LambdaQueryWrapper.class)))
+                .thenReturn(new ArrayList<>(List.of(rootSibling)));
+
+        TestCaseModuleUpdateReqDTO reqDTO = new TestCaseModuleUpdateReqDTO();
+        reqDTO.setParentId(null);
+        reqDTO.setTargetIndex(1);
+
+        moduleService.updateModule(moduleId1, reqDTO);
+
+        assertNull(module.getParentId());
+        assertEquals(1, module.getSortOrder());
+        assertEquals(0, rootSibling.getSortOrder());
+    }
+
+    @Test
+    void updateModule_move_intoOwnDescendant_throws() {
+        TestCaseModule module = new TestCaseModule();
+        module.setId(moduleId1);
+        module.setProjectId(projectId);
+        module.setParentId(null);
+        module.setType("directory");
+        module.setName("Parent Dir");
+
+        TestCaseModule childDir = new TestCaseModule();
+        childDir.setId(moduleId2);
+        childDir.setProjectId(projectId);
+        childDir.setParentId(moduleId1);
+        childDir.setType("directory");
+        childDir.setName("Child Dir");
+
+        when(testCaseModuleMapper.selectById(moduleId1)).thenReturn(module);
+        when(testCaseModuleMapper.selectById(moduleId2)).thenReturn(childDir);
+
+        TestCaseModuleUpdateReqDTO reqDTO = new TestCaseModuleUpdateReqDTO();
+        reqDTO.setParentId(moduleId2);
+        reqDTO.setTargetIndex(0);
+
+        assertThrows(ServiceException.class,
+                () -> moduleService.updateModule(moduleId1, reqDTO));
+    }
+
+    @Test
+    void updateModule_move_targetIsDocument_throws() {
+        TestCaseModule module = new TestCaseModule();
+        module.setId(moduleId1);
+        module.setProjectId(projectId);
+        module.setType("document");
+        module.setName("Doc");
+
+        TestCaseModule targetDoc = new TestCaseModule();
+        targetDoc.setId(moduleId2);
+        targetDoc.setProjectId(projectId);
+        targetDoc.setType("document");
+        targetDoc.setName("Target Doc");
+
+        when(testCaseModuleMapper.selectById(moduleId1)).thenReturn(module);
+        when(testCaseModuleMapper.selectById(moduleId2)).thenReturn(targetDoc);
+
+        TestCaseModuleUpdateReqDTO reqDTO = new TestCaseModuleUpdateReqDTO();
+        reqDTO.setParentId(moduleId2);
+        reqDTO.setTargetIndex(0);
+
+        assertThrows(ServiceException.class,
+                () -> moduleService.updateModule(moduleId1, reqDTO));
+    }
+
+    @Test
+    void updateModule_move_targetParentNotFound_throws() {
+        TestCaseModule module = new TestCaseModule();
+        module.setId(moduleId1);
+        module.setProjectId(projectId);
+        module.setType("document");
+        module.setName("Doc");
+
+        when(testCaseModuleMapper.selectById(moduleId1)).thenReturn(module);
+        when(testCaseModuleMapper.selectById(moduleId2)).thenReturn(null);
+
+        TestCaseModuleUpdateReqDTO reqDTO = new TestCaseModuleUpdateReqDTO();
+        reqDTO.setParentId(moduleId2);
+        reqDTO.setTargetIndex(0);
+
+        assertThrows(ServiceException.class,
+                () -> moduleService.updateModule(moduleId1, reqDTO));
+    }
+
+    @Test
+    void updateModule_move_duplicateNameInTarget_throws() {
+        TestCaseModule module = new TestCaseModule();
+        module.setId(moduleId1);
+        module.setProjectId(projectId);
+        module.setParentId(null);
+        module.setType("document");
+        module.setName("Doc");
+
+        TestCaseModule targetDir = new TestCaseModule();
+        targetDir.setId(moduleId2);
+        targetDir.setProjectId(projectId);
+        targetDir.setParentId(null);
+        targetDir.setType("directory");
+        targetDir.setName("Dir");
+
+        TestCaseModule duplicate = new TestCaseModule();
+        duplicate.setId(documentId1);
+
+        when(testCaseModuleMapper.selectById(moduleId1)).thenReturn(module);
+        when(testCaseModuleMapper.selectById(moduleId2)).thenReturn(targetDir);
+        when(testCaseModuleMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(duplicate);
+
+        TestCaseModuleUpdateReqDTO reqDTO = new TestCaseModuleUpdateReqDTO();
+        reqDTO.setParentId(moduleId2);
+        reqDTO.setTargetIndex(0);
 
         assertThrows(ServiceException.class,
                 () -> moduleService.updateModule(moduleId1, reqDTO));
