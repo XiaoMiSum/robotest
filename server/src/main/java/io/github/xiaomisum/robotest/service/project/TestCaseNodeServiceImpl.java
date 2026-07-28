@@ -159,7 +159,7 @@ public class TestCaseNodeServiceImpl implements TestCaseNodeService {
 
     private void fillChildren(TestCaseNodeTreeRespDTO node,
                                Map<String, List<TestCaseNodeTreeRespDTO>> parentMap) {
-        List<TestCaseNodeTreeRespDTO> children = parentMap.getOrDefault(node.getId(), new ArrayList<>());
+        List<TestCaseNodeTreeRespDTO> children = parentMap.getOrDefault(node.getId().toString(), new ArrayList<>());
         node.setChildren(children);
         children.forEach(child -> fillChildren(child, parentMap));
     }
