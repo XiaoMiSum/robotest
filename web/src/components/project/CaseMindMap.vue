@@ -523,27 +523,6 @@ onBeforeUnmount(() => {
       </div>
       <el-divider direction="vertical" />
       <div class="toolbar-group">
-        <el-button size="small" text :class="['type-btn', { 'is-selected': selectedType === 'case' }]" @click="markAs('case')"><span class="type-dot type-dot--case" /><span>用例</span></el-button>
-        <el-button size="small" text :class="['type-btn', { 'is-selected': selectedType === 'precondition' }]" @click="markAs('precondition')"><span class="type-dot type-dot--precondition" /><span>前置</span></el-button>
-        <el-button size="small" text :class="['type-btn', { 'is-selected': selectedType === 'step' }]" @click="markAs('step')"><span class="type-dot type-dot--step" /><span>步骤</span></el-button>
-        <el-button size="small" text :class="['type-btn', { 'is-selected': selectedType === 'expected' }]" @click="markAs('expected')"><span class="type-dot type-dot--expected" /><span>预期</span></el-button>
-        <el-tooltip content="取消标记，恢复普通节点" placement="bottom">
-          <el-button size="small" text @click="clearMark"><el-icon><CircleClose /></el-icon></el-button>
-        </el-tooltip>
-      </div>
-      <el-divider direction="vertical" />
-      <div class="toolbar-group">
-        <el-button
-          v-for="p in priorities"
-          :key="p"
-          size="small"
-          text
-          :class="['priority-btn', `priority-btn--${p.toLowerCase()}`, { 'is-selected': selectedPriority === p }]"
-          @click="markPriority(p)"
-        >{{ p }}</el-button>
-      </div>
-      <el-divider direction="vertical" />
-      <div class="toolbar-group">
         <el-dropdown size="small" @command="switchTemplate">
           <el-button size="small" text>
             <el-icon><Grid /></el-icon><span>{{ currentTemplateLabel }}</span><el-icon class="toolbar-caret"><ArrowDown /></el-icon>
@@ -564,6 +543,27 @@ onBeforeUnmount(() => {
         <el-tooltip content="清除手动拖拽的节点偏移，恢复自动排版" placement="bottom">
           <el-button size="small" text @click="tidyLayout"><el-icon><MagicStick /></el-icon></el-button>
         </el-tooltip>
+      </div>
+      <el-divider direction="vertical" />
+      <div class="toolbar-group">
+        <el-button size="small" text :class="['type-btn', { 'is-selected': selectedType === 'case' }]" @click="markAs('case')"><span class="type-dot type-dot--case" /><span>用例</span></el-button>
+        <el-button size="small" text :class="['type-btn', { 'is-selected': selectedType === 'precondition' }]" @click="markAs('precondition')"><span class="type-dot type-dot--precondition" /><span>前置</span></el-button>
+        <el-button size="small" text :class="['type-btn', { 'is-selected': selectedType === 'step' }]" @click="markAs('step')"><span class="type-dot type-dot--step" /><span>步骤</span></el-button>
+        <el-button size="small" text :class="['type-btn', { 'is-selected': selectedType === 'expected' }]" @click="markAs('expected')"><span class="type-dot type-dot--expected" /><span>预期</span></el-button>
+        <el-tooltip content="取消标记，恢复普通节点" placement="bottom">
+          <el-button size="small" text @click="clearMark"><el-icon><CircleClose /></el-icon></el-button>
+        </el-tooltip>
+      </div>
+      <el-divider direction="vertical" />
+      <div class="toolbar-group">
+        <el-button
+          v-for="p in priorities"
+          :key="p"
+          size="small"
+          text
+          :class="['priority-btn', `priority-btn--${p.toLowerCase()}`, { 'is-selected': selectedPriority === p }]"
+          @click="markPriority(p)"
+        >{{ p }}</el-button>
       </div>
     </div>
 
@@ -591,24 +591,30 @@ onBeforeUnmount(() => {
       :y="menuPos.y"
       @close="closeContextMenu"
     >
-      <div class="mindmap-context-menu__item" @click="editSelectedText">编辑内容</div>
-      <div class="mindmap-context-menu__item" @click="addChild">新建子节点</div>
-      <div class="mindmap-context-menu__item" @click="addSibling">新建兄弟节点</div>
+      <div class="mindmap-context-menu__item menu-action" @click="editSelectedText"><span>编辑内容</span></div>
+      <div class="mindmap-context-menu__item menu-action" @click="addChild"><span>新建子节点</span><span class="menu-shortcut">Tab</span></div>
+      <div class="mindmap-context-menu__item menu-action" @click="addSibling"><span>新建兄弟节点</span><span class="menu-shortcut">Enter</span></div>
       <div class="mindmap-context-menu__divider" />
-      <div class="mindmap-context-menu__subtitle">标记类型 ▸</div>
-      <div class="mindmap-context-menu__item mindmap-context-menu__item--indent" @click="clearMark">普通</div>
-      <div class="mindmap-context-menu__item mindmap-context-menu__item--indent" @click="markAs('precondition')">前置条件</div>
-      <div class="mindmap-context-menu__item mindmap-context-menu__item--indent" @click="markAs('step')">执行步骤</div>
-      <div class="mindmap-context-menu__item mindmap-context-menu__item--indent" @click="markAs('expected')">预期结果</div>
-      <div class="mindmap-context-menu__item mindmap-context-menu__item--indent" @click="markAs('case')">测试用例</div>
+      <!-- 标记域横排芯片：压缩菜单高度，选中态直接展示节点现状 -->
+      <div class="menu-chip-row">
+        <span class="menu-chip-label">类型</span>
+        <span :class="['menu-chip', { 'is-selected': selectedType === 'case' }]" @click="markAs('case')"><span class="type-dot type-dot--case" />用例</span>
+        <span :class="['menu-chip', { 'is-selected': selectedType === 'precondition' }]" @click="markAs('precondition')"><span class="type-dot type-dot--precondition" />前置</span>
+        <span :class="['menu-chip', { 'is-selected': selectedType === 'step' }]" @click="markAs('step')"><span class="type-dot type-dot--step" />步骤</span>
+        <span :class="['menu-chip', { 'is-selected': selectedType === 'expected' }]" @click="markAs('expected')"><span class="type-dot type-dot--expected" />预期</span>
+        <span class="menu-chip" title="取消标记" @click="clearMark"><el-icon><CircleClose /></el-icon></span>
+      </div>
+      <div class="menu-chip-row">
+        <span class="menu-chip-label">等级</span>
+        <span
+          v-for="p in priorities"
+          :key="p"
+          :class="['menu-chip', `menu-chip--${p.toLowerCase()}`, { 'is-selected': selectedPriority === p }]"
+          @click="markPriority(p)"
+        >{{ p }}</span>
+      </div>
       <div class="mindmap-context-menu__divider" />
-      <div class="mindmap-context-menu__subtitle">标记优先级 ▸</div>
-      <div class="mindmap-context-menu__item mindmap-context-menu__item--indent" @click="markPriority('P0')">P0</div>
-      <div class="mindmap-context-menu__item mindmap-context-menu__item--indent" @click="markPriority('P1')">P1</div>
-      <div class="mindmap-context-menu__item mindmap-context-menu__item--indent" @click="markPriority('P2')">P2</div>
-      <div class="mindmap-context-menu__item mindmap-context-menu__item--indent" @click="markPriority('P3')">P3</div>
-      <div class="mindmap-context-menu__divider" />
-      <div class="mindmap-context-menu__item mindmap-context-menu__item--danger" @click="deleteNode">删除节点</div>
+      <div class="mindmap-context-menu__item mindmap-context-menu__item--danger menu-action" @click="deleteNode"><span>删除节点</span><span class="menu-shortcut">Delete</span></div>
     </MinderContextMenu>
   </div>
 </template>
@@ -718,6 +724,64 @@ onBeforeUnmount(() => {
   margin-left: 2px;
   font-size: 10px;
 }
+
+/* 右键菜单：动作项快捷键提示右对齐 */
+.menu-action {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.menu-shortcut {
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+}
+
+/* 右键菜单：标记域横排芯片（slot 内容属本组件作用域，样式无需 :slotted） */
+.menu-chip-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 12px;
+}
+
+.menu-chip-label {
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+  margin-right: 4px;
+  flex-shrink: 0;
+}
+
+.menu-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  color: var(--color-neutral-700);
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.menu-chip:hover {
+  background: var(--el-fill-color-light);
+}
+
+.menu-chip.is-selected {
+  background: var(--color-primary-50);
+  color: var(--color-primary-600);
+}
+
+.menu-chip--p0 { color: var(--color-priority-p0); }
+.menu-chip--p1 { color: var(--color-priority-p1); }
+.menu-chip--p2 { color: var(--color-priority-p2); }
+.menu-chip--p3 { color: var(--color-priority-p3); }
+
+.menu-chip--p0.is-selected { background: var(--color-priority-p0); color: #fff; }
+.menu-chip--p1.is-selected { background: var(--color-priority-p1); color: #fff; }
+.menu-chip--p2.is-selected { background: var(--color-priority-p2); color: #fff; }
+.menu-chip--p3.is-selected { background: var(--color-priority-p3); color: #fff; }
 
 /* 键盘接收器（编辑内核注入）：平时隐藏只接收键盘；
    进入 input 态时节点自身文本被隐藏，接收器透明叠合在文本位置上，
