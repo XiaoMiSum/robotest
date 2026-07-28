@@ -13,7 +13,7 @@ import {
   updatePlanCases,
 } from '@/services/project'
 import type { PlannedCases, SnapshotModule, TestPlanDetail, TestPlanProgress } from '@/types'
-import { formatDateTime, formatDate } from '@/utils/format'
+import { formatDate } from '@/utils/format'
 import PlanMindMap from '@/components/project/PlanMindMap.vue'
 import SnapshotModuleTree from '@/components/project/SnapshotModuleTree.vue'
 import CaseSelector from '@/components/project/CaseSelector.vue'
@@ -152,8 +152,6 @@ onMounted(load)
             </span>
             <el-divider direction="vertical" />
             <span class="plan-detail__meta-item">环境：{{ detail.environment || '-' }}</span>
-            <el-divider direction="vertical" />
-            <span class="plan-detail__meta-item">创建于 {{ formatDateTime(detail.createdAt) }}</span>
           </template>
         </div>
       </template>
