@@ -13,8 +13,9 @@ function handleSelectDocument(docId: string, docName: string) {
   selectedDocName.value = docName
 }
 
-// 处于文档中时离开页面需二次确认，防止误触打断编辑（切换文档的确认在 ModuleTree 内）
-onBeforeRouteLeave(async () => {
+// 处于文档中时离开需二次确认，防止误触打断编辑（切换文档的确认在 ModuleTree 内）；
+// 供路由守卫与父组件（功能测试页子页面切换不走路由）共用，文案与判断单点维护
+async function confirmLeave(): Promise<boolean> {
   if (!selectedDocId.value) return true
   try {
     await ElMessageBox.confirm('确定离开当前文档吗？', '离开页面', { type: 'warning' })
@@ -22,7 +23,11 @@ onBeforeRouteLeave(async () => {
   } catch {
     return false
   }
-})
+}
+
+onBeforeRouteLeave(confirmLeave)
+
+defineExpose({ confirmLeave })
 </script>
 
 <template>
