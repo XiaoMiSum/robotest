@@ -17,7 +17,7 @@ import {
   getNodeReviewRecords,
 } from '@/services/project'
 import { getAccessToken } from '@/services'
-import type { ExecutionResult, ReviewMark, ReviewRecord } from '@/types'
+import type { DocumentLayout, ExecutionResult, ReviewMark, ReviewRecord } from '@/types'
 import 'kityminder-core/dist/kityminder.core.css'
 // kity/kityminder-core 是 2014 年的老库：给原始值挂属性、使用 arguments.callee，
 // 均与 ESM 强制的严格模式冲突，只能以经典 script 标签（非严格模式）加载
@@ -223,6 +223,50 @@ function flushPersistence() {
   }
 
   persistedSnapshot = current
+
+  // 布局（模板 + 自由拖拽偏移）独立于节点属性，整体走 update_layout 帧 upsert 布局表
+  const layout = collectLayout()
+  const layoutJson = JSON.stringify(layout)
+  if (layoutJson !== persistedLayoutJson) {
+    socket.send(JSON.stringify({ type: 'update_layout', payload: layout }))
+    persistedLayoutJson = layoutJson
+  }
+}
+
+// 布局落库基线：与节点快照同理，仅在有变化时发送 update_layout
+let persistedLayoutJson = ''
+
+function collectLayout(): DocumentLayout {
+  const m = getMinder()
+  const template = (m?.queryCommandValue?.('template') as string) || 'right'
+  const offsets: NonNullable<DocumentLayout['offsets']> = {}
+  const root = (m as unknown as { getRoot?: () => LiveNode | null } | null)?.getRoot?.()
+  const walk = (node: LiveNode) => {
+    const data = node.data
+    const id = typeof data.id === 'string' ? data.id : ''
+    if (id) {
+      for (const key of Object.keys(data)) {
+        if (!/^layout_.+_offset$/.test(key)) continue
+        const point = data[key] as { x: number; y: number } | null | undefined
+        if (point) (offsets[id] ??= {})[key] = { x: point.x, y: point.y }
+      }
+    }
+    node.getChildren().forEach(walk)
+  }
+  if (root) walk(root)
+  return { template, offsets }
+}
+
+// 把持久化的自由拖拽偏移回填进 km 节点 data，importJson 时随布局生效
+function applyLayoutOffsets(kmRoot: Record<string, unknown>, offsets?: DocumentLayout['offsets']) {
+  if (!offsets) return
+  const walk = (node: Record<string, unknown>) => {
+    const data = node.data as Record<string, unknown>
+    const id = data.id
+    if (typeof id === 'string' && offsets[id]) Object.assign(data, offsets[id])
+    ;(node.children as Record<string, unknown>[] | undefined)?.forEach(walk)
+  }
+  walk(kmRoot)
 }
 
 function schedulePersist() {
@@ -294,6 +338,7 @@ function setupYjs(docId: string) {
     }
     // 远端操作由发起方负责落库，本端只需对齐快照防止重复 diff 提交
     persistedSnapshot = collectLiveNodes()
+    persistedLayoutJson = JSON.stringify(collectLayout())
   })
 }
 
@@ -369,7 +414,12 @@ async function initMinder() {
 
     if (props.mode === 'edit' && props.docId) {
       const docData = await fetchDocumentNodes(props.docId)
-      kmData = { root: caseNodeToKm(docData.node), template: 'right', theme: 'fresh-blue' }
+      const root = caseNodeToKm(docData.node)
+      // 应用已保存的布局：模板 + 自由拖拽偏移；无记录时回退默认右侧分布
+      applyLayoutOffsets(root, docData.layout?.offsets)
+      const template = docData.layout?.template || 'right'
+      currentTemplate.value = template
+      kmData = { root, template, theme: 'fresh-blue' }
     } else if (props.mode === 'review' && props.reviewId) {
       const tree = await getReviewSnapshotTree(props.reviewId)
       const root = tree.length ? reviewNodeToKm(tree[0]) : { data: { text: '空快照' }, children: [] }
@@ -421,6 +471,8 @@ async function initMinder() {
     // 监听事件
     m.on('selectionchange', updateSelectedState)
     m.on('contentchange', () => {
+      // 撤销/重做/远端回放均可能改变模板，跟随刷新工具栏下拉显示
+      currentTemplate.value = (m.queryCommandValue?.('template') as string) || currentTemplate.value
       // 编辑模式：内容变化同步到 Yjs 并防抖落库；远端回放不回写以免循环与重复持久化
       if (props.mode === 'edit' && !applyingRemote) {
         // 先把新节点的短 id 归一化为 UUID 再写入 Yjs，否则各端会各自生成不同 id 导致数据分裂
@@ -432,6 +484,7 @@ async function initMinder() {
 
     // 基线快照对齐服务端存量数据，避免首次 diff 把已有节点误判为新增
     persistedSnapshot = props.mode === 'edit' ? collectLiveNodes() : new Map()
+    persistedLayoutJson = props.mode === 'edit' ? JSON.stringify(collectLayout()) : ''
 
     // 编辑模式建立 WebSocket 协作
     if (props.mode === 'edit' && props.docId) {
@@ -489,6 +542,32 @@ function deleteNode() { exec('RemoveNode') }
 function undo() { kmEditor?.history.undo() }
 function redo() { kmEditor?.history.redo() }
 // 缩放/定位/抓手/缩略图/全屏由导航器（minder/MinderNavigator.vue）提供
+
+// ==================== 布局模板 ====================
+// core 原生 6 模板；template 命令触发 contentchange，自动搭上 Yjs 同步与落库管道
+const templates = [
+  { name: 'right', label: '右侧分布' },
+  { name: 'default', label: '思维导图' },
+  { name: 'structure', label: '组织结构' },
+  { name: 'filetree', label: '目录' },
+  { name: 'fish-bone', label: '鱼骨图' },
+  { name: 'tianpan', label: '天盘' },
+]
+const currentTemplate = ref('right')
+const currentTemplateLabel = computed(
+  () => templates.find((t) => t.name === currentTemplate.value)?.label ?? currentTemplate.value,
+)
+
+function switchTemplate(name: string) {
+  // currentTemplate 由 contentchange 统一回读，避免命令未生效时 UI 与实际不一致
+  exec('template', name)
+}
+
+// 清除全部自由拖拽偏移恢复自动排版；core resetlayout 只作用于选中子树，先清空选区保证整理全树
+function tidyLayout() {
+  getMinder()?.removeAllSelectedNodes?.()
+  exec('resetlayout')
+}
 
 // ==================== Review 模式操作 ====================
 async function markReview(mark: ReviewMark | null) {
@@ -665,6 +744,23 @@ onBeforeUnmount(() => {
         <el-button :disabled="!canUndo" @click="undo">↩</el-button>
         <el-button :disabled="!canRedo" @click="redo">↪</el-button>
       </el-button-group>
+      <el-divider direction="vertical" />
+      <el-dropdown size="small" @command="switchTemplate">
+        <el-button size="small" title="切换布局模板">🗺{{ currentTemplateLabel }} ▾</el-button>
+        <template #dropdown>
+          <el-dropdown-menu>
+            <el-dropdown-item
+              v-for="t in templates"
+              :key="t.name"
+              :command="t.name"
+              :disabled="t.name === currentTemplate"
+            >
+              {{ t.label }}
+            </el-dropdown-item>
+          </el-dropdown-menu>
+        </template>
+      </el-dropdown>
+      <el-button size="small" title="清除手动拖拽的节点偏移，恢复自动排版" @click="tidyLayout">🧹整理</el-button>
       <!-- 在线用户头像 -->
       <div v-if="onlineUsers.length" class="online-users">
         <el-avatar v-for="user in onlineUsers" :key="user.id" :size="24" :style="{ border: `2px solid ${user.color}` }">
