@@ -1,6 +1,7 @@
 package io.github.xiaomisum.robotest.controller.project;
 
 import io.github.xiaomisum.robotest.framework.security.LoginUser;
+import io.github.xiaomisum.robotest.model.dto.request.TestReviewCasesUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.TestReviewCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.TestReviewRecordReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.*;
@@ -63,6 +64,22 @@ public class TestReviewController {
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id) {
         return Result.ok(testReviewService.getReviewModuleTree(id));
+    }
+
+    @GetMapping("/{id}/cases")
+    public Result<List<PlannedCasesRespDTO>> getReviewPlannedCases(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @PathVariable UUID id) {
+        return Result.ok(testReviewService.getReviewPlannedCases(id));
+    }
+
+    @PutMapping("/{id}/cases")
+    public Result<Void> updateReviewCases(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @PathVariable UUID id,
+            @RequestBody @Valid TestReviewCasesUpdateReqDTO reqDTO) {
+        testReviewService.updateReviewCases(id, reqDTO);
+        return Result.ok();
     }
 
     @PostMapping("/{id}/records")
