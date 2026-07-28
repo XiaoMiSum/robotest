@@ -98,7 +98,9 @@ export function createInput(options: { minder: Minder; fsm: Fsm; receiver: Recei
       positionTimer = 0
       const node = minder.getSelectedNode()
       if (!node) return
-      const box = node.getRenderBox('TextRenderer', minder.getRenderTarget())
+      // 默认以 paper 为参照系（含视图平移/缩放变换），坐标即画布容器内像素；
+      // 不可传 DOM 元素作 refer：kity.Matrix.getCTM 只认 kity 对象，否则退化为单位矩阵导致定位落在左上角
+      const box = node.getRenderBox('TextRenderer')
       element.style.left = `${Math.round(box.x)}px`
       element.style.top = `${Math.round(box.y)}px`
     })
