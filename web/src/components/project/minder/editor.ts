@@ -17,6 +17,8 @@ export interface KMEditorOptions {
   historyFrozen?: () => boolean
   /** 撤销/重做栈变化回调，驱动工具栏按钮可用态 */
   onHistoryChange?: () => void
+  /** 空格唤醒菜单回调（组件层展示右键菜单） */
+  onMenuRequest?: () => void
 }
 
 export class KMEditor {
@@ -48,6 +50,7 @@ export class KMEditor {
       receiver: this.receiver,
       input: this.input,
       history: this.history,
+      onMenuRequest: options.onMenuRequest,
     })
   }
 

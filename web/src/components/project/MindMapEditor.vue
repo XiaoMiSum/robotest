@@ -27,6 +27,7 @@ import * as Y from 'yjs'
 import { WebsocketProvider } from 'y-websocket'
 // window.kity / window.kityminder 的类型声明在 minder/types.ts 中统一维护
 import { KMEditor } from './minder/editor'
+import { DEFAULT_NODE_TEXT } from './minder/jumping'
 import { registerBadgesModule } from './minder/badges'
 import { caseNodeToKm, reviewNodeToKm, planNodeToKm, uuidv7, UUID_RE } from './minder/adapter'
 import MinderNavigator from './minder/MinderNavigator.vue'
@@ -401,6 +402,8 @@ async function initMinder() {
           canUndo.value = kmEditor?.history.hasUndo() ?? false
           canRedo.value = kmEditor?.history.hasRedo() ?? false
         },
+        // 空格唤醒右键菜单（内核仅在选中节点时触发）
+        onMenuRequest: openContextMenuAtSelection,
       })
       instance = kmEditor.minder
     } else {
@@ -444,8 +447,8 @@ async function initMinder() {
 }
 
 // ==================== Edit 模式工具栏操作 ====================
-function exec(command: string) {
-  getMinder()?.execCommand?.(command)
+function exec(command: string, ...args: unknown[]) {
+  getMinder()?.execCommand?.(command, ...args)
   // 命令执行后焦点回到键盘接收器，保证快捷键持续可用
   kmEditor?.minder.fire('receiverfocus')
 }
@@ -478,8 +481,9 @@ function markPriority(p: string) {
   updateSelectedState()
 }
 
-function addChild() { exec('AppendChildNode') }
-function addSibling() { exec('AppendSiblingNode') }
+// 新建节点统一携默认名称（与 Tab/Enter 快捷键行为一致，见 minder/jumping.ts）
+function addChild() { exec('AppendChildNode', DEFAULT_NODE_TEXT) }
+function addSibling() { exec('AppendSiblingNode', DEFAULT_NODE_TEXT) }
 function deleteNode() { exec('RemoveNode') }
 // 撤销/重做由编辑内核的 history 提供（core 无 Undo/Redo 命令）
 function undo() { kmEditor?.history.undo() }
@@ -561,7 +565,21 @@ async function markExecution(result: ExecutionResult) {
 
 // ==================== 右键菜单 ====================
 function onContextMenu(e: MouseEvent) {
+  // 仅选中节点时展示（右键节点时 core 已先行选中；空白处右键不弹菜单）
+  if (!selectedNodeId.value) return
   contextMenuPos.value = { x: e.clientX, y: e.clientY }
+  contextMenuVisible.value = true
+}
+
+// 空格唤醒菜单：定位到选中节点下方（'screen' 参照系坐标即 client 坐标，菜单为 fixed 定位）
+function openContextMenuAtSelection() {
+  const node = getMinder()?.getSelectedNode?.() as
+    | { getRenderBox?: (rendererType?: unknown, refer?: unknown) => { x: number; y: number; height: number } }
+    | null
+    | undefined
+  if (!node?.getRenderBox) return
+  const box = node.getRenderBox(undefined, 'screen')
+  contextMenuPos.value = { x: Math.round(box.x), y: Math.round(box.y + box.height + 4) }
   contextMenuVisible.value = true
 }
 
