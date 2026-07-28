@@ -78,8 +78,8 @@ export const useAuthStore = defineStore('auth', () => {
     setTokens(accessToken, refreshToken)
     user.value = loginUser
     localStorage.setItem(USER_KEY, JSON.stringify(loginUser))
-    // 从 authorities 初始化权限（过滤 ROLE_ 前缀的角色名）
-    permissions.value = loginUser.authorities?.filter((a) => !a.startsWith('ROLE_')) ?? []
+    // 从 permissions 初始化权限（过滤 ROLE_ 前缀的角色名）
+    permissions.value = loginUser.permissions?.filter((a) => !a.startsWith('ROLE_')) ?? []
     setActiveWorkspace(workspace)
   }
 

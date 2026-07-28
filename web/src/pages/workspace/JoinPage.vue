@@ -121,7 +121,7 @@ async function loginAndRedirect(accessToken: string, refreshToken: string, resul
   authStore.setLogin(
     accessToken,
     refreshToken,
-    { id: result.user.id, username: result.user.username, email: result.user.email, status: 'active', roles: [], authorities: [], hasWorkspace: result.activeWorkspace != null },
+    { id: result.user.id, username: result.user.username, email: result.user.email, status: 'active', roles: [], permissions: [], hasWorkspace: result.activeWorkspace != null },
     { id: result.activeWorkspace.id, name: result.activeWorkspace.name, workspaceRole: result.activeWorkspace.workspaceRole },
   )
   await authStore.loadPermissions()
