@@ -76,29 +76,35 @@ onMounted(load)
     </el-page-header>
 
     <el-card v-if="detail" shadow="never" class="plan-detail__info">
-      <el-descriptions :column="3" border>
-        <el-descriptions-item label="负责人">{{ detail.executor?.name ?? '-' }}</el-descriptions-item>
-        <el-descriptions-item label="状态">
+      <div class="plan-detail__meta-row">
+        <div class="plan-detail__meta">
           <el-tag size="small" effect="light" round>{{ statusLabel[detail.status] }}</el-tag>
-        </el-descriptions-item>
-        <el-descriptions-item label="起止时间">
-          {{ detail.startTime ? formatDate(detail.startTime) : '?' }} ~ {{ detail.endTime ? formatDate(detail.endTime) : '?' }}
-        </el-descriptions-item>
-        <el-descriptions-item label="环境">{{ detail.environment || '-' }}</el-descriptions-item>
-        <el-descriptions-item label="创建时间">{{ formatDateTime(detail.createdAt) }}</el-descriptions-item>
-      </el-descriptions>
-
-      <div v-if="progress" class="plan-detail__progress">
-        <el-progress :percentage="progress.progressPercent" :stroke-width="20" text-inside />
-        <div class="plan-detail__stats">
-          通过 {{ progress.passed }} / 失败 {{ progress.failed }} / 阻塞 {{ progress.blocked }} / 未执行 {{ progress.untested }}（共 {{ progress.totalAssociated }}）
+          <span class="plan-detail__meta-item">负责人：{{ detail.executor?.name ?? '-' }}</span>
+          <el-divider direction="vertical" />
+          <span class="plan-detail__meta-item">
+            起止：{{ detail.startTime ? formatDate(detail.startTime) : '?' }} ~ {{ detail.endTime ? formatDate(detail.endTime) : '?' }}
+          </span>
+          <el-divider direction="vertical" />
+          <span class="plan-detail__meta-item">环境：{{ detail.environment || '-' }}</span>
+          <el-divider direction="vertical" />
+          <span class="plan-detail__meta-item">创建于 {{ formatDateTime(detail.createdAt) }}</span>
+        </div>
+        <div class="plan-detail__actions">
+          <el-button v-if="detail.status === 'new'" size="small" type="primary" @click="handleStart">开始执行</el-button>
+          <el-button v-if="detail.status === 'in_progress'" size="small" @click="handleSync">同步最新用例</el-button>
+          <el-button v-if="detail.status === 'in_progress'" size="small" type="danger" @click="handleClose">关闭计划</el-button>
         </div>
       </div>
 
-      <div class="plan-detail__actions">
-        <el-button v-if="detail.status === 'new'" type="primary" @click="handleStart">开始执行</el-button>
-        <el-button v-if="detail.status === 'in_progress'" @click="handleSync">同步最新用例</el-button>
-        <el-button v-if="detail.status === 'in_progress'" type="danger" @click="handleClose">关闭计划</el-button>
+      <div v-if="progress" class="plan-detail__progress-row">
+        <el-progress class="plan-detail__progress" :percentage="progress.progressPercent" :stroke-width="8" />
+        <div class="plan-detail__stats">
+          <span class="plan-detail__stat plan-detail__stat--pass">通过 {{ progress.passed }}</span>
+          <span class="plan-detail__stat plan-detail__stat--fail">失败 {{ progress.failed }}</span>
+          <span class="plan-detail__stat plan-detail__stat--blocked">阻塞 {{ progress.blocked }}</span>
+          <span class="plan-detail__stat">未执行 {{ progress.untested }}</span>
+          <span class="plan-detail__stat">共 {{ progress.totalAssociated }}</span>
+        </div>
       </div>
     </el-card>
 
@@ -109,6 +115,14 @@ onMounted(load)
 </template>
 
 <style scoped lang="scss">
+// 页面整高 flex 布局：头部固定、脑图卡片撑满剩余空间，消除底部留白（与评审详情页保持一致）
+.plan-detail {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
 .plan-detail__title {
   font-size: var(--font-size-lg);
   font-weight: 700;
@@ -117,26 +131,75 @@ onMounted(load)
 
 .plan-detail__info {
   margin-top: var(--space-lg);
+  flex-shrink: 0;
+
+  :deep(.el-card__body) {
+    padding: var(--space-md) var(--space-lg);
+  }
+}
+
+.plan-detail__meta-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+}
+
+.plan-detail__meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  min-width: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-neutral-600);
+}
+
+.plan-detail__actions {
+  flex-shrink: 0;
+}
+
+.plan-detail__progress-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-lg);
+  margin-top: var(--space-md);
 }
 
 .plan-detail__progress {
-  margin-top: var(--space-lg);
+  flex: 1;
 }
 
 .plan-detail__stats {
-  margin-top: var(--space-sm);
+  flex-shrink: 0;
+  display: flex;
+  gap: var(--space-md);
   font-size: var(--font-size-xs);
   color: var(--color-neutral-500);
 }
 
-.plan-detail__actions {
-  margin-top: var(--space-lg);
-  display: flex;
-  gap: var(--space-sm);
+.plan-detail__stat--pass {
+  color: var(--color-success);
+}
+
+.plan-detail__stat--fail {
+  color: var(--color-danger);
+}
+
+.plan-detail__stat--blocked {
+  color: var(--color-warning);
 }
 
 .plan-detail__body {
   margin-top: var(--space-lg);
-  min-height: 300px;
+  flex: 1;
+  min-height: 0;
+
+  :deep(.el-card__body) {
+    height: 100%;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
 }
 </style>

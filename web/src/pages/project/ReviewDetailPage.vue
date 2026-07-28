@@ -64,26 +64,31 @@ onMounted(load)
     </el-page-header>
 
     <el-card v-if="detail" shadow="never" class="review-detail__info">
-      <el-descriptions :column="3" border>
-        <el-descriptions-item label="发起人">{{ detail.initiator.name }}</el-descriptions-item>
-        <el-descriptions-item label="状态">
+      <div class="review-detail__meta-row">
+        <div class="review-detail__meta">
           <el-tag :type="detail.status === 'completed' ? 'success' : 'warning'" size="small" effect="light" round>
             {{ detail.status === 'completed' ? '已完成' : '评审中' }}
           </el-tag>
-        </el-descriptions-item>
-        <el-descriptions-item label="创建时间">{{ formatDateTime(detail.createdAt) }}</el-descriptions-item>
-      </el-descriptions>
-
-      <div v-if="progress" class="review-detail__progress">
-        <el-progress :percentage="progress.progressPercent" :stroke-width="20" text-inside />
-        <div class="review-detail__stats">
-          通过 {{ progress.passed }} / 不通过 {{ progress.failed }} / 待评审 {{ progress.pending }}（共 {{ progress.totalAssociated }}）
+          <span class="review-detail__meta-item">发起人：{{ detail.initiator.name }}</span>
+          <el-divider direction="vertical" />
+          <span class="review-detail__meta-item">参与者：{{ detail.participantIds.length }} 人</span>
+          <el-divider direction="vertical" />
+          <span class="review-detail__meta-item">创建于 {{ formatDateTime(detail.createdAt) }}</span>
+        </div>
+        <div v-if="detail.status === 'in_progress'" class="review-detail__actions">
+          <el-button size="small" @click="handleSync">同步最新用例</el-button>
+          <el-button size="small" type="primary" @click="handleComplete">完成评审</el-button>
         </div>
       </div>
 
-      <div v-if="detail.status === 'in_progress'" class="review-detail__actions">
-        <el-button @click="handleSync">同步最新用例</el-button>
-        <el-button type="primary" @click="handleComplete">完成评审</el-button>
+      <div v-if="progress" class="review-detail__progress-row">
+        <el-progress class="review-detail__progress" :percentage="progress.progressPercent" :stroke-width="8" />
+        <div class="review-detail__stats">
+          <span class="review-detail__stat review-detail__stat--pass">通过 {{ progress.passed }}</span>
+          <span class="review-detail__stat review-detail__stat--fail">不通过 {{ progress.failed }}</span>
+          <span class="review-detail__stat review-detail__stat--pending">待评审 {{ progress.pending }}</span>
+          <span class="review-detail__stat">共 {{ progress.totalAssociated }}</span>
+        </div>
       </div>
     </el-card>
 
@@ -94,6 +99,14 @@ onMounted(load)
 </template>
 
 <style scoped lang="scss">
+// 页面整高 flex 布局：头部固定、脑图卡片撑满剩余空间，消除底部留白
+.review-detail {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
 .review-detail__title {
   font-size: var(--font-size-lg);
   font-weight: 700;
@@ -102,26 +115,75 @@ onMounted(load)
 
 .review-detail__info {
   margin-top: var(--space-lg);
+  flex-shrink: 0;
+
+  :deep(.el-card__body) {
+    padding: var(--space-md) var(--space-lg);
+  }
+}
+
+.review-detail__meta-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+}
+
+.review-detail__meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  min-width: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-neutral-600);
+}
+
+.review-detail__actions {
+  flex-shrink: 0;
+}
+
+.review-detail__progress-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-lg);
+  margin-top: var(--space-md);
 }
 
 .review-detail__progress {
-  margin-top: var(--space-lg);
+  flex: 1;
 }
 
 .review-detail__stats {
-  margin-top: var(--space-sm);
+  flex-shrink: 0;
+  display: flex;
+  gap: var(--space-md);
   font-size: var(--font-size-xs);
   color: var(--color-neutral-500);
 }
 
-.review-detail__actions {
-  margin-top: var(--space-lg);
-  display: flex;
-  gap: var(--space-sm);
+.review-detail__stat--pass {
+  color: var(--color-success);
+}
+
+.review-detail__stat--fail {
+  color: var(--color-danger);
+}
+
+.review-detail__stat--pending {
+  color: var(--color-warning);
 }
 
 .review-detail__body {
   margin-top: var(--space-lg);
-  min-height: 300px;
+  flex: 1;
+  min-height: 0;
+
+  :deep(.el-card__body) {
+    height: 100%;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
 }
 </style>
