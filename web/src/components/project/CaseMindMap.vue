@@ -15,6 +15,7 @@ import { WebsocketProvider } from 'y-websocket'
 // window.kity / window.kityminder 的类型声明在 minder/types.ts 中统一维护
 import { KMEditor } from './minder/editor'
 import { DEFAULT_NODE_TEXT } from './minder/jumping'
+import { copySelected, cutSelected, pasteToSelected, hasClipboard } from './minder/clipboard'
 import { caseNodeToKm, uuidv7, UUID_RE } from './minder/adapter'
 import { loadMinderEngine } from './minder/loader'
 import { useMinderInstance } from './minder/useMinderInstance'
@@ -436,6 +437,17 @@ function clearMark() {
 function addChild() { exec('AppendChildNode', DEFAULT_NODE_TEXT) }
 function addSibling() { exec('AppendSiblingNode', DEFAULT_NODE_TEXT) }
 function deleteNode() { exec('RemoveNode') }
+// 复制/剪切/粘贴走应用内剪贴板（minder/clipboard.ts），粘贴节点由落库管道补发新 id
+function copyNode() {
+  if (kmEditor) copySelected(kmEditor.minder)
+}
+function cutNode() {
+  if (!kmEditor) return
+  if (cutSelected(kmEditor.minder) === 'root') ElMessage.warning('根节点不能剪切')
+}
+function pasteNode() {
+  if (kmEditor) pasteToSelected(kmEditor.minder)
+}
 // 撤销/重做由编辑内核的 history 提供（core 无 Undo/Redo 命令）
 function undo() { kmEditor?.history.undo() }
 function redo() { kmEditor?.history.redo() }
@@ -597,6 +609,10 @@ onBeforeUnmount(() => {
       <div class="mindmap-context-menu__item menu-action" @click="addChild"><span>新建子节点</span><span class="menu-shortcut">Tab</span></div>
       <div class="mindmap-context-menu__item menu-action" @click="addSibling"><span>新建兄弟节点</span><span class="menu-shortcut">Enter</span></div>
       <div class="mindmap-context-menu__divider" />
+      <div class="mindmap-context-menu__item menu-action" @click="copyNode"><span>复制</span><span class="menu-shortcut">Ctrl+C</span></div>
+      <div class="mindmap-context-menu__item menu-action" @click="cutNode"><span>剪切</span><span class="menu-shortcut">Ctrl+X</span></div>
+      <div :class="['mindmap-context-menu__item', 'menu-action', { 'is-disabled': !hasClipboard }]" @click="pasteNode"><span>粘贴</span><span class="menu-shortcut">Ctrl+V</span></div>
+      <div class="mindmap-context-menu__divider" />
       <!-- 标记域横排芯片：压缩菜单高度，选中态直接展示节点现状 -->
       <div class="menu-chip-row">
         <span class="menu-chip-label">类型</span>
@@ -733,6 +749,17 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: space-between;
   gap: 24px;
+}
+
+/* 粘贴项在剪贴板为空时置灰不可点（pointer-events 保留冒泡，点击仍会关闭菜单） */
+.menu-action.is-disabled {
+  color: var(--el-text-color-disabled);
+  cursor: not-allowed;
+
+  &:hover {
+    background: none;
+    color: var(--el-text-color-disabled);
+  }
 }
 
 .menu-shortcut {
