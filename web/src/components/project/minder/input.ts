@@ -80,8 +80,6 @@ export function createInput(options: { minder: Minder; fsm: Fsm; receiver: Recei
       shape.setOpacity(0)
       hiddenTextShape = shape
     }
-    element.style.minWidth = '0'
-    element.style.minWidth = `${element.clientWidth}px`
     element.classList.add('input')
     element.focus({ preventScroll: true })
     updatePosition()
