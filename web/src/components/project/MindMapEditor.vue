@@ -808,6 +808,8 @@ onBeforeUnmount(() => {
   opacity: 0;
   pointer-events: none;
   padding: 0;
+  /* 宽度由内容决定：绝对定位默认 shrink-to-fit，节点靠画布右侧时剩余空间不足会被挤成一字一行 */
+  width: max-content;
   min-width: 1em;
   max-width: 300px;
   border: none;
