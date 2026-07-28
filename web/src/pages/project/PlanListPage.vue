@@ -12,7 +12,7 @@ const router = useRouter()
 const loading = ref(false)
 const plans = ref<TestPlanListItem[]>([])
 const total = ref(0)
-const query = reactive({ status: '' as PlanStatus | '', pageNo: 1, pageSize: 20 })
+const query = reactive({ status: '' as PlanStatus | '', keyword: '', pageNo: 1, pageSize: 20 })
 
 const statusLabel: Record<string, string> = { new: '待开始', in_progress: '进行中', completed: '已完成', closed: '已关闭' }
 const statusType: Record<string, 'info' | 'warning' | 'success' | 'danger'> = { new: 'info', in_progress: 'warning', completed: 'success', closed: 'danger' }
@@ -22,6 +22,7 @@ async function loadPlans() {
   try {
     const page = await fetchPlans({
       status: query.status || undefined,
+      keyword: query.keyword.trim() || undefined,
       pageNo: query.pageNo,
       pageSize: query.pageSize,
     })
@@ -35,6 +36,13 @@ async function loadPlans() {
 }
 
 function handleSearch() {
+  query.pageNo = 1
+  loadPlans()
+}
+
+function handleReset() {
+  query.status = ''
+  query.keyword = ''
   query.pageNo = 1
   loadPlans()
 }
@@ -123,9 +131,19 @@ async function submitCreate() {
     <el-card v-loading="loading" shadow="never">
       <template #header>
         <div class="plan-list__header">
-          <el-select v-model="query.status" placeholder="状态" clearable style="width: 140px" @change="handleSearch">
+          <el-input
+            v-model="query.keyword"
+            placeholder="搜索名称"
+            clearable
+            style="width: 200px"
+            @keyup.enter="handleSearch"
+          />
+          <el-select v-model="query.status" placeholder="状态" clearable style="width: 140px">
             <el-option v-for="(label, key) in statusLabel" :key="key" :label="label" :value="key" />
           </el-select>
+          <el-button type="primary" plain @click="handleSearch">查询</el-button>
+          <el-button @click="handleReset">重置</el-button>
+          <div class="plan-list__header-spacer" />
           <el-button type="primary" @click="openCreateDialog">
             <el-icon><Plus /></el-icon>创建计划
           </el-button>
@@ -216,7 +234,11 @@ async function submitCreate() {
 .plan-list__header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: var(--space-md);
+}
+
+.plan-list__header-spacer {
+  flex: 1;
 }
 
 .plan-list__pager {

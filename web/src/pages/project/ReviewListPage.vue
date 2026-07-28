@@ -12,13 +12,14 @@ const router = useRouter()
 const loading = ref(false)
 const reviews = ref<TestReviewListItem[]>([])
 const total = ref(0)
-const query = reactive({ status: '' as ReviewStatus | '', pageNo: 1, pageSize: 20 })
+const query = reactive({ status: '' as ReviewStatus | '', keyword: '', pageNo: 1, pageSize: 20 })
 
 async function loadReviews() {
   loading.value = true
   try {
     const page = await fetchReviews({
       status: query.status || undefined,
+      keyword: query.keyword.trim() || undefined,
       pageNo: query.pageNo,
       pageSize: query.pageSize,
     })
@@ -32,6 +33,13 @@ async function loadReviews() {
 }
 
 function handleSearch() {
+  query.pageNo = 1
+  loadReviews()
+}
+
+function handleReset() {
+  query.status = ''
+  query.keyword = ''
   query.pageNo = 1
   loadReviews()
 }
@@ -109,10 +117,19 @@ async function submitCreate() {
     <el-card v-loading="loading" shadow="never">
       <template #header>
         <div class="review-list__header">
-          <el-select v-model="query.status" placeholder="状态" clearable style="width: 140px" @change="handleSearch">
+          <el-input
+            v-model="query.keyword"
+            placeholder="搜索标题"
+            clearable
+            style="width: 200px"
+            @keyup.enter="handleSearch"
+          />
+          <el-select v-model="query.status" placeholder="状态" clearable style="width: 140px">
             <el-option label="评审中" value="in_progress" />
             <el-option label="已完成" value="completed" />
           </el-select>
+          <el-button type="primary" plain @click="handleSearch">查询</el-button>
+          <el-button @click="handleReset">重置</el-button>
           <div class="review-list__header-spacer" />
           <el-button type="primary" @click="openCreateDialog">
             <el-icon><Plus /></el-icon>发起评审

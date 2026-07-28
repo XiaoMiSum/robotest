@@ -110,6 +110,7 @@ export function updateCaseNode(
 
 export function fetchPlans(params: {
   status?: PlanStatus | ''
+  keyword?: string
   pageNo?: number
   pageSize?: number
 }): Promise<PageResult<TestPlanListItem>> {
@@ -185,6 +186,7 @@ export function closePlan(id: string): Promise<void> {
 
 export function fetchReviews(params: {
   status?: ReviewStatus | ''
+  keyword?: string
   pageNo?: number
   pageSize?: number
 }): Promise<PageResult<TestReviewListItem>> {
