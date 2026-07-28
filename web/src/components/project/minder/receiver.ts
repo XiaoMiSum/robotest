@@ -70,7 +70,7 @@ export function createReceiver(container: HTMLElement, minder: Minder, fsm: Fsm)
   element.onkeyup = dispatchKeyEvent
 
   function selectAll() {
-    // 保持全选状态，下一次打字即整体替换旧内容（打字即编辑的关键）
+    // 全选以清除残留光标位置并保持接收器聚焦（隐藏元素，无视觉影响）
     if (!element.innerHTML) element.innerHTML = '&nbsp;'
     const range = document.createRange()
     const selection = window.getSelection()

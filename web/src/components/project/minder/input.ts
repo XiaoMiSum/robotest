@@ -4,7 +4,8 @@ import type { Receiver } from './receiver'
 
 /**
  * 原位内联编辑（移植自 kityminder-editor 的 input runtime，去掉了可见输入框外观）：
- * 进入 input 态时隐藏节点自身的 SVG 文本，接收器以相同字号/字色透明叠合在文本位置上，
+ * 双击/F2/工具栏激活，进入 input 态时隐藏节点自身的 SVG 文本，
+ * 接收器以相同字号/字色透明叠合在文本位置上，光标置于文本末端，
  * 形成“直接在节点内打字”的观感；
  * Enter/失焦提交（经 execCommand('text') 触发 contentchange，走同步与落库管道），
  * Esc 取消；布局/视图/选区变化时跟随重定位。
@@ -52,12 +53,23 @@ export function createInput(options: { minder: Minder; fsm: Fsm; receiver: Recei
   }
   minder.on(followEvents, follow)
 
+  function placeCaretToEnd() {
+    // 交互规范：进入编辑时光标定位到文本末端，不全选（避免误敲替换整段内容）
+    const range = document.createRange()
+    range.selectNodeContents(element)
+    range.collapse(false)
+    const selection = window.getSelection()
+    selection?.removeAllRanges()
+    selection?.addRange(range)
+    element.focus({ preventScroll: true })
+  }
+
   function editText() {
     const node = minder.getSelectedNode()
     if (!node) return
     element.innerText = String(minder.queryCommandValue('text') ?? '')
     fsm.jump('input', 'input-request')
-    receiver.selectAll()
+    placeCaretToEnd()
   }
 
   function getTextShape(node: MinderNode): RenderShape | null {

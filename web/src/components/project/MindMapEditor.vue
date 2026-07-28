@@ -446,28 +446,16 @@ async function initMinder() {
 // ==================== Edit 模式工具栏操作 ====================
 function exec(command: string) {
   getMinder()?.execCommand?.(command)
-  // 命令执行后焦点回到键盘接收器，保证快捷键与打字即编辑持续可用
+  // 命令执行后焦点回到键盘接收器，保证快捷键持续可用
   kmEditor?.minder.fire('receiverfocus')
 }
 
 // ==================== 节点原位编辑 ====================
 // 原位编辑由编辑内核（minder/input.ts）经 contenteditable 接收器实现，
-// 这里只是工具栏 / 右键菜单 / 单击节点的编辑入口
+// 双击节点由内核监听，这里只是工具栏 / 右键菜单的编辑入口
 function editSelectedText() {
   if (!isEdit.value) return
   kmEditor?.editText()
-}
-
-// 点击节点直接进入原位编辑；记录按下位置以区分单击与拖拽（拖拽节点/框选不触发编辑）
-let mousedownPos = { x: 0, y: 0 }
-function onCanvasMousedown(e: MouseEvent) {
-  mousedownPos = { x: e.clientX, y: e.clientY }
-}
-function onCanvasClick(e: MouseEvent) {
-  if (!isEdit.value) return
-  if (Math.abs(e.clientX - mousedownPos.x) > 3 || Math.abs(e.clientY - mousedownPos.y) > 3) return
-  // 点击空白处 selectionchange 已清空选中态，不会误开编辑框
-  if (selectedNodeId.value) editSelectedText()
 }
 
 function markAs(type: string) {
@@ -617,7 +605,7 @@ onBeforeUnmount(() => {
       </el-button-group>
       <el-divider direction="vertical" />
       <el-button-group size="small">
-        <el-button title="编辑内容 (点击节点/F2)" @click="editSelectedText">✏️编辑</el-button>
+        <el-button title="编辑内容 (双击节点/F2)" @click="editSelectedText">✏️编辑</el-button>
         <el-button title="添加子节点 (Tab)" @click="addChild">＋子</el-button>
         <el-button title="添加兄弟节点 (Enter)" @click="addSibling">＋兄</el-button>
         <el-button title="删除 (Delete)" @click="deleteNode">🗑</el-button>
@@ -655,13 +643,11 @@ onBeforeUnmount(() => {
       </el-button-group>
     </div>
 
-    <!-- 脑图画布（编辑模式下内核会向容器注入 .km-receiver 接收器元素） -->
+    <!-- 脑图画布（编辑模式下内核会向容器注入 .km-receiver 接收器元素，双击节点进入编辑） -->
     <div
       ref="containerRef"
       class="minder-canvas"
       @contextmenu.prevent="onContextMenu"
-      @mousedown="onCanvasMousedown"
-      @click="onCanvasClick"
     />
 
     <!-- 导航器：缩放条/定位根节点/抓手/缩略图/全屏；minder 切换文档重建时随 v-if 重建 -->
