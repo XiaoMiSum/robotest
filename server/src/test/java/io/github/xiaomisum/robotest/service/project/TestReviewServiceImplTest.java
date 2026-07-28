@@ -351,10 +351,10 @@ class TestReviewServiceImplTest {
                 // docA 被移除：节点快照批删 + 文档快照删除
                 verify(reviewNodeSnapshotMapper).delete(any(LambdaQueryWrapper.class));
                 verify(reviewModuleSnapshotMapper).deleteById(snapA.getId());
-                // 快照后新增的 case2 被补入快照
+                // 快照后新增的 case2 被补入快照（插入时已带关联标记）
                 verify(reviewNodeSnapshotMapper).insert(any(TestReviewNodeSnapshot.class));
-                // c1 取消关联、c2 新关联，各落库一次
-                verify(reviewNodeSnapshotMapper, times(2)).updateById(any(TestReviewNodeSnapshot.class));
+                // c1 取消关联落库一次
+                verify(reviewNodeSnapshotMapper, times(1)).updateById(any(TestReviewNodeSnapshot.class));
                 assertFalse(caseSnap1.getIsAssociated());
         }
 

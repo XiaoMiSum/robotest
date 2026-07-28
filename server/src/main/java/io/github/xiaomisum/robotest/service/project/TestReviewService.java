@@ -12,7 +12,8 @@ import java.util.UUID;
 
 public interface TestReviewService {
 
-    PageResult<TestReviewListRespDTO> getReviewPage(UUID projectId, String status, String keyword, Integer pageNo, Integer pageSize);
+    PageResult<TestReviewListRespDTO> getReviewPage(UUID projectId, String status, String keyword, Integer pageNo,
+            Integer pageSize);
 
     TestReviewDetailRespDTO createReview(UUID projectId, UUID userId, TestReviewCreateReqDTO reqDTO);
 

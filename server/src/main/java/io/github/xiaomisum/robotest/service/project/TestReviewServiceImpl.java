@@ -328,7 +328,7 @@ public class TestReviewServiceImpl implements TestReviewService {
                 .collect(Collectors.toMap(TestCaseNode::getId, n -> n));
 
         for (TestCaseNode node : currentById.values()) {
-            ensureNodeSnapshot(reviewId, docSnap.getId(), node, currentById, snapByOriginal);
+            ensureNodeSnapshot(reviewId, docSnap.getId(), node, currentById, snapByOriginal, caseIds);
         }
 
         for (TestReviewNodeSnapshot snap : snapByOriginal.values()) {
@@ -340,10 +340,11 @@ public class TestReviewServiceImpl implements TestReviewService {
         }
     }
 
-    // 递归保证父链先于子节点入快照，返回该节点的快照 ID
+    // 递归保证父链先于子节点入快照（库返回顺序任意，逆序插入会产生父映射落空的孤儿根），返回该节点的快照 ID
     private UUID ensureNodeSnapshot(UUID reviewId, UUID docSnapshotId, TestCaseNode node,
             Map<UUID, TestCaseNode> currentById,
-            Map<UUID, TestReviewNodeSnapshot> snapByOriginal) {
+            Map<UUID, TestReviewNodeSnapshot> snapByOriginal,
+            Set<UUID> associatedCaseIds) {
         TestReviewNodeSnapshot existing = snapByOriginal.get(node.getId());
         if (existing != null) {
             return existing.getId();
@@ -352,7 +353,8 @@ public class TestReviewServiceImpl implements TestReviewService {
         if (node.getParentId() != null) {
             TestCaseNode parent = currentById.get(node.getParentId());
             if (parent != null) {
-                parentSnapshotId = ensureNodeSnapshot(reviewId, docSnapshotId, parent, currentById, snapByOriginal);
+                parentSnapshotId = ensureNodeSnapshot(reviewId, docSnapshotId, parent, currentById, snapByOriginal,
+                        associatedCaseIds);
             }
         }
         TestReviewNodeSnapshot snapshot = new TestReviewNodeSnapshot();
@@ -363,7 +365,7 @@ public class TestReviewServiceImpl implements TestReviewService {
         snapshot.setTitle(node.getTitle());
         snapshot.setType(node.getType());
         snapshot.setPriority(node.getPriority());
-        snapshot.setIsAssociated(false);
+        snapshot.setIsAssociated(associatedCaseIds.contains(node.getId()));
         snapshot.setSortOrder(node.getSortOrder());
         reviewNodeSnapshotMapper.insert(snapshot);
         snapByOriginal.put(node.getId(), snapshot);
@@ -618,18 +620,12 @@ public class TestReviewServiceImpl implements TestReviewService {
             UUID snapshotDocId = findSnapshotModuleId(documentId, reviewId);
             Set<UUID> caseIds = entry.getValue();
 
+            // 递归插入保证父先于子，避免库返回顺序导致父映射落空
+            Map<UUID, TestCaseNode> currentById = docNodes.stream()
+                    .collect(Collectors.toMap(TestCaseNode::getId, n -> n));
+            Map<UUID, TestReviewNodeSnapshot> snapByOriginal = new HashMap<>();
             for (TestCaseNode node : docNodes) {
-                TestReviewNodeSnapshot nodeSnapshot = new TestReviewNodeSnapshot();
-                nodeSnapshot.setReviewId(reviewId);
-                nodeSnapshot.setOriginalNodeId(node.getId());
-                nodeSnapshot.setDocumentSnapshotId(snapshotDocId);
-                nodeSnapshot.setParentId(findCopiedNodeParentId(node.getParentId(), reviewId));
-                nodeSnapshot.setTitle(node.getTitle());
-                nodeSnapshot.setType(node.getType());
-                nodeSnapshot.setPriority(node.getPriority());
-                nodeSnapshot.setIsAssociated(caseIds.contains(node.getId()));
-                nodeSnapshot.setSortOrder(node.getSortOrder());
-                reviewNodeSnapshotMapper.insert(nodeSnapshot);
+                ensureNodeSnapshot(reviewId, snapshotDocId, node, currentById, snapByOriginal, caseIds);
             }
         }
     }
@@ -664,17 +660,6 @@ public class TestReviewServiceImpl implements TestReviewService {
                 new LambdaQueryWrapperX<TestReviewModuleSnapshot>()
                         .eq(TestReviewModuleSnapshot::getReviewId, reviewId)
                         .eq(TestReviewModuleSnapshot::getOriginalModuleId, originalModuleId));
-        return snapshot != null ? snapshot.getId() : null;
-    }
-
-    private UUID findCopiedNodeParentId(UUID originalParentId, UUID reviewId) {
-        if (originalParentId == null) {
-            return null;
-        }
-        TestReviewNodeSnapshot snapshot = reviewNodeSnapshotMapper.selectOne(
-                new LambdaQueryWrapperX<TestReviewNodeSnapshot>()
-                        .eq(TestReviewNodeSnapshot::getReviewId, reviewId)
-                        .eq(TestReviewNodeSnapshot::getOriginalNodeId, originalParentId));
         return snapshot != null ? snapshot.getId() : null;
     }
 

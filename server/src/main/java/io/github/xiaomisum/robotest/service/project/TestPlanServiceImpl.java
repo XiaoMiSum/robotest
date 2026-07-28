@@ -10,7 +10,6 @@ import io.github.xiaomisum.robotest.model.dto.request.TestPlanRecordReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.*;
 import io.github.xiaomisum.robotest.model.entity.*;
 import io.github.xiaomisum.robotest.repository.*;
-import io.github.xiaomisum.robotest.service.project.TestPlanService;
 import jakarta.annotation.Resource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -315,7 +314,7 @@ public class TestPlanServiceImpl implements TestPlanService {
                 .collect(Collectors.toMap(TestCaseNode::getId, n -> n));
 
         for (TestCaseNode node : currentById.values()) {
-            ensureNodeSnapshot(planId, docSnap.getId(), node, currentById, snapByOriginal);
+            ensureNodeSnapshot(planId, docSnap.getId(), node, currentById, snapByOriginal, caseIds);
         }
 
         for (TestPlanNodeSnapshot snap : snapByOriginal.values()) {
@@ -327,10 +326,11 @@ public class TestPlanServiceImpl implements TestPlanService {
         }
     }
 
-    // 递归保证父链先于子节点入快照，返回该节点的快照 ID
+    // 递归保证父链先于子节点入快照（库返回顺序任意，逆序插入会产生父映射落空的孤儿根），返回该节点的快照 ID
     private UUID ensureNodeSnapshot(UUID planId, UUID docSnapshotId, TestCaseNode node,
             Map<UUID, TestCaseNode> currentById,
-            Map<UUID, TestPlanNodeSnapshot> snapByOriginal) {
+            Map<UUID, TestPlanNodeSnapshot> snapByOriginal,
+            Set<UUID> associatedCaseIds) {
         TestPlanNodeSnapshot existing = snapByOriginal.get(node.getId());
         if (existing != null) {
             return existing.getId();
@@ -339,7 +339,8 @@ public class TestPlanServiceImpl implements TestPlanService {
         if (node.getParentId() != null) {
             TestCaseNode parent = currentById.get(node.getParentId());
             if (parent != null) {
-                parentSnapshotId = ensureNodeSnapshot(planId, docSnapshotId, parent, currentById, snapByOriginal);
+                parentSnapshotId = ensureNodeSnapshot(planId, docSnapshotId, parent, currentById, snapByOriginal,
+                        associatedCaseIds);
             }
         }
         TestPlanNodeSnapshot snapshot = new TestPlanNodeSnapshot();
@@ -350,7 +351,7 @@ public class TestPlanServiceImpl implements TestPlanService {
         snapshot.setTitle(node.getTitle());
         snapshot.setType(node.getType());
         snapshot.setPriority(node.getPriority());
-        snapshot.setIsAssociated(false);
+        snapshot.setIsAssociated(associatedCaseIds.contains(node.getId()));
         snapshot.setLastResult(Constants.ExecutionResult.UNTESTED);
         snapshot.setSortOrder(node.getSortOrder());
         planNodeSnapshotMapper.insert(snapshot);
@@ -631,19 +632,12 @@ public class TestPlanServiceImpl implements TestPlanService {
             UUID snapshotDocId = findSnapshotModuleId(documentId, planId);
             Set<UUID> caseIds = entry.getValue();
 
+            // 递归插入保证父先于子，避免库返回顺序导致父映射落空
+            Map<UUID, TestCaseNode> currentById = docNodes.stream()
+                    .collect(Collectors.toMap(TestCaseNode::getId, n -> n));
+            Map<UUID, TestPlanNodeSnapshot> snapByOriginal = new HashMap<>();
             for (TestCaseNode node : docNodes) {
-                TestPlanNodeSnapshot nodeSnapshot = new TestPlanNodeSnapshot();
-                nodeSnapshot.setPlanId(planId);
-                nodeSnapshot.setOriginalNodeId(node.getId());
-                nodeSnapshot.setDocumentSnapshotId(snapshotDocId);
-                nodeSnapshot.setParentId(findCopiedNodeParentId(node.getParentId(), planId));
-                nodeSnapshot.setTitle(node.getTitle());
-                nodeSnapshot.setType(node.getType());
-                nodeSnapshot.setPriority(node.getPriority());
-                nodeSnapshot.setIsAssociated(caseIds.contains(node.getId()));
-                nodeSnapshot.setLastResult(Constants.Status.UNTESTED);
-                nodeSnapshot.setSortOrder(node.getSortOrder());
-                planNodeSnapshotMapper.insert(nodeSnapshot);
+                ensureNodeSnapshot(planId, snapshotDocId, node, currentById, snapByOriginal, caseIds);
             }
         }
     }
@@ -678,17 +672,6 @@ public class TestPlanServiceImpl implements TestPlanService {
                 new LambdaQueryWrapperX<TestPlanModuleSnapshot>()
                         .eq(TestPlanModuleSnapshot::getPlanId, planId)
                         .eq(TestPlanModuleSnapshot::getOriginalModuleId, originalModuleId));
-        return snapshot != null ? snapshot.getId() : null;
-    }
-
-    private UUID findCopiedNodeParentId(UUID originalParentId, UUID planId) {
-        if (originalParentId == null) {
-            return null;
-        }
-        TestPlanNodeSnapshot snapshot = planNodeSnapshotMapper.selectOne(
-                new LambdaQueryWrapperX<TestPlanNodeSnapshot>()
-                        .eq(TestPlanNodeSnapshot::getPlanId, planId)
-                        .eq(TestPlanNodeSnapshot::getOriginalNodeId, originalParentId));
         return snapshot != null ? snapshot.getId() : null;
     }
 
