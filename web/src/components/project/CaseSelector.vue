@@ -6,6 +6,8 @@ import type { TestCaseModule, TestCaseNode } from '@/types'
 
 const props = defineProps<{
   modelValue: boolean
+  // 调整场景传入当前规划用例，打开时回显预选；创建场景不传，行为不变
+  initialSelected?: { documentId: string; caseIds: string[] }[]
 }>()
 
 const emit = defineEmits<{
@@ -120,7 +122,11 @@ function handleConfirm() {
 
 watch(() => props.modelValue, (val) => {
   if (val) {
-    selectedMap.value = {}
+    const map: Record<string, Set<string>> = {}
+    props.initialSelected?.forEach((s) => {
+      map[s.documentId] = new Set(s.caseIds)
+    })
+    selectedMap.value = map
     docNodes.value = null
     selectedDocId.value = ''
     loadModules()

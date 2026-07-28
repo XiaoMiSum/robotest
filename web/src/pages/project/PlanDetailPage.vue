@@ -1,12 +1,22 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { closePlan, getPlanDetail, getPlanModuleTree, getPlanProgress, startPlan, syncPlan } from '@/services/project'
-import type { SnapshotModule, TestPlanDetail, TestPlanProgress } from '@/types'
+import {
+  closePlan,
+  getPlanDetail,
+  getPlanModuleTree,
+  getPlanPlannedCases,
+  getPlanProgress,
+  startPlan,
+  syncPlan,
+  updatePlanCases,
+} from '@/services/project'
+import type { PlannedCases, SnapshotModule, TestPlanDetail, TestPlanProgress } from '@/types'
 import { formatDateTime, formatDate } from '@/utils/format'
 import PlanMindMap from '@/components/project/PlanMindMap.vue'
 import SnapshotModuleTree from '@/components/project/SnapshotModuleTree.vue'
+import CaseSelector from '@/components/project/CaseSelector.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -34,6 +44,11 @@ function findDoc(nodes: SnapshotModule[], id: string): boolean {
 }
 
 const statusLabel: Record<string, string> = { new: '待开始', in_progress: '进行中', completed: '已完成', closed: '已关闭' }
+
+// 未结束（待开始/进行中）才允许调整规划用例
+const canAdjustCases = computed(
+  () => detail.value?.status === 'new' || detail.value?.status === 'in_progress',
+)
 
 async function load() {
   loading.value = true
@@ -95,6 +110,30 @@ async function handleSync() {
   }
 }
 
+// 调整规划用例：弹窗回显当前选择，确认后提交差量并整页重载
+const selectorVisible = ref(false)
+const plannedCases = ref<PlannedCases[]>([])
+
+async function openCaseSelector() {
+  try {
+    plannedCases.value = await getPlanPlannedCases(planId)
+    selectorVisible.value = true
+  } catch (err) {
+    ElMessage.error(err instanceof Error ? err.message : '加载规划用例失败')
+  }
+}
+
+async function handleCasesConfirm(selectedNodes: PlannedCases[]) {
+  try {
+    await updatePlanCases(planId, selectedNodes)
+    ElMessage.success('规划用例已更新')
+    await load()
+    mindMapRef.value?.reload()
+  } catch (err) {
+    ElMessage.error(err instanceof Error ? err.message : '更新规划用例失败')
+  }
+}
+
 onMounted(load)
 </script>
 
@@ -131,6 +170,7 @@ onMounted(load)
             </div>
           </div>
           <div v-if="detail" class="plan-detail__actions">
+            <el-button v-if="canAdjustCases" size="small" @click="openCaseSelector">调整用例</el-button>
             <el-button v-if="detail.status === 'new'" size="small" type="primary" @click="handleStart">开始执行</el-button>
             <el-button v-if="detail.status === 'in_progress'" size="small" @click="handleSync">同步最新用例</el-button>
             <el-button v-if="detail.status === 'in_progress'" size="small" type="danger" @click="handleClose">关闭计划</el-button>
@@ -154,6 +194,8 @@ onMounted(load)
         <PlanMindMap v-else ref="mindMapRef" :plan-id="planId" :document-id="selectedDocId" />
       </el-card>
     </div>
+
+    <CaseSelector v-model="selectorVisible" :initial-selected="plannedCases" @confirm="handleCasesConfirm" />
   </div>
 </template>
 

@@ -306,6 +306,12 @@ export interface SnapshotModule {
   children: SnapshotModule[]
 }
 
+/** 评审/计划规划的用例选择（原始 documentId/caseId 维度，创建与调整共用） */
+export interface PlannedCases {
+  documentId: string
+  caseIds: string[]
+}
+
 /** 用例节点类型 */
 export type CaseNodeType = 'case' | 'normal' | 'precondition' | 'step' | 'expected'
 
