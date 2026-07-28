@@ -50,7 +50,7 @@ async function initMinder() {
   try {
     const tree = await getPlanSnapshotTree(props.planId)
     const root = tree.length ? planNodeToKm(tree[0]) : { data: { text: '空快照' }, children: [] }
-    const kmData = { root, template: 'right', theme: 'fresh-purple' }
+    const kmData = { root, template: 'default', theme: 'fresh-purple' }
 
     const km = await loadMinderEngine()
     // 异步等待期间组件可能已卸载或已切换目标，过期结果直接丢弃

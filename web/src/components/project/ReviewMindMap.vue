@@ -59,7 +59,7 @@ async function initMinder() {
   try {
     const tree = await getReviewSnapshotTree(props.reviewId)
     const root = tree.length ? reviewNodeToKm(tree[0]) : { data: { text: '空快照' }, children: [] }
-    const kmData = { root, template: 'right', theme: 'fresh-green' }
+    const kmData = { root, template: 'default', theme: 'fresh-green' }
 
     const km = await loadMinderEngine()
     // 异步等待期间组件可能已卸载或已切换目标，过期结果直接丢弃
