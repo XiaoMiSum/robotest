@@ -12,7 +12,7 @@ import java.util.UUID;
 
 public interface TestPlanService {
 
-    PageResult<TestPlanListRespDTO> getPlanPage(UUID projectId, String status, Integer pageNo, Integer pageSize);
+    PageResult<TestPlanListRespDTO> getPlanPage(UUID projectId, String status, String keyword, Integer pageNo, Integer pageSize);
 
     TestPlanDetailRespDTO createPlan(UUID projectId, UUID userId, TestPlanCreateReqDTO reqDTO);
 

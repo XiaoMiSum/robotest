@@ -30,9 +30,10 @@ public class TestPlanController {
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestHeader("X-Active-Project") UUID projectId,
             @RequestParam(required = false) String status,
+            @RequestParam(required = false) String keyword,
             @RequestParam(defaultValue = "1") Integer pageNo,
             @RequestParam(defaultValue = "20") Integer pageSize) {
-        return Result.ok(testPlanService.getPlanPage(projectId, status, pageNo, pageSize));
+        return Result.ok(testPlanService.getPlanPage(projectId, status, keyword, pageNo, pageSize));
     }
 
     @PostMapping

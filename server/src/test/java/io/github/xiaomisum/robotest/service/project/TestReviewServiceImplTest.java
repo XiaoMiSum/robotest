@@ -99,7 +99,7 @@ class TestReviewServiceImplTest {
                 when(userMapper.selectById(userId.toString())).thenReturn(initiator);
 
                 PageResult<TestReviewListRespDTO> result = reviewService.getReviewPage(
-                                projectId, null, 1, 10);
+                                projectId, null, null, 1, 10);
 
                 assertNotNull(result);
                 assertEquals(1, result.getList().size());
@@ -113,7 +113,7 @@ class TestReviewServiceImplTest {
                 doReturn(page).when(testReviewMapper).selectPage(any(PageParam.class), any(LambdaQueryWrapper.class));
 
                 PageResult<TestReviewListRespDTO> result = reviewService.getReviewPage(
-                                projectId, null, 1, 10);
+                                projectId, null, null, 1, 10);
 
                 assertNotNull(result);
                 assertTrue(result.getList().isEmpty());

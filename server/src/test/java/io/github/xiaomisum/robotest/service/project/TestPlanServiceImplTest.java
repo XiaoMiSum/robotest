@@ -85,7 +85,7 @@ class TestPlanServiceImplTest {
                 when(userMapper.selectById(userId)).thenReturn(executor);
 
                 PageResult<TestPlanListRespDTO> result = planService.getPlanPage(
-                                projectId, null, 1, 10);
+                                projectId, null, null, 1, 10);
 
                 assertNotNull(result);
                 assertEquals(1, result.getList().size());
@@ -99,7 +99,7 @@ class TestPlanServiceImplTest {
                 doReturn(page).when(testPlanMapper).selectPage(any(PageParam.class), any(LambdaQueryWrapper.class));
 
                 PageResult<TestPlanListRespDTO> result = planService.getPlanPage(
-                                projectId, null, 1, 10);
+                                projectId, null, null, 1, 10);
 
                 assertNotNull(result);
                 assertTrue(result.getList().isEmpty());
