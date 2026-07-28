@@ -1,14 +1,11 @@
 package io.github.xiaomisum.robotest.framework.security;
 
 import io.github.xiaomisum.robotest.framework.common.Constants;
-import io.github.xiaomisum.robotest.model.entity.SysPermission;
 import io.github.xiaomisum.robotest.model.entity.SysRole;
 import io.github.xiaomisum.robotest.model.entity.SysUser;
 import io.github.xiaomisum.robotest.model.entity.SysUserRole;
-import io.github.xiaomisum.robotest.repository.SysPermissionMapper;
-import io.github.xiaomisum.robotest.repository.SysRoleMapper;
-import io.github.xiaomisum.robotest.repository.SysUserMapper;
-import io.github.xiaomisum.robotest.repository.SysUserRoleMapper;
+import io.github.xiaomisum.robotest.model.entity.WorkspaceUser;
+import io.github.xiaomisum.robotest.repository.*;
 import jakarta.annotation.Resource;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -32,6 +29,8 @@ public class UserDetailsBridgeImpl implements UserDetailsBridge {
     private SysRoleMapper roleMapper;
     @Resource
     private SysPermissionMapper permissionMapper;
+    @Resource
+    private WorkspaceUserMapper workspaceUserMapper;
 
     @Override
     public AuthUserDetails<?, ?> loadByUsername(String username) {
@@ -60,6 +59,10 @@ public class UserDetailsBridgeImpl implements UserDetailsBridge {
         loginUser.setEnabled(Constants.Status.ACTIVE.equals(user.getStatus()));
         List<SysRole> roles = loadRoles(user.getId());
         loginUser.setAuthorities(buildAuthorities(roles));
+        boolean hasWorkspace = workspaceUserMapper.selectCount(
+                new LambdaQueryWrapperX<WorkspaceUser>()
+                        .eq(WorkspaceUser::getUserId, user.getId())) > 0;
+        loginUser.setHasWorkspace(hasWorkspace);
         return loginUser;
     }
 
@@ -79,10 +82,6 @@ public class UserDetailsBridgeImpl implements UserDetailsBridge {
                 .flatMap(role -> {
                     Stream<GrantedAuthority> roleAuth = Stream.of(
                             new SimpleGrantedAuthority(Constants.Auth.ROLE_PREFIX + role.getName()));
-                    if (Boolean.TRUE.equals(role.getFullAccess())) {
-                        return Stream.concat(roleAuth,
-                                getAllScopePermissions("global").stream().map(SimpleGrantedAuthority::new));
-                    }
                     Stream<GrantedAuthority> permAuth = role.getPermissions() != null
                             ? role.getPermissions().stream().map(SimpleGrantedAuthority::new)
                             : Stream.empty();
@@ -90,13 +89,5 @@ public class UserDetailsBridgeImpl implements UserDetailsBridge {
                 })
                 .distinct()
                 .toList();
-    }
-
-    private List<String> getAllScopePermissions(String scope) {
-        return permissionMapper.selectList(
-                new LambdaQueryWrapperX<SysPermission>()
-                        .eq(SysPermission::getScope, scope)
-                        .ne(SysPermission::getParentCode, null))
-                .stream().map(SysPermission::getCode).toList();
     }
 }
