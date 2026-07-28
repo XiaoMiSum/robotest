@@ -12,7 +12,6 @@ import {
   updateReviewCases,
 } from '@/services/project'
 import type { PlannedCases, SnapshotModule, TestReviewDetail, TestReviewProgress } from '@/types'
-import { formatDateTime } from '@/utils/format'
 import ReviewMindMap from '@/components/project/ReviewMindMap.vue'
 import SnapshotModuleTree from '@/components/project/SnapshotModuleTree.vue'
 import CaseSelector from '@/components/project/CaseSelector.vue'
@@ -135,16 +134,9 @@ onMounted(load)
       <template #content>
         <div class="review-detail__header">
           <span class="review-detail__title">{{ detail?.title ?? '评审详情' }}</span>
-          <template v-if="detail">
-            <el-tag :type="detail.status === 'completed' ? 'success' : 'warning'" size="small" effect="light" round>
-              {{ detail.status === 'completed' ? '已完成' : '评审中' }}
-            </el-tag>
-            <span class="review-detail__meta-item">发起人：{{ detail.initiator.name }}</span>
-            <el-divider direction="vertical" />
-            <span class="review-detail__meta-item">参与者：{{ detail.participantIds.length }} 人</span>
-            <el-divider direction="vertical" />
-            <span class="review-detail__meta-item">创建于 {{ formatDateTime(detail.createdAt) }}</span>
-          </template>
+          <el-tag v-if="detail" :type="detail.status === 'completed' ? 'success' : 'warning'" size="small" effect="light" round>
+            {{ detail.status === 'completed' ? '已完成' : '评审中' }}
+          </el-tag>
         </div>
       </template>
       <template #extra>
@@ -236,13 +228,6 @@ onMounted(load)
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.review-detail__meta-item {
-  font-size: var(--font-size-sm);
-  font-weight: 400;
-  color: var(--color-neutral-600);
-  white-space: nowrap;
 }
 
 // 标题行右侧：进度/统计 + 操作按钮同行排布
