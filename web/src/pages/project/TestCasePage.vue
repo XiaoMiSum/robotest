@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+import { onBeforeRouteLeave } from 'vue-router'
+import { ElMessageBox } from 'element-plus'
 import ModuleTree from '@/components/project/ModuleTree.vue'
 import MindMapEditor from '@/components/project/MindMapEditor.vue'
 
@@ -10,6 +12,17 @@ function handleSelectDocument(docId: string, docName: string) {
   selectedDocId.value = docId
   selectedDocName.value = docName
 }
+
+// 处于文档中时离开页面需二次确认，防止误触打断编辑（切换文档的确认在 ModuleTree 内）
+onBeforeRouteLeave(async () => {
+  if (!selectedDocId.value) return true
+  try {
+    await ElMessageBox.confirm('确定离开当前文档吗？', '离开页面', { type: 'warning' })
+    return true
+  } catch {
+    return false
+  }
+})
 </script>
 
 <template>

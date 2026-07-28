@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage, ElMessageBox, ElTree } from 'element-plus'
 import { createModule, deleteModule, fetchModuleTree, updateModule } from '@/services/project'
 import type { TestCaseModule } from '@/types'
 
@@ -9,6 +9,7 @@ const emit = defineEmits<{
 }>()
 
 const treeProps = { label: 'name', children: 'children' }
+const treeRef = ref<InstanceType<typeof ElTree>>()
 const treeData = ref<TestCaseModule[]>([])
 const loading = ref(false)
 const currentDocId = ref('')
@@ -24,11 +25,20 @@ async function load() {
   }
 }
 
-function handleNodeClick(data: TestCaseModule) {
-  if (data.type === 'document') {
-    currentDocId.value = data.id
-    emit('selectDocument', data.id, data.name)
+async function handleNodeClick(data: TestCaseModule) {
+  if (data.type !== 'document' || data.id === currentDocId.value) return
+  // 已打开文档时切换需二次确认，防止误触打断编辑
+  if (currentDocId.value) {
+    try {
+      await ElMessageBox.confirm('确定离开当前文档，切换到其他文档吗？', '切换文档', { type: 'warning' })
+    } catch {
+      // el-tree 点击瞬间已抢先高亮新节点，取消后须显式回退
+      treeRef.value?.setCurrentKey(currentDocId.value)
+      return
+    }
   }
+  currentDocId.value = data.id
+  emit('selectDocument', data.id, data.name)
 }
 
 async function handleCreate(parent: TestCaseModule | null, type: 'directory' | 'document') {
@@ -107,6 +117,7 @@ onMounted(load)
     </div>
 
     <el-tree
+      ref="treeRef"
       :data="treeData"
       :props="treeProps"
       node-key="id"
