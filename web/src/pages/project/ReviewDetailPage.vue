@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { completeReview, getReviewDetail, getReviewProgress, syncReview } from '@/services/project'
@@ -14,6 +14,12 @@ const reviewId = route.params.reviewId as string
 const loading = ref(false)
 const detail = ref<TestReviewDetail | null>(null)
 const progress = ref<TestReviewProgress | null>(null)
+const mindMapRef = ref<InstanceType<typeof ReviewMindMap>>()
+
+// 全部用例评审通过（无待评审、无不通过）才允许完成评审
+const canComplete = computed(
+  () => !!progress.value && progress.value.pending === 0 && progress.value.failed === 0,
+)
 
 async function load() {
   loading.value = true
@@ -29,6 +35,11 @@ async function load() {
 }
 
 async function handleComplete() {
+  // 按钮 disabled 已拦截，此处再兑底防止进度未加载时误触
+  if (!canComplete.value) {
+    ElMessage.warning('仍有待评审或不通过的用例，全部通过后才能完成评审')
+    return
+  }
   try {
     await ElMessageBox.confirm('确定完成该评审吗？完成后将不可再修改标记。', '完成评审', { type: 'warning' })
   } catch { return }
@@ -49,6 +60,8 @@ async function handleSync() {
     await syncReview(reviewId)
     ElMessage.success('已同步')
     load()
+    // 同步会更新快照节点，脑图需一并重载
+    mindMapRef.value?.reload()
   } catch (err) {
     ElMessage.error(err instanceof Error ? err.message : '同步失败')
   }
@@ -59,7 +72,7 @@ onMounted(load)
 
 <template>
   <div v-loading="loading" class="review-detail">
-    <el-page-header @back="router.push('/workspace/projects/functional-testing')">
+    <el-page-header class="review-detail__page-header" @back="router.push('/workspace/projects/functional-testing')">
       <template #content>
         <div class="review-detail__header">
           <span class="review-detail__title">{{ detail?.title ?? '评审详情' }}</span>
@@ -88,14 +101,18 @@ onMounted(load)
           </div>
           <div v-if="detail?.status === 'in_progress'" class="review-detail__actions">
             <el-button size="small" @click="handleSync">同步最新用例</el-button>
-            <el-button size="small" type="primary" @click="handleComplete">完成评审</el-button>
+            <el-tooltip :disabled="canComplete" content="全部用例评审通过后才能完成评审" placement="bottom">
+              <span>
+                <el-button size="small" type="primary" :disabled="!canComplete" @click="handleComplete">完成评审</el-button>
+              </span>
+            </el-tooltip>
           </div>
         </div>
       </template>
     </el-page-header>
 
     <el-card shadow="never" class="review-detail__body">
-      <ReviewMindMap :review-id="reviewId" />
+      <ReviewMindMap ref="mindMapRef" :review-id="reviewId" />
     </el-card>
   </div>
 </template>
@@ -109,6 +126,28 @@ onMounted(load)
   overflow: hidden;
 }
 
+// 标题行用白底卡片化横条承载，与下方脑图卡片视觉统一
+.review-detail__page-header {
+  flex-shrink: 0;
+  padding: var(--space-sm) var(--space-md);
+  background: #fff;
+  border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-lg);
+
+  // 左侧标题/元信息区可伸缩，窗口变窄时优先裁剪标题而非挤压右侧操作区
+  :deep(.el-page-header__left) {
+    flex: 1;
+    min-width: 0;
+    margin-right: var(--space-lg);
+  }
+
+  :deep(.el-page-header__content) {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+  }
+}
+
 .review-detail__header {
   display: flex;
   align-items: center;
@@ -120,6 +159,9 @@ onMounted(load)
   font-size: var(--font-size-lg);
   font-weight: 700;
   color: var(--color-neutral-800);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .review-detail__meta-item {
@@ -138,6 +180,9 @@ onMounted(load)
 
 .review-detail__actions {
   flex-shrink: 0;
+  // 与左侧进度统计区用竖线分隔，避免同行内容粘连
+  padding-left: var(--space-lg);
+  border-left: 1px solid var(--color-neutral-200);
 }
 
 .review-detail__progress-row {

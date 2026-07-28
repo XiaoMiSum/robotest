@@ -14,6 +14,7 @@ const planId = route.params.planId as string
 const loading = ref(false)
 const detail = ref<TestPlanDetail | null>(null)
 const progress = ref<TestPlanProgress | null>(null)
+const mindMapRef = ref<InstanceType<typeof PlanMindMap>>()
 
 const statusLabel: Record<string, string> = { new: '待开始', in_progress: '进行中', completed: '已完成', closed: '已关闭' }
 
@@ -61,6 +62,8 @@ async function handleSync() {
     await syncPlan(planId)
     ElMessage.success('已同步')
     load()
+    // 同步会更新快照节点，脑图需一并重载
+    mindMapRef.value?.reload()
   } catch (err) {
     ElMessage.error(err instanceof Error ? err.message : '同步失败')
   }
@@ -71,7 +74,7 @@ onMounted(load)
 
 <template>
   <div v-loading="loading" class="plan-detail">
-    <el-page-header @back="router.push('/workspace/projects/functional-testing')">
+    <el-page-header class="plan-detail__page-header" @back="router.push('/workspace/projects/functional-testing')">
       <template #content>
         <div class="plan-detail__header">
           <span class="plan-detail__title">{{ detail?.name ?? '计划详情' }}</span>
@@ -111,7 +114,7 @@ onMounted(load)
     </el-page-header>
 
     <el-card shadow="never" class="plan-detail__body">
-      <PlanMindMap :plan-id="planId" />
+      <PlanMindMap ref="mindMapRef" :plan-id="planId" />
     </el-card>
   </div>
 </template>
@@ -125,6 +128,28 @@ onMounted(load)
   overflow: hidden;
 }
 
+// 标题行用白底卡片化横条承载，与下方脑图卡片视觉统一
+.plan-detail__page-header {
+  flex-shrink: 0;
+  padding: var(--space-sm) var(--space-md);
+  background: #fff;
+  border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-lg);
+
+  // 左侧标题/元信息区可伸缩，窗口变窄时优先裁剪标题而非挤压右侧操作区
+  :deep(.el-page-header__left) {
+    flex: 1;
+    min-width: 0;
+    margin-right: var(--space-lg);
+  }
+
+  :deep(.el-page-header__content) {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+  }
+}
+
 .plan-detail__header {
   display: flex;
   align-items: center;
@@ -136,6 +161,9 @@ onMounted(load)
   font-size: var(--font-size-lg);
   font-weight: 700;
   color: var(--color-neutral-800);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .plan-detail__meta-item {
@@ -154,6 +182,9 @@ onMounted(load)
 
 .plan-detail__actions {
   flex-shrink: 0;
+  // 与左侧进度统计区用竖线分隔，避免同行内容粘连
+  padding-left: var(--space-lg);
+  border-left: 1px solid var(--color-neutral-200);
 }
 
 .plan-detail__progress-row {
