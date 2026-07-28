@@ -98,6 +98,10 @@ public class TestCaseModuleServiceImpl implements TestCaseModuleService {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_CASE_MODULE_NOT_FOUND);
         }
 
+        if (reqDTO.getTargetIndex() != null) {
+            moveModule(module, reqDTO.getParentId(), reqDTO.getTargetIndex());
+        }
+
         if (reqDTO.getName() != null) {
             TestCaseModule existing = testCaseModuleMapper.selectOne(
                     new LambdaQueryWrapperX<TestCaseModule>()
@@ -113,6 +117,67 @@ public class TestCaseModuleServiceImpl implements TestCaseModuleService {
 
         testCaseModuleMapper.updateById(module);
         return convertToTreeDTO(module);
+    }
+
+    // 移动：校验目标父合法性（存在、同项目、目录类型、无循环引用）后，重排目标层级的 sortOrder；
+    // 存量数据 sortOrder 全为 0，首次移动时一并按当前展示顺序回写修复
+    private void moveModule(TestCaseModule module, UUID targetParentId, int targetIndex) {
+        if (targetParentId != null) {
+            TestCaseModule parent = testCaseModuleMapper.selectById(targetParentId);
+            if (parent == null || !parent.getProjectId().equals(module.getProjectId())
+                    || !Constants.ModuleType.DIRECTORY.equals(parent.getType())) {
+                throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_CASE_MODULE_MOVE_TARGET_INVALID);
+            }
+
+            // 沿 parentId 向上回溯，禁止移到自身或其子孙下形成循环
+            UUID cursor = targetParentId;
+            while (cursor != null) {
+                if (cursor.equals(module.getId())) {
+                    throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_CASE_MODULE_MOVE_CYCLE);
+                }
+                TestCaseModule ancestor = testCaseModuleMapper.selectById(cursor);
+                cursor = ancestor == null ? null : ancestor.getParentId();
+            }
+        }
+
+        LambdaQueryWrapperX<TestCaseModule> dupQuery = new LambdaQueryWrapperX<TestCaseModule>()
+                .eq(TestCaseModule::getProjectId, module.getProjectId())
+                .eq(TestCaseModule::getName, module.getName())
+                .ne(TestCaseModule::getId, module.getId());
+        applyParentCondition(dupQuery, targetParentId);
+        if (testCaseModuleMapper.selectOne(dupQuery) != null) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_CASE_MODULE_NAME_EXISTS);
+        }
+
+        LambdaQueryWrapperX<TestCaseModule> siblingQuery = new LambdaQueryWrapperX<TestCaseModule>()
+                .eq(TestCaseModule::getProjectId, module.getProjectId())
+                .ne(TestCaseModule::getId, module.getId())
+                .orderByAsc(TestCaseModule::getSortOrder);
+        applyParentCondition(siblingQuery, targetParentId);
+        List<TestCaseModule> siblings = testCaseModuleMapper.selectList(siblingQuery);
+
+        module.setParentId(targetParentId);
+        siblings.add(Math.clamp(targetIndex, 0, siblings.size()), module);
+        for (int i = 0; i < siblings.size(); i++) {
+            TestCaseModule sibling = siblings.get(i);
+            if (sibling.getSortOrder() == i) {
+                continue;
+            }
+            sibling.setSortOrder(i);
+            // 被移动节点由 updateModule 统一落库，避免重复 update
+            if (!sibling.getId().equals(module.getId())) {
+                testCaseModuleMapper.updateById(sibling);
+            }
+        }
+    }
+
+    // parent_id 为空表示根层级，必须用 IS NULL 而非 eq(null)
+    private void applyParentCondition(LambdaQueryWrapperX<TestCaseModule> query, UUID parentId) {
+        if (parentId != null) {
+            query.eq(TestCaseModule::getParentId, parentId);
+        } else {
+            query.isNull(TestCaseModule::getParentId);
+        }
     }
 
     @Override
