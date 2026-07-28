@@ -53,14 +53,14 @@ class TestPlanServiceImplTest {
     @InjectMocks
     private TestPlanServiceImpl planService;
 
-    private String projectId;
+    private UUID projectId;
     private UUID userId;
     private UUID planId;
     private UUID otherUserId;
 
     @BeforeEach
     void setUp() {
-        projectId = "00000000-0000-0000-0000-000000000001";
+        projectId = UUID.fromString("00000000-0000-0000-0000-000000000001");
         userId = UUID.fromString("00000000-0000-0000-0000-000000000002");
         planId = UUID.fromString("00000000-0000-0000-0000-000000000003");
         otherUserId = UUID.fromString("00000000-0000-0000-0000-000000000011");
