@@ -52,6 +52,31 @@ export class KMEditor {
       history: this.history,
       onMenuRequest: options.onMenuRequest,
     })
+    this.setupDragRebound()
+  }
+
+  /**
+   * 拖拽落空自动回弹：core 的 dragtree 在未命中 drop/排序目标时不清除
+   * 拖拽过程写入的 layout_*_offset 偏移，节点会悬停在被拖到的任意位置造成布局错乱。
+   * 本产品为结构化用例树，不需要自由摆放，拖拽结束后统一清除残留偏移并重排。
+   * 时序：statuschange（dragtree 离开）先于 core dragEnd 的 contentchange 触发，
+   * 清理后数据即恢复拖拽前状态 → history 空 diff 不入栈、Yjs 同步到的是干净状态。
+   */
+  private setupDragRebound(): void {
+    this.minder.on('statuschange', (e) => {
+      if (e.lastStatus !== 'dragtree') return
+      let dirty = false
+      this.minder.getRoot().traverse((node) => {
+        for (const key of Object.keys(node.data)) {
+          if (/^layout_.+_offset$/.test(key)) {
+            delete node.data[key]
+            dirty = true
+          }
+        }
+      })
+      // 命中 drop/排序目标的拖拽 core 已自行清偏移，此处无残留则不必重排
+      if (dirty) this.minder.layout(300)
+    })
   }
 
   /** 对当前选中节点开始原位编辑（工具栏/右键菜单/单击编辑入口） */
