@@ -3,6 +3,7 @@ import type { Fsm } from './fsm'
 import type { Receiver, ReceiverKeyEvent } from './receiver'
 import type { InputRuntime } from './input'
 import type { History } from './history'
+import { copySelected, cutSelected, pasteToSelected } from './clipboard'
 
 /**
  * 键盘导流（移植自 kityminder-editor 的 jumping runtime，去掉了打字即编辑）：
@@ -57,6 +58,25 @@ export function setupJumping(options: {
       if (e.is('f2')) {
         e.preventDefault()
         input.editText()
+        return true
+      }
+      // 复制/剪切/粘贴走应用内剪贴板（clipboard.ts）；只在 normal 态拦截，
+      // input 编辑态的原生文本剪贴板不受影响
+      if (e.is('ctrl + c')) {
+        e.preventDefault()
+        copySelected(minder)
+        return true
+      }
+      if (e.is('ctrl + x')) {
+        e.preventDefault()
+        // 根节点剪切被拒绝时静默（菜单入口有置灰与提示）
+        cutSelected(minder)
+        return true
+      }
+      if (e.is('ctrl + v')) {
+        // 必须拦截，否则系统剪贴板文本会被粘进 contenteditable 接收器
+        e.preventDefault()
+        pasteToSelected(minder)
         return true
       }
       // core 原生 Tab/Enter 快捷键不带文本会产生空节点，这里拦截并携默认名称

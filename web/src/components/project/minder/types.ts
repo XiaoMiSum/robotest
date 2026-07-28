@@ -59,6 +59,7 @@ export interface Minder {
   queryCommandValue(name: string): unknown
   getSelectedNode(): MinderNode | null
   select(node: MinderNode | MinderNode[], single?: boolean): Minder
+  createNode(data: Record<string, unknown> | string, parent?: MinderNode, index?: number): MinderNode
   exportJson(): Record<string, unknown>
   importJson(json: Record<string, unknown>): Minder
   applyPatches(patches: JsonPatch[]): Minder
