@@ -60,28 +60,31 @@ onMounted(load)
 <template>
   <div v-loading="loading" class="review-detail">
     <el-page-header @back="router.push('/workspace/projects/functional-testing')">
-      <template #content><span class="review-detail__title">{{ detail?.title ?? '评审详情' }}</span></template>
-    </el-page-header>
-
-    <el-card v-if="detail" shadow="never" class="review-detail__info">
-      <div class="review-detail__meta-row">
-        <div class="review-detail__meta">
-          <el-tag :type="detail.status === 'completed' ? 'success' : 'warning'" size="small" effect="light" round>
-            {{ detail.status === 'completed' ? '已完成' : '评审中' }}
-          </el-tag>
-          <span class="review-detail__meta-item">发起人：{{ detail.initiator.name }}</span>
-          <el-divider direction="vertical" />
-          <span class="review-detail__meta-item">参与者：{{ detail.participantIds.length }} 人</span>
-          <el-divider direction="vertical" />
-          <span class="review-detail__meta-item">创建于 {{ formatDateTime(detail.createdAt) }}</span>
+      <template #content>
+        <div class="review-detail__header">
+          <span class="review-detail__title">{{ detail?.title ?? '评审详情' }}</span>
+          <template v-if="detail">
+            <el-tag :type="detail.status === 'completed' ? 'success' : 'warning'" size="small" effect="light" round>
+              {{ detail.status === 'completed' ? '已完成' : '评审中' }}
+            </el-tag>
+            <span class="review-detail__meta-item">发起人：{{ detail.initiator.name }}</span>
+            <el-divider direction="vertical" />
+            <span class="review-detail__meta-item">参与者：{{ detail.participantIds.length }} 人</span>
+            <el-divider direction="vertical" />
+            <span class="review-detail__meta-item">创建于 {{ formatDateTime(detail.createdAt) }}</span>
+          </template>
         </div>
-        <div v-if="detail.status === 'in_progress'" class="review-detail__actions">
+      </template>
+      <template #extra>
+        <div v-if="detail?.status === 'in_progress'" class="review-detail__actions">
           <el-button size="small" @click="handleSync">同步最新用例</el-button>
           <el-button size="small" type="primary" @click="handleComplete">完成评审</el-button>
         </div>
-      </div>
+      </template>
+    </el-page-header>
 
-      <div v-if="progress" class="review-detail__progress-row">
+    <el-card v-if="progress" shadow="never" class="review-detail__info">
+      <div class="review-detail__progress-row">
         <el-progress class="review-detail__progress" :percentage="progress.progressPercent" :stroke-width="8" />
         <div class="review-detail__stats">
           <span class="review-detail__stat review-detail__stat--pass">通过 {{ progress.passed }}</span>
@@ -107,10 +110,24 @@ onMounted(load)
   overflow: hidden;
 }
 
+.review-detail__header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  min-width: 0;
+}
+
 .review-detail__title {
   font-size: var(--font-size-lg);
   font-weight: 700;
   color: var(--color-neutral-800);
+}
+
+.review-detail__meta-item {
+  font-size: var(--font-size-sm);
+  font-weight: 400;
+  color: var(--color-neutral-600);
+  white-space: nowrap;
 }
 
 .review-detail__info {
@@ -122,22 +139,6 @@ onMounted(load)
   }
 }
 
-.review-detail__meta-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-md);
-}
-
-.review-detail__meta {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-  min-width: 0;
-  font-size: var(--font-size-sm);
-  color: var(--color-neutral-600);
-}
-
 .review-detail__actions {
   flex-shrink: 0;
 }
@@ -146,7 +147,6 @@ onMounted(load)
   display: flex;
   align-items: center;
   gap: var(--space-lg);
-  margin-top: var(--space-md);
 }
 
 .review-detail__progress {
