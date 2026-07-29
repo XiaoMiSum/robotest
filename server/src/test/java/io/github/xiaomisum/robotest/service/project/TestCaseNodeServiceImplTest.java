@@ -14,6 +14,7 @@ import io.github.xiaomisum.robotest.repository.TestCaseNodeMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -223,9 +224,12 @@ class TestCaseNodeServiceImplTest {
 
         nodeService.updateCaseNode(caseId, reqDTO);
 
-        assertEquals("New Title", node.getTitle());
-        assertEquals("high", node.getPriority());
-        verify(testCaseNodeMapper).updateById(node);
+        // 更新载体仅携带 id + 本次传入字段，不再回写查询实体
+        ArgumentCaptor<TestCaseNode> captor = ArgumentCaptor.forClass(TestCaseNode.class);
+        verify(testCaseNodeMapper).updateById(captor.capture());
+        assertEquals(caseId, captor.getValue().getId());
+        assertEquals("New Title", captor.getValue().getTitle());
+        assertEquals("high", captor.getValue().getPriority());
     }
 
     @Test

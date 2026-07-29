@@ -1,6 +1,9 @@
 package io.github.xiaomisum.robotest.service.project;
 
+import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
+import org.apache.ibatis.builder.MapperBuilderAssistant;
 import io.github.xiaomisum.robotest.model.dto.request.TestCaseModuleCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.TestCaseModuleUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.TestCaseModuleTreeRespDTO;
@@ -22,7 +25,7 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -43,6 +46,9 @@ class TestCaseModuleServiceImplTest {
 
     @BeforeEach
     void setUp() {
+        // LambdaUpdateWrapper 解析实体列名依赖 TableInfo 缓存，纯 Mockito 环境无 starter 初始化，需手动注册
+        TableInfoHelper.initTableInfo(
+                new MapperBuilderAssistant(new MybatisConfiguration(), ""), TestCaseModule.class);
         projectId = UUID.fromString("00000000-0000-0000-0000-000000000001");
         moduleId1 = UUID.fromString("00000000-0000-0000-0000-00000000000a");
         moduleId2 = UUID.fromString("00000000-0000-0000-0000-00000000000b");
@@ -182,7 +188,9 @@ class TestCaseModuleServiceImplTest {
 
         assertNotNull(result);
         assertEquals("New Name", result.getName());
-        verify(testCaseModuleMapper).updateById(any(TestCaseModule.class));
+        // 部分更新改走 wrapper，仅落库本次变更字段
+        verify(testCaseModuleMapper, never()).updateById(any(TestCaseModule.class));
+        verify(testCaseModuleMapper).update(isNull(), any());
     }
 
     @Test
@@ -258,8 +266,8 @@ class TestCaseModuleServiceImplTest {
         assertEquals(moduleId2, module.getParentId());
         assertEquals(0, module.getSortOrder());
         assertEquals(1, existingChild.getSortOrder());
-        // 被挤开的兄弟节点 + 被移动节点各落库一次
-        verify(testCaseModuleMapper, times(2)).updateById(any(TestCaseModule.class));
+        // 被挤开的兄弟节点 + 被移动节点各落库一次（均走 wrapper 仅回写变更字段）
+        verify(testCaseModuleMapper, times(2)).update(isNull(), any());
     }
 
     @Test

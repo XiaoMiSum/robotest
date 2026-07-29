@@ -139,13 +139,16 @@ public class TestCaseNodeServiceImpl implements TestCaseNodeService {
         if (!Constants.NodeType.CASE.equals(node.getType())) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_CASE_NODE_NOT_FOUND);
         }
+        // 更新载体只携带前端传入的字段，避免全列覆盖导致并发丢失更新
+        TestCaseNode update = new TestCaseNode();
+        update.setId(caseId);
         if (StringUtils.hasText(reqDTO.getTitle())) {
-            node.setTitle(reqDTO.getTitle());
+            update.setTitle(reqDTO.getTitle());
         }
         if (StringUtils.hasText(reqDTO.getPriority())) {
-            node.setPriority(reqDTO.getPriority());
+            update.setPriority(reqDTO.getPriority());
         }
-        testCaseNodeMapper.updateById(node);
+        testCaseNodeMapper.updateById(update);
     }
 
     private TestCaseNodeTreeRespDTO buildNodeTree(List<TestCaseNodeTreeRespDTO> nodes) {
