@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
 import xyz.migoo.framework.mybatis.core.LambdaQueryWrapperX;
+import xyz.migoo.framework.mybatis.core.LambdaUpdateWrapperX;
 
 import java.util.UUID;
 
@@ -63,6 +64,9 @@ public class WorkspaceContextServiceImpl implements WorkspaceContextService {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.NO_PERMISSION);
         }
 
+        // 更新载体只携带前端传入的字段，避免全列覆盖导致并发丢失更新
+        Workspace update = new Workspace();
+        update.setId(workspaceId);
         if (reqDTO.getName() != null && !reqDTO.getName().isEmpty()) {
             Workspace existing = workspaceMapper.selectOne(
                     new LambdaQueryWrapperX<Workspace>()
@@ -71,12 +75,14 @@ public class WorkspaceContextServiceImpl implements WorkspaceContextService {
             if (existing != null) {
                 throw ServiceExceptionUtil.get(ErrorCodeConstants.WORKSPACE_NAME_EXISTS);
             }
+            update.setName(reqDTO.getName());
             workspace.setName(reqDTO.getName());
         }
         if (reqDTO.getDescription() != null) {
+            update.setDescription(reqDTO.getDescription());
             workspace.setDescription(reqDTO.getDescription());
         }
-        workspaceMapper.updateById(workspace);
+        workspaceMapper.updateById(update);
 
         return buildContextRespDTO(workspace, workspaceUser);
     }
@@ -107,8 +113,12 @@ public class WorkspaceContextServiceImpl implements WorkspaceContextService {
             }
         }
 
+        // 传 null 表示清空默认项目；updateById 会忽略 null 字段，须用 wrapper 显式 set
+        workspaceUserMapper.update(null,
+                new LambdaUpdateWrapperX<WorkspaceUser>()
+                        .eq(WorkspaceUser::getId, workspaceUser.getId())
+                        .set(WorkspaceUser::getDefaultProjectId, reqDTO.getProjectId()));
         workspaceUser.setDefaultProjectId(reqDTO.getProjectId());
-        workspaceUserMapper.updateById(workspaceUser);
 
         return buildContextRespDTO(workspace, workspaceUser);
     }
