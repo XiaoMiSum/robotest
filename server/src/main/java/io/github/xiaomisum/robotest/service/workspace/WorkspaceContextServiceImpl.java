@@ -15,7 +15,6 @@ import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
-import xyz.migoo.framework.mybatis.core.LambdaQueryWrapperX;
 import xyz.migoo.framework.mybatis.core.LambdaUpdateWrapperX;
 
 import java.util.UUID;
@@ -37,10 +36,7 @@ public class WorkspaceContextServiceImpl implements WorkspaceContextService {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.WORKSPACE_NOT_FOUND);
         }
 
-        WorkspaceUser workspaceUser = workspaceUserMapper.selectOne(
-                new LambdaQueryWrapperX<WorkspaceUser>()
-                        .eq(WorkspaceUser::getUserId, userId)
-                        .eq(WorkspaceUser::getWorkspaceId, workspaceId));
+        WorkspaceUser workspaceUser = workspaceUserMapper.findByWorkspaceIdAndUserId(workspaceId, userId);
         if (workspaceUser == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.NO_PERMISSION);
         }
@@ -56,23 +52,16 @@ public class WorkspaceContextServiceImpl implements WorkspaceContextService {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.WORKSPACE_NOT_FOUND);
         }
 
-        WorkspaceUser workspaceUser = workspaceUserMapper.selectOne(
-                new LambdaQueryWrapperX<WorkspaceUser>()
-                        .eq(WorkspaceUser::getUserId, userId)
-                        .eq(WorkspaceUser::getWorkspaceId, workspaceId));
+        WorkspaceUser workspaceUser = workspaceUserMapper.findByWorkspaceIdAndUserId(workspaceId, userId);
         if (workspaceUser == null || !Constants.WorkspaceRole.ADMIN_ID.equals(workspaceUser.getWorkspaceRole())) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.NO_PERMISSION);
         }
 
-        // 更新载体只携带前端传入的字段，避免全列覆盖导致并发丢失更新
         Workspace update = new Workspace();
         update.setId(workspaceId);
         if (reqDTO.getName() != null && !reqDTO.getName().isEmpty()) {
-            Workspace existing = workspaceMapper.selectOne(
-                    new LambdaQueryWrapperX<Workspace>()
-                            .eq(Workspace::getName, reqDTO.getName())
-                            .ne(Workspace::getId, workspaceId));
-            if (existing != null) {
+            Workspace existing = workspaceMapper.findByName(reqDTO.getName());
+            if (existing != null && !existing.getId().equals(workspaceId)) {
                 throw ServiceExceptionUtil.get(ErrorCodeConstants.WORKSPACE_NAME_EXISTS);
             }
             update.setName(reqDTO.getName());
@@ -95,10 +84,7 @@ public class WorkspaceContextServiceImpl implements WorkspaceContextService {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.WORKSPACE_NOT_FOUND);
         }
 
-        WorkspaceUser workspaceUser = workspaceUserMapper.selectOne(
-                new LambdaQueryWrapperX<WorkspaceUser>()
-                        .eq(WorkspaceUser::getUserId, userId)
-                        .eq(WorkspaceUser::getWorkspaceId, workspaceId));
+        WorkspaceUser workspaceUser = workspaceUserMapper.findByWorkspaceIdAndUserId(workspaceId, userId);
         if (workspaceUser == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.NO_PERMISSION);
         }
@@ -113,11 +99,9 @@ public class WorkspaceContextServiceImpl implements WorkspaceContextService {
             }
         }
 
-        // 传 null 表示清空默认项目；updateById 会忽略 null 字段，须用 wrapper 显式 set
-        workspaceUserMapper.update(null,
-                new LambdaUpdateWrapperX<WorkspaceUser>()
-                        .eq(WorkspaceUser::getId, workspaceUser.getId())
-                        .set(WorkspaceUser::getDefaultProjectId, reqDTO.getProjectId()));
+        workspaceUserMapper.update(null, new LambdaUpdateWrapperX<WorkspaceUser>()
+                .eq(WorkspaceUser::getId, workspaceUser.getId())
+                .set(WorkspaceUser::getDefaultProjectId, reqDTO.getProjectId()));
         workspaceUser.setDefaultProjectId(reqDTO.getProjectId());
 
         return buildContextRespDTO(workspace, workspaceUser);
@@ -133,12 +117,10 @@ public class WorkspaceContextServiceImpl implements WorkspaceContextService {
         dto.setWorkspaceRole(workspaceUser.getWorkspaceRole().toString());
         dto.setDefaultProjectId(workspaceUser.getDefaultProjectId());
 
-        Long memberCount = workspaceUserMapper.selectCount(
-                WorkspaceUser::getWorkspaceId, workspace.getId());
+        long memberCount = workspaceUserMapper.countByWorkspaceId(workspace.getId());
         dto.setMemberCount(memberCount);
 
-        Long projectCount = projectMapper.selectCount(
-                Project::getWorkspaceId, workspace.getId());
+        long projectCount = projectMapper.countByWorkspaceId(workspace.getId());
         dto.setProjectCount(projectCount);
 
         if (workspaceUser.getDefaultProjectId() != null) {

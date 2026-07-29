@@ -4,7 +4,6 @@ import io.github.xiaomisum.robotest.model.dto.response.workspace.ProjectRespDTO;
 import io.github.xiaomisum.robotest.model.entity.Project;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
-import org.mapstruct.Named;
 import org.mapstruct.factory.Mappers;
 
 import java.util.UUID;

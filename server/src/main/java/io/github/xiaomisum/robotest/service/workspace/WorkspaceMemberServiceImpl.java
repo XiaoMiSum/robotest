@@ -1,6 +1,5 @@
 package io.github.xiaomisum.robotest.service.workspace;
 
-import xyz.migoo.framework.mybatis.core.LambdaQueryWrapperX;
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.model.dto.request.workspace.WorkspaceMembersAddReqDTO;
@@ -35,29 +34,20 @@ public class WorkspaceMemberServiceImpl implements WorkspaceMemberService {
     @Override
     public PageResult<WorkspaceMemberRespDTO> getMemberPage(UUID workspaceId, String keyword,
                                                              Integer pageNo, Integer pageSize) {
-        // keyword 搜索：先从 sys_user 表匹配 username/email，再过滤 workspace_user
         List<UUID> matchedUserIds = null;
         if (keyword != null && !keyword.isBlank()) {
-            matchedUserIds = userMapper.selectList(
-                    new LambdaQueryWrapperX<SysUser>()
-                            .likeIfPresent(SysUser::getUsername, keyword)
-                            .likeIfPresent(SysUser::getEmail, keyword))
+            matchedUserIds = userMapper.listByKeyword(keyword)
                     .stream().map(SysUser::getId).collect(Collectors.toList());
             if (matchedUserIds.isEmpty()) {
                 return new PageResult<>(List.of(), 0L);
             }
         }
 
-        LambdaQueryWrapperX<WorkspaceUser> wrapper = new LambdaQueryWrapperX<WorkspaceUser>()
-                .eq(WorkspaceUser::getWorkspaceId, workspaceId)
-                .inIfPresent(WorkspaceUser::getUserId, matchedUserIds)
-                .orderByDesc(WorkspaceUser::getJoinedAt);
-
-        PageResult<WorkspaceUser> page = workspaceUserMapper.selectPage(
+        PageResult<WorkspaceUser> page = workspaceUserMapper.findPageByWorkspaceIdAndUserIds(
                 new PageParam() {{
                     setPageNo(pageNo);
                     setPageSize(pageSize);
-                }}, wrapper);
+                }}, workspaceId, matchedUserIds);
 
         if (page.getList().isEmpty()) {
             return new PageResult<>(List.of(), 0L);
@@ -66,8 +56,7 @@ public class WorkspaceMemberServiceImpl implements WorkspaceMemberService {
         List<UUID> userIds = page.getList().stream()
                 .map(WorkspaceUser::getUserId)
                 .collect(Collectors.toList());
-        List<SysUser> users = userMapper.selectList(
-                new LambdaQueryWrapperX<SysUser>().in(SysUser::getId, userIds));
+        List<SysUser> users = userMapper.listByIds(userIds);
 
         List<WorkspaceMemberRespDTO> records = page.getList().stream().map(wu -> {
             WorkspaceMemberRespDTO dto = new WorkspaceMemberRespDTO();
@@ -94,10 +83,7 @@ public class WorkspaceMemberServiceImpl implements WorkspaceMemberService {
     @Transactional(rollbackFor = Exception.class)
     public WorkspaceMemberAddResultRespDTO addMembers(UUID userId, UUID workspaceId,
                                                        WorkspaceMembersAddReqDTO reqDTO) {
-        WorkspaceUser adminUser = workspaceUserMapper.selectOne(
-                new LambdaQueryWrapperX<WorkspaceUser>()
-                        .eq(WorkspaceUser::getUserId, userId)
-                        .eq(WorkspaceUser::getWorkspaceId, workspaceId));
+        WorkspaceUser adminUser = workspaceUserMapper.findByWorkspaceIdAndUserId(workspaceId, userId);
         if (adminUser == null || !Constants.WorkspaceRole.ADMIN_ID.equals(adminUser.getWorkspaceRole())) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.NO_PERMISSION);
         }
@@ -111,10 +97,7 @@ public class WorkspaceMemberServiceImpl implements WorkspaceMemberService {
                 continue;
             }
 
-            WorkspaceUser existing = workspaceUserMapper.selectOne(
-                    new LambdaQueryWrapperX<WorkspaceUser>()
-                            .eq(WorkspaceUser::getUserId, member.getUserId())
-                            .eq(WorkspaceUser::getWorkspaceId, workspaceId));
+            WorkspaceUser existing = workspaceUserMapper.findByWorkspaceIdAndUserId(workspaceId, member.getUserId());
             if (existing != null) {
                 skippedUserIds.add(member.getUserId());
                 continue;
@@ -139,34 +122,24 @@ public class WorkspaceMemberServiceImpl implements WorkspaceMemberService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void updateMemberRole(UUID userId, UUID workspaceId, UUID targetUserId, UUID workspaceRole) {
-        WorkspaceUser adminUser = workspaceUserMapper.selectOne(
-                new LambdaQueryWrapperX<WorkspaceUser>()
-                        .eq(WorkspaceUser::getUserId, userId)
-                        .eq(WorkspaceUser::getWorkspaceId, workspaceId));
+        WorkspaceUser adminUser = workspaceUserMapper.findByWorkspaceIdAndUserId(workspaceId, userId);
         if (adminUser == null || !Constants.WorkspaceRole.ADMIN_ID.equals(adminUser.getWorkspaceRole())) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.NO_PERMISSION);
         }
 
-        WorkspaceUser targetMember = workspaceUserMapper.selectOne(
-                new LambdaQueryWrapperX<WorkspaceUser>()
-                        .eq(WorkspaceUser::getUserId, targetUserId)
-                        .eq(WorkspaceUser::getWorkspaceId, workspaceId));
+        WorkspaceUser targetMember = workspaceUserMapper.findByWorkspaceIdAndUserId(workspaceId, targetUserId);
         if (targetMember == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.USER_NOT_FOUND);
         }
 
         if (Constants.WorkspaceRole.ADMIN_ID.equals(targetMember.getWorkspaceRole())
                 && !Constants.WorkspaceRole.ADMIN_ID.equals(workspaceRole)) {
-            Long adminCount = workspaceUserMapper.selectCount(
-                    new LambdaQueryWrapperX<WorkspaceUser>()
-                            .eq(WorkspaceUser::getWorkspaceId, workspaceId)
-                            .eq(WorkspaceUser::getWorkspaceRole, Constants.WorkspaceRole.ADMIN_ID));
+            long adminCount = workspaceUserMapper.countByWorkspaceIdAndRole(workspaceId, Constants.WorkspaceRole.ADMIN_ID);
             if (adminCount <= 1) {
                 throw ServiceExceptionUtil.get(ErrorCodeConstants.MUST_KEEP_ONE_WORKSPACE_ADMIN);
             }
         }
 
-        // 更新载体只携带本次变更字段，避免全列覆盖导致并发丢失更新
         WorkspaceUser update = new WorkspaceUser();
         update.setId(targetMember.getId());
         update.setWorkspaceRole(workspaceRole);
@@ -176,10 +149,7 @@ public class WorkspaceMemberServiceImpl implements WorkspaceMemberService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void removeMember(UUID userId, UUID workspaceId, UUID targetUserId) {
-        WorkspaceUser currentUser = workspaceUserMapper.selectOne(
-                new LambdaQueryWrapperX<WorkspaceUser>()
-                        .eq(WorkspaceUser::getUserId, userId)
-                        .eq(WorkspaceUser::getWorkspaceId, workspaceId));
+        WorkspaceUser currentUser = workspaceUserMapper.findByWorkspaceIdAndUserId(workspaceId, userId);
         if (currentUser == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.NO_PERMISSION);
         }
@@ -189,19 +159,13 @@ public class WorkspaceMemberServiceImpl implements WorkspaceMemberService {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.NO_PERMISSION);
         }
 
-        WorkspaceUser targetMember = workspaceUserMapper.selectOne(
-                new LambdaQueryWrapperX<WorkspaceUser>()
-                        .eq(WorkspaceUser::getUserId, targetUserId)
-                        .eq(WorkspaceUser::getWorkspaceId, workspaceId));
+        WorkspaceUser targetMember = workspaceUserMapper.findByWorkspaceIdAndUserId(workspaceId, targetUserId);
         if (targetMember == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.USER_NOT_FOUND);
         }
 
         if (Constants.WorkspaceRole.ADMIN_ID.equals(targetMember.getWorkspaceRole())) {
-            Long adminCount = workspaceUserMapper.selectCount(
-                    new LambdaQueryWrapperX<WorkspaceUser>()
-                            .eq(WorkspaceUser::getWorkspaceId, workspaceId)
-                            .eq(WorkspaceUser::getWorkspaceRole, Constants.WorkspaceRole.ADMIN_ID));
+            long adminCount = workspaceUserMapper.countByWorkspaceIdAndRole(workspaceId, Constants.WorkspaceRole.ADMIN_ID);
             if (adminCount <= 1) {
                 throw ServiceExceptionUtil.get(ErrorCodeConstants.MUST_KEEP_ONE_WORKSPACE_ADMIN);
             }

@@ -32,36 +32,27 @@ public class MyWorkspaceServiceImpl implements MyWorkspaceService {
 
     @Override
     public PageResult<WorkspaceMyRespDTO> getMyWorkspacePage(UUID userId, Integer pageNo, Integer pageSize) {
-        // 鏌ヨ鐢ㄦ埛鍏宠仈鐨勫伐浣滅┖闂?
-        LambdaQueryWrapperX<WorkspaceUser> wrapper = new LambdaQueryWrapperX<WorkspaceUser>()
-                .eq(WorkspaceUser::getUserId, userId)
-                .orderByDesc(WorkspaceUser::getJoinedAt);
-
         PageResult<WorkspaceUser> workspaceUserPage = workspaceUserMapper.selectPage(
                 new PageParam() {{
                     setPageNo(pageNo);
                     setPageSize(pageSize);
-                }}, wrapper);
+                }}, new LambdaQueryWrapperX<WorkspaceUser>().eq(WorkspaceUser::getUserId, userId));
 
         if (workspaceUserPage.getList().isEmpty()) {
             return new PageResult<>(List.of(), 0L);
         }
 
-        // 鎵归噺鏌ヨ宸ヤ綔绌洪棿淇℃伅
         List<UUID> workspaceIds = workspaceUserPage.getList().stream()
                 .map(WorkspaceUser::getWorkspaceId)
                 .collect(Collectors.toList());
-        Map<UUID, Workspace> workspaceMap = workspaceMapper.selectList(
-                        new LambdaQueryWrapperX<Workspace>().in(Workspace::getId, workspaceIds))
+        Map<UUID, Workspace> workspaceMap = workspaceMapper.listByIds(workspaceIds)
                 .stream()
                 .collect(Collectors.toMap(Workspace::getId, w -> w));
 
-        // 鎵归噺鏌ヨ姣忎釜宸ヤ綔绌洪棿鐨勬垚鍛樻暟
         Map<UUID, Long> memberCountMap = workspaceUserPage.getList().stream()
                 .collect(Collectors.toMap(
                         WorkspaceUser::getWorkspaceId,
-                        wu -> workspaceUserMapper.selectCount(
-                                new LambdaQueryWrapperX<WorkspaceUser>().eq(WorkspaceUser::getWorkspaceId, wu.getWorkspaceId())),
+                        wu -> workspaceUserMapper.countByWorkspaceId(wu.getWorkspaceId()),
                         (v1, v2) -> v1
                 ));
 
@@ -90,29 +81,21 @@ public class MyWorkspaceServiceImpl implements MyWorkspaceService {
 
     @Override
     public void setActiveWorkspace(UUID userId, UUID workspaceId) {
-        // 鏍￠獙鐢ㄦ埛瀛樺湪
         SysUser user = userMapper.selectById(userId);
         if (user == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.USER_NOT_FOUND);
         }
 
-        // 鏍￠獙宸ヤ綔绌洪棿瀛樺湪
         Workspace workspace = workspaceMapper.selectById(workspaceId);
         if (workspace == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.WORKSPACE_NOT_FOUND);
         }
 
-        // 鏍￠獙鐢ㄦ埛灞炰簬璇ュ伐浣滅┖闂?
-        WorkspaceUser workspaceUser = workspaceUserMapper.selectOne(
-                new LambdaQueryWrapperX<WorkspaceUser>()
-                        .eq(WorkspaceUser::getUserId, userId)
-                        .eq(WorkspaceUser::getWorkspaceId, workspaceId));
+        WorkspaceUser workspaceUser = workspaceUserMapper.findByWorkspaceIdAndUserId(workspaceId, userId);
         if (workspaceUser == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.NO_PERMISSION);
         }
 
-        // 鏇存柊鐢ㄦ埛鐨勬椿璺冨伐浣滅┖闂?
-        // 更新载体只携带本次变更字段，避免全列覆盖导致并发丢失更新
         SysUser update = new SysUser();
         update.setId(userId);
         update.setLastActiveWorkspaceId(workspaceId.toString());

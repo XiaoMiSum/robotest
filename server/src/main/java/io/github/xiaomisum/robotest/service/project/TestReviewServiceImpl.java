@@ -143,10 +143,7 @@ public class TestReviewServiceImpl implements TestReviewService {
         }
         UUID workspaceId = project.getWorkspaceId();
         for (UUID participantId : reqDTO.getParticipantIds()) {
-            WorkspaceUser wu = workspaceUserMapper.selectOne(
-                    new LambdaQueryWrapperX<WorkspaceUser>()
-                            .eq(WorkspaceUser::getUserId, participantId)
-                            .eq(WorkspaceUser::getWorkspaceId, workspaceId));
+            WorkspaceUser wu = workspaceUserMapper.findByWorkspaceIdAndUserId(workspaceId, participantId);
             if (wu == null) {
                 throw ServiceExceptionUtil.get(ErrorCodeConstants.NO_PERMISSION);
             }
@@ -204,10 +201,7 @@ public class TestReviewServiceImpl implements TestReviewService {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_REVIEW_NOT_FOUND);
         }
 
-        List<TestReviewModuleSnapshot> modules = reviewModuleSnapshotMapper.selectList(
-                new LambdaQueryWrapperX<TestReviewModuleSnapshot>()
-                        .eq(TestReviewModuleSnapshot::getReviewId, reviewId)
-                        .orderByAsc(TestReviewModuleSnapshot::getSortOrder));
+        List<TestReviewModuleSnapshot> modules = reviewModuleSnapshotMapper.listByReviewId(reviewId);
 
         List<SnapshotModuleTreeRespDTO> dtos = modules.stream().map(m -> {
             SnapshotModuleTreeRespDTO dto = new SnapshotModuleTreeRespDTO();
@@ -337,9 +331,7 @@ public class TestReviewServiceImpl implements TestReviewService {
         boolean removed = true;
         while (removed) {
             removed = false;
-            List<TestReviewModuleSnapshot> all = reviewModuleSnapshotMapper.selectList(
-                    new LambdaQueryWrapperX<TestReviewModuleSnapshot>()
-                            .eq(TestReviewModuleSnapshot::getReviewId, reviewId));
+            List<TestReviewModuleSnapshot> all = reviewModuleSnapshotMapper.listByReviewId(reviewId);
             Set<UUID> referencedParents = all.stream()
                     .map(TestReviewModuleSnapshot::getParentId)
                     .filter(Objects::nonNull)
@@ -364,9 +356,7 @@ public class TestReviewServiceImpl implements TestReviewService {
                 .filter(s -> s.getOriginalNodeId() != null)
                 .collect(Collectors.toMap(TestReviewNodeSnapshot::getOriginalNodeId, s -> s, (a, b) -> a));
 
-        Map<UUID, TestCaseNode> currentById = testCaseNodeMapper.selectList(
-                new LambdaQueryWrapperX<TestCaseNode>()
-                        .eq(TestCaseNode::getDocumentId, docSnap.getOriginalModuleId()))
+        Map<UUID, TestCaseNode> currentById = testCaseNodeMapper.listByDocumentId(docSnap.getOriginalModuleId())
                 .stream()
                 .collect(Collectors.toMap(TestCaseNode::getId, n -> n));
 
@@ -600,14 +590,10 @@ public class TestReviewServiceImpl implements TestReviewService {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_REVIEW_FINISHED);
         }
 
-        List<TestReviewNodeSnapshot> snapshotNodes = reviewNodeSnapshotMapper.selectList(
-                new LambdaQueryWrapperX<TestReviewNodeSnapshot>()
-                        .eq(TestReviewNodeSnapshot::getReviewId, reviewId));
+        List<TestReviewNodeSnapshot> snapshotNodes = reviewNodeSnapshotMapper.listByReviewId(reviewId);
 
         // 1. 同步模块快照：名称、排序与原始模块保持一致；已删除的模块移除快照
-        List<TestReviewModuleSnapshot> snapshotModules = reviewModuleSnapshotMapper.selectList(
-                new LambdaQueryWrapperX<TestReviewModuleSnapshot>()
-                        .eq(TestReviewModuleSnapshot::getReviewId, reviewId));
+        List<TestReviewModuleSnapshot> snapshotModules = reviewModuleSnapshotMapper.listByReviewId(reviewId);
 
         Set<UUID> validModuleSnapshotIds = new HashSet<>();
         for (TestReviewModuleSnapshot moduleSnap : snapshotModules) {
@@ -667,9 +653,7 @@ public class TestReviewServiceImpl implements TestReviewService {
             docCaseMap.put(sn.getDocumentId(), new HashSet<>(sn.getCaseIds()));
         }
 
-        Set<UUID> copiedModuleIds = reviewModuleSnapshotMapper.selectList(
-                new LambdaQueryWrapperX<TestReviewModuleSnapshot>()
-                        .eq(TestReviewModuleSnapshot::getReviewId, reviewId))
+        Set<UUID> copiedModuleIds = reviewModuleSnapshotMapper.listByReviewId(reviewId)
                 .stream()
                 .map(TestReviewModuleSnapshot::getOriginalModuleId)
                 .filter(Objects::nonNull)
@@ -699,9 +683,7 @@ public class TestReviewServiceImpl implements TestReviewService {
                 reviewModuleSnapshotMapper.insert(snapshot);
             }
 
-            List<TestCaseNode> docNodes = testCaseNodeMapper.selectList(
-                    new LambdaQueryWrapperX<TestCaseNode>()
-                            .eq(TestCaseNode::getDocumentId, documentId));
+            List<TestCaseNode> docNodes = testCaseNodeMapper.listByDocumentId(documentId);
 
             UUID snapshotDocId = findSnapshotModuleId(documentId, reviewId);
             Set<UUID> caseIds = entry.getValue();

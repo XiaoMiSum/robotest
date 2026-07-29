@@ -44,10 +44,7 @@ public class TestCaseNodeServiceImpl implements TestCaseNodeService {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_CASE_DOCUMENT_NOT_FOUND);
         }
 
-        List<TestCaseNode> nodes = testCaseNodeMapper.selectList(
-                new LambdaQueryWrapperX<TestCaseNode>()
-                        .eq(TestCaseNode::getDocumentId, documentId)
-                        .orderByAsc(TestCaseNode::getSortOrder));
+        List<TestCaseNode> nodes = testCaseNodeMapper.listByDocumentId(documentId);
 
         List<TestCaseNodeTreeRespDTO> dtos = nodes.stream()
                 .map(this::convertToNodeDTO)

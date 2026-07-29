@@ -1,8 +1,8 @@
 package io.github.xiaomisum.robotest.service.project;
 
 import io.github.xiaomisum.robotest.framework.common.Constants;
-import io.github.xiaomisum.robotest.model.dto.response.BugAttachmentDownloadDTO;
-import io.github.xiaomisum.robotest.model.dto.response.BugAttachmentRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.bug.BugAttachmentDownloadDTO;
+import io.github.xiaomisum.robotest.model.dto.response.bug.BugAttachmentRespDTO;
 import io.github.xiaomisum.robotest.model.entity.Bug;
 import io.github.xiaomisum.robotest.model.entity.BugAttachment;
 import io.github.xiaomisum.robotest.model.entity.BugLog;

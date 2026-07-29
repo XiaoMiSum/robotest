@@ -1,6 +1,5 @@
 package io.github.xiaomisum.robotest.service.workspace;
 
-import xyz.migoo.framework.mybatis.core.LambdaQueryWrapperX;
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.framework.convert.WorkspaceInvitationConvertMapper;
@@ -27,6 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 import xyz.migoo.framework.common.pojo.PageParam;
 import xyz.migoo.framework.common.pojo.PageResult;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
+import xyz.migoo.framework.mybatis.core.LambdaQueryWrapperX;
 import xyz.migoo.framework.security.core.authentication.JwtTokenProvider;
 
 import java.time.LocalDateTime;
@@ -71,15 +71,13 @@ public class WorkspaceInvitationServiceImpl implements WorkspaceInvitationServic
 
     @Override
     public PageResult<InvitationRespDTO> getInvitationPage(UUID workspaceId, Integer pageNo, Integer pageSize) {
-        LambdaQueryWrapperX<WorkspaceInvitation> wrapper = new LambdaQueryWrapperX<WorkspaceInvitation>()
-                .eq(WorkspaceInvitation::getWorkspaceId, workspaceId)
-                .orderByDesc(WorkspaceInvitation::getCreatedAt);
-
         PageResult<WorkspaceInvitation> page = invitationMapper.selectPage(
                 new PageParam() {{
                     setPageNo(pageNo);
                     setPageSize(pageSize);
-                }}, wrapper);
+                }}, new LambdaQueryWrapperX<WorkspaceInvitation>()
+                        .eq(WorkspaceInvitation::getWorkspaceId, workspaceId)
+                        .orderByDesc(WorkspaceInvitation::getCreatedAt));
 
         List<InvitationRespDTO> records = page.getList().stream()
                 .map(this::convertToRespDTO)
@@ -98,7 +96,6 @@ public class WorkspaceInvitationServiceImpl implements WorkspaceInvitationServic
             throw ServiceExceptionUtil.get(ErrorCodeConstants.INVITATION_INVALID);
         }
 
-        // 更新载体只携带本次变更字段，避免全列覆盖导致并发丢失更新
         WorkspaceInvitation update = new WorkspaceInvitation();
         update.setId(invitation.getId());
         update.setStatus(Constants.Status.REVOKED);
@@ -109,9 +106,7 @@ public class WorkspaceInvitationServiceImpl implements WorkspaceInvitationServic
     public InvitationVerifyRespDTO verifyInvitation(String token) {
         InvitationVerifyRespDTO result = new InvitationVerifyRespDTO();
 
-        WorkspaceInvitation invitation = invitationMapper.selectOne(
-                new LambdaQueryWrapperX<WorkspaceInvitation>()
-                        .eq(WorkspaceInvitation::getToken, token));
+        WorkspaceInvitation invitation = invitationMapper.selectOne(WorkspaceInvitation::getToken, token);
 
         if (!isValidInvitation(invitation)) {
             result.setValid(false);
@@ -135,8 +130,7 @@ public class WorkspaceInvitationServiceImpl implements WorkspaceInvitationServic
     @Override
     public InvitationCheckEmailRespDTO checkEmail(String token, String email) {
         validateAndGetInvitation(token);
-        SysUser existingUser = userMapper.selectOne(
-                new LambdaQueryWrapperX<SysUser>().eq(SysUser::getEmail, email));
+        SysUser existingUser = userMapper.findByEmail(email);
         return InvitationCheckEmailRespDTO.builder()
                 .exists(existingUser != null)
                 .build();
@@ -178,10 +172,7 @@ public class WorkspaceInvitationServiceImpl implements WorkspaceInvitationServic
     }
 
     private void checkAdminPermission(UUID userId, UUID workspaceId) {
-        WorkspaceUser workspaceUser = workspaceUserMapper.selectOne(
-                new LambdaQueryWrapperX<WorkspaceUser>()
-                        .eq(WorkspaceUser::getUserId, userId)
-                        .eq(WorkspaceUser::getWorkspaceId, workspaceId));
+        WorkspaceUser workspaceUser = workspaceUserMapper.findByWorkspaceIdAndUserId(workspaceId, userId);
         if (workspaceUser == null || !Constants.WorkspaceRole.ADMIN_ID.equals(workspaceUser.getWorkspaceRole())) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.NO_PERMISSION);
         }
@@ -198,9 +189,7 @@ public class WorkspaceInvitationServiceImpl implements WorkspaceInvitationServic
     }
 
     private WorkspaceInvitation validateAndGetInvitation(String token) {
-        WorkspaceInvitation invitation = invitationMapper.selectOne(
-                new LambdaQueryWrapperX<WorkspaceInvitation>()
-                        .eq(WorkspaceInvitation::getToken, token));
+        WorkspaceInvitation invitation = invitationMapper.selectOne(WorkspaceInvitation::getToken, token);
 
         if (invitation == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.INVITATION_INVALID);
@@ -218,8 +207,7 @@ public class WorkspaceInvitationServiceImpl implements WorkspaceInvitationServic
     }
 
     private SysUser findOrCreateUser(String email, String password, String name) {
-        SysUser existingUser = userMapper.selectOne(
-                new LambdaQueryWrapperX<SysUser>().eq(SysUser::getEmail, email));
+        SysUser existingUser = userMapper.findByEmail(email);
 
         if (existingUser != null) {
             if (!passwordEncoder.matches(password, existingUser.getPasswordHash())) {
@@ -239,10 +227,7 @@ public class WorkspaceInvitationServiceImpl implements WorkspaceInvitationServic
     }
 
     private WorkspaceUser addMemberToWorkspace(UUID userId, UUID workspaceId) {
-        WorkspaceUser existing = workspaceUserMapper.selectOne(
-                new LambdaQueryWrapperX<WorkspaceUser>()
-                        .eq(WorkspaceUser::getUserId, userId)
-                        .eq(WorkspaceUser::getWorkspaceId, workspaceId));
+        WorkspaceUser existing = workspaceUserMapper.findByWorkspaceIdAndUserId(workspaceId, userId);
 
         if (existing != null) {
             return existing;
@@ -258,7 +243,6 @@ public class WorkspaceInvitationServiceImpl implements WorkspaceInvitationServic
     }
 
     private void incrementInvitationUseCount(WorkspaceInvitation invitation) {
-        // 更新载体只携带本次变更字段，避免全列覆盖导致并发丢失更新
         WorkspaceInvitation update = new WorkspaceInvitation();
         update.setId(invitation.getId());
         update.setUseCount(invitation.getUseCount() + 1);
@@ -285,7 +269,7 @@ public class WorkspaceInvitationServiceImpl implements WorkspaceInvitationServic
         String base = email.split("@")[0];
         String username = base;
         int counter = 1;
-        while (userMapper.selectOne(SysUser::getUsername, username) != null) {
+        while (userMapper.findByUsername(username) != null) {
             username = base + counter;
             counter++;
         }

@@ -34,10 +34,7 @@ public class TestCaseModuleServiceImpl implements TestCaseModuleService {
 
     @Override
     public List<TestCaseModuleTreeRespDTO> getModuleTree(UUID projectId) {
-        List<TestCaseModule> modules = testCaseModuleMapper.selectList(
-                new LambdaQueryWrapperX<TestCaseModule>()
-                        .eq(TestCaseModule::getProjectId, projectId)
-                        .orderByAsc(TestCaseModule::getSortOrder));
+        List<TestCaseModule> modules = testCaseModuleMapper.listByProjectId(projectId);
 
         List<TestCaseModuleTreeRespDTO> dtos = modules.stream()
                 .map(this::convertToTreeDTO)
@@ -118,21 +115,12 @@ public class TestCaseModuleServiceImpl implements TestCaseModuleService {
             module.setName(reqDTO.getName());
         }
 
-        // 仅落库本次变更字段；移动到根层级时 parentId 为 null，updateById 会忽略，须用 wrapper 显式 set
-        LambdaUpdateWrapperX<TestCaseModule> wrapper = new LambdaUpdateWrapperX<TestCaseModule>()
-                .eq(TestCaseModule::getId, moduleId);
-        boolean changed = false;
+        // 仅落库本次变更字段；移动到根层级时 parentId 为 null，updateById 会忽略，须用 default 方法显式 set
         if (moved) {
-            wrapper.set(TestCaseModule::getParentId, module.getParentId())
-                    .set(TestCaseModule::getSortOrder, module.getSortOrder());
-            changed = true;
+            testCaseModuleMapper.updateParentAndOrder(moduleId, module.getParentId(), module.getSortOrder());
         }
         if (reqDTO.getName() != null) {
-            wrapper.set(TestCaseModule::getName, reqDTO.getName());
-            changed = true;
-        }
-        if (changed) {
-            testCaseModuleMapper.update(null, wrapper);
+            testCaseModuleMapper.updateName(moduleId, reqDTO.getName());
         }
         return convertToTreeDTO(module);
     }
@@ -210,18 +198,14 @@ public class TestCaseModuleServiceImpl implements TestCaseModuleService {
         }
 
         if (Constants.ModuleType.DIRECTORY.equals(module.getType())) {
-            Long childCount = testCaseModuleMapper.selectCount(
-                    new LambdaQueryWrapperX<TestCaseModule>()
-                            .eq(TestCaseModule::getParentId, moduleId));
+            Long childCount = testCaseModuleMapper.countByParentId(moduleId);
             if (childCount > 0) {
                 throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_CASE_MODULE_NOT_EMPTY);
             }
         }
 
         if (Constants.ModuleType.DOCUMENT.equals(module.getType())) {
-            testCaseNodeMapper.delete(
-                    new LambdaQueryWrapperX<TestCaseNode>()
-                            .eq(TestCaseNode::getDocumentId, moduleId));
+            testCaseNodeMapper.deleteByDocumentId(moduleId);
         }
 
         testCaseModuleMapper.deleteById(moduleId);

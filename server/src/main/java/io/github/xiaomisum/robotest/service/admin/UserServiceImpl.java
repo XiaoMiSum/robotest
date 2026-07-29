@@ -21,7 +21,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
 import xyz.migoo.framework.common.pojo.PageResult;
-import xyz.migoo.framework.mybatis.core.LambdaQueryWrapperX;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -48,30 +47,16 @@ public class UserServiceImpl implements UserService {
     @Override
     public PageResult<UserRespDTO> getUserPage(String keyword, String status, UUID roleId,
                                                Integer pageNo, Integer pageSize) {
-        LambdaQueryWrapperX<SysUser> wrapper = new LambdaQueryWrapperX<>();
-        if (StringUtils.hasText(keyword)) {
-            wrapper.like(SysUser::getUsername, keyword)
-                    .or().like(SysUser::getEmail, keyword)
-                    .or().like(SysUser::getName, keyword);
-        }
-        if (StringUtils.hasText(status)) {
-            wrapper.eq(SysUser::getStatus, status);
-        }
+        List<UUID> filteredUserIds = null;
         if (roleId != null) {
-            List<SysUserRole> userRoles = userRoleMapper.selectList(
-                    new LambdaQueryWrapperX<SysUserRole>().eq(SysUserRole::getRoleId, roleId));
-            List<UUID> userIds = userRoles.stream().map(SysUserRole::getUserId).collect(Collectors.toList());
-            if (userIds.isEmpty()) {
+            List<SysUserRole> userRoles = userRoleMapper.listByRoleId(roleId);
+            filteredUserIds = userRoles.stream().map(SysUserRole::getUserId).collect(Collectors.toList());
+            if (filteredUserIds.isEmpty()) {
                 return new PageResult<>(List.of(), 0L);
             }
-            wrapper.in(SysUser::getId, userIds);
         }
-        wrapper.orderByDesc(SysUser::getCreatedAt);
 
-        PageResult<SysUser> userPage = userMapper.selectPage(new xyz.migoo.framework.common.pojo.PageParam() {{
-            setPageNo(pageNo);
-            setPageSize(pageSize);
-        }}, wrapper);
+        PageResult<SysUser> userPage = userMapper.findPage(keyword, status, filteredUserIds, pageNo, pageSize);
 
         List<UserRespDTO> records = userPage.getList().stream()
                 .map(this::convertToUserRespDTO)
@@ -82,16 +67,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public List<UserSimpleRespDTO> getUserSimpleList(String keyword) {
-        LambdaQueryWrapperX<SysUser> wrapper = new LambdaQueryWrapperX<SysUser>()
-                .eq(SysUser::getStatus, Constants.Status.ACTIVE);
-        if (StringUtils.hasText(keyword)) {
-            wrapper.like(SysUser::getName, keyword)
-                    .or().like(SysUser::getUsername, keyword)
-                    .or().like(SysUser::getEmail, keyword);
-        }
-        wrapper.orderByAsc(SysUser::getName);
-
-        List<SysUser> users = userMapper.selectList(wrapper);
+        List<SysUser> users = userMapper.listActiveByKeyword(keyword);
         return users.stream().map(user -> {
             UserSimpleRespDTO dto = new UserSimpleRespDTO();
             dto.setId(user.getId());
@@ -112,15 +88,13 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public String createUser(UserCreateReqDTO reqDTO) {
-        // 鏍￠獙鐢ㄦ埛鍚嶅敮涓€
-        if (userMapper.selectOne(SysUser::getUsername, reqDTO.getUsername()) != null) {
+        if (userMapper.findByUsername(reqDTO.getUsername()) != null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.USERNAME_EXISTS);
         }
-        // 鏍￠獙閭鍞竴
-        if (userMapper.selectOne(SysUser::getEmail, reqDTO.getEmail()) != null) {
+        if (userMapper.findByEmail(reqDTO.getEmail()) != null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.EMAIL_EXISTS);
         }
-        // 鍒涘缓鐢ㄦ埛
+
         SysUser user = new SysUser();
         user.setUsername(reqDTO.getUsername());
         user.setName(reqDTO.getName());
@@ -129,7 +103,6 @@ public class UserServiceImpl implements UserService {
         user.setStatus(Constants.Status.ACTIVE);
         userMapper.insert(user);
 
-        // 鍒嗛厤瑙掕壊
         if (reqDTO.getRoleIds() != null && !reqDTO.getRoleIds().isEmpty()) {
             List<SysUserRole> userRoles = reqDTO.getRoleIds().stream().map(roleId -> {
                 SysUserRole userRole = new SysUserRole();
@@ -155,12 +128,10 @@ public class UserServiceImpl implements UserService {
         SysUser update = new SysUser();
         update.setId(id);
         boolean updated = false;
-        // 鏇存柊濮撳悕
         if (StringUtils.hasText(reqDTO.getName())) {
             update.setName(reqDTO.getName());
             updated = true;
         }
-        // 鏇存柊閭
         if (StringUtils.hasText(reqDTO.getEmail())) {
             update.setEmail(reqDTO.getEmail());
             updated = true;
@@ -169,9 +140,8 @@ public class UserServiceImpl implements UserService {
             userMapper.updateById(update);
         }
 
-        // 鍏ㄩ噺鏇挎崲瑙掕壊
         if (reqDTO.getRoleIds() != null) {
-            userRoleMapper.delete(new LambdaQueryWrapperX<SysUserRole>().eq(SysUserRole::getUserId, id));
+            userRoleMapper.deleteByUserId(id);
             if (!reqDTO.getRoleIds().isEmpty()) {
                 List<SysUserRole> userRoles = reqDTO.getRoleIds().stream().map(roleId -> {
                     SysUserRole userRole = new SysUserRole();
@@ -244,34 +214,30 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public SysUser getUserByUsername(String username) {
-        return userMapper.selectOne(SysUser::getUsername, username);
+        return userMapper.findByUsername(username);
     }
 
     @Override
     public SysUser getUserByEmail(String email) {
-        return userMapper.selectOne(SysUser::getEmail, email);
+        return userMapper.findByEmail(email);
     }
 
     private UserRespDTO convertToUserRespDTO(SysUser user) {
         UserRespDTO dto = UserConvertMapper.INSTANCE.toRespDTO(user);
 
-        List<SysUserRole> userRoles = userRoleMapper.selectList(
-                new LambdaQueryWrapperX<SysUserRole>().eq(SysUserRole::getUserId, user.getId()));
+        List<SysUserRole> userRoles = userRoleMapper.listByUserId(user.getId());
         if (!userRoles.isEmpty()) {
             List<UUID> roleIds = userRoles.stream().map(SysUserRole::getRoleId).collect(Collectors.toList());
-            List<SysRole> roles = roleMapper.selectList(
-                    new LambdaQueryWrapperX<SysRole>().in(SysRole::getId, roleIds));
+            List<SysRole> roles = roleMapper.listByIds(roleIds);
             dto.setRoles(roles.stream().map(UserConvertMapper.INSTANCE::toRoleSimple).collect(Collectors.toList()));
         } else {
             dto.setRoles(new ArrayList<>());
         }
 
-        List<WorkspaceUser> workspaceUsers = workspaceUserMapper.selectList(
-                new LambdaQueryWrapperX<WorkspaceUser>().eq(WorkspaceUser::getUserId, user.getId()));
+        List<WorkspaceUser> workspaceUsers = workspaceUserMapper.listByUserId(user.getId());
         if (!workspaceUsers.isEmpty()) {
             List<UUID> wsIds = workspaceUsers.stream().map(WorkspaceUser::getWorkspaceId).collect(Collectors.toList());
-            List<Workspace> workspaces = workspaceMapper.selectList(
-                    new LambdaQueryWrapperX<Workspace>().in(Workspace::getId, wsIds));
+            List<Workspace> workspaces = workspaceMapper.listByIds(wsIds);
             dto.setWorkspaces(workspaces.stream().map(ws -> {
                 WorkspaceUser matchedWs = workspaceUsers.stream()
                         .filter(wu -> wu.getWorkspaceId().equals(ws.getId()))

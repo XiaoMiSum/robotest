@@ -19,7 +19,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
 import xyz.migoo.framework.common.pojo.PageResult;
-import xyz.migoo.framework.mybatis.core.LambdaQueryWrapperX;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -40,16 +39,11 @@ public class WorkspaceServiceImpl implements WorkspaceService {
 
     @Override
     public PageResult<WorkspaceRespDTO> getWorkspacePage(String keyword, String status, Integer pageNo, Integer pageSize) {
-        LambdaQueryWrapperX<Workspace> wrapper = new LambdaQueryWrapperX<>();
-        wrapper.likeIfPresent(Workspace::getName, keyword)
-               .eqIfPresent(Workspace::getStatus, status)
-               .orderByDesc(Workspace::getCreatedAt);
-
-        PageResult<Workspace> page = workspaceMapper.selectPage(
+        PageResult<Workspace> page = workspaceMapper.findPage(
                 new xyz.migoo.framework.common.pojo.PageParam() {{
                     setPageNo(pageNo);
                     setPageSize(pageSize);
-                }}, wrapper);
+                }}, keyword, status);
 
         List<WorkspaceRespDTO> records = page.getList().stream().map(ws -> {
             WorkspaceRespDTO dto = new WorkspaceRespDTO();
@@ -58,8 +52,7 @@ public class WorkspaceServiceImpl implements WorkspaceService {
             dto.setDescription(ws.getDescription());
             dto.setStatus(ws.getStatus());
             dto.setCreatedAt(ws.getCreatedAt());
-            dto.setMemberCount(workspaceUserMapper.selectCount(WorkspaceUser::getWorkspaceId, ws.getId()));
-            // projectCount 闇€瑕佺瓑 project 妯″潡瀹炵幇锛屾殏璁句负0
+            dto.setMemberCount(workspaceUserMapper.countByWorkspaceId(ws.getId()));
             dto.setProjectCount(0L);
             return dto;
         }).collect(Collectors.toList());
@@ -70,7 +63,7 @@ public class WorkspaceServiceImpl implements WorkspaceService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public String createWorkspace(WorkspaceCreateReqDTO reqDTO) {
-        if (workspaceMapper.selectOne(Workspace::getName, reqDTO.getName()) != null) {
+        if (workspaceMapper.findByName(reqDTO.getName()) != null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.WORKSPACE_NAME_EXISTS);
         }
 
@@ -94,7 +87,7 @@ public class WorkspaceServiceImpl implements WorkspaceService {
         dto.setDescription(workspace.getDescription());
         dto.setStatus(workspace.getStatus());
         dto.setCreatedAt(workspace.getCreatedAt());
-        dto.setMemberCount(workspaceUserMapper.selectCount(WorkspaceUser::getWorkspaceId, workspace.getId()));
+        dto.setMemberCount(workspaceUserMapper.countByWorkspaceId(workspace.getId()));
         dto.setProjectCount(0L);
         return dto;
     }
@@ -108,11 +101,10 @@ public class WorkspaceServiceImpl implements WorkspaceService {
         if (Constants.Status.DISSOLVED.equals(workspace.getStatus())) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.WORKSPACE_NOT_FOUND);
         }
-        // 更新载体只携带前端传入的字段，避免全列覆盖导致并发丢失更新
         Workspace update = new Workspace();
         update.setId(id);
         if (StringUtils.hasText(reqDTO.getName())) {
-            Workspace existing = workspaceMapper.selectOne(Workspace::getName, reqDTO.getName());
+            Workspace existing = workspaceMapper.findByName(reqDTO.getName());
             if (existing != null && !existing.getId().equals(id)) {
                 throw ServiceExceptionUtil.get(ErrorCodeConstants.WORKSPACE_NAME_EXISTS);
             }
@@ -132,14 +124,11 @@ public class WorkspaceServiceImpl implements WorkspaceService {
         if (workspace == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.WORKSPACE_NOT_FOUND);
         }
-        // TODO: 妫€鏌ュ伐浣滅┖闂翠笅鏄惁鏈夐」鐩?
         Workspace update = new Workspace();
         update.setId(id);
         update.setStatus(Constants.Status.DISSOLVED);
         workspaceMapper.updateById(update);
-        // 鍒犻櫎鎵€鏈夋垚鍛樺叧鑱?
-        workspaceUserMapper.delete(new LambdaQueryWrapperX<WorkspaceUser>()
-                .eq(WorkspaceUser::getWorkspaceId, id));
+        workspaceUserMapper.deleteByWorkspaceId(id);
     }
 
     @Override
@@ -149,14 +138,11 @@ public class WorkspaceServiceImpl implements WorkspaceService {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.WORKSPACE_NOT_FOUND);
         }
 
-        LambdaQueryWrapperX<WorkspaceUser> wrapper = new LambdaQueryWrapperX<WorkspaceUser>()
-                .eq(WorkspaceUser::getWorkspaceId, id);
-
-        PageResult<WorkspaceUser> page = workspaceUserMapper.selectPage(
+        PageResult<WorkspaceUser> page = workspaceUserMapper.findPageByWorkspaceId(
                 new xyz.migoo.framework.common.pojo.PageParam() {{
                     setPageNo(pageNo);
                     setPageSize(pageSize);
-                }}, wrapper);
+                }}, id);
 
         List<WorkspaceMemberRespDTO> records = page.getList().stream().map(wu -> {
             SysUser user = userMapper.selectById(wu.getUserId());
@@ -188,11 +174,7 @@ public class WorkspaceServiceImpl implements WorkspaceService {
             if (user == null || !Constants.Status.ACTIVE.equals(user.getStatus())) {
                 continue;
             }
-            // 妫€鏌ユ槸鍚﹀凡鍦ㄥ伐浣滅┖闂?
-            Long count = workspaceUserMapper.selectCount(new LambdaQueryWrapperX<WorkspaceUser>()
-                    .eq(WorkspaceUser::getUserId, member.getUserId())
-                    .eq(WorkspaceUser::getWorkspaceId, id));
-            if (count > 0) {
+            if (workspaceUserMapper.existsByWorkspaceIdAndUserId(id, member.getUserId())) {
                 skippedUserIds.add(member.getUserId().toString());
                 continue;
             }
@@ -210,23 +192,17 @@ public class WorkspaceServiceImpl implements WorkspaceService {
 
     @Override
     public void updateWorkspaceMemberRole(UUID id, UUID userId, UUID workspaceRole) {
-        WorkspaceUser wu = workspaceUserMapper.selectOne(new LambdaQueryWrapperX<WorkspaceUser>()
-                .eq(WorkspaceUser::getUserId, userId)
-                .eq(WorkspaceUser::getWorkspaceId, id));
+        WorkspaceUser wu = workspaceUserMapper.findByWorkspaceIdAndUserId(id, userId);
         if (wu == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.USER_NOT_FOUND);
         }
-        // 妫€鏌ユ槸鍚︽槸闄嶇骇鍞竴绠＄悊鍛?
         if (Constants.WorkspaceRole.ADMIN_ID.equals(wu.getWorkspaceRole())
                 && !Constants.WorkspaceRole.ADMIN_ID.equals(workspaceRole)) {
-            Long adminCount = workspaceUserMapper.selectCount(new LambdaQueryWrapperX<WorkspaceUser>()
-                    .eq(WorkspaceUser::getWorkspaceId, id)
-                    .eq(WorkspaceUser::getWorkspaceRole, Constants.WorkspaceRole.ADMIN_ID));
+            long adminCount = workspaceUserMapper.countByWorkspaceIdAndRole(id, Constants.WorkspaceRole.ADMIN_ID);
             if (adminCount <= 1) {
                 throw ServiceExceptionUtil.get(ErrorCodeConstants.MUST_KEEP_ONE_WORKSPACE_ADMIN);
             }
         }
-        // 更新载体只携带本次变更字段，避免全列覆盖导致并发丢失更新
         WorkspaceUser update = new WorkspaceUser();
         update.setId(wu.getId());
         update.setWorkspaceRole(workspaceRole);
@@ -235,17 +211,12 @@ public class WorkspaceServiceImpl implements WorkspaceService {
 
     @Override
     public void removeWorkspaceMember(UUID id, UUID userId) {
-        WorkspaceUser wu = workspaceUserMapper.selectOne(new LambdaQueryWrapperX<WorkspaceUser>()
-                .eq(WorkspaceUser::getUserId, userId)
-                .eq(WorkspaceUser::getWorkspaceId, id));
+        WorkspaceUser wu = workspaceUserMapper.findByWorkspaceIdAndUserId(id, userId);
         if (wu == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.USER_NOT_FOUND);
         }
-        // 妫€鏌ユ槸鍚ユ槸鍚︽槸绉婚櫎鍞竴绠＄悊鍛?
         if (Constants.WorkspaceRole.ADMIN_ID.equals(wu.getWorkspaceRole())) {
-            Long adminCount = workspaceUserMapper.selectCount(new LambdaQueryWrapperX<WorkspaceUser>()
-                    .eq(WorkspaceUser::getWorkspaceId, id)
-                    .eq(WorkspaceUser::getWorkspaceRole, Constants.WorkspaceRole.ADMIN_ID));
+            long adminCount = workspaceUserMapper.countByWorkspaceIdAndRole(id, Constants.WorkspaceRole.ADMIN_ID);
             if (adminCount <= 1) {
                 throw ServiceExceptionUtil.get(ErrorCodeConstants.MUST_KEEP_ONE_WORKSPACE_ADMIN);
             }
