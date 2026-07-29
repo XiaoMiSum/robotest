@@ -407,7 +407,7 @@ onMounted(() => {
           />
         </el-form-item>
         <el-form-item label="最大使用次数">
-          <el-input-number v-model="createForm.maxUses" :min="1" :max="10000" placeholder="留空表示不限" />
+          <el-input-number v-model="createForm.maxUses" :min="1" :max="10000" placeholder="留空表示不限" style="width: 100%" />
         </el-form-item>
       </el-form>
       <template #footer>
