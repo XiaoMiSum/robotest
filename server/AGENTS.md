@@ -56,6 +56,7 @@ mvn checkstyle:check && mvn test
 | C3  | 所有业务异常必须抛出 `BusinessException(code, msg)`，不抛原始异常      | 代码审查      |
 | C5  | 数据库每表必须有 `id`（自增或雪花）、`created_at`、`updated_at`，禁止物理外键 | 数据库审查     |
 | C8  | 单测覆盖率 ≥ 70%                                            | CI        |
+| C9  | 更新数据只更新调用方实际传入的字段：查询仅做校验，禁止整行查询结果作 `updateById` 载体；显式置 null 用 `LambdaUpdateWrapperX` | 代码审查      |
 
 ## 边界
 
@@ -91,6 +92,28 @@ public interface SysUserMapper extends BaseMapperX<SysUser> {}
 new LambdaQueryWrapperX<SysUser>()
     .likeIfPresent(SysUser::getName, name)
     .eqIfPresent(SysUser::getStatus, status);
+```
+
+### 数据更新（部分更新原则，C9）
+
+> 完整规范见 `docs/spec/backend.md` 第 8 节。查询仅用于校验，更新载体只携带 `id` + 本次变更字段。
+
+```java
+// ✅ 部分更新：新建载体，NOT_NULL 策略自动忽略未设置字段
+SysUser update = new SysUser();
+update.setId(id);
+update.setName(reqDTO.getName());
+userMapper.updateById(update);
+
+// ✅ 需要清空列：必须走 wrapper 显式置 null（updateById 会静默忽略 null）
+userMapper.update(null, new LambdaUpdateWrapperX<SysUser>()
+    .eq(SysUser::getId, id)
+    .set(SysUser::getLastActiveWorkspaceId, null));
+
+// ❌ 禁止：整行查询结果作载体，全列 UPDATE 覆盖并发变更
+SysUser user = userMapper.selectById(id);
+user.setName(reqDTO.getName());
+userMapper.updateById(user);
 ```
 
 ### 分页

@@ -1,7 +1,7 @@
 # 工程规范 — 后端
 
-**文档版本**：V1.0
-**日期**：2026-07-06
+**文档版本**：V1.1
+**日期**：2026-07-29
 **状态**：已发布
 
 ---
@@ -256,6 +256,57 @@ if (userRepository.existsByUsername(dto.getUsername())) {
     throw new BusinessException(1002, "用户名已存在");
 }
 ```
+
+---
+
+## 8. 数据更新规范
+
+**核心原则：更新数据时，只更新前端（调用方）实际传入的字段。**
+
+`selectById` 等查询仅用于校验（存在性、权限、状态），**禁止**将整行查询结果作为 `updateById` 的更新载体——那会生成全列 UPDATE，把未传字段用查询时刻的旧值重写，造成并发丢失更新。
+
+### 8.1 常规部分更新（模式 A）
+
+更新载体为新建实体，只携带 `id` + 本次传入的字段（MyBatis-Plus 默认 NOT_NULL 字段策略会自动忽略 null 字段）：
+
+```java
+// ✅ 正确：查询仅做校验，载体只携带变更字段
+SysUser user = userMapper.selectById(id);
+if (user == null) {
+    throw ServiceExceptionUtil.get(ErrorCodeConstants.USER_NOT_FOUND);
+}
+SysUser update = new SysUser();
+update.setId(id);
+if (StringUtils.hasText(reqDTO.getName())) {
+    update.setName(reqDTO.getName());
+}
+userMapper.updateById(update);
+```
+
+```java
+// ❌ 错误：整行查询结果作载体，全列 UPDATE 覆盖并发变更
+SysUser user = userMapper.selectById(id);
+user.setName(reqDTO.getName());
+userMapper.updateById(user);
+```
+
+### 8.2 需要显式置 null 的更新（模式 B）
+
+`updateById` 的 NOT_NULL 策略会静默忽略 null 字段，需要清空列时必须使用 `LambdaUpdateWrapperX` 显式 `.set(..., null)`：
+
+```java
+// ✅ 正确：显式置 null 走 wrapper
+bugMapper.update(null, new LambdaUpdateWrapperX<Bug>()
+        .eq(Bug::getId, bugId)
+        .set(Bug::getStatus, Constants.BugStatus.ACTIVE)
+        .set(Bug::getResolution, null)
+        .set(Bug::getResolvedBy, null));
+```
+
+### 8.3 单元测试要求
+
+- 模式 A：用 `ArgumentCaptor` 捕获 `updateById` 载体，断言只携带预期字段；同时 `verify(mapper, never())` 验证未发生意外更新
+- 模式 B：先通过 `TableInfoHelper.initTableInfo` 注册实体列信息，再捕获 wrapper，断言 `getSqlSet()` 包含目标列（含置 null 列）、`getParamNameValuePairs()` 包含目标值
 
 ---
 
