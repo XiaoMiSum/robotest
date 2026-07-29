@@ -1,6 +1,7 @@
 package io.github.xiaomisum.robotest.service.project;
 
 import xyz.migoo.framework.mybatis.core.LambdaQueryWrapperX;
+import xyz.migoo.framework.mybatis.core.LambdaUpdateWrapperX;
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.framework.convert.TestCaseModuleConvertMapper;
@@ -99,7 +100,8 @@ public class TestCaseModuleServiceImpl implements TestCaseModuleService {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_CASE_MODULE_NOT_FOUND);
         }
 
-        if (reqDTO.getTargetIndex() != null) {
+        boolean moved = reqDTO.getTargetIndex() != null;
+        if (moved) {
             moveModule(module, reqDTO.getParentId(), reqDTO.getTargetIndex());
         }
 
@@ -116,7 +118,22 @@ public class TestCaseModuleServiceImpl implements TestCaseModuleService {
             module.setName(reqDTO.getName());
         }
 
-        testCaseModuleMapper.updateById(module);
+        // 仅落库本次变更字段；移动到根层级时 parentId 为 null，updateById 会忽略，须用 wrapper 显式 set
+        LambdaUpdateWrapperX<TestCaseModule> wrapper = new LambdaUpdateWrapperX<TestCaseModule>()
+                .eq(TestCaseModule::getId, moduleId);
+        boolean changed = false;
+        if (moved) {
+            wrapper.set(TestCaseModule::getParentId, module.getParentId())
+                    .set(TestCaseModule::getSortOrder, module.getSortOrder());
+            changed = true;
+        }
+        if (reqDTO.getName() != null) {
+            wrapper.set(TestCaseModule::getName, reqDTO.getName());
+            changed = true;
+        }
+        if (changed) {
+            testCaseModuleMapper.update(null, wrapper);
+        }
         return convertToTreeDTO(module);
     }
 
@@ -165,9 +182,12 @@ public class TestCaseModuleServiceImpl implements TestCaseModuleService {
                 continue;
             }
             sibling.setSortOrder(i);
-            // 被移动节点由 updateModule 统一落库，避免重复 update
+            // 被移动节点由 updateModule 统一落库；兄弟节点仅回写 sortOrder，不整行覆盖
             if (!sibling.getId().equals(module.getId())) {
-                testCaseModuleMapper.updateById(sibling);
+                testCaseModuleMapper.update(null,
+                        new LambdaUpdateWrapperX<TestCaseModule>()
+                                .eq(TestCaseModule::getId, sibling.getId())
+                                .set(TestCaseModule::getSortOrder, i));
             }
         }
     }
