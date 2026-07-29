@@ -57,6 +57,10 @@ let pendingRequests: Array<(token: string) => void> = []
 
 api.interceptors.response.use(
   (response) => {
+    // Blob 响应（文件下载）无 Result 包装，直接透传数据
+    if (response.data instanceof Blob) {
+      return response.data as never
+    }
     // Unwrap Result<T> → return data field
     const result = response.data as Result<unknown>
     if (result.code === 200) {

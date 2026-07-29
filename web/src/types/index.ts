@@ -544,6 +544,17 @@ export interface BugLog {
   createdAt: string
 }
 
+/** 缺陷附件 */
+export interface BugAttachment {
+  id: string
+  fileName: string
+  fileSize: number
+  contentType: string | null
+  uploaderId: string
+  uploaderName: string | null
+  createdAt: string
+}
+
 /** 缺陷统计 */
 export interface BugStatistics {
   total: number

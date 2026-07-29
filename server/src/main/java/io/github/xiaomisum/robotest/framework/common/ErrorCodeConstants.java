@@ -77,4 +77,8 @@ public class ErrorCodeConstants {
     public static final ErrorCode BUG_CLOSE_COMMENT_REQUIRED = ErrorCode.of(1000012004, "关闭缺陷时必须填写关闭说明");
     public static final ErrorCode BUG_ASSIGNEE_NOT_IN_WORKSPACE = ErrorCode.of(1000012005, "处理人不在当前工作空间中");
     public static final ErrorCode PROJECT_NOT_ACTIVE = ErrorCode.of(1000012006, "项目已归档，不可操作");
+public static final ErrorCode BUG_ATTACHMENT_NOT_FOUND = ErrorCode.of(1000012007, "附件不存在");
+public static final ErrorCode BUG_ATTACHMENT_SIZE_EXCEEDED = ErrorCode.of(1000012008, "附件大小超过限制");
+public static final ErrorCode BUG_CLOSED_ATTACHMENT_FORBIDDEN = ErrorCode.of(1000012009, "缺陷已关闭，不可操作附件");
+public static final ErrorCode BUG_ATTACHMENT_STORE_FAILED = ErrorCode.of(1000012010, "附件存储失败");
 }

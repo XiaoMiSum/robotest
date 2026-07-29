@@ -5,16 +5,24 @@ import io.github.xiaomisum.robotest.model.dto.request.BugAssignReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.BugCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.BugStatusChangeReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.BugUpdateReqDTO;
+import io.github.xiaomisum.robotest.model.dto.response.BugAttachmentDownloadDTO;
+import io.github.xiaomisum.robotest.model.dto.response.BugAttachmentRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.BugDetailRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.BugListRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.BugLogRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.BugStatisticsRespDTO;
+import io.github.xiaomisum.robotest.service.project.BugAttachmentService;
 import io.github.xiaomisum.robotest.service.project.BugService;
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import xyz.migoo.framework.common.pojo.PageResult;
 import xyz.migoo.framework.common.pojo.Result;
@@ -28,6 +36,8 @@ public class BugController {
 
     @Resource
     private BugService bugService;
+    @Resource
+    private BugAttachmentService bugAttachmentService;
 
     @GetMapping
     public Result<PageResult<BugListRespDTO>> getBugPage(
@@ -101,5 +111,42 @@ public class BugController {
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestHeader("X-Active-Project") UUID projectId) {
         return Result.ok(bugService.getBugStatistics(projectId));
+    }
+
+    @PostMapping("/{id}/attachments")
+    @ResponseStatus(HttpStatus.CREATED)
+    public Result<BugAttachmentRespDTO> uploadAttachment(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @PathVariable UUID id,
+            @RequestParam("file") MultipartFile file) {
+        return Result.ok(bugAttachmentService.uploadAttachment(id, loginUser.getId(), file));
+    }
+
+    @GetMapping("/{id}/attachments")
+    public Result<List<BugAttachmentRespDTO>> getAttachments(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @PathVariable UUID id) {
+        return Result.ok(bugAttachmentService.getAttachments(id));
+    }
+
+    @GetMapping("/attachments/{attachmentId}/download")
+    public ResponseEntity<byte[]> downloadAttachment(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @PathVariable UUID attachmentId) {
+        BugAttachmentDownloadDTO dto = bugAttachmentService.downloadAttachment(attachmentId);
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(dto.getContentType()))
+                .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment()
+                        .filename(dto.getFileName(), java.nio.charset.StandardCharsets.UTF_8)
+                        .build().toString())
+                .body(dto.getContent());
+    }
+
+    @DeleteMapping("/attachments/{attachmentId}")
+    public Result<Void> deleteAttachment(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @PathVariable UUID attachmentId) {
+        bugAttachmentService.deleteAttachment(attachmentId, loginUser.getId());
+        return Result.ok();
     }
 }

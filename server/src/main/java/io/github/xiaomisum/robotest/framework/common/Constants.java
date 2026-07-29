@@ -89,6 +89,8 @@ public final class Constants {
         String ASSIGN = "assign";
         String STATUS_CHANGE = "status_change";
         String REOPEN = "reopen";
+        String ATTACHMENT_UPLOAD = "attachment_upload";
+        String ATTACHMENT_DELETE = "attachment_delete";
     }
 
     public interface WebSocket {

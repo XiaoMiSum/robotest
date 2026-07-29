@@ -55,6 +55,7 @@ declare module 'vue' {
     ElTimelineItem: typeof import('element-plus/es')['ElTimelineItem']
     ElTooltip: typeof import('element-plus/es')['ElTooltip']
     ElTree: typeof import('element-plus/es')['ElTree']
+    ElUpload: typeof import('element-plus/es')['ElUpload']
     MinderContextMenu: typeof import('./components/project/minder/MinderContextMenu.vue')['default']
     MinderNavigator: typeof import('./components/project/minder/MinderNavigator.vue')['default']
     ModuleTree: typeof import('./components/project/ModuleTree.vue')['default']
