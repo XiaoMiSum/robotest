@@ -58,6 +58,8 @@ declare module 'vue' {
     ElTree: typeof import('element-plus/es')['ElTree']
     ElTreeSelect: typeof import('element-plus/es')['ElTreeSelect']
     ElUpload: typeof import('element-plus/es')['ElUpload']
+    MarkdownEditor: typeof import('./components/common/MarkdownEditor.vue')['default']
+    MarkdownView: typeof import('./components/common/MarkdownView.vue')['default']
     MinderContextMenu: typeof import('./components/project/minder/MinderContextMenu.vue')['default']
     MinderNavigator: typeof import('./components/project/minder/MinderNavigator.vue')['default']
     ModuleTree: typeof import('./components/project/ModuleTree.vue')['default']
