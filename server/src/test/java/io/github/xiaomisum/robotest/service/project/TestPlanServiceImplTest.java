@@ -10,7 +10,13 @@ import io.github.xiaomisum.robotest.model.dto.response.TestPlanExecutionRecordRe
 import io.github.xiaomisum.robotest.model.dto.response.TestPlanListRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.TestPlanSnapshotNodeRespDTO;
 import io.github.xiaomisum.robotest.model.entity.*;
-import io.github.xiaomisum.robotest.repository.*;
+import io.github.xiaomisum.robotest.repository.plan.TestPlanMapper;
+import io.github.xiaomisum.robotest.repository.plan.TestPlanModuleSnapshotMapper;
+import io.github.xiaomisum.robotest.repository.plan.TestPlanNodeSnapshotMapper;
+import io.github.xiaomisum.robotest.repository.plan.TestPlanExecutionRecordMapper;
+import io.github.xiaomisum.robotest.repository.tcase.TestCaseModuleMapper;
+import io.github.xiaomisum.robotest.repository.tcase.TestCaseNodeMapper;
+import io.github.xiaomisum.robotest.repository.admin.SysUserMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

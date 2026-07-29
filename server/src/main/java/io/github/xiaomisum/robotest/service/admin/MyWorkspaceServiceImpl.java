@@ -1,13 +1,13 @@
 package io.github.xiaomisum.robotest.service.admin;
 
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
-import io.github.xiaomisum.robotest.model.dto.response.WorkspaceMyRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.workspace.WorkspaceMyRespDTO;
 import io.github.xiaomisum.robotest.model.entity.SysUser;
 import io.github.xiaomisum.robotest.model.entity.Workspace;
 import io.github.xiaomisum.robotest.model.entity.WorkspaceUser;
-import io.github.xiaomisum.robotest.repository.SysUserMapper;
-import io.github.xiaomisum.robotest.repository.WorkspaceMapper;
-import io.github.xiaomisum.robotest.repository.WorkspaceUserMapper;
+import io.github.xiaomisum.robotest.repository.admin.SysUserMapper;
+import io.github.xiaomisum.robotest.repository.workspace.WorkspaceMapper;
+import io.github.xiaomisum.robotest.repository.workspace.WorkspaceUserMapper;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
@@ -82,8 +82,6 @@ public class MyWorkspaceServiceImpl implements MyWorkspaceService {
 
             dto.setMemberCount(memberCountMap.getOrDefault(wu.getWorkspaceId(), 0L));
             dto.setProjectCount(0L);
-            dto.setDefaultProjectName(null);
-
             return dto;
         }).collect(Collectors.toList());
 

@@ -1,7 +1,7 @@
 package io.github.xiaomisum.robotest.framework.convert;
 
-import io.github.xiaomisum.robotest.model.dto.response.TestPlanDetailRespDTO;
-import io.github.xiaomisum.robotest.model.dto.response.TestPlanSnapshotNodeRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.plan.TestPlanDetailRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.plan.TestPlanSnapshotNodeRespDTO;
 import io.github.xiaomisum.robotest.model.entity.TestPlan;
 import io.github.xiaomisum.robotest.model.entity.TestPlanNodeSnapshot;
 import org.mapstruct.Mapper;

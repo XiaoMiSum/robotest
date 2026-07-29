@@ -3,7 +3,7 @@ package io.github.xiaomisum.robotest.framework.audit;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.node.ObjectNode;
 import io.github.xiaomisum.robotest.model.entity.AuditLog;
-import io.github.xiaomisum.robotest.repository.AuditLogMapper;
+import io.github.xiaomisum.robotest.repository.admin.AuditLogMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

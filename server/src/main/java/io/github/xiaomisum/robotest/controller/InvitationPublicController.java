@@ -1,10 +1,10 @@
 package io.github.xiaomisum.robotest.controller;
 
-import io.github.xiaomisum.robotest.model.dto.request.InvitationCheckEmailReqDTO;
-import io.github.xiaomisum.robotest.model.dto.request.InvitationJoinReqDTO;
-import io.github.xiaomisum.robotest.model.dto.response.InvitationCheckEmailRespDTO;
-import io.github.xiaomisum.robotest.model.dto.response.InvitationJoinRespDTO;
-import io.github.xiaomisum.robotest.model.dto.response.InvitationVerifyRespDTO;
+import io.github.xiaomisum.robotest.model.dto.request.workspace.InvitationCheckEmailReqDTO;
+import io.github.xiaomisum.robotest.model.dto.request.workspace.InvitationJoinReqDTO;
+import io.github.xiaomisum.robotest.model.dto.response.workspace.InvitationCheckEmailRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.workspace.InvitationJoinRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.workspace.InvitationVerifyRespDTO;
 import io.github.xiaomisum.robotest.service.workspace.WorkspaceInvitationService;
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;

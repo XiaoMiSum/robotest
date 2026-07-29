@@ -1,16 +1,16 @@
 package io.github.xiaomisum.robotest.controller.project;
 
 import io.github.xiaomisum.robotest.framework.security.LoginUser;
-import io.github.xiaomisum.robotest.model.dto.request.BugAssignReqDTO;
-import io.github.xiaomisum.robotest.model.dto.request.BugCreateReqDTO;
-import io.github.xiaomisum.robotest.model.dto.request.BugStatusChangeReqDTO;
-import io.github.xiaomisum.robotest.model.dto.request.BugUpdateReqDTO;
-import io.github.xiaomisum.robotest.model.dto.response.BugAttachmentDownloadDTO;
-import io.github.xiaomisum.robotest.model.dto.response.BugAttachmentRespDTO;
-import io.github.xiaomisum.robotest.model.dto.response.BugDetailRespDTO;
-import io.github.xiaomisum.robotest.model.dto.response.BugListRespDTO;
-import io.github.xiaomisum.robotest.model.dto.response.BugLogRespDTO;
-import io.github.xiaomisum.robotest.model.dto.response.BugStatisticsRespDTO;
+import io.github.xiaomisum.robotest.model.dto.request.bug.BugAssignReqDTO;
+import io.github.xiaomisum.robotest.model.dto.request.bug.BugCreateReqDTO;
+import io.github.xiaomisum.robotest.model.dto.request.bug.BugStatusChangeReqDTO;
+import io.github.xiaomisum.robotest.model.dto.request.bug.BugUpdateReqDTO;
+import io.github.xiaomisum.robotest.model.dto.response.bug.BugAttachmentDownloadDTO;
+import io.github.xiaomisum.robotest.model.dto.response.bug.BugAttachmentRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.bug.BugDetailRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.bug.BugListRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.bug.BugLogRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.bug.BugStatisticsRespDTO;
 import io.github.xiaomisum.robotest.service.project.BugAttachmentService;
 import io.github.xiaomisum.robotest.service.project.BugService;
 import jakarta.annotation.Resource;

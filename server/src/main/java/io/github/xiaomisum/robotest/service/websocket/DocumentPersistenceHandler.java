@@ -1,14 +1,14 @@
 package io.github.xiaomisum.robotest.service.websocket;
 
 import io.github.xiaomisum.robotest.framework.common.Constants;
-import io.github.xiaomisum.robotest.model.dto.request.DocumentAddNodeReqDTO;
-import io.github.xiaomisum.robotest.model.dto.request.DocumentDeleteNodeReqDTO;
-import io.github.xiaomisum.robotest.model.dto.request.DocumentMoveNodeReqDTO;
-import io.github.xiaomisum.robotest.model.dto.request.DocumentUpdateAttrsReqDTO;
+import io.github.xiaomisum.robotest.model.dto.request.tcase.DocumentAddNodeReqDTO;
+import io.github.xiaomisum.robotest.model.dto.request.tcase.DocumentDeleteNodeReqDTO;
+import io.github.xiaomisum.robotest.model.dto.request.tcase.DocumentMoveNodeReqDTO;
+import io.github.xiaomisum.robotest.model.dto.request.tcase.DocumentUpdateAttrsReqDTO;
 import io.github.xiaomisum.robotest.model.entity.TestCaseDocumentLayout;
 import io.github.xiaomisum.robotest.model.entity.TestCaseNode;
-import io.github.xiaomisum.robotest.repository.TestCaseDocumentLayoutMapper;
-import io.github.xiaomisum.robotest.repository.TestCaseNodeMapper;
+import io.github.xiaomisum.robotest.repository.tcase.TestCaseDocumentLayoutMapper;
+import io.github.xiaomisum.robotest.repository.tcase.TestCaseNodeMapper;
 import jakarta.annotation.Resource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

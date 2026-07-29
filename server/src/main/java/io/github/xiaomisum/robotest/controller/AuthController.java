@@ -1,8 +1,8 @@
 package io.github.xiaomisum.robotest.controller;
 
 import io.github.xiaomisum.robotest.framework.security.LoginUser;
-import io.github.xiaomisum.robotest.model.dto.request.LoginReqDTO;
-import io.github.xiaomisum.robotest.model.dto.request.PasswordChangeReqDTO;
+import io.github.xiaomisum.robotest.model.dto.request.admin.LoginReqDTO;
+import io.github.xiaomisum.robotest.model.dto.request.admin.PasswordChangeReqDTO;
 import io.github.xiaomisum.robotest.service.admin.UserService;
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;

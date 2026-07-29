@@ -1,8 +1,8 @@
 package io.github.xiaomisum.robotest.service.project;
 
-import io.github.xiaomisum.robotest.model.dto.request.TestCaseModuleCreateReqDTO;
-import io.github.xiaomisum.robotest.model.dto.request.TestCaseModuleUpdateReqDTO;
-import io.github.xiaomisum.robotest.model.dto.response.TestCaseModuleTreeRespDTO;
+import io.github.xiaomisum.robotest.model.dto.request.tcase.TestCaseModuleCreateReqDTO;
+import io.github.xiaomisum.robotest.model.dto.request.tcase.TestCaseModuleUpdateReqDTO;
+import io.github.xiaomisum.robotest.model.dto.response.tcase.TestCaseModuleTreeRespDTO;
 
 import java.util.List;
 import java.util.UUID;

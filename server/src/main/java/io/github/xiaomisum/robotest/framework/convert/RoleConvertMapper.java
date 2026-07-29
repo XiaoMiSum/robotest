@@ -1,6 +1,6 @@
 package io.github.xiaomisum.robotest.framework.convert;
 
-import io.github.xiaomisum.robotest.model.dto.response.RoleRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.admin.RoleRespDTO;
 import io.github.xiaomisum.robotest.model.entity.SysRole;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;

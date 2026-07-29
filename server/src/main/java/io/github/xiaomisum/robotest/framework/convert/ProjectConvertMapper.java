@@ -1,6 +1,6 @@
 package io.github.xiaomisum.robotest.framework.convert;
 
-import io.github.xiaomisum.robotest.model.dto.response.ProjectRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.workspace.ProjectRespDTO;
 import io.github.xiaomisum.robotest.model.entity.Project;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;

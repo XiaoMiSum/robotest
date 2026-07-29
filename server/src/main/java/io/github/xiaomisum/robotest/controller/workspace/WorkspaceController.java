@@ -1,8 +1,8 @@
 package io.github.xiaomisum.robotest.controller.workspace;
 
 import io.github.xiaomisum.robotest.framework.security.LoginUser;
-import io.github.xiaomisum.robotest.model.dto.request.WorkspaceActiveSetReqDTO;
-import io.github.xiaomisum.robotest.model.dto.response.WorkspaceMyRespDTO;
+import io.github.xiaomisum.robotest.model.dto.request.workspace.WorkspaceActiveSetReqDTO;
+import io.github.xiaomisum.robotest.model.dto.response.workspace.WorkspaceMyRespDTO;
 import io.github.xiaomisum.robotest.service.admin.MyWorkspaceService;
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
