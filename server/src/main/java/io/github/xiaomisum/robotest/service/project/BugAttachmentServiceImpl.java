@@ -19,8 +19,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
-import xyz.migoo.framework.mybatis.core.LambdaQueryWrapperX;
-
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -89,10 +87,7 @@ public class BugAttachmentServiceImpl implements BugAttachmentService {
 
     @Override
     public List<BugAttachmentRespDTO> getAttachments(UUID bugId) {
-        List<BugAttachment> attachments = bugAttachmentMapper.selectList(
-                new LambdaQueryWrapperX<BugAttachment>()
-                        .eq(BugAttachment::getBugId, bugId)
-                        .orderByDesc(BugAttachment::getCreatedAt));
+        List<BugAttachment> attachments = bugAttachmentMapper.listByBugId(bugId);
         return attachments.stream().map(this::toRespDTO).collect(Collectors.toList());
     }
 

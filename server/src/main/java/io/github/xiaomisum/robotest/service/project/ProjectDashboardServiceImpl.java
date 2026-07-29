@@ -88,8 +88,7 @@ public class ProjectDashboardServiceImpl implements ProjectDashboardService {
                 .map(UUID::toString)
                 .collect(Collectors.toSet());
         if (!assigneeIds.isEmpty()) {
-            Map<String, String> nameMap = userMapper.selectList(
-                    new LambdaQueryWrapperX<SysUser>().in(SysUser::getId, assigneeIds.stream().map(UUID::fromString).collect(Collectors.toList())))
+            Map<String, String> nameMap = userMapper.listByIds(assigneeIds.stream().map(UUID::fromString).collect(Collectors.toList()))
                     .stream()
                     .collect(Collectors.toMap(
                             u -> u.getId().toString(),

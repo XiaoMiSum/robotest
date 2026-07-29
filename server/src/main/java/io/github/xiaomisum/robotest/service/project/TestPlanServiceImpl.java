@@ -319,9 +319,7 @@ public class TestPlanServiceImpl implements TestPlanService {
         boolean removed = true;
         while (removed) {
             removed = false;
-            List<TestPlanModuleSnapshot> all = planModuleSnapshotMapper.selectList(
-                    new LambdaQueryWrapperX<TestPlanModuleSnapshot>()
-                            .eq(TestPlanModuleSnapshot::getPlanId, planId));
+            List<TestPlanModuleSnapshot> all = planModuleSnapshotMapper.listByPlanId(planId);
             Set<UUID> referencedParents = all.stream()
                     .map(TestPlanModuleSnapshot::getParentId)
                     .filter(Objects::nonNull)
@@ -346,9 +344,7 @@ public class TestPlanServiceImpl implements TestPlanService {
                 .filter(s -> s.getOriginalNodeId() != null)
                 .collect(Collectors.toMap(TestPlanNodeSnapshot::getOriginalNodeId, s -> s, (a, b) -> a));
 
-        Map<UUID, TestCaseNode> currentById = testCaseNodeMapper.selectList(
-                new LambdaQueryWrapperX<TestCaseNode>()
-                        .eq(TestCaseNode::getDocumentId, docSnap.getOriginalModuleId()))
+        Map<UUID, TestCaseNode> currentById = testCaseNodeMapper.listByDocumentId(docSnap.getOriginalModuleId())
                 .stream()
                 .collect(Collectors.toMap(TestCaseNode::getId, n -> n));
 
@@ -497,14 +493,10 @@ public class TestPlanServiceImpl implements TestPlanService {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_PLAN_FINISHED);
         }
 
-        List<TestPlanNodeSnapshot> snapshotNodes = planNodeSnapshotMapper.selectList(
-                new LambdaQueryWrapperX<TestPlanNodeSnapshot>()
-                        .eq(TestPlanNodeSnapshot::getPlanId, planId));
+        List<TestPlanNodeSnapshot> snapshotNodes = planNodeSnapshotMapper.listByPlanId(planId);
 
         // 1. 同步模块快照：名称、排序与原始模块保持一致；已删除的模块移除快照
-        List<TestPlanModuleSnapshot> snapshotModules = planModuleSnapshotMapper.selectList(
-                new LambdaQueryWrapperX<TestPlanModuleSnapshot>()
-                        .eq(TestPlanModuleSnapshot::getPlanId, planId));
+        List<TestPlanModuleSnapshot> snapshotModules = planModuleSnapshotMapper.listByPlanId(planId);
 
         Set<UUID> validModuleSnapshotIds = new HashSet<>();
         for (TestPlanModuleSnapshot moduleSnap : snapshotModules) {
@@ -658,10 +650,8 @@ public class TestPlanServiceImpl implements TestPlanService {
         // 无物理外键，需显式级联删除快照与执行记录
         planExecutionRecordMapper.delete(new LambdaQueryWrapperX<TestPlanExecutionRecord>()
                 .eq(TestPlanExecutionRecord::getPlanId, planId));
-        planNodeSnapshotMapper.delete(new LambdaQueryWrapperX<TestPlanNodeSnapshot>()
-                .eq(TestPlanNodeSnapshot::getPlanId, planId));
-        planModuleSnapshotMapper.delete(new LambdaQueryWrapperX<TestPlanModuleSnapshot>()
-                .eq(TestPlanModuleSnapshot::getPlanId, planId));
+        planNodeSnapshotMapper.deleteByPlanId(planId);
+        planModuleSnapshotMapper.deleteByPlanId(planId);
         testPlanMapper.deleteById(planId);
     }
 
@@ -671,9 +661,7 @@ public class TestPlanServiceImpl implements TestPlanService {
             docCaseMap.put(sn.getDocumentId(), new HashSet<>(sn.getCaseIds()));
         }
 
-        Set<UUID> copiedModuleIds = planModuleSnapshotMapper.selectList(
-                new LambdaQueryWrapperX<TestPlanModuleSnapshot>()
-                        .eq(TestPlanModuleSnapshot::getPlanId, planId))
+        Set<UUID> copiedModuleIds = planModuleSnapshotMapper.listByPlanId(planId)
                 .stream()
                 .map(TestPlanModuleSnapshot::getOriginalModuleId)
                 .filter(Objects::nonNull)
@@ -703,9 +691,7 @@ public class TestPlanServiceImpl implements TestPlanService {
                 planModuleSnapshotMapper.insert(snapshot);
             }
 
-            List<TestCaseNode> docNodes = testCaseNodeMapper.selectList(
-                    new LambdaQueryWrapperX<TestCaseNode>()
-                            .eq(TestCaseNode::getDocumentId, documentId));
+            List<TestCaseNode> docNodes = testCaseNodeMapper.listByDocumentId(documentId);
 
             UUID snapshotDocId = findSnapshotModuleId(documentId, planId);
             Set<UUID> caseIds = entry.getValue();

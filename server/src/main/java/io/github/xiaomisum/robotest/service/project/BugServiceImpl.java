@@ -1,7 +1,5 @@
 package io.github.xiaomisum.robotest.service.project;
 
-import xyz.migoo.framework.mybatis.core.LambdaQueryWrapperX;
-import xyz.migoo.framework.mybatis.core.LambdaUpdateWrapperX;
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.model.dto.request.bug.BugCreateReqDTO;
@@ -31,6 +29,8 @@ import org.springframework.util.StringUtils;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
 import xyz.migoo.framework.common.pojo.PageParam;
 import xyz.migoo.framework.common.pojo.PageResult;
+import xyz.migoo.framework.mybatis.core.LambdaQueryWrapperX;
+import xyz.migoo.framework.mybatis.core.LambdaUpdateWrapperX;
 
 import java.time.LocalDateTime;
 import java.util.*;
@@ -90,9 +90,10 @@ public class BugServiceImpl implements BugService {
             wrapper.like(Bug::getTitle, keyword);
         }
         wrapper.orderByDesc(Bug::getCreatedAt);
-
-        PageResult<Bug> page = bugMapper.selectPage(
-                new PageParam() {{ setPageNo(pageNo); setPageSize(pageSize); }}, wrapper);
+        PageResult<Bug> page = bugMapper.selectPage(new PageParam() {{
+            setPageNo(pageNo);
+            setPageSize(pageSize);
+        }}, wrapper);
 
         List<BugListRespDTO> dtos = page.getList().stream().map(bug -> {
             BugListRespDTO dto = new BugListRespDTO();
@@ -190,12 +191,10 @@ public class BugServiceImpl implements BugService {
             }
         }
 
-        // 返回最近 10 条操作日志
-        List<BugLog> recentLogs = bugLogMapper.selectList(
-                new LambdaQueryWrapperX<BugLog>()
-                        .eq(BugLog::getBugId, bugId)
-                        .orderByDesc(BugLog::getCreatedAt)
-                        .last("LIMIT 10"));
+        List<BugLog> recentLogs = bugLogMapper.selectList(new LambdaQueryWrapperX<BugLog>()
+                .eq(BugLog::getBugId, bugId)
+                .orderByDesc(BugLog::getCreatedAt)
+                .last("LIMIT 10"));
         dto.setRecentLogs(recentLogs.stream().map(log -> {
             BugLogRespDTO logDto = new BugLogRespDTO();
             logDto.setId(log.getId());
@@ -343,17 +342,14 @@ public class BugServiceImpl implements BugService {
             }
         }
 
-        // duplicateOfBugId 非 duplicate 方案时须显式写 null；updateById 会忽略 null 字段，故用 wrapper
-        bugMapper.update(null,
-                new LambdaUpdateWrapperX<Bug>()
-                        .eq(Bug::getId, bug.getId())
-                        .set(Bug::getStatus, Constants.BugStatus.RESOLVED)
-                        // 解决即隐含确认：未确认的缺陷解决时自动置为已确认
-                        .set(Bug::getConfirmed, true)
-                        .set(Bug::getResolution, resolution)
-                        .set(Bug::getDuplicateOfBugId, duplicateOfBugId)
-                        .set(Bug::getResolvedBy, userId)
-                        .set(Bug::getResolvedAt, LocalDateTime.now()));
+        bugMapper.update(null, new LambdaUpdateWrapperX<Bug>()
+                .eq(Bug::getId, bug.getId())
+                .set(Bug::getStatus, Constants.BugStatus.RESOLVED)
+                .set(Bug::getConfirmed, true)
+                .set(Bug::getResolution, resolution)
+                .set(Bug::getDuplicateOfBugId, duplicateOfBugId)
+                .set(Bug::getResolvedBy, userId)
+                .set(Bug::getResolvedAt, LocalDateTime.now()));
 
         writeBugLog(bug.getId(), userId, Constants.BugOperation.RESOLVE,
                 String.format("解决缺陷，方案「%s」%s", resolution,
@@ -386,19 +382,17 @@ public class BugServiceImpl implements BugService {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.BUG_REOPEN_COMMENT_REQUIRED);
         }
 
-        // updateById 会忽略 null 字段，清空解决/关闭信息须用 wrapper 显式 set null
-        bugMapper.update(null,
-                new LambdaUpdateWrapperX<Bug>()
-                        .eq(Bug::getId, bug.getId())
-                        .set(Bug::getStatus, Constants.BugStatus.ACTIVE)
-                        .set(Bug::getReopenCount, bug.getReopenCount() == null ? 1 : bug.getReopenCount() + 1)
-                        .set(Bug::getLastReopenedAt, LocalDateTime.now())
-                        .set(Bug::getResolution, null)
-                        .set(Bug::getDuplicateOfBugId, null)
-                        .set(Bug::getResolvedBy, null)
-                        .set(Bug::getResolvedAt, null)
-                        .set(Bug::getClosedBy, null)
-                        .set(Bug::getClosedAt, null));
+        bugMapper.update(null, new LambdaUpdateWrapperX<Bug>()
+                .eq(Bug::getId, bug.getId())
+                .set(Bug::getStatus, Constants.BugStatus.ACTIVE)
+                .set(Bug::getReopenCount, bug.getReopenCount() == null ? 1 : bug.getReopenCount() + 1)
+                .set(Bug::getResolution, null)
+                .set(Bug::getDuplicateOfBugId, null)
+                .set(Bug::getResolvedBy, null)
+                .set(Bug::getResolvedAt, null)
+                .set(Bug::getClosedBy, null)
+                .set(Bug::getClosedAt, null)
+                .set(Bug::getLastReopenedAt, LocalDateTime.now()));
 
         writeBugLog(bug.getId(), userId, Constants.BugOperation.REOPEN, "重开缺陷，说明：" + comment);
     }
@@ -454,8 +448,7 @@ public class BugServiceImpl implements BugService {
 
     @Override
     public BugStatisticsRespDTO getBugStatistics(UUID projectId) {
-        List<Bug> bugs = bugMapper.selectList(
-                new LambdaQueryWrapperX<Bug>().eq(Bug::getProjectId, projectId));
+        List<Bug> bugs = bugMapper.selectList(new LambdaQueryWrapperX<Bug>().eq(Bug::getProjectId, projectId));
 
         BugStatisticsRespDTO stats = new BugStatisticsRespDTO();
         stats.setTotal(bugs.size());
@@ -485,10 +478,9 @@ public class BugServiceImpl implements BugService {
         if (project == null) {
             return;
         }
-        WorkspaceUser wu = workspaceUserMapper.selectOne(
-                new LambdaQueryWrapperX<WorkspaceUser>()
-                        .eq(WorkspaceUser::getUserId, assigneeId)
-                        .eq(WorkspaceUser::getWorkspaceId, project.getWorkspaceId()));
+        WorkspaceUser wu = workspaceUserMapper.selectOne(new LambdaQueryWrapperX<WorkspaceUser>()
+                .eq(WorkspaceUser::getWorkspaceId, project.getWorkspaceId())
+                .eq(WorkspaceUser::getUserId, assigneeId));
         if (wu == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.BUG_ASSIGNEE_NOT_IN_WORKSPACE);
         }
@@ -537,10 +529,8 @@ public class BugServiceImpl implements BugService {
 
     @Override
     public List<BugLogRespDTO> getBugLogs(UUID bugId) {
-        List<BugLog> logs = bugLogMapper.selectList(
-                new LambdaQueryWrapperX<BugLog>()
-                        .eq(BugLog::getBugId, bugId)
-                        .orderByAsc(BugLog::getCreatedAt));
+        List<BugLog> logs = bugLogMapper.selectList(new LambdaQueryWrapperX<BugLog>()
+                .eq(BugLog::getBugId, bugId));
 
         return logs.stream().map(log -> {
             BugLogRespDTO dto = new BugLogRespDTO();

@@ -52,9 +52,7 @@ public class RoleServiceImpl implements RoleService {
 
     @Override
     public List<RoleSimpleRespDTO> getRoleList(String type) {
-        List<SysRole> roles = roleMapper.selectList(new LambdaQueryWrapperX<SysRole>()
-                .eqIfPresent(SysRole::getType, type)
-                .orderByAsc(SysRole::getType, SysRole::getName));
+        List<SysRole> roles = roleMapper.selectList(SysRole::getType, type);
 
         return roles.stream().map(role -> {
             RoleSimpleRespDTO node = new RoleSimpleRespDTO();
@@ -71,11 +69,9 @@ public class RoleServiceImpl implements RoleService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public String createRole(RoleCreateReqDTO reqDTO) {
-        // 鏍￠獙鍚嶇О鍞竴
         if (roleMapper.selectOne(SysRole::getName, reqDTO.getName()) != null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.ROLE_NAME_EXISTS);
         }
-        // 校验类型
         if (!Constants.RoleType.SYSTEM.equals(reqDTO.getType())
                 && !Constants.RoleType.WORKSPACE.equals(reqDTO.getType())) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.ROLE_TYPE_ERROR);
@@ -96,7 +92,6 @@ public class RoleServiceImpl implements RoleService {
         if (role == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.ROLE_NOT_FOUND);
         }
-        // 鏍￠獙鍚嶇О鍞竴锛堟帓闄よ嚜韬級
         SysRole existing = roleMapper.selectOne(SysRole::getName, reqDTO.getName());
         if (existing != null && !existing.getId().equals(id)) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.ROLE_NAME_EXISTS);
@@ -120,9 +115,7 @@ public class RoleServiceImpl implements RoleService {
         if (Boolean.TRUE.equals(role.getIsSystem())) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.SYSTEM_ROLE_NOT_DELETABLE);
         }
-        // 妫€鏌ユ槸鍚︽湁鐢ㄦ埛寮曠敤
-        Long userCount = userRoleMapper.selectCount(
-                new LambdaQueryWrapperX<SysUserRole>().eq(SysUserRole::getRoleId, id));
+        long userCount = userRoleMapper.selectCount(SysUserRole::getRoleId, id);
         if (userCount > 0) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.ROLE_IN_USE);
         }
@@ -147,37 +140,27 @@ public class RoleServiceImpl implements RoleService {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.ROLE_NOT_FOUND);
         }
 
-        // 查询所有拥有该空间角色的 workspace_user 记录
-        List<WorkspaceUser> workspaceUsers = workspaceUserMapper.selectList(
-                new LambdaQueryWrapperX<WorkspaceUser>()
-                        .eq(WorkspaceUser::getWorkspaceRole, roleId));
-
+        List<WorkspaceUser> workspaceUsers = workspaceUserMapper.selectList(WorkspaceUser::getWorkspaceRole, roleId);
         if (workspaceUsers.isEmpty()) {
             return List.of();
         }
 
-        // 按 userId 分组
         Map<UUID, List<WorkspaceUser>> grouped = workspaceUsers.stream()
                 .collect(Collectors.groupingBy(WorkspaceUser::getUserId));
 
-        // 批量查询用户信息
         List<UUID> userIds = new ArrayList<>(grouped.keySet());
-        List<SysUser> users = userMapper.selectList(
-                new LambdaQueryWrapperX<SysUser>().in(SysUser::getId, userIds));
+        List<SysUser> users = userMapper.listByIds(userIds);
         Map<UUID, SysUser> userMap = users.stream()
                 .collect(Collectors.toMap(SysUser::getId, u -> u));
 
-        // 批量查询空间信息
         List<UUID> workspaceIds = workspaceUsers.stream()
                 .map(WorkspaceUser::getWorkspaceId)
                 .distinct()
                 .collect(Collectors.toList());
-        List<Workspace> workspaces = workspaceMapper.selectList(
-                new LambdaQueryWrapperX<Workspace>().in(Workspace::getId, workspaceIds));
+        List<Workspace> workspaces = workspaceMapper.listByIds(workspaceIds);
         Map<UUID, String> workspaceNameMap = workspaces.stream()
                 .collect(Collectors.toMap(Workspace::getId, Workspace::getName));
 
-        // 组装结果
         return grouped.entrySet().stream().map(entry -> {
             UUID userId = entry.getKey();
             List<WorkspaceUser> wuList = entry.getValue();
@@ -205,11 +188,7 @@ public class RoleServiceImpl implements RoleService {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.ROLE_NOT_FOUND);
         }
         for (UUID userId : userIds) {
-            // 璺宠繃宸插瓨鍦ㄧ殑
-            Long count = userRoleMapper.selectCount(new LambdaQueryWrapperX<SysUserRole>()
-                    .eq(SysUserRole::getUserId, userId)
-                    .eq(SysUserRole::getRoleId, id));
-            if (count > 0) continue;
+            if (userRoleMapper.selectOne(SysUserRole::getUserId, userId, SysUserRole::getRoleId, id) != null) continue;
 
             SysUserRole userRole = new SysUserRole();
             userRole.setUserId(userId);
@@ -228,12 +207,10 @@ public class RoleServiceImpl implements RoleService {
         }
         for (UUID userId : userIds) {
             for (UUID workspaceId : workspaceIds) {
-                // 跳过已存在的记录
-                Long count = workspaceUserMapper.selectCount(new LambdaQueryWrapperX<WorkspaceUser>()
+                if (workspaceUserMapper.selectCount(new LambdaQueryWrapperX<WorkspaceUser>()
                         .eq(WorkspaceUser::getUserId, userId)
                         .eq(WorkspaceUser::getWorkspaceId, workspaceId)
-                        .eq(WorkspaceUser::getWorkspaceRole, roleId));
-                if (count > 0) continue;
+                        .eq(WorkspaceUser::getWorkspaceRole, roleId)) > 0) continue;
 
                 WorkspaceUser workspaceUser = new WorkspaceUser();
                 workspaceUser.setUserId(userId);
@@ -270,7 +247,6 @@ public class RoleServiceImpl implements RoleService {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.SYSTEM_ROLE_PERMISSION_NOT_MODIFIABLE);
         }
         role.setPermissions(reqDTO.getPermissions());
-        // 更新载体只携带本次变更字段，避免全列覆盖导致并发丢失更新
         SysRole update = new SysRole();
         update.setId(id);
         update.setPermissions(reqDTO.getPermissions());
@@ -308,15 +284,13 @@ public class RoleServiceImpl implements RoleService {
 
     @Override
     public List<String> getUserPermissionCodes(UUID userId) {
-        List<SysUserRole> userRoles = userRoleMapper.selectList(
-                new LambdaQueryWrapperX<SysUserRole>().eq(SysUserRole::getUserId, userId));
+        List<SysUserRole> userRoles = userRoleMapper.listByUserId(userId);
         if (userRoles.isEmpty()) {
             return new ArrayList<>();
         }
 
         List<UUID> roleIds = userRoles.stream().map(SysUserRole::getRoleId).collect(Collectors.toList());
-        List<SysRole> roles = roleMapper.selectList(
-                new LambdaQueryWrapperX<SysRole>().in(SysRole::getId, roleIds));
+        List<SysRole> roles = roleMapper.listByIds(roleIds);
 
         return roles.stream()
                 .flatMap(role -> {

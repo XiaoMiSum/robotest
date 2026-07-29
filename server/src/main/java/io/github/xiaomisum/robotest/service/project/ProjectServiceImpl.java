@@ -61,10 +61,7 @@ public class ProjectServiceImpl implements ProjectService {
                     setPageSize(pageSize);
                 }}, wrapper);
 
-        WorkspaceUser currentUser = workspaceUserMapper.selectOne(
-                new LambdaQueryWrapperX<WorkspaceUser>()
-                        .eq(WorkspaceUser::getUserId, userId)
-                        .eq(WorkspaceUser::getWorkspaceId, workspaceId));
+        WorkspaceUser currentUser = workspaceUserMapper.findByWorkspaceIdAndUserId(workspaceId, userId);
 
         List<ProjectRespDTO> records = page.getList().stream()
                 .map(p -> {
@@ -99,10 +96,7 @@ public class ProjectServiceImpl implements ProjectService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public ProjectRespDTO createProject(UUID userId, UUID workspaceId, ProjectCreateReqDTO reqDTO) {
-        WorkspaceUser workspaceUser = workspaceUserMapper.selectOne(
-                new LambdaQueryWrapperX<WorkspaceUser>()
-                        .eq(WorkspaceUser::getUserId, userId)
-                        .eq(WorkspaceUser::getWorkspaceId, workspaceId));
+        WorkspaceUser workspaceUser = workspaceUserMapper.findByWorkspaceIdAndUserId(workspaceId, userId);
         if (workspaceUser == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.NO_PERMISSION);
         }
@@ -151,10 +145,7 @@ public class ProjectServiceImpl implements ProjectService {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.PROJECT_ARCHIVED);
         }
 
-        WorkspaceUser workspaceUser = workspaceUserMapper.selectOne(
-                new LambdaQueryWrapperX<WorkspaceUser>()
-                        .eq(WorkspaceUser::getUserId, userId)
-                        .eq(WorkspaceUser::getWorkspaceId, workspaceId));
+        WorkspaceUser workspaceUser = workspaceUserMapper.findByWorkspaceIdAndUserId(workspaceId, userId);
         if (workspaceUser == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.NO_PERMISSION);
         }
@@ -211,10 +202,7 @@ public class ProjectServiceImpl implements ProjectService {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.PROJECT_NOT_FOUND);
         }
 
-        WorkspaceUser workspaceUser = workspaceUserMapper.selectOne(
-                new LambdaQueryWrapperX<WorkspaceUser>()
-                        .eq(WorkspaceUser::getUserId, userId)
-                        .eq(WorkspaceUser::getWorkspaceId, workspaceId));
+        WorkspaceUser workspaceUser = workspaceUserMapper.findByWorkspaceIdAndUserId(workspaceId, userId);
         if (workspaceUser == null || !Constants.WorkspaceRole.ADMIN_ID.equals(workspaceUser.getWorkspaceRole())) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.NO_PERMISSION);
         }
@@ -253,10 +241,7 @@ public class ProjectServiceImpl implements ProjectService {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.PROJECT_NOT_FOUND);
         }
 
-        WorkspaceUser workspaceUser = workspaceUserMapper.selectOne(
-                new LambdaQueryWrapperX<WorkspaceUser>()
-                        .eq(WorkspaceUser::getUserId, userId)
-                        .eq(WorkspaceUser::getWorkspaceId, workspaceId));
+        WorkspaceUser workspaceUser = workspaceUserMapper.findByWorkspaceIdAndUserId(workspaceId, userId);
         if (workspaceUser == null || !Constants.WorkspaceRole.ADMIN_ID.equals(workspaceUser.getWorkspaceRole())) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.NO_PERMISSION);
         }

@@ -1,14 +1,14 @@
 package io.github.xiaomisum.robotest.service.project;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import io.github.xiaomisum.robotest.model.dto.request.TestPlanCasesUpdateReqDTO;
-import io.github.xiaomisum.robotest.model.dto.request.TestPlanCreateReqDTO;
-import io.github.xiaomisum.robotest.model.dto.request.TestPlanRecordReqDTO;
-import io.github.xiaomisum.robotest.model.dto.response.PlannedCasesRespDTO;
-import io.github.xiaomisum.robotest.model.dto.response.TestPlanDetailRespDTO;
-import io.github.xiaomisum.robotest.model.dto.response.TestPlanExecutionRecordRespDTO;
-import io.github.xiaomisum.robotest.model.dto.response.TestPlanListRespDTO;
-import io.github.xiaomisum.robotest.model.dto.response.TestPlanSnapshotNodeRespDTO;
+import io.github.xiaomisum.robotest.model.dto.request.plan.TestPlanCasesUpdateReqDTO;
+import io.github.xiaomisum.robotest.model.dto.request.plan.TestPlanCreateReqDTO;
+import io.github.xiaomisum.robotest.model.dto.request.plan.TestPlanRecordReqDTO;
+import io.github.xiaomisum.robotest.model.dto.response.plan.PlannedCasesRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.plan.TestPlanDetailRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.plan.TestPlanExecutionRecordRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.plan.TestPlanListRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.plan.TestPlanSnapshotNodeRespDTO;
 import io.github.xiaomisum.robotest.model.entity.*;
 import io.github.xiaomisum.robotest.repository.plan.TestPlanMapper;
 import io.github.xiaomisum.robotest.repository.plan.TestPlanModuleSnapshotMapper;
@@ -29,7 +29,7 @@ import xyz.migoo.framework.common.pojo.PageParam;
 import xyz.migoo.framework.common.pojo.PageResult;
 
 import io.github.xiaomisum.robotest.framework.common.Constants;
-import io.github.xiaomisum.robotest.model.dto.response.TestPlanProgressRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.plan.TestPlanProgressRespDTO;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
