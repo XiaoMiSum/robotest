@@ -14,6 +14,7 @@ import type {
 } from '@/types'
 import { BUG_TYPE_LABEL } from '@/utils/bugStatus'
 import CaseSelector from '@/components/project/CaseSelector.vue'
+import MarkdownEditor from '@/components/common/MarkdownEditor.vue'
 
 const router = useRouter()
 const formRef = ref<FormInstance>()
@@ -180,7 +181,7 @@ async function handleSubmit() {
           <el-input v-model="form.keywords" placeholder="多个关键词用空格分隔（可选）" maxlength="255" />
         </el-form-item>
         <el-form-item label="重现步骤">
-          <el-input v-model="form.reproSteps" type="textarea" :rows="6" placeholder="重现步骤（支持 Markdown，可选）" />
+          <MarkdownEditor v-model="form.reproSteps" placeholder="重现步骤（支持 Markdown，可选）" />
         </el-form-item>
         <el-form-item label="指派给">
           <el-select v-model="form.assigneeId" filterable clearable placeholder="选择处理人（可选）" style="width: 240px">

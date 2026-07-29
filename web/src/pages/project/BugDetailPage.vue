@@ -30,6 +30,8 @@ import {
   promptStatusChangeComment,
 } from '@/utils/bugStatus'
 import BugResolveDialog from '@/components/project/BugResolveDialog.vue'
+import MarkdownEditor from '@/components/common/MarkdownEditor.vue'
+import MarkdownView from '@/components/common/MarkdownView.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -320,8 +322,9 @@ onMounted(() => {
           <span v-else class="bug-detail__text">{{ detail.keywords || '-' }}</span>
         </el-form-item>
         <el-form-item label="重现步骤">
-          <el-input v-if="!isClosed" v-model="form.reproSteps" type="textarea" :rows="6" placeholder="重现步骤（支持 Markdown）" />
-          <span v-else class="bug-detail__text bug-detail__pre">{{ detail.reproSteps || '-' }}</span>
+          <MarkdownEditor v-if="!isClosed" v-model="form.reproSteps" placeholder="重现步骤（支持 Markdown）" />
+          <MarkdownView v-else-if="detail.reproSteps" :content="detail.reproSteps" />
+          <span v-else class="bug-detail__text">-</span>
         </el-form-item>
         <el-form-item label="指派给">
           <el-select v-if="!isClosed" v-model="form.assigneeId" filterable style="width: 240px">
@@ -428,10 +431,6 @@ onMounted(() => {
   font-size: var(--font-size-sm);
   color: var(--color-neutral-700);
   line-height: 1.6;
-}
-
-.bug-detail__pre {
-  white-space: pre-wrap;
 }
 
 .bug-detail__logs {
