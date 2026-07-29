@@ -1,7 +1,7 @@
 # 工程规范 — 前端
 
-**文档版本**：V1.0
-**日期**：2026-07-06
+**文档版本**：V1.1
+**日期**：2026-07-29
 **状态**：已发布
 
 ---
@@ -258,6 +258,29 @@ export function createUser(data: CreateUserDto): Promise<UserInfo> {
 - 禁止使用 `!important`。
 - 颜色、字体、间距使用 CSS 变量或 SCSS 变量，禁止硬编码。
 - BEM 命名：`.block__element--modifier`。
+
+---
+
+## 8. 时间处理规范
+
+**约定**：后端返回给前端的时间均为 **UTC+0** 时间，且序列化为 ISO-8601 **无时区标识**字符串（如 `2026-07-29T02:00:00`，实为 UTC 墙钟时间）；前端负责按用户浏览器本地时区转换后展示。
+
+**规则**：
+
+- 展示后端时间字段**必须**使用 `utils/format.ts` 中的 `formatDateTime` / `formatDate`，其内部会将无时区标识的字符串按 UTC 解析（补 `Z` 后缀），再按本地时区输出。
+- **禁止**在页面/组件中直接 `new Date(后端时间字符串)` —— JS 会将无时区标识的字符串误解析为本地时间，导致显示偏差。
+- **禁止**直接插值显示后端时间戳字符串（未经过格式化函数）。
+- 纯日期字段（如 `dueDate`，格式 `YYYY-MM-DD`）表示日历日期而非时刻，**不做**时区转换，直接展示。
+- 前端提交给后端的完整时间应转换为 UTC；日期选择器的纯日期值（`value-format="YYYY-MM-DD"`）原样提交。
+
+```typescript
+// ❌ 错误：无时区标识字符串被误当作本地时间
+const d = new Date(row.createdAt)
+
+// ✅ 正确：统一走格式化工具，自动完成 UTC → 本地时区转换
+import { formatDateTime } from '@/utils/format'
+formatDateTime(row.createdAt) // => 'YYYY-MM-DD HH:mm'（本地时区）
+```
 
 ---
 

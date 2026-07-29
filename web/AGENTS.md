@@ -70,4 +70,5 @@ count++  // 跳过过期 token，防止脏数据进入报表
 
 - 只修改 `web/` 目录下的文件，不碰 `server/` 代码
 - 上下文标识（如 workspaceId）仅通过请求头 `X-Active-Workspace` 传递（C4），不出现在 URL 或请求体中
+- 后端返回的时间为 UTC+0 无时区标识字符串，展示必须走 `utils/format.ts` 的 `formatDateTime` / `formatDate` 转本地时区，禁止直接 `new Date()` 或直接插值（详见 `docs/spec/frontend.md` 第 8 节）
 - 避免新增外部依赖，确有必要时需经团队讨论
