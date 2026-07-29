@@ -4,7 +4,7 @@ import type { BugResolution, BugStatus, BugType } from '@/types'
 /** 缺陷状态标签 */
 export const BUG_STATUS_LABEL: Record<BugStatus, string> = {
   active: '激活',
-  resolved: '已解决',
+  resolved: '已修复',
   closed: '已关闭',
 }
 
@@ -21,9 +21,9 @@ export const BUG_TYPE_LABEL: Record<BugType, string> = {
   other: '其他',
 }
 
-/** 缺陷解决方案标签 */
+/** 缺陷解决方案标签（名词式措辞，避免与状态标签「已解决」同屏时误读为两个状态） */
 export const BUG_RESOLUTION_LABEL: Record<BugResolution, string> = {
-  fixed: '已修复',
+  fixed: '已解决',
   by_design: '设计如此',
   duplicate: '重复缺陷',
   external: '外部原因',
