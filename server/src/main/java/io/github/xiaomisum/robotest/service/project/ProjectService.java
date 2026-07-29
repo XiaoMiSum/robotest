@@ -1,9 +1,9 @@
 package io.github.xiaomisum.robotest.service.project;
 
-import io.github.xiaomisum.robotest.model.dto.request.ProjectArchiveReqDTO;
-import io.github.xiaomisum.robotest.model.dto.request.ProjectCreateReqDTO;
-import io.github.xiaomisum.robotest.model.dto.request.ProjectUpdateReqDTO;
-import io.github.xiaomisum.robotest.model.dto.response.ProjectRespDTO;
+import io.github.xiaomisum.robotest.model.dto.request.workspace.ProjectArchiveReqDTO;
+import io.github.xiaomisum.robotest.model.dto.request.workspace.ProjectCreateReqDTO;
+import io.github.xiaomisum.robotest.model.dto.request.workspace.ProjectUpdateReqDTO;
+import io.github.xiaomisum.robotest.model.dto.response.workspace.ProjectRespDTO;
 import xyz.migoo.framework.common.pojo.PageResult;
 
 import java.util.UUID;

@@ -1,10 +1,10 @@
 package io.github.xiaomisum.robotest.controller.workspace;
 
 import io.github.xiaomisum.robotest.framework.security.LoginUser;
-import io.github.xiaomisum.robotest.model.dto.request.WorkspaceMembersAddReqDTO;
-import io.github.xiaomisum.robotest.model.dto.request.WorkspaceMemberRoleUpdateReqDTO;
-import io.github.xiaomisum.robotest.model.dto.response.WorkspaceMemberAddResultRespDTO;
-import io.github.xiaomisum.robotest.model.dto.response.WorkspaceMemberRespDTO;
+import io.github.xiaomisum.robotest.model.dto.request.workspace.WorkspaceMembersAddReqDTO;
+import io.github.xiaomisum.robotest.model.dto.request.workspace.WorkspaceMemberRoleUpdateReqDTO;
+import io.github.xiaomisum.robotest.model.dto.response.workspace.WorkspaceMemberAddResultRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.workspace.WorkspaceMemberRespDTO;
 import io.github.xiaomisum.robotest.service.workspace.WorkspaceMemberService;
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;

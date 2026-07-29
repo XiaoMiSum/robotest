@@ -1,10 +1,10 @@
 package io.github.xiaomisum.robotest.controller.project;
 
 import io.github.xiaomisum.robotest.framework.security.LoginUser;
-import io.github.xiaomisum.robotest.model.dto.request.TestCaseNodeUpdateReqDTO;
-import io.github.xiaomisum.robotest.model.dto.response.TestCaseCaseListRespDTO;
-import io.github.xiaomisum.robotest.model.dto.response.TestCaseDocumentNodesRespDTO;
-import io.github.xiaomisum.robotest.model.dto.response.TestCaseNodeTreeRespDTO;
+import io.github.xiaomisum.robotest.model.dto.request.tcase.TestCaseNodeUpdateReqDTO;
+import io.github.xiaomisum.robotest.model.dto.response.tcase.TestCaseCaseListRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.tcase.TestCaseDocumentNodesRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.tcase.TestCaseNodeTreeRespDTO;
 import io.github.xiaomisum.robotest.service.project.TestCaseNodeService;
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;

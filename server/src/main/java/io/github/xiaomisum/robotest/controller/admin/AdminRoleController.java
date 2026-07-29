@@ -1,10 +1,14 @@
 package io.github.xiaomisum.robotest.controller.admin;
 
-import io.github.xiaomisum.robotest.model.dto.request.*;
-import io.github.xiaomisum.robotest.model.dto.response.PermissionTableRespDTO;
-import io.github.xiaomisum.robotest.model.dto.response.RoleRespDTO;
-import io.github.xiaomisum.robotest.model.dto.response.RoleSimpleRespDTO;
-import io.github.xiaomisum.robotest.model.dto.response.RoleWorkspaceUserRespDTO;
+import io.github.xiaomisum.robotest.model.dto.request.admin.RoleCreateReqDTO;
+import io.github.xiaomisum.robotest.model.dto.request.admin.RoleUpdateReqDTO;
+import io.github.xiaomisum.robotest.model.dto.request.admin.RoleUsersAddReqDTO;
+import io.github.xiaomisum.robotest.model.dto.request.admin.RolePermissionsUpdateReqDTO;
+import io.github.xiaomisum.robotest.model.dto.request.workspace.WorkspaceRoleUsersAddReqDTO;
+import io.github.xiaomisum.robotest.model.dto.response.admin.PermissionTableRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.admin.RoleRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.admin.RoleSimpleRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.admin.RoleWorkspaceUserRespDTO;
 import io.github.xiaomisum.robotest.service.admin.RoleService;
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;

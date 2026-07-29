@@ -1,7 +1,7 @@
 package io.github.xiaomisum.robotest.controller.project;
 
 import io.github.xiaomisum.robotest.framework.security.LoginUser;
-import io.github.xiaomisum.robotest.model.dto.response.ProjectDashboardRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.workspace.ProjectDashboardRespDTO;
 import io.github.xiaomisum.robotest.service.project.ProjectDashboardService;
 import jakarta.annotation.Resource;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;

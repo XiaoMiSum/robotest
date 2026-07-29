@@ -1,7 +1,7 @@
 package io.github.xiaomisum.robotest.service.project;
 
-import io.github.xiaomisum.robotest.model.dto.response.BugAttachmentDownloadDTO;
-import io.github.xiaomisum.robotest.model.dto.response.BugAttachmentRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.bug.BugAttachmentDownloadDTO;
+import io.github.xiaomisum.robotest.model.dto.response.bug.BugAttachmentRespDTO;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;

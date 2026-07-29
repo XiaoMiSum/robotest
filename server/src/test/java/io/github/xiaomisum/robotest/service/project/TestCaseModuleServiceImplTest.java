@@ -9,8 +9,8 @@ import io.github.xiaomisum.robotest.model.dto.request.TestCaseModuleUpdateReqDTO
 import io.github.xiaomisum.robotest.model.dto.response.TestCaseModuleTreeRespDTO;
 import io.github.xiaomisum.robotest.model.entity.TestCaseModule;
 import io.github.xiaomisum.robotest.model.entity.TestCaseNode;
-import io.github.xiaomisum.robotest.repository.TestCaseModuleMapper;
-import io.github.xiaomisum.robotest.repository.TestCaseNodeMapper;
+import io.github.xiaomisum.robotest.repository.tcase.TestCaseModuleMapper;
+import io.github.xiaomisum.robotest.repository.tcase.TestCaseNodeMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

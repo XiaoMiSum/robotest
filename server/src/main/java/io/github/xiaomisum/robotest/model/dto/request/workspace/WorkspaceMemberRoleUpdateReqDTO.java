@@ -1,0 +1,14 @@
+package io.github.xiaomisum.robotest.model.dto.request.workspace;
+
+import jakarta.validation.constraints.NotNull;
+import lombok.Data;
+
+import java.util.UUID;
+
+@Data
+public class WorkspaceMemberRoleUpdateReqDTO {
+
+    @NotNull(message = "工作空间角色不能为空")
+    private UUID workspaceRole;
+}
+

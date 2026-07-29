@@ -1,7 +1,7 @@
 package io.github.xiaomisum.robotest.service.admin;
 
 import io.github.xiaomisum.robotest.model.entity.SysUser;
-import io.github.xiaomisum.robotest.repository.SysUserMapper;
+import io.github.xiaomisum.robotest.repository.admin.SysUserMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

@@ -1,8 +1,8 @@
 package io.github.xiaomisum.robotest.service.workspace;
 
-import io.github.xiaomisum.robotest.model.dto.request.WorkspaceDefaultProjectReqDTO;
-import io.github.xiaomisum.robotest.model.dto.request.WorkspaceUpdateReqDTO;
-import io.github.xiaomisum.robotest.model.dto.response.WorkspaceContextRespDTO;
+import io.github.xiaomisum.robotest.model.dto.request.workspace.WorkspaceDefaultProjectReqDTO;
+import io.github.xiaomisum.robotest.model.dto.request.workspace.WorkspaceUpdateReqDTO;
+import io.github.xiaomisum.robotest.model.dto.response.workspace.WorkspaceContextRespDTO;
 
 import java.util.UUID;
 

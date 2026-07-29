@@ -1,8 +1,8 @@
 package io.github.xiaomisum.robotest.service.workspace;
 
-import io.github.xiaomisum.robotest.model.dto.request.WorkspaceMembersAddReqDTO;
-import io.github.xiaomisum.robotest.model.dto.response.WorkspaceMemberAddResultRespDTO;
-import io.github.xiaomisum.robotest.model.dto.response.WorkspaceMemberRespDTO;
+import io.github.xiaomisum.robotest.model.dto.request.workspace.WorkspaceMembersAddReqDTO;
+import io.github.xiaomisum.robotest.model.dto.response.workspace.WorkspaceMemberAddResultRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.workspace.WorkspaceMemberRespDTO;
 import xyz.migoo.framework.common.pojo.PageResult;
 
 import java.util.UUID;

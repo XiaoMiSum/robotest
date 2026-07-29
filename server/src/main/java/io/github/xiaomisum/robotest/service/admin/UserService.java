@@ -1,11 +1,11 @@
 package io.github.xiaomisum.robotest.service.admin;
 
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
-import io.github.xiaomisum.robotest.model.dto.request.UserBatchStatusReqDTO;
-import io.github.xiaomisum.robotest.model.dto.request.UserCreateReqDTO;
-import io.github.xiaomisum.robotest.model.dto.request.UserUpdateReqDTO;
-import io.github.xiaomisum.robotest.model.dto.response.UserRespDTO;
-import io.github.xiaomisum.robotest.model.dto.response.UserSimpleRespDTO;
+import io.github.xiaomisum.robotest.model.dto.request.admin.UserBatchStatusReqDTO;
+import io.github.xiaomisum.robotest.model.dto.request.admin.UserCreateReqDTO;
+import io.github.xiaomisum.robotest.model.dto.request.admin.UserUpdateReqDTO;
+import io.github.xiaomisum.robotest.model.dto.response.admin.UserRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.admin.UserSimpleRespDTO;
 import io.github.xiaomisum.robotest.model.entity.SysUser;
 import xyz.migoo.framework.common.pojo.PageResult;
 

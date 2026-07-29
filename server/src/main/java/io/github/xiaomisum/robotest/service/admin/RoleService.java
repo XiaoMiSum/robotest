@@ -1,12 +1,12 @@
 package io.github.xiaomisum.robotest.service.admin;
 
-import io.github.xiaomisum.robotest.model.dto.request.RoleCreateReqDTO;
-import io.github.xiaomisum.robotest.model.dto.request.RolePermissionsUpdateReqDTO;
-import io.github.xiaomisum.robotest.model.dto.request.RoleUpdateReqDTO;
-import io.github.xiaomisum.robotest.model.dto.response.PermissionTableRespDTO;
-import io.github.xiaomisum.robotest.model.dto.response.RoleRespDTO;
-import io.github.xiaomisum.robotest.model.dto.response.RoleSimpleRespDTO;
-import io.github.xiaomisum.robotest.model.dto.response.RoleWorkspaceUserRespDTO;
+import io.github.xiaomisum.robotest.model.dto.request.admin.RoleCreateReqDTO;
+import io.github.xiaomisum.robotest.model.dto.request.admin.RolePermissionsUpdateReqDTO;
+import io.github.xiaomisum.robotest.model.dto.request.admin.RoleUpdateReqDTO;
+import io.github.xiaomisum.robotest.model.dto.response.admin.PermissionTableRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.admin.RoleRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.admin.RoleSimpleRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.admin.RoleWorkspaceUserRespDTO;
 
 import java.util.List;
 import java.util.UUID;

@@ -1,12 +1,12 @@
 package io.github.xiaomisum.robotest.service.project;
 
-import io.github.xiaomisum.robotest.model.dto.request.BugCreateReqDTO;
-import io.github.xiaomisum.robotest.model.dto.request.BugStatusChangeReqDTO;
-import io.github.xiaomisum.robotest.model.dto.request.BugUpdateReqDTO;
-import io.github.xiaomisum.robotest.model.dto.response.BugDetailRespDTO;
-import io.github.xiaomisum.robotest.model.dto.response.BugListRespDTO;
-import io.github.xiaomisum.robotest.model.dto.response.BugLogRespDTO;
-import io.github.xiaomisum.robotest.model.dto.response.BugStatisticsRespDTO;
+import io.github.xiaomisum.robotest.model.dto.request.bug.BugCreateReqDTO;
+import io.github.xiaomisum.robotest.model.dto.request.bug.BugStatusChangeReqDTO;
+import io.github.xiaomisum.robotest.model.dto.request.bug.BugUpdateReqDTO;
+import io.github.xiaomisum.robotest.model.dto.response.bug.BugDetailRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.bug.BugListRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.bug.BugLogRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.bug.BugStatisticsRespDTO;
 
 import xyz.migoo.framework.common.pojo.PageResult;
 

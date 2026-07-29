@@ -1,6 +1,6 @@
 package io.github.xiaomisum.robotest.service.admin;
 
-import io.github.xiaomisum.robotest.model.dto.response.WorkspaceMyRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.workspace.WorkspaceMyRespDTO;
 import xyz.migoo.framework.common.pojo.PageResult;
 
 import java.util.UUID;

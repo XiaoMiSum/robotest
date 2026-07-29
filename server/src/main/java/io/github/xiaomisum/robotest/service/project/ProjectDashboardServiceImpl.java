@@ -2,9 +2,15 @@ package io.github.xiaomisum.robotest.service.project;
 
 import xyz.migoo.framework.mybatis.core.LambdaQueryWrapperX;
 import io.github.xiaomisum.robotest.framework.common.Constants;
-import io.github.xiaomisum.robotest.model.dto.response.ProjectDashboardRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.workspace.ProjectDashboardRespDTO;
 import io.github.xiaomisum.robotest.model.entity.*;
-import io.github.xiaomisum.robotest.repository.*;
+import io.github.xiaomisum.robotest.repository.workspace.ProjectMapper;
+import io.github.xiaomisum.robotest.repository.admin.SysUserMapper;
+import io.github.xiaomisum.robotest.repository.bug.BugMapper;
+import io.github.xiaomisum.robotest.repository.plan.TestPlanMapper;
+import io.github.xiaomisum.robotest.repository.tcase.TestCaseModuleMapper;
+import io.github.xiaomisum.robotest.repository.tcase.TestCaseNodeMapper;
+import io.github.xiaomisum.robotest.repository.review.TestReviewMapper;
 import io.github.xiaomisum.robotest.service.project.ProjectDashboardService;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
