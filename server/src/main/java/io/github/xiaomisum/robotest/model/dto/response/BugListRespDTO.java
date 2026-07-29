@@ -2,6 +2,7 @@ package io.github.xiaomisum.robotest.model.dto.response;
 
 import lombok.Data;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -13,6 +14,10 @@ public class BugListRespDTO {
     private String severity;
     private String priority;
     private String status;
+    private String bugType;
+    private Boolean confirmed;
+    private String resolution;
+    private LocalDate dueDate;
     private UserInfo reporter;
     private UserInfo assignee;
     private LocalDateTime createdAt;

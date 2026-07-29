@@ -22,31 +22,42 @@ public final class Constants {
     }
 
     /**
-     * 缺陷状态流转常量
+     * 缺陷状态常量（禅道式三态模型）
      * <p>
-     * 状态机：NEW → ASSIGNED → FIXING → FIXED → VERIFIED → CLOSED
-     * 重开：CLOSED/VERIFIED → FIXING（需填写说明）
+     * 状态机：ACTIVE → RESOLVED → CLOSED，重开：RESOLVED/CLOSED → ACTIVE（需填写说明）
      */
     public interface BugStatus {
-        String NEW = "new";
-        String ASSIGNED = "assigned";
-        String FIXING = "fixing";
-        String FIXED = "fixed";
-        String VERIFIED = "verified";
+        String ACTIVE = "active";
+        String RESOLVED = "resolved";
         String CLOSED = "closed";
     }
 
     /**
-     * 缺陷状态流转合法路径
+     * 缺陷类型（对齐禅道分类，枚举值采用语义化 snake_case）
      */
-    public interface BugTransition {
-        String NEW_TO_ASSIGNED = "new→assigned";
-        String ASSIGNED_TO_FIXING = "assigned→fixing";
-        String FIXING_TO_FIXED = "fixing→fixed";
-        String FIXED_TO_VERIFIED = "fixed→verified";
-        String VERIFIED_TO_CLOSED = "verified→closed";
-        String VERIFIED_TO_FIXING = "verified→fixing";
-        String CLOSED_TO_FIXING = "closed→fixing";
+    public interface BugType {
+        String CODE_ERROR = "code_error";
+        String UI_IMPROVEMENT = "ui_improvement";
+        String DESIGN_DEFECT = "design_defect";
+        String CONFIGURATION = "configuration";
+        String INSTALLATION = "installation";
+        String SECURITY = "security";
+        String PERFORMANCE = "performance";
+        String STANDARD_SPEC = "standard_spec";
+        String OTHER = "other";
+    }
+
+    /**
+     * 缺陷解决方案（解决时必填，duplicate 需指定原始 Bug）
+     */
+    public interface BugResolution {
+        String FIXED = "fixed";
+        String BY_DESIGN = "by_design";
+        String DUPLICATE = "duplicate";
+        String EXTERNAL = "external";
+        String CANNOT_REPRODUCE = "cannot_reproduce";
+        String DEFERRED = "deferred";
+        String WONT_FIX = "wont_fix";
     }
 
     public interface RoleType {
@@ -87,8 +98,12 @@ public final class Constants {
         String CREATE = "create";
         String UPDATE = "update";
         String ASSIGN = "assign";
-        String STATUS_CHANGE = "status_change";
+        String CONFIRM = "confirm";
+        String RESOLVE = "resolve";
+        String CLOSE = "close";
         String REOPEN = "reopen";
+        // 旧六态模型日志类型，保留以兼容历史日志展示
+        String STATUS_CHANGE = "status_change";
         String ATTACHMENT_UPLOAD = "attachment_upload";
         String ATTACHMENT_DELETE = "attachment_delete";
     }

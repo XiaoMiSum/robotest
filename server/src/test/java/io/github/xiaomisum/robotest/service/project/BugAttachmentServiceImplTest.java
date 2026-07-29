@@ -67,7 +67,7 @@ class BugAttachmentServiceImplTest {
     private Bug openBug() {
         Bug bug = new Bug();
         bug.setId(bugId);
-        bug.setStatus(Constants.BugStatus.FIXING);
+        bug.setStatus(Constants.BugStatus.ACTIVE);
         return bug;
     }
 

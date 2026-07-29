@@ -46,12 +46,13 @@ public class BugController {
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String severity,
             @RequestParam(required = false) String priority,
+            @RequestParam(required = false) String bugType,
             @RequestParam(required = false) UUID assigneeId,
             @RequestParam(required = false) String keyword,
             @RequestParam(defaultValue = "1") Integer pageNo,
             @RequestParam(defaultValue = "20") Integer pageSize) {
         return Result.ok(bugService.getBugPage(projectId, status, severity, priority,
-                assigneeId, keyword, pageNo, pageSize));
+                bugType, assigneeId, keyword, pageNo, pageSize));
     }
 
     @PostMapping
@@ -91,8 +92,15 @@ public class BugController {
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id,
             @RequestBody @Valid BugStatusChangeReqDTO reqDTO) {
-        bugService.changeBugStatus(id, loginUser.getId(),
-                reqDTO.getStatus(), reqDTO.getComment());
+        bugService.changeBugStatus(id, loginUser.getId(), reqDTO);
+        return Result.ok();
+    }
+
+    @PatchMapping("/{id}/confirm")
+    public Result<Void> confirmBug(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @PathVariable UUID id) {
+        bugService.confirmBug(id, loginUser.getId());
         return Result.ok();
     }
 
