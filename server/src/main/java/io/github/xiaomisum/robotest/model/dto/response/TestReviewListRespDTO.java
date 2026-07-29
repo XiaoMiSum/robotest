@@ -14,6 +14,10 @@ public class TestReviewListRespDTO {
     private InitiatorInfo initiator;
     private Integer participantCount;
     private LocalDateTime createdAt;
+    private long totalAssociated;
+    private long passed;
+    private double progressPercent;
+    private double passRate;
 
     @Data
     public static class InitiatorInfo {

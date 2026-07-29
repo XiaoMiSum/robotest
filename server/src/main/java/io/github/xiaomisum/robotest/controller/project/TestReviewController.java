@@ -108,6 +108,14 @@ public class TestReviewController {
         return Result.ok();
     }
 
+    @DeleteMapping("/{id}")
+    public Result<Void> deleteReview(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @PathVariable UUID id) {
+        testReviewService.deleteReview(id, loginUser.getId());
+        return Result.ok();
+    }
+
     @GetMapping("/{id}/progress")
     public Result<TestReviewProgressRespDTO> getReviewProgress(
             @AuthenticationPrincipal LoginUser loginUser,

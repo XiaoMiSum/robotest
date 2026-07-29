@@ -364,6 +364,10 @@ export interface TestPlanListItem {
   endTime: string | null
   executor: { id: string; name: string } | null
   createdAt: string
+  totalAssociated: number
+  passed: number
+  progressPercent: number
+  passRate: number
 }
 
 /** 测试计划详情 */
@@ -423,7 +427,7 @@ export interface ExecutionRecord {
 // --- 测试评审 ---
 
 /** 评审状态 */
-export type ReviewStatus = 'in_progress' | 'completed'
+export type ReviewStatus = 'new' | 'in_progress' | 'completed'
 
 /** 评审标记 */
 export type ReviewMark = 'pass' | 'fail'
@@ -436,6 +440,10 @@ export interface TestReviewListItem {
   initiator: { id: string; name: string }
   participantCount: number
   createdAt: string
+  totalAssociated: number
+  passed: number
+  progressPercent: number
+  passRate: number
 }
 
 /** 测试评审详情 */

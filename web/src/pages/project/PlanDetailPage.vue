@@ -3,12 +3,11 @@ import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
-  closePlan,
+  completePlan,
   getPlanDetail,
   getPlanModuleTree,
   getPlanPlannedCases,
   getPlanProgress,
-  startPlan,
   syncPlan,
   updatePlanCases,
 } from '@/services/project'
@@ -71,26 +70,16 @@ async function load() {
   }
 }
 
-async function handleStart() {
+async function handleComplete() {
   try {
-    await startPlan(planId)
-    ElMessage.success('计划已开始')
+    await ElMessageBox.confirm('确定完成该计划吗？完成后将不可再标记执行结果。', '完成执行', { type: 'warning' })
+  } catch { return }
+  try {
+    await completePlan(planId)
+    ElMessage.success('计划已完成')
     load()
   } catch (err) {
     ElMessage.error(err instanceof Error ? err.message : '操作失败')
-  }
-}
-
-async function handleClose() {
-  try {
-    await ElMessageBox.confirm('确定关闭该计划吗？', '关闭计划', { type: 'warning' })
-  } catch { return }
-  try {
-    await closePlan(planId)
-    ElMessage.success('计划已关闭')
-    load()
-  } catch (err) {
-    ElMessage.error(err instanceof Error ? err.message : '关闭失败')
   }
 }
 
@@ -133,6 +122,17 @@ async function handleCasesConfirm(selectedNodes: PlannedCases[]) {
   }
 }
 
+// 标记后刷新进度与状态（首次标记会自动转入进行中），避免整页 load 触发脑图重载丢失选中态
+async function refreshProgress() {
+  try {
+    const [p, d] = await Promise.all([getPlanProgress(planId), getPlanDetail(planId)])
+    progress.value = p
+    detail.value = d
+  } catch {
+    // 标记本身已成功，进度刷新失败不打断操作，后续操作或刷新可恢复
+  }
+}
+
 onMounted(load)
 </script>
 
@@ -161,14 +161,11 @@ onMounted(load)
             <el-button v-if="canAdjustCases" size="small" plain @click="openCaseSelector">
               <el-icon><EditPen /></el-icon>调整用例
             </el-button>
-            <el-button v-if="detail.status === 'in_progress'" size="small" plain @click="handleSync">
+            <el-button v-if="canAdjustCases" size="small" plain @click="handleSync">
               <el-icon><Refresh /></el-icon>同步用例
             </el-button>
-            <el-button v-if="detail.status === 'new'" size="small" type="primary" @click="handleStart">
-              <el-icon><VideoPlay /></el-icon>开始执行
-            </el-button>
-            <el-button v-if="detail.status === 'in_progress'" size="small" type="danger" plain @click="handleClose">
-              <el-icon><CircleClose /></el-icon>关闭计划
+            <el-button v-if="detail.status === 'new' || detail.status === 'in_progress'" size="small" type="primary" @click="handleComplete">
+              <el-icon><CircleCheck /></el-icon>完成执行
             </el-button>
           </div>
         </div>
@@ -187,7 +184,7 @@ onMounted(load)
         <div v-if="!selectedDocId" class="plan-detail__placeholder">
           <el-empty description="请在左侧选择一个文档" />
         </div>
-        <PlanMindMap v-else ref="mindMapRef" :plan-id="planId" :document-id="selectedDocId" />
+        <PlanMindMap v-else ref="mindMapRef" :plan-id="planId" :document-id="selectedDocId" @marked="refreshProgress" />
       </el-card>
     </div>
 

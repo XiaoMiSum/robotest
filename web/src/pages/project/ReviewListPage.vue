@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
-import { createReview, fetchReviews } from '@/services/project'
+import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
+import { completeReview, createReview, deleteReview, fetchReviews } from '@/services/project'
 import { fetchMembers } from '@/services/workspace'
 import type { ReviewStatus, TestReviewListItem, WorkspaceMember } from '@/types'
 import { formatDateTime } from '@/utils/format'
@@ -13,6 +13,9 @@ const loading = ref(false)
 const reviews = ref<TestReviewListItem[]>([])
 const total = ref(0)
 const query = reactive({ status: '' as ReviewStatus | '', keyword: '', pageNo: 1, pageSize: 20 })
+
+const statusLabel: Record<string, string> = { new: '待评审', in_progress: '评审中', completed: '已完成' }
+const statusType: Record<string, 'info' | 'warning' | 'success'> = { new: 'info', in_progress: 'warning', completed: 'success' }
 
 async function loadReviews() {
   loading.value = true
@@ -45,6 +48,32 @@ function handleReset() {
 }
 
 onMounted(loadReviews)
+
+async function handleComplete(row: TestReviewListItem) {
+  try {
+    await ElMessageBox.confirm(`确定完成评审「${row.title}」？`, '完成评审', { type: 'warning' })
+  } catch { return }
+  try {
+    await completeReview(row.id)
+    ElMessage.success('评审已完成')
+    loadReviews()
+  } catch (err) {
+    ElMessage.error(err instanceof Error ? err.message : '完成评审失败')
+  }
+}
+
+async function handleDelete(row: TestReviewListItem) {
+  try {
+    await ElMessageBox.confirm(`确定删除评审「${row.title}」？删除后不可恢复`, '删除评审', { type: 'warning' })
+  } catch { return }
+  try {
+    await deleteReview(row.id)
+    ElMessage.success('评审已删除')
+    loadReviews()
+  } catch (err) {
+    ElMessage.error(err instanceof Error ? err.message : '删除评审失败')
+  }
+}
 
 const createDialogVisible = ref(false)
 const caseSelectorVisible = ref(false)
@@ -125,10 +154,11 @@ async function submitCreate() {
             @keyup.enter="handleSearch"
           />
           <el-select v-model="query.status" placeholder="状态" clearable style="width: 140px">
-            <el-option label="评审中" value="in_progress" />
-            <el-option label="已完成" value="completed" />
+            <el-option v-for="(label, key) in statusLabel" :key="key" :label="label" :value="key" />
           </el-select>
-          <el-button type="primary" plain @click="handleSearch">查询</el-button>
+          <el-button type="primary" @click="handleSearch">
+            <el-icon><Search /></el-icon>查询
+          </el-button>
           <el-button @click="handleReset">重置</el-button>
           <div class="review-list__header-spacer" />
           <el-button type="primary" @click="openCreateDialog">
@@ -147,9 +177,21 @@ async function submitCreate() {
         </el-table-column>
         <el-table-column label="状态" width="100">
           <template #default="{ row }">
-            <el-tag :type="row.status === 'completed' ? 'success' : 'warning'" size="small" effect="light" round>
-              {{ row.status === 'completed' ? '已完成' : '评审中' }}
+            <el-tag :type="statusType[row.status] ?? 'info'" size="small" effect="light" round>
+              {{ statusLabel[row.status] ?? row.status }}
             </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="进度" width="140">
+          <template #default="{ row }">
+            <el-progress :percentage="row.progressPercent" :stroke-width="6" />
+          </template>
+        </el-table-column>
+        <el-table-column label="通过率" width="100">
+          <template #default="{ row }">
+            <span :class="row.passRate === 100 ? 'review-list__rate--full' : 'review-list__rate--partial'">
+              {{ row.passRate }}%
+            </span>
           </template>
         </el-table-column>
         <el-table-column label="参与者" width="80">
@@ -158,11 +200,15 @@ async function submitCreate() {
         <el-table-column label="创建时间" width="160">
           <template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template>
         </el-table-column>
-        <el-table-column label="操作" width="100" fixed="right">
+        <el-table-column label="操作" width="200" fixed="right">
           <template #default="{ row }">
             <el-button link type="primary" @click="router.push(`/workspace/projects/reviews/${row.id}`)">
-              {{ row.status === 'in_progress' ? '进入评审' : '查看详情' }}
+              {{ row.status === 'completed' ? '查看详情' : '进入评审' }}
             </el-button>
+            <el-button v-if="row.status !== 'completed'" link type="success" @click="handleComplete(row as TestReviewListItem)">
+              完成
+            </el-button>
+            <el-button link type="danger" @click="handleDelete(row as TestReviewListItem)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -224,6 +270,14 @@ async function submitCreate() {
   margin-top: var(--space-lg);
   padding-top: var(--space-lg);
   border-top: 1px solid var(--color-neutral-100);
+}
+
+.review-list__rate--full {
+  color: var(--color-success);
+}
+
+.review-list__rate--partial {
+  color: var(--color-danger);
 }
 
 .review-list__case-count {

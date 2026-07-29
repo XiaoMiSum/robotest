@@ -64,6 +64,17 @@ public class TestPlanServiceImpl implements TestPlanService {
                     }
                 }, wrapper);
 
+        // 列表展示进度/通过率：批量查本页全部关联用例快照，避免逐行 N+1
+        List<UUID> planIds = page.getList().stream().map(TestPlan::getId).toList();
+        Map<UUID, List<TestPlanNodeSnapshot>> snapshotsByPlan = planIds.isEmpty()
+                ? Map.of()
+                : planNodeSnapshotMapper.selectList(
+                        new LambdaQueryWrapperX<TestPlanNodeSnapshot>()
+                                .in(TestPlanNodeSnapshot::getPlanId, planIds)
+                                .eq(TestPlanNodeSnapshot::getIsAssociated, true)
+                                .eq(TestPlanNodeSnapshot::getType, Constants.NodeType.CASE))
+                        .stream().collect(Collectors.groupingBy(TestPlanNodeSnapshot::getPlanId));
+
         List<TestPlanListRespDTO> dtos = page.getList().stream().map(plan -> {
             TestPlanListRespDTO dto = new TestPlanListRespDTO();
             dto.setId(plan.getId());
@@ -83,6 +94,22 @@ public class TestPlanServiceImpl implements TestPlanService {
                     dto.setExecutor(info);
                 }
             }
+
+            List<TestPlanNodeSnapshot> snapshots = snapshotsByPlan.getOrDefault(plan.getId(), List.of());
+            long passed = snapshots.stream()
+                    .filter(s -> Constants.ExecutionResult.PASS.equals(s.getLastResult())).count();
+            long untested = snapshots.stream()
+                    .filter(s -> s.getLastResult() == null
+                            || Constants.ExecutionResult.UNTESTED.equals(s.getLastResult())).count();
+            long total = snapshots.size();
+            dto.setTotalAssociated(total);
+            dto.setPassed(passed);
+            dto.setProgressPercent(total > 0
+                    ? Math.round((total - untested) * 10000.0 / total) / 100.0
+                    : 0.0);
+            dto.setPassRate(total > 0
+                    ? Math.round(passed * 10000.0 / total) / 100.0
+                    : 0.0);
             return dto;
         }).collect(Collectors.toList());
 
@@ -367,9 +394,6 @@ public class TestPlanServiceImpl implements TestPlanService {
         if (plan == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_PLAN_NOT_FOUND);
         }
-        if (!Constants.Status.IN_PROGRESS.equals(plan.getStatus())) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.VALIDATION_FAILED);
-        }
 
         TestPlanNodeSnapshot snapshotNode = planNodeSnapshotMapper.selectById(
                 reqDTO.getSnapshotNodeId());
@@ -394,6 +418,12 @@ public class TestPlanServiceImpl implements TestPlanService {
         snapshotNode.setLastExecutorId(userId);
         snapshotNode.setLastExecutedAt(LocalDateTime.now());
         planNodeSnapshotMapper.updateById(snapshotNode);
+
+        // 需求：标记执行结果后待开始计划自动转入进行中（已取代单独的开始执行操作）
+        if (Constants.Status.NEW.equals(plan.getStatus())) {
+            plan.setStatus(Constants.Status.IN_PROGRESS);
+            testPlanMapper.updateById(plan);
+        }
 
         TestPlanExecutionRecord record = new TestPlanExecutionRecord();
         record.setPlanId(planId);
@@ -441,8 +471,10 @@ public class TestPlanServiceImpl implements TestPlanService {
         if (!userId.equals(plan.getExecutorId())) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.NO_PERMISSION);
         }
-        if (!Constants.Status.IN_PROGRESS.equals(plan.getStatus())) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.VALIDATION_FAILED);
+        // 已结束的计划快照已定格，不再允许同步；待开始/进行中均允许
+        if (!Constants.Status.NEW.equals(plan.getStatus())
+                && !Constants.Status.IN_PROGRESS.equals(plan.getStatus())) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_PLAN_FINISHED);
         }
 
         List<TestPlanNodeSnapshot> snapshotNodes = planNodeSnapshotMapper.selectList(
@@ -500,23 +532,6 @@ public class TestPlanServiceImpl implements TestPlanService {
             }
             planNodeSnapshotMapper.updateById(snapshot);
         }
-    }
-
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    public void startPlan(UUID planId, UUID userId) {
-        TestPlan plan = testPlanMapper.selectById(planId);
-        if (plan == null) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_PLAN_NOT_FOUND);
-        }
-        if (!userId.equals(plan.getExecutorId())) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.NO_PERMISSION);
-        }
-        if (!Constants.Status.NEW.equals(plan.getStatus())) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.VALIDATION_FAILED);
-        }
-        plan.setStatus(Constants.Status.IN_PROGRESS);
-        testPlanMapper.updateById(plan);
     }
 
     @Override
@@ -585,6 +600,40 @@ public class TestPlanServiceImpl implements TestPlanService {
 
         plan.setStatus(Constants.Status.CLOSED);
         testPlanMapper.updateById(plan);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void completePlan(UUID planId, UUID userId) {
+        TestPlan plan = testPlanMapper.selectById(planId);
+        if (plan == null) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_PLAN_NOT_FOUND);
+        }
+        if (!userId.equals(plan.getExecutorId())) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.NO_PERMISSION);
+        }
+        plan.setStatus(Constants.Status.COMPLETED);
+        testPlanMapper.updateById(plan);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void deletePlan(UUID planId, UUID userId) {
+        TestPlan plan = testPlanMapper.selectById(planId);
+        if (plan == null) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_PLAN_NOT_FOUND);
+        }
+        if (!userId.equals(plan.getExecutorId())) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.NO_PERMISSION);
+        }
+        // 无物理外键，需显式级联删除快照与执行记录
+        planExecutionRecordMapper.delete(new LambdaQueryWrapperX<TestPlanExecutionRecord>()
+                .eq(TestPlanExecutionRecord::getPlanId, planId));
+        planNodeSnapshotMapper.delete(new LambdaQueryWrapperX<TestPlanNodeSnapshot>()
+                .eq(TestPlanNodeSnapshot::getPlanId, planId));
+        planModuleSnapshotMapper.delete(new LambdaQueryWrapperX<TestPlanModuleSnapshot>()
+                .eq(TestPlanModuleSnapshot::getPlanId, planId));
+        testPlanMapper.deleteById(planId);
     }
 
     private void generateSnapshots(UUID planId, List<TestPlanCreateReqDTO.SelectedNode> selectedNodes) {

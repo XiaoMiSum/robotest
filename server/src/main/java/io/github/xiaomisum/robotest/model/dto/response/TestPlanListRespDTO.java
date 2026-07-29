@@ -16,6 +16,10 @@ public class TestPlanListRespDTO {
     private LocalDateTime endTime;
     private ExecutorInfo executor;
     private LocalDateTime createdAt;
+    private long totalAssociated;
+    private long passed;
+    private double progressPercent;
+    private double passRate;
 
     @Data
     public static class ExecutorInfo {

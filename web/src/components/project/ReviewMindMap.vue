@@ -24,6 +24,9 @@ import MinderNavigator from './minder/MinderNavigator.vue'
 
 const props = defineProps<{ reviewId: string; documentId?: string }>()
 
+// 标记成功后通知详情页刷新进度，否则页头进度条需手动刷新才能更新
+const emit = defineEmits<{ marked: [] }>()
+
 // 基座选中状态（id/type）之上的扩展字段：当前节点的评审标记
 const reviewResult = ref<string | null>(null)
 
@@ -104,6 +107,7 @@ async function markReview(mark: ReviewMark | null) {
     if (data) { data.lastMark = mark; data.reviewStatus = mark ? { result: mark } : null }
     getMinder()?.refresh?.()
     ElMessage.success(mark ? `已标记${mark === 'pass' ? '通过' : '不通过'}` : '已重置为待评审')
+    emit('marked')
   } catch (err) {
     ElMessage.error(err instanceof Error ? err.message : '提交标记失败')
   }

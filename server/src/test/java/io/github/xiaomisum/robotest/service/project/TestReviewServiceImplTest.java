@@ -18,6 +18,7 @@ import io.github.xiaomisum.robotest.repository.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -145,7 +146,9 @@ class TestReviewServiceImplTest {
 
                 assertNotNull(result);
                 assertEquals("New Review", result.getTitle());
-                verify(testReviewMapper).insert(any(TestReview.class));
+                ArgumentCaptor<TestReview> captor = ArgumentCaptor.forClass(TestReview.class);
+                verify(testReviewMapper).insert(captor.capture());
+                assertEquals(Constants.Status.NEW, captor.getValue().getStatus());
         }
 
         @Test
@@ -227,6 +230,33 @@ class TestReviewServiceImplTest {
 
                 verify(reviewNodeSnapshotMapper).updateById(any(TestReviewNodeSnapshot.class));
                 verify(reviewRecordMapper).insert(any(TestReviewRecord.class));
+        }
+
+        @Test
+        void submitReviewRecord_markOnNewReview_setsInProgress() {
+                TestReview review = new TestReview();
+                review.setId(reviewId);
+                review.setStatus(Constants.Status.NEW);
+
+                when(testReviewMapper.selectById(reviewId)).thenReturn(review);
+
+                TestReviewNodeSnapshot snapshot = new TestReviewNodeSnapshot();
+                snapshot.setId(UUID.fromString("00000000-0000-0000-0000-000000000004"));
+                snapshot.setReviewId(reviewId);
+                snapshot.setType("case");
+
+                when(reviewNodeSnapshotMapper.selectById(UUID.fromString("00000000-0000-0000-0000-000000000004")))
+                                .thenReturn(snapshot);
+
+                TestReviewRecordReqDTO reqDTO = new TestReviewRecordReqDTO();
+                reqDTO.setSnapshotNodeId(UUID.fromString("00000000-0000-0000-0000-000000000004"));
+                reqDTO.setOperationType("mark");
+                reqDTO.setMark("pass");
+
+                reviewService.submitReviewRecord(reviewId, userId, reqDTO);
+
+                assertEquals(Constants.Status.IN_PROGRESS, review.getStatus());
+                verify(testReviewMapper).updateById(review);
         }
 
         @Test
@@ -578,6 +608,43 @@ class TestReviewServiceImplTest {
 
                 assertThrows(ServiceException.class,
                                 () -> reviewService.completeReview(reviewId, userId));
+        }
+
+        @Test
+        void deleteReview_success() {
+                TestReview review = new TestReview();
+                review.setId(reviewId);
+                review.setInitiatorId(userId.toString());
+
+                when(testReviewMapper.selectById(reviewId)).thenReturn(review);
+
+                reviewService.deleteReview(reviewId, userId);
+
+                verify(reviewRecordMapper).delete(any(LambdaQueryWrapper.class));
+                verify(reviewNodeSnapshotMapper).delete(any(LambdaQueryWrapper.class));
+                verify(reviewModuleSnapshotMapper).delete(any(LambdaQueryWrapper.class));
+                verify(testReviewMapper).deleteById(reviewId);
+        }
+
+        @Test
+        void deleteReview_notInitiator_throws() {
+                TestReview review = new TestReview();
+                review.setId(reviewId);
+                review.setInitiatorId(otherUserId.toString());
+
+                when(testReviewMapper.selectById(reviewId)).thenReturn(review);
+
+                assertThrows(ServiceException.class,
+                                () -> reviewService.deleteReview(reviewId, userId));
+                verify(testReviewMapper, never()).deleteById(any(UUID.class));
+        }
+
+        @Test
+        void deleteReview_notFound_throws() {
+                when(testReviewMapper.selectById(reviewId)).thenReturn(null);
+
+                assertThrows(ServiceException.class,
+                                () -> reviewService.deleteReview(reviewId, userId));
         }
 
         @Test

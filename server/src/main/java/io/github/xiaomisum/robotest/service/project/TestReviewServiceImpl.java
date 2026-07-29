@@ -66,6 +66,17 @@ public class TestReviewServiceImpl implements TestReviewService {
                     }
                 }, wrapper);
 
+        // 列表展示进度/通过率：批量查本页全部关联用例快照，避免逐行 N+1
+        List<UUID> reviewIds = page.getList().stream().map(TestReview::getId).toList();
+        Map<UUID, List<TestReviewNodeSnapshot>> snapshotsByReview = reviewIds.isEmpty()
+                ? Map.of()
+                : reviewNodeSnapshotMapper.selectList(
+                        new LambdaQueryWrapperX<TestReviewNodeSnapshot>()
+                                .in(TestReviewNodeSnapshot::getReviewId, reviewIds)
+                                .eq(TestReviewNodeSnapshot::getIsAssociated, true)
+                                .eq(TestReviewNodeSnapshot::getType, Constants.NodeType.CASE))
+                        .stream().collect(Collectors.groupingBy(TestReviewNodeSnapshot::getReviewId));
+
         List<TestReviewListRespDTO> dtos = page.getList().stream().map(review -> {
             TestReviewListRespDTO dto = new TestReviewListRespDTO();
             dto.setId(review.getId());
@@ -85,6 +96,22 @@ public class TestReviewServiceImpl implements TestReviewService {
                     ? review.getParticipantIds()
                     : new ArrayList<>();
             dto.setParticipantCount(participantIds.size());
+
+            List<TestReviewNodeSnapshot> snapshots = snapshotsByReview.getOrDefault(
+                    review.getId(), List.of());
+            long passed = snapshots.stream()
+                    .filter(s -> Constants.ReviewMark.PASS.equals(s.getLastMark())).count();
+            long pending = snapshots.stream()
+                    .filter(s -> s.getLastMark() == null || s.getLastMark().isBlank()).count();
+            long total = snapshots.size();
+            dto.setTotalAssociated(total);
+            dto.setPassed(passed);
+            dto.setProgressPercent(total > 0
+                    ? Math.round((total - pending) * 10000.0 / total) / 100.0
+                    : 0.0);
+            dto.setPassRate(total > 0
+                    ? Math.round(passed * 10000.0 / total) / 100.0
+                    : 0.0);
             return dto;
         }).collect(Collectors.toList());
 
@@ -117,7 +144,8 @@ public class TestReviewServiceImpl implements TestReviewService {
         review.setDescription(reqDTO.getDescription());
         review.setInitiatorId(userId.toString());
         review.setParticipantIds(reqDTO.getParticipantIds());
-        review.setStatus(Constants.Status.IN_PROGRESS);
+        // 需求：新建评审默认待评审，首次标记时才自动转入进行中
+        review.setStatus(Constants.Status.NEW);
         testReviewMapper.insert(review);
 
         generateSnapshots(review.getId(), reqDTO.getSelectedNodes());
@@ -232,8 +260,9 @@ public class TestReviewServiceImpl implements TestReviewService {
         if (review == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_REVIEW_NOT_FOUND);
         }
-        if (!Constants.Status.IN_PROGRESS.equals(review.getStatus())) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_REVIEW_NOT_IN_PROGRESS);
+        // 已完成的评审不可再调整，待评审/进行中均允许
+        if (Constants.Status.COMPLETED.equals(review.getStatus())) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_REVIEW_FINISHED);
         }
 
         Map<UUID, Set<UUID>> newSelection = new LinkedHashMap<>();
@@ -380,8 +409,9 @@ public class TestReviewServiceImpl implements TestReviewService {
         if (review == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_REVIEW_NOT_FOUND);
         }
-        if (!Constants.Status.IN_PROGRESS.equals(review.getStatus())) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_REVIEW_NOT_IN_PROGRESS);
+        // 完成后不可再标记；待评审状态首次标记即视为评审开始
+        if (Constants.Status.COMPLETED.equals(review.getStatus())) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_REVIEW_FINISHED);
         }
 
         TestReviewNodeSnapshot snapshotNode = reviewNodeSnapshotMapper.selectById(
@@ -413,6 +443,11 @@ public class TestReviewServiceImpl implements TestReviewService {
                 snapshotNode.setLastReviewerId(userId);
                 snapshotNode.setLastReviewedAt(LocalDateTime.now());
                 reviewNodeSnapshotMapper.updateById(snapshotNode);
+            }
+            // 需求：标记评审结果后待评审评审自动转入进行中
+            if (Constants.Status.NEW.equals(review.getStatus())) {
+                review.setStatus(Constants.Status.IN_PROGRESS);
+                testReviewMapper.updateById(review);
             }
         }
 
@@ -467,6 +502,26 @@ public class TestReviewServiceImpl implements TestReviewService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void deleteReview(UUID reviewId, UUID userId) {
+        TestReview review = testReviewMapper.selectById(reviewId);
+        if (review == null) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_REVIEW_NOT_FOUND);
+        }
+        if (!review.getInitiatorId().equals(userId.toString())) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.REVIEW_NOT_INITIATOR);
+        }
+        // 无物理外键，需显式级联删除快照与评审记录
+        reviewRecordMapper.delete(new LambdaQueryWrapperX<TestReviewRecord>()
+                .eq(TestReviewRecord::getReviewId, reviewId));
+        reviewNodeSnapshotMapper.delete(new LambdaQueryWrapperX<TestReviewNodeSnapshot>()
+                .eq(TestReviewNodeSnapshot::getReviewId, reviewId));
+        reviewModuleSnapshotMapper.delete(new LambdaQueryWrapperX<TestReviewModuleSnapshot>()
+                .eq(TestReviewModuleSnapshot::getReviewId, reviewId));
+        testReviewMapper.deleteById(reviewId);
+    }
+
+    @Override
     public TestReviewProgressRespDTO getReviewProgress(UUID reviewId) {
         TestReview review = testReviewMapper.selectById(reviewId);
         if (review == null) {
@@ -515,8 +570,9 @@ public class TestReviewServiceImpl implements TestReviewService {
         if (!review.getInitiatorId().equals(userId.toString())) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.REVIEW_NOT_INITIATOR);
         }
-        if (!Constants.Status.IN_PROGRESS.equals(review.getStatus())) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_REVIEW_NOT_IN_PROGRESS);
+        // 已完成的评审快照已定格，不再允许同步
+        if (Constants.Status.COMPLETED.equals(review.getStatus())) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_REVIEW_FINISHED);
         }
 
         List<TestReviewNodeSnapshot> snapshotNodes = reviewNodeSnapshotMapper.selectList(

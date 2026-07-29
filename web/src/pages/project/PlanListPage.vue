@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
-import { createPlan, fetchPlans } from '@/services/project'
+import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
+import { completePlan, createPlan, deletePlan, fetchPlans } from '@/services/project'
 import { fetchMembers } from '@/services/workspace'
 import type { PlanStatus, TestPlanListItem, WorkspaceMember } from '@/types'
 import { formatDateTime, formatDate } from '@/utils/format'
@@ -55,6 +55,32 @@ function timeRange(plan: TestPlanListItem): string {
 }
 
 onMounted(loadPlans)
+
+async function handleComplete(row: TestPlanListItem) {
+  try {
+    await ElMessageBox.confirm(`确定完成计划「${row.name}」？`, '完成计划', { type: 'warning' })
+  } catch { return }
+  try {
+    await completePlan(row.id)
+    ElMessage.success('计划已完成')
+    loadPlans()
+  } catch (err) {
+    ElMessage.error(err instanceof Error ? err.message : '完成计划失败')
+  }
+}
+
+async function handleDelete(row: TestPlanListItem) {
+  try {
+    await ElMessageBox.confirm(`确定删除计划「${row.name}」？删除后不可恢复`, '删除计划', { type: 'warning' })
+  } catch { return }
+  try {
+    await deletePlan(row.id)
+    ElMessage.success('计划已删除')
+    loadPlans()
+  } catch (err) {
+    ElMessage.error(err instanceof Error ? err.message : '删除计划失败')
+  }
+}
 
 const createDialogVisible = ref(false)
 const caseSelectorVisible = ref(false)
@@ -141,7 +167,9 @@ async function submitCreate() {
           <el-select v-model="query.status" placeholder="状态" clearable style="width: 140px">
             <el-option v-for="(label, key) in statusLabel" :key="key" :label="label" :value="key" />
           </el-select>
-          <el-button type="primary" plain @click="handleSearch">查询</el-button>
+          <el-button type="primary" @click="handleSearch">
+            <el-icon><Search /></el-icon>查询
+          </el-button>
           <el-button @click="handleReset">重置</el-button>
           <div class="plan-list__header-spacer" />
           <el-button type="primary" @click="openCreateDialog">
@@ -169,14 +197,35 @@ async function submitCreate() {
             <el-tag :type="statusType[row.status] ?? 'info'" size="small" effect="light" round>{{ statusLabel[row.status] }}</el-tag>
           </template>
         </el-table-column>
+        <el-table-column label="进度" width="140">
+          <template #default="{ row }">
+            <el-progress :percentage="row.progressPercent" :stroke-width="6" />
+          </template>
+        </el-table-column>
+        <el-table-column label="通过率" width="100">
+          <template #default="{ row }">
+            <span :class="row.passRate === 100 ? 'plan-list__rate--full' : 'plan-list__rate--partial'">
+              {{ row.passRate }}%
+            </span>
+          </template>
+        </el-table-column>
         <el-table-column label="创建时间" width="160">
           <template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template>
         </el-table-column>
-        <el-table-column label="操作" width="100" fixed="right">
+        <el-table-column label="操作" width="200" fixed="right">
           <template #default="{ row }">
             <el-button link type="primary" @click="router.push(`/workspace/projects/plans/${row.id}`)">
               {{ row.status === 'in_progress' ? '进入执行' : '查看详情' }}
             </el-button>
+            <el-button
+              v-if="row.status === 'new' || row.status === 'in_progress'"
+              link
+              type="success"
+              @click="handleComplete(row as TestPlanListItem)"
+            >
+              完成
+            </el-button>
+            <el-button link type="danger" @click="handleDelete(row as TestPlanListItem)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -200,18 +249,18 @@ async function submitCreate() {
           <el-input v-model="createForm.description" type="textarea" :rows="2" placeholder="计划描述（可选）" />
         </el-form-item>
         <el-form-item label="负责人">
-          <el-select v-model="createForm.executorId" filterable clearable placeholder="选择负责人" style="width: 200px">
+          <el-select v-model="createForm.executorId" filterable clearable placeholder="选择负责人" style="width: 100%">
             <el-option v-for="m in memberOptions" :key="m.userId" :label="m.username" :value="m.userId" />
           </el-select>
         </el-form-item>
         <el-form-item label="开始时间">
-          <el-date-picker v-model="createForm.startTime" type="date" placeholder="选择日期" style="width: 200px" />
+          <el-date-picker v-model="createForm.startTime" type="date" placeholder="选择日期" style="width: 100%" />
         </el-form-item>
         <el-form-item label="结束时间">
-          <el-date-picker v-model="createForm.endTime" type="date" placeholder="选择日期" style="width: 200px" />
+          <el-date-picker v-model="createForm.endTime" type="date" placeholder="选择日期" style="width: 100%" />
         </el-form-item>
         <el-form-item label="执行环境">
-          <el-input v-model="createForm.environment" placeholder="如：staging / production" style="width: 200px" />
+          <el-input v-model="createForm.environment" placeholder="如：staging / production" />
         </el-form-item>
         <el-form-item label="关联用例">
           <el-button @click="caseSelectorVisible = true">选择用例</el-button>
@@ -247,6 +296,14 @@ async function submitCreate() {
   margin-top: var(--space-lg);
   padding-top: var(--space-lg);
   border-top: 1px solid var(--color-neutral-100);
+}
+
+.plan-list__rate--full {
+  color: var(--color-success);
+}
+
+.plan-list__rate--partial {
+  color: var(--color-danger);
 }
 
 /* 用于创建对话框，非布局样式 */

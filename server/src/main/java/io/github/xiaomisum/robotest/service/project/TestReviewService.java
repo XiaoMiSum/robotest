@@ -52,6 +52,14 @@ public interface TestReviewService {
     void completeReview(UUID reviewId, UUID userId);
 
     /**
+     * 删除评审及其快照、评审记录（仅发起人）
+     *
+     * @param reviewId 评审 ID
+     * @param userId   操作人 ID
+     */
+    void deleteReview(UUID reviewId, UUID userId);
+
+    /**
      * 获取评审进度统计
      *
      * @param reviewId 评审 ID
