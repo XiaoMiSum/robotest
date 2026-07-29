@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
-import { changeBugStatus, fetchBugs } from '@/services/project'
-import type { BugListItem, BugPriority, BugResolution, BugSeverity, BugStatus, BugType } from '@/types'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { assignBug, changeBugStatus, confirmBug, fetchBugs } from '@/services/project'
+import { fetchMembers } from '@/services/workspace'
+import type { BugListItem, BugPriority, BugResolution, BugSeverity, BugStatus, BugType, WorkspaceMember } from '@/types'
 import { formatDateTime } from '@/utils/format'
 import {
   BUG_STATUS_LABEL,
@@ -94,8 +95,7 @@ async function handleDrop(targetStatus: BugStatus) {
 
   // 拖到「已解决」列需选择解决方案，弹对话框处理
   if (targetStatus === 'resolved') {
-    resolvingBug.value = bug
-    resolveDialogVisible.value = true
+    openResolveDialog(bug)
     return
   }
 
@@ -134,6 +134,91 @@ async function handleResolveConfirm(payload: {
 // drop 时 draggingBug 已清空，用传入的 bug 重新校验合法性
 function isValidDropTargetFor(bug: BugListItem, targetStatus: BugStatus): boolean {
   return getValidTargetStatuses(bug.status as BugStatus).includes(targetStatus)
+}
+
+// ==================== 列表行操作 ====================
+
+function openResolveDialog(bug: BugListItem) {
+  resolvingBug.value = bug
+  resolveDialogVisible.value = true
+}
+
+async function handleStatusAction(bug: BugListItem, targetStatus: BugStatus, successMsg: string) {
+  const comment = await promptStatusChangeComment(bug.status as BugStatus, targetStatus)
+  if (comment === null) return
+  try {
+    await changeBugStatus(bug.id, { status: targetStatus, comment: comment || undefined })
+    ElMessage.success(successMsg)
+    loadBugs()
+  } catch (err) {
+    ElMessage.error(err instanceof Error ? err.message : '状态变更失败')
+  }
+}
+
+async function handleConfirmBug(bug: BugListItem) {
+  try {
+    await ElMessageBox.confirm('确认该缺陷有效并需要处理吗？', '确认缺陷', { type: 'info' })
+  } catch {
+    return
+  }
+  try {
+    await confirmBug(bug.id)
+    ElMessage.success('缺陷已确认')
+    loadBugs()
+  } catch (err) {
+    ElMessage.error(err instanceof Error ? err.message : '确认失败')
+  }
+}
+
+// 指派对话框：成员列表懒加载一次
+const assignDialogVisible = ref(false)
+const assigningBug = ref<BugListItem | null>(null)
+const assigneeId = ref('')
+const assigning = ref(false)
+const memberOptions = ref<WorkspaceMember[]>([])
+
+async function openAssignDialog(bug: BugListItem) {
+  assigningBug.value = bug
+  assigneeId.value = bug.assignee?.id ?? ''
+  assignDialogVisible.value = true
+  if (!memberOptions.value.length) {
+    try {
+      const page = await fetchMembers({ pageNo: 1, pageSize: 100 })
+      memberOptions.value = page.list
+    } catch {
+      // 加载失败不阻塞，下拉为空时用户可重新打开重试
+    }
+  }
+}
+
+async function handleAssignConfirm() {
+  const bug = assigningBug.value
+  if (!bug) return
+  if (!assigneeId.value) {
+    ElMessage.warning('请选择处理人')
+    return
+  }
+  assigning.value = true
+  try {
+    await assignBug(bug.id, assigneeId.value)
+    ElMessage.success('已指派')
+    assignDialogVisible.value = false
+    loadBugs()
+  } catch (err) {
+    ElMessage.error(err instanceof Error ? err.message : '指派失败')
+  } finally {
+    assigning.value = false
+  }
+}
+
+function hasMoreActions(bug: BugListItem): boolean {
+  return bug.status !== 'closed'
+}
+
+function handleMoreAction(command: string, bug: BugListItem) {
+  if (command === 'confirm') handleConfirmBug(bug)
+  else if (command === 'reopen') handleStatusAction(bug, 'active', '缺陷已激活')
+  else if (command === 'assign') openAssignDialog(bug)
 }
 
 onMounted(loadBugs)
@@ -212,9 +297,26 @@ onMounted(loadBugs)
         <el-table-column label="创建时间" width="160">
           <template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template>
         </el-table-column>
-        <el-table-column label="操作" width="80" fixed="right">
+        <el-table-column label="操作" width="210" fixed="right">
           <template #default="{ row }">
             <el-button link type="primary" @click="router.push(`/workspace/projects/bugs/${row.id}`)">详情</el-button>
+            <el-button v-if="row.status === 'active'" link type="success" @click="openResolveDialog(row as BugListItem)">解决</el-button>
+            <el-button v-if="row.status === 'resolved'" link type="info" @click="handleStatusAction(row as BugListItem, 'closed', '缺陷已关闭')">关闭</el-button>
+            <el-button v-if="row.status === 'closed'" link type="danger" @click="handleStatusAction(row as BugListItem, 'active', '缺陷已激活')">激活</el-button>
+            <el-dropdown
+              v-if="hasMoreActions(row as BugListItem)"
+              class="bug-page__more"
+              @command="(cmd: string) => handleMoreAction(cmd, row as BugListItem)"
+            >
+              <el-button link type="primary">更多<el-icon><ArrowDown /></el-icon></el-button>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item v-if="row.status === 'active' && !row.confirmed" command="confirm">确认</el-dropdown-item>
+                  <el-dropdown-item v-if="row.status === 'resolved'" command="reopen">激活</el-dropdown-item>
+                  <el-dropdown-item command="assign">指派</el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
           </template>
         </el-table-column>
       </el-table>
@@ -273,6 +375,20 @@ onMounted(loadBugs)
       :exclude-bug-id="resolvingBug?.id"
       @confirm="handleResolveConfirm"
     />
+
+    <el-dialog v-model="assignDialogVisible" title="指派处理人" width="420px">
+      <el-form label-position="top" @submit.prevent>
+        <el-form-item label="处理人" required>
+          <el-select v-model="assigneeId" filterable placeholder="选择处理人" class="bug-page__assign-select">
+            <el-option v-for="m in memberOptions" :key="m.userId" :label="m.username" :value="m.userId" />
+          </el-select>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="assignDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="assigning" @click="handleAssignConfirm">确定</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -298,6 +414,17 @@ onMounted(loadBugs)
 
 .bug-page__confirmed-tag {
   margin-left: 4px;
+}
+
+// 与前一个 link 按钮保持间距，对齐基线
+.bug-page__more {
+  margin-left: 12px;
+  vertical-align: middle;
+}
+
+// 弹窗表单元素统一撑满
+.bug-page__assign-select {
+  width: 100%;
 }
 
 .bug-page__pager {

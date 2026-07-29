@@ -34,6 +34,9 @@ const form = reactive({
   relatedPlanId: '' as string,
 })
 
+const severityLabel: Record<BugSeverity, string> = { fatal: '致命', serious: '严重', general: '一般', minor: '轻微' }
+const priorityLabel: Record<BugPriority, string> = { high: '高', medium: '中', low: '低' }
+
 const moduleTree = ref<TestCaseModule[]>([])
 async function loadModuleTree() {
   try {
@@ -65,6 +68,7 @@ const rules: FormRules = {
   bugType: [{ required: true, message: '请选择缺陷类型', trigger: 'change' }],
   severity: [{ required: true, message: '请选择严重等级', trigger: 'change' }],
   priority: [{ required: true, message: '请选择优先级', trigger: 'change' }],
+  assigneeId: [{ required: true, message: '请选择处理人', trigger: 'change' }],
 }
 
 const memberOptions = ref<WorkspaceMember[]>([])
@@ -112,7 +116,7 @@ async function handleSubmit() {
       moduleId: form.moduleId || undefined,
       keywords: form.keywords.trim() || undefined,
       dueDate: form.dueDate || undefined,
-      assigneeId: form.assigneeId || undefined,
+      assigneeId: form.assigneeId,
       relatedCaseId: form.relatedCaseId || undefined,
       relatedPlanId: form.relatedPlanId || undefined,
     })
@@ -137,86 +141,114 @@ async function handleSubmit() {
       <template #content><span class="bug-create__title">提交缺陷</span></template>
     </el-page-header>
 
-    <el-card shadow="never" class="bug-create__card">
-      <el-form ref="formRef" :model="form" :rules="rules" label-width="96px" class="bug-create__form">
-        <el-form-item label="标题" prop="title">
-          <el-input v-model="form.title" placeholder="请输入缺陷标题" maxlength="300" show-word-limit />
-        </el-form-item>
-        <el-form-item label="缺陷类型" prop="bugType">
-          <el-select v-model="form.bugType" style="width: 160px">
-            <el-option v-for="(label, key) in BUG_TYPE_LABEL" :key="key" :label="label" :value="key" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="所属模块">
-          <el-tree-select
-            v-model="form.moduleId"
-            :data="moduleTree"
-            :props="{ label: 'name', children: 'children' }"
-            node-key="id"
-            check-strictly
-            clearable
-            placeholder="选择所属模块（可选）"
-            style="width: 240px"
-          />
-        </el-form-item>
-        <el-form-item label="严重等级" prop="severity">
-          <el-select v-model="form.severity" style="width: 160px">
-            <el-option label="致命" value="fatal" />
-            <el-option label="严重" value="serious" />
-            <el-option label="一般" value="general" />
-            <el-option label="轻微" value="minor" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="优先级" prop="priority">
-          <el-select v-model="form.priority" style="width: 160px">
-            <el-option label="高" value="high" />
-            <el-option label="中" value="medium" />
-            <el-option label="低" value="low" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="截止日期">
-          <el-date-picker v-model="form.dueDate" type="date" value-format="YYYY-MM-DD" placeholder="选择截止日期（可选）" style="width: 160px" />
-        </el-form-item>
-        <el-form-item label="关键词">
-          <el-input v-model="form.keywords" placeholder="多个关键词用空格分隔（可选）" maxlength="255" />
-        </el-form-item>
-        <el-form-item label="重现步骤">
-          <MarkdownEditor v-model="form.reproSteps" placeholder="重现步骤（支持 Markdown，可选）" />
-        </el-form-item>
-        <el-form-item label="指派给">
-          <el-select v-model="form.assigneeId" filterable clearable placeholder="选择处理人（可选）" style="width: 240px">
-            <el-option v-for="m in memberOptions" :key="m.userId" :label="m.username" :value="m.userId" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="关联用例">
-          <el-button @click="caseSelectorVisible = true">选择用例</el-button>
-          <span v-if="selectedCaseTitle" class="bug-create__case-hint">{{ selectedCaseTitle }}</span>
-        </el-form-item>
-        <el-form-item label="关联计划">
-          <el-select v-model="form.relatedPlanId" filterable clearable placeholder="选择计划（可选）" style="width: 240px">
-            <el-option v-for="p in planOptions" :key="p.id" :label="p.name" :value="p.id" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="附件">
-          <el-upload
-            :auto-upload="false"
-            :file-list="attachmentFiles"
-            multiple
-            :on-change="handleAttachmentChange"
-            :on-remove="handleAttachmentRemove"
-          >
-            <el-button>选择文件</el-button>
-            <template #tip>
-              <div class="bug-create__case-hint">单个文件不超过 10MB，创建后自动上传</div>
-            </template>
-          </el-upload>
-        </el-form-item>
-        <el-form-item>
-          <el-button type="primary" :loading="submitting" @click="handleSubmit">提交</el-button>
-          <el-button @click="router.push('/workspace/projects/bugs')">取消</el-button>
-        </el-form-item>
-      </el-form>
-    </el-card>
+    <el-form ref="formRef" :model="form" :rules="rules" label-position="top" class="bug-create__form">
+      <div class="bug-create__layout">
+        <div class="bug-create__main">
+          <el-card shadow="never">
+            <template #header><span class="bug-create__section">基本信息</span></template>
+            <el-form-item label="标题" prop="title">
+              <el-input
+                v-model="form.title"
+                placeholder="用一句话描述缺陷现象"
+                maxlength="300"
+                show-word-limit
+                size="large"
+              />
+            </el-form-item>
+            <el-form-item label="重现步骤" class="bug-create__repro">
+              <MarkdownEditor v-model="form.reproSteps" placeholder="重现步骤（支持 Markdown，可选）" />
+            </el-form-item>
+          </el-card>
+
+          <el-card shadow="never">
+            <template #header><span class="bug-create__section">附件</span></template>
+            <el-upload
+              drag
+              :auto-upload="false"
+              :file-list="attachmentFiles"
+              multiple
+              :on-change="handleAttachmentChange"
+              :on-remove="handleAttachmentRemove"
+            >
+              <el-icon class="bug-create__upload-icon"><UploadFilled /></el-icon>
+              <div class="el-upload__text">将文件拖到此处，或<em>点击选择</em></div>
+              <template #tip>
+                <div class="bug-create__hint">单个文件不超过 10MB，创建后自动上传</div>
+              </template>
+            </el-upload>
+          </el-card>
+        </div>
+
+        <div class="bug-create__side">
+          <el-card shadow="never">
+            <template #header><span class="bug-create__section">属性</span></template>
+            <el-form-item label="缺陷类型" prop="bugType">
+              <el-select v-model="form.bugType">
+                <el-option v-for="(label, key) in BUG_TYPE_LABEL" :key="key" :label="label" :value="key" />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="所属模块">
+              <el-tree-select
+                v-model="form.moduleId"
+                :data="moduleTree"
+                :props="{ label: 'name', children: 'children' }"
+                node-key="id"
+                check-strictly
+                clearable
+                placeholder="选择所属模块（可选）"
+              />
+            </el-form-item>
+            <el-form-item label="严重等级" prop="severity">
+              <el-select v-model="form.severity">
+                <el-option v-for="(label, key) in severityLabel" :key="key" :label="label" :value="key">
+                  <span class="bug-create__severity-dot" :class="`bug-create__severity-dot--${key}`" />{{ label }}
+                </el-option>
+              </el-select>
+            </el-form-item>
+            <el-form-item label="优先级" prop="priority">
+              <el-select v-model="form.priority">
+                <el-option v-for="(label, key) in priorityLabel" :key="key" :label="label" :value="key" />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="截止日期">
+              <el-date-picker
+                v-model="form.dueDate"
+                type="date"
+                value-format="YYYY-MM-DD"
+                placeholder="选择截止日期（可选）"
+                class="bug-create__date"
+              />
+            </el-form-item>
+            <el-form-item label="关键词">
+              <el-input v-model="form.keywords" placeholder="多个关键词用空格分隔（可选）" maxlength="255" />
+            </el-form-item>
+          </el-card>
+
+          <el-card shadow="never">
+            <template #header><span class="bug-create__section">指派与关联</span></template>
+            <el-form-item label="指派给" prop="assigneeId">
+              <el-select v-model="form.assigneeId" filterable placeholder="选择处理人">
+                <el-option v-for="m in memberOptions" :key="m.userId" :label="m.username" :value="m.userId" />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="关联用例">
+              <el-button @click="caseSelectorVisible = true">选择用例</el-button>
+              <span v-if="selectedCaseTitle" class="bug-create__hint">{{ selectedCaseTitle }}</span>
+            </el-form-item>
+            <el-form-item label="关联计划">
+              <el-select v-model="form.relatedPlanId" filterable clearable placeholder="选择计划（可选）">
+                <el-option v-for="p in planOptions" :key="p.id" :label="p.name" :value="p.id" />
+              </el-select>
+            </el-form-item>
+          </el-card>
+        </div>
+      </div>
+
+      <div class="bug-create__footer">
+        <el-button @click="router.push('/workspace/projects/bugs')">取消</el-button>
+        <el-button type="primary" :loading="submitting" @click="handleSubmit">提交缺陷</el-button>
+      </div>
+    </el-form>
 
     <CaseSelector v-model="caseSelectorVisible" @confirm="handleCaseSelected" />
   </div>
@@ -229,17 +261,100 @@ async function handleSubmit() {
   color: var(--color-neutral-800);
 }
 
-.bug-create__card {
+.bug-create__form {
   margin-top: var(--space-lg);
 }
 
-.bug-create__form {
-  max-width: 640px;
+.bug-create__layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: var(--space-lg);
+  align-items: start;
+
+  @media (max-width: 1024px) {
+    grid-template-columns: 1fr;
+  }
 }
 
-.bug-create__case-hint {
+.bug-create__main,
+.bug-create__side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+.bug-create__section {
+  font-weight: 600;
+  font-size: var(--font-size-sm);
+  color: var(--color-neutral-800);
+}
+
+// 侧栏与主区表单控件统一撑满，视觉对齐
+.bug-create__form :deep(.el-select),
+.bug-create__form :deep(.el-tree-select),
+.bug-create__date {
+  width: 100%;
+}
+
+// el-date-picker 宽度由组件级 CSS 变量控制，仅设 width 无法与其他控件对齐
+.bug-create__date {
+  --el-date-editor-width: 100%;
+}
+
+.bug-create__form :deep(.el-form-item__label) {
+  font-weight: 500;
+  color: var(--color-neutral-600);
+  margin-bottom: var(--space-xs);
+}
+
+.bug-create__form :deep(.el-form-item:last-child) {
+  margin-bottom: 0;
+}
+
+.bug-create__repro :deep(.md-editor) {
+  width: 100%;
+  border-radius: var(--radius-md);
+}
+
+.bug-create__upload-icon {
+  font-size: 40px;
+  color: var(--color-neutral-300);
+  margin-bottom: var(--space-sm);
+}
+
+.bug-create__hint {
   margin-left: var(--space-sm);
   font-size: var(--font-size-2xs);
   color: var(--color-neutral-400);
+}
+
+.bug-create__severity-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: var(--space-sm);
+  vertical-align: middle;
+
+  &--fatal { background: var(--color-bug-fatal); }
+  &--serious { background: var(--color-bug-serious); }
+  &--general { background: var(--color-bug-general); }
+  &--minor { background: var(--color-bug-minor); }
+}
+
+// 底部粘性操作栏，长表单滚动时提交按钮始终可见
+.bug-create__footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 10;
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-sm);
+  margin-top: var(--space-lg);
+  padding: var(--space-md) var(--space-lg);
+  background: var(--color-neutral-0);
+  border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
 }
 </style>
