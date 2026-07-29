@@ -2,6 +2,7 @@ package io.github.xiaomisum.robotest.model.dto.request;
 
 import lombok.Data;
 
+import java.time.LocalDate;
 import java.util.UUID;
 
 @Data
@@ -13,7 +14,18 @@ public class BugUpdateReqDTO {
 
     private String priority;
 
-    private String description;
+    private String bugType;
+
+    /**
+     * 重现步骤（Markdown 原文）
+     */
+    private String reproSteps;
+
+    private UUID moduleId;
+
+    private String keywords;
+
+    private LocalDate dueDate;
 
     private UUID assigneeId;
 

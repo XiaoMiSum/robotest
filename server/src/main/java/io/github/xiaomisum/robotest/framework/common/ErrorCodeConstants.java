@@ -81,4 +81,12 @@ public static final ErrorCode BUG_ATTACHMENT_NOT_FOUND = ErrorCode.of(1000012007
 public static final ErrorCode BUG_ATTACHMENT_SIZE_EXCEEDED = ErrorCode.of(1000012008, "附件大小超过限制");
 public static final ErrorCode BUG_CLOSED_ATTACHMENT_FORBIDDEN = ErrorCode.of(1000012009, "缺陷已关闭，不可操作附件");
 public static final ErrorCode BUG_ATTACHMENT_STORE_FAILED = ErrorCode.of(1000012010, "附件存储失败");
+public static final ErrorCode BUG_RESOLUTION_REQUIRED = ErrorCode.of(1000012011, "解决缺陷时必须选择解决方案");
+public static final ErrorCode BUG_RESOLUTION_INVALID = ErrorCode.of(1000012012, "解决方案不合法");
+public static final ErrorCode BUG_DUPLICATE_OF_REQUIRED = ErrorCode.of(1000012013, "解决方案为重复缺陷时必须指定原始缺陷");
+public static final ErrorCode BUG_DUPLICATE_OF_NOT_FOUND = ErrorCode.of(1000012014, "指定的原始缺陷不存在或不合法");
+public static final ErrorCode BUG_MODULE_NOT_FOUND = ErrorCode.of(1000012015, "所属模块不存在或不属于当前项目");
+public static final ErrorCode BUG_ALREADY_CONFIRMED = ErrorCode.of(1000012016, "缺陷已确认，无需重复确认");
+public static final ErrorCode BUG_CONFIRM_INVALID_STATUS = ErrorCode.of(1000012017, "仅激活状态的缺陷可确认");
+public static final ErrorCode BUG_TYPE_INVALID = ErrorCode.of(1000012018, "缺陷类型不合法");
 }

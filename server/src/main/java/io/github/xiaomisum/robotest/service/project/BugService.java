@@ -1,6 +1,7 @@
 package io.github.xiaomisum.robotest.service.project;
 
 import io.github.xiaomisum.robotest.model.dto.request.BugCreateReqDTO;
+import io.github.xiaomisum.robotest.model.dto.request.BugStatusChangeReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.BugUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.BugDetailRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.BugListRespDTO;
@@ -15,7 +16,7 @@ import java.util.UUID;
 public interface BugService {
 
     PageResult<BugListRespDTO> getBugPage(UUID projectId, String status, String severity,
-                                     String priority, UUID assigneeId, String keyword,
+                                     String priority, String bugType, UUID assigneeId, String keyword,
                                      Integer pageNo, Integer pageSize);
 
     String createBug(UUID projectId, UUID userId, BugCreateReqDTO reqDTO);
@@ -31,14 +32,21 @@ public interface BugService {
     BugDetailRespDTO getBugDetail(UUID bugId);
 
     /**
-     * 变更缺陷状态（含状态机校验）
+     * 变更缺陷状态（三态状态机：active → resolved → closed，重开回 active）
      *
-     * @param bugId   缺陷 ID
-     * @param userId  操作用户 ID
-     * @param targetStatus 目标状态
-     * @param comment 变更说明（重开/关闭时必填）
+     * @param bugId  缺陷 ID
+     * @param userId 操作用户 ID
+     * @param reqDTO 目标状态、说明、解决方案及重复缺陷指向
      */
-    void changeBugStatus(UUID bugId, UUID userId, String targetStatus, String comment);
+    void changeBugStatus(UUID bugId, UUID userId, BugStatusChangeReqDTO reqDTO);
+
+    /**
+     * 确认缺陷（仅激活状态且未确认时可执行）
+     *
+     * @param bugId  缺陷 ID
+     * @param userId 操作用户 ID
+     */
+    void confirmBug(UUID bugId, UUID userId);
 
     /**
      * 指派缺陷处理人

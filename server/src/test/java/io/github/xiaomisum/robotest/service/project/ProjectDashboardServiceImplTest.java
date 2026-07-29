@@ -126,7 +126,7 @@ class ProjectDashboardServiceImplTest {
         bug.setTitle("Test Bug");
         bug.setSeverity("high");
         bug.setPriority("high");
-        bug.setStatus("new");
+        bug.setStatus("active");
         bug.setAssigneeId(UUID.fromString("00000000-0000-0000-0000-000000000011"));
 
         when(bugMapper.selectList(any(LambdaQueryWrapper.class)))
@@ -166,7 +166,7 @@ class ProjectDashboardServiceImplTest {
         bug.setTitle("Unassigned Bug");
         bug.setSeverity("low");
         bug.setPriority("low");
-        bug.setStatus("new");
+        bug.setStatus("active");
         bug.setAssigneeId(null);
 
         when(bugMapper.selectList(any(LambdaQueryWrapper.class)))

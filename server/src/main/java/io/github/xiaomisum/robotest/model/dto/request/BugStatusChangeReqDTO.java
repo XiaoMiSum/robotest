@@ -3,8 +3,10 @@ package io.github.xiaomisum.robotest.model.dto.request;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 
+import java.util.UUID;
+
 /**
- * 缺陷状态变更请求 DTO
+ * 缺陷状态变更请求 DTO（三态模型：active / resolved / closed）
  */
 @Data
 public class BugStatusChangeReqDTO {
@@ -16,7 +18,17 @@ public class BugStatusChangeReqDTO {
     private String status;
 
     /**
-     * 变更说明（重开/关闭时必填）
+     * 变更说明（关闭/重开时必填）
      */
     private String comment;
+
+    /**
+     * 解决方案（目标状态为 resolved 时必填）
+     */
+    private String resolution;
+
+    /**
+     * 原始缺陷 ID（resolution=duplicate 时必填）
+     */
+    private UUID duplicateOfBugId;
 }

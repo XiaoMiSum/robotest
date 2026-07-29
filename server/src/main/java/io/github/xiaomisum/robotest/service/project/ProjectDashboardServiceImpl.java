@@ -66,10 +66,7 @@ public class ProjectDashboardServiceImpl implements ProjectDashboardService {
         dto.setOpenBugCount(bugMapper.selectCount(
                 new LambdaQueryWrapperX<Bug>()
                         .eq(Bug::getProjectId, projectId)
-                        .in(Bug::getStatus,
-                                Constants.BugStatus.NEW,
-                                Constants.BugStatus.ASSIGNED,
-                                Constants.BugStatus.FIXING)));
+                        .eq(Bug::getStatus, Constants.BugStatus.ACTIVE)));
 
         // 最近 5 条缺陷
         List<Bug> recentBugs = bugMapper.selectList(
