@@ -98,8 +98,11 @@ public class WorkspaceInvitationServiceImpl implements WorkspaceInvitationServic
             throw ServiceExceptionUtil.get(ErrorCodeConstants.INVITATION_INVALID);
         }
 
-        invitation.setStatus(Constants.Status.REVOKED);
-        invitationMapper.updateById(invitation);
+        // 更新载体只携带本次变更字段，避免全列覆盖导致并发丢失更新
+        WorkspaceInvitation update = new WorkspaceInvitation();
+        update.setId(invitation.getId());
+        update.setStatus(Constants.Status.REVOKED);
+        invitationMapper.updateById(update);
     }
 
     @Override
@@ -255,8 +258,11 @@ public class WorkspaceInvitationServiceImpl implements WorkspaceInvitationServic
     }
 
     private void incrementInvitationUseCount(WorkspaceInvitation invitation) {
-        invitation.setUseCount(invitation.getUseCount() + 1);
-        invitationMapper.updateById(invitation);
+        // 更新载体只携带本次变更字段，避免全列覆盖导致并发丢失更新
+        WorkspaceInvitation update = new WorkspaceInvitation();
+        update.setId(invitation.getId());
+        update.setUseCount(invitation.getUseCount() + 1);
+        invitationMapper.updateById(update);
     }
 
     private LoginUser buildLoginUser(SysUser user) {

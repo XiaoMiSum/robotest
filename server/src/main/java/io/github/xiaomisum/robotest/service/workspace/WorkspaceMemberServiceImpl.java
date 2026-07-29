@@ -166,8 +166,11 @@ public class WorkspaceMemberServiceImpl implements WorkspaceMemberService {
             }
         }
 
-        targetMember.setWorkspaceRole(workspaceRole);
-        workspaceUserMapper.updateById(targetMember);
+        // 更新载体只携带本次变更字段，避免全列覆盖导致并发丢失更新
+        WorkspaceUser update = new WorkspaceUser();
+        update.setId(targetMember.getId());
+        update.setWorkspaceRole(workspaceRole);
+        workspaceUserMapper.updateById(update);
     }
 
     @Override
