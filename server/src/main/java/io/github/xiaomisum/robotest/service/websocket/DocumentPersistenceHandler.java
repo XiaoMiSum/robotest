@@ -5,8 +5,8 @@ import io.github.xiaomisum.robotest.model.dto.request.tcase.DocumentAddNodeReqDT
 import io.github.xiaomisum.robotest.model.dto.request.tcase.DocumentDeleteNodeReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.tcase.DocumentMoveNodeReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.tcase.DocumentUpdateAttrsReqDTO;
-import io.github.xiaomisum.robotest.model.entity.TestCaseDocumentLayout;
-import io.github.xiaomisum.robotest.model.entity.TestCaseNode;
+import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseDocumentLayout;
+import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseNode;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseDocumentLayoutMapper;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseNodeMapper;
 import jakarta.annotation.Resource;
@@ -20,8 +20,6 @@ import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
-import xyz.migoo.framework.mybatis.core.LambdaQueryWrapperX;
-import xyz.migoo.framework.mybatis.core.LambdaUpdateWrapperX;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -88,9 +86,7 @@ public class DocumentPersistenceHandler {
     }
 
     private void persistLayout(UUID docId, Map<String, Object> layout) {
-        TestCaseDocumentLayout existing = testCaseDocumentLayoutMapper.selectOne(
-                new LambdaQueryWrapperX<TestCaseDocumentLayout>()
-                        .eq(TestCaseDocumentLayout::getDocumentId, docId));
+        TestCaseDocumentLayout existing = testCaseDocumentLayoutMapper.findByDocumentId(docId);
 
         if (existing != null) {
             // 更新载体只携带布局字段，避免全列覆盖导致并发丢失更新
@@ -140,27 +136,9 @@ public class DocumentPersistenceHandler {
         }
 
         int currentVersion = node.getVersion() != null ? node.getVersion() : 0;
-        int newVersion = currentVersion + 1;
 
-        var updateWrapper = new LambdaUpdateWrapperX<TestCaseNode>()
-                .set(TestCaseNode::getVersion, newVersion)
-                .eq(TestCaseNode::getId, nodeId)
-                .eq(TestCaseNode::getVersion, currentVersion);
-
-        if (data.getTitle() != null) {
-            updateWrapper.set(TestCaseNode::getTitle, data.getTitle());
-        }
-        if (data.getType() != null) {
-            updateWrapper.set(TestCaseNode::getType, data.getType());
-        }
-        if (data.getPriority() != null) {
-            updateWrapper.set(TestCaseNode::getPriority, data.getPriority());
-        }
-        if (data.getSortOrder() != null) {
-            updateWrapper.set(TestCaseNode::getSortOrder, data.getSortOrder());
-        }
-
-        int rows = testCaseNodeMapper.update(null, updateWrapper);
+        int rows = testCaseNodeMapper.updateAttrsWithVersion(nodeId, currentVersion,
+                data.getTitle(), data.getType(), data.getPriority(), data.getSortOrder());
         if (rows == 0) {
             log.warn("Optimistic lock conflict for node {}, expected version {}", data.getId(), currentVersion);
         }
@@ -173,15 +151,11 @@ public class DocumentPersistenceHandler {
         List<String> toDelete = new ArrayList<>();
         collectDescendants(data.getId(), toDelete);
         toDelete.add(data.getId());
-        testCaseNodeMapper.delete(
-                new LambdaQueryWrapperX<TestCaseNode>()
-                        .in(TestCaseNode::getId, toDelete.stream().map(UUID::fromString).collect(Collectors.toList())));
+        testCaseNodeMapper.deleteByNodeIds(toDelete.stream().map(UUID::fromString).collect(Collectors.toList()));
     }
 
     private void collectDescendants(String parentId, List<String> result) {
-        List<TestCaseNode> children = testCaseNodeMapper.selectList(
-                new LambdaQueryWrapperX<TestCaseNode>()
-                        .eq(TestCaseNode::getParentId, UUID.fromString(parentId)));
+        List<TestCaseNode> children = testCaseNodeMapper.listByParentId(UUID.fromString(parentId));
         for (TestCaseNode child : children) {
             result.add(child.getId().toString());
             collectDescendants(child.getId().toString(), result);
@@ -200,21 +174,9 @@ public class DocumentPersistenceHandler {
         }
 
         int currentVersion = node.getVersion() != null ? node.getVersion() : 0;
-        int newVersion = currentVersion + 1;
 
-        var updateWrapper = new LambdaUpdateWrapperX<TestCaseNode>()
-                .eq(TestCaseNode::getId, nodeId)
-                .eq(TestCaseNode::getVersion, currentVersion)
-                .set(TestCaseNode::getVersion, newVersion);
-
-        if (StringUtils.hasText(data.getParentId())) {
-            updateWrapper.set(TestCaseNode::getParentId, UUID.fromString(data.getParentId()));
-        }
-        if (data.getSortOrder() != null) {
-            updateWrapper.set(TestCaseNode::getSortOrder, data.getSortOrder());
-        }
-
-        int rows = testCaseNodeMapper.update(null, updateWrapper);
+        UUID parentId = StringUtils.hasText(data.getParentId()) ? UUID.fromString(data.getParentId()) : null;
+        int rows = testCaseNodeMapper.moveNodeWithVersion(nodeId, currentVersion, parentId, data.getSortOrder());
         if (rows == 0) {
             log.warn("Optimistic lock conflict on move for node {}, expected version {}", data.getId(), currentVersion);
         }

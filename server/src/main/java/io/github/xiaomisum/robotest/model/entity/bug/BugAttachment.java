@@ -1,4 +1,4 @@
-package io.github.xiaomisum.robotest.model.entity;
+package io.github.xiaomisum.robotest.model.entity.bug;
 
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
@@ -11,16 +11,15 @@ import java.util.UUID;
 
 @Data
 @EqualsAndHashCode(callSuper = true)
-@TableName("test_plan_module_snapshot")
-public class TestPlanModuleSnapshot extends BaseUuidDO<TestPlanModuleSnapshot> {
+@TableName("bug_attachment")
+public class BugAttachment extends BaseUuidDO<BugAttachment> {
 
     @TableField(typeHandler = UUIDTypeHandler.class)
-    private UUID planId;
+    private UUID bugId;
+    private String fileName;
+    private String storagePath;
+    private Long fileSize;
+    private String contentType;
     @TableField(typeHandler = UUIDTypeHandler.class)
-    private UUID originalModuleId;
-    @TableField(typeHandler = UUIDTypeHandler.class)
-    private UUID parentId;
-    private String name;
-    private String type;
-    private Integer sortOrder;
+    private UUID uploaderId;
 }

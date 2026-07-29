@@ -1,4 +1,4 @@
-package io.github.xiaomisum.robotest.model.entity;
+package io.github.xiaomisum.robotest.model.entity.review;
 
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
@@ -7,17 +7,20 @@ import lombok.EqualsAndHashCode;
 import xyz.migoo.framework.mybatis.core.dataobject.BaseUuidDO;
 import xyz.migoo.framework.mybatis.core.handler.UUIDTypeHandler;
 
-import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Data
 @EqualsAndHashCode(callSuper = true)
-@TableName(value = "sys_user_role", autoResultMap = true)
-public class SysUserRole extends BaseUuidDO<SysUserRole> {
+@TableName("test_review_record")
+public class TestReviewRecord extends BaseUuidDO<TestReviewRecord> {
 
     @TableField(typeHandler = UUIDTypeHandler.class)
-    private UUID userId;
+    private UUID reviewId;
     @TableField(typeHandler = UUIDTypeHandler.class)
-    private UUID roleId;
-    private LocalDateTime assignedAt;
+    private UUID snapshotNodeId;
+    @TableField(typeHandler = UUIDTypeHandler.class)
+    private UUID reviewerId;
+    private String operationType;
+    private String mark;
+    private String comment;
 }

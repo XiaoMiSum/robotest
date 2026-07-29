@@ -1,4 +1,4 @@
-package io.github.xiaomisum.robotest.model.entity;
+package io.github.xiaomisum.robotest.model.entity.admin;
 
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
@@ -7,19 +7,17 @@ import lombok.EqualsAndHashCode;
 import xyz.migoo.framework.mybatis.core.dataobject.BaseUuidDO;
 import xyz.migoo.framework.mybatis.core.handler.UUIDTypeHandler;
 
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Data
 @EqualsAndHashCode(callSuper = true)
-@TableName("bug_attachment")
-public class BugAttachment extends BaseUuidDO<BugAttachment> {
+@TableName(value = "sys_user_role", autoResultMap = true)
+public class SysUserRole extends BaseUuidDO<SysUserRole> {
 
     @TableField(typeHandler = UUIDTypeHandler.class)
-    private UUID bugId;
-    private String fileName;
-    private String storagePath;
-    private Long fileSize;
-    private String contentType;
+    private UUID userId;
     @TableField(typeHandler = UUIDTypeHandler.class)
-    private UUID uploaderId;
+    private UUID roleId;
+    private LocalDateTime assignedAt;
 }

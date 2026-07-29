@@ -1,4 +1,4 @@
-package io.github.xiaomisum.robotest.model.entity;
+package io.github.xiaomisum.robotest.model.entity.tcase;
 
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;

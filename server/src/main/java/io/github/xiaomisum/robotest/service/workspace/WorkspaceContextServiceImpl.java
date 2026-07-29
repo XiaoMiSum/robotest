@@ -5,9 +5,9 @@ import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.model.dto.request.workspace.WorkspaceDefaultProjectReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.workspace.WorkspaceUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.workspace.WorkspaceContextRespDTO;
-import io.github.xiaomisum.robotest.model.entity.Project;
-import io.github.xiaomisum.robotest.model.entity.Workspace;
-import io.github.xiaomisum.robotest.model.entity.WorkspaceUser;
+import io.github.xiaomisum.robotest.model.entity.workspace.Project;
+import io.github.xiaomisum.robotest.model.entity.workspace.Workspace;
+import io.github.xiaomisum.robotest.model.entity.workspace.WorkspaceUser;
 import io.github.xiaomisum.robotest.repository.workspace.ProjectMapper;
 import io.github.xiaomisum.robotest.repository.workspace.WorkspaceMapper;
 import io.github.xiaomisum.robotest.repository.workspace.WorkspaceUserMapper;
@@ -15,7 +15,6 @@ import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
-import xyz.migoo.framework.mybatis.core.LambdaUpdateWrapperX;
 
 import java.util.UUID;
 
@@ -99,9 +98,7 @@ public class WorkspaceContextServiceImpl implements WorkspaceContextService {
             }
         }
 
-        workspaceUserMapper.update(null, new LambdaUpdateWrapperX<WorkspaceUser>()
-                .eq(WorkspaceUser::getId, workspaceUser.getId())
-                .set(WorkspaceUser::getDefaultProjectId, reqDTO.getProjectId()));
+        workspaceUserMapper.updateDefaultProjectId(workspaceUser.getId(), reqDTO.getProjectId());
         workspaceUser.setDefaultProjectId(reqDTO.getProjectId());
 
         return buildContextRespDTO(workspace, workspaceUser);

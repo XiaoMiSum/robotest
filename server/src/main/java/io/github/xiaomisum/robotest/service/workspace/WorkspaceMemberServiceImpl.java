@@ -2,11 +2,12 @@ package io.github.xiaomisum.robotest.service.workspace;
 
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
+import io.github.xiaomisum.robotest.framework.convert.WorkspaceMemberConvertMapper;
 import io.github.xiaomisum.robotest.model.dto.request.workspace.WorkspaceMembersAddReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.workspace.WorkspaceMemberAddResultRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.workspace.WorkspaceMemberRespDTO;
-import io.github.xiaomisum.robotest.model.entity.SysUser;
-import io.github.xiaomisum.robotest.model.entity.WorkspaceUser;
+import io.github.xiaomisum.robotest.model.entity.admin.SysUser;
+import io.github.xiaomisum.robotest.model.entity.workspace.WorkspaceUser;
 import io.github.xiaomisum.robotest.repository.admin.SysUserMapper;
 import io.github.xiaomisum.robotest.repository.workspace.WorkspaceUserMapper;
 import io.github.xiaomisum.robotest.service.workspace.WorkspaceMemberService;
@@ -59,21 +60,11 @@ public class WorkspaceMemberServiceImpl implements WorkspaceMemberService {
         List<SysUser> users = userMapper.listByIds(userIds);
 
         List<WorkspaceMemberRespDTO> records = page.getList().stream().map(wu -> {
-            WorkspaceMemberRespDTO dto = new WorkspaceMemberRespDTO();
-            dto.setUserId(wu.getUserId());
-            dto.setWorkspaceRole(wu.getWorkspaceRole());
-            dto.setJoinedAt(wu.getJoinedAt());
-
-            users.stream()
+            SysUser user = users.stream()
                     .filter(u -> u.getId().equals(wu.getUserId()))
                     .findFirst()
-                    .ifPresent(u -> {
-                        dto.setUsername(u.getUsername());
-                        dto.setEmail(u.getEmail());
-                        dto.setAvatarUrl(u.getAvatarUrl());
-                    });
-
-            return dto;
+                    .orElse(null);
+            return WorkspaceMemberConvertMapper.INSTANCE.toRespDTO(wu, user);
         }).collect(Collectors.toList());
 
         return new PageResult<>(records, page.getTotal());

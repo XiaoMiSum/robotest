@@ -1,4 +1,4 @@
-package io.github.xiaomisum.robotest.model.entity;
+package io.github.xiaomisum.robotest.model.entity.admin;
 
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
@@ -8,22 +8,23 @@ import lombok.EqualsAndHashCode;
 import xyz.migoo.framework.mybatis.core.dataobject.BaseUuidDO;
 import xyz.migoo.framework.mybatis.core.handler.UUIDTypeHandler;
 
-import java.util.List;
 import java.util.UUID;
 
 @Data
 @EqualsAndHashCode(callSuper = true)
-@TableName(value = "test_review", autoResultMap = true)
-public class TestReview extends BaseUuidDO<TestReview> {
+@TableName(value = "audit_log", autoResultMap = true)
+public class AuditLog extends BaseUuidDO<AuditLog> {
 
     @TableField(typeHandler = UUIDTypeHandler.class)
-    private UUID projectId;
-    private String title;
-    private String description;
-    private String initiatorId;
+    private UUID operatorId;
+    private String operatorName;
+    private String operation;
+    private String entityType;
+    @TableField(typeHandler = UUIDTypeHandler.class)
+    private UUID entityId;
 
     @TableField(typeHandler = Jackson3TypeHandler.class)
-    private List<UUID> participantIds;
+    private java.util.Map<String, Object> changes;
 
-    private String status;
+    private String requestIp;
 }

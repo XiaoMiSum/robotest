@@ -1,7 +1,7 @@
 package io.github.xiaomisum.robotest.repository.admin;
 
 import io.github.xiaomisum.robotest.framework.common.Constants;
-import io.github.xiaomisum.robotest.model.entity.SysUser;
+import io.github.xiaomisum.robotest.model.entity.admin.SysUser;
 import org.springframework.util.StringUtils;
 import xyz.migoo.framework.mybatis.core.BaseMapperX;
 import xyz.migoo.framework.mybatis.core.LambdaQueryWrapperX;

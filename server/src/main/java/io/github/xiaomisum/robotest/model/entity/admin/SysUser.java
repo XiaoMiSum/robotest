@@ -1,4 +1,4 @@
-package io.github.xiaomisum.robotest.model.entity;
+package io.github.xiaomisum.robotest.model.entity.admin;
 
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;

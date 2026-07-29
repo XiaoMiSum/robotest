@@ -1,6 +1,6 @@
 package io.github.xiaomisum.robotest.repository.workspace;
 
-import io.github.xiaomisum.robotest.model.entity.Workspace;
+import io.github.xiaomisum.robotest.model.entity.workspace.Workspace;
 import xyz.migoo.framework.mybatis.core.BaseMapperX;
 import xyz.migoo.framework.mybatis.core.LambdaQueryWrapperX;
 import xyz.migoo.framework.common.pojo.PageParam;

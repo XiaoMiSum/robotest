@@ -1,4 +1,4 @@
-package io.github.xiaomisum.robotest.model.entity;
+package io.github.xiaomisum.robotest.model.entity.review;
 
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
@@ -11,16 +11,16 @@ import java.util.UUID;
 
 @Data
 @EqualsAndHashCode(callSuper = true)
-@TableName("test_case_node")
-public class TestCaseNode extends BaseUuidDO<TestCaseNode> {
+@TableName("test_review_module_snapshot")
+public class TestReviewModuleSnapshot extends BaseUuidDO<TestReviewModuleSnapshot> {
 
     @TableField(typeHandler = UUIDTypeHandler.class)
-    private UUID documentId;
+    private UUID reviewId;
+    @TableField(typeHandler = UUIDTypeHandler.class)
+    private UUID originalModuleId;
     @TableField(typeHandler = UUIDTypeHandler.class)
     private UUID parentId;
+    private String name;
     private String type;
-    private String title;
-    private String priority;
     private Integer sortOrder;
-    private Integer version;
 }
