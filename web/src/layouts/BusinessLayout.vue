@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useNavStore } from '@/stores/nav'
+import ChangePasswordDialog from '@/components/common/ChangePasswordDialog.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -76,6 +77,16 @@ function handleLogout() {
   authStore.logout()
   router.push('/login')
 }
+
+const pwdDialogVisible = ref(false)
+
+function handleUserCommand(cmd: string) {
+  if (cmd === 'logout') {
+    handleLogout()
+  } else if (cmd === 'change-password') {
+    pwdDialogVisible.value = true
+  }
+}
 </script>
 
 <template>
@@ -136,7 +147,7 @@ function handleLogout() {
 
         <el-divider direction="vertical" />
 
-        <el-dropdown trigger="click" @command="(cmd: string) => (cmd === 'logout' ? handleLogout() : null)">
+        <el-dropdown trigger="click" @command="handleUserCommand">
           <div class="top-nav__user">
             <el-avatar :size="30" :src="authStore.avatarUrl || undefined">
               {{ authStore.username?.charAt(0)?.toUpperCase() }}
@@ -145,12 +156,17 @@ function handleLogout() {
           </div>
           <template #dropdown>
             <el-dropdown-menu>
+              <el-dropdown-item command="change-password">
+                <el-icon><Lock /></el-icon>修改密码
+              </el-dropdown-item>
               <el-dropdown-item command="logout">
                 <el-icon><SwitchButton /></el-icon>退出登录
               </el-dropdown-item>
             </el-dropdown-menu>
           </template>
         </el-dropdown>
+
+        <ChangePasswordDialog v-model="pwdDialogVisible" />
       </div>
     </header>
 

@@ -30,6 +30,8 @@ public interface UserService {
 
     void resetPassword(UUID id, String newPassword);
 
+    void changePassword(UUID userId, String oldPassword, String newPassword);
+
     SysUser getUserByUsername(String username);
 
     SysUser getUserByEmail(String email);

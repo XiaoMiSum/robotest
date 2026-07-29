@@ -215,6 +215,19 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    public void changePassword(UUID userId, String oldPassword, String newPassword) {
+        SysUser user = userMapper.selectById(userId);
+        if (user == null) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.USER_NOT_FOUND);
+        }
+        if (!passwordEncoder.matches(oldPassword, user.getPasswordHash())) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.OLD_PASSWORD_WRONG);
+        }
+        user.setPasswordHash(passwordEncoder.encode(newPassword));
+        userMapper.updateById(user);
+    }
+
+    @Override
     public SysUser getUserByUsername(String username) {
         return userMapper.selectOne(SysUser::getUsername, username);
     }
