@@ -171,6 +171,29 @@ class BugServiceImplTest {
                 () -> bugService.updateBug(bugId, userId, reqDTO));
     }
 
+    @Test
+    void updateBug_assigneeNotInWorkspace_throws() {
+        UUID assigneeId = UUID.fromString("00000000-0000-0000-0000-000000000005");
+        Bug bug = new Bug();
+        bug.setId(bugId);
+        bug.setProjectId(projectId);
+        bug.setStatus("new");
+        when(bugMapper.selectById(bugId)).thenReturn(bug);
+
+        Project project = new Project();
+        project.setId(projectId);
+        project.setWorkspaceId(UUID.fromString("00000000-0000-0000-0000-000000000009"));
+        when(projectMapper.selectById(projectId)).thenReturn(project);
+        when(workspaceUserMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(null);
+
+        BugUpdateReqDTO reqDTO = new BugUpdateReqDTO();
+        reqDTO.setAssigneeId(assigneeId);
+
+        assertThrows(ServiceException.class,
+                () -> bugService.updateBug(bugId, userId, reqDTO));
+        verify(bugMapper, never()).updateById(any(Bug.class));
+    }
+
     // ========== getBugDetail ==========
 
     @Test
@@ -306,6 +329,60 @@ class BugServiceImplTest {
 
         assertThrows(ServiceException.class,
                 () -> bugService.assignBug(bugId, userId, UUID.fromString("00000000-0000-0000-0000-000000000005")));
+    }
+
+    @Test
+    void assignBug_assigneeNotInWorkspace_throws() {
+        UUID assigneeId = UUID.fromString("00000000-0000-0000-0000-000000000005");
+        Bug bug = new Bug();
+        bug.setId(bugId);
+        bug.setProjectId(projectId);
+        when(bugMapper.selectById(bugId)).thenReturn(bug);
+
+        SysUser assignee = new SysUser();
+        assignee.setId(assigneeId);
+        assignee.setUsername("assignee");
+        when(userMapper.selectById(assigneeId)).thenReturn(assignee);
+
+        Project project = new Project();
+        project.setId(projectId);
+        project.setWorkspaceId(UUID.fromString("00000000-0000-0000-0000-000000000009"));
+        when(projectMapper.selectById(projectId)).thenReturn(project);
+        when(workspaceUserMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(null);
+
+        assertThrows(ServiceException.class,
+                () -> bugService.assignBug(bugId, userId, assigneeId));
+        verify(bugMapper, never()).updateById(any(Bug.class));
+    }
+
+    @Test
+    void assignBug_assigneeInWorkspace_success() {
+        UUID assigneeId = UUID.fromString("00000000-0000-0000-0000-000000000005");
+        Bug bug = new Bug();
+        bug.setId(bugId);
+        bug.setProjectId(projectId);
+        when(bugMapper.selectById(bugId)).thenReturn(bug);
+
+        SysUser assignee = new SysUser();
+        assignee.setId(assigneeId);
+        assignee.setUsername("assignee");
+        when(userMapper.selectById(assigneeId)).thenReturn(assignee);
+
+        Project project = new Project();
+        project.setId(projectId);
+        project.setWorkspaceId(UUID.fromString("00000000-0000-0000-0000-000000000009"));
+        when(projectMapper.selectById(projectId)).thenReturn(project);
+        when(workspaceUserMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(new WorkspaceUser());
+        doAnswer(inv -> {
+            ((BugLog) inv.getArgument(0)).setId(UUID.randomUUID());
+            return 1;
+        }).when(bugLogMapper).insert(any(BugLog.class));
+
+        bugService.assignBug(bugId, userId, assigneeId);
+
+        ArgumentCaptor<Bug> captor = ArgumentCaptor.forClass(Bug.class);
+        verify(bugMapper).updateById(captor.capture());
+        assertEquals(assigneeId, captor.getValue().getAssigneeId());
     }
 
     // ========== getBugStatistics ==========
