@@ -102,7 +102,10 @@ public class RoleServiceImpl implements RoleService {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.ROLE_NAME_EXISTS);
         }
         role.setName(reqDTO.getName());
-        roleMapper.updateById(role);
+        SysRole update = new SysRole();
+        update.setId(id);
+        update.setName(reqDTO.getName());
+        roleMapper.updateById(update);
         RoleRespDTO dto = RoleConvertMapper.INSTANCE.toRespDTO(role);
         dto.setUserCount(Math.toIntExact(userRoleMapper.selectCount(SysUserRole::getRoleId, role.getId())));
         return dto;
