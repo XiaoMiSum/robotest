@@ -5,6 +5,7 @@ import { ElMessage, ElMessageBox, type UploadRequestOptions } from 'element-plus
 import {
   assignBug,
   changeBugStatus,
+  confirmBug,
   deleteBugAttachment,
   downloadBugAttachment,
   fetchBugAttachments,
@@ -14,9 +15,21 @@ import {
   uploadBugAttachment,
 } from '@/services/project'
 import { fetchMembers } from '@/services/workspace'
-import type { BugAttachment, BugDetail, BugLog, BugStatus, WorkspaceMember } from '@/types'
+import type {
+  BugAttachment,
+  BugDetail,
+  BugLog,
+  BugResolution,
+  WorkspaceMember,
+} from '@/types'
 import { formatDateTime } from '@/utils/format'
-import { BUG_STATUS_LABEL, getValidTargetStatuses, promptStatusChangeComment } from '@/utils/bugStatus'
+import {
+  BUG_RESOLUTION_LABEL,
+  BUG_STATUS_LABEL,
+  BUG_TYPE_LABEL,
+  promptStatusChangeComment,
+} from '@/utils/bugStatus'
+import BugResolveDialog from '@/components/project/BugResolveDialog.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -27,35 +40,26 @@ const saving = ref(false)
 const detail = ref<BugDetail | null>(null)
 const logs = ref<BugLog[]>([])
 const memberOptions = ref<WorkspaceMember[]>([])
+const resolveDialogVisible = ref(false)
 
 const isClosed = computed(() => detail.value?.status === 'closed')
+const isActive = computed(() => detail.value?.status === 'active')
+const isResolved = computed(() => detail.value?.status === 'resolved')
 
 const form = reactive({
   title: '',
   severity: '' as string,
   priority: '' as string,
-  status: '' as string,
-  description: '',
+  bugType: '' as string,
+  keywords: '',
+  dueDate: '' as string,
+  reproSteps: '',
   assigneeId: '' as string,
 })
 
 const severityLabel: Record<string, string> = { fatal: '致命', serious: '严重', general: '一般', minor: '轻微' }
 const priorityLabel: Record<string, string> = { high: '高', medium: '中', low: '低' }
 const statusLabel = BUG_STATUS_LABEL
-
-// 状态下拉仅展示当前状态与状态机允许的目标状态，避免非法流转
-const statusOptions = computed(() => {
-  const current = detail.value?.status
-  if (!current) return []
-  return [
-    { value: current, label: statusLabel[current], disabled: true },
-    ...getValidTargetStatuses(current).map((s) => ({
-      value: s,
-      label: statusLabel[s],
-      disabled: false,
-    })),
-  ]
-})
 
 async function load() {
   loading.value = true
@@ -71,8 +75,10 @@ async function load() {
     form.title = bugData.title
     form.severity = bugData.severity
     form.priority = bugData.priority
-    form.status = bugData.status
-    form.description = bugData.description ?? ''
+    form.bugType = bugData.bugType
+    form.keywords = bugData.keywords ?? ''
+    form.dueDate = bugData.dueDate ?? ''
+    form.reproSteps = bugData.reproSteps ?? ''
     form.assigneeId = bugData.assignee?.id ?? ''
   } catch (err) {
     ElMessage.error(err instanceof Error ? err.message : '加载缺陷详情失败')
@@ -89,7 +95,10 @@ async function handleSave() {
       title: form.title.trim(),
       severity: form.severity as BugDetail['severity'],
       priority: form.priority as BugDetail['priority'],
-      description: form.description.trim() || undefined,
+      bugType: form.bugType as BugDetail['bugType'],
+      keywords: form.keywords.trim() || undefined,
+      dueDate: form.dueDate || undefined,
+      reproSteps: form.reproSteps.trim() || undefined,
     })
     // 处理人变更走专用指派接口，后端会校验工作空间成员并写指派日志
     const originalAssigneeId = detail.value.assignee?.id ?? ''
@@ -105,21 +114,62 @@ async function handleSave() {
   }
 }
 
-async function handleStatusChange(newStatus: string) {
-  const current = detail.value?.status
-  if (!current || newStatus === current) return
-  const comment = await promptStatusChangeComment(current, newStatus as BugStatus)
-  if (comment === null) {
-    form.status = current
+// ==================== 状态操作 ====================
+
+async function handleConfirm() {
+  try {
+    await ElMessageBox.confirm('确认该缺陷有效并需要处理吗？', '确认缺陷', { type: 'info' })
+  } catch {
     return
   }
   try {
-    await changeBugStatus(bugId, { status: newStatus as BugStatus, comment: comment || undefined })
-    ElMessage.success('状态已更新')
+    await confirmBug(bugId)
+    ElMessage.success('缺陷已确认')
     load()
   } catch (err) {
-    ElMessage.error(err instanceof Error ? err.message : '状态变更失败')
-    form.status = current
+    ElMessage.error(err instanceof Error ? err.message : '确认失败')
+  }
+}
+
+async function handleResolve(payload: {
+  resolution: BugResolution
+  duplicateOfBugId?: string
+  comment?: string
+}) {
+  try {
+    await changeBugStatus(bugId, { status: 'resolved', ...payload })
+    ElMessage.success('缺陷已解决')
+    load()
+  } catch (err) {
+    ElMessage.error(err instanceof Error ? err.message : '解决失败')
+  }
+}
+
+async function handleClose() {
+  const current = detail.value?.status
+  if (!current) return
+  const comment = await promptStatusChangeComment(current, 'closed')
+  if (comment === null) return
+  try {
+    await changeBugStatus(bugId, { status: 'closed', comment: comment || undefined })
+    ElMessage.success('缺陷已关闭')
+    load()
+  } catch (err) {
+    ElMessage.error(err instanceof Error ? err.message : '关闭失败')
+  }
+}
+
+async function handleReopen() {
+  const current = detail.value?.status
+  if (!current) return
+  const comment = await promptStatusChangeComment(current, 'active')
+  if (comment === null) return
+  try {
+    await changeBugStatus(bugId, { status: 'active', comment: comment || undefined })
+    ElMessage.success('缺陷已激活')
+    load()
+  } catch (err) {
+    ElMessage.error(err instanceof Error ? err.message : '激活失败')
   }
 }
 
@@ -197,10 +247,57 @@ onMounted(() => {
     </el-page-header>
 
     <el-card v-if="detail" shadow="never" class="bug-detail__card">
+      <div class="bug-detail__status-bar">
+        <el-tag :type="isActive ? 'danger' : isResolved ? 'success' : 'info'" effect="light">
+          {{ statusLabel[detail.status] }}
+        </el-tag>
+        <el-tag v-if="detail.confirmed" size="small" type="warning" effect="plain">已确认</el-tag>
+        <el-tag v-if="detail.reopenCount > 0" size="small" type="danger" effect="plain">
+          重开 {{ detail.reopenCount }} 次
+        </el-tag>
+        <span class="bug-detail__status-spacer" />
+        <el-button v-if="isActive && !detail.confirmed" size="small" @click="handleConfirm">确认</el-button>
+        <el-button v-if="isActive" size="small" type="success" @click="resolveDialogVisible = true">解决</el-button>
+        <el-button v-if="isResolved" size="small" type="info" @click="handleClose">关闭</el-button>
+        <el-button v-if="isResolved || isClosed" size="small" type="danger" @click="handleReopen">激活</el-button>
+      </div>
+
+      <el-descriptions v-if="isResolved || isClosed" :column="2" size="small" border class="bug-detail__resolution">
+        <el-descriptions-item label="解决方案">
+          {{ detail.resolution ? BUG_RESOLUTION_LABEL[detail.resolution] : '-' }}
+        </el-descriptions-item>
+        <el-descriptions-item label="重复缺陷">
+          <el-link
+            v-if="detail.duplicateOfBugId"
+            type="primary"
+            :underline="false"
+            @click="router.push(`/workspace/projects/bugs/${detail.duplicateOfBugId}`)"
+          >
+            查看原始缺陷
+          </el-link>
+          <span v-else>-</span>
+        </el-descriptions-item>
+        <el-descriptions-item label="解决人">
+          {{ detail.resolvedBy ? `${detail.resolvedBy.name}（${formatDateTime(detail.resolvedAt!)}）` : '-' }}
+        </el-descriptions-item>
+        <el-descriptions-item label="关闭人">
+          {{ detail.closedBy ? `${detail.closedBy.name}（${formatDateTime(detail.closedAt!)}）` : '-' }}
+        </el-descriptions-item>
+      </el-descriptions>
+
       <el-form label-width="96px" class="bug-detail__form">
         <el-form-item label="标题">
           <el-input v-if="!isClosed" v-model="form.title" />
           <span v-else class="bug-detail__text">{{ detail.title }}</span>
+        </el-form-item>
+        <el-form-item label="缺陷类型">
+          <el-select v-if="!isClosed" v-model="form.bugType" style="width: 160px">
+            <el-option v-for="(label, key) in BUG_TYPE_LABEL" :key="key" :label="label" :value="key" />
+          </el-select>
+          <span v-else class="bug-detail__text">{{ BUG_TYPE_LABEL[detail.bugType] }}</span>
+        </el-form-item>
+        <el-form-item label="所属模块">
+          <span class="bug-detail__text">{{ detail.moduleName ?? '-' }}</span>
         </el-form-item>
         <el-form-item label="严重等级">
           <el-select v-if="!isClosed" v-model="form.severity" style="width: 160px">
@@ -214,28 +311,19 @@ onMounted(() => {
           </el-select>
           <span v-else class="bug-detail__text">{{ priorityLabel[detail.priority] }}</span>
         </el-form-item>
-        <el-form-item label="状态">
-          <el-select v-if="!isClosed" v-model="form.status" style="width: 160px" @change="handleStatusChange">
-            <el-option
-              v-for="opt in statusOptions"
-              :key="opt.value"
-              :label="opt.label"
-              :value="opt.value"
-              :disabled="opt.disabled"
-            />
-          </el-select>
-          <template v-else>
-            <el-tag>{{ statusLabel[detail.status] }}</el-tag>
-            <el-button link type="primary" class="bug-detail__reopen" @click="handleStatusChange('fixing')">
-              重新打开
-            </el-button>
-          </template>
+        <el-form-item label="截止日期">
+          <el-date-picker v-if="!isClosed" v-model="form.dueDate" type="date" value-format="YYYY-MM-DD" style="width: 160px" />
+          <span v-else class="bug-detail__text">{{ detail.dueDate ?? '-' }}</span>
         </el-form-item>
-        <el-form-item label="描述">
-          <el-input v-if="!isClosed" v-model="form.description" type="textarea" :rows="4" />
-          <span v-else class="bug-detail__text">{{ detail.description || '-' }}</span>
+        <el-form-item label="关键词">
+          <el-input v-if="!isClosed" v-model="form.keywords" maxlength="255" />
+          <span v-else class="bug-detail__text">{{ detail.keywords || '-' }}</span>
         </el-form-item>
-        <el-form-item label="处理人">
+        <el-form-item label="重现步骤">
+          <el-input v-if="!isClosed" v-model="form.reproSteps" type="textarea" :rows="6" placeholder="重现步骤（支持 Markdown）" />
+          <span v-else class="bug-detail__text bug-detail__pre">{{ detail.reproSteps || '-' }}</span>
+        </el-form-item>
+        <el-form-item label="指派给">
           <el-select v-if="!isClosed" v-model="form.assigneeId" filterable style="width: 240px">
             <el-option v-for="m in memberOptions" :key="m.userId" :label="m.username" :value="m.userId" />
           </el-select>
@@ -297,6 +385,12 @@ onMounted(() => {
         </el-timeline-item>
       </el-timeline>
     </el-card>
+
+    <BugResolveDialog
+      v-model="resolveDialogVisible"
+      :exclude-bug-id="bugId"
+      @confirm="handleResolve"
+    />
   </div>
 </template>
 
@@ -311,6 +405,21 @@ onMounted(() => {
   margin-top: var(--space-lg);
 }
 
+.bug-detail__status-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-lg);
+}
+
+.bug-detail__status-spacer {
+  flex: 1;
+}
+
+.bug-detail__resolution {
+  margin-bottom: var(--space-lg);
+}
+
 .bug-detail__form {
   max-width: 640px;
 }
@@ -321,8 +430,8 @@ onMounted(() => {
   line-height: 1.6;
 }
 
-.bug-detail__reopen {
-  margin-left: var(--space-sm);
+.bug-detail__pre {
+  white-space: pre-wrap;
 }
 
 .bug-detail__logs {

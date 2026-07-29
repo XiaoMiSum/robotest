@@ -5,9 +5,11 @@ import type {
   BugListItem,
   BugLog,
   BugPriority,
+  BugResolution,
   BugSeverity,
   BugStatistics,
   BugStatus,
+  BugType,
   CaseListItem,
   DocumentNodes,
   ExecutionRecord,
@@ -269,6 +271,7 @@ export function fetchBugs(params: {
   status?: BugStatus | ''
   severity?: BugSeverity | ''
   priority?: BugPriority | ''
+  bugType?: BugType | ''
   assigneeId?: string
   keyword?: string
   pageNo?: number
@@ -281,7 +284,11 @@ export function createBug(data: {
   title: string
   severity: BugSeverity
   priority: BugPriority
-  description?: string
+  bugType: BugType
+  reproSteps?: string
+  moduleId?: string
+  keywords?: string
+  dueDate?: string
   assigneeId?: string
   relatedCaseId?: string
   relatedPlanId?: string
@@ -299,7 +306,11 @@ export function updateBug(
     title?: string
     severity?: BugSeverity
     priority?: BugPriority
-    description?: string
+    bugType?: BugType
+    reproSteps?: string
+    moduleId?: string
+    keywords?: string
+    dueDate?: string
     assigneeId?: string | null
   },
 ): Promise<void> {
@@ -312,9 +323,18 @@ export function getBugLogs(id: string): Promise<BugLog[]> {
 
 export function changeBugStatus(
   id: string,
-  data: { status: BugStatus; comment?: string },
+  data: {
+    status: BugStatus
+    comment?: string
+    resolution?: BugResolution
+    duplicateOfBugId?: string
+  },
 ): Promise<void> {
   return patch(`/project/bugs/${id}/status`, data)
+}
+
+export function confirmBug(id: string): Promise<void> {
+  return patch(`/project/bugs/${id}/confirm`)
 }
 
 export function assignBug(id: string, assigneeId: string): Promise<void> {
