@@ -363,8 +363,11 @@ public class TestReviewServiceImpl implements TestReviewService {
         for (TestReviewNodeSnapshot snap : snapByOriginal.values()) {
             boolean associated = caseIds.contains(snap.getOriginalNodeId());
             if (!Objects.equals(associated, snap.getIsAssociated())) {
-                snap.setIsAssociated(associated);
-                reviewNodeSnapshotMapper.updateById(snap);
+                // 仅回写关联标记，避免整行覆盖并发产生的评审结果
+                TestReviewNodeSnapshot snapUpdate = new TestReviewNodeSnapshot();
+                snapUpdate.setId(snap.getId());
+                snapUpdate.setIsAssociated(associated);
+                reviewNodeSnapshotMapper.updateById(snapUpdate);
             }
         }
     }
@@ -439,15 +442,21 @@ public class TestReviewServiceImpl implements TestReviewService {
                                 .set(TestReviewNodeSnapshot::getLastReviewerId, userId)
                                 .set(TestReviewNodeSnapshot::getLastReviewedAt, LocalDateTime.now()));
             } else {
-                snapshotNode.setLastMark(mark);
-                snapshotNode.setLastReviewerId(userId);
-                snapshotNode.setLastReviewedAt(LocalDateTime.now());
-                reviewNodeSnapshotMapper.updateById(snapshotNode);
+                // 更新载体只携带本次标记字段，避免全列覆盖导致并发丢失更新
+                TestReviewNodeSnapshot snapUpdate = new TestReviewNodeSnapshot();
+                snapUpdate.setId(snapshotNode.getId());
+                snapUpdate.setLastMark(mark);
+                snapUpdate.setLastReviewerId(userId);
+                snapUpdate.setLastReviewedAt(LocalDateTime.now());
+                reviewNodeSnapshotMapper.updateById(snapUpdate);
             }
             // 需求：标记评审结果后待评审评审自动转入进行中
             if (Constants.Status.NEW.equals(review.getStatus())) {
                 review.setStatus(Constants.Status.IN_PROGRESS);
-                testReviewMapper.updateById(review);
+                TestReview reviewUpdate = new TestReview();
+                reviewUpdate.setId(review.getId());
+                reviewUpdate.setStatus(Constants.Status.IN_PROGRESS);
+                testReviewMapper.updateById(reviewUpdate);
             }
         }
 
@@ -497,8 +506,10 @@ public class TestReviewServiceImpl implements TestReviewService {
         if (!review.getInitiatorId().equals(userId.toString())) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.REVIEW_NOT_INITIATOR);
         }
-        review.setStatus(Constants.Status.COMPLETED);
-        testReviewMapper.updateById(review);
+        TestReview update = new TestReview();
+        update.setId(review.getId());
+        update.setStatus(Constants.Status.COMPLETED);
+        testReviewMapper.updateById(update);
     }
 
     @Override

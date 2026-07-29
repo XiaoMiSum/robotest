@@ -256,7 +256,10 @@ class TestReviewServiceImplTest {
                 reviewService.submitReviewRecord(reviewId, userId, reqDTO);
 
                 assertEquals(Constants.Status.IN_PROGRESS, review.getStatus());
-                verify(testReviewMapper).updateById(review);
+                // 状态流转通过仅携带 id + status 的载体落库
+                ArgumentCaptor<TestReview> captor = ArgumentCaptor.forClass(TestReview.class);
+                verify(testReviewMapper).updateById(captor.capture());
+                assertEquals(Constants.Status.IN_PROGRESS, captor.getValue().getStatus());
         }
 
         @Test
@@ -383,9 +386,11 @@ class TestReviewServiceImplTest {
                 verify(reviewModuleSnapshotMapper).deleteById(snapA.getId());
                 // 快照后新增的 case2 被补入快照（插入时已带关联标记）
                 verify(reviewNodeSnapshotMapper).insert(any(TestReviewNodeSnapshot.class));
-                // c1 取消关联落库一次
-                verify(reviewNodeSnapshotMapper, times(1)).updateById(any(TestReviewNodeSnapshot.class));
-                assertFalse(caseSnap1.getIsAssociated());
+                // c1 取消关联落库一次（载体仅携带 id + 关联标记）
+                ArgumentCaptor<TestReviewNodeSnapshot> snapCaptor = ArgumentCaptor.forClass(TestReviewNodeSnapshot.class);
+                verify(reviewNodeSnapshotMapper, times(1)).updateById(snapCaptor.capture());
+                assertEquals(caseSnap1.getId(), snapCaptor.getValue().getId());
+                assertFalse(snapCaptor.getValue().getIsAssociated());
         }
 
         @Test
@@ -586,8 +591,9 @@ class TestReviewServiceImplTest {
 
                 reviewService.completeReview(reviewId, userId);
 
-                verify(testReviewMapper).updateById(any(TestReview.class));
-                assertEquals("completed", review.getStatus());
+                ArgumentCaptor<TestReview> captor = ArgumentCaptor.forClass(TestReview.class);
+                verify(testReviewMapper).updateById(captor.capture());
+                assertEquals("completed", captor.getValue().getStatus());
         }
 
         @Test

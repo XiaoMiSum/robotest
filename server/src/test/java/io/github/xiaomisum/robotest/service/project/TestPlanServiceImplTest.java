@@ -14,6 +14,7 @@ import io.github.xiaomisum.robotest.repository.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -201,10 +202,12 @@ class TestPlanServiceImplTest {
 
                 planService.submitExecutionRecord(planId, userId, reqDTO);
 
-                verify(planNodeSnapshotMapper).updateById(any(TestPlanNodeSnapshot.class));
+                // 更新载体仅携带 id + 本次标记字段，不再回写查询实体
+                ArgumentCaptor<TestPlanNodeSnapshot> captor = ArgumentCaptor.forClass(TestPlanNodeSnapshot.class);
+                verify(planNodeSnapshotMapper).updateById(captor.capture());
                 verify(planExecutionRecordMapper).insert(any(TestPlanExecutionRecord.class));
-                assertEquals("pass", snapshot.getLastResult());
-                assertEquals(userId, snapshot.getLastExecutorId());
+                assertEquals("pass", captor.getValue().getLastResult());
+                assertEquals(userId, captor.getValue().getLastExecutorId());
         }
 
         @Test
@@ -230,8 +233,9 @@ class TestPlanServiceImplTest {
 
                 planService.submitExecutionRecord(planId, userId, reqDTO);
 
-                assertEquals(Constants.Status.IN_PROGRESS, plan.getStatus());
-                verify(testPlanMapper).updateById(plan);
+                ArgumentCaptor<TestPlan> captor = ArgumentCaptor.forClass(TestPlan.class);
+                verify(testPlanMapper).updateById(captor.capture());
+                assertEquals(Constants.Status.IN_PROGRESS, captor.getValue().getStatus());
         }
 
         @Test
@@ -330,8 +334,9 @@ class TestPlanServiceImplTest {
 
                 planService.submitExecutionRecord(planId, userId, reqDTO);
 
-                assertEquals("untested", snapshot.getLastResult());
-                verify(planNodeSnapshotMapper).updateById(any(TestPlanNodeSnapshot.class));
+                ArgumentCaptor<TestPlanNodeSnapshot> captor = ArgumentCaptor.forClass(TestPlanNodeSnapshot.class);
+                verify(planNodeSnapshotMapper).updateById(captor.capture());
+                assertEquals("untested", captor.getValue().getLastResult());
         }
 
         @Test
@@ -536,8 +541,9 @@ class TestPlanServiceImplTest {
 
                 planService.closePlan(planId, userId);
 
-                verify(testPlanMapper).updateById(any(TestPlan.class));
-                assertEquals("closed", plan.getStatus());
+                ArgumentCaptor<TestPlan> captor = ArgumentCaptor.forClass(TestPlan.class);
+                verify(testPlanMapper).updateById(captor.capture());
+                assertEquals("closed", captor.getValue().getStatus());
         }
 
         @Test
@@ -553,8 +559,9 @@ class TestPlanServiceImplTest {
 
                 planService.closePlan(planId, userId);
 
-                verify(testPlanMapper).updateById(any(TestPlan.class));
-                assertEquals("closed", plan.getStatus());
+                ArgumentCaptor<TestPlan> captor = ArgumentCaptor.forClass(TestPlan.class);
+                verify(testPlanMapper).updateById(captor.capture());
+                assertEquals("closed", captor.getValue().getStatus());
         }
 
         @Test
@@ -590,8 +597,9 @@ class TestPlanServiceImplTest {
 
                 planService.completePlan(planId, userId);
 
-                assertEquals(Constants.Status.COMPLETED, plan.getStatus());
-                verify(testPlanMapper).updateById(plan);
+                ArgumentCaptor<TestPlan> captor = ArgumentCaptor.forClass(TestPlan.class);
+                verify(testPlanMapper).updateById(captor.capture());
+                assertEquals(Constants.Status.COMPLETED, captor.getValue().getStatus());
         }
 
         @Test

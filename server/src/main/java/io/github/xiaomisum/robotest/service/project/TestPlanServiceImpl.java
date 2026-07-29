@@ -347,8 +347,11 @@ public class TestPlanServiceImpl implements TestPlanService {
         for (TestPlanNodeSnapshot snap : snapByOriginal.values()) {
             boolean associated = caseIds.contains(snap.getOriginalNodeId());
             if (!Objects.equals(associated, snap.getIsAssociated())) {
-                snap.setIsAssociated(associated);
-                planNodeSnapshotMapper.updateById(snap);
+                // 仅回写关联标记，避免整行覆盖并发产生的执行结果
+                TestPlanNodeSnapshot snapUpdate = new TestPlanNodeSnapshot();
+                snapUpdate.setId(snap.getId());
+                snapUpdate.setIsAssociated(associated);
+                planNodeSnapshotMapper.updateById(snapUpdate);
             }
         }
     }
@@ -414,15 +417,20 @@ public class TestPlanServiceImpl implements TestPlanService {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.VALIDATION_FAILED);
         }
 
-        snapshotNode.setLastResult(result);
-        snapshotNode.setLastExecutorId(userId);
-        snapshotNode.setLastExecutedAt(LocalDateTime.now());
-        planNodeSnapshotMapper.updateById(snapshotNode);
+        // 更新载体只携带本次标记字段，避免全列覆盖导致并发丢失更新
+        TestPlanNodeSnapshot snapUpdate = new TestPlanNodeSnapshot();
+        snapUpdate.setId(snapshotNode.getId());
+        snapUpdate.setLastResult(result);
+        snapUpdate.setLastExecutorId(userId);
+        snapUpdate.setLastExecutedAt(LocalDateTime.now());
+        planNodeSnapshotMapper.updateById(snapUpdate);
 
         // 需求：标记执行结果后待开始计划自动转入进行中（已取代单独的开始执行操作）
         if (Constants.Status.NEW.equals(plan.getStatus())) {
-            plan.setStatus(Constants.Status.IN_PROGRESS);
-            testPlanMapper.updateById(plan);
+            TestPlan planUpdate = new TestPlan();
+            planUpdate.setId(plan.getId());
+            planUpdate.setStatus(Constants.Status.IN_PROGRESS);
+            testPlanMapper.updateById(planUpdate);
         }
 
         TestPlanExecutionRecord record = new TestPlanExecutionRecord();
@@ -598,8 +606,10 @@ public class TestPlanServiceImpl implements TestPlanService {
             log.warn("Plan {} closed with {} untested associated cases", planId, untestedCount);
         }
 
-        plan.setStatus(Constants.Status.CLOSED);
-        testPlanMapper.updateById(plan);
+        TestPlan update = new TestPlan();
+        update.setId(planId);
+        update.setStatus(Constants.Status.CLOSED);
+        testPlanMapper.updateById(update);
     }
 
     @Override
@@ -612,8 +622,10 @@ public class TestPlanServiceImpl implements TestPlanService {
         if (!userId.equals(plan.getExecutorId())) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.NO_PERMISSION);
         }
-        plan.setStatus(Constants.Status.COMPLETED);
-        testPlanMapper.updateById(plan);
+        TestPlan update = new TestPlan();
+        update.setId(planId);
+        update.setStatus(Constants.Status.COMPLETED);
+        testPlanMapper.updateById(update);
     }
 
     @Override
