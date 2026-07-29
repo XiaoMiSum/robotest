@@ -10,6 +10,8 @@ declare module 'vue' {
   export interface GlobalComponents {
     CaseMindMap: typeof import('./components/project/CaseMindMap.vue')['default']
     CaseSelector: typeof import('./components/project/CaseSelector.vue')['default']
+    CaseSelectTree: typeof import('./components/project/CaseSelectTree.vue')['default']
+    ChangePasswordDialog: typeof import('./components/common/ChangePasswordDialog.vue')['default']
     ElAvatar: typeof import('element-plus/es')['ElAvatar']
     ElBadge: typeof import('element-plus/es')['ElBadge']
     ElButton: typeof import('element-plus/es')['ElButton']

@@ -2,6 +2,8 @@ package io.github.xiaomisum.robotest.controller;
 
 import io.github.xiaomisum.robotest.framework.security.LoginUser;
 import io.github.xiaomisum.robotest.model.dto.request.LoginReqDTO;
+import io.github.xiaomisum.robotest.model.dto.request.PasswordChangeReqDTO;
+import io.github.xiaomisum.robotest.service.admin.UserService;
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
 import org.springframework.security.core.GrantedAuthority;
@@ -20,6 +22,8 @@ public class AuthController {
 
     @Resource
     private AuthUserDetailsFetcher<LoginUser> authUserDetailsFetcher;
+    @Resource
+    private UserService userService;
 
     @PostMapping("/login")
     public Result<LoginResult<LoginUser>> login(@RequestBody @Valid LoginReqDTO reqDTO) {
@@ -45,5 +49,12 @@ public class AuthController {
                 .distinct()
                 .toList();
         return Result.ok(permissions);
+    }
+
+    @PostMapping("/change-password")
+    public Result<Void> changePassword(@AuthenticationPrincipal LoginUser loginUser,
+                                       @RequestBody @Valid PasswordChangeReqDTO reqDTO) {
+        userService.changePassword(loginUser.getId(), reqDTO.getOldPassword(), reqDTO.getNewPassword());
+        return Result.ok();
     }
 }
