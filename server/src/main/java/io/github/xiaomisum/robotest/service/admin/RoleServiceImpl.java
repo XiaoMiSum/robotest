@@ -10,12 +10,12 @@ import io.github.xiaomisum.robotest.model.dto.response.admin.PermissionTableResp
 import io.github.xiaomisum.robotest.model.dto.response.admin.RoleRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.admin.RoleSimpleRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.admin.RoleWorkspaceUserRespDTO;
-import io.github.xiaomisum.robotest.model.entity.SysPermission;
-import io.github.xiaomisum.robotest.model.entity.SysRole;
-import io.github.xiaomisum.robotest.model.entity.SysUserRole;
-import io.github.xiaomisum.robotest.model.entity.SysUser;
-import io.github.xiaomisum.robotest.model.entity.Workspace;
-import io.github.xiaomisum.robotest.model.entity.WorkspaceUser;
+import io.github.xiaomisum.robotest.model.entity.admin.SysPermission;
+import io.github.xiaomisum.robotest.model.entity.admin.SysRole;
+import io.github.xiaomisum.robotest.model.entity.admin.SysUserRole;
+import io.github.xiaomisum.robotest.model.entity.admin.SysUser;
+import io.github.xiaomisum.robotest.model.entity.workspace.Workspace;
+import io.github.xiaomisum.robotest.model.entity.workspace.WorkspaceUser;
 import io.github.xiaomisum.robotest.repository.admin.SysPermissionMapper;
 import io.github.xiaomisum.robotest.repository.admin.SysRoleMapper;
 import io.github.xiaomisum.robotest.repository.admin.SysUserMapper;
@@ -26,8 +26,6 @@ import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
-import xyz.migoo.framework.mybatis.core.LambdaQueryWrapperX;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -77,9 +75,7 @@ public class RoleServiceImpl implements RoleService {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.ROLE_TYPE_ERROR);
         }
 
-        SysRole role = new SysRole();
-        role.setName(reqDTO.getName());
-        role.setType(reqDTO.getType());
+        SysRole role = RoleConvertMapper.INSTANCE.toEntity(reqDTO);
         role.setIsSystem(false);
         role.setPermissions(List.of());
         roleMapper.insert(role);
@@ -207,10 +203,7 @@ public class RoleServiceImpl implements RoleService {
         }
         for (UUID userId : userIds) {
             for (UUID workspaceId : workspaceIds) {
-                if (workspaceUserMapper.selectCount(new LambdaQueryWrapperX<WorkspaceUser>()
-                        .eq(WorkspaceUser::getUserId, userId)
-                        .eq(WorkspaceUser::getWorkspaceId, workspaceId)
-                        .eq(WorkspaceUser::getWorkspaceRole, roleId)) > 0) continue;
+                if (workspaceUserMapper.existsByUserIdAndWorkspaceIdAndRole(userId, workspaceId, roleId)) continue;
 
                 WorkspaceUser workspaceUser = new WorkspaceUser();
                 workspaceUser.setUserId(userId);
@@ -224,17 +217,12 @@ public class RoleServiceImpl implements RoleService {
 
     @Override
     public void removeRoleUser(UUID id, UUID userId) {
-        userRoleMapper.delete(new LambdaQueryWrapperX<SysUserRole>()
-                .eq(SysUserRole::getUserId, userId)
-                .eq(SysUserRole::getRoleId, id));
+        userRoleMapper.deleteByUserIdAndRoleId(userId, id);
     }
 
     @Override
     public void removeWorkspaceRoleUser(UUID roleId, UUID userId, UUID workspaceId) {
-        workspaceUserMapper.delete(new LambdaQueryWrapperX<WorkspaceUser>()
-                .eq(WorkspaceUser::getUserId, userId)
-                .eq(WorkspaceUser::getWorkspaceId, workspaceId)
-                .eq(WorkspaceUser::getWorkspaceRole, roleId));
+        workspaceUserMapper.deleteByUserIdAndWorkspaceIdAndRole(userId, workspaceId, roleId);
     }
 
     @Override
@@ -259,10 +247,7 @@ public class RoleServiceImpl implements RoleService {
     @Override
     public List<PermissionTableRespDTO> getPermissionTable(String roleType) {
         String scope = Constants.RoleType.WORKSPACE.equals(roleType) ? "workspace" : "global";
-        List<SysPermission> permissions = permissionMapper.selectList(
-                new LambdaQueryWrapperX<SysPermission>()
-                        .eq(SysPermission::getScope, scope)
-                        .orderByAsc(SysPermission::getModule, SysPermission::getSortOrder));
+        List<SysPermission> permissions = permissionMapper.findByScopeOrdered(scope);
 
         return permissions.stream()
                 .filter(p -> p.getParentCode() != null)

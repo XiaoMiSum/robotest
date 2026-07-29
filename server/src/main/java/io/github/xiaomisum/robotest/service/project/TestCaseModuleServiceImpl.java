@@ -1,15 +1,13 @@
 package io.github.xiaomisum.robotest.service.project;
 
-import xyz.migoo.framework.mybatis.core.LambdaQueryWrapperX;
-import xyz.migoo.framework.mybatis.core.LambdaUpdateWrapperX;
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.framework.convert.TestCaseModuleConvertMapper;
 import io.github.xiaomisum.robotest.model.dto.request.tcase.TestCaseModuleCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.tcase.TestCaseModuleUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.tcase.TestCaseModuleTreeRespDTO;
-import io.github.xiaomisum.robotest.model.entity.TestCaseModule;
-import io.github.xiaomisum.robotest.model.entity.TestCaseNode;
+import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseModule;
+import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseNode;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseModuleMapper;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseNodeMapper;
 import io.github.xiaomisum.robotest.service.project.TestCaseModuleService;
@@ -58,11 +56,8 @@ public class TestCaseModuleServiceImpl implements TestCaseModuleService {
             }
         }
 
-        TestCaseModule existing = testCaseModuleMapper.selectOne(
-                new LambdaQueryWrapperX<TestCaseModule>()
-                        .eq(TestCaseModule::getProjectId, projectId)
-                        .eq(TestCaseModule::getParentId, reqDTO.getParentId())
-                        .eq(TestCaseModule::getName, reqDTO.getName()));
+        TestCaseModule existing = testCaseModuleMapper.findByNameAndParent(
+                projectId, reqDTO.getParentId(), reqDTO.getName());
         if (existing != null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_CASE_MODULE_NAME_EXISTS);
         }
@@ -103,12 +98,8 @@ public class TestCaseModuleServiceImpl implements TestCaseModuleService {
         }
 
         if (reqDTO.getName() != null) {
-            TestCaseModule existing = testCaseModuleMapper.selectOne(
-                    new LambdaQueryWrapperX<TestCaseModule>()
-                            .eq(TestCaseModule::getProjectId, module.getProjectId())
-                            .eq(TestCaseModule::getParentId, module.getParentId())
-                            .eq(TestCaseModule::getName, reqDTO.getName())
-                            .ne(TestCaseModule::getId, moduleId));
+            TestCaseModule existing = testCaseModuleMapper.findByNameAndParentExcludingId(
+                    module.getProjectId(), module.getParentId(), reqDTO.getName(), moduleId);
             if (existing != null) {
                 throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_CASE_MODULE_NAME_EXISTS);
             }
@@ -146,21 +137,13 @@ public class TestCaseModuleServiceImpl implements TestCaseModuleService {
             }
         }
 
-        LambdaQueryWrapperX<TestCaseModule> dupQuery = new LambdaQueryWrapperX<TestCaseModule>()
-                .eq(TestCaseModule::getProjectId, module.getProjectId())
-                .eq(TestCaseModule::getName, module.getName())
-                .ne(TestCaseModule::getId, module.getId());
-        applyParentCondition(dupQuery, targetParentId);
-        if (testCaseModuleMapper.selectOne(dupQuery) != null) {
+        if (testCaseModuleMapper.findByNameExcludingId(
+                module.getProjectId(), targetParentId, module.getName(), module.getId()) != null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_CASE_MODULE_NAME_EXISTS);
         }
 
-        LambdaQueryWrapperX<TestCaseModule> siblingQuery = new LambdaQueryWrapperX<TestCaseModule>()
-                .eq(TestCaseModule::getProjectId, module.getProjectId())
-                .ne(TestCaseModule::getId, module.getId())
-                .orderByAsc(TestCaseModule::getSortOrder);
-        applyParentCondition(siblingQuery, targetParentId);
-        List<TestCaseModule> siblings = testCaseModuleMapper.selectList(siblingQuery);
+        List<TestCaseModule> siblings = testCaseModuleMapper.findSiblingsByParent(
+                module.getProjectId(), targetParentId, module.getId());
 
         module.setParentId(targetParentId);
         siblings.add(Math.clamp(targetIndex, 0, siblings.size()), module);
@@ -170,22 +153,9 @@ public class TestCaseModuleServiceImpl implements TestCaseModuleService {
                 continue;
             }
             sibling.setSortOrder(i);
-            // 被移动节点由 updateModule 统一落库；兄弟节点仅回写 sortOrder，不整行覆盖
             if (!sibling.getId().equals(module.getId())) {
-                testCaseModuleMapper.update(null,
-                        new LambdaUpdateWrapperX<TestCaseModule>()
-                                .eq(TestCaseModule::getId, sibling.getId())
-                                .set(TestCaseModule::getSortOrder, i));
+                testCaseModuleMapper.updateSortOrder(sibling.getId(), i);
             }
-        }
-    }
-
-    // parent_id 为空表示根层级，必须用 IS NULL 而非 eq(null)
-    private void applyParentCondition(LambdaQueryWrapperX<TestCaseModule> query, UUID parentId) {
-        if (parentId != null) {
-            query.eq(TestCaseModule::getParentId, parentId);
-        } else {
-            query.isNull(TestCaseModule::getParentId);
         }
     }
 

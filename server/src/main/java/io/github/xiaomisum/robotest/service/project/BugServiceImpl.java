@@ -2,6 +2,7 @@ package io.github.xiaomisum.robotest.service.project;
 
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
+import io.github.xiaomisum.robotest.framework.convert.BugConvertMapper;
 import io.github.xiaomisum.robotest.model.dto.request.bug.BugCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.bug.BugStatusChangeReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.bug.BugUpdateReqDTO;
@@ -9,12 +10,12 @@ import io.github.xiaomisum.robotest.model.dto.response.bug.BugDetailRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.bug.BugListRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.bug.BugLogRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.bug.BugStatisticsRespDTO;
-import io.github.xiaomisum.robotest.model.entity.Bug;
-import io.github.xiaomisum.robotest.model.entity.BugLog;
-import io.github.xiaomisum.robotest.model.entity.Project;
-import io.github.xiaomisum.robotest.model.entity.SysUser;
-import io.github.xiaomisum.robotest.model.entity.TestCaseModule;
-import io.github.xiaomisum.robotest.model.entity.WorkspaceUser;
+import io.github.xiaomisum.robotest.model.entity.bug.Bug;
+import io.github.xiaomisum.robotest.model.entity.bug.BugLog;
+import io.github.xiaomisum.robotest.model.entity.workspace.Project;
+import io.github.xiaomisum.robotest.model.entity.admin.SysUser;
+import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseModule;
+import io.github.xiaomisum.robotest.model.entity.workspace.WorkspaceUser;
 import io.github.xiaomisum.robotest.repository.bug.BugLogMapper;
 import io.github.xiaomisum.robotest.repository.bug.BugMapper;
 import io.github.xiaomisum.robotest.repository.workspace.ProjectMapper;
@@ -29,8 +30,6 @@ import org.springframework.util.StringUtils;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
 import xyz.migoo.framework.common.pojo.PageParam;
 import xyz.migoo.framework.common.pojo.PageResult;
-import xyz.migoo.framework.mybatis.core.LambdaQueryWrapperX;
-import xyz.migoo.framework.mybatis.core.LambdaUpdateWrapperX;
 
 import java.time.LocalDateTime;
 import java.util.*;
@@ -69,60 +68,16 @@ public class BugServiceImpl implements BugService {
     public PageResult<BugListRespDTO> getBugPage(UUID projectId, String status, String severity,
                                              String priority, String bugType, UUID assigneeId, String keyword,
                                              Integer pageNo, Integer pageSize) {
-        LambdaQueryWrapperX<Bug> wrapper = new LambdaQueryWrapperX<Bug>()
-                .eq(Bug::getProjectId, projectId);
-        if (StringUtils.hasText(status)) {
-            wrapper.eq(Bug::getStatus, status);
-        }
-        if (StringUtils.hasText(severity)) {
-            wrapper.eq(Bug::getSeverity, severity);
-        }
-        if (StringUtils.hasText(priority)) {
-            wrapper.eq(Bug::getPriority, priority);
-        }
-        if (StringUtils.hasText(bugType)) {
-            wrapper.eq(Bug::getBugType, bugType);
-        }
-        if (assigneeId != null) {
-            wrapper.eq(Bug::getAssigneeId, assigneeId);
-        }
-        if (StringUtils.hasText(keyword)) {
-            wrapper.like(Bug::getTitle, keyword);
-        }
-        wrapper.orderByDesc(Bug::getCreatedAt);
-        PageResult<Bug> page = bugMapper.selectPage(new PageParam() {{
+        PageResult<Bug> page = bugMapper.findPage(new PageParam() {{
             setPageNo(pageNo);
             setPageSize(pageSize);
-        }}, wrapper);
+        }}, projectId, status, severity, priority, bugType, assigneeId, keyword);
 
         List<BugListRespDTO> dtos = page.getList().stream().map(bug -> {
-            BugListRespDTO dto = new BugListRespDTO();
-            dto.setId(bug.getId());
-            dto.setTitle(bug.getTitle());
-            dto.setSeverity(bug.getSeverity());
-            dto.setPriority(bug.getPriority());
-            dto.setStatus(bug.getStatus());
-            dto.setBugType(bug.getBugType());
-            dto.setConfirmed(bug.getConfirmed());
-            dto.setResolution(bug.getResolution());
-            dto.setDueDate(bug.getDueDate());
-            dto.setCreatedAt(bug.getCreatedAt());
-
-            SysUser reporter = userMapper.selectById(bug.getReporterId());
-            if (reporter != null) {
-                BugListRespDTO.UserInfo info = new BugListRespDTO.UserInfo();
-                info.setId(reporter.getId());
-                info.setName(reporter.getUsername());
-                dto.setReporter(info);
-            }
+            BugListRespDTO dto = BugConvertMapper.INSTANCE.toListRespDTO(bug);
+            dto.setReporter(BugConvertMapper.INSTANCE.toUserInfo(userMapper.selectById(bug.getReporterId())));
             if (bug.getAssigneeId() != null) {
-                SysUser assignee = userMapper.selectById(bug.getAssigneeId());
-                if (assignee != null) {
-                    BugListRespDTO.UserInfo info = new BugListRespDTO.UserInfo();
-                    info.setId(assignee.getId());
-                    info.setName(assignee.getUsername());
-                    dto.setAssignee(info);
-                }
+                dto.setAssignee(BugConvertMapper.INSTANCE.toUserInfo(userMapper.selectById(bug.getAssigneeId())));
             }
             return dto;
         }).collect(Collectors.toList());
@@ -137,25 +92,7 @@ public class BugServiceImpl implements BugService {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.BUG_NOT_FOUND);
         }
 
-        BugDetailRespDTO dto = new BugDetailRespDTO();
-        dto.setId(bug.getId());
-        dto.setTitle(bug.getTitle());
-        dto.setSeverity(bug.getSeverity());
-        dto.setPriority(bug.getPriority());
-        dto.setStatus(bug.getStatus());
-        dto.setBugType(bug.getBugType());
-        dto.setReproSteps(bug.getReproSteps());
-        dto.setKeywords(bug.getKeywords());
-        dto.setDueDate(bug.getDueDate());
-        dto.setConfirmed(bug.getConfirmed());
-        dto.setReopenCount(bug.getReopenCount());
-        dto.setLastReopenedAt(bug.getLastReopenedAt());
-        dto.setResolution(bug.getResolution());
-        dto.setDuplicateOfBugId(bug.getDuplicateOfBugId());
-        dto.setResolvedAt(bug.getResolvedAt());
-        dto.setClosedAt(bug.getClosedAt());
-        dto.setCreatedAt(bug.getCreatedAt());
-        dto.setUpdatedAt(bug.getUpdatedAt());
+        BugDetailRespDTO dto = BugConvertMapper.INSTANCE.toDetailRespDTO(bug);
 
         if (bug.getModuleId() != null) {
             dto.setModuleId(bug.getModuleId());
@@ -164,44 +101,16 @@ public class BugServiceImpl implements BugService {
                 dto.setModuleName(module.getName());
             }
         }
-        dto.setResolvedBy(buildUserInfo(bug.getResolvedBy()));
-        dto.setClosedBy(buildUserInfo(bug.getClosedBy()));
-
-        if (bug.getRelatedCaseId() != null) {
-            dto.setRelatedCaseId(bug.getRelatedCaseId());
-        }
-        if (bug.getRelatedPlanId() != null) {
-            dto.setRelatedPlanId(bug.getRelatedPlanId());
-        }
-
-        SysUser reporter = userMapper.selectById(bug.getReporterId());
-        if (reporter != null) {
-            BugDetailRespDTO.UserInfo info = new BugDetailRespDTO.UserInfo();
-            info.setId(reporter.getId());
-            info.setName(reporter.getUsername());
-            dto.setReporter(info);
-        }
+        dto.setResolvedBy(BugConvertMapper.INSTANCE.toDetailUserInfo(userMapper.selectById(bug.getResolvedBy())));
+        dto.setClosedBy(BugConvertMapper.INSTANCE.toDetailUserInfo(userMapper.selectById(bug.getClosedBy())));
+        dto.setReporter(BugConvertMapper.INSTANCE.toDetailUserInfo(userMapper.selectById(bug.getReporterId())));
         if (bug.getAssigneeId() != null) {
-            SysUser assignee = userMapper.selectById(bug.getAssigneeId());
-            if (assignee != null) {
-                BugDetailRespDTO.UserInfo info = new BugDetailRespDTO.UserInfo();
-                info.setId(assignee.getId());
-                info.setName(assignee.getUsername());
-                dto.setAssignee(info);
-            }
+            dto.setAssignee(BugConvertMapper.INSTANCE.toDetailUserInfo(userMapper.selectById(bug.getAssigneeId())));
         }
 
-        List<BugLog> recentLogs = bugLogMapper.selectList(new LambdaQueryWrapperX<BugLog>()
-                .eq(BugLog::getBugId, bugId)
-                .orderByDesc(BugLog::getCreatedAt)
-                .last("LIMIT 10"));
+        List<BugLog> recentLogs = bugLogMapper.findRecentLogs(bugId, 10);
         dto.setRecentLogs(recentLogs.stream().map(log -> {
-            BugLogRespDTO logDto = new BugLogRespDTO();
-            logDto.setId(log.getId());
-            logDto.setOperatorId(log.getOperatorId());
-            logDto.setOperationType(log.getOperationType());
-            logDto.setContent(log.getContent());
-            logDto.setCreatedAt(log.getCreatedAt());
+            BugLogRespDTO logDto = BugConvertMapper.INSTANCE.toLogRespDTO(log);
             SysUser operator = userMapper.selectById(log.getOperatorId());
             if (operator != null) {
                 logDto.setOperatorName(operator.getUsername());
@@ -219,23 +128,12 @@ public class BugServiceImpl implements BugService {
         validateModuleInProject(projectId, reqDTO.getModuleId());
         validateAssigneeInWorkspace(projectId, reqDTO.getAssigneeId());
 
-        Bug bug = new Bug();
+        Bug bug = BugConvertMapper.INSTANCE.toEntity(reqDTO);
         bug.setProjectId(projectId);
-        bug.setTitle(reqDTO.getTitle());
-        bug.setSeverity(reqDTO.getSeverity());
-        bug.setPriority(reqDTO.getPriority());
-        bug.setBugType(reqDTO.getBugType());
         bug.setStatus(Constants.BugStatus.ACTIVE);
-        bug.setReproSteps(reqDTO.getReproSteps());
-        bug.setModuleId(reqDTO.getModuleId());
-        bug.setKeywords(reqDTO.getKeywords());
-        bug.setDueDate(reqDTO.getDueDate());
         bug.setConfirmed(false);
         bug.setReopenCount(0);
         bug.setReporterId(userId);
-        bug.setAssigneeId(reqDTO.getAssigneeId());
-        bug.setRelatedCaseId(reqDTO.getRelatedCaseId());
-        bug.setRelatedPlanId(reqDTO.getRelatedPlanId());
         bugMapper.insert(bug);
 
         writeBugLog(bug.getId(), userId, Constants.BugOperation.CREATE, "创建缺陷");
@@ -342,14 +240,7 @@ public class BugServiceImpl implements BugService {
             }
         }
 
-        bugMapper.update(null, new LambdaUpdateWrapperX<Bug>()
-                .eq(Bug::getId, bug.getId())
-                .set(Bug::getStatus, Constants.BugStatus.RESOLVED)
-                .set(Bug::getConfirmed, true)
-                .set(Bug::getResolution, resolution)
-                .set(Bug::getDuplicateOfBugId, duplicateOfBugId)
-                .set(Bug::getResolvedBy, userId)
-                .set(Bug::getResolvedAt, LocalDateTime.now()));
+        bugMapper.resolveById(bug.getId(), userId, resolution, duplicateOfBugId);
 
         writeBugLog(bug.getId(), userId, Constants.BugOperation.RESOLVE,
                 String.format("解决缺陷，方案「%s」%s", resolution,
@@ -382,17 +273,8 @@ public class BugServiceImpl implements BugService {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.BUG_REOPEN_COMMENT_REQUIRED);
         }
 
-        bugMapper.update(null, new LambdaUpdateWrapperX<Bug>()
-                .eq(Bug::getId, bug.getId())
-                .set(Bug::getStatus, Constants.BugStatus.ACTIVE)
-                .set(Bug::getReopenCount, bug.getReopenCount() == null ? 1 : bug.getReopenCount() + 1)
-                .set(Bug::getResolution, null)
-                .set(Bug::getDuplicateOfBugId, null)
-                .set(Bug::getResolvedBy, null)
-                .set(Bug::getResolvedAt, null)
-                .set(Bug::getClosedBy, null)
-                .set(Bug::getClosedAt, null)
-                .set(Bug::getLastReopenedAt, LocalDateTime.now()));
+        int nextReopenCount = bug.getReopenCount() == null ? 1 : bug.getReopenCount() + 1;
+        bugMapper.reopenById(bug.getId(), nextReopenCount);
 
         writeBugLog(bug.getId(), userId, Constants.BugOperation.REOPEN, "重开缺陷，说明：" + comment);
     }
@@ -448,7 +330,7 @@ public class BugServiceImpl implements BugService {
 
     @Override
     public BugStatisticsRespDTO getBugStatistics(UUID projectId) {
-        List<Bug> bugs = bugMapper.selectList(new LambdaQueryWrapperX<Bug>().eq(Bug::getProjectId, projectId));
+        List<Bug> bugs = bugMapper.findByProjectId(projectId);
 
         BugStatisticsRespDTO stats = new BugStatisticsRespDTO();
         stats.setTotal(bugs.size());
@@ -478,9 +360,7 @@ public class BugServiceImpl implements BugService {
         if (project == null) {
             return;
         }
-        WorkspaceUser wu = workspaceUserMapper.selectOne(new LambdaQueryWrapperX<WorkspaceUser>()
-                .eq(WorkspaceUser::getWorkspaceId, project.getWorkspaceId())
-                .eq(WorkspaceUser::getUserId, assigneeId));
+        WorkspaceUser wu = workspaceUserMapper.findByWorkspaceIdAndUserId(project.getWorkspaceId(), assigneeId);
         if (wu == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.BUG_ASSIGNEE_NOT_IN_WORKSPACE);
         }
@@ -529,17 +409,10 @@ public class BugServiceImpl implements BugService {
 
     @Override
     public List<BugLogRespDTO> getBugLogs(UUID bugId) {
-        List<BugLog> logs = bugLogMapper.selectList(new LambdaQueryWrapperX<BugLog>()
-                .eq(BugLog::getBugId, bugId));
+        List<BugLog> logs = bugLogMapper.findByBugId(bugId);
 
         return logs.stream().map(log -> {
-            BugLogRespDTO dto = new BugLogRespDTO();
-            dto.setId(log.getId());
-            dto.setOperatorId(log.getOperatorId());
-            dto.setOperationType(log.getOperationType());
-            dto.setContent(log.getContent());
-            dto.setCreatedAt(log.getCreatedAt());
-
+            BugLogRespDTO dto = BugConvertMapper.INSTANCE.toLogRespDTO(log);
             SysUser operator = userMapper.selectById(log.getOperatorId());
             if (operator != null) {
                 dto.setOperatorName(operator.getUsername());

@@ -7,9 +7,9 @@ import io.github.xiaomisum.robotest.model.dto.request.tcase.TestCaseNodeUpdateRe
 import io.github.xiaomisum.robotest.model.dto.response.tcase.TestCaseCaseListRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.tcase.TestCaseDocumentNodesRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.tcase.TestCaseNodeTreeRespDTO;
-import io.github.xiaomisum.robotest.model.entity.TestCaseDocumentLayout;
-import io.github.xiaomisum.robotest.model.entity.TestCaseModule;
-import io.github.xiaomisum.robotest.model.entity.TestCaseNode;
+import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseDocumentLayout;
+import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseModule;
+import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseNode;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseDocumentLayoutMapper;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseModuleMapper;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseNodeMapper;
@@ -19,8 +19,6 @@ import org.springframework.util.StringUtils;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
 import xyz.migoo.framework.common.pojo.PageParam;
 import xyz.migoo.framework.common.pojo.PageResult;
-import xyz.migoo.framework.mybatis.core.LambdaQueryWrapperX;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -52,9 +50,7 @@ public class TestCaseNodeServiceImpl implements TestCaseNodeService {
 
         TestCaseNodeTreeRespDTO rootNode = buildNodeTree(dtos);
 
-        TestCaseDocumentLayout layout = testCaseDocumentLayoutMapper.selectOne(
-                new LambdaQueryWrapperX<TestCaseDocumentLayout>()
-                        .eq(TestCaseDocumentLayout::getDocumentId, documentId));
+        TestCaseDocumentLayout layout = testCaseDocumentLayoutMapper.findByDocumentId(documentId);
 
         TestCaseDocumentNodesRespDTO result = new TestCaseDocumentNodesRespDTO();
         result.setNode(rootNode);
@@ -75,10 +71,7 @@ public class TestCaseNodeServiceImpl implements TestCaseNodeService {
     public PageResult<TestCaseCaseListRespDTO> getCaseList(UUID projectId, String keyword,
                                                            String priority, Integer pageNo, Integer pageSize) {
         // 查询项目下所有 document 的 ID
-        List<TestCaseModule> documents = testCaseModuleMapper.selectList(
-                new LambdaQueryWrapperX<TestCaseModule>()
-                        .eq(TestCaseModule::getProjectId, projectId)
-                        .eq(TestCaseModule::getType, Constants.ModuleType.DOCUMENT));
+        List<TestCaseModule> documents = testCaseModuleMapper.findDocumentModulesByProjectId(projectId);
         List<String> documentIds = documents.stream()
                 .map(doc -> doc.getId().toString())
                 .collect(Collectors.toList());
@@ -88,22 +81,11 @@ public class TestCaseNodeServiceImpl implements TestCaseNodeService {
         }
 
         // 查询所有 case 节点，按标题/优先级过滤
-        LambdaQueryWrapperX<TestCaseNode> wrapper = new LambdaQueryWrapperX<TestCaseNode>()
-                .in(TestCaseNode::getDocumentId, documentIds)
-                .eq(TestCaseNode::getType, Constants.NodeType.CASE);
-        if (StringUtils.hasText(keyword)) {
-            wrapper.like(TestCaseNode::getTitle, keyword);
-        }
-        if (StringUtils.hasText(priority)) {
-            wrapper.eq(TestCaseNode::getPriority, priority);
-        }
-        wrapper.orderByAsc(TestCaseNode::getSortOrder);
-
-        PageResult<TestCaseNode> page = testCaseNodeMapper.selectPage(
+        PageResult<TestCaseNode> page = testCaseNodeMapper.findCasePage(
                 new PageParam() {{
                     setPageNo(pageNo);
                     setPageSize(pageSize);
-                }}, wrapper);
+                }}, documentIds, keyword, priority);
 
         // 构建 documentId → documentName 映射
         Map<String, String> docNameMap = documents.stream()

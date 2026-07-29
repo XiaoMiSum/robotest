@@ -10,23 +10,21 @@ import io.github.xiaomisum.robotest.model.dto.response.workspace.InvitationCheck
 import io.github.xiaomisum.robotest.model.dto.response.workspace.InvitationJoinRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.workspace.InvitationRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.workspace.InvitationVerifyRespDTO;
-import io.github.xiaomisum.robotest.model.entity.SysUser;
-import io.github.xiaomisum.robotest.model.entity.Workspace;
-import io.github.xiaomisum.robotest.model.entity.WorkspaceInvitation;
-import io.github.xiaomisum.robotest.model.entity.WorkspaceUser;
+import io.github.xiaomisum.robotest.model.entity.admin.SysUser;
+import io.github.xiaomisum.robotest.model.entity.workspace.Workspace;
+import io.github.xiaomisum.robotest.model.entity.workspace.WorkspaceInvitation;
+import io.github.xiaomisum.robotest.model.entity.workspace.WorkspaceUser;
 import io.github.xiaomisum.robotest.repository.admin.SysUserMapper;
 import io.github.xiaomisum.robotest.repository.workspace.WorkspaceInvitationMapper;
 import io.github.xiaomisum.robotest.repository.workspace.WorkspaceMapper;
 import io.github.xiaomisum.robotest.repository.workspace.WorkspaceUserMapper;
-import io.github.xiaomisum.robotest.service.workspace.WorkspaceInvitationService;
 import jakarta.annotation.Resource;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
 import xyz.migoo.framework.common.pojo.PageParam;
 import xyz.migoo.framework.common.pojo.PageResult;
-import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
-import xyz.migoo.framework.mybatis.core.LambdaQueryWrapperX;
 import xyz.migoo.framework.security.core.authentication.JwtTokenProvider;
 
 import java.time.LocalDateTime;
@@ -71,13 +69,11 @@ public class WorkspaceInvitationServiceImpl implements WorkspaceInvitationServic
 
     @Override
     public PageResult<InvitationRespDTO> getInvitationPage(UUID workspaceId, Integer pageNo, Integer pageSize) {
-        PageResult<WorkspaceInvitation> page = invitationMapper.selectPage(
+        PageResult<WorkspaceInvitation> page = invitationMapper.findPageByWorkspaceId(
                 new PageParam() {{
                     setPageNo(pageNo);
                     setPageSize(pageSize);
-                }}, new LambdaQueryWrapperX<WorkspaceInvitation>()
-                        .eq(WorkspaceInvitation::getWorkspaceId, workspaceId)
-                        .orderByDesc(WorkspaceInvitation::getCreatedAt));
+                }}, workspaceId);
 
         List<InvitationRespDTO> records = page.getList().stream()
                 .map(this::convertToRespDTO)
@@ -253,7 +249,7 @@ public class WorkspaceInvitationServiceImpl implements WorkspaceInvitationServic
         LoginUser loginUser = new LoginUser();
         loginUser.setId(user.getId());
         loginUser.setUsername(user.getUsername());
-        loginUser.setName(user.getUsername());
+        loginUser.setName(user.getName());
         loginUser.setEmail(user.getEmail());
         loginUser.setPassword(user.getPasswordHash());
         loginUser.setEnabled(Constants.Status.ACTIVE.equals(user.getStatus()));
