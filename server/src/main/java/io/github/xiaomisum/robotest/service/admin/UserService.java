@@ -6,7 +6,7 @@ import io.github.xiaomisum.robotest.model.dto.request.admin.UserCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.admin.UserUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.admin.UserRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.admin.UserSimpleRespDTO;
-import io.github.xiaomisum.robotest.model.entity.SysUser;
+import io.github.xiaomisum.robotest.model.entity.admin.SysUser;
 import xyz.migoo.framework.common.pojo.PageResult;
 
 import java.util.List;

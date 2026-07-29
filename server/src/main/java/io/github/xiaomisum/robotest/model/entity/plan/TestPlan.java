@@ -1,4 +1,4 @@
-package io.github.xiaomisum.robotest.model.entity;
+package io.github.xiaomisum.robotest.model.entity.plan;
 
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
@@ -12,15 +12,17 @@ import java.util.UUID;
 
 @Data
 @EqualsAndHashCode(callSuper = true)
-@TableName("workspace_invitation")
-public class WorkspaceInvitation extends BaseUuidDO<WorkspaceInvitation> {
+@TableName("test_plan")
+public class TestPlan extends BaseUuidDO<TestPlan> {
 
     @TableField(typeHandler = UUIDTypeHandler.class)
-    private UUID workspaceId;
-    private String token;
-    private String createdBy;
-    private LocalDateTime expiresAt;
-    private Integer maxUses;
-    private Integer useCount;
+    private UUID projectId;
+    private String name;
+    private String description;
     private String status;
+    @TableField(typeHandler = UUIDTypeHandler.class)
+    private UUID executorId;
+    private LocalDateTime startTime;
+    private LocalDateTime endTime;
+    private String environment;
 }

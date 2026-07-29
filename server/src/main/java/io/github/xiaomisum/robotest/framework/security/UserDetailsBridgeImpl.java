@@ -1,10 +1,10 @@
 package io.github.xiaomisum.robotest.framework.security;
 
 import io.github.xiaomisum.robotest.framework.common.Constants;
-import io.github.xiaomisum.robotest.model.entity.SysRole;
-import io.github.xiaomisum.robotest.model.entity.SysUser;
-import io.github.xiaomisum.robotest.model.entity.SysUserRole;
-import io.github.xiaomisum.robotest.model.entity.WorkspaceUser;
+import io.github.xiaomisum.robotest.model.entity.admin.SysRole;
+import io.github.xiaomisum.robotest.model.entity.admin.SysUser;
+import io.github.xiaomisum.robotest.model.entity.admin.SysUserRole;
+import io.github.xiaomisum.robotest.model.entity.workspace.WorkspaceUser;
 import io.github.xiaomisum.robotest.repository.admin.SysUserMapper;
 import io.github.xiaomisum.robotest.repository.admin.SysUserRoleMapper;
 import io.github.xiaomisum.robotest.repository.admin.SysRoleMapper;

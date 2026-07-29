@@ -5,9 +5,9 @@ import io.github.xiaomisum.robotest.model.dto.request.tcase.TestCaseNodeUpdateRe
 import io.github.xiaomisum.robotest.model.dto.response.tcase.TestCaseCaseListRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.tcase.TestCaseDocumentNodesRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.tcase.TestCaseNodeTreeRespDTO;
-import io.github.xiaomisum.robotest.model.entity.TestCaseDocumentLayout;
-import io.github.xiaomisum.robotest.model.entity.TestCaseModule;
-import io.github.xiaomisum.robotest.model.entity.TestCaseNode;
+import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseDocumentLayout;
+import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseModule;
+import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseNode;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseDocumentLayoutMapper;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseModuleMapper;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseNodeMapper;

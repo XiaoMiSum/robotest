@@ -1,6 +1,6 @@
 package io.github.xiaomisum.robotest.repository.admin;
 
-import io.github.xiaomisum.robotest.model.entity.SysRole;
+import io.github.xiaomisum.robotest.model.entity.admin.SysRole;
 import xyz.migoo.framework.mybatis.core.BaseMapperX;
 import xyz.migoo.framework.mybatis.core.LambdaQueryWrapperX;
 

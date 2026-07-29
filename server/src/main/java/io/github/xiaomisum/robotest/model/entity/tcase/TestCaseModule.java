@@ -1,4 +1,4 @@
-package io.github.xiaomisum.robotest.model.entity;
+package io.github.xiaomisum.robotest.model.entity.tcase;
 
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
@@ -7,21 +7,18 @@ import lombok.EqualsAndHashCode;
 import xyz.migoo.framework.mybatis.core.dataobject.BaseUuidDO;
 import xyz.migoo.framework.mybatis.core.handler.UUIDTypeHandler;
 
-import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Data
 @EqualsAndHashCode(callSuper = true)
-@TableName("test_plan_execution_record")
-public class TestPlanExecutionRecord extends BaseUuidDO<TestPlanExecutionRecord> {
+@TableName("test_case_module")
+public class TestCaseModule extends BaseUuidDO<TestCaseModule> {
 
     @TableField(typeHandler = UUIDTypeHandler.class)
-    private UUID planId;
+    private UUID projectId;
     @TableField(typeHandler = UUIDTypeHandler.class)
-    private UUID snapshotNodeId;
-    @TableField(typeHandler = UUIDTypeHandler.class)
-    private UUID executorId;
-    private String result;
-    private String note;
-    private LocalDateTime executedAt;
+    private UUID parentId;
+    private String type;
+    private String name;
+    private Integer sortOrder;
 }
