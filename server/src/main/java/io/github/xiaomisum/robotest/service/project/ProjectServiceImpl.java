@@ -165,6 +165,9 @@ public class ProjectServiceImpl implements ProjectService {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.NO_PERMISSION);
         }
 
+        // 查询结果仅用于校验；更新载体只携带前端传入的字段，避免全列覆盖导致并发丢失更新
+        Project update = new Project();
+        update.setId(projectId);
         if (StringUtils.hasText(reqDTO.getName())) {
             Project existing = projectMapper.selectOne(
                     new LambdaQueryWrapperX<Project>()
@@ -174,18 +177,22 @@ public class ProjectServiceImpl implements ProjectService {
             if (existing != null) {
                 throw ServiceExceptionUtil.get(ErrorCodeConstants.PROJECT_NAME_EXISTS);
             }
+            update.setName(reqDTO.getName());
             project.setName(reqDTO.getName());
         }
         if (reqDTO.getDescription() != null) {
+            update.setDescription(reqDTO.getDescription());
             project.setDescription(reqDTO.getDescription());
         }
         if (reqDTO.getStartTime() != null) {
+            update.setStartTime(reqDTO.getStartTime());
             project.setStartTime(reqDTO.getStartTime());
         }
         if (reqDTO.getEndTime() != null) {
+            update.setEndTime(reqDTO.getEndTime());
             project.setEndTime(reqDTO.getEndTime());
         }
-        projectMapper.updateById(project);
+        projectMapper.updateById(update);
 
         ProjectRespDTO dto = ProjectConvertMapper.INSTANCE.toRespDTO(project, null);
         SysUser creator = userMapper.selectById(project.getCreatedBy());
@@ -212,6 +219,8 @@ public class ProjectServiceImpl implements ProjectService {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.NO_PERMISSION);
         }
 
+        Project update = new Project();
+        update.setId(projectId);
         if (reqDTO.getArchived()) {
             // 归档前校验无进行中的测试计划
             Long activePlanCount = testPlanMapper.selectCount(
@@ -221,11 +230,11 @@ public class ProjectServiceImpl implements ProjectService {
             if (activePlanCount > 0) {
                 throw ServiceExceptionUtil.get(ErrorCodeConstants.PROJECT_HAS_ACTIVE_PLANS);
             }
-            project.setStatus(Constants.Status.ARCHIVED);
+            update.setStatus(Constants.Status.ARCHIVED);
         } else {
-            project.setStatus(Constants.Status.ACTIVE);
+            update.setStatus(Constants.Status.ACTIVE);
         }
-        projectMapper.updateById(project);
+        projectMapper.updateById(update);
 
         if (reqDTO.getArchived()) {
             workspaceUserMapper.update(null,

@@ -108,17 +108,20 @@ public class WorkspaceServiceImpl implements WorkspaceService {
         if (Constants.Status.DISSOLVED.equals(workspace.getStatus())) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.WORKSPACE_NOT_FOUND);
         }
+        // 更新载体只携带前端传入的字段，避免全列覆盖导致并发丢失更新
+        Workspace update = new Workspace();
+        update.setId(id);
         if (StringUtils.hasText(reqDTO.getName())) {
             Workspace existing = workspaceMapper.selectOne(Workspace::getName, reqDTO.getName());
             if (existing != null && !existing.getId().equals(id)) {
                 throw ServiceExceptionUtil.get(ErrorCodeConstants.WORKSPACE_NAME_EXISTS);
             }
-            workspace.setName(reqDTO.getName());
+            update.setName(reqDTO.getName());
         }
         if (reqDTO.getDescription() != null) {
-            workspace.setDescription(reqDTO.getDescription());
+            update.setDescription(reqDTO.getDescription());
         }
-        workspaceMapper.updateById(workspace);
+        workspaceMapper.updateById(update);
         return getWorkspaceDetail(id);
     }
 
@@ -130,8 +133,10 @@ public class WorkspaceServiceImpl implements WorkspaceService {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.WORKSPACE_NOT_FOUND);
         }
         // TODO: 妫€鏌ュ伐浣滅┖闂翠笅鏄惁鏈夐」鐩?
-        workspace.setStatus(Constants.Status.DISSOLVED);
-        workspaceMapper.updateById(workspace);
+        Workspace update = new Workspace();
+        update.setId(id);
+        update.setStatus(Constants.Status.DISSOLVED);
+        workspaceMapper.updateById(update);
         // 鍒犻櫎鎵€鏈夋垚鍛樺叧鑱?
         workspaceUserMapper.delete(new LambdaQueryWrapperX<WorkspaceUser>()
                 .eq(WorkspaceUser::getWorkspaceId, id));
