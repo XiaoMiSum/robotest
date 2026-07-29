@@ -61,6 +61,7 @@ const form = reactive({
 
 const severityLabel: Record<string, string> = { fatal: '致命', serious: '严重', general: '一般', minor: '轻微' }
 const priorityLabel: Record<string, string> = { high: '高', medium: '中', low: '低' }
+const severityType: Record<string, 'danger' | 'warning' | 'success' | 'info'> = { fatal: 'danger', serious: 'warning', general: 'info', minor: 'success' }
 const statusLabel = BUG_STATUS_LABEL
 
 async function load() {
@@ -245,149 +246,188 @@ onMounted(() => {
 <template>
   <div v-loading="loading" class="bug-detail">
     <el-page-header @back="router.push('/workspace/projects/bugs')">
-      <template #content><span class="bug-detail__title">缺陷详情</span></template>
+      <template #content><span class="bug-detail__page-title">缺陷详情</span></template>
     </el-page-header>
 
-    <el-card v-if="detail" shadow="never" class="bug-detail__card">
-      <div class="bug-detail__status-bar">
-        <el-tag :type="isActive ? 'danger' : isResolved ? 'success' : 'info'" effect="light">
-          {{ statusLabel[detail.status] }}
-        </el-tag>
-        <el-tag v-if="detail.confirmed" size="small" type="warning" effect="plain">已确认</el-tag>
-        <el-tag v-if="detail.reopenCount > 0" size="small" type="danger" effect="plain">
-          重开 {{ detail.reopenCount }} 次
-        </el-tag>
-        <span class="bug-detail__status-spacer" />
-        <el-button v-if="isActive && !detail.confirmed" size="small" @click="handleConfirm">确认</el-button>
-        <el-button v-if="isActive" size="small" type="success" @click="resolveDialogVisible = true">解决</el-button>
-        <el-button v-if="isResolved" size="small" type="info" @click="handleClose">关闭</el-button>
-        <el-button v-if="isResolved || isClosed" size="small" type="danger" @click="handleReopen">激活</el-button>
-      </div>
-
-      <el-descriptions v-if="isResolved || isClosed" :column="2" size="small" border class="bug-detail__resolution">
-        <el-descriptions-item label="解决方案">
-          {{ detail.resolution ? BUG_RESOLUTION_LABEL[detail.resolution] : '-' }}
-        </el-descriptions-item>
-        <el-descriptions-item label="重复缺陷">
-          <el-link
-            v-if="detail.duplicateOfBugId"
-            type="primary"
-            :underline="false"
-            @click="router.push(`/workspace/projects/bugs/${detail.duplicateOfBugId}`)"
-          >
-            查看原始缺陷
-          </el-link>
-          <span v-else>-</span>
-        </el-descriptions-item>
-        <el-descriptions-item label="解决人">
-          {{ detail.resolvedBy ? `${detail.resolvedBy.name}（${formatDateTime(detail.resolvedAt!)}）` : '-' }}
-        </el-descriptions-item>
-        <el-descriptions-item label="关闭人">
-          {{ detail.closedBy ? `${detail.closedBy.name}（${formatDateTime(detail.closedAt!)}）` : '-' }}
-        </el-descriptions-item>
-      </el-descriptions>
-
-      <el-form label-width="96px" class="bug-detail__form">
-        <el-form-item label="标题">
-          <el-input v-if="!isClosed" v-model="form.title" />
-          <span v-else class="bug-detail__text">{{ detail.title }}</span>
-        </el-form-item>
-        <el-form-item label="缺陷类型">
-          <el-select v-if="!isClosed" v-model="form.bugType" style="width: 160px">
-            <el-option v-for="(label, key) in BUG_TYPE_LABEL" :key="key" :label="label" :value="key" />
-          </el-select>
-          <span v-else class="bug-detail__text">{{ BUG_TYPE_LABEL[detail.bugType] }}</span>
-        </el-form-item>
-        <el-form-item label="所属模块">
-          <span class="bug-detail__text">{{ detail.moduleName ?? '-' }}</span>
-        </el-form-item>
-        <el-form-item label="严重等级">
-          <el-select v-if="!isClosed" v-model="form.severity" style="width: 160px">
-            <el-option v-for="(label, key) in severityLabel" :key="key" :label="label" :value="key" />
-          </el-select>
-          <el-tag v-else size="small" effect="light" round>{{ severityLabel[detail.severity] }}</el-tag>
-        </el-form-item>
-        <el-form-item label="优先级">
-          <el-select v-if="!isClosed" v-model="form.priority" style="width: 160px">
-            <el-option v-for="(label, key) in priorityLabel" :key="key" :label="label" :value="key" />
-          </el-select>
-          <span v-else class="bug-detail__text">{{ priorityLabel[detail.priority] }}</span>
-        </el-form-item>
-        <el-form-item label="截止日期">
-          <el-date-picker v-if="!isClosed" v-model="form.dueDate" type="date" value-format="YYYY-MM-DD" style="width: 160px" />
-          <span v-else class="bug-detail__text">{{ detail.dueDate ?? '-' }}</span>
-        </el-form-item>
-        <el-form-item label="关键词">
-          <el-input v-if="!isClosed" v-model="form.keywords" maxlength="255" />
-          <span v-else class="bug-detail__text">{{ detail.keywords || '-' }}</span>
-        </el-form-item>
-        <el-form-item label="重现步骤">
-          <MarkdownEditor v-if="!isClosed" v-model="form.reproSteps" placeholder="重现步骤（支持 Markdown）" />
-          <MarkdownView v-else-if="detail.reproSteps" :content="detail.reproSteps" />
-          <span v-else class="bug-detail__text">-</span>
-        </el-form-item>
-        <el-form-item label="指派给">
-          <el-select v-if="!isClosed" v-model="form.assigneeId" filterable style="width: 240px">
-            <el-option v-for="m in memberOptions" :key="m.userId" :label="m.username" :value="m.userId" />
-          </el-select>
-          <span v-else class="bug-detail__text">{{ detail.assignee?.name ?? '-' }}</span>
-        </el-form-item>
-        <el-form-item label="报告人">
-          <span class="bug-detail__text">{{ detail.reporter.name }}</span>
-        </el-form-item>
-        <el-form-item v-if="!isClosed">
-          <el-button type="primary" :loading="saving" @click="handleSave">保存</el-button>
-          <el-button @click="router.push('/workspace/projects/bugs')">取消</el-button>
-        </el-form-item>
-      </el-form>
-    </el-card>
-
-    <el-card v-if="detail" shadow="never" class="bug-detail__logs">
-      <template #header>
-        <div class="bug-detail__attachment-header">
-          <span class="bug-detail__section">附件</span>
-          <el-upload
-            v-if="!isClosed"
-            :show-file-list="false"
-            :http-request="handleAttachmentUpload"
-          >
-            <el-button size="small" :loading="uploading">上传附件</el-button>
-          </el-upload>
+    <template v-if="detail">
+      <el-card shadow="never" class="bug-detail__header">
+        <div class="bug-detail__status-bar">
+          <el-tag :type="isActive ? 'danger' : isResolved ? 'success' : 'info'" effect="dark" round>
+            {{ statusLabel[detail.status] }}
+          </el-tag>
+          <el-tag v-if="detail.confirmed" size="small" type="warning" effect="plain" round>已确认</el-tag>
+          <el-tag v-if="detail.reopenCount > 0" size="small" type="danger" effect="plain" round>
+            重开 {{ detail.reopenCount }} 次
+          </el-tag>
+          <span class="bug-detail__status-spacer" />
+          <el-button v-if="isActive && !detail.confirmed" size="small" @click="handleConfirm">确认</el-button>
+          <el-button v-if="isActive" size="small" type="success" @click="resolveDialogVisible = true">解决</el-button>
+          <el-button v-if="isResolved" size="small" type="info" @click="handleClose">关闭</el-button>
+          <el-button v-if="isResolved || isClosed" size="small" type="danger" @click="handleReopen">激活</el-button>
+          <el-button v-if="!isClosed" size="small" type="primary" :loading="saving" @click="handleSave">保存</el-button>
         </div>
-      </template>
-      <el-empty v-if="!attachments.length" description="暂无附件" :image-size="48" />
-      <el-table v-else :data="attachments" size="small">
-        <el-table-column label="文件名" prop="fileName" min-width="200" show-overflow-tooltip />
-        <el-table-column label="大小" width="100">
-          <template #default="{ row }">{{ formatFileSize(row.fileSize) }}</template>
-        </el-table-column>
-        <el-table-column label="上传人" prop="uploaderName" width="120" />
-        <el-table-column label="上传时间" width="170">
-          <template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template>
-        </el-table-column>
-        <el-table-column label="操作" width="120">
-          <template #default="{ row }">
-            <el-button link type="primary" @click="handleAttachmentDownload(row as BugAttachment)">下载</el-button>
-            <el-button v-if="!isClosed" link type="danger" @click="handleAttachmentDelete(row as BugAttachment)">删除</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
-    </el-card>
 
-    <el-card v-if="logs.length" shadow="never" class="bug-detail__logs">
-      <template #header><span class="bug-detail__section">操作记录</span></template>
-      <el-timeline>
-        <el-timeline-item
-          v-for="log in logs"
-          :key="log.id"
-          :timestamp="formatDateTime(log.createdAt)"
-          placement="top"
-        >
-          <strong>{{ log.operatorName }}</strong> {{ log.operationType }}
-          <span v-if="log.content" class="bug-detail__log-content">{{ log.content }}</span>
-        </el-timeline-item>
-      </el-timeline>
-    </el-card>
+        <el-input
+          v-if="!isClosed"
+          v-model="form.title"
+          class="bug-detail__title-input"
+          placeholder="缺陷标题"
+          maxlength="300"
+        />
+        <h2 v-else class="bug-detail__title-text">{{ detail.title }}</h2>
+
+        <div class="bug-detail__meta">
+          <span>{{ detail.reporter.name }} 创建于 {{ formatDateTime(detail.createdAt) }}</span>
+          <span class="bug-detail__meta-divider" />
+          <span>更新于 {{ formatDateTime(detail.updatedAt) }}</span>
+          <template v-if="detail.lastReopenedAt">
+            <span class="bug-detail__meta-divider" />
+            <span>最近重开于 {{ formatDateTime(detail.lastReopenedAt) }}</span>
+          </template>
+        </div>
+      </el-card>
+
+      <div class="bug-detail__layout">
+        <div class="bug-detail__main">
+          <el-card shadow="never">
+            <template #header><span class="bug-detail__section">重现步骤</span></template>
+            <MarkdownEditor v-if="!isClosed" v-model="form.reproSteps" placeholder="重现步骤（支持 Markdown）" />
+            <MarkdownView v-else-if="detail.reproSteps" :content="detail.reproSteps" />
+            <el-empty v-else description="暂无重现步骤" :image-size="48" />
+          </el-card>
+
+          <el-card shadow="never">
+            <template #header>
+              <div class="bug-detail__card-header">
+                <span class="bug-detail__section">附件</span>
+                <el-upload
+                  v-if="!isClosed"
+                  :show-file-list="false"
+                  :http-request="handleAttachmentUpload"
+                >
+                  <el-button size="small" :loading="uploading">
+                    <el-icon><Upload /></el-icon>上传附件
+                  </el-button>
+                </el-upload>
+              </div>
+            </template>
+            <el-empty v-if="!attachments.length" description="暂无附件" :image-size="48" />
+            <el-table v-else :data="attachments" size="small">
+              <el-table-column label="文件名" prop="fileName" min-width="200" show-overflow-tooltip />
+              <el-table-column label="大小" width="100">
+                <template #default="{ row }">{{ formatFileSize(row.fileSize) }}</template>
+              </el-table-column>
+              <el-table-column label="上传人" prop="uploaderName" width="120" />
+              <el-table-column label="上传时间" width="170">
+                <template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template>
+              </el-table-column>
+              <el-table-column label="操作" width="120">
+                <template #default="{ row }">
+                  <el-button link type="primary" @click="handleAttachmentDownload(row as BugAttachment)">下载</el-button>
+                  <el-button v-if="!isClosed" link type="danger" @click="handleAttachmentDelete(row as BugAttachment)">删除</el-button>
+                </template>
+              </el-table-column>
+            </el-table>
+          </el-card>
+
+          <el-card v-if="logs.length" shadow="never">
+            <template #header><span class="bug-detail__section">操作记录</span></template>
+            <el-timeline class="bug-detail__timeline">
+              <el-timeline-item
+                v-for="log in logs"
+                :key="log.id"
+                :timestamp="formatDateTime(log.createdAt)"
+                placement="top"
+              >
+                <strong>{{ log.operatorName }}</strong> {{ log.operationType }}
+                <span v-if="log.content" class="bug-detail__log-content">{{ log.content }}</span>
+              </el-timeline-item>
+            </el-timeline>
+          </el-card>
+        </div>
+
+        <div class="bug-detail__side">
+          <el-card v-if="isResolved || isClosed" shadow="never" class="bug-detail__resolution">
+            <template #header><span class="bug-detail__section">解决信息</span></template>
+            <el-descriptions :column="1" size="small">
+              <el-descriptions-item label="解决方案">
+                <el-tag v-if="detail.resolution" size="small" type="success" effect="light" round>
+                  {{ BUG_RESOLUTION_LABEL[detail.resolution] }}
+                </el-tag>
+                <span v-else>-</span>
+              </el-descriptions-item>
+              <el-descriptions-item v-if="detail.duplicateOfBugId" label="重复缺陷">
+                <el-link
+                  type="primary"
+                  :underline="false"
+                  @click="router.push(`/workspace/projects/bugs/${detail.duplicateOfBugId}`)"
+                >
+                  查看原始缺陷
+                </el-link>
+              </el-descriptions-item>
+              <el-descriptions-item label="解决人">
+                {{ detail.resolvedBy ? `${detail.resolvedBy.name}（${formatDateTime(detail.resolvedAt!)}）` : '-' }}
+              </el-descriptions-item>
+              <el-descriptions-item v-if="isClosed" label="关闭人">
+                {{ detail.closedBy ? `${detail.closedBy.name}（${formatDateTime(detail.closedAt!)}）` : '-' }}
+              </el-descriptions-item>
+            </el-descriptions>
+          </el-card>
+
+          <el-card shadow="never">
+            <template #header><span class="bug-detail__section">属性</span></template>
+            <el-form label-position="top" class="bug-detail__props">
+              <el-form-item label="缺陷类型">
+                <el-select v-if="!isClosed" v-model="form.bugType">
+                  <el-option v-for="(label, key) in BUG_TYPE_LABEL" :key="key" :label="label" :value="key" />
+                </el-select>
+                <span v-else class="bug-detail__text">{{ BUG_TYPE_LABEL[detail.bugType] }}</span>
+              </el-form-item>
+              <el-form-item label="所属模块">
+                <span class="bug-detail__text">{{ detail.moduleName ?? '-' }}</span>
+              </el-form-item>
+              <el-form-item label="严重等级">
+                <el-select v-if="!isClosed" v-model="form.severity">
+                  <el-option v-for="(label, key) in severityLabel" :key="key" :label="label" :value="key">
+                    <span class="bug-detail__severity-dot" :class="`bug-detail__severity-dot--${key}`" />{{ label }}
+                  </el-option>
+                </el-select>
+                <el-tag v-else :type="severityType[detail.severity]" size="small" effect="light" round>
+                  {{ severityLabel[detail.severity] }}
+                </el-tag>
+              </el-form-item>
+              <el-form-item label="优先级">
+                <el-select v-if="!isClosed" v-model="form.priority">
+                  <el-option v-for="(label, key) in priorityLabel" :key="key" :label="label" :value="key" />
+                </el-select>
+                <span v-else class="bug-detail__text">{{ priorityLabel[detail.priority] }}</span>
+              </el-form-item>
+              <el-form-item label="截止日期">
+                <el-date-picker
+                  v-if="!isClosed"
+                  v-model="form.dueDate"
+                  type="date"
+                  value-format="YYYY-MM-DD"
+                  placeholder="选择截止日期"
+                  class="bug-detail__date"
+                />
+                <span v-else class="bug-detail__text">{{ detail.dueDate ?? '-' }}</span>
+              </el-form-item>
+              <el-form-item label="关键词">
+                <el-input v-if="!isClosed" v-model="form.keywords" maxlength="255" placeholder="多个关键词用空格分隔" />
+                <span v-else class="bug-detail__text">{{ detail.keywords || '-' }}</span>
+              </el-form-item>
+              <el-form-item label="指派给">
+                <el-select v-if="!isClosed" v-model="form.assigneeId" filterable>
+                  <el-option v-for="m in memberOptions" :key="m.userId" :label="m.username" :value="m.userId" />
+                </el-select>
+                <span v-else class="bug-detail__text">{{ detail.assignee?.name ?? '-' }}</span>
+              </el-form-item>
+            </el-form>
+          </el-card>
+        </div>
+      </div>
+    </template>
 
     <BugResolveDialog
       v-model="resolveDialogVisible"
@@ -398,13 +438,13 @@ onMounted(() => {
 </template>
 
 <style scoped lang="scss">
-.bug-detail__title {
+.bug-detail__page-title {
   font-size: var(--font-size-lg);
   font-weight: 700;
   color: var(--color-neutral-800);
 }
 
-.bug-detail__card {
+.bug-detail__header {
   margin-top: var(--space-lg);
 }
 
@@ -412,19 +452,115 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: var(--space-sm);
-  margin-bottom: var(--space-lg);
+  margin-bottom: var(--space-md);
 }
 
 .bug-detail__status-spacer {
   flex: 1;
 }
 
-.bug-detail__resolution {
-  margin-bottom: var(--space-lg);
+// 标题弱化输入框边框，聚焦时才显现，兼顾展示观感与可编辑性
+.bug-detail__title-input :deep(.el-input__wrapper) {
+  box-shadow: none;
+  padding-left: 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--color-neutral-900);
+  transition: box-shadow var(--transition-fast);
+
+  &:hover,
+  &.is-focus {
+    box-shadow: 0 0 0 1px var(--color-neutral-300) inset;
+    padding-left: 11px;
+  }
 }
 
-.bug-detail__form {
-  max-width: 640px;
+.bug-detail__title-input :deep(.el-input__inner) {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--color-neutral-900);
+}
+
+.bug-detail__title-text {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--color-neutral-900);
+  line-height: 32px;
+}
+
+.bug-detail__meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-top: var(--space-sm);
+  font-size: var(--font-size-2xs);
+  color: var(--color-neutral-400);
+}
+
+.bug-detail__meta-divider {
+  width: 1px;
+  height: 10px;
+  background: var(--color-neutral-200);
+}
+
+.bug-detail__layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: var(--space-lg);
+  align-items: start;
+  margin-top: var(--space-lg);
+
+  @media (max-width: 1024px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.bug-detail__main,
+.bug-detail__side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+.bug-detail__section {
+  font-weight: 600;
+  font-size: var(--font-size-sm);
+  color: var(--color-neutral-800);
+}
+
+.bug-detail__card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.bug-detail__resolution :deep(.el-descriptions__label) {
+  color: var(--color-neutral-500);
+}
+
+.bug-detail__props :deep(.el-form-item__label) {
+  font-weight: 500;
+  color: var(--color-neutral-600);
+  margin-bottom: var(--space-xs);
+}
+
+.bug-detail__props :deep(.el-form-item) {
+  margin-bottom: var(--space-md);
+}
+
+.bug-detail__props :deep(.el-form-item:last-child) {
+  margin-bottom: 0;
+}
+
+.bug-detail__props :deep(.el-select),
+.bug-detail__date {
+  width: 100%;
+}
+
+// el-date-picker 宽度由组件级 CSS 变量控制，仅设 width 无法与其他控件对齐
+.bug-detail__date {
+  --el-date-editor-width: 100%;
 }
 
 .bug-detail__text {
@@ -433,19 +569,22 @@ onMounted(() => {
   line-height: 1.6;
 }
 
-.bug-detail__logs {
-  margin-top: var(--space-lg);
+.bug-detail__severity-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: var(--space-sm);
+  vertical-align: middle;
+
+  &--fatal { background: var(--color-bug-fatal); }
+  &--serious { background: var(--color-bug-serious); }
+  &--general { background: var(--color-bug-general); }
+  &--minor { background: var(--color-bug-minor); }
 }
 
-.bug-detail__attachment-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.bug-detail__section {
-  font-weight: 600;
-  font-size: var(--font-size-sm);
+.bug-detail__timeline {
+  padding-left: var(--space-xs);
 }
 
 .bug-detail__log-content {
