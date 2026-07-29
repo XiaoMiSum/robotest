@@ -1,6 +1,10 @@
 package io.github.xiaomisum.robotest.service.project;
 
+import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
+import org.apache.ibatis.builder.MapperBuilderAssistant;
+import xyz.migoo.framework.mybatis.core.LambdaUpdateWrapperX;
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.model.dto.request.BugCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.BugStatusChangeReqDTO;
@@ -66,6 +70,9 @@ class BugServiceImplTest {
 
     @BeforeEach
     void setUp() {
+        // LambdaUpdateWrapper 解析实体列名依赖 TableInfo 缓存，纯 Mockito 环境无 starter 初始化，需手动注册
+        TableInfoHelper.initTableInfo(
+                new MapperBuilderAssistant(new MybatisConfiguration(), ""), Bug.class);
         projectId = UUID.fromString("00000000-0000-0000-0000-000000000001");
         userId = UUID.fromString("00000000-0000-0000-0000-000000000002");
         bugId = UUID.fromString("00000000-0000-0000-0000-000000000003");
@@ -239,6 +246,21 @@ class BugServiceImplTest {
     }
 
     @Test
+    void updateBug_closedBug_throws() {
+        Bug bug = activeBug();
+        bug.setStatus(Constants.BugStatus.CLOSED);
+        when(bugMapper.selectById(bugId)).thenReturn(bug);
+
+        BugUpdateReqDTO reqDTO = new BugUpdateReqDTO();
+        reqDTO.setTitle("New Title");
+
+        assertThrows(ServiceException.class,
+                () -> bugService.updateBug(bugId, userId, reqDTO));
+        verify(bugMapper, never()).updateById(any(Bug.class));
+        verify(bugMapper, never()).update(any(), any());
+    }
+
+    @Test
     void updateBug_assigneeNotInWorkspace_throws() {
         UUID assigneeId = UUID.fromString("00000000-0000-0000-0000-000000000005");
         Bug bug = activeBug();
@@ -256,6 +278,7 @@ class BugServiceImplTest {
         assertThrows(ServiceException.class,
                 () -> bugService.updateBug(bugId, userId, reqDTO));
         verify(bugMapper, never()).updateById(any(Bug.class));
+        verify(bugMapper, never()).update(any(), any());
     }
 
     // ========== getBugDetail ==========
@@ -326,13 +349,15 @@ class BugServiceImplTest {
 
         bugService.changeBugStatus(bugId, userId, reqDTO);
 
-        ArgumentCaptor<Bug> captor = ArgumentCaptor.forClass(Bug.class);
-        verify(bugMapper).updateById(captor.capture());
-        Bug saved = captor.getValue();
-        assertEquals(Constants.BugStatus.RESOLVED, saved.getStatus());
-        assertEquals(Constants.BugResolution.FIXED, saved.getResolution());
-        assertEquals(userId, saved.getResolvedBy());
-        assertNotNull(saved.getResolvedAt());
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<LambdaUpdateWrapperX<Bug>> captor = ArgumentCaptor.forClass(LambdaUpdateWrapperX.class);
+        verify(bugMapper).update(isNull(), captor.capture());
+        var values = captor.getValue().getParamNameValuePairs().values();
+        assertTrue(values.contains(Constants.BugStatus.RESOLVED));
+        assertTrue(values.contains(Constants.BugResolution.FIXED));
+        assertTrue(values.contains(userId));
+        assertTrue(values.contains(Boolean.TRUE));
+        assertTrue(captor.getValue().getSqlSet().contains("resolved_at"));
         verify(bugLogMapper).insert(any(BugLog.class));
     }
 
@@ -346,6 +371,7 @@ class BugServiceImplTest {
         assertThrows(ServiceException.class,
                 () -> bugService.changeBugStatus(bugId, userId, reqDTO));
         verify(bugMapper, never()).updateById(any(Bug.class));
+        verify(bugMapper, never()).update(any(), any());
     }
 
     @Test
@@ -359,6 +385,7 @@ class BugServiceImplTest {
         assertThrows(ServiceException.class,
                 () -> bugService.changeBugStatus(bugId, userId, reqDTO));
         verify(bugMapper, never()).updateById(any(Bug.class));
+        verify(bugMapper, never()).update(any(), any());
     }
 
     @Test
@@ -372,6 +399,7 @@ class BugServiceImplTest {
         assertThrows(ServiceException.class,
                 () -> bugService.changeBugStatus(bugId, userId, reqDTO));
         verify(bugMapper, never()).updateById(any(Bug.class));
+        verify(bugMapper, never()).update(any(), any());
     }
 
     @Test
@@ -386,6 +414,7 @@ class BugServiceImplTest {
         assertThrows(ServiceException.class,
                 () -> bugService.changeBugStatus(bugId, userId, reqDTO));
         verify(bugMapper, never()).updateById(any(Bug.class));
+        verify(bugMapper, never()).update(any(), any());
     }
 
     @Test
@@ -406,6 +435,7 @@ class BugServiceImplTest {
         assertThrows(ServiceException.class,
                 () -> bugService.changeBugStatus(bugId, userId, reqDTO));
         verify(bugMapper, never()).updateById(any(Bug.class));
+        verify(bugMapper, never()).update(any(), any());
     }
 
     @Test
@@ -429,10 +459,12 @@ class BugServiceImplTest {
 
         bugService.changeBugStatus(bugId, userId, reqDTO);
 
-        ArgumentCaptor<Bug> captor = ArgumentCaptor.forClass(Bug.class);
-        verify(bugMapper).updateById(captor.capture());
-        assertEquals(Constants.BugResolution.DUPLICATE, captor.getValue().getResolution());
-        assertEquals(originalId, captor.getValue().getDuplicateOfBugId());
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<LambdaUpdateWrapperX<Bug>> captor = ArgumentCaptor.forClass(LambdaUpdateWrapperX.class);
+        verify(bugMapper).update(isNull(), captor.capture());
+        var values = captor.getValue().getParamNameValuePairs().values();
+        assertTrue(values.contains(Constants.BugResolution.DUPLICATE));
+        assertTrue(values.contains(originalId));
     }
 
     // ========== changeBugStatus：关闭 ==========
@@ -467,6 +499,7 @@ class BugServiceImplTest {
                 () -> bugService.changeBugStatus(bugId, userId,
                         statusChangeReq(Constants.BugStatus.CLOSED, null)));
         verify(bugMapper, never()).updateById(any(Bug.class));
+        verify(bugMapper, never()).update(any(), any());
     }
 
     // ========== changeBugStatus：重开 ==========
@@ -492,18 +525,23 @@ class BugServiceImplTest {
         bugService.changeBugStatus(bugId, userId,
                 statusChangeReq(Constants.BugStatus.ACTIVE, "问题复现"));
 
-        ArgumentCaptor<Bug> captor = ArgumentCaptor.forClass(Bug.class);
-        verify(bugMapper).updateById(captor.capture());
-        Bug saved = captor.getValue();
-        assertEquals(Constants.BugStatus.ACTIVE, saved.getStatus());
-        assertEquals(2, saved.getReopenCount());
-        assertNotNull(saved.getLastReopenedAt());
-        assertNull(saved.getResolution());
-        assertNull(saved.getDuplicateOfBugId());
-        assertNull(saved.getResolvedBy());
-        assertNull(saved.getResolvedAt());
-        assertNull(saved.getClosedBy());
-        assertNull(saved.getClosedAt());
+        // updateById 会忽略 null 字段导致清空静默失效，重开必须走 wrapper 显式 set null
+        verify(bugMapper, never()).updateById(any(Bug.class));
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<LambdaUpdateWrapperX<Bug>> captor = ArgumentCaptor.forClass(LambdaUpdateWrapperX.class);
+        verify(bugMapper).update(isNull(), captor.capture());
+        var values = captor.getValue().getParamNameValuePairs().values();
+        assertTrue(values.contains(Constants.BugStatus.ACTIVE));
+        assertTrue(values.contains(2));
+        String sqlSet = captor.getValue().getSqlSet();
+        assertTrue(sqlSet.contains("last_reopened_at"));
+        // 解决/关闭信息的清空列必须出现在 SET 子句中
+        assertTrue(sqlSet.contains("resolution"));
+        assertTrue(sqlSet.contains("duplicate_of_bug_id"));
+        assertTrue(sqlSet.contains("resolved_by"));
+        assertTrue(sqlSet.contains("resolved_at"));
+        assertTrue(sqlSet.contains("closed_by"));
+        assertTrue(sqlSet.contains("closed_at"));
     }
 
     @Test
@@ -516,6 +554,7 @@ class BugServiceImplTest {
                 () -> bugService.changeBugStatus(bugId, userId,
                         statusChangeReq(Constants.BugStatus.ACTIVE, null)));
         verify(bugMapper, never()).updateById(any(Bug.class));
+        verify(bugMapper, never()).update(any(), any());
     }
 
     // ========== changeBugStatus：非法流转 ==========
@@ -529,6 +568,7 @@ class BugServiceImplTest {
                 () -> bugService.changeBugStatus(bugId, userId,
                         statusChangeReq(Constants.BugStatus.CLOSED, "跳过解决直接关闭")));
         verify(bugMapper, never()).updateById(any(Bug.class));
+        verify(bugMapper, never()).update(any(), any());
     }
 
     @Test
@@ -543,6 +583,7 @@ class BugServiceImplTest {
         assertThrows(ServiceException.class,
                 () -> bugService.changeBugStatus(bugId, userId, reqDTO));
         verify(bugMapper, never()).updateById(any(Bug.class));
+        verify(bugMapper, never()).update(any(), any());
     }
 
     @Test
@@ -583,6 +624,7 @@ class BugServiceImplTest {
         assertThrows(ServiceException.class,
                 () -> bugService.confirmBug(bugId, userId));
         verify(bugMapper, never()).updateById(any(Bug.class));
+        verify(bugMapper, never()).update(any(), any());
     }
 
     @Test
@@ -594,6 +636,7 @@ class BugServiceImplTest {
         assertThrows(ServiceException.class,
                 () -> bugService.confirmBug(bugId, userId));
         verify(bugMapper, never()).updateById(any(Bug.class));
+        verify(bugMapper, never()).update(any(), any());
     }
 
     @Test
@@ -638,6 +681,19 @@ class BugServiceImplTest {
     }
 
     @Test
+    void assignBug_closedBug_throws() {
+        UUID assigneeId = UUID.fromString("00000000-0000-0000-0000-000000000005");
+        Bug bug = activeBug();
+        bug.setStatus(Constants.BugStatus.CLOSED);
+        when(bugMapper.selectById(bugId)).thenReturn(bug);
+
+        assertThrows(ServiceException.class,
+                () -> bugService.assignBug(bugId, userId, assigneeId));
+        verify(bugMapper, never()).updateById(any(Bug.class));
+        verify(bugMapper, never()).update(any(), any());
+    }
+
+    @Test
     void assignBug_assigneeNotFound_throws() {
         Bug bug = new Bug();
         bug.setId(bugId);
@@ -670,6 +726,7 @@ class BugServiceImplTest {
         assertThrows(ServiceException.class,
                 () -> bugService.assignBug(bugId, userId, assigneeId));
         verify(bugMapper, never()).updateById(any(Bug.class));
+        verify(bugMapper, never()).update(any(), any());
     }
 
     @Test

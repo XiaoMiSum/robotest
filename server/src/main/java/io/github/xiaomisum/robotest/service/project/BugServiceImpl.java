@@ -1,6 +1,7 @@
 package io.github.xiaomisum.robotest.service.project;
 
 import xyz.migoo.framework.mybatis.core.LambdaQueryWrapperX;
+import xyz.migoo.framework.mybatis.core.LambdaUpdateWrapperX;
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.model.dto.request.BugCreateReqDTO;
@@ -250,39 +251,46 @@ public class BugServiceImpl implements BugService {
         if (bug == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.BUG_NOT_FOUND);
         }
+        // 已关闭缺陷不允许编辑，仅允许通过状态机重新激活
+        if (Constants.BugStatus.CLOSED.equals(bug.getStatus())) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.BUG_CLOSED_EDIT_FORBIDDEN);
+        }
 
+        // 查询结果仅用于校验；更新载体只携带前端传入的字段，避免全列覆盖导致并发丢失更新
+        Bug update = new Bug();
+        update.setId(bugId);
         if (StringUtils.hasText(reqDTO.getTitle())) {
-            bug.setTitle(reqDTO.getTitle());
+            update.setTitle(reqDTO.getTitle());
         }
         if (StringUtils.hasText(reqDTO.getSeverity())) {
-            bug.setSeverity(reqDTO.getSeverity());
+            update.setSeverity(reqDTO.getSeverity());
         }
         if (StringUtils.hasText(reqDTO.getPriority())) {
-            bug.setPriority(reqDTO.getPriority());
+            update.setPriority(reqDTO.getPriority());
         }
         if (StringUtils.hasText(reqDTO.getBugType())) {
             validateBugType(reqDTO.getBugType());
-            bug.setBugType(reqDTO.getBugType());
+            update.setBugType(reqDTO.getBugType());
         }
         if (reqDTO.getReproSteps() != null) {
-            bug.setReproSteps(reqDTO.getReproSteps());
+            update.setReproSteps(reqDTO.getReproSteps());
         }
         if (reqDTO.getModuleId() != null) {
             validateModuleInProject(bug.getProjectId(), reqDTO.getModuleId());
-            bug.setModuleId(reqDTO.getModuleId());
+            update.setModuleId(reqDTO.getModuleId());
         }
         if (reqDTO.getKeywords() != null) {
-            bug.setKeywords(reqDTO.getKeywords());
+            update.setKeywords(reqDTO.getKeywords());
         }
         if (reqDTO.getDueDate() != null) {
-            bug.setDueDate(reqDTO.getDueDate());
+            update.setDueDate(reqDTO.getDueDate());
         }
         if (reqDTO.getAssigneeId() != null) {
             validateAssigneeInWorkspace(bug.getProjectId(), reqDTO.getAssigneeId());
-            bug.setAssigneeId(reqDTO.getAssigneeId());
+            update.setAssigneeId(reqDTO.getAssigneeId());
         }
         // status 不再通过 updateBug 修改，须走 changeBugStatus 状态机
-        bugMapper.updateById(bug);
+        bugMapper.updateById(update);
 
         writeBugLog(bugId, userId, Constants.BugOperation.UPDATE, "更新缺陷");
     }
@@ -335,12 +343,17 @@ public class BugServiceImpl implements BugService {
             }
         }
 
-        bug.setStatus(Constants.BugStatus.RESOLVED);
-        bug.setResolution(resolution);
-        bug.setDuplicateOfBugId(duplicateOfBugId);
-        bug.setResolvedBy(userId);
-        bug.setResolvedAt(LocalDateTime.now());
-        bugMapper.updateById(bug);
+        // duplicateOfBugId 非 duplicate 方案时须显式写 null；updateById 会忽略 null 字段，故用 wrapper
+        bugMapper.update(null,
+                new LambdaUpdateWrapperX<Bug>()
+                        .eq(Bug::getId, bug.getId())
+                        .set(Bug::getStatus, Constants.BugStatus.RESOLVED)
+                        // 解决即隐含确认：未确认的缺陷解决时自动置为已确认
+                        .set(Bug::getConfirmed, true)
+                        .set(Bug::getResolution, resolution)
+                        .set(Bug::getDuplicateOfBugId, duplicateOfBugId)
+                        .set(Bug::getResolvedBy, userId)
+                        .set(Bug::getResolvedAt, LocalDateTime.now()));
 
         writeBugLog(bug.getId(), userId, Constants.BugOperation.RESOLVE,
                 String.format("解决缺陷，方案「%s」%s", resolution,
@@ -355,10 +368,12 @@ public class BugServiceImpl implements BugService {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.BUG_CLOSE_COMMENT_REQUIRED);
         }
 
-        bug.setStatus(Constants.BugStatus.CLOSED);
-        bug.setClosedBy(userId);
-        bug.setClosedAt(LocalDateTime.now());
-        bugMapper.updateById(bug);
+        Bug update = new Bug();
+        update.setId(bug.getId());
+        update.setStatus(Constants.BugStatus.CLOSED);
+        update.setClosedBy(userId);
+        update.setClosedAt(LocalDateTime.now());
+        bugMapper.updateById(update);
 
         writeBugLog(bug.getId(), userId, Constants.BugOperation.CLOSE, "关闭缺陷，说明：" + comment);
     }
@@ -371,16 +386,19 @@ public class BugServiceImpl implements BugService {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.BUG_REOPEN_COMMENT_REQUIRED);
         }
 
-        bug.setStatus(Constants.BugStatus.ACTIVE);
-        bug.setReopenCount(bug.getReopenCount() == null ? 1 : bug.getReopenCount() + 1);
-        bug.setLastReopenedAt(LocalDateTime.now());
-        bug.setResolution(null);
-        bug.setDuplicateOfBugId(null);
-        bug.setResolvedBy(null);
-        bug.setResolvedAt(null);
-        bug.setClosedBy(null);
-        bug.setClosedAt(null);
-        bugMapper.updateById(bug);
+        // updateById 会忽略 null 字段，清空解决/关闭信息须用 wrapper 显式 set null
+        bugMapper.update(null,
+                new LambdaUpdateWrapperX<Bug>()
+                        .eq(Bug::getId, bug.getId())
+                        .set(Bug::getStatus, Constants.BugStatus.ACTIVE)
+                        .set(Bug::getReopenCount, bug.getReopenCount() == null ? 1 : bug.getReopenCount() + 1)
+                        .set(Bug::getLastReopenedAt, LocalDateTime.now())
+                        .set(Bug::getResolution, null)
+                        .set(Bug::getDuplicateOfBugId, null)
+                        .set(Bug::getResolvedBy, null)
+                        .set(Bug::getResolvedAt, null)
+                        .set(Bug::getClosedBy, null)
+                        .set(Bug::getClosedAt, null));
 
         writeBugLog(bug.getId(), userId, Constants.BugOperation.REOPEN, "重开缺陷，说明：" + comment);
     }
@@ -399,8 +417,10 @@ public class BugServiceImpl implements BugService {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.BUG_ALREADY_CONFIRMED);
         }
 
-        bug.setConfirmed(true);
-        bugMapper.updateById(bug);
+        Bug update = new Bug();
+        update.setId(bugId);
+        update.setConfirmed(true);
+        bugMapper.updateById(update);
 
         writeBugLog(bugId, userId, Constants.BugOperation.CONFIRM, "确认缺陷");
     }
@@ -412,6 +432,10 @@ public class BugServiceImpl implements BugService {
         if (bug == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.BUG_NOT_FOUND);
         }
+        // 已关闭缺陷不允许改派处理人
+        if (Constants.BugStatus.CLOSED.equals(bug.getStatus())) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.BUG_CLOSED_EDIT_FORBIDDEN);
+        }
 
         SysUser assignee = userMapper.selectById(assigneeId);
         if (assignee == null) {
@@ -419,8 +443,10 @@ public class BugServiceImpl implements BugService {
         }
         validateAssigneeInWorkspace(bug.getProjectId(), assigneeId);
 
-        bug.setAssigneeId(assigneeId);
-        bugMapper.updateById(bug);
+        Bug update = new Bug();
+        update.setId(bugId);
+        update.setAssigneeId(assigneeId);
+        bugMapper.updateById(update);
 
         writeBugLog(bugId, userId, Constants.BugOperation.ASSIGN,
                 String.format("指派处理人为「%s」", assignee.getUsername()));

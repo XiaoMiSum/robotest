@@ -89,4 +89,5 @@ public static final ErrorCode BUG_MODULE_NOT_FOUND = ErrorCode.of(1000012015, "�
 public static final ErrorCode BUG_ALREADY_CONFIRMED = ErrorCode.of(1000012016, "缺陷已确认，无需重复确认");
 public static final ErrorCode BUG_CONFIRM_INVALID_STATUS = ErrorCode.of(1000012017, "仅激活状态的缺陷可确认");
 public static final ErrorCode BUG_TYPE_INVALID = ErrorCode.of(1000012018, "缺陷类型不合法");
+public static final ErrorCode BUG_CLOSED_EDIT_FORBIDDEN = ErrorCode.of(1000012019, "缺陷已关闭，不可编辑");
 }
