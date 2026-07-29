@@ -114,7 +114,10 @@ public class MyWorkspaceServiceImpl implements MyWorkspaceService {
         }
 
         // 鏇存柊鐢ㄦ埛鐨勬椿璺冨伐浣滅┖闂?
-        user.setLastActiveWorkspaceId(workspaceId.toString());
-        userMapper.updateById(user);
+        // 更新载体只携带本次变更字段，避免全列覆盖导致并发丢失更新
+        SysUser update = new SysUser();
+        update.setId(userId);
+        update.setLastActiveWorkspaceId(workspaceId.toString());
+        userMapper.updateById(update);
     }
 }
