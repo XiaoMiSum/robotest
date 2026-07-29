@@ -5,6 +5,7 @@ import io.github.xiaomisum.robotest.repository.SysUserMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -50,8 +51,11 @@ class UserServiceImplTest {
 
         userService.changePassword(userId, "OldPass123!", "NewPass456!");
 
-        assertEquals("new-hash", user.getPasswordHash());
-        verify(userMapper).updateById(user);
+        // 更新载体仅携带 id + 新密码，不再回写查询实体
+        ArgumentCaptor<SysUser> captor = ArgumentCaptor.forClass(SysUser.class);
+        verify(userMapper).updateById(captor.capture());
+        assertEquals(userId, captor.getValue().getId());
+        assertEquals("new-hash", captor.getValue().getPasswordHash());
     }
 
     @Test

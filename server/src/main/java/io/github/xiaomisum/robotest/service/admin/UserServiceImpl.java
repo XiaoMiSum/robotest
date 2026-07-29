@@ -148,19 +148,21 @@ public class UserServiceImpl implements UserService {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.USER_NOT_FOUND);
         }
 
+        SysUser update = new SysUser();
+        update.setId(id);
         boolean updated = false;
         // 鏇存柊濮撳悕
         if (StringUtils.hasText(reqDTO.getName())) {
-            user.setName(reqDTO.getName());
+            update.setName(reqDTO.getName());
             updated = true;
         }
         // 鏇存柊閭
         if (StringUtils.hasText(reqDTO.getEmail())) {
-            user.setEmail(reqDTO.getEmail());
+            update.setEmail(reqDTO.getEmail());
             updated = true;
         }
         if (updated) {
-            userMapper.updateById(user);
+            userMapper.updateById(update);
         }
 
         // 鍏ㄩ噺鏇挎崲瑙掕壊
@@ -187,8 +189,11 @@ public class UserServiceImpl implements UserService {
         if (user == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.USER_NOT_FOUND);
         }
+        SysUser update = new SysUser();
+        update.setId(id);
+        update.setStatus(status);
+        userMapper.updateById(update);
         user.setStatus(status);
-        userMapper.updateById(user);
         return convertToUserRespDTO(user);
     }
 
@@ -198,8 +203,10 @@ public class UserServiceImpl implements UserService {
         for (UUID userId : reqDTO.getUserIds()) {
             SysUser user = userMapper.selectById(userId);
             if (user != null) {
-                user.setStatus(reqDTO.getStatus());
-                userMapper.updateById(user);
+                SysUser update = new SysUser();
+                update.setId(userId);
+                update.setStatus(reqDTO.getStatus());
+                userMapper.updateById(update);
             }
         }
     }
@@ -210,8 +217,10 @@ public class UserServiceImpl implements UserService {
         if (user == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.USER_NOT_FOUND);
         }
-        user.setPasswordHash(passwordEncoder.encode(newPassword));
-        userMapper.updateById(user);
+        SysUser update = new SysUser();
+        update.setId(id);
+        update.setPasswordHash(passwordEncoder.encode(newPassword));
+        userMapper.updateById(update);
     }
 
     @Override
@@ -223,8 +232,10 @@ public class UserServiceImpl implements UserService {
         if (!passwordEncoder.matches(oldPassword, user.getPasswordHash())) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.OLD_PASSWORD_WRONG);
         }
-        user.setPasswordHash(passwordEncoder.encode(newPassword));
-        userMapper.updateById(user);
+        SysUser update = new SysUser();
+        update.setId(userId);
+        update.setPasswordHash(passwordEncoder.encode(newPassword));
+        userMapper.updateById(update);
     }
 
     @Override
