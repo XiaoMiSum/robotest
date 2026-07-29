@@ -226,8 +226,11 @@ public class WorkspaceServiceImpl implements WorkspaceService {
                 throw ServiceExceptionUtil.get(ErrorCodeConstants.MUST_KEEP_ONE_WORKSPACE_ADMIN);
             }
         }
-        wu.setWorkspaceRole(workspaceRole);
-        workspaceUserMapper.updateById(wu);
+        // 更新载体只携带本次变更字段，避免全列覆盖导致并发丢失更新
+        WorkspaceUser update = new WorkspaceUser();
+        update.setId(wu.getId());
+        update.setWorkspaceRole(workspaceRole);
+        workspaceUserMapper.updateById(update);
     }
 
     @Override
