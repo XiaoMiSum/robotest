@@ -1,6 +1,5 @@
 package io.github.xiaomisum.robotest.service.project;
 
-import xyz.migoo.framework.mybatis.core.LambdaQueryWrapperX;
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.framework.convert.TestPlanConvertMapper;
@@ -14,7 +13,13 @@ import io.github.xiaomisum.robotest.model.dto.response.plan.TestPlanExecutionRec
 import io.github.xiaomisum.robotest.model.dto.response.plan.TestPlanProgressRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.tcase.SnapshotModuleTreeRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.plan.PlannedCasesRespDTO;
-import io.github.xiaomisum.robotest.model.entity.*;
+import io.github.xiaomisum.robotest.model.entity.admin.SysUser;
+import io.github.xiaomisum.robotest.model.entity.plan.TestPlan;
+import io.github.xiaomisum.robotest.model.entity.plan.TestPlanExecutionRecord;
+import io.github.xiaomisum.robotest.model.entity.plan.TestPlanModuleSnapshot;
+import io.github.xiaomisum.robotest.model.entity.plan.TestPlanNodeSnapshot;
+import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseModule;
+import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseNode;
 import io.github.xiaomisum.robotest.repository.plan.TestPlanMapper;
 import io.github.xiaomisum.robotest.repository.plan.TestPlanModuleSnapshotMapper;
 import io.github.xiaomisum.robotest.repository.plan.TestPlanNodeSnapshotMapper;
@@ -27,7 +32,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.StringUtils;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
 import xyz.migoo.framework.common.pojo.PageParam;
 import xyz.migoo.framework.common.pojo.PageResult;
@@ -59,32 +63,17 @@ public class TestPlanServiceImpl implements TestPlanService {
     @Override
     public PageResult<TestPlanListRespDTO> getPlanPage(UUID projectId, String status,
             String keyword, Integer pageNo, Integer pageSize) {
-        LambdaQueryWrapperX<TestPlan> wrapper = new LambdaQueryWrapperX<TestPlan>()
-                .eq(TestPlan::getProjectId, projectId)
-                // 名称关键字模糊匹配，空值自动忽略
-                .likeIfPresent(TestPlan::getName, keyword);
-        if (StringUtils.hasText(status)) {
-            wrapper.eq(TestPlan::getStatus, status);
-        }
-        wrapper.orderByDesc(TestPlan::getCreatedAt);
-
-        PageResult<TestPlan> page = testPlanMapper.selectPage(
-                new PageParam() {
-                    {
-                        setPageNo(pageNo);
-                        setPageSize(pageSize);
-                    }
-                }, wrapper);
+        PageResult<TestPlan> page = testPlanMapper.findPage(
+                new PageParam() {{
+                    setPageNo(pageNo);
+                    setPageSize(pageSize);
+                }}, projectId, keyword, status);
 
         // 列表展示进度/通过率：批量查本页全部关联用例快照，避免逐行 N+1
         List<UUID> planIds = page.getList().stream().map(TestPlan::getId).toList();
         Map<UUID, List<TestPlanNodeSnapshot>> snapshotsByPlan = planIds.isEmpty()
                 ? Map.of()
-                : planNodeSnapshotMapper.selectList(
-                        new LambdaQueryWrapperX<TestPlanNodeSnapshot>()
-                                .in(TestPlanNodeSnapshot::getPlanId, planIds)
-                                .eq(TestPlanNodeSnapshot::getIsAssociated, true)
-                                .eq(TestPlanNodeSnapshot::getType, Constants.NodeType.CASE))
+                : planNodeSnapshotMapper.listAssociatedByPlanIds(planIds, Constants.NodeType.CASE)
                         .stream().collect(Collectors.groupingBy(TestPlanNodeSnapshot::getPlanId));
 
         List<TestPlanListRespDTO> dtos = page.getList().stream().map(plan -> {
@@ -132,15 +121,9 @@ public class TestPlanServiceImpl implements TestPlanService {
     @Transactional(rollbackFor = Exception.class)
     public TestPlanDetailRespDTO createPlan(UUID projectId, UUID userId,
             TestPlanCreateReqDTO reqDTO) {
-        TestPlan plan = new TestPlan();
+        TestPlan plan = TestPlanConvertMapper.INSTANCE.toEntity(reqDTO);
         plan.setProjectId(projectId);
-        plan.setName(reqDTO.getName());
-        plan.setDescription(reqDTO.getDescription());
         plan.setStatus(Constants.Status.NEW);
-        plan.setExecutorId(reqDTO.getExecutorId());
-        plan.setStartTime(reqDTO.getStartTime());
-        plan.setEndTime(reqDTO.getEndTime());
-        plan.setEnvironment(reqDTO.getEnvironment());
         testPlanMapper.insert(plan);
 
         generateSnapshots(plan.getId(), reqDTO.getSelectedNodes());
@@ -164,13 +147,7 @@ public class TestPlanServiceImpl implements TestPlanService {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_PLAN_NOT_FOUND);
         }
 
-        LambdaQueryWrapperX<TestPlanNodeSnapshot> wrapper = new LambdaQueryWrapperX<TestPlanNodeSnapshot>()
-                .eq(TestPlanNodeSnapshot::getPlanId, planId);
-        if (documentId != null) {
-            wrapper.eq(TestPlanNodeSnapshot::getDocumentSnapshotId, documentId);
-        }
-
-        List<TestPlanNodeSnapshot> allNodes = planNodeSnapshotMapper.selectList(wrapper);
+        List<TestPlanNodeSnapshot> allNodes = planNodeSnapshotMapper.listByPlanIdAndDocumentId(planId, documentId);
         List<TestPlanSnapshotNodeRespDTO> dtos = allNodes.stream()
                 .map(this::convertToSnapshotNodeDTO)
                 .collect(Collectors.toList());
@@ -185,10 +162,7 @@ public class TestPlanServiceImpl implements TestPlanService {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_PLAN_NOT_FOUND);
         }
 
-        List<TestPlanModuleSnapshot> modules = planModuleSnapshotMapper.selectList(
-                new LambdaQueryWrapperX<TestPlanModuleSnapshot>()
-                        .eq(TestPlanModuleSnapshot::getPlanId, planId)
-                        .orderByAsc(TestPlanModuleSnapshot::getSortOrder));
+        List<TestPlanModuleSnapshot> modules = planModuleSnapshotMapper.listSortedByPlanId(planId);
 
         List<SnapshotModuleTreeRespDTO> dtos = modules.stream().map(m -> {
             SnapshotModuleTreeRespDTO dto = new SnapshotModuleTreeRespDTO();
@@ -228,11 +202,7 @@ public class TestPlanServiceImpl implements TestPlanService {
 
         List<PlannedCasesRespDTO> result = new ArrayList<>();
         for (TestPlanModuleSnapshot docSnap : selectDocumentSnapshots(planId)) {
-            List<UUID> caseIds = planNodeSnapshotMapper.selectList(
-                    new LambdaQueryWrapperX<TestPlanNodeSnapshot>()
-                            .eq(TestPlanNodeSnapshot::getPlanId, planId)
-                            .eq(TestPlanNodeSnapshot::getDocumentSnapshotId, docSnap.getId())
-                            .eq(TestPlanNodeSnapshot::getIsAssociated, true))
+            List<UUID> caseIds = planNodeSnapshotMapper.listAssociatedByPlanIdAndDocumentId(planId, docSnap.getId())
                     .stream()
                     .map(TestPlanNodeSnapshot::getOriginalNodeId)
                     .filter(Objects::nonNull)
@@ -279,10 +249,7 @@ public class TestPlanServiceImpl implements TestPlanService {
             if (newSelection.containsKey(entry.getKey())) {
                 continue;
             }
-            planNodeSnapshotMapper.delete(
-                    new LambdaQueryWrapperX<TestPlanNodeSnapshot>()
-                            .eq(TestPlanNodeSnapshot::getPlanId, planId)
-                            .eq(TestPlanNodeSnapshot::getDocumentSnapshotId, entry.getValue().getId()));
+            planNodeSnapshotMapper.deleteByPlanIdAndDocumentId(planId, entry.getValue().getId());
             planModuleSnapshotMapper.deleteById(entry.getValue().getId());
         }
         pruneEmptyDirectorySnapshots(planId);
@@ -305,13 +272,7 @@ public class TestPlanServiceImpl implements TestPlanService {
     }
 
     private List<TestPlanModuleSnapshot> selectDocumentSnapshots(UUID planId) {
-        return planModuleSnapshotMapper.selectList(
-                new LambdaQueryWrapperX<TestPlanModuleSnapshot>()
-                        .eq(TestPlanModuleSnapshot::getPlanId, planId)
-                        .eq(TestPlanModuleSnapshot::getType, Constants.ModuleType.DOCUMENT))
-                .stream()
-                .filter(m -> m.getOriginalModuleId() != null)
-                .collect(Collectors.toList());
+        return planModuleSnapshotMapper.listByPlanIdAndType(planId, Constants.ModuleType.DOCUMENT);
     }
 
     // 移除文档后其祖先目录可能不再挂任何快照，自底向上循环清理，避免快照树残留空目录
@@ -336,10 +297,7 @@ public class TestPlanServiceImpl implements TestPlanService {
 
     // 补全快照缺失节点（快照后新建的用例，sync 只更新不新增）并重刷 isAssociated
     private void refreshDocumentSnapshot(UUID planId, TestPlanModuleSnapshot docSnap, Set<UUID> caseIds) {
-        Map<UUID, TestPlanNodeSnapshot> snapByOriginal = planNodeSnapshotMapper.selectList(
-                new LambdaQueryWrapperX<TestPlanNodeSnapshot>()
-                        .eq(TestPlanNodeSnapshot::getPlanId, planId)
-                        .eq(TestPlanNodeSnapshot::getDocumentSnapshotId, docSnap.getId()))
+        Map<UUID, TestPlanNodeSnapshot> snapByOriginal = planNodeSnapshotMapper.listByPlanIdAndDocumentId(planId, docSnap.getId())
                 .stream()
                 .filter(s -> s.getOriginalNodeId() != null)
                 .collect(Collectors.toMap(TestPlanNodeSnapshot::getOriginalNodeId, s -> s, (a, b) -> a));
@@ -453,11 +411,7 @@ public class TestPlanServiceImpl implements TestPlanService {
 
     @Override
     public List<TestPlanExecutionRecordRespDTO> getNodeExecutionRecords(UUID planId, UUID nodeId) {
-        List<TestPlanExecutionRecord> records = planExecutionRecordMapper.selectList(
-                new LambdaQueryWrapperX<TestPlanExecutionRecord>()
-                        .eq(TestPlanExecutionRecord::getPlanId, planId)
-                        .eq(TestPlanExecutionRecord::getSnapshotNodeId, nodeId)
-                        .orderByAsc(TestPlanExecutionRecord::getExecutedAt));
+        List<TestPlanExecutionRecord> records = planExecutionRecordMapper.listByPlanIdAndNodeId(planId, nodeId);
 
         return records.stream().map(record -> {
             TestPlanExecutionRecordRespDTO dto = new TestPlanExecutionRecordRespDTO();
@@ -558,11 +512,7 @@ public class TestPlanServiceImpl implements TestPlanService {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_PLAN_NOT_FOUND);
         }
 
-        List<TestPlanNodeSnapshot> snapshots = planNodeSnapshotMapper.selectList(
-                new LambdaQueryWrapperX<TestPlanNodeSnapshot>()
-                        .eq(TestPlanNodeSnapshot::getPlanId, planId)
-                        .eq(TestPlanNodeSnapshot::getIsAssociated, true)
-                        .eq(TestPlanNodeSnapshot::getType, Constants.NodeType.CASE));
+        List<TestPlanNodeSnapshot> snapshots = planNodeSnapshotMapper.listAssociatedByPlanId(planId, Constants.NodeType.CASE);
 
         TestPlanProgressRespDTO dto = new TestPlanProgressRespDTO();
         dto.setTotalAssociated(snapshots.size());
@@ -606,11 +556,7 @@ public class TestPlanServiceImpl implements TestPlanService {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.NO_PERMISSION);
         }
 
-        Long untestedCount = planNodeSnapshotMapper.selectCount(
-                new LambdaQueryWrapperX<TestPlanNodeSnapshot>()
-                        .eq(TestPlanNodeSnapshot::getPlanId, planId)
-                        .eq(TestPlanNodeSnapshot::getIsAssociated, true)
-                        .eq(TestPlanNodeSnapshot::getLastResult, Constants.Status.UNTESTED));
+        long untestedCount = planNodeSnapshotMapper.countUntestedAssociatedByPlanId(planId, Constants.Status.UNTESTED);
         if (untestedCount > 0) {
             log.warn("Plan {} closed with {} untested associated cases", planId, untestedCount);
         }
@@ -648,8 +594,7 @@ public class TestPlanServiceImpl implements TestPlanService {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.NO_PERMISSION);
         }
         // 无物理外键，需显式级联删除快照与执行记录
-        planExecutionRecordMapper.delete(new LambdaQueryWrapperX<TestPlanExecutionRecord>()
-                .eq(TestPlanExecutionRecord::getPlanId, planId));
+        planExecutionRecordMapper.deleteByPlanId(planId);
         planNodeSnapshotMapper.deleteByPlanId(planId);
         planModuleSnapshotMapper.deleteByPlanId(planId);
         testPlanMapper.deleteById(planId);
@@ -724,18 +669,12 @@ public class TestPlanServiceImpl implements TestPlanService {
         if (originalParentId == null) {
             return null;
         }
-        TestPlanModuleSnapshot snapshot = planModuleSnapshotMapper.selectOne(
-                new LambdaQueryWrapperX<TestPlanModuleSnapshot>()
-                        .eq(TestPlanModuleSnapshot::getPlanId, planId)
-                        .eq(TestPlanModuleSnapshot::getOriginalModuleId, originalParentId));
+        TestPlanModuleSnapshot snapshot = planModuleSnapshotMapper.findByPlanIdAndOriginalModuleId(planId, originalParentId);
         return snapshot != null ? snapshot.getId() : null;
     }
 
     private UUID findSnapshotModuleId(UUID originalModuleId, UUID planId) {
-        TestPlanModuleSnapshot snapshot = planModuleSnapshotMapper.selectOne(
-                new LambdaQueryWrapperX<TestPlanModuleSnapshot>()
-                        .eq(TestPlanModuleSnapshot::getPlanId, planId)
-                        .eq(TestPlanModuleSnapshot::getOriginalModuleId, originalModuleId));
+        TestPlanModuleSnapshot snapshot = planModuleSnapshotMapper.findByPlanIdAndOriginalModuleId(planId, originalModuleId);
         return snapshot != null ? snapshot.getId() : null;
     }
 

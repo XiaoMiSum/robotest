@@ -1,7 +1,7 @@
 package io.github.xiaomisum.robotest.framework.convert;
 
 import io.github.xiaomisum.robotest.model.dto.response.tcase.TestCaseNodeTreeRespDTO;
-import io.github.xiaomisum.robotest.model.entity.TestCaseNode;
+import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseNode;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.factory.Mappers;

@@ -7,10 +7,9 @@ import io.github.xiaomisum.robotest.model.dto.request.workspace.ProjectArchiveRe
 import io.github.xiaomisum.robotest.model.dto.request.workspace.ProjectCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.workspace.ProjectUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.workspace.ProjectRespDTO;
-import io.github.xiaomisum.robotest.model.entity.Project;
-import io.github.xiaomisum.robotest.model.entity.SysUser;
-import io.github.xiaomisum.robotest.model.entity.TestPlan;
-import io.github.xiaomisum.robotest.model.entity.WorkspaceUser;
+import io.github.xiaomisum.robotest.model.entity.workspace.Project;
+import io.github.xiaomisum.robotest.model.entity.admin.SysUser;
+import io.github.xiaomisum.robotest.model.entity.workspace.WorkspaceUser;
 import io.github.xiaomisum.robotest.repository.workspace.ProjectMapper;
 import io.github.xiaomisum.robotest.repository.admin.SysUserMapper;
 import io.github.xiaomisum.robotest.repository.plan.TestPlanMapper;
@@ -22,8 +21,6 @@ import org.springframework.util.StringUtils;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
 import xyz.migoo.framework.common.pojo.PageParam;
 import xyz.migoo.framework.common.pojo.PageResult;
-import xyz.migoo.framework.mybatis.core.LambdaQueryWrapperX;
-import xyz.migoo.framework.mybatis.core.LambdaUpdateWrapperX;
 
 import java.util.List;
 import java.util.UUID;
@@ -44,22 +41,11 @@ public class ProjectServiceImpl implements ProjectService {
     @Override
     public PageResult<ProjectRespDTO> getProjectPage(UUID workspaceId, UUID userId, String keyword,
                                                      String status, Integer pageNo, Integer pageSize) {
-        LambdaQueryWrapperX<Project> wrapper = new LambdaQueryWrapperX<Project>()
-                .eq(Project::getWorkspaceId, workspaceId);
-
-        if (StringUtils.hasText(keyword)) {
-            wrapper.like(Project::getName, keyword);
-        }
-        if (StringUtils.hasText(status)) {
-            wrapper.eq(Project::getStatus, status);
-        }
-        wrapper.orderByDesc(Project::getCreatedAt);
-
-        PageResult<Project> page = projectMapper.selectPage(
+        PageResult<Project> page = projectMapper.findPage(
                 new PageParam() {{
                     setPageNo(pageNo);
                     setPageSize(pageSize);
-                }}, wrapper);
+                }}, workspaceId, keyword, status);
 
         WorkspaceUser currentUser = workspaceUserMapper.findByWorkspaceIdAndUserId(workspaceId, userId);
 
@@ -101,11 +87,7 @@ public class ProjectServiceImpl implements ProjectService {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.NO_PERMISSION);
         }
 
-        Project existing = projectMapper.selectOne(
-                new LambdaQueryWrapperX<Project>()
-                        .eq(Project::getWorkspaceId, workspaceId)
-                        .eq(Project::getName, reqDTO.getName()));
-        if (existing != null) {
+        if (projectMapper.findByName(workspaceId, reqDTO.getName()) != null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.PROJECT_NAME_EXISTS);
         }
 
@@ -114,13 +96,9 @@ public class ProjectServiceImpl implements ProjectService {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.VALIDATION_FAILED);
         }
 
-        Project project = new Project();
+        Project project = ProjectConvertMapper.INSTANCE.toEntity(reqDTO);
         project.setWorkspaceId(workspaceId);
-        project.setName(reqDTO.getName());
-        project.setDescription(reqDTO.getDescription());
         project.setStatus(Constants.Status.ACTIVE);
-        project.setStartTime(reqDTO.getStartTime());
-        project.setEndTime(reqDTO.getEndTime());
         project.setCreatedBy(userId.toString());
         projectMapper.insert(project);
 
@@ -160,12 +138,7 @@ public class ProjectServiceImpl implements ProjectService {
         Project update = new Project();
         update.setId(projectId);
         if (StringUtils.hasText(reqDTO.getName())) {
-            Project existing = projectMapper.selectOne(
-                    new LambdaQueryWrapperX<Project>()
-                            .eq(Project::getWorkspaceId, workspaceId)
-                            .eq(Project::getName, reqDTO.getName())
-                            .ne(Project::getId, projectId));
-            if (existing != null) {
+            if (projectMapper.findByNameExcludingId(workspaceId, reqDTO.getName(), projectId) != null) {
                 throw ServiceExceptionUtil.get(ErrorCodeConstants.PROJECT_NAME_EXISTS);
             }
             update.setName(reqDTO.getName());
@@ -210,12 +183,8 @@ public class ProjectServiceImpl implements ProjectService {
         Project update = new Project();
         update.setId(projectId);
         if (reqDTO.getArchived()) {
-            // 归档前校验无进行中的测试计划
-            Long activePlanCount = testPlanMapper.selectCount(
-                    new LambdaQueryWrapperX<TestPlan>()
-                            .eq(TestPlan::getProjectId, projectId)
-                            .in(TestPlan::getStatus, Constants.Status.NEW, Constants.Status.IN_PROGRESS));
-            if (activePlanCount > 0) {
+            if (testPlanMapper.countActiveByProjectId(projectId,
+                    List.of(Constants.Status.NEW, Constants.Status.IN_PROGRESS)) > 0) {
                 throw ServiceExceptionUtil.get(ErrorCodeConstants.PROJECT_HAS_ACTIVE_PLANS);
             }
             update.setStatus(Constants.Status.ARCHIVED);
@@ -225,11 +194,7 @@ public class ProjectServiceImpl implements ProjectService {
         projectMapper.updateById(update);
 
         if (reqDTO.getArchived()) {
-            workspaceUserMapper.update(null,
-                    new LambdaUpdateWrapperX<WorkspaceUser>()
-                            .eq(WorkspaceUser::getWorkspaceId, workspaceId)
-                            .eq(WorkspaceUser::getDefaultProjectId, projectId)
-                            .set(WorkspaceUser::getDefaultProjectId, null));
+            workspaceUserMapper.clearDefaultProjectId(workspaceId, projectId);
         }
     }
 
@@ -247,11 +212,6 @@ public class ProjectServiceImpl implements ProjectService {
         }
 
         projectMapper.deleteById(projectId);
-
-        workspaceUserMapper.update(null,
-                new LambdaUpdateWrapperX<WorkspaceUser>()
-                        .eq(WorkspaceUser::getWorkspaceId, workspaceId)
-                        .eq(WorkspaceUser::getDefaultProjectId, projectId)
-                        .set(WorkspaceUser::getDefaultProjectId, null));
+        workspaceUserMapper.clearDefaultProjectId(workspaceId, projectId);
     }
 }

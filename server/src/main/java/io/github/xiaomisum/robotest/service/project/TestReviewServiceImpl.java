@@ -1,7 +1,5 @@
 package io.github.xiaomisum.robotest.service.project;
 
-import xyz.migoo.framework.mybatis.core.LambdaQueryWrapperX;
-import xyz.migoo.framework.mybatis.core.LambdaUpdateWrapperX;
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.framework.convert.TestReviewConvertMapper;
@@ -15,7 +13,15 @@ import io.github.xiaomisum.robotest.model.dto.response.review.TestReviewRecordRe
 import io.github.xiaomisum.robotest.model.dto.response.review.TestReviewProgressRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.tcase.SnapshotModuleTreeRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.plan.PlannedCasesRespDTO;
-import io.github.xiaomisum.robotest.model.entity.*;
+import io.github.xiaomisum.robotest.model.entity.admin.SysUser;
+import io.github.xiaomisum.robotest.model.entity.review.TestReview;
+import io.github.xiaomisum.robotest.model.entity.review.TestReviewModuleSnapshot;
+import io.github.xiaomisum.robotest.model.entity.review.TestReviewNodeSnapshot;
+import io.github.xiaomisum.robotest.model.entity.review.TestReviewRecord;
+import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseModule;
+import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseNode;
+import io.github.xiaomisum.robotest.model.entity.workspace.Project;
+import io.github.xiaomisum.robotest.model.entity.workspace.WorkspaceUser;
 import io.github.xiaomisum.robotest.repository.review.TestReviewMapper;
 import io.github.xiaomisum.robotest.repository.review.TestReviewModuleSnapshotMapper;
 import io.github.xiaomisum.robotest.repository.review.TestReviewNodeSnapshotMapper;
@@ -29,7 +35,6 @@ import io.github.xiaomisum.robotest.service.project.TestReviewService;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.StringUtils;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
 import xyz.migoo.framework.common.pojo.PageParam;
 import xyz.migoo.framework.common.pojo.PageResult;
@@ -63,32 +68,17 @@ public class TestReviewServiceImpl implements TestReviewService {
     @Override
     public PageResult<TestReviewListRespDTO> getReviewPage(UUID projectId, String status,
             String keyword, Integer pageNo, Integer pageSize) {
-        LambdaQueryWrapperX<TestReview> wrapper = new LambdaQueryWrapperX<TestReview>()
-                .eq(TestReview::getProjectId, projectId)
-                // 标题关键字模糊匹配，空值自动忽略
-                .likeIfPresent(TestReview::getTitle, keyword);
-        if (StringUtils.hasText(status)) {
-            wrapper.eq(TestReview::getStatus, status);
-        }
-        wrapper.orderByDesc(TestReview::getCreatedAt);
-
-        PageResult<TestReview> page = testReviewMapper.selectPage(
-                new PageParam() {
-                    {
-                        setPageNo(pageNo);
-                        setPageSize(pageSize);
-                    }
-                }, wrapper);
+        PageResult<TestReview> page = testReviewMapper.findPage(
+                new PageParam() {{
+                    setPageNo(pageNo);
+                    setPageSize(pageSize);
+                }}, projectId, keyword, status);
 
         // 列表展示进度/通过率：批量查本页全部关联用例快照，避免逐行 N+1
         List<UUID> reviewIds = page.getList().stream().map(TestReview::getId).toList();
         Map<UUID, List<TestReviewNodeSnapshot>> snapshotsByReview = reviewIds.isEmpty()
                 ? Map.of()
-                : reviewNodeSnapshotMapper.selectList(
-                        new LambdaQueryWrapperX<TestReviewNodeSnapshot>()
-                                .in(TestReviewNodeSnapshot::getReviewId, reviewIds)
-                                .eq(TestReviewNodeSnapshot::getIsAssociated, true)
-                                .eq(TestReviewNodeSnapshot::getType, Constants.NodeType.CASE))
+                : reviewNodeSnapshotMapper.listAssociatedByReviewIds(reviewIds, Constants.NodeType.CASE)
                         .stream().collect(Collectors.groupingBy(TestReviewNodeSnapshot::getReviewId));
 
         List<TestReviewListRespDTO> dtos = page.getList().stream().map(review -> {
@@ -149,13 +139,9 @@ public class TestReviewServiceImpl implements TestReviewService {
             }
         }
 
-        TestReview review = new TestReview();
+        TestReview review = TestReviewConvertMapper.INSTANCE.toEntity(reqDTO);
         review.setProjectId(projectId);
-        review.setTitle(reqDTO.getTitle());
-        review.setDescription(reqDTO.getDescription());
         review.setInitiatorId(userId.toString());
-        review.setParticipantIds(reqDTO.getParticipantIds());
-        // 需求：新建评审默认待评审，首次标记时才自动转入进行中
         review.setStatus(Constants.Status.NEW);
         testReviewMapper.insert(review);
 
@@ -180,13 +166,7 @@ public class TestReviewServiceImpl implements TestReviewService {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_REVIEW_NOT_FOUND);
         }
 
-        LambdaQueryWrapperX<TestReviewNodeSnapshot> wrapper = new LambdaQueryWrapperX<TestReviewNodeSnapshot>()
-                .eq(TestReviewNodeSnapshot::getReviewId, reviewId);
-        if (documentId != null) {
-            wrapper.eq(TestReviewNodeSnapshot::getDocumentSnapshotId, documentId);
-        }
-
-        List<TestReviewNodeSnapshot> allNodes = reviewNodeSnapshotMapper.selectList(wrapper);
+        List<TestReviewNodeSnapshot> allNodes = reviewNodeSnapshotMapper.listByReviewIdAndDocumentId(reviewId, documentId);
         List<TestReviewSnapshotNodeRespDTO> dtos = allNodes.stream()
                 .map(this::convertToSnapshotNodeDTO)
                 .collect(Collectors.toList());
@@ -241,11 +221,7 @@ public class TestReviewServiceImpl implements TestReviewService {
 
         List<PlannedCasesRespDTO> result = new ArrayList<>();
         for (TestReviewModuleSnapshot docSnap : selectDocumentSnapshots(reviewId)) {
-            List<UUID> caseIds = reviewNodeSnapshotMapper.selectList(
-                    new LambdaQueryWrapperX<TestReviewNodeSnapshot>()
-                            .eq(TestReviewNodeSnapshot::getReviewId, reviewId)
-                            .eq(TestReviewNodeSnapshot::getDocumentSnapshotId, docSnap.getId())
-                            .eq(TestReviewNodeSnapshot::getIsAssociated, true))
+            List<UUID> caseIds = reviewNodeSnapshotMapper.listAssociatedByReviewIdAndDocumentId(reviewId, docSnap.getId())
                     .stream()
                     .map(TestReviewNodeSnapshot::getOriginalNodeId)
                     .filter(Objects::nonNull)
@@ -291,10 +267,7 @@ public class TestReviewServiceImpl implements TestReviewService {
             if (newSelection.containsKey(entry.getKey())) {
                 continue;
             }
-            reviewNodeSnapshotMapper.delete(
-                    new LambdaQueryWrapperX<TestReviewNodeSnapshot>()
-                            .eq(TestReviewNodeSnapshot::getReviewId, reviewId)
-                            .eq(TestReviewNodeSnapshot::getDocumentSnapshotId, entry.getValue().getId()));
+            reviewNodeSnapshotMapper.deleteByReviewIdAndDocumentId(reviewId, entry.getValue().getId());
             reviewModuleSnapshotMapper.deleteById(entry.getValue().getId());
         }
         pruneEmptyDirectorySnapshots(reviewId);
@@ -317,13 +290,7 @@ public class TestReviewServiceImpl implements TestReviewService {
     }
 
     private List<TestReviewModuleSnapshot> selectDocumentSnapshots(UUID reviewId) {
-        return reviewModuleSnapshotMapper.selectList(
-                new LambdaQueryWrapperX<TestReviewModuleSnapshot>()
-                        .eq(TestReviewModuleSnapshot::getReviewId, reviewId)
-                        .eq(TestReviewModuleSnapshot::getType, Constants.ModuleType.DOCUMENT))
-                .stream()
-                .filter(m -> m.getOriginalModuleId() != null)
-                .collect(Collectors.toList());
+        return reviewModuleSnapshotMapper.listByReviewIdAndType(reviewId, Constants.ModuleType.DOCUMENT);
     }
 
     // 移除文档后其祖先目录可能不再挂任何快照，自底向上循环清理，避免快照树残留空目录
@@ -348,10 +315,7 @@ public class TestReviewServiceImpl implements TestReviewService {
 
     // 补全快照缺失节点（快照后新建的用例，sync 只更新不新增）并重刷 isAssociated
     private void refreshDocumentSnapshot(UUID reviewId, TestReviewModuleSnapshot docSnap, Set<UUID> caseIds) {
-        Map<UUID, TestReviewNodeSnapshot> snapByOriginal = reviewNodeSnapshotMapper.selectList(
-                new LambdaQueryWrapperX<TestReviewNodeSnapshot>()
-                        .eq(TestReviewNodeSnapshot::getReviewId, reviewId)
-                        .eq(TestReviewNodeSnapshot::getDocumentSnapshotId, docSnap.getId()))
+        Map<UUID, TestReviewNodeSnapshot> snapByOriginal = reviewNodeSnapshotMapper.listByReviewIdAndDocumentId(reviewId, docSnap.getId())
                 .stream()
                 .filter(s -> s.getOriginalNodeId() != null)
                 .collect(Collectors.toMap(TestReviewNodeSnapshot::getOriginalNodeId, s -> s, (a, b) -> a));
@@ -438,13 +402,7 @@ public class TestReviewServiceImpl implements TestReviewService {
                 throw ServiceExceptionUtil.get(ErrorCodeConstants.VALIDATION_FAILED);
             }
             if (isPending) {
-                // 待评审即初始态 last_mark = NULL；updateById 会忽略 null 字段，须显式 set
-                reviewNodeSnapshotMapper.update(null,
-                        new LambdaUpdateWrapperX<TestReviewNodeSnapshot>()
-                                .eq(TestReviewNodeSnapshot::getId, snapshotNode.getId())
-                                .set(TestReviewNodeSnapshot::getLastMark, null)
-                                .set(TestReviewNodeSnapshot::getLastReviewerId, userId)
-                                .set(TestReviewNodeSnapshot::getLastReviewedAt, LocalDateTime.now()));
+                reviewNodeSnapshotMapper.resetLastMarkAsPending(snapshotNode.getId(), userId, LocalDateTime.now());
             } else {
                 // 更新载体只携带本次标记字段，避免全列覆盖导致并发丢失更新
                 TestReviewNodeSnapshot snapUpdate = new TestReviewNodeSnapshot();
@@ -476,11 +434,7 @@ public class TestReviewServiceImpl implements TestReviewService {
 
     @Override
     public List<TestReviewRecordRespDTO> getNodeReviewRecords(UUID reviewId, UUID nodeId) {
-        List<TestReviewRecord> records = reviewRecordMapper.selectList(
-                new LambdaQueryWrapperX<TestReviewRecord>()
-                        .eq(TestReviewRecord::getReviewId, reviewId)
-                        .eq(TestReviewRecord::getSnapshotNodeId, nodeId)
-                        .orderByAsc(TestReviewRecord::getCreatedAt));
+        List<TestReviewRecord> records = reviewRecordMapper.listByReviewIdAndNodeId(reviewId, nodeId);
 
         return records.stream().map(record -> {
             TestReviewRecordRespDTO dto = new TestReviewRecordRespDTO();
@@ -527,12 +481,9 @@ public class TestReviewServiceImpl implements TestReviewService {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.REVIEW_NOT_INITIATOR);
         }
         // 无物理外键，需显式级联删除快照与评审记录
-        reviewRecordMapper.delete(new LambdaQueryWrapperX<TestReviewRecord>()
-                .eq(TestReviewRecord::getReviewId, reviewId));
-        reviewNodeSnapshotMapper.delete(new LambdaQueryWrapperX<TestReviewNodeSnapshot>()
-                .eq(TestReviewNodeSnapshot::getReviewId, reviewId));
-        reviewModuleSnapshotMapper.delete(new LambdaQueryWrapperX<TestReviewModuleSnapshot>()
-                .eq(TestReviewModuleSnapshot::getReviewId, reviewId));
+        reviewRecordMapper.deleteByReviewId(reviewId);
+        reviewNodeSnapshotMapper.deleteByReviewId(reviewId);
+        reviewModuleSnapshotMapper.deleteByReviewId(reviewId);
         testReviewMapper.deleteById(reviewId);
     }
 
@@ -543,11 +494,7 @@ public class TestReviewServiceImpl implements TestReviewService {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_REVIEW_NOT_FOUND);
         }
 
-        List<TestReviewNodeSnapshot> snapshots = reviewNodeSnapshotMapper.selectList(
-                new LambdaQueryWrapperX<TestReviewNodeSnapshot>()
-                        .eq(TestReviewNodeSnapshot::getReviewId, reviewId)
-                        .eq(TestReviewNodeSnapshot::getIsAssociated, true)
-                        .eq(TestReviewNodeSnapshot::getType, Constants.NodeType.CASE));
+        List<TestReviewNodeSnapshot> snapshots = reviewNodeSnapshotMapper.listAssociatedByReviewId(reviewId, Constants.NodeType.CASE);
 
         TestReviewProgressRespDTO dto = new TestReviewProgressRespDTO();
         dto.setTotalAssociated(snapshots.size());
@@ -716,18 +663,12 @@ public class TestReviewServiceImpl implements TestReviewService {
         if (originalParentId == null) {
             return null;
         }
-        TestReviewModuleSnapshot snapshot = reviewModuleSnapshotMapper.selectOne(
-                new LambdaQueryWrapperX<TestReviewModuleSnapshot>()
-                        .eq(TestReviewModuleSnapshot::getReviewId, reviewId)
-                        .eq(TestReviewModuleSnapshot::getOriginalModuleId, originalParentId));
+        TestReviewModuleSnapshot snapshot = reviewModuleSnapshotMapper.findByReviewIdAndOriginalModuleId(reviewId, originalParentId);
         return snapshot != null ? snapshot.getId() : null;
     }
 
     private UUID findSnapshotModuleId(UUID originalModuleId, UUID reviewId) {
-        TestReviewModuleSnapshot snapshot = reviewModuleSnapshotMapper.selectOne(
-                new LambdaQueryWrapperX<TestReviewModuleSnapshot>()
-                        .eq(TestReviewModuleSnapshot::getReviewId, reviewId)
-                        .eq(TestReviewModuleSnapshot::getOriginalModuleId, originalModuleId));
+        TestReviewModuleSnapshot snapshot = reviewModuleSnapshotMapper.findByReviewIdAndOriginalModuleId(reviewId, originalModuleId);
         return snapshot != null ? snapshot.getId() : null;
     }
 
