@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import { changeBugStatus, getBugDetail, getBugLogs, updateBug } from '@/services/project'
+import { ElMessage } from 'element-plus'
+import { assignBug, changeBugStatus, getBugDetail, getBugLogs, updateBug } from '@/services/project'
 import { fetchMembers } from '@/services/workspace'
 import type { BugDetail, BugLog, BugStatus, WorkspaceMember } from '@/types'
 import { formatDateTime } from '@/utils/format'
+import { BUG_STATUS_LABEL, getValidTargetStatuses, promptStatusChangeComment } from '@/utils/bugStatus'
 
 const route = useRoute()
 const router = useRouter()
@@ -30,7 +31,21 @@ const form = reactive({
 
 const severityLabel: Record<string, string> = { fatal: '致命', serious: '严重', general: '一般', minor: '轻微' }
 const priorityLabel: Record<string, string> = { high: '高', medium: '中', low: '低' }
-const statusLabel: Record<string, string> = { new: '新建', assigned: '已指派', fixing: '修复中', fixed: '已修复', verified: '已验证', closed: '已关闭' }
+const statusLabel = BUG_STATUS_LABEL
+
+// 状态下拉仅展示当前状态与状态机允许的目标状态，避免非法流转
+const statusOptions = computed(() => {
+  const current = detail.value?.status
+  if (!current) return []
+  return [
+    { value: current, label: statusLabel[current], disabled: true },
+    ...getValidTargetStatuses(current).map((s) => ({
+      value: s,
+      label: statusLabel[s],
+      disabled: false,
+    })),
+  ]
+})
 
 async function load() {
   loading.value = true
@@ -57,6 +72,7 @@ async function load() {
 }
 
 async function handleSave() {
+  if (!detail.value) return
   saving.value = true
   try {
     await updateBug(bugId, {
@@ -64,8 +80,12 @@ async function handleSave() {
       severity: form.severity as BugDetail['severity'],
       priority: form.priority as BugDetail['priority'],
       description: form.description.trim() || undefined,
-      assigneeId: form.assigneeId || null,
     })
+    // 处理人变更走专用指派接口，后端会校验工作空间成员并写指派日志
+    const originalAssigneeId = detail.value.assignee?.id ?? ''
+    if (form.assigneeId && form.assigneeId !== originalAssigneeId) {
+      await assignBug(bugId, form.assigneeId)
+    }
     ElMessage.success('已保存')
     load()
   } catch (err) {
@@ -76,19 +96,20 @@ async function handleSave() {
 }
 
 async function handleStatusChange(newStatus: string) {
-  try {
-    await ElMessageBox.confirm(`确定要将状态变更为「${statusLabel[newStatus]}」吗？`, '确认', { type: 'warning' })
-  } catch {
-    form.status = detail.value?.status ?? ''
+  const current = detail.value?.status
+  if (!current || newStatus === current) return
+  const comment = await promptStatusChangeComment(current, newStatus as BugStatus)
+  if (comment === null) {
+    form.status = current
     return
   }
   try {
-    await changeBugStatus(bugId, { status: newStatus as BugStatus })
+    await changeBugStatus(bugId, { status: newStatus as BugStatus, comment: comment || undefined })
     ElMessage.success('状态已更新')
     load()
   } catch (err) {
     ElMessage.error(err instanceof Error ? err.message : '状态变更失败')
-    form.status = detail.value?.status ?? ''
+    form.status = current
   }
 }
 
@@ -121,16 +142,27 @@ onMounted(load)
         </el-form-item>
         <el-form-item label="状态">
           <el-select v-if="!isClosed" v-model="form.status" style="width: 160px" @change="handleStatusChange">
-            <el-option v-for="(label, key) in statusLabel" :key="key" :label="label" :value="key" />
+            <el-option
+              v-for="opt in statusOptions"
+              :key="opt.value"
+              :label="opt.label"
+              :value="opt.value"
+              :disabled="opt.disabled"
+            />
           </el-select>
-          <el-tag v-else>{{ statusLabel[detail.status] }}</el-tag>
+          <template v-else>
+            <el-tag>{{ statusLabel[detail.status] }}</el-tag>
+            <el-button link type="primary" class="bug-detail__reopen" @click="handleStatusChange('fixing')">
+              重新打开
+            </el-button>
+          </template>
         </el-form-item>
         <el-form-item label="描述">
           <el-input v-if="!isClosed" v-model="form.description" type="textarea" :rows="4" />
           <span v-else class="bug-detail__text">{{ detail.description || '-' }}</span>
         </el-form-item>
         <el-form-item label="处理人">
-          <el-select v-if="!isClosed" v-model="form.assigneeId" filterable clearable style="width: 240px">
+          <el-select v-if="!isClosed" v-model="form.assigneeId" filterable style="width: 240px">
             <el-option v-for="m in memberOptions" :key="m.userId" :label="m.username" :value="m.userId" />
           </el-select>
           <span v-else class="bug-detail__text">{{ detail.assignee?.name ?? '-' }}</span>
@@ -181,6 +213,10 @@ onMounted(load)
   font-size: var(--font-size-sm);
   color: var(--color-neutral-700);
   line-height: 1.6;
+}
+
+.bug-detail__reopen {
+  margin-left: var(--space-sm);
 }
 
 .bug-detail__logs {
