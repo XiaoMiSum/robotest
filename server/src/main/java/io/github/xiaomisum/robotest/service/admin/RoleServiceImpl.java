@@ -270,7 +270,11 @@ public class RoleServiceImpl implements RoleService {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.SYSTEM_ROLE_PERMISSION_NOT_MODIFIABLE);
         }
         role.setPermissions(reqDTO.getPermissions());
-        roleMapper.updateById(role);
+        // 更新载体只携带本次变更字段，避免全列覆盖导致并发丢失更新
+        SysRole update = new SysRole();
+        update.setId(id);
+        update.setPermissions(reqDTO.getPermissions());
+        roleMapper.updateById(update);
         RoleRespDTO dto = RoleConvertMapper.INSTANCE.toRespDTO(role);
         dto.setUserCount(Math.toIntExact(userRoleMapper.selectCount(SysUserRole::getRoleId, role.getId())));
         return dto;
