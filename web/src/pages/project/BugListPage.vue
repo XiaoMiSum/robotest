@@ -2,9 +2,10 @@
 import { onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { fetchBugs } from '@/services/project'
+import { changeBugStatus, fetchBugs } from '@/services/project'
 import type { BugListItem, BugPriority, BugSeverity, BugStatus } from '@/types'
 import { formatDateTime } from '@/utils/format'
+import { getValidTargetStatuses, promptStatusChangeComment } from '@/utils/bugStatus'
 
 const router = useRouter()
 const loading = ref(false)
@@ -55,6 +56,48 @@ const boardStatuses: BugStatus[] = ['new', 'assigned', 'fixing', 'fixed', 'verif
 
 function bugsByStatus(status: BugStatus): BugListItem[] {
   return bugs.value.filter((b) => b.status === status)
+}
+
+// ==================== 看板拖拽 ====================
+
+const draggingBug = ref<BugListItem | null>(null)
+// 拖起卡片时计算的合法目标列，驱动高亮/置灰
+const validDropStatuses = ref<Set<BugStatus>>(new Set())
+
+function handleDragStart(bug: BugListItem) {
+  draggingBug.value = bug
+  validDropStatuses.value = new Set(getValidTargetStatuses(bug.status as BugStatus))
+}
+
+function handleDragEnd() {
+  draggingBug.value = null
+  validDropStatuses.value = new Set()
+}
+
+function isValidDropTarget(status: BugStatus): boolean {
+  return validDropStatuses.value.has(status)
+}
+
+async function handleDrop(targetStatus: BugStatus) {
+  const bug = draggingBug.value
+  handleDragEnd()
+  if (!bug || bug.status === targetStatus) return
+  if (!isValidDropTargetFor(bug, targetStatus)) return
+
+  const comment = await promptStatusChangeComment(bug.status as BugStatus, targetStatus)
+  if (comment === null) return
+  try {
+    await changeBugStatus(bug.id, { status: targetStatus, comment: comment || undefined })
+    ElMessage.success('状态已更新')
+    loadBugs()
+  } catch (err) {
+    ElMessage.error(err instanceof Error ? err.message : '状态变更失败')
+  }
+}
+
+// drop 时 draggingBug 已清空，用传入的 bug 重新校验合法性
+function isValidDropTargetFor(bug: BugListItem, targetStatus: BugStatus): boolean {
+  return getValidTargetStatuses(bug.status as BugStatus).includes(targetStatus)
 }
 
 onMounted(loadBugs)
@@ -144,7 +187,17 @@ onMounted(loadBugs)
     </el-card>
 
     <div v-else v-loading="loading" class="bug-board">
-      <div v-for="status in boardStatuses" :key="status" class="bug-board__column">
+      <div
+        v-for="status in boardStatuses"
+        :key="status"
+        class="bug-board__column"
+        :class="{
+          'bug-board__column--valid': draggingBug && isValidDropTarget(status),
+          'bug-board__column--invalid': draggingBug && !isValidDropTarget(status) && draggingBug.status !== status,
+        }"
+        @dragover.prevent
+        @drop="handleDrop(status)"
+      >
         <div class="bug-board__col-header">
           <span class="bug-board__col-title">{{ statusLabel[status] }}</span>
           <span class="bug-board__col-count">{{ bugsByStatus(status).length }}</span>
@@ -154,6 +207,9 @@ onMounted(loadBugs)
             v-for="bug in bugsByStatus(status)"
             :key="bug.id"
             class="bug-board__card"
+            draggable="true"
+            @dragstart="handleDragStart(bug)"
+            @dragend="handleDragEnd"
             @click="router.push(`/workspace/projects/bugs/${bug.id}`)"
           >
             <div class="bug-board__card-title">{{ bug.title }}</div>
@@ -212,6 +268,16 @@ onMounted(loadBugs)
   display: flex;
   flex-direction: column;
   border: 1px solid var(--color-neutral-200);
+  transition: all var(--transition-fast);
+}
+
+.bug-board__column--valid {
+  border-color: var(--color-primary-400);
+  background: var(--color-primary-50);
+}
+
+.bug-board__column--invalid {
+  opacity: 0.5;
 }
 
 .bug-board__col-header {
@@ -248,13 +314,17 @@ onMounted(loadBugs)
   border-radius: var(--radius-md);
   padding: var(--space-sm) var(--space-md);
   margin-bottom: var(--space-sm);
-  cursor: pointer;
+  cursor: grab;
   border: 1px solid var(--color-neutral-200);
   transition: all var(--transition-fast);
 
   &:hover {
     box-shadow: var(--shadow-sm);
     border-color: var(--color-primary-200);
+  }
+
+  &:active {
+    cursor: grabbing;
   }
 }
 
