@@ -511,10 +511,12 @@ public class TestPlanServiceImpl implements TestPlanService {
                     }
                 }
             } else {
-                // 原始模块仍存在，同步名称和排序
-                moduleSnap.setName(originalModule.getName());
-                moduleSnap.setSortOrder(originalModule.getSortOrder());
-                planModuleSnapshotMapper.updateById(moduleSnap);
+                // 原始模块仍存在，同步名称和排序；载体只携带同步字段，避免整行覆盖并发变更
+                TestPlanModuleSnapshot moduleUpdate = new TestPlanModuleSnapshot();
+                moduleUpdate.setId(moduleSnap.getId());
+                moduleUpdate.setName(originalModule.getName());
+                moduleUpdate.setSortOrder(originalModule.getSortOrder());
+                planModuleSnapshotMapper.updateById(moduleUpdate);
                 validModuleSnapshotIds.add(moduleSnap.getId());
             }
         }
@@ -530,15 +532,18 @@ public class TestPlanServiceImpl implements TestPlanService {
                 continue;
             }
             TestCaseNode currentNode = testCaseNodeMapper.selectById(snapshot.getOriginalNodeId());
+            // 载体只携带同步字段，避免整行覆盖并发写入的执行结果
+            TestPlanNodeSnapshot nodeUpdate = new TestPlanNodeSnapshot();
+            nodeUpdate.setId(snapshot.getId());
             if (currentNode == null || currentNode.getIsDeleted()) {
-                snapshot.setIsDeleted(true);
+                nodeUpdate.setIsDeleted(true);
             } else {
-                snapshot.setTitle(currentNode.getTitle());
-                snapshot.setType(currentNode.getType());
-                snapshot.setPriority(currentNode.getPriority());
-                snapshot.setSortOrder(currentNode.getSortOrder());
+                nodeUpdate.setTitle(currentNode.getTitle());
+                nodeUpdate.setType(currentNode.getType());
+                nodeUpdate.setPriority(currentNode.getPriority());
+                nodeUpdate.setSortOrder(currentNode.getSortOrder());
             }
-            planNodeSnapshotMapper.updateById(snapshot);
+            planNodeSnapshotMapper.updateById(nodeUpdate);
         }
     }
 

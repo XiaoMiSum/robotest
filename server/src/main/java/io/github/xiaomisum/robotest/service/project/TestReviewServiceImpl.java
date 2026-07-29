@@ -611,10 +611,12 @@ public class TestReviewServiceImpl implements TestReviewService {
                     }
                 }
             } else {
-                // 原始模块仍存在，同步名称和排序
-                moduleSnap.setName(originalModule.getName());
-                moduleSnap.setSortOrder(originalModule.getSortOrder());
-                reviewModuleSnapshotMapper.updateById(moduleSnap);
+                // 原始模块仍存在，同步名称和排序；载体只携带同步字段，避免整行覆盖并发变更
+                TestReviewModuleSnapshot moduleUpdate = new TestReviewModuleSnapshot();
+                moduleUpdate.setId(moduleSnap.getId());
+                moduleUpdate.setName(originalModule.getName());
+                moduleUpdate.setSortOrder(originalModule.getSortOrder());
+                reviewModuleSnapshotMapper.updateById(moduleUpdate);
                 validModuleSnapshotIds.add(moduleSnap.getId());
             }
         }
@@ -630,15 +632,18 @@ public class TestReviewServiceImpl implements TestReviewService {
                 continue;
             }
             TestCaseNode currentNode = testCaseNodeMapper.selectById(snapshot.getOriginalNodeId());
+            // 载体只携带同步字段，避免整行覆盖并发写入的评审结果
+            TestReviewNodeSnapshot nodeUpdate = new TestReviewNodeSnapshot();
+            nodeUpdate.setId(snapshot.getId());
             if (currentNode == null || currentNode.getIsDeleted()) {
-                snapshot.setIsDeleted(true);
+                nodeUpdate.setIsDeleted(true);
             } else {
-                snapshot.setTitle(currentNode.getTitle());
-                snapshot.setType(currentNode.getType());
-                snapshot.setPriority(currentNode.getPriority());
-                snapshot.setSortOrder(currentNode.getSortOrder());
+                nodeUpdate.setTitle(currentNode.getTitle());
+                nodeUpdate.setType(currentNode.getType());
+                nodeUpdate.setPriority(currentNode.getPriority());
+                nodeUpdate.setSortOrder(currentNode.getSortOrder());
             }
-            reviewNodeSnapshotMapper.updateById(snapshot);
+            reviewNodeSnapshotMapper.updateById(nodeUpdate);
         }
     }
 
