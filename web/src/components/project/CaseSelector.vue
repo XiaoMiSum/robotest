@@ -2,6 +2,7 @@
 import { onMounted, ref, computed, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { fetchModuleTree, fetchDocumentNodes } from '@/services/project'
+import CaseSelectTree from '@/components/project/CaseSelectTree.vue'
 import type { TestCaseModule, TestCaseNode } from '@/types'
 
 const props = defineProps<{
@@ -23,24 +24,76 @@ const docLoading = ref(false)
 
 const selectedMap = ref<Record<string, Set<string>>>({})
 
-const currentCases = computed(() => {
-  if (!docNodes.value) return []
-  const cases: { id: string; title: string; priority: string | null }[] = []
-  function walk(node: TestCaseNode) {
-    if (node.type === 'case') {
-      cases.push({ id: node.id, title: node.title, priority: node.priority })
-    }
-    node.children.forEach(walk)
-  }
-  docNodes.value.children.forEach(walk)
-  return cases
+const filterKeyword = ref('')
+const filterPriority = ref('')
+const priorities = ['P0', 'P1', 'P2', 'P3']
+
+const showFullDoc = ref(false)
+
+// 精简视图：用例整枝（含内部结构与嵌套用例）保留，仅剔除不含用例的空分枝
+function pruneEmptyBranches(node: TestCaseNode): TestCaseNode | null {
+  if (node.type === 'case') return node
+  const children = node.children
+    .map(pruneEmptyBranches)
+    .filter((c): c is TestCaseNode => c !== null)
+  if (!children.length) return null
+  return { ...node, children }
+}
+
+const selectableRoot = computed(() => {
+  if (!docNodes.value) return null
+  return showFullDoc.value ? docNodes.value : pruneEmptyBranches(docNodes.value)
 })
 
-const allChecked = computed(() => {
-  if (!currentCases.value.length) return false
+// 预聚合各节点子树的用例数与已选数，驱动芯片全选/半选态
+const nodeStats = computed(() => {
+  const stats: Record<string, { total: number; selected: number }> = {}
+  const root = selectableRoot.value
+  if (!root) return stats
   const set = selectedMap.value[selectedDocId.value]
-  if (!set) return false
-  return currentCases.value.every((c) => set.has(c.id))
+  function walk(node: TestCaseNode): { total: number; selected: number } {
+    let total = 0
+    let selected = 0
+    if (node.type === 'case') {
+      total = 1
+      selected = set?.has(node.id) ? 1 : 0
+    }
+    node.children.forEach((child) => {
+      const s = walk(child)
+      total += s.total
+      selected += s.selected
+    })
+    stats[node.id] = { total, selected }
+    return stats[node.id]
+  }
+  walk(root)
+  return stats
+})
+
+// 过滤仅针对用例节点：命中用例及其祖先链可见，其余分枝隐藏
+const filterSets = computed(() => {
+  const root = selectableRoot.value
+  const keyword = filterKeyword.value.trim().toLowerCase()
+  if (!root || (!keyword && !filterPriority.value)) return null
+  const visible = new Set<string>()
+  const matched = new Set<string>()
+  const ancestors: string[] = []
+  function walk(node: TestCaseNode) {
+    if (
+      node.type === 'case' &&
+      (!keyword || node.title.toLowerCase().includes(keyword)) &&
+      (!filterPriority.value || node.priority === filterPriority.value)
+    ) {
+      matched.add(node.id)
+      visible.add(node.id)
+      ancestors.forEach((id) => visible.add(id))
+    }
+    ancestors.push(node.id)
+    node.children.forEach(walk)
+    ancestors.pop()
+  }
+  walk(root)
+  return { visible, matched }
 })
 
 const totalSelected = computed(() => {
@@ -63,6 +116,8 @@ async function loadModules() {
 async function handleNodeClick(data: TestCaseModule) {
   if (data.type !== 'document') return
   selectedDocId.value = data.id
+  filterKeyword.value = ''
+  filterPriority.value = ''
   docLoading.value = true
   try {
     const result = await fetchDocumentNodes(data.id)
@@ -75,30 +130,28 @@ async function handleNodeClick(data: TestCaseModule) {
   }
 }
 
-function toggleCase(caseId: string) {
+function collectCaseIds(node: TestCaseNode, acc: string[]) {
+  if (node.type === 'case') acc.push(node.id)
+  node.children.forEach((child) => collectCaseIds(child, acc))
+}
+
+// 级联勾选：整枝已全选则整枝取消，否则补齐整枝（含嵌套用例）
+function handleToggle(node: TestCaseNode) {
   if (!selectedDocId.value) return
   if (!selectedMap.value[selectedDocId.value]) {
     selectedMap.value[selectedDocId.value] = new Set()
   }
   const set = selectedMap.value[selectedDocId.value]
-  if (set.has(caseId)) {
-    set.delete(caseId)
-  } else {
-    set.add(caseId)
-  }
-}
-
-function toggleAll() {
-  if (!selectedDocId.value || !currentCases.value.length) return
-  if (!selectedMap.value[selectedDocId.value]) {
-    selectedMap.value[selectedDocId.value] = new Set()
-  }
-  const set = selectedMap.value[selectedDocId.value]
-  if (allChecked.value) {
-    currentCases.value.forEach((c) => set.delete(c.id))
-  } else {
-    currentCases.value.forEach((c) => set.add(c.id))
-  }
+  const caseIds: string[] = []
+  collectCaseIds(node, caseIds)
+  const allSelected = caseIds.length > 0 && caseIds.every((id) => set.has(id))
+  caseIds.forEach((id) => {
+    if (allSelected) {
+      set.delete(id)
+    } else {
+      set.add(id)
+    }
+  })
 }
 
 function close() {
@@ -129,6 +182,8 @@ watch(() => props.modelValue, (val) => {
     selectedMap.value = map
     docNodes.value = null
     selectedDocId.value = ''
+    filterKeyword.value = ''
+    filterPriority.value = ''
     loadModules()
   }
 })
@@ -140,7 +195,7 @@ onMounted(() => { if (props.modelValue) loadModules() })
   <el-dialog
     :model-value="modelValue"
     title="选择关联用例"
-    width="720px"
+    width="960px"
     @update:model-value="close"
   >
     <div class="case-selector">
@@ -164,32 +219,54 @@ onMounted(() => { if (props.modelValue) loadModules() })
         </el-tree>
       </div>
 
-      <!-- 右侧用例列表 -->
+      <!-- 右侧脑图式勾选树 -->
       <div class="case-selector__content">
         <div v-if="!selectedDocId" class="case-selector__hint">
           <el-empty description="请在左侧选择一个文档" :image-size="60" />
         </div>
-        <div v-else v-loading="docLoading">
-          <div class="case-selector__toolbar">
-            <el-checkbox :model-value="allChecked" @change="toggleAll">全选当前文档用例</el-checkbox>
-            <span class="case-selector__count">已选 {{ totalSelected }} 个用例</span>
-          </div>
-          <div class="case-selector__list">
-            <div
-              v-for="c in currentCases"
-              :key="c.id"
-              class="case-selector__item"
-              @click="toggleCase(c.id)"
+        <div v-else v-loading="docLoading" class="case-selector__body">
+          <div class="case-selector__filters">
+            <el-input
+              v-model="filterKeyword"
+              size="small"
+              placeholder="搜索用例名称"
+              clearable
             >
-              <el-checkbox
-                :model-value="selectedMap[selectedDocId]?.has(c.id) ?? false"
-                @click.stop
-                @change="toggleCase(c.id)"
-              />
-              <span class="case-selector__item-title">{{ c.title }}</span>
-              <el-tag v-if="c.priority" size="small" type="info">{{ c.priority }}</el-tag>
+              <template #prefix>
+                <el-icon><Search /></el-icon>
+              </template>
+            </el-input>
+            <el-select
+              v-model="filterPriority"
+              size="small"
+              placeholder="优先级"
+              clearable
+              class="case-selector__priority"
+            >
+              <el-option v-for="p in priorities" :key="p" :label="p" :value="p" />
+            </el-select>
+          </div>
+          <div class="case-selector__toolbar">
+            <el-checkbox v-model="showFullDoc" size="small">展示全量文档视图</el-checkbox>
+            <div class="case-selector__toolbar-right">
+              <span class="case-selector__tip">勾选任意节点，其子孙用例将一并规划</span>
+              <span class="case-selector__count">已选 {{ totalSelected }} 个用例</span>
             </div>
-            <el-empty v-if="!currentCases.length" description="该文档暂无用例节点" :image-size="40" />
+          </div>
+          <div class="case-selector__canvas">
+            <CaseSelectTree
+              v-if="selectableRoot && (!filterSets || filterSets.visible.size > 0)"
+              :node="selectableRoot"
+              :stats="nodeStats"
+              :visible-ids="filterSets ? filterSets.visible : null"
+              :matched-ids="filterSets ? filterSets.matched : null"
+              @toggle="handleToggle"
+            />
+            <el-empty
+              v-else
+              :description="selectableRoot ? '无匹配用例' : '该文档暂无用例节点'"
+              :image-size="40"
+            />
           </div>
         </div>
       </div>
@@ -205,7 +282,7 @@ onMounted(() => { if (props.modelValue) loadModules() })
 <style scoped lang="scss">
 .case-selector {
   display: flex;
-  height: 400px;
+  height: 480px;
   gap: 12px;
 }
 
@@ -220,10 +297,16 @@ onMounted(() => { if (props.modelValue) loadModules() })
 
 .case-selector__content {
   flex: 1;
-  overflow: auto;
+  overflow: hidden;
   border: 1px solid var(--el-border-color-lighter);
   border-radius: 4px;
   padding: 8px;
+}
+
+.case-selector__body {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
 }
 
 .case-selector__hint {
@@ -231,6 +314,17 @@ onMounted(() => { if (props.modelValue) loadModules() })
   align-items: center;
   justify-content: center;
   height: 100%;
+}
+
+.case-selector__filters {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.case-selector__priority {
+  width: 100px;
+  flex-shrink: 0;
 }
 
 .case-selector__toolbar {
@@ -242,34 +336,25 @@ onMounted(() => { if (props.modelValue) loadModules() })
   border-bottom: 1px solid var(--el-border-color-lighter);
 }
 
+.case-selector__tip {
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+}
+
+.case-selector__toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 .case-selector__count {
   font-size: 12px;
   color: var(--el-text-color-secondary);
 }
 
-.case-selector__list {
-  max-height: 340px;
-  overflow-y: auto;
-}
-
-.case-selector__item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 4px;
-  cursor: pointer;
-  border-radius: 4px;
-}
-
-.case-selector__item:hover {
-  background: var(--el-fill-color-light);
-}
-
-.case-selector__item-title {
+.case-selector__canvas {
   flex: 1;
-  font-size: 13px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow: auto;
+  padding: 8px 4px;
 }
 </style>
