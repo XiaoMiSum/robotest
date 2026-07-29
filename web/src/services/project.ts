@@ -1,5 +1,6 @@
 import api from '@/services'
 import type {
+  BugAttachment,
   BugDetail,
   BugListItem,
   BugLog,
@@ -322,4 +323,36 @@ export function assignBug(id: string, assigneeId: string): Promise<void> {
 
 export function getBugStatistics(): Promise<BugStatistics> {
   return get('/project/bugs/statistics')
+}
+
+// ==================== 缺陷附件 ====================
+
+export function uploadBugAttachment(bugId: string, file: File): Promise<BugAttachment> {
+  const formData = new FormData()
+  formData.append('file', file)
+  // 覆盖默认的 application/json，由浏览器自动生成 multipart 边界
+  return api.post(`/project/bugs/${bugId}/attachments`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  }) as unknown as Promise<BugAttachment>
+}
+
+export function fetchBugAttachments(bugId: string): Promise<BugAttachment[]> {
+  return get(`/project/bugs/${bugId}/attachments`)
+}
+
+// 下载为文件流，拦截器对 Blob 透传，此处触发浏览器保存
+export async function downloadBugAttachment(attachmentId: string, fileName: string): Promise<void> {
+  const blob = (await api.get(`/project/bugs/attachments/${attachmentId}/download`, {
+    responseType: 'blob',
+  })) as unknown as Blob
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = fileName
+  link.click()
+  URL.revokeObjectURL(url)
+}
+
+export function deleteBugAttachment(attachmentId: string): Promise<void> {
+  return del(`/project/bugs/attachments/${attachmentId}`)
 }

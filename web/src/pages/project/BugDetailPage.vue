@@ -1,10 +1,20 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
-import { assignBug, changeBugStatus, getBugDetail, getBugLogs, updateBug } from '@/services/project'
+import { ElMessage, ElMessageBox, type UploadRequestOptions } from 'element-plus'
+import {
+  assignBug,
+  changeBugStatus,
+  deleteBugAttachment,
+  downloadBugAttachment,
+  fetchBugAttachments,
+  getBugDetail,
+  getBugLogs,
+  updateBug,
+  uploadBugAttachment,
+} from '@/services/project'
 import { fetchMembers } from '@/services/workspace'
-import type { BugDetail, BugLog, BugStatus, WorkspaceMember } from '@/types'
+import type { BugAttachment, BugDetail, BugLog, BugStatus, WorkspaceMember } from '@/types'
 import { formatDateTime } from '@/utils/format'
 import { BUG_STATUS_LABEL, getValidTargetStatuses, promptStatusChangeComment } from '@/utils/bugStatus'
 
@@ -113,7 +123,71 @@ async function handleStatusChange(newStatus: string) {
   }
 }
 
-onMounted(load)
+// ==================== 附件 ====================
+
+const MAX_FILE_SIZE = 10 * 1024 * 1024
+const attachments = ref<BugAttachment[]>([])
+const uploading = ref(false)
+
+async function loadAttachments() {
+  try {
+    attachments.value = await fetchBugAttachments(bugId)
+  } catch {
+    // 附件加载失败不阻塞详情展示
+  }
+}
+
+function formatFileSize(size: number): string {
+  if (size < 1024) return `${size} B`
+  if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`
+  return `${(size / 1024 / 1024).toFixed(1)} MB`
+}
+
+async function handleAttachmentUpload(options: UploadRequestOptions) {
+  const file = options.file
+  if (file.size > MAX_FILE_SIZE) {
+    ElMessage.warning(`「${file.name}」超过 10MB，无法上传`)
+    return
+  }
+  uploading.value = true
+  try {
+    await uploadBugAttachment(bugId, file)
+    ElMessage.success('附件已上传')
+    loadAttachments()
+  } catch (err) {
+    ElMessage.error(err instanceof Error ? err.message : '附件上传失败')
+  } finally {
+    uploading.value = false
+  }
+}
+
+async function handleAttachmentDownload(item: BugAttachment) {
+  try {
+    await downloadBugAttachment(item.id, item.fileName)
+  } catch (err) {
+    ElMessage.error(err instanceof Error ? err.message : '附件下载失败')
+  }
+}
+
+async function handleAttachmentDelete(item: BugAttachment) {
+  try {
+    await ElMessageBox.confirm(`确定删除附件「${item.fileName}」吗？`, '确认', { type: 'warning' })
+  } catch {
+    return
+  }
+  try {
+    await deleteBugAttachment(item.id)
+    ElMessage.success('附件已删除')
+    loadAttachments()
+  } catch (err) {
+    ElMessage.error(err instanceof Error ? err.message : '附件删除失败')
+  }
+}
+
+onMounted(() => {
+  load()
+  loadAttachments()
+})
 </script>
 
 <template>
@@ -177,6 +251,38 @@ onMounted(load)
       </el-form>
     </el-card>
 
+    <el-card v-if="detail" shadow="never" class="bug-detail__logs">
+      <template #header>
+        <div class="bug-detail__attachment-header">
+          <span class="bug-detail__section">附件</span>
+          <el-upload
+            v-if="!isClosed"
+            :show-file-list="false"
+            :http-request="handleAttachmentUpload"
+          >
+            <el-button size="small" :loading="uploading">上传附件</el-button>
+          </el-upload>
+        </div>
+      </template>
+      <el-empty v-if="!attachments.length" description="暂无附件" :image-size="48" />
+      <el-table v-else :data="attachments" size="small">
+        <el-table-column label="文件名" prop="fileName" min-width="200" show-overflow-tooltip />
+        <el-table-column label="大小" width="100">
+          <template #default="{ row }">{{ formatFileSize(row.fileSize) }}</template>
+        </el-table-column>
+        <el-table-column label="上传人" prop="uploaderName" width="120" />
+        <el-table-column label="上传时间" width="170">
+          <template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template>
+        </el-table-column>
+        <el-table-column label="操作" width="120">
+          <template #default="{ row }">
+            <el-button link type="primary" @click="handleAttachmentDownload(row as BugAttachment)">下载</el-button>
+            <el-button v-if="!isClosed" link type="danger" @click="handleAttachmentDelete(row as BugAttachment)">删除</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+    </el-card>
+
     <el-card v-if="logs.length" shadow="never" class="bug-detail__logs">
       <template #header><span class="bug-detail__section">操作记录</span></template>
       <el-timeline>
@@ -221,6 +327,12 @@ onMounted(load)
 
 .bug-detail__logs {
   margin-top: var(--space-lg);
+}
+
+.bug-detail__attachment-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
 .bug-detail__section {

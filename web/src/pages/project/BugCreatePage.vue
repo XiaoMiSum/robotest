@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
-import { createBug, fetchPlans } from '@/services/project'
+import { ElMessage, type FormInstance, type FormRules, type UploadUserFile } from 'element-plus'
+import { createBug, fetchPlans, uploadBugAttachment } from '@/services/project'
 import { fetchMembers } from '@/services/workspace'
 import type { BugPriority, BugSeverity, TestPlanListItem, WorkspaceMember } from '@/types'
 import CaseSelector from '@/components/project/CaseSelector.vue'
@@ -56,6 +56,22 @@ async function loadMembers() {
 }
 loadMembers()
 
+// 附件本地暂存，创建成功拿到 bugId 后再逐个上传
+const MAX_FILE_SIZE = 10 * 1024 * 1024
+const attachmentFiles = ref<UploadUserFile[]>([])
+function handleAttachmentChange(_file: UploadUserFile, files: UploadUserFile[]) {
+  attachmentFiles.value = files.filter((f) => {
+    if (f.size && f.size > MAX_FILE_SIZE) {
+      ElMessage.warning(`「${f.name}」超过 10MB，已忽略`)
+      return false
+    }
+    return true
+  })
+}
+function handleAttachmentRemove(_file: UploadUserFile, files: UploadUserFile[]) {
+  attachmentFiles.value = files
+}
+
 async function handleSubmit() {
   if (!formRef.value) return
   try {
@@ -65,7 +81,7 @@ async function handleSubmit() {
   }
   submitting.value = true
   try {
-    await createBug({
+    const bugId = await createBug({
       title: form.title.trim(),
       severity: form.severity,
       priority: form.priority,
@@ -74,6 +90,11 @@ async function handleSubmit() {
       relatedCaseId: form.relatedCaseId || undefined,
       relatedPlanId: form.relatedPlanId || undefined,
     })
+    for (const item of attachmentFiles.value) {
+      if (item.raw) {
+        await uploadBugAttachment(bugId, item.raw)
+      }
+    }
     ElMessage.success('缺陷已提交')
     router.push('/workspace/projects/bugs')
   } catch (err) {
@@ -126,6 +147,20 @@ async function handleSubmit() {
           <el-select v-model="form.relatedPlanId" filterable clearable placeholder="选择计划（可选）" style="width: 240px">
             <el-option v-for="p in planOptions" :key="p.id" :label="p.name" :value="p.id" />
           </el-select>
+        </el-form-item>
+        <el-form-item label="附件">
+          <el-upload
+            :auto-upload="false"
+            :file-list="attachmentFiles"
+            multiple
+            :on-change="handleAttachmentChange"
+            :on-remove="handleAttachmentRemove"
+          >
+            <el-button>选择文件</el-button>
+            <template #tip>
+              <div class="bug-create__case-hint">单个文件不超过 10MB，创建后自动上传</div>
+            </template>
+          </el-upload>
         </el-form-item>
         <el-form-item>
           <el-button type="primary" :loading="submitting" @click="handleSubmit">提交</el-button>
