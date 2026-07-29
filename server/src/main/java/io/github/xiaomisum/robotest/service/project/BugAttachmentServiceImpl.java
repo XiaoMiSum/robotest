@@ -2,12 +2,13 @@ package io.github.xiaomisum.robotest.service.project;
 
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
+import io.github.xiaomisum.robotest.framework.convert.BugConvertMapper;
 import io.github.xiaomisum.robotest.model.dto.response.bug.BugAttachmentDownloadDTO;
 import io.github.xiaomisum.robotest.model.dto.response.bug.BugAttachmentRespDTO;
-import io.github.xiaomisum.robotest.model.entity.Bug;
-import io.github.xiaomisum.robotest.model.entity.BugAttachment;
-import io.github.xiaomisum.robotest.model.entity.BugLog;
-import io.github.xiaomisum.robotest.model.entity.SysUser;
+import io.github.xiaomisum.robotest.model.entity.bug.Bug;
+import io.github.xiaomisum.robotest.model.entity.bug.BugAttachment;
+import io.github.xiaomisum.robotest.model.entity.bug.BugLog;
+import io.github.xiaomisum.robotest.model.entity.admin.SysUser;
 import io.github.xiaomisum.robotest.repository.bug.BugAttachmentMapper;
 import io.github.xiaomisum.robotest.repository.bug.BugLogMapper;
 import io.github.xiaomisum.robotest.repository.bug.BugMapper;
@@ -82,13 +83,13 @@ public class BugAttachmentServiceImpl implements BugAttachmentService {
         writeBugLog(bugId, userId, Constants.BugOperation.ATTACHMENT_UPLOAD,
                 String.format("上传附件「%s」", originalName));
 
-        return toRespDTO(attachment);
+        return toAttachmentRespDTO(attachment);
     }
 
     @Override
     public List<BugAttachmentRespDTO> getAttachments(UUID bugId) {
         List<BugAttachment> attachments = bugAttachmentMapper.listByBugId(bugId);
-        return attachments.stream().map(this::toRespDTO).collect(Collectors.toList());
+        return attachments.stream().map(this::toAttachmentRespDTO).collect(Collectors.toList());
     }
 
     @Override
@@ -147,14 +148,8 @@ public class BugAttachmentServiceImpl implements BugAttachmentService {
         return fileName.substring(dotIndex);
     }
 
-    private BugAttachmentRespDTO toRespDTO(BugAttachment attachment) {
-        BugAttachmentRespDTO dto = new BugAttachmentRespDTO();
-        dto.setId(attachment.getId());
-        dto.setFileName(attachment.getFileName());
-        dto.setFileSize(attachment.getFileSize());
-        dto.setContentType(attachment.getContentType());
-        dto.setUploaderId(attachment.getUploaderId());
-        dto.setCreatedAt(attachment.getCreatedAt());
+    private BugAttachmentRespDTO toAttachmentRespDTO(BugAttachment attachment) {
+        BugAttachmentRespDTO dto = BugConvertMapper.INSTANCE.toAttachmentRespDTO(attachment);
         if (attachment.getUploaderId() != null) {
             SysUser uploader = userMapper.selectById(attachment.getUploaderId());
             if (uploader != null) {

@@ -1,6 +1,6 @@
 # 工程规范 — 后端
 
-**文档版本**：V1.1
+**文档版本**：V1.3
 **日期**：2026-07-29
 **状态**：已发布
 
@@ -179,6 +179,122 @@ public class UserVO {
 
 **命名转换**：Jackson 自动转换 `SNAKE_CASE` ↔ camelCase。
 
+### 5.3 对象转换（MapStruct）
+
+**核心原则：所有 Entity → DTO / Response 的转换必须使用 MapStruct Converter，禁止在 Service 中手动 `new DTO()` + setter 逐字段拷贝。**
+
+#### 存放位置
+
+转换器定义在 `framework/convert/` 包下，按业务模块命名：
+
+```
+framework/convert/
+  ├── UserConvertMapper.java         # 用户模块
+  ├── RoleConvertMapper.java         # 角色模块
+  ├── BugConvertMapper.java          # 缺陷模块
+  └── WorkspaceMemberConvertMapper.java
+```
+
+Entity 按业务域分入子包：
+
+```
+model/entity/
+  ├── admin/          SysUser, SysRole, SysUserRole, SysPermission, AuditLog
+  ├── workspace/      Workspace, WorkspaceUser, WorkspaceInvitation, Project
+  ├── tcase/          TestCaseModule, TestCaseNode, TestCaseDocumentLayout
+  ├── plan/           TestPlan, TestPlanModuleSnapshot, TestPlanNodeSnapshot, TestPlanExecutionRecord
+  ├── review/         TestReview, TestReviewModuleSnapshot, TestReviewNodeSnapshot, TestReviewRecord
+  └── bug/            Bug, BugAttachment, BugLog
+```
+
+#### 基本模式
+
+```java
+@Mapper
+public interface UserConvertMapper {
+
+    UserConvertMapper INSTANCE = Mappers.getMapper(UserConvertMapper.class);
+
+    @Mapping(target = "roles", ignore = true)
+    UserRespDTO toRespDTO(SysUser user);
+
+    default UserInfo toUserInfo(SysUser user) {
+        if (user == null) return null;
+        UserInfo info = new UserInfo();
+        info.setId(user.getId());
+        info.setName(user.getUsername());
+        return info;
+    }
+}
+```
+
+- 接口标注 `@Mapper`，`INSTANCE` 通过 `Mappers.getMapper()` 获取
+- 源-目标字段名一致时自动映射，不一致时用 `@Mapping` 显式声明
+- `@Mapping(target = "xxx", ignore = true)` 跳过需服务层手工赋值的字段（如 UserInfo 需查 SysUser 表）
+- 复杂逻辑（如组合多个源、构造嵌套对象）用 `default` 方法实现
+- 字段名、类型均一致时无需任何注解
+
+#### 使用示例
+
+```java
+// ✅ 正确：Service 中使用 Converter
+BugListRespDTO dto = BugConvertMapper.INSTANCE.toListRespDTO(bug);
+dto.setReporter(BugConvertMapper.INSTANCE.toUserInfo(userMapper.selectById(bug.getReporterId())));
+```
+
+```java
+// ❌ 错误：在 Service 中手写逐字段拷贝
+BugListRespDTO dto = new BugListRespDTO();
+dto.setId(bug.getId());
+dto.setTitle(bug.getTitle());
+dto.setSeverity(bug.getSeverity());
+// ... 十几行重复字段拷贝
+```
+
+#### 双向转换
+
+- **Entity → Response DTO**：使用 MapStruct Converter
+- **Request DTO → Entity**：MapStruct 处理纯字段映射，业务/上下文字段在 Service 中手工赋值
+- **List 批量转换**：`recentLogs.stream().map(BugConvertMapper.INSTANCE::toLogRespDTO).collect(...)`
+
+DTO→Entity 的 `toEntity()` 方法定义在 Converter 中，配合 `@Mapping(target = "...", ignore = true)` 跳过主键、审计、状态等由 Service 赋值的字段：
+
+```java
+@Mapper
+public interface TestPlanConvertMapper {
+    TestPlanConvertMapper INSTANCE = Mappers.getMapper(TestPlanConvertMapper.class);
+
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "projectId", ignore = true)
+    @Mapping(target = "status", ignore = true)
+    @Mapping(target = "createdAt", ignore = true)
+    @Mapping(target = "updatedAt", ignore = true)
+    @Mapping(target = "isDeleted", ignore = true)
+    TestPlan toEntity(TestPlanCreateReqDTO dto);
+}
+```
+
+Service 中使用：
+
+```java
+// ✅ 正确：Converter 处理纯字段映射，业务字段在 Service 中赋值
+TestPlan plan = TestPlanConvertMapper.INSTANCE.toEntity(reqDTO);
+plan.setProjectId(projectId);
+plan.setStatus(Constants.Status.NEW);
+testPlanMapper.insert(plan);
+```
+
+```java
+// ❌ 错误：在 Service 中手动 new Entity() + setter 逐字段拷贝
+TestPlan plan = new TestPlan();
+plan.setProjectId(projectId);
+plan.setName(reqDTO.getName());
+plan.setDescription(reqDTO.getDescription());
+// ... 十几行重复字段拷贝
+plan.setStatus(Constants.Status.NEW);
+testPlanMapper.insert(plan);
+```
+
 ---
 
 ## 6. API 响应格式
@@ -307,6 +423,80 @@ bugMapper.update(null, new LambdaUpdateWrapperX<Bug>()
 
 - 模式 A：用 `ArgumentCaptor` 捕获 `updateById` 载体，断言只携带预期字段；同时 `verify(mapper, never())` 验证未发生意外更新
 - 模式 B：先通过 `TableInfoHelper.initTableInfo` 注册实体列信息，再捕获 wrapper，断言 `getSqlSet()` 包含目标列（含置 null 列）、`getParamNameValuePairs()` 包含目标值
+
+---
+
+## 9. 查询封装规范
+
+**核心原则：`LambdaQueryWrapperX` / `LambdaUpdateWrapperX` 必须在 Mapper 的 `default` 方法中封装，禁止在 Service 中直接构造 Wrapper。**
+
+### 9.1 做法
+
+在 Mapper 接口中定义 `default` 方法，将 Wrapper 构造和 MyBatis-Plus 调用统一封装：
+
+```java
+public interface BugMapper extends BaseMapperX<Bug> {
+
+    default PageResult<Bug> findPage(PageParam pageParam, UUID projectId,
+                                      String status, String severity) {
+        LambdaQueryWrapperX<Bug> wrapper = new LambdaQueryWrapperX<Bug>()
+                .eq(Bug::getProjectId, projectId);
+        if (StringUtils.hasText(status)) {
+            wrapper.eq(Bug::getStatus, status);
+        }
+        if (StringUtils.hasText(severity)) {
+            wrapper.eq(Bug::getSeverity, severity);
+        }
+        wrapper.orderByDesc(Bug::getCreatedAt);
+        return this.selectPage(pageParam, wrapper);
+    }
+
+    default int resolveById(UUID id, UUID userId, String resolution, UUID duplicateOfBugId) {
+        return this.update(null, new LambdaUpdateWrapperX<Bug>()
+                .eq(Bug::getId, id)
+                .set(Bug::getStatus, Constants.BugStatus.RESOLVED)
+                .set(Bug::getResolvedBy, userId)
+                .set(Bug::getResolution, resolution)
+                .set(Bug::getDuplicateOfBugId, duplicateOfBugId));
+    }
+}
+```
+
+### 9.2 使用
+
+Service 中调用 Mapper 封装方法，不再出现任何 Wrapper：
+
+```java
+// ✅ 正确：Service 委托给 Mapper.default 方法
+PageResult<Bug> page = bugMapper.findPage(pageParam, projectId, status, severity);
+bugMapper.resolveById(id, userId, resolution, duplicateOfBugId);
+```
+
+```java
+// ❌ 错误：Service 中直接构造 Wrapper
+LambdaQueryWrapperX<Bug> wrapper = new LambdaQueryWrapperX<>()
+        .eq(Bug::getProjectId, projectId);
+if (...) { wrapper.eq(...); }
+bugMapper.selectPage(pageParam, wrapper);
+```
+
+### 9.3 命名约定
+
+| 操作 | 命名模式 | 示例 |
+|------|----------|------|
+| 分页查询 | `findPage` / `find{PageName}Page` | `findPage(PageParam, UUID, ...)` |
+| 列表查询 | `findBy{字段}` / `listBy{字段}` | `findByProjectId(UUID)` / `listByDocumentId(UUID)` |
+| 计数 | `count{条件}` | `countOpenBugs(UUID projectId)` |
+| 单条查询 | `findBy{字段}` | `findByNameAndParent(UUID projectId, UUID parentId, String name)` |
+| 更新（Wrapper） | `{操作}By{条件}` | `resolveById(UUID, UUID, String, UUID)` / `reopenById(UUID, int)` / `updateSortOrder(UUID, int)` |
+| 删除（Wrapper） | `deleteBy{条件}` | `deleteByUserIdAndRoleId(UUID, UUID)` |
+
+### 9.4 注意事项
+
+- `default` 方法中通过 `this` 调用 Mapper 自身的方法（`selectPage`、`selectList`、`selectCount`、`update`、`delete` 等）
+- 含 `null` parentId 的场景用 `isNull()` 而非 `eq(null)`：`wrapper.isNull(Entity::getParentId)`
+- 更新操作返回 `int`（影响行数），与 MyBatis-Plus 原生返回类型一致
+- Service 仍负责业务校验、组装 DTO、事务管理——只将 Wrapper 构造下沉到 Mapper
 
 ---
 

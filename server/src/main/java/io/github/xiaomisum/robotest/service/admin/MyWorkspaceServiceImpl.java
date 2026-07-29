@@ -2,9 +2,9 @@ package io.github.xiaomisum.robotest.service.admin;
 
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.model.dto.response.workspace.WorkspaceMyRespDTO;
-import io.github.xiaomisum.robotest.model.entity.SysUser;
-import io.github.xiaomisum.robotest.model.entity.Workspace;
-import io.github.xiaomisum.robotest.model.entity.WorkspaceUser;
+import io.github.xiaomisum.robotest.model.entity.admin.SysUser;
+import io.github.xiaomisum.robotest.model.entity.workspace.Workspace;
+import io.github.xiaomisum.robotest.model.entity.workspace.WorkspaceUser;
 import io.github.xiaomisum.robotest.repository.admin.SysUserMapper;
 import io.github.xiaomisum.robotest.repository.workspace.WorkspaceMapper;
 import io.github.xiaomisum.robotest.repository.workspace.WorkspaceUserMapper;
@@ -13,7 +13,6 @@ import org.springframework.stereotype.Service;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
 import xyz.migoo.framework.common.pojo.PageParam;
 import xyz.migoo.framework.common.pojo.PageResult;
-import xyz.migoo.framework.mybatis.core.LambdaQueryWrapperX;
 
 import java.util.List;
 import java.util.Map;
@@ -32,11 +31,11 @@ public class MyWorkspaceServiceImpl implements MyWorkspaceService {
 
     @Override
     public PageResult<WorkspaceMyRespDTO> getMyWorkspacePage(UUID userId, Integer pageNo, Integer pageSize) {
-        PageResult<WorkspaceUser> workspaceUserPage = workspaceUserMapper.selectPage(
+        PageResult<WorkspaceUser> workspaceUserPage = workspaceUserMapper.findPageByUserId(
                 new PageParam() {{
                     setPageNo(pageNo);
                     setPageSize(pageSize);
-                }}, new LambdaQueryWrapperX<WorkspaceUser>().eq(WorkspaceUser::getUserId, userId));
+                }}, userId);
 
         if (workspaceUserPage.getList().isEmpty()) {
             return new PageResult<>(List.of(), 0L);

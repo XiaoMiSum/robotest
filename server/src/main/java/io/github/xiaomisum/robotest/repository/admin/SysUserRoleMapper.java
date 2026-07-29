@@ -1,6 +1,6 @@
 package io.github.xiaomisum.robotest.repository.admin;
 
-import io.github.xiaomisum.robotest.model.entity.SysUserRole;
+import io.github.xiaomisum.robotest.model.entity.admin.SysUserRole;
 import xyz.migoo.framework.mybatis.core.BaseMapperX;
 import xyz.migoo.framework.mybatis.core.LambdaQueryWrapperX;
 
@@ -24,5 +24,11 @@ public interface SysUserRoleMapper extends BaseMapperX<SysUserRole> {
 
     default void deleteByUserId(UUID userId) {
         delete(new LambdaQueryWrapperX<SysUserRole>().eq(SysUserRole::getUserId, userId));
+    }
+
+    default int deleteByUserIdAndRoleId(UUID userId, UUID roleId) {
+        return delete(new LambdaQueryWrapperX<SysUserRole>()
+                .eq(SysUserRole::getUserId, userId)
+                .eq(SysUserRole::getRoleId, roleId));
     }
 }
