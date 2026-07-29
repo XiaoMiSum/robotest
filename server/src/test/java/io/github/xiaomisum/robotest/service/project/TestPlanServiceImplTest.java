@@ -472,9 +472,10 @@ class TestPlanServiceImplTest {
 
                 planService.syncPlan(planId, userId);
 
-                verify(planNodeSnapshotMapper).updateById(any(TestPlanNodeSnapshot.class));
-                assertEquals("Updated Title", snapshot.getTitle());
-                assertEquals("case", snapshot.getType());
+                ArgumentCaptor<TestPlanNodeSnapshot> nodeCaptor = ArgumentCaptor.forClass(TestPlanNodeSnapshot.class);
+                verify(planNodeSnapshotMapper).updateById(nodeCaptor.capture());
+                assertEquals("Updated Title", nodeCaptor.getValue().getTitle());
+                assertEquals("case", nodeCaptor.getValue().getType());
         }
 
         @Test
@@ -524,8 +525,9 @@ class TestPlanServiceImplTest {
 
                 planService.syncPlan(planId, userId);
 
-                verify(planNodeSnapshotMapper).updateById(any(TestPlanNodeSnapshot.class));
-                assertTrue(snapshot.getIsDeleted());
+                ArgumentCaptor<TestPlanNodeSnapshot> delCaptor = ArgumentCaptor.forClass(TestPlanNodeSnapshot.class);
+                verify(planNodeSnapshotMapper).updateById(delCaptor.capture());
+                assertTrue(delCaptor.getValue().getIsDeleted());
         }
 
         @Test
@@ -740,9 +742,10 @@ class TestPlanServiceImplTest {
 
                 planService.syncPlan(planId, userId);
 
-                assertEquals("new name", moduleSnap.getName());
-                assertEquals(2, moduleSnap.getSortOrder());
-                verify(planModuleSnapshotMapper).updateById(moduleSnap);
+                ArgumentCaptor<TestPlanModuleSnapshot> moduleCaptor = ArgumentCaptor.forClass(TestPlanModuleSnapshot.class);
+                verify(planModuleSnapshotMapper).updateById(moduleCaptor.capture());
+                assertEquals("new name", moduleCaptor.getValue().getName());
+                assertEquals(2, moduleCaptor.getValue().getSortOrder());
         }
 
         @Test

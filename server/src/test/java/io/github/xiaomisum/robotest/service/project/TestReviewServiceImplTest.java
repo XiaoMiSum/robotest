@@ -687,9 +687,10 @@ class TestReviewServiceImplTest {
 
                 reviewService.syncReview(reviewId, userId);
 
-                verify(reviewNodeSnapshotMapper).updateById(any(TestReviewNodeSnapshot.class));
-                assertEquals("Updated Title", snapshot.getTitle());
-                assertEquals("case", snapshot.getType());
+                ArgumentCaptor<TestReviewNodeSnapshot> nodeCaptor = ArgumentCaptor.forClass(TestReviewNodeSnapshot.class);
+                verify(reviewNodeSnapshotMapper).updateById(nodeCaptor.capture());
+                assertEquals("Updated Title", nodeCaptor.getValue().getTitle());
+                assertEquals("case", nodeCaptor.getValue().getType());
         }
 
         @Test
@@ -741,8 +742,9 @@ class TestReviewServiceImplTest {
 
                 reviewService.syncReview(reviewId, userId);
 
-                verify(reviewNodeSnapshotMapper).updateById(any(TestReviewNodeSnapshot.class));
-                assertTrue(snapshot.getIsDeleted());
+                ArgumentCaptor<TestReviewNodeSnapshot> delCaptor = ArgumentCaptor.forClass(TestReviewNodeSnapshot.class);
+                verify(reviewNodeSnapshotMapper).updateById(delCaptor.capture());
+                assertTrue(delCaptor.getValue().getIsDeleted());
         }
 
         // ========== getReviewProgress ==========
@@ -825,9 +827,10 @@ class TestReviewServiceImplTest {
 
                 reviewService.syncReview(reviewId, userId);
 
-                assertEquals("new name", moduleSnap.getName());
-                assertEquals(2, moduleSnap.getSortOrder());
-                verify(reviewModuleSnapshotMapper).updateById(moduleSnap);
+                ArgumentCaptor<TestReviewModuleSnapshot> moduleCaptor = ArgumentCaptor.forClass(TestReviewModuleSnapshot.class);
+                verify(reviewModuleSnapshotMapper).updateById(moduleCaptor.capture());
+                assertEquals("new name", moduleCaptor.getValue().getName());
+                assertEquals(2, moduleCaptor.getValue().getSortOrder());
         }
 
         @Test
