@@ -8,6 +8,7 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
+    BugResolveDialog: typeof import('./components/project/BugResolveDialog.vue')['default']
     CaseMindMap: typeof import('./components/project/CaseMindMap.vue')['default']
     CaseSelector: typeof import('./components/project/CaseSelector.vue')['default']
     CaseSelectTree: typeof import('./components/project/CaseSelectTree.vue')['default']
@@ -55,6 +56,7 @@ declare module 'vue' {
     ElTimelineItem: typeof import('element-plus/es')['ElTimelineItem']
     ElTooltip: typeof import('element-plus/es')['ElTooltip']
     ElTree: typeof import('element-plus/es')['ElTree']
+    ElTreeSelect: typeof import('element-plus/es')['ElTreeSelect']
     ElUpload: typeof import('element-plus/es')['ElUpload']
     MinderContextMenu: typeof import('./components/project/minder/MinderContextMenu.vue')['default']
     MinderNavigator: typeof import('./components/project/minder/MinderNavigator.vue')['default']

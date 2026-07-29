@@ -3,9 +3,15 @@ import { onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { changeBugStatus, fetchBugs } from '@/services/project'
-import type { BugListItem, BugPriority, BugSeverity, BugStatus } from '@/types'
+import type { BugListItem, BugPriority, BugResolution, BugSeverity, BugStatus, BugType } from '@/types'
 import { formatDateTime } from '@/utils/format'
-import { getValidTargetStatuses, promptStatusChangeComment } from '@/utils/bugStatus'
+import {
+  BUG_STATUS_LABEL,
+  BUG_TYPE_LABEL,
+  getValidTargetStatuses,
+  promptStatusChangeComment,
+} from '@/utils/bugStatus'
+import BugResolveDialog from '@/components/project/BugResolveDialog.vue'
 
 const router = useRouter()
 const loading = ref(false)
@@ -17,6 +23,7 @@ const query = reactive({
   status: '' as BugStatus | '',
   severity: '' as BugSeverity | '',
   priority: '' as BugPriority | '',
+  bugType: '' as BugType | '',
   keyword: '',
   pageNo: 1,
   pageSize: 20,
@@ -24,7 +31,7 @@ const query = reactive({
 
 const severityLabel: Record<string, string> = { fatal: '致命', serious: '严重', general: '一般', minor: '轻微' }
 const priorityLabel: Record<string, string> = { high: '高', medium: '中', low: '低' }
-const statusLabel: Record<string, string> = { new: '新建', assigned: '已指派', fixing: '修复中', fixed: '已修复', verified: '已验证', closed: '已关闭' }
+const statusLabel = BUG_STATUS_LABEL
 const severityType: Record<string, 'danger' | 'warning' | 'success' | 'info'> = { fatal: 'danger', serious: 'warning', general: 'info', minor: 'success' }
 
 async function loadBugs() {
@@ -34,6 +41,7 @@ async function loadBugs() {
       status: query.status || undefined,
       severity: query.severity || undefined,
       priority: query.priority || undefined,
+      bugType: query.bugType || undefined,
       keyword: query.keyword || undefined,
       pageNo: query.pageNo,
       pageSize: query.pageSize,
@@ -52,7 +60,7 @@ function handleSearch() {
   loadBugs()
 }
 
-const boardStatuses: BugStatus[] = ['new', 'assigned', 'fixing', 'fixed', 'verified', 'closed']
+const boardStatuses: BugStatus[] = ['active', 'resolved', 'closed']
 
 function bugsByStatus(status: BugStatus): BugListItem[] {
   return bugs.value.filter((b) => b.status === status)
@@ -84,6 +92,13 @@ async function handleDrop(targetStatus: BugStatus) {
   if (!bug || bug.status === targetStatus) return
   if (!isValidDropTargetFor(bug, targetStatus)) return
 
+  // 拖到「已解决」列需选择解决方案，弹对话框处理
+  if (targetStatus === 'resolved') {
+    resolvingBug.value = bug
+    resolveDialogVisible.value = true
+    return
+  }
+
   const comment = await promptStatusChangeComment(bug.status as BugStatus, targetStatus)
   if (comment === null) return
   try {
@@ -92,6 +107,27 @@ async function handleDrop(targetStatus: BugStatus) {
     loadBugs()
   } catch (err) {
     ElMessage.error(err instanceof Error ? err.message : '状态变更失败')
+  }
+}
+
+// 看板拖到「已解决」弹出的解决对话框
+const resolveDialogVisible = ref(false)
+const resolvingBug = ref<BugListItem | null>(null)
+
+async function handleResolveConfirm(payload: {
+  resolution: BugResolution
+  duplicateOfBugId?: string
+  comment?: string
+}) {
+  const bug = resolvingBug.value
+  resolvingBug.value = null
+  if (!bug) return
+  try {
+    await changeBugStatus(bug.id, { status: 'resolved', ...payload })
+    ElMessage.success('缺陷已解决')
+    loadBugs()
+  } catch (err) {
+    ElMessage.error(err instanceof Error ? err.message : '解决失败')
   }
 }
 
@@ -111,6 +147,11 @@ onMounted(loadBugs)
         <el-form-item>
           <el-select v-model="query.status" placeholder="状态" clearable style="width: 120px" @change="handleSearch">
             <el-option v-for="(label, key) in statusLabel" :key="key" :label="label" :value="key" />
+          </el-select>
+        </el-form-item>
+        <el-form-item>
+          <el-select v-model="query.bugType" placeholder="类型" clearable style="width: 120px" @change="handleSearch">
+            <el-option v-for="(label, key) in BUG_TYPE_LABEL" :key="key" :label="label" :value="key" />
           </el-select>
         </el-form-item>
         <el-form-item>
@@ -148,6 +189,9 @@ onMounted(loadBugs)
             <el-link type="primary" :underline="false" @click="router.push(`/workspace/projects/bugs/${row.id}`)">{{ row.title }}</el-link>
           </template>
         </el-table-column>
+        <el-table-column label="类型" width="100">
+          <template #default="{ row }">{{ BUG_TYPE_LABEL[row.bugType as BugType] ?? '-' }}</template>
+        </el-table-column>
         <el-table-column label="严重等级" width="100">
           <template #default="{ row }">
             <el-tag :type="severityType[row.severity]" size="small" effect="light" round>{{ severityLabel[row.severity] }}</el-tag>
@@ -156,9 +200,10 @@ onMounted(loadBugs)
         <el-table-column label="优先级" width="80">
           <template #default="{ row }">{{ priorityLabel[row.priority] }}</template>
         </el-table-column>
-        <el-table-column label="状态" width="90">
+        <el-table-column label="状态" width="130">
           <template #default="{ row }">
-            <el-tag size="small" effect="light" round>{{ statusLabel[row.status] }}</el-tag>
+            <el-tag size="small" effect="light" round>{{ statusLabel[row.status as BugStatus] }}</el-tag>
+            <el-tag v-if="row.confirmed" size="small" type="warning" effect="plain" class="bug-page__confirmed-tag">已确认</el-tag>
           </template>
         </el-table-column>
         <el-table-column label="处理人" width="100">
@@ -222,6 +267,12 @@ onMounted(loadBugs)
         </div>
       </div>
     </div>
+
+    <BugResolveDialog
+      v-model="resolveDialogVisible"
+      :exclude-bug-id="resolvingBug?.id"
+      @confirm="handleResolveConfirm"
+    />
   </div>
 </template>
 
@@ -243,6 +294,10 @@ onMounted(loadBugs)
 
 .bug-page__filter-spacer {
   flex: 1;
+}
+
+.bug-page__confirmed-tag {
+  margin-left: 4px;
 }
 
 .bug-page__pager {

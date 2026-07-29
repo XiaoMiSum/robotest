@@ -1,24 +1,42 @@
 import { ElMessageBox } from 'element-plus'
-import type { BugStatus } from '@/types'
+import type { BugResolution, BugStatus, BugType } from '@/types'
 
 /** 缺陷状态标签 */
 export const BUG_STATUS_LABEL: Record<BugStatus, string> = {
-  new: '新建',
-  assigned: '已指派',
-  fixing: '修复中',
-  fixed: '已修复',
-  verified: '已验证',
+  active: '激活',
+  resolved: '已解决',
   closed: '已关闭',
+}
+
+/** 缺陷类型标签 */
+export const BUG_TYPE_LABEL: Record<BugType, string> = {
+  code_error: '代码错误',
+  ui_improvement: '界面优化',
+  design_defect: '设计缺陷',
+  configuration: '配置相关',
+  installation: '安装部署',
+  security: '安全相关',
+  performance: '性能问题',
+  standard_spec: '标准规范',
+  other: '其他',
+}
+
+/** 缺陷解决方案标签 */
+export const BUG_RESOLUTION_LABEL: Record<BugResolution, string> = {
+  fixed: '已修复',
+  by_design: '设计如此',
+  duplicate: '重复缺陷',
+  external: '外部原因',
+  cannot_reproduce: '无法重现',
+  deferred: '延期处理',
+  wont_fix: '不予解决',
 }
 
 // 与后端 BugServiceImpl.isValidTransition 保持一致，避免非法流转请求
 const BUG_STATUS_TRANSITIONS: Record<BugStatus, BugStatus[]> = {
-  new: ['assigned'],
-  assigned: ['fixing'],
-  fixing: ['fixed'],
-  fixed: ['verified'],
-  verified: ['closed', 'fixing'],
-  closed: ['fixing'],
+  active: ['resolved'],
+  resolved: ['closed', 'active'],
+  closed: ['active'],
 }
 
 /** 当前状态允许流转到的目标状态列表 */
@@ -26,18 +44,18 @@ export function getValidTargetStatuses(current: BugStatus): BugStatus[] {
   return BUG_STATUS_TRANSITIONS[current] ?? []
 }
 
-/** 是否为重开操作（已验证/已关闭 → 修复中） */
+/** 是否为重开（激活）操作 */
 export function isReopen(current: BugStatus, target: BugStatus): boolean {
-  return target === 'fixing' && (current === 'verified' || current === 'closed')
+  return target === 'active' && (current === 'resolved' || current === 'closed')
 }
 
-/** 关闭与重开时后端强制要求说明 */
+/** 关闭与重开时后端强制要求说明；解决走 BugResolveDialog 单独处理 */
 export function isCommentRequired(current: BugStatus, target: BugStatus): boolean {
   return target === 'closed' || isReopen(current, target)
 }
 
 /**
- * 弹出状态变更说明对话框。
+ * 弹出状态变更说明对话框（用于关闭/重开）。
  *
  * @returns 确认时返回说明文本（可能为空串），取消时返回 null
  */

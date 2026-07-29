@@ -2,9 +2,17 @@
 import { reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, type FormInstance, type FormRules, type UploadUserFile } from 'element-plus'
-import { createBug, fetchPlans, uploadBugAttachment } from '@/services/project'
+import { createBug, fetchModuleTree, fetchPlans, uploadBugAttachment } from '@/services/project'
 import { fetchMembers } from '@/services/workspace'
-import type { BugPriority, BugSeverity, TestPlanListItem, WorkspaceMember } from '@/types'
+import type {
+  BugPriority,
+  BugSeverity,
+  BugType,
+  TestCaseModule,
+  TestPlanListItem,
+  WorkspaceMember,
+} from '@/types'
+import { BUG_TYPE_LABEL } from '@/utils/bugStatus'
 import CaseSelector from '@/components/project/CaseSelector.vue'
 
 const router = useRouter()
@@ -13,13 +21,25 @@ const submitting = ref(false)
 
 const form = reactive({
   title: '',
+  bugType: 'code_error' as BugType,
+  moduleId: '' as string,
   severity: 'general' as BugSeverity,
   priority: 'medium' as BugPriority,
-  description: '',
+  dueDate: '' as string,
+  keywords: '',
+  reproSteps: '',
   assigneeId: '' as string,
   relatedCaseId: '' as string,
   relatedPlanId: '' as string,
 })
+
+const moduleTree = ref<TestCaseModule[]>([])
+async function loadModuleTree() {
+  try {
+    moduleTree.value = await fetchModuleTree()
+  } catch { /* ignore */ }
+}
+loadModuleTree()
 
 const caseSelectorVisible = ref(false)
 const selectedCaseTitle = ref('')
@@ -41,6 +61,7 @@ loadPlanOptions()
 
 const rules: FormRules = {
   title: [{ required: true, message: '请输入缺陷标题', trigger: 'blur' }],
+  bugType: [{ required: true, message: '请选择缺陷类型', trigger: 'change' }],
   severity: [{ required: true, message: '请选择严重等级', trigger: 'change' }],
   priority: [{ required: true, message: '请选择优先级', trigger: 'change' }],
 }
@@ -85,7 +106,11 @@ async function handleSubmit() {
       title: form.title.trim(),
       severity: form.severity,
       priority: form.priority,
-      description: form.description.trim() || undefined,
+      bugType: form.bugType,
+      reproSteps: form.reproSteps.trim() || undefined,
+      moduleId: form.moduleId || undefined,
+      keywords: form.keywords.trim() || undefined,
+      dueDate: form.dueDate || undefined,
       assigneeId: form.assigneeId || undefined,
       relatedCaseId: form.relatedCaseId || undefined,
       relatedPlanId: form.relatedPlanId || undefined,
@@ -116,6 +141,23 @@ async function handleSubmit() {
         <el-form-item label="标题" prop="title">
           <el-input v-model="form.title" placeholder="请输入缺陷标题" maxlength="300" show-word-limit />
         </el-form-item>
+        <el-form-item label="缺陷类型" prop="bugType">
+          <el-select v-model="form.bugType" style="width: 160px">
+            <el-option v-for="(label, key) in BUG_TYPE_LABEL" :key="key" :label="label" :value="key" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="所属模块">
+          <el-tree-select
+            v-model="form.moduleId"
+            :data="moduleTree"
+            :props="{ label: 'name', children: 'children' }"
+            node-key="id"
+            check-strictly
+            clearable
+            placeholder="选择所属模块（可选）"
+            style="width: 240px"
+          />
+        </el-form-item>
         <el-form-item label="严重等级" prop="severity">
           <el-select v-model="form.severity" style="width: 160px">
             <el-option label="致命" value="fatal" />
@@ -131,10 +173,16 @@ async function handleSubmit() {
             <el-option label="低" value="low" />
           </el-select>
         </el-form-item>
-        <el-form-item label="描述">
-          <el-input v-model="form.description" type="textarea" :rows="5" placeholder="详细描述缺陷（可选）" />
+        <el-form-item label="截止日期">
+          <el-date-picker v-model="form.dueDate" type="date" value-format="YYYY-MM-DD" placeholder="选择截止日期（可选）" style="width: 160px" />
         </el-form-item>
-        <el-form-item label="处理人">
+        <el-form-item label="关键词">
+          <el-input v-model="form.keywords" placeholder="多个关键词用空格分隔（可选）" maxlength="255" />
+        </el-form-item>
+        <el-form-item label="重现步骤">
+          <el-input v-model="form.reproSteps" type="textarea" :rows="6" placeholder="重现步骤（支持 Markdown，可选）" />
+        </el-form-item>
+        <el-form-item label="指派给">
           <el-select v-model="form.assigneeId" filterable clearable placeholder="选择处理人（可选）" style="width: 240px">
             <el-option v-for="m in memberOptions" :key="m.userId" :label="m.username" :value="m.userId" />
           </el-select>
