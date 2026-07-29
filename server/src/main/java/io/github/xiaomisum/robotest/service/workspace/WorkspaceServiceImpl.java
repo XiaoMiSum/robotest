@@ -2,14 +2,15 @@ package io.github.xiaomisum.robotest.service.workspace;
 
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
+import io.github.xiaomisum.robotest.framework.convert.WorkspaceConvertMapper;
 import io.github.xiaomisum.robotest.model.dto.request.workspace.WorkspaceCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.workspace.WorkspaceMembersAddReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.workspace.WorkspaceUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.workspace.WorkspaceMemberRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.workspace.WorkspaceRespDTO;
-import io.github.xiaomisum.robotest.model.entity.SysUser;
-import io.github.xiaomisum.robotest.model.entity.Workspace;
-import io.github.xiaomisum.robotest.model.entity.WorkspaceUser;
+import io.github.xiaomisum.robotest.model.entity.admin.SysUser;
+import io.github.xiaomisum.robotest.model.entity.workspace.Workspace;
+import io.github.xiaomisum.robotest.model.entity.workspace.WorkspaceUser;
 import io.github.xiaomisum.robotest.repository.admin.SysUserMapper;
 import io.github.xiaomisum.robotest.repository.workspace.WorkspaceMapper;
 import io.github.xiaomisum.robotest.repository.workspace.WorkspaceUserMapper;
@@ -67,9 +68,7 @@ public class WorkspaceServiceImpl implements WorkspaceService {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.WORKSPACE_NAME_EXISTS);
         }
 
-        Workspace workspace = new Workspace();
-        workspace.setName(reqDTO.getName());
-        workspace.setDescription(reqDTO.getDescription());
+        Workspace workspace = WorkspaceConvertMapper.INSTANCE.toEntity(reqDTO);
         workspace.setStatus(Constants.Status.ACTIVE);
         workspaceMapper.insert(workspace);
         return workspace.getId().toString();
