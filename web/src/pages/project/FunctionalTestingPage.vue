@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import type { MenuInstance } from 'element-plus'
 import TestCasePage from '@/pages/project/TestCasePage.vue'
 import ReviewListPage from '@/pages/project/ReviewListPage.vue'
 import PlanListPage from '@/pages/project/PlanListPage.vue'
 
 const route = useRoute()
+const router = useRouter()
 
 const menuItems = [
   { key: 'cases', label: '测试用例', icon: 'Document' },
@@ -14,7 +15,7 @@ const menuItems = [
   { key: 'plans', label: '测试计划', icon: 'Calendar' },
 ]
 
-// 详情页返回时通过 ?tab= 指定激活子模块（子页切换不走路由，仅初始化读取）
+// 详情页返回与刷新时通过 ?tab= 恢复激活子模块（子页切换不走路由，仅初始化读取）
 const initialTab = String(route.query.tab ?? '')
 const activeMenu = ref(menuItems.some((m) => m.key === initialTab) ? initialTab : 'cases')
 const menuRef = ref<MenuInstance>()
@@ -32,6 +33,8 @@ async function handleMenuSelect(key: string) {
     }
   }
   activeMenu.value = key
+  // 同步到 URL 使刷新后保持当前子页；replace 避免子页切换污染浏览器历史
+  router.replace({ query: { ...route.query, tab: key } })
 }
 </script>
 
