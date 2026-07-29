@@ -93,8 +93,11 @@ public class DocumentPersistenceHandler {
                         .eq(TestCaseDocumentLayout::getDocumentId, docId));
 
         if (existing != null) {
-            existing.setLayoutJson(layout);
-            testCaseDocumentLayoutMapper.updateById(existing);
+            // 更新载体只携带布局字段，避免全列覆盖导致并发丢失更新
+            TestCaseDocumentLayout update = new TestCaseDocumentLayout();
+            update.setId(existing.getId());
+            update.setLayoutJson(layout);
+            testCaseDocumentLayoutMapper.updateById(update);
         } else {
             TestCaseDocumentLayout entity = new TestCaseDocumentLayout();
             entity.setDocumentId(docId);
