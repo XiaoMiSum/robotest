@@ -169,19 +169,7 @@ public class BugServiceImpl implements BugService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public String createBug(UUID projectId, UUID userId, BugCreateReqDTO reqDTO) {
-        // 校验指派人是当前工作空间成员
-        if (reqDTO.getAssigneeId() != null) {
-            Project project = projectMapper.selectById(projectId);
-            if (project != null) {
-                WorkspaceUser wu = workspaceUserMapper.selectOne(
-                        new LambdaQueryWrapperX<WorkspaceUser>()
-                                .eq(WorkspaceUser::getUserId, reqDTO.getAssigneeId())
-                                .eq(WorkspaceUser::getWorkspaceId, project.getWorkspaceId()));
-                if (wu == null) {
-                    throw ServiceExceptionUtil.get(ErrorCodeConstants.BUG_ASSIGNEE_NOT_IN_WORKSPACE);
-                }
-            }
-        }
+        validateAssigneeInWorkspace(projectId, reqDTO.getAssigneeId());
 
         Bug bug = new Bug();
         bug.setProjectId(projectId);
@@ -222,6 +210,7 @@ public class BugServiceImpl implements BugService {
             bug.setDescription(reqDTO.getDescription());
         }
         if (reqDTO.getAssigneeId() != null) {
+            validateAssigneeInWorkspace(bug.getProjectId(), reqDTO.getAssigneeId());
             bug.setAssigneeId(reqDTO.getAssigneeId());
         }
         // status 不再通过 updateBug 修改，须走 changeBugStatus 状态机
@@ -286,6 +275,7 @@ public class BugServiceImpl implements BugService {
         if (assignee == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.BUG_ASSIGNEE_NOT_IN_WORKSPACE);
         }
+        validateAssigneeInWorkspace(bug.getProjectId(), assigneeId);
 
         bug.setAssigneeId(assigneeId);
         bugMapper.updateById(bug);
@@ -317,6 +307,23 @@ public class BugServiceImpl implements BugService {
                 .filter(b -> b.getReporterId() != null)
                 .collect(Collectors.groupingBy(Bug::getReporterId, Collectors.counting())));
         return stats;
+    }
+
+    private void validateAssigneeInWorkspace(UUID projectId, UUID assigneeId) {
+        if (assigneeId == null || projectId == null) {
+            return;
+        }
+        Project project = projectMapper.selectById(projectId);
+        if (project == null) {
+            return;
+        }
+        WorkspaceUser wu = workspaceUserMapper.selectOne(
+                new LambdaQueryWrapperX<WorkspaceUser>()
+                        .eq(WorkspaceUser::getUserId, assigneeId)
+                        .eq(WorkspaceUser::getWorkspaceId, project.getWorkspaceId()));
+        if (wu == null) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.BUG_ASSIGNEE_NOT_IN_WORKSPACE);
+        }
     }
 
     private boolean isValidTransition(String currentStatus, String targetStatus) {
