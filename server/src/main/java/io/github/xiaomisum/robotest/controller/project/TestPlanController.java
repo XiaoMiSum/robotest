@@ -108,14 +108,6 @@ public class TestPlanController {
         return Result.ok();
     }
 
-    @PostMapping("/{id}/start")
-    public Result<Void> startPlan(
-            @AuthenticationPrincipal LoginUser loginUser,
-            @PathVariable UUID id) {
-        testPlanService.startPlan(id, loginUser.getId());
-        return Result.ok();
-    }
-
     @GetMapping("/{id}/progress")
     public Result<TestPlanProgressRespDTO> getPlanProgress(
             @AuthenticationPrincipal LoginUser loginUser,
@@ -128,6 +120,22 @@ public class TestPlanController {
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id) {
         testPlanService.closePlan(id, loginUser.getId());
+        return Result.ok();
+    }
+
+    @PostMapping("/{id}/complete")
+    public Result<Void> completePlan(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @PathVariable UUID id) {
+        testPlanService.completePlan(id, loginUser.getId());
+        return Result.ok();
+    }
+
+    @DeleteMapping("/{id}")
+    public Result<Void> deletePlan(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @PathVariable UUID id) {
+        testPlanService.deletePlan(id, loginUser.getId());
         return Result.ok();
     }
 }

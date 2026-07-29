@@ -170,8 +170,12 @@ export function syncPlan(id: string): Promise<void> {
   return post(`/project/plans/${id}/sync`)
 }
 
-export function startPlan(id: string): Promise<void> {
-  return post(`/project/plans/${id}/start`)
+export function completePlan(id: string): Promise<void> {
+  return post(`/project/plans/${id}/complete`)
+}
+
+export function deletePlan(id: string): Promise<void> {
+  return del(`/project/plans/${id}`)
 }
 
 export function getPlanProgress(id: string): Promise<TestPlanProgress> {
@@ -244,6 +248,10 @@ export function getNodeReviewRecords(reviewId: string, nodeId: string): Promise<
 
 export function completeReview(id: string): Promise<void> {
   return post(`/project/reviews/${id}/complete`)
+}
+
+export function deleteReview(id: string): Promise<void> {
+  return del(`/project/reviews/${id}`)
 }
 
 export function getReviewProgress(id: string): Promise<TestReviewProgress> {

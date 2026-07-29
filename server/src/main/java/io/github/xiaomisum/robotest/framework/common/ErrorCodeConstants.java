@@ -52,7 +52,7 @@ public class ErrorCodeConstants {
     // ========== 功能测试模块 1,000,011,001-1,000,011,017 ==========
     public static final ErrorCode TEST_PLAN_NOT_FOUND = ErrorCode.of(1000011010, "测试计划不存在");
     public static final ErrorCode TEST_REVIEW_NOT_FOUND = ErrorCode.of(1000011011, "评审不存在");
-    public static final ErrorCode REVIEW_NOT_INITIATOR = ErrorCode.of(1000011012, "非发起人不能完成评审");
+    public static final ErrorCode REVIEW_NOT_INITIATOR = ErrorCode.of(1000011012, "非发起人不能执行该操作");
     public static final ErrorCode PLAN_HAS_UNTESTED_CASES = ErrorCode.of(1000011013, "计划关闭时存在未执行用例");
     public static final ErrorCode NODE_VERSION_CONFLICT = ErrorCode.of(1000011014, "节点版本冲突，请刷新后重试");
     public static final ErrorCode ONLY_CASE_NODE_CAN_MARK_REVIEW = ErrorCode.of(1000011015, "只有用例节点可标记评审结果");
@@ -66,7 +66,7 @@ public class ErrorCodeConstants {
     public static final ErrorCode BUG_NOT_FOUND = ErrorCode.of(1000011023, "缺陷不存在");
     public static final ErrorCode TEST_CASE_MODULE_MOVE_TARGET_INVALID = ErrorCode.of(1000011024, "移动目标不存在或不是目录");
     public static final ErrorCode TEST_CASE_MODULE_MOVE_CYCLE = ErrorCode.of(1000011025, "不能移动到自身或其子级目录下");
-    public static final ErrorCode TEST_REVIEW_NOT_IN_PROGRESS = ErrorCode.of(1000011026, "评审不在进行中状态，无法执行该操作");
+    public static final ErrorCode TEST_REVIEW_FINISHED = ErrorCode.of(1000011026, "评审已完成，无法执行该操作");
     public static final ErrorCode TEST_PLAN_FINISHED = ErrorCode.of(1000011027, "计划已结束，无法执行该操作");
 
     // ========== 缺陷管理模块 1,000,012,001-1,000,012,010 ==========

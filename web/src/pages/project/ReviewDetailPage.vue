@@ -125,6 +125,20 @@ async function handleCasesConfirm(selectedNodes: PlannedCases[]) {
   }
 }
 
+// 标记后刷新进度与状态（首次标记会自动转入评审中），避免整页 load 触发脑图重载丢失选中态
+async function refreshProgress() {
+  try {
+    const [p, d] = await Promise.all([getReviewProgress(reviewId), getReviewDetail(reviewId)])
+    progress.value = p
+    detail.value = d
+  } catch {
+    // 标记本身已成功，进度刷新失败不打断操作，后续操作或刷新可恢复
+  }
+}
+
+const statusLabel: Record<string, string> = { new: '待评审', in_progress: '评审中', completed: '已完成' }
+const statusType: Record<string, 'info' | 'warning' | 'success'> = { new: 'info', in_progress: 'warning', completed: 'success' }
+
 onMounted(load)
 </script>
 
@@ -134,8 +148,8 @@ onMounted(load)
       <template #content>
         <div class="review-detail__header">
           <span class="review-detail__title">{{ detail?.title ?? '评审详情' }}</span>
-          <el-tag v-if="detail" :type="detail.status === 'completed' ? 'success' : 'warning'" size="small" effect="light" round>
-            {{ detail.status === 'completed' ? '已完成' : '评审中' }}
+          <el-tag v-if="detail" :type="statusType[detail.status] ?? 'info'" size="small" effect="light" round>
+            {{ statusLabel[detail.status] ?? detail.status }}
           </el-tag>
         </div>
       </template>
@@ -150,7 +164,7 @@ onMounted(load)
               <span class="review-detail__stat">共 {{ progress.totalAssociated }}</span>
             </div>
           </div>
-          <div v-if="detail?.status === 'in_progress'" class="review-detail__actions">
+          <div v-if="detail && detail.status !== 'completed'" class="review-detail__actions">
             <el-button size="small" plain @click="openCaseSelector">
               <el-icon><EditPen /></el-icon>调整用例
             </el-button>
@@ -181,7 +195,7 @@ onMounted(load)
         <div v-if="!selectedDocId" class="review-detail__placeholder">
           <el-empty description="请在左侧选择一个文档" />
         </div>
-        <ReviewMindMap v-else ref="mindMapRef" :review-id="reviewId" :document-id="selectedDocId" />
+        <ReviewMindMap v-else ref="mindMapRef" :review-id="reviewId" :document-id="selectedDocId" @marked="refreshProgress" />
       </el-card>
     </div>
 

@@ -52,14 +52,6 @@ public interface TestPlanService {
     void syncPlan(UUID planId, UUID userId);
 
     /**
-     * 启动计划（NEW → IN_PROGRESS）
-     *
-     * @param planId 计划 ID
-     * @param userId 操作用户 ID
-     */
-    void startPlan(UUID planId, UUID userId);
-
-    /**
      * 获取计划执行进度统计
      *
      * @param planId 计划 ID
@@ -68,4 +60,20 @@ public interface TestPlanService {
     TestPlanProgressRespDTO getPlanProgress(UUID planId);
 
     void closePlan(UUID planId, UUID userId);
+
+    /**
+     * 完成计划（仅负责人）
+     *
+     * @param planId 计划 ID
+     * @param userId 操作人 ID
+     */
+    void completePlan(UUID planId, UUID userId);
+
+    /**
+     * 删除计划及其快照、执行记录（仅负责人）
+     *
+     * @param planId 计划 ID
+     * @param userId 操作人 ID
+     */
+    void deletePlan(UUID planId, UUID userId);
 }

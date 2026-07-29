@@ -208,6 +208,33 @@ class TestPlanServiceImplTest {
         }
 
         @Test
+        void submitExecutionRecord_newPlan_setsInProgress() {
+                TestPlan plan = new TestPlan();
+                plan.setId(planId);
+                plan.setStatus(Constants.Status.NEW);
+
+                when(testPlanMapper.selectById(planId)).thenReturn(plan);
+
+                TestPlanNodeSnapshot snapshot = new TestPlanNodeSnapshot();
+                snapshot.setId(UUID.fromString("00000000-0000-0000-0000-000000000004"));
+                snapshot.setPlanId(planId);
+                snapshot.setIsAssociated(true);
+                snapshot.setType("case");
+
+                when(planNodeSnapshotMapper.selectById(UUID.fromString("00000000-0000-0000-0000-000000000004")))
+                                .thenReturn(snapshot);
+
+                TestPlanRecordReqDTO reqDTO = new TestPlanRecordReqDTO();
+                reqDTO.setSnapshotNodeId(UUID.fromString("00000000-0000-0000-0000-000000000004"));
+                reqDTO.setResult("pass");
+
+                planService.submitExecutionRecord(planId, userId, reqDTO);
+
+                assertEquals(Constants.Status.IN_PROGRESS, plan.getStatus());
+                verify(testPlanMapper).updateById(plan);
+        }
+
+        @Test
         void updatePlanCases_finished_throws() {
                 TestPlan plan = new TestPlan();
                 plan.setId(planId);
@@ -310,22 +337,6 @@ class TestPlanServiceImplTest {
         @Test
         void submitExecutionRecord_planNotFound_throws() {
                 when(testPlanMapper.selectById(planId)).thenReturn(null);
-
-                TestPlanRecordReqDTO reqDTO = new TestPlanRecordReqDTO();
-                reqDTO.setSnapshotNodeId(UUID.fromString("00000000-0000-0000-0000-000000000099"));
-                reqDTO.setResult("pass");
-
-                assertThrows(ServiceException.class,
-                                () -> planService.submitExecutionRecord(planId, userId, reqDTO));
-        }
-
-        @Test
-        void submitExecutionRecord_notInProgress_throws() {
-                TestPlan plan = new TestPlan();
-                plan.setId(planId);
-                plan.setStatus("completed");
-
-                when(testPlanMapper.selectById(planId)).thenReturn(plan);
 
                 TestPlanRecordReqDTO reqDTO = new TestPlanRecordReqDTO();
                 reqDTO.setSnapshotNodeId(UUID.fromString("00000000-0000-0000-0000-000000000099"));
@@ -566,46 +577,10 @@ class TestPlanServiceImplTest {
                                 () -> planService.closePlan(planId, userId));
         }
 
-        // ========== startPlan ==========
+        // ========== completePlan / deletePlan ==========
 
         @Test
-        void startPlan_success() {
-                TestPlan plan = new TestPlan();
-                plan.setId(planId);
-                plan.setExecutorId(userId);
-                plan.setStatus(Constants.Status.NEW);
-
-                when(testPlanMapper.selectById(planId)).thenReturn(plan);
-
-                planService.startPlan(planId, userId);
-
-                assertEquals(Constants.Status.IN_PROGRESS, plan.getStatus());
-                verify(testPlanMapper).updateById(plan);
-        }
-
-        @Test
-        void startPlan_notFound_throws() {
-                when(testPlanMapper.selectById(planId)).thenReturn(null);
-
-                assertThrows(ServiceException.class,
-                                () -> planService.startPlan(planId, userId));
-        }
-
-        @Test
-        void startPlan_notExecutor_throws() {
-                TestPlan plan = new TestPlan();
-                plan.setId(planId);
-                plan.setExecutorId(otherUserId);
-                plan.setStatus(Constants.Status.NEW);
-
-                when(testPlanMapper.selectById(planId)).thenReturn(plan);
-
-                assertThrows(ServiceException.class,
-                                () -> planService.startPlan(planId, userId));
-        }
-
-        @Test
-        void startPlan_notNewStatus_throws() {
+        void completePlan_success() {
                 TestPlan plan = new TestPlan();
                 plan.setId(planId);
                 plan.setExecutorId(userId);
@@ -613,8 +588,68 @@ class TestPlanServiceImplTest {
 
                 when(testPlanMapper.selectById(planId)).thenReturn(plan);
 
+                planService.completePlan(planId, userId);
+
+                assertEquals(Constants.Status.COMPLETED, plan.getStatus());
+                verify(testPlanMapper).updateById(plan);
+        }
+
+        @Test
+        void completePlan_notFound_throws() {
+                when(testPlanMapper.selectById(planId)).thenReturn(null);
+
                 assertThrows(ServiceException.class,
-                                () -> planService.startPlan(planId, userId));
+                                () -> planService.completePlan(planId, userId));
+        }
+
+        @Test
+        void completePlan_notExecutor_throws() {
+                TestPlan plan = new TestPlan();
+                plan.setId(planId);
+                plan.setExecutorId(otherUserId);
+                plan.setStatus(Constants.Status.IN_PROGRESS);
+
+                when(testPlanMapper.selectById(planId)).thenReturn(plan);
+
+                assertThrows(ServiceException.class,
+                                () -> planService.completePlan(planId, userId));
+        }
+
+        @Test
+        void deletePlan_success() {
+                TestPlan plan = new TestPlan();
+                plan.setId(planId);
+                plan.setExecutorId(userId);
+
+                when(testPlanMapper.selectById(planId)).thenReturn(plan);
+
+                planService.deletePlan(planId, userId);
+
+                verify(planExecutionRecordMapper).delete(any(LambdaQueryWrapper.class));
+                verify(planNodeSnapshotMapper).delete(any(LambdaQueryWrapper.class));
+                verify(planModuleSnapshotMapper).delete(any(LambdaQueryWrapper.class));
+                verify(testPlanMapper).deleteById(planId);
+        }
+
+        @Test
+        void deletePlan_notExecutor_throws() {
+                TestPlan plan = new TestPlan();
+                plan.setId(planId);
+                plan.setExecutorId(otherUserId);
+
+                when(testPlanMapper.selectById(planId)).thenReturn(plan);
+
+                assertThrows(ServiceException.class,
+                                () -> planService.deletePlan(planId, userId));
+                verify(testPlanMapper, never()).deleteById(any(UUID.class));
+        }
+
+        @Test
+        void deletePlan_notFound_throws() {
+                when(testPlanMapper.selectById(planId)).thenReturn(null);
+
+                assertThrows(ServiceException.class,
+                                () -> planService.deletePlan(planId, userId));
         }
 
         // ========== getPlanProgress ==========
