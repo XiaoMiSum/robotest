@@ -7,7 +7,7 @@ import { assignBug, changeBugStatus, confirmBug, fetchBugs } from '@/services/pr
 import { fetchMembers } from '@/services/workspace'
 import { useAuthStore } from '@/stores/auth'
 import type { BugListItem, BugPriority, BugResolution, BugSeverity, BugStatus, BugType, WorkspaceMember } from '@/types'
-import { formatShortDateTime, formatShortId } from '@/utils/format'
+import { formatShortDateTime, formatShortId, truncateText } from '@/utils/format'
 import {
   BUG_RESOLUTION_LABEL,
   BUG_STATUS_LABEL,
@@ -529,7 +529,14 @@ onMounted(loadBugs)
         </el-table-column>
         <el-table-column label="标题" min-width="200">
           <template #default="{ row }">
-            <el-link type="primary" :underline="false" @click="router.push(`/workspace/projects/bugs/${row.id}`)">{{ row.title }}</el-link>
+            <!-- 标题超 13 字符截断展示，悬停原生 title 提示完整内容 -->
+            <el-link
+              type="primary"
+              :underline="false"
+              :title="row.title.length > 13 ? row.title : undefined"
+              @click="router.push(`/workspace/projects/bugs/${row.id}`)"
+              >{{ truncateText(row.title, 13) }}</el-link
+            >
           </template>
         </el-table-column>
         <el-table-column label="类型" width="100">
