@@ -67,6 +67,7 @@ migoo:
     permit-all-urls:
       - /api/auth/login
       - /api/auth/logout
+      - /api/auth/init/**
       - /api/workspace/invitations/verify
       - /api/workspace/invitations/check-email
       - /api/workspace/invitations/join

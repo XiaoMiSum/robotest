@@ -22,6 +22,7 @@ public class ErrorCodeConstants {
     public static final ErrorCode SYSTEM_ROLE_PERMISSION_NOT_MODIFIABLE = ErrorCode.of(1000002004, "系统预置角色权限不可修改");
     public static final ErrorCode ACCOUNT_DISABLED = ErrorCode.of(1000002005, "账户已被禁用或登录凭证失效");
     public static final ErrorCode CANNOT_REMOVE_LAST_SYSTEM_ROLE = ErrorCode.of(1000002006, "不能移除自己的最后一个系统角色");
+    public static final ErrorCode SYSTEM_ALREADY_INITIALIZED = ErrorCode.of(1000002007, "系统已初始化，请直接登录");
 
     // ========== 数据不存在 1,000,003,001-1,000,003,003 ==========
     public static final ErrorCode USER_NOT_FOUND = ErrorCode.of(1000003001, "用户不存在");
