@@ -1,9 +1,5 @@
 package io.github.xiaomisum.robotest.service.project;
 
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.baomidou.mybatisplus.core.MybatisConfiguration;
-import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
-import org.apache.ibatis.builder.MapperBuilderAssistant;
 import io.github.xiaomisum.robotest.model.dto.request.review.TestReviewCasesUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.review.TestReviewCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.review.TestReviewRecordReqDTO;
@@ -13,7 +9,15 @@ import io.github.xiaomisum.robotest.model.dto.response.review.TestReviewDetailRe
 import io.github.xiaomisum.robotest.model.dto.response.review.TestReviewListRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.review.TestReviewRecordRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.review.TestReviewSnapshotNodeRespDTO;
-import io.github.xiaomisum.robotest.model.entity.*;
+import io.github.xiaomisum.robotest.model.entity.admin.SysUser;
+import io.github.xiaomisum.robotest.model.entity.review.TestReview;
+import io.github.xiaomisum.robotest.model.entity.review.TestReviewModuleSnapshot;
+import io.github.xiaomisum.robotest.model.entity.review.TestReviewNodeSnapshot;
+import io.github.xiaomisum.robotest.model.entity.review.TestReviewRecord;
+import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseModule;
+import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseNode;
+import io.github.xiaomisum.robotest.model.entity.workspace.Project;
+import io.github.xiaomisum.robotest.model.entity.workspace.WorkspaceUser;
 import io.github.xiaomisum.robotest.repository.review.TestReviewMapper;
 import io.github.xiaomisum.robotest.repository.review.TestReviewModuleSnapshotMapper;
 import io.github.xiaomisum.robotest.repository.review.TestReviewNodeSnapshotMapper;
@@ -37,14 +41,14 @@ import xyz.migoo.framework.common.pojo.PageResult;
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.model.dto.response.review.TestReviewProgressRespDTO;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -79,10 +83,6 @@ class TestReviewServiceImplTest {
 
         @BeforeEach
         void setUp() {
-                // LambdaUpdateWrapper 解析实体列名依赖 TableInfo 缓存，纯 Mockito 环境无 starter 初始化，需手动注册
-                TableInfoHelper.initTableInfo(
-                                new MapperBuilderAssistant(new MybatisConfiguration(), ""),
-                                TestReviewNodeSnapshot.class);
                 projectId = UUID.fromString("00000000-0000-0000-0000-000000000001");
                 userId = UUID.fromString("00000000-0000-0000-0000-000000000002");
                 reviewId = UUID.fromString("00000000-0000-0000-0000-000000000003");
@@ -100,7 +100,7 @@ class TestReviewServiceImplTest {
                                 UUID.fromString("00000000-0000-0000-0000-000000000011")));
 
                 PageResult<TestReview> page = new PageResult<>(List.of(review), 1L);
-                doReturn(page).when(testReviewMapper).selectPage(any(PageParam.class), any(LambdaQueryWrapper.class));
+                doReturn(page).when(testReviewMapper).findPage(any(PageParam.class), eq(projectId), isNull(), isNull());
 
                 SysUser initiator = new SysUser();
                 initiator.setId(userId);
@@ -119,7 +119,7 @@ class TestReviewServiceImplTest {
         @Test
         void getReviewPage_empty() {
                 PageResult<TestReview> page = new PageResult<>(Collections.emptyList(), 0L);
-                doReturn(page).when(testReviewMapper).selectPage(any(PageParam.class), any(LambdaQueryWrapper.class));
+                doReturn(page).when(testReviewMapper).findPage(any(PageParam.class), eq(projectId), isNull(), isNull());
 
                 PageResult<TestReviewListRespDTO> result = reviewService.getReviewPage(
                                 projectId, null, null, 1, 10);
@@ -138,7 +138,9 @@ class TestReviewServiceImplTest {
                 WorkspaceUser wu = new WorkspaceUser();
                 wu.setUserId(UUID.fromString("00000000-0000-0000-0000-000000000098"));
                 wu.setWorkspaceId(UUID.fromString("00000000-0000-0000-0000-000000000010"));
-                when(workspaceUserMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(wu);
+                when(workspaceUserMapper.findByWorkspaceIdAndUserId(
+                                UUID.fromString("00000000-0000-0000-0000-000000000010"),
+                                UUID.fromString("00000000-0000-0000-0000-000000000098"))).thenReturn(wu);
 
                 doAnswer(inv -> {
                         ((TestReview) inv.getArgument(0)).setId(UUID.randomUUID());
@@ -196,7 +198,7 @@ class TestReviewServiceImplTest {
                 snapshot.setIsAssociated(true);
                 snapshot.setParentId(null);
 
-                when(reviewNodeSnapshotMapper.selectList(any(LambdaQueryWrapper.class)))
+                when(reviewNodeSnapshotMapper.listByReviewIdAndDocumentId(reviewId, null))
                                 .thenReturn(List.of(snapshot));
 
                 List<TestReviewSnapshotNodeRespDTO> result = reviewService.getReviewSnapshotTree(reviewId, null);
@@ -290,7 +292,7 @@ class TestReviewServiceImplTest {
                 doc.setType("document");
                 doc.setSortOrder(0);
 
-                when(reviewModuleSnapshotMapper.selectList(any(LambdaQueryWrapper.class)))
+                when(reviewModuleSnapshotMapper.listByReviewId(reviewId))
                                 .thenReturn(List.of(dir, doc));
 
                 List<SnapshotModuleTreeRespDTO> tree = reviewService.getReviewModuleTree(reviewId);
@@ -346,9 +348,11 @@ class TestReviewServiceImplTest {
                 snapB.setOriginalModuleId(docB);
                 snapB.setType("document");
 
-                // 第一次：文档快照查询；第二次：空目录清理循环（无目录即退出）
-                when(reviewModuleSnapshotMapper.selectList(any(LambdaQueryWrapper.class)))
-                                .thenReturn(List.of(snapA, snapB), List.of(snapB));
+                // 文档快照查询与空目录清理循环分别走独立查询（无目录即退出）
+                when(reviewModuleSnapshotMapper.listByReviewIdAndType(reviewId, "document"))
+                                .thenReturn(List.of(snapA, snapB));
+                when(reviewModuleSnapshotMapper.listByReviewId(reviewId))
+                                .thenReturn(List.of(snapB));
 
                 TestReviewNodeSnapshot rootSnap = new TestReviewNodeSnapshot();
                 rootSnap.setId(UUID.fromString("00000000-0000-0000-0000-0000000000e1"));
@@ -360,7 +364,7 @@ class TestReviewServiceImplTest {
                 caseSnap1.setOriginalNodeId(caseC1);
                 caseSnap1.setType("case");
                 caseSnap1.setIsAssociated(true);
-                when(reviewNodeSnapshotMapper.selectList(any(LambdaQueryWrapper.class)))
+                when(reviewNodeSnapshotMapper.listByReviewIdAndDocumentId(reviewId, snapB.getId()))
                                 .thenReturn(List.of(rootSnap, caseSnap1));
 
                 TestCaseNode rootNode = new TestCaseNode();
@@ -378,7 +382,7 @@ class TestReviewServiceImplTest {
                 caseNode2.setParentId(rootNode.getId());
                 caseNode2.setType("case");
                 caseNode2.setTitle("case2");
-                when(testCaseNodeMapper.selectList(any(LambdaQueryWrapper.class)))
+                when(testCaseNodeMapper.listByDocumentId(docB))
                                 .thenReturn(List.of(rootNode, caseNode1, caseNode2));
 
                 TestReviewCasesUpdateReqDTO reqDTO = new TestReviewCasesUpdateReqDTO();
@@ -390,7 +394,7 @@ class TestReviewServiceImplTest {
                 reviewService.updateReviewCases(reviewId, reqDTO);
 
                 // docA 被移除：节点快照批删 + 文档快照删除
-                verify(reviewNodeSnapshotMapper).delete(any(LambdaQueryWrapper.class));
+                verify(reviewNodeSnapshotMapper).deleteByReviewIdAndDocumentId(reviewId, snapA.getId());
                 verify(reviewModuleSnapshotMapper).deleteById(snapA.getId());
                 // 快照后新增的 case2 被补入快照（插入时已带关联标记）
                 verify(reviewNodeSnapshotMapper).insert(any(TestReviewNodeSnapshot.class));
@@ -414,14 +418,14 @@ class TestReviewServiceImplTest {
                 snapA.setId(UUID.fromString("00000000-0000-0000-0000-0000000000aa"));
                 snapA.setOriginalModuleId(docA);
                 snapA.setType("document");
-                when(reviewModuleSnapshotMapper.selectList(any(LambdaQueryWrapper.class)))
+                when(reviewModuleSnapshotMapper.listByReviewIdAndType(reviewId, "document"))
                                 .thenReturn(List.of(snapA));
 
                 TestReviewNodeSnapshot caseSnap = new TestReviewNodeSnapshot();
                 caseSnap.setId(UUID.fromString("00000000-0000-0000-0000-0000000000e2"));
                 caseSnap.setOriginalNodeId(caseC1);
                 caseSnap.setIsAssociated(true);
-                when(reviewNodeSnapshotMapper.selectList(any(LambdaQueryWrapper.class)))
+                when(reviewNodeSnapshotMapper.listAssociatedByReviewIdAndDocumentId(reviewId, snapA.getId()))
                                 .thenReturn(List.of(caseSnap));
 
                 List<PlannedCasesRespDTO> result = reviewService.getReviewPlannedCases(reviewId);
@@ -463,9 +467,10 @@ class TestReviewServiceImplTest {
 
                 reviewService.submitReviewRecord(reviewId, userId, reqDTO);
 
-                // 重置路径走显式 set null 的 UpdateWrapper，不走 updateById（其会忽略 null 字段）
+                // 重置路径走显式置空的专用更新方法，不走 updateById（其会忽略 null 字段）
                 verify(reviewNodeSnapshotMapper, never()).updateById(any(TestReviewNodeSnapshot.class));
-                verify(reviewNodeSnapshotMapper).update(isNull(), any());
+                verify(reviewNodeSnapshotMapper).resetLastMarkAsPending(
+                                eq(snapshot.getId()), eq(userId), any(LocalDateTime.class));
                 verify(reviewRecordMapper).insert(any(TestReviewRecord.class));
         }
 
@@ -577,7 +582,7 @@ class TestReviewServiceImplTest {
                 record.setOperationType("mark");
                 record.setMark("pass");
 
-                when(reviewRecordMapper.selectList(any(LambdaQueryWrapper.class)))
+                when(reviewRecordMapper.listByReviewIdAndNodeId(reviewId, snapNodeId))
                                 .thenReturn(List.of(record));
                 when(userMapper.selectById(userId)).thenReturn(null);
 
@@ -634,9 +639,9 @@ class TestReviewServiceImplTest {
 
                 reviewService.deleteReview(reviewId, userId);
 
-                verify(reviewRecordMapper).delete(any(LambdaQueryWrapper.class));
-                verify(reviewNodeSnapshotMapper).delete(any(LambdaQueryWrapper.class));
-                verify(reviewModuleSnapshotMapper).delete(any(LambdaQueryWrapper.class));
+                verify(reviewRecordMapper).deleteByReviewId(reviewId);
+                verify(reviewNodeSnapshotMapper).deleteByReviewId(reviewId);
+                verify(reviewModuleSnapshotMapper).deleteByReviewId(reviewId);
                 verify(testReviewMapper).deleteById(reviewId);
         }
 
@@ -680,7 +685,7 @@ class TestReviewServiceImplTest {
                 snapshot.setTitle("Old Title");
                 snapshot.setType("normal");
 
-                when(reviewNodeSnapshotMapper.selectList(any(LambdaQueryWrapper.class)))
+                when(reviewNodeSnapshotMapper.listByReviewId(reviewId))
                                 .thenReturn(List.of(snapshot));
 
                 TestCaseNode currentNode = new TestCaseNode();
@@ -744,7 +749,7 @@ class TestReviewServiceImplTest {
                 snapshot.setReviewId(reviewId);
                 snapshot.setOriginalNodeId(originalNodeId);
 
-                when(reviewNodeSnapshotMapper.selectList(any(LambdaQueryWrapper.class)))
+                when(reviewNodeSnapshotMapper.listByReviewId(reviewId))
                                 .thenReturn(List.of(snapshot));
                 when(testCaseNodeMapper.selectById(originalNodeId)).thenReturn(null);
 
@@ -770,7 +775,7 @@ class TestReviewServiceImplTest {
                 TestReviewNodeSnapshot snap3 = new TestReviewNodeSnapshot();
                 snap3.setLastMark(null);
 
-                when(reviewNodeSnapshotMapper.selectList(any(LambdaQueryWrapper.class)))
+                when(reviewNodeSnapshotMapper.listAssociatedByReviewId(reviewId, Constants.NodeType.CASE))
                                 .thenReturn(List.of(snap1, snap2, snap3));
 
                 TestReviewProgressRespDTO result = reviewService.getReviewProgress(reviewId);
@@ -794,7 +799,7 @@ class TestReviewServiceImplTest {
                 TestReview review = new TestReview();
                 review.setId(reviewId);
                 when(testReviewMapper.selectById(reviewId)).thenReturn(review);
-                when(reviewNodeSnapshotMapper.selectList(any(LambdaQueryWrapper.class)))
+                when(reviewNodeSnapshotMapper.listAssociatedByReviewId(reviewId, Constants.NodeType.CASE))
                                 .thenReturn(new ArrayList<>());
 
                 TestReviewProgressRespDTO result = reviewService.getReviewProgress(reviewId);
@@ -821,9 +826,9 @@ class TestReviewServiceImplTest {
                 moduleSnap.setName("old name");
                 moduleSnap.setSortOrder(1);
 
-                when(reviewModuleSnapshotMapper.selectList(any(LambdaQueryWrapper.class)))
+                when(reviewModuleSnapshotMapper.listByReviewId(reviewId))
                                 .thenReturn(List.of(moduleSnap));
-                when(reviewNodeSnapshotMapper.selectList(any(LambdaQueryWrapper.class)))
+                when(reviewNodeSnapshotMapper.listByReviewId(reviewId))
                                 .thenReturn(new ArrayList<>());
 
                 TestCaseModule originalModule = new TestCaseModule();
@@ -855,9 +860,9 @@ class TestReviewServiceImplTest {
                 moduleSnap.setId(moduleSnapId);
                 moduleSnap.setOriginalModuleId(UUID.fromString("00000000-0000-0000-0000-000000000010"));
 
-                when(reviewModuleSnapshotMapper.selectList(any(LambdaQueryWrapper.class)))
+                when(reviewModuleSnapshotMapper.listByReviewId(reviewId))
                                 .thenReturn(List.of(moduleSnap));
-                when(reviewNodeSnapshotMapper.selectList(any(LambdaQueryWrapper.class)))
+                when(reviewNodeSnapshotMapper.listByReviewId(reviewId))
                                 .thenReturn(new ArrayList<>());
                 when(testCaseModuleMapper.selectById(UUID.fromString("00000000-0000-0000-0000-000000000010")))
                                 .thenReturn(null);
@@ -886,9 +891,9 @@ class TestReviewServiceImplTest {
                 nodeSnap.setId(nodeSnapId);
                 nodeSnap.setDocumentSnapshotId(moduleSnapId);
 
-                when(reviewModuleSnapshotMapper.selectList(any(LambdaQueryWrapper.class)))
+                when(reviewModuleSnapshotMapper.listByReviewId(reviewId))
                                 .thenReturn(List.of(moduleSnap));
-                when(reviewNodeSnapshotMapper.selectList(any(LambdaQueryWrapper.class)))
+                when(reviewNodeSnapshotMapper.listByReviewId(reviewId))
                                 .thenReturn(List.of(nodeSnap));
                 when(testCaseModuleMapper.selectById(UUID.fromString("00000000-0000-0000-0000-000000000010")))
                                 .thenReturn(null);

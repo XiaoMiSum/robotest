@@ -1,6 +1,5 @@
 package io.github.xiaomisum.robotest.service.project;
 
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import io.github.xiaomisum.robotest.model.dto.request.tcase.TestCaseNodeUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.tcase.TestCaseCaseListRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.tcase.TestCaseDocumentNodesRespDTO;
@@ -28,7 +27,7 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -70,7 +69,7 @@ class TestCaseNodeServiceImplTest {
         root.setSortOrder(0);
         root.setVersion(1);
 
-        when(testCaseNodeMapper.selectList(any(LambdaQueryWrapper.class)))
+        when(testCaseNodeMapper.listByDocumentId(documentId))
                 .thenReturn(List.of(root));
 
         TestCaseDocumentLayout layout = new TestCaseDocumentLayout();
@@ -80,7 +79,7 @@ class TestCaseNodeServiceImplTest {
         layoutMap.put("x", 0);
         layoutMap.put("y", 0);
         layout.setLayoutJson(layoutMap);
-        when(testCaseDocumentLayoutMapper.selectOne(any(LambdaQueryWrapper.class)))
+        when(testCaseDocumentLayoutMapper.findByDocumentId(documentId))
                 .thenReturn(layout);
 
         TestCaseDocumentNodesRespDTO result = nodeService.getDocumentNodes(documentId);
@@ -98,9 +97,9 @@ class TestCaseNodeServiceImplTest {
         doc.setType("document");
 
         when(testCaseModuleMapper.selectById(documentId)).thenReturn(doc);
-        when(testCaseNodeMapper.selectList(any(LambdaQueryWrapper.class)))
+        when(testCaseNodeMapper.listByDocumentId(documentId))
                 .thenReturn(Collections.emptyList());
-        when(testCaseDocumentLayoutMapper.selectOne(any(LambdaQueryWrapper.class)))
+        when(testCaseDocumentLayoutMapper.findByDocumentId(documentId))
                 .thenReturn(null);
 
         TestCaseDocumentNodesRespDTO result = nodeService.getDocumentNodes(documentId);
@@ -167,7 +166,7 @@ class TestCaseNodeServiceImplTest {
         TestCaseModule doc = new TestCaseModule();
         doc.setId(documentId);
         doc.setName("Doc 1");
-        when(testCaseModuleMapper.selectList(any(LambdaQueryWrapper.class)))
+        when(testCaseModuleMapper.findDocumentModulesByProjectId(projId))
                 .thenReturn(List.of(doc));
 
         TestCaseNode node = new TestCaseNode();
@@ -180,8 +179,8 @@ class TestCaseNodeServiceImplTest {
         node.setVersion(1);
 
         PageResult<TestCaseNode> page = new PageResult<>(List.of(node), 1L);
-        doReturn(page).when(testCaseNodeMapper).selectPage(
-                any(PageParam.class), any(LambdaQueryWrapper.class));
+        doReturn(page).when(testCaseNodeMapper).findCasePage(
+                any(PageParam.class), anyList(), isNull(), isNull());
 
         PageResult<TestCaseCaseListRespDTO> result = nodeService.getCaseList(
                 projId, null, null, 1, 10);
@@ -195,7 +194,7 @@ class TestCaseNodeServiceImplTest {
     @Test
     void getCaseList_noDocuments() {
         UUID projId = UUID.fromString("00000000-0000-0000-0000-000000000008");
-        when(testCaseModuleMapper.selectList(any(LambdaQueryWrapper.class)))
+        when(testCaseModuleMapper.findDocumentModulesByProjectId(projId))
                 .thenReturn(Collections.emptyList());
 
         PageResult<TestCaseCaseListRespDTO> result = nodeService.getCaseList(

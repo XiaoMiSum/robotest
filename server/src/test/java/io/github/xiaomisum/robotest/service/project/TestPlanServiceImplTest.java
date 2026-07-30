@@ -1,6 +1,5 @@
 package io.github.xiaomisum.robotest.service.project;
 
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import io.github.xiaomisum.robotest.model.dto.request.plan.TestPlanCasesUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.plan.TestPlanCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.plan.TestPlanRecordReqDTO;
@@ -9,7 +8,14 @@ import io.github.xiaomisum.robotest.model.dto.response.plan.TestPlanDetailRespDT
 import io.github.xiaomisum.robotest.model.dto.response.plan.TestPlanExecutionRecordRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.plan.TestPlanListRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.plan.TestPlanSnapshotNodeRespDTO;
-import io.github.xiaomisum.robotest.model.entity.*;
+import io.github.xiaomisum.robotest.model.entity.admin.SysUser;
+import io.github.xiaomisum.robotest.model.entity.plan.TestPlan;
+import io.github.xiaomisum.robotest.model.entity.plan.TestPlanExecutionRecord;
+import io.github.xiaomisum.robotest.model.entity.plan.TestPlanModuleSnapshot;
+import io.github.xiaomisum.robotest.model.entity.plan.TestPlanNodeSnapshot;
+import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseModule;
+import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseNode;
+import io.github.xiaomisum.robotest.model.entity.workspace.Project;
 import io.github.xiaomisum.robotest.repository.plan.TestPlanMapper;
 import io.github.xiaomisum.robotest.repository.plan.TestPlanModuleSnapshotMapper;
 import io.github.xiaomisum.robotest.repository.plan.TestPlanNodeSnapshotMapper;
@@ -38,7 +44,7 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -84,7 +90,7 @@ class TestPlanServiceImplTest {
                 plan.setExecutorId(userId);
 
                 PageResult<TestPlan> page = new PageResult<>(List.of(plan), 1L);
-                doReturn(page).when(testPlanMapper).selectPage(any(PageParam.class), any(LambdaQueryWrapper.class));
+                doReturn(page).when(testPlanMapper).findPage(any(PageParam.class), eq(projectId), isNull(), isNull());
 
                 SysUser executor = new SysUser();
                 executor.setId(userId);
@@ -103,7 +109,7 @@ class TestPlanServiceImplTest {
         @Test
         void getPlanPage_empty() {
                 PageResult<TestPlan> page = new PageResult<>(Collections.emptyList(), 0L);
-                doReturn(page).when(testPlanMapper).selectPage(any(PageParam.class), any(LambdaQueryWrapper.class));
+                doReturn(page).when(testPlanMapper).findPage(any(PageParam.class), eq(projectId), isNull(), isNull());
 
                 PageResult<TestPlanListRespDTO> result = planService.getPlanPage(
                                 projectId, null, null, 1, 10);
@@ -167,7 +173,7 @@ class TestPlanServiceImplTest {
                 snapshot.setIsAssociated(true);
                 snapshot.setParentId(null);
 
-                when(planNodeSnapshotMapper.selectList(any(LambdaQueryWrapper.class)))
+                when(planNodeSnapshotMapper.listByPlanIdAndDocumentId(planId, null))
                                 .thenReturn(List.of(snapshot));
 
                 List<TestPlanSnapshotNodeRespDTO> result = planService.getPlanSnapshotTree(planId, null);
@@ -274,14 +280,14 @@ class TestPlanServiceImplTest {
                 snapA.setId(UUID.fromString("00000000-0000-0000-0000-0000000000aa"));
                 snapA.setOriginalModuleId(docA);
                 snapA.setType("document");
-                when(planModuleSnapshotMapper.selectList(any(LambdaQueryWrapper.class)))
+                when(planModuleSnapshotMapper.listByPlanIdAndType(planId, "document"))
                                 .thenReturn(List.of(snapA));
 
                 TestPlanNodeSnapshot caseSnap = new TestPlanNodeSnapshot();
                 caseSnap.setId(UUID.fromString("00000000-0000-0000-0000-0000000000e2"));
                 caseSnap.setOriginalNodeId(caseC1);
                 caseSnap.setIsAssociated(true);
-                when(planNodeSnapshotMapper.selectList(any(LambdaQueryWrapper.class)))
+                when(planNodeSnapshotMapper.listAssociatedByPlanIdAndDocumentId(planId, snapA.getId()))
                                 .thenReturn(List.of(caseSnap));
 
                 List<PlannedCasesRespDTO> result = planService.getPlanPlannedCases(planId);
@@ -434,7 +440,8 @@ class TestPlanServiceImplTest {
                 record.setExecutorId(userId);
                 record.setResult("pass");
 
-                when(planExecutionRecordMapper.selectList(any(LambdaQueryWrapper.class)))
+                when(planExecutionRecordMapper.listByPlanIdAndNodeId(planId,
+                                UUID.fromString("00000000-0000-0000-0000-000000000004")))
                                 .thenReturn(List.of(record));
                 when(userMapper.selectById(userId)).thenReturn(null);
 
@@ -462,7 +469,7 @@ class TestPlanServiceImplTest {
                 snapshot.setTitle("Old Title");
                 snapshot.setType("normal");
 
-                when(planNodeSnapshotMapper.selectList(any(LambdaQueryWrapper.class)))
+                when(planNodeSnapshotMapper.listByPlanId(planId))
                                 .thenReturn(List.of(snapshot));
 
                 TestCaseNode currentNode = new TestCaseNode();
@@ -524,7 +531,7 @@ class TestPlanServiceImplTest {
                 snapshot.setPlanId(planId);
                 snapshot.setOriginalNodeId(UUID.fromString("00000000-0000-0000-0000-000000000006"));
 
-                when(planNodeSnapshotMapper.selectList(any(LambdaQueryWrapper.class)))
+                when(planNodeSnapshotMapper.listByPlanId(planId))
                                 .thenReturn(List.of(snapshot));
                 when(testCaseNodeMapper.selectById(UUID.fromString("00000000-0000-0000-0000-000000000006")))
                                 .thenReturn(null);
@@ -544,7 +551,7 @@ class TestPlanServiceImplTest {
                 plan.setStatus("in_progress");
 
                 when(testPlanMapper.selectById(planId)).thenReturn(plan);
-                when(planNodeSnapshotMapper.selectCount(any(LambdaQueryWrapper.class)))
+                when(planNodeSnapshotMapper.countUntestedAssociatedByPlanId(planId, Constants.Status.UNTESTED))
                                 .thenReturn(0L);
 
                 planService.closePlan(planId, userId);
@@ -562,7 +569,7 @@ class TestPlanServiceImplTest {
                 plan.setStatus("in_progress");
 
                 when(testPlanMapper.selectById(planId)).thenReturn(plan);
-                when(planNodeSnapshotMapper.selectCount(any(LambdaQueryWrapper.class)))
+                when(planNodeSnapshotMapper.countUntestedAssociatedByPlanId(planId, Constants.Status.UNTESTED))
                                 .thenReturn(3L);
 
                 planService.closePlan(planId, userId);
@@ -641,9 +648,9 @@ class TestPlanServiceImplTest {
 
                 planService.deletePlan(planId, userId);
 
-                verify(planExecutionRecordMapper).delete(any(LambdaQueryWrapper.class));
-                verify(planNodeSnapshotMapper).delete(any(LambdaQueryWrapper.class));
-                verify(planModuleSnapshotMapper).delete(any(LambdaQueryWrapper.class));
+                verify(planExecutionRecordMapper).deleteByPlanId(planId);
+                verify(planNodeSnapshotMapper).deleteByPlanId(planId);
+                verify(planModuleSnapshotMapper).deleteByPlanId(planId);
                 verify(testPlanMapper).deleteById(planId);
         }
 
@@ -683,7 +690,7 @@ class TestPlanServiceImplTest {
                 TestPlanNodeSnapshot snap3 = new TestPlanNodeSnapshot();
                 snap3.setLastResult(null);
 
-                when(planNodeSnapshotMapper.selectList(any(LambdaQueryWrapper.class)))
+                when(planNodeSnapshotMapper.listAssociatedByPlanId(planId, Constants.NodeType.CASE))
                                 .thenReturn(List.of(snap1, snap2, snap3));
 
                 TestPlanProgressRespDTO result = planService.getPlanProgress(planId);
@@ -707,7 +714,7 @@ class TestPlanServiceImplTest {
                 TestPlan plan = new TestPlan();
                 plan.setId(planId);
                 when(testPlanMapper.selectById(planId)).thenReturn(plan);
-                when(planNodeSnapshotMapper.selectList(any(LambdaQueryWrapper.class)))
+                when(planNodeSnapshotMapper.listAssociatedByPlanId(planId, Constants.NodeType.CASE))
                                 .thenReturn(new ArrayList<>());
 
                 TestPlanProgressRespDTO result = planService.getPlanProgress(planId);
@@ -734,9 +741,9 @@ class TestPlanServiceImplTest {
                 moduleSnap.setName("old name");
                 moduleSnap.setSortOrder(1);
 
-                when(planModuleSnapshotMapper.selectList(any(LambdaQueryWrapper.class)))
+                when(planModuleSnapshotMapper.listByPlanId(planId))
                                 .thenReturn(List.of(moduleSnap));
-                when(planNodeSnapshotMapper.selectList(any(LambdaQueryWrapper.class)))
+                when(planNodeSnapshotMapper.listByPlanId(planId))
                                 .thenReturn(new ArrayList<>());
 
                 TestCaseModule originalModule = new TestCaseModule();
@@ -768,9 +775,9 @@ class TestPlanServiceImplTest {
                 moduleSnap.setId(moduleSnapId);
                 moduleSnap.setOriginalModuleId(UUID.fromString("00000000-0000-0000-0000-000000000010"));
 
-                when(planModuleSnapshotMapper.selectList(any(LambdaQueryWrapper.class)))
+                when(planModuleSnapshotMapper.listByPlanId(planId))
                                 .thenReturn(List.of(moduleSnap));
-                when(planNodeSnapshotMapper.selectList(any(LambdaQueryWrapper.class)))
+                when(planNodeSnapshotMapper.listByPlanId(planId))
                                 .thenReturn(new ArrayList<>());
                 when(testCaseModuleMapper.selectById(UUID.fromString("00000000-0000-0000-0000-000000000010")))
                                 .thenReturn(null);
@@ -799,9 +806,9 @@ class TestPlanServiceImplTest {
                 nodeSnap.setId(nodeSnapId);
                 nodeSnap.setDocumentSnapshotId(moduleSnapId);
 
-                when(planModuleSnapshotMapper.selectList(any(LambdaQueryWrapper.class)))
+                when(planModuleSnapshotMapper.listByPlanId(planId))
                                 .thenReturn(List.of(moduleSnap));
-                when(planNodeSnapshotMapper.selectList(any(LambdaQueryWrapper.class)))
+                when(planNodeSnapshotMapper.listByPlanId(planId))
                                 .thenReturn(List.of(nodeSnap));
                 when(testCaseModuleMapper.selectById(UUID.fromString("00000000-0000-0000-0000-000000000010")))
                                 .thenReturn(null);
