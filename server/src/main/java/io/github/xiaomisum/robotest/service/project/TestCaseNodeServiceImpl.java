@@ -64,7 +64,16 @@ public class TestCaseNodeServiceImpl implements TestCaseNodeService {
         if (node == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_CASE_NODE_NOT_FOUND);
         }
-        return convertToNodeDTO(node);
+        // 悬停明细等场景需要完整用例结构：以该节点为根填充子孙（前置/步骤/预期）
+        TestCaseNodeTreeRespDTO root = convertToNodeDTO(node);
+        List<TestCaseNodeTreeRespDTO> dtos = testCaseNodeMapper.listByDocumentId(node.getDocumentId()).stream()
+                .map(this::convertToNodeDTO)
+                .collect(Collectors.toList());
+        Map<String, List<TestCaseNodeTreeRespDTO>> parentMap = dtos.stream()
+                .filter(n -> n.getParentId() != null)
+                .collect(Collectors.groupingBy(n -> n.getParentId().toString()));
+        fillChildren(root, parentMap);
+        return root;
     }
 
     @Override
