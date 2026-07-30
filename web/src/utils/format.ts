@@ -26,3 +26,12 @@ export function formatDate(value?: string | null): string {
   const pad = (n: number): string => String(n).padStart(2, '0')
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
 }
+
+/** 省略年份的紧凑格式 `MM-dd HH:mm`，用于列表等窄列场景，同样按本地时区输出 */
+export function formatShortDateTime(value?: string | null): string {
+  if (!value) return '-'
+  const date = parseUtc(value)
+  if (Number.isNaN(date.getTime())) return '-'
+  const pad = (n: number): string => String(n).padStart(2, '0')
+  return `${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`
+}

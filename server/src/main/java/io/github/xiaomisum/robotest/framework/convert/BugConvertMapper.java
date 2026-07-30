@@ -22,6 +22,7 @@ public interface BugConvertMapper {
 
     @Mapping(target = "reporter", ignore = true)
     @Mapping(target = "assignee", ignore = true)
+    @Mapping(target = "resolvedBy", ignore = true)
     BugListRespDTO toListRespDTO(Bug bug);
 
     @Mapping(target = "moduleName", ignore = true)
