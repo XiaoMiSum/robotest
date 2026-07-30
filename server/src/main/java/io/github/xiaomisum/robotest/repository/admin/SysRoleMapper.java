@@ -13,4 +13,8 @@ public interface SysRoleMapper extends BaseMapperX<SysRole> {
     default List<SysRole> listByIds(Collection<UUID> ids) {
         return selectList(new LambdaQueryWrapperX<SysRole>().in(SysRole::getId, ids));
     }
+
+    default List<SysRole> listByType(String type) {
+        return selectList(new LambdaQueryWrapperX<SysRole>().eqIfPresent(SysRole::getType, type));
+    }
 }
