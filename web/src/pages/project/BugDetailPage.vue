@@ -41,6 +41,7 @@ import BugResolveDialog from '@/components/project/BugResolveDialog.vue'
 import CaseSelector from '@/components/project/CaseSelector.vue'
 import MarkdownEditor from '@/components/common/MarkdownEditor.vue'
 import MarkdownView from '@/components/common/MarkdownView.vue'
+import { typeBadge, type Badge } from '@/components/project/minder/badges'
 
 const route = useRoute()
 const router = useRouter()
@@ -109,14 +110,6 @@ const currentRelatedCaseId = computed(() =>
   isClosed.value ? (detail.value?.relatedCaseId ?? '') : form.relatedCaseId,
 )
 
-// 类型徽标文案与配色与 CaseSelectTree / 脑图徽标保持一致
-const TYPE_BADGES: Record<string, { label: string; color: string }> = {
-  case: { label: '用例', color: '#a464ff' },
-  precondition: { label: '前置', color: '#409eff' },
-  step: { label: '步骤', color: '#67c23a' },
-  expected: { label: '预期', color: '#e6a23c' },
-}
-
 const caseDetail = ref<TestCaseNode | null>(null)
 const caseDetailLoading = ref(false)
 // 首次悬停懒加载并按 id 缓存，更换关联后自动重取
@@ -134,13 +127,16 @@ async function loadCaseDetail() {
   }
 }
 
-// 子孙节点扁平化为带缩进的行，避免在模板里递归
+// 只展示标记了前置/步骤/预期的子孙节点，未标记节点跳过但不阻断更深层的标记节点；
+// 徽标复用脑图 badges 模块，颜色样式与文档中保持一致
+const MARKED_TYPES = new Set<CaseNodeType>(['precondition', 'step', 'expected'])
 const caseDetailRows = computed(() => {
-  const rows: { id: string; depth: number; type: CaseNodeType; title: string }[] = []
+  const rows: { id: string; depth: number; badge: Badge; title: string }[] = []
   function walk(node: TestCaseNode, depth: number) {
     node.children.forEach((child) => {
-      rows.push({ id: child.id, depth, type: child.type, title: child.title })
-      walk(child, depth + 1)
+      const badge = MARKED_TYPES.has(child.type) ? typeBadge(child.type) : null
+      if (badge) rows.push({ id: child.id, depth, badge, title: child.title })
+      walk(child, badge ? depth + 1 : depth)
     })
   }
   if (caseDetail.value) walk(caseDetail.value, 0)
@@ -589,11 +585,10 @@ onMounted(() => {
                             :style="{ paddingLeft: `${row.depth * 14}px` }"
                           >
                             <span
-                              v-if="TYPE_BADGES[row.type]"
                               class="bug-detail__case-pop-type"
-                              :style="{ background: TYPE_BADGES[row.type].color }"
+                              :style="{ background: row.badge.color }"
                             >
-                              {{ TYPE_BADGES[row.type].label }}
+                              {{ row.badge.label }}
                             </span>
                             <span class="bug-detail__case-pop-text">{{ row.title }}</span>
                           </div>
