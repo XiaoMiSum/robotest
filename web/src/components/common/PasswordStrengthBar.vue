@@ -7,7 +7,9 @@ const STRENGTH_COLORS = ['var(--color-danger)', 'var(--color-warning)', '#f97316
 
 const strength = computed(() => {
   const val = props.password
-  if (!val || val.length < 8) return 0
+  if (!val) return 0
+  // 长度不足 8 时按长度比例给出基础强度，保证始终有视觉反馈
+  if (val.length < 8) return Math.max(1, Math.floor(val.length / 2))
   return [/[A-Z]/, /[a-z]/, /[0-9]/, /[^A-Za-z0-9]/].filter((re) => re.test(val)).length
 })
 

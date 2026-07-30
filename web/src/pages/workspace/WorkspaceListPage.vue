@@ -38,7 +38,14 @@ async function enterWorkspace(ws: WorkspaceItem) {
   } catch {
     // 偏好保存失败不阻塞进入
   }
-  router.push(ws.defaultProjectId ? '/workspace/projects/dashboard' : '/workspace/projects')
+  if (ws.defaultProjectId) {
+    // 有默认项目时自动激活，让 X-Active-Project 请求头生效
+    authStore.setActiveProject(ws.defaultProjectId)
+    router.push('/workspace/projects/dashboard')
+  } else {
+    authStore.setActiveProject(null)
+    router.push('/workspace/projects')
+  }
 }
 
 function roleTagType(role: string): 'warning' | 'info' {
