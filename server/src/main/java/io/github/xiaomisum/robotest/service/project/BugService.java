@@ -16,7 +16,8 @@ import java.util.UUID;
 public interface BugService {
 
     PageResult<BugListRespDTO> getBugPage(UUID projectId, String status, String severity,
-                                     String priority, String bugType, UUID assigneeId, String keyword,
+                                     String priority, String bugType, UUID assigneeId,
+                                     UUID reporterId, UUID resolvedBy, UUID closedBy, String keyword,
                                      Integer pageNo, Integer pageSize);
 
     String createBug(UUID projectId, UUID userId, BugCreateReqDTO reqDTO);

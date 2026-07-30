@@ -29,6 +29,7 @@ public final class Constants {
     public interface BugStatus {
         String ACTIVE = "active";
         String RESOLVED = "resolved";
+        String REJECTED = "rejected";
         String CLOSED = "closed";
     }
 
@@ -100,6 +101,7 @@ public final class Constants {
         String ASSIGN = "assign";
         String CONFIRM = "confirm";
         String RESOLVE = "resolve";
+        String REJECT = "reject";
         String CLOSE = "close";
         String REOPEN = "reopen";
         // 旧六态模型日志类型，保留以兼容历史日志展示

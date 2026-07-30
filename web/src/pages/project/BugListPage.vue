@@ -1,13 +1,16 @@
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
+import type { CSSProperties } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { DynamicSizeList, ElMessage, ElMessageBox } from 'element-plus'
 import { assignBug, changeBugStatus, confirmBug, fetchBugs } from '@/services/project'
 import { fetchMembers } from '@/services/workspace'
+import { useAuthStore } from '@/stores/auth'
 import type { BugListItem, BugPriority, BugResolution, BugSeverity, BugStatus, BugType, WorkspaceMember } from '@/types'
 import { formatDateTime } from '@/utils/format'
 import {
   BUG_STATUS_LABEL,
+  BUG_STATUS_TAG_TYPE,
   BUG_TYPE_LABEL,
   getValidTargetStatuses,
   promptStatusChangeComment,
@@ -15,6 +18,7 @@ import {
 import BugResolveDialog from '@/components/project/BugResolveDialog.vue'
 
 const router = useRouter()
+const authStore = useAuthStore()
 const loading = ref(false)
 const bugs = ref<BugListItem[]>([])
 const total = ref(0)
@@ -30,6 +34,28 @@ const query = reactive({
   pageSize: 20,
 })
 
+// 快捷过滤：与当前登录用户相关的缺陷
+type QuickFilter = '' | 'reported' | 'assigned' | 'resolved' | 'closed'
+const quickFilter = ref<QuickFilter>('')
+const quickFilterOptions: { value: QuickFilter; label: string }[] = [
+  { value: '', label: '全部' },
+  { value: 'reported', label: '我新建的' },
+  { value: 'assigned', label: '指派给我的' },
+  { value: 'resolved', label: '我修复的' },
+  { value: 'closed', label: '我关闭的' },
+]
+
+function quickFilterParams(): { reporterId?: string; assigneeId?: string; resolvedBy?: string; closedBy?: string } {
+  const uid = authStore.user?.id
+  if (!quickFilter.value || !uid) return {}
+  switch (quickFilter.value) {
+    case 'reported': return { reporterId: uid }
+    case 'assigned': return { assigneeId: uid }
+    case 'resolved': return { resolvedBy: uid }
+    default: return { closedBy: uid }
+  }
+}
+
 const severityLabel: Record<string, string> = { fatal: '致命', serious: '严重', general: '一般', minor: '轻微' }
 const priorityLabel: Record<string, string> = { high: '高', medium: '中', low: '低' }
 const statusLabel = BUG_STATUS_LABEL
@@ -44,6 +70,7 @@ async function loadBugs() {
       priority: query.priority || undefined,
       bugType: query.bugType || undefined,
       keyword: query.keyword || undefined,
+      ...quickFilterParams(),
       pageNo: query.pageNo,
       pageSize: query.pageSize,
     })
@@ -57,15 +84,187 @@ async function loadBugs() {
 }
 
 function handleSearch() {
+  // 任何显式搜索都以当前关键词为准，取消在途的防抖定时器避免重复请求
+  clearKeywordTimer()
+  searchedKeyword = query.keyword
+  if (viewMode.value === 'board') {
+    loadBoard()
+    return
+  }
   query.pageNo = 1
   loadBugs()
 }
 
-const boardStatuses: BugStatus[] = ['active', 'resolved', 'closed']
-
-function bugsByStatus(status: BugStatus): BugListItem[] {
-  return bugs.value.filter((b) => b.status === status)
+function handleReset() {
+  query.status = ''
+  query.severity = ''
+  query.priority = ''
+  query.bugType = ''
+  query.keyword = ''
+  quickFilter.value = ''
+  handleSearch()
 }
+
+// ==================== 标题搜索与展开筛选 ====================
+// 标题输入：回车/失焦立即搜索，停止输入 1 秒后自动搜索
+
+let keywordTimer: ReturnType<typeof setTimeout> | null = null
+// 记录最近一次已生效的关键词，失焦/回车与防抖多路触发时跳过重复请求
+let searchedKeyword = ''
+
+function clearKeywordTimer() {
+  if (keywordTimer) {
+    clearTimeout(keywordTimer)
+    keywordTimer = null
+  }
+}
+
+function handleKeywordSearch() {
+  clearKeywordTimer()
+  if (query.keyword === searchedKeyword) return
+  handleSearch()
+}
+
+watch(() => query.keyword, () => {
+  clearKeywordTimer()
+  keywordTimer = setTimeout(handleKeywordSearch, 1000)
+})
+
+onUnmounted(clearKeywordTimer)
+
+// 展开筛选浮层：悬浮展示更多条件，不挤占筛选行布局
+const filtersExpanded = ref(false)
+
+// 已生效的展开条件数量，收起时通过角标提示用户存在隐藏筛选
+const advancedFilterCount = computed(
+  () => [query.status, query.bugType, query.severity, query.priority].filter(Boolean).length,
+)
+
+function handleAdvancedSearch() {
+  filtersExpanded.value = false
+  handleSearch()
+}
+
+// 看板仅展示核心处理流三列，已拒绝缺陷在列表视图查看
+type BoardStatus = Extract<BugStatus, 'active' | 'resolved' | 'closed'>
+const boardStatuses: BoardStatus[] = ['active', 'resolved', 'closed']
+
+// ==================== 看板分列分页 ====================
+// 看板列固定高度，每列独立按状态分页，滚动到底部追加加载
+
+interface BoardColumn {
+  list: BugListItem[]
+  total: number
+  pageNo: number
+  loading: boolean
+  finished: boolean
+  // 请求版本号：重置列时递增，用于丢弃在途的过期响应
+  requestId: number
+}
+
+function createBoardColumn(): BoardColumn {
+  return { list: [], total: 0, pageNo: 1, loading: false, finished: false, requestId: 0 }
+}
+
+const boardColumns = reactive<Record<BoardStatus, BoardColumn>>({
+  active: createBoardColumn(),
+  resolved: createBoardColumn(),
+  closed: createBoardColumn(),
+})
+
+// 看板卡片标题单行省略，高度恒定；DynamicSizeList 的 itemSize 必须为函数，且组件不测量 DOM，尺寸完全由此决定
+const BOARD_CARD_SIZE = 76
+const boardItemSize = () => BOARD_CARD_SIZE
+// 虚拟列表 height 必须是数字 px（内部参与偏移运算，传百分比会 NaN），由 ResizeObserver 实测列体高度写入
+const boardBodyHeight = ref(400)
+const boardRef = ref<HTMLElement>()
+
+async function loadBoardColumn(status: BoardStatus, reset = false) {
+  const col = boardColumns[status]
+  if (!reset && (col.loading || col.finished)) return
+  if (reset) {
+    col.requestId += 1
+    col.list = []
+    col.total = 0
+    col.pageNo = 1
+    col.finished = false
+  }
+  // 状态筛选与列不匹配时该列必为空，无需请求
+  if (query.status && query.status !== status) {
+    col.finished = true
+    col.loading = false
+    return
+  }
+  const requestId = col.requestId
+  const pageNo = col.pageNo
+  col.loading = true
+  try {
+    const page = await fetchBugs({
+      status,
+      severity: query.severity || undefined,
+      priority: query.priority || undefined,
+      bugType: query.bugType || undefined,
+      keyword: query.keyword || undefined,
+      ...quickFilterParams(),
+      pageNo,
+      pageSize: query.pageSize,
+    })
+    if (requestId !== col.requestId) return
+    col.list = pageNo === 1 ? page.list : [...col.list, ...page.list]
+    col.total = page.total
+    col.pageNo = pageNo + 1
+    col.finished = col.list.length >= page.total
+  } catch (err) {
+    if (requestId !== col.requestId) return
+    ElMessage.error(err instanceof Error ? err.message : '加载缺陷列表失败')
+  } finally {
+    if (requestId === col.requestId) {
+      col.loading = false
+      // 内容未填满视口且仍有数据时自动续拉，兜底超高屏首页不溢出导致 end-reached 不触发
+      if (!col.finished && col.list.length * BOARD_CARD_SIZE < boardBodyHeight.value) {
+        loadBoardColumn(status)
+      }
+    }
+  }
+}
+
+function loadBoard() {
+  boardStatuses.forEach((status) => loadBoardColumn(status, true))
+}
+
+function handleBoardEndReached(status: BoardStatus, direction: string) {
+  // DynamicSizeList 到达边缘瞬间发出该事件，触底即加载下一页
+  if (direction === 'bottom') loadBoardColumn(status)
+}
+
+// 虚拟列表需要数字像素高度，实测列体高度并随窗口/布局变化更新（rAF 去抖）
+let boardResizeObserver: ResizeObserver | null = null
+let boardMeasureRaf = 0
+
+function measureBoardBody() {
+  const body = boardRef.value?.querySelector('.bug-board__col-body') as HTMLElement | null
+  if (body) boardBodyHeight.value = body.clientHeight
+}
+
+function scheduleBoardMeasure() {
+  cancelAnimationFrame(boardMeasureRaf)
+  boardMeasureRaf = requestAnimationFrame(measureBoardBody)
+}
+
+function setupBoardResize() {
+  if (boardResizeObserver || !boardRef.value) return
+  boardResizeObserver = new ResizeObserver(scheduleBoardMeasure)
+  boardResizeObserver.observe(boardRef.value)
+  measureBoardBody()
+}
+
+function teardownBoardResize() {
+  boardResizeObserver?.disconnect()
+  boardResizeObserver = null
+  cancelAnimationFrame(boardMeasureRaf)
+}
+
+onUnmounted(teardownBoardResize)
 
 // ==================== 看板拖拽 ====================
 
@@ -87,7 +286,7 @@ function isValidDropTarget(status: BugStatus): boolean {
   return validDropStatuses.value.has(status)
 }
 
-async function handleDrop(targetStatus: BugStatus) {
+async function handleDrop(targetStatus: BoardStatus) {
   const bug = draggingBug.value
   handleDragEnd()
   if (!bug || bug.status === targetStatus) return
@@ -104,7 +303,9 @@ async function handleDrop(targetStatus: BugStatus) {
   try {
     await changeBugStatus(bug.id, { status: targetStatus, comment: comment || undefined })
     ElMessage.success('状态已更新')
-    loadBugs()
+    // 只刷新源列与目标列，避免整板重载
+    loadBoardColumn(bug.status as BoardStatus, true)
+    loadBoardColumn(targetStatus, true)
   } catch (err) {
     ElMessage.error(err instanceof Error ? err.message : '状态变更失败')
   }
@@ -117,7 +318,7 @@ const resolvingBug = ref<BugListItem | null>(null)
 async function handleResolveConfirm(payload: {
   resolution: BugResolution
   duplicateOfBugId?: string
-  comment?: string
+  comment: string
 }) {
   const bug = resolvingBug.value
   resolvingBug.value = null
@@ -125,7 +326,13 @@ async function handleResolveConfirm(payload: {
   try {
     await changeBugStatus(bug.id, { status: 'resolved', ...payload })
     ElMessage.success('缺陷已解决')
-    loadBugs()
+    // 解决对话框可能由列表行操作或看板拖拽触发，按当前视图刷新
+    if (viewMode.value === 'board') {
+      loadBoardColumn(bug.status as BoardStatus, true)
+      loadBoardColumn('resolved', true)
+    } else {
+      loadBugs()
+    }
   } catch (err) {
     ElMessage.error(err instanceof Error ? err.message : '解决失败')
   }
@@ -221,6 +428,18 @@ function handleMoreAction(command: string, bug: BugListItem) {
   else if (command === 'assign') openAssignDialog(bug)
 }
 
+// 切换视图时刷新对应数据源，看板数据与列表分页相互独立
+watch(viewMode, (mode) => {
+  if (mode === 'board') {
+    loadBoard()
+    // 列体元素需渲染到 DOM 后才能测量高度
+    nextTick(setupBoardResize)
+  } else {
+    teardownBoardResize()
+    loadBugs()
+  }
+})
+
 onMounted(loadBugs)
 </script>
 
@@ -230,27 +449,61 @@ onMounted(loadBugs)
     <el-card shadow="never" class="bug-page__filters">
       <el-form :inline="true" class="bug-page__filter-form" @submit.prevent>
         <el-form-item>
-          <el-select v-model="query.status" placeholder="状态" clearable style="width: 120px" @change="handleSearch">
-            <el-option v-for="(label, key) in statusLabel" :key="key" :label="label" :value="key" />
-          </el-select>
+          <el-radio-group v-model="quickFilter" size="small" @change="handleSearch">
+            <el-radio-button v-for="opt in quickFilterOptions" :key="opt.value" :value="opt.value">
+              {{ opt.label }}
+            </el-radio-button>
+          </el-radio-group>
         </el-form-item>
         <el-form-item>
-          <el-select v-model="query.bugType" placeholder="类型" clearable style="width: 120px" @change="handleSearch">
-            <el-option v-for="(label, key) in BUG_TYPE_LABEL" :key="key" :label="label" :value="key" />
-          </el-select>
+          <el-input
+            v-model="query.keyword"
+            placeholder="搜索标题"
+            clearable
+            style="width: 360px"
+            @keyup.enter="handleKeywordSearch"
+            @blur="handleKeywordSearch"
+            @clear="handleKeywordSearch"
+          />
         </el-form-item>
         <el-form-item>
-          <el-select v-model="query.severity" placeholder="严重等级" clearable style="width: 120px" @change="handleSearch">
-            <el-option v-for="(label, key) in severityLabel" :key="key" :label="label" :value="key" />
-          </el-select>
-        </el-form-item>
-        <el-form-item>
-          <el-select v-model="query.priority" placeholder="优先级" clearable style="width: 100px" @change="handleSearch">
-            <el-option v-for="(label, key) in priorityLabel" :key="key" :label="label" :value="key" />
-          </el-select>
-        </el-form-item>
-        <el-form-item>
-          <el-input v-model="query.keyword" placeholder="搜索标题" clearable style="width: 180px" @keyup.enter="handleSearch" @clear="handleSearch" />
+          <el-popover v-model:visible="filtersExpanded" placement="bottom-start" :width="300" trigger="click">
+            <template #reference>
+              <el-badge :value="advancedFilterCount" :hidden="!advancedFilterCount" type="primary">
+                <el-button link type="primary">
+                  更多筛选<el-icon><component :is="filtersExpanded ? 'ArrowUp' : 'ArrowDown'" /></el-icon>
+                </el-button>
+              </el-badge>
+            </template>
+            <el-form label-width="70px" class="bug-page__advanced-form" @submit.prevent>
+              <el-form-item label="状态">
+                <el-select v-model="query.status" placeholder="全部" clearable>
+                  <el-option v-for="(label, key) in statusLabel" :key="key" :label="label" :value="key" />
+                </el-select>
+              </el-form-item>
+              <el-form-item label="类型">
+                <el-select v-model="query.bugType" placeholder="全部" clearable>
+                  <el-option v-for="(label, key) in BUG_TYPE_LABEL" :key="key" :label="label" :value="key" />
+                </el-select>
+              </el-form-item>
+              <el-form-item label="严重等级">
+                <el-select v-model="query.severity" placeholder="全部" clearable>
+                  <el-option v-for="(label, key) in severityLabel" :key="key" :label="label" :value="key" />
+                </el-select>
+              </el-form-item>
+              <el-form-item label="优先级">
+                <el-select v-model="query.priority" placeholder="全部" clearable>
+                  <el-option v-for="(label, key) in priorityLabel" :key="key" :label="label" :value="key" />
+                </el-select>
+              </el-form-item>
+              <div class="bug-page__advanced-actions">
+                <el-button type="primary" @click="handleAdvancedSearch">
+                  <el-icon><Search /></el-icon>查询
+                </el-button>
+                <el-button @click="handleReset">重置</el-button>
+              </div>
+            </el-form>
+          </el-popover>
         </el-form-item>
         <el-form-item class="bug-page__filter-spacer" />
         <el-form-item>
@@ -287,9 +540,12 @@ onMounted(loadBugs)
         </el-table-column>
         <el-table-column label="状态" width="130">
           <template #default="{ row }">
-            <el-tag size="small" effect="light" round>{{ statusLabel[row.status as BugStatus] }}</el-tag>
+            <el-tag :type="BUG_STATUS_TAG_TYPE[row.status as BugStatus]" size="small" effect="light" round>{{ statusLabel[row.status as BugStatus] }}</el-tag>
             <el-tag v-if="row.confirmed" size="small" type="warning" effect="plain" class="bug-page__confirmed-tag">已确认</el-tag>
           </template>
+        </el-table-column>
+        <el-table-column label="创建人" width="100">
+          <template #default="{ row }">{{ row.reporter?.name ?? '-' }}</template>
         </el-table-column>
         <el-table-column label="处理人" width="100">
           <template #default="{ row }">{{ row.assignee?.name ?? '-' }}</template>
@@ -297,11 +553,12 @@ onMounted(loadBugs)
         <el-table-column label="创建时间" width="160">
           <template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template>
         </el-table-column>
-        <el-table-column label="操作" width="210" fixed="right">
+        <el-table-column label="操作" width="250" fixed="right">
           <template #default="{ row }">
             <el-button link type="primary" @click="router.push(`/workspace/projects/bugs/${row.id}`)">详情</el-button>
             <el-button v-if="row.status === 'active'" link type="success" @click="openResolveDialog(row as BugListItem)">解决</el-button>
-            <el-button v-if="row.status === 'resolved'" link type="info" @click="handleStatusAction(row as BugListItem, 'closed', '缺陷已关闭')">关闭</el-button>
+            <el-button v-if="row.status === 'active'" link type="warning" @click="handleStatusAction(row as BugListItem, 'rejected', '缺陷已拒绝')">拒绝</el-button>
+            <el-button v-if="row.status === 'resolved' || row.status === 'rejected'" link type="info" @click="handleStatusAction(row as BugListItem, 'closed', '缺陷已关闭')">关闭</el-button>
             <el-button v-if="row.status === 'closed'" link type="danger" @click="handleStatusAction(row as BugListItem, 'active', '缺陷已激活')">激活</el-button>
             <el-dropdown
               v-if="hasMoreActions(row as BugListItem)"
@@ -312,7 +569,7 @@ onMounted(loadBugs)
               <template #dropdown>
                 <el-dropdown-menu>
                   <el-dropdown-item v-if="row.status === 'active' && !row.confirmed" command="confirm">确认</el-dropdown-item>
-                  <el-dropdown-item v-if="row.status === 'resolved'" command="reopen">激活</el-dropdown-item>
+                  <el-dropdown-item v-if="row.status === 'resolved' || row.status === 'rejected'" command="reopen">激活</el-dropdown-item>
                   <el-dropdown-item command="assign">指派</el-dropdown-item>
                 </el-dropdown-menu>
               </template>
@@ -333,7 +590,7 @@ onMounted(loadBugs)
       </div>
     </el-card>
 
-    <div v-else v-loading="loading" class="bug-board">
+    <div v-else ref="boardRef" class="bug-board">
       <div
         v-for="status in boardStatuses"
         :key="status"
@@ -347,11 +604,11 @@ onMounted(loadBugs)
       >
         <div class="bug-board__col-header">
           <span class="bug-board__col-title">{{ statusLabel[status] }}</span>
-          <span class="bug-board__col-count">{{ bugsByStatus(status).length }}</span>
+          <span class="bug-board__col-count">{{ boardColumns[status].total }}</span>
         </div>
-        <div class="bug-board__col-body">
+        <div class="bug-board__col-body" @scroll.passive="handleBoardScroll(status, $event)">
           <div
-            v-for="bug in bugsByStatus(status)"
+            v-for="bug in boardColumns[status].list"
             :key="bug.id"
             class="bug-board__card"
             draggable="true"
@@ -365,7 +622,8 @@ onMounted(loadBugs)
               <span v-if="bug.assignee" class="bug-board__card-assignee">{{ bug.assignee.name }}</span>
             </div>
           </div>
-          <el-empty v-if="!bugsByStatus(status).length" description="" :image-size="30" />
+          <div v-if="boardColumns[status].loading" class="bug-board__col-loading">加载中…</div>
+          <el-empty v-if="!boardColumns[status].list.length && !boardColumns[status].loading" description="" :image-size="30" />
         </div>
       </div>
     </div>
@@ -412,6 +670,16 @@ onMounted(loadBugs)
   flex: 1;
 }
 
+// 浮层表单元素统一撑满，动作按钮右对齐
+.bug-page__advanced-form :deep(.el-select) {
+  width: 100%;
+}
+
+.bug-page__advanced-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
 .bug-page__confirmed-tag {
   margin-left: 4px;
 }
@@ -439,6 +707,8 @@ onMounted(loadBugs)
   display: flex;
   gap: var(--space-md);
   overflow-x: auto;
+  // 固定看板高度（视口减去顶栏、内容区边距与筛选卡片），列体在约束内滚动触底加载
+  height: calc(100vh - var(--header-height) - 138px);
   min-height: 400px;
 }
 
@@ -489,6 +759,13 @@ onMounted(loadBugs)
   padding: var(--space-sm);
   flex: 1;
   overflow-y: auto;
+}
+
+.bug-board__col-loading {
+  text-align: center;
+  font-size: var(--font-size-2xs);
+  color: var(--color-neutral-400);
+  padding: var(--space-xs) 0;
 }
 
 .bug-board__card {

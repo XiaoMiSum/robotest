@@ -273,6 +273,9 @@ export function fetchBugs(params: {
   priority?: BugPriority | ''
   bugType?: BugType | ''
   assigneeId?: string
+  reporterId?: string
+  resolvedBy?: string
+  closedBy?: string
   keyword?: string
   pageNo?: number
   pageSize?: number

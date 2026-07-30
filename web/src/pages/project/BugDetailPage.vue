@@ -9,6 +9,7 @@ import {
   deleteBugAttachment,
   downloadBugAttachment,
   fetchBugAttachments,
+  fetchModuleTree,
   getBugDetail,
   getBugLogs,
   updateBug,
@@ -20,6 +21,7 @@ import type {
   BugDetail,
   BugLog,
   BugResolution,
+  TestCaseModule,
   WorkspaceMember,
 } from '@/types'
 import { formatDateTime } from '@/utils/format'
@@ -47,17 +49,26 @@ const resolveDialogVisible = ref(false)
 const isClosed = computed(() => detail.value?.status === 'closed')
 const isActive = computed(() => detail.value?.status === 'active')
 const isResolved = computed(() => detail.value?.status === 'resolved')
+const isRejected = computed(() => detail.value?.status === 'rejected')
 
 const form = reactive({
   title: '',
   severity: '' as string,
   priority: '' as string,
   bugType: '' as string,
+  moduleId: '' as string,
   keywords: '',
   dueDate: '' as string,
   reproSteps: '',
   assigneeId: '' as string,
 })
+
+const moduleTree = ref<TestCaseModule[]>([])
+async function loadModuleTree() {
+  try {
+    moduleTree.value = await fetchModuleTree()
+  } catch { /* ignore */ }
+}
 
 const severityLabel: Record<string, string> = { fatal: '致命', serious: '严重', general: '一般', minor: '轻微' }
 const priorityLabel: Record<string, string> = { high: '高', medium: '中', low: '低' }
@@ -79,6 +90,7 @@ async function load() {
     form.severity = bugData.severity
     form.priority = bugData.priority
     form.bugType = bugData.bugType
+    form.moduleId = bugData.moduleId ?? ''
     form.keywords = bugData.keywords ?? ''
     form.dueDate = bugData.dueDate ?? ''
     form.reproSteps = bugData.reproSteps ?? ''
@@ -99,6 +111,7 @@ async function handleSave() {
       severity: form.severity as BugDetail['severity'],
       priority: form.priority as BugDetail['priority'],
       bugType: form.bugType as BugDetail['bugType'],
+      moduleId: form.moduleId || undefined,
       keywords: form.keywords.trim() || undefined,
       dueDate: form.dueDate || undefined,
       reproSteps: form.reproSteps.trim() || undefined,
@@ -145,6 +158,20 @@ async function handleResolve(payload: {
     load()
   } catch (err) {
     ElMessage.error(err instanceof Error ? err.message : '解决失败')
+  }
+}
+
+async function handleReject() {
+  const current = detail.value?.status
+  if (!current) return
+  const comment = await promptStatusChangeComment(current, 'rejected')
+  if (comment === null) return
+  try {
+    await changeBugStatus(bugId, { status: 'rejected', comment: comment || undefined })
+    ElMessage.success('缺陷已拒绝')
+    load()
+  } catch (err) {
+    ElMessage.error(err instanceof Error ? err.message : '拒绝失败')
   }
 }
 
@@ -239,6 +266,7 @@ async function handleAttachmentDelete(item: BugAttachment) {
 
 onMounted(() => {
   load()
+  loadModuleTree()
   loadAttachments()
 })
 </script>
@@ -252,7 +280,7 @@ onMounted(() => {
     <template v-if="detail">
       <el-card shadow="never" class="bug-detail__header">
         <div class="bug-detail__status-bar">
-          <el-tag :type="isActive ? 'danger' : isResolved ? 'success' : 'info'" effect="dark" round>
+          <el-tag :type="isActive ? 'danger' : isResolved ? 'success' : isRejected ? 'warning' : 'info'" effect="dark" round>
             {{ statusLabel[detail.status] }}
           </el-tag>
           <el-tag v-if="detail.confirmed" size="small" type="warning" effect="plain" round>已确认</el-tag>
@@ -262,8 +290,9 @@ onMounted(() => {
           <span class="bug-detail__status-spacer" />
           <el-button v-if="isActive && !detail.confirmed" size="small" @click="handleConfirm">确认</el-button>
           <el-button v-if="isActive" size="small" type="success" @click="resolveDialogVisible = true">解决</el-button>
-          <el-button v-if="isResolved" size="small" type="info" @click="handleClose">关闭</el-button>
-          <el-button v-if="isResolved || isClosed" size="small" type="danger" @click="handleReopen">激活</el-button>
+          <el-button v-if="isActive" size="small" type="warning" @click="handleReject">拒绝</el-button>
+          <el-button v-if="isResolved || isRejected" size="small" type="info" @click="handleClose">关闭</el-button>
+          <el-button v-if="isResolved || isRejected || isClosed" size="small" type="danger" @click="handleReopen">激活</el-button>
           <el-button v-if="!isClosed" size="small" type="primary" :loading="saving" @click="handleSave">保存</el-button>
         </div>
 
@@ -384,7 +413,16 @@ onMounted(() => {
                 <span v-else class="bug-detail__text">{{ BUG_TYPE_LABEL[detail.bugType] }}</span>
               </el-form-item>
               <el-form-item label="所属模块">
-                <span class="bug-detail__text">{{ detail.moduleName ?? '-' }}</span>
+                <el-tree-select
+                  v-if="!isClosed"
+                  v-model="form.moduleId"
+                  :data="moduleTree"
+                  :props="{ label: 'name', children: 'children' }"
+                  node-key="id"
+                  check-strictly
+                  placeholder="选择所属模块"
+                />
+                <span v-else class="bug-detail__text">{{ detail.moduleName ?? '-' }}</span>
               </el-form-item>
               <el-form-item label="严重等级">
                 <el-select v-if="!isClosed" v-model="form.severity">
@@ -554,12 +592,13 @@ onMounted(() => {
 }
 
 .bug-detail__props :deep(.el-select),
-.bug-detail__date {
+.bug-detail__props :deep(.el-tree-select) {
   width: 100%;
 }
 
-// el-date-picker 宽度由组件级 CSS 变量控制，仅设 width 无法与其他控件对齐
-.bug-detail__date {
+// el-date-picker 根节点是 fragment，scoped 的 data-v 属性不会落到控件上，须经 :deep 命中；宽度还受组件级 CSS 变量控制
+.bug-detail__props :deep(.bug-detail__date) {
+  width: 100%;
   --el-date-editor-width: 100%;
 }
 

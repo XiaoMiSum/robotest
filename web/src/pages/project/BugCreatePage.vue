@@ -291,13 +291,13 @@ async function handleSubmit() {
 
 // 侧栏与主区表单控件统一撑满，视觉对齐
 .bug-create__form :deep(.el-select),
-.bug-create__form :deep(.el-tree-select),
-.bug-create__date {
+.bug-create__form :deep(.el-tree-select) {
   width: 100%;
 }
 
-// el-date-picker 宽度由组件级 CSS 变量控制，仅设 width 无法与其他控件对齐
-.bug-create__date {
+// el-date-picker 根节点是 fragment，scoped 的 data-v 属性不会落到控件上，须经 :deep 命中；宽度还受组件级 CSS 变量控制
+.bug-create__form :deep(.bug-create__date) {
+  width: 100%;
   --el-date-editor-width: 100%;
 }
 

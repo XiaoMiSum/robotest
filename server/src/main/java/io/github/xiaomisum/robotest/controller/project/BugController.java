@@ -48,11 +48,14 @@ public class BugController {
             @RequestParam(required = false) String priority,
             @RequestParam(required = false) String bugType,
             @RequestParam(required = false) UUID assigneeId,
+            @RequestParam(required = false) UUID reporterId,
+            @RequestParam(required = false) UUID resolvedBy,
+            @RequestParam(required = false) UUID closedBy,
             @RequestParam(required = false) String keyword,
             @RequestParam(defaultValue = "1") Integer pageNo,
             @RequestParam(defaultValue = "20") Integer pageSize) {
         return Result.ok(bugService.getBugPage(projectId, status, severity, priority,
-                bugType, assigneeId, keyword, pageNo, pageSize));
+                bugType, assigneeId, reporterId, resolvedBy, closedBy, keyword, pageNo, pageSize));
     }
 
     @PostMapping
