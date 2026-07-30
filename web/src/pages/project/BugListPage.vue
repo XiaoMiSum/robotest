@@ -477,24 +477,25 @@ onMounted(loadBugs)
                 </el-button>
               </el-badge>
             </template>
+            <!-- 下拉面板不 teleport 到 body，避免点选选项被 popover 判定为外部点击而收起 -->
             <el-form label-width="70px" class="bug-page__advanced-form" @submit.prevent>
               <el-form-item label="状态">
-                <el-select v-model="query.status" placeholder="全部" clearable>
+                <el-select v-model="query.status" placeholder="全部" clearable :teleported="false">
                   <el-option v-for="(label, key) in statusLabel" :key="key" :label="label" :value="key" />
                 </el-select>
               </el-form-item>
               <el-form-item label="类型">
-                <el-select v-model="query.bugType" placeholder="全部" clearable>
+                <el-select v-model="query.bugType" placeholder="全部" clearable :teleported="false">
                   <el-option v-for="(label, key) in BUG_TYPE_LABEL" :key="key" :label="label" :value="key" />
                 </el-select>
               </el-form-item>
               <el-form-item label="严重等级">
-                <el-select v-model="query.severity" placeholder="全部" clearable>
+                <el-select v-model="query.severity" placeholder="全部" clearable :teleported="false">
                   <el-option v-for="(label, key) in severityLabel" :key="key" :label="label" :value="key" />
                 </el-select>
               </el-form-item>
               <el-form-item label="优先级">
-                <el-select v-model="query.priority" placeholder="全部" clearable>
+                <el-select v-model="query.priority" placeholder="全部" clearable :teleported="false">
                   <el-option v-for="(label, key) in priorityLabel" :key="key" :label="label" :value="key" />
                 </el-select>
               </el-form-item>
