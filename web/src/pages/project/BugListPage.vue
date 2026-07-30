@@ -7,7 +7,7 @@ import { assignBug, changeBugStatus, confirmBug, fetchBugs } from '@/services/pr
 import { fetchMembers } from '@/services/workspace'
 import { useAuthStore } from '@/stores/auth'
 import type { BugListItem, BugPriority, BugResolution, BugSeverity, BugStatus, BugType, WorkspaceMember } from '@/types'
-import { formatShortDateTime } from '@/utils/format'
+import { formatShortDateTime, formatShortId } from '@/utils/format'
 import {
   BUG_RESOLUTION_LABEL,
   BUG_STATUS_LABEL,
@@ -60,7 +60,8 @@ function quickFilterParams(): { reporterId?: string; assigneeId?: string; resolv
 const severityLabel: Record<string, string> = { fatal: '致命', serious: '严重', general: '一般', minor: '轻微' }
 const priorityLabel: Record<string, string> = { high: '高', medium: '中', low: '低' }
 const statusLabel = BUG_STATUS_LABEL
-const severityType: Record<string, 'danger' | 'warning' | 'success' | 'info'> = { fatal: 'danger', serious: 'warning', general: 'info', minor: 'success' }
+const severityType: Record<string, 'primary' | 'danger' | 'warning' | 'info'> = { fatal: 'danger', serious: 'warning', general: 'primary', minor: 'info' }
+const priorityType: Record<string, 'primary' | 'warning' | 'info'> = { high: 'warning', medium: 'primary', low: 'info' }
 
 async function loadBugs() {
   loading.value = true
@@ -523,6 +524,9 @@ onMounted(loadBugs)
 
     <el-card v-if="viewMode === 'list'" v-loading="loading" shadow="never">
       <el-table :data="bugs" row-key="id">
+        <el-table-column label="ID" width="110">
+          <template #default="{ row }">{{ formatShortId(row.id) }}</template>
+        </el-table-column>
         <el-table-column label="标题" min-width="200">
           <template #default="{ row }">
             <el-link type="primary" :underline="false" @click="router.push(`/workspace/projects/bugs/${row.id}`)">{{ row.title }}</el-link>
@@ -537,7 +541,9 @@ onMounted(loadBugs)
           </template>
         </el-table-column>
         <el-table-column label="优先级" width="80">
-          <template #default="{ row }">{{ priorityLabel[row.priority] }}</template>
+          <template #default="{ row }">
+            <el-tag :type="priorityType[row.priority]" size="small" effect="light" round>{{ priorityLabel[row.priority] }}</el-tag>
+          </template>
         </el-table-column>
         <el-table-column label="状态" width="130">
           <template #default="{ row }">

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatDate, formatDateTime, formatShortDateTime } from './format'
+import { formatDate, formatDateTime, formatShortDateTime, formatShortId } from './format'
 
 const pad = (n: number): string => String(n).padStart(2, '0')
 
@@ -59,5 +59,22 @@ describe('formatShortDateTime UTC 转本地时区', () => {
     expect(formatShortDateTime(null)).toBe('-')
     expect(formatShortDateTime(undefined)).toBe('-')
     expect(formatShortDateTime('not-a-date')).toBe('-')
+  })
+})
+
+describe('formatShortId ID 缩略', () => {
+  it('长 ID 输出前 4 + ... + 后 4', () => {
+    expect(formatShortId('01234567-89ab-cdef-0123-456789abcdef')).toBe('0123...cdef')
+  })
+
+  it('长度不足 8 时原样返回', () => {
+    expect(formatShortId('abcd1234')).toBe('abcd1234')
+    expect(formatShortId('abc')).toBe('abc')
+  })
+
+  it('空值返回占位符', () => {
+    expect(formatShortId(null)).toBe('-')
+    expect(formatShortId(undefined)).toBe('-')
+    expect(formatShortId('')).toBe('-')
   })
 })

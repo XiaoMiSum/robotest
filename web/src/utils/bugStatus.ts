@@ -9,9 +9,9 @@ export const BUG_STATUS_LABEL: Record<BugStatus, string> = {
   closed: '已关闭',
 }
 
-/** 缺陷状态标签颜色（el-tag type），与状态语义对应：激活待处理红、已修复绿、已拒绝橙、已关闭灰 */
-export const BUG_STATUS_TAG_TYPE: Record<BugStatus, 'danger' | 'success' | 'warning' | 'info'> = {
-  active: 'danger',
+/** 缺陷状态标签颜色（el-tag type），与状态语义对应：激活普通蓝、已修复绿、已拒绝橙、已关闭灰 */
+export const BUG_STATUS_TAG_TYPE: Record<BugStatus, 'primary' | 'danger' | 'success' | 'warning' | 'info'> = {
+  active: 'primary',
   resolved: 'success',
   rejected: 'warning',
   closed: 'info',

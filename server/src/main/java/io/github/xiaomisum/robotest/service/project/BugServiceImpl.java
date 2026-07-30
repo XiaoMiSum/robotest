@@ -83,6 +83,12 @@ public class BugServiceImpl implements BugService {
             if (bug.getResolvedBy() != null) {
                 dto.setResolvedBy(BugConvertMapper.INSTANCE.toUserInfo(userMapper.selectById(bug.getResolvedBy())));
             }
+            if (bug.getRejectedBy() != null) {
+                dto.setRejectedBy(BugConvertMapper.INSTANCE.toUserInfo(userMapper.selectById(bug.getRejectedBy())));
+            }
+            if (bug.getClosedBy() != null) {
+                dto.setClosedBy(BugConvertMapper.INSTANCE.toUserInfo(userMapper.selectById(bug.getClosedBy())));
+            }
             return dto;
         }).collect(Collectors.toList());
 

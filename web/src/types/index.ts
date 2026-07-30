@@ -530,20 +530,32 @@ export type BugResolution =
 /** 缺陷列表项 */
 export interface BugListItem {
   id: string
+  projectId: string
   title: string
   severity: BugSeverity
   priority: BugPriority
   status: BugStatus
   bugType: BugType
+  reproSteps: string | null
+  moduleId: string | null
+  keywords: string | null
   confirmed: boolean
+  reopenCount: number
+  lastReopenedAt: string | null
   resolution: BugResolution | null
+  duplicateOfBugId: string | null
   dueDate: string | null
+  relatedCaseId: string | null
+  relatedPlanId: string | null
   reporter: { id: string; name: string }
   assignee: { id: string; name: string } | null
   resolvedBy: { id: string; name: string } | null
   resolvedAt: string | null
+  rejectedBy: { id: string; name: string } | null
+  closedBy: { id: string; name: string } | null
   closedAt: string | null
   createdAt: string
+  updatedAt: string
 }
 
 /** 缺陷详情 */

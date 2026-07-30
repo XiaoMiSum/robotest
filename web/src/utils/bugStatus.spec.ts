@@ -47,7 +47,7 @@ describe('bugStatus 四态状态机', () => {
 
   it('状态颜色映射覆盖全部状态且语义对应', () => {
     expect(Object.keys(BUG_STATUS_TAG_TYPE)).toEqual(Object.keys(BUG_STATUS_LABEL))
-    expect(BUG_STATUS_TAG_TYPE.active).toBe('danger')
+    expect(BUG_STATUS_TAG_TYPE.active).toBe('primary')
     expect(BUG_STATUS_TAG_TYPE.resolved).toBe('success')
     expect(BUG_STATUS_TAG_TYPE.rejected).toBe('warning')
     expect(BUG_STATUS_TAG_TYPE.closed).toBe('info')
