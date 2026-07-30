@@ -170,6 +170,8 @@ function openCaseDocument() {
 const severityLabel: Record<string, string> = { fatal: '致命', serious: '严重', general: '一般', minor: '轻微' }
 const priorityLabel: Record<string, string> = { high: '高', medium: '中', low: '低' }
 const severityType: Record<string, 'danger' | 'warning' | 'success' | 'info'> = { fatal: 'danger', serious: 'warning', general: 'info', minor: 'success' }
+// 优先级标签配色与缺陷列表保持一致
+const priorityType: Record<string, 'primary' | 'warning' | 'info'> = { high: 'warning', medium: 'primary', low: 'info' }
 const statusLabel = BUG_STATUS_LABEL
 
 async function load() {
@@ -529,7 +531,9 @@ onMounted(() => {
                 <el-select v-if="!isClosed" v-model="form.priority">
                   <el-option v-for="(label, key) in priorityLabel" :key="key" :label="label" :value="key" />
                 </el-select>
-                <span v-else class="bug-detail__text">{{ priorityLabel[detail.priority] }}</span>
+                <el-tag v-else :type="priorityType[detail.priority]" size="small" effect="light" round>
+                  {{ priorityLabel[detail.priority] }}
+                </el-tag>
               </el-form-item>
               <el-form-item label="截止日期">
                 <el-date-picker
