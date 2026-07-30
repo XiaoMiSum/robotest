@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatDate, formatDateTime, formatShortDateTime, formatShortId } from './format'
+import { formatDate, formatDateTime, formatShortDateTime, formatShortId, truncateText } from './format'
 
 const pad = (n: number): string => String(n).padStart(2, '0')
 
@@ -76,5 +76,25 @@ describe('formatShortId ID 缩略', () => {
     expect(formatShortId(null)).toBe('-')
     expect(formatShortId(undefined)).toBe('-')
     expect(formatShortId('')).toBe('-')
+  })
+})
+
+describe('truncateText 文本缩略', () => {
+  it('超过上限时截断并追加省略号', () => {
+    expect(truncateText('这是一个超过十三个字符的缺陷标题文本', 13)).toBe('这是一个超过十三个字符的缺…')
+  })
+
+  it('恰好等于上限时原样返回', () => {
+    expect(truncateText('a'.repeat(13), 13)).toBe('a'.repeat(13))
+  })
+
+  it('未超过上限时原样返回', () => {
+    expect(truncateText('短标题', 13)).toBe('短标题')
+  })
+
+  it('空值返回占位符', () => {
+    expect(truncateText(null, 13)).toBe('-')
+    expect(truncateText(undefined, 13)).toBe('-')
+    expect(truncateText('', 13)).toBe('-')
   })
 })

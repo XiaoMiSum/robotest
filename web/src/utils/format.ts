@@ -42,3 +42,10 @@ export function formatShortId(value?: string | null): string {
   if (value.length <= 8) return value
   return `${value.slice(0, 4)}...${value.slice(-4)}`
 }
+
+/** 文本缩略展示：超过 max 个字符时截断并追加省略号，用于列表窄列场景 */
+export function truncateText(value: string | null | undefined, max: number): string {
+  if (!value) return '-'
+  if (value.length <= max) return value
+  return `${value.slice(0, max)}…`
+}
