@@ -606,24 +606,42 @@ onMounted(loadBugs)
           <span class="bug-board__col-title">{{ statusLabel[status] }}</span>
           <span class="bug-board__col-count">{{ boardColumns[status].total }}</span>
         </div>
-        <div class="bug-board__col-body" @scroll.passive="handleBoardScroll(status, $event)">
-          <div
-            v-for="bug in boardColumns[status].list"
-            :key="bug.id"
-            class="bug-board__card"
-            draggable="true"
-            @dragstart="handleDragStart(bug)"
-            @dragend="handleDragEnd"
-            @click="router.push(`/workspace/projects/bugs/${bug.id}`)"
+        <div class="bug-board__col-body">
+          <DynamicSizeList
+            v-if="boardColumns[status].list.length"
+            :data="boardColumns[status].list"
+            :total="boardColumns[status].list.length"
+            :item-size="boardItemSize"
+            :estimated-item-size="BOARD_CARD_SIZE"
+            :height="boardBodyHeight"
+            :cache="4"
+            class="bug-board__vlist"
+            @end-reached="(direction: string) => handleBoardEndReached(status, direction)"
           >
-            <div class="bug-board__card-title">{{ bug.title }}</div>
-            <div class="bug-board__card-meta">
-              <el-tag :type="severityType[bug.severity]" size="small" effect="light" round>{{ severityLabel[bug.severity] }}</el-tag>
-              <span v-if="bug.assignee" class="bug-board__card-assignee">{{ bug.assignee.name }}</span>
-            </div>
-          </div>
+            <template #default="{ index, style }: { index: number; style: CSSProperties }">
+              <div v-if="boardColumns[status].list[index]" class="bug-board__vitem" :style="style">
+                <div
+                  class="bug-board__card"
+                  draggable="true"
+                  @dragstart="handleDragStart(boardColumns[status].list[index])"
+                  @dragend="handleDragEnd"
+                  @click="router.push(`/workspace/projects/bugs/${boardColumns[status].list[index].id}`)"
+                >
+                  <div class="bug-board__card-title">{{ boardColumns[status].list[index].title }}</div>
+                  <div class="bug-board__card-meta">
+                    <el-tag :type="severityType[boardColumns[status].list[index].severity]" size="small" effect="light" round>
+                      {{ severityLabel[boardColumns[status].list[index].severity] }}
+                    </el-tag>
+                    <span v-if="boardColumns[status].list[index].assignee" class="bug-board__card-assignee">
+                      {{ boardColumns[status].list[index].assignee?.name }}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </template>
+          </DynamicSizeList>
+          <el-empty v-else-if="!boardColumns[status].loading" description="" :image-size="30" />
           <div v-if="boardColumns[status].loading" class="bug-board__col-loading">加载中…</div>
-          <el-empty v-if="!boardColumns[status].list.length && !boardColumns[status].loading" description="" :image-size="30" />
         </div>
       </div>
     </div>
@@ -756,23 +774,52 @@ onMounted(loadBugs)
 }
 
 .bug-board__col-body {
-  padding: var(--space-sm);
   flex: 1;
-  overflow-y: auto;
+  // 承载虚拟列表，自身不滚动；相对定位用于锚定底部加载条
+  overflow: hidden;
+  position: relative;
+}
+
+// 虚拟列表容器撑满列体宽度，隐藏自带滚动条（保留滚动能力）避免与卡片区视觉冲突
+.bug-board__vlist,
+.bug-board__vlist :deep(.el-vl__window) {
+  width: 100%;
+}
+
+.bug-board__vlist :deep(.el-vl__window) {
+  scrollbar-width: none;
+}
+
+.bug-board__vlist :deep(.el-vl__window)::-webkit-scrollbar {
+  display: none;
+}
+
+// 虚拟列表项绝对定位，底部内边距形成卡片间距，横向内边距形成列体留白
+.bug-board__vitem {
+  box-sizing: border-box;
+  padding: 0 var(--space-sm) var(--space-sm);
 }
 
 .bug-board__col-loading {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
   text-align: center;
   font-size: var(--font-size-2xs);
   color: var(--color-neutral-400);
   padding: var(--space-xs) 0;
+  background: var(--color-neutral-50);
 }
 
 .bug-board__card {
   background: var(--color-neutral-0);
   border-radius: var(--radius-md);
   padding: var(--space-sm) var(--space-md);
-  margin-bottom: var(--space-sm);
+  // 卡片填满虚拟列表项高度，内容溢出裁剪以维持恒定行高
+  height: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
   cursor: grab;
   border: 1px solid var(--color-neutral-200);
   transition: all var(--transition-fast);
