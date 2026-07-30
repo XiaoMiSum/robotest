@@ -61,6 +61,12 @@ function goMyProjects() {
   navStore.setMode('workspace')
 }
 
+// 我的空间固定回空间列表；goHome 是 logo 的"回当前上下文首页"语义，两者不可复用
+function goMyWorkspaces() {
+  router.push('/workspaces')
+  navStore.setMode('none')
+}
+
 function goWorkspaceManage() {
   if (authStore.activeWorkspace?.id) {
     router.push(`/workspace/${authStore.activeWorkspace.id}`)
@@ -113,7 +119,7 @@ function handleUserCommand(cmd: string) {
       </nav>
 
       <div class="top-nav__icons">
-        <div v-if="authStore.hasWorkspace" class="top-nav__icon-btn" @click="goHome">
+        <div v-if="authStore.hasWorkspace" class="top-nav__icon-btn" @click="goMyWorkspaces">
           <el-icon><FolderOpened /></el-icon>
           <span>我的空间</span>
         </div>
