@@ -274,27 +274,31 @@ onMounted(() => {
 
 <template>
   <div v-loading="loading" class="bug-detail">
-    <el-page-header @back="router.push('/workspace/projects/bugs')">
-      <template #content>
-        <div v-if="detail" class="bug-detail__header-bar">
-          <el-tag type="info" effect="light" round class="bug-detail__id-tag">{{ formatShortId(detail.id) }}</el-tag>
-          <el-input
-            v-if="!isClosed"
-            v-model="form.title"
-            class="bug-detail__title-input"
-            placeholder="缺陷标题"
-            maxlength="300"
-          />
-          <span v-else class="bug-detail__title-text">{{ detail.title }}</span>
-          <el-tag :type="BUG_STATUS_TAG_TYPE[detail.status]" effect="dark" round>{{ statusLabel[detail.status] }}</el-tag>
-          <el-tag :type="detail.reopenCount > 0 ? 'danger' : 'info'" effect="plain" round>激活 {{ detail.reopenCount }} 次</el-tag>
-          <el-button type="primary" @click="router.push('/workspace/projects/bugs/create')">
-            <el-icon><Plus /></el-icon>新增Bug
-          </el-button>
-        </div>
-        <span v-else class="bug-detail__page-title">缺陷详情</span>
-      </template>
-    </el-page-header>
+    <div class="bug-detail__topbar">
+      <el-page-header class="bug-detail__back" @back="router.push('/workspace/projects/bugs')">
+        <template #content>
+          <div v-if="detail" class="bug-detail__header-bar">
+            <el-tag type="info" effect="light" round class="bug-detail__id-tag">{{ formatShortId(detail.id) }}</el-tag>
+            <el-input
+              v-if="!isClosed"
+              v-model="form.title"
+              class="bug-detail__title-input"
+              placeholder="缺陷标题"
+              maxlength="300"
+            />
+            <span v-else class="bug-detail__title-text">{{ detail.title }}</span>
+          </div>
+          <span v-else class="bug-detail__page-title">缺陷详情</span>
+        </template>
+      </el-page-header>
+      <div v-if="detail" class="bug-detail__topbar-right">
+        <el-tag :type="BUG_STATUS_TAG_TYPE[detail.status]" effect="dark" round>{{ statusLabel[detail.status] }}</el-tag>
+        <el-tag :type="detail.reopenCount > 0 ? 'danger' : 'info'" effect="plain" round>激活 {{ detail.reopenCount }} 次</el-tag>
+        <el-button type="primary" @click="router.push('/workspace/projects/bugs/create')">
+          <el-icon><Plus /></el-icon>新增Bug
+        </el-button>
+      </div>
+    </div>
 
     <template v-if="detail">
       <div class="bug-detail__layout">
@@ -472,10 +476,29 @@ onMounted(() => {
   color: var(--color-neutral-800);
 }
 
-// 页面标题区承载 ID/标题/状态等信息，须让 content 撑满剩余宽度
-.bug-detail :deep(.el-page-header__content) {
+// 顶栏自控 flex 布局：page-header 内 content 撑满受组件内部结构影响不可靠，
+// 右侧组独立于 page-header 放置，保证状态/激活次数/新增按钮始终贴最右
+.bug-detail__topbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.bug-detail__back {
   flex: 1;
-  overflow: hidden;
+  min-width: 0;
+}
+
+.bug-detail__back :deep(.el-page-header__content) {
+  flex: 1;
+  min-width: 0;
+}
+
+.bug-detail__topbar-right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-shrink: 0;
 }
 
 .bug-detail__header-bar {
@@ -620,20 +643,23 @@ onMounted(() => {
   font-size: var(--font-size-xs);
 }
 
-// 底部粘性操作栏，正文滚动时状态操作与保存始终可见
+// 底部粘性操作栏：透明背景居中悬浮，栏体不拦截点击，仅按钮可交互
 .bug-detail__footer {
   position: sticky;
   bottom: 0;
   z-index: 10;
   display: flex;
-  justify-content: flex-end;
+  justify-content: center;
   gap: var(--space-sm);
   margin-top: var(--space-lg);
   padding: var(--space-md) var(--space-lg);
-  background: var(--color-neutral-0);
-  border: 1px solid var(--color-neutral-200);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-md);
+  background: transparent;
+  pointer-events: none;
+
+  .el-button {
+    pointer-events: auto;
+    box-shadow: var(--shadow-md);
+  }
 }
 
 </style>
