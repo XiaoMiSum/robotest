@@ -12,6 +12,7 @@ import io.github.xiaomisum.robotest.model.entity.admin.SysUser;
 import io.github.xiaomisum.robotest.model.entity.workspace.Workspace;
 import io.github.xiaomisum.robotest.model.entity.workspace.WorkspaceUser;
 import io.github.xiaomisum.robotest.repository.admin.SysUserMapper;
+import io.github.xiaomisum.robotest.repository.workspace.ProjectMapper;
 import io.github.xiaomisum.robotest.repository.workspace.WorkspaceMapper;
 import io.github.xiaomisum.robotest.repository.workspace.WorkspaceUserMapper;
 import jakarta.annotation.Resource;
@@ -37,6 +38,8 @@ public class WorkspaceServiceImpl implements WorkspaceService {
     private WorkspaceUserMapper workspaceUserMapper;
     @Resource
     private SysUserMapper userMapper;
+    @Resource
+    private ProjectMapper projectMapper;
 
     @Override
     public PageResult<WorkspaceRespDTO> getWorkspacePage(String keyword, String status, Integer pageNo, Integer pageSize) {
@@ -54,7 +57,7 @@ public class WorkspaceServiceImpl implements WorkspaceService {
             dto.setStatus(ws.getStatus());
             dto.setCreatedAt(ws.getCreatedAt());
             dto.setMemberCount(workspaceUserMapper.countByWorkspaceId(ws.getId()));
-            dto.setProjectCount(0L);
+            dto.setProjectCount(projectMapper.countByWorkspaceId(ws.getId()));
             return dto;
         }).collect(Collectors.toList());
 
@@ -87,7 +90,7 @@ public class WorkspaceServiceImpl implements WorkspaceService {
         dto.setStatus(workspace.getStatus());
         dto.setCreatedAt(workspace.getCreatedAt());
         dto.setMemberCount(workspaceUserMapper.countByWorkspaceId(workspace.getId()));
-        dto.setProjectCount(0L);
+        dto.setProjectCount(projectMapper.countByWorkspaceId(workspace.getId()));
         return dto;
     }
 
