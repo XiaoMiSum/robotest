@@ -314,8 +314,8 @@ onMounted(() => {
         </el-tab-pane>
 
         <el-tab-pane v-if="canViewInvitation" label="邀请链接" name="invitations">
-          <div class="member-page__toolbar">
-            <el-button v-if="canManageInvitation" type="primary" size="small" @click="openCreateDialog">
+          <div class="member-page__toolbar member-page__toolbar--end">
+            <el-button v-if="canManageInvitation" type="primary" @click="openCreateDialog">
               <el-icon><Link /></el-icon>创建邀请链接
             </el-button>
           </div>
@@ -424,6 +424,11 @@ onMounted(() => {
   align-items: center;
   gap: var(--space-md);
   margin-bottom: var(--space-md);
+}
+
+// 邀请链接工具栏仅有创建按钮，靠右放置
+.member-page__toolbar--end {
+  justify-content: flex-end;
 }
 
 .member-page__toolbar-spacer {
