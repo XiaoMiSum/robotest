@@ -20,6 +20,9 @@ public class BugListRespDTO {
     private LocalDate dueDate;
     private UserInfo reporter;
     private UserInfo assignee;
+    private UserInfo resolvedBy;
+    private LocalDateTime resolvedAt;
+    private LocalDateTime closedAt;
     private LocalDateTime createdAt;
 
     @Data

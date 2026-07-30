@@ -540,6 +540,9 @@ export interface BugListItem {
   dueDate: string | null
   reporter: { id: string; name: string }
   assignee: { id: string; name: string } | null
+  resolvedBy: { id: string; name: string } | null
+  resolvedAt: string | null
+  closedAt: string | null
   createdAt: string
 }
 

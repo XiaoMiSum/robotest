@@ -7,8 +7,9 @@ import { assignBug, changeBugStatus, confirmBug, fetchBugs } from '@/services/pr
 import { fetchMembers } from '@/services/workspace'
 import { useAuthStore } from '@/stores/auth'
 import type { BugListItem, BugPriority, BugResolution, BugSeverity, BugStatus, BugType, WorkspaceMember } from '@/types'
-import { formatDateTime } from '@/utils/format'
+import { formatShortDateTime } from '@/utils/format'
 import {
+  BUG_RESOLUTION_LABEL,
   BUG_STATUS_LABEL,
   BUG_STATUS_TAG_TYPE,
   BUG_TYPE_LABEL,
@@ -550,8 +551,20 @@ onMounted(loadBugs)
         <el-table-column label="处理人" width="100">
           <template #default="{ row }">{{ row.assignee?.name ?? '-' }}</template>
         </el-table-column>
-        <el-table-column label="创建时间" width="160">
-          <template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template>
+        <el-table-column label="解决人" width="100">
+          <template #default="{ row }">{{ row.resolvedBy?.name ?? '-' }}</template>
+        </el-table-column>
+        <el-table-column label="解决时间" width="110">
+          <template #default="{ row }">{{ formatShortDateTime(row.resolvedAt) }}</template>
+        </el-table-column>
+        <el-table-column label="解决方案" width="100">
+          <template #default="{ row }">{{ row.resolution ? BUG_RESOLUTION_LABEL[row.resolution as BugResolution] : '-' }}</template>
+        </el-table-column>
+        <el-table-column label="关闭时间" width="110">
+          <template #default="{ row }">{{ formatShortDateTime(row.closedAt) }}</template>
+        </el-table-column>
+        <el-table-column label="创建时间" width="110">
+          <template #default="{ row }">{{ formatShortDateTime(row.createdAt) }}</template>
         </el-table-column>
         <el-table-column label="操作" width="250" fixed="right">
           <template #default="{ row }">

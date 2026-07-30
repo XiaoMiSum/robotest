@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatDate, formatDateTime } from './format'
+import { formatDate, formatDateTime, formatShortDateTime } from './format'
 
 const pad = (n: number): string => String(n).padStart(2, '0')
 
@@ -43,5 +43,21 @@ describe('formatDate UTC 转本地时区', () => {
     expect(formatDate(null)).toBe('-')
     expect(formatDate(undefined)).toBe('-')
     expect(formatDate('not-a-date')).toBe('-')
+  })
+})
+
+describe('formatShortDateTime UTC 转本地时区', () => {
+  it('无时区标识的后端字符串按 UTC 解析后输出省略年份的本地时间', () => {
+    expect(formatShortDateTime('2026-01-15T08:30:00')).toBe(expectedLocal(2026, 1, 15, 8, 30).slice(5))
+  })
+
+  it('无时区标识与显式 Z 后缀结果一致', () => {
+    expect(formatShortDateTime('2026-07-29T02:00:00')).toBe(formatShortDateTime('2026-07-29T02:00:00Z'))
+  })
+
+  it('空值与非法值返回占位符', () => {
+    expect(formatShortDateTime(null)).toBe('-')
+    expect(formatShortDateTime(undefined)).toBe('-')
+    expect(formatShortDateTime('not-a-date')).toBe('-')
   })
 })
