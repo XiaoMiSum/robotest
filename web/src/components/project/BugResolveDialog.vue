@@ -13,7 +13,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   'update:modelValue': [value: boolean]
-  confirm: [payload: { resolution: BugResolution; duplicateOfBugId?: string; comment?: string }]
+  confirm: [payload: { resolution: BugResolution; duplicateOfBugId?: string; comment: string }]
 }>()
 
 const form = reactive({
@@ -54,10 +54,14 @@ function handleConfirm() {
     ElMessage.warning('请选择重复的原始缺陷')
     return
   }
+  if (!form.comment.trim()) {
+    ElMessage.warning('请填写备注说明')
+    return
+  }
   emit('confirm', {
     resolution: form.resolution,
     duplicateOfBugId: form.resolution === 'duplicate' ? form.duplicateOfBugId : undefined,
-    comment: form.comment.trim() || undefined,
+    comment: form.comment.trim(),
   })
   emit('update:modelValue', false)
 }
@@ -72,7 +76,7 @@ function handleConfirm() {
   >
     <el-form label-width="96px">
       <el-form-item label="解决方案" required>
-        <el-select v-model="form.resolution" style="width: 240px">
+        <el-select v-model="form.resolution" class="bug-resolve__control">
           <el-option
             v-for="(label, key) in BUG_RESOLUTION_LABEL"
             :key="key"
@@ -89,13 +93,13 @@ function handleConfirm() {
           :remote-method="searchBugs"
           :loading="searching"
           placeholder="搜索并选择原始缺陷"
-          style="width: 320px"
+          class="bug-resolve__control"
         >
           <el-option v-for="b in duplicateOptions" :key="b.id" :label="b.title" :value="b.id" />
         </el-select>
       </el-form-item>
-      <el-form-item label="备注">
-        <el-input v-model="form.comment" type="textarea" :rows="3" placeholder="解决说明（选填）" />
+      <el-form-item label="备注" required>
+        <el-input v-model="form.comment" type="textarea" :rows="3" placeholder="请填写解决说明" class="bug-resolve__control" />
       </el-form-item>
     </el-form>
     <template #footer>
@@ -104,3 +108,10 @@ function handleConfirm() {
     </template>
   </el-dialog>
 </template>
+
+<style scoped lang="scss">
+// 弹窗表单元素统一撑满，保持对齐
+.bug-resolve__control {
+  width: 100%;
+}
+</style>

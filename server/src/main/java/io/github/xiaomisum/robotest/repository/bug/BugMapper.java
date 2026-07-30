@@ -20,7 +20,8 @@ public interface BugMapper extends BaseMapperX<Bug> {
     }
 
     default PageResult<Bug> findPage(PageParam pageParam, UUID projectId, String status, String severity,
-                                      String priority, String bugType, UUID assigneeId, String keyword) {
+                                      String priority, String bugType, UUID assigneeId,
+                                      UUID reporterId, UUID resolvedBy, UUID closedBy, String keyword) {
         LambdaQueryWrapperX<Bug> wrapper = new LambdaQueryWrapperX<Bug>()
                 .eq(Bug::getProjectId, projectId);
         if (StringUtils.hasText(status)) {
@@ -37,6 +38,15 @@ public interface BugMapper extends BaseMapperX<Bug> {
         }
         if (assigneeId != null) {
             wrapper.eq(Bug::getAssigneeId, assigneeId);
+        }
+        if (reporterId != null) {
+            wrapper.eq(Bug::getReporterId, reporterId);
+        }
+        if (resolvedBy != null) {
+            wrapper.eq(Bug::getResolvedBy, resolvedBy);
+        }
+        if (closedBy != null) {
+            wrapper.eq(Bug::getClosedBy, closedBy);
         }
         if (StringUtils.hasText(keyword)) {
             wrapper.like(Bug::getTitle, keyword);

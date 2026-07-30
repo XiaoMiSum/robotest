@@ -502,8 +502,8 @@ export type BugSeverity = 'fatal' | 'serious' | 'general' | 'minor'
 /** 缺陷优先级 */
 export type BugPriority = 'high' | 'medium' | 'low'
 
-/** 缺陷状态（禅道式三态） */
-export type BugStatus = 'active' | 'resolved' | 'closed'
+/** 缺陷状态（禅道式三态 + 已拒绝） */
+export type BugStatus = 'active' | 'resolved' | 'rejected' | 'closed'
 
 /** 缺陷类型 */
 export type BugType =

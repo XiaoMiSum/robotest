@@ -66,12 +66,13 @@ public class BugServiceImpl implements BugService {
 
     @Override
     public PageResult<BugListRespDTO> getBugPage(UUID projectId, String status, String severity,
-                                             String priority, String bugType, UUID assigneeId, String keyword,
+                                             String priority, String bugType, UUID assigneeId,
+                                             UUID reporterId, UUID resolvedBy, UUID closedBy, String keyword,
                                              Integer pageNo, Integer pageSize) {
         PageResult<Bug> page = bugMapper.findPage(new PageParam() {{
             setPageNo(pageNo);
             setPageSize(pageSize);
-        }}, projectId, status, severity, priority, bugType, assigneeId, keyword);
+        }}, projectId, status, severity, priority, bugType, assigneeId, reporterId, resolvedBy, closedBy, keyword);
 
         List<BugListRespDTO> dtos = page.getList().stream().map(bug -> {
             BugListRespDTO dto = BugConvertMapper.INSTANCE.toListRespDTO(bug);
@@ -209,6 +210,7 @@ public class BugServiceImpl implements BugService {
 
         switch (targetStatus) {
             case Constants.BugStatus.RESOLVED -> resolveBug(bug, userId, reqDTO);
+            case Constants.BugStatus.REJECTED -> rejectBug(bug, userId, reqDTO.getComment());
             case Constants.BugStatus.CLOSED -> closeBug(bug, userId, reqDTO.getComment());
             case Constants.BugStatus.ACTIVE -> reopenBug(bug, userId, reqDTO.getComment());
             default -> throw ServiceExceptionUtil.get(ErrorCodeConstants.BUG_INVALID_STATUS_TRANSITION);
@@ -216,7 +218,7 @@ public class BugServiceImpl implements BugService {
     }
 
     /**
-     * 解决缺陷：必填合法 resolution，duplicate 需指定同项目且非自身的原始缺陷
+     * 解决缺陷：必填合法 resolution 与备注说明，duplicate 需指定同项目且非自身的原始缺陷
      */
     private void resolveBug(Bug bug, UUID userId, BugStatusChangeReqDTO reqDTO) {
         String resolution = reqDTO.getResolution();
@@ -225,6 +227,9 @@ public class BugServiceImpl implements BugService {
         }
         if (!VALID_RESOLUTIONS.contains(resolution)) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.BUG_RESOLUTION_INVALID);
+        }
+        if (!StringUtils.hasText(reqDTO.getComment())) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.BUG_RESOLVE_COMMENT_REQUIRED);
         }
 
         UUID duplicateOfBugId = null;
@@ -245,6 +250,23 @@ public class BugServiceImpl implements BugService {
         writeBugLog(bug.getId(), userId, Constants.BugOperation.RESOLVE,
                 String.format("解决缺陷，方案「%s」%s", resolution,
                         StringUtils.hasText(reqDTO.getComment()) ? "，说明：" + reqDTO.getComment() : ""));
+    }
+
+    /**
+     * 拒绝缺陷：必填拒绝说明，处理人回设为创建人，由创建人决定重新激活或关闭
+     */
+    private void rejectBug(Bug bug, UUID userId, String comment) {
+        if (!StringUtils.hasText(comment)) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.BUG_REJECT_COMMENT_REQUIRED);
+        }
+
+        Bug update = new Bug();
+        update.setId(bug.getId());
+        update.setStatus(Constants.BugStatus.REJECTED);
+        update.setAssigneeId(bug.getReporterId());
+        bugMapper.updateById(update);
+
+        writeBugLog(bug.getId(), userId, Constants.BugOperation.REJECT, "拒绝缺陷，说明：" + comment);
     }
 
     /**
@@ -397,10 +419,11 @@ public class BugServiceImpl implements BugService {
     }
 
     private boolean isValidTransition(String currentStatus, String targetStatus) {
-        // 三态状态机：active → resolved → closed，重开：resolved/closed → active
+        // 四态状态机：active → resolved/rejected → closed，重开：resolved/rejected/closed → active
         Map<String, Set<String>> transitions = Map.of(
-                Constants.BugStatus.ACTIVE, Set.of(Constants.BugStatus.RESOLVED),
+                Constants.BugStatus.ACTIVE, Set.of(Constants.BugStatus.RESOLVED, Constants.BugStatus.REJECTED),
                 Constants.BugStatus.RESOLVED, Set.of(Constants.BugStatus.CLOSED, Constants.BugStatus.ACTIVE),
+                Constants.BugStatus.REJECTED, Set.of(Constants.BugStatus.CLOSED, Constants.BugStatus.ACTIVE),
                 Constants.BugStatus.CLOSED, Set.of(Constants.BugStatus.ACTIVE)
         );
         Set<String> allowed = transitions.getOrDefault(currentStatus, Set.of());

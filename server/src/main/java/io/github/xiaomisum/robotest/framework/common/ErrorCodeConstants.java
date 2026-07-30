@@ -90,4 +90,6 @@ public static final ErrorCode BUG_ALREADY_CONFIRMED = ErrorCode.of(1000012016, "
 public static final ErrorCode BUG_CONFIRM_INVALID_STATUS = ErrorCode.of(1000012017, "仅激活状态的缺陷可确认");
 public static final ErrorCode BUG_TYPE_INVALID = ErrorCode.of(1000012018, "缺陷类型不合法");
 public static final ErrorCode BUG_CLOSED_EDIT_FORBIDDEN = ErrorCode.of(1000012019, "缺陷已关闭，不可编辑");
+    public static final ErrorCode BUG_RESOLVE_COMMENT_REQUIRED = ErrorCode.of(1000012020, "解决缺陷时必须填写备注说明");
+    public static final ErrorCode BUG_REJECT_COMMENT_REQUIRED = ErrorCode.of(1000012021, "拒绝缺陷时必须填写说明");
 }

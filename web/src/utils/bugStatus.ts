@@ -5,7 +5,16 @@ import type { BugResolution, BugStatus, BugType } from '@/types'
 export const BUG_STATUS_LABEL: Record<BugStatus, string> = {
   active: '激活',
   resolved: '已修复',
+  rejected: '已拒绝',
   closed: '已关闭',
+}
+
+/** 缺陷状态标签颜色（el-tag type），与状态语义对应：激活待处理红、已修复绿、已拒绝橙、已关闭灰 */
+export const BUG_STATUS_TAG_TYPE: Record<BugStatus, 'danger' | 'success' | 'warning' | 'info'> = {
+  active: 'danger',
+  resolved: 'success',
+  rejected: 'warning',
+  closed: 'info',
 }
 
 /** 缺陷类型标签 */
@@ -34,8 +43,9 @@ export const BUG_RESOLUTION_LABEL: Record<BugResolution, string> = {
 
 // 与后端 BugServiceImpl.isValidTransition 保持一致，避免非法流转请求
 const BUG_STATUS_TRANSITIONS: Record<BugStatus, BugStatus[]> = {
-  active: ['resolved'],
+  active: ['resolved', 'rejected'],
   resolved: ['closed', 'active'],
+  rejected: ['closed', 'active'],
   closed: ['active'],
 }
 
@@ -46,12 +56,12 @@ export function getValidTargetStatuses(current: BugStatus): BugStatus[] {
 
 /** 是否为重开（激活）操作 */
 export function isReopen(current: BugStatus, target: BugStatus): boolean {
-  return target === 'active' && (current === 'resolved' || current === 'closed')
+  return target === 'active' && (current === 'resolved' || current === 'rejected' || current === 'closed')
 }
 
-/** 关闭与重开时后端强制要求说明；解决走 BugResolveDialog 单独处理 */
+/** 关闭/拒绝与重开时后端强制要求说明；解决走 BugResolveDialog 单独处理 */
 export function isCommentRequired(current: BugStatus, target: BugStatus): boolean {
-  return target === 'closed' || isReopen(current, target)
+  return target === 'closed' || target === 'rejected' || isReopen(current, target)
 }
 
 /**
