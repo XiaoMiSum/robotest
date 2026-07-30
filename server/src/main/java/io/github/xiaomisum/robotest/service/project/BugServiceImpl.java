@@ -196,10 +196,30 @@ public class BugServiceImpl implements BugService {
             validateAssigneeInWorkspace(bug.getProjectId(), reqDTO.getAssigneeId());
             update.setAssigneeId(reqDTO.getAssigneeId());
         }
+        // 关联字段三态：null=不修改、空串=清空、UUID 串=更新
+        boolean clearCase = "".equals(reqDTO.getRelatedCaseId());
+        boolean clearPlan = "".equals(reqDTO.getRelatedPlanId());
+        if (StringUtils.hasText(reqDTO.getRelatedCaseId())) {
+            update.setRelatedCaseId(parseRelationId(reqDTO.getRelatedCaseId()));
+        }
+        if (StringUtils.hasText(reqDTO.getRelatedPlanId())) {
+            update.setRelatedPlanId(parseRelationId(reqDTO.getRelatedPlanId()));
+        }
         // status 不再通过 updateBug 修改，须走 changeBugStatus 状态机
         bugMapper.updateById(update);
+        if (clearCase || clearPlan) {
+            bugMapper.clearRelationById(bugId, clearCase, clearPlan);
+        }
 
         writeBugLog(bugId, userId, Constants.BugOperation.UPDATE, "更新缺陷");
+    }
+
+    private UUID parseRelationId(String value) {
+        try {
+            return UUID.fromString(value);
+        } catch (IllegalArgumentException e) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.BUG_RELATION_INVALID);
+        }
     }
 
     @Override

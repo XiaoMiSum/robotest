@@ -98,6 +98,16 @@ public interface BugMapper extends BaseMapperX<Bug> {
                 .eq(Bug::getStatus, Constants.BugStatus.ACTIVE));
     }
 
+    /**
+     * 清空关联用例/计划；updateById 会忽略 null 字段，置空须走 set null。调用方需保证至少一个为 true
+     */
+    default void clearRelationById(UUID id, boolean clearCase, boolean clearPlan) {
+        update(null, new LambdaUpdateWrapperX<Bug>()
+                .eq(Bug::getId, id)
+                .set(clearCase, Bug::getRelatedCaseId, null)
+                .set(clearPlan, Bug::getRelatedPlanId, null));
+    }
+
     default List<Bug> findRecentBugs(UUID projectId, int limit) {
         return selectList(new LambdaQueryWrapperX<Bug>()
                 .eq(Bug::getProjectId, projectId)

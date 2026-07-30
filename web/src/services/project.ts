@@ -315,6 +315,9 @@ export function updateBug(
     keywords?: string
     dueDate?: string
     assigneeId?: string | null
+    // 三态语义：undefined=不修改、空串=清空、UUID 串=更新
+    relatedCaseId?: string
+    relatedPlanId?: string
   },
 ): Promise<void> {
   return put(`/project/bugs/${id}`, data)

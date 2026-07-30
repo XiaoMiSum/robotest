@@ -317,6 +317,76 @@ class BugServiceImplTest {
         verify(bugMapper, never()).reopenById(any(), anyInt(), any());
     }
 
+    @Test
+    void updateBug_setRelation_success() {
+        Bug bug = activeBug();
+        when(bugMapper.selectById(bugId)).thenReturn(bug);
+
+        UUID caseId = UUID.fromString("00000000-0000-0000-0000-000000000006");
+        UUID planId = UUID.fromString("00000000-0000-0000-0000-000000000007");
+        BugUpdateReqDTO reqDTO = new BugUpdateReqDTO();
+        reqDTO.setRelatedCaseId(caseId.toString());
+        reqDTO.setRelatedPlanId(planId.toString());
+
+        bugService.updateBug(bugId, userId, reqDTO);
+
+        ArgumentCaptor<Bug> captor = ArgumentCaptor.forClass(Bug.class);
+        verify(bugMapper).updateById(captor.capture());
+        assertEquals(caseId, captor.getValue().getRelatedCaseId());
+        assertEquals(planId, captor.getValue().getRelatedPlanId());
+        verify(bugMapper, never()).clearRelationById(any(), anyBoolean(), anyBoolean());
+    }
+
+    @Test
+    void updateBug_clearRelation_success() {
+        Bug bug = activeBug();
+        when(bugMapper.selectById(bugId)).thenReturn(bug);
+
+        // 空串语义 = 清空关联
+        BugUpdateReqDTO reqDTO = new BugUpdateReqDTO();
+        reqDTO.setRelatedCaseId("");
+        reqDTO.setRelatedPlanId("");
+
+        bugService.updateBug(bugId, userId, reqDTO);
+
+        ArgumentCaptor<Bug> captor = ArgumentCaptor.forClass(Bug.class);
+        verify(bugMapper).updateById(captor.capture());
+        assertNull(captor.getValue().getRelatedCaseId());
+        assertNull(captor.getValue().getRelatedPlanId());
+        verify(bugMapper).clearRelationById(bugId, true, true);
+    }
+
+    @Test
+    void updateBug_relationNotProvided_untouched() {
+        Bug bug = activeBug();
+        when(bugMapper.selectById(bugId)).thenReturn(bug);
+
+        // null 语义 = 不修改关联
+        BugUpdateReqDTO reqDTO = new BugUpdateReqDTO();
+        reqDTO.setTitle("New Title");
+
+        bugService.updateBug(bugId, userId, reqDTO);
+
+        ArgumentCaptor<Bug> captor = ArgumentCaptor.forClass(Bug.class);
+        verify(bugMapper).updateById(captor.capture());
+        assertNull(captor.getValue().getRelatedCaseId());
+        assertNull(captor.getValue().getRelatedPlanId());
+        verify(bugMapper, never()).clearRelationById(any(), anyBoolean(), anyBoolean());
+    }
+
+    @Test
+    void updateBug_invalidRelationId_throws() {
+        Bug bug = activeBug();
+        when(bugMapper.selectById(bugId)).thenReturn(bug);
+
+        BugUpdateReqDTO reqDTO = new BugUpdateReqDTO();
+        reqDTO.setRelatedCaseId("not-a-uuid");
+
+        assertThrows(ServiceException.class,
+                () -> bugService.updateBug(bugId, userId, reqDTO));
+        verify(bugMapper, never()).updateById(any(Bug.class));
+    }
+
     // ========== getBugDetail ==========
 
     @Test

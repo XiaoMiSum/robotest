@@ -29,5 +29,15 @@ public class BugUpdateReqDTO {
 
     private UUID assigneeId;
 
+    /**
+     * 关联用例，三态语义：null=不修改、空串=清空、UUID 串=更新
+     */
+    private String relatedCaseId;
+
+    /**
+     * 关联计划，三态语义：null=不修改、空串=清空、UUID 串=更新
+     */
+    private String relatedPlanId;
+
     // status 字段已移除，状态变更请通过 changeBugStatus 接口
 }
