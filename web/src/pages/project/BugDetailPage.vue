@@ -24,10 +24,11 @@ import type {
   TestCaseModule,
   WorkspaceMember,
 } from '@/types'
-import { formatDateTime } from '@/utils/format'
+import { formatDateTime, formatShortId } from '@/utils/format'
 import {
   BUG_RESOLUTION_LABEL,
   BUG_STATUS_LABEL,
+  BUG_STATUS_TAG_TYPE,
   BUG_TYPE_LABEL,
   promptStatusChangeComment,
 } from '@/utils/bugStatus'
@@ -274,48 +275,28 @@ onMounted(() => {
 <template>
   <div v-loading="loading" class="bug-detail">
     <el-page-header @back="router.push('/workspace/projects/bugs')">
-      <template #content><span class="bug-detail__page-title">缺陷详情</span></template>
+      <template #content>
+        <div v-if="detail" class="bug-detail__header-bar">
+          <el-tag type="info" effect="light" round class="bug-detail__id-tag">{{ formatShortId(detail.id) }}</el-tag>
+          <el-input
+            v-if="!isClosed"
+            v-model="form.title"
+            class="bug-detail__title-input"
+            placeholder="缺陷标题"
+            maxlength="300"
+          />
+          <span v-else class="bug-detail__title-text">{{ detail.title }}</span>
+          <el-tag :type="BUG_STATUS_TAG_TYPE[detail.status]" effect="dark" round>{{ statusLabel[detail.status] }}</el-tag>
+          <el-tag :type="detail.reopenCount > 0 ? 'danger' : 'info'" effect="plain" round>激活 {{ detail.reopenCount }} 次</el-tag>
+          <el-button type="primary" @click="router.push('/workspace/projects/bugs/create')">
+            <el-icon><Plus /></el-icon>新增Bug
+          </el-button>
+        </div>
+        <span v-else class="bug-detail__page-title">缺陷详情</span>
+      </template>
     </el-page-header>
 
     <template v-if="detail">
-      <el-card shadow="never" class="bug-detail__header">
-        <div class="bug-detail__status-bar">
-          <el-tag :type="isActive ? 'danger' : isResolved ? 'success' : isRejected ? 'warning' : 'info'" effect="dark" round>
-            {{ statusLabel[detail.status] }}
-          </el-tag>
-          <el-tag v-if="detail.confirmed" size="small" type="warning" effect="plain" round>已确认</el-tag>
-          <el-tag v-if="detail.reopenCount > 0" size="small" type="danger" effect="plain" round>
-            重开 {{ detail.reopenCount }} 次
-          </el-tag>
-          <span class="bug-detail__status-spacer" />
-          <el-button v-if="isActive && !detail.confirmed" size="small" @click="handleConfirm">确认</el-button>
-          <el-button v-if="isActive" size="small" type="success" @click="resolveDialogVisible = true">解决</el-button>
-          <el-button v-if="isActive" size="small" type="warning" @click="handleReject">拒绝</el-button>
-          <el-button v-if="isResolved || isRejected" size="small" type="info" @click="handleClose">关闭</el-button>
-          <el-button v-if="isResolved || isRejected || isClosed" size="small" type="danger" @click="handleReopen">激活</el-button>
-          <el-button v-if="!isClosed" size="small" type="primary" :loading="saving" @click="handleSave">保存</el-button>
-        </div>
-
-        <el-input
-          v-if="!isClosed"
-          v-model="form.title"
-          class="bug-detail__title-input"
-          placeholder="缺陷标题"
-          maxlength="300"
-        />
-        <h2 v-else class="bug-detail__title-text">{{ detail.title }}</h2>
-
-        <div class="bug-detail__meta">
-          <span>{{ detail.reporter.name }} 创建于 {{ formatDateTime(detail.createdAt) }}</span>
-          <span class="bug-detail__meta-divider" />
-          <span>更新于 {{ formatDateTime(detail.updatedAt) }}</span>
-          <template v-if="detail.lastReopenedAt">
-            <span class="bug-detail__meta-divider" />
-            <span>最近重开于 {{ formatDateTime(detail.lastReopenedAt) }}</span>
-          </template>
-        </div>
-      </el-card>
-
       <div class="bug-detail__layout">
         <div class="bug-detail__main">
           <el-card shadow="never">
@@ -465,6 +446,15 @@ onMounted(() => {
           </el-card>
         </div>
       </div>
+
+      <div class="bug-detail__footer">
+        <el-button v-if="isActive && !detail.confirmed" @click="handleConfirm">确认</el-button>
+        <el-button v-if="isActive" type="success" @click="resolveDialogVisible = true">解决</el-button>
+        <el-button v-if="isActive" type="warning" @click="handleReject">拒绝</el-button>
+        <el-button v-if="isResolved || isRejected" type="info" @click="handleClose">关闭</el-button>
+        <el-button v-if="isResolved || isRejected || isClosed" type="danger" @click="handleReopen">激活</el-button>
+        <el-button v-if="!isClosed" type="primary" :loading="saving" @click="handleSave">保存</el-button>
+      </div>
     </template>
 
     <BugResolveDialog
@@ -482,26 +472,34 @@ onMounted(() => {
   color: var(--color-neutral-800);
 }
 
-.bug-detail__header {
-  margin-top: var(--space-lg);
+// 页面标题区承载 ID/标题/状态等信息，须让 content 撑满剩余宽度
+.bug-detail :deep(.el-page-header__content) {
+  flex: 1;
+  overflow: hidden;
 }
 
-.bug-detail__status-bar {
+.bug-detail__header-bar {
   display: flex;
   align-items: center;
   gap: var(--space-sm);
-  margin-bottom: var(--space-md);
+  width: 100%;
 }
 
-.bug-detail__status-spacer {
-  flex: 1;
+.bug-detail__id-tag {
+  flex-shrink: 0;
+  font-family: var(--font-family-mono, monospace);
 }
 
 // 标题弱化输入框边框，聚焦时才显现，兼顾展示观感与可编辑性
+.bug-detail__title-input {
+  flex: 1;
+  min-width: 0;
+}
+
 .bug-detail__title-input :deep(.el-input__wrapper) {
   box-shadow: none;
   padding-left: 0;
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 700;
   color: var(--color-neutral-900);
   transition: box-shadow var(--transition-fast);
@@ -514,32 +512,22 @@ onMounted(() => {
 }
 
 .bug-detail__title-input :deep(.el-input__inner) {
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 700;
   color: var(--color-neutral-900);
 }
 
 .bug-detail__title-text {
+  flex: 1;
+  min-width: 0;
   margin: 0;
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 700;
   color: var(--color-neutral-900);
   line-height: 32px;
-}
-
-.bug-detail__meta {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-  margin-top: var(--space-sm);
-  font-size: var(--font-size-2xs);
-  color: var(--color-neutral-400);
-}
-
-.bug-detail__meta-divider {
-  width: 1px;
-  height: 10px;
-  background: var(--color-neutral-200);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .bug-detail__layout {
@@ -631,4 +619,21 @@ onMounted(() => {
   margin-left: var(--space-sm);
   font-size: var(--font-size-xs);
 }
+
+// 底部粘性操作栏，正文滚动时状态操作与保存始终可见
+.bug-detail__footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 10;
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-sm);
+  margin-top: var(--space-lg);
+  padding: var(--space-md) var(--space-lg);
+  background: var(--color-neutral-0);
+  border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+}
+
 </style>
