@@ -430,14 +430,16 @@ async function handleAssignConfirm() {
   }
 }
 
-function hasMoreActions(bug: BugListItem): boolean {
-  return bug.status !== 'closed'
-}
-
 function handleMoreAction(command: string, bug: BugListItem) {
   if (command === 'confirm') handleConfirmBug(bug)
   else if (command === 'reopen') handleStatusAction(bug, 'active', '缺陷已激活')
   else if (command === 'assign') openAssignDialog(bug)
+  else if (command === 'copy') handleCopyBug(bug)
+}
+
+// 复制走新增页回填：经 query 传源 id，刷新后仍可恢复填充
+function handleCopyBug(bug: BugListItem) {
+  router.push({ path: '/workspace/projects/bugs/create', query: { copyFrom: bug.id } })
 }
 
 // 切换视图时刷新对应数据源，看板数据与列表分页相互独立
@@ -598,7 +600,6 @@ onMounted(loadBugs)
             <el-button v-if="row.status === 'resolved' || row.status === 'rejected'" link type="info" @click="handleStatusAction(row as BugListItem, 'closed', '缺陷已关闭')">关闭</el-button>
             <el-button v-if="row.status === 'closed'" link type="danger" @click="handleStatusAction(row as BugListItem, 'active', '缺陷已激活')">激活</el-button>
             <el-dropdown
-              v-if="hasMoreActions(row as BugListItem)"
               class="bug-page__more"
               @command="(cmd: string) => handleMoreAction(cmd, row as BugListItem)"
             >
@@ -607,7 +608,8 @@ onMounted(loadBugs)
                 <el-dropdown-menu>
                   <el-dropdown-item v-if="row.status === 'active' && !row.confirmed" command="confirm">确认</el-dropdown-item>
                   <el-dropdown-item v-if="row.status === 'resolved' || row.status === 'rejected'" command="reopen">激活</el-dropdown-item>
-                  <el-dropdown-item command="assign">指派</el-dropdown-item>
+                  <el-dropdown-item v-if="row.status !== 'closed'" command="assign">指派</el-dropdown-item>
+                  <el-dropdown-item command="copy">复制</el-dropdown-item>
                 </el-dropdown-menu>
               </template>
             </el-dropdown>
