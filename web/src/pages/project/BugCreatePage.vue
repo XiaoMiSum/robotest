@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { reactive, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, type FormInstance, type FormRules, type UploadUserFile } from 'element-plus'
-import { createBug, fetchModuleTree, fetchPlans, uploadBugAttachment } from '@/services/project'
+import { createBug, fetchModuleTree, fetchPlans, getBugDetail, uploadBugAttachment } from '@/services/project'
 import { fetchMembers } from '@/services/workspace'
 import type {
   BugPriority,
@@ -16,6 +16,7 @@ import { BUG_TYPE_LABEL } from '@/utils/bugStatus'
 import CaseSelector from '@/components/project/CaseSelector.vue'
 import MarkdownEditor from '@/components/common/MarkdownEditor.vue'
 
+const route = useRoute()
 const router = useRouter()
 const formRef = ref<FormInstance>()
 const submitting = ref(false)
@@ -62,7 +63,31 @@ async function loadPlanOptions() {
     planOptions.value = page.list
   } catch { /* ignore */ }
 }
-loadPlanOptions()
+
+// 列表"复制"入口经 ?copyFrom= 回填源缺陷信息，处理人不复制由提交人重新指派
+async function applyCopySource() {
+  const copyFrom = String(route.query.copyFrom ?? '')
+  if (!copyFrom) return
+  try {
+    const src = await getBugDetail(copyFrom)
+    form.title = src.title
+    form.bugType = src.bugType
+    form.moduleId = src.moduleId ?? ''
+    form.severity = src.severity
+    form.priority = src.priority
+    form.dueDate = src.dueDate ?? ''
+    form.keywords = src.keywords ?? ''
+    form.reproSteps = src.reproSteps ?? ''
+    form.relatedCaseId = src.relatedCaseId ?? ''
+    if (form.relatedCaseId) selectedCaseTitle.value = '已选 1 个用例'
+    // 计划下拉仅含进行中的计划，源计划已结束时放弃回填避免下拉显示原始 id
+    const planId = src.relatedPlanId ?? ''
+    form.relatedPlanId = planOptions.value.some((p) => p.id === planId) ? planId : ''
+  } catch (err) {
+    ElMessage.error(err instanceof Error ? err.message : '加载源缺陷信息失败')
+  }
+}
+loadPlanOptions().then(applyCopySource)
 
 const rules: FormRules = {
   title: [{ required: true, message: '请输入缺陷标题', trigger: 'blur' }],
