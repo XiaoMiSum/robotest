@@ -12,8 +12,8 @@ import io.github.xiaomisum.robotest.model.dto.response.admin.RoleSimpleRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.admin.RoleWorkspaceUserRespDTO;
 import io.github.xiaomisum.robotest.model.entity.admin.SysPermission;
 import io.github.xiaomisum.robotest.model.entity.admin.SysRole;
-import io.github.xiaomisum.robotest.model.entity.admin.SysUserRole;
 import io.github.xiaomisum.robotest.model.entity.admin.SysUser;
+import io.github.xiaomisum.robotest.model.entity.admin.SysUserRole;
 import io.github.xiaomisum.robotest.model.entity.workspace.Workspace;
 import io.github.xiaomisum.robotest.model.entity.workspace.WorkspaceUser;
 import io.github.xiaomisum.robotest.repository.admin.SysPermissionMapper;
@@ -26,6 +26,7 @@ import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -50,16 +51,19 @@ public class RoleServiceImpl implements RoleService {
 
     @Override
     public List<RoleSimpleRespDTO> getRoleList(String type) {
-        List<SysRole> roles = roleMapper.selectList(SysRole::getType, type);
+        List<SysRole> roles = roleMapper.listByType(type);
+        if (roles.isEmpty()) {
+            return List.of();
+        }
+
+        // 一次查出所有角色的用户关系并分组计数，避免逐角色 selectCount 造成 N+1 查询
+        List<UUID> roleIds = roles.stream().map(SysRole::getId).collect(Collectors.toList());
+        Map<UUID, Long> userCountMap = userRoleMapper.listByRoleIds(roleIds).stream()
+                .collect(Collectors.groupingBy(SysUserRole::getRoleId, Collectors.counting()));
 
         return roles.stream().map(role -> {
-            RoleSimpleRespDTO node = new RoleSimpleRespDTO();
-            node.setId(role.getId());
-            node.setName(role.getName());
-            node.setType(role.getType());
-            node.setIsSystem(role.getIsSystem());
-            node.setFullAccess(role.getFullAccess());
-            node.setUserCount(Math.toIntExact(userRoleMapper.selectCount(SysUserRole::getRoleId, role.getId())));
+            RoleSimpleRespDTO node = RoleConvertMapper.INSTANCE.toSimpleRespDTO(role);
+            node.setUserCount(Math.toIntExact(userCountMap.getOrDefault(role.getId(), 0L)));
             return node;
         }).collect(Collectors.toList());
     }
