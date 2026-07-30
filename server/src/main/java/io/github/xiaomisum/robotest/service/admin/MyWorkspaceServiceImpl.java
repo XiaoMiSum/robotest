@@ -6,6 +6,7 @@ import io.github.xiaomisum.robotest.model.entity.admin.SysUser;
 import io.github.xiaomisum.robotest.model.entity.workspace.Workspace;
 import io.github.xiaomisum.robotest.model.entity.workspace.WorkspaceUser;
 import io.github.xiaomisum.robotest.repository.admin.SysUserMapper;
+import io.github.xiaomisum.robotest.repository.workspace.ProjectMapper;
 import io.github.xiaomisum.robotest.repository.workspace.WorkspaceMapper;
 import io.github.xiaomisum.robotest.repository.workspace.WorkspaceUserMapper;
 import jakarta.annotation.Resource;
@@ -28,6 +29,8 @@ public class MyWorkspaceServiceImpl implements MyWorkspaceService {
     private WorkspaceMapper workspaceMapper;
     @Resource
     private WorkspaceUserMapper workspaceUserMapper;
+    @Resource
+    private ProjectMapper projectMapper;
 
     @Override
     public PageResult<WorkspaceMyRespDTO> getMyWorkspacePage(UUID userId, Integer pageNo, Integer pageSize) {
@@ -71,7 +74,7 @@ public class MyWorkspaceServiceImpl implements MyWorkspaceService {
             }
 
             dto.setMemberCount(memberCountMap.getOrDefault(wu.getWorkspaceId(), 0L));
-            dto.setProjectCount(0L);
+            dto.setProjectCount(projectMapper.countByWorkspaceId(wu.getWorkspaceId()));
             return dto;
         }).collect(Collectors.toList());
 
