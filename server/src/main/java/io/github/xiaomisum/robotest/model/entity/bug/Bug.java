@@ -39,6 +39,8 @@ public class Bug extends BaseUuidDO<Bug> {
     private UUID resolvedBy;
     private LocalDateTime resolvedAt;
     @TableField(typeHandler = UUIDTypeHandler.class)
+    private UUID rejectedBy;
+    @TableField(typeHandler = UUIDTypeHandler.class)
     private UUID closedBy;
     private LocalDateTime closedAt;
     @TableField(typeHandler = UUIDTypeHandler.class)

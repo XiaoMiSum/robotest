@@ -80,6 +80,9 @@ public class BugServiceImpl implements BugService {
             if (bug.getAssigneeId() != null) {
                 dto.setAssignee(BugConvertMapper.INSTANCE.toUserInfo(userMapper.selectById(bug.getAssigneeId())));
             }
+            if (bug.getResolvedBy() != null) {
+                dto.setResolvedBy(BugConvertMapper.INSTANCE.toUserInfo(userMapper.selectById(bug.getResolvedBy())));
+            }
             return dto;
         }).collect(Collectors.toList());
 
@@ -245,7 +248,8 @@ public class BugServiceImpl implements BugService {
             }
         }
 
-        bugMapper.resolveById(bug.getId(), userId, resolution, duplicateOfBugId);
+        // 修复完成后交回创建人验证，处理人回设为创建人
+        bugMapper.resolveById(bug.getId(), userId, resolution, duplicateOfBugId, bug.getReporterId());
 
         writeBugLog(bug.getId(), userId, Constants.BugOperation.RESOLVE,
                 String.format("解决缺陷，方案「%s」%s", resolution,
@@ -264,6 +268,8 @@ public class BugServiceImpl implements BugService {
         update.setId(bug.getId());
         update.setStatus(Constants.BugStatus.REJECTED);
         update.setAssigneeId(bug.getReporterId());
+        // 记录拒绝人，重开时处理人回设给他
+        update.setRejectedBy(userId);
         bugMapper.updateById(update);
 
         writeBugLog(bug.getId(), userId, Constants.BugOperation.REJECT, "拒绝缺陷，说明：" + comment);
@@ -288,7 +294,8 @@ public class BugServiceImpl implements BugService {
     }
 
     /**
-     * 重开（激活）缺陷：必填说明，计数累加并清空解决/关闭信息
+     * 重开（激活）缺陷：必填说明，计数累加并清空解决/关闭信息。
+     * 处理人流转：已修复重开给修复人，已拒绝重开给拒绝人（reopenById 会清空两者，须先取值）
      */
     private void reopenBug(Bug bug, UUID userId, String comment) {
         if (!StringUtils.hasText(comment)) {
@@ -296,7 +303,8 @@ public class BugServiceImpl implements BugService {
         }
 
         int nextReopenCount = bug.getReopenCount() == null ? 1 : bug.getReopenCount() + 1;
-        bugMapper.reopenById(bug.getId(), nextReopenCount);
+        UUID nextAssigneeId = bug.getResolvedBy() != null ? bug.getResolvedBy() : bug.getRejectedBy();
+        bugMapper.reopenById(bug.getId(), nextReopenCount, nextAssigneeId);
 
         writeBugLog(bug.getId(), userId, Constants.BugOperation.REOPEN, "重开缺陷，说明：" + comment);
     }

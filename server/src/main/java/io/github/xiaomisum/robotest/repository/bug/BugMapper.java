@@ -59,7 +59,7 @@ public interface BugMapper extends BaseMapperX<Bug> {
         return selectList(new LambdaQueryWrapperX<Bug>().eq(Bug::getProjectId, projectId));
     }
 
-    default void resolveById(UUID id, UUID userId, String resolution, UUID duplicateOfBugId) {
+    default void resolveById(UUID id, UUID userId, String resolution, UUID duplicateOfBugId, UUID assigneeId) {
         update(null, new LambdaUpdateWrapperX<Bug>()
                 .eq(Bug::getId, id)
                 .set(Bug::getStatus, Constants.BugStatus.RESOLVED)
@@ -67,10 +67,11 @@ public interface BugMapper extends BaseMapperX<Bug> {
                 .set(Bug::getResolution, resolution)
                 .set(Bug::getDuplicateOfBugId, duplicateOfBugId)
                 .set(Bug::getResolvedBy, userId)
-                .set(Bug::getResolvedAt, LocalDateTime.now()));
+                .set(Bug::getResolvedAt, LocalDateTime.now())
+                .set(Bug::getAssigneeId, assigneeId));
     }
 
-    default void reopenById(UUID id, int reopenCount) {
+    default void reopenById(UUID id, int reopenCount, UUID assigneeId) {
         update(null, new LambdaUpdateWrapperX<Bug>()
                 .eq(Bug::getId, id)
                 .set(Bug::getStatus, Constants.BugStatus.ACTIVE)
@@ -79,9 +80,12 @@ public interface BugMapper extends BaseMapperX<Bug> {
                 .set(Bug::getDuplicateOfBugId, null)
                 .set(Bug::getResolvedBy, null)
                 .set(Bug::getResolvedAt, null)
+                .set(Bug::getRejectedBy, null)
                 .set(Bug::getClosedBy, null)
                 .set(Bug::getClosedAt, null)
-                .set(Bug::getLastReopenedAt, LocalDateTime.now()));
+                .set(Bug::getLastReopenedAt, LocalDateTime.now())
+                // 处理人流转：无可追溯的修复/拒绝人时保持原处理人不变
+                .set(assigneeId != null, Bug::getAssigneeId, assigneeId));
     }
 
     default long countOpenBugs(UUID projectId) {
