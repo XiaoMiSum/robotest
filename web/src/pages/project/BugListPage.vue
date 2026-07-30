@@ -463,7 +463,7 @@ onMounted(loadBugs)
     <el-card shadow="never" class="bug-page__filters" :class="{ 'bug-page__filters--sticky': viewMode === 'list' }">
       <el-form :inline="true" class="bug-page__filter-form" @submit.prevent>
         <el-form-item>
-          <el-radio-group v-model="quickFilter" size="small" @change="handleSearch">
+          <el-radio-group v-model="quickFilter" @change="handleSearch">
             <el-radio-button v-for="opt in quickFilterOptions" :key="opt.value" :value="opt.value">
               {{ opt.label }}
             </el-radio-button>
@@ -522,7 +522,7 @@ onMounted(loadBugs)
         </el-form-item>
         <el-form-item class="bug-page__filter-spacer" />
         <el-form-item>
-          <el-radio-group v-model="viewMode" size="small">
+          <el-radio-group v-model="viewMode">
             <el-radio-button value="list">列表</el-radio-button>
             <el-radio-button value="board">看板</el-radio-button>
           </el-radio-group>
@@ -546,9 +546,9 @@ onMounted(loadBugs)
             <el-link
               type="primary"
               :underline="false"
-              :title="row.title.length > 13 ? row.title : undefined"
+              :title="row.title.length > 18 ? row.title : undefined"
               @click="router.push(`/workspace/projects/bugs/${row.id}`)"
-              >{{ truncateText(row.title, 13) }}</el-link
+              >{{ truncateText(row.title, 18) }}</el-link
             >
           </template>
         </el-table-column>
@@ -592,7 +592,7 @@ onMounted(loadBugs)
         <el-table-column label="创建时间" width="110">
           <template #default="{ row }">{{ formatShortDateTime(row.createdAt) }}</template>
         </el-table-column>
-        <el-table-column label="操作" width="230" fixed="right">
+        <el-table-column label="操作" width="210" fixed="right">
           <template #default="{ row }">
             <el-button link type="primary" @click="router.push(`/workspace/projects/bugs/${row.id}`)">详情</el-button>
             <el-button v-if="row.status === 'active'" link type="success" @click="openResolveDialog(row as BugListItem)">解决</el-button>
