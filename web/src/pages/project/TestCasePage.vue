@@ -1,9 +1,14 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { onBeforeRouteLeave } from 'vue-router'
+import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import { ElMessageBox } from 'element-plus'
 import ModuleTree from '@/components/project/ModuleTree.vue'
 import CaseMindMap from '@/components/project/CaseMindMap.vue'
+import { fetchModuleTree } from '@/services/project'
+import type { TestCaseModule } from '@/types'
+
+const route = useRoute()
+const router = useRouter()
 
 const selectedDocId = ref('')
 const selectedDocName = ref('')
@@ -12,6 +17,27 @@ function handleSelectDocument(docId: string, docName: string) {
   selectedDocId.value = docId
   selectedDocName.value = docName
 }
+
+function findDocument(nodes: TestCaseModule[], id: string): TestCaseModule | null {
+  for (const n of nodes) {
+    if (n.id === id && n.type === 'document') return n
+    const found = findDocument(n.children ?? [], id)
+    if (found) return found
+  }
+  return null
+}
+
+// 外部跳转（如缺陷关联用例）经 ?documentId= 直达文档；消费后清除参数，避免刷新/切换文档后状态过期
+async function openDocumentFromQuery() {
+  const docId = String(route.query.documentId ?? '')
+  if (!docId) return
+  router.replace({ query: { ...route.query, documentId: undefined } })
+  try {
+    const doc = findDocument(await fetchModuleTree(), docId)
+    if (doc) handleSelectDocument(doc.id, doc.name)
+  } catch { /* 文档不存在或加载失败时停留在空态 */ }
+}
+openDocumentFromQuery()
 
 // 处于文档中时离开需二次确认，防止误触打断编辑（切换文档的确认在 ModuleTree 内）；
 // 供路由守卫与父组件（功能测试页子页面切换不走路由）共用，文案与判断单点维护
