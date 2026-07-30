@@ -448,7 +448,7 @@ onMounted(loadBugs)
 <template>
   <div class="bug-page">
 
-    <el-card shadow="never" class="bug-page__filters">
+    <el-card shadow="never" class="bug-page__filters" :class="{ 'bug-page__filters--sticky': viewMode === 'list' }">
       <el-form :inline="true" class="bug-page__filter-form" @submit.prevent>
         <el-form-item>
           <el-radio-group v-model="quickFilter" size="small" @change="handleSearch">
@@ -690,6 +690,13 @@ onMounted(loadBugs)
 <style scoped lang="scss">
 .bug-page__filters {
   margin-bottom: var(--space-lg);
+}
+
+// 仅列表模式粘性悬浮：长列表滚动后筛选/搜索/操作仍随时可用；看板列内自滚动无需悬浮
+.bug-page__filters--sticky {
+  position: sticky;
+  top: 0;
+  z-index: 10;
 }
 
 .bug-page__filters :deep(.el-form-item) {
