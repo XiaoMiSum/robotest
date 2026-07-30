@@ -13,6 +13,7 @@ import {
   fetchPlans,
   getBugDetail,
   getBugLogs,
+  getCaseDetail,
   updateBug,
   uploadBugAttachment,
 } from '@/services/project'
@@ -22,7 +23,9 @@ import type {
   BugDetail,
   BugLog,
   BugResolution,
+  CaseNodeType,
   TestCaseModule,
+  TestCaseNode,
   TestPlanListItem,
   WorkspaceMember,
 } from '@/types'
@@ -97,6 +100,75 @@ function handleCaseSelected(nodes: { documentId: string; caseIds: string[] }[]) 
   if (nodes.length && nodes[0].caseIds.length) {
     form.relatedCaseId = nodes[0].caseIds[0]
   }
+}
+
+// ==================== 关联用例悬停明细 ====================
+
+// 编辑态跟随表单值，关闭态（只读）跟随详情值
+const currentRelatedCaseId = computed(() =>
+  isClosed.value ? (detail.value?.relatedCaseId ?? '') : form.relatedCaseId,
+)
+
+// 类型徽标文案与配色与 CaseSelectTree / 脑图徽标保持一致
+const TYPE_BADGES: Record<string, { label: string; color: string }> = {
+  case: { label: '用例', color: '#a464ff' },
+  precondition: { label: '前置', color: '#409eff' },
+  step: { label: '步骤', color: '#67c23a' },
+  expected: { label: '预期', color: '#e6a23c' },
+}
+
+const caseDetail = ref<TestCaseNode | null>(null)
+const caseDetailLoading = ref(false)
+// 首次悬停懒加载并按 id 缓存，更换关联后自动重取
+async function loadCaseDetail() {
+  const id = currentRelatedCaseId.value
+  if (!id || caseDetail.value?.id === id || caseDetailLoading.value) return
+  caseDetailLoading.value = true
+  caseDetail.value = null
+  try {
+    caseDetail.value = await getCaseDetail(id)
+  } catch {
+    // 用例可能已被删除，popover 内展示空态兜底
+  } finally {
+    caseDetailLoading.value = false
+  }
+}
+
+// 子孙节点扁平化为带缩进的行，避免在模板里递归
+const caseDetailRows = computed(() => {
+  const rows: { id: string; depth: number; type: CaseNodeType; title: string }[] = []
+  function walk(node: TestCaseNode, depth: number) {
+    node.children.forEach((child) => {
+      rows.push({ id: child.id, depth, type: child.type, title: child.title })
+      walk(child, depth + 1)
+    })
+  }
+  if (caseDetail.value) walk(caseDetail.value, 0)
+  return rows
+})
+
+function findModuleName(nodes: TestCaseModule[], id: string): string | null {
+  for (const n of nodes) {
+    if (n.id === id) return n.name
+    const found = findModuleName(n.children ?? [], id)
+    if (found) return found
+  }
+  return null
+}
+
+const caseDocName = computed(() => {
+  const docId = caseDetail.value?.documentId
+  if (!docId) return ''
+  return findModuleName(moduleTree.value, docId) ?? ''
+})
+
+function openCaseDocument() {
+  const docId = caseDetail.value?.documentId
+  if (!docId) return
+  router.push({
+    path: '/workspace/projects/functional-testing',
+    query: { tab: 'cases', documentId: docId },
+  })
 }
 
 const severityLabel: Record<string, string> = { fatal: '致命', serious: '严重', general: '一般', minor: '轻微' }
@@ -485,16 +557,70 @@ onMounted(() => {
                 <span v-else class="bug-detail__text">{{ detail.assignee?.name ?? '-' }}</span>
               </el-form-item>
               <el-form-item label="关联用例">
-                <div v-if="!isClosed" class="bug-detail__relation">
-                  <span class="bug-detail__text">{{ form.relatedCaseId ? '已关联 1 个用例' : '未关联' }}</span>
-                  <el-button size="small" @click="caseSelectorVisible = true">
-                    {{ form.relatedCaseId ? '更换' : '选择用例' }}
-                  </el-button>
-                  <el-button v-if="form.relatedCaseId" size="small" link type="danger" @click="form.relatedCaseId = ''">
-                    清除
-                  </el-button>
+                <div class="bug-detail__relation">
+                  <el-popover
+                    v-if="currentRelatedCaseId"
+                    placement="left-start"
+                    :width="380"
+                    trigger="hover"
+                    @before-enter="loadCaseDetail"
+                  >
+                    <template #reference>
+                      <span class="bug-detail__text bug-detail__case-trigger">已关联 1 个用例</span>
+                    </template>
+                    <div v-loading="caseDetailLoading" class="bug-detail__case-pop">
+                      <template v-if="caseDetail">
+                        <div class="bug-detail__case-pop-header">
+                          <span class="bug-detail__case-pop-title">{{ caseDetail.title }}</span>
+                          <span
+                            v-if="caseDetail.priority"
+                            class="bug-detail__case-pop-priority"
+                            :class="`bug-detail__case-pop-priority--${caseDetail.priority.toLowerCase()}`"
+                          >
+                            {{ caseDetail.priority }}
+                          </span>
+                        </div>
+                        <div v-if="caseDocName" class="bug-detail__case-pop-doc">所属文档：{{ caseDocName }}</div>
+                        <div v-if="caseDetailRows.length" class="bug-detail__case-pop-body">
+                          <div
+                            v-for="row in caseDetailRows"
+                            :key="row.id"
+                            class="bug-detail__case-pop-row"
+                            :style="{ paddingLeft: `${row.depth * 14}px` }"
+                          >
+                            <span
+                              v-if="TYPE_BADGES[row.type]"
+                              class="bug-detail__case-pop-type"
+                              :style="{ background: TYPE_BADGES[row.type].color }"
+                            >
+                              {{ TYPE_BADGES[row.type].label }}
+                            </span>
+                            <span class="bug-detail__case-pop-text">{{ row.title }}</span>
+                          </div>
+                        </div>
+                        <div class="bug-detail__case-pop-footer">
+                          <el-link type="primary" :underline="false" @click="openCaseDocument">
+                            <el-icon><Position /></el-icon>打开所在文档
+                          </el-link>
+                        </div>
+                      </template>
+                      <el-empty
+                        v-else-if="!caseDetailLoading"
+                        description="用例不存在或已删除"
+                        :image-size="40"
+                      />
+                    </div>
+                  </el-popover>
+                  <span v-else class="bug-detail__text">{{ isClosed ? '-' : '未关联' }}</span>
+                  <template v-if="!isClosed">
+                    <el-button size="small" @click="caseSelectorVisible = true">
+                      {{ form.relatedCaseId ? '更换' : '选择用例' }}
+                    </el-button>
+                    <el-button v-if="form.relatedCaseId" size="small" link type="danger" @click="form.relatedCaseId = ''">
+                      清除
+                    </el-button>
+                  </template>
                 </div>
-                <span v-else class="bug-detail__text">{{ detail.relatedCaseId ? '已关联 1 个用例' : '-' }}</span>
               </el-form-item>
               <el-form-item label="关联计划">
                 <el-select v-if="!isClosed" v-model="form.relatedPlanId" filterable clearable placeholder="选择计划（可选）">
@@ -679,6 +805,99 @@ onMounted(() => {
 
   .bug-detail__text {
     flex: 1;
+  }
+}
+
+// 悬停触发元素加虚线下划线提示可交互
+.bug-detail__case-trigger {
+  cursor: pointer;
+  color: var(--el-color-primary);
+  text-decoration: underline dashed;
+  text-underline-offset: 3px;
+}
+
+.bug-detail__case-pop {
+  min-height: 60px;
+}
+
+.bug-detail__case-pop-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.bug-detail__case-pop-title {
+  font-weight: 600;
+  font-size: var(--font-size-sm);
+  color: var(--color-neutral-800);
+  flex: 1;
+  min-width: 0;
+  word-break: break-all;
+}
+
+/* 优先级徽标配色与脑图/用例选择树保持一致 */
+.bug-detail__case-pop-priority {
+  font-size: 11px;
+  font-weight: 600;
+  color: #fff;
+  border-radius: 8px;
+  padding: 0 6px;
+  line-height: 16px;
+  flex-shrink: 0;
+
+  &--p0 { background: #f56c6c; }
+  &--p1 { background: #e6a23c; }
+  &--p2 { background: #409eff; }
+  &--p3 { background: #909399; }
+}
+
+.bug-detail__case-pop-doc {
+  margin-top: var(--space-xs);
+  font-size: var(--font-size-xs);
+  color: var(--el-text-color-secondary);
+}
+
+.bug-detail__case-pop-body {
+  margin-top: var(--space-sm);
+  padding-top: var(--space-sm);
+  border-top: 1px solid var(--el-border-color-lighter);
+  max-height: 260px;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.bug-detail__case-pop-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  font-size: var(--font-size-xs);
+  line-height: 18px;
+}
+
+.bug-detail__case-pop-type {
+  font-size: 11px;
+  color: #fff;
+  border-radius: 8px;
+  padding: 0 6px;
+  line-height: 16px;
+  flex-shrink: 0;
+}
+
+.bug-detail__case-pop-text {
+  color: var(--color-neutral-700);
+  word-break: break-all;
+}
+
+.bug-detail__case-pop-footer {
+  margin-top: var(--space-sm);
+  padding-top: var(--space-sm);
+  border-top: 1px solid var(--el-border-color-lighter);
+  text-align: right;
+
+  .el-icon {
+    margin-right: var(--space-xs);
   }
 }
 
