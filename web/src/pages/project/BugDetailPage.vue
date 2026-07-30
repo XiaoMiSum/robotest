@@ -275,29 +275,31 @@ onMounted(() => {
 <template>
   <div v-loading="loading" class="bug-detail">
     <div class="bug-detail__topbar">
-      <el-page-header class="bug-detail__back" @back="router.push('/workspace/projects/bugs')">
-        <template #content>
-          <div v-if="detail" class="bug-detail__header-bar">
-            <el-tag type="info" effect="light" round class="bug-detail__id-tag">{{ formatShortId(detail.id) }}</el-tag>
-            <el-input
-              v-if="!isClosed"
-              v-model="form.title"
-              class="bug-detail__title-input"
-              placeholder="缺陷标题"
-              maxlength="300"
-            />
-            <span v-else class="bug-detail__title-text">{{ detail.title }}</span>
-          </div>
-          <span v-else class="bug-detail__page-title">缺陷详情</span>
-        </template>
-      </el-page-header>
-      <div v-if="detail" class="bug-detail__topbar-right">
-        <el-tag :type="BUG_STATUS_TAG_TYPE[detail.status]" effect="dark" round>{{ statusLabel[detail.status] }}</el-tag>
-        <el-tag :type="detail.reopenCount > 0 ? 'danger' : 'info'" effect="plain" round>激活 {{ detail.reopenCount }} 次</el-tag>
-        <el-button type="primary" @click="router.push('/workspace/projects/bugs/create')">
-          <el-icon><Plus /></el-icon>新增Bug
-        </el-button>
-      </div>
+      <el-link class="bug-detail__back" :underline="false" @click="router.push('/workspace/projects/bugs')">
+        <el-icon><Back /></el-icon><span>返回</span>
+      </el-link>
+      <el-divider direction="vertical" />
+      <template v-if="detail">
+        <el-tag type="info" effect="light" round class="bug-detail__id-tag">{{ formatShortId(detail.id) }}</el-tag>
+        <el-input
+          v-if="!isClosed"
+          v-model="form.title"
+          class="bug-detail__title-input"
+          placeholder="缺陷标题"
+          maxlength="300"
+        />
+        <el-tooltip v-else :content="detail.title" :disabled="detail.title.length <= 60" placement="bottom-start">
+          <span class="bug-detail__title-text">{{ detail.title }}</span>
+        </el-tooltip>
+        <div class="bug-detail__topbar-right">
+          <el-tag :type="BUG_STATUS_TAG_TYPE[detail.status]" size="small" effect="light" round>{{ statusLabel[detail.status] }}</el-tag>
+          <el-tag :type="detail.reopenCount > 0 ? 'danger' : 'info'" size="small" effect="plain" round>激活 {{ detail.reopenCount }} 次</el-tag>
+          <el-button type="primary" @click="router.push('/workspace/projects/bugs/create')">
+            <el-icon><Plus /></el-icon>新增Bug
+          </el-button>
+        </div>
+      </template>
+      <span v-else class="bug-detail__page-title">缺陷详情</span>
     </div>
 
     <template v-if="detail">
@@ -476,22 +478,22 @@ onMounted(() => {
   color: var(--color-neutral-800);
 }
 
-// 顶栏自控 flex 布局：page-header 内 content 撑满受组件内部结构影响不可靠，
-// 右侧组独立于 page-header 放置，保证状态/激活次数/新增按钮始终贴最右
+// 顶栏弃用 el-page-header：其 content 区域不占满剩余宽度会压窄标题，
+// 自控 flex 布局让标题吃满中段、右侧组固定贴最右
 .bug-detail__topbar {
   display: flex;
   align-items: center;
-  gap: var(--space-md);
+  gap: var(--space-sm);
 }
 
 .bug-detail__back {
-  flex: 1;
-  min-width: 0;
-}
+  flex-shrink: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-neutral-600);
 
-.bug-detail__back :deep(.el-page-header__content) {
-  flex: 1;
-  min-width: 0;
+  .el-icon {
+    margin-right: var(--space-xs);
+  }
 }
 
 .bug-detail__topbar-right {
@@ -499,13 +501,7 @@ onMounted(() => {
   align-items: center;
   gap: var(--space-sm);
   flex-shrink: 0;
-}
-
-.bug-detail__header-bar {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-  width: 100%;
+  margin-left: auto;
 }
 
 .bug-detail__id-tag {
