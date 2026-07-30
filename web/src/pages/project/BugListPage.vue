@@ -107,8 +107,8 @@ function handleReset() {
   handleSearch()
 }
 
-// ==================== 标题搜索与展开筛选 ====================
-// 标题输入：回车/失焦立即搜索，停止输入 1 秒后自动搜索
+// ==================== 关键词搜索与展开筛选 ====================
+// 关键词输入（ID 前缀/后缀或标题包含）：回车/失焦立即搜索，停止输入 1 秒后自动搜索
 
 let keywordTimer: ReturnType<typeof setTimeout> | null = null
 // 记录最近一次已生效的关键词，失焦/回车与防抖多路触发时跳过重复请求
@@ -460,7 +460,7 @@ onMounted(loadBugs)
         <el-form-item>
           <el-input
             v-model="query.keyword"
-            placeholder="搜索标题"
+            placeholder="搜索 ID（前缀/后缀）或标题"
             clearable
             style="width: 360px"
             @keyup.enter="handleKeywordSearch"

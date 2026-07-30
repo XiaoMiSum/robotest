@@ -49,7 +49,11 @@ public interface BugMapper extends BaseMapperX<Bug> {
             wrapper.eq(Bug::getClosedBy, closedBy);
         }
         if (StringUtils.hasText(keyword)) {
-            wrapper.like(Bug::getTitle, keyword);
+            // ID 以 UUID 文本形式匹配前后缀，PostgreSQL 输出为小写，先归一化避免大小写敏感漏配
+            String idKeyword = keyword.toLowerCase();
+            wrapper.and(w -> w.like(Bug::getTitle, keyword)
+                    .or().apply("CAST(id AS VARCHAR) LIKE {0}", idKeyword + "%")
+                    .or().apply("CAST(id AS VARCHAR) LIKE {0}", "%" + idKeyword));
         }
         wrapper.orderByDesc(Bug::getCreatedAt);
         return selectPage(pageParam, wrapper);
