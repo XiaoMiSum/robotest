@@ -159,7 +159,7 @@ class BugAttachmentServiceImplTest {
         attachment.setFileName("log.txt");
         attachment.setFileSize(12L);
         attachment.setUploaderId(userId);
-        when(bugAttachmentMapper.selectList(any())).thenReturn(List.of(attachment));
+        when(bugAttachmentMapper.listByBugId(bugId)).thenReturn(List.of(attachment));
 
         SysUser uploader = new SysUser();
         uploader.setId(userId);

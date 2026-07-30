@@ -1,10 +1,5 @@
 package io.github.xiaomisum.robotest.service.project;
 
-import com.baomidou.mybatisplus.core.MybatisConfiguration;
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
-import org.apache.ibatis.builder.MapperBuilderAssistant;
-import xyz.migoo.framework.mybatis.core.LambdaUpdateWrapperX;
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.model.dto.request.bug.BugCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.bug.BugStatusChangeReqDTO;
@@ -70,9 +65,6 @@ class BugServiceImplTest {
 
     @BeforeEach
     void setUp() {
-        // LambdaUpdateWrapper 解析实体列名依赖 TableInfo 缓存，纯 Mockito 环境无 starter 初始化，需手动注册
-        TableInfoHelper.initTableInfo(
-                new MapperBuilderAssistant(new MybatisConfiguration(), ""), Bug.class);
         projectId = UUID.fromString("00000000-0000-0000-0000-000000000001");
         userId = UUID.fromString("00000000-0000-0000-0000-000000000002");
         bugId = UUID.fromString("00000000-0000-0000-0000-000000000003");
@@ -107,7 +99,7 @@ class BugServiceImplTest {
         bug.setReporterId(UUID.fromString("00000000-0000-0000-0000-000000000004"));
 
         PageResult<Bug> pageResult = new PageResult<>(List.of(bug), 1L);
-        doReturn(pageResult).when(bugMapper).selectPage(any(PageParam.class), any(LambdaQueryWrapper.class));
+        doReturn(pageResult).when(bugMapper).findPage(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any());
 
         SysUser reporter = new SysUser();
         reporter.setId(UUID.fromString("00000000-0000-0000-0000-000000000004"));
@@ -116,7 +108,7 @@ class BugServiceImplTest {
 
         PageResult<BugListRespDTO> result = bugService.getBugPage(
                 projectId, Constants.BugStatus.ACTIVE, "high", "high",
-                Constants.BugType.CODE_ERROR, null, null, 1, 10);
+                Constants.BugType.CODE_ERROR, null, null, null, null, null, 1, 10);
 
         assertNotNull(result);
         assertEquals(1, result.getList().size());
@@ -129,10 +121,10 @@ class BugServiceImplTest {
     @Test
     void getBugPage_emptyResult() {
         PageResult<Bug> pageResult = new PageResult<>(Collections.emptyList(), 0L);
-        doReturn(pageResult).when(bugMapper).selectPage(any(PageParam.class), any(LambdaQueryWrapper.class));
+        doReturn(pageResult).when(bugMapper).findPage(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any());
 
         PageResult<BugListRespDTO> result = bugService.getBugPage(
-                projectId, null, null, null, null, null, null, 1, 10);
+                projectId, null, null, null, null, null, null, null, null, null, 1, 10);
 
         assertNotNull(result);
         assertTrue(result.getList().isEmpty());
@@ -156,7 +148,9 @@ class BugServiceImplTest {
         project.setId(projectId);
         project.setWorkspaceId(UUID.fromString("00000000-0000-0000-0000-000000000009"));
         when(projectMapper.selectById(projectId)).thenReturn(project);
-        when(workspaceUserMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(new WorkspaceUser());
+        when(workspaceUserMapper.findByWorkspaceIdAndUserId(
+                UUID.fromString("00000000-0000-0000-0000-000000000009"),
+                UUID.fromString("00000000-0000-0000-0000-000000000005"))).thenReturn(new WorkspaceUser());
 
         BugCreateReqDTO reqDTO = new BugCreateReqDTO();
         reqDTO.setTitle("New Bug");
@@ -257,7 +251,8 @@ class BugServiceImplTest {
         assertThrows(ServiceException.class,
                 () -> bugService.updateBug(bugId, userId, reqDTO));
         verify(bugMapper, never()).updateById(any(Bug.class));
-        verify(bugMapper, never()).update(any(), any());
+        verify(bugMapper, never()).resolveById(any(), any(), any(), any());
+        verify(bugMapper, never()).reopenById(any(), anyInt());
     }
 
     @Test
@@ -270,7 +265,8 @@ class BugServiceImplTest {
         project.setId(projectId);
         project.setWorkspaceId(UUID.fromString("00000000-0000-0000-0000-000000000009"));
         when(projectMapper.selectById(projectId)).thenReturn(project);
-        when(workspaceUserMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(null);
+        when(workspaceUserMapper.findByWorkspaceIdAndUserId(
+                UUID.fromString("00000000-0000-0000-0000-000000000009"), assigneeId)).thenReturn(null);
 
         BugUpdateReqDTO reqDTO = new BugUpdateReqDTO();
         reqDTO.setAssigneeId(assigneeId);
@@ -278,7 +274,8 @@ class BugServiceImplTest {
         assertThrows(ServiceException.class,
                 () -> bugService.updateBug(bugId, userId, reqDTO));
         verify(bugMapper, never()).updateById(any(Bug.class));
-        verify(bugMapper, never()).update(any(), any());
+        verify(bugMapper, never()).resolveById(any(), any(), any(), any());
+        verify(bugMapper, never()).reopenById(any(), anyInt());
     }
 
     // ========== getBugDetail ==========
@@ -301,15 +298,24 @@ class BugServiceImplTest {
         SysUser reporter = new SysUser();
         reporter.setId(UUID.fromString("00000000-0000-0000-0000-000000000004"));
         reporter.setUsername("reporter");
-        when(userMapper.selectById(UUID.fromString("00000000-0000-0000-0000-000000000004"))).thenReturn(reporter);
 
         SysUser assignee = new SysUser();
         assignee.setId(UUID.fromString("00000000-0000-0000-0000-000000000005"));
         assignee.setUsername("assignee");
-        when(userMapper.selectById(UUID.fromString("00000000-0000-0000-0000-000000000005"))).thenReturn(assignee);
 
-        when(bugLogMapper.selectList(any(LambdaQueryWrapper.class)))
-                .thenReturn(Collections.emptyList());
+        // resolvedBy/closedBy 为 null 时服务会以 null 入参查询，需用 Answer 兼容
+        when(userMapper.selectById(any())).thenAnswer(inv -> {
+            Object id = inv.getArgument(0);
+            if (reporter.getId().equals(id)) {
+                return reporter;
+            }
+            if (assignee.getId().equals(id)) {
+                return assignee;
+            }
+            return null;
+        });
+
+        when(bugLogMapper.findRecentLogs(bugId, 10)).thenReturn(Collections.emptyList());
 
         BugDetailRespDTO result = bugService.getBugDetail(bugId);
 
@@ -349,15 +355,8 @@ class BugServiceImplTest {
 
         bugService.changeBugStatus(bugId, userId, reqDTO);
 
-        @SuppressWarnings("unchecked")
-        ArgumentCaptor<LambdaUpdateWrapperX<Bug>> captor = ArgumentCaptor.forClass(LambdaUpdateWrapperX.class);
-        verify(bugMapper).update(isNull(), captor.capture());
-        var values = captor.getValue().getParamNameValuePairs().values();
-        assertTrue(values.contains(Constants.BugStatus.RESOLVED));
-        assertTrue(values.contains(Constants.BugResolution.FIXED));
-        assertTrue(values.contains(userId));
-        assertTrue(values.contains(Boolean.TRUE));
-        assertTrue(captor.getValue().getSqlSet().contains("resolved_at"));
+        // 状态置位与解决信息写入已封装进 Mapper default 方法，这里只验证入参正确
+        verify(bugMapper).resolveById(bugId, userId, Constants.BugResolution.FIXED, null);
         verify(bugLogMapper).insert(any(BugLog.class));
     }
 
@@ -371,7 +370,8 @@ class BugServiceImplTest {
         assertThrows(ServiceException.class,
                 () -> bugService.changeBugStatus(bugId, userId, reqDTO));
         verify(bugMapper, never()).updateById(any(Bug.class));
-        verify(bugMapper, never()).update(any(), any());
+        verify(bugMapper, never()).resolveById(any(), any(), any(), any());
+        verify(bugMapper, never()).reopenById(any(), anyInt());
     }
 
     @Test
@@ -385,7 +385,23 @@ class BugServiceImplTest {
         assertThrows(ServiceException.class,
                 () -> bugService.changeBugStatus(bugId, userId, reqDTO));
         verify(bugMapper, never()).updateById(any(Bug.class));
-        verify(bugMapper, never()).update(any(), any());
+        verify(bugMapper, never()).resolveById(any(), any(), any(), any());
+        verify(bugMapper, never()).reopenById(any(), anyInt());
+    }
+
+    @Test
+    void resolveBug_withoutComment_throws() {
+        Bug bug = activeBug();
+        when(bugMapper.selectById(bugId)).thenReturn(bug);
+
+        BugStatusChangeReqDTO reqDTO = statusChangeReq(Constants.BugStatus.RESOLVED, null);
+        reqDTO.setResolution(Constants.BugResolution.FIXED);
+
+        assertThrows(ServiceException.class,
+                () -> bugService.changeBugStatus(bugId, userId, reqDTO));
+        verify(bugMapper, never()).updateById(any(Bug.class));
+        verify(bugMapper, never()).resolveById(any(), any(), any(), any());
+        verify(bugMapper, never()).reopenById(any(), anyInt());
     }
 
     @Test
@@ -393,13 +409,14 @@ class BugServiceImplTest {
         Bug bug = activeBug();
         when(bugMapper.selectById(bugId)).thenReturn(bug);
 
-        BugStatusChangeReqDTO reqDTO = statusChangeReq(Constants.BugStatus.RESOLVED, null);
+        BugStatusChangeReqDTO reqDTO = statusChangeReq(Constants.BugStatus.RESOLVED, "与已有缺陷重复");
         reqDTO.setResolution(Constants.BugResolution.DUPLICATE);
 
         assertThrows(ServiceException.class,
                 () -> bugService.changeBugStatus(bugId, userId, reqDTO));
         verify(bugMapper, never()).updateById(any(Bug.class));
-        verify(bugMapper, never()).update(any(), any());
+        verify(bugMapper, never()).resolveById(any(), any(), any(), any());
+        verify(bugMapper, never()).reopenById(any(), anyInt());
     }
 
     @Test
@@ -407,14 +424,15 @@ class BugServiceImplTest {
         Bug bug = activeBug();
         when(bugMapper.selectById(bugId)).thenReturn(bug);
 
-        BugStatusChangeReqDTO reqDTO = statusChangeReq(Constants.BugStatus.RESOLVED, null);
+        BugStatusChangeReqDTO reqDTO = statusChangeReq(Constants.BugStatus.RESOLVED, "与已有缺陷重复");
         reqDTO.setResolution(Constants.BugResolution.DUPLICATE);
         reqDTO.setDuplicateOfBugId(bugId);
 
         assertThrows(ServiceException.class,
                 () -> bugService.changeBugStatus(bugId, userId, reqDTO));
         verify(bugMapper, never()).updateById(any(Bug.class));
-        verify(bugMapper, never()).update(any(), any());
+        verify(bugMapper, never()).resolveById(any(), any(), any(), any());
+        verify(bugMapper, never()).reopenById(any(), anyInt());
     }
 
     @Test
@@ -428,14 +446,15 @@ class BugServiceImplTest {
         when(bugMapper.selectById(bugId)).thenReturn(bug);
         when(bugMapper.selectById(originalId)).thenReturn(original);
 
-        BugStatusChangeReqDTO reqDTO = statusChangeReq(Constants.BugStatus.RESOLVED, null);
+        BugStatusChangeReqDTO reqDTO = statusChangeReq(Constants.BugStatus.RESOLVED, "与已有缺陷重复");
         reqDTO.setResolution(Constants.BugResolution.DUPLICATE);
         reqDTO.setDuplicateOfBugId(originalId);
 
         assertThrows(ServiceException.class,
                 () -> bugService.changeBugStatus(bugId, userId, reqDTO));
         verify(bugMapper, never()).updateById(any(Bug.class));
-        verify(bugMapper, never()).update(any(), any());
+        verify(bugMapper, never()).resolveById(any(), any(), any(), any());
+        verify(bugMapper, never()).reopenById(any(), anyInt());
     }
 
     @Test
@@ -459,12 +478,7 @@ class BugServiceImplTest {
 
         bugService.changeBugStatus(bugId, userId, reqDTO);
 
-        @SuppressWarnings("unchecked")
-        ArgumentCaptor<LambdaUpdateWrapperX<Bug>> captor = ArgumentCaptor.forClass(LambdaUpdateWrapperX.class);
-        verify(bugMapper).update(isNull(), captor.capture());
-        var values = captor.getValue().getParamNameValuePairs().values();
-        assertTrue(values.contains(Constants.BugResolution.DUPLICATE));
-        assertTrue(values.contains(originalId));
+        verify(bugMapper).resolveById(bugId, userId, Constants.BugResolution.DUPLICATE, originalId);
     }
 
     // ========== changeBugStatus：关闭 ==========
@@ -499,7 +513,93 @@ class BugServiceImplTest {
                 () -> bugService.changeBugStatus(bugId, userId,
                         statusChangeReq(Constants.BugStatus.CLOSED, null)));
         verify(bugMapper, never()).updateById(any(Bug.class));
-        verify(bugMapper, never()).update(any(), any());
+        verify(bugMapper, never()).resolveById(any(), any(), any(), any());
+        verify(bugMapper, never()).reopenById(any(), anyInt());
+    }
+
+    // ========== changeBugStatus：拒绝 ==========
+
+    @Test
+    void rejectBug_success_assigneeSetToReporter() {
+        UUID reporterId = UUID.fromString("00000000-0000-0000-0000-000000000004");
+        Bug bug = activeBug();
+        bug.setReporterId(reporterId);
+        when(bugMapper.selectById(bugId)).thenReturn(bug);
+        doAnswer(inv -> {
+            ((BugLog) inv.getArgument(0)).setId(UUID.randomUUID());
+            return 1;
+        }).when(bugLogMapper).insert(any(BugLog.class));
+
+        bugService.changeBugStatus(bugId, userId,
+                statusChangeReq(Constants.BugStatus.REJECTED, "非缺陷，按设计工作"));
+
+        ArgumentCaptor<Bug> captor = ArgumentCaptor.forClass(Bug.class);
+        verify(bugMapper).updateById(captor.capture());
+        assertEquals(Constants.BugStatus.REJECTED, captor.getValue().getStatus());
+        assertEquals(reporterId, captor.getValue().getAssigneeId());
+        verify(bugLogMapper).insert(any(BugLog.class));
+    }
+
+    @Test
+    void rejectBug_withoutComment_throws() {
+        Bug bug = activeBug();
+        when(bugMapper.selectById(bugId)).thenReturn(bug);
+
+        assertThrows(ServiceException.class,
+                () -> bugService.changeBugStatus(bugId, userId,
+                        statusChangeReq(Constants.BugStatus.REJECTED, null)));
+        verify(bugMapper, never()).updateById(any(Bug.class));
+        verify(bugMapper, never()).resolveById(any(), any(), any(), any());
+        verify(bugMapper, never()).reopenById(any(), anyInt());
+    }
+
+    @Test
+    void rejectBug_fromResolved_throws() {
+        Bug bug = activeBug();
+        bug.setStatus(Constants.BugStatus.RESOLVED);
+        when(bugMapper.selectById(bugId)).thenReturn(bug);
+
+        assertThrows(ServiceException.class,
+                () -> bugService.changeBugStatus(bugId, userId,
+                        statusChangeReq(Constants.BugStatus.REJECTED, "拒绝已修复缺陷")));
+        verify(bugMapper, never()).updateById(any(Bug.class));
+        verify(bugMapper, never()).resolveById(any(), any(), any(), any());
+        verify(bugMapper, never()).reopenById(any(), anyInt());
+    }
+
+    @Test
+    void rejectedBug_canBeClosed() {
+        Bug bug = activeBug();
+        bug.setStatus(Constants.BugStatus.REJECTED);
+        when(bugMapper.selectById(bugId)).thenReturn(bug);
+        doAnswer(inv -> {
+            ((BugLog) inv.getArgument(0)).setId(UUID.randomUUID());
+            return 1;
+        }).when(bugLogMapper).insert(any(BugLog.class));
+
+        bugService.changeBugStatus(bugId, userId,
+                statusChangeReq(Constants.BugStatus.CLOSED, "认可拒绝，关闭缺陷"));
+
+        ArgumentCaptor<Bug> captor = ArgumentCaptor.forClass(Bug.class);
+        verify(bugMapper).updateById(captor.capture());
+        assertEquals(Constants.BugStatus.CLOSED, captor.getValue().getStatus());
+    }
+
+    @Test
+    void rejectedBug_canBeReopened() {
+        Bug bug = activeBug();
+        bug.setStatus(Constants.BugStatus.REJECTED);
+        bug.setReopenCount(0);
+        when(bugMapper.selectById(bugId)).thenReturn(bug);
+        doAnswer(inv -> {
+            ((BugLog) inv.getArgument(0)).setId(UUID.randomUUID());
+            return 1;
+        }).when(bugLogMapper).insert(any(BugLog.class));
+
+        bugService.changeBugStatus(bugId, userId,
+                statusChangeReq(Constants.BugStatus.ACTIVE, "不认可拒绝，重新激活"));
+
+        verify(bugMapper).reopenById(bugId, 1);
     }
 
     // ========== changeBugStatus：重开 ==========
@@ -525,23 +625,9 @@ class BugServiceImplTest {
         bugService.changeBugStatus(bugId, userId,
                 statusChangeReq(Constants.BugStatus.ACTIVE, "问题复现"));
 
-        // updateById 会忽略 null 字段导致清空静默失效，重开必须走 wrapper 显式 set null
+        // updateById 会忽略 null 字段导致清空静默失效，重开必须走 reopenById 显式 set null
         verify(bugMapper, never()).updateById(any(Bug.class));
-        @SuppressWarnings("unchecked")
-        ArgumentCaptor<LambdaUpdateWrapperX<Bug>> captor = ArgumentCaptor.forClass(LambdaUpdateWrapperX.class);
-        verify(bugMapper).update(isNull(), captor.capture());
-        var values = captor.getValue().getParamNameValuePairs().values();
-        assertTrue(values.contains(Constants.BugStatus.ACTIVE));
-        assertTrue(values.contains(2));
-        String sqlSet = captor.getValue().getSqlSet();
-        assertTrue(sqlSet.contains("last_reopened_at"));
-        // 解决/关闭信息的清空列必须出现在 SET 子句中
-        assertTrue(sqlSet.contains("resolution"));
-        assertTrue(sqlSet.contains("duplicate_of_bug_id"));
-        assertTrue(sqlSet.contains("resolved_by"));
-        assertTrue(sqlSet.contains("resolved_at"));
-        assertTrue(sqlSet.contains("closed_by"));
-        assertTrue(sqlSet.contains("closed_at"));
+        verify(bugMapper).reopenById(bugId, 2);
     }
 
     @Test
@@ -554,7 +640,8 @@ class BugServiceImplTest {
                 () -> bugService.changeBugStatus(bugId, userId,
                         statusChangeReq(Constants.BugStatus.ACTIVE, null)));
         verify(bugMapper, never()).updateById(any(Bug.class));
-        verify(bugMapper, never()).update(any(), any());
+        verify(bugMapper, never()).resolveById(any(), any(), any(), any());
+        verify(bugMapper, never()).reopenById(any(), anyInt());
     }
 
     // ========== changeBugStatus：非法流转 ==========
@@ -568,7 +655,8 @@ class BugServiceImplTest {
                 () -> bugService.changeBugStatus(bugId, userId,
                         statusChangeReq(Constants.BugStatus.CLOSED, "跳过解决直接关闭")));
         verify(bugMapper, never()).updateById(any(Bug.class));
-        verify(bugMapper, never()).update(any(), any());
+        verify(bugMapper, never()).resolveById(any(), any(), any(), any());
+        verify(bugMapper, never()).reopenById(any(), anyInt());
     }
 
     @Test
@@ -583,7 +671,8 @@ class BugServiceImplTest {
         assertThrows(ServiceException.class,
                 () -> bugService.changeBugStatus(bugId, userId, reqDTO));
         verify(bugMapper, never()).updateById(any(Bug.class));
-        verify(bugMapper, never()).update(any(), any());
+        verify(bugMapper, never()).resolveById(any(), any(), any(), any());
+        verify(bugMapper, never()).reopenById(any(), anyInt());
     }
 
     @Test
@@ -624,7 +713,8 @@ class BugServiceImplTest {
         assertThrows(ServiceException.class,
                 () -> bugService.confirmBug(bugId, userId));
         verify(bugMapper, never()).updateById(any(Bug.class));
-        verify(bugMapper, never()).update(any(), any());
+        verify(bugMapper, never()).resolveById(any(), any(), any(), any());
+        verify(bugMapper, never()).reopenById(any(), anyInt());
     }
 
     @Test
@@ -636,7 +726,8 @@ class BugServiceImplTest {
         assertThrows(ServiceException.class,
                 () -> bugService.confirmBug(bugId, userId));
         verify(bugMapper, never()).updateById(any(Bug.class));
-        verify(bugMapper, never()).update(any(), any());
+        verify(bugMapper, never()).resolveById(any(), any(), any(), any());
+        verify(bugMapper, never()).reopenById(any(), anyInt());
     }
 
     @Test
@@ -690,7 +781,8 @@ class BugServiceImplTest {
         assertThrows(ServiceException.class,
                 () -> bugService.assignBug(bugId, userId, assigneeId));
         verify(bugMapper, never()).updateById(any(Bug.class));
-        verify(bugMapper, never()).update(any(), any());
+        verify(bugMapper, never()).resolveById(any(), any(), any(), any());
+        verify(bugMapper, never()).reopenById(any(), anyInt());
     }
 
     @Test
@@ -721,12 +813,14 @@ class BugServiceImplTest {
         project.setId(projectId);
         project.setWorkspaceId(UUID.fromString("00000000-0000-0000-0000-000000000009"));
         when(projectMapper.selectById(projectId)).thenReturn(project);
-        when(workspaceUserMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(null);
+        when(workspaceUserMapper.findByWorkspaceIdAndUserId(
+                UUID.fromString("00000000-0000-0000-0000-000000000009"), assigneeId)).thenReturn(null);
 
         assertThrows(ServiceException.class,
                 () -> bugService.assignBug(bugId, userId, assigneeId));
         verify(bugMapper, never()).updateById(any(Bug.class));
-        verify(bugMapper, never()).update(any(), any());
+        verify(bugMapper, never()).resolveById(any(), any(), any(), any());
+        verify(bugMapper, never()).reopenById(any(), anyInt());
     }
 
     @Test
@@ -746,7 +840,8 @@ class BugServiceImplTest {
         project.setId(projectId);
         project.setWorkspaceId(UUID.fromString("00000000-0000-0000-0000-000000000009"));
         when(projectMapper.selectById(projectId)).thenReturn(project);
-        when(workspaceUserMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(new WorkspaceUser());
+        when(workspaceUserMapper.findByWorkspaceIdAndUserId(
+                UUID.fromString("00000000-0000-0000-0000-000000000009"), assigneeId)).thenReturn(new WorkspaceUser());
         doAnswer(inv -> {
             ((BugLog) inv.getArgument(0)).setId(UUID.randomUUID());
             return 1;
@@ -778,7 +873,7 @@ class BugServiceImplTest {
         b2.setPriority("low");
         b2.setReporterId(UUID.fromString("00000000-0000-0000-0000-000000000004"));
 
-        when(bugMapper.selectList(any(LambdaQueryWrapper.class)))
+        when(bugMapper.findByProjectId(projectId))
                 .thenReturn(List.of(b1, b2));
 
         BugStatisticsRespDTO result = bugService.getBugStatistics(projectId);
@@ -793,7 +888,7 @@ class BugServiceImplTest {
 
     @Test
     void getBugStatistics_emptyProject() {
-        when(bugMapper.selectList(any(LambdaQueryWrapper.class)))
+        when(bugMapper.findByProjectId(projectId))
                 .thenReturn(Collections.emptyList());
 
         BugStatisticsRespDTO result = bugService.getBugStatistics(projectId);
@@ -813,7 +908,7 @@ class BugServiceImplTest {
         log.setOperationType("create");
         log.setContent("Created");
 
-        when(bugLogMapper.selectList(any(LambdaQueryWrapper.class)))
+        when(bugLogMapper.findByBugId(bugId))
                 .thenReturn(List.of(log));
 
         SysUser operator = new SysUser();

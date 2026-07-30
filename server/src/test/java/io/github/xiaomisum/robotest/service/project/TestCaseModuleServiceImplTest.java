@@ -1,9 +1,5 @@
 package io.github.xiaomisum.robotest.service.project;
 
-import com.baomidou.mybatisplus.core.MybatisConfiguration;
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
-import org.apache.ibatis.builder.MapperBuilderAssistant;
 import io.github.xiaomisum.robotest.model.dto.request.tcase.TestCaseModuleCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.tcase.TestCaseModuleUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.tcase.TestCaseModuleTreeRespDTO;
@@ -46,9 +42,6 @@ class TestCaseModuleServiceImplTest {
 
     @BeforeEach
     void setUp() {
-        // LambdaUpdateWrapper 解析实体列名依赖 TableInfo 缓存，纯 Mockito 环境无 starter 初始化，需手动注册
-        TableInfoHelper.initTableInfo(
-                new MapperBuilderAssistant(new MybatisConfiguration(), ""), TestCaseModule.class);
         projectId = UUID.fromString("00000000-0000-0000-0000-000000000001");
         moduleId1 = UUID.fromString("00000000-0000-0000-0000-00000000000a");
         moduleId2 = UUID.fromString("00000000-0000-0000-0000-00000000000b");
@@ -65,7 +58,7 @@ class TestCaseModuleServiceImplTest {
         root.setName("Root");
         root.setSortOrder(0);
 
-        when(testCaseModuleMapper.selectList(any(LambdaQueryWrapper.class)))
+        when(testCaseModuleMapper.listByProjectId(projectId))
                 .thenReturn(List.of(root));
 
         List<TestCaseModuleTreeRespDTO> result = moduleService.getModuleTree(projectId);
@@ -77,7 +70,7 @@ class TestCaseModuleServiceImplTest {
 
     @Test
     void getModuleTree_empty() {
-        when(testCaseModuleMapper.selectList(any(LambdaQueryWrapper.class)))
+        when(testCaseModuleMapper.listByProjectId(projectId))
                 .thenReturn(Collections.emptyList());
 
         List<TestCaseModuleTreeRespDTO> result = moduleService.getModuleTree(projectId);
@@ -92,7 +85,7 @@ class TestCaseModuleServiceImplTest {
         reqDTO.setType("directory");
         reqDTO.setName("New Dir");
 
-        when(testCaseModuleMapper.selectOne(any(LambdaQueryWrapper.class)))
+        when(testCaseModuleMapper.findByNameAndParent(projectId, null, "New Dir"))
                 .thenReturn(null);
         doAnswer(inv -> {
             ((TestCaseModule) inv.getArgument(0)).setId(UUID.randomUUID());
@@ -113,7 +106,7 @@ class TestCaseModuleServiceImplTest {
         reqDTO.setType("document");
         reqDTO.setName("New Doc");
 
-        when(testCaseModuleMapper.selectOne(any(LambdaQueryWrapper.class)))
+        when(testCaseModuleMapper.findByNameAndParent(projectId, null, "New Doc"))
                 .thenReturn(null);
         doAnswer(inv -> {
             ((TestCaseModule) inv.getArgument(0)).setId(UUID.randomUUID());
@@ -149,7 +142,7 @@ class TestCaseModuleServiceImplTest {
 
         TestCaseModule existing = new TestCaseModule();
         existing.setId(UUID.fromString("00000000-0000-0000-0000-00000000000c"));
-        when(testCaseModuleMapper.selectOne(any(LambdaQueryWrapper.class)))
+        when(testCaseModuleMapper.findByNameAndParent(projectId, null, "Existing"))
                 .thenReturn(existing);
 
         assertThrows(ServiceException.class,
@@ -178,7 +171,7 @@ class TestCaseModuleServiceImplTest {
         module.setName("Old Name");
 
         when(testCaseModuleMapper.selectById(moduleId1)).thenReturn(module);
-        when(testCaseModuleMapper.selectOne(any(LambdaQueryWrapper.class)))
+        when(testCaseModuleMapper.findByNameAndParentExcludingId(projectId, null, "New Name", moduleId1))
                 .thenReturn(null);
 
         TestCaseModuleUpdateReqDTO reqDTO = new TestCaseModuleUpdateReqDTO();
@@ -188,9 +181,9 @@ class TestCaseModuleServiceImplTest {
 
         assertNotNull(result);
         assertEquals("New Name", result.getName());
-        // 部分更新改走 wrapper，仅落库本次变更字段
+        // 部分更新改走 Mapper default 方法，仅落库本次变更字段
         verify(testCaseModuleMapper, never()).updateById(any(TestCaseModule.class));
-        verify(testCaseModuleMapper).update(isNull(), any());
+        verify(testCaseModuleMapper).updateName(moduleId1, "New Name");
     }
 
     @Test
@@ -216,7 +209,7 @@ class TestCaseModuleServiceImplTest {
 
         TestCaseModule duplicate = new TestCaseModule();
         duplicate.setId(moduleId2);
-        when(testCaseModuleMapper.selectOne(any(LambdaQueryWrapper.class)))
+        when(testCaseModuleMapper.findByNameAndParentExcludingId(projectId, null, "Duplicate", moduleId1))
                 .thenReturn(duplicate);
 
         TestCaseModuleUpdateReqDTO reqDTO = new TestCaseModuleUpdateReqDTO();
@@ -253,8 +246,8 @@ class TestCaseModuleServiceImplTest {
 
         when(testCaseModuleMapper.selectById(moduleId1)).thenReturn(module);
         when(testCaseModuleMapper.selectById(moduleId2)).thenReturn(targetDir);
-        when(testCaseModuleMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(null);
-        when(testCaseModuleMapper.selectList(any(LambdaQueryWrapper.class)))
+        when(testCaseModuleMapper.findByNameExcludingId(projectId, moduleId2, "Doc", moduleId1)).thenReturn(null);
+        when(testCaseModuleMapper.findSiblingsByParent(projectId, moduleId2, moduleId1))
                 .thenReturn(new ArrayList<>(List.of(existingChild)));
 
         TestCaseModuleUpdateReqDTO reqDTO = new TestCaseModuleUpdateReqDTO();
@@ -266,8 +259,9 @@ class TestCaseModuleServiceImplTest {
         assertEquals(moduleId2, module.getParentId());
         assertEquals(0, module.getSortOrder());
         assertEquals(1, existingChild.getSortOrder());
-        // 被挤开的兄弟节点 + 被移动节点各落库一次（均走 wrapper 仅回写变更字段）
-        verify(testCaseModuleMapper, times(2)).update(isNull(), any());
+        // 被挤开的兄弟节点回写新序号，被移动节点回写父级与序号
+        verify(testCaseModuleMapper).updateSortOrder(documentId1, 1);
+        verify(testCaseModuleMapper).updateParentAndOrder(moduleId1, moduleId2, 0);
     }
 
     @Test
@@ -289,8 +283,8 @@ class TestCaseModuleServiceImplTest {
         rootSibling.setSortOrder(0);
 
         when(testCaseModuleMapper.selectById(moduleId1)).thenReturn(module);
-        when(testCaseModuleMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(null);
-        when(testCaseModuleMapper.selectList(any(LambdaQueryWrapper.class)))
+        when(testCaseModuleMapper.findByNameExcludingId(projectId, null, "Doc", moduleId1)).thenReturn(null);
+        when(testCaseModuleMapper.findSiblingsByParent(projectId, null, moduleId1))
                 .thenReturn(new ArrayList<>(List.of(rootSibling)));
 
         TestCaseModuleUpdateReqDTO reqDTO = new TestCaseModuleUpdateReqDTO();
@@ -396,7 +390,7 @@ class TestCaseModuleServiceImplTest {
 
         when(testCaseModuleMapper.selectById(moduleId1)).thenReturn(module);
         when(testCaseModuleMapper.selectById(moduleId2)).thenReturn(targetDir);
-        when(testCaseModuleMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(duplicate);
+        when(testCaseModuleMapper.findByNameExcludingId(projectId, moduleId2, "Doc", moduleId1)).thenReturn(duplicate);
 
         TestCaseModuleUpdateReqDTO reqDTO = new TestCaseModuleUpdateReqDTO();
         reqDTO.setParentId(moduleId2);
@@ -421,8 +415,7 @@ class TestCaseModuleServiceImplTest {
         module.setType("directory");
 
         when(testCaseModuleMapper.selectById(moduleId1)).thenReturn(module);
-        when(testCaseModuleMapper.selectCount(any(LambdaQueryWrapper.class)))
-                .thenReturn(2L);
+        when(testCaseModuleMapper.countByParentId(moduleId1)).thenReturn(2L);
 
         assertThrows(ServiceException.class,
                 () -> moduleService.deleteModule(moduleId1));
@@ -435,8 +428,7 @@ class TestCaseModuleServiceImplTest {
         module.setType("directory");
 
         when(testCaseModuleMapper.selectById(moduleId1)).thenReturn(module);
-        when(testCaseModuleMapper.selectCount(any(LambdaQueryWrapper.class)))
-                .thenReturn(0L);
+        when(testCaseModuleMapper.countByParentId(moduleId1)).thenReturn(0L);
 
         moduleService.deleteModule(moduleId1);
 
@@ -453,7 +445,7 @@ class TestCaseModuleServiceImplTest {
 
         moduleService.deleteModule(documentId1);
 
-        verify(testCaseNodeMapper).delete(any(LambdaQueryWrapper.class));
+        verify(testCaseNodeMapper).deleteByDocumentId(documentId1);
         verify(testCaseModuleMapper).deleteById(documentId1);
     }
 }

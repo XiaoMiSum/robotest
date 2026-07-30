@@ -1,16 +1,15 @@
 package io.github.xiaomisum.robotest.service.project;
 
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import xyz.migoo.framework.mybatis.core.LambdaQueryWrapperX;
 import io.github.xiaomisum.robotest.model.dto.response.workspace.ProjectDashboardRespDTO;
-import io.github.xiaomisum.robotest.model.entity.*;
-import io.github.xiaomisum.robotest.repository.tcase.TestCaseModuleMapper;
-import io.github.xiaomisum.robotest.repository.tcase.TestCaseNodeMapper;
-import io.github.xiaomisum.robotest.repository.review.TestReviewMapper;
-import io.github.xiaomisum.robotest.repository.workspace.ProjectMapper;
+import io.github.xiaomisum.robotest.model.entity.admin.SysUser;
+import io.github.xiaomisum.robotest.model.entity.bug.Bug;
+import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseModule;
 import io.github.xiaomisum.robotest.repository.admin.SysUserMapper;
 import io.github.xiaomisum.robotest.repository.bug.BugMapper;
 import io.github.xiaomisum.robotest.repository.plan.TestPlanMapper;
+import io.github.xiaomisum.robotest.repository.review.TestReviewMapper;
+import io.github.xiaomisum.robotest.repository.tcase.TestCaseModuleMapper;
+import io.github.xiaomisum.robotest.repository.tcase.TestCaseNodeMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -18,13 +17,12 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -57,21 +55,21 @@ class ProjectDashboardServiceImplTest {
     void getDashboard_withData() {
         TestCaseModule doc = new TestCaseModule();
         doc.setId(UUID.fromString("00000000-0000-0000-0000-000000000001"));
-        when(testCaseModuleMapper.selectList(any(LambdaQueryWrapper.class)))
+        when(testCaseModuleMapper.findDocumentModulesByProjectId(projectId))
                 .thenReturn(List.of(doc));
-        when(testCaseNodeMapper.selectCount(any(LambdaQueryWrapper.class)))
+        when(testCaseNodeMapper.countCaseNodesByDocumentIds(anyList()))
                 .thenReturn(5L);
-        when(testReviewMapper.selectCount(any(LambdaQueryWrapper.class)))
+        when(testReviewMapper.countActiveReviews(projectId))
                 .thenReturn(2L);
-        when(testPlanMapper.selectCount(any(LambdaQueryWrapper.class)))
+        when(testPlanMapper.countActivePlans(projectId))
                 .thenReturn(3L);
-        when(bugMapper.selectCount(any(LambdaQueryWrapper.class)))
+        when(bugMapper.countOpenBugs(projectId))
                 .thenReturn(4L);
-        when(testReviewMapper.selectList(any(LambdaQueryWrapper.class)))
+        when(testReviewMapper.findRecentReviews(projectId, 5))
                 .thenReturn(Collections.emptyList());
-        when(testPlanMapper.selectList(any(LambdaQueryWrapper.class)))
+        when(testPlanMapper.findRecentPlans(projectId, 5))
                 .thenReturn(Collections.emptyList());
-        when(bugMapper.selectList(any(LambdaQueryWrapper.class)))
+        when(bugMapper.findRecentBugs(projectId, 5))
                 .thenReturn(Collections.emptyList());
 
         ProjectDashboardRespDTO result = dashboardService.getDashboard(projectId);
@@ -88,19 +86,19 @@ class ProjectDashboardServiceImplTest {
 
     @Test
     void getDashboard_noDocuments() {
-        when(testCaseModuleMapper.selectList(any(LambdaQueryWrapper.class)))
+        when(testCaseModuleMapper.findDocumentModulesByProjectId(projectId))
                 .thenReturn(Collections.emptyList());
-        when(testReviewMapper.selectCount(any(LambdaQueryWrapper.class)))
+        when(testReviewMapper.countActiveReviews(projectId))
                 .thenReturn(0L);
-        when(testPlanMapper.selectCount(any(LambdaQueryWrapper.class)))
+        when(testPlanMapper.countActivePlans(projectId))
                 .thenReturn(0L);
-        when(bugMapper.selectCount(any(LambdaQueryWrapper.class)))
+        when(bugMapper.countOpenBugs(projectId))
                 .thenReturn(0L);
-        when(testReviewMapper.selectList(any(LambdaQueryWrapper.class)))
+        when(testReviewMapper.findRecentReviews(projectId, 5))
                 .thenReturn(Collections.emptyList());
-        when(testPlanMapper.selectList(any(LambdaQueryWrapper.class)))
+        when(testPlanMapper.findRecentPlans(projectId, 5))
                 .thenReturn(Collections.emptyList());
-        when(bugMapper.selectList(any(LambdaQueryWrapper.class)))
+        when(bugMapper.findRecentBugs(projectId, 5))
                 .thenReturn(Collections.emptyList());
 
         ProjectDashboardRespDTO result = dashboardService.getDashboard(projectId);
@@ -114,17 +112,17 @@ class ProjectDashboardServiceImplTest {
 
     @Test
     void getDashboard_withRecentBugs() {
-        when(testCaseModuleMapper.selectList(any(LambdaQueryWrapper.class)))
+        when(testCaseModuleMapper.findDocumentModulesByProjectId(projectId))
                 .thenReturn(Collections.emptyList());
-        when(testReviewMapper.selectCount(any(LambdaQueryWrapper.class)))
+        when(testReviewMapper.countActiveReviews(projectId))
                 .thenReturn(0L);
-        when(testPlanMapper.selectCount(any(LambdaQueryWrapper.class)))
+        when(testPlanMapper.countActivePlans(projectId))
                 .thenReturn(0L);
-        when(bugMapper.selectCount(any(LambdaQueryWrapper.class)))
+        when(bugMapper.countOpenBugs(projectId))
                 .thenReturn(0L);
-        when(testReviewMapper.selectList(any(LambdaQueryWrapper.class)))
+        when(testReviewMapper.findRecentReviews(projectId, 5))
                 .thenReturn(Collections.emptyList());
-        when(testPlanMapper.selectList(any(LambdaQueryWrapper.class)))
+        when(testPlanMapper.findRecentPlans(projectId, 5))
                 .thenReturn(Collections.emptyList());
 
         Bug bug = new Bug();
@@ -135,13 +133,13 @@ class ProjectDashboardServiceImplTest {
         bug.setStatus("active");
         bug.setAssigneeId(UUID.fromString("00000000-0000-0000-0000-000000000011"));
 
-        when(bugMapper.selectList(any(LambdaQueryWrapper.class)))
+        when(bugMapper.findRecentBugs(projectId, 5))
                 .thenReturn(List.of(bug));
 
         SysUser assignee = new SysUser();
         assignee.setId(UUID.fromString("00000000-0000-0000-0000-000000000011"));
         assignee.setUsername("assignee");
-        when(userMapper.selectList(any(LambdaQueryWrapperX.class)))
+        when(userMapper.listByIds(anyList()))
                 .thenReturn(List.of(assignee));
 
         ProjectDashboardRespDTO result = dashboardService.getDashboard(projectId);
@@ -154,17 +152,17 @@ class ProjectDashboardServiceImplTest {
 
     @Test
     void getDashboard_bugsWithoutAssignee() {
-        when(testCaseModuleMapper.selectList(any(LambdaQueryWrapper.class)))
+        when(testCaseModuleMapper.findDocumentModulesByProjectId(projectId))
                 .thenReturn(Collections.emptyList());
-        when(testReviewMapper.selectCount(any(LambdaQueryWrapper.class)))
+        when(testReviewMapper.countActiveReviews(projectId))
                 .thenReturn(0L);
-        when(testPlanMapper.selectCount(any(LambdaQueryWrapper.class)))
+        when(testPlanMapper.countActivePlans(projectId))
                 .thenReturn(0L);
-        when(bugMapper.selectCount(any(LambdaQueryWrapper.class)))
+        when(bugMapper.countOpenBugs(projectId))
                 .thenReturn(0L);
-        when(testReviewMapper.selectList(any(LambdaQueryWrapper.class)))
+        when(testReviewMapper.findRecentReviews(projectId, 5))
                 .thenReturn(Collections.emptyList());
-        when(testPlanMapper.selectList(any(LambdaQueryWrapper.class)))
+        when(testPlanMapper.findRecentPlans(projectId, 5))
                 .thenReturn(Collections.emptyList());
 
         Bug bug = new Bug();
@@ -175,7 +173,7 @@ class ProjectDashboardServiceImplTest {
         bug.setStatus("active");
         bug.setAssigneeId(null);
 
-        when(bugMapper.selectList(any(LambdaQueryWrapper.class)))
+        when(bugMapper.findRecentBugs(projectId, 5))
                 .thenReturn(List.of(bug));
 
         ProjectDashboardRespDTO result = dashboardService.getDashboard(projectId);
