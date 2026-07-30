@@ -151,7 +151,7 @@ watch(
 <template>
   <div class="role-users">
     <div class="role-users__toolbar">
-      <el-button type="primary" size="small" @click="pickerVisible = true">
+      <el-button type="primary" @click="pickerVisible = true">
         <el-icon><Plus /></el-icon>添加用户
       </el-button>
     </div>
@@ -252,6 +252,8 @@ watch(
 
 <style scoped lang="scss">
 .role-users__toolbar {
+  display: flex;
+  justify-content: flex-end;
   margin-bottom: 12px;
 }
 
