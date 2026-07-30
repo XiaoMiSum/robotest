@@ -4,6 +4,7 @@ import io.github.xiaomisum.robotest.model.entity.workspace.Project;
 import xyz.migoo.framework.mybatis.core.BaseMapperX;
 import xyz.migoo.framework.mybatis.core.LambdaQueryWrapperX;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 
@@ -14,6 +15,10 @@ public interface ProjectMapper extends BaseMapperX<Project> {
 
     default long countByWorkspaceId(UUID workspaceId) {
         return selectCount(Project::getWorkspaceId, workspaceId);
+    }
+
+    default List<Project> listByIds(Collection<UUID> ids) {
+        return selectList(new LambdaQueryWrapperX<Project>().in(Project::getId, ids));
     }
 
     default List<Project> listByWorkspaceId(UUID workspaceId) {

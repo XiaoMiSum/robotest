@@ -1,6 +1,7 @@
 package io.github.xiaomisum.robotest.service.admin;
 
 import io.github.xiaomisum.robotest.model.dto.response.workspace.WorkspaceMyRespDTO;
+import io.github.xiaomisum.robotest.model.entity.workspace.Project;
 import io.github.xiaomisum.robotest.model.entity.workspace.Workspace;
 import io.github.xiaomisum.robotest.model.entity.workspace.WorkspaceUser;
 import io.github.xiaomisum.robotest.repository.admin.SysUserMapper;
@@ -42,22 +43,29 @@ class MyWorkspaceServiceImplTest {
     void getMyWorkspacePage_countsProjects() {
         UUID userId = UUID.fromString("00000000-0000-0000-0000-000000000002");
         UUID workspaceId = UUID.fromString("00000000-0000-0000-0000-000000000001");
+        UUID defaultProjectId = UUID.fromString("00000000-0000-0000-0000-000000000003");
 
         WorkspaceUser wu = new WorkspaceUser();
         wu.setUserId(userId);
         wu.setWorkspaceId(workspaceId);
         wu.setWorkspaceRole(UUID.fromString("00000000-0000-0000-0000-000000000009"));
+        wu.setDefaultProjectId(defaultProjectId);
 
         Workspace workspace = new Workspace();
         workspace.setId(workspaceId);
         workspace.setName("WS 1");
         workspace.setStatus("active");
 
+        Project defaultProject = new Project();
+        defaultProject.setId(defaultProjectId);
+        defaultProject.setName("Default Project");
+
         doReturn(new PageResult<>(List.of(wu), 1L))
                 .when(workspaceUserMapper).findPageByUserId(any(PageParam.class), any(UUID.class));
         when(workspaceMapper.listByIds(List.of(workspaceId))).thenReturn(List.of(workspace));
         when(workspaceUserMapper.countByWorkspaceId(workspaceId)).thenReturn(4L);
         when(projectMapper.countByWorkspaceId(workspaceId)).thenReturn(6L);
+        when(projectMapper.listByIds(List.of(defaultProjectId))).thenReturn(List.of(defaultProject));
 
         PageResult<WorkspaceMyRespDTO> result = myWorkspaceService.getMyWorkspacePage(userId, 1, 12);
 
@@ -65,5 +73,7 @@ class MyWorkspaceServiceImplTest {
         assertEquals(4L, result.getList().get(0).getMemberCount());
         // projectCount 曾被硬编码为 0，须来自 project 表真实统计
         assertEquals(6L, result.getList().get(0).getProjectCount());
+        // defaultProjectName 曾缺失填充
+        assertEquals("Default Project", result.getList().get(0).getDefaultProjectName());
     }
 }

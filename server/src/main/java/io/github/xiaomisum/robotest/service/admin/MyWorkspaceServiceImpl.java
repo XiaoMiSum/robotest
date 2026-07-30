@@ -3,6 +3,7 @@ package io.github.xiaomisum.robotest.service.admin;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.model.dto.response.workspace.WorkspaceMyRespDTO;
 import io.github.xiaomisum.robotest.model.entity.admin.SysUser;
+import io.github.xiaomisum.robotest.model.entity.workspace.Project;
 import io.github.xiaomisum.robotest.model.entity.workspace.Workspace;
 import io.github.xiaomisum.robotest.model.entity.workspace.WorkspaceUser;
 import io.github.xiaomisum.robotest.repository.admin.SysUserMapper;
@@ -17,6 +18,7 @@ import xyz.migoo.framework.common.pojo.PageResult;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -58,12 +60,25 @@ public class MyWorkspaceServiceImpl implements MyWorkspaceService {
                         (v1, v2) -> v1
                 ));
 
+        // 批量查默认项目名称，避免逐条 selectById
+        List<UUID> defaultProjectIds = workspaceUserPage.getList().stream()
+                .map(WorkspaceUser::getDefaultProjectId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .collect(Collectors.toList());
+        Map<UUID, String> projectNameMap = defaultProjectIds.isEmpty() ? Map.of()
+                : projectMapper.listByIds(defaultProjectIds).stream()
+                        .collect(Collectors.toMap(Project::getId, Project::getName));
+
         // 缁勮鍝嶅簲
         List<WorkspaceMyRespDTO> records = workspaceUserPage.getList().stream().map(wu -> {
             WorkspaceMyRespDTO dto = new WorkspaceMyRespDTO();
             dto.setId(wu.getWorkspaceId());
             dto.setWorkspaceRole(wu.getWorkspaceRole().toString());
             dto.setDefaultProjectId(wu.getDefaultProjectId());
+            if (wu.getDefaultProjectId() != null) {
+                dto.setDefaultProjectName(projectNameMap.get(wu.getDefaultProjectId()));
+            }
 
             Workspace workspace = workspaceMap.get(wu.getWorkspaceId());
             if (workspace != null) {
