@@ -139,7 +139,27 @@ class TestCaseNodeServiceImplTest {
         node.setSortOrder(0);
         node.setVersion(1);
 
+        // 用例的子孙节点（前置/步骤/预期）应随明细一并返回
+        TestCaseNode step = new TestCaseNode();
+        step.setId(UUID.fromString("00000000-0000-0000-0000-000000000021"));
+        step.setDocumentId(documentId);
+        step.setParentId(caseId);
+        step.setType("step");
+        step.setTitle("Step 1");
+        step.setSortOrder(0);
+        step.setVersion(1);
+
+        TestCaseNode expected = new TestCaseNode();
+        expected.setId(UUID.fromString("00000000-0000-0000-0000-000000000022"));
+        expected.setDocumentId(documentId);
+        expected.setParentId(step.getId());
+        expected.setType("expected");
+        expected.setTitle("Expected 1");
+        expected.setSortOrder(0);
+        expected.setVersion(1);
+
         when(testCaseNodeMapper.selectById(caseId)).thenReturn(node);
+        when(testCaseNodeMapper.listByDocumentId(documentId)).thenReturn(List.of(node, step, expected));
 
         TestCaseNodeTreeRespDTO result = nodeService.getCaseDetail(caseId);
 
@@ -147,6 +167,10 @@ class TestCaseNodeServiceImplTest {
         assertEquals("Test Case", result.getTitle());
         assertEquals("high", result.getPriority());
         assertEquals("case", result.getType());
+        assertEquals(documentId, result.getDocumentId());
+        assertEquals(1, result.getChildren().size());
+        assertEquals("Step 1", result.getChildren().get(0).getTitle());
+        assertEquals("Expected 1", result.getChildren().get(0).getChildren().get(0).getTitle());
     }
 
     @Test

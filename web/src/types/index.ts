@@ -318,6 +318,8 @@ export type CaseNodeType = 'case' | 'normal' | 'precondition' | 'step' | 'expect
 /** 测试用例脑图节点 */
 export interface TestCaseNode {
   id: string
+  /** 所属文档 id，用例明细接口用于定位所在文档 */
+  documentId?: string | null
   parentId: string | null
   type: CaseNodeType
   title: string

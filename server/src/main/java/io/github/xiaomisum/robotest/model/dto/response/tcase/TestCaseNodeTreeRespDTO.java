@@ -9,6 +9,7 @@ import java.util.UUID;
 public class TestCaseNodeTreeRespDTO {
 
     private UUID id;
+    private UUID documentId;
     private UUID parentId;
     private String type;
     private String title;
