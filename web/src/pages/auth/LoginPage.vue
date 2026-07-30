@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { reactive, ref } from 'vue'
+import { onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useNavStore } from '@/stores/nav'
+import { checkInitStatus } from '@/services/init'
 import api from '@/services'
 import type { Result, LoginResult } from '@/types'
 import { ElMessage } from 'element-plus'
@@ -10,6 +11,18 @@ import { ElMessage } from 'element-plus'
 const router = useRouter()
 const authStore = useAuthStore()
 const navStore = useNavStore()
+
+// 检查系统是否已初始化，未初始化则跳转到初始化页
+onMounted(async () => {
+  try {
+    const status = await checkInitStatus()
+    if (!status.initialized) {
+      router.replace('/init')
+    }
+  } catch {
+    // 网络错误：静默失败，不阻塞登录页展示
+  }
+})
 
 const form = reactive({
   identifier: '',

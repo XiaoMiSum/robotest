@@ -12,6 +12,7 @@ public final class Constants {
         String ARCHIVED = "archived";
         String DISSOLVED = "dissolved";
         String REVOKED = "revoked";
+        String DISABLED = "disabled";
         String NEW = "new";
         String IN_PROGRESS = "in_progress";
         String CLOSED = "closed";
@@ -49,6 +50,25 @@ public final class Constants {
     }
 
     /**
+     * 缺陷严重等级
+     */
+    public interface BugSeverity {
+        String FATAL = "fatal";
+        String SERIOUS = "serious";
+        String GENERAL = "general";
+        String MINOR = "minor";
+    }
+
+    /**
+     * 缺陷优先级
+     */
+    public interface BugPriority {
+        String HIGH = "high";
+        String MEDIUM = "medium";
+        String LOW = "low";
+    }
+
+    /**
      * 缺陷解决方案（解决时必填，duplicate 需指定原始 Bug）
      */
     public interface BugResolution {
@@ -74,6 +94,9 @@ public final class Constants {
     public interface NodeType {
         String NORMAL = "normal";
         String CASE = "case";
+        String PRECONDITION = "precondition";
+        String STEP = "step";
+        String EXPECTED = "expected";
     }
 
     public interface ReviewMark {
@@ -85,6 +108,7 @@ public final class Constants {
 
     public interface ReviewOperation {
         String MARK = "mark";
+        String COMMENT = "comment";
     }
 
     // 计划执行结果：block 与前端 ExecutionResult 联合类型保持一致（非 blocked）
