@@ -47,6 +47,7 @@ loadModuleTree()
 
 const caseSelectorVisible = ref(false)
 const selectedCaseTitle = ref('')
+// 单选模式下选择器只会返回一个用例
 function handleCaseSelected(nodes: { documentId: string; caseIds: string[] }[]) {
   if (nodes.length && nodes[0].caseIds.length) {
     form.relatedCaseId = nodes[0].caseIds[0]
@@ -250,7 +251,7 @@ async function handleSubmit() {
       </div>
     </el-form>
 
-    <CaseSelector v-model="caseSelectorVisible" @confirm="handleCaseSelected" />
+    <CaseSelector v-model="caseSelectorVisible" single @confirm="handleCaseSelected" />
   </div>
 </template>
 

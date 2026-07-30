@@ -9,6 +9,8 @@ const props = defineProps<{
   modelValue: boolean
   // 调整场景传入当前规划用例，打开时回显预选；创建场景不传，行为不变
   initialSelected?: { documentId: string; caseIds: string[] }[]
+  // 单选模式：仅可勾选一个用例节点（缺陷关联用例场景），默认多选保持既有调用方行为
+  single?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -45,7 +47,7 @@ const selectableRoot = computed(() => {
   return showFullDoc.value ? docNodes.value : pruneEmptyBranches(docNodes.value)
 })
 
-// 预聚合各节点子树的用例数与已选数，驱动芯片全选/半选态
+// 预聚合各节点子树的用例数与已选数，驱动芯片全选/半选态；单选模式只统计节点自身，避免嵌套用例导致半选态
 const nodeStats = computed(() => {
   const stats: Record<string, { total: number; selected: number }> = {}
   const root = selectableRoot.value
@@ -60,8 +62,10 @@ const nodeStats = computed(() => {
     }
     node.children.forEach((child) => {
       const s = walk(child)
-      total += s.total
-      selected += s.selected
+      if (!props.single) {
+        total += s.total
+        selected += s.selected
+      }
     })
     stats[node.id] = { total, selected }
     return stats[node.id]
@@ -135,9 +139,15 @@ function collectCaseIds(node: TestCaseNode, acc: string[]) {
   node.children.forEach((child) => collectCaseIds(child, acc))
 }
 
-// 级联勾选：整枝已全选则整枝取消，否则补齐整枝（含嵌套用例）
+// 级联勾选：整枝已全选则整枝取消，否则补齐整枝（含嵌套用例）；单选模式为跨文档互斥的替换式选中
 function handleToggle(node: TestCaseNode) {
   if (!selectedDocId.value) return
+  if (props.single) {
+    if (node.type !== 'case') return
+    const already = selectedMap.value[selectedDocId.value]?.has(node.id)
+    selectedMap.value = already ? {} : { [selectedDocId.value]: new Set([node.id]) }
+    return
+  }
   if (!selectedMap.value[selectedDocId.value]) {
     selectedMap.value[selectedDocId.value] = new Set()
   }
@@ -166,7 +176,7 @@ function handleConfirm() {
     }
   })
   if (!result.length) {
-    ElMessage.warning('请至少选择一个用例')
+    ElMessage.warning(props.single ? '请选择一个用例' : '请至少选择一个用例')
     return
   }
   emit('confirm', result)
@@ -249,7 +259,7 @@ onMounted(() => { if (props.modelValue) loadModules() })
           <div class="case-selector__toolbar">
             <el-checkbox v-model="showFullDoc" size="small">展示全量文档视图</el-checkbox>
             <div class="case-selector__toolbar-right">
-              <span class="case-selector__tip">勾选任意节点，其子孙用例将一并规划</span>
+              <span class="case-selector__tip">{{ single ? '仅可关联一个用例，再次选择将替换' : '勾选任意节点，其子孙用例将一并规划' }}</span>
               <span class="case-selector__count">已选 {{ totalSelected }} 个用例</span>
             </div>
           </div>
@@ -260,6 +270,7 @@ onMounted(() => { if (props.modelValue) loadModules() })
               :stats="nodeStats"
               :visible-ids="filterSets ? filterSets.visible : null"
               :matched-ids="filterSets ? filterSets.matched : null"
+              :single="single"
               @toggle="handleToggle"
             />
             <el-empty

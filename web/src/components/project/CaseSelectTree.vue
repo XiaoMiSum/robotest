@@ -9,6 +9,8 @@ const props = defineProps<{
   visibleIds: Set<string> | null
   // 过滤命中的用例节点集合，用于高亮
   matchedIds: Set<string> | null
+  // 单选模式：仅用例节点可勾选，分枝节点不提供级联全选
+  single?: boolean
 }>()
 
 const emit = defineEmits<{ toggle: [node: TestCaseNode] }>()
@@ -35,13 +37,14 @@ function isIndeterminate(id: string): boolean {
   return s.selected > 0 && s.selected < s.total
 }
 
-// 子树不含任何用例的节点（前置/步骤/预期或空分枝）仅展示不可勾选
-function isSelectable(id: string): boolean {
-  return stat(id).total > 0
+// 子树不含任何用例的节点（前置/步骤/预期或空分枝）仅展示不可勾选；单选模式下分枝节点也不可勾选
+function isSelectable(node: TestCaseNode): boolean {
+  if (props.single) return node.type === 'case'
+  return stat(node.id).total > 0
 }
 
 function handleChipClick(node: TestCaseNode) {
-  if (isSelectable(node.id)) emit('toggle', node)
+  if (isSelectable(node)) emit('toggle', node)
 }
 
 function visibleChildren(node: TestCaseNode): TestCaseNode[] {
@@ -59,12 +62,12 @@ function visibleChildren(node: TestCaseNode): TestCaseNode[] {
         'cst-chip--case': node.type === 'case',
         'cst-chip--checked': isChecked(node.id),
         'cst-chip--matched': matchedIds?.has(node.id),
-        'cst-chip--plain': !isSelectable(node.id),
+        'cst-chip--plain': !isSelectable(node),
       }"
       @click="handleChipClick(node)"
     >
       <el-checkbox
-        v-if="isSelectable(node.id)"
+        v-if="isSelectable(node)"
         :model-value="isChecked(node.id)"
         :indeterminate="isIndeterminate(node.id)"
         @click.stop
@@ -96,6 +99,7 @@ function visibleChildren(node: TestCaseNode): TestCaseNode[] {
             :stats="stats"
             :visible-ids="visibleIds"
             :matched-ids="matchedIds"
+            :single="single"
             @toggle="emit('toggle', $event)"
           />
         </div>
