@@ -119,6 +119,45 @@ class BugServiceImplTest {
     }
 
     @Test
+    void getBugPage_withResolvedInfo() {
+        UUID reporterId = UUID.fromString("00000000-0000-0000-0000-000000000004");
+        UUID resolverId = UUID.fromString("00000000-0000-0000-0000-000000000005");
+        LocalDateTime resolvedAt = LocalDateTime.of(2026, 7, 30, 10, 0);
+        LocalDateTime closedAt = LocalDateTime.of(2026, 7, 30, 12, 0);
+
+        Bug bug = new Bug();
+        bug.setId(bugId);
+        bug.setTitle("Resolved Bug");
+        bug.setStatus(Constants.BugStatus.CLOSED);
+        bug.setResolution(Constants.BugResolution.FIXED);
+        bug.setReporterId(reporterId);
+        bug.setResolvedBy(resolverId);
+        bug.setResolvedAt(resolvedAt);
+        bug.setClosedAt(closedAt);
+
+        PageResult<Bug> pageResult = new PageResult<>(List.of(bug), 1L);
+        doReturn(pageResult).when(bugMapper).findPage(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any());
+
+        SysUser reporter = new SysUser();
+        reporter.setId(reporterId);
+        reporter.setUsername("reporter");
+        when(userMapper.selectById(reporterId)).thenReturn(reporter);
+        SysUser resolver = new SysUser();
+        resolver.setId(resolverId);
+        resolver.setUsername("resolver");
+        when(userMapper.selectById(resolverId)).thenReturn(resolver);
+
+        PageResult<BugListRespDTO> result = bugService.getBugPage(
+                projectId, null, null, null, null, null, null, null, null, null, 1, 10);
+
+        BugListRespDTO dto = result.getList().get(0);
+        assertEquals("resolver", dto.getResolvedBy().getName());
+        assertEquals(Constants.BugResolution.FIXED, dto.getResolution());
+        assertEquals(resolvedAt, dto.getResolvedAt());
+        assertEquals(closedAt, dto.getClosedAt());
+    }
+
+    @Test
     void getBugPage_emptyResult() {
         PageResult<Bug> pageResult = new PageResult<>(Collections.emptyList(), 0L);
         doReturn(pageResult).when(bugMapper).findPage(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any());
@@ -251,8 +290,8 @@ class BugServiceImplTest {
         assertThrows(ServiceException.class,
                 () -> bugService.updateBug(bugId, userId, reqDTO));
         verify(bugMapper, never()).updateById(any(Bug.class));
-        verify(bugMapper, never()).resolveById(any(), any(), any(), any());
-        verify(bugMapper, never()).reopenById(any(), anyInt());
+        verify(bugMapper, never()).resolveById(any(), any(), any(), any(), any());
+        verify(bugMapper, never()).reopenById(any(), anyInt(), any());
     }
 
     @Test
@@ -274,8 +313,8 @@ class BugServiceImplTest {
         assertThrows(ServiceException.class,
                 () -> bugService.updateBug(bugId, userId, reqDTO));
         verify(bugMapper, never()).updateById(any(Bug.class));
-        verify(bugMapper, never()).resolveById(any(), any(), any(), any());
-        verify(bugMapper, never()).reopenById(any(), anyInt());
+        verify(bugMapper, never()).resolveById(any(), any(), any(), any(), any());
+        verify(bugMapper, never()).reopenById(any(), anyInt(), any());
     }
 
     // ========== getBugDetail ==========
@@ -343,7 +382,9 @@ class BugServiceImplTest {
 
     @Test
     void resolveBug_success() {
+        UUID reporterId = UUID.fromString("00000000-0000-0000-0000-000000000004");
         Bug bug = activeBug();
+        bug.setReporterId(reporterId);
         when(bugMapper.selectById(bugId)).thenReturn(bug);
         doAnswer(inv -> {
             ((BugLog) inv.getArgument(0)).setId(UUID.randomUUID());
@@ -355,8 +396,8 @@ class BugServiceImplTest {
 
         bugService.changeBugStatus(bugId, userId, reqDTO);
 
-        // 状态置位与解决信息写入已封装进 Mapper default 方法，这里只验证入参正确
-        verify(bugMapper).resolveById(bugId, userId, Constants.BugResolution.FIXED, null);
+        // 状态置位与解决信息写入已封装进 Mapper default 方法，这里只验证入参正确（处理人回设为创建人）
+        verify(bugMapper).resolveById(bugId, userId, Constants.BugResolution.FIXED, null, reporterId);
         verify(bugLogMapper).insert(any(BugLog.class));
     }
 
@@ -370,8 +411,8 @@ class BugServiceImplTest {
         assertThrows(ServiceException.class,
                 () -> bugService.changeBugStatus(bugId, userId, reqDTO));
         verify(bugMapper, never()).updateById(any(Bug.class));
-        verify(bugMapper, never()).resolveById(any(), any(), any(), any());
-        verify(bugMapper, never()).reopenById(any(), anyInt());
+        verify(bugMapper, never()).resolveById(any(), any(), any(), any(), any());
+        verify(bugMapper, never()).reopenById(any(), anyInt(), any());
     }
 
     @Test
@@ -385,8 +426,8 @@ class BugServiceImplTest {
         assertThrows(ServiceException.class,
                 () -> bugService.changeBugStatus(bugId, userId, reqDTO));
         verify(bugMapper, never()).updateById(any(Bug.class));
-        verify(bugMapper, never()).resolveById(any(), any(), any(), any());
-        verify(bugMapper, never()).reopenById(any(), anyInt());
+        verify(bugMapper, never()).resolveById(any(), any(), any(), any(), any());
+        verify(bugMapper, never()).reopenById(any(), anyInt(), any());
     }
 
     @Test
@@ -400,8 +441,8 @@ class BugServiceImplTest {
         assertThrows(ServiceException.class,
                 () -> bugService.changeBugStatus(bugId, userId, reqDTO));
         verify(bugMapper, never()).updateById(any(Bug.class));
-        verify(bugMapper, never()).resolveById(any(), any(), any(), any());
-        verify(bugMapper, never()).reopenById(any(), anyInt());
+        verify(bugMapper, never()).resolveById(any(), any(), any(), any(), any());
+        verify(bugMapper, never()).reopenById(any(), anyInt(), any());
     }
 
     @Test
@@ -415,8 +456,8 @@ class BugServiceImplTest {
         assertThrows(ServiceException.class,
                 () -> bugService.changeBugStatus(bugId, userId, reqDTO));
         verify(bugMapper, never()).updateById(any(Bug.class));
-        verify(bugMapper, never()).resolveById(any(), any(), any(), any());
-        verify(bugMapper, never()).reopenById(any(), anyInt());
+        verify(bugMapper, never()).resolveById(any(), any(), any(), any(), any());
+        verify(bugMapper, never()).reopenById(any(), anyInt(), any());
     }
 
     @Test
@@ -431,8 +472,8 @@ class BugServiceImplTest {
         assertThrows(ServiceException.class,
                 () -> bugService.changeBugStatus(bugId, userId, reqDTO));
         verify(bugMapper, never()).updateById(any(Bug.class));
-        verify(bugMapper, never()).resolveById(any(), any(), any(), any());
-        verify(bugMapper, never()).reopenById(any(), anyInt());
+        verify(bugMapper, never()).resolveById(any(), any(), any(), any(), any());
+        verify(bugMapper, never()).reopenById(any(), anyInt(), any());
     }
 
     @Test
@@ -453,8 +494,8 @@ class BugServiceImplTest {
         assertThrows(ServiceException.class,
                 () -> bugService.changeBugStatus(bugId, userId, reqDTO));
         verify(bugMapper, never()).updateById(any(Bug.class));
-        verify(bugMapper, never()).resolveById(any(), any(), any(), any());
-        verify(bugMapper, never()).reopenById(any(), anyInt());
+        verify(bugMapper, never()).resolveById(any(), any(), any(), any(), any());
+        verify(bugMapper, never()).reopenById(any(), anyInt(), any());
     }
 
     @Test
@@ -478,7 +519,7 @@ class BugServiceImplTest {
 
         bugService.changeBugStatus(bugId, userId, reqDTO);
 
-        verify(bugMapper).resolveById(bugId, userId, Constants.BugResolution.DUPLICATE, originalId);
+        verify(bugMapper).resolveById(bugId, userId, Constants.BugResolution.DUPLICATE, originalId, null);
     }
 
     // ========== changeBugStatus：关闭 ==========
@@ -513,8 +554,8 @@ class BugServiceImplTest {
                 () -> bugService.changeBugStatus(bugId, userId,
                         statusChangeReq(Constants.BugStatus.CLOSED, null)));
         verify(bugMapper, never()).updateById(any(Bug.class));
-        verify(bugMapper, never()).resolveById(any(), any(), any(), any());
-        verify(bugMapper, never()).reopenById(any(), anyInt());
+        verify(bugMapper, never()).resolveById(any(), any(), any(), any(), any());
+        verify(bugMapper, never()).reopenById(any(), anyInt(), any());
     }
 
     // ========== changeBugStatus：拒绝 ==========
@@ -537,6 +578,7 @@ class BugServiceImplTest {
         verify(bugMapper).updateById(captor.capture());
         assertEquals(Constants.BugStatus.REJECTED, captor.getValue().getStatus());
         assertEquals(reporterId, captor.getValue().getAssigneeId());
+        assertEquals(userId, captor.getValue().getRejectedBy());
         verify(bugLogMapper).insert(any(BugLog.class));
     }
 
@@ -549,8 +591,8 @@ class BugServiceImplTest {
                 () -> bugService.changeBugStatus(bugId, userId,
                         statusChangeReq(Constants.BugStatus.REJECTED, null)));
         verify(bugMapper, never()).updateById(any(Bug.class));
-        verify(bugMapper, never()).resolveById(any(), any(), any(), any());
-        verify(bugMapper, never()).reopenById(any(), anyInt());
+        verify(bugMapper, never()).resolveById(any(), any(), any(), any(), any());
+        verify(bugMapper, never()).reopenById(any(), anyInt(), any());
     }
 
     @Test
@@ -563,8 +605,8 @@ class BugServiceImplTest {
                 () -> bugService.changeBugStatus(bugId, userId,
                         statusChangeReq(Constants.BugStatus.REJECTED, "拒绝已修复缺陷")));
         verify(bugMapper, never()).updateById(any(Bug.class));
-        verify(bugMapper, never()).resolveById(any(), any(), any(), any());
-        verify(bugMapper, never()).reopenById(any(), anyInt());
+        verify(bugMapper, never()).resolveById(any(), any(), any(), any(), any());
+        verify(bugMapper, never()).reopenById(any(), anyInt(), any());
     }
 
     @Test
@@ -587,6 +629,26 @@ class BugServiceImplTest {
 
     @Test
     void rejectedBug_canBeReopened() {
+        UUID rejecterId = UUID.fromString("00000000-0000-0000-0000-000000000006");
+        Bug bug = activeBug();
+        bug.setStatus(Constants.BugStatus.REJECTED);
+        bug.setReopenCount(0);
+        bug.setRejectedBy(rejecterId);
+        when(bugMapper.selectById(bugId)).thenReturn(bug);
+        doAnswer(inv -> {
+            ((BugLog) inv.getArgument(0)).setId(UUID.randomUUID());
+            return 1;
+        }).when(bugLogMapper).insert(any(BugLog.class));
+
+        bugService.changeBugStatus(bugId, userId,
+                statusChangeReq(Constants.BugStatus.ACTIVE, "不认可拒绝，重新激活"));
+
+        // 已拒绝重开：处理人回设为执行拒绝的人
+        verify(bugMapper).reopenById(bugId, 1, rejecterId);
+    }
+
+    @Test
+    void rejectedBug_withoutRejectedBy_reopenKeepsAssignee() {
         Bug bug = activeBug();
         bug.setStatus(Constants.BugStatus.REJECTED);
         bug.setReopenCount(0);
@@ -599,7 +661,8 @@ class BugServiceImplTest {
         bugService.changeBugStatus(bugId, userId,
                 statusChangeReq(Constants.BugStatus.ACTIVE, "不认可拒绝，重新激活"));
 
-        verify(bugMapper).reopenById(bugId, 1);
+        // 存量数据无拒绝人记录时传 null，Mapper 侧条件 set 保持处理人不变
+        verify(bugMapper).reopenById(bugId, 1, null);
     }
 
     // ========== changeBugStatus：重开 ==========
@@ -625,9 +688,30 @@ class BugServiceImplTest {
         bugService.changeBugStatus(bugId, userId,
                 statusChangeReq(Constants.BugStatus.ACTIVE, "问题复现"));
 
-        // updateById 会忽略 null 字段导致清空静默失效，重开必须走 reopenById 显式 set null
+        // updateById 会忽略 null 字段导致清空静默失效，重开必须走 reopenById 显式 set null；
+        // 关闭前经过修复的缺陷重开时处理人回设为修复人
         verify(bugMapper, never()).updateById(any(Bug.class));
-        verify(bugMapper).reopenById(bugId, 2);
+        verify(bugMapper).reopenById(bugId, 2, userId);
+    }
+
+    @Test
+    void resolvedBug_reopen_assigneeSetToResolver() {
+        UUID resolverId = UUID.fromString("00000000-0000-0000-0000-000000000007");
+        Bug bug = activeBug();
+        bug.setStatus(Constants.BugStatus.RESOLVED);
+        bug.setReopenCount(0);
+        bug.setResolvedBy(resolverId);
+        when(bugMapper.selectById(bugId)).thenReturn(bug);
+        doAnswer(inv -> {
+            ((BugLog) inv.getArgument(0)).setId(UUID.randomUUID());
+            return 1;
+        }).when(bugLogMapper).insert(any(BugLog.class));
+
+        bugService.changeBugStatus(bugId, userId,
+                statusChangeReq(Constants.BugStatus.ACTIVE, "修复未通过验证，重新激活"));
+
+        // 已修复重开：处理人回设为修复人
+        verify(bugMapper).reopenById(bugId, 1, resolverId);
     }
 
     @Test
@@ -640,8 +724,8 @@ class BugServiceImplTest {
                 () -> bugService.changeBugStatus(bugId, userId,
                         statusChangeReq(Constants.BugStatus.ACTIVE, null)));
         verify(bugMapper, never()).updateById(any(Bug.class));
-        verify(bugMapper, never()).resolveById(any(), any(), any(), any());
-        verify(bugMapper, never()).reopenById(any(), anyInt());
+        verify(bugMapper, never()).resolveById(any(), any(), any(), any(), any());
+        verify(bugMapper, never()).reopenById(any(), anyInt(), any());
     }
 
     // ========== changeBugStatus：非法流转 ==========
@@ -655,8 +739,8 @@ class BugServiceImplTest {
                 () -> bugService.changeBugStatus(bugId, userId,
                         statusChangeReq(Constants.BugStatus.CLOSED, "跳过解决直接关闭")));
         verify(bugMapper, never()).updateById(any(Bug.class));
-        verify(bugMapper, never()).resolveById(any(), any(), any(), any());
-        verify(bugMapper, never()).reopenById(any(), anyInt());
+        verify(bugMapper, never()).resolveById(any(), any(), any(), any(), any());
+        verify(bugMapper, never()).reopenById(any(), anyInt(), any());
     }
 
     @Test
@@ -671,8 +755,8 @@ class BugServiceImplTest {
         assertThrows(ServiceException.class,
                 () -> bugService.changeBugStatus(bugId, userId, reqDTO));
         verify(bugMapper, never()).updateById(any(Bug.class));
-        verify(bugMapper, never()).resolveById(any(), any(), any(), any());
-        verify(bugMapper, never()).reopenById(any(), anyInt());
+        verify(bugMapper, never()).resolveById(any(), any(), any(), any(), any());
+        verify(bugMapper, never()).reopenById(any(), anyInt(), any());
     }
 
     @Test
@@ -713,8 +797,8 @@ class BugServiceImplTest {
         assertThrows(ServiceException.class,
                 () -> bugService.confirmBug(bugId, userId));
         verify(bugMapper, never()).updateById(any(Bug.class));
-        verify(bugMapper, never()).resolveById(any(), any(), any(), any());
-        verify(bugMapper, never()).reopenById(any(), anyInt());
+        verify(bugMapper, never()).resolveById(any(), any(), any(), any(), any());
+        verify(bugMapper, never()).reopenById(any(), anyInt(), any());
     }
 
     @Test
@@ -726,8 +810,8 @@ class BugServiceImplTest {
         assertThrows(ServiceException.class,
                 () -> bugService.confirmBug(bugId, userId));
         verify(bugMapper, never()).updateById(any(Bug.class));
-        verify(bugMapper, never()).resolveById(any(), any(), any(), any());
-        verify(bugMapper, never()).reopenById(any(), anyInt());
+        verify(bugMapper, never()).resolveById(any(), any(), any(), any(), any());
+        verify(bugMapper, never()).reopenById(any(), anyInt(), any());
     }
 
     @Test
@@ -781,8 +865,8 @@ class BugServiceImplTest {
         assertThrows(ServiceException.class,
                 () -> bugService.assignBug(bugId, userId, assigneeId));
         verify(bugMapper, never()).updateById(any(Bug.class));
-        verify(bugMapper, never()).resolveById(any(), any(), any(), any());
-        verify(bugMapper, never()).reopenById(any(), anyInt());
+        verify(bugMapper, never()).resolveById(any(), any(), any(), any(), any());
+        verify(bugMapper, never()).reopenById(any(), anyInt(), any());
     }
 
     @Test
@@ -819,8 +903,8 @@ class BugServiceImplTest {
         assertThrows(ServiceException.class,
                 () -> bugService.assignBug(bugId, userId, assigneeId));
         verify(bugMapper, never()).updateById(any(Bug.class));
-        verify(bugMapper, never()).resolveById(any(), any(), any(), any());
-        verify(bugMapper, never()).reopenById(any(), anyInt());
+        verify(bugMapper, never()).resolveById(any(), any(), any(), any(), any());
+        verify(bugMapper, never()).reopenById(any(), anyInt(), any());
     }
 
     @Test
