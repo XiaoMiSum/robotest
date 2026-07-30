@@ -10,6 +10,7 @@ import {
   downloadBugAttachment,
   fetchBugAttachments,
   fetchModuleTree,
+  fetchPlans,
   getBugDetail,
   getBugLogs,
   updateBug,
@@ -22,6 +23,7 @@ import type {
   BugLog,
   BugResolution,
   TestCaseModule,
+  TestPlanListItem,
   WorkspaceMember,
 } from '@/types'
 import { formatDateTime, formatShortId } from '@/utils/format'
@@ -33,6 +35,7 @@ import {
   promptStatusChangeComment,
 } from '@/utils/bugStatus'
 import BugResolveDialog from '@/components/project/BugResolveDialog.vue'
+import CaseSelector from '@/components/project/CaseSelector.vue'
 import MarkdownEditor from '@/components/common/MarkdownEditor.vue'
 import MarkdownView from '@/components/common/MarkdownView.vue'
 
@@ -62,6 +65,8 @@ const form = reactive({
   dueDate: '' as string,
   reproSteps: '',
   assigneeId: '' as string,
+  relatedCaseId: '' as string,
+  relatedPlanId: '' as string,
 })
 
 const moduleTree = ref<TestCaseModule[]>([])
@@ -69,6 +74,29 @@ async function loadModuleTree() {
   try {
     moduleTree.value = await fetchModuleTree()
   } catch { /* ignore */ }
+}
+
+// 不按状态过滤，保证已关联的历史计划也能正常回显
+const planOptions = ref<TestPlanListItem[]>([])
+async function loadPlanOptions() {
+  try {
+    const page = await fetchPlans({ pageNo: 1, pageSize: 100 })
+    planOptions.value = page.list
+  } catch { /* ignore */ }
+}
+
+const relatedPlanName = computed(() => {
+  const id = detail.value?.relatedPlanId
+  if (!id) return '-'
+  return planOptions.value.find((p) => p.id === id)?.name ?? id
+})
+
+const caseSelectorVisible = ref(false)
+// 单选模式下选择器只会返回一个用例
+function handleCaseSelected(nodes: { documentId: string; caseIds: string[] }[]) {
+  if (nodes.length && nodes[0].caseIds.length) {
+    form.relatedCaseId = nodes[0].caseIds[0]
+  }
 }
 
 const severityLabel: Record<string, string> = { fatal: '致命', serious: '严重', general: '一般', minor: '轻微' }
@@ -96,6 +124,8 @@ async function load() {
     form.dueDate = bugData.dueDate ?? ''
     form.reproSteps = bugData.reproSteps ?? ''
     form.assigneeId = bugData.assignee?.id ?? ''
+    form.relatedCaseId = bugData.relatedCaseId ?? ''
+    form.relatedPlanId = bugData.relatedPlanId ?? ''
   } catch (err) {
     ElMessage.error(err instanceof Error ? err.message : '加载缺陷详情失败')
   } finally {
@@ -107,6 +137,9 @@ async function handleSave() {
   if (!detail.value) return
   saving.value = true
   try {
+    // 关联字段仅在变更时提交：空串表示清空，未变更不传避免误清
+    const originalRelatedCaseId = detail.value.relatedCaseId ?? ''
+    const originalRelatedPlanId = detail.value.relatedPlanId ?? ''
     await updateBug(bugId, {
       title: form.title.trim(),
       severity: form.severity as BugDetail['severity'],
@@ -116,6 +149,8 @@ async function handleSave() {
       keywords: form.keywords.trim() || undefined,
       dueDate: form.dueDate || undefined,
       reproSteps: form.reproSteps.trim() || undefined,
+      relatedCaseId: form.relatedCaseId !== originalRelatedCaseId ? form.relatedCaseId : undefined,
+      relatedPlanId: form.relatedPlanId !== originalRelatedPlanId ? form.relatedPlanId : undefined,
     })
     // 处理人变更走专用指派接口，后端会校验工作空间成员并写指派日志
     const originalAssigneeId = detail.value.assignee?.id ?? ''
@@ -268,6 +303,7 @@ async function handleAttachmentDelete(item: BugAttachment) {
 onMounted(() => {
   load()
   loadModuleTree()
+  loadPlanOptions()
   loadAttachments()
 })
 </script>
@@ -295,7 +331,7 @@ onMounted(() => {
           <el-tag :type="BUG_STATUS_TAG_TYPE[detail.status]" size="small" effect="light" round>{{ statusLabel[detail.status] }}</el-tag>
           <el-tag :type="detail.reopenCount > 0 ? 'danger' : 'info'" size="small" effect="plain" round>激活 {{ detail.reopenCount }} 次</el-tag>
           <el-button type="primary" @click="router.push('/workspace/projects/bugs/create')">
-            <el-icon><Plus /></el-icon>新增Bug
+            <el-icon><Plus /></el-icon>提交缺陷
           </el-button>
         </div>
       </template>
@@ -448,6 +484,24 @@ onMounted(() => {
                 </el-select>
                 <span v-else class="bug-detail__text">{{ detail.assignee?.name ?? '-' }}</span>
               </el-form-item>
+              <el-form-item label="关联用例">
+                <div v-if="!isClosed" class="bug-detail__relation">
+                  <span class="bug-detail__text">{{ form.relatedCaseId ? '已关联 1 个用例' : '未关联' }}</span>
+                  <el-button size="small" @click="caseSelectorVisible = true">
+                    {{ form.relatedCaseId ? '更换' : '选择用例' }}
+                  </el-button>
+                  <el-button v-if="form.relatedCaseId" size="small" link type="danger" @click="form.relatedCaseId = ''">
+                    清除
+                  </el-button>
+                </div>
+                <span v-else class="bug-detail__text">{{ detail.relatedCaseId ? '已关联 1 个用例' : '-' }}</span>
+              </el-form-item>
+              <el-form-item label="关联计划">
+                <el-select v-if="!isClosed" v-model="form.relatedPlanId" filterable clearable placeholder="选择计划（可选）">
+                  <el-option v-for="p in planOptions" :key="p.id" :label="p.name" :value="p.id" />
+                </el-select>
+                <span v-else class="bug-detail__text">{{ relatedPlanName }}</span>
+              </el-form-item>
             </el-form>
           </el-card>
         </div>
@@ -468,6 +522,8 @@ onMounted(() => {
       :exclude-bug-id="bugId"
       @confirm="handleResolve"
     />
+
+    <CaseSelector v-model="caseSelectorVisible" single @confirm="handleCaseSelected" />
   </div>
 </template>
 
@@ -613,6 +669,17 @@ onMounted(() => {
   font-size: var(--font-size-sm);
   color: var(--color-neutral-700);
   line-height: 1.6;
+}
+
+.bug-detail__relation {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  width: 100%;
+
+  .bug-detail__text {
+    flex: 1;
+  }
 }
 
 .bug-detail__severity-dot {
