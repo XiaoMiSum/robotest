@@ -35,20 +35,29 @@ const query = reactive({
   pageSize: 20,
 })
 
-// 快捷过滤：与当前登录用户相关的缺陷
-type QuickFilter = '' | 'reported' | 'assigned' | 'resolved' | 'closed'
+// 快捷过滤：与当前登录用户相关的缺陷；未修复的＝激活状态（已拒绝/已关闭视为无需修复）
+type QuickFilter = '' | 'unresolved' | 'reported' | 'assigned' | 'resolved' | 'closed'
 const quickFilter = ref<QuickFilter>('')
 const quickFilterOptions: { value: QuickFilter; label: string }[] = [
   { value: '', label: '全部' },
-  { value: 'reported', label: '我新建的' },
-  { value: 'assigned', label: '指派给我的' },
-  { value: 'resolved', label: '我修复的' },
-  { value: 'closed', label: '我关闭的' },
+  { value: 'unresolved', label: '未修复的' },
+  { value: 'reported', label: '由我创建' },
+  { value: 'assigned', label: '指派给我' },
+  { value: 'resolved', label: '由我修复' },
+  { value: 'closed', label: '由我关闭' },
 ]
 
-function quickFilterParams(): { reporterId?: string; assigneeId?: string; resolvedBy?: string; closedBy?: string } {
+function quickFilterParams(): {
+  status?: BugStatus
+  reporterId?: string
+  assigneeId?: string
+  resolvedBy?: string
+  closedBy?: string
+} {
+  if (!quickFilter.value) return {}
+  if (quickFilter.value === 'unresolved') return { status: 'active' }
   const uid = authStore.user?.id
-  if (!quickFilter.value || !uid) return {}
+  if (!uid) return {}
   switch (quickFilter.value) {
     case 'reported': return { reporterId: uid }
     case 'assigned': return { assigneeId: uid }
@@ -191,8 +200,9 @@ async function loadBoardColumn(status: BoardStatus, reset = false) {
     col.pageNo = 1
     col.finished = false
   }
-  // 状态筛选与列不匹配时该列必为空，无需请求
-  if (query.status && query.status !== status) {
+  // 状态筛选（含快捷过滤的状态约束）与列不匹配时该列必为空，无需请求
+  const { status: quickStatus, ...quickPersonParams } = quickFilterParams()
+  if ((query.status && query.status !== status) || (quickStatus && quickStatus !== status)) {
     col.finished = true
     col.loading = false
     return
@@ -207,7 +217,7 @@ async function loadBoardColumn(status: BoardStatus, reset = false) {
       priority: query.priority || undefined,
       bugType: query.bugType || undefined,
       keyword: query.keyword || undefined,
-      ...quickFilterParams(),
+      ...quickPersonParams,
       pageNo,
       pageSize: query.pageSize,
     })
@@ -580,7 +590,7 @@ onMounted(loadBugs)
         <el-table-column label="创建时间" width="110">
           <template #default="{ row }">{{ formatShortDateTime(row.createdAt) }}</template>
         </el-table-column>
-        <el-table-column label="操作" width="250" fixed="right">
+        <el-table-column label="操作" width="230" fixed="right">
           <template #default="{ row }">
             <el-button link type="primary" @click="router.push(`/workspace/projects/bugs/${row.id}`)">详情</el-button>
             <el-button v-if="row.status === 'active'" link type="success" @click="openResolveDialog(row as BugListItem)">解决</el-button>
