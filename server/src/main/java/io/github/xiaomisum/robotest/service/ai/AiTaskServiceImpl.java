@@ -13,12 +13,12 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
 import xyz.migoo.framework.common.util.JsonUtils;
-import xyz.migoo.framework.mybatis.core.LambdaUpdateWrapperX;
 
 import java.net.InetAddress;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -59,7 +59,7 @@ public class AiTaskServiceImpl implements AiTaskService {
         if (!inProgress.isEmpty()) {
             if (Constants.AiTaskType.EMBEDDING_REBUILD.equals(type)) {
                 // 覆盖式创建：以最新配置为准，先取消进行中的旧重建任务
-                inProgress.forEach(task -> markCancelled(task.getId()));
+                inProgress.forEach(task -> taskMapper.markCancelledById(task.getId()));
             } else {
                 throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_TASK_DUPLICATE);
             }
@@ -96,7 +96,7 @@ public class AiTaskServiceImpl implements AiTaskService {
         if (!task.getCreatedBy().equals(userId)) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.NO_PERMISSION);
         }
-        markCancelled(taskId);
+        taskMapper.markCancelledById(taskId);
     }
 
     @Override
@@ -111,26 +111,18 @@ public class AiTaskServiceImpl implements AiTaskService {
         if (!taskMapper.findInProgressByTypeAndTarget(task.getType(), task.getTargetId()).isEmpty()) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_TASK_DUPLICATE);
         }
-        resetToPending(taskId);
+        taskMapper.resetToPending(taskId);
         trySubmit(taskId);
     }
 
     @Override
     public void cancelByTypeAndTarget(String type, UUID targetId) {
-        taskMapper.update(null, new LambdaUpdateWrapperX<AiAnalysisTask>()
-                .eq(AiAnalysisTask::getType, type)
-                .eq(AiAnalysisTask::getTargetId, targetId)
-                .in(AiAnalysisTask::getStatus, IN_PROGRESS_STATUSES)
-                .set(AiAnalysisTask::getStatus, Constants.AiTaskStatus.CANCELLED)
-                .set(AiAnalysisTask::getUpdatedAt, LocalDateTime.now()));
+        taskMapper.cancelByTypeAndTarget(type, targetId);
     }
 
     @Override
     public void cancelAllInProgress() {
-        taskMapper.update(null, new LambdaUpdateWrapperX<AiAnalysisTask>()
-                .in(AiAnalysisTask::getStatus, IN_PROGRESS_STATUSES)
-                .set(AiAnalysisTask::getStatus, Constants.AiTaskStatus.CANCELLED)
-                .set(AiAnalysisTask::getUpdatedAt, LocalDateTime.now()));
+        taskMapper.cancelAllInProgress();
     }
 
     @Override
@@ -146,7 +138,7 @@ public class AiTaskServiceImpl implements AiTaskService {
                 .contains(task.getStatus())) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_TASK_STATE_INVALID);
         }
-        resetToPending(task.getId());
+        taskMapper.resetToPending(task.getId());
         trySubmit(task.getId());
     }
 
@@ -162,81 +154,36 @@ public class AiTaskServiceImpl implements AiTaskService {
      */
     void executeTask(UUID taskId) {
         // 以 UPDATE … WHERE status='pending' 抢占，影响行数为 0 即被其他实例消费
-        int claimed = taskMapper.update(null, new LambdaUpdateWrapperX<AiAnalysisTask>()
-                .eq(AiAnalysisTask::getId, taskId)
-                .eq(AiAnalysisTask::getStatus, Constants.AiTaskStatus.PENDING)
-                .set(AiAnalysisTask::getStatus, Constants.AiTaskStatus.RUNNING)
-                .set(AiAnalysisTask::getExecutorInstance, instanceId())
-                .set(AiAnalysisTask::getUpdatedAt, LocalDateTime.now()));
-        if (claimed == 0) {
+        if (taskMapper.claimForExecution(taskId, instanceId()) == 0) {
             return;
         }
         AiAnalysisTask task = taskMapper.selectById(taskId);
         AiTaskHandler handler = handlerMap().get(task.getType());
         if (handler == null) {
             // handler 缺失置 failed 并给明确原因，保证状态机闭环（对应功能模块交付后注册）
-            markFailed(taskId, "任务类型 " + task.getType() + " 的执行器未实现");
+            taskMapper.markFailedIfRunning(taskId, "任务类型 " + task.getType() + " 的执行器未实现");
             return;
         }
         try {
             Map<String, Object> result = handler.execute(task);
-            markSuccessIfRunning(taskId, result);
+            taskMapper.markSuccessIfRunning(taskId, result != null ? JsonUtils.toJsonString(result) : null);
         } catch (Exception e) {
             log.warn("[AI] 任务执行失败 taskId={} type={}: {}", taskId, task.getType(), e.getMessage());
-            markFailed(taskId, truncate(e.getMessage()));
+            taskMapper.markFailedIfRunning(taskId, truncate(e.getMessage()));
         }
-    }
-
-    private void markSuccessIfRunning(UUID taskId, Map<String, Object> result) {
-        // 协作式取消：执行期间被置 cancelled 时不覆盖终态
-        taskMapper.update(null, new LambdaUpdateWrapperX<AiAnalysisTask>()
-                .eq(AiAnalysisTask::getId, taskId)
-                .eq(AiAnalysisTask::getStatus, Constants.AiTaskStatus.RUNNING)
-                .set(AiAnalysisTask::getStatus, Constants.AiTaskStatus.SUCCESS)
-                .set(AiAnalysisTask::getProgress, 100)
-                .set(result != null, AiAnalysisTask::getResult, JsonUtils.toJsonString(result))
-                .set(AiAnalysisTask::getUpdatedAt, LocalDateTime.now()));
-    }
-
-    private void markFailed(UUID taskId, String message) {
-        taskMapper.update(null, new LambdaUpdateWrapperX<AiAnalysisTask>()
-                .eq(AiAnalysisTask::getId, taskId)
-                .eq(AiAnalysisTask::getStatus, Constants.AiTaskStatus.RUNNING)
-                .set(AiAnalysisTask::getStatus, Constants.AiTaskStatus.FAILED)
-                .set(AiAnalysisTask::getErrorMessage, message)
-                .set(AiAnalysisTask::getUpdatedAt, LocalDateTime.now()));
-    }
-
-    private void markCancelled(UUID taskId) {
-        taskMapper.update(null, new LambdaUpdateWrapperX<AiAnalysisTask>()
-                .eq(AiAnalysisTask::getId, taskId)
-                .in(AiAnalysisTask::getStatus, IN_PROGRESS_STATUSES)
-                .set(AiAnalysisTask::getStatus, Constants.AiTaskStatus.CANCELLED)
-                .set(AiAnalysisTask::getUpdatedAt, LocalDateTime.now()));
-    }
-
-    private void resetToPending(UUID taskId) {
-        taskMapper.update(null, new LambdaUpdateWrapperX<AiAnalysisTask>()
-                .eq(AiAnalysisTask::getId, taskId)
-                .set(AiAnalysisTask::getStatus, Constants.AiTaskStatus.PENDING)
-                .set(AiAnalysisTask::getProgress, 0)
-                .set(AiAnalysisTask::getErrorMessage, null)
-                .set(AiAnalysisTask::getExecutorInstance, null)
-                .set(AiAnalysisTask::getUpdatedAt, LocalDateTime.now()));
     }
 
     /**
      * 事务提交后再提交线程池，避免执行线程读不到未提交的任务记录
      */
     private void submitAfterCommit(UUID taskId) {
-        if (org.springframework.transaction.support.TransactionSynchronizationManager.isSynchronizationActive()) {
-            org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
-                    new org.springframework.transaction.support.TransactionSynchronization() {
-                        @Override
-                        public void afterCommit() {
-                            trySubmit(taskId);
-                        }
-                    });
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    trySubmit(taskId);
+                }
+            });
         } else {
             trySubmit(taskId);
         }

@@ -1,6 +1,5 @@
 package io.github.xiaomisum.robotest.service.ai;
 
-import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.model.entity.ai.AiAnalysisTask;
 import io.github.xiaomisum.robotest.repository.ai.AiAnalysisTaskMapper;
 import io.github.xiaomisum.robotest.repository.ai.AiInvocationLogMapper;
@@ -8,7 +7,6 @@ import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
-import xyz.migoo.framework.mybatis.core.LambdaUpdateWrapperX;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -54,12 +52,8 @@ public class AiTaskScheduler {
      */
     @Scheduled(fixedDelay = 300_000)
     public void recoverOrphanTasks() {
-        int recovered = taskMapper.update(null, new LambdaUpdateWrapperX<AiAnalysisTask>()
-                .eq(AiAnalysisTask::getStatus, Constants.AiTaskStatus.RUNNING)
-                .lt(AiAnalysisTask::getUpdatedAt, LocalDateTime.now().minusMinutes(ORPHAN_MINUTES))
-                .set(AiAnalysisTask::getStatus, Constants.AiTaskStatus.FAILED)
-                .set(AiAnalysisTask::getErrorMessage, "执行实例失联")
-                .set(AiAnalysisTask::getUpdatedAt, LocalDateTime.now()));
+        int recovered = taskMapper.recoverOrphans(
+                LocalDateTime.now().minusMinutes(ORPHAN_MINUTES), "执行实例失联");
         if (recovered > 0) {
             log.warn("[AI] 孤儿任务回收 {} 条", recovered);
         }
