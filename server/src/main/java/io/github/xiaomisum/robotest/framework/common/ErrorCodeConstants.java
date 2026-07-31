@@ -24,10 +24,11 @@ public class ErrorCodeConstants {
     public static final ErrorCode CANNOT_REMOVE_LAST_SYSTEM_ROLE = ErrorCode.of(1000002006, "不能移除自己的最后一个系统角色");
     public static final ErrorCode SYSTEM_ALREADY_INITIALIZED = ErrorCode.of(1000002007, "系统已初始化，请直接登录");
 
-    // ========== 数据不存在 1,000,003,001-1,000,003,003 ==========
+    // ========== 数据不存在 1,000,003,001-1,000,003,004 ==========
     public static final ErrorCode USER_NOT_FOUND = ErrorCode.of(1000003001, "用户不存在");
     public static final ErrorCode WORKSPACE_NOT_FOUND = ErrorCode.of(1000003002, "工作空间不存在");
     public static final ErrorCode ROLE_NOT_FOUND = ErrorCode.of(1000003003, "角色不存在");
+    public static final ErrorCode AI_TASK_NOT_FOUND = ErrorCode.of(1000003004, "任务不存在或不属于当前项目");
 
     // ========== 冲突 1,000,004,001-1,000,004,003 ==========
     public static final ErrorCode WORKSPACE_HAS_PROJECTS = ErrorCode.of(1000004001, "工作空间下存在项目，无法解散");
