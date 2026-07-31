@@ -19,7 +19,7 @@ public class AiStatisticsService {
     private AiInvocationLogMapper invocationLogMapper;
 
     /**
-     * @param groupBy functionType / workspace / day，缺省 functionType
+     * @param groupBy functionType / workspace / day / model，缺省 functionType
      */
     public AiStatisticsRespDTO getStatistics(LocalDate startDate, LocalDate endDate, String groupBy) {
         LocalDate start = startDate != null ? startDate : LocalDate.now().minusDays(30);
@@ -36,6 +36,7 @@ public class AiStatisticsService {
         List<Map<String, Object>> rows = switch (groupBy != null ? groupBy : "functionType") {
             case "workspace" -> invocationLogMapper.aggregateByWorkspace(startTime, endTime);
             case "day" -> invocationLogMapper.aggregateByDay(startTime, endTime);
+            case "model" -> invocationLogMapper.aggregateByModel(startTime, endTime);
             default -> invocationLogMapper.aggregateByFunctionType(startTime, endTime);
         };
         resp.setItems(rows.stream().map(row -> {

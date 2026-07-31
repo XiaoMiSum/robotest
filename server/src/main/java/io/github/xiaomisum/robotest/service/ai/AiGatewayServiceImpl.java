@@ -45,6 +45,8 @@ public class AiGatewayServiceImpl implements AiGatewayService {
     @Resource
     private AiConfigService aiConfigService;
     @Resource
+    private AiChatModelService aiChatModelService;
+    @Resource
     private OpenAiCompatProvider provider;
     @Resource
     private PromptAssembler promptAssembler;
@@ -58,19 +60,19 @@ public class AiGatewayServiceImpl implements AiGatewayService {
     @Override
     public ChatResult complete(AiCallContext context, AiFunctionType functionType,
                                String taskInstruction, String businessData, ChatCallOptions options) {
-        ResolvedAiConfig config = requireEnabled();
-        checkRateLimit(context, functionType, config);
+        ResolvedChatModel config = requireChatModel(context);
+        checkRateLimit(context, functionType, config.model());
         List<ChatMessage> messages = promptAssembler.assemble(functionType, taskInstruction, businessData);
 
         long start = System.currentTimeMillis();
         try {
             ChatResult result = provider.complete(config, messages, options);
-            auditRecorder.record(context, functionType, config.chatModel(), System.currentTimeMillis() - start,
+            auditRecorder.record(context, functionType, config.model(), System.currentTimeMillis() - start,
                     result.promptTokens(), result.completionTokens(), Constants.AiInvocationStatus.SUCCESS, null);
             return new ChatResult(AiOutputValidator.stripNoise(result.content()),
                     result.promptTokens(), result.completionTokens(), result.finishReason());
         } catch (ServiceException e) {
-            auditRecorder.record(context, functionType, config.chatModel(), System.currentTimeMillis() - start,
+            auditRecorder.record(context, functionType, config.model(), System.currentTimeMillis() - start,
                     null, null, Constants.AiInvocationStatus.FAILED, "6002");
             throw e;
         }
@@ -80,8 +82,8 @@ public class AiGatewayServiceImpl implements AiGatewayService {
     public <T> T completeStructured(AiCallContext context, AiFunctionType functionType,
                                     String taskInstruction, String businessData, ChatCallOptions options,
                                     Class<T> resultType, Consumer<T> extraAssertion) {
-        ResolvedAiConfig config = requireEnabled();
-        checkRateLimit(context, functionType, config);
+        ResolvedChatModel config = requireChatModel(context);
+        checkRateLimit(context, functionType, config.model());
         ChatCallOptions jsonOptions = new ChatCallOptions(options.maxTokens(), options.temperature(),
                 true, options.readTimeoutMillis());
 
@@ -95,7 +97,7 @@ public class AiGatewayServiceImpl implements AiGatewayService {
             completionTokens += first.completionTokens() != null ? first.completionTokens() : 0;
             try {
                 T result = outputValidator.parseAndValidate(first.content(), resultType, extraAssertion);
-                auditRecorder.record(context, functionType, config.chatModel(), System.currentTimeMillis() - start,
+                auditRecorder.record(context, functionType, config.model(), System.currentTimeMillis() - start,
                         promptTokens, completionTokens, Constants.AiInvocationStatus.SUCCESS, null);
                 return result;
             } catch (AiOutputValidator.OutputValidationException firstFailure) {
@@ -108,18 +110,18 @@ public class AiGatewayServiceImpl implements AiGatewayService {
                 completionTokens += second.completionTokens() != null ? second.completionTokens() : 0;
                 try {
                     T result = outputValidator.parseAndValidate(second.content(), resultType, extraAssertion);
-                    auditRecorder.record(context, functionType, config.chatModel(), System.currentTimeMillis() - start,
+                    auditRecorder.record(context, functionType, config.model(), System.currentTimeMillis() - start,
                             promptTokens, completionTokens, Constants.AiInvocationStatus.SUCCESS, null);
                     return result;
                 } catch (AiOutputValidator.OutputValidationException secondFailure) {
-                    auditRecorder.record(context, functionType, config.chatModel(), System.currentTimeMillis() - start,
+                    auditRecorder.record(context, functionType, config.model(), System.currentTimeMillis() - start,
                             promptTokens, completionTokens, Constants.AiInvocationStatus.SCHEMA_INVALID, "6003");
                     throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_OUTPUT_SCHEMA_INVALID);
                 }
             }
         } catch (ServiceException e) {
             if (!isSchemaInvalid(e)) {
-                auditRecorder.record(context, functionType, config.chatModel(), System.currentTimeMillis() - start,
+                auditRecorder.record(context, functionType, config.model(), System.currentTimeMillis() - start,
                         promptTokens, completionTokens, Constants.AiInvocationStatus.FAILED, "6002");
             }
             throw e;
@@ -131,8 +133,8 @@ public class AiGatewayServiceImpl implements AiGatewayService {
                              String taskInstruction, String businessData, ChatCallOptions options,
                              Consumer<SseEmitter> prelude, Function<String, Object> doneAssembler) {
         // 前置校验在建立 SSE 前同步执行，失败走常规异常响应
-        ResolvedAiConfig config = requireEnabled();
-        checkRateLimit(context, functionType, config);
+        ResolvedChatModel config = requireChatModel(context);
+        checkRateLimit(context, functionType, config.model());
         List<ChatMessage> messages = promptAssembler.assemble(functionType, taskInstruction, businessData);
 
         SseEmitter emitter = new SseEmitter(SSE_TIMEOUT_MILLIS);
@@ -181,7 +183,7 @@ public class AiGatewayServiceImpl implements AiGatewayService {
                                     ? doneAssembler.apply(fullContent)
                                     : Map.of("content", AiOutputValidator.stripNoise(fullContent));
                         } catch (AiOutputValidator.OutputValidationException e) {
-                            auditRecorder.record(context, functionType, config.chatModel(),
+                            auditRecorder.record(context, functionType, config.model(),
                                     System.currentTimeMillis() - start, promptTokens, completionTokens,
                                     Constants.AiInvocationStatus.SCHEMA_INVALID, "6003");
                             sendError(emitter, ErrorCodeConstants.AI_OUTPUT_SCHEMA_INVALID.code(),
@@ -189,7 +191,7 @@ public class AiGatewayServiceImpl implements AiGatewayService {
                             emitter.complete();
                             return;
                         }
-                        auditRecorder.record(context, functionType, config.chatModel(),
+                        auditRecorder.record(context, functionType, config.model(),
                                 System.currentTimeMillis() - start, promptTokens, completionTokens,
                                 Constants.AiInvocationStatus.SUCCESS, null);
                         send(emitter, "done", doneData);
@@ -197,12 +199,12 @@ public class AiGatewayServiceImpl implements AiGatewayService {
                     }
                 }, cancelled);
             } catch (OpenAiCompatProvider.StreamCancelledException e) {
-                auditRecorder.record(context, functionType, config.chatModel(), System.currentTimeMillis() - start,
+                auditRecorder.record(context, functionType, config.model(), System.currentTimeMillis() - start,
                         null, null, Constants.AiInvocationStatus.CANCELLED, null);
                 emitter.complete();
             } catch (Exception e) {
                 log.warn("[AI] 流式调用异常: {}", e.getMessage());
-                auditRecorder.record(context, functionType, config.chatModel(), System.currentTimeMillis() - start,
+                auditRecorder.record(context, functionType, config.model(), System.currentTimeMillis() - start,
                         null, null, Constants.AiInvocationStatus.FAILED, "6002");
                 sendError(emitter, ErrorCodeConstants.AI_CALL_FAILED.code(),
                         ErrorCodeConstants.AI_CALL_FAILED.msg());
@@ -220,7 +222,7 @@ public class AiGatewayServiceImpl implements AiGatewayService {
         if (!config.embeddingConfigured()) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_NOT_ENABLED);
         }
-        checkRateLimit(context, functionType, config);
+        checkRateLimit(context, functionType, config.embeddingModel());
 
         long start = System.currentTimeMillis();
         try {
@@ -243,12 +245,27 @@ public class AiGatewayServiceImpl implements AiGatewayService {
         return config;
     }
 
-    private void checkRateLimit(AiCallContext context, AiFunctionType functionType, ResolvedAiConfig config) {
+    /**
+     * 解析对话调用的运行期模型：先校验总开关（配置存在/开关开/密钥有效），再按 context.modelId
+     * 解析已启用模型（缺省/失效回退系统默认，4.11）；任一门槛不满足按 AI 未启用处理。
+     */
+    private ResolvedChatModel requireChatModel(AiCallContext context) {
+        if (aiConfigService.getResolvedConfig() == null) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_NOT_ENABLED);
+        }
+        ResolvedChatModel model = aiChatModelService.resolve(context.modelId());
+        if (model == null) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_NOT_ENABLED);
+        }
+        return model;
+    }
+
+    private void checkRateLimit(AiCallContext context, AiFunctionType functionType, String modelName) {
         try {
             rateLimiter.checkAndRecord(context.userId(), functionType);
         } catch (ServiceException e) {
             // 被限流的请求写审计但不计入窗口
-            auditRecorder.record(context, functionType, config.chatModel(), 0, null, null,
+            auditRecorder.record(context, functionType, modelName, 0, null, null,
                     Constants.AiInvocationStatus.RATE_LIMITED, "6004");
             throw e;
         }

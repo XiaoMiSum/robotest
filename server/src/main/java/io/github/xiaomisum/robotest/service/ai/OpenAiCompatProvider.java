@@ -56,10 +56,10 @@ public class OpenAiCompatProvider {
     /**
      * 同步对话调用（网络/5xx 自动重试 1 次，401/403 不重试）
      */
-    public ChatResult complete(ResolvedAiConfig config, List<ChatMessage> messages, ChatCallOptions options) {
+    public ChatResult complete(ResolvedChatModel config, List<ChatMessage> messages, ChatCallOptions options) {
         Map<String, Object> body = buildChatBody(config, messages, options, false);
         int readTimeout = options.readTimeoutMillis() != null ? options.readTimeoutMillis() : SYNC_READ_TIMEOUT_MILLIS;
-        JsonNode root = postWithRetry(config.chatBaseUrl(), "/chat/completions", config.chatApiKey(), body, readTimeout);
+        JsonNode root = postWithRetry(config.baseUrl(), "/chat/completions", config.apiKey(), body, readTimeout);
 
         JsonNode choice = root.path("choices").path(0);
         String content = choice.path("message").path("content").asString(null);
@@ -72,14 +72,14 @@ public class OpenAiCompatProvider {
     /**
      * 流式对话调用（不自动重试）；cancelled 置位后在下一行读取边界退出并抛出 StreamCancelledException
      */
-    public void stream(ResolvedAiConfig config, List<ChatMessage> messages, ChatCallOptions options,
+    public void stream(ResolvedChatModel config, List<ChatMessage> messages, ChatCallOptions options,
                        StreamCallbacks callbacks, AtomicBoolean cancelled) {
         Map<String, Object> body = buildChatBody(config, messages, options, true);
-        RestClient client = buildClient(config.chatBaseUrl(), STREAM_READ_TIMEOUT_MILLIS);
+        RestClient client = buildClient(config.baseUrl(), STREAM_READ_TIMEOUT_MILLIS);
 
         client.post()
                 .uri("/chat/completions")
-                .header("Authorization", "Bearer " + config.chatApiKey())
+                .header("Authorization", "Bearer " + config.apiKey())
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(objectMapper.writeValueAsString(body))
                 .exchange((request, response) -> {
@@ -160,10 +160,10 @@ public class OpenAiCompatProvider {
         return new EmbedResult(vectors, intOrNull(root.path("usage").path("prompt_tokens")));
     }
 
-    private Map<String, Object> buildChatBody(ResolvedAiConfig config, List<ChatMessage> messages,
+    private Map<String, Object> buildChatBody(ResolvedChatModel config, List<ChatMessage> messages,
                                               ChatCallOptions options, boolean stream) {
         Map<String, Object> body = new LinkedHashMap<>();
-        body.put("model", config.chatModel());
+        body.put("model", config.model());
         body.put("messages", messages.stream()
                 .map(message -> Map.of("role", message.role(), "content", message.content()))
                 .toList());
@@ -177,7 +177,7 @@ public class OpenAiCompatProvider {
         if (options.jsonResponseFormat()) {
             body.put("response_format", Map.of("type", "json_object"));
         }
-        mergeExtraParams(body, config.chatExtraParams(), ProviderPresetRegistry.CHAT_STANDARD_PARAMS);
+        mergeExtraParams(body, config.extraParams(), ProviderPresetRegistry.CHAT_STANDARD_PARAMS);
         return body;
     }
 
