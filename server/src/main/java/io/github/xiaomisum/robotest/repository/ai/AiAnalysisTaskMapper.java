@@ -28,6 +28,29 @@ public interface AiAnalysisTaskMapper extends BaseMapperX<AiAnalysisTask> {
     }
 
     /**
+     * 最近一次成功任务（评审摘要查询：仅 success 记录参与展示，详细设计 3.2.2）
+     */
+    default AiAnalysisTask findLatestSuccessByTypeAndTarget(String type, UUID targetId) {
+        return selectOne(new LambdaQueryWrapperX<AiAnalysisTask>()
+                .eq(AiAnalysisTask::getType, type)
+                .eq(AiAnalysisTask::getTargetId, targetId)
+                .eq(AiAnalysisTask::getStatus, Constants.AiTaskStatus.SUCCESS)
+                .orderByDesc(AiAnalysisTask::getCreatedAt)
+                .last("LIMIT 1"));
+    }
+
+    /**
+     * 覆盖语义：逻辑删除同 type+target 除当前记录外的全部 success 记录（评审摘要重复生成，详细设计 3.2.1）
+     */
+    default void deleteSuccessExcept(String type, UUID targetId, UUID exceptId) {
+        delete(new LambdaQueryWrapperX<AiAnalysisTask>()
+                .eq(AiAnalysisTask::getType, type)
+                .eq(AiAnalysisTask::getTargetId, targetId)
+                .eq(AiAnalysisTask::getStatus, Constants.AiTaskStatus.SUCCESS)
+                .ne(AiAnalysisTask::getId, exceptId));
+    }
+
+    /**
      * 创建前防并发双建校验：行级锁定进行中的同类任务（SELECT … FOR UPDATE）
      */
     default List<AiAnalysisTask> lockInProgress(String type, UUID targetId, UUID projectId) {
