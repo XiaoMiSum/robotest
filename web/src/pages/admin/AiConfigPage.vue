@@ -119,8 +119,11 @@ async function loadAll() {
   loading.value = true
   try {
     providers.value = await fetchAiProviders()
-    settingsSchema.value = await fetchAiSettingsSchema()
+    const schema = await fetchAiSettingsSchema()
     const loaded = await fetchAiConfig()
+    // 先赋值 settingsSchema 再同步填充 settingsForm（两步间无 await），
+    // 避免渲染早于表单数据导致 weights 读取 undefined 崩溃
+    settingsSchema.value = schema
     if (loaded) applyConfig(loaded)
     else applySettings({})
     chatModels.value = await fetchAiChatModels()
@@ -155,12 +158,18 @@ function applyConfig(loaded: AiConfig) {
   applySettings(loaded.settings ?? {})
 }
 
+// 深拷贝内置默认值：settingsSchema 已被 Vue 响应式代理，structuredClone 无法克隆 Proxy；
+// 配置项默认值均为 JSON 安全值，JSON round-trip 既深拷贝又剥离响应式
+function cloneDefault(value: unknown): unknown {
+  return value === null || typeof value !== 'object' ? value : JSON.parse(JSON.stringify(value))
+}
+
 // 按 schema 用「落库合并视图值 → 默认值」初始化分组表单
 function applySettings(merged: Record<string, unknown>) {
   for (const group of settingsSchema.value) {
     for (const item of group.items) {
       const value = merged[item.key]
-      settingsForm[item.key] = value !== undefined ? value : structuredClone(item.defaultValue)
+      settingsForm[item.key] = value !== undefined ? value : cloneDefault(item.defaultValue)
     }
   }
 }
@@ -392,7 +401,7 @@ function settingModified(item: AiSettingSchemaItem): boolean {
 }
 
 function resetSetting(item: AiSettingSchemaItem) {
-  settingsForm[item.key] = structuredClone(item.defaultValue)
+  settingsForm[item.key] = cloneDefault(item.defaultValue)
 }
 
 function currentWeightsSum(item: AiSettingSchemaItem): number {
@@ -674,7 +683,7 @@ onMounted(loadAll)
                 <div class="ai-config-page__setting-control">
                   <!-- 权重组合 -->
                   <template v-if="item.type === 'object'">
-                    <div class="ai-config-page__weights">
+                    <div v-if="settingsForm[item.key]" class="ai-config-page__weights">
                       <el-input-number
                         v-for="sub in ['w1', 'w2', 'w3']"
                         :key="sub"
