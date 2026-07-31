@@ -32,33 +32,6 @@ import java.util.UUID;
 @Service
 public class AiConfigServiceImpl implements AiConfigService {
 
-    /** settings 缺省键的代码内置默认值（文档 2.2 全量键清单） */
-    static final Map<String, Object> SETTING_DEFAULTS;
-
-    static {
-        Map<String, Object> defaults = new LinkedHashMap<>();
-        defaults.put("rateLimit.generation", 20);
-        defaults.put("rateLimit.suggestion", 60);
-        defaults.put("rateLimit.retrieval", 120);
-        defaults.put("rateLimit.task", 10);
-        defaults.put("rateLimit.assistant", 60);
-        defaults.put("dedup.topK", 5);
-        defaults.put("dedup.similarityThreshold", 0.75);
-        defaults.put("clustering.similarityThreshold", 0.82);
-        defaults.put("clustering.maxLabeledClusters", 30);
-        defaults.put("importTextMaxLength", 20000);
-        defaults.put("requirementContentMaxLength", 20000);
-        defaults.put("missingPoint.topK", 100);
-        defaults.put("regression.topK", 50);
-        defaults.put("regression.similarityThreshold", 0.7);
-        defaults.put("planOrder.weights", Map.of("w1", 0.5, "w2", 0.3, "w3", 0.2));
-        defaults.put("assistantConfirmTimeoutSeconds", 300);
-        defaults.put("assistantWriteToolWhitelist", List.of("create_bug", "create_plan_draft"));
-        defaults.put("logRetentionDays", 180);
-        defaults.put("conversationRetentionDays", 180);
-        SETTING_DEFAULTS = Map.copyOf(defaults);
-    }
-
     private static final long CACHE_TTL_MILLIS = 30_000L;
     private static final int EMBEDDING_DIMENSION_MAX = 2000;
 
@@ -72,6 +45,10 @@ public class AiConfigServiceImpl implements AiConfigService {
     private OpenAiCompatProvider openAiCompatProvider;
     @Resource
     private AiTaskService aiTaskService;
+    @Resource
+    private AiChatModelService aiChatModelService;
+    @Resource
+    private AiSettingDefinitions settingDefinitions;
 
     @Value("${robotest.ai.secret-key:}")
     private String secretKeyBase64;
@@ -94,12 +71,12 @@ public class AiConfigServiceImpl implements AiConfigService {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_NOT_ENABLED);
         }
 
-        AiConfigSaveReqDTO.ChatGroup chat = reqDTO.getChat();
-        if (!presetRegistry.supports(chat.getProvider(), ProviderPresetRegistry.SCOPE_CHAT)) {
+        // 总开关开启前须存在至少一个已启用对话模型（3.3.2）
+        if (Boolean.TRUE.equals(reqDTO.getEnabled()) && !aiChatModelService.hasEnabledModel()) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.VALIDATION_FAILED);
         }
-        Map<String, Object> chatExtraParams = presetRegistry.validateAndExpand(
-                chat.getProvider(), ProviderPresetRegistry.SCOPE_CHAT, chat.getExtraParams());
+        // 系统配置项逐项校验（类型/范围/权重之和=1，未知键拒绝）
+        settingDefinitions.validate(reqDTO.getSettings());
 
         AiConfigSaveReqDTO.EmbeddingGroup embedding = reqDTO.getEmbedding();
         boolean embeddingPresent = !isEmbeddingGroupEmpty(embedding);
@@ -111,11 +88,7 @@ public class AiConfigServiceImpl implements AiConfigService {
         }
 
         AiConfig existing = aiConfigMapper.findActive();
-        // 密钥齐全性：新密钥或已有密文至少其一（组内一旦填写则必须齐全）
-        if (!StringUtils.hasText(chat.getApiKey())
-                && (existing == null || !StringUtils.hasText(existing.getChatApiKeyCipher()))) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.VALIDATION_FAILED);
-        }
+        // Embedding 组一旦填写则密钥须齐全（新密钥或已有密文其一）
         if (embeddingPresent && !StringUtils.hasText(embedding.getApiKey())
                 && (existing == null || !StringUtils.hasText(existing.getEmbeddingApiKeyCipher()))) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.VALIDATION_FAILED);
@@ -123,17 +96,6 @@ public class AiConfigServiceImpl implements AiConfigService {
 
         AiConfig config = new AiConfig();
         config.setEnabled(reqDTO.getEnabled());
-        config.setChatProvider(chat.getProvider());
-        config.setChatBaseUrl(chat.getBaseUrl());
-        config.setChatModel(chat.getModel());
-        config.setChatExtraParams(chatExtraParams);
-        if (StringUtils.hasText(chat.getApiKey())) {
-            config.setChatApiKeyCipher(AiCryptoUtil.encrypt(secretKey, chat.getApiKey()));
-            config.setChatKeySuffix(AiCryptoUtil.keySuffix(chat.getApiKey()));
-        } else {
-            config.setChatApiKeyCipher(existing.getChatApiKeyCipher());
-            config.setChatKeySuffix(existing.getChatKeySuffix());
-        }
         if (embeddingPresent) {
             config.setEmbeddingProvider(embedding.getProvider());
             config.setEmbeddingBaseUrl(embedding.getBaseUrl());
@@ -148,7 +110,8 @@ public class AiConfigServiceImpl implements AiConfigService {
                 config.setEmbeddingKeySuffix(existing.getEmbeddingKeySuffix());
             }
         }
-        config.setSettings(reqDTO.getSettings() != null ? reqDTO.getSettings()
+        // 仅持久化与内置默认值不同的键（缺省回退默认值语义，2.2）
+        config.setSettings(reqDTO.getSettings() != null ? settingDefinitions.stripDefaults(reqDTO.getSettings())
                 : existing != null && existing.getSettings() != null ? existing.getSettings() : Map.of());
 
         if (existing == null) {
@@ -189,7 +152,7 @@ public class AiConfigServiceImpl implements AiConfigService {
             if (ProviderPresetRegistry.SCOPE_EMBEDDING.equals(reqDTO.getTarget())) {
                 testEmbedding(resolveEmbeddingForTest(reqDTO.getEmbedding()), resp);
             } else {
-                testChat(resolveChatForTest(reqDTO.getChat()), resp);
+                testChat(aiChatModelService.resolveForTest(reqDTO.getModelId(), reqDTO.getChat()), resp);
             }
             resp.setOk(true);
         } catch (ServiceException e) {
@@ -202,7 +165,7 @@ public class AiConfigServiceImpl implements AiConfigService {
         return resp;
     }
 
-    private void testChat(ResolvedAiConfig config, AiConnectivityTestRespDTO resp) {
+    private void testChat(ResolvedChatModel config, AiConnectivityTestRespDTO resp) {
         openAiCompatProvider.complete(config,
                 List.of(AiModels.ChatMessage.user("ping")),
                 new AiModels.ChatCallOptions(16, null, false, null));
@@ -230,27 +193,8 @@ public class AiConfigServiceImpl implements AiConfigService {
     }
 
     /**
-     * 测试目标配置：请求附带的临时配置优先，缺省字段回退已保存配置（密钥回退已存密文解密）
+     * 测试目标配置：请求附带的临时 Embedding 配置优先，缺省字段回退已保存配置（密钥回退已存密文解密）
      */
-    private ResolvedAiConfig resolveChatForTest(AiConfigSaveReqDTO.ChatGroup override) {
-        byte[] secretKey = AiCryptoUtil.parseKey(secretKeyBase64);
-        AiConfig saved = aiConfigMapper.findActive();
-        String baseUrl = override != null && StringUtils.hasText(override.getBaseUrl())
-                ? override.getBaseUrl() : saved != null ? saved.getChatBaseUrl() : null;
-        String model = override != null && StringUtils.hasText(override.getModel())
-                ? override.getModel() : saved != null ? saved.getChatModel() : null;
-        Map<String, Object> extraParams = override != null && override.getExtraParams() != null
-                ? override.getExtraParams()
-                : saved != null && saved.getChatExtraParams() != null ? saved.getChatExtraParams() : Map.of();
-        String apiKey = override != null && StringUtils.hasText(override.getApiKey()) ? override.getApiKey()
-                : saved != null && secretKey != null ? AiCryptoUtil.decrypt(secretKey, saved.getChatApiKeyCipher()) : null;
-        if (!StringUtils.hasText(baseUrl) || !StringUtils.hasText(model) || !StringUtils.hasText(apiKey)) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.VALIDATION_FAILED);
-        }
-        return new ResolvedAiConfig(null, baseUrl, apiKey, model, extraParams,
-                null, null, null, null, null, Map.of());
-    }
-
     private ResolvedAiConfig resolveEmbeddingForTest(AiConfigSaveReqDTO.EmbeddingGroup override) {
         byte[] secretKey = AiCryptoUtil.parseKey(secretKeyBase64);
         AiConfig saved = aiConfigMapper.findActive();
@@ -270,8 +214,8 @@ public class AiConfigServiceImpl implements AiConfigService {
                 || dimension == null || !StringUtils.hasText(apiKey)) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.VALIDATION_FAILED);
         }
-        return new ResolvedAiConfig(null, null, null, null, Map.of(),
-                null, baseUrl, apiKey, model, dimension, extraParams);
+        return new ResolvedAiConfig(
+                saved != null ? saved.getEmbeddingProvider() : null, baseUrl, apiKey, model, dimension, extraParams);
     }
 
     private String truncateDetail(String detail) {
@@ -291,7 +235,7 @@ public class AiConfigServiceImpl implements AiConfigService {
 
     @Override
     public Map<String, Object> getMergedSettings() {
-        Map<String, Object> merged = new LinkedHashMap<>(SETTING_DEFAULTS);
+        Map<String, Object> merged = new LinkedHashMap<>(settingDefinitions.defaults());
         AiConfig config = loadCachedConfig();
         if (config != null && config.getSettings() != null) {
             config.getSettings().forEach((key, value) -> {
@@ -309,7 +253,7 @@ public class AiConfigServiceImpl implements AiConfigService {
         if (value instanceof Number number) {
             return number.intValue();
         }
-        Object fallback = SETTING_DEFAULTS.get(key);
+        Object fallback = settingDefinitions.defaults().get(key);
         return fallback instanceof Number number ? number.intValue() : 0;
     }
 
@@ -319,7 +263,7 @@ public class AiConfigServiceImpl implements AiConfigService {
         if (value instanceof Number number) {
             return number.doubleValue();
         }
-        Object fallback = SETTING_DEFAULTS.get(key);
+        Object fallback = settingDefinitions.defaults().get(key);
         return fallback instanceof Number number ? number.doubleValue() : 0;
     }
 
@@ -333,17 +277,10 @@ public class AiConfigServiceImpl implements AiConfigService {
         if (config == null || !Boolean.TRUE.equals(config.getEnabled())) {
             return null;
         }
-        String chatApiKey = AiCryptoUtil.decrypt(secretKey, config.getChatApiKeyCipher());
-        if (chatApiKey == null) {
-            // 密钥轮换/密文损坏：按未启用降级
-            return null;
-        }
         String embeddingApiKey = StringUtils.hasText(config.getEmbeddingApiKeyCipher())
                 ? AiCryptoUtil.decrypt(secretKey, config.getEmbeddingApiKeyCipher())
                 : null;
         return new ResolvedAiConfig(
-                config.getChatProvider(), config.getChatBaseUrl(), chatApiKey, config.getChatModel(),
-                config.getChatExtraParams() != null ? config.getChatExtraParams() : Map.of(),
                 config.getEmbeddingProvider(), config.getEmbeddingBaseUrl(), embeddingApiKey,
                 config.getEmbeddingModel(), config.getEmbeddingDimension(),
                 config.getEmbeddingExtraParams() != null ? config.getEmbeddingExtraParams() : Map.of());
@@ -352,11 +289,14 @@ public class AiConfigServiceImpl implements AiConfigService {
     private AiStatusRespDTO computeStatus() {
         AiStatusRespDTO status = new AiStatusRespDTO();
         ResolvedAiConfig resolved = getResolvedConfig();
-        if (resolved == null) {
+        // 总开关开启 + 密钥有效 + 至少一个已启用对话模型，三者齐备方视为可用（4.10）
+        List<AiStatusRespDTO.ChatModelView> chatModels = aiChatModelService.listEnabledForStatus();
+        if (resolved == null || chatModels.isEmpty()) {
             status.setEnabled(false);
             return status;
         }
         status.setEnabled(true);
+        status.setChatModels(chatModels);
         if (!resolved.embeddingConfigured()) {
             status.setSemanticSearch(Constants.AiSemanticSearch.UNAVAILABLE);
             return status;
@@ -400,12 +340,6 @@ public class AiConfigServiceImpl implements AiConfigService {
                 .eq(AiConfig::getId, existing.getId())
                 .eq(AiConfig::getUpdatedAt, expectedUpdatedAt)
                 .set(AiConfig::getEnabled, config.getEnabled())
-                .set(AiConfig::getChatProvider, config.getChatProvider())
-                .set(AiConfig::getChatBaseUrl, config.getChatBaseUrl())
-                .set(AiConfig::getChatModel, config.getChatModel())
-                .set(AiConfig::getChatApiKeyCipher, config.getChatApiKeyCipher())
-                .set(AiConfig::getChatKeySuffix, config.getChatKeySuffix())
-                .set(AiConfig::getChatExtraParams, toJson(config.getChatExtraParams()))
                 .set(AiConfig::getEmbeddingProvider, config.getEmbeddingProvider())
                 .set(AiConfig::getEmbeddingBaseUrl, config.getEmbeddingBaseUrl())
                 .set(AiConfig::getEmbeddingModel, config.getEmbeddingModel())
@@ -444,14 +378,6 @@ public class AiConfigServiceImpl implements AiConfigService {
         dto.setEnabled(config.getEnabled());
         dto.setUpdatedAt(config.getUpdatedAt());
 
-        AiConfigRespDTO.ChatGroup chat = new AiConfigRespDTO.ChatGroup();
-        chat.setProvider(config.getChatProvider());
-        chat.setBaseUrl(config.getChatBaseUrl());
-        chat.setModel(config.getChatModel());
-        chat.setExtraParams(config.getChatExtraParams() != null ? config.getChatExtraParams() : Map.of());
-        chat.setApiKey(toApiKeyInfo(config.getChatApiKeyCipher(), config.getChatKeySuffix()));
-        dto.setChat(chat);
-
         if (StringUtils.hasText(config.getEmbeddingBaseUrl())) {
             AiConfigRespDTO.EmbeddingGroup embedding = new AiConfigRespDTO.EmbeddingGroup();
             embedding.setProvider(config.getEmbeddingProvider());
@@ -463,7 +389,7 @@ public class AiConfigServiceImpl implements AiConfigService {
             dto.setEmbedding(embedding);
         }
 
-        Map<String, Object> merged = new LinkedHashMap<>(SETTING_DEFAULTS);
+        Map<String, Object> merged = new LinkedHashMap<>(settingDefinitions.defaults());
         if (config.getSettings() != null) {
             config.getSettings().forEach((key, value) -> {
                 if (value != null) {

@@ -50,4 +50,11 @@ public interface AiInvocationLogMapper extends BaseMapperX<AiInvocationLog> {
             + "FROM ai_invocation_log WHERE is_deleted = FALSE AND created_at >= #{start} AND created_at < #{end} "
             + "GROUP BY TO_CHAR(created_at, 'YYYY-MM-DD') ORDER BY key")
     List<Map<String, Object>> aggregateByDay(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
+
+    @Select("SELECT COALESCE(model, '-') AS key, COUNT(*) AS calls, "
+            + "COALESCE(SUM(COALESCE(prompt_tokens,0) + COALESCE(completion_tokens,0)),0) AS tokens, "
+            + "COALESCE(AVG(duration_ms),0) AS avg_duration_ms, COUNT(*) FILTER (WHERE status <> 'success') AS failed "
+            + "FROM ai_invocation_log WHERE is_deleted = FALSE AND created_at >= #{start} AND created_at < #{end} "
+            + "GROUP BY model ORDER BY calls DESC")
+    List<Map<String, Object>> aggregateByModel(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
 }

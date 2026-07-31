@@ -10,15 +10,9 @@ CREATE EXTENSION IF NOT EXISTS vector;
 -- 1. AI 基础设施
 -- ============================================================
 
--- AI 配置表（系统级单行表：全系统仅一条有效记录）
+-- AI 配置表（系统级单行表：全系统仅一条有效记录，存放总开关、系统配置项与 Embedding 单一配置；对话模型多行独立存于 ai_chat_model）
 CREATE TABLE ai_config (
     id                       UUID          PRIMARY KEY,
-    chat_provider            VARCHAR(50)   NOT NULL DEFAULT 'custom',
-    chat_base_url            VARCHAR(500)  NOT NULL,
-    chat_api_key_cipher      VARCHAR(1000) NOT NULL,
-    chat_key_suffix          VARCHAR(4)    NULL,
-    chat_model               VARCHAR(100)  NOT NULL,
-    chat_extra_params        JSONB         NOT NULL DEFAULT '{}',
     embedding_provider       VARCHAR(50)   NULL,
     embedding_base_url       VARCHAR(500)  NULL,
     embedding_api_key_cipher VARCHAR(1000) NULL,
@@ -93,6 +87,27 @@ CREATE INDEX idx_log_workspace_created ON ai_invocation_log (workspace_id, creat
 CREATE INDEX idx_log_function_type ON ai_invocation_log (function_type);
 CREATE INDEX idx_log_created_at ON ai_invocation_log (created_at);
 
+-- AI 对话模型配置表（多行：每行一个可用对话模型，全系统有且仅有一行 is_default = true，由应用层保证）
+CREATE TABLE ai_chat_model (
+    id             UUID          PRIMARY KEY,
+    name           VARCHAR(50)   NOT NULL,
+    provider       VARCHAR(50)   NOT NULL DEFAULT 'custom',
+    base_url       VARCHAR(500)  NOT NULL,
+    api_key_cipher VARCHAR(1000) NOT NULL,
+    key_suffix     VARCHAR(4)    NULL,
+    model          VARCHAR(100)  NOT NULL,
+    extra_params   JSONB         NOT NULL DEFAULT '{}',
+    enabled        BOOLEAN       NOT NULL DEFAULT TRUE,
+    is_default     BOOLEAN       NOT NULL DEFAULT FALSE,
+    updated_by     UUID          NOT NULL,
+    is_deleted     BOOLEAN       NOT NULL DEFAULT FALSE,
+    created_at     TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at     TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 显示名全局唯一（逻辑删除后可复用）；行数为个位数量级，默认/启用清单全表扫描即可，不为 is_default/enabled 建索引（C9 从简）
+CREATE UNIQUE INDEX uk_chat_model_name ON ai_chat_model (name) WHERE is_deleted = false;
+
 -- ============================================================
 -- 2. 种子数据（AI 管理权限点，并回补系统管理员角色）
 -- ============================================================
@@ -109,15 +124,9 @@ WHERE id = 'b0000000-0000-0000-0000-000000000001' AND NOT permissions @> '["ai:v
 -- 3. 表与列注释
 -- ============================================================
 
-COMMENT ON TABLE ai_config IS 'AI 配置表（系统级单行：对话与 Embedding 两组模型服务配置）';
+COMMENT ON TABLE ai_config IS 'AI 配置表（系统级单行：总开关、系统配置项与 Embedding 单一配置）';
 COMMENT ON COLUMN ai_config.id IS '主键';
-COMMENT ON COLUMN ai_config.chat_provider IS '对话模型供应商标识（预设注册表键，custom 为通用 OpenAI 兼容）';
-COMMENT ON COLUMN ai_config.chat_base_url IS '对话模型服务地址（OpenAI 兼容根路径，不含 /chat/completions）';
-COMMENT ON COLUMN ai_config.chat_api_key_cipher IS '对话服务密钥（AES-256-GCM 加密）';
-COMMENT ON COLUMN ai_config.chat_key_suffix IS '对话密钥末 4 位（脱敏展示）';
-COMMENT ON COLUMN ai_config.chat_model IS '对话模型名';
-COMMENT ON COLUMN ai_config.chat_extra_params IS '对话请求附加参数（厂商非标参数透传）';
-COMMENT ON COLUMN ai_config.embedding_provider IS 'Embedding 供应商标识（与对话组独立选择，未配置时为空）';
+COMMENT ON COLUMN ai_config.embedding_provider IS 'Embedding 供应商标识（未配置时为空）';
 COMMENT ON COLUMN ai_config.embedding_base_url IS 'Embedding 服务地址（未配置则语义检索能力不可用）';
 COMMENT ON COLUMN ai_config.embedding_api_key_cipher IS 'Embedding 服务密钥（加密）';
 COMMENT ON COLUMN ai_config.embedding_key_suffix IS 'Embedding 密钥末 4 位（脱敏展示）';
@@ -172,3 +181,19 @@ COMMENT ON COLUMN ai_invocation_log.error_code IS '失败错误码或上游错�
 COMMENT ON COLUMN ai_invocation_log.is_deleted IS '逻辑删除标志';
 COMMENT ON COLUMN ai_invocation_log.created_at IS '创建时间';
 COMMENT ON COLUMN ai_invocation_log.updated_at IS '更新时间';
+
+COMMENT ON TABLE ai_chat_model IS 'AI 对话模型配置表（多行：每行一个可用对话模型，全系统唯一默认）';
+COMMENT ON COLUMN ai_chat_model.id IS '主键（业务请求中的模型标识 modelId）';
+COMMENT ON COLUMN ai_chat_model.name IS '显示名（管理端与用户模型选择器展示，全局唯一）';
+COMMENT ON COLUMN ai_chat_model.provider IS '供应商标识（预设注册表键，custom 为通用 OpenAI 兼容）';
+COMMENT ON COLUMN ai_chat_model.base_url IS '服务地址（OpenAI 兼容根路径，不含 /chat/completions）';
+COMMENT ON COLUMN ai_chat_model.api_key_cipher IS '服务密钥（AES-256-GCM 加密）';
+COMMENT ON COLUMN ai_chat_model.key_suffix IS '密钥末 4 位（脱敏展示）';
+COMMENT ON COLUMN ai_chat_model.model IS '模型名（请求体 model 字段值）';
+COMMENT ON COLUMN ai_chat_model.extra_params IS '请求附加参数（厂商非标参数透传）';
+COMMENT ON COLUMN ai_chat_model.enabled IS '启用状态（停用后不出现在用户模型清单）';
+COMMENT ON COLUMN ai_chat_model.is_default IS '是否系统默认模型（全系统唯一）';
+COMMENT ON COLUMN ai_chat_model.updated_by IS '最后更新人，关联 sys_user.id';
+COMMENT ON COLUMN ai_chat_model.is_deleted IS '逻辑删除标志';
+COMMENT ON COLUMN ai_chat_model.created_at IS '创建时间';
+COMMENT ON COLUMN ai_chat_model.updated_at IS '更新时间';

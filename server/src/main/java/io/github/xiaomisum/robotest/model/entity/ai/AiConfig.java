@@ -10,20 +10,12 @@ import xyz.migoo.framework.mybatis.core.dataobject.BaseUuidDO;
 import java.util.Map;
 
 /**
- * AI 配置（系统级单行表：全系统仅一条有效记录）
+ * AI 配置（系统级单行表：总开关、系统配置项与 Embedding 单一配置；对话模型多行独立存于 ai_chat_model）
  */
 @Data
 @EqualsAndHashCode(callSuper = true)
 @TableName(value = "ai_config", autoResultMap = true)
 public class AiConfig extends BaseUuidDO<AiConfig> {
-
-    private String chatProvider;
-    private String chatBaseUrl;
-    private String chatApiKeyCipher;
-    private String chatKeySuffix;
-    private String chatModel;
-    @TableField(typeHandler = Jackson3TypeHandler.class)
-    private Map<String, Object> chatExtraParams;
 
     private String embeddingProvider;
     private String embeddingBaseUrl;

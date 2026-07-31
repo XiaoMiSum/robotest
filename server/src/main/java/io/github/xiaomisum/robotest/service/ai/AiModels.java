@@ -11,8 +11,17 @@ public final class AiModels {
     private AiModels() {
     }
 
-    /** 调用上下文：审计与限流归属（管理端调用 workspaceId/projectId 为空） */
-    public record AiCallContext(UUID userId, UUID workspaceId, UUID projectId) {
+    /**
+     * 调用上下文：审计与限流归属（管理端调用 workspaceId/projectId 为空）。
+     *
+     * @param modelId 交互式功能可携带的对话模型标识（缺省/失效由网关回退系统默认，4.11）；异步任务与建议类传 null
+     */
+    public record AiCallContext(UUID userId, UUID workspaceId, UUID projectId, UUID modelId) {
+
+        /** 不指定对话模型（后台任务/建议类，走系统默认模型） */
+        public AiCallContext(UUID userId, UUID workspaceId, UUID projectId) {
+            this(userId, workspaceId, projectId, null);
+        }
     }
 
     /** OpenAI 兼容消息 */
