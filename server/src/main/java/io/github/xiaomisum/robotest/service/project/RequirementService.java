@@ -4,8 +4,10 @@ import io.github.xiaomisum.robotest.model.dto.request.requirement.RequirementCre
 import io.github.xiaomisum.robotest.model.dto.request.requirement.RequirementUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.requirement.RequirementDetailRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.requirement.RequirementListRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.requirement.RequirementSummaryRespDTO;
 import xyz.migoo.framework.common.pojo.PageResult;
 
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -24,4 +26,10 @@ public interface RequirementService {
 
     /** 删除：仅创建人或项目管理权限成员（逻辑删除，不影响已生成的用例） */
     void delete(UUID id, UUID projectId, UUID userId);
+
+    /** 文档已关联的需求条目摘要（跳过已删条目，3.1.5） */
+    List<RequirementSummaryRespDTO> getDocumentRequirements(UUID documentId, UUID projectId);
+
+    /** 全量设置文档关联的需求条目（差量增删，3.1.5） */
+    void setDocumentRequirements(UUID documentId, UUID projectId, List<UUID> requirementIds);
 }

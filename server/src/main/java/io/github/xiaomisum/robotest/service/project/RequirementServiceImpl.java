@@ -6,12 +6,17 @@ import io.github.xiaomisum.robotest.model.dto.request.requirement.RequirementCre
 import io.github.xiaomisum.robotest.model.dto.request.requirement.RequirementUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.requirement.RequirementDetailRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.requirement.RequirementListRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.requirement.RequirementSummaryRespDTO;
 import io.github.xiaomisum.robotest.model.entity.admin.SysUser;
+import io.github.xiaomisum.robotest.model.entity.requirement.DocumentRequirementRel;
 import io.github.xiaomisum.robotest.model.entity.requirement.RequirementPoolItem;
+import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseModule;
 import io.github.xiaomisum.robotest.model.entity.workspace.Project;
 import io.github.xiaomisum.robotest.model.entity.workspace.WorkspaceUser;
 import io.github.xiaomisum.robotest.repository.admin.SysUserMapper;
+import io.github.xiaomisum.robotest.repository.requirement.DocumentRequirementRelMapper;
 import io.github.xiaomisum.robotest.repository.requirement.RequirementPoolItemMapper;
+import io.github.xiaomisum.robotest.repository.tcase.TestCaseModuleMapper;
 import io.github.xiaomisum.robotest.repository.workspace.ProjectMapper;
 import io.github.xiaomisum.robotest.repository.workspace.WorkspaceUserMapper;
 import io.github.xiaomisum.robotest.service.ai.AiConfigService;
@@ -23,9 +28,12 @@ import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
 import xyz.migoo.framework.common.pojo.PageParam;
 import xyz.migoo.framework.common.pojo.PageResult;
 
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -34,6 +42,10 @@ public class RequirementServiceImpl implements RequirementService {
 
     @Resource
     private RequirementPoolItemMapper requirementMapper;
+    @Resource
+    private DocumentRequirementRelMapper documentRequirementRelMapper;
+    @Resource
+    private TestCaseModuleMapper testCaseModuleMapper;
     @Resource
     private SysUserMapper userMapper;
     @Resource
@@ -164,6 +176,63 @@ public class RequirementServiceImpl implements RequirementService {
             }
         }
         throw ServiceExceptionUtil.get(ErrorCodeConstants.NO_PERMISSION);
+    }
+
+    @Override
+    public List<RequirementSummaryRespDTO> getDocumentRequirements(UUID documentId, UUID projectId) {
+        requireDocument(documentId, projectId);
+        List<UUID> requirementIds = documentRequirementRelMapper.listByDocumentId(documentId).stream()
+                .map(DocumentRequirementRel::getRequirementId).distinct().toList();
+        if (requirementIds.isEmpty()) {
+            return List.of();
+        }
+        // 跳过已被逻辑删除的条目（selectBatchIds 自动过滤 is_deleted）
+        return requirementMapper.selectBatchIds(requirementIds).stream().map(item -> {
+            RequirementSummaryRespDTO dto = new RequirementSummaryRespDTO();
+            dto.setId(item.getId());
+            dto.setTitle(item.getTitle());
+            return dto;
+        }).collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void setDocumentRequirements(UUID documentId, UUID projectId, List<UUID> requirementIds) {
+        requireDocument(documentId, projectId);
+        // 去重并保序；每个条目须属于当前项目
+        Set<UUID> target = new LinkedHashSet<>(requirementIds != null ? requirementIds : List.of());
+        for (UUID reqId : target) {
+            RequirementPoolItem item = requirementMapper.selectById(reqId);
+            if (item == null || !Objects.equals(item.getProjectId(), projectId)) {
+                throw ServiceExceptionUtil.get(ErrorCodeConstants.REQUIREMENT_NOT_FOUND);
+            }
+        }
+
+        Set<UUID> existing = documentRequirementRelMapper.listByDocumentId(documentId).stream()
+                .map(DocumentRequirementRel::getRequirementId).collect(Collectors.toCollection(LinkedHashSet::new));
+
+        // 差量删除：现存但不在目标中的关联逻辑删除
+        List<UUID> toRemove = existing.stream().filter(id -> !target.contains(id)).toList();
+        documentRequirementRelMapper.deleteByDocumentIdAndRequirementIds(documentId, toRemove);
+
+        // 差量新增：目标中但尚未关联的条目插入（已存在的保留不动）
+        for (UUID reqId : target) {
+            if (!existing.contains(reqId)) {
+                DocumentRequirementRel rel = new DocumentRequirementRel();
+                rel.setDocumentId(documentId);
+                rel.setRequirementId(reqId);
+                documentRequirementRelMapper.insert(rel);
+            }
+        }
+    }
+
+    /** 文档必须存在、为 document 类型且属于当前项目（与 AiCaseGenerationServiceImpl 同款判定） */
+    private void requireDocument(UUID documentId, UUID projectId) {
+        TestCaseModule document = testCaseModuleMapper.selectById(documentId);
+        if (document == null || !Constants.ModuleType.DOCUMENT.equals(document.getType())
+                || !Objects.equals(document.getProjectId(), projectId)) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_CASE_DOCUMENT_NOT_FOUND);
+        }
     }
 
     /** content 长度上限复用 AI 配置项（缺省回退内置默认，需求池不受 AI 开关影响） */
