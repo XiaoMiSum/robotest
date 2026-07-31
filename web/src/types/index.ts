@@ -651,3 +651,164 @@ export interface DashboardRecentBug {
   assignee: string | null
   createdAt: string
 }
+
+// ==================== AI 基础设施 ====================
+
+/** AI 可用性状态（GET /api/workspace/ai/status） */
+export interface AiStatus {
+  enabled: boolean
+  /** available / degraded / unavailable，enabled=false 时不返回 */
+  semanticSearch?: 'available' | 'degraded' | 'unavailable'
+}
+
+/** 密钥脱敏信息（永不回传明文） */
+export interface AiApiKeyInfo {
+  configured: boolean
+  keySuffix: string | null
+}
+
+export interface AiConfigChatGroup {
+  provider: string
+  baseUrl: string
+  model: string
+  apiKey: AiApiKeyInfo
+  extraParams: Record<string, unknown>
+}
+
+export interface AiConfigEmbeddingGroup {
+  provider: string
+  baseUrl: string
+  model: string
+  dimension: number | null
+  apiKey: AiApiKeyInfo
+  extraParams: Record<string, unknown>
+}
+
+/** AI 配置（GET /api/admin/ai/config，未配置为 null） */
+export interface AiConfig {
+  enabled: boolean
+  chat: AiConfigChatGroup
+  embedding: AiConfigEmbeddingGroup | null
+  settings: Record<string, unknown>
+  updatedAt: string | null
+}
+
+/** 保存 AI 配置的分组载荷（apiKey 为字符串：非空即更新，空表示保持原值） */
+export interface AiConfigChatGroupPayload {
+  provider: string
+  baseUrl: string
+  model: string
+  apiKey?: string | null
+  extraParams?: Record<string, unknown>
+}
+
+export interface AiConfigEmbeddingGroupPayload {
+  provider?: string
+  baseUrl?: string
+  model?: string
+  dimension?: number | null
+  apiKey?: string | null
+  extraParams?: Record<string, unknown>
+}
+
+export interface AiConfigSavePayload {
+  enabled: boolean
+  chat: AiConfigChatGroupPayload
+  embedding?: AiConfigEmbeddingGroupPayload | null
+  settings?: Record<string, unknown>
+  expectedUpdatedAt?: string | null
+}
+
+/** 连通性测试请求与结果 */
+export interface AiConfigTestPayload {
+  target: 'chat' | 'embedding'
+  chat?: AiConfigChatGroupPayload
+  embedding?: AiConfigEmbeddingGroupPayload
+}
+
+export interface AiConnectivityTestResult {
+  ok: boolean
+  latencyMs: number | null
+  detail: string | null
+}
+
+/** 供应商预设独有配置项模板 */
+export interface AiProviderUniqueParam {
+  key: string
+  type: 'boolean' | 'number' | 'string' | 'enum'
+  defaultValue: unknown
+  options?: string[]
+  label: string
+  description: string
+}
+
+/** 供应商预设注册表元数据 */
+export interface AiProviderPreset {
+  key: string
+  name: string
+  scopes: string[]
+  defaultBaseUrl: Record<string, string>
+  modelHints: Record<string, string[]>
+  uniqueParams: Record<string, AiProviderUniqueParam[]>
+}
+
+/** 智能体列表项 */
+export interface AiAgent {
+  functionType: string
+  name: string
+  customized: boolean
+  formatEditable: boolean
+  updatedBy: string | null
+  updatedAt: string | null
+}
+
+/** 智能体详情（当前生效段 + 内置默认段） */
+export interface AiAgentDetail {
+  functionType: string
+  name: string
+  customized: boolean
+  formatEditable: boolean
+  roleInstruction: string
+  formatConstraint: string
+  defaults: {
+    roleInstruction: string
+    formatConstraint: string
+  }
+}
+
+export interface AiAgentSavePayload {
+  roleInstruction: string
+  formatEditable: boolean
+  formatConstraint?: string | null
+}
+
+/** 调用量统计 */
+export interface AiStatisticsItem {
+  key: string
+  calls: number
+  tokens: number
+  avgDurationMs: number
+  failed: number
+}
+
+export interface AiStatistics {
+  totalCalls: number
+  totalTokens: number
+  failedCalls: number
+  items: AiStatisticsItem[]
+}
+
+/** AI 异步任务状态 */
+export interface AiTask {
+  id: string
+  type: string
+  targetId: string | null
+  status: 'pending' | 'running' | 'success' | 'failed' | 'cancelled'
+  progress: number
+  result: Record<string, unknown> | null
+  errorMessage: string | null
+  createdBy: string
+  createdAt: string
+  updatedAt: string
+}
+
