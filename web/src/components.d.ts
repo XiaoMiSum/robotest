@@ -8,7 +8,9 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
+    AiGeneratePanel: typeof import('./components/project/minder/ai/AiGeneratePanel.vue')['default']
     AiModelSelect: typeof import('./components/common/AiModelSelect.vue')['default']
+    AiPreviewTree: typeof import('./components/project/minder/ai/AiPreviewTree.vue')['default']
     BrandLogo: typeof import('./components/common/BrandLogo.vue')['default']
     BugResolveDialog: typeof import('./components/project/BugResolveDialog.vue')['default']
     CaseMindMap: typeof import('./components/project/CaseMindMap.vue')['default']

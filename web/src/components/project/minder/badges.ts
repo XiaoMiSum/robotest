@@ -40,6 +40,9 @@ const EXECUTION_RESULT_BADGES: Record<string, Badge> = {
   block: { label: '⚠ 阻塞', color: '#E6A23C' },
 }
 
+// AI 标识徽标（V1.1）：区别于类型/优先级配色，读取节点 data 的 aiGenerated
+const AI_BADGE: Badge = { label: 'AI', color: '#13C2C2' }
+
 /** normal 节点与未知类型不显示徽标 */
 export function typeBadge(type: unknown): Badge | null {
   return typeof type === 'string' ? (TYPE_BADGES[type] ?? null) : null
@@ -47,6 +50,11 @@ export function typeBadge(type: unknown): Badge | null {
 
 export function priorityBadge(priority: unknown): Badge | null {
   return typeof priority === 'string' ? (PRIORITY_BADGES[priority] ?? null) : null
+}
+
+/** 仅 aiGenerated 严格为 true 时渲染（移除标识后即消失） */
+export function aiBadge(aiGenerated: unknown): Badge | null {
+  return aiGenerated === true ? AI_BADGE : null
 }
 
 export function reviewMarkBadge(mark: unknown): Badge | null {
@@ -169,6 +177,8 @@ export function registerBadgesModule(): boolean {
 
   const typeRenderer = defineBadgeRenderer(kity, km.Render, (node) => typeBadge(node.getData('type')))
   const priorityRenderer = defineBadgeRenderer(kity, km.Render, (node) => priorityBadge(node.getData('priority')))
+  // AI 徽标与类型/优先级并列于左侧（交互设计第 7 章），三种模式均可见
+  const aiRenderer = defineBadgeRenderer(kity, km.Render, (node) => aiBadge(node.getData('aiGenerated')))
   // 评审/计划模式下节点 data 才有 lastMark/lastResult，编辑模式自然不渲染，无需按模式区分注册
   const reviewMarkRenderer = defineBadgeRenderer(kity, km.Render, (node) => reviewMarkBadge(node.getData('lastMark')), 'right')
   const executionResultRenderer = defineBadgeRenderer(kity, km.Render, (node) => executionResultBadge(node.getData('lastResult')), 'right')
@@ -178,7 +188,7 @@ export function registerBadgesModule(): boolean {
   km.Module.register('PriorityModule', () => ({}))
   km.Module.register('TestBadgesModule', () => ({
     renderers: {
-      left: [typeRenderer, priorityRenderer],
+      left: [aiRenderer, typeRenderer, priorityRenderer],
       right: [reviewMarkRenderer, executionResultRenderer],
     },
   }))

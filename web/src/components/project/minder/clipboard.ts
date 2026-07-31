@@ -13,8 +13,9 @@ export interface ClipboardTree {
   children: ClipboardTree[]
 }
 
-// 白名单只留业务字段：旧 id 必须丢弃，位置偏移对新落点无意义
-const KEEP_KEYS = ['text', 'type', 'priority'] as const
+// 白名单只留业务字段：旧 id 必须丢弃，位置偏移对新落点无意义；
+// aiGenerated 随复制保留到副本（智能用例生成详细设计 4.6 数据继承规则）
+const KEEP_KEYS = ['text', 'type', 'priority', 'aiGenerated'] as const
 
 let clipboardTree: ClipboardTree | null = null
 
