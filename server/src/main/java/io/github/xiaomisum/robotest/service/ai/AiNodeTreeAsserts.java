@@ -37,11 +37,21 @@ public final class AiNodeTreeAsserts {
     }
 
     /**
-     * 完整树模式（生成子树/文本导入）：规整 + 结构断言，返回 warnings；违规抛 OutputValidationException
+     * 完整树模式（生成子树）：规整 + 结构断言，返回 warnings；违规抛 OutputValidationException
      */
     public static List<String> normalizeAndAssertTree(List<AiNodeTreeDTO> nodes) {
+        return normalizeAndAssertTree(nodes, false);
+    }
+
+    /**
+     * 完整树模式，可放行空树（文本导入场景：无法解析出结构时返回空 nodes + warning 而非失败，设计 4.5）
+     */
+    public static List<String> normalizeAndAssertTree(List<AiNodeTreeDTO> nodes, boolean allowEmpty) {
         List<String> warnings = normalize(nodes);
         if (nodes == null || nodes.isEmpty()) {
+            if (allowEmpty) {
+                return warnings;
+            }
             throw new OutputValidationException("nodes 不能为空");
         }
         if (countNodes(nodes) > MAX_NODE_COUNT) {
@@ -50,6 +60,33 @@ public final class AiNodeTreeAsserts {
         // 顶层节点挂载于目标节点下，允许 case / normal（用例明细三件套必须挂在 case 下）
         for (AiNodeTreeDTO node : nodes) {
             assertNode(node, null, 1);
+        }
+        return warnings;
+    }
+
+    /**
+     * 步骤补全模式（2.2 补全场景约束）：仅允许 step / expected 的扁平数组，无子节点、无 priority；
+     * 空数组放行（既有步骤已完整、无需补全属正常结果），返回 warnings
+     */
+    public static List<String> normalizeAndAssertFlatSteps(List<AiNodeTreeDTO> nodes) {
+        List<String> warnings = normalize(nodes);
+        if (nodes == null || nodes.isEmpty()) {
+            return warnings;
+        }
+        if (nodes.size() > MAX_NODE_COUNT) {
+            throw new OutputValidationException("单次生成节点总数不得超过 " + MAX_NODE_COUNT);
+        }
+        for (AiNodeTreeDTO node : nodes) {
+            String type = node.getType();
+            if (!Constants.NodeType.STEP.equals(type) && !Constants.NodeType.EXPECTED.equals(type)) {
+                throw new OutputValidationException("补全结果仅允许 step/expected 类型，出现：" + type);
+            }
+            if (!node.getChildren().isEmpty()) {
+                throw new OutputValidationException(type + " 节点不得有子节点");
+            }
+            if (node.getPriority() != null) {
+                throw new OutputValidationException("priority 仅允许出现在 case 节点");
+            }
         }
         return warnings;
     }
