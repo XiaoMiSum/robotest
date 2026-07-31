@@ -153,6 +153,19 @@ CREATE TABLE requirement_pool_item (
 
 CREATE INDEX idx_rpi_project_id ON requirement_pool_item (project_id);
 
+-- 文档-需求关联表（脑图文档 test_case_module[type=document] ⇄ 需求池条目，多对多，逻辑删除关联）
+CREATE TABLE document_requirement_rel (
+    id             UUID       PRIMARY KEY,
+    document_id    UUID       NOT NULL,
+    requirement_id UUID       NOT NULL,
+    is_deleted     BOOLEAN    NOT NULL DEFAULT FALSE,
+    created_at     TIMESTAMP  NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at     TIMESTAMP  NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE UNIQUE INDEX uk_doc_req ON document_requirement_rel (document_id, requirement_id) WHERE is_deleted = false;
+CREATE INDEX idx_drr_requirement_id ON document_requirement_rel (requirement_id);
+
 -- 需求池权限点（workspace 作用域，接测试域 c…0033 之后）并回补成员角色
 INSERT INTO sys_permission (id, code, name, parent_code, module, scope, sort_order, created_at, updated_at, is_deleted) VALUES
 ('c0000000-0000-0000-0000-000000000034', 'requirement',      '需求池',   NULL,          '需求池', 'workspace', 5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
@@ -252,3 +265,11 @@ COMMENT ON COLUMN requirement_pool_item.updated_by IS '最后更新人，关联 
 COMMENT ON COLUMN requirement_pool_item.is_deleted IS '逻辑删除标志';
 COMMENT ON COLUMN requirement_pool_item.created_at IS '创建时间';
 COMMENT ON COLUMN requirement_pool_item.updated_at IS '更新时间';
+
+COMMENT ON TABLE document_requirement_rel IS '文档-需求关联表（脑图文档 ⇄ 需求池条目，US-AI-004）';
+COMMENT ON COLUMN document_requirement_rel.id IS '主键';
+COMMENT ON COLUMN document_requirement_rel.document_id IS '脑图文档 ID，关联 test_case_module.id（type=document）';
+COMMENT ON COLUMN document_requirement_rel.requirement_id IS '需求池条目 ID，关联 requirement_pool_item.id';
+COMMENT ON COLUMN document_requirement_rel.is_deleted IS '逻辑删除标志（解除关联）';
+COMMENT ON COLUMN document_requirement_rel.created_at IS '创建时间';
+COMMENT ON COLUMN document_requirement_rel.updated_at IS '更新时间';
