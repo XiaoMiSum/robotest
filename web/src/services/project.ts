@@ -21,6 +21,8 @@ import type {
   ReviewMark,
   ReviewRecord,
   ReviewStatus,
+  RequirementDetail,
+  RequirementPoolItem,
   SnapshotModule,
   TestCaseModule,
   TestCaseNode,
@@ -381,4 +383,42 @@ export async function downloadBugAttachment(attachmentId: string, fileName: stri
 
 export function deleteBugAttachment(attachmentId: string): Promise<void> {
   return del(`/project/bugs/attachments/${attachmentId}`)
+}
+
+// ==================== 需求池（US-AI-004） ====================
+
+export function fetchRequirements(params: {
+  keyword?: string
+  pageNo?: number
+  pageSize?: number
+}): Promise<PageResult<RequirementPoolItem>> {
+  return get('/project/requirements', { ...params })
+}
+
+export function getRequirement(id: string): Promise<RequirementDetail> {
+  return get(`/project/requirements/${id}`)
+}
+
+export function createRequirement(data: {
+  title: string
+  content: string
+  sourceUrl?: string
+}): Promise<string> {
+  return post('/project/requirements', data)
+}
+
+export function updateRequirement(
+  id: string,
+  data: {
+    title?: string
+    content?: string
+    // 三态语义：undefined 不修改、空串清空、非空更新
+    sourceUrl?: string
+  },
+): Promise<void> {
+  return put(`/project/requirements/${id}`, data)
+}
+
+export function deleteRequirement(id: string): Promise<void> {
+  return del(`/project/requirements/${id}`)
 }
