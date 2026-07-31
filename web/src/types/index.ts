@@ -659,20 +659,21 @@ export interface AiStatus {
   enabled: boolean
   /** available / degraded / unavailable，enabled=false 时不返回 */
   semanticSearch?: 'available' | 'degraded' | 'unavailable'
+  /** 已启用对话模型清单（脱敏，仅 id/显示名/是否默认），enabled=false 时不返回 */
+  chatModels?: AiChatModelView[]
+}
+
+/** 对话模型选择器数据项（status 下发的脱敏视图） */
+export interface AiChatModelView {
+  id: string
+  name: string
+  isDefault: boolean
 }
 
 /** 密钥脱敏信息（永不回传明文） */
 export interface AiApiKeyInfo {
   configured: boolean
   keySuffix: string | null
-}
-
-export interface AiConfigChatGroup {
-  provider: string
-  baseUrl: string
-  model: string
-  apiKey: AiApiKeyInfo
-  extraParams: Record<string, unknown>
 }
 
 export interface AiConfigEmbeddingGroup {
@@ -684,16 +685,41 @@ export interface AiConfigEmbeddingGroup {
   extraParams: Record<string, unknown>
 }
 
-/** AI 配置（GET /api/admin/ai/config，未配置为 null） */
+/** AI 配置（GET /api/admin/ai/config，未配置为 null；对话模型独立于 chat-models 接口） */
 export interface AiConfig {
   enabled: boolean
-  chat: AiConfigChatGroup
   embedding: AiConfigEmbeddingGroup | null
   settings: Record<string, unknown>
   updatedAt: string | null
 }
 
-/** 保存 AI 配置的分组载荷（apiKey 为字符串：非空即更新，空表示保持原值） */
+/** 对话模型配置（GET /api/admin/ai/chat-models 列表项，脱敏） */
+export interface AiChatModel {
+  id: string
+  name: string
+  provider: string
+  baseUrl: string
+  model: string
+  apiKey: AiApiKeyInfo
+  extraParams: Record<string, unknown>
+  enabled: boolean
+  isDefault: boolean
+  updatedBy: string | null
+  updatedAt: string | null
+}
+
+/** 新建/更新对话模型载荷（apiKey 非空即更新，空表示保持原值） */
+export interface AiChatModelSavePayload {
+  name: string
+  provider: string
+  baseUrl: string
+  model: string
+  apiKey?: string | null
+  extraParams?: Record<string, unknown>
+  expectedUpdatedAt?: string | null
+}
+
+/** 保存 AI 配置的对话临时配置（供连通性测试临时透传） */
 export interface AiConfigChatGroupPayload {
   provider: string
   baseUrl: string
@@ -713,7 +739,6 @@ export interface AiConfigEmbeddingGroupPayload {
 
 export interface AiConfigSavePayload {
   enabled: boolean
-  chat: AiConfigChatGroupPayload
   embedding?: AiConfigEmbeddingGroupPayload | null
   settings?: Record<string, unknown>
   expectedUpdatedAt?: string | null
@@ -722,6 +747,8 @@ export interface AiConfigSavePayload {
 /** 连通性测试请求与结果 */
 export interface AiConfigTestPayload {
   target: 'chat' | 'embedding'
+  /** target=chat 且缺省临时配置时，指定已保存的对话模型（缺省则测系统默认） */
+  modelId?: string | null
   chat?: AiConfigChatGroupPayload
   embedding?: AiConfigEmbeddingGroupPayload
 }
@@ -730,6 +757,25 @@ export interface AiConnectivityTestResult {
   ok: boolean
   latencyMs: number | null
   detail: string | null
+}
+
+/** 系统配置项表单定义（GET /api/admin/ai/settings-schema） */
+export interface AiSettingSchemaItem {
+  key: string
+  type: 'int' | 'number' | 'object' | 'string[]'
+  label: string
+  description: string
+  defaultValue: unknown
+  min: number | null
+  max: number | null
+  step: number | null
+  options?: string[]
+}
+
+export interface AiSettingSchemaGroup {
+  group: string
+  groupLabel: string
+  items: AiSettingSchemaItem[]
 }
 
 /** 供应商预设独有配置项模板 */

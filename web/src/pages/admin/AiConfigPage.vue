@@ -2,31 +2,43 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
+  createAiChatModel,
+  deleteAiChatModel,
+  fetchAiChatModels,
   fetchAiConfig,
   fetchAiProviders,
   fetchAiRebuildTask,
+  fetchAiSettingsSchema,
   fetchAiStatistics,
   retryAiRebuildTask,
   saveAiConfig,
+  setAiChatModelDefault,
+  setAiChatModelEnabled,
   testAiConnectivity,
+  updateAiChatModel,
 } from '@/services/admin'
 import type {
+  AiChatModel,
+  AiChatModelSavePayload,
   AiConfig,
   AiConfigSavePayload,
   AiProviderPreset,
+  AiSettingSchemaGroup,
+  AiSettingSchemaItem,
   AiStatistics,
   AiTask,
 } from '@/types'
 import {
   buildDefaultUniqueParams,
   getByPath,
+  isSettingModified,
   mergeExtraParams,
   resolveDefaultBaseUrl,
   resolveModelHints,
   resolveUniqueParams,
+  validateSetting,
+  weightsSum,
 } from './aiConfigForm'
-
-type Scope = 'chat' | 'embedding'
 
 const loading = ref(false)
 const saving = ref(false)
@@ -35,19 +47,8 @@ const providers = ref<AiProviderPreset[]>([])
 const config = ref<AiConfig | null>(null)
 const expectedUpdatedAt = ref<string | null>(null)
 
-// 两组表单模型
 const form = reactive({
   enabled: false,
-  chat: {
-    provider: 'custom',
-    baseUrl: '',
-    model: '',
-    apiKey: '',
-    apiKeyConfigured: false,
-    keySuffix: '' as string | null,
-    uniqueValues: {} as Record<string, unknown>,
-    customParams: '{}',
-  },
   embedding: {
     enabled: false,
     provider: '',
@@ -62,22 +63,37 @@ const form = reactive({
   },
 })
 
-// 系统配置项（settings）以 JSON 文本编辑
-const settingsText = ref('{}')
+// 对话模型列表与新建/编辑弹窗
+const chatModels = ref<AiChatModel[]>([])
+const modelDialogVisible = ref(false)
+const modelDialogMode = ref<'create' | 'edit'>('create')
+const editingModelId = ref<string | null>(null)
+const modelExpectedUpdatedAt = ref<string | null>(null)
+const modelForm = reactive({
+  name: '',
+  provider: 'custom',
+  baseUrl: '',
+  model: '',
+  apiKey: '',
+  apiKeyConfigured: false,
+  keySuffix: '' as string | null,
+  uniqueValues: {} as Record<string, unknown>,
+  customParams: '{}',
+})
 
-// 连通性测试状态
-const testing = reactive({ chat: false, embedding: false })
+// 系统配置项分组表单
+const settingsSchema = ref<AiSettingSchemaGroup[]>([])
+const settingsForm = reactive<Record<string, unknown>>({})
 
-// 向量重建任务
+const testing = reactive({ embedding: false, modelDialog: false })
+const rowTestingId = ref<string | null>(null)
+
 const rebuildTask = ref<AiTask | null>(null)
 
-// 调用统计
 const statistics = ref<AiStatistics | null>(null)
 const statQuery = reactive({ groupBy: 'functionType' })
 
-const chatProviderOptions = computed(() =>
-  providers.value.filter((p) => p.scopes.includes('chat')),
-)
+const chatProviderOptions = computed(() => providers.value.filter((p) => p.scopes.includes('chat')))
 const embeddingProviderOptions = computed(() =>
   providers.value.filter((p) => p.scopes.includes('embedding')),
 )
@@ -86,8 +102,8 @@ function presetOf(key: string): AiProviderPreset | undefined {
   return providers.value.find((p) => p.key === key)
 }
 
-const chatUniqueParams = computed(() => resolveUniqueParams(presetOf(form.chat.provider), 'chat'))
-const chatModelHints = computed(() => resolveModelHints(presetOf(form.chat.provider), 'chat'))
+const modelUniqueParams = computed(() => resolveUniqueParams(presetOf(modelForm.provider), 'chat'))
+const modelModelHints = computed(() => resolveModelHints(presetOf(modelForm.provider), 'chat'))
 const embeddingUniqueParams = computed(() =>
   resolveUniqueParams(presetOf(form.embedding.provider), 'embedding'),
 )
@@ -103,8 +119,11 @@ async function loadAll() {
   loading.value = true
   try {
     providers.value = await fetchAiProviders()
+    settingsSchema.value = await fetchAiSettingsSchema()
     const loaded = await fetchAiConfig()
     if (loaded) applyConfig(loaded)
+    else applySettings({})
+    chatModels.value = await fetchAiChatModels()
     await loadRebuildTask()
   } catch (err) {
     ElMessage.error(err instanceof Error ? err.message : '加载 AI 配置失败')
@@ -117,15 +136,6 @@ function applyConfig(loaded: AiConfig) {
   config.value = loaded
   expectedUpdatedAt.value = loaded.updatedAt
   form.enabled = loaded.enabled
-  form.chat.provider = loaded.chat.provider
-  form.chat.baseUrl = loaded.chat.baseUrl
-  form.chat.model = loaded.chat.model
-  form.chat.apiKey = ''
-  form.chat.apiKeyConfigured = loaded.chat.apiKey.configured
-  form.chat.keySuffix = loaded.chat.apiKey.keySuffix
-  form.chat.uniqueValues = extractUniqueValues(loaded.chat.extraParams, 'chat', loaded.chat.provider)
-  form.chat.customParams = JSON.stringify(loaded.chat.extraParams ?? {}, null, 2)
-
   if (loaded.embedding) {
     form.embedding.enabled = true
     form.embedding.provider = loaded.embedding.provider
@@ -142,13 +152,22 @@ function applyConfig(loaded: AiConfig) {
     )
     form.embedding.customParams = JSON.stringify(loaded.embedding.extraParams ?? {}, null, 2)
   }
-  settingsText.value = JSON.stringify(loaded.settings ?? {}, null, 2)
+  applySettings(loaded.settings ?? {})
 }
 
-// 从已存 extraParams 回填独有配置项控件值（按模板键路径寻址）
+// 按 schema 用「落库合并视图值 → 默认值」初始化分组表单
+function applySettings(merged: Record<string, unknown>) {
+  for (const group of settingsSchema.value) {
+    for (const item of group.items) {
+      const value = merged[item.key]
+      settingsForm[item.key] = value !== undefined ? value : structuredClone(item.defaultValue)
+    }
+  }
+}
+
 function extractUniqueValues(
   extraParams: Record<string, unknown>,
-  scope: Scope,
+  scope: 'chat' | 'embedding',
   provider: string,
 ): Record<string, unknown> {
   const values: Record<string, unknown> = {}
@@ -169,40 +188,6 @@ async function loadRebuildTask() {
   }
 }
 
-async function handleChatProviderChange(next: string) {
-  if (form.chat.baseUrl || Object.keys(form.chat.uniqueValues).length) {
-    try {
-      await ElMessageBox.confirm(
-        '切换供应商将重置该组服务地址与独有配置项（模型名与密钥保留待核对），是否继续？',
-        '切换供应商',
-        { type: 'warning' },
-      )
-    } catch {
-      return
-    }
-  }
-  form.chat.baseUrl = resolveDefaultBaseUrl(presetOf(next), 'chat')
-  form.chat.uniqueValues = buildDefaultUniqueParams(resolveUniqueParams(presetOf(next), 'chat'))
-}
-
-async function handleEmbeddingProviderChange(next: string) {
-  if (form.embedding.baseUrl || Object.keys(form.embedding.uniqueValues).length) {
-    try {
-      await ElMessageBox.confirm(
-        '切换供应商将重置该组服务地址与独有配置项（模型名与密钥保留待核对），是否继续？',
-        '切换供应商',
-        { type: 'warning' },
-      )
-    } catch {
-      return
-    }
-  }
-  form.embedding.baseUrl = resolveDefaultBaseUrl(presetOf(next), 'embedding')
-  form.embedding.uniqueValues = buildDefaultUniqueParams(
-    resolveUniqueParams(presetOf(next), 'embedding'),
-  )
-}
-
 function parseJsonObject(text: string, label: string): Record<string, unknown> {
   if (!text.trim()) return {}
   const parsed: unknown = JSON.parse(text)
@@ -212,14 +197,229 @@ function parseJsonObject(text: string, label: string): Record<string, unknown> {
   return parsed as Record<string, unknown>
 }
 
-async function handleSave() {
-  let chatCustom: Record<string, unknown>
-  let embeddingCustom: Record<string, unknown>
-  let settings: Record<string, unknown>
+// ==================== 对话模型：新建/编辑弹窗 ====================
+
+function openCreateModel() {
+  modelDialogMode.value = 'create'
+  editingModelId.value = null
+  modelExpectedUpdatedAt.value = null
+  modelForm.name = ''
+  modelForm.provider = 'custom'
+  modelForm.baseUrl = ''
+  modelForm.model = ''
+  modelForm.apiKey = ''
+  modelForm.apiKeyConfigured = false
+  modelForm.keySuffix = ''
+  modelForm.uniqueValues = buildDefaultUniqueParams(resolveUniqueParams(presetOf('custom'), 'chat'))
+  modelForm.customParams = '{}'
+  modelDialogVisible.value = true
+}
+
+function openEditModel(row: AiChatModel) {
+  modelDialogMode.value = 'edit'
+  editingModelId.value = row.id
+  modelExpectedUpdatedAt.value = row.updatedAt
+  modelForm.name = row.name
+  modelForm.provider = row.provider
+  modelForm.baseUrl = row.baseUrl
+  modelForm.model = row.model
+  modelForm.apiKey = ''
+  modelForm.apiKeyConfigured = row.apiKey.configured
+  modelForm.keySuffix = row.apiKey.keySuffix
+  modelForm.uniqueValues = extractUniqueValues(row.extraParams, 'chat', row.provider)
+  modelForm.customParams = JSON.stringify(row.extraParams ?? {}, null, 2)
+  modelDialogVisible.value = true
+}
+
+async function handleModelProviderChange(next: string) {
+  if (modelForm.baseUrl || Object.keys(modelForm.uniqueValues).length) {
+    try {
+      await ElMessageBox.confirm(
+        '切换供应商将重置服务地址与独有配置项（模型名与密钥保留待核对），是否继续？',
+        '切换供应商',
+        { type: 'warning' },
+      )
+    } catch {
+      return
+    }
+  }
+  modelForm.baseUrl = resolveDefaultBaseUrl(presetOf(next), 'chat')
+  modelForm.uniqueValues = buildDefaultUniqueParams(resolveUniqueParams(presetOf(next), 'chat'))
+}
+
+function buildModelPayload(): AiChatModelSavePayload {
+  const custom = parseJsonObject(modelForm.customParams, '对话高级参数')
+  return {
+    name: modelForm.name,
+    provider: modelForm.provider,
+    baseUrl: modelForm.baseUrl,
+    model: modelForm.model,
+    apiKey: modelForm.apiKey || null,
+    extraParams: mergeExtraParams(modelForm.uniqueValues, custom),
+    expectedUpdatedAt: modelExpectedUpdatedAt.value,
+  }
+}
+
+async function handleModelSave() {
+  let payload: AiChatModelSavePayload
   try {
-    chatCustom = parseJsonObject(form.chat.customParams, '对话高级参数')
+    payload = buildModelPayload()
+  } catch (err) {
+    ElMessage.error(err instanceof Error ? err.message : '参数格式错误')
+    return
+  }
+  saving.value = true
+  try {
+    if (modelDialogMode.value === 'create') {
+      await createAiChatModel(payload)
+      ElMessage.success('已新建对话模型')
+    } else if (editingModelId.value) {
+      await updateAiChatModel(editingModelId.value, payload)
+      ElMessage.success('已保存对话模型')
+    }
+    modelDialogVisible.value = false
+    chatModels.value = await fetchAiChatModels()
+  } catch (err) {
+    ElMessage.error(err instanceof Error ? err.message : '保存失败')
+  } finally {
+    saving.value = false
+  }
+}
+
+async function handleModelDialogTest() {
+  testing.modelDialog = true
+  try {
+    const custom = parseJsonObject(modelForm.customParams, '对话高级参数')
+    const result = await testAiConnectivity({
+      target: 'chat',
+      chat: {
+        provider: modelForm.provider,
+        baseUrl: modelForm.baseUrl,
+        model: modelForm.model,
+        apiKey: modelForm.apiKey || null,
+        extraParams: mergeExtraParams(modelForm.uniqueValues, custom),
+      },
+    })
+    if (result.ok) {
+      ElMessage.success(`连通成功（${result.latencyMs ?? '-'}ms）：${result.detail ?? ''}`)
+    } else {
+      ElMessage.warning(`连通失败：${result.detail ?? '未知错误'}`)
+    }
+  } catch (err) {
+    ElMessage.error(err instanceof Error ? err.message : '连通性测试失败')
+  } finally {
+    testing.modelDialog = false
+  }
+}
+
+// ==================== 对话模型：行内操作 ====================
+
+async function handleRowTest(row: AiChatModel) {
+  rowTestingId.value = row.id
+  try {
+    const result = await testAiConnectivity({ target: 'chat', modelId: row.id })
+    if (result.ok) {
+      ElMessage.success(`「${row.name}」连通成功（${result.latencyMs ?? '-'}ms）`)
+    } else {
+      ElMessage.warning(`「${row.name}」连通失败：${result.detail ?? '未知错误'}`)
+    }
+  } catch (err) {
+    ElMessage.error(err instanceof Error ? err.message : '连通性测试失败')
+  } finally {
+    rowTestingId.value = null
+  }
+}
+
+async function handleSetDefault(row: AiChatModel) {
+  try {
+    await ElMessageBox.confirm(`确认将「${row.name}」设为系统默认模型？`, '设为默认', { type: 'warning' })
+  } catch {
+    return
+  }
+  try {
+    await setAiChatModelDefault(row.id)
+    ElMessage.success('已更新系统默认模型')
+    chatModels.value = await fetchAiChatModels()
+  } catch (err) {
+    ElMessage.error(err instanceof Error ? err.message : '操作失败')
+  }
+}
+
+async function handleToggleEnabled(row: AiChatModel) {
+  const next = !row.enabled
+  if (!next) {
+    try {
+      await ElMessageBox.confirm(
+        `停用「${row.name}」后，此前选择该模型的用户将自动回退系统默认。确认停用？`,
+        '停用模型',
+        { type: 'warning' },
+      )
+    } catch {
+      return
+    }
+  }
+  try {
+    await setAiChatModelEnabled(row.id, next)
+    ElMessage.success(next ? '已启用' : '已停用')
+    chatModels.value = await fetchAiChatModels()
+  } catch (err) {
+    ElMessage.error(err instanceof Error ? err.message : '操作失败')
+  }
+}
+
+async function handleDeleteModel(row: AiChatModel) {
+  try {
+    await ElMessageBox.confirm(`删除「${row.name}」后不可恢复，确认删除？`, '删除模型', {
+      type: 'error',
+      confirmButtonText: '删除',
+    })
+  } catch {
+    return
+  }
+  try {
+    await deleteAiChatModel(row.id)
+    ElMessage.success('已删除')
+    chatModels.value = await fetchAiChatModels()
+  } catch (err) {
+    ElMessage.error(err instanceof Error ? err.message : '删除失败')
+  }
+}
+
+// ==================== 系统配置项 ====================
+
+function settingModified(item: AiSettingSchemaItem): boolean {
+  return isSettingModified(item, settingsForm[item.key])
+}
+
+function resetSetting(item: AiSettingSchemaItem) {
+  settingsForm[item.key] = structuredClone(item.defaultValue)
+}
+
+function currentWeightsSum(item: AiSettingSchemaItem): number {
+  return weightsSum(settingsForm[item.key])
+}
+
+// ==================== 总配置保存 / Embedding 测试 ====================
+
+async function handleSaveConfig() {
+  if (form.enabled && chatModels.value.filter((m) => m.enabled).length === 0) {
+    ElMessage.warning('开启 AI 前请先新建并启用至少一个对话模型')
+    return
+  }
+  // 系统配置项逐项校验
+  for (const group of settingsSchema.value) {
+    for (const item of group.items) {
+      const error = validateSetting(item, settingsForm[item.key])
+      if (error) {
+        ElMessage.error(error)
+        return
+      }
+    }
+  }
+
+  let embeddingCustom: Record<string, unknown>
+  try {
     embeddingCustom = parseJsonObject(form.embedding.customParams, 'Embedding 高级参数')
-    settings = parseJsonObject(settingsText.value, '系统配置项')
   } catch (err) {
     ElMessage.error(err instanceof Error ? err.message : '参数格式错误')
     return
@@ -227,13 +427,6 @@ async function handleSave() {
 
   const payload: AiConfigSavePayload = {
     enabled: form.enabled,
-    chat: {
-      provider: form.chat.provider,
-      baseUrl: form.chat.baseUrl,
-      model: form.chat.model,
-      apiKey: form.chat.apiKey || null,
-      extraParams: mergeExtraParams(form.chat.uniqueValues, chatCustom),
-    },
     embedding: form.embedding.enabled
       ? {
           provider: form.embedding.provider,
@@ -244,7 +437,7 @@ async function handleSave() {
           extraParams: mergeExtraParams(form.embedding.uniqueValues, embeddingCustom),
         }
       : null,
-    settings,
+    settings: { ...settingsForm },
     expectedUpdatedAt: expectedUpdatedAt.value,
   }
 
@@ -261,33 +454,19 @@ async function handleSave() {
   }
 }
 
-async function handleTest(target: Scope) {
-  testing[target] = true
+async function handleTestEmbedding() {
+  testing.embedding = true
   try {
-    const group = target === 'chat' ? form.chat : form.embedding
     const result = await testAiConnectivity({
-      target,
-      chat:
-        target === 'chat'
-          ? {
-              provider: form.chat.provider,
-              baseUrl: form.chat.baseUrl,
-              model: form.chat.model,
-              apiKey: form.chat.apiKey || null,
-            }
-          : undefined,
-      embedding:
-        target === 'embedding'
-          ? {
-              provider: form.embedding.provider,
-              baseUrl: form.embedding.baseUrl,
-              model: form.embedding.model,
-              dimension: form.embedding.dimension,
-              apiKey: form.embedding.apiKey || null,
-            }
-          : undefined,
+      target: 'embedding',
+      embedding: {
+        provider: form.embedding.provider,
+        baseUrl: form.embedding.baseUrl,
+        model: form.embedding.model,
+        dimension: form.embedding.dimension,
+        apiKey: form.embedding.apiKey || null,
+      },
     })
-    void group
     if (result.ok) {
       ElMessage.success(`连通成功（${result.latencyMs ?? '-'}ms）：${result.detail ?? ''}`)
     } else {
@@ -296,7 +475,7 @@ async function handleTest(target: Scope) {
   } catch (err) {
     ElMessage.error(err instanceof Error ? err.message : '连通性测试失败')
   } finally {
-    testing[target] = false
+    testing.embedding = false
   }
 }
 
@@ -338,7 +517,7 @@ onMounted(loadAll)
               <div class="ai-config-page__master-text">
                 <div class="ai-config-page__master-title">AI 能力总开关</div>
                 <div class="ai-config-page__master-hint">
-                  关闭后前端隐藏全部 AI 入口，进行中任务被取消
+                  关闭后前端隐藏全部 AI 入口，进行中任务被取消；开启需已启用至少一个对话模型
                 </div>
               </div>
               <el-switch v-model="form.enabled" size="large" />
@@ -350,79 +529,72 @@ onMounted(loadAll)
               <div class="ai-config-page__card-header">
                 <el-icon class="ai-config-page__card-icon"><ChatDotRound /></el-icon>
                 <span>对话模型</span>
-                <el-button
-                  class="ai-config-page__card-extra"
-                  size="small"
-                  :loading="testing.chat"
-                  @click="handleTest('chat')"
-                >
-                  <el-icon><Connection /></el-icon>连通性测试
+                <el-button class="ai-config-page__card-extra" size="small" type="primary" @click="openCreateModel">
+                  <el-icon><Plus /></el-icon>新建模型
                 </el-button>
               </div>
             </template>
-            <el-form-item label="供应商">
-              <el-select v-model="form.chat.provider" @change="handleChatProviderChange">
-                <el-option
-                  v-for="p in chatProviderOptions"
-                  :key="p.key"
-                  :label="p.name"
-                  :value="p.key"
-                />
-              </el-select>
-            </el-form-item>
-            <el-form-item label="服务地址">
-              <el-input v-model="form.chat.baseUrl" placeholder="OpenAI 兼容根路径，不含 /chat/completions" />
-            </el-form-item>
-            <el-form-item label="模型名">
-              <el-select
-                v-model="form.chat.model"
-                filterable
-                allow-create
-                default-first-option
-                placeholder="选择或输入模型名"
-              >
-                <el-option v-for="m in chatModelHints" :key="m" :label="m" :value="m" />
-              </el-select>
-            </el-form-item>
-            <el-form-item label="API 密钥">
-              <el-input
-                v-model="form.chat.apiKey"
-                type="password"
-                show-password
-                :placeholder="
-                  form.chat.apiKeyConfigured
-                    ? `已配置（末位 ${form.chat.keySuffix ?? '****'}），留空不修改`
-                    : '请输入密钥'
-                "
-              />
-            </el-form-item>
-            <el-form-item
-              v-for="param in chatUniqueParams"
-              :key="param.key"
-              :label="param.label"
-            >
-              <el-switch
-                v-if="param.type === 'boolean'"
-                v-model="form.chat.uniqueValues[param.key] as boolean"
-              />
-              <el-select
-                v-else-if="param.type === 'enum'"
-                v-model="form.chat.uniqueValues[param.key] as string"
-              >
-                <el-option v-for="opt in param.options" :key="opt" :label="opt" :value="opt" />
-              </el-select>
-              <el-input-number
-                v-else-if="param.type === 'number'"
-                v-model="form.chat.uniqueValues[param.key] as number"
-              />
-              <el-input v-else v-model="form.chat.uniqueValues[param.key] as string" />
-              <span class="ai-config-page__hint">{{ param.description }}</span>
-            </el-form-item>
-            <el-collapse class="ai-config-page__advanced">
-              <el-collapse-item title="高级自定义参数（JSON）" name="chatAdvanced">
-                <el-input v-model="form.chat.customParams" type="textarea" :rows="4" />
-              </el-collapse-item>
-            </el-collapse>
+            <el-table :data="chatModels" size="small" class="ai-config-page__model-table">
+              <el-table-column prop="name" label="名称" min-width="140" />
+              <el-table-column prop="provider" label="供应商" width="120" />
+              <el-table-column prop="model" label="模型名" min-width="140" />
+              <el-table-column label="状态" width="80">
+                <template #default="{ row }">
+                  <el-tag :type="row.enabled ? 'success' : 'info'" size="small">
+                    {{ row.enabled ? '启用' : '停用' }}
+                  </el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column label="默认" width="70" align="center">
+                <template #default="{ row }">
+                  <el-icon v-if="row.isDefault" class="ai-config-page__star"><StarFilled /></el-icon>
+                </template>
+              </el-table-column>
+              <el-table-column label="操作" min-width="260">
+                <template #default="{ row }">
+                  <el-button link type="primary" size="small" @click="openEditModel(row as AiChatModel)">编辑</el-button>
+                  <el-button
+                    link
+                    type="primary"
+                    size="small"
+                    :loading="rowTestingId === row.id"
+                    @click="handleRowTest(row as AiChatModel)"
+                  >
+                    测试
+                  </el-button>
+                  <el-button
+                    link
+                    type="primary"
+                    size="small"
+                    :disabled="row.isDefault || !row.enabled"
+                    @click="handleSetDefault(row as AiChatModel)"
+                  >
+                    设为默认
+                  </el-button>
+                  <el-button
+                    link
+                    type="warning"
+                    size="small"
+                    :disabled="row.isDefault && row.enabled"
+                    @click="handleToggleEnabled(row as AiChatModel)"
+                  >
+                    {{ row.enabled ? '停用' : '启用' }}
+                  </el-button>
+                  <el-button
+                    link
+                    type="danger"
+                    size="small"
+                    :disabled="row.isDefault"
+                    @click="handleDeleteModel(row as AiChatModel)"
+                  >
+                    删除
+                  </el-button>
+                </template>
+              </el-table-column>
+              <template #empty>
+                <span class="ai-config-page__empty">尚无对话模型，点击右上角新建</span>
+              </template>
+            </el-table>
           </el-card>
 
           <el-card shadow="never" class="ai-config-page__card">
@@ -436,7 +608,7 @@ onMounted(loadAll)
                   class="ai-config-page__card-extra"
                   size="small"
                   :loading="testing.embedding"
-                  @click="handleTest('embedding')"
+                  @click="handleTestEmbedding"
                 >
                   <el-icon><Connection /></el-icon>连通性测试
                 </el-button>
@@ -444,7 +616,7 @@ onMounted(loadAll)
             </template>
             <template v-if="form.embedding.enabled">
               <el-form-item label="供应商">
-                <el-select v-model="form.embedding.provider" @change="handleEmbeddingProviderChange">
+                <el-select v-model="form.embedding.provider" @change="(v: string) => (form.embedding.provider = v)">
                   <el-option
                     v-for="p in embeddingProviderOptions"
                     :key="p.key"
@@ -457,12 +629,7 @@ onMounted(loadAll)
                 <el-input v-model="form.embedding.baseUrl" />
               </el-form-item>
               <el-form-item label="模型名">
-                <el-select
-                  v-model="form.embedding.model"
-                  filterable
-                  allow-create
-                  default-first-option
-                >
+                <el-select v-model="form.embedding.model" filterable allow-create default-first-option>
                   <el-option v-for="m in embeddingModelHints" :key="m" :label="m" :value="m" />
                 </el-select>
               </el-form-item>
@@ -491,9 +658,7 @@ onMounted(loadAll)
                 </el-collapse-item>
               </el-collapse>
             </template>
-            <div v-else class="ai-config-page__group-off">
-              开启后可配置向量检索所需的 Embedding 服务
-            </div>
+            <div v-else class="ai-config-page__group-off">开启后可配置向量检索所需的 Embedding 服务</div>
           </el-card>
 
           <el-card shadow="never" class="ai-config-page__card">
@@ -503,11 +668,63 @@ onMounted(loadAll)
                 <span>系统配置项</span>
               </div>
             </template>
-            <el-collapse class="ai-config-page__advanced">
-              <el-collapse-item title="配置项键值（JSON）" name="settings">
-                <el-input v-model="settingsText" type="textarea" :rows="10" />
-              </el-collapse-item>
-            </el-collapse>
+            <div v-for="group in settingsSchema" :key="group.group" class="ai-config-page__setting-group">
+              <div class="ai-config-page__setting-group-title">{{ group.groupLabel }}</div>
+              <el-form-item v-for="item in group.items" :key="item.key" :label="item.label">
+                <div class="ai-config-page__setting-control">
+                  <!-- 权重组合 -->
+                  <template v-if="item.type === 'object'">
+                    <div class="ai-config-page__weights">
+                      <el-input-number
+                        v-for="sub in ['w1', 'w2', 'w3']"
+                        :key="sub"
+                        v-model="(settingsForm[item.key] as Record<string, number>)[sub]"
+                        :min="0"
+                        :max="1"
+                        :step="0.1"
+                        :controls="false"
+                      />
+                      <span
+                        class="ai-config-page__weights-sum"
+                        :class="{ 'is-error': Math.abs(currentWeightsSum(item) - 1) > 0.001 }"
+                      >
+                        Σ {{ currentWeightsSum(item).toFixed(2) }}
+                      </span>
+                    </div>
+                  </template>
+                  <!-- 多选 -->
+                  <el-select
+                    v-else-if="item.type === 'string[]'"
+                    v-model="settingsForm[item.key] as string[]"
+                    multiple
+                    class="ai-config-page__setting-multi"
+                  >
+                    <el-option v-for="opt in item.options ?? []" :key="opt" :label="opt" :value="opt" />
+                  </el-select>
+                  <!-- 数字 -->
+                  <el-input-number
+                    v-else
+                    v-model="settingsForm[item.key] as number"
+                    :min="item.min ?? undefined"
+                    :max="item.max ?? undefined"
+                    :step="item.step ?? 1"
+                  />
+                  <el-tag v-if="settingModified(item)" size="small" type="warning" class="ai-config-page__modified">
+                    已修改
+                  </el-tag>
+                  <el-button
+                    v-if="settingModified(item)"
+                    link
+                    type="primary"
+                    size="small"
+                    @click="resetSetting(item)"
+                  >
+                    恢复默认
+                  </el-button>
+                </div>
+                <span class="ai-config-page__hint">{{ item.description }}（默认 {{ item.defaultValue }}）</span>
+              </el-form-item>
+            </div>
           </el-card>
 
           <el-alert
@@ -518,19 +735,13 @@ onMounted(loadAll)
           >
             向量重建任务状态：{{ rebuildTask.status }}（进度 {{ rebuildTask.progress }}%）
             <span v-if="rebuildTask.errorMessage">，原因：{{ rebuildTask.errorMessage }}</span>
-            <el-button
-              v-if="rebuildRetryable"
-              size="small"
-              type="primary"
-              link
-              @click="handleRetryRebuild"
-            >
+            <el-button v-if="rebuildRetryable" size="small" type="primary" link @click="handleRetryRebuild">
               重试
             </el-button>
           </el-alert>
 
           <div class="ai-config-page__footer">
-            <el-button type="primary" :loading="saving" @click="handleSave">保存配置</el-button>
+            <el-button type="primary" :loading="saving" @click="handleSaveConfig">保存配置</el-button>
           </div>
         </el-form>
       </el-tab-pane>
@@ -541,32 +752,27 @@ onMounted(loadAll)
             <el-radio-button value="functionType">按功能</el-radio-button>
             <el-radio-button value="workspace">按空间</el-radio-button>
             <el-radio-button value="day">按日期</el-radio-button>
+            <el-radio-button value="model">按模型</el-radio-button>
           </el-radio-group>
         </div>
         <template v-if="statistics">
           <div class="ai-config-page__stat-grid">
             <div class="stat-card stat-card--primary">
-              <div class="stat-card__icon">
-                <el-icon :size="22"><DataAnalysis /></el-icon>
-              </div>
+              <div class="stat-card__icon"><el-icon :size="22"><DataAnalysis /></el-icon></div>
               <div>
                 <div class="stat-card__label">总调用次数</div>
                 <div class="stat-card__value">{{ statistics.totalCalls }}</div>
               </div>
             </div>
             <div class="stat-card stat-card--teal">
-              <div class="stat-card__icon">
-                <el-icon :size="22"><Coin /></el-icon>
-              </div>
+              <div class="stat-card__icon"><el-icon :size="22"><Coin /></el-icon></div>
               <div>
                 <div class="stat-card__label">总 Token</div>
                 <div class="stat-card__value">{{ statistics.totalTokens }}</div>
               </div>
             </div>
             <div class="stat-card stat-card--danger">
-              <div class="stat-card__icon">
-                <el-icon :size="22"><WarningFilled /></el-icon>
-              </div>
+              <div class="stat-card__icon"><el-icon :size="22"><WarningFilled /></el-icon></div>
               <div>
                 <div class="stat-card__label">失败次数</div>
                 <div class="stat-card__value">{{ statistics.failedCalls }}</div>
@@ -585,12 +791,77 @@ onMounted(loadAll)
         </template>
       </el-tab-pane>
     </el-tabs>
+
+    <el-dialog
+      v-model="modelDialogVisible"
+      :title="modelDialogMode === 'create' ? '新建对话模型' : '编辑对话模型'"
+      width="560px"
+    >
+      <el-form label-width="90px">
+        <el-form-item label="显示名">
+          <el-input v-model="modelForm.name" placeholder="如 GPT-4o、DeepSeek-V3" />
+        </el-form-item>
+        <el-form-item label="供应商">
+          <el-select v-model="modelForm.provider" @change="handleModelProviderChange">
+            <el-option v-for="p in chatProviderOptions" :key="p.key" :label="p.name" :value="p.key" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="服务地址">
+          <el-input v-model="modelForm.baseUrl" placeholder="OpenAI 兼容根路径，不含 /chat/completions" />
+        </el-form-item>
+        <el-form-item label="模型名">
+          <el-select v-model="modelForm.model" filterable allow-create default-first-option placeholder="选择或输入模型名">
+            <el-option v-for="m in modelModelHints" :key="m" :label="m" :value="m" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="API 密钥">
+          <el-input
+            v-model="modelForm.apiKey"
+            type="password"
+            show-password
+            :placeholder="
+              modelForm.apiKeyConfigured
+                ? `已配置（末位 ${modelForm.keySuffix ?? '****'}），留空不修改`
+                : '请输入密钥'
+            "
+          />
+        </el-form-item>
+        <el-form-item v-for="param in modelUniqueParams" :key="param.key" :label="param.label">
+          <el-switch
+            v-if="param.type === 'boolean'"
+            v-model="modelForm.uniqueValues[param.key] as boolean"
+          />
+          <el-select
+            v-else-if="param.type === 'enum'"
+            v-model="modelForm.uniqueValues[param.key] as string"
+          >
+            <el-option v-for="opt in param.options" :key="opt" :label="opt" :value="opt" />
+          </el-select>
+          <el-input-number
+            v-else-if="param.type === 'number'"
+            v-model="modelForm.uniqueValues[param.key] as number"
+          />
+          <el-input v-else v-model="modelForm.uniqueValues[param.key] as string" />
+          <span class="ai-config-page__hint">{{ param.description }}</span>
+        </el-form-item>
+        <el-collapse class="ai-config-page__advanced">
+          <el-collapse-item title="高级自定义参数（JSON）" name="modelAdvanced">
+            <el-input v-model="modelForm.customParams" type="textarea" :rows="4" />
+          </el-collapse-item>
+        </el-collapse>
+      </el-form>
+      <template #footer>
+        <el-button :loading="testing.modelDialog" @click="handleModelDialogTest">连通性测试</el-button>
+        <el-button @click="modelDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="saving" @click="handleModelSave">保存</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <style scoped lang="scss">
 .ai-config-form {
-  max-width: 880px;
+  max-width: 920px;
 }
 
 .ai-config-page__card {
@@ -599,12 +870,6 @@ onMounted(loadAll)
 
 .ai-config-page__card :deep(.el-card__header) {
   padding: 12px 20px !important;
-}
-
-/* 卡片内表单控件统一撑满，保持纵向对齐 */
-.ai-config-page__card :deep(.el-select),
-.ai-config-page__card :deep(.el-input-number) {
-  width: 100%;
 }
 
 .ai-config-page__card :deep(.el-form-item:last-of-type) {
@@ -667,6 +932,20 @@ onMounted(loadAll)
   margin-top: 2px;
 }
 
+.ai-config-page__model-table :deep(.el-select),
+.ai-config-page__model-table :deep(.el-input-number) {
+  width: 100%;
+}
+
+.ai-config-page__star {
+  color: var(--color-warning, #e6a23c);
+}
+
+.ai-config-page__empty {
+  font-size: 13px;
+  color: var(--color-neutral-400);
+}
+
 .ai-config-page__hint {
   width: 100%;
   line-height: 1.5;
@@ -699,6 +978,53 @@ onMounted(loadAll)
   :deep(.el-collapse-item__wrap) {
     border-bottom: none;
   }
+}
+
+.ai-config-page__setting-group {
+  margin-bottom: var(--space-md);
+}
+
+.ai-config-page__setting-group-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-neutral-700);
+  margin-bottom: var(--space-sm);
+  padding-left: var(--space-xs);
+  border-left: 3px solid var(--color-primary-400);
+}
+
+.ai-config-page__setting-control {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.ai-config-page__weights {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+
+  :deep(.el-input-number) {
+    width: 90px;
+  }
+}
+
+.ai-config-page__weights-sum {
+  font-size: 12px;
+  color: var(--color-neutral-500);
+
+  &.is-error {
+    color: var(--color-danger);
+    font-weight: 600;
+  }
+}
+
+.ai-config-page__setting-multi {
+  min-width: 260px;
+}
+
+.ai-config-page__modified {
+  flex-shrink: 0;
 }
 
 .ai-config-page__rebuild {
