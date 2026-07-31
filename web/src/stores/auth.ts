@@ -34,8 +34,9 @@ export const useAuthStore = defineStore('auth', () => {
   const activeWorkspace = ref<ActiveWorkspace | null>(loadActiveWorkspace())
   const permissions = ref<string[]>([])
 
-  // 页面刷新时 activeWorkspace 已从 localStorage 恢复，需重新加载含工作空间权限的完整权限列表
-  if (user.value && activeWorkspace.value) {
+  // 页面刷新时权限仅存于内存已丢失，只要用户已恢复即重新拉取；
+  // 纯系统管理员无 activeWorkspace，不能以其为前置条件，否则刷新后权限为空、菜单消失
+  if (user.value) {
     loadPermissions()
   }
 
