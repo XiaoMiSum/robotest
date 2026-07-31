@@ -878,3 +878,27 @@ export interface AiCaseGenerateResult {
   warnings: string[]
 }
 
+/** AI 评审摘要按文档不通过分布 */
+export interface AiReviewSummaryFailByDocument {
+  documentName: string
+  failCount: number
+}
+
+/** AI 评审摘要统计（SQL 精确计算，随 statistics 帧即时返回） */
+export interface AiReviewSummaryStats {
+  totalCases: number
+  passCount: number
+  failCount: number
+  pendingCount: number
+  passRate: number
+  failByDocument: AiReviewSummaryFailByDocument[]
+}
+
+/** AI 评审摘要（GET 查询与 done 帧共用；generatedAt 仅持久化查询返回） */
+export interface AiReviewSummary {
+  statistics: AiReviewSummaryStats
+  summaryMarkdown: string
+  generatedAt?: string
+}
+
+

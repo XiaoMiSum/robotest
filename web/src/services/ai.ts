@@ -1,5 +1,5 @@
 import api from '@/services'
-import type { AiStatus, AiTask } from '@/types'
+import type { AiReviewSummary, AiStatus, AiTask } from '@/types'
 
 // 响应拦截器已将 Result<T> 解包为 data，此处集中处理静态类型断言（C1：unknown + 断言）
 function get<T>(url: string, params?: Record<string, unknown>): Promise<T> {
@@ -27,4 +27,11 @@ export function cancelAiTask(taskId: string): Promise<void> {
 
 export function retryAiTask(taskId: string): Promise<void> {
   return post(`/project/ai/tasks/${taskId}/retry`)
+}
+
+// ==================== AI 评审摘要（项目级） ====================
+
+/** 查询最近一次成功摘要（无则 null）；生成走 SSE，见 useAiStream */
+export function fetchReviewSummary(reviewId: string): Promise<AiReviewSummary | null> {
+  return get(`/project/ai/reviews/${reviewId}/summary`)
 }
