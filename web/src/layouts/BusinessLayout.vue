@@ -3,12 +3,29 @@ import { computed, ref, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useNavStore } from '@/stores/nav'
+import { useAiStore } from '@/stores/ai'
 import ChangePasswordDialog from '@/components/common/ChangePasswordDialog.vue'
 
 const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
 const navStore = useNavStore()
+const aiStore = useAiStore()
+
+// AI 状态为工作空间级（GET /workspace/ai/status 依赖 X-Active-Workspace 头）：
+// 进入业务布局加载一次，切换工作空间后强制刷新，离开工作空间上下文时重置，
+// 全部 AI 入口（脑图生成按钮、模型选择器等）据此显隐
+watch(
+  () => authStore.activeWorkspace?.id,
+  (workspaceId) => {
+    if (workspaceId) {
+      void aiStore.load(true)
+    } else {
+      aiStore.reset()
+    }
+  },
+  { immediate: true },
+)
 
 watch(
   () => route.path,
