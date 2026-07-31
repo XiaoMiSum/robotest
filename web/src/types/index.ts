@@ -924,5 +924,11 @@ export interface RequirementDetail {
   updatedAt: string
 }
 
+/** 需求池条目摘要（文档关联查询与条目选取器共用） */
+export interface RequirementSummary {
+  id: string
+  title: string
+}
+
 
 
