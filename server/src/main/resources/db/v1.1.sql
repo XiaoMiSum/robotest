@@ -109,7 +109,20 @@ CREATE TABLE ai_chat_model (
 CREATE UNIQUE INDEX uk_chat_model_name ON ai_chat_model (name) WHERE is_deleted = false;
 
 -- ============================================================
--- 2. 种子数据（AI 管理权限点，并回补系统管理员角色）
+-- 2. 既有表变更（AI 标识字段，见《智能用例生成与脑图智能编辑详细设计》2.1.3）
+-- ============================================================
+
+-- AI 生成标识随节点数据落库并被评审/计划快照继承；仅用于渲染与 DSL 筛选，不建索引（C9）
+ALTER TABLE test_case_node            ADD COLUMN ai_generated BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE test_review_node_snapshot ADD COLUMN ai_generated BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE test_plan_node_snapshot   ADD COLUMN ai_generated BOOLEAN NOT NULL DEFAULT FALSE;
+
+COMMENT ON COLUMN test_case_node.ai_generated IS 'AI 生成标识（挂载执行器写入，可手动移除）';
+COMMENT ON COLUMN test_review_node_snapshot.ai_generated IS 'AI 生成标识（随评审快照继承）';
+COMMENT ON COLUMN test_plan_node_snapshot.ai_generated IS 'AI 生成标识（随计划快照继承）';
+
+-- ============================================================
+-- 3. 种子数据（AI 管理权限点，并回补系统管理员角色）
 -- ============================================================
 
 INSERT INTO sys_permission (id, code, name, parent_code, module, scope, sort_order, created_at, updated_at, is_deleted) VALUES
@@ -121,7 +134,7 @@ UPDATE sys_role SET permissions = permissions || '["ai","ai:view","ai:edit"]'::j
 WHERE id = 'b0000000-0000-0000-0000-000000000001' AND NOT permissions @> '["ai:view"]'::jsonb;
 
 -- ============================================================
--- 3. 表与列注释
+-- 4. 表与列注释
 -- ============================================================
 
 COMMENT ON TABLE ai_config IS 'AI 配置表（系统级单行：总开关、系统配置项与 Embedding 单一配置）';

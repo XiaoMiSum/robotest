@@ -16,5 +16,6 @@ public class TestCaseNodeTreeRespDTO {
     private String priority;
     private Integer sortOrder;
     private Integer version;
+    private Boolean aiGenerated;
     private List<TestCaseNodeTreeRespDTO> children;
 }
