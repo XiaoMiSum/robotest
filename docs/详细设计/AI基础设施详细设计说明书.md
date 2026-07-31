@@ -17,7 +17,7 @@
 
 覆盖 SRS 3.1「AI 基础设施（公共需求）」与概要设计第 2/4 章对应机制：
 
-- **AI 配置**：对话与 Embedding 两组独立的模型服务配置（含供应商预设选择与独有配置项，见 2.5）、连通性测试、调用量统计（管理端）；
+- **AI 配置**：多对话模型配置管理（多行配置、唯一系统默认、启停，用户经交互式功能切换）与 Embedding 单一配置（含供应商预设选择与独有配置项，见 2.5）、系统配置项表单化维护、连通性测试、调用量统计（管理端）；
 - **智能体**：各 AI 功能的提示词模板管理（默认内置 / 自定义覆盖 / 恢复默认，管理端）；
 - **AI 网关**：Provider 适配、Prompt 组装、流式输出（SSE）、结构化输出校验、失败重试；
 - **调用审计与限流**：调用日志、Redis 用户级滑动窗口限流；
@@ -43,17 +43,11 @@
 
 #### 2.1.1 AI 配置表（ai_config）
 
-系统级单行表：全系统仅一条有效记录（`is_deleted = false`），首次保存时创建。
+系统级单行表：全系统仅一条有效记录（`is_deleted = false`），首次保存时创建。存放 AI 能力总开关、系统配置项与 Embedding 单一配置；对话模型配置独立多行存放于 `ai_chat_model`（2.1.5）。
 
 | 字段 | 类型 | 约束 | 说明 |
 | ---- | ---- | ---- | ---- |
 | id | UUID | PK | 主键 |
-| chat_provider | VARCHAR(50) | NOT NULL DEFAULT 'custom' | 对话模型供应商标识（预设注册表键，见 2.5；`custom` 为通用 OpenAI 兼容） |
-| chat_base_url | VARCHAR(500) | NOT NULL | 对话模型服务地址（OpenAI 兼容根路径，不含 `/chat/completions`） |
-| chat_api_key_cipher | VARCHAR(1000) | NOT NULL | 对话服务密钥（AES-256-GCM 加密，见 4.9） |
-| chat_key_suffix | VARCHAR(4) | NULL | 对话密钥末 4 位（保存时截取，供管理端脱敏展示） |
-| chat_model | VARCHAR(100) | NOT NULL | 对话模型名 |
-| chat_extra_params | JSONB | NOT NULL DEFAULT '{}' | 对话请求附加参数（厂商非标参数透传，如 `{"enable_thinking": false}`） |
 | embedding_provider | VARCHAR(50) | NULL | Embedding 供应商标识（预设注册表键，见 2.5；与对话组独立选择，未配置 Embedding 组时为空） |
 | embedding_base_url | VARCHAR(500) | NULL | Embedding 服务地址（未配置则语义检索能力不可用） |
 | embedding_api_key_cipher | VARCHAR(1000) | NULL | Embedding 服务密钥（加密） |
@@ -68,6 +62,8 @@
 | updated_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | 更新时间 |
 
 **索引**：无额外索引（单行表）。
+
+> **迁移说明**：基线 DDL 中 ai_config 原含 chat_* 前缀六列（provider / base_url / api_key_cipher / key_suffix / model / extra_params），多对话模型改造后移除，改由 `ai_chat_model` 多行承载（见 2.1.5）；迁移时将原 chat_* 列值转为 `ai_chat_model` 的一行并置 `is_default = true`。建库脚本（`db/v1.1.sql`）随本文档同步修订。
 
 #### 2.1.2 智能体提示词模板表（ai_prompt_template）
 
@@ -144,6 +140,31 @@
 
 > 审计日志只记录调用元数据，**不存储 Prompt 与生成内容**（SRS 4.2 安全性需求：审计权限用户仅可见调用元数据，不可见对话内容）。
 
+#### 2.1.5 对话模型配置表（ai_chat_model）
+
+多行表：每行一个可用的对话模型配置，密钥按行独立加密存储；全系统有且仅有一行 `is_default = true`（应用层保证，见 4.11）。
+
+| 字段 | 类型 | 约束 | 说明 |
+| ---- | ---- | ---- | ---- |
+| id | UUID | PK | 主键（业务请求中的模型标识 modelId） |
+| name | VARCHAR(50) | NOT NULL | 显示名（管理端与用户模型选择器展示，全局唯一，如「GPT-4o」「DeepSeek-V3」） |
+| provider | VARCHAR(50) | NOT NULL DEFAULT 'custom' | 供应商标识（预设注册表键，见 2.5；`custom` 为通用 OpenAI 兼容） |
+| base_url | VARCHAR(500) | NOT NULL | 服务地址（OpenAI 兼容根路径，不含 `/chat/completions`） |
+| api_key_cipher | VARCHAR(1000) | NOT NULL | 服务密钥（AES-256-GCM 加密，见 4.9） |
+| key_suffix | VARCHAR(4) | NULL | 密钥末 4 位（脱敏展示） |
+| model | VARCHAR(100) | NOT NULL | 模型名（请求体 `model` 字段值） |
+| extra_params | JSONB | NOT NULL DEFAULT '{}' | 请求附加参数（厂商非标参数透传，如 `{"enable_thinking": false}`） |
+| enabled | BOOLEAN | NOT NULL DEFAULT TRUE | 启用状态（停用后不出现在用户模型清单，进行中调用不中断） |
+| is_default | BOOLEAN | NOT NULL DEFAULT FALSE | 是否系统默认模型（全系统唯一，见 4.11） |
+| updated_by | UUID | NOT NULL | 最后更新人（sys_user.id） |
+| is_deleted | BOOLEAN | NOT NULL DEFAULT FALSE | 是否删除 |
+| created_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | 创建时间 |
+| updated_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | 更新时间 |
+
+**索引**：`uk_chat_model_name` UNIQUE (name) WHERE is_deleted = false
+
+> 行数为个位数量级（管理员手工维护），默认模型与启用清单查询全表扫描即可，不为 `is_default` / `enabled` 建索引（C9 从简）。
+
 ### 2.2 AI 系统配置项（ai_config.settings 键值定义）
 
 | 键 | 类型 | 默认值 | 说明 |
@@ -169,6 +190,19 @@
 | conversationRetentionDays | int | 180 | 助手会话保留天数 |
 
 缺省键一律回退代码内置默认值；键清单随功能演进在本表增补。助手相关键的消费逻辑见《全局智能助手详细设计说明书》。
+
+**配置项定义清单（表单元数据）**：上表每个键在代码中随同默认值内置一份表单定义（键名、控件类型、标签与说明文案 i18n、默认值、取值范围、所属分组），经 3.3.8 下发给管理端，前端据此渲染**完整表单**（不提供裸 JSON 编辑）。分组与控件映射：
+
+| 分组 | 键 | 控件 |
+| ---- | ---- | ---- |
+| 限流阈值 | rateLimit.*（5 键） | 数字输入（≥ 1） |
+| 语义查重 | dedup.topK / dedup.similarityThreshold | 数字输入（topK 1–50；阈值 0–1，步进 0.01） |
+| 聚类分析 | clustering.similarityThreshold / clustering.maxLabeledClusters | 数字输入（阈值 0–1；簇数 1–100） |
+| 检索与推荐 | missingPoint.topK / regression.topK / regression.similarityThreshold | 数字输入（同上口径） |
+| 执行顺序推荐 | planOrder.weights | 三个数字输入（w1/w2/w3，各 0–1，保存校验三者之和 = 1，容差 0.001） |
+| 长度限制 | importTextMaxLength / requirementContentMaxLength | 数字输入（1000–100000） |
+| 全局助手 | assistantConfirmTimeoutSeconds / assistantWriteToolWhitelist | 数字输入（30–3600）/ 多选框（选项为写工具枚举） |
+| 数据保留 | logRetentionDays / conversationRetentionDays | 数字输入（30–3650） |
 
 ### 2.3 功能类型枚举（function_type）
 
@@ -199,7 +233,7 @@
 - `ai_invocation_log` 按 `logRetentionDays` 由每日定时任务物理清理（先逻辑删除、次日物理删除，避免长事务）；
 - `ai_conversation` / `ai_message` 按 `conversationRetentionDays` 随同一每日清理任务回收（按会话 `last_active_at` 判定超期，级联清理消息；表定义见《全局智能助手详细设计说明书》2.1）；
 - `ai_analysis_task` 结果随同类型新任务覆盖策略由各业务文档定义；任务记录本身不主动清理；
-- `ai_config` / `ai_prompt_template` 变更均写入平台既有审计日志（audit_log），记录操作人与动作（不记录密钥明文与模板全文 diff）。
+- `ai_config` / `ai_chat_model` / `ai_prompt_template` 变更均写入平台既有审计日志（audit_log），记录操作人与动作（不记录密钥明文与模板全文 diff）。
 
 ### 2.5 供应商预设注册表（Provider Preset）
 
@@ -207,7 +241,7 @@
 
 | 元数据 | 说明 |
 | ---- | ---- |
-| key | 注册表键（`chat_provider` / `embedding_provider` 取值，snake_case） |
+| key | 注册表键（`ai_chat_model.provider` / `ai_config.embedding_provider` 取值，snake_case） |
 | name | 展示名（i18n 资源） |
 | scopes | 适用组：`chat` / `embedding`（部分厂商不提供 Embedding 接口） |
 | defaultBaseUrl | 各组默认服务地址（选择供应商后自动填充，允许修改） |
@@ -216,7 +250,7 @@
 
 **首发预设清单**（独有配置项键值随厂商 API 演进由代码更新，下表为首发基线）：
 
-| key | scopes | 对话组独有配置项（→ `chat_extra_params`） |
+| key | scopes | 对话组独有配置项（→ `ai_chat_model.extra_params`） |
 | ---- | ---- | ---- |
 | openai | chat, embedding | 无 |
 | deepseek | chat | 无 |
@@ -229,7 +263,7 @@
 
 **存储与合并规则**：
 
-- 独有配置项**不新增存储列**，其值仍写入 `chat_extra_params` / `embedding_extra_params`（JSONB），运行期沿用 4.2.1 既有「白名单装配后浅合并透传」机制——预设只决定管理端渲染哪些结构化控件、默认值与类型校验；
+- 独有配置项**不新增存储列**，其值仍写入 `ai_chat_model.extra_params` / `ai_config.embedding_extra_params`（JSONB），运行期沿用 4.2.1 既有「白名单装配后浅合并透传」机制——预设只决定管理端渲染哪些结构化控件、默认值与类型校验；
 - **模板键路径语义**：模板键支持点号路径表示嵌套参数（如 `thinking.type`），保存时按路径**展开为嵌套对象**并入 `extraParams`（`{"thinking": {"type": "disabled"}}`，而非字面键 `"thinking.type"`）；模板校验与前端控件取值同样按路径寻址；点号路径键与自定义键中的同名顶层对象合并时，模板路径值优先；
 - `provider ≠ custom` 时：`extraParams` 中命中模板键的值须通过模板声明的类型/枚举校验（违规返回 1001）；模板外的自定义键**仍允许**（管理端高级折叠区维护，保留透传能力）；「不得覆盖标准参数白名单键」的既有校验（3.3.2）对全部键继续生效；
 - `provider = custom` 时：仅执行既有的 JSON 对象与白名单校验，不做模板校验。
@@ -245,6 +279,7 @@
 - 项目级：`/api/project/ai/**`，头 `Authorization` + `X-Active-Workspace` + `X-Active-Project`。
 - 通用响应：`{ "code": 200, "message": "success", "data": {} }`；命名 camelCase。下文各接口的响应示例**仅展示 `data` 字段内容**，省略外层 `code` / `message` 包裹（SSE 帧格式除外）。
 - 密钥字段**永不回传明文**：响应仅含 `configured`（布尔）与 `keySuffix`（末 4 位）。
+- **对话模型选择**：交互式功能（用例生成、步骤补全、文本导入、评审摘要、助手对话、DSL 翻译）的请求体支持可选字段 `modelId`（对话模型标识，见 2.1.5），缺省或失效时后端回退系统默认模型（解析规则见 4.11）；后台异步任务与建议类接口不接受该字段。
 
 **SSE 流式接口统一帧格式**（`Content-Type: text/event-stream`，各生成类接口共用）：
 
@@ -275,30 +310,28 @@ data: {"code": 6002, "message": "AI 调用失败"}
 ```json
 {
   "enabled": true,
-  "semanticSearch": "available"
+  "semanticSearch": "available",
+  "chatModels": [
+    { "id": "018f...", "name": "DeepSeek-V3", "isDefault": true },
+    { "id": "018e...", "name": "GPT-4o", "isDefault": false }
+  ]
 }
 ```
 
 - `enabled`：AI 总开关（配置存在且 `enabled = true`）；`false` 时前端隐藏全部 AI 入口。
 - `semanticSearch`：语义检索状态，`available` / `degraded`（向量重建中，降级关键词匹配）/ `unavailable`（Embedding 未配置）。状态计算见 4.10。
+- `chatModels`：当前已启用的对话模型清单（仅 `id` / 显示名 / 是否默认，**不下发地址、模型名与密钥等配置细节**），供交互式功能的模型选择器渲染；`enabled = false` 时不返回。清单为空数组时视同 AI 不可用（无可用对话模型）。
 
 ### 3.3 AI 配置接口（管理端）
 
 #### 3.3.1 获取 AI 配置
 
 - **路径**：`GET /api/admin/ai/config`
-- **响应**：
+- **响应**（对话模型配置不在本接口，见 3.3.7）：
 
 ```json
 {
   "enabled": true,
-  "chat": {
-    "provider": "deepseek",
-    "baseUrl": "https://api.deepseek.com/v1",
-    "model": "deepseek-chat",
-    "apiKey": { "configured": true, "keySuffix": "8f2a" },
-    "extraParams": {}
-  },
   "embedding": {
     "provider": "zhipu",
     "baseUrl": "https://open.bigmodel.cn/api/paas/v4",
@@ -311,25 +344,27 @@ data: {"code": 6002, "message": "AI 调用失败"}
 }
 ```
 
-未配置时 `data` 为 `null`。
+未配置时 `data` 为 `null`。`settings` 返回**合并后的完整键值视图**（内置默认值 + 落库覆盖值，见 2.2），供表单直接回显；落库仅存与默认值不同的覆盖键。
 
 #### 3.3.2 保存 AI 配置
 
 - **路径**：`PUT /api/admin/ai/config`
 - **请求体**：结构同 3.3.1 响应，其中 `apiKey` 字段为字符串：非空即更新（加密后落库），`null` 或缺省表示保持原值。
 - **校验**：
-  - `chat.provider` 必填且为 2.5 注册表有效键（scopes 含 chat），无效返回 1001；`embedding.provider` 组内填写时同理（scopes 须含 embedding）；
-  - `chat.baseUrl` / `chat.model` 必填；`embedding.*` 整组可空，但组内一旦填写则供应商/地址/模型/维度/密钥必须齐全；
+  - `embedding.provider` 组内填写时须为 2.5 注册表有效键（scopes 含 embedding），无效返回 1001；
+  - `embedding.*` 整组可空，但组内一旦填写则供应商/地址/模型/维度/密钥必须齐全；
   - `embedding.dimension` ∈ [1, 2000]，超限返回 6008（HNSW 索引上限约束）；
   - `extraParams` 必须为 JSON 对象，且不得覆盖标准参数白名单键（见 4.2），违规返回 1001；`provider ≠ custom` 时命中供应商独有配置项模板键的值须通过模板类型/枚举校验（2.5），违规返回 1001；
+  - `enabled = true` 保存时须存在至少一个已启用的对话模型（3.3.7），否则返回 1001；
+  - `settings` 提交完整键值集（表单收集）：逐键按 3.3.8 定义校验类型与取值范围（未知键、类型不符或越界返回 1001，`planOrder.weights` 三权重之和须为 1）；后端仅持久化与内置默认值不同的键，其余键不落库（保持缺省回退默认值语义，2.2）；
   - Embedding 模型或维度发生变更时，保存成功后自动创建 `embedding_rebuild` 任务并进入语义降级（见 4.10，重建任务本体设计见《缺陷智能分析与向量检索详细设计说明书》）。仅变更 `provider` 标识或独有配置项不触发重建（向量空间由模型与维度决定）。
-- **并发**：`ai_config` 为系统级单行表，保存以 `updated_at` 乐观条件更新（`WHERE id = :id AND updated_at = :expectedUpdatedAt`）；两名管理员并发保存时后到者影响行数为 0，返回冲突提示要求刷新后重试，避免静默覆盖。
+- **并发**：`ai_config` 为系统级单行表，保存以 `updated_at` 乐观条件更新（`WHERE id = :id AND updated_at = :expectedUpdatedAt`）；两名管理员并发保存时后到者影响行数为 0，返回 6013 冲突提示要求刷新后重试，避免静默覆盖。
 - **响应**：保存后的配置（脱敏格式）。变更写入 audit_log。
 
 #### 3.3.3 连通性测试
 
 - **路径**：`POST /api/admin/ai/config/test`
-- **请求体**：`{ "target": "chat" }` 或 `{ "target": "embedding" }`，可附带未保存的临时配置（结构同保存请求，缺省时用已保存配置测试）。
+- **请求体**：`{ "target": "chat", "modelId": "018f...", "chat": { ... } }` 或 `{ "target": "embedding", "embedding": { ... } }`。`chat` / `embedding` 为未保存的临时配置（结构同对应保存请求）；`target = chat` 时临时配置优先，缺省则按 `modelId` 取已保存的对话模型配置测试（临时配置的密钥缺省回退该模型已存密文）；`target = embedding` 时缺省用已保存 Embedding 配置。
 - **处理**：
   - `chat`：发送单条固定消息的最小对话请求（`max_tokens: 16`），验证连通性与鉴权；顺带以 `response_format: {"type":"json_object"}` 探测结构化参数支持情况，结果仅作提示不阻断保存；
   - `embedding`：对固定文本发起向量化，校验返回向量长度 === 配置维度，不一致返回 6008。
@@ -338,7 +373,7 @@ data: {"code": 6002, "message": "AI 调用失败"}
 #### 3.3.4 调用量统计
 
 - **路径**：`GET /api/admin/ai/statistics`
-- **参数**：`startDate`、`endDate`（默认最近 30 天）、`groupBy`（`functionType` / `workspace` / `day`）
+- **参数**：`startDate`、`endDate`（默认最近 30 天）、`groupBy`（`functionType` / `workspace` / `day` / `model`）
 - **响应**：
 
 ```json
@@ -352,7 +387,7 @@ data: {"code": 6002, "message": "AI 调用失败"}
 }
 ```
 
-数据来源为 `ai_invocation_log` 聚合查询（`groupBy=workspace` 时 key 为工作空间名称）。
+数据来源为 `ai_invocation_log` 聚合查询（`groupBy=workspace` 时 key 为工作空间名称；`groupBy=model` 时 key 为审计记录的实际模型名）。
 
 #### 3.3.5 向量重建任务查询与重试
 
@@ -393,6 +428,67 @@ data: {"code": 6002, "message": "AI 调用失败"}
   }
 ]
 ```
+
+#### 3.3.7 对话模型管理
+
+对话模型为多行配置（2.1.5），提供独立管理接口，均要求 `ai:edit`（查询仅需 `ai:view`）。全部变更写入 audit_log。
+
+- **列表**：`GET /api/admin/ai/chat-models` — 返回全部对话模型（脱敏），响应示例：
+
+```json
+[
+  {
+    "id": "018f...",
+    "name": "DeepSeek-V3",
+    "provider": "deepseek",
+    "baseUrl": "https://api.deepseek.com/v1",
+    "model": "deepseek-chat",
+    "apiKey": { "configured": true, "keySuffix": "8f2a" },
+    "extraParams": {},
+    "enabled": true,
+    "isDefault": true,
+    "updatedBy": "张三",
+    "updatedAt": "2026-07-31T10:00:00Z"
+  }
+]
+```
+
+- **新建**：`POST /api/admin/ai/chat-models` — 请求体含 `name` / `provider` / `baseUrl` / `model` / `apiKey`（必填）/ `extraParams`；首个创建的模型自动置为默认。
+- **更新**：`PUT /api/admin/ai/chat-models/:id` — 结构同新建，`apiKey` 非空即更新、缺省保持原值；以 `updated_at` 乐观条件更新，冲突返回 6013。
+- **删除**：`DELETE /api/admin/ai/chat-models/:id` — 逻辑删除；默认模型不可删除（返回 1001，需先转移默认）。
+- **设为默认**：`PUT /api/admin/ai/chat-models/:id/default` — 事务内先清除原默认再置新默认（唯一默认保证，见 4.11）；停用状态的模型不可设为默认（返回 1001）。
+- **启用/停用**：`PUT /api/admin/ai/chat-models/:id/enabled` — 请求体 `{ "enabled": false }`；默认模型不可停用（返回 1001）。
+
+**校验**（新建/更新共用）：`name` 全局唯一（冲突返回 1001）；`provider` 为 2.5 注册表有效键（scopes 含 chat）；`baseUrl` / `model` 必填；`extraParams` 白名单与独有配置项校验同 3.3.2。
+
+#### 3.3.8 系统配置项定义查询
+
+- **路径**：`GET /api/admin/ai/settings-schema`
+- **说明**：返回 2.2 全量配置项的表单定义清单（代码内置元数据，无落库），供配置页渲染分组表单；键清单随功能演进由代码更新，前端不硬编码。
+- **响应**：
+
+```json
+[
+  {
+    "group": "rateLimit",
+    "groupLabel": "限流阈值",
+    "items": [
+      {
+        "key": "rateLimit.generation",
+        "type": "int",
+        "label": "生成类调用上限",
+        "description": "生成类每用户每小时调用上限",
+        "defaultValue": 20,
+        "min": 1,
+        "max": null
+      }
+    ]
+  }
+]
+```
+
+- `type`：`int` / `number` / `object`（planOrder.weights，前端拆为固定子键数字输入）/ `string[]`（多选，选项随定义下发 `options` 字段）；
+- `min` / `max`：取值范围（见 2.2 分组与控件映射表），空表示不限。
 
 ### 3.4 智能体接口（管理端）
 
@@ -507,6 +603,7 @@ data: {"code": 6002, "message": "AI 调用失败"}
 | 6010 | 语义检索能力降级中（关键词模式结果，提示性语义，随正常数据返回） | 200（业务结果，非异常） |
 | 6011 | 助手写操作确认令牌不存在或已失效（超时/已消费/空间上下文不一致，见《全局智能助手详细设计说明书》3.3） | 409 |
 | 6012 | 目标对象状态不允许该 AI 操作（评审状态不符、计划未关联快照、项目无可分析缺陷等，语义见《AI 评审与测试计划辅助详细设计说明书》3.6 与《缺陷智能分析与向量检索详细设计说明书》3.3.1） | 409 |
+| 6013 | AI 配置保存并发冲突（乐观锁失败，刷新后重试；含 3.3.2 配置保存与 3.3.7 对话模型更新） | 409 |
 
 除 6007 / 6010（随 HTTP 200 正常响应返回的业务结果，不经异常链路）外，其余均经 `BusinessException` 抛出（C3），message 使用 i18n 资源。
 
@@ -520,8 +617,9 @@ data: {"code": 6002, "message": "AI 调用失败"}
 
 | 类 | 职责 |
 | ---- | ---- |
-| AiGatewayService | 调用总入口：限流检查 → Prompt 组装 → Provider 调用 → 输出校验 → 审计；对业务 Service 暴露 `complete()` / `stream()` / `embed()` 三个方法 |
+| AiGatewayService | 调用总入口：模型解析（4.11） → 限流检查 → Prompt 组装 → Provider 调用 → 输出校验 → 审计；对业务 Service 暴露 `complete()` / `stream()` / `embed()` 三个方法，交互式功能调用可携带可选 `modelId` |
 | AiConfigService | 配置 CRUD、密钥加解密、连通性测试、配置缓存（内存缓存 + 变更失效） |
+| AiChatModelService | 对话模型多行配置管理（增删改查/设默认/启停，见 3.3.7）、按 `modelId` 解析运行期模型配置与默认回退（4.11）、清单缓存（内存缓存 + 变更失效） |
 | PromptAssembler | 模板加载（DB 覆盖 → 内置默认）与消息组装、上下文定界 |
 | OpenAiCompatProvider | OpenAI 兼容协议 HTTP 客户端（Spring `RestClient`：同步调用直接绑定响应体；流式调用经 `exchange` 直读响应字节流逐行解析 SSE，阻塞读取由虚拟线程承载——平台已全局启用虚拟线程），唯一 Provider 实现 |
 | AiRateLimiter | Redis 滑动窗口限流 |
@@ -539,6 +637,7 @@ flowchart LR
     GW --> OV[AiOutputValidator<br/>Schema 校验]
     GW --> AU[AiAuditRecorder<br/>异步落库]
     CFG[AiConfigService] -.配置/密钥.-> GW
+    MDL[AiChatModelService] -.模型解析 4.11.-> GW
 ```
 
 依赖约定：仅使用 Spring 自带 `RestClient`（spring-web 已随既有 starter 引入）与 Jackson，**不引入 spring-webflux、spring-ai 等新外部依赖**；输出结构校验不引入 json-schema 校验库，采用「Jackson 强类型 DTO 绑定 + 平台既有 Bean Validation 注解（`@NotBlank` / `@Size` / `@InEnum` 等，`Validator` 程序化触发）+ 少量自定义结构断言（树深度、节点类型父子合法性等）」实现，校验错误经 i18n 生成中文消息用于 LLM 带错重试与用户提示——与人工输入走同一套校验体系（SRS 3.1 业务规则）。
@@ -660,7 +759,7 @@ stateDiagram-v2
 - 算法：AES-256-GCM；加密密钥来自环境变量 `AI_SECRET_KEY`（Base64 编码 32 字节），随部署环境注入（`application.yaml` 占位符）；
 - 存储格式：`Base64(12字节IV || 密文 || 16字节Tag)`，每次加密随机 IV；
 - 环境变量未配置时：保存 AI 配置返回 6001 并在管理端提示（AI 能力视为未启用）；已有密文无法解密（密钥轮换/丢失）时同样按未启用降级，连通性测试给出明确错误；
-- 明文密钥仅存在于网关调用栈内存中，禁止进入日志、异常消息、审计与接口响应；管理端脱敏展示所需的末 4 位在保存时截取明文写入 `chat_key_suffix` / `embedding_key_suffix` 列，读取路径不接触密文。
+- 明文密钥仅存在于网关调用栈内存中，禁止进入日志、异常消息、审计与接口响应；管理端脱敏展示所需的末 4 位在保存时截取明文写入 `ai_chat_model.key_suffix` / `ai_config.embedding_key_suffix` 列，读取路径不接触密文。
 
 ### 4.10 能力开关与降级状态计算
 
@@ -668,7 +767,7 @@ stateDiagram-v2
 
 | 条件 | enabled | semanticSearch |
 | ---- | ---- | ---- |
-| 无有效配置 或 `enabled=false` 或 `AI_SECRET_KEY` 缺失 | false | —（不返回） |
+| 无有效配置 或 `enabled=false` 或 `AI_SECRET_KEY` 缺失 或 无已启用对话模型 | false | —（不返回） |
 | 已启用，Embedding 组未配置 | true | unavailable |
 | 已启用，存在进行中的 `embedding_rebuild` 任务 | true | degraded |
 | 已启用，最近一次 `embedding_rebuild` 任务为 `failed` / `cancelled`（向量数据不完整） | true | degraded |
@@ -676,6 +775,23 @@ stateDiagram-v2
 
 - 语义检索类接口（查重、聚类、语义匹配）在 `degraded`/`unavailable` 状态下自动切换关键词模式，响应中附 `"semanticDegraded": true`（业务码 6010 语义，随正常数据返回），前端明示降级；
 - 保存配置时若 Embedding 模型或维度变更：自动创建 `embedding_rebuild` 任务（type=embedding_rebuild，target 为空，逐项目分批重建），任务完成前维持 `degraded`。重建任务 `failed` / `cancelled`（含 AI 总开关关闭的联动取消，见 4.6）时向量数据不完整，维持 `degraded` 直至管理员经 3.3.5 重试成功。重建任务的执行逻辑（列定义变更、分批向量化）见《缺陷智能分析与向量检索详细设计说明书》。
+
+### 4.11 对话模型解析与默认唯一性
+
+**调用期模型解析**（`AiChatModelService.resolve(modelId)`，网关每次对话调用入口执行）：
+
+1. 交互式功能（用例生成、步骤补全、文本导入、评审摘要、助手对话、DSL 翻译）的业务请求体可携带可选 `modelId`；后台异步任务与建议类功能不传，直接走默认模型；
+2. `modelId` 有值时按 id 查已启用、未删除的对话模型：命中则解密该行密钥装配运行期配置；未命中（不存在/已停用/已删除）**静默回退默认模型**，不报错——用户本地记忆的选择可能已被管理员变更，回退语义与 SRS 3.1 业务规则一致；
+3. `modelId` 缺省时使用 `is_default = true` 的行；无默认行（理论上仅出现在数据被直接改库破坏时）按 AI 未启用处理（6001）；
+4. 解析结果随配置缓存（30 秒 TTL，与 4.10 同源失效）；审计日志 `model` 列记录实际解析到的模型名。
+
+**默认唯一性保证**（3.3.7 设为默认接口）：
+
+- 事务内两步更新：`UPDATE ai_chat_model SET is_default = false WHERE is_default = true` → `UPDATE ai_chat_model SET is_default = true WHERE id = :id AND enabled = true AND is_deleted = false`，第二步影响行数为 0 时回滚并返回 1001；
+- 删除/停用接口前置校验 `is_default = false`，保证任意时刻默认模型可用；
+- 首个创建的模型自动置默认（3.3.7），避免「有模型但无默认」的空窗。
+
+**用户侧选择记忆**：前端将用户最近选择的 `modelId` 存于浏览器 `localStorage`（键 `ai.chatModelId`，全局一份，不分空间）；发起交互式调用时若该 id 仍在 status 接口下发的 `chatModels` 清单中则携带，否则清除本地记录并回退默认（不携带 `modelId`）。服务端不持久化用户偏好。
 
 ---
 
@@ -685,17 +801,20 @@ stateDiagram-v2
 
 | 文件 | 说明 |
 | ---- | ---- |
-| `web/src/pages/admin/AiConfigPage.vue` | AI 配置页：两组表单（对话/Embedding，各含供应商下拉 + 独有配置项动态区 + 高级自定义参数折叠区）+ 总开关 + 连通性测试按钮 + 系统配置项折叠面板；「调用统计」标签页（按功能/空间/日期聚合表格） |
+| `web/src/pages/admin/AiConfigPage.vue` | AI 配置页：「对话模型」卡片区（模型列表 + 新建/编辑弹窗，弹窗内供应商下拉 + 独有配置项动态区 + 高级自定义参数折叠区，列表行内设默认/启停/测试/删除操作）+ 总开关 + Embedding 单组表单（供应商下拉 + 独有配置项 + 连通性测试）+ 系统配置项**分组表单**（按 3.3.8 定义清单动态渲染，见 5.2）；「调用统计」标签页（按功能/空间/日期/模型聚合表格） |
 | `web/src/pages/admin/AiAgentsPage.vue` | 智能体列表（功能类型、是否自定义、更新人/时间）+ 编辑抽屉（角色指令段文本域、格式约束段默认只读、高级开关、恢复默认按钮） |
-| `web/src/services/admin.ts` | 增补 3.3 / 3.4 接口封装（含 3.3.6 供应商预设查询，进入配置页时拉取一次） |
-| `web/src/stores/ai.ts` | 新增：缓存 `GET /api/workspace/ai/status` 结果，暴露 `aiEnabled` / `semanticSearch` 计算属性，供全部 AI 入口组件显隐判断 |
-| `web/src/types/index.ts` | 增补 AiConfig、AiProviderPreset、AiAgent、AiTask、AiStatus 等类型（无 `any`，C1） |
+| `web/src/components/common/AiModelSelect.vue` | 对话模型选择器（下拉，数据源为 `stores/ai.ts` 的 `chatModels`）：交互式 AI 功能入口（助手输入区、生成/导入弹窗等）复用；选择写入 `localStorage`（见 4.11），仅一个可用模型时不渲染 |
+| `web/src/services/admin.ts` | 增补 3.3 / 3.4 接口封装（含 3.3.6 供应商预设查询与 3.3.7 对话模型管理，进入配置页时拉取一次） |
+| `web/src/stores/ai.ts` | 新增：缓存 `GET /api/workspace/ai/status` 结果，暴露 `aiEnabled` / `semanticSearch` / `chatModels` 计算属性，供全部 AI 入口组件显隐判断与模型选择器渲染；负责校验并回收 `localStorage` 中失效的 `modelId`（4.11） |
+| `web/src/types/index.ts` | 增补 AiConfig、AiChatModel、AiProviderPreset、AiAgent、AiTask、AiStatus 等类型（无 `any`，C1） |
 
 ### 5.2 交互要点
 
 - AdminLayout 菜单新增「AI 配置」「智能体」两项（沿用既有菜单权限控制，仅系统管理员可见）；
 - **供应商切换交互**：选择供应商后自动填充该组 `defaultBaseUrl` 并按 `uniqueParams` 模板渲染独有配置项控件（取默认值）；已有配置下切换供应商时弹二次确认（提示将重置该组地址与独有配置项，模型名与密钥保留待用户自行核对）；`custom` 供应商不渲染独有配置项区，仅保留高级自定义参数折叠区（自由键值编辑）；独有配置项与自定义参数在提交时合并为 `extraParams`（模板键在前，重名以独有配置项控件值为准）；
 - 密钥输入框：占位符显示 `已配置（末位 ****）`，留空提交表示不修改；
+- **模型选择器交互**：交互式 AI 功能入口渲染 `AiModelSelect`，默认选中 `localStorage` 记忆值（失效则回退系统默认，见 4.11）；切换后立即写入记忆并作用于本次及后续调用；后台任务与建议类功能不展示选择器；
+- **系统配置项表单**：进入配置页拉取 3.3.8 定义清单与 3.3.1 合并视图后按分组渲染类型化控件（数字输入带 min/max 与步进、多选框、权重组合输入），**不提供裸 JSON 编辑**；每项展示说明文案与默认值提示，值偏离默认时显示「已修改」标记并提供单项 [恢复默认]；前端按定义做即时校验（越界红字提示，`planOrder.weights` 之和实时校验），保存随 3.3.2 整体提交；
 - 格式约束段编辑：高级开关开启时弹出二次确认（说明可能导致结构化校验失败的风险）；
 - 业务端全部 AI 入口组件挂载时读取 `stores/ai.ts`，`aiEnabled === false` 时不渲染；SSE 消费封装为公共组合式函数 `useAiStream()`（基于 `fetch` + `ReadableStream` 解析 3.1 帧格式，支持取消），供各业务文档引用。
 
@@ -703,7 +822,7 @@ stateDiagram-v2
 
 ## 6. 实施说明
 
-- **数据库迁移**：现有全量建库脚本 `init.sql` 更名为 `v1.sql`（作为 V1.0 建库基线，内容保持不变）；V1.1 新增的表结构统一存入新脚本 `v1.1.sql`——本文档 2.1 的四张 AI 表 DDL 与 `CREATE EXTENSION IF NOT EXISTS vector`（为后续向量表铺垫）写入 `v1.1.sql`，其余 V1.1 详细设计新增的表亦追加至同一脚本；首次建库按 `v1.sql` → `v1.1.sql` 顺序执行，无存量数据迁移；
+- **数据库迁移**：现有全量建库脚本 `init.sql` 更名为 `v1.sql`（作为 V1.0 建库基线，内容保持不变）；V1.1 新增的表结构统一存入新脚本 `v1.1.sql`——本文档 2.1 的五张 AI 表 DDL（含 `ai_chat_model`）与 `CREATE EXTENSION IF NOT EXISTS vector`（为后续向量表铺垫）写入 `v1.1.sql`，其余 V1.1 详细设计新增的表亦追加至同一脚本；首次建库按 `v1.sql` → `v1.1.sql` 顺序执行，无存量数据迁移。V1.1 未发布，多对话模型改造直接修订 `v1.1.sql`（ai_config 移除 chat_* 列、新增 ai_chat_model 表），不另立增量脚本；已按旧版 v1.1.sql 建库的开发环境按 2.1.1 迁移说明手工迁移；
 - **模块归属**：后端代码位于 `service/ai`、`controller/admin`（配置/智能体）、`controller/workspace`（status）、`controller/project`（tasks），遵循既有分层（C2：Controller 无业务逻辑）；
 - **定时任务**：pending 任务拾取（4.6，每 30 秒）、孤儿任务回收（4.6，每 5 分钟）与审计/会话清理（4.8，每日 03:00）依赖 `@Scheduled`，需在应用启动类新增 `@EnableScheduling`（当前工程仅有 `@EnableAsync`，无调度先例）；多实例部署下各实例均会触发，三者均以带状态/时间谓词的条件 `UPDATE`（拾取经 4.6 抢占更新）实现、天然幂等，无需额外分布式锁；若后续出现严格单次执行需求，再复用既有 Redis 加锁。
 - **实施顺序**：本文档对应 SRS 实施梯队一的基础部分，先于其余 4 份详细设计对应的功能开发。
