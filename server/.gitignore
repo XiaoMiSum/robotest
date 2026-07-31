@@ -2,6 +2,9 @@
 # Compiled class file
 *.class
 
+# 合并部署（方案B）由 scripts/deploy-merged.sh 生成的前端构建产物，不入库
+src/main/resources/static/
+
 # Log file
 *.log
 

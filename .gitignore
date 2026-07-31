@@ -1,1 +1,4 @@
 /.omo
+
+# 分离部署（方案A）由 scripts/deploy-separate.sh 生成的汇总产物，不入库
+/dist-deploy
