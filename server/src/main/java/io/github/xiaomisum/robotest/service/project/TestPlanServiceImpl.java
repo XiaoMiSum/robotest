@@ -350,6 +350,7 @@ public class TestPlanServiceImpl implements TestPlanService {
         snapshot.setIsAssociated(associatedCaseIds.contains(node.getId()));
         snapshot.setLastResult(Constants.ExecutionResult.UNTESTED);
         snapshot.setSortOrder(node.getSortOrder());
+        snapshot.setAiGenerated(node.getAiGenerated());
         planNodeSnapshotMapper.insert(snapshot);
         snapByOriginal.put(node.getId(), snapshot);
         return snapshot.getId();
@@ -500,6 +501,7 @@ public class TestPlanServiceImpl implements TestPlanService {
                 nodeUpdate.setType(currentNode.getType());
                 nodeUpdate.setPriority(currentNode.getPriority());
                 nodeUpdate.setSortOrder(currentNode.getSortOrder());
+                nodeUpdate.setAiGenerated(currentNode.getAiGenerated());
             }
             planNodeSnapshotMapper.updateById(nodeUpdate);
         }

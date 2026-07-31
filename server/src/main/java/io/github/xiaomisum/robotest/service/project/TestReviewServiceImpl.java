@@ -367,6 +367,7 @@ public class TestReviewServiceImpl implements TestReviewService {
         snapshot.setPriority(node.getPriority());
         snapshot.setIsAssociated(associatedCaseIds.contains(node.getId()));
         snapshot.setSortOrder(node.getSortOrder());
+        snapshot.setAiGenerated(node.getAiGenerated());
         reviewNodeSnapshotMapper.insert(snapshot);
         snapByOriginal.put(node.getId(), snapshot);
         return snapshot.getId();
@@ -589,6 +590,7 @@ public class TestReviewServiceImpl implements TestReviewService {
                 nodeUpdate.setType(currentNode.getType());
                 nodeUpdate.setPriority(currentNode.getPriority());
                 nodeUpdate.setSortOrder(currentNode.getSortOrder());
+                nodeUpdate.setAiGenerated(currentNode.getAiGenerated());
             }
             reviewNodeSnapshotMapper.updateById(nodeUpdate);
         }

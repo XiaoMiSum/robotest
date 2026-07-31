@@ -23,4 +23,5 @@ public class TestCaseNode extends BaseUuidDO<TestCaseNode> {
     private String priority;
     private Integer sortOrder;
     private Integer version;
+    private Boolean aiGenerated;
 }

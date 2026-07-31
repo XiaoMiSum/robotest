@@ -32,4 +32,5 @@ public class TestPlanNodeSnapshot extends BaseUuidDO<TestPlanNodeSnapshot> {
     private UUID lastExecutorId;
     private LocalDateTime lastExecutedAt;
     private Integer sortOrder;
+    private Boolean aiGenerated;
 }

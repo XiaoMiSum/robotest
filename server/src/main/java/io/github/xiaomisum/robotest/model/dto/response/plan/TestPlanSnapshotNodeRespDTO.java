@@ -20,5 +20,6 @@ public class TestPlanSnapshotNodeRespDTO {
     private UUID lastExecutorId;
     private LocalDateTime lastExecutedAt;
     private Integer sortOrder;
+    private Boolean aiGenerated;
     private List<TestPlanSnapshotNodeRespDTO> children;
 }

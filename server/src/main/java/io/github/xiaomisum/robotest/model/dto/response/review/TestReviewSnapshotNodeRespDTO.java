@@ -20,5 +20,6 @@ public class TestReviewSnapshotNodeRespDTO {
     private UUID lastReviewerId;
     private LocalDateTime lastReviewedAt;
     private Integer sortOrder;
+    private Boolean aiGenerated;
     private List<TestReviewSnapshotNodeRespDTO> children;
 }

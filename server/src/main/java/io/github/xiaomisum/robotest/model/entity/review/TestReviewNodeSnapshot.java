@@ -32,4 +32,5 @@ public class TestReviewNodeSnapshot extends BaseUuidDO<TestReviewNodeSnapshot> {
     private UUID lastReviewerId;
     private LocalDateTime lastReviewedAt;
     private Integer sortOrder;
+    private Boolean aiGenerated;
 }

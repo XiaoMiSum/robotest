@@ -120,6 +120,7 @@ public class DocumentPersistenceHandler {
         node.setTitle(data.getTitle() != null ? data.getTitle() : "");
         node.setPriority(data.getPriority());
         node.setSortOrder(data.getSortOrder() != null ? data.getSortOrder() : 0);
+        node.setAiGenerated(Boolean.TRUE.equals(data.getAiGenerated()));
         node.setVersion(1);
         testCaseNodeMapper.insert(node);
     }
@@ -138,7 +139,7 @@ public class DocumentPersistenceHandler {
         int currentVersion = node.getVersion() != null ? node.getVersion() : 0;
 
         int rows = testCaseNodeMapper.updateAttrsWithVersion(nodeId, currentVersion,
-                data.getTitle(), data.getType(), data.getPriority(), data.getSortOrder());
+                data.getTitle(), data.getType(), data.getPriority(), data.getSortOrder(), data.getAiGenerated());
         if (rows == 0) {
             log.warn("Optimistic lock conflict for node {}, expected version {}", data.getId(), currentVersion);
         }
