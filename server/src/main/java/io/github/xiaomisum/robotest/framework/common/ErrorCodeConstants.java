@@ -94,4 +94,18 @@ public static final ErrorCode BUG_CLOSED_EDIT_FORBIDDEN = ErrorCode.of(100001201
     public static final ErrorCode BUG_RESOLVE_COMMENT_REQUIRED = ErrorCode.of(1000012020, "解决缺陷时必须填写备注说明");
     public static final ErrorCode BUG_REJECT_COMMENT_REQUIRED = ErrorCode.of(1000012021, "拒绝缺陷时必须填写说明");
     public static final ErrorCode BUG_RELATION_INVALID = ErrorCode.of(1000012022, "关联用例或计划标识不合法");
+
+    // ========== AI 能力域 1,000,013,001-1,000,013,099（文档简写 60XX，6001 ≙ 1000013001） ==========
+    public static final ErrorCode AI_NOT_ENABLED = ErrorCode.of(1000013001, "AI 功能未启用或配置缺失");
+    public static final ErrorCode AI_CALL_FAILED = ErrorCode.of(1000013002, "AI 调用失败");
+    public static final ErrorCode AI_OUTPUT_SCHEMA_INVALID = ErrorCode.of(1000013003, "AI 输出结构化校验失败");
+    public static final ErrorCode AI_RATE_LIMITED = ErrorCode.of(1000013004, "AI 调用频率超限");
+    public static final ErrorCode AI_TASK_DUPLICATE = ErrorCode.of(1000013005, "已存在进行中的同类任务");
+    public static final ErrorCode AI_TASK_STATE_INVALID = ErrorCode.of(1000013006, "任务不存在或当前状态不允许该操作");
+    public static final ErrorCode AI_CONNECTIVITY_TEST_FAILED = ErrorCode.of(1000013007, "连通性测试失败");
+    public static final ErrorCode AI_EMBEDDING_DIMENSION_INVALID = ErrorCode.of(1000013008, "Embedding 维度校验失败");
+    public static final ErrorCode AI_PROMPT_TEMPLATE_INVALID = ErrorCode.of(1000013009, "提示词模板校验失败");
+    public static final ErrorCode AI_SEMANTIC_DEGRADED = ErrorCode.of(1000013010, "语义检索能力降级中");
+    public static final ErrorCode AI_ASSISTANT_CONFIRM_TOKEN_INVALID = ErrorCode.of(1000013011, "写操作确认令牌不存在或已失效");
+    public static final ErrorCode AI_TARGET_STATE_INVALID = ErrorCode.of(1000013012, "目标对象状态不允许该 AI 操作");
 }

@@ -159,4 +159,46 @@ public final class Constants {
         UUID ADMIN_ID = UUID.fromString("c0000000-0000-0000-0000-000000000001");
         UUID MEMBER_ID = UUID.fromString("c0000000-0000-0000-0000-000000000002");
     }
+
+    /**
+     * AI 异步任务类型（ai_analysis_task.type）
+     */
+    public interface AiTaskType {
+        String REVIEW_CHECK = "review_check";
+        String REVIEW_SUMMARY = "review_summary";
+        String BUG_CLUSTERING = "bug_clustering";
+        String EMBEDDING_REBUILD = "embedding_rebuild";
+        String PLAN_ORDER_RECOMMEND = "plan_order_recommend";
+    }
+
+    /**
+     * AI 异步任务状态（ai_analysis_task.status）
+     */
+    public interface AiTaskStatus {
+        String PENDING = "pending";
+        String RUNNING = "running";
+        String SUCCESS = "success";
+        String FAILED = "failed";
+        String CANCELLED = "cancelled";
+    }
+
+    /**
+     * AI 调用审计状态（ai_invocation_log.status）
+     */
+    public interface AiInvocationStatus {
+        String SUCCESS = "success";
+        String FAILED = "failed";
+        String CANCELLED = "cancelled";
+        String RATE_LIMITED = "rate_limited";
+        String SCHEMA_INVALID = "schema_invalid";
+    }
+
+    /**
+     * 语义检索能力状态（GET /api/workspace/ai/status 的 semanticSearch 取值）
+     */
+    public interface AiSemanticSearch {
+        String AVAILABLE = "available";
+        String DEGRADED = "degraded";
+        String UNAVAILABLE = "unavailable";
+    }
 }
