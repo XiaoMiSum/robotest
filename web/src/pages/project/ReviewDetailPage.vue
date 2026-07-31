@@ -15,10 +15,16 @@ import type { PlannedCases, SnapshotModule, TestReviewDetail, TestReviewProgress
 import ReviewMindMap from '@/components/project/ReviewMindMap.vue'
 import SnapshotModuleTree from '@/components/project/SnapshotModuleTree.vue'
 import CaseSelector from '@/components/project/CaseSelector.vue'
+import ReviewAiSummary from '@/components/project/ReviewAiSummary.vue'
+import { useAuthStore } from '@/stores/auth'
+import { useAiStore } from '@/stores/ai'
 
 const route = useRoute()
 const router = useRouter()
 const reviewId = route.params.reviewId as string
+
+const authStore = useAuthStore()
+const aiStore = useAiStore()
 
 const loading = ref(false)
 const detail = ref<TestReviewDetail | null>(null)
@@ -41,6 +47,15 @@ function firstDocument(nodes: SnapshotModule[]): SnapshotModule | null {
 const canComplete = computed(
   () => !!progress.value && progress.value.pending === 0 && progress.value.failed === 0,
 )
+
+// AI 生成摘要入口：仅评审发起人 + AI 已启用 + 评审已完成（后端强校验兜底，交互设计第 3 章）
+const canShowSummary = computed(
+  () =>
+    aiStore.aiEnabled &&
+    detail.value?.status === 'completed' &&
+    detail.value?.initiator.id === authStore.user?.id,
+)
+const summaryVisible = ref(false)
 
 async function load() {
   loading.value = true
@@ -179,9 +194,17 @@ onMounted(load)
               </span>
             </el-tooltip>
           </div>
+          <!-- AI 生成摘要：评审已完成后展示，与上方进行中操作组互斥（仅发起人可见） -->
+          <div v-if="canShowSummary" class="review-detail__actions">
+            <el-button size="small" type="primary" plain @click="summaryVisible = true">
+              <el-icon><MagicStick /></el-icon>AI 生成摘要
+            </el-button>
+          </div>
         </div>
       </template>
     </el-page-header>
+
+    <ReviewAiSummary v-if="summaryVisible" v-model="summaryVisible" :review-id="reviewId" />
 
     <div class="review-detail__workspace">
       <el-card shadow="never" class="review-detail__tree-card">
