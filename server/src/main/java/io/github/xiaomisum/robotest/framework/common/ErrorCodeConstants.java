@@ -72,6 +72,7 @@ public class ErrorCodeConstants {
     public static final ErrorCode TEST_CASE_MODULE_MOVE_CYCLE = ErrorCode.of(1000011025, "不能移动到自身或其子级目录下");
     public static final ErrorCode TEST_REVIEW_FINISHED = ErrorCode.of(1000011026, "评审已完成，无法执行该操作");
     public static final ErrorCode TEST_PLAN_FINISHED = ErrorCode.of(1000011027, "计划已结束，无法执行该操作");
+    public static final ErrorCode REQUIREMENT_NOT_FOUND = ErrorCode.of(1000011028, "需求条目不存在或不属于当前项目");
 
     // ========== 缺陷管理模块 1,000,012,001-1,000,012,010 ==========
     public static final ErrorCode BUG_INVALID_STATUS_TRANSITION = ErrorCode.of(1000012001, "缺陷状态流转不合法");
@@ -80,24 +81,25 @@ public class ErrorCodeConstants {
     public static final ErrorCode BUG_CLOSE_COMMENT_REQUIRED = ErrorCode.of(1000012004, "关闭缺陷时必须填写关闭说明");
     public static final ErrorCode BUG_ASSIGNEE_NOT_IN_WORKSPACE = ErrorCode.of(1000012005, "处理人不在当前工作空间中");
     public static final ErrorCode PROJECT_NOT_ACTIVE = ErrorCode.of(1000012006, "项目已归档，不可操作");
-public static final ErrorCode BUG_ATTACHMENT_NOT_FOUND = ErrorCode.of(1000012007, "附件不存在");
-public static final ErrorCode BUG_ATTACHMENT_SIZE_EXCEEDED = ErrorCode.of(1000012008, "附件大小超过限制");
-public static final ErrorCode BUG_CLOSED_ATTACHMENT_FORBIDDEN = ErrorCode.of(1000012009, "缺陷已关闭，不可操作附件");
-public static final ErrorCode BUG_ATTACHMENT_STORE_FAILED = ErrorCode.of(1000012010, "附件存储失败");
-public static final ErrorCode BUG_RESOLUTION_REQUIRED = ErrorCode.of(1000012011, "解决缺陷时必须选择解决方案");
-public static final ErrorCode BUG_RESOLUTION_INVALID = ErrorCode.of(1000012012, "解决方案不合法");
-public static final ErrorCode BUG_DUPLICATE_OF_REQUIRED = ErrorCode.of(1000012013, "解决方案为重复缺陷时必须指定原始缺陷");
-public static final ErrorCode BUG_DUPLICATE_OF_NOT_FOUND = ErrorCode.of(1000012014, "指定的原始缺陷不存在或不合法");
-public static final ErrorCode BUG_MODULE_NOT_FOUND = ErrorCode.of(1000012015, "所属模块不存在或不属于当前项目");
-public static final ErrorCode BUG_ALREADY_CONFIRMED = ErrorCode.of(1000012016, "缺陷已确认，无需重复确认");
-public static final ErrorCode BUG_CONFIRM_INVALID_STATUS = ErrorCode.of(1000012017, "仅激活状态的缺陷可确认");
-public static final ErrorCode BUG_TYPE_INVALID = ErrorCode.of(1000012018, "缺陷类型不合法");
-public static final ErrorCode BUG_CLOSED_EDIT_FORBIDDEN = ErrorCode.of(1000012019, "缺陷已关闭，不可编辑");
+    public static final ErrorCode BUG_ATTACHMENT_NOT_FOUND = ErrorCode.of(1000012007, "附件不存在");
+    public static final ErrorCode BUG_ATTACHMENT_SIZE_EXCEEDED = ErrorCode.of(1000012008, "附件大小超过限制");
+    public static final ErrorCode BUG_CLOSED_ATTACHMENT_FORBIDDEN = ErrorCode.of(1000012009, "缺陷已关闭，不可操作附件");
+    public static final ErrorCode BUG_ATTACHMENT_STORE_FAILED = ErrorCode.of(1000012010, "附件存储失败");
+    public static final ErrorCode BUG_RESOLUTION_REQUIRED = ErrorCode.of(1000012011, "解决缺陷时必须选择解决方案");
+    public static final ErrorCode BUG_RESOLUTION_INVALID = ErrorCode.of(1000012012, "解决方案不合法");
+    public static final ErrorCode BUG_DUPLICATE_OF_REQUIRED = ErrorCode.of(1000012013, "解决方案为重复缺陷时必须指定原始缺陷");
+    public static final ErrorCode BUG_DUPLICATE_OF_NOT_FOUND = ErrorCode.of(1000012014, "指定的原始缺陷不存在或不合法");
+    public static final ErrorCode BUG_MODULE_NOT_FOUND = ErrorCode.of(1000012015, "所属模块不存在或不属于当前项目");
+    public static final ErrorCode BUG_ALREADY_CONFIRMED = ErrorCode.of(1000012016, "缺陷已确认，无需重复确认");
+    public static final ErrorCode BUG_CONFIRM_INVALID_STATUS = ErrorCode.of(1000012017, "仅激活状态的缺陷可确认");
+    public static final ErrorCode BUG_TYPE_INVALID = ErrorCode.of(1000012018, "缺陷类型不合法");
+    public static final ErrorCode BUG_CLOSED_EDIT_FORBIDDEN = ErrorCode.of(1000012019, "缺陷已关闭，不可编辑");
     public static final ErrorCode BUG_RESOLVE_COMMENT_REQUIRED = ErrorCode.of(1000012020, "解决缺陷时必须填写备注说明");
     public static final ErrorCode BUG_REJECT_COMMENT_REQUIRED = ErrorCode.of(1000012021, "拒绝缺陷时必须填写说明");
     public static final ErrorCode BUG_RELATION_INVALID = ErrorCode.of(1000012022, "关联用例或计划标识不合法");
 
-    // ========== AI 能力域 1,000,013,001-1,000,013,099（文档简写 60XX，6001 ≙ 1000013001） ==========
+    // ========== AI 能力域 1,000,013,001-1,000,013,099（文档简写 60XX，6001 ≙ 1000013001）
+    // ==========
     public static final ErrorCode AI_NOT_ENABLED = ErrorCode.of(1000013001, "AI 功能未启用或配置缺失");
     public static final ErrorCode AI_CALL_FAILED = ErrorCode.of(1000013002, "AI 调用失败");
     public static final ErrorCode AI_OUTPUT_SCHEMA_INVALID = ErrorCode.of(1000013003, "AI 输出结构化校验失败");

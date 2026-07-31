@@ -134,7 +134,37 @@ UPDATE sys_role SET permissions = permissions || '["ai","ai:view","ai:edit"]'::j
 WHERE id = 'b0000000-0000-0000-0000-000000000001' AND NOT permissions @> '["ai:view"]'::jsonb;
 
 -- ============================================================
--- 4. 表与列注释
+-- 4. 需求池（US-AI-004，项目级常规业务功能，不受 AI 开关影响）
+-- ============================================================
+
+-- 需求池条目表（项目级轻量需求条目库，供 AI 生成/补全/覆盖度分析选作上下文）
+CREATE TABLE requirement_pool_item (
+    id          UUID          PRIMARY KEY,
+    project_id  UUID          NOT NULL,
+    title       VARCHAR(200)  NOT NULL,
+    content     TEXT          NOT NULL,
+    source_url  VARCHAR(500)  NULL,
+    created_by  UUID          NOT NULL,
+    updated_by  UUID          NOT NULL,
+    is_deleted  BOOLEAN       NOT NULL DEFAULT FALSE,
+    created_at  TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at  TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_rpi_project_id ON requirement_pool_item (project_id);
+
+-- 需求池权限点（workspace 作用域，接测试域 c…0033 之后）并回补成员角色
+INSERT INTO sys_permission (id, code, name, parent_code, module, scope, sort_order, created_at, updated_at, is_deleted) VALUES
+('c0000000-0000-0000-0000-000000000034', 'requirement',      '需求池',   NULL,          '需求池', 'workspace', 5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000035', 'requirement:view', '查看需求池', 'requirement', '需求池', 'workspace', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000036', 'requirement:edit', '编辑需求池', 'requirement', '需求池', 'workspace', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE);
+
+-- 成员角色追加需求池读写（管理员角色 full_access 自动覆盖，无需回补）
+UPDATE sys_role SET permissions = permissions || '["requirement:view","requirement:edit"]'::jsonb, updated_at = CURRENT_TIMESTAMP
+WHERE id = 'c0000000-0000-0000-0000-000000000002' AND NOT permissions @> '["requirement:view"]'::jsonb;
+
+-- ============================================================
+-- 5. 表与列注释
 -- ============================================================
 
 COMMENT ON TABLE ai_config IS 'AI 配置表（系统级单行：总开关、系统配置项与 Embedding 单一配置）';
@@ -210,3 +240,15 @@ COMMENT ON COLUMN ai_chat_model.updated_by IS '最后更新人，关联 sys_user
 COMMENT ON COLUMN ai_chat_model.is_deleted IS '逻辑删除标志';
 COMMENT ON COLUMN ai_chat_model.created_at IS '创建时间';
 COMMENT ON COLUMN ai_chat_model.updated_at IS '更新时间';
+
+COMMENT ON TABLE requirement_pool_item IS '需求池条目表（项目级轻量需求条目库，US-AI-004）';
+COMMENT ON COLUMN requirement_pool_item.id IS '条目 ID';
+COMMENT ON COLUMN requirement_pool_item.project_id IS '归属项目 ID，关联 project.id';
+COMMENT ON COLUMN requirement_pool_item.title IS '条目标题';
+COMMENT ON COLUMN requirement_pool_item.content IS '需求文本（Markdown 原文，长度上限见 requirementContentMaxLength 配置键）';
+COMMENT ON COLUMN requirement_pool_item.source_url IS '来源 URL（仅记录出处，平台不抓取）';
+COMMENT ON COLUMN requirement_pool_item.created_by IS '创建人（编辑/删除权限判定依据），关联 sys_user.id';
+COMMENT ON COLUMN requirement_pool_item.updated_by IS '最后更新人，关联 sys_user.id';
+COMMENT ON COLUMN requirement_pool_item.is_deleted IS '逻辑删除标志';
+COMMENT ON COLUMN requirement_pool_item.created_at IS '创建时间';
+COMMENT ON COLUMN requirement_pool_item.updated_at IS '更新时间';
