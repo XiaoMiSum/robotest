@@ -37,6 +37,11 @@ describe('clipboard', () => {
     expect(tree.data).toEqual({ text: '登录用例', type: 'case', priority: 'P1' })
   })
 
+  it('exportSubtree 保留 aiGenerated 到副本（详细设计 4.6 数据继承规则）', () => {
+    const node = fakeNode({ id: 'x', text: 'AI 用例', type: 'case', aiGenerated: true })
+    expect(exportSubtree(node).data).toEqual({ text: 'AI 用例', type: 'case', aiGenerated: true })
+  })
+
   it('exportSubtree 递归导出子树结构', () => {
     const node = fakeNode({ id: 'a', text: '模块' }, [
       fakeNode({ id: 'b', text: '用例', type: 'case', priority: 'P2' }, [

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { typeBadge, priorityBadge, reviewMarkBadge, executionResultBadge, badgeWidth } from './badges'
+import { typeBadge, priorityBadge, reviewMarkBadge, executionResultBadge, aiBadge, badgeWidth } from './badges'
 
 describe('typeBadge', () => {
   it('四种业务类型映射到文案与颜色', () => {
@@ -55,6 +55,20 @@ describe('executionResultBadge', () => {
   it('未执行是默认态不显示徽标', () => {
     expect(executionResultBadge('untested')).toBeNull()
     expect(executionResultBadge(null)).toBeNull()
+  })
+})
+
+describe('aiBadge', () => {
+  it('aiGenerated 严格为 true 时渲染 AI 徽标', () => {
+    expect(aiBadge(true)).toEqual({ label: 'AI', color: '#13C2C2' })
+  })
+
+  it('false/缺省/非布尔真值不渲染（移除标识后即消失）', () => {
+    expect(aiBadge(false)).toBeNull()
+    expect(aiBadge(undefined)).toBeNull()
+    expect(aiBadge(null)).toBeNull()
+    expect(aiBadge('true')).toBeNull()
+    expect(aiBadge(1)).toBeNull()
   })
 })
 
