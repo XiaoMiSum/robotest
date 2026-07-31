@@ -29,9 +29,10 @@ public class ErrorCodeConstants {
     public static final ErrorCode WORKSPACE_NOT_FOUND = ErrorCode.of(1000003002, "工作空间不存在");
     public static final ErrorCode ROLE_NOT_FOUND = ErrorCode.of(1000003003, "角色不存在");
 
-    // ========== 冲突 1,000,004,001-1,000,004,002 ==========
+    // ========== 冲突 1,000,004,001-1,000,004,003 ==========
     public static final ErrorCode WORKSPACE_HAS_PROJECTS = ErrorCode.of(1000004001, "工作空间下存在项目，无法解散");
     public static final ErrorCode ROLE_IN_USE = ErrorCode.of(1000004002, "角色被用户引用，无法删除");
+    public static final ErrorCode AI_CONFIG_CONFLICT = ErrorCode.of(1000004003, "AI 配置已被他人修改，请刷新后重试");
 
     // ========== 服务器错误 1,000,005,000 ==========
     public static final ErrorCode INTERNAL_SERVER_ERROR = ErrorCode.of(1000005000, "服务器内部错误");

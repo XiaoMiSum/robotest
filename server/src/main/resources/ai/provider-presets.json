@@ -1,0 +1,99 @@
+[
+  {
+    "key": "openai",
+    "name": "OpenAI",
+    "scopes": ["chat", "embedding"],
+    "defaultBaseUrl": {
+      "chat": "https://api.openai.com/v1",
+      "embedding": "https://api.openai.com/v1"
+    },
+    "modelHints": {
+      "chat": ["gpt-4o", "gpt-4o-mini"],
+      "embedding": ["text-embedding-3-small", "text-embedding-3-large"]
+    },
+    "uniqueParams": { "chat": [], "embedding": [] }
+  },
+  {
+    "key": "deepseek",
+    "name": "DeepSeek",
+    "scopes": ["chat"],
+    "defaultBaseUrl": {
+      "chat": "https://api.deepseek.com/v1"
+    },
+    "modelHints": {
+      "chat": ["deepseek-chat", "deepseek-reasoner"]
+    },
+    "uniqueParams": { "chat": [] }
+  },
+  {
+    "key": "qwen",
+    "name": "阿里云百炼（通义千问）",
+    "scopes": ["chat", "embedding"],
+    "defaultBaseUrl": {
+      "chat": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+      "embedding": "https://dashscope.aliyuncs.com/compatible-mode/v1"
+    },
+    "modelHints": {
+      "chat": ["qwen-plus", "qwen-max"],
+      "embedding": ["text-embedding-v4"]
+    },
+    "uniqueParams": {
+      "chat": [
+        {
+          "key": "enable_thinking",
+          "type": "boolean",
+          "defaultValue": false,
+          "label": "思考模式",
+          "description": "开启后模型输出思考过程（响应侧自动剥离）"
+        }
+      ],
+      "embedding": []
+    }
+  },
+  {
+    "key": "zhipu",
+    "name": "智谱 AI",
+    "scopes": ["chat", "embedding"],
+    "defaultBaseUrl": {
+      "chat": "https://open.bigmodel.cn/api/paas/v4",
+      "embedding": "https://open.bigmodel.cn/api/paas/v4"
+    },
+    "modelHints": {
+      "chat": ["glm-4-plus", "glm-4-flash"],
+      "embedding": ["embedding-3"]
+    },
+    "uniqueParams": {
+      "chat": [
+        {
+          "key": "thinking.type",
+          "type": "enum",
+          "defaultValue": "disabled",
+          "options": ["enabled", "disabled"],
+          "label": "思考模式",
+          "description": "enabled 时模型输出思考过程（响应侧自动剥离）"
+        }
+      ],
+      "embedding": []
+    }
+  },
+  {
+    "key": "moonshot",
+    "name": "Moonshot AI（Kimi）",
+    "scopes": ["chat"],
+    "defaultBaseUrl": {
+      "chat": "https://api.moonshot.cn/v1"
+    },
+    "modelHints": {
+      "chat": ["moonshot-v1-8k", "moonshot-v1-32k"]
+    },
+    "uniqueParams": { "chat": [] }
+  },
+  {
+    "key": "custom",
+    "name": "通用 OpenAI 兼容",
+    "scopes": ["chat", "embedding"],
+    "defaultBaseUrl": {},
+    "modelHints": {},
+    "uniqueParams": {}
+  }
+]

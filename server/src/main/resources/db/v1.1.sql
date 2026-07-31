@@ -94,7 +94,19 @@ CREATE INDEX idx_log_function_type ON ai_invocation_log (function_type);
 CREATE INDEX idx_log_created_at ON ai_invocation_log (created_at);
 
 -- ============================================================
--- 2. 表与列注释
+-- 2. 种子数据（AI 管理权限点，并回补系统管理员角色）
+-- ============================================================
+
+INSERT INTO sys_permission (id, code, name, parent_code, module, scope, sort_order, created_at, updated_at, is_deleted) VALUES
+('a0000000-0000-0000-0000-000000000018', 'ai',      'AI 管理',           NULL, 'AI 管理', 'global', 4, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('a0000000-0000-0000-0000-000000000019', 'ai:view', '查看 AI 配置与智能体', 'ai', 'AI 管理', 'global', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('a0000000-0000-0000-0000-000000000020', 'ai:edit', '编辑 AI 配置与智能体', 'ai', 'AI 管理', 'global', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE);
+
+UPDATE sys_role SET permissions = permissions || '["ai","ai:view","ai:edit"]'::jsonb, updated_at = CURRENT_TIMESTAMP
+WHERE id = 'b0000000-0000-0000-0000-000000000001' AND NOT permissions @> '["ai:view"]'::jsonb;
+
+-- ============================================================
+-- 3. 表与列注释
 -- ============================================================
 
 COMMENT ON TABLE ai_config IS 'AI 配置表（系统级单行：对话与 Embedding 两组模型服务配置）';
