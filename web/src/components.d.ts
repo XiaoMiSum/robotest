@@ -8,6 +8,7 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
+    AiCommandBar: typeof import('./components/project/minder/ai/AiCommandBar.vue')['default']
     AiGeneratePanel: typeof import('./components/project/minder/ai/AiGeneratePanel.vue')['default']
     AiModelSelect: typeof import('./components/common/AiModelSelect.vue')['default']
     AiPreviewTree: typeof import('./components/project/minder/ai/AiPreviewTree.vue')['default']

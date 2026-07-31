@@ -24,7 +24,9 @@ import { useContextMenu, type ContextMenuAnchorNode } from './minder/useContextM
 import MinderContextMenu from './minder/MinderContextMenu.vue'
 import MinderNavigator from './minder/MinderNavigator.vue'
 import AiGeneratePanel from './minder/ai/AiGeneratePanel.vue'
+import AiCommandBar from './minder/ai/AiCommandBar.vue'
 import { mountGeneratedNodes, type MountTargetSource } from './minder/ai/aiMount'
+import type { AiPanelMode } from './minder/ai/aiPanelModes'
 
 const props = defineProps<{ docId: string }>()
 
@@ -65,11 +67,15 @@ const isConnected = ref(true)
 
 const priorities = ['P0', 'P1', 'P2', 'P3']
 
-// ==================== AI 生成用例（US-AI-001） ====================
+// ==================== AI 生成用例（US-AI-001/002/016） ====================
 // 入口显隐由工作空间级 AI 开关控制（stores/ai 缓存 status，未启用隐藏全部 AI 入口）
 const aiStore = useAiStore()
 
 const aiPanelVisible = ref(false)
+const aiPanelMode = ref<AiPanelMode>('generate')
+/** 导入模式经 AI 指令输入区带入的原文 */
+const aiInitialText = ref('')
+const aiCommandBarVisible = ref(false)
 const aiTargetNodeId = ref('')
 const aiTargetPath = ref('')
 // 目标节点被协同删除时暂存预览结果，重选挂载位置后继续（交互设计 2.2，不丢弃预览）
@@ -100,7 +106,7 @@ function findNodePath(node: MountTargetSource | null, id: string): string[] | nu
   return null
 }
 
-// 打开抽屉时锁定挂载目标：当前选中节点，未选中默认文档根节点（SRS 3.2.1）
+// 打开生成抽屉时锁定挂载目标：当前选中节点，未选中默认文档根节点（SRS 3.2.1）
 function openAiPanel() {
   const root = getLiveRoot()
   if (!root) return
@@ -109,7 +115,40 @@ function openAiPanel() {
   if (!targetId) return
   aiTargetNodeId.value = targetId
   aiTargetPath.value = (findNodePath(root, targetId) ?? []).join(' > ')
+  aiPanelMode.value = 'generate'
+  aiInitialText.value = ''
   aiPendingNodes.value = null
+  aiPanelVisible.value = true
+}
+
+// 右键 case 节点「AI 补全步骤」：目标锁定该 case，不可重选（交互设计 3.1）
+function openAiCompletePanel() {
+  const root = getLiveRoot()
+  const selected = getSelectedNodeData()
+  if (!root || !selected || selected.type !== 'case') return
+  const targetId = (selected.id as string) || ''
+  if (!targetId) return
+  aiTargetNodeId.value = targetId
+  aiTargetPath.value = (findNodePath(root, targetId) ?? []).join(' > ')
+  aiPanelMode.value = 'complete'
+  aiInitialText.value = ''
+  aiPendingNodes.value = null
+  aiPanelVisible.value = true
+}
+
+// AI 指令输入区执行导入：携原文打开 import 模式抽屉自动开始解析（交互设计 4.5）
+function handleAiImportExecute(text: string) {
+  const root = getLiveRoot()
+  if (!root) return
+  const selected = getSelectedNodeData()
+  const targetId = (selected?.id as string) || (root.data.id as string) || ''
+  if (!targetId) return
+  aiTargetNodeId.value = targetId
+  aiTargetPath.value = (findNodePath(root, targetId) ?? []).join(' > ')
+  aiPanelMode.value = 'import'
+  aiInitialText.value = text
+  aiPendingNodes.value = null
+  aiCommandBarVisible.value = false
   aiPanelVisible.value = true
 }
 
@@ -119,7 +158,12 @@ function handleAiMount(nodes: AiGeneratedNode[]) {
   if (!m) return
   const count = mountGeneratedNodes(m as unknown as Parameters<typeof mountGeneratedNodes>[0], aiTargetNodeId.value, nodes)
   if (count === null) {
-    // 目标已被协同删除：弹出节点选择器重选，预览结果保留在抽屉中
+    // 补全的挂载目标只能是原 case 节点，被协同删除即不可挂载（详细设计 4.2）
+    if (aiPanelMode.value === 'complete') {
+      ElMessage.error('节点已被删除，无法挂载')
+      return
+    }
+    // 生成/导入：弹出节点选择器重选，预览结果保留在抽屉中
     aiPendingNodes.value = nodes
     aiReselectTree.value = buildReselectTree(getLiveRoot())
     aiReselectVisible.value = true
@@ -690,9 +734,24 @@ onBeforeUnmount(() => {
           <el-button size="small" text class="ai-entry-btn" @click="openAiPanel">
             <el-icon><MagicStick /></el-icon><span>AI 生成用例</span>
           </el-button>
+          <el-button
+            size="small"
+            text
+            :class="['ai-entry-btn', { 'is-selected': aiCommandBarVisible }]"
+            @click="aiCommandBarVisible = !aiCommandBarVisible"
+          >
+            <el-icon><MagicStick /></el-icon><span>AI 指令</span>
+          </el-button>
         </div>
       </template>
     </div>
+
+    <!-- AI 指令输入区：工具栏下方展开（交互设计 4.1，梯队一仅导入模式） -->
+    <AiCommandBar
+      v-if="aiCommandBarVisible && aiStore.aiEnabled"
+      @execute="handleAiImportExecute"
+      @close="aiCommandBarVisible = false"
+    />
 
     <!-- 脑图画布（编辑内核会向容器注入 .km-receiver 接收器元素，双击节点进入编辑） -->
     <div
@@ -748,17 +807,27 @@ onBeforeUnmount(() => {
         <span class="menu-chip-label">AI</span>
         <span class="menu-chip" @click="removeAiFlag">移除 AI 标识</span>
       </div>
+      <!-- 仅 case 节点显示（交互设计 3.1，置于标记域之后的动作区） -->
+      <template v-if="aiStore.aiEnabled && selectedType === 'case'">
+        <div class="mindmap-context-menu__divider" />
+        <div class="mindmap-context-menu__item menu-action" @click="openAiCompletePanel">
+          <span>✨ AI 补全步骤</span>
+        </div>
+      </template>
       <div class="mindmap-context-menu__divider" />
       <div class="mindmap-context-menu__item mindmap-context-menu__item--danger menu-action" @click="deleteNode"><span>删除节点</span><span class="menu-shortcut">Delete</span></div>
     </MinderContextMenu>
 
-    <!-- AI 生成用例抽屉：非模态，预览-确认阶段可继续编辑脑图（交互设计 2.2） -->
+    <!-- AI 生成抽屉：非模态，预览-确认阶段可继续编辑脑图（交互设计 2.2）；key 保证模式切换重建 -->
     <AiGeneratePanel
       v-if="aiPanelVisible"
+      :key="aiPanelMode"
       v-model="aiPanelVisible"
+      :mode="aiPanelMode"
       :doc-id="props.docId"
       :target-node-id="aiTargetNodeId"
       :target-path="aiTargetPath"
+      :initial-text="aiInitialText"
       @mount="handleAiMount"
     />
 

@@ -1,22 +1,26 @@
 <script setup lang="ts">
-import { onBeforeUnmount, ref } from 'vue'
+import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useAiStream, type AiStreamController } from '@/composables/useAiStream'
 import { useAiStore } from '@/stores/ai'
 import type { AiCaseGenerateResult, AiGeneratedNode } from '@/types'
 import { buildPreviewTree, filterCheckedTree, type AiPreviewNode } from './aiMount'
+import { AI_PANEL_MODES, validateImportText, type AiPanelMode } from './aiPanelModes'
 import AiPreviewTree from './AiPreviewTree.vue'
 
 /**
- * 「AI 生成用例」抽屉（US-AI-001，交互设计 2.1/2.2）：
- * 需求文本 → SSE 流式输出 → done 后切结构化预览树（勾选取舍）→ 确认挂载（由父组件执行）。
- * 梯队一仅支持手动输入需求文本，需求池选取随 US-AI-004 交付后补充入口。
+ * AI 生成抽屉（US-AI-001/002/016，交互设计 2.1/2.2/3.1/4.5）：
+ * 文本输入 → SSE 流式输出 → done 后切结构化预览树（勾选取舍）→ 确认挂载（由父组件执行）。
+ * 三种模式差异集中在 aiPanelModes 配置表；梯队一不含需求池选取入口（US-AI-004）。
  */
 const props = defineProps<{
+  mode: AiPanelMode
   docId: string
   targetNodeId: string
   /** 挂载目标节点路径（根 > … > 目标），打开时由脑图组件计算 */
   targetPath: string
+  /** 导入模式由 AI 指令输入区带入的原文（只读展示，重新生成沿用） */
+  initialText?: string
 }>()
 
 const visible = defineModel<boolean>({ required: true })
@@ -27,10 +31,11 @@ const emit = defineEmits<{
 }>()
 
 const aiStore = useAiStore()
+const config = AI_PANEL_MODES[props.mode]
 
 type Phase = 'idle' | 'streaming' | 'done'
 const phase = ref<Phase>('idle')
-const requirementText = ref('')
+const inputText = ref(props.initialText ?? '')
 const streamText = ref('')
 const previewNodes = ref<AiPreviewNode[]>([])
 const warnings = ref<string[]>([])
@@ -50,7 +55,13 @@ function clearSlowTimer(): void {
 }
 
 function generate(): void {
-  if (!requirementText.value.trim()) {
+  if (props.mode === 'import') {
+    const error = validateImportText(inputText.value)
+    if (error) {
+      ElMessage.warning(error)
+      return
+    }
+  } else if (!config.inputOptional && !inputText.value.trim()) {
     ElMessage.warning('请输入需求描述')
     return
   }
@@ -63,13 +74,13 @@ function generate(): void {
   }, 10_000)
 
   controller = useAiStream({
-    url: '/project/ai/cases/generate',
-    body: {
-      documentId: props.docId,
+    url: config.url,
+    body: config.buildBody({
+      docId: props.docId,
       targetNodeId: props.targetNodeId,
-      requirementText: requirementText.value,
+      text: inputText.value,
       modelId: aiStore.effectiveModelId() ?? null,
-    },
+    }),
     onEvent(event) {
       clearSlowTimer()
       if (event.event === 'delta') {
@@ -80,8 +91,14 @@ function generate(): void {
         })
       } else if (event.event === 'done') {
         const result = event.data as AiCaseGenerateResult
-        previewNodes.value = buildPreviewTree(result.nodes)
         warnings.value = result.warnings ?? []
+        if (!result.nodes.length) {
+          // 空结果属正常返回（无需补全/未解析出结构），回到可重试状态
+          ElMessage.warning(config.emptyResultMessage)
+          phase.value = 'idle'
+          return
+        }
+        previewNodes.value = buildPreviewTree(result.nodes)
         phase.value = 'done'
       } else if (event.event === 'error') {
         const data = event.data as { message?: string }
@@ -126,6 +143,11 @@ function handleClose(): void {
   visible.value = false
 }
 
+onMounted(() => {
+  // 导入模式由 AI 指令输入区携文本打开，进入即自动开始解析（交互设计 4.5）
+  if (props.mode === 'import') generate()
+})
+
 onBeforeUnmount(() => {
   controller?.cancel()
   clearSlowTimer()
@@ -141,7 +163,7 @@ onBeforeUnmount(() => {
     @close="handleClose"
   >
     <template #header>
-      <span class="ai-panel-title"><el-icon><MagicStick /></el-icon> AI 生成用例</span>
+      <span class="ai-panel-title"><el-icon><MagicStick /></el-icon> {{ config.title }}</span>
     </template>
 
     <div class="ai-panel">
@@ -149,12 +171,13 @@ onBeforeUnmount(() => {
 
       <div class="ai-panel-input">
         <el-input
-          v-model="requirementText"
+          v-model="inputText"
           type="textarea"
           :rows="5"
           maxlength="20000"
+          :readonly="config.inputReadonly"
           :disabled="phase === 'streaming'"
-          placeholder="输入需求描述或模块说明，AI 将生成包含前置条件、执行步骤、预期结果的用例子树"
+          :placeholder="config.inputPlaceholder"
         />
         <div class="ai-panel-actions">
           <AiModelSelect />
