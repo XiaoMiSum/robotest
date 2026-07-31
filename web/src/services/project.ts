@@ -23,6 +23,7 @@ import type {
   ReviewStatus,
   RequirementDetail,
   RequirementPoolItem,
+  RequirementSummary,
   SnapshotModule,
   TestCaseModule,
   TestCaseNode,
@@ -421,4 +422,13 @@ export function updateRequirement(
 
 export function deleteRequirement(id: string): Promise<void> {
   return del(`/project/requirements/${id}`)
+}
+
+// 文档关联需求条目（US-AI-004 3.1.5）
+export function getDocumentRequirements(docId: string): Promise<RequirementSummary[]> {
+  return get(`/project/documents/${docId}/requirements`)
+}
+
+export function setDocumentRequirements(docId: string, requirementIds: string[]): Promise<void> {
+  return put(`/project/documents/${docId}/requirements`, { requirementIds })
 }

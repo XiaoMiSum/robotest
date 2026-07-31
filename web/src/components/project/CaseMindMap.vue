@@ -7,10 +7,11 @@
  */
 import { onMounted, onBeforeUnmount, ref, watch, computed, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
-import { fetchDocumentNodes } from '@/services/project'
+import { fetchDocumentNodes, getDocumentRequirements, setDocumentRequirements } from '@/services/project'
 import { getAccessToken } from '@/services'
 import type { AiGeneratedNode, DocumentLayout } from '@/types'
 import { useAiStore } from '@/stores/ai'
+import { useAuthStore } from '@/stores/auth'
 import * as Y from 'yjs'
 import { WebsocketProvider } from 'y-websocket'
 // window.kity / window.kityminder 的类型声明在 minder/types.ts 中统一维护
@@ -27,6 +28,8 @@ import AiGeneratePanel from './minder/ai/AiGeneratePanel.vue'
 import AiCommandBar from './minder/ai/AiCommandBar.vue'
 import { mountGeneratedNodes, type MountTargetSource } from './minder/ai/aiMount'
 import type { AiPanelMode } from './minder/ai/aiPanelModes'
+import RequirementSelector from './RequirementSelector.vue'
+import type { RequirementSummary } from '@/types'
 
 const props = defineProps<{ docId: string }>()
 
@@ -70,6 +73,32 @@ const priorities = ['P0', 'P1', 'P2', 'P3']
 // ==================== AI 生成用例（US-AI-001/002/016） ====================
 // 入口显隐由工作空间级 AI 开关控制（stores/ai 缓存 status，未启用隐藏全部 AI 入口）
 const aiStore = useAiStore()
+const authStore = useAuthStore()
+
+// ==================== 需求关联（US-AI-004，不受 AI 开关控制） ====================
+const canManageRequirements = computed(() => authStore.hasPermission('requirement:view'))
+const reqSelectorVisible = ref(false)
+const associatedReqIds = ref<string[]>([])
+
+async function openRequirementSelector() {
+  try {
+    const list = await getDocumentRequirements(props.docId)
+    associatedReqIds.value = list.map((r) => r.id)
+    reqSelectorVisible.value = true
+  } catch (err) {
+    ElMessage.error(err instanceof Error ? err.message : '加载关联需求失败')
+  }
+}
+
+async function handleRequirementConfirm(selected: RequirementSummary[]) {
+  try {
+    await setDocumentRequirements(props.docId, selected.map((r) => r.id))
+    associatedReqIds.value = selected.map((r) => r.id)
+    ElMessage.success('已更新文档关联需求')
+  } catch (err) {
+    ElMessage.error(err instanceof Error ? err.message : '保存关联失败')
+  }
+}
 
 const aiPanelVisible = ref(false)
 const aiPanelMode = ref<AiPanelMode>('generate')
@@ -733,6 +762,15 @@ onBeforeUnmount(() => {
           @click="markPriority(p)"
         >{{ p }}</el-button>
       </div>
+      <!-- 需求关联入口：不受 AI 开关控制，按 requirement:view 显隐（US-AI-004 6.3） -->
+      <template v-if="canManageRequirements">
+        <el-divider direction="vertical" />
+        <div class="toolbar-group">
+          <el-button size="small" text @click="openRequirementSelector">
+            <el-icon><Link /></el-icon><span>关联需求</span>
+          </el-button>
+        </div>
+      </template>
       <!-- AI 入口：工作空间 AI 未启用时整组隐藏（交互设计 1.1/5.2） -->
       <template v-if="aiStore.aiEnabled">
         <el-divider direction="vertical" />
@@ -847,6 +885,14 @@ onBeforeUnmount(() => {
         @node-click="handleAiReselect"
       />
     </el-dialog>
+
+    <!-- 文档关联需求条目选取器（US-AI-004 6.3） -->
+    <RequirementSelector
+      v-if="reqSelectorVisible"
+      v-model="reqSelectorVisible"
+      :selected-ids="associatedReqIds"
+      @confirm="handleRequirementConfirm"
+    />
   </div>
 </template>
 
