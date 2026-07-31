@@ -3,11 +3,15 @@ package io.github.xiaomisum.robotest.service.project;
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.model.dto.request.requirement.RequirementCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.requirement.RequirementUpdateReqDTO;
+import io.github.xiaomisum.robotest.model.entity.requirement.DocumentRequirementRel;
 import io.github.xiaomisum.robotest.model.entity.requirement.RequirementPoolItem;
+import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseModule;
 import io.github.xiaomisum.robotest.model.entity.workspace.Project;
 import io.github.xiaomisum.robotest.model.entity.workspace.WorkspaceUser;
 import io.github.xiaomisum.robotest.repository.admin.SysUserMapper;
+import io.github.xiaomisum.robotest.repository.requirement.DocumentRequirementRelMapper;
 import io.github.xiaomisum.robotest.repository.requirement.RequirementPoolItemMapper;
+import io.github.xiaomisum.robotest.repository.tcase.TestCaseModuleMapper;
 import io.github.xiaomisum.robotest.repository.workspace.ProjectMapper;
 import io.github.xiaomisum.robotest.repository.workspace.WorkspaceUserMapper;
 import io.github.xiaomisum.robotest.service.ai.AiConfigService;
@@ -20,11 +24,15 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import xyz.migoo.framework.common.exception.ServiceException;
 
+import java.util.List;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -36,9 +44,14 @@ class RequirementServiceImplTest {
     private static final UUID CREATOR_ID = UUID.randomUUID();
     private static final UUID OTHER_ID = UUID.randomUUID();
     private static final UUID ITEM_ID = UUID.randomUUID();
+    private static final UUID DOC_ID = UUID.randomUUID();
 
     @Mock
     private RequirementPoolItemMapper requirementMapper;
+    @Mock
+    private DocumentRequirementRelMapper documentRequirementRelMapper;
+    @Mock
+    private TestCaseModuleMapper testCaseModuleMapper;
     @Mock
     private SysUserMapper userMapper;
     @Mock
@@ -159,5 +172,92 @@ class RequirementServiceImplTest {
         when(requirementMapper.selectById(ITEM_ID)).thenReturn(item(PROJECT_ID, CREATOR_ID));
         stubMember(OTHER_ID, Constants.WorkspaceRole.MEMBER_ID);
         assertThrows(ServiceException.class, () -> service.delete(ITEM_ID, PROJECT_ID, OTHER_ID));
+    }
+
+    // ==================== 文档关联（3.1.5） ====================
+
+    private TestCaseModule document(UUID projectId) {
+        TestCaseModule module = new TestCaseModule();
+        module.setId(DOC_ID);
+        module.setProjectId(projectId);
+        module.setType(Constants.ModuleType.DOCUMENT);
+        return module;
+    }
+
+    private DocumentRequirementRel rel(UUID requirementId) {
+        DocumentRequirementRel r = new DocumentRequirementRel();
+        r.setDocumentId(DOC_ID);
+        r.setRequirementId(requirementId);
+        return r;
+    }
+
+    @Test
+    void getDocumentRequirements_crossProjectDoc_throwsDocNotFound() {
+        when(testCaseModuleMapper.selectById(DOC_ID)).thenReturn(document(UUID.randomUUID()));
+        assertThrows(ServiceException.class, () -> service.getDocumentRequirements(DOC_ID, PROJECT_ID));
+    }
+
+    @Test
+    void getDocumentRequirements_skipsDeletedItems() {
+        when(testCaseModuleMapper.selectById(DOC_ID)).thenReturn(document(PROJECT_ID));
+        UUID reqA = UUID.randomUUID();
+        UUID reqB = UUID.randomUUID();
+        when(documentRequirementRelMapper.listByDocumentId(DOC_ID)).thenReturn(List.of(rel(reqA), rel(reqB)));
+        // reqB 已被逻辑删除：selectBatchIds 只返回 reqA
+        RequirementPoolItem a = item(PROJECT_ID, CREATOR_ID);
+        a.setId(reqA);
+        a.setTitle("条目A");
+        when(requirementMapper.selectBatchIds(anyList())).thenReturn(List.of(a));
+
+        var result = service.getDocumentRequirements(DOC_ID, PROJECT_ID);
+        org.junit.jupiter.api.Assertions.assertEquals(1, result.size());
+        org.junit.jupiter.api.Assertions.assertEquals(reqA, result.get(0).getId());
+    }
+
+    @Test
+    void setDocumentRequirements_requirementCrossProject_throwsNotFound() {
+        when(testCaseModuleMapper.selectById(DOC_ID)).thenReturn(document(PROJECT_ID));
+        UUID reqId = UUID.randomUUID();
+        RequirementPoolItem foreign = item(UUID.randomUUID(), CREATOR_ID);
+        foreign.setId(reqId);
+        when(requirementMapper.selectById(reqId)).thenReturn(foreign);
+        assertThrows(ServiceException.class,
+                () -> service.setDocumentRequirements(DOC_ID, PROJECT_ID, List.of(reqId)));
+    }
+
+    @Test
+    void setDocumentRequirements_diffAddsAndRemovesKeepingExisting() {
+        when(testCaseModuleMapper.selectById(DOC_ID)).thenReturn(document(PROJECT_ID));
+        UUID keep = UUID.randomUUID();
+        UUID add = UUID.randomUUID();
+        UUID remove = UUID.randomUUID();
+        // 目标 = {keep, add}，现存 = {keep, remove} → 新增 add、删除 remove、保留 keep
+        for (UUID id : List.of(keep, add)) {
+            RequirementPoolItem it = item(PROJECT_ID, CREATOR_ID);
+            it.setId(id);
+            when(requirementMapper.selectById(id)).thenReturn(it);
+        }
+        when(documentRequirementRelMapper.listByDocumentId(DOC_ID)).thenReturn(List.of(rel(keep), rel(remove)));
+
+        service.setDocumentRequirements(DOC_ID, PROJECT_ID, List.of(keep, add));
+
+        // 删除多余：remove
+        ArgumentCaptor<List<UUID>> removeCaptor = ArgumentCaptor.forClass(List.class);
+        verify(documentRequirementRelMapper).deleteByDocumentIdAndRequirementIds(any(), removeCaptor.capture());
+        org.junit.jupiter.api.Assertions.assertEquals(List.of(remove), removeCaptor.getValue());
+        // 仅新增缺失的 add（keep 保留不动）
+        verify(documentRequirementRelMapper, times(1)).insert(any(DocumentRequirementRel.class));
+    }
+
+    @Test
+    void setDocumentRequirements_emptyTarget_removesAllNoInsert() {
+        when(testCaseModuleMapper.selectById(DOC_ID)).thenReturn(document(PROJECT_ID));
+        UUID existing = UUID.randomUUID();
+        when(documentRequirementRelMapper.listByDocumentId(DOC_ID)).thenReturn(List.of(rel(existing)));
+
+        service.setDocumentRequirements(DOC_ID, PROJECT_ID, List.of());
+
+        verify(documentRequirementRelMapper).deleteByDocumentIdAndRequirementIds(any(), any());
+        verify(documentRequirementRelMapper, never()).insert(any(DocumentRequirementRel.class));
     }
 }
