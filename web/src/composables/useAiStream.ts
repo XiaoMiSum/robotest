@@ -27,6 +27,32 @@ export interface AiStreamController {
 const API_BASE = '/api'
 
 /**
+ * 解析单个 SSE 帧文本为事件对象。注释行（心跳 ping）与无 data 帧返回 null。
+ * data 优先按 JSON 解析，失败原样返回文本。抽为纯函数以便单测。
+ */
+export function parseSseFrame(rawFrame: string): AiStreamEvent | null {
+  let eventName = 'message'
+  const dataLines: string[] = []
+  for (const line of rawFrame.split('\n')) {
+    if (line.startsWith(':')) continue // 注释行（心跳 ping）
+    if (line.startsWith('event:')) {
+      eventName = line.slice(6).trim()
+    } else if (line.startsWith('data:')) {
+      dataLines.push(line.slice(5).trim())
+    }
+  }
+  if (dataLines.length === 0) return null
+  const dataText = dataLines.join('\n')
+  let data: unknown = dataText
+  try {
+    data = JSON.parse(dataText)
+  } catch {
+    // 非 JSON 数据原样透传
+  }
+  return { event: eventName, data }
+}
+
+/**
  * 基于 fetch + ReadableStream 解析 SSE 帧的公共组合式函数（3.1 统一帧格式）。
  *
  * 自动注入 Authorization 与 X-Active-Workspace / X-Active-Project 头，支持取消；
@@ -88,25 +114,8 @@ export function useAiStream(options: UseAiStreamOptions): AiStreamController {
   }
 
   function dispatchFrame(rawFrame: string): void {
-    let eventName = 'message'
-    const dataLines: string[] = []
-    for (const line of rawFrame.split('\n')) {
-      if (line.startsWith(':')) continue // 注释行（心跳 ping）
-      if (line.startsWith('event:')) {
-        eventName = line.slice(6).trim()
-      } else if (line.startsWith('data:')) {
-        dataLines.push(line.slice(5).trim())
-      }
-    }
-    if (dataLines.length === 0) return
-    const dataText = dataLines.join('\n')
-    let data: unknown = dataText
-    try {
-      data = JSON.parse(dataText)
-    } catch {
-      // 非 JSON 数据原样透传
-    }
-    options.onEvent({ event: eventName, data })
+    const parsed = parseSseFrame(rawFrame)
+    if (parsed) options.onEvent(parsed)
   }
 
   return {
