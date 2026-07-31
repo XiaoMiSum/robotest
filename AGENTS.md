@@ -66,6 +66,7 @@ bash scripts/deploy-merged.sh
 - [ ] 所有异常使用 `BusinessException`（C3）
 - [ ] 上下文头未出现在 URL 中（C4）
 - [ ] 若涉及数据库，包含迁移说明并确认无物理外键（C5）
+- [ ] 若涉及数据库，索引符合规范（C9）
 - [ ] 注释只写 why（C6）
 - [ ] 提交信息符合格式（C7）
 
@@ -78,8 +79,9 @@ bash scripts/deploy-merged.sh
 | 编号  | 规则                                                    | 检查方式      |
 | --- | ----------------------------------------------------- | --------- |
 | C4  | 上下文标识（如 workspaceId）**禁止**出现在 URL 或请求体中，仅通过请求头传递      | 代码审查      |
-| C5  | 数据库每表必须有 `id`（自增或雪花）、`created_at`、`updated_at`，禁止物理外键 | 数据库审查     |
+| C5  | 数据库每表必须有 `id`（自增或雪花）、`created_at`、`updated_at`、`is_deleted`（逻辑删除），禁止物理外键 | 数据库审查     |
 | C7  | Git 提交格式：`<type>(<scope>): <description>`，一个提交只做一件事   | 审查 squash |
+| C9  | 索引规范：关联字段（逻辑外键）与高频查询条件字段必须建索引，联合索引将区分度高的字段放左侧，单表索引不超过 5 个 | 数据库审查     |
 
 > 端专属约定（C1 前端类型安全、C2 Controller 职责、C3 异常规范、C6 注释规范、C8 覆盖率）及编码示例见各端 `AGENTS.md`。
 > 详细规范索引：`docs/spec/overview.md`、`docs/spec/backend.md`、`docs/spec/frontend.md`、`docs/spec/api.md`、`docs/spec/security.md`、`docs/spec/database.md`、`docs/spec/deploy.md`、`docs/spec/quality.md`、`docs/spec/workflow.md`。
@@ -124,7 +126,7 @@ bash scripts/deploy-merged.sh
    - 手动测试关键路径（使用 `curl` 或前端界面，参考 `docs/spec/deploy.md` 中的示例）。
 
 6. **自检**  
-   - 逐条核对核心约定（C1–C8），确认未引入违规。  
+   - 逐条核对核心约定（C1–C9），确认未引入违规。  
    - 确认 API 文档（SpringDoc）是否需要更新（后端变更时）。
 
 7. **交付**  
@@ -141,7 +143,7 @@ bash scripts/deploy-merged.sh
 ### 变更摘要
 - [文件列表及变更说明]
 
-### 自检清单（C1–C8）
+### 自检清单（C1–C9）
 - [ ] C1 无 `any`（前端）
 - [ ] C2 无业务逻辑在 Controller
 - [ ] C3 异常使用 BusinessException
@@ -150,6 +152,7 @@ bash scripts/deploy-merged.sh
 - [ ] C6 注释只写 why
 - [ ] C7 提交格式 `<emoji> <type>(<scope>): <description>`
 - [ ] C8 覆盖率达标
+- [ ] C9 索引符合规范
 
 ### 已执行验证
 - [ ] lint 通过
