@@ -1,7 +1,9 @@
 package io.github.xiaomisum.robotest.controller.admin;
 
 import io.github.xiaomisum.robotest.model.dto.request.ai.AiConfigSaveReqDTO;
+import io.github.xiaomisum.robotest.model.dto.request.ai.AiConfigTestReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiConfigRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.ai.AiConnectivityTestRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiProviderPresetRespDTO;
 import io.github.xiaomisum.robotest.service.ai.AiConfigService;
 import io.github.xiaomisum.robotest.service.ai.ProviderPresetRegistry;
@@ -32,6 +34,12 @@ public class AiConfigController {
     @PreAuthorize("hasAuthority('ai:edit')")
     public Result<AiConfigRespDTO> saveConfig(@RequestBody @Valid AiConfigSaveReqDTO reqDTO) {
         return Result.ok(aiConfigService.saveConfig(reqDTO));
+    }
+
+    @PostMapping("/config/test")
+    @PreAuthorize("hasAuthority('ai:edit')")
+    public Result<AiConnectivityTestRespDTO> testConnectivity(@RequestBody @Valid AiConfigTestReqDTO reqDTO) {
+        return Result.ok(aiConfigService.testConnectivity(reqDTO));
     }
 
     @GetMapping("/providers")
