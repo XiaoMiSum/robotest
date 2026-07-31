@@ -115,6 +115,53 @@
     </build>
 
 
+    <profiles>
+        <!-- 本地开发（默认激活） -->
+        <profile>
+            <id>dev</id>
+            <activation>
+                <activeByDefault>true</activeByDefault>
+            </activation>
+        </profile>
+        <!-- 分离部署生产构建（方案A）：产物为纯后端 jar -->
+        <profile>
+            <id>prod</id>
+        </profile>
+        <!-- 合并打包部署构建（方案B）：static/ 已由 scripts/deploy-merged.sh 复制前端产物，
+             打包前校验 index.html 存在，防止漏复制打出无前端资源的空 jar -->
+        <profile>
+            <id>merged</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-enforcer-plugin</artifactId>
+                        <version>3.5.0</version>
+                        <executions>
+                            <execution>
+                                <id>check-frontend-assets</id>
+                                <phase>validate</phase>
+                                <goals>
+                                    <goal>enforce</goal>
+                                </goals>
+                                <configuration>
+                                    <rules>
+                                        <requireFilesExist>
+                                            <files>
+                                                <file>${project.basedir}/src/main/resources/static/index.html</file>
+                                            </files>
+                                            <message>merged profile 要求 src/main/resources/static/index.html 存在，请先运行 bash scripts/deploy-merged.sh 复制前端构建产物</message>
+                                        </requireFilesExist>
+                                    </rules>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
+
     <repositories>
         <repository>
             <id>central</id>
