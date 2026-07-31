@@ -1,0 +1,39 @@
+# scripts/nginx.conf.example — 分离部署（方案A）Nginx 配置示例
+# 前端静态资源部署至 /var/www/html（即 dist-deploy/web/ 的内容），
+# 后端服务地址通过 upstream 配置（示例为 backend:8080）。
+
+upstream backend {
+    server 127.0.0.1:8080;
+}
+
+server {
+    listen 80;
+    server_name _;
+
+    # API 请求反向代理至后端
+    location /api/ {
+        proxy_pass http://backend;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # WebSocket（Yjs 实时协作）需要 Upgrade 头透传
+    location /ws/ {
+        proxy_pass http://backend;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        # 协同编辑长连接，避免默认 60s 空闲被 Nginx 掐断
+        proxy_read_timeout 3600s;
+        proxy_send_timeout 3600s;
+    }
+
+    # SPA 前端路由回退到 index.html
+    location / {
+        root /var/www/html;
+        try_files $uri $uri/ /index.html;
+    }
+}
