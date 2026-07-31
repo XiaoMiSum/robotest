@@ -73,6 +73,9 @@ const aiStore = useAiStore()
 
 const aiPanelVisible = ref(false)
 const aiPanelMode = ref<AiPanelMode>('generate')
+// 每次打开动作自增并并入组件 key：抽屉非模态，打开期间仍可从工具栏/右键再次发起，
+// 仅靠 mode 作 key 时同模式重复打开不会重建，旧输入/旧预览会残留并挂到新目标
+const aiPanelSession = ref(0)
 /** 导入模式经 AI 指令输入区带入的原文 */
 const aiInitialText = ref('')
 const aiCommandBarVisible = ref(false)
@@ -118,6 +121,7 @@ function openAiPanel() {
   aiPanelMode.value = 'generate'
   aiInitialText.value = ''
   aiPendingNodes.value = null
+  aiPanelSession.value++
   aiPanelVisible.value = true
 }
 
@@ -133,6 +137,7 @@ function openAiCompletePanel() {
   aiPanelMode.value = 'complete'
   aiInitialText.value = ''
   aiPendingNodes.value = null
+  aiPanelSession.value++
   aiPanelVisible.value = true
 }
 
@@ -149,6 +154,7 @@ function handleAiImportExecute(text: string) {
   aiInitialText.value = text
   aiPendingNodes.value = null
   aiCommandBarVisible.value = false
+  aiPanelSession.value++
   aiPanelVisible.value = true
 }
 
@@ -821,7 +827,7 @@ onBeforeUnmount(() => {
     <!-- AI 生成抽屉：非模态，预览-确认阶段可继续编辑脑图（交互设计 2.2）；key 保证模式切换重建 -->
     <AiGeneratePanel
       v-if="aiPanelVisible"
-      :key="aiPanelMode"
+      :key="`${aiPanelMode}-${aiPanelSession}`"
       v-model="aiPanelVisible"
       :mode="aiPanelMode"
       :doc-id="props.docId"
