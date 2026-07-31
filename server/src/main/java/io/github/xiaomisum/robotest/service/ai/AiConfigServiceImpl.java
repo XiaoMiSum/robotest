@@ -4,7 +4,9 @@ import io.github.xiaomisum.robotest.framework.audit.AuditOperation;
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.model.dto.request.ai.AiConfigSaveReqDTO;
+import io.github.xiaomisum.robotest.model.dto.request.ai.AiConfigTestReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiConfigRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.ai.AiConnectivityTestRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiStatusRespDTO;
 import io.github.xiaomisum.robotest.model.entity.ai.AiAnalysisTask;
 import io.github.xiaomisum.robotest.model.entity.ai.AiConfig;
@@ -15,6 +17,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
+import xyz.migoo.framework.common.exception.ServiceException;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
 import xyz.migoo.framework.mybatis.core.LambdaUpdateWrapperX;
 
@@ -64,6 +67,8 @@ public class AiConfigServiceImpl implements AiConfigService {
     private AiAnalysisTaskMapper aiAnalysisTaskMapper;
     @Resource
     private ProviderPresetRegistry presetRegistry;
+    @Resource
+    private OpenAiCompatProvider openAiCompatProvider;
 
     @Value("${robotest.ai.secret-key:}")
     private String secretKeyBase64;
@@ -163,6 +168,103 @@ public class AiConfigServiceImpl implements AiConfigService {
         return before == null
                 || !Objects.equals(before.getEmbeddingModel(), after.getEmbeddingModel())
                 || !Objects.equals(before.getEmbeddingDimension(), after.getEmbeddingDimension());
+    }
+
+    @Override
+    public AiConnectivityTestRespDTO testConnectivity(AiConfigTestReqDTO reqDTO) {
+        AiConnectivityTestRespDTO resp = new AiConnectivityTestRespDTO();
+        long start = System.currentTimeMillis();
+        try {
+            if (ProviderPresetRegistry.SCOPE_EMBEDDING.equals(reqDTO.getTarget())) {
+                testEmbedding(resolveEmbeddingForTest(reqDTO.getEmbedding()), resp);
+            } else {
+                testChat(resolveChatForTest(reqDTO.getChat()), resp);
+            }
+            resp.setOk(true);
+        } catch (ServiceException e) {
+            throw e;
+        } catch (Exception e) {
+            resp.setOk(false);
+            resp.setDetail(truncateDetail(e.getMessage()));
+        }
+        resp.setLatencyMs(System.currentTimeMillis() - start);
+        return resp;
+    }
+
+    private void testChat(ResolvedAiConfig config, AiConnectivityTestRespDTO resp) {
+        openAiCompatProvider.complete(config,
+                List.of(AiModels.ChatMessage.user("ping")),
+                new AiModels.ChatCallOptions(16, null, false, null));
+        // 顺带探测 response_format 结构化参数支持情况，结果仅作提示不阻断保存
+        boolean jsonSupported;
+        try {
+            openAiCompatProvider.complete(config,
+                    List.of(AiModels.ChatMessage.user("回复 JSON 对象 {\"ok\":true}")),
+                    new AiModels.ChatCallOptions(16, null, true, null));
+            jsonSupported = true;
+        } catch (Exception e) {
+            jsonSupported = false;
+        }
+        resp.setDetail(jsonSupported ? "连通正常，支持结构化输出参数（response_format）"
+                : "连通正常，未探测到结构化输出参数支持，结构化功能将依赖输出校验");
+    }
+
+    private void testEmbedding(ResolvedAiConfig config, AiConnectivityTestRespDTO resp) {
+        AiModels.EmbedResult result = openAiCompatProvider.embed(config, List.of("connectivity test"));
+        int actual = result.vectors().isEmpty() ? 0 : result.vectors().getFirst().length;
+        if (actual != config.embeddingDimension()) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_EMBEDDING_DIMENSION_INVALID);
+        }
+        resp.setDetail("连通正常，向量维度 " + actual + " 与配置一致");
+    }
+
+    /**
+     * 测试目标配置：请求附带的临时配置优先，缺省字段回退已保存配置（密钥回退已存密文解密）
+     */
+    private ResolvedAiConfig resolveChatForTest(AiConfigSaveReqDTO.ChatGroup override) {
+        byte[] secretKey = AiCryptoUtil.parseKey(secretKeyBase64);
+        AiConfig saved = aiConfigMapper.findActive();
+        String baseUrl = override != null && StringUtils.hasText(override.getBaseUrl())
+                ? override.getBaseUrl() : saved != null ? saved.getChatBaseUrl() : null;
+        String model = override != null && StringUtils.hasText(override.getModel())
+                ? override.getModel() : saved != null ? saved.getChatModel() : null;
+        Map<String, Object> extraParams = override != null && override.getExtraParams() != null
+                ? override.getExtraParams()
+                : saved != null && saved.getChatExtraParams() != null ? saved.getChatExtraParams() : Map.of();
+        String apiKey = override != null && StringUtils.hasText(override.getApiKey()) ? override.getApiKey()
+                : saved != null && secretKey != null ? AiCryptoUtil.decrypt(secretKey, saved.getChatApiKeyCipher()) : null;
+        if (!StringUtils.hasText(baseUrl) || !StringUtils.hasText(model) || !StringUtils.hasText(apiKey)) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.VALIDATION_FAILED);
+        }
+        return new ResolvedAiConfig(null, baseUrl, apiKey, model, extraParams,
+                null, null, null, null, null, Map.of());
+    }
+
+    private ResolvedAiConfig resolveEmbeddingForTest(AiConfigSaveReqDTO.EmbeddingGroup override) {
+        byte[] secretKey = AiCryptoUtil.parseKey(secretKeyBase64);
+        AiConfig saved = aiConfigMapper.findActive();
+        String baseUrl = override != null && StringUtils.hasText(override.getBaseUrl())
+                ? override.getBaseUrl() : saved != null ? saved.getEmbeddingBaseUrl() : null;
+        String model = override != null && StringUtils.hasText(override.getModel())
+                ? override.getModel() : saved != null ? saved.getEmbeddingModel() : null;
+        Integer dimension = override != null && override.getDimension() != null
+                ? override.getDimension() : saved != null ? saved.getEmbeddingDimension() : null;
+        Map<String, Object> extraParams = override != null && override.getExtraParams() != null
+                ? override.getExtraParams()
+                : saved != null && saved.getEmbeddingExtraParams() != null ? saved.getEmbeddingExtraParams() : Map.of();
+        String apiKey = override != null && StringUtils.hasText(override.getApiKey()) ? override.getApiKey()
+                : saved != null && secretKey != null && StringUtils.hasText(saved.getEmbeddingApiKeyCipher())
+                ? AiCryptoUtil.decrypt(secretKey, saved.getEmbeddingApiKeyCipher()) : null;
+        if (!StringUtils.hasText(baseUrl) || !StringUtils.hasText(model)
+                || dimension == null || !StringUtils.hasText(apiKey)) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.VALIDATION_FAILED);
+        }
+        return new ResolvedAiConfig(null, null, null, null, Map.of(),
+                null, baseUrl, apiKey, model, dimension, extraParams);
+    }
+
+    private String truncateDetail(String detail) {
+        return detail != null && detail.length() > 300 ? detail.substring(0, 300) : detail;
     }
 
     @Override
