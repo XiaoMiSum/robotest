@@ -73,6 +73,17 @@ migoo:
       - /api/workspace/invitations/join
       - /ws/**
       - /debug/**
+      # 合并部署（方案B）：SPA 页面壳与静态资源需匿名访问，数据接口仍由 /api 鉴权保护
+      - /
+      - /index.html
+      - /favicon.ico
+      - /assets/**
+      - /login
+      - /init
+      - /join
+      - /admin/**
+      - /workspaces
+      - /workspace/**
 
 # MyBatis Plus 配置
 mybatis-plus:
