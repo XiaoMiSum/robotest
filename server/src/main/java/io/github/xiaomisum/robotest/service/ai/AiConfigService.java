@@ -7,6 +7,7 @@ import io.github.xiaomisum.robotest.model.dto.response.ai.AiConnectivityTestResp
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiStatusRespDTO;
 
 import java.util.Map;
+import java.util.UUID;
 
 public interface AiConfigService {
 
@@ -16,9 +17,12 @@ public interface AiConfigService {
     AiConfigRespDTO getConfig();
 
     /**
-     * 保存 AI 配置（updated_at 乐观并发；Embedding 模型/维度变更触发向量重建联动）
+     * 保存 AI 配置（updated_at 乐观并发；Embedding 模型/维度变更触发向量重建联动，
+     * 总开关关闭联动取消全部进行中任务）
+     *
+     * @param operatorId 保存操作的管理员（embedding_rebuild 任务 created_by 归属）
      */
-    AiConfigRespDTO saveConfig(AiConfigSaveReqDTO reqDTO);
+    AiConfigRespDTO saveConfig(AiConfigSaveReqDTO reqDTO, UUID operatorId);
 
     /**
      * 连通性测试：chat 最小对话 + 结构化参数探测 / embedding 维度核验；失败以业务结果返回

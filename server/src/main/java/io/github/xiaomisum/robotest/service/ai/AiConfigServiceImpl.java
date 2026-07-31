@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.UUID;
 
 @Service
 public class AiConfigServiceImpl implements AiConfigService {
@@ -69,6 +70,8 @@ public class AiConfigServiceImpl implements AiConfigService {
     private ProviderPresetRegistry presetRegistry;
     @Resource
     private OpenAiCompatProvider openAiCompatProvider;
+    @Resource
+    private AiTaskService aiTaskService;
 
     @Value("${robotest.ai.secret-key:}")
     private String secretKeyBase64;
@@ -85,7 +88,7 @@ public class AiConfigServiceImpl implements AiConfigService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     @AuditOperation(operation = "UPDATE", entityType = "AiConfig", logParams = false)
-    public AiConfigRespDTO saveConfig(AiConfigSaveReqDTO reqDTO) {
+    public AiConfigRespDTO saveConfig(AiConfigSaveReqDTO reqDTO, UUID operatorId) {
         byte[] secretKey = AiCryptoUtil.parseKey(secretKeyBase64);
         if (secretKey == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_NOT_ENABLED);
@@ -155,6 +158,14 @@ public class AiConfigServiceImpl implements AiConfigService {
                     reqDTO.getExpectedUpdatedAt() != null ? reqDTO.getExpectedUpdatedAt() : existing.getUpdatedAt());
         }
         invalidateCache();
+
+        // 联动：总开关关闭 → 全部进行中任务置 cancelled（4.6）
+        if (!Boolean.TRUE.equals(reqDTO.getEnabled())) {
+            aiTaskService.cancelAllInProgress();
+        } else if (isEmbeddingChanged(existing, config)) {
+            // 联动：Embedding 模型/维度变更 → 覆盖式创建全局重建任务并进入语义降级（4.10）
+            aiTaskService.createTask(Constants.AiTaskType.EMBEDDING_REBUILD, null, null, null, operatorId);
+        }
         return getConfig();
     }
 
