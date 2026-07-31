@@ -2,7 +2,8 @@
 
 > 本文件为 AI 编程助手（及人类开发者）的快速参考指南。  
 > 详细规范请查阅 `docs/spec/` 目录下的对应文档。  
-> 端专属约定见 `web/AGENTS.md` 与 `server/AGENTS.md`。
+> 端专属约定见 `web/AGENTS.md` 与 `server/AGENTS.md`。  
+> 文档管理与版本规范见 `docs/AGENTS.md`（文档专用 AGENT）。
 
 ---
 
