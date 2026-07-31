@@ -2,6 +2,16 @@ import api from '@/services'
 import type {
   AdminUser,
   AdminWorkspace,
+  AiAgent,
+  AiAgentDetail,
+  AiAgentSavePayload,
+  AiConfig,
+  AiConfigSavePayload,
+  AiConfigTestPayload,
+  AiConnectivityTestResult,
+  AiProviderPreset,
+  AiStatistics,
+  AiTask,
   PageResult,
   PermissionModule,
   RoleDetail,
@@ -183,4 +193,54 @@ export function removeWorkspaceRoleUser(roleId: string, userId: string, workspac
 
 export function fetchPermissionTable(roleType?: string): Promise<PermissionModule[]> {
   return get('/admin/roles/permissions/table', { roleType })
+}
+
+// ==================== AI 配置与智能体（管理端） ====================
+
+export function fetchAiConfig(): Promise<AiConfig | null> {
+  return get('/admin/ai/config')
+}
+
+export function saveAiConfig(data: AiConfigSavePayload): Promise<AiConfig> {
+  return put('/admin/ai/config', data)
+}
+
+export function testAiConnectivity(data: AiConfigTestPayload): Promise<AiConnectivityTestResult> {
+  return post('/admin/ai/config/test', data)
+}
+
+export function fetchAiProviders(): Promise<AiProviderPreset[]> {
+  return get('/admin/ai/providers')
+}
+
+export function fetchAiStatistics(params: {
+  startDate?: string
+  endDate?: string
+  groupBy?: string
+}): Promise<AiStatistics> {
+  return get('/admin/ai/statistics', { ...params })
+}
+
+export function fetchAiRebuildTask(): Promise<AiTask | null> {
+  return get('/admin/ai/rebuild-task')
+}
+
+export function retryAiRebuildTask(): Promise<void> {
+  return post('/admin/ai/rebuild-task/retry')
+}
+
+export function fetchAiAgents(): Promise<AiAgent[]> {
+  return get('/admin/ai/agents')
+}
+
+export function fetchAiAgentDetail(functionType: string): Promise<AiAgentDetail> {
+  return get(`/admin/ai/agents/${functionType}`)
+}
+
+export function saveAiAgent(functionType: string, data: AiAgentSavePayload): Promise<void> {
+  return put(`/admin/ai/agents/${functionType}`, data)
+}
+
+export function restoreAiAgentDefault(functionType: string): Promise<void> {
+  return del(`/admin/ai/agents/${functionType}`)
 }
