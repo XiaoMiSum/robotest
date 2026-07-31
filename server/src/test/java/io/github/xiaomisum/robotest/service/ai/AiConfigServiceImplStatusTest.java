@@ -14,6 +14,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -32,6 +33,8 @@ class AiConfigServiceImplStatusTest {
     private AiConfigMapper aiConfigMapper;
     @Mock
     private AiAnalysisTaskMapper aiAnalysisTaskMapper;
+    @Mock
+    private AiChatModelService aiChatModelService;
 
     @InjectMocks
     private AiConfigServiceImpl service;
@@ -39,18 +42,18 @@ class AiConfigServiceImplStatusTest {
     @BeforeEach
     void setUp() {
         ReflectionTestUtils.setField(service, "secretKeyBase64", KEY_BASE64);
+        // settings 元数据用真实注册表（默认值/校验依赖真实定义）
+        ReflectionTestUtils.setField(service, "settingDefinitions", new AiSettingDefinitions());
+        // 默认存在一个已启用对话模型（多数场景 enabled 的前置条件之一）
+        lenient().when(aiChatModelService.listEnabledForStatus())
+                .thenReturn(List.of(new AiStatusRespDTO.ChatModelView("m1", "GPT-4o", true)));
     }
 
     private AiConfig enabledConfig(boolean withEmbedding) {
         AiConfig config = new AiConfig();
         config.setEnabled(true);
-        config.setChatProvider("openai");
-        config.setChatBaseUrl("https://api.openai.com/v1");
-        config.setChatModel("gpt-4o");
-        // 用真实密钥加密，getResolvedConfig 解密成功
-        byte[] key = AiCryptoUtil.parseKey(KEY_BASE64);
-        config.setChatApiKeyCipher(AiCryptoUtil.encrypt(key, "sk-test"));
         if (withEmbedding) {
+            byte[] key = AiCryptoUtil.parseKey(KEY_BASE64);
             config.setEmbeddingBaseUrl("https://api.openai.com/v1");
             config.setEmbeddingModel("text-embedding-3-small");
             config.setEmbeddingDimension(1536);
@@ -84,11 +87,21 @@ class AiConfigServiceImplStatusTest {
     }
 
     @Test
+    void status_noEnabledChatModelReturnsDisabled() {
+        // 配置启用且密钥有效，但无已启用对话模型 → 视为不可用（4.10）
+        when(aiConfigMapper.findActive()).thenReturn(enabledConfig(true));
+        when(aiChatModelService.listEnabledForStatus()).thenReturn(List.of());
+        AiStatusRespDTO status = service.getStatus();
+        assertFalse(status.getEnabled());
+    }
+
+    @Test
     void status_embeddingNotConfiguredUnavailable() {
         when(aiConfigMapper.findActive()).thenReturn(enabledConfig(false));
         AiStatusRespDTO status = service.getStatus();
         assertTrue(status.getEnabled());
         assertEquals(Constants.AiSemanticSearch.UNAVAILABLE, status.getSemanticSearch());
+        assertEquals(1, status.getChatModels().size());
     }
 
     @Test
