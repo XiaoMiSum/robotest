@@ -137,4 +137,63 @@ class AiNodeTreeAssertsTest {
         assertThrows(OutputValidationException.class,
                 () -> AiNodeTreeAsserts.normalizeAndAssertTree(nodes));
     }
+
+    // ==================== 完整树 allowEmpty 模式（文本导入，设计 4.5） ====================
+
+    @Test
+    void emptyNodes_allowedInImportMode() {
+        assertTrue(AiNodeTreeAsserts.normalizeAndAssertTree(List.of(), true).isEmpty());
+        assertTrue(AiNodeTreeAsserts.normalizeAndAssertTree(null, true).isEmpty());
+    }
+
+    @Test
+    void importMode_stillAssertsStructure() {
+        List<AiNodeTreeDTO> nodes = List.of(node("step", "游离步骤", null));
+        assertThrows(OutputValidationException.class,
+                () -> AiNodeTreeAsserts.normalizeAndAssertTree(nodes, true));
+    }
+
+    // ==================== 补全步骤扁平模式（2.2 补全场景约束） ====================
+
+    @Test
+    void flatSteps_validPasses() {
+        List<AiNodeTreeDTO> nodes = List.of(
+                node("step", "输入验证码", null),
+                node("expected", "登录成功", null));
+        assertTrue(AiNodeTreeAsserts.normalizeAndAssertFlatSteps(nodes).isEmpty());
+    }
+
+    @Test
+    void flatSteps_emptyAllowed() {
+        assertTrue(AiNodeTreeAsserts.normalizeAndAssertFlatSteps(List.of()).isEmpty());
+    }
+
+    @Test
+    void flatSteps_caseTypeFails() {
+        List<AiNodeTreeDTO> nodes = List.of(node("case", "新用例", null));
+        assertThrows(OutputValidationException.class,
+                () -> AiNodeTreeAsserts.normalizeAndAssertFlatSteps(nodes));
+    }
+
+    @Test
+    void flatSteps_childrenFails() {
+        List<AiNodeTreeDTO> nodes = List.of(node("step", "步骤", null, node("expected", "预期", null)));
+        assertThrows(OutputValidationException.class,
+                () -> AiNodeTreeAsserts.normalizeAndAssertFlatSteps(nodes));
+    }
+
+    @Test
+    void flatSteps_priorityFails() {
+        List<AiNodeTreeDTO> nodes = List.of(node("step", "步骤", "P1"));
+        assertThrows(OutputValidationException.class,
+                () -> AiNodeTreeAsserts.normalizeAndAssertFlatSteps(nodes));
+    }
+
+    @Test
+    void flatSteps_overlongTitleTruncatedWithWarning() {
+        AiNodeTreeDTO dto = node("expected", "长".repeat(300), null);
+        List<String> warnings = AiNodeTreeAsserts.normalizeAndAssertFlatSteps(List.of(dto));
+        assertEquals(AiNodeTreeAsserts.TITLE_MAX_LENGTH, dto.getTitle().length());
+        assertEquals(1, warnings.size());
+    }
 }
