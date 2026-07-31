@@ -5,11 +5,14 @@ import type {
   AiAgent,
   AiAgentDetail,
   AiAgentSavePayload,
+  AiChatModel,
+  AiChatModelSavePayload,
   AiConfig,
   AiConfigSavePayload,
   AiConfigTestPayload,
   AiConnectivityTestResult,
   AiProviderPreset,
+  AiSettingSchemaGroup,
   AiStatistics,
   AiTask,
   PageResult,
@@ -211,6 +214,36 @@ export function testAiConnectivity(data: AiConfigTestPayload): Promise<AiConnect
 
 export function fetchAiProviders(): Promise<AiProviderPreset[]> {
   return get('/admin/ai/providers')
+}
+
+// ==================== 对话模型管理（3.3.7） ====================
+
+export function fetchAiChatModels(): Promise<AiChatModel[]> {
+  return get('/admin/ai/chat-models')
+}
+
+export function createAiChatModel(data: AiChatModelSavePayload): Promise<AiChatModel> {
+  return post('/admin/ai/chat-models', data)
+}
+
+export function updateAiChatModel(id: string, data: AiChatModelSavePayload): Promise<AiChatModel> {
+  return put(`/admin/ai/chat-models/${id}`, data)
+}
+
+export function deleteAiChatModel(id: string): Promise<void> {
+  return del(`/admin/ai/chat-models/${id}`)
+}
+
+export function setAiChatModelDefault(id: string): Promise<void> {
+  return put(`/admin/ai/chat-models/${id}/default`)
+}
+
+export function setAiChatModelEnabled(id: string, enabled: boolean): Promise<void> {
+  return put(`/admin/ai/chat-models/${id}/enabled`, { enabled })
+}
+
+export function fetchAiSettingsSchema(): Promise<AiSettingSchemaGroup[]> {
+  return get('/admin/ai/settings-schema')
 }
 
 export function fetchAiStatistics(params: {

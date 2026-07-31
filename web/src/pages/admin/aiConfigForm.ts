@@ -1,4 +1,4 @@
-import type { AiProviderPreset, AiProviderUniqueParam } from '@/types'
+import type { AiProviderPreset, AiProviderUniqueParam, AiSettingSchemaItem } from '@/types'
 
 /**
  * AI 配置页供应商切换与 extraParams 合并的纯逻辑（抽离以便单测，见 5.3）。
@@ -85,3 +85,51 @@ export function resolveUniqueParams(
 ): AiProviderUniqueParam[] {
   return preset?.uniqueParams?.[scope] ?? []
 }
+
+/**
+ * 系统配置项表单纯逻辑（抽离以便单测，见详细设计 5.2 系统配置项表单）。
+ */
+
+/** planOrder.weights 三权重之和（非法值按 0 计） */
+export function weightsSum(value: unknown): number {
+  if (typeof value !== 'object' || value === null) return 0
+  const weights = value as Record<string, unknown>
+  return ['w1', 'w2', 'w3'].reduce((sum, key) => sum + (Number(weights[key]) || 0), 0)
+}
+
+/** 配置项当前值是否偏离内置默认值（数值按数值比较，其余按结构比较） */
+export function isSettingModified(item: AiSettingSchemaItem, value: unknown): boolean {
+  if (item.type === 'int' || item.type === 'number') {
+    return Number(value) !== Number(item.defaultValue)
+  }
+  return JSON.stringify(value) !== JSON.stringify(item.defaultValue)
+}
+
+/** 单项即时校验，返回错误文案或 null（越界/类型/权重之和） */
+export function validateSetting(item: AiSettingSchemaItem, value: unknown): string | null {
+  if (item.type === 'int' || item.type === 'number') {
+    const num = Number(value)
+    if (value === null || value === undefined || value === '' || Number.isNaN(num)) {
+      return `${item.label}必须为数字`
+    }
+    if (item.type === 'int' && !Number.isInteger(num)) {
+      return `${item.label}必须为整数`
+    }
+    if (item.min !== null && num < item.min) {
+      return `${item.label}不能小于 ${item.min}`
+    }
+    if (item.max !== null && num > item.max) {
+      return `${item.label}不能大于 ${item.max}`
+    }
+    return null
+  }
+  if (item.type === 'object') {
+    const sum = weightsSum(value)
+    if (Math.abs(sum - 1) > 0.001) {
+      return `${item.label}三项之和须为 1（当前 ${sum.toFixed(3)}）`
+    }
+    return null
+  }
+  return null
+}
+
