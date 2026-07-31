@@ -160,6 +160,12 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '接口测试' },
       },
       {
+        path: 'workspace/projects/requirements',
+        name: 'RequirementPool',
+        component: () => import('@/pages/project/RequirementPoolPage.vue'),
+        meta: { title: '需求池' },
+      },
+      {
         path: 'workspace/projects/bugs',
         name: 'BugList',
         component: () => import('@/pages/project/BugListPage.vue'),

@@ -901,4 +901,28 @@ export interface AiReviewSummary {
   generatedAt?: string
 }
 
+/** 需求池条目列表项（US-AI-004） */
+export interface RequirementPoolItem {
+  id: string
+  title: string
+  sourceUrl: string | null
+  createdBy: string
+  creatorName: string | null
+  updatedAt: string
+}
+
+/** 需求池条目详情 */
+export interface RequirementDetail {
+  id: string
+  title: string
+  content: string
+  sourceUrl: string | null
+  createdBy: string
+  creatorName: string | null
+  updatedBy: string
+  createdAt: string
+  updatedAt: string
+}
+
+
 
