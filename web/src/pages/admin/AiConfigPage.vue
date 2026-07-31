@@ -330,88 +330,40 @@ onMounted(loadAll)
     <el-tabs v-model="activeTab" @tab-change="handleTabChange">
       <el-tab-pane label="AI 配置" name="config">
         <el-form v-loading="loading" label-width="120px" class="ai-config-form">
-          <el-form-item label="AI 能力总开关">
-            <el-switch v-model="form.enabled" />
-            <span class="ai-config-page__hint">关闭后前端隐藏全部 AI 入口，进行中任务被取消</span>
-          </el-form-item>
+          <el-card shadow="never" class="ai-config-page__card">
+            <div class="ai-config-page__master">
+              <div class="ai-config-page__master-icon">
+                <el-icon :size="22"><Cpu /></el-icon>
+              </div>
+              <div class="ai-config-page__master-text">
+                <div class="ai-config-page__master-title">AI 能力总开关</div>
+                <div class="ai-config-page__master-hint">
+                  关闭后前端隐藏全部 AI 入口，进行中任务被取消
+                </div>
+              </div>
+              <el-switch v-model="form.enabled" size="large" />
+            </div>
+          </el-card>
 
-          <el-divider content-position="left">对话模型</el-divider>
-          <el-form-item label="供应商">
-            <el-select v-model="form.chat.provider" @change="handleChatProviderChange">
-              <el-option
-                v-for="p in chatProviderOptions"
-                :key="p.key"
-                :label="p.name"
-                :value="p.key"
-              />
-            </el-select>
-          </el-form-item>
-          <el-form-item label="服务地址">
-            <el-input v-model="form.chat.baseUrl" placeholder="OpenAI 兼容根路径，不含 /chat/completions" />
-          </el-form-item>
-          <el-form-item label="模型名">
-            <el-select
-              v-model="form.chat.model"
-              filterable
-              allow-create
-              default-first-option
-              placeholder="选择或输入模型名"
-            >
-              <el-option v-for="m in chatModelHints" :key="m" :label="m" :value="m" />
-            </el-select>
-          </el-form-item>
-          <el-form-item label="API 密钥">
-            <el-input
-              v-model="form.chat.apiKey"
-              type="password"
-              show-password
-              :placeholder="
-                form.chat.apiKeyConfigured
-                  ? `已配置（末位 ${form.chat.keySuffix ?? '****'}），留空不修改`
-                  : '请输入密钥'
-              "
-            />
-          </el-form-item>
-          <el-form-item
-            v-for="param in chatUniqueParams"
-            :key="param.key"
-            :label="param.label"
-          >
-            <el-switch
-              v-if="param.type === 'boolean'"
-              v-model="form.chat.uniqueValues[param.key] as boolean"
-            />
-            <el-select
-              v-else-if="param.type === 'enum'"
-              v-model="form.chat.uniqueValues[param.key] as string"
-            >
-              <el-option v-for="opt in param.options" :key="opt" :label="opt" :value="opt" />
-            </el-select>
-            <el-input-number
-              v-else-if="param.type === 'number'"
-              v-model="form.chat.uniqueValues[param.key] as number"
-            />
-            <el-input v-else v-model="form.chat.uniqueValues[param.key] as string" />
-            <span class="ai-config-page__hint">{{ param.description }}</span>
-          </el-form-item>
-          <el-collapse>
-            <el-collapse-item title="高级自定义参数（JSON）" name="chatAdvanced">
-              <el-input v-model="form.chat.customParams" type="textarea" :rows="4" />
-            </el-collapse-item>
-          </el-collapse>
-          <el-form-item>
-            <el-button :loading="testing.chat" @click="handleTest('chat')">连通性测试</el-button>
-          </el-form-item>
-
-          <el-divider content-position="left">
-            Embedding 模型
-            <el-switch v-model="form.embedding.enabled" class="ai-config-page__group-switch" />
-          </el-divider>
-          <template v-if="form.embedding.enabled">
+          <el-card shadow="never" class="ai-config-page__card">
+            <template #header>
+              <div class="ai-config-page__card-header">
+                <el-icon class="ai-config-page__card-icon"><ChatDotRound /></el-icon>
+                <span>对话模型</span>
+                <el-button
+                  class="ai-config-page__card-extra"
+                  size="small"
+                  :loading="testing.chat"
+                  @click="handleTest('chat')"
+                >
+                  <el-icon><Connection /></el-icon>连通性测试
+                </el-button>
+              </div>
+            </template>
             <el-form-item label="供应商">
-              <el-select v-model="form.embedding.provider" @change="handleEmbeddingProviderChange">
+              <el-select v-model="form.chat.provider" @change="handleChatProviderChange">
                 <el-option
-                  v-for="p in embeddingProviderOptions"
+                  v-for="p in chatProviderOptions"
                   :key="p.key"
                   :label="p.name"
                   :value="p.key"
@@ -419,55 +371,144 @@ onMounted(loadAll)
               </el-select>
             </el-form-item>
             <el-form-item label="服务地址">
-              <el-input v-model="form.embedding.baseUrl" />
+              <el-input v-model="form.chat.baseUrl" placeholder="OpenAI 兼容根路径，不含 /chat/completions" />
             </el-form-item>
             <el-form-item label="模型名">
               <el-select
-                v-model="form.embedding.model"
+                v-model="form.chat.model"
                 filterable
                 allow-create
                 default-first-option
+                placeholder="选择或输入模型名"
               >
-                <el-option v-for="m in embeddingModelHints" :key="m" :label="m" :value="m" />
+                <el-option v-for="m in chatModelHints" :key="m" :label="m" :value="m" />
               </el-select>
-            </el-form-item>
-            <el-form-item label="向量维度">
-              <el-input-number v-model="form.embedding.dimension" :min="1" :max="2000" />
             </el-form-item>
             <el-form-item label="API 密钥">
               <el-input
-                v-model="form.embedding.apiKey"
+                v-model="form.chat.apiKey"
                 type="password"
                 show-password
                 :placeholder="
-                  form.embedding.apiKeyConfigured
-                    ? `已配置（末位 ${form.embedding.keySuffix ?? '****'}），留空不修改`
+                  form.chat.apiKeyConfigured
+                    ? `已配置（末位 ${form.chat.keySuffix ?? '****'}），留空不修改`
                     : '请输入密钥'
                 "
               />
             </el-form-item>
-            <el-form-item v-for="param in embeddingUniqueParams" :key="param.key" :label="param.label">
-              <el-input v-model="form.embedding.uniqueValues[param.key] as string" />
+            <el-form-item
+              v-for="param in chatUniqueParams"
+              :key="param.key"
+              :label="param.label"
+            >
+              <el-switch
+                v-if="param.type === 'boolean'"
+                v-model="form.chat.uniqueValues[param.key] as boolean"
+              />
+              <el-select
+                v-else-if="param.type === 'enum'"
+                v-model="form.chat.uniqueValues[param.key] as string"
+              >
+                <el-option v-for="opt in param.options" :key="opt" :label="opt" :value="opt" />
+              </el-select>
+              <el-input-number
+                v-else-if="param.type === 'number'"
+                v-model="form.chat.uniqueValues[param.key] as number"
+              />
+              <el-input v-else v-model="form.chat.uniqueValues[param.key] as string" />
               <span class="ai-config-page__hint">{{ param.description }}</span>
             </el-form-item>
-            <el-collapse>
-              <el-collapse-item title="高级自定义参数（JSON）" name="embeddingAdvanced">
-                <el-input v-model="form.embedding.customParams" type="textarea" :rows="4" />
+            <el-collapse class="ai-config-page__advanced">
+              <el-collapse-item title="高级自定义参数（JSON）" name="chatAdvanced">
+                <el-input v-model="form.chat.customParams" type="textarea" :rows="4" />
               </el-collapse-item>
             </el-collapse>
-            <el-form-item>
-              <el-button :loading="testing.embedding" @click="handleTest('embedding')">
-                连通性测试
-              </el-button>
-            </el-form-item>
-          </template>
+          </el-card>
 
-          <el-divider content-position="left">系统配置项</el-divider>
-          <el-collapse>
-            <el-collapse-item title="配置项键值（JSON）" name="settings">
-              <el-input v-model="settingsText" type="textarea" :rows="10" />
-            </el-collapse-item>
-          </el-collapse>
+          <el-card shadow="never" class="ai-config-page__card">
+            <template #header>
+              <div class="ai-config-page__card-header">
+                <el-icon class="ai-config-page__card-icon"><DataLine /></el-icon>
+                <span>Embedding 模型</span>
+                <el-switch v-model="form.embedding.enabled" class="ai-config-page__group-switch" />
+                <el-button
+                  v-if="form.embedding.enabled"
+                  class="ai-config-page__card-extra"
+                  size="small"
+                  :loading="testing.embedding"
+                  @click="handleTest('embedding')"
+                >
+                  <el-icon><Connection /></el-icon>连通性测试
+                </el-button>
+              </div>
+            </template>
+            <template v-if="form.embedding.enabled">
+              <el-form-item label="供应商">
+                <el-select v-model="form.embedding.provider" @change="handleEmbeddingProviderChange">
+                  <el-option
+                    v-for="p in embeddingProviderOptions"
+                    :key="p.key"
+                    :label="p.name"
+                    :value="p.key"
+                  />
+                </el-select>
+              </el-form-item>
+              <el-form-item label="服务地址">
+                <el-input v-model="form.embedding.baseUrl" />
+              </el-form-item>
+              <el-form-item label="模型名">
+                <el-select
+                  v-model="form.embedding.model"
+                  filterable
+                  allow-create
+                  default-first-option
+                >
+                  <el-option v-for="m in embeddingModelHints" :key="m" :label="m" :value="m" />
+                </el-select>
+              </el-form-item>
+              <el-form-item label="向量维度">
+                <el-input-number v-model="form.embedding.dimension" :min="1" :max="2000" />
+              </el-form-item>
+              <el-form-item label="API 密钥">
+                <el-input
+                  v-model="form.embedding.apiKey"
+                  type="password"
+                  show-password
+                  :placeholder="
+                    form.embedding.apiKeyConfigured
+                      ? `已配置（末位 ${form.embedding.keySuffix ?? '****'}），留空不修改`
+                      : '请输入密钥'
+                  "
+                />
+              </el-form-item>
+              <el-form-item v-for="param in embeddingUniqueParams" :key="param.key" :label="param.label">
+                <el-input v-model="form.embedding.uniqueValues[param.key] as string" />
+                <span class="ai-config-page__hint">{{ param.description }}</span>
+              </el-form-item>
+              <el-collapse class="ai-config-page__advanced">
+                <el-collapse-item title="高级自定义参数（JSON）" name="embeddingAdvanced">
+                  <el-input v-model="form.embedding.customParams" type="textarea" :rows="4" />
+                </el-collapse-item>
+              </el-collapse>
+            </template>
+            <div v-else class="ai-config-page__group-off">
+              开启后可配置向量检索所需的 Embedding 服务
+            </div>
+          </el-card>
+
+          <el-card shadow="never" class="ai-config-page__card">
+            <template #header>
+              <div class="ai-config-page__card-header">
+                <el-icon class="ai-config-page__card-icon"><Setting /></el-icon>
+                <span>系统配置项</span>
+              </div>
+            </template>
+            <el-collapse class="ai-config-page__advanced">
+              <el-collapse-item title="配置项键值（JSON）" name="settings">
+                <el-input v-model="settingsText" type="textarea" :rows="10" />
+              </el-collapse-item>
+            </el-collapse>
+          </el-card>
 
           <el-alert
             v-if="rebuildTask"
@@ -488,9 +529,9 @@ onMounted(loadAll)
             </el-button>
           </el-alert>
 
-          <el-form-item>
+          <div class="ai-config-page__footer">
             <el-button type="primary" :loading="saving" @click="handleSave">保存配置</el-button>
-          </el-form-item>
+          </div>
         </el-form>
       </el-tab-pane>
 
@@ -503,43 +544,239 @@ onMounted(loadAll)
           </el-radio-group>
         </div>
         <template v-if="statistics">
-          <el-descriptions :column="3" border class="ai-config-page__stat-summary">
-            <el-descriptions-item label="总调用次数">{{ statistics.totalCalls }}</el-descriptions-item>
-            <el-descriptions-item label="总 Token">{{ statistics.totalTokens }}</el-descriptions-item>
-            <el-descriptions-item label="失败次数">{{ statistics.failedCalls }}</el-descriptions-item>
-          </el-descriptions>
-          <el-table :data="statistics.items" border>
-            <el-table-column prop="key" label="维度" />
-            <el-table-column prop="calls" label="调用次数" width="120" />
-            <el-table-column prop="tokens" label="Token" width="140" />
-            <el-table-column prop="avgDurationMs" label="平均耗时(ms)" width="140" />
-            <el-table-column prop="failed" label="失败" width="100" />
-          </el-table>
+          <div class="ai-config-page__stat-grid">
+            <div class="stat-card stat-card--primary">
+              <div class="stat-card__icon">
+                <el-icon :size="22"><DataAnalysis /></el-icon>
+              </div>
+              <div>
+                <div class="stat-card__label">总调用次数</div>
+                <div class="stat-card__value">{{ statistics.totalCalls }}</div>
+              </div>
+            </div>
+            <div class="stat-card stat-card--teal">
+              <div class="stat-card__icon">
+                <el-icon :size="22"><Coin /></el-icon>
+              </div>
+              <div>
+                <div class="stat-card__label">总 Token</div>
+                <div class="stat-card__value">{{ statistics.totalTokens }}</div>
+              </div>
+            </div>
+            <div class="stat-card stat-card--danger">
+              <div class="stat-card__icon">
+                <el-icon :size="22"><WarningFilled /></el-icon>
+              </div>
+              <div>
+                <div class="stat-card__label">失败次数</div>
+                <div class="stat-card__value">{{ statistics.failedCalls }}</div>
+              </div>
+            </div>
+          </div>
+          <el-card shadow="never">
+            <el-table :data="statistics.items" stripe>
+              <el-table-column prop="key" label="维度" />
+              <el-table-column prop="calls" label="调用次数" width="120" align="right" />
+              <el-table-column prop="tokens" label="Token" width="140" align="right" />
+              <el-table-column prop="avgDurationMs" label="平均耗时(ms)" width="140" align="right" />
+              <el-table-column prop="failed" label="失败" width="100" align="right" />
+            </el-table>
+          </el-card>
         </template>
       </el-tab-pane>
     </el-tabs>
   </div>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .ai-config-form {
-  max-width: 720px;
+  max-width: 880px;
 }
+
+.ai-config-page__card {
+  margin-bottom: var(--space-lg);
+}
+
+.ai-config-page__card :deep(.el-card__header) {
+  padding: 12px 20px !important;
+}
+
+/* 卡片内表单控件统一撑满，保持纵向对齐 */
+.ai-config-page__card :deep(.el-select),
+.ai-config-page__card :deep(.el-input-number) {
+  width: 100%;
+}
+
+.ai-config-page__card :deep(.el-form-item:last-of-type) {
+  margin-bottom: 0;
+}
+
+.ai-config-page__card-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-neutral-800);
+}
+
+.ai-config-page__card-icon {
+  color: var(--color-primary-500);
+  font-size: 16px;
+}
+
+.ai-config-page__card-extra {
+  margin-left: auto;
+
+  .el-icon {
+    margin-right: 4px;
+  }
+}
+
+.ai-config-page__master {
+  display: flex;
+  align-items: center;
+  gap: var(--space-lg);
+}
+
+.ai-config-page__master-icon {
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-lg);
+  background: var(--color-primary-50);
+  color: var(--color-primary-600);
+  flex-shrink: 0;
+}
+
+.ai-config-page__master-text {
+  flex: 1;
+}
+
+.ai-config-page__master-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-neutral-800);
+}
+
+.ai-config-page__master-hint {
+  font-size: 12px;
+  color: var(--color-neutral-500);
+  margin-top: 2px;
+}
+
 .ai-config-page__hint {
-  margin-left: 12px;
-  color: var(--el-text-color-secondary);
+  width: 100%;
+  line-height: 1.5;
+  margin-top: 4px;
+  color: var(--color-neutral-400);
   font-size: 12px;
 }
+
 .ai-config-page__group-switch {
-  margin-left: 12px;
+  margin-left: var(--space-sm);
 }
+
+.ai-config-page__group-off {
+  font-size: 13px;
+  color: var(--color-neutral-400);
+  text-align: center;
+  padding: var(--space-md) 0;
+}
+
+.ai-config-page__advanced {
+  border: none;
+
+  :deep(.el-collapse-item__header) {
+    font-size: 13px;
+    color: var(--color-neutral-500);
+    border-bottom: none;
+    height: 36px;
+  }
+
+  :deep(.el-collapse-item__wrap) {
+    border-bottom: none;
+  }
+}
+
 .ai-config-page__rebuild {
-  margin: 12px 0;
+  margin-bottom: var(--space-lg);
 }
+
+.ai-config-page__footer {
+  display: flex;
+  justify-content: flex-end;
+  padding: var(--space-md) 0;
+}
+
 .ai-config-page__stat-bar {
-  margin-bottom: 16px;
+  margin-bottom: var(--space-lg);
 }
-.ai-config-page__stat-summary {
-  margin-bottom: 16px;
+
+.ai-config-page__stat-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-lg);
+  margin-bottom: var(--space-lg);
+}
+
+.stat-card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-lg);
+  padding: var(--space-lg) var(--space-xl);
+  background: var(--color-neutral-0);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-neutral-200);
+  box-shadow: var(--shadow-card);
+}
+
+.stat-card__icon {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-lg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.stat-card--primary .stat-card__icon {
+  background: var(--color-primary-50);
+  color: var(--color-primary-600);
+}
+.stat-card--primary .stat-card__value {
+  color: var(--color-primary-600);
+}
+
+.stat-card--teal .stat-card__icon {
+  background: #f0fdfa;
+  color: #0d9488;
+}
+.stat-card--teal .stat-card__value {
+  color: #0d9488;
+}
+
+.stat-card--danger .stat-card__icon {
+  background: var(--color-danger-light);
+  color: var(--color-danger);
+}
+.stat-card--danger .stat-card__value {
+  color: var(--color-danger);
+}
+
+.stat-card__label {
+  font-size: 12px;
+  color: var(--color-neutral-500);
+  font-weight: 500;
+  margin-bottom: 2px;
+}
+
+.stat-card__value {
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
 }
 </style>
