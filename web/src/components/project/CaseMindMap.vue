@@ -9,7 +9,8 @@ import { onMounted, onBeforeUnmount, ref, watch, computed, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
 import { fetchDocumentNodes } from '@/services/project'
 import { getAccessToken } from '@/services'
-import type { DocumentLayout } from '@/types'
+import type { AiGeneratedNode, DocumentLayout } from '@/types'
+import { useAiStore } from '@/stores/ai'
 import * as Y from 'yjs'
 import { WebsocketProvider } from 'y-websocket'
 // window.kity / window.kityminder 的类型声明在 minder/types.ts 中统一维护
@@ -22,6 +23,8 @@ import { useMinderInstance } from './minder/useMinderInstance'
 import { useContextMenu, type ContextMenuAnchorNode } from './minder/useContextMenu'
 import MinderContextMenu from './minder/MinderContextMenu.vue'
 import MinderNavigator from './minder/MinderNavigator.vue'
+import AiGeneratePanel from './minder/ai/AiGeneratePanel.vue'
+import { mountGeneratedNodes, type MountTargetSource } from './minder/ai/aiMount'
 
 const props = defineProps<{ docId: string }>()
 
@@ -30,6 +33,7 @@ let kmEditor: KMEditor | null = null
 
 // 基座选中状态（id/type）之上的扩展字段
 const selectedPriority = ref('')
+const selectedAiGenerated = ref(false)
 const canUndo = ref(false)
 const canRedo = ref(false)
 
@@ -49,6 +53,7 @@ const {
 } = useMinderInstance({
   onSelectionChange(data) {
     selectedPriority.value = data ? (data.priority as string) || '' : ''
+    selectedAiGenerated.value = data ? data.aiGenerated === true : false
   },
 })
 
@@ -60,6 +65,91 @@ const isConnected = ref(true)
 
 const priorities = ['P0', 'P1', 'P2', 'P3']
 
+// ==================== AI 生成用例（US-AI-001） ====================
+// 入口显隐由工作空间级 AI 开关控制（stores/ai 缓存 status，未启用隐藏全部 AI 入口）
+const aiStore = useAiStore()
+
+const aiPanelVisible = ref(false)
+const aiTargetNodeId = ref('')
+const aiTargetPath = ref('')
+// 目标节点被协同删除时暂存预览结果，重选挂载位置后继续（交互设计 2.2，不丢弃预览）
+const aiPendingNodes = ref<AiGeneratedNode[] | null>(null)
+const aiReselectVisible = ref(false)
+
+interface ReselectTreeNode {
+  id: string
+  label: string
+  children: ReselectTreeNode[]
+}
+const aiReselectTree = ref<ReselectTreeNode[]>([])
+
+function getLiveRoot(): MountTargetSource | null {
+  const m = getMinder() as unknown as { getRoot?: () => MountTargetSource | null } | null
+  return m?.getRoot?.() ?? null
+}
+
+/** 根到目标节点的标题路径（找不到返回 null） */
+function findNodePath(node: MountTargetSource | null, id: string): string[] | null {
+  if (!node) return null
+  const title = (node.data.text as string) ?? ''
+  if (node.data.id === id) return [title]
+  for (const child of node.getChildren()) {
+    const sub = findNodePath(child, id)
+    if (sub) return [title, ...sub]
+  }
+  return null
+}
+
+// 打开抽屉时锁定挂载目标：当前选中节点，未选中默认文档根节点（SRS 3.2.1）
+function openAiPanel() {
+  const root = getLiveRoot()
+  if (!root) return
+  const selected = getSelectedNodeData()
+  const targetId = (selected?.id as string) || (root.data.id as string) || ''
+  if (!targetId) return
+  aiTargetNodeId.value = targetId
+  aiTargetPath.value = (findNodePath(root, targetId) ?? []).join(' > ')
+  aiPendingNodes.value = null
+  aiPanelVisible.value = true
+}
+
+// 确认挂载：目标存在则经挂载执行器批量创建（单撤销组，自动搭上协同与落库管道）
+function handleAiMount(nodes: AiGeneratedNode[]) {
+  const m = getMinder()
+  if (!m) return
+  const count = mountGeneratedNodes(m as unknown as Parameters<typeof mountGeneratedNodes>[0], aiTargetNodeId.value, nodes)
+  if (count === null) {
+    // 目标已被协同删除：弹出节点选择器重选，预览结果保留在抽屉中
+    aiPendingNodes.value = nodes
+    aiReselectTree.value = buildReselectTree(getLiveRoot())
+    aiReselectVisible.value = true
+    ElMessage.warning('挂载目标已被删除，请重新选择挂载位置')
+    return
+  }
+  ElMessage.success(`已挂载 ${count} 个 AI 生成节点`)
+  aiPendingNodes.value = null
+  aiPanelVisible.value = false
+}
+
+function buildReselectTree(node: MountTargetSource | null): ReselectTreeNode[] {
+  if (!node) return []
+  return [{
+    id: (node.data.id as string) ?? '',
+    label: (node.data.text as string) ?? '',
+    children: node.getChildren().flatMap((child) => buildReselectTree(child)),
+  }]
+}
+
+function handleAiReselect(node: ReselectTreeNode) {
+  const pending = aiPendingNodes.value
+  aiReselectVisible.value = false
+  if (!pending) return
+  aiTargetNodeId.value = node.id
+  const root = getLiveRoot()
+  aiTargetPath.value = (findNodePath(root, node.id) ?? []).join(' > ')
+  handleAiMount(pending)
+}
+
 // ==================== 文档持久化（JSON 操作通路） ====================
 // Yjs 二进制帧仅做实时协同转发、不落库；节点增删改需经同一连接的文本帧
 // 提交给后端 DocumentPersistenceHandler 持久化，否则刷新后编辑内容丢失
@@ -67,6 +157,7 @@ interface PersistSnap {
   title: string
   type: string
   priority: string | null
+  aiGenerated: boolean
   parentId: string | null
   sortOrder: number
 }
@@ -135,6 +226,7 @@ function collectLiveNodes(): Map<string, PersistSnap> {
       title: (data.text as string) ?? '',
       type: (data.type as string) || 'normal',
       priority: (data.priority as string) ?? null,
+      aiGenerated: data.aiGenerated === true,
       parentId,
       sortOrder,
     })
@@ -160,8 +252,11 @@ function flushPersistence() {
       sendPersistOp(socket, 'add_node', { id, ...snap })
       continue
     }
-    if (prev.title !== snap.title || prev.type !== snap.type || prev.priority !== snap.priority) {
-      sendPersistOp(socket, 'update_attrs', { id, title: snap.title, type: snap.type, priority: snap.priority })
+    if (prev.title !== snap.title || prev.type !== snap.type || prev.priority !== snap.priority
+      || prev.aiGenerated !== snap.aiGenerated) {
+      sendPersistOp(socket, 'update_attrs', {
+        id, title: snap.title, type: snap.type, priority: snap.priority, aiGenerated: snap.aiGenerated,
+      })
     }
     if (prev.parentId !== snap.parentId || prev.sortOrder !== snap.sortOrder) {
       sendPersistOp(socket, 'move_node', { id, parentId: snap.parentId, sortOrder: snap.sortOrder })
@@ -433,6 +528,15 @@ function clearMark() {
   updateSelectedState()
 }
 
+// 移除 AI 标识（仅 aiGenerated=true 时可见；前端任何入口不提供置 true，见详细设计 4.6）
+function removeAiFlag() {
+  const data = getSelectedNodeData()
+  if (!data || data.aiGenerated !== true) return
+  data.aiGenerated = false
+  getMinder()?.refresh?.()
+  updateSelectedState()
+}
+
 // 新建节点统一携默认名称（与 Tab/Enter 快捷键行为一致，见 minder/jumping.ts）
 function addChild() { exec('AppendChildNode', DEFAULT_NODE_TEXT) }
 function addSibling() { exec('AppendSiblingNode', DEFAULT_NODE_TEXT) }
@@ -579,6 +683,15 @@ onBeforeUnmount(() => {
           @click="markPriority(p)"
         >{{ p }}</el-button>
       </div>
+      <!-- AI 入口：工作空间 AI 未启用时整组隐藏（交互设计 1.1/5.2） -->
+      <template v-if="aiStore.aiEnabled">
+        <el-divider direction="vertical" />
+        <div class="toolbar-group">
+          <el-button size="small" text class="ai-entry-btn" @click="openAiPanel">
+            <el-icon><MagicStick /></el-icon><span>AI 生成用例</span>
+          </el-button>
+        </div>
+      </template>
     </div>
 
     <!-- 脑图画布（编辑内核会向容器注入 .km-receiver 接收器元素，双击节点进入编辑） -->
@@ -630,9 +743,35 @@ onBeforeUnmount(() => {
           @click="markPriority(p)"
         >{{ p }}</span>
       </div>
+      <!-- 移除后不可重新添加（撤销回退除外），不提供置 true 入口 -->
+      <div v-if="selectedAiGenerated" class="menu-chip-row">
+        <span class="menu-chip-label">AI</span>
+        <span class="menu-chip" @click="removeAiFlag">移除 AI 标识</span>
+      </div>
       <div class="mindmap-context-menu__divider" />
       <div class="mindmap-context-menu__item mindmap-context-menu__item--danger menu-action" @click="deleteNode"><span>删除节点</span><span class="menu-shortcut">Delete</span></div>
     </MinderContextMenu>
+
+    <!-- AI 生成用例抽屉：非模态，预览-确认阶段可继续编辑脑图（交互设计 2.2） -->
+    <AiGeneratePanel
+      v-if="aiPanelVisible"
+      v-model="aiPanelVisible"
+      :doc-id="props.docId"
+      :target-node-id="aiTargetNodeId"
+      :target-path="aiTargetPath"
+      @mount="handleAiMount"
+    />
+
+    <!-- 挂载目标被协同删除后的重选节点选择器（预览结果不丢弃） -->
+    <el-dialog v-model="aiReselectVisible" title="重新选择挂载位置" width="360px" append-to-body>
+      <el-tree
+        :data="aiReselectTree"
+        node-key="id"
+        default-expand-all
+        :expand-on-click-node="false"
+        @node-click="handleAiReselect"
+      />
+    </el-dialog>
   </div>
 </template>
 
@@ -735,6 +874,12 @@ onBeforeUnmount(() => {
 
 .toolbar-btn--danger {
   --el-button-hover-text-color: var(--color-danger);
+}
+
+// AI 入口按钮强调色（与 AI 徽标同色系，区别于普通工具按钮）
+.ai-entry-btn {
+  --el-button-text-color: #13c2c2;
+  --el-button-hover-text-color: #0da8a8;
 }
 
 .toolbar-caret {

@@ -326,6 +326,8 @@ export interface TestCaseNode {
   priority: string | null
   sortOrder: number
   version: number
+  /** AI 生成标识（挂载执行器写入，可手动移除，V1.1） */
+  aiGenerated?: boolean
   children: TestCaseNode[]
 }
 
@@ -401,6 +403,7 @@ export interface TestPlanSnapshotNode {
   lastExecutorId: string | null
   lastExecutedAt: string | null
   sortOrder: number
+  aiGenerated?: boolean
   children: TestPlanSnapshotNode[]
 }
 
@@ -472,6 +475,7 @@ export interface TestReviewSnapshotNode {
   lastReviewerId: string | null
   lastReviewedAt: string | null
   sortOrder: number
+  aiGenerated?: boolean
   children: TestReviewSnapshotNode[]
 }
 
@@ -856,5 +860,21 @@ export interface AiTask {
   createdBy: string
   createdAt: string
   updatedAt: string
+}
+
+/** AI 生成用例树节点（生成子树/补全步骤/文本导入共用输出结构，详细设计 2.2） */
+export interface AiGeneratedNode {
+  type: CaseNodeType
+  title: string
+  /** 仅 case 节点携带，P0-P3 */
+  priority?: string | null
+  children?: AiGeneratedNode[]
+}
+
+/** AI 生成用例子树 done 帧载荷 */
+export interface AiCaseGenerateResult {
+  nodes: AiGeneratedNode[]
+  /** 截断等宽容规整提示 */
+  warnings: string[]
 }
 
