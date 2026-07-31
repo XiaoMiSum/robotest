@@ -1,5 +1,43 @@
-import { describe, expect, it } from 'vitest'
-import { parseSseFrame } from './useAiStream'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { parseSseFrame, useAiStream } from './useAiStream'
+
+describe('useAiStream 非事件流响应处理', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  function stubEnv(response: Partial<Response>): void {
+    // node 环境无 localStorage；SSE 建立前的头部注入按无登录态处理即可
+    vi.stubGlobal('localStorage', { getItem: () => null })
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response))
+  }
+
+  it('SSE 建立前的业务异常（HTTP 200 + Result JSON）解出 msg 抛给 onError', async () => {
+    stubEnv({
+      ok: true,
+      body: {} as Response['body'],
+      headers: new Headers({ 'content-type': 'application/json' }),
+      json: () => Promise.resolve({ code: 1000013004, msg: 'AI 调用频率超限' }),
+    })
+    const error = await new Promise<Error>((resolve) => {
+      useAiStream({ url: '/project/ai/cases/generate', onEvent: () => {}, onError: resolve })
+    })
+    expect(error.message).toBe('AI 调用频率超限')
+  })
+
+  it('非 JSON 的异常响应回退通用文案', async () => {
+    stubEnv({
+      ok: true,
+      body: {} as Response['body'],
+      headers: new Headers({ 'content-type': 'text/html' }),
+      json: () => Promise.reject(new Error('not json')),
+    })
+    const error = await new Promise<Error>((resolve) => {
+      useAiStream({ url: '/project/ai/cases/generate', onEvent: () => {}, onError: resolve })
+    })
+    expect(error.message).toBe('AI 请求失败')
+  })
+})
 
 describe('parseSseFrame SSE 帧解析', () => {
   it('解析 delta 帧为 JSON 事件', () => {

@@ -82,6 +82,13 @@ export function useAiStream(options: UseAiStreamOptions): AiStreamController {
       if (!response.ok || !response.body) {
         throw new Error(`AI 流式请求失败：HTTP ${response.status}`)
       }
+      // SSE 建立前的业务异常（限流/未启用/校验失败等）走框架全局异常处理，
+      // 返回 HTTP 200 + Result JSON 而非事件流，须解出 msg 抛给 onError，否则静默无反馈
+      const contentType = response.headers.get('content-type') ?? ''
+      if (!contentType.includes('text/event-stream')) {
+        const result = (await response.json().catch(() => null)) as { msg?: string } | null
+        throw new Error(result?.msg ?? 'AI 请求失败')
+      }
       await readStream(response.body)
       options.onClose?.()
     } catch (error) {
