@@ -8,6 +8,7 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
+    AiModelSelect: typeof import('./components/common/AiModelSelect.vue')['default']
     BrandLogo: typeof import('./components/common/BrandLogo.vue')['default']
     BugResolveDialog: typeof import('./components/project/BugResolveDialog.vue')['default']
     CaseMindMap: typeof import('./components/project/CaseMindMap.vue')['default']
