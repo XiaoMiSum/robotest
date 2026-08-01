@@ -13,6 +13,7 @@ import io.github.xiaomisum.robotest.model.entity.ai.AiConfig;
 import io.github.xiaomisum.robotest.repository.ai.AiAnalysisTaskMapper;
 import io.github.xiaomisum.robotest.repository.ai.AiConfigMapper;
 import jakarta.annotation.Resource;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -44,7 +45,7 @@ public class AiConfigServiceImpl implements AiConfigService {
     @Resource
     private OpenAiCompatProvider openAiCompatProvider;
     @Resource
-    private AiTaskService aiTaskService;
+    private ObjectProvider<AiTaskService> aiTaskServiceProvider;
     @Resource
     private AiChatModelService aiChatModelService;
     @Resource
@@ -124,10 +125,11 @@ public class AiConfigServiceImpl implements AiConfigService {
 
         // 联动：总开关关闭 → 全部进行中任务置 cancelled（4.6）
         if (!Boolean.TRUE.equals(reqDTO.getEnabled())) {
-            aiTaskService.cancelAllInProgress();
+            aiTaskServiceProvider.getObject().cancelAllInProgress();
         } else if (isEmbeddingChanged(existing, config)) {
             // 联动：Embedding 模型/维度变更 → 覆盖式创建全局重建任务并进入语义降级（4.10）
-            aiTaskService.createTask(Constants.AiTaskType.EMBEDDING_REBUILD, null, null, null, operatorId);
+            aiTaskServiceProvider.getObject().createTask(
+                    Constants.AiTaskType.EMBEDDING_REBUILD, null, null, null, operatorId);
         }
         return getConfig();
     }
