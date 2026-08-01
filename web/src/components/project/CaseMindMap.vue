@@ -30,6 +30,7 @@ import AiCommandBar from './minder/ai/AiCommandBar.vue'
 import { mountGeneratedNodes, type MountTargetSource } from './minder/ai/aiMount'
 import type { AiPanelMode } from './minder/ai/aiPanelModes'
 import RequirementSelector from './RequirementSelector.vue'
+import MissingPointsPanel from './MissingPointsPanel.vue'
 import type { RequirementSummary } from '@/types'
 
 const props = defineProps<{ docId: string }>()
@@ -117,6 +118,8 @@ const aiInitialText = ref('')
 const aiCommandBarVisible = ref(false)
 const aiTargetNodeId = ref('')
 const aiTargetPath = ref('')
+/** 遗漏测试点分析面板（US-AI-007） */
+const missingPointsVisible = ref(false)
 // 目标节点被协同删除时暂存预览结果，重选挂载位置后继续（交互设计 2.2，不丢弃预览）
 const aiPendingNodes = ref<AiGeneratedNode[] | null>(null)
 const aiReselectVisible = ref(false)
@@ -159,6 +162,48 @@ function openAiPanel() {
   aiPendingNodes.value = null
   aiPanelSession.value++
   aiPanelVisible.value = true
+}
+
+function openAiGeneratePrefilled(text: string, root: MountTargetSource): void {
+  const targetId = (root.data.id as string) || ''
+  if (!targetId) return
+  aiTargetNodeId.value = targetId
+  aiTargetPath.value = (findNodePath(root, targetId) ?? []).join(' > ')
+  aiPanelMode.value = 'generate'
+  aiInitialText.value = text
+  aiPendingNodes.value = null
+  aiPanelSession.value++
+  aiPanelVisible.value = true
+}
+
+let aiReadyPollTimer: ReturnType<typeof setInterval> | null = null
+
+function stopAiReadyPoll(): void {
+  if (aiReadyPollTimer) clearInterval(aiReadyPollTimer)
+  aiReadyPollTimer = null
+}
+
+// 外部跳转预填「AI 生成用例」抽屉（遗漏测试点「转用例生成」，交互设计 4.3）：
+// 挂载目标为文档根节点；文档首次加载完成前调用时轮询等待内核就绪
+function openAiGenerateWithText(text: string): void {
+  const root = getLiveRoot()
+  if (root) {
+    openAiGeneratePrefilled(text, root)
+    return
+  }
+  let tries = 0
+  stopAiReadyPoll()
+  aiReadyPollTimer = setInterval(() => {
+    const live = getLiveRoot()
+    tries += 1
+    if (live) {
+      openAiGeneratePrefilled(text, live)
+      stopAiReadyPoll()
+    } else if (tries > 60) {
+      // 内核加载失败或文档为空时放弃，避免轮询泄漏
+      stopAiReadyPoll()
+    }
+  }, 150)
 }
 
 // 右键 case 节点「AI 补全步骤」：目标锁定该 case，不可重选（交互设计 3.1）
@@ -721,11 +766,14 @@ const {
 watch(() => props.docId, initMinder)
 onMounted(initMinder)
 onBeforeUnmount(() => {
+  stopAiReadyPoll()
   invalidate()
   flushPersistenceNow()
   destroyYjs()
   teardownMinder()
 })
+
+defineExpose({ openAiGenerateWithText })
 </script>
 
 <template>
@@ -832,6 +880,9 @@ onBeforeUnmount(() => {
             @click="aiCommandBarVisible = !aiCommandBarVisible"
           >
             <el-icon><MagicStick /></el-icon><span>AI 指令</span>
+          </el-button>
+          <el-button size="small" text class="ai-entry-btn" @click="missingPointsVisible = true">
+            <el-icon><MagicStick /></el-icon><span>遗漏测试点</span>
           </el-button>
         </div>
       </template>
@@ -946,6 +997,9 @@ onBeforeUnmount(() => {
       :selected-ids="associatedReqIds"
       @confirm="handleRequirementConfirm"
     />
+
+    <!-- 遗漏测试点分析面板（US-AI-007） -->
+    <MissingPointsPanel v-model="missingPointsVisible" />
   </div>
 </template>
 
