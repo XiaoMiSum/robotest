@@ -118,8 +118,7 @@ public class AiConfigServiceImpl implements AiConfigService {
         if (existing == null) {
             aiConfigMapper.insert(config);
         } else {
-            updateWithOptimisticLock(existing, config,
-                    reqDTO.getExpectedUpdatedAt() != null ? reqDTO.getExpectedUpdatedAt() : existing.getUpdatedAt());
+            updateConfig(existing, config);
         }
         invalidateCache();
 
@@ -337,10 +336,9 @@ public class AiConfigServiceImpl implements AiConfigService {
     /**
      * 单行表全列覆盖更新：清空 Embedding 组等置空场景 updateById 会忽略 null 字段，须显式 set
      */
-    private void updateWithOptimisticLock(AiConfig existing, AiConfig config, LocalDateTime expectedUpdatedAt) {
-        int rows = aiConfigMapper.update(null, new LambdaUpdateWrapperX<AiConfig>()
+    private void updateConfig(AiConfig existing, AiConfig config) {
+        aiConfigMapper.update(null, new LambdaUpdateWrapperX<AiConfig>()
                 .eq(AiConfig::getId, existing.getId())
-                .eq(AiConfig::getUpdatedAt, expectedUpdatedAt)
                 .set(AiConfig::getEnabled, config.getEnabled())
                 .set(AiConfig::getEmbeddingProvider, config.getEmbeddingProvider())
                 .set(AiConfig::getEmbeddingBaseUrl, config.getEmbeddingBaseUrl())
@@ -351,9 +349,6 @@ public class AiConfigServiceImpl implements AiConfigService {
                 .set(AiConfig::getEmbeddingExtraParams, toJson(config.getEmbeddingExtraParams()))
                 .set(AiConfig::getSettings, toJson(config.getSettings()))
                 .set(AiConfig::getUpdatedAt, LocalDateTime.now()));
-        if (rows == 0) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_CONFIG_CONFLICT);
-        }
     }
 
     private String toJson(Map<String, Object> map) {

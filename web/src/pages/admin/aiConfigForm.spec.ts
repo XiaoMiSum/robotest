@@ -209,7 +209,6 @@ describe('buildConfigPayload 载荷组装', () => {
       enabled: true,
       embedding: { kind: 'saved', group: savedEmbedding },
       settings: { 'dedup.topK': 8 },
-      expectedUpdatedAt: '2026-08-01T00:00:00',
     })
     expect(payload).toEqual({
       enabled: true,
@@ -222,7 +221,6 @@ describe('buildConfigPayload 载荷组装', () => {
         extraParams: { custom: 1 },
       },
       settings: { 'dedup.topK': 8 },
-      expectedUpdatedAt: '2026-08-01T00:00:00',
     })
   })
 
@@ -231,7 +229,6 @@ describe('buildConfigPayload 载荷组装', () => {
       enabled: false,
       embedding: { kind: 'saved', group: null },
       settings: {},
-      expectedUpdatedAt: null,
     })
     expect(payload.embedding).toBeNull()
   })
@@ -252,7 +249,6 @@ describe('buildConfigPayload 载荷组装', () => {
         },
       },
       settings: {},
-      expectedUpdatedAt: null,
     })
     expect(payload.embedding).toEqual({
       provider: 'zhipu',
@@ -269,7 +265,6 @@ describe('buildConfigPayload 载荷组装', () => {
       enabled: false,
       embedding: { kind: 'form', group: { provider: '', baseUrl: '', model: '', dimension: null, apiKey: '', uniqueValues: {}, customParams: '{}' } },
       settings: {},
-      expectedUpdatedAt: null,
     })
     expect(payload.embedding).toBeNull()
   })
@@ -291,7 +286,6 @@ describe('buildConfigPayload 载荷组装', () => {
           },
         },
         settings: {},
-        expectedUpdatedAt: null,
       }),
     ).toThrow('必须为 JSON 对象')
   })

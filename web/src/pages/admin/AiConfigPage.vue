@@ -46,14 +46,12 @@ const saving = ref(false)
 const activeTab = ref('config')
 const providers = ref<AiProviderPreset[]>([])
 const config = ref<AiConfig | null>(null)
-const expectedUpdatedAt = ref<string | null>(null)
 
 // Embedding 卡片默认收起，可手动展开（v-model 为 el-collapse 已展开项名集合）
 const embeddingOpen = ref<string[]>([])
 
 // 自动保存状态（总开关 + 系统配置项，防抖提交；Embedding 组手动 [保存]）
 const AUTO_SAVE_DEBOUNCE_MS = 800
-const CONFLICT_MSG = 'AI 配置已被他人修改'
 const hydrated = ref(false)
 const isApplying = ref(false)
 const autoSaving = ref(false)
@@ -83,7 +81,6 @@ const chatModels = ref<AiChatModel[]>([])
 const modelDialogVisible = ref(false)
 const modelDialogMode = ref<'create' | 'edit'>('create')
 const editingModelId = ref<string | null>(null)
-const modelExpectedUpdatedAt = ref<string | null>(null)
 const modelForm = reactive({
   name: '',
   provider: 'custom',
@@ -169,7 +166,6 @@ async function loadAll() {
 
 function applyConfig(loaded: AiConfig, opts: { preserveEmbedding?: boolean } = {}) {
   config.value = loaded
-  expectedUpdatedAt.value = loaded.updatedAt
   form.enabled = loaded.enabled
   // 自动保存路径不覆盖 form.embedding，避免打断未保存的 Embedding 编辑
   if (loaded.embedding && !opts.preserveEmbedding) {
@@ -243,7 +239,6 @@ function parseJsonObject(text: string, label: string): Record<string, unknown> {
 function openCreateModel() {
   modelDialogMode.value = 'create'
   editingModelId.value = null
-  modelExpectedUpdatedAt.value = null
   modelForm.name = ''
   modelForm.provider = 'custom'
   modelForm.baseUrl = ''
@@ -259,7 +254,6 @@ function openCreateModel() {
 function openEditModel(row: AiChatModel) {
   modelDialogMode.value = 'edit'
   editingModelId.value = row.id
-  modelExpectedUpdatedAt.value = row.updatedAt
   modelForm.name = row.name
   modelForm.provider = row.provider
   modelForm.baseUrl = row.baseUrl
@@ -297,7 +291,6 @@ function buildModelPayload(): AiChatModelSavePayload {
     model: modelForm.model,
     apiKey: modelForm.apiKey || null,
     extraParams: mergeExtraParams(modelForm.uniqueValues, custom),
-    expectedUpdatedAt: modelExpectedUpdatedAt.value,
   }
 }
 
@@ -464,7 +457,7 @@ function flashSaved() {
   }, 2500)
 }
 
-// 统一提交入口：成功返回 null，失败返回错误文案（冲突时已刷新配置）
+// 统一提交入口：成功返回 null，失败返回错误文案
 async function performSave(payload: AiConfigSavePayload): Promise<string | null> {
   try {
     const saved = await saveAiConfig(payload)
@@ -475,26 +468,7 @@ async function performSave(payload: AiConfigSavePayload): Promise<string | null>
     await loadRebuildTask()
     return null
   } catch (err) {
-    const message = err instanceof Error ? err.message : '保存失败'
-    if (message.includes(CONFLICT_MSG)) {
-      await reloadConfig()
-    }
-    return message
-  }
-}
-
-// 乐观锁冲突：以服务端最新配置整体重灌（放弃未保存的 Embedding 编辑）
-async function reloadConfig() {
-  try {
-    const fresh = await fetchAiConfig()
-    isApplying.value = true
-    if (fresh) applyConfig(fresh)
-    else applySettings({})
-    lastSavedSnapshot = snapshotKey()
-    isApplying.value = false
-    ElMessage.warning('配置已被其他管理员修改，已刷新为最新配置')
-  } catch {
-    ElMessage.error('刷新配置失败，请手动刷新页面')
+    return err instanceof Error ? err.message : '保存失败'
   }
 }
 
@@ -519,16 +493,13 @@ async function runAutoSave() {
         // Embedding 取已保存配置，避免把未保存的 Embedding 编辑一并提交
         embedding: { kind: 'saved', group: config.value?.embedding ?? null },
         settings: settingsForm,
-        expectedUpdatedAt: expectedUpdatedAt.value,
       }),
     )
     if (message === null) {
       flashSaved()
     } else {
       saveStatus.value = 'error'
-      if (!message.includes(CONFLICT_MSG)) {
-        ElMessage.error(message)
-      }
+      ElMessage.error(message)
     }
   } finally {
     autoSaving.value = false
@@ -556,7 +527,6 @@ async function handleSaveEmbedding() {
       enabled: form.enabled,
       embedding: { kind: 'form', group: form.embedding },
       settings: settingsForm,
-      expectedUpdatedAt: expectedUpdatedAt.value,
     })
   } catch (err) {
     ElMessage.error(err instanceof Error ? err.message : '参数格式错误')
@@ -567,7 +537,7 @@ async function handleSaveEmbedding() {
     const message = await performSave(payload)
     if (message === null) {
       ElMessage.success('保存成功')
-    } else if (!message.includes(CONFLICT_MSG)) {
+    } else {
       ElMessage.error(message)
     }
   } finally {

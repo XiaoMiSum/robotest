@@ -720,7 +720,6 @@ export interface AiChatModelSavePayload {
   model: string
   apiKey?: string | null
   extraParams?: Record<string, unknown>
-  expectedUpdatedAt?: string | null
 }
 
 /** 保存 AI 配置的对话临时配置（供连通性测试临时透传） */
@@ -745,7 +744,6 @@ export interface AiConfigSavePayload {
   enabled: boolean
   embedding?: AiConfigEmbeddingGroupPayload | null
   settings?: Record<string, unknown>
-  expectedUpdatedAt?: string | null
 }
 
 /** 连通性测试请求与结果 */

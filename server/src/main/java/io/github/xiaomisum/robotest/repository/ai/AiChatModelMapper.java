@@ -61,14 +61,13 @@ public interface AiChatModelMapper extends BaseMapperX<AiChatModel> {
     // ========== 条件更新（封装 wrapper 于 Mapper，Service 层不直接构建，4.11） ==========
 
     /**
-     * 更新模型主体字段（updated_at 乐观条件更新，冲突返回 0 行）
+     * 更新模型主体字段（按 id 全列覆盖，后写覆盖先写）
      */
-    default int updateModelFields(UUID id, LocalDateTime expectedUpdatedAt, String name, String provider,
+    default int updateModelFields(UUID id, String name, String provider,
                                   String baseUrl, String model, String apiKeyCipher, String keySuffix,
                                   String extraParamsJson, UUID operatorId) {
         return update(null, new LambdaUpdateWrapperX<AiChatModel>()
                 .eq(AiChatModel::getId, id)
-                .eq(AiChatModel::getUpdatedAt, expectedUpdatedAt)
                 .set(AiChatModel::getName, name)
                 .set(AiChatModel::getProvider, provider)
                 .set(AiChatModel::getBaseUrl, baseUrl)

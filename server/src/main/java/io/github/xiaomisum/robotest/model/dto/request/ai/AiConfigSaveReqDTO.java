@@ -4,7 +4,6 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
-import java.time.LocalDateTime;
 import java.util.Map;
 
 /**
@@ -22,9 +21,6 @@ public class AiConfigSaveReqDTO {
     private EmbeddingGroup embedding;
 
     private Map<String, Object> settings;
-
-    /** 乐观并发校验：取自查询响应的 updatedAt，不一致时拒绝保存要求刷新重试 */
-    private LocalDateTime expectedUpdatedAt;
 
     @Data
     public static class EmbeddingGroup {
