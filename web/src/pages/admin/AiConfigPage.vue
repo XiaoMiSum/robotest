@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   createAiChatModel,
@@ -29,14 +29,15 @@ import type {
   AiTask,
 } from '@/types'
 import {
+  buildConfigPayload,
   buildDefaultUniqueParams,
+  collectSettingErrors,
   getByPath,
   isSettingModified,
   mergeExtraParams,
   resolveDefaultBaseUrl,
   resolveModelHints,
   resolveUniqueParams,
-  validateSetting,
   weightsSum,
 } from './aiConfigForm'
 
@@ -46,6 +47,18 @@ const activeTab = ref('config')
 const providers = ref<AiProviderPreset[]>([])
 const config = ref<AiConfig | null>(null)
 const expectedUpdatedAt = ref<string | null>(null)
+
+// 自动保存状态（总开关 + 系统配置项，防抖提交；Embedding 组手动 [保存]）
+const AUTO_SAVE_DEBOUNCE_MS = 800
+const CONFLICT_MSG = 'AI 配置已被他人修改'
+const hydrated = ref(false)
+const isApplying = ref(false)
+const autoSaving = ref(false)
+const saveStatus = ref<'idle' | 'pending' | 'saving' | 'saved' | 'error'>('idle')
+let autoSaveTimer: ReturnType<typeof setTimeout> | null = null
+let savedResetTimer: ReturnType<typeof setTimeout> | null = null
+let pendingResave = false
+let lastSavedSnapshot = ''
 
 const form = reactive({
   enabled: false,
@@ -115,6 +128,21 @@ const rebuildRetryable = computed(
   () => rebuildTask.value?.status === 'failed' || rebuildTask.value?.status === 'cancelled',
 )
 
+const settingsError = computed(() => collectSettingErrors(settingsSchema.value, settingsForm))
+
+const footerStatusText = computed(() => {
+  if (saveStatus.value === 'saving') return '保存中…'
+  if (settingsError.value) return `存在校验错误：${settingsError.value}，修改未保存`
+  if (saveStatus.value === 'error') return '自动保存失败，请重试'
+  if (saveStatus.value === 'pending') return '修改待保存…'
+  if (saveStatus.value === 'saved') return '已自动保存'
+  return ''
+})
+
+const footerStatusError = computed(
+  () => Boolean(settingsError.value) || saveStatus.value === 'error',
+)
+
 async function loadAll() {
   loading.value = true
   try {
@@ -128,6 +156,8 @@ async function loadAll() {
     else applySettings({})
     chatModels.value = await fetchAiChatModels()
     await loadRebuildTask()
+    hydrated.value = true
+    lastSavedSnapshot = snapshotKey()
   } catch (err) {
     ElMessage.error(err instanceof Error ? err.message : '加载 AI 配置失败')
   } finally {
@@ -135,11 +165,12 @@ async function loadAll() {
   }
 }
 
-function applyConfig(loaded: AiConfig) {
+function applyConfig(loaded: AiConfig, opts: { preserveEmbedding?: boolean } = {}) {
   config.value = loaded
   expectedUpdatedAt.value = loaded.updatedAt
   form.enabled = loaded.enabled
-  if (loaded.embedding) {
+  // 自动保存路径不覆盖 form.embedding，避免打断未保存的 Embedding 编辑
+  if (loaded.embedding && !opts.preserveEmbedding) {
     form.embedding.enabled = true
     form.embedding.provider = loaded.embedding.provider
     form.embedding.baseUrl = loaded.embedding.baseUrl
@@ -408,60 +439,180 @@ function currentWeightsSum(item: AiSettingSchemaItem): number {
   return weightsSum(settingsForm[item.key])
 }
 
-// ==================== 总配置保存 / Embedding 测试 ====================
+// ==================== 保存（自动 + Embedding 手动）/ Embedding 测试 ====================
 
-async function handleSaveConfig() {
+// 自动保存仅跟踪总开关与系统配置项；Embedding 组表单值不参与，须手动 [保存]
+function snapshotKey(): string {
+  return JSON.stringify({ enabled: form.enabled, settings: settingsForm })
+}
+
+function scheduleAutoSave() {
+  saveStatus.value = 'pending'
+  if (autoSaveTimer) clearTimeout(autoSaveTimer)
+  autoSaveTimer = setTimeout(() => {
+    autoSaveTimer = null
+    void runAutoSave()
+  }, AUTO_SAVE_DEBOUNCE_MS)
+}
+
+function flashSaved() {
+  saveStatus.value = 'saved'
+  if (savedResetTimer) clearTimeout(savedResetTimer)
+  savedResetTimer = setTimeout(() => {
+    if (saveStatus.value === 'saved') saveStatus.value = 'idle'
+  }, 2500)
+}
+
+// 统一提交入口：成功返回 null，失败返回错误文案（冲突时已刷新配置）
+async function performSave(payload: AiConfigSavePayload): Promise<string | null> {
+  try {
+    const saved = await saveAiConfig(payload)
+    isApplying.value = true
+    applyConfig(saved, { preserveEmbedding: true })
+    lastSavedSnapshot = snapshotKey()
+    isApplying.value = false
+    await loadRebuildTask()
+    return null
+  } catch (err) {
+    const message = err instanceof Error ? err.message : '保存失败'
+    if (message.includes(CONFLICT_MSG)) {
+      await reloadConfig()
+    }
+    return message
+  }
+}
+
+// 乐观锁冲突：以服务端最新配置整体重灌（放弃未保存的 Embedding 编辑）
+async function reloadConfig() {
+  try {
+    const fresh = await fetchAiConfig()
+    isApplying.value = true
+    if (fresh) applyConfig(fresh)
+    else applySettings({})
+    lastSavedSnapshot = snapshotKey()
+    isApplying.value = false
+    ElMessage.warning('配置已被其他管理员修改，已刷新为最新配置')
+  } catch {
+    ElMessage.error('刷新配置失败，请手动刷新页面')
+  }
+}
+
+// 总开关 + 系统配置项自动保存：校验失败不落库，仅提示
+async function runAutoSave() {
+  if (!hydrated.value || autoSaving.value || saving.value) {
+    pendingResave = true
+    return
+  }
+  if (snapshotKey() === lastSavedSnapshot) return
+  const error = collectSettingErrors(settingsSchema.value, settingsForm)
+  if (error) {
+    saveStatus.value = 'error'
+    return
+  }
+  autoSaving.value = true
+  saveStatus.value = 'saving'
+  try {
+    const message = await performSave(
+      buildConfigPayload({
+        enabled: form.enabled,
+        // Embedding 取已保存配置，避免把未保存的 Embedding 编辑一并提交
+        embedding: { kind: 'saved', group: config.value?.embedding ?? null },
+        settings: settingsForm,
+        expectedUpdatedAt: expectedUpdatedAt.value,
+      }),
+    )
+    if (message === null) {
+      flashSaved()
+    } else {
+      saveStatus.value = 'error'
+      if (!message.includes(CONFLICT_MSG)) {
+        ElMessage.error(message)
+      }
+    }
+  } finally {
+    autoSaving.value = false
+    if (pendingResave) {
+      pendingResave = false
+      scheduleAutoSave()
+    }
+  }
+}
+
+// Embedding 组手动保存（可能触发向量重建，须用户显式操作）
+async function handleSaveEmbedding() {
   if (form.enabled && chatModels.value.filter((m) => m.enabled).length === 0) {
     ElMessage.warning('开启 AI 前请先新建并启用至少一个对话模型')
     return
   }
-  // 系统配置项逐项校验
-  for (const group of settingsSchema.value) {
-    for (const item of group.items) {
-      const error = validateSetting(item, settingsForm[item.key])
-      if (error) {
-        ElMessage.error(error)
-        return
-      }
-    }
+  const error = collectSettingErrors(settingsSchema.value, settingsForm)
+  if (error) {
+    ElMessage.error(error)
+    return
   }
-
-  let embeddingCustom: Record<string, unknown>
+  let payload: AiConfigSavePayload
   try {
-    embeddingCustom = parseJsonObject(form.embedding.customParams, 'Embedding 高级参数')
+    payload = buildConfigPayload({
+      enabled: form.enabled,
+      embedding: { kind: 'form', group: form.embedding },
+      settings: settingsForm,
+      expectedUpdatedAt: expectedUpdatedAt.value,
+    })
   } catch (err) {
     ElMessage.error(err instanceof Error ? err.message : '参数格式错误')
     return
   }
-
-  const payload: AiConfigSavePayload = {
-    enabled: form.enabled,
-    embedding: form.embedding.enabled
-      ? {
-          provider: form.embedding.provider,
-          baseUrl: form.embedding.baseUrl,
-          model: form.embedding.model,
-          dimension: form.embedding.dimension,
-          apiKey: form.embedding.apiKey || null,
-          extraParams: mergeExtraParams(form.embedding.uniqueValues, embeddingCustom),
-        }
-      : null,
-    settings: { ...settingsForm },
-    expectedUpdatedAt: expectedUpdatedAt.value,
-  }
-
   saving.value = true
   try {
-    const saved = await saveAiConfig(payload)
-    applyConfig(saved)
-    ElMessage.success('保存成功')
-    await loadRebuildTask()
-  } catch (err) {
-    ElMessage.error(err instanceof Error ? err.message : '保存失败')
+    const message = await performSave(payload)
+    if (message === null) {
+      ElMessage.success('保存成功')
+    } else if (!message.includes(CONFLICT_MSG)) {
+      ElMessage.error(message)
+    }
   } finally {
     saving.value = false
   }
 }
+
+// 总开关切换前钩子：开启需已启用对话模型，关闭需二次确认（自动保存紧随其后）
+async function handleMasterBeforeChange(): Promise<boolean> {
+  if (!form.enabled) {
+    if (chatModels.value.filter((m) => m.enabled).length === 0) {
+      ElMessage.warning('开启 AI 前请先新建并启用至少一个对话模型')
+      return false
+    }
+    return true
+  }
+  try {
+    await ElMessageBox.confirm(
+      '关闭后将隐藏全部 AI 入口，进行中的 AI 调用与任务将被中断。确认关闭？',
+      '关闭 AI 能力',
+      { type: 'warning', confirmButtonText: '确认关闭' },
+    )
+    return true
+  } catch {
+    return false
+  }
+}
+
+watch(
+  () => snapshotKey(),
+  () => {
+    if (!hydrated.value || isApplying.value) return
+    if (snapshotKey() === lastSavedSnapshot) return
+    scheduleAutoSave()
+  },
+)
+
+onBeforeUnmount(() => {
+  if (autoSaveTimer) {
+    clearTimeout(autoSaveTimer)
+    autoSaveTimer = null
+    if (hydrated.value && snapshotKey() !== lastSavedSnapshot) {
+      void runAutoSave()
+    }
+  }
+})
 
 async function handleTestEmbedding() {
   testing.embedding = true
@@ -529,7 +680,7 @@ onMounted(loadAll)
                   关闭后前端隐藏全部 AI 入口，进行中任务被取消；开启需已启用至少一个对话模型
                 </div>
               </div>
-              <el-switch v-model="form.enabled" size="large" />
+              <el-switch v-model="form.enabled" size="large" :before-change="handleMasterBeforeChange" />
             </div>
           </el-card>
 
@@ -620,6 +771,15 @@ onMounted(loadAll)
                   @click="handleTestEmbedding"
                 >
                   <el-icon><Connection /></el-icon>连通性测试
+                </el-button>
+                <el-button
+                  class="ai-config-page__card-extra"
+                  size="small"
+                  type="primary"
+                  :loading="saving"
+                  @click="handleSaveEmbedding"
+                >
+                  保存
                 </el-button>
               </div>
             </template>
@@ -750,7 +910,13 @@ onMounted(loadAll)
           </el-alert>
 
           <div class="ai-config-page__footer">
-            <el-button type="primary" :loading="saving" @click="handleSaveConfig">保存配置</el-button>
+            <span
+              v-if="footerStatusText"
+              class="ai-config-page__footer-status"
+              :class="{ 'is-error': footerStatusError }"
+            >
+              {{ footerStatusText }}
+            </span>
           </div>
         </el-form>
       </el-tab-pane>
@@ -1044,6 +1210,15 @@ onMounted(loadAll)
   display: flex;
   justify-content: flex-end;
   padding: var(--space-md) 0;
+}
+
+.ai-config-page__footer-status {
+  font-size: 12px;
+  color: var(--color-neutral-400);
+
+  &.is-error {
+    color: var(--color-danger);
+  }
 }
 
 .ai-config-page__stat-bar {

@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import type { AiProviderPreset, AiSettingSchemaItem } from '@/types'
+import type { AiConfigEmbeddingGroup, AiProviderPreset, AiSettingSchemaGroup, AiSettingSchemaItem } from '@/types'
 import {
+  buildConfigPayload,
   buildDefaultUniqueParams,
+  collectSettingErrors,
   getByPath,
   isSettingModified,
   mergeExtraParams,
@@ -173,5 +175,126 @@ describe('validateSetting 单项校验', () => {
   it('权重之和须为 1', () => {
     expect(validateSetting(weightsItem, { w1: 0.5, w2: 0.3, w3: 0.2 })).toBeNull()
     expect(validateSetting(weightsItem, { w1: 0.5, w2: 0.5, w3: 0.5 })).toContain('之和须为 1')
+  })
+})
+
+describe('collectSettingErrors 全量校验', () => {
+  const groups: AiSettingSchemaGroup[] = [
+    { group: 'g1', groupLabel: '组一', items: [intItem] },
+    { group: 'g2', groupLabel: '组二', items: [weightsItem] },
+  ]
+
+  it('全部通过返回 null', () => {
+    expect(collectSettingErrors(groups, { 'dedup.topK': 5, 'planOrder.weights': { w1: 0.5, w2: 0.3, w3: 0.2 } })).toBeNull()
+  })
+
+  it('返回首个错误文案', () => {
+    expect(collectSettingErrors(groups, { 'dedup.topK': 0, 'planOrder.weights': { w1: 0.5, w2: 0.3, w3: 0.2 } })).toContain('不能小于')
+    expect(collectSettingErrors(groups, { 'dedup.topK': 5, 'planOrder.weights': { w1: 1, w2: 1, w3: 1 } })).toContain('之和须为 1')
+  })
+})
+
+describe('buildConfigPayload 载荷组装', () => {
+  const savedEmbedding: AiConfigEmbeddingGroup = {
+    provider: 'zhipu',
+    baseUrl: 'https://open.bigmodel.cn/api/paas/v4',
+    model: 'embedding-3',
+    dimension: 1024,
+    apiKey: { configured: true, keySuffix: 'ab' },
+    extraParams: { custom: 1 },
+  }
+
+  it('saved 源：取已保存 Embedding，apiKey 留空保持原值', () => {
+    const payload = buildConfigPayload({
+      enabled: true,
+      embedding: { kind: 'saved', group: savedEmbedding },
+      settings: { 'dedup.topK': 8 },
+      expectedUpdatedAt: '2026-08-01T00:00:00',
+    })
+    expect(payload).toEqual({
+      enabled: true,
+      embedding: {
+        provider: 'zhipu',
+        baseUrl: 'https://open.bigmodel.cn/api/paas/v4',
+        model: 'embedding-3',
+        dimension: 1024,
+        apiKey: null,
+        extraParams: { custom: 1 },
+      },
+      settings: { 'dedup.topK': 8 },
+      expectedUpdatedAt: '2026-08-01T00:00:00',
+    })
+  })
+
+  it('saved 源：无 Embedding 时提交 null', () => {
+    const payload = buildConfigPayload({
+      enabled: false,
+      embedding: { kind: 'saved', group: null },
+      settings: {},
+      expectedUpdatedAt: null,
+    })
+    expect(payload.embedding).toBeNull()
+  })
+
+  it('form 源：开启时解析高级参数并与独有配置项合并', () => {
+    const payload = buildConfigPayload({
+      enabled: true,
+      embedding: {
+        kind: 'form',
+        group: {
+          enabled: true,
+          provider: 'zhipu',
+          baseUrl: 'https://open.bigmodel.cn/api/paas/v4',
+          model: 'embedding-3',
+          dimension: 1024,
+          apiKey: 'sk-test',
+          uniqueValues: { 'thinking.type': 'disabled' },
+          customParams: '{ "top_k": 3 }',
+        },
+      },
+      settings: {},
+      expectedUpdatedAt: null,
+    })
+    expect(payload.embedding).toEqual({
+      provider: 'zhipu',
+      baseUrl: 'https://open.bigmodel.cn/api/paas/v4',
+      model: 'embedding-3',
+      dimension: 1024,
+      apiKey: 'sk-test',
+      extraParams: { top_k: 3, thinking: { type: 'disabled' } },
+    })
+  })
+
+  it('form 源：关闭时提交 null', () => {
+    const payload = buildConfigPayload({
+      enabled: false,
+      embedding: { kind: 'form', group: { enabled: false, provider: '', baseUrl: '', model: '', dimension: null, apiKey: '', uniqueValues: {}, customParams: '{}' } },
+      settings: {},
+      expectedUpdatedAt: null,
+    })
+    expect(payload.embedding).toBeNull()
+  })
+
+  it('form 源：非法 JSON 抛错', () => {
+    expect(() =>
+      buildConfigPayload({
+        enabled: true,
+        embedding: {
+          kind: 'form',
+          group: {
+            enabled: true,
+            provider: 'zhipu',
+            baseUrl: 'u',
+            model: 'm',
+            dimension: 128,
+            apiKey: '',
+            uniqueValues: {},
+            customParams: '{ not json }',
+          },
+        },
+        settings: {},
+        expectedUpdatedAt: null,
+      }),
+    ).toThrow('必须为 JSON 对象')
   })
 })
