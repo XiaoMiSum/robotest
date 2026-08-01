@@ -133,7 +133,9 @@ class TestPlanServiceImplTest {
 
                 assertNotNull(result);
                 assertEquals("New Plan", result.getName());
-                verify(testPlanMapper).insert(any(TestPlan.class));
+                ArgumentCaptor<TestPlan> planCaptor = ArgumentCaptor.forClass(TestPlan.class);
+                verify(testPlanMapper).insert(planCaptor.capture());
+                assertNotNull(planCaptor.getValue().getSnapshotSyncedAt());
         }
 
         @Test
@@ -489,6 +491,11 @@ class TestPlanServiceImplTest {
                 verify(planNodeSnapshotMapper).updateById(nodeCaptor.capture());
                 assertEquals("Updated Title", nodeCaptor.getValue().getTitle());
                 assertEquals("case", nodeCaptor.getValue().getType());
+
+                ArgumentCaptor<TestPlan> planCaptor = ArgumentCaptor.forClass(TestPlan.class);
+                verify(testPlanMapper).updateById(planCaptor.capture());
+                assertEquals(planId, planCaptor.getValue().getId());
+                assertNotNull(planCaptor.getValue().getSnapshotSyncedAt());
         }
 
         @Test

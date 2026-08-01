@@ -124,6 +124,7 @@ public class TestPlanServiceImpl implements TestPlanService {
         TestPlan plan = TestPlanConvertMapper.INSTANCE.toEntity(reqDTO);
         plan.setProjectId(projectId);
         plan.setStatus(Constants.Status.NEW);
+        plan.setSnapshotSyncedAt(LocalDateTime.now());
         testPlanMapper.insert(plan);
 
         generateSnapshots(plan.getId(), reqDTO.getSelectedNodes());
@@ -269,6 +270,16 @@ public class TestPlanServiceImpl implements TestPlanService {
                 refreshDocumentSnapshot(planId, docSnap, entry.getValue());
             }
         }
+
+        markSnapshotSynced(planId);
+    }
+
+    // 快照结构调整后回写同步时间，供执行顺序推荐判断快照新鲜度；载体只携带该字段（C9）
+    private void markSnapshotSynced(UUID planId) {
+        TestPlan planUpdate = new TestPlan();
+        planUpdate.setId(planId);
+        planUpdate.setSnapshotSyncedAt(LocalDateTime.now());
+        testPlanMapper.updateById(planUpdate);
     }
 
     private List<TestPlanModuleSnapshot> selectDocumentSnapshots(UUID planId) {
@@ -505,6 +516,8 @@ public class TestPlanServiceImpl implements TestPlanService {
             }
             planNodeSnapshotMapper.updateById(nodeUpdate);
         }
+
+        markSnapshotSynced(planId);
     }
 
     @Override
