@@ -236,13 +236,12 @@ describe('buildConfigPayload 载荷组装', () => {
     expect(payload.embedding).toBeNull()
   })
 
-  it('form 源：开启时解析高级参数并与独有配置项合并', () => {
+  it('form 源：解析高级参数并与独有配置项合并', () => {
     const payload = buildConfigPayload({
       enabled: true,
       embedding: {
         kind: 'form',
         group: {
-          enabled: true,
           provider: 'zhipu',
           baseUrl: 'https://open.bigmodel.cn/api/paas/v4',
           model: 'embedding-3',
@@ -265,10 +264,10 @@ describe('buildConfigPayload 载荷组装', () => {
     })
   })
 
-  it('form 源：关闭时提交 null', () => {
+  it('form 源：核心项全空视为未配置提交 null', () => {
     const payload = buildConfigPayload({
       enabled: false,
-      embedding: { kind: 'form', group: { enabled: false, provider: '', baseUrl: '', model: '', dimension: null, apiKey: '', uniqueValues: {}, customParams: '{}' } },
+      embedding: { kind: 'form', group: { provider: '', baseUrl: '', model: '', dimension: null, apiKey: '', uniqueValues: {}, customParams: '{}' } },
       settings: {},
       expectedUpdatedAt: null,
     })
@@ -282,7 +281,6 @@ describe('buildConfigPayload 载荷组装', () => {
         embedding: {
           kind: 'form',
           group: {
-            enabled: true,
             provider: 'zhipu',
             baseUrl: 'u',
             model: 'm',

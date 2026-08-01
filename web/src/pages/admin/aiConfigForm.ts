@@ -159,7 +159,6 @@ export type EmbeddingPayloadSource =
   | {
       kind: 'form'
       group: {
-        enabled: boolean
         provider: string
         baseUrl: string
         model: string
@@ -170,6 +169,23 @@ export type EmbeddingPayloadSource =
       } | null
     }
   | { kind: 'saved'; group: AiConfigEmbeddingGroup | null }
+
+/** 核心项全空即视为未配置（与后端 isEmbeddingGroupEmpty 口径一致） */
+function isEmbeddingGroupEmpty(group: {
+  provider: string
+  baseUrl: string
+  model: string
+  dimension: number | null
+  apiKey: string
+}): boolean {
+  return (
+    !group.provider &&
+    !group.baseUrl &&
+    !group.model &&
+    group.dimension == null &&
+    !group.apiKey
+  )
+}
 
 /** 组装配置保存载荷；form 源解析高级参数 JSON，非法对象抛错 */
 export function buildConfigPayload(input: {
@@ -190,7 +206,7 @@ export function buildConfigPayload(input: {
         extraParams: input.embedding.group.extraParams,
       }
     }
-  } else if (input.embedding.group && input.embedding.group.enabled) {
+  } else if (input.embedding.group && !isEmbeddingGroupEmpty(input.embedding.group)) {
     const text = input.embedding.group.customParams
     let custom: Record<string, unknown> = {}
     if (text.trim()) {
