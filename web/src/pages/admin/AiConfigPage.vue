@@ -33,6 +33,7 @@ import {
   buildDefaultUniqueParams,
   collectSettingErrors,
   getByPath,
+  isEmbeddingGroupEmpty,
   isSettingModified,
   mergeExtraParams,
   resolveDefaultBaseUrl,
@@ -122,6 +123,8 @@ const embeddingUniqueParams = computed(() =>
 const embeddingModelHints = computed(() =>
   resolveModelHints(presetOf(form.embedding.provider), 'embedding'),
 )
+// 标题栏状态标签：核心项任一已填即视为已配置
+const embeddingConfigured = computed(() => !isEmbeddingGroupEmpty(form.embedding))
 
 const rebuildRetryable = computed(
   () => rebuildTask.value?.status === 'failed' || rebuildTask.value?.status === 'cancelled',
@@ -735,55 +738,76 @@ onMounted(loadAll)
                   <div class="ai-config-page__card-header ai-config-page__embedding-header">
                     <el-icon class="ai-config-page__card-icon"><DataLine /></el-icon>
                     <span>Embedding 模型</span>
+                    <el-tag
+                      class="ai-config-page__embedding-state"
+                      :type="embeddingConfigured ? 'success' : 'info'"
+                      size="small"
+                      effect="light"
+                    >
+                      {{ embeddingConfigured ? '已配置' : '未配置' }}
+                    </el-tag>
                   </div>
                 </template>
-                <el-form-item label="供应商">
-                  <el-select v-model="form.embedding.provider" @change="(v: string) => (form.embedding.provider = v)">
-                    <el-option
-                      v-for="p in embeddingProviderOptions"
-                      :key="p.key"
-                      :label="p.name"
-                      :value="p.key"
+                <div class="ai-config-page__embedding-body">
+                  <el-form-item label="供应商">
+                    <el-select
+                      v-model="form.embedding.provider"
+                      class="ai-config-page__embedding-control"
+                      @change="(v: string) => (form.embedding.provider = v)"
+                    >
+                      <el-option
+                        v-for="p in embeddingProviderOptions"
+                        :key="p.key"
+                        :label="p.name"
+                        :value="p.key"
+                      />
+                    </el-select>
+                  </el-form-item>
+                  <el-form-item label="模型名">
+                    <el-select
+                      v-model="form.embedding.model"
+                      class="ai-config-page__embedding-control"
+                      filterable
+                      allow-create
+                      default-first-option
+                    >
+                      <el-option v-for="m in embeddingModelHints" :key="m" :label="m" :value="m" />
+                    </el-select>
+                  </el-form-item>
+                  <el-form-item label="服务地址">
+                    <el-input v-model="form.embedding.baseUrl" class="ai-config-page__embedding-control" />
+                  </el-form-item>
+                  <el-form-item label="向量维度">
+                    <el-input-number v-model="form.embedding.dimension" :min="1" :max="2000" />
+                  </el-form-item>
+                  <el-form-item label="API 密钥" class="ai-config-page__embedding-full">
+                    <el-input
+                      v-model="form.embedding.apiKey"
+                      type="password"
+                      show-password
+                      class="ai-config-page__embedding-control"
+                      :placeholder="
+                        form.embedding.apiKeyConfigured
+                          ? `已配置（末位 ${form.embedding.keySuffix ?? '****'}），留空不修改`
+                          : '请输入密钥'
+                      "
                     />
-                  </el-select>
-                </el-form-item>
-                <el-form-item label="服务地址">
-                  <el-input v-model="form.embedding.baseUrl" />
-                </el-form-item>
-                <el-form-item label="模型名">
-                  <el-select v-model="form.embedding.model" filterable allow-create default-first-option>
-                    <el-option v-for="m in embeddingModelHints" :key="m" :label="m" :value="m" />
-                  </el-select>
-                </el-form-item>
-                <el-form-item label="向量维度">
-                  <el-input-number v-model="form.embedding.dimension" :min="1" :max="2000" />
-                </el-form-item>
-                <el-form-item label="API 密钥">
-                  <el-input
-                    v-model="form.embedding.apiKey"
-                    type="password"
-                    show-password
-                    :placeholder="
-                      form.embedding.apiKeyConfigured
-                        ? `已配置（末位 ${form.embedding.keySuffix ?? '****'}），留空不修改`
-                        : '请输入密钥'
-                    "
-                  />
-                </el-form-item>
-                <el-form-item v-for="param in embeddingUniqueParams" :key="param.key" :label="param.label">
-                  <el-input v-model="form.embedding.uniqueValues[param.key] as string" />
-                  <span class="ai-config-page__hint">{{ param.description }}</span>
-                </el-form-item>
-                <el-collapse class="ai-config-page__advanced">
-                  <el-collapse-item title="高级自定义参数（JSON）" name="embeddingAdvanced">
-                    <el-input v-model="form.embedding.customParams" type="textarea" :rows="4" />
-                  </el-collapse-item>
-                </el-collapse>
-                <div class="ai-config-page__embedding-actions">
-                  <el-button :loading="testing.embedding" @click="handleTestEmbedding">
-                    <el-icon><Connection /></el-icon>连通性测试
-                  </el-button>
-                  <el-button type="primary" :loading="saving" @click="handleSaveEmbedding">保存</el-button>
+                  </el-form-item>
+                  <el-form-item v-for="param in embeddingUniqueParams" :key="param.key" :label="param.label">
+                    <el-input v-model="form.embedding.uniqueValues[param.key] as string" class="ai-config-page__embedding-control" />
+                    <span class="ai-config-page__hint">{{ param.description }}</span>
+                  </el-form-item>
+                  <el-collapse class="ai-config-page__advanced ai-config-page__embedding-full">
+                    <el-collapse-item title="高级自定义参数（JSON）" name="embeddingAdvanced">
+                      <el-input v-model="form.embedding.customParams" type="textarea" :rows="4" />
+                    </el-collapse-item>
+                  </el-collapse>
+                  <div class="ai-config-page__embedding-actions ai-config-page__embedding-full">
+                    <el-button :loading="testing.embedding" @click="handleTestEmbedding">
+                      <el-icon><Connection /></el-icon>连通性测试
+                    </el-button>
+                    <el-button type="primary" :loading="saving" @click="handleSaveEmbedding">保存</el-button>
+                  </div>
                 </div>
               </el-collapse-item>
             </el-collapse>
@@ -794,6 +818,7 @@ onMounted(loadAll)
               <div class="ai-config-page__card-header">
                 <el-icon class="ai-config-page__card-icon"><Setting /></el-icon>
                 <span>系统配置项</span>
+                <span class="ai-config-page__card-sub">修改即自动保存</span>
               </div>
             </template>
             <div v-for="group in settingsSchema" :key="group.group" class="ai-config-page__setting-group">
@@ -833,22 +858,15 @@ onMounted(loadAll)
                   <el-input-number
                     v-else
                     v-model="settingsForm[item.key] as number"
+                    class="ai-config-page__setting-number"
                     :min="item.min ?? undefined"
                     :max="item.max ?? undefined"
                     :step="item.step ?? 1"
                   />
-                  <el-tag v-if="settingModified(item)" size="small" type="warning" class="ai-config-page__modified">
-                    已修改
-                  </el-tag>
-                  <el-button
-                    v-if="settingModified(item)"
-                    link
-                    type="primary"
-                    size="small"
-                    @click="resetSetting(item)"
-                  >
-                    恢复默认
-                  </el-button>
+                  <span v-if="settingModified(item)" class="ai-config-page__modified">
+                    <el-tag size="small" type="warning" effect="light">已修改</el-tag>
+                    <el-button link type="primary" size="small" @click="resetSetting(item)">恢复默认</el-button>
+                  </span>
                 </div>
                 <span class="ai-config-page__hint">{{ item.description }}（默认 {{ item.defaultValue }}）</span>
               </el-form-item>
@@ -1024,6 +1042,13 @@ onMounted(loadAll)
   font-size: 16px;
 }
 
+.ai-config-page__card-sub {
+  margin-left: var(--space-xs);
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--color-neutral-400);
+}
+
 .ai-config-page__card-extra {
   margin-left: auto;
 
@@ -1094,7 +1119,7 @@ onMounted(loadAll)
   :deep(.el-collapse-item__header) {
     height: auto;
     line-height: 1.5;
-    padding: 8px 0;
+    padding: 4px 0;
     border-bottom: 1px solid var(--color-neutral-100);
   }
 
@@ -1107,15 +1132,40 @@ onMounted(loadAll)
   width: 100%;
 }
 
+.ai-config-page__embedding-state {
+  margin-left: var(--space-sm);
+  font-weight: 500;
+}
+
+.ai-config-page__embedding-body {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  column-gap: var(--space-xl);
+  padding-top: var(--space-sm);
+}
+
+.ai-config-page__embedding-control {
+  width: 100%;
+}
+
+.ai-config-page__embedding-full {
+  grid-column: 1 / -1;
+}
+
 .ai-config-page__embedding-actions {
   display: flex;
   justify-content: flex-end;
   gap: var(--space-sm);
   margin-top: var(--space-lg);
+  padding-top: var(--space-md);
+  border-top: 1px solid var(--color-neutral-100);
 }
 
 .ai-config-page__advanced {
   border: none;
+  border-radius: var(--radius-md);
+  background: var(--color-neutral-50);
+  padding: 0 var(--space-sm);
 
   :deep(.el-collapse-item__header) {
     font-size: 13px;
@@ -1126,11 +1176,15 @@ onMounted(loadAll)
 
   :deep(.el-collapse-item__wrap) {
     border-bottom: none;
+    background: transparent;
   }
 }
 
 .ai-config-page__setting-group {
   margin-bottom: var(--space-md);
+  padding: var(--space-md) var(--space-md) var(--space-sm);
+  border-radius: var(--radius-md);
+  background: var(--color-neutral-50);
 }
 
 .ai-config-page__setting-group-title {
@@ -1146,6 +1200,10 @@ onMounted(loadAll)
   display: flex;
   align-items: center;
   gap: var(--space-sm);
+}
+
+.ai-config-page__setting-number {
+  width: 180px;
 }
 
 .ai-config-page__weights {
@@ -1173,6 +1231,9 @@ onMounted(loadAll)
 }
 
 .ai-config-page__modified {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
   flex-shrink: 0;
 }
 

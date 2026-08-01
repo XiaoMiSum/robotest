@@ -171,7 +171,7 @@ export type EmbeddingPayloadSource =
   | { kind: 'saved'; group: AiConfigEmbeddingGroup | null }
 
 /** 核心项全空即视为未配置（与后端 isEmbeddingGroupEmpty 口径一致） */
-function isEmbeddingGroupEmpty(group: {
+export function isEmbeddingGroupEmpty(group: {
   provider: string
   baseUrl: string
   model: string
