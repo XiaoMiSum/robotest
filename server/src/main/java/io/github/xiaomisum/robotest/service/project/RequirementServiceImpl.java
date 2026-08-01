@@ -226,6 +226,24 @@ public class RequirementServiceImpl implements RequirementService {
         }
     }
 
+    @Override
+    public List<RequirementPoolItem> requireByIds(UUID projectId, List<UUID> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return List.of();
+        }
+        // 去重保序；selectBatchIds 自动过滤已逻辑删除条目
+        List<UUID> distinct = new ArrayList<>(new LinkedHashSet<>(ids));
+        List<RequirementPoolItem> items = requirementMapper.selectBatchIds(distinct);
+        // 缺失（含已删除）或跨项目的条目一律按不存在处理，防止越项目取内容
+        if (items.size() != distinct.size()
+                || items.stream().anyMatch(item -> !Objects.equals(item.getProjectId(), projectId))) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.REQUIREMENT_NOT_FOUND);
+        }
+        Map<UUID, RequirementPoolItem> byId = items.stream()
+                .collect(Collectors.toMap(RequirementPoolItem::getId, item -> item));
+        return distinct.stream().map(byId::get).toList();
+    }
+
     /** 文档必须存在、为 document 类型且属于当前项目（与 AiCaseGenerationServiceImpl 同款判定） */
     private void requireDocument(UUID documentId, UUID projectId) {
         TestCaseModule document = testCaseModuleMapper.selectById(documentId);

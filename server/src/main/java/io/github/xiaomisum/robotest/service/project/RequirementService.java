@@ -5,6 +5,7 @@ import io.github.xiaomisum.robotest.model.dto.request.requirement.RequirementUpd
 import io.github.xiaomisum.robotest.model.dto.response.requirement.RequirementDetailRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.requirement.RequirementListRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.requirement.RequirementSummaryRespDTO;
+import io.github.xiaomisum.robotest.model.entity.requirement.RequirementPoolItem;
 import xyz.migoo.framework.common.pojo.PageResult;
 
 import java.util.List;
@@ -32,4 +33,10 @@ public interface RequirementService {
 
     /** 全量设置文档关联的需求条目（差量增删，3.1.5） */
     void setDocumentRequirements(UUID documentId, UUID projectId, List<UUID> requirementIds);
+
+    /**
+     * 批量获取项目内条目（含 content，供 AI 生成/补全上下文组装）。
+     * 任一条目不存在或不属于当前项目时抛 REQUIREMENT_NOT_FOUND（3.2.1 归属校验）。
+     */
+    List<RequirementPoolItem> requireByIds(UUID projectId, List<UUID> ids);
 }
