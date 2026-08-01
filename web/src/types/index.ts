@@ -901,6 +901,28 @@ export interface AiReviewSummary {
   generatedAt?: string
 }
 
+/** AI 一键检查建议维度（US-AI-005，详细设计 2.2.1 枚举） */
+export type AiReviewCheckDimension =
+  | 'missing_precondition'
+  | 'vague_step'
+  | 'missing_expected'
+  | 'priority_conflict'
+
+/** AI 一键检查单条建议（result.items 元素，2.2.1） */
+export interface AiReviewCheckItem {
+  snapshotNodeId: string
+  dimension: AiReviewCheckDimension
+  suggestion: string
+}
+
+/** AI 一键检查结果（review_check 任务 result；分批累计写入，running/cancelled 亦含部分结果） */
+export interface AiReviewCheckResult {
+  checkedCaseCount: number
+  totalCaseCount: number
+  skippedBatches: number
+  items: AiReviewCheckItem[]
+}
+
 /** 需求池条目列表项（US-AI-004） */
 export interface RequirementPoolItem {
   id: string

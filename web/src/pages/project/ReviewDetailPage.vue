@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
@@ -16,6 +16,7 @@ import ReviewMindMap from '@/components/project/ReviewMindMap.vue'
 import SnapshotModuleTree from '@/components/project/SnapshotModuleTree.vue'
 import CaseSelector from '@/components/project/CaseSelector.vue'
 import ReviewAiSummary from '@/components/project/ReviewAiSummary.vue'
+import ReviewAiCheckPanel from '@/components/project/ReviewAiCheckPanel.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useAiStore } from '@/stores/ai'
 
@@ -56,6 +57,26 @@ const canShowSummary = computed(
     detail.value?.initiator.id === authStore.user?.id,
 )
 const summaryVisible = ref(false)
+
+// AI 一键检查：仅评审发起人 + AI 启用可见；仅「评审中」可发起，其余状态置灰但保留结果查看入口（交互设计 2.2）
+const canShowCheck = computed(
+  () => aiStore.aiEnabled && detail.value?.initiator.id === authStore.user?.id,
+)
+const checkVisible = ref(false)
+const checkPanelRef = ref<InstanceType<typeof ReviewAiCheckPanel>>()
+
+// 入口点击：面板挂载后立即按最新任务状态发起或恢复轮询
+async function openCheck() {
+  checkVisible.value = true
+  await nextTick()
+  checkPanelRef.value?.start()
+}
+
+// 建议定位：检查覆盖全部文档，脑图仅展示当前文档，未命中时提示切换左侧文档
+function handleCheckLocate(snapshotNodeId: string) {
+  const located = mindMapRef.value?.locateNode(snapshotNodeId)
+  if (!located) ElMessage.info('该建议指向的用例不在当前文档，请切换左侧文档后重试')
+}
 
 async function load() {
   loading.value = true
@@ -194,6 +215,25 @@ onMounted(load)
               </span>
             </el-tooltip>
           </div>
+          <!-- AI 一键检查：仅发起人可见，非「评审中」置灰但保留结果查看入口 -->
+          <div v-if="canShowCheck" class="review-detail__actions">
+            <el-tooltip
+              :disabled="detail?.status === 'in_progress'"
+              content="仅评审进行中可发起检查"
+              placement="bottom"
+            >
+              <span>
+                <el-button
+                  size="small"
+                  plain
+                  :disabled="detail?.status !== 'in_progress'"
+                  @click="openCheck"
+                >
+                  <el-icon><MagicStick /></el-icon>AI 一键检查
+                </el-button>
+              </span>
+            </el-tooltip>
+          </div>
           <!-- AI 生成摘要：评审已完成后展示，与上方进行中操作组互斥（仅发起人可见） -->
           <div v-if="canShowSummary" class="review-detail__actions">
             <el-button size="small" type="primary" plain @click="summaryVisible = true">
@@ -205,6 +245,14 @@ onMounted(load)
     </el-page-header>
 
     <ReviewAiSummary v-if="summaryVisible" v-model="summaryVisible" :review-id="reviewId" />
+
+    <ReviewAiCheckPanel
+      v-if="checkVisible"
+      ref="checkPanelRef"
+      v-model="checkVisible"
+      :review-id="reviewId"
+      @locate="handleCheckLocate"
+    />
 
     <div class="review-detail__workspace">
       <el-card shadow="never" class="review-detail__tree-card">
