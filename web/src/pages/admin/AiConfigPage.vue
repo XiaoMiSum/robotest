@@ -436,6 +436,11 @@ function currentWeightsSum(item: AiSettingSchemaItem): number {
   return weightsSum(settingsForm[item.key])
 }
 
+// 网格内占整行的项：权重组合（object）恒整行；组内奇数项时最后一项补整行避免右侧留空
+function settingItemIsFull(item: AiSettingSchemaItem, index: number, total: number): boolean {
+  return item.type === 'object' || (index === total - 1 && total % 2 === 1)
+}
+
 // ==================== 保存（自动 + Embedding 手动）/ Embedding 测试 ====================
 
 // 自动保存仅跟踪总开关与系统配置项；Embedding 组表单值不参与，须手动 [保存]
@@ -823,8 +828,16 @@ onMounted(loadAll)
             </template>
             <div v-for="group in settingsSchema" :key="group.group" class="ai-config-page__setting-group">
               <div class="ai-config-page__setting-group-title">{{ group.groupLabel }}</div>
-              <el-form-item v-for="item in group.items" :key="item.key" :label="item.label">
-                <div class="ai-config-page__setting-control">
+              <div class="ai-config-page__setting-grid">
+                <el-form-item
+                  v-for="(item, index) in group.items"
+                  :key="item.key"
+                  :label="item.label"
+                  :class="{
+                    'ai-config-page__setting-item--full': settingItemIsFull(item, index, group.items.length),
+                  }"
+                >
+                  <div class="ai-config-page__setting-control">
                   <!-- 权重组合 -->
                   <template v-if="item.type === 'object'">
                     <div v-if="settingsForm[item.key]" class="ai-config-page__weights">
@@ -869,7 +882,8 @@ onMounted(loadAll)
                   </span>
                 </div>
                 <span class="ai-config-page__hint">{{ item.description }}（默认 {{ item.defaultValue }}）</span>
-              </el-form-item>
+                </el-form-item>
+              </div>
             </div>
           </el-card>
 
@@ -1202,6 +1216,16 @@ onMounted(loadAll)
   gap: var(--space-sm);
 }
 
+.ai-config-page__setting-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  column-gap: var(--space-xl);
+}
+
+.ai-config-page__setting-item--full {
+  grid-column: 1 / -1;
+}
+
 .ai-config-page__setting-number {
   width: 180px;
 }
@@ -1227,7 +1251,7 @@ onMounted(loadAll)
 }
 
 .ai-config-page__setting-multi {
-  min-width: 260px;
+  width: 100%;
 }
 
 .ai-config-page__modified {
