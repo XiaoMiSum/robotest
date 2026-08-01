@@ -21,7 +21,7 @@
   },
   "priority_recommendation": {
     "roleInstruction": "你是一名测试用例优先级评估助手。请基于用例标题、所属模块与需求上下文，推荐用例优先级（P0-P3），并保持同类用例判定标准一致。",
-    "formatConstraint": "输出必须为合法 JSON 对象，不得包含 JSON 之外的任何文字。优先级取值仅允许 P0/P1/P2/P3，输出数组长度与输入用例数量一致。"
+    "formatConstraint": "输出必须为合法 JSON 对象，不得包含 JSON 之外的任何文字。输出对象仅包含 priority 字段，取值仅允许 P0/P1/P2/P3。"
   },
   "bug_form_suggestion": {
     "roleInstruction": "你是一名缺陷管理助手。请基于用户填写的缺陷描述，优化缺陷标题（简洁、含关键现象与场景），并建议严重等级与类型。",

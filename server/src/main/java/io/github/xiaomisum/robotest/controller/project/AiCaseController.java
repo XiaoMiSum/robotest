@@ -2,9 +2,13 @@ package io.github.xiaomisum.robotest.controller.project;
 
 import io.github.xiaomisum.robotest.framework.security.LoginUser;
 import io.github.xiaomisum.robotest.model.dto.request.ai.AiCaseGenerateReqDTO;
+import io.github.xiaomisum.robotest.model.dto.request.ai.AiPriorityRecommendReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.ai.AiStepCompleteReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.ai.AiTextImportReqDTO;
+import io.github.xiaomisum.robotest.model.dto.response.ai.AiPriorityRecommendRespDTO;
 import io.github.xiaomisum.robotest.service.ai.AiCaseGenerationService;
+import io.github.xiaomisum.robotest.service.ai.AiPriorityRecommendService;
+import xyz.migoo.framework.common.pojo.Result;
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
 import org.springframework.http.MediaType;
@@ -24,6 +28,18 @@ public class AiCaseController {
 
     @Resource
     private AiCaseGenerationService aiCaseGenerationService;
+
+    @Resource
+    private AiPriorityRecommendService aiPriorityRecommendService;
+
+    @PostMapping("/cases/priority-recommend")
+    public Result<AiPriorityRecommendRespDTO> priorityRecommend(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @RequestHeader("X-Active-Workspace") UUID workspaceId,
+            @RequestHeader("X-Active-Project") UUID projectId,
+            @RequestBody @Valid AiPriorityRecommendReqDTO reqDTO) {
+        return Result.ok(aiPriorityRecommendService.recommend(loginUser.getId(), workspaceId, projectId, reqDTO));
+    }
 
     @PostMapping(value = "/cases/generate", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter generate(
