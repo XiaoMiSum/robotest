@@ -66,7 +66,6 @@ let lastSavedSnapshot = ''
 const form = reactive({
   enabled: false,
   embedding: {
-    enabled: false,
     provider: '',
     baseUrl: '',
     model: '',
@@ -174,7 +173,6 @@ function applyConfig(loaded: AiConfig, opts: { preserveEmbedding?: boolean } = {
   form.enabled = loaded.enabled
   // 自动保存路径不覆盖 form.embedding，避免打断未保存的 Embedding 编辑
   if (loaded.embedding && !opts.preserveEmbedding) {
-    form.embedding.enabled = true
     form.embedding.provider = loaded.embedding.provider
     form.embedding.baseUrl = loaded.embedding.baseUrl
     form.embedding.model = loaded.embedding.model
@@ -767,62 +765,52 @@ onMounted(loadAll)
                   <div class="ai-config-page__card-header ai-config-page__embedding-header">
                     <el-icon class="ai-config-page__card-icon"><DataLine /></el-icon>
                     <span>Embedding 模型</span>
-                    <span class="ai-config-page__embedding-switch" @click.stop>
-                      <el-switch v-model="form.embedding.enabled" />
-                    </span>
                   </div>
                 </template>
-                <template v-if="form.embedding.enabled">
-                  <el-form-item label="供应商">
-                    <el-select v-model="form.embedding.provider" @change="(v: string) => (form.embedding.provider = v)">
-                      <el-option
-                        v-for="p in embeddingProviderOptions"
-                        :key="p.key"
-                        :label="p.name"
-                        :value="p.key"
-                      />
-                    </el-select>
-                  </el-form-item>
-                  <el-form-item label="服务地址">
-                    <el-input v-model="form.embedding.baseUrl" />
-                  </el-form-item>
-                  <el-form-item label="模型名">
-                    <el-select v-model="form.embedding.model" filterable allow-create default-first-option>
-                      <el-option v-for="m in embeddingModelHints" :key="m" :label="m" :value="m" />
-                    </el-select>
-                  </el-form-item>
-                  <el-form-item label="向量维度">
-                    <el-input-number v-model="form.embedding.dimension" :min="1" :max="2000" />
-                  </el-form-item>
-                  <el-form-item label="API 密钥">
-                    <el-input
-                      v-model="form.embedding.apiKey"
-                      type="password"
-                      show-password
-                      :placeholder="
-                        form.embedding.apiKeyConfigured
-                          ? `已配置（末位 ${form.embedding.keySuffix ?? '****'}），留空不修改`
-                          : '请输入密钥'
-                      "
+                <el-form-item label="供应商">
+                  <el-select v-model="form.embedding.provider" @change="(v: string) => (form.embedding.provider = v)">
+                    <el-option
+                      v-for="p in embeddingProviderOptions"
+                      :key="p.key"
+                      :label="p.name"
+                      :value="p.key"
                     />
-                  </el-form-item>
-                  <el-form-item v-for="param in embeddingUniqueParams" :key="param.key" :label="param.label">
-                    <el-input v-model="form.embedding.uniqueValues[param.key] as string" />
-                    <span class="ai-config-page__hint">{{ param.description }}</span>
-                  </el-form-item>
-                  <el-collapse class="ai-config-page__advanced">
-                    <el-collapse-item title="高级自定义参数（JSON）" name="embeddingAdvanced">
-                      <el-input v-model="form.embedding.customParams" type="textarea" :rows="4" />
-                    </el-collapse-item>
-                  </el-collapse>
-                </template>
-                <div v-else class="ai-config-page__group-off">开启后可配置向量检索所需的 Embedding 服务</div>
+                  </el-select>
+                </el-form-item>
+                <el-form-item label="服务地址">
+                  <el-input v-model="form.embedding.baseUrl" />
+                </el-form-item>
+                <el-form-item label="模型名">
+                  <el-select v-model="form.embedding.model" filterable allow-create default-first-option>
+                    <el-option v-for="m in embeddingModelHints" :key="m" :label="m" :value="m" />
+                  </el-select>
+                </el-form-item>
+                <el-form-item label="向量维度">
+                  <el-input-number v-model="form.embedding.dimension" :min="1" :max="2000" />
+                </el-form-item>
+                <el-form-item label="API 密钥">
+                  <el-input
+                    v-model="form.embedding.apiKey"
+                    type="password"
+                    show-password
+                    :placeholder="
+                      form.embedding.apiKeyConfigured
+                        ? `已配置（末位 ${form.embedding.keySuffix ?? '****'}），留空不修改`
+                        : '请输入密钥'
+                    "
+                  />
+                </el-form-item>
+                <el-form-item v-for="param in embeddingUniqueParams" :key="param.key" :label="param.label">
+                  <el-input v-model="form.embedding.uniqueValues[param.key] as string" />
+                  <span class="ai-config-page__hint">{{ param.description }}</span>
+                </el-form-item>
+                <el-collapse class="ai-config-page__advanced">
+                  <el-collapse-item title="高级自定义参数（JSON）" name="embeddingAdvanced">
+                    <el-input v-model="form.embedding.customParams" type="textarea" :rows="4" />
+                  </el-collapse-item>
+                </el-collapse>
                 <div class="ai-config-page__embedding-actions">
-                  <el-button
-                    :disabled="!form.embedding.enabled"
-                    :loading="testing.embedding"
-                    @click="handleTestEmbedding"
-                  >
+                  <el-button :loading="testing.embedding" @click="handleTestEmbedding">
                     <el-icon><Connection /></el-icon>连通性测试
                   </el-button>
                   <el-button type="primary" :loading="saving" @click="handleSaveEmbedding">保存</el-button>
@@ -1149,22 +1137,11 @@ onMounted(loadAll)
   width: 100%;
 }
 
-.ai-config-page__embedding-switch {
-  margin-left: auto;
-}
-
 .ai-config-page__embedding-actions {
   display: flex;
   justify-content: flex-end;
   gap: var(--space-sm);
   margin-top: var(--space-lg);
-}
-
-.ai-config-page__group-off {
-  font-size: 13px;
-  color: var(--color-neutral-400);
-  text-align: center;
-  padding: var(--space-md) 0;
 }
 
 .ai-config-page__advanced {
