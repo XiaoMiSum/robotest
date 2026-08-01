@@ -5,7 +5,6 @@ import tools.jackson.databind.node.ObjectNode;
 import io.github.xiaomisum.robotest.model.entity.admin.AuditLog;
 import io.github.xiaomisum.robotest.repository.admin.AuditLogMapper;
 import jakarta.servlet.http.HttpServletRequest;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
@@ -14,6 +13,9 @@ import org.aspectj.lang.reflect.MethodSignature;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
@@ -26,11 +28,20 @@ import java.util.UUID;
 @Slf4j
 @Aspect
 @Component
-@RequiredArgsConstructor
 public class AuditLogAspect {
 
     private final AuditLogMapper auditLogMapper;
     private final ObjectMapper objectMapper;
+    private final TransactionTemplate auditTxTemplate;
+
+    public AuditLogAspect(AuditLogMapper auditLogMapper, ObjectMapper objectMapper,
+                          PlatformTransactionManager transactionManager) {
+        this.auditLogMapper = auditLogMapper;
+        this.objectMapper = objectMapper;
+        this.auditTxTemplate = new TransactionTemplate(transactionManager);
+        // 审计写入独立事务：失败只丢弃审计记录本身，不随业务事务静默回滚
+        this.auditTxTemplate.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+    }
 
     private static final Set<String> SENSITIVE_FIELDS = Set.of(
             "password", "passwordHash", "token", "accessToken", "refreshToken", "secret"
@@ -94,7 +105,7 @@ public class AuditLogAspect {
                 record.setChanges(Map.of());
             }
 
-            auditLogMapper.insert(record);
+            auditTxTemplate.executeWithoutResult(status -> auditLogMapper.insert(record));
         } catch (Exception e) {
             log.warn("[AuditLog] Failed to write audit log: {}", e.getMessage());
         }
