@@ -79,7 +79,7 @@ CREATE INDEX idx_permission_scope ON sys_permission (scope);
 
 -- 审计日志表
 CREATE TABLE audit_log (
-    id            BIGINT       PRIMARY KEY,
+    id            UUID         PRIMARY KEY,
     operator_id   VARCHAR(64)  NOT NULL,
     operator_name VARCHAR(64)  NOT NULL DEFAULT '',
     operation     VARCHAR(32)  NOT NULL,
