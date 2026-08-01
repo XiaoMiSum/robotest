@@ -23,6 +23,20 @@ describe('AI_PANEL_MODES 请求体组装', () => {
     })
   })
 
+  it('generate/complete 模式透传需求条目 ID，为空时省略', () => {
+    const withReqs = { ...context, requirementIds: ['req-1', 'req-2'] }
+    expect(AI_PANEL_MODES.generate.buildBody(withReqs)).toMatchObject({
+      requirementIds: ['req-1', 'req-2'],
+    })
+    expect(AI_PANEL_MODES.complete.buildBody(withReqs)).toMatchObject({
+      requirementIds: ['req-1', 'req-2'],
+    })
+    expect(AI_PANEL_MODES.generate.buildBody(context)).not.toHaveProperty('requirementIds')
+    expect(AI_PANEL_MODES.complete.buildBody(context)).not.toHaveProperty('requirementIds')
+    // import 模式不消费需求条目
+    expect(AI_PANEL_MODES.import.buildBody(withReqs)).not.toHaveProperty('requirementIds')
+  })
+
   it('complete 模式映射 nodeId 与 extraText，空文本转 null', () => {
     expect(AI_PANEL_MODES.complete.buildBody(context)).toEqual({
       documentId: 'doc-1',

@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
+import RequirementSelector from '@/components/project/RequirementSelector.vue'
+import { getDocumentRequirements } from '@/services/project'
 import { useAiStream, type AiStreamController } from '@/composables/useAiStream'
 import { useAiStore } from '@/stores/ai'
-import type { AiCaseGenerateResult, AiGeneratedNode } from '@/types'
+import type { AiCaseGenerateResult, AiGeneratedNode, RequirementSummary } from '@/types'
 import { buildPreviewTree, filterCheckedTree, type AiPreviewNode } from './aiMount'
 import { AI_PANEL_MODES, validateImportText, type AiPanelMode } from './aiPanelModes'
 import AiPreviewTree from './AiPreviewTree.vue'
@@ -11,7 +13,7 @@ import AiPreviewTree from './AiPreviewTree.vue'
 /**
  * AI 生成抽屉（US-AI-001/002/016，交互设计 2.1/2.2/3.1/4.5）：
  * 文本输入 → SSE 流式输出 → done 后切结构化预览树（勾选取舍）→ 确认挂载（由父组件执行）。
- * 三种模式差异集中在 aiPanelModes 配置表；梯队一不含需求池选取入口（US-AI-004）。
+ * 三种模式差异集中在 aiPanelModes 配置表；需求条目区（US-AI-004）供 generate/complete 消费。
  */
 const props = defineProps<{
   mode: AiPanelMode
@@ -39,6 +41,9 @@ const inputText = ref(props.initialText ?? '')
 const streamText = ref('')
 const previewNodes = ref<AiPreviewNode[]>([])
 const warnings = ref<string[]>([])
+/** 已选需求池条目（US-AI-004），随请求体透传；打开时默认带入文档关联条目 */
+const selectedRequirements = ref<RequirementSummary[]>([])
+const requirementSelectorVisible = ref(false)
 /** 超 10 秒未见首帧的可取消提示（AI 通用交互规范 2.3） */
 const slowHint = ref(false)
 
@@ -61,8 +66,9 @@ function generate(): void {
       ElMessage.warning(error)
       return
     }
-  } else if (!config.inputOptional && !inputText.value.trim()) {
-    ElMessage.warning('请输入需求描述')
+    // 需求文本与需求池条目至少一项非空（3.2.1）
+  } else if (!config.inputOptional && !inputText.value.trim() && !selectedRequirements.value.length) {
+    ElMessage.warning('请输入需求描述或选择需求条目')
     return
   }
   phase.value = 'streaming'
@@ -80,6 +86,7 @@ function generate(): void {
       targetNodeId: props.targetNodeId,
       text: inputText.value,
       modelId: aiStore.effectiveModelId() ?? null,
+      requirementIds: selectedRequirements.value.map((r) => r.id),
     }),
     onEvent(event) {
       clearSlowTimer()
@@ -143,6 +150,34 @@ function handleClose(): void {
   visible.value = false
 }
 
+// ==================== 需求条目区（US-AI-004） ====================
+
+function handleRequirementConfirm(selected: RequirementSummary[]): void {
+  selectedRequirements.value = selected
+}
+
+function removeRequirement(id: string): void {
+  selectedRequirements.value = selectedRequirements.value.filter((r) => r.id !== id)
+}
+
+/** 打开时默认带入文档关联条目（交互设计 6.1），仅 generate/complete 消费 */
+async function loadDocumentRequirements(): Promise<void> {
+  try {
+    selectedRequirements.value = await getDocumentRequirements(props.docId)
+  } catch (err) {
+    ElMessage.error(err instanceof Error ? err.message : '加载文档关联需求失败')
+  }
+}
+
+// 每次打开（generate/complete）重新同步文档关联条目，导入模式不显示需求区
+watch(
+  visible,
+  (open) => {
+    if (open && props.mode !== 'import') void loadDocumentRequirements()
+  },
+  { immediate: true },
+)
+
 onMounted(() => {
   // 导入模式由 AI 指令输入区携文本打开，进入即自动开始解析（交互设计 4.5）
   if (props.mode === 'import') generate()
@@ -168,6 +203,38 @@ onBeforeUnmount(() => {
 
     <div class="ai-panel">
       <div class="ai-panel-target">挂载目标：{{ targetPath }}</div>
+
+      <!-- 需求条目区（US-AI-004）：generate/complete 选取需求池条目作为生成上下文 -->
+      <div v-if="mode !== 'import'" class="ai-panel-reqs">
+        <div class="ai-panel-reqs__bar">
+          <span class="ai-panel-reqs__label">需求条目</span>
+          <el-button
+            size="small"
+            :disabled="phase === 'streaming'"
+            @click="requirementSelectorVisible = true"
+          >
+            {{ selectedRequirements.length ? '调整条目' : '选择条目' }}
+          </el-button>
+        </div>
+        <div v-if="selectedRequirements.length" class="ai-panel-reqs__tags">
+          <el-tag
+            v-for="item in selectedRequirements"
+            :key="item.id"
+            closable
+            @close="removeRequirement(item.id)"
+          >
+            {{ item.title }}
+          </el-tag>
+        </div>
+        <div v-else class="ai-panel-reqs__empty">未选择需求条目，将仅依据输入文本生成</div>
+      </div>
+
+      <RequirementSelector
+        v-model="requirementSelectorVisible"
+        :selected-ids="selectedRequirements.map((r) => r.id)"
+        :draft-text="mode === 'generate' ? inputText : undefined"
+        @confirm="handleRequirementConfirm"
+      />
 
       <div class="ai-panel-input">
         <el-input
@@ -246,6 +313,29 @@ onBeforeUnmount(() => {
   background: var(--el-fill-color-light);
   font-size: 12px;
   color: var(--el-text-color-secondary);
+}
+
+.ai-panel-reqs__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.ai-panel-reqs__label {
+  font-size: 13px;
+  color: var(--el-text-color-regular);
+}
+
+.ai-panel-reqs__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.ai-panel-reqs__empty {
+  font-size: 12px;
+  color: var(--el-text-color-placeholder);
 }
 
 .ai-panel-actions {
