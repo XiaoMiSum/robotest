@@ -25,4 +25,5 @@ public class TestPlan extends BaseUuidDO<TestPlan> {
     private LocalDateTime startTime;
     private LocalDateTime endTime;
     private String environment;
+    private LocalDateTime snapshotSyncedAt;
 }

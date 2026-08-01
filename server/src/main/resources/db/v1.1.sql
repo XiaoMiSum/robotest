@@ -121,6 +121,11 @@ COMMENT ON COLUMN test_case_node.ai_generated IS 'AI 生成标识（挂载执行
 COMMENT ON COLUMN test_review_node_snapshot.ai_generated IS 'AI 生成标识（随评审快照继承）';
 COMMENT ON COLUMN test_plan_node_snapshot.ai_generated IS 'AI 生成标识（随计划快照继承）';
 
+-- 计划快照最近同步时间（US-AI-017 执行顺序推荐的快照新鲜度依据，只在快照重建/同步后由应用写入，不建索引）
+ALTER TABLE test_plan ADD COLUMN snapshot_synced_at TIMESTAMP NULL;
+
+COMMENT ON COLUMN test_plan.snapshot_synced_at IS '计划快照最近同步时间（快照新建/调整/同步后写入，执行顺序推荐据此提示快照过期）';
+
 -- ============================================================
 -- 3. 种子数据（AI 管理权限点，并回补系统管理员角色）
 -- ============================================================
