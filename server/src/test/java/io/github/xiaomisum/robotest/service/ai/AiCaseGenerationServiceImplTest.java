@@ -5,11 +5,14 @@ import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.model.dto.request.ai.AiCaseGenerateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.ai.AiStepCompleteReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.ai.AiTextImportReqDTO;
+import io.github.xiaomisum.robotest.model.dto.request.requirement.RequirementCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiNodeTreeDTO;
+import io.github.xiaomisum.robotest.model.entity.requirement.RequirementPoolItem;
 import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseModule;
 import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseNode;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseModuleMapper;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseNodeMapper;
+import io.github.xiaomisum.robotest.service.project.RequirementService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -32,6 +35,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -55,6 +59,8 @@ class AiCaseGenerationServiceImplTest {
         private TestCaseModuleMapper testCaseModuleMapper;
         @Mock
         private TestCaseNodeMapper testCaseNodeMapper;
+        @Mock
+        private RequirementService requirementService;
 
         @Captor
         private ArgumentCaptor<String> businessDataCaptor;
@@ -299,5 +305,178 @@ class AiCaseGenerationServiceImplTest {
                                 .thenReturn(List.of(node(ROOT_ID, null, "根", 0)));
                 assertThrows(ServiceException.class,
                                 () -> service.importText(USER_ID, WORKSPACE_ID, PROJECT_ID, importReq("需求文本")));
+        }
+
+        // ==================== US-AI-004 需求池消费接线 ====================
+
+        private void stubDocumentAndTarget() {
+                when(testCaseModuleMapper.selectById(DOC_ID))
+                                .thenReturn(document(PROJECT_ID, Constants.ModuleType.DOCUMENT));
+                when(testCaseNodeMapper.listByDocumentId(DOC_ID))
+                                .thenReturn(List.of(node(TARGET_ID, null, "根", 0)));
+        }
+
+        private RequirementPoolItem requirementItem(UUID id, String title, String content) {
+                RequirementPoolItem item = new RequirementPoolItem();
+                item.setId(id);
+                item.setProjectId(PROJECT_ID);
+                item.setTitle(title);
+                item.setContent(content);
+                return item;
+        }
+
+        private AiNodeTreeDTO.Payload validPayload() {
+                AiNodeTreeDTO caseNode = new AiNodeTreeDTO();
+                caseNode.setType(Constants.NodeType.CASE);
+                caseNode.setTitle("校验用例");
+                caseNode.setPriority("P1");
+                AiNodeTreeDTO.Payload payload = new AiNodeTreeDTO.Payload();
+                payload.setNodes(List.of(caseNode));
+                return payload;
+        }
+
+        @Test
+        void generate_textAndRequirementIdsBothEmpty_throws() {
+                when(testCaseModuleMapper.selectById(DOC_ID))
+                                .thenReturn(document(PROJECT_ID, Constants.ModuleType.DOCUMENT));
+                AiCaseGenerateReqDTO dto = req();
+                dto.setRequirementText(null);
+                assertThrows(ServiceException.class,
+                                () -> service.generateCaseTree(USER_ID, WORKSPACE_ID, PROJECT_ID, dto));
+        }
+
+        @Test
+        void generate_saveAsRequirementWithoutText_throws() {
+                when(testCaseModuleMapper.selectById(DOC_ID))
+                                .thenReturn(document(PROJECT_ID, Constants.ModuleType.DOCUMENT));
+                AiCaseGenerateReqDTO dto = req();
+                dto.setRequirementText(null);
+                AiCaseGenerateReqDTO.SaveAsRequirement saveAs = new AiCaseGenerateReqDTO.SaveAsRequirement();
+                saveAs.setTitle("登录需求");
+                dto.setSaveAsRequirement(saveAs);
+                assertThrows(ServiceException.class,
+                                () -> service.generateCaseTree(USER_ID, WORKSPACE_ID, PROJECT_ID, dto));
+        }
+
+        @Test
+        void generate_saveAsRequirement_savesItemBeforeStreaming() {
+                stubDocumentAndTarget();
+                AiCaseGenerateReqDTO dto = req();
+                AiCaseGenerateReqDTO.SaveAsRequirement saveAs = new AiCaseGenerateReqDTO.SaveAsRequirement();
+                saveAs.setTitle("登录需求");
+                dto.setSaveAsRequirement(saveAs);
+                when(aiGatewayService.stream(any(), eq(AiFunctionType.CASE_GENERATION), any(), any(), any(),
+                                any(), any())).thenReturn(new SseEmitter());
+
+                service.generateCaseTree(USER_ID, WORKSPACE_ID, PROJECT_ID, dto);
+
+                verify(requirementService).create(eq(PROJECT_ID), eq(USER_ID), any(RequirementCreateReqDTO.class));
+        }
+
+        @Test
+        void generate_saveAsRequirementSaveFails_continuesAndWarnsInDone() {
+                stubDocumentAndTarget();
+                AiCaseGenerateReqDTO dto = req();
+                AiCaseGenerateReqDTO.SaveAsRequirement saveAs = new AiCaseGenerateReqDTO.SaveAsRequirement();
+                saveAs.setTitle("登录需求");
+                dto.setSaveAsRequirement(saveAs);
+                doThrow(new ServiceException()).when(requirementService)
+                                .create(eq(PROJECT_ID), eq(USER_ID), any(RequirementCreateReqDTO.class));
+                when(aiGatewayService.stream(any(), any(), any(), any(), any(), any(),
+                                doneAssemblerCaptor.capture())).thenReturn(new SseEmitter());
+                when(outputValidator.parseAndValidate(eq("raw"), eq(AiNodeTreeDTO.Payload.class), any()))
+                                .thenReturn(validPayload());
+
+                service.generateCaseTree(USER_ID, WORKSPACE_ID, PROJECT_ID, dto);
+                Map<?, ?> map = (Map<?, ?>) doneAssemblerCaptor.getValue().apply("raw");
+
+                List<?> warnings = (List<?>) map.get("warnings");
+                assertTrue(warnings.stream()
+                                .anyMatch(w -> String.valueOf(w).contains("临时需求保存为需求池条目失败")));
+        }
+
+        @Test
+        void generate_withRequirementIds_appendsTitledBlocks() {
+                stubDocumentAndTarget();
+                UUID reqId = UUID.randomUUID();
+                when(requirementService.requireByIds(PROJECT_ID, List.of(reqId)))
+                                .thenReturn(List.of(requirementItem(reqId, "登录需求", "用户可通过邮箱与密码登录")));
+                AiCaseGenerateReqDTO dto = req();
+                dto.setRequirementIds(List.of(reqId));
+                when(aiGatewayService.stream(any(), any(), any(), businessDataCaptor.capture(), any(), any(),
+                                any())).thenReturn(new SseEmitter());
+
+                service.generateCaseTree(USER_ID, WORKSPACE_ID, PROJECT_ID, dto);
+
+                String businessData = businessDataCaptor.getValue();
+                assertTrue(businessData.contains("【需求条目】登录需求"));
+                assertTrue(businessData.contains("用户可通过邮箱与密码登录"));
+        }
+
+        @Test
+        void generate_singleItemOverBudget_truncatesContent() {
+                stubDocumentAndTarget();
+                UUID reqId = UUID.randomUUID();
+                when(requirementService.requireByIds(PROJECT_ID, List.of(reqId)))
+                                .thenReturn(List.of(requirementItem(reqId, "长需求", "字".repeat(9000))));
+                AiCaseGenerateReqDTO dto = req();
+                dto.setRequirementIds(List.of(reqId));
+                when(aiGatewayService.stream(any(), any(), any(), businessDataCaptor.capture(), any(), any(),
+                                any())).thenReturn(new SseEmitter());
+
+                service.generateCaseTree(USER_ID, WORKSPACE_ID, PROJECT_ID, dto);
+
+                String businessData = businessDataCaptor.getValue();
+                // 单条目内容截断至 8000 token 预算，尾部加省略号
+                assertTrue(businessData.contains("…"));
+                assertTrue(businessData.length() < 9000);
+        }
+
+        @Test
+        void generate_contextBudgetExceeded_dropsLaterItemsWithWarning() {
+                stubDocumentAndTarget();
+                UUID reqA = UUID.randomUUID();
+                UUID reqB = UUID.randomUUID();
+                when(requirementService.requireByIds(PROJECT_ID, List.of(reqA, reqB)))
+                                .thenReturn(List.of(
+                                                requirementItem(reqA, "条目A", "甲".repeat(10_000)),
+                                                requirementItem(reqB, "条目B", "乙".repeat(10_000))));
+                AiCaseGenerateReqDTO dto = req();
+                dto.setRequirementIds(List.of(reqA, reqB));
+                when(aiGatewayService.stream(any(), any(), any(), businessDataCaptor.capture(), any(), any(),
+                                doneAssemblerCaptor.capture())).thenReturn(new SseEmitter());
+                when(outputValidator.parseAndValidate(eq("raw"), eq(AiNodeTreeDTO.Payload.class), any()))
+                                .thenReturn(validPayload());
+
+                service.generateCaseTree(USER_ID, WORKSPACE_ID, PROJECT_ID, dto);
+
+                String businessData = businessDataCaptor.getValue();
+                assertTrue(businessData.contains("条目A"));
+                assertFalse(businessData.contains("条目B"));
+                Map<?, ?> map = (Map<?, ?>) doneAssemblerCaptor.getValue().apply("raw");
+                assertTrue(((List<?>) map.get("warnings")).stream()
+                                .anyMatch(w -> String.valueOf(w).contains("超出预算")));
+        }
+
+        @Test
+        void completeSteps_withRequirementIds_appendsBlocks() {
+                when(testCaseModuleMapper.selectById(DOC_ID))
+                                .thenReturn(document(PROJECT_ID, Constants.ModuleType.DOCUMENT));
+                TestCaseNode target = node(TARGET_ID, null, "用例", 0);
+                target.setType(Constants.NodeType.CASE);
+                when(testCaseNodeMapper.listByDocumentId(DOC_ID)).thenReturn(List.of(target));
+                UUID reqId = UUID.randomUUID();
+                when(requirementService.requireByIds(PROJECT_ID, List.of(reqId)))
+                                .thenReturn(List.of(requirementItem(reqId, "需求X", "覆盖支付流程")));
+                AiStepCompleteReqDTO dto = completeReq();
+                dto.setRequirementIds(List.of(reqId));
+                when(aiGatewayService.stream(any(), eq(AiFunctionType.STEP_COMPLETION), any(),
+                                businessDataCaptor.capture(), any(), any(), any())).thenReturn(new SseEmitter());
+
+                service.completeSteps(USER_ID, WORKSPACE_ID, PROJECT_ID, dto);
+
+                String businessData = businessDataCaptor.getValue();
+                assertTrue(businessData.contains("【需求条目】需求X"));
+                assertTrue(businessData.contains("覆盖支付流程"));
         }
 }
