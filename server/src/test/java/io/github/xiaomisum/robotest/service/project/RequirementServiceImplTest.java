@@ -260,4 +260,53 @@ class RequirementServiceImplTest {
         verify(documentRequirementRelMapper).deleteByDocumentIdAndRequirementIds(any(), any());
         verify(documentRequirementRelMapper, never()).insert(any(DocumentRequirementRel.class));
     }
+
+    // ==================== requireByIds（AI 上下文组装，3.2.1） ====================
+
+    @Test
+    void requireByIds_emptyOrNull_returnsEmptyWithoutQuery() {
+        org.junit.jupiter.api.Assertions.assertEquals(List.of(), service.requireByIds(PROJECT_ID, null));
+        org.junit.jupiter.api.Assertions.assertEquals(List.of(), service.requireByIds(PROJECT_ID, List.of()));
+        verify(requirementMapper, never()).selectBatchIds(any());
+    }
+
+    @Test
+    void requireByIds_missingItem_throwsNotFound() {
+        UUID reqA = UUID.randomUUID();
+        UUID reqB = UUID.randomUUID();
+        // selectBatchIds 自动过滤已删除条目：reqB 未返回视为缺失
+        RequirementPoolItem a = item(PROJECT_ID, CREATOR_ID);
+        a.setId(reqA);
+        when(requirementMapper.selectBatchIds(anyList())).thenReturn(List.of(a));
+        assertThrows(ServiceException.class,
+                () -> service.requireByIds(PROJECT_ID, List.of(reqA, reqB)));
+    }
+
+    @Test
+    void requireByIds_crossProject_throwsNotFound() {
+        UUID reqId = UUID.randomUUID();
+        RequirementPoolItem foreign = item(UUID.randomUUID(), CREATOR_ID);
+        foreign.setId(reqId);
+        when(requirementMapper.selectBatchIds(anyList())).thenReturn(List.of(foreign));
+        assertThrows(ServiceException.class, () -> service.requireByIds(PROJECT_ID, List.of(reqId)));
+    }
+
+    @Test
+    void requireByIds_preservesSelectionOrderAndDeduplicates() {
+        UUID first = UUID.randomUUID();
+        UUID second = UUID.randomUUID();
+        RequirementPoolItem a = item(PROJECT_ID, CREATOR_ID);
+        a.setId(first);
+        a.setTitle("条目A");
+        RequirementPoolItem b = item(PROJECT_ID, CREATOR_ID);
+        b.setId(second);
+        b.setTitle("条目B");
+        // 模拟按输入顺序去重后查询
+        when(requirementMapper.selectBatchIds(anyList())).thenReturn(List.of(b, a));
+
+        List<RequirementPoolItem> result = service.requireByIds(PROJECT_ID, List.of(first, second, first));
+
+        org.junit.jupiter.api.Assertions.assertEquals(List.of(first, second),
+                result.stream().map(RequirementPoolItem::getId).toList());
+    }
 }
