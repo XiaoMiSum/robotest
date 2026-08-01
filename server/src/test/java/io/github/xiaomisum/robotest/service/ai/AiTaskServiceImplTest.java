@@ -17,6 +17,7 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -71,6 +72,28 @@ class AiTaskServiceImplTest {
         when(taskMapper.selectById(taskId)).thenReturn(task(Constants.AiTaskStatus.RUNNING, userId));
         AiTaskRespDTO dto = taskService.getTask(taskId, projectId);
         assertEquals(Constants.AiTaskStatus.RUNNING, dto.getStatus());
+    }
+
+    @Test
+    void getLatestTaskByTypeAndTarget_noRecord_returnsNull() {
+        when(taskMapper.findLatestByTypeAndTarget(Constants.AiTaskType.REVIEW_CHECK, taskId)).thenReturn(null);
+        assertNull(taskService.getLatestTaskByTypeAndTarget(Constants.AiTaskType.REVIEW_CHECK, taskId, projectId));
+    }
+
+    @Test
+    void getLatestTaskByTypeAndTarget_projectMismatch_returnsNull() {
+        AiAnalysisTask task = task(Constants.AiTaskStatus.RUNNING, userId);
+        task.setProjectId(UUID.fromString("00000000-0000-0000-0000-0000000000ff"));
+        when(taskMapper.findLatestByTypeAndTarget(Constants.AiTaskType.REVIEW_CHECK, taskId)).thenReturn(task);
+        assertNull(taskService.getLatestTaskByTypeAndTarget(Constants.AiTaskType.REVIEW_CHECK, taskId, projectId));
+    }
+
+    @Test
+    void getLatestTaskByTypeAndTarget_success() {
+        when(taskMapper.findLatestByTypeAndTarget(Constants.AiTaskType.REVIEW_CHECK, taskId))
+                .thenReturn(task(Constants.AiTaskStatus.SUCCESS, userId));
+        AiTaskRespDTO dto = taskService.getLatestTaskByTypeAndTarget(Constants.AiTaskType.REVIEW_CHECK, taskId, projectId);
+        assertEquals(Constants.AiTaskStatus.SUCCESS, dto.getStatus());
     }
 
     @Test

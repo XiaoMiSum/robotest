@@ -2,7 +2,10 @@ package io.github.xiaomisum.robotest.controller.project;
 
 import io.github.xiaomisum.robotest.framework.security.LoginUser;
 import io.github.xiaomisum.robotest.model.dto.request.ai.AiReviewSummaryReqDTO;
+import io.github.xiaomisum.robotest.model.dto.response.ai.AiReviewCheckStartRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiReviewSummaryRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.ai.AiTaskRespDTO;
+import io.github.xiaomisum.robotest.service.ai.AiReviewCheckService;
 import io.github.xiaomisum.robotest.service.ai.AiReviewSummaryService;
 import jakarta.annotation.Resource;
 import org.springframework.http.MediaType;
@@ -25,6 +28,8 @@ public class AiReviewController {
 
     @Resource
     private AiReviewSummaryService aiReviewSummaryService;
+    @Resource
+    private AiReviewCheckService aiReviewCheckService;
 
     @PostMapping(value = "/{id}/summary", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter generateSummary(
@@ -42,5 +47,22 @@ public class AiReviewController {
             @RequestHeader("X-Active-Project") UUID projectId,
             @PathVariable UUID id) {
         return Result.ok(aiReviewSummaryService.getSummary(id, loginUser.getId()));
+    }
+
+    @PostMapping("/{id}/check")
+    public Result<AiReviewCheckStartRespDTO> startCheck(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @RequestHeader("X-Active-Workspace") UUID workspaceId,
+            @RequestHeader("X-Active-Project") UUID projectId,
+            @PathVariable UUID id) {
+        return Result.ok(aiReviewCheckService.startCheck(loginUser.getId(), workspaceId, projectId, id));
+    }
+
+    @GetMapping("/{id}/check-result")
+    public Result<AiTaskRespDTO> getCheckResult(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @RequestHeader("X-Active-Project") UUID projectId,
+            @PathVariable UUID id) {
+        return Result.ok(aiReviewCheckService.getCheckResult(loginUser.getId(), projectId, id));
     }
 }

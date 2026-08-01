@@ -31,10 +31,13 @@ import io.github.xiaomisum.robotest.repository.tcase.TestCaseNodeMapper;
 import io.github.xiaomisum.robotest.repository.admin.SysUserMapper;
 import io.github.xiaomisum.robotest.repository.workspace.ProjectMapper;
 import io.github.xiaomisum.robotest.repository.workspace.WorkspaceUserMapper;
+import io.github.xiaomisum.robotest.service.ai.AiTaskService;
 import io.github.xiaomisum.robotest.service.project.TestReviewService;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
 import xyz.migoo.framework.common.pojo.PageParam;
 import xyz.migoo.framework.common.pojo.PageResult;
@@ -64,6 +67,8 @@ public class TestReviewServiceImpl implements TestReviewService {
     private ProjectMapper projectMapper;
     @Resource
     private WorkspaceUserMapper workspaceUserMapper;
+    @Resource
+    private AiTaskService aiTaskService;
 
     @Override
     public PageResult<TestReviewListRespDTO> getReviewPage(UUID projectId, String status,
@@ -469,6 +474,8 @@ public class TestReviewServiceImpl implements TestReviewService {
         update.setId(review.getId());
         update.setStatus(Constants.Status.COMPLETED);
         testReviewMapper.updateById(update);
+        // 评审离开 in_progress 联动取消检查任务（4.1：事务提交后执行，协作式取消由处理器感知）
+        cancelReviewCheckAfterCommit(reviewId);
     }
 
     @Override
@@ -486,6 +493,22 @@ public class TestReviewServiceImpl implements TestReviewService {
         reviewNodeSnapshotMapper.deleteByReviewId(reviewId);
         reviewModuleSnapshotMapper.deleteByReviewId(reviewId);
         testReviewMapper.deleteById(reviewId);
+        // 评审实体级出口同样联动取消检查任务（4.1）
+        cancelReviewCheckAfterCommit(reviewId);
+    }
+
+    /** 事务提交后再取消，避免执行线程读到未提交状态（与 AiTaskService 提交流程一致） */
+    private void cancelReviewCheckAfterCommit(UUID reviewId) {
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    aiTaskService.cancelByTypeAndTarget(Constants.AiTaskType.REVIEW_CHECK, reviewId);
+                }
+            });
+        } else {
+            aiTaskService.cancelByTypeAndTarget(Constants.AiTaskType.REVIEW_CHECK, reviewId);
+        }
     }
 
     @Override
