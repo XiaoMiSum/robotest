@@ -39,6 +39,21 @@ export function fetchReviewSummary(reviewId: string): Promise<AiReviewSummary | 
   return get(`/project/ai/reviews/${reviewId}/summary`)
 }
 
+/** 发起评审检查响应（3.1.1）：返回异步任务 ID，前端轮询任务状态 */
+export interface AiReviewCheckStartResp {
+  taskId: string
+}
+
+/** 发起评审一键检查，创建异步任务并返回任务 ID（US-AI-005，3.1.1） */
+export function startReviewCheck(reviewId: string): Promise<AiReviewCheckStartResp> {
+  return post(`/project/ai/reviews/${reviewId}/check`)
+}
+
+/** 查询评审最近一次检查任务（无记录返回 null；running/cancelled 亦含已产出部分结果，3.1.2） */
+export function fetchReviewCheckResult(reviewId: string): Promise<AiTask | null> {
+  return get(`/project/ai/reviews/${reviewId}/check-result`)
+}
+
 // ==================== 优先级推荐（项目级，US-AI-003） ====================
 
 export interface AiPriorityRecommendResp {
