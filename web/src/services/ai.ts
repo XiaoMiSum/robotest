@@ -8,6 +8,9 @@ function get<T>(url: string, params?: Record<string, unknown>): Promise<T> {
 function post<T>(url: string): Promise<T> {
   return api.post(url) as unknown as Promise<T>
 }
+function postData<T>(url: string, data: Record<string, unknown>): Promise<T> {
+  return api.post(url, data) as unknown as Promise<T>
+}
 
 // ==================== AI 能力开关（工作空间级） ====================
 
@@ -34,4 +37,18 @@ export function retryAiTask(taskId: string): Promise<void> {
 /** 查询最近一次成功摘要（无则 null）；生成走 SSE，见 useAiStream */
 export function fetchReviewSummary(reviewId: string): Promise<AiReviewSummary | null> {
   return get(`/project/ai/reviews/${reviewId}/summary`)
+}
+
+// ==================== 优先级推荐（项目级，US-AI-003） ====================
+
+export interface AiPriorityRecommendResp {
+  /** 推荐优先级 P0-P3，无推荐时为 null（前端静默忽略） */
+  priority: string | null
+  /** 推荐来源：rule（关键词规则命中）/ llm（模型兜底） */
+  source: 'rule' | 'llm'
+}
+
+/** 手工标记用例时同步推荐优先级（rule 命中瞬时返回，LLM 兜底失败返回 null） */
+export function recommendPriority(title: string, ancestorTitles: string[]): Promise<AiPriorityRecommendResp> {
+  return postData('/project/ai/cases/priority-recommend', { title, ancestorTitles })
 }

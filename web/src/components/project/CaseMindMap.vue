@@ -8,6 +8,7 @@
 import { onMounted, onBeforeUnmount, ref, watch, computed, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
 import { fetchDocumentNodes, getDocumentRequirements, setDocumentRequirements } from '@/services/project'
+import { recommendPriority, type AiPriorityRecommendResp } from '@/services/ai'
 import { getAccessToken } from '@/services'
 import type { AiGeneratedNode, DocumentLayout } from '@/types'
 import { useAiStore } from '@/stores/ai'
@@ -41,6 +42,9 @@ const selectedPriority = ref('')
 const selectedAiGenerated = ref(false)
 const canUndo = ref(false)
 const canRedo = ref(false)
+// 优先级智能推荐（US-AI-003）：仅对当前手工标记的节点展示，切换/手工选择即失效
+const priorityRecommendation = ref<AiPriorityRecommendResp | null>(null)
+let priorityRecSeq = 0
 
 const {
   containerRef,
@@ -59,6 +63,9 @@ const {
   onSelectionChange(data) {
     selectedPriority.value = data ? (data.priority as string) || '' : ''
     selectedAiGenerated.value = data ? data.aiGenerated === true : false
+    // 推荐仅对当次标记的节点有效：切换/清空选中即作废在途请求与已显结果（详细设计 4.3）
+    priorityRecSeq++
+    priorityRecommendation.value = null
   },
 })
 
@@ -585,16 +592,51 @@ function markAs(type: string) {
   if (type !== 'case') delete data.priority
   getMinder()?.refresh?.()
   updateSelectedState()
+  // 手工单节点标记为用例时触发优先级推荐（含既有节点重标记，详细设计 4.3）：
+  // 撤销/重放是数据事件不进入此路径，AI 生成节点不经此标记、DSL 批量标记走另一通路
+  if (type === 'case' && aiStore.aiEnabled) triggerPriorityRecommend()
 }
 
 function markPriority(p: string) {
   const data = getSelectedNodeData()
   if (!data) return
+  // 用户手工选择后，已显示/迟到的 LLM 推荐一律作废（详细设计 4.3）
+  priorityRecSeq++
+  priorityRecommendation.value = null
   data.priority = p
   // 标记联动规则：设置优先级时自动标记为用例
   if (data.type !== 'case') data.type = 'case'
   getMinder()?.refresh?.()
   updateSelectedState()
+}
+
+// 发起优先级推荐：祖先链（不含自身）供 LLM 结合模块路径判定；结果按序号令牌校验新鲜度
+function triggerPriorityRecommend() {
+  const root = getLiveRoot()
+  const data = getSelectedNodeData()
+  if (!root || !data) return
+  const nodeId = (data.id as string) || ''
+  const title = (data.text as string) ?? ''
+  if (!nodeId || !title.trim()) return
+  const path = findNodePath(root, nodeId) ?? []
+  const seq = ++priorityRecSeq
+  priorityRecommendation.value = null
+  recommendPriority(title.trim(), path.slice(0, -1))
+    .then((resp) => {
+      // 已切节点/已手工选优先级则丢弃迟到结果；无推荐（null）不展示标签
+      if (seq !== priorityRecSeq || !resp.priority) return
+      priorityRecommendation.value = resp
+    })
+    .catch(() => {
+      // 非侵入原则：规则未命中且 LLM 失败/超时静默无推荐，不提示错误（交互设计 5.2）
+    })
+}
+
+// 点击推荐标签：采纳即完成优先级标记（markPriority 内部会作废推荐）
+function applyPriorityRecommendation() {
+  const rec = priorityRecommendation.value
+  if (!rec?.priority) return
+  markPriority(rec.priority)
 }
 
 // 取消标记：恢复普通节点并连带清掉优先级，否则残留的 P 徽标会造成"已取消却仍有等级"的歧义
@@ -753,6 +795,11 @@ onBeforeUnmount(() => {
       </div>
       <el-divider direction="vertical" />
       <div class="toolbar-group">
+        <el-tooltip v-if="priorityRecommendation && selectedType === 'case'" content="AI 推荐优先级，点击采纳" placement="bottom">
+          <el-button size="small" text class="priority-recommend-btn" @click="applyPriorityRecommendation">
+            ✨ 推荐 {{ priorityRecommendation.priority }}
+          </el-button>
+        </el-tooltip>
         <el-button
           v-for="p in priorities"
           :key="p"
@@ -837,6 +884,12 @@ onBeforeUnmount(() => {
         <span :class="['menu-chip', { 'is-selected': selectedType === 'expected' }]" @click="markAs('expected')"><span class="type-dot type-dot--expected" />预期</span>
         <span class="menu-chip" title="取消标记" @click="clearMark"><el-icon><CircleClose /></el-icon></span>
       </div>
+      <!-- AI 优先级推荐标签：显示在等级按钮区上方，点击即完成优先级标记（交互设计 5.2） -->
+      <div
+        v-if="priorityRecommendation && selectedType === 'case'"
+        class="menu-priority-recommend"
+        @click="applyPriorityRecommendation"
+      >✨ 推荐 {{ priorityRecommendation.priority }}（点击采纳）</div>
       <div class="menu-chip-row">
         <span class="menu-chip-label">等级</span>
         <span
@@ -1045,6 +1098,21 @@ onBeforeUnmount(() => {
   color: var(--el-text-color-secondary);
   margin-right: 4px;
   flex-shrink: 0;
+}
+
+/* AI 优先级推荐标签：非侵入提示，采纳即完成标记；沿用 AI 入口紫色基调区分人工内容 */
+.menu-priority-recommend {
+  margin: 6px 12px 2px;
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  color: var(--color-primary-600);
+  background: var(--color-primary-50);
+  cursor: pointer;
+}
+
+.priority-recommend-btn {
+  color: var(--color-primary-600) !important;
 }
 
 .menu-chip {
