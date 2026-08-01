@@ -108,6 +108,19 @@ public interface AiAnalysisTaskMapper extends BaseMapperX<AiAnalysisTask> {
                 .set(AiAnalysisTask::getUpdatedAt, LocalDateTime.now()));
     }
 
+    /**
+     * 分批任务进度心跳：running → 更新进度并累计写入结果快照（review_check 部分结果可见性，基础设施 3.5.2）。
+     * 影响行数为 0 表示任务已被取消或置失败（协作式取消），执行器应立即中止返回部分结果。
+     */
+    default int updateProgressIfRunning(UUID id, int progress, String resultJson) {
+        return update(null, new LambdaUpdateWrapperX<AiAnalysisTask>()
+                .eq(AiAnalysisTask::getId, id)
+                .eq(AiAnalysisTask::getStatus, Constants.AiTaskStatus.RUNNING)
+                .set(AiAnalysisTask::getProgress, progress)
+                .set(resultJson != null, AiAnalysisTask::getResult, resultJson)
+                .set(AiAnalysisTask::getUpdatedAt, LocalDateTime.now()));
+    }
+
     default int markFailedIfRunning(UUID id, String errorMessage) {
         return update(null, new LambdaUpdateWrapperX<AiAnalysisTask>()
                 .eq(AiAnalysisTask::getId, id)

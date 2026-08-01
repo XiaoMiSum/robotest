@@ -100,6 +100,15 @@ public class AiTaskServiceImpl implements AiTaskService {
     }
 
     @Override
+    public AiTaskRespDTO getLatestTaskByTypeAndTarget(String type, UUID targetId, UUID projectId) {
+        AiAnalysisTask task = taskMapper.findLatestByTypeAndTarget(type, targetId);
+        if (task == null || (task.getProjectId() != null && !task.getProjectId().equals(projectId))) {
+            return null;
+        }
+        return toRespDTO(task);
+    }
+
+    @Override
     public void retryTask(UUID taskId, UUID userId) {
         AiAnalysisTask task = taskMapper.selectById(taskId);
         if (task == null || !Constants.AiTaskStatus.FAILED.equals(task.getStatus())) {

@@ -73,6 +73,9 @@ class TestReviewServiceImplTest {
         @Mock
         private WorkspaceUserMapper workspaceUserMapper;
 
+        @Mock
+        private io.github.xiaomisum.robotest.service.ai.AiTaskService aiTaskService;
+
         @InjectMocks
         private TestReviewServiceImpl reviewService;
 
@@ -607,6 +610,8 @@ class TestReviewServiceImplTest {
                 ArgumentCaptor<TestReview> captor = ArgumentCaptor.forClass(TestReview.class);
                 verify(testReviewMapper).updateById(captor.capture());
                 assertEquals("completed", captor.getValue().getStatus());
+                // 评审离开 in_progress：事务提交后联动取消 review_check 任务（无事务时同步执行）
+                verify(aiTaskService).cancelByTypeAndTarget(Constants.AiTaskType.REVIEW_CHECK, reviewId);
         }
 
         @Test
@@ -643,6 +648,8 @@ class TestReviewServiceImplTest {
                 verify(reviewNodeSnapshotMapper).deleteByReviewId(reviewId);
                 verify(reviewModuleSnapshotMapper).deleteByReviewId(reviewId);
                 verify(testReviewMapper).deleteById(reviewId);
+                // 实体级出口联动取消 review_check 任务
+                verify(aiTaskService).cancelByTypeAndTarget(Constants.AiTaskType.REVIEW_CHECK, reviewId);
         }
 
         @Test

@@ -28,6 +28,11 @@ public interface AiTaskService {
     void cancelTask(UUID taskId, UUID userId);
 
     /**
+     * 业务模块查询最近一次指定类型任务（3.1.2 等）：归属项目不一致或无记录返回 null
+     */
+    AiTaskRespDTO getLatestTaskByTypeAndTarget(String type, UUID targetId, UUID projectId);
+
+    /**
      * 重试：仅 failed 且仅发起人；同 type+target 已有进行中任务返回 6005
      */
     void retryTask(UUID taskId, UUID userId);
