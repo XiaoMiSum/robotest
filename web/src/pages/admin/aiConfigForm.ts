@@ -1,4 +1,11 @@
-import type { AiProviderPreset, AiProviderUniqueParam, AiSettingSchemaItem } from '@/types'
+import type {
+  AiConfigEmbeddingGroup,
+  AiConfigSavePayload,
+  AiProviderPreset,
+  AiProviderUniqueParam,
+  AiSettingSchemaGroup,
+  AiSettingSchemaItem,
+} from '@/types'
 
 /**
  * AI 配置页供应商切换与 extraParams 合并的纯逻辑（抽离以便单测，见 5.3）。
@@ -131,5 +138,87 @@ export function validateSetting(item: AiSettingSchemaItem, value: unknown): stri
     return null
   }
   return null
+}
+
+/** 系统配置项全量校验，返回首个错误文案，全部通过返回 null */
+export function collectSettingErrors(
+  groups: AiSettingSchemaGroup[],
+  form: Record<string, unknown>,
+): string | null {
+  for (const group of groups) {
+    for (const item of group.items) {
+      const error = validateSetting(item, form[item.key])
+      if (error) return error
+    }
+  }
+  return null
+}
+
+/** Embedding 组载荷来源：form 取表单编辑值（含高级参数 JSON 解析，失败抛错）；saved 取已保存配置（不再解析） */
+export type EmbeddingPayloadSource =
+  | {
+      kind: 'form'
+      group: {
+        enabled: boolean
+        provider: string
+        baseUrl: string
+        model: string
+        dimension: number | null
+        apiKey: string
+        uniqueValues: Record<string, unknown>
+        customParams: string
+      } | null
+    }
+  | { kind: 'saved'; group: AiConfigEmbeddingGroup | null }
+
+/** 组装配置保存载荷；form 源解析高级参数 JSON，非法对象抛错 */
+export function buildConfigPayload(input: {
+  enabled: boolean
+  embedding: EmbeddingPayloadSource
+  settings: Record<string, unknown>
+  expectedUpdatedAt: string | null
+}): AiConfigSavePayload {
+  let embedding: AiConfigSavePayload['embedding'] = null
+  if (input.embedding.kind === 'saved') {
+    if (input.embedding.group) {
+      embedding = {
+        provider: input.embedding.group.provider,
+        baseUrl: input.embedding.group.baseUrl,
+        model: input.embedding.group.model,
+        dimension: input.embedding.group.dimension,
+        apiKey: null,
+        extraParams: input.embedding.group.extraParams,
+      }
+    }
+  } else if (input.embedding.group && input.embedding.group.enabled) {
+    const text = input.embedding.group.customParams
+    let custom: Record<string, unknown> = {}
+    if (text.trim()) {
+      let parsed: unknown
+      try {
+        parsed = JSON.parse(text)
+      } catch {
+        throw new Error('Embedding 高级参数必须为 JSON 对象')
+      }
+      if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+        throw new Error('Embedding 高级参数必须为 JSON 对象')
+      }
+      custom = parsed as Record<string, unknown>
+    }
+    embedding = {
+      provider: input.embedding.group.provider,
+      baseUrl: input.embedding.group.baseUrl,
+      model: input.embedding.group.model,
+      dimension: input.embedding.group.dimension,
+      apiKey: input.embedding.group.apiKey || null,
+      extraParams: mergeExtraParams(input.embedding.group.uniqueValues, custom),
+    }
+  }
+  return {
+    enabled: input.enabled,
+    embedding,
+    settings: { ...input.settings },
+    expectedUpdatedAt: input.expectedUpdatedAt,
+  }
 }
 
