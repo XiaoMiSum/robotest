@@ -48,6 +48,9 @@ const providers = ref<AiProviderPreset[]>([])
 const config = ref<AiConfig | null>(null)
 const expectedUpdatedAt = ref<string | null>(null)
 
+// Embedding 卡片默认收起，可手动展开（v-model 为 el-collapse 已展开项名集合）
+const embeddingOpen = ref<string[]>([])
+
 // 自动保存状态（总开关 + 系统配置项，防抖提交；Embedding 组手动 [保存]）
 const AUTO_SAVE_DEBOUNCE_MS = 800
 const CONFLICT_MSG = 'AI 配置已被他人修改'
@@ -758,76 +761,74 @@ onMounted(loadAll)
           </el-card>
 
           <el-card shadow="never" class="ai-config-page__card">
-            <template #header>
-              <div class="ai-config-page__card-header">
-                <el-icon class="ai-config-page__card-icon"><DataLine /></el-icon>
-                <span>Embedding 模型</span>
-                <el-switch v-model="form.embedding.enabled" class="ai-config-page__group-switch" />
-                <el-button
-                  v-if="form.embedding.enabled"
-                  class="ai-config-page__card-extra"
-                  size="small"
-                  :loading="testing.embedding"
-                  @click="handleTestEmbedding"
-                >
-                  <el-icon><Connection /></el-icon>连通性测试
-                </el-button>
-                <el-button
-                  class="ai-config-page__card-extra"
-                  size="small"
-                  type="primary"
-                  :loading="saving"
-                  @click="handleSaveEmbedding"
-                >
-                  保存
-                </el-button>
-              </div>
-            </template>
-            <template v-if="form.embedding.enabled">
-              <el-form-item label="供应商">
-                <el-select v-model="form.embedding.provider" @change="(v: string) => (form.embedding.provider = v)">
-                  <el-option
-                    v-for="p in embeddingProviderOptions"
-                    :key="p.key"
-                    :label="p.name"
-                    :value="p.key"
-                  />
-                </el-select>
-              </el-form-item>
-              <el-form-item label="服务地址">
-                <el-input v-model="form.embedding.baseUrl" />
-              </el-form-item>
-              <el-form-item label="模型名">
-                <el-select v-model="form.embedding.model" filterable allow-create default-first-option>
-                  <el-option v-for="m in embeddingModelHints" :key="m" :label="m" :value="m" />
-                </el-select>
-              </el-form-item>
-              <el-form-item label="向量维度">
-                <el-input-number v-model="form.embedding.dimension" :min="1" :max="2000" />
-              </el-form-item>
-              <el-form-item label="API 密钥">
-                <el-input
-                  v-model="form.embedding.apiKey"
-                  type="password"
-                  show-password
-                  :placeholder="
-                    form.embedding.apiKeyConfigured
-                      ? `已配置（末位 ${form.embedding.keySuffix ?? '****'}），留空不修改`
-                      : '请输入密钥'
-                  "
-                />
-              </el-form-item>
-              <el-form-item v-for="param in embeddingUniqueParams" :key="param.key" :label="param.label">
-                <el-input v-model="form.embedding.uniqueValues[param.key] as string" />
-                <span class="ai-config-page__hint">{{ param.description }}</span>
-              </el-form-item>
-              <el-collapse class="ai-config-page__advanced">
-                <el-collapse-item title="高级自定义参数（JSON）" name="embeddingAdvanced">
-                  <el-input v-model="form.embedding.customParams" type="textarea" :rows="4" />
-                </el-collapse-item>
-              </el-collapse>
-            </template>
-            <div v-else class="ai-config-page__group-off">开启后可配置向量检索所需的 Embedding 服务</div>
+            <el-collapse v-model="embeddingOpen" class="ai-config-page__embedding">
+              <el-collapse-item name="embedding">
+                <template #title>
+                  <div class="ai-config-page__card-header ai-config-page__embedding-header">
+                    <el-icon class="ai-config-page__card-icon"><DataLine /></el-icon>
+                    <span>Embedding 模型</span>
+                    <span class="ai-config-page__embedding-switch" @click.stop>
+                      <el-switch v-model="form.embedding.enabled" />
+                    </span>
+                  </div>
+                </template>
+                <template v-if="form.embedding.enabled">
+                  <el-form-item label="供应商">
+                    <el-select v-model="form.embedding.provider" @change="(v: string) => (form.embedding.provider = v)">
+                      <el-option
+                        v-for="p in embeddingProviderOptions"
+                        :key="p.key"
+                        :label="p.name"
+                        :value="p.key"
+                      />
+                    </el-select>
+                  </el-form-item>
+                  <el-form-item label="服务地址">
+                    <el-input v-model="form.embedding.baseUrl" />
+                  </el-form-item>
+                  <el-form-item label="模型名">
+                    <el-select v-model="form.embedding.model" filterable allow-create default-first-option>
+                      <el-option v-for="m in embeddingModelHints" :key="m" :label="m" :value="m" />
+                    </el-select>
+                  </el-form-item>
+                  <el-form-item label="向量维度">
+                    <el-input-number v-model="form.embedding.dimension" :min="1" :max="2000" />
+                  </el-form-item>
+                  <el-form-item label="API 密钥">
+                    <el-input
+                      v-model="form.embedding.apiKey"
+                      type="password"
+                      show-password
+                      :placeholder="
+                        form.embedding.apiKeyConfigured
+                          ? `已配置（末位 ${form.embedding.keySuffix ?? '****'}），留空不修改`
+                          : '请输入密钥'
+                      "
+                    />
+                  </el-form-item>
+                  <el-form-item v-for="param in embeddingUniqueParams" :key="param.key" :label="param.label">
+                    <el-input v-model="form.embedding.uniqueValues[param.key] as string" />
+                    <span class="ai-config-page__hint">{{ param.description }}</span>
+                  </el-form-item>
+                  <el-collapse class="ai-config-page__advanced">
+                    <el-collapse-item title="高级自定义参数（JSON）" name="embeddingAdvanced">
+                      <el-input v-model="form.embedding.customParams" type="textarea" :rows="4" />
+                    </el-collapse-item>
+                  </el-collapse>
+                </template>
+                <div v-else class="ai-config-page__group-off">开启后可配置向量检索所需的 Embedding 服务</div>
+                <div class="ai-config-page__embedding-actions">
+                  <el-button
+                    :disabled="!form.embedding.enabled"
+                    :loading="testing.embedding"
+                    @click="handleTestEmbedding"
+                  >
+                    <el-icon><Connection /></el-icon>连通性测试
+                  </el-button>
+                  <el-button type="primary" :loading="saving" @click="handleSaveEmbedding">保存</el-button>
+                </div>
+              </el-collapse-item>
+            </el-collapse>
           </el-card>
 
           <el-card shadow="never" class="ai-config-page__card">
@@ -1129,8 +1130,34 @@ onMounted(loadAll)
   font-size: 12px;
 }
 
-.ai-config-page__group-switch {
-  margin-left: var(--space-sm);
+.ai-config-page__embedding {
+  border: none;
+
+  :deep(.el-collapse-item__header) {
+    height: auto;
+    line-height: 1.5;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--color-neutral-100);
+  }
+
+  :deep(.el-collapse-item__wrap) {
+    border-bottom: none;
+  }
+}
+
+.ai-config-page__embedding-header {
+  width: 100%;
+}
+
+.ai-config-page__embedding-switch {
+  margin-left: auto;
+}
+
+.ai-config-page__embedding-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-sm);
+  margin-top: var(--space-lg);
 }
 
 .ai-config-page__group-off {
