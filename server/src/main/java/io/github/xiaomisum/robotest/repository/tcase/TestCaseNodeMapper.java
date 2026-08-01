@@ -64,6 +64,16 @@ public interface TestCaseNodeMapper extends BaseMapperX<TestCaseNode> {
                 .eq(TestCaseNode::getType, Constants.NodeType.CASE));
     }
 
+    /** 关键词候选检索（4.3）：标题 ILIKE 匹配、按排序取前 limit 条，供遗漏测试点分析使用 */
+    default List<TestCaseNode> listCaseNodesByDocumentIdsAndKeyword(List<UUID> documentIds, String keyword, int limit) {
+        return selectList(new LambdaQueryWrapperX<TestCaseNode>()
+                .in(TestCaseNode::getDocumentId, documentIds)
+                .eq(TestCaseNode::getType, Constants.NodeType.CASE)
+                .like(TestCaseNode::getTitle, keyword)
+                .orderByAsc(TestCaseNode::getSortOrder)
+                .last("LIMIT " + limit));
+    }
+
     default PageResult<TestCaseNode> findCasePage(PageParam pageParam, List<String> documentIds, String keyword, String priority) {
         var wrapper = new LambdaQueryWrapperX<TestCaseNode>()
                 .in(TestCaseNode::getDocumentId, documentIds)

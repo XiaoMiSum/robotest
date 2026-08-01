@@ -20,6 +20,7 @@ public enum AiFunctionType {
     DSL_TRANSLATION("dsl_translation", "脑图指令翻译", RateLimitCategory.SUGGESTION, true),
     PLAN_ORDER_REASON("plan_order_reason", "执行顺序推荐理由", RateLimitCategory.SUGGESTION, true),
     MISSING_POINT_ANALYSIS("missing_point_analysis", "遗漏测试点分析", RateLimitCategory.RETRIEVAL, true),
+    KEYWORD_EXTRACTION("keyword_extraction", "需求关键词抽取", RateLimitCategory.RETRIEVAL, true),
     REGRESSION_RECOMMENDATION("regression_recommendation", "回归子集推荐", RateLimitCategory.RETRIEVAL, true),
     BUG_DEDUP("bug_dedup", "缺陷语义查重", RateLimitCategory.RETRIEVAL, false),
     REVIEW_CHECK("review_check", "评审完整性检查", RateLimitCategory.TASK, true),
