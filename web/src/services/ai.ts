@@ -1,5 +1,5 @@
 import api from '@/services'
-import type { AiReviewSummary, AiStatus, AiTask } from '@/types'
+import type { AiMissingPointResult, AiReviewSummary, AiStatus, AiTask } from '@/types'
 
 // 响应拦截器已将 Result<T> 解包为 data，此处集中处理静态类型断言（C1：unknown + 断言）
 function get<T>(url: string, params?: Record<string, unknown>): Promise<T> {
@@ -66,4 +66,30 @@ export interface AiPriorityRecommendResp {
 /** 手工标记用例时同步推荐优先级（rule 命中瞬时返回，LLM 兜底失败返回 null） */
 export function recommendPriority(title: string, ancestorTitles: string[]): Promise<AiPriorityRecommendResp> {
   return postData('/project/ai/cases/priority-recommend', { title, ancestorTitles })
+}
+
+// ==================== 遗漏测试点分析（项目级，US-AI-007） ====================
+
+export interface AiMissingPointReq {
+  /** 分析关键词（3.3）：直接标题检索；与 text/requirementIds 至少一项非空 */
+  keywords?: string[]
+  /** 需求文本：携带 saveAsRequirement 时必填，后端先抽关键词再检索 */
+  text?: string
+  /** 需求池条目 ID 列表 */
+  requirementIds?: string[]
+  /** 非空时同步将 text 保存为需求池条目（保存失败不阻断分析） */
+  saveAsRequirement?: { title: string }
+}
+
+/** 发起遗漏测试点分析（3.3 同步长调用）：返回 AbortController 供 [取消] 中止请求 */
+export function analyzeMissingPoints(
+  data: AiMissingPointReq,
+): { controller: AbortController; promise: Promise<AiMissingPointResult> } {
+  // 长调用：覆盖实例默认 15s 超时，放宽至 70s，并支持面板 [取消] 中止
+  const controller = new AbortController()
+  const promise = api.post('/project/ai/cases/missing-points', data, {
+    timeout: 70000,
+    signal: controller.signal,
+  }) as unknown as Promise<AiMissingPointResult>
+  return { controller, promise }
 }

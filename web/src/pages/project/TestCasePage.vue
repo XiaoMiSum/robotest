@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { nextTick, ref, watch } from 'vue'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import { ElMessageBox } from 'element-plus'
 import ModuleTree from '@/components/project/ModuleTree.vue'
@@ -12,6 +12,7 @@ const router = useRouter()
 
 const selectedDocId = ref('')
 const selectedDocName = ref('')
+const caseMindMapRef = ref<InstanceType<typeof CaseMindMap>>()
 
 function handleSelectDocument(docId: string, docName: string) {
   selectedDocId.value = docId
@@ -27,17 +28,30 @@ function findDocument(nodes: TestCaseModule[], id: string): TestCaseModule | nul
   return null
 }
 
-// 外部跳转（如缺陷关联用例）经 ?documentId= 直达文档；消费后清除参数，避免刷新/切换文档后状态过期
-async function openDocumentFromQuery() {
-  const docId = String(route.query.documentId ?? '')
-  if (!docId) return
-  router.replace({ query: { ...route.query, documentId: undefined } })
-  try {
-    const doc = findDocument(await fetchModuleTree(), docId)
-    if (doc) handleSelectDocument(doc.id, doc.name)
-  } catch { /* 文档不存在或加载失败时停留在空态 */ }
+// 外部跳转（缺陷关联用例 / 遗漏测试点「转用例生成」）经 ?documentId= 直达文档：
+// 消费后清除参数避免刷新或切换文档后残留重复触发；页面内再次跳转经 watch 触发
+async function consumeExternalJump(docId: string, aiText: string): Promise<void> {
+  if (!docId && !aiText) return
+  router.replace({ query: { ...route.query, documentId: undefined, aiGenerate: undefined } })
+  if (docId && docId !== selectedDocId.value) {
+    try {
+      const doc = findDocument(await fetchModuleTree(), docId)
+      if (doc) handleSelectDocument(doc.id, doc.name)
+    } catch {
+      // 文档不存在或加载失败时停留在空态，不再预填生成抽屉
+      return
+    }
+  }
+  await nextTick()
+  if (aiText) caseMindMapRef.value?.openAiGenerateWithText(aiText)
 }
-openDocumentFromQuery()
+
+// 成组监听直达参数：documentId / aiGenerate 任一变化即重新消费（含同文档重复跳转）
+watch(
+  () => [String(route.query.documentId ?? ''), String(route.query.aiGenerate ?? '')] as const,
+  ([docId, aiText]) => void consumeExternalJump(docId, aiText),
+)
+void consumeExternalJump(String(route.query.documentId ?? ''), String(route.query.aiGenerate ?? ''))
 
 // 处于文档中时离开需二次确认，防止误触打断编辑（切换文档的确认在 ModuleTree 内）；
 // 供路由守卫与父组件（功能测试页子页面切换不走路由）共用，文案与判断单点维护
@@ -71,7 +85,7 @@ defineExpose({ confirmLeave })
             <el-icon><Document /></el-icon>
             <span>{{ selectedDocName }}</span>
           </div>
-          <CaseMindMap :doc-id="selectedDocId" />
+          <CaseMindMap ref="caseMindMapRef" :doc-id="selectedDocId" />
         </template>
       </el-card>
     </div>

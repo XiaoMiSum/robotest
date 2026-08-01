@@ -923,6 +923,23 @@ export interface AiReviewCheckResult {
   items: AiReviewCheckItem[]
 }
 
+/** AI 遗漏测试点分析单条（US-AI-007，详细设计 3.3） */
+export interface AiMissingPoint {
+  title: string
+  description: string
+  /** 建议归属模块路径（「转用例生成」用于目标文档默认预选） */
+  suggestedModulePath: string | null
+  /** 关联候选用例标题（幻觉过滤后仅含候选清单中真实存在的标题） */
+  relatedCaseTitles: string[]
+}
+
+/** AI 遗漏测试点分析响应（3.3，同步长调用） */
+export interface AiMissingPointResult {
+  /** 语义降级：true 时顶部提示「当前为关键词匹配结果」 */
+  semanticDegraded: boolean
+  points: AiMissingPoint[]
+}
+
 /** 需求池条目列表项（US-AI-004） */
 export interface RequirementPoolItem {
   id: string
