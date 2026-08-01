@@ -16,8 +16,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
 import xyz.migoo.framework.common.util.JsonUtils;
-
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -95,13 +93,8 @@ public class AiChatModelServiceImpl implements AiChatModelService {
             cipher = existing.getApiKeyCipher();
             suffix = existing.getKeySuffix();
         }
-        LocalDateTime expected = reqDTO.getExpectedUpdatedAt() != null
-                ? reqDTO.getExpectedUpdatedAt() : existing.getUpdatedAt();
-        int rows = aiChatModelMapper.updateModelFields(id, expected, reqDTO.getName(), reqDTO.getProvider(),
+        int rows = aiChatModelMapper.updateModelFields(id, reqDTO.getName(), reqDTO.getProvider(),
                 reqDTO.getBaseUrl(), reqDTO.getModel(), cipher, suffix, toJson(extraParams), operatorId);
-        if (rows == 0) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_CONFIG_CONFLICT);
-        }
         invalidateCache();
         return toRespDTO(aiChatModelMapper.findByIdActive(id));
     }

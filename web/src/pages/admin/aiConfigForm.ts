@@ -192,7 +192,6 @@ export function buildConfigPayload(input: {
   enabled: boolean
   embedding: EmbeddingPayloadSource
   settings: Record<string, unknown>
-  expectedUpdatedAt: string | null
 }): AiConfigSavePayload {
   let embedding: AiConfigSavePayload['embedding'] = null
   if (input.embedding.kind === 'saved') {
@@ -234,7 +233,6 @@ export function buildConfigPayload(input: {
     enabled: input.enabled,
     embedding,
     settings: { ...input.settings },
-    expectedUpdatedAt: input.expectedUpdatedAt,
   }
 }
 
