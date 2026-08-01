@@ -13,6 +13,8 @@ export interface AiPanelBodyContext {
   targetNodeId: string
   text: string
   modelId: string | null
+  /** 需求池条目 ID（US-AI-004）：generate/complete 消费，为空时省略 */
+  requirementIds?: string[]
 }
 
 export interface AiPanelModeConfig {
@@ -37,10 +39,11 @@ export const AI_PANEL_MODES: Record<AiPanelMode, AiPanelModeConfig> = {
     inputOptional: false,
     inputReadonly: false,
     emptyResultMessage: 'AI 未生成任何用例，请补充需求描述后重试',
-    buildBody: ({ docId, targetNodeId, text, modelId }) => ({
+    buildBody: ({ docId, targetNodeId, text, modelId, requirementIds }) => ({
       documentId: docId,
       targetNodeId,
       requirementText: text,
+      ...(requirementIds?.length ? { requirementIds } : {}),
       modelId,
     }),
   },
@@ -51,10 +54,11 @@ export const AI_PANEL_MODES: Record<AiPanelMode, AiPanelModeConfig> = {
     inputOptional: true,
     inputReadonly: false,
     emptyResultMessage: '既有步骤已完整，无需补全',
-    buildBody: ({ docId, targetNodeId, text, modelId }) => ({
+    buildBody: ({ docId, targetNodeId, text, modelId, requirementIds }) => ({
       documentId: docId,
       nodeId: targetNodeId,
       extraText: text || null,
+      ...(requirementIds?.length ? { requirementIds } : {}),
       modelId,
     }),
   },
