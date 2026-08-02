@@ -7,8 +7,8 @@
 }
 
 /* 顶部胶囊工具栏：随容器流式置顶、水平居中、半透明磨砂；
-   absolute 悬浮时按钮增多会换行变高，把工具栏下方的 AI 指令栏压在底下，
-   改为占位流式 + 单行横向滚动，任何宽度下都不重叠、不换行 */
+   absolute 悬浮时按钮增多会换行变高、挤压画布，
+   改为占位流式，任何宽度下都不重叠；内容超出可用宽度时单行横向滚动 */
 .mindmap-toolbar {
   flex-shrink: 0;
   display: flex;
@@ -47,7 +47,7 @@
 .toolbar-group {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: 4px;
 }
 
 .minder-canvas {

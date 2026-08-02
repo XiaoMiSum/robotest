@@ -178,7 +178,6 @@
 | dedup.similarityThreshold | number | 0.75 | 缺陷查重相似度阈值 |
 | clustering.similarityThreshold | number | 0.82 | 缺陷聚类并簇相似度阈值 |
 | clustering.maxLabeledClusters | int | 30 | 聚类 LLM 归纳标签的簇数上限（按簇大小降序） |
-| importTextMaxLength | int | 20000 | 外部文本导入单次长度上限（字符） |
 | requirementContentMaxLength | int | 20000 | 需求池条目内容长度上限（字符；需求池不受 AI 开关影响，但配置键随本键值集管理） |
 | missingPoint.topK | int | 100 | 遗漏测试点分析语义检索候选用例条数上限 |
 | regression.topK | int | 50 | 回归子集推荐语义检索条数上限 |
@@ -200,7 +199,7 @@
 | 聚类分析 | clustering.similarityThreshold / clustering.maxLabeledClusters | 数字输入（阈值 0–1；簇数 1–100） |
 | 检索与推荐 | missingPoint.topK / regression.topK / regression.similarityThreshold | 数字输入（同上口径） |
 | 执行顺序推荐 | planOrder.weights | 三个数字输入（w1/w2/w3，各 0–1，保存校验三者之和 = 1，容差 0.001） |
-| 长度限制 | importTextMaxLength / requirementContentMaxLength | 数字输入（1000–100000） |
+| 长度限制 | requirementContentMaxLength | 数字输入（1000–100000） |
 | 全局助手 | assistantConfirmTimeoutSeconds / assistantWriteToolWhitelist | 数字输入（30–3600）/ 多选框（选项为写工具枚举） |
 | 数据保留 | logRetentionDays / conversationRetentionDays | 数字输入（30–3650） |
 
@@ -212,7 +211,6 @@
 | ---- | ---- | ---- | ---- |
 | case_generation | 用例子树生成 | 流式 | generation |
 | step_completion | 用例步骤补全 | 流式 | generation |
-| text_import | 外部文本导入解析 | 流式 | generation |
 | review_summary | 评审摘要生成 | 流式 | generation |
 | assistant_chat | 全局助手对话 | 流式 | assistant |
 | priority_recommendation | 优先级推荐（LLM 兜底） | 同步 | suggestion |
@@ -279,7 +277,7 @@
 - 项目级：`/api/project/ai/**`，头 `Authorization` + `X-Active-Workspace` + `X-Active-Project`。
 - 通用响应：`{ "code": 200, "message": "success", "data": {} }`；命名 camelCase。下文各接口的响应示例**仅展示 `data` 字段内容**，省略外层 `code` / `message` 包裹（SSE 帧格式除外）。
 - 密钥字段**永不回传明文**：响应仅含 `configured`（布尔）与 `keySuffix`（末 4 位）。
-- **对话模型选择**：交互式功能（用例生成、步骤补全、文本导入、评审摘要、助手对话、DSL 翻译）的请求体支持可选字段 `modelId`（对话模型标识，见 2.1.5），缺省或失效时后端回退系统默认模型（解析规则见 4.11）；后台异步任务与建议类接口不接受该字段。
+- **对话模型选择**：交互式功能（用例生成、步骤补全、评审摘要、助手对话、DSL 翻译）的请求体支持可选字段 `modelId`（对话模型标识，见 2.1.5），缺省或失效时后端回退系统默认模型（解析规则见 4.11）；后台异步任务与建议类接口不接受该字段。
 
 **SSE 流式接口统一帧格式**（`Content-Type: text/event-stream`，各生成类接口共用）：
 
@@ -778,7 +776,7 @@ stateDiagram-v2
 
 **调用期模型解析**（`AiChatModelService.resolve(modelId)`，网关每次对话调用入口执行）：
 
-1. 交互式功能（用例生成、步骤补全、文本导入、评审摘要、助手对话、DSL 翻译）的业务请求体可携带可选 `modelId`；后台异步任务与建议类功能不传，直接走默认模型；
+1. 交互式功能（用例生成、步骤补全、评审摘要、助手对话、DSL 翻译）的业务请求体可携带可选 `modelId`；后台异步任务与建议类功能不传，直接走默认模型；
 2. `modelId` 有值时按 id 查已启用、未删除的对话模型：命中则解密该行密钥装配运行期配置；未命中（不存在/已停用/已删除）**静默回退默认模型**，不报错——用户本地记忆的选择可能已被管理员变更，回退语义与 SRS 3.1 业务规则一致；
 3. `modelId` 缺省时使用 `is_default = true` 的行；无默认行（理论上仅出现在数据被直接改库破坏时）按 AI 未启用处理（6001）；
 4. 解析结果随配置缓存（30 秒 TTL，与 4.10 同源失效）；审计日志 `model` 列记录实际解析到的模型名。
@@ -801,7 +799,7 @@ stateDiagram-v2
 | ---- | ---- |
 | `web/src/pages/admin/AiConfigPage.vue` | AI 配置页：「对话模型」卡片区（模型列表 + 新建/编辑弹窗，弹窗内供应商下拉 + 独有配置项动态区 + 高级自定义参数折叠区，列表行内设默认/启停/测试/删除操作）+ 总开关 + Embedding 单组表单（供应商下拉 + 独有配置项 + 连通性测试）+ 系统配置项**分组表单**（按 3.3.8 定义清单动态渲染，见 5.2）；「调用统计」标签页（按功能/空间/日期/模型聚合表格） |
 | `web/src/pages/admin/AiAgentsPage.vue` | 智能体列表（功能类型、是否自定义、更新人/时间）+ 编辑抽屉（角色指令段文本域、格式约束段默认只读、高级开关、恢复默认按钮） |
-| `web/src/components/common/AiModelSelect.vue` | 对话模型选择器（下拉，数据源为 `stores/ai.ts` 的 `chatModels`）：交互式 AI 功能入口（助手输入区、生成/导入弹窗等）复用；选择写入 `localStorage`（见 4.11），仅一个可用模型时不渲染 |
+| `web/src/components/common/AiModelSelect.vue` | 对话模型选择器（下拉，数据源为 `stores/ai.ts` 的 `chatModels`）：交互式 AI 功能入口（助手输入区、生成弹窗等）复用；选择写入 `localStorage`（见 4.11），仅一个可用模型时不渲染 |
 | `web/src/services/admin.ts` | 增补 3.3 / 3.4 接口封装（含 3.3.6 供应商预设查询与 3.3.7 对话模型管理，进入配置页时拉取一次） |
 | `web/src/stores/ai.ts` | 新增：缓存 `GET /api/workspace/ai/status` 结果，暴露 `aiEnabled` / `semanticSearch` / `chatModels` 计算属性，供全部 AI 入口组件显隐判断与模型选择器渲染；负责校验并回收 `localStorage` 中失效的 `modelId`（4.11） |
 | `web/src/types/index.ts` | 增补 AiConfig、AiChatModel、AiProviderPreset、AiAgent、AiTask、AiStatus 等类型（无 `any`，C1） |
