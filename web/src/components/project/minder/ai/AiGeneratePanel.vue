@@ -181,8 +181,9 @@ onBeforeUnmount(() => {
   <el-drawer
     v-model="visible"
     size="440px"
-    :close-on-click-modal="false"
-    :modal="false"
+    :modal="true"
+    :close-on-click-modal="true"
+    modal-class="ai-drawer-modal"
     @close="handleClose"
   >
     <template #header>
@@ -280,6 +281,11 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped lang="scss">
+/* 透明遮罩：点击抽屉外空白处自动关闭，同时不压暗画布（交互设计 2.2） */
+:deep(.ai-drawer-modal) {
+  background: transparent;
+}
+
 .ai-panel-title {
   display: inline-flex;
   align-items: center;
