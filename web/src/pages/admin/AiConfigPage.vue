@@ -754,7 +754,7 @@ onMounted(loadAll)
                   </div>
                 </template>
                 <div class="ai-config-page__embedding-body">
-                  <el-form-item label="供应商">
+                  <el-form-item label="供应商" label-position="top">
                     <el-select
                       v-model="form.embedding.provider"
                       class="ai-config-page__embedding-control"
@@ -768,7 +768,7 @@ onMounted(loadAll)
                       />
                     </el-select>
                   </el-form-item>
-                  <el-form-item label="模型名">
+                  <el-form-item label="模型名" label-position="top">
                     <el-select
                       v-model="form.embedding.model"
                       class="ai-config-page__embedding-control"
@@ -779,13 +779,18 @@ onMounted(loadAll)
                       <el-option v-for="m in embeddingModelHints" :key="m" :label="m" :value="m" />
                     </el-select>
                   </el-form-item>
-                  <el-form-item label="服务地址">
+                  <el-form-item label="服务地址" label-position="top">
                     <el-input v-model="form.embedding.baseUrl" class="ai-config-page__embedding-control" />
                   </el-form-item>
-                  <el-form-item label="向量维度">
-                    <el-input-number v-model="form.embedding.dimension" :min="1" :max="2000" />
+                  <el-form-item label="向量维度" label-position="top">
+                    <el-input-number
+                      v-model="form.embedding.dimension"
+                      :min="1"
+                      :max="2000"
+                      class="ai-config-page__embedding-control"
+                    />
                   </el-form-item>
-                  <el-form-item label="API 密钥" class="ai-config-page__embedding-full">
+                  <el-form-item label="API 密钥" label-position="top" class="ai-config-page__embedding-full">
                     <el-input
                       v-model="form.embedding.apiKey"
                       type="password"
@@ -798,7 +803,12 @@ onMounted(loadAll)
                       "
                     />
                   </el-form-item>
-                  <el-form-item v-for="param in embeddingUniqueParams" :key="param.key" :label="param.label">
+                  <el-form-item
+                    v-for="param in embeddingUniqueParams"
+                    :key="param.key"
+                    :label="param.label"
+                    label-position="top"
+                  >
                     <el-input v-model="form.embedding.uniqueValues[param.key] as string" class="ai-config-page__embedding-control" />
                     <span class="ai-config-page__hint">{{ param.description }}</span>
                   </el-form-item>
@@ -833,6 +843,7 @@ onMounted(loadAll)
                   v-for="(item, index) in group.items"
                   :key="item.key"
                   :label="item.label"
+                  label-position="top"
                   :class="{
                     'ai-config-page__setting-item--full': settingItemIsFull(item, index, group.items.length),
                   }"
@@ -1153,7 +1164,7 @@ onMounted(loadAll)
 
 .ai-config-page__embedding-body {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   column-gap: var(--space-xl);
   padding-top: var(--space-sm);
 }
@@ -1218,7 +1229,7 @@ onMounted(loadAll)
 
 .ai-config-page__setting-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   column-gap: var(--space-xl);
 }
 
