@@ -111,7 +111,7 @@ statistics 由 SQL 精确计算（不依赖 LLM）；重复生成覆盖本记录
 
 - **路径**：`POST /api/project/ai/reviews/:id/check`
 - **响应**：`{ "taskId": "0198…" }`
-- **校验**：仅评审发起人（2001）；评审状态必须为 `in_progress`（6012）；同评审无进行中检查任务（6005）。
+- **校验**：仅评审发起人（2001）；评审状态为 `new` / `in_progress`，已完成 `completed` 不可发起（6012）；同评审无进行中检查任务（6005）。
 
 #### 3.1.2 查询检查结果
 
@@ -221,7 +221,7 @@ statistics 由 SQL 精确计算（不依赖 LLM）；重复生成覆盖本记录
 
 | 错误码 | 说明 | HTTP 状态 |
 | ---- | ---- | ---- |
-| 6012 | 目标对象状态不允许该 AI 操作（评审非「评审中」发起检查、评审未「已完成」生成摘要、计划未关联快照发起顺序推荐；基础设施总表语义另含缺陷聚类的「项目无可分析缺陷」场景，见《缺陷智能分析与向量检索详细设计说明书》3.3.1） | 409 |
+| 6012 | 目标对象状态不允许该 AI 操作（评审已完成时发起检查、评审未「已完成」生成摘要、计划未关联快照发起顺序推荐；基础设施总表语义另含缺陷聚类的「项目无可分析缺陷」场景，见《缺陷智能分析与向量检索详细设计说明书》3.3.1） | 409 |
 
 > 不复用 6006——其语义限定为「**任务**不存在或任务状态不允许」，本码面向评审/计划等业务对象状态校验。其余错误沿用基础设施 3.6（2001 无权限、6005 同类任务进行中等）。
 
@@ -245,7 +245,7 @@ flowchart TD
 
 - 批输入为用例节点及其 precondition/step/expected 子节点标题 + 同批相似标题分组（供优先级冲突判断）；`priority_conflict` 维度只在同批内比较（跨批冲突不检测，属已知精度取舍）；
 - 单批 LLM 失败重试 1 次，仍失败跳过该批并在 result 记录 `skippedBatches`，不整体失败；全部批次跳过才置 failed；
-- **联动取消**：评审离开 `in_progress` 的全部路径均须在事务提交后调用 `AiTaskService.cancelByTypeAndTarget(review_check, reviewId)`（基础设施 4.6 协作式取消）。现行评审状态机为 `new / in_progress / completed`，出口共两条：① 完成评审（`in_progress → completed` 的既有 Service 方法）；② 删除评审（既有 `deleteReview` 方法，实体级出口）。SRS 3.3.1「完成或结束」在现行模型中即上述两条；后续若评审新增其他终态，须同步挂接本钩子；
+- **联动取消**：评审离开 `in_progress` 的全部路径均须在事务提交后调用 `AiTaskService.cancelByTypeAndTarget(review_check, reviewId)`（基础设施 4.6 协作式取消）。现行评审状态机为 `new / in_progress / completed`，出口共两条：① 完成评审（`completeReview` 方法，覆盖 `new / in_progress → completed`）；② 删除评审（既有 `deleteReview` 方法，实体级出口）。检查可在 `new` 状态发起，故进行中任务无论起步于 `new` 还是 `in_progress`，评审完成或删除时均被该钩子终止。SRS 3.3.1「完成或结束」在现行模型中即上述两条；后续若评审新增其他终态，须同步挂接本钩子；
 - 前端结果面板按 dimension 过滤，点击建议项经 `jumping.ts` 定位并高亮对应快照节点。
 
 ### 4.2 评审摘要生成
@@ -300,7 +300,7 @@ score(case) = w1 · norm(relatedBugCount) + w2 · priorityWeight + w3 · norm(mo
 
 | 文件 | 说明 |
 | ---- | ---- |
-| `components/project/ReviewAiCheckPanel.vue` | 评审详情「AI 检查」侧面板：发起按钮（仅发起人+评审中）、进度条、建议列表（维度过滤、点击定位高亮）、取消任务 |
+| `components/project/ReviewAiCheckPanel.vue` | 评审详情「AI 检查」侧面板：发起按钮（仅发起人，待评审/评审中可发起，已完成只读展示历史结果）、进度条、建议列表（维度过滤、点击定位高亮）、取消任务 |
 | `components/project/ReviewAiSummary.vue` | 摘要视图：statistics 卡片区（即时渲染）+ 流式 Markdown 总结（MarkdownView 复用）+ 复制/重新生成 |
 | `components/project/MissingPointsPanel.vue` | 用例模块页「遗漏测试点分析」抽屉：三态输入（关键词/文本/条目选择器复用 RequirementSelector）+ 结果清单（勾选）+「转用例生成」按钮（含目标文档选择，规则见 3.3） |
 | `components/project/PlanOrderRecommend.vue` | 计划详情「执行顺序推荐」标签页：按指数排序列表（分值、因子明细展开、按需生成理由）+ stale 重算提示 + 脑图序号徽标联动 |

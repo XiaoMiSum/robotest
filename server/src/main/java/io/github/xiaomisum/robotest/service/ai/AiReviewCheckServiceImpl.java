@@ -24,7 +24,10 @@ public class AiReviewCheckServiceImpl implements AiReviewCheckService {
     @Override
     public AiReviewCheckStartRespDTO startCheck(UUID userId, UUID workspaceId, UUID projectId, UUID reviewId) {
         TestReview review = requireInitiator(reviewId, userId);
-        if (!Constants.Status.IN_PROGRESS.equals(review.getStatus())) {
+        // 待评审 / 评审中均可发起；评审已完成（completed）后仅保留历史结果查看，不可再发起
+        boolean runnable = Constants.Status.NEW.equals(review.getStatus())
+                || Constants.Status.IN_PROGRESS.equals(review.getStatus());
+        if (!runnable) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_TARGET_STATE_INVALID);
         }
         AiAnalysisTask task = aiTaskService.createTask(Constants.AiTaskType.REVIEW_CHECK,
