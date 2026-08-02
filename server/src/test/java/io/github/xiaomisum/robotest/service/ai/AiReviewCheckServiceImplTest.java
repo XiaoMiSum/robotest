@@ -65,14 +65,28 @@ class AiReviewCheckServiceImplTest {
     }
 
     @Test
-    void startCheck_notInProgress_throws() {
-        when(testReviewMapper.selectById(REVIEW_ID)).thenReturn(review(Constants.Status.NEW));
+    void startCheck_completed_throws() {
+        when(testReviewMapper.selectById(REVIEW_ID)).thenReturn(review(Constants.Status.COMPLETED));
         assertThrows(ServiceException.class,
                 () -> service.startCheck(USER_ID, WORKSPACE_ID, PROJECT_ID, REVIEW_ID));
     }
 
     @Test
-    void startCheck_success() {
+    void startCheck_new_success() {
+        when(testReviewMapper.selectById(REVIEW_ID)).thenReturn(review(Constants.Status.NEW));
+        AiAnalysisTask task = new AiAnalysisTask();
+        task.setId(TASK_ID);
+        when(aiTaskService.createTask(Constants.AiTaskType.REVIEW_CHECK, WORKSPACE_ID, PROJECT_ID, REVIEW_ID, USER_ID))
+                .thenReturn(task);
+
+        AiReviewCheckStartRespDTO dto = service.startCheck(USER_ID, WORKSPACE_ID, PROJECT_ID, REVIEW_ID);
+
+        assertEquals(TASK_ID, dto.getTaskId());
+        verify(aiTaskService).createTask(Constants.AiTaskType.REVIEW_CHECK, WORKSPACE_ID, PROJECT_ID, REVIEW_ID, USER_ID);
+    }
+
+    @Test
+    void startCheck_inProgress_success() {
         when(testReviewMapper.selectById(REVIEW_ID)).thenReturn(review(Constants.Status.IN_PROGRESS));
         AiAnalysisTask task = new AiAnalysisTask();
         task.setId(TASK_ID);

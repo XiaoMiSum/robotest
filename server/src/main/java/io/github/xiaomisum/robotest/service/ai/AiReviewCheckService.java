@@ -11,7 +11,7 @@ import java.util.UUID;
 public interface AiReviewCheckService {
 
     /**
-     * 发起检查：仅发起人（2001）+ 评审 in_progress（6012）+ 无进行中同类任务（6005）
+     * 发起检查：仅发起人（2001）+ 评审为 new / in_progress（6012）+ 无进行中同类任务（6005）
      */
     AiReviewCheckStartRespDTO startCheck(UUID userId, UUID workspaceId, UUID projectId, UUID reviewId);
 
