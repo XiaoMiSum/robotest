@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   fetchAiAgentDetail,
@@ -8,13 +8,35 @@ import {
   saveAiAgent,
 } from '@/services/admin'
 import type { AiAgent, AiAgentDetail } from '@/types'
-import { formatDateTime } from '@/utils/format'
+import { formatShortDateTime } from '@/utils/format'
+
+const AGENT_DESCRIPTIONS: Record<string, string> = {
+  case_generation: '根据需求条目或选中节点智能生成测试用例子树',
+  step_completion: '为已有用例补全测试步骤与预期结果',
+  text_import: '解析外部粘贴的文本并转换为结构化用例',
+  review_summary: '汇总评审快照并生成结构化评审摘要',
+  assistant_chat: '面向平台业务的问答与操作辅助助手',
+  priority_recommendation: '为用例推荐 P0–P3 测试优先级',
+  bug_form_suggestion: '优化缺陷标题并建议缺陷严重等级',
+  dsl_translation: '将自然语言指令翻译为脑图操作指令',
+  plan_order_reason: '为计划关联用例生成执行顺序推荐及理由',
+  missing_point_analysis: '对照需求分析当前用例遗漏的测试点',
+  keyword_extraction: '抽取需求条目的关键要素用于检索',
+  regression_recommendation: '推荐与本次变更相关的回归用例子集',
+  review_check: '检查评审快照的缺失项与风险点',
+  bug_clustering: '按根因聚类归纳缺陷清单',
+}
+
+function agentDescription(functionType: string): string {
+  return AGENT_DESCRIPTIONS[functionType] ?? 'AI 功能模板'
+}
 
 const loading = ref(false)
 const agents = ref<AiAgent[]>([])
 const drawerVisible = ref(false)
 const saving = ref(false)
 const detail = ref<AiAgentDetail | null>(null)
+const customizedCount = computed(() => agents.value.filter((agent) => agent.customized).length)
 
 const editForm = reactive({
   functionType: '',
@@ -103,6 +125,29 @@ onMounted(loadAgents)
 
 <template>
   <div v-loading="loading" class="ai-agents-page">
+    <el-card shadow="never" class="ai-agents-page__header">
+      <div class="ai-agents-page__header-left">
+        <div class="ai-agents-page__header-icon">
+          <el-icon :size="20"><MagicStick /></el-icon>
+        </div>
+        <div>
+          <div class="ai-agents-page__header-title">智能体</div>
+          <div class="ai-agents-page__header-sub">配置各 AI 功能的提示词模板，默认内置，可自定义角色指令并一键恢复</div>
+        </div>
+      </div>
+      <div class="ai-agents-page__header-stats">
+        <div class="ai-agents-page__stat">
+          <span class="ai-agents-page__stat-value">{{ agents.length }}</span>
+          <span class="ai-agents-page__stat-label">全部</span>
+        </div>
+        <div class="ai-agents-page__stat-divider" />
+        <div class="ai-agents-page__stat">
+          <span class="ai-agents-page__stat-value ai-agents-page__stat-value--success">{{ customizedCount }}</span>
+          <span class="ai-agents-page__stat-label">已自定义</span>
+        </div>
+      </div>
+    </el-card>
+
     <el-empty v-if="!loading && !agents.length" description="暂无智能体" />
 
     <div v-else class="ai-agents-page__grid">
@@ -117,34 +162,44 @@ onMounted(loadAgents)
           <div class="agent-card__icon">
             <el-icon :size="22"><MagicStick /></el-icon>
           </div>
-          <el-tag :type="agent.customized ? 'success' : 'info'" size="small" effect="light" round>
-            {{ agent.customized ? '已自定义' : '默认' }}
-          </el-tag>
+          <div class="agent-card__head-actions" @click.stop>
+            <el-tag :type="agent.customized ? 'success' : 'info'" size="small" effect="light" round>
+              {{ agent.customized ? '已自定义' : '默认' }}
+            </el-tag>
+            <el-button
+              v-if="agent.customized"
+              size="small"
+              text
+              type="warning"
+              class="agent-card__hover-action"
+              @click="handleRestore(agent)"
+            >
+              <el-icon><RefreshLeft /></el-icon>恢复默认
+            </el-button>
+            <el-button
+              size="small"
+              type="primary"
+              plain
+              class="agent-card__hover-action"
+              @click="openEditor(agent)"
+            >
+              <el-icon><EditPen /></el-icon>编辑
+            </el-button>
+          </div>
         </div>
         <div class="agent-card__name">{{ agent.name }}</div>
-        <div class="agent-card__type">{{ agent.functionType }}</div>
+        <div class="agent-card__desc">{{ agentDescription(agent.functionType) }}</div>
         <div class="agent-card__meta">
           <template v-if="agent.customized">
             <el-icon><User /></el-icon>
             <span>{{ agent.updatedBy ?? '-' }}</span>
             <span class="agent-card__meta-dot" />
-            <span>{{ formatDateTime(agent.updatedAt) }}</span>
+            <span>{{ formatShortDateTime(agent.updatedAt) }}</span>
           </template>
-          <span v-else>使用内置默认模板</span>
-        </div>
-        <div class="agent-card__actions" @click.stop>
-          <el-button size="small" type="primary" plain @click="openEditor(agent)">
-            <el-icon><EditPen /></el-icon>编辑
-          </el-button>
-          <el-button
-            v-if="agent.customized"
-            size="small"
-            type="warning"
-            plain
-            @click="handleRestore(agent)"
-          >
-            <el-icon><RefreshLeft /></el-icon>恢复默认
-          </el-button>
+          <template v-else>
+            <el-icon><InfoFilled /></el-icon>
+            <span>内置默认模板</span>
+          </template>
         </div>
       </div>
     </div>
@@ -159,20 +214,30 @@ onMounted(loadAgents)
           </el-tag>
         </div>
       </template>
-      <el-form v-if="detail" label-position="top">
-        <el-form-item label="角色指令段">
-          <el-input v-model="editForm.roleInstruction" type="textarea" :rows="10" maxlength="8000" show-word-limit />
-        </el-form-item>
+      <el-form v-if="detail" label-position="top" class="ai-agents-page__form">
         <el-form-item>
           <template #label>
-            <span class="ai-agents-page__advanced-label">
-              格式约束段编辑（高级）
-              <span class="ai-agents-page__advanced-hint">开启后可修改输出格式约束，可能影响结构化校验</span>
+            <span class="ai-agents-page__label">
+              <el-icon><ChatLineSquare /></el-icon>角色指令段
             </span>
           </template>
-          <el-switch v-model="editForm.formatEditable" @change="handleFormatEditableChange" />
+          <el-input v-model="editForm.roleInstruction" type="textarea" :rows="10" maxlength="8000" show-word-limit />
         </el-form-item>
-        <el-form-item label="输出格式约束段">
+        <div class="ai-agents-page__advanced-card">
+          <div class="ai-agents-page__advanced-row">
+            <div class="ai-agents-page__advanced-text">
+              <div class="ai-agents-page__advanced-title">格式约束段编辑（高级）</div>
+              <div class="ai-agents-page__advanced-hint">开启后可修改输出格式约束，可能影响结构化校验</div>
+            </div>
+            <el-switch v-model="editForm.formatEditable" @change="handleFormatEditableChange" />
+          </div>
+        </div>
+        <el-form-item>
+          <template #label>
+            <span class="ai-agents-page__label">
+              <el-icon><Document /></el-icon>输出格式约束段
+            </span>
+          </template>
           <el-input
             v-model="editForm.formatConstraint"
             type="textarea"
@@ -194,6 +259,81 @@ onMounted(loadAgents)
 <style scoped lang="scss">
 .ai-agents-page {
   min-height: 200px;
+}
+
+.ai-agents-page__header {
+  margin-bottom: var(--space-lg);
+
+  :deep(.el-card__body) {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-lg) var(--space-xl);
+  }
+}
+
+.ai-agents-page__header-left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.ai-agents-page__header-icon {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-lg);
+  background: var(--color-primary-50);
+  color: var(--color-primary-600);
+}
+
+.ai-agents-page__header-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-neutral-800);
+}
+
+.ai-agents-page__header-sub {
+  font-size: 12px;
+  color: var(--color-neutral-500);
+  margin-top: 2px;
+}
+
+.ai-agents-page__header-stats {
+  display: flex;
+  align-items: center;
+  gap: var(--space-lg);
+}
+
+.ai-agents-page__stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.ai-agents-page__stat-value {
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--color-neutral-800);
+}
+
+.ai-agents-page__stat-value--success {
+  color: var(--color-success);
+}
+
+.ai-agents-page__stat-label {
+  font-size: 12px;
+  color: var(--color-neutral-400);
+  margin-top: 2px;
+}
+
+.ai-agents-page__stat-divider {
+  width: 1px;
+  height: 28px;
+  background: var(--color-neutral-200);
 }
 
 .ai-agents-page__grid {
@@ -227,6 +367,25 @@ onMounted(loadAgents)
   margin-bottom: var(--space-md);
 }
 
+.agent-card__head-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.agent-card__hover-action {
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity var(--transition-fast),
+    visibility var(--transition-fast);
+
+  .agent-card:hover & {
+    opacity: 1;
+    visibility: visible;
+  }
+}
+
 .agent-card__icon {
   width: 42px;
   height: 42px;
@@ -247,13 +406,13 @@ onMounted(loadAgents)
   font-size: 15px;
   font-weight: 600;
   color: var(--color-neutral-800);
-  margin-bottom: 2px;
+  margin-bottom: var(--space-xs);
 }
 
-.agent-card__type {
-  font-size: 12px;
-  color: var(--color-neutral-400);
-  font-family: monospace;
+.agent-card__desc {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--color-neutral-500);
   margin-bottom: var(--space-md);
 }
 
@@ -262,8 +421,10 @@ onMounted(loadAgents)
   align-items: center;
   gap: var(--space-xs);
   font-size: 12px;
-  color: var(--color-neutral-500);
-  margin-bottom: var(--space-lg);
+  color: var(--color-neutral-400);
+  margin-top: auto;
+  padding-top: var(--space-md);
+  border-top: 1px solid var(--color-neutral-100);
 }
 
 .agent-card__meta-dot {
@@ -271,18 +432,6 @@ onMounted(loadAgents)
   height: 3px;
   border-radius: 50%;
   background: var(--color-neutral-300);
-}
-
-.agent-card__actions {
-  display: flex;
-  gap: var(--space-sm);
-  margin-top: auto;
-  padding-top: var(--space-md);
-  border-top: 1px solid var(--color-neutral-100);
-
-  .el-icon {
-    margin-right: 4px;
-  }
 }
 
 .ai-agents-page__drawer-title {
@@ -294,15 +443,40 @@ onMounted(loadAgents)
   color: var(--color-neutral-800);
 }
 
-.ai-agents-page__advanced-label {
+.ai-agents-page__form :deep(.el-form-item) {
+  margin-bottom: var(--space-xl);
+}
+
+.ai-agents-page__label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  font-weight: 600;
+}
+
+.ai-agents-page__advanced-card {
+  padding: var(--space-md) var(--space-lg);
+  margin-bottom: var(--space-xl);
+  border-radius: var(--radius-md);
+  background: var(--color-neutral-50);
+}
+
+.ai-agents-page__advanced-row {
   display: flex;
   align-items: center;
-  gap: var(--space-sm);
+  justify-content: space-between;
+  gap: var(--space-md);
+}
+
+.ai-agents-page__advanced-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-neutral-700);
 }
 
 .ai-agents-page__advanced-hint {
   font-size: 12px;
-  font-weight: 400;
   color: var(--color-neutral-400);
+  margin-top: 2px;
 }
 </style>
