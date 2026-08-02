@@ -58,9 +58,13 @@ const canShowSummary = computed(
 )
 const summaryVisible = ref(false)
 
-// AI 一键检查：仅评审发起人 + AI 启用可见；仅「评审中」可发起，其余状态置灰但保留结果查看入口（交互设计 2.2）
+// AI 一键检查：仅评审发起人 + AI 启用可见；待评审/评审中可发起，已完成只读查看历史结果（交互设计 2.2）
 const canShowCheck = computed(
   () => aiStore.aiEnabled && detail.value?.initiator.id === authStore.user?.id,
+)
+// 已完成评审不可再发起检查（后端 6012 兜底），面板仅以只读展示历史结果
+const canRunCheck = computed(
+  () => detail.value?.status === 'new' || detail.value?.status === 'in_progress',
 )
 const checkVisible = ref(false)
 const checkPanelRef = ref<InstanceType<typeof ReviewAiCheckPanel>>()
@@ -215,24 +219,11 @@ onMounted(load)
               </span>
             </el-tooltip>
           </div>
-          <!-- AI 一键检查：仅发起人可见，非「评审中」置灰但保留结果查看入口 -->
+          <!-- AI 一键检查：仅发起人可见；待评审/评审中可发起，已完成只读查看历史结果 -->
           <div v-if="canShowCheck" class="review-detail__actions">
-            <el-tooltip
-              :disabled="detail?.status === 'in_progress'"
-              content="仅评审进行中可发起检查"
-              placement="bottom"
-            >
-              <span>
-                <el-button
-                  size="small"
-                  plain
-                  :disabled="detail?.status !== 'in_progress'"
-                  @click="openCheck"
-                >
-                  <el-icon><MagicStick /></el-icon>AI 一键检查
-                </el-button>
-              </span>
-            </el-tooltip>
+            <el-button size="small" plain @click="openCheck">
+              <el-icon><MagicStick /></el-icon>AI 一键检查
+            </el-button>
           </div>
           <!-- AI 生成摘要：评审已完成后展示，与上方进行中操作组互斥（仅发起人可见） -->
           <div v-if="canShowSummary" class="review-detail__actions">
@@ -251,6 +242,7 @@ onMounted(load)
       ref="checkPanelRef"
       v-model="checkVisible"
       :review-id="reviewId"
+      :can-run="canRunCheck"
       @locate="handleCheckLocate"
     />
 
