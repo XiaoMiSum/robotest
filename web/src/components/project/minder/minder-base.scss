@@ -6,17 +6,16 @@
   position: relative;
 }
 
-/* 悬浮胶囊工具栏：对齐交互设计文档"悬浮于画布顶部、水平居中、半透明磨砂"，
-   absolute 定位不占画布高度 */
+/* 顶部胶囊工具栏：随容器流式置顶、水平居中、半透明磨砂；
+   absolute 悬浮时按钮增多会换行变高，把工具栏下方的 AI 指令栏压在底下，
+   改为占位流式 + 单行横向滚动，任何宽度下都不重叠、不换行 */
 .mindmap-toolbar {
-  position: absolute;
-  top: var(--space-md);
-  left: 50%;
-  transform: translateX(-50%);
+  flex-shrink: 0;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: safe center;
   gap: var(--space-xs);
+  margin: var(--space-sm) auto;
   padding: 4px 8px;
   max-width: calc(100% - var(--space-xl));
   background: rgba(255, 255, 255, 0.88);
@@ -24,8 +23,23 @@
   border: 1px solid var(--color-neutral-200);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-md);
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: thin;
   z-index: 10;
+
+  &::-webkit-scrollbar {
+    height: 4px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: var(--color-neutral-300);
+    border-radius: 2px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
 }
 
 /* 工具栏功能域分组：不用 el-button-group 是因为按钮需包 el-tooltip，

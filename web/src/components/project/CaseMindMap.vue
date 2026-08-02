@@ -1015,8 +1015,7 @@ defineExpose({ openAiGenerateWithText })
   flex-shrink: 0;
 }
 
-/* 横幅出现时悬浮元素整体下移，避免叠在横幅上 */
-.mindmap-disconnect-banner + .mindmap-toolbar,
+/* 横幅出现时悬浮的在线用户头像下移，避免叠在横幅上（工具栏为流式，横幅自然下推） */
 .mindmap-disconnect-banner ~ .online-users {
   top: 40px;
 }
