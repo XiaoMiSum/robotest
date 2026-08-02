@@ -278,3 +278,64 @@ COMMENT ON COLUMN document_requirement_rel.requirement_id IS '需求池条目 ID
 COMMENT ON COLUMN document_requirement_rel.is_deleted IS '逻辑删除标志（解除关联）';
 COMMENT ON COLUMN document_requirement_rel.created_at IS '创建时间';
 COMMENT ON COLUMN document_requirement_rel.updated_at IS '更新时间';
+
+-- ============================================================
+-- 6. 向量表（《缺陷智能分析与向量检索详细设计说明书》2.1，随 embedding_rebuild 任务维护）
+-- ============================================================
+
+-- 缺陷向量表（与 bug 一对一，无物理外键；维度以默认 1024 建列，运行期与 ai_config.embedding_dimension 不一致时由 embedding_rebuild 任务 ALTER）
+CREATE TABLE bug_embedding (
+    id          UUID          PRIMARY KEY,
+    bug_id      UUID          NOT NULL,
+    project_id  UUID          NOT NULL,
+    embedding   vector(1024)  NOT NULL,
+    source_hash VARCHAR(64)   NOT NULL,
+    model       VARCHAR(100)  NOT NULL,
+    is_deleted  BOOLEAN       NOT NULL DEFAULT FALSE,
+    created_at  TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at  TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 部分唯一索引承担 UPSERT 冲突目标（ON CONFLICT 须显式携带相同 WHERE 谓词）
+CREATE UNIQUE INDEX uk_bug_embedding_bug_id ON bug_embedding (bug_id) WHERE is_deleted = false;
+CREATE INDEX idx_bug_embedding_project_id ON bug_embedding (project_id);
+CREATE INDEX idx_bug_embedding_hnsw ON bug_embedding USING hnsw (embedding vector_cosine_ops);
+
+-- 用例向量表（与 test_case_node 中 type=case 的节点一对一，冗余 project_id 供检索前置过滤）
+CREATE TABLE case_embedding (
+    id          UUID          PRIMARY KEY,
+    node_id     UUID          NOT NULL,
+    project_id  UUID          NOT NULL,
+    embedding   vector(1024)  NOT NULL,
+    source_hash VARCHAR(64)   NOT NULL,
+    model       VARCHAR(100)  NOT NULL,
+    is_deleted  BOOLEAN       NOT NULL DEFAULT FALSE,
+    created_at  TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at  TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE UNIQUE INDEX uk_case_embedding_node_id ON case_embedding (node_id) WHERE is_deleted = false;
+CREATE INDEX idx_case_embedding_project_id ON case_embedding (project_id);
+CREATE INDEX idx_case_embedding_hnsw ON case_embedding USING hnsw (embedding vector_cosine_ops);
+
+COMMENT ON TABLE bug_embedding IS '缺陷向量表（缺陷语义索引，1:1，检索前置按 project_id 过滤）';
+COMMENT ON COLUMN bug_embedding.id IS '主键';
+COMMENT ON COLUMN bug_embedding.bug_id IS '对应缺陷 ID，关联 bug.id（逻辑外键，无物理外键）';
+COMMENT ON COLUMN bug_embedding.project_id IS '冗余项目归属，检索前置过滤防跨项目泄漏';
+COMMENT ON COLUMN bug_embedding.embedding IS '语义向量（维度随配置，默认 1024，重建任务按需 ALTER）';
+COMMENT ON COLUMN bug_embedding.source_hash IS '源文本 SHA-256（含模型名，判断过期）';
+COMMENT ON COLUMN bug_embedding.model IS '生成向量的模型名';
+COMMENT ON COLUMN bug_embedding.is_deleted IS '逻辑删除标志';
+COMMENT ON COLUMN bug_embedding.created_at IS '创建时间';
+COMMENT ON COLUMN bug_embedding.updated_at IS '更新时间';
+
+COMMENT ON TABLE case_embedding IS '用例向量表（type=case 节点语义索引，1:1，检索前置按 project_id 过滤）';
+COMMENT ON COLUMN case_embedding.id IS '主键';
+COMMENT ON COLUMN case_embedding.node_id IS '对应用例节点 ID，关联 test_case_node.id（type=case，逻辑外键）';
+COMMENT ON COLUMN case_embedding.project_id IS '冗余项目归属（不冗余 document_id，见详细设计 2.1.2）';
+COMMENT ON COLUMN case_embedding.embedding IS '语义向量（维度随配置，默认 1024，重建任务按需 ALTER）';
+COMMENT ON COLUMN case_embedding.source_hash IS '源文本 SHA-256（含模型名，判断过期）';
+COMMENT ON COLUMN case_embedding.model IS '生成向量的模型名';
+COMMENT ON COLUMN case_embedding.is_deleted IS '逻辑删除标志';
+COMMENT ON COLUMN case_embedding.created_at IS '创建时间';
+COMMENT ON COLUMN case_embedding.updated_at IS '更新时间';
