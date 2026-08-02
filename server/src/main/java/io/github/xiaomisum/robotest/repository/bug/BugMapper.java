@@ -114,4 +114,15 @@ public interface BugMapper extends BaseMapperX<Bug> {
                 .orderByDesc(Bug::getCreatedAt)
                 .last("LIMIT " + limit));
     }
+
+    /**
+     * 项目内未关闭缺陷（向量重建/补偿扫描口径，仅取索引所需列），按创建时间升序保证确定性
+     */
+    default List<Bug> findOpenBugsByProjectId(UUID projectId) {
+        return selectList(new LambdaQueryWrapperX<Bug>()
+                .eq(Bug::getProjectId, projectId)
+                .ne(Bug::getStatus, Constants.BugStatus.CLOSED)
+                .select(Bug::getId, Bug::getProjectId, Bug::getTitle, Bug::getReproSteps)
+                .orderByAsc(Bug::getCreatedAt));
+    }
 }

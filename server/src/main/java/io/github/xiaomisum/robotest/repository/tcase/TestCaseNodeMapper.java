@@ -83,4 +83,12 @@ public interface TestCaseNodeMapper extends BaseMapperX<TestCaseNode> {
                 .orderByAsc(TestCaseNode::getSortOrder);
         return selectPage(pageParam, wrapper);
     }
+
+    /** 文档内 case 类型节点（向量重建/补偿扫描口径） */
+    default List<TestCaseNode> listCaseNodesByDocumentId(UUID documentId) {
+        return selectList(new LambdaQueryWrapperX<TestCaseNode>()
+                .eq(TestCaseNode::getDocumentId, documentId)
+                .eq(TestCaseNode::getType, Constants.NodeType.CASE)
+                .orderByAsc(TestCaseNode::getSortOrder));
+    }
 }

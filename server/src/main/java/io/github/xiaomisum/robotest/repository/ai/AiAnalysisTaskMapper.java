@@ -81,6 +81,15 @@ public interface AiAnalysisTaskMapper extends BaseMapperX<AiAnalysisTask> {
                 .in(AiAnalysisTask::getStatus, Constants.AiTaskStatus.PENDING, Constants.AiTaskStatus.RUNNING));
     }
 
+    /**
+     * 是否存在进行中的向量重建任务（增量写入/补偿的互斥判定，详细设计 4.1）
+     */
+    default boolean hasInProgressRebuild() {
+        return selectCount(new LambdaQueryWrapperX<AiAnalysisTask>()
+                .eq(AiAnalysisTask::getType, Constants.AiTaskType.EMBEDDING_REBUILD)
+                .in(AiAnalysisTask::getStatus, Constants.AiTaskStatus.PENDING, Constants.AiTaskStatus.RUNNING)) > 0;
+    }
+
     // ========== 状态机条件更新（封装 wrapper 于 Mapper，Service 层不直接构建） ==========
 
     /**

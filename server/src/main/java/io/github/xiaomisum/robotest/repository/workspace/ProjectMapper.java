@@ -46,4 +46,9 @@ public interface ProjectMapper extends BaseMapperX<Project> {
                 .eq(Project::getName, name)
                 .ne(Project::getId, excludeId));
     }
+
+    /** 全量项目列表（向量重建/补偿按项目分组扫描用） */
+    default List<Project> listAll() {
+        return selectList(new LambdaQueryWrapperX<Project>());
+    }
 }
