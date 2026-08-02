@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { onBeforeUnmount, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import RequirementSelector from '@/components/project/RequirementSelector.vue'
 import { getDocumentRequirements } from '@/services/project'
@@ -7,13 +7,13 @@ import { useAiStream, type AiStreamController } from '@/composables/useAiStream'
 import { useAiStore } from '@/stores/ai'
 import type { AiCaseGenerateResult, AiGeneratedNode, RequirementSummary } from '@/types'
 import { buildPreviewTree, filterCheckedTree, type AiPreviewNode } from './aiMount'
-import { AI_PANEL_MODES, validateImportText, type AiPanelMode } from './aiPanelModes'
+import { AI_PANEL_MODES, type AiPanelMode } from './aiPanelModes'
 import AiPreviewTree from './AiPreviewTree.vue'
 
 /**
- * AI 生成抽屉（US-AI-001/002/016，交互设计 2.1/2.2/3.1/4.5）：
+ * AI 生成抽屉（US-AI-001/002，交互设计 2.1/2.2/3.1）：
  * 文本输入 → SSE 流式输出 → done 后切结构化预览树（勾选取舍）→ 确认挂载（由父组件执行）。
- * 三种模式差异集中在 aiPanelModes 配置表；需求条目区（US-AI-004）供 generate/complete 消费。
+ * 两种模式差异集中在 aiPanelModes 配置表；需求条目区（US-AI-004）供 generate/complete 消费。
  */
 const props = defineProps<{
   mode: AiPanelMode
@@ -21,7 +21,7 @@ const props = defineProps<{
   targetNodeId: string
   /** 挂载目标节点路径（根 > … > 目标），打开时由脑图组件计算 */
   targetPath: string
-  /** 导入模式由 AI 指令输入区带入的原文（只读展示，重新生成沿用） */
+  /** 外部跳转带入的预填文本（如遗漏测试点转用例生成） */
   initialText?: string
 }>()
 
@@ -60,14 +60,7 @@ function clearSlowTimer(): void {
 }
 
 function generate(): void {
-  if (props.mode === 'import') {
-    const error = validateImportText(inputText.value)
-    if (error) {
-      ElMessage.warning(error)
-      return
-    }
-    // 需求文本与需求池条目至少一项非空（3.2.1）
-  } else if (!config.inputOptional && !inputText.value.trim() && !selectedRequirements.value.length) {
+  if (!config.inputOptional && !inputText.value.trim() && !selectedRequirements.value.length) {
     ElMessage.warning('请输入需求描述或选择需求条目')
     return
   }
@@ -169,19 +162,14 @@ async function loadDocumentRequirements(): Promise<void> {
   }
 }
 
-// 每次打开（generate/complete）重新同步文档关联条目，导入模式不显示需求区
+// 每次打开重新同步文档关联条目
 watch(
   visible,
   (open) => {
-    if (open && props.mode !== 'import') void loadDocumentRequirements()
+    if (open) void loadDocumentRequirements()
   },
   { immediate: true },
 )
-
-onMounted(() => {
-  // 导入模式由 AI 指令输入区携文本打开，进入即自动开始解析（交互设计 4.5）
-  if (props.mode === 'import') generate()
-})
 
 onBeforeUnmount(() => {
   controller?.cancel()
@@ -204,8 +192,8 @@ onBeforeUnmount(() => {
     <div class="ai-panel">
       <div class="ai-panel-target">挂载目标：{{ targetPath }}</div>
 
-      <!-- 需求条目区（US-AI-004）：generate/complete 选取需求池条目作为生成上下文 -->
-      <div v-if="mode !== 'import'" class="ai-panel-reqs">
+      <!-- 需求条目区（US-AI-004）：选取需求池条目作为生成上下文 -->
+      <div class="ai-panel-reqs">
         <div class="ai-panel-reqs__bar">
           <span class="ai-panel-reqs__label">需求条目</span>
           <el-button
@@ -242,7 +230,6 @@ onBeforeUnmount(() => {
           type="textarea"
           :rows="5"
           maxlength="20000"
-          :readonly="config.inputReadonly"
           :disabled="phase === 'streaming'"
           :placeholder="config.inputPlaceholder"
         />
