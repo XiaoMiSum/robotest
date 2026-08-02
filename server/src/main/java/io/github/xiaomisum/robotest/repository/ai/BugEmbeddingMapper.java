@@ -41,6 +41,15 @@ public interface BugEmbeddingMapper extends BaseMapperX<BugEmbedding> {
     }
 
     /**
+     * 项目内全部向量（聚类取数 4.3 步骤 1，仅取 bugId + embedding 两列），不含已逻辑删除记录
+     */
+    default List<BugEmbedding> findEmbeddingsByProjectId(UUID projectId) {
+        return selectList(new LambdaQueryWrapperX<BugEmbedding>()
+                .eq(BugEmbedding::getProjectId, projectId)
+                .select(BugEmbedding::getBugId, BugEmbedding::getEmbedding));
+    }
+
+    /**
      * 1:1 UPSERT（ON CONFLICT 走部分唯一索引 uk_bug_embedding_bug_id，须携带相同 WHERE 谓词）。
      * UUID 以字符串绑定 + SQL 侧 ::uuid 转换，规避注解 SQL 对 UUID 类型处理器的依赖。
      */

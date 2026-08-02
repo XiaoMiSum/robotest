@@ -125,4 +125,36 @@ public interface BugMapper extends BaseMapperX<Bug> {
                 .select(Bug::getId, Bug::getProjectId, Bug::getTitle, Bug::getReproSteps)
                 .orderByAsc(Bug::getCreatedAt));
     }
+
+    /**
+     * 项目内未关闭缺陷（语义查重关键词降级口径，仅取展示所需列），按创建时间升序保证确定性
+     */
+    default List<Bug> findOpenBugsForDedup(UUID projectId) {
+        return selectList(new LambdaQueryWrapperX<Bug>()
+                .eq(Bug::getProjectId, projectId)
+                .ne(Bug::getStatus, Constants.BugStatus.CLOSED)
+                .select(Bug::getId, Bug::getProjectId, Bug::getTitle, Bug::getStatus, Bug::getAssigneeId)
+                .orderByAsc(Bug::getCreatedAt));
+    }
+
+    /**
+     * 项目内未关闭缺陷数（聚类发起校验 3.3.1）
+     */
+    default long countOpenBugsByProjectId(UUID projectId) {
+        return selectCount(new LambdaQueryWrapperX<Bug>()
+                .eq(Bug::getProjectId, projectId)
+                .ne(Bug::getStatus, Constants.BugStatus.CLOSED));
+    }
+
+    /**
+     * 项目内未关闭缺陷（聚类取数口径，含 severity/moduleId 供分布聚合），按创建时间升序保证贪心聚类确定性（4.3）
+     */
+    default List<Bug> findOpenBugsForClustering(UUID projectId) {
+        return selectList(new LambdaQueryWrapperX<Bug>()
+                .eq(Bug::getProjectId, projectId)
+                .ne(Bug::getStatus, Constants.BugStatus.CLOSED)
+                .select(Bug::getId, Bug::getProjectId, Bug::getTitle, Bug::getReproSteps,
+                        Bug::getSeverity, Bug::getModuleId)
+                .orderByAsc(Bug::getCreatedAt));
+    }
 }
