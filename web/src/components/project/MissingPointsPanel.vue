@@ -172,8 +172,9 @@ onBeforeUnmount(() => controller?.abort())
   <el-drawer
     v-model="visible"
     size="600px"
-    :close-on-click-modal="false"
-    :modal="false"
+    :modal="true"
+    :close-on-click-modal="true"
+    modal-class="mp-drawer-modal"
     @closed="cancelAnalyze"
   >
     <template #header>
@@ -332,6 +333,11 @@ onBeforeUnmount(() => controller?.abort())
 </template>
 
 <style scoped lang="scss">
+/* 透明遮罩：点击抽屉外空白处自动关闭，同时不压暗画布（交互设计 4.2） */
+:deep(.mp-drawer-modal) {
+  background: transparent;
+}
+
 .mp-title {
   display: inline-flex;
   align-items: center;
