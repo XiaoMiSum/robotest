@@ -14,8 +14,9 @@ import type { AiReviewCheckDimension, AiReviewCheckItem, AiReviewCheckResult, Ai
  * AI 一键检查侧面板（US-AI-005，交互设计第 2 章）：
  * 打开先读最近一次检查任务，进行中则 2s 轮询恢复进度；取消/失败保留已产出部分结果。
  * 发起权限由父组件入口控制，后端强校验兜底（2001/6012/6005）。
+ * canRun=false（评审已完成）时仅只读展示历史结果，隐藏发起/重试入口。
  */
-const props = defineProps<{ reviewId: string }>()
+const props = defineProps<{ reviewId: string; canRun: boolean }>()
 const visible = defineModel<boolean>({ required: true })
 
 // 建议定位通知父组件交给脑图高亮；检查覆盖全部文档，当前文档未命中时由父组件提示切换文档
@@ -96,6 +97,8 @@ function startPolling(taskId: string): void {
 
 // 发起/重新发起检查：已有进行中任务时仅恢复轮询（同一评审仅允许一个任务，后端 6005 兜底）
 async function startCheck(): Promise<void> {
+  // 评审已完成时仅允许查看历史结果，禁止发起/重试（后端 6012 兜底）
+  if (!props.canRun) return
   if (task.value && (task.value.status === 'pending' || task.value.status === 'running')) {
     ElMessage.info('已有检查任务在执行')
     startPolling(task.value.id)
@@ -127,7 +130,7 @@ async function startCheck(): Promise<void> {
 // 入口点击触发：等待初始读取完成后，按最新任务状态决定恢复轮询或发起新任务
 async function start(): Promise<void> {
   await (initialLoad ?? loadLatest())
-  await startCheck()
+  if (props.canRun) await startCheck()
 }
 
 async function cancel(): Promise<void> {
@@ -193,7 +196,11 @@ defineExpose({ start })
       </template>
 
       <!-- 无任务：空态 -->
-      <el-empty v-else-if="!task" description="暂无检查记录，点击下方按钮发起检查" :image-size="72" />
+      <el-empty
+        v-else-if="!task"
+        :description="canRun ? '暂无检查记录，点击下方按钮发起检查' : '该评审已完成，无历史检查结果'"
+        :image-size="72"
+      />
 
       <!-- 终态：结果列表 -->
       <template v-else>
@@ -244,8 +251,8 @@ defineExpose({ start })
         <el-empty v-else-if="task.status === 'success'" description="未发现检查问题" :image-size="72" />
       </template>
 
-      <!-- 底部操作：空态发起 / 失败重试 / 终态重新检查 -->
-      <div v-if="!running" class="ai-check-actions">
+      <!-- 底部操作：空态发起 / 失败重试 / 终态重新检查；已完成只读不渲染 -->
+      <div v-if="!running && canRun" class="ai-check-actions">
         <el-button type="primary" :loading="starting" @click="footerAction">
           {{ !task ? '发起检查' : task.status === 'failed' ? '重试' : '重新检查' }}
         </el-button>
