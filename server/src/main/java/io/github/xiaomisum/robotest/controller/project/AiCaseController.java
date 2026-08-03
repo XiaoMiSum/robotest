@@ -3,15 +3,20 @@ package io.github.xiaomisum.robotest.controller.project;
 import io.github.xiaomisum.robotest.framework.security.LoginUser;
 import io.github.xiaomisum.robotest.model.dto.request.ai.AiCaseGenerateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.ai.AiMissingPointReqDTO;
+import io.github.xiaomisum.robotest.model.dto.request.ai.AiPlanOrderReasonReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.ai.AiPriorityRecommendReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.ai.AiRegressionRecommendReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.ai.AiStepCompleteReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.ai.AiTextImportReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiMissingPointRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.ai.AiPlanOrderComputeRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.ai.AiPlanOrderQueryRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.ai.AiPlanOrderReasonRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiPriorityRecommendRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiRegressionRecommendRespDTO;
 import io.github.xiaomisum.robotest.service.ai.AiCaseGenerationService;
 import io.github.xiaomisum.robotest.service.ai.AiMissingPointService;
+import io.github.xiaomisum.robotest.service.ai.AiPlanOrderRecommendService;
 import io.github.xiaomisum.robotest.service.ai.AiPriorityRecommendService;
 import io.github.xiaomisum.robotest.service.ai.AiRegressionRecommendService;
 import xyz.migoo.framework.common.pojo.Result;
@@ -19,6 +24,8 @@ import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -43,6 +50,9 @@ public class AiCaseController {
 
     @Resource
     private AiRegressionRecommendService aiRegressionRecommendService;
+
+    @Resource
+    private AiPlanOrderRecommendService aiPlanOrderRecommendService;
 
     @PostMapping("/cases/priority-recommend")
     public Result<AiPriorityRecommendRespDTO> priorityRecommend(
@@ -69,6 +79,37 @@ public class AiCaseController {
             @RequestHeader("X-Active-Project") UUID projectId,
             @RequestBody @Valid AiRegressionRecommendReqDTO reqDTO) {
         return Result.ok(aiRegressionRecommendService.recommend(loginUser.getId(), workspaceId, projectId, reqDTO));
+    }
+
+    @PostMapping("/plans/{id}/order-recommend")
+    public Result<AiPlanOrderComputeRespDTO> planOrderRecommend(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @RequestHeader("X-Active-Workspace") UUID workspaceId,
+            @RequestHeader("X-Active-Project") UUID projectId,
+            @PathVariable("id") UUID planId) {
+        return Result.ok(aiPlanOrderRecommendService.compute(
+                loginUser.getId(), workspaceId, projectId, planId));
+    }
+
+    @GetMapping("/plans/{id}/order-recommend")
+    public Result<AiPlanOrderQueryRespDTO> planOrderRecommendResult(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @RequestHeader("X-Active-Workspace") UUID workspaceId,
+            @RequestHeader("X-Active-Project") UUID projectId,
+            @PathVariable("id") UUID planId) {
+        return Result.ok(aiPlanOrderRecommendService.query(
+                loginUser.getId(), workspaceId, projectId, planId));
+    }
+
+    @PostMapping("/plans/{id}/order-reason")
+    public Result<AiPlanOrderReasonRespDTO> planOrderReason(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @RequestHeader("X-Active-Workspace") UUID workspaceId,
+            @RequestHeader("X-Active-Project") UUID projectId,
+            @PathVariable("id") UUID planId,
+            @RequestBody @Valid AiPlanOrderReasonReqDTO reqDTO) {
+        return Result.ok(aiPlanOrderRecommendService.reason(
+                loginUser.getId(), workspaceId, projectId, planId, reqDTO));
     }
 
     @PostMapping(value = "/cases/generate", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
