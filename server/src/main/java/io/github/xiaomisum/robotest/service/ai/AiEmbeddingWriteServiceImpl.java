@@ -17,6 +17,7 @@ import io.github.xiaomisum.robotest.repository.workspace.ProjectMapper;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -63,6 +64,7 @@ public class AiEmbeddingWriteServiceImpl implements AiEmbeddingWriteService {
     private StringRedisTemplate redisTemplate;
 
     @Override
+    @Async
     public void handleBugChanged(Bug bug) {
         if (isRebuildInProgress()) {
             return;
