@@ -118,6 +118,18 @@ public interface AiAnalysisTaskMapper extends BaseMapperX<AiAnalysisTask> {
     }
 
     /**
+     * 已成功任务的结果回填：仅更新 result 不触碰状态机（执行顺序推荐理由缓存复用，详细设计 3.4），
+     * 影响行数为 0 表示任务已非 success（被覆盖/删除），调用方应放弃回填
+     */
+    default int updateResultById(UUID id, String resultJson) {
+        return update(null, new LambdaUpdateWrapperX<AiAnalysisTask>()
+                .eq(AiAnalysisTask::getId, id)
+                .eq(AiAnalysisTask::getStatus, Constants.AiTaskStatus.SUCCESS)
+                .set(resultJson != null, AiAnalysisTask::getResult, resultJson)
+                .set(AiAnalysisTask::getUpdatedAt, LocalDateTime.now()));
+    }
+
+    /**
      * 分批任务进度心跳：running → 更新进度并累计写入结果快照（review_check 部分结果可见性，基础设施 3.5.2）。
      * 影响行数为 0 表示任务已被取消或置失败（协作式取消），执行器应立即中止返回部分结果。
      */

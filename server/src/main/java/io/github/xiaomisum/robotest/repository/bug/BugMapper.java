@@ -157,4 +157,16 @@ public interface BugMapper extends BaseMapperX<Bug> {
                         Bug::getSeverity, Bug::getModuleId)
                 .orderByAsc(Bug::getCreatedAt));
     }
+
+    /**
+     * 项目内未删除缺陷（执行顺序推荐取数口径：relatedCaseId 计关联缺陷数、moduleId 计模块缺陷密度），
+     * 仅取聚合所需列，按创建时间升序保证同次计算内一次性取数可复现（详细设计 4.4）
+     */
+    default List<Bug> listForOrderRecommend(UUID projectId) {
+        return selectList(new LambdaQueryWrapperX<Bug>()
+                .eq(Bug::getProjectId, projectId)
+                .select(Bug::getId, Bug::getModuleId, Bug::getRelatedCaseId, Bug::getStatus,
+                        Bug::getSeverity, Bug::getPriority, Bug::getCreatedAt)
+                .orderByAsc(Bug::getCreatedAt));
+    }
 }
