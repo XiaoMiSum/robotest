@@ -79,6 +79,7 @@ declare module 'vue' {
     PasswordStrengthBar: typeof import('./components/common/PasswordStrengthBar.vue')['default']
     PermissionTable: typeof import('./components/admin/PermissionTable.vue')['default']
     PlanMindMap: typeof import('./components/project/PlanMindMap.vue')['default']
+    PlanOrderRecommend: typeof import('./components/project/PlanOrderRecommend.vue')['default']
     RegressionRecommendDialog: typeof import('./components/project/RegressionRecommendDialog.vue')['default']
     RequirementSelector: typeof import('./components/project/RequirementSelector.vue')['default']
     ReviewAiCheckPanel: typeof import('./components/project/ReviewAiCheckPanel.vue')['default']

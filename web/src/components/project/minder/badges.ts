@@ -43,6 +43,17 @@ const EXECUTION_RESULT_BADGES: Record<string, Badge> = {
 // AI 标识徽标（V1.1）：区别于类型/优先级配色，读取节点 data 的 aiGenerated
 const AI_BADGE: Badge = { label: 'AI', color: '#13C2C2' }
 
+// 执行顺序推荐序号徽标（US-AI-017）：读数/值取节点 data 的 orderNo（推荐序号 1-N），
+// 取亮橙与既有 AI/类型/优先级配色区分，避免与 #13C2C2 的 AI 标识混淆
+const ORDER_BADGE_COLOR = '#FF6F00'
+
+/** 仅正整数 orderNo 渲染 #序号 徽标（未进入推荐结果即不渲染） */
+export function orderBadge(orderNo: unknown): Badge | null {
+  return typeof orderNo === 'number' && Number.isInteger(orderNo) && orderNo > 0
+    ? { label: `#${orderNo}`, color: ORDER_BADGE_COLOR }
+    : null
+}
+
 /** normal 节点与未知类型不显示徽标 */
 export function typeBadge(type: unknown): Badge | null {
   return typeof type === 'string' ? (TYPE_BADGES[type] ?? null) : null
@@ -179,6 +190,8 @@ export function registerBadgesModule(): boolean {
   const priorityRenderer = defineBadgeRenderer(kity, km.Render, (node) => priorityBadge(node.getData('priority')))
   // AI 徽标与类型/优先级并列于左侧（交互设计第 7 章），三种模式均可见
   const aiRenderer = defineBadgeRenderer(kity, km.Render, (node) => aiBadge(node.getData('aiGenerated')))
+  // 执行顺序推荐序号徽标：计划模式节点 data 注入 orderNo 后渲染（US-AI-017）
+  const orderRenderer = defineBadgeRenderer(kity, km.Render, (node) => orderBadge(node.getData('orderNo')))
   // 评审/计划模式下节点 data 才有 lastMark/lastResult，编辑模式自然不渲染，无需按模式区分注册
   const reviewMarkRenderer = defineBadgeRenderer(kity, km.Render, (node) => reviewMarkBadge(node.getData('lastMark')), 'right')
   const executionResultRenderer = defineBadgeRenderer(kity, km.Render, (node) => executionResultBadge(node.getData('lastResult')), 'right')
@@ -188,7 +201,7 @@ export function registerBadgesModule(): boolean {
   km.Module.register('PriorityModule', () => ({}))
   km.Module.register('TestBadgesModule', () => ({
     renderers: {
-      left: [aiRenderer, typeRenderer, priorityRenderer],
+      left: [orderRenderer, aiRenderer, typeRenderer, priorityRenderer],
       right: [reviewMarkRenderer, executionResultRenderer],
     },
   }))

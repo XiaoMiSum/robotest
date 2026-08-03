@@ -8,9 +8,10 @@
 import { onMounted, onBeforeUnmount, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { getPlanSnapshotTree, submitExecutionRecord } from '@/services/project'
-import type { ExecutionResult } from '@/types'
+import type { ExecutionResult, AiPlanOrderRecommendItem } from '@/types'
 // window.kity / window.kityminder 的类型声明在 minder/types.ts 中统一维护
 import { planNodeToKm } from './minder/adapter'
+import type { Minder, MinderNode } from './minder/types'
 import { loadMinderEngine } from './minder/loader'
 import { useMinderInstance } from './minder/useMinderInstance'
 import { useContextMenu, type ContextMenuAnchorNode } from './minder/useContextMenu'
@@ -20,7 +21,13 @@ import MinderNavigator from './minder/MinderNavigator.vue'
 const props = defineProps<{ planId: string; documentId?: string }>()
 
 // 标记成功后通知详情页刷新进度，否则页头进度条需手动刷新才能更新
-const emit = defineEmits<{ marked: [] }>()
+const emit = defineEmits<{ marked: []; orderSelect: [order: number] }>()
+
+// 执行顺序推荐序号缓存：脑图初始化/文档切换后重新回填（badges 渲染模块按需注入 orderNo）
+const orderBadges = ref<AiPlanOrderRecommendItem[]>([])
+
+// 程序化定位（推荐列表行点击）会触发 selectionchange，需抑制反向 orderSelect 避免与列表互跳
+let suppressOrderSelect = false
 
 // 基座选中状态（id/type）之上的扩展字段：当前节点的执行标记
 const execResult = ref<string | null>(null)
@@ -41,6 +48,12 @@ const {
 } = useMinderInstance({
   onSelectionChange(data) {
     execResult.value = data ? (data.lastResult as string) || null : null
+    // 用户点击携带推荐序号徽标的节点时通知详情页滚动推荐列表至对应行（双向联动）；
+    // 推荐列表行点击触发的程序化定位走 suppressOrderSelect 短路，避免两面板互跳
+    const orderNo = data?.orderNo
+    if (!suppressOrderSelect && typeof orderNo === 'number' && Number.isInteger(orderNo) && orderNo > 0) {
+      emit('orderSelect', orderNo)
+    }
   },
 })
 
@@ -68,6 +81,9 @@ async function initMinder() {
 
     // 禁用画布编辑以防止用户修改快照原始数据
     m.disable?.()
+
+    // 推荐序号徽标可能早于脑图初始化就绪，导入后统一回填一次
+    applyOrderBadges()
 
     m.on('selectionchange', updateSelectedState)
   } catch (err) {
@@ -116,8 +132,46 @@ function openBug(bugId: string) {
   window.open(`/workspace/projects/bugs/${bugId}`, '_blank')
 }
 
+// ==================== 执行顺序推荐联动（US-AI-017） ====================
+
+/** 按推荐结果给节点 data 回填 orderNo（badges 渲染模块据此画 #序号 徽标），未命中置空避免残留旧序号 */
+function applyOrderBadges(): void {
+  const raw = getMinder()
+  if (!raw) return
+  const m = raw as unknown as Minder
+  const orderByNodeId = new Map(orderBadges.value.map((item) => [item.snapshotNodeId, item.order]))
+  m.getRoot().traverse((node) => {
+    const order = orderByNodeId.get(node.data.id as string)
+    if (order !== undefined) node.setData('orderNo', order)
+    else node.setData('orderNo', null)
+  })
+  m.refresh?.()
+}
+
+/** 详情页推荐标签页产出新结果时注入，立即回填当前文档并留存供后续初始化复用 */
+function setOrderBadges(items: AiPlanOrderRecommendItem[]): void {
+  orderBadges.value = items
+  applyOrderBadges()
+}
+
+// 供推荐列表行点击定位：当前文档含该快照节点则选中高亮，否则返回 false 由调用方提示
+function locateNode(snapshotNodeId: string): boolean {
+  const raw = getMinder()
+  if (!raw) return false
+  const m = raw as unknown as Minder
+  let found: MinderNode | null = null
+  m.getRoot().traverse((node) => {
+    if (!found && node.data.id === snapshotNodeId) found = node
+  })
+  if (!found) return false
+  suppressOrderSelect = true
+  m.select(found, true)
+  suppressOrderSelect = false
+  return true
+}
+
 // reload 供详情页同步快照后刷新画布（planId 不变，watch 不会触发）
-defineExpose({ openBug, reload: initMinder })
+defineExpose({ openBug, reload: initMinder, setOrderBadges, locateNode })
 
 // ==================== 生命周期 ====================
 watch(() => [props.planId, props.documentId], initMinder)

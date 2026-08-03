@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
@@ -12,17 +12,20 @@ import {
   syncPlan,
   updatePlanCases,
 } from '@/services/project'
-import type { PlannedCases, SnapshotModule, TestPlanDetail, TestPlanProgress } from '@/types'
+import type { AiPlanOrderRecommendItem, PlannedCases, SnapshotModule, TestPlanDetail, TestPlanProgress } from '@/types'
 import PlanMindMap from '@/components/project/PlanMindMap.vue'
 import SnapshotModuleTree from '@/components/project/SnapshotModuleTree.vue'
 import CaseSelector from '@/components/project/CaseSelector.vue'
 import RegressionRecommendDialog from '@/components/project/RegressionRecommendDialog.vue'
+import PlanOrderRecommend from '@/components/project/PlanOrderRecommend.vue'
+import { useAuthStore } from '@/stores/auth'
 import { useAiStore } from '@/stores/ai'
 
 const route = useRoute()
 const router = useRouter()
 const planId = route.params.planId as string
 
+const authStore = useAuthStore()
 const aiStore = useAiStore()
 
 const loading = ref(false)
@@ -31,6 +34,15 @@ const progress = ref<TestPlanProgress | null>(null)
 const mindMapRef = ref<InstanceType<typeof PlanMindMap>>()
 const moduleTree = ref<SnapshotModule[]>([])
 const selectedDocId = ref('')
+
+// 详情页顶部标签：执行记录（默认）与执行顺序推荐（交互设计 5.1）
+const activeTab = ref<'records' | 'order'>('records')
+const orderPanelRef = ref<InstanceType<typeof PlanOrderRecommend>>()
+
+// 执行顺序推荐入口仅计划负责人/执行人可见（交互设计 5 入口约定）
+const canShowOrder = computed(
+  () => aiStore.aiEnabled && detail.value?.executor?.id === authStore.user?.id,
+)
 
 // 多文档计划需逐文档切换脑图，默认选中快照树中首个文档
 function firstDocument(nodes: SnapshotModule[]): SnapshotModule | null {
@@ -98,6 +110,8 @@ async function handleSync() {
     load()
     // 同步会更新快照节点，脑图需一并重载
     mindMapRef.value?.reload()
+    // 快照同步会改变 snapshot_synced_at，推荐结果随之失效，刷新面板重新判定 stale（3.4.2）
+    orderPanelRef.value?.load()
   } catch (err) {
     ElMessage.error(err instanceof Error ? err.message : '同步失败')
   }
@@ -166,6 +180,28 @@ async function refreshProgress() {
   }
 }
 
+// ==================== 执行顺序推荐联动（US-AI-017） ====================
+
+// 推荐列表行点击 → 切回执行记录标签并定位脑图；跨文档节点未命中时提示切换文档
+async function handleOrderLocate(snapshotNodeId: string) {
+  activeTab.value = 'records'
+  await nextTick()
+  const located = mindMapRef.value?.locateNode(snapshotNodeId)
+  if (!located) ElMessage.info('该建议指向的用例不在当前文档，请切换左侧文档后重试')
+}
+
+// 推荐结果就绪 → 注入脑图 #序号 徽标（双向联动数据源）
+function handleOrderResult(items: AiPlanOrderRecommendItem[]) {
+  mindMapRef.value?.setOrderBadges(items)
+}
+
+// 脑图 #序号 徽标点击 → 切到推荐标签并滚动列表至对应行（双向联动）
+async function handleOrderSelect(order: number) {
+  activeTab.value = 'order'
+  await nextTick()
+  orderPanelRef.value?.scrollToOrder(order)
+}
+
 onMounted(load)
 </script>
 
@@ -208,21 +244,51 @@ onMounted(load)
       </template>
     </el-page-header>
 
-    <div class="plan-detail__workspace">
-      <el-card shadow="never" class="plan-detail__tree-card">
-        <SnapshotModuleTree
-          :data="moduleTree"
-          :current-doc-id="selectedDocId"
-          @select-document="(id: string) => (selectedDocId = id)"
-        />
-      </el-card>
-      <el-card shadow="never" class="plan-detail__body">
-        <div v-if="!selectedDocId" class="plan-detail__placeholder">
-          <el-empty description="请在左侧选择一个文档" />
+    <!-- 计划详情标签：执行记录（默认）与执行顺序推荐（交互设计 5.1）；推荐标签仅计划负责人/执行人可见 -->
+    <el-tabs v-model="activeTab" class="plan-detail__tabs">
+      <template #extra>
+        <el-button
+          v-if="activeTab === 'order'"
+          size="small"
+          :loading="orderPanelRef?.computing"
+          @click="orderPanelRef?.compute()"
+        >
+          {{ orderPanelRef?.hasResult ? '重新计算' : '开始计算' }}
+        </el-button>
+      </template>
+      <el-tab-pane label="执行记录" name="records">
+        <div class="plan-detail__workspace">
+          <el-card shadow="never" class="plan-detail__tree-card">
+            <SnapshotModuleTree
+              :data="moduleTree"
+              :current-doc-id="selectedDocId"
+              @select-document="(id: string) => (selectedDocId = id)"
+            />
+          </el-card>
+          <el-card shadow="never" class="plan-detail__body">
+            <div v-if="!selectedDocId" class="plan-detail__placeholder">
+              <el-empty description="请在左侧选择一个文档" />
+            </div>
+            <PlanMindMap
+              v-else
+              ref="mindMapRef"
+              :plan-id="planId"
+              :document-id="selectedDocId"
+              @marked="refreshProgress"
+              @order-select="handleOrderSelect"
+            />
+          </el-card>
         </div>
-        <PlanMindMap v-else ref="mindMapRef" :plan-id="planId" :document-id="selectedDocId" @marked="refreshProgress" />
-      </el-card>
-    </div>
+      </el-tab-pane>
+      <el-tab-pane v-if="canShowOrder" label="执行顺序推荐✨" name="order">
+        <PlanOrderRecommend
+          ref="orderPanelRef"
+          :plan-id="planId"
+          @locate="handleOrderLocate"
+          @result="handleOrderResult"
+        />
+      </el-tab-pane>
+    </el-tabs>
 
     <CaseSelector v-model="selectorVisible" :initial-selected="plannedCases" @confirm="handleCasesConfirm" />
     <RegressionRecommendDialog v-model="recommendVisible" @bring-into-plan="handleBringIntoPlan" />
@@ -332,10 +398,31 @@ onMounted(load)
   color: var(--color-warning);
 }
 
-.plan-detail__workspace {
+// 标签容器撑满剩余高度：header 固定、内容区弹性占满，脑图/推荐面板在其中整高布局
+.plan-detail__tabs {
   margin-top: var(--space-lg);
   flex: 1;
   min-height: 0;
+  display: flex;
+  flex-direction: column;
+
+  :deep(.el-tabs__header) {
+    flex-shrink: 0;
+    margin-bottom: 0;
+  }
+
+  :deep(.el-tabs__content) {
+    flex: 1;
+    min-height: 0;
+  }
+
+  :deep(.el-tab-pane) {
+    height: 100%;
+  }
+}
+
+.plan-detail__workspace {
+  height: 100%;
   display: flex;
   gap: var(--space-lg);
 }
