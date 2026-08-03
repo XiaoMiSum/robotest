@@ -4,6 +4,9 @@ import type {
   AiBugDedupResult,
   AiBugSuggestion,
   AiMissingPointResult,
+  AiPlanOrderComputeResp,
+  AiPlanOrderQueryResp,
+  AiPlanOrderReasonResp,
   AiRegressionRecommendResult,
   AiReviewSummary,
   AiStatus,
@@ -126,6 +129,43 @@ export function regressionRecommend(
     timeout: 70000,
     signal: controller.signal,
   }) as unknown as Promise<AiRegressionRecommendResult>
+  return { controller, promise }
+}
+
+// ==================== 执行顺序推荐（项目级，US-AI-017） ====================
+
+/** 计算执行顺序推荐（3.4.1 同步长调用）：返回 AbortController 供 [取消] 中止请求 */
+export function planOrderRecommend(
+  planId: string,
+): { controller: AbortController; promise: Promise<AiPlanOrderComputeResp> } {
+  // 与后端 LLM 60s 读超时保持同量级，前端放宽至 70s 并支持 [取消] 中止
+  const controller = new AbortController()
+  const promise = api.post(`/project/ai/plans/${planId}/order-recommend`, null, {
+    timeout: 70000,
+    signal: controller.signal,
+  }) as unknown as Promise<AiPlanOrderComputeResp>
+  return { controller, promise }
+}
+
+/** 查询最近一次执行顺序推荐结果（3.4.2，无记录 result 为 null；stale=true 表示计划快照已重新同步需重算） */
+export function fetchPlanOrderRecommend(planId: string): Promise<AiPlanOrderQueryResp> {
+  return get(`/project/ai/plans/${planId}/order-recommend`)
+}
+
+/** 生成单条推荐理由（3.4.3 同步长调用）：返回 AbortController 供 [取消] 中止请求 */
+export function planOrderReason(
+  planId: string,
+  snapshotNodeId: string,
+): { controller: AbortController; promise: Promise<AiPlanOrderReasonResp> } {
+  const controller = new AbortController()
+  const promise = api.post(
+    `/project/ai/plans/${planId}/order-reason`,
+    { snapshotNodeId },
+    {
+      timeout: 70000,
+      signal: controller.signal,
+    },
+  ) as unknown as Promise<AiPlanOrderReasonResp>
   return { controller, promise }
 }
 

@@ -959,6 +959,53 @@ export interface AiRegressionRecommendResult {
   items: AiRegressionRecommendItem[]
 }
 
+/** AI 执行顺序推荐单条因子（US-AI-017，详细设计 2.2.3 / 4.4） */
+export interface AiPlanOrderFactors {
+  /** bug.related_case_id = 快照节点.original_node_id 的未删除缺陷数 */
+  relatedBugCount: number
+  /** P0=1.0 / P1=0.75 / P2=0.5 / P3=0.25 / 无=0.25 */
+  priorityWeight: number
+  /** 所属文档对应模块（含子孙模块）缺陷数 ÷ 现势 case 节点数 */
+  moduleBugDensity: number
+}
+
+/** AI 执行顺序推荐单条（items 元素，按 score 降序排列，order 为推荐序号） */
+export interface AiPlanOrderRecommendItem {
+  snapshotNodeId: string
+  order: number
+  score: number
+  factors: AiPlanOrderFactors
+  /** 按需生成后回填（3.4.3，缓存复用），未生成时为 null */
+  reason: string | null
+}
+
+/** AI 执行顺序推荐结果（type=plan_order_recommend，target=计划 ID，2.2.3） */
+export interface AiPlanOrderRecommendResult {
+  /** 计算时刻 test_plan.snapshot_synced_at 的列值（含 NULL），用于失效判定 */
+  planSyncedAt: string | null
+  /** 本次计算实际使用的权重（settings 键 planOrder.weights） */
+  weights: Record<string, number>
+  items: AiPlanOrderRecommendItem[]
+}
+
+/** 执行顺序推荐计算响应（3.4.1）：同步计算立即返回任务标识与推荐结果 */
+export interface AiPlanOrderComputeResp {
+  taskId: string
+  result: AiPlanOrderRecommendResult
+}
+
+/** 执行顺序推荐结果查询响应（3.4.2） */
+export interface AiPlanOrderQueryResp {
+  /** true 表示计划快照在计算后重新同步过，结果已失效需重算 */
+  stale: boolean
+  result: AiPlanOrderRecommendResult | null
+}
+
+/** 执行顺序推荐理由响应（3.4.3） */
+export interface AiPlanOrderReasonResp {
+  reason: string | null
+}
+
 /** 需求池条目列表项（US-AI-004） */
 export interface RequirementPoolItem {
   id: string

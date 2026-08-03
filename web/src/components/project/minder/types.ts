@@ -24,6 +24,7 @@ export interface NodeRenderer {
 export interface MinderNode {
   data: Record<string, unknown>
   getData(key: string): unknown
+  setData(key: string, value: unknown): MinderNode
   getStyle(name: string): unknown
   getText(): string
   getChildren(): MinderNode[]
