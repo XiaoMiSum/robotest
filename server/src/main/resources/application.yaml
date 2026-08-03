@@ -40,6 +40,14 @@ spring:
           max-idle: 8
           min-idle: 0
 
+#################### 业务自定义配置 ####################
+#
+robotest:
+  upload:
+    dir: ${UPLOAD_DIR:./uploads/bug}
+  ai:
+    # AI 服务密钥加密密钥（Base64 编码 32 字节），未配置时 AI 能力视为未启用
+    secret-key: ${AI_SECRET_KEY:4chJwgVabFLPyA0Mty7RDhu7lXR5Hik2QZ0FJjS3rtI=}
 #################### 框架相关配置 ####################
 
 migoo:
@@ -98,10 +106,4 @@ mybatis-plus:
       logic-not-delete-value: false
   mapper-locations: classpath*:mapper/*.xml
 
-# 业务自定义配置
-robotest:
-  upload:
-    dir: ${UPLOAD_DIR:./uploads/bug}
-  ai:
-    # AI 服务密钥加密密钥（Base64 编码 32 字节），未配置时 AI 能力视为未启用
-    secret-key: ${AI_SECRET_KEY:}
+
