@@ -91,4 +91,12 @@ public interface TestCaseNodeMapper extends BaseMapperX<TestCaseNode> {
                 .eq(TestCaseNode::getType, Constants.NodeType.CASE)
                 .orderByAsc(TestCaseNode::getSortOrder));
     }
+
+    /** 多文档下全部 case 类型节点（回归推荐模块命中口径） */
+    default List<TestCaseNode> listCaseNodesByDocumentIds(Collection<UUID> documentIds) {
+        return selectList(new LambdaQueryWrapperX<TestCaseNode>()
+                .in(TestCaseNode::getDocumentId, documentIds)
+                .eq(TestCaseNode::getType, Constants.NodeType.CASE)
+                .orderByAsc(TestCaseNode::getSortOrder));
+    }
 }
