@@ -339,3 +339,58 @@ COMMENT ON COLUMN case_embedding.model IS '生成向量的模型名';
 COMMENT ON COLUMN case_embedding.is_deleted IS '逻辑删除标志';
 COMMENT ON COLUMN case_embedding.created_at IS '创建时间';
 COMMENT ON COLUMN case_embedding.updated_at IS '更新时间';
+
+-- ============================================================
+-- 7. 全局智能助手（《全局智能助手详细设计说明书》2.1）
+-- ============================================================
+
+-- 助手会话表（归属用户+空间，内容仅本人可见）
+CREATE TABLE ai_conversation (
+    id             UUID          PRIMARY KEY,
+    user_id        UUID          NOT NULL,
+    workspace_id   UUID          NOT NULL,
+    title          VARCHAR(100)  NOT NULL,
+    last_active_at TIMESTAMP     NOT NULL,
+    is_deleted     BOOLEAN       NOT NULL DEFAULT FALSE,
+    created_at     TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at     TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 键集分页命中列（2.1.1）：按 (user_id, workspace_id) 过滤后按 last_active_at DESC 排序，UUID v7 时序性保证 id 决胜稳定
+CREATE INDEX idx_conv_user_ws ON ai_conversation (user_id, workspace_id, last_active_at DESC);
+
+-- 助手消息表（tool_calls 为 assistant 消息发起的工具调用载荷数组，tool 消息回填 tool_call_id 保持序列完整）
+CREATE TABLE ai_message (
+    id              UUID         PRIMARY KEY,
+    conversation_id UUID         NOT NULL,
+    role            VARCHAR(10)  NOT NULL,
+    content         TEXT         NULL,
+    tool_calls      JSONB        NULL,
+    tool_call_id    VARCHAR(64)  NULL,
+    is_deleted      BOOLEAN      NOT NULL DEFAULT FALSE,
+    created_at      TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at      TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_msg_conversation_id ON ai_message (conversation_id);
+
+COMMENT ON TABLE ai_conversation IS '助手会话表（归属用户+工作空间，仅本人可见）';
+COMMENT ON COLUMN ai_conversation.id IS '会话 ID';
+COMMENT ON COLUMN ai_conversation.user_id IS '归属用户，关联 sys_user.id（逻辑外键）';
+COMMENT ON COLUMN ai_conversation.workspace_id IS '归属工作空间（跨空间隔离），关联 workspace.id（逻辑外键）';
+COMMENT ON COLUMN ai_conversation.title IS '会话标题（首条用户消息前 30 字自动生成）';
+COMMENT ON COLUMN ai_conversation.last_active_at IS '最后活跃时间（列表排序锚点）';
+COMMENT ON COLUMN ai_conversation.is_deleted IS '逻辑删除标志';
+COMMENT ON COLUMN ai_conversation.created_at IS '创建时间';
+COMMENT ON COLUMN ai_conversation.updated_at IS '更新时间';
+
+COMMENT ON TABLE ai_message IS '助手消息表（对话内容，仅会话归属者可见）';
+COMMENT ON COLUMN ai_message.id IS '消息 ID';
+COMMENT ON COLUMN ai_message.conversation_id IS '所属会话，关联 ai_conversation.id（逻辑外键）';
+COMMENT ON COLUMN ai_message.role IS '消息角色：user/assistant/tool';
+COMMENT ON COLUMN ai_message.content IS '文本内容（tool 消息为工具执行结果 JSON 文本）';
+COMMENT ON COLUMN ai_message.tool_calls IS 'assistant 消息发起的工具调用载荷（name/arguments/callId 数组）';
+COMMENT ON COLUMN ai_message.tool_call_id IS 'tool 消息对应的调用 ID';
+COMMENT ON COLUMN ai_message.is_deleted IS '逻辑删除标志';
+COMMENT ON COLUMN ai_message.created_at IS '创建时间';
+COMMENT ON COLUMN ai_message.updated_at IS '更新时间';
