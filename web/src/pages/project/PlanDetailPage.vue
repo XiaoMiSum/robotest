@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   completePlan,
+  getCaseDetail,
   getPlanDetail,
   getPlanModuleTree,
   getPlanPlannedCases,
@@ -15,10 +16,14 @@ import type { PlannedCases, SnapshotModule, TestPlanDetail, TestPlanProgress } f
 import PlanMindMap from '@/components/project/PlanMindMap.vue'
 import SnapshotModuleTree from '@/components/project/SnapshotModuleTree.vue'
 import CaseSelector from '@/components/project/CaseSelector.vue'
+import RegressionRecommendDialog from '@/components/project/RegressionRecommendDialog.vue'
+import { useAiStore } from '@/stores/ai'
 
 const route = useRoute()
 const router = useRouter()
 const planId = route.params.planId as string
+
+const aiStore = useAiStore()
 
 const loading = ref(false)
 const detail = ref<TestPlanDetail | null>(null)
@@ -122,6 +127,34 @@ async function handleCasesConfirm(selectedNodes: PlannedCases[]) {
   }
 }
 
+// AI 回归子集推荐（US-AI-018，交互设计第 6 章）：勾选结果带入既有 CaseSelector 关联流程
+const recommendVisible = ref(false)
+
+// 带入计划关联：勾选 caseNodeId 解析所属文档，与既有规划用例合并去重后预选进 CaseSelector
+async function handleBringIntoPlan(caseNodeIds: string[]) {
+  try {
+    const [existing, details] = await Promise.all([
+      getPlanPlannedCases(planId),
+      Promise.all(caseNodeIds.map((id) => getCaseDetail(id))),
+    ])
+    const merged = new Map<string, Set<string>>()
+    existing.forEach((s) => merged.set(s.documentId, new Set(s.caseIds)))
+    details.forEach((d) => {
+      if (!d.documentId) return
+      const set = merged.get(d.documentId) ?? new Set<string>()
+      set.add(d.id)
+      merged.set(d.documentId, set)
+    })
+    plannedCases.value = [...merged.entries()].map(([documentId, caseIds]) => ({
+      documentId,
+      caseIds: [...caseIds],
+    }))
+    selectorVisible.value = true
+  } catch (err) {
+    ElMessage.error(err instanceof Error ? err.message : '加载推荐用例失败')
+  }
+}
+
 // 标记后刷新进度与状态（首次标记会自动转入进行中），避免整页 load 触发脑图重载丢失选中态
 async function refreshProgress() {
   try {
@@ -158,6 +191,9 @@ onMounted(load)
             </div>
           </div>
           <div v-if="detail" class="plan-detail__actions">
+            <el-button v-if="aiStore.aiEnabled && canAdjustCases" size="small" plain @click="recommendVisible = true">
+              <el-icon><MagicStick /></el-icon>回归子集推荐
+            </el-button>
             <el-button v-if="canAdjustCases" size="small" plain @click="openCaseSelector">
               <el-icon><EditPen /></el-icon>调整用例
             </el-button>
@@ -189,6 +225,7 @@ onMounted(load)
     </div>
 
     <CaseSelector v-model="selectorVisible" :initial-selected="plannedCases" @confirm="handleCasesConfirm" />
+    <RegressionRecommendDialog v-model="recommendVisible" @bring-into-plan="handleBringIntoPlan" />
   </div>
 </template>
 

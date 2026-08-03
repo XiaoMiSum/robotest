@@ -4,6 +4,7 @@ import type {
   AiBugDedupResult,
   AiBugSuggestion,
   AiMissingPointResult,
+  AiRegressionRecommendResult,
   AiReviewSummary,
   AiStatus,
   AiTask,
@@ -99,6 +100,32 @@ export function analyzeMissingPoints(
     timeout: 70000,
     signal: controller.signal,
   }) as unknown as Promise<AiMissingPointResult>
+  return { controller, promise }
+}
+
+// ==================== 回归测试子集推荐（项目级，US-AI-018） ====================
+
+export interface AiRegressionRecommendReq {
+  /** 变更模块名（模块树名称精确 + ILIKE 模糊匹配），可空；与 text/requirementIds 至少一项非空 */
+  modules?: string[]
+  /** 变更说明文本：携带 saveAsRequirement 时必填，后端先抽关键词再检索 */
+  text?: string
+  /** 需求池条目 ID 列表 */
+  requirementIds?: string[]
+  /** 非空时同步将 text 保存为需求池条目（保存失败不阻断推荐） */
+  saveAsRequirement?: { title: string }
+}
+
+/** 发起回归测试子集推荐（3.5 同步长调用）：返回 AbortController 供 [取消] 中止请求 */
+export function regressionRecommend(
+  data: AiRegressionRecommendReq,
+): { controller: AbortController; promise: Promise<AiRegressionRecommendResult> } {
+  // 长调用：覆盖实例默认 15s 超时，放宽至 70s，并支持面板 [取消] 中止（约定同 3.3）
+  const controller = new AbortController()
+  const promise = api.post('/project/ai/plans/regression-recommend', data, {
+    timeout: 70000,
+    signal: controller.signal,
+  }) as unknown as Promise<AiRegressionRecommendResult>
   return { controller, promise }
 }
 
