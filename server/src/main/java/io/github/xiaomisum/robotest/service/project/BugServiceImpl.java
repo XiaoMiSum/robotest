@@ -22,10 +22,13 @@ import io.github.xiaomisum.robotest.repository.workspace.ProjectMapper;
 import io.github.xiaomisum.robotest.repository.admin.SysUserMapper;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseModuleMapper;
 import io.github.xiaomisum.robotest.repository.workspace.WorkspaceUserMapper;
+import io.github.xiaomisum.robotest.service.ai.AiEmbeddingWriteService;
 import io.github.xiaomisum.robotest.service.project.BugService;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.StringUtils;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
 import xyz.migoo.framework.common.pojo.PageParam;
@@ -63,6 +66,8 @@ public class BugServiceImpl implements BugService {
     private WorkspaceUserMapper workspaceUserMapper;
     @Resource
     private TestCaseModuleMapper testCaseModuleMapper;
+    @Resource
+    private AiEmbeddingWriteService aiEmbeddingWriteService;
 
     @Override
     public PageResult<BugListRespDTO> getBugPage(UUID projectId, String status, String severity,
@@ -148,6 +153,9 @@ public class BugServiceImpl implements BugService {
 
         writeBugLog(bug.getId(), userId, Constants.BugOperation.CREATE, "创建缺陷");
 
+        // 事务提交后异步触发向量增量写入（AiEmbeddingWriteService 内部已处理重建互斥与失败补偿）
+        afterCommit(() -> aiEmbeddingWriteService.handleBugChanged(bug));
+
         return bug.getId().toString();
     }
 
@@ -212,6 +220,11 @@ public class BugServiceImpl implements BugService {
         }
 
         writeBugLog(bugId, userId, Constants.BugOperation.UPDATE, "更新缺陷");
+
+        // 标题或重现步骤变更时，事务提交后重查最新数据触发向量增量写入（hash 相同则内部跳过）
+        if (StringUtils.hasText(reqDTO.getTitle()) || reqDTO.getReproSteps() != null) {
+            afterCommit(() -> aiEmbeddingWriteService.handleBugChanged(bugMapper.selectById(bugId)));
+        }
     }
 
     private UUID parseRelationId(String value) {
@@ -244,6 +257,33 @@ public class BugServiceImpl implements BugService {
             case Constants.BugStatus.ACTIVE -> reopenBug(bug, userId, reqDTO.getComment());
             default -> throw ServiceExceptionUtil.get(ErrorCodeConstants.BUG_INVALID_STATUS_TRANSITION);
         }
+
+        // 缺陷关闭后事务提交即删除向量索引（关闭缺陷不参与查重，见详细设计 4.1）
+        if (Constants.BugStatus.CLOSED.equals(targetStatus)) {
+            Bug closed = new Bug();
+            closed.setId(bugId);
+            closed.setStatus(Constants.BugStatus.CLOSED);
+            afterCommit(() -> aiEmbeddingWriteService.handleBugChanged(closed));
+        }
+    }
+
+    /**
+     * 注册事务提交后的回调：业务数据落库完成后再触发向量增量写入，
+     * 避免在事务内发起外部 Embedding 调用拖长持锁时间。
+     * 无事务上下文时（如单元测试直调）降级直接执行——AiEmbeddingWriteService 内部
+     * 已处理异常兜底与补偿，不会向调用方抛出。
+     */
+    private void afterCommit(Runnable action) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            action.run();
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                action.run();
+            }
+        });
     }
 
     /**
