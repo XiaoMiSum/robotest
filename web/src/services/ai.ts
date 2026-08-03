@@ -1,5 +1,13 @@
 import api from '@/services'
-import type { AiMissingPointResult, AiReviewSummary, AiStatus, AiTask } from '@/types'
+import type {
+  AiBugClusterSnapshot,
+  AiBugDedupResult,
+  AiBugSuggestion,
+  AiMissingPointResult,
+  AiReviewSummary,
+  AiStatus,
+  AiTask,
+} from '@/types'
 
 // 响应拦截器已将 Result<T> 解包为 data，此处集中处理静态类型断言（C1：unknown + 断言）
 function get<T>(url: string, params?: Record<string, unknown>): Promise<T> {
@@ -92,4 +100,42 @@ export function analyzeMissingPoints(
     signal: controller.signal,
   }) as unknown as Promise<AiMissingPointResult>
   return { controller, promise }
+}
+
+// ==================== 缺陷 AI 能力（US-AI-008/009/010，详细设计 3.1–3.3） ====================
+
+/** 缺陷表单智能建议（3.1，同步） */
+export function suggestBugForm(data: {
+  title: string
+  reproSteps?: string
+}): Promise<AiBugSuggestion> {
+  return postData('/project/ai/bugs/suggest', data)
+}
+
+/** 缺陷语义查重（3.2，同步检索；编辑既有缺陷时排除自身） */
+export function dedupBugs(data: {
+  title: string
+  reproSteps?: string
+  excludeBugId?: string
+}): Promise<AiBugDedupResult> {
+  return postData('/project/ai/bugs/dedup', data)
+}
+
+/** 发起缺陷聚类分析（3.3.1）：返回异步任务 ID，前端 2s 轮询任务状态 */
+export interface AiBugClusteringStartResp {
+  taskId: string
+}
+
+export function startBugClustering(): Promise<AiBugClusteringStartResp> {
+  return post('/project/ai/bugs/clustering')
+}
+
+/** 查询缺陷聚类最近一次任务（3.3.2，无记录返回 null；running/cancelled 亦含部分快照） */
+export function fetchLatestBugClustering(): Promise<AiTask | null> {
+  return get('/project/ai/bugs/clustering/latest')
+}
+
+/** 聚类任务快照强类型读取（task.result 为松散对象，集中一处断言） */
+export function toBugClusterSnapshot(result: Record<string, unknown> | null): AiBugClusterSnapshot | null {
+  return result as unknown as AiBugClusterSnapshot | null
 }

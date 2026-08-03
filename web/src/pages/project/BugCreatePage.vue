@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { reactive, ref } from 'vue'
+import { computed, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, type FormInstance, type FormRules, type UploadUserFile } from 'element-plus'
 import { createBug, fetchModuleTree, fetchPlans, getBugDetail, uploadBugAttachment } from '@/services/project'
 import { fetchMembers } from '@/services/workspace'
+import { useAiStore } from '@/stores/ai'
 import type {
   BugPriority,
   BugSeverity,
@@ -15,11 +16,27 @@ import type {
 import { BUG_TYPE_LABEL } from '@/utils/bugStatus'
 import CaseSelector from '@/components/project/CaseSelector.vue'
 import MarkdownEditor from '@/components/common/MarkdownEditor.vue'
+import BugAiSuggest from '@/components/project/BugAiSuggest.vue'
+import BugDedupList from '@/components/project/BugDedupList.vue'
 
 const route = useRoute()
 const router = useRouter()
+const aiStore = useAiStore()
+// AI 能力随工作空间开关显隐；关闭时表单回退 V1.0 形态（交互设计 1）
+const aiEnabled = computed(() => aiStore.aiEnabled)
 const formRef = ref<FormInstance>()
 const submitting = ref(false)
+
+// AI 建议仅回填表单待用户确认（交互设计 2.1），提交前可任意修改
+function applyTitle(title: string): void {
+  form.title = title
+}
+function applySeverity(severity: BugSeverity): void {
+  form.severity = severity
+}
+function applyPriority(priority: BugPriority): void {
+  form.priority = priority
+}
 
 const form = reactive({
   title: '',
@@ -181,6 +198,12 @@ async function handleSubmit() {
                 size="large"
               />
             </el-form-item>
+            <BugDedupList
+              v-if="aiEnabled"
+              :title="form.title"
+              :repro-steps="form.reproSteps"
+              class="bug-create__dedup"
+            />
             <el-form-item label="重现步骤" class="bug-create__repro">
               <MarkdownEditor v-model="form.reproSteps" placeholder="重现步骤（支持 Markdown，可选）" />
             </el-form-item>
@@ -267,6 +290,15 @@ async function handleSubmit() {
               </el-select>
             </el-form-item>
           </el-card>
+
+          <BugAiSuggest
+            v-if="aiEnabled"
+            :title="form.title"
+            :repro-steps="form.reproSteps"
+            @apply-title="applyTitle"
+            @apply-severity="applySeverity"
+            @apply-priority="applyPriority"
+          />
         </div>
       </div>
 
@@ -340,6 +372,11 @@ async function handleSubmit() {
 .bug-create__repro :deep(.md-editor) {
   width: 100%;
   border-radius: var(--radius-md);
+}
+
+// 查重列表紧贴标题输入框下方，与后续字段保持间距
+.bug-create__dedup {
+  margin-bottom: var(--space-lg);
 }
 
 .bug-create__upload-icon {
