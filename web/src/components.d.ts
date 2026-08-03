@@ -8,11 +8,13 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
-    AiCommandBar: typeof import('./components/project/minder/ai/AiCommandBar.vue')['default']
     AiGeneratePanel: typeof import('./components/project/minder/ai/AiGeneratePanel.vue')['default']
     AiModelSelect: typeof import('./components/common/AiModelSelect.vue')['default']
     AiPreviewTree: typeof import('./components/project/minder/ai/AiPreviewTree.vue')['default']
     BrandLogo: typeof import('./components/common/BrandLogo.vue')['default']
+    BugAiSuggest: typeof import('./components/project/BugAiSuggest.vue')['default']
+    BugClusterPanel: typeof import('./components/project/BugClusterPanel.vue')['default']
+    BugDedupList: typeof import('./components/project/BugDedupList.vue')['default']
     BugResolveDialog: typeof import('./components/project/BugResolveDialog.vue')['default']
     CaseMindMap: typeof import('./components/project/CaseMindMap.vue')['default']
     CaseSelector: typeof import('./components/project/CaseSelector.vue')['default']
@@ -72,11 +74,13 @@ declare module 'vue' {
     MarkdownView: typeof import('./components/common/MarkdownView.vue')['default']
     MinderContextMenu: typeof import('./components/project/minder/MinderContextMenu.vue')['default']
     MinderNavigator: typeof import('./components/project/minder/MinderNavigator.vue')['default']
+    MissingPointsPanel: typeof import('./components/project/MissingPointsPanel.vue')['default']
     ModuleTree: typeof import('./components/project/ModuleTree.vue')['default']
     PasswordStrengthBar: typeof import('./components/common/PasswordStrengthBar.vue')['default']
     PermissionTable: typeof import('./components/admin/PermissionTable.vue')['default']
     PlanMindMap: typeof import('./components/project/PlanMindMap.vue')['default']
     RequirementSelector: typeof import('./components/project/RequirementSelector.vue')['default']
+    ReviewAiCheckPanel: typeof import('./components/project/ReviewAiCheckPanel.vue')['default']
     ReviewAiSummary: typeof import('./components/project/ReviewAiSummary.vue')['default']
     ReviewMindMap: typeof import('./components/project/ReviewMindMap.vue')['default']
     RoleTreePanel: typeof import('./components/admin/RoleTreePanel.vue')['default']

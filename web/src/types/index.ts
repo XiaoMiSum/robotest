@@ -967,5 +967,55 @@ export interface RequirementSummary {
   title: string
 }
 
+// --- 缺陷 AI 能力（US-AI-008/009/010，详细设计 3.1–3.3） ---
+
+/** 缺陷表单智能建议响应（3.1） */
+export interface AiBugSuggestion {
+  optimizedTitle: string
+  severity: BugSeverity
+  priority: BugPriority
+  reason: string
+}
+
+/** 语义查重单条命中（3.2） */
+export interface AiBugDedupItem {
+  bugId: string
+  title: string
+  status: BugStatus
+  assigneeName: string | null
+  /** 降级模式下为 null，前端据此不展示相似度徽标（3.2） */
+  similarity: number | null
+}
+
+/** 语义查重响应（3.2） */
+export interface AiBugDedupResult {
+  semanticDegraded: boolean
+  items: AiBugDedupItem[]
+}
+
+/** 聚类模块分布条目（2.3；moduleId 为 null 表示未指定模块） */
+export interface AiBugClusterModule {
+  moduleId: string | null
+  moduleName: string
+  count: number
+}
+
+/** 聚类单簇（2.3） */
+export interface AiBugCluster {
+  label: string
+  rootCause: string | null
+  bugIds: string[]
+  severityDist: Record<BugSeverity, number>
+  moduleDist: AiBugClusterModule[]
+}
+
+/** 聚类结果快照（bug_clustering 任务 result，2.3；仅含 bugIds 无标题，清单跳转详情查看） */
+export interface AiBugClusterSnapshot {
+  generatedAt: string
+  bugCount: number
+  clusters: AiBugCluster[]
+  unclustered: string[]
+}
+
 
 

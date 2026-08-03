@@ -17,9 +17,13 @@ import {
   promptStatusChangeComment,
 } from '@/utils/bugStatus'
 import BugResolveDialog from '@/components/project/BugResolveDialog.vue'
+import { useAiStore } from '@/stores/ai'
 
 const router = useRouter()
 const authStore = useAuthStore()
+const aiStore = useAiStore()
+const aiEnabled = computed(() => aiStore.aiEnabled)
+const clusterVisible = ref(false)
 const loading = ref(false)
 const bugs = ref<BugListItem[]>([])
 const total = ref(0)
@@ -527,6 +531,11 @@ onMounted(loadBugs)
             <el-radio-button value="board">看板</el-radio-button>
           </el-radio-group>
         </el-form-item>
+        <el-form-item v-if="aiEnabled">
+          <el-button type="primary" plain @click="clusterVisible = !clusterVisible">
+            <el-icon><MagicStick /></el-icon>{{ clusterVisible ? '收起 AI 分析' : 'AI 分析' }}
+          </el-button>
+        </el-form-item>
         <el-form-item>
           <el-button type="primary" @click="router.push('/workspace/projects/bugs/create')">
             <el-icon><Plus /></el-icon>提交缺陷
@@ -534,6 +543,8 @@ onMounted(loadBugs)
         </el-form-item>
       </el-form>
     </el-card>
+
+    <BugClusterPanel v-if="aiEnabled" v-model="clusterVisible" />
 
     <el-card v-if="viewMode === 'list'" v-loading="loading" shadow="never">
       <el-table :data="bugs" row-key="id">

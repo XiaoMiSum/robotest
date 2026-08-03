@@ -66,8 +66,10 @@ api.interceptors.response.use(
     if (result.code === 200) {
       return result.data as never
     }
-    // Non-200 business error: reject with the message
-    return Promise.reject(new Error(result.msg || '请求失败'))
+    // Non-200 business error: reject with the message; 附加 code 供调用方识别具体业务错误（如 6004 限流）
+    const error = new Error(result.msg || '请求失败') as Error & { code?: number }
+    error.code = result.code
+    return Promise.reject(error)
   },
   async (error) => {
     const originalRequest = error.config as AxiosRequestConfig & { _retry?: boolean }
