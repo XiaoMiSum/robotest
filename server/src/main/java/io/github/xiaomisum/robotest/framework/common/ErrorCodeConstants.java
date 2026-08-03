@@ -29,6 +29,7 @@ public class ErrorCodeConstants {
     public static final ErrorCode WORKSPACE_NOT_FOUND = ErrorCode.of(1000003002, "工作空间不存在");
     public static final ErrorCode ROLE_NOT_FOUND = ErrorCode.of(1000003003, "角色不存在");
     public static final ErrorCode AI_TASK_NOT_FOUND = ErrorCode.of(1000003004, "任务不存在或不属于当前项目");
+    public static final ErrorCode AI_CONVERSATION_NOT_FOUND = ErrorCode.of(1000003005, "会话不存在");
 
     // ========== 冲突 1,000,004,001-1,000,004,002 ==========
     public static final ErrorCode WORKSPACE_HAS_PROJECTS = ErrorCode.of(1000004001, "工作空间下存在项目，无法解散");
