@@ -351,9 +351,10 @@ async function scrollToBottom(): Promise<void> {
 }
 
 /** 会话列表触底加载下一页（交互设计 3：加载中显示骨架条，无更多不再触发） */
-function handleSidebarScroll(event: Event): void {
-  const target = event.target as HTMLElement
-  if (target.scrollHeight - target.scrollTop - target.clientHeight < 20) {
+function handleSidebarScroll({ scrollTop }: { scrollTop: number; scrollLeft: number }): void {
+  const wrap = sidebarScroller.value?.wrapRef
+  if (!wrap) return
+  if (wrap.scrollHeight - scrollTop - wrap.clientHeight < 20) {
     void loadMoreConversations()
   }
 }
