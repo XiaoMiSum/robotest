@@ -5,6 +5,7 @@ import type { AiMessageRole, AiMinderCommandsEvent } from '@/types'
 import MarkdownView from '@/components/common/MarkdownView.vue'
 import { filterAssistantLinks, collectRegisteredPrefixes } from '@/utils/assistantLinkWhitelist'
 import { useAssistantContextStore } from '@/stores/assistantContext'
+import { useAuthStore } from '@/stores/auth'
 import router from '@/router'
 import type { DslPlan, DslPlanResult } from '@/components/project/minder/ai/dslRunner'
 import DslPreviewDialog from './DslPreviewDialog.vue'
@@ -124,11 +125,17 @@ function handleCancel(): void {
 // ==================== DSL 预览执行入口（4.3 / 交互设计 6.2） ====================
 
 const assistantContext = useAssistantContextStore()
+const authStore = useAuthStore()
 const dslPreviewVisible = ref(false)
 const dslPlan = ref<DslPlan | null>(null)
 
 /** 打开预览前校验仍在对应文档页且宿主存在（5.2：已离开则提示重试，指令丢弃不缓存） */
 function openDslPreview(): void {
+  // 需求 3.5.3：仅编辑权限用户可编辑，无权限连预览都不展示（拦截在入口，避免用户误以为可执行）
+  if (!authStore.hasPermission('case:edit')) {
+    ElMessage.warning('无文档编辑权限，无法预览编辑指令')
+    return
+  }
   const commands = props.message.dslCommands
   const host = assistantContext.dslHost
   if (!commands || !host || host.documentId !== commands.documentId) {

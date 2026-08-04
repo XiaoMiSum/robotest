@@ -318,6 +318,11 @@ async function handleCancel(confirmToken: string): Promise<void> {
 
 /** 确认 DSL 预览：经上下文桥宿主执行（单撤销组）；宿主缺失按已离开文档页处理 */
 function handleConfirmDsl(plan: DslPlan): void {
+  // 需求 3.5.3：仅编辑权限用户可编辑，无权限时连变更也不触发（最终防线，预览入口已拦一次）
+  if (!authStore.hasPermission('case:edit')) {
+    ElMessage.warning('无文档编辑权限，无法执行编辑操作')
+    return
+  }
   const host = assistantContext.dslHost
   if (!host) {
     ElMessage.warning('请回到文档后重试')
