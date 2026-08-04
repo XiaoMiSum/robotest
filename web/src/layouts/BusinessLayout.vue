@@ -5,6 +5,8 @@ import { useAuthStore } from '@/stores/auth'
 import { useNavStore } from '@/stores/nav'
 import { useAiStore } from '@/stores/ai'
 import ChangePasswordDialog from '@/components/common/ChangePasswordDialog.vue'
+// 全局智能助手悬浮入口（详细设计 5.1）：仅业务布局挂载，管理端布局不挂载
+import AssistantFab from '@/components/assistant/AssistantFab.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -199,6 +201,9 @@ function handleUserCommand(cmd: string) {
     >
       <RouterView />
     </main>
+
+    <!-- 智能助手悬浮入口（交互设计 1.1：随 aiEnabled 显隐；无工作空间时 aiStore 重置为禁用，自动隐藏） -->
+    <AssistantFab v-if="aiStore.aiEnabled" />
   </div>
 </template>
 
