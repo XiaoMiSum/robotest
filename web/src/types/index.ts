@@ -1085,5 +1085,131 @@ export interface AiBugClusterSnapshot {
   unclustered: string[]
 }
 
+// ==================== 全局智能助手（ChatBot，US-AI-011~014） ====================
+
+/** 助手会话列表项（后端 AiConversationItemRespDTO，全局智能助手详细设计 3.1） */
+export interface AiConversation {
+  id: string
+  title: string
+  lastActiveAt: string
+}
+
+/** 助手会话列表响应（键集分页，nextCursor 为空表示无更多，3.1） */
+export interface AiConversationListResp {
+  items: AiConversation[]
+  nextCursor: string | null
+}
+
+/** 助手消息角色（3.1；tool 消息前端渲染为工具调用卡片） */
+export type AiMessageRole = 'user' | 'assistant' | 'tool'
+
+/** assistant 消息内单条工具调用载荷（AiMessageRespDTO.toolCalls 元素） */
+export interface AiMessageToolCall {
+  name: string
+  /** OpenAI 工具参数 JSON 字符串 */
+  arguments: string
+  callId: string
+}
+
+/** 助手消息（AiMessageRespDTO，3.1；role=tool 渲染为工具调用卡片） */
+export interface AiMessage {
+  id: string
+  role: AiMessageRole
+  content: string | null
+  /** assistant 消息发起的工具调用载荷，非工具消息为空 */
+  toolCalls: AiMessageToolCall[] | null
+  /** tool 消息对应的调用 ID */
+  toolCallId: string | null
+  createdAt: string
+}
+
+/** 页面上下文桥（4.4）：脑图页注入 documentId/selectedNodeId，项目内注入 projectId */
+export interface AiPageContext {
+  projectId?: string | null
+  documentId?: string | null
+  selectedNodeId?: string | null
+}
+
+/** 发送消息请求体（AiAssistantSendReqDTO，3.2） */
+export interface AiAssistantSendPayload {
+  content: string
+  pageContext?: AiPageContext | null
+  modelId?: string | null
+}
+
+/** 写操作确认/取消请求体（AiConfirmReqDTO，3.3；令牌经请求体传递不入 URL） */
+export interface AiConfirmPayload {
+  confirmToken: string
+}
+
+// ---- 助手 SSE 扩展事件载荷（基础设施统一帧格式，3.2） ----
+
+/** delta 帧：回复文本增量 */
+export interface AiDeltaEvent {
+  content: string
+}
+
+/** tool_call 帧：只读工具执行通知（前端渲染过程卡片） */
+export interface AiToolCallEvent {
+  toolName: string
+  summary: string
+}
+
+/** confirm_required 帧：写操作确认请求，本轮 SSE 随即以 done 结束 */
+export interface AiConfirmRequiredEvent {
+  confirmToken: string
+  toolName: string
+  /** 写工具参数 JSON（arguments），前端渲染为操作明细 */
+  preview: string
+  expiresAt: string
+}
+
+/** minder_commands 帧：对话式编辑翻译结果（DSL），交前端预览执行 */
+export interface AiMinderCommandsEvent {
+  commands: AiMinderCommand[]
+  documentId: string
+}
+
+/** done 帧：本轮回复完成 */
+export interface AiDoneEvent {
+  messageId: string
+}
+
+/** error 帧：失败 */
+export interface AiErrorEvent {
+  code: number
+  message: string
+}
+
+// ---- 脑图操作指令集（DSL，智能用例生成与脑图智能编辑详细设计 4.4） ----
+
+/** 用例优先级（P0-P3，仅对 case 生效） */
+export type AiPriority = 'P0' | 'P1' | 'P2' | 'P3'
+
+/** selector 各条件为 AND 关系；@selected 为标题引用的保留值，仅允许出现在 subtreeRootTitle/targetParentTitle */
+export interface AiMinderSelector {
+  types?: CaseNodeType[]
+  priorities?: AiPriority[]
+  /** 标题包含（忽略大小写） */
+  keyword?: string
+  /** 以标题引用限定子树范围（默认全文档），预览阶段按标题精确匹配解析 */
+  subtreeRootTitle?: string
+  /** 按 AI 标识筛选 */
+  aiGenerated?: boolean
+}
+
+export type AiMinderAction =
+  | { type: 'mark_type'; params: { nodeType: CaseNodeType } }
+  | { type: 'mark_priority'; params: { priority: AiPriority } }
+  | { type: 'highlight'; params: Record<string, never> }
+  | { type: 'move'; params: { targetParentTitle: string } }
+  | { type: 'add_child'; params: { nodes: AiGeneratedNode[] } }
+
+/** 脑图操作指令（4.4.1）；commands 数组按序执行，上限 10 条 */
+export interface AiMinderCommand {
+  selector: AiMinderSelector
+  action: AiMinderAction
+}
+
 
 
