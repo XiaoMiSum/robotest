@@ -20,6 +20,15 @@ const props = defineProps<{
   excludeBugId?: string
 }>()
 
+const emit = defineEmits<{
+  /** 命中列表上抛：创建页提交时需据此决定是否弹确认层（US-AI-009 缺口修复） */
+  'dedup-change': [items: AiBugDedupItem[]]
+  /** 卡片预选「原始缺陷」；重复点击取消预选，null 表示无选中 */
+  'select-duplicate': [item: AiBugDedupItem | null]
+  /** 确认重复后放弃本次提交，由创建页统一处理返回列表 */
+  'abandon-submit': []
+}>()
+
 const {
   items,
   semanticDegraded,
@@ -35,6 +44,17 @@ const {
 
 // 标题/重现步骤变更防抖自动查重；标题置空时同时清空结果
 watch(() => [props.title, props.reproSteps], scheduleAuto)
+
+// 命中列表上抛给父级，父级据其最新值决定提交时是否拦截确认（无命中不弹层）
+watch(items, (list) => emit('dedup-change', list))
+
+/** 卡片级预选「原始缺陷」：选中态高亮，重复点击取消 */
+const selectedBugId = ref('')
+function toggleSelect(item: AiBugDedupItem): void {
+  const next = selectedBugId.value === item.bugId ? null : item
+  selectedBugId.value = next ? next.bugId : ''
+  emit('select-duplicate', next)
+}
 
 const severityLabel: Record<string, string> = { fatal: '致命', serious: '严重', general: '一般', minor: '轻微' }
 
@@ -71,7 +91,18 @@ function goDetail(bugId: string): void {
       <span v-if="items.length" class="bug-dedup__count">疑似重复缺陷（{{ items.length }}）</span>
       <span v-else-if="loading" class="bug-dedup__hint">查重中…</span>
       <span v-if="autoStopped" class="bug-dedup__hint">自动查重已停用</span>
-      <el-button size="small" text type="primary" :disabled="loading" @click="manualRun">手动查重</el-button>
+      <div class="bug-dedup__actions">
+        <el-button
+          v-if="items.length"
+          size="small"
+          text
+          type="danger"
+          @click="emit('abandon-submit')"
+        >
+          放弃提交
+        </el-button>
+        <el-button size="small" text type="primary" :disabled="loading" @click="manualRun">手动查重</el-button>
+      </div>
     </div>
 
     <el-alert
@@ -88,6 +119,7 @@ function goDetail(bugId: string): void {
         v-for="item in items"
         :key="item.bugId"
         class="bug-dedup__item"
+        :class="{ 'bug-dedup__item--selected': selectedBugId === item.bugId }"
         @click="openDetail(item)"
       >
         <span v-if="item.similarity !== null" class="bug-dedup__similarity">
@@ -98,6 +130,17 @@ function goDetail(bugId: string): void {
           {{ BUG_STATUS_LABEL[item.status] }}
         </el-tag>
         <span v-if="item.assigneeName" class="bug-dedup__assignee">{{ item.assigneeName }}</span>
+        <el-tooltip content="提交时将新缺陷标记为这条缺陷的重复" placement="top">
+          <el-button
+            size="small"
+            text
+            type="primary"
+            class="bug-dedup__select"
+            @click.stop="toggleSelect(item)"
+          >
+            {{ selectedBugId === item.bugId ? '已选' : '选为原始' }}
+          </el-button>
+        </el-tooltip>
       </div>
     </div>
 
@@ -145,6 +188,12 @@ function goDetail(bugId: string): void {
   justify-content: space-between;
 }
 
+.bug-dedup__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
 .bug-dedup__count {
   font-size: var(--font-size-2xs);
   font-weight: 600;
@@ -179,6 +228,18 @@ function goDetail(bugId: string): void {
   &:hover {
     border-color: var(--color-primary-400);
   }
+
+  // 卡片预选「原始缺陷」的选中态
+  &--selected {
+    border-color: var(--color-primary-400);
+    background: var(--color-primary-50);
+  }
+}
+
+.bug-dedup__select {
+  flex-shrink: 0;
+  margin-left: var(--space-xs);
+  padding: 0 4px;
 }
 
 .bug-dedup__similarity {

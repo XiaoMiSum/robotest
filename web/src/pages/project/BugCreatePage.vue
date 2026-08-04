@@ -2,10 +2,11 @@
 import { computed, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, type FormInstance, type FormRules, type UploadUserFile } from 'element-plus'
-import { createBug, fetchModuleTree, fetchPlans, getBugDetail, uploadBugAttachment } from '@/services/project'
+import { changeBugStatus, createBug, fetchModuleTree, fetchPlans, getBugDetail, uploadBugAttachment } from '@/services/project'
 import { fetchMembers } from '@/services/workspace'
 import { useAiStore } from '@/stores/ai'
 import type {
+  AiBugDedupItem,
   BugPriority,
   BugSeverity,
   BugType,
@@ -13,7 +14,7 @@ import type {
   TestPlanListItem,
   WorkspaceMember,
 } from '@/types'
-import { BUG_TYPE_LABEL } from '@/utils/bugStatus'
+import { BUG_STATUS_LABEL, BUG_STATUS_TAG_TYPE, BUG_TYPE_LABEL } from '@/utils/bugStatus'
 import CaseSelector from '@/components/project/CaseSelector.vue'
 import MarkdownEditor from '@/components/common/MarkdownEditor.vue'
 import BugAiSuggest from '@/components/project/BugAiSuggest.vue'
@@ -26,6 +27,13 @@ const aiStore = useAiStore()
 const aiEnabled = computed(() => aiStore.aiEnabled)
 const formRef = ref<FormInstance>()
 const submitting = ref(false)
+
+// 查重命中列表由 BugDedupList 上抛维护，提交时据此决定是否拦截确认（无命中不弹层）
+const dedupItems = ref<AiBugDedupItem[]>([])
+const dedupConfirmVisible = ref(false)
+const dedupSubmitting = ref(false)
+// 确认层内「原始缺陷」的选中 id；卡片「选为原始」预选先写入，弹层以其为默认选中
+const dedupTargetId = ref('')
 
 // AI 建议仅回填表单待用户确认（交互设计 2.1），提交前可任意修改
 function applyTitle(title: string): void {
@@ -141,13 +149,18 @@ function handleAttachmentRemove(_file: UploadUserFile, files: UploadUserFile[]) 
   attachmentFiles.value = files
 }
 
-async function handleSubmit() {
-  if (!formRef.value) return
-  try {
-    await formRef.value.validate()
-  } catch {
-    return
-  }
+// 卡片「选为原始」预选 → 确认层默认选中该原始缺陷
+function handleSelectDuplicate(item: AiBugDedupItem | null): void {
+  dedupTargetId.value = item ? item.bugId : ''
+}
+
+// 查重列表内「放弃提交」：直接返回列表页（与底部「取消」同义，交互设计 3.3）
+function handleAbandonSubmit(): void {
+  router.push('/workspace/projects/bugs')
+}
+
+// 创建 + 上传附件（可选：创建后立即标记为重复缺陷，复用 V1.0 resolution 机制，需求 3.4.2）
+async function runCreate(duplicateOfBugId?: string): Promise<void> {
   submitting.value = true
   try {
     const bugId = await createBug({
@@ -168,12 +181,65 @@ async function handleSubmit() {
         await uploadBugAttachment(bugId, item.raw)
       }
     }
-    ElMessage.success('缺陷已提交')
+    if (duplicateOfBugId) {
+      await changeBugStatus(bugId, {
+        status: 'resolved',
+        resolution: 'duplicate',
+        duplicateOfBugId,
+        comment: '创建时标记为重复缺陷',
+      })
+    }
+    ElMessage.success(duplicateOfBugId ? '缺陷已提交并标记为重复' : '缺陷已提交')
     router.push('/workspace/projects/bugs')
   } catch (err) {
     ElMessage.error(err instanceof Error ? err.message : '提交失败')
   } finally {
     submitting.value = false
+  }
+}
+
+async function handleSubmit() {
+  if (!formRef.value) return
+  try {
+    await formRef.value.validate()
+  } catch {
+    return
+  }
+  // 查重命中时先经确认层由用户决策（放弃/继续/继续并标记重复）；无命中保持原直提路径
+  if (dedupItems.value.length > 0) {
+    dedupConfirmVisible.value = true
+    return
+  }
+  await runCreate()
+}
+
+function handleDedupAbandon(): void {
+  if (dedupSubmitting.value) return
+  dedupConfirmVisible.value = false
+  router.push('/workspace/projects/bugs')
+}
+
+async function handleDedupContinue(): Promise<void> {
+  if (dedupSubmitting.value) return
+  dedupSubmitting.value = true
+  try {
+    await runCreate()
+  } finally {
+    dedupSubmitting.value = false
+  }
+}
+
+async function handleDedupMarkDuplicate(): Promise<void> {
+  if (dedupSubmitting.value) return
+  if (!dedupTargetId.value) {
+    ElMessage.warning('请选择要标记为重复所对应的原始缺陷')
+    return
+  }
+  dedupSubmitting.value = true
+  try {
+    await runCreate(dedupTargetId.value)
+  } finally {
+    dedupSubmitting.value = false
   }
 }
 </script>
@@ -203,6 +269,9 @@ async function handleSubmit() {
               :title="form.title"
               :repro-steps="form.reproSteps"
               class="bug-create__dedup"
+              @dedup-change="dedupItems = $event"
+              @select-duplicate="handleSelectDuplicate"
+              @abandon-submit="handleAbandonSubmit"
             />
             <el-form-item label="重现步骤" class="bug-create__repro">
               <MarkdownEditor v-model="form.reproSteps" placeholder="重现步骤（支持 Markdown，可选）" />
@@ -309,6 +378,42 @@ async function handleSubmit() {
     </el-form>
 
     <CaseSelector v-model="caseSelectorVisible" single @confirm="handleCaseSelected" />
+
+    <el-dialog
+      v-model="dedupConfirmVisible"
+      title="检测到疑似重复缺陷"
+      width="520px"
+      :close-on-click-modal="false"
+      :close-on-press-escape="!dedupSubmitting"
+      append-to-body
+    >
+      <div class="bug-create__dedup-confirm-tip">
+        以下缺陷与您提交的内容可能存在重复，请选择处理方式；标记重复需先选择对应的原始缺陷：
+      </div>
+      <el-radio-group v-model="dedupTargetId" class="bug-create__dedup-confirm-list">
+        <el-radio
+          v-for="item in dedupItems"
+          :key="item.bugId"
+          :value="item.bugId"
+          class="bug-create__dedup-confirm-item"
+        >
+          <span v-if="item.similarity !== null" class="bug-create__dedup-confirm-sim">
+            {{ Math.round(item.similarity * 100) }}%
+          </span>
+          <span class="bug-create__dedup-confirm-title">{{ item.title }}</span>
+          <el-tag :type="BUG_STATUS_TAG_TYPE[item.status]" size="small" effect="light" round>
+            {{ BUG_STATUS_LABEL[item.status] }}
+          </el-tag>
+        </el-radio>
+      </el-radio-group>
+      <template #footer>
+        <el-button :disabled="dedupSubmitting" @click="handleDedupAbandon">放弃提交</el-button>
+        <el-button :loading="dedupSubmitting" @click="handleDedupContinue">继续提交</el-button>
+        <el-button type="primary" :loading="dedupSubmitting" @click="handleDedupMarkDuplicate">
+          继续并标记重复
+        </el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -389,6 +494,57 @@ async function handleSubmit() {
   margin-left: var(--space-sm);
   font-size: var(--font-size-2xs);
   color: var(--color-neutral-400);
+}
+
+.bug-create__dedup-confirm-tip {
+  font-size: var(--font-size-2xs);
+  color: var(--color-neutral-600);
+  margin-bottom: var(--space-sm);
+}
+
+.bug-create__dedup-confirm-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  width: 100%;
+}
+
+// 弹层内单选行撑满并允许标签溢出省略
+.bug-create__dedup-confirm-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  width: 100%;
+  height: auto;
+  margin-right: 0;
+  padding: var(--space-xs);
+  border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-md);
+
+  :deep(.el-radio__label) {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    flex: 1;
+    min-width: 0;
+  }
+}
+
+.bug-create__dedup-confirm-sim {
+  flex-shrink: 0;
+  font-size: var(--font-size-2xs);
+  font-weight: 700;
+  color: var(--color-warning);
+}
+
+.bug-create__dedup-confirm-title {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--font-size-2xs);
+  color: var(--color-neutral-800);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .bug-create__severity-dot {
