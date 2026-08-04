@@ -204,6 +204,10 @@ public class AiAssistantChatServiceImpl implements AiAssistantChatService {
                         AiToolContext toolCtx = new AiToolContext(userId, workspaceId, reqDTO.getPageContext());
                         String result = aiToolExecutor.execute(toolCtx, tc.name(), tc.arguments());
                         conversationService.appendToolMessage(conversationId, tc.id(), result);
+                        // translate_minder_command 额外下发 minder_commands 帧，前端复用 DSL 执行链路预览（4.3）
+                        if ("translate_minder_command".equals(tc.name())) {
+                            sendMinderCommandsFrameIfPresent(emitter, result);
+                        }
                         send(emitter, "tool_call", Map.of(
                                 "toolName", tc.name(),
                                 "summary", summarizeToolCall(tc.name(), tc.arguments())));
@@ -476,6 +480,7 @@ public class AiAssistantChatServiceImpl implements AiAssistantChatService {
             case "get_platform_guide" -> "查询平台使用指引";
             case "create_bug" -> "创建缺陷: " + args.getOrDefault("title", "");
             case "create_plan_draft" -> "创建计划草稿: " + args.getOrDefault("name", "");
+            case "translate_minder_command" -> "脑图指令翻译";
             default -> "执行 " + toolName;
         };
     }
@@ -491,6 +496,27 @@ public class AiAssistantChatServiceImpl implements AiAssistantChatService {
                         (String) m.get("name"),
                         m.get("arguments") instanceof Map ? (Map<String, Object>) m.get("arguments") : Map.of()))
                 .toList();
+    }
+
+    /**
+     * 若 translate_minder_command 工具返回含 commands + documentId，下发 minder_commands 帧
+     * 供前端复用 DSL 执行链路预览；解析失败静默忽略，不影响主流程。
+     */
+    @SuppressWarnings("unchecked")
+    private void sendMinderCommandsFrameIfPresent(SseEmitter emitter, String toolResult) {
+        try {
+            Map<String, Object> parsed = JsonUtils.parseObject(toolResult, Map.class);
+            if (parsed == null || parsed.containsKey("error")) {
+                return;
+            }
+            Object commands = parsed.get("commands");
+            Object docId = parsed.get("documentId");
+            if (commands instanceof List<?> list && !list.isEmpty() && docId instanceof String docIdStr) {
+                send(emitter, "minder_commands", Map.of("documentId", docIdStr, "commands", list));
+            }
+        } catch (Exception e) {
+            // minder_commands 帧为辅助能力，解析失败不应阻断主流程
+        }
     }
 
     private void send(SseEmitter emitter, String event, Object data) {
