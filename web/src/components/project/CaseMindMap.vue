@@ -13,6 +13,7 @@ import { getAccessToken } from '@/services'
 import type { AiGeneratedNode, DocumentLayout } from '@/types'
 import { useAiStore } from '@/stores/ai'
 import { useAuthStore } from '@/stores/auth'
+import { useAssistantContextStore } from '@/stores/assistantContext'
 import * as Y from 'yjs'
 import { WebsocketProvider } from 'y-websocket'
 // window.kity / window.kityminder 的类型声明在 minder/types.ts 中统一维护
@@ -27,6 +28,7 @@ import MinderContextMenu from './minder/MinderContextMenu.vue'
 import MinderNavigator from './minder/MinderNavigator.vue'
 import AiGeneratePanel from './minder/ai/AiGeneratePanel.vue'
 import { mountGeneratedNodes, type MountTargetSource } from './minder/ai/aiMount'
+import { buildDslPlan, applyDslPlan } from './minder/ai/dslRunner'
 import type { AiPanelMode } from './minder/ai/aiPanelModes'
 import RequirementSelector from './RequirementSelector.vue'
 import MissingPointsPanel from './MissingPointsPanel.vue'
@@ -66,6 +68,8 @@ const {
     // 推荐仅对当次标记的节点有效：切换/清空选中即作废在途请求与已显结果（详细设计 4.3）
     priorityRecSeq++
     priorityRecommendation.value = null
+    // 同步选中节点至页面上下文桥（4.4）：updateSelectedState 先更新 selectedNodeId 再回调此处，清空选中时传 null
+    assistantContext.setSelectedNode(selectedNodeId.value || null)
   },
 })
 
@@ -81,6 +85,8 @@ const priorities = ['P0', 'P1', 'P2', 'P3']
 // 入口显隐由工作空间级 AI 开关控制（stores/ai 缓存 status，未启用隐藏全部 AI 入口）
 const aiStore = useAiStore()
 const authStore = useAuthStore()
+// 页面上下文桥（详细设计 4.4）：脑图页注册/注销文档上下文，助手消息据此注入 pageContext
+const assistantContext = useAssistantContextStore()
 
 // ==================== 需求关联（US-AI-004，不受 AI 开关控制） ====================
 const canManageRequirements = computed(() => authStore.hasPermission('requirement:view'))
@@ -565,6 +571,15 @@ async function initMinder() {
     const m = instance as Record<string, (...args: unknown[]) => unknown>
     m.importJson(kmData)
 
+    // DSL 执行宿主（详细设计 4.3/5.1）：minder 就绪后注册 buildPlan/apply 闭包，
+    // 助手面板据此预览/执行对话式编辑指令；buildPlan 读实时根节点，selectedNodeId 由面板侧传入
+    assistantContext.registerDslHost({
+      documentId: props.docId,
+      buildPlan: (commands, selectedNodeId) =>
+        buildDslPlan(kmEditor?.minder.getRoot() as unknown as MountTargetSource | null, commands, selectedNodeId),
+      apply: (plan) => applyDslPlan(kmEditor!.minder, plan),
+    })
+
     // 监听事件
     m.on('selectionchange', updateSelectedState)
     m.on('contentchange', () => {
@@ -744,9 +759,21 @@ const {
 })
 
 // ==================== 生命周期 ====================
-watch(() => props.docId, initMinder)
-onMounted(initMinder)
+// 页面上下文桥（4.4）：挂载/切换文档时注册，卸载时注销，助手消息据此注入 documentId
+watch(
+  () => props.docId,
+  (docId) => {
+    assistantContext.registerMindMap(docId)
+    void initMinder()
+  },
+)
+onMounted(() => {
+  assistantContext.registerMindMap(props.docId)
+  void initMinder()
+})
 onBeforeUnmount(() => {
+  assistantContext.unregisterMindMap()
+  assistantContext.unregisterDslHost()
   stopAiReadyPoll()
   invalidate()
   flushPersistenceNow()
