@@ -8,6 +8,7 @@ import io.github.xiaomisum.robotest.model.entity.ai.AiConversation;
 import io.github.xiaomisum.robotest.model.entity.ai.AiMessage;
 import io.github.xiaomisum.robotest.repository.ai.AiConversationMapper;
 import io.github.xiaomisum.robotest.repository.ai.AiMessageMapper;
+import io.github.xiaomisum.robotest.service.ai.AiModels.ToolCall;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,7 +20,9 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeParseException;
 import java.util.Base64;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -74,7 +77,7 @@ public class AiConversationServiceImpl implements AiConversationService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void deleteConversation(UUID userId, UUID workspaceId, UUID conversationId) {
-        AiConversation conversation = requireOwned(userId, workspaceId, conversationId);
+        AiConversation conversation = requireOwnedInternal(userId, workspaceId, conversationId);
         messageMapper.deleteByConversationIds(List.of(conversation.getId()));
         conversationMapper.deleteById(conversation.getId());
     }
@@ -95,7 +98,84 @@ public class AiConversationServiceImpl implements AiConversationService {
         return messageMapper.selectByConversationId(conversationId).stream().map(this::toMessage).toList();
     }
 
-    private AiConversation requireOwned(UUID userId, UUID workspaceId, UUID conversationId) {
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public UUID appendUserMessage(UUID conversationId, String content) {
+        AiConversation conversation = conversationMapper.selectById(conversationId);
+        if (conversation == null) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_CONVERSATION_NOT_FOUND);
+        }
+        // 自动更名：首条用户消息取前 30 字（详细设计 3.1）
+        if (NEW_CONVERSATION_TITLE.equals(conversation.getTitle()) && content != null) {
+            String title = content.length() > 30 ? content.substring(0, 30) : content;
+            conversation.setTitle(title);
+            conversationMapper.updateById(conversation);
+        }
+        // 触碰 lastActiveAt
+        conversation.setLastActiveAt(LocalDateTime.now());
+        conversationMapper.updateById(conversation);
+        // 落库用户消息
+        AiMessage message = new AiMessage();
+        message.setConversationId(conversationId);
+        message.setRole(AiMessage.ROLE_USER);
+        message.setContent(content);
+        messageMapper.insert(message);
+        return message.getId();
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public UUID appendAssistantMessage(UUID conversationId, String content, List<ToolCall> toolCalls) {
+        AiConversation conversation = conversationMapper.selectById(conversationId);
+        if (conversation == null) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_CONVERSATION_NOT_FOUND);
+        }
+        conversation.setLastActiveAt(LocalDateTime.now());
+        conversationMapper.updateById(conversation);
+        AiMessage message = new AiMessage();
+        message.setConversationId(conversationId);
+        message.setRole(AiMessage.ROLE_ASSISTANT);
+        message.setContent(content);
+        // toolCalls 序列化为 JSON 通过 Jackson3TypeHandler 自动处理
+        if (toolCalls != null && !toolCalls.isEmpty()) {
+            List<Map<String, Object>> toolCallsData = new java.util.ArrayList<>();
+            for (ToolCall tc : toolCalls) {
+                Map<String, Object> tcMap = new LinkedHashMap<>();
+                tcMap.put("id", tc.id());
+                tcMap.put("name", tc.name());
+                tcMap.put("arguments", tc.arguments());
+                toolCallsData.add(tcMap);
+            }
+            message.setToolCalls(toolCallsData);
+        }
+        messageMapper.insert(message);
+        return message.getId();
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public UUID appendToolMessage(UUID conversationId, String toolCallId, String content) {
+        AiConversation conversation = conversationMapper.selectById(conversationId);
+        if (conversation == null) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_CONVERSATION_NOT_FOUND);
+        }
+        conversation.setLastActiveAt(LocalDateTime.now());
+        conversationMapper.updateById(conversation);
+        AiMessage message = new AiMessage();
+        message.setConversationId(conversationId);
+        message.setRole(AiMessage.ROLE_TOOL);
+        message.setContent(content);
+        message.setToolCallId(toolCallId);
+        messageMapper.insert(message);
+        return message.getId();
+    }
+
+    @Override
+    public AiConversation requireOwned(UUID userId, UUID workspaceId, UUID conversationId) {
+        return requireOwnedInternal(userId, workspaceId, conversationId);
+    }
+
+    private AiConversation requireOwnedInternal(UUID userId, UUID workspaceId, UUID conversationId) {
         AiConversation conversation = conversationMapper.selectOwned(userId, workspaceId, conversationId);
         // 归属校验：非本人或跨空间一律按不存在处理（3.1，不暴露存在性）
         if (conversation == null) {

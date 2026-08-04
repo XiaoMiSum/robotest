@@ -6,6 +6,9 @@ import io.github.xiaomisum.robotest.service.ai.AiModels.ChatMessage;
 import io.github.xiaomisum.robotest.service.ai.AiModels.ChatResult;
 import io.github.xiaomisum.robotest.service.ai.AiModels.EmbedResult;
 import io.github.xiaomisum.robotest.service.ai.AiModels.StreamCallbacks;
+import io.github.xiaomisum.robotest.service.ai.AiModels.ToolCall;
+import io.github.xiaomisum.robotest.service.ai.AiModels.ToolDefinition;
+import io.github.xiaomisum.robotest.service.ai.AiModels.ToolStreamCallbacks;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
@@ -135,6 +138,119 @@ public class OpenAiCompatProvider {
     }
 
     /**
+     * 带工具定义的流式对话调用（Function Calling）。
+     * 在普通 stream 基础上解析 delta.tool_calls 增量帧，流式结束后回调 onToolCalls。
+     */
+    public void streamWithTools(ResolvedChatModel config, List<ChatMessage> messages, ChatCallOptions options,
+                                ToolStreamCallbacks callbacks, AtomicBoolean cancelled) {
+        Map<String, Object> body = buildChatBody(config, messages, options, true);
+        RestClient client = buildClient(config.baseUrl(), STREAM_READ_TIMEOUT_MILLIS);
+
+        client.post()
+                .uri("/chat/completions")
+                .header("Authorization", "Bearer " + config.apiKey())
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(objectMapper.writeValueAsString(body))
+                .exchange((request, response) -> {
+                    if (!response.getStatusCode().is2xxSuccessful()) {
+                        log.warn("[AI] 流式调用上游返回 {}", response.getStatusCode());
+                        throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_CALL_FAILED);
+                    }
+                    StringBuilder fullContent = new StringBuilder();
+                    Integer promptTokens = null;
+                    Integer completionTokens = null;
+                    int badFrames = 0;
+                    // tool_calls 增量累积：index → (id, name, argumentsBuilder)
+                    List<ToolCallAccumulator> toolCallAccumulators = new ArrayList<>();
+                    try (BufferedReader reader = new BufferedReader(
+                            new InputStreamReader(response.getBody(), StandardCharsets.UTF_8))) {
+                        String line;
+                        while ((line = reader.readLine()) != null) {
+                            if (cancelled.get()) {
+                                throw new StreamCancelledException();
+                            }
+                            if (!line.startsWith("data:")) {
+                                continue;
+                            }
+                            String data = line.substring(5).trim();
+                            if (data.isEmpty()) {
+                                continue;
+                            }
+                            if ("[DONE]".equals(data)) {
+                                break;
+                            }
+                            JsonNode chunk;
+                            try {
+                                chunk = objectMapper.readTree(data);
+                            } catch (Exception e) {
+                                if (++badFrames > BAD_FRAME_THRESHOLD) {
+                                    throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_CALL_FAILED);
+                                }
+                                continue;
+                            }
+                            JsonNode delta = chunk.path("choices").path(0).path("delta");
+                            // 文本增量
+                            String contentDelta = delta.path("content").asString(null);
+                            if (contentDelta != null && !contentDelta.isEmpty()) {
+                                fullContent.append(contentDelta);
+                                callbacks.onDelta(contentDelta);
+                            }
+                            // tool_calls 增量
+                            JsonNode toolCallsNode = delta.path("tool_calls");
+                            if (!toolCallsNode.isMissingNode() && toolCallsNode.isArray()) {
+                                for (JsonNode tc : toolCallsNode) {
+                                    int index = tc.path("index").asInt(0);
+                                    // 扩展 accumulator 列表
+                                    while (toolCallAccumulators.size() <= index) {
+                                        toolCallAccumulators.add(new ToolCallAccumulator());
+                                    }
+                                    ToolCallAccumulator acc = toolCallAccumulators.get(index);
+                                    String id = tc.path("id").asString(null);
+                                    if (id != null) {
+                                        acc.id = id;
+                                    }
+                                    String name = tc.path("function").path("name").asString(null);
+                                    if (name != null) {
+                                        acc.name = name;
+                                    }
+                                    String argsPart = tc.path("function").path("arguments").asString(null);
+                                    if (argsPart != null) {
+                                        acc.argumentsBuilder.append(argsPart);
+                                    }
+                                }
+                            }
+                            JsonNode usage = chunk.path("usage");
+                            if (!usage.isMissingNode() && !usage.isNull()) {
+                                promptTokens = intOrNull(usage.path("prompt_tokens"));
+                                completionTokens = intOrNull(usage.path("completion_tokens"));
+                            }
+                        }
+                    }
+                    // 构建工具调用列表
+                    List<ToolCall> toolCalls = toolCallAccumulators.stream()
+                            .filter(acc -> acc.id != null && acc.name != null)
+                            .map(acc -> {
+                                Map<String, Object> args;
+                                try {
+                                    String argsJson = acc.argumentsBuilder.toString();
+                                    args = (argsJson.isEmpty() || "{}".equals(argsJson))
+                                            ? Map.of()
+                                            : objectMapper.readValue(argsJson, objectMapper.getTypeFactory()
+                                                    .constructMapType(Map.class, String.class, Object.class));
+                                } catch (Exception e) {
+                                    log.warn("[AI] tool_calls arguments 解析失败: {}", e.getMessage());
+                                    args = Map.of();
+                                }
+                                return new ToolCall(acc.id, acc.name, args);
+                            })
+                            .toList();
+                    callbacks.onToolCalls(toolCalls);
+                    callbacks.onFinish(fullContent.toString(), promptTokens, completionTokens);
+                    return null;
+                });
+    }
+
+    /**
      * Embedding 调用（网络/5xx 自动重试 1 次）
      */
     public EmbedResult embed(ResolvedAiConfig config, List<String> inputs) {
@@ -164,8 +280,9 @@ public class OpenAiCompatProvider {
                                               ChatCallOptions options, boolean stream) {
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("model", config.model());
+        // 序列化消息：支持 tool role / assistant tool_calls / tools 数组
         body.put("messages", messages.stream()
-                .map(message -> Map.of("role", message.role(), "content", message.content()))
+                .map(this::serializeMessage)
                 .toList());
         body.put("stream", stream);
         if (options.maxTokens() != null) {
@@ -177,8 +294,58 @@ public class OpenAiCompatProvider {
         if (options.jsonResponseFormat()) {
             body.put("response_format", Map.of("type", "json_object"));
         }
+        // Function Calling 工具定义
+        if (options.tools() != null && !options.tools().isEmpty()) {
+            body.put("tools", options.tools().stream()
+                    .map(tool -> Map.of("type", "function",
+                            "function", Map.of(
+                                    "name", tool.name(),
+                                    "description", tool.description(),
+                                    "parameters", tool.parameters())))
+                    .toList());
+        }
         mergeExtraParams(body, config.extraParams(), ProviderPresetRegistry.CHAT_STANDARD_PARAMS);
         return body;
+    }
+
+    /**
+     * 消息序列化：按 role 区分结构，支持 tool_calls / tool_call_id
+     */
+    private Map<String, Object> serializeMessage(ChatMessage message) {
+        Map<String, Object> map = new LinkedHashMap<>();
+        map.put("role", message.role());
+        if (message.content() != null) {
+            map.put("content", message.content());
+        }
+        // assistant 消息携带 tool_calls
+        if ("assistant".equals(message.role()) && message.toolCalls() != null && !message.toolCalls().isEmpty()) {
+            map.put("tool_calls", message.toolCalls().stream()
+                    .map(tc -> Map.of("id", tc.id(),
+                            "type", "function",
+                            "function", Map.of(
+                                    "name", tc.name(),
+                                    "arguments", serializeArguments(tc.arguments()))))
+                    .toList());
+        }
+        // tool 消息携带 tool_call_id
+        if ("tool".equals(message.role()) && message.toolCallId() != null) {
+            map.put("tool_call_id", message.toolCallId());
+        }
+        return map;
+    }
+
+    /**
+     * 工具参数序列化：Map → JSON 字符串（OpenAI 协议要求 arguments 为 string）
+     */
+    private String serializeArguments(Map<String, Object> arguments) {
+        if (arguments == null) {
+            return "{}";
+        }
+        try {
+            return objectMapper.writeValueAsString(arguments);
+        } catch (Exception e) {
+            return "{}";
+        }
     }
 
     /**
@@ -256,5 +423,12 @@ public class OpenAiCompatProvider {
 
     /** 客户端断开触发的流式取消（协作式，行读取边界生效） */
     public static class StreamCancelledException extends RuntimeException {
+    }
+
+    /** tool_calls 增量累积器（按 index 分组，arguments 分片拼接） */
+    private static class ToolCallAccumulator {
+        String id;
+        String name;
+        StringBuilder argumentsBuilder = new StringBuilder();
     }
 }
