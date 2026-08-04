@@ -3,6 +3,7 @@ package io.github.xiaomisum.robotest.service.ai;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiConversationItemRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiConversationListRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiMessageRespDTO;
+import io.github.xiaomisum.robotest.service.ai.AiModels.ToolCall;
 
 import java.util.List;
 import java.util.UUID;
@@ -39,4 +40,31 @@ public interface AiConversationService {
      * 消息历史（按时间升序全量返回；归属校验同 3.1，非本人会话按不存在处理）
      */
     List<AiMessageRespDTO> listMessages(UUID userId, UUID workspaceId, UUID conversationId);
+
+    /**
+     * 追加用户消息并触碰 lastActiveAt；若会话标题仍为"新会话"则自动更名（首条消息前 30 字）
+     *
+     * @return 持久化的消息 ID
+     */
+    UUID appendUserMessage(UUID conversationId, String content);
+
+    /**
+     * 追加 assistant 消息（可能携带工具调用载荷）
+     *
+     * @return 持久化的消息 ID
+     */
+    UUID appendAssistantMessage(UUID conversationId, String content, List<ToolCall> toolCalls);
+
+    /**
+     * 追加 tool 消息（工具执行结果）
+     *
+     * @return 持久化的消息 ID
+     */
+    UUID appendToolMessage(UUID conversationId, String toolCallId, String content);
+
+    /**
+     * 校验会话归属并返回会话实体（归属不匹配抛 AI_CONVERSATION_NOT_FOUND）
+     */
+    io.github.xiaomisum.robotest.model.entity.ai.AiConversation requireOwned(
+            UUID userId, UUID workspaceId, UUID conversationId);
 }
