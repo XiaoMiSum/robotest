@@ -18,6 +18,7 @@ import io.github.xiaomisum.robotest.service.ai.assistant.AiToolExecutor;
 import io.github.xiaomisum.robotest.service.ai.assistant.ToolRegistry;
 import io.github.xiaomisum.robotest.service.ai.assistant.ToolSchema;
 import io.github.xiaomisum.robotest.service.ai.assistant.WriteToolExecutor;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -29,6 +30,8 @@ import xyz.migoo.framework.common.exception.ServiceException;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -40,6 +43,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.timeout;
@@ -49,6 +53,16 @@ import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class AiAssistantChatServiceImplTest {
+
+    @Mock
+    private AiSseSupport sseSupport;
+
+    @BeforeEach
+    void stubSseSupport() {
+        // 虚拟线程内正常路径会 stopPing()，ping 句柄需为可取消 mock 而非 null
+        lenient().when(sseSupport.open()).thenReturn(new AiSseSupport.Channel(
+                new SseEmitter(), new AtomicBoolean(false), mock(ScheduledFuture.class)));
+    }
 
     @Mock
     private AiConversationMapper conversationMapper;
