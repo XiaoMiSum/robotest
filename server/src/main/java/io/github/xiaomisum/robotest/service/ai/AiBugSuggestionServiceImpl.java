@@ -65,9 +65,7 @@ public class AiBugSuggestionServiceImpl implements AiBugSuggestionService {
         String repro = reqDTO.getReproSteps();
         if (repro != null && !repro.isBlank()) {
             data.append("【重现步骤】\n")
-                    .append(PromptAssembler.estimateTokens(repro) > INPUT_TOKEN_BUDGET
-                            ? truncateToTokenBudget(repro, INPUT_TOKEN_BUDGET)
-                            : repro)
+                    .append(AiTextUtils.truncateToTokenBudget(repro, INPUT_TOKEN_BUDGET))
                     .append('\n');
         }
         return data.toString();
@@ -81,25 +79,6 @@ public class AiBugSuggestionServiceImpl implements AiBugSuggestionService {
         if (!PRIORITIES.contains(out.getPriority())) {
             throw new AiOutputValidator.OutputValidationException("priority 取值非法：" + out.getPriority());
         }
-    }
-
-    private String truncateToTokenBudget(String text, int budget) {
-        StringBuilder sb = new StringBuilder();
-        int ascii = 0;
-        int other = 0;
-        for (int i = 0; i < text.length(); i++) {
-            char c = text.charAt(i);
-            if (c < 128) {
-                ascii++;
-            } else {
-                other++;
-            }
-            if (ascii / 4 + other > budget) {
-                break;
-            }
-            sb.append(c);
-        }
-        return sb.toString();
     }
 
     /** LLM 结构化输出：与响应 DTO 同构，等级枚举由额外断言二次校验 */

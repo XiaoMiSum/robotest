@@ -147,7 +147,7 @@ public class AiBugClusteringTaskHandler implements AiTaskHandler {
         List<UUID> unclustered = new ArrayList<>();
         for (Bug bug : bugs) {
             float[] vec = vectors.get(bug.getId());
-            float[] norm = vec == null ? null : normalize(vec);
+            float[] norm = vec == null ? null : AiVectorMath.normalize(vec);
             if (norm == null) {
                 unclustered.add(bug.getId());
                 continue;
@@ -155,7 +155,7 @@ public class AiBugClusteringTaskHandler implements AiTaskHandler {
             GreedyCluster best = null;
             double bestSim = threshold;
             for (GreedyCluster c : clusters) {
-                double sim = dot(c.center, norm);
+                double sim = AiVectorMath.dot(c.center, norm);
                 if (sim >= bestSim) {
                     bestSim = sim;
                     best = c;
@@ -169,8 +169,8 @@ public class AiBugClusteringTaskHandler implements AiTaskHandler {
                 clusters.add(created);
             } else {
                 best.bugIds.add(bug.getId());
-                addInPlace(best.sum, norm);
-                best.center = normalize(best.sum);
+                AiVectorMath.addInPlace(best.sum, norm);
+                best.center = AiVectorMath.normalize(best.sum);
             }
         }
         // 单缺陷簇无归纳价值，归入 unclustered（4.3 步骤 2）
@@ -189,7 +189,7 @@ public class AiBugClusteringTaskHandler implements AiTaskHandler {
     private String buildSampleData(GreedyCluster cluster, List<Bug> bugs, Map<UUID, float[]> vectors) {
         Map<UUID, Bug> bugById = bugs.stream().collect(Collectors.toMap(Bug::getId, b -> b, (a, b) -> a));
         List<UUID> samples = cluster.bugIds.stream()
-                .sorted(Comparator.comparingDouble((UUID id) -> -dot(normalize(vectors.get(id)), cluster.center))
+                .sorted(Comparator.comparingDouble((UUID id) -> -AiVectorMath.dot(AiVectorMath.normalize(vectors.get(id)), cluster.center))
                         .thenComparing(UUID::toString))
                 .limit(REPRESENTATIVE_SAMPLE_LIMIT)
                 .toList();
@@ -200,7 +200,7 @@ public class AiBugClusteringTaskHandler implements AiTaskHandler {
             sb.append(index++).append(". 标题：").append(bug.getTitle()).append('\n');
             if (StringUtils.hasText(bug.getReproSteps())) {
                 sb.append("   描述：")
-                        .append(truncateToTokenBudget(bug.getReproSteps(), SAMPLE_DESC_TOKEN_BUDGET))
+                        .append(AiTextUtils.truncateToTokenBudget(bug.getReproSteps(), SAMPLE_DESC_TOKEN_BUDGET))
                         .append('\n');
             }
         }
@@ -221,7 +221,7 @@ public class AiBugClusteringTaskHandler implements AiTaskHandler {
     /** 进度心跳：写部分快照（未命名主题占位），影响行数为 0 表示任务被取消/置失败，调用方应立即中止 */
     private int heartbeat(AiAnalysisTask task, int progress, List<Bug> bugs,
             List<GreedyCluster> clusters, List<UUID> unclustered) {
-        return aiTaskMapper.updateProgressIfRunning(task.getId(), progress,
+        return AiTaskProgressSupport.heartbeat(aiTaskMapper, task.getId(), progress,
                 JsonUtils.toJsonString(buildSnapshot(bugs, clusters, unclustered)));
     }
 
@@ -322,84 +322,12 @@ public class AiBugClusteringTaskHandler implements AiTaskHandler {
     private Map<UUID, float[]> loadVectors(UUID projectId) {
         Map<UUID, float[]> vectors = new HashMap<>();
         for (var embedding : bugEmbeddingMapper.findEmbeddingsByProjectId(projectId)) {
-            float[] parsed = parseVector(embedding.getEmbedding());
+            float[] parsed = AiVectorMath.parseVector(embedding.getEmbedding());
             if (parsed != null) {
                 vectors.put(embedding.getBugId(), parsed);
             }
         }
         return vectors;
-    }
-
-    private float[] parseVector(String text) {
-        if (text == null) {
-            return null;
-        }
-        String inner = text.trim();
-        if (inner.startsWith("[") && inner.endsWith("]")) {
-            inner = inner.substring(1, inner.length() - 1);
-        }
-        if (inner.isBlank()) {
-            return null;
-        }
-        String[] parts = inner.split(",");
-        float[] vector = new float[parts.length];
-        try {
-            for (int i = 0; i < parts.length; i++) {
-                vector[i] = Float.parseFloat(parts[i].trim());
-            }
-        } catch (NumberFormatException e) {
-            return null;
-        }
-        return vector;
-    }
-
-    private float[] normalize(float[] vector) {
-        double sum = 0;
-        for (float v : vector) {
-            sum += (double) v * v;
-        }
-        if (sum <= 1e-12) {
-            return null;
-        }
-        double inv = 1.0 / Math.sqrt(sum);
-        float[] out = new float[vector.length];
-        for (int i = 0; i < vector.length; i++) {
-            out[i] = (float) (vector[i] * inv);
-        }
-        return out;
-    }
-
-    private double dot(float[] a, float[] b) {
-        double sum = 0;
-        for (int i = 0; i < a.length; i++) {
-            sum += (double) a[i] * b[i];
-        }
-        return sum;
-    }
-
-    private void addInPlace(float[] sum, float[] v) {
-        for (int i = 0; i < sum.length; i++) {
-            sum[i] += v[i];
-        }
-    }
-
-    /** 将文本截断至 token 预算内（估算口径与 PromptAssembler.estimateTokens 一致） */
-    private String truncateToTokenBudget(String text, int tokenBudget) {
-        int ascii = 0;
-        int other = 0;
-        int cut = text.length();
-        for (int i = 0; i < text.length(); i++) {
-            if (text.charAt(i) < 128) {
-                ascii++;
-            } else {
-                other++;
-            }
-            if (ascii / 4 + other > tokenBudget) {
-                cut = i;
-                break;
-            }
-        }
-        return cut >= text.length() ? text : text.substring(0, cut) + "…";
     }
 
     /** 聚类中的簇：sum 为成员归一化向量累加和，center = normalize(sum)（增量更新 O(1)） */

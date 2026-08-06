@@ -3,24 +3,18 @@ package io.github.xiaomisum.robotest.service.ai;
 import io.github.xiaomisum.robotest.framework.common.AiFunctionType;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.model.dto.request.ai.AiMissingPointReqDTO;
-import io.github.xiaomisum.robotest.model.dto.request.requirement.RequirementCreateReqDTO;
-import io.github.xiaomisum.robotest.model.dto.response.ai.AiKeywordExtractRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiMissingPointRespDTO;
-import io.github.xiaomisum.robotest.model.entity.requirement.RequirementPoolItem;
 import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseModule;
 import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseNode;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseModuleMapper;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseNodeMapper;
 import io.github.xiaomisum.robotest.service.ai.AiModels.AiCallContext;
 import io.github.xiaomisum.robotest.service.ai.AiModels.ChatCallOptions;
-import io.github.xiaomisum.robotest.service.project.RequirementService;
 import jakarta.annotation.Resource;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
@@ -47,22 +41,8 @@ import java.util.UUID;
 @Service
 public class AiMissingPointServiceImpl implements AiMissingPointService {
 
-    /** 需求上下文总预算（token），与《智能用例生成》4.7 一致 */
-    static final int REQUIREMENT_CONTEXT_TOKEN_BUDGET = 12_000;
-
-    /** 单条需求条目内容截断预算（token），同生成类 */
-    static final int REQUIREMENT_ITEM_TOKEN_BUDGET = 8_000;
-
-    /** 单关键词候选上限（4.3：每词取前 30 条） */
-    static final int CANDIDATE_LIMIT_PER_KEYWORD = 30;
-
     /** 候选清单整体 token 预算（防御性：避免超出 PromptAssembler 输入预算，超出静默截断） */
     static final int CANDIDATE_TOKEN_BUDGET = 8_000;
-
-    /** LLM 比对读超时（ms）：候选集大、输出较长，网关同步默认 15s 不足（4.3） */
-    static final int LLM_TIMEOUT_MILLIS = 60_000;
-
-    private static final Logger log = LoggerFactory.getLogger(AiMissingPointServiceImpl.class);
 
     private static final String TASK_INSTRUCTION = """
             请对比需求描述与候选用例清单，找出需求已提及但现有候选用例未覆盖的测试点。
@@ -78,11 +58,13 @@ public class AiMissingPointServiceImpl implements AiMissingPointService {
     @Resource
     private AiGatewayService aiGatewayService;
     @Resource
+    private AiKeywordExtractor aiKeywordExtractor;
+    @Resource
     private TestCaseModuleMapper testCaseModuleMapper;
     @Resource
     private TestCaseNodeMapper testCaseNodeMapper;
     @Resource
-    private RequirementService requirementService;
+    private AiRequirementContextAssembler requirementContextAssembler;
 
     @Override
     public AiMissingPointRespDTO analyze(UUID userId, UUID workspaceId, UUID projectId, AiMissingPointReqDTO reqDTO) {
@@ -98,22 +80,20 @@ public class AiMissingPointServiceImpl implements AiMissingPointService {
             if (!hasText) {
                 throw ServiceExceptionUtil.get(ErrorCodeConstants.VALIDATION_FAILED);
             }
-            try {
-                RequirementCreateReqDTO saveDTO = new RequirementCreateReqDTO();
-                saveDTO.setTitle(reqDTO.getSaveAsRequirement().getTitle());
-                saveDTO.setContent(reqDTO.getText());
-                requirementService.create(projectId, userId, saveDTO);
-            } catch (Exception e) {
-                log.warn("遗漏分析前另存需求池条目失败: {}", e.getMessage());
-            }
+            requirementContextAssembler.trySaveRequirement(projectId, userId,
+                    reqDTO.getSaveAsRequirement().getTitle(), reqDTO.getText());
         }
 
         // 1. 需求输入归一（4.3）
-        String requirementData = buildRequirementContext(
-                reqDTO.getKeywords(), projectId, reqDTO.getRequirementIds(), reqDTO.getText());
+        String prefixBlock = reqDTO.getKeywords() != null && !reqDTO.getKeywords().isEmpty()
+                ? "【需求关键词】" + String.join("、", reqDTO.getKeywords()) + "\n"
+                : null;
+        String requirementData = requirementContextAssembler.assemble(projectId,
+                reqDTO.getRequirementIds(), reqDTO.getText(), prefixBlock).data();
         // 2. 关键词：入参非空直接用；text/需求条目场景由 LLM 抽取（一次同步调用）
         List<String> keywords = hasKeywords ? reqDTO.getKeywords()
-                : extractKeywords(userId, workspaceId, projectId, requirementData);
+                : aiKeywordExtractor.extract(userId, workspaceId, projectId,
+                        KEYWORD_TASK_INSTRUCTION, "【需求描述】", requirementData);
         // 3. 候选检索 + 4. LLM 比对（4.3）
         ComparisonContext comparison = buildComparisonData(requirementData, retrieveCandidates(projectId, keywords));
         AiCallContext context = new AiCallContext(userId, workspaceId, projectId);
@@ -122,41 +102,11 @@ public class AiMissingPointServiceImpl implements AiMissingPointService {
                 AiFunctionType.MISSING_POINT_ANALYSIS,
                 TASK_INSTRUCTION,
                 comparison.data(),
-                new ChatCallOptions(null, null, true, LLM_TIMEOUT_MILLIS),
+                new ChatCallOptions(null, null, true, AiConstants.LLM_TIMEOUT_MILLIS),
                 MissingPointOut.class,
                 points -> assertModulePaths(points, comparison.modulePaths()));
         // 5. relatedCaseTitles 幻觉过滤（4.3 步骤 4）
         return response(out, comparison.titles());
-    }
-
-    /** 无入参 keywords 时由 LLM 抽取 ≤10 个关键词（4.3 关键词模式 text 场景，一次同步调用） */
-    private List<String> extractKeywords(UUID userId, UUID workspaceId, UUID projectId, String requirementData) {
-        AiCallContext context = new AiCallContext(userId, workspaceId, projectId);
-        AiKeywordExtractRespDTO extract = aiGatewayService.completeStructured(
-                context,
-                AiFunctionType.KEYWORD_EXTRACTION,
-                KEYWORD_TASK_INSTRUCTION,
-                "【需求描述】\n" + requirementData,
-                ChatCallOptions.json(),
-                AiKeywordExtractRespDTO.class,
-                keywords -> assertKeywords(keywords));
-        return extract.getKeywords().stream()
-                .filter(StringUtils::hasText)
-                .distinct()
-                .toList();
-    }
-
-    /** 抽取结果防御断言：每个关键词非空且 ≤20 字符（超限触发带错重试） */
-    private void assertKeywords(AiKeywordExtractRespDTO extract) {
-        if (extract.getKeywords() == null) {
-            throw new AiOutputValidator.OutputValidationException("keywords 不能为空");
-        }
-        for (String keyword : extract.getKeywords()) {
-            if (!StringUtils.hasText(keyword) || keyword.length() > 20) {
-                throw new AiOutputValidator.OutputValidationException(
-                        "keywords 中不允许空关键词或超过 20 字符的关键词");
-            }
-        }
     }
 
     /** 候选检索：每词对项目内 case 节点标题 ILIKE 取前 30，跨词去重，附模块路径 */
@@ -173,11 +123,11 @@ public class AiMissingPointServiceImpl implements AiMissingPointService {
         if (documentIds.isEmpty()) {
             return List.of();
         }
-        Map<UUID, String> modulePathById = buildModulePaths(testCaseModuleMapper.listByProjectId(projectId));
+        Map<UUID, String> modulePathById = AiModuleTreeSupport.buildModulePaths(testCaseModuleMapper.listByProjectId(projectId));
         Map<UUID, Candidate> candidates = new LinkedHashMap<>();
         for (String keyword : effective) {
             List<TestCaseNode> nodes = testCaseNodeMapper.listCaseNodesByDocumentIdsAndKeyword(
-                    documentIds, keyword, CANDIDATE_LIMIT_PER_KEYWORD);
+                    documentIds, keyword, AiConstants.CANDIDATE_LIMIT_PER_KEYWORD);
             for (TestCaseNode node : nodes) {
                 if (candidates.containsKey(node.getId())) {
                     continue;
@@ -187,38 +137,6 @@ public class AiMissingPointServiceImpl implements AiMissingPointService {
             }
         }
         return new ArrayList<>(candidates.values());
-    }
-
-    /**
-     * 模块树路径构建：目录链 + 文档名拼接为「目录A/目录B/文档」路径（3.3 建议归属模块示例口径）；
-     * 模块树在排序上不保证父子先后，按需递归回溯并缓存。
-     */
-    private Map<UUID, String> buildModulePaths(List<TestCaseModule> modules) {
-        Map<UUID, String> pathById = new LinkedHashMap<>();
-        Map<UUID, TestCaseModule> moduleById = new LinkedHashMap<>();
-        modules.forEach(module -> moduleById.put(module.getId(), module));
-        for (TestCaseModule module : modules) {
-            resolvePath(module.getId(), moduleById, pathById);
-        }
-        return pathById;
-    }
-
-    private String resolvePath(UUID moduleId, Map<UUID, TestCaseModule> moduleById, Map<UUID, String> pathById) {
-        if (moduleId == null) {
-            return "";
-        }
-        String cached = pathById.get(moduleId);
-        if (cached != null) {
-            return cached;
-        }
-        TestCaseModule module = moduleById.get(moduleId);
-        if (module == null) {
-            return "";
-        }
-        String parent = resolvePath(module.getParentId(), moduleById, pathById);
-        String path = parent.isEmpty() ? module.getName() : parent + "/" + module.getName();
-        pathById.put(moduleId, path);
-        return path;
     }
 
     /** 组装 LLM 比对输入：需求描述块 + 候选用例（标题 + 模块路径清单）；记录实际入参候选供断言与过滤 */
@@ -277,65 +195,6 @@ public class AiMissingPointServiceImpl implements AiMissingPointService {
         }
         resp.setPoints(points);
         return resp;
-    }
-
-    /** 需求描述块：关键词 + 需求条目（标题定界，按选取顺序）+ 需求文本；text 与条目超预算截断（同生成类） */
-    private String buildRequirementContext(List<String> keywords, UUID projectId,
-                                           List<UUID> requirementIds, String extraText) {
-        StringBuilder data = new StringBuilder();
-        int used = 0;
-        if (keywords != null && !keywords.isEmpty()) {
-            String block = "【需求关键词】" + String.join("、", keywords) + "\n";
-            data.append(block);
-            used += PromptAssembler.estimateTokens(block);
-        }
-        for (RequirementPoolItem item : requirementService.requireByIds(projectId, requirementIds)) {
-            String content = truncateToTokenBudget(item.getContent(), REQUIREMENT_ITEM_TOKEN_BUDGET);
-            String block = "【需求条目】" + item.getTitle() + "\n" + content + "\n";
-            int tokens = PromptAssembler.estimateTokens(block);
-            if (used + tokens > REQUIREMENT_CONTEXT_TOKEN_BUDGET) {
-                break;
-            }
-            data.append(block);
-            used += tokens;
-        }
-        if (extraText != null && !extraText.isBlank()) {
-            String block = "【需求文本】\n" + extraText + "\n";
-            int tokens = PromptAssembler.estimateTokens(block);
-            if (used + tokens > REQUIREMENT_CONTEXT_TOKEN_BUDGET) {
-                data.append("【需求文本】\n")
-                        .append(truncateToTokenBudget(extraText, REQUIREMENT_CONTEXT_TOKEN_BUDGET - used))
-                        .append('\n');
-            } else {
-                data.append(block);
-            }
-        }
-        return data.toString();
-    }
-
-    /** 将文本截断至指定 token 预算内（估算口径与 PromptAssembler.estimateTokens 一致） */
-    private String truncateToTokenBudget(String text, int tokenBudget) {
-        if (PromptAssembler.estimateTokens(text) <= tokenBudget) {
-            return text;
-        }
-        int ascii = 0;
-        int other = 0;
-        int cut = text.length();
-        for (int i = 0; i < text.length(); i++) {
-            if (text.charAt(i) < 128) {
-                ascii++;
-            } else {
-                other++;
-            }
-            if (ascii / 4 + other > tokenBudget) {
-                cut = i;
-                break;
-            }
-        }
-        while (cut > 0 && PromptAssembler.estimateTokens(text.substring(0, cut)) > tokenBudget) {
-            cut--;
-        }
-        return text.substring(0, cut) + "…";
     }
 
     /** 候选用例（节点 + 标题 + 所属文档的模块树路径） */

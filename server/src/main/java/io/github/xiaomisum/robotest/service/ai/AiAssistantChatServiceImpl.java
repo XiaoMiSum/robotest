@@ -21,29 +21,20 @@ import io.github.xiaomisum.robotest.service.ai.assistant.AiToolDefinition;
 import io.github.xiaomisum.robotest.service.ai.assistant.AiToolExecutor;
 import io.github.xiaomisum.robotest.service.ai.assistant.ToolRegistry;
 import io.github.xiaomisum.robotest.service.ai.assistant.WriteToolExecutor;
-import jakarta.annotation.PreDestroy;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import xyz.migoo.framework.common.exception.ServiceException;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
 import xyz.migoo.framework.common.util.JsonUtils;
 
-import java.io.IOException;
 import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -56,17 +47,11 @@ import java.util.concurrent.atomic.AtomicBoolean;
 @Service
 public class AiAssistantChatServiceImpl implements AiAssistantChatService {
 
-    private static final long SSE_TIMEOUT_MILLIS = 120_000L;
-    private static final long PING_INTERVAL_SECONDS = 15L;
     private static final int MAX_FUNCTION_CALL_LOOPS = 5;
     private static final int CONTEXT_HISTORY_ROUNDS = 10;
 
-    private final ScheduledExecutorService pingScheduler = Executors.newSingleThreadScheduledExecutor(r -> {
-        Thread thread = new Thread(r, "ai-assistant-ping");
-        thread.setDaemon(true);
-        return thread;
-    });
-
+    @Resource
+    private AiSseSupport sseSupport;
     @Resource
     private AiConversationMapper conversationMapper;
     @Resource
@@ -111,16 +96,9 @@ public class AiAssistantChatServiceImpl implements AiAssistantChatService {
         rateLimiter.checkAndRecord(userId, AiFunctionType.ASSISTANT_CHAT);
 
         // 4. 构建上下文 + 启动 SSE 流
-        SseEmitter emitter = new SseEmitter(SSE_TIMEOUT_MILLIS);
-        AtomicBoolean cancelled = new AtomicBoolean(false);
-        emitter.onCompletion(() -> cancelled.set(true));
-        emitter.onError(e -> cancelled.set(true));
-        emitter.onTimeout(() -> { cancelled.set(true); emitter.complete(); });
-
-        ScheduledFuture<?> ping = pingScheduler.scheduleAtFixedRate(() -> {
-            try { emitter.send(SseEmitter.event().comment("ping")); }
-            catch (Exception e) { cancelled.set(true); }
-        }, PING_INTERVAL_SECONDS, PING_INTERVAL_SECONDS, TimeUnit.SECONDS);
+        AiSseSupport.Channel channel = sseSupport.open();
+        SseEmitter emitter = channel.emitter();
+        AtomicBoolean cancelled = channel.cancelled();
 
         Thread.startVirtualThread(() -> {
             try {
@@ -135,7 +113,7 @@ public class AiAssistantChatServiceImpl implements AiAssistantChatService {
                     if (cancelled.get()) { break; }
                     // 检查 AI 总开关
                     if (!Boolean.TRUE.equals(aiConfigService.getStatus().getEnabled())) {
-                        sendError(emitter, ErrorCodeConstants.AI_NOT_ENABLED.code(),
+                        sseSupport.sendError(emitter, ErrorCodeConstants.AI_NOT_ENABLED.code(),
                                 ErrorCodeConstants.AI_NOT_ENABLED.msg());
                         break;
                     }
@@ -147,7 +125,7 @@ public class AiAssistantChatServiceImpl implements AiAssistantChatService {
                                 @Override
                                 public void onDelta(String content) {
                                     if (!cancelled.get()) {
-                                        send(emitter, "delta", Map.of("content", content));
+                                        sseSupport.send(emitter, "delta", Map.of("content", content));
                                     }
                                 }
                                 @Override
@@ -168,9 +146,9 @@ public class AiAssistantChatServiceImpl implements AiAssistantChatService {
                     if (toolCalls.isEmpty()) {
                         UUID msgId = conversationService.appendAssistantMessage(
                                 conversationId, fullContent.toString(), null);
-                        send(emitter, "done", Map.of("messageId", msgId.toString()));
+                        sseSupport.send(emitter, "done", Map.of("messageId", msgId.toString()));
                         emitter.complete();
-                        ping.cancel(false);
+                        channel.stopPing();
                         return;
                     }
                     // 有工具调用 → 落库 assistant 消息（含 tool_calls 载荷）
@@ -187,7 +165,7 @@ public class AiAssistantChatServiceImpl implements AiAssistantChatService {
                             // 未知工具 → 落 tool 消息
                             String errResult = "{\"error\":\"未知工具: " + tc.name() + "\"}";
                             conversationService.appendToolMessage(conversationId, tc.id(), errResult);
-                            send(emitter, "tool_call", Map.of("toolName", tc.name(), "summary", "未知工具"));
+                            sseSupport.send(emitter, "tool_call", Map.of("toolName", tc.name(), "summary", "未知工具"));
                             continue;
                         }
                         if (!tool.definition().readOnly()) {
@@ -208,7 +186,7 @@ public class AiAssistantChatServiceImpl implements AiAssistantChatService {
                         if ("translate_minder_command".equals(tc.name())) {
                             sendMinderCommandsFrameIfPresent(emitter, result);
                         }
-                        send(emitter, "tool_call", Map.of(
+                        sseSupport.send(emitter, "tool_call", Map.of(
                                 "toolName", tc.name(),
                                 "summary", summarizeToolCall(tc.name(), tc.arguments())));
                     }
@@ -221,10 +199,10 @@ public class AiAssistantChatServiceImpl implements AiAssistantChatService {
                         confirmData.put("expiresAt", Instant.now()
                                 .plusSeconds(aiConfigService.getIntSetting("assistantConfirmTimeoutSeconds"))
                                 .toString());
-                        send(emitter, "confirm_required", confirmData);
-                        send(emitter, "done", Map.of("messageId", assistantMsgId.toString()));
+                        sseSupport.send(emitter, "confirm_required", confirmData);
+                        sseSupport.send(emitter, "done", Map.of("messageId", assistantMsgId.toString()));
                         emitter.complete();
-                        ping.cancel(false);
+                        channel.stopPing();
                         return;
                     }
                     // 将本轮 assistant+tool 消息追加到上下文，继续循环
@@ -248,24 +226,24 @@ public class AiAssistantChatServiceImpl implements AiAssistantChatService {
                 // 循环上限终止
                 String limitMsg = "已达到工具调用上限，请简化请求后重试。";
                 UUID msgId = conversationService.appendAssistantMessage(conversationId, limitMsg, null);
-                send(emitter, "done", Map.of("messageId", msgId.toString()));
+                sseSupport.send(emitter, "done", Map.of("messageId", msgId.toString()));
                 emitter.complete();
-                ping.cancel(false);
+                channel.stopPing();
             } catch (ServiceException e) {
                 log.warn("[AI] 助手对话异常: {}", e.getMessage());
                 auditRecorder.record(callContext, AiFunctionType.ASSISTANT_CHAT,
                         resolvedModel.model(), 0, null, null,
                         Constants.AiInvocationStatus.FAILED, "6002");
-                sendError(emitter, ErrorCodeConstants.AI_CALL_FAILED.code(),
+                sseSupport.sendError(emitter, ErrorCodeConstants.AI_CALL_FAILED.code(),
                         e.getMessage());
                 emitter.complete();
             } catch (Exception e) {
                 log.warn("[AI] 助手对话异常: {}", e.getMessage());
-                sendError(emitter, ErrorCodeConstants.AI_CALL_FAILED.code(),
+                sseSupport.sendError(emitter, ErrorCodeConstants.AI_CALL_FAILED.code(),
                         ErrorCodeConstants.AI_CALL_FAILED.msg());
                 emitter.complete();
             } finally {
-                ping.cancel(false);
+                channel.stopPing();
             }
         });
         return emitter;
@@ -286,16 +264,9 @@ public class AiAssistantChatServiceImpl implements AiAssistantChatService {
         ResolvedChatModel resolvedModel = requireChatModel(userId, workspaceId, null);
         AiCallContext callContext = new AiCallContext(userId, workspaceId, null);
 
-        SseEmitter emitter = new SseEmitter(SSE_TIMEOUT_MILLIS);
-        AtomicBoolean cancelled = new AtomicBoolean(false);
-        emitter.onCompletion(() -> cancelled.set(true));
-        emitter.onError(e -> cancelled.set(true));
-        emitter.onTimeout(() -> { cancelled.set(true); emitter.complete(); });
-
-        ScheduledFuture<?> ping = pingScheduler.scheduleAtFixedRate(() -> {
-            try { emitter.send(SseEmitter.event().comment("ping")); }
-            catch (Exception e) { cancelled.set(true); }
-        }, PING_INTERVAL_SECONDS, PING_INTERVAL_SECONDS, TimeUnit.SECONDS);
+        AiSseSupport.Channel channel = sseSupport.open();
+        SseEmitter emitter = channel.emitter();
+        AtomicBoolean cancelled = channel.cancelled();
 
         Thread.startVirtualThread(() -> {
             try {
@@ -311,7 +282,7 @@ public class AiAssistantChatServiceImpl implements AiAssistantChatService {
                             @Override
                             public void onDelta(String content) {
                                 if (!cancelled.get()) {
-                                    send(emitter, "delta", Map.of("content", content));
+                                    sseSupport.send(emitter, "delta", Map.of("content", content));
                                 }
                             }
                             @Override
@@ -323,17 +294,17 @@ public class AiAssistantChatServiceImpl implements AiAssistantChatService {
                                 auditRecorder.record(callContext, AiFunctionType.ASSISTANT_CHAT,
                                         resolvedModel.model(), System.currentTimeMillis() - start,
                                         pt, ct, Constants.AiInvocationStatus.SUCCESS, null);
-                                send(emitter, "done", Map.of("messageId", msgId.toString()));
+                                sseSupport.send(emitter, "done", Map.of("messageId", msgId.toString()));
                                 emitter.complete();
                             }
                         }, cancelled);
             } catch (Exception e) {
                 log.warn("[AI] approve 回填异常: {}", e.getMessage());
-                sendError(emitter, ErrorCodeConstants.AI_CALL_FAILED.code(),
+                sseSupport.sendError(emitter, ErrorCodeConstants.AI_CALL_FAILED.code(),
                         ErrorCodeConstants.AI_CALL_FAILED.msg());
                 emitter.complete();
             } finally {
-                ping.cancel(false);
+                channel.stopPing();
             }
         });
         return emitter;
@@ -512,32 +483,10 @@ public class AiAssistantChatServiceImpl implements AiAssistantChatService {
             Object commands = parsed.get("commands");
             Object docId = parsed.get("documentId");
             if (commands instanceof List<?> list && !list.isEmpty() && docId instanceof String docIdStr) {
-                send(emitter, "minder_commands", Map.of("documentId", docIdStr, "commands", list));
+                sseSupport.send(emitter, "minder_commands", Map.of("documentId", docIdStr, "commands", list));
             }
         } catch (Exception e) {
             // minder_commands 帧为辅助能力，解析失败不应阻断主流程
         }
-    }
-
-    private void send(SseEmitter emitter, String event, Object data) {
-        try {
-            emitter.send(SseEmitter.event().name(event).data(data, MediaType.APPLICATION_JSON));
-        } catch (IOException e) {
-            throw new OpenAiCompatProvider.StreamCancelledException();
-        }
-    }
-
-    private void sendError(SseEmitter emitter, Object code, String message) {
-        try {
-            emitter.send(SseEmitter.event().name("error").data(
-                    Map.of("code", code, "message", message), MediaType.APPLICATION_JSON));
-        } catch (IOException e) {
-            // 客户端已断开，忽略
-        }
-    }
-
-    @PreDestroy
-    public void shutdown() {
-        pingScheduler.shutdownNow();
     }
 }
