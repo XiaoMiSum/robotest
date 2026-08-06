@@ -3,16 +3,13 @@ package io.github.xiaomisum.robotest.service.ai;
 import io.github.xiaomisum.robotest.framework.common.AiFunctionType;
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.model.dto.request.ai.AiMissingPointReqDTO;
-import io.github.xiaomisum.robotest.model.dto.request.requirement.RequirementCreateReqDTO;
-import io.github.xiaomisum.robotest.model.dto.response.ai.AiKeywordExtractRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiMissingPointRespDTO;
-import io.github.xiaomisum.robotest.model.entity.requirement.RequirementPoolItem;
 import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseModule;
 import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseNode;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseModuleMapper;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseNodeMapper;
 import io.github.xiaomisum.robotest.service.ai.AiModels.ChatCallOptions;
-import io.github.xiaomisum.robotest.service.project.RequirementService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -32,7 +29,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -58,7 +55,9 @@ class AiMissingPointServiceImplTest {
     @Mock
     private TestCaseNodeMapper testCaseNodeMapper;
     @Mock
-    private RequirementService requirementService;
+    private AiRequirementContextAssembler requirementContextAssembler;
+    @Mock
+    private AiKeywordExtractor aiKeywordExtractor;
 
     @Captor
     private ArgumentCaptor<String> businessDataCaptor;
@@ -69,6 +68,13 @@ class AiMissingPointServiceImplTest {
 
     @InjectMocks
     private AiMissingPointServiceImpl service;
+
+    @BeforeEach
+    void stubDefaultRequirementContext() {
+        // 大部分场景不关心需求上下文内容，空上下文即可；需要特定内容的测试单独覆盖
+        lenient().when(requirementContextAssembler.assemble(any(), any(), any(), any()))
+                .thenReturn(new AiRequirementContextAssembler.RequirementContext("", List.of()));
+    }
 
     private AiMissingPointReqDTO req(String keyword) {
         AiMissingPointReqDTO dto = new AiMissingPointReqDTO();
@@ -109,15 +115,6 @@ class AiMissingPointServiceImplTest {
         node.setType(Constants.NodeType.CASE);
         node.setTitle(title);
         return node;
-    }
-
-    private RequirementPoolItem requirementItem(UUID id, String title, String content) {
-        RequirementPoolItem item = new RequirementPoolItem();
-        item.setId(id);
-        item.setProjectId(PROJECT_ID);
-        item.setTitle(title);
-        item.setContent(content);
-        return item;
     }
 
     private AiMissingPointServiceImpl.MissingPointOut out(String title, String path, List<String> related) {
@@ -161,6 +158,8 @@ class AiMissingPointServiceImplTest {
         stubProjectModules();
         when(testCaseNodeMapper.listCaseNodesByDocumentIdsAndKeyword(List.of(DOC_ID), "登录", 30))
                 .thenReturn(List.of(caseNode(UUID.randomUUID(), "验证码登录成功")));
+        when(requirementContextAssembler.trySaveRequirement(eq(PROJECT_ID), eq(USER_ID), any(), any()))
+                .thenReturn(true);
         when(aiGatewayService.completeStructured(any(), eq(AiFunctionType.MISSING_POINT_ANALYSIS), any(),
                 any(), any(), any(), any()))
                 .thenReturn(out("短信验证码超时后重新发送", "登录模块/验证码登录", List.of("验证码登录成功")));
@@ -172,7 +171,8 @@ class AiMissingPointServiceImplTest {
 
         service.analyze(USER_ID, WORKSPACE_ID, PROJECT_ID, dto);
 
-        verify(requirementService).create(eq(PROJECT_ID), eq(USER_ID), any(RequirementCreateReqDTO.class));
+        verify(requirementContextAssembler).trySaveRequirement(eq(PROJECT_ID), eq(USER_ID),
+                eq("登录需求"), eq("需求：支持手机号验证码登录"));
     }
 
     @Test
@@ -180,6 +180,8 @@ class AiMissingPointServiceImplTest {
         stubProjectModules();
         when(testCaseNodeMapper.listCaseNodesByDocumentIdsAndKeyword(List.of(DOC_ID), "登录", 30))
                 .thenReturn(List.of(caseNode(UUID.randomUUID(), "验证码登录成功")));
+        when(requirementContextAssembler.trySaveRequirement(any(), any(), any(), any()))
+                .thenReturn(false);
         when(aiGatewayService.completeStructured(any(), eq(AiFunctionType.MISSING_POINT_ANALYSIS), any(),
                 any(), any(), any(), any()))
                 .thenReturn(out("短信验证码超时后重新发送", "登录模块/验证码登录", List.of("验证码登录成功")));
@@ -188,8 +190,6 @@ class AiMissingPointServiceImplTest {
         AiMissingPointReqDTO.SaveAsRequirement saveAs = new AiMissingPointReqDTO.SaveAsRequirement();
         saveAs.setTitle("登录需求");
         dto.setSaveAsRequirement(saveAs);
-        doThrow(new ServiceException()).when(requirementService)
-                .create(eq(PROJECT_ID), eq(USER_ID), any(RequirementCreateReqDTO.class));
 
         AiMissingPointRespDTO resp = service.analyze(USER_ID, WORKSPACE_ID, PROJECT_ID, dto);
 
@@ -200,6 +200,8 @@ class AiMissingPointServiceImplTest {
     @Test
     void keywordsProvided_skipsExtraction_usesKeywordRetrieval() {
         stubProjectModules();
+        when(requirementContextAssembler.assemble(eq(PROJECT_ID), any(), any(), any()))
+                .thenReturn(new AiRequirementContextAssembler.RequirementContext("【需求关键词】登录\n", List.of()));
         when(testCaseNodeMapper.listCaseNodesByDocumentIdsAndKeyword(List.of(DOC_ID), "登录", 30))
                 .thenReturn(List.of(caseNode(UUID.randomUUID(), "验证码登录成功")));
         when(aiGatewayService.completeStructured(any(), eq(AiFunctionType.MISSING_POINT_ANALYSIS), any(),
@@ -212,9 +214,8 @@ class AiMissingPointServiceImplTest {
         assertEquals("短信验证码超时后重新发送", resp.getPoints().get(0).getTitle());
         // 比对读超时功能级覆盖 60s（4.3）
         assertEquals(60_000, optionsCaptor.getValue().readTimeoutMillis());
-        // 有入参关键词时不触发 LLM 抽取
-        verify(aiGatewayService, never()).completeStructured(any(), eq(AiFunctionType.KEYWORD_EXTRACTION),
-                any(), any(), any(), any(), any());
+        // 有入参关键词时不触发 LLM 抽取（抽取已下沉至 AiKeywordExtractor）
+        verify(aiKeywordExtractor, never()).extract(any(), any(), any(), any(), any(), any());
         String data = businessDataCaptor.getValue();
         assertTrue(data.contains("【需求关键词】登录"));
         assertTrue(data.contains("验证码登录成功｜模块：登录模块/验证码登录"));
@@ -223,10 +224,8 @@ class AiMissingPointServiceImplTest {
     @Test
     void textOnly_extractsKeywordsOnceThenAnalyzes() {
         stubProjectModules();
-        AiKeywordExtractRespDTO extract = new AiKeywordExtractRespDTO();
-        extract.setKeywords(List.of("验证码"));
-        when(aiGatewayService.completeStructured(any(), eq(AiFunctionType.KEYWORD_EXTRACTION), any(),
-                any(), any(), eq(AiKeywordExtractRespDTO.class), any())).thenReturn(extract);
+        when(aiKeywordExtractor.extract(any(), any(), any(), any(), any(), any()))
+                .thenReturn(List.of("验证码"));
         when(testCaseNodeMapper.listCaseNodesByDocumentIdsAndKeyword(List.of(DOC_ID), "验证码", 30))
                 .thenReturn(List.of(caseNode(UUID.randomUUID(), "验证码登录成功")));
         when(aiGatewayService.completeStructured(any(), eq(AiFunctionType.MISSING_POINT_ANALYSIS), any(),
@@ -237,9 +236,8 @@ class AiMissingPointServiceImplTest {
                 reqWithText("需求：验证码有效期 5 分钟，过期可重新发送"));
 
         assertEquals(1, resp.getPoints().size());
-        // 抽取一次同步调用 + 比对一次
-        verify(aiGatewayService, times(1)).completeStructured(any(), eq(AiFunctionType.KEYWORD_EXTRACTION),
-                any(), any(), any(), any(), any());
+        // 抽取一次同步调用（关键词抽取已下沉至 AiKeywordExtractor）+ 比对一次
+        verify(aiKeywordExtractor).extract(any(), any(), any(), any(), any(), any());
         verify(aiGatewayService, times(1)).completeStructured(any(), eq(AiFunctionType.MISSING_POINT_ANALYSIS),
                 any(), any(), any(), any(), any());
         // 抽取结果作为检索关键词
@@ -284,8 +282,9 @@ class AiMissingPointServiceImplTest {
     @Test
     void requirementItems_appendedToBlock() {
         UUID reqId = UUID.randomUUID();
-        when(requirementService.requireByIds(PROJECT_ID, List.of(reqId)))
-                .thenReturn(List.of(requirementItem(reqId, "登录需求", "用户可通过邮箱与密码登录")));
+        when(requirementContextAssembler.assemble(eq(PROJECT_ID), eq(List.of(reqId)), any(), any()))
+                .thenReturn(new AiRequirementContextAssembler.RequirementContext(
+                        "【需求条目】登录需求\n用户可通过邮箱与密码登录\n", List.of()));
         stubProjectModules();
         when(testCaseNodeMapper.listCaseNodesByDocumentIdsAndKeyword(List.of(DOC_ID), "登录", 30))
                 .thenReturn(List.of(caseNode(UUID.randomUUID(), "验证码登录成功")));

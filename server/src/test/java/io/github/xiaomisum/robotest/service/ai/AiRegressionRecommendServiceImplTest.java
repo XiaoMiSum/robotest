@@ -3,18 +3,15 @@ package io.github.xiaomisum.robotest.service.ai;
 import io.github.xiaomisum.robotest.framework.common.AiFunctionType;
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.model.dto.request.ai.AiRegressionRecommendReqDTO;
-import io.github.xiaomisum.robotest.model.dto.request.requirement.RequirementCreateReqDTO;
-import io.github.xiaomisum.robotest.model.dto.response.ai.AiKeywordExtractRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiRegressionRecommendRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiStatusRespDTO;
-import io.github.xiaomisum.robotest.model.entity.requirement.RequirementPoolItem;
 import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseModule;
 import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseNode;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseModuleMapper;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseNodeMapper;
 import io.github.xiaomisum.robotest.service.ai.AiModels.ChatCallOptions;
 import io.github.xiaomisum.robotest.service.ai.AiVectorSearchService.CaseDedupHit;
-import io.github.xiaomisum.robotest.service.project.RequirementService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -38,7 +35,7 @@ import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -68,7 +65,9 @@ class AiRegressionRecommendServiceImplTest {
     @Mock
     private TestCaseNodeMapper testCaseNodeMapper;
     @Mock
-    private RequirementService requirementService;
+    private AiRequirementContextAssembler requirementContextAssembler;
+    @Mock
+    private AiKeywordExtractor aiKeywordExtractor;
 
     @Captor
     private ArgumentCaptor<String> businessDataCaptor;
@@ -77,6 +76,13 @@ class AiRegressionRecommendServiceImplTest {
 
     @InjectMocks
     private AiRegressionRecommendServiceImpl service;
+
+    @BeforeEach
+    void stubDefaultRequirementContext() {
+        // matchSemantic 对空 changeData 提前短路，默认返回非空变更描述；需要特定内容的测试单独覆盖
+        lenient().when(requirementContextAssembler.assemble(any(), any(), any(), any()))
+                .thenReturn(new AiRequirementContextAssembler.RequirementContext("变更描述\n", List.of()));
+    }
 
     private AiRegressionRecommendReqDTO req(List<String> modules, String text, List<UUID> requirementIds) {
         AiRegressionRecommendReqDTO dto = new AiRegressionRecommendReqDTO();
@@ -197,7 +203,7 @@ class AiRegressionRecommendServiceImplTest {
         when(aiConfigService.getNumberSetting("regression.similarityThreshold")).thenReturn(0.7);
         when(vectorSearchService.searchSimilarCases(eq(PROJECT_ID), anyString(), eq(50), eq(0.7)))
                 .thenReturn(List.of(new CaseDedupHit(nodeId, 0.85)));
-        when(testCaseNodeMapper.selectBatchIds(List.of(nodeId)))
+        when(testCaseNodeMapper.selectByIds(List.of(nodeId)))
                 .thenReturn(List.of(caseNode(nodeId, "验证码登录成功")));
         when(testCaseModuleMapper.listByProjectId(PROJECT_ID)).thenReturn(List.of(directory(), document()));
         stubReasonOut(1);
@@ -214,10 +220,8 @@ class AiRegressionRecommendServiceImplTest {
     void semanticUnavailable_degradedKeyword_scores06() {
         UUID nodeId = UUID.randomUUID();
         when(aiConfigService.getStatus()).thenReturn(status("unavailable"));
-        AiKeywordExtractRespDTO extract = new AiKeywordExtractRespDTO();
-        extract.setKeywords(List.of("验证码"));
-        when(aiGatewayService.completeStructured(any(), eq(AiFunctionType.KEYWORD_EXTRACTION), any(),
-                any(), any(), eq(AiKeywordExtractRespDTO.class), any())).thenReturn(extract);
+        when(aiKeywordExtractor.extract(any(), any(), any(), any(), any(), any()))
+                .thenReturn(List.of("验证码"));
         when(testCaseModuleMapper.findDocumentModulesByProjectId(PROJECT_ID)).thenReturn(List.of(document()));
         when(testCaseModuleMapper.listByProjectId(PROJECT_ID)).thenReturn(List.of(directory(), document()));
         when(testCaseNodeMapper.listCaseNodesByDocumentIdsAndKeyword(List.of(DOC_ID), "验证码", 30))
@@ -243,7 +247,7 @@ class AiRegressionRecommendServiceImplTest {
         when(aiConfigService.getNumberSetting("regression.similarityThreshold")).thenReturn(0.7);
         when(vectorSearchService.searchSimilarCases(eq(PROJECT_ID), anyString(), eq(50), eq(0.7)))
                 .thenReturn(List.of(new CaseDedupHit(nodeId, 0.85)));
-        when(testCaseNodeMapper.selectBatchIds(List.of(nodeId)))
+        when(testCaseNodeMapper.selectByIds(List.of(nodeId)))
                 .thenReturn(List.of(caseNode(nodeId, "验证码登录成功")));
         stubReasonOut(1);
 
@@ -294,17 +298,12 @@ class AiRegressionRecommendServiceImplTest {
     @Test
     void requirementItems_appendedToChangeData() {
         UUID reqId = UUID.randomUUID();
-        RequirementPoolItem item = new RequirementPoolItem();
-        item.setId(reqId);
-        item.setProjectId(PROJECT_ID);
-        item.setTitle("登录需求");
-        item.setContent("用户可通过邮箱与密码登录");
-        when(requirementService.requireByIds(PROJECT_ID, List.of(reqId))).thenReturn(List.of(item));
+        when(requirementContextAssembler.assemble(eq(PROJECT_ID), eq(List.of(reqId)), any(), any()))
+                .thenReturn(new AiRequirementContextAssembler.RequirementContext(
+                        "【需求条目】登录需求\n用户可通过邮箱与密码登录\n", List.of()));
         when(aiConfigService.getStatus()).thenReturn(status("unavailable"));
-        AiKeywordExtractRespDTO extract = new AiKeywordExtractRespDTO();
-        extract.setKeywords(List.of("登录"));
-        when(aiGatewayService.completeStructured(any(), eq(AiFunctionType.KEYWORD_EXTRACTION), any(),
-                any(), any(), eq(AiKeywordExtractRespDTO.class), any())).thenReturn(extract);
+        when(aiKeywordExtractor.extract(any(), any(), any(), any(), any(), any()))
+                .thenReturn(List.of("登录"));
         when(testCaseModuleMapper.findDocumentModulesByProjectId(PROJECT_ID)).thenReturn(List.of(document()));
         when(testCaseModuleMapper.listByProjectId(PROJECT_ID)).thenReturn(List.of(directory(), document()));
         when(testCaseNodeMapper.listCaseNodesByDocumentIdsAndKeyword(List.of(DOC_ID), "登录", 30))
@@ -341,15 +340,15 @@ class AiRegressionRecommendServiceImplTest {
     @Test
     void saveAsRequirement_savesItemBeforeRecommend() {
         when(aiConfigService.getStatus()).thenReturn(status("unavailable"));
-        AiKeywordExtractRespDTO extract = new AiKeywordExtractRespDTO();
-        extract.setKeywords(List.of("验证码"));
-        when(aiGatewayService.completeStructured(any(), eq(AiFunctionType.KEYWORD_EXTRACTION), any(),
-                any(), any(), eq(AiKeywordExtractRespDTO.class), any())).thenReturn(extract);
+        when(aiKeywordExtractor.extract(any(), any(), any(), any(), any(), any()))
+                .thenReturn(List.of("验证码"));
         // 降级关键词路径文档为空 → 语义候选为空，仅剩模块命中
         when(testCaseModuleMapper.findDocumentModulesByProjectId(PROJECT_ID)).thenReturn(List.of());
         when(testCaseModuleMapper.listByProjectId(PROJECT_ID)).thenReturn(List.of(directory(), document()));
         when(testCaseNodeMapper.listCaseNodesByDocumentIds(anyCollection()))
                 .thenReturn(List.of(caseNode(UUID.randomUUID(), "验证码登录成功")));
+        when(requirementContextAssembler.trySaveRequirement(eq(PROJECT_ID), eq(USER_ID), any(), any()))
+                .thenReturn(true);
         stubReasonOut(1);
         AiRegressionRecommendReqDTO dto = req(List.of("登录模块"), "需求：支持手机号验证码登录", null);
         AiRegressionRecommendReqDTO.SaveAsRequirement saveAs =
@@ -359,27 +358,22 @@ class AiRegressionRecommendServiceImplTest {
 
         service.recommend(USER_ID, WORKSPACE_ID, PROJECT_ID, dto);
 
-        ArgumentCaptor<RequirementCreateReqDTO> createCaptor =
-                ArgumentCaptor.forClass(RequirementCreateReqDTO.class);
-        verify(requirementService).create(eq(PROJECT_ID), eq(USER_ID), createCaptor.capture());
-        assertEquals("登录需求", createCaptor.getValue().getTitle());
-        assertEquals("需求：支持手机号验证码登录", createCaptor.getValue().getContent());
+        verify(requirementContextAssembler).trySaveRequirement(eq(PROJECT_ID), eq(USER_ID),
+                eq("登录需求"), eq("需求：支持手机号验证码登录"));
     }
 
     @Test
     void saveAsRequirementSaveFails_continuesRecommend() {
         when(aiConfigService.getStatus()).thenReturn(status("unavailable"));
-        AiKeywordExtractRespDTO extract = new AiKeywordExtractRespDTO();
-        extract.setKeywords(List.of("验证码"));
-        when(aiGatewayService.completeStructured(any(), eq(AiFunctionType.KEYWORD_EXTRACTION), any(),
-                any(), any(), eq(AiKeywordExtractRespDTO.class), any())).thenReturn(extract);
+        when(aiKeywordExtractor.extract(any(), any(), any(), any(), any(), any()))
+                .thenReturn(List.of("验证码"));
         when(testCaseModuleMapper.findDocumentModulesByProjectId(PROJECT_ID)).thenReturn(List.of());
         when(testCaseModuleMapper.listByProjectId(PROJECT_ID)).thenReturn(List.of(directory(), document()));
         when(testCaseNodeMapper.listCaseNodesByDocumentIds(anyCollection()))
                 .thenReturn(List.of(caseNode(UUID.randomUUID(), "验证码登录成功")));
+        when(requirementContextAssembler.trySaveRequirement(any(), any(), any(), any()))
+                .thenReturn(false);
         stubReasonOut(1);
-        doThrow(new ServiceException()).when(requirementService)
-                .create(eq(PROJECT_ID), eq(USER_ID), any(RequirementCreateReqDTO.class));
         AiRegressionRecommendReqDTO dto = req(List.of("登录模块"), "需求：支持手机号验证码登录", null);
         AiRegressionRecommendReqDTO.SaveAsRequirement saveAs =
                 new AiRegressionRecommendReqDTO.SaveAsRequirement();

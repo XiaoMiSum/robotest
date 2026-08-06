@@ -5,14 +5,12 @@ import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.model.dto.request.ai.AiCaseGenerateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.ai.AiStepCompleteReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.ai.AiTextImportReqDTO;
-import io.github.xiaomisum.robotest.model.dto.request.requirement.RequirementCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiNodeTreeDTO;
-import io.github.xiaomisum.robotest.model.entity.requirement.RequirementPoolItem;
 import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseModule;
 import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseNode;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseModuleMapper;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseNodeMapper;
-import io.github.xiaomisum.robotest.service.project.RequirementService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -35,7 +33,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -60,7 +58,7 @@ class AiCaseGenerationServiceImplTest {
         @Mock
         private TestCaseNodeMapper testCaseNodeMapper;
         @Mock
-        private RequirementService requirementService;
+        private AiRequirementContextAssembler requirementContextAssembler;
 
         @Captor
         private ArgumentCaptor<String> businessDataCaptor;
@@ -69,6 +67,13 @@ class AiCaseGenerationServiceImplTest {
 
         @InjectMocks
         private AiCaseGenerationServiceImpl service;
+
+        @BeforeEach
+        void stubDefaultRequirementContext() {
+                // 大部分场景不关心需求上下文内容，空上下文即可；需要特定内容的测试单独覆盖
+                lenient().when(requirementContextAssembler.assemble(any(), any(), any(), any()))
+                                .thenReturn(new AiRequirementContextAssembler.RequirementContext("", List.of()));
+        }
 
         private AiCaseGenerateReqDTO req() {
                 AiCaseGenerateReqDTO dto = new AiCaseGenerateReqDTO();
@@ -135,6 +140,9 @@ class AiCaseGenerationServiceImplTest {
         void happyPath_buildsContextAndTrimsChildrenTo50() {
                 when(testCaseModuleMapper.selectById(DOC_ID))
                                 .thenReturn(document(PROJECT_ID, Constants.ModuleType.DOCUMENT));
+                when(requirementContextAssembler.assemble(eq(PROJECT_ID), any(), any(), any()))
+                                .thenReturn(new AiRequirementContextAssembler.RequirementContext(
+                                                "【需求文本】\n用户可以通过邮箱登录系统\n", List.of()));
                 List<TestCaseNode> nodes = new ArrayList<>();
                 nodes.add(node(ROOT_ID, null, "登录模块", 0));
                 nodes.add(node(TARGET_ID, ROOT_ID, "密码登录", 0));
@@ -209,6 +217,9 @@ class AiCaseGenerationServiceImplTest {
         void completeSteps_buildsDedupContextAndExcludesSelfFromSiblings() {
                 when(testCaseModuleMapper.selectById(DOC_ID))
                                 .thenReturn(document(PROJECT_ID, Constants.ModuleType.DOCUMENT));
+                when(requirementContextAssembler.assemble(eq(PROJECT_ID), any(), any(), any()))
+                                .thenReturn(new AiRequirementContextAssembler.RequirementContext(
+                                                "【需求文本】\n补充：验证码为 6 位数字\n", List.of()));
                 TestCaseNode root = node(ROOT_ID, null, "登录模块", 0);
                 TestCaseNode target = node(TARGET_ID, ROOT_ID, "短信登录成功", 0);
                 target.setType(Constants.NodeType.CASE);
@@ -316,15 +327,6 @@ class AiCaseGenerationServiceImplTest {
                                 .thenReturn(List.of(node(TARGET_ID, null, "根", 0)));
         }
 
-        private RequirementPoolItem requirementItem(UUID id, String title, String content) {
-                RequirementPoolItem item = new RequirementPoolItem();
-                item.setId(id);
-                item.setProjectId(PROJECT_ID);
-                item.setTitle(title);
-                item.setContent(content);
-                return item;
-        }
-
         private AiNodeTreeDTO.Payload validPayload() {
                 AiNodeTreeDTO caseNode = new AiNodeTreeDTO();
                 caseNode.setType(Constants.NodeType.CASE);
@@ -365,12 +367,15 @@ class AiCaseGenerationServiceImplTest {
                 AiCaseGenerateReqDTO.SaveAsRequirement saveAs = new AiCaseGenerateReqDTO.SaveAsRequirement();
                 saveAs.setTitle("登录需求");
                 dto.setSaveAsRequirement(saveAs);
+                when(requirementContextAssembler.trySaveRequirement(eq(PROJECT_ID), eq(USER_ID), any(), any()))
+                                .thenReturn(true);
                 when(aiGatewayService.stream(any(), eq(AiFunctionType.CASE_GENERATION), any(), any(), any(),
                                 any(), any())).thenReturn(new SseEmitter());
 
                 service.generateCaseTree(USER_ID, WORKSPACE_ID, PROJECT_ID, dto);
 
-                verify(requirementService).create(eq(PROJECT_ID), eq(USER_ID), any(RequirementCreateReqDTO.class));
+                verify(requirementContextAssembler).trySaveRequirement(eq(PROJECT_ID), eq(USER_ID),
+                                eq("登录需求"), eq("用户可以通过邮箱登录系统"));
         }
 
         @Test
@@ -380,8 +385,8 @@ class AiCaseGenerationServiceImplTest {
                 AiCaseGenerateReqDTO.SaveAsRequirement saveAs = new AiCaseGenerateReqDTO.SaveAsRequirement();
                 saveAs.setTitle("登录需求");
                 dto.setSaveAsRequirement(saveAs);
-                doThrow(new ServiceException()).when(requirementService)
-                                .create(eq(PROJECT_ID), eq(USER_ID), any(RequirementCreateReqDTO.class));
+                when(requirementContextAssembler.trySaveRequirement(any(), any(), any(), any()))
+                                .thenReturn(false);
                 when(aiGatewayService.stream(any(), any(), any(), any(), any(), any(),
                                 doneAssemblerCaptor.capture())).thenReturn(new SseEmitter());
                 when(outputValidator.parseAndValidate(eq("raw"), eq(AiNodeTreeDTO.Payload.class), any()))
@@ -399,8 +404,9 @@ class AiCaseGenerationServiceImplTest {
         void generate_withRequirementIds_appendsTitledBlocks() {
                 stubDocumentAndTarget();
                 UUID reqId = UUID.randomUUID();
-                when(requirementService.requireByIds(PROJECT_ID, List.of(reqId)))
-                                .thenReturn(List.of(requirementItem(reqId, "登录需求", "用户可通过邮箱与密码登录")));
+                when(requirementContextAssembler.assemble(eq(PROJECT_ID), eq(List.of(reqId)), any(), any()))
+                                .thenReturn(new AiRequirementContextAssembler.RequirementContext(
+                                                "【需求条目】登录需求\n用户可通过邮箱与密码登录\n", List.of()));
                 AiCaseGenerateReqDTO dto = req();
                 dto.setRequirementIds(List.of(reqId));
                 when(aiGatewayService.stream(any(), any(), any(), businessDataCaptor.capture(), any(), any(),
@@ -417,8 +423,10 @@ class AiCaseGenerationServiceImplTest {
         void generate_singleItemOverBudget_truncatesContent() {
                 stubDocumentAndTarget();
                 UUID reqId = UUID.randomUUID();
-                when(requirementService.requireByIds(PROJECT_ID, List.of(reqId)))
-                                .thenReturn(List.of(requirementItem(reqId, "长需求", "字".repeat(9000))));
+                // 截断逻辑已下沉至 AiRequirementContextAssembler（AiTextUtilsTest 覆盖），此处验证组装结果接入
+                when(requirementContextAssembler.assemble(eq(PROJECT_ID), eq(List.of(reqId)), any(), any()))
+                                .thenReturn(new AiRequirementContextAssembler.RequirementContext(
+                                                "长需求：用户可通过邮箱登录…", List.of()));
                 AiCaseGenerateReqDTO dto = req();
                 dto.setRequirementIds(List.of(reqId));
                 when(aiGatewayService.stream(any(), any(), any(), businessDataCaptor.capture(), any(), any(),
@@ -427,7 +435,7 @@ class AiCaseGenerationServiceImplTest {
                 service.generateCaseTree(USER_ID, WORKSPACE_ID, PROJECT_ID, dto);
 
                 String businessData = businessDataCaptor.getValue();
-                // 单条目内容截断至 8000 token 预算，尾部加省略号
+                // 单条目内容截断至 token 预算，尾部加省略号
                 assertTrue(businessData.contains("…"));
                 assertTrue(businessData.length() < 9000);
         }
@@ -437,10 +445,11 @@ class AiCaseGenerationServiceImplTest {
                 stubDocumentAndTarget();
                 UUID reqA = UUID.randomUUID();
                 UUID reqB = UUID.randomUUID();
-                when(requirementService.requireByIds(PROJECT_ID, List.of(reqA, reqB)))
-                                .thenReturn(List.of(
-                                                requirementItem(reqA, "条目A", "甲".repeat(10_000)),
-                                                requirementItem(reqB, "条目B", "乙".repeat(10_000))));
+                // 预算裁剪与丢弃提示已下沉至 AiRequirementContextAssembler，此处验证 warning 透传
+                when(requirementContextAssembler.assemble(eq(PROJECT_ID), eq(List.of(reqA, reqB)), any(), any()))
+                                .thenReturn(new AiRequirementContextAssembler.RequirementContext(
+                                                "条目A 需求内容\n",
+                                                List.of("需求上下文超出预算，已按选取顺序丢弃后续需求条目")));
                 AiCaseGenerateReqDTO dto = req();
                 dto.setRequirementIds(List.of(reqA, reqB));
                 when(aiGatewayService.stream(any(), any(), any(), businessDataCaptor.capture(), any(), any(),
@@ -466,8 +475,9 @@ class AiCaseGenerationServiceImplTest {
                 target.setType(Constants.NodeType.CASE);
                 when(testCaseNodeMapper.listByDocumentId(DOC_ID)).thenReturn(List.of(target));
                 UUID reqId = UUID.randomUUID();
-                when(requirementService.requireByIds(PROJECT_ID, List.of(reqId)))
-                                .thenReturn(List.of(requirementItem(reqId, "需求X", "覆盖支付流程")));
+                when(requirementContextAssembler.assemble(eq(PROJECT_ID), eq(List.of(reqId)), any(), any()))
+                                .thenReturn(new AiRequirementContextAssembler.RequirementContext(
+                                                "【需求条目】需求X\n覆盖支付流程\n", List.of()));
                 AiStepCompleteReqDTO dto = completeReq();
                 dto.setRequirementIds(List.of(reqId));
                 when(aiGatewayService.stream(any(), eq(AiFunctionType.STEP_COMPLETION), any(),
