@@ -34,7 +34,7 @@ public class AiChatModelServiceImpl implements AiChatModelService {
     private String secretKeyBase64;
 
     /** 已启用模型快照缓存（运行期解析/状态/门控数据源，变更失效） */
-    private volatile CacheEntry<List<AiChatModel>> enabledCache;
+    private volatile AiCacheEntry<List<AiChatModel>> enabledCache;
 
     @Override
     public List<AiChatModelRespDTO> list() {
@@ -229,12 +229,12 @@ public class AiChatModelServiceImpl implements AiChatModelService {
     }
 
     private List<AiChatModel> loadEnabledCached() {
-        CacheEntry<List<AiChatModel>> cached = enabledCache;
+        AiCacheEntry<List<AiChatModel>> cached = enabledCache;
         if (cached != null && !cached.expired()) {
             return cached.value();
         }
         List<AiChatModel> list = aiChatModelMapper.findEnabledActive();
-        enabledCache = new CacheEntry<>(list, System.currentTimeMillis() + CACHE_TTL_MILLIS);
+        enabledCache = new AiCacheEntry<>(list, System.currentTimeMillis() + CACHE_TTL_MILLIS);
         return list;
     }
 
@@ -265,9 +265,4 @@ public class AiChatModelServiceImpl implements AiChatModelService {
         return dto;
     }
 
-    private record CacheEntry<T>(T value, long expireAt) {
-        boolean expired() {
-            return System.currentTimeMillis() > expireAt;
-        }
-    }
 }

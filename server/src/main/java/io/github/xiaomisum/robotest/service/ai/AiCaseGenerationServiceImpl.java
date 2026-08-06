@@ -6,19 +6,14 @@ import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.model.dto.request.ai.AiCaseGenerateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.ai.AiStepCompleteReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.ai.AiTextImportReqDTO;
-import io.github.xiaomisum.robotest.model.dto.request.requirement.RequirementCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiNodeTreeDTO;
-import io.github.xiaomisum.robotest.model.entity.requirement.RequirementPoolItem;
 import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseModule;
 import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseNode;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseModuleMapper;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseNodeMapper;
 import io.github.xiaomisum.robotest.service.ai.AiModels.AiCallContext;
 import io.github.xiaomisum.robotest.service.ai.AiModels.ChatCallOptions;
-import io.github.xiaomisum.robotest.service.project.RequirementService;
 import jakarta.annotation.Resource;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
@@ -40,14 +35,6 @@ public class AiCaseGenerationServiceImpl implements AiCaseGenerationService {
 
     /** 结构上下文裁剪上限（详细设计 4.7：祖先路径与同级参照均超出取前 50） */
     static final int STRUCTURE_CONTEXT_LIMIT = 50;
-
-    /** 需求上下文总预算（token）：超出按选取顺序保留条目、丢弃后续并 warning（详细设计 4.7） */
-    static final int REQUIREMENT_CONTEXT_TOKEN_BUDGET = 12_000;
-
-    /** 单条需求条目内容截断预算（token）：超出截断内容、不计 warning（详细设计 4.7） */
-    static final int REQUIREMENT_ITEM_TOKEN_BUDGET = 8_000;
-
-    private static final Logger log = LoggerFactory.getLogger(AiCaseGenerationServiceImpl.class);
 
     private static final String TASK_INSTRUCTION = """
             请基于业务数据中的需求内容，为脑图挂载位置生成一棵测试用例子树。
@@ -76,7 +63,7 @@ public class AiCaseGenerationServiceImpl implements AiCaseGenerationService {
     @Resource
     private TestCaseNodeMapper testCaseNodeMapper;
     @Resource
-    private RequirementService requirementService;
+    private AiRequirementContextAssembler requirementContextAssembler;
 
     @Override
     public SseEmitter generateCaseTree(UUID userId, UUID workspaceId, UUID projectId, AiCaseGenerateReqDTO reqDTO) {
@@ -94,13 +81,8 @@ public class AiCaseGenerationServiceImpl implements AiCaseGenerationService {
             if (!hasText) {
                 throw ServiceExceptionUtil.get(ErrorCodeConstants.VALIDATION_FAILED);
             }
-            try {
-                RequirementCreateReqDTO saveDTO = new RequirementCreateReqDTO();
-                saveDTO.setTitle(reqDTO.getSaveAsRequirement().getTitle());
-                saveDTO.setContent(reqDTO.getRequirementText());
-                requirementService.create(projectId, userId, saveDTO);
-            } catch (Exception e) {
-                log.warn("AI 生成前另存需求池条目失败: {}", e.getMessage());
+            if (!requirementContextAssembler.trySaveRequirement(projectId, userId,
+                    reqDTO.getSaveAsRequirement().getTitle(), reqDTO.getRequirementText())) {
                 contextWarnings.add("临时需求保存为需求池条目失败，已跳过");
             }
         }
@@ -108,8 +90,8 @@ public class AiCaseGenerationServiceImpl implements AiCaseGenerationService {
         List<TestCaseNode> docNodes = testCaseNodeMapper.listByDocumentId(document.getId());
         TestCaseNode target = requireNodeInDocument(docNodes, reqDTO.getTargetNodeId());
 
-        RequirementContext reqCtx = buildRequirementContext(projectId, reqDTO.getRequirementIds(),
-                reqDTO.getRequirementText());
+        AiRequirementContextAssembler.RequirementContext reqCtx = requirementContextAssembler.assemble(projectId,
+                reqDTO.getRequirementIds(), reqDTO.getRequirementText(), null);
         contextWarnings.addAll(reqCtx.warnings());
         String businessData = buildBusinessData(reqCtx.data(), target, docNodes);
         AiCallContext context = new AiCallContext(userId, workspaceId, projectId, reqDTO.getModelId());
@@ -127,8 +109,8 @@ public class AiCaseGenerationServiceImpl implements AiCaseGenerationService {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_TARGET_STATE_INVALID);
         }
 
-        RequirementContext reqCtx = buildRequirementContext(projectId, reqDTO.getRequirementIds(),
-                reqDTO.getExtraText());
+        AiRequirementContextAssembler.RequirementContext reqCtx = requirementContextAssembler.assemble(projectId,
+                reqDTO.getRequirementIds(), reqDTO.getExtraText(), null);
         String businessData = buildCompleteBusinessData(reqCtx.data(), target, docNodes);
         AiCallContext context = new AiCallContext(userId, workspaceId, projectId, reqDTO.getModelId());
         return aiGatewayService.stream(context, AiFunctionType.STEP_COMPLETION,
@@ -250,71 +232,6 @@ public class AiCaseGenerationServiceImpl implements AiCaseGenerationService {
             data.append("【既有子节点】\n").append(String.join("\n", childLines)).append('\n');
         }
         return data.toString();
-    }
-
-    /** 需求上下文组装结果：拼接文本 + 截断/丢弃提示 */
-    private record RequirementContext(String data, List<String> warnings) {
-    }
-
-    /**
-     * 组装需求上下文（详细设计 4.7）：需求池条目（每条带标题定界，按选取顺序）+ 临时文本；
-     * 单条目内容截断至 8000 token；总预算超限时按选取顺序保留、丢弃后续并在 warning 提示。
-     */
-    private RequirementContext buildRequirementContext(UUID projectId, List<UUID> requirementIds, String extraText) {
-        StringBuilder data = new StringBuilder();
-        List<String> warnings = new ArrayList<>();
-        int used = 0;
-
-        for (RequirementPoolItem item : requirementService.requireByIds(projectId, requirementIds)) {
-            String content = truncateToTokenBudget(item.getContent(), REQUIREMENT_ITEM_TOKEN_BUDGET);
-            String block = "【需求条目】" + item.getTitle() + "\n" + content + "\n";
-            int tokens = PromptAssembler.estimateTokens(block);
-            if (used + tokens > REQUIREMENT_CONTEXT_TOKEN_BUDGET) {
-                warnings.add("需求上下文超出预算，已按选取顺序丢弃后续需求条目");
-                break;
-            }
-            data.append(block);
-            used += tokens;
-        }
-        if (extraText != null && !extraText.isBlank()) {
-            String block = "【需求文本】\n" + extraText + "\n";
-            int tokens = PromptAssembler.estimateTokens(block);
-            if (used + tokens > REQUIREMENT_CONTEXT_TOKEN_BUDGET) {
-                // 主输入超预算时截断装入剩余预算，避免整体输入预算失守
-                String truncated = truncateToTokenBudget(extraText, REQUIREMENT_CONTEXT_TOKEN_BUDGET - used);
-                data.append("【需求文本】\n").append(truncated).append('\n');
-                warnings.add("需求文本超出上下文预算，已截断");
-            } else {
-                data.append(block);
-            }
-        }
-        return new RequirementContext(data.toString(), warnings);
-    }
-
-    /** 将文本截断至指定 token 预算内（估算口径与 PromptAssembler.estimateTokens 一致） */
-    private String truncateToTokenBudget(String text, int tokenBudget) {
-        if (PromptAssembler.estimateTokens(text) <= tokenBudget) {
-            return text;
-        }
-        int ascii = 0;
-        int other = 0;
-        int cut = text.length();
-        for (int i = 0; i < text.length(); i++) {
-            if (text.charAt(i) < 128) {
-                ascii++;
-            } else {
-                other++;
-            }
-            if (ascii / 4 + other > tokenBudget) {
-                cut = i;
-                break;
-            }
-        }
-        // 回退到预算内最近位置（避免 ascii 取整边界越过预算）
-        while (cut > 0 && PromptAssembler.estimateTokens(text.substring(0, cut)) > tokenBudget) {
-            cut--;
-        }
-        return text.substring(0, cut) + "…";
     }
 
     /** 从目标节点向上回溯（visited 防脏数据成环），倒置为根到目标的路径链，超出裁剪至前 50 */

@@ -87,7 +87,8 @@ public class AiReviewCheckTaskHandler implements AiTaskHandler {
         for (List<CaseContext> batch : batches) {
             // 批次边界心跳：写入进度与累计结果；影响行数为 0 表示任务已被取消/置失败，立即中止返回部分结果
             Map<String, Object> partial = buildResult(processed, total, skippedBatches, items);
-            if (aiTaskMapper.updateProgressIfRunning(task.getId(), percent(processed, total),
+            if (AiTaskProgressSupport.heartbeat(aiTaskMapper, task.getId(),
+                    AiTaskProgressSupport.percent(processed, total),
                     JsonUtils.toJsonString(partial)) == 0) {
                 return partial;
             }
@@ -334,10 +335,6 @@ public class AiReviewCheckTaskHandler implements AiTaskHandler {
         result.put("skippedBatches", skippedBatches);
         result.put("items", items);
         return result;
-    }
-
-    private int percent(int done, int total) {
-        return total == 0 ? 0 : (int) Math.round(done * 100.0 / total);
     }
 
     /** 用例检查上下文：节点 + 文档名 + 祖先路径 + 直接子节点（precondition/step/expected） */

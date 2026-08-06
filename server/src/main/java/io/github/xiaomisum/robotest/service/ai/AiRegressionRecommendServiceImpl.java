@@ -4,10 +4,7 @@ import io.github.xiaomisum.robotest.framework.common.AiFunctionType;
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.model.dto.request.ai.AiRegressionRecommendReqDTO;
-import io.github.xiaomisum.robotest.model.dto.request.requirement.RequirementCreateReqDTO;
-import io.github.xiaomisum.robotest.model.dto.response.ai.AiKeywordExtractRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiRegressionRecommendRespDTO;
-import io.github.xiaomisum.robotest.model.entity.requirement.RequirementPoolItem;
 import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseModule;
 import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseNode;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseModuleMapper;
@@ -15,22 +12,15 @@ import io.github.xiaomisum.robotest.repository.tcase.TestCaseNodeMapper;
 import io.github.xiaomisum.robotest.service.ai.AiModels.AiCallContext;
 import io.github.xiaomisum.robotest.service.ai.AiModels.ChatCallOptions;
 import io.github.xiaomisum.robotest.service.ai.AiVectorSearchService.CaseDedupHit;
-import io.github.xiaomisum.robotest.service.project.RequirementService;
 import jakarta.annotation.Resource;
+import lombok.Getter;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
 
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -50,29 +40,25 @@ import java.util.stream.Collectors;
 @Service
 public class AiRegressionRecommendServiceImpl implements AiRegressionRecommendService {
 
-    /** 结果上限（3.5：截断 50 条按 score 降序） */
+    /**
+     * 结果上限（3.5：截断 50 条按 score 降序）
+     */
     static final int RESULT_LIMIT = 50;
 
-    /** 模块名精确匹配得分（4.5 步骤 1） */
+    /**
+     * 模块名精确匹配得分（4.5 步骤 1）
+     */
     static final double EXACT_MODULE_SCORE = 1.0;
 
-    /** 模块名 ILIKE 模糊匹配得分（4.5 步骤 1） */
+    /**
+     * 模块名 ILIKE 模糊匹配得分（4.5 步骤 1）
+     */
     static final double FUZZY_MODULE_SCORE = 0.9;
 
-    /** 语义降级关键词匹配得分（4.5 步骤 2，代码内置常量，仅作展示排序用） */
+    /**
+     * 语义降级关键词匹配得分（4.5 步骤 2，代码内置常量，仅作展示排序用）
+     */
     static final double DEGRADED_KEYWORD_SCORE = 0.6;
-
-    /** 单关键词候选上限（4.3 同款口径：每词取前 30 条） */
-    static final int CANDIDATE_LIMIT_PER_KEYWORD = 30;
-
-    /** 需求上下文总预算（token），同 4.3 */
-    static final int REQUIREMENT_CONTEXT_TOKEN_BUDGET = 12_000;
-
-    /** 单条需求条目内容截断预算（token），同 4.3 */
-    static final int REQUIREMENT_ITEM_TOKEN_BUDGET = 8_000;
-
-    /** 理由生成读超时（ms）：最多 50 条输出较长，功能级覆盖为 60s（4.5 步骤 4，同 4.3） */
-    static final int LLM_TIMEOUT_MILLIS = 60_000;
 
     private static final String REASON_TASK_INSTRUCTION = """
             请根据变更描述，为下列每个用例标题生成一句话推荐理由（reason），说明该用例为何应纳入本次回归测试子集。
@@ -89,11 +75,13 @@ public class AiRegressionRecommendServiceImpl implements AiRegressionRecommendSe
     @Resource
     private AiVectorSearchService vectorSearchService;
     @Resource
+    private AiKeywordExtractor aiKeywordExtractor;
+    @Resource
     private TestCaseModuleMapper testCaseModuleMapper;
     @Resource
     private TestCaseNodeMapper testCaseNodeMapper;
     @Resource
-    private RequirementService requirementService;
+    private AiRequirementContextAssembler requirementContextAssembler;
 
     @Override
     public AiRegressionRecommendRespDTO recommend(UUID userId, UUID workspaceId, UUID projectId,
@@ -110,14 +98,8 @@ public class AiRegressionRecommendServiceImpl implements AiRegressionRecommendSe
             if (!hasText) {
                 throw ServiceExceptionUtil.get(ErrorCodeConstants.VALIDATION_FAILED);
             }
-            try {
-                RequirementCreateReqDTO saveDTO = new RequirementCreateReqDTO();
-                saveDTO.setTitle(reqDTO.getSaveAsRequirement().getTitle());
-                saveDTO.setContent(reqDTO.getText());
-                requirementService.create(projectId, userId, saveDTO);
-            } catch (Exception e) {
-                log.warn("[AI] 回归推荐前另存需求池条目失败: {}", e.getMessage());
-            }
+            requirementContextAssembler.trySaveRequirement(projectId, userId,
+                    reqDTO.getSaveAsRequirement().getTitle(), reqDTO.getText());
         }
 
         // 变更描述块（模块清单 + 需求条目 + 需求文本），供语义向量化与理由生成共用
@@ -133,51 +115,26 @@ public class AiRegressionRecommendServiceImpl implements AiRegressionRecommendSe
         return response(ranked, reasons, semantic.degraded());
     }
 
-    /** 变更描述块：模块清单 + 需求条目（标题定界，按选取顺序）+ 需求文本；text 与条目超预算截断（同 4.3） */
+    /**
+     * 变更描述块：模块清单 + 需求条目（标题定界，按选取顺序）+ 需求文本；text 与条目超预算截断（同 4.3）
+     */
     private String buildChangeData(UUID projectId, AiRegressionRecommendReqDTO reqDTO) {
-        StringBuilder data = new StringBuilder();
-        int used = 0;
-        if (reqDTO.getModules() != null && !reqDTO.getModules().isEmpty()) {
-            String block = "【变更模块】" + String.join("、", reqDTO.getModules()) + "\n";
-            data.append(block);
-            used += PromptAssembler.estimateTokens(block);
-        }
-        for (RequirementPoolItem item : requirementService.requireByIds(projectId, reqDTO.getRequirementIds())) {
-            String content = truncateToTokenBudget(item.getContent(), REQUIREMENT_ITEM_TOKEN_BUDGET);
-            String block = "【需求条目】" + item.getTitle() + "\n" + content + "\n";
-            int tokens = PromptAssembler.estimateTokens(block);
-            if (used + tokens > REQUIREMENT_CONTEXT_TOKEN_BUDGET) {
-                break;
-            }
-            data.append(block);
-            used += tokens;
-        }
-        if (StringUtils.hasText(reqDTO.getText())) {
-            String block = "【需求文本】\n" + reqDTO.getText() + "\n";
-            int tokens = PromptAssembler.estimateTokens(block);
-            if (used + tokens > REQUIREMENT_CONTEXT_TOKEN_BUDGET) {
-                data.append("【需求文本】\n")
-                        .append(truncateToTokenBudget(reqDTO.getText(), REQUIREMENT_CONTEXT_TOKEN_BUDGET - used))
-                        .append('\n');
-            } else {
-                data.append(block);
-            }
-        }
-        return data.toString();
+        String prefixBlock = reqDTO.getModules() != null && !reqDTO.getModules().isEmpty()
+                ? "【变更模块】" + String.join("、", reqDTO.getModules()) + "\n"
+                : null;
+        return requirementContextAssembler.assemble(projectId, reqDTO.getRequirementIds(),
+                reqDTO.getText(), prefixBlock).data();
     }
 
-    /** 模块名匹配（4.5 步骤 1）：精确 1.0 / ILIKE 模糊 0.9，命中模块（含子孙目录）下全部 case 节点 */
+    /**
+     * 模块名匹配（4.5 步骤 1）：精确 1.0 / ILIKE 模糊 0.9，命中模块（含子孙目录）下全部 case 节点
+     */
     private List<Candidate> matchModules(UUID projectId, List<String> modules) {
         List<TestCaseModule> allModules = testCaseModuleMapper.listByProjectId(projectId);
         if (allModules.isEmpty()) {
             return List.of();
         }
-        Map<UUID, TestCaseModule> moduleById = new LinkedHashMap<>();
-        Map<UUID, List<TestCaseModule>> childrenByParent = new LinkedHashMap<>();
-        for (TestCaseModule module : allModules) {
-            moduleById.put(module.getId(), module);
-            childrenByParent.computeIfAbsent(module.getParentId(), key -> new ArrayList<>()).add(module);
-        }
+        AiModuleTreeSupport.ModuleIndex index = AiModuleTreeSupport.indexByParent(allModules);
         // 每个输入名称对全量模块取最优命中分（精确优先于模糊）
         Map<UUID, Double> matchedModuleScore = new LinkedHashMap<>();
         for (String name : modules) {
@@ -204,7 +161,7 @@ public class AiRegressionRecommendServiceImpl implements AiRegressionRecommendSe
         Map<UUID, Double> documentScore = new LinkedHashMap<>();
         for (Map.Entry<UUID, Double> entry : matchedModuleScore.entrySet()) {
             Set<UUID> documents = new LinkedHashSet<>();
-            collectDocumentIds(entry.getKey(), moduleById, childrenByParent, documents);
+            AiModuleTreeSupport.collectDocumentIds(entry.getKey(), index.moduleById(), index.childrenByParent(), documents);
             for (UUID documentId : documents) {
                 documentScore.merge(documentId, entry.getValue(), Math::max);
             }
@@ -213,28 +170,12 @@ public class AiRegressionRecommendServiceImpl implements AiRegressionRecommendSe
             return List.of();
         }
         List<TestCaseNode> nodes = testCaseNodeMapper.listCaseNodesByDocumentIds(documentScore.keySet());
-        Map<UUID, String> modulePathById = buildModulePaths(allModules);
+        Map<UUID, String> modulePathById = AiModuleTreeSupport.buildModulePaths(allModules);
         return nodes.stream()
                 .map(node -> new Candidate(node.getId(), node.getTitle(),
                         modulePathById.getOrDefault(node.getDocumentId(), ""),
                         "module", documentScore.get(node.getDocumentId())))
                 .toList();
-    }
-
-    /** 递归收集模块（含子孙目录）下全部文档 id；文档类型模块自身即文档 */
-    private void collectDocumentIds(UUID moduleId, Map<UUID, TestCaseModule> moduleById,
-                                    Map<UUID, List<TestCaseModule>> childrenByParent, Set<UUID> out) {
-        TestCaseModule module = moduleById.get(moduleId);
-        if (module == null) {
-            return;
-        }
-        if (Constants.ModuleType.DOCUMENT.equals(module.getType())) {
-            out.add(moduleId);
-            return;
-        }
-        for (TestCaseModule child : childrenByParent.getOrDefault(moduleId, List.of())) {
-            collectDocumentIds(child.getId(), moduleById, childrenByParent, out);
-        }
     }
 
     /**
@@ -260,15 +201,17 @@ public class AiRegressionRecommendServiceImpl implements AiRegressionRecommendSe
         return new SemanticResult(degradedKeywordCandidates(userId, workspaceId, projectId, changeData), true);
     }
 
-    /** 语义命中 → 候选：按 nodeId 批量取节点，附模块路径（相似度为 score） */
+    /**
+     * 语义命中 → 候选：按 nodeId 批量取节点，附模块路径（相似度为 score）
+     */
     private List<Candidate> toSemanticCandidates(UUID projectId, List<CaseDedupHit> hits) {
         if (hits.isEmpty()) {
             return List.of();
         }
         List<UUID> nodeIds = hits.stream().map(CaseDedupHit::nodeId).toList();
-        Map<UUID, TestCaseNode> nodeById = testCaseNodeMapper.selectBatchIds(nodeIds).stream()
+        Map<UUID, TestCaseNode> nodeById = testCaseNodeMapper.selectByIds(nodeIds).stream()
                 .collect(Collectors.toMap(TestCaseNode::getId, node -> node));
-        Map<UUID, String> modulePathById = buildModulePaths(testCaseModuleMapper.listByProjectId(projectId));
+        Map<UUID, String> modulePathById = AiModuleTreeSupport.buildModulePaths(testCaseModuleMapper.listByProjectId(projectId));
         return hits.stream()
                 .map(hit -> {
                     TestCaseNode node = nodeById.get(hit.nodeId());
@@ -283,19 +226,22 @@ public class AiRegressionRecommendServiceImpl implements AiRegressionRecommendSe
                 .toList();
     }
 
-    /** 降级关键词匹配（4.5 步骤 2）：LLM 抽取 ≤10 关键词 → 标题 ILIKE 每词取前 30，score = 0.6 仅排序用 */
+    /**
+     * 降级关键词匹配（4.5 步骤 2）：LLM 抽取 ≤10 关键词 → 标题 ILIKE 每词取前 30，score = 0.6 仅排序用
+     */
     private List<Candidate> degradedKeywordCandidates(UUID userId, UUID workspaceId, UUID projectId, String changeData) {
-        List<String> keywords = extractKeywords(userId, workspaceId, projectId, changeData);
+        List<String> keywords = aiKeywordExtractor.extract(userId, workspaceId, projectId,
+                KEYWORD_TASK_INSTRUCTION, "【变更描述】", changeData);
         List<TestCaseModule> documents = testCaseModuleMapper.findDocumentModulesByProjectId(projectId);
         List<UUID> documentIds = documents.stream().map(TestCaseModule::getId).toList();
         if (documentIds.isEmpty()) {
             return List.of();
         }
-        Map<UUID, String> modulePathById = buildModulePaths(testCaseModuleMapper.listByProjectId(projectId));
+        Map<UUID, String> modulePathById = AiModuleTreeSupport.buildModulePaths(testCaseModuleMapper.listByProjectId(projectId));
         Map<UUID, Candidate> byNode = new LinkedHashMap<>();
         for (String keyword : keywords) {
             List<TestCaseNode> nodes = testCaseNodeMapper.listCaseNodesByDocumentIdsAndKeyword(
-                    documentIds, keyword, CANDIDATE_LIMIT_PER_KEYWORD);
+                    documentIds, keyword, AiConstants.CANDIDATE_LIMIT_PER_KEYWORD);
             for (TestCaseNode node : nodes) {
                 byNode.putIfAbsent(node.getId(), new Candidate(node.getId(), node.getTitle(),
                         modulePathById.getOrDefault(node.getDocumentId(), ""),
@@ -305,37 +251,9 @@ public class AiRegressionRecommendServiceImpl implements AiRegressionRecommendSe
         return new ArrayList<>(byNode.values());
     }
 
-    /** 无入参关键词场景由 LLM 抽取 ≤10 个关键词（4.3 同款，一次同步调用） */
-    private List<String> extractKeywords(UUID userId, UUID workspaceId, UUID projectId, String changeData) {
-        AiCallContext context = new AiCallContext(userId, workspaceId, projectId);
-        AiKeywordExtractRespDTO extract = aiGatewayService.completeStructured(
-                context,
-                AiFunctionType.KEYWORD_EXTRACTION,
-                KEYWORD_TASK_INSTRUCTION,
-                "【变更描述】\n" + changeData,
-                ChatCallOptions.json(),
-                AiKeywordExtractRespDTO.class,
-                keywords -> assertKeywords(keywords));
-        return extract.getKeywords().stream()
-                .filter(StringUtils::hasText)
-                .distinct()
-                .toList();
-    }
-
-    /** 抽取结果防御断言：每个关键词非空且 ≤20 字符（超限触发带错重试） */
-    private void assertKeywords(AiKeywordExtractRespDTO extract) {
-        if (extract.getKeywords() == null) {
-            throw new AiOutputValidator.OutputValidationException("keywords 不能为空");
-        }
-        for (String keyword : extract.getKeywords()) {
-            if (!StringUtils.hasText(keyword) || keyword.length() > 20) {
-                throw new AiOutputValidator.OutputValidationException(
-                        "keywords 中不允许空关键词或超过 20 字符的关键词");
-            }
-        }
-    }
-
-    /** 合并去重 + 排序截断（4.5 步骤 3）：同节点双命中 → matchType = both 取高分 */
+    /**
+     * 合并去重 + 排序截断（4.5 步骤 3）：同节点双命中 → matchType = both 取高分
+     */
     private List<Candidate> mergeAndRank(List<Candidate> moduleCandidates, List<Candidate> semanticCandidates) {
         Map<UUID, Candidate> merged = new LinkedHashMap<>();
         for (Candidate candidate : moduleCandidates) {
@@ -352,7 +270,9 @@ public class AiRegressionRecommendServiceImpl implements AiRegressionRecommendSe
                 .toList();
     }
 
-    /** 理由生成（4.5 步骤 4）：一次 LLM 调用批量生成，长度不匹配/生成失败整体置空（不阻断清单返回） */
+    /**
+     * 理由生成（4.5 步骤 4）：一次 LLM 调用批量生成，长度不匹配/生成失败整体置空（不阻断清单返回）
+     */
     private List<String> buildReasons(UUID userId, UUID workspaceId, UUID projectId,
                                       String changeData, List<Candidate> ranked) {
         if (ranked.isEmpty()) {
@@ -369,7 +289,7 @@ public class AiRegressionRecommendServiceImpl implements AiRegressionRecommendSe
                     AiFunctionType.REGRESSION_RECOMMENDATION,
                     REASON_TASK_INSTRUCTION,
                     data.toString(),
-                    new ChatCallOptions(null, null, true, LLM_TIMEOUT_MILLIS),
+                    new ChatCallOptions(null, null, true, AiConstants.LLM_TIMEOUT_MILLIS),
                     ReasonOut.class,
                     null);
             List<String> reasons = out.getReasons();
@@ -385,7 +305,9 @@ public class AiRegressionRecommendServiceImpl implements AiRegressionRecommendSe
         }
     }
 
-    /** 响应组装：items 按 score 降序；理由整体缺失时 reason 置空 */
+    /**
+     * 响应组装：items 按 score 降序；理由整体缺失时 reason 置空
+     */
     private AiRegressionRecommendRespDTO response(List<Candidate> ranked, List<String> reasons,
                                                   boolean semanticDegraded) {
         AiRegressionRecommendRespDTO resp = new AiRegressionRecommendRespDTO();
@@ -407,81 +329,25 @@ public class AiRegressionRecommendServiceImpl implements AiRegressionRecommendSe
     }
 
     /**
-     * 模块树路径构建：目录链 + 文档名拼接为「目录A/目录B/文档」路径（3.5 响应 modulePath 口径）；
-     * 模块树在排序上不保证父子先后，按需递归回溯并缓存。
+     * 推荐候选（节点 + 标题 + 模块路径 + 命中方式 + 得分）
      */
-    private Map<UUID, String> buildModulePaths(List<TestCaseModule> modules) {
-        Map<UUID, String> pathById = new LinkedHashMap<>();
-        Map<UUID, TestCaseModule> moduleById = new LinkedHashMap<>();
-        modules.forEach(module -> moduleById.put(module.getId(), module));
-        for (TestCaseModule module : modules) {
-            resolvePath(module.getId(), moduleById, pathById);
-        }
-        return pathById;
-    }
-
-    private String resolvePath(UUID moduleId, Map<UUID, TestCaseModule> moduleById, Map<UUID, String> pathById) {
-        if (moduleId == null) {
-            return "";
-        }
-        String cached = pathById.get(moduleId);
-        if (cached != null) {
-            return cached;
-        }
-        TestCaseModule module = moduleById.get(moduleId);
-        if (module == null) {
-            return "";
-        }
-        String parent = resolvePath(module.getParentId(), moduleById, pathById);
-        String path = parent.isEmpty() ? module.getName() : parent + "/" + module.getName();
-        pathById.put(moduleId, path);
-        return path;
-    }
-
-    /** 将文本截断至指定 token 预算内（估算口径与 PromptAssembler.estimateTokens 一致） */
-    private String truncateToTokenBudget(String text, int tokenBudget) {
-        if (text == null || PromptAssembler.estimateTokens(text) <= tokenBudget) {
-            return text;
-        }
-        int ascii = 0;
-        int other = 0;
-        int cut = text.length();
-        for (int i = 0; i < text.length(); i++) {
-            if (text.charAt(i) < 128) {
-                ascii++;
-            } else {
-                other++;
-            }
-            if (ascii / 4 + other > tokenBudget) {
-                cut = i;
-                break;
-            }
-        }
-        while (cut > 0 && PromptAssembler.estimateTokens(text.substring(0, cut)) > tokenBudget) {
-            cut--;
-        }
-        return text.substring(0, cut) + "…";
-    }
-
-    /** 推荐候选（节点 + 标题 + 模块路径 + 命中方式 + 得分） */
     private record Candidate(UUID nodeId, String title, String modulePath, String matchType, double score) {
     }
 
-    /** 语义匹配结果 + 是否降级 */
+    /**
+     * 语义匹配结果 + 是否降级
+     */
     private record SemanticResult(List<Candidate> candidates, boolean degraded) {
     }
 
-    /** LLM 结构化输出：批量推荐理由数组（长度须与输入用例标题清单一致，不一致整体置空） */
+    /**
+     * LLM 结构化输出：批量推荐理由数组（长度须与输入用例标题清单一致，不一致整体置空）
+     */
+    @Setter
+    @Getter
     public static class ReasonOut {
 
         private List<String> reasons;
 
-        public List<String> getReasons() {
-            return reasons;
-        }
-
-        public void setReasons(List<String> reasons) {
-            this.reasons = reasons;
-        }
     }
 }

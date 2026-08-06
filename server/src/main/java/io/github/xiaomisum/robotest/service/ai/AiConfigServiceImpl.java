@@ -54,8 +54,8 @@ public class AiConfigServiceImpl implements AiConfigService {
     @Value("${robotest.ai.secret-key:}")
     private String secretKeyBase64;
 
-    private volatile CacheEntry<AiConfig> configCache;
-    private volatile CacheEntry<AiStatusRespDTO> statusCache;
+    private volatile AiCacheEntry<AiConfig> configCache;
+    private volatile AiCacheEntry<AiStatusRespDTO> statusCache;
 
     @Override
     public AiConfigRespDTO getConfig() {
@@ -225,12 +225,12 @@ public class AiConfigServiceImpl implements AiConfigService {
 
     @Override
     public AiStatusRespDTO getStatus() {
-        CacheEntry<AiStatusRespDTO> cached = statusCache;
+        AiCacheEntry<AiStatusRespDTO> cached = statusCache;
         if (cached != null && !cached.expired()) {
             return cached.value();
         }
         AiStatusRespDTO status = computeStatus();
-        statusCache = new CacheEntry<>(status, System.currentTimeMillis() + CACHE_TTL_MILLIS);
+        statusCache = new AiCacheEntry<>(status, System.currentTimeMillis() + CACHE_TTL_MILLIS);
         return status;
     }
 
@@ -356,12 +356,12 @@ public class AiConfigServiceImpl implements AiConfigService {
     }
 
     private AiConfig loadCachedConfig() {
-        CacheEntry<AiConfig> cached = configCache;
+        AiCacheEntry<AiConfig> cached = configCache;
         if (cached != null && !cached.expired()) {
             return cached.value();
         }
         AiConfig config = aiConfigMapper.findActive();
-        configCache = new CacheEntry<>(config, System.currentTimeMillis() + CACHE_TTL_MILLIS);
+        configCache = new AiCacheEntry<>(config, System.currentTimeMillis() + CACHE_TTL_MILLIS);
         return config;
     }
 
@@ -405,9 +405,4 @@ public class AiConfigServiceImpl implements AiConfigService {
         return info;
     }
 
-    private record CacheEntry<T>(T value, long expireAt) {
-        boolean expired() {
-            return System.currentTimeMillis() > expireAt;
-        }
-    }
 }

@@ -9,10 +9,8 @@ import io.github.xiaomisum.robotest.service.ai.AiModels.ChatMessage;
 import io.github.xiaomisum.robotest.service.ai.AiModels.ChatResult;
 import io.github.xiaomisum.robotest.service.ai.AiModels.EmbedResult;
 import io.github.xiaomisum.robotest.service.ai.AiModels.StreamCallbacks;
-import jakarta.annotation.PreDestroy;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import xyz.migoo.framework.common.exception.ServiceException;
@@ -20,10 +18,6 @@ import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
 
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -32,16 +26,8 @@ import java.util.function.Function;
 @Service
 public class AiGatewayServiceImpl implements AiGatewayService {
 
-    private static final long SSE_TIMEOUT_MILLIS = 120_000L;
-    private static final long PING_INTERVAL_SECONDS = 15L;
-
-    /** SSE 心跳调度（轻量注释行发送，共享单线程即可） */
-    private final ScheduledExecutorService pingScheduler = Executors.newSingleThreadScheduledExecutor(runnable -> {
-        Thread thread = new Thread(runnable, "ai-sse-ping");
-        thread.setDaemon(true);
-        return thread;
-    });
-
+    @Resource
+    private AiSseSupport sseSupport;
     @Resource
     private AiConfigService aiConfigService;
     @Resource
@@ -137,23 +123,9 @@ public class AiGatewayServiceImpl implements AiGatewayService {
         checkRateLimit(context, functionType, config.model());
         List<ChatMessage> messages = promptAssembler.assemble(functionType, taskInstruction, businessData);
 
-        SseEmitter emitter = new SseEmitter(SSE_TIMEOUT_MILLIS);
-        AtomicBoolean cancelled = new AtomicBoolean(false);
-        // 客户端断开/超时即置取消标志，上游读取在下一行边界以取消退出
-        emitter.onCompletion(() -> cancelled.set(true));
-        emitter.onError(e -> cancelled.set(true));
-        emitter.onTimeout(() -> {
-            cancelled.set(true);
-            emitter.complete();
-        });
-
-        ScheduledFuture<?> ping = pingScheduler.scheduleAtFixedRate(() -> {
-            try {
-                emitter.send(SseEmitter.event().comment("ping"));
-            } catch (Exception e) {
-                cancelled.set(true);
-            }
-        }, PING_INTERVAL_SECONDS, PING_INTERVAL_SECONDS, TimeUnit.SECONDS);
+        AiSseSupport.Channel channel = sseSupport.open();
+        SseEmitter emitter = channel.emitter();
+        AtomicBoolean cancelled = channel.cancelled();
 
         long start = System.currentTimeMillis();
         Thread.startVirtualThread(() -> {
@@ -168,11 +140,11 @@ public class AiGatewayServiceImpl implements AiGatewayService {
                         // AI 总开关关闭时在下一帧转发前中断（SRS 3.1）
                         if (!Boolean.TRUE.equals(aiConfigService.getStatus().getEnabled())) {
                             cancelled.set(true);
-                            sendError(emitter, ErrorCodeConstants.AI_NOT_ENABLED.code(),
+                            sseSupport.sendError(emitter, ErrorCodeConstants.AI_NOT_ENABLED.code(),
                                     ErrorCodeConstants.AI_NOT_ENABLED.msg());
                             throw new OpenAiCompatProvider.StreamCancelledException();
                         }
-                        send(emitter, "delta", Map.of("content", content));
+                        sseSupport.send(emitter, "delta", Map.of("content", content));
                     }
 
                     @Override
@@ -186,7 +158,7 @@ public class AiGatewayServiceImpl implements AiGatewayService {
                             auditRecorder.record(context, functionType, config.model(),
                                     System.currentTimeMillis() - start, promptTokens, completionTokens,
                                     Constants.AiInvocationStatus.SCHEMA_INVALID, "6003");
-                            sendError(emitter, ErrorCodeConstants.AI_OUTPUT_SCHEMA_INVALID.code(),
+                            sseSupport.sendError(emitter, ErrorCodeConstants.AI_OUTPUT_SCHEMA_INVALID.code(),
                                     ErrorCodeConstants.AI_OUTPUT_SCHEMA_INVALID.msg());
                             emitter.complete();
                             return;
@@ -194,7 +166,7 @@ public class AiGatewayServiceImpl implements AiGatewayService {
                         auditRecorder.record(context, functionType, config.model(),
                                 System.currentTimeMillis() - start, promptTokens, completionTokens,
                                 Constants.AiInvocationStatus.SUCCESS, null);
-                        send(emitter, "done", doneData);
+                        sseSupport.send(emitter, "done", doneData);
                         emitter.complete();
                     }
                 }, cancelled);
@@ -206,11 +178,11 @@ public class AiGatewayServiceImpl implements AiGatewayService {
                 log.warn("[AI] 流式调用异常: {}", e.getMessage());
                 auditRecorder.record(context, functionType, config.model(), System.currentTimeMillis() - start,
                         null, null, Constants.AiInvocationStatus.FAILED, "6002");
-                sendError(emitter, ErrorCodeConstants.AI_CALL_FAILED.code(),
+                sseSupport.sendError(emitter, ErrorCodeConstants.AI_CALL_FAILED.code(),
                         ErrorCodeConstants.AI_CALL_FAILED.msg());
                 emitter.complete();
             } finally {
-                ping.cancel(false);
+                channel.stopPing();
             }
         });
         return emitter;
@@ -273,27 +245,5 @@ public class AiGatewayServiceImpl implements AiGatewayService {
 
     private boolean isSchemaInvalid(ServiceException e) {
         return ErrorCodeConstants.AI_OUTPUT_SCHEMA_INVALID.msg().equals(e.getMessage());
-    }
-
-    private void send(SseEmitter emitter, String event, Object data) {
-        try {
-            emitter.send(SseEmitter.event().name(event).data(data, MediaType.APPLICATION_JSON));
-        } catch (Exception e) {
-            throw new OpenAiCompatProvider.StreamCancelledException();
-        }
-    }
-
-    private void sendError(SseEmitter emitter, Object code, String message) {
-        try {
-            emitter.send(SseEmitter.event().name("error").data(Map.of("code", code, "message", message),
-                    MediaType.APPLICATION_JSON));
-        } catch (Exception e) {
-            // 客户端已断开，忽略
-        }
-    }
-
-    @PreDestroy
-    public void shutdown() {
-        pingScheduler.shutdownNow();
     }
 }

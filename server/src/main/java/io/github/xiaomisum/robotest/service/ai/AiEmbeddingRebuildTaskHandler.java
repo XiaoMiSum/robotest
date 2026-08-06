@@ -82,7 +82,8 @@ public class AiEmbeddingRebuildTaskHandler implements AiTaskHandler {
         for (int start = 0; start < jobs.size(); start += BATCH_SIZE) {
             List<IndexJob> batch = jobs.subList(start, Math.min(start + BATCH_SIZE, jobs.size()));
             // 批次边界心跳：写入进度与累计结果；影响行数为 0 表示任务已取消/置失败，立即中止返回部分结果（4.6）
-            if (aiAnalysisTaskMapper.updateProgressIfRunning(task.getId(), percent(processed, total),
+            if (AiTaskProgressSupport.heartbeat(aiAnalysisTaskMapper, task.getId(),
+                    AiTaskProgressSupport.percent(processed, total),
                     JsonUtils.toJsonString(buildResult(0, 0, processed - failed, failed))) == 0) {
                 return buildResult(0, 0, processed - failed, failed);
             }
@@ -166,10 +167,6 @@ public class AiEmbeddingRebuildTaskHandler implements AiTaskHandler {
 
     private int caseCount(List<IndexJob> jobs) {
         return (int) jobs.stream().filter(j -> j.nodeId() != null).count();
-    }
-
-    private int percent(int done, int total) {
-        return total == 0 ? 0 : (int) Math.round(done * 100.0 / total);
     }
 
     private Map<String, Object> buildResult(int bugCount, int caseCount, int embeddedCount, int failedCount) {

@@ -29,11 +29,9 @@ import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
-import tools.jackson.databind.ObjectMapper;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
 import xyz.migoo.framework.common.util.JsonUtils;
 
-import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -62,9 +60,6 @@ public class AiPlanOrderRecommendServiceImpl implements AiPlanOrderRecommendServ
     static final double DEFAULT_W2 = 0.3;
     static final double DEFAULT_W3 = 0.2;
 
-    /** 理由生成读超时（ms）：单条一句话输出，沿用同步长调用功能级覆盖 60s 约定 */
-    static final int LLM_TIMEOUT_MILLIS = 60_000;
-
     private static final String REASON_TASK_INSTRUCTION = """
             请基于业务数据中的评分因子（历史关联缺陷数、优先级权重、模块缺陷密度），
             用一句话说明推荐优先执行该用例的理由。""";
@@ -75,8 +70,6 @@ public class AiPlanOrderRecommendServiceImpl implements AiPlanOrderRecommendServ
     private AiConfigService aiConfigService;
     @Resource
     private AiAnalysisTaskMapper aiTaskMapper;
-    @Resource
-    private ObjectMapper objectMapper;
     @Resource
     private TestPlanMapper testPlanMapper;
     @Resource
@@ -194,12 +187,7 @@ public class AiPlanOrderRecommendServiceImpl implements AiPlanOrderRecommendServ
                         (a, b) -> a));
 
         List<TestCaseModule> allModules = testCaseModuleMapper.listByProjectId(projectId);
-        Map<UUID, TestCaseModule> moduleById = new LinkedHashMap<>();
-        Map<UUID, List<TestCaseModule>> childrenByParent = new LinkedHashMap<>();
-        for (TestCaseModule module : allModules) {
-            moduleById.put(module.getId(), module);
-            childrenByParent.computeIfAbsent(module.getParentId(), key -> new ArrayList<>()).add(module);
-        }
+        AiModuleTreeSupport.ModuleIndex index = AiModuleTreeSupport.indexByParent(allModules);
         Set<UUID> documentModuleIds = allModules.stream()
                 .filter(m -> Constants.ModuleType.DOCUMENT.equals(m.getType()))
                 .map(TestCaseModule::getId)
@@ -225,7 +213,7 @@ public class AiPlanOrderRecommendServiceImpl implements AiPlanOrderRecommendServ
                     int relatedBugCount = bugCountByRelatedCaseId.getOrDefault(node.getOriginalNodeId(), 0L).intValue();
                     double priorityWeight = AiPlanOrderScoring.priorityWeight(node.getPriority());
                     double moduleBugDensity = moduleBugDensity(node.getDocumentSnapshotId(),
-                            documentModuleIdBySnapshotId, moduleById, childrenByParent,
+                            documentModuleIdBySnapshotId, index.moduleById(), index.childrenByParent(),
                             bugCountByModuleId, caseCountByDocumentId);
                     return new ScoredNode(node, relatedBugCount, priorityWeight, moduleBugDensity);
                 })
@@ -265,7 +253,7 @@ public class AiPlanOrderRecommendServiceImpl implements AiPlanOrderRecommendServ
             return 0.0;
         }
         Set<UUID> subtree = new LinkedHashSet<>();
-        collectSubtreeModuleIds(documentModuleId, moduleById, childrenByParent, subtree);
+        AiModuleTreeSupport.collectSubtreeModuleIds(documentModuleId, moduleById, childrenByParent, subtree);
         long bugCount = 0;
         long caseCount = 0;
         for (UUID moduleId : subtree) {
@@ -276,19 +264,6 @@ public class AiPlanOrderRecommendServiceImpl implements AiPlanOrderRecommendServ
             }
         }
         return caseCount == 0 ? 0.0 : (double) bugCount / caseCount;
-    }
-
-    /**
-     * 递归收集模块（含子孙模块）id；文档类型模块为叶，子树即自身
-     */
-    private void collectSubtreeModuleIds(UUID moduleId, Map<UUID, TestCaseModule> moduleById,
-                                         Map<UUID, List<TestCaseModule>> childrenByParent, Set<UUID> out) {
-        if (!moduleById.containsKey(moduleId) || !out.add(moduleId)) {
-            return;
-        }
-        for (TestCaseModule child : childrenByParent.getOrDefault(moduleId, List.of())) {
-            collectSubtreeModuleIds(child.getId(), moduleById, childrenByParent, out);
-        }
     }
 
     /**
@@ -346,7 +321,7 @@ public class AiPlanOrderRecommendServiceImpl implements AiPlanOrderRecommendServ
     }
 
     private AiPlanOrderRecommendRespDTO toResult(AiAnalysisTask task) {
-        AiPlanOrderRecommendRespDTO result = objectMapper.convertValue(task.getResult(),
+        AiPlanOrderRecommendRespDTO result = JsonUtils.convert(task.getResult(),
                 AiPlanOrderRecommendRespDTO.class);
         if (result.getItems() != null) {
             for (int i = 0; i < result.getItems().size(); i++) {
@@ -380,7 +355,7 @@ public class AiPlanOrderRecommendServiceImpl implements AiPlanOrderRecommendServ
                     AiFunctionType.PLAN_ORDER_REASON,
                     REASON_TASK_INSTRUCTION,
                     data.toString(),
-                    new ChatCallOptions(null, null, false, LLM_TIMEOUT_MILLIS));
+                    new ChatCallOptions(null, null, false, AiConstants.LLM_TIMEOUT_MILLIS));
             return chat == null ? null : chat.content();
         } catch (Exception e) {
             log.warn("[AI] 执行顺序推荐理由生成失败: {}", e.getMessage());

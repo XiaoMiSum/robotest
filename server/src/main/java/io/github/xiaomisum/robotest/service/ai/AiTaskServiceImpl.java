@@ -154,7 +154,7 @@ public class AiTaskServiceImpl implements AiTaskService {
     /**
      * 提交执行：队列满被 DiscardPolicy 丢弃时任务保持 pending，由 30 秒拾取定时任务兜底
      */
-    public void trySubmit(UUID taskId) {
+    void trySubmit(UUID taskId) {
         aiTaskExecutor.execute(() -> executeTask(taskId));
     }
 
