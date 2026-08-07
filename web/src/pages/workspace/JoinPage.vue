@@ -5,7 +5,6 @@ import { ElMessage } from 'element-plus'
 import { useAuthStore } from '@/stores/auth'
 import { useNavStore } from '@/stores/nav'
 import { checkEmail, joinByInvitation, verifyInvitation } from '@/services/workspace'
-import { setTokens } from '@/services'
 import PasswordStrengthBar from '@/components/common/PasswordStrengthBar.vue'
 
 const route = useRoute()
@@ -117,7 +116,7 @@ async function handleCreateJoin() {
 }
 
 async function loginAndRedirect(accessToken: string, refreshToken: string, result: { user: { id: string; username: string; email: string }; activeWorkspace: { id: string; name: string; workspaceRole: string } }) {
-  setTokens(accessToken, refreshToken)
+  // setLogin 内部已持久化令牌，此处不重复 setTokens
   authStore.setLogin(
     accessToken,
     refreshToken,
