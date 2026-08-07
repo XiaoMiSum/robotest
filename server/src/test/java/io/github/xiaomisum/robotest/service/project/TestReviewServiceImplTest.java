@@ -355,7 +355,8 @@ class TestReviewServiceImplTest {
                 docModuleB.setId(docB);
                 docModuleB.setProjectId(projectId);
                 docModuleB.setType("document");
-                when(testCaseModuleMapper.selectById(docB)).thenReturn(docModuleB);
+                when(testCaseModuleMapper.listByIds(anyCollection()))
+                                .thenReturn(List.of(docModuleB));
 
                 TestReviewModuleSnapshot snapA = new TestReviewModuleSnapshot();
                 snapA.setId(UUID.fromString("00000000-0000-0000-0000-0000000000aa"));
@@ -728,7 +729,8 @@ class TestReviewServiceImplTest {
                 currentNode.setSortOrder(0);
                 currentNode.setIsDeleted(false);
 
-                when(testCaseNodeMapper.selectById(originalNodeId)).thenReturn(currentNode);
+                when(testCaseNodeMapper.listByIds(anyCollection()))
+                                .thenReturn(List.of(currentNode));
 
                 reviewService.syncReview(reviewId, userId);
 
@@ -783,7 +785,8 @@ class TestReviewServiceImplTest {
 
                 when(reviewNodeSnapshotMapper.listByReviewId(reviewId))
                                 .thenReturn(List.of(snapshot));
-                when(testCaseNodeMapper.selectById(originalNodeId)).thenReturn(null);
+                when(testCaseNodeMapper.listByIds(anyCollection()))
+                                .thenReturn(List.of());
 
                 reviewService.syncReview(reviewId, userId);
 
@@ -869,11 +872,12 @@ class TestReviewServiceImplTest {
                                 .thenReturn(new ArrayList<>());
 
                 TestCaseModule originalModule = new TestCaseModule();
+                originalModule.setId(UUID.fromString("00000000-0000-0000-0000-000000000010"));
                 originalModule.setName("new name");
                 originalModule.setSortOrder(2);
                 originalModule.setIsDeleted(false);
-                when(testCaseModuleMapper.selectById(UUID.fromString("00000000-0000-0000-0000-000000000010")))
-                                .thenReturn(originalModule);
+                when(testCaseModuleMapper.listByIds(anyCollection()))
+                                .thenReturn(List.of(originalModule));
 
                 reviewService.syncReview(reviewId, userId);
 
@@ -901,8 +905,8 @@ class TestReviewServiceImplTest {
                                 .thenReturn(List.of(moduleSnap));
                 when(reviewNodeSnapshotMapper.listByReviewId(reviewId))
                                 .thenReturn(new ArrayList<>());
-                when(testCaseModuleMapper.selectById(UUID.fromString("00000000-0000-0000-0000-000000000010")))
-                                .thenReturn(null);
+                when(testCaseModuleMapper.listByIds(anyCollection()))
+                                .thenReturn(List.of());
 
                 reviewService.syncReview(reviewId, userId);
 
@@ -932,8 +936,8 @@ class TestReviewServiceImplTest {
                                 .thenReturn(List.of(moduleSnap));
                 when(reviewNodeSnapshotMapper.listByReviewId(reviewId))
                                 .thenReturn(List.of(nodeSnap));
-                when(testCaseModuleMapper.selectById(UUID.fromString("00000000-0000-0000-0000-000000000010")))
-                                .thenReturn(null);
+                when(testCaseModuleMapper.listByIds(anyCollection()))
+                                .thenReturn(List.of());
 
                 reviewService.syncReview(reviewId, userId);
 

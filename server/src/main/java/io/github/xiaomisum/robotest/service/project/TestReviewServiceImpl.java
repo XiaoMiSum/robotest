@@ -264,9 +264,16 @@ public class TestReviewServiceImpl implements TestReviewService {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_REVIEW_FINISHED);
         }
 
+        // 批量校验选中文档：一次 IN 查询替代逐条 selectById，避免 N+1
+        Set<UUID> selectedDocIds = reqDTO.getSelectedNodes().stream()
+                .map(TestReviewCreateReqDTO.SelectedNode::getDocumentId)
+                .collect(Collectors.toSet());
+        Map<UUID, TestCaseModule> docsById = testCaseModuleMapper.listByIds(selectedDocIds).stream()
+                .collect(Collectors.toMap(TestCaseModule::getId, m -> m));
+
         Map<UUID, Set<UUID>> newSelection = new LinkedHashMap<>();
         for (TestReviewCreateReqDTO.SelectedNode sn : reqDTO.getSelectedNodes()) {
-            TestCaseModule doc = testCaseModuleMapper.selectById(sn.getDocumentId());
+            TestCaseModule doc = docsById.get(sn.getDocumentId());
             if (doc == null || !doc.getProjectId().equals(review.getProjectId())
                     || !Constants.ModuleType.DOCUMENT.equals(doc.getType())) {
                 throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_CASE_MODULE_NOT_FOUND);
@@ -586,13 +593,22 @@ public class TestReviewServiceImpl implements TestReviewService {
         // 1. 同步模块快照：名称、排序与原始模块保持一致；已删除的模块移除快照
         List<TestReviewModuleSnapshot> snapshotModules = reviewModuleSnapshotMapper.listByReviewId(reviewId);
 
+        // 批量加载快照引用的原始模块，避免循环内逐条 selectById（N+1）
+        Map<UUID, TestCaseModule> originalModulesById = testCaseModuleMapper
+                .listByIds(snapshotModules.stream()
+                        .map(TestReviewModuleSnapshot::getOriginalModuleId)
+                        .filter(Objects::nonNull)
+                        .collect(Collectors.toSet()))
+                .stream()
+                .collect(Collectors.toMap(TestCaseModule::getId, m -> m));
+
         Set<UUID> validModuleSnapshotIds = new HashSet<>();
         for (TestReviewModuleSnapshot moduleSnap : snapshotModules) {
             if (moduleSnap.getOriginalModuleId() == null) {
                 validModuleSnapshotIds.add(moduleSnap.getId());
                 continue;
             }
-            TestCaseModule originalModule = testCaseModuleMapper.selectById(moduleSnap.getOriginalModuleId());
+            TestCaseModule originalModule = originalModulesById.get(moduleSnap.getOriginalModuleId());
             if (originalModule == null || originalModule.getIsDeleted()) {
                 // 原始模块已删除，移除对应的模块快照和节点快照
                 reviewModuleSnapshotMapper.deleteById(moduleSnap.getId());
@@ -612,6 +628,15 @@ public class TestReviewServiceImpl implements TestReviewService {
             }
         }
 
+        // 批量加载快照引用的原始节点，避免循环内逐条 selectById（N+1）
+        Map<UUID, TestCaseNode> originalNodesById = testCaseNodeMapper
+                .listByIds(snapshotNodes.stream()
+                        .map(TestReviewNodeSnapshot::getOriginalNodeId)
+                        .filter(Objects::nonNull)
+                        .collect(Collectors.toSet()))
+                .stream()
+                .collect(Collectors.toMap(TestCaseNode::getId, n -> n));
+
         // 2. 同步节点快照：标题、类型、优先级、排序与原始节点保持一致；已删除的节点标记 isDeleted
         for (TestReviewNodeSnapshot snapshot : snapshotNodes) {
             if (snapshot.getOriginalNodeId() == null) {
@@ -622,7 +647,7 @@ public class TestReviewServiceImpl implements TestReviewService {
                     && !validModuleSnapshotIds.contains(snapshot.getDocumentSnapshotId())) {
                 continue;
             }
-            TestCaseNode currentNode = testCaseNodeMapper.selectById(snapshot.getOriginalNodeId());
+            TestCaseNode currentNode = originalNodesById.get(snapshot.getOriginalNodeId());
             // 载体只携带同步字段，避免整行覆盖并发写入的评审结果
             TestReviewNodeSnapshot nodeUpdate = new TestReviewNodeSnapshot();
             nodeUpdate.setId(snapshot.getId());

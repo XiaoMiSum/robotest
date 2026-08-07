@@ -503,8 +503,8 @@ class TestPlanServiceImplTest {
                 currentNode.setSortOrder(0);
                 currentNode.setIsDeleted(false);
 
-                when(testCaseNodeMapper.selectById(UUID.fromString("00000000-0000-0000-0000-000000000006")))
-                                .thenReturn(currentNode);
+                when(testCaseNodeMapper.listByIds(anyCollection()))
+                                .thenReturn(List.of(currentNode));
 
                 planService.syncPlan(planId, userId);
 
@@ -561,8 +561,8 @@ class TestPlanServiceImplTest {
 
                 when(planNodeSnapshotMapper.listByPlanId(planId))
                                 .thenReturn(List.of(snapshot));
-                when(testCaseNodeMapper.selectById(UUID.fromString("00000000-0000-0000-0000-000000000006")))
-                                .thenReturn(null);
+                when(testCaseNodeMapper.listByIds(anyCollection()))
+                                .thenReturn(List.of());
 
                 planService.syncPlan(planId, userId);
 
@@ -780,11 +780,12 @@ class TestPlanServiceImplTest {
                                 .thenReturn(new ArrayList<>());
 
                 TestCaseModule originalModule = new TestCaseModule();
+                originalModule.setId(UUID.fromString("00000000-0000-0000-0000-000000000010"));
                 originalModule.setName("new name");
                 originalModule.setSortOrder(2);
                 originalModule.setIsDeleted(false);
-                when(testCaseModuleMapper.selectById(UUID.fromString("00000000-0000-0000-0000-000000000010")))
-                                .thenReturn(originalModule);
+                when(testCaseModuleMapper.listByIds(anyCollection()))
+                                .thenReturn(List.of(originalModule));
 
                 planService.syncPlan(planId, userId);
 
@@ -812,8 +813,8 @@ class TestPlanServiceImplTest {
                                 .thenReturn(List.of(moduleSnap));
                 when(planNodeSnapshotMapper.listByPlanId(planId))
                                 .thenReturn(new ArrayList<>());
-                when(testCaseModuleMapper.selectById(UUID.fromString("00000000-0000-0000-0000-000000000010")))
-                                .thenReturn(null);
+                when(testCaseModuleMapper.listByIds(anyCollection()))
+                                .thenReturn(List.of());
 
                 planService.syncPlan(planId, userId);
 
@@ -843,8 +844,8 @@ class TestPlanServiceImplTest {
                                 .thenReturn(List.of(moduleSnap));
                 when(planNodeSnapshotMapper.listByPlanId(planId))
                                 .thenReturn(List.of(nodeSnap));
-                when(testCaseModuleMapper.selectById(UUID.fromString("00000000-0000-0000-0000-000000000010")))
-                                .thenReturn(null);
+                when(testCaseModuleMapper.listByIds(anyCollection()))
+                                .thenReturn(List.of());
 
                 planService.syncPlan(planId, userId);
 
