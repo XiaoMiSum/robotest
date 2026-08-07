@@ -1,5 +1,6 @@
 package io.github.xiaomisum.robotest.service.ai;
 
+
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.model.entity.ai.BugEmbedding;
 import io.github.xiaomisum.robotest.model.entity.ai.CaseEmbedding;
@@ -10,18 +11,20 @@ import io.github.xiaomisum.robotest.repository.ai.BugEmbeddingMapper;
 import io.github.xiaomisum.robotest.repository.ai.CaseEmbeddingMapper;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseModuleMapper;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseNodeMapper;
+import io.github.xiaomisum.robotest.service.ai.gateway.AiConfigService;
 import io.github.xiaomisum.robotest.service.ai.model.AiModels.EmbedResult;
 import io.github.xiaomisum.robotest.service.ai.provider.OpenAiCompatProvider;
 import io.github.xiaomisum.robotest.service.ai.provider.ResolvedAiConfig;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-
+import io.github.xiaomisum.robotest.service.ai.vector.AiVectorSearchService;
+import io.github.xiaomisum.robotest.service.ai.vector.AiVectorSearchServiceImpl;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.Test;
+import org.mockito.InjectMocks;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.Mock;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;

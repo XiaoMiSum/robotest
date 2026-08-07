@@ -7,6 +7,7 @@ import io.github.xiaomisum.robotest.model.dto.response.ai.AiTaskRespDTO;
 import io.github.xiaomisum.robotest.model.entity.ai.AiAnalysisTask;
 import io.github.xiaomisum.robotest.model.entity.review.TestReview;
 import io.github.xiaomisum.robotest.repository.review.TestReviewMapper;
+import io.github.xiaomisum.robotest.service.ai.task.AiTaskService;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;

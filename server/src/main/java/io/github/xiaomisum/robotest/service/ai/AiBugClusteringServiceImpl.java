@@ -6,6 +6,7 @@ import io.github.xiaomisum.robotest.model.dto.response.ai.AiBugClusteringStartRe
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiTaskRespDTO;
 import io.github.xiaomisum.robotest.model.entity.ai.AiAnalysisTask;
 import io.github.xiaomisum.robotest.repository.bug.BugMapper;
+import io.github.xiaomisum.robotest.service.ai.task.AiTaskService;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;

@@ -31,7 +31,7 @@ import io.github.xiaomisum.robotest.repository.tcase.TestCaseNodeMapper;
 import io.github.xiaomisum.robotest.repository.admin.SysUserMapper;
 import io.github.xiaomisum.robotest.repository.workspace.ProjectMapper;
 import io.github.xiaomisum.robotest.repository.workspace.WorkspaceUserMapper;
-import io.github.xiaomisum.robotest.service.ai.AiTaskService;
+import io.github.xiaomisum.robotest.service.ai.task.AiTaskService;
 import io.github.xiaomisum.robotest.service.project.TestReviewService;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;

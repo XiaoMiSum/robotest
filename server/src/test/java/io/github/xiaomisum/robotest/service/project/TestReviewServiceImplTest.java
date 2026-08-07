@@ -74,7 +74,7 @@ class TestReviewServiceImplTest {
         private WorkspaceUserMapper workspaceUserMapper;
 
         @Mock
-        private io.github.xiaomisum.robotest.service.ai.AiTaskService aiTaskService;
+        private io.github.xiaomisum.robotest.service.ai.task.AiTaskService aiTaskService;
 
         @InjectMocks
         private TestReviewServiceImpl reviewService;

@@ -1,5 +1,6 @@
 package io.github.xiaomisum.robotest.service.ai;
 
+
 import io.github.xiaomisum.robotest.framework.common.AiFunctionType;
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.model.dto.request.ai.AiMissingPointReqDTO;
@@ -8,20 +9,23 @@ import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseModule;
 import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseNode;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseModuleMapper;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseNodeMapper;
+import io.github.xiaomisum.robotest.service.ai.gateway.AiGatewayService;
 import io.github.xiaomisum.robotest.service.ai.model.AiModels.ChatCallOptions;
+import io.github.xiaomisum.robotest.service.ai.support.AiKeywordExtractor;
+import io.github.xiaomisum.robotest.service.ai.support.AiOutputValidator;
+import io.github.xiaomisum.robotest.service.ai.support.AiRequirementContextAssembler;
+import java.util.function.Consumer;
+import java.util.List;
+import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.InjectMocks;
-import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.Mock;
 import xyz.migoo.framework.common.exception.ServiceException;
-
-import java.util.List;
-import java.util.UUID;
-import java.util.function.Consumer;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;

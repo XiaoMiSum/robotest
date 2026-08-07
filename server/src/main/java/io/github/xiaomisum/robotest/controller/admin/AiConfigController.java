@@ -12,11 +12,11 @@ import io.github.xiaomisum.robotest.model.dto.response.ai.AiProviderPresetRespDT
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiSettingsSchemaRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiStatisticsRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiTaskRespDTO;
-import io.github.xiaomisum.robotest.service.ai.AiChatModelService;
-import io.github.xiaomisum.robotest.service.ai.AiConfigService;
-import io.github.xiaomisum.robotest.service.ai.AiSettingDefinitions;
+import io.github.xiaomisum.robotest.service.ai.gateway.AiChatModelService;
+import io.github.xiaomisum.robotest.service.ai.gateway.AiConfigService;
+import io.github.xiaomisum.robotest.service.ai.gateway.AiSettingDefinitions;
 import io.github.xiaomisum.robotest.service.ai.AiStatisticsService;
-import io.github.xiaomisum.robotest.service.ai.AiTaskService;
+import io.github.xiaomisum.robotest.service.ai.task.AiTaskService;
 import io.github.xiaomisum.robotest.service.ai.provider.ProviderPresetRegistry;
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;

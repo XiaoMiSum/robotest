@@ -1,7 +1,7 @@
 package io.github.xiaomisum.robotest.controller.workspace;
 
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiStatusRespDTO;
-import io.github.xiaomisum.robotest.service.ai.AiConfigService;
+import io.github.xiaomisum.robotest.service.ai.gateway.AiConfigService;
 import jakarta.annotation.Resource;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;

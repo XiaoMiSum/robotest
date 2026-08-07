@@ -1,5 +1,6 @@
 package io.github.xiaomisum.robotest.service.ai;
 
+import io.github.xiaomisum.robotest.service.ai.support.AiOutputValidator;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
