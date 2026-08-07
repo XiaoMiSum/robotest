@@ -39,7 +39,7 @@ public class TestPlanController {
             @RequestParam(required = false) String keyword,
             @RequestParam(defaultValue = "1") Integer pageNo,
             @RequestParam(defaultValue = "20") Integer pageSize) {
-        return Result.ok(testPlanService.getPlanPage(projectId, status, keyword, pageNo, pageSize));
+        return Result.ok(testPlanService.getPlanPage(projectId, loginUser.getId(), status, keyword, pageNo, pageSize));
     }
 
     @PostMapping
@@ -55,7 +55,7 @@ public class TestPlanController {
     public Result<TestPlanDetailRespDTO> getPlanDetail(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id) {
-        return Result.ok(testPlanService.getPlanDetail(id));
+        return Result.ok(testPlanService.getPlanDetail(id, loginUser.getId()));
     }
 
     @GetMapping("/{id}/modules")
@@ -63,21 +63,21 @@ public class TestPlanController {
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id,
             @RequestParam(required = false) UUID documentId) {
-        return Result.ok(testPlanService.getPlanSnapshotTree(id, documentId));
+        return Result.ok(testPlanService.getPlanSnapshotTree(id, documentId, loginUser.getId()));
     }
 
     @GetMapping("/{id}/module-tree")
     public Result<List<SnapshotModuleTreeRespDTO>> getPlanModuleTree(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id) {
-        return Result.ok(testPlanService.getPlanModuleTree(id));
+        return Result.ok(testPlanService.getPlanModuleTree(id, loginUser.getId()));
     }
 
     @GetMapping("/{id}/cases")
     public Result<List<PlannedCasesRespDTO>> getPlanPlannedCases(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id) {
-        return Result.ok(testPlanService.getPlanPlannedCases(id));
+        return Result.ok(testPlanService.getPlanPlannedCases(id, loginUser.getId()));
     }
 
     @PutMapping("/{id}/cases")
@@ -85,7 +85,7 @@ public class TestPlanController {
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id,
             @RequestBody @Valid TestPlanCasesUpdateReqDTO reqDTO) {
-        testPlanService.updatePlanCases(id, reqDTO);
+        testPlanService.updatePlanCases(id, loginUser.getId(), reqDTO);
         return Result.ok();
     }
 
@@ -103,7 +103,7 @@ public class TestPlanController {
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id,
             @PathVariable UUID nodeId) {
-        return Result.ok(testPlanService.getNodeExecutionRecords(id, nodeId));
+        return Result.ok(testPlanService.getNodeExecutionRecords(id, nodeId, loginUser.getId()));
     }
 
     @PostMapping("/{id}/sync")
@@ -118,7 +118,7 @@ public class TestPlanController {
     public Result<TestPlanProgressRespDTO> getPlanProgress(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id) {
-        return Result.ok(testPlanService.getPlanProgress(id));
+        return Result.ok(testPlanService.getPlanProgress(id, loginUser.getId()));
     }
 
     @PostMapping("/{id}/close")

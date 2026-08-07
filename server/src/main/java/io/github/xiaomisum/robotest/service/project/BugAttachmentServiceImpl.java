@@ -3,6 +3,7 @@ package io.github.xiaomisum.robotest.service.project;
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.framework.convert.BugConvertMapper;
+import io.github.xiaomisum.robotest.framework.security.ProjectAccessGuard;
 import io.github.xiaomisum.robotest.model.dto.response.bug.BugAttachmentDownloadDTO;
 import io.github.xiaomisum.robotest.model.dto.response.bug.BugAttachmentRespDTO;
 import io.github.xiaomisum.robotest.model.entity.bug.Bug;
@@ -42,6 +43,8 @@ public class BugAttachmentServiceImpl implements BugAttachmentService {
     private BugLogMapper bugLogMapper;
     @Resource
     private SysUserMapper userMapper;
+    @Resource
+    private ProjectAccessGuard projectAccessGuard;
 
     @Value("${robotest.upload.dir:./uploads/bug}")
     private String uploadDir;
@@ -50,6 +53,7 @@ public class BugAttachmentServiceImpl implements BugAttachmentService {
     @Transactional(rollbackFor = Exception.class)
     public BugAttachmentRespDTO uploadAttachment(UUID bugId, UUID userId, MultipartFile file) {
         Bug bug = validateBugOperable(bugId);
+        projectAccessGuard.requireProjectMember(bug.getProjectId(), userId);
 
         if (file == null || file.isEmpty()) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.BUG_ATTACHMENT_STORE_FAILED);
@@ -87,17 +91,24 @@ public class BugAttachmentServiceImpl implements BugAttachmentService {
     }
 
     @Override
-    public List<BugAttachmentRespDTO> getAttachments(UUID bugId) {
+    public List<BugAttachmentRespDTO> getAttachments(UUID bugId, UUID userId) {
+        Bug bug = validateBugOperable(bugId);
+        projectAccessGuard.requireProjectMember(bug.getProjectId(), userId);
         List<BugAttachment> attachments = bugAttachmentMapper.listByBugId(bugId);
         return attachments.stream().map(this::toAttachmentRespDTO).collect(Collectors.toList());
     }
 
     @Override
-    public BugAttachmentDownloadDTO downloadAttachment(UUID attachmentId) {
+    public BugAttachmentDownloadDTO downloadAttachment(UUID attachmentId, UUID userId) {
         BugAttachment attachment = bugAttachmentMapper.selectById(attachmentId);
         if (attachment == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.BUG_ATTACHMENT_NOT_FOUND);
         }
+        Bug bug = bugMapper.selectById(attachment.getBugId());
+        if (bug == null) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.BUG_NOT_FOUND);
+        }
+        projectAccessGuard.requireProjectMember(bug.getProjectId(), userId);
 
         Path path = Paths.get(uploadDir).resolve(attachment.getStoragePath());
         BugAttachmentDownloadDTO dto = new BugAttachmentDownloadDTO();
@@ -119,7 +130,8 @@ public class BugAttachmentServiceImpl implements BugAttachmentService {
         if (attachment == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.BUG_ATTACHMENT_NOT_FOUND);
         }
-        validateBugOperable(attachment.getBugId());
+        Bug bug = validateBugOperable(attachment.getBugId());
+        projectAccessGuard.requireProjectMember(bug.getProjectId(), userId);
 
         // 逻辑删除记录，磁盘文件保留以便审计追溯
         bugAttachmentMapper.deleteById(attachmentId);

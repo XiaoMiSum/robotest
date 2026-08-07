@@ -22,18 +22,20 @@ public interface BugAttachmentService {
     /**
      * 获取缺陷附件列表
      *
-     * @param bugId 缺陷 ID
+     * @param bugId  缺陷 ID
+     * @param userId 当前用户 ID（用于项目归属校验）
      * @return 按上传时间倒序的附件列表
      */
-    List<BugAttachmentRespDTO> getAttachments(UUID bugId);
+    List<BugAttachmentRespDTO> getAttachments(UUID bugId, UUID userId);
 
     /**
      * 下载附件内容
      *
      * @param attachmentId 附件 ID
+     * @param userId       当前用户 ID（用于项目归属校验）
      * @return 文件名、类型与内容
      */
-    BugAttachmentDownloadDTO downloadAttachment(UUID attachmentId);
+    BugAttachmentDownloadDTO downloadAttachment(UUID attachmentId, UUID userId);
 
     /**
      * 删除附件（逻辑删除，缺陷已关闭时拒绝）

@@ -48,7 +48,7 @@ public class QueryPlansTool extends AbstractQueryTool {
         List<Map<String, Object>> items = new ArrayList<>();
         for (Project project : listProjects(context.workspaceId())) {
             PageResult<TestPlanListRespDTO> page = testPlanService.getPlanPage(
-                    project.getId(), status, keyword, 1, PER_PROJECT_LIMIT);
+                    project.getId(), context.userId(), status, keyword, 1, PER_PROJECT_LIMIT);
             for (TestPlanListRespDTO plan : page.getList()) {
                 Map<String, Object> item = new LinkedHashMap<>();
                 item.put("id", plan.getId());

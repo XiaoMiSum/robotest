@@ -1,5 +1,6 @@
 package io.github.xiaomisum.robotest.service.project;
 
+import io.github.xiaomisum.robotest.framework.security.ProjectAccessGuard;
 import io.github.xiaomisum.robotest.model.dto.request.review.TestReviewCasesUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.review.TestReviewCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.review.TestReviewRecordReqDTO;
@@ -72,6 +73,8 @@ class TestReviewServiceImplTest {
         private ProjectMapper projectMapper;
         @Mock
         private WorkspaceUserMapper workspaceUserMapper;
+        @Mock
+        private ProjectAccessGuard projectAccessGuard;
 
         @Mock
         private io.github.xiaomisum.robotest.service.ai.task.AiTaskService aiTaskService;
@@ -111,12 +114,13 @@ class TestReviewServiceImplTest {
                 when(userMapper.selectById(userId.toString())).thenReturn(initiator);
 
                 PageResult<TestReviewListRespDTO> result = reviewService.getReviewPage(
-                                projectId, null, null, 1, 10);
+                                projectId, userId, null, null, 1, 10);
 
                 assertNotNull(result);
                 assertEquals(1, result.getList().size());
                 assertEquals("Review 1", result.getList().get(0).getTitle());
                 assertEquals(2, result.getList().get(0).getParticipantCount());
+                verify(projectAccessGuard).requireProjectMember(projectId, userId);
         }
 
         @Test
@@ -125,10 +129,11 @@ class TestReviewServiceImplTest {
                 doReturn(page).when(testReviewMapper).findPage(any(PageParam.class), eq(projectId), isNull(), isNull());
 
                 PageResult<TestReviewListRespDTO> result = reviewService.getReviewPage(
-                                projectId, null, null, 1, 10);
+                                projectId, userId, null, null, 1, 10);
 
                 assertNotNull(result);
                 assertTrue(result.getList().isEmpty());
+                verify(projectAccessGuard).requireProjectMember(projectId, userId);
         }
 
         @Test
@@ -168,16 +173,18 @@ class TestReviewServiceImplTest {
         void getReviewDetail_success() {
                 TestReview review = new TestReview();
                 review.setId(reviewId);
+                review.setProjectId(projectId);
                 review.setTitle("Review");
                 review.setInitiatorId(userId.toString());
 
                 when(testReviewMapper.selectById(reviewId)).thenReturn(review);
                 when(userMapper.selectById(userId.toString())).thenReturn(null);
 
-                TestReviewDetailRespDTO result = reviewService.getReviewDetail(reviewId);
+                TestReviewDetailRespDTO result = reviewService.getReviewDetail(reviewId, userId);
 
                 assertNotNull(result);
                 assertEquals("Review", result.getTitle());
+                verify(projectAccessGuard).requireProjectMember(projectId, userId);
         }
 
         @Test
@@ -185,13 +192,15 @@ class TestReviewServiceImplTest {
                 when(testReviewMapper.selectById(reviewId)).thenReturn(null);
 
                 assertThrows(ServiceException.class,
-                                () -> reviewService.getReviewDetail(reviewId));
+                                () -> reviewService.getReviewDetail(reviewId, userId));
+                verify(projectAccessGuard, never()).requireProjectMember(any(), any());
         }
 
         @Test
         void getReviewSnapshotTree_success() {
                 TestReview review = new TestReview();
                 review.setId(reviewId);
+                review.setProjectId(projectId);
 
                 when(testReviewMapper.selectById(reviewId)).thenReturn(review);
 
@@ -204,10 +213,11 @@ class TestReviewServiceImplTest {
                 when(reviewNodeSnapshotMapper.listByReviewIdAndDocumentId(reviewId, null))
                                 .thenReturn(List.of(snapshot));
 
-                List<TestReviewSnapshotNodeRespDTO> result = reviewService.getReviewSnapshotTree(reviewId, null);
+                List<TestReviewSnapshotNodeRespDTO> result = reviewService.getReviewSnapshotTree(reviewId, null, userId);
 
                 assertNotNull(result);
                 assertFalse(result.isEmpty());
+                verify(projectAccessGuard).requireProjectMember(projectId, userId);
         }
 
         @Test
@@ -215,7 +225,8 @@ class TestReviewServiceImplTest {
                 when(testReviewMapper.selectById(reviewId)).thenReturn(null);
 
                 assertThrows(ServiceException.class,
-                                () -> reviewService.getReviewSnapshotTree(reviewId, null));
+                                () -> reviewService.getReviewSnapshotTree(reviewId, null, userId));
+                verify(projectAccessGuard, never()).requireProjectMember(any(), any());
         }
 
         @Test
@@ -279,6 +290,7 @@ class TestReviewServiceImplTest {
         void getReviewModuleTree_buildsHierarchy() {
                 TestReview review = new TestReview();
                 review.setId(reviewId);
+                review.setProjectId(projectId);
                 when(testReviewMapper.selectById(reviewId)).thenReturn(review);
 
                 TestReviewModuleSnapshot dir = new TestReviewModuleSnapshot();
@@ -298,18 +310,20 @@ class TestReviewServiceImplTest {
                 when(reviewModuleSnapshotMapper.listByReviewId(reviewId))
                                 .thenReturn(List.of(dir, doc));
 
-                List<SnapshotModuleTreeRespDTO> tree = reviewService.getReviewModuleTree(reviewId);
+                List<SnapshotModuleTreeRespDTO> tree = reviewService.getReviewModuleTree(reviewId, userId);
 
                 assertEquals(1, tree.size());
                 assertEquals("目录", tree.get(0).getName());
                 assertEquals(1, tree.get(0).getChildren().size());
                 assertEquals("文档", tree.get(0).getChildren().get(0).getName());
+                verify(projectAccessGuard).requireProjectMember(projectId, userId);
         }
 
         @Test
         void updateReviewCases_notInProgress_throws() {
                 TestReview review = new TestReview();
                 review.setId(reviewId);
+                review.setProjectId(projectId);
                 review.setStatus("completed");
                 when(testReviewMapper.selectById(reviewId)).thenReturn(review);
 
@@ -320,7 +334,8 @@ class TestReviewServiceImplTest {
                 reqDTO.setSelectedNodes(List.of(sn));
 
                 assertThrows(ServiceException.class,
-                                () -> reviewService.updateReviewCases(reviewId, reqDTO));
+                                () -> reviewService.updateReviewCases(reviewId, userId, reqDTO));
+                verify(projectAccessGuard).requireProjectMember(projectId, userId);
         }
 
         @Test
@@ -394,7 +409,7 @@ class TestReviewServiceImplTest {
                 sn.setCaseIds(List.of(caseC2));
                 reqDTO.setSelectedNodes(List.of(sn));
 
-                reviewService.updateReviewCases(reviewId, reqDTO);
+                reviewService.updateReviewCases(reviewId, userId, reqDTO);
 
                 // docA 被移除：节点快照批删 + 文档快照删除
                 verify(reviewNodeSnapshotMapper).deleteByReviewIdAndDocumentId(reviewId, snapA.getId());
@@ -406,6 +421,7 @@ class TestReviewServiceImplTest {
                 verify(reviewNodeSnapshotMapper, times(1)).updateById(snapCaptor.capture());
                 assertEquals(caseSnap1.getId(), snapCaptor.getValue().getId());
                 assertFalse(snapCaptor.getValue().getIsAssociated());
+                verify(projectAccessGuard).requireProjectMember(projectId, userId);
         }
 
         @Test
@@ -415,6 +431,7 @@ class TestReviewServiceImplTest {
 
                 TestReview review = new TestReview();
                 review.setId(reviewId);
+                review.setProjectId(projectId);
                 when(testReviewMapper.selectById(reviewId)).thenReturn(review);
 
                 TestReviewModuleSnapshot snapA = new TestReviewModuleSnapshot();
@@ -431,11 +448,12 @@ class TestReviewServiceImplTest {
                 when(reviewNodeSnapshotMapper.listAssociatedByReviewIdAndDocumentId(reviewId, snapA.getId()))
                                 .thenReturn(List.of(caseSnap));
 
-                List<PlannedCasesRespDTO> result = reviewService.getReviewPlannedCases(reviewId);
+                List<PlannedCasesRespDTO> result = reviewService.getReviewPlannedCases(reviewId, userId);
 
                 assertEquals(1, result.size());
                 assertEquals(docA, result.get(0).getDocumentId());
                 assertEquals(List.of(caseC1), result.get(0).getCaseIds());
+                verify(projectAccessGuard).requireProjectMember(projectId, userId);
         }
 
         @Test
@@ -443,7 +461,8 @@ class TestReviewServiceImplTest {
                 when(testReviewMapper.selectById(reviewId)).thenReturn(null);
 
                 assertThrows(ServiceException.class,
-                                () -> reviewService.getReviewModuleTree(reviewId));
+                                () -> reviewService.getReviewModuleTree(reviewId, userId));
+                verify(projectAccessGuard, never()).requireProjectMember(any(), any());
         }
 
         @Test
@@ -577,6 +596,11 @@ class TestReviewServiceImplTest {
         void getNodeReviewRecords_success() {
                 UUID snapNodeId = UUID.fromString("00000000-0000-0000-0000-000000000004");
 
+                TestReview review = new TestReview();
+                review.setId(reviewId);
+                review.setProjectId(projectId);
+                when(testReviewMapper.selectById(reviewId)).thenReturn(review);
+
                 TestReviewRecord record = new TestReviewRecord();
                 record.setId(UUID.fromString("00000000-0000-0000-0000-000000000005"));
                 record.setReviewId(reviewId);
@@ -589,11 +613,12 @@ class TestReviewServiceImplTest {
                                 .thenReturn(List.of(record));
                 when(userMapper.selectById(userId)).thenReturn(null);
 
-                List<TestReviewRecordRespDTO> result = reviewService.getNodeReviewRecords(reviewId, snapNodeId);
+                List<TestReviewRecordRespDTO> result = reviewService.getNodeReviewRecords(reviewId, snapNodeId, userId);
 
                 assertNotNull(result);
                 assertEquals(1, result.size());
                 assertEquals("pass", result.get(0).getMark());
+                verify(projectAccessGuard).requireProjectMember(projectId, userId);
         }
 
         @Test
@@ -773,6 +798,7 @@ class TestReviewServiceImplTest {
         void getReviewProgress_success() {
                 TestReview review = new TestReview();
                 review.setId(reviewId);
+                review.setProjectId(projectId);
                 when(testReviewMapper.selectById(reviewId)).thenReturn(review);
 
                 TestReviewNodeSnapshot snap1 = new TestReviewNodeSnapshot();
@@ -785,12 +811,13 @@ class TestReviewServiceImplTest {
                 when(reviewNodeSnapshotMapper.listAssociatedByReviewId(reviewId, Constants.NodeType.CASE))
                                 .thenReturn(List.of(snap1, snap2, snap3));
 
-                TestReviewProgressRespDTO result = reviewService.getReviewProgress(reviewId);
+                TestReviewProgressRespDTO result = reviewService.getReviewProgress(reviewId, userId);
 
                 assertEquals(3, result.getTotalAssociated());
                 assertEquals(1, result.getPassed());
                 assertEquals(1, result.getFailed());
                 assertEquals(1, result.getPending());
+                verify(projectAccessGuard).requireProjectMember(projectId, userId);
         }
 
         @Test
@@ -798,21 +825,24 @@ class TestReviewServiceImplTest {
                 when(testReviewMapper.selectById(reviewId)).thenReturn(null);
 
                 assertThrows(ServiceException.class,
-                                () -> reviewService.getReviewProgress(reviewId));
+                                () -> reviewService.getReviewProgress(reviewId, userId));
+                verify(projectAccessGuard, never()).requireProjectMember(any(), any());
         }
 
         @Test
         void getReviewProgress_emptySnapshots() {
                 TestReview review = new TestReview();
                 review.setId(reviewId);
+                review.setProjectId(projectId);
                 when(testReviewMapper.selectById(reviewId)).thenReturn(review);
                 when(reviewNodeSnapshotMapper.listAssociatedByReviewId(reviewId, Constants.NodeType.CASE))
                                 .thenReturn(new ArrayList<>());
 
-                TestReviewProgressRespDTO result = reviewService.getReviewProgress(reviewId);
+                TestReviewProgressRespDTO result = reviewService.getReviewProgress(reviewId, userId);
 
                 assertEquals(0, result.getTotalAssociated());
                 assertEquals(0.0, result.getProgressPercent());
+                verify(projectAccessGuard).requireProjectMember(projectId, userId);
         }
 
         // ========== syncReview module snapshot ==========

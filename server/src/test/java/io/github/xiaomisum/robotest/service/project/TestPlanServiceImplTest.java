@@ -1,5 +1,6 @@
 package io.github.xiaomisum.robotest.service.project;
 
+import io.github.xiaomisum.robotest.framework.security.ProjectAccessGuard;
 import io.github.xiaomisum.robotest.model.dto.request.plan.TestPlanCasesUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.plan.TestPlanCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.plan.TestPlanRecordReqDTO;
@@ -64,6 +65,8 @@ class TestPlanServiceImplTest {
         private TestCaseNodeMapper testCaseNodeMapper;
         @Mock
         private SysUserMapper userMapper;
+        @Mock
+        private ProjectAccessGuard projectAccessGuard;
 
         @InjectMocks
         private TestPlanServiceImpl planService;
@@ -98,12 +101,13 @@ class TestPlanServiceImplTest {
                 when(userMapper.selectById(userId)).thenReturn(executor);
 
                 PageResult<TestPlanListRespDTO> result = planService.getPlanPage(
-                                projectId, null, null, 1, 10);
+                                projectId, userId, null, null, 1, 10);
 
                 assertNotNull(result);
                 assertEquals(1, result.getList().size());
                 assertEquals("Plan 1", result.getList().get(0).getName());
                 assertEquals("executor", result.getList().get(0).getExecutor().getName());
+                verify(projectAccessGuard).requireProjectMember(projectId, userId);
         }
 
         @Test
@@ -112,10 +116,11 @@ class TestPlanServiceImplTest {
                 doReturn(page).when(testPlanMapper).findPage(any(PageParam.class), eq(projectId), isNull(), isNull());
 
                 PageResult<TestPlanListRespDTO> result = planService.getPlanPage(
-                                projectId, null, null, 1, 10);
+                                projectId, userId, null, null, 1, 10);
 
                 assertNotNull(result);
                 assertTrue(result.getList().isEmpty());
+                verify(projectAccessGuard).requireProjectMember(projectId, userId);
         }
 
         @Test
@@ -142,16 +147,18 @@ class TestPlanServiceImplTest {
         void getPlanDetail_success() {
                 TestPlan plan = new TestPlan();
                 plan.setId(planId);
+                plan.setProjectId(projectId);
                 plan.setName("Plan");
                 plan.setExecutorId(userId);
 
                 when(testPlanMapper.selectById(planId)).thenReturn(plan);
                 when(userMapper.selectById(userId)).thenReturn(null);
 
-                TestPlanDetailRespDTO result = planService.getPlanDetail(planId);
+                TestPlanDetailRespDTO result = planService.getPlanDetail(planId, userId);
 
                 assertNotNull(result);
                 assertEquals("Plan", result.getName());
+                verify(projectAccessGuard).requireProjectMember(projectId, userId);
         }
 
         @Test
@@ -159,13 +166,15 @@ class TestPlanServiceImplTest {
                 when(testPlanMapper.selectById(planId)).thenReturn(null);
 
                 assertThrows(ServiceException.class,
-                                () -> planService.getPlanDetail(planId));
+                                () -> planService.getPlanDetail(planId, userId));
+                verify(projectAccessGuard, never()).requireProjectMember(any(), any());
         }
 
         @Test
         void getPlanSnapshotTree_success() {
                 TestPlan plan = new TestPlan();
                 plan.setId(planId);
+                plan.setProjectId(projectId);
 
                 when(testPlanMapper.selectById(planId)).thenReturn(plan);
 
@@ -178,10 +187,11 @@ class TestPlanServiceImplTest {
                 when(planNodeSnapshotMapper.listByPlanIdAndDocumentId(planId, null))
                                 .thenReturn(List.of(snapshot));
 
-                List<TestPlanSnapshotNodeRespDTO> result = planService.getPlanSnapshotTree(planId, null);
+                List<TestPlanSnapshotNodeRespDTO> result = planService.getPlanSnapshotTree(planId, null, userId);
 
                 assertNotNull(result);
                 assertFalse(result.isEmpty());
+                verify(projectAccessGuard).requireProjectMember(projectId, userId);
         }
 
         @Test
@@ -189,7 +199,8 @@ class TestPlanServiceImplTest {
                 when(testPlanMapper.selectById(planId)).thenReturn(null);
 
                 assertThrows(ServiceException.class,
-                                () -> planService.getPlanSnapshotTree(planId, null));
+                                () -> planService.getPlanSnapshotTree(planId, null, userId));
+                verify(projectAccessGuard, never()).requireProjectMember(any(), any());
         }
 
         @Test
@@ -256,6 +267,7 @@ class TestPlanServiceImplTest {
         void updatePlanCases_finished_throws() {
                 TestPlan plan = new TestPlan();
                 plan.setId(planId);
+                plan.setProjectId(projectId);
                 plan.setStatus("closed");
                 when(testPlanMapper.selectById(planId)).thenReturn(plan);
 
@@ -266,7 +278,8 @@ class TestPlanServiceImplTest {
                 reqDTO.setSelectedNodes(List.of(sn));
 
                 assertThrows(ServiceException.class,
-                                () -> planService.updatePlanCases(planId, reqDTO));
+                                () -> planService.updatePlanCases(planId, userId, reqDTO));
+                verify(projectAccessGuard).requireProjectMember(projectId, userId);
         }
 
         @Test
@@ -276,6 +289,7 @@ class TestPlanServiceImplTest {
 
                 TestPlan plan = new TestPlan();
                 plan.setId(planId);
+                plan.setProjectId(projectId);
                 when(testPlanMapper.selectById(planId)).thenReturn(plan);
 
                 TestPlanModuleSnapshot snapA = new TestPlanModuleSnapshot();
@@ -292,11 +306,12 @@ class TestPlanServiceImplTest {
                 when(planNodeSnapshotMapper.listAssociatedByPlanIdAndDocumentId(planId, snapA.getId()))
                                 .thenReturn(List.of(caseSnap));
 
-                List<PlannedCasesRespDTO> result = planService.getPlanPlannedCases(planId);
+                List<PlannedCasesRespDTO> result = planService.getPlanPlannedCases(planId, userId);
 
                 assertEquals(1, result.size());
                 assertEquals(docA, result.get(0).getDocumentId());
                 assertEquals(List.of(caseC1), result.get(0).getCaseIds());
+                verify(projectAccessGuard).requireProjectMember(projectId, userId);
         }
 
         @Test
@@ -435,6 +450,11 @@ class TestPlanServiceImplTest {
 
         @Test
         void getNodeExecutionRecords_success() {
+                TestPlan plan = new TestPlan();
+                plan.setId(planId);
+                plan.setProjectId(projectId);
+                when(testPlanMapper.selectById(planId)).thenReturn(plan);
+
                 TestPlanExecutionRecord record = new TestPlanExecutionRecord();
                 record.setId(UUID.fromString("00000000-0000-0000-0000-000000000005"));
                 record.setPlanId(planId);
@@ -448,11 +468,12 @@ class TestPlanServiceImplTest {
                 when(userMapper.selectById(userId)).thenReturn(null);
 
                 List<TestPlanExecutionRecordRespDTO> result = planService.getNodeExecutionRecords(planId,
-                                UUID.fromString("00000000-0000-0000-0000-000000000004"));
+                                UUID.fromString("00000000-0000-0000-0000-000000000004"), userId);
 
                 assertNotNull(result);
                 assertEquals(1, result.size());
                 assertEquals("pass", result.get(0).getResult());
+                verify(projectAccessGuard).requireProjectMember(projectId, userId);
         }
 
         @Test
@@ -688,6 +709,7 @@ class TestPlanServiceImplTest {
         void getPlanProgress_success() {
                 TestPlan plan = new TestPlan();
                 plan.setId(planId);
+                plan.setProjectId(projectId);
                 when(testPlanMapper.selectById(planId)).thenReturn(plan);
 
                 TestPlanNodeSnapshot snap1 = new TestPlanNodeSnapshot();
@@ -700,12 +722,13 @@ class TestPlanServiceImplTest {
                 when(planNodeSnapshotMapper.listAssociatedByPlanId(planId, Constants.NodeType.CASE))
                                 .thenReturn(List.of(snap1, snap2, snap3));
 
-                TestPlanProgressRespDTO result = planService.getPlanProgress(planId);
+                TestPlanProgressRespDTO result = planService.getPlanProgress(planId, userId);
 
                 assertEquals(3, result.getTotalAssociated());
                 assertEquals(1, result.getPassed());
                 assertEquals(1, result.getFailed());
                 assertEquals(1, result.getUntested());
+                verify(projectAccessGuard).requireProjectMember(projectId, userId);
         }
 
         @Test
@@ -713,21 +736,24 @@ class TestPlanServiceImplTest {
                 when(testPlanMapper.selectById(planId)).thenReturn(null);
 
                 assertThrows(ServiceException.class,
-                                () -> planService.getPlanProgress(planId));
+                                () -> planService.getPlanProgress(planId, userId));
+                verify(projectAccessGuard, never()).requireProjectMember(any(), any());
         }
 
         @Test
         void getPlanProgress_emptySnapshots() {
                 TestPlan plan = new TestPlan();
                 plan.setId(planId);
+                plan.setProjectId(projectId);
                 when(testPlanMapper.selectById(planId)).thenReturn(plan);
                 when(planNodeSnapshotMapper.listAssociatedByPlanId(planId, Constants.NodeType.CASE))
                                 .thenReturn(new ArrayList<>());
 
-                TestPlanProgressRespDTO result = planService.getPlanProgress(planId);
+                TestPlanProgressRespDTO result = planService.getPlanProgress(planId, userId);
 
                 assertEquals(0, result.getTotalAssociated());
                 assertEquals(0.0, result.getProgressPercent());
+                verify(projectAccessGuard).requireProjectMember(projectId, userId);
         }
 
         // ========== syncPlan module snapshot ==========

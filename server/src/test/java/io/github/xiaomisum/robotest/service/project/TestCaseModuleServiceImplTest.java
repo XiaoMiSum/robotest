@@ -1,5 +1,6 @@
 package io.github.xiaomisum.robotest.service.project;
 
+import io.github.xiaomisum.robotest.framework.security.ProjectAccessGuard;
 import io.github.xiaomisum.robotest.model.dto.request.tcase.TestCaseModuleCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.tcase.TestCaseModuleUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.tcase.TestCaseModuleTreeRespDTO;
@@ -31,6 +32,8 @@ class TestCaseModuleServiceImplTest {
     private TestCaseModuleMapper testCaseModuleMapper;
     @Mock
     private TestCaseNodeMapper testCaseNodeMapper;
+    @Mock
+    private ProjectAccessGuard projectAccessGuard;
 
     @InjectMocks
     private TestCaseModuleServiceImpl moduleService;
@@ -39,6 +42,7 @@ class TestCaseModuleServiceImplTest {
     private UUID moduleId1;
     private UUID moduleId2;
     private UUID documentId1;
+    private UUID userId;
 
     @BeforeEach
     void setUp() {
@@ -46,6 +50,7 @@ class TestCaseModuleServiceImplTest {
         moduleId1 = UUID.fromString("00000000-0000-0000-0000-00000000000a");
         moduleId2 = UUID.fromString("00000000-0000-0000-0000-00000000000b");
         documentId1 = UUID.fromString("00000000-0000-0000-0000-000000000005");
+        userId = UUID.fromString("00000000-0000-0000-0000-000000000007");
     }
 
     @Test
@@ -61,11 +66,12 @@ class TestCaseModuleServiceImplTest {
         when(testCaseModuleMapper.listByProjectId(projectId))
                 .thenReturn(List.of(root));
 
-        List<TestCaseModuleTreeRespDTO> result = moduleService.getModuleTree(projectId);
+        List<TestCaseModuleTreeRespDTO> result = moduleService.getModuleTree(projectId, userId);
 
         assertNotNull(result);
         assertEquals(1, result.size());
         assertEquals("Root", result.get(0).getName());
+        verify(projectAccessGuard).requireProjectMember(projectId, userId);
     }
 
     @Test
@@ -73,10 +79,11 @@ class TestCaseModuleServiceImplTest {
         when(testCaseModuleMapper.listByProjectId(projectId))
                 .thenReturn(Collections.emptyList());
 
-        List<TestCaseModuleTreeRespDTO> result = moduleService.getModuleTree(projectId);
+        List<TestCaseModuleTreeRespDTO> result = moduleService.getModuleTree(projectId, userId);
 
         assertNotNull(result);
         assertTrue(result.isEmpty());
+        verify(projectAccessGuard).requireProjectMember(projectId, userId);
     }
 
     @Test
@@ -92,12 +99,13 @@ class TestCaseModuleServiceImplTest {
             return 1;
         }).when(testCaseModuleMapper).insert(any(TestCaseModule.class));
 
-        TestCaseModuleTreeRespDTO result = moduleService.createModule(projectId, reqDTO);
+        TestCaseModuleTreeRespDTO result = moduleService.createModule(projectId, userId, reqDTO);
 
         assertNotNull(result);
         assertEquals("New Dir", result.getName());
         verify(testCaseModuleMapper).insert(any(TestCaseModule.class));
         verify(testCaseNodeMapper, never()).insert(any(TestCaseNode.class));
+        verify(projectAccessGuard).requireProjectMember(projectId, userId);
     }
 
     @Test
@@ -117,11 +125,12 @@ class TestCaseModuleServiceImplTest {
             return 1;
         }).when(testCaseNodeMapper).insert(any(TestCaseNode.class));
 
-        TestCaseModuleTreeRespDTO result = moduleService.createModule(projectId, reqDTO);
+        TestCaseModuleTreeRespDTO result = moduleService.createModule(projectId, userId, reqDTO);
 
         assertNotNull(result);
         verify(testCaseModuleMapper).insert(any(TestCaseModule.class));
         verify(testCaseNodeMapper).insert(any(TestCaseNode.class));
+        verify(projectAccessGuard).requireProjectMember(projectId, userId);
     }
 
     @Test
@@ -131,7 +140,7 @@ class TestCaseModuleServiceImplTest {
         reqDTO.setName("Bad");
 
         assertThrows(ServiceException.class,
-                () -> moduleService.createModule(projectId, reqDTO));
+                () -> moduleService.createModule(projectId, userId, reqDTO));
     }
 
     @Test
@@ -146,7 +155,7 @@ class TestCaseModuleServiceImplTest {
                 .thenReturn(existing);
 
         assertThrows(ServiceException.class,
-                () -> moduleService.createModule(projectId, reqDTO));
+                () -> moduleService.createModule(projectId, userId, reqDTO));
     }
 
     @Test
@@ -159,7 +168,7 @@ class TestCaseModuleServiceImplTest {
         when(testCaseModuleMapper.selectById(UUID.fromString("00000000-0000-0000-0000-000000000099"))).thenReturn(null);
 
         assertThrows(ServiceException.class,
-                () -> moduleService.createModule(projectId, reqDTO));
+                () -> moduleService.createModule(projectId, userId, reqDTO));
     }
 
     @Test
@@ -177,13 +186,14 @@ class TestCaseModuleServiceImplTest {
         TestCaseModuleUpdateReqDTO reqDTO = new TestCaseModuleUpdateReqDTO();
         reqDTO.setName("New Name");
 
-        TestCaseModuleTreeRespDTO result = moduleService.updateModule(moduleId1, reqDTO);
+        TestCaseModuleTreeRespDTO result = moduleService.updateModule(moduleId1, userId, reqDTO);
 
         assertNotNull(result);
         assertEquals("New Name", result.getName());
         // 部分更新改走 Mapper default 方法，仅落库本次变更字段
         verify(testCaseModuleMapper, never()).updateById(any(TestCaseModule.class));
         verify(testCaseModuleMapper).updateName(moduleId1, "New Name");
+        verify(projectAccessGuard).requireProjectMember(projectId, userId);
     }
 
     @Test
@@ -194,7 +204,8 @@ class TestCaseModuleServiceImplTest {
         reqDTO.setName("New Name");
 
         assertThrows(ServiceException.class,
-                () -> moduleService.updateModule(moduleId1, reqDTO));
+                () -> moduleService.updateModule(moduleId1, userId, reqDTO));
+        verify(projectAccessGuard, never()).requireProjectMember(any(), any());
     }
 
     @Test
@@ -216,7 +227,7 @@ class TestCaseModuleServiceImplTest {
         reqDTO.setName("Duplicate");
 
         assertThrows(ServiceException.class,
-                () -> moduleService.updateModule(moduleId1, reqDTO));
+                () -> moduleService.updateModule(moduleId1, userId, reqDTO));
     }
 
     @Test
@@ -254,7 +265,7 @@ class TestCaseModuleServiceImplTest {
         reqDTO.setParentId(moduleId2);
         reqDTO.setTargetIndex(0);
 
-        moduleService.updateModule(moduleId1, reqDTO);
+        moduleService.updateModule(moduleId1, userId, reqDTO);
 
         assertEquals(moduleId2, module.getParentId());
         assertEquals(0, module.getSortOrder());
@@ -262,6 +273,7 @@ class TestCaseModuleServiceImplTest {
         // 被挤开的兄弟节点回写新序号，被移动节点回写父级与序号
         verify(testCaseModuleMapper).updateSortOrder(documentId1, 1);
         verify(testCaseModuleMapper).updateParentAndOrder(moduleId1, moduleId2, 0);
+        verify(projectAccessGuard).requireProjectMember(projectId, userId);
     }
 
     @Test
@@ -291,11 +303,12 @@ class TestCaseModuleServiceImplTest {
         reqDTO.setParentId(null);
         reqDTO.setTargetIndex(1);
 
-        moduleService.updateModule(moduleId1, reqDTO);
+        moduleService.updateModule(moduleId1, userId, reqDTO);
 
         assertNull(module.getParentId());
         assertEquals(1, module.getSortOrder());
         assertEquals(0, rootSibling.getSortOrder());
+        verify(projectAccessGuard).requireProjectMember(projectId, userId);
     }
 
     @Test
@@ -322,7 +335,7 @@ class TestCaseModuleServiceImplTest {
         reqDTO.setTargetIndex(0);
 
         assertThrows(ServiceException.class,
-                () -> moduleService.updateModule(moduleId1, reqDTO));
+                () -> moduleService.updateModule(moduleId1, userId, reqDTO));
     }
 
     @Test
@@ -347,7 +360,7 @@ class TestCaseModuleServiceImplTest {
         reqDTO.setTargetIndex(0);
 
         assertThrows(ServiceException.class,
-                () -> moduleService.updateModule(moduleId1, reqDTO));
+                () -> moduleService.updateModule(moduleId1, userId, reqDTO));
     }
 
     @Test
@@ -366,7 +379,7 @@ class TestCaseModuleServiceImplTest {
         reqDTO.setTargetIndex(0);
 
         assertThrows(ServiceException.class,
-                () -> moduleService.updateModule(moduleId1, reqDTO));
+                () -> moduleService.updateModule(moduleId1, userId, reqDTO));
     }
 
     @Test
@@ -397,7 +410,7 @@ class TestCaseModuleServiceImplTest {
         reqDTO.setTargetIndex(0);
 
         assertThrows(ServiceException.class,
-                () -> moduleService.updateModule(moduleId1, reqDTO));
+                () -> moduleService.updateModule(moduleId1, userId, reqDTO));
     }
 
     @Test
@@ -405,47 +418,54 @@ class TestCaseModuleServiceImplTest {
         when(testCaseModuleMapper.selectById(moduleId1)).thenReturn(null);
 
         assertThrows(ServiceException.class,
-                () -> moduleService.deleteModule(moduleId1));
+                () -> moduleService.deleteModule(moduleId1, userId));
+        verify(projectAccessGuard, never()).requireProjectMember(any(), any());
     }
 
     @Test
     void deleteModule_directoryWithChildren_throws() {
         TestCaseModule module = new TestCaseModule();
         module.setId(moduleId1);
+        module.setProjectId(projectId);
         module.setType("directory");
 
         when(testCaseModuleMapper.selectById(moduleId1)).thenReturn(module);
         when(testCaseModuleMapper.countByParentId(moduleId1)).thenReturn(2L);
 
         assertThrows(ServiceException.class,
-                () -> moduleService.deleteModule(moduleId1));
+                () -> moduleService.deleteModule(moduleId1, userId));
+        verify(projectAccessGuard).requireProjectMember(projectId, userId);
     }
 
     @Test
     void deleteModule_directoryEmpty_success() {
         TestCaseModule module = new TestCaseModule();
         module.setId(moduleId1);
+        module.setProjectId(projectId);
         module.setType("directory");
 
         when(testCaseModuleMapper.selectById(moduleId1)).thenReturn(module);
         when(testCaseModuleMapper.countByParentId(moduleId1)).thenReturn(0L);
 
-        moduleService.deleteModule(moduleId1);
+        moduleService.deleteModule(moduleId1, userId);
 
         verify(testCaseModuleMapper).deleteById(moduleId1);
+        verify(projectAccessGuard).requireProjectMember(projectId, userId);
     }
 
     @Test
     void deleteModule_document_deletesNodes() {
         TestCaseModule module = new TestCaseModule();
         module.setId(documentId1);
+        module.setProjectId(projectId);
         module.setType("document");
 
         when(testCaseModuleMapper.selectById(documentId1)).thenReturn(module);
 
-        moduleService.deleteModule(documentId1);
+        moduleService.deleteModule(documentId1, userId);
 
         verify(testCaseNodeMapper).deleteByDocumentId(documentId1);
         verify(testCaseModuleMapper).deleteById(documentId1);
+        verify(projectAccessGuard).requireProjectMember(projectId, userId);
     }
 }

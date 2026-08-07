@@ -57,7 +57,7 @@ public class QueryBugsTool extends AbstractQueryTool {
 
         for (Project project : listProjects(context.workspaceId())) {
             PageResult<BugListRespDTO> page = bugService.getBugPage(
-                    project.getId(), status, severity, null, null,
+                    project.getId(), context.userId(), status, severity, null, null,
                     assigneeIsMe ? context.userId() : null,
                     null, null, null, keyword, 1, PER_PROJECT_LIMIT);
             total += page.getTotal();

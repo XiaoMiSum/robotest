@@ -47,7 +47,7 @@ public class QueryReviewsTool extends AbstractQueryTool {
         List<Map<String, Object>> items = new ArrayList<>();
         for (Project project : listProjects(context.workspaceId())) {
             PageResult<TestReviewListRespDTO> page = testReviewService.getReviewPage(
-                    project.getId(), status, keyword, 1, PER_PROJECT_LIMIT);
+                    project.getId(), context.userId(), status, keyword, 1, PER_PROJECT_LIMIT);
             for (TestReviewListRespDTO review : page.getList()) {
                 Map<String, Object> item = new LinkedHashMap<>();
                 item.put("id", review.getId());

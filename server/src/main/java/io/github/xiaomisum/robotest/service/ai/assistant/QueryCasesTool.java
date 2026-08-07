@@ -48,7 +48,7 @@ public class QueryCasesTool extends AbstractQueryTool {
         List<Project> projects = listProjects(context.workspaceId());
         for (Project project : projects) {
             PageResult<TestCaseCaseListRespDTO> page = testCaseNodeService.getCaseList(
-                    project.getId(), keyword, null, 1, PER_PROJECT_LIMIT);
+                    project.getId(), context.userId(), keyword, null, 1, PER_PROJECT_LIMIT);
             for (TestCaseCaseListRespDTO caseItem : page.getList()) {
                 Map<String, Object> item = new LinkedHashMap<>();
                 item.put("id", caseItem.getId());

@@ -1,6 +1,7 @@
 package io.github.xiaomisum.robotest.service.project;
 
 import io.github.xiaomisum.robotest.framework.common.Constants;
+import io.github.xiaomisum.robotest.framework.security.ProjectAccessGuard;
 import io.github.xiaomisum.robotest.model.dto.response.bug.BugAttachmentDownloadDTO;
 import io.github.xiaomisum.robotest.model.dto.response.bug.BugAttachmentRespDTO;
 import io.github.xiaomisum.robotest.model.entity.bug.Bug;
@@ -46,6 +47,9 @@ class BugAttachmentServiceImplTest {
     @Mock
     private SysUserMapper userMapper;
 
+    @Mock
+    private ProjectAccessGuard projectAccessGuard;
+
     @InjectMocks
     private BugAttachmentServiceImpl bugAttachmentService;
 
@@ -67,6 +71,7 @@ class BugAttachmentServiceImplTest {
     private Bug openBug() {
         Bug bug = new Bug();
         bug.setId(bugId);
+        bug.setProjectId(UUID.fromString("00000000-0000-0000-0000-000000000009"));
         bug.setStatus(Constants.BugStatus.ACTIVE);
         return bug;
     }
@@ -153,6 +158,8 @@ class BugAttachmentServiceImplTest {
 
     @Test
     void getAttachments_success() {
+        when(bugMapper.selectById(bugId)).thenReturn(openBug());
+
         BugAttachment attachment = new BugAttachment();
         attachment.setId(attachmentId);
         attachment.setBugId(bugId);
@@ -166,11 +173,13 @@ class BugAttachmentServiceImplTest {
         uploader.setUsername("tester");
         when(userMapper.selectById(userId)).thenReturn(uploader);
 
-        List<BugAttachmentRespDTO> result = bugAttachmentService.getAttachments(bugId);
+        List<BugAttachmentRespDTO> result = bugAttachmentService.getAttachments(bugId, userId);
 
         assertEquals(1, result.size());
         assertEquals("log.txt", result.get(0).getFileName());
         assertEquals("tester", result.get(0).getUploaderName());
+        verify(projectAccessGuard).requireProjectMember(
+                UUID.fromString("00000000-0000-0000-0000-000000000009"), userId);
     }
 
     // ========== downloadAttachment ==========
@@ -182,16 +191,20 @@ class BugAttachmentServiceImplTest {
 
         BugAttachment attachment = new BugAttachment();
         attachment.setId(attachmentId);
+        attachment.setBugId(bugId);
         attachment.setFileName("原始名.txt");
         attachment.setStoragePath("stored.txt");
         when(bugAttachmentMapper.selectById(attachmentId)).thenReturn(attachment);
+        when(bugMapper.selectById(bugId)).thenReturn(openBug());
 
-        BugAttachmentDownloadDTO dto = bugAttachmentService.downloadAttachment(attachmentId);
+        BugAttachmentDownloadDTO dto = bugAttachmentService.downloadAttachment(attachmentId, userId);
 
         assertEquals("原始名.txt", dto.getFileName());
         // contentType 为空时回退为通用二进制类型
         assertEquals("application/octet-stream", dto.getContentType());
         assertEquals("hello", new String(dto.getContent(), StandardCharsets.UTF_8));
+        verify(projectAccessGuard).requireProjectMember(
+                UUID.fromString("00000000-0000-0000-0000-000000000009"), userId);
     }
 
     @Test
@@ -199,19 +212,21 @@ class BugAttachmentServiceImplTest {
         when(bugAttachmentMapper.selectById(attachmentId)).thenReturn(null);
 
         assertThrows(ServiceException.class,
-                () -> bugAttachmentService.downloadAttachment(attachmentId));
+                () -> bugAttachmentService.downloadAttachment(attachmentId, userId));
     }
 
     @Test
     void downloadAttachment_fileMissing() {
         BugAttachment attachment = new BugAttachment();
         attachment.setId(attachmentId);
+        attachment.setBugId(bugId);
         attachment.setFileName("gone.txt");
         attachment.setStoragePath("not-exists/gone.txt");
         when(bugAttachmentMapper.selectById(attachmentId)).thenReturn(attachment);
+        when(bugMapper.selectById(bugId)).thenReturn(openBug());
 
         assertThrows(ServiceException.class,
-                () -> bugAttachmentService.downloadAttachment(attachmentId));
+                () -> bugAttachmentService.downloadAttachment(attachmentId, userId));
     }
 
     // ========== deleteAttachment ==========

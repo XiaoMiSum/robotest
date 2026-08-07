@@ -9,11 +9,11 @@ import java.util.UUID;
 
 public interface TestCaseModuleService {
 
-    List<TestCaseModuleTreeRespDTO> getModuleTree(UUID projectId);
+    List<TestCaseModuleTreeRespDTO> getModuleTree(UUID projectId, UUID userId);
 
-    TestCaseModuleTreeRespDTO createModule(UUID projectId, TestCaseModuleCreateReqDTO reqDTO);
+    TestCaseModuleTreeRespDTO createModule(UUID projectId, UUID userId, TestCaseModuleCreateReqDTO reqDTO);
 
-    TestCaseModuleTreeRespDTO updateModule(UUID moduleId, TestCaseModuleUpdateReqDTO reqDTO);
+    TestCaseModuleTreeRespDTO updateModule(UUID moduleId, UUID userId, TestCaseModuleUpdateReqDTO reqDTO);
 
-    void deleteModule(UUID moduleId);
+    void deleteModule(UUID moduleId, UUID userId);
 }

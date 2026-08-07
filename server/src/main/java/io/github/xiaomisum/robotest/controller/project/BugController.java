@@ -54,7 +54,7 @@ public class BugController {
             @RequestParam(required = false) String keyword,
             @RequestParam(defaultValue = "1") Integer pageNo,
             @RequestParam(defaultValue = "20") Integer pageSize) {
-        return Result.ok(bugService.getBugPage(projectId, status, severity, priority,
+        return Result.ok(bugService.getBugPage(projectId, loginUser.getId(), status, severity, priority,
                 bugType, assigneeId, reporterId, resolvedBy, closedBy, keyword, pageNo, pageSize));
     }
 
@@ -71,7 +71,7 @@ public class BugController {
     public Result<BugDetailRespDTO> getBugDetail(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id) {
-        return Result.ok(bugService.getBugDetail(id));
+        return Result.ok(bugService.getBugDetail(id, loginUser.getId()));
     }
 
     @PutMapping("/{id}")
@@ -87,7 +87,7 @@ public class BugController {
     public Result<List<BugLogRespDTO>> getBugLogs(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id) {
-        return Result.ok(bugService.getBugLogs(id));
+        return Result.ok(bugService.getBugLogs(id, loginUser.getId()));
     }
 
     @PatchMapping("/{id}/status")
@@ -121,7 +121,7 @@ public class BugController {
     public Result<BugStatisticsRespDTO> getBugStatistics(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestHeader("X-Active-Project") UUID projectId) {
-        return Result.ok(bugService.getBugStatistics(projectId));
+        return Result.ok(bugService.getBugStatistics(projectId, loginUser.getId()));
     }
 
     @PostMapping("/{id}/attachments")
@@ -137,14 +137,14 @@ public class BugController {
     public Result<List<BugAttachmentRespDTO>> getAttachments(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id) {
-        return Result.ok(bugAttachmentService.getAttachments(id));
+        return Result.ok(bugAttachmentService.getAttachments(id, loginUser.getId()));
     }
 
     @GetMapping("/attachments/{attachmentId}/download")
     public ResponseEntity<byte[]> downloadAttachment(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID attachmentId) {
-        BugAttachmentDownloadDTO dto = bugAttachmentService.downloadAttachment(attachmentId);
+        BugAttachmentDownloadDTO dto = bugAttachmentService.downloadAttachment(attachmentId, loginUser.getId());
         return ResponseEntity.ok()
                 .contentType(MediaType.parseMediaType(dto.getContentType()))
                 .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment()

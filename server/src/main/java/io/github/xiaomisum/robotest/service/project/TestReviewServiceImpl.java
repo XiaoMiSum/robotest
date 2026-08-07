@@ -3,6 +3,7 @@ package io.github.xiaomisum.robotest.service.project;
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.framework.convert.TestReviewConvertMapper;
+import io.github.xiaomisum.robotest.framework.security.ProjectAccessGuard;
 import io.github.xiaomisum.robotest.model.dto.request.review.TestReviewCasesUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.review.TestReviewCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.review.TestReviewRecordReqDTO;
@@ -69,10 +70,13 @@ public class TestReviewServiceImpl implements TestReviewService {
     private WorkspaceUserMapper workspaceUserMapper;
     @Resource
     private AiTaskService aiTaskService;
+    @Resource
+    private ProjectAccessGuard projectAccessGuard;
 
     @Override
-    public PageResult<TestReviewListRespDTO> getReviewPage(UUID projectId, String status,
+    public PageResult<TestReviewListRespDTO> getReviewPage(UUID projectId, UUID userId, String status,
             String keyword, Integer pageNo, Integer pageSize) {
+        projectAccessGuard.requireProjectMember(projectId, userId);
         PageResult<TestReview> page = testReviewMapper.findPage(
                 new PageParam() {{
                     setPageNo(pageNo);
@@ -131,6 +135,7 @@ public class TestReviewServiceImpl implements TestReviewService {
     @Transactional(rollbackFor = Exception.class)
     public TestReviewDetailRespDTO createReview(UUID projectId, UUID userId,
             TestReviewCreateReqDTO reqDTO) {
+        projectAccessGuard.requireProjectMember(projectId, userId);
         // 校验所有参与者是当前工作空间成员
         Project project = projectMapper.selectById(projectId);
         if (project == null) {
@@ -156,20 +161,22 @@ public class TestReviewServiceImpl implements TestReviewService {
     }
 
     @Override
-    public TestReviewDetailRespDTO getReviewDetail(UUID reviewId) {
+    public TestReviewDetailRespDTO getReviewDetail(UUID reviewId, UUID userId) {
         TestReview review = testReviewMapper.selectById(reviewId);
         if (review == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_REVIEW_NOT_FOUND);
         }
+        projectAccessGuard.requireProjectMember(review.getProjectId(), userId);
         return convertToDetailDTO(review);
     }
 
     @Override
-    public List<TestReviewSnapshotNodeRespDTO> getReviewSnapshotTree(UUID reviewId, UUID documentId) {
+    public List<TestReviewSnapshotNodeRespDTO> getReviewSnapshotTree(UUID reviewId, UUID documentId, UUID userId) {
         TestReview review = testReviewMapper.selectById(reviewId);
         if (review == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_REVIEW_NOT_FOUND);
         }
+        projectAccessGuard.requireProjectMember(review.getProjectId(), userId);
 
         List<TestReviewNodeSnapshot> allNodes = reviewNodeSnapshotMapper.listByReviewIdAndDocumentId(reviewId, documentId);
         List<TestReviewSnapshotNodeRespDTO> dtos = allNodes.stream()
@@ -180,11 +187,12 @@ public class TestReviewServiceImpl implements TestReviewService {
     }
 
     @Override
-    public List<SnapshotModuleTreeRespDTO> getReviewModuleTree(UUID reviewId) {
+    public List<SnapshotModuleTreeRespDTO> getReviewModuleTree(UUID reviewId, UUID userId) {
         TestReview review = testReviewMapper.selectById(reviewId);
         if (review == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_REVIEW_NOT_FOUND);
         }
+        projectAccessGuard.requireProjectMember(review.getProjectId(), userId);
 
         List<TestReviewModuleSnapshot> modules = reviewModuleSnapshotMapper.listByReviewId(reviewId);
 
@@ -218,11 +226,12 @@ public class TestReviewServiceImpl implements TestReviewService {
     }
 
     @Override
-    public List<PlannedCasesRespDTO> getReviewPlannedCases(UUID reviewId) {
+    public List<PlannedCasesRespDTO> getReviewPlannedCases(UUID reviewId, UUID userId) {
         TestReview review = testReviewMapper.selectById(reviewId);
         if (review == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_REVIEW_NOT_FOUND);
         }
+        projectAccessGuard.requireProjectMember(review.getProjectId(), userId);
 
         List<PlannedCasesRespDTO> result = new ArrayList<>();
         for (TestReviewModuleSnapshot docSnap : selectDocumentSnapshots(reviewId)) {
@@ -244,11 +253,12 @@ public class TestReviewServiceImpl implements TestReviewService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void updateReviewCases(UUID reviewId, TestReviewCasesUpdateReqDTO reqDTO) {
+    public void updateReviewCases(UUID reviewId, UUID userId, TestReviewCasesUpdateReqDTO reqDTO) {
         TestReview review = testReviewMapper.selectById(reviewId);
         if (review == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_REVIEW_NOT_FOUND);
         }
+        projectAccessGuard.requireProjectMember(review.getProjectId(), userId);
         // 已完成的评审不可再调整，待评审/进行中均允许
         if (Constants.Status.COMPLETED.equals(review.getStatus())) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_REVIEW_FINISHED);
@@ -386,6 +396,7 @@ public class TestReviewServiceImpl implements TestReviewService {
         if (review == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_REVIEW_NOT_FOUND);
         }
+        projectAccessGuard.requireProjectMember(review.getProjectId(), userId);
         // 完成后不可再标记；待评审状态首次标记即视为评审开始
         if (Constants.Status.COMPLETED.equals(review.getStatus())) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_REVIEW_FINISHED);
@@ -439,7 +450,12 @@ public class TestReviewServiceImpl implements TestReviewService {
     }
 
     @Override
-    public List<TestReviewRecordRespDTO> getNodeReviewRecords(UUID reviewId, UUID nodeId) {
+    public List<TestReviewRecordRespDTO> getNodeReviewRecords(UUID reviewId, UUID nodeId, UUID userId) {
+        TestReview review = testReviewMapper.selectById(reviewId);
+        if (review == null) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_REVIEW_NOT_FOUND);
+        }
+        projectAccessGuard.requireProjectMember(review.getProjectId(), userId);
         List<TestReviewRecord> records = reviewRecordMapper.listByReviewIdAndNodeId(reviewId, nodeId);
 
         return records.stream().map(record -> {
@@ -467,6 +483,7 @@ public class TestReviewServiceImpl implements TestReviewService {
         if (review == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_REVIEW_NOT_FOUND);
         }
+        projectAccessGuard.requireProjectMember(review.getProjectId(), userId);
         if (!review.getInitiatorId().equals(userId.toString())) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.REVIEW_NOT_INITIATOR);
         }
@@ -485,6 +502,7 @@ public class TestReviewServiceImpl implements TestReviewService {
         if (review == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_REVIEW_NOT_FOUND);
         }
+        projectAccessGuard.requireProjectMember(review.getProjectId(), userId);
         if (!review.getInitiatorId().equals(userId.toString())) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.REVIEW_NOT_INITIATOR);
         }
@@ -512,11 +530,12 @@ public class TestReviewServiceImpl implements TestReviewService {
     }
 
     @Override
-    public TestReviewProgressRespDTO getReviewProgress(UUID reviewId) {
+    public TestReviewProgressRespDTO getReviewProgress(UUID reviewId, UUID userId) {
         TestReview review = testReviewMapper.selectById(reviewId);
         if (review == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_REVIEW_NOT_FOUND);
         }
+        projectAccessGuard.requireProjectMember(review.getProjectId(), userId);
 
         List<TestReviewNodeSnapshot> snapshots = reviewNodeSnapshotMapper.listAssociatedByReviewId(reviewId, Constants.NodeType.CASE);
 
@@ -553,6 +572,7 @@ public class TestReviewServiceImpl implements TestReviewService {
         if (review == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_REVIEW_NOT_FOUND);
         }
+        projectAccessGuard.requireProjectMember(review.getProjectId(), userId);
         if (!review.getInitiatorId().equals(userId.toString())) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.REVIEW_NOT_INITIATOR);
         }

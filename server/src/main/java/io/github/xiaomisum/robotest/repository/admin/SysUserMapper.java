@@ -26,9 +26,10 @@ public interface SysUserMapper extends BaseMapperX<SysUser> {
                                          Integer pageNo, Integer pageSize) {
         LambdaQueryWrapperX<SysUser> wrapper = new LambdaQueryWrapperX<>();
         if (StringUtils.hasText(keyword)) {
-            wrapper.like(SysUser::getUsername, keyword)
+            // 关键词 OR 组必须整体包裹在 and() 内，否则后续 eq(status)/in(id) 会被 OR 短路穿透，绕过授权过滤
+            wrapper.and(w -> w.like(SysUser::getUsername, keyword)
                     .or().like(SysUser::getEmail, keyword)
-                    .or().like(SysUser::getName, keyword);
+                    .or().like(SysUser::getName, keyword));
         }
         if (StringUtils.hasText(status)) {
             wrapper.eq(SysUser::getStatus, status);
@@ -47,9 +48,9 @@ public interface SysUserMapper extends BaseMapperX<SysUser> {
         LambdaQueryWrapperX<SysUser> wrapper = new LambdaQueryWrapperX<SysUser>()
                 .eq(SysUser::getStatus, Constants.Status.ACTIVE);
         if (StringUtils.hasText(keyword)) {
-            wrapper.like(SysUser::getName, keyword)
+            wrapper.and(w -> w.like(SysUser::getName, keyword)
                     .or().like(SysUser::getUsername, keyword)
-                    .or().like(SysUser::getEmail, keyword);
+                    .or().like(SysUser::getEmail, keyword));
         }
         wrapper.orderByAsc(SysUser::getName);
         return selectList(wrapper);
@@ -62,9 +63,10 @@ public interface SysUserMapper extends BaseMapperX<SysUser> {
     default List<SysUser> listByKeyword(String keyword) {
         LambdaQueryWrapperX<SysUser> wrapper = new LambdaQueryWrapperX<>();
         if (StringUtils.hasText(keyword)) {
-            wrapper.like(SysUser::getUsername, keyword)
+            // 同上：OR 组包裹进 and()，避免与后续条件组合时短路
+            wrapper.and(w -> w.like(SysUser::getUsername, keyword)
                     .or().like(SysUser::getEmail, keyword)
-                    .or().like(SysUser::getName, keyword);
+                    .or().like(SysUser::getName, keyword));
         }
         wrapper.orderByAsc(SysUser::getName);
         return selectList(wrapper);
