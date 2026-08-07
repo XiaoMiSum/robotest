@@ -1,4 +1,4 @@
-package io.github.xiaomisum.robotest.service.ai;
+package io.github.xiaomisum.robotest.service.ai.provider;
 
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Component;

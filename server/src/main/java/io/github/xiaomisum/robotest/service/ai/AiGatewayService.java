@@ -1,9 +1,9 @@
 package io.github.xiaomisum.robotest.service.ai;
 
 import io.github.xiaomisum.robotest.framework.common.AiFunctionType;
-import io.github.xiaomisum.robotest.service.ai.AiModels.AiCallContext;
-import io.github.xiaomisum.robotest.service.ai.AiModels.ChatCallOptions;
-import io.github.xiaomisum.robotest.service.ai.AiModels.ChatResult;
+import io.github.xiaomisum.robotest.service.ai.model.AiModels.AiCallContext;
+import io.github.xiaomisum.robotest.service.ai.model.AiModels.ChatCallOptions;
+import io.github.xiaomisum.robotest.service.ai.model.AiModels.ChatResult;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.util.List;

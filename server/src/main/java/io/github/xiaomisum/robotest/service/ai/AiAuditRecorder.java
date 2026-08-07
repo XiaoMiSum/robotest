@@ -3,7 +3,7 @@ package io.github.xiaomisum.robotest.service.ai;
 import io.github.xiaomisum.robotest.framework.common.AiFunctionType;
 import io.github.xiaomisum.robotest.model.entity.ai.AiInvocationLog;
 import io.github.xiaomisum.robotest.repository.ai.AiInvocationLogMapper;
-import io.github.xiaomisum.robotest.service.ai.AiModels.AiCallContext;
+import io.github.xiaomisum.robotest.service.ai.model.AiModels.AiCallContext;
 import jakarta.annotation.PreDestroy;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;

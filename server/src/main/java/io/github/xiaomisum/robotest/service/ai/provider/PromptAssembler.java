@@ -1,10 +1,10 @@
-package io.github.xiaomisum.robotest.service.ai;
+package io.github.xiaomisum.robotest.service.ai.provider;
 
 import io.github.xiaomisum.robotest.framework.common.AiFunctionType;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.model.entity.ai.AiPromptTemplate;
 import io.github.xiaomisum.robotest.repository.ai.AiPromptTemplateMapper;
-import io.github.xiaomisum.robotest.service.ai.AiModels.ChatMessage;
+import io.github.xiaomisum.robotest.service.ai.model.AiModels.ChatMessage;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Component;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;

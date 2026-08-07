@@ -3,7 +3,7 @@ package io.github.xiaomisum.robotest.service.ai;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiConversationItemRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiConversationListRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiMessageRespDTO;
-import io.github.xiaomisum.robotest.service.ai.AiModels.ToolCall;
+import io.github.xiaomisum.robotest.service.ai.model.AiModels.ToolCall;
 
 import java.util.List;
 import java.util.UUID;

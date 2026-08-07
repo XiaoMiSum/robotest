@@ -17,7 +17,7 @@ import io.github.xiaomisum.robotest.service.ai.AiConfigService;
 import io.github.xiaomisum.robotest.service.ai.AiSettingDefinitions;
 import io.github.xiaomisum.robotest.service.ai.AiStatisticsService;
 import io.github.xiaomisum.robotest.service.ai.AiTaskService;
-import io.github.xiaomisum.robotest.service.ai.ProviderPresetRegistry;
+import io.github.xiaomisum.robotest.service.ai.provider.ProviderPresetRegistry;
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
 import org.springframework.format.annotation.DateTimeFormat;

@@ -4,6 +4,7 @@ import io.github.xiaomisum.robotest.model.dto.request.ai.AiChatModelSaveReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.ai.AiConfigTestReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiChatModelRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiStatusRespDTO;
+import io.github.xiaomisum.robotest.service.ai.provider.ResolvedChatModel;
 
 import java.util.List;
 import java.util.UUID;

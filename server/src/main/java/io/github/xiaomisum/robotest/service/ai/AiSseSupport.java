@@ -1,5 +1,6 @@
 package io.github.xiaomisum.robotest.service.ai;
 
+import io.github.xiaomisum.robotest.service.ai.provider.OpenAiCompatProvider;
 import jakarta.annotation.PreDestroy;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;

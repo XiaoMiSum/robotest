@@ -3,6 +3,7 @@ package io.github.xiaomisum.robotest.service.ai;
 import io.github.xiaomisum.robotest.model.dto.request.requirement.RequirementCreateReqDTO;
 import io.github.xiaomisum.robotest.model.entity.requirement.RequirementPoolItem;
 import io.github.xiaomisum.robotest.service.project.RequirementService;
+import io.github.xiaomisum.robotest.service.ai.provider.PromptAssembler;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;

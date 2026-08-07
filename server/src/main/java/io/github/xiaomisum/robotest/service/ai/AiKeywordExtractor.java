@@ -2,8 +2,8 @@ package io.github.xiaomisum.robotest.service.ai;
 
 import io.github.xiaomisum.robotest.framework.common.AiFunctionType;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiKeywordExtractRespDTO;
-import io.github.xiaomisum.robotest.service.ai.AiModels.AiCallContext;
-import io.github.xiaomisum.robotest.service.ai.AiModels.ChatCallOptions;
+import io.github.xiaomisum.robotest.service.ai.model.AiModels.AiCallContext;
+import io.github.xiaomisum.robotest.service.ai.model.AiModels.ChatCallOptions;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
