@@ -4,7 +4,7 @@ import io.github.xiaomisum.robotest.framework.security.LoginUser;
 import io.github.xiaomisum.robotest.model.dto.request.ai.AiAgentSaveReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiAgentDetailRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiAgentRespDTO;
-import io.github.xiaomisum.robotest.service.ai.AiAgentService;
+import io.github.xiaomisum.robotest.service.ai.chat.AiAgentService;
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
 import org.springframework.security.access.prepost.PreAuthorize;
