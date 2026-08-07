@@ -30,7 +30,7 @@ public class WorkspaceMemberController {
             @RequestParam(defaultValue = "1") Integer pageNo,
             @RequestParam(defaultValue = "20") Integer pageSize) {
         PageResult<WorkspaceMemberRespDTO> result = workspaceMemberService.getMemberPage(
-                workspaceId, keyword, pageNo, pageSize);
+                loginUser.getId(), workspaceId, keyword, pageNo, pageSize);
         return Result.ok(result);
     }
 

@@ -40,7 +40,7 @@ public class WorkspaceInvitationController {
             @RequestParam(defaultValue = "1") Integer pageNo,
             @RequestParam(defaultValue = "20") Integer pageSize) {
         PageResult<InvitationRespDTO> result = invitationService.getInvitationPage(
-                workspaceId, pageNo, pageSize);
+                loginUser.getId(), workspaceId, pageNo, pageSize);
         return Result.ok(result);
     }
 

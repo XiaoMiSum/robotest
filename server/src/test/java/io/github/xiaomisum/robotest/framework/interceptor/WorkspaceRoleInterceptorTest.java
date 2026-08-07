@@ -95,6 +95,21 @@ class WorkspaceRoleInterceptorTest {
     }
 
     @Test
+    void preHandle_malformedWorkspaceHeader_returnsTrue() {
+        // given：非法 UUID 头必须静默降级，不能抛 500
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.addHeader("X-Active-Workspace", "not-a-uuid");
+
+        // when
+        boolean result = interceptor.preHandle(request, new MockHttpServletResponse(), new Object());
+
+        // then
+        assertTrue(result);
+        assertTrue(loginUser.getWorkspaceAuthorities().isEmpty());
+        verifyNoInteractions(workspaceUserMapper);
+    }
+
+    @Test
     void preHandle_userNotInWorkspace_returnsTrue() {
         // given
         MockHttpServletRequest request = new MockHttpServletRequest();

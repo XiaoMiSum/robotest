@@ -9,7 +9,7 @@ import java.util.UUID;
 
 public interface WorkspaceMemberService {
 
-    PageResult<WorkspaceMemberRespDTO> getMemberPage(UUID workspaceId, String keyword, Integer pageNo, Integer pageSize);
+    PageResult<WorkspaceMemberRespDTO> getMemberPage(UUID userId, UUID workspaceId, String keyword, Integer pageNo, Integer pageSize);
 
     WorkspaceMemberAddResultRespDTO addMembers(UUID userId, UUID workspaceId, WorkspaceMembersAddReqDTO reqDTO);
 

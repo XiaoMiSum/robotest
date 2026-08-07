@@ -48,7 +48,13 @@ public class WorkspaceRoleInterceptor implements HandlerInterceptor {
         if (!StringUtils.hasText(workspaceIdStr)) {
             return true;
         }
-        UUID workspaceId = UUID.fromString(workspaceIdStr);
+        UUID workspaceId;
+        try {
+            workspaceId = UUID.fromString(workspaceIdStr);
+        } catch (IllegalArgumentException e) {
+            // 非 UUID 的工作空间头视为无上下文，避免解析异常导致请求 500
+            return true;
+        }
 
         WorkspaceUser workspaceUser = workspaceUserMapper.selectOne(
                 new LambdaQueryWrapperX<WorkspaceUser>()
