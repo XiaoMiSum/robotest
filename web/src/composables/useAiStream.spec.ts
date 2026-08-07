@@ -7,7 +7,8 @@ describe('useAiStream 非事件流响应处理', () => {
   })
 
   function stubEnv(response: Partial<Response>): void {
-    // node 环境无 localStorage；SSE 建立前的头部注入按无登录态处理即可
+    // node 环境无 sessionStorage/localStorage；SSE 建立前的头部注入按无登录态处理即可
+    vi.stubGlobal('sessionStorage', { getItem: () => null })
     vi.stubGlobal('localStorage', { getItem: () => null })
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response))
   }
