@@ -6,10 +6,19 @@ import xyz.migoo.framework.mybatis.core.LambdaQueryWrapperX;
 import xyz.migoo.framework.mybatis.core.LambdaUpdateWrapperX;
 import io.github.xiaomisum.robotest.framework.common.Constants;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 
 public interface TestCaseModuleMapper extends BaseMapperX<TestCaseModule> {
+
+    default List<TestCaseModule> listByIds(Collection<UUID> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return List.of();
+        }
+        return selectList(new LambdaQueryWrapperX<TestCaseModule>()
+                .in(TestCaseModule::getId, ids));
+    }
 
     default List<TestCaseModule> listByProjectId(UUID projectId) {
         return selectList(new LambdaQueryWrapperX<TestCaseModule>()

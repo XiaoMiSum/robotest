@@ -14,6 +14,14 @@ import java.util.UUID;
 
 public interface TestCaseNodeMapper extends BaseMapperX<TestCaseNode> {
 
+    default List<TestCaseNode> listByIds(Collection<UUID> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return List.of();
+        }
+        return selectList(new LambdaQueryWrapperX<TestCaseNode>()
+                .in(TestCaseNode::getId, ids));
+    }
+
     default List<TestCaseNode> listByDocumentId(UUID documentId) {
         return selectList(new LambdaQueryWrapperX<TestCaseNode>()
                 .eq(TestCaseNode::getDocumentId, documentId));
