@@ -1,4 +1,4 @@
-package io.github.xiaomisum.robotest.service.ai;
+package io.github.xiaomisum.robotest.service.ai.vector;
 
 
 import io.github.xiaomisum.robotest.framework.common.Constants;
@@ -13,8 +13,6 @@ import io.github.xiaomisum.robotest.repository.bug.BugMapper;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseModuleMapper;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseNodeMapper;
 import io.github.xiaomisum.robotest.repository.workspace.ProjectMapper;
-import io.github.xiaomisum.robotest.service.ai.vector.AiEmbeddingWriteServiceImpl;
-import io.github.xiaomisum.robotest.service.ai.vector.AiVectorSearchService;
 import java.time.Duration;
 import java.util.List;
 import java.util.UUID;

@@ -1,6 +1,5 @@
-package io.github.xiaomisum.robotest.service.ai;
+package io.github.xiaomisum.robotest.service.ai.provider;
 
-import io.github.xiaomisum.robotest.service.ai.provider.PromptAssembler;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;

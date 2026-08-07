@@ -1,7 +1,6 @@
-package io.github.xiaomisum.robotest.service.ai;
+package io.github.xiaomisum.robotest.service.ai.provider;
 
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiProviderPresetRespDTO;
-import io.github.xiaomisum.robotest.service.ai.provider.ProviderPresetRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.ObjectMapper;

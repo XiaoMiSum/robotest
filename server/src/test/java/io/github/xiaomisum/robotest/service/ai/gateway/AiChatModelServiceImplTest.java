@@ -1,10 +1,9 @@
-package io.github.xiaomisum.robotest.service.ai;
+package io.github.xiaomisum.robotest.service.ai.gateway;
 
 
 import io.github.xiaomisum.robotest.model.dto.request.ai.AiChatModelSaveReqDTO;
 import io.github.xiaomisum.robotest.model.entity.ai.AiChatModel;
 import io.github.xiaomisum.robotest.repository.ai.AiChatModelMapper;
-import io.github.xiaomisum.robotest.service.ai.gateway.AiChatModelServiceImpl;
 import io.github.xiaomisum.robotest.service.ai.provider.ProviderPresetRegistry;
 import io.github.xiaomisum.robotest.service.ai.provider.ResolvedChatModel;
 import io.github.xiaomisum.robotest.service.ai.support.AiCryptoUtil;
