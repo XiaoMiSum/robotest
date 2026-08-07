@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 import { getAccessToken } from '@/services'
+import { useAuthStore } from '@/stores/auth'
 
 const routes: RouteRecordRaw[] = [
   {
@@ -195,7 +196,7 @@ const router = createRouter({
 })
 
 // Navigation guard: authentication + admin check
-router.beforeEach((to, _from, next) => {
+router.beforeEach(async (to, _from, next) => {
   const token = getAccessToken()
 
   // Public routes (login, invitation join page, etc.)
@@ -215,10 +216,17 @@ router.beforeEach((to, _from, next) => {
     return
   }
 
-  // Admin routes: check system role (simplified — in real app check store)
+  // Admin routes: 校验系统管理员身份；刷新后权限列表尚未从远端加载，
+  // 先等待 loadPermissions 完成再判定，避免管理员刷新 /admin 被误重定向
   if (to.meta.requiresAdmin) {
-    // TODO: check user has system role from store
-    // For now, allow access
+    const authStore = useAuthStore()
+    if (authStore.permissions.length === 0) {
+      await authStore.loadPermissions()
+    }
+    if (!authStore.hasSystemRole && !authStore.hasSystemPermission) {
+      next({ path: '/' })
+      return
+    }
   }
 
   next()
