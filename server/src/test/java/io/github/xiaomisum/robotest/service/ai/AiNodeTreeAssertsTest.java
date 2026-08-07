@@ -1,11 +1,12 @@
 package io.github.xiaomisum.robotest.service.ai;
 
-import io.github.xiaomisum.robotest.model.dto.response.ai.AiNodeTreeDTO;
-import io.github.xiaomisum.robotest.service.ai.AiOutputValidator.OutputValidationException;
-import org.junit.jupiter.api.Test;
 
+import io.github.xiaomisum.robotest.model.dto.response.ai.AiNodeTreeDTO;
+import io.github.xiaomisum.robotest.service.ai.support.AiNodeTreeAsserts;
+import io.github.xiaomisum.robotest.service.ai.support.AiOutputValidator.OutputValidationException;
 import java.util.ArrayList;
 import java.util.List;
+import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;

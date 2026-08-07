@@ -1,23 +1,25 @@
 package io.github.xiaomisum.robotest.service.ai;
 
+
 import io.github.xiaomisum.robotest.model.dto.request.ai.AiChatModelSaveReqDTO;
 import io.github.xiaomisum.robotest.model.entity.ai.AiChatModel;
 import io.github.xiaomisum.robotest.repository.ai.AiChatModelMapper;
+import io.github.xiaomisum.robotest.service.ai.gateway.AiChatModelServiceImpl;
 import io.github.xiaomisum.robotest.service.ai.provider.ProviderPresetRegistry;
 import io.github.xiaomisum.robotest.service.ai.provider.ResolvedChatModel;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.test.util.ReflectionTestUtils;
-import xyz.migoo.framework.common.exception.ServiceException;
-
+import io.github.xiaomisum.robotest.service.ai.support.AiCryptoUtil;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
+import org.mockito.InjectMocks;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.Mock;
+import org.springframework.test.util.ReflectionTestUtils;
+import xyz.migoo.framework.common.exception.ServiceException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;

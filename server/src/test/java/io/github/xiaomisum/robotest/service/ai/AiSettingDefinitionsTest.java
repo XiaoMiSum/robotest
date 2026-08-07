@@ -1,10 +1,11 @@
 package io.github.xiaomisum.robotest.service.ai;
 
-import org.junit.jupiter.api.Test;
-import xyz.migoo.framework.common.exception.ServiceException;
 
+import io.github.xiaomisum.robotest.service.ai.gateway.AiSettingDefinitions;
 import java.util.List;
 import java.util.Map;
+import org.junit.jupiter.api.Test;
+import xyz.migoo.framework.common.exception.ServiceException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;

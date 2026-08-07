@@ -14,7 +14,7 @@ import io.github.xiaomisum.robotest.repository.requirement.RequirementPoolItemMa
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseModuleMapper;
 import io.github.xiaomisum.robotest.repository.workspace.ProjectMapper;
 import io.github.xiaomisum.robotest.repository.workspace.WorkspaceUserMapper;
-import io.github.xiaomisum.robotest.service.ai.AiConfigService;
+import io.github.xiaomisum.robotest.service.ai.gateway.AiConfigService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

@@ -1,7 +1,7 @@
 package io.github.xiaomisum.robotest.service.ai.assistant;
 
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
-import io.github.xiaomisum.robotest.service.ai.AiConfigService;
+import io.github.xiaomisum.robotest.service.ai.gateway.AiConfigService;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;

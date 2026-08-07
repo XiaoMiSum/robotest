@@ -1,12 +1,13 @@
 package io.github.xiaomisum.robotest.service.ai;
 
-import io.github.xiaomisum.robotest.repository.ai.AiAnalysisTaskMapper;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
 
+import io.github.xiaomisum.robotest.repository.ai.AiAnalysisTaskMapper;
+import io.github.xiaomisum.robotest.service.ai.support.AiTaskProgressSupport;
 import java.util.UUID;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.Test;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.Mock;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.verify;

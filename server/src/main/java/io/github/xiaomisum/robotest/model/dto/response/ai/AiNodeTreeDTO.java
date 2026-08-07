@@ -13,7 +13,7 @@ import java.util.List;
  * <p>
  * title 长度不加 Bean Validation 约束——超长在结构断言前的宽容规整步骤中截断并计入
  * warnings（见
- * {@link io.github.xiaomisum.robotest.service.ai.AiNodeTreeAsserts}），
+ * {@link io.github.xiaomisum.robotest.service.ai.support.AiNodeTreeAsserts}），
  * 不触发校验失败与带错重试。
  * </p>
  */

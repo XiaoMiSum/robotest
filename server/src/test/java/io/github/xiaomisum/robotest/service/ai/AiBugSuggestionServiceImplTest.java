@@ -1,19 +1,21 @@
 package io.github.xiaomisum.robotest.service.ai;
 
+
 import io.github.xiaomisum.robotest.framework.common.AiFunctionType;
 import io.github.xiaomisum.robotest.model.dto.request.ai.AiBugSuggestionReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiBugSuggestionRespDTO;
+import io.github.xiaomisum.robotest.service.ai.gateway.AiGatewayService;
 import io.github.xiaomisum.robotest.service.ai.model.AiModels.ChatCallOptions;
-import org.junit.jupiter.api.Test;
+import io.github.xiaomisum.robotest.service.ai.support.AiOutputValidator;
+import java.util.function.Consumer;
+import java.util.UUID;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.InjectMocks;
-import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-
-import java.util.UUID;
-import java.util.function.Consumer;
+import org.mockito.Mock;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;

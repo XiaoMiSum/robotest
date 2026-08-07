@@ -22,9 +22,14 @@ import io.github.xiaomisum.robotest.repository.plan.TestPlanModuleSnapshotMapper
 import io.github.xiaomisum.robotest.repository.plan.TestPlanNodeSnapshotMapper;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseModuleMapper;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseNodeMapper;
+import io.github.xiaomisum.robotest.service.ai.gateway.AiConfigService;
+import io.github.xiaomisum.robotest.service.ai.gateway.AiGatewayService;
 import io.github.xiaomisum.robotest.service.ai.model.AiModels.AiCallContext;
 import io.github.xiaomisum.robotest.service.ai.model.AiModels.ChatCallOptions;
 import io.github.xiaomisum.robotest.service.ai.model.AiModels.ChatResult;
+import io.github.xiaomisum.robotest.service.ai.support.AiConstants;
+import io.github.xiaomisum.robotest.service.ai.support.AiModuleTreeSupport;
+import io.github.xiaomisum.robotest.service.ai.support.AiPlanOrderScoring;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;

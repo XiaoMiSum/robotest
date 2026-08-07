@@ -1,6 +1,6 @@
 package io.github.xiaomisum.robotest.service.ai.assistant;
 
-import io.github.xiaomisum.robotest.service.ai.AiConfigService;
+import io.github.xiaomisum.robotest.service.ai.gateway.AiConfigService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
