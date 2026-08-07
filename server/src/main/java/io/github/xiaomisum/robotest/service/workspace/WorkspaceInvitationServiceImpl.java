@@ -68,7 +68,9 @@ public class WorkspaceInvitationServiceImpl implements WorkspaceInvitationServic
     }
 
     @Override
-    public PageResult<InvitationRespDTO> getInvitationPage(UUID workspaceId, Integer pageNo, Integer pageSize) {
+    public PageResult<InvitationRespDTO> getInvitationPage(UUID userId, UUID workspaceId, Integer pageNo, Integer pageSize) {
+        checkMemberPermission(userId, workspaceId);
+
         PageResult<WorkspaceInvitation> page = invitationMapper.findPageByWorkspaceId(
                 new PageParam() {{
                     setPageNo(pageNo);
@@ -174,6 +176,13 @@ public class WorkspaceInvitationServiceImpl implements WorkspaceInvitationServic
         }
     }
 
+    private void checkMemberPermission(UUID userId, UUID workspaceId) {
+        WorkspaceUser workspaceUser = workspaceUserMapper.findByWorkspaceIdAndUserId(workspaceId, userId);
+        if (workspaceUser == null) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.NO_PERMISSION);
+        }
+    }
+
     private boolean isValidInvitation(WorkspaceInvitation invitation) {
         if (invitation == null || !Constants.Status.ACTIVE.equals(invitation.getStatus())) {
             return false;
@@ -239,10 +248,10 @@ public class WorkspaceInvitationServiceImpl implements WorkspaceInvitationServic
     }
 
     private void incrementInvitationUseCount(WorkspaceInvitation invitation) {
-        WorkspaceInvitation update = new WorkspaceInvitation();
-        update.setId(invitation.getId());
-        update.setUseCount(invitation.getUseCount() + 1);
-        invitationMapper.updateById(update);
+        // 原子自增 + 上限条件，0 行表示已被并发 join 耗尽，避免 maxUses 被突破
+        if (invitationMapper.incrementUseCount(invitation.getId()) == 0) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.INVITATION_MAX_USES);
+        }
     }
 
     private LoginUser buildLoginUser(SysUser user) {

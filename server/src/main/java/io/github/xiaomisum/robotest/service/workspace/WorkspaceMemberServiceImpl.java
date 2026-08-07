@@ -33,8 +33,13 @@ public class WorkspaceMemberServiceImpl implements WorkspaceMemberService {
     private WorkspaceUserMapper workspaceUserMapper;
 
     @Override
-    public PageResult<WorkspaceMemberRespDTO> getMemberPage(UUID workspaceId, String keyword,
+    public PageResult<WorkspaceMemberRespDTO> getMemberPage(UUID userId, UUID workspaceId, String keyword,
                                                              Integer pageNo, Integer pageSize) {
+        WorkspaceUser currentUser = workspaceUserMapper.findByWorkspaceIdAndUserId(workspaceId, userId);
+        if (currentUser == null) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.NO_PERMISSION);
+        }
+
         List<UUID> matchedUserIds = null;
         if (keyword != null && !keyword.isBlank()) {
             matchedUserIds = userMapper.listByKeyword(keyword)

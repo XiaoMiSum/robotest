@@ -14,7 +14,7 @@ public interface WorkspaceInvitationService {
 
     InvitationRespDTO createInvitation(UUID userId, UUID workspaceId, InvitationCreateReqDTO reqDTO);
 
-    PageResult<InvitationRespDTO> getInvitationPage(UUID workspaceId, Integer pageNo, Integer pageSize);
+    PageResult<InvitationRespDTO> getInvitationPage(UUID userId, UUID workspaceId, Integer pageNo, Integer pageSize);
 
     void revokeInvitation(UUID userId, UUID workspaceId, UUID invitationId);
 
