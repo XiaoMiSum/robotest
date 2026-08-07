@@ -1,4 +1,4 @@
-package io.github.xiaomisum.robotest.service.ai;
+package io.github.xiaomisum.robotest.service.ai.vector;
 
 
 import io.github.xiaomisum.robotest.framework.common.Constants;
@@ -15,8 +15,6 @@ import io.github.xiaomisum.robotest.service.ai.gateway.AiConfigService;
 import io.github.xiaomisum.robotest.service.ai.model.AiModels.EmbedResult;
 import io.github.xiaomisum.robotest.service.ai.provider.OpenAiCompatProvider;
 import io.github.xiaomisum.robotest.service.ai.provider.ResolvedAiConfig;
-import io.github.xiaomisum.robotest.service.ai.vector.AiVectorSearchService;
-import io.github.xiaomisum.robotest.service.ai.vector.AiVectorSearchServiceImpl;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;

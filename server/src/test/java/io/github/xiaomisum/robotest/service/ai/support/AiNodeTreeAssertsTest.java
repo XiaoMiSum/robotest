@@ -1,8 +1,7 @@
-package io.github.xiaomisum.robotest.service.ai;
+package io.github.xiaomisum.robotest.service.ai.support;
 
 
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiNodeTreeDTO;
-import io.github.xiaomisum.robotest.service.ai.support.AiNodeTreeAsserts;
 import io.github.xiaomisum.robotest.service.ai.support.AiOutputValidator.OutputValidationException;
 import java.util.ArrayList;
 import java.util.List;

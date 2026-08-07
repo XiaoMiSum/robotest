@@ -1,7 +1,6 @@
-package io.github.xiaomisum.robotest.service.ai;
+package io.github.xiaomisum.robotest.service.ai.gateway;
 
 
-import io.github.xiaomisum.robotest.service.ai.gateway.AiSettingDefinitions;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;

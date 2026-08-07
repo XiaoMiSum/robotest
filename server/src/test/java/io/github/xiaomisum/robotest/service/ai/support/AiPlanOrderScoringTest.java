@@ -1,7 +1,6 @@
-package io.github.xiaomisum.robotest.service.ai;
+package io.github.xiaomisum.robotest.service.ai.support;
 
 
-import io.github.xiaomisum.robotest.service.ai.support.AiPlanOrderScoring;
 import java.time.LocalDateTime;
 import org.junit.jupiter.api.Test;
 

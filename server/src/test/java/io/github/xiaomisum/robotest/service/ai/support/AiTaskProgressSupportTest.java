@@ -1,8 +1,7 @@
-package io.github.xiaomisum.robotest.service.ai;
+package io.github.xiaomisum.robotest.service.ai.support;
 
 
 import io.github.xiaomisum.robotest.repository.ai.AiAnalysisTaskMapper;
-import io.github.xiaomisum.robotest.service.ai.support.AiTaskProgressSupport;
 import java.util.UUID;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.Test;

@@ -1,4 +1,4 @@
-package io.github.xiaomisum.robotest.service.ai;
+package io.github.xiaomisum.robotest.service.ai.gateway;
 
 
 import io.github.xiaomisum.robotest.framework.common.Constants;
@@ -7,9 +7,6 @@ import io.github.xiaomisum.robotest.model.entity.ai.AiAnalysisTask;
 import io.github.xiaomisum.robotest.model.entity.ai.AiConfig;
 import io.github.xiaomisum.robotest.repository.ai.AiAnalysisTaskMapper;
 import io.github.xiaomisum.robotest.repository.ai.AiConfigMapper;
-import io.github.xiaomisum.robotest.service.ai.gateway.AiChatModelService;
-import io.github.xiaomisum.robotest.service.ai.gateway.AiConfigServiceImpl;
-import io.github.xiaomisum.robotest.service.ai.gateway.AiSettingDefinitions;
 import io.github.xiaomisum.robotest.service.ai.support.AiCryptoUtil;
 import java.util.List;
 import java.util.Map;

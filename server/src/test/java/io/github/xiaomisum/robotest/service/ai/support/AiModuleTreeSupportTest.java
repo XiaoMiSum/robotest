@@ -1,9 +1,8 @@
-package io.github.xiaomisum.robotest.service.ai;
+package io.github.xiaomisum.robotest.service.ai.support;
 
 
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseModule;
-import io.github.xiaomisum.robotest.service.ai.support.AiModuleTreeSupport;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
