@@ -1,5 +1,6 @@
 package io.github.xiaomisum.robotest.service.websocket;
 
+import io.github.xiaomisum.robotest.framework.security.ProjectAccessGuard;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NonNull;
 import org.springframework.stereotype.Component;
@@ -43,11 +44,14 @@ public class DocumentHandler extends MiGooWebSocketHandler {
     private static final byte[] EMPTY_AWARENESS_FRAME = {0x01, 0x01, 0x00};
 
     private final DocumentPersistenceHandler persistenceHandler;
+    private final ProjectAccessGuard projectAccessGuard;
 
     public DocumentHandler(WebSocketSessionManager sessionManager,
-                           DocumentPersistenceHandler persistenceHandler) {
+                           DocumentPersistenceHandler persistenceHandler,
+                           ProjectAccessGuard projectAccessGuard) {
         super(sessionManager);
         this.persistenceHandler = persistenceHandler;
+        this.projectAccessGuard = projectAccessGuard;
     }
 
     @Override
@@ -60,6 +64,18 @@ public class DocumentHandler extends MiGooWebSocketHandler {
                     session.getId());
             try {
                 session.close(CloseStatus.NOT_ACCEPTABLE.withReason("Missing docId in URI path"));
+            } catch (Exception e) {
+                log.error("[afterConnectionEstablished][关闭会话失败]", e);
+            }
+            return;
+        }
+
+        // 文档级鉴权：非项目工作空间成员禁止建立协作连接（判定口径与 REST 守卫一致）
+        if (!projectAccessGuard.isDocumentMember(UUID.fromString(docId), getUserId(session))) {
+            log.warn("[afterConnectionEstablished][用户({}) 无文档 {} 访问权限，拒绝加入房间]",
+                    getUserId(session), docId);
+            try {
+                session.close(CloseStatus.NOT_ACCEPTABLE.withReason("No permission to access document"));
             } catch (Exception e) {
                 log.error("[afterConnectionEstablished][关闭会话失败]", e);
             }

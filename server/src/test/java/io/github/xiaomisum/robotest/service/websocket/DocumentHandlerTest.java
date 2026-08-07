@@ -1,5 +1,6 @@
 package io.github.xiaomisum.robotest.service.websocket;
 
+import io.github.xiaomisum.robotest.framework.security.ProjectAccessGuard;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -7,14 +8,19 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.web.socket.BinaryMessage;
+import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.WebSocketMessage;
 import org.springframework.web.socket.WebSocketSession;
 import xyz.migoo.framework.websocket.core.WebSocketSessionManager;
 
+import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
@@ -31,6 +37,8 @@ class DocumentHandlerTest {
     @Mock
     private DocumentPersistenceHandler persistenceHandler;
     @Mock
+    private ProjectAccessGuard projectAccessGuard;
+    @Mock
     private WebSocketSession session;
 
     private DocumentHandler handler;
@@ -38,7 +46,7 @@ class DocumentHandlerTest {
 
     @BeforeEach
     void setUp() {
-        handler = new DocumentHandler(sessionManager, persistenceHandler);
+        handler = new DocumentHandler(sessionManager, persistenceHandler, projectAccessGuard);
         attributes = new HashMap<>();
         lenient().when(session.getAttributes()).thenReturn(attributes);
         lenient().when(session.getId()).thenReturn(SESSION_ID);
@@ -69,5 +77,45 @@ class DocumentHandlerTest {
 
         verify(sessionManager, never()).sendBinaryToRoomExcept(anyString(), anyString(), any());
         verify(session, never()).sendMessage(any());
+    }
+
+    @Test
+    void afterConnectionEstablished_withoutDocId_shouldCloseSession() throws Exception {
+        when(session.getUri()).thenReturn(URI.create("ws://localhost/ws/other"));
+
+        handler.afterConnectionEstablished(session);
+
+        // 无法提取 docId 必须拒绝连接，防止未绑定房间的会话残留
+        verify(session).close(any(CloseStatus.class));
+        verify(sessionManager, never()).joinRoom(anyString(), anyString());
+    }
+
+    @Test
+    void afterConnectionEstablished_notDocumentMember_shouldCloseSession() throws Exception {
+        attributes.put("USER_ID", USER_ID);
+        when(session.getUri()).thenReturn(URI.create("ws://localhost/ws/documents/" + DOC_ID));
+        when(sessionManager.getUserId(SESSION_ID)).thenReturn(USER_ID);
+        when(projectAccessGuard.isDocumentMember(UUID.fromString(DOC_ID), USER_ID)).thenReturn(false);
+
+        handler.afterConnectionEstablished(session);
+
+        // 非项目工作空间成员禁止建立文档协作连接
+        verify(session).close(any(CloseStatus.class));
+        verify(sessionManager, never()).joinRoom(anyString(), anyString());
+        assertFalse(attributes.containsKey("docId"));
+    }
+
+    @Test
+    void afterConnectionEstablished_documentMember_shouldJoinRoom() throws Exception {
+        attributes.put("USER_ID", USER_ID);
+        when(session.getUri()).thenReturn(URI.create("ws://localhost/ws/documents/" + DOC_ID));
+        when(sessionManager.getUserId(SESSION_ID)).thenReturn(USER_ID);
+        when(projectAccessGuard.isDocumentMember(UUID.fromString(DOC_ID), USER_ID)).thenReturn(true);
+
+        handler.afterConnectionEstablished(session);
+
+        verify(session, never()).close(any());
+        verify(sessionManager).joinRoom(DOC_ID, USER_ID);
+        assertTrue(attributes.containsKey("docId"));
     }
 }
