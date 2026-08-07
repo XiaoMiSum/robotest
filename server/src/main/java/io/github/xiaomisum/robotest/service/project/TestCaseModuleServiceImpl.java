@@ -3,6 +3,7 @@ package io.github.xiaomisum.robotest.service.project;
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.framework.convert.TestCaseModuleConvertMapper;
+import io.github.xiaomisum.robotest.framework.security.ProjectAccessGuard;
 import io.github.xiaomisum.robotest.model.dto.request.tcase.TestCaseModuleCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.tcase.TestCaseModuleUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.tcase.TestCaseModuleTreeRespDTO;
@@ -29,9 +30,12 @@ public class TestCaseModuleServiceImpl implements TestCaseModuleService {
     private TestCaseModuleMapper testCaseModuleMapper;
     @Resource
     private TestCaseNodeMapper testCaseNodeMapper;
+    @Resource
+    private ProjectAccessGuard projectAccessGuard;
 
     @Override
-    public List<TestCaseModuleTreeRespDTO> getModuleTree(UUID projectId) {
+    public List<TestCaseModuleTreeRespDTO> getModuleTree(UUID projectId, UUID userId) {
+        projectAccessGuard.requireProjectMember(projectId, userId);
         List<TestCaseModule> modules = testCaseModuleMapper.listByProjectId(projectId);
 
         List<TestCaseModuleTreeRespDTO> dtos = modules.stream()
@@ -43,7 +47,8 @@ public class TestCaseModuleServiceImpl implements TestCaseModuleService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public TestCaseModuleTreeRespDTO createModule(UUID projectId, TestCaseModuleCreateReqDTO reqDTO) {
+    public TestCaseModuleTreeRespDTO createModule(UUID projectId, UUID userId, TestCaseModuleCreateReqDTO reqDTO) {
+        projectAccessGuard.requireProjectMember(projectId, userId);
         if (!Constants.ModuleType.DIRECTORY.equals(reqDTO.getType())
                 && !Constants.ModuleType.DOCUMENT.equals(reqDTO.getType())) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.VALIDATION_FAILED);
@@ -86,11 +91,12 @@ public class TestCaseModuleServiceImpl implements TestCaseModuleService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public TestCaseModuleTreeRespDTO updateModule(UUID moduleId, TestCaseModuleUpdateReqDTO reqDTO) {
+    public TestCaseModuleTreeRespDTO updateModule(UUID moduleId, UUID userId, TestCaseModuleUpdateReqDTO reqDTO) {
         TestCaseModule module = testCaseModuleMapper.selectById(moduleId);
         if (module == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_CASE_MODULE_NOT_FOUND);
         }
+        projectAccessGuard.requireProjectMember(module.getProjectId(), userId);
 
         boolean moved = reqDTO.getTargetIndex() != null;
         if (moved) {
@@ -161,11 +167,12 @@ public class TestCaseModuleServiceImpl implements TestCaseModuleService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void deleteModule(UUID moduleId) {
+    public void deleteModule(UUID moduleId, UUID userId) {
         TestCaseModule module = testCaseModuleMapper.selectById(moduleId);
         if (module == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_CASE_MODULE_NOT_FOUND);
         }
+        projectAccessGuard.requireProjectMember(module.getProjectId(), userId);
 
         if (Constants.ModuleType.DIRECTORY.equals(module.getType())) {
             Long childCount = testCaseModuleMapper.countByParentId(moduleId);

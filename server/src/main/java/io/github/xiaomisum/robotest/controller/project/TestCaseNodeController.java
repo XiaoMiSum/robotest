@@ -27,7 +27,7 @@ public class TestCaseNodeController {
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestHeader("X-Active-Project") UUID projectId,
             @PathVariable UUID docId) {
-        return Result.ok(testCaseNodeService.getDocumentNodes(docId));
+        return Result.ok(testCaseNodeService.getDocumentNodes(docId, loginUser.getId()));
     }
 
     @GetMapping("/cases/{caseId}")
@@ -35,7 +35,7 @@ public class TestCaseNodeController {
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestHeader("X-Active-Project") UUID projectId,
             @PathVariable UUID caseId) {
-        return Result.ok(testCaseNodeService.getCaseDetail(caseId));
+        return Result.ok(testCaseNodeService.getCaseDetail(caseId, loginUser.getId()));
     }
 
     @GetMapping("/cases")
@@ -46,7 +46,7 @@ public class TestCaseNodeController {
             @RequestParam(required = false) String priority,
             @RequestParam(defaultValue = "1") Integer pageNo,
             @RequestParam(defaultValue = "20") Integer pageSize) {
-        return Result.ok(testCaseNodeService.getCaseList(projectId, keyword, priority, pageNo, pageSize));
+        return Result.ok(testCaseNodeService.getCaseList(projectId, loginUser.getId(), keyword, priority, pageNo, pageSize));
     }
 
     @PutMapping("/cases/{caseId}")
@@ -55,7 +55,7 @@ public class TestCaseNodeController {
             @RequestHeader("X-Active-Project") UUID projectId,
             @PathVariable UUID caseId,
             @RequestBody @Valid TestCaseNodeUpdateReqDTO reqDTO) {
-        testCaseNodeService.updateCaseNode(caseId, reqDTO);
+        testCaseNodeService.updateCaseNode(caseId, loginUser.getId(), reqDTO);
         return Result.ok();
     }
 }

@@ -1,6 +1,7 @@
 package io.github.xiaomisum.robotest.service.project;
 
 import io.github.xiaomisum.robotest.framework.common.Constants;
+import io.github.xiaomisum.robotest.framework.security.ProjectAccessGuard;
 import io.github.xiaomisum.robotest.model.dto.request.bug.BugCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.bug.BugStatusChangeReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.bug.BugUpdateReqDTO;
@@ -60,6 +61,9 @@ class BugServiceImplTest {
     @Mock
     private AiEmbeddingWriteService aiEmbeddingWriteService;
 
+    @Mock
+    private ProjectAccessGuard projectAccessGuard;
+
     @InjectMocks
     private BugServiceImpl bugService;
 
@@ -111,7 +115,7 @@ class BugServiceImplTest {
         when(userMapper.selectById(UUID.fromString("00000000-0000-0000-0000-000000000004"))).thenReturn(reporter);
 
         PageResult<BugListRespDTO> result = bugService.getBugPage(
-                projectId, Constants.BugStatus.ACTIVE, "high", "high",
+                projectId, userId, Constants.BugStatus.ACTIVE, "high", "high",
                 Constants.BugType.CODE_ERROR, null, null, null, null, null, 1, 10);
 
         assertNotNull(result);
@@ -120,6 +124,7 @@ class BugServiceImplTest {
         assertEquals("Test Bug", result.getList().get(0).getTitle());
         assertEquals(Constants.BugType.CODE_ERROR, result.getList().get(0).getBugType());
         assertEquals("reporter", result.getList().get(0).getReporter().getName());
+        verify(projectAccessGuard).requireProjectMember(projectId, userId);
     }
 
     @Test
@@ -152,7 +157,7 @@ class BugServiceImplTest {
         when(userMapper.selectById(resolverId)).thenReturn(resolver);
 
         PageResult<BugListRespDTO> result = bugService.getBugPage(
-                projectId, null, null, null, null, null, null, null, null, null, 1, 10);
+                projectId, userId, null, null, null, null, null, null, null, null, null, 1, 10);
 
         BugListRespDTO dto = result.getList().get(0);
         assertEquals("resolver", dto.getResolvedBy().getName());
@@ -167,11 +172,12 @@ class BugServiceImplTest {
         doReturn(pageResult).when(bugMapper).findPage(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any());
 
         PageResult<BugListRespDTO> result = bugService.getBugPage(
-                projectId, null, null, null, null, null, null, null, null, null, 1, 10);
+                projectId, userId, null, null, null, null, null, null, null, null, null, 1, 10);
 
         assertNotNull(result);
         assertTrue(result.getList().isEmpty());
         assertEquals(0L, result.getTotal());
+        verify(projectAccessGuard).requireProjectMember(projectId, userId);
     }
 
     // ========== createBug ==========
@@ -430,7 +436,7 @@ class BugServiceImplTest {
 
         when(bugLogMapper.findRecentLogs(bugId, 10)).thenReturn(Collections.emptyList());
 
-        BugDetailRespDTO result = bugService.getBugDetail(bugId);
+        BugDetailRespDTO result = bugService.getBugDetail(bugId, userId);
 
         assertNotNull(result);
         assertEquals("Detail Bug", result.getTitle());
@@ -449,7 +455,7 @@ class BugServiceImplTest {
         when(bugMapper.selectById(bugId)).thenReturn(null);
 
         assertThrows(ServiceException.class,
-                () -> bugService.getBugDetail(bugId));
+                () -> bugService.getBugDetail(bugId, userId));
     }
 
     // ========== changeBugStatus：解决 ==========
@@ -1034,7 +1040,7 @@ class BugServiceImplTest {
         when(bugMapper.findByProjectId(projectId))
                 .thenReturn(List.of(b1, b2));
 
-        BugStatisticsRespDTO result = bugService.getBugStatistics(projectId);
+        BugStatisticsRespDTO result = bugService.getBugStatistics(projectId, userId);
 
         assertNotNull(result);
         assertEquals(2, result.getTotal());
@@ -1049,7 +1055,7 @@ class BugServiceImplTest {
         when(bugMapper.findByProjectId(projectId))
                 .thenReturn(Collections.emptyList());
 
-        BugStatisticsRespDTO result = bugService.getBugStatistics(projectId);
+        BugStatisticsRespDTO result = bugService.getBugStatistics(projectId, userId);
 
         assertNotNull(result);
         assertEquals(0, result.getTotal());
@@ -1059,6 +1065,9 @@ class BugServiceImplTest {
 
     @Test
     void getBugLogs_returnsLogs() {
+        Bug bug = activeBug();
+        when(bugMapper.selectById(bugId)).thenReturn(bug);
+
         BugLog log = new BugLog();
         log.setId(UUID.fromString("00000000-0000-0000-0000-000000000005"));
         log.setBugId(bugId);
@@ -1074,10 +1083,20 @@ class BugServiceImplTest {
         operator.setUsername("operator");
         when(userMapper.selectById(UUID.fromString("00000000-0000-0000-0000-000000000004"))).thenReturn(operator);
 
-        List<BugLogRespDTO> result = bugService.getBugLogs(bugId);
+        List<BugLogRespDTO> result = bugService.getBugLogs(bugId, userId);
 
         assertNotNull(result);
         assertEquals(1, result.size());
         assertEquals("operator", result.get(0).getOperatorName());
+        verify(projectAccessGuard).requireProjectMember(projectId, userId);
+    }
+
+    @Test
+    void getBugLogs_bugNotFound_throws() {
+        when(bugMapper.selectById(bugId)).thenReturn(null);
+
+        assertThrows(ServiceException.class,
+                () -> bugService.getBugLogs(bugId, userId));
+        verify(projectAccessGuard, never()).requireProjectMember(any(), any());
     }
 }

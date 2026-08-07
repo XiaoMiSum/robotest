@@ -27,7 +27,7 @@ public class TestCaseModuleController {
     public Result<List<TestCaseModuleTreeRespDTO>> getModuleTree(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestHeader("X-Active-Project") UUID projectId) {
-        return Result.ok(testCaseModuleService.getModuleTree(projectId));
+        return Result.ok(testCaseModuleService.getModuleTree(projectId, loginUser.getId()));
     }
 
     @PostMapping
@@ -36,7 +36,7 @@ public class TestCaseModuleController {
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestHeader("X-Active-Project") UUID projectId,
             @RequestBody @Valid TestCaseModuleCreateReqDTO reqDTO) {
-        return Result.ok(testCaseModuleService.createModule(projectId, reqDTO));
+        return Result.ok(testCaseModuleService.createModule(projectId, loginUser.getId(), reqDTO));
     }
 
     @PutMapping("/{id}")
@@ -44,14 +44,14 @@ public class TestCaseModuleController {
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id,
             @RequestBody @Valid TestCaseModuleUpdateReqDTO reqDTO) {
-        return Result.ok(testCaseModuleService.updateModule(id, reqDTO));
+        return Result.ok(testCaseModuleService.updateModule(id, loginUser.getId(), reqDTO));
     }
 
     @DeleteMapping("/{id}")
     public Result<Void> deleteModule(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id) {
-        testCaseModuleService.deleteModule(id);
+        testCaseModuleService.deleteModule(id, loginUser.getId());
         return Result.ok();
     }
 }

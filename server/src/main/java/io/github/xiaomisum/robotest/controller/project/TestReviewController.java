@@ -39,7 +39,7 @@ public class TestReviewController {
             @RequestParam(required = false) String keyword,
             @RequestParam(defaultValue = "1") Integer pageNo,
             @RequestParam(defaultValue = "20") Integer pageSize) {
-        return Result.ok(testReviewService.getReviewPage(projectId, status, keyword, pageNo, pageSize));
+        return Result.ok(testReviewService.getReviewPage(projectId, loginUser.getId(), status, keyword, pageNo, pageSize));
     }
 
     @PostMapping
@@ -55,7 +55,7 @@ public class TestReviewController {
     public Result<TestReviewDetailRespDTO> getReviewDetail(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id) {
-        return Result.ok(testReviewService.getReviewDetail(id));
+        return Result.ok(testReviewService.getReviewDetail(id, loginUser.getId()));
     }
 
     @GetMapping("/{id}/modules")
@@ -63,21 +63,21 @@ public class TestReviewController {
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id,
             @RequestParam(required = false) UUID documentId) {
-        return Result.ok(testReviewService.getReviewSnapshotTree(id, documentId));
+        return Result.ok(testReviewService.getReviewSnapshotTree(id, documentId, loginUser.getId()));
     }
 
     @GetMapping("/{id}/module-tree")
     public Result<List<SnapshotModuleTreeRespDTO>> getReviewModuleTree(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id) {
-        return Result.ok(testReviewService.getReviewModuleTree(id));
+        return Result.ok(testReviewService.getReviewModuleTree(id, loginUser.getId()));
     }
 
     @GetMapping("/{id}/cases")
     public Result<List<PlannedCasesRespDTO>> getReviewPlannedCases(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id) {
-        return Result.ok(testReviewService.getReviewPlannedCases(id));
+        return Result.ok(testReviewService.getReviewPlannedCases(id, loginUser.getId()));
     }
 
     @PutMapping("/{id}/cases")
@@ -85,7 +85,7 @@ public class TestReviewController {
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id,
             @RequestBody @Valid TestReviewCasesUpdateReqDTO reqDTO) {
-        testReviewService.updateReviewCases(id, reqDTO);
+        testReviewService.updateReviewCases(id, loginUser.getId(), reqDTO);
         return Result.ok();
     }
 
@@ -103,7 +103,7 @@ public class TestReviewController {
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id,
             @PathVariable UUID nodeId) {
-        return Result.ok(testReviewService.getNodeReviewRecords(id, nodeId));
+        return Result.ok(testReviewService.getNodeReviewRecords(id, nodeId, loginUser.getId()));
     }
 
     @PostMapping("/{id}/complete")
@@ -126,7 +126,7 @@ public class TestReviewController {
     public Result<TestReviewProgressRespDTO> getReviewProgress(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id) {
-        return Result.ok(testReviewService.getReviewProgress(id));
+        return Result.ok(testReviewService.getReviewProgress(id, loginUser.getId()));
     }
 
     @PostMapping("/{id}/sync")

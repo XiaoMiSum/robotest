@@ -3,6 +3,7 @@ package io.github.xiaomisum.robotest.service.project;
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.framework.convert.BugConvertMapper;
+import io.github.xiaomisum.robotest.framework.security.ProjectAccessGuard;
 import io.github.xiaomisum.robotest.model.dto.request.bug.BugCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.bug.BugStatusChangeReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.bug.BugUpdateReqDTO;
@@ -68,12 +69,15 @@ public class BugServiceImpl implements BugService {
     private TestCaseModuleMapper testCaseModuleMapper;
     @Resource
     private AiEmbeddingWriteService aiEmbeddingWriteService;
+    @Resource
+    private ProjectAccessGuard projectAccessGuard;
 
     @Override
-    public PageResult<BugListRespDTO> getBugPage(UUID projectId, String status, String severity,
+    public PageResult<BugListRespDTO> getBugPage(UUID projectId, UUID userId, String status, String severity,
                                              String priority, String bugType, UUID assigneeId,
                                              UUID reporterId, UUID resolvedBy, UUID closedBy, String keyword,
                                              Integer pageNo, Integer pageSize) {
+        projectAccessGuard.requireProjectMember(projectId, userId);
         PageResult<Bug> page = bugMapper.findPage(new PageParam() {{
             setPageNo(pageNo);
             setPageSize(pageSize);
@@ -101,11 +105,12 @@ public class BugServiceImpl implements BugService {
     }
 
     @Override
-    public BugDetailRespDTO getBugDetail(UUID bugId) {
+    public BugDetailRespDTO getBugDetail(UUID bugId, UUID userId) {
         Bug bug = bugMapper.selectById(bugId);
         if (bug == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.BUG_NOT_FOUND);
         }
+        projectAccessGuard.requireProjectMember(bug.getProjectId(), userId);
 
         BugDetailRespDTO dto = BugConvertMapper.INSTANCE.toDetailRespDTO(bug);
 
@@ -139,6 +144,7 @@ public class BugServiceImpl implements BugService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public String createBug(UUID projectId, UUID userId, BugCreateReqDTO reqDTO) {
+        projectAccessGuard.requireProjectMember(projectId, userId);
         validateBugType(reqDTO.getBugType());
         validateModuleInProject(projectId, reqDTO.getModuleId());
         validateAssigneeInWorkspace(projectId, reqDTO.getAssigneeId());
@@ -166,6 +172,7 @@ public class BugServiceImpl implements BugService {
         if (bug == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.BUG_NOT_FOUND);
         }
+        projectAccessGuard.requireProjectMember(bug.getProjectId(), userId);
         // 已关闭缺陷不允许编辑，仅允许通过状态机重新激活
         if (Constants.BugStatus.CLOSED.equals(bug.getStatus())) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.BUG_CLOSED_EDIT_FORBIDDEN);
@@ -242,6 +249,7 @@ public class BugServiceImpl implements BugService {
         if (bug == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.BUG_NOT_FOUND);
         }
+        projectAccessGuard.requireProjectMember(bug.getProjectId(), userId);
 
         String currentStatus = bug.getStatus();
         String targetStatus = reqDTO.getStatus();
@@ -382,6 +390,7 @@ public class BugServiceImpl implements BugService {
         if (bug == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.BUG_NOT_FOUND);
         }
+        projectAccessGuard.requireProjectMember(bug.getProjectId(), userId);
         if (!Constants.BugStatus.ACTIVE.equals(bug.getStatus())) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.BUG_CONFIRM_INVALID_STATUS);
         }
@@ -404,6 +413,7 @@ public class BugServiceImpl implements BugService {
         if (bug == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.BUG_NOT_FOUND);
         }
+        projectAccessGuard.requireProjectMember(bug.getProjectId(), userId);
         // 已关闭缺陷不允许改派处理人
         if (Constants.BugStatus.CLOSED.equals(bug.getStatus())) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.BUG_CLOSED_EDIT_FORBIDDEN);
@@ -425,7 +435,8 @@ public class BugServiceImpl implements BugService {
     }
 
     @Override
-    public BugStatisticsRespDTO getBugStatistics(UUID projectId) {
+    public BugStatisticsRespDTO getBugStatistics(UUID projectId, UUID userId) {
+        projectAccessGuard.requireProjectMember(projectId, userId);
         List<Bug> bugs = bugMapper.findByProjectId(projectId);
 
         BugStatisticsRespDTO stats = new BugStatisticsRespDTO();
@@ -505,7 +516,13 @@ public class BugServiceImpl implements BugService {
     }
 
     @Override
-    public List<BugLogRespDTO> getBugLogs(UUID bugId) {
+    public List<BugLogRespDTO> getBugLogs(UUID bugId, UUID userId) {
+        // 先定位缺陷实体以取得 projectId，再做项目归属校验（getBugLogs 不能绕过授权直接读日志）
+        Bug bug = bugMapper.selectById(bugId);
+        if (bug == null) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.BUG_NOT_FOUND);
+        }
+        projectAccessGuard.requireProjectMember(bug.getProjectId(), userId);
         List<BugLog> logs = bugLogMapper.findByBugId(bugId);
 
         return logs.stream().map(log -> {

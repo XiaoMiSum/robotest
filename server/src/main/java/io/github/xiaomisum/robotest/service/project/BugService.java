@@ -15,7 +15,7 @@ import java.util.UUID;
 
 public interface BugService {
 
-    PageResult<BugListRespDTO> getBugPage(UUID projectId, String status, String severity,
+    PageResult<BugListRespDTO> getBugPage(UUID projectId, UUID userId, String status, String severity,
                                      String priority, String bugType, UUID assigneeId,
                                      UUID reporterId, UUID resolvedBy, UUID closedBy, String keyword,
                                      Integer pageNo, Integer pageSize);
@@ -27,10 +27,11 @@ public interface BugService {
     /**
      * 获取缺陷详情（含最近操作日志）
      *
-     * @param bugId 缺陷 ID
+     * @param bugId  缺陷 ID
+     * @param userId 当前用户 ID（用于项目归属校验）
      * @return 缺陷详情
      */
-    BugDetailRespDTO getBugDetail(UUID bugId);
+    BugDetailRespDTO getBugDetail(UUID bugId, UUID userId);
 
     /**
      * 变更缺陷状态（三态状态机：active → resolved → closed，重开回 active）
@@ -62,9 +63,10 @@ public interface BugService {
      * 统计项目缺陷概况
      *
      * @param projectId 项目 ID
+     * @param userId    当前用户 ID（用于项目归属校验）
      * @return 按状态/严重等级/优先级/处理人/报告人分组统计
      */
-    BugStatisticsRespDTO getBugStatistics(UUID projectId);
+    BugStatisticsRespDTO getBugStatistics(UUID projectId, UUID userId);
 
-    List<BugLogRespDTO> getBugLogs(UUID bugId);
+    List<BugLogRespDTO> getBugLogs(UUID bugId, UUID userId);
 }

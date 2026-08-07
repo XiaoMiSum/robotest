@@ -1,5 +1,6 @@
 package io.github.xiaomisum.robotest.service.project;
 
+import io.github.xiaomisum.robotest.framework.security.ProjectAccessGuard;
 import io.github.xiaomisum.robotest.model.dto.request.tcase.TestCaseNodeUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.tcase.TestCaseCaseListRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.tcase.TestCaseDocumentNodesRespDTO;
@@ -39,23 +40,29 @@ class TestCaseNodeServiceImplTest {
     private TestCaseDocumentLayoutMapper testCaseDocumentLayoutMapper;
     @Mock
     private TestCaseModuleMapper testCaseModuleMapper;
+    @Mock
+    private ProjectAccessGuard projectAccessGuard;
 
     @InjectMocks
     private TestCaseNodeServiceImpl nodeService;
 
     private UUID documentId;
     private UUID caseId;
+    private UUID userId;
 
     @BeforeEach
     void setUp() {
         documentId = UUID.fromString("00000000-0000-0000-0000-000000000001");
         caseId = UUID.fromString("00000000-0000-0000-0000-000000000002");
+        userId = UUID.fromString("00000000-0000-0000-0000-000000000005");
     }
 
     @Test
     void getDocumentNodes_success() {
+        UUID projectId = UUID.fromString("00000000-0000-0000-0000-000000000010");
         TestCaseModule doc = new TestCaseModule();
         doc.setId(documentId);
+        doc.setProjectId(projectId);
         doc.setType("document");
 
         when(testCaseModuleMapper.selectById(documentId)).thenReturn(doc);
@@ -82,18 +89,21 @@ class TestCaseNodeServiceImplTest {
         when(testCaseDocumentLayoutMapper.findByDocumentId(documentId))
                 .thenReturn(layout);
 
-        TestCaseDocumentNodesRespDTO result = nodeService.getDocumentNodes(documentId);
+        TestCaseDocumentNodesRespDTO result = nodeService.getDocumentNodes(documentId, userId);
 
         assertNotNull(result);
         assertNotNull(result.getNode());
         assertEquals("Root", result.getNode().getTitle());
         assertEquals(layoutMap, result.getLayout());
+        verify(projectAccessGuard).requireProjectMember(projectId, userId);
     }
 
     @Test
     void getDocumentNodes_noLayout() {
+        UUID projectId = UUID.fromString("00000000-0000-0000-0000-000000000010");
         TestCaseModule doc = new TestCaseModule();
         doc.setId(documentId);
+        doc.setProjectId(projectId);
         doc.setType("document");
 
         when(testCaseModuleMapper.selectById(documentId)).thenReturn(doc);
@@ -102,10 +112,11 @@ class TestCaseNodeServiceImplTest {
         when(testCaseDocumentLayoutMapper.findByDocumentId(documentId))
                 .thenReturn(null);
 
-        TestCaseDocumentNodesRespDTO result = nodeService.getDocumentNodes(documentId);
+        TestCaseDocumentNodesRespDTO result = nodeService.getDocumentNodes(documentId, userId);
 
         assertNotNull(result);
         assertNull(result.getLayout());
+        verify(projectAccessGuard).requireProjectMember(projectId, userId);
     }
 
     @Test
@@ -113,7 +124,8 @@ class TestCaseNodeServiceImplTest {
         when(testCaseModuleMapper.selectById(documentId)).thenReturn(null);
 
         assertThrows(ServiceException.class,
-                () -> nodeService.getDocumentNodes(documentId));
+                () -> nodeService.getDocumentNodes(documentId, userId));
+        verify(projectAccessGuard, never()).requireProjectMember(any(), any());
     }
 
     @Test
@@ -125,11 +137,19 @@ class TestCaseNodeServiceImplTest {
         when(testCaseModuleMapper.selectById(documentId)).thenReturn(module);
 
         assertThrows(ServiceException.class,
-                () -> nodeService.getDocumentNodes(documentId));
+                () -> nodeService.getDocumentNodes(documentId, userId));
+        verify(projectAccessGuard, never()).requireProjectMember(any(), any());
     }
 
     @Test
     void getCaseDetail_success() {
+        UUID projectId = UUID.fromString("00000000-0000-0000-0000-000000000010");
+        TestCaseModule doc = new TestCaseModule();
+        doc.setId(documentId);
+        doc.setProjectId(projectId);
+        doc.setType("document");
+        when(testCaseModuleMapper.selectById(documentId)).thenReturn(doc);
+
         TestCaseNode node = new TestCaseNode();
         node.setId(caseId);
         node.setDocumentId(documentId);
@@ -161,7 +181,7 @@ class TestCaseNodeServiceImplTest {
         when(testCaseNodeMapper.selectById(caseId)).thenReturn(node);
         when(testCaseNodeMapper.listByDocumentId(documentId)).thenReturn(List.of(node, step, expected));
 
-        TestCaseNodeTreeRespDTO result = nodeService.getCaseDetail(caseId);
+        TestCaseNodeTreeRespDTO result = nodeService.getCaseDetail(caseId, userId);
 
         assertNotNull(result);
         assertEquals("Test Case", result.getTitle());
@@ -171,6 +191,7 @@ class TestCaseNodeServiceImplTest {
         assertEquals(1, result.getChildren().size());
         assertEquals("Step 1", result.getChildren().get(0).getTitle());
         assertEquals("Expected 1", result.getChildren().get(0).getChildren().get(0).getTitle());
+        verify(projectAccessGuard).requireProjectMember(projectId, userId);
     }
 
     @Test
@@ -178,7 +199,8 @@ class TestCaseNodeServiceImplTest {
         when(testCaseNodeMapper.selectById(caseId)).thenReturn(null);
 
         assertThrows(ServiceException.class,
-                () -> nodeService.getCaseDetail(caseId));
+                () -> nodeService.getCaseDetail(caseId, userId));
+        verify(projectAccessGuard, never()).requireProjectMember(any(), any());
     }
 
     // ========== getCaseList ==========
@@ -207,12 +229,13 @@ class TestCaseNodeServiceImplTest {
                 any(PageParam.class), anyList(), isNull(), isNull());
 
         PageResult<TestCaseCaseListRespDTO> result = nodeService.getCaseList(
-                projId, null, null, 1, 10);
+                projId, userId, null, null, 1, 10);
 
         assertNotNull(result);
         assertEquals(1, result.getList().size());
         assertEquals("Test Case", result.getList().get(0).getTitle());
         assertEquals("Doc 1", result.getList().get(0).getDocumentName());
+        verify(projectAccessGuard).requireProjectMember(projId, userId);
     }
 
     @Test
@@ -222,19 +245,28 @@ class TestCaseNodeServiceImplTest {
                 .thenReturn(Collections.emptyList());
 
         PageResult<TestCaseCaseListRespDTO> result = nodeService.getCaseList(
-                projId, null, null, 1, 10);
+                projId, userId, null, null, 1, 10);
 
         assertNotNull(result);
         assertTrue(result.getList().isEmpty());
         assertEquals(0L, result.getTotal());
+        verify(projectAccessGuard).requireProjectMember(projId, userId);
     }
 
     // ========== updateCaseNode ==========
 
     @Test
     void updateCaseNode_success() {
+        UUID projectId = UUID.fromString("00000000-0000-0000-0000-000000000010");
+        TestCaseModule doc = new TestCaseModule();
+        doc.setId(documentId);
+        doc.setProjectId(projectId);
+        doc.setType("document");
+        when(testCaseModuleMapper.selectById(documentId)).thenReturn(doc);
+
         TestCaseNode node = new TestCaseNode();
         node.setId(caseId);
+        node.setDocumentId(documentId);
         node.setType("case");
         node.setTitle("Old Title");
         node.setPriority("low");
@@ -245,7 +277,7 @@ class TestCaseNodeServiceImplTest {
         reqDTO.setTitle("New Title");
         reqDTO.setPriority("high");
 
-        nodeService.updateCaseNode(caseId, reqDTO);
+        nodeService.updateCaseNode(caseId, userId, reqDTO);
 
         // 更新载体仅携带 id + 本次传入字段，不再回写查询实体
         ArgumentCaptor<TestCaseNode> captor = ArgumentCaptor.forClass(TestCaseNode.class);
@@ -253,6 +285,7 @@ class TestCaseNodeServiceImplTest {
         assertEquals(caseId, captor.getValue().getId());
         assertEquals("New Title", captor.getValue().getTitle());
         assertEquals("high", captor.getValue().getPriority());
+        verify(projectAccessGuard).requireProjectMember(projectId, userId);
     }
 
     @Test
@@ -263,7 +296,8 @@ class TestCaseNodeServiceImplTest {
         reqDTO.setTitle("New Title");
 
         assertThrows(ServiceException.class,
-                () -> nodeService.updateCaseNode(caseId, reqDTO));
+                () -> nodeService.updateCaseNode(caseId, userId, reqDTO));
+        verify(projectAccessGuard, never()).requireProjectMember(any(), any());
     }
 
     @Test
@@ -279,6 +313,7 @@ class TestCaseNodeServiceImplTest {
         reqDTO.setTitle("New Title");
 
         assertThrows(ServiceException.class,
-                () -> nodeService.updateCaseNode(caseId, reqDTO));
+                () -> nodeService.updateCaseNode(caseId, userId, reqDTO));
+        verify(projectAccessGuard, never()).requireProjectMember(any(), any());
     }
 }

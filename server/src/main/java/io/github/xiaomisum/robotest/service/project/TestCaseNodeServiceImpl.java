@@ -3,6 +3,7 @@ package io.github.xiaomisum.robotest.service.project;
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.framework.convert.TestCaseNodeConvertMapper;
+import io.github.xiaomisum.robotest.framework.security.ProjectAccessGuard;
 import io.github.xiaomisum.robotest.model.dto.request.tcase.TestCaseNodeUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.tcase.TestCaseCaseListRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.tcase.TestCaseDocumentNodesRespDTO;
@@ -34,13 +35,16 @@ public class TestCaseNodeServiceImpl implements TestCaseNodeService {
     private TestCaseDocumentLayoutMapper testCaseDocumentLayoutMapper;
     @Resource
     private TestCaseModuleMapper testCaseModuleMapper;
+    @Resource
+    private ProjectAccessGuard projectAccessGuard;
 
     @Override
-    public TestCaseDocumentNodesRespDTO getDocumentNodes(UUID documentId) {
+    public TestCaseDocumentNodesRespDTO getDocumentNodes(UUID documentId, UUID userId) {
         TestCaseModule document = testCaseModuleMapper.selectById(documentId);
         if (document == null || !Constants.ModuleType.DOCUMENT.equals(document.getType())) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_CASE_DOCUMENT_NOT_FOUND);
         }
+        projectAccessGuard.requireProjectMember(document.getProjectId(), userId);
 
         List<TestCaseNode> nodes = testCaseNodeMapper.listByDocumentId(documentId);
 
@@ -59,11 +63,16 @@ public class TestCaseNodeServiceImpl implements TestCaseNodeService {
     }
 
     @Override
-    public TestCaseNodeTreeRespDTO getCaseDetail(UUID caseId) {
+    public TestCaseNodeTreeRespDTO getCaseDetail(UUID caseId, UUID userId) {
         TestCaseNode node = testCaseNodeMapper.selectById(caseId);
         if (node == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_CASE_NODE_NOT_FOUND);
         }
+        TestCaseModule document = testCaseModuleMapper.selectById(node.getDocumentId());
+        if (document == null) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_CASE_DOCUMENT_NOT_FOUND);
+        }
+        projectAccessGuard.requireProjectMember(document.getProjectId(), userId);
         // 悬停明细等场景需要完整用例结构：以该节点为根填充子孙（前置/步骤/预期）
         TestCaseNodeTreeRespDTO root = convertToNodeDTO(node);
         List<TestCaseNodeTreeRespDTO> dtos = testCaseNodeMapper.listByDocumentId(node.getDocumentId()).stream()
@@ -77,8 +86,9 @@ public class TestCaseNodeServiceImpl implements TestCaseNodeService {
     }
 
     @Override
-    public PageResult<TestCaseCaseListRespDTO> getCaseList(UUID projectId, String keyword,
+    public PageResult<TestCaseCaseListRespDTO> getCaseList(UUID projectId, UUID userId, String keyword,
                                                            String priority, Integer pageNo, Integer pageSize) {
+        projectAccessGuard.requireProjectMember(projectId, userId);
         // 查询项目下所有 document 的 ID
         List<TestCaseModule> documents = testCaseModuleMapper.findDocumentModulesByProjectId(projectId);
         List<String> documentIds = documents.stream()
@@ -119,7 +129,7 @@ public class TestCaseNodeServiceImpl implements TestCaseNodeService {
     }
 
     @Override
-    public void updateCaseNode(UUID caseId, TestCaseNodeUpdateReqDTO reqDTO) {
+    public void updateCaseNode(UUID caseId, UUID userId, TestCaseNodeUpdateReqDTO reqDTO) {
         TestCaseNode node = testCaseNodeMapper.selectById(caseId);
         if (node == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_CASE_NODE_NOT_FOUND);
@@ -127,6 +137,11 @@ public class TestCaseNodeServiceImpl implements TestCaseNodeService {
         if (!Constants.NodeType.CASE.equals(node.getType())) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_CASE_NODE_NOT_FOUND);
         }
+        TestCaseModule document = testCaseModuleMapper.selectById(node.getDocumentId());
+        if (document == null) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_CASE_DOCUMENT_NOT_FOUND);
+        }
+        projectAccessGuard.requireProjectMember(document.getProjectId(), userId);
         // 更新载体只携带前端传入的字段，避免全列覆盖导致并发丢失更新
         TestCaseNode update = new TestCaseNode();
         update.setId(caseId);
