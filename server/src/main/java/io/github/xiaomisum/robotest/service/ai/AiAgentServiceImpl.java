@@ -10,6 +10,7 @@ import io.github.xiaomisum.robotest.model.entity.admin.SysUser;
 import io.github.xiaomisum.robotest.model.entity.ai.AiPromptTemplate;
 import io.github.xiaomisum.robotest.repository.admin.SysUserMapper;
 import io.github.xiaomisum.robotest.repository.ai.AiPromptTemplateMapper;
+import io.github.xiaomisum.robotest.service.ai.provider.PromptDefaults;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

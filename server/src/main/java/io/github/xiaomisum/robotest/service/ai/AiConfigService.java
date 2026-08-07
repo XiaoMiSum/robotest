@@ -5,6 +5,7 @@ import io.github.xiaomisum.robotest.model.dto.request.ai.AiConfigTestReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiConfigRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiConnectivityTestRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiStatusRespDTO;
+import io.github.xiaomisum.robotest.service.ai.provider.ResolvedAiConfig;
 
 import java.util.Map;
 import java.util.UUID;

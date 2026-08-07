@@ -8,7 +8,7 @@ import io.github.xiaomisum.robotest.model.entity.ai.AiConversation;
 import io.github.xiaomisum.robotest.model.entity.ai.AiMessage;
 import io.github.xiaomisum.robotest.repository.ai.AiConversationMapper;
 import io.github.xiaomisum.robotest.repository.ai.AiMessageMapper;
-import io.github.xiaomisum.robotest.service.ai.AiModels.ToolCall;
+import io.github.xiaomisum.robotest.service.ai.model.AiModels.ToolCall;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

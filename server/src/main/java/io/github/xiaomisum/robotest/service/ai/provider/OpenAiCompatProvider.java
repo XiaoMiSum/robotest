@@ -1,14 +1,14 @@
-package io.github.xiaomisum.robotest.service.ai;
+package io.github.xiaomisum.robotest.service.ai.provider;
 
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
-import io.github.xiaomisum.robotest.service.ai.AiModels.ChatCallOptions;
-import io.github.xiaomisum.robotest.service.ai.AiModels.ChatMessage;
-import io.github.xiaomisum.robotest.service.ai.AiModels.ChatResult;
-import io.github.xiaomisum.robotest.service.ai.AiModels.EmbedResult;
-import io.github.xiaomisum.robotest.service.ai.AiModels.StreamCallbacks;
-import io.github.xiaomisum.robotest.service.ai.AiModels.ToolCall;
-import io.github.xiaomisum.robotest.service.ai.AiModels.ToolDefinition;
-import io.github.xiaomisum.robotest.service.ai.AiModels.ToolStreamCallbacks;
+import io.github.xiaomisum.robotest.service.ai.model.AiModels.ChatCallOptions;
+import io.github.xiaomisum.robotest.service.ai.model.AiModels.ChatMessage;
+import io.github.xiaomisum.robotest.service.ai.model.AiModels.ChatResult;
+import io.github.xiaomisum.robotest.service.ai.model.AiModels.EmbedResult;
+import io.github.xiaomisum.robotest.service.ai.model.AiModels.StreamCallbacks;
+import io.github.xiaomisum.robotest.service.ai.model.AiModels.ToolCall;
+import io.github.xiaomisum.robotest.service.ai.model.AiModels.ToolDefinition;
+import io.github.xiaomisum.robotest.service.ai.model.AiModels.ToolStreamCallbacks;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;

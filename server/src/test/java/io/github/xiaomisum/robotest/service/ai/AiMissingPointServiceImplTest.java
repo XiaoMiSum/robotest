@@ -8,7 +8,7 @@ import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseModule;
 import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseNode;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseModuleMapper;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseNodeMapper;
-import io.github.xiaomisum.robotest.service.ai.AiModels.ChatCallOptions;
+import io.github.xiaomisum.robotest.service.ai.model.AiModels.ChatCallOptions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

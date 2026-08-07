@@ -1,5 +1,7 @@
 package io.github.xiaomisum.robotest.service.ai;
 
+import io.github.xiaomisum.robotest.service.ai.provider.PromptAssembler;
+
 /**
  * AI 文本工具：与 PromptAssembler 估算口径一致的文本裁剪。
  */

@@ -10,6 +10,8 @@ import io.github.xiaomisum.robotest.repository.ai.BugEmbeddingMapper;
 import io.github.xiaomisum.robotest.repository.ai.CaseEmbeddingMapper;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseModuleMapper;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseNodeMapper;
+import io.github.xiaomisum.robotest.service.ai.provider.OpenAiCompatProvider;
+import io.github.xiaomisum.robotest.service.ai.provider.ResolvedAiConfig;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;

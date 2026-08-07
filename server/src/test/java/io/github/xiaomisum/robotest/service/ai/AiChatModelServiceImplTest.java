@@ -3,6 +3,8 @@ package io.github.xiaomisum.robotest.service.ai;
 import io.github.xiaomisum.robotest.model.dto.request.ai.AiChatModelSaveReqDTO;
 import io.github.xiaomisum.robotest.model.entity.ai.AiChatModel;
 import io.github.xiaomisum.robotest.repository.ai.AiChatModelMapper;
+import io.github.xiaomisum.robotest.service.ai.provider.ProviderPresetRegistry;
+import io.github.xiaomisum.robotest.service.ai.provider.ResolvedChatModel;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

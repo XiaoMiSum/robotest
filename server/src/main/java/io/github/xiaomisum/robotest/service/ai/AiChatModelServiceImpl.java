@@ -9,6 +9,8 @@ import io.github.xiaomisum.robotest.model.dto.response.ai.AiConfigRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiStatusRespDTO;
 import io.github.xiaomisum.robotest.model.entity.ai.AiChatModel;
 import io.github.xiaomisum.robotest.repository.ai.AiChatModelMapper;
+import io.github.xiaomisum.robotest.service.ai.provider.ProviderPresetRegistry;
+import io.github.xiaomisum.robotest.service.ai.provider.ResolvedChatModel;
 import jakarta.annotation.Resource;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
