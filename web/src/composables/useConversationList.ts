@@ -33,6 +33,10 @@ export function useConversationList(options: UseConversationListOptions) {
   const loadingMore = ref(false)
   const nextCursor = ref<string | null>(null)
 
+  // 空间切换竞态守卫：切换后递增序号使在途旧响应过期，
+  // 否则旧空间的 refresh/loadMore 返回会覆盖或污染新空间的列表
+  let listSeq = 0
+
   const hasMore = computed(() => nextCursor.value !== null)
 
   // 追加渲染按会话 id 去重防御（3.1 键集分页漂移补偿约定）
@@ -48,30 +52,34 @@ export function useConversationList(options: UseConversationListOptions) {
   /** 首页重载（面板打开与空间切换时调用） */
   async function refresh(): Promise<void> {
     if (!workspaceIdRef.value || loading.value) return
+    const seq = ++listSeq
     loading.value = true
     try {
       const resp = await fetcher(undefined, pageSize)
+      if (seq !== listSeq) return
       items.value = resp.items
       nextCursor.value = resp.nextCursor
     } catch {
       // 拉取失败保留旧列表，下次触发可重试（不置 loading 死锁）
     } finally {
-      loading.value = false
+      if (seq === listSeq) loading.value = false
     }
   }
 
   /** 触底加载下一页；无更多或加载中不触发 */
   async function loadMore(): Promise<void> {
     if (loading.value || loadingMore.value || !hasMore.value) return
+    const seq = ++listSeq
     loadingMore.value = true
     try {
       const resp = await fetcher(nextCursor.value ?? undefined, pageSize)
+      if (seq !== listSeq) return
       appendDedup(resp.items)
       nextCursor.value = resp.nextCursor
     } catch {
       // 拉取失败保留游标，触底可重试
     } finally {
-      loadingMore.value = false
+      if (seq === listSeq) loadingMore.value = false
     }
   }
 
@@ -80,10 +88,14 @@ export function useConversationList(options: UseConversationListOptions) {
     items.value = [conversation, ...items.value.filter((c) => c.id !== conversation.id)]
   }
 
-  // 空间切换重置会话列表（会话按空间隔离，5.2）
+  // 空间切换重置会话列表（会话按空间隔离，5.2）；先递增序号使旧空间在途请求过期，
+  // 并复位加载态，否则旧请求的 finally 不会复位（seq 不匹配）导致 loading 永久占用
   watch(
     workspaceIdRef,
     () => {
+      listSeq++
+      loading.value = false
+      loadingMore.value = false
       nextCursor.value = null
       items.value = []
       void refresh()

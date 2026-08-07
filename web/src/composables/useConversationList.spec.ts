@@ -118,6 +118,52 @@ describe('useConversationList 会话列表游标分页（详细设计 5.2/5.3）
     expect(hasMore.value).toBe(false)
   })
 
+  it('空间切换后旧空间的在途 refresh 响应被丢弃（seq 守卫防竞态覆盖）', async () => {
+    let resolveOld!: (resp: AiConversationListResp) => void
+    let resolveNew!: (resp: AiConversationListResp) => void
+    const workspaceId = ref('ws-1')
+    const fetcher = vi
+      .fn()
+      .mockImplementationOnce(
+        () => new Promise<AiConversationListResp>((resolve) => { resolveOld = resolve }),
+      )
+      .mockImplementationOnce(
+        () => new Promise<AiConversationListResp>((resolve) => { resolveNew = resolve }),
+      )
+    const { items } = useConversationList({ workspaceId, fetcher })
+    // ws-1 首页请求在途；切换空间触发新 refresh（ws-2 请求亦在途）
+    workspaceId.value = 'ws-2'
+    await nextTick()
+    // 新空间响应先落地
+    resolveNew(page(['b1']))
+    await flush()
+    // 旧空间响应此刻才返回 → 必须被 seq 守卫丢弃
+    resolveOld(page(['a1', 'a2'], 'cur-a'))
+    await flush()
+    expect(items.value.map((c) => c.id)).toEqual(['b1'])
+  })
+
+  it('loadMore 在途时切换空间，旧空间追加响应不污染新列表', async () => {
+    let resolveMore!: (resp: AiConversationListResp) => void
+    const workspaceId = ref('ws-1')
+    const fetcher = vi
+      .fn()
+      .mockResolvedValueOnce(page(['c1'], 'cur-1')) // ws-1 首页
+      .mockImplementationOnce(
+        () => new Promise<AiConversationListResp>((resolve) => { resolveMore = resolve }),
+      ) // ws-1 loadMore 在途
+      .mockResolvedValueOnce(page(['b1'])) // ws-2 首页
+    const { items, loadMore } = useConversationList({ workspaceId, fetcher })
+    await flush()
+    const pending = loadMore()
+    workspaceId.value = 'ws-2'
+    await nextTick()
+    resolveMore(page(['c2', 'c3']))
+    await pending
+    await flush()
+    expect(items.value.map((c) => c.id)).toEqual(['b1'])
+  })
+
   it('首页拉取失败保留旧列表，不置 loading 死锁', async () => {
     const fetcher = vi.fn().mockRejectedValueOnce(new Error('network')).mockResolvedValueOnce(page(['c1']))
     const { items, loading, refresh } = useConversationList({ workspaceId: 'ws-1', fetcher })
