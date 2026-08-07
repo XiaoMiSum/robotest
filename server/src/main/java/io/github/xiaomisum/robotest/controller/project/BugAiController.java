@@ -7,9 +7,9 @@ import io.github.xiaomisum.robotest.model.dto.response.ai.AiBugClusteringStartRe
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiBugDedupRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiBugSuggestionRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiTaskRespDTO;
-import io.github.xiaomisum.robotest.service.ai.AiBugClusteringService;
-import io.github.xiaomisum.robotest.service.ai.AiBugDedupService;
-import io.github.xiaomisum.robotest.service.ai.AiBugSuggestionService;
+import io.github.xiaomisum.robotest.service.ai.bug.AiBugClusteringService;
+import io.github.xiaomisum.robotest.service.ai.bug.AiBugDedupService;
+import io.github.xiaomisum.robotest.service.ai.bug.AiBugSuggestionService;
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;

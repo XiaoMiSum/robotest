@@ -3,7 +3,7 @@ package io.github.xiaomisum.robotest.controller.workspace;
 import io.github.xiaomisum.robotest.framework.security.LoginUser;
 import io.github.xiaomisum.robotest.model.dto.request.ai.AiAssistantSendReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.ai.AiConfirmReqDTO;
-import io.github.xiaomisum.robotest.service.ai.AiAssistantChatService;
+import io.github.xiaomisum.robotest.service.ai.chat.AiAssistantChatService;
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
 import org.springframework.http.MediaType;

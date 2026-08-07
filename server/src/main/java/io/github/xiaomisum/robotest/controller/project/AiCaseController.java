@@ -14,11 +14,11 @@ import io.github.xiaomisum.robotest.model.dto.response.ai.AiPlanOrderQueryRespDT
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiPlanOrderReasonRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiPriorityRecommendRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiRegressionRecommendRespDTO;
-import io.github.xiaomisum.robotest.service.ai.AiCaseGenerationService;
-import io.github.xiaomisum.robotest.service.ai.AiMissingPointService;
-import io.github.xiaomisum.robotest.service.ai.AiPlanOrderRecommendService;
-import io.github.xiaomisum.robotest.service.ai.AiPriorityRecommendService;
-import io.github.xiaomisum.robotest.service.ai.AiRegressionRecommendService;
+import io.github.xiaomisum.robotest.service.ai.casegen.AiCaseGenerationService;
+import io.github.xiaomisum.robotest.service.ai.casegen.AiMissingPointService;
+import io.github.xiaomisum.robotest.service.ai.recommend.AiPlanOrderRecommendService;
+import io.github.xiaomisum.robotest.service.ai.recommend.AiPriorityRecommendService;
+import io.github.xiaomisum.robotest.service.ai.recommend.AiRegressionRecommendService;
 import xyz.migoo.framework.common.pojo.Result;
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;

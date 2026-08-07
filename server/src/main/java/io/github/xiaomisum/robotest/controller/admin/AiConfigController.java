@@ -15,7 +15,7 @@ import io.github.xiaomisum.robotest.model.dto.response.ai.AiTaskRespDTO;
 import io.github.xiaomisum.robotest.service.ai.gateway.AiChatModelService;
 import io.github.xiaomisum.robotest.service.ai.gateway.AiConfigService;
 import io.github.xiaomisum.robotest.service.ai.gateway.AiSettingDefinitions;
-import io.github.xiaomisum.robotest.service.ai.AiStatisticsService;
+import io.github.xiaomisum.robotest.service.ai.stats.AiStatisticsService;
 import io.github.xiaomisum.robotest.service.ai.task.AiTaskService;
 import io.github.xiaomisum.robotest.service.ai.provider.ProviderPresetRegistry;
 import jakarta.annotation.Resource;

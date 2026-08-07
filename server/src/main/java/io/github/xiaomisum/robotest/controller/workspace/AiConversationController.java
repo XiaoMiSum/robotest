@@ -4,7 +4,7 @@ import io.github.xiaomisum.robotest.framework.security.LoginUser;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiConversationItemRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiConversationListRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiMessageRespDTO;
-import io.github.xiaomisum.robotest.service.ai.AiConversationService;
+import io.github.xiaomisum.robotest.service.ai.chat.AiConversationService;
 import jakarta.annotation.Resource;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
