@@ -1,4 +1,5 @@
 import api from '@/services'
+import type { AxiosRequestConfig } from 'axios'
 import type {
   AdminUser,
   AdminWorkspace,
@@ -32,8 +33,8 @@ import type {
 function get<T>(url: string, params?: Record<string, unknown>): Promise<T> {
   return api.get(url, { params }) as unknown as Promise<T>
 }
-function post<T>(url: string, data?: unknown): Promise<T> {
-  return api.post(url, data) as unknown as Promise<T>
+function post<T>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T> {
+  return api.post(url, data, config) as unknown as Promise<T>
 }
 function put<T>(url: string, data?: unknown): Promise<T> {
   return api.put(url, data) as unknown as Promise<T>
@@ -209,7 +210,8 @@ export function saveAiConfig(data: AiConfigSavePayload): Promise<AiConfig> {
 }
 
 export function testAiConnectivity(data: AiConfigTestPayload): Promise<AiConnectivityTestResult> {
-  return post('/admin/ai/config/test', data)
+  // 连通性测试真实调用外部供应商，上游慢时 15s 全局超时会误报失败，单独放宽到 120s
+  return post('/admin/ai/config/test', data, { timeout: 120_000 })
 }
 
 export function fetchAiProviders(): Promise<AiProviderPreset[]> {
