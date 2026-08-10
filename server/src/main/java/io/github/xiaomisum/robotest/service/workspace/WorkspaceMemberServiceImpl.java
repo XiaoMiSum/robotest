@@ -64,15 +64,30 @@ public class WorkspaceMemberServiceImpl implements WorkspaceMemberService {
                 .collect(Collectors.toList());
         List<SysUser> users = userMapper.listByIds(userIds);
 
+        // 邮箱是敏感信息：仅管理员可见完整值，普通成员统一脱敏（含自己的行，避免通过对比推断他人邮箱）
+        boolean isAdmin = Constants.WorkspaceRole.ADMIN_ID.equals(currentUser.getWorkspaceRole());
         List<WorkspaceMemberRespDTO> records = page.getList().stream().map(wu -> {
             SysUser user = users.stream()
                     .filter(u -> u.getId().equals(wu.getUserId()))
                     .findFirst()
                     .orElse(null);
-            return WorkspaceMemberConvertMapper.INSTANCE.toRespDTO(wu, user);
+            WorkspaceMemberRespDTO dto = WorkspaceMemberConvertMapper.INSTANCE.toRespDTO(wu, user);
+            if (!isAdmin && dto.getEmail() != null) {
+                dto.setEmail(maskEmail(dto.getEmail()));
+            }
+            return dto;
         }).collect(Collectors.toList());
 
         return new PageResult<>(records, page.getTotal());
+    }
+
+    /** 脱敏邮箱：仅保留首字符与域名，如 u***@example.com */
+    private String maskEmail(String email) {
+        int at = email.indexOf('@');
+        if (at <= 1) {
+            return email;
+        }
+        return email.charAt(0) + "***" + email.substring(at);
     }
 
     @Override
