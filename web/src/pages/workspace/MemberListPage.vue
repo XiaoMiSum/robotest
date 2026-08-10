@@ -2,7 +2,7 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Search } from '@element-plus/icons-vue'
+import { CopyDocument, Search } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/stores/auth'
 import {
   addMembers,
@@ -14,14 +14,14 @@ import {
   updateMemberRole,
 } from '@/services/workspace'
 import { fetchRoleList, fetchSimpleUserList } from '@/services/admin'
-import type { Invitation, UserSimple, WorkspaceMember } from '@/types'
+import type { InvitationListItem, UserSimple, WorkspaceMember } from '@/types'
 import { formatDateTime } from '@/utils/format'
 
 const router = useRouter()
 const authStore = useAuthStore()
 
 const canManageMember = computed(() => authStore.hasPermission('ws-member:manage'))
-const canViewInvitation = computed(() => authStore.hasPermission('ws-invitation:view'))
+// 邀请链接列表/创建/撤销均仅管理员可见（后端接口同样收紧，避免普通成员看到 403）
 const canManageInvitation = computed(() => authStore.hasPermission('ws-invitation:manage'))
 const currentUserId = computed(() => authStore.user?.id ?? '')
 const activeTab = ref('members')
@@ -150,7 +150,7 @@ async function submitAddMembers() {
   }
 }
 
-const invitations = ref<Invitation[]>([])
+const invitations = ref<InvitationListItem[]>([])
 const invitationsLoading = ref(false)
 const invitationTotal = ref(0)
 const invQuery = reactive({ pageNo: 1, pageSize: 20 })
@@ -171,6 +171,9 @@ async function loadInvitations() {
 const createDialogVisible = ref(false)
 const createForm = reactive({ expiresAt: '' as string, maxUses: null as number | null })
 const createSubmitting = ref(false)
+// 列表接口不下发 token，创建成功后立即弹窗展示链接供复制
+const createdInviteLink = ref('')
+const linkDialogVisible = ref(false)
 
 function openCreateDialog() {
   createForm.expiresAt = ''
@@ -181,12 +184,14 @@ function openCreateDialog() {
 async function submitCreateInvitation() {
   createSubmitting.value = true
   try {
-    await createInvitation({
+    const invitation = await createInvitation({
       expiresAt: createForm.expiresAt || null,
       maxUses: createForm.maxUses,
     })
     ElMessage.success('邀请链接已创建')
     createDialogVisible.value = false
+    createdInviteLink.value = getInviteUrl(invitation.token)
+    linkDialogVisible.value = true
     loadInvitations()
   } catch (err) {
     ElMessage.error(err instanceof Error ? err.message : '创建失败')
@@ -199,16 +204,16 @@ function getInviteUrl(token: string): string {
   return `${window.location.origin}/join?token=${token}`
 }
 
-async function handleCopyLink(token: string) {
+async function handleCopyLink(url: string) {
   try {
-    await navigator.clipboard.writeText(getInviteUrl(token))
+    await navigator.clipboard.writeText(url)
     ElMessage.success('已复制')
   } catch {
     ElMessage.error('复制失败，请手动复制')
   }
 }
 
-async function handleRevoke(inv: Invitation) {
+async function handleRevoke(inv: InvitationListItem) {
   try {
     await ElMessageBox.confirm('确定要撤销该邀请链接吗？撤销后将不可再使用。', '确认撤销', { type: 'warning' })
   } catch {
@@ -313,18 +318,13 @@ onMounted(() => {
           </div>
         </el-tab-pane>
 
-        <el-tab-pane v-if="canViewInvitation" label="邀请链接" name="invitations">
+        <el-tab-pane v-if="canManageInvitation" label="邀请链接" name="invitations">
           <div class="member-page__toolbar member-page__toolbar--end">
-            <el-button v-if="canManageInvitation" type="primary" @click="openCreateDialog">
+            <el-button type="primary" @click="openCreateDialog">
               <el-icon><Link /></el-icon>创建邀请链接
             </el-button>
           </div>
           <el-table v-loading="invitationsLoading" :data="invitations" row-key="id">
-            <el-table-column label="链接" min-width="200">
-              <template #default="{ row }">
-                <el-button link type="primary" @click="handleCopyLink(row.token)">复制链接</el-button>
-              </template>
-            </el-table-column>
             <el-table-column label="使用次数" width="120">
               <template #default="{ row }">
                 {{ row.useCount }}{{ row.maxUses != null ? ` / ${row.maxUses}` : ' / 不限' }}
@@ -351,7 +351,7 @@ onMounted(() => {
                   v-if="row.status === 'active'"
                   link
                   type="danger"
-                  @click="handleRevoke(row as Invitation)"
+                  @click="handleRevoke(row as InvitationListItem)"
                 >
                   撤销
                 </el-button>
@@ -413,6 +413,19 @@ onMounted(() => {
       <template #footer>
         <el-button @click="createDialogVisible = false">取消</el-button>
         <el-button type="primary" :loading="createSubmitting" @click="submitCreateInvitation">创建</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 列表接口不下发 token，创建后立即在弹窗中展示完整链接，关闭后无法再获取 -->
+    <el-dialog v-model="linkDialogVisible" title="邀请链接已创建" width="520px" :close-on-click-modal="false">
+      <p class="member-page__link-tip">请复制链接并发送给受邀成员：</p>
+      <el-input :model-value="createdInviteLink" readonly>
+        <template #append>
+          <el-button :icon="CopyDocument" @click="handleCopyLink(createdInviteLink)">复制</el-button>
+        </template>
+      </el-input>
+      <template #footer>
+        <el-button type="primary" @click="linkDialogVisible = false">关闭</el-button>
       </template>
     </el-dialog>
   </div>
