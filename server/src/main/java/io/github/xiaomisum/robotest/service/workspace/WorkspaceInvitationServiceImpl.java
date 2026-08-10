@@ -8,6 +8,7 @@ import io.github.xiaomisum.robotest.model.dto.request.workspace.InvitationCreate
 import io.github.xiaomisum.robotest.model.dto.request.workspace.InvitationJoinReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.workspace.InvitationCheckEmailRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.workspace.InvitationJoinRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.workspace.InvitationListRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.workspace.InvitationRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.workspace.InvitationVerifyRespDTO;
 import io.github.xiaomisum.robotest.model.entity.admin.SysUser;
@@ -68,8 +69,9 @@ public class WorkspaceInvitationServiceImpl implements WorkspaceInvitationServic
     }
 
     @Override
-    public PageResult<InvitationRespDTO> getInvitationPage(UUID userId, UUID workspaceId, Integer pageNo, Integer pageSize) {
-        checkMemberPermission(userId, workspaceId);
+    public PageResult<InvitationListRespDTO> getInvitationPage(UUID userId, UUID workspaceId, Integer pageNo, Integer pageSize) {
+        // 邀请链接是敏感凭据，列表仅管理员可见（与 create/revoke 一致）
+        checkAdminPermission(userId, workspaceId);
 
         PageResult<WorkspaceInvitation> page = invitationMapper.findPageByWorkspaceId(
                 new PageParam() {{
@@ -77,8 +79,8 @@ public class WorkspaceInvitationServiceImpl implements WorkspaceInvitationServic
                     setPageSize(pageSize);
                 }}, workspaceId);
 
-        List<InvitationRespDTO> records = page.getList().stream()
-                .map(this::convertToRespDTO)
+        List<InvitationListRespDTO> records = page.getList().stream()
+                .map(WorkspaceInvitationConvertMapper.INSTANCE::toListRespDTO)
                 .collect(Collectors.toList());
 
         return new PageResult<>(records, page.getTotal());
@@ -172,13 +174,6 @@ public class WorkspaceInvitationServiceImpl implements WorkspaceInvitationServic
     private void checkAdminPermission(UUID userId, UUID workspaceId) {
         WorkspaceUser workspaceUser = workspaceUserMapper.findByWorkspaceIdAndUserId(workspaceId, userId);
         if (workspaceUser == null || !Constants.WorkspaceRole.ADMIN_ID.equals(workspaceUser.getWorkspaceRole())) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.NO_PERMISSION);
-        }
-    }
-
-    private void checkMemberPermission(UUID userId, UUID workspaceId) {
-        WorkspaceUser workspaceUser = workspaceUserMapper.findByWorkspaceIdAndUserId(workspaceId, userId);
-        if (workspaceUser == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.NO_PERMISSION);
         }
     }

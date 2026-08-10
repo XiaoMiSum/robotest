@@ -4,6 +4,7 @@ import io.github.xiaomisum.robotest.model.dto.request.workspace.InvitationCreate
 import io.github.xiaomisum.robotest.model.dto.request.workspace.InvitationJoinReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.workspace.InvitationCheckEmailRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.workspace.InvitationJoinRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.workspace.InvitationListRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.workspace.InvitationRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.workspace.InvitationVerifyRespDTO;
 import xyz.migoo.framework.common.pojo.PageResult;
@@ -14,7 +15,7 @@ public interface WorkspaceInvitationService {
 
     InvitationRespDTO createInvitation(UUID userId, UUID workspaceId, InvitationCreateReqDTO reqDTO);
 
-    PageResult<InvitationRespDTO> getInvitationPage(UUID userId, UUID workspaceId, Integer pageNo, Integer pageSize);
+    PageResult<InvitationListRespDTO> getInvitationPage(UUID userId, UUID workspaceId, Integer pageNo, Integer pageSize);
 
     void revokeInvitation(UUID userId, UUID workspaceId, UUID invitationId);
 
