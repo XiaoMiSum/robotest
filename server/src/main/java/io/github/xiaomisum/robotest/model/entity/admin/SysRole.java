@@ -18,7 +18,6 @@ public class SysRole extends BaseUuidDO<SysRole> {
     private String description;
     private String type;
     private Boolean isSystem;
-    private Boolean fullAccess;
 
     @TableField(typeHandler = Jackson3TypeHandler.class)
     private List<String> permissions;

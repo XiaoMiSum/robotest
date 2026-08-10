@@ -24,7 +24,6 @@ public interface RoleConvertMapper {
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "description", ignore = true)
     @Mapping(target = "isSystem", ignore = true)
-    @Mapping(target = "fullAccess", ignore = true)
     @Mapping(target = "permissions", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)

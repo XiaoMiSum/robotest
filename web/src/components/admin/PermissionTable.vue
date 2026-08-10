@@ -8,7 +8,6 @@ const props = defineProps<{
   roleId: string
   isSystem: boolean
   roleType: string
-  fullAccess: boolean
 }>()
 
 const loading = ref(false)
@@ -30,11 +29,7 @@ async function load() {
     const [perms, detail] = await Promise.all([fetchPermissionTable(props.roleType), fetchRoleDetail(props.roleId)])
     modules.value = perms
     savedCodes.value = [...detail.permissions]
-    if (props.fullAccess) {
-      checkedCodes.value = perms.flatMap((m) => m.permissions.map((p) => p.code))
-    } else {
-      checkedCodes.value = [...detail.permissions]
-    }
+    checkedCodes.value = [...detail.permissions]
   } catch (err) {
     ElMessage.error(err instanceof Error ? err.message : '加载权限配置失败')
   } finally {
@@ -43,7 +38,6 @@ async function load() {
 }
 
 function isLocked(_code: string): boolean {
-  if (props.fullAccess) return true
   if (props.isSystem) return true
   return false
 }
@@ -119,7 +113,7 @@ watch(() => props.roleId, load, { immediate: true })
       </el-table>
     </el-checkbox-group>
 
-    <div v-if="!fullAccess && !isSystem" class="perm-table__actions">
+    <div v-if="!isSystem" class="perm-table__actions">
       <el-button :disabled="!dirty" @click="handleRevert">撤销修改</el-button>
       <el-button type="primary" :loading="saving" :disabled="!dirty" @click="handleSave">
         保存权限

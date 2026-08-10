@@ -35,7 +35,6 @@ CREATE TABLE sys_role (
     type         VARCHAR(20)  NOT NULL,
     is_system    BOOLEAN      NOT NULL DEFAULT FALSE,
     permissions  JSONB        NOT NULL DEFAULT '[]',
-    full_access  BOOLEAN      NOT NULL DEFAULT FALSE,
     is_deleted   BOOLEAN      NOT NULL DEFAULT FALSE,
     created_at   TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at   TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -472,7 +471,6 @@ COMMENT ON COLUMN sys_role.description IS '角色描述';
 COMMENT ON COLUMN sys_role.type IS '角色类型：system=系统级, workspace=空间级';
 COMMENT ON COLUMN sys_role.is_system IS '是否系统预置角色（不可删除）';
 COMMENT ON COLUMN sys_role.permissions IS '权限点代码列表（JSON 数组）';
-COMMENT ON COLUMN sys_role.full_access IS '是否拥有全部权限（跳过 permissions 校验）';
 COMMENT ON COLUMN sys_role.is_deleted IS '逻辑删除标志';
 COMMENT ON COLUMN sys_role.created_at IS '创建时间';
 COMMENT ON COLUMN sys_role.updated_at IS '更新时间';
@@ -812,28 +810,24 @@ INSERT INTO sys_permission (id, code, name, parent_code, module, scope, sort_ord
 ('c0000000-0000-0000-0000-000000000033', 'bug:edit',           '编辑缺陷',            'bug',          '缺陷',    'workspace', 3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE);
 
 -- 7.3 预置角色
-INSERT INTO sys_role (id, name, description, type, is_system, permissions, full_access, created_at, updated_at, is_deleted) VALUES
+INSERT INTO sys_role (id, name, description, type, is_system, permissions, created_at, updated_at, is_deleted) VALUES
 -- 系统管理员：拥有系统管理所有权限
 ('b0000000-0000-0000-0000-000000000001', '系统管理员',
  '拥有系统管理所有权限', 'system', TRUE,
  '["user","user:view","user:create","user:edit","user:disable","user:reset-password","workspace","workspace:view","workspace:create","workspace:edit","workspace:delete","workspace:manage-members","role","role:view","role:create","role:edit","role:delete"]',
- FALSE,
  CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
 -- 空间管理系统角色：拥有工作空间管理所有权限（跨空间管理）
 ('b0000000-0000-0000-0000-000000000002', '空间管理员',
  '拥有工作空间管理所有权限，可创建/删除/管理所有工作空间', 'system', TRUE,
  '["workspace","workspace:view","workspace:create","workspace:edit","workspace:delete","workspace:manage-members","ws-info","ws-info:view","ws-info:edit","ws-member","ws-member:view","ws-member:manage","ws-invitation","ws-invitation:view","ws-invitation:manage"]',
- FALSE,
  CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
--- workspace 管理员：空间内全部业务权限（full_access）
+-- workspace 管理员：空间内全部业务权限（显式授权全部空间权限码）
 ('c0000000-0000-0000-0000-000000000001', '管理员',
  '空间管理员 — 拥有工作空间内全部业务权限', 'workspace', TRUE,
- '[]',
- TRUE,
+ '["ws-info","ws-info:view","ws-info:edit","ws-member","ws-member:view","ws-member:manage","ws-invitation","ws-invitation:view","ws-invitation:manage","project","project:view","project:create","project:edit","project:delete","project:archive","project:set-default","case","case:view","case:edit","review","review:view","review:create","review:edit","review:complete","plan","plan:view","plan:create","plan:execute","plan:close","bug","bug:view","bug:create","bug:edit"]',
  CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
 -- workspace 普通成员：默认角色
 ('c0000000-0000-0000-0000-000000000002', '成员',
  '空间成员 — 除删除/归档项目、管理成员、编辑空间信息外的其他权限', 'workspace', TRUE,
  '["ws-info:view","ws-member:view","ws-invitation:view","ws-invitation:manage","project:view","project:create","project:edit","project:set-default","case:view","case:edit","review:view","review:create","review:edit","review:complete","plan:view","plan:create","plan:execute","plan:close","bug:view","bug:create","bug:edit"]',
- FALSE,
  CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE);
