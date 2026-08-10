@@ -215,7 +215,7 @@ onMounted(() => {
         <el-table-column type="selection" width="48" />
         <el-table-column label="用户名" min-width="140">
           <template #default="{ row }">
-            <el-link type="primary" :underline="false" @click="router.push(`/admin/users/${row.id}`)">
+            <el-link type="primary" underline="never" @click="router.push(`/admin/users/${row.id}`)">
               {{ row.username }}
             </el-link>
           </template>

@@ -169,7 +169,7 @@ async function submitCreate() {
       <el-table :data="reviews" row-key="id">
         <el-table-column label="标题" min-width="200">
           <template #default="{ row }">
-            <el-link type="primary" :underline="false" @click="router.push(`/workspace/projects/reviews/${row.id}`)">{{ row.title }}</el-link>
+            <el-link type="primary" underline="never" @click="router.push(`/workspace/projects/reviews/${row.id}`)">{{ row.title }}</el-link>
           </template>
         </el-table-column>
         <el-table-column label="发起人" width="120">

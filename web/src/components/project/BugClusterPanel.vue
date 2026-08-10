@@ -264,7 +264,7 @@ onBeforeUnmount(stopPolling)
                   @click="goDetail(bugId)"
                 >
                   <span>{{ formatShortId(bugId) }}</span>
-                  <el-link type="primary" :underline="false">查看</el-link>
+                  <el-link type="primary" underline="never">查看</el-link>
                 </div>
               </div>
             </div>

@@ -180,7 +180,7 @@ async function submitCreate() {
       <el-table :data="plans" row-key="id">
         <el-table-column label="名称" min-width="180">
           <template #default="{ row }">
-            <el-link type="primary" :underline="false" @click="router.push(`/workspace/projects/plans/${row.id}`)">{{ row.name }}</el-link>
+            <el-link type="primary" underline="never" @click="router.push(`/workspace/projects/plans/${row.id}`)">{{ row.name }}</el-link>
           </template>
         </el-table-column>
         <el-table-column label="负责人" width="100">

@@ -556,7 +556,7 @@ onMounted(loadBugs)
             <!-- 标题超 13 字符截断展示，悬停原生 title 提示完整内容 -->
             <el-link
               type="primary"
-              :underline="false"
+              underline="never"
               :title="row.title.length > 18 ? row.title : undefined"
               @click="router.push(`/workspace/projects/bugs/${row.id}`)"
               >{{ truncateText(row.title, 18) }}</el-link

@@ -138,7 +138,7 @@ onMounted(loadWorkspaces)
       <el-table v-loading="loading" :data="workspaces" row-key="id">
         <el-table-column label="名称" min-width="160">
           <template #default="{ row }">
-            <el-link type="primary" :underline="false" @click="goDetail(row.id)">
+            <el-link type="primary" underline="never" @click="goDetail(row.id)">
               {{ row.name }}
             </el-link>
           </template>

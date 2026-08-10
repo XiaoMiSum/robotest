@@ -381,7 +381,7 @@ onMounted(() => {
 <template>
   <div v-loading="loading" class="bug-detail">
     <div class="bug-detail__topbar">
-      <el-link class="bug-detail__back" :underline="false" @click="router.push('/workspace/projects/bugs')">
+      <el-link class="bug-detail__back" underline="never" @click="router.push('/workspace/projects/bugs')">
         <el-icon><Back /></el-icon><span>返回</span>
       </el-link>
       <el-divider direction="vertical" />
@@ -481,7 +481,7 @@ onMounted(() => {
               <el-descriptions-item v-if="detail.duplicateOfBugId" label="重复缺陷">
                 <el-link
                   type="primary"
-                  :underline="false"
+                  underline="never"
                   @click="router.push(`/workspace/projects/bugs/${detail.duplicateOfBugId}`)"
                 >
                   查看原始缺陷
@@ -598,7 +598,7 @@ onMounted(() => {
                           </div>
                         </div>
                         <div class="bug-detail__case-pop-footer">
-                          <el-link type="primary" :underline="false" @click="openCaseDocument">
+                          <el-link type="primary" underline="never" @click="openCaseDocument">
                             <el-icon><Position /></el-icon>打开所在文档
                           </el-link>
                         </div>
