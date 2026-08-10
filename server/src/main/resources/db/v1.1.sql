@@ -177,9 +177,13 @@ INSERT INTO sys_permission (id, code, name, parent_code, module, scope, sort_ord
 ('c0000000-0000-0000-0000-000000000035', 'requirement:view', '查看需求池', 'requirement', '需求池', 'workspace', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
 ('c0000000-0000-0000-0000-000000000036', 'requirement:edit', '编辑需求池', 'requirement', '需求池', 'workspace', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE);
 
--- 成员角色追加需求池读写（管理员角色 full_access 自动覆盖，无需回补）
+-- 成员角色追加需求池读写（管理员角色已在 v1.sql 显式授权全部权限码，此处单独回补需求池权限）
 UPDATE sys_role SET permissions = permissions || '["requirement:view","requirement:edit"]'::jsonb, updated_at = CURRENT_TIMESTAMP
 WHERE id = 'c0000000-0000-0000-0000-000000000002' AND NOT permissions @> '["requirement:view"]'::jsonb;
+
+-- 管理员角色回补需求池权限（full_access 机制已移除，需与成员角色一致显式授权）
+UPDATE sys_role SET permissions = permissions || '["requirement","requirement:view","requirement:edit"]'::jsonb, updated_at = CURRENT_TIMESTAMP
+WHERE id = 'c0000000-0000-0000-0000-000000000001' AND NOT permissions @> '["requirement:view"]'::jsonb;
 
 -- ============================================================
 -- 5. 表与列注释

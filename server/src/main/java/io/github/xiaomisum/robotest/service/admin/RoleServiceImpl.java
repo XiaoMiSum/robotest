@@ -235,7 +235,7 @@ public class RoleServiceImpl implements RoleService {
         if (role == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.ROLE_NOT_FOUND);
         }
-        if (Boolean.TRUE.equals(role.getIsSystem()) || Boolean.TRUE.equals(role.getFullAccess())) {
+        if (Boolean.TRUE.equals(role.getIsSystem())) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.SYSTEM_ROLE_PERMISSION_NOT_MODIFIABLE);
         }
         role.setPermissions(reqDTO.getPermissions());

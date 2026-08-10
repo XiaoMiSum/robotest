@@ -170,7 +170,6 @@ export interface RoleTreeNode {
   type: RoleType
   isGroup?: boolean
   isSystem?: boolean
-  fullAccess?: boolean
   userCount?: number
   children?: RoleTreeNode[]
 }
@@ -182,7 +181,6 @@ export interface RoleDetail {
   description?: string
   type: RoleType
   isSystem: boolean
-  fullAccess: boolean
   permissions: string[]
   userCount: number
 }

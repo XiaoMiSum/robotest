@@ -5,7 +5,7 @@ import { createRole, deleteRole, fetchRoleList, updateRole } from '@/services/ad
 import type { RoleTreeNode, RoleType } from '@/types'
 
 const emit = defineEmits<{
-  select: [node: { id: string; isSystem: boolean; type: string; fullAccess: boolean }]
+  select: [node: { id: string; isSystem: boolean; type: string }]
   cleared: []
 }>()
 
@@ -54,7 +54,7 @@ async function load() {
 function handleNodeClick(node: RoleTreeNode) {
   if (node.isGroup) return
   currentId.value = node.id
-  emit('select', { id: node.id, isSystem: node.isSystem ?? false, type: node.type, fullAccess: node.fullAccess ?? false })
+  emit('select', { id: node.id, isSystem: node.isSystem ?? false, type: node.type })
 }
 
 async function handleAdd(group: RoleTreeNode) {
@@ -67,7 +67,7 @@ async function handleAdd(group: RoleTreeNode) {
     ElMessage.success('角色已创建')
     await load()
     currentId.value = id
-    emit('select', { id, isSystem: false, type: group.type, fullAccess: false })
+    emit('select', { id, isSystem: false, type: group.type })
   } catch (err) {
     if (err === 'cancel' || err === 'close') return
     ElMessage.error(err instanceof Error ? err.message : '创建角色失败')
