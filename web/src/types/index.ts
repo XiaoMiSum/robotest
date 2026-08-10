@@ -241,10 +241,20 @@ export interface Project {
 /** 邀请链接状态 */
 export type InvitationStatus = 'active' | 'revoked'
 
-/** 邀请链接 */
+/** 邀请链接（创建接口返回，含敏感 token，仅创建后立即展示） */
 export interface Invitation {
   id: string
   token: string
+  expiresAt: string | null
+  maxUses: number | null
+  useCount: number
+  status: InvitationStatus
+  createdAt: string
+}
+
+/** 邀请链接列表项（列表接口不下发 token，避免敏感凭据随列表泄露） */
+export interface InvitationListItem {
+  id: string
   expiresAt: string | null
   maxUses: number | null
   useCount: number

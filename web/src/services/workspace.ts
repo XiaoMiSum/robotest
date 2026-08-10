@@ -3,6 +3,7 @@ import type {
   Invitation,
   InvitationCheckEmailResult,
   InvitationJoinResult,
+  InvitationListItem,
   InvitationVerifyResult,
   MemberAddResult,
   PageResult,
@@ -93,7 +94,7 @@ export function createInvitation(data: {
 export function fetchInvitations(params: {
   pageNo?: number
   pageSize?: number
-}): Promise<PageResult<Invitation>> {
+}): Promise<PageResult<InvitationListItem>> {
   return get('/workspace/invitations', { ...params })
 }
 
