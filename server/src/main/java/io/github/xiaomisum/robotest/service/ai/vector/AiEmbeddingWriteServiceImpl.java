@@ -60,7 +60,9 @@ public class AiEmbeddingWriteServiceImpl implements AiEmbeddingWriteService {
     private CaseEmbeddingMapper caseEmbeddingMapper;
     @Resource
     private ProjectMapper projectMapper;
-    @Resource
+    // @Resource 按字段名注入会命中自动配置的 redisTemplate(RedisTemplate) 而非 stringRedisTemplate，
+    // 显式指定 bean 名避免类型不匹配导致启动失败
+    @Resource(name = "stringRedisTemplate")
     private StringRedisTemplate redisTemplate;
 
     @Override
