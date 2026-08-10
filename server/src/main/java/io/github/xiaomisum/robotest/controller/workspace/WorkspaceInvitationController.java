@@ -4,6 +4,7 @@ import io.github.xiaomisum.robotest.framework.security.LoginUser;
 import io.github.xiaomisum.robotest.model.dto.request.workspace.InvitationCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.workspace.InvitationJoinReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.workspace.InvitationJoinRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.workspace.InvitationListRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.workspace.InvitationRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.workspace.InvitationVerifyRespDTO;
 import io.github.xiaomisum.robotest.service.workspace.WorkspaceInvitationService;
@@ -34,12 +35,12 @@ public class WorkspaceInvitationController {
     }
 
     @GetMapping
-    public Result<PageResult<InvitationRespDTO>> getInvitations(
+    public Result<PageResult<InvitationListRespDTO>> getInvitations(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestHeader("X-Active-Workspace") UUID workspaceId,
             @RequestParam(defaultValue = "1") Integer pageNo,
             @RequestParam(defaultValue = "20") Integer pageSize) {
-        PageResult<InvitationRespDTO> result = invitationService.getInvitationPage(
+        PageResult<InvitationListRespDTO> result = invitationService.getInvitationPage(
                 loginUser.getId(), workspaceId, pageNo, pageSize);
         return Result.ok(result);
     }
