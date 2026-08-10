@@ -65,7 +65,7 @@ mvn checkstyle:check && mvn test
 - 上下文标识（如 workspaceId）仅通过请求头 `X-Active-Workspace` 传递（C4），不出现在 URL 或请求体中
 - 避免新增外部依赖，确有必要时需经团队讨论
 
-## 框架集成（migoo-spring-boot-starter v1.3.17）
+## 框架集成（migoo-spring-boot-starter v1.3.18）
 
 > 完整规范见 `docs/spec/migoo-framework.md`，框架文档：https://xiaomisum.github.io/springboot-migoo-framework/
 
