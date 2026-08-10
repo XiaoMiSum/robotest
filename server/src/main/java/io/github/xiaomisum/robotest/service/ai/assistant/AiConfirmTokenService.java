@@ -28,7 +28,9 @@ public class AiConfirmTokenService {
     private static final String KEY_PREFIX = "ai:confirm:";
     private static final int DEFAULT_TIMEOUT_SECONDS = 300;
 
-    @Resource
+    // @Resource 按字段名注入会命中自动配置的 redisTemplate(RedisTemplate) 而非 stringRedisTemplate，
+    // 显式指定 bean 名避免类型不匹配导致启动失败
+    @Resource(name = "stringRedisTemplate")
     private StringRedisTemplate redisTemplate;
     @Resource
     private AiConfigService aiConfigService;
