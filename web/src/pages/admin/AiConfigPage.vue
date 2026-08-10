@@ -647,7 +647,7 @@ onMounted(loadAll)
   <div class="ai-config-page">
     <el-tabs v-model="activeTab" @tab-change="handleTabChange">
       <el-tab-pane label="AI 配置" name="config">
-        <el-form v-loading="loading" label-width="120px" class="ai-config-form">
+        <el-form v-loading="loading" label-width="120px">
           <el-card shadow="never" class="ai-config-page__card">
             <div class="ai-config-page__master">
               <div class="ai-config-page__master-icon">
@@ -1037,16 +1037,8 @@ onMounted(loadAll)
 </template>
 
 <style scoped lang="scss">
-.ai-config-form {
-  max-width: 920px;
-}
-
 .ai-config-page__card {
   margin-bottom: var(--space-lg);
-}
-
-.ai-config-page__card :deep(.el-card__header) {
-  padding: 12px 20px !important;
 }
 
 .ai-config-page__card :deep(.el-form-item:last-of-type) {
