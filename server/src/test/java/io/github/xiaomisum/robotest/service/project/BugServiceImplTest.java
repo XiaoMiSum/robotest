@@ -112,7 +112,7 @@ class BugServiceImplTest {
         SysUser reporter = new SysUser();
         reporter.setId(UUID.fromString("00000000-0000-0000-0000-000000000004"));
         reporter.setUsername("reporter");
-        when(userMapper.selectById(UUID.fromString("00000000-0000-0000-0000-000000000004"))).thenReturn(reporter);
+        when(userMapper.listByIds(anyCollection())).thenReturn(List.of(reporter));
 
         PageResult<BugListRespDTO> result = bugService.getBugPage(
                 projectId, userId, Constants.BugStatus.ACTIVE, "high", "high",
@@ -150,11 +150,10 @@ class BugServiceImplTest {
         SysUser reporter = new SysUser();
         reporter.setId(reporterId);
         reporter.setUsername("reporter");
-        when(userMapper.selectById(reporterId)).thenReturn(reporter);
         SysUser resolver = new SysUser();
         resolver.setId(resolverId);
         resolver.setUsername("resolver");
-        when(userMapper.selectById(resolverId)).thenReturn(resolver);
+        when(userMapper.listByIds(anyCollection())).thenReturn(List.of(reporter, resolver));
 
         PageResult<BugListRespDTO> result = bugService.getBugPage(
                 projectId, userId, null, null, null, null, null, null, null, null, null, 1, 10);

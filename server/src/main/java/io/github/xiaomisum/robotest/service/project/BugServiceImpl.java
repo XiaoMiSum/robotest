@@ -38,6 +38,7 @@ import xyz.migoo.framework.common.pojo.PageResult;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Service
 public class BugServiceImpl implements BugService {
@@ -83,20 +84,30 @@ public class BugServiceImpl implements BugService {
             setPageSize(pageSize);
         }}, projectId, status, severity, priority, bugType, assigneeId, reporterId, resolvedBy, closedBy, keyword);
 
+        // 一次性批量查询本页涉及的全部用户，避免每行最多 5 次 selectById 的 N+1
+        Set<UUID> userIds = page.getList().stream()
+                .flatMap(bug -> Stream.of(bug.getReporterId(), bug.getAssigneeId(),
+                        bug.getResolvedBy(), bug.getRejectedBy(), bug.getClosedBy()))
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        Map<UUID, SysUser> userMap = userIds.isEmpty() ? Map.of()
+                : userMapper.listByIds(userIds).stream()
+                        .collect(Collectors.toMap(SysUser::getId, u -> u));
+
         List<BugListRespDTO> dtos = page.getList().stream().map(bug -> {
             BugListRespDTO dto = BugConvertMapper.INSTANCE.toListRespDTO(bug);
-            dto.setReporter(BugConvertMapper.INSTANCE.toUserInfo(userMapper.selectById(bug.getReporterId())));
+            dto.setReporter(BugConvertMapper.INSTANCE.toUserInfo(userMap.get(bug.getReporterId())));
             if (bug.getAssigneeId() != null) {
-                dto.setAssignee(BugConvertMapper.INSTANCE.toUserInfo(userMapper.selectById(bug.getAssigneeId())));
+                dto.setAssignee(BugConvertMapper.INSTANCE.toUserInfo(userMap.get(bug.getAssigneeId())));
             }
             if (bug.getResolvedBy() != null) {
-                dto.setResolvedBy(BugConvertMapper.INSTANCE.toUserInfo(userMapper.selectById(bug.getResolvedBy())));
+                dto.setResolvedBy(BugConvertMapper.INSTANCE.toUserInfo(userMap.get(bug.getResolvedBy())));
             }
             if (bug.getRejectedBy() != null) {
-                dto.setRejectedBy(BugConvertMapper.INSTANCE.toUserInfo(userMapper.selectById(bug.getRejectedBy())));
+                dto.setRejectedBy(BugConvertMapper.INSTANCE.toUserInfo(userMap.get(bug.getRejectedBy())));
             }
             if (bug.getClosedBy() != null) {
-                dto.setClosedBy(BugConvertMapper.INSTANCE.toUserInfo(userMapper.selectById(bug.getClosedBy())));
+                dto.setClosedBy(BugConvertMapper.INSTANCE.toUserInfo(userMap.get(bug.getClosedBy())));
             }
             return dto;
         }).collect(Collectors.toList());
