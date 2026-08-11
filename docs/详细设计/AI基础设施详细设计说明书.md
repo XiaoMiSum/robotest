@@ -231,7 +231,7 @@
 - `ai_invocation_log` 按 `logRetentionDays` 由每日定时任务物理清理（先逻辑删除、次日物理删除，避免长事务）；
 - `ai_conversation` / `ai_message` 按 `conversationRetentionDays` 随同一每日清理任务回收（按会话 `last_active_at` 判定超期，级联清理消息；表定义见《全局智能助手详细设计说明书》2.1）；
 - `ai_analysis_task` 结果随同类型新任务覆盖策略由各业务文档定义；任务记录本身不主动清理；
-- `ai_config` / `ai_chat_model` / `ai_prompt_template` 变更均写入平台既有审计日志（audit_log），记录操作人与动作（不记录密钥明文与模板全文 diff）。
+- `ai_config` / `ai_chat_model` / `ai_prompt_template` 变更均写入平台既有审计日志（sys_audit_log），记录操作人与动作（不记录密钥明文与模板全文 diff）。
 
 ### 2.5 供应商预设注册表（Provider Preset）
 
@@ -357,7 +357,7 @@ data: {"code": 6002, "message": "AI 调用失败"}
   - `settings` 提交完整键值集（表单收集）：逐键按 3.3.8 定义校验类型与取值范围（未知键、类型不符或越界返回 1001，`planOrder.weights` 三权重之和须为 1）；后端仅持久化与内置默认值不同的键，其余键不落库（保持缺省回退默认值语义，2.2）；
   - Embedding 模型或维度发生变更时，保存成功后自动创建 `embedding_rebuild` 任务并进入语义降级（见 4.10，重建任务本体设计见《缺陷智能分析与向量检索详细设计说明书》）。仅变更 `provider` 标识或独有配置项不触发重建（向量空间由模型与维度决定）。
 - **并发**：`ai_config` 为系统级单行表，保存按 id 全列覆盖更新，后写覆盖先写（不校验 `updated_at`，无并发冲突拒绝语义）。
-- **响应**：保存后的配置（脱敏格式）。变更写入 audit_log。
+- **响应**：保存后的配置（脱敏格式）。变更写入 sys_audit_log。
 
 #### 3.3.3 连通性测试
 
@@ -429,7 +429,7 @@ data: {"code": 6002, "message": "AI 调用失败"}
 
 #### 3.3.7 对话模型管理
 
-对话模型为多行配置（2.1.5），提供独立管理接口，均要求 `ai:edit`（查询仅需 `ai:view`）。全部变更写入 audit_log。
+对话模型为多行配置（2.1.5），提供独立管理接口，均要求 `ai:edit`（查询仅需 `ai:view`）。全部变更写入 sys_audit_log。
 
 - **列表**：`GET /api/admin/ai/chat-models` — 返回全部对话模型（脱敏），响应示例：
 
@@ -538,12 +538,12 @@ data: {"code": 6002, "message": "AI 调用失败"}
   - `roleInstruction` 必填，长度 ≤ 8000；
   - `formatConstraint` 仅当 `formatEditable = true` 时接受修改；`formatEditable = false` 时提交了与生效值不同的 `formatConstraint` 返回 6009；
   - `formatEditable` 从 false → true 属于高级开关开启，单独记审计。
-- **处理**：无覆盖记录则插入，有则更新；变更写 audit_log。
+- **处理**：无覆盖记录则插入，有则更新；变更写 sys_audit_log。
 
 #### 3.4.4 恢复默认
 
 - **路径**：`DELETE /api/admin/ai/agents/:functionType`
-- **处理**：逻辑删除覆盖记录，回退内置默认；写 audit_log。无覆盖记录时幂等成功。
+- **处理**：逻辑删除覆盖记录，回退内置默认；写 sys_audit_log。无覆盖记录时幂等成功。
 
 ### 3.5 异步任务通用接口（项目级）
 

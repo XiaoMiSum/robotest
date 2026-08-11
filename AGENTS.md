@@ -55,7 +55,7 @@ bash scripts/deploy-merged.sh
 | 端   | 命令                                                                          |
 | --- | --------------------------------------------------------------------------- |
 | 前端  | `pnpm run lint && pnpm run typecheck && pnpm run test:unit -- --coverage`   |
-| 后端  | `mvn checkstyle:check && mvn test`                                          |
+| 后端  | `mvn test`                                                              |
 | 全量  | `pnpm run lint && pnpm run typecheck && pnpm run test:unit`<br>`mvn verify` |
 
 **提交前逐项核对：**

@@ -35,7 +35,7 @@ import java.util.stream.Collectors;
  * <ol>
  *   <li>模块名匹配：modules 输入对模块树名称精确 + ILIKE 模糊匹配，命中模块（含子孙目录）下全部 case 节点；
  *       score = 精确 1.0 / 模糊 0.9（matchType = module）；</li>
- *   <li>语义匹配（可用时）：text / 需求条目合并向量化 → case_embedding TopK
+ *   <li>语义匹配（可用时）：text / 需求条目合并向量化 → ai_case_embedding TopK
  *       （K = regression.topK 默认 50，阈值 = regression.similarityThreshold 默认 0.7），
  *       matchType = semantic，score = 相似度；降级态改为 LLM 抽取关键词 + 标题 ILIKE（score = 0.6，仅展示排序用）；</li>
  *   <li>合并去重（both 取高分 + matchType 合并），截断 50 条按 score 降序；</li>

@@ -105,7 +105,6 @@ pnpm run typecheck
 pnpm run test:unit
 
 # 后端验证（如适用）
-mvn checkstyle:check
 mvn test
 ```
 

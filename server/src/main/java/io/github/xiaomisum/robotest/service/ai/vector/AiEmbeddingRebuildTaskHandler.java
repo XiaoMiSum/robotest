@@ -122,22 +122,22 @@ public class AiEmbeddingRebuildTaskHandler implements AiTaskHandler {
     private void prepareSchema(int dimension) {
         int actualDimension = currentColumnDimension();
         if (actualDimension != dimension) {
-            jdbcTemplate.execute("DROP INDEX IF EXISTS idx_bug_embedding_hnsw");
-            jdbcTemplate.execute("DROP INDEX IF EXISTS idx_case_embedding_hnsw");
-            jdbcTemplate.execute("TRUNCATE TABLE bug_embedding, case_embedding");
-            jdbcTemplate.execute("ALTER TABLE bug_embedding ALTER COLUMN embedding TYPE vector(" + dimension + ")");
-            jdbcTemplate.execute("ALTER TABLE case_embedding ALTER COLUMN embedding TYPE vector(" + dimension + ")");
+            jdbcTemplate.execute("DROP INDEX IF EXISTS idx_ai_bug_embedding_hnsw");
+            jdbcTemplate.execute("DROP INDEX IF EXISTS idx_ai_case_embedding_hnsw");
+            jdbcTemplate.execute("TRUNCATE TABLE ai_bug_embedding, ai_case_embedding");
+            jdbcTemplate.execute("ALTER TABLE ai_bug_embedding ALTER COLUMN embedding TYPE vector(" + dimension + ")");
+            jdbcTemplate.execute("ALTER TABLE ai_case_embedding ALTER COLUMN embedding TYPE vector(" + dimension + ")");
         } else {
-            jdbcTemplate.execute("TRUNCATE TABLE bug_embedding, case_embedding");
+            jdbcTemplate.execute("TRUNCATE TABLE ai_bug_embedding, ai_case_embedding");
         }
-        jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_bug_embedding_hnsw ON bug_embedding USING hnsw (embedding vector_cosine_ops)");
-        jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_case_embedding_hnsw ON case_embedding USING hnsw (embedding vector_cosine_ops)");
+        jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_ai_bug_embedding_hnsw ON ai_bug_embedding USING hnsw (embedding vector_cosine_ops)");
+        jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_ai_case_embedding_hnsw ON ai_case_embedding USING hnsw (embedding vector_cosine_ops)");
     }
 
     private int currentColumnDimension() {
         try {
             Integer typmod = jdbcTemplate.queryForObject(
-                    "SELECT atttypmod FROM pg_attribute WHERE attrelid = 'bug_embedding'::regclass AND attname = 'embedding'",
+                    "SELECT atttypmod FROM pg_attribute WHERE attrelid = 'ai_bug_embedding'::regclass AND attname = 'embedding'",
                     Integer.class);
             return typmod != null && typmod > VARHDRSZ ? typmod - VARHDRSZ : 0;
         } catch (Exception e) {

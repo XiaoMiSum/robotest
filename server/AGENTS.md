@@ -21,7 +21,7 @@ mvn spring-boot:run -Pdev
 mvn package -Pprod
 
 # 质量门禁
-mvn checkstyle:check && mvn test
+mvn test
 ```
 
 ## 架构

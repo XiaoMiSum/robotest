@@ -128,7 +128,7 @@ public class DocumentPersistenceHandler {
      * 校验当前用户对目标文档是否具备编辑权限。
      * <p>
      * 文档（docId）本质是 test_case_module 中 type=document 的节点，链路为：
-     * document → project.workspaceId → workspace_user.workspaceRole → sys_role.permissions 含 case:edit。
+     * document → ws_project.workspaceId → ws_user.workspaceRole → sys_role.permissions 含 case:edit。
      * 任一环节缺失均视为无权限，与 WorkspaceRoleInterceptor 的判定口径一致。
      */
     private boolean hasCaseEditPermission(UUID docId, String userId) {

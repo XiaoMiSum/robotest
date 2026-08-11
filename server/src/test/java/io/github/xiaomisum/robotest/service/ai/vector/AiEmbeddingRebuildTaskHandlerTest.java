@@ -97,10 +97,10 @@ class AiEmbeddingRebuildTaskHandlerTest {
 
         Map<String, Object> result = handler.execute(task);
 
-        verify(jdbcTemplate).execute("DROP INDEX IF EXISTS idx_bug_embedding_hnsw");
-        verify(jdbcTemplate).execute("DROP INDEX IF EXISTS idx_case_embedding_hnsw");
-        verify(jdbcTemplate).execute("ALTER TABLE bug_embedding ALTER COLUMN embedding TYPE vector(1024)");
-        verify(jdbcTemplate).execute("ALTER TABLE case_embedding ALTER COLUMN embedding TYPE vector(1024)");
+        verify(jdbcTemplate).execute("DROP INDEX IF EXISTS idx_ai_bug_embedding_hnsw");
+        verify(jdbcTemplate).execute("DROP INDEX IF EXISTS idx_ai_case_embedding_hnsw");
+        verify(jdbcTemplate).execute("ALTER TABLE ai_bug_embedding ALTER COLUMN embedding TYPE vector(1024)");
+        verify(jdbcTemplate).execute("ALTER TABLE ai_case_embedding ALTER COLUMN embedding TYPE vector(1024)");
         verify(vectorSearchService).upsertBug(eq(bug.getId()), eq(project.getId()), any(float[].class), eq("hash"));
         assertEquals(1, result.get("bugCount"));
         assertEquals(1, result.get("embeddedCount"));
@@ -117,9 +117,9 @@ class AiEmbeddingRebuildTaskHandlerTest {
 
         handler.execute(task);
 
-        verify(jdbcTemplate).execute("TRUNCATE TABLE bug_embedding, case_embedding");
-        verify(jdbcTemplate).execute("CREATE INDEX IF NOT EXISTS idx_bug_embedding_hnsw ON bug_embedding USING hnsw (embedding vector_cosine_ops)");
-        verify(jdbcTemplate, never()).execute("ALTER TABLE bug_embedding ALTER COLUMN embedding TYPE vector(1024)");
+        verify(jdbcTemplate).execute("TRUNCATE TABLE ai_bug_embedding, ai_case_embedding");
+        verify(jdbcTemplate).execute("CREATE INDEX IF NOT EXISTS idx_ai_bug_embedding_hnsw ON ai_bug_embedding USING hnsw (embedding vector_cosine_ops)");
+        verify(jdbcTemplate, never()).execute("ALTER TABLE ai_bug_embedding ALTER COLUMN embedding TYPE vector(1024)");
     }
 
     @Test

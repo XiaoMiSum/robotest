@@ -50,10 +50,10 @@ public interface BugEmbeddingMapper extends BaseMapperX<BugEmbedding> {
     }
 
     /**
-     * 1:1 UPSERT（ON CONFLICT 走部分唯一索引 uk_bug_embedding_bug_id，须携带相同 WHERE 谓词）。
+     * 1:1 UPSERT（ON CONFLICT 走部分唯一索引 uk_ai_bug_embedding_bug_id，须携带相同 WHERE 谓词）。
      * UUID 以字符串绑定 + SQL 侧 ::uuid 转换，规避注解 SQL 对 UUID 类型处理器的依赖。
      */
-    @Insert("INSERT INTO bug_embedding (id, bug_id, project_id, embedding, source_hash, model, is_deleted, created_at, updated_at) "
+    @Insert("INSERT INTO ai_bug_embedding (id, bug_id, project_id, embedding, source_hash, model, is_deleted, created_at, updated_at) "
             + "VALUES (#{id}::uuid, #{bugId}::uuid, #{projectId}::uuid, #{embedding}::vector, #{sourceHash}, #{model}, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP) "
             + "ON CONFLICT (bug_id) WHERE is_deleted = false "
             + "DO UPDATE SET embedding = EXCLUDED.embedding, source_hash = EXCLUDED.source_hash, "
@@ -68,7 +68,7 @@ public interface BugEmbeddingMapper extends BaseMapperX<BugEmbedding> {
      */
     @Select("SELECT b.id::text AS bugId, b.title AS title, b.status AS status, b.assignee_id::text AS assigneeId, "
             + "1 - (e.embedding <=> #{queryVec}::vector) AS similarity "
-            + "FROM bug_embedding e JOIN bug b ON b.id = e.bug_id "
+            + "FROM ai_bug_embedding e JOIN bug b ON b.id = e.bug_id "
             + "WHERE e.project_id = #{projectId}::uuid AND e.is_deleted = FALSE AND b.is_deleted = FALSE "
             + "AND b.status <> 'closed' "
             + "AND (#{excludeBugId}::uuid IS NULL OR b.id <> #{excludeBugId}::uuid) "
