@@ -1,5 +1,6 @@
 package io.github.xiaomisum.robotest.framework.config;
 
+import org.jspecify.annotations.NonNull;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnResource;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.ClassPathResource;
@@ -31,7 +32,7 @@ public class SpaWebConfig implements WebMvcConfigurer {
                 .resourceChain(true)
                 .addResolver(new PathResourceResolver() {
                     @Override
-                    protected Resource getResource(String resourcePath, Resource location) throws IOException {
+                    protected Resource getResource(@NonNull String resourcePath, @NonNull Resource location) throws IOException {
                         Resource resource = location.createRelative(resourcePath);
                         if (resource.exists() && resource.isReadable()) {
                             return resource;
