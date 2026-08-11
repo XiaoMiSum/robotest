@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useAiStore } from '@/stores/ai'
+import { useAuthStore } from '@/stores/auth'
 import AssistantIcon from './AssistantIcons.vue'
 import AssistantPanel from './AssistantPanel.vue'
 
@@ -19,6 +20,7 @@ const open = ref(false)
 const minimized = ref(false)
 
 const aiStore = useAiStore()
+const authStore = useAuthStore()
 
 // 开关关闭：提示中断（面板卸载由 BusinessLayout 的 v-if 触发，卸载时 cancel 流）
 watch(
@@ -82,10 +84,16 @@ function togglePanel(): void {
   if (minimized.value) {
     // 最小化 → 恢复面板：仅取消 v-show 隐藏，流式回复继续
     minimized.value = false
-  } else {
-    // 关闭态 → 打开：重新挂载面板，会话列表重载并恢复最近会话
-    open.value = true
+    return
   }
+  // 无活动工作空间：不打开面板，提示先进入（交互设计 2.1）；
+  // 面板内引导态仅兜底"面板打开后中途离开工作空间"场景
+  if (!authStore.activeWorkspace?.id) {
+    ElMessage.warning('请先进入工作空间')
+    return
+  }
+  // 关闭态 → 打开：重新挂载面板，会话列表重载并恢复最近会话
+  open.value = true
 }
 
 function handleMinimize(): void {
