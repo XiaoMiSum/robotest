@@ -6,13 +6,14 @@ import { getDocumentRequirements } from '@/services/project'
 import { useAiStream, type AiStreamController } from '@/composables/useAiStream'
 import { useAiStore } from '@/stores/ai'
 import type { AiCaseGenerateResult, AiGeneratedNode, RequirementSummary } from '@/types'
-import { buildPreviewTree, filterCheckedTree, type AiPreviewNode } from './aiMount'
+import { buildDocumentPreviewTree, buildPreviewTree, type AiPreviewNode, type MountTargetSource } from './aiMount'
 import { AI_PANEL_MODES, type AiPanelMode } from './aiPanelModes'
-import AiPreviewTree from './AiPreviewTree.vue'
+import AiPreviewDialog from './AiPreviewDialog.vue'
 
 /**
- * AI 生成抽屉（US-AI-001/002，交互设计 2.1/2.2/3.1）：
- * 文本输入 → SSE 流式输出 → done 后切结构化预览树（勾选取舍）→ 确认挂载（由父组件执行）。
+ * AI 生成弹窗（US-AI-001/002，交互设计 2.1/2.2/3.1）：
+ * 文本输入 → SSE 流式输出 → done 后组装完整文档树预览（既有节点只读 + 生成节点 AI 徽标可勾选）→ 确认挂载（由父组件执行）。
+ * 预览为纯前端本地快照，不写编辑内核/不落库；只有确认挂载后才经既有通道批量插入（交互设计 2.2 纯预览约束）。
  * 两种模式差异集中在 aiPanelModes 配置表；需求条目区（US-AI-004）供 generate/complete 消费。
  */
 const props = defineProps<{
@@ -21,6 +22,8 @@ const props = defineProps<{
   targetNodeId: string
   /** 挂载目标节点路径（根 > … > 目标），打开时由脑图组件计算 */
   targetPath: string
+  /** 脑图活树读取器（供组装完整文档树预览快照，纯只读遍历） */
+  getDocTree: () => MountTargetSource | null
   /** 外部跳转带入的预填文本（如遗漏测试点转用例生成） */
   initialText?: string
 }>()
@@ -38,17 +41,18 @@ const config = AI_PANEL_MODES[props.mode]
 type Phase = 'idle' | 'streaming' | 'done'
 const phase = ref<Phase>('idle')
 const inputText = ref(props.initialText ?? '')
-const streamText = ref('')
 const previewNodes = ref<AiPreviewNode[]>([])
 const warnings = ref<string[]>([])
+/** 目标节点在预览组装时已缺失：回退仅展示生成节点树（挂载确认时走重选流程） */
+const targetMissing = ref(false)
 /** 已选需求池条目（US-AI-004），随请求体透传；打开时默认带入文档关联条目 */
 const selectedRequirements = ref<RequirementSummary[]>([])
 const requirementSelectorVisible = ref(false)
 /** 超 10 秒未见首帧的可取消提示（AI 通用交互规范 2.3） */
 const slowHint = ref(false)
 
-const previewTreeRef = ref<InstanceType<typeof AiPreviewTree>>()
-const outputRef = ref<HTMLDivElement>()
+/** 独立预览弹窗显隐：done 后点击 [查看预览] 打开，关闭后生成弹窗保留「完成」态（交互设计 2.2） */
+const previewDialogVisible = ref(false)
 
 let controller: AiStreamController | null = null
 let slowTimer: ReturnType<typeof setTimeout> | null = null
@@ -65,9 +69,9 @@ function generate(): void {
     return
   }
   phase.value = 'streaming'
-  streamText.value = ''
   previewNodes.value = []
   warnings.value = []
+  targetMissing.value = false
   slowTimer = setTimeout(() => {
     slowHint.value = true
   }, 10_000)
@@ -83,13 +87,8 @@ function generate(): void {
     }),
     onEvent(event) {
       clearSlowTimer()
-      if (event.event === 'delta') {
-        streamText.value += ((event.data as { content?: string }).content ?? '')
-        // 流式输出跟随滚动到底部
-        requestAnimationFrame(() => {
-          outputRef.value?.scrollTo({ top: outputRef.value.scrollHeight })
-        })
-      } else if (event.event === 'done') {
+      // 流式 delta 不再逐字上屏（见模板：以虚假进度条占位），仅消费 done/error 终帧
+      if (event.event === 'done') {
         const result = event.data as AiCaseGenerateResult
         warnings.value = result.warnings ?? []
         if (!result.nodes.length) {
@@ -98,7 +97,7 @@ function generate(): void {
           phase.value = 'idle'
           return
         }
-        previewNodes.value = buildPreviewTree(result.nodes)
+        previewNodes.value = buildPreview(result.nodes)
         phase.value = 'done'
       } else if (event.event === 'error') {
         const data = event.data as { message?: string }
@@ -119,27 +118,41 @@ function generate(): void {
   })
 }
 
+/**
+ * 组装预览树（交互设计 2.2）：优先完整文档树快照（生成节点插入目标位）；
+ * 目标节点已被协同删除时回退为仅生成节点树，挂载确认时由父组件走重选流程（4.2）。
+ */
+function buildPreview(generatedNodes: AiGeneratedNode[]): AiPreviewNode[] {
+  const tree = buildDocumentPreviewTree(props.getDocTree(), props.targetNodeId, generatedNodes)
+  if (tree) {
+    targetMissing.value = false
+    return tree
+  }
+  targetMissing.value = true
+  ElMessage.warning('挂载目标已被删除，请重新选择挂载位置')
+  return buildPreviewTree(generatedNodes)
+}
+
 // 中途取消：已输出内容不保留，可重新生成（交互设计 2.2）
 function stop(): void {
   controller?.cancel()
   controller = null
   clearSlowTimer()
-  streamText.value = ''
   phase.value = 'idle'
 }
 
-function confirmMount(): void {
-  const checked = previewTreeRef.value?.getCheckedKeySet() ?? new Set<string>()
-  const nodes = filterCheckedTree(previewNodes.value, checked)
-  if (!nodes.length) {
-    ElMessage.warning('请至少勾选一个要挂载的节点')
-    return
-  }
+function openPreview(): void {
+  previewDialogVisible.value = true
+}
+
+function handlePreviewConfirm(nodes: AiGeneratedNode[]): void {
+  // 挂载执行由父组件完成；成功后父组件会一并关闭生成弹窗（连带本预览弹窗）
   emit('mount', nodes)
 }
 
 function handleClose(): void {
   if (phase.value === 'streaming') stop()
+  previewDialogVisible.value = false
   visible.value = false
 }
 
@@ -178,12 +191,10 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <el-drawer
+  <el-dialog
     v-model="visible"
-    size="440px"
-    :modal="true"
+    width="720px"
     :close-on-click-modal="true"
-    modal-class="ai-drawer-modal"
     @close="handleClose"
   >
     <template #header>
@@ -265,27 +276,44 @@ onBeforeUnmount(() => {
         :title="warning"
       />
 
-      <!-- 生成中：流式原始文本；完成后：结构化预览树（交互设计 2.2） -->
-      <div v-if="phase === 'streaming'" ref="outputRef" class="ai-panel-output">
-        <pre class="ai-panel-stream">{{ streamText || '正在生成…' }}</pre>
+      <!-- 生成中/生成完毕：SSE 无真实进度信息，以虚假进度条占位（交互设计 2.2，不再逐字上屏） -->
+      <div v-if="phase === 'streaming'" class="ai-panel-output ai-panel-output--progress">
+        <el-progress :percentage="100" :indeterminate="true" :duration="2" :stroke-width="10" />
+        <div class="ai-panel-progress-tip">正在生成测试用例，请稍候…</div>
       </div>
-      <div v-else-if="phase === 'done'" class="ai-panel-output">
-        <AiPreviewTree ref="previewTreeRef" :nodes="previewNodes" />
+      <div v-else-if="phase === 'done'" class="ai-panel-output ai-panel-output--progress">
+        <el-alert
+          v-if="targetMissing"
+          type="warning"
+          :closable="false"
+          show-icon
+          title="挂载目标已被删除，查看预览后可重新选择挂载位置"
+        />
+        <el-progress v-else :percentage="100" :stroke-width="10" status="success" />
+        <div v-if="!targetMissing" class="ai-panel-progress-tip">生成完成，点击下方「查看预览」在脑图中核对并勾选取舍</div>
       </div>
 
       <div v-if="phase === 'done'" class="ai-panel-footer">
-        <el-button type="primary" @click="confirmMount">确认挂载</el-button>
+        <el-button type="primary" @click="openPreview">
+          <el-icon><View /></el-icon>
+          <span>查看预览</span>
+        </el-button>
       </div>
     </div>
-  </el-drawer>
+
+    <!-- 独立预览弹窗：脑图文档形式，本地快照不落库（交互设计 2.1/2.2） -->
+    <AiPreviewDialog
+      v-if="previewDialogVisible"
+      v-model="previewDialogVisible"
+      :nodes="previewNodes"
+      :target-path="targetPath"
+      :target-missing="targetMissing"
+      @confirm="handlePreviewConfirm"
+    />
+  </el-dialog>
 </template>
 
 <style scoped lang="scss">
-/* 透明遮罩：点击抽屉外空白处自动关闭，同时不压暗画布（交互设计 2.2） */
-:deep(.ai-drawer-modal) {
-  background: transparent;
-}
-
 .ai-panel-title {
   display: inline-flex;
   align-items: center;
@@ -348,13 +376,19 @@ onBeforeUnmount(() => {
   padding: 8px;
 }
 
-.ai-panel-stream {
-  margin: 0;
-  font-size: 12px;
-  line-height: 1.6;
-  white-space: pre-wrap;
-  word-break: break-all;
-  color: var(--el-text-color-regular);
+// 生成中/生成完毕：进度条竖向居中占位（SSE 无真实进度，动画仅表意）
+.ai-panel-output--progress {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 12px;
+  border-style: dashed;
+  background: var(--el-fill-color-light);
+}
+
+.ai-panel-progress-tip {
+  font-size: 13px;
+  color: var(--el-text-color-secondary);
 }
 
 .ai-panel-footer {
