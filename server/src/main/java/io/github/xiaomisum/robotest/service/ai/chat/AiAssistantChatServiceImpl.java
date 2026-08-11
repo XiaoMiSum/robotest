@@ -238,7 +238,8 @@ public class AiAssistantChatServiceImpl implements AiAssistantChatService {
                 emitter.complete();
                 channel.stopPing();
             } catch (ServiceException e) {
-                log.warn("[AI] 助手对话异常: {}", e.getMessage());
+                // 打完整堆栈（含 cause），否则虚拟线程内 NPE 等运行时异常的位置不可见
+                log.warn("[AI] 助手对话异常", e);
                 auditRecorder.record(callContext, AiFunctionType.ASSISTANT_CHAT,
                         resolvedModel.model(), 0, null, null,
                         Constants.AiInvocationStatus.FAILED, "6002");
@@ -246,7 +247,8 @@ public class AiAssistantChatServiceImpl implements AiAssistantChatService {
                         e.getMessage());
                 emitter.complete();
             } catch (Exception e) {
-                log.warn("[AI] 助手对话异常: {}", e.getMessage());
+                // 打完整堆栈（含 cause），否则虚拟线程内 NPE 等运行时异常的位置不可见
+                log.warn("[AI] 助手对话异常", e);
                 sseSupport.sendError(emitter, ErrorCodeConstants.AI_CALL_FAILED.code(),
                         ErrorCodeConstants.AI_CALL_FAILED.msg());
                 emitter.complete();

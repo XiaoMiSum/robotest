@@ -9,6 +9,6 @@ public class ApiErrorLogFrameworkServiceImpl implements ApiErrorLogFrameworkServ
 
     @Override
     public void createApiErrorLog(ApiErrorLog apiErrorLog) {
-
+        
     }
 }
