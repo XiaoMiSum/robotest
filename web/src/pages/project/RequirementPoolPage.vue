@@ -9,6 +9,7 @@ import {
   updateRequirement,
 } from '@/services/project'
 import { useAuthStore } from '@/stores/auth'
+import { formatDateTime } from '@/utils/format'
 import type { RequirementPoolItem } from '@/types'
 import MarkdownEditor from '@/components/common/MarkdownEditor.vue'
 
@@ -175,7 +176,9 @@ onMounted(load)
         </template>
       </el-table-column>
       <el-table-column prop="creatorName" label="更新人" width="140" />
-      <el-table-column prop="updatedAt" label="更新时间" width="180" />
+      <el-table-column label="更新时间" width="180">
+        <template #default="{ row }">{{ formatDateTime(row.updatedAt) }}</template>
+      </el-table-column>
       <el-table-column v-if="canEdit" label="操作" width="140" fixed="right">
         <template #default="{ row }">
           <el-button link type="primary" @click="openEdit(row.id)">编辑</el-button>
