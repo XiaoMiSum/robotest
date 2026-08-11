@@ -12,7 +12,7 @@ import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
 import java.util.List;
 
 /**
- * Prompt 组装器 —— 模板加载（DB 覆盖 → 内置默认）、消息组装与业务数据定界（防注入）。
+ * Prompt 组装器 —— 模板加载（DB 记录优先 → 代码默认兜底）、消息组装与业务数据定界（防注入）。
  *
  * <p>业务数据一律置于定界符内且仅出现在 user 消息中，系统指令永不拼接用户可控文本。</p>
  */
@@ -50,7 +50,7 @@ public class PromptAssembler {
     }
 
     /**
-     * 当前生效的 system 段：角色指令 + 输出格式约束（自定义覆盖优先，未命中用内置默认）
+     * 当前生效的 system 段：角色指令 + 输出格式约束（DB 记录优先，未命中用代码内置默认）
      */
     public String loadSystemPrompt(AiFunctionType functionType) {
         AiPromptTemplate custom = aiPromptTemplateMapper.findByFunctionType(functionType.getCode());

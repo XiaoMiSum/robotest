@@ -5,7 +5,7 @@ import lombok.Data;
 import java.time.LocalDateTime;
 
 /**
- * 智能体列表项（代码内置全部模板位，customized 表示存在自定义覆盖）
+ * 智能体列表项（全部有模板位的功能类型，customized 表示存在数据库记录）
  */
 @Data
 public class AiAgentRespDTO {
