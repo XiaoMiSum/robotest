@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useAiStore } from '@/stores/ai'
+import AssistantIcon from './AssistantIcons.vue'
 import AssistantPanel from './AssistantPanel.vue'
 
 /**
@@ -114,7 +115,9 @@ const fabStyle = computed((): Record<string, string> => {
     @pointerup="onPointerUp"
     @pointercancel="onPointerUp"
   >
-    <span class="assistant-fab__icon">✨</span>
+    <span class="assistant-fab__icon">
+      <AssistantIcon name="sparkles" :size="20" />
+    </span>
   </div>
 
   <AssistantPanel
@@ -137,7 +140,8 @@ const fabStyle = computed((): Record<string, string> => {
   align-items: center;
   justify-content: center;
   background: linear-gradient(135deg, var(--color-primary-400), var(--color-primary-600));
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  // 外圈光晕 + 投影分层，hover 时放大并增强光晕
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.15), var(--shadow-lg);
   cursor: grab;
   user-select: none;
   // 触屏拖拽时不触发页面滚动（pointer 事件接管）
@@ -146,8 +150,8 @@ const fabStyle = computed((): Record<string, string> => {
   transition: transform var(--transition-fast), box-shadow var(--transition-fast);
 
   &:hover {
-    transform: scale(1.05);
-    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.24);
+    transform: scale(1.08);
+    box-shadow: 0 0 0 6px rgba(59, 130, 246, 0.22), var(--shadow-lg);
   }
 
   &:active {
@@ -156,7 +160,9 @@ const fabStyle = computed((): Record<string, string> => {
 }
 
 .assistant-fab__icon {
-  font-size: 22px;
-  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-neutral-0);
 }
 </style>

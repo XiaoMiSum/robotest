@@ -12,6 +12,7 @@ declare module 'vue' {
     AiModelSelect: typeof import('./components/common/AiModelSelect.vue')['default']
     AiPreviewTree: typeof import('./components/project/minder/ai/AiPreviewTree.vue')['default']
     AssistantFab: typeof import('./components/assistant/AssistantFab.vue')['default']
+    AssistantIcons: typeof import('./components/assistant/AssistantIcons.vue')['default']
     AssistantPanel: typeof import('./components/assistant/AssistantPanel.vue')['default']
     BrandLogo: typeof import('./components/common/BrandLogo.vue')['default']
     BugAiSuggest: typeof import('./components/project/BugAiSuggest.vue')['default']

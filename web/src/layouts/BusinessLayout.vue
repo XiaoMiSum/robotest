@@ -14,17 +14,13 @@ const authStore = useAuthStore()
 const navStore = useNavStore()
 const aiStore = useAiStore()
 
-// AI 状态为工作空间级（GET /workspace/ai/status 依赖 X-Active-Workspace 头）：
-// 进入业务布局加载一次，切换工作空间后强制刷新，离开工作空间上下文时重置，
-// 全部 AI 入口（脑图生成按钮、模型选择器等）据此显隐
+// AI 状态为全局能力（GET /workspace/ai/status 不依赖 X-Active-Workspace 头，见 AI 基础设施 3.2.1）：
+// 进入业务布局加载一次，切换工作空间后强制刷新；无工作空间（如 /workspaces 列表页）时不重置，
+// 保持全局开关状态以维持悬浮入口可见（交互设计 1.1）
 watch(
   () => authStore.activeWorkspace?.id,
   (workspaceId) => {
-    if (workspaceId) {
-      void aiStore.load(true)
-    } else {
-      aiStore.reset()
-    }
+    void aiStore.load(Boolean(workspaceId))
   },
   { immediate: true },
 )
@@ -202,7 +198,7 @@ function handleUserCommand(cmd: string) {
       <RouterView />
     </main>
 
-    <!-- 智能助手悬浮入口（交互设计 1.1：随 aiEnabled 显隐；无工作空间时 aiStore 重置为禁用，自动隐藏） -->
+    <!-- 智能助手悬浮入口（交互设计 1.1：随全局 aiEnabled 显隐；无工作空间时仍显示，面板内引导选择空间） -->
     <AssistantFab v-if="aiStore.aiEnabled" />
   </div>
 </template>

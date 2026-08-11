@@ -302,7 +302,7 @@ data: {"code": 6002, "message": "AI 调用失败"}
 #### 3.2.1 查询 AI 可用性
 
 - **路径**：`GET /api/workspace/ai/status`
-- **说明**：前端进入业务布局后调用并缓存，据此显隐全部 AI 入口；AI 配置变更后由用户刷新页面感知。
+- **说明**：前端进入业务布局后调用并缓存，据此显隐全部 AI 入口；**全局能力，不依赖 `X-Active-Workspace` 上下文**（无工作空间时同样返回），AI 配置变更后由用户刷新页面感知。
 - **响应**：
 
 ```json
@@ -759,7 +759,7 @@ stateDiagram-v2
 
 ### 4.10 能力开关与降级状态计算
 
-`GET /api/workspace/ai/status` 的状态由 `AiConfigService` 计算并缓存（30 秒 TTL）：
+`GET /api/workspace/ai/status` 的状态由 `AiConfigService` 计算并缓存（30 秒 TTL）。状态为**全局计算**：AI 配置、对话模型、Embedding 任务均不归属具体工作空间，故本接口不读取 `X-Active-Workspace` 上下文，无工作空间时同样返回全局开关状态（前端在 `/workspaces` 空间列表页据此保持悬浮入口可见）：
 
 | 条件 | enabled | semanticSearch |
 | ---- | ---- | ---- |
