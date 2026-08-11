@@ -14,7 +14,7 @@ import java.util.UUID;
  */
 @Data
 @EqualsAndHashCode(callSuper = true)
-@TableName("bug_embedding")
+@TableName("ai_bug_embedding")
 public class BugEmbedding extends BaseUuidDO<BugEmbedding> {
 
     @TableField(typeHandler = UUIDTypeHandler.class)

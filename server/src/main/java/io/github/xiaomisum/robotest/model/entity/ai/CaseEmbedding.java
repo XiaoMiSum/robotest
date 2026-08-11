@@ -14,7 +14,7 @@ import java.util.UUID;
  */
 @Data
 @EqualsAndHashCode(callSuper = true)
-@TableName("case_embedding")
+@TableName("ai_case_embedding")
 public class CaseEmbedding extends BaseUuidDO<CaseEmbedding> {
 
     @TableField(typeHandler = UUIDTypeHandler.class)

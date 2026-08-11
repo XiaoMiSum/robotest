@@ -159,7 +159,7 @@ CREATE TABLE requirement_pool_item (
 CREATE INDEX idx_rpi_project_id ON requirement_pool_item (project_id);
 
 -- 文档-需求关联表（脑图文档 test_case_module[type=document] ⇄ 需求池条目，多对多，逻辑删除关联）
-CREATE TABLE document_requirement_rel (
+CREATE TABLE requirement_document_rel (
     id             UUID       PRIMARY KEY,
     document_id    UUID       NOT NULL,
     requirement_id UUID       NOT NULL,
@@ -168,8 +168,8 @@ CREATE TABLE document_requirement_rel (
     updated_at     TIMESTAMP  NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE UNIQUE INDEX uk_doc_req ON document_requirement_rel (document_id, requirement_id) WHERE is_deleted = false;
-CREATE INDEX idx_drr_requirement_id ON document_requirement_rel (requirement_id);
+CREATE UNIQUE INDEX uk_requirement_document_rel ON requirement_document_rel (document_id, requirement_id) WHERE is_deleted = false;
+CREATE INDEX idx_requirement_document_rel_requirement_id ON requirement_document_rel (requirement_id);
 
 -- 需求池权限点（workspace 作用域，接测试域 c…0033 之后）并回补成员角色
 INSERT INTO sys_permission (id, code, name, parent_code, module, scope, sort_order, created_at, updated_at, is_deleted) VALUES
@@ -265,7 +265,7 @@ COMMENT ON COLUMN ai_chat_model.updated_at IS '更新时间';
 
 COMMENT ON TABLE requirement_pool_item IS '需求池条目表（项目级轻量需求条目库，US-AI-004）';
 COMMENT ON COLUMN requirement_pool_item.id IS '条目 ID';
-COMMENT ON COLUMN requirement_pool_item.project_id IS '归属项目 ID，关联 project.id';
+COMMENT ON COLUMN requirement_pool_item.project_id IS '归属项目 ID，关联 ws_project.id';
 COMMENT ON COLUMN requirement_pool_item.title IS '条目标题';
 COMMENT ON COLUMN requirement_pool_item.content IS '需求文本（Markdown 原文，长度上限见 requirementContentMaxLength 配置键）';
 COMMENT ON COLUMN requirement_pool_item.source_url IS '来源 URL（仅记录出处，平台不抓取）';
@@ -275,20 +275,20 @@ COMMENT ON COLUMN requirement_pool_item.is_deleted IS '逻辑删除标志';
 COMMENT ON COLUMN requirement_pool_item.created_at IS '创建时间';
 COMMENT ON COLUMN requirement_pool_item.updated_at IS '更新时间';
 
-COMMENT ON TABLE document_requirement_rel IS '文档-需求关联表（脑图文档 ⇄ 需求池条目，US-AI-004）';
-COMMENT ON COLUMN document_requirement_rel.id IS '主键';
-COMMENT ON COLUMN document_requirement_rel.document_id IS '脑图文档 ID，关联 test_case_module.id（type=document）';
-COMMENT ON COLUMN document_requirement_rel.requirement_id IS '需求池条目 ID，关联 requirement_pool_item.id';
-COMMENT ON COLUMN document_requirement_rel.is_deleted IS '逻辑删除标志（解除关联）';
-COMMENT ON COLUMN document_requirement_rel.created_at IS '创建时间';
-COMMENT ON COLUMN document_requirement_rel.updated_at IS '更新时间';
+COMMENT ON TABLE requirement_document_rel IS '文档-需求关联表（脑图文档 ⇄ 需求池条目，US-AI-004）';
+COMMENT ON COLUMN requirement_document_rel.id IS '主键';
+COMMENT ON COLUMN requirement_document_rel.document_id IS '脑图文档 ID，关联 test_case_module.id（type=document）';
+COMMENT ON COLUMN requirement_document_rel.requirement_id IS '需求池条目 ID，关联 requirement_pool_item.id';
+COMMENT ON COLUMN requirement_document_rel.is_deleted IS '逻辑删除标志（解除关联）';
+COMMENT ON COLUMN requirement_document_rel.created_at IS '创建时间';
+COMMENT ON COLUMN requirement_document_rel.updated_at IS '更新时间';
 
 -- ============================================================
 -- 6. 向量表（《缺陷智能分析与向量检索详细设计说明书》2.1，随 embedding_rebuild 任务维护）
 -- ============================================================
 
 -- 缺陷向量表（与 bug 一对一，无物理外键；维度以默认 1024 建列，运行期与 ai_config.embedding_dimension 不一致时由 embedding_rebuild 任务 ALTER）
-CREATE TABLE bug_embedding (
+CREATE TABLE ai_bug_embedding (
     id          UUID          PRIMARY KEY,
     bug_id      UUID          NOT NULL,
     project_id  UUID          NOT NULL,
@@ -301,12 +301,12 @@ CREATE TABLE bug_embedding (
 );
 
 -- 部分唯一索引承担 UPSERT 冲突目标（ON CONFLICT 须显式携带相同 WHERE 谓词）
-CREATE UNIQUE INDEX uk_bug_embedding_bug_id ON bug_embedding (bug_id) WHERE is_deleted = false;
-CREATE INDEX idx_bug_embedding_project_id ON bug_embedding (project_id);
-CREATE INDEX idx_bug_embedding_hnsw ON bug_embedding USING hnsw (embedding vector_cosine_ops);
+CREATE UNIQUE INDEX uk_ai_bug_embedding_bug_id ON ai_bug_embedding (bug_id) WHERE is_deleted = false;
+CREATE INDEX idx_ai_bug_embedding_project_id ON ai_bug_embedding (project_id);
+CREATE INDEX idx_ai_bug_embedding_hnsw ON ai_bug_embedding USING hnsw (embedding vector_cosine_ops);
 
 -- 用例向量表（与 test_case_node 中 type=case 的节点一对一，冗余 project_id 供检索前置过滤）
-CREATE TABLE case_embedding (
+CREATE TABLE ai_case_embedding (
     id          UUID          PRIMARY KEY,
     node_id     UUID          NOT NULL,
     project_id  UUID          NOT NULL,
@@ -318,31 +318,31 @@ CREATE TABLE case_embedding (
     updated_at  TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE UNIQUE INDEX uk_case_embedding_node_id ON case_embedding (node_id) WHERE is_deleted = false;
-CREATE INDEX idx_case_embedding_project_id ON case_embedding (project_id);
-CREATE INDEX idx_case_embedding_hnsw ON case_embedding USING hnsw (embedding vector_cosine_ops);
+CREATE UNIQUE INDEX uk_ai_case_embedding_node_id ON ai_case_embedding (node_id) WHERE is_deleted = false;
+CREATE INDEX idx_ai_case_embedding_project_id ON ai_case_embedding (project_id);
+CREATE INDEX idx_ai_case_embedding_hnsw ON ai_case_embedding USING hnsw (embedding vector_cosine_ops);
 
-COMMENT ON TABLE bug_embedding IS '缺陷向量表（缺陷语义索引，1:1，检索前置按 project_id 过滤）';
-COMMENT ON COLUMN bug_embedding.id IS '主键';
-COMMENT ON COLUMN bug_embedding.bug_id IS '对应缺陷 ID，关联 bug.id（逻辑外键，无物理外键）';
-COMMENT ON COLUMN bug_embedding.project_id IS '冗余项目归属，检索前置过滤防跨项目泄漏';
-COMMENT ON COLUMN bug_embedding.embedding IS '语义向量（维度随配置，默认 1024，重建任务按需 ALTER）';
-COMMENT ON COLUMN bug_embedding.source_hash IS '源文本 SHA-256（含模型名，判断过期）';
-COMMENT ON COLUMN bug_embedding.model IS '生成向量的模型名';
-COMMENT ON COLUMN bug_embedding.is_deleted IS '逻辑删除标志';
-COMMENT ON COLUMN bug_embedding.created_at IS '创建时间';
-COMMENT ON COLUMN bug_embedding.updated_at IS '更新时间';
+COMMENT ON TABLE ai_bug_embedding IS '缺陷向量表（缺陷语义索引，1:1，检索前置按 project_id 过滤）';
+COMMENT ON COLUMN ai_bug_embedding.id IS '主键';
+COMMENT ON COLUMN ai_bug_embedding.bug_id IS '对应缺陷 ID，关联 bug.id（逻辑外键，无物理外键）';
+COMMENT ON COLUMN ai_bug_embedding.project_id IS '冗余项目归属，检索前置过滤防跨项目泄漏';
+COMMENT ON COLUMN ai_bug_embedding.embedding IS '语义向量（维度随配置，默认 1024，重建任务按需 ALTER）';
+COMMENT ON COLUMN ai_bug_embedding.source_hash IS '源文本 SHA-256（含模型名，判断过期）';
+COMMENT ON COLUMN ai_bug_embedding.model IS '生成向量的模型名';
+COMMENT ON COLUMN ai_bug_embedding.is_deleted IS '逻辑删除标志';
+COMMENT ON COLUMN ai_bug_embedding.created_at IS '创建时间';
+COMMENT ON COLUMN ai_bug_embedding.updated_at IS '更新时间';
 
-COMMENT ON TABLE case_embedding IS '用例向量表（type=case 节点语义索引，1:1，检索前置按 project_id 过滤）';
-COMMENT ON COLUMN case_embedding.id IS '主键';
-COMMENT ON COLUMN case_embedding.node_id IS '对应用例节点 ID，关联 test_case_node.id（type=case，逻辑外键）';
-COMMENT ON COLUMN case_embedding.project_id IS '冗余项目归属（不冗余 document_id，见详细设计 2.1.2）';
-COMMENT ON COLUMN case_embedding.embedding IS '语义向量（维度随配置，默认 1024，重建任务按需 ALTER）';
-COMMENT ON COLUMN case_embedding.source_hash IS '源文本 SHA-256（含模型名，判断过期）';
-COMMENT ON COLUMN case_embedding.model IS '生成向量的模型名';
-COMMENT ON COLUMN case_embedding.is_deleted IS '逻辑删除标志';
-COMMENT ON COLUMN case_embedding.created_at IS '创建时间';
-COMMENT ON COLUMN case_embedding.updated_at IS '更新时间';
+COMMENT ON TABLE ai_case_embedding IS '用例向量表（type=case 节点语义索引，1:1，检索前置按 project_id 过滤）';
+COMMENT ON COLUMN ai_case_embedding.id IS '主键';
+COMMENT ON COLUMN ai_case_embedding.node_id IS '对应用例节点 ID，关联 test_case_node.id（type=case，逻辑外键）';
+COMMENT ON COLUMN ai_case_embedding.project_id IS '冗余项目归属（不冗余 document_id，见详细设计 2.1.2）';
+COMMENT ON COLUMN ai_case_embedding.embedding IS '语义向量（维度随配置，默认 1024，重建任务按需 ALTER）';
+COMMENT ON COLUMN ai_case_embedding.source_hash IS '源文本 SHA-256（含模型名，判断过期）';
+COMMENT ON COLUMN ai_case_embedding.model IS '生成向量的模型名';
+COMMENT ON COLUMN ai_case_embedding.is_deleted IS '逻辑删除标志';
+COMMENT ON COLUMN ai_case_embedding.created_at IS '创建时间';
+COMMENT ON COLUMN ai_case_embedding.updated_at IS '更新时间';
 
 -- ============================================================
 -- 7. 全局智能助手（《全局智能助手详细设计说明书》2.1）
@@ -381,7 +381,7 @@ CREATE INDEX idx_msg_conversation_id ON ai_message (conversation_id);
 COMMENT ON TABLE ai_conversation IS '助手会话表（归属用户+工作空间，仅本人可见）';
 COMMENT ON COLUMN ai_conversation.id IS '会话 ID';
 COMMENT ON COLUMN ai_conversation.user_id IS '归属用户，关联 sys_user.id（逻辑外键）';
-COMMENT ON COLUMN ai_conversation.workspace_id IS '归属工作空间（跨空间隔离），关联 workspace.id（逻辑外键）';
+COMMENT ON COLUMN ai_conversation.workspace_id IS '归属工作空间（跨空间隔离），关联 ws_workspace.id（逻辑外键）';
 COMMENT ON COLUMN ai_conversation.title IS '会话标题（首条用户消息前 30 字自动生成）';
 COMMENT ON COLUMN ai_conversation.last_active_at IS '最后活跃时间（列表排序锚点）';
 COMMENT ON COLUMN ai_conversation.is_deleted IS '逻辑删除标志';

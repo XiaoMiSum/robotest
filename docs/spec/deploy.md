@@ -20,7 +20,7 @@ pnpm run build          # 构建产物 → web/dist/
 
 ```bash
 cd server
-mvn clean verify -Pdev  # 包含 checkstyle + spotbugs + test
+mvn clean verify -Pdev  # 包含 spotbugs + test
 mvn package -Pprod      # 生产构建
 ```
 

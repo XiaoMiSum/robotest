@@ -16,7 +16,7 @@ import java.util.UUID;
 /**
  * 项目级授权守卫（security.md 第 14 行：项目内操作另需 X-Active-Project 头，验证项目归属）。
  *
- * <p>校验链路：projectId → project.workspaceId → workspace_user 是否存在该成员。
+ * <p>校验链路：projectId → ws_project.workspaceId → ws_user 是否存在该成员。
  * 任一环节缺失即视为无权限，判定口径与 DocumentPersistenceHandler.hasCaseEditPermission 一致。</p>
  */
 @Component
@@ -44,7 +44,7 @@ public class ProjectAccessGuard {
 
     /**
      * WS 场景校验（返回布尔而非抛异常，供握手/加入房间前静默拒绝）：
-     * docId → test_case_module(type=document) → project → workspace_user 成员。
+     * docId → test_case_module(type=document) → ws_project → ws_user 成员。
      * userId 为字符串（WS 会话属性 USER_ID），非法格式视为无权限。
      */
     public boolean isDocumentMember(UUID docId, String userId) {

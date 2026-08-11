@@ -27,7 +27,7 @@ public interface WorkspaceInvitationMapper extends BaseMapperX<WorkspaceInvitati
     /**
      * 原子自增使用次数：并发 join 时通过 SQL 条件保证不超出 maxUses（上限校验无法靠读-改-写完成）。
      */
-    @Update("UPDATE workspace_invitation SET use_count = use_count + 1, updated_at = CURRENT_TIMESTAMP "
+    @Update("UPDATE ws_invitation SET use_count = use_count + 1, updated_at = CURRENT_TIMESTAMP "
             + "WHERE id = #{id} AND is_deleted = FALSE AND (max_uses IS NULL OR use_count < max_uses)")
     int incrementUseCount(@Param("id") UUID id);
 }

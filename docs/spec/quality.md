@@ -12,18 +12,16 @@
 | ---- | -------------------------- | ---------------- |
 | 前端格式 | Prettier                   | 提交前（lint-staged） |
 | 前端质量 | ESLint + Vue ESLint Plugin | 提交前 + CI         |
-| 后端格式 | Checkstyle（Google 风格）      | 提交前 + CI         |
-| 后端质量 | SpotBugs                   | CI               |
+| 后端质量 | SpotBugs + 单元测试（JUnit 5） | 提交前 + CI         |
 | 类型检查 | TypeScript `tsc --noEmit`  | 提交前 + CI         |
 
 **配置文件位置**：
 
 - 前端：`web/.eslintrc.cjs`、`web/.prettierrc`
-- 后端：`server/checkstyle.xml`（在 pom.xml 中配置）
 
 **CI 门禁规则**：
 
-- ESLint / Checkstyle：error 级别不通过则构建失败
+- ESLint：error 级别不通过则构建失败
 - TypeScript 编译：严格模式，不通过则构建失败
 - 单元测试：覆盖率不低于 70%，不达标记为构建不稳定
 

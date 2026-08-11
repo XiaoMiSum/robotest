@@ -41,9 +41,9 @@ public interface CaseEmbeddingMapper extends BaseMapperX<CaseEmbedding> {
     }
 
     /**
-     * 1:1 UPSERT（ON CONFLICT 走部分唯一索引 uk_case_embedding_node_id，须携带相同 WHERE 谓词）
+     * 1:1 UPSERT（ON CONFLICT 走部分唯一索引 uk_ai_case_embedding_node_id，须携带相同 WHERE 谓词）
      */
-    @Insert("INSERT INTO case_embedding (id, node_id, project_id, embedding, source_hash, model, is_deleted, created_at, updated_at) "
+    @Insert("INSERT INTO ai_case_embedding (id, node_id, project_id, embedding, source_hash, model, is_deleted, created_at, updated_at) "
             + "VALUES (#{id}::uuid, #{nodeId}::uuid, #{projectId}::uuid, #{embedding}::vector, #{sourceHash}, #{model}, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP) "
             + "ON CONFLICT (node_id) WHERE is_deleted = false "
             + "DO UPDATE SET embedding = EXCLUDED.embedding, source_hash = EXCLUDED.source_hash, "
@@ -56,7 +56,7 @@ public interface CaseEmbeddingMapper extends BaseMapperX<CaseEmbedding> {
      * 用例向量近邻检索（同项目范围内，供 §4.1.1 用例查重），topK 取回后应用层阈值过滤
      */
     @Select("SELECT c.node_id::text AS nodeId, 1 - (c.embedding <=> #{queryVec}::vector) AS similarity "
-            + "FROM case_embedding c "
+            + "FROM ai_case_embedding c "
             + "WHERE c.project_id = #{projectId}::uuid AND c.is_deleted = FALSE "
             + "ORDER BY c.embedding <=> #{queryVec}::vector "
             + "LIMIT #{topK}")

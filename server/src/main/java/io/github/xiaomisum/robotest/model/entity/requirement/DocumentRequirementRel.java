@@ -14,7 +14,7 @@ import java.util.UUID;
  */
 @Data
 @EqualsAndHashCode(callSuper = true)
-@TableName("document_requirement_rel")
+@TableName("requirement_document_rel")
 public class DocumentRequirementRel extends BaseUuidDO<DocumentRequirementRel> {
 
     @TableField(typeHandler = UUIDTypeHandler.class)

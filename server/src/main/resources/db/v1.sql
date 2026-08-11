@@ -77,7 +77,7 @@ CREATE INDEX idx_permission_module ON sys_permission (module);
 CREATE INDEX idx_permission_scope ON sys_permission (scope);
 
 -- 审计日志表
-CREATE TABLE audit_log (
+CREATE TABLE sys_audit_log (
     id            UUID         PRIMARY KEY,
     operator_id   VARCHAR(64)  NOT NULL,
     operator_name VARCHAR(64)  NOT NULL DEFAULT '',
@@ -91,16 +91,16 @@ CREATE TABLE audit_log (
     is_deleted    BOOLEAN      NOT NULL DEFAULT FALSE
 );
 
-CREATE INDEX idx_audit_log_operator ON audit_log (operator_id);
-CREATE INDEX idx_audit_log_entity   ON audit_log (entity_type, entity_id);
-CREATE INDEX idx_audit_log_created  ON audit_log (created_at);
+CREATE INDEX idx_sys_audit_log_operator ON sys_audit_log (operator_id);
+CREATE INDEX idx_sys_audit_log_entity   ON sys_audit_log (entity_type, entity_id);
+CREATE INDEX idx_sys_audit_log_created  ON sys_audit_log (created_at);
 
 -- ============================================================
 -- 2. 工作空间
 -- ============================================================
 
 -- 工作空间表
-CREATE TABLE workspace (
+CREATE TABLE ws_workspace (
     id          UUID         PRIMARY KEY,
     name        VARCHAR(50)  NOT NULL,
     description VARCHAR(500),
@@ -110,11 +110,11 @@ CREATE TABLE workspace (
     updated_at  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE UNIQUE INDEX uk_workspace_name ON workspace (name) WHERE is_deleted = false;
-CREATE INDEX idx_workspace_created ON workspace (created_at DESC);
+CREATE UNIQUE INDEX uk_ws_workspace_name ON ws_workspace (name) WHERE is_deleted = false;
+CREATE INDEX idx_ws_workspace_created ON ws_workspace (created_at DESC);
 
 -- 用户-工作空间关联表
-CREATE TABLE workspace_user (
+CREATE TABLE ws_user (
     id                UUID      PRIMARY KEY,
     user_id           UUID      NOT NULL,
     workspace_id      UUID      NOT NULL,
@@ -126,13 +126,13 @@ CREATE TABLE workspace_user (
     updated_at        TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE UNIQUE INDEX uk_user_workspace ON workspace_user (user_id, workspace_id) WHERE is_deleted = false;
-CREATE INDEX idx_workspace_user_workspace_id ON workspace_user (workspace_id);
-CREATE INDEX idx_workspace_user_ws_role ON workspace_user (workspace_id, workspace_role);
-CREATE INDEX idx_workspace_user_default_project_id ON workspace_user (default_project_id);
+CREATE UNIQUE INDEX uk_ws_user_user_workspace ON ws_user (user_id, workspace_id) WHERE is_deleted = false;
+CREATE INDEX idx_ws_user_workspace_id ON ws_user (workspace_id);
+CREATE INDEX idx_ws_user_ws_role ON ws_user (workspace_id, workspace_role);
+CREATE INDEX idx_ws_user_default_project_id ON ws_user (default_project_id);
 
 -- 邀请链接表
-CREATE TABLE workspace_invitation (
+CREATE TABLE ws_invitation (
     id UUID PRIMARY KEY,
     workspace_id UUID NOT NULL,
     token VARCHAR(64) NOT NULL,
@@ -146,11 +146,11 @@ CREATE TABLE workspace_invitation (
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE UNIQUE INDEX uk_invitation_token ON workspace_invitation (token) WHERE is_deleted = false;
-CREATE INDEX idx_invitation_ws_created ON workspace_invitation (workspace_id, created_at DESC);
+CREATE UNIQUE INDEX uk_ws_invitation_token ON ws_invitation (token) WHERE is_deleted = false;
+CREATE INDEX idx_ws_invitation_ws_created ON ws_invitation (workspace_id, created_at DESC);
 
 -- 项目表
-CREATE TABLE project (
+CREATE TABLE ws_project (
     id UUID PRIMARY KEY,
     workspace_id UUID NOT NULL,
     name VARCHAR(100) NOT NULL,
@@ -164,9 +164,9 @@ CREATE TABLE project (
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE UNIQUE INDEX uk_project_workspace_name ON project (workspace_id, name) WHERE is_deleted = false;
-CREATE INDEX idx_project_ws_created ON project (workspace_id, created_at DESC);
-CREATE INDEX idx_project_status ON project (status);
+CREATE UNIQUE INDEX uk_ws_project_workspace_name ON ws_project (workspace_id, name) WHERE is_deleted = false;
+CREATE INDEX idx_ws_project_ws_created ON ws_project (workspace_id, created_at DESC);
+CREATE INDEX idx_ws_project_status ON ws_project (status);
 
 -- ============================================================
 -- 3. 功能测试 — 测试用例
@@ -496,68 +496,68 @@ COMMENT ON COLUMN sys_permission.is_deleted IS '逻辑删除标志';
 COMMENT ON COLUMN sys_permission.created_at IS '创建时间';
 COMMENT ON COLUMN sys_permission.updated_at IS '更新时间';
 
-COMMENT ON TABLE audit_log IS '审计日志表（记录关键操作的字段级变更）';
-COMMENT ON COLUMN audit_log.id IS '日志唯一标识（雪花算法）';
-COMMENT ON COLUMN audit_log.operator_id IS '操作人 ID';
-COMMENT ON COLUMN audit_log.operator_name IS '操作人名称（冗余，便于快速展示）';
-COMMENT ON COLUMN audit_log.operation IS '操作类型';
-COMMENT ON COLUMN audit_log.entity_type IS '操作实体类型（如 Bug/TestPlan）';
-COMMENT ON COLUMN audit_log.entity_id IS '操作实体 ID';
-COMMENT ON COLUMN audit_log.changes IS '字段变更详情（JSON，记录旧值/新值）';
-COMMENT ON COLUMN audit_log.request_ip IS '请求 IP 地址';
-COMMENT ON COLUMN audit_log.created_at IS '创建时间';
-COMMENT ON COLUMN audit_log.updated_at IS '更新时间';
-COMMENT ON COLUMN audit_log.is_deleted IS '逻辑删除标志';
+COMMENT ON TABLE sys_audit_log IS '审计日志表（记录关键操作的字段级变更）';
+COMMENT ON COLUMN sys_audit_log.id IS '日志唯一标识（雪花算法）';
+COMMENT ON COLUMN sys_audit_log.operator_id IS '操作人 ID';
+COMMENT ON COLUMN sys_audit_log.operator_name IS '操作人名称（冗余，便于快速展示）';
+COMMENT ON COLUMN sys_audit_log.operation IS '操作类型';
+COMMENT ON COLUMN sys_audit_log.entity_type IS '操作实体类型（如 Bug/TestPlan）';
+COMMENT ON COLUMN sys_audit_log.entity_id IS '操作实体 ID';
+COMMENT ON COLUMN sys_audit_log.changes IS '字段变更详情（JSON，记录旧值/新值）';
+COMMENT ON COLUMN sys_audit_log.request_ip IS '请求 IP 地址';
+COMMENT ON COLUMN sys_audit_log.created_at IS '创建时间';
+COMMENT ON COLUMN sys_audit_log.updated_at IS '更新时间';
+COMMENT ON COLUMN sys_audit_log.is_deleted IS '逻辑删除标志';
 
-COMMENT ON TABLE workspace IS '工作空间表（多租户隔离单元）';
-COMMENT ON COLUMN workspace.id IS '工作空间唯一标识';
-COMMENT ON COLUMN workspace.name IS '工作空间名称，唯一';
-COMMENT ON COLUMN workspace.description IS '工作空间描述';
-COMMENT ON COLUMN workspace.status IS '工作空间状态：active=正常, dissolved=已解散';
-COMMENT ON COLUMN workspace.is_deleted IS '逻辑删除标志';
-COMMENT ON COLUMN workspace.created_at IS '创建时间';
-COMMENT ON COLUMN workspace.updated_at IS '更新时间';
+COMMENT ON TABLE ws_workspace IS '工作空间表（多租户隔离单元）';
+COMMENT ON COLUMN ws_workspace.id IS '工作空间唯一标识';
+COMMENT ON COLUMN ws_workspace.name IS '工作空间名称，唯一';
+COMMENT ON COLUMN ws_workspace.description IS '工作空间描述';
+COMMENT ON COLUMN ws_workspace.status IS '工作空间状态：active=正常, dissolved=已解散';
+COMMENT ON COLUMN ws_workspace.is_deleted IS '逻辑删除标志';
+COMMENT ON COLUMN ws_workspace.created_at IS '创建时间';
+COMMENT ON COLUMN ws_workspace.updated_at IS '更新时间';
 
-COMMENT ON TABLE workspace_user IS '用户-工作空间关联表';
-COMMENT ON COLUMN workspace_user.id IS '关联唯一标识';
-COMMENT ON COLUMN workspace_user.user_id IS '用户 ID，关联 sys_user.id';
-COMMENT ON COLUMN workspace_user.workspace_id IS '工作空间 ID，关联 workspace.id';
-COMMENT ON COLUMN workspace_user.workspace_role IS '空间角色 ID，关联 sys_role.id（预置角色 UUID）';
-COMMENT ON COLUMN workspace_user.default_project_id IS '空间内默认项目 ID，关联 project.id';
-COMMENT ON COLUMN workspace_user.joined_at IS '加入时间';
-COMMENT ON COLUMN workspace_user.is_deleted IS '逻辑删除标志';
-COMMENT ON COLUMN workspace_user.created_at IS '创建时间';
-COMMENT ON COLUMN workspace_user.updated_at IS '更新时间';
+COMMENT ON TABLE ws_user IS '用户-工作空间关联表';
+COMMENT ON COLUMN ws_user.id IS '关联唯一标识';
+COMMENT ON COLUMN ws_user.user_id IS '用户 ID，关联 sys_user.id';
+COMMENT ON COLUMN ws_user.workspace_id IS '工作空间 ID，关联 ws_workspace.id';
+COMMENT ON COLUMN ws_user.workspace_role IS '空间角色 ID，关联 sys_role.id（预置角色 UUID）';
+COMMENT ON COLUMN ws_user.default_project_id IS '空间内默认项目 ID，关联 ws_project.id';
+COMMENT ON COLUMN ws_user.joined_at IS '加入时间';
+COMMENT ON COLUMN ws_user.is_deleted IS '逻辑删除标志';
+COMMENT ON COLUMN ws_user.created_at IS '创建时间';
+COMMENT ON COLUMN ws_user.updated_at IS '更新时间';
 
-COMMENT ON TABLE workspace_invitation IS '邀请链接表';
-COMMENT ON COLUMN workspace_invitation.id IS '邀请唯一标识';
-COMMENT ON COLUMN workspace_invitation.workspace_id IS '所属工作空间 ID，关联 workspace.id';
-COMMENT ON COLUMN workspace_invitation.token IS '邀请令牌，唯一';
-COMMENT ON COLUMN workspace_invitation.created_by IS '创建人 ID，关联 sys_user.id';
-COMMENT ON COLUMN workspace_invitation.expires_at IS '过期时间，NULL=永不过期';
-COMMENT ON COLUMN workspace_invitation.max_uses IS '最大使用次数，NULL=不限';
-COMMENT ON COLUMN workspace_invitation.use_count IS '已使用次数';
-COMMENT ON COLUMN workspace_invitation.status IS '邀请状态：active=有效, revoked=已撤销';
-COMMENT ON COLUMN workspace_invitation.is_deleted IS '逻辑删除标志';
-COMMENT ON COLUMN workspace_invitation.created_at IS '创建时间';
-COMMENT ON COLUMN workspace_invitation.updated_at IS '更新时间';
+COMMENT ON TABLE ws_invitation IS '邀请链接表';
+COMMENT ON COLUMN ws_invitation.id IS '邀请唯一标识';
+COMMENT ON COLUMN ws_invitation.workspace_id IS '所属工作空间 ID，关联 ws_workspace.id';
+COMMENT ON COLUMN ws_invitation.token IS '邀请令牌，唯一';
+COMMENT ON COLUMN ws_invitation.created_by IS '创建人 ID，关联 sys_user.id';
+COMMENT ON COLUMN ws_invitation.expires_at IS '过期时间，NULL=永不过期';
+COMMENT ON COLUMN ws_invitation.max_uses IS '最大使用次数，NULL=不限';
+COMMENT ON COLUMN ws_invitation.use_count IS '已使用次数';
+COMMENT ON COLUMN ws_invitation.status IS '邀请状态：active=有效, revoked=已撤销';
+COMMENT ON COLUMN ws_invitation.is_deleted IS '逻辑删除标志';
+COMMENT ON COLUMN ws_invitation.created_at IS '创建时间';
+COMMENT ON COLUMN ws_invitation.updated_at IS '更新时间';
 
-COMMENT ON TABLE project IS '项目表（工作空间内的业务项目）';
-COMMENT ON COLUMN project.id IS '项目唯一标识';
-COMMENT ON COLUMN project.workspace_id IS '所属工作空间 ID，关联 workspace.id';
-COMMENT ON COLUMN project.name IS '项目名称（同一工作空间内唯一）';
-COMMENT ON COLUMN project.description IS '项目描述';
-COMMENT ON COLUMN project.status IS '项目状态：active=正常, archived=已归档';
-COMMENT ON COLUMN project.start_time IS '项目开始时间';
-COMMENT ON COLUMN project.end_time IS '项目结束时间';
-COMMENT ON COLUMN project.created_by IS '创建人 ID，关联 sys_user.id';
-COMMENT ON COLUMN project.is_deleted IS '逻辑删除标志';
-COMMENT ON COLUMN project.created_at IS '创建时间';
-COMMENT ON COLUMN project.updated_at IS '更新时间';
+COMMENT ON TABLE ws_project IS '项目表（工作空间内的业务项目）';
+COMMENT ON COLUMN ws_project.id IS '项目唯一标识';
+COMMENT ON COLUMN ws_project.workspace_id IS '所属工作空间 ID，关联 ws_workspace.id';
+COMMENT ON COLUMN ws_project.name IS '项目名称（同一工作空间内唯一）';
+COMMENT ON COLUMN ws_project.description IS '项目描述';
+COMMENT ON COLUMN ws_project.status IS '项目状态：active=正常, archived=已归档';
+COMMENT ON COLUMN ws_project.start_time IS '项目开始时间';
+COMMENT ON COLUMN ws_project.end_time IS '项目结束时间';
+COMMENT ON COLUMN ws_project.created_by IS '创建人 ID，关联 sys_user.id';
+COMMENT ON COLUMN ws_project.is_deleted IS '逻辑删除标志';
+COMMENT ON COLUMN ws_project.created_at IS '创建时间';
+COMMENT ON COLUMN ws_project.updated_at IS '更新时间';
 
 COMMENT ON TABLE test_case_module IS '测试用例模块表（目录/文档两级树形结构）';
 COMMENT ON COLUMN test_case_module.id IS '模块唯一标识';
-COMMENT ON COLUMN test_case_module.project_id IS '所属项目 ID，关联 project.id';
+COMMENT ON COLUMN test_case_module.project_id IS '所属项目 ID，关联 ws_project.id';
 COMMENT ON COLUMN test_case_module.parent_id IS '父级模块 ID，NULL=根节点';
 COMMENT ON COLUMN test_case_module.type IS '模块类型：directory=目录, document=文档';
 COMMENT ON COLUMN test_case_module.name IS '模块名称';
@@ -589,7 +589,7 @@ COMMENT ON COLUMN test_case_document_layout.updated_at IS '更新时间';
 
 COMMENT ON TABLE test_plan IS '测试计划表（用例执行计划）';
 COMMENT ON COLUMN test_plan.id IS '计划唯一标识';
-COMMENT ON COLUMN test_plan.project_id IS '所属项目 ID，关联 project.id';
+COMMENT ON COLUMN test_plan.project_id IS '所属项目 ID，关联 ws_project.id';
 COMMENT ON COLUMN test_plan.name IS '计划名称';
 COMMENT ON COLUMN test_plan.description IS '计划描述';
 COMMENT ON COLUMN test_plan.status IS '计划状态：new=新建, in_progress=进行中, completed=已完成, closed=已关闭';
@@ -645,7 +645,7 @@ COMMENT ON COLUMN test_plan_execution_record.updated_at IS '更新时间';
 
 COMMENT ON TABLE test_review IS '测试评审表（用例评审流程）';
 COMMENT ON COLUMN test_review.id IS '评审唯一标识';
-COMMENT ON COLUMN test_review.project_id IS '所属项目 ID，关联 project.id';
+COMMENT ON COLUMN test_review.project_id IS '所属项目 ID，关联 ws_project.id';
 COMMENT ON COLUMN test_review.title IS '评审标题';
 COMMENT ON COLUMN test_review.description IS '评审描述';
 COMMENT ON COLUMN test_review.initiator_id IS '发起人 ID，关联 sys_user.id';
@@ -699,7 +699,7 @@ COMMENT ON COLUMN test_review_record.updated_at IS '更新时间';
 
 COMMENT ON TABLE bug IS '缺陷表（三态模型：active ↔ resolved/closed，可重开）';
 COMMENT ON COLUMN bug.id IS '缺陷唯一标识';
-COMMENT ON COLUMN bug.project_id IS '所属项目 ID，关联 project.id';
+COMMENT ON COLUMN bug.project_id IS '所属项目 ID，关联 ws_project.id';
 COMMENT ON COLUMN bug.title IS '缺陷标题';
 COMMENT ON COLUMN bug.severity IS '严重等级：fatal=致命, serious=严重, general=一般, minor=轻微';
 COMMENT ON COLUMN bug.priority IS '优先级：high=高, medium=中, low=低';

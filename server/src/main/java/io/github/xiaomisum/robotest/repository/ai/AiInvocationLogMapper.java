@@ -39,7 +39,7 @@ public interface AiInvocationLogMapper extends BaseMapperX<AiInvocationLog> {
     @Select("SELECT COALESCE(w.name, '-') AS key, COUNT(*) AS calls, "
             + "COALESCE(SUM(COALESCE(l.prompt_tokens,0) + COALESCE(l.completion_tokens,0)),0) AS tokens, "
             + "COALESCE(AVG(l.duration_ms),0) AS avg_duration_ms, COUNT(*) FILTER (WHERE l.status <> 'success') AS failed "
-            + "FROM ai_invocation_log l LEFT JOIN workspace w ON w.id = l.workspace_id "
+            + "FROM ai_invocation_log l LEFT JOIN ws_workspace w ON w.id = l.workspace_id "
             + "WHERE l.is_deleted = FALSE AND l.created_at >= #{start} AND l.created_at < #{end} "
             + "GROUP BY w.name ORDER BY calls DESC")
     List<Map<String, Object>> aggregateByWorkspace(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);

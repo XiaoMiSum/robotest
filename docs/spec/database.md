@@ -11,12 +11,27 @@
 | 要素   | 规范             | 示例                                |
 | ---- | -------------- | --------------------------------- |
 | 数据库名 | `swt_platform` | `swt_platform_dev`                |
-| 表名   | snake_case，单数  | `test_case_module`                |
+| 表名   | `{域前缀}_{业务名}`，snake_case，单数 | `ws_workspace`、`test_case_module` |
 | 字段名  | snake_case     | `workspace_id`                    |
 | 主键   | `id`           | `id binary(16) PK`（UUID v7，应用层生成） |
 | 关联字段（逻辑外键） | `{表名}_id`      | `project_id`                      |
-| 索引   | `idx_{字段名}`    | `idx_project_id`                  |
-| 唯一约束 | `uk_{字段名}`     | `uk_name`                         |
+| 索引   | `idx_{表名}_{字段}`  | `idx_ws_project_workspace_id`     |
+| 唯一约束 | `uk_{表名}_{字段}`   | `uk_ws_workspace_name`            |
+
+**表名域前缀**：所有表必须带业务域前缀，按业务域归位，禁止裸表名：
+
+| 业务域     | 前缀           | 示例表                                              |
+| --------- | ------------- | ------------------------------------------------- |
+| 系统管理     | `sys_`        | `sys_user`、`sys_role`、`sys_audit_log`            |
+| 工作空间/项目 | `ws_`         | `ws_workspace`、`ws_user`、`ws_invitation`、`ws_project` |
+| 功能测试-用例 | `test_case_`  | `test_case_module`、`test_case_node`               |
+| 功能测试-计划 | `test_plan_`  | `test_plan`、`test_plan_node_snapshot`             |
+| 功能测试-评审 | `test_review_`| `test_review`、`test_review_record`                |
+| 缺陷管理     | `bug_`        | `bug`、`bug_log`、`bug_attachment`（域根表 `bug` 保留领域词） |
+| 需求池      | `requirement_`| `requirement_pool_item`、`requirement_document_rel`|
+| AI 能力     | `ai_`         | `ai_config`、`ai_case_embedding`、`ai_bug_embedding` |
+
+> 例外：缺陷域根表 `bug` 允许保留单数领域词（子表仍用 `bug_` 前缀）；其余任何表不得以裸业务词命名。
 
 ---
 
@@ -34,7 +49,7 @@
   - Java 依赖：`com.fasterxml.uuid:java-uuid-generator`（JUG），使用 `UUIDGenerator.generateTimeBasedEpoch()`。
   - TypeScript 依赖：`uuid` v9+，使用 `import { v7 as uuidv7 } from 'uuid'`。
 - JSON 字段使用 `json` 类型（MySQL 5.7+ / 8.0+）。
-- 语义向量字段使用 pgvector 的 `vector(n)` 类型（仅 PostgreSQL，需启用扩展 `CREATE EXTENSION vector`，随迁移脚本执行）；向量表与业务表一对一独立建表（如 `bug_embedding`），不在业务表上直接加向量列。
+- 语义向量字段使用 pgvector 的 `vector(n)` 类型（仅 PostgreSQL，需启用扩展 `CREATE EXTENSION vector`，随迁移脚本执行）；向量表与业务表一对一独立建表（如 `ai_bug_embedding`、`ai_case_embedding`），不在业务表上直接加向量列。
 
 **字段类型选择**：
 

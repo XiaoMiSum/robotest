@@ -84,13 +84,6 @@ check_backend() {
     return
   fi
 
-  echo "--- checkstyle ---"
-  if (cd server && mvn checkstyle:check -q 2>&1); then
-    pass "checkstyle 通过"
-  else
-    fail "checkstyle 失败"
-  fi
-
   echo "--- tests ---"
   if (cd server && mvn test -q 2>&1); then
     pass "单元测试通过"

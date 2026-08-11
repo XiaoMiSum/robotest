@@ -7,7 +7,7 @@ import xyz.migoo.framework.mybatis.core.dataobject.BaseUuidDO;
 
 @Data
 @EqualsAndHashCode(callSuper = true)
-@TableName("workspace")
+@TableName("ws_workspace")
 public class Workspace extends BaseUuidDO<Workspace> {
 
     private String name;

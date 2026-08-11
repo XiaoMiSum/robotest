@@ -15,7 +15,7 @@
 
 ### 1.2 范围
 
-覆盖 SRS 3.3（AI 辅助评审与覆盖度分析）与 3.7（测试计划与风险评估）。依赖的向量基建（case_embedding 表、写入与重建机制）见《缺陷智能分析与向量检索详细设计说明书》；异步任务框架、SSE 帧格式、错误码见《AI 基础设施详细设计说明书》。
+覆盖 SRS 3.3（AI 辅助评审与覆盖度分析）与 3.7（测试计划与风险评估）。依赖的向量基建（ai_case_embedding 表、写入与重建机制）见《缺陷智能分析与向量检索详细设计说明书》；异步任务框架、SSE 帧格式、错误码见《AI 基础设施详细设计说明书》。
 
 ### 1.3 参考资料
 
@@ -262,7 +262,7 @@ flowchart TD
 1. **需求输入归一**：keywords / text / 需求条目内容合并为需求描述块；text 与条目内容超预算时截断（同生成类裁剪规则）；
 2. **候选用例检索**：
    - 关键词模式（梯队二 / 降级态）：按 keywords（text 场景由 LLM 先抽取 ≤ 10 个关键词，一次同步调用）对 case 节点标题 `ILIKE` 匹配，每词取前 30 条；
-   - 语义模式（梯队三，`semanticSearch = available`）：需求描述块整体向量化 → case_embedding TopK（K = `missingPoint.topK`，默认 100，基础设施 2.2 配置键；`project_id` 前置过滤）；
+   - 语义模式（梯队三，`semanticSearch = available`）：需求描述块整体向量化 → ai_case_embedding TopK（K = `missingPoint.topK`，默认 100，基础设施 2.2 配置键；`project_id` 前置过滤）；
 3. **LLM 比对**：输入 = 需求描述块 + 候选用例（标题 + 模块路径清单）→ 输出遗漏点数组（结构校验：title ≤ 200、suggestedModulePath 须为输入中出现过的模块路径或空、points ≤ 30）；候选集大、输出较长，该调用读超时按功能级覆盖为 60s（网关同步调用默认 15s 不足，覆盖机制同《智能用例生成》3.3.1 优先级推荐的功能级覆盖先例）；
 4. `relatedCaseTitles` 由 LLM 标注后与候选清单比对过滤（防幻觉）。
 
@@ -288,7 +288,7 @@ score(case) = w1 · norm(relatedBugCount) + w2 · priorityWeight + w3 · norm(mo
 ### 4.5 回归子集推荐检索
 
 1. **模块名匹配**：`modules` 输入对模块树名称精确 + `ILIKE` 模糊匹配，命中模块（含子孙目录）下全部 case 节点，`matchType = module`，score = 精确 1.0 / 模糊 0.9；
-2. **语义匹配**（可用时）：text / 需求条目合并向量化 → case_embedding TopK（K = `regression.topK` 默认 50，阈值 = `regression.similarityThreshold` 默认 0.7，均为基础设施 2.2 配置键），`matchType = semantic`，score = 相似度；降级态改为 LLM 抽取关键词 + 标题 ILIKE（score = 0.6，代码内置常量，仅作展示排序用）；
+2. **语义匹配**（可用时）：text / 需求条目合并向量化 → ai_case_embedding TopK（K = `regression.topK` 默认 50，阈值 = `regression.similarityThreshold` 默认 0.7，均为基础设施 2.2 配置键），`matchType = semantic`，score = 相似度；降级态改为 LLM 抽取关键词 + 标题 ILIKE（score = 0.6，代码内置常量，仅作展示排序用）；
 3. 合并去重（both 取高分 + matchType 合并），截断 50 条；
 4. **理由生成**：一次 LLM 调用为全部结果批量生成一句话 reason（输入变更描述 + 用例标题清单，输出与输入等长的 reason 数组，长度不匹配时该字段整体置空——理由缺失不影响清单可用；最多 50 条输出较长，读超时功能级覆盖为 60s，同 4.3）。
 
