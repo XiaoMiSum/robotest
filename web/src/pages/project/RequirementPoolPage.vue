@@ -46,6 +46,12 @@ function search() {
   load()
 }
 
+function handleReset() {
+  keyword.value = ''
+  pageNo.value = 1
+  load()
+}
+
 function handlePageChange(page: number) {
   pageNo.value = page
   load()
@@ -160,7 +166,10 @@ onMounted(load)
       >
         <template #prefix><el-icon><Search /></el-icon></template>
       </el-input>
-      <el-button type="primary" @click="search">查询</el-button>
+      <el-button type="primary" @click="search">
+        <el-icon><Search /></el-icon>查询
+      </el-button>
+      <el-button @click="handleReset">重置</el-button>
       <div class="requirement-pool__spacer" />
       <el-button type="primary" @click="openCreate">
         <el-icon><Plus /></el-icon>新建条目
