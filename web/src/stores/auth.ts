@@ -9,6 +9,7 @@ const WORKSPACE_KEY = 'robotest_active_workspace'
 const WORKSPACE_NAME_KEY = 'robotest_active_workspace_name'
 const WORKSPACE_ROLE_KEY = 'robotest_active_workspace_role'
 const PROJECT_KEY = 'robotest_active_project'
+const PROJECT_NAME_KEY = 'robotest_active_project_name'
 
 function loadUser(): LoginUser | null {
   try {
@@ -29,9 +30,15 @@ function loadActiveWorkspace(): ActiveWorkspace | null {
   }
 }
 
+function loadActiveProjectName(): string {
+  return localStorage.getItem(PROJECT_NAME_KEY) ?? ''
+}
+
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<LoginUser | null>(loadUser())
   const activeWorkspace = ref<ActiveWorkspace | null>(loadActiveWorkspace())
+  // 当前项目名：project 模式顶栏展示用；项目 id 已有 PROJECT_KEY，名称需列表页带入（默认项目无名称则不显示）
+  const activeProjectName = ref<string>(loadActiveProjectName())
   const permissions = ref<string[]>([])
 
   // 页面刷新时权限仅存于内存已丢失，只要用户已恢复即重新拉取；
@@ -99,11 +106,21 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  function setActiveProject(projectId: string | null) {
+  function setActiveProject(projectId: string | null, projectName?: string | null) {
     if (projectId) {
       localStorage.setItem(PROJECT_KEY, projectId)
+      if (projectName) {
+        localStorage.setItem(PROJECT_NAME_KEY, projectName)
+        activeProjectName.value = projectName
+      } else {
+        // 仅 id 无名称（如空间默认项目）：名称置空，顶栏项目 tag 不显示
+        localStorage.removeItem(PROJECT_NAME_KEY)
+        activeProjectName.value = ''
+      }
     } else {
       localStorage.removeItem(PROJECT_KEY)
+      localStorage.removeItem(PROJECT_NAME_KEY)
+      activeProjectName.value = ''
     }
   }
 
@@ -117,11 +134,13 @@ export const useAuthStore = defineStore('auth', () => {
     localStorage.removeItem(WORKSPACE_NAME_KEY)
     localStorage.removeItem(WORKSPACE_ROLE_KEY)
     localStorage.removeItem(PROJECT_KEY)
+    localStorage.removeItem(PROJECT_NAME_KEY)
   }
 
   return {
     user,
     activeWorkspace,
+    activeProjectName,
     permissions,
     isLoggedIn,
     username,
