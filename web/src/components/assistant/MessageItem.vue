@@ -127,6 +127,12 @@ function handleCancel(): void {
 
 const assistantContext = useAssistantContextStore()
 const authStore = useAuthStore()
+// 用户头像：消息模型不携带用户信息，取当前登录用户；有头像 URL 显示图片，否则回退用户名首字符
+const userAvatarUrl = computed(() => authStore.avatarUrl?.trim() || '')
+const userAvatarChar = computed(() => {
+  const name = authStore.username.trim()
+  return name ? name.charAt(0).toUpperCase() : '?'
+})
 const dslPreviewVisible = ref(false)
 const dslPlan = ref<DslPlan | null>(null)
 
@@ -180,10 +186,13 @@ function handleCancelDsl(): void {
 
 <template>
   <div class="msg" :class="[`msg--${message.role}`, { 'msg--streaming': message.streaming }]">
-    <!-- 用户消息：右侧主色气泡 + 右侧首字头像 -->
+    <!-- 用户消息：右侧主色气泡 + 右侧头像（用户信息头像优先，无则用户名首字符） -->
     <div v-if="isUser" class="msg__row msg__row--user">
       <div class="msg__bubble msg__bubble--user">{{ message.content }}</div>
-      <span class="msg__avatar msg__avatar--user">{{ message.content.charAt(0) }}</span>
+      <span class="msg__avatar msg__avatar--user">
+        <img v-if="userAvatarUrl" :src="userAvatarUrl" alt="" class="msg__avatar-img" />
+        <template v-else>{{ userAvatarChar }}</template>
+      </span>
     </div>
 
     <!-- 工具消息（历史 role=tool）：灰色小卡片（设计 3.1） -->
@@ -310,6 +319,13 @@ function handleCancelDsl(): void {
   color: var(--color-neutral-600);
   font-size: 13px;
   font-weight: 700;
+}
+
+.msg__avatar-img {
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  object-fit: cover;
 }
 
 .msg__bubble {

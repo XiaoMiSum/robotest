@@ -487,6 +487,7 @@ const minimized = computed(() => props.minimized === true)
               v-model="input"
               type="textarea"
               :rows="1"
+              :autosize="{ minRows: 1, maxRows: 3 }"
               resize="none"
               :disabled="noWorkspace || streaming"
               placeholder="输入消息…"
@@ -623,6 +624,9 @@ const minimized = computed(() => props.minimized === true)
 }
 
 .assistant-panel__new {
+  // 按钮右对齐，贴近会话列右缘（与消息区对齐）
+  display: flex;
+  justify-content: flex-end;
   padding: 10px 12px;
   border-bottom: 1px solid var(--color-neutral-100);
   flex-shrink: 0;
@@ -736,6 +740,8 @@ const minimized = computed(() => props.minimized === true)
   padding: 10px 14px;
   font-size: 13px;
   line-height: 1.6;
+  // 达到 autosize 3 行上限后内部滚动，避免撑破面板
+  overflow-y: auto;
   transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
 }
 
@@ -756,9 +762,11 @@ const minimized = computed(() => props.minimized === true)
 }
 
 .assistant-panel__toolbar-actions {
+  // 恒靠右：AiModelSelect 在单一模型时不渲染（交互设计 4.1），space-between 会令唯一子元素靠左
   display: flex;
   align-items: center;
   gap: var(--space-md);
+  margin-left: auto;
 }
 
 .assistant-panel__hint {
