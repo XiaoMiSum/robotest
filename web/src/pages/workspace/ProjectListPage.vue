@@ -114,7 +114,7 @@ async function handleDelete(project: Project) {
 }
 
 function handleEnterProject(project: Project) {
-  authStore.setActiveProject(project.id)
+  authStore.setActiveProject(project.id, project.name)
   router.push('/workspace/projects/dashboard')
 }
 

@@ -39,8 +39,8 @@ async function enterWorkspace(ws: WorkspaceItem) {
     // 偏好保存失败不阻塞进入
   }
   if (ws.defaultProjectId) {
-    // 有默认项目时自动激活，让 X-Active-Project 请求头生效
-    authStore.setActiveProject(ws.defaultProjectId)
+    // 有默认项目时自动激活，让 X-Active-Project 请求头生效（名称一并带入供顶栏展示）
+    authStore.setActiveProject(ws.defaultProjectId, ws.defaultProjectName)
     router.push('/workspace/projects/dashboard')
   } else {
     authStore.setActiveProject(null)

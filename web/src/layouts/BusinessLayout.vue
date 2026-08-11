@@ -53,6 +53,9 @@ const showWorkspaceManage = computed(() => (navStore.isWorkspaceMode || navStore
 const showSystemAdmin = computed(() => authStore.hasSystemPermission)
 const isSystemActive = computed(() => navStore.isAdminMode)
 
+// 项目 tag 仅 project 模式显示：workspace 模式（项目列表页）下 activeProjectName 可能是上次进入的残留
+const showProjectTag = computed(() => navStore.isProjectMode && Boolean(authStore.activeProjectName))
+
 // full-height pages (e.g. functional-testing) need content-area padding: 0 so sidebar/breadcrumbs extend edge-to-edge
 const isFullHeightPage = computed(() => route.path.startsWith('/workspace/projects/functional-testing'))
 
@@ -115,6 +118,22 @@ function handleUserCommand(cmd: string) {
     <header class="top-nav">
       <div class="top-nav__logo" @click="goHome">
         <span class="top-nav__logo-text">RoboTest</span>
+      </div>
+
+      <!-- 当前上下文名称（样式参考管理模式顶栏的系统管理标签）：空间名 + 项目名 -->
+      <div class="top-nav__context-tags">
+        <el-tag
+          v-if="authStore.activeWorkspace?.name"
+          class="top-nav__context-tag"
+          type="primary"
+          size="small"
+          effect="dark"
+        >
+          {{ authStore.activeWorkspace.name }}
+        </el-tag>
+        <el-tag v-if="showProjectTag" class="top-nav__context-tag" type="info" size="small" effect="dark">
+          {{ authStore.activeProjectName }}
+        </el-tag>
       </div>
 
       <nav class="top-nav__dynamic-menu">
@@ -233,6 +252,20 @@ function handleUserCommand(cmd: string) {
   font-weight: 700;
   color: #ffffff;
   letter-spacing: -0.02em;
+}
+
+.top-nav__context-tags {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-right: 8px;
+  flex-shrink: 0;
+}
+
+.top-nav__context-tag {
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  padding: 2px 8px;
 }
 
 .top-nav__dynamic-menu {
