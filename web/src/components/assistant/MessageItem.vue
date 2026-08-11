@@ -8,6 +8,7 @@ import { useAssistantContextStore } from '@/stores/assistantContext'
 import { useAuthStore } from '@/stores/auth'
 import router from '@/router'
 import type { DslPlan, DslPlanResult } from '@/components/project/minder/ai/dslRunner'
+import AssistantIcon from './AssistantIcons.vue'
 import DslPreviewDialog from './DslPreviewDialog.vue'
 import {
   formatCountdown,
@@ -179,33 +180,47 @@ function handleCancelDsl(): void {
 
 <template>
   <div class="msg" :class="[`msg--${message.role}`, { 'msg--streaming': message.streaming }]">
-    <!-- 用户消息：右侧气泡 -->
-    <div v-if="isUser" class="msg__bubble msg__bubble--user">{{ message.content }}</div>
+    <!-- 用户消息：右侧主色气泡 + 右侧首字头像 -->
+    <div v-if="isUser" class="msg__row msg__row--user">
+      <div class="msg__bubble msg__bubble--user">{{ message.content }}</div>
+      <span class="msg__avatar msg__avatar--user">{{ message.content.charAt(0) }}</span>
+    </div>
 
     <!-- 工具消息（历史 role=tool）：灰色小卡片（设计 3.1） -->
     <div v-else-if="isTool" class="msg__tool-card">
-      <span class="msg__tool-icon">🔧</span>
+      <AssistantIcon name="wrench" :size="14" class="msg__tool-icon" />
       <span>{{ message.content || '工具执行' }}</span>
     </div>
 
-    <!-- 助手消息：Markdown + 过程卡片 + 确认卡片 + DSL 入口 -->
-    <div v-else class="msg__assistant">
-      <MarkdownView v-if="message.content" :content="safeContent" />
-      <span v-if="message.streaming" class="msg__cursor">▌</span>
-      <div v-if="message.streaming && message.slowHint" class="msg__slow-hint">响应较慢，可停止重试</div>
+    <!-- 助手消息：AI 渐变头像 + 内容列（Markdown + 过程卡片 + 确认卡片 + DSL 入口） -->
+    <div v-else class="msg__row msg__row--assistant">
+      <span class="msg__avatar msg__avatar--ai">
+        <AssistantIcon name="sparkles" :size="14" />
+      </span>
+      <div class="msg__assistant">
+        <MarkdownView v-if="message.content" :content="safeContent" />
+        <span v-if="message.streaming" class="msg__cursor">▍</span>
+        <div v-if="message.streaming && message.slowHint" class="msg__slow-hint">响应较慢，可停止重试</div>
 
-      <!-- 工具过程卡片（4.3：执行中 loading / 完成摘要） -->
-      <div v-if="message.toolProcesses?.length" class="msg__process">
-        <div v-for="(proc, index) in message.toolProcesses" :key="index" class="msg__process-item">
-          <el-icon v-if="proc.status === 'running'" class="is-loading"><Loading /></el-icon>
-          <span v-else class="msg__process-ok">✓</span>
-          <span>{{ proc.status === 'running' ? `正在查询：${proc.summary}` : `查询完成：${proc.summary}` }}</span>
+        <!-- 工具过程卡片（4.3：执行中 loading / 完成摘要） -->
+        <div v-if="message.toolProcesses?.length" class="msg__process">
+          <div v-for="(proc, index) in message.toolProcesses" :key="index" class="msg__process-item">
+            <span v-if="proc.status === 'running'" class="msg__process-spinner" aria-hidden="true"></span>
+            <AssistantIcon v-else-if="proc.status === 'done'" name="check" :size="12" class="msg__process-ok" />
+            <AssistantIcon v-else name="close" :size="12" class="msg__process-fail" />
+            <span class="msg__process-badge" :class="`msg__process-badge--${proc.status}`">
+              {{ proc.status === 'running' ? '运行中' : proc.status === 'done' ? '完成' : '失败' }}
+            </span>
+            <span class="msg__process-summary">{{ proc.summary }}</span>
+          </div>
         </div>
-      </div>
 
-      <!-- 写操作确认卡片（5.1：明细表格 + 倒计时 + 取消/确认执行） -->
-      <div v-if="message.confirmCard" class="msg__confirm">
-        <div class="msg__confirm-title">📋 待确认操作：{{ message.confirmCard.toolName }}</div>
+        <!-- 写操作确认卡片（5.1：明细表格 + 倒计时 + 取消/确认执行） -->
+        <div v-if="message.confirmCard" class="msg__confirm">
+          <div class="msg__confirm-title">
+            <AssistantIcon name="clipboard" :size="14" class="msg__confirm-title-icon" />
+            待确认操作：{{ message.confirmCard.toolName }}
+          </div>
         <table v-if="previewFields.length" class="msg__confirm-table">
           <tbody>
             <tr v-for="(field, index) in previewFields" :key="index">
@@ -234,6 +249,7 @@ function handleCancelDsl(): void {
           查看编辑预览
         </el-button>
       </div>
+      </div>
     </div>
 
     <DslPreviewDialog
@@ -249,25 +265,12 @@ function handleCancelDsl(): void {
 .msg {
   display: flex;
   flex-direction: column;
+  // 消息进入：仅 transform/opacity（GPU 合成），初始态由 fill-mode: both 保持
+  animation: msg-enter var(--transition-slow) both;
 }
 
 .msg--user {
   align-items: flex-end;
-}
-
-.msg__bubble {
-  max-width: 85%;
-  padding: 8px 12px;
-  border-radius: 8px;
-  font-size: 13px;
-  line-height: 1.6;
-  word-break: break-word;
-  white-space: pre-wrap;
-}
-
-.msg__bubble--user {
-  background: var(--el-color-primary-light-8);
-  color: var(--el-text-color-primary);
 }
 
 .msg--assistant,
@@ -275,73 +278,205 @@ function handleCancelDsl(): void {
   align-items: flex-start;
 }
 
-.msg__assistant {
+.msg__row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-md);
   width: 100%;
+  min-width: 0;
+}
+
+.msg__row--user {
+  justify-content: flex-end;
+}
+
+.msg__avatar {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-lg);
+}
+
+.msg__avatar--ai {
+  background: linear-gradient(135deg, var(--color-primary-400), var(--color-primary-700));
+  color: var(--color-neutral-0);
+}
+
+.msg__avatar--user {
+  background: var(--color-neutral-200);
+  color: var(--color-neutral-600);
   font-size: 13px;
-  line-height: 1.7;
-  color: var(--el-text-color-regular);
+  font-weight: 700;
+}
+
+.msg__bubble {
+  max-width: 82%;
+  padding: 10px 14px;
+  border-radius: var(--radius-xl);
+  font-size: 13px;
+  line-height: 1.6;
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+
+.msg__bubble--user {
+  background: var(--color-primary-500);
+  color: var(--color-neutral-0);
+  border-top-right-radius: var(--radius-md);
+}
+
+.msg__assistant {
+  flex: 1;
+  min-width: 0;
+  font-size: 13.5px;
+  line-height: 1.75;
+  color: var(--color-neutral-700);
 }
 
 .msg__cursor {
-  color: var(--el-color-primary);
+  color: var(--color-primary-500);
   animation: msg-cursor-blink 1s step-end infinite;
 }
 
 .msg__slow-hint {
-  margin-top: 6px;
+  margin-top: var(--space-sm);
   font-size: 12px;
-  color: var(--el-color-warning);
+  color: var(--color-warning);
+}
+
+@keyframes msg-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes msg-cursor-blink {
-  50% {
+  0%,
+  100% {
     opacity: 0;
+  }
+  50% {
+    opacity: 1;
   }
 }
 
 .msg__tool-card {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  max-width: 85%;
+  gap: var(--space-sm);
+  max-width: 82%;
   padding: 6px 10px;
-  border-radius: 6px;
-  background: var(--el-fill-color-light);
+  border-radius: var(--radius-lg);
+  background: var(--color-neutral-50);
+  border: 1px solid var(--color-neutral-100);
   font-size: 12px;
-  color: var(--el-text-color-secondary);
+  color: var(--color-neutral-500);
+}
+
+.msg__tool-icon {
+  color: var(--color-neutral-400);
 }
 
 .msg__process {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  margin-top: 8px;
+  gap: var(--space-sm);
+  margin-top: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--color-neutral-100);
+  border-radius: var(--radius-lg);
+  background: var(--color-neutral-50);
 }
 
 .msg__process-item {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-sm);
   font-size: 12px;
-  color: var(--el-text-color-secondary);
+  color: var(--color-neutral-600);
+}
+
+.msg__process-spinner {
+  flex-shrink: 0;
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--color-primary-100);
+  border-top-color: var(--color-primary-500);
+  border-radius: 50%;
+  animation: msg-spin 0.8s linear infinite;
+}
+
+@keyframes msg-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .msg__process-ok {
-  color: var(--el-color-success);
+  flex-shrink: 0;
+  color: var(--color-success);
+}
+
+.msg__process-fail {
+  flex-shrink: 0;
+  color: var(--color-danger);
+}
+
+.msg__process-badge {
+  flex-shrink: 0;
+  padding: 0 6px;
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  line-height: 18px;
+  font-weight: 500;
+}
+
+.msg__process-badge--running {
+  background: var(--color-info-light);
+  color: var(--color-info);
+}
+
+.msg__process-badge--done {
+  color: var(--color-success);
+}
+
+.msg__process-badge--failed {
+  color: var(--color-danger);
+}
+
+.msg__process-summary {
+  min-width: 0;
+  word-break: break-word;
 }
 
 .msg__confirm {
-  margin-top: 10px;
-  border: 1px solid var(--el-border-color-lighter);
-  border-radius: 6px;
+  margin-top: var(--space-sm);
+  border: 1px solid var(--color-neutral-100);
+  border-radius: var(--radius-lg);
   padding: 10px 12px;
+  background: var(--color-neutral-50);
 }
 
 .msg__confirm-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
   font-size: 13px;
   font-weight: 600;
-  color: var(--el-text-color-primary);
-  margin-bottom: 6px;
+  color: var(--color-neutral-800);
+  margin-bottom: var(--space-sm);
+}
+
+.msg__confirm-title-icon {
+  color: var(--color-primary-500);
 }
 
 .msg__confirm-table {
@@ -352,53 +487,53 @@ function handleCancelDsl(): void {
 
 .msg__confirm-table td {
   padding: 4px 8px;
-  border: 1px solid var(--el-border-color-lighter);
+  border: 1px solid var(--color-neutral-100);
 }
 
 .msg__confirm-key {
   width: 90px;
-  background: var(--el-fill-color-light);
-  color: var(--el-text-color-secondary);
+  background: var(--color-neutral-100);
+  color: var(--color-neutral-500);
 }
 
 .msg__confirm-value {
-  color: var(--el-text-color-primary);
+  color: var(--color-neutral-700);
 }
 
 .msg__confirm-empty {
   font-size: 12px;
-  color: var(--el-text-color-placeholder);
+  color: var(--color-neutral-400);
 }
 
 .msg__confirm-countdown {
-  margin-top: 8px;
+  margin-top: var(--space-sm);
   font-size: 12px;
-  color: var(--el-color-warning);
+  color: var(--color-warning);
 }
 
 .msg__confirm-finished {
-  margin-top: 8px;
+  margin-top: var(--space-sm);
   font-size: 12px;
-  color: var(--el-text-color-secondary);
+  color: var(--color-neutral-500);
 }
 
 .msg__confirm-failed {
-  color: var(--el-color-danger);
+  color: var(--color-danger);
 }
 
 .msg__confirm-error {
-  margin-left: 8px;
-  color: var(--el-color-danger);
+  margin-left: var(--space-sm);
+  color: var(--color-danger);
 }
 
 .msg__confirm-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 8px;
-  margin-top: 8px;
+  gap: var(--space-sm);
+  margin-top: var(--space-sm);
 }
 
 .msg__dsl {
-  margin-top: 8px;
+  margin-top: var(--space-sm);
 }
 </style>

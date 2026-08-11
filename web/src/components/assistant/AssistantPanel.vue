@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { ScrollbarInstance } from 'element-plus'
 import type { AiStreamController } from '@/composables/useAiStream'
@@ -18,6 +18,7 @@ import {
 import type { AiConversation, AiMessage } from '@/types'
 import { formatDateTime, truncateText } from '@/utils/format'
 import MessageItem, { type AssistantMessageItem } from './MessageItem.vue'
+import AssistantIcon from './AssistantIcons.vue'
 import AiModelSelect from '@/components/common/AiModelSelect.vue'
 import type { DslPlan } from '@/components/project/minder/ai/dslRunner'
 
@@ -39,6 +40,9 @@ const emit = defineEmits<{
 const authStore = useAuthStore()
 const aiStore = useAiStore()
 const assistantContext = useAssistantContextStore()
+
+// 未选择工作空间（如 /workspaces 列表页）：面板显示引导态，会话/消息/输入均不可用（交互设计 1.1/2）
+const noWorkspace = computed(() => !authStore.activeWorkspace?.id)
 
 // ==================== 会话列表（交互设计 3：触底加载 + 本地置顶 + 空间隔离） ====================
 
@@ -119,7 +123,8 @@ async function handleSend(): Promise<void> {
 
   input.value = ''
   messages.value.push({ id: localId(), role: 'user', content, createdAt: nowIso() })
-  const assistantMsg: AssistantMessageItem = {
+  // reactive 包装：回调中直接改 assistantMsg 需触发模板更新，普通对象 push 后与响应式代理分离导致视图冻结
+  const assistantMsg = reactive<AssistantMessageItem>({
     id: localId(),
     role: 'assistant',
     content: '',
@@ -128,7 +133,7 @@ async function handleSend(): Promise<void> {
     toolProcesses: [],
     confirmCard: null,
     dslCommands: null,
-  }
+  })
   messages.value.push(assistantMsg)
   streaming.value = true
   void scrollToBottom()
@@ -263,14 +268,14 @@ function handleConfirm(confirmToken: string): void {
   if (!card || card.status !== 'waiting') return
   card.status = 'approved'
   streaming.value = true
-  const replyMsg: AssistantMessageItem = {
+  const replyMsg = reactive<AssistantMessageItem>({
     id: localId(),
     role: 'assistant',
     content: '',
     createdAt: nowIso(),
     streaming: true,
     toolProcesses: [],
-  }
+  })
   messages.value.push(replyMsg)
   void scrollToBottom()
 
@@ -395,7 +400,18 @@ const minimized = computed(() => props.minimized === true)
   <transition name="assistant-slide">
     <aside v-show="!minimized" class="assistant-panel">
       <header class="assistant-panel__header">
-        <span class="assistant-panel__title">✨ 智能助手</span>
+        <div class="assistant-panel__heading">
+          <span class="assistant-panel__logo">
+            <AssistantIcon name="sparkles" :size="14" />
+          </span>
+          <div class="assistant-panel__titles">
+            <span class="assistant-panel__title">智能助手</span>
+            <span class="assistant-panel__status">
+              <span class="assistant-panel__status-dot" aria-hidden="true"></span>
+              在线
+            </span>
+          </div>
+        </div>
         <div class="assistant-panel__actions">
           <el-button text title="最小化" @click="emit('minimize')">
             <el-icon><Minus /></el-icon>
@@ -410,54 +426,60 @@ const minimized = computed(() => props.minimized === true)
         <!-- 会话列表（交互设计 1.2 左侧） -->
         <aside class="assistant-panel__sidebar">
           <div class="assistant-panel__new">
-            <el-button size="small" type="primary" plain @click="handleNewConversation">
+            <el-button size="small" type="primary" plain :disabled="noWorkspace" @click="handleNewConversation">
               <el-icon><Plus /></el-icon>新会话
             </el-button>
           </div>
           <el-scrollbar ref="sidebarScroller" class="assistant-panel__conv-scroll" @scroll="handleSidebarScroll">
-            <div v-if="conversationsLoading" class="assistant-panel__skeleton">
-              <el-skeleton :rows="6" animated />
-            </div>
-            <div
-              v-for="conv in conversationItems"
-              :key="conv.id"
-              class="conv-item"
-              :class="{ 'conv-item--active': conv.id === activeConversationId }"
-              @click="switchConversation(conv.id)"
-            >
-              <div class="conv-item__title" :title="conv.title">{{ truncateText(conv.title, 14) }}</div>
-              <div class="conv-item__meta">
-                <span class="conv-item__time">{{ formatDateTime(conv.lastActiveAt) }}</span>
-                <el-button text size="small" class="conv-item__clear" @click.stop="handleDeleteConversation(conv)">
-                  清空
-                </el-button>
+            <div v-if="noWorkspace" class="assistant-panel__empty">请先选择工作空间</div>
+            <template v-else>
+              <div v-if="conversationsLoading" class="assistant-panel__skeleton">
+                <el-skeleton :rows="6" animated />
               </div>
-            </div>
-            <div v-if="conversationsLoadingMore" class="assistant-panel__skeleton">
-              <el-skeleton :rows="2" animated />
-            </div>
-            <div v-if="!conversationItems.length && !conversationsLoading" class="assistant-panel__empty">
-              暂无会话
-            </div>
+              <div
+                v-for="conv in conversationItems"
+                :key="conv.id"
+                class="conv-item"
+                :class="{ 'conv-item--active': conv.id === activeConversationId }"
+                @click="switchConversation(conv.id)"
+              >
+                <div class="conv-item__title" :title="conv.title">{{ truncateText(conv.title, 14) }}</div>
+                <div class="conv-item__meta">
+                  <span class="conv-item__time">{{ formatDateTime(conv.lastActiveAt) }}</span>
+                  <el-button text size="small" class="conv-item__clear" @click.stop="handleDeleteConversation(conv)">
+                    清空
+                  </el-button>
+                </div>
+              </div>
+              <div v-if="conversationsLoadingMore" class="assistant-panel__skeleton">
+                <el-skeleton :rows="2" animated />
+              </div>
+              <div v-if="!conversationItems.length && !conversationsLoading" class="assistant-panel__empty">
+                暂无会话
+              </div>
+            </template>
           </el-scrollbar>
         </aside>
 
         <!-- 消息流 + 输入区（交互设计 1.2 右侧） -->
         <section class="assistant-panel__chat">
           <el-scrollbar ref="messageScroller" class="assistant-panel__messages">
-            <div v-if="messagesLoading" class="assistant-panel__loading">
-              <el-skeleton :rows="4" animated />
-            </div>
-            <div v-else-if="!messages.length" class="assistant-panel__empty">开始与智能助手对话</div>
-            <MessageItem
-              v-for="msg in messages"
-              :key="msg.id"
-              :message="msg"
-              @confirm="handleConfirm"
-              @cancel="handleCancel"
-              @confirm-dsl="handleConfirmDsl"
-              @cancel-dsl="handleCancelDsl"
-            />
+            <div v-if="noWorkspace" class="assistant-panel__empty">请先选择工作空间后使用智能助手</div>
+            <template v-else>
+              <div v-if="messagesLoading" class="assistant-panel__loading">
+                <el-skeleton :rows="4" animated />
+              </div>
+              <div v-else-if="!messages.length" class="assistant-panel__empty">开始与智能助手对话</div>
+              <MessageItem
+                v-for="msg in messages"
+                :key="msg.id"
+                :message="msg"
+                @confirm="handleConfirm"
+                @cancel="handleCancel"
+                @confirm-dsl="handleConfirmDsl"
+                @cancel-dsl="handleCancelDsl"
+              />
+            </template>
           </el-scrollbar>
 
           <footer class="assistant-panel__input">
@@ -466,22 +488,26 @@ const minimized = computed(() => props.minimized === true)
               type="textarea"
               :rows="1"
               resize="none"
-              :disabled="streaming"
+              :disabled="noWorkspace || streaming"
               placeholder="输入消息…"
               @keydown.enter.exact.prevent="handleSend"
             />
             <div class="assistant-panel__toolbar">
               <AiModelSelect />
-              <el-button
-                v-if="!streaming"
-                type="primary"
-                size="small"
-                :disabled="!input.trim()"
-                @click="handleSend"
-              >
-                发送
-              </el-button>
-              <el-button v-else type="danger" size="small" @click="handleStop">停止</el-button>
+              <div class="assistant-panel__toolbar-actions">
+                <span class="assistant-panel__hint">Enter 发送</span>
+                <el-button
+                  v-if="!streaming"
+                  class="assistant-panel__send"
+                  type="primary"
+                  size="small"
+                  :disabled="noWorkspace || !input.trim()"
+                  @click="handleSend"
+                >
+                  发送
+                </el-button>
+                <el-button v-else type="danger" size="small" @click="handleStop">停止</el-button>
+              </div>
             </div>
           </footer>
         </section>
@@ -499,8 +525,8 @@ const minimized = computed(() => props.minimized === true)
   width: 780px;
   display: flex;
   flex-direction: column;
-  background: #ffffff;
-  border-left: 1px solid var(--el-border-color-light);
+  background: var(--color-neutral-0);
+  border-left: 1px solid var(--color-neutral-200);
   box-shadow: -4px 0 16px rgba(0, 0, 0, 0.08);
   z-index: 90;
 }
@@ -519,21 +545,67 @@ const minimized = computed(() => props.minimized === true)
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 44px;
-  padding: 0 8px 0 16px;
-  border-bottom: 1px solid var(--el-border-color-lighter);
+  height: 52px;
+  padding: 0 var(--space-lg);
+  border-bottom: 1px solid var(--color-neutral-100);
   flex-shrink: 0;
+}
+
+.assistant-panel__heading {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.assistant-panel__logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-md);
+  background: linear-gradient(135deg, var(--color-primary-400), var(--color-primary-700));
+  color: var(--color-neutral-0);
+}
+
+.assistant-panel__titles {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-sm);
 }
 
 .assistant-panel__title {
   font-size: 14px;
   font-weight: 600;
-  color: var(--el-text-color-primary);
+  color: var(--color-neutral-800);
+}
+
+.assistant-panel__status {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--color-neutral-400);
+}
+
+.assistant-panel__status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-success);
 }
 
 .assistant-panel__actions {
   display: flex;
   align-items: center;
+}
+
+.assistant-panel__actions :deep(.el-button) {
+  border-radius: var(--radius-md);
+}
+
+.assistant-panel__actions :deep(.el-button:hover) {
+  background: var(--color-neutral-100);
 }
 
 .assistant-panel__body {
@@ -544,7 +616,7 @@ const minimized = computed(() => props.minimized === true)
 
 .assistant-panel__sidebar {
   width: 220px;
-  border-right: 1px solid var(--el-border-color-lighter);
+  border-right: 1px solid var(--color-neutral-100);
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
@@ -552,7 +624,7 @@ const minimized = computed(() => props.minimized === true)
 
 .assistant-panel__new {
   padding: 10px 12px;
-  border-bottom: 1px solid var(--el-border-color-lighter);
+  border-bottom: 1px solid var(--color-neutral-100);
   flex-shrink: 0;
 }
 
@@ -569,17 +641,32 @@ const minimized = computed(() => props.minimized === true)
   padding: 24px 12px;
   text-align: center;
   font-size: 12px;
-  color: var(--el-text-color-placeholder);
+  color: var(--color-neutral-400);
 }
 
 .conv-item {
+  position: relative;
   padding: 8px 12px;
   cursor: pointer;
-  border-left: 3px solid transparent;
+  border-radius: var(--radius-md);
   transition: background-color var(--transition-fast);
 
+  // 激活态左缘圆角指示条（伪元素避免影响布局）
+  &::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 3px;
+    height: 16px;
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+    background: transparent;
+    transition: background-color var(--transition-fast);
+  }
+
   &:hover {
-    background: var(--el-fill-color-light);
+    background: var(--color-neutral-100);
 
     .conv-item__clear {
       opacity: 1;
@@ -587,14 +674,17 @@ const minimized = computed(() => props.minimized === true)
   }
 
   &--active {
-    background: var(--el-color-primary-light-9);
-    border-left-color: var(--el-color-primary);
+    background: var(--color-primary-50);
+
+    &::before {
+      background: var(--color-primary-500);
+    }
   }
 }
 
 .conv-item__title {
   font-size: 13px;
-  color: var(--el-text-color-primary);
+  color: var(--color-neutral-700);
   margin-bottom: 2px;
 }
 
@@ -606,7 +696,7 @@ const minimized = computed(() => props.minimized === true)
 
 .conv-item__time {
   font-size: 11px;
-  color: var(--el-text-color-placeholder);
+  color: var(--color-neutral-400);
 }
 
 .conv-item__clear {
@@ -626,7 +716,7 @@ const minimized = computed(() => props.minimized === true)
 .assistant-panel__messages {
   flex: 1;
   min-height: 0;
-  padding: 16px;
+  padding: var(--space-lg);
 }
 
 .assistant-panel__loading {
@@ -634,15 +724,61 @@ const minimized = computed(() => props.minimized === true)
 }
 
 .assistant-panel__input {
-  border-top: 1px solid var(--el-border-color-lighter);
-  padding: 10px 12px;
+  border-top: 1px solid var(--color-neutral-100);
+  padding: var(--space-md) var(--space-lg);
   flex-shrink: 0;
+}
+
+.assistant-panel__input :deep(.el-textarea__inner) {
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--color-neutral-200);
+  box-shadow: none;
+  padding: 10px 14px;
+  font-size: 13px;
+  line-height: 1.6;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.assistant-panel__input :deep(.el-textarea__inner:focus) {
+  border-color: var(--color-primary-500);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+}
+
+.assistant-panel__input :deep(.el-textarea__inner::placeholder) {
+  color: var(--color-neutral-400);
 }
 
 .assistant-panel__toolbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-top: 8px;
+  margin-top: var(--space-sm);
+}
+
+.assistant-panel__toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.assistant-panel__hint {
+  font-size: 11px;
+  color: var(--color-neutral-400);
+}
+
+.assistant-panel__send {
+  border: none;
+  background: linear-gradient(135deg, var(--color-primary-500), var(--color-primary-600));
+  color: var(--color-neutral-0);
+  transition: background var(--transition-fast), box-shadow var(--transition-fast);
+
+  &:hover {
+    background: var(--color-primary-600);
+  }
+
+  &.is-disabled {
+    background: var(--color-neutral-200);
+    color: var(--color-neutral-400);
+  }
 }
 </style>
