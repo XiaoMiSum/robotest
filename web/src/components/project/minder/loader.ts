@@ -5,6 +5,7 @@ import kityUrl from 'kity/dist/kity.js?url'
 import kityminderUrl from 'kityminder-core/dist/kityminder.core.js?url'
 import type { KityMinderGlobal } from './types'
 import { registerBadgesModule } from './badges'
+import { registerCheckboxModule } from './ai/aiPreviewRender'
 
 const loadedScripts = new Map<string, Promise<void>>()
 
@@ -46,6 +47,11 @@ export async function loadMinderEngine(): Promise<KityMinderGlobal> {
   // 徽标模块须在 new Minder 之前注册；失败不阻断加载但必须留痕
   if (!registerBadgesModule()) {
     console.warn('[minder] 徽标模块注册失败，节点类型/优先级色标将不可见')
+  }
+  // AI 预览勾选框模块同样须在 new Minder 之前注册（构造期统一收集渲染器，
+  // 避免构造后注入实例 _rendererClasses 导致 root 渲染器数量不一致、布局越界）
+  if (!registerCheckboxModule()) {
+    console.warn('[minder] AI 预览勾选框模块注册失败，预览节点将无勾选框')
   }
   return km
 }
