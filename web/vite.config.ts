@@ -29,6 +29,15 @@ export default defineConfig({
       '/api': {
         target: 'http://localhost:8080',
         changeOrigin: true,
+        configure: (proxy) => {
+          // SSE 响应禁用代理缓冲：http-proxy 对 text/event-stream 默认缓冲，
+          // 导致前端 fetch 的 ReadableStream 永远等不到流结束（vitejs/vite#10851）
+          proxy.on('proxyRes', (proxyRes) => {
+            if (proxyRes.headers['content-type']?.includes('text/event-stream')) {
+              proxyRes.headers['x-accel-buffering'] = 'no'
+            }
+          })
+        },
       },
       '/ws': {
         target: 'ws://localhost:8080',
