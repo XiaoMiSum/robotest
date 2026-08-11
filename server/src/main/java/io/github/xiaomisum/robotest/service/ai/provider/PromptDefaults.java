@@ -10,7 +10,8 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * 内置默认提示词模板（资源文件随代码维护，键与 AiFunctionType 枚举一致；与 v1.1.sql 种子数据同源，DB 无记录时兜底）
+ * 内置默认提示词模板（资源文件随代码维护，键与 AiFunctionType 枚举一致；与 v1.1.sql 种子数据同源，
+ * 仅作为「恢复默认」的数据源，运行时提示词一律从数据库读取，不参与任何组装路径）
  */
 @Component
 public class PromptDefaults {

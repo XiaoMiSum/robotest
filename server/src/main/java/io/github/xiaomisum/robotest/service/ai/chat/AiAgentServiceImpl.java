@@ -63,21 +63,18 @@ public class AiAgentServiceImpl implements AiAgentService {
     @Override
     public AiAgentDetailRespDTO getAgentDetail(String functionType) {
         AiFunctionType type = requireTemplateFunction(functionType);
-        PromptDefaults.DefaultTemplate defaults = promptDefaults.get(type.getCode());
         AiPromptTemplate custom = aiPromptTemplateMapper.findByFunctionType(type.getCode());
+        if (custom == null) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_PROMPT_TEMPLATE_NOT_FOUND);
+        }
 
         AiAgentDetailRespDTO dto = new AiAgentDetailRespDTO();
         dto.setFunctionType(type.getCode());
         dto.setName(type.getLabel());
-        dto.setCustomized(custom != null);
-        dto.setFormatEditable(custom != null && Boolean.TRUE.equals(custom.getFormatEditable()));
-        dto.setRoleInstruction(custom != null ? custom.getRoleInstruction() : defaults.roleInstruction());
-        dto.setFormatConstraint(custom != null ? custom.getFormatConstraint() : defaults.formatConstraint());
-
-        AiAgentDetailRespDTO.Defaults defaultsDto = new AiAgentDetailRespDTO.Defaults();
-        defaultsDto.setRoleInstruction(defaults.roleInstruction());
-        defaultsDto.setFormatConstraint(defaults.formatConstraint());
-        dto.setDefaults(defaultsDto);
+        dto.setCustomized(true);
+        dto.setFormatEditable(Boolean.TRUE.equals(custom.getFormatEditable()));
+        dto.setRoleInstruction(custom.getRoleInstruction());
+        dto.setFormatConstraint(custom.getFormatConstraint());
         return dto;
     }
 
@@ -86,10 +83,12 @@ public class AiAgentServiceImpl implements AiAgentService {
     @AuditOperation(operation = "UPDATE", entityType = "AiPromptTemplate", logParams = false)
     public void saveAgent(String functionType, AiAgentSaveReqDTO reqDTO, UUID userId) {
         AiFunctionType type = requireTemplateFunction(functionType);
-        PromptDefaults.DefaultTemplate defaults = promptDefaults.get(type.getCode());
         AiPromptTemplate custom = aiPromptTemplateMapper.findByFunctionType(type.getCode());
+        if (custom == null) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_PROMPT_TEMPLATE_NOT_FOUND);
+        }
 
-        String effectiveConstraint = custom != null ? custom.getFormatConstraint() : defaults.formatConstraint();
+        String effectiveConstraint = custom.getFormatConstraint();
         if (!Boolean.TRUE.equals(reqDTO.getFormatEditable())) {
             // 格式约束段锁定：提交了与生效值不同的内容视为越权修改
             if (reqDTO.getFormatConstraint() != null
@@ -100,34 +99,43 @@ public class AiAgentServiceImpl implements AiAgentService {
             effectiveConstraint = reqDTO.getFormatConstraint();
         }
 
-        if (custom == null) {
-            AiPromptTemplate template = new AiPromptTemplate();
-            template.setFunctionType(type.getCode());
-            template.setRoleInstruction(reqDTO.getRoleInstruction());
-            template.setFormatConstraint(effectiveConstraint);
-            template.setFormatEditable(reqDTO.getFormatEditable());
-            template.setUpdatedBy(userId);
-            aiPromptTemplateMapper.insert(template);
-        } else {
-            AiPromptTemplate update = new AiPromptTemplate();
-            update.setId(custom.getId());
-            update.setRoleInstruction(reqDTO.getRoleInstruction());
-            update.setFormatConstraint(effectiveConstraint);
-            update.setFormatEditable(reqDTO.getFormatEditable());
-            update.setUpdatedBy(userId);
-            aiPromptTemplateMapper.updateById(update);
-        }
+        AiPromptTemplate update = new AiPromptTemplate();
+        update.setId(custom.getId());
+        update.setRoleInstruction(reqDTO.getRoleInstruction());
+        update.setFormatConstraint(effectiveConstraint);
+        update.setFormatEditable(reqDTO.getFormatEditable());
+        update.setUpdatedBy(userId);
+        aiPromptTemplateMapper.updateById(update);
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    @AuditOperation(operation = "DELETE", entityType = "AiPromptTemplate", logParams = false)
-    public void restoreDefault(String functionType) {
+    @AuditOperation(operation = "UPDATE", entityType = "AiPromptTemplate", logParams = false)
+    public void restoreDefault(String functionType, UUID userId) {
         AiFunctionType type = requireTemplateFunction(functionType);
-        AiPromptTemplate custom = aiPromptTemplateMapper.findByFunctionType(type.getCode());
-        if (custom != null) {
-            aiPromptTemplateMapper.deleteById(custom.getId());
+        PromptDefaults.DefaultTemplate defaults = promptDefaults.get(type.getCode());
+        if (defaults == null) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_PROMPT_TEMPLATE_NOT_FOUND);
         }
+        AiPromptTemplate custom = aiPromptTemplateMapper.findByFunctionType(type.getCode());
+        if (custom == null) {
+            // 种子未执行时按默认内容重建，保证数据库始终有记录
+            AiPromptTemplate template = new AiPromptTemplate();
+            template.setFunctionType(type.getCode());
+            template.setRoleInstruction(defaults.roleInstruction());
+            template.setFormatConstraint(defaults.formatConstraint());
+            template.setFormatEditable(true);
+            template.setUpdatedBy(userId);
+            aiPromptTemplateMapper.insert(template);
+            return;
+        }
+        AiPromptTemplate update = new AiPromptTemplate();
+        update.setId(custom.getId());
+        update.setRoleInstruction(defaults.roleInstruction());
+        update.setFormatConstraint(defaults.formatConstraint());
+        update.setFormatEditable(true);
+        update.setUpdatedBy(userId);
+        aiPromptTemplateMapper.updateById(update);
     }
 
     private AiFunctionType requireTemplateFunction(String functionType) {

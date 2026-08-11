@@ -3,7 +3,7 @@ package io.github.xiaomisum.robotest.model.dto.response.ai;
 import lombok.Data;
 
 /**
- * 智能体详情（当前生效段 + 内置默认段）
+ * 智能体详情（当前生效段，内容全部来自数据库）
  */
 @Data
 public class AiAgentDetailRespDTO {
@@ -14,11 +14,4 @@ public class AiAgentDetailRespDTO {
     private Boolean formatEditable;
     private String roleInstruction;
     private String formatConstraint;
-    private Defaults defaults;
-
-    @Data
-    public static class Defaults {
-        private String roleInstruction;
-        private String formatConstraint;
-    }
 }

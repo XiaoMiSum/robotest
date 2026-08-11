@@ -45,8 +45,10 @@ public class AiAgentController {
 
     @DeleteMapping("/{functionType}")
     @PreAuthorize("hasAuthority('ai:edit')")
-    public Result<Void> restoreDefault(@PathVariable String functionType) {
-        aiAgentService.restoreDefault(functionType);
+    public Result<Void> restoreDefault(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @PathVariable String functionType) {
+        aiAgentService.restoreDefault(functionType, loginUser.getId());
         return Result.ok();
     }
 }

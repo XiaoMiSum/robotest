@@ -12,7 +12,10 @@ import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
 import java.util.List;
 
 /**
- * Prompt 组装器 —— 模板加载（DB 记录优先 → 代码默认兜底）、消息组装与业务数据定界（防注入）。
+ * Prompt 组装器 —— 模板加载（全部来自数据库）、消息组装与业务数据定界（防注入）。
+ *
+ * <p>提示词模板的唯一事实来源是 ai_prompt_template 表（初始化脚本全量落库，页面可查看修改），
+ * 运行时不做任何资源文件兜底；未命中即视为配置缺失。</p>
  *
  * <p>业务数据一律置于定界符内且仅出现在 user 消息中，系统指令永不拼接用户可控文本。</p>
  */
@@ -27,8 +30,6 @@ public class PromptAssembler {
 
     @Resource
     private AiPromptTemplateMapper aiPromptTemplateMapper;
-    @Resource
-    private PromptDefaults promptDefaults;
 
     /**
      * 组装 system + user 消息；输入超预算时拒绝（1001），截断或分批由各功能自行决定
@@ -50,18 +51,14 @@ public class PromptAssembler {
     }
 
     /**
-     * 当前生效的 system 段：角色指令 + 输出格式约束（DB 记录优先，未命中用代码内置默认）
+     * 当前生效的 system 段：角色指令 + 输出格式约束（全部来自数据库，未命中视为配置缺失）
      */
     public String loadSystemPrompt(AiFunctionType functionType) {
         AiPromptTemplate custom = aiPromptTemplateMapper.findByFunctionType(functionType.getCode());
-        if (custom != null) {
-            return custom.getRoleInstruction() + "\n\n" + custom.getFormatConstraint();
+        if (custom == null) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_PROMPT_TEMPLATE_NOT_FOUND);
         }
-        PromptDefaults.DefaultTemplate defaults = promptDefaults.get(functionType.getCode());
-        if (defaults == null) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.INTERNAL_SERVER_ERROR);
-        }
-        return defaults.roleInstruction() + "\n\n" + defaults.formatConstraint();
+        return custom.getRoleInstruction() + "\n\n" + custom.getFormatConstraint();
     }
 
     /**
