@@ -160,13 +160,48 @@ public class AiGatewayServiceImpl implements AiGatewayService {
                             doneData = doneAssembler != null
                                     ? doneAssembler.apply(fullContent)
                                     : Map.of("content", AiOutputValidator.stripNoise(fullContent));
-                        } catch (AiOutputValidator.OutputValidationException e) {
-                            auditRecorder.record(context, functionType, config.model(),
-                                    System.currentTimeMillis() - start, promptTokens, completionTokens,
-                                    Constants.AiInvocationStatus.SCHEMA_INVALID, "6003");
-                            sseSupport.sendError(emitter, ErrorCodeConstants.AI_OUTPUT_SCHEMA_INVALID.code(),
-                                    ErrorCodeConstants.AI_OUTPUT_SCHEMA_INVALID.msg());
-                            emitter.complete();
+                        } catch (AiOutputValidator.OutputValidationException firstFailure) {
+                            // 追加校验错误说明重新流式调用一次（4.4 带错重试）。
+                            // 重试沿用 stream 而非同步 complete：本地代理（oc/* 系列）仅接受流式请求，
+                            // 同步请求会以 application/octet-stream 响应导致解析失败（6002 回归）；
+                            // 首次已透传的 delta 不回退，重试增量不透传，最终结果由 done 帧交付
+                            String retryInstruction = taskInstruction + "\n\n上一次输出未通过校验，错误说明："
+                                    + firstFailure.getMessage() + "\n请严格按照输出格式约束重新输出。";
+                            List<ChatMessage> retryMessages =
+                                    promptAssembler.assemble(functionType, retryInstruction, businessData);
+                            provider.stream(config, retryMessages, options, new StreamCallbacks() {
+
+                                @Override
+                                public void onDelta(String content) {
+                                    // 重试轮增量不透传：首次 delta 已透传不回退，结果统一由 done 帧交付
+                                }
+
+                                @Override
+                                public void onFinish(String retryContent, Integer retryPromptTokens,
+                                                     Integer retryCompletionTokens) {
+                                    int totalPromptTokens = (promptTokens != null ? promptTokens : 0)
+                                            + (retryPromptTokens != null ? retryPromptTokens : 0);
+                                    int totalCompletionTokens = (completionTokens != null ? completionTokens : 0)
+                                            + (retryCompletionTokens != null ? retryCompletionTokens : 0);
+                                    try {
+                                        Object retryDoneData = doneAssembler != null
+                                                ? doneAssembler.apply(retryContent)
+                                                : Map.of("content", AiOutputValidator.stripNoise(retryContent));
+                                        auditRecorder.record(context, functionType, config.model(),
+                                                System.currentTimeMillis() - start, totalPromptTokens,
+                                                totalCompletionTokens, Constants.AiInvocationStatus.SUCCESS, null);
+                                        sseSupport.send(emitter, "done", retryDoneData);
+                                        emitter.complete();
+                                    } catch (AiOutputValidator.OutputValidationException secondFailure) {
+                                        auditRecorder.record(context, functionType, config.model(),
+                                                System.currentTimeMillis() - start, totalPromptTokens,
+                                                totalCompletionTokens, Constants.AiInvocationStatus.SCHEMA_INVALID, "6003");
+                                        sseSupport.sendError(emitter, ErrorCodeConstants.AI_OUTPUT_SCHEMA_INVALID.code(),
+                                                ErrorCodeConstants.AI_OUTPUT_SCHEMA_INVALID.msg());
+                                        emitter.complete();
+                                    }
+                                }
+                            }, cancelled);
                             return;
                         }
                         auditRecorder.record(context, functionType, config.model(),
