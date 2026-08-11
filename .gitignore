@@ -2,3 +2,6 @@
 
 # 分离部署（方案A）由 scripts/deploy-separate.sh 生成的汇总产物，不入库
 /dist-deploy
+
+# Playwright MCP 浏览器自动化产物（快照/控制台日志），不入库
+/.playwright-mcp
