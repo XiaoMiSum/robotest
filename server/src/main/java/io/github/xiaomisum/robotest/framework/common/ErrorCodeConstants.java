@@ -112,4 +112,5 @@ public class ErrorCodeConstants {
     public static final ErrorCode AI_SEMANTIC_DEGRADED = ErrorCode.of(1000013010, "语义检索能力降级中");
     public static final ErrorCode AI_ASSISTANT_CONFIRM_TOKEN_INVALID = ErrorCode.of(1000013011, "写操作确认令牌不存在或已失效");
     public static final ErrorCode AI_TARGET_STATE_INVALID = ErrorCode.of(1000013012, "目标对象状态不允许该 AI 操作");
+    public static final ErrorCode AI_PROMPT_TEMPLATE_NOT_FOUND = ErrorCode.of(1000013013, "提示词模板未配置，请检查初始化脚本或联系管理员恢复默认");
 }

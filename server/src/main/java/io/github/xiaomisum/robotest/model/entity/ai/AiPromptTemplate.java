@@ -10,7 +10,7 @@ import xyz.migoo.framework.mybatis.core.handler.UUIDTypeHandler;
 import java.util.UUID;
 
 /**
- * 智能体提示词模板（默认模板初始化时全量落库，页面可查看并修改；恢复默认即逻辑删除该行）
+ * 智能体提示词模板（默认模板初始化时全量落库，页面可查看并修改；恢复默认即重置为该功能的内置默认内容，记录始终存在）
  */
 @Data
 @EqualsAndHashCode(callSuper = true)

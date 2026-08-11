@@ -818,7 +818,7 @@ export interface AiAgent {
   updatedAt: string | null
 }
 
-/** 智能体详情（当前生效段 + 内置默认段） */
+/** 智能体详情（当前生效段，内容全部来自数据库） */
 export interface AiAgentDetail {
   functionType: string
   name: string
@@ -826,10 +826,6 @@ export interface AiAgentDetail {
   formatEditable: boolean
   roleInstruction: string
   formatConstraint: string
-  defaults: {
-    roleInstruction: string
-    formatConstraint: string
-  }
 }
 
 export interface AiAgentSavePayload {

@@ -17,12 +17,14 @@ public interface AiAgentService {
     AiAgentDetailRespDTO getAgentDetail(String functionType);
 
     /**
-     * 保存自定义模板：格式约束段仅 formatEditable=true 时接受修改
+     * 保存自定义模板：格式约束段仅 formatEditable=true 时接受修改；
+     * 模板记录由初始化脚本全量落库，不存在"新建模板位"，未命中视为配置缺失
      */
     void saveAgent(String functionType, AiAgentSaveReqDTO reqDTO, UUID userId);
 
     /**
-     * 恢复默认：逻辑删除数据库记录，回退代码内置默认；无记录时幂等成功
+     * 恢复默认：将该模板位的数据库记录重置为内置默认内容（JSON 仅作恢复数据源）；
+     * 记录不存在时按默认内容重建，保证数据库始终有记录
      */
-    void restoreDefault(String functionType);
+    void restoreDefault(String functionType, UUID userId);
 }

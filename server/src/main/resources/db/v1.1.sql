@@ -27,7 +27,7 @@ CREATE TABLE ai_config (
     updated_at               TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
--- 智能体提示词模板表（默认模板初始化时全量落库，页面可查看并修改；restoreDefault 逻辑删除后回落代码内置默认）
+-- 智能体提示词模板表（默认模板初始化时全量落库，页面可查看并修改；restoreDefault 重置为内置默认内容，记录始终存在，运行时仅从本表读取）
 CREATE TABLE ai_prompt_template (
     id                UUID        PRIMARY KEY,
     function_type     VARCHAR(50) NOT NULL,
