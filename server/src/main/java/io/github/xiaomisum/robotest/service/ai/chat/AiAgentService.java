@@ -10,7 +10,7 @@ import java.util.UUID;
 public interface AiAgentService {
 
     /**
-     * 全部模板位清单（代码内置，customized 表示存在自定义覆盖记录）
+     * 全部模板位清单（customized 表示存在数据库记录，初始化种子落库后均为 true）
      */
     List<AiAgentRespDTO> getAgents();
 
@@ -22,7 +22,7 @@ public interface AiAgentService {
     void saveAgent(String functionType, AiAgentSaveReqDTO reqDTO, UUID userId);
 
     /**
-     * 恢复默认：逻辑删除覆盖记录，无记录时幂等成功
+     * 恢复默认：逻辑删除数据库记录，回退代码内置默认；无记录时幂等成功
      */
     void restoreDefault(String functionType);
 }
