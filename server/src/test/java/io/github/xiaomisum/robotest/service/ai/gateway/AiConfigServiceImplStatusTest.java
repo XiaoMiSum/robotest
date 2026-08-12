@@ -138,7 +138,7 @@ class AiConfigServiceImplStatusTest {
         lenient().when(aiConfigMapper.findActive()).thenReturn(null);
         Map<String, Object> settings = service.getMergedSettings();
         assertEquals(100, service.getIntSetting("missingPoint.topK"));
-        assertEquals(0.7, service.getNumberSetting("regression.similarityThreshold"));
+        assertEquals(0.7, service.getNumberSetting("planRecommend.similarityThreshold"));
         assertTrue(settings.containsKey("planOrder.weights"));
     }
 
