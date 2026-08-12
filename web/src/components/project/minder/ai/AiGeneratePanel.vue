@@ -6,13 +6,13 @@ import { getDocumentRequirements } from '@/services/project'
 import { useAiStream, type AiStreamController } from '@/composables/useAiStream'
 import { useAiStore } from '@/stores/ai'
 import type { AiCaseGenerateResult, AiGeneratedNode, RequirementSummary } from '@/types'
-import { buildDocumentPreviewTree, buildPreviewTree, type AiPreviewNode, type MountTargetSource } from './aiMount'
+import { buildPreviewTree, findNodeById, type AiPreviewNode, type MountTargetSource } from './aiMount'
 import { AI_PANEL_MODES, type AiPanelMode } from './aiPanelModes'
 import AiPreviewDialog from './AiPreviewDialog.vue'
 
 /**
  * AI 生成弹窗（US-AI-001/002，交互设计 2.1/2.2/3.1）：
- * 文本输入 → SSE 流式输出 → done 后组装完整文档树预览（既有节点只读 + 生成节点 AI 徽标可勾选）→ 确认挂载（由父组件执行）。
+ * 文本输入 → SSE 流式输出 → done 后组装生成节点树预览（仅用例节点可勾选，内部结构随用例级联挂载）→ 确认挂载（由父组件执行）。
  * 预览为纯前端本地快照，不写编辑内核/不落库；只有确认挂载后才经既有通道批量插入（交互设计 2.2 纯预览约束）。
  * 两种模式差异集中在 aiPanelModes 配置表；需求条目区（US-AI-004）供 generate/complete 消费。
  */
@@ -119,17 +119,14 @@ function generate(): void {
 }
 
 /**
- * 组装预览树（交互设计 2.2）：优先完整文档树快照（生成节点插入目标位）；
- * 目标节点已被协同删除时回退为仅生成节点树，挂载确认时由父组件走重选流程（4.2）。
+ * 组装预览树（交互设计 2.2）：仅展示本次生成节点树（文档既有数据不再并入预览）；
+ * 目标存在性校验保留在预览组装期（findNodeById），缺失时提示重选挂载位置（4.2）。
  */
 function buildPreview(generatedNodes: AiGeneratedNode[]): AiPreviewNode[] {
-  const tree = buildDocumentPreviewTree(props.getDocTree(), props.targetNodeId, generatedNodes)
-  if (tree) {
-    targetMissing.value = false
-    return tree
+  targetMissing.value = findNodeById(props.getDocTree(), props.targetNodeId) === null
+  if (targetMissing.value) {
+    ElMessage.warning('挂载目标已被删除，请重新选择挂载位置')
   }
-  targetMissing.value = true
-  ElMessage.warning('挂载目标已被删除，请重新选择挂载位置')
   return buildPreviewTree(generatedNodes)
 }
 

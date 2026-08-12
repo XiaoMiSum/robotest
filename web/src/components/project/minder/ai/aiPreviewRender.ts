@@ -3,11 +3,13 @@ import type { AiPreviewNode } from './aiMount'
 /**
  * AI 生成用例预览弹窗（AiPreviewDialog.vue）的脑图渲染支撑：
  * 1) AiPreviewNode[] → kityminder importJson 结构转换（预览快照仅存于弹窗实例内存，纯本地不落库）；
- * 2) 勾选框渲染器（仿 badges.ts 的 defineBadgeRenderer）：AI 节点左侧绘制 ☑/☐，
- *    读取节点 data 的 aiSelected。经全局模块池注册（registerCheckboxModule），
- *    须在 new Minder 之前完成，与 badges 同池保证 root 与其他节点渲染器数量一致
- *    （构造后注入实例 _rendererClasses 会导致 root 越界，布局中断节点全部叠在原点）。
- *    真实文档 AI 节点仅携带 aiGenerated 无 aiSelected，shouldRender 短路不渲染，天然隔离。
+ *    多棵生成子树合并为虚拟根（preview-root），单根保持原样渲染；
+ * 2) 勾选框渲染器（仿 badges.ts 的 defineBadgeRenderer）：**仅用例（case）节点**左侧绘制 ☑/☐，
+ *    读取节点 data 的 aiSelected；前置/步骤/预期等非用例节点无勾选框（勾选态随所属用例级联）。
+ *    经全局模块池注册（registerCheckboxModule），须在 new Minder 之前完成，与 badges 同池
+ *    保证 root 与其他节点渲染器数量一致（构造后注入实例 _rendererClasses 会导致 root 越界，
+ *    布局中断节点全部叠在原点）。真实文档 AI 节点仅携带 aiGenerated 无 aiSelected，
+ *    shouldRender 短路不渲染，天然隔离。
  */
 
 // 勾选框视觉常量
@@ -23,9 +25,11 @@ interface KityJsonNode {
 /**
  * 预览树 → kityminder JSON（根节点合并为单个 root，供 importJson 渲染）：
  * 预览节点 key 直接作为节点 data.id（快照内唯一，勾选命中据此回查预览树）。
+ * 多棵生成子树时合并为虚拟根（纯生成树预览无文档根，直接铺开多棵 case 子树）；
+ * 单根时保持原样渲染，避免多余虚拟节点。
  */
 export function previewToKityJson(nodes: AiPreviewNode[]): Record<string, unknown> | null {
-  const root = nodes[0]
+  const root = nodes.length === 1 ? nodes[0] : mergePreviewRoots(nodes)
   if (!root) return null
   const walk = (node: AiPreviewNode): KityJsonNode => ({
     data: {
@@ -34,7 +38,7 @@ export function previewToKityJson(nodes: AiPreviewNode[]): Record<string, unknow
       type: node.type ?? 'normal',
       priority: node.priority ?? undefined,
       aiGenerated: node.aiGenerated,
-      // 既有节点无勾选框；仅 AI 节点渲染勾选框并携带勾选态
+      // 既有/虚拟节点无勾选框；仅 AI 节点渲染勾选框并携带勾选态
       aiSelected: node.aiGenerated ? node.aiSelected : undefined,
     },
     children: node.children.map(walk),
@@ -43,6 +47,19 @@ export function previewToKityJson(nodes: AiPreviewNode[]): Record<string, unknow
     root: walk(root),
     template: 'default',
     theme: 'fresh-blue',
+  }
+}
+
+/** 多根预览树合并：虚拟根仅作渲染容器（非 AI 节点，无勾选框、点击不响应） */
+function mergePreviewRoots(nodes: AiPreviewNode[]): AiPreviewNode {
+  return {
+    key: 'preview-root',
+    title: '生成结果',
+    type: null,
+    priority: null,
+    aiGenerated: false,
+    aiSelected: false,
+    children: nodes,
   }
 }
 
@@ -138,11 +155,16 @@ export function createCheckboxRenderer(kity: KityStatic, base: unknown): unknown
       group.checkState = ''
       return group
     },
-    // 仅 AI 节点渲染勾选框（既有节点只读无勾选框）。
+    // 仅 case 节点渲染勾选框（勾选单位是「用例及其整棵内部结构」）：
+    // precondition/step/expected 等非用例节点无勾选框、点击不响应，其勾选态随所属用例级联。
     // 全局模块池注册后真实文档实例也会收集本渲染器：真实文档 AI 节点仅携带
     // aiGenerated、无 aiSelected（预览快照独有字段），以此区分隔离，避免真实文档误渲染勾选框
     shouldRender(node: PreviewNodeLike): boolean {
-      return node.getData('aiGenerated') === true && typeof node.getData('aiSelected') === 'boolean'
+      return (
+        node.getData('aiGenerated') === true &&
+        typeof node.getData('aiSelected') === 'boolean' &&
+        node.getData('type') === 'case'
+      )
     },
     update(shape: CheckboxShape, node: PreviewNodeLike, box: ContentBox): unknown {
       const selected = node.getData('aiSelected') === true

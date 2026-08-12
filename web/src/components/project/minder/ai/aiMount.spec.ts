@@ -3,7 +3,6 @@ import type { AiGeneratedNode } from '@/types'
 import type { Minder } from '../types'
 import {
   buildPreviewTree,
-  buildDocumentPreviewTree,
   filterCheckedTree,
   findNodeById,
   appendGeneratedTree,
@@ -41,38 +40,21 @@ describe('buildPreviewTree 预览键分配', () => {
     const preview = buildPreviewTree([{ type: 'normal', title: '分组' }])
     expect(preview[0].children).toEqual([])
   })
-})
 
-describe('buildDocumentPreviewTree 完整文档树预览（交互设计 2.2 纯预览约束）', () => {
-  const docRoot = fakeNode({ id: 'root', text: '登录模块', type: 'normal' }, [
-    fakeNode({ id: 'target', text: '密码登录', type: 'case', priority: 'P1' }, [
-      fakeNode({ id: 'old-step', text: '输入密码', type: 'step' }),
-    ]),
-    fakeNode({ id: 'other', text: '其他模块', type: 'normal' }),
-  ])
-
-  it('生成节点以 AI 徽标树插入目标节点下，既有节点只读', () => {
-    const tree = buildDocumentPreviewTree(docRoot, 'target', sampleNodes)
-    expect(tree).not.toBeNull()
-    const target = tree?.[0].children[0]
-    expect(target?.key).toBe('target')
-    expect(target?.aiGenerated).toBe(false)
-    // 既有子节点保留 + 生成节点追加为末尾新子节点
-    expect(target?.children[0]).toMatchObject({ key: 'old-step', aiGenerated: false })
-    expect(target?.children[1]).toMatchObject({ key: 'ai-0', aiGenerated: true, priority: 'P1' })
-    expect(target?.children[1].children[0]).toMatchObject({ key: 'ai-0-0', aiGenerated: true })
-    expect(target?.children[2]).toMatchObject({ key: 'ai-1', aiGenerated: true })
-    // 无关分支保持既有节点
-    expect(tree?.[0].children[1]).toMatchObject({ key: 'other', aiGenerated: false })
-  })
-
-  it('目标节点已被协同删除：返回 null（调用方回退仅展示生成节点树）', () => {
-    const tree = buildDocumentPreviewTree(docRoot, 'deleted-target', sampleNodes)
-    expect(tree).toBeNull()
-  })
-
-  it('空根返回 null', () => {
-    expect(buildDocumentPreviewTree(null, 'target', sampleNodes)).toBeNull()
+  it('仅 case 子树默认勾选：非用例顶级节点不可挂载，case 的内部结构随用例级联选中', () => {
+    const preview = buildPreviewTree([
+      { type: 'normal', title: '分组', children: [] },
+      {
+        type: 'case',
+        title: '邮箱登录成功',
+        children: [{ type: 'step', title: '输入密码', children: [] }],
+      },
+    ])
+    expect(preview[0].aiSelected).toBe(false)
+    expect(preview[1].aiSelected).toBe(true)
+    expect(preview[1].children[0].aiSelected).toBe(true)
+    expect(filterCheckedTree(preview).map((n) => n.type)).toEqual(['case'])
+    expect(filterCheckedTree(preview)[0].children?.[0]).toMatchObject({ type: 'step', title: '输入密码' })
   })
 })
 
@@ -115,23 +97,6 @@ describe('filterCheckedTree 勾选过滤（4.2 取舍规则）', () => {
       return node
     })
     expect(filterCheckedTree(allUnselected)).toEqual([])
-  })
-
-  it('完整文档树预览：仅提取勾选的生成节点，既有节点不参与挂载', () => {
-    const docRoot = fakeNode({ id: 'root', text: '登录模块' }, [
-      fakeNode({ id: 'target', text: '密码登录', type: 'case' }),
-    ])
-    const fullTree = buildDocumentPreviewTree(docRoot, 'target', sampleNodes)
-    expect(fullTree).not.toBeNull()
-    // 既有节点（target）恒不输出，仅 AI 节点参与挂载
-    const result = filterCheckedTree(fullTree ?? [])
-    expect(result).toHaveLength(2)
-    expect(result[0]).toMatchObject({ type: 'case', title: '邮箱登录成功', priority: 'P1' })
-    expect(result[0].children).toHaveLength(3)
-    // 取消父节点（ai-0）则其 AI 子孙一并排除
-    const partial = filterCheckedTree(fullTree ? unselect(fullTree, 'ai-0') : [])
-    expect(partial).toHaveLength(1)
-    expect(partial[0].title).toBe('密码错误提示')
   })
 })
 
