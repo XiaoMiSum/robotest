@@ -352,59 +352,6 @@ class AiCaseGenerationServiceImplTest {
         }
 
         @Test
-        void generate_saveAsRequirementWithoutText_throws() {
-                when(testCaseModuleMapper.selectById(DOC_ID))
-                                .thenReturn(document(PROJECT_ID, Constants.ModuleType.DOCUMENT));
-                AiCaseGenerateReqDTO dto = req();
-                dto.setRequirementText(null);
-                AiCaseGenerateReqDTO.SaveAsRequirement saveAs = new AiCaseGenerateReqDTO.SaveAsRequirement();
-                saveAs.setTitle("登录需求");
-                dto.setSaveAsRequirement(saveAs);
-                assertThrows(ServiceException.class,
-                                () -> service.generateCaseTree(USER_ID, WORKSPACE_ID, PROJECT_ID, dto));
-        }
-
-        @Test
-        void generate_saveAsRequirement_savesItemBeforeStreaming() {
-                stubDocumentAndTarget();
-                AiCaseGenerateReqDTO dto = req();
-                AiCaseGenerateReqDTO.SaveAsRequirement saveAs = new AiCaseGenerateReqDTO.SaveAsRequirement();
-                saveAs.setTitle("登录需求");
-                dto.setSaveAsRequirement(saveAs);
-                when(requirementContextAssembler.trySaveRequirement(eq(PROJECT_ID), eq(USER_ID), any(), any()))
-                                .thenReturn(true);
-                when(aiGatewayService.stream(any(), eq(AiFunctionType.CASE_GENERATION), any(), any(), any(),
-                                any(), any())).thenReturn(new SseEmitter());
-
-                service.generateCaseTree(USER_ID, WORKSPACE_ID, PROJECT_ID, dto);
-
-                verify(requirementContextAssembler).trySaveRequirement(eq(PROJECT_ID), eq(USER_ID),
-                                eq("登录需求"), eq("用户可以通过邮箱登录系统"));
-        }
-
-        @Test
-        void generate_saveAsRequirementSaveFails_continuesAndWarnsInDone() {
-                stubDocumentAndTarget();
-                AiCaseGenerateReqDTO dto = req();
-                AiCaseGenerateReqDTO.SaveAsRequirement saveAs = new AiCaseGenerateReqDTO.SaveAsRequirement();
-                saveAs.setTitle("登录需求");
-                dto.setSaveAsRequirement(saveAs);
-                when(requirementContextAssembler.trySaveRequirement(any(), any(), any(), any()))
-                                .thenReturn(false);
-                when(aiGatewayService.stream(any(), any(), any(), any(), any(), any(),
-                                doneAssemblerCaptor.capture())).thenReturn(new SseEmitter());
-                when(outputValidator.parseAndValidate(eq("raw"), eq(AiNodeTreeDTO.Payload.class), any()))
-                                .thenReturn(validPayload());
-
-                service.generateCaseTree(USER_ID, WORKSPACE_ID, PROJECT_ID, dto);
-                Map<?, ?> map = (Map<?, ?>) doneAssemblerCaptor.getValue().apply("raw");
-
-                List<?> warnings = (List<?>) map.get("warnings");
-                assertTrue(warnings.stream()
-                                .anyMatch(w -> String.valueOf(w).contains("临时需求保存为需求池条目失败")));
-        }
-
-        @Test
         void generate_withRequirementIds_appendsTitledBlocks() {
                 stubDocumentAndTarget();
                 UUID reqId = UUID.randomUUID();

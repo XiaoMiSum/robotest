@@ -47,7 +47,7 @@ import static org.mockito.Mockito.when;
 
 /**
  * 回归测试子集推荐服务单测（详细设计 3.5 / 4.5）：
- * 三态输入校验、saveAsRequirement 不阻断、模块精确/模糊匹配（含子孙目录收集）、
+ * 三态输入校验、模块精确/模糊匹配（含子孙目录收集）、
  * 语义 TopK 与降级关键词分支、both 合并取高分、理由长度不匹配/失败整体置空、50 条截断。
  */
 @ExtendWith(MockitoExtension.class)
@@ -151,17 +151,6 @@ class AiRegressionRecommendServiceImplTest {
     void allInputsEmpty_throws() {
         assertThrows(ServiceException.class,
                 () -> service.recommend(USER_ID, WORKSPACE_ID, PROJECT_ID, req(null, null, null)));
-    }
-
-    @Test
-    void saveAsRequirementWithoutText_throws() {
-        AiRegressionRecommendReqDTO dto = req(List.of("登录模块"), null, null);
-        AiRegressionRecommendReqDTO.SaveAsRequirement saveAs =
-                new AiRegressionRecommendReqDTO.SaveAsRequirement();
-        saveAs.setTitle("登录需求");
-        dto.setSaveAsRequirement(saveAs);
-        assertThrows(ServiceException.class,
-                () -> service.recommend(USER_ID, WORKSPACE_ID, PROJECT_ID, dto));
     }
 
     @Test
@@ -340,54 +329,5 @@ class AiRegressionRecommendServiceImplTest {
 
         // 截断 50 条（3.5）
         assertEquals(50, resp.getItems().size());
-    }
-
-    @Test
-    void saveAsRequirement_savesItemBeforeRecommend() {
-        when(aiConfigService.getStatus()).thenReturn(status("unavailable"));
-        when(aiKeywordExtractor.extract(any(), any(), any(), any(), any(), any()))
-                .thenReturn(List.of("验证码"));
-        // 降级关键词路径文档为空 → 语义候选为空，仅剩模块命中
-        when(testCaseModuleMapper.findDocumentModulesByProjectId(PROJECT_ID)).thenReturn(List.of());
-        when(testCaseModuleMapper.listByProjectId(PROJECT_ID)).thenReturn(List.of(directory(), document()));
-        when(testCaseNodeMapper.listCaseNodesByDocumentIds(anyCollection()))
-                .thenReturn(List.of(caseNode(UUID.randomUUID(), "验证码登录成功")));
-        when(requirementContextAssembler.trySaveRequirement(eq(PROJECT_ID), eq(USER_ID), any(), any()))
-                .thenReturn(true);
-        stubReasonOut(1);
-        AiRegressionRecommendReqDTO dto = req(List.of("登录模块"), "需求：支持手机号验证码登录", null);
-        AiRegressionRecommendReqDTO.SaveAsRequirement saveAs =
-                new AiRegressionRecommendReqDTO.SaveAsRequirement();
-        saveAs.setTitle("登录需求");
-        dto.setSaveAsRequirement(saveAs);
-
-        service.recommend(USER_ID, WORKSPACE_ID, PROJECT_ID, dto);
-
-        verify(requirementContextAssembler).trySaveRequirement(eq(PROJECT_ID), eq(USER_ID),
-                eq("登录需求"), eq("需求：支持手机号验证码登录"));
-    }
-
-    @Test
-    void saveAsRequirementSaveFails_continuesRecommend() {
-        when(aiConfigService.getStatus()).thenReturn(status("unavailable"));
-        when(aiKeywordExtractor.extract(any(), any(), any(), any(), any(), any()))
-                .thenReturn(List.of("验证码"));
-        when(testCaseModuleMapper.findDocumentModulesByProjectId(PROJECT_ID)).thenReturn(List.of());
-        when(testCaseModuleMapper.listByProjectId(PROJECT_ID)).thenReturn(List.of(directory(), document()));
-        when(testCaseNodeMapper.listCaseNodesByDocumentIds(anyCollection()))
-                .thenReturn(List.of(caseNode(UUID.randomUUID(), "验证码登录成功")));
-        when(requirementContextAssembler.trySaveRequirement(any(), any(), any(), any()))
-                .thenReturn(false);
-        stubReasonOut(1);
-        AiRegressionRecommendReqDTO dto = req(List.of("登录模块"), "需求：支持手机号验证码登录", null);
-        AiRegressionRecommendReqDTO.SaveAsRequirement saveAs =
-                new AiRegressionRecommendReqDTO.SaveAsRequirement();
-        saveAs.setTitle("登录需求");
-        dto.setSaveAsRequirement(saveAs);
-
-        AiRegressionRecommendRespDTO resp = service.recommend(USER_ID, WORKSPACE_ID, PROJECT_ID, dto);
-
-        // 保存失败不阻断推荐（3.5）
-        assertEquals(1, resp.getItems().size());
     }
 }

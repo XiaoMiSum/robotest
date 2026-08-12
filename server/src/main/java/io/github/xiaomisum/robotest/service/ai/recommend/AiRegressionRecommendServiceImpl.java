@@ -100,14 +100,6 @@ public class AiRegressionRecommendServiceImpl implements AiRegressionRecommendSe
         if (!hasModules && !hasText && !hasItems) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.VALIDATION_FAILED);
         }
-        // saveAsRequirement 非空时 text 必填；推荐开始前独立保存，保存失败不阻断推荐（3.5，同 3.3）
-        if (reqDTO.getSaveAsRequirement() != null) {
-            if (!hasText) {
-                throw ServiceExceptionUtil.get(ErrorCodeConstants.VALIDATION_FAILED);
-            }
-            requirementContextAssembler.trySaveRequirement(projectId, userId,
-                    reqDTO.getSaveAsRequirement().getTitle(), reqDTO.getText());
-        }
 
         // 变更描述块（模块清单 + 需求条目 + 需求文本），供语义向量化与理由生成共用
         String changeData = buildChangeData(projectId, reqDTO);

@@ -82,14 +82,6 @@ public class AiMissingPointServiceImpl implements AiMissingPointService {
         if (!hasKeywords && !hasText && !hasItems) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.VALIDATION_FAILED);
         }
-        // saveAsRequirement 非空时 text 必填；分析开始前独立保存，保存失败不阻断分析（3.3，同 3.2.1）
-        if (reqDTO.getSaveAsRequirement() != null) {
-            if (!hasText) {
-                throw ServiceExceptionUtil.get(ErrorCodeConstants.VALIDATION_FAILED);
-            }
-            requirementContextAssembler.trySaveRequirement(projectId, userId,
-                    reqDTO.getSaveAsRequirement().getTitle(), reqDTO.getText());
-        }
 
         // 1. 需求输入归一（4.3）
         String prefixBlock = reqDTO.getKeywords() != null && !reqDTO.getKeywords().isEmpty()
