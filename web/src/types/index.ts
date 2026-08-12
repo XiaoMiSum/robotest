@@ -942,25 +942,25 @@ export interface AiMissingPointResult {
   points: AiMissingPoint[]
 }
 
-/** AI 回归测试子集推荐单条（US-AI-018，详细设计 3.5） */
-export interface AiRegressionRecommendItem {
+/** AI 用例规划智能推荐单条（US-AI-018，详细设计 3.5） */
+export interface AiCasePlanRecommendItem {
   caseNodeId: string
   title: string
   /** 所属模块路径（如 登录 > 密码登录），清单展示用 */
   modulePath: string
-  /** 命中方式：module（模块名匹配）/ semantic（语义匹配）/ both（双命中） */
-  matchType: 'module' | 'semantic' | 'both'
+  /** 命中方式：semantic（语义匹配；降级态关键词匹配亦归此值） */
+  matchType: 'semantic'
   /** 推荐度（score 降序，结果上限 50；降级模式 0.6 仅作展示排序） */
   score: number
   /** 一句话推荐理由；生成失败时整体置空，不影响清单可用性（4.5） */
   reason: string | null
 }
 
-/** AI 回归测试子集推荐响应（3.5，同步长调用） */
-export interface AiRegressionRecommendResult {
-  /** 语义降级：true 时顶部提示「当前为模块名/关键词匹配结果」 */
+/** AI 用例规划智能推荐响应（3.5，同步长调用） */
+export interface AiCasePlanRecommendResult {
+  /** 语义降级：true 时顶部提示「当前为关键词匹配结果」 */
   semanticDegraded: boolean
-  items: AiRegressionRecommendItem[]
+  items: AiCasePlanRecommendItem[]
 }
 
 /** AI 执行顺序推荐单条因子（US-AI-017，详细设计 2.2.3 / 4.4） */

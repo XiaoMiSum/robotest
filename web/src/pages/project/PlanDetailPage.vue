@@ -16,7 +16,7 @@ import type { AiPlanOrderRecommendItem, PlannedCases, SnapshotModule, TestPlanDe
 import PlanMindMap from '@/components/project/PlanMindMap.vue'
 import SnapshotModuleTree from '@/components/project/SnapshotModuleTree.vue'
 import CaseSelector from '@/components/project/CaseSelector.vue'
-import RegressionRecommendDialog from '@/components/project/RegressionRecommendDialog.vue'
+import CasePlanRecommendDialog from '@/components/project/CasePlanRecommendDialog.vue'
 import PlanOrderRecommend from '@/components/project/PlanOrderRecommend.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useAiStore } from '@/stores/ai'
@@ -148,11 +148,23 @@ async function handleCasesRemoved() {
   orderPanelRef.value?.load()
 }
 
-// AI 回归子集推荐（US-AI-018，交互设计第 6 章）：勾选结果带入既有 CaseSelector 关联流程
+// AI 用例规划推荐（US-AI-018，交互设计第 6 章）：勾选结果带入既有 CaseSelector 关联流程
 const recommendVisible = ref(false)
+const recommendExcludeIds = ref<string[]>([])
+
+// 打开弹窗前取当前已纳入用例节点 ID 集作为排除集（详细设计 4.5 步骤 2）
+async function openRecommend() {
+  try {
+    const existing = await getPlanPlannedCases(planId)
+    recommendExcludeIds.value = existing.flatMap((s) => s.caseIds)
+    recommendVisible.value = true
+  } catch (err) {
+    ElMessage.error(err instanceof Error ? err.message : '加载规划用例失败')
+  }
+}
 
 // 带入计划关联：勾选 caseNodeId 解析所属文档，与既有规划用例合并去重后预选进 CaseSelector
-async function handleBringIntoPlan(caseNodeIds: string[]) {
+async function handleBringIn(caseNodeIds: string[]) {
   try {
     const [existing, details] = await Promise.all([
       getPlanPlannedCases(planId),
@@ -234,8 +246,8 @@ onMounted(load)
             </div>
           </div>
           <div v-if="detail" class="plan-detail__actions">
-            <el-button v-if="aiStore.aiEnabled && canAdjustCases" size="small" plain @click="recommendVisible = true">
-              <el-icon><MagicStick /></el-icon>回归子集推荐
+            <el-button v-if="aiStore.aiEnabled && canAdjustCases" size="small" plain @click="openRecommend">
+              <el-icon><MagicStick /></el-icon>AI 推荐用例
             </el-button>
             <el-button v-if="canAdjustCases" size="small" plain @click="openCaseSelector">
               <el-icon><EditPen /></el-icon>调整用例
@@ -300,7 +312,12 @@ onMounted(load)
     </el-tabs>
 
     <CaseSelector v-model="selectorVisible" :initial-selected="plannedCases" @confirm="handleCasesConfirm" />
-    <RegressionRecommendDialog v-model="recommendVisible" @bring-into-plan="handleBringIntoPlan" />
+    <CasePlanRecommendDialog
+      v-model="recommendVisible"
+      :exclude-case-node-ids="recommendExcludeIds"
+      target="plan"
+      @bring-in="handleBringIn"
+    />
   </div>
 </template>
 

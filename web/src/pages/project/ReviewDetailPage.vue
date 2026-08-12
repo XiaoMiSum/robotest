@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   completeReview,
+  getCaseDetail,
   getReviewDetail,
   getReviewModuleTree,
   getReviewPlannedCases,
@@ -15,6 +16,7 @@ import type { PlannedCases, SnapshotModule, TestReviewDetail, TestReviewProgress
 import ReviewMindMap from '@/components/project/ReviewMindMap.vue'
 import SnapshotModuleTree from '@/components/project/SnapshotModuleTree.vue'
 import CaseSelector from '@/components/project/CaseSelector.vue'
+import CasePlanRecommendDialog from '@/components/project/CasePlanRecommendDialog.vue'
 import ReviewAiSummary from '@/components/project/ReviewAiSummary.vue'
 import ReviewAiCheckPanel from '@/components/project/ReviewAiCheckPanel.vue'
 import { useAuthStore } from '@/stores/auth'
@@ -170,6 +172,46 @@ async function handleCasesRemoved() {
   await load()
 }
 
+// AI 用例规划推荐（US-AI-018，交互设计第 6 章）：勾选结果带入既有 CaseSelector 关联流程
+const recommendVisible = ref(false)
+const recommendExcludeIds = ref<string[]>([])
+
+// 打开弹窗前取当前已纳入用例节点 ID 集作为排除集（详细设计 4.5 步骤 2）
+async function openRecommend() {
+  try {
+    const existing = await getReviewPlannedCases(reviewId)
+    recommendExcludeIds.value = existing.flatMap((s) => s.caseIds)
+    recommendVisible.value = true
+  } catch (err) {
+    ElMessage.error(err instanceof Error ? err.message : '加载规划用例失败')
+  }
+}
+
+// 带入评审：勾选 caseNodeId 解析所属文档，与既有规划用例合并去重后预选进 CaseSelector
+async function handleBringIn(caseNodeIds: string[]) {
+  try {
+    const [existing, details] = await Promise.all([
+      getReviewPlannedCases(reviewId),
+      Promise.all(caseNodeIds.map((id) => getCaseDetail(id))),
+    ])
+    const merged = new Map<string, Set<string>>()
+    existing.forEach((s) => merged.set(s.documentId, new Set(s.caseIds)))
+    details.forEach((d) => {
+      if (!d.documentId) return
+      const set = merged.get(d.documentId) ?? new Set<string>()
+      set.add(d.id)
+      merged.set(d.documentId, set)
+    })
+    plannedCases.value = [...merged.entries()].map(([documentId, caseIds]) => ({
+      documentId,
+      caseIds: [...caseIds],
+    }))
+    selectorVisible.value = true
+  } catch (err) {
+    ElMessage.error(err instanceof Error ? err.message : '加载推荐用例失败')
+  }
+}
+
 // 标记后刷新进度与状态（首次标记会自动转入评审中），避免整页 load 触发脑图重载丢失选中态
 async function refreshProgress() {
   try {
@@ -210,6 +252,9 @@ onMounted(load)
             </div>
           </div>
           <div v-if="detail && detail.status !== 'completed'" class="review-detail__actions">
+            <el-button v-if="aiStore.aiEnabled" size="small" plain @click="openRecommend">
+              <el-icon><MagicStick /></el-icon>AI 推荐用例
+            </el-button>
             <el-button size="small" plain @click="openCaseSelector">
               <el-icon><EditPen /></el-icon>调整用例
             </el-button>
@@ -276,6 +321,12 @@ onMounted(load)
     </div>
 
     <CaseSelector v-model="selectorVisible" :initial-selected="plannedCases" @confirm="handleCasesConfirm" />
+    <CasePlanRecommendDialog
+      v-model="recommendVisible"
+      :exclude-case-node-ids="recommendExcludeIds"
+      target="review"
+      @bring-in="handleBringIn"
+    />
   </div>
 </template>
 
