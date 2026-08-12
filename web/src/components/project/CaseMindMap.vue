@@ -995,7 +995,7 @@ defineExpose({ openAiGenerateWithText })
     />
 
     <!-- 遗漏测试点分析面板（US-AI-007） -->
-    <MissingPointsPanel v-model="missingPointsVisible" />
+    <MissingPointsPanel v-model="missingPointsVisible" :doc-id="props.docId" />
   </div>
 </template>
 

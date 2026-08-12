@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import RequirementSelector from '@/components/project/RequirementSelector.vue'
 import { analyzeMissingPoints, type AiMissingPointReq } from '@/services/ai'
-import { fetchModuleTree } from '@/services/project'
+import { fetchModuleTree, getDocumentRequirements } from '@/services/project'
 import type { AiMissingPoint, AiMissingPointResult, RequirementSummary } from '@/types'
 import {
   buildMissingPointText,
@@ -18,6 +18,7 @@ import {
  * 关键词 / 需求文本 / 需求条目三态输入至少一项 → 同步长调用（70s 超时，可取消）→
  * 勾选结果「转用例生成」：预选出现次数最多的建议模块对应文档，直达用例页预填 AI 生成抽屉。
  */
+const props = defineProps<{ docId: string }>()
 const visible = defineModel<boolean>({ required: true })
 const router = useRouter()
 
@@ -67,6 +68,27 @@ function removeRequirement(id: string): void {
   requirementIds.value = requirementIds.value.filter((rid) => rid !== id)
   requirementTitles.value = requirementTitles.value.filter((r) => r.id !== id)
 }
+
+/** 打开时默认带入当前文档已关联的需求条目（交互设计 4.2，同 AI 生成抽屉 6.3） */
+async function loadDocumentRequirements(): Promise<void> {
+  try {
+    const list = await getDocumentRequirements(props.docId)
+    requirementIds.value = list.map((r) => r.id)
+    requirementTitles.value = list
+  } catch (err) {
+    // 加载失败不阻断输入，保持空态由用户手动选取
+    ElMessage.error(err instanceof Error ? err.message : '加载文档关联需求失败')
+  }
+}
+
+// 每次打开重新同步关联条目，上次手动调整不残留（同 AiGeneratePanel）
+watch(
+  visible,
+  (open) => {
+    if (open) void loadDocumentRequirements()
+  },
+  { immediate: true },
+)
 
 function buildReq(): AiMissingPointReq | null {
   if (!hasAnyInput.value) {
