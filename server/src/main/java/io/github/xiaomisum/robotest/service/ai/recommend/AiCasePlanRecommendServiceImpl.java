@@ -31,6 +31,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -96,10 +97,15 @@ public class AiCasePlanRecommendServiceImpl implements AiCasePlanRecommendServic
             throw ServiceExceptionUtil.get(ErrorCodeConstants.VALIDATION_FAILED);
         }
 
-        // 需求描述块（需求条目 + 需求文本），供语义向量化与理由生成共用
-        String needData = buildNeedData(projectId, reqDTO);
-        // 1. 语义匹配（4.5 步骤 1）：可用时向量 TopK，否则降级关键词 + 标题 ILIKE
-        SemanticResult semantic = matchSemantic(userId, workspaceId, projectId, needData);
+        // 需求上下文（条目/文本按块拆分供逐块检索，拼接文本供理由生成），多需求条目各自独立召回（4.5）
+        AiRequirementContextAssembler.RequirementContext reqCtx = buildNeedContext(projectId, reqDTO);
+        String needData = reqCtx.data();
+        // 检索块为空（极端预算丢弃全部条目/文本）时退化为整体文本单块，与单需求检索一致
+        List<String> blocks = reqCtx.blocks().isEmpty() && StringUtils.hasText(needData)
+                ? List.of(needData)
+                : reqCtx.blocks();
+        // 1. 语义匹配（4.5 步骤 1）：可用时按块向量 TopK 合并，否则降级关键词 + 标题 ILIKE
+        SemanticResult semantic = matchSemantic(userId, workspaceId, projectId, needData, blocks);
         // 2. 排除已纳入用例 + 排序截断（4.5 步骤 2）
         List<Candidate> ranked = excludeAndRank(semantic.candidates(), reqDTO.getExcludeCaseNodeIds());
         // 3. 理由生成（4.5 步骤 3）：失败/长度不匹配整体置空，不影响清单可用
@@ -108,18 +114,20 @@ public class AiCasePlanRecommendServiceImpl implements AiCasePlanRecommendServic
     }
 
     /**
-     * 需求描述块：需求条目（标题定界，按选取顺序）+ 需求文本；text 与条目超预算截断（同 4.3）
+     * 需求上下文：条目/文本按块拆分（供逐块独立检索）+ 拼接文本（供理由生成）
      */
-    private String buildNeedData(UUID projectId, AiCasePlanRecommendReqDTO reqDTO) {
+    private AiRequirementContextAssembler.RequirementContext buildNeedContext(UUID projectId,
+                                                                              AiCasePlanRecommendReqDTO reqDTO) {
         return requirementContextAssembler.assemble(projectId, reqDTO.getRequirementIds(),
-                reqDTO.getText(), null).data();
+                reqDTO.getText(), null);
     }
 
     /**
-     * 语义匹配（4.5 步骤 1）：semanticSearch = available 时向量 TopK；
-     * 未配置/降级/调用异常自动降级为 LLM 抽取关键词 + 标题 ILIKE（score 0.6，semanticDegraded=true）。
+     * 语义匹配（4.5 步骤 1）：semanticSearch = available 时按块向量 TopK 合并；
+     * 未配置/降级/调用异常自动降级为逐块 LLM 抽取关键词 + 标题 ILIKE（score 0.6，semanticDegraded=true）。
      */
-    private SemanticResult matchSemantic(UUID userId, UUID workspaceId, UUID projectId, String needData) {
+    private SemanticResult matchSemantic(UUID userId, UUID workspaceId, UUID projectId, String needData,
+                                         List<String> blocks) {
         if (!StringUtils.hasText(needData)) {
             return new SemanticResult(List.of(), false);
         }
@@ -128,13 +136,14 @@ public class AiCasePlanRecommendServiceImpl implements AiCasePlanRecommendServic
             try {
                 int topK = aiConfigService.getIntSetting("planRecommend.topK");
                 double threshold = aiConfigService.getNumberSetting("planRecommend.similarityThreshold");
-                List<CaseDedupHit> hits = vectorSearchService.searchSimilarCases(projectId, needData, topK, threshold);
+                List<CaseDedupHit> hits = vectorSearchService.searchSimilarCasesByQueries(
+                        projectId, blocks, topK, threshold);
                 return new SemanticResult(toSemanticCandidates(projectId, hits), false);
             } catch (Exception e) {
                 log.warn("[AI] 用例规划推荐语义检索失败，降级关键词匹配: {}", e.getMessage());
             }
         }
-        return new SemanticResult(degradedKeywordCandidates(userId, workspaceId, projectId, needData), true);
+        return new SemanticResult(degradedKeywordCandidates(userId, workspaceId, projectId, blocks), true);
     }
 
     /**
@@ -163,11 +172,16 @@ public class AiCasePlanRecommendServiceImpl implements AiCasePlanRecommendServic
     }
 
     /**
-     * 降级关键词匹配（4.5 步骤 1）：LLM 抽取 ≤10 关键词 → 标题 ILIKE 每词取前 30，score = 0.6 仅排序用
+     * 降级关键词匹配（4.5 步骤 1）：逐块 LLM 抽取关键词（每块 ≤10）合并去重 →
+     * 标题 ILIKE 每词取前 30，score = 0.6 仅排序用。逐块抽取保证多需求条目各自召回。
      */
-    private List<Candidate> degradedKeywordCandidates(UUID userId, UUID workspaceId, UUID projectId, String needData) {
-        List<String> keywords = aiKeywordExtractor.extract(userId, workspaceId, projectId,
-                KEYWORD_TASK_INSTRUCTION, "【需求描述】", needData);
+    private List<Candidate> degradedKeywordCandidates(UUID userId, UUID workspaceId, UUID projectId,
+                                                      List<String> blocks) {
+        Set<String> keywords = new LinkedHashSet<>();
+        for (String block : blocks) {
+            keywords.addAll(aiKeywordExtractor.extract(userId, workspaceId, projectId,
+                    KEYWORD_TASK_INSTRUCTION, "【需求描述】", block));
+        }
         List<TestCaseModule> documents = testCaseModuleMapper.findDocumentModulesByProjectId(projectId);
         List<UUID> documentIds = documents.stream().map(TestCaseModule::getId).toList();
         if (documentIds.isEmpty()) {
