@@ -196,15 +196,17 @@ onBeforeUnmount(() => {
 
 <style scoped lang="scss">
 // 预览弹窗占屏幕 95%（交互设计 2.1：脑图快照空间越大越便于核对取舍）：
-// 高度经 flex 布局由 header/body/footer 弹性撑满，脑图容器吃掉剩余空间
-:deep(.ai-preview-dialog) {
+// 高度经 flex 布局由 header/body/footer 弹性撑满，脑图容器吃掉剩余空间。
+// 根元素为弹窗自身 class（透传至 .el-dialog），须用普通 scoped 选择器命中；
+// :deep() 只用于其内部（.el-dialog__body 无 data-v 属性）
+.ai-preview-dialog {
   height: 95vh;
   margin: 2.5vh auto;
   display: flex;
   flex-direction: column;
 }
 
-:deep(.ai-preview-dialog .el-dialog__body) {
+.ai-preview-dialog :deep(.el-dialog__body) {
   flex: 1;
   min-height: 0;
 }
