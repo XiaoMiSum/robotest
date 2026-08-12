@@ -10,7 +10,8 @@ import type { Minder, MinderEvent, MinderNode } from '../types'
 /**
  * AI 生成结果独立预览弹窗（交互设计 2.1/2.2/2.3）：
  * 生成弹窗点击 [查看预览] 后打开（两窗并存、本弹窗置顶）；以裸 kityminder 只读实例渲染
- * 完整文档树快照（本地组装不落库、不产生撤销历史），AI 节点带勾选框可点击取舍。
+ * 生成节点树快照（纯本地组装不落库、不产生撤销历史），仅用例节点带勾选框可点击取舍，
+ * 其内部结构（前置/步骤/预期）随所属用例级联挂载。
  * 勾选状态（aiSelected）仅存于本弹窗工作副本，关闭即丢弃（纯预览约束）；确认挂载后由
  * 生成弹窗透传节点树给脑图组件执行挂载。
  */
@@ -40,15 +41,20 @@ let unmounted = false
 const selectedCount = computed(() => countAiSelected(workingTree.value))
 const totalCount = computed(() => countAiTotal(workingTree.value))
 
+// 勾选计数只统计用例节点：非用例节点不可单独勾选，其勾选态随所属用例级联（交互设计 2.2 取舍规则）
 function countAiSelected(nodes: AiPreviewNode[]): number {
   return nodes.reduce(
-    (sum, node) => sum + (node.aiGenerated && node.aiSelected ? 1 : 0) + countAiSelected(node.children),
+    (sum, node) =>
+      sum + (node.aiGenerated && node.type === 'case' && node.aiSelected ? 1 : 0) + countAiSelected(node.children),
     0,
   )
 }
 
 function countAiTotal(nodes: AiPreviewNode[]): number {
-  return nodes.reduce((sum, node) => sum + (node.aiGenerated ? 1 : 0) + countAiTotal(node.children), 0)
+  return nodes.reduce(
+    (sum, node) => sum + (node.aiGenerated && node.type === 'case' ? 1 : 0) + countAiTotal(node.children),
+    0,
+  )
 }
 
 /** AiPreviewNode 为纯数据，深拷贝作工作副本（避免直接改动 props） */
@@ -103,8 +109,10 @@ interface PreviewClickEvent extends MinderEvent {
 function onNodeClick(e: MinderEvent): void {
   const target = (e as PreviewClickEvent).getTargetNode?.()
   if (!target) return
-  // 既有节点只读：仅本次生成节点响应勾选
+  // 仅用例节点响应勾选：非用例节点（前置/步骤/预期等）禁止单独勾选，
+  // 其勾选态随所属用例节点点击级联（applyKitySelection 递归整棵子树）
   if (target.getData('aiGenerated') !== true) return
+  if (target.getData('type') !== 'case') return
   const key = target.getData('id') as string
   const next = target.getData('aiSelected') !== true
   // 级联：本节点及全部 AI 子孙同步切换（取消父节点则子孙一并排除，恢复则整组恢复）
@@ -169,7 +177,7 @@ onBeforeUnmount(() => {
 <template>
   <el-dialog
     v-model="visible"
-    width="95%"
+    width="70%"
     append-to-body
     destroy-on-close
     :close-on-click-modal="true"
@@ -195,7 +203,7 @@ onBeforeUnmount(() => {
     </div>
 
     <template #footer>
-      <span class="ai-preview-dialog__count">已勾选 {{ selectedCount }}/{{ totalCount }} 个生成节点</span>
+      <span class="ai-preview-dialog__count">已勾选 {{ selectedCount }}/{{ totalCount }} 个用例</span>
       <el-button @click="handleClose">关闭</el-button>
       <el-button type="primary" @click="handleConfirm">确认挂载</el-button>
     </template>
@@ -247,8 +255,8 @@ onBeforeUnmount(() => {
 <style lang="scss">
 .ai-preview-dialog {
   position: relative;
-  height: 95vh;
-  margin: 2.5vh auto;
+  height: 80vh;
+  margin: 10vh auto;
   display: flex;
   flex-direction: column;
 

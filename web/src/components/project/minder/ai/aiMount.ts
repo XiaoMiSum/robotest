@@ -7,7 +7,9 @@ import type { Minder, MinderNode } from '../types'
  * 纯函数（预览键分配/勾选过滤/节点查找）与 minder 写入分离，便于单测。
  */
 
-/** 预览树节点：为脑图预览勾选维护稳定 key（生成结果无 id，用路径键；既有节点用真实 id） */
+/**
+ * 预览树节点：为脑图预览勾选维护稳定 key（生成结果无 id，用路径键；既有节点用真实 id）
+ */
 export interface AiPreviewNode {
   key: string
   title: string
@@ -15,72 +17,40 @@ export interface AiPreviewNode {
   priority: string | null
   /** true=本次 AI 生成（带勾选框可勾选挂载）；false=文档既有节点（只读，无勾选框） */
   aiGenerated: boolean
-  /** AI 节点勾选态（默认 true 全选，随脑图点击级联联动）；既有节点恒 false 不参与挂载 */
+  /** AI 节点勾选态（case 及其子树默认全选，随脑图点击级联联动）；非用例节点恒 false 不参与挂载 */
   aiSelected: boolean
   children: AiPreviewNode[]
 }
 
-export function buildPreviewTree(nodes: AiGeneratedNode[], parentKey = 'ai'): AiPreviewNode[] {
+/**
+ * 生成节点树 → 预览树：勾选单位是「用例及其整棵内部结构」——
+ * case 节点及子树默认勾选（挂载时整组输出），孤立的非用例节点（分组等）不可勾选且不参与挂载。
+ * @param inCaseSubtree 父链上是否已出现 case（case 的 precondition/step/expected 子节点随用例级联挂载）
+ */
+export function buildPreviewTree(
+  nodes: AiGeneratedNode[],
+  parentKey = 'ai',
+  inCaseSubtree = false,
+): AiPreviewNode[] {
   return nodes.map((node, index) => {
     const key = `${parentKey}-${index}`
+    const caseSubtree = inCaseSubtree || node.type === 'case'
     return {
       key,
       title: node.title,
       type: node.type,
       priority: node.priority ?? null,
       aiGenerated: true,
-      aiSelected: true,
-      children: buildPreviewTree(node.children ?? [], key),
+      aiSelected: caseSubtree,
+      children: buildPreviewTree(node.children ?? [], key, caseSubtree),
     }
   })
 }
 
 /**
- * 组装完整文档树预览（交互设计 2.2 纯预览约束）：
- * 读取脑图活树快照（只读遍历，不写编辑内核/不产生撤销），既有节点 aiGenerated=false 只读展示，
- * 本次生成节点以 AI 徽标树插入到挂载目标节点下，供用户核对生成内容在文档全貌中的位置后勾选取舍。
- * @returns 完整预览树；目标节点已不存在（协同删除）返回 null，由调用方回退为仅展示生成节点树
- */
-export function buildDocumentPreviewTree(
-  root: MountTargetSource | null,
-  targetNodeId: string,
-  generatedNodes: AiGeneratedNode[],
-): AiPreviewNode[] | null {
-  if (!root) return null
-  let found = false
-
-  function walk(source: MountTargetSource): AiPreviewNode {
-    const node: AiPreviewNode = {
-      key: (source.data.id as string) ?? '',
-      title: (source.data.text as string) ?? '',
-      type: (source.data.type as AiGeneratedNode['type']) ?? null,
-      priority: (source.data.priority as string) ?? null,
-      aiGenerated: false,
-      aiSelected: false,
-      children: [],
-    }
-    // 挂载目标节点：既有子节点照常保留，生成节点追加为末尾新子节点（与 appendGeneratedTree 挂载位置一致）
-    if (node.key === targetNodeId) {
-      found = true
-      node.children = [
-        ...source.getChildren().map(walk),
-        ...buildPreviewTree(generatedNodes),
-      ]
-    } else {
-      node.children = source.getChildren().map(walk)
-    }
-    return node
-  }
-
-  const tree = walk(root)
-  return found ? [tree] : null
-}
-
-/**
  * 勾选过滤（4.2 取舍规则）：父节点未勾选则其子孙一并排除——
  * 天然覆盖「case 取消时其前置/步骤/预期子节点整组排除」（脑图点击级联 + 子树剪枝双保险）。
- * 完整文档树预览下，文档既有节点（aiGenerated=false）为只读容器：递归穿透查找其下嵌套的 AI 子孙，
- * 仅提取勾选（aiSelected=true）的 AI 节点参与挂载，既有节点本身不输出。
+ * 旧完整文档树预览遗留的 aiGenerated=false 只读容器节点递归穿透，仅提取勾选（aiSelected=true）的 AI 节点参与挂载。
  */
 export function filterCheckedTree(preview: AiPreviewNode[]): AiGeneratedNode[] {
   const result: AiGeneratedNode[] = []
