@@ -300,11 +300,11 @@ score(case) = w1 · norm(relatedBugCount) + w2 · priorityWeight + w3 · norm(mo
 
 | 文件 | 说明 |
 | ---- | ---- |
-| `components/project/ReviewAiCheckPanel.vue` | 评审详情「AI 检查」侧面板：发起按钮（仅发起人，待评审/评审中可发起，已完成只读展示历史结果）、进度条、建议列表（维度过滤、点击定位高亮）、取消任务 |
-| `components/project/ReviewAiSummary.vue` | 摘要视图：statistics 卡片区（即时渲染）+ 流式 Markdown 总结（MarkdownView 复用）+ 复制/重新生成 |
-| `components/project/MissingPointsPanel.vue` | 用例模块页「遗漏测试点分析」抽屉（常驻挂载、关闭仅隐藏，透明遮罩 4.2）：三态输入（关键词/文本/条目选择器复用 RequirementSelector）+ 结果清单（勾选）+「转用例生成」按钮（含目标文档选择，规则见 3.3）；**打开时自动带入当前文档关联条目**（同《智能用例生成》6.3，见 3.3 前端预填）；关闭抽屉仅隐藏不 abort，watch `docId` 切换文档时中断分析并重置（交互设计 4.2 会话保持） |
+| `components/project/ReviewAiCheckPanel.vue` | 评审详情「AI 检查」抽屉（640px、透明遮罩不压暗画布、点击空白关闭）：发起按钮（仅发起人，待评审/评审中可发起，已完成只读展示历史结果）、批次进度条（宽 4px）、建议列表（维度过滤、点击定位高亮）、取消任务、底部操作行（右侧对齐） |
+| `components/project/ReviewAiSummary.vue` | 评审摘要抽屉（640px、透明遮罩不压暗画布、点击空白关闭）：操作行（右侧对齐，`AiModelSelect` + 复制 + 生成/停止）+ statistics 卡片区（即时渲染）+ 流式 Markdown 总结（MarkdownView 复用） |
+| `components/project/MissingPointsPanel.vue` | 用例模块页「遗漏测试点分析」抽屉（640px、常驻挂载、关闭仅隐藏，透明遮罩 4.2）：三态输入（关键词/文本/条目选择器复用 RequirementSelector）+ 操作行（右侧对齐，分析中虚假进度条占位 + [取消] + [开始分析]）+ 结果清单（勾选）+「转用例生成」按钮（含目标文档选择，规则见 3.3）；**打开时自动带入当前文档关联条目**（同《智能用例生成》6.3，见 3.3 前端预填）；关闭抽屉仅隐藏不 abort，watch `docId` 切换文档时中断分析并重置（交互设计 4.2 会话保持） |
 | `components/project/PlanOrderRecommend.vue` | 计划详情「执行顺序推荐」标签页：按指数排序列表（分值、因子明细展开、按需生成理由）+ stale 重算提示 + 脑图序号徽标联动 |
-| `components/project/CasePlanRecommendDialog.vue` | 用例规划推荐抽屉（评审/计划共用，右侧滑出约 640px）：需求条目（多选）+ 需求文本输入 + 结果勾选清单 +「加入评审/计划」（携带勾选用例进入既有关联流程） |
+| `components/project/CasePlanRecommendDialog.vue` | 用例规划推荐抽屉（评审/计划共用，640px、透明遮罩不压暗画布、点击空白关闭）：需求条目（多选）+ 需求文本输入 + 操作行（右侧对齐，推荐中虚假进度条占位 + [取消] + [开始推荐]）+ 结果勾选清单 +「加入评审/计划」（携带勾选用例进入既有关联流程） |
 | `services/project.ts` / `types/index.ts` | 3.1–3.5 接口封装与类型 |
 
 ### 5.2 交互要点
