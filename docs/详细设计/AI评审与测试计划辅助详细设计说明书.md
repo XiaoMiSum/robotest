@@ -143,12 +143,11 @@ statistics 由 SQL 精确计算（不依赖 LLM）；重复生成覆盖本记录
 {
   "keywords": ["登录", "验证码"],
   "text": "直接粘贴的需求文本，可空",
-  "requirementIds": ["0198…"],
-  "saveAsRequirement": { "title": "临时需求另存标题" }
+  "requirementIds": ["0198…"]
 }
 ```
 
-三种输入（keywords / text / requirementIds）至少一项非空。`saveAsRequirement` 可选：非空时先将 `text` 存为需求池条目（与《智能用例生成》3.2.1 同一约定，失败不阻断分析）。
+三种输入（keywords / text / requirementIds）至少一项非空。
 
 - **权限**：项目成员即可（附录 B 覆盖度分析无额外角色限定）。
 - **响应**：
@@ -193,7 +192,7 @@ statistics 由 SQL 精确计算（不依赖 LLM）；重复生成覆盖本记录
 
 - **路径**：`POST /api/project/ai/plans/regression-recommend`（同步，`regression_recommendation`）
 - **权限**：项目成员即可（附录 B 覆盖度分析无额外角色限定）。
-- **请求体**：`{ "modules": ["登录模块", "支付模块"], "text": "变更说明文本，可空", "requirementIds": [], "saveAsRequirement": null }`（modules / text / requirementIds 三者至少一项；`saveAsRequirement` 可选，非空时先将 `text` 存为需求池条目，约定同 3.3）
+- **请求体**：`{ "modules": ["登录模块", "支付模块"], "text": "变更说明文本，可空", "requirementIds": [] }`（modules / text / requirementIds 三者至少一项）
 - **响应**：
 
 ```json
