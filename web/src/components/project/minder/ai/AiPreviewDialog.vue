@@ -203,22 +203,6 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped lang="scss">
-// 预览弹窗占屏幕 95%（交互设计 2.1：脑图快照空间越大越便于核对取舍）：
-// 高度经 flex 布局由 header/body/footer 弹性撑满，脑图容器吃掉剩余空间。
-// 根元素为弹窗自身 class（透传至 .el-dialog），须用普通 scoped 选择器命中；
-// :deep() 只用于其内部（.el-dialog__body 无 data-v 属性）
-.ai-preview-dialog {
-  height: 95vh;
-  margin: 2.5vh auto;
-  display: flex;
-  flex-direction: column;
-}
-
-.ai-preview-dialog :deep(.el-dialog__body) {
-  flex: 1;
-  min-height: 0;
-}
-
 .ai-preview-dialog__title {
   display: inline-flex;
   align-items: center;
@@ -254,5 +238,25 @@ onBeforeUnmount(() => {
   margin-right: auto;
   font-size: 12px;
   color: var(--el-text-color-secondary);
+}
+</style>
+
+// 弹窗根元素（.el-dialog）无组件 scopeId，scoped 选择器永远不会命中：
+// EP 手写 render 不注入 data-v，class 经 fallthrough attrs 透传至根元素。
+// 故根布局规则须放全局样式，用 class 锚点（参考 EP 官方 demo 的全局 dialog 样式写法）。
+<style lang="scss">
+.ai-preview-dialog {
+  position: relative;
+  height: 95vh;
+  margin: 2.5vh auto;
+  display: flex;
+  flex-direction: column;
+
+  .el-dialog__body {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+  }
 }
 </style>
