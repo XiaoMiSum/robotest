@@ -11,7 +11,7 @@
 
 ### 1.1 编写目的
 
-本文档对 V1.1 AI 能力域中的**评审辅助与测试计划辅助功能**进行详细设计：评审一键检查、评审摘要生成、遗漏测试点分析、执行顺序推荐、回归测试用例子集推荐，为开发实现提供完整依据。
+本文档对 V1.1 AI 能力域中的**评审辅助与测试计划辅助功能**进行详细设计：评审一键检查、评审摘要生成、遗漏测试点分析、执行顺序推荐、用例规划智能推荐，为开发实现提供完整依据。
 
 ### 1.2 范围
 
@@ -124,7 +124,7 @@ statistics 由 SQL 精确计算（不依赖 LLM）；重复生成覆盖本记录
 #### 3.2.1 生成摘要
 
 - **路径**：`POST /api/project/ai/reviews/:id/summary`（SSE，`review_summary`）
-- **请求体**：`{ "modelId": null }`——可选对话模型标识（交互式功能通用约定，缺省或失效回退系统默认模型，见基础设施 3.1 / 4.11）；本文档其余接口（评审检查、遗漏测试点分析、执行顺序推荐、回归子集推荐）为后台任务/建议/检索类，固定使用系统默认模型，不接受该字段。
+- **请求体**：`{ "modelId": null }`——可选对话模型标识（交互式功能通用约定，缺省或失效回退系统默认模型，见基础设施 3.1 / 4.11）；本文档其余接口（评审检查、遗漏测试点分析、执行顺序推荐、用例规划推荐）为后台任务/建议/检索类，固定使用系统默认模型，不接受该字段。
 - **校验**：仅评审发起人（2001）；评审状态必须为 `completed`（6012）；同评审已有进行中的摘要生成返回 6005。
 - **流式响应**：首帧 `event: statistics`（基础设施 3.1 允许的扩展事件类型，data 为 2.2.2 的 statistics 对象，SQL 计算即刻返回）→ `delta` 帧流式输出文字总结 → `done` 帧携带完整 2.2.2 结构。
 - **落库与生命周期**：请求通过校验后创建 `running` 状态的同步落库任务记录（不进 `aiTaskExecutor` 队列）；`done` 前写入完整结果并置 `success`，同时逻辑删除上一份 success 记录（覆盖语义）。异常路径：LLM 调用失败置 `failed`（error 帧 6002/6003，不保留部分文本）；客户端断开置 `cancelled`（基础设施 3.1 断开即取消上游调用）。非 success 记录不参与 3.2.2 查询。生成期间每 60 秒刷新一次任务 `updated_at` 作为心跳，避免被基础设施 4.6 孤儿回收（10 分钟无推进判失联）误杀。
@@ -189,11 +189,11 @@ statistics 由 SQL 精确计算（不依赖 LLM）；重复生成覆盖本记录
 - **响应**：`{ "reason": "该用例历史关联5个缺陷且属于缺陷密度最高的支付模块，建议优先执行" }`
 - **处理**：LLM 基于该条 factors 数据生成文字理由并回填 result 对应 item（缓存复用，重复请求直接返回已生成理由）；LLM 不参与排序。
 
-### 3.5 回归测试用例子集推荐
+### 3.5 用例规划智能推荐
 
-- **路径**：`POST /api/project/ai/plans/regression-recommend`（同步，`regression_recommendation`）
+- **路径**：`POST /api/project/ai/cases/plan-recommend`（同步，`case_plan_recommendation`）
 - **权限**：项目成员即可（附录 B 覆盖度分析无额外角色限定）。
-- **请求体**：`{ "modules": ["登录模块", "支付模块"], "text": "变更说明文本，可空", "requirementIds": [] }`（modules / text / requirementIds 三者至少一项）
+- **请求体**：`{ "text": "需求文本，可空", "requirementIds": [], "excludeCaseNodeIds": [] }`（text / requirementIds 至少一项非空；excludeCaseNodeIds 为当前评审/计划已纳入的用例节点 ID，用于排除重复推荐）
 - **响应**：
 
 ```json
@@ -206,14 +206,14 @@ statistics 由 SQL 精确计算（不依赖 LLM）；重复生成覆盖本记录
       "modulePath": "订单模块/支付流程",
       "matchType": "semantic",
       "score": 0.81,
-      "reason": "变更涉及支付回调逻辑，该用例覆盖回调失败分支"
+      "reason": "所选需求涉及支付回调逻辑，该用例覆盖回调失败分支"
     }
   ]
 }
 ```
 
-- `matchType` ∈ `module`（模块名匹配）/ `semantic`（语义匹配）/ `both`；结果上限 50 条按 score 降序；
-- 「带入计划」由前端将勾选的 `caseNodeId` 集合传入既有计划用例关联流程，最终关联以用户在既有流程中的确认为准。
+- `matchType` ∈ `semantic`（语义匹配，降级态为关键词匹配亦归此值）；结果上限 50 条按 score 降序，排除 `excludeCaseNodeIds`；
+- 「加入评审/计划」由前端将勾选的 `caseNodeId` 集合解析为所属文档，与既有已选合并去重后预选进「调整用例」关联流程（评审走 `GET/PUT /api/project/reviews/:id/cases`，计划走 `GET/PUT /api/project/plans/:id/cases`），最终关联以用户在既有流程中的确认为准。
 
 ### 3.6 错误码补充
 
@@ -285,12 +285,12 @@ score(case) = w1 · norm(relatedBugCount) + w2 · priorityWeight + w3 · norm(mo
 - **失效判定**：读取时比较 `result.planSyncedAt` 与 `test_plan.snapshot_synced_at`（2.1 增列；计算时将当时的列值——含 NULL——记入 planSyncedAt），二者不相等返回 `stale: true`，前端提示重算；不做自动重算；
 - **脑图标注**：计划详情脑图以徽标渲染推荐序号（badges.ts 扩展序号徽标，数据来自 result.items 的 snapshotNodeId → order 映射，仅前端渲染态，不写入节点数据）。
 
-### 4.5 回归子集推荐检索
+### 4.5 用例规划推荐检索
 
-1. **模块名匹配**：`modules` 输入对模块树名称精确 + `ILIKE` 模糊匹配，命中模块（含子孙目录）下全部 case 节点，`matchType = module`，score = 精确 1.0 / 模糊 0.9；
-2. **语义匹配**（可用时）：text / 需求条目合并向量化 → ai_case_embedding TopK（K = `regression.topK` 默认 50，阈值 = `regression.similarityThreshold` 默认 0.7，均为基础设施 2.2 配置键），`matchType = semantic`，score = 相似度；降级态改为 LLM 抽取关键词 + 标题 ILIKE（score = 0.6，代码内置常量，仅作展示排序用）；
-3. 合并去重（both 取高分 + matchType 合并），截断 50 条；
-4. **理由生成**：一次 LLM 调用为全部结果批量生成一句话 reason（输入变更描述 + 用例标题清单，输出与输入等长的 reason 数组，长度不匹配时该字段整体置空——理由缺失不影响清单可用；最多 50 条输出较长，读超时功能级覆盖为 60s，同 4.3）。
+1. **输入归一**：需求条目（标题定界，按选取顺序）与需求文本合并为需求描述块（同 4.3 截断规则）；
+2. **语义匹配**（可用时）：需求描述块向量化 → ai_case_embedding TopK（K = `planRecommend.topK` 默认 50，阈值 = `planRecommend.similarityThreshold` 默认 0.7，均为基础设施 2.2 配置键），`matchType = semantic`，score = 相似度；降级态改为 LLM 抽取关键词 + 标题 ILIKE（score = 0.6，代码内置常量，仅作展示排序用）；`semanticSearch = unavailable` 或调用异常自动降级并置 `semanticDegraded = true`；
+3. **排除已规划**：过滤 `excludeCaseNodeIds`（前端传入当前评审/计划已纳入用例节点 ID），截断 50 条按 score 降序；
+4. **理由生成**：一次 LLM 调用为全部结果批量生成一句话 reason（输入需求描述块 + 用例标题清单，输出与输入等长的 reason 数组，长度不匹配时该字段整体置空——理由缺失不影响清单可用；最多 50 条输出较长，读超时功能级覆盖为 60s，同 4.3）。
 
 ---
 
@@ -304,7 +304,7 @@ score(case) = w1 · norm(relatedBugCount) + w2 · priorityWeight + w3 · norm(mo
 | `components/project/ReviewAiSummary.vue` | 摘要视图：statistics 卡片区（即时渲染）+ 流式 Markdown 总结（MarkdownView 复用）+ 复制/重新生成 |
 | `components/project/MissingPointsPanel.vue` | 用例模块页「遗漏测试点分析」抽屉：三态输入（关键词/文本/条目选择器复用 RequirementSelector）+ 结果清单（勾选）+「转用例生成」按钮（含目标文档选择，规则见 3.3）；**打开时自动带入当前文档关联条目**（同《智能用例生成》6.3，见 3.3 前端预填） |
 | `components/project/PlanOrderRecommend.vue` | 计划详情「执行顺序推荐」标签页：按指数排序列表（分值、因子明细展开、按需生成理由）+ stale 重算提示 + 脑图序号徽标联动 |
-| `components/project/RegressionRecommendDialog.vue` | 回归子集推荐弹窗：变更输入 + 结果勾选清单 +「带入计划关联」（调用既有关联流程） |
+| `components/project/CasePlanRecommendDialog.vue` | 用例规划推荐弹窗（评审/计划共用）：需求条目（多选）+ 需求文本输入 + 结果勾选清单 +「加入评审/计划」（携带勾选用例进入既有关联流程） |
 | `services/project.ts` / `types/index.ts` | 3.1–3.5 接口封装与类型 |
 
 ### 5.2 交互要点
@@ -313,7 +313,8 @@ score(case) = w1 · norm(relatedBugCount) + w2 · priorityWeight + w3 · norm(mo
 - 摘要生成为交互式功能：`ReviewAiSummary` 的生成/重新生成入口旁内嵌公共组件 `AiModelSelect`（对话模型选择器，基础设施 5.1 / 交互设计 2.8），所选 `modelId` 随 3.2.1 请求提交；其余功能固定默认模型，不展示选择器；
 - 检查任务进行中允许离开页面，返回后面板轮询恢复展示（任务状态即真相源）；
 - 遗漏分析「转用例生成」：勾选 points 拼接为需求文本（title + description 列表），按 3.3 说明的目标文档选择规则确定跳转目标，路由跳转至该文档脑图页并透传文本预填生成面板；
-- 遗漏分析（3.3）与回归推荐（3.5）为同步长调用（后端 LLM 读超时功能级放宽至 60s，见 4.3/4.5），`services/project.ts` 中这两个接口的请求超时单独配置为 70s（默认超时不足会先于后端中断），调用期间面板展示持续加载态并提供取消（abort）按钮；
+- 遗漏分析（3.3）与用例规划推荐（3.5）为同步长调用（后端 LLM 读超时功能级放宽至 60s，见 4.3/4.5），`services/ai.ts` 中这两个接口的请求超时单独配置为 70s（默认超时不足会先于后端中断），调用期间面板展示持续加载态并提供取消（abort）按钮；
+- 用例规划推荐「加入评审/计划」：评审详情页将勾选 `caseNodeId` 经 `getCaseDetail` 解析所属文档，与 `getReviewPlannedCases` 已选合并去重后预选进 CaseSelector；计划详情页同逻辑（`getPlanPlannedCases`）。打开弹窗前取当前已纳入用例节点 ID 集作为 `excludeCaseNodeIds` 传入推荐接口。
 - 顺序推荐序号徽标与列表视图双向联动（点击列表项脑图定位；`semanticDegraded` / stale 状态均以顶部提示条呈现）。
 
 ### 5.3 单元测试点（C8）
@@ -327,7 +328,7 @@ score(case) = w1 · norm(relatedBugCount) + w2 · priorityWeight + w3 · norm(mo
 ## 6. 实施说明
 
 - **数据库迁移**：无新表；`test_plan` 增列 `snapshot_synced_at`（见 2.1，ALTER 语句写入 `v1.1.sql`，遵循基础设施文档第 6 章脚本版本化约定；存量行保持 NULL，无回填）；其余依赖基础设施四表与向量表已就绪；
-- **实施梯队**：评审摘要属梯队一；一键检查、遗漏分析（关键词版）属梯队二；遗漏分析语义升级、顺序推荐、回归推荐属梯队三；
+- **实施梯队**：评审摘要属梯队一；一键检查、遗漏分析（关键词版）属梯队二；遗漏分析语义升级、顺序推荐、用例规划推荐属梯队三；
 - **依赖**：无新增依赖。
 
 ---
