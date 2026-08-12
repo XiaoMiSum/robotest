@@ -301,16 +301,20 @@ onBeforeUnmount(() => {
       </div>
     </div>
 
-    <!-- 独立预览弹窗：脑图文档形式，本地快照不落库（交互设计 2.1/2.2） -->
-    <AiPreviewDialog
-      v-if="previewDialogVisible"
-      v-model="previewDialogVisible"
-      :nodes="previewNodes"
-      :target-path="targetPath"
-      :target-missing="targetMissing"
-      @confirm="handlePreviewConfirm"
-    />
   </el-dialog>
+
+  <!-- 独立预览弹窗：脑图文档形式，本地快照不落库（交互设计 2.1/2.2）。
+       必须与生成弹窗平级而非嵌套：嵌套时外层 dialog 更新期间经 v-if 动态挂载
+       append-to-body 子 dialog 会触发 Vue teleport anchor 崩溃（nextSibling null），
+       Element Plus 官方亦不推荐嵌套 Dialog；平级渲染后两窗并存、预览置顶 -->
+  <AiPreviewDialog
+    v-if="previewDialogVisible"
+    v-model="previewDialogVisible"
+    :nodes="previewNodes"
+    :target-path="targetPath"
+    :target-missing="targetMissing"
+    @confirm="handlePreviewConfirm"
+  />
 </template>
 
 <style scoped lang="scss">
