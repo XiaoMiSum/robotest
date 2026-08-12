@@ -61,7 +61,11 @@ function toggleItem(index: number, checked: boolean): void {
 
 function handleRequirementConfirm(selected: RequirementSummary[]): void {
   requirementIds.value = selected.map((r) => r.id)
-  requirementTitles.value = selected
+  // 选取器仅回传 id，标题可能为空（跨页场景）；从上次已选补全，避免标签只剩关闭按钮
+  requirementTitles.value = selected.map((r) => {
+    if (r.title) return r
+    return requirementTitles.value.find((prev) => prev.id === r.id) ?? r
+  })
 }
 
 function removeRequirement(id: string): void {
@@ -92,7 +96,7 @@ watch(
 
 function buildReq(): AiMissingPointReq | null {
   if (!hasAnyInput.value) {
-    ElMessage.warning('请至少输入关键词、需求文本或选择需求条目')
+    ElMessage.warning('请至少输入关键词、需求文本或选择需求')
     return null
   }
   const req: AiMissingPointReq = {
@@ -216,9 +220,9 @@ onBeforeUnmount(() => controller?.abort())
 
         <div class="mp-field">
           <div class="mp-field__bar">
-            <span class="mp-field__label">需求条目</span>
+            <span class="mp-field__label">需求池</span>
             <el-button size="small" :disabled="analyzing" @click="reqSelectorVisible = true">
-              {{ requirementTitles.length ? '调整条目' : '选择条目' }}
+              {{ requirementTitles.length ? '调整需求' : '选择需求' }}
             </el-button>
           </div>
           <div v-if="requirementTitles.length" class="mp-req-tags">
@@ -232,7 +236,7 @@ onBeforeUnmount(() => controller?.abort())
               {{ item.title }}
             </el-tag>
           </div>
-          <span v-else class="mp-field__hint">未选择需求条目，将仅依据输入文本生成</span>
+          <span v-else class="mp-field__hint">未选择需求，将仅依据输入文本生成</span>
         </div>
       </div>
 
