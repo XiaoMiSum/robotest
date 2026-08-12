@@ -26,8 +26,6 @@ const text = ref('')
 const requirementIds = ref<string[]>([])
 const requirementTitles = ref<RequirementSummary[]>([])
 const reqSelectorVisible = ref(false)
-const saveAsRequirementOn = ref(false)
-const saveTitle = ref('')
 
 const analyzing = ref(false)
 const result = ref<AiMissingPointResult | null>(null)
@@ -70,32 +68,15 @@ function removeRequirement(id: string): void {
   requirementTitles.value = requirementTitles.value.filter((r) => r.id !== id)
 }
 
-function onSaveToggle(value: unknown): void {
-  saveAsRequirementOn.value = value === true
-  // 标题默认取需求文本首行，避免额外输入（需求池条目标题 ≤200）
-  if (saveAsRequirementOn.value && !saveTitle.value.trim() && text.value.trim()) {
-    saveTitle.value = text.value.trim().split('\n')[0].slice(0, 200)
-  }
-}
-
 function buildReq(): AiMissingPointReq | null {
   if (!hasAnyInput.value) {
     ElMessage.warning('请至少输入关键词、需求文本或选择需求条目')
-    return null
-  }
-  if (saveAsRequirementOn.value && !text.value.trim()) {
-    ElMessage.warning('另存为需求池条目需先填写需求文本')
     return null
   }
   const req: AiMissingPointReq = {
     keywords: keywords.value.length ? keywords.value : undefined,
     text: text.value.trim() || undefined,
     requirementIds: requirementIds.value.length ? requirementIds.value : undefined,
-  }
-  if (saveAsRequirementOn.value) {
-    req.saveAsRequirement = {
-      title: saveTitle.value.trim() || text.value.trim().split('\n')[0].slice(0, 200),
-    }
   }
   return req
 }
@@ -204,7 +185,7 @@ onBeforeUnmount(() => controller?.abort())
           <el-input
             v-model="text"
             type="textarea"
-            :rows="3"
+            :rows="5"
             maxlength="20000"
             :disabled="analyzing"
             placeholder="粘贴需求描述文本（可空；填写时后端先抽取关键词再分析）"
@@ -212,39 +193,24 @@ onBeforeUnmount(() => controller?.abort())
         </div>
 
         <div class="mp-field">
-          <div class="mp-field__label">需求条目</div>
-          <div class="mp-field__row">
+          <div class="mp-field__bar">
+            <span class="mp-field__label">需求条目</span>
             <el-button size="small" :disabled="analyzing" @click="reqSelectorVisible = true">
               {{ requirementTitles.length ? '调整条目' : '选择条目' }}
             </el-button>
-            <div v-if="requirementTitles.length" class="mp-req-tags">
-              <el-tag
-                v-for="item in requirementTitles"
-                :key="item.id"
-                size="small"
-                closable
-                @close="removeRequirement(item.id)"
-              >
-                {{ item.title }}
-              </el-tag>
-            </div>
-            <span v-else class="mp-field__hint">未选择需求条目</span>
           </div>
-        </div>
-
-        <!-- 另存为需求池条目：非空时后端同步保存（失败不阻断分析） -->
-        <div class="mp-field">
-          <el-checkbox :model-value="saveAsRequirementOn" :disabled="analyzing" @update:model-value="onSaveToggle">
-            另存为需求池条目
-          </el-checkbox>
-          <el-input
-            v-if="saveAsRequirementOn"
-            v-model="saveTitle"
-            size="small"
-            maxlength="200"
-            placeholder="需求条目标题（默认取需求文本首行）"
-            class="mp-save-title"
-          />
+          <div v-if="requirementTitles.length" class="mp-req-tags">
+            <el-tag
+              v-for="item in requirementTitles"
+              :key="item.id"
+              size="small"
+              closable
+              @close="removeRequirement(item.id)"
+            >
+              {{ item.title }}
+            </el-tag>
+          </div>
+          <span v-else class="mp-field__hint">未选择需求条目，将仅依据输入文本生成</span>
         </div>
       </div>
 
@@ -368,10 +334,10 @@ onBeforeUnmount(() => controller?.abort())
   color: var(--el-text-color-regular);
 }
 
-.mp-field__row {
+.mp-field__bar {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
+  justify-content: space-between;
   gap: 8px;
 }
 
@@ -384,10 +350,6 @@ onBeforeUnmount(() => controller?.abort())
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-}
-
-.mp-save-title {
-  max-width: 320px;
 }
 
 .mp-actions {

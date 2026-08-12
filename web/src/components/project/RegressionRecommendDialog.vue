@@ -21,8 +21,6 @@ const text = ref('')
 const requirementIds = ref<string[]>([])
 const requirementTitles = ref<RequirementSummary[]>([])
 const reqSelectorVisible = ref(false)
-const saveAsRequirementOn = ref(false)
-const saveTitle = ref('')
 
 const recommending = ref(false)
 const result = ref<AiRegressionRecommendResult | null>(null)
@@ -71,32 +69,15 @@ function removeRequirement(id: string): void {
   requirementTitles.value = requirementTitles.value.filter((r) => r.id !== id)
 }
 
-function onSaveToggle(value: unknown): void {
-  saveAsRequirementOn.value = value === true
-  // 标题默认取变更说明首行，避免额外输入（需求池条目标题 ≤200）
-  if (saveAsRequirementOn.value && !saveTitle.value.trim() && text.value.trim()) {
-    saveTitle.value = text.value.trim().split('\n')[0].slice(0, 200)
-  }
-}
-
 function buildReq(): AiRegressionRecommendReq | null {
   if (!hasAnyInput.value) {
     ElMessage.warning('请至少输入变更模块、变更说明或选择需求条目')
-    return null
-  }
-  if (saveAsRequirementOn.value && !text.value.trim()) {
-    ElMessage.warning('另存为需求池条目需先填写变更说明')
     return null
   }
   const req: AiRegressionRecommendReq = {
     modules: modules.value.length ? modules.value : undefined,
     text: text.value.trim() || undefined,
     requirementIds: requirementIds.value.length ? requirementIds.value : undefined,
-  }
-  if (saveAsRequirementOn.value) {
-    req.saveAsRequirement = {
-      title: saveTitle.value.trim() || text.value.trim().split('\n')[0].slice(0, 200),
-    }
   }
   return req
 }
@@ -208,21 +189,6 @@ onBeforeUnmount(() => controller?.abort())
             <span v-else class="rr-field__hint">未选择需求条目</span>
           </div>
         </div>
-
-        <!-- 另存为需求池条目：非空时后端同步保存（失败不阻断推荐，约定同 3.3） -->
-        <div class="rr-field">
-          <el-checkbox :model-value="saveAsRequirementOn" :disabled="recommending" @update:model-value="onSaveToggle">
-            另存为需求池条目
-          </el-checkbox>
-          <el-input
-            v-if="saveAsRequirementOn"
-            v-model="saveTitle"
-            size="small"
-            maxlength="200"
-            placeholder="需求条目标题（默认取变更说明首行）"
-            class="rr-save-title"
-          />
-        </div>
       </div>
 
       <div class="rr-actions">
@@ -333,10 +299,6 @@ onBeforeUnmount(() => controller?.abort())
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-}
-
-.rr-save-title {
-  max-width: 320px;
 }
 
 .rr-actions {

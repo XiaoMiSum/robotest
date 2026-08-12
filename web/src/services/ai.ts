@@ -85,12 +85,10 @@ export function recommendPriority(title: string, ancestorTitles: string[]): Prom
 export interface AiMissingPointReq {
   /** 分析关键词（3.3）：直接标题检索；与 text/requirementIds 至少一项非空 */
   keywords?: string[]
-  /** 需求文本：携带 saveAsRequirement 时必填，后端先抽关键词再检索 */
+  /** 需求文本：可空，后端先抽取关键词再检索 */
   text?: string
   /** 需求池条目 ID 列表 */
   requirementIds?: string[]
-  /** 非空时同步将 text 保存为需求池条目（保存失败不阻断分析） */
-  saveAsRequirement?: { title: string }
 }
 
 /** 发起遗漏测试点分析（3.3 同步长调用）：返回 AbortController 供 [取消] 中止请求 */
@@ -111,12 +109,10 @@ export function analyzeMissingPoints(
 export interface AiRegressionRecommendReq {
   /** 变更模块名（模块树名称精确 + ILIKE 模糊匹配），可空；与 text/requirementIds 至少一项非空 */
   modules?: string[]
-  /** 变更说明文本：携带 saveAsRequirement 时必填，后端先抽关键词再检索 */
+  /** 变更说明文本：可空，后端先抽取关键词再检索 */
   text?: string
   /** 需求池条目 ID 列表 */
   requirementIds?: string[]
-  /** 非空时同步将 text 保存为需求池条目（保存失败不阻断推荐） */
-  saveAsRequirement?: { title: string }
 }
 
 /** 发起回归测试子集推荐（3.5 同步长调用）：返回 AbortController 供 [取消] 中止请求 */

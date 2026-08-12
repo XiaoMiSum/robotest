@@ -229,7 +229,6 @@ onBeforeUnmount(() => {
       <RequirementSelector
         v-model="requirementSelectorVisible"
         :selected-ids="selectedRequirements.map((r) => r.id)"
-        :draft-text="mode === 'generate' ? inputText : undefined"
         @confirm="handleRequirementConfirm"
       />
 
