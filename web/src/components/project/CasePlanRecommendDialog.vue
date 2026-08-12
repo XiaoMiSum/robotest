@@ -2,48 +2,51 @@
 import { computed, onBeforeUnmount, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import RequirementSelector from '@/components/project/RequirementSelector.vue'
-import { regressionRecommend, type AiRegressionRecommendReq } from '@/services/ai'
-import type { AiRegressionRecommendItem, AiRegressionRecommendResult, RequirementSummary } from '@/types'
+import { planRecommend, type AiCasePlanRecommendReq } from '@/services/ai'
+import type { AiCasePlanRecommendItem, AiCasePlanRecommendResult, RequirementSummary } from '@/types'
 
 /**
- * 回归测试用例子集推荐弹窗（US-AI-018，交互设计第 6 章）：
- * 模块列表 / 变更说明 / 需求条目三态输入至少一项 → 同步长调用（70s 超时，可取消）→
- * 勾选结果「带入计划关联」：仅抛出 caseNodeId 清单，由计划详情页解析归属文档并并入既有 CaseSelector 流程。
+ * 用例规划智能推荐弹窗（US-AI-018，交互设计第 6 章）：
+ * 需求条目 / 需求文本至少一项 → 同步长调用（70s 超时，可取消）→
+ * 勾选结果「加入评审 / 加入计划」：仅抛出 caseNodeId 清单，由评审/计划详情页解析归属文档并并入既有 CaseSelector 流程。
+ * 推荐目标由 target 决定按钮文案，评审/计划双入口共用同一组件。
  */
 const visible = defineModel<boolean>({ required: true })
 
-const emit = defineEmits<{
-  'bring-into-plan': [caseNodeIds: string[]]
+const props = defineProps<{
+  /** 当前评审/计划已纳入的用例节点 ID，推荐接口排除这些用例（不重复推荐，4.5） */
+  excludeCaseNodeIds: string[]
+  /** 推荐目标：决定底部「加入评审 / 加入计划」按钮文案 */
+  target: 'review' | 'plan'
 }>()
 
-const modules = ref<string[]>([])
+const emit = defineEmits<{
+  'bring-in': [caseNodeIds: string[]]
+}>()
+
 const text = ref('')
 const requirementIds = ref<string[]>([])
 const requirementTitles = ref<RequirementSummary[]>([])
 const reqSelectorVisible = ref(false)
 
 const recommending = ref(false)
-const result = ref<AiRegressionRecommendResult | null>(null)
+const result = ref<AiCasePlanRecommendResult | null>(null)
 const checkedIndexes = ref<Set<number>>(new Set())
 
 let controller: AbortController | null = null
 
 const hasAnyInput = computed(
-  () => modules.value.length > 0 || text.value.trim() !== '' || requirementIds.value.length > 0,
+  () => text.value.trim() !== '' || requirementIds.value.length > 0,
 )
 
-const checkedItems = computed<AiRegressionRecommendItem[]>(() =>
+const checkedItems = computed<AiCasePlanRecommendItem[]>(() =>
   (result.value?.items ?? []).filter((_, index) => checkedIndexes.value.has(index)),
 )
 const allChecked = computed(
   () => result.value !== null && checkedIndexes.value.size === result.value.items.length,
 )
 
-const matchTypeLabel: Record<AiRegressionRecommendItem['matchType'], string> = {
-  module: '模块匹配',
-  semantic: '语义匹配',
-  both: '双命中',
-}
+const actionLabel = computed(() => (props.target === 'review' ? '加入评审' : '加入计划'))
 
 function toggleAll(checked: boolean): void {
   if (!result.value) return
@@ -69,15 +72,15 @@ function removeRequirement(id: string): void {
   requirementTitles.value = requirementTitles.value.filter((r) => r.id !== id)
 }
 
-function buildReq(): AiRegressionRecommendReq | null {
+function buildReq(): AiCasePlanRecommendReq | null {
   if (!hasAnyInput.value) {
-    ElMessage.warning('请至少输入变更模块、变更说明或选择需求条目')
+    ElMessage.warning('请至少输入需求文本或选择需求条目')
     return null
   }
-  const req: AiRegressionRecommendReq = {
-    modules: modules.value.length ? modules.value : undefined,
+  const req: AiCasePlanRecommendReq = {
     text: text.value.trim() || undefined,
     requirementIds: requirementIds.value.length ? requirementIds.value : undefined,
+    excludeCaseNodeIds: props.excludeCaseNodeIds.length ? props.excludeCaseNodeIds : undefined,
   }
   return req
 }
@@ -87,7 +90,7 @@ async function recommend(): Promise<void> {
   if (!req) return
   recommending.value = true
   result.value = null
-  const { controller: c, promise } = regressionRecommend(req)
+  const { controller: c, promise } = planRecommend(req)
   controller = c
   try {
     const resp = await promise
@@ -109,13 +112,13 @@ function cancelRecommend(): void {
   recommending.value = false
 }
 
-function handleBringIntoPlan(): void {
+function handleBringIn(): void {
   const items = checkedItems.value
   if (!items.length) {
     ElMessage.warning('请至少勾选一个推荐用例')
     return
   }
-  emit('bring-into-plan', items.map((item) => item.caseNodeId))
+  emit('bring-in', items.map((item) => item.caseNodeId))
 }
 
 // 弹窗关闭不保留本次推荐结果（交互设计 6.2），并中止进行中的长调用
@@ -136,46 +139,19 @@ onBeforeUnmount(() => controller?.abort())
     @closed="handleClosed"
   >
     <template #header>
-      <span class="rr-title"><el-icon><MagicStick /></el-icon> 回归用例子集推荐</span>
+      <span class="cpr-title"><el-icon><MagicStick /></el-icon> AI 推荐用例</span>
     </template>
 
-    <div class="rr">
-      <!-- 三态输入：模块列表 / 变更说明 / 需求条目，至少一项非空（详细设计 3.5） -->
-      <div class="rr-inputs">
-        <div class="rr-field">
-          <div class="rr-field__label">模块列表</div>
-          <el-select
-            v-model="modules"
-            multiple
-            filterable
-            allow-create
-            default-first-option
-            :disabled="recommending"
-            placeholder="输入变更模块名，回车确认"
-          >
-            <el-option v-for="m in modules" :key="m" :label="m" :value="m" />
-          </el-select>
-        </div>
-
-        <div class="rr-field">
-          <div class="rr-field__label">变更说明</div>
-          <el-input
-            v-model="text"
-            type="textarea"
-            :rows="3"
-            maxlength="20000"
-            :disabled="recommending"
-            placeholder="粘贴变更说明文本（可空；填写时后端抽取关键词再检索）"
-          />
-        </div>
-
-        <div class="rr-field">
-          <div class="rr-field__label">需求条目</div>
-          <div class="rr-field__row">
+    <div class="cpr">
+      <!-- 需求输入：条目 / 文本至少一项非空（详细设计 3.5） -->
+      <div class="cpr-inputs">
+        <div class="cpr-field">
+          <div class="cpr-field__label">需求条目</div>
+          <div class="cpr-field__row">
             <el-button size="small" :disabled="recommending" @click="reqSelectorVisible = true">
               {{ requirementTitles.length ? '调整条目' : '＋ 从需求池选取' }}
             </el-button>
-            <div v-if="requirementTitles.length" class="rr-req-tags">
+            <div v-if="requirementTitles.length" class="cpr-req-tags">
               <el-tag
                 v-for="item in requirementTitles"
                 :key="item.id"
@@ -186,12 +162,24 @@ onBeforeUnmount(() => controller?.abort())
                 {{ item.title }}
               </el-tag>
             </div>
-            <span v-else class="rr-field__hint">未选择需求条目</span>
+            <span v-else class="cpr-field__hint">未选择需求条目</span>
           </div>
+        </div>
+
+        <div class="cpr-field">
+          <div class="cpr-field__label">需求文本</div>
+          <el-input
+            v-model="text"
+            type="textarea"
+            :rows="3"
+            maxlength="20000"
+            :disabled="recommending"
+            placeholder="粘贴需求文本（可空；填写时后端抽取关键词再检索）"
+          />
         </div>
       </div>
 
-      <div class="rr-actions">
+      <div class="cpr-actions">
         <el-button type="primary" :loading="recommending" :disabled="!hasAnyInput" @click="recommend">
           {{ result ? '重新推荐' : '开始推荐' }}
         </el-button>
@@ -204,31 +192,30 @@ onBeforeUnmount(() => controller?.abort())
         type="warning"
         :closable="false"
         show-icon
-        title="当前为模块名/关键词匹配结果"
+        title="当前为关键词匹配结果"
       />
 
       <template v-if="result">
-        <div class="rr-result-head">
+        <div class="cpr-result-head">
           <el-checkbox
             :model-value="allChecked"
             :indeterminate="checkedIndexes.size > 0 && !allChecked"
             @update:model-value="(v) => toggleAll(v === true)"
           >全选</el-checkbox>
-          <span class="rr-result-count">共 {{ result.items.length }} 条，已选 {{ checkedIndexes.size }} 条</span>
+          <span class="cpr-result-count">共 {{ result.items.length }} 条，已选 {{ checkedIndexes.size }} 条</span>
         </div>
 
-        <div v-if="result.items.length" class="rr-list">
-          <div v-for="(item, index) in result.items" :key="item.caseNodeId" class="rr-item">
+        <div v-if="result.items.length" class="cpr-list">
+          <div v-for="(item, index) in result.items" :key="item.caseNodeId" class="cpr-item">
             <el-checkbox
               :model-value="checkedIndexes.has(index)"
               @update:model-value="(v) => toggleItem(index, v === true)"
             />
-            <div class="rr-item__body">
-              <div class="rr-item__title">{{ item.title }}</div>
-              <div class="rr-item__tags">
+            <div class="cpr-item__body">
+              <div class="cpr-item__title">{{ item.title }}</div>
+              <div class="cpr-item__tags">
                 <el-tag size="small" effect="plain" type="info">{{ item.modulePath }}</el-tag>
-                <el-tag size="small" effect="plain">{{ matchTypeLabel[item.matchType] }}</el-tag>
-                <span v-if="item.reason" class="rr-item__reason">{{ item.reason }}</span>
+                <span v-if="item.reason" class="cpr-item__reason">{{ item.reason }}</span>
               </div>
             </div>
           </div>
@@ -239,8 +226,8 @@ onBeforeUnmount(() => controller?.abort())
 
     <template #footer>
       <el-button @click="visible = false">取消</el-button>
-      <el-button type="primary" :disabled="!checkedItems.length" @click="handleBringIntoPlan">
-        带入计划关联（{{ checkedItems.length }}）
+      <el-button type="primary" :disabled="!checkedItems.length" @click="handleBringIn">
+        {{ actionLabel }}（{{ checkedItems.length }}）
       </el-button>
     </template>
 
@@ -253,72 +240,72 @@ onBeforeUnmount(() => controller?.abort())
 </template>
 
 <style scoped lang="scss">
-.rr-title {
+.cpr-title {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   font-weight: 600;
 }
 
-.rr {
+.cpr {
   display: flex;
   flex-direction: column;
   gap: 14px;
 }
 
-.rr-inputs {
+.cpr-inputs {
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
 
-.rr-field {
+.cpr-field {
   display: flex;
   flex-direction: column;
   gap: 6px;
 }
 
-.rr-field__label {
+.cpr-field__label {
   font-size: 13px;
   color: var(--el-text-color-regular);
 }
 
-.rr-field__row {
+.cpr-field__row {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 8px;
 }
 
-.rr-field__hint {
+.cpr-field__hint {
   font-size: 12px;
   color: var(--el-text-color-placeholder);
 }
 
-.rr-req-tags {
+.cpr-req-tags {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
 }
 
-.rr-actions {
+.cpr-actions {
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
-.rr-result-head {
+.cpr-result-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
 
-.rr-result-count {
+.cpr-result-count {
   font-size: 12px;
   color: var(--el-text-color-secondary);
 }
 
-.rr-list {
+.cpr-list {
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -326,7 +313,7 @@ onBeforeUnmount(() => controller?.abort())
   overflow-y: auto;
 }
 
-.rr-item {
+.cpr-item {
   display: flex;
   align-items: flex-start;
   gap: 8px;
@@ -335,18 +322,18 @@ onBeforeUnmount(() => controller?.abort())
   border-radius: 6px;
 }
 
-.rr-item__body {
+.cpr-item__body {
   flex: 1;
   min-width: 0;
 }
 
-.rr-item__title {
+.cpr-item__title {
   font-size: 13px;
   font-weight: 600;
   color: var(--el-text-color-primary);
 }
 
-.rr-item__tags {
+.cpr-item__tags {
   margin-top: 6px;
   display: flex;
   flex-wrap: wrap;
@@ -354,7 +341,7 @@ onBeforeUnmount(() => controller?.abort())
   gap: 6px;
 }
 
-.rr-item__reason {
+.cpr-item__reason {
   font-size: 12px;
   line-height: 1.6;
   color: var(--el-text-color-regular);

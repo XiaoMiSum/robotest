@@ -3,11 +3,11 @@ import type {
   AiBugClusterSnapshot,
   AiBugDedupResult,
   AiBugSuggestion,
+  AiCasePlanRecommendResult,
   AiMissingPointResult,
   AiPlanOrderComputeResp,
   AiPlanOrderQueryResp,
   AiPlanOrderReasonResp,
-  AiRegressionRecommendResult,
   AiReviewSummary,
   AiStatus,
   AiTask,
@@ -104,27 +104,27 @@ export function analyzeMissingPoints(
   return { controller, promise }
 }
 
-// ==================== 回归测试子集推荐（项目级，US-AI-018） ====================
+// ==================== 用例规划智能推荐（项目级，US-AI-018） ====================
 
-export interface AiRegressionRecommendReq {
-  /** 变更模块名（模块树名称精确 + ILIKE 模糊匹配），可空；与 text/requirementIds 至少一项非空 */
-  modules?: string[]
-  /** 变更说明文本：可空，后端先抽取关键词再检索 */
+export interface AiCasePlanRecommendReq {
+  /** 需求文本：可空；与 requirementIds 至少一项非空 */
   text?: string
   /** 需求池条目 ID 列表 */
   requirementIds?: string[]
+  /** 当前评审/计划已纳入的用例节点 ID，推荐结果排除这些用例（不重复推荐） */
+  excludeCaseNodeIds?: string[]
 }
 
-/** 发起回归测试子集推荐（3.5 同步长调用）：返回 AbortController 供 [取消] 中止请求 */
-export function regressionRecommend(
-  data: AiRegressionRecommendReq,
-): { controller: AbortController; promise: Promise<AiRegressionRecommendResult> } {
+/** 发起用例规划智能推荐（3.5 同步长调用）：返回 AbortController 供 [取消] 中止请求 */
+export function planRecommend(
+  data: AiCasePlanRecommendReq,
+): { controller: AbortController; promise: Promise<AiCasePlanRecommendResult> } {
   // 长调用：覆盖实例默认 15s 超时，放宽至 70s，并支持面板 [取消] 中止（约定同 3.3）
   const controller = new AbortController()
-  const promise = api.post('/project/ai/plans/regression-recommend', data, {
+  const promise = api.post('/project/ai/cases/plan-recommend', data, {
     timeout: 70000,
     signal: controller.signal,
-  }) as unknown as Promise<AiRegressionRecommendResult>
+  }) as unknown as Promise<AiCasePlanRecommendResult>
   return { controller, promise }
 }
 
