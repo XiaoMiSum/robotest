@@ -81,8 +81,16 @@ async function initPreview(): Promise<void> {
 }
 
 function destroyPreview(): void {
-  minder.value?.destroy()
+  const instance = minder.value
   minder.value = null
+  // kityminder-core destroy() → _garbage() → this.clearSelect()（core 从未定义该方法，必抛），
+  // 与 useMinderInstance.destroyMinder 一致吞掉；否则异常逃逸到 Vue hook，
+  // 且状态清理被中断，watch 与 beforeUnmount 的二次调用会对同一实例重复 destroy
+  try {
+    instance?.destroy()
+  } catch {
+    /* 引擎 _garbage 清理缺陷：预览容器 DOM 由 el-dialog destroy-on-close 卸载，无需补偿 */
+  }
   workingTree.value = []
 }
 
