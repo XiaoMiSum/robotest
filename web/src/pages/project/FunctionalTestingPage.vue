@@ -5,6 +5,7 @@ import type { MenuInstance } from 'element-plus'
 import TestCasePage from '@/pages/project/TestCasePage.vue'
 import ReviewListPage from '@/pages/project/ReviewListPage.vue'
 import PlanListPage from '@/pages/project/PlanListPage.vue'
+import RequirementPoolPage from '@/pages/project/RequirementPoolPage.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -13,6 +14,7 @@ const menuItems = [
   { key: 'cases', label: '测试用例', icon: 'Document' },
   { key: 'reviews', label: '测试评审', icon: 'Checked' },
   { key: 'plans', label: '测试计划', icon: 'Calendar' },
+  { key: 'requirements', label: '需求池', icon: 'Tickets' },
 ]
 
 // 详情页返回与刷新时通过 ?tab= 恢复激活子模块（子页切换不走路由，仅初始化读取）
@@ -61,6 +63,7 @@ async function handleMenuSelect(key: string) {
       <TestCasePage v-if="activeMenu === 'cases'" ref="testCaseRef" />
       <ReviewListPage v-else-if="activeMenu === 'reviews'" />
       <PlanListPage v-else-if="activeMenu === 'plans'" />
+      <RequirementPoolPage v-else-if="activeMenu === 'requirements'" />
     </main>
   </div>
 </template>

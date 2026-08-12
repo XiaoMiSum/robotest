@@ -35,7 +35,6 @@ export const useNavStore = defineStore('nav', () => {
       case 'project': {
         const items: Array<{ label: string; path: string; icon: string }> = []
         if (has('case:view')) items.push({ label: '功能测试', path: '/workspace/projects/functional-testing', icon: 'Monitor' })
-        if (has('requirement:view')) items.push({ label: '需求池', path: '/workspace/projects/requirements', icon: 'Document' })
         if (has('bug:view')) items.push({ label: '缺陷管理', path: '/workspace/projects/bugs', icon: 'Warning' })
         return items
       }
