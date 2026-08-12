@@ -38,9 +38,10 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
@@ -81,9 +82,10 @@ class AiCasePlanRecommendServiceImplTest {
 
     @BeforeEach
     void stubDefaultRequirementContext() {
-        // matchSemantic 对空 needData 提前短路，默认返回非空需求描述；需要特定内容的测试单独覆盖
+        // matchSemantic 对空 needData 提前短路，默认返回非空需求描述与检索块；需要特定内容的测试单独覆盖
         lenient().when(requirementContextAssembler.assemble(any(), any(), any(), any()))
-                .thenReturn(new AiRequirementContextAssembler.RequirementContext("需求描述\n", List.of()));
+                .thenReturn(new AiRequirementContextAssembler.RequirementContext(
+                        "需求描述\n", List.of(), List.of("需求描述\n")));
     }
 
     private AiCasePlanRecommendReqDTO req(String text, List<UUID> requirementIds, List<UUID> excludeCaseNodeIds) {
@@ -156,7 +158,7 @@ class AiCasePlanRecommendServiceImplTest {
         when(aiConfigService.getStatus()).thenReturn(status(Constants.AiSemanticSearch.AVAILABLE));
         when(aiConfigService.getIntSetting("planRecommend.topK")).thenReturn(50);
         when(aiConfigService.getNumberSetting("planRecommend.similarityThreshold")).thenReturn(0.7);
-        when(vectorSearchService.searchSimilarCases(eq(PROJECT_ID), anyString(), eq(50), eq(0.7)))
+        when(vectorSearchService.searchSimilarCasesByQueries(eq(PROJECT_ID), anyList(), eq(50), eq(0.7)))
                 .thenReturn(List.of(new CaseDedupHit(nodeId, 0.85)));
         when(testCaseNodeMapper.selectByIds(List.of(nodeId)))
                 .thenReturn(List.of(caseNode(nodeId, "验证码登录成功")));
@@ -199,7 +201,7 @@ class AiCasePlanRecommendServiceImplTest {
         when(aiConfigService.getStatus()).thenReturn(status(Constants.AiSemanticSearch.AVAILABLE));
         when(aiConfigService.getIntSetting("planRecommend.topK")).thenReturn(50);
         when(aiConfigService.getNumberSetting("planRecommend.similarityThreshold")).thenReturn(0.7);
-        when(vectorSearchService.searchSimilarCases(eq(PROJECT_ID), anyString(), eq(50), eq(0.7)))
+        when(vectorSearchService.searchSimilarCasesByQueries(eq(PROJECT_ID), anyList(), eq(50), eq(0.7)))
                 .thenReturn(List.of(new CaseDedupHit(excludedId, 0.9), new CaseDedupHit(keptId, 0.8)));
         when(testCaseNodeMapper.selectByIds(List.of(excludedId, keptId)))
                 .thenReturn(List.of(caseNode(excludedId, "已纳入用例"), caseNode(keptId, "待推荐用例")));
@@ -220,7 +222,7 @@ class AiCasePlanRecommendServiceImplTest {
         when(aiConfigService.getStatus()).thenReturn(status(Constants.AiSemanticSearch.AVAILABLE));
         when(aiConfigService.getIntSetting("planRecommend.topK")).thenReturn(50);
         when(aiConfigService.getNumberSetting("planRecommend.similarityThreshold")).thenReturn(0.7);
-        when(vectorSearchService.searchSimilarCases(eq(PROJECT_ID), anyString(), eq(50), eq(0.7)))
+        when(vectorSearchService.searchSimilarCasesByQueries(eq(PROJECT_ID), anyList(), eq(50), eq(0.7)))
                 .thenReturn(List.of(new CaseDedupHit(nodeId, 0.85)));
         when(testCaseNodeMapper.selectByIds(List.of(nodeId)))
                 .thenReturn(List.of(caseNode(nodeId, "验证码登录成功")));
@@ -244,7 +246,7 @@ class AiCasePlanRecommendServiceImplTest {
         when(aiConfigService.getStatus()).thenReturn(status(Constants.AiSemanticSearch.AVAILABLE));
         when(aiConfigService.getIntSetting("planRecommend.topK")).thenReturn(50);
         when(aiConfigService.getNumberSetting("planRecommend.similarityThreshold")).thenReturn(0.7);
-        when(vectorSearchService.searchSimilarCases(eq(PROJECT_ID), anyString(), eq(50), eq(0.7)))
+        when(vectorSearchService.searchSimilarCasesByQueries(eq(PROJECT_ID), anyList(), eq(50), eq(0.7)))
                 .thenReturn(List.of(new CaseDedupHit(nodeId, 0.85)));
         when(testCaseNodeMapper.selectByIds(List.of(nodeId)))
                 .thenReturn(List.of(caseNode(nodeId, "验证码登录成功")));
@@ -267,7 +269,9 @@ class AiCasePlanRecommendServiceImplTest {
         UUID nodeId = UUID.randomUUID();
         when(requirementContextAssembler.assemble(eq(PROJECT_ID), eq(List.of(reqId)), any(), any()))
                 .thenReturn(new AiRequirementContextAssembler.RequirementContext(
-                        "【需求条目】登录需求\n用户可通过邮箱与密码登录\n", List.of()));
+                        "【需求条目】登录需求\n用户可通过邮箱与密码登录\n",
+                        List.of(),
+                        List.of("【需求条目】登录需求\n用户可通过邮箱与密码登录\n")));
         when(aiConfigService.getStatus()).thenReturn(status("unavailable"));
         when(aiKeywordExtractor.extract(any(), any(), any(), any(), any(), any()))
                 .thenReturn(List.of("登录"));
@@ -289,6 +293,69 @@ class AiCasePlanRecommendServiceImplTest {
     }
 
     @Test
+    void multiRequirementBlocks_semanticSearchPerBlock() {
+        UUID nodeA = UUID.randomUUID();
+        UUID nodeB = UUID.randomUUID();
+        List<String> blocks = List.of("【需求条目】登录需求\n...\n", "【需求条目】支付需求\n...\n");
+        when(requirementContextAssembler.assemble(eq(PROJECT_ID), any(), any(), any()))
+                .thenReturn(new AiRequirementContextAssembler.RequirementContext(
+                        "【需求条目】登录需求\n...\n【需求条目】支付需求\n...\n", List.of(), blocks));
+        when(aiConfigService.getStatus()).thenReturn(status(Constants.AiSemanticSearch.AVAILABLE));
+        when(aiConfigService.getIntSetting("planRecommend.topK")).thenReturn(50);
+        when(aiConfigService.getNumberSetting("planRecommend.similarityThreshold")).thenReturn(0.7);
+        // 逐块独立检索（4.5：多需求条目各自召回，避免合并单向量稀释偏科）
+        when(vectorSearchService.searchSimilarCasesByQueries(eq(PROJECT_ID), eq(blocks), eq(50), eq(0.7)))
+                .thenReturn(List.of(new CaseDedupHit(nodeA, 0.85), new CaseDedupHit(nodeB, 0.8)));
+        when(testCaseNodeMapper.selectByIds(List.of(nodeA, nodeB)))
+                .thenReturn(List.of(caseNode(nodeA, "验证码登录成功"), caseNode(nodeB, "支付下单成功")));
+        when(testCaseModuleMapper.listByProjectId(PROJECT_ID)).thenReturn(List.of(directory(), document()));
+        stubReasonOut(2);
+
+        AiCasePlanRecommendRespDTO resp = service.recommend(USER_ID, WORKSPACE_ID, PROJECT_ID,
+                req(null, List.of(UUID.randomUUID(), UUID.randomUUID()), null));
+
+        assertEquals(2, resp.getItems().size());
+        assertEquals(nodeA, resp.getItems().get(0).getCaseNodeId());
+        assertEquals(nodeB, resp.getItems().get(1).getCaseNodeId());
+        verify(vectorSearchService).searchSimilarCasesByQueries(eq(PROJECT_ID), eq(blocks), eq(50), eq(0.7));
+    }
+
+    @Test
+    void multiRequirementBlocks_degradedExtractsPerBlock() {
+        UUID nodeA = UUID.randomUUID();
+        UUID nodeB = UUID.randomUUID();
+        String blockA = "【需求条目】登录需求\n...\n";
+        String blockB = "【需求条目】支付需求\n...\n";
+        when(requirementContextAssembler.assemble(eq(PROJECT_ID), any(), any(), any()))
+                .thenReturn(new AiRequirementContextAssembler.RequirementContext(
+                        "【需求条目】登录需求\n...\n【需求条目】支付需求\n...\n", List.of(), List.of(blockA, blockB)));
+        when(aiConfigService.getStatus()).thenReturn(status("unavailable"));
+        // 逐块分别抽取关键词（每块 ≤10），保证每个需求条目有独立召回词（4.5）
+        when(aiKeywordExtractor.extract(any(), any(), any(), any(), any(), eq(blockA)))
+                .thenReturn(List.of("验证码"));
+        when(aiKeywordExtractor.extract(any(), any(), any(), any(), any(), eq(blockB)))
+                .thenReturn(List.of("支付"));
+        when(testCaseModuleMapper.findDocumentModulesByProjectId(PROJECT_ID)).thenReturn(List.of(document()));
+        when(testCaseModuleMapper.listByProjectId(PROJECT_ID)).thenReturn(List.of(directory(), document()));
+        when(testCaseNodeMapper.listCaseNodesByDocumentIdsAndKeyword(List.of(DOC_ID), "验证码", 30))
+                .thenReturn(List.of(caseNode(nodeA, "验证码登录成功")));
+        when(testCaseNodeMapper.listCaseNodesByDocumentIdsAndKeyword(List.of(DOC_ID), "支付", 30))
+                .thenReturn(List.of(caseNode(nodeB, "支付下单成功")));
+        stubReasonOut(2);
+
+        AiCasePlanRecommendRespDTO resp = service.recommend(USER_ID, WORKSPACE_ID, PROJECT_ID,
+                req(null, List.of(UUID.randomUUID(), UUID.randomUUID()), null));
+
+        assertTrue(resp.isSemanticDegraded());
+        assertEquals(2, resp.getItems().size());
+        assertEquals(nodeA, resp.getItems().get(0).getCaseNodeId());
+        assertEquals(nodeB, resp.getItems().get(1).getCaseNodeId());
+        // 两个检索块均参与关键词抽取
+        verify(aiKeywordExtractor).extract(any(), any(), any(), any(), any(), eq(blockA));
+        verify(aiKeywordExtractor).extract(any(), any(), any(), any(), any(), eq(blockB));
+    }
+
+    @Test
     void candidatesOverLimit_truncatesTo50() {
         List<CaseDedupHit> hits = new ArrayList<>();
         List<TestCaseNode> nodes = new ArrayList<>();
@@ -300,7 +367,7 @@ class AiCasePlanRecommendServiceImplTest {
         when(aiConfigService.getStatus()).thenReturn(status(Constants.AiSemanticSearch.AVAILABLE));
         when(aiConfigService.getIntSetting("planRecommend.topK")).thenReturn(50);
         when(aiConfigService.getNumberSetting("planRecommend.similarityThreshold")).thenReturn(0.7);
-        when(vectorSearchService.searchSimilarCases(eq(PROJECT_ID), anyString(), eq(50), eq(0.7)))
+        when(vectorSearchService.searchSimilarCasesByQueries(eq(PROJECT_ID), anyList(), eq(50), eq(0.7)))
                 .thenReturn(hits);
         when(testCaseNodeMapper.selectByIds(anyCollection())).thenReturn(nodes);
         when(testCaseModuleMapper.listByProjectId(PROJECT_ID)).thenReturn(List.of(directory(), document()));

@@ -94,6 +94,46 @@ public class AiVectorSearchServiceImpl implements AiVectorSearchService {
     }
 
     @Override
+    public List<CaseDedupHit> searchSimilarCasesByQueries(UUID projectId, List<String> queries, int topKPerQuery,
+                                                          double minSimilarity) {
+        ResolvedAiConfig config = resolvedConfig();
+        if (config == null || projectId == null || queries == null || queries.isEmpty()) {
+            return List.of();
+        }
+        List<float[]> vectors;
+        try {
+            vectors = openAiCompatProvider.embed(config, queries).vectors();
+        } catch (Exception e) {
+            log.warn("[AI] 批量 Embedding 调用失败（留待补偿）: {}", e.getMessage());
+            return List.of();
+        }
+        if (vectors == null || vectors.size() != queries.size()) {
+            return List.of();
+        }
+        // 逐块 TopK 后按 nodeId 合并去重、保留最高相似度；再按阈值过滤
+        Map<UUID, Double> bestByNode = new HashMap<>();
+        for (float[] vector : vectors) {
+            if (vector == null || vector.length == 0) {
+                continue;
+            }
+            for (CaseEmbeddingMapper.SearchRow row : caseEmbeddingMapper.searchTopK(
+                    projectId.toString(), vectorToText(vector), topKPerQuery)) {
+                if (row.getSimilarity() == null || row.getSimilarity() < minSimilarity) {
+                    continue;
+                }
+                UUID nodeId = parseUuid(row.getNodeId());
+                if (nodeId != null) {
+                    bestByNode.merge(nodeId, row.getSimilarity(), Math::max);
+                }
+            }
+        }
+        return bestByNode.entrySet().stream()
+                .sorted(Map.Entry.<UUID, Double>comparingByValue().reversed())
+                .map(e -> new CaseDedupHit(e.getKey(), e.getValue()))
+                .toList();
+    }
+
+    @Override
     public boolean indexBug(Bug bug) {
         ResolvedAiConfig config = resolvedConfig();
         if (config == null || bug == null || bug.getProjectId() == null) {

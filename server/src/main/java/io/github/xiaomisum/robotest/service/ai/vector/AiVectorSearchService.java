@@ -37,6 +37,13 @@ public interface AiVectorSearchService {
     List<CaseDedupHit> searchSimilarCases(UUID projectId, String title, int topK, double minSimilarity);
 
     /**
+     * 用例近邻检索（多检索块）：单次批量 Embedding 后逐块 TopK，按 nodeId 合并去重、保留最高相似度，
+     * 再按 minSimilarity 阈值过滤（供多需求条目推荐，保证每个需求独立召回）；Embedding 未配置返回空列表
+     */
+    List<CaseDedupHit> searchSimilarCasesByQueries(UUID projectId, List<String> queries, int topKPerQuery,
+                                                   double minSimilarity);
+
+    /**
      * 增量写入缺陷向量：source_hash 未变跳过；Embedding 调用失败仅 WARN 并返回 false（留待补偿，4.1）
      *
      * @return 是否实际完成向量写入

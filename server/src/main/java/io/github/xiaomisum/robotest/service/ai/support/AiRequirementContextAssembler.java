@@ -26,13 +26,21 @@ public class AiRequirementContextAssembler {
     @Resource
     private RequirementService requirementService;
 
-    /** 组装结果：拼接文本 + 截断/丢弃提示 */
-    public record RequirementContext(String data, List<String> warnings) {
+    /** 组装结果：拼接文本 + 截断/丢弃提示 + 检索块列表（每条目/文本独立成块，供逐块向量检索） */
+    public record RequirementContext(String data, List<String> warnings, List<String> blocks) {
+
+        /**
+         * 便捷构造（无检索需求场景，如生成/遗漏分析的纯提示词上下文）；blocks 默认空
+         */
+        public RequirementContext(String data, List<String> warnings) {
+            this(data, warnings, List.of());
+        }
     }
 
     /**
      * 组装需求上下文：单条目内容截断至 {@link #ITEM_TOKEN_BUDGET}；
      * 总预算超限时按选取顺序保留、丢弃后续并在 warning 提示；临时文本超限截断装入剩余预算。
+     * blocks 与 data 同预算口径，仅收集实际装入的条目块与文本块（不含 prefixBlock），供按块独立检索。
      *
      * @param prefixBlock 业务前缀块（如【变更模块】/【需求关键词】），无前缀传 null
      */
@@ -40,6 +48,7 @@ public class AiRequirementContextAssembler {
                                        String prefixBlock) {
         StringBuilder data = new StringBuilder();
         List<String> warnings = new ArrayList<>();
+        List<String> blocks = new ArrayList<>();
         int used = 0;
         if (prefixBlock != null && !prefixBlock.isBlank()) {
             data.append(prefixBlock);
@@ -54,6 +63,7 @@ public class AiRequirementContextAssembler {
                 break;
             }
             data.append(block);
+            blocks.add(block);
             used += tokens;
         }
         if (extraText != null && !extraText.isBlank()) {
@@ -61,14 +71,16 @@ public class AiRequirementContextAssembler {
             int tokens = PromptAssembler.estimateTokens(block);
             if (used + tokens > CONTEXT_TOKEN_BUDGET) {
                 // 主输入超预算时截断装入剩余预算，避免整体输入预算失守
-                data.append("【需求文本】\n")
-                        .append(AiTextUtils.truncateToTokenBudget(extraText, CONTEXT_TOKEN_BUDGET - used))
-                        .append('\n');
+                String truncated = "【需求文本】\n"
+                        + AiTextUtils.truncateToTokenBudget(extraText, CONTEXT_TOKEN_BUDGET - used) + "\n";
+                data.append(truncated);
+                blocks.add(truncated);
                 warnings.add("需求文本超出上下文预算，已截断");
             } else {
                 data.append(block);
+                blocks.add(block);
             }
         }
-        return new RequirementContext(data.toString(), warnings);
+        return new RequirementContext(data.toString(), warnings, blocks);
     }
 }

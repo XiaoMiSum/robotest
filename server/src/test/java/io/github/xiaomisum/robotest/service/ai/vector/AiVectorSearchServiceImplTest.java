@@ -234,6 +234,55 @@ class AiVectorSearchServiceImplTest {
     }
 
     @Test
+    void searchSimilarCasesByQueries_mergesDedupKeepsMaxSimilarity() {
+        configure();
+        UUID project = UUID.randomUUID();
+        UUID sharedNode = UUID.randomUUID();
+        UUID firstOnlyNode = UUID.randomUUID();
+        // 批量 Embedding 返回与 queries 等长的向量（每个 query 一个向量）
+        when(openAiCompatProvider.embed(eq(CONFIG), org.mockito.ArgumentMatchers.anyList()))
+                .thenReturn(new EmbedResult(List.of(new float[DIM], new float[DIM]), 5));
+        // 第一块 TopK 命中 sharedNode 0.8 与 firstOnlyNode 0.9；第二块命中 sharedNode 0.7
+        CaseEmbeddingMapper.SearchRow sharedFirst = row(sharedNode, 0.8);
+        CaseEmbeddingMapper.SearchRow firstOnly = row(firstOnlyNode, 0.9);
+        CaseEmbeddingMapper.SearchRow sharedSecond = row(sharedNode, 0.7);
+        when(caseEmbeddingMapper.searchTopK(anyString(), anyString(), org.mockito.ArgumentMatchers.anyInt()))
+                .thenReturn(List.of(sharedFirst, firstOnly), List.of(sharedSecond));
+
+        List<AiVectorSearchService.CaseDedupHit> results =
+                service.searchSimilarCasesByQueries(project, List.of("需求A", "需求B"), 50, 0.6);
+
+        // 合并去重：sharedNode 保留最高相似度 0.8，按相似度降序（firstOnly 0.9 在前）
+        assertEquals(2, results.size());
+        assertEquals(firstOnlyNode, results.get(0).nodeId());
+        assertEquals(0.9, results.get(0).similarity(), 1e-9);
+        assertEquals(sharedNode, results.get(1).nodeId());
+        assertEquals(0.8, results.get(1).similarity(), 1e-9);
+    }
+
+    @Test
+    void searchSimilarCasesByQueries_filtersBelowThresholdPerBlock() {
+        configure();
+        UUID project = UUID.randomUUID();
+        when(openAiCompatProvider.embed(eq(CONFIG), org.mockito.ArgumentMatchers.anyList()))
+                .thenReturn(new EmbedResult(List.of(new float[DIM]), 5));
+        CaseEmbeddingMapper.SearchRow low = row(UUID.randomUUID(), 0.5);
+        when(caseEmbeddingMapper.searchTopK(anyString(), anyString(), org.mockito.ArgumentMatchers.anyInt()))
+                .thenReturn(List.of(low));
+
+        List<AiVectorSearchService.CaseDedupHit> results =
+                service.searchSimilarCasesByQueries(project, List.of("需求A"), 50, 0.6);
+
+        assertTrue(results.isEmpty());
+    }
+
+    @Test
+    void searchSimilarCasesByQueries_returnsEmptyWhenUnconfigured() {
+        when(aiConfigService.getResolvedConfig()).thenReturn(null);
+        assertTrue(service.searchSimilarCasesByQueries(UUID.randomUUID(), List.of("需求A"), 50, 0.6).isEmpty());
+    }
+
+    @Test
     void deleteBugIndex_logicallyDeletes() {
         UUID bugId = UUID.randomUUID();
         service.deleteBugIndex(bugId);
@@ -248,5 +297,12 @@ class AiVectorSearchServiceImplTest {
         n.setParentId(parentId);
         n.setSortOrder(sort);
         return n;
+    }
+
+    private CaseEmbeddingMapper.SearchRow row(UUID nodeId, double similarity) {
+        CaseEmbeddingMapper.SearchRow row = new CaseEmbeddingMapper.SearchRow();
+        row.setNodeId(nodeId.toString());
+        row.setSimilarity(similarity);
+        return row;
     }
 }
