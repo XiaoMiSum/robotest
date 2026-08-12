@@ -167,6 +167,7 @@ statistics 由 SQL 精确计算（不依赖 LLM）；重复生成覆盖本记录
 ```
 
 - **说明**：分析范围限当前项目；不自动创建任何用例；「一键转生成」由前端将勾选的 points 拼接为需求文本，跳转脑图页并携带至《智能用例生成》3.2.1 入口。勾选点可能归属不同模块：面板「转用例生成」时要求用户选择一个目标文档（默认预选勾选点中出现次数最多的 `suggestedModulePath` 所对应文档；路径无法匹配到现有文档时不预选），全部勾选点文本拼接后透传至该文档脑图页。
+- **前端预填**：面板打开时调用文档关联查询（《智能用例生成》3.1.5 `GET /api/project/documents/:docId/requirements`，`:docId` 为当前脑图文档）自动带入关联条目至 `requirementIds`，作为默认上下文，用户可临时改选；加载失败提示但不阻断输入。
 
 ### 3.4 执行顺序推荐
 
@@ -301,7 +302,7 @@ score(case) = w1 · norm(relatedBugCount) + w2 · priorityWeight + w3 · norm(mo
 | ---- | ---- |
 | `components/project/ReviewAiCheckPanel.vue` | 评审详情「AI 检查」侧面板：发起按钮（仅发起人，待评审/评审中可发起，已完成只读展示历史结果）、进度条、建议列表（维度过滤、点击定位高亮）、取消任务 |
 | `components/project/ReviewAiSummary.vue` | 摘要视图：statistics 卡片区（即时渲染）+ 流式 Markdown 总结（MarkdownView 复用）+ 复制/重新生成 |
-| `components/project/MissingPointsPanel.vue` | 用例模块页「遗漏测试点分析」抽屉：三态输入（关键词/文本/条目选择器复用 RequirementSelector）+ 结果清单（勾选）+「转用例生成」按钮（含目标文档选择，规则见 3.3） |
+| `components/project/MissingPointsPanel.vue` | 用例模块页「遗漏测试点分析」抽屉：三态输入（关键词/文本/条目选择器复用 RequirementSelector）+ 结果清单（勾选）+「转用例生成」按钮（含目标文档选择，规则见 3.3）；**打开时自动带入当前文档关联条目**（同《智能用例生成》6.3，见 3.3 前端预填） |
 | `components/project/PlanOrderRecommend.vue` | 计划详情「执行顺序推荐」标签页：按指数排序列表（分值、因子明细展开、按需生成理由）+ stale 重算提示 + 脑图序号徽标联动 |
 | `components/project/RegressionRecommendDialog.vue` | 回归子集推荐弹窗：变更输入 + 结果勾选清单 +「带入计划关联」（调用既有关联流程） |
 | `services/project.ts` / `types/index.ts` | 3.1–3.5 接口封装与类型 |
