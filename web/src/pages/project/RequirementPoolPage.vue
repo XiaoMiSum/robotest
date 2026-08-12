@@ -155,59 +155,63 @@ onMounted(load)
 
 <template>
   <div class="requirement-pool">
-    <div class="requirement-pool__toolbar">
-      <el-input
-        v-model="keyword"
-        placeholder="搜索条目标题"
-        clearable
-        class="requirement-pool__search"
-        @keyup.enter="search"
-        @clear="search"
-      >
-        <template #prefix><el-icon><Search /></el-icon></template>
-      </el-input>
-      <el-button type="primary" @click="search">
-        <el-icon><Search /></el-icon>查询
-      </el-button>
-      <el-button @click="handleReset">重置</el-button>
-      <div class="requirement-pool__spacer" />
-      <el-button type="primary" @click="openCreate">
-        <el-icon><Plus /></el-icon>新建条目
-      </el-button>
-    </div>
-
-    <el-table v-loading="loading" :data="items" class="requirement-pool__table">
-      <el-table-column prop="title" label="标题" min-width="240" show-overflow-tooltip />
-      <el-table-column label="来源 URL" min-width="200" show-overflow-tooltip>
-        <template #default="{ row }">
-          <el-link v-if="row.sourceUrl" :href="row.sourceUrl" target="_blank" type="primary">{{ row.sourceUrl }}</el-link>
-          <span v-else class="requirement-pool__muted">—</span>
-        </template>
-      </el-table-column>
-      <el-table-column prop="creatorName" label="更新人" width="140" />
-      <el-table-column label="更新时间" width="180">
-        <template #default="{ row }">{{ formatDateTime(row.updatedAt) }}</template>
-      </el-table-column>
-      <el-table-column v-if="canEdit" label="操作" width="140" fixed="right">
-        <template #default="{ row }">
-          <el-button link type="primary" @click="openEdit(row.id)">编辑</el-button>
-          <el-button link type="danger" @click="handleDelete(row.id)">删除</el-button>
-        </template>
-      </el-table-column>
-      <template #empty>
-        <el-empty description="暂无需求条目" :image-size="80" />
+    <el-card v-loading="loading" shadow="never">
+      <template #header>
+        <div class="requirement-pool__toolbar">
+          <el-input
+            v-model="keyword"
+            placeholder="搜索条目标题"
+            clearable
+            class="requirement-pool__search"
+            @keyup.enter="search"
+            @clear="search"
+          >
+            <template #prefix><el-icon><Search /></el-icon></template>
+          </el-input>
+          <el-button type="primary" @click="search">
+            <el-icon><Search /></el-icon>查询
+          </el-button>
+          <el-button @click="handleReset">重置</el-button>
+          <div class="requirement-pool__spacer" />
+          <el-button type="primary" @click="openCreate">
+            <el-icon><Plus /></el-icon>新建条目
+          </el-button>
+        </div>
       </template>
-    </el-table>
 
-    <div class="requirement-pool__pager">
-      <el-pagination
-        layout="total, prev, pager, next"
-        :total="total"
-        :current-page="pageNo"
-        :page-size="pageSize"
-        @current-change="handlePageChange"
-      />
-    </div>
+      <el-table :data="items" class="requirement-pool__table">
+        <el-table-column prop="title" label="标题" min-width="240" show-overflow-tooltip />
+        <el-table-column label="来源 URL" min-width="200" show-overflow-tooltip>
+          <template #default="{ row }">
+            <el-link v-if="row.sourceUrl" :href="row.sourceUrl" target="_blank" type="primary">{{ row.sourceUrl }}</el-link>
+            <span v-else class="requirement-pool__muted">—</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="creatorName" label="更新人" width="140" />
+        <el-table-column label="更新时间" width="180">
+          <template #default="{ row }">{{ formatDateTime(row.updatedAt) }}</template>
+        </el-table-column>
+        <el-table-column v-if="canEdit" label="操作" width="140" fixed="right">
+          <template #default="{ row }">
+            <el-button link type="primary" @click="openEdit(row.id)">编辑</el-button>
+            <el-button link type="danger" @click="handleDelete(row.id)">删除</el-button>
+          </template>
+        </el-table-column>
+        <template #empty>
+          <el-empty description="暂无需求条目" :image-size="80" />
+        </template>
+      </el-table>
+
+      <div class="requirement-pool__pager">
+        <el-pagination
+          layout="total, prev, pager, next"
+          :total="total"
+          :current-page="pageNo"
+          :page-size="pageSize"
+          @current-change="handlePageChange"
+        />
+      </div>
+    </el-card>
 
     <el-drawer v-model="drawerVisible" :title="drawerTitle" size="560px" :close-on-click-modal="false">
       <el-form ref="formRef" :model="form" :rules="rules" label-position="top">
@@ -230,15 +234,10 @@ onMounted(load)
 </template>
 
 <style scoped lang="scss">
-.requirement-pool {
-  padding: var(--space-lg, 16px);
-}
-
 .requirement-pool__toolbar {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 12px;
+  gap: var(--space-md);
 }
 
 .requirement-pool__search {
@@ -252,7 +251,9 @@ onMounted(load)
 .requirement-pool__pager {
   display: flex;
   justify-content: flex-end;
-  margin-top: 12px;
+  margin-top: var(--space-lg);
+  padding-top: var(--space-lg);
+  border-top: 1px solid var(--color-neutral-100);
 }
 
 .requirement-pool__muted {
