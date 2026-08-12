@@ -5,7 +5,7 @@ import { fetchRequirements } from '@/services/project'
 import type { RequirementPoolItem, RequirementSummary } from '@/types'
 
 /**
- * 需求条目选取器（US-AI-004 交互设计 6.2，可复用）：
+ * 需求选取器（US-AI-004 交互设计 6.2，可复用）：
  * 供「文档关联」「AI 生成/补全」「遗漏测试点分析」「回归子集推荐」入口调用。跨页多选以 selected Map 保序保留。
  */
 const props = defineProps<{
@@ -37,8 +37,14 @@ async function load() {
     })
     items.value = page.list
     total.value = page.total
+    // 回填已选项标题：打开时 selected 仅占位空串，列表就绪后补全，避免确认后标签只显示关闭按钮
+    const next = new Map(selected.value)
+    for (const item of page.list) {
+      if (next.has(item.id)) next.set(item.id, item.title)
+    }
+    selected.value = next
   } catch (err) {
-    ElMessage.error(err instanceof Error ? err.message : '加载需求条目失败')
+    ElMessage.error(err instanceof Error ? err.message : '加载需求失败')
   } finally {
     loading.value = false
   }
@@ -87,7 +93,7 @@ watch(
 </script>
 
 <template>
-  <el-dialog v-model="visible" title="选择需求条目" width="520px" append-to-body>
+  <el-dialog v-model="visible" title="选择需求" width="520px" append-to-body>
     <div class="req-selector">
       <div class="req-selector__search">
         <el-input
@@ -104,7 +110,7 @@ watch(
 
       <div v-loading="loading" class="req-selector__list">
         <div v-if="!items.length" class="req-selector__empty">
-          <el-empty description="暂无需求条目" :image-size="60" />
+          <el-empty description="暂无需求" :image-size="60" />
         </div>
         <label v-for="item in items" :key="item.id" class="req-selector__item">
           <el-checkbox
