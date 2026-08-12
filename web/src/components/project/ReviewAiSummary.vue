@@ -132,27 +132,27 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <el-drawer v-model="visible" size="520px" :close-on-click-modal="false" :modal="false">
+  <el-drawer v-model="visible" size="640px" :close-on-click-modal="true" modal-class="ai-summary-drawer-modal">
     <template #header>
-      <div class="ai-summary-header">
-        <span class="ai-summary-title"><el-icon><MagicStick /></el-icon> 评审摘要</span>
-        <div class="ai-summary-tools">
-          <AiModelSelect />
-          <el-button size="small" :disabled="!summaryMarkdown" @click="copy">复制</el-button>
-          <el-button
-            v-if="phase !== 'streaming'"
-            size="small"
-            type="primary"
-            @click="phase === 'done' ? regenerate() : generate()"
-          >
-            {{ phase === 'done' ? '重新生成' : '生成摘要' }}
-          </el-button>
-          <el-button v-else size="small" @click="stop">停止</el-button>
-        </div>
-      </div>
+      <span class="ai-summary-title"><el-icon><MagicStick /></el-icon> 评审摘要</span>
     </template>
 
     <div class="ai-summary">
+      <!-- 操作行：模型选择 + 生成/停止，右侧对齐（交互设计 3.1，统一规格 2.9） -->
+      <div class="ai-summary-actions">
+        <AiModelSelect />
+        <el-button size="small" :disabled="!summaryMarkdown" @click="copy">复制</el-button>
+        <el-button
+          v-if="phase !== 'streaming'"
+          size="small"
+          type="primary"
+          @click="phase === 'done' ? regenerate() : generate()"
+        >
+          {{ phase === 'done' ? '重新生成' : '生成摘要' }}
+        </el-button>
+        <el-button v-else size="small" @click="stop">停止</el-button>
+      </div>
+
       <!-- 统计卡片区：随 statistics 帧即时渲染（不依赖 LLM） -->
       <div v-if="statistics" class="ai-summary-stats">
         <div v-for="card in statCards" :key="card.key" class="ai-summary-card">
@@ -189,14 +189,6 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped lang="scss">
-.ai-summary-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  width: 100%;
-}
-
 .ai-summary-title {
   display: inline-flex;
   align-items: center;
@@ -204,10 +196,16 @@ onBeforeUnmount(() => {
   font-weight: 600;
 }
 
-.ai-summary-tools {
+.ai-summary-actions {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 8px;
+}
+
+/* 透明遮罩：点击抽屉外空白处自动关闭，同时不压暗画布（交互设计 3.1，统一规格 2.9） */
+:deep(.ai-summary-drawer-modal) {
+  background: transparent;
 }
 
 .ai-summary {
