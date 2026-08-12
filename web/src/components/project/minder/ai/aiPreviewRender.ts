@@ -122,8 +122,12 @@ export function createCheckboxRenderer(kity: KityStatic, base: unknown): unknown
       const rect = new kity.Rect(CHECKBOX_SIZE, CHECKBOX_SIZE, 0, 0, 3)
         .stroke(UNCHECKED_COLOR, 1)
         .fill('none')
+      // 对勾文字锚点 middle 仅将文字中心对齐到 (x,y)，须显式 setX/setY 到方框中心，
+      // 否则文字中心停在原点 (0,0)，而方框占 (0,0)-(14,14)，对勾整体偏到框外（同 badges.ts 写法）
       const mark = new kity.Text('✓')
-        .setFontSize(11)
+        .setFontSize(10)
+        .setX(CHECKBOX_SIZE / 2)
+        .setY(CHECKBOX_SIZE / 2)
         .setTextAnchor('middle')
         .setVerticalAlign('middle')
         .setAttr('font-weight', 'bold')
