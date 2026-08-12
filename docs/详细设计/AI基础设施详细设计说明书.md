@@ -797,7 +797,7 @@ stateDiagram-v2
 | ---- | ---- |
 | `web/src/pages/admin/AiConfigPage.vue` | AI 配置页：「对话模型」卡片区（模型列表 + 新建/编辑弹窗，弹窗内供应商下拉 + 独有配置项动态区 + 高级自定义参数折叠区，列表行内设默认/启停/测试/删除操作）+ 总开关 + Embedding 单组表单（供应商下拉 + 独有配置项 + 连通性测试）+ 系统配置项**分组表单**（按 3.3.8 定义清单动态渲染，见 5.2）；「调用统计」标签页（按功能/空间/日期/模型聚合表格） |
 | `web/src/pages/admin/AiAgentsPage.vue` | 智能体列表（功能类型、是否自定义、更新人/时间）+ 编辑抽屉（角色指令段文本域、格式约束段默认只读、高级开关、恢复默认按钮） |
-| `web/src/components/common/AiModelSelect.vue` | 对话模型选择器（下拉，数据源为 `stores/ai.ts` 的 `chatModels`）：交互式 AI 功能入口（助手输入区、生成弹窗等）复用；选择写入 `localStorage`（见 4.11），仅一个可用模型时不渲染 |
+| `web/src/components/common/AiModelSelect.vue` | 对话模型选择器（下拉，数据源为 `stores/ai.ts` 的 `chatModels`）：交互式 AI 功能入口（助手输入区、生成抽屉等）复用；选择写入 `localStorage`（见 4.11），仅一个可用模型时不渲染 |
 | `web/src/services/admin.ts` | 增补 3.3 / 3.4 接口封装（含 3.3.6 供应商预设查询与 3.3.7 对话模型管理，进入配置页时拉取一次） |
 | `web/src/stores/ai.ts` | 新增：缓存 `GET /api/workspace/ai/status` 结果，暴露 `aiEnabled` / `semanticSearch` / `chatModels` 计算属性，供全部 AI 入口组件显隐判断与模型选择器渲染；负责校验并回收 `localStorage` 中失效的 `modelId`（4.11） |
 | `web/src/types/index.ts` | 增补 AiConfig、AiChatModel、AiProviderPreset、AiAgent、AiTask、AiStatus 等类型（无 `any`，C1） |
