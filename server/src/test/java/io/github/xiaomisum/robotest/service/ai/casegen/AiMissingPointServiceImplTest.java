@@ -41,7 +41,7 @@ import static org.mockito.Mockito.when;
 
 /**
  * 遗漏测试点分析服务单测（详细设计 3.3 / 4.3 关键词版）：
- * 三态输入校验、saveAsRequirement 不阻断、LLM 抽取关键词、候选检索、结构断言与幻觉过滤。
+ * 三态输入校验、LLM 抽取关键词、候选检索、结构断言与幻觉过滤。
  */
 @ExtendWith(MockitoExtension.class)
 class AiMissingPointServiceImplTest {
@@ -144,61 +144,6 @@ class AiMissingPointServiceImplTest {
         AiMissingPointReqDTO dto = new AiMissingPointReqDTO();
         assertThrows(ServiceException.class,
                 () -> service.analyze(USER_ID, WORKSPACE_ID, PROJECT_ID, dto));
-    }
-
-    @Test
-    void saveAsRequirementWithoutText_throws() {
-        AiMissingPointReqDTO dto = req("登录");
-        AiMissingPointReqDTO.SaveAsRequirement saveAs = new AiMissingPointReqDTO.SaveAsRequirement();
-        saveAs.setTitle("登录需求");
-        dto.setSaveAsRequirement(saveAs);
-        dto.setKeywords(null);
-        assertThrows(ServiceException.class,
-                () -> service.analyze(USER_ID, WORKSPACE_ID, PROJECT_ID, dto));
-    }
-
-    @Test
-    void saveAsRequirement_savesItemBeforeAnalysis() {
-        stubProjectModules();
-        when(testCaseNodeMapper.listCaseNodesByDocumentIdsAndKeyword(List.of(DOC_ID), "登录", 30))
-                .thenReturn(List.of(caseNode(UUID.randomUUID(), "验证码登录成功")));
-        when(requirementContextAssembler.trySaveRequirement(eq(PROJECT_ID), eq(USER_ID), any(), any()))
-                .thenReturn(true);
-        when(aiGatewayService.completeStructured(any(), eq(AiFunctionType.MISSING_POINT_ANALYSIS), any(),
-                any(), any(), any(), any()))
-                .thenReturn(out("短信验证码超时后重新发送", "登录模块/验证码登录", List.of("验证码登录成功")));
-        AiMissingPointReqDTO dto = req("登录");
-        dto.setText("需求：支持手机号验证码登录");
-        AiMissingPointReqDTO.SaveAsRequirement saveAs = new AiMissingPointReqDTO.SaveAsRequirement();
-        saveAs.setTitle("登录需求");
-        dto.setSaveAsRequirement(saveAs);
-
-        service.analyze(USER_ID, WORKSPACE_ID, PROJECT_ID, dto);
-
-        verify(requirementContextAssembler).trySaveRequirement(eq(PROJECT_ID), eq(USER_ID),
-                eq("登录需求"), eq("需求：支持手机号验证码登录"));
-    }
-
-    @Test
-    void saveAsRequirementSaveFails_continuesAnalysis() {
-        stubProjectModules();
-        when(testCaseNodeMapper.listCaseNodesByDocumentIdsAndKeyword(List.of(DOC_ID), "登录", 30))
-                .thenReturn(List.of(caseNode(UUID.randomUUID(), "验证码登录成功")));
-        when(requirementContextAssembler.trySaveRequirement(any(), any(), any(), any()))
-                .thenReturn(false);
-        when(aiGatewayService.completeStructured(any(), eq(AiFunctionType.MISSING_POINT_ANALYSIS), any(),
-                any(), any(), any(), any()))
-                .thenReturn(out("短信验证码超时后重新发送", "登录模块/验证码登录", List.of("验证码登录成功")));
-        AiMissingPointReqDTO dto = req("登录");
-        dto.setText("需求：支持手机号验证码登录");
-        AiMissingPointReqDTO.SaveAsRequirement saveAs = new AiMissingPointReqDTO.SaveAsRequirement();
-        saveAs.setTitle("登录需求");
-        dto.setSaveAsRequirement(saveAs);
-
-        AiMissingPointRespDTO resp = service.analyze(USER_ID, WORKSPACE_ID, PROJECT_ID, dto);
-
-        // 保存失败不阻断分析（3.3）
-        assertEquals(1, resp.getPoints().size());
     }
 
     @Test

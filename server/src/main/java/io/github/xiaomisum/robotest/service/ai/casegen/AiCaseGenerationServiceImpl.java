@@ -81,16 +81,6 @@ public class AiCaseGenerationServiceImpl implements AiCaseGenerationService {
         }
 
         List<String> contextWarnings = new ArrayList<>();
-        // saveAsRequirement 非空时文本必填；生成开始前独立保存，保存失败不阻断生成（3.2.1）
-        if (reqDTO.getSaveAsRequirement() != null) {
-            if (!hasText) {
-                throw ServiceExceptionUtil.get(ErrorCodeConstants.VALIDATION_FAILED);
-            }
-            if (!requirementContextAssembler.trySaveRequirement(projectId, userId,
-                    reqDTO.getSaveAsRequirement().getTitle(), reqDTO.getRequirementText())) {
-                contextWarnings.add("临时需求保存为需求池条目失败，已跳过");
-            }
-        }
 
         List<TestCaseNode> docNodes = testCaseNodeMapper.listByDocumentId(document.getId());
         TestCaseNode target = requireNodeInDocument(docNodes, reqDTO.getTargetNodeId());

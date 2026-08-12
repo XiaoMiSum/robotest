@@ -1,11 +1,9 @@
 package io.github.xiaomisum.robotest.service.ai.support;
 
-import io.github.xiaomisum.robotest.model.dto.request.requirement.RequirementCreateReqDTO;
 import io.github.xiaomisum.robotest.model.entity.requirement.RequirementPoolItem;
 import io.github.xiaomisum.robotest.service.project.RequirementService;
 import io.github.xiaomisum.robotest.service.ai.provider.PromptAssembler;
 import jakarta.annotation.Resource;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -16,7 +14,6 @@ import java.util.UUID;
  * 需求上下文组装（4.3 遗漏点 / 4.5 回归 / 4.7 生成共用）：
  * 前缀块 + 需求条目（标题定界，按选取顺序）+ 临时文本，统一预算口径与截断语义。
  */
-@Slf4j
 @Component
 public class AiRequirementContextAssembler {
 
@@ -73,19 +70,5 @@ public class AiRequirementContextAssembler {
             }
         }
         return new RequirementContext(data.toString(), warnings);
-    }
-
-    /** saveAsRequirement 预保存：非空时先独立保存需求池条目，失败仅记日志不阻断主流程；返回是否保存成功 */
-    public boolean trySaveRequirement(UUID projectId, UUID userId, String title, String content) {
-        try {
-            RequirementCreateReqDTO saveDTO = new RequirementCreateReqDTO();
-            saveDTO.setTitle(title);
-            saveDTO.setContent(content);
-            requirementService.create(projectId, userId, saveDTO);
-            return true;
-        } catch (Exception e) {
-            log.warn("[AI] 另存需求池条目失败，不阻断主流程: {}", e.getMessage());
-            return false;
-        }
     }
 }

@@ -12,8 +12,7 @@ import java.util.UUID;
 public interface AiMissingPointService {
 
     /**
-     * 同步分析遗漏测试点：分析范围限当前项目，不自动创建任何用例；
-     * saveAsRequirement 失败不阻断分析（3.3）。
+     * 同步分析遗漏测试点：分析范围限当前项目，不自动创建任何用例。
      */
     AiMissingPointRespDTO analyze(UUID userId, UUID workspaceId, UUID projectId, AiMissingPointReqDTO reqDTO);
 }
