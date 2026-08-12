@@ -226,13 +226,13 @@ onBeforeUnmount(() => {
       <!-- 需求条目区（US-AI-004）：选取需求池条目作为生成上下文 -->
       <div class="ai-panel-reqs">
         <div class="ai-panel-reqs__bar">
-          <span class="ai-panel-reqs__label">需求条目</span>
+          <span class="ai-panel-reqs__label">需求池</span>
           <el-button
             size="small"
             :disabled="phase === 'streaming'"
             @click="requirementSelectorVisible = true"
           >
-            {{ selectedRequirements.length ? '调整条目' : '选择条目' }}
+            + 选择需求
           </el-button>
         </div>
         <div v-if="selectedRequirements.length" class="ai-panel-reqs__tags">
@@ -268,7 +268,6 @@ onBeforeUnmount(() => {
           <el-button
             v-if="phase !== 'streaming'"
             type="primary"
-            size="small"
             @click="generate"
           >
             <el-icon><MagicStick /></el-icon>
