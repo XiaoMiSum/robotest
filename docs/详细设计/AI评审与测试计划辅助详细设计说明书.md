@@ -304,7 +304,7 @@ score(case) = w1 · norm(relatedBugCount) + w2 · priorityWeight + w3 · norm(mo
 | `components/project/ReviewAiSummary.vue` | 摘要视图：statistics 卡片区（即时渲染）+ 流式 Markdown 总结（MarkdownView 复用）+ 复制/重新生成 |
 | `components/project/MissingPointsPanel.vue` | 用例模块页「遗漏测试点分析」抽屉：三态输入（关键词/文本/条目选择器复用 RequirementSelector）+ 结果清单（勾选）+「转用例生成」按钮（含目标文档选择，规则见 3.3）；**打开时自动带入当前文档关联条目**（同《智能用例生成》6.3，见 3.3 前端预填） |
 | `components/project/PlanOrderRecommend.vue` | 计划详情「执行顺序推荐」标签页：按指数排序列表（分值、因子明细展开、按需生成理由）+ stale 重算提示 + 脑图序号徽标联动 |
-| `components/project/CasePlanRecommendDialog.vue` | 用例规划推荐弹窗（评审/计划共用）：需求条目（多选）+ 需求文本输入 + 结果勾选清单 +「加入评审/计划」（携带勾选用例进入既有关联流程） |
+| `components/project/CasePlanRecommendDialog.vue` | 用例规划推荐抽屉（评审/计划共用，右侧滑出约 640px）：需求条目（多选）+ 需求文本输入 + 结果勾选清单 +「加入评审/计划」（携带勾选用例进入既有关联流程） |
 | `services/project.ts` / `types/index.ts` | 3.1–3.5 接口封装与类型 |
 
 ### 5.2 交互要点
@@ -314,7 +314,7 @@ score(case) = w1 · norm(relatedBugCount) + w2 · priorityWeight + w3 · norm(mo
 - 检查任务进行中允许离开页面，返回后面板轮询恢复展示（任务状态即真相源）；
 - 遗漏分析「转用例生成」：勾选 points 拼接为需求文本（title + description 列表），按 3.3 说明的目标文档选择规则确定跳转目标，路由跳转至该文档脑图页并透传文本预填生成面板；
 - 遗漏分析（3.3）与用例规划推荐（3.5）为同步长调用（后端 LLM 读超时功能级放宽至 60s，见 4.3/4.5），`services/ai.ts` 中这两个接口的请求超时单独配置为 70s（默认超时不足会先于后端中断），调用期间面板展示持续加载态并提供取消（abort）按钮；
-- 用例规划推荐「加入评审/计划」：评审详情页将勾选 `caseNodeId` 经 `getCaseDetail` 解析所属文档，与 `getReviewPlannedCases` 已选合并去重后预选进 CaseSelector；计划详情页同逻辑（`getPlanPlannedCases`）。打开弹窗前取当前已纳入用例节点 ID 集作为 `excludeCaseNodeIds` 传入推荐接口。
+- 用例规划推荐「加入评审/计划」：评审详情页将勾选 `caseNodeId` 经 `getCaseDetail` 解析所属文档，与 `getReviewPlannedCases` 已选合并去重后预选进 CaseSelector；计划详情页同逻辑（`getPlanPlannedCases`）。打开抽屉前取当前已纳入用例节点 ID 集作为 `excludeCaseNodeIds` 传入推荐接口。
 - 顺序推荐序号徽标与列表视图双向联动（点击列表项脑图定位；`semanticDegraded` / stale 状态均以顶部提示条呈现）。
 
 ### 5.3 单元测试点（C8）

@@ -6,7 +6,7 @@ import { planRecommend, type AiCasePlanRecommendReq } from '@/services/ai'
 import type { AiCasePlanRecommendItem, AiCasePlanRecommendResult, RequirementSummary } from '@/types'
 
 /**
- * 用例规划智能推荐弹窗（US-AI-018，交互设计第 6 章）：
+ * 用例规划智能推荐抽屉（US-AI-018，交互设计第 6 章）：
  * 需求条目 / 需求文本至少一项 → 同步长调用（70s 超时，可取消）→
  * 勾选结果「加入评审 / 加入计划」：仅抛出 caseNodeId 清单，由评审/计划详情页解析归属文档并并入既有 CaseSelector 流程。
  * 推荐目标由 target 决定按钮文案，评审/计划双入口共用同一组件。
@@ -121,7 +121,7 @@ function handleBringIn(): void {
   emit('bring-in', items.map((item) => item.caseNodeId))
 }
 
-// 弹窗关闭不保留本次推荐结果（交互设计 6.2），并中止进行中的长调用
+// 抽屉关闭不保留本次推荐结果（交互设计 6.2），并中止进行中的长调用
 function handleClosed(): void {
   cancelRecommend()
   result.value = null
@@ -132,10 +132,11 @@ onBeforeUnmount(() => controller?.abort())
 </script>
 
 <template>
-  <el-dialog
+  <el-drawer
     v-model="visible"
-    width="640px"
+    size="640px"
     :close-on-click-modal="false"
+    modal-class="cpr-drawer-modal"
     @closed="handleClosed"
   >
     <template #header>
@@ -242,10 +243,15 @@ onBeforeUnmount(() => controller?.abort())
       :selected-ids="requirementIds"
       @confirm="handleRequirementConfirm"
     />
-  </el-dialog>
+  </el-drawer>
 </template>
 
 <style scoped lang="scss">
+/* 透明遮罩：不压暗画布（交互设计 6.2）；关闭走标题栏 ✕，点击遮罩不关闭 */
+:deep(.cpr-drawer-modal) {
+  background: transparent;
+}
+
 .cpr-title {
   display: inline-flex;
   align-items: center;
