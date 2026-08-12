@@ -143,14 +143,16 @@ onBeforeUnmount(() => controller?.abort())
     </template>
 
     <div class="cpr">
-      <!-- 需求输入：条目 / 文本至少一项非空（详细设计 3.5） -->
+      <!-- 需求输入：条目 / 文本至少一项非空（详细设计 3.5）；按钮三区职责化：选取随字段行，发起在操作行 -->
       <div class="cpr-inputs">
         <div class="cpr-field">
-          <div class="cpr-field__label">需求条目</div>
-          <div class="cpr-field__row">
+          <div class="cpr-field__bar">
+            <div class="cpr-field__label">需求条目</div>
             <el-button size="small" :disabled="recommending" @click="reqSelectorVisible = true">
               {{ requirementTitles.length ? '调整条目' : '＋ 从需求池选取' }}
             </el-button>
+          </div>
+          <div class="cpr-field__row">
             <div v-if="requirementTitles.length" class="cpr-req-tags">
               <el-tag
                 v-for="item in requirementTitles"
@@ -180,10 +182,10 @@ onBeforeUnmount(() => controller?.abort())
       </div>
 
       <div class="cpr-actions">
+        <el-button v-if="recommending" @click="cancelRecommend">取消</el-button>
         <el-button type="primary" :loading="recommending" :disabled="!hasAnyInput" @click="recommend">
           {{ result ? '重新推荐' : '开始推荐' }}
         </el-button>
-        <el-button v-if="recommending" @click="cancelRecommend">取消</el-button>
       </div>
 
       <!-- 语义降级提示条（交互设计 6.2） -->
@@ -225,8 +227,12 @@ onBeforeUnmount(() => controller?.abort())
     </div>
 
     <template #footer>
-      <el-button @click="visible = false">取消</el-button>
-      <el-button type="primary" :disabled="!checkedItems.length" @click="handleBringIn">
+      <el-button
+        v-if="result"
+        type="primary"
+        :disabled="!checkedItems.length"
+        @click="handleBringIn"
+      >
         {{ actionLabel }}（{{ checkedItems.length }}）
       </el-button>
     </template>
@@ -277,6 +283,13 @@ onBeforeUnmount(() => controller?.abort())
   gap: 8px;
 }
 
+/* 需求条目行：标签居左、选取按钮靠最右，已选标签独占下一行 */
+.cpr-field__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
 .cpr-field__hint {
   font-size: 12px;
   color: var(--el-text-color-placeholder);
@@ -291,6 +304,7 @@ onBeforeUnmount(() => controller?.abort())
 .cpr-actions {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 8px;
 }
 
