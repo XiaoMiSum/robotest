@@ -229,9 +229,9 @@ onBeforeUnmount(() => controller?.abort())
 
         <div class="mp-field">
           <div class="mp-field__bar">
-            <span class="mp-field__label">需求条目</span>
+            <span class="mp-field__label">需求池</span>
             <el-button size="small" :disabled="analyzing" @click="reqSelectorVisible = true">
-              {{ requirementTitles.length ? '调整条目' : '选择条目' }}
+              + 选择需求
             </el-button>
           </div>
           <div v-if="requirementTitles.length" class="mp-req-tags">

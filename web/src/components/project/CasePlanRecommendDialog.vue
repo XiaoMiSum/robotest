@@ -148,9 +148,9 @@ onBeforeUnmount(() => controller?.abort())
       <div class="cpr-inputs">
         <div class="cpr-field">
           <div class="cpr-field__bar">
-            <div class="cpr-field__label">需求条目</div>
+            <div class="cpr-field__label">需求池</div>
             <el-button size="small" :disabled="recommending" @click="reqSelectorVisible = true">
-              {{ requirementTitles.length ? '调整条目' : '选择条目' }}
+              + 选择需求
             </el-button>
           </div>
           <div class="cpr-field__row">
