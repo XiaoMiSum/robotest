@@ -26,6 +26,8 @@ const props = defineProps<{
   getDocTree: () => MountTargetSource | null
   /** 外部跳转带入的预填文本（如遗漏测试点转用例生成） */
   initialText?: string
+  /** 会话重置信号：父组件自增时本组件全量重置（complete 模式目标节点变化 / docId 变化时置位） */
+  resetToken: number
 }>()
 
 const visible = defineModel<boolean>({ required: true })
@@ -148,9 +150,20 @@ function handlePreviewConfirm(nodes: AiGeneratedNode[]): void {
 }
 
 function handleClose(): void {
-  if (phase.value === 'streaming') stop()
+  // 仅关闭抽屉与预览弹窗；不中断进行中的 SSE，会话结果随组件常驻保留（交互设计 2.2 会话保持）
   previewDialogVisible.value = false
   visible.value = false
+}
+
+/** 全量重置会话（切换文档 / complete 目标节点变化 / 重新发起时调用，交互设计 2.2） */
+function resetSession(): void {
+  stop()
+  inputText.value = props.initialText ?? ''
+  previewNodes.value = []
+  warnings.value = []
+  targetMissing.value = false
+  selectedRequirements.value = []
+  previewDialogVisible.value = false
 }
 
 // ==================== 需求条目区（US-AI-004） ====================
@@ -173,12 +186,20 @@ async function loadDocumentRequirements(): Promise<void> {
 }
 
 // 每次打开重新同步文档关联条目
+watch(visible, (open) => {
+  if (open) void loadDocumentRequirements()
+})
+
+// 切换文档：断开 SSE 并重置会话（会话绑定文档生命周期，交互设计 2.2）
 watch(
-  visible,
-  (open) => {
-    if (open) void loadDocumentRequirements()
-  },
-  { immediate: true },
+  () => props.docId,
+  () => resetSession(),
+)
+
+// 会话重置信号：complete 模式目标节点变化 / 重新发起时父组件自增触发
+watch(
+  () => props.resetToken,
+  () => resetSession(),
 )
 
 onBeforeUnmount(() => {
