@@ -74,6 +74,20 @@
   --sidebar-width: 180px;
   --sidebar-collapsed-width: 48px;
 
+  /* ==================== 字号系统 ==================== */
+  /* 页面自引用（如 workspace 卡片、登录页）此前悬空未定义，导致回退继承值参差；与 EP 基准对齐 */
+  --font-size-2xs: 10px;
+  --font-size-xs: 12px;
+  --font-size-sm: 13px;
+  --font-size-base: 14px;
+  --font-size-lg: 16px;
+  --font-size-xl: 18px;
+  --font-size-2xl: 20px;
+  --font-size-3xl: 24px;
+
+  /* Element Plus 基准字号显式锁定，防止 EP 版本升级漂移 */
+  --el-font-size-base: 14px;
+
   /* ==================== 间距系统 ==================== */
   --space-xs: 4px;
   --space-sm: 8px;
@@ -138,12 +152,12 @@
   --el-table-row-hover-bg-color: var(--color-primary-50);
   --el-table-text-color: var(--color-neutral-700);
   border-radius: var(--radius-md) !important;
-  font-size: 13px !important;
+  font-size: var(--font-size-base) !important;
 }
 
 .el-table th.el-table__cell {
   font-weight: 600 !important;
-  font-size: 12px !important;
+  font-size: var(--font-size-sm) !important;
   text-transform: uppercase !important;
   letter-spacing: 0.02em !important;
 }
@@ -189,7 +203,7 @@
 .el-tag--small {
   padding: 0 6px !important;
   height: 20px !important;
-  font-size: 11px !important;
+  font-size: var(--font-size-xs) !important;
 }
 
 /* 分页 */
@@ -288,7 +302,7 @@
 .el-dropdown-menu__item {
   border-radius: var(--radius-sm) !important;
   padding: 8px 12px !important;
-  font-size: 13px !important;
+  font-size: var(--font-size-base) !important;
 }
 
 /* Loading */
