@@ -135,7 +135,7 @@ onBeforeUnmount(() => controller?.abort())
   <el-drawer
     v-model="visible"
     size="640px"
-    :close-on-click-modal="false"
+    :close-on-click-modal="true"
     modal-class="cpr-drawer-modal"
     @closed="handleClosed"
   >
@@ -150,7 +150,7 @@ onBeforeUnmount(() => controller?.abort())
           <div class="cpr-field__bar">
             <div class="cpr-field__label">需求条目</div>
             <el-button size="small" :disabled="recommending" @click="reqSelectorVisible = true">
-              {{ requirementTitles.length ? '调整条目' : '＋ 从需求池选取' }}
+              {{ requirementTitles.length ? '调整条目' : '选择条目' }}
             </el-button>
           </div>
           <div class="cpr-field__row">
@@ -183,6 +183,15 @@ onBeforeUnmount(() => controller?.abort())
       </div>
 
       <div class="cpr-actions">
+        <div v-if="recommending" class="cpr-actions__progress">
+          <el-progress
+            :percentage="100"
+            :indeterminate="true"
+            :duration="2"
+            :stroke-width="4"
+            :show-text="false"
+          />
+        </div>
         <el-button v-if="recommending" @click="cancelRecommend">取消</el-button>
         <el-button type="primary" :loading="recommending" :disabled="!hasAnyInput" @click="recommend">
           {{ result ? '重新推荐' : '开始推荐' }}
@@ -312,6 +321,10 @@ onBeforeUnmount(() => controller?.abort())
   align-items: center;
   justify-content: flex-end;
   gap: 8px;
+}
+
+.cpr-actions__progress {
+  flex: 1;
 }
 
 .cpr-result-head {

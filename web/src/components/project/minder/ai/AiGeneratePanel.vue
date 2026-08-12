@@ -211,7 +211,7 @@ onBeforeUnmount(() => {
 <template>
   <el-drawer
     v-model="visible"
-    size="720px"
+    size="640px"
     :close-on-click-modal="true"
     modal-class="ai-panel-drawer-modal"
     @close="handleClose"
@@ -272,7 +272,7 @@ onBeforeUnmount(() => {
             @click="generate"
           >
             <el-icon><MagicStick /></el-icon>
-            <span>{{ phase === 'done' ? '重新生成' : '生成' }}</span>
+            <span>{{ phase === 'done' ? '重新生成' : '开始生成' }}</span>
           </el-button>
           <el-button v-else size="small" @click="stop">停止</el-button>
         </div>

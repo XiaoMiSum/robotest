@@ -177,7 +177,7 @@ defineExpose({ start })
 </script>
 
 <template>
-  <el-drawer v-model="visible" size="520px" :close-on-click-modal="false" :modal="false">
+  <el-drawer v-model="visible" size="640px" :close-on-click-modal="true" modal-class="ai-check-drawer-modal">
     <template #header>
       <div class="ai-check-header">
         <span class="ai-check-title"><el-icon><MagicStick /></el-icon> AI 检查</span>
@@ -187,7 +187,7 @@ defineExpose({ start })
     <div class="ai-check">
       <!-- 进行中：批次进度 + 取消任务 -->
       <template v-if="running">
-        <el-progress :percentage="task?.progress ?? 0" :stroke-width="10" />
+        <el-progress :percentage="task?.progress ?? 0" :stroke-width="4" />
         <div class="ai-check-progress-text">
           <span v-if="result">已检查 {{ result.checkedCaseCount }} / {{ result.totalCaseCount }} 条用例</span>
           <span>检查进行中…</span>
@@ -347,7 +347,12 @@ defineExpose({ start })
 
 .ai-check-actions {
   display: flex;
-  justify-content: center;
+  justify-content: flex-end;
   padding-top: 4px;
+}
+
+/* 透明遮罩：点击抽屉外空白处自动关闭，同时不压暗画布（交互设计 2.1，统一规格 2.9） */
+:deep(.ai-check-drawer-modal) {
+  background: transparent;
 }
 </style>
