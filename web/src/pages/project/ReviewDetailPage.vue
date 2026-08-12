@@ -165,6 +165,11 @@ async function handleCasesConfirm(selectedNodes: PlannedCases[]) {
   }
 }
 
+// 脑图内移除用例成功后：脑图组件已自 reload，此处仅刷新进度/统计与左侧快照树
+async function handleCasesRemoved() {
+  await load()
+}
+
 // 标记后刷新进度与状态（首次标记会自动转入评审中），避免整页 load 触发脑图重载丢失选中态
 async function refreshProgress() {
   try {
@@ -258,7 +263,15 @@ onMounted(load)
         <div v-if="!selectedDocId" class="review-detail__placeholder">
           <el-empty description="请在左侧选择一个文档" />
         </div>
-        <ReviewMindMap v-else ref="mindMapRef" :review-id="reviewId" :document-id="selectedDocId" @marked="refreshProgress" />
+        <ReviewMindMap
+          v-else
+          ref="mindMapRef"
+          :review-id="reviewId"
+          :document-id="selectedDocId"
+          :removable="detail?.status !== 'completed'"
+          @marked="refreshProgress"
+          @removed="handleCasesRemoved"
+        />
       </el-card>
     </div>
 

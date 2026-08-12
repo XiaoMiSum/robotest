@@ -17,7 +17,7 @@ export function caseNodeToKm(node: TestCaseNode): Record<string, unknown> {
 export function reviewNodeToKm(node: TestReviewSnapshotNode): Record<string, unknown> {
   return {
     data: {
-      id: node.id, text: node.title, type: node.type, priority: node.priority,
+      id: node.id, originalNodeId: node.originalNodeId, text: node.title, type: node.type, priority: node.priority,
       isAssociated: node.isAssociated, lastMark: node.lastMark,
       reviewStatus: node.lastMark ? { result: node.lastMark } : null,
       relatedBugIds: [],
@@ -30,7 +30,7 @@ export function reviewNodeToKm(node: TestReviewSnapshotNode): Record<string, unk
 export function planNodeToKm(node: TestPlanSnapshotNode): Record<string, unknown> {
   return {
     data: {
-      id: node.id, text: node.title, type: node.type, priority: node.priority,
+      id: node.id, originalNodeId: node.originalNodeId, text: node.title, type: node.type, priority: node.priority,
       isAssociated: node.isAssociated, lastResult: node.lastResult,
       executionStatus: node.lastResult ? { result: node.lastResult } : null,
       relatedBugIds: [],

@@ -141,6 +141,13 @@ async function handleCasesConfirm(selectedNodes: PlannedCases[]) {
   }
 }
 
+// 脑图内移除用例成功后：脑图组件已自 reload，此处仅刷新进度/统计与左侧快照树
+async function handleCasesRemoved() {
+  await load()
+  // 移除会改变快照结构，执行顺序推荐结果随之失效，刷新面板重新判定 stale（3.4.2）
+  orderPanelRef.value?.load()
+}
+
 // AI 回归子集推荐（US-AI-018，交互设计第 6 章）：勾选结果带入既有 CaseSelector 关联流程
 const recommendVisible = ref(false)
 
@@ -274,8 +281,10 @@ onMounted(load)
               ref="mindMapRef"
               :plan-id="planId"
               :document-id="selectedDocId"
+              :removable="canAdjustCases"
               @marked="refreshProgress"
               @order-select="handleOrderSelect"
+              @removed="handleCasesRemoved"
             />
           </el-card>
         </div>

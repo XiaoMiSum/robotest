@@ -5,14 +5,16 @@
  * 数据流与交互深度耦合，抽到 page 层会导致大量 props/emit 透传。
  * 设计文档第 13 节代码骨架同样在组件内直接调用 API。
  */
-import { onMounted, onBeforeUnmount, ref, watch } from 'vue'
-import { ElMessage } from 'element-plus'
+import { computed, onMounted, onBeforeUnmount, ref, watch } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   getReviewSnapshotTree,
+  getReviewPlannedCases,
   submitReviewRecord,
   getNodeReviewRecords,
+  updateReviewCases,
 } from '@/services/project'
-import type { ReviewMark, ReviewRecord } from '@/types'
+import type { PlannedCases, ReviewMark, ReviewRecord } from '@/types'
 import { formatDateTime } from '@/utils/format'
 // window.kity / window.kityminder 的类型声明在 minder/types.ts 中统一维护
 import { reviewNodeToKm } from './minder/adapter'
@@ -23,10 +25,10 @@ import { useContextMenu, type ContextMenuAnchorNode } from './minder/useContextM
 import MinderContextMenu from './minder/MinderContextMenu.vue'
 import MinderNavigator from './minder/MinderNavigator.vue'
 
-const props = defineProps<{ reviewId: string; documentId?: string }>()
+const props = defineProps<{ reviewId: string; documentId?: string; removable?: boolean }>()
 
 // 标记成功后通知详情页刷新进度，否则页头进度条需手动刷新才能更新
-const emit = defineEmits<{ marked: [] }>()
+const emit = defineEmits<{ marked: []; removed: [] }>()
 
 // 基座选中状态（id/type）之上的扩展字段：当前节点的评审标记
 const reviewResult = ref<string | null>(null)
@@ -114,6 +116,45 @@ async function markReview(mark: ReviewMark | null) {
   }
 }
 
+// 移除选中用例：仅已关联 case 节点可移除，剔除后走全量覆盖接口（后端按新列表重刷快照关联）
+async function removeSelectedCase() {
+  if (!props.removable) return
+  if (selectedType.value !== 'case') {
+    ElMessage.warning('仅关联用例节点可移除')
+    return
+  }
+  const data = getSelectedNodeData()
+  const originalNodeId = data?.originalNodeId as string | undefined
+  // 快照含文档全部节点，仅关联节点才在规划列表中，未关联的 case 无关联可删
+  if (!originalNodeId || data?.isAssociated !== true) {
+    ElMessage.warning('该用例未关联，无需移除')
+    return
+  }
+  try {
+    await ElMessageBox.confirm(
+      `确定从该评审中移除用例「${data.text as string}」吗？移除后该用例及其评审标记将不再展示，历史标记记录保留作审计。`,
+      '移除用例',
+      { type: 'warning' },
+    )
+  } catch { return }
+  try {
+    const planned = await getReviewPlannedCases(props.reviewId)
+    const next = planned
+      .map((doc) => ({
+        documentId: doc.documentId,
+        // 剔除目标用例；该文档剩余用例为空时整文档移除（后端删文档快照并清理空目录）
+        caseIds: doc.caseIds.filter((id) => id !== originalNodeId),
+      }))
+      .filter((doc) => doc.caseIds.length > 0) as PlannedCases[]
+    await updateReviewCases(props.reviewId, next)
+    ElMessage.success('已移除用例')
+    emit('removed')
+    await initMinder()
+  } catch (err) {
+    ElMessage.error(err instanceof Error ? err.message : '移除用例失败')
+  }
+}
+
 async function openComments() {
   if (!props.reviewId || !selectedNodeId.value) {
     ElMessage.warning('请先选中一个节点')
@@ -142,6 +183,9 @@ async function addCommentFn() {
     ElMessage.error(err instanceof Error ? err.message : '发送评论失败')
   }
 }
+
+// 移除按钮可用态：评审未完成（详情页传入）且当前选中为已关联 case 节点
+const canRemove = computed(() => props.removable === true && selectedType.value === 'case')
 
 // ==================== 右键菜单 ====================
 const {
@@ -197,6 +241,7 @@ onBeforeUnmount(() => {
         <el-button :type="reviewResult===null?'info':''" @click="markReview(null)">❓待评审</el-button>
       </el-button-group>
       <el-button size="small" @click="openComments">💬评论</el-button>
+      <el-button v-if="removable" size="small" :disabled="!canRemove" @click="removeSelectedCase">🗑移除用例</el-button>
     </div>
 
     <!-- 脑图画布 -->
@@ -222,6 +267,7 @@ onBeforeUnmount(() => {
       <div class="mindmap-context-menu__item mindmap-context-menu__item--indent" @click="markReview(null)">待评审</div>
       <div class="mindmap-context-menu__divider" />
       <div class="mindmap-context-menu__item" @click="openComments">添加评论</div>
+      <div v-if="removable" class="mindmap-context-menu__item mindmap-context-menu__item--danger" @click="removeSelectedCase">从评审中移除</div>
     </MinderContextMenu>
 
     <!-- 评论抽屉 -->

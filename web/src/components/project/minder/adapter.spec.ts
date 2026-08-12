@@ -61,7 +61,7 @@ describe('reviewNodeToKm', () => {
 
   it('lastMark 存在时生成 reviewStatus', () => {
     const km = reviewNodeToKm(node)
-    expect(km.data).toMatchObject({ id: 'r1', lastMark: 'pass', reviewStatus: { result: 'pass' } })
+    expect(km.data).toMatchObject({ id: 'r1', originalNodeId: 'n1', lastMark: 'pass', reviewStatus: { result: 'pass' } })
   })
 
   it('lastMark 为空时 reviewStatus 为 null', () => {
@@ -88,7 +88,7 @@ describe('planNodeToKm', () => {
 
   it('lastResult 存在时生成 executionStatus', () => {
     const km = planNodeToKm(node)
-    expect(km.data).toMatchObject({ id: 'p1', lastResult: 'fail', executionStatus: { result: 'fail' } })
+    expect(km.data).toMatchObject({ id: 'p1', originalNodeId: 'n1', lastResult: 'fail', executionStatus: { result: 'fail' } })
   })
 
   it('lastResult 为空时 executionStatus 为 null', () => {
