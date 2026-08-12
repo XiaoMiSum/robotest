@@ -278,7 +278,7 @@ onBeforeUnmount(() => {
 
       <!-- 生成中/生成完毕：SSE 无真实进度信息，以虚假进度条占位（交互设计 2.2，不再逐字上屏） -->
       <div v-if="phase === 'streaming'" class="ai-panel-output ai-panel-output--progress">
-        <el-progress :percentage="100" :indeterminate="true" :duration="2" :stroke-width="10" />
+        <el-progress :percentage="100" :indeterminate="true" :duration="2" :stroke-width="10" :show-text="false" />
         <div class="ai-panel-progress-tip">正在生成测试用例，请稍候…</div>
       </div>
       <div v-else-if="phase === 'done'" class="ai-panel-output ai-panel-output--progress">
@@ -289,7 +289,7 @@ onBeforeUnmount(() => {
           show-icon
           title="挂载目标已被删除，查看预览后可重新选择挂载位置"
         />
-        <el-progress v-else :percentage="100" :stroke-width="10" status="success" />
+        <el-progress v-else :percentage="100" :stroke-width="10" status="success" :show-text="false" />
         <div v-if="!targetMissing" class="ai-panel-progress-tip">生成完成，点击下方「查看预览」在脑图中核对并勾选取舍</div>
       </div>
 
