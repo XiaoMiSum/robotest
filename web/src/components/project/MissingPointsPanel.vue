@@ -250,10 +250,19 @@ onBeforeUnmount(() => controller?.abort())
       </div>
 
       <div class="mp-actions">
+        <div v-if="analyzing" class="mp-actions__progress">
+          <el-progress
+            :percentage="100"
+            :indeterminate="true"
+            :duration="2"
+            :stroke-width="4"
+            :show-text="false"
+          />
+        </div>
+        <el-button v-if="analyzing" @click="cancelAnalyze">取消</el-button>
         <el-button type="primary" :loading="analyzing" :disabled="!hasAnyInput" @click="analyze">
           {{ result ? '重新分析' : '开始分析' }}
         </el-button>
-        <el-button v-if="analyzing" @click="cancelAnalyze">取消</el-button>
       </div>
 
       <!-- 关键词版恒为语义降级，顶部提示（交互设计 4.3） -->
@@ -390,7 +399,14 @@ onBeforeUnmount(() => controller?.abort())
 .mp-actions {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 8px;
+}
+
+/* 分析中虚假进度条：占满按钮组剩余空间，纤细线宽（同 AI 生成抽屉） */
+.mp-actions__progress {
+  flex: 1;
+  min-width: 0;
 }
 
 .mp-result-head {
