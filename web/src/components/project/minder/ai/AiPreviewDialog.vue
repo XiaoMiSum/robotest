@@ -161,7 +161,7 @@ onBeforeUnmount(() => {
 <template>
   <el-dialog
     v-model="visible"
-    width="920px"
+    width="95%"
     append-to-body
     destroy-on-close
     :close-on-click-modal="true"
@@ -195,6 +195,20 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped lang="scss">
+// 预览弹窗占屏幕 95%（交互设计 2.1：脑图快照空间越大越便于核对取舍）：
+// 高度经 flex 布局由 header/body/footer 弹性撑满，脑图容器吃掉剩余空间
+:deep(.ai-preview-dialog) {
+  height: 95vh;
+  margin: 2.5vh auto;
+  display: flex;
+  flex-direction: column;
+}
+
+:deep(.ai-preview-dialog .el-dialog__body) {
+  flex: 1;
+  min-height: 0;
+}
+
 .ai-preview-dialog__title {
   display: inline-flex;
   align-items: center;
@@ -206,6 +220,7 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  height: 100%;
 }
 
 .ai-preview-dialog__target {
@@ -216,9 +231,10 @@ onBeforeUnmount(() => {
   color: var(--el-text-color-secondary);
 }
 
-// 脑图容器：预览快照仅展示于此，画布不参与编辑与协同
+// 脑图容器：预览快照仅展示于此，画布不参与编辑与协同；flex:1 吃掉 body 剩余高度
 .ai-preview-dialog__minder {
-  height: 420px;
+  flex: 1;
+  min-height: 0;
   overflow: hidden;
   border: 1px solid var(--el-border-color-lighter);
   border-radius: 4px;
