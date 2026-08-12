@@ -49,8 +49,8 @@ public class AiSettingDefinitions {
         addInt("clustering", "聚类分析", "clustering.maxLabeledClusters", "最大标注簇数", "生成标签的最大聚类簇数", 30, 1.0, 100.0);
         // 检索与推荐
         addInt("retrieval", "检索与推荐", "missingPoint.topK", "遗漏点检索条数", "遗漏测试点分析检索的候选条数", 100, 1.0, null);
-        addInt("retrieval", "检索与推荐", "regression.topK", "回归推荐条数", "回归子集推荐检索的候选条数", 50, 1.0, null);
-        addNumber("retrieval", "检索与推荐", "regression.similarityThreshold", "回归相似度阈值", "回归子集推荐的相似度阈值", 0.7, 0.0, 1.0, 0.01);
+        addInt("retrieval", "检索与推荐", "planRecommend.topK", "用例规划推荐条数", "用例规划智能推荐检索的候选条数", 50, 1.0, null);
+        addNumber("retrieval", "检索与推荐", "planRecommend.similarityThreshold", "用例规划推荐相似度阈值", "用例规划智能推荐的相似度阈值", 0.7, 0.0, 1.0, 0.01);
         // 执行顺序推荐（权重之和 = 1）
         addWeights("planOrder", "执行顺序推荐", "planOrder.weights", "推荐权重", "执行顺序推荐三项权重（之和须为 1）",
                 new LinkedHashMap<>(Map.of("w1", 0.5, "w2", 0.3, "w3", 0.2)));

@@ -11,7 +11,7 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * AI 模块树支撑：模块树索引、路径构建与子树收集（Regression / MissingPoint / PlanOrder 共用）。
+ * AI 模块树支撑：模块树索引、路径构建与子树收集（MissingPoint / PlanOrder / CasePlanRecommend 共用）。
  */
 public final class AiModuleTreeSupport {
 

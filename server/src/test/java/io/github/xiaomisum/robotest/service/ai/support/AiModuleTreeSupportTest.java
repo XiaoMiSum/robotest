@@ -15,7 +15,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * AiModuleTreeSupport 纯函数单测：索引构建、路径构建（乱序输入回溯缓存）、
- * 子树文档收集与模块收集（Regression / MissingPoint / PlanOrder 共用）。
+ * 子树文档收集与模块收集（MissingPoint / PlanOrder / CasePlanRecommend 共用）。
  */
 class AiModuleTreeSupportTest {
 

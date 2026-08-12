@@ -2,23 +2,23 @@ package io.github.xiaomisum.robotest.controller.project;
 
 import io.github.xiaomisum.robotest.framework.security.LoginUser;
 import io.github.xiaomisum.robotest.model.dto.request.ai.AiCaseGenerateReqDTO;
+import io.github.xiaomisum.robotest.model.dto.request.ai.AiCasePlanRecommendReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.ai.AiMissingPointReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.ai.AiPlanOrderReasonReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.ai.AiPriorityRecommendReqDTO;
-import io.github.xiaomisum.robotest.model.dto.request.ai.AiRegressionRecommendReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.ai.AiStepCompleteReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.ai.AiTextImportReqDTO;
+import io.github.xiaomisum.robotest.model.dto.response.ai.AiCasePlanRecommendRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiMissingPointRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiPlanOrderComputeRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiPlanOrderQueryRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiPlanOrderReasonRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiPriorityRecommendRespDTO;
-import io.github.xiaomisum.robotest.model.dto.response.ai.AiRegressionRecommendRespDTO;
 import io.github.xiaomisum.robotest.service.ai.casegen.AiCaseGenerationService;
 import io.github.xiaomisum.robotest.service.ai.casegen.AiMissingPointService;
+import io.github.xiaomisum.robotest.service.ai.recommend.AiCasePlanRecommendService;
 import io.github.xiaomisum.robotest.service.ai.recommend.AiPlanOrderRecommendService;
 import io.github.xiaomisum.robotest.service.ai.recommend.AiPriorityRecommendService;
-import io.github.xiaomisum.robotest.service.ai.recommend.AiRegressionRecommendService;
 import xyz.migoo.framework.common.pojo.Result;
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
@@ -49,7 +49,7 @@ public class AiCaseController {
     private AiMissingPointService aiMissingPointService;
 
     @Resource
-    private AiRegressionRecommendService aiRegressionRecommendService;
+    private AiCasePlanRecommendService aiCasePlanRecommendService;
 
     @Resource
     private AiPlanOrderRecommendService aiPlanOrderRecommendService;
@@ -72,13 +72,13 @@ public class AiCaseController {
         return Result.ok(aiMissingPointService.analyze(loginUser.getId(), workspaceId, projectId, reqDTO));
     }
 
-    @PostMapping("/plans/regression-recommend")
-    public Result<AiRegressionRecommendRespDTO> regressionRecommend(
+    @PostMapping("/cases/plan-recommend")
+    public Result<AiCasePlanRecommendRespDTO> planRecommend(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestHeader("X-Active-Workspace") UUID workspaceId,
             @RequestHeader("X-Active-Project") UUID projectId,
-            @RequestBody @Valid AiRegressionRecommendReqDTO reqDTO) {
-        return Result.ok(aiRegressionRecommendService.recommend(loginUser.getId(), workspaceId, projectId, reqDTO));
+            @RequestBody @Valid AiCasePlanRecommendReqDTO reqDTO) {
+        return Result.ok(aiCasePlanRecommendService.recommend(loginUser.getId(), workspaceId, projectId, reqDTO));
     }
 
     @PostMapping("/plans/{id}/order-recommend")
