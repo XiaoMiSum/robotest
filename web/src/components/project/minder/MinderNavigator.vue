@@ -39,8 +39,9 @@ const originY = computed(() => zoomRatio(100) * PAN_HEIGHT)
 const atMaxZoom = computed(() => zoomRatio(zoom.value) === 0)
 const atMinZoom = computed(() => zoomRatio(zoom.value) === 1)
 
-function zoomIn() { m.execCommand('zoom-in') }
-function zoomOut() { m.execCommand('zoom-out') }
+// kityminder-core 注册的命令名是 zoomin/zoomout（无连字符），文档 §5.4 沿用旧名已同步更正
+function zoomIn() { m.execCommand('zoomin') }
+function zoomOut() { m.execCommand('zoomout') }
 function restoreSize() { m.execCommand('zoom', 100) }
 
 function onZoomEvent(e: MinderEvent) {
