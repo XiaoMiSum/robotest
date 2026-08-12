@@ -9,11 +9,11 @@ import type { Minder, MinderEvent, MinderNode } from '../types'
 
 /**
  * AI 生成结果独立预览弹窗（交互设计 2.1/2.2/2.3）：
- * 生成弹窗点击 [查看预览] 后打开（两窗并存、本弹窗置顶）；以裸 kityminder 只读实例渲染
+ * 生成抽屉点击 [查看预览] 后打开（两窗并存、本弹窗置顶）；以裸 kityminder 只读实例渲染
  * 生成节点树快照（纯本地组装不落库、不产生撤销历史），仅用例节点带勾选框可点击取舍，
  * 其内部结构（前置/步骤/预期）随所属用例级联挂载。
  * 勾选状态（aiSelected）仅存于本弹窗工作副本，关闭即丢弃（纯预览约束）；确认挂载后由
- * 生成弹窗透传节点树给脑图组件执行挂载。
+ * 生成抽屉透传节点树给脑图组件执行挂载。
  */
 const props = defineProps<{
   nodes: AiPreviewNode[]
@@ -155,7 +155,7 @@ function handleConfirm(): void {
 }
 
 function handleClose(): void {
-  // 仅关闭预览弹窗：生成弹窗保留「完成」态，可重新打开预览（交互设计 2.2）
+  // 仅关闭预览弹窗：生成抽屉保留「完成」态，可重新打开预览（交互设计 2.2）
   visible.value = false
 }
 

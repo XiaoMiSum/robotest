@@ -11,7 +11,7 @@ import { AI_PANEL_MODES, type AiPanelMode } from './aiPanelModes'
 import AiPreviewDialog from './AiPreviewDialog.vue'
 
 /**
- * AI 生成弹窗（US-AI-001/002，交互设计 2.1/2.2/3.1）：
+ * AI 生成抽屉（US-AI-001/002，交互设计 2.1/2.2/3.1）：
  * 文本输入 → SSE 流式输出 → done 后组装生成节点树预览（仅用例节点可勾选，内部结构随用例级联挂载）→ 确认挂载（由父组件执行）。
  * 预览为纯前端本地快照，不写编辑内核/不落库；只有确认挂载后才经既有通道批量插入（交互设计 2.2 纯预览约束）。
  * 两种模式差异集中在 aiPanelModes 配置表；需求条目区（US-AI-004）供 generate/complete 消费。
@@ -51,7 +51,7 @@ const requirementSelectorVisible = ref(false)
 /** 超 10 秒未见首帧的可取消提示（AI 通用交互规范 2.3） */
 const slowHint = ref(false)
 
-/** 独立预览弹窗显隐：done 后点击 [查看预览] 打开，关闭后生成弹窗保留「完成」态（交互设计 2.2） */
+/** 独立预览弹窗显隐：done 后点击 [查看预览] 打开，关闭后生成抽屉保留「完成」态（交互设计 2.2） */
 const previewDialogVisible = ref(false)
 
 let controller: AiStreamController | null = null
@@ -143,7 +143,7 @@ function openPreview(): void {
 }
 
 function handlePreviewConfirm(nodes: AiGeneratedNode[]): void {
-  // 挂载执行由父组件完成；成功后父组件会一并关闭生成弹窗（连带本预览弹窗）
+  // 挂载执行由父组件完成；成功后父组件会一并关闭生成抽屉（连带本预览弹窗）
   emit('mount', nodes)
 }
 
@@ -188,10 +188,11 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <el-dialog
+  <el-drawer
     v-model="visible"
-    width="720px"
+    size="720px"
     :close-on-click-modal="true"
+    modal-class="ai-panel-drawer-modal"
     @close="handleClose"
   >
     <template #header>
@@ -297,10 +298,10 @@ onBeforeUnmount(() => {
       </div>
     </div>
 
-  </el-dialog>
+  </el-drawer>
 
   <!-- 独立预览弹窗：脑图文档形式，本地快照不落库（交互设计 2.1/2.2）。
-       必须与生成弹窗平级而非嵌套：嵌套时外层 dialog 更新期间经 v-if 动态挂载
+       必须与生成抽屉平级而非嵌套：嵌套时外层 dialog 更新期间经 v-if 动态挂载
        append-to-body 子 dialog 会触发 Vue teleport anchor 崩溃（nextSibling null），
        Element Plus 官方亦不推荐嵌套 Dialog；平级渲染后两窗并存、预览置顶 -->
   <AiPreviewDialog
@@ -314,6 +315,11 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped lang="scss">
+/* 透明遮罩：点击抽屉外空白处自动关闭，同时不压暗画布（交互设计 2.1） */
+:deep(.ai-panel-drawer-modal) {
+  background: transparent;
+}
+
 .ai-panel-title {
   display: inline-flex;
   align-items: center;
