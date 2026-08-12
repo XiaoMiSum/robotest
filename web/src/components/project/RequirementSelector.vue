@@ -1,18 +1,15 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
-import { createRequirement, fetchRequirements } from '@/services/project'
+import { fetchRequirements } from '@/services/project'
 import type { RequirementPoolItem, RequirementSummary } from '@/types'
 
 /**
  * 需求条目选取器（US-AI-004 交互设计 6.2，可复用）：
- * 供「文档关联」「AI 生成/补全」入口调用。跨页多选以 selected Map 保序保留。
- * draftText 非空时（AI 入口临时文本）展示「保存为需求池条目」入口。
+ * 供「文档关联」「AI 生成/补全」「遗漏测试点分析」「回归子集推荐」入口调用。跨页多选以 selected Map 保序保留。
  */
 const props = defineProps<{
   selectedIds?: string[]
-  /** AI 入口的临时需求文本，非空时可一键另存为条目并自动勾选 */
-  draftText?: string
 }>()
 
 const visible = defineModel<boolean>({ required: true })
@@ -29,7 +26,6 @@ const pageNo = ref(1)
 const pageSize = ref(10)
 // 跨页保留选择：id → title，保序
 const selected = ref<Map<string, string>>(new Map())
-const savingDraft = ref(false)
 
 async function load() {
   loading.value = true
@@ -63,24 +59,6 @@ function search(): void {
 function handlePageChange(page: number): void {
   pageNo.value = page
   load()
-}
-
-async function saveDraft(): Promise<void> {
-  const text = (props.draftText ?? '').trim()
-  if (!text) return
-  savingDraft.value = true
-  try {
-    // 标题预填文本首行（截断 200），内容为完整临时文本
-    const title = text.split('\n')[0].slice(0, 200)
-    const id = await createRequirement({ title, content: text })
-    toggle(id, title, true)
-    ElMessage.success('已保存为需求池条目并勾选')
-    search()
-  } catch (err) {
-    ElMessage.error(err instanceof Error ? err.message : '保存失败')
-  } finally {
-    savingDraft.value = false
-  }
 }
 
 function confirm(): void {
@@ -148,7 +126,6 @@ watch(
 
     <template #footer>
       <div class="req-selector__footer">
-        <el-button v-if="draftText" :loading="savingDraft" @click="saveDraft">保存为需求池条目</el-button>
         <span class="req-selector__count">已选 {{ selected.size }} 条</span>
         <el-button @click="visible = false">取消</el-button>
         <el-button type="primary" @click="confirm">确定</el-button>
