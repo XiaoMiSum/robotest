@@ -113,11 +113,14 @@ async function handleRequirementConfirm(selected: RequirementSummary[]) {
   }
 }
 
-const aiPanelVisible = ref(false)
+// 生成/补全双实例各自常驻：关闭抽屉仅隐藏，会话随实例保留（交互设计 2.2）
+// 重置信号仅当目标节点变化（complete）/ 外部带新文本发起时自增，触发组件内全量重置
+const aiGenerateVisible = ref(false)
+const aiCompleteVisible = ref(false)
+const aiGenerateSession = ref(0)
+const aiCompleteSession = ref(0)
+/** 当前激活的抽屉模式（generate/complete），供挂载后关闭对应实例 */
 const aiPanelMode = ref<AiPanelMode>('generate')
-// 每次打开动作自增并并入组件 key：抽屉非模态，打开期间仍可从工具栏/右键再次发起，
-// 仅靠 mode 作 key 时同模式重复打开不会重建，旧输入/旧预览会残留并挂到新目标
-const aiPanelSession = ref(0)
 /** 外部跳转（?aiGenerate=）带入抽屉的预填文本 */
 const aiInitialText = ref('')
 const aiTargetNodeId = ref('')
@@ -153,6 +156,7 @@ function findNodePath(node: MountTargetSource | null, id: string): string[] | nu
 }
 
 // 打开生成抽屉时锁定挂载目标：当前选中节点，未选中默认文档根节点（SRS 3.2.1）
+// generate 会话绑定文档：目标节点变化不重置，仅切换文档时由组件内 watch 重置（交互设计 2.2）
 function openAiPanel() {
   const root = getLiveRoot()
   if (!root) return
@@ -164,8 +168,8 @@ function openAiPanel() {
   aiPanelMode.value = 'generate'
   aiInitialText.value = ''
   aiPendingNodes.value = null
-  aiPanelSession.value++
-  aiPanelVisible.value = true
+  aiGenerateVisible.value = true
+  aiCompleteVisible.value = false
 }
 
 function openAiGeneratePrefilled(text: string, root: MountTargetSource): void {
@@ -176,8 +180,10 @@ function openAiGeneratePrefilled(text: string, root: MountTargetSource): void {
   aiPanelMode.value = 'generate'
   aiInitialText.value = text
   aiPendingNodes.value = null
-  aiPanelSession.value++
-  aiPanelVisible.value = true
+  // 外部带新需求文本发起（遗漏测试点转生成 / ?aiGenerate=）视为新会话：重置生成实例
+  aiGenerateSession.value++
+  aiGenerateVisible.value = true
+  aiCompleteVisible.value = false
 }
 
 let aiReadyPollTimer: ReturnType<typeof setInterval> | null = null
@@ -211,19 +217,22 @@ function openAiGenerateWithText(text: string): void {
 }
 
 // 右键 case 节点「AI 补全步骤」：目标锁定该 case，不可重选（交互设计 3.1）
+// complete 会话绑定目标节点：右键新节点才重置，同节点重开保持上次结果（交互设计 3.1）
 function openAiCompletePanel() {
   const root = getLiveRoot()
   const selected = getSelectedNodeData()
   if (!root || !selected || selected.type !== 'case') return
   const targetId = (selected.id as string) || ''
   if (!targetId) return
+  const targetChanged = targetId !== aiTargetNodeId.value
   aiTargetNodeId.value = targetId
   aiTargetPath.value = (findNodePath(root, targetId) ?? []).join(' > ')
   aiPanelMode.value = 'complete'
   aiInitialText.value = ''
   aiPendingNodes.value = null
-  aiPanelSession.value++
-  aiPanelVisible.value = true
+  if (targetChanged) aiCompleteSession.value++
+  aiCompleteVisible.value = true
+  aiGenerateVisible.value = false
 }
 
 // 确认挂载：目标存在则经挂载执行器批量创建（单撤销组，自动搭上协同与落库管道）
@@ -246,7 +255,11 @@ function handleAiMount(nodes: AiGeneratedNode[]) {
   }
   ElMessage.success(`已挂载 ${count} 个 AI 生成节点`)
   aiPendingNodes.value = null
-  aiPanelVisible.value = false
+  if (aiPanelMode.value === 'complete') {
+    aiCompleteVisible.value = false
+  } else {
+    aiGenerateVisible.value = false
+  }
 }
 
 function buildReselectTree(node: MountTargetSource | null): ReselectTreeNode[] {
@@ -760,9 +773,13 @@ const {
 
 // ==================== 生命周期 ====================
 // 页面上下文桥（4.4）：挂载/切换文档时注册，卸载时注销，助手消息据此注入 documentId
+// 切换文档：关闭各 AI 抽屉（组件内 watch docId 各自重置会话，交互设计 2.2 会话保持）
 watch(
   () => props.docId,
   (docId) => {
+    aiGenerateVisible.value = false
+    aiCompleteVisible.value = false
+    missingPointsVisible.value = false
     assistantContext.registerMindMap(docId)
     void initMinder()
   },
@@ -961,17 +978,29 @@ defineExpose({ openAiGenerateWithText })
       <div class="mindmap-context-menu__item mindmap-context-menu__item--danger menu-action" @click="deleteNode"><span>删除节点</span><span class="menu-shortcut">Delete</span></div>
     </MinderContextMenu>
 
-    <!-- AI 生成抽屉：右侧滑出、透明遮罩不压暗画布，预览为本地快照不落库（交互设计 2.1/2.2）；key 保证模式切换重建 -->
+    <!-- AI 生成用例抽屉（常驻挂载，关闭仅隐藏、会话保留，仅切换文档重置）：右侧滑出、透明遮罩不压暗画布，预览为本地快照不落库（交互设计 2.1/2.2） -->
     <AiGeneratePanel
-      v-if="aiPanelVisible"
-      :key="`${aiPanelMode}-${aiPanelSession}`"
-      v-model="aiPanelVisible"
-      :mode="aiPanelMode"
+      v-model="aiGenerateVisible"
+      mode="generate"
       :doc-id="props.docId"
       :target-node-id="aiTargetNodeId"
       :target-path="aiTargetPath"
       :get-doc-tree="getLiveRoot"
       :initial-text="aiInitialText"
+      :reset-token="aiGenerateSession"
+      @mount="handleAiMount"
+    />
+
+    <!-- AI 补全步骤抽屉（常驻挂载，同节点重开保持、目标变化重置）：交互设计 3.1 -->
+    <AiGeneratePanel
+      v-model="aiCompleteVisible"
+      mode="complete"
+      :doc-id="props.docId"
+      :target-node-id="aiTargetNodeId"
+      :target-path="aiTargetPath"
+      :get-doc-tree="getLiveRoot"
+      :initial-text="aiInitialText"
+      :reset-token="aiCompleteSession"
       @mount="handleAiMount"
     />
 

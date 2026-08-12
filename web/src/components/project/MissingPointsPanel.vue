@@ -86,12 +86,22 @@ async function loadDocumentRequirements(): Promise<void> {
 }
 
 // 每次打开重新同步关联条目，上次手动调整不残留（同 AiGeneratePanel）
+watch(visible, (open) => {
+  if (open) void loadDocumentRequirements()
+})
+
+/** 切换文档：中断进行中的分析并重置整份会话（交互设计 4.2 会话保持，绑定文档生命周期） */
 watch(
-  visible,
-  (open) => {
-    if (open) void loadDocumentRequirements()
+  () => props.docId,
+  () => {
+    cancelAnalyze()
+    keywords.value = []
+    text.value = ''
+    requirementIds.value = []
+    requirementTitles.value = []
+    result.value = null
+    checkedIndexes.value = new Set()
   },
-  { immediate: true },
 )
 
 function buildReq(): AiMissingPointReq | null {
@@ -182,7 +192,6 @@ onBeforeUnmount(() => controller?.abort())
     :modal="true"
     :close-on-click-modal="true"
     modal-class="mp-drawer-modal"
-    @closed="cancelAnalyze"
   >
     <template #header>
       <span class="mp-title"><el-icon><MagicStick /></el-icon> 遗漏测试点分析</span>
