@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { onMounted, ref, computed, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
-import { fetchModuleTree, fetchDocumentNodes } from '@/services/project'
+import { fetchDocumentNodes, fetchModuleTree } from '@/services/project'
 import CaseSelectTree from '@/components/project/CaseSelectTree.vue'
 import type { TestCaseModule, TestCaseNode } from '@/types'
 
@@ -102,7 +102,9 @@ const filterSets = computed(() => {
 
 const totalSelected = computed(() => {
   let count = 0
-  Object.values(selectedMap.value).forEach((set) => { count += set.size })
+  Object.values(selectedMap.value).forEach((set) => {
+    count += set.size
+  })
   return count
 })
 
@@ -183,29 +185,35 @@ function handleConfirm() {
   close()
 }
 
-watch(() => props.modelValue, (val) => {
-  if (val) {
-    const map: Record<string, Set<string>> = {}
-    props.initialSelected?.forEach((s) => {
-      map[s.documentId] = new Set(s.caseIds)
-    })
-    selectedMap.value = map
-    docNodes.value = null
-    selectedDocId.value = ''
-    filterKeyword.value = ''
-    filterPriority.value = ''
-    loadModules()
-  }
-})
+watch(
+  () => props.modelValue,
+  (val) => {
+    if (val) {
+      const map: Record<string, Set<string>> = {}
+      props.initialSelected?.forEach((s) => {
+        map[s.documentId] = new Set(s.caseIds)
+      })
+      selectedMap.value = map
+      docNodes.value = null
+      selectedDocId.value = ''
+      filterKeyword.value = ''
+      filterPriority.value = ''
+      loadModules()
+    }
+  },
+)
 
-onMounted(() => { if (props.modelValue) loadModules() })
+onMounted(() => {
+  if (props.modelValue) loadModules()
+})
 </script>
 
 <template>
   <el-dialog
+    class="case-selector-dialog"
     :model-value="modelValue"
     title="选择关联用例"
-    width="960px"
+    width="1500px"
     @update:model-value="close"
   >
     <div class="case-selector">
@@ -236,12 +244,7 @@ onMounted(() => { if (props.modelValue) loadModules() })
         </div>
         <div v-else v-loading="docLoading" class="case-selector__body">
           <div class="case-selector__filters">
-            <el-input
-              v-model="filterKeyword"
-              size="small"
-              placeholder="搜索用例名称"
-              clearable
-            >
+            <el-input v-model="filterKeyword" size="small" placeholder="搜索用例名称" clearable>
               <template #prefix>
                 <el-icon><Search /></el-icon>
               </template>
@@ -259,7 +262,9 @@ onMounted(() => { if (props.modelValue) loadModules() })
           <div class="case-selector__toolbar">
             <el-checkbox v-model="showFullDoc" size="small">展示全量文档视图</el-checkbox>
             <div class="case-selector__toolbar-right">
-              <span class="case-selector__tip">{{ single ? '仅可关联一个用例，再次选择将替换' : '勾选任意节点，其子孙用例将一并规划' }}</span>
+              <span class="case-selector__tip">{{
+                single ? '仅可关联一个用例，再次选择将替换' : '勾选任意节点，其子孙用例将一并规划'
+              }}</span>
               <span class="case-selector__count">已选 {{ totalSelected }} 个用例</span>
             </div>
           </div>
@@ -293,7 +298,7 @@ onMounted(() => { if (props.modelValue) loadModules() })
 <style scoped lang="scss">
 .case-selector {
   display: flex;
-  height: 480px;
+  height: 100%;
   gap: 12px;
 }
 
@@ -367,5 +372,24 @@ onMounted(() => { if (props.modelValue) loadModules() })
   flex: 1;
   overflow: auto;
   padding: 8px 4px;
+}
+</style>
+
+// 弹窗根元素（.el-dialog）无组件 scopeId，scoped 选择器无法命中根元素；
+// class 经 fallthrough attrs 透传至根元素，故高度布局须用全局样式 + class 锚点（同 AiPreviewDialog）。
+<style lang="scss">
+.case-selector-dialog {
+  position: relative;
+  height: 80vh;
+  margin: 10vh auto;
+  display: flex;
+  flex-direction: column;
+
+  .el-dialog__body {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+  }
 }
 </style>
