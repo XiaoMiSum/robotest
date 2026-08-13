@@ -2,6 +2,7 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
 import {
+  archiveRequirement,
   createRequirement,
   deleteRequirement,
   fetchRequirements,
@@ -14,13 +15,15 @@ import type { RequirementPoolItem } from '@/types'
 import MarkdownEditor from '@/components/common/MarkdownEditor.vue'
 
 const authStore = useAuthStore()
-// 编辑/删除入口按权限点显隐；后端按"创建人或项目管理权限"强校验兜底
+// 编辑/删除/归档入口按权限点显隐；后端按"创建人或项目管理权限"强校验兜底
 const canEdit = computed(() => authStore.hasPermission('requirement:edit'))
 
 const loading = ref(false)
 const items = ref<RequirementPoolItem[]>([])
 const total = ref(0)
 const keyword = ref('')
+// 状态筛选：空串表示全部（后端 status 缺省返回全部）
+const statusFilter = ref<string>('')
 const pageNo = ref(1)
 const pageSize = ref(20)
 
@@ -29,6 +32,7 @@ async function load() {
   try {
     const page = await fetchRequirements({
       keyword: keyword.value || undefined,
+      status: statusFilter.value || undefined,
       pageNo: pageNo.value,
       pageSize: pageSize.value,
     })
@@ -48,6 +52,7 @@ function search() {
 
 function handleReset() {
   keyword.value = ''
+  statusFilter.value = ''
   pageNo.value = 1
   load()
 }
@@ -150,6 +155,28 @@ async function handleDelete(id: string) {
   }
 }
 
+async function handleArchive(row: RequirementPoolItem) {
+  const archived = row.status !== 'archived'
+  try {
+    await ElMessageBox.confirm(
+      archived
+        ? '归档后条目不可编辑，且不再被 AI 功能选用。确定归档？'
+        : '恢复为启用状态，重新参与 AI 选用。确定取消归档？',
+      archived ? '归档需求条目' : '取消归档',
+      { type: 'warning' },
+    )
+  } catch {
+    return
+  }
+  try {
+    await archiveRequirement(row.id, archived)
+    ElMessage.success(archived ? '已归档' : '已取消归档')
+    load()
+  } catch (err) {
+    ElMessage.error(err instanceof Error ? err.message : '操作失败')
+  }
+}
+
 onMounted(load)
 </script>
 
@@ -168,6 +195,16 @@ onMounted(load)
           >
             <template #prefix><el-icon><Search /></el-icon></template>
           </el-input>
+          <el-select
+            v-model="statusFilter"
+            placeholder="状态"
+            clearable
+            class="requirement-pool__status"
+            @change="search"
+          >
+            <el-option label="启用" value="active" />
+            <el-option label="已归档" value="archived" />
+          </el-select>
           <el-button type="primary" @click="search">
             <el-icon><Search /></el-icon>查询
           </el-button>
@@ -187,14 +224,25 @@ onMounted(load)
             <span v-else class="requirement-pool__muted">—</span>
           </template>
         </el-table-column>
+        <el-table-column label="状态" width="100">
+          <template #default="{ row }">
+            <el-tag :type="row.status === 'archived' ? 'info' : 'success'" disable-transitions>
+              {{ row.status === 'archived' ? '已归档' : '启用' }}
+            </el-tag>
+          </template>
+        </el-table-column>
         <el-table-column prop="creatorName" label="更新人" width="140" />
         <el-table-column label="更新时间" width="180">
           <template #default="{ row }">{{ formatDateTime(row.updatedAt) }}</template>
         </el-table-column>
         <el-table-column v-if="canEdit" label="操作" width="140" fixed="right">
           <template #default="{ row }">
-            <el-button link type="primary" @click="openEdit(row.id)">编辑</el-button>
+            <!-- 已归档只读：隐藏编辑入口（后端同时强校验拒绝） -->
+            <el-button v-if="row.status !== 'archived'" link type="primary" @click="openEdit(row.id)">编辑</el-button>
             <el-button link type="danger" @click="handleDelete(row.id)">删除</el-button>
+            <el-button link type="warning" @click="handleArchive(row as RequirementPoolItem)">
+              {{ row.status === 'archived' ? '取消归档' : '归档' }}
+            </el-button>
           </template>
         </el-table-column>
         <template #empty>
@@ -242,6 +290,10 @@ onMounted(load)
 
 .requirement-pool__search {
   width: 260px;
+}
+
+.requirement-pool__status {
+  width: 130px;
 }
 
 .requirement-pool__spacer {
