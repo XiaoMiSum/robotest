@@ -246,7 +246,21 @@ public class AiBugClusteringTaskHandler implements AiTaskHandler {
             Map<String, Object> item = new LinkedHashMap<>();
             item.put("label", StringUtils.hasText(cluster.label) ? cluster.label : "未命名主题 " + (i + 1));
             item.put("rootCause", cluster.rootCause);
-            item.put("bugIds", cluster.bugIds.stream().map(UUID::toString).toList());
+            // bugs 携带标题/严重度/状态供前端聚类明细直接渲染（缺陷实体已在内存，零额外查询）
+            item.put("bugs", cluster.bugIds.stream()
+                    .map(id -> {
+                        Map<String, String> bug = new LinkedHashMap<>();
+                        Bug entity = bugById.get(id);
+                        bug.put("id", id.toString());
+                        bug.put("title", entity != null && StringUtils.hasText(entity.getTitle())
+                                ? entity.getTitle() : "");
+                        bug.put("severity", entity != null && StringUtils.hasText(entity.getSeverity())
+                                ? entity.getSeverity() : "general");
+                        bug.put("status", entity != null && StringUtils.hasText(entity.getStatus())
+                                ? entity.getStatus() : "");
+                        return bug;
+                    })
+                    .toList());
             item.put("severityDist", buildSeverityDist(cluster.bugIds, bugById));
             item.put("moduleDist", buildModuleDist(cluster.bugIds, bugById, moduleNames));
             clusterOut.add(item);
