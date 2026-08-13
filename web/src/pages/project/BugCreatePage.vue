@@ -561,19 +561,22 @@ async function handleDedupMarkDuplicate(): Promise<void> {
   &--minor { background: var(--color-bug-minor); }
 }
 
-// 底部粘性操作栏，长表单滚动时提交按钮始终可见
+// 底部粘性操作栏：透明背景居中悬浮，栏体不拦截点击，仅按钮可交互（与详情页操作栏样式一致）
 .bug-create__footer {
   position: sticky;
   bottom: 0;
   z-index: 10;
   display: flex;
-  justify-content: flex-end;
+  justify-content: center;
   gap: var(--space-sm);
   margin-top: var(--space-lg);
   padding: var(--space-md) var(--space-lg);
-  background: var(--color-neutral-0);
-  border: 1px solid var(--color-neutral-200);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-md);
+  background: transparent;
+  pointer-events: none;
+
+  .el-button {
+    pointer-events: auto;
+    box-shadow: var(--shadow-md);
+  }
 }
 </style>
