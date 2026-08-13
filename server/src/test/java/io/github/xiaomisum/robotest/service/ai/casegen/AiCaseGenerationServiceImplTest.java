@@ -230,8 +230,10 @@ class AiCaseGenerationServiceImplTest {
                 TestCaseNode sibling = node(UUID.randomUUID(), ROOT_ID, "密码登录成功", 1);
                 TestCaseNode existingStep = node(UUID.randomUUID(), TARGET_ID, "输入手机号", 0);
                 existingStep.setType(Constants.NodeType.STEP);
+                TestCaseNode existingPre = node(UUID.randomUUID(), TARGET_ID, "已安装 App", 1);
+                existingPre.setType(Constants.NodeType.PRECONDITION);
                 when(testCaseNodeMapper.listByDocumentId(DOC_ID))
-                                .thenReturn(List.of(root, target, sibling, existingStep));
+                                .thenReturn(List.of(root, target, sibling, existingStep, existingPre));
                 when(aiGatewayService.stream(any(), eq(AiFunctionType.STEP_COMPLETION), any(),
                                 businessDataCaptor.capture(), any(), any(), any())).thenReturn(new SseEmitter());
 
@@ -241,6 +243,8 @@ class AiCaseGenerationServiceImplTest {
                 assertTrue(businessData.contains("【用例标题】短信登录成功"));
                 assertTrue(businessData.contains("登录模块 > 短信登录成功"));
                 assertTrue(businessData.contains("密码登录成功"));
+                // 既有前置/步骤/预期均作去重参考（仅补缺失项，已有内容不重复输出）
+                assertTrue(businessData.contains("precondition：已安装 App"));
                 assertTrue(businessData.contains("step：输入手机号"));
                 assertTrue(businessData.contains("补充：验证码为 6 位数字"));
                 // 同级参照不含目标节点自身（否则模型会把自身当作"避免重复"的对象）

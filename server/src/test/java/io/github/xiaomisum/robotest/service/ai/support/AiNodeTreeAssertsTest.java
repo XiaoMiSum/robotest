@@ -158,6 +158,7 @@ class AiNodeTreeAssertsTest {
     @Test
     void flatSteps_validPasses() {
         List<AiNodeTreeDTO> nodes = List.of(
+                node("precondition", "用户已登录", null),
                 node("step", "输入验证码", null),
                 node("expected", "登录成功", null));
         assertTrue(AiNodeTreeAsserts.normalizeAndAssertFlatSteps(nodes).isEmpty());

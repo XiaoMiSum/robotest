@@ -47,9 +47,9 @@ public class AiCaseGenerationServiceImpl implements AiCaseGenerationService {
             生成的顶层节点将作为目标节点的新子节点，请避免与既有子节点重复。""";
 
     private static final String COMPLETE_TASK_INSTRUCTION = """
-            请为业务数据中描述的测试用例补全缺失的执行步骤与预期结果。
-            「既有子节点」清单列出了该用例已有的前置/步骤/预期内容，已有步骤不重复输出；\
-            输出为 step/expected 类型的扁平数组，仅包含需要新增的节点。""";
+            请为业务数据中描述的测试用例补全缺失的前置条件、执行步骤与预期结果。
+            「既有子节点」清单列出了该用例已有的前置/步骤/预期内容，已有内容不重复输出；\
+            输出为 precondition/step/expected 类型的扁平数组，仅包含需要新增的节点。""";
 
     private static final String IMPORT_TASK_INSTRUCTION = """
             请将业务数据中的外部文本解析为结构化的测试用例树。
@@ -148,7 +148,7 @@ public class AiCaseGenerationServiceImpl implements AiCaseGenerationService {
         };
     }
 
-    /** 补全步骤 done 帧组装：step/expected 扁平数组断言，空数组表示无需补全 */
+    /** 补全步骤 done 帧组装：precondition/step/expected 扁平数组断言，空数组表示无需补全 */
     private Function<String, Object> flatStepsAssembler(List<String> contextWarnings) {
         return fullContent -> {
             AiNodeTreeDTO.Payload payload = outputValidator.parseAndValidate(
@@ -217,7 +217,7 @@ public class AiCaseGenerationServiceImpl implements AiCaseGenerationService {
         if (!siblingTitles.isEmpty()) {
             data.append("【同级节点】").append(String.join("、", siblingTitles)).append('\n');
         }
-        // 既有子节点全量列出（单用例子节点有限），供"已有步骤不重复输出"
+        // 既有子节点全量列出（单用例子节点有限），供"已有内容不重复输出"
         List<String> childLines = docNodes.stream()
                 .filter(node -> target.getId().equals(node.getParentId()))
                 .sorted(Comparator.comparing(node -> node.getSortOrder() != null ? node.getSortOrder() : 0))
