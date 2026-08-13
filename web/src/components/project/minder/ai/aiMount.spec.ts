@@ -51,8 +51,11 @@ describe('buildPreviewTree 预览键分配', () => {
       },
     ])
     expect(preview[0].aiSelected).toBe(false)
+    expect(preview[0].aiSelectable).toBe(false)
     expect(preview[1].aiSelected).toBe(true)
+    expect(preview[1].aiSelectable).toBe(true)
     expect(preview[1].children[0].aiSelected).toBe(true)
+    expect(preview[1].children[0].aiSelectable).toBe(false)
     expect(filterCheckedTree(preview).map((n) => n.type)).toEqual(['case'])
     expect(filterCheckedTree(preview)[0].children?.[0]).toMatchObject({ type: 'step', title: '输入密码' })
   })
@@ -97,6 +100,24 @@ describe('filterCheckedTree 勾选过滤（4.2 取舍规则）', () => {
       return node
     })
     expect(filterCheckedTree(allUnselected)).toEqual([])
+  })
+
+  it('补全模式（selectAll=true）：全部生成节点默认勾选且逐项独立取舍，无 case 级联', () => {
+    const preview = buildPreviewTree(
+      [
+        { type: 'precondition', title: '用户已注册', children: [] },
+        { type: 'step', title: '输入验证码', children: [] },
+        { type: 'expected', title: '登录成功', children: [] },
+      ],
+      undefined,
+      false,
+      true,
+    )
+    // 全部节点可勾选且默认勾选（区别于生成模式仅 case 子树）
+    expect(preview.every((n) => n.aiSelectable && n.aiSelected)).toBe(true)
+    // 逐项取消：仅排除该节点自身，不触发任何级联
+    const result = filterCheckedTree(unselect(preview, 'ai-1'))
+    expect(result.map((n) => n.type)).toEqual(['precondition', 'expected'])
   })
 })
 

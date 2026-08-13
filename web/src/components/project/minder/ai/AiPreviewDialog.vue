@@ -8,10 +8,9 @@ import type { AiGeneratedNode } from '@/types'
 import type { Minder, MinderEvent, MinderNode } from '../types'
 
 /**
- * AI 生成结果独立预览弹窗（交互设计 2.1/2.2/2.3）：
- * 生成抽屉点击 [查看预览] 后打开（两窗并存、本弹窗置顶）；以裸 kityminder 只读实例渲染
- * 生成节点树快照（纯本地组装不落库、不产生撤销历史），仅用例节点带勾选框可点击取舍，
- * 其内部结构（前置/步骤/预期）随所属用例级联挂载。
+ * AI 生成结果独立预览弹窗（交互设计 2.1/2.2/2.3）：生成抽屉点击 [查看预览] 后打开（两窗并存、本弹窗置顶）；
+ * 以裸 kityminder 只读实例渲染生成节点树快照（纯本地组装不落库、不产生撤销历史），可勾选节点按模式区分：
+ * 生成=仅用例节点带勾选框、其内部结构（前置/步骤/预期）随所属用例级联挂载；补全=全部生成节点逐项取舍。
  * 勾选状态（aiSelected）仅存于本弹窗工作副本，关闭即丢弃（纯预览约束）；确认挂载后由
  * 生成抽屉透传节点树给脑图组件执行挂载。
  */
@@ -22,6 +21,10 @@ const props = defineProps<{
   targetMissing: boolean
   /** 底部确认按钮文案（生成=确认挂载 / 补全=确认追加，交互设计 3.1） */
   confirmButtonText: string
+  /** 弹窗标题（生成结果预览 / 补全结果预览，交互设计 3.1） */
+  title: string
+  /** 勾选计数单位（生成=个用例 / 补全=项，交互设计 2.3） */
+  countLabel: string
 }>()
 
 const visible = defineModel<boolean>({ required: true })
@@ -43,18 +46,18 @@ let unmounted = false
 const selectedCount = computed(() => countAiSelected(workingTree.value))
 const totalCount = computed(() => countAiTotal(workingTree.value))
 
-// 勾选计数只统计用例节点：非用例节点不可单独勾选，其勾选态随所属用例级联（交互设计 2.2 取舍规则）
+// 勾选计数只统计可勾选节点（aiSelectable）：生成模式=用例、补全模式=全部生成节点（交互设计 2.2 取舍规则）
 function countAiSelected(nodes: AiPreviewNode[]): number {
   return nodes.reduce(
     (sum, node) =>
-      sum + (node.aiGenerated && node.type === 'case' && node.aiSelected ? 1 : 0) + countAiSelected(node.children),
+      sum + (node.aiGenerated && node.aiSelectable === true && node.aiSelected ? 1 : 0) + countAiSelected(node.children),
     0,
   )
 }
 
 function countAiTotal(nodes: AiPreviewNode[]): number {
   return nodes.reduce(
-    (sum, node) => sum + (node.aiGenerated && node.type === 'case' ? 1 : 0) + countAiTotal(node.children),
+    (sum, node) => sum + (node.aiGenerated && node.aiSelectable === true ? 1 : 0) + countAiTotal(node.children),
     0,
   )
 }
@@ -111,21 +114,38 @@ interface PreviewClickEvent extends MinderEvent {
 function onNodeClick(e: MinderEvent): void {
   const target = (e as PreviewClickEvent).getTargetNode?.()
   if (!target) return
-  // 仅用例节点响应勾选：非用例节点（前置/步骤/预期等）禁止单独勾选，
-  // 其勾选态随所属用例节点点击级联（applyKitySelection 递归整棵子树）
+  // 仅可勾选节点（aiSelectable）响应点击：生成模式=case、补全模式=全部生成节点（交互设计 2.2/3.1）
   if (target.getData('aiGenerated') !== true) return
-  if (target.getData('type') !== 'case') return
+  if (target.getData('aiSelectable') !== true) return
   const key = target.getData('id') as string
   const next = target.getData('aiSelected') !== true
-  // 级联：本节点及全部 AI 子孙同步切换（取消父节点则子孙一并排除，恢复则整组恢复）
-  applyKitySelection(target, next)
-  applyTreeSelection(workingTree.value, key, next)
+  // 生成模式勾选单位是「用例及其整棵内部结构」：case 节点点击级联整棵 AI 子树
+  // （取消父节点则子孙一并排除，恢复则整组恢复）；补全模式为逐项取舍：非 case 节点仅切换自身
+  if (target.getData('type') === 'case') {
+    applyKitySelection(target, next)
+    applyTreeSelection(workingTree.value, key, next)
+  } else {
+    target.setData('aiSelected', next)
+    applySingleSelection(workingTree.value, key, next)
+  }
   target.render()
 }
 
 function applyKitySelection(node: MinderNode, selected: boolean): void {
   node.setData('aiSelected', selected)
   node.getChildren().forEach((child) => applyKitySelection(child, selected))
+}
+
+/** 补全模式逐项取舍：按 key 找到目标节点并仅切换自身勾选态（无级联） */
+function applySingleSelection(nodes: AiPreviewNode[], key: string, selected: boolean): boolean {
+  for (const node of nodes) {
+    if (node.key === key) {
+      node.aiSelected = selected
+      return true
+    }
+    if (applySingleSelection(node.children, key, selected)) return true
+  }
+  return false
 }
 
 /** 在树中按 key 找到目标节点并级联更新其 AI 子孙 */
@@ -188,7 +208,7 @@ onBeforeUnmount(() => {
   >
     <template #header>
       <span class="ai-preview-dialog__title">
-        <el-icon><MagicStick /></el-icon> 生成结果预览
+        <el-icon><MagicStick /></el-icon> {{ title }}
       </span>
     </template>
 
@@ -205,7 +225,7 @@ onBeforeUnmount(() => {
     </div>
 
     <template #footer>
-      <span class="ai-preview-dialog__count">已勾选 {{ selectedCount }}/{{ totalCount }} 个用例</span>
+      <span class="ai-preview-dialog__count">已勾选 {{ selectedCount }}/{{ totalCount }} {{ countLabel }}</span>
       <el-button @click="handleClose">关闭</el-button>
       <el-button type="primary" @click="handleConfirm">{{ confirmButtonText }}</el-button>
     </template>

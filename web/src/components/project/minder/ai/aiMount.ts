@@ -17,32 +17,39 @@ export interface AiPreviewNode {
   priority: string | null
   /** true=本次 AI 生成（带勾选框可勾选挂载）；false=文档既有节点（只读，无勾选框） */
   aiGenerated: boolean
-  /** AI 节点勾选态（case 及其子树默认全选，随脑图点击级联联动）；非用例节点恒 false 不参与挂载 */
+  /** AI 节点勾选态：生成模式 case 及其子树默认全选（随点击级联）；补全模式全部生成节点默认全选（逐项取舍） */
   aiSelected: boolean
+  /** true=可独立勾选（带勾选框）：生成模式仅 case 节点；补全模式全部生成节点 */
+  aiSelectable: boolean
   children: AiPreviewNode[]
 }
 
 /**
- * 生成节点树 → 预览树：勾选单位是「用例及其整棵内部结构」——
- * case 节点及子树默认勾选（挂载时整组输出），孤立的非用例节点（分组等）不可勾选且不参与挂载。
+ * 生成节点树 → 预览树：勾选单位按模式区分（交互设计 2.2 勾选取舍）——
+ * 生成模式：case 节点及子树默认勾选（挂载时整组输出），孤立的非用例节点（分组等）不可勾选且不参与挂载；
+ * 补全模式：全部生成节点可勾选且默认勾选，逐项独立取舍（无级联）。
  * @param inCaseSubtree 父链上是否已出现 case（case 的 precondition/step/expected 子节点随用例级联挂载）
+ * @param selectAll 补全模式传 true：全部节点可勾选且默认勾选；生成模式缺省 false：仅 case 子树勾选
  */
 export function buildPreviewTree(
   nodes: AiGeneratedNode[],
   parentKey = 'ai',
   inCaseSubtree = false,
+  selectAll = false,
 ): AiPreviewNode[] {
   return nodes.map((node, index) => {
     const key = `${parentKey}-${index}`
     const caseSubtree = inCaseSubtree || node.type === 'case'
+    const selectable = selectAll || node.type === 'case'
     return {
       key,
       title: node.title,
       type: node.type,
       priority: node.priority ?? null,
       aiGenerated: true,
-      aiSelected: caseSubtree,
-      children: buildPreviewTree(node.children ?? [], key, caseSubtree),
+      aiSelectable: selectable,
+      aiSelected: selectable ? true : caseSubtree,
+      children: buildPreviewTree(node.children ?? [], key, caseSubtree, selectAll),
     }
   })
 }

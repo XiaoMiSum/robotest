@@ -38,8 +38,9 @@ export function previewToKityJson(nodes: AiPreviewNode[]): Record<string, unknow
       type: node.type ?? 'normal',
       priority: node.priority ?? undefined,
       aiGenerated: node.aiGenerated,
-      // 既有/虚拟节点无勾选框；仅 AI 节点渲染勾选框并携带勾选态
+      // 既有/虚拟节点无勾选框；仅 AI 节点渲染勾选框并携带勾选态与可勾选标记
       aiSelected: node.aiGenerated ? node.aiSelected : undefined,
+      aiSelectable: node.aiGenerated ? node.aiSelectable : undefined,
     },
     children: node.children.map(walk),
   })
@@ -59,6 +60,7 @@ function mergePreviewRoots(nodes: AiPreviewNode[]): AiPreviewNode {
     priority: null,
     aiGenerated: false,
     aiSelected: false,
+    aiSelectable: false,
     children: nodes,
   }
 }
@@ -155,15 +157,15 @@ export function createCheckboxRenderer(kity: KityStatic, base: unknown): unknown
       group.checkState = ''
       return group
     },
-    // 仅 case 节点渲染勾选框（勾选单位是「用例及其整棵内部结构」）：
-    // precondition/step/expected 等非用例节点无勾选框、点击不响应，其勾选态随所属用例级联。
-    // 全局模块池注册后真实文档实例也会收集本渲染器：真实文档 AI 节点仅携带
+    // 勾选框渲染以 aiSelectable 为准（预览树组装时按模式打标）：
+    // 生成模式仅 case 节点可勾选（勾选单位是「用例及其整棵内部结构」，非用例节点点击不响应、随用例级联）；
+    // 补全模式全部生成节点可勾选（逐项取舍）。真实文档实例也会收集本渲染器：真实文档 AI 节点仅携带
     // aiGenerated、无 aiSelected（预览快照独有字段），以此区分隔离，避免真实文档误渲染勾选框
     shouldRender(node: PreviewNodeLike): boolean {
       return (
         node.getData('aiGenerated') === true &&
         typeof node.getData('aiSelected') === 'boolean' &&
-        node.getData('type') === 'case'
+        node.getData('aiSelectable') === true
       )
     },
     update(shape: CheckboxShape, node: PreviewNodeLike, box: ContentBox): unknown {
