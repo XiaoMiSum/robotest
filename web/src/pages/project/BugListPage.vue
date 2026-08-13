@@ -532,8 +532,8 @@ onMounted(loadBugs)
           </el-radio-group>
         </el-form-item>
         <el-form-item v-if="aiEnabled">
-          <el-button type="primary" plain @click="clusterVisible = !clusterVisible">
-            <el-icon><MagicStick /></el-icon>{{ clusterVisible ? '收起 AI 分析' : 'AI 分析' }}
+          <el-button type="primary" plain @click="clusterVisible = true">
+            <el-icon><MagicStick /></el-icon>AI 分析
           </el-button>
         </el-form-item>
         <el-form-item>
