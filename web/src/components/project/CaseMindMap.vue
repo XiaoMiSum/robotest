@@ -155,13 +155,12 @@ function findNodePath(node: MountTargetSource | null, id: string): string[] | nu
   return null
 }
 
-// 打开生成抽屉时锁定挂载目标：当前选中节点，未选中默认文档根节点（SRS 3.2.1）
+// 打开生成抽屉时锁定挂载目标：固定为文档根节点（SRS 3.2.1），不随选中节点变化
 // generate 会话绑定文档：目标节点变化不重置，仅切换文档时由组件内 watch 重置（交互设计 2.2）
 function openAiPanel() {
   const root = getLiveRoot()
   if (!root) return
-  const selected = getSelectedNodeData()
-  const targetId = (selected?.id as string) || (root.data.id as string) || ''
+  const targetId = (root.data.id as string) || ''
   if (!targetId) return
   aiTargetNodeId.value = targetId
   aiTargetPath.value = (findNodePath(root, targetId) ?? []).join(' > ')
