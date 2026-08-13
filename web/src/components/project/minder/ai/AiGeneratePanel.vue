@@ -277,14 +277,14 @@ onBeforeUnmount(() => {
           </div>
           <AiModelSelect />
           <el-button
-            v-if="phase !== 'streaming'"
+            v-if="phase === 'idle'"
             type="primary"
             @click="generate"
           >
             <el-icon><MagicStick /></el-icon>
-            <span>{{ phase === 'done' ? config.retryButtonText : config.startButtonText }}</span>
+            <span>{{ config.startButtonText }}</span>
           </el-button>
-          <el-button v-else size="small" @click="stop">停止</el-button>
+          <el-button v-else-if="phase === 'streaming'" size="small" @click="stop">停止</el-button>
         </div>
       </div>
 
@@ -317,6 +317,10 @@ onBeforeUnmount(() => {
       </div>
 
       <div v-if="phase === 'done'" class="ai-panel-footer">
+        <el-button @click="generate">
+          <el-icon><MagicStick /></el-icon>
+          <span>{{ config.retryButtonText }}</span>
+        </el-button>
         <el-button type="primary" @click="openPreview">
           <el-icon><View /></el-icon>
           <span>查看预览</span>
@@ -435,5 +439,6 @@ onBeforeUnmount(() => {
 .ai-panel-footer {
   display: flex;
   justify-content: flex-end;
+  gap: 8px;
 }
 </style>
