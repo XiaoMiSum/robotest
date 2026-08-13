@@ -2,6 +2,7 @@
 import { computed, nextTick, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { MagicStick } from '@element-plus/icons-vue'
 import {
   completePlan,
   getCaseDetail,
@@ -12,7 +13,13 @@ import {
   syncPlan,
   updatePlanCases,
 } from '@/services/project'
-import type { AiPlanOrderRecommendItem, PlannedCases, SnapshotModule, TestPlanDetail, TestPlanProgress } from '@/types'
+import type {
+  AiPlanOrderRecommendItem,
+  PlannedCases,
+  SnapshotModule,
+  TestPlanDetail,
+  TestPlanProgress,
+} from '@/types'
 import PlanMindMap from '@/components/project/PlanMindMap.vue'
 import SnapshotModuleTree from '@/components/project/SnapshotModuleTree.vue'
 import CaseSelector from '@/components/project/CaseSelector.vue'
@@ -58,7 +65,12 @@ function findDoc(nodes: SnapshotModule[], id: string): boolean {
   return nodes.some((n) => n.id === id || findDoc(n.children ?? [], id))
 }
 
-const statusLabel: Record<string, string> = { new: '待开始', in_progress: '进行中', completed: '已完成', closed: '已关闭' }
+const statusLabel: Record<string, string> = {
+  new: '待开始',
+  in_progress: '进行中',
+  completed: '已完成',
+  closed: '已关闭',
+}
 
 // 未结束（待开始/进行中）才允许调整规划用例
 const canAdjustCases = computed(
@@ -89,8 +101,12 @@ async function load() {
 
 async function handleComplete() {
   try {
-    await ElMessageBox.confirm('确定完成该计划吗？完成后将不可再标记执行结果。', '完成执行', { type: 'warning' })
-  } catch { return }
+    await ElMessageBox.confirm('确定完成该计划吗？完成后将不可再标记执行结果。', '完成执行', {
+      type: 'warning',
+    })
+  } catch {
+    return
+  }
   try {
     await completePlan(planId)
     ElMessage.success('计划已完成')
@@ -102,8 +118,14 @@ async function handleComplete() {
 
 async function handleSync() {
   try {
-    await ElMessageBox.confirm('同步将更新快照节点属性，已有执行记录不受影响。确定同步？', '同步最新用例', { type: 'info' })
-  } catch { return }
+    await ElMessageBox.confirm(
+      '同步将更新快照节点属性，已有执行记录不受影响。确定同步？',
+      '同步最新用例',
+      { type: 'info' },
+    )
+  } catch {
+    return
+  }
   try {
     await syncPlan(planId)
     ElMessage.success('已同步')
@@ -226,27 +248,47 @@ onMounted(load)
 
 <template>
   <div v-loading="loading" class="plan-detail">
-    <el-page-header class="plan-detail__page-header" @back="router.push('/workspace/projects/functional-testing?tab=plans')">
+    <el-page-header
+      class="plan-detail__page-header"
+      @back="router.push('/workspace/projects/functional-testing?tab=plans')"
+    >
       <template #content>
         <div class="plan-detail__header">
           <span class="plan-detail__title">{{ detail?.name ?? '计划详情' }}</span>
-          <el-tag v-if="detail" size="small" effect="light" round>{{ statusLabel[detail.status] }}</el-tag>
+          <el-tag v-if="detail" size="small" effect="light" round>{{
+            statusLabel[detail.status]
+          }}</el-tag>
         </div>
       </template>
       <template #extra>
         <div class="plan-detail__extra">
           <div v-if="progress" class="plan-detail__progress-row">
-            <el-progress class="plan-detail__progress" :percentage="progress.progressPercent" :stroke-width="8" />
+            <el-progress
+              class="plan-detail__progress"
+              :percentage="progress.progressPercent"
+              :stroke-width="8"
+            />
             <div class="plan-detail__stats">
-              <span class="plan-detail__stat plan-detail__stat--pass">通过 {{ progress.passed }}</span>
-              <span class="plan-detail__stat plan-detail__stat--fail">失败 {{ progress.failed }}</span>
-              <span class="plan-detail__stat plan-detail__stat--blocked">阻塞 {{ progress.blocked }}</span>
+              <span class="plan-detail__stat plan-detail__stat--pass"
+                >通过 {{ progress.passed }}</span
+              >
+              <span class="plan-detail__stat plan-detail__stat--fail"
+                >失败 {{ progress.failed }}</span
+              >
+              <span class="plan-detail__stat plan-detail__stat--blocked"
+                >阻塞 {{ progress.blocked }}</span
+              >
               <span class="plan-detail__stat">待执行 {{ progress.untested }}</span>
               <span class="plan-detail__stat">共 {{ progress.totalAssociated }}</span>
             </div>
           </div>
           <div v-if="detail" class="plan-detail__actions">
-            <el-button v-if="aiStore.aiEnabled && canAdjustCases" size="small" plain @click="openRecommend">
+            <el-button
+              v-if="aiStore.aiEnabled && canAdjustCases"
+              size="small"
+              plain
+              @click="openRecommend"
+            >
               <el-icon><MagicStick /></el-icon>AI 推荐用例
             </el-button>
             <el-button v-if="canAdjustCases" size="small" plain @click="openCaseSelector">
@@ -255,7 +297,12 @@ onMounted(load)
             <el-button v-if="canAdjustCases" size="small" plain @click="handleSync">
               <el-icon><Refresh /></el-icon>同步用例
             </el-button>
-            <el-button v-if="detail.status === 'new' || detail.status === 'in_progress'" size="small" type="primary" @click="handleComplete">
+            <el-button
+              v-if="detail.status === 'new' || detail.status === 'in_progress'"
+              size="small"
+              type="primary"
+              @click="handleComplete"
+            >
               <el-icon><CircleCheck /></el-icon>完成执行
             </el-button>
           </div>
@@ -264,54 +311,62 @@ onMounted(load)
     </el-page-header>
 
     <!-- 计划详情标签：执行记录（默认）与执行顺序推荐（交互设计 5.1）；推荐标签仅计划负责人/执行人可见 -->
-    <el-tabs v-model="activeTab" class="plan-detail__tabs">
-      <template #extra>
-        <el-button
-          v-if="activeTab === 'order'"
-          size="small"
-          :loading="orderPanelRef?.computing"
-          @click="orderPanelRef?.compute()"
-        >
-          {{ orderPanelRef?.hasResult ? '重新计算' : '开始计算' }}
-        </el-button>
-      </template>
-      <el-tab-pane label="执行记录" name="records">
-        <div class="plan-detail__workspace">
-          <el-card shadow="never" class="plan-detail__tree-card">
-            <SnapshotModuleTree
-              :data="moduleTree"
-              :current-doc-id="selectedDocId"
-              @select-document="(id: string) => (selectedDocId = id)"
-            />
-          </el-card>
-          <el-card shadow="never" class="plan-detail__body">
-            <div v-if="!selectedDocId" class="plan-detail__placeholder">
-              <el-empty description="请在左侧选择一个文档" />
-            </div>
-            <PlanMindMap
-              v-else
-              ref="mindMapRef"
-              :plan-id="planId"
-              :document-id="selectedDocId"
-              :removable="canAdjustCases"
-              @marked="refreshProgress"
-              @order-select="handleOrderSelect"
-              @removed="handleCasesRemoved"
-            />
-          </el-card>
-        </div>
-      </el-tab-pane>
-      <el-tab-pane v-if="canShowOrder" label="执行顺序推荐✨" name="order">
-        <PlanOrderRecommend
-          ref="orderPanelRef"
-          :plan-id="planId"
-          @locate="handleOrderLocate"
-          @result="handleOrderResult"
-        />
-      </el-tab-pane>
-    </el-tabs>
+    <!-- el-tabs 无 extra 插槽（Element Plus 已移除该插槽），计算按钮改由外层容器绝对定位于标签栏右侧同行（交互设计 5.1 布局） -->
+    <div class="plan-detail__tabs-wrap">
+      <el-tabs v-model="activeTab" class="plan-detail__tabs">
+        <el-tab-pane label="执行记录" name="records">
+          <div class="plan-detail__workspace">
+            <el-card shadow="never" class="plan-detail__tree-card">
+              <SnapshotModuleTree
+                :data="moduleTree"
+                :current-doc-id="selectedDocId"
+                @select-document="(id: string) => (selectedDocId = id)"
+              />
+            </el-card>
+            <el-card shadow="never" class="plan-detail__body">
+              <div v-if="!selectedDocId" class="plan-detail__placeholder">
+                <el-empty description="请在左侧选择一个文档" />
+              </div>
+              <PlanMindMap
+                v-else
+                ref="mindMapRef"
+                :plan-id="planId"
+                :document-id="selectedDocId"
+                :removable="canAdjustCases"
+                @marked="refreshProgress"
+                @order-select="handleOrderSelect"
+                @removed="handleCasesRemoved"
+              />
+            </el-card>
+          </div>
+        </el-tab-pane>
+        <el-tab-pane v-if="canShowOrder" label="执行顺序推荐✨" name="order">
+          <PlanOrderRecommend
+            ref="orderPanelRef"
+            :plan-id="planId"
+            @locate="handleOrderLocate"
+            @result="handleOrderResult"
+          />
+        </el-tab-pane>
+      </el-tabs>
+      <el-button
+        v-if="activeTab === 'order'"
+        class="plan-detail__order-btn"
+        size="small"
+        link
+        :loading="orderPanelRef?.computing"
+        @click="orderPanelRef?.compute()"
+      >
+        <el-icon><MagicStick /></el-icon>
+        {{ orderPanelRef?.hasResult ? '重新计算' : '开始计算' }}
+      </el-button>
+    </div>
 
-    <CaseSelector v-model="selectorVisible" :initial-selected="plannedCases" @confirm="handleCasesConfirm" />
+    <CaseSelector
+      v-model="selectorVisible"
+      :initial-selected="plannedCases"
+      @confirm="handleCasesConfirm"
+    />
     <CasePlanRecommendDialog
       v-model="recommendVisible"
       :exclude-case-node-ids="recommendExcludeIds"
@@ -425,8 +480,16 @@ onMounted(load)
 }
 
 // 标签容器撑满剩余高度：header 固定、内容区弹性占满，脑图/推荐面板在其中整高布局
-.plan-detail__tabs {
+.plan-detail__tabs-wrap {
+  position: relative;
   margin-top: var(--space-lg);
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.plan-detail__tabs {
   flex: 1;
   min-height: 0;
   display: flex;
@@ -444,6 +507,20 @@ onMounted(load)
 
   :deep(.el-tab-pane) {
     height: 100%;
+  }
+}
+
+// 执行顺序计算按钮：绝对定位于标签栏右侧同行（标签高 40px、small 按钮高 24px，top 8px 垂直居中）
+// 采用 link 样式：与标签栏视觉层级保持一致，避免实心主色按钮在页头区喧宾夺主
+.plan-detail__order-btn {
+  position: absolute;
+  top: 8px;
+  right: 0;
+  z-index: 1;
+
+  // 图标与文字间距由按钮内部 gap 兜底，此处确保 loading 态下图标不额外占位
+  :deep(.el-icon) {
+    margin-right: 4px;
   }
 }
 
