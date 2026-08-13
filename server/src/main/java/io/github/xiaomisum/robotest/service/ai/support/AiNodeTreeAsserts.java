@@ -65,8 +65,8 @@ public final class AiNodeTreeAsserts {
     }
 
     /**
-     * 步骤补全模式（2.2 补全场景约束）：仅允许 step / expected 的扁平数组，无子节点、无 priority；
-     * 空数组放行（既有步骤已完整、无需补全属正常结果），返回 warnings
+     * 步骤补全模式（2.2 补全场景约束）：仅允许 precondition / step / expected 的扁平数组，无子节点、无 priority；
+     * 空数组放行（既有内容已完整、无需补全属正常结果），返回 warnings
      */
     public static List<String> normalizeAndAssertFlatSteps(List<AiNodeTreeDTO> nodes) {
         List<String> warnings = normalize(nodes);
@@ -78,8 +78,10 @@ public final class AiNodeTreeAsserts {
         }
         for (AiNodeTreeDTO node : nodes) {
             String type = node.getType();
-            if (!Constants.NodeType.STEP.equals(type) && !Constants.NodeType.EXPECTED.equals(type)) {
-                throw new OutputValidationException("补全结果仅允许 step/expected 类型，出现：" + type);
+            if (!Constants.NodeType.PRECONDITION.equals(type)
+                    && !Constants.NodeType.STEP.equals(type)
+                    && !Constants.NodeType.EXPECTED.equals(type)) {
+                throw new OutputValidationException("补全结果仅允许 precondition/step/expected 类型，出现：" + type);
             }
             if (!node.getChildren().isEmpty()) {
                 throw new OutputValidationException(type + " 节点不得有子节点");
