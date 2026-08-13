@@ -129,7 +129,8 @@ function buildPreview(generatedNodes: AiGeneratedNode[]): AiPreviewNode[] {
   if (targetMissing.value) {
     ElMessage.warning('挂载目标已被删除，请重新选择挂载位置')
   }
-  return buildPreviewTree(generatedNodes)
+  // 补全模式：全部生成节点默认勾选、可逐项取舍（buildPreviewTree 的 selectAll，交互设计 3.1）
+  return buildPreviewTree(generatedNodes, 'ai', false, props.mode === 'complete')
 }
 
 // 中途取消：已输出内容不保留，可重新生成（交互设计 2.2）
@@ -336,6 +337,8 @@ onBeforeUnmount(() => {
     :target-path="targetPath"
     :target-missing="targetMissing"
     :confirm-button-text="config.confirmButtonText"
+    :title="config.previewTitle"
+    :count-label="config.countLabel"
     @confirm="handlePreviewConfirm"
   />
 </template>

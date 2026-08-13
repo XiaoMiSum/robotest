@@ -67,6 +67,13 @@ describe('AI_PANEL_MODES 请求体组装', () => {
     expect(AI_PANEL_MODES.complete.emptyResultMessage).toContain('前置')
   })
 
+  it('两模式预览弹窗标题与勾选计数单位区分（交互设计 3.1/2.3）', () => {
+    expect(AI_PANEL_MODES.generate.previewTitle).toBe('生成结果预览')
+    expect(AI_PANEL_MODES.generate.countLabel).toBe('个用例')
+    expect(AI_PANEL_MODES.complete.previewTitle).toBe('补全结果预览')
+    expect(AI_PANEL_MODES.complete.countLabel).toBe('项')
+  })
+
   it('两模式完成提示文案齐备', () => {
     expect(AI_PANEL_MODES.generate.doneTipMessage.length).toBeGreaterThan(0)
     expect(AI_PANEL_MODES.complete.doneTipMessage.length).toBeGreaterThan(0)
