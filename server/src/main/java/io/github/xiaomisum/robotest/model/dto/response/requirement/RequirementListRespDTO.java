@@ -14,6 +14,7 @@ public class RequirementListRespDTO {
     private UUID id;
     private String title;
     private String sourceUrl;
+    private String status;
     private UUID createdBy;
     private String creatorName;
     private LocalDateTime updatedAt;

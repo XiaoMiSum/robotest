@@ -2,6 +2,7 @@ package io.github.xiaomisum.robotest.model.entity.requirement;
 
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
+import io.github.xiaomisum.robotest.framework.common.Constants;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import xyz.migoo.framework.mybatis.core.dataobject.BaseUuidDO;
@@ -23,6 +24,8 @@ public class RequirementPoolItem extends BaseUuidDO<RequirementPoolItem> {
     // 需求文本，Markdown 原文存储
     private String content;
     private String sourceUrl;
+    /** 条目状态：active / archived，默认 active（Constants.Status） */
+    private String status = Constants.Status.ACTIVE;
     @TableField(typeHandler = UUIDTypeHandler.class)
     private UUID createdBy;
     @TableField(typeHandler = UUIDTypeHandler.class)

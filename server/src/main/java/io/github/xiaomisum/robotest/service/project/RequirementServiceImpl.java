@@ -56,14 +56,14 @@ public class RequirementServiceImpl implements RequirementService {
     private AiConfigService aiConfigService;
 
     @Override
-    public PageResult<RequirementListRespDTO> getPage(UUID projectId, String keyword, Integer pageNo,
+    public PageResult<RequirementListRespDTO> getPage(UUID projectId, String keyword, String status, Integer pageNo,
             Integer pageSize) {
         PageResult<RequirementPoolItem> page = requirementMapper.findPage(new PageParam() {
             {
                 setPageNo(pageNo);
                 setPageSize(pageSize);
             }
-        }, projectId, keyword);
+        }, projectId, keyword, status);
 
         // 批量取创建人名，避免逐行 N+1
         List<UUID> creatorIds = page.getList().stream()
@@ -77,6 +77,7 @@ public class RequirementServiceImpl implements RequirementService {
             dto.setId(item.getId());
             dto.setTitle(item.getTitle());
             dto.setSourceUrl(item.getSourceUrl());
+            dto.setStatus(item.getStatus());
             dto.setCreatedBy(item.getCreatedBy());
             dto.setCreatorName(nameById.get(item.getCreatedBy()));
             dto.setUpdatedAt(item.getUpdatedAt());
@@ -94,6 +95,7 @@ public class RequirementServiceImpl implements RequirementService {
         dto.setTitle(item.getTitle());
         dto.setContent(item.getContent());
         dto.setSourceUrl(item.getSourceUrl());
+        dto.setStatus(item.getStatus());
         dto.setCreatedBy(item.getCreatedBy());
         SysUser creator = userMapper.selectById(item.getCreatedBy());
         dto.setCreatorName(creator != null ? creator.getUsername() : null);
@@ -124,6 +126,10 @@ public class RequirementServiceImpl implements RequirementService {
     public void update(UUID id, UUID projectId, UUID userId, RequirementUpdateReqDTO reqDTO) {
         RequirementPoolItem item = requireItem(id, projectId);
         requireEditable(item, projectId, userId);
+        // 归档即封存，只读；取消归档后才能再次编辑（详细设计 3.1.4）
+        if (Constants.Status.ARCHIVED.equals(item.getStatus())) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.NO_PERMISSION);
+        }
         if (reqDTO.getContent() != null) {
             validateContentLength(reqDTO.getContent());
         }
@@ -141,6 +147,23 @@ public class RequirementServiceImpl implements RequirementService {
         if (reqDTO.getSourceUrl() != null) {
             update.setSourceUrl(reqDTO.getSourceUrl().isEmpty() ? null : reqDTO.getSourceUrl());
         }
+        update.setUpdatedBy(userId);
+        requirementMapper.updateById(update);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void archive(UUID id, UUID projectId, UUID userId, boolean archived) {
+        RequirementPoolItem item = requireItem(id, projectId);
+        requireEditable(item, projectId, userId);
+        // 幂等：目标状态与当前一致时直接返回，不产生无意义更新
+        String target = archived ? Constants.Status.ARCHIVED : Constants.Status.ACTIVE;
+        if (target.equals(item.getStatus())) {
+            return;
+        }
+        RequirementPoolItem update = new RequirementPoolItem();
+        update.setId(id);
+        update.setStatus(target);
         update.setUpdatedBy(userId);
         requirementMapper.updateById(update);
     }
@@ -187,24 +210,30 @@ public class RequirementServiceImpl implements RequirementService {
             return List.of();
         }
         // 跳过已被逻辑删除的条目（selectBatchIds 自动过滤 is_deleted）
-        return requirementMapper.selectBatchIds(requirementIds).stream().map(item -> {
-            RequirementSummaryRespDTO dto = new RequirementSummaryRespDTO();
-            dto.setId(item.getId());
-            dto.setTitle(item.getTitle());
-            return dto;
-        }).collect(Collectors.toList());
+        // 仅返回 active 条目：archived 不参与 AI 消费，关联记录保留（需求规格 3.2.4）
+        return requirementMapper.selectBatchIds(requirementIds).stream()
+                .filter(item -> Constants.Status.ACTIVE.equals(item.getStatus()))
+                .map(item -> {
+                    RequirementSummaryRespDTO dto = new RequirementSummaryRespDTO();
+                    dto.setId(item.getId());
+                    dto.setTitle(item.getTitle());
+                    return dto;
+                }).collect(Collectors.toList());
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void setDocumentRequirements(UUID documentId, UUID projectId, List<UUID> requirementIds) {
         requireDocument(documentId, projectId);
-        // 去重并保序；每个条目须属于当前项目
+        // 去重并保序；每个条目须属于当前项目，且仅接受 active 条目（详细设计 3.1.6）
         Set<UUID> target = new LinkedHashSet<>(requirementIds != null ? requirementIds : List.of());
         for (UUID reqId : target) {
             RequirementPoolItem item = requirementMapper.selectById(reqId);
             if (item == null || !Objects.equals(item.getProjectId(), projectId)) {
                 throw ServiceExceptionUtil.get(ErrorCodeConstants.REQUIREMENT_NOT_FOUND);
+            }
+            if (!Constants.Status.ACTIVE.equals(item.getStatus())) {
+                throw ServiceExceptionUtil.get(ErrorCodeConstants.NO_PERMISSION);
             }
         }
 
@@ -239,9 +268,12 @@ public class RequirementServiceImpl implements RequirementService {
                 || items.stream().anyMatch(item -> !Objects.equals(item.getProjectId(), projectId))) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.REQUIREMENT_NOT_FOUND);
         }
+        // 仅返回 active 条目：archived 不参与 AI 上下文组装（需求规格 3.2.4）
         Map<UUID, RequirementPoolItem> byId = items.stream()
                 .collect(Collectors.toMap(RequirementPoolItem::getId, item -> item));
-        return distinct.stream().map(byId::get).toList();
+        return distinct.stream().map(byId::get)
+                .filter(item -> Constants.Status.ACTIVE.equals(item.getStatus()))
+                .toList();
     }
 
     /** 文档必须存在、为 document 类型且属于当前项目（与 AiCaseGenerationServiceImpl 同款判定） */

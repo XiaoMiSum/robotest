@@ -15,6 +15,7 @@ public class RequirementDetailRespDTO {
     private String title;
     private String content;
     private String sourceUrl;
+    private String status;
     private UUID createdBy;
     private String creatorName;
     private UUID updatedBy;
