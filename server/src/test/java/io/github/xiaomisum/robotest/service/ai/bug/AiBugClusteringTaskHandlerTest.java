@@ -2,6 +2,8 @@ package io.github.xiaomisum.robotest.service.ai.bug;
 
 
 import io.github.xiaomisum.robotest.framework.common.AiFunctionType;
+import io.github.xiaomisum.robotest.framework.common.Constants;
+import io.github.xiaomisum.robotest.model.dto.response.ai.AiStatusRespDTO;
 import io.github.xiaomisum.robotest.model.entity.ai.AiAnalysisTask;
 import io.github.xiaomisum.robotest.model.entity.ai.BugEmbedding;
 import io.github.xiaomisum.robotest.model.entity.bug.Bug;
@@ -36,7 +38,7 @@ import static org.mockito.Mockito.when;
 /**
  * 缺陷聚类任务处理器单测（详细设计 4.3）：贪心聚类的确定性、单缺陷簇归 unclustered、
  * 无向量现场补建、前 maxLabeledClusters 簇 LLM 归纳（超限/失败保留「未命名主题 N」）、
- * 2.3 快照结构（severityDist/moduleDist 聚合）与协作式取消。
+ * 2.3 快照结构（severityDist/moduleDist 聚合）、协作式取消，以及语义检索不可用时的关键词降级聚类。
  */
 @ExtendWith(MockitoExtension.class)
 class AiBugClusteringTaskHandlerTest {
@@ -44,6 +46,7 @@ class AiBugClusteringTaskHandlerTest {
     private static final UUID PROJECT_ID = UUID.randomUUID();
     private static final UUID MODULE_ID = UUID.randomUUID();
     private static final double THRESHOLD = 0.82;
+    private static final double KEYWORD_THRESHOLD = 0.2;
 
     @Mock
     private AiGatewayService aiGatewayService;
@@ -99,8 +102,19 @@ class AiBugClusteringTaskHandlerTest {
         when(bugEmbeddingMapper.findEmbeddingsByProjectId(PROJECT_ID)).thenReturn(embeddings);
     }
 
+    private void semantic(String state) {
+        AiStatusRespDTO status = new AiStatusRespDTO();
+        status.setSemanticSearch(state);
+        when(aiConfigService.getStatus()).thenReturn(status);
+    }
+
     private void settings(int maxLabeled) {
         when(aiConfigService.getNumberSetting("clustering.similarityThreshold")).thenReturn(THRESHOLD);
+        when(aiConfigService.getIntSetting("clustering.maxLabeledClusters")).thenReturn(maxLabeled);
+    }
+
+    private void keywordSettings(int maxLabeled) {
+        when(aiConfigService.getNumberSetting("clustering.keywordSimilarityThreshold")).thenReturn(KEYWORD_THRESHOLD);
         when(aiConfigService.getIntSetting("clustering.maxLabeledClusters")).thenReturn(maxLabeled);
     }
 
@@ -129,6 +143,7 @@ class AiBugClusteringTaskHandlerTest {
                 bug(d, "支付金额对不上", "minor", null));
         // A/B 相似、C/D 相似、跨组正交（阈值 0.82）
         vectors(bugs, "[1.0,0.0]", "[0.9,0.0]", "[0.0,1.0]", "[0.141,0.99]");
+        semantic(Constants.AiSemanticSearch.AVAILABLE);
         settings(10);
         heartbeatOk();
         TestCaseModule module = new TestCaseModule();
@@ -188,6 +203,7 @@ class AiBugClusteringTaskHandlerTest {
                 bug(a, "登录按钮无响应", "fatal", null),
                 bug(b, "支付回调丢失", "general", null));
         vectors(bugs, "[1.0,0.0]", "[0.0,1.0]");
+        semantic(Constants.AiSemanticSearch.AVAILABLE);
         settings(10);
         heartbeatOk();
         when(bugMapper.findOpenBugsForClustering(PROJECT_ID)).thenReturn(bugs);
@@ -212,6 +228,7 @@ class AiBugClusteringTaskHandlerTest {
                 bug(c, "支付回调丢失", "general", null),
                 bug(d, "支付金额对不上", "minor", null));
         vectors(bugs, "[1.0,0.0]", "[0.9,0.0]", "[0.0,1.0]", "[0.141,0.99]");
+        semantic(Constants.AiSemanticSearch.AVAILABLE);
         settings(1);
         heartbeatOk();
         when(bugMapper.findOpenBugsForClustering(PROJECT_ID)).thenReturn(bugs);
@@ -243,6 +260,7 @@ class AiBugClusteringTaskHandlerTest {
         when(bugEmbeddingMapper.findEmbeddingsByProjectId(PROJECT_ID))
                 .thenReturn(List.of(embedding(a, "[1.0,0.0]")));
         when(vectorSearchService.indexBug(bugs.get(1))).thenReturn(false);
+        semantic(Constants.AiSemanticSearch.AVAILABLE);
         settings(10);
         heartbeatOk();
         when(bugMapper.findOpenBugsForClustering(PROJECT_ID)).thenReturn(bugs);
@@ -262,6 +280,7 @@ class AiBugClusteringTaskHandlerTest {
         List<Bug> bugs = List.of(bug(a, "登录按钮无响应", "fatal", null));
         vectors(bugs, "[1.0,0.0]");
         // 协作式取消：首个心跳影响行数为 0（此时尚未读取 settings）
+        semantic(Constants.AiSemanticSearch.AVAILABLE);
         when(aiTaskMapper.updateProgressIfRunning(any(), anyInt(), any())).thenReturn(0);
         when(bugMapper.findOpenBugsForClustering(PROJECT_ID)).thenReturn(bugs);
 
@@ -285,6 +304,7 @@ class AiBugClusteringTaskHandlerTest {
                 bug(c, "支付回调丢失", "general", null),
                 bug(d, "支付金额对不上", "minor", null));
         vectors(bugs, "[1.0,0.0]", "[0.9,0.0]", "[0.0,1.0]", "[0.141,0.99]");
+        semantic(Constants.AiSemanticSearch.AVAILABLE);
         settings(10);
         heartbeatOk();
         when(bugMapper.findOpenBugsForClustering(PROJECT_ID)).thenReturn(bugs);
@@ -299,5 +319,67 @@ class AiBugClusteringTaskHandlerTest {
         assertEquals(2, clusters.size());
         assertEquals("未命名主题 1", ((Map<?, ?>) clusters.get(0)).get("label"));
         assertEquals("登录态异常", ((Map<?, ?>) clusters.get(1)).get("label"));
+    }
+
+    @Test
+    void execute_semanticUnavailable_keywordClusteringGroupsOverlappingChineseTitles() {
+        AiAnalysisTask task = task();
+        UUID a = UUID.randomUUID();
+        UUID b = UUID.randomUUID();
+        UUID c = UUID.randomUUID();
+        List<Bug> bugs = List.of(
+                // a/b 共享 4/17 单字（登录、密码…）≥ 0.2 阈值 → 同簇；c 与 a∪b 零重叠 → 独立
+                bug(a, "登录接口账号锁定后仍可继续尝试密码", "fatal", MODULE_ID),
+                bug(b, "登录失败提示未区分用户名错误与密码错误", "serious", null),
+                bug(c, "移动端深色模式输入框对比度低", "minor", null));
+        semantic(Constants.AiSemanticSearch.UNAVAILABLE);
+        keywordSettings(10);
+        heartbeatOk();
+        TestCaseModule module = new TestCaseModule();
+        module.setId(MODULE_ID);
+        module.setName("登录模块");
+        when(testCaseModuleMapper.selectBatchIds(List.of(MODULE_ID))).thenReturn(List.of(module));
+        when(bugMapper.findOpenBugsForClustering(PROJECT_ID)).thenReturn(bugs);
+        when(aiGatewayService.completeStructured(
+                any(), eq(AiFunctionType.BUG_CLUSTERING), any(), any(), any(),
+                eq(AiBugClusteringTaskHandler.ClusterLabelOut.class), any()))
+                .thenReturn(label("登录异常"));
+
+        Map<String, Object> result = handler.execute(task);
+
+        // 降级模式不触碰向量层
+        verify(bugEmbeddingMapper, never()).findEmbeddingsByProjectId(any());
+        verify(vectorSearchService, never()).indexBug(any());
+        List<?> unclustered = (List<?>) result.get("unclustered");
+        assertEquals(List.of(c.toString()), unclustered);
+        List<?> clusters = (List<?>) result.get("clusters");
+        assertEquals(1, clusters.size());
+        Map<?, ?> cluster = (Map<?, ?>) clusters.get(0);
+        assertEquals("登录异常", cluster.get("label"));
+        assertEquals(2, ((List<?>) cluster.get("bugs")).size());
+        // 快照聚合与向量模式一致
+        assertEquals(Map.of("fatal", 1, "serious", 1, "general", 0, "minor", 0), cluster.get("severityDist"));
+        List<?> moduleDist = (List<?>) cluster.get("moduleDist");
+        assertEquals(2, moduleDist.size());
+    }
+
+    @Test
+    void execute_semanticUnavailable_keywordClusteringDisjointTitles_allUnclustered_noLlm() {
+        AiAnalysisTask task = task();
+        UUID a = UUID.randomUUID();
+        UUID b = UUID.randomUUID();
+        List<Bug> bugs = List.of(
+                bug(a, "登录按钮无响应", "fatal", null),
+                bug(b, "支付回调丢失", "general", null));
+        semantic(Constants.AiSemanticSearch.UNAVAILABLE);
+        keywordSettings(10);
+        heartbeatOk();
+        when(bugMapper.findOpenBugsForClustering(PROJECT_ID)).thenReturn(bugs);
+
+        Map<String, Object> result = handler.execute(task);
+
+        assertTrue(((List<?>) result.get("clusters")).isEmpty());
+        assertEquals(List.of(a.toString(), b.toString()).stream().sorted().toList(), result.get("unclustered"));
+        verify(aiGatewayService, never()).completeStructured(any(), any(), any(), any(), any(), any(), any());
     }
 }

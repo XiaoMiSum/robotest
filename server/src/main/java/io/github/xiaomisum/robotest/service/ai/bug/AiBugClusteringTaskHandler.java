@@ -44,7 +44,8 @@ import java.util.stream.Collectors;
  * bug_clustering 任务处理器（US-AI-010，详细设计 4.3）：
  * 取数（无向量现场补建）→ 贪心增量聚类（阈值 + 归一化中心，确定性）→
  * 前 maxLabeledClusters 簇 LLM 归纳（每簇一次、批间心跳 + 协作式取消）→ 落库 2.3 快照。
- * 只读洞察，不修改缺陷数据。
+ * semanticSearch 非 available 时降级为关键词归纳（标题分词 + 重叠系数，详见 4.3 降级模式），
+ * 快照结构与向量模式一致。只读洞察，不修改缺陷数据。
  */
 @Slf4j
 @Component
@@ -52,7 +53,7 @@ public class AiBugClusteringTaskHandler implements AiTaskHandler {
 
     public static final String TYPE = Constants.AiTaskType.BUG_CLUSTERING;
 
-    /** 代表样本数（4.3 步骤 3：离中心最近 5 条） */
+    /** 代表样本数（4.3 步骤 3：离中心最近 5 条；降级模式为与簇词集重叠系数最高 5 条） */
     static final int REPRESENTATIVE_SAMPLE_LIMIT = 5;
     /** 单样本描述截断预算（token，控制单簇归纳输入规模） */
     static final int SAMPLE_DESC_TOKEN_BUDGET = 600;
@@ -90,6 +91,15 @@ public class AiBugClusteringTaskHandler implements AiTaskHandler {
     public Map<String, Object> execute(AiAnalysisTask task) {
         UUID projectId = task.getProjectId();
         List<Bug> bugs = bugMapper.findOpenBugsForClustering(projectId);
+        // 语义检索可用 → 向量聚类；否则降级关键词归纳（4.3 降级模式，前端提示条明示）
+        String semantic = aiConfigService.getStatus().getSemanticSearch();
+        return Constants.AiSemanticSearch.AVAILABLE.equals(semantic)
+                ? executeVectorClustering(task, projectId, bugs)
+                : executeKeywordClustering(task, bugs);
+    }
+
+    /** 向量模式（4.3 主路径）：无向量现场补建 → 贪心增量聚类 → 归纳 → 落库 */
+    private Map<String, Object> executeVectorClustering(AiAnalysisTask task, UUID projectId, List<Bug> bugs) {
         // 1. 取数（10%）：无向量现场补建，补建仍缺失的缺陷归入 unclustered
         Map<UUID, float[]> vectors = loadVectors(projectId);
         for (Bug bug : bugs) {
@@ -138,12 +148,51 @@ public class AiBugClusteringTaskHandler implements AiTaskHandler {
         return buildSnapshot(bugs, clusters, unclustered);
     }
 
-    /** 单簇 LLM 归纳（代表样本 = 离中心最近 5 条标题 + 截断描述，4.3 步骤 3） */
+    /** 关键词降级模式（4.3 降级模式）：标题分词 + 重叠系数贪心聚类 → 归纳 → 落库，零向量依赖 */
+    private Map<String, Object> executeKeywordClustering(AiAnalysisTask task, List<Bug> bugs) {
+        List<GreedyCluster> clusters = new ArrayList<>();
+        List<UUID> unclustered = new ArrayList<>();
+        if (heartbeat(task, 10, bugs, clusters, unclustered) == 0) {
+            return buildSnapshot(bugs, clusters, unclustered);
+        }
+
+        // 聚类（40%）：贪心增量（按创建时间遍历，确定性），单缺陷簇归入 unclustered
+        double threshold = aiConfigService.getNumberSetting("clustering.keywordSimilarityThreshold");
+        GreedyResult greedy = keywordGreedyClustering(bugs, threshold);
+        clusters = greedy.clusters();
+        unclustered = greedy.unclustered();
+        clusters.sort(Comparator.comparingInt((GreedyCluster c) -> c.bugIds.size()).reversed());
+        if (heartbeat(task, 40, bugs, clusters, unclustered) == 0) {
+            return buildSnapshot(bugs, clusters, unclustered);
+        }
+
+        // 归纳（40% → 90%）：同向量模式，代表样本按与簇词集重叠系数（buildSampleData 降级分支）
+        int maxLabeled = aiConfigService.getIntSetting("clustering.maxLabeledClusters");
+        int labeledCount = Math.min(clusters.size(), maxLabeled);
+        for (int i = 0; i < labeledCount; i++) {
+            int progress = 40 + (int) Math.round(50.0 * (i + 1) / labeledCount);
+            if (heartbeat(task, progress, bugs, clusters, unclustered) == 0) {
+                return buildSnapshot(bugs, clusters, unclustered);
+            }
+            try {
+                labelCluster(task, clusters.get(i), bugs, null);
+            } catch (Exception e) {
+                log.warn("[AI] 聚类归纳失败，保留未命名主题: {}", e.getMessage());
+            }
+        }
+
+        return buildSnapshot(bugs, clusters, unclustered);
+    }
+
+    /** 单簇 LLM 归纳（4.3 步骤 3）：向量模式取离中心最近 5 条；降级模式（vectors=null）取重叠系数最高 5 条 */
     private void labelCluster(AiAnalysisTask task, GreedyCluster cluster, List<Bug> bugs, Map<UUID, float[]> vectors) {
         AiCallContext context = new AiCallContext(task.getCreatedBy(), task.getWorkspaceId(), task.getProjectId());
+        String sampleData = vectors == null
+                ? buildKeywordSampleData(cluster, bugs)
+                : buildSampleData(cluster, bugs, vectors);
         ClusterLabelOut out = aiGatewayService.completeStructured(
                 context, AiFunctionType.BUG_CLUSTERING, LABEL_TASK_INSTRUCTION,
-                buildSampleData(cluster, bugs, vectors), ChatCallOptions.json(),
+                sampleData, ChatCallOptions.json(),
                 ClusterLabelOut.class, this::assertLabel);
         cluster.label = out.getLabel();
         cluster.rootCause = out.getRootCause();
@@ -193,6 +242,65 @@ public class AiBugClusteringTaskHandler implements AiTaskHandler {
         return new GreedyResult(multi, unclustered);
     }
 
+    /**
+     * 关键词降级聚类（4.3 降级模式）：标题分词（AiTextUtils#tokenizeKeywordsForClustering，
+     * CJK 单字 + 非 CJK 整词，与查重降级口径分离）
+     * → 与已有簇词集重叠系数 ≥ 阈值则并入（簇词集取并集更新中心），否则新建簇；确定性同向量模式。
+     */
+    private GreedyResult keywordGreedyClustering(List<Bug> bugs, double threshold) {
+        List<GreedyCluster> clusters = new ArrayList<>();
+        List<UUID> unclustered = new ArrayList<>();
+        for (Bug bug : bugs) {
+            Set<String> words = AiTextUtils.tokenizeKeywordsForClustering(bug.getTitle());
+            if (words.isEmpty()) {
+                unclustered.add(bug.getId());
+                continue;
+            }
+            GreedyCluster best = null;
+            double bestSim = threshold;
+            for (GreedyCluster c : clusters) {
+                double sim = overlapCoefficient(words, c.keywords);
+                if (sim >= bestSim) {
+                    bestSim = sim;
+                    best = c;
+                }
+            }
+            if (best == null) {
+                GreedyCluster created = new GreedyCluster();
+                created.bugIds.add(bug.getId());
+                created.keywords = new HashSet<>(words);
+                clusters.add(created);
+            } else {
+                best.bugIds.add(bug.getId());
+                best.keywords.addAll(words);
+            }
+        }
+        // 单缺陷簇无归纳价值，归入 unclustered（与向量模式一致）
+        List<GreedyCluster> multi = new ArrayList<>();
+        for (GreedyCluster c : clusters) {
+            if (c.bugIds.size() == 1) {
+                unclustered.add(c.bugIds.get(0));
+            } else {
+                multi.add(c);
+            }
+        }
+        return new GreedyResult(multi, unclustered);
+    }
+
+    /** 词集重叠系数 |A∩B| / min(|A|,|B|)：关键词降级聚类相似度（4.3 降级模式） */
+    private double overlapCoefficient(Set<String> a, Set<String> b) {
+        if (a.isEmpty() || b.isEmpty()) {
+            return 0.0;
+        }
+        int intersection = 0;
+        for (String word : a) {
+            if (b.contains(word)) {
+                intersection++;
+            }
+        }
+        return (double) intersection / Math.min(a.size(), b.size());
+    }
+
     /** 代表样本：簇内按与中心余弦相似度降序取前 N 条，样本文本 = 标题 + 截断描述 */
     private String buildSampleData(GreedyCluster cluster, List<Bug> bugs, Map<UUID, float[]> vectors) {
         Map<UUID, Bug> bugById = bugs.stream().collect(Collectors.toMap(Bug::getId, b -> b, (a, b) -> a));
@@ -201,6 +309,23 @@ public class AiBugClusteringTaskHandler implements AiTaskHandler {
                         .thenComparing(UUID::toString))
                 .limit(REPRESENTATIVE_SAMPLE_LIMIT)
                 .toList();
+        return buildSampleText(samples, bugById);
+    }
+
+    /** 降级模式代表样本：与簇词集重叠系数降序取前 N 条（tie-break 按缺陷 ID 升序保证确定性） */
+    private String buildKeywordSampleData(GreedyCluster cluster, List<Bug> bugs) {
+        Map<UUID, Bug> bugById = bugs.stream().collect(Collectors.toMap(Bug::getId, b -> b, (a, b) -> a));
+        List<UUID> samples = cluster.bugIds.stream()
+                .sorted(Comparator.comparingDouble((UUID id) -> -overlapCoefficient(
+                                AiTextUtils.tokenizeKeywordsForClustering(bugById.get(id).getTitle()), cluster.keywords))
+                        .thenComparing(UUID::toString))
+                .limit(REPRESENTATIVE_SAMPLE_LIMIT)
+                .toList();
+        return buildSampleText(samples, bugById);
+    }
+
+    /** 代表样本 → 归纳输入文本（标题 + 截断描述），两种模式共用 */
+    private String buildSampleText(List<UUID> samples, Map<UUID, Bug> bugById) {
         StringBuilder sb = new StringBuilder("【缺陷样本】\n");
         int index = 1;
         for (UUID id : samples) {
@@ -352,12 +477,13 @@ public class AiBugClusteringTaskHandler implements AiTaskHandler {
         return vectors;
     }
 
-    /** 聚类中的簇：sum 为成员归一化向量累加和，center = normalize(sum)（增量更新 O(1)） */
+    /** 聚类中的簇：sum 为成员归一化向量累加和，center = normalize(sum)（增量更新 O(1)）；降级模式用 keywords 作簇中心词集 */
     private static class GreedyCluster {
 
         private final List<UUID> bugIds = new ArrayList<>();
         private float[] sum;
         private float[] center;
+        private Set<String> keywords;
         private String label;
         private String rootCause;
     }
