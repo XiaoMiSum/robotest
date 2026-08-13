@@ -235,7 +235,8 @@ onMounted(load)
         <el-table-column label="更新时间" width="180">
           <template #default="{ row }">{{ formatDateTime(row.updatedAt) }}</template>
         </el-table-column>
-        <el-table-column v-if="canEdit" label="操作" width="140" fixed="right">
+        <!-- 操作列含 编辑/删除/归档 三个 link 按钮（归档态为「取消归档」四字），需加宽避免挤压 -->
+        <el-table-column v-if="canEdit" label="操作" width="180" fixed="right">
           <template #default="{ row }">
             <!-- 已归档只读：隐藏编辑入口（后端同时强校验拒绝） -->
             <el-button v-if="row.status !== 'archived'" link type="primary" @click="openEdit(row.id)">编辑</el-button>
