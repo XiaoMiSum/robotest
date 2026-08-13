@@ -10,15 +10,14 @@ import io.github.xiaomisum.robotest.repository.admin.SysUserMapper;
 import io.github.xiaomisum.robotest.repository.bug.BugMapper;
 import io.github.xiaomisum.robotest.service.ai.gateway.AiConfigService;
 import io.github.xiaomisum.robotest.service.ai.gateway.AiRateLimiter;
+import io.github.xiaomisum.robotest.service.ai.support.AiTextUtils;
 import io.github.xiaomisum.robotest.service.ai.vector.AiVectorSearchService.BugDedupHit;
 import io.github.xiaomisum.robotest.service.ai.vector.AiVectorSearchService;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -67,7 +66,7 @@ public class AiBugDedupServiceImpl implements AiBugDedupService {
     /** 关键词降级：标题分词后按命中关键词数倒序取 topK（3.2 降级语义，similarity 置 null） */
     private AiBugDedupRespDTO keywordResponse(UUID projectId, AiBugDedupReqDTO reqDTO) {
         int topK = aiConfigService.getIntSetting("dedup.topK");
-        List<String> keywords = tokenize(reqDTO.getTitle());
+        Set<String> keywords = AiTextUtils.tokenizeKeywords(reqDTO.getTitle());
         List<Bug> openBugs = bugMapper.findOpenBugsForDedup(projectId);
         Map<UUID, Integer> matchCount = new HashMap<>();
         for (Bug bug : openBugs) {
@@ -89,20 +88,6 @@ public class AiBugDedupServiceImpl implements AiBugDedupService {
         return response(true, ranked.stream()
                 .map(bug -> new RawHit(bug.getId(), bug.getTitle(), bug.getStatus(), bug.getAssigneeId(), null))
                 .toList());
-    }
-
-    /** 标题分词：按非字母数字切分，保留 ≥2 字符片段（中英文通用，过滤单字噪声） */
-    private List<String> tokenize(String title) {
-        if (title == null) {
-            return List.of();
-        }
-        Set<String> tokens = new HashSet<>();
-        for (String token : title.toLowerCase().split("[^\\p{L}\\p{Nd}]+")) {
-            if (token.length() >= 2) {
-                tokens.add(token);
-            }
-        }
-        return new ArrayList<>(tokens);
     }
 
     private AiBugDedupRespDTO response(boolean degraded, List<RawHit> hits) {

@@ -46,6 +46,7 @@ public class AiSettingDefinitions {
         addNumber("dedup", "语义查重", "dedup.similarityThreshold", "查重相似度阈值", "判定疑似重复的余弦相似度阈值", 0.75, 0.0, 1.0, 0.01);
         // 聚类分析
         addNumber("clustering", "聚类分析", "clustering.similarityThreshold", "聚类相似度阈值", "缺陷聚类合并的相似度阈值", 0.82, 0.0, 1.0, 0.01);
+        addNumber("clustering", "聚类分析", "clustering.keywordSimilarityThreshold", "关键词聚类阈值", "语义检索不可用时关键词降级聚类的重叠系数阈值", 0.2, 0.0, 1.0, 0.01);
         addInt("clustering", "聚类分析", "clustering.maxLabeledClusters", "最大标注簇数", "生成标签的最大聚类簇数", 30, 1.0, 100.0);
         // 检索与推荐
         addInt("retrieval", "检索与推荐", "missingPoint.topK", "遗漏点检索条数", "遗漏测试点分析检索的候选条数", 100, 1.0, null);
