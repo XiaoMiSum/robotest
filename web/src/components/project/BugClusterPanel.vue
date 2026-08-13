@@ -299,9 +299,18 @@ onBeforeUnmount(stopPolling)
                 >
                   <span class="bug-cluster__card-index">{{ index + 1 }}</span>
                   <div class="bug-cluster__card-main">
-                    <div class="bug-cluster__card-label">{{ cluster.label }}</div>
+                    <div class="bug-cluster__card-label">
+                      <el-tag
+                        v-if="!cluster.labeled"
+                        type="warning"
+                        size="small"
+                        effect="light"
+                        class="bug-cluster__label-fallback"
+                      >⚠ 标签生成失败</el-tag>
+                      {{ cluster.label }}
+                    </div>
                     <div class="bug-cluster__card-cause">
-                      {{ cluster.rootCause ?? '未给出根因' }}
+                      {{ cluster.labeled ? (cluster.rootCause ?? '未给出根因') : '未生成主题名与根因（LLM 归纳失败）' }}
                     </div>
                   </div>
                   <div class="bug-cluster__card-side">
@@ -318,12 +327,16 @@ onBeforeUnmount(stopPolling)
                   </div>
                 </div>
                 <div v-if="expandedCluster === index" class="bug-cluster__card-body">
-                  <!-- 根因全文（超长时可独立展开） -->
+                  <!-- 根因全文（超长时可独立展开；标签生成失败时展开区同样明示） -->
                   <div
+                    v-if="cluster.labeled"
                     class="bug-cluster__card-cause-full"
                     @click="expandedCause = expandedCause === index ? null : index"
                   >
                     {{ cluster.rootCause ?? '未给出根因' }}
+                  </div>
+                  <div v-else class="bug-cluster__card-cause-full">
+                    未生成主题名与根因（LLM 归纳失败，请检查 AI 模型配置后刷新重试）
                   </div>
                   <div class="bug-cluster__card-list">
                     <div
@@ -499,6 +512,12 @@ onBeforeUnmount(stopPolling)
   color: var(--color-neutral-800);
   margin-bottom: 4px;
   line-height: 1.4;
+}
+
+// 标签生成失败标识（labeled=false）：warning el-tag 与占位主题名同行，区分正常/降级结果
+.bug-cluster__label-fallback {
+  margin-right: 6px;
+  vertical-align: 2px;
 }
 
 // 根因正文：14px，最多 3 行省略（V1.1 为 10px）
