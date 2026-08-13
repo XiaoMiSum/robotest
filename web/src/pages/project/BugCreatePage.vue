@@ -265,11 +265,14 @@ async function handleDedupMarkDuplicate(): Promise<void> {
                 show-word-limit
                 size="large"
               >
-                <!-- AI 建议入口内嵌标题输入框（方案 A）：紧贴输入焦点，请求经 ref 调组件暴露方法，loading 驱动按钮态 -->
+                <!-- AI 建议入口内嵌标题输入框（方案 A）：紧贴输入焦点，请求经 ref 调组件暴露方法，loading 驱动按钮态；
+                     无标题时禁用，输入后呼吸光晕 + 魔棒微晃动画提示可操作 -->
                 <template #append>
                   <el-button
                     v-if="aiEnabled"
+                    class="bug-create__ai-append"
                     :loading="aiSuggestRef?.loading"
+                    :disabled="!form.title.trim()"
                     @click="aiSuggestRef?.requestSuggestion()"
                   >
                     <el-icon><MagicStick /></el-icon>AI 建议
@@ -475,6 +478,65 @@ async function handleDedupMarkDuplicate(): Promise<void> {
 .bug-create__form :deep(.bug-create__date) {
   width: 100%;
   --el-date-editor-width: 100%;
+}
+
+// 标题输入栏与 AI 按钮明显分割：append 区浅蓝底 + 加粗主色分隔线，与下方面板同色系形成 AI 语义区
+.bug-create__form :deep(.el-input-group__append) {
+  padding: 0;
+  background: var(--color-primary-50);
+  border-left: 2px solid var(--color-primary-200);
+}
+
+// append 内按钮填满容器、圆角归零，视觉上与输入栏是两个独立区域
+.bug-create__form :deep(.bug-create__ai-append) {
+  height: 100%;
+  margin: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: var(--color-primary-600);
+  font-weight: 600;
+
+  // 未输入标题：禁用灰显，无动画
+  &.is-disabled {
+    background: transparent;
+    color: var(--color-neutral-400);
+  }
+
+  // 输入标题后（可操作态）：呼吸光晕 + 魔棒微晃，吸引点击注意力；loading 时 EP 自带 is-disabled 自动停用动画
+  &:not(.is-disabled):not(.is-loading) {
+    animation: bug-create-ai-glow 2s ease-in-out infinite;
+
+    .el-icon {
+      animation: bug-create-ai-wiggle 2s ease-in-out infinite;
+    }
+  }
+}
+
+@keyframes bug-create-ai-glow {
+  0%,
+  100% {
+    box-shadow: inset 0 0 0 0 rgba(37, 99, 235, 0);
+  }
+
+  50% {
+    box-shadow: inset 0 0 10px 2px rgba(37, 99, 235, 0.35);
+  }
+}
+
+@keyframes bug-create-ai-wiggle {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+
+  25% {
+    transform: rotate(-10deg);
+  }
+
+  75% {
+    transform: rotate(10deg);
+  }
 }
 
 .bug-create__form :deep(.el-form-item__label) {
