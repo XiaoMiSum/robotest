@@ -18,7 +18,6 @@ import { BUG_STATUS_LABEL, BUG_STATUS_TAG_TYPE, BUG_TYPE_LABEL } from '@/utils/b
 import CaseSelector from '@/components/project/CaseSelector.vue'
 import MarkdownEditor from '@/components/common/MarkdownEditor.vue'
 import BugAiSuggest from '@/components/project/BugAiSuggest.vue'
-import BugDedupList from '@/components/project/BugDedupList.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -30,7 +29,7 @@ const submitting = ref(false)
 // AI 建议入口按钮位于标题输入框 #append（方案 A），经 ref 调用组件暴露的请求方法
 const aiSuggestRef = ref<InstanceType<typeof BugAiSuggest>>()
 
-// 查重命中列表由 BugDedupList 上抛维护，提交时据此决定是否拦截确认（无命中不弹层）
+// 查重命中列表经 BugAiSuggest 上抛维护，提交时据此决定是否拦截确认（无命中不弹层）
 const dedupItems = ref<AiBugDedupItem[]>([])
 const dedupConfirmVisible = ref(false)
 const dedupSubmitting = ref(false)
@@ -288,12 +287,6 @@ async function handleDedupMarkDuplicate(): Promise<void> {
               @apply-title="applyTitle"
               @apply-severity="applySeverity"
               @apply-priority="applyPriority"
-            />
-            <BugDedupList
-              v-if="aiEnabled"
-              :title="form.title"
-              :repro-steps="form.reproSteps"
-              class="bug-create__dedup"
               @dedup-change="dedupItems = $event"
               @select-duplicate="handleSelectDuplicate"
               @abandon-submit="handleAbandonSubmit"
@@ -552,11 +545,6 @@ async function handleDedupMarkDuplicate(): Promise<void> {
 .bug-create__repro :deep(.md-editor) {
   width: 100%;
   border-radius: var(--radius-md);
-}
-
-// 查重列表紧贴标题输入框下方，与后续字段保持间距
-.bug-create__dedup {
-  margin-bottom: var(--space-lg);
 }
 
 .bug-create__upload-icon {
