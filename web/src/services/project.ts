@@ -390,6 +390,8 @@ export function deleteBugAttachment(attachmentId: string): Promise<void> {
 
 export function fetchRequirements(params: {
   keyword?: string
+  // 状态筛选：缺省返回全部；除需求池管理页外，取数点必须显式传 'active'（需求规格 3.2.4）
+  status?: string
   pageNo?: number
   pageSize?: number
 }): Promise<PageResult<RequirementPoolItem>> {
@@ -422,6 +424,10 @@ export function updateRequirement(
 
 export function deleteRequirement(id: string): Promise<void> {
   return del(`/project/requirements/${id}`)
+}
+
+export function archiveRequirement(id: string, archived: boolean): Promise<void> {
+  return put(`/project/requirements/${id}/archive`, { archived })
 }
 
 // 文档关联需求条目（US-AI-004 3.1.5）
