@@ -264,6 +264,16 @@ onBeforeUnmount(() => {
           :placeholder="config.inputPlaceholder"
         />
         <div class="ai-panel-actions">
+          <!-- 流式进度条：flex:1 占满按钮组剩余空间（同遗漏分析面板 .mp-actions__progress，交互设计 8.2） -->
+          <div v-if="phase === 'streaming'" class="ai-panel-actions__progress">
+            <el-progress
+              :percentage="100"
+              :indeterminate="true"
+              :duration="2"
+              :stroke-width="4"
+              :show-text="false"
+            />
+          </div>
           <AiModelSelect />
           <el-button
             v-if="phase !== 'streaming'"
@@ -271,7 +281,7 @@ onBeforeUnmount(() => {
             @click="generate"
           >
             <el-icon><MagicStick /></el-icon>
-            <span>{{ phase === 'done' ? '重新生成' : '开始生成' }}</span>
+            <span>{{ phase === 'done' ? config.retryButtonText : config.startButtonText }}</span>
           </el-button>
           <el-button v-else size="small" @click="stop">停止</el-button>
         </div>
@@ -293,10 +303,9 @@ onBeforeUnmount(() => {
         :title="warning"
       />
 
-      <!-- 生成中/生成完毕：SSE 无真实进度信息，以虚假进度条占位（交互设计 2.2，不再逐字上屏） -->
+      <!-- 生成中/生成完毕：进度条移至操作行占位，输出区仅提示文字；完成态不显示进度条（交互设计 2.2） -->
       <div v-if="phase === 'streaming'" class="ai-panel-output ai-panel-output--progress">
-        <el-progress :percentage="100" :indeterminate="true" :duration="2" :stroke-width="4" :show-text="false" />
-        <div class="ai-panel-progress-tip">正在生成测试用例，请稍候…</div>
+        <div class="ai-panel-progress-tip">{{ config.streamingTipMessage }}</div>
       </div>
       <div v-else-if="phase === 'done'" class="ai-panel-output ai-panel-output--progress">
         <el-alert
@@ -306,8 +315,7 @@ onBeforeUnmount(() => {
           show-icon
           title="挂载目标已被删除，查看预览后可重新选择挂载位置"
         />
-        <el-progress v-else :percentage="100" :stroke-width="4" status="success" :show-text="false" />
-        <div v-if="!targetMissing" class="ai-panel-progress-tip">生成完成，点击下方「查看预览」在脑图中核对并勾选取舍</div>
+        <div v-if="!targetMissing" class="ai-panel-progress-tip">{{ config.doneTipMessage }}</div>
       </div>
 
       <div v-if="phase === 'done'" class="ai-panel-footer">
@@ -330,6 +338,7 @@ onBeforeUnmount(() => {
     :nodes="previewNodes"
     :target-path="targetPath"
     :target-missing="targetMissing"
+    :confirm-button-text="config.confirmButtonText"
     @confirm="handlePreviewConfirm"
   />
 </template>
@@ -391,6 +400,12 @@ onBeforeUnmount(() => {
   justify-content: flex-end;
   gap: 8px;
   margin-top: 8px;
+}
+
+/* 流式虚假进度条：占满按钮组剩余空间，纤细线宽（同遗漏分析面板 .mp-actions__progress） */
+.ai-panel-actions__progress {
+  flex: 1;
+  min-width: 0;
 }
 
 .ai-panel-output {

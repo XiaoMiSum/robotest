@@ -54,4 +54,23 @@ describe('AI_PANEL_MODES 请求体组装', () => {
     expect(AI_PANEL_MODES.generate.url).toBe('/project/ai/cases/generate')
     expect(AI_PANEL_MODES.complete.url).toBe('/project/ai/cases/complete-steps')
   })
+
+  it('两模式标题与按钮文案区分（交互设计 3.1）', () => {
+    expect(AI_PANEL_MODES.generate.title).toBe('AI 生成用例')
+    expect(AI_PANEL_MODES.generate.startButtonText).toBe('开始生成')
+    expect(AI_PANEL_MODES.generate.retryButtonText).toBe('重新生成')
+    expect(AI_PANEL_MODES.generate.confirmButtonText).toBe('确认挂载')
+    expect(AI_PANEL_MODES.complete.title).toBe('AI 补全用例')
+    expect(AI_PANEL_MODES.complete.startButtonText).toBe('开始补全')
+    expect(AI_PANEL_MODES.complete.retryButtonText).toBe('重新补全')
+    expect(AI_PANEL_MODES.complete.confirmButtonText).toBe('确认追加')
+    expect(AI_PANEL_MODES.complete.emptyResultMessage).toContain('前置')
+  })
+
+  it('两模式流式/完成提示文案齐备', () => {
+    expect(AI_PANEL_MODES.generate.streamingTipMessage.length).toBeGreaterThan(0)
+    expect(AI_PANEL_MODES.generate.doneTipMessage.length).toBeGreaterThan(0)
+    expect(AI_PANEL_MODES.complete.streamingTipMessage.length).toBeGreaterThan(0)
+    expect(AI_PANEL_MODES.complete.doneTipMessage.length).toBeGreaterThan(0)
+  })
 })
