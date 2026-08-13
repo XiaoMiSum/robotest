@@ -121,10 +121,14 @@ const aiGenerateSession = ref(0)
 const aiCompleteSession = ref(0)
 /** 当前激活的抽屉模式（generate/complete），供挂载后关闭对应实例 */
 const aiPanelMode = ref<AiPanelMode>('generate')
-/** 外部跳转（?aiGenerate=）带入抽屉的预填文本 */
-const aiInitialText = ref('')
-const aiTargetNodeId = ref('')
-const aiTargetPath = ref('')
+// generate/complete 双实例目标节点/路径/预填文本状态完全独立：
+// 共享 ref 会导致生成面板打开时改写 complete 的 targetChanged 判断基准、预填文本串入另一实例（会话数据混淆）
+const aiGenerateTargetNodeId = ref('')
+const aiGenerateTargetPath = ref('')
+const aiGenerateInitialText = ref('')
+const aiCompleteTargetNodeId = ref('')
+const aiCompleteTargetPath = ref('')
+const aiCompleteInitialText = ref('')
 /** 遗漏测试点分析面板（US-AI-007） */
 const missingPointsVisible = ref(false)
 // 目标节点被协同删除时暂存预览结果，重选挂载位置后继续（交互设计 2.2，不丢弃预览）
@@ -162,10 +166,10 @@ function openAiPanel() {
   if (!root) return
   const targetId = (root.data.id as string) || ''
   if (!targetId) return
-  aiTargetNodeId.value = targetId
-  aiTargetPath.value = (findNodePath(root, targetId) ?? []).join(' > ')
+  aiGenerateTargetNodeId.value = targetId
+  aiGenerateTargetPath.value = (findNodePath(root, targetId) ?? []).join(' > ')
   aiPanelMode.value = 'generate'
-  aiInitialText.value = ''
+  aiGenerateInitialText.value = ''
   aiPendingNodes.value = null
   aiGenerateVisible.value = true
   aiCompleteVisible.value = false
@@ -174,10 +178,10 @@ function openAiPanel() {
 function openAiGeneratePrefilled(text: string, root: MountTargetSource): void {
   const targetId = (root.data.id as string) || ''
   if (!targetId) return
-  aiTargetNodeId.value = targetId
-  aiTargetPath.value = (findNodePath(root, targetId) ?? []).join(' > ')
+  aiGenerateTargetNodeId.value = targetId
+  aiGenerateTargetPath.value = (findNodePath(root, targetId) ?? []).join(' > ')
   aiPanelMode.value = 'generate'
-  aiInitialText.value = text
+  aiGenerateInitialText.value = text
   aiPendingNodes.value = null
   // 外部带新需求文本发起（遗漏测试点转生成 / ?aiGenerate=）视为新会话：重置生成实例
   aiGenerateSession.value++
@@ -223,11 +227,11 @@ function openAiCompletePanel() {
   if (!root || !selected || selected.type !== 'case') return
   const targetId = (selected.id as string) || ''
   if (!targetId) return
-  const targetChanged = targetId !== aiTargetNodeId.value
-  aiTargetNodeId.value = targetId
-  aiTargetPath.value = (findNodePath(root, targetId) ?? []).join(' > ')
+  const targetChanged = targetId !== aiCompleteTargetNodeId.value
+  aiCompleteTargetNodeId.value = targetId
+  aiCompleteTargetPath.value = (findNodePath(root, targetId) ?? []).join(' > ')
   aiPanelMode.value = 'complete'
-  aiInitialText.value = ''
+  aiCompleteInitialText.value = ''
   aiPendingNodes.value = null
   if (targetChanged) aiCompleteSession.value++
   aiCompleteVisible.value = true
@@ -238,7 +242,11 @@ function openAiCompletePanel() {
 function handleAiMount(nodes: AiGeneratedNode[]) {
   const m = getMinder()
   if (!m) return
-  const count = mountGeneratedNodes(m as unknown as Parameters<typeof mountGeneratedNodes>[0], aiTargetNodeId.value, nodes)
+  const count = mountGeneratedNodes(
+    m as unknown as Parameters<typeof mountGeneratedNodes>[0],
+    aiPanelMode.value === 'complete' ? aiCompleteTargetNodeId.value : aiGenerateTargetNodeId.value,
+    nodes,
+  )
   if (count === null) {
     // 补全的挂载目标只能是原 case 节点，被协同删除即不可挂载（详细设计 4.2）
     if (aiPanelMode.value === 'complete') {
@@ -274,9 +282,11 @@ function handleAiReselect(node: ReselectTreeNode) {
   const pending = aiPendingNodes.value
   aiReselectVisible.value = false
   if (!pending) return
-  aiTargetNodeId.value = node.id
   const root = getLiveRoot()
-  aiTargetPath.value = (findNodePath(root, node.id) ?? []).join(' > ')
+  const path = (findNodePath(root, node.id) ?? []).join(' > ')
+  // 重选仅发生在 generate 挂载流程（complete 挂载目标丢失时报错不重选），写入 generate 独立状态
+  aiGenerateTargetNodeId.value = node.id
+  aiGenerateTargetPath.value = path
   handleAiMount(pending)
 }
 
@@ -982,10 +992,10 @@ defineExpose({ openAiGenerateWithText })
       v-model="aiGenerateVisible"
       mode="generate"
       :doc-id="props.docId"
-      :target-node-id="aiTargetNodeId"
-      :target-path="aiTargetPath"
+      :target-node-id="aiGenerateTargetNodeId"
+      :target-path="aiGenerateTargetPath"
       :get-doc-tree="getLiveRoot"
-      :initial-text="aiInitialText"
+      :initial-text="aiGenerateInitialText"
       :reset-token="aiGenerateSession"
       @mount="handleAiMount"
     />
@@ -995,10 +1005,10 @@ defineExpose({ openAiGenerateWithText })
       v-model="aiCompleteVisible"
       mode="complete"
       :doc-id="props.docId"
-      :target-node-id="aiTargetNodeId"
-      :target-path="aiTargetPath"
+      :target-node-id="aiCompleteTargetNodeId"
+      :target-path="aiCompleteTargetPath"
       :get-doc-tree="getLiveRoot"
-      :initial-text="aiInitialText"
+      :initial-text="aiCompleteInitialText"
       :reset-token="aiCompleteSession"
       @mount="handleAiMount"
     />
