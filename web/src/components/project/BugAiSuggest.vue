@@ -5,9 +5,11 @@ import { suggestBugForm } from '@/services/ai'
 import type { AiBugSuggestion, BugPriority, BugSeverity } from '@/types'
 
 /**
- * 缺陷表单 AI 建议卡（US-AI-008，交互设计 2.1/1.1 表单侧）：
- * 仅回填表单待用户确认（一键替换标题 / 采纳等级），不产生任何自动提交。
- * 调用失败仅 Toast 轻提示，不影响表单任何操作。
+ * 缺陷表单 AI 建议面板（US-AI-008，交互设计 2.1/1.1 表单侧）：
+ * 入口按钮由父组件置于标题输入框 #append（方案 A：内嵌按钮 + 内联面板），
+ * 本组件仅渲染建议面板，并经 defineExpose 暴露 requestSuggestion / loading 供按钮调用。
+ * 仅回填表单待用户确认（一键替换标题 / 采纳等级），不产生任何自动提交；
+ * 调用失败仅 Toast 轻提示，不影响表单任何操作；无建议结果时不占位（2.7 零影响原则）。
  */
 const props = defineProps<{
   title: string
@@ -51,6 +53,9 @@ async function requestSuggestion(): Promise<void> {
   }
 }
 
+// 父组件标题输入框 #append 按钮经 ref 调用；loading 解包后驱动按钮 loading 态
+defineExpose({ requestSuggestion, loading })
+
 function acceptTitle(): void {
   if (!suggestion.value) return
   emit('applyTitle', suggestion.value.optimizedTitle)
@@ -75,85 +80,79 @@ function adoptPriority(): void {
 </script>
 
 <template>
-  <el-card shadow="never" class="bug-ai-suggest">
-    <template #header>
-      <span class="bug-ai-suggest__header"><el-icon><MagicStick /></el-icon> AI 建议</span>
-    </template>
-
-    <template v-if="suggestion && titleState !== 'dismissed'">
-      <div class="bug-ai-suggest__item">
-        <div class="bug-ai-suggest__label">优化标题</div>
-        <div class="bug-ai-suggest__title">
-          {{ suggestion.optimizedTitle }}
-          <el-tag v-if="titleState === 'accepted'" size="small" type="success" effect="light">已采纳</el-tag>
-        </div>
-        <div v-if="titleState === 'idle'" class="bug-ai-suggest__actions">
-          <el-button size="small" type="primary" @click="acceptTitle">一键替换</el-button>
-          <el-button size="small" @click="dismissTitle">忽略</el-button>
-        </div>
-      </div>
-
-      <el-divider class="bug-ai-suggest__divider" />
-
-      <div class="bug-ai-suggest__item">
-        <div class="bug-ai-suggest__label">等级建议</div>
-        <div class="bug-ai-suggest__values">
-          <el-tag
-            size="small"
-            class="bug-ai-suggest__value"
-            :class="{ 'bug-ai-suggest__value--adopted': severityAdopted }"
-            @click="adoptSeverity"
-          >
-            {{ severityLabel[suggestion.severity] }}
-          </el-tag>
-          <span v-if="severityAdopted" class="bug-ai-suggest__adopted-tip">已回填</span>
-        </div>
-      </div>
-
-      <div class="bug-ai-suggest__item">
-        <div class="bug-ai-suggest__label">优先级建议</div>
-        <div class="bug-ai-suggest__values">
-          <el-tag
-            size="small"
-            class="bug-ai-suggest__value"
-            :class="{ 'bug-ai-suggest__value--adopted': priorityAdopted }"
-            @click="adoptPriority"
-          >
-            {{ priorityLabel[suggestion.priority] }}
-          </el-tag>
-          <span v-if="priorityAdopted" class="bug-ai-suggest__adopted-tip">已回填</span>
-        </div>
-      </div>
-
-      <div class="bug-ai-suggest__reason">{{ suggestion.reason }}</div>
-    </template>
-
-    <div v-else class="bug-ai-suggest__placeholder">
-      输入标题后点击下方按钮，获取标题、严重等级与优先级建议
+  <!-- 无建议结果时不渲染，避免占位（2.7 布局零侵入）；忽略建议后面板收起 -->
+  <div v-if="suggestion && titleState !== 'dismissed'" class="bug-ai-suggest">
+    <div class="bug-ai-suggest__head">
+      <el-icon><MagicStick /></el-icon><span>AI 建议</span>
     </div>
 
-    <div class="bug-ai-suggest__trigger">
-      <el-button :loading="loading" @click="requestSuggestion">
-        <el-icon><MagicStick /></el-icon>{{ loading ? '建议生成中…' : 'AI 建议' }}
-      </el-button>
+    <div class="bug-ai-suggest__item">
+      <div class="bug-ai-suggest__label">优化标题</div>
+      <div class="bug-ai-suggest__title">
+        {{ suggestion.optimizedTitle }}
+        <el-tag v-if="titleState === 'accepted'" size="small" type="success" effect="light">已采纳</el-tag>
+      </div>
+      <div v-if="titleState === 'idle'" class="bug-ai-suggest__actions">
+        <el-button size="small" type="primary" @click="acceptTitle">一键替换</el-button>
+        <el-button size="small" @click="dismissTitle">忽略</el-button>
+      </div>
     </div>
-  </el-card>
+
+    <el-divider class="bug-ai-suggest__divider" />
+
+    <div class="bug-ai-suggest__item">
+      <div class="bug-ai-suggest__label">等级建议</div>
+      <div class="bug-ai-suggest__values">
+        <el-tag
+          size="small"
+          class="bug-ai-suggest__value"
+          :class="{ 'bug-ai-suggest__value--adopted': severityAdopted }"
+          @click="adoptSeverity"
+        >
+          {{ severityLabel[suggestion.severity] }}
+        </el-tag>
+        <span v-if="severityAdopted" class="bug-ai-suggest__adopted-tip">已回填</span>
+      </div>
+    </div>
+
+    <div class="bug-ai-suggest__item">
+      <div class="bug-ai-suggest__label">优先级建议</div>
+      <div class="bug-ai-suggest__values">
+        <el-tag
+          size="small"
+          class="bug-ai-suggest__value"
+          :class="{ 'bug-ai-suggest__value--adopted': priorityAdopted }"
+          @click="adoptPriority"
+        >
+          {{ priorityLabel[suggestion.priority] }}
+        </el-tag>
+        <span v-if="priorityAdopted" class="bug-ai-suggest__adopted-tip">已回填</span>
+      </div>
+    </div>
+
+    <div class="bug-ai-suggest__reason">{{ suggestion.reason }}</div>
+  </div>
 </template>
 
 <style scoped lang="scss">
-.bug-ai-suggest__header {
+// 内联建议面板：primary 语义高亮（背景 50 / 边框 200 / 左侧 accent 条），与普通表单卡片区分以突出 AI 能力
+.bug-ai-suggest {
+  margin-bottom: var(--space-lg);
+  padding: var(--space-md) var(--space-lg);
+  background: var(--color-primary-50);
+  border: 1px solid var(--color-primary-200);
+  border-left: 3px solid var(--color-primary-500);
+  border-radius: var(--radius-md);
+}
+
+.bug-ai-suggest__head {
   display: inline-flex;
   align-items: center;
   gap: 4px;
   font-weight: 600;
   font-size: var(--font-size-base);
   color: var(--color-primary-600);
-}
-
-.bug-ai-suggest__placeholder {
-  font-size: var(--font-size-xs);
-  color: var(--color-neutral-400);
-  line-height: 1.6;
+  margin-bottom: var(--space-sm);
 }
 
 .bug-ai-suggest__item {
@@ -215,9 +214,5 @@ function adoptPriority(): void {
   font-size: var(--font-size-xs);
   color: var(--color-neutral-400);
   line-height: 1.6;
-}
-
-.bug-ai-suggest__trigger {
-  margin-top: var(--space-md);
 }
 </style>
