@@ -358,7 +358,7 @@ public class AiBugClusteringTaskHandler implements AiTaskHandler {
                 JsonUtils.toJsonString(buildSnapshot(bugs, clusters, unclustered)));
     }
 
-    /** 组装 2.3 快照：未命名簇按输出位置编号「未命名主题 N」，unclustered 升序保证确定性 */
+    /** 组装 2.3 快照：未命名簇按输出位置编号「未命名主题 N」，labeled 标识 LLM 归纳是否成功（供前端区分占位与正常结果），unclustered 升序保证确定性 */
     private Map<String, Object> buildSnapshot(List<Bug> bugs, List<GreedyCluster> clusters, List<UUID> unclustered) {
         Map<UUID, Bug> bugById = bugs.stream().collect(Collectors.toMap(Bug::getId, b -> b, (a, b) -> a));
         Map<UUID, String> moduleNames = resolveModuleNames(clusters, bugById);
@@ -369,7 +369,9 @@ public class AiBugClusteringTaskHandler implements AiTaskHandler {
         for (int i = 0; i < clusters.size(); i++) {
             GreedyCluster cluster = clusters.get(i);
             Map<String, Object> item = new LinkedHashMap<>();
-            item.put("label", StringUtils.hasText(cluster.label) ? cluster.label : "未命名主题 " + (i + 1));
+            boolean labeled = StringUtils.hasText(cluster.label);
+            item.put("label", labeled ? cluster.label : "未命名主题 " + (i + 1));
+            item.put("labeled", labeled);
             item.put("rootCause", cluster.rootCause);
             // bugs 携带标题/严重度/状态供前端聚类明细直接渲染（缺陷实体已在内存，零额外查询）
             item.put("bugs", cluster.bugIds.stream()

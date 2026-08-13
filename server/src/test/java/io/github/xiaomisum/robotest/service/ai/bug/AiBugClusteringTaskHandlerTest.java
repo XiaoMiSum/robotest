@@ -164,6 +164,7 @@ class AiBugClusteringTaskHandlerTest {
         assertEquals(2, clusters.size());
         Map<?, ?> clusterA = (Map<?, ?>) clusters.get(0);
         assertEquals("登录态异常", clusterA.get("label"));
+        assertEquals(true, clusterA.get("labeled"));
         // bugs 携带 id + title + severity + status（快照变更：bugIds → bugs，供前端明细直接渲染）
         List<?> bugsA = (List<?>) clusterA.get("bugs");
         assertEquals(2, bugsA.size());
@@ -240,8 +241,10 @@ class AiBugClusteringTaskHandlerTest {
         List<?> clusters = (List<?>) result.get("clusters");
         assertEquals(2, clusters.size());
         assertEquals("登录态异常", ((Map<?, ?>) clusters.get(0)).get("label"));
-        // 超出 maxLabeledClusters 的簇保留「未命名主题 N」
+        assertEquals(true, ((Map<?, ?>) clusters.get(0)).get("labeled"));
+        // 超出 maxLabeledClusters 的簇保留「未命名主题 N」且 labeled=false（前端明示标签生成失败）
         assertEquals("未命名主题 2", ((Map<?, ?>) clusters.get(1)).get("label"));
+        assertEquals(false, ((Map<?, ?>) clusters.get(1)).get("labeled"));
         // 仅一次 LLM 归纳调用
         verify(aiGatewayService).completeStructured(
                 any(), eq(AiFunctionType.BUG_CLUSTERING), any(), any(), any(),
@@ -317,8 +320,11 @@ class AiBugClusteringTaskHandlerTest {
 
         List<?> clusters = (List<?>) result.get("clusters");
         assertEquals(2, clusters.size());
+        // LLM 归纳失败：保留「未命名主题 N」且 labeled=false，任务不中止
         assertEquals("未命名主题 1", ((Map<?, ?>) clusters.get(0)).get("label"));
+        assertEquals(false, ((Map<?, ?>) clusters.get(0)).get("labeled"));
         assertEquals("登录态异常", ((Map<?, ?>) clusters.get(1)).get("label"));
+        assertEquals(true, ((Map<?, ?>) clusters.get(1)).get("labeled"));
     }
 
     @Test
@@ -356,6 +362,7 @@ class AiBugClusteringTaskHandlerTest {
         assertEquals(1, clusters.size());
         Map<?, ?> cluster = (Map<?, ?>) clusters.get(0);
         assertEquals("登录异常", cluster.get("label"));
+        assertEquals(true, cluster.get("labeled"));
         assertEquals(2, ((List<?>) cluster.get("bugs")).size());
         // 快照聚合与向量模式一致
         assertEquals(Map.of("fatal", 1, "serious", 1, "general", 0, "minor", 0), cluster.get("severityDist"));
