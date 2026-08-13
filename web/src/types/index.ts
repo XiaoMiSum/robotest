@@ -1085,9 +1085,10 @@ export interface AiBugClusterBug {
   status: BugStatus
 }
 
-/** 聚类单簇（2.3） */
+/** 聚类单簇（2.3；labeled=false 表示 LLM 归纳失败/超限，label 为占位「未命名主题 N」，前端需明示标签生成失败） */
 export interface AiBugCluster {
   label: string
+  labeled: boolean
   rootCause: string | null
   bugs: AiBugClusterBug[]
   severityDist: Record<BugSeverity, number>
