@@ -27,8 +27,6 @@ export interface AiPanelModeConfig {
   retryButtonText: string
   /** 预览弹窗底部确认按钮文案（挂载/追加区分） */
   confirmButtonText: string
-  /** 流式中操作行进度条旁侧提示（SSE 无真实进度，动画仅表意） */
-  streamingTipMessage: string
   /** 完成态输出区提示文字：进度条完成态不显示，以文字替代（交互设计 2.2） */
   doneTipMessage: string
   /** 生成结果为空时的提示文案 */
@@ -45,7 +43,6 @@ export const AI_PANEL_MODES: Record<AiPanelMode, AiPanelModeConfig> = {
     startButtonText: '开始生成',
     retryButtonText: '重新生成',
     confirmButtonText: '确认挂载',
-    streamingTipMessage: '正在生成测试用例，请稍候…',
     doneTipMessage: '生成完成，点击下方「查看预览」在脑图中核对并勾选取舍',
     emptyResultMessage: 'AI 未生成任何用例，请补充需求描述后重试',
     buildBody: ({ docId, targetNodeId, text, modelId, requirementIds }) => ({
@@ -64,7 +61,6 @@ export const AI_PANEL_MODES: Record<AiPanelMode, AiPanelModeConfig> = {
     startButtonText: '开始补全',
     retryButtonText: '重新补全',
     confirmButtonText: '确认追加',
-    streamingTipMessage: '正在补全测试用例，请稍候…',
     doneTipMessage: '补全完成，点击下方「查看预览」在脑图中核对并勾选取舍',
     emptyResultMessage: '既有前置/步骤/预期已完整，无需补全',
     buildBody: ({ docId, targetNodeId, text, modelId, requirementIds }) => ({

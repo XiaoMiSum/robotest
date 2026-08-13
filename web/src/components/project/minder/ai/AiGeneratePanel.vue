@@ -303,11 +303,8 @@ onBeforeUnmount(() => {
         :title="warning"
       />
 
-      <!-- 生成中/生成完毕：进度条移至操作行占位，输出区仅提示文字；完成态不显示进度条（交互设计 2.2） -->
-      <div v-if="phase === 'streaming'" class="ai-panel-output ai-panel-output--progress">
-        <div class="ai-panel-progress-tip">{{ config.streamingTipMessage }}</div>
-      </div>
-      <div v-else-if="phase === 'done'" class="ai-panel-output ai-panel-output--progress">
+      <!-- 流式态不渲染输出区（无提示文字，进度条仅存于操作行）；完成态输出区显示提示文字（交互设计 2.2） -->
+      <div v-if="phase === 'done'" class="ai-panel-output ai-panel-output--progress">
         <el-alert
           v-if="targetMissing"
           type="warning"

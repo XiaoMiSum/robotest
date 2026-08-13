@@ -67,10 +67,8 @@ describe('AI_PANEL_MODES 请求体组装', () => {
     expect(AI_PANEL_MODES.complete.emptyResultMessage).toContain('前置')
   })
 
-  it('两模式流式/完成提示文案齐备', () => {
-    expect(AI_PANEL_MODES.generate.streamingTipMessage.length).toBeGreaterThan(0)
+  it('两模式完成提示文案齐备', () => {
     expect(AI_PANEL_MODES.generate.doneTipMessage.length).toBeGreaterThan(0)
-    expect(AI_PANEL_MODES.complete.streamingTipMessage.length).toBeGreaterThan(0)
     expect(AI_PANEL_MODES.complete.doneTipMessage.length).toBeGreaterThan(0)
   })
 })
