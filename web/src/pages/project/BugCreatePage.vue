@@ -27,6 +27,8 @@ const aiStore = useAiStore()
 const aiEnabled = computed(() => aiStore.aiEnabled)
 const formRef = ref<FormInstance>()
 const submitting = ref(false)
+// AI 建议入口按钮位于标题输入框 #append（方案 A），经 ref 调用组件暴露的请求方法
+const aiSuggestRef = ref<InstanceType<typeof BugAiSuggest>>()
 
 // 查重命中列表由 BugDedupList 上抛维护，提交时据此决定是否拦截确认（无命中不弹层）
 const dedupItems = ref<AiBugDedupItem[]>([])
@@ -262,8 +264,28 @@ async function handleDedupMarkDuplicate(): Promise<void> {
                 maxlength="300"
                 show-word-limit
                 size="large"
-              />
+              >
+                <!-- AI 建议入口内嵌标题输入框（方案 A）：紧贴输入焦点，请求经 ref 调组件暴露方法，loading 驱动按钮态 -->
+                <template #append>
+                  <el-button
+                    v-if="aiEnabled"
+                    :loading="aiSuggestRef?.loading"
+                    @click="aiSuggestRef?.requestSuggestion()"
+                  >
+                    <el-icon><MagicStick /></el-icon>AI 建议
+                  </el-button>
+                </template>
+              </el-input>
             </el-form-item>
+            <BugAiSuggest
+              v-if="aiEnabled"
+              ref="aiSuggestRef"
+              :title="form.title"
+              :repro-steps="form.reproSteps"
+              @apply-title="applyTitle"
+              @apply-severity="applySeverity"
+              @apply-priority="applyPriority"
+            />
             <BugDedupList
               v-if="aiEnabled"
               :title="form.title"
@@ -359,15 +381,6 @@ async function handleDedupMarkDuplicate(): Promise<void> {
               </el-select>
             </el-form-item>
           </el-card>
-
-          <BugAiSuggest
-            v-if="aiEnabled"
-            :title="form.title"
-            :repro-steps="form.reproSteps"
-            @apply-title="applyTitle"
-            @apply-severity="applySeverity"
-            @apply-priority="applyPriority"
-          />
         </div>
       </div>
 
