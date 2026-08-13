@@ -230,6 +230,7 @@ CREATE TABLE requirement_pool_item (
     title       VARCHAR(200)  NOT NULL,
     content     TEXT          NOT NULL,
     source_url  VARCHAR(500)  NULL,
+    status      VARCHAR(20)   NOT NULL DEFAULT 'active', -- 条目状态：active（默认）/ archived（归档后只读、不参与 AI 消费）
     created_by  UUID          NOT NULL,
     updated_by  UUID          NOT NULL,
     is_deleted  BOOLEAN       NOT NULL DEFAULT FALSE,

@@ -16,17 +16,21 @@ import java.util.UUID;
  */
 public interface RequirementService {
 
-    PageResult<RequirementListRespDTO> getPage(UUID projectId, String keyword, Integer pageNo, Integer pageSize);
+    PageResult<RequirementListRespDTO> getPage(UUID projectId, String keyword, String status, Integer pageNo,
+            Integer pageSize);
 
     RequirementDetailRespDTO getDetail(UUID id, UUID projectId);
 
     String create(UUID projectId, UUID userId, RequirementCreateReqDTO reqDTO);
 
-    /** 编辑：仅创建人或项目管理权限成员 */
+    /** 编辑：仅创建人或项目管理权限成员；已归档条目禁止编辑 */
     void update(UUID id, UUID projectId, UUID userId, RequirementUpdateReqDTO reqDTO);
 
     /** 删除：仅创建人或项目管理权限成员（逻辑删除，不影响已生成的用例） */
     void delete(UUID id, UUID projectId, UUID userId);
+
+    /** 归档/取消归档：仅创建人或项目管理权限成员，幂等 */
+    void archive(UUID id, UUID projectId, UUID userId, boolean archived);
 
     /** 文档已关联的需求条目摘要（跳过已删条目，3.1.5） */
     List<RequirementSummaryRespDTO> getDocumentRequirements(UUID documentId, UUID projectId);

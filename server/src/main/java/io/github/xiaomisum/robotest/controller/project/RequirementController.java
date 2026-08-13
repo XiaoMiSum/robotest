@@ -1,6 +1,7 @@
 package io.github.xiaomisum.robotest.controller.project;
 
 import io.github.xiaomisum.robotest.framework.security.LoginUser;
+import io.github.xiaomisum.robotest.model.dto.request.requirement.RequirementArchiveReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.requirement.RequirementCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.requirement.RequirementUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.requirement.RequirementDetailRespDTO;
@@ -28,9 +29,10 @@ public class RequirementController {
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestHeader("X-Active-Project") UUID projectId,
             @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String status,
             @RequestParam(defaultValue = "1") Integer pageNo,
             @RequestParam(defaultValue = "20") Integer pageSize) {
-        return Result.ok(requirementService.getPage(projectId, keyword, pageNo, pageSize));
+        return Result.ok(requirementService.getPage(projectId, keyword, status, pageNo, pageSize));
     }
 
     @GetMapping("/{id}")
@@ -66,6 +68,16 @@ public class RequirementController {
             @RequestHeader("X-Active-Project") UUID projectId,
             @PathVariable UUID id) {
         requirementService.delete(id, projectId, loginUser.getId());
+        return Result.ok();
+    }
+
+    @PutMapping("/{id}/archive")
+    public Result<Void> archiveRequirement(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @RequestHeader("X-Active-Project") UUID projectId,
+            @PathVariable UUID id,
+            @RequestBody @Valid RequirementArchiveReqDTO reqDTO) {
+        requirementService.archive(id, projectId, loginUser.getId(), reqDTO.getArchived());
         return Result.ok();
     }
 }

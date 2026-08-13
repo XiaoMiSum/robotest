@@ -161,6 +161,62 @@ class RequirementServiceImplTest {
     }
 
     @Test
+    void update_archivedItem_throwsNoPermission() {
+        RequirementPoolItem archived = item(PROJECT_ID, CREATOR_ID);
+        archived.setStatus(Constants.Status.ARCHIVED);
+        when(requirementMapper.selectById(ITEM_ID)).thenReturn(archived);
+        RequirementUpdateReqDTO req = new RequirementUpdateReqDTO();
+        req.setTitle("改标题");
+        assertThrows(ServiceException.class, () -> service.update(ITEM_ID, PROJECT_ID, CREATOR_ID, req));
+        // 归档条目只读：不得产生任何更新
+        verify(requirementMapper, never()).updateById(any(RequirementPoolItem.class));
+    }
+
+    @Test
+    void archive_byCreator_setsArchived() {
+        when(requirementMapper.selectById(ITEM_ID)).thenReturn(item(PROJECT_ID, CREATOR_ID));
+        service.archive(ITEM_ID, PROJECT_ID, CREATOR_ID, true);
+        ArgumentCaptor<RequirementPoolItem> captor = ArgumentCaptor.forClass(RequirementPoolItem.class);
+        verify(requirementMapper).updateById(captor.capture());
+        org.junit.jupiter.api.Assertions.assertEquals(Constants.Status.ARCHIVED, captor.getValue().getStatus());
+    }
+
+    @Test
+    void archive_unarchive_restoresActive() {
+        RequirementPoolItem archived = item(PROJECT_ID, CREATOR_ID);
+        archived.setStatus(Constants.Status.ARCHIVED);
+        when(requirementMapper.selectById(ITEM_ID)).thenReturn(archived);
+        service.archive(ITEM_ID, PROJECT_ID, CREATOR_ID, false);
+        ArgumentCaptor<RequirementPoolItem> captor = ArgumentCaptor.forClass(RequirementPoolItem.class);
+        verify(requirementMapper).updateById(captor.capture());
+        org.junit.jupiter.api.Assertions.assertEquals(Constants.Status.ACTIVE, captor.getValue().getStatus());
+    }
+
+    @Test
+    void archive_sameState_isIdempotentNoUpdate() {
+        when(requirementMapper.selectById(ITEM_ID)).thenReturn(item(PROJECT_ID, CREATOR_ID));
+        service.archive(ITEM_ID, PROJECT_ID, CREATOR_ID, false);
+        verify(requirementMapper, never()).updateById(any(RequirementPoolItem.class));
+    }
+
+    @Test
+    void archive_byNonCreatorNonAdmin_throwsNoPermission() {
+        when(requirementMapper.selectById(ITEM_ID)).thenReturn(item(PROJECT_ID, CREATOR_ID));
+        stubMember(OTHER_ID, Constants.WorkspaceRole.MEMBER_ID);
+        assertThrows(ServiceException.class, () -> service.archive(ITEM_ID, PROJECT_ID, OTHER_ID, true));
+    }
+
+    @Test
+    void delete_archivedItem_stillAllowed() {
+        // 归档即封存只读的是「编辑」，删除不受归档态限制（详细设计 3.1.4）
+        RequirementPoolItem archived = item(PROJECT_ID, CREATOR_ID);
+        archived.setStatus(Constants.Status.ARCHIVED);
+        when(requirementMapper.selectById(ITEM_ID)).thenReturn(archived);
+        service.delete(ITEM_ID, PROJECT_ID, CREATOR_ID);
+        verify(requirementMapper).deleteById(ITEM_ID);
+    }
+
+    @Test
     void delete_byCreator_logicalDeletes() {
         when(requirementMapper.selectById(ITEM_ID)).thenReturn(item(PROJECT_ID, CREATOR_ID));
         service.delete(ITEM_ID, PROJECT_ID, CREATOR_ID);
@@ -174,7 +230,7 @@ class RequirementServiceImplTest {
         assertThrows(ServiceException.class, () -> service.delete(ITEM_ID, PROJECT_ID, OTHER_ID));
     }
 
-    // ==================== 文档关联（3.1.5） ====================
+    // ==================== 文档关联（3.1.6） ====================
 
     private TestCaseModule document(UUID projectId) {
         TestCaseModule module = new TestCaseModule();
@@ -215,6 +271,27 @@ class RequirementServiceImplTest {
     }
 
     @Test
+    void getDocumentRequirements_filtersArchivedItems() {
+        // 归档条目不参与 AI 消费：关联记录保留，但摘要过滤不展示（需求规格 3.2.4）
+        when(testCaseModuleMapper.selectById(DOC_ID)).thenReturn(document(PROJECT_ID));
+        UUID reqA = UUID.randomUUID();
+        UUID reqB = UUID.randomUUID();
+        when(documentRequirementRelMapper.listByDocumentId(DOC_ID)).thenReturn(List.of(rel(reqA), rel(reqB)));
+        RequirementPoolItem a = item(PROJECT_ID, CREATOR_ID);
+        a.setId(reqA);
+        a.setTitle("条目A");
+        RequirementPoolItem b = item(PROJECT_ID, CREATOR_ID);
+        b.setId(reqB);
+        b.setTitle("已归档条目B");
+        b.setStatus(Constants.Status.ARCHIVED);
+        when(requirementMapper.selectBatchIds(anyList())).thenReturn(List.of(a, b));
+
+        var result = service.getDocumentRequirements(DOC_ID, PROJECT_ID);
+        org.junit.jupiter.api.Assertions.assertEquals(1, result.size());
+        org.junit.jupiter.api.Assertions.assertEquals(reqA, result.get(0).getId());
+    }
+
+    @Test
     void setDocumentRequirements_requirementCrossProject_throwsNotFound() {
         when(testCaseModuleMapper.selectById(DOC_ID)).thenReturn(document(PROJECT_ID));
         UUID reqId = UUID.randomUUID();
@@ -223,6 +300,21 @@ class RequirementServiceImplTest {
         when(requirementMapper.selectById(reqId)).thenReturn(foreign);
         assertThrows(ServiceException.class,
                 () -> service.setDocumentRequirements(DOC_ID, PROJECT_ID, List.of(reqId)));
+    }
+
+    @Test
+    void setDocumentRequirements_archivedItem_throwsNoPermission() {
+        // 文档关联仅接受 active 条目：含 archived 拒绝设置（详细设计 3.1.6）
+        when(testCaseModuleMapper.selectById(DOC_ID)).thenReturn(document(PROJECT_ID));
+        UUID reqId = UUID.randomUUID();
+        RequirementPoolItem archived = item(PROJECT_ID, CREATOR_ID);
+        archived.setId(reqId);
+        archived.setStatus(Constants.Status.ARCHIVED);
+        when(requirementMapper.selectById(reqId)).thenReturn(archived);
+        assertThrows(ServiceException.class,
+                () -> service.setDocumentRequirements(DOC_ID, PROJECT_ID, List.of(reqId)));
+        // 校验失败不得产生任何关联写入
+        verify(documentRequirementRelMapper, never()).insert(any(DocumentRequirementRel.class));
     }
 
     @Test
@@ -307,6 +399,26 @@ class RequirementServiceImplTest {
         List<RequirementPoolItem> result = service.requireByIds(PROJECT_ID, List.of(first, second, first));
 
         org.junit.jupiter.api.Assertions.assertEquals(List.of(first, second),
+                result.stream().map(RequirementPoolItem::getId).toList());
+    }
+
+    @Test
+    void requireByIds_filtersArchivedItems() {
+        // 归档条目不参与 AI 上下文组装，静默过滤（需求规格 3.2.4）
+        UUID active = UUID.randomUUID();
+        UUID archivedId = UUID.randomUUID();
+        RequirementPoolItem a = item(PROJECT_ID, CREATOR_ID);
+        a.setId(active);
+        a.setTitle("条目A");
+        RequirementPoolItem b = item(PROJECT_ID, CREATOR_ID);
+        b.setId(archivedId);
+        b.setTitle("已归档条目B");
+        b.setStatus(Constants.Status.ARCHIVED);
+        when(requirementMapper.selectBatchIds(anyList())).thenReturn(List.of(a, b));
+
+        List<RequirementPoolItem> result = service.requireByIds(PROJECT_ID, List.of(active, archivedId));
+
+        org.junit.jupiter.api.Assertions.assertEquals(List.of(active),
                 result.stream().map(RequirementPoolItem::getId).toList());
     }
 }
