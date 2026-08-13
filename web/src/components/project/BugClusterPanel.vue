@@ -215,7 +215,7 @@ onBeforeUnmount(stopPolling)
 <template>
   <el-drawer
     v-model="drawerVisible"
-    size="500px"
+    size="560px"
     :modal="false"
     class="bug-cluster"
   >
