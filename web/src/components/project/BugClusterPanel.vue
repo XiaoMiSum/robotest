@@ -25,6 +25,12 @@ import { buildModuleBars, buildSeveritySegments } from './bugClusterChart'
 const props = defineProps<{ modelValue: boolean }>()
 const emit = defineEmits<{ 'update:modelValue': [value: boolean] }>()
 
+// 抽屉显隐：无遮罩（modal=false）不阻断缺陷列表操作，ESC/X 关闭（交互设计 4.1）
+const drawerVisible = computed({
+  get: () => props.modelValue,
+  set: (value: boolean) => emit('update:modelValue', value),
+})
+
 const router = useRouter()
 const aiStore = useAiStore()
 
@@ -207,22 +213,26 @@ onBeforeUnmount(stopPolling)
 </script>
 
 <template>
-  <div v-if="props.modelValue" class="bug-cluster">
-      <el-card shadow="never" class="bug-cluster__card">
-        <template #header>
-          <div class="bug-cluster__header">
-            <span class="bug-cluster__title"><el-icon><MagicStick /></el-icon> AI 分析</span>
-            <span v-if="snapshot" class="bug-cluster__generated">
-              生成时间：{{ formatDateTime(snapshot.generatedAt) }}
-            </span>
-            <div class="bug-cluster__header-actions">
-              <el-button size="small" :disabled="running || starting" @click="start">
-                {{ starting ? '分析中…' : '刷新' }}
-              </el-button>
-              <el-button size="small" @click="emit('update:modelValue', false)">收起</el-button>
-            </div>
-          </div>
-        </template>
+  <el-drawer
+    v-model="drawerVisible"
+    size="500px"
+    :modal="false"
+    class="bug-cluster"
+  >
+    <template #header>
+      <div class="bug-cluster__header">
+        <span class="bug-cluster__title"><el-icon><MagicStick /></el-icon> AI 分析</span>
+        <span v-if="snapshot" class="bug-cluster__generated">
+          生成时间：{{ formatDateTime(snapshot.generatedAt) }}
+        </span>
+        <div class="bug-cluster__header-actions">
+          <el-button size="small" :disabled="running || starting" @click="start">
+            {{ starting ? '分析中…' : '刷新' }}
+          </el-button>
+        </div>
+      </div>
+    </template>
+    <el-card shadow="never" class="bug-cluster__card">
 
         <el-alert
           v-if="semanticDegraded"
@@ -371,12 +381,13 @@ onBeforeUnmount(stopPolling)
           </template>
         </template>
       </el-card>
-  </div>
+  </el-drawer>
 </template>
 
 <style scoped lang="scss">
+// 抽屉内不再需要内嵌时的顶部间距；卡片仅作内容容器
 .bug-cluster__card {
-  margin-top: var(--space-lg);
+  box-shadow: none;
 }
 
 .bug-cluster__header {
