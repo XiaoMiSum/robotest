@@ -1077,16 +1077,24 @@ export interface AiBugClusterModule {
   count: number
 }
 
+/** 聚类单簇内缺陷（2.3，携带标题/严重度/状态供明细直接渲染，无需再查详情） */
+export interface AiBugClusterBug {
+  id: string
+  title: string
+  severity: BugSeverity
+  status: BugStatus
+}
+
 /** 聚类单簇（2.3） */
 export interface AiBugCluster {
   label: string
   rootCause: string | null
-  bugIds: string[]
+  bugs: AiBugClusterBug[]
   severityDist: Record<BugSeverity, number>
   moduleDist: AiBugClusterModule[]
 }
 
-/** 聚类结果快照（bug_clustering 任务 result，2.3；仅含 bugIds 无标题，清单跳转详情查看） */
+/** 聚类结果快照（bug_clustering 任务 result，2.3；unclustered 仅含 ID 无标题，仅计数展示） */
 export interface AiBugClusterSnapshot {
   generatedAt: string
   bugCount: number

@@ -146,12 +146,12 @@ function adoptPriority(): void {
   align-items: center;
   gap: 4px;
   font-weight: 600;
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-base);
   color: var(--color-primary-600);
 }
 
 .bug-ai-suggest__placeholder {
-  font-size: var(--font-size-2xs);
+  font-size: var(--font-size-xs);
   color: var(--color-neutral-400);
   line-height: 1.6;
 }
@@ -163,12 +163,12 @@ function adoptPriority(): void {
 }
 
 .bug-ai-suggest__label {
-  font-size: var(--font-size-2xs);
+  font-size: var(--font-size-xs);
   color: var(--color-neutral-500);
 }
 
 .bug-ai-suggest__title {
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-sm);
   color: var(--color-neutral-800);
   line-height: 1.6;
   display: flex;
@@ -206,13 +206,13 @@ function adoptPriority(): void {
 }
 
 .bug-ai-suggest__adopted-tip {
-  font-size: var(--font-size-2xs);
+  font-size: var(--font-size-xs);
   color: var(--color-success);
 }
 
 .bug-ai-suggest__reason {
   margin-top: var(--space-sm);
-  font-size: var(--font-size-2xs);
+  font-size: var(--font-size-xs);
   color: var(--color-neutral-400);
   line-height: 1.6;
 }
