@@ -86,7 +86,8 @@ function goDetail(bugId: string): void {
 </script>
 
 <template>
-  <div v-if="items.length || loading || autoStopped" class="bug-dedup">
+  <!-- loading 不参与占位：自动查重期间静默，避免输入标题时下方表单（重现步骤等）被「查重中…」推下再复位造成布局抖动（交互设计 3.1） -->
+  <div v-if="items.length || autoStopped" class="bug-dedup">
     <div class="bug-dedup__header">
       <span v-if="items.length" class="bug-dedup__count">疑似重复缺陷（{{ items.length }}）</span>
       <span v-else-if="loading" class="bug-dedup__hint">查重中…</span>
