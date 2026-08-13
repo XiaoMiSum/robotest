@@ -20,6 +20,8 @@ const props = defineProps<{
   targetPath: string
   /** 预览组装时挂载目标已缺失（回退为仅生成节点树）：确认前需重新选择挂载位置 */
   targetMissing: boolean
+  /** 底部确认按钮文案（生成=确认挂载 / 补全=确认追加，交互设计 3.1） */
+  confirmButtonText: string
 }>()
 
 const visible = defineModel<boolean>({ required: true })
@@ -205,7 +207,7 @@ onBeforeUnmount(() => {
     <template #footer>
       <span class="ai-preview-dialog__count">已勾选 {{ selectedCount }}/{{ totalCount }} 个用例</span>
       <el-button @click="handleClose">关闭</el-button>
-      <el-button type="primary" @click="handleConfirm">确认挂载</el-button>
+      <el-button type="primary" @click="handleConfirm">{{ confirmButtonText }}</el-button>
     </template>
   </el-dialog>
 </template>
