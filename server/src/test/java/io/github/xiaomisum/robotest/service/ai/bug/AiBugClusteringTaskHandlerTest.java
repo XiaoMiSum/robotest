@@ -149,7 +149,17 @@ class AiBugClusteringTaskHandlerTest {
         assertEquals(2, clusters.size());
         Map<?, ?> clusterA = (Map<?, ?>) clusters.get(0);
         assertEquals("登录态异常", clusterA.get("label"));
-        assertEquals(List.of(a.toString(), b.toString()), clusterA.get("bugIds"));
+        // bugs 携带 id + title + severity + status（快照变更：bugIds → bugs，供前端明细直接渲染）
+        List<?> bugsA = (List<?>) clusterA.get("bugs");
+        assertEquals(2, bugsA.size());
+        Map<?, ?> bugA = (Map<?, ?>) bugsA.get(0);
+        assertEquals(a.toString(), bugA.get("id"));
+        assertEquals("登录按钮无响应", bugA.get("title"));
+        assertEquals("fatal", bugA.get("severity"));
+        Map<?, ?> bugB = (Map<?, ?>) bugsA.get(1);
+        assertEquals(b.toString(), bugB.get("id"));
+        assertEquals("登录页面卡死", bugB.get("title"));
+        assertEquals("serious", bugB.get("severity"));
         // severityDist 四键零初始化 + 聚合
         assertEquals(Map.of("fatal", 1, "serious", 1, "general", 0, "minor", 0), clusterA.get("severityDist"));
         // moduleDist：moduleId 为空聚合为「未指定模块」（按数量降序、再按模块名升序，未指定排前）
