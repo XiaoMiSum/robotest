@@ -66,7 +66,9 @@ public class AiCasePlanRecommendServiceImpl implements AiCasePlanRecommendServic
 
     private static final String REASON_TASK_INSTRUCTION = """
             请根据需求描述，为下列每个用例标题生成一句话推荐理由（reason），说明该用例为何应纳入当前评审或测试计划的用例清单。
-            输出 reasons 数组，顺序与用例标题清单一一对应、长度完全一致；无法给出理由的用例可用空字符串占位。""";
+            输出单个 JSON 对象，仅含 reasons 数组，顺序与用例标题清单一一对应、长度完全一致；无法给出理由的用例可用空字符串占位。\
+            输出结构必须严格遵循如下示例（字段名、类型、层级完全一致）：\
+            {"reasons": ["该用例覆盖登录失败主流程，应纳入本次评审或测试计划"]}。""";
 
     private static final String KEYWORD_TASK_INSTRUCTION = """
             请从给定需求描述中抽取用于在测试用例库中检索的 ≤10 个关键词。

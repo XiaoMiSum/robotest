@@ -53,9 +53,11 @@ public class AiMissingPointServiceImpl implements AiMissingPointService {
 
     private static final String TASK_INSTRUCTION = """
             请对比需求描述与候选用例清单，找出需求已提及但现有候选用例未覆盖的测试点。
-            每个遗漏点包含：title（建议新增用例标题）、description（遗漏原因说明）、\
+            输出单个 JSON 对象，仅含 points 数组，每个遗漏点包含：title（建议新增用例标题）、description（遗漏原因说明）、\
             suggestedModulePath（建议归属模块路径，必须来自候选用例清单中出现过的模块路径或留空）、\
             relatedCaseTitles（关联的候选用例标题，仅允许引用候选用例清单中真实存在的标题，无关联时为空数组）。\
+            输出结构必须严格遵循如下示例（字段名、类型、层级完全一致）：\
+            {"points": [{"title": "建议新增的用例标题", "description": "遗漏原因说明", "suggestedModulePath": "建议归属模块路径", "relatedCaseTitles": ["关联的候选用例标题"]}]}。\
             遗漏点应与候选用例互补：需求已覆盖的测试点不要重复输出。""";
 
     private static final String KEYWORD_TASK_INSTRUCTION = """

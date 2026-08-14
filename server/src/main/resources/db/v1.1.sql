@@ -208,15 +208,113 @@ INSERT INTO ai_prompt_template (id, function_type, role_instruction, format_cons
 - 无法识别为用例结构的内容归入 normal 节点，不得虚构原文没有的用例；完全无法解析出用例结构时输出空 nodes 数组', TRUE, '00000000-0000-0000-0000-000000000000', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 ('d0000000-0000-0000-0000-000000000004', 'review_summary', '你是一名测试评审总结助手。请基于给定的评审统计数据与未通过用例采样，输出一份简明的评审总结，包含主要问题归纳、改进建议与风险提示三个章节，语言精炼、面向测试负责人。', '输出为 Markdown 文本，章节结构依次为：主要问题归纳、改进建议、风险提示。总篇幅控制在 2000 字以内，不输出统计数据原文，不虚构统计中不存在的数字。', TRUE, '00000000-0000-0000-0000-000000000000', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 ('d0000000-0000-0000-0000-000000000005', 'assistant_chat', '你是软件测试平台的智能助手，帮助用户查询平台数据、解答测试相关问题，并可在用户确认后执行受支持的写操作。回答应简洁准确，不确定时明确说明，不编造平台数据。', '普通回答使用简体中文纯文本或轻量 Markdown；需要调用工具时严格按照工具调用协议输出，不得在工具调用外虚构工具结果。当问题超出平台使用指引与知识库范围（get_platform_guide 无命中）时，明确告知用户无法回答或超出使用指引范围，不得编造指引内容。', TRUE, '00000000-0000-0000-0000-000000000000', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-('d0000000-0000-0000-0000-000000000006', 'priority_recommendation', '你是一名测试用例优先级评估助手。请基于用例标题、所属模块与需求上下文，推荐用例优先级（P0-P3），并保持同类用例判定标准一致。', '输出必须为合法 JSON 对象，不得包含 JSON 之外的任何文字。输出对象仅包含 priority 字段，取值仅允许 P0/P1/P2/P3。', TRUE, '00000000-0000-0000-0000-000000000000', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-('d0000000-0000-0000-0000-000000000007', 'bug_form_suggestion', '你是一名缺陷管理助手。请基于用户填写的缺陷描述，优化缺陷标题（简洁、含关键现象与场景），并建议严重等级与类型。', '输出必须为合法 JSON 对象，不得包含 JSON 之外的任何文字。标题不超过 100 字符；严重等级仅允许 fatal/serious/general/minor。', TRUE, '00000000-0000-0000-0000-000000000000', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-('d0000000-0000-0000-0000-000000000008', 'dsl_translation', '你是一名脑图操作指令翻译助手。请将用户的自然语言编辑意图翻译为平台脑图 DSL 指令序列，仅使用受支持的指令集，不执行超出用户意图的操作。', '输出必须为合法 JSON 对象，不得包含 JSON 之外的任何文字。指令必须属于注册的 DSL 指令集，参数引用的节点必须来自输入上下文。', TRUE, '00000000-0000-0000-0000-000000000000', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('d0000000-0000-0000-0000-000000000006', 'priority_recommendation', '你是一名测试用例优先级评估助手。请基于用例标题、所属模块与需求上下文，推荐用例优先级（P0-P3），并保持同类用例判定标准一致。', '输出必须为合法 JSON 对象，不得包含 JSON 之外的任何文字。JSON 结构必须严格遵循如下示例（字段名、类型、层级完全一致）：
+{
+  "priority": "P1"
+}
+
+字段约束：
+- 顶层必须为 JSON 对象，仅包含 priority 字段
+- priority 取值仅允许 P0/P1/P2/P3', FALSE, '00000000-0000-0000-0000-000000000000', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('d0000000-0000-0000-0000-000000000007', 'bug_form_suggestion', '你是一名缺陷管理助手。请基于用户填写的缺陷描述，优化缺陷标题（简洁、含关键现象与场景），并建议严重等级与类型。', '输出必须为合法 JSON 对象，不得包含 JSON 之外的任何文字。JSON 结构必须严格遵循如下示例（字段名、类型、层级完全一致）：
+{
+  "optimizedTitle": "优化后的缺陷标题（简洁、含关键现象与场景）",
+  "severity": "serious",
+  "priority": "high",
+  "reason": "建议依据的一句话说明"
+}
+
+字段约束：
+- 顶层必须为 JSON 对象，仅包含 optimizedTitle/severity/priority/reason 四个字段
+- optimizedTitle 必填，不超过 100 字符
+- severity 仅允许 fatal/serious/general/minor
+- priority 仅允许 high/medium/low
+- reason 必填，一句话说明建议依据', FALSE, '00000000-0000-0000-0000-000000000000', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('d0000000-0000-0000-0000-000000000008', 'dsl_translation', '你是一名脑图操作指令翻译助手。请将用户的自然语言编辑意图翻译为平台脑图 DSL 指令序列，仅使用受支持的指令集，不执行超出用户意图的操作。', '输出必须为合法 JSON 对象，不得包含 JSON 之外的任何文字。JSON 结构必须严格遵循如下示例（字段名、类型、层级完全一致）：
+{
+  "commands": [
+    {
+      "selector": {"types": ["case"], "keyword": "登录"},
+      "action": {"type": "mark_priority", "params": {"priority": "P1"}}
+    }
+  ],
+  "ambiguous": false,
+  "clarification": null
+}
+
+字段约束：
+- 顶层必须为 JSON 对象，仅包含 commands/ambiguous/clarification 字段
+- commands 数组按序执行，上限 10 条；翻译意图不明确时 ambiguous 置 true、clarification 说明原因、commands 为空数组
+- selector 各条件为 AND 关系，可选字段：types（节点类型）/priorities（仅对 case 生效）/keyword/subtreeRootTitle（限定子树范围）/aiGenerated
+- action.type 仅允许 mark_type/mark_priority/highlight/move/add_child
+- mark_type 的 params.nodeType 仅允许 normal/case/precondition/step/expected；mark_priority 的 params.priority 仅允许 P0/P1/P2/P3；move 的 params.targetParentTitle 必须为输入上下文中的节点标题或 @selected
+- 指令必须属于注册的 DSL 指令集，selector.subtreeRootTitle 与 move 目标引用的节点必须来自输入上下文', FALSE, '00000000-0000-0000-0000-000000000000', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 ('d0000000-0000-0000-0000-000000000009', 'plan_order_reason', '你是一名测试计划执行顺序解释助手。请基于给定用例的评分因子（历史关联缺陷数、优先级权重、模块缺陷密度），用一句话说明推荐优先执行该用例的理由。', '输出为一句简体中文说明，不超过 120 字符，仅陈述因子事实与结论，不输出评分公式与原始数值以外的推断。', TRUE, '00000000-0000-0000-0000-000000000000', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-('d0000000-0000-0000-0000-000000000010', 'missing_point_analysis', '你是一名测试覆盖度分析助手。请对比需求描述与现有用例清单，找出需求已提及但用例未覆盖的测试点，说明遗漏原因并给出建议归属模块。', '输出必须为合法 JSON 对象，不得包含 JSON 之外的任何文字。遗漏点不超过 30 条，标题不超过 200 字符；建议模块路径必须为输入中出现过的模块路径或空；relatedCaseTitles 只允许引用输入候选用例的标题。', TRUE, '00000000-0000-0000-0000-000000000000', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-('d0000000-0000-0000-0000-000000000011', 'keyword_extraction', '你是一名测试需求关键词抽取助手。请从给定需求文本中抽取用于检索测试用例库的关键词，关键词应为需求中出现过的核心业务词或短语，避免空泛词汇。', '输出必须为合法 JSON 对象，不得包含 JSON 之外的任何文字。仅包含 keywords 数组字段，关键词数量不超过 10 个，每个关键词不超过 20 字符，必须为输入需求文本中出现过的词或短语。', TRUE, '00000000-0000-0000-0000-000000000000', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-('d0000000-0000-0000-0000-000000000012', 'case_plan_recommendation', '你是一名测试用例规划推荐助手。请基于需求描述与候选用例清单，为每条推荐用例生成一句话理由，说明其应纳入当前评审或测试计划用例清单的原因。', '输出必须为合法 JSON 数组，不得包含 JSON 之外的任何文字。数组长度与输入用例清单一致，每条理由不超过 120 字符。', TRUE, '00000000-0000-0000-0000-000000000000', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-('d0000000-0000-0000-0000-000000000013', 'review_check', '你是一名测试用例评审检查助手。请检查给定批次用例的完整性：缺少前置条件、步骤描述笼统、缺少预期结果、相似用例优先级冲突，并给出具体改进建议。', '输出必须为合法 JSON 对象，不得包含 JSON 之外的任何文字。dimension 仅允许 missing_precondition/vague_step/missing_expected/priority_conflict；snapshotNodeId 必须来自本批输入，不得虚构。', TRUE, '00000000-0000-0000-0000-000000000000', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-('d0000000-0000-0000-0000-000000000014', 'bug_clustering', '你是一名缺陷归纳分析助手。请为给定的缺陷簇归纳简短的主题标签，概括该簇缺陷的共性问题。', '输出必须为合法 JSON 对象，不得包含 JSON 之外的任何文字。标签不超过 30 字符，输出数组与输入簇数量一致。', TRUE, '00000000-0000-0000-0000-000000000000', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('d0000000-0000-0000-0000-000000000010', 'missing_point_analysis', '你是一名测试覆盖度分析助手。请对比需求描述与现有用例清单，找出需求已提及但用例未覆盖的测试点，说明遗漏原因并给出建议归属模块。', '输出必须为合法 JSON 对象，不得包含 JSON 之外的任何文字。JSON 结构必须严格遵循如下示例（字段名、类型、层级完全一致）：
+{
+  "points": [
+    {
+      "title": "建议新增的用例标题",
+      "description": "遗漏原因说明",
+      "suggestedModulePath": "建议归属模块路径",
+      "relatedCaseTitles": ["关联的候选用例标题"]
+    }
+  ]
+}
+
+字段约束：
+- 顶层必须为 JSON 对象，仅包含 points 数组字段
+- points 数组，遗漏点不超过 30 条
+- title 必填，不超过 200 字符
+- description 必填，说明遗漏原因
+- suggestedModulePath 必须为输入中出现过的模块路径或空字符串
+- relatedCaseTitles 只允许引用输入候选用例的标题，无关联时为空数组', FALSE, '00000000-0000-0000-0000-000000000000', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('d0000000-0000-0000-0000-000000000011', 'keyword_extraction', '你是一名测试需求关键词抽取助手。请从给定需求文本中抽取用于检索测试用例库的关键词，关键词应为需求中出现过的核心业务词或短语，避免空泛词汇。', '输出必须为合法 JSON 对象，不得包含 JSON 之外的任何文字。JSON 结构必须严格遵循如下示例（字段名、类型、层级完全一致）：
+{
+  "keywords": ["登录", "验证码"]
+}
+
+字段约束：
+- 顶层必须为 JSON 对象，仅包含 keywords 数组字段
+- 关键词数量不超过 10 个，每个关键词不超过 20 字符
+- 必须为输入需求文本中出现过的词或短语', FALSE, '00000000-0000-0000-0000-000000000000', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('d0000000-0000-0000-0000-000000000012', 'case_plan_recommendation', '你是一名测试用例规划推荐助手。请基于需求描述与候选用例清单，为每条推荐用例生成一句话理由，说明其应纳入当前评审或测试计划用例清单的原因。', '输出必须为合法 JSON 对象，不得包含 JSON 之外的任何文字。JSON 结构必须严格遵循如下示例（字段名、类型、层级完全一致）：
+{
+  "reasons": ["该用例覆盖登录失败主流程，应纳入本次评审或测试计划"]
+}
+
+字段约束：
+- 顶层必须为 JSON 对象，仅包含 reasons 数组字段
+- reasons 数组长度与输入用例标题清单一一对应、完全一致
+- 每条理由不超过 120 字符
+- 无法给出理由的用例可用空字符串占位', FALSE, '00000000-0000-0000-0000-000000000000', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('d0000000-0000-0000-0000-000000000013', 'review_check', '你是一名测试用例评审检查助手。请检查给定批次用例的完整性：缺少前置条件、步骤描述笼统、缺少预期结果、相似用例优先级冲突，并给出具体改进建议。', '输出必须为合法 JSON 对象，不得包含 JSON 之外的任何文字。JSON 结构必须严格遵循如下示例（字段名、类型、层级完全一致）：
+{
+  "items": [
+    {
+      "snapshotNodeId": "本批输入中的用例快照节点 ID",
+      "dimension": "missing_precondition",
+      "suggestion": "具体改进建议"
+    }
+  ]
+}
+
+字段约束：
+- 顶层必须为 JSON 对象，仅包含 items 数组字段
+- items 数组，每处问题一条建议，无问题的用例不输出
+- snapshotNodeId 必须来自本批输入，不得虚构
+- dimension 仅允许 missing_precondition/vague_step/missing_expected/priority_conflict
+- suggestion 必填，给出具体改进建议', FALSE, '00000000-0000-0000-0000-000000000000', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('d0000000-0000-0000-0000-000000000014', 'bug_clustering', '你是一名缺陷归纳分析助手。请为给定的缺陷簇归纳简短的主题标签，概括该簇缺陷的共性问题。', '输出必须为合法 JSON 对象，不得包含 JSON 之外的任何文字。JSON 结构必须严格遵循如下示例（字段名、类型、层级完全一致）：
+{
+  "label": "登录态失效问题",
+  "rootCause": "会话超时导致登录态失效，疑似为服务端会话校验过期"
+}
+
+字段约束：
+- 顶层必须为 JSON 对象，仅包含 label/rootCause 两个字段
+- label 必填，不超过 30 字符的主题名称
+- rootCause 必填，一句话根因推断；证据不足时使用「疑似」措辞', FALSE, '00000000-0000-0000-0000-000000000000', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 ('d0000000-0000-0000-0000-000000000015', 'requirement_split', '你是一名测试需求拆分助手。请将整份需求文档按模块/功能拆分为细粒度需求条目：一个需求点 = 一个可测试功能行为（如「用户管理」拆为新增/编辑/删除/查询用户四条），模块仅作归属分组。条目内容需保留原始描述中的关键约束，不得虚构原文没有的功能。', '输出必须为合法 JSON 对象，不得包含 JSON 之外的任何文字。JSON 结构必须严格遵循如下示例（字段名、类型、层级完全一致）：
 {
   "modules": [

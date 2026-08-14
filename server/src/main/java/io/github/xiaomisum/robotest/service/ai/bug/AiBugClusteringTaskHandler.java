@@ -65,7 +65,9 @@ public class AiBugClusteringTaskHandler implements AiTaskHandler {
     private static final String LABEL_TASK_INSTRUCTION = """
             请归纳给定缺陷样本反映的共同主题。输出单个 JSON 对象，仅含两个字段：\
             label（≤100 字符的主题名称，概括该组缺陷的共性）与 rootCause（一句话根因推断；\
-            证据不足时使用「疑似」措辞，给出最可能范围）。""";
+            证据不足时使用「疑似」措辞，给出最可能范围）。\
+            输出结构必须严格遵循如下示例（字段名、类型、层级完全一致）：\
+            {"label": "登录态失效问题", "rootCause": "会话超时导致登录态失效，疑似为服务端会话校验过期"}。""";
 
     @Resource
     private AiAnalysisTaskMapper aiTaskMapper;

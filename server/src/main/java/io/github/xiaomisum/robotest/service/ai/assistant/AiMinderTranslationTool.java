@@ -60,7 +60,8 @@ public class AiMinderTranslationTool implements AiTool {
             + action（mark_type/mark_priority/highlight/move/add_child）。
             节点引用规则：仅允许引用输入骨架上下文中的节点标题（标题精确匹配），
             或使用保留值 @selected 表示当前选中节点；不得虚构上下文之外的节点标题。
-            输出必须为 JSON 对象：{"commands": [...], "ambiguous": false, "clarification": null}；
+            输出必须为 JSON 对象，结构必须严格遵循如下示例（字段名、类型、层级完全一致）：\
+            {"commands": [{"selector": {"types": ["case"], "keyword": "登录"}, "action": {"type": "mark_priority", "params": {"priority": "P1"}}}], "ambiguous": false, "clarification": null}；\
             commands 按序执行，上限 10 条；翻译意图不明确时 ambiguous 置 true 并在 clarification 说明改写原因，commands 为空。""";
 
     private final PromptAssembler promptAssembler;

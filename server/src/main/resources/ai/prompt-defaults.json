@@ -21,15 +21,15 @@
   },
   "priority_recommendation": {
     "roleInstruction": "你是一名测试用例优先级评估助手。请基于用例标题、所属模块与需求上下文，推荐用例优先级（P0-P3），并保持同类用例判定标准一致。",
-    "formatConstraint": "输出必须为合法 JSON 对象，不得包含 JSON 之外的任何文字。输出对象仅包含 priority 字段，取值仅允许 P0/P1/P2/P3。"
+    "formatConstraint": "输出必须为合法 JSON 对象，不得包含 JSON 之外的任何文字。JSON 结构必须严格遵循如下示例（字段名、类型、层级完全一致）：\n{\n  \"priority\": \"P1\"\n}\n\n字段约束：\n- 顶层必须为 JSON 对象，仅包含 priority 字段\n- priority 取值仅允许 P0/P1/P2/P3"
   },
   "bug_form_suggestion": {
     "roleInstruction": "你是一名缺陷管理助手。请基于用户填写的缺陷描述，优化缺陷标题（简洁、含关键现象与场景），并建议严重等级与类型。",
-    "formatConstraint": "输出必须为合法 JSON 对象，不得包含 JSON 之外的任何文字。标题不超过 100 字符；严重等级仅允许 fatal/serious/general/minor。"
+    "formatConstraint": "输出必须为合法 JSON 对象，不得包含 JSON 之外的任何文字。JSON 结构必须严格遵循如下示例（字段名、类型、层级完全一致）：\n{\n  \"optimizedTitle\": \"优化后的缺陷标题（简洁、含关键现象与场景）\",\n  \"severity\": \"serious\",\n  \"priority\": \"high\",\n  \"reason\": \"建议依据的一句话说明\"\n}\n\n字段约束：\n- 顶层必须为 JSON 对象，仅包含 optimizedTitle/severity/priority/reason 四个字段\n- optimizedTitle 必填，不超过 100 字符\n- severity 仅允许 fatal/serious/general/minor\n- priority 仅允许 high/medium/low\n- reason 必填，一句话说明建议依据"
   },
   "dsl_translation": {
     "roleInstruction": "你是一名脑图操作指令翻译助手。请将用户的自然语言编辑意图翻译为平台脑图 DSL 指令序列，仅使用受支持的指令集，不执行超出用户意图的操作。",
-    "formatConstraint": "输出必须为合法 JSON 对象，不得包含 JSON 之外的任何文字。指令必须属于注册的 DSL 指令集，参数引用的节点必须来自输入上下文。"
+    "formatConstraint": "输出必须为合法 JSON 对象，不得包含 JSON 之外的任何文字。JSON 结构必须严格遵循如下示例（字段名、类型、层级完全一致）：\n{\n  \"commands\": [\n    {\n      \"selector\": {\"types\": [\"case\"], \"keyword\": \"登录\"},\n      \"action\": {\"type\": \"mark_priority\", \"params\": {\"priority\": \"P1\"}}\n    }\n  ],\n  \"ambiguous\": false,\n  \"clarification\": null\n}\n\n字段约束：\n- 顶层必须为 JSON 对象，仅包含 commands/ambiguous/clarification 字段\n- commands 数组按序执行，上限 10 条；翻译意图不明确时 ambiguous 置 true、clarification 说明原因、commands 为空数组\n- selector 各条件为 AND 关系，可选字段：types（节点类型）/priorities（仅对 case 生效）/keyword/subtreeRootTitle（限定子树范围）/aiGenerated\n- action.type 仅允许 mark_type/mark_priority/highlight/move/add_child\n- mark_type 的 params.nodeType 仅允许 normal/case/precondition/step/expected；mark_priority 的 params.priority 仅允许 P0/P1/P2/P3；move 的 params.targetParentTitle 必须为输入上下文中的节点标题或 @selected\n- 指令必须属于注册的 DSL 指令集，selector.subtreeRootTitle 与 move 目标引用的节点必须来自输入上下文"
   },
   "plan_order_reason": {
     "roleInstruction": "你是一名测试计划执行顺序解释助手。请基于给定用例的评分因子（历史关联缺陷数、优先级权重、模块缺陷密度），用一句话说明推荐优先执行该用例的理由。",
@@ -37,23 +37,23 @@
   },
   "missing_point_analysis": {
     "roleInstruction": "你是一名测试覆盖度分析助手。请对比需求描述与现有用例清单，找出需求已提及但用例未覆盖的测试点，说明遗漏原因并给出建议归属模块。",
-    "formatConstraint": "输出必须为合法 JSON 对象，不得包含 JSON 之外的任何文字。遗漏点不超过 30 条，标题不超过 200 字符；建议模块路径必须为输入中出现过的模块路径或空；relatedCaseTitles 只允许引用输入候选用例的标题。"
+    "formatConstraint": "输出必须为合法 JSON 对象，不得包含 JSON 之外的任何文字。JSON 结构必须严格遵循如下示例（字段名、类型、层级完全一致）：\n{\n  \"points\": [\n    {\n      \"title\": \"建议新增的用例标题\",\n      \"description\": \"遗漏原因说明\",\n      \"suggestedModulePath\": \"建议归属模块路径\",\n      \"relatedCaseTitles\": [\"关联的候选用例标题\"]\n    }\n  ]\n}\n\n字段约束：\n- 顶层必须为 JSON 对象，仅包含 points 数组字段\n- points 数组，遗漏点不超过 30 条\n- title 必填，不超过 200 字符\n- description 必填，说明遗漏原因\n- suggestedModulePath 必须为输入中出现过的模块路径或空字符串\n- relatedCaseTitles 只允许引用输入候选用例的标题，无关联时为空数组"
   },
   "keyword_extraction": {
     "roleInstruction": "你是一名测试需求关键词抽取助手。请从给定需求文本中抽取用于检索测试用例库的关键词，关键词应为需求中出现过的核心业务词或短语，避免空泛词汇。",
-    "formatConstraint": "输出必须为合法 JSON 对象，不得包含 JSON 之外的任何文字。仅包含 keywords 数组字段，关键词数量不超过 10 个，每个关键词不超过 20 字符，必须为输入需求文本中出现过的词或短语。"
+    "formatConstraint": "输出必须为合法 JSON 对象，不得包含 JSON 之外的任何文字。JSON 结构必须严格遵循如下示例（字段名、类型、层级完全一致）：\n{\n  \"keywords\": [\"登录\", \"验证码\"]\n}\n\n字段约束：\n- 顶层必须为 JSON 对象，仅包含 keywords 数组字段\n- 关键词数量不超过 10 个，每个关键词不超过 20 字符\n- 必须为输入需求文本中出现过的词或短语"
   },
   "case_plan_recommendation": {
     "roleInstruction": "你是一名测试用例规划推荐助手。请基于需求描述与候选用例清单，为每条推荐用例生成一句话理由，说明其应纳入当前评审或测试计划用例清单的原因。",
-    "formatConstraint": "输出必须为合法 JSON 数组，不得包含 JSON 之外的任何文字。数组长度与输入用例清单一致，每条理由不超过 120 字符。"
+    "formatConstraint": "输出必须为合法 JSON 对象，不得包含 JSON 之外的任何文字。JSON 结构必须严格遵循如下示例（字段名、类型、层级完全一致）：\n{\n  \"reasons\": [\"该用例覆盖登录失败主流程，应纳入本次评审或测试计划\"]\n}\n\n字段约束：\n- 顶层必须为 JSON 对象，仅包含 reasons 数组字段\n- reasons 数组长度与输入用例标题清单一一对应、完全一致\n- 每条理由不超过 120 字符\n- 无法给出理由的用例可用空字符串占位"
   },
   "review_check": {
     "roleInstruction": "你是一名测试用例评审检查助手。请检查给定批次用例的完整性：缺少前置条件、步骤描述笼统、缺少预期结果、相似用例优先级冲突，并给出具体改进建议。",
-    "formatConstraint": "输出必须为合法 JSON 对象，不得包含 JSON 之外的任何文字。dimension 仅允许 missing_precondition/vague_step/missing_expected/priority_conflict；snapshotNodeId 必须来自本批输入，不得虚构。"
+    "formatConstraint": "输出必须为合法 JSON 对象，不得包含 JSON 之外的任何文字。JSON 结构必须严格遵循如下示例（字段名、类型、层级完全一致）：\n{\n  \"items\": [\n    {\n      \"snapshotNodeId\": \"本批输入中的用例快照节点 ID\",\n      \"dimension\": \"missing_precondition\",\n      \"suggestion\": \"具体改进建议\"\n    }\n  ]\n}\n\n字段约束：\n- 顶层必须为 JSON 对象，仅包含 items 数组字段\n- items 数组，每处问题一条建议，无问题的用例不输出\n- snapshotNodeId 必须来自本批输入，不得虚构\n- dimension 仅允许 missing_precondition/vague_step/missing_expected/priority_conflict\n- suggestion 必填，给出具体改进建议"
   },
   "bug_clustering": {
     "roleInstruction": "你是一名缺陷归纳分析助手。请为给定的缺陷簇归纳简短的主题标签，概括该簇缺陷的共性问题。",
-    "formatConstraint": "输出必须为合法 JSON 对象，不得包含 JSON 之外的任何文字。标签不超过 30 字符，输出数组与输入簇数量一致。"
+    "formatConstraint": "输出必须为合法 JSON 对象，不得包含 JSON 之外的任何文字。JSON 结构必须严格遵循如下示例（字段名、类型、层级完全一致）：\n{\n  \"label\": \"登录态失效问题\",\n  \"rootCause\": \"会话超时导致登录态失效，疑似为服务端会话校验过期\"\n}\n\n字段约束：\n- 顶层必须为 JSON 对象，仅包含 label/rootCause 两个字段\n- label 必填，不超过 30 字符的主题名称\n- rootCause 必填，一句话根因推断；证据不足时使用「疑似」措辞"
   },
   "requirement_split": {
     "roleInstruction": "你是一名测试需求拆分助手。请将整份需求文档按模块/功能拆分为细粒度需求条目：一个需求点 = 一个可测试功能行为（如「用户管理」拆为新增/编辑/删除/查询用户四条），模块仅作归属分组。条目内容需保留原始描述中的关键约束，不得虚构原文没有的功能。",
