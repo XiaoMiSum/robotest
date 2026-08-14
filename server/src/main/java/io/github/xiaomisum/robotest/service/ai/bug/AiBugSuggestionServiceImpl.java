@@ -37,7 +37,9 @@ public class AiBugSuggestionServiceImpl implements AiBugSuggestionService {
     private static final String TASK_INSTRUCTION = """
             请基于缺陷描述优化标题并建议严重等级与优先级。输出单个 JSON 对象，仅含四个字段：\
             optimizedTitle（≤100 字符）、severity（仅 fatal/serious/general/minor）、\
-            priority（仅 high/medium/low）、reason（一句话说明建议依据）。""";
+            priority（仅 high/medium/low）、reason（一句话说明建议依据）。\
+            输出结构必须严格遵循如下示例（字段名、类型、层级完全一致）：\
+            {"optimizedTitle": "优化后的缺陷标题", "severity": "serious", "priority": "high", "reason": "建议依据的一句话说明"}。""";
 
     @Resource
     private AiGatewayService aiGatewayService;
