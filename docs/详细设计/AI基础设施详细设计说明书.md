@@ -2,7 +2,6 @@
 
 **文档版本**：V1.1
 **日期**：2026-07-31
-**作者**：[填写]
 **状态**：起草中
 
 ---
@@ -63,11 +62,11 @@
 
 **索引**：无额外索引（单行表）。
 
-> **迁移说明**：基线 DDL 中 ai_config 原含 chat_* 前缀六列（provider / base_url / api_key_cipher / key_suffix / model / extra_params），多对话模型改造后移除，改由 `ai_chat_model` 多行承载（见 2.1.5）；迁移时将原 chat_* 列值转为 `ai_chat_model` 的一行并置 `is_default = true`。建库脚本（`db/v1.1.sql`）随本文档同步修订。
+> **迁移说明**：基线 DDL 中 ai_config 原含 chat_* 前缀六列（provider / base_url / api_key_cipher / key_suffix / model / extra_params），多对话模型改造后移除，改由 `ai_chat_model` 多行承载（见 2.1.5）；迁移时将原 chat_* 列值转为 `ai_chat_model` 的一行并置 `is_default = true`。建库脚本（`server/src/main/resources/db/v1.1.sql`）随本文档同步修订。
 
 #### 2.1.2 智能体提示词模板表（ai_prompt_template）
 
-默认模板初始化时**全量落库**（`db/v1.1.sql` 种子数据，与代码内置资源同源），管理端可查看并修改；运行时仅从本表读取，不存在资源文件兜底；恢复默认即将该功能记录重置为内置默认内容（资源文件仅作恢复数据源），记录始终存在。
+默认模板初始化时**全量落库**（`server/src/main/resources/db/v1.1.sql` 种子数据，与代码内置资源同源），管理端可查看并修改；运行时仅从本表读取，不存在资源文件兜底；恢复默认即将该功能记录重置为内置默认内容（资源文件仅作恢复数据源），记录始终存在。
 
 | 字段 | 类型 | 约束 | 说明 |
 | ---- | ---- | ---- | ---- |
@@ -816,7 +815,7 @@ stateDiagram-v2
 
 ## 6. 实施说明
 
-- **数据库迁移**：现有全量建库脚本 `init.sql` 更名为 `v1.sql`（作为 V1.0 建库基线，内容保持不变）；V1.1 新增的表结构统一存入新脚本 `v1.1.sql`——本文档 2.1 的五张 AI 表 DDL（含 `ai_chat_model`）与 `CREATE EXTENSION IF NOT EXISTS vector`（为后续向量表铺垫）写入 `v1.1.sql`，其余 V1.1 详细设计新增的表亦追加至同一脚本；首次建库按 `v1.sql` → `v1.1.sql` 顺序执行，无存量数据迁移。V1.1 未发布，多对话模型改造直接修订 `v1.1.sql`（ai_config 移除 chat_* 列、新增 ai_chat_model 表），不另立增量脚本；已按旧版 v1.1.sql 建库的开发环境按 2.1.1 迁移说明手工迁移；
+- **数据库迁移**：现有全量建库脚本 `init.sql` 更名为 `v1.sql`（作为 V1.0 建库基线，内容保持不变）；V1.1 新增的表结构统一存入新脚本 `server/src/main/resources/db/v1.1.sql`——本文档 2.1 的五张 AI 表 DDL（含 `ai_chat_model`）与 `CREATE EXTENSION IF NOT EXISTS vector`（为后续向量表铺垫）写入 `v1.1.sql`，其余 V1.1 详细设计新增的表亦追加至同一脚本；首次建库按 `v1.sql` → `v1.1.sql` 顺序执行，无存量数据迁移。V1.1 未发布，多对话模型改造直接修订 `v1.1.sql`（ai_config 移除 chat_* 列、新增 ai_chat_model 表），不另立增量脚本；已按旧版 v1.1.sql 建库的开发环境按 2.1.1 迁移说明手工迁移；
 - **模块归属**：后端代码位于 `service/ai`、`controller/admin`（配置/智能体）、`controller/workspace`（status）、`controller/project`（tasks），遵循既有分层（C2：Controller 无业务逻辑）；
 - **定时任务**：pending 任务拾取（4.6，每 30 秒）、孤儿任务回收（4.6，每 5 分钟）与审计/会话清理（4.8，每日 03:00）依赖 `@Scheduled`，需在应用启动类新增 `@EnableScheduling`（当前工程仅有 `@EnableAsync`，无调度先例）；多实例部署下各实例均会触发，三者均以带状态/时间谓词的条件 `UPDATE`（拾取经 4.6 抢占更新）实现、天然幂等，无需额外分布式锁；若后续出现严格单次执行需求，再复用既有 Redis 加锁。
 - **实施顺序**：本文档对应 SRS 实施梯队一的基础部分，先于其余 4 份详细设计对应的功能开发。
