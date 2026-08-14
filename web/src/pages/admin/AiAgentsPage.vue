@@ -63,7 +63,8 @@ async function openEditor(row: AiAgent) {
     editForm.functionType = data.functionType
     editForm.roleInstruction = data.roleInstruction
     editForm.formatConstraint = data.formatConstraint
-    editForm.formatEditable = data.formatEditable
+    // 高级开关为纯前端操作：每次打开抽屉强制为关，需修改格式约束段时手动开启
+    editForm.formatEditable = false
     drawerVisible.value = true
   } catch (err) {
     ElMessage.error(err instanceof Error ? err.message : '加载智能体详情失败')
@@ -90,7 +91,8 @@ async function handleSave() {
   try {
     await saveAiAgent(editForm.functionType, {
       roleInstruction: editForm.roleInstruction,
-      formatEditable: editForm.formatEditable,
+      // 开关未开启时保持后端原值（不误清已自定义状态）；开启后置 true 标记自定义
+      formatEditable: editForm.formatEditable ? true : (detail.value?.formatEditable ?? false),
       formatConstraint: editForm.formatEditable ? editForm.formatConstraint : null,
     })
     ElMessage.success('保存成功')

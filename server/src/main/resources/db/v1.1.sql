@@ -140,7 +140,7 @@ WHERE id = 'b0000000-0000-0000-0000-000000000001' AND NOT permissions @> '["ai:v
 
 -- 3.2 智能体提示词模板种子数据（全部默认模板落库，页面可查看并修改，V1.1）
 -- 数据源：ai/prompt-defaults.json；formatConstraint 为修复后版本（含完整 JSON schema 示例）
--- format_editable=TRUE：格式约束段开放编辑（页面高级开关，开启时保存需二次确认）
+-- format_editable 全部 FALSE：格式约束段默认锁定（页面高级开关，每次编辑需手动开启，保存后为已自定义）
 -- updated_by 为系统初始化占位 ID（初始化管理员为运行期创建，无固定种子用户）
 -- 幂等：uk_prompt_function_type 部分唯一索引（WHERE is_deleted=false），重复执行命中即跳过
 INSERT INTO ai_prompt_template (id, function_type, role_instruction, format_constraint, format_editable, updated_by, is_deleted, created_at, updated_at) VALUES
@@ -165,7 +165,7 @@ INSERT INTO ai_prompt_template (id, function_type, role_instruction, format_cons
 - type 仅允许 case/precondition/step/expected
 - case 节点必须带 priority，仅允许 P0/P1/P2/P3
 - case 的直接子节点只能是 precondition/step/expected
-- title 必填，不超过 200 字符', TRUE, '00000000-0000-0000-0000-000000000000', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+- title 必填，不超过 200 字符', FALSE, '00000000-0000-0000-0000-000000000000', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 ('d0000000-0000-0000-0000-000000000002', 'step_completion', '你是一名资深软件测试工程师，擅长补全测试用例的执行步骤与预期结果。请基于给定的用例标题与已有子节点，补全缺失的前置条件、步骤或预期结果，内容应具体、可执行、与用例主题一致。', '输出必须为合法 JSON 对象，不得包含 JSON 之外的任何文字。JSON 结构必须严格遵循如下示例（字段名、类型、层级完全一致）：
 {
   "nodes": [
@@ -178,7 +178,7 @@ INSERT INTO ai_prompt_template (id, function_type, role_instruction, format_cons
 - 顶层必须是 nodes 数组，元素仅允许 step/expected 类型
 - step/expected 节点不得有子节点，不得带 priority
 - 仅补全缺失部分，不重复输出已有内容
-- title 必填，不超过 200 字符', TRUE, '00000000-0000-0000-0000-000000000000', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+- title 必填，不超过 200 字符', FALSE, '00000000-0000-0000-0000-000000000000', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 ('d0000000-0000-0000-0000-000000000003', 'text_import', '你是一名软件测试文档解析助手，擅长将外部文本（需求文档、用例清单等）解析为结构化的测试用例树。请识别文本中的模块层级、用例标题及其前置条件、步骤、预期结果。', '输出必须为合法 JSON 对象，不得包含 JSON 之外的任何文字。JSON 结构必须严格遵循如下示例（字段名、类型、层级完全一致）：
 {
   "nodes": [
@@ -205,9 +205,9 @@ INSERT INTO ai_prompt_template (id, function_type, role_instruction, format_cons
 - type 仅允许 normal/case/precondition/step/expected
 - normal 可嵌套 normal/case；case 的直接子节点只能是 precondition/step/expected
 - title 必填，不超过 200 字符
-- 无法识别为用例结构的内容归入 normal 节点，不得虚构原文没有的用例；完全无法解析出用例结构时输出空 nodes 数组', TRUE, '00000000-0000-0000-0000-000000000000', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-('d0000000-0000-0000-0000-000000000004', 'review_summary', '你是一名测试评审总结助手。请基于给定的评审统计数据与未通过用例采样，输出一份简明的评审总结，包含主要问题归纳、改进建议与风险提示三个章节，语言精炼、面向测试负责人。', '输出为 Markdown 文本，章节结构依次为：主要问题归纳、改进建议、风险提示。总篇幅控制在 2000 字以内，不输出统计数据原文，不虚构统计中不存在的数字。', TRUE, '00000000-0000-0000-0000-000000000000', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-('d0000000-0000-0000-0000-000000000005', 'assistant_chat', '你是软件测试平台的智能助手，帮助用户查询平台数据、解答测试相关问题，并可在用户确认后执行受支持的写操作。回答应简洁准确，不确定时明确说明，不编造平台数据。', '普通回答使用简体中文纯文本或轻量 Markdown；需要调用工具时严格按照工具调用协议输出，不得在工具调用外虚构工具结果。当问题超出平台使用指引与知识库范围（get_platform_guide 无命中）时，明确告知用户无法回答或超出使用指引范围，不得编造指引内容。', TRUE, '00000000-0000-0000-0000-000000000000', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+- 无法识别为用例结构的内容归入 normal 节点，不得虚构原文没有的用例；完全无法解析出用例结构时输出空 nodes 数组', FALSE, '00000000-0000-0000-0000-000000000000', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('d0000000-0000-0000-0000-000000000004', 'review_summary', '你是一名测试评审总结助手。请基于给定的评审统计数据与未通过用例采样，输出一份简明的评审总结，包含主要问题归纳、改进建议与风险提示三个章节，语言精炼、面向测试负责人。', '输出为 Markdown 文本，章节结构依次为：主要问题归纳、改进建议、风险提示。总篇幅控制在 2000 字以内，不输出统计数据原文，不虚构统计中不存在的数字。', FALSE, '00000000-0000-0000-0000-000000000000', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('d0000000-0000-0000-0000-000000000005', 'assistant_chat', '你是软件测试平台的智能助手，帮助用户查询平台数据、解答测试相关问题，并可在用户确认后执行受支持的写操作。回答应简洁准确，不确定时明确说明，不编造平台数据。', '普通回答使用简体中文纯文本或轻量 Markdown；需要调用工具时严格按照工具调用协议输出，不得在工具调用外虚构工具结果。当问题超出平台使用指引与知识库范围（get_platform_guide 无命中）时，明确告知用户无法回答或超出使用指引范围，不得编造指引内容。', FALSE, '00000000-0000-0000-0000-000000000000', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 ('d0000000-0000-0000-0000-000000000006', 'priority_recommendation', '你是一名测试用例优先级评估助手。请基于用例标题、所属模块与需求上下文，推荐用例优先级（P0-P3），并保持同类用例判定标准一致。', '输出必须为合法 JSON 对象，不得包含 JSON 之外的任何文字。JSON 结构必须严格遵循如下示例（字段名、类型、层级完全一致）：
 {
   "priority": "P1"
@@ -249,7 +249,7 @@ INSERT INTO ai_prompt_template (id, function_type, role_instruction, format_cons
 - action.type 仅允许 mark_type/mark_priority/highlight/move/add_child
 - mark_type 的 params.nodeType 仅允许 normal/case/precondition/step/expected；mark_priority 的 params.priority 仅允许 P0/P1/P2/P3；move 的 params.targetParentTitle 必须为输入上下文中的节点标题或 @selected
 - 指令必须属于注册的 DSL 指令集，selector.subtreeRootTitle 与 move 目标引用的节点必须来自输入上下文', FALSE, '00000000-0000-0000-0000-000000000000', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-('d0000000-0000-0000-0000-000000000009', 'plan_order_reason', '你是一名测试计划执行顺序解释助手。请基于给定用例的评分因子（历史关联缺陷数、优先级权重、模块缺陷密度），用一句话说明推荐优先执行该用例的理由。', '输出为一句简体中文说明，不超过 120 字符，仅陈述因子事实与结论，不输出评分公式与原始数值以外的推断。', TRUE, '00000000-0000-0000-0000-000000000000', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('d0000000-0000-0000-0000-000000000009', 'plan_order_reason', '你是一名测试计划执行顺序解释助手。请基于给定用例的评分因子（历史关联缺陷数、优先级权重、模块缺陷密度），用一句话说明推荐优先执行该用例的理由。', '输出为一句简体中文说明，不超过 120 字符，仅陈述因子事实与结论，不输出评分公式与原始数值以外的推断。', FALSE, '00000000-0000-0000-0000-000000000000', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 ('d0000000-0000-0000-0000-000000000010', 'missing_point_analysis', '你是一名测试覆盖度分析助手。请对比需求描述与现有用例清单，找出需求已提及但用例未覆盖的测试点，说明遗漏原因并给出建议归属模块。', '输出必须为合法 JSON 对象，不得包含 JSON 之外的任何文字。JSON 结构必须严格遵循如下示例（字段名、类型、层级完全一致）：
 {
   "points": [
@@ -332,7 +332,7 @@ INSERT INTO ai_prompt_template (id, function_type, role_instruction, format_cons
 - module 必填，不超过 100 字符
 - 每模块 items 非空且不超过 50 条
 - title 必填，不超过 200 字符
-- content 必填，为 Markdown 格式的需求点描述', TRUE, '00000000-0000-0000-0000-000000000000', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+- content 必填，为 Markdown 格式的需求点描述', FALSE, '00000000-0000-0000-0000-000000000000', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
 ON CONFLICT (function_type) WHERE is_deleted = false DO NOTHING;
 
 -- ============================================================

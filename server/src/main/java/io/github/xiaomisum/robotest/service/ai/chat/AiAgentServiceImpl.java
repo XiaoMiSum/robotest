@@ -48,8 +48,10 @@ public class AiAgentServiceImpl implements AiAgentService {
             dto.setFunctionType(type.getCode());
             dto.setName(type.getLabel());
             AiPromptTemplate custom = customized.get(type.getCode());
-            dto.setCustomized(custom != null);
-            dto.setFormatEditable(custom != null && Boolean.TRUE.equals(custom.getFormatEditable()));
+            boolean editable = custom != null && Boolean.TRUE.equals(custom.getFormatEditable());
+            // 已自定义 = 格式约束段被解锁编辑过；种子默认锁定（format_editable=false），恢复默认后回到锁定态
+            dto.setCustomized(editable);
+            dto.setFormatEditable(editable);
             if (custom != null) {
                 dto.setUpdatedAt(custom.getUpdatedAt());
                 SysUser updater = custom.getUpdatedBy() != null ? sysUserMapper.selectById(custom.getUpdatedBy()) : null;
@@ -71,7 +73,8 @@ public class AiAgentServiceImpl implements AiAgentService {
         AiAgentDetailRespDTO dto = new AiAgentDetailRespDTO();
         dto.setFunctionType(type.getCode());
         dto.setName(type.getLabel());
-        dto.setCustomized(true);
+        // 已自定义 = 格式约束段被解锁编辑过（与列表 customized 同源判定）
+        dto.setCustomized(Boolean.TRUE.equals(custom.getFormatEditable()));
         dto.setFormatEditable(Boolean.TRUE.equals(custom.getFormatEditable()));
         dto.setRoleInstruction(custom.getRoleInstruction());
         dto.setFormatConstraint(custom.getFormatConstraint());
@@ -103,7 +106,10 @@ public class AiAgentServiceImpl implements AiAgentService {
         update.setId(custom.getId());
         update.setRoleInstruction(reqDTO.getRoleInstruction());
         update.setFormatConstraint(effectiveConstraint);
-        update.setFormatEditable(reqDTO.getFormatEditable());
+        // 已自定义仅允许 false → true（开启高级开关保存）；置回 false 只能走恢复默认，防止保存角色指令误清标记
+        if (Boolean.TRUE.equals(reqDTO.getFormatEditable())) {
+            update.setFormatEditable(true);
+        }
         update.setUpdatedBy(userId);
         aiPromptTemplateMapper.updateById(update);
     }
@@ -124,7 +130,8 @@ public class AiAgentServiceImpl implements AiAgentService {
             template.setFunctionType(type.getCode());
             template.setRoleInstruction(defaults.roleInstruction());
             template.setFormatConstraint(defaults.formatConstraint());
-            template.setFormatEditable(true);
+            // 恢复默认即回到种子锁定态：格式约束段重新锁定，customized 回 false
+            template.setFormatEditable(false);
             template.setUpdatedBy(userId);
             aiPromptTemplateMapper.insert(template);
             return;
@@ -133,7 +140,8 @@ public class AiAgentServiceImpl implements AiAgentService {
         update.setId(custom.getId());
         update.setRoleInstruction(defaults.roleInstruction());
         update.setFormatConstraint(defaults.formatConstraint());
-        update.setFormatEditable(true);
+        // 恢复默认即回到种子锁定态：格式约束段重新锁定，customized 回 false
+        update.setFormatEditable(false);
         update.setUpdatedBy(userId);
         aiPromptTemplateMapper.updateById(update);
     }
