@@ -473,11 +473,21 @@ async function handleDedupMarkDuplicate(): Promise<void> {
   --el-date-editor-width: 100%;
 }
 
+// 标题输入组圆角统一：全局 .el-input__wrapper 强制 6px 圆角（含右端），与 append 直角边
+// 拼接成「弧-直」接缝；此处 wrapper 右端去圆角（须 !important 对抗全局），append 右端
+// 用与全局一致的 --radius-md，并裁剪按钮溢出，使输入组两侧角对称
+.bug-create__form :deep(.el-input-group--append .el-input__wrapper) {
+  border-top-right-radius: 0 !important;
+  border-bottom-right-radius: 0 !important;
+}
+
 // 标题输入栏与 AI 按钮自然衔接：去色块底与粗分割线，仅保留 1px 常规分隔（append 默认样式），按钮以成功绿语义区分
 .bug-create__form :deep(.el-input-group__append) {
   padding: 0;
   background: transparent;
   border-left: 1px solid var(--color-neutral-200);
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+  overflow: hidden;
 }
 
 // append 内按钮填满容器、圆角归零，与输入栏构成一个整体输入组
