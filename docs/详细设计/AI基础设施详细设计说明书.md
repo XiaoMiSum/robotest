@@ -370,7 +370,7 @@ data: {"code": 6002, "message": "AI 调用失败"}
 #### 3.3.4 调用量统计
 
 - **路径**：`GET /api/admin/ai/statistics`
-- **参数**：`startDate`、`endDate`（默认最近 30 天）、`groupBy`（`functionType` / `workspace` / `day` / `model`）
+- **参数**：`startDate`、`endDate`（默认最近 30 天）、`groupBy`（`functionType` / `workspace` / `day` / `model` / `user`）
 - **响应**：
 
 ```json
@@ -384,7 +384,7 @@ data: {"code": 6002, "message": "AI 调用失败"}
 }
 ```
 
-数据来源为 `ai_invocation_log` 聚合查询（`groupBy=workspace` 时 key 为工作空间名称；`groupBy=model` 时 key 为审计记录的实际模型名）。
+数据来源为 `ai_invocation_log` 聚合查询（`groupBy=workspace` 时 key 为工作空间名称；`groupBy=model` 时 key 为审计记录的实际模型名；`groupBy=user` 时 key 为用户显示名，缺失回退登录名；`groupBy=functionType` 时 key 转换为 `AiFunctionType` 枚举中文名，避免暴露内部 code）。
 
 #### 3.3.5 向量重建任务查询与重试
 
@@ -794,8 +794,8 @@ stateDiagram-v2
 
 | 文件 | 说明 |
 | ---- | ---- |
-| `web/src/pages/admin/AiConfigPage.vue` | AI 配置页：「对话模型」卡片区（模型列表 + 新建/编辑弹窗，弹窗内供应商下拉 + 独有配置项动态区 + 高级自定义参数折叠区，列表行内设默认/启停/测试/删除操作）+ 总开关 + Embedding 单组表单（供应商下拉 + 独有配置项 + 连通性测试）+ 系统配置项**分组表单**（按 3.3.8 定义清单动态渲染，见 5.2）；「调用统计」标签页（按功能/空间/日期/模型聚合表格） |
-| `web/src/pages/admin/AiAgentsPage.vue` | 智能体列表（功能类型、是否自定义、更新人/时间）+ 编辑抽屉（角色指令段文本域、格式约束段默认只读、高级开关、恢复默认按钮） |
+| `web/src/pages/admin/AiConfigPage.vue` | AI 配置页（`/admin/ai-config`）：「AI 配置」标签页（对话模型卡片区（模型列表 + 新建/编辑弹窗，弹窗内供应商下拉 + 独有配置项动态区 + 高级自定义参数折叠区，列表行内设默认/启停/测试/删除操作）+ 总开关 + Embedding 单组表单（供应商下拉 + 独有配置项 + 连通性测试）+ 系统配置项**分组表单**（按 3.3.8 定义清单动态渲染，见 5.2））+「智能体」标签页（引入 `AiAgentsTab` 组件，见下行）+「调用统计」标签页（按功能/空间/日期/模型/用户聚合表格，功能维度显示中文名） |
+| `web/src/components/admin/AiAgentsTab.vue` | 智能体标签页组件（智能体列表（功能类型、是否自定义、更新人/时间）+ 编辑抽屉（角色指令段文本域、格式约束段默认只读、高级开关、恢复默认按钮）），首次切换至该标签时加载列表 |
 | `web/src/components/common/AiModelSelect.vue` | 对话模型选择器（下拉，数据源为 `stores/ai.ts` 的 `chatModels`）：交互式 AI 功能入口（助手输入区、生成抽屉等）复用；选择写入 `localStorage`（见 4.11），仅一个可用模型时不渲染 |
 | `web/src/services/admin.ts` | 增补 3.3 / 3.4 接口封装（含 3.3.6 供应商预设查询与 3.3.7 对话模型管理，进入配置页时拉取一次） |
 | `web/src/stores/ai.ts` | 新增：缓存 `GET /api/workspace/ai/status` 结果，暴露 `aiEnabled` / `semanticSearch` / `chatModels` 计算属性，供全部 AI 入口组件显隐判断与模型选择器渲染；负责校验并回收 `localStorage` 中失效的 `modelId`（4.11） |
@@ -803,7 +803,7 @@ stateDiagram-v2
 
 ### 5.2 交互要点
 
-- AdminLayout 菜单新增「AI 配置」「智能体」两项（沿用既有菜单权限控制，仅系统管理员可见）；
+- AdminLayout 菜单新增「AI 配置」一项（沿用既有菜单权限控制，仅系统管理员可见），智能体作为该页第 2 个标签页；
 - **供应商切换交互**：选择供应商后自动填充该组 `defaultBaseUrl` 并按 `uniqueParams` 模板渲染独有配置项控件（取默认值）；已有配置下切换供应商时弹二次确认（提示将重置该组地址与独有配置项，模型名与密钥保留待用户自行核对）；`custom` 供应商不渲染独有配置项区，仅保留高级自定义参数折叠区（自由键值编辑）；独有配置项与自定义参数在提交时合并为 `extraParams`（模板键在前，重名以独有配置项控件值为准）；
 - 密钥输入框：占位符显示 `已配置（末位 ****）`，留空提交表示不修改；
 - **模型选择器交互**：交互式 AI 功能入口渲染 `AiModelSelect`，默认选中 `localStorage` 记忆值（失效则回退系统默认，见 4.11）；切换后立即写入记忆并作用于本次及后续调用；后台任务与建议类功能不展示选择器；

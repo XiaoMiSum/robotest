@@ -126,33 +126,33 @@ onMounted(loadAgents)
 </script>
 
 <template>
-  <div v-loading="loading" class="ai-agents-page">
-    <el-card shadow="never" class="ai-agents-page__header">
-      <div class="ai-agents-page__header-left">
-        <div class="ai-agents-page__header-icon">
+  <div v-loading="loading" class="ai-agents-tab">
+    <el-card shadow="never" class="ai-agents-tab__header">
+      <div class="ai-agents-tab__header-left">
+        <div class="ai-agents-tab__header-icon">
           <el-icon :size="20"><MagicStick /></el-icon>
         </div>
         <div>
-          <div class="ai-agents-page__header-title">智能体</div>
-          <div class="ai-agents-page__header-sub">配置各 AI 功能的提示词模板，默认内置，可自定义角色指令并一键恢复</div>
+          <div class="ai-agents-tab__header-title">智能体</div>
+          <div class="ai-agents-tab__header-sub">配置各 AI 功能的提示词模板，默认内置，可自定义角色指令并一键恢复</div>
         </div>
       </div>
-      <div class="ai-agents-page__header-stats">
-        <div class="ai-agents-page__stat">
-          <span class="ai-agents-page__stat-value">{{ agents.length }}</span>
-          <span class="ai-agents-page__stat-label">全部</span>
+      <div class="ai-agents-tab__header-stats">
+        <div class="ai-agents-tab__stat">
+          <span class="ai-agents-tab__stat-value">{{ agents.length }}</span>
+          <span class="ai-agents-tab__stat-label">全部</span>
         </div>
-        <div class="ai-agents-page__stat-divider" />
-        <div class="ai-agents-page__stat">
-          <span class="ai-agents-page__stat-value ai-agents-page__stat-value--success">{{ customizedCount }}</span>
-          <span class="ai-agents-page__stat-label">已自定义</span>
+        <div class="ai-agents-tab__stat-divider" />
+        <div class="ai-agents-tab__stat">
+          <span class="ai-agents-tab__stat-value ai-agents-tab__stat-value--success">{{ customizedCount }}</span>
+          <span class="ai-agents-tab__stat-label">已自定义</span>
         </div>
       </div>
     </el-card>
 
     <el-empty v-if="!loading && !agents.length" description="暂无智能体" />
 
-    <div v-else class="ai-agents-page__grid">
+    <div v-else class="ai-agents-tab__grid">
       <div
         v-for="agent in agents"
         :key="agent.functionType"
@@ -165,8 +165,8 @@ onMounted(loadAgents)
             <el-icon :size="22"><MagicStick /></el-icon>
           </div>
           <div class="agent-card__head-actions" @click.stop>
-            <el-tag :type="agent.customized ? 'success' : 'info'" size="small" effect="light" round>
-              {{ agent.customized ? '已自定义' : '默认' }}
+            <el-tag v-if="agent.customized" type="success" size="small" effect="light" round>
+              已自定义
             </el-tag>
             <el-button
               v-if="agent.customized"
@@ -206,9 +206,9 @@ onMounted(loadAgents)
       </div>
     </div>
 
-    <el-drawer v-model="drawerVisible" size="600px" class="ai-agents-page__drawer">
+    <el-drawer v-model="drawerVisible" size="600px" class="ai-agents-tab__drawer">
       <template #header>
-        <div class="ai-agents-page__drawer-title">
+        <div class="ai-agents-tab__drawer-title">
           <el-icon :size="18"><MagicStick /></el-icon>
           <span>{{ detail?.name ?? '编辑智能体' }}</span>
           <el-tag v-if="detail?.customized" type="success" size="small" effect="light" round>
@@ -216,27 +216,27 @@ onMounted(loadAgents)
           </el-tag>
         </div>
       </template>
-      <el-form v-if="detail" label-position="top" class="ai-agents-page__form">
+      <el-form v-if="detail" label-position="top" class="ai-agents-tab__form">
         <el-form-item>
           <template #label>
-            <span class="ai-agents-page__label">
+            <span class="ai-agents-tab__label">
               <el-icon><ChatLineSquare /></el-icon>角色指令段
             </span>
           </template>
           <el-input v-model="editForm.roleInstruction" type="textarea" :rows="10" maxlength="8000" show-word-limit />
         </el-form-item>
-        <div class="ai-agents-page__advanced-card">
-          <div class="ai-agents-page__advanced-row">
-            <div class="ai-agents-page__advanced-text">
-              <div class="ai-agents-page__advanced-title">格式约束段编辑（高级）</div>
-              <div class="ai-agents-page__advanced-hint">开启后可修改输出格式约束，可能影响结构化校验</div>
+        <div class="ai-agents-tab__advanced-card">
+          <div class="ai-agents-tab__advanced-row">
+            <div class="ai-agents-tab__advanced-text">
+              <div class="ai-agents-tab__advanced-title">格式约束段编辑（高级）</div>
+              <div class="ai-agents-tab__advanced-hint">开启后可修改输出格式约束，可能影响结构化校验</div>
             </div>
             <el-switch v-model="editForm.formatEditable" @change="handleFormatEditableChange" />
           </div>
         </div>
         <el-form-item>
           <template #label>
-            <span class="ai-agents-page__label">
+            <span class="ai-agents-tab__label">
               <el-icon><Document /></el-icon>输出格式约束段
             </span>
           </template>
@@ -259,11 +259,11 @@ onMounted(loadAgents)
 </template>
 
 <style scoped lang="scss">
-.ai-agents-page {
+.ai-agents-tab {
   min-height: 200px;
 }
 
-.ai-agents-page__header {
+.ai-agents-tab__header {
   margin-bottom: var(--space-lg);
 
   :deep(.el-card__body) {
@@ -274,13 +274,13 @@ onMounted(loadAgents)
   }
 }
 
-.ai-agents-page__header-left {
+.ai-agents-tab__header-left {
   display: flex;
   align-items: center;
   gap: var(--space-md);
 }
 
-.ai-agents-page__header-icon {
+.ai-agents-tab__header-icon {
   width: 40px;
   height: 40px;
   display: flex;
@@ -291,54 +291,54 @@ onMounted(loadAgents)
   color: var(--color-primary-600);
 }
 
-.ai-agents-page__header-title {
+.ai-agents-tab__header-title {
   font-size: 15px;
   font-weight: 600;
   color: var(--color-neutral-800);
 }
 
-.ai-agents-page__header-sub {
+.ai-agents-tab__header-sub {
   font-size: 12px;
   color: var(--color-neutral-500);
   margin-top: 2px;
 }
 
-.ai-agents-page__header-stats {
+.ai-agents-tab__header-stats {
   display: flex;
   align-items: center;
   gap: var(--space-lg);
 }
 
-.ai-agents-page__stat {
+.ai-agents-tab__stat {
   display: flex;
   flex-direction: column;
   align-items: center;
 }
 
-.ai-agents-page__stat-value {
+.ai-agents-tab__stat-value {
   font-size: 20px;
   font-weight: 700;
   line-height: 1.1;
   color: var(--color-neutral-800);
 }
 
-.ai-agents-page__stat-value--success {
+.ai-agents-tab__stat-value--success {
   color: var(--color-success);
 }
 
-.ai-agents-page__stat-label {
+.ai-agents-tab__stat-label {
   font-size: 12px;
   color: var(--color-neutral-400);
   margin-top: 2px;
 }
 
-.ai-agents-page__stat-divider {
+.ai-agents-tab__stat-divider {
   width: 1px;
   height: 28px;
   background: var(--color-neutral-200);
 }
 
-.ai-agents-page__grid {
+.ai-agents-tab__grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: var(--space-lg);
@@ -436,7 +436,7 @@ onMounted(loadAgents)
   background: var(--color-neutral-300);
 }
 
-.ai-agents-page__drawer-title {
+.ai-agents-tab__drawer-title {
   display: flex;
   align-items: center;
   gap: var(--space-sm);
@@ -445,38 +445,38 @@ onMounted(loadAgents)
   color: var(--color-neutral-800);
 }
 
-.ai-agents-page__form :deep(.el-form-item) {
+.ai-agents-tab__form :deep(.el-form-item) {
   margin-bottom: var(--space-xl);
 }
 
-.ai-agents-page__label {
+.ai-agents-tab__label {
   display: inline-flex;
   align-items: center;
   gap: var(--space-xs);
   font-weight: 600;
 }
 
-.ai-agents-page__advanced-card {
+.ai-agents-tab__advanced-card {
   padding: var(--space-md) var(--space-lg);
   margin-bottom: var(--space-xl);
   border-radius: var(--radius-md);
   background: var(--color-neutral-50);
 }
 
-.ai-agents-page__advanced-row {
+.ai-agents-tab__advanced-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-md);
 }
 
-.ai-agents-page__advanced-title {
+.ai-agents-tab__advanced-title {
   font-size: 13px;
   font-weight: 600;
   color: var(--color-neutral-700);
 }
 
-.ai-agents-page__advanced-hint {
+.ai-agents-tab__advanced-hint {
   font-size: 12px;
   color: var(--color-neutral-400);
   margin-top: 2px;
