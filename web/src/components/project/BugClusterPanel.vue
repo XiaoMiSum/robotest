@@ -217,6 +217,8 @@ onBeforeUnmount(stopPolling)
     v-model="drawerVisible"
     size="560px"
     :modal="false"
+    modal-penetrable
+    :lock-scroll="false"
     class="bug-cluster"
   >
     <template #header>
@@ -226,7 +228,7 @@ onBeforeUnmount(stopPolling)
           生成时间：{{ formatDateTime(snapshot.generatedAt) }}
         </span>
         <div class="bug-cluster__header-actions">
-          <el-button size="small" :disabled="running || starting" @click="start">
+          <el-button link type="primary" :disabled="running || starting" @click="start">
             {{ starting ? '分析中…' : '刷新' }}
           </el-button>
         </div>
@@ -426,6 +428,7 @@ onBeforeUnmount(stopPolling)
 
 .bug-cluster__header-actions {
   margin-left: auto;
+  margin-right: var(--space-lg); // 与抽屉关闭按钮拉开间距
   display: flex;
   gap: var(--space-sm);
 }
