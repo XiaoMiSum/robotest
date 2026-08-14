@@ -26,6 +26,8 @@ const emit = defineEmits<{
   'select-duplicate': [item: AiBugDedupItem | null]
   /** 确认重复后放弃本次提交，由创建页统一处理返回列表 */
   'abandon-submit': []
+  /** 本次结果内忽略该条：由父级（BugAiSuggest）从列表剔除，不参与提交确认（交互设计 3.3） */
+  ignore: [item: AiBugDedupItem]
 }>()
 
 const severityLabel: Record<string, string> = { fatal: '致命', serious: '严重', general: '一般', minor: '轻微' }
@@ -62,6 +64,15 @@ function toggleSelect(item: AiBugDedupItem): void {
   const next = selectedBugId.value === item.bugId ? null : item
   selectedBugId.value = next ? next.bugId : ''
   emit('select-duplicate', next)
+}
+
+/** 忽略该条：若其正被预选为「原始」，先取消预选，避免提交确认引用已忽略条目 */
+function ignoreItem(item: AiBugDedupItem): void {
+  if (selectedBugId.value === item.bugId) {
+    selectedBugId.value = ''
+    emit('select-duplicate', null)
+  }
+  emit('ignore', item)
 }
 </script>
 
@@ -112,6 +123,11 @@ function toggleSelect(item: AiBugDedupItem): void {
             @click.stop="toggleSelect(item)"
           >
             {{ selectedBugId === item.bugId ? '已选' : '选为原始' }}
+          </el-button>
+        </el-tooltip>
+        <el-tooltip content="本次结果内不再提示，不参与提交确认" placement="top">
+          <el-button size="small" text class="bug-dedup__ignore" @click.stop="ignoreItem(item)">
+            忽略
           </el-button>
         </el-tooltip>
       </div>
@@ -219,6 +235,13 @@ function toggleSelect(item: AiBugDedupItem): void {
   flex-shrink: 0;
   margin-left: var(--space-xs);
   padding: 0 4px;
+}
+
+.bug-dedup__ignore {
+  flex-shrink: 0;
+  margin-left: 0;
+  padding: 0 4px;
+  color: var(--color-neutral-400);
 }
 
 .bug-dedup__similarity {
