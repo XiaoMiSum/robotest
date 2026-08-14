@@ -762,7 +762,7 @@ const minimized = computed(() => props.minimized === true)
 }
 
 .assistant-panel__toolbar-actions {
-  // 恒靠右：AiModelSelect 在单一模型时不渲染（交互设计 4.1），space-between 会令唯一子元素靠左
+  // 恒靠右：AiModelSelect 单模型时仅渲染只读标签（交互设计 2.8），space-between 下仍保证操作区贴右
   display: flex;
   align-items: center;
   gap: var(--space-md);
