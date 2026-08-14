@@ -216,7 +216,25 @@ INSERT INTO ai_prompt_template (id, function_type, role_instruction, format_cons
 ('d0000000-0000-0000-0000-000000000011', 'keyword_extraction', '你是一名测试需求关键词抽取助手。请从给定需求文本中抽取用于检索测试用例库的关键词，关键词应为需求中出现过的核心业务词或短语，避免空泛词汇。', '输出必须为合法 JSON 对象，不得包含 JSON 之外的任何文字。仅包含 keywords 数组字段，关键词数量不超过 10 个，每个关键词不超过 20 字符，必须为输入需求文本中出现过的词或短语。', TRUE, '00000000-0000-0000-0000-000000000000', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 ('d0000000-0000-0000-0000-000000000012', 'case_plan_recommendation', '你是一名测试用例规划推荐助手。请基于需求描述与候选用例清单，为每条推荐用例生成一句话理由，说明其应纳入当前评审或测试计划用例清单的原因。', '输出必须为合法 JSON 数组，不得包含 JSON 之外的任何文字。数组长度与输入用例清单一致，每条理由不超过 120 字符。', TRUE, '00000000-0000-0000-0000-000000000000', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 ('d0000000-0000-0000-0000-000000000013', 'review_check', '你是一名测试用例评审检查助手。请检查给定批次用例的完整性：缺少前置条件、步骤描述笼统、缺少预期结果、相似用例优先级冲突，并给出具体改进建议。', '输出必须为合法 JSON 对象，不得包含 JSON 之外的任何文字。dimension 仅允许 missing_precondition/vague_step/missing_expected/priority_conflict；snapshotNodeId 必须来自本批输入，不得虚构。', TRUE, '00000000-0000-0000-0000-000000000000', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-('d0000000-0000-0000-0000-000000000014', 'bug_clustering', '你是一名缺陷归纳分析助手。请为给定的缺陷簇归纳简短的主题标签，概括该簇缺陷的共性问题。', '输出必须为合法 JSON 对象，不得包含 JSON 之外的任何文字。标签不超过 30 字符，输出数组与输入簇数量一致。', TRUE, '00000000-0000-0000-0000-000000000000', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+('d0000000-0000-0000-0000-000000000014', 'bug_clustering', '你是一名缺陷归纳分析助手。请为给定的缺陷簇归纳简短的主题标签，概括该簇缺陷的共性问题。', '输出必须为合法 JSON 对象，不得包含 JSON 之外的任何文字。标签不超过 30 字符，输出数组与输入簇数量一致。', TRUE, '00000000-0000-0000-0000-000000000000', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('d0000000-0000-0000-0000-000000000015', 'requirement_split', '你是一名测试需求拆分助手。请将整份需求文档按模块/功能拆分为细粒度需求条目：一个需求点 = 一个可测试功能行为（如「用户管理」拆为新增/编辑/删除/查询用户四条），模块仅作归属分组。条目内容需保留原始描述中的关键约束，不得虚构原文没有的功能。', '输出必须为合法 JSON 对象，不得包含 JSON 之外的任何文字。JSON 结构必须严格遵循如下示例（字段名、类型、层级完全一致）：
+{
+  "modules": [
+    {
+      "module": "模块名",
+      "items": [
+        {"title": "需求点标题", "content": "需求点内容（Markdown）"}
+      ]
+    }
+  ]
+}
+
+字段约束：
+- 顶层必须是 modules 数组，非空且不超过 50 个模块
+- module 必填，不超过 100 字符
+- 每模块 items 非空且不超过 50 条
+- title 必填，不超过 200 字符
+- content 必填，为 Markdown 格式的需求点描述', TRUE, '00000000-0000-0000-0000-000000000000', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
 ON CONFLICT (function_type) WHERE is_deleted = false DO NOTHING;
 
 -- ============================================================
@@ -231,6 +249,7 @@ CREATE TABLE requirement_pool_item (
     content     TEXT          NOT NULL,
     source_url  VARCHAR(500)  NULL,
     status      VARCHAR(20)   NOT NULL DEFAULT 'active', -- 条目状态：active（默认）/ archived（归档后只读、不参与 AI 消费）
+    ai_generated BOOLEAN      NOT NULL DEFAULT FALSE,   -- AI 拆分入库标识（US-AI-019，仅作展示标记）
     created_by  UUID          NOT NULL,
     updated_by  UUID          NOT NULL,
     is_deleted  BOOLEAN       NOT NULL DEFAULT FALSE,
@@ -351,6 +370,7 @@ COMMENT ON COLUMN requirement_pool_item.project_id IS '归属项目 ID，关联 
 COMMENT ON COLUMN requirement_pool_item.title IS '条目标题';
 COMMENT ON COLUMN requirement_pool_item.content IS '需求文本（Markdown 原文，长度上限见 requirementContentMaxLength 配置键）';
 COMMENT ON COLUMN requirement_pool_item.source_url IS '来源 URL（仅记录出处，平台不抓取）';
+COMMENT ON COLUMN requirement_pool_item.ai_generated IS 'AI 拆分入库标识（US-AI-019，仅作展示标记，不影响业务规则）';
 COMMENT ON COLUMN requirement_pool_item.created_by IS '创建人（编辑/删除权限判定依据），关联 sys_user.id';
 COMMENT ON COLUMN requirement_pool_item.updated_by IS '最后更新人，关联 sys_user.id';
 COMMENT ON COLUMN requirement_pool_item.is_deleted IS '逻辑删除标志';

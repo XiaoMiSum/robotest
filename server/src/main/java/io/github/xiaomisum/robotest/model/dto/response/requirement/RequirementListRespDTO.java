@@ -15,6 +15,8 @@ public class RequirementListRespDTO {
     private String title;
     private String sourceUrl;
     private String status;
+    /** AI 拆分入库标识（US-AI-019），列表展示 AI 徽标 */
+    private Boolean aiGenerated;
     private UUID createdBy;
     private String creatorName;
     private LocalDateTime updatedAt;

@@ -2,6 +2,7 @@ package io.github.xiaomisum.robotest.service.project;
 
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
+import io.github.xiaomisum.robotest.model.dto.request.requirement.RequirementBatchCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.requirement.RequirementCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.requirement.RequirementUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.requirement.RequirementDetailRespDTO;
@@ -81,6 +82,7 @@ public class RequirementServiceImpl implements RequirementService {
             dto.setCreatedBy(item.getCreatedBy());
             dto.setCreatorName(nameById.get(item.getCreatedBy()));
             dto.setUpdatedAt(item.getUpdatedAt());
+            dto.setAiGenerated(Boolean.TRUE.equals(item.getAiGenerated()));
             return dto;
         }).collect(Collectors.toList());
 
@@ -102,6 +104,7 @@ public class RequirementServiceImpl implements RequirementService {
         dto.setUpdatedBy(item.getUpdatedBy());
         dto.setCreatedAt(item.getCreatedAt());
         dto.setUpdatedAt(item.getUpdatedAt());
+        dto.setAiGenerated(Boolean.TRUE.equals(item.getAiGenerated()));
         return dto;
     }
 
@@ -119,6 +122,27 @@ public class RequirementServiceImpl implements RequirementService {
         item.setUpdatedBy(userId);
         requirementMapper.insert(item);
         return item.getId().toString();
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public int createBatch(UUID projectId, UUID userId, RequirementBatchCreateReqDTO reqDTO) {
+        List<RequirementPoolItem> items = new ArrayList<>(reqDTO.getItems().size());
+        for (RequirementBatchCreateReqDTO.Item dto : reqDTO.getItems()) {
+            validateContentLength(dto.getContent());
+            RequirementPoolItem item = new RequirementPoolItem();
+            item.setProjectId(projectId);
+            item.setTitle(dto.getTitle());
+            item.setContent(dto.getContent());
+            item.setSourceUrl(StringUtils.hasText(dto.getSourceUrl()) ? dto.getSourceUrl() : null);
+            // AI 拆分入库标识：缺省 false，仅作展示标记（US-AI-019）
+            item.setAiGenerated(Boolean.TRUE.equals(dto.getAiGenerated()));
+            item.setCreatedBy(userId);
+            item.setUpdatedBy(userId);
+            items.add(item);
+        }
+        requirementMapper.insertBatch(items);
+        return items.size();
     }
 
     @Override

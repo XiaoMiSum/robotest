@@ -16,6 +16,8 @@ public class RequirementDetailRespDTO {
     private String content;
     private String sourceUrl;
     private String status;
+    /** AI 拆分入库标识（US-AI-019） */
+    private Boolean aiGenerated;
     private UUID createdBy;
     private String creatorName;
     private UUID updatedBy;

@@ -25,6 +25,7 @@ public enum AiFunctionType {
     BUG_DEDUP("bug_dedup", "缺陷语义查重", RateLimitCategory.RETRIEVAL, false),
     REVIEW_CHECK("review_check", "评审完整性检查", RateLimitCategory.TASK, true),
     BUG_CLUSTERING("bug_clustering", "缺陷聚类归纳", RateLimitCategory.TASK, true),
+    REQUIREMENT_SPLIT("requirement_split", "需求文档拆分", RateLimitCategory.GENERATION, true),
     EMBEDDING_INDEX("embedding_index", "向量写入与重建", null, false);
 
     private final String code;

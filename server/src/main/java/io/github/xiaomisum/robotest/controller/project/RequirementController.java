@@ -2,8 +2,10 @@ package io.github.xiaomisum.robotest.controller.project;
 
 import io.github.xiaomisum.robotest.framework.security.LoginUser;
 import io.github.xiaomisum.robotest.model.dto.request.requirement.RequirementArchiveReqDTO;
+import io.github.xiaomisum.robotest.model.dto.request.requirement.RequirementBatchCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.requirement.RequirementCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.requirement.RequirementUpdateReqDTO;
+import io.github.xiaomisum.robotest.model.dto.response.requirement.RequirementBatchCreateRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.requirement.RequirementDetailRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.requirement.RequirementListRespDTO;
 import io.github.xiaomisum.robotest.service.project.RequirementService;
@@ -50,6 +52,16 @@ public class RequirementController {
             @RequestHeader("X-Active-Project") UUID projectId,
             @RequestBody @Valid RequirementCreateReqDTO reqDTO) {
         return Result.ok(requirementService.create(projectId, loginUser.getId(), reqDTO));
+    }
+
+    @PostMapping("/batch")
+    @ResponseStatus(HttpStatus.CREATED)
+    public Result<RequirementBatchCreateRespDTO> createRequirementsBatch(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @RequestHeader("X-Active-Project") UUID projectId,
+            @RequestBody @Valid RequirementBatchCreateReqDTO reqDTO) {
+        int count = requirementService.createBatch(projectId, loginUser.getId(), reqDTO);
+        return Result.ok(RequirementBatchCreateRespDTO.of(count));
     }
 
     @PutMapping("/{id}")

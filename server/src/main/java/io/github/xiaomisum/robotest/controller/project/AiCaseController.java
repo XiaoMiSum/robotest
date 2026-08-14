@@ -6,6 +6,7 @@ import io.github.xiaomisum.robotest.model.dto.request.ai.AiCasePlanRecommendReqD
 import io.github.xiaomisum.robotest.model.dto.request.ai.AiMissingPointReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.ai.AiPlanOrderReasonReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.ai.AiPriorityRecommendReqDTO;
+import io.github.xiaomisum.robotest.model.dto.request.ai.AiRequirementSplitReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.ai.AiStepCompleteReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.ai.AiTextImportReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiCasePlanRecommendRespDTO;
@@ -19,6 +20,7 @@ import io.github.xiaomisum.robotest.service.ai.casegen.AiMissingPointService;
 import io.github.xiaomisum.robotest.service.ai.recommend.AiCasePlanRecommendService;
 import io.github.xiaomisum.robotest.service.ai.recommend.AiPlanOrderRecommendService;
 import io.github.xiaomisum.robotest.service.ai.recommend.AiPriorityRecommendService;
+import io.github.xiaomisum.robotest.service.ai.requirement.AiRequirementSplitService;
 import xyz.migoo.framework.common.pojo.Result;
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
@@ -53,6 +55,9 @@ public class AiCaseController {
 
     @Resource
     private AiPlanOrderRecommendService aiPlanOrderRecommendService;
+
+    @Resource
+    private AiRequirementSplitService aiRequirementSplitService;
 
     @PostMapping("/cases/priority-recommend")
     public Result<AiPriorityRecommendRespDTO> priorityRecommend(
@@ -137,5 +142,14 @@ public class AiCaseController {
             @RequestHeader("X-Active-Project") UUID projectId,
             @RequestBody @Valid AiTextImportReqDTO reqDTO) {
         return aiCaseGenerationService.importText(loginUser.getId(), workspaceId, projectId, reqDTO);
+    }
+
+    @PostMapping(value = "/requirements/split", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public SseEmitter splitRequirement(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @RequestHeader("X-Active-Workspace") UUID workspaceId,
+            @RequestHeader("X-Active-Project") UUID projectId,
+            @RequestBody @Valid AiRequirementSplitReqDTO reqDTO) {
+        return aiRequirementSplitService.split(loginUser.getId(), workspaceId, projectId, reqDTO);
     }
 }
