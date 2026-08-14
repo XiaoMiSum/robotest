@@ -90,6 +90,7 @@ declare module 'vue' {
     PlanMindMap: typeof import('./components/project/PlanMindMap.vue')['default']
     PlanOrderRecommend: typeof import('./components/project/PlanOrderRecommend.vue')['default']
     RequirementSelector: typeof import('./components/project/RequirementSelector.vue')['default']
+    RequirementSplitDialog: typeof import('./components/project/RequirementSplitDialog.vue')['default']
     ReviewAiCheckPanel: typeof import('./components/project/ReviewAiCheckPanel.vue')['default']
     ReviewAiSummary: typeof import('./components/project/ReviewAiSummary.vue')['default']
     ReviewMindMap: typeof import('./components/project/ReviewMindMap.vue')['default']
