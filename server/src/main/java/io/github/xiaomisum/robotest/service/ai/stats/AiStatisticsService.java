@@ -1,5 +1,6 @@
 package io.github.xiaomisum.robotest.service.ai.stats;
 
+import io.github.xiaomisum.robotest.framework.common.AiFunctionType;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiStatisticsRespDTO;
 import io.github.xiaomisum.robotest.repository.ai.AiInvocationLogMapper;
 import jakarta.annotation.Resource;
@@ -19,7 +20,7 @@ public class AiStatisticsService {
     private AiInvocationLogMapper invocationLogMapper;
 
     /**
-     * @param groupBy functionType / workspace / day / model，缺省 functionType
+     * @param groupBy functionType / workspace / day / model / user，缺省 functionType
      */
     public AiStatisticsRespDTO getStatistics(LocalDate startDate, LocalDate endDate, String groupBy) {
         LocalDate start = startDate != null ? startDate : LocalDate.now().minusDays(30);
@@ -37,11 +38,20 @@ public class AiStatisticsService {
             case "workspace" -> invocationLogMapper.aggregateByWorkspace(startTime, endTime);
             case "day" -> invocationLogMapper.aggregateByDay(startTime, endTime);
             case "model" -> invocationLogMapper.aggregateByModel(startTime, endTime);
+            case "user" -> invocationLogMapper.aggregateByUser(startTime, endTime);
             default -> invocationLogMapper.aggregateByFunctionType(startTime, endTime);
         };
         resp.setItems(rows.stream().map(row -> {
             AiStatisticsRespDTO.Item item = new AiStatisticsRespDTO.Item();
-            item.setKey(String.valueOf(row.get("key")));
+            // functionType 维度展示枚举中文名（与智能体页一致），避免暴露内部 code
+            String key = String.valueOf(row.get("key"));
+            if (groupBy == null || "functionType".equals(groupBy)) {
+                AiFunctionType type = AiFunctionType.fromCode(key);
+                if (type != null) {
+                    key = type.getLabel();
+                }
+            }
+            item.setKey(key);
             item.setCalls(longValue(row, "calls"));
             item.setTokens(longValue(row, "tokens"));
             item.setAvgDurationMs(longValue(row, "avg_duration_ms"));

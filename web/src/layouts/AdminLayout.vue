@@ -18,7 +18,6 @@ const sidebarMenu = computed(() => {
   if (has('workspace:view')) items.push({ label: '空间管理', path: '/admin/workspaces', icon: 'OfficeBuilding' })
   if (has('role:view')) items.push({ label: '角色管理', path: '/admin/roles', icon: 'Lock' })
   if (has('ai:view')) items.push({ label: 'AI 配置', path: '/admin/ai-config', icon: 'MagicStick' })
-  if (has('ai:view')) items.push({ label: '智能体', path: '/admin/ai-agents', icon: 'ChatDotRound' })
   return items
 })
 

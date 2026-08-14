@@ -41,6 +41,7 @@ import {
   resolveUniqueParams,
   weightsSum,
 } from './aiConfigForm'
+import AiAgentsTab from '@/components/admin/AiAgentsTab.vue'
 
 const loading = ref(false)
 const saving = ref(false)
@@ -923,6 +924,10 @@ onMounted(loadAll)
         </el-form>
       </el-tab-pane>
 
+      <el-tab-pane label="智能体" name="agents" lazy>
+        <AiAgentsTab />
+      </el-tab-pane>
+
       <el-tab-pane label="调用统计" name="statistics">
         <div class="ai-config-page__stat-bar">
           <el-radio-group v-model="statQuery.groupBy" @change="loadStatistics">
@@ -930,6 +935,7 @@ onMounted(loadAll)
             <el-radio-button value="workspace">按空间</el-radio-button>
             <el-radio-button value="day">按日期</el-radio-button>
             <el-radio-button value="model">按模型</el-radio-button>
+            <el-radio-button value="user">按用户</el-radio-button>
           </el-radio-group>
         </div>
         <template v-if="statistics">

@@ -76,12 +76,6 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/pages/admin/AiConfigPage.vue'),
         meta: { title: 'AI 配置' },
       },
-      {
-        path: 'ai-agents',
-        name: 'AdminAiAgents',
-        component: () => import('@/pages/admin/AiAgentsPage.vue'),
-        meta: { title: '智能体' },
-      },
     ],
   },
   // === Business routes ===
