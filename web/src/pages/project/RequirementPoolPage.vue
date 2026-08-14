@@ -13,6 +13,7 @@ import { useAuthStore } from '@/stores/auth'
 import { formatDateTime } from '@/utils/format'
 import type { RequirementPoolItem } from '@/types'
 import MarkdownEditor from '@/components/common/MarkdownEditor.vue'
+import RequirementSplitDialog from '@/components/project/RequirementSplitDialog.vue'
 
 const authStore = useAuthStore()
 // 编辑/删除/归档入口按权限点显隐；后端按"创建人或项目管理权限"强校验兜底
@@ -26,6 +27,9 @@ const keyword = ref('')
 const statusFilter = ref<string>('')
 const pageNo = ref(1)
 const pageSize = ref(20)
+
+// AI 拆分对话框（US-AI-019，入口与编辑权限一致，交互设计 6.1.2）
+const splitDialogVisible = ref(false)
 
 async function load() {
   loading.value = true
@@ -210,6 +214,10 @@ onMounted(load)
           </el-button>
           <el-button @click="handleReset">重置</el-button>
           <div class="requirement-pool__spacer" />
+          <!-- AI 拆分入口：与编辑权限一致（交互设计 6.1.2） -->
+          <el-button v-if="canEdit" type="primary" plain @click="splitDialogVisible = true">
+            <el-icon><MagicStick /></el-icon>AI 拆分
+          </el-button>
           <el-button type="primary" @click="openCreate">
             <el-icon><Plus /></el-icon>新建条目
           </el-button>
@@ -217,7 +225,18 @@ onMounted(load)
       </template>
 
       <el-table :data="items" class="requirement-pool__table">
-        <el-table-column prop="title" label="标题" min-width="240" show-overflow-tooltip />
+        <!-- AI 拆分入库条目标题前展示青色 AI 徽标（复用 mindmap AI_BADGE 色值，交互设计 6.1.2） -->
+        <el-table-column label="标题" min-width="240" show-overflow-tooltip>
+          <template #default="{ row }">
+            <el-tag
+              v-if="row.aiGenerated"
+              size="small"
+              class="requirement-pool__ai-badge"
+              disable-transitions
+            >AI</el-tag>
+            <span>{{ row.title }}</span>
+          </template>
+        </el-table-column>
         <el-table-column label="来源 URL" min-width="200" show-overflow-tooltip>
           <template #default="{ row }">
             <el-link v-if="row.sourceUrl" :href="row.sourceUrl" target="_blank" type="primary">{{ row.sourceUrl }}</el-link>
@@ -279,6 +298,9 @@ onMounted(load)
         <el-button type="primary" :loading="submitting" @click="submit">保存</el-button>
       </template>
     </el-drawer>
+
+    <!-- AI 拆分入库成功后刷新列表（对话框内部负责入库与提示） -->
+    <RequirementSplitDialog v-model="splitDialogVisible" @imported="load" />
   </div>
 </template>
 
@@ -311,5 +333,13 @@ onMounted(load)
 
 .requirement-pool__muted {
   color: var(--el-text-color-placeholder);
+}
+
+/* AI 拆分入库条目标识：青色 AI 徽标，与 mindmap badges 的 AI_BADGE 色值一致（#13C2C2） */
+.requirement-pool__ai-badge {
+  margin-right: var(--space-xs);
+  color: #13c2c2;
+  border-color: #13c2c2;
+  background-color: rgba(19, 194, 194, 0.1);
 }
 </style>

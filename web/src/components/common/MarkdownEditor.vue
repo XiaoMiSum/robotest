@@ -6,9 +6,10 @@ import 'md-editor-v3/lib/style.css'
 // 薄封装 md-editor-v3：统一中文、精简工具栏与默认高度，便于全站复用与后续替换
 const value = defineModel<string>({ default: '' })
 
-withDefaults(defineProps<{ height?: string; placeholder?: string }>(), {
+withDefaults(defineProps<{ height?: string; placeholder?: string; disabled?: boolean }>(), {
   height: '320px',
   placeholder: '支持 Markdown 语法',
+  disabled: false,
 })
 
 // md-editor-v3 的 sanitize prop 默认是恒等函数（不消毒）；
@@ -50,6 +51,7 @@ const toolbars: ToolbarNames[] = [
     :preview="false"
     :placeholder="placeholder"
     :sanitize="sanitize"
+    :disabled="disabled"
     :style="{ height }"
   />
 </template>

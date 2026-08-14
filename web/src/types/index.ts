@@ -1022,6 +1022,8 @@ export interface RequirementPoolItem {
   createdBy: string
   creatorName: string | null
   updatedAt: string
+  /** AI 拆分入库标识（US-AI-019，仅展示 AI 徽标，不影响业务规则） */
+  aiGenerated: boolean
 }
 
 /** 需求池条目详情 */
@@ -1036,12 +1038,34 @@ export interface RequirementDetail {
   updatedBy: string
   createdAt: string
   updatedAt: string
+  /** AI 拆分入库标识（US-AI-019，仅展示 AI 徽标，不影响业务规则） */
+  aiGenerated: boolean
 }
 
 /** 需求池条目摘要（文档关联查询与条目选取器共用） */
 export interface RequirementSummary {
   id: string
   title: string
+}
+
+// --- 需求文档 AI 拆分（US-AI-019，详细设计 3.2.3） ---
+
+/** AI 拆分预览需求点（done 帧 items 元素） */
+export interface AiRequirementSplitItem {
+  title: string
+  content: string
+}
+
+/** AI 拆分模块分组（done 帧 modules 元素） */
+export interface AiRequirementSplitModule {
+  module: string
+  items: AiRequirementSplitItem[]
+}
+
+/** AI 拆分 done 帧载荷：模块分组 + 警告（纯预览，不落库） */
+export interface AiRequirementSplitResult {
+  modules: AiRequirementSplitModule[]
+  warnings: string[]
 }
 
 // --- 缺陷 AI 能力（US-AI-008/009/010，详细设计 3.1–3.3） ---
