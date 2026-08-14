@@ -1,6 +1,7 @@
 package io.github.xiaomisum.robotest.service.project;
 
 import io.github.xiaomisum.robotest.framework.common.Constants;
+import io.github.xiaomisum.robotest.model.dto.request.requirement.RequirementBatchCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.requirement.RequirementCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.requirement.RequirementUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.entity.requirement.DocumentRequirementRel;
@@ -118,6 +119,68 @@ class RequirementServiceImplTest {
         org.junit.jupiter.api.Assertions.assertEquals(PROJECT_ID, saved.getProjectId());
         org.junit.jupiter.api.Assertions.assertEquals(CREATOR_ID, saved.getCreatedBy());
         org.junit.jupiter.api.Assertions.assertEquals(CREATOR_ID, saved.getUpdatedBy());
+    }
+
+    // ==================== 批量创建（US-AI-019，3.1.7） ====================
+
+    private RequirementBatchCreateReqDTO batchReq(int itemCount, boolean aiGenerated) {
+        RequirementBatchCreateReqDTO dto = new RequirementBatchCreateReqDTO();
+        List<RequirementBatchCreateReqDTO.Item> items = new java.util.ArrayList<>();
+        for (int i = 0; i < itemCount; i++) {
+            RequirementBatchCreateReqDTO.Item item = new RequirementBatchCreateReqDTO.Item();
+            item.setTitle("AI 需求点 " + i);
+            item.setContent("需求内容 " + i);
+            item.setAiGenerated(aiGenerated);
+            items.add(item);
+        }
+        dto.setItems(items);
+        return dto;
+    }
+
+    @Test
+    void createBatch_contentOverLimit_throwsValidationFailed() {
+        when(aiConfigService.getIntSetting("requirementContentMaxLength")).thenReturn(100);
+        RequirementBatchCreateReqDTO dto = batchReq(1, true);
+        dto.getItems().get(0).setContent("x".repeat(101));
+        assertThrows(ServiceException.class, () -> service.createBatch(PROJECT_ID, CREATOR_ID, dto));
+        // 校验失败不得产生任何入库
+        verify(requirementMapper, never()).insertBatch(anyList());
+    }
+
+    @Test
+    void createBatch_insertsAllWithAiGeneratedFlag() {
+        RequirementBatchCreateReqDTO dto = batchReq(3, true);
+        int count = service.createBatch(PROJECT_ID, CREATOR_ID, dto);
+        org.junit.jupiter.api.Assertions.assertEquals(3, count);
+        ArgumentCaptor<List<RequirementPoolItem>> captor = ArgumentCaptor.forClass(List.class);
+        verify(requirementMapper).insertBatch(captor.capture());
+        List<RequirementPoolItem> saved = captor.getValue();
+        org.junit.jupiter.api.Assertions.assertEquals(3, saved.size());
+        saved.forEach(item -> {
+            org.junit.jupiter.api.Assertions.assertEquals(PROJECT_ID, item.getProjectId());
+            org.junit.jupiter.api.Assertions.assertEquals(CREATOR_ID, item.getCreatedBy());
+            org.junit.jupiter.api.Assertions.assertEquals(CREATOR_ID, item.getUpdatedBy());
+            org.junit.jupiter.api.Assertions.assertTrue(item.getAiGenerated());
+        });
+    }
+
+    @Test
+    void createBatch_aiGeneratedDefaultFalse() {
+        RequirementBatchCreateReqDTO dto = batchReq(1, false);
+        service.createBatch(PROJECT_ID, CREATOR_ID, dto);
+        ArgumentCaptor<List<RequirementPoolItem>> captor = ArgumentCaptor.forClass(List.class);
+        verify(requirementMapper).insertBatch(captor.capture());
+        org.junit.jupiter.api.Assertions.assertFalse(captor.getValue().get(0).getAiGenerated());
+    }
+
+    @Test
+    void createBatch_clearSourceUrlWhenBlank() {
+        RequirementBatchCreateReqDTO dto = batchReq(1, true);
+        dto.getItems().get(0).setSourceUrl("   ");
+        service.createBatch(PROJECT_ID, CREATOR_ID, dto);
+        ArgumentCaptor<List<RequirementPoolItem>> captor = ArgumentCaptor.forClass(List.class);
+        verify(requirementMapper).insertBatch(captor.capture());
+        org.junit.jupiter.api.Assertions.assertNull(captor.getValue().get(0).getSourceUrl());
     }
 
     @Test

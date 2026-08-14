@@ -1,5 +1,6 @@
 package io.github.xiaomisum.robotest.service.project;
 
+import io.github.xiaomisum.robotest.model.dto.request.requirement.RequirementBatchCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.requirement.RequirementCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.requirement.RequirementUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.requirement.RequirementDetailRespDTO;
@@ -22,6 +23,13 @@ public interface RequirementService {
     RequirementDetailRespDTO getDetail(UUID id, UUID projectId);
 
     String create(UUID projectId, UUID userId, RequirementCreateReqDTO reqDTO);
+
+    /**
+     * 批量创建（US-AI-019，3.1.7）：AI 拆分预览确认后批量入库。
+     * items 校验已由 DTO 承担（非空 ≤100、title ≤200），content 长度在此统一校验；
+     * aiGenerated 缺省 false，仅作展示标记；返回实际入库条数。
+     */
+    int createBatch(UUID projectId, UUID userId, RequirementBatchCreateReqDTO reqDTO);
 
     /** 编辑：仅创建人或项目管理权限成员；已归档条目禁止编辑 */
     void update(UUID id, UUID projectId, UUID userId, RequirementUpdateReqDTO reqDTO);

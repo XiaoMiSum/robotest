@@ -26,6 +26,8 @@ public class RequirementPoolItem extends BaseUuidDO<RequirementPoolItem> {
     private String sourceUrl;
     /** 条目状态：active / archived，默认 active（Constants.Status） */
     private String status = Constants.Status.ACTIVE;
+    /** AI 拆分入库标识（US-AI-019，仅作展示标记，不影响业务规则） */
+    private Boolean aiGenerated = false;
     @TableField(typeHandler = UUIDTypeHandler.class)
     private UUID createdBy;
     @TableField(typeHandler = UUIDTypeHandler.class)
