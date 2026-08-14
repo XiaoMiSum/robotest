@@ -10,7 +10,8 @@ import java.util.UUID;
 public interface AiAgentService {
 
     /**
-     * 全部模板位清单（customized 表示存在数据库记录，初始化种子落库后均为 true）
+     * 全部模板位清单（customized 与 formatEditable 同源：格式约束段解锁过即为已自定义，
+     * 种子默认锁定，恢复默认后回到锁定态）
      */
     List<AiAgentRespDTO> getAgents();
 
