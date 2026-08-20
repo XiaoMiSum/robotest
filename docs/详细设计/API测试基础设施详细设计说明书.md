@@ -17,7 +17,7 @@
 覆盖 SRS 3.7–3.11「公共需求」与概要设计第 4.1 章对应机制：
 
 - **执行引擎**：Ryze 框架集成、格式转换（平台模型 → Ryze 标准 JSON）、资源池与并发调度、多场景组合执行、执行结果收集；
-- **公共数据表**：调试记录、变更历史、执行历史、报告、全局资产、导入历史；
+- **公共数据表**：调试记录、变更历史、执行记录、报告、全局资产、导入记录；
 - **通用 API 约定**：请求/响应规范、分页、错误码号段；
 - **格式转换机制**：平台自有模型与 Ryze TestSuite 的映射关系、配置继承与优先级、转换失败处理。
 
@@ -43,7 +43,7 @@
 
 #### 2.1.1 调试记录表（api_debug_record）
 
-记录用户在快速调试面板中发起的服务端执行请求快照。本地执行结果仅存浏览器本地缓存，不入本表。
+记录用户在快速调试面板中发起的请求快照。
 
 | 字段 | 类型 | 约束 | 说明 |
 | ---- | ---- | ---- | ---- |
@@ -58,8 +58,6 @@
 | body_type | VARCHAR(20) | NULL | 请求体类型：none / json / form / raw / binary |
 | body | JSONB | NULL | 请求体内容（结构随 body_type） |
 | query_params | JSONB | NOT NULL DEFAULT '[]' | Query 参数列表 `[{key, value, enabled}]` |
-| rest_params | JSONB | NOT NULL DEFAULT '[]' | REST 参数列表 `[{key, value}]` |
-| auth_config | JSONB | NULL | 认证配置 `{type: "none"/"basic"/"bearer"/"digest", ...}` |
 | jdbc_config | JSONB | NULL | JDBC 取样器配置 `{datasourceId, sql, queryType}` |
 | processors | JSONB | NOT NULL DEFAULT '[]' | 前置/后置处理器列表 |
 | executed_at | TIMESTAMP | NOT NULL | 执行时间 |
@@ -99,13 +97,13 @@
 
 > 变更历史为只读追溯信息，不提供编辑/删除接口；按项目清理策略自动清理。
 
-#### 2.1.3 执行历史表（api_execution_history）
+#### 2.1.3 执行记录表（api_execution_record）
 
 记录场景每次执行的元数据，与报告一对一关联。
 
 | 字段 | 类型 | 约束 | 说明 |
 | ---- | ---- | ---- | ---- |
-| id | UUID | PK | 主键（执行历史 ID） |
+| id | UUID | PK | 主键（执行记录 ID） |
 | project_id | UUID | NOT NULL | 归属项目 |
 | scene_id | UUID | NOT NULL | 关联场景（api_scene.id） |
 | environment_id | UUID | NULL | 使用的环境（api_environment.id） |
@@ -124,7 +122,7 @@
 
 **索引**：`idx_exec_scene_id` (scene_id), `idx_exec_project_executed` (project_id, executed_at DESC), `idx_exec_status` (status)
 
-> 执行历史与报告共享清理策略（默认 90 天）；清理后执行历史保留元数据，报告详情置为「执行结果被清理」。
+> 执行记录与报告共享清理策略（默认 90 天）；清理后执行记录保留元数据，报告详情置为「执行结果被清理」。
 
 #### 2.1.4 报告表（api_report）
 
@@ -134,7 +132,7 @@
 | ---- | ---- | ---- | ---- |
 | id | UUID | PK | 主键 |
 | project_id | UUID | NOT NULL | 归属项目 |
-| execution_history_id | UUID | NOT NULL | 关联执行历史（api_execution_history.id） |
+| execution_record_id | UUID | NOT NULL | 关联执行记录（api_execution_record.id） |
 | scene_id | UUID | NOT NULL | 关联场景 |
 | scene_name | VARCHAR(200) | NOT NULL | 场景名称快照（执行时固化） |
 | environment_name | VARCHAR(100) | NULL | 环境名称快照 |
@@ -176,7 +174,7 @@
 
 > 全局资产为项目级，按项目隔离；维护权限为项目维护者，项目成员可浏览与复制引入。引入为仅复制，产生独立副本，与源资产无关联。
 
-#### 2.1.6 导入历史表（api_import_history）
+#### 2.1.6 导入记录表（api_import_record）
 
 记录每次导入操作的结果，支持文件导入、Swagger URL 导入、可执行导入、元数据导入。
 
@@ -218,7 +216,7 @@
 | **7013** | API_DEBUG_RECORD_NOT_FOUND | 调试记录不存在 |
 | **7014** | API_GLOBAL_ASSET_NOT_FOUND | 全局资产不存在 |
 | **7015** | API_GLOBAL_ASSET_DISABLED | 全局资产已停用 |
-| **7016** | API_IMPORT_HISTORY_NOT_FOUND | 导入历史不存在 |
+| **7016** | API_IMPORT_RECORD_NOT_FOUND | 导入记录不存在 |
 | **7101** | API_INTERFACE_NOT_FOUND | 接口定义不存在 |
 | **7102** | API_INTERFACE_NAME_EXISTS | 接口定义名称重复 |
 | **7103** | API_INTERFACE_REFERENCED | 接口定义被引用无法删除 |
@@ -246,7 +244,7 @@
 
 ### 3.1 通用约定
 
-- 项目级：`/api/project/api/**`，头 `Authorization` + `X-Active-Workspace` + `X-Active-Project`。
+- 项目级：`/api/project/**`，头 `Authorization` + `X-Active-Workspace` + `X-Active-Project`。
 - 通用响应：`{ "code": 200, "message": "success", "data": {} }`；命名 camelCase。下文各接口的响应示例**仅展示 `data` 字段内容**，省略外层 `code` / `message` 包裹。
 - 分页请求：`?page=1&pageSize=20`；分页响应 `{ records: [], total: N }`。
 - 所有接口的错误响应遵循统一格式：`{ "code": 7001, "message": "执行引擎繁忙" }`。
@@ -255,8 +253,8 @@
 
 #### 3.2.1 触发场景执行
 
-- **路径**：`POST /api/project/api/scenes/:sceneId/execute`
-- **说明**：触发单个场景或组合执行。支持单场景执行、虚拟包下场景批量执行、多场景批量执行。
+- **路径**：`POST /api/project/scenes/:sceneId/execute`
+- **说明**：触发单个场景或组合执行。支持单场景执行、批量执行。
 - **请求体**：
 
 ```json
@@ -283,7 +281,7 @@
 
 #### 3.2.2 查询执行状态
 
-- **路径**：`GET /api/project/api/executions/:executionId`
+- **路径**：`GET /api/project/executions/:executionId`
 - **响应**：
 
 ```json
@@ -302,7 +300,7 @@
 
 #### 3.2.3 取消执行
 
-- **路径**：`POST /api/project/api/executions/:executionId/cancel`
+- **路径**：`POST /api/project/executions/:executionId/cancel`
 - **说明**：取消进行中的执行任务。已执行的步骤结果保留，标记为 cancelled。
 - **响应**：`{ "success": true }`
 
@@ -310,7 +308,7 @@
 
 #### 3.3.1 查询调试记录列表
 
-- **路径**：`GET /api/project/api/debug-records?page=1&pageSize=20`
+- **路径**：`GET /api/project/debug-records?page=1&pageSize=20`
 - **响应**：
 
 ```json
@@ -333,14 +331,14 @@
 
 #### 3.3.2 删除调试记录
 
-- **路径**：`DELETE /api/project/api/debug-records/:id`
+- **路径**：`DELETE /api/project/debug-records/:id`
 - **响应**：`{ "success": true }`
 
 ### 3.4 报告接口
 
 #### 3.4.1 查询报告列表
 
-- **路径**：`GET /api/project/api/reports?page=1&pageSize=20&status=success`
+- **路径**：`GET /api/project/reports?page=1&pageSize=20&status=success`
 - **筛选参数**：`status`（可选）、`sceneId`（可选）、`startDate` / `endDate`（可选）。
 - **响应**：
 
@@ -363,12 +361,12 @@
 
 #### 3.4.2 查询报告详情
 
-- **路径**：`GET /api/project/api/reports/:id`
+- **路径**：`GET /api/project/reports/:id`
 - **响应**：包含完整 `stepResults` 数组（步骤级请求/响应快照）。
 
 #### 3.4.3 生成分享链接
 
-- **路径**：`POST /api/project/api/reports/:id/share`
+- **路径**：`POST /api/project/reports/:id/share`
 - **请求体**：
 
 ```json
@@ -393,19 +391,19 @@
 
 #### 3.4.5 导出报告
 
-- **路径**：`GET /api/project/api/reports/:id/export?format=json`
+- **路径**：`GET /api/project/reports/:id/export?format=json`
 - **说明**：支持 `json` / `html` 格式。响应为文件流。
 
 #### 3.4.6 删除报告
 
-- **路径**：`DELETE /api/project/api/reports/:id`
+- **路径**：`DELETE /api/project/reports/:id`
 - **响应**：`{ "success": true }`
 
 ### 3.5 全局资产接口（项目级）
 
 #### 3.5.1 查询全局资产列表
 
-- **路径**：`GET /api/project/api/assets?type=preprocessor&enabled=true&page=1&pageSize=20`
+- **路径**：`GET /api/project/assets?type=preprocessor&enabled=true&page=1&pageSize=20`
 - **筛选参数**：`type`（可选，preprocessor/postprocessor/validator/extractor）、`enabled`（可选）。
 - **响应**：
 
@@ -427,7 +425,7 @@
 
 #### 3.5.2 创建全局资产
 
-- **路径**：`POST /api/project/api/assets`
+- **路径**：`POST /api/project/assets`
 - **请求体**：
 
 ```json
@@ -446,25 +444,25 @@
 
 #### 3.5.3 更新全局资产
 
-- **路径**：`PUT /api/project/api/assets/:id`
+- **路径**：`PUT /api/project/assets/:id`
 - **请求体**：同 3.5.2。
 
 #### 3.5.4 启停全局资产
 
-- **路径**：`PATCH /api/project/api/assets/:id/toggle`
+- **路径**：`PATCH /api/project/assets/:id/toggle`
 - **请求体**：`{ "enabled": false }`
 - **响应**：`{ "success": true }`
 
 #### 3.5.5 删除全局资产
 
-- **路径**：`DELETE /api/project/api/assets/:id`
+- **路径**：`DELETE /api/project/assets/:id`
 - **响应**：`{ "success": true }`
 
 ### 3.6 全局资产复制接口（项目级）
 
 #### 3.6.1 复制全局资产
 
-- **路径**：`POST /api/project/api/assets/:assetId/copy`
+- **路径**：`POST /api/project/assets/:assetId/copy`
 - **说明**：将全局资产复制为同一项目下的新资产，产生独立副本。
 - **响应**：
 
@@ -477,11 +475,11 @@
 }
 ```
 
-### 3.7 导入历史接口
+### 3.7 导入记录接口
 
-#### 3.7.1 查询导入历史
+#### 3.7.1 查询导入记录
 
-- **路径**：`GET /api/project/api/import-histories?page=1&pageSize=20`
+- **路径**：`GET /api/project/import-records?page=1&pageSize=20`
 - **响应**：
 
 ```json
@@ -513,7 +511,6 @@
 | 模式 | 说明 | 资源消耗 |
 | ---- | ---- | ---- |
 | 平台内执行 | 调试请求与场景执行由平台执行引擎在服务端执行，格式转换后交 Ryze 引擎运行 | 消耗平台执行引擎资源 |
-| 本地执行（仅调试） | 通过浏览器插件或本地代理客户端从用户本机发起请求 | 不消耗平台资源 |
 | 仓库流水线执行 | 平台通过 GitLab API 触发仓库 CI 流水线执行 | 不占用平台执行引擎资源 |
 
 #### 4.1.2 格式转换机制
@@ -526,15 +523,42 @@
 | -------- | -------------- |
 | 场景 | TestSuite（顶层集合） |
 | 场景参数 | variables |
-| 环境默认配置 | configelements（http 配置） |
+| 环境 HTTP 配置（多个） | configelements（http 类型，挂载到 root testsuite） |
+| 环境数据源（多个） | configelements（data_source 类型，挂载到 root testsuite） |
 | 全局前置/后置处理器 | preprocessors / postprocessors |
 | 场景步骤（http 取样器） | children（testclass: http） |
 | 场景步骤（jdbc 取样器） | children（testclass: jdbc） |
 | 步骤级处理器 | 步骤级 preprocessors / postprocessors |
 | 步骤级验证器 | validators |
 | 步骤级提取器 | extractors |
-| 请求头、请求体、Query、REST 参数 | config 对应字段 |
-| 认证信息 | config 对应字段 |
+| 请求头、请求体、Query 参数 | config 对应字段 |
+
+**环境配置 → configelements 转换规则**：
+
+环境中的 HTTP 配置和数据源在执行时转为 Ryze configelements，挂载到 root testsuite 级别，由 Ryze 框架自动处理继承与覆盖：
+
+| 环境配置 | Ryze configelement type | 挂载字段 |
+| -------- | ----------------------- | -------- |
+| api_environment_http（HTTP 配置） | `http_config` | configelements 数组 |
+| api_data_source（数据源） | `data_source` | configelements 数组 |
+
+**示例**：
+
+```json
+{
+  "title": "测试场景",
+  "configelements": [
+    { "type": "http_config", "name": "内部API", "base_url": "https://api.internal.com", "headers": {"Authorization": "${token}"} },
+    { "type": "http_config", "name": "第三方支付", "base_url": "https://pay.third.com", "headers": {} },
+    { "type": "data_source", "name": "测试库", "driver": "com.mysql.cj.jdbc.Driver", "url": "jdbc:mysql://staging-db:3306/test" }
+  ],
+  "children": [...]
+}
+```
+
+**步骤级 request_config 与 configelements 的关系**：
+
+步骤的 `request_config` 保存步骤自身的差异配置（api 路径、额外 headers/params/body 等）。`base_url` 允许为空，为空时继承环境 HTTP 配置的 base_url。步骤无需重复配置环境中已有的值，配置了也没关系——Ryze 以最低层级优先（步骤级 > 环境级）。
 
 **多场景组合执行的层级映射**：
 
@@ -542,7 +566,7 @@ Ryze TestSuite 支持多层嵌套（项目级 → 模块级 → 用例级），�
 
 | 平台组合执行 | Ryze TestSuite |
 | ------------ | -------------- |
-| 执行任务（虚拟包/批量） | 顶层 TestSuite（项目级） |
+| 执行任务（批量） | 顶层 TestSuite（项目级） |
 | 共享变量 | variables（顶层） |
 | 共享配置元件 | configelements（顶层） |
 | 场景 A | TestSuite（模块级子集合） |
@@ -576,13 +600,13 @@ Ryze 引擎执行完成后，平台收集执行结果并转换为平台自有格
 1. **步骤级结果**：每个步骤的请求/响应快照、耗时、验证器结果、提取器结果。
 2. **结果汇总**：总步骤数、通过数、失败数、跳过数、总耗时。
 3. **Ryze 快照**：执行时生成的完整 Ryze JSON，保存至 `api_report.ryze_snapshot`，用于结果回溯与转换问题定位。
-4. **报告生成**：将结果写入 `api_report` 表，同时更新 `api_execution_history` 状态。
+4. **报告生成**：将结果写入 `api_report` 表，同时更新 `api_execution_record` 状态。
 
 ### 4.2 公共步骤机制
 
 公共步骤是接口定义下维护的可复用请求步骤集合，供场景配置时选择添加。
 
-- **存储**：公共步骤归属于接口定义（`api_interface.id`），存储于 `api_interface_step` 表（定义见《接口管理与调试详细设计说明书》）。
+- **存储**：公共步骤归属于接口定义（`api_interface.id`），存储于 `api_interface_step` 表（定义见《接口管理详细设计说明书》）。
 - **引用方式**：场景步骤通过 `sourceId` + 引用模式（copy/link）引用公共步骤。
   - **复制（copy）**：创建公共步骤的独立副本，后续修改互不影响。
   - **链接引用（link）**：步骤内容跟随源公共步骤变化同步更新，但当前场景中的启用状态、参数值可独立调整。
@@ -590,11 +614,11 @@ Ryze 引擎执行完成后，平台收集执行结果并转换为平台自有格
 
 ### 4.3 数据清理策略
 
-报告与执行历史共享清理策略，默认保留 90 天（系统配置项）：
+报告与执行记录共享清理策略，默认保留 90 天（系统配置项）：
 
 - 清理由系统每日定时任务执行（复用 V1.1 AI 基础设施的每日清理任务框架）。
 - 清理逻辑：先逻辑删除（`is_deleted = true`），次日物理删除（避免长事务）。
-- 清理后执行历史保留元数据，报告详情置为「执行结果被清理」。
+- 清理后执行记录保留元数据，报告详情置为「执行结果被清理」。
 - 调试记录与变更历史按同一策略清理。
 
 ---
@@ -607,7 +631,7 @@ Ryze 引擎执行完成后，平台收集执行结果并转换为平台自有格
 
 ```
 触发执行 → 获得 executionHistoryId
-  ↓ 轮询 GET /api/project/api/executions/:id
+  ↓ 轮询 GET /api/project/executions/:id
   status = pending/running → 继续轮询
   status = success → 跳转报告详情
   status = failed/cancelled/timeout → 展示错误信息
@@ -622,6 +646,107 @@ Ryze 引擎执行完成后，平台收集执行结果并转换为平台自有格
 - 验证器结果：断言通过/失败明细。
 - 提取器结果：提取的变量名与值。
 - 耗时信息。
+
+### 5.3 全局资产新建/编辑
+
+新建与编辑资产使用抽屉（宽 640px），公共字段 + 随类型切换的配置表单。公共字段：
+
+| 字段 | 类型 | 必填 | 说明 |
+| ---- | ---- | ---- | ---- |
+| 名称 | text | 是 | 同类型内唯一（7102） |
+| 类型 | select | 是 | preprocessor / postprocessor / validator / extractor；编辑态置灰不可改 |
+| 描述 | textarea | 否 | 资产用途说明 |
+
+#### 5.3.1 前置处理器 / 后置处理器
+
+切换类型为前置/后置处理器时，展示处理器配置区。采用与验证器/提取器一致的平台设计原则：
+
+| 字段 | 类型 | 必填 | 说明 |
+| ---- | ---- | ---- | ---- |
+| 启用 | switch | 是 | 启用/禁用开关，禁用时不参与执行 |
+| 处理器类型 | select | 是 | `发送 HTTP 请求` / `执行 SQL`；首期支持两种，其余协议随多协议扩展预留 |
+| 异步 | switch | 否 | 异步处理器不阻塞主流程，失败仅记录 |
+| 条件 | text | 否 | 条件表达式，不满足时跳过该处理器 |
+| 排序号 | number | 否 | 多处理器执行顺序，升序 |
+
+**「发送 HTTP 请求」处理器配置：**
+
+| 字段 | 类型 | 必填 | 说明 |
+| ---- | ---- | ---- | ---- |
+| 请求方法 | select | 是 | GET / POST / PUT / PATCH / DELETE |
+| URL | text | 是 | 支持 `${变量名}` 引用 |
+| 请求头 | kv-table | 否 | 键值对编辑器，支持变量引用 |
+| Content-Type | select | 否 | application/json / application/x-www-form-urlencoded / multipart/form-data |
+| 请求体 | textarea / kv-table | 否 | 根据 Content-Type 切换：JSON 为 textarea，form-data 为 kv-table（支持文件类型） |
+
+**「执行 SQL」处理器配置：**
+
+| 字段 | 类型 | 必填 | 说明 |
+| ---- | ---- | ---- | ---- |
+| 数据源 | select | 是 | 从环境管理配置的数据源中选择；未配置时提示「请先在环境管理中配置数据源」 |
+| SQL 语句 | textarea | 是 | 支持 `${变量名}` 引用；执行前校验数据源连接 |
+| 参数 | kv-table | 否 | SQL 占位符参数，键为参数名，值为参数值 |
+
+**平台 → Ryze 转换规则**（执行引擎层）：
+
+| 平台处理器类型 | → Ryze testclass | config 映射 |
+| ------------- | ----------------- | ----------- |
+| 发送 HTTP 请求 | `http` | method/method, URL/url, 请求头/headers, 请求体/body, Content-Type/body_type |
+| 执行 SQL | `jdbc` | 数据源/datasourceId, SQL 语句/sql, 参数/queryType |
+
+**提取器（可选）：** 处理器可携带提取器，从处理器响应中提取变量供后续步骤使用。提取器列表与下方 5.3.3 提取器配置一致，以子表形式嵌入处理器配置区底部。
+
+#### 5.3.2 验证器
+
+切换类型为验证器时，展示验证器配置区。采用**平台自有数据结构**，遵循三大原则：
+
+1. **自然语言化**：使用用户理解的术语（如「返回码」「等于」），隐藏 Ryze 内部概念
+2. **最小化暴露**：仅暴露用户必须配置的字段，其余由平台推断
+3. **启用禁用**：每个验证器可独立启用/禁用
+
+| 字段 | 类型 | 必填 | 说明 |
+| ---- | ---- | ---- | ---- |
+| 启用 | switch | 是 | 启用/禁用开关，禁用时不参与执行 |
+| 验证目标 | select | 是 | `返回码` / `JSON 字段` / `响应头` / `响应体` / `正则匹配` / `XPath` / `Groovy 脚本` |
+| 表达式 | text | 视目标 | JSONPath / XPath / 正则 / 响应头名（仅部分目标需要） |
+| 比较条件 | select | 是 | `等于` / `不等于` / `大于` / `小于` / `大于等于` / `小于等于` / `包含` / `不包含` / `以...开头` / `以...结尾` / `匹配正则` |
+| 期望值 | text | 视目标 | 期望值（仅部分目标需要） |
+| 断言描述 | text | 否 | 用于报告展示的断言说明 |
+
+**目标与条件的联动关系**：
+
+| 验证目标 | 表达式是否必填 | 表达式说明 | 期望值是否必填 | 可选条件 |
+| ---- | ---- | ---- | ---- | ---- |
+| 返回码 | 否 | — | 是 | 等于/不等于/大于/小于 |
+| JSON 字段 | 是 | JSONPath，如 `$.code` | 是 | 等于/不等于/包含/匹配正则 |
+| 响应头 | 是 | 头名，如 `Content-Type` | 是 | 等于/不等于 |
+| 响应体 | 否 | — | 是 | 包含/不包含/以...开头/以...结尾 |
+| 正则匹配 | 是 | 正则表达式 | 否 | 匹配正则 |
+| XPath | 是 | XPath 表达式 | 是 | 等于/不等于 |
+| Groovy 脚本 | 是 | 脚本内容 | 否 | — |
+
+#### 5.3.3 提取器
+
+切换类型为提取器时，展示提取器配置区。采用**平台自有数据结构**：
+
+| 字段 | 类型 | 必填 | 说明 |
+| ---- | ---- | ---- | ---- |
+| 启用 | switch | 是 | 启用/禁用开关 |
+| 提取来源 | select | 是 | `JSON 字段` / `XPath` / `正则捕获` / `两个标记之间` / `完整响应体` / `Groovy 脚本` |
+| 表达式 | text | 视来源 | JSONPath / XPath / 正则 / 边界标记（仅部分来源需要） |
+| 目标变量名 | text | 是 | 提取结果存入的变量名，后续步骤通过 `${变量名}` 引用 |
+| 提取描述 | text | 否 | 用于报告展示的提取说明 |
+
+**来源与表达式的联动关系**：
+
+| 提取来源 | 表达式是否必填 | 表达式说明 | UI 控件 |
+| ---- | ---- | ---- | ---- |
+| JSON 字段 | 是 | JSONPath，如 `$.data.token` | 输入 JSONPath |
+| XPath | 是 | XPath 表达式 | 输入 XPath |
+| 正则捕获 | 是 | 正则表达式（含捕获组） | 输入正则 |
+| 两个标记之间 | 是 | `左边界\|\|右边界` | 两个输入框 |
+| 完整响应体 | 否 | — | 无需输入 |
+| Groovy 脚本 | 是 | 脚本内容 | 代码编辑器 |
 
 ---
 
