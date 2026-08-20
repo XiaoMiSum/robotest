@@ -1,4 +1,4 @@
-# 软件测试平台——Mock 服务与报告详细设计说明书
+# 软件测试平台——Mock 服务详细设计说明书
 
 **文档版本**：V1.2
 **日期**：2026-08-17
@@ -10,21 +10,21 @@
 
 ### 1.1 编写目的
 
-本文档对软件测试平台 V1.2 接口测试业务域的 **Mock 服务与接口测试报告**进行详细设计，定义 Mock 规则、报告、分享、导出的数据结构、接口规范与业务逻辑，为开发实现提供完整依据。
+本文档对软件测试平台 V1.2 接口测试业务域的 **Mock 服务**进行详细设计，定义 Mock 定义、匹配规则、响应、调试、访问的数据结构、接口规范与业务逻辑，为开发实现提供完整依据。接口测试报告（报告查看、分享、导出、清理）相关设计见《测试报告详细设计说明书》（`docs/详细设计/测试报告详细设计说明书.md`）。
 
 ### 1.2 范围
 
-覆盖 SRS 3.3（Mock 服务）、3.6（接口测试报告）与概要设计第 3.1 章对应模块：
+覆盖 SRS 3.3（Mock 服务）与概要设计对应模块：
 
 - **Mock 服务**：Mock 定义 CRUD、匹配规则、响应定义、调试、命中统计、访问地址管理；
-- **接口测试报告**：报告列表与详情、分享链接、导出（JSON/HTML）、报告清理；
-- **全局资产**：项目级可复用组件资产库（前置处理器、后置处理器、验证器、提取器）的管理与复制。
+- **Mock 访问**：免登录响应服务、变量解析、命中统计、访问日志。
 
 ### 1.3 参考资料
 
-- 《接口测试需求规格说明书 V1.2》（`docs/需求/接口测试需求规格说明书.md`，3.3、3.6）
-- 《概要设计说明书 V1.2》（`docs/概要/概要设计说明书.md`，4.5–4.6）
+- 《接口测试需求规格说明书 V1.2》（`docs/需求/接口测试需求规格说明书.md`，3.3）
+- 《概要设计说明书 V1.2》（`docs/概要/概要设计说明书.md`）
 - 《API 测试基础设施详细设计说明书》（`docs/详细设计/API测试基础设施详细设计说明书.md`）
+- 《测试报告详细设计说明书》（`docs/详细设计/测试报告详细设计说明书.md`）
 
 ---
 
@@ -44,8 +44,9 @@ Mock 归属接口管理模块，支持从接口定义创建（继承路径与方
 | name | VARCHAR(200) | NOT NULL | Mock 名称 |
 | description | VARCHAR(500) | NULL | Mock 描述 |
 | method | VARCHAR(10) | NOT NULL | 匹配的 HTTP 方法 |
-| path | VARCHAR(500) | NOT NULL | 匹配的请求路径 |
-| match_rules | JSONB | NOT NULL DEFAULT '[]' | 匹配条件列表 `[{type, name, value, expression}]`（type: header/param/body） |
+| path | VARCHAR(500) | NOT NULL | 匹配的请求路径（支持 `*` 通配符） |
+| priority | INT | NOT NULL DEFAULT 0 | 匹配优先级（同路径同方法组内排序，数值越小优先级越高） |
+| match_rules | JSONB | NOT NULL DEFAULT '[]' | 匹配条件列表 `[{type, name, value}]`（type: header/param/body，value 支持普通值或正则表达式） |
 | enabled | BOOLEAN | NOT NULL DEFAULT TRUE | 启用状态 |
 | follow_api | BOOLEAN | NOT NULL DEFAULT FALSE | 跟随 API（Mock 自身未配置响应时，使用关联接口定义的响应示例） |
 | response_status | INT | NOT NULL DEFAULT 200 | 响应状态码 |
@@ -59,9 +60,9 @@ Mock 归属接口管理模块，支持从接口定义创建（继承路径与方
 | created_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | 创建时间 |
 | updated_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | 更新时间 |
 
-**索引**：`idx_mock_project` (project_id), `idx_mock_interface` (interface_id), `idx_mock_path_method` (project_id, path, method)
+**索引**：`idx_mock_project` (project_id), `idx_mock_interface` (interface_id), `idx_mock_path_method` (project_id, path, method, priority)
 
-> `idx_mock_path_method` 支撑 Mock 匹配引擎按路径+方法快速查询。合计 3 个索引，符合 C9。
+> `idx_mock_path_method` 支撑 Mock 匹配引擎按路径+方法快速查询并按优先级排序。合计 3 个索引，符合 C9。
 
 #### 2.1.2 Mock 访问日志表（mock_access_log）
 
@@ -101,7 +102,8 @@ Mock 归属接口管理模块，支持从接口定义创建（继承路径与方
 
 #### 3.1.1 查询 Mock 列表
 
-- **路径**：`GET /api/project/api/mocks?interfaceId=&search=&page=1&pageSize=20`
+- **路径**：`GET /api/project/mocks?interfaceId=&search=&enabled=&page=1&pageSize=20`
+- **参数说明**：`interfaceId` 按关联接口过滤；`search` 按名称/路径模糊搜索；`enabled` 按启用状态过滤（true/false，可选，不传返回全部）。
 - **响应**：
 
 ```json
@@ -113,6 +115,7 @@ Mock 归属接口管理模块，支持从接口定义创建（继承路径与方
       "interfaceId": "018e...",
       "method": "POST",
       "path": "/api/auth/login",
+      "priority": 1,
       "enabled": true,
       "followApi": false,
       "responseStatus": 200,
@@ -127,7 +130,7 @@ Mock 归属接口管理模块，支持从接口定义创建（继承路径与方
 
 #### 3.1.2 查询 Mock 详情
 
-- **路径**：`GET /api/project/api/mocks/:id`
+- **路径**：`GET /api/project/mocks/:id`
 - **响应**：包含完整匹配规则、响应定义、关联接口信息。
 
 ```json
@@ -138,10 +141,11 @@ Mock 归属接口管理模块，支持从接口定义创建（继承路径与方
   "interfaceName": "用户登录",
   "method": "POST",
   "path": "/api/auth/login",
+  "priority": 1,
   "description": "模拟登录成功响应",
   "matchRules": [
     { "type": "header", "name": "Content-Type", "value": "application/json" },
-    { "type": "body", "name": "username", "expression": "admin" }
+    { "type": "body", "name": "$.username", "value": "admin" }
   ],
   "enabled": true,
   "followApi": false,
@@ -157,40 +161,47 @@ Mock 归属接口管理模块，支持从接口定义创建（继承路径与方
 
 #### 3.1.3 创建 Mock
 
-- **路径**：`POST /api/project/api/mocks`
+- **路径**：`POST /api/project/mocks`
 - **请求体**：同 3.1.2（不含 id、hitCount、lastHitAt）。
-- **校验**：同项目下同路径同方法已启用 Mock 时返回错误码 7302（`API_MOCK_ADDR_CONFLICT`）。
+- **校验规则**：
+  - 名称必填，长度不超过 200；
+  - 路径必填且以 `/` 开头，长度不超过 500；
+  - 状态码为合法 HTTP 状态码（100–599）；
+  - 同项目下同路径同方法已启用 Mock 时返回错误码 7302（`API_MOCK_ADDR_CONFLICT`）；
+  - `priority` 缺省时取同路径同方法组内最大值 + 1。
 
 #### 3.1.4 从接口定义创建 Mock
 
-- **路径**：`POST /api/project/api/mocks/from-interface/:interfaceId`
-- **说明**：继承接口定义的 path 与 method，创建 Mock 定义。
+- **路径**：`POST /api/project/mocks/from-interface/:interfaceId`
+- **说明**：继承接口定义的 path 与 method，并设置 `interface_id` 关联接口，创建 Mock 定义。
+- **前端流程**：接口管理页行内 [创建 Mock] → 跳转 Mock 管理页并打开新建抽屉，自动填充关联接口、方法、路径 → 用户确认保存时调用本接口创建。
 - **响应**：`{ "id": "018f..." }`
 
 #### 3.1.5 更新 Mock
 
-- **路径**：`PUT /api/project/api/mocks/:id`
+- **路径**：`PUT /api/project/mocks/:id`
 - **请求体**：同 3.1.2。
+- **校验**：同 3.1.3 创建校验规则；Mock 不存在时返回错误码 7301（`API_MOCK_NOT_FOUND`）。
 
 #### 3.1.6 启停 Mock
 
-- **路径**：`PATCH /api/project/api/mocks/:id/toggle`
+- **路径**：`PATCH /api/project/mocks/:id/toggle`
 - **请求体**：`{ "enabled": false }`
-- **说明**：即时生效，不重启服务。
+- **说明**：即时生效，不重启服务；Mock 不存在时返回错误码 7301（`API_MOCK_NOT_FOUND`）。
 
 #### 3.1.7 删除 Mock
 
-- **路径**：`DELETE /api/project/api/mocks/:id`
+- **路径**：`DELETE /api/project/mocks/:id`
 - **响应**：`{ "success": true }`
 
 #### 3.1.8 重置命中统计
 
-- **路径**：`POST /api/project/api/mocks/:id/reset-hit-count`
+- **路径**：`POST /api/project/mocks/:id/reset-hit-count`
 - **响应**：`{ "success": true }`
 
 #### 3.1.9 查询 Mock 地址
 
-- **路径**：`GET /api/project/api/mocks/:id/address`
+- **路径**：`GET /api/project/mocks/:id/address`
 - **说明**：返回 Mock 的完整访问地址（含平台 Mock 域名）。
 - **响应**：
 
@@ -202,11 +213,47 @@ Mock 归属接口管理模块，支持从接口定义创建（继承路径与方
 }
 ```
 
+#### 3.1.10 复制 Mock
+
+- **路径**：`POST /api/project/mocks/:id/duplicate`
+- **说明**：复制原 Mock 全部配置生成新规则，名称自动追加「- 副本」，`enabled` 默认停用（避免与源规则地址冲突），`priority` 取同路径同方法组内最大值 + 1。
+- **前端流程**：行内 [复制] → 打开抽屉并预填原规则全部配置（名称追加「- 副本」）→ 用户确认保存时调用本接口创建副本。
+- **响应**：`{ "id": "018f..." }`
+
+#### 3.1.11 批量启停 Mock
+
+- **路径**：`POST /api/project/mocks/batch-toggle`
+- **请求体**：
+
+```json
+{
+  "ids": ["018f...", "018g..."],
+  "enabled": false
+}
+```
+
+- **响应**：
+
+```json
+{
+  "success": true,
+  "updatedCount": 2
+}
+```
+
+- **说明**：批量启用/停用，即时生效，不重启服务；逐条校验，Mock 不存在时跳过并计入失败数。
+
+#### 3.1.12 调整 Mock 优先级
+
+- **路径**：`POST /api/project/mocks/:id/move-up` / `POST /api/project/mocks/:id/move-down`
+- **说明**：仅同路径同方法组内调整，与相邻规则交换优先级序号；跨组调整由前端按钮置灰拦截，后端仅处理同组内调整。
+- **响应**：`{ "success": true }`
+
 ### 3.2 Mock 调试
 
 #### 3.2.1 执行 Mock 调试
 
-- **路径**：`POST /api/project/api/mocks/:id/debug`
+- **路径**：`POST /api/project/mocks/:id/debug`
 - **说明**：模拟请求命中该 Mock，返回配置的响应（不计入 hit_count）。
 - **请求体**：
 
@@ -236,7 +283,8 @@ Mock 归属接口管理模块，支持从接口定义创建（继承路径与方
 - **方法**：匹配的 HTTP 方法
 - **说明**：
   - 不要求平台登录态。
-  - 按「请求方法 + 路径 + 匹配条件」顺序取第一条命中规则。
+  - 路径支持 `*` 通配符（如 `/api/users/*` 匹配 `/api/users/1`、`/api/users/2`）。
+  - 按「请求方法 + 路径 + 匹配条件」顺序取第一条命中规则；同路径同方法多条规则按 `priority` 升序匹配。
   - 无命中时返回 404。
   - 支持响应延迟（`delay_ms`）。
   - 支持变量引用（环境变量、内置函数）动态生成响应内容。
@@ -253,7 +301,8 @@ Mock 请求处理流程：
 
 ```
 收到请求
-  ↓ 按 method + path 查询启用的 Mock 列表（idx_mock_path_method）
+  ↓ 按 method + path 查询启用的 Mock 列表（idx_mock_path_method，路径支持 `*` 通配符）
+  ↓ 按 priority 升序排序
   ↓ 逐条检查 match_rules
   ↓ 命中 → 生成响应（变量解析 → 延迟等待 → 返回）
   ↓ 未命中 → 返回 404
@@ -264,66 +313,16 @@ Mock 请求处理流程：
 | type | 匹配逻辑 | 示例 |
 | ---- | -------- | ---- |
 | header | 请求头包含指定 key 且 value 匹配 | `{ "type": "header", "name": "X-Request-Id", "value": ".*" }` |
-| param | Query 参数或 REST 参数匹配 | `{ "type": "param", "name": "page", "value": "1" }` |
+| param | Query 参数或 REST 路径参数匹配 | `{ "type": "param", "name": "page", "value": "1" }` |
 | body | 请求体 JSON 字段匹配（JSONPath） | `{ "type": "body", "name": "$.username", "value": "admin" }` |
+
+> `value` 支持普通值或正则表达式（如 `.*`），与交互设计「值/表达式」单字段输入一致。
 
 **匹配规则为空时**：仅按 method + path 匹配，命中即返回。
 
+**优先级匹配**：同路径同方法存在多条规则时，按 `priority` 升序逐条匹配，取第一条命中规则；`priority` 相同时按创建时间先后排序。
+
 **跟随 API 模式**：Mock 自身未配置响应（`response_body` 为空）且 `follow_api = true` 时，使用关联接口定义的 `response_example` 作为响应。
-
-### 4.2 报告生成
-
-场景执行完成后，执行引擎生成报告：
-
-1. **步骤级结果收集**：每个步骤的请求/响应快照、验证器结果、提取器结果、耗时。
-2. **结果汇总计算**：总步骤数、通过数（所有验证器通过）、失败数（任一验证器失败）、跳过数（步骤 disabled）、总耗时。
-3. **报告写入**：将结果写入 `api_report` 表，同时更新 `api_execution_history.report_id`。
-4. **Ryze 快照保存**：平台内执行时保存完整 Ryze JSON 至 `api_report.ryze_snapshot`。
-
-**报告状态判定**：
-- `success`：所有启用步骤的所有验证器均通过。
-- `failed`：任一验证器失败。
-- `partial`：部分步骤被跳过（disabled），其余通过。
-
-### 4.3 分享机制
-
-#### 4.3.1 分享链接生成
-
-1. 校验项目设置中是否开启分享功能（未开启返回错误码 7008）。
-2. 生成唯一 `share_token`（UUID v4，32 字符十六进制）。
-3. 设置过期时间（`share_expires_at = now + expiresInDays`）。
-4. 返回完整分享 URL。
-
-#### 4.3.2 分享访问校验
-
-1. 通过 `share_token` 查询报告（`idx_report_share_token` 唯一索引）。
-2. 校验 `share_expires_at > now`，过期返回错误码 7009（`API_SHARE_EXPIRED`）。
-3. 校验报告未被删除。
-4. 返回报告内容（步骤级结果，不含 Ryze 快照）。
-
-### 4.4 导出
-
-#### 4.4.1 JSON 导出
-
-将报告完整内容导出为 JSON 文件，包含：
-- 报告元数据（场景名称、执行时间、环境、状态）。
-- 结果汇总。
-- 步骤级结果明细（请求/响应快照）。
-
-#### 4.4.2 HTML 导出
-
-生成独立 HTML 文件（内联 CSS，不依赖外部资源），包含：
-- 报告头部信息（场景名称、执行时间、状态、环境）。
-- 结果汇总卡片（通过/失败/跳过/耗时）。
-- 步骤列表（可折叠展开），每步展示：名称、状态、请求/响应、验证器结果。
-- 支持打印友好样式。
-
-### 4.5 报告清理
-
-复用《API 测试基础设施详细设计说明书》4.3 定义的数据清理策略：
-- 报告与执行历史保留期限默认 90 天（系统配置项）。
-- 清理后执行历史保留元数据，报告详情置为「执行结果被清理」。
-- `api_report.ryze_snapshot` 随报告一起清理。
 
 ---
 
@@ -331,24 +330,14 @@ Mock 请求处理流程：
 
 ### 5.1 Mock 管理页
 
-- **Mock 列表**：表格展示，包含启停开关、命中统计、最后命中时间。
+- **Mock 列表**：表格展示，包含启停开关、命中统计、最后命中时间、优先级序号；支持按关联接口/启用状态筛选与批量启停。
 - **Mock 规则编辑器**：表单式编辑器，分「匹配条件」与「响应定义」两个区域。
-  - 匹配条件：动态添加/删除行（类型、名称、值）。
+  - 匹配条件：动态添加/删除行（类型、名称、值/表达式）。
   - 响应定义：状态码、响应头（键值对）、响应体（代码编辑器，支持 JSON 格式化）、延迟配置。
+- **优先级调整**：同路径同方法组内 [上移] / [下移] 调整匹配顺序。
+- **复制 Mock**：行内 [复制] 预填原规则配置，名称追加「- 副本」后保存生成新规则。
 - **Mock 调试面板**：输入模拟请求，查看 Mock 响应结果。
 - **Mock 地址复制按钮**：一键复制 Mock 完整访问地址。
-
-### 5.2 报告查看页
-
-- **报告列表**：分页、筛选（状态/场景/时间范围）。
-- **报告详情**：
-  - 头部：场景名称、执行时间、环境、状态、耗时。
-  - 汇总卡片：通过/失败/跳过数字。
-  - 步骤树：垂直排列的步骤卡片，每个卡片可展开查看请求/响应详情。
-  - 验证器结果：断言通过/失败明细，失败项高亮。
-  - 提取器结果：提取的变量名与值。
-- **分享操作**：生成分享链接按钮（默认禁止时按钮禁用，提示需管理员开启）。
-- **导出操作**：选择导出格式（JSON/HTML），下载文件。
 
 ---
 
@@ -363,6 +352,8 @@ Mock 服务内嵌于平台应用进程，通过 Spring MVC 的 `/**` 通配路�
 2. Mock 路由（排除 `/api/**`、`/ws/**`、静态资源）。
 3. 未匹配 → 404。
 
+> Mock 服务端口配置见《API 测试基础设施详细设计说明书》6.4（`api-test.mock.port`，为空时复用主端口）。
+
 ### 6.2 Mock 变量解析
 
 Mock 响应体中的变量引用在返回时实时解析：
@@ -370,13 +361,6 @@ Mock 响应体中的变量引用在返回时实时解析：
 - `${timestamp()}` → 当前时间戳。
 - `${env:VAR}` → 从环境变量读取。
 - 未定义变量 → 保留原始 `${...}` 文本。
-
-### 6.3 HTML 报告模板
-
-HTML 报告使用内联 CSS 的静态模板（Thymeleaf 或手写字符串模板），不依赖外部 CDN。模板包含：
-- 响应式布局（桌面/打印）。
-- JSON 响应体格式化（`<pre><code>` + JS 语法高亮）。
-- 步骤卡片折叠/展开交互。
 
 ---
 
