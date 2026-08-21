@@ -16,6 +16,13 @@ import { useAuthStore } from '@/stores/auth'
 import { useAssistantContextStore } from '@/stores/assistantContext'
 import * as Y from 'yjs'
 import { WebsocketProvider } from 'y-websocket'
+import {
+  publishCanvasToYjs,
+  buildJsonFromYjs,
+  applyRemoteDiff,
+  type KmExportJson,
+  type MinderLike,
+} from './minder/yjsSync'
 // window.kity / window.kityminder 的类型声明在 minder/types.ts 中统一维护
 import { KMEditor } from './minder/editor'
 import { DEFAULT_NODE_TEXT } from './minder/jumping'
@@ -511,18 +518,23 @@ function setupYjs(docId: string) {
     onlineUsers.value = users
   })
 
-  // 远端 Yjs 变更同步到本地画布，确保多人编辑一致性
+  // 远端事务：从分片重建目标树并与本地画布按节点 id diff，仅增量应用变化节点，
+  // 不整树重建、保留选中态；无法对齐或应用异常时兜底 importJson 全量重建（详细设计 11.2）
   const ymap = ydoc.getMap('mindmap')
-  ymap.observe((_event, transaction) => {
-    // 本地 syncToYjs 触发的 observe 无需回放，否则 importJson→contentchange→set 死循环
+  ymap.observeDeep((_events, transaction) => {
+    // 本地 syncToYjs 触发的事务无需回放，否则回放→contentchange→发布死循环
     if (transaction.local) return
     const m = getMinder()
     if (!m) return
-    const remoteData = ymap.get('data')
-    if (!remoteData) return
+    const remoteJson = buildJsonFromYjs(ymap)
+    if (!remoteJson) return
     applyingRemote = true
     try {
-      m.importJson(remoteData)
+      const localJson = m.exportJson() as unknown as KmExportJson
+      const applied = applyRemoteDiff(m as unknown as MinderLike, localJson, remoteJson)
+      if (!applied) m.importJson(remoteJson)
+    } catch {
+      m.importJson(remoteJson)
     } finally {
       applyingRemote = false
     }
@@ -534,12 +546,8 @@ function setupYjs(docId: string) {
 
 function syncToYjs() {
   if (!ydoc || !getMinder()) return
-  const m = getMinder()!
-  const json = m.exportJson()
-  const ymap = ydoc.getMap('mindmap')
-  ydoc.transact(() => {
-    ymap.set('data', json)
-  })
+  // 与 Yjs 当前分片状态 diff 后仅写变化分片，远端按节点粒度接收增量（详细设计 11.1）
+  publishCanvasToYjs(ydoc, getMinder()!.exportJson() as unknown as KmExportJson)
 }
 
 function destroyYjs() {
