@@ -3,10 +3,15 @@ import { onBeforeUnmount, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import RequirementSelector from '@/components/project/RequirementSelector.vue'
 import { getDocumentRequirements } from '@/services/project'
-import { useAiStream, type AiStreamController } from '@/composables/useAiStream'
+import { type AiStreamController, useAiStream } from '@/composables/useAiStream'
 import { useAiStore } from '@/stores/ai'
 import type { AiCaseGenerateResult, AiGeneratedNode, RequirementSummary } from '@/types'
-import { buildPreviewTree, findNodeById, type AiPreviewNode, type MountTargetSource } from './aiMount'
+import {
+  type AiPreviewNode,
+  buildPreviewTree,
+  findNodeById,
+  type MountTargetSource,
+} from './aiMount'
 import { AI_PANEL_MODES, type AiPanelMode } from './aiPanelModes'
 import AiPreviewDialog from './AiPreviewDialog.vue'
 
@@ -210,18 +215,20 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <el-drawer
-    v-model="visible"
-    size="640px"
-    :close-on-click-modal="true"
-    modal-class="ai-panel-drawer-modal"
-    @close="handleClose"
-  >
-    <template #header>
-      <span class="ai-panel-title"><el-icon><MagicStick /></el-icon> {{ config.title }}</span>
-    </template>
+  <!-- 非阻断侧滑面板：不用 el-drawer——modal=false 时其 overlay 仍渲染全屏 fixed 包装层拦截整页点击，
+       且 focus-trap 会把外部键盘焦点强行拉回抽屉（均无 prop 可关）；
+       自绘 fixed 容器让生成期间画布与其余功能完全可操作，会话随组件常驻保持 -->
+  <transition name="ai-panel-slide">
+    <aside v-show="visible" class="ai-panel-drawer" role="dialog" :aria-label="config.title">
+      <header class="ai-panel-drawer__header">
+        <span class="ai-panel-title"
+          ><el-icon><MagicStick /></el-icon> {{ config.title }}</span
+        >
+        <el-button link @click="handleClose"><el-icon><Close /></el-icon></el-button>
+      </header>
 
-    <div class="ai-panel">
+      <div class="ai-panel-drawer__body">
+        <div class="ai-panel">
       <div class="ai-panel-target">挂载目标：{{ targetPath }}</div>
 
       <!-- 需求条目区（US-AI-004）：选取需求池条目作为生成上下文 -->
@@ -276,15 +283,22 @@ onBeforeUnmount(() => {
             />
           </div>
           <AiModelSelect />
-          <el-button
-            v-if="phase === 'idle'"
-            type="primary"
-            @click="generate"
-          >
+          <el-button v-if="phase === 'idle'" type="primary" @click="generate">
             <el-icon><MagicStick /></el-icon>
             <span>{{ config.startButtonText }}</span>
           </el-button>
           <el-button v-else-if="phase === 'streaming'" size="small" @click="stop">停止</el-button>
+          <!-- 完成态操作与进度条同行展示，不再单独占底部操作区 -->
+          <template v-else-if="phase === 'done'">
+            <el-button @click="generate">
+              <el-icon><MagicStick /></el-icon>
+              <span>{{ config.retryButtonText }}</span>
+            </el-button>
+            <el-button type="primary" @click="openPreview">
+              <el-icon><View /></el-icon>
+              <span>查看预览</span>
+            </el-button>
+          </template>
         </div>
       </div>
 
@@ -304,31 +318,25 @@ onBeforeUnmount(() => {
         :title="warning"
       />
 
-      <!-- 流式态不渲染输出区（无提示文字，进度条仅存于操作行）；完成态输出区显示提示文字（交互设计 2.2） -->
-      <div v-if="phase === 'done'" class="ai-panel-output ai-panel-output--progress">
-        <el-alert
-          v-if="targetMissing"
-          type="warning"
-          :closable="false"
-          show-icon
-          title="挂载目标已被删除，查看预览后可重新选择挂载位置"
-        />
-        <div v-if="!targetMissing" class="ai-panel-progress-tip">{{ config.doneTipMessage }}</div>
+      <!-- 流式态不渲染输出区（无提示文字，进度条仅存于操作行）；完成态输出区以 alert 呈现完成提示（交互设计 2.2） -->
+      <el-alert
+        v-if="phase === 'done' && targetMissing"
+        type="warning"
+        :closable="false"
+        show-icon
+        title="挂载目标已被删除，查看预览后可重新选择挂载位置"
+      />
+      <el-alert
+        v-if="phase === 'done'"
+        type="success"
+        :closable="false"
+        show-icon
+        :title="config.doneTipMessage"
+      />
+        </div>
       </div>
-
-      <div v-if="phase === 'done'" class="ai-panel-footer">
-        <el-button @click="generate">
-          <el-icon><MagicStick /></el-icon>
-          <span>{{ config.retryButtonText }}</span>
-        </el-button>
-        <el-button type="primary" @click="openPreview">
-          <el-icon><View /></el-icon>
-          <span>查看预览</span>
-        </el-button>
-      </div>
-    </div>
-
-  </el-drawer>
+    </aside>
+  </transition>
 
   <!-- 独立预览弹窗：脑图文档形式，本地快照不落库（交互设计 2.1/2.2）。
        必须与生成抽屉平级而非嵌套：嵌套时外层 dialog 更新期间经 v-if 动态挂载
@@ -348,9 +356,45 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped lang="scss">
-/* 透明遮罩：点击抽屉外空白处自动关闭，同时不压暗画布（交互设计 2.1） */
-:deep(.ai-panel-drawer-modal) {
-  background: transparent;
+/* 非阻断侧滑面板：fixed 悬浮于画布之上，不渲染任何遮罩层，页面其余区域保持可交互 */
+.ai-panel-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 2001;
+  display: flex;
+  flex-direction: column;
+  width: 640px;
+  max-width: 90vw;
+  background: var(--el-bg-color);
+  box-shadow: var(--el-box-shadow-light);
+}
+
+.ai-panel-drawer__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--el-border-color-light);
+}
+
+.ai-panel-drawer__body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 16px 20px;
+}
+
+/* 右侧滑入/滑出，观感与 el-drawer 一致 */
+.ai-panel-slide-enter-active,
+.ai-panel-slide-leave-active {
+  transition: transform 0.3s ease;
+}
+
+.ai-panel-slide-enter-from,
+.ai-panel-slide-leave-to {
+  transform: translateX(100%);
 }
 
 .ai-panel-title {
@@ -410,35 +454,5 @@ onBeforeUnmount(() => {
 .ai-panel-actions__progress {
   flex: 1;
   min-width: 0;
-}
-
-.ai-panel-output {
-  flex: 1;
-  min-height: 120px;
-  overflow: auto;
-  border: 1px solid var(--el-border-color-lighter);
-  border-radius: 4px;
-  padding: 8px;
-}
-
-// 生成中/生成完毕：进度条竖向居中占位（SSE 无真实进度，动画仅表意）
-.ai-panel-output--progress {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 12px;
-  border-style: dashed;
-  background: var(--el-fill-color-light);
-}
-
-.ai-panel-progress-tip {
-  font-size: 13px;
-  color: var(--el-text-color-secondary);
-}
-
-.ai-panel-footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
 }
 </style>

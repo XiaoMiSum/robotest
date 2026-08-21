@@ -186,18 +186,17 @@ onBeforeUnmount(() => controller?.abort())
 </script>
 
 <template>
-  <el-drawer
-    v-model="visible"
-    size="640px"
-    :modal="true"
-    :close-on-click-modal="true"
-    modal-class="mp-drawer-modal"
-  >
-    <template #header>
-      <span class="mp-title"><el-icon><MagicStick /></el-icon> 遗漏测试点分析</span>
-    </template>
+  <!-- 非阻断侧滑面板：同 AiGeneratePanel——el-drawer 的 overlay 在 modal=false 下仍拦截整页点击、
+       focus-trap 会劫持外部键盘焦点（均无 prop 可关）；自绘 fixed 容器让分析期间页面完全可操作 -->
+  <transition name="mp-slide">
+    <aside v-show="visible" class="mp-drawer" role="dialog" aria-label="遗漏测试点分析">
+      <header class="mp-drawer__header">
+        <span class="mp-title"><el-icon><MagicStick /></el-icon> 遗漏测试点分析</span>
+        <el-button link @click="visible = false"><el-icon><Close /></el-icon></el-button>
+      </header>
 
-    <div class="mp">
+      <div class="mp-drawer__body">
+        <div class="mp">
       <!-- 三态输入：关键词 / 需求文本 / 需求条目，至少一项非空（详细设计 3.3） -->
       <div class="mp-inputs">
         <div class="mp-field">
@@ -321,31 +320,69 @@ onBeforeUnmount(() => controller?.abort())
           转用例生成（{{ checkedIndexes.size }}）
         </el-button>
       </div>
-    </div>
+        </div>
+      </div>
+    </aside>
+  </transition>
 
-    <RequirementSelector
-      v-model="reqSelectorVisible"
-      :selected-ids="requirementIds"
-      @confirm="handleRequirementConfirm"
-    />
+  <RequirementSelector
+    v-model="reqSelectorVisible"
+    :selected-ids="requirementIds"
+    @confirm="handleRequirementConfirm"
+  />
 
-    <el-dialog v-model="docSelectVisible" title="选择目标文档" width="440px" append-to-body>
-      <div class="mp-doc-tip">默认已预选出现次数最多的建议模块，可更换</div>
-      <el-select v-model="targetDocId" filterable placeholder="搜索文档路径" class="mp-doc-select">
-        <el-option v-for="doc in documentOptions" :key="doc.id" :label="doc.path" :value="doc.id" />
-      </el-select>
-      <template #footer>
-        <el-button @click="docSelectVisible = false">取消</el-button>
-        <el-button type="primary" :disabled="!targetDocId" @click="toCaseGenerate">生成用例</el-button>
-      </template>
-    </el-dialog>
-  </el-drawer>
+  <el-dialog v-model="docSelectVisible" title="选择目标文档" width="440px" append-to-body>
+    <div class="mp-doc-tip">默认已预选出现次数最多的建议模块，可更换</div>
+    <el-select v-model="targetDocId" filterable placeholder="搜索文档路径" class="mp-doc-select">
+      <el-option v-for="doc in documentOptions" :key="doc.id" :label="doc.path" :value="doc.id" />
+    </el-select>
+    <template #footer>
+      <el-button @click="docSelectVisible = false">取消</el-button>
+      <el-button type="primary" :disabled="!targetDocId" @click="toCaseGenerate">生成用例</el-button>
+    </template>
+  </el-dialog>
 </template>
 
 <style scoped lang="scss">
-/* 透明遮罩：点击抽屉外空白处自动关闭，同时不压暗画布（交互设计 4.2） */
-:deep(.mp-drawer-modal) {
-  background: transparent;
+/* 非阻断侧滑面板：fixed 悬浮于画布之上，不渲染任何遮罩层，页面其余区域保持可交互（同 AiGeneratePanel） */
+.mp-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 2001;
+  display: flex;
+  flex-direction: column;
+  width: 640px;
+  max-width: 90vw;
+  background: var(--el-bg-color);
+  box-shadow: var(--el-box-shadow-light);
+}
+
+.mp-drawer__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--el-border-color-light);
+}
+
+.mp-drawer__body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 16px 20px;
+}
+
+/* 右侧滑入/滑出，观感与 el-drawer 一致 */
+.mp-slide-enter-active,
+.mp-slide-leave-active {
+  transition: transform 0.3s ease;
+}
+
+.mp-slide-enter-from,
+.mp-slide-leave-to {
+  transform: translateX(100%);
 }
 
 .mp-title {

@@ -23,7 +23,7 @@ export interface AiPanelModeConfig {
   inputOptional: boolean
   /** 操作行主按钮文案：发起态（生成/补全区分，交互设计 3.1） */
   startButtonText: string
-  /** 完成态底部操作条重试按钮文案（交互设计 2.2：完成态发起按钮移至底部操作条） */
+  /** 完成态操作行重试按钮文案（与进度条/模型选择同行展示） */
   retryButtonText: string
   /** 预览弹窗底部确认按钮文案（挂载/追加区分） */
   confirmButtonText: string
@@ -49,7 +49,7 @@ export const AI_PANEL_MODES: Record<AiPanelMode, AiPanelModeConfig> = {
     confirmButtonText: '确认挂载',
     previewTitle: '生成结果预览',
     countLabel: '个用例',
-    doneTipMessage: '生成完成，点击下方「查看预览」在脑图中核对并勾选取舍',
+    doneTipMessage: '生成完成，点击「查看预览」在脑图中核对并勾选取舍',
     emptyResultMessage: 'AI 未生成任何用例，请补充需求描述后重试',
     buildBody: ({ docId, targetNodeId, text, modelId, requirementIds }) => ({
       documentId: docId,
@@ -69,7 +69,7 @@ export const AI_PANEL_MODES: Record<AiPanelMode, AiPanelModeConfig> = {
     confirmButtonText: '确认追加',
     previewTitle: '补全结果预览',
     countLabel: '项',
-    doneTipMessage: '补全完成，点击下方「查看预览」在脑图中核对并勾选取舍',
+    doneTipMessage: '补全完成，点击「查看预览」在脑图中核对并勾选取舍',
     emptyResultMessage: '既有前置/步骤/预期已完整，无需补全',
     buildBody: ({ docId, targetNodeId, text, modelId, requirementIds }) => ({
       documentId: docId,
