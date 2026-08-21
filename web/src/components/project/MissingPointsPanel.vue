@@ -4,7 +4,7 @@ import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import RequirementSelector from '@/components/project/RequirementSelector.vue'
 import { analyzeMissingPoints, type AiMissingPointReq } from '@/services/ai'
-import { fetchModuleTree, getDocumentRequirements } from '@/services/project'
+import { fetchProjectModuleTree, getDocumentRequirements } from '@/services/project'
 import type { AiMissingPoint, AiMissingPointResult, RequirementSummary } from '@/types'
 import {
   buildMissingPointText,
@@ -157,7 +157,8 @@ async function openTargetSelect(): Promise<void> {
     return
   }
   try {
-    const tree = await fetchModuleTree()
+    // 文档选项需含文档节点，必须带 assetType=testcase（后端仅该类型合并文档节点）
+    const tree = await fetchProjectModuleTree('testcase')
     documentOptions.value = collectDocumentOptions(tree)
     if (!documentOptions.value.length) {
       ElMessage.warning('项目暂无文档，无法生成用例')

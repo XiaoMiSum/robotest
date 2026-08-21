@@ -18,6 +18,7 @@ import type {
   PlannedCases,
   PlanStatus,
   ProjectDashboard,
+  ProjectModule,
   ReviewMark,
   ReviewRecord,
   ReviewStatus,
@@ -25,7 +26,7 @@ import type {
   RequirementPoolItem,
   RequirementSummary,
   SnapshotModule,
-  TestCaseModule,
+  TestCaseDocument,
   TestCaseNode,
   TestPlanDetail,
   TestPlanListItem,
@@ -60,30 +61,52 @@ export function fetchDashboard(): Promise<ProjectDashboard> {
   return get('/project/dashboard')
 }
 
-// ==================== 测试用例模块树 ====================
+// ==================== 项目模块（V1.2 统一模块树） ====================
 
-export function fetchModuleTree(): Promise<TestCaseModule[]> {
-  return get('/project/modules')
+// assetType 非空时后端按资产类型统计各模块 count（项目模块详细设计 3.1.1）
+export function fetchProjectModuleTree(
+  assetType?: 'testcase' | 'interface' | 'scene',
+): Promise<ProjectModule[]> {
+  return get('/project/modules', assetType ? { assetType } : undefined)
 }
 
-export function createModule(data: {
+export function createProjectModule(data: {
   parentId: string | null
-  type: 'directory' | 'document'
   name: string
-}): Promise<TestCaseModule> {
+}): Promise<ProjectModule> {
   return post('/project/modules', data)
 }
 
-// targetIndex 非空时为拖拽移动：parentId 为目标父目录（null 表示根层级）
-export function updateModule(
+// parentId 或 targetIndex 非空时为拖拽移动：parentId 为目标父目录（null 表示根层级）
+export function updateProjectModule(
   id: string,
   data: { name?: string; parentId?: string | null; targetIndex?: number },
-): Promise<TestCaseModule> {
+): Promise<ProjectModule> {
   return put(`/project/modules/${id}`, data)
 }
 
-export function deleteModule(id: string): Promise<void> {
+export function deleteProjectModule(id: string): Promise<void> {
   return del(`/project/modules/${id}`)
+}
+
+// ==================== 测试用例文档（V1.2 用例管理） ====================
+
+export function createTestCase(data: {
+  moduleId: string | null
+  name: string
+}): Promise<TestCaseDocument> {
+  return post('/project/testcases', data)
+}
+
+export function updateTestCase(
+  id: string,
+  data: { name?: string; moduleId?: string | null; targetIndex?: number },
+): Promise<TestCaseDocument> {
+  return put(`/project/testcases/${id}`, data)
+}
+
+export function deleteTestCase(id: string): Promise<void> {
+  return del(`/project/testcases/${id}`)
 }
 
 // ==================== 测试用例节点 ====================

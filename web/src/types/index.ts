@@ -293,15 +293,26 @@ export interface MemberAddResult {
 /** 模块树节点类型 */
 export type ModuleType = 'directory' | 'document'
 
-/** 测试用例模块树节点 */
-export interface TestCaseModule {
+/** 项目级统一模块树节点（V1.2 起，目录与文档混合树） */
+export interface ProjectModule {
   id: string
   parentId: string | null
+  /** 节点类型：directory = 目录，document = 文档 */
   type: ModuleType
   name: string
   sortOrder: number
-  createdAt: string
-  children: TestCaseModule[]
+  children: ProjectModule[]
+}
+
+/** 测试用例文档（V1.2 起，挂载在 ProjectModule 节点下的脑图型用例资产） */
+export interface TestCaseDocument {
+  id: string
+  /** null 表示未分组（文档管理详细设计 2.1） */
+  moduleId: string | null
+  name: string
+  sortOrder: number
+  nodeCount: number
+  updatedAt: string
 }
 
 /** 评审/计划模块快照树节点（目录/文档层级，供详情页左侧文档切换） */

@@ -2,10 +2,10 @@
 import { nextTick, ref, watch } from 'vue'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import { ElMessageBox } from 'element-plus'
-import ModuleTree from '@/components/project/ModuleTree.vue'
+import ProjectModuleTree from '@/components/project/ProjectModuleTree.vue'
 import CaseMindMap from '@/components/project/CaseMindMap.vue'
-import { fetchModuleTree } from '@/services/project'
-import type { TestCaseModule } from '@/types'
+import { fetchProjectModuleTree } from '@/services/project'
+import type { ProjectModule } from '@/types'
 
 const route = useRoute()
 const router = useRouter()
@@ -19,7 +19,7 @@ function handleSelectDocument(docId: string, docName: string) {
   selectedDocName.value = docName
 }
 
-function findDocument(nodes: TestCaseModule[], id: string): TestCaseModule | null {
+function findDocument(nodes: ProjectModule[], id: string): ProjectModule | null {
   for (const n of nodes) {
     if (n.id === id && n.type === 'document') return n
     const found = findDocument(n.children ?? [], id)
@@ -35,10 +35,10 @@ async function consumeExternalJump(docId: string, aiText: string): Promise<void>
   router.replace({ query: { ...route.query, documentId: undefined, aiGenerate: undefined } })
   if (docId && docId !== selectedDocId.value) {
     try {
-      const doc = findDocument(await fetchModuleTree(), docId)
+      const doc = findDocument(await fetchProjectModuleTree('testcase'), docId)
       if (doc) handleSelectDocument(doc.id, doc.name)
     } catch {
-      // 文档不存在或加载失败时停留在空态，不再预填生成抽屉
+      // 文档不存在或加载失败时停留在空态
       return
     }
   }
@@ -53,8 +53,7 @@ watch(
 )
 void consumeExternalJump(String(route.query.documentId ?? ''), String(route.query.aiGenerate ?? ''))
 
-// 处于文档中时离开需二次确认，防止误触打断编辑（切换文档的确认在 ModuleTree 内）；
-// 供路由守卫与父组件（功能测试页子页面切换不走路由）共用，文案与判断单点维护
+// 处于文档中时离开需二次确认，防止误触打断编辑（切换文档的确认在 ProjectModuleTree 内）
 async function confirmLeave(): Promise<boolean> {
   if (!selectedDocId.value) return true
   try {
@@ -74,7 +73,7 @@ defineExpose({ confirmLeave })
   <div class="test-case-page">
     <div class="test-case-page__workspace">
       <el-card shadow="never" class="test-case-page__tree-card">
-        <ModuleTree @select-document="handleSelectDocument" />
+        <ProjectModuleTree asset-type="testcase" @select-document="handleSelectDocument" />
       </el-card>
       <el-card shadow="never" class="test-case-page__editor-card">
         <div v-if="!selectedDocId" class="test-case-page__placeholder">
@@ -106,7 +105,7 @@ defineExpose({ confirmLeave })
 }
 
 .test-case-page__tree-card {
-  width: 240px;
+  width: 280px;
   flex-shrink: 0;
   :deep(.el-card__body) {
     padding: 0;

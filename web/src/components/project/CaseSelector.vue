@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
-import { ElMessage } from 'element-plus'
-import { fetchDocumentNodes, fetchModuleTree } from '@/services/project'
+import { ElMessage, ElTree } from 'element-plus'
+import { fetchDocumentNodes, fetchProjectModuleTree } from '@/services/project'
 import CaseSelectTree from '@/components/project/CaseSelectTree.vue'
-import type { TestCaseModule, TestCaseNode } from '@/types'
+import type { ProjectModule, TestCaseNode } from '@/types'
 
 const props = defineProps<{
   modelValue: boolean
@@ -19,7 +19,8 @@ const emit = defineEmits<{
 }>()
 
 const loading = ref(false)
-const modules = ref<TestCaseModule[]>([])
+const modules = ref<ProjectModule[]>([])
+const treeRef = ref<InstanceType<typeof ElTree>>()
 const selectedDocId = ref('')
 const docNodes = ref<TestCaseNode | null>(null)
 const docLoading = ref(false)
@@ -32,19 +33,20 @@ const priorities = ['P0', 'P1', 'P2', 'P3']
 
 const showFullDoc = ref(false)
 
-// 精简视图：用例整枝（含内部结构与嵌套用例）保留，仅剔除不含用例的空分枝
-function pruneEmptyBranches(node: TestCaseNode): TestCaseNode | null {
-  if (node.type === 'case') return node
+// 精简视图：只保留用例节点及其祖先链（含嵌套用例），剔除前置/步骤/预期明细子树与无用例空分枝，
+// 保证与全量视图有可见差异；否则常规文档两视图渲染一致，切换项形同虚设
+function pruneToCases(node: TestCaseNode): TestCaseNode | null {
   const children = node.children
-    .map(pruneEmptyBranches)
+    .map(pruneToCases)
     .filter((c): c is TestCaseNode => c !== null)
+  if (node.type === 'case') return { ...node, children }
   if (!children.length) return null
   return { ...node, children }
 }
 
 const selectableRoot = computed(() => {
   if (!docNodes.value) return null
-  return showFullDoc.value ? docNodes.value : pruneEmptyBranches(docNodes.value)
+  return showFullDoc.value ? docNodes.value : pruneToCases(docNodes.value)
 })
 
 // 预聚合各节点子树的用例数与已选数，驱动芯片全选/半选态；单选模式只统计节点自身，避免嵌套用例导致半选态
@@ -111,7 +113,8 @@ const totalSelected = computed(() => {
 async function loadModules() {
   loading.value = true
   try {
-    modules.value = await fetchModuleTree()
+    // 规划用例需在左树展示文档节点，必须带 assetType=testcase（后端仅该类型合并文档节点）
+    modules.value = await fetchProjectModuleTree('testcase')
   } catch (err) {
     ElMessage.error(err instanceof Error ? err.message : '加载模块树失败')
   } finally {
@@ -119,7 +122,7 @@ async function loadModules() {
   }
 }
 
-async function handleNodeClick(data: TestCaseModule) {
+async function handleNodeClick(data: ProjectModule) {
   if (data.type !== 'document') return
   selectedDocId.value = data.id
   filterKeyword.value = ''
@@ -198,6 +201,9 @@ watch(
       selectedDocId.value = ''
       filterKeyword.value = ''
       filterPriority.value = ''
+      // 弹窗内容常驻不销毁，el-tree 会按 node-key 恢复上次点击的高亮，
+      // 需显式清除，避免左树残留高亮而右侧为空态的不一致
+      treeRef.value?.setCurrentKey(null)
       loadModules()
     }
   },
@@ -220,6 +226,7 @@ onMounted(() => {
       <!-- 左侧模块树 -->
       <div v-loading="loading" class="case-selector__tree">
         <el-tree
+          ref="treeRef"
           :data="modules"
           :props="{ label: 'name', children: 'children' }"
           node-key="id"

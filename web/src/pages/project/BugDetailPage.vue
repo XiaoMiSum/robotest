@@ -9,8 +9,8 @@ import {
   deleteBugAttachment,
   downloadBugAttachment,
   fetchBugAttachments,
-  fetchModuleTree,
   fetchPlans,
+  fetchProjectModuleTree,
   getBugDetail,
   getBugLogs,
   getCaseDetail,
@@ -24,7 +24,7 @@ import type {
   BugLog,
   BugResolution,
   CaseNodeType,
-  TestCaseModule,
+  ProjectModule,
   TestCaseNode,
   TestPlanListItem,
   WorkspaceMember,
@@ -73,12 +73,21 @@ const form = reactive({
   relatedPlanId: '' as string,
 })
 
-const moduleTree = ref<TestCaseModule[]>([])
+// 合并树（含文档）供关联用例的所属文档名查找；所属模块下拉经 dirTree 剔除文档节点
+const moduleTree = ref<ProjectModule[]>([])
 async function loadModuleTree() {
   try {
-    moduleTree.value = await fetchModuleTree()
+    moduleTree.value = await fetchProjectModuleTree('testcase')
   } catch { /* ignore */ }
 }
+
+// 所属模块仅目录可选（后端按 project_module 校验 moduleId），从合并树中剔除文档节点
+function stripDocuments(nodes: ProjectModule[]): ProjectModule[] {
+  return nodes
+    .filter((n) => n.type === 'directory')
+    .map((n) => ({ ...n, children: stripDocuments(n.children) }))
+}
+const dirTree = computed(() => stripDocuments(moduleTree.value))
 
 // 不按状态过滤，保证已关联的历史计划也能正常回显
 const planOptions = ref<TestPlanListItem[]>([])
@@ -143,7 +152,7 @@ const caseDetailRows = computed(() => {
   return rows
 })
 
-function findModuleName(nodes: TestCaseModule[], id: string): string | null {
+function findModuleName(nodes: ProjectModule[], id: string): string | null {
   for (const n of nodes) {
     if (n.id === id) return n.name
     const found = findModuleName(n.children ?? [], id)
@@ -509,7 +518,7 @@ onMounted(() => {
                 <el-tree-select
                   v-if="!isClosed"
                   v-model="form.moduleId"
-                  :data="moduleTree"
+                  :data="dirTree"
                   :props="{ label: 'name', children: 'children' }"
                   node-key="id"
                   check-strictly

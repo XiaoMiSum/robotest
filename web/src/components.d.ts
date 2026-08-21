@@ -90,6 +90,7 @@ declare module 'vue' {
     PermissionTable: typeof import('./components/admin/PermissionTable.vue')['default']
     PlanMindMap: typeof import('./components/project/PlanMindMap.vue')['default']
     PlanOrderRecommend: typeof import('./components/project/PlanOrderRecommend.vue')['default']
+    ProjectModuleTree: typeof import('./components/project/ProjectModuleTree.vue')['default']
     RequirementSelector: typeof import('./components/project/RequirementSelector.vue')['default']
     RequirementSplitDialog: typeof import('./components/project/RequirementSplitDialog.vue')['default']
     ReviewAiCheckPanel: typeof import('./components/project/ReviewAiCheckPanel.vue')['default']
