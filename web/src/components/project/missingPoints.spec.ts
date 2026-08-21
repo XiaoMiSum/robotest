@@ -1,19 +1,18 @@
 import { describe, expect, it } from 'vitest'
-import type { AiMissingPoint, TestCaseModule } from '@/types'
+import type { AiMissingPoint, ProjectModule } from '@/types'
 import {
   buildMissingPointText,
   collectDocumentOptions,
   pickPreselectDocument,
 } from './missingPoints'
 
-const tree: TestCaseModule[] = [
+const tree: ProjectModule[] = [
   {
     id: 'd1',
     parentId: null,
     type: 'directory',
     name: '登录',
     sortOrder: 1,
-    createdAt: '',
     children: [
       {
         id: 'd1-1',
@@ -21,7 +20,6 @@ const tree: TestCaseModule[] = [
         type: 'document',
         name: '邮箱登录',
         sortOrder: 1,
-        createdAt: '',
         children: [],
       },
       {
@@ -30,7 +28,6 @@ const tree: TestCaseModule[] = [
         type: 'directory',
         name: '第三方',
         sortOrder: 2,
-        createdAt: '',
         children: [
           {
             id: 'd1-2-1',
@@ -38,7 +35,6 @@ const tree: TestCaseModule[] = [
             type: 'document',
             name: '微信登录',
             sortOrder: 1,
-            createdAt: '',
             children: [],
           },
         ],
@@ -51,7 +47,6 @@ const tree: TestCaseModule[] = [
     type: 'document',
     name: '找回密码',
     sortOrder: 2,
-    createdAt: '',
     children: [],
   },
 ]

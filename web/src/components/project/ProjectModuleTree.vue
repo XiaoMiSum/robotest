@@ -1,9 +1,21 @@
 <script setup lang="ts">
-import { onMounted, nextTick, ref, watch } from 'vue'
+import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox, ElTree } from 'element-plus'
 import type Node from 'element-plus/es/components/tree/src/model/node'
-import { createModule, deleteModule, fetchModuleTree, updateModule } from '@/services/project'
-import type { TestCaseModule } from '@/types'
+import {
+  createProjectModule,
+  createTestCase,
+  deleteProjectModule,
+  deleteTestCase,
+  fetchProjectModuleTree,
+  updateProjectModule,
+  updateTestCase,
+} from '@/services/project'
+import type { ProjectModule } from '@/types'
+
+const props = defineProps<{
+  assetType: 'testcase' | 'interface' | 'scene'
+}>()
 
 const emit = defineEmits<{
   selectDocument: [docId: string, docName: string]
@@ -11,7 +23,7 @@ const emit = defineEmits<{
 
 const treeProps = { label: 'name', children: 'children' }
 const treeRef = ref<InstanceType<typeof ElTree>>()
-const treeData = ref<TestCaseModule[]>([])
+const treeData = ref<ProjectModule[]>([])
 const loading = ref(false)
 const currentDocId = ref('')
 const filterKeyword = ref('')
@@ -19,16 +31,17 @@ const filterKeyword = ref('')
 // el-tree 自带过滤：命中节点自动展开其祖先链，清空关键字即还原
 watch(filterKeyword, (val) => treeRef.value?.filter(val))
 
-// filter 回调的 data 是 el-tree 的宽松 TreeNodeData，业务上只需 name 字段
 function filterNode(value: string, data: Record<string, unknown>): boolean {
   if (!value) return true
-  return String(data.name ?? '').toLowerCase().includes(value.toLowerCase())
+  return String(data.name ?? '')
+    .toLowerCase()
+    .includes(value.toLowerCase())
 }
 
 async function load() {
   loading.value = true
   try {
-    treeData.value = await fetchModuleTree()
+    treeData.value = await fetchProjectModuleTree(props.assetType)
   } catch (err) {
     ElMessage.error(err instanceof Error ? err.message : '加载模块树失败')
   } finally {
@@ -36,14 +49,13 @@ async function load() {
   }
 }
 
-// el-tree 节点对象仅取展开切换所需的最小结构（完整 Node 类型未随组件导出）
 interface TreeNodeToggle {
   expanded: boolean
   expand(): void
   collapse(): void
 }
 
-async function handleNodeClick(data: TestCaseModule, node: TreeNodeToggle) {
+async function handleNodeClick(data: ProjectModule, node: TreeNodeToggle) {
   // 目录整行点击即切换展开/收起（expand-on-click-node 关闭是为了文档点击不误触展开）
   if (data.type === 'directory') {
     if (node.expanded) node.collapse()
@@ -56,9 +68,10 @@ async function handleNodeClick(data: TestCaseModule, node: TreeNodeToggle) {
   // 已打开文档时切换需二次确认，防止误触打断编辑
   if (currentDocId.value) {
     try {
-      await ElMessageBox.confirm('确定离开当前文档，切换到其他文档吗？', '切换文档', { type: 'warning' })
+      await ElMessageBox.confirm('确定离开当前文档，切换到其他文档吗？', '切换文档', {
+        type: 'warning',
+      })
     } catch {
-      // el-tree 点击瞬间已抢先高亮新节点，取消后须显式回退
       treeRef.value?.setCurrentKey(currentDocId.value)
       return
     }
@@ -67,14 +80,18 @@ async function handleNodeClick(data: TestCaseModule, node: TreeNodeToggle) {
   emit('selectDocument', data.id, data.name)
 }
 
-async function handleCreate(parent: TestCaseModule | null, type: 'directory' | 'document') {
+async function handleCreate(parent: ProjectModule | null, type: 'directory' | 'document') {
   const typeLabel = type === 'directory' ? '目录' : '文档'
   try {
     const { value } = await ElMessageBox.prompt(`请输入${typeLabel}名称`, `新建${typeLabel}`, {
       inputPattern: /\S+/,
       inputErrorMessage: '名称不能为空',
     })
-    await createModule({ parentId: parent?.id ?? null, type, name: value.trim() })
+    if (type === 'directory') {
+      await createProjectModule({ parentId: parent?.id ?? null, name: value.trim() })
+    } else {
+      await createTestCase({ moduleId: parent?.id ?? null, name: value.trim() })
+    }
     ElMessage.success(`${typeLabel}已创建`)
     load()
   } catch (err) {
@@ -83,14 +100,18 @@ async function handleCreate(parent: TestCaseModule | null, type: 'directory' | '
   }
 }
 
-async function handleRename(node: TestCaseModule) {
+async function handleRename(node: ProjectModule) {
   try {
     const { value } = await ElMessageBox.prompt('请输入新名称', '重命名', {
       inputValue: node.name,
       inputPattern: /\S+/,
       inputErrorMessage: '名称不能为空',
     })
-    await updateModule(node.id, { name: value.trim() })
+    if (node.type === 'directory') {
+      await updateProjectModule(node.id, { name: value.trim() })
+    } else {
+      await updateTestCase(node.id, { name: value.trim() })
+    }
     ElMessage.success('已重命名')
     load()
   } catch (err) {
@@ -99,19 +120,23 @@ async function handleRename(node: TestCaseModule) {
   }
 }
 
-async function handleDelete(node: TestCaseModule) {
+async function handleDelete(node: ProjectModule) {
   const typeLabel = node.type === 'directory' ? '目录' : '文档'
+  const confirmMsg =
+    node.type === 'directory'
+      ? `确定删除目录「${node.name}」吗？目录必须为空才能删除。`
+      : `确定删除文档「${node.name}」吗？文档下所有用例数据将被级联删除。`
   try {
-    await ElMessageBox.confirm(
-      `确定删除${typeLabel}「${node.name}」吗？${node.type === 'document' ? '文档下所有用例数据将被级联删除。' : '目录必须为空才能删除。'}`,
-      `删除${typeLabel}`,
-      { type: 'warning' },
-    )
+    await ElMessageBox.confirm(confirmMsg, `删除${typeLabel}`, { type: 'warning' })
   } catch {
     return
   }
   try {
-    await deleteModule(node.id)
+    if (node.type === 'directory') {
+      await deleteProjectModule(node.id)
+    } else {
+      await deleteTestCase(node.id)
+    }
     ElMessage.success('已删除')
     if (currentDocId.value === node.id) {
       currentDocId.value = ''
@@ -123,36 +148,64 @@ async function handleDelete(node: TestCaseModule) {
 }
 
 defineExpose({ reload: load })
-onMounted(load)
 
-// el-tree 拖拽回调的 Node.data 是宽松的 TreeNodeData，业务上即模块节点
-function nodeData(node: Node): TestCaseModule {
-  return node.data as TestCaseModule
+// 定时静默刷新：多人协同下模块/文档可能被他人增删改，轮询保证左侧树最终一致；
+// 不走 loading 遮罩且失败不弹窗，避免每分钟打断用户编辑（错误在下次轮询自愈，手动操作仍走 load() 提示）
+const POLL_INTERVAL = 60_000
+let pollTimer: ReturnType<typeof setInterval> | null = null
+
+async function silentRefresh() {
+  try {
+    treeData.value = await fetchProjectModuleTree(props.assetType)
+  } catch {
+    // 静默忽略，等待下一轮
+  }
 }
 
-function allowDrop(_dragging: Node, drop: Node, type: 'prev' | 'inner' | 'next'): boolean {
+onMounted(() => {
+  void load()
+  pollTimer = setInterval(silentRefresh, POLL_INTERVAL)
+})
+
+onBeforeUnmount(() => {
+  if (pollTimer) clearInterval(pollTimer)
+})
+
+// el-tree 拖拽回调的 Node.data 是宽松的 TreeNodeData，业务上即模块节点
+function nodeData(node: Node): ProjectModule {
+  return node.data as ProjectModule
+}
+
+function allowDrop(dragging: Node, drop: Node, type: 'prev' | 'inner' | 'next'): boolean {
   // 文档是叶子节点，只允许放入目录内部；同级前后排序不限
   if (type === 'inner') return nodeData(drop).type === 'directory'
+  // 文档拖到目录行只允许放入内部：el-tree 按行高上下边缘判为 before/after，
+  // 放行会被解析成移到目录的父层级（根目录时 parentId 为 null），与"拖入目录"预期不符
+  if (nodeData(dragging).type === 'document' && nodeData(drop).type === 'directory') return false
   return true
 }
 
 async function handleNodeDrop(dragging: Node, drop: Node, dropType: 'before' | 'after' | 'inner') {
-  // node-drop 触发时 el-tree 已完成本地移动，新父级与下标直接从树结构反推
   const parentNode = dropType === 'inner' ? drop : drop.parent
-  // 顶层节点的 parent 是 el-tree 虚拟根（level 0），对应后端根层级 null
   const parentId = parentNode && parentNode.level > 0 ? nodeData(parentNode).id : null
   const siblings = parentNode?.childNodes ?? []
   const dragId = nodeData(dragging).id
-  const targetIndex = Math.max(0, siblings.findIndex((n) => nodeData(n).id === dragId))
+  const targetIndex = Math.max(
+    0,
+    siblings.findIndex((n) => nodeData(n).id === dragId),
+  )
+  const dragNode = nodeData(dragging)
   try {
-    await updateModule(dragId, { parentId, targetIndex })
-    ElMessage.success('已移动')
+    if (dragNode.type === 'directory') {
+      await updateProjectModule(dragId, { parentId, targetIndex })
+    } else {
+      await updateTestCase(dragId, { moduleId: parentId, targetIndex })
+    }
+    ElMessage.success('移动成功')
   } catch (err) {
     ElMessage.error(err instanceof Error ? err.message : '移动失败')
   }
-  // 成功时同步后端重排后的 sortOrder，失败时回滚 el-tree 的本地变更
   await load()
-  // 整树重载会丢失高亮，恢复当前打开的文档
   if (currentDocId.value) {
     await nextTick()
     treeRef.value?.setCurrentKey(currentDocId.value)
@@ -163,12 +216,21 @@ async function handleNodeDrop(dragging: Node, drop: Node, dropType: 'before' | '
 <template>
   <div v-loading="loading" class="module-tree">
     <div class="module-tree__toolbar">
-      <el-input v-model="filterKeyword" size="small" placeholder="搜索目录 / 文档" clearable class="module-tree__search">
+      <el-input
+        v-model="filterKeyword"
+        size="small"
+        placeholder="搜索目录 / 文档"
+        clearable
+        class="module-tree__search"
+      >
         <template #prefix>
           <el-icon><Search /></el-icon>
         </template>
       </el-input>
-      <el-dropdown trigger="click" @command="(cmd: string) => handleCreate(null, cmd as 'directory' | 'document')">
+      <el-dropdown
+        trigger="click"
+        @command="(cmd: string) => handleCreate(null, cmd as 'directory' | 'document')"
+      >
         <el-button size="small" type="primary">
           <el-icon><Plus /></el-icon>新建
         </el-button>
@@ -191,7 +253,7 @@ async function handleNodeDrop(dragging: Node, drop: Node, dropType: 'before' | '
       :expand-on-click-node="false"
       :filter-node-method="filterNode"
       highlight-current
-      :current-node-key="currentDocId"
+      :current-node-key="currentDocId || undefined"
       draggable
       :allow-drop="allowDrop"
       @node-drop="handleNodeDrop"
@@ -200,13 +262,24 @@ async function handleNodeDrop(dragging: Node, drop: Node, dropType: 'before' | '
       <template #default="{ data }">
         <div class="module-tree__node">
           <span class="module-tree__label">
-            <el-icon v-if="data.type === 'directory'" class="module-tree__icon module-tree__icon--folder"><Folder /></el-icon>
+            <el-icon
+              v-if="data.type === 'directory'"
+              class="module-tree__icon module-tree__icon--folder"
+              ><Folder
+            /></el-icon>
             <el-icon v-else class="module-tree__icon module-tree__icon--doc"><Document /></el-icon>
             <span class="module-tree__name">{{ data.name }}</span>
           </span>
           <span class="module-tree__actions">
-            <el-dropdown v-if="data.type === 'directory'" trigger="click" size="small" @command="(cmd: string) => handleCreate(data, cmd as 'directory' | 'document')">
-              <el-button link size="small" @click.stop><el-icon><Plus /></el-icon></el-button>
+            <el-dropdown
+              v-if="data.type === 'directory'"
+              trigger="click"
+              size="small"
+              @command="(cmd: string) => handleCreate(data, cmd as 'directory' | 'document')"
+            >
+              <el-button link size="small" @click.stop
+                ><el-icon><Plus /></el-icon
+              ></el-button>
               <template #dropdown>
                 <el-dropdown-menu>
                   <el-dropdown-item command="directory">新建子目录</el-dropdown-item>
@@ -214,14 +287,22 @@ async function handleNodeDrop(dragging: Node, drop: Node, dropType: 'before' | '
                 </el-dropdown-menu>
               </template>
             </el-dropdown>
-            <el-button link size="small" @click.stop="handleRename(data)"><el-icon><EditPen /></el-icon></el-button>
-            <el-button link size="small" type="danger" @click.stop="handleDelete(data)"><el-icon><Delete /></el-icon></el-button>
+            <el-button link size="small" @click.stop="handleRename(data)"
+              ><el-icon><EditPen /></el-icon
+            ></el-button>
+            <el-button link size="small" type="danger" @click.stop="handleDelete(data)"
+              ><el-icon><Delete /></el-icon
+            ></el-button>
           </span>
         </div>
       </template>
     </el-tree>
 
-    <el-empty v-if="!loading && !treeData.length" description="暂无模块，点击[新建]创建" :image-size="40" />
+    <el-empty
+      v-if="!loading && !treeData.length"
+      description="暂无模块，点击[新建]创建"
+      :image-size="40"
+    />
   </div>
 </template>
 
@@ -302,7 +383,6 @@ async function handleNodeDrop(dragging: Node, drop: Node, dropType: 'before' | '
   font-size: 14px;
   transition: color var(--transition-fast);
 
-  // 目录用警示黄贴近文件夹隐喻，文档用中性灰避免喧宾夺主
   &--folder {
     color: var(--color-warning);
   }

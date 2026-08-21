@@ -1,4 +1,4 @@
-import type { AiMissingPoint, TestCaseModule } from '@/types'
+import type { AiMissingPoint, ProjectModule } from '@/types'
 
 /** 「转用例生成」目标文档选项：模块树展开为扁平文档清单，path 与 suggestedModulePath 同口径 */
 export interface MissingPointDocumentOption {
@@ -17,7 +17,7 @@ export function buildMissingPointText(points: AiMissingPoint[]): string {
 
 /** 模块树展开为文档清单，path 为「目录A/目录B/文档」拼接 */
 export function collectDocumentOptions(
-  nodes: TestCaseModule[],
+  nodes: ProjectModule[],
   parentPath = '',
 ): MissingPointDocumentOption[] {
   const options: MissingPointDocumentOption[] = []

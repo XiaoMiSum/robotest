@@ -2,7 +2,7 @@
 import { computed, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, type FormInstance, type FormRules, type UploadUserFile } from 'element-plus'
-import { changeBugStatus, createBug, fetchModuleTree, fetchPlans, getBugDetail, uploadBugAttachment } from '@/services/project'
+import { changeBugStatus, createBug, fetchPlans, fetchProjectModuleTree, getBugDetail, uploadBugAttachment } from '@/services/project'
 import { fetchMembers } from '@/services/workspace'
 import { useAiStore } from '@/stores/ai'
 import type {
@@ -10,7 +10,7 @@ import type {
   BugPriority,
   BugSeverity,
   BugType,
-  TestCaseModule,
+  ProjectModule,
   TestPlanListItem,
   WorkspaceMember,
 } from '@/types'
@@ -64,10 +64,11 @@ const form = reactive({
 const severityLabel: Record<BugSeverity, string> = { fatal: '致命', serious: '严重', general: '一般', minor: '轻微' }
 const priorityLabel: Record<BugPriority, string> = { high: '高', medium: '中', low: '低' }
 
-const moduleTree = ref<TestCaseModule[]>([])
+// 所属模块仅目录可选（后端按 project_module 校验），不带 assetType 即纯目录树
+const moduleTree = ref<ProjectModule[]>([])
 async function loadModuleTree() {
   try {
-    moduleTree.value = await fetchModuleTree()
+    moduleTree.value = await fetchProjectModuleTree()
   } catch { /* ignore */ }
 }
 loadModuleTree()
