@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import RequirementSelector from '@/components/project/RequirementSelector.vue'
 import { planRecommend, type AiCasePlanRecommendReq } from '@/services/ai'
@@ -121,29 +121,33 @@ function handleBringIn(): void {
   emit('bring-in', items.map((item) => item.caseNodeId))
 }
 
-// 抽屉关闭不保留本次推荐结果（交互设计 6.2），并中止进行中的长调用
+// 抽屉关闭不保留本次推荐结果（交互设计 6.2），并中止进行中的长调用；
+// watch 而非关闭按钮回调：父组件程序化关闭（如加入成功后）同样触发清理
 function handleClosed(): void {
   cancelRecommend()
   result.value = null
   checkedIndexes.value = new Set()
 }
 
+watch(visible, (open) => {
+  if (!open) handleClosed()
+})
+
 onBeforeUnmount(() => controller?.abort())
 </script>
 
 <template>
-  <el-drawer
-    v-model="visible"
-    size="640px"
-    :close-on-click-modal="true"
-    modal-class="cpr-drawer-modal"
-    @closed="handleClosed"
-  >
-    <template #header>
-      <span class="cpr-title"><el-icon><MagicStick /></el-icon> AI 推荐用例</span>
-    </template>
+  <!-- 非阻断侧滑面板：同 AiGeneratePanel——el-drawer 的 overlay 在 modal=false 下仍拦截整页点击、
+       focus-trap 会劫持外部键盘焦点（均无 prop 可关）；自绘 fixed 容器让推荐期间页面完全可操作 -->
+  <transition name="cpr-slide">
+    <aside v-show="visible" class="cpr-drawer" role="dialog" aria-label="AI 推荐用例">
+      <header class="cpr-drawer__header">
+        <span class="cpr-title"><el-icon><MagicStick /></el-icon> AI 推荐用例</span>
+        <el-button link @click="visible = false"><el-icon><Close /></el-icon></el-button>
+      </header>
 
-    <div class="cpr">
+      <div class="cpr-drawer__body">
+        <div class="cpr">
       <!-- 需求输入：条目 / 文本至少一项非空（详细设计 3.5）；按钮三区职责化：选取随字段行，发起在操作行 -->
       <div class="cpr-inputs">
         <div class="cpr-field">
@@ -234,31 +238,71 @@ onBeforeUnmount(() => controller?.abort())
         </div>
         <el-empty v-else description="未发现推荐用例" :image-size="72" />
       </template>
-    </div>
+        </div>
+      </div>
 
-    <template #footer>
-      <el-button
-        v-if="result"
-        type="primary"
-        :disabled="!checkedItems.length"
-        @click="handleBringIn"
-      >
-        {{ actionLabel }}（{{ checkedItems.length }}）
-      </el-button>
-    </template>
+      <footer v-if="result" class="cpr-drawer__footer">
+        <el-button type="primary" :disabled="!checkedItems.length" @click="handleBringIn">
+          {{ actionLabel }}（{{ checkedItems.length }}）
+        </el-button>
+      </footer>
+    </aside>
+  </transition>
 
-    <RequirementSelector
-      v-model="reqSelectorVisible"
-      :selected-ids="requirementIds"
-      @confirm="handleRequirementConfirm"
-    />
-  </el-drawer>
+  <RequirementSelector
+    v-model="reqSelectorVisible"
+    :selected-ids="requirementIds"
+    @confirm="handleRequirementConfirm"
+  />
 </template>
 
 <style scoped lang="scss">
-/* 透明遮罩：不压暗画布（交互设计 6.2）；关闭走标题栏 ✕，点击遮罩不关闭 */
-:deep(.cpr-drawer-modal) {
-  background: transparent;
+/* 非阻断侧滑面板：fixed 悬浮于页面之上，不渲染任何遮罩层，页面其余区域保持可交互（同 AiGeneratePanel） */
+.cpr-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 2001;
+  display: flex;
+  flex-direction: column;
+  width: 640px;
+  max-width: 90vw;
+  background: var(--el-bg-color);
+  box-shadow: var(--el-box-shadow-light);
+}
+
+.cpr-drawer__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--el-border-color-light);
+}
+
+.cpr-drawer__body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 16px 20px;
+}
+
+.cpr-drawer__footer {
+  display: flex;
+  justify-content: flex-end;
+  padding: 12px 20px;
+  border-top: 1px solid var(--el-border-color-light);
+}
+
+/* 右侧滑入/滑出，观感与 el-drawer 一致 */
+.cpr-slide-enter-active,
+.cpr-slide-leave-active {
+  transition: transform 0.3s ease;
+}
+
+.cpr-slide-enter-from,
+.cpr-slide-leave-to {
+  transform: translateX(100%);
 }
 
 .cpr-title {

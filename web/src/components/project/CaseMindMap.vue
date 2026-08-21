@@ -987,7 +987,7 @@ defineExpose({ openAiGenerateWithText })
       <div class="mindmap-context-menu__item mindmap-context-menu__item--danger menu-action" @click="deleteNode"><span>删除节点</span><span class="menu-shortcut">Delete</span></div>
     </MinderContextMenu>
 
-    <!-- AI 生成用例抽屉（常驻挂载，关闭仅隐藏、会话保留，仅切换文档重置）：右侧滑出、透明遮罩不压暗画布，预览为本地快照不落库（交互设计 2.1/2.2） -->
+    <!-- AI 生成用例面板（常驻挂载，关闭仅隐藏、会话保留，仅切换文档重置）：右侧滑出且无遮罩，生成期间画布仍可操作；预览为本地快照不落库（交互设计 2.1/2.2） -->
     <AiGeneratePanel
       v-model="aiGenerateVisible"
       mode="generate"
