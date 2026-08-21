@@ -6,13 +6,13 @@ import io.github.xiaomisum.robotest.model.entity.admin.SysUser;
 import io.github.xiaomisum.robotest.model.entity.bug.Bug;
 import io.github.xiaomisum.robotest.model.entity.plan.TestPlan;
 import io.github.xiaomisum.robotest.model.entity.review.TestReview;
-import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseModule;
+import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseDocument;
 import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseNode;
 import io.github.xiaomisum.robotest.repository.workspace.ProjectMapper;
 import io.github.xiaomisum.robotest.repository.admin.SysUserMapper;
 import io.github.xiaomisum.robotest.repository.bug.BugMapper;
 import io.github.xiaomisum.robotest.repository.plan.TestPlanMapper;
-import io.github.xiaomisum.robotest.repository.tcase.TestCaseModuleMapper;
+import io.github.xiaomisum.robotest.repository.tcase.TestCaseDocumentMapper;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseNodeMapper;
 import io.github.xiaomisum.robotest.repository.review.TestReviewMapper;
 import io.github.xiaomisum.robotest.service.project.ProjectDashboardService;
@@ -30,7 +30,7 @@ import java.util.stream.Collectors;
 public class ProjectDashboardServiceImpl implements ProjectDashboardService {
 
     @Resource
-    private TestCaseModuleMapper testCaseModuleMapper;
+    private TestCaseDocumentMapper testCaseDocumentMapper;
     @Resource
     private TestCaseNodeMapper testCaseNodeMapper;
     @Resource
@@ -47,8 +47,8 @@ public class ProjectDashboardServiceImpl implements ProjectDashboardService {
         ProjectDashboardRespDTO dto = new ProjectDashboardRespDTO();
 
         // Count case nodes belonging to this project's documents
-        List<String> projectDocIds = testCaseModuleMapper.findDocumentModulesByProjectId(projectId)
-                .stream().map(m -> m.getId().toString()).collect(Collectors.toList());
+        List<String> projectDocIds = testCaseDocumentMapper.listByProjectId(projectId)
+                .stream().map(d -> d.getId().toString()).collect(Collectors.toList());
 
         long caseCount = 0;
         if (!projectDocIds.isEmpty()) {

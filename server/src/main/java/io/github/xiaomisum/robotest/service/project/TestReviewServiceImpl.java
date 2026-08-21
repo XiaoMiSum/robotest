@@ -19,7 +19,8 @@ import io.github.xiaomisum.robotest.model.entity.review.TestReview;
 import io.github.xiaomisum.robotest.model.entity.review.TestReviewModuleSnapshot;
 import io.github.xiaomisum.robotest.model.entity.review.TestReviewNodeSnapshot;
 import io.github.xiaomisum.robotest.model.entity.review.TestReviewRecord;
-import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseModule;
+import io.github.xiaomisum.robotest.model.entity.tcase.ProjectModule;
+import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseDocument;
 import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseNode;
 import io.github.xiaomisum.robotest.model.entity.workspace.Project;
 import io.github.xiaomisum.robotest.model.entity.workspace.WorkspaceUser;
@@ -27,7 +28,8 @@ import io.github.xiaomisum.robotest.repository.review.TestReviewMapper;
 import io.github.xiaomisum.robotest.repository.review.TestReviewModuleSnapshotMapper;
 import io.github.xiaomisum.robotest.repository.review.TestReviewNodeSnapshotMapper;
 import io.github.xiaomisum.robotest.repository.review.TestReviewRecordMapper;
-import io.github.xiaomisum.robotest.repository.tcase.TestCaseModuleMapper;
+import io.github.xiaomisum.robotest.repository.tcase.ProjectModuleMapper;
+import io.github.xiaomisum.robotest.repository.tcase.TestCaseDocumentMapper;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseNodeMapper;
 import io.github.xiaomisum.robotest.repository.admin.SysUserMapper;
 import io.github.xiaomisum.robotest.repository.workspace.ProjectMapper;
@@ -59,7 +61,9 @@ public class TestReviewServiceImpl implements TestReviewService {
     @Resource
     private TestReviewRecordMapper reviewRecordMapper;
     @Resource
-    private TestCaseModuleMapper testCaseModuleMapper;
+    private TestCaseDocumentMapper testCaseDocumentMapper;
+    @Resource
+    private ProjectModuleMapper projectModuleMapper;
     @Resource
     private TestCaseNodeMapper testCaseNodeMapper;
     @Resource
@@ -268,15 +272,14 @@ public class TestReviewServiceImpl implements TestReviewService {
         Set<UUID> selectedDocIds = reqDTO.getSelectedNodes().stream()
                 .map(TestReviewCreateReqDTO.SelectedNode::getDocumentId)
                 .collect(Collectors.toSet());
-        Map<UUID, TestCaseModule> docsById = testCaseModuleMapper.listByIds(selectedDocIds).stream()
-                .collect(Collectors.toMap(TestCaseModule::getId, m -> m));
+        Map<UUID, TestCaseDocument> docsById = testCaseDocumentMapper.listByIds(selectedDocIds).stream()
+                .collect(Collectors.toMap(TestCaseDocument::getId, m -> m));
 
         Map<UUID, Set<UUID>> newSelection = new LinkedHashMap<>();
         for (TestReviewCreateReqDTO.SelectedNode sn : reqDTO.getSelectedNodes()) {
-            TestCaseModule doc = docsById.get(sn.getDocumentId());
-            if (doc == null || !doc.getProjectId().equals(review.getProjectId())
-                    || !Constants.ModuleType.DOCUMENT.equals(doc.getType())) {
-                throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_CASE_MODULE_NOT_FOUND);
+            TestCaseDocument doc = docsById.get(sn.getDocumentId());
+            if (doc == null || !doc.getProjectId().equals(review.getProjectId())) {
+                throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_CASE_DOCUMENT_NOT_FOUND);
             }
             newSelection.put(sn.getDocumentId(), new HashSet<>(sn.getCaseIds()));
         }
@@ -593,23 +596,32 @@ public class TestReviewServiceImpl implements TestReviewService {
         // 1. 同步模块快照：名称、排序与原始模块保持一致；已删除的模块移除快照
         List<TestReviewModuleSnapshot> snapshotModules = reviewModuleSnapshotMapper.listByReviewId(reviewId);
 
-        // 批量加载快照引用的原始模块，避免循环内逐条 selectById（N+1）
-        Map<UUID, TestCaseModule> originalModulesById = testCaseModuleMapper
-                .listByIds(snapshotModules.stream()
-                        .map(TestReviewModuleSnapshot::getOriginalModuleId)
-                        .filter(Objects::nonNull)
-                        .collect(Collectors.toSet()))
-                .stream()
-                .collect(Collectors.toMap(TestCaseModule::getId, m -> m));
-
         Set<UUID> validModuleSnapshotIds = new HashSet<>();
         for (TestReviewModuleSnapshot moduleSnap : snapshotModules) {
             if (moduleSnap.getOriginalModuleId() == null) {
                 validModuleSnapshotIds.add(moduleSnap.getId());
                 continue;
             }
-            TestCaseModule originalModule = originalModulesById.get(moduleSnap.getOriginalModuleId());
-            if (originalModule == null || originalModule.getIsDeleted()) {
+            // 根据快照类型查不同表：document→test_case_document, directory→project_module
+            String name = null;
+            Integer sortOrder = null;
+            Boolean isDeleted = null;
+            if (Constants.ModuleType.DOCUMENT.equals(moduleSnap.getType())) {
+                TestCaseDocument doc = testCaseDocumentMapper.selectById(moduleSnap.getOriginalModuleId());
+                if (doc != null) {
+                    name = doc.getName();
+                    sortOrder = doc.getSortOrder();
+                    isDeleted = doc.getIsDeleted();
+                }
+            } else {
+                ProjectModule mod = projectModuleMapper.selectById(moduleSnap.getOriginalModuleId());
+                if (mod != null) {
+                    name = mod.getName();
+                    sortOrder = mod.getSortOrder();
+                    isDeleted = mod.getIsDeleted();
+                }
+            }
+            if (name == null || Boolean.TRUE.equals(isDeleted)) {
                 // 原始模块已删除，移除对应的模块快照和节点快照
                 reviewModuleSnapshotMapper.deleteById(moduleSnap.getId());
                 for (TestReviewNodeSnapshot nodeSnap : snapshotNodes) {
@@ -621,8 +633,8 @@ public class TestReviewServiceImpl implements TestReviewService {
                 // 原始模块仍存在，同步名称和排序；载体只携带同步字段，避免整行覆盖并发变更
                 TestReviewModuleSnapshot moduleUpdate = new TestReviewModuleSnapshot();
                 moduleUpdate.setId(moduleSnap.getId());
-                moduleUpdate.setName(originalModule.getName());
-                moduleUpdate.setSortOrder(originalModule.getSortOrder());
+                moduleUpdate.setName(name);
+                moduleUpdate.setSortOrder(sortOrder);
                 reviewModuleSnapshotMapper.updateById(moduleUpdate);
                 validModuleSnapshotIds.add(moduleSnap.getId());
             }
@@ -686,17 +698,36 @@ public class TestReviewServiceImpl implements TestReviewService {
                 }
                 copiedModuleIds.add(moduleId);
 
-                TestCaseModule original = testCaseModuleMapper.selectById(moduleId);
-                if (original == null) {
+                // 根据路径节点类型查不同表：document→test_case_document, directory→project_module
+                String name = null;
+                UUID parentId = null;
+                Integer sortOrder = null;
+                String type = null;
+                TestCaseDocument doc = testCaseDocumentMapper.selectById(moduleId);
+                if (doc != null) {
+                    name = doc.getName();
+                    parentId = doc.getModuleId();
+                    sortOrder = doc.getSortOrder();
+                    type = Constants.ModuleType.DOCUMENT;
+                } else {
+                    ProjectModule mod = projectModuleMapper.selectById(moduleId);
+                    if (mod != null) {
+                        name = mod.getName();
+                        parentId = mod.getParentId();
+                        sortOrder = mod.getSortOrder();
+                        type = Constants.ModuleType.DIRECTORY;
+                    }
+                }
+                if (name == null) {
                     continue;
                 }
                 TestReviewModuleSnapshot snapshot = new TestReviewModuleSnapshot();
                 snapshot.setReviewId(reviewId);
-                snapshot.setOriginalModuleId(original.getId());
-                snapshot.setParentId(findCopiedParentId(original.getParentId(), copiedModuleIds, reviewId));
-                snapshot.setName(original.getName());
-                snapshot.setType(original.getType());
-                snapshot.setSortOrder(original.getSortOrder());
+                snapshot.setOriginalModuleId(moduleId);
+                snapshot.setParentId(findCopiedParentId(parentId, copiedModuleIds, reviewId));
+                snapshot.setName(name);
+                snapshot.setType(type);
+                snapshot.setSortOrder(sortOrder);
                 reviewModuleSnapshotMapper.insert(snapshot);
             }
 
@@ -720,11 +751,15 @@ public class TestReviewServiceImpl implements TestReviewService {
         UUID currentId = documentId;
         while (currentId != null) {
             path.add(0, currentId);
-            TestCaseModule module = testCaseModuleMapper.selectById(currentId);
-            if (module == null) {
-                break;
+            // 尝试 project_module（目录节点）
+            ProjectModule module = projectModuleMapper.selectById(currentId);
+            if (module != null) {
+                currentId = module.getParentId();
+                continue;
             }
-            currentId = module.getParentId();
+            // 尝试 test_case_document（文档节点，叶子节点）
+            TestCaseDocument doc = testCaseDocumentMapper.selectById(currentId);
+            currentId = doc != null ? doc.getModuleId() : null;
         }
         return path;
     }

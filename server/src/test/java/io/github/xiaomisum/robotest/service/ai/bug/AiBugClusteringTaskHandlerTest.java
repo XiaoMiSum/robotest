@@ -7,11 +7,12 @@ import io.github.xiaomisum.robotest.model.dto.response.ai.AiStatusRespDTO;
 import io.github.xiaomisum.robotest.model.entity.ai.AiAnalysisTask;
 import io.github.xiaomisum.robotest.model.entity.ai.BugEmbedding;
 import io.github.xiaomisum.robotest.model.entity.bug.Bug;
-import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseModule;
+import io.github.xiaomisum.robotest.model.entity.tcase.ProjectModule;
 import io.github.xiaomisum.robotest.repository.ai.AiAnalysisTaskMapper;
 import io.github.xiaomisum.robotest.repository.ai.BugEmbeddingMapper;
 import io.github.xiaomisum.robotest.repository.bug.BugMapper;
-import io.github.xiaomisum.robotest.repository.tcase.TestCaseModuleMapper;
+import io.github.xiaomisum.robotest.repository.tcase.ProjectModuleMapper;
+import io.github.xiaomisum.robotest.repository.tcase.TestCaseDocumentMapper;
 import io.github.xiaomisum.robotest.service.ai.gateway.AiConfigService;
 import io.github.xiaomisum.robotest.service.ai.gateway.AiGatewayService;
 import io.github.xiaomisum.robotest.service.ai.vector.AiVectorSearchService;
@@ -57,7 +58,9 @@ class AiBugClusteringTaskHandlerTest {
     @Mock
     private BugEmbeddingMapper bugEmbeddingMapper;
     @Mock
-    private TestCaseModuleMapper testCaseModuleMapper;
+    private ProjectModuleMapper projectModuleMapper;
+    @Mock
+    private TestCaseDocumentMapper testCaseDocumentMapper;
     @Mock
     private AiVectorSearchService vectorSearchService;
     @Mock
@@ -146,10 +149,10 @@ class AiBugClusteringTaskHandlerTest {
         semantic(Constants.AiSemanticSearch.AVAILABLE);
         settings(10);
         heartbeatOk();
-        TestCaseModule module = new TestCaseModule();
+        ProjectModule module = new ProjectModule();
         module.setId(MODULE_ID);
         module.setName("登录模块");
-        when(testCaseModuleMapper.selectBatchIds(List.of(MODULE_ID))).thenReturn(List.of(module));
+        when(projectModuleMapper.selectBatchIds(List.of(MODULE_ID))).thenReturn(List.of(module));
         when(bugMapper.findOpenBugsForClustering(PROJECT_ID)).thenReturn(bugs);
         when(aiGatewayService.completeStructured(
                 any(), eq(AiFunctionType.BUG_CLUSTERING), any(), any(), any(),
@@ -341,10 +344,10 @@ class AiBugClusteringTaskHandlerTest {
         semantic(Constants.AiSemanticSearch.UNAVAILABLE);
         keywordSettings(10);
         heartbeatOk();
-        TestCaseModule module = new TestCaseModule();
+        ProjectModule module = new ProjectModule();
         module.setId(MODULE_ID);
         module.setName("登录模块");
-        when(testCaseModuleMapper.selectBatchIds(List.of(MODULE_ID))).thenReturn(List.of(module));
+        when(projectModuleMapper.selectBatchIds(List.of(MODULE_ID))).thenReturn(List.of(module));
         when(bugMapper.findOpenBugsForClustering(PROJECT_ID)).thenReturn(bugs);
         when(aiGatewayService.completeStructured(
                 any(), eq(AiFunctionType.BUG_CLUSTERING), any(), any(), any(),

@@ -1,9 +1,8 @@
 package io.github.xiaomisum.robotest.framework.security;
 
-import io.github.xiaomisum.robotest.framework.common.Constants;
-import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseModule;
+import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseDocument;
 import io.github.xiaomisum.robotest.model.entity.workspace.Project;
-import io.github.xiaomisum.robotest.repository.tcase.TestCaseModuleMapper;
+import io.github.xiaomisum.robotest.repository.tcase.TestCaseDocumentMapper;
 import io.github.xiaomisum.robotest.repository.workspace.ProjectMapper;
 import io.github.xiaomisum.robotest.repository.workspace.WorkspaceUserMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -36,7 +35,7 @@ class ProjectAccessGuardTest {
     @Mock
     private WorkspaceUserMapper workspaceUserMapper;
     @Mock
-    private TestCaseModuleMapper testCaseModuleMapper;
+    private TestCaseDocumentMapper testCaseDocumentMapper;
 
     @InjectMocks
     private ProjectAccessGuard guard;
@@ -90,27 +89,23 @@ class ProjectAccessGuardTest {
 
     @Test
     void isDocumentMember_moduleNotFound_returnsFalse() {
-        when(testCaseModuleMapper.selectById(DOC_ID)).thenReturn(null);
+        when(testCaseDocumentMapper.selectById(DOC_ID)).thenReturn(null);
 
         assertFalse(guard.isDocumentMember(DOC_ID, USER_ID.toString()));
     }
 
     @Test
     void isDocumentMember_moduleNotDocumentType_returnsFalse() {
-        TestCaseModule folder = new TestCaseModule();
-        folder.setId(DOC_ID);
-        folder.setProjectId(PROJECT_ID);
-        folder.setType("folder");
-
-        when(testCaseModuleMapper.selectById(DOC_ID)).thenReturn(folder);
+        // TestCaseDocument 无 type 字段（恒为文档），该场景等价于文档不存在
+        when(testCaseDocumentMapper.selectById(DOC_ID)).thenReturn(null);
 
         assertFalse(guard.isDocumentMember(DOC_ID, USER_ID.toString()));
     }
 
     @Test
     void isDocumentMember_projectNotFound_returnsFalse() {
-        TestCaseModule document = documentModule();
-        when(testCaseModuleMapper.selectById(DOC_ID)).thenReturn(document);
+        TestCaseDocument document = documentModule();
+        when(testCaseDocumentMapper.selectById(DOC_ID)).thenReturn(document);
         when(projectMapper.selectById(PROJECT_ID)).thenReturn(null);
 
         assertFalse(guard.isDocumentMember(DOC_ID, USER_ID.toString()));
@@ -118,8 +113,8 @@ class ProjectAccessGuardTest {
 
     @Test
     void isDocumentMember_malformedUserId_returnsFalse() {
-        TestCaseModule document = documentModule();
-        when(testCaseModuleMapper.selectById(DOC_ID)).thenReturn(document);
+        TestCaseDocument document = documentModule();
+        when(testCaseDocumentMapper.selectById(DOC_ID)).thenReturn(document);
         when(projectMapper.selectById(PROJECT_ID)).thenReturn(project);
 
         // 非法 UUID 的会话用户 ID 视为无权限，不得抛异常
@@ -128,8 +123,8 @@ class ProjectAccessGuardTest {
 
     @Test
     void isDocumentMember_member_returnsTrue() {
-        TestCaseModule document = documentModule();
-        when(testCaseModuleMapper.selectById(DOC_ID)).thenReturn(document);
+        TestCaseDocument document = documentModule();
+        when(testCaseDocumentMapper.selectById(DOC_ID)).thenReturn(document);
         when(projectMapper.selectById(PROJECT_ID)).thenReturn(project);
         when(workspaceUserMapper.existsByWorkspaceIdAndUserId(WORKSPACE_ID, USER_ID)).thenReturn(true);
 
@@ -138,19 +133,18 @@ class ProjectAccessGuardTest {
 
     @Test
     void isDocumentMember_notWorkspaceMember_returnsFalse() {
-        TestCaseModule document = documentModule();
-        when(testCaseModuleMapper.selectById(DOC_ID)).thenReturn(document);
+        TestCaseDocument document = documentModule();
+        when(testCaseDocumentMapper.selectById(DOC_ID)).thenReturn(document);
         when(projectMapper.selectById(PROJECT_ID)).thenReturn(project);
         when(workspaceUserMapper.existsByWorkspaceIdAndUserId(WORKSPACE_ID, USER_ID)).thenReturn(false);
 
         assertFalse(guard.isDocumentMember(DOC_ID, USER_ID.toString()));
     }
 
-    private TestCaseModule documentModule() {
-        TestCaseModule document = new TestCaseModule();
+    private TestCaseDocument documentModule() {
+        TestCaseDocument document = new TestCaseDocument();
         document.setId(DOC_ID);
         document.setProjectId(PROJECT_ID);
-        document.setType(Constants.ModuleType.DOCUMENT);
         return document;
     }
 }

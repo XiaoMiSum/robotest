@@ -5,11 +5,9 @@ import io.github.xiaomisum.robotest.model.dto.request.tcase.TestCaseNodeUpdateRe
 import io.github.xiaomisum.robotest.model.dto.response.tcase.TestCaseCaseListRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.tcase.TestCaseDocumentNodesRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.tcase.TestCaseNodeTreeRespDTO;
-import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseDocumentLayout;
-import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseModule;
+import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseDocument;
 import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseNode;
-import io.github.xiaomisum.robotest.repository.tcase.TestCaseDocumentLayoutMapper;
-import io.github.xiaomisum.robotest.repository.tcase.TestCaseModuleMapper;
+import io.github.xiaomisum.robotest.repository.tcase.TestCaseDocumentMapper;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseNodeMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -37,9 +35,7 @@ class TestCaseNodeServiceImplTest {
     @Mock
     private TestCaseNodeMapper testCaseNodeMapper;
     @Mock
-    private TestCaseDocumentLayoutMapper testCaseDocumentLayoutMapper;
-    @Mock
-    private TestCaseModuleMapper testCaseModuleMapper;
+    private TestCaseDocumentMapper testCaseDocumentMapper;
     @Mock
     private ProjectAccessGuard projectAccessGuard;
 
@@ -60,12 +56,16 @@ class TestCaseNodeServiceImplTest {
     @Test
     void getDocumentNodes_success() {
         UUID projectId = UUID.fromString("00000000-0000-0000-0000-000000000010");
-        TestCaseModule doc = new TestCaseModule();
+        LinkedHashMap<String, Object> layoutMap = new LinkedHashMap<>();
+        layoutMap.put("x", 0);
+        layoutMap.put("y", 0);
+
+        TestCaseDocument doc = new TestCaseDocument();
         doc.setId(documentId);
         doc.setProjectId(projectId);
-        doc.setType("document");
 
-        when(testCaseModuleMapper.selectById(documentId)).thenReturn(doc);
+        when(testCaseDocumentMapper.selectById(documentId)).thenReturn(doc);
+        when(testCaseDocumentMapper.getLayout(documentId)).thenReturn(layoutMap);
 
         TestCaseNode root = new TestCaseNode();
         root.setId(UUID.fromString("00000000-0000-0000-0000-000000000003"));
@@ -79,16 +79,6 @@ class TestCaseNodeServiceImplTest {
         when(testCaseNodeMapper.listByDocumentId(documentId))
                 .thenReturn(List.of(root));
 
-        TestCaseDocumentLayout layout = new TestCaseDocumentLayout();
-        layout.setId(UUID.fromString("00000000-0000-0000-0000-000000000004"));
-        layout.setDocumentId(documentId);
-        LinkedHashMap<String, Object> layoutMap = new LinkedHashMap<>();
-        layoutMap.put("x", 0);
-        layoutMap.put("y", 0);
-        layout.setLayoutJson(layoutMap);
-        when(testCaseDocumentLayoutMapper.findByDocumentId(documentId))
-                .thenReturn(layout);
-
         TestCaseDocumentNodesRespDTO result = nodeService.getDocumentNodes(documentId, userId);
 
         assertNotNull(result);
@@ -101,16 +91,14 @@ class TestCaseNodeServiceImplTest {
     @Test
     void getDocumentNodes_noLayout() {
         UUID projectId = UUID.fromString("00000000-0000-0000-0000-000000000010");
-        TestCaseModule doc = new TestCaseModule();
+        TestCaseDocument doc = new TestCaseDocument();
         doc.setId(documentId);
         doc.setProjectId(projectId);
-        doc.setType("document");
 
-        when(testCaseModuleMapper.selectById(documentId)).thenReturn(doc);
+        when(testCaseDocumentMapper.selectById(documentId)).thenReturn(doc);
+        when(testCaseDocumentMapper.getLayout(documentId)).thenReturn(null);
         when(testCaseNodeMapper.listByDocumentId(documentId))
                 .thenReturn(Collections.emptyList());
-        when(testCaseDocumentLayoutMapper.findByDocumentId(documentId))
-                .thenReturn(null);
 
         TestCaseDocumentNodesRespDTO result = nodeService.getDocumentNodes(documentId, userId);
 
@@ -121,7 +109,7 @@ class TestCaseNodeServiceImplTest {
 
     @Test
     void getDocumentNodes_notFound_throws() {
-        when(testCaseModuleMapper.selectById(documentId)).thenReturn(null);
+        when(testCaseDocumentMapper.selectById(documentId)).thenReturn(null);
 
         assertThrows(ServiceException.class,
                 () -> nodeService.getDocumentNodes(documentId, userId));
@@ -130,11 +118,8 @@ class TestCaseNodeServiceImplTest {
 
     @Test
     void getDocumentNodes_notDocumentType_throws() {
-        TestCaseModule module = new TestCaseModule();
-        module.setId(documentId);
-        module.setType("directory");
-
-        when(testCaseModuleMapper.selectById(documentId)).thenReturn(module);
+        // TestCaseDocument 无 type 字段（恒为文档），该场景等价于文档不存在
+        when(testCaseDocumentMapper.selectById(documentId)).thenReturn(null);
 
         assertThrows(ServiceException.class,
                 () -> nodeService.getDocumentNodes(documentId, userId));
@@ -144,11 +129,10 @@ class TestCaseNodeServiceImplTest {
     @Test
     void getCaseDetail_success() {
         UUID projectId = UUID.fromString("00000000-0000-0000-0000-000000000010");
-        TestCaseModule doc = new TestCaseModule();
+        TestCaseDocument doc = new TestCaseDocument();
         doc.setId(documentId);
         doc.setProjectId(projectId);
-        doc.setType("document");
-        when(testCaseModuleMapper.selectById(documentId)).thenReturn(doc);
+        when(testCaseDocumentMapper.selectById(documentId)).thenReturn(doc);
 
         TestCaseNode node = new TestCaseNode();
         node.setId(caseId);
@@ -209,10 +193,10 @@ class TestCaseNodeServiceImplTest {
     void getCaseList_success() {
         UUID projId = UUID.fromString("00000000-0000-0000-0000-000000000008");
 
-        TestCaseModule doc = new TestCaseModule();
+        TestCaseDocument doc = new TestCaseDocument();
         doc.setId(documentId);
         doc.setName("Doc 1");
-        when(testCaseModuleMapper.findDocumentModulesByProjectId(projId))
+        when(testCaseDocumentMapper.listByProjectId(projId))
                 .thenReturn(List.of(doc));
 
         TestCaseNode node = new TestCaseNode();
@@ -241,7 +225,7 @@ class TestCaseNodeServiceImplTest {
     @Test
     void getCaseList_noDocuments() {
         UUID projId = UUID.fromString("00000000-0000-0000-0000-000000000008");
-        when(testCaseModuleMapper.findDocumentModulesByProjectId(projId))
+        when(testCaseDocumentMapper.listByProjectId(projId))
                 .thenReturn(Collections.emptyList());
 
         PageResult<TestCaseCaseListRespDTO> result = nodeService.getCaseList(
@@ -258,11 +242,10 @@ class TestCaseNodeServiceImplTest {
     @Test
     void updateCaseNode_success() {
         UUID projectId = UUID.fromString("00000000-0000-0000-0000-000000000010");
-        TestCaseModule doc = new TestCaseModule();
+        TestCaseDocument doc = new TestCaseDocument();
         doc.setId(documentId);
         doc.setProjectId(projectId);
-        doc.setType("document");
-        when(testCaseModuleMapper.selectById(documentId)).thenReturn(doc);
+        when(testCaseDocumentMapper.selectById(documentId)).thenReturn(doc);
 
         TestCaseNode node = new TestCaseNode();
         node.setId(caseId);

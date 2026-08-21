@@ -15,7 +15,8 @@ import io.github.xiaomisum.robotest.model.entity.review.TestReview;
 import io.github.xiaomisum.robotest.model.entity.review.TestReviewModuleSnapshot;
 import io.github.xiaomisum.robotest.model.entity.review.TestReviewNodeSnapshot;
 import io.github.xiaomisum.robotest.model.entity.review.TestReviewRecord;
-import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseModule;
+import io.github.xiaomisum.robotest.model.entity.tcase.ProjectModule;
+import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseDocument;
 import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseNode;
 import io.github.xiaomisum.robotest.model.entity.workspace.Project;
 import io.github.xiaomisum.robotest.model.entity.workspace.WorkspaceUser;
@@ -23,7 +24,8 @@ import io.github.xiaomisum.robotest.repository.review.TestReviewMapper;
 import io.github.xiaomisum.robotest.repository.review.TestReviewModuleSnapshotMapper;
 import io.github.xiaomisum.robotest.repository.review.TestReviewNodeSnapshotMapper;
 import io.github.xiaomisum.robotest.repository.review.TestReviewRecordMapper;
-import io.github.xiaomisum.robotest.repository.tcase.TestCaseModuleMapper;
+import io.github.xiaomisum.robotest.repository.tcase.ProjectModuleMapper;
+import io.github.xiaomisum.robotest.repository.tcase.TestCaseDocumentMapper;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseNodeMapper;
 import io.github.xiaomisum.robotest.repository.admin.SysUserMapper;
 import io.github.xiaomisum.robotest.repository.workspace.ProjectMapper;
@@ -64,7 +66,9 @@ class TestReviewServiceImplTest {
         @Mock
         private TestReviewRecordMapper reviewRecordMapper;
         @Mock
-        private TestCaseModuleMapper testCaseModuleMapper;
+        private TestCaseDocumentMapper testCaseDocumentMapper;
+        @Mock
+        private ProjectModuleMapper projectModuleMapper;
         @Mock
         private TestCaseNodeMapper testCaseNodeMapper;
         @Mock
@@ -351,11 +355,10 @@ class TestReviewServiceImplTest {
                 review.setStatus("in_progress");
                 when(testReviewMapper.selectById(reviewId)).thenReturn(review);
 
-                TestCaseModule docModuleB = new TestCaseModule();
+                TestCaseDocument docModuleB = new TestCaseDocument();
                 docModuleB.setId(docB);
                 docModuleB.setProjectId(projectId);
-                docModuleB.setType("document");
-                when(testCaseModuleMapper.listByIds(anyCollection()))
+                when(testCaseDocumentMapper.listByIds(anyCollection()))
                                 .thenReturn(List.of(docModuleB));
 
                 TestReviewModuleSnapshot snapA = new TestReviewModuleSnapshot();
@@ -871,13 +874,13 @@ class TestReviewServiceImplTest {
                 when(reviewNodeSnapshotMapper.listByReviewId(reviewId))
                                 .thenReturn(new ArrayList<>());
 
-                TestCaseModule originalModule = new TestCaseModule();
+                ProjectModule originalModule = new ProjectModule();
                 originalModule.setId(UUID.fromString("00000000-0000-0000-0000-000000000010"));
                 originalModule.setName("new name");
                 originalModule.setSortOrder(2);
                 originalModule.setIsDeleted(false);
-                when(testCaseModuleMapper.listByIds(anyCollection()))
-                                .thenReturn(List.of(originalModule));
+                when(projectModuleMapper.selectById(UUID.fromString("00000000-0000-0000-0000-000000000010")))
+                                .thenReturn(originalModule);
 
                 reviewService.syncReview(reviewId, userId);
 
@@ -905,8 +908,8 @@ class TestReviewServiceImplTest {
                                 .thenReturn(List.of(moduleSnap));
                 when(reviewNodeSnapshotMapper.listByReviewId(reviewId))
                                 .thenReturn(new ArrayList<>());
-                when(testCaseModuleMapper.listByIds(anyCollection()))
-                                .thenReturn(List.of());
+                when(projectModuleMapper.selectById(UUID.fromString("00000000-0000-0000-0000-000000000010")))
+                                .thenReturn(null);
 
                 reviewService.syncReview(reviewId, userId);
 
@@ -936,8 +939,8 @@ class TestReviewServiceImplTest {
                                 .thenReturn(List.of(moduleSnap));
                 when(reviewNodeSnapshotMapper.listByReviewId(reviewId))
                                 .thenReturn(List.of(nodeSnap));
-                when(testCaseModuleMapper.listByIds(anyCollection()))
-                                .thenReturn(List.of());
+                when(projectModuleMapper.selectById(UUID.fromString("00000000-0000-0000-0000-000000000010")))
+                                .thenReturn(null);
 
                 reviewService.syncReview(reviewId, userId);
 

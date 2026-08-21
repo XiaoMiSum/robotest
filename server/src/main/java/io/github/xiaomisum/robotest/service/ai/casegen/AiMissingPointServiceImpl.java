@@ -4,9 +4,10 @@ import io.github.xiaomisum.robotest.framework.common.AiFunctionType;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.model.dto.request.ai.AiMissingPointReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiMissingPointRespDTO;
-import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseModule;
+import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseDocument;
 import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseNode;
-import io.github.xiaomisum.robotest.repository.tcase.TestCaseModuleMapper;
+import io.github.xiaomisum.robotest.repository.tcase.ProjectModuleMapper;
+import io.github.xiaomisum.robotest.repository.tcase.TestCaseDocumentMapper;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseNodeMapper;
 import io.github.xiaomisum.robotest.service.ai.gateway.AiGatewayService;
 import io.github.xiaomisum.robotest.service.ai.model.AiModels.AiCallContext;
@@ -17,6 +18,7 @@ import io.github.xiaomisum.robotest.service.ai.support.AiKeywordExtractor;
 import io.github.xiaomisum.robotest.service.ai.support.AiModuleTreeSupport;
 import io.github.xiaomisum.robotest.service.ai.support.AiOutputValidator;
 import io.github.xiaomisum.robotest.service.ai.support.AiRequirementContextAssembler;
+import io.github.xiaomisum.robotest.service.ai.support.ModuleTreeNode;
 import jakarta.annotation.Resource;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -69,7 +71,9 @@ public class AiMissingPointServiceImpl implements AiMissingPointService {
     @Resource
     private AiKeywordExtractor aiKeywordExtractor;
     @Resource
-    private TestCaseModuleMapper testCaseModuleMapper;
+    private ProjectModuleMapper projectModuleMapper;
+    @Resource
+    private TestCaseDocumentMapper testCaseDocumentMapper;
     @Resource
     private TestCaseNodeMapper testCaseNodeMapper;
     @Resource
@@ -119,12 +123,15 @@ public class AiMissingPointServiceImpl implements AiMissingPointService {
         if (effective.isEmpty()) {
             return List.of();
         }
-        List<TestCaseModule> documents = testCaseModuleMapper.findDocumentModulesByProjectId(projectId);
-        List<UUID> documentIds = documents.stream().map(TestCaseModule::getId).toList();
+        List<TestCaseDocument> documents = testCaseDocumentMapper.listByProjectId(projectId);
+        List<UUID> documentIds = documents.stream().map(TestCaseDocument::getId).toList();
         if (documentIds.isEmpty()) {
             return List.of();
         }
-        Map<UUID, String> modulePathById = AiModuleTreeSupport.buildModulePaths(testCaseModuleMapper.listByProjectId(projectId));
+        List<ModuleTreeNode> allNodes = new ArrayList<>();
+        projectModuleMapper.listByProjectId(projectId).forEach(m -> allNodes.add(ModuleTreeNode.fromProjectModule(m)));
+        documents.forEach(d -> allNodes.add(ModuleTreeNode.fromTestCaseDocument(d)));
+        Map<UUID, String> modulePathById = AiModuleTreeSupport.buildModulePaths(allNodes);
         Map<UUID, Candidate> candidates = new LinkedHashMap<>();
         for (String keyword : effective) {
             List<TestCaseNode> nodes = testCaseNodeMapper.listCaseNodesByDocumentIdsAndKeyword(

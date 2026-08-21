@@ -6,13 +6,13 @@ import io.github.xiaomisum.robotest.model.dto.request.requirement.RequirementCre
 import io.github.xiaomisum.robotest.model.dto.request.requirement.RequirementUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.entity.requirement.DocumentRequirementRel;
 import io.github.xiaomisum.robotest.model.entity.requirement.RequirementPoolItem;
-import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseModule;
+import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseDocument;
 import io.github.xiaomisum.robotest.model.entity.workspace.Project;
 import io.github.xiaomisum.robotest.model.entity.workspace.WorkspaceUser;
 import io.github.xiaomisum.robotest.repository.admin.SysUserMapper;
 import io.github.xiaomisum.robotest.repository.requirement.DocumentRequirementRelMapper;
 import io.github.xiaomisum.robotest.repository.requirement.RequirementPoolItemMapper;
-import io.github.xiaomisum.robotest.repository.tcase.TestCaseModuleMapper;
+import io.github.xiaomisum.robotest.repository.tcase.TestCaseDocumentMapper;
 import io.github.xiaomisum.robotest.repository.workspace.ProjectMapper;
 import io.github.xiaomisum.robotest.repository.workspace.WorkspaceUserMapper;
 import io.github.xiaomisum.robotest.service.ai.gateway.AiConfigService;
@@ -52,7 +52,7 @@ class RequirementServiceImplTest {
     @Mock
     private DocumentRequirementRelMapper documentRequirementRelMapper;
     @Mock
-    private TestCaseModuleMapper testCaseModuleMapper;
+    private TestCaseDocumentMapper testCaseDocumentMapper;
     @Mock
     private SysUserMapper userMapper;
     @Mock
@@ -295,12 +295,11 @@ class RequirementServiceImplTest {
 
     // ==================== 文档关联（3.1.6） ====================
 
-    private TestCaseModule document(UUID projectId) {
-        TestCaseModule module = new TestCaseModule();
-        module.setId(DOC_ID);
-        module.setProjectId(projectId);
-        module.setType(Constants.ModuleType.DOCUMENT);
-        return module;
+    private TestCaseDocument document(UUID projectId) {
+        TestCaseDocument document = new TestCaseDocument();
+        document.setId(DOC_ID);
+        document.setProjectId(projectId);
+        return document;
     }
 
     private DocumentRequirementRel rel(UUID requirementId) {
@@ -312,13 +311,13 @@ class RequirementServiceImplTest {
 
     @Test
     void getDocumentRequirements_crossProjectDoc_throwsDocNotFound() {
-        when(testCaseModuleMapper.selectById(DOC_ID)).thenReturn(document(UUID.randomUUID()));
+        when(testCaseDocumentMapper.selectById(DOC_ID)).thenReturn(document(UUID.randomUUID()));
         assertThrows(ServiceException.class, () -> service.getDocumentRequirements(DOC_ID, PROJECT_ID));
     }
 
     @Test
     void getDocumentRequirements_skipsDeletedItems() {
-        when(testCaseModuleMapper.selectById(DOC_ID)).thenReturn(document(PROJECT_ID));
+        when(testCaseDocumentMapper.selectById(DOC_ID)).thenReturn(document(PROJECT_ID));
         UUID reqA = UUID.randomUUID();
         UUID reqB = UUID.randomUUID();
         when(documentRequirementRelMapper.listByDocumentId(DOC_ID)).thenReturn(List.of(rel(reqA), rel(reqB)));
@@ -336,7 +335,7 @@ class RequirementServiceImplTest {
     @Test
     void getDocumentRequirements_filtersArchivedItems() {
         // 归档条目不参与 AI 消费：关联记录保留，但摘要过滤不展示（需求规格 3.2.4）
-        when(testCaseModuleMapper.selectById(DOC_ID)).thenReturn(document(PROJECT_ID));
+        when(testCaseDocumentMapper.selectById(DOC_ID)).thenReturn(document(PROJECT_ID));
         UUID reqA = UUID.randomUUID();
         UUID reqB = UUID.randomUUID();
         when(documentRequirementRelMapper.listByDocumentId(DOC_ID)).thenReturn(List.of(rel(reqA), rel(reqB)));
@@ -356,7 +355,7 @@ class RequirementServiceImplTest {
 
     @Test
     void setDocumentRequirements_requirementCrossProject_throwsNotFound() {
-        when(testCaseModuleMapper.selectById(DOC_ID)).thenReturn(document(PROJECT_ID));
+        when(testCaseDocumentMapper.selectById(DOC_ID)).thenReturn(document(PROJECT_ID));
         UUID reqId = UUID.randomUUID();
         RequirementPoolItem foreign = item(UUID.randomUUID(), CREATOR_ID);
         foreign.setId(reqId);
@@ -368,7 +367,7 @@ class RequirementServiceImplTest {
     @Test
     void setDocumentRequirements_archivedItem_throwsNoPermission() {
         // 文档关联仅接受 active 条目：含 archived 拒绝设置（详细设计 3.1.6）
-        when(testCaseModuleMapper.selectById(DOC_ID)).thenReturn(document(PROJECT_ID));
+        when(testCaseDocumentMapper.selectById(DOC_ID)).thenReturn(document(PROJECT_ID));
         UUID reqId = UUID.randomUUID();
         RequirementPoolItem archived = item(PROJECT_ID, CREATOR_ID);
         archived.setId(reqId);
@@ -382,7 +381,7 @@ class RequirementServiceImplTest {
 
     @Test
     void setDocumentRequirements_diffAddsAndRemovesKeepingExisting() {
-        when(testCaseModuleMapper.selectById(DOC_ID)).thenReturn(document(PROJECT_ID));
+        when(testCaseDocumentMapper.selectById(DOC_ID)).thenReturn(document(PROJECT_ID));
         UUID keep = UUID.randomUUID();
         UUID add = UUID.randomUUID();
         UUID remove = UUID.randomUUID();
@@ -406,7 +405,7 @@ class RequirementServiceImplTest {
 
     @Test
     void setDocumentRequirements_emptyTarget_removesAllNoInsert() {
-        when(testCaseModuleMapper.selectById(DOC_ID)).thenReturn(document(PROJECT_ID));
+        when(testCaseDocumentMapper.selectById(DOC_ID)).thenReturn(document(PROJECT_ID));
         UUID existing = UUID.randomUUID();
         when(documentRequirementRelMapper.listByDocumentId(DOC_ID)).thenReturn(List.of(rel(existing)));
 

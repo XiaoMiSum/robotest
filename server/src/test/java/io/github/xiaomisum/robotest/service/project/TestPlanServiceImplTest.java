@@ -14,14 +14,16 @@ import io.github.xiaomisum.robotest.model.entity.plan.TestPlan;
 import io.github.xiaomisum.robotest.model.entity.plan.TestPlanExecutionRecord;
 import io.github.xiaomisum.robotest.model.entity.plan.TestPlanModuleSnapshot;
 import io.github.xiaomisum.robotest.model.entity.plan.TestPlanNodeSnapshot;
-import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseModule;
+import io.github.xiaomisum.robotest.model.entity.tcase.ProjectModule;
+import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseDocument;
 import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseNode;
 import io.github.xiaomisum.robotest.model.entity.workspace.Project;
 import io.github.xiaomisum.robotest.repository.plan.TestPlanMapper;
 import io.github.xiaomisum.robotest.repository.plan.TestPlanModuleSnapshotMapper;
 import io.github.xiaomisum.robotest.repository.plan.TestPlanNodeSnapshotMapper;
 import io.github.xiaomisum.robotest.repository.plan.TestPlanExecutionRecordMapper;
-import io.github.xiaomisum.robotest.repository.tcase.TestCaseModuleMapper;
+import io.github.xiaomisum.robotest.repository.tcase.ProjectModuleMapper;
+import io.github.xiaomisum.robotest.repository.tcase.TestCaseDocumentMapper;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseNodeMapper;
 import io.github.xiaomisum.robotest.repository.admin.SysUserMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -60,7 +62,9 @@ class TestPlanServiceImplTest {
         @Mock
         private TestPlanExecutionRecordMapper planExecutionRecordMapper;
         @Mock
-        private TestCaseModuleMapper testCaseModuleMapper;
+        private TestCaseDocumentMapper testCaseDocumentMapper;
+        @Mock
+        private ProjectModuleMapper projectModuleMapper;
         @Mock
         private TestCaseNodeMapper testCaseNodeMapper;
         @Mock
@@ -779,13 +783,13 @@ class TestPlanServiceImplTest {
                 when(planNodeSnapshotMapper.listByPlanId(planId))
                                 .thenReturn(new ArrayList<>());
 
-                TestCaseModule originalModule = new TestCaseModule();
+                ProjectModule originalModule = new ProjectModule();
                 originalModule.setId(UUID.fromString("00000000-0000-0000-0000-000000000010"));
                 originalModule.setName("new name");
                 originalModule.setSortOrder(2);
                 originalModule.setIsDeleted(false);
-                when(testCaseModuleMapper.listByIds(anyCollection()))
-                                .thenReturn(List.of(originalModule));
+                when(projectModuleMapper.selectById(UUID.fromString("00000000-0000-0000-0000-000000000010")))
+                                .thenReturn(originalModule);
 
                 planService.syncPlan(planId, userId);
 
@@ -813,8 +817,8 @@ class TestPlanServiceImplTest {
                                 .thenReturn(List.of(moduleSnap));
                 when(planNodeSnapshotMapper.listByPlanId(planId))
                                 .thenReturn(new ArrayList<>());
-                when(testCaseModuleMapper.listByIds(anyCollection()))
-                                .thenReturn(List.of());
+                when(projectModuleMapper.selectById(UUID.fromString("00000000-0000-0000-0000-000000000010")))
+                                .thenReturn(null);
 
                 planService.syncPlan(planId, userId);
 
@@ -844,8 +848,8 @@ class TestPlanServiceImplTest {
                                 .thenReturn(List.of(moduleSnap));
                 when(planNodeSnapshotMapper.listByPlanId(planId))
                                 .thenReturn(List.of(nodeSnap));
-                when(testCaseModuleMapper.listByIds(anyCollection()))
-                                .thenReturn(List.of());
+                when(projectModuleMapper.selectById(UUID.fromString("00000000-0000-0000-0000-000000000010")))
+                                .thenReturn(null);
 
                 planService.syncPlan(planId, userId);
 

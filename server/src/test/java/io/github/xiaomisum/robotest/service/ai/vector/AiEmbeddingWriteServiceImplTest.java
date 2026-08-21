@@ -4,13 +4,12 @@ package io.github.xiaomisum.robotest.service.ai.vector;
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.model.entity.ai.BugEmbedding;
 import io.github.xiaomisum.robotest.model.entity.bug.Bug;
-import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseModule;
 import io.github.xiaomisum.robotest.model.entity.workspace.Project;
 import io.github.xiaomisum.robotest.repository.ai.AiAnalysisTaskMapper;
 import io.github.xiaomisum.robotest.repository.ai.BugEmbeddingMapper;
 import io.github.xiaomisum.robotest.repository.ai.CaseEmbeddingMapper;
 import io.github.xiaomisum.robotest.repository.bug.BugMapper;
-import io.github.xiaomisum.robotest.repository.tcase.TestCaseModuleMapper;
+import io.github.xiaomisum.robotest.repository.tcase.TestCaseDocumentMapper;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseNodeMapper;
 import io.github.xiaomisum.robotest.repository.workspace.ProjectMapper;
 import java.time.Duration;
@@ -44,7 +43,7 @@ class AiEmbeddingWriteServiceImplTest {
     @Mock
     private TestCaseNodeMapper testCaseNodeMapper;
     @Mock
-    private TestCaseModuleMapper testCaseModuleMapper;
+    private TestCaseDocumentMapper testCaseDocumentMapper;
     @Mock
     private BugEmbeddingMapper bugEmbeddingMapper;
     @Mock
@@ -149,7 +148,7 @@ class AiEmbeddingWriteServiceImplTest {
         when(vectorSearchService.buildSourceHash(eq("text-embedding-3-small"), eq("标题\n步骤")))
                 .thenReturn("expected-hash");
         when(vectorSearchService.indexBug(bug)).thenReturn(true);
-        when(testCaseModuleMapper.findDocumentModulesByProjectId(project.getId())).thenReturn(List.of());
+        when(testCaseDocumentMapper.listByProjectId(project.getId())).thenReturn(List.of());
 
         service.compensate();
 
@@ -178,7 +177,7 @@ class AiEmbeddingWriteServiceImplTest {
         when(vectorSearchService.buildBugSourceText(bug)).thenReturn("标题\n步骤");
         when(vectorSearchService.buildSourceHash(eq("text-embedding-3-small"), eq("标题\n步骤")))
                 .thenReturn("expected-hash");
-        when(testCaseModuleMapper.findDocumentModulesByProjectId(project.getId())).thenReturn(List.of());
+        when(testCaseDocumentMapper.listByProjectId(project.getId())).thenReturn(List.of());
 
         service.compensate();
 
@@ -195,7 +194,7 @@ class AiEmbeddingWriteServiceImplTest {
                 .thenReturn(true);
         when(valueOps.get("ai:embedding:compensate:lock")).thenReturn("another-instance");
         when(projectMapper.listAll()).thenReturn(List.of(project));
-        when(testCaseModuleMapper.findDocumentModulesByProjectId(project.getId())).thenReturn(List.of());
+        when(testCaseDocumentMapper.listByProjectId(project.getId())).thenReturn(List.of());
 
         service.compensate();
 

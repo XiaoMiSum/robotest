@@ -3,12 +3,12 @@ package io.github.xiaomisum.robotest.service.project;
 import io.github.xiaomisum.robotest.model.dto.response.workspace.ProjectDashboardRespDTO;
 import io.github.xiaomisum.robotest.model.entity.admin.SysUser;
 import io.github.xiaomisum.robotest.model.entity.bug.Bug;
-import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseModule;
+import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseDocument;
 import io.github.xiaomisum.robotest.repository.admin.SysUserMapper;
 import io.github.xiaomisum.robotest.repository.bug.BugMapper;
 import io.github.xiaomisum.robotest.repository.plan.TestPlanMapper;
 import io.github.xiaomisum.robotest.repository.review.TestReviewMapper;
-import io.github.xiaomisum.robotest.repository.tcase.TestCaseModuleMapper;
+import io.github.xiaomisum.robotest.repository.tcase.TestCaseDocumentMapper;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseNodeMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -29,7 +29,7 @@ import static org.mockito.Mockito.when;
 class ProjectDashboardServiceImplTest {
 
     @Mock
-    private TestCaseModuleMapper testCaseModuleMapper;
+    private TestCaseDocumentMapper testCaseDocumentMapper;
     @Mock
     private TestCaseNodeMapper testCaseNodeMapper;
     @Mock
@@ -53,9 +53,9 @@ class ProjectDashboardServiceImplTest {
 
     @Test
     void getDashboard_withData() {
-        TestCaseModule doc = new TestCaseModule();
+        TestCaseDocument doc = new TestCaseDocument();
         doc.setId(UUID.fromString("00000000-0000-0000-0000-000000000001"));
-        when(testCaseModuleMapper.findDocumentModulesByProjectId(projectId))
+        when(testCaseDocumentMapper.listByProjectId(projectId))
                 .thenReturn(List.of(doc));
         when(testCaseNodeMapper.countCaseNodesByDocumentIds(anyList()))
                 .thenReturn(5L);
@@ -86,7 +86,7 @@ class ProjectDashboardServiceImplTest {
 
     @Test
     void getDashboard_noDocuments() {
-        when(testCaseModuleMapper.findDocumentModulesByProjectId(projectId))
+        when(testCaseDocumentMapper.listByProjectId(projectId))
                 .thenReturn(Collections.emptyList());
         when(testReviewMapper.countActiveReviews(projectId))
                 .thenReturn(0L);
@@ -112,7 +112,7 @@ class ProjectDashboardServiceImplTest {
 
     @Test
     void getDashboard_withRecentBugs() {
-        when(testCaseModuleMapper.findDocumentModulesByProjectId(projectId))
+        when(testCaseDocumentMapper.listByProjectId(projectId))
                 .thenReturn(Collections.emptyList());
         when(testReviewMapper.countActiveReviews(projectId))
                 .thenReturn(0L);
@@ -152,7 +152,7 @@ class ProjectDashboardServiceImplTest {
 
     @Test
     void getDashboard_bugsWithoutAssignee() {
-        when(testCaseModuleMapper.findDocumentModulesByProjectId(projectId))
+        when(testCaseDocumentMapper.listByProjectId(projectId))
                 .thenReturn(Collections.emptyList());
         when(testReviewMapper.countActiveReviews(projectId))
                 .thenReturn(0L);

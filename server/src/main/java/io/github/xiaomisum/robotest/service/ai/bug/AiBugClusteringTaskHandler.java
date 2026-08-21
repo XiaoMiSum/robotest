@@ -4,11 +4,10 @@ import io.github.xiaomisum.robotest.framework.common.AiFunctionType;
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.model.entity.ai.AiAnalysisTask;
 import io.github.xiaomisum.robotest.model.entity.bug.Bug;
-import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseModule;
 import io.github.xiaomisum.robotest.repository.ai.AiAnalysisTaskMapper;
 import io.github.xiaomisum.robotest.repository.ai.BugEmbeddingMapper;
 import io.github.xiaomisum.robotest.repository.bug.BugMapper;
-import io.github.xiaomisum.robotest.repository.tcase.TestCaseModuleMapper;
+import io.github.xiaomisum.robotest.repository.tcase.ProjectModuleMapper;
 import io.github.xiaomisum.robotest.service.ai.gateway.AiConfigService;
 import io.github.xiaomisum.robotest.service.ai.gateway.AiGatewayService;
 import io.github.xiaomisum.robotest.service.ai.model.AiModels.AiCallContext;
@@ -76,7 +75,7 @@ public class AiBugClusteringTaskHandler implements AiTaskHandler {
     @Resource
     private BugEmbeddingMapper bugEmbeddingMapper;
     @Resource
-    private TestCaseModuleMapper testCaseModuleMapper;
+    private ProjectModuleMapper projectModuleMapper;
     @Resource
     private AiVectorSearchService vectorSearchService;
     @Resource
@@ -412,9 +411,9 @@ public class AiBugClusteringTaskHandler implements AiTaskHandler {
         }
         Map<UUID, String> names = new HashMap<>();
         if (!moduleIds.isEmpty()) {
-            for (TestCaseModule module : testCaseModuleMapper.selectBatchIds(new ArrayList<>(moduleIds))) {
-                names.put(module.getId(), module.getName());
-            }
+            // bug.module_id 仅指向 project_module（V1.2 起缺陷按目录归属），无需回退查文档表
+            List<UUID> idList = new ArrayList<>(moduleIds);
+            projectModuleMapper.selectBatchIds(idList).forEach(m -> names.put(m.getId(), m.getName()));
         }
         return names;
     }

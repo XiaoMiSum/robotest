@@ -13,14 +13,15 @@ import io.github.xiaomisum.robotest.model.entity.bug.Bug;
 import io.github.xiaomisum.robotest.model.entity.plan.TestPlan;
 import io.github.xiaomisum.robotest.model.entity.plan.TestPlanModuleSnapshot;
 import io.github.xiaomisum.robotest.model.entity.plan.TestPlanNodeSnapshot;
-import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseModule;
+import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseDocument;
 import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseNode;
 import io.github.xiaomisum.robotest.repository.ai.AiAnalysisTaskMapper;
 import io.github.xiaomisum.robotest.repository.bug.BugMapper;
 import io.github.xiaomisum.robotest.repository.plan.TestPlanMapper;
 import io.github.xiaomisum.robotest.repository.plan.TestPlanModuleSnapshotMapper;
 import io.github.xiaomisum.robotest.repository.plan.TestPlanNodeSnapshotMapper;
-import io.github.xiaomisum.robotest.repository.tcase.TestCaseModuleMapper;
+import io.github.xiaomisum.robotest.repository.tcase.ProjectModuleMapper;
+import io.github.xiaomisum.robotest.repository.tcase.TestCaseDocumentMapper;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseNodeMapper;
 import io.github.xiaomisum.robotest.service.ai.gateway.AiConfigService;
 import io.github.xiaomisum.robotest.service.ai.gateway.AiGatewayService;
@@ -30,6 +31,7 @@ import io.github.xiaomisum.robotest.service.ai.model.AiModels.ChatResult;
 import io.github.xiaomisum.robotest.service.ai.support.AiConstants;
 import io.github.xiaomisum.robotest.service.ai.support.AiModuleTreeSupport;
 import io.github.xiaomisum.robotest.service.ai.support.AiPlanOrderScoring;
+import io.github.xiaomisum.robotest.service.ai.support.ModuleTreeNode;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -37,6 +39,7 @@ import org.springframework.util.StringUtils;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
 import xyz.migoo.framework.common.util.JsonUtils;
 
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -82,7 +85,9 @@ public class AiPlanOrderRecommendServiceImpl implements AiPlanOrderRecommendServ
     @Resource
     private TestPlanModuleSnapshotMapper planModuleSnapshotMapper;
     @Resource
-    private TestCaseModuleMapper testCaseModuleMapper;
+    private ProjectModuleMapper projectModuleMapper;
+    @Resource
+    private TestCaseDocumentMapper testCaseDocumentMapper;
     @Resource
     private TestCaseNodeMapper testCaseNodeMapper;
     @Resource
@@ -191,11 +196,13 @@ public class AiPlanOrderRecommendServiceImpl implements AiPlanOrderRecommendServ
                 .collect(Collectors.toMap(TestPlanModuleSnapshot::getId, TestPlanModuleSnapshot::getOriginalModuleId,
                         (a, b) -> a));
 
-        List<TestCaseModule> allModules = testCaseModuleMapper.listByProjectId(projectId);
-        AiModuleTreeSupport.ModuleIndex index = AiModuleTreeSupport.indexByParent(allModules);
-        Set<UUID> documentModuleIds = allModules.stream()
-                .filter(m -> Constants.ModuleType.DOCUMENT.equals(m.getType()))
-                .map(TestCaseModule::getId)
+        List<ModuleTreeNode> allNodes = new ArrayList<>();
+        projectModuleMapper.listByProjectId(projectId).forEach(m -> allNodes.add(ModuleTreeNode.fromProjectModule(m)));
+        testCaseDocumentMapper.listByProjectId(projectId).forEach(d -> allNodes.add(ModuleTreeNode.fromTestCaseDocument(d)));
+        AiModuleTreeSupport.ModuleIndex index = AiModuleTreeSupport.indexByParent(allNodes);
+        Set<UUID> documentModuleIds = allNodes.stream()
+                .filter(ModuleTreeNode::isDocument)
+                .map(ModuleTreeNode::id)
                 .collect(Collectors.toSet());
 
         // 现势 case 节点按文档计数（密度分母），一次性查询保证同次计算可复现
@@ -245,26 +252,32 @@ public class AiPlanOrderRecommendServiceImpl implements AiPlanOrderRecommendServ
     }
 
     /**
-     * 模块缺陷密度：快照节点所属文档模块（含子孙模块）缺陷数 ÷ 该模块下现势 case 节点数；
-     * 分子分母均取现势口径，模块快照/模块树缺失或分母为 0 时取 0（4.4）
+     * 模块缺陷密度：快照节点所属文档的父模块（含子孙模块）缺陷数 ÷ 该模块子树下现势 case 节点数；
+     * 缺陷挂在目录（bug.module_id → project_module）而文档是叶子，密度子树必须从父目录起算，
+     * 否则分子恒为 0、w3 权重失效；根层级文档无所属模块或模块树缺失时取 0，分母为 0 也取 0（4.4）
      */
     private double moduleBugDensity(UUID documentSnapshotId, Map<UUID, UUID> documentModuleIdBySnapshotId,
-                                    Map<UUID, TestCaseModule> moduleById,
-                                    Map<UUID, List<TestCaseModule>> childrenByParent,
+                                    Map<UUID, ModuleTreeNode> moduleById,
+                                    Map<UUID, List<ModuleTreeNode>> childrenByParent,
                                     Map<UUID, Long> bugCountByModuleId,
                                     Map<UUID, Long> caseCountByDocumentId) {
-        UUID documentModuleId = documentModuleIdBySnapshotId.get(documentSnapshotId);
-        if (documentModuleId == null || !moduleById.containsKey(documentModuleId)) {
+        UUID originalNodeId = documentModuleIdBySnapshotId.get(documentSnapshotId);
+        ModuleTreeNode node = originalNodeId != null ? moduleById.get(originalNodeId) : null;
+        if (node == null) {
+            return 0.0;
+        }
+        UUID rootModuleId = node.isDocument() ? node.parentId() : originalNodeId;
+        if (rootModuleId == null || !moduleById.containsKey(rootModuleId)) {
             return 0.0;
         }
         Set<UUID> subtree = new LinkedHashSet<>();
-        AiModuleTreeSupport.collectSubtreeModuleIds(documentModuleId, moduleById, childrenByParent, subtree);
+        AiModuleTreeSupport.collectSubtreeModuleIds(rootModuleId, moduleById, childrenByParent, subtree);
         long bugCount = 0;
         long caseCount = 0;
         for (UUID moduleId : subtree) {
             bugCount += bugCountByModuleId.getOrDefault(moduleId, 0L);
-            TestCaseModule module = moduleById.get(moduleId);
-            if (module != null && Constants.ModuleType.DOCUMENT.equals(module.getType())) {
+            ModuleTreeNode module = moduleById.get(moduleId);
+            if (module != null && module.isDocument()) {
                 caseCount += caseCountByDocumentId.getOrDefault(moduleId, 0L);
             }
         }

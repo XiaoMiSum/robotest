@@ -7,9 +7,9 @@ import io.github.xiaomisum.robotest.model.dto.request.ai.AiCaseGenerateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.ai.AiStepCompleteReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.ai.AiTextImportReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiNodeTreeDTO;
-import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseModule;
+import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseDocument;
 import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseNode;
-import io.github.xiaomisum.robotest.repository.tcase.TestCaseModuleMapper;
+import io.github.xiaomisum.robotest.repository.tcase.TestCaseDocumentMapper;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseNodeMapper;
 import io.github.xiaomisum.robotest.service.ai.gateway.AiConfigService;
 import io.github.xiaomisum.robotest.service.ai.gateway.AiGatewayService;
@@ -58,7 +58,7 @@ class AiCaseGenerationServiceImplTest {
         @Mock
         private AiConfigService aiConfigService;
         @Mock
-        private TestCaseModuleMapper testCaseModuleMapper;
+        private TestCaseDocumentMapper testCaseDocumentMapper;
         @Mock
         private TestCaseNodeMapper testCaseNodeMapper;
         @Mock
@@ -87,11 +87,10 @@ class AiCaseGenerationServiceImplTest {
                 return dto;
         }
 
-        private TestCaseModule document(UUID projectId, String type) {
-                TestCaseModule module = new TestCaseModule();
+        private TestCaseDocument document(UUID projectId, String type) {
+                TestCaseDocument module = new TestCaseDocument();
                 module.setId(DOC_ID);
                 module.setProjectId(projectId);
-                module.setType(type);
                 module.setName("登录用例文档");
                 return module;
         }
@@ -109,14 +108,14 @@ class AiCaseGenerationServiceImplTest {
 
         @Test
         void documentNotFound_throws() {
-                when(testCaseModuleMapper.selectById(DOC_ID)).thenReturn(null);
+                when(testCaseDocumentMapper.selectById(DOC_ID)).thenReturn(null);
                 assertThrows(ServiceException.class,
                                 () -> service.generateCaseTree(USER_ID, WORKSPACE_ID, PROJECT_ID, req()));
         }
 
         @Test
         void documentInOtherProject_throws() {
-                when(testCaseModuleMapper.selectById(DOC_ID))
+                when(testCaseDocumentMapper.selectById(DOC_ID))
                                 .thenReturn(document(UUID.randomUUID(), Constants.ModuleType.DOCUMENT));
                 assertThrows(ServiceException.class,
                                 () -> service.generateCaseTree(USER_ID, WORKSPACE_ID, PROJECT_ID, req()));
@@ -124,7 +123,7 @@ class AiCaseGenerationServiceImplTest {
 
         @Test
         void moduleIsDirectory_throws() {
-                when(testCaseModuleMapper.selectById(DOC_ID))
+                when(testCaseDocumentMapper.selectById(DOC_ID))
                                 .thenReturn(document(PROJECT_ID, Constants.ModuleType.DIRECTORY));
                 assertThrows(ServiceException.class,
                                 () -> service.generateCaseTree(USER_ID, WORKSPACE_ID, PROJECT_ID, req()));
@@ -132,7 +131,7 @@ class AiCaseGenerationServiceImplTest {
 
         @Test
         void targetNodeNotInDocument_throws() {
-                when(testCaseModuleMapper.selectById(DOC_ID))
+                when(testCaseDocumentMapper.selectById(DOC_ID))
                                 .thenReturn(document(PROJECT_ID, Constants.ModuleType.DOCUMENT));
                 when(testCaseNodeMapper.listByDocumentId(DOC_ID))
                                 .thenReturn(List.of(node(ROOT_ID, null, "根", 0)));
@@ -142,7 +141,7 @@ class AiCaseGenerationServiceImplTest {
 
         @Test
         void happyPath_buildsContextAndTrimsChildrenTo50() {
-                when(testCaseModuleMapper.selectById(DOC_ID))
+                when(testCaseDocumentMapper.selectById(DOC_ID))
                                 .thenReturn(document(PROJECT_ID, Constants.ModuleType.DOCUMENT));
                 when(requirementContextAssembler.assemble(eq(PROJECT_ID), any(), any(), any()))
                                 .thenReturn(new AiRequirementContextAssembler.RequirementContext(
@@ -169,7 +168,7 @@ class AiCaseGenerationServiceImplTest {
 
         @Test
         void doneAssembler_wrapsNodesAndWarnings() {
-                when(testCaseModuleMapper.selectById(DOC_ID))
+                when(testCaseDocumentMapper.selectById(DOC_ID))
                                 .thenReturn(document(PROJECT_ID, Constants.ModuleType.DOCUMENT));
                 when(testCaseNodeMapper.listByDocumentId(DOC_ID))
                                 .thenReturn(List.of(node(TARGET_ID, null, "根", 0)));
@@ -208,7 +207,7 @@ class AiCaseGenerationServiceImplTest {
 
         @Test
         void completeSteps_nonCaseNode_throwsTargetStateInvalid() {
-                when(testCaseModuleMapper.selectById(DOC_ID))
+                when(testCaseDocumentMapper.selectById(DOC_ID))
                                 .thenReturn(document(PROJECT_ID, Constants.ModuleType.DOCUMENT));
                 // node() 构造的是 normal 类型节点
                 when(testCaseNodeMapper.listByDocumentId(DOC_ID))
@@ -219,7 +218,7 @@ class AiCaseGenerationServiceImplTest {
 
         @Test
         void completeSteps_buildsDedupContextAndExcludesSelfFromSiblings() {
-                when(testCaseModuleMapper.selectById(DOC_ID))
+                when(testCaseDocumentMapper.selectById(DOC_ID))
                                 .thenReturn(document(PROJECT_ID, Constants.ModuleType.DOCUMENT));
                 when(requirementContextAssembler.assemble(eq(PROJECT_ID), any(), any(), any()))
                                 .thenReturn(new AiRequirementContextAssembler.RequirementContext(
@@ -253,7 +252,7 @@ class AiCaseGenerationServiceImplTest {
 
         @Test
         void completeSteps_doneAssembler_allowsEmptyFlatResult() {
-                when(testCaseModuleMapper.selectById(DOC_ID))
+                when(testCaseDocumentMapper.selectById(DOC_ID))
                                 .thenReturn(document(PROJECT_ID, Constants.ModuleType.DOCUMENT));
                 TestCaseNode target = node(TARGET_ID, null, "用例", 0);
                 target.setType(Constants.NodeType.CASE);
@@ -284,7 +283,7 @@ class AiCaseGenerationServiceImplTest {
 
         @Test
         void importText_overLimit_throwsValidationFailed() {
-                when(testCaseModuleMapper.selectById(DOC_ID))
+                when(testCaseDocumentMapper.selectById(DOC_ID))
                                 .thenReturn(document(PROJECT_ID, Constants.ModuleType.DOCUMENT));
                 when(testCaseNodeMapper.listByDocumentId(DOC_ID))
                                 .thenReturn(List.of(node(TARGET_ID, null, "根", 0)));
@@ -296,7 +295,7 @@ class AiCaseGenerationServiceImplTest {
 
         @Test
         void importText_emptyParsedTree_returnsWarningNotFailure() {
-                when(testCaseModuleMapper.selectById(DOC_ID))
+                when(testCaseDocumentMapper.selectById(DOC_ID))
                                 .thenReturn(document(PROJECT_ID, Constants.ModuleType.DOCUMENT));
                 when(testCaseNodeMapper.listByDocumentId(DOC_ID))
                                 .thenReturn(List.of(node(TARGET_ID, null, "根", 0)));
@@ -318,7 +317,7 @@ class AiCaseGenerationServiceImplTest {
 
         @Test
         void importText_targetNotInDocument_throws() {
-                when(testCaseModuleMapper.selectById(DOC_ID))
+                when(testCaseDocumentMapper.selectById(DOC_ID))
                                 .thenReturn(document(PROJECT_ID, Constants.ModuleType.DOCUMENT));
                 when(testCaseNodeMapper.listByDocumentId(DOC_ID))
                                 .thenReturn(List.of(node(ROOT_ID, null, "根", 0)));
@@ -329,7 +328,7 @@ class AiCaseGenerationServiceImplTest {
         // ==================== US-AI-004 需求池消费接线 ====================
 
         private void stubDocumentAndTarget() {
-                when(testCaseModuleMapper.selectById(DOC_ID))
+                when(testCaseDocumentMapper.selectById(DOC_ID))
                                 .thenReturn(document(PROJECT_ID, Constants.ModuleType.DOCUMENT));
                 when(testCaseNodeMapper.listByDocumentId(DOC_ID))
                                 .thenReturn(List.of(node(TARGET_ID, null, "根", 0)));
@@ -347,7 +346,7 @@ class AiCaseGenerationServiceImplTest {
 
         @Test
         void generate_textAndRequirementIdsBothEmpty_throws() {
-                when(testCaseModuleMapper.selectById(DOC_ID))
+                when(testCaseDocumentMapper.selectById(DOC_ID))
                                 .thenReturn(document(PROJECT_ID, Constants.ModuleType.DOCUMENT));
                 AiCaseGenerateReqDTO dto = req();
                 dto.setRequirementText(null);
@@ -424,7 +423,7 @@ class AiCaseGenerationServiceImplTest {
 
         @Test
         void completeSteps_withRequirementIds_appendsBlocks() {
-                when(testCaseModuleMapper.selectById(DOC_ID))
+                when(testCaseDocumentMapper.selectById(DOC_ID))
                                 .thenReturn(document(PROJECT_ID, Constants.ModuleType.DOCUMENT));
                 TestCaseNode target = node(TARGET_ID, null, "用例", 0);
                 target.setType(Constants.NodeType.CASE);

@@ -5,9 +5,10 @@ import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.model.dto.request.ai.AiCasePlanRecommendReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiCasePlanRecommendRespDTO;
-import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseModule;
+import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseDocument;
 import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseNode;
-import io.github.xiaomisum.robotest.repository.tcase.TestCaseModuleMapper;
+import io.github.xiaomisum.robotest.repository.tcase.ProjectModuleMapper;
+import io.github.xiaomisum.robotest.repository.tcase.TestCaseDocumentMapper;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseNodeMapper;
 import io.github.xiaomisum.robotest.service.ai.gateway.AiConfigService;
 import io.github.xiaomisum.robotest.service.ai.gateway.AiGatewayService;
@@ -17,6 +18,7 @@ import io.github.xiaomisum.robotest.service.ai.support.AiConstants;
 import io.github.xiaomisum.robotest.service.ai.support.AiKeywordExtractor;
 import io.github.xiaomisum.robotest.service.ai.support.AiModuleTreeSupport;
 import io.github.xiaomisum.robotest.service.ai.support.AiRequirementContextAssembler;
+import io.github.xiaomisum.robotest.service.ai.support.ModuleTreeNode;
 import io.github.xiaomisum.robotest.service.ai.vector.AiVectorSearchService;
 import io.github.xiaomisum.robotest.service.ai.vector.AiVectorSearchService.CaseDedupHit;
 import jakarta.annotation.Resource;
@@ -83,7 +85,9 @@ public class AiCasePlanRecommendServiceImpl implements AiCasePlanRecommendServic
     @Resource
     private AiKeywordExtractor aiKeywordExtractor;
     @Resource
-    private TestCaseModuleMapper testCaseModuleMapper;
+    private ProjectModuleMapper projectModuleMapper;
+    @Resource
+    private TestCaseDocumentMapper testCaseDocumentMapper;
     @Resource
     private TestCaseNodeMapper testCaseNodeMapper;
     @Resource
@@ -158,7 +162,7 @@ public class AiCasePlanRecommendServiceImpl implements AiCasePlanRecommendServic
         List<UUID> nodeIds = hits.stream().map(CaseDedupHit::nodeId).toList();
         Map<UUID, TestCaseNode> nodeById = testCaseNodeMapper.selectByIds(nodeIds).stream()
                 .collect(Collectors.toMap(TestCaseNode::getId, node -> node));
-        Map<UUID, String> modulePathById = AiModuleTreeSupport.buildModulePaths(testCaseModuleMapper.listByProjectId(projectId));
+        Map<UUID, String> modulePathById = AiModuleTreeSupport.buildModulePaths(mergeModuleTreeNodes(projectId));
         return hits.stream()
                 .map(hit -> {
                     TestCaseNode node = nodeById.get(hit.nodeId());
@@ -184,12 +188,12 @@ public class AiCasePlanRecommendServiceImpl implements AiCasePlanRecommendServic
             keywords.addAll(aiKeywordExtractor.extract(userId, workspaceId, projectId,
                     KEYWORD_TASK_INSTRUCTION, "【需求描述】", block));
         }
-        List<TestCaseModule> documents = testCaseModuleMapper.findDocumentModulesByProjectId(projectId);
-        List<UUID> documentIds = documents.stream().map(TestCaseModule::getId).toList();
+        List<TestCaseDocument> documents = testCaseDocumentMapper.listByProjectId(projectId);
+        List<UUID> documentIds = documents.stream().map(TestCaseDocument::getId).toList();
         if (documentIds.isEmpty()) {
             return List.of();
         }
-        Map<UUID, String> modulePathById = AiModuleTreeSupport.buildModulePaths(testCaseModuleMapper.listByProjectId(projectId));
+        Map<UUID, String> modulePathById = AiModuleTreeSupport.buildModulePaths(mergeModuleTreeNodes(projectId));
         Map<UUID, Candidate> byNode = new LinkedHashMap<>();
         for (String keyword : keywords) {
             List<TestCaseNode> nodes = testCaseNodeMapper.listCaseNodesByDocumentIdsAndKeyword(
@@ -218,6 +222,16 @@ public class AiCasePlanRecommendServiceImpl implements AiCasePlanRecommendServic
                 .sorted(Comparator.comparingDouble(Candidate::score).reversed())
                 .limit(RESULT_LIMIT)
                 .toList();
+    }
+
+    /**
+     * 合并 ProjectModule + TestCaseDocument → List<ModuleTreeNode>（替代旧 TestCaseModuleMapper.listByProjectId）
+     */
+    private List<ModuleTreeNode> mergeModuleTreeNodes(UUID projectId) {
+        List<ModuleTreeNode> nodes = new ArrayList<>();
+        projectModuleMapper.listByProjectId(projectId).forEach(m -> nodes.add(ModuleTreeNode.fromProjectModule(m)));
+        testCaseDocumentMapper.listByProjectId(projectId).forEach(d -> nodes.add(ModuleTreeNode.fromTestCaseDocument(d)));
+        return nodes;
     }
 
     /**

@@ -5,9 +5,11 @@ import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.model.dto.request.ai.AiCasePlanRecommendReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiCasePlanRecommendRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiStatusRespDTO;
-import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseModule;
+import io.github.xiaomisum.robotest.model.entity.tcase.ProjectModule;
+import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseDocument;
 import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseNode;
-import io.github.xiaomisum.robotest.repository.tcase.TestCaseModuleMapper;
+import io.github.xiaomisum.robotest.repository.tcase.ProjectModuleMapper;
+import io.github.xiaomisum.robotest.repository.tcase.TestCaseDocumentMapper;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseNodeMapper;
 import io.github.xiaomisum.robotest.service.ai.gateway.AiConfigService;
 import io.github.xiaomisum.robotest.service.ai.gateway.AiGatewayService;
@@ -64,7 +66,9 @@ class AiCasePlanRecommendServiceImplTest {
     @Mock
     private AiVectorSearchService vectorSearchService;
     @Mock
-    private TestCaseModuleMapper testCaseModuleMapper;
+    private ProjectModuleMapper projectModuleMapper;
+    @Mock
+    private TestCaseDocumentMapper testCaseDocumentMapper;
     @Mock
     private TestCaseNodeMapper testCaseNodeMapper;
     @Mock
@@ -96,22 +100,22 @@ class AiCasePlanRecommendServiceImplTest {
         return dto;
     }
 
-    private TestCaseModule module(UUID id, UUID parentId, String type, String name) {
-        TestCaseModule module = new TestCaseModule();
-        module.setId(id);
+    private ProjectModule directory() {
+        ProjectModule module = new ProjectModule();
+        module.setId(DIR_ID);
         module.setProjectId(PROJECT_ID);
-        module.setParentId(parentId);
-        module.setType(type);
-        module.setName(name);
+        module.setParentId(null);
+        module.setName("登录模块");
         return module;
     }
 
-    private TestCaseModule directory() {
-        return module(DIR_ID, null, Constants.ModuleType.DIRECTORY, "登录模块");
-    }
-
-    private TestCaseModule document() {
-        return module(DOC_ID, DIR_ID, Constants.ModuleType.DOCUMENT, "验证码登录");
+    private TestCaseDocument document() {
+        TestCaseDocument module = new TestCaseDocument();
+        module.setId(DOC_ID);
+        module.setProjectId(PROJECT_ID);
+        module.setModuleId(DIR_ID);
+        module.setName("验证码登录");
+        return module;
     }
 
     private TestCaseNode caseNode(UUID id, String title) {
@@ -162,7 +166,8 @@ class AiCasePlanRecommendServiceImplTest {
                 .thenReturn(List.of(new CaseDedupHit(nodeId, 0.85)));
         when(testCaseNodeMapper.selectByIds(List.of(nodeId)))
                 .thenReturn(List.of(caseNode(nodeId, "验证码登录成功")));
-        when(testCaseModuleMapper.listByProjectId(PROJECT_ID)).thenReturn(List.of(directory(), document()));
+        when(projectModuleMapper.listByProjectId(PROJECT_ID)).thenReturn(List.of(directory()));
+        when(testCaseDocumentMapper.listByProjectId(PROJECT_ID)).thenReturn(List.of(document()));
         stubReasonOut(1);
 
         AiCasePlanRecommendRespDTO resp = service.recommend(USER_ID, WORKSPACE_ID, PROJECT_ID,
@@ -180,8 +185,8 @@ class AiCasePlanRecommendServiceImplTest {
         when(aiConfigService.getStatus()).thenReturn(status("unavailable"));
         when(aiKeywordExtractor.extract(any(), any(), any(), any(), any(), any()))
                 .thenReturn(List.of("验证码"));
-        when(testCaseModuleMapper.findDocumentModulesByProjectId(PROJECT_ID)).thenReturn(List.of(document()));
-        when(testCaseModuleMapper.listByProjectId(PROJECT_ID)).thenReturn(List.of(directory(), document()));
+        when(testCaseDocumentMapper.listByProjectId(PROJECT_ID)).thenReturn(List.of(document()));
+        when(projectModuleMapper.listByProjectId(PROJECT_ID)).thenReturn(List.of(directory()));
         when(testCaseNodeMapper.listCaseNodesByDocumentIdsAndKeyword(List.of(DOC_ID), "验证码", 30))
                 .thenReturn(List.of(caseNode(nodeId, "验证码登录成功")));
         stubReasonOut(1);
@@ -205,7 +210,8 @@ class AiCasePlanRecommendServiceImplTest {
                 .thenReturn(List.of(new CaseDedupHit(excludedId, 0.9), new CaseDedupHit(keptId, 0.8)));
         when(testCaseNodeMapper.selectByIds(List.of(excludedId, keptId)))
                 .thenReturn(List.of(caseNode(excludedId, "已纳入用例"), caseNode(keptId, "待推荐用例")));
-        when(testCaseModuleMapper.listByProjectId(PROJECT_ID)).thenReturn(List.of(directory(), document()));
+        when(projectModuleMapper.listByProjectId(PROJECT_ID)).thenReturn(List.of(directory()));
+        when(testCaseDocumentMapper.listByProjectId(PROJECT_ID)).thenReturn(List.of(document()));
         stubReasonOut(1);
 
         AiCasePlanRecommendRespDTO resp = service.recommend(USER_ID, WORKSPACE_ID, PROJECT_ID,
@@ -226,7 +232,8 @@ class AiCasePlanRecommendServiceImplTest {
                 .thenReturn(List.of(new CaseDedupHit(nodeId, 0.85)));
         when(testCaseNodeMapper.selectByIds(List.of(nodeId)))
                 .thenReturn(List.of(caseNode(nodeId, "验证码登录成功")));
-        when(testCaseModuleMapper.listByProjectId(PROJECT_ID)).thenReturn(List.of(directory(), document()));
+        when(projectModuleMapper.listByProjectId(PROJECT_ID)).thenReturn(List.of(directory()));
+        when(testCaseDocumentMapper.listByProjectId(PROJECT_ID)).thenReturn(List.of(document()));
         // 理由数组长度（2）与清单（1）不一致 → 整体置空
         when(aiGatewayService.completeStructured(any(), eq(AiFunctionType.CASE_PLAN_RECOMMENDATION), any(),
                 any(), optionsCaptor.capture(), eq(AiCasePlanRecommendServiceImpl.ReasonOut.class), any()))
@@ -250,7 +257,8 @@ class AiCasePlanRecommendServiceImplTest {
                 .thenReturn(List.of(new CaseDedupHit(nodeId, 0.85)));
         when(testCaseNodeMapper.selectByIds(List.of(nodeId)))
                 .thenReturn(List.of(caseNode(nodeId, "验证码登录成功")));
-        when(testCaseModuleMapper.listByProjectId(PROJECT_ID)).thenReturn(List.of(directory(), document()));
+        when(projectModuleMapper.listByProjectId(PROJECT_ID)).thenReturn(List.of(directory()));
+        when(testCaseDocumentMapper.listByProjectId(PROJECT_ID)).thenReturn(List.of(document()));
         when(aiGatewayService.completeStructured(any(), eq(AiFunctionType.CASE_PLAN_RECOMMENDATION), any(),
                 any(), any(), eq(AiCasePlanRecommendServiceImpl.ReasonOut.class), any()))
                 .thenThrow(new ServiceException());
@@ -275,8 +283,8 @@ class AiCasePlanRecommendServiceImplTest {
         when(aiConfigService.getStatus()).thenReturn(status("unavailable"));
         when(aiKeywordExtractor.extract(any(), any(), any(), any(), any(), any()))
                 .thenReturn(List.of("登录"));
-        when(testCaseModuleMapper.findDocumentModulesByProjectId(PROJECT_ID)).thenReturn(List.of(document()));
-        when(testCaseModuleMapper.listByProjectId(PROJECT_ID)).thenReturn(List.of(directory(), document()));
+        when(testCaseDocumentMapper.listByProjectId(PROJECT_ID)).thenReturn(List.of(document()));
+        when(projectModuleMapper.listByProjectId(PROJECT_ID)).thenReturn(List.of(directory()));
         when(testCaseNodeMapper.listCaseNodesByDocumentIdsAndKeyword(List.of(DOC_ID), "登录", 30))
                 .thenReturn(List.of(caseNode(nodeId, "验证码登录成功")));
         when(aiGatewayService.completeStructured(any(), eq(AiFunctionType.CASE_PLAN_RECOMMENDATION), any(),
@@ -308,7 +316,8 @@ class AiCasePlanRecommendServiceImplTest {
                 .thenReturn(List.of(new CaseDedupHit(nodeA, 0.85), new CaseDedupHit(nodeB, 0.8)));
         when(testCaseNodeMapper.selectByIds(List.of(nodeA, nodeB)))
                 .thenReturn(List.of(caseNode(nodeA, "验证码登录成功"), caseNode(nodeB, "支付下单成功")));
-        when(testCaseModuleMapper.listByProjectId(PROJECT_ID)).thenReturn(List.of(directory(), document()));
+        when(projectModuleMapper.listByProjectId(PROJECT_ID)).thenReturn(List.of(directory()));
+        when(testCaseDocumentMapper.listByProjectId(PROJECT_ID)).thenReturn(List.of(document()));
         stubReasonOut(2);
 
         AiCasePlanRecommendRespDTO resp = service.recommend(USER_ID, WORKSPACE_ID, PROJECT_ID,
@@ -335,8 +344,8 @@ class AiCasePlanRecommendServiceImplTest {
                 .thenReturn(List.of("验证码"));
         when(aiKeywordExtractor.extract(any(), any(), any(), any(), any(), eq(blockB)))
                 .thenReturn(List.of("支付"));
-        when(testCaseModuleMapper.findDocumentModulesByProjectId(PROJECT_ID)).thenReturn(List.of(document()));
-        when(testCaseModuleMapper.listByProjectId(PROJECT_ID)).thenReturn(List.of(directory(), document()));
+        when(testCaseDocumentMapper.listByProjectId(PROJECT_ID)).thenReturn(List.of(document()));
+        when(projectModuleMapper.listByProjectId(PROJECT_ID)).thenReturn(List.of(directory()));
         when(testCaseNodeMapper.listCaseNodesByDocumentIdsAndKeyword(List.of(DOC_ID), "验证码", 30))
                 .thenReturn(List.of(caseNode(nodeA, "验证码登录成功")));
         when(testCaseNodeMapper.listCaseNodesByDocumentIdsAndKeyword(List.of(DOC_ID), "支付", 30))
@@ -370,7 +379,8 @@ class AiCasePlanRecommendServiceImplTest {
         when(vectorSearchService.searchSimilarCasesByQueries(eq(PROJECT_ID), anyList(), eq(50), eq(0.7)))
                 .thenReturn(hits);
         when(testCaseNodeMapper.selectByIds(anyCollection())).thenReturn(nodes);
-        when(testCaseModuleMapper.listByProjectId(PROJECT_ID)).thenReturn(List.of(directory(), document()));
+        when(projectModuleMapper.listByProjectId(PROJECT_ID)).thenReturn(List.of(directory()));
+        when(testCaseDocumentMapper.listByProjectId(PROJECT_ID)).thenReturn(List.of(document()));
 
         AiCasePlanRecommendRespDTO resp = service.recommend(USER_ID, WORKSPACE_ID, PROJECT_ID,
                 req("支持手机号验证码登录", null, null));
