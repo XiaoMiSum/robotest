@@ -3,9 +3,9 @@ package io.github.xiaomisum.robotest.service.ai.assistant;
 import io.github.xiaomisum.robotest.framework.common.AiFunctionType;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiStatusRespDTO;
-import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseModule;
+import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseDocument;
 import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseNode;
-import io.github.xiaomisum.robotest.repository.tcase.TestCaseModuleMapper;
+import io.github.xiaomisum.robotest.repository.tcase.TestCaseDocumentMapper;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseNodeMapper;
 import io.github.xiaomisum.robotest.service.ai.gateway.AiChatModelService;
 import io.github.xiaomisum.robotest.service.ai.gateway.AiConfigService;
@@ -50,7 +50,7 @@ class AiMinderTranslationToolTest {
     @Mock
     private AiConfigService configService;
     @Mock
-    private TestCaseModuleMapper testCaseModuleMapper;
+    private TestCaseDocumentMapper testCaseDocumentMapper;
     @Mock
     private TestCaseNodeMapper testCaseNodeMapper;
 
@@ -64,7 +64,7 @@ class AiMinderTranslationToolTest {
     @BeforeEach
     void setUp() {
         tool = new AiMinderTranslationTool(promptAssembler, provider, chatModelService,
-                configService, testCaseModuleMapper, testCaseNodeMapper, objectMapper);
+                configService, testCaseDocumentMapper, testCaseNodeMapper, objectMapper);
         documentId = UUID.randomUUID();
         context = new AiToolContext(UUID.randomUUID(), UUID.randomUUID(),
                 Map.of("documentId", documentId.toString()));
@@ -106,7 +106,7 @@ class AiMinderTranslationToolTest {
         String result = tool.execute(context, Map.of());
 
         assertTrue(result.contains("缺少 instruction 参数"));
-        verify(testCaseModuleMapper, never()).selectById(any());
+        verify(testCaseDocumentMapper, never()).selectById(any());
     }
 
     @Test
@@ -116,12 +116,12 @@ class AiMinderTranslationToolTest {
         String result = tool.execute(noDocCtx, Map.of("instruction", "新增节点"));
 
         assertTrue(result.contains("缺少文档上下文 documentId"));
-        verify(testCaseModuleMapper, never()).selectById(any());
+        verify(testCaseDocumentMapper, never()).selectById(any());
     }
 
     @Test
     void execute_documentNotFoundReturnsError() {
-        when(testCaseModuleMapper.selectById(documentId)).thenReturn(null);
+        when(testCaseDocumentMapper.selectById(documentId)).thenReturn(null);
 
         String result = tool.execute(context, Map.of("instruction", "新增节点"));
 
@@ -131,7 +131,7 @@ class AiMinderTranslationToolTest {
 
     @Test
     void execute_aiDisabledReturnsError() {
-        when(testCaseModuleMapper.selectById(documentId)).thenReturn(document());
+        when(testCaseDocumentMapper.selectById(documentId)).thenReturn(document());
         AiStatusRespDTO status = new AiStatusRespDTO();
         status.setEnabled(false);
         when(configService.getStatus()).thenReturn(status);
@@ -144,7 +144,7 @@ class AiMinderTranslationToolTest {
 
     @Test
     void execute_modelUnresolvedReturnsError() {
-        when(testCaseModuleMapper.selectById(documentId)).thenReturn(document());
+        when(testCaseDocumentMapper.selectById(documentId)).thenReturn(document());
         AiStatusRespDTO status = new AiStatusRespDTO();
         status.setEnabled(true);
         when(configService.getStatus()).thenReturn(status);
@@ -216,7 +216,7 @@ class AiMinderTranslationToolTest {
     }
 
     private void stubEnabledChatEnvironment(List<TestCaseNode> nodes) {
-        when(testCaseModuleMapper.selectById(documentId)).thenReturn(document());
+        when(testCaseDocumentMapper.selectById(documentId)).thenReturn(document());
         AiStatusRespDTO status = new AiStatusRespDTO();
         status.setEnabled(true);
         when(configService.getStatus()).thenReturn(status);
@@ -228,8 +228,8 @@ class AiMinderTranslationToolTest {
                         AiModels.ChatMessage.user(inv.getArgument(2))));
     }
 
-    private TestCaseModule document() {
-        TestCaseModule document = new TestCaseModule();
+    private TestCaseDocument document() {
+        TestCaseDocument document = new TestCaseDocument();
         document.setId(documentId);
         document.setName("登录模块");
         return document;

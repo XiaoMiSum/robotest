@@ -1,10 +1,9 @@
 package io.github.xiaomisum.robotest.framework.security;
 
-import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
-import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseModule;
+import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseDocument;
 import io.github.xiaomisum.robotest.model.entity.workspace.Project;
-import io.github.xiaomisum.robotest.repository.tcase.TestCaseModuleMapper;
+import io.github.xiaomisum.robotest.repository.tcase.TestCaseDocumentMapper;
 import io.github.xiaomisum.robotest.repository.workspace.ProjectMapper;
 import io.github.xiaomisum.robotest.repository.workspace.WorkspaceUserMapper;
 import jakarta.annotation.Resource;
@@ -27,7 +26,7 @@ public class ProjectAccessGuard {
     @Resource
     private WorkspaceUserMapper workspaceUserMapper;
     @Resource
-    private TestCaseModuleMapper testCaseModuleMapper;
+    private TestCaseDocumentMapper testCaseDocumentMapper;
 
     /**
      * 校验 userId 是否为 projectId 对应项目所在工作空间的成员；不满足抛业务异常。
@@ -44,7 +43,7 @@ public class ProjectAccessGuard {
 
     /**
      * WS 场景校验（返回布尔而非抛异常，供握手/加入房间前静默拒绝）：
-     * docId → test_case_module(type=document) → ws_project → ws_user 成员。
+     * docId → test_case_document → ws_project → ws_user 成员。
      * userId 为字符串（WS 会话属性 USER_ID），非法格式视为无权限。
      */
     public boolean isDocumentMember(UUID docId, String userId) {
@@ -52,8 +51,8 @@ public class ProjectAccessGuard {
             return false;
         }
 
-        TestCaseModule document = testCaseModuleMapper.selectById(docId);
-        if (document == null || !Constants.ModuleType.DOCUMENT.equals(document.getType())) {
+        TestCaseDocument document = testCaseDocumentMapper.selectById(docId);
+        if (document == null) {
             return false;
         }
 

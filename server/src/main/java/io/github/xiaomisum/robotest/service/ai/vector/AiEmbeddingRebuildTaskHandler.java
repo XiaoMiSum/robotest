@@ -3,12 +3,12 @@ package io.github.xiaomisum.robotest.service.ai.vector;
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.model.entity.ai.AiAnalysisTask;
 import io.github.xiaomisum.robotest.model.entity.bug.Bug;
-import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseModule;
+import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseDocument;
 import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseNode;
 import io.github.xiaomisum.robotest.model.entity.workspace.Project;
 import io.github.xiaomisum.robotest.repository.ai.AiAnalysisTaskMapper;
 import io.github.xiaomisum.robotest.repository.bug.BugMapper;
-import io.github.xiaomisum.robotest.repository.tcase.TestCaseModuleMapper;
+import io.github.xiaomisum.robotest.repository.tcase.TestCaseDocumentMapper;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseNodeMapper;
 import io.github.xiaomisum.robotest.repository.workspace.ProjectMapper;
 import io.github.xiaomisum.robotest.service.ai.support.AiTaskProgressSupport;
@@ -52,7 +52,7 @@ public class AiEmbeddingRebuildTaskHandler implements AiTaskHandler {
     @Resource
     private TestCaseNodeMapper testCaseNodeMapper;
     @Resource
-    private TestCaseModuleMapper testCaseModuleMapper;
+    private TestCaseDocumentMapper testCaseDocumentMapper;
     @Resource
     private ProjectMapper projectMapper;
     @Resource
@@ -153,7 +153,7 @@ public class AiEmbeddingRebuildTaskHandler implements AiTaskHandler {
                 jobs.add(new IndexJob(bug.getId(), null, project.getId(),
                         vectorSearchService.buildBugSourceText(bug)));
             }
-            for (TestCaseModule document : testCaseModuleMapper.findDocumentModulesByProjectId(project.getId())) {
+            for (TestCaseDocument document : testCaseDocumentMapper.listByProjectId(project.getId())) {
                 List<TestCaseNode> nodes = testCaseNodeMapper.listByDocumentId(document.getId());
                 Map<UUID, String> texts = vectorSearchService.buildCaseIndexTexts(document.getName(), nodes);
                 texts.forEach((nodeId, text) ->

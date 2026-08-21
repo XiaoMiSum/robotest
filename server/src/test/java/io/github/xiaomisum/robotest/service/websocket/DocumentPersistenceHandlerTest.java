@@ -1,15 +1,12 @@
 package io.github.xiaomisum.robotest.service.websocket;
 
-import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.model.entity.admin.SysRole;
-import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseDocumentLayout;
-import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseModule;
+import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseDocument;
 import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseNode;
 import io.github.xiaomisum.robotest.model.entity.workspace.Project;
 import io.github.xiaomisum.robotest.model.entity.workspace.WorkspaceUser;
 import io.github.xiaomisum.robotest.repository.admin.SysRoleMapper;
-import io.github.xiaomisum.robotest.repository.tcase.TestCaseDocumentLayoutMapper;
-import io.github.xiaomisum.robotest.repository.tcase.TestCaseModuleMapper;
+import io.github.xiaomisum.robotest.repository.tcase.TestCaseDocumentMapper;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseNodeMapper;
 import io.github.xiaomisum.robotest.repository.workspace.ProjectMapper;
 import io.github.xiaomisum.robotest.repository.workspace.WorkspaceUserMapper;
@@ -31,6 +28,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -55,9 +53,7 @@ class DocumentPersistenceHandlerTest {
     @Mock
     private TestCaseNodeMapper testCaseNodeMapper;
     @Mock
-    private TestCaseDocumentLayoutMapper testCaseDocumentLayoutMapper;
-    @Mock
-    private TestCaseModuleMapper testCaseModuleMapper;
+    private TestCaseDocumentMapper testCaseDocumentMapper;
     @Mock
     private ProjectMapper projectMapper;
     @Mock
@@ -81,11 +77,10 @@ class DocumentPersistenceHandlerTest {
     }
 
     private void stubDocument() {
-        TestCaseModule document = new TestCaseModule();
+        TestCaseDocument document = new TestCaseDocument();
         document.setId(DOC_ID);
         document.setProjectId(PROJECT_ID);
-        document.setType(Constants.ModuleType.DOCUMENT);
-        when(testCaseModuleMapper.selectById(DOC_ID)).thenReturn(document);
+        when(testCaseDocumentMapper.selectById(DOC_ID)).thenReturn(document);
 
         Project project = new Project();
         project.setId(PROJECT_ID);
@@ -114,7 +109,7 @@ class DocumentPersistenceHandlerTest {
 
         handler.persist(DOC_ID, UPDATE_LAYOUT_MSG, session);
 
-        verify(testCaseDocumentLayoutMapper).insert(any(TestCaseDocumentLayout.class));
+        verify(testCaseDocumentMapper).updateLayout(eq(DOC_ID), any());
         verify(session, never()).sendMessage(any());
     }
 
@@ -139,8 +134,7 @@ class DocumentPersistenceHandlerTest {
         handler.persist(DOC_ID, ADD_NODE_MSG, session);
 
         verify(testCaseNodeMapper, never()).insert(any(TestCaseNode.class));
-        verify(testCaseDocumentLayoutMapper, never()).insert(any(TestCaseDocumentLayout.class));
-        verify(testCaseDocumentLayoutMapper, never()).updateById(any(TestCaseDocumentLayout.class));
+        verify(testCaseDocumentMapper, never()).updateLayout(any(), any());
 
         var captor = ArgumentCaptor.forClass(WebSocketMessage.class);
         verify(session).sendMessage(captor.capture());
@@ -155,8 +149,7 @@ class DocumentPersistenceHandlerTest {
 
         handler.persist(DOC_ID, UPDATE_LAYOUT_MSG, session);
 
-        verify(testCaseDocumentLayoutMapper, never()).insert(any(TestCaseDocumentLayout.class));
-        verify(testCaseDocumentLayoutMapper, never()).updateById(any(TestCaseDocumentLayout.class));
+        verify(testCaseDocumentMapper, never()).updateLayout(any(), any());
 
         var captor = ArgumentCaptor.forClass(WebSocketMessage.class);
         verify(session).sendMessage(captor.capture());
@@ -171,7 +164,7 @@ class DocumentPersistenceHandlerTest {
 
         handler.persist(DOC_ID, UPDATE_LAYOUT_MSG, session);
 
-        verify(testCaseDocumentLayoutMapper, never()).insert(any(TestCaseDocumentLayout.class));
+        verify(testCaseDocumentMapper, never()).updateLayout(any(), any());
         var captor = ArgumentCaptor.forClass(WebSocketMessage.class);
         verify(session).sendMessage(captor.capture());
         assertTrue(((TextMessage) captor.getValue()).getPayload().contains("PERMISSION_DENIED"));

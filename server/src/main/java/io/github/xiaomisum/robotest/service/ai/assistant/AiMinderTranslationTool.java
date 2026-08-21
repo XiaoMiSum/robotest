@@ -2,9 +2,9 @@ package io.github.xiaomisum.robotest.service.ai.assistant;
 
 import io.github.xiaomisum.robotest.framework.common.AiFunctionType;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
-import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseModule;
+import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseDocument;
 import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseNode;
-import io.github.xiaomisum.robotest.repository.tcase.TestCaseModuleMapper;
+import io.github.xiaomisum.robotest.repository.tcase.TestCaseDocumentMapper;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseNodeMapper;
 import io.github.xiaomisum.robotest.service.ai.gateway.AiChatModelService;
 import io.github.xiaomisum.robotest.service.ai.gateway.AiConfigService;
@@ -68,7 +68,7 @@ public class AiMinderTranslationTool implements AiTool {
     private final OpenAiCompatProvider provider;
     private final AiChatModelService chatModelService;
     private final AiConfigService configService;
-    private final TestCaseModuleMapper testCaseModuleMapper;
+    private final TestCaseDocumentMapper testCaseDocumentMapper;
     private final TestCaseNodeMapper testCaseNodeMapper;
     private final ObjectMapper objectMapper;
 
@@ -94,7 +94,7 @@ public class AiMinderTranslationTool implements AiTool {
         if (documentId == null) {
             return errorResult("缺少文档上下文 documentId，请在脑图编辑页使用该能力");
         }
-        TestCaseModule document = testCaseModuleMapper.selectById(documentId);
+        TestCaseDocument document = testCaseDocumentMapper.selectById(documentId);
         if (document == null) {
             return errorResult("文档不存在或已被删除");
         }
@@ -118,7 +118,7 @@ public class AiMinderTranslationTool implements AiTool {
     }
 
     /** 文档骨架上下文：名称/节点数 + 扁平的 id|标题|类型|父节点 清单，超限截断以控制 token */
-    private String buildSkeleton(TestCaseModule document, UUID documentId) {
+    private String buildSkeleton(TestCaseDocument document, UUID documentId) {
         List<TestCaseNode> nodes = testCaseNodeMapper.listByDocumentId(documentId);
         StringBuilder skeleton = new StringBuilder();
         skeleton.append("【文档名称】").append(document.getName()).append('\n');

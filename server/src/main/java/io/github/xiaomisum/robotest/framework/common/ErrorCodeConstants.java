@@ -53,7 +53,7 @@ public class ErrorCodeConstants {
     public static final ErrorCode INVITATION_EXPIRED = ErrorCode.of(1000010031, "邀请链接已过期");
     public static final ErrorCode INVITATION_REVOKED = ErrorCode.of(1000010032, "邀请链接已被撤销");
 
-    // ========== 功能测试模块 1,000,011,001-1,000,011,017 ==========
+    // ========== 功能测试模块 1,000,011,010-1,000,011,028 ==========
     public static final ErrorCode TEST_PLAN_NOT_FOUND = ErrorCode.of(1000011010, "测试计划不存在");
     public static final ErrorCode TEST_REVIEW_NOT_FOUND = ErrorCode.of(1000011011, "评审不存在");
     public static final ErrorCode REVIEW_NOT_INITIATOR = ErrorCode.of(1000011012, "非发起人不能执行该操作");
@@ -62,17 +62,22 @@ public class ErrorCodeConstants {
     public static final ErrorCode ONLY_CASE_NODE_CAN_MARK_REVIEW = ErrorCode.of(1000011015, "只有用例节点可标记评审结果");
     public static final ErrorCode ONLY_ASSOCIATED_CASE_CAN_MARK_PLAN = ErrorCode.of(1000011016, "只有关联的用例节点可标记执行结果");
     public static final ErrorCode ROOT_NODE_NOT_EXECUTABLE = ErrorCode.of(1000011017, "默认根节点不可执行");
-    public static final ErrorCode TEST_CASE_MODULE_NOT_FOUND = ErrorCode.of(1000011018, "模块不存在");
-    public static final ErrorCode TEST_CASE_MODULE_NAME_EXISTS = ErrorCode.of(1000011019, "同级模块名称已存在");
-    public static final ErrorCode TEST_CASE_MODULE_NOT_EMPTY = ErrorCode.of(1000011020, "目录不为空，无法删除");
     public static final ErrorCode TEST_CASE_DOCUMENT_NOT_FOUND = ErrorCode.of(1000011021, "文档不存在");
     public static final ErrorCode TEST_CASE_NODE_NOT_FOUND = ErrorCode.of(1000011022, "用例节点不存在");
     public static final ErrorCode BUG_NOT_FOUND = ErrorCode.of(1000011023, "缺陷不存在");
-    public static final ErrorCode TEST_CASE_MODULE_MOVE_TARGET_INVALID = ErrorCode.of(1000011024, "移动目标不存在或不是目录");
-    public static final ErrorCode TEST_CASE_MODULE_MOVE_CYCLE = ErrorCode.of(1000011025, "不能移动到自身或其子级目录下");
     public static final ErrorCode TEST_REVIEW_FINISHED = ErrorCode.of(1000011026, "评审已完成，无法执行该操作");
     public static final ErrorCode TEST_PLAN_FINISHED = ErrorCode.of(1000011027, "计划已结束，无法执行该操作");
     public static final ErrorCode REQUIREMENT_NOT_FOUND = ErrorCode.of(1000011028, "需求条目不存在或不属于当前项目");
+
+    // ========== 项目模块管理 1,000,017,051-1,000,017,059（文档简写 70XX） ==========
+    public static final ErrorCode PROJECT_MODULE_NOT_FOUND = ErrorCode.of(1000017051, "模块不存在");
+    public static final ErrorCode PROJECT_MODULE_NAME_EXISTS = ErrorCode.of(1000017052, "同级模块名称已存在");
+    public static final ErrorCode PROJECT_MODULE_MOVE_TARGET_INVALID = ErrorCode.of(1000017053, "移动目标不存在或不是目录");
+    public static final ErrorCode PROJECT_MODULE_MOVE_CYCLE = ErrorCode.of(1000017054, "不能移动到自身或其子级目录下");
+    public static final ErrorCode PROJECT_MODULE_NOT_EMPTY = ErrorCode.of(1000017055, "模块非空（含子模块或用例文档），无法删除");
+
+    // ========== 用例文档管理 1,000,017,061-1,000,017,069 ==========
+    public static final ErrorCode TEST_CASE_DOCUMENT_NAME_EXISTS = ErrorCode.of(1000017061, "同模块下用例名称已存在");
 
     // ========== 缺陷管理模块 1,000,012,001-1,000,012,010 ==========
     public static final ErrorCode BUG_INVALID_STATUS_TRANSITION = ErrorCode.of(1000012001, "缺陷状态流转不合法");

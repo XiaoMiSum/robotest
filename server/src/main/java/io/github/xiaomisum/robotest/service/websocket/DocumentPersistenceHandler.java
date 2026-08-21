@@ -6,14 +6,12 @@ import io.github.xiaomisum.robotest.model.dto.request.tcase.DocumentDeleteNodeRe
 import io.github.xiaomisum.robotest.model.dto.request.tcase.DocumentMoveNodeReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.tcase.DocumentUpdateAttrsReqDTO;
 import io.github.xiaomisum.robotest.model.entity.admin.SysRole;
-import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseDocumentLayout;
-import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseModule;
+import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseDocument;
 import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseNode;
 import io.github.xiaomisum.robotest.model.entity.workspace.Project;
 import io.github.xiaomisum.robotest.model.entity.workspace.WorkspaceUser;
 import io.github.xiaomisum.robotest.repository.admin.SysRoleMapper;
-import io.github.xiaomisum.robotest.repository.tcase.TestCaseDocumentLayoutMapper;
-import io.github.xiaomisum.robotest.repository.tcase.TestCaseModuleMapper;
+import io.github.xiaomisum.robotest.repository.tcase.TestCaseDocumentMapper;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseNodeMapper;
 import io.github.xiaomisum.robotest.repository.workspace.ProjectMapper;
 import io.github.xiaomisum.robotest.repository.workspace.WorkspaceUserMapper;
@@ -61,9 +59,7 @@ public class DocumentPersistenceHandler {
     @Resource
     private TestCaseNodeMapper testCaseNodeMapper;
     @Resource
-    private TestCaseDocumentLayoutMapper testCaseDocumentLayoutMapper;
-    @Resource
-    private TestCaseModuleMapper testCaseModuleMapper;
+    private TestCaseDocumentMapper testCaseDocumentMapper;
     @Resource
     private ProjectMapper projectMapper;
     @Resource
@@ -127,8 +123,7 @@ public class DocumentPersistenceHandler {
     /**
      * 校验当前用户对目标文档是否具备编辑权限。
      * <p>
-     * 文档（docId）本质是 test_case_module 中 type=document 的节点，链路为：
-     * document → ws_project.workspaceId → ws_user.workspaceRole → sys_role.permissions 含 case:edit。
+     * 链路为：test_case_document → ws_project.workspaceId → ws_user.workspaceRole → sys_role.permissions 含 case:edit。
      * 任一环节缺失均视为无权限，与 WorkspaceRoleInterceptor 的判定口径一致。
      */
     private boolean hasCaseEditPermission(UUID docId, String userId) {
@@ -136,8 +131,8 @@ public class DocumentPersistenceHandler {
             return false;
         }
 
-        TestCaseModule document = testCaseModuleMapper.selectById(docId);
-        if (document == null || !Constants.ModuleType.DOCUMENT.equals(document.getType())) {
+        TestCaseDocument document = testCaseDocumentMapper.selectById(docId);
+        if (document == null) {
             return false;
         }
 
@@ -164,20 +159,7 @@ public class DocumentPersistenceHandler {
     }
 
     private void persistLayout(UUID docId, Map<String, Object> layout) {
-        TestCaseDocumentLayout existing = testCaseDocumentLayoutMapper.findByDocumentId(docId);
-
-        if (existing != null) {
-            // 更新载体只携带布局字段，避免全列覆盖导致并发丢失更新
-            TestCaseDocumentLayout update = new TestCaseDocumentLayout();
-            update.setId(existing.getId());
-            update.setLayoutJson(layout);
-            testCaseDocumentLayoutMapper.updateById(update);
-        } else {
-            TestCaseDocumentLayout entity = new TestCaseDocumentLayout();
-            entity.setDocumentId(docId);
-            entity.setLayoutJson(layout);
-            testCaseDocumentLayoutMapper.insert(entity);
-        }
+        testCaseDocumentMapper.updateLayout(docId, layout);
     }
 
     private void handleAddNode(UUID docId, DocumentAddNodeReqDTO data) {

@@ -5,9 +5,11 @@ import io.github.xiaomisum.robotest.framework.common.AiFunctionType;
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.model.dto.request.ai.AiMissingPointReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiMissingPointRespDTO;
-import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseModule;
+import io.github.xiaomisum.robotest.model.entity.tcase.ProjectModule;
+import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseDocument;
 import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseNode;
-import io.github.xiaomisum.robotest.repository.tcase.TestCaseModuleMapper;
+import io.github.xiaomisum.robotest.repository.tcase.ProjectModuleMapper;
+import io.github.xiaomisum.robotest.repository.tcase.TestCaseDocumentMapper;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseNodeMapper;
 import io.github.xiaomisum.robotest.service.ai.gateway.AiGatewayService;
 import io.github.xiaomisum.robotest.service.ai.model.AiModels.ChatCallOptions;
@@ -55,7 +57,9 @@ class AiMissingPointServiceImplTest {
     @Mock
     private AiGatewayService aiGatewayService;
     @Mock
-    private TestCaseModuleMapper testCaseModuleMapper;
+    private ProjectModuleMapper projectModuleMapper;
+    @Mock
+    private TestCaseDocumentMapper testCaseDocumentMapper;
     @Mock
     private TestCaseNodeMapper testCaseNodeMapper;
     @Mock
@@ -92,22 +96,20 @@ class AiMissingPointServiceImplTest {
         return dto;
     }
 
-    private TestCaseModule document() {
-        TestCaseModule module = new TestCaseModule();
+    private TestCaseDocument document() {
+        TestCaseDocument module = new TestCaseDocument();
         module.setId(DOC_ID);
         module.setProjectId(PROJECT_ID);
-        module.setParentId(DIR_ID);
-        module.setType(Constants.ModuleType.DOCUMENT);
+        module.setModuleId(DIR_ID);
         module.setName("验证码登录");
         return module;
     }
 
-    private TestCaseModule directory() {
-        TestCaseModule module = new TestCaseModule();
+    private ProjectModule directory() {
+        ProjectModule module = new ProjectModule();
         module.setId(DIR_ID);
         module.setProjectId(PROJECT_ID);
         module.setParentId(null);
-        module.setType(Constants.ModuleType.DIRECTORY);
         module.setName("登录模块");
         return module;
     }
@@ -135,8 +137,8 @@ class AiMissingPointServiceImplTest {
     }
 
     private void stubProjectModules() {
-        when(testCaseModuleMapper.findDocumentModulesByProjectId(PROJECT_ID)).thenReturn(List.of(document()));
-        when(testCaseModuleMapper.listByProjectId(PROJECT_ID)).thenReturn(List.of(directory(), document()));
+        when(testCaseDocumentMapper.listByProjectId(PROJECT_ID)).thenReturn(List.of(document()));
+        when(projectModuleMapper.listByProjectId(PROJECT_ID)).thenReturn(List.of(directory()));
     }
 
     @Test
@@ -252,9 +254,9 @@ class AiMissingPointServiceImplTest {
 
     @Test
     void candidateOverBudget_truncatesTrailingCandidates() {
-        when(testCaseModuleMapper.findDocumentModulesByProjectId(PROJECT_ID))
+        when(testCaseDocumentMapper.listByProjectId(PROJECT_ID))
                 .thenReturn(List.of(document()));
-        when(testCaseModuleMapper.listByProjectId(PROJECT_ID)).thenReturn(List.of(document()));
+        when(projectModuleMapper.listByProjectId(PROJECT_ID)).thenReturn(List.of());
         List<TestCaseNode> nodes = new java.util.ArrayList<>();
         for (int i = 1; i <= 30; i++) {
             nodes.add(caseNode(UUID.randomUUID(), i + "甲".repeat(280)));

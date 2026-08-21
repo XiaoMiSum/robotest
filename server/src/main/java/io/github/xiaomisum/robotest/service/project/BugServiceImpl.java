@@ -15,13 +15,13 @@ import io.github.xiaomisum.robotest.model.entity.bug.Bug;
 import io.github.xiaomisum.robotest.model.entity.bug.BugLog;
 import io.github.xiaomisum.robotest.model.entity.workspace.Project;
 import io.github.xiaomisum.robotest.model.entity.admin.SysUser;
-import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseModule;
+import io.github.xiaomisum.robotest.model.entity.tcase.ProjectModule;
 import io.github.xiaomisum.robotest.model.entity.workspace.WorkspaceUser;
 import io.github.xiaomisum.robotest.repository.bug.BugLogMapper;
 import io.github.xiaomisum.robotest.repository.bug.BugMapper;
 import io.github.xiaomisum.robotest.repository.workspace.ProjectMapper;
 import io.github.xiaomisum.robotest.repository.admin.SysUserMapper;
-import io.github.xiaomisum.robotest.repository.tcase.TestCaseModuleMapper;
+import io.github.xiaomisum.robotest.repository.tcase.ProjectModuleMapper;
 import io.github.xiaomisum.robotest.repository.workspace.WorkspaceUserMapper;
 import io.github.xiaomisum.robotest.service.ai.vector.AiEmbeddingWriteService;
 import io.github.xiaomisum.robotest.service.project.BugService;
@@ -67,7 +67,7 @@ public class BugServiceImpl implements BugService {
     @Resource
     private WorkspaceUserMapper workspaceUserMapper;
     @Resource
-    private TestCaseModuleMapper testCaseModuleMapper;
+    private ProjectModuleMapper projectModuleMapper;
     @Resource
     private AiEmbeddingWriteService aiEmbeddingWriteService;
     @Resource
@@ -127,7 +127,7 @@ public class BugServiceImpl implements BugService {
 
         if (bug.getModuleId() != null) {
             dto.setModuleId(bug.getModuleId());
-            TestCaseModule module = testCaseModuleMapper.selectById(bug.getModuleId());
+            ProjectModule module = projectModuleMapper.selectById(bug.getModuleId());
             if (module != null) {
                 dto.setModuleName(module.getName());
             }
@@ -494,7 +494,7 @@ public class BugServiceImpl implements BugService {
         if (moduleId == null) {
             return;
         }
-        TestCaseModule module = testCaseModuleMapper.selectById(moduleId);
+        ProjectModule module = projectModuleMapper.selectById(moduleId);
         if (module == null || !projectId.equals(module.getProjectId())) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.BUG_MODULE_NOT_FOUND);
         }

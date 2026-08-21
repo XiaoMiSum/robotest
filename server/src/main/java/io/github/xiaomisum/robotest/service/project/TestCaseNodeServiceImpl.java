@@ -8,11 +8,9 @@ import io.github.xiaomisum.robotest.model.dto.request.tcase.TestCaseNodeUpdateRe
 import io.github.xiaomisum.robotest.model.dto.response.tcase.TestCaseCaseListRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.tcase.TestCaseDocumentNodesRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.tcase.TestCaseNodeTreeRespDTO;
-import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseDocumentLayout;
-import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseModule;
+import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseDocument;
 import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseNode;
-import io.github.xiaomisum.robotest.repository.tcase.TestCaseDocumentLayoutMapper;
-import io.github.xiaomisum.robotest.repository.tcase.TestCaseModuleMapper;
+import io.github.xiaomisum.robotest.repository.tcase.TestCaseDocumentMapper;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseNodeMapper;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
@@ -32,16 +30,14 @@ public class TestCaseNodeServiceImpl implements TestCaseNodeService {
     @Resource
     private TestCaseNodeMapper testCaseNodeMapper;
     @Resource
-    private TestCaseDocumentLayoutMapper testCaseDocumentLayoutMapper;
-    @Resource
-    private TestCaseModuleMapper testCaseModuleMapper;
+    private TestCaseDocumentMapper testCaseDocumentMapper;
     @Resource
     private ProjectAccessGuard projectAccessGuard;
 
     @Override
     public TestCaseDocumentNodesRespDTO getDocumentNodes(UUID documentId, UUID userId) {
-        TestCaseModule document = testCaseModuleMapper.selectById(documentId);
-        if (document == null || !Constants.ModuleType.DOCUMENT.equals(document.getType())) {
+        TestCaseDocument document = testCaseDocumentMapper.selectById(documentId);
+        if (document == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_CASE_DOCUMENT_NOT_FOUND);
         }
         projectAccessGuard.requireProjectMember(document.getProjectId(), userId);
@@ -54,11 +50,11 @@ public class TestCaseNodeServiceImpl implements TestCaseNodeService {
 
         TestCaseNodeTreeRespDTO rootNode = buildNodeTree(dtos);
 
-        TestCaseDocumentLayout layout = testCaseDocumentLayoutMapper.findByDocumentId(documentId);
+        java.util.Map<String, Object> layoutJson = testCaseDocumentMapper.getLayout(documentId);
 
         TestCaseDocumentNodesRespDTO result = new TestCaseDocumentNodesRespDTO();
         result.setNode(rootNode);
-        result.setLayout(layout != null ? layout.getLayoutJson() : null);
+        result.setLayout(layoutJson);
         return result;
     }
 
@@ -68,7 +64,7 @@ public class TestCaseNodeServiceImpl implements TestCaseNodeService {
         if (node == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_CASE_NODE_NOT_FOUND);
         }
-        TestCaseModule document = testCaseModuleMapper.selectById(node.getDocumentId());
+        TestCaseDocument document = testCaseDocumentMapper.selectById(node.getDocumentId());
         if (document == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_CASE_DOCUMENT_NOT_FOUND);
         }
@@ -90,7 +86,7 @@ public class TestCaseNodeServiceImpl implements TestCaseNodeService {
                                                            String priority, Integer pageNo, Integer pageSize) {
         projectAccessGuard.requireProjectMember(projectId, userId);
         // 查询项目下所有 document 的 ID
-        List<TestCaseModule> documents = testCaseModuleMapper.findDocumentModulesByProjectId(projectId);
+        List<TestCaseDocument> documents = testCaseDocumentMapper.listByProjectId(projectId);
         List<String> documentIds = documents.stream()
                 .map(doc -> doc.getId().toString())
                 .collect(Collectors.toList());
@@ -108,7 +104,7 @@ public class TestCaseNodeServiceImpl implements TestCaseNodeService {
 
         // 构建 documentId → documentName 映射
         Map<String, String> docNameMap = documents.stream()
-                .collect(Collectors.toMap(doc -> doc.getId().toString(), TestCaseModule::getName));
+                .collect(Collectors.toMap(doc -> doc.getId().toString(), TestCaseDocument::getName));
 
         List<TestCaseCaseListRespDTO> dtos = page.getList().stream().map(node -> {
             TestCaseCaseListRespDTO dto = new TestCaseCaseListRespDTO();
@@ -137,7 +133,7 @@ public class TestCaseNodeServiceImpl implements TestCaseNodeService {
         if (!Constants.NodeType.CASE.equals(node.getType())) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_CASE_NODE_NOT_FOUND);
         }
-        TestCaseModule document = testCaseModuleMapper.selectById(node.getDocumentId());
+        TestCaseDocument document = testCaseDocumentMapper.selectById(node.getDocumentId());
         if (document == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_CASE_DOCUMENT_NOT_FOUND);
         }

@@ -11,13 +11,13 @@ import io.github.xiaomisum.robotest.model.dto.response.requirement.RequirementSu
 import io.github.xiaomisum.robotest.model.entity.admin.SysUser;
 import io.github.xiaomisum.robotest.model.entity.requirement.DocumentRequirementRel;
 import io.github.xiaomisum.robotest.model.entity.requirement.RequirementPoolItem;
-import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseModule;
+import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseDocument;
 import io.github.xiaomisum.robotest.model.entity.workspace.Project;
 import io.github.xiaomisum.robotest.model.entity.workspace.WorkspaceUser;
 import io.github.xiaomisum.robotest.repository.admin.SysUserMapper;
 import io.github.xiaomisum.robotest.repository.requirement.DocumentRequirementRelMapper;
 import io.github.xiaomisum.robotest.repository.requirement.RequirementPoolItemMapper;
-import io.github.xiaomisum.robotest.repository.tcase.TestCaseModuleMapper;
+import io.github.xiaomisum.robotest.repository.tcase.TestCaseDocumentMapper;
 import io.github.xiaomisum.robotest.repository.workspace.ProjectMapper;
 import io.github.xiaomisum.robotest.repository.workspace.WorkspaceUserMapper;
 import io.github.xiaomisum.robotest.service.ai.gateway.AiConfigService;
@@ -46,7 +46,7 @@ public class RequirementServiceImpl implements RequirementService {
     @Resource
     private DocumentRequirementRelMapper documentRequirementRelMapper;
     @Resource
-    private TestCaseModuleMapper testCaseModuleMapper;
+    private TestCaseDocumentMapper testCaseDocumentMapper;
     @Resource
     private SysUserMapper userMapper;
     @Resource
@@ -300,11 +300,10 @@ public class RequirementServiceImpl implements RequirementService {
                 .toList();
     }
 
-    /** 文档必须存在、为 document 类型且属于当前项目（与 AiCaseGenerationServiceImpl 同款判定） */
+    /** 文档必须存在且属于当前项目（与 AiCaseGenerationServiceImpl 同款判定） */
     private void requireDocument(UUID documentId, UUID projectId) {
-        TestCaseModule document = testCaseModuleMapper.selectById(documentId);
-        if (document == null || !Constants.ModuleType.DOCUMENT.equals(document.getType())
-                || !Objects.equals(document.getProjectId(), projectId)) {
+        TestCaseDocument document = testCaseDocumentMapper.selectById(documentId);
+        if (document == null || !Objects.equals(document.getProjectId(), projectId)) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_CASE_DOCUMENT_NOT_FOUND);
         }
     }

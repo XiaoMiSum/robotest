@@ -5,11 +5,11 @@ import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.model.entity.ai.BugEmbedding;
 import io.github.xiaomisum.robotest.model.entity.ai.CaseEmbedding;
 import io.github.xiaomisum.robotest.model.entity.bug.Bug;
-import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseModule;
+import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseDocument;
 import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseNode;
 import io.github.xiaomisum.robotest.repository.ai.BugEmbeddingMapper;
 import io.github.xiaomisum.robotest.repository.ai.CaseEmbeddingMapper;
-import io.github.xiaomisum.robotest.repository.tcase.TestCaseModuleMapper;
+import io.github.xiaomisum.robotest.repository.tcase.TestCaseDocumentMapper;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseNodeMapper;
 import io.github.xiaomisum.robotest.service.ai.gateway.AiConfigService;
 import io.github.xiaomisum.robotest.service.ai.model.AiModels.EmbedResult;
@@ -53,7 +53,7 @@ class AiVectorSearchServiceImplTest {
     @Mock
     private TestCaseNodeMapper testCaseNodeMapper;
     @Mock
-    private TestCaseModuleMapper testCaseModuleMapper;
+    private TestCaseDocumentMapper testCaseDocumentMapper;
 
     @InjectMocks
     private AiVectorSearchServiceImpl service;
@@ -179,14 +179,13 @@ class AiVectorSearchServiceImplTest {
         UUID doc = UUID.randomUUID();
         UUID project = UUID.randomUUID();
         UUID caseId = UUID.randomUUID();
-        TestCaseModule module = new TestCaseModule();
+        TestCaseDocument module = new TestCaseDocument();
         module.setId(doc);
         module.setProjectId(project);
-        module.setType(Constants.ModuleType.DOCUMENT);
         module.setName("登录用例集");
         TestCaseNode caseNode = node(caseId, "登录超时用例", Constants.NodeType.CASE, null, 0);
         caseNode.setDocumentId(doc);
-        when(testCaseModuleMapper.selectById(doc)).thenReturn(module);
+        when(testCaseDocumentMapper.selectById(doc)).thenReturn(module);
         when(testCaseNodeMapper.listByDocumentId(doc)).thenReturn(List.of(caseNode));
         when(caseEmbeddingMapper.findByNodeId(caseId)).thenReturn(null);
         when(openAiCompatProvider.embed(eq(CONFIG), org.mockito.ArgumentMatchers.anyList()))

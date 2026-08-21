@@ -4,11 +4,11 @@ import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.model.entity.ai.BugEmbedding;
 import io.github.xiaomisum.robotest.model.entity.ai.CaseEmbedding;
 import io.github.xiaomisum.robotest.model.entity.bug.Bug;
-import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseModule;
+import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseDocument;
 import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseNode;
 import io.github.xiaomisum.robotest.repository.ai.BugEmbeddingMapper;
 import io.github.xiaomisum.robotest.repository.ai.CaseEmbeddingMapper;
-import io.github.xiaomisum.robotest.repository.tcase.TestCaseModuleMapper;
+import io.github.xiaomisum.robotest.repository.tcase.TestCaseDocumentMapper;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseNodeMapper;
 import io.github.xiaomisum.robotest.service.ai.gateway.AiConfigService;
 import io.github.xiaomisum.robotest.service.ai.provider.OpenAiCompatProvider;
@@ -52,7 +52,7 @@ public class AiVectorSearchServiceImpl implements AiVectorSearchService {
     @Resource
     private TestCaseNodeMapper testCaseNodeMapper;
     @Resource
-    private TestCaseModuleMapper testCaseModuleMapper;
+    private TestCaseDocumentMapper testCaseDocumentMapper;
 
     @Override
     public List<BugDedupHit> searchSimilarBugs(UUID projectId, String title, String reproSteps,
@@ -159,13 +159,13 @@ public class AiVectorSearchServiceImpl implements AiVectorSearchService {
         if (config == null || node == null || node.getDocumentId() == null) {
             return false;
         }
-        TestCaseModule module = testCaseModuleMapper.selectById(node.getDocumentId());
-        if (module == null || module.getProjectId() == null) {
+        TestCaseDocument document = testCaseDocumentMapper.selectById(node.getDocumentId());
+        if (document == null || document.getProjectId() == null) {
             log.warn("[AI] 用例向量写入跳过：节点 {} 所属文档不存在", node.getId());
             return false;
         }
         List<TestCaseNode> nodes = testCaseNodeMapper.listByDocumentId(node.getDocumentId());
-        String text = buildCaseIndexTexts(module.getName(), nodes).get(node.getId());
+        String text = buildCaseIndexTexts(document.getName(), nodes).get(node.getId());
         if (text == null) {
             return false;
         }
@@ -179,7 +179,7 @@ public class AiVectorSearchServiceImpl implements AiVectorSearchService {
         if (vector == null) {
             return false;
         }
-        upsertCase(node.getId(), module.getProjectId(), vector, hash);
+        upsertCase(node.getId(), document.getProjectId(), vector, hash);
         return true;
     }
 

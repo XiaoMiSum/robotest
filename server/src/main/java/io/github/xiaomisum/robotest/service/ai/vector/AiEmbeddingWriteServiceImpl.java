@@ -4,14 +4,14 @@ import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.model.entity.ai.BugEmbedding;
 import io.github.xiaomisum.robotest.model.entity.ai.CaseEmbedding;
 import io.github.xiaomisum.robotest.model.entity.bug.Bug;
-import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseModule;
+import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseDocument;
 import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseNode;
 import io.github.xiaomisum.robotest.model.entity.workspace.Project;
 import io.github.xiaomisum.robotest.repository.ai.AiAnalysisTaskMapper;
 import io.github.xiaomisum.robotest.repository.ai.BugEmbeddingMapper;
 import io.github.xiaomisum.robotest.repository.ai.CaseEmbeddingMapper;
 import io.github.xiaomisum.robotest.repository.bug.BugMapper;
-import io.github.xiaomisum.robotest.repository.tcase.TestCaseModuleMapper;
+import io.github.xiaomisum.robotest.repository.tcase.TestCaseDocumentMapper;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseNodeMapper;
 import io.github.xiaomisum.robotest.repository.workspace.ProjectMapper;
 import jakarta.annotation.Resource;
@@ -53,7 +53,7 @@ public class AiEmbeddingWriteServiceImpl implements AiEmbeddingWriteService {
     @Resource
     private TestCaseNodeMapper testCaseNodeMapper;
     @Resource
-    private TestCaseModuleMapper testCaseModuleMapper;
+    private TestCaseDocumentMapper testCaseDocumentMapper;
     @Resource
     private BugEmbeddingMapper bugEmbeddingMapper;
     @Resource
@@ -188,9 +188,9 @@ public class AiEmbeddingWriteServiceImpl implements AiEmbeddingWriteService {
     }
 
     private int compensateCases(UUID projectId, int limit) {
-        List<TestCaseModule> documents = testCaseModuleMapper.findDocumentModulesByProjectId(projectId);
+        List<TestCaseDocument> documents = testCaseDocumentMapper.listByProjectId(projectId);
         int embedded = 0;
-        for (TestCaseModule document : documents) {
+        for (TestCaseDocument document : documents) {
             if (embedded >= limit) {
                 break;
             }

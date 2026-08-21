@@ -13,13 +13,13 @@ import io.github.xiaomisum.robotest.model.entity.bug.Bug;
 import io.github.xiaomisum.robotest.model.entity.bug.BugLog;
 import io.github.xiaomisum.robotest.model.entity.workspace.Project;
 import io.github.xiaomisum.robotest.model.entity.admin.SysUser;
-import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseModule;
+import io.github.xiaomisum.robotest.model.entity.tcase.ProjectModule;
 import io.github.xiaomisum.robotest.model.entity.workspace.WorkspaceUser;
 import io.github.xiaomisum.robotest.repository.bug.BugLogMapper;
 import io.github.xiaomisum.robotest.repository.bug.BugMapper;
 import io.github.xiaomisum.robotest.repository.workspace.ProjectMapper;
 import io.github.xiaomisum.robotest.repository.admin.SysUserMapper;
-import io.github.xiaomisum.robotest.repository.tcase.TestCaseModuleMapper;
+import io.github.xiaomisum.robotest.repository.tcase.ProjectModuleMapper;
 import io.github.xiaomisum.robotest.repository.workspace.WorkspaceUserMapper;
 import io.github.xiaomisum.robotest.service.ai.vector.AiEmbeddingWriteService;
 import org.mockito.ArgumentCaptor;
@@ -56,7 +56,7 @@ class BugServiceImplTest {
     @Mock
     private WorkspaceUserMapper workspaceUserMapper;
     @Mock
-    private TestCaseModuleMapper testCaseModuleMapper;
+    private ProjectModuleMapper projectModuleMapper;
 
     @Mock
     private AiEmbeddingWriteService aiEmbeddingWriteService;
@@ -235,10 +235,10 @@ class BugServiceImplTest {
     @Test
     void createBug_moduleNotInProject_throws() {
         UUID moduleId = UUID.fromString("00000000-0000-0000-0000-000000000008");
-        TestCaseModule module = new TestCaseModule();
+        ProjectModule module = new ProjectModule();
         module.setId(moduleId);
         module.setProjectId(UUID.fromString("00000000-0000-0000-0000-000000000099"));
-        when(testCaseModuleMapper.selectById(moduleId)).thenReturn(module);
+        when(projectModuleMapper.selectById(moduleId)).thenReturn(module);
 
         BugCreateReqDTO reqDTO = new BugCreateReqDTO();
         reqDTO.setTitle("New Bug");

@@ -7,9 +7,9 @@ import io.github.xiaomisum.robotest.model.dto.request.ai.AiCaseGenerateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.ai.AiStepCompleteReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.ai.AiTextImportReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiNodeTreeDTO;
-import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseModule;
+import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseDocument;
 import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseNode;
-import io.github.xiaomisum.robotest.repository.tcase.TestCaseModuleMapper;
+import io.github.xiaomisum.robotest.repository.tcase.TestCaseDocumentMapper;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseNodeMapper;
 import io.github.xiaomisum.robotest.service.ai.gateway.AiConfigService;
 import io.github.xiaomisum.robotest.service.ai.gateway.AiGatewayService;
@@ -64,7 +64,7 @@ public class AiCaseGenerationServiceImpl implements AiCaseGenerationService {
     @Resource
     private AiConfigService aiConfigService;
     @Resource
-    private TestCaseModuleMapper testCaseModuleMapper;
+    private TestCaseDocumentMapper testCaseDocumentMapper;
     @Resource
     private TestCaseNodeMapper testCaseNodeMapper;
     @Resource
@@ -72,7 +72,7 @@ public class AiCaseGenerationServiceImpl implements AiCaseGenerationService {
 
     @Override
     public SseEmitter generateCaseTree(UUID userId, UUID workspaceId, UUID projectId, AiCaseGenerateReqDTO reqDTO) {
-        TestCaseModule document = requireDocument(reqDTO.getDocumentId(), projectId);
+        TestCaseDocument document = requireDocument(reqDTO.getDocumentId(), projectId);
         // 需求输入校验：手动文本与需求池条目至少一项非空（3.2.1）
         boolean hasText = StringUtils.hasText(reqDTO.getRequirementText());
         boolean hasItems = reqDTO.getRequirementIds() != null && !reqDTO.getRequirementIds().isEmpty();
@@ -96,7 +96,7 @@ public class AiCaseGenerationServiceImpl implements AiCaseGenerationService {
 
     @Override
     public SseEmitter completeSteps(UUID userId, UUID workspaceId, UUID projectId, AiStepCompleteReqDTO reqDTO) {
-        TestCaseModule document = requireDocument(reqDTO.getDocumentId(), projectId);
+        TestCaseDocument document = requireDocument(reqDTO.getDocumentId(), projectId);
         List<TestCaseNode> docNodes = testCaseNodeMapper.listByDocumentId(document.getId());
         TestCaseNode target = requireNodeInDocument(docNodes, reqDTO.getNodeId());
         // 补全目标必须是 case 节点（3.2.2），其余类型按目标状态不允许处理
@@ -115,7 +115,7 @@ public class AiCaseGenerationServiceImpl implements AiCaseGenerationService {
 
     @Override
     public SseEmitter importText(UUID userId, UUID workspaceId, UUID projectId, AiTextImportReqDTO reqDTO) {
-        TestCaseModule document = requireDocument(reqDTO.getDocumentId(), projectId);
+        TestCaseDocument document = requireDocument(reqDTO.getDocumentId(), projectId);
         List<TestCaseNode> docNodes = testCaseNodeMapper.listByDocumentId(document.getId());
         requireNodeInDocument(docNodes, reqDTO.getTargetNodeId());
         // 长度上限为系统配置项（默认 20000），超限按参数校验失败处理（3.2.3）
@@ -160,11 +160,10 @@ public class AiCaseGenerationServiceImpl implements AiCaseGenerationService {
         };
     }
 
-    /** 文档必须存在、为 document 类型且属于当前项目（跨项目访问一律按不存在处理） */
-    private TestCaseModule requireDocument(UUID documentId, UUID projectId) {
-        TestCaseModule document = testCaseModuleMapper.selectById(documentId);
-        if (document == null || !Constants.ModuleType.DOCUMENT.equals(document.getType())
-                || !Objects.equals(document.getProjectId(), projectId)) {
+    /** 文档必须存在且属于当前项目（跨项目访问一律按不存在处理） */
+    private TestCaseDocument requireDocument(UUID documentId, UUID projectId) {
+        TestCaseDocument document = testCaseDocumentMapper.selectById(documentId);
+        if (document == null || !Objects.equals(document.getProjectId(), projectId)) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_CASE_DOCUMENT_NOT_FOUND);
         }
         return document;

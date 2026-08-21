@@ -7,7 +7,7 @@ import io.github.xiaomisum.robotest.model.entity.bug.Bug;
 import io.github.xiaomisum.robotest.model.entity.workspace.Project;
 import io.github.xiaomisum.robotest.repository.ai.AiAnalysisTaskMapper;
 import io.github.xiaomisum.robotest.repository.bug.BugMapper;
-import io.github.xiaomisum.robotest.repository.tcase.TestCaseModuleMapper;
+import io.github.xiaomisum.robotest.repository.tcase.TestCaseDocumentMapper;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseNodeMapper;
 import io.github.xiaomisum.robotest.repository.workspace.ProjectMapper;
 import java.util.List;
@@ -43,7 +43,7 @@ class AiEmbeddingRebuildTaskHandlerTest {
     @Mock
     private TestCaseNodeMapper testCaseNodeMapper;
     @Mock
-    private TestCaseModuleMapper testCaseModuleMapper;
+    private TestCaseDocumentMapper testCaseDocumentMapper;
     @Mock
     private ProjectMapper projectMapper;
     @Mock
@@ -89,7 +89,7 @@ class AiEmbeddingRebuildTaskHandlerTest {
         doNothing().when(jdbcTemplate).execute(anyString());
         when(projectMapper.listAll()).thenReturn(List.of(project));
         when(bugMapper.findOpenBugsByProjectId(project.getId())).thenReturn(List.of(bug));
-        when(testCaseModuleMapper.findDocumentModulesByProjectId(project.getId())).thenReturn(List.of());
+        when(testCaseDocumentMapper.listByProjectId(project.getId())).thenReturn(List.of());
         when(vectorSearchService.buildBugSourceText(bug)).thenReturn("登录超时\n步骤");
         when(aiAnalysisTaskMapper.updateProgressIfRunning(eq(task.getId()), anyInt(), anyString())).thenReturn(1);
         when(vectorSearchService.embedBatch(List.of("登录超时\n步骤"))).thenReturn(List.of(new float[1024]));
@@ -135,7 +135,7 @@ class AiEmbeddingRebuildTaskHandlerTest {
         doNothing().when(jdbcTemplate).execute(anyString());
         when(projectMapper.listAll()).thenReturn(List.of(project));
         when(bugMapper.findOpenBugsByProjectId(project.getId())).thenReturn(List.of(bug));
-        when(testCaseModuleMapper.findDocumentModulesByProjectId(project.getId())).thenReturn(List.of());
+        when(testCaseDocumentMapper.listByProjectId(project.getId())).thenReturn(List.of());
         when(vectorSearchService.buildBugSourceText(bug)).thenReturn("标题\n步骤");
         when(aiAnalysisTaskMapper.updateProgressIfRunning(any(), anyInt(), anyString())).thenReturn(0);
 
@@ -159,7 +159,7 @@ class AiEmbeddingRebuildTaskHandlerTest {
         doNothing().when(jdbcTemplate).execute(anyString());
         when(projectMapper.listAll()).thenReturn(List.of(project));
         when(bugMapper.findOpenBugsByProjectId(project.getId())).thenReturn(List.of(bug));
-        when(testCaseModuleMapper.findDocumentModulesByProjectId(project.getId())).thenReturn(List.of());
+        when(testCaseDocumentMapper.listByProjectId(project.getId())).thenReturn(List.of());
         when(vectorSearchService.buildBugSourceText(bug)).thenReturn("标题\n步骤");
         when(aiAnalysisTaskMapper.updateProgressIfRunning(any(), anyInt(), anyString())).thenReturn(1);
         when(vectorSearchService.embedBatch(any())).thenThrow(new RuntimeException("network"));
