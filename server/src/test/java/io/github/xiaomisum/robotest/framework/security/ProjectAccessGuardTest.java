@@ -1,7 +1,9 @@
 package io.github.xiaomisum.robotest.framework.security;
 
+import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseDocument;
 import io.github.xiaomisum.robotest.model.entity.workspace.Project;
+import io.github.xiaomisum.robotest.model.entity.workspace.WorkspaceUser;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseDocumentMapper;
 import io.github.xiaomisum.robotest.repository.workspace.ProjectMapper;
 import io.github.xiaomisum.robotest.repository.workspace.WorkspaceUserMapper;
@@ -77,6 +79,81 @@ class ProjectAccessGuardTest {
 
         assertThrows(ServiceException.class,
                 () -> guard.requireProjectMember(PROJECT_ID, USER_ID));
+    }
+
+    // ========== requireProjectMember / requireProjectMaintainer（工作空间上下文重载） ==========
+
+    private static final UUID OTHER_WORKSPACE_ID = UUID.fromString("00000000-0000-0000-0000-000000000098");
+
+    @Test
+    void requireProjectMemberWithContext_member_doesNotThrow() {
+        when(projectMapper.selectById(PROJECT_ID)).thenReturn(project);
+        when(workspaceUserMapper.existsByWorkspaceIdAndUserId(WORKSPACE_ID, USER_ID)).thenReturn(true);
+
+        guard.requireProjectMember(PROJECT_ID, WORKSPACE_ID, USER_ID);
+    }
+
+    @Test
+    void requireProjectMemberWithContext_projectNotInWorkspace_throwsNotFound() {
+        when(projectMapper.selectById(PROJECT_ID)).thenReturn(project);
+
+        assertThrows(ServiceException.class,
+                () -> guard.requireProjectMember(PROJECT_ID, OTHER_WORKSPACE_ID, USER_ID));
+        verify(workspaceUserMapper, never()).existsByWorkspaceIdAndUserId(OTHER_WORKSPACE_ID, USER_ID);
+    }
+
+    @Test
+    void requireProjectMemberWithContext_notMember_throws() {
+        when(projectMapper.selectById(PROJECT_ID)).thenReturn(project);
+        when(workspaceUserMapper.existsByWorkspaceIdAndUserId(WORKSPACE_ID, USER_ID)).thenReturn(false);
+
+        assertThrows(ServiceException.class,
+                () -> guard.requireProjectMember(PROJECT_ID, WORKSPACE_ID, USER_ID));
+    }
+
+    @Test
+    void requireProjectMaintainerWithContext_admin_doesNotThrow() {
+        when(projectMapper.selectById(PROJECT_ID)).thenReturn(project);
+        when(workspaceUserMapper.findByWorkspaceIdAndUserId(WORKSPACE_ID, USER_ID))
+                .thenReturn(member(Constants.WorkspaceRole.ADMIN_ID));
+
+        guard.requireProjectMaintainer(PROJECT_ID, WORKSPACE_ID, USER_ID);
+    }
+
+    @Test
+    void requireProjectMaintainerWithContext_nonAdmin_throws() {
+        when(projectMapper.selectById(PROJECT_ID)).thenReturn(project);
+        when(workspaceUserMapper.findByWorkspaceIdAndUserId(WORKSPACE_ID, USER_ID))
+                .thenReturn(member(UUID.fromString("00000000-0000-0000-0000-000000000002")));
+
+        assertThrows(ServiceException.class,
+                () -> guard.requireProjectMaintainer(PROJECT_ID, WORKSPACE_ID, USER_ID));
+    }
+
+    @Test
+    void requireProjectMaintainerWithContext_notInWorkspace_throws() {
+        when(projectMapper.selectById(PROJECT_ID)).thenReturn(project);
+        // 非成员时 findByWorkspaceIdAndUserId 返回 null（Mockito 默认行为），无需显式打桩
+
+        assertThrows(ServiceException.class,
+                () -> guard.requireProjectMaintainer(PROJECT_ID, OTHER_WORKSPACE_ID, USER_ID));
+    }
+
+    @Test
+    void requireProjectMaintainerWithContext_projectNotInWorkspace_throws() {
+        when(projectMapper.selectById(PROJECT_ID)).thenReturn(project);
+
+        assertThrows(ServiceException.class,
+                () -> guard.requireProjectMaintainer(PROJECT_ID, OTHER_WORKSPACE_ID, USER_ID));
+        verify(workspaceUserMapper, never()).findByWorkspaceIdAndUserId(OTHER_WORKSPACE_ID, USER_ID);
+    }
+
+    private WorkspaceUser member(UUID roleId) {
+        WorkspaceUser member = new WorkspaceUser();
+        member.setWorkspaceId(WORKSPACE_ID);
+        member.setUserId(USER_ID);
+        member.setWorkspaceRole(roleId);
+        return member;
     }
 
     // ========== isDocumentMember ==========

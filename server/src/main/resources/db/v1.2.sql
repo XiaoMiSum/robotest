@@ -95,7 +95,37 @@ DROP TABLE IF EXISTS test_case_document_layout CASCADE;
 COMMENT ON COLUMN bug.module_id IS '所属模块 ID，关联 project_module.id（V1.2 起缺陷按目录归属）';
 
 -- ============================================================
--- 5. 注意事项
+-- 5. 项目设置表（安全策略与应用设置，「域 + 键」统一存储）
+-- ============================================================
+
+CREATE TABLE project_setting (
+    id            UUID         PRIMARY KEY,
+    project_id    UUID         NOT NULL,
+    domain        VARCHAR(20)  NOT NULL,
+    setting_key   VARCHAR(100) NOT NULL,
+    setting_value VARCHAR(500) NOT NULL,
+    updated_by    UUID         NOT NULL,
+    is_deleted    BOOLEAN      NOT NULL DEFAULT FALSE,
+    created_at    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE UNIQUE INDEX uk_project_setting
+    ON project_setting(project_id, domain, setting_key) WHERE is_deleted = FALSE;
+
+COMMENT ON TABLE project_setting IS '项目设置表（项目级设置项「域+键」统一存储，未落库键读取时返回注册表默认值）';
+COMMENT ON COLUMN project_setting.id IS '设置项唯一标识';
+COMMENT ON COLUMN project_setting.project_id IS '所属项目 ID，关联 ws_project.id（逻辑关联，无物理外键）';
+COMMENT ON COLUMN project_setting.domain IS '业务域归属：common / api_test / func_test';
+COMMENT ON COLUMN project_setting.setting_key IS '设置项标识（如 report.share.enabled），白名单见代码注册表';
+COMMENT ON COLUMN project_setting.setting_value IS '设置值（字符串化存储，语义由注册表定义）';
+COMMENT ON COLUMN project_setting.updated_by IS '最后维护人，关联 sys_user.id';
+COMMENT ON COLUMN project_setting.is_deleted IS '逻辑删除标志';
+COMMENT ON COLUMN project_setting.created_at IS '创建时间';
+COMMENT ON COLUMN project_setting.updated_at IS '更新时间';
+
+-- ============================================================
+-- 6. 注意事项
 -- ============================================================
 -- - test_case_node.document_id 仍指向文档 ID（现为 test_case_document.id）
 -- - bug.module_id 仍指向模块 ID（现为 project_module.id）
