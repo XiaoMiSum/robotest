@@ -79,6 +79,10 @@ public class ErrorCodeConstants {
     // ========== 用例文档管理 1,000,017,061-1,000,017,069 ==========
     public static final ErrorCode TEST_CASE_DOCUMENT_NAME_EXISTS = ErrorCode.of(1000017061, "同模块下用例名称已存在");
 
+    // ========== 项目设置 1,000,017,701-1,000,017,702（文档简写 77XX，7701 ≙ 1000017701） ==========
+    public static final ErrorCode API_SETTING_KEY_INVALID = ErrorCode.of(1000017701, "设置项标识非法（不在注册表白名单）");
+    public static final ErrorCode API_SETTING_VALUE_INVALID = ErrorCode.of(1000017702, "设置值非法（格式或取值范围不满足注册表约束）：{}");
+
     // ========== 缺陷管理模块 1,000,012,001-1,000,012,010 ==========
     public static final ErrorCode BUG_INVALID_STATUS_TRANSITION = ErrorCode.of(1000012001, "缺陷状态流转不合法");
     public static final ErrorCode BUG_ALREADY_CLOSED = ErrorCode.of(1000012002, "缺陷已关闭，不可再修改状态");
