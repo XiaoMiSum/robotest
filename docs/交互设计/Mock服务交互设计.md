@@ -24,12 +24,12 @@ V1.2 接口测试域新增 Mock 服务能力。本文档覆盖两部分交互设
 ┌──────────────────────────────────┐
 │  接口测试（顶部菜单入口）          │
 │  ─────────────────────────       │
-│  快速调试     /workspace/projects/api-testing/debug
-│  接口管理     /workspace/projects/api-testing/interfaces
-│  Mock 服务    /workspace/projects/api-testing/mocks   ← 本文档
-│  测试场景     /workspace/projects/api-testing/scenes
-│  接口测试报告 /workspace/projects/api-testing/reports
-│  定时任务     /workspace/projects/api-testing/schedules
+│  快速调试     /workspace/projects/api-testing?tab=debug
+│  接口管理     /workspace/projects/api-testing?tab=interfaces
+│  Mock 服务    /workspace/projects/api-testing?tab=mocks   ← 本文档
+│  测试场景     /workspace/projects/api-testing?tab=scenes
+│  接口测试报告 /workspace/projects/api-testing?tab=reports
+│  定时任务     /workspace/projects/api-testing?tab=schedules
 │  ═════════════════════════════
 │  项目设置（平台级 · 按业务域过滤）
 │   ├ 环境管理           /workspace/projects/settings/environments
@@ -41,8 +41,8 @@ V1.2 接口测试域新增 Mock 服务能力。本文档覆盖两部分交互设
 
 | 页面 | 路由 | 模式 | 权限 |
 | ---- | ---- | ---- | ---- |
-| Mock 规则管理页 | `/workspace/projects/api-testing/mocks` | 项目模式 | 项目成员查看；项目维护者维护 |
-| Mock 调试页 | `/workspace/projects/api-testing/mock-debug` | 项目模式 | 项目成员 |
+| Mock 规则管理页 | `/workspace/projects/api-testing?tab=mocks` | 项目模式 | 项目成员查看；项目维护者维护 |
+| Mock 调试页 | `/workspace/projects/mock-debug` | 项目模式 | 项目成员 |
 
 > 上表路由为前端路由示意，与后端 API 路径相互独立。
 
@@ -54,7 +54,7 @@ V1.2 接口测试域新增 Mock 服务能力。本文档覆盖两部分交互设
 
 ## 2. Mock 规则管理页
 
-**路由**：`/workspace/projects/api-testing/mocks`
+**路由**：`/workspace/projects/api-testing?tab=mocks`
 
 ### 2.1 页面布局
 
@@ -177,7 +177,7 @@ Mock 每次被命中都会在服务端记录一条访问日志（请求方法/�
 
 ## 3. Mock 调试页
 
-**路由**：`/workspace/projects/api-testing/mock-debug`
+**路由**：`/workspace/projects/mock-debug`
 
 ### 3.1 页面布局
 
