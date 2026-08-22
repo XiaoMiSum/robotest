@@ -56,8 +56,12 @@ const isSystemActive = computed(() => navStore.isAdminMode)
 // 项目 tag 仅 project 模式显示：workspace 模式（项目列表页）下 activeProjectName 可能是上次进入的残留
 const showProjectTag = computed(() => navStore.isProjectMode && Boolean(authStore.activeProjectName))
 
-// full-height pages (e.g. functional-testing) need content-area padding: 0 so sidebar/breadcrumbs extend edge-to-edge
-const isFullHeightPage = computed(() => route.path.startsWith('/workspace/projects/functional-testing'))
+// 侧边栏布局页面需内容区 padding 归零，侧边栏才能贴边通高（功能测试 / 接口测试）
+const isFullHeightPage = computed(
+  () =>
+    route.path.startsWith('/workspace/projects/functional-testing') ||
+    route.path.startsWith('/workspace/projects/api-testing'),
+)
 
 function handleDynamicMenuClick(path: string) {
   router.push(path)

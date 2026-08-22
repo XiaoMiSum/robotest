@@ -36,6 +36,8 @@ export const useNavStore = defineStore('nav', () => {
         const items: Array<{ label: string; path: string; icon: string }> = []
         if (has('case:view')) items.push({ label: '功能测试', path: '/workspace/projects/functional-testing', icon: 'Monitor' })
         if (has('bug:view')) items.push({ label: '缺陷管理', path: '/workspace/projects/bugs', icon: 'Warning' })
+        // 菜单顺序对齐交互设计 3.3：接口测试位于缺陷管理之后
+        if (has('api-test:view')) items.push({ label: '接口测试', path: '/workspace/projects/api-testing', icon: 'Connection' })
         return items
       }
       default:
