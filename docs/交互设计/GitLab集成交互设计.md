@@ -28,12 +28,12 @@ V1.2 接口测试业务域新增 GitLab 集成能力，本文档覆盖四个功�
 ┌──────────────────────────────────┐
 │  接口测试（顶部菜单入口）          │
 │  ─────────────────────────       │
-│  快速调试     /workspace/projects/api-testing/debug
-│  接口管理     /workspace/projects/api-testing/interfaces
-│  Mock 服务    /workspace/projects/api-testing/mocks
-│  测试场景     /workspace/projects/api-testing/scenes      ← 第 3–5 章弹窗/抽屉宿主页面
-│  接口测试报告 /workspace/projects/api-testing/reports
-│  定时任务     /workspace/projects/api-testing/schedules
+│  快速调试     /workspace/projects/api-testing?tab=debug
+│  接口管理     /workspace/projects/api-testing?tab=interfaces
+│  Mock 服务    /workspace/projects/api-testing?tab=mocks
+│  测试场景     /workspace/projects/api-testing?tab=scenes      ← 第 3–5 章弹窗/抽屉宿主页面
+│  接口测试报告 /workspace/projects/api-testing?tab=reports
+│  定时任务     /workspace/projects/api-testing?tab=schedules
 │  ═════════════════════════════
 │  项目设置（平台级 · 按业务域过滤）
 │   ├ 环境管理           /workspace/projects/settings/environments
@@ -127,7 +127,7 @@ V1.2 接口测试业务域新增 GitLab 集成能力，本文档覆盖四个功�
 
 ## 3. 可执行导入向导弹窗
 
-**入口**：测试场景列表页 [导入场景] 按钮（宿主路由 `/workspace/projects/api-testing/scenes`）。
+**入口**：测试场景列表页 [导入场景] 按钮（宿主路由 `/workspace/projects/api-testing?tab=scenes`）。
 
 ### 3.1 导入向导流程
 
@@ -220,7 +220,7 @@ flowchart LR
 
 ## 4. 元数据同步抽屉
 
-**入口**：测试场景列表页 [元数据同步] 按钮（宿主路由 `/workspace/projects/api-testing/scenes`）。
+**入口**：测试场景列表页 [元数据同步] 按钮（宿主路由 `/workspace/projects/api-testing?tab=scenes`）。
 
 ### 4.1 抽屉布局
 
@@ -276,7 +276,7 @@ flowchart LR
 
 ## 5. 流水线触发弹窗
 
-**入口**：测试场景列表页 [触发流水线] 按钮（宿主路由 `/workspace/projects/api-testing/scenes`）。流水线执行的状态与结果由执行历史与测试报告体系承载，本弹窗仅负责触发。
+**入口**：测试场景列表页 [触发流水线] 按钮（宿主路由 `/workspace/projects/api-testing?tab=scenes`）。流水线执行的状态与结果由执行历史与测试报告体系承载，本弹窗仅负责触发。
 
 ### 5.1 弹窗布局
 
