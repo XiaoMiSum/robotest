@@ -149,9 +149,9 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '计划详情' },
       },
       {
-        path: 'workspace/projects/api-test',
-        name: 'ApiTest',
-        component: () => import('@/pages/project/ApiTestPage.vue'),
+        path: 'workspace/projects/api-testing',
+        name: 'ApiTesting',
+        component: () => import('@/pages/project/ApiTestingPage.vue'),
         meta: { title: '接口测试' },
       },
       {
