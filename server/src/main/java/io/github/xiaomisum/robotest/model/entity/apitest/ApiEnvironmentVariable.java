@@ -23,4 +23,8 @@ public class ApiEnvironmentVariable extends BaseUuidDO<ApiEnvironmentVariable> {
     private String description;
     /** 变量类型：text / number / sensitive */
     private String type;
+    @TableField(typeHandler = UUIDTypeHandler.class)
+    private UUID sourceStepId;
+    @TableField(typeHandler = UUIDTypeHandler.class)
+    private UUID sourceReportId;
 }

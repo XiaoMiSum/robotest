@@ -2,15 +2,26 @@ package io.github.xiaomisum.robotest.controller.apitest;
 
 import io.github.xiaomisum.robotest.framework.security.LoginUser;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiEnvironmentCopyReqDTO;
+import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiEnvironmentProcessorSaveReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiEnvironmentSaveReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiEnvironmentSortReqDTO;
+import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiEnvironmentVariableBatchReqDTO;
+import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiEnvironmentVariableCreateReqDTO;
+import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiEnvironmentVariableImportReqDTO;
+import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiDataSourceTestRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiEnvImportResultRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiEnvironmentDetailRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiEnvironmentIdRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiEnvironmentListItemRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiEnvironmentProcessorRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiEnvironmentSetDefaultRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiEnvironmentVariableRevealRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiEnvironmentVariableRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiHttpTestRespDTO;
 import io.github.xiaomisum.robotest.service.apitest.ApiEnvironmentService;
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
+import org.springframework.http.MediaType;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -23,6 +34,7 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 import xyz.migoo.framework.common.pojo.Result;
 
 import java.util.List;
@@ -111,5 +123,151 @@ public class ApiEnvironmentController {
             @PathVariable UUID id,
             @RequestBody @Valid ApiEnvironmentCopyReqDTO reqDTO) {
         return Result.ok(apiEnvironmentService.copyEnvironment(projectId, workspaceId, loginUser.getId(), id, reqDTO));
+    }
+
+    // ========== 处理器子资源（3.2） ==========
+
+    @GetMapping("/{id}/processors")
+    public Result<List<ApiEnvironmentProcessorRespDTO>> listProcessors(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @RequestHeader("X-Active-Workspace") UUID workspaceId,
+            @RequestHeader("X-Active-Project") UUID projectId,
+            @PathVariable UUID id,
+            @RequestParam(value = "processorType", required = false) String processorType) {
+        return Result.ok(apiEnvironmentService.listProcessors(projectId, workspaceId, loginUser.getId(),
+                id, processorType));
+    }
+
+    @PostMapping("/{id}/processors")
+    public Result<ApiEnvironmentProcessorRespDTO> createProcessor(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @RequestHeader("X-Active-Workspace") UUID workspaceId,
+            @RequestHeader("X-Active-Project") UUID projectId,
+            @PathVariable UUID id,
+            @RequestBody @Valid ApiEnvironmentProcessorSaveReqDTO reqDTO) {
+        return Result.ok(apiEnvironmentService.createProcessor(projectId, workspaceId, loginUser.getId(),
+                id, reqDTO));
+    }
+
+    @PutMapping("/{id}/processors/{procId}")
+    public Result<ApiEnvironmentProcessorRespDTO> updateProcessor(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @RequestHeader("X-Active-Workspace") UUID workspaceId,
+            @RequestHeader("X-Active-Project") UUID projectId,
+            @PathVariable UUID id,
+            @PathVariable UUID procId,
+            @RequestBody @Valid ApiEnvironmentProcessorSaveReqDTO reqDTO) {
+        return Result.ok(apiEnvironmentService.updateProcessor(projectId, workspaceId, loginUser.getId(),
+                id, procId, reqDTO));
+    }
+
+    @DeleteMapping("/{id}/processors/{procId}")
+    public Result<Boolean> deleteProcessor(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @RequestHeader("X-Active-Workspace") UUID workspaceId,
+            @RequestHeader("X-Active-Project") UUID projectId,
+            @PathVariable UUID id,
+            @PathVariable UUID procId) {
+        apiEnvironmentService.deleteProcessor(projectId, workspaceId, loginUser.getId(), id, procId);
+        return Result.ok(true);
+    }
+
+    // ========== 变量子资源（3.3） ==========
+
+    @PutMapping("/{id}/variables")
+    public Result<List<ApiEnvironmentVariableRespDTO>> batchReplaceVariables(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @RequestHeader("X-Active-Workspace") UUID workspaceId,
+            @RequestHeader("X-Active-Project") UUID projectId,
+            @PathVariable UUID id,
+            @RequestBody @Valid ApiEnvironmentVariableBatchReqDTO reqDTO) {
+        return Result.ok(apiEnvironmentService.batchReplaceVariables(projectId, workspaceId, loginUser.getId(),
+                id, reqDTO));
+    }
+
+    @PostMapping("/{id}/variables")
+    public Result<ApiEnvironmentVariableRespDTO> addVariableFromResult(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @RequestHeader("X-Active-Workspace") UUID workspaceId,
+            @RequestHeader("X-Active-Project") UUID projectId,
+            @PathVariable UUID id,
+            @RequestBody @Valid ApiEnvironmentVariableCreateReqDTO reqDTO) {
+        return Result.ok(apiEnvironmentService.addVariableFromResult(projectId, workspaceId, loginUser.getId(),
+                id, reqDTO));
+    }
+
+    @PostMapping("/{id}/variables/import")
+    public Result<ApiEnvImportResultRespDTO> importVariables(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @RequestHeader("X-Active-Workspace") UUID workspaceId,
+            @RequestHeader("X-Active-Project") UUID projectId,
+            @PathVariable UUID id,
+            @RequestBody @Valid ApiEnvironmentVariableImportReqDTO reqDTO) {
+        return Result.ok(apiEnvironmentService.importVariables(projectId, workspaceId, loginUser.getId(),
+                id, reqDTO));
+    }
+
+    @GetMapping("/{id}/variables/export")
+    public Result<List<ApiEnvironmentVariableRespDTO>> exportVariables(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @RequestHeader("X-Active-Workspace") UUID workspaceId,
+            @RequestHeader("X-Active-Project") UUID projectId,
+            @PathVariable UUID id) {
+        return Result.ok(apiEnvironmentService.exportVariables(projectId, workspaceId, loginUser.getId(), id));
+    }
+
+    @PostMapping("/{id}/variables/{variableId}/reveal")
+    public Result<ApiEnvironmentVariableRevealRespDTO> revealVariable(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @RequestHeader("X-Active-Workspace") UUID workspaceId,
+            @RequestHeader("X-Active-Project") UUID projectId,
+            @PathVariable UUID id,
+            @PathVariable UUID variableId) {
+        return Result.ok(apiEnvironmentService.revealVariable(projectId, workspaceId, loginUser.getId(),
+                id, variableId));
+    }
+
+    // ========== 连接测试（3.1.7 / 3.1.8） ==========
+
+    @PostMapping("/{id}/data-sources/{dsId}/test")
+    public Result<ApiDataSourceTestRespDTO> testDataSource(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @RequestHeader("X-Active-Workspace") UUID workspaceId,
+            @RequestHeader("X-Active-Project") UUID projectId,
+            @PathVariable UUID id,
+            @PathVariable UUID dsId) {
+        return Result.ok(apiEnvironmentService.testDataSource(projectId, workspaceId, loginUser.getId(), id, dsId));
+    }
+
+    @PostMapping("/{id}/http-configs/{httpId}/test")
+    public Result<ApiHttpTestRespDTO> testHttpConfig(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @RequestHeader("X-Active-Workspace") UUID workspaceId,
+            @RequestHeader("X-Active-Project") UUID projectId,
+            @PathVariable UUID id,
+            @PathVariable UUID httpId) {
+        return Result.ok(apiEnvironmentService.testHttpConfig(projectId, workspaceId, loginUser.getId(), id, httpId));
+    }
+
+    // ========== 环境导入导出（3.1.9 / 3.1.10） ==========
+
+    @GetMapping("/{id}/export")
+    public Result<ApiEnvironmentDetailRespDTO> exportEnvironment(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @RequestHeader("X-Active-Workspace") UUID workspaceId,
+            @RequestHeader("X-Active-Project") UUID projectId,
+            @PathVariable UUID id) {
+        return Result.ok(apiEnvironmentService.exportEnvironment(projectId, workspaceId, loginUser.getId(), id));
+    }
+
+    @PostMapping(value = "/import", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public Result<ApiEnvImportResultRespDTO> importEnvironment(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @RequestHeader("X-Active-Workspace") UUID workspaceId,
+            @RequestHeader("X-Active-Project") UUID projectId,
+            @RequestParam("file") MultipartFile file,
+            @RequestParam(value = "overwrite", defaultValue = "false") boolean overwrite) {
+        return Result.ok(apiEnvironmentService.importEnvironment(projectId, workspaceId, loginUser.getId(),
+                file, overwrite));
     }
 }
