@@ -815,12 +815,12 @@ async function removeProcessor(processor: ApiProcessor) {
               :key="option.label"
               :label="option.label"
               :value="option.driver"
-              :disabled="option.disabled"
             />
           </el-select>
         </el-form-item>
         <el-form-item label="JDBC URL" required>
           <el-input v-model="dsForm.url" type="textarea" :rows="2" :placeholder="selectedDriverOption?.urlExample" />
+          <span v-if="dsForm.driver === ''" class="env-detail__hint">Redis 无需驱动，按 redis:// 协议识别</span>
         </el-form-item>
         <el-form-item label="连接池上限">
           <el-input-number v-model="dsForm.maxPoolSize" :min="1" :max="100" />

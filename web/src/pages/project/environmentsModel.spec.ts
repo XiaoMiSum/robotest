@@ -170,10 +170,10 @@ describe('environmentsModel', () => {
   })
 
   describe('DRIVER_OPTIONS', () => {
-    it('covers the five required drivers with redis pending', () => {
+    it('covers the five required datasources with driverless redis', () => {
       const labels = DRIVER_OPTIONS.map((option) => option.label)
-      expect(labels.filter((label) => !label.includes('Redis'))).toHaveLength(4)
-      expect(DRIVER_OPTIONS.find((option) => option.label.includes('Redis'))?.disabled).toBe(true)
+      expect(labels).toContain('Redis')
+      expect(DRIVER_OPTIONS.find((option) => option.label === 'Redis')?.driver).toBe('')
       expect(DRIVER_OPTIONS.find((option) => option.label === 'PostgreSQL')?.urlExample).toContain('jdbc:postgresql')
     })
   })

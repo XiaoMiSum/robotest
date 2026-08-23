@@ -26,14 +26,13 @@ export const VARIABLE_TYPE_OPTIONS: { value: ApiVariableType; label: string }[] 
 ]
 
 export interface DriverOption {
+  /** JDBC 驱动类名；Redis 免驱动存空串，按 redis:// 协议识别（详细设计 3.1.7） */
   driver: string
   label: string
   urlExample: string
-  /** 需求列出但服务端未打包驱动的选项置灰展示 */
-  disabled?: boolean
 }
 
-/** 需求 3.7.1 五种内置驱动；连接测试可用性以服务端实际打包驱动为准（详细设计未定义其余驱动类名） */
+/** 需求 3.7.1 五种内置数据源；Redis 由 Ryze 内置客户端支持，连接测试走 RESP PING */
 export const DRIVER_OPTIONS: DriverOption[] = [
   {
     driver: 'com.mysql.cj.MySQLDriver',
@@ -58,9 +57,8 @@ export const DRIVER_OPTIONS: DriverOption[] = [
   },
   {
     driver: '',
-    label: 'Redis（驱动待内置）',
+    label: 'Redis',
     urlExample: 'redis://localhost:6379/0',
-    disabled: true,
   },
 ]
 
