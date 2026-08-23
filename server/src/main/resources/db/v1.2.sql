@@ -240,6 +240,49 @@ COMMENT ON COLUMN api_environment_processor.processor_type IS '处理器类型�
 COMMENT ON COLUMN api_environment_processor.config IS '处理器配置 JSON（与 Ryze 处理器元件结构一致）';
 
 -- ============================================================
+-- 6.8 快速调试——调试记录表
+-- ============================================================
+CREATE TABLE api_debug_record (
+    id               UUID          PRIMARY KEY,
+    project_id       UUID          NOT NULL,
+    user_id          UUID          NOT NULL,
+    name             VARCHAR(200)  NULL,
+    protocol         VARCHAR(20)   NOT NULL,
+    method           VARCHAR(10)   NULL,
+    url              VARCHAR(2000) NULL,
+    headers          JSONB         NOT NULL DEFAULT '[]',
+    body_type        VARCHAR(20)   NULL,
+    body             JSONB         NULL,
+    query_params     JSONB         NOT NULL DEFAULT '[]',
+    jdbc_config      JSONB         NULL,
+    processors       JSONB         NOT NULL DEFAULT '[]',
+    environment_id   UUID          NULL,
+    timeout_ms       INT           NULL,
+    executed_at      TIMESTAMP     NOT NULL,
+    duration_ms      INT           NULL,
+    status           VARCHAR(20)   NOT NULL,
+    response_status  INT           NULL,
+    response_headers JSONB         NULL,
+    response_body    TEXT          NULL,
+    response_size    INT           NULL,
+    error_message    VARCHAR(2000) NULL,
+    is_deleted       BOOLEAN       NOT NULL DEFAULT FALSE,
+    created_at       TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at       TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_debug_project_user ON api_debug_record(project_id, user_id);
+CREATE INDEX idx_debug_executed_at ON api_debug_record(executed_at);
+
+COMMENT ON TABLE api_debug_record IS '快速调试记录表（服务端执行后自动保存的请求快照与响应，每用户保留最近 200 条）';
+COMMENT ON COLUMN api_debug_record.body_type IS '请求体类型：none / json / form / raw / binary';
+COMMENT ON COLUMN api_debug_record.body IS '请求体内容 JSON（结构随 body_type）';
+COMMENT ON COLUMN api_debug_record.environment_id IS '执行引用的环境 ID（相对 URL 拼接与变量来源），可空';
+COMMENT ON COLUMN api_debug_record.status IS '执行结果：success / failed / error';
+COMMENT ON COLUMN api_debug_record.response_body IS '响应体（截断存储，最大 1MB）';
+COMMENT ON COLUMN api_debug_record.response_size IS '响应体字节数';
+
+-- ============================================================
 -- 7. 注意事项
 -- ============================================================
 -- - test_case_node.document_id 仍指向文档 ID（现为 test_case_document.id）

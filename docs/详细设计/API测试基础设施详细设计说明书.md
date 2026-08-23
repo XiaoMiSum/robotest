@@ -60,12 +60,15 @@
 | query_params | JSONB | NOT NULL DEFAULT '[]' | Query 参数列表 `[{key, value, enabled}]` |
 | jdbc_config | JSONB | NULL | JDBC 取样器配置 `{datasourceId, sql, queryType}` |
 | processors | JSONB | NOT NULL DEFAULT '[]' | 前置/后置处理器列表 |
+| environment_id | UUID | NULL | 执行引用的环境 ID（相对 URL 拼接与变量来源） |
+| timeout_ms | INT | NULL | 响应超时（毫秒） |
 | executed_at | TIMESTAMP | NOT NULL | 执行时间 |
 | duration_ms | INT | NULL | 执行耗时（毫秒） |
 | status | VARCHAR(20) | NOT NULL | 执行结果：success / failed / error |
 | response_status | INT | NULL | HTTP 响应状态码 |
 | response_headers | JSONB | NULL | 响应头 |
 | response_body | TEXT | NULL | 响应体（截断存储，最大 1MB） |
+| response_size | INT | NULL | 响应体字节数 |
 | error_message | VARCHAR(2000) | NULL | 错误信息（连接失败/超时等） |
 | is_deleted | BOOLEAN | NOT NULL DEFAULT FALSE | 是否删除 |
 | created_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | 创建时间 |
