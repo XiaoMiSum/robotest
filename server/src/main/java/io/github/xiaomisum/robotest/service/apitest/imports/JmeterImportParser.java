@@ -68,11 +68,14 @@ public class JmeterImportParser implements InterfaceImportParser {
         List<Map<String, Object>> query = new ArrayList<>();
         Map<String, Object> formBody = new LinkedHashMap<>();
         String rawBody = null;
-        NodeList arguments = sampler.getElementsByTagName("argument");
+        // 真实 .jmx 中参数为 elementProp elementType="HTTPArgument"，容器节点 name 为 HTTPSampler.arguments
+        NodeList arguments = sampler.getElementsByTagName("elementProp");
         for (int a = 0; a < arguments.getLength(); a++) {
             Element argument = (Element) arguments.item(a);
+            if (!"HTTPArgument".equals(argument.getAttribute("elementType"))) {
+                continue;
+            }
             Map<String, String> argumentProps = elementProps(argument);
-            String key = argumentProps.getOrDefault("Argument.name", argument.getAttribute("name"));
             if ("HTTPSampler.arguments".equals(argument.getAttribute("name"))) {
                 continue;
             }
@@ -80,17 +83,14 @@ public class JmeterImportParser implements InterfaceImportParser {
                 rawBody = argumentProps.getOrDefault("Argument.value", "");
                 continue;
             }
+            String key = argumentProps.getOrDefault("Argument.name", argument.getAttribute("name"));
             Map<String, Object> item = new LinkedHashMap<>();
             item.put("key", key);
             item.put("value", argumentProps.getOrDefault("Argument.value", ""));
             item.put("enabled", true);
-            if (("POST".equals(method) || "PUT".equals(method) || "PATCH".equals(method))
-                    && Boolean.parseBoolean(props.getOrDefault("HTTPSampler.postBodyRaw", "false"))) {
-                // 已按 raw 处理
-                continue;
-            }
             query.add(item);
-            if (!key.isEmpty()) {
+            // 仅 body 类方法的非 raw 参数视为表单体，GET 等参数只进 Query
+            if (!key.isEmpty() && method.matches("POST|PUT|PATCH|DELETE")) {
                 formBody.put(key, item.get("value"));
             }
         }
