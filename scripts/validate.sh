@@ -29,13 +29,14 @@ check_commit_format() {
   local N=5
   local BAD=0
   while IFS= read -r msg; do
-    if ! echo "$msg" | grep -qP '^\p{Emoji} (feat|fix|refactor|style|docs|test|chore|perf|deps|security)\(.+\): .+'; then
-      if ! echo "$msg" | grep -qP '^(feat|fix|refactor|style|docs|test|chore|perf|deps|security)\(.+\): .+'; then
+    # 首字符为非 ASCII 词符（emoji）+ type(scope): description；ERE 保证 GNU/BSD grep 双端可用
+    if ! echo "$msg" | grep -qE '^[^a-zA-Z0-9[:space:]] (feat|fix|refactor|style|docs|test|chore|perf|deps|security)\(.+\): .+'; then
+      if ! echo "$msg" | grep -qE '^(feat|fix|refactor|style|docs|test|chore|perf|deps|security)\(.+\): .+'; then
         fail "提交格式错误: $msg"
         BAD=1
       fi
     fi
-  done < <(git log --oneline -n "$N" 2>/dev/null)
+  done < <(git log --format="%s" -n "$N" 2>/dev/null)
 
   if [ "$BAD" -eq 0 ]; then
     pass "最近 $N 条提交格式正确"
