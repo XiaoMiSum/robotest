@@ -155,6 +155,13 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '接口测试' },
       },
       {
+        // interfaceId 为 'new' 时进入新建模式（交互设计 §3 独立路由约定）
+        path: 'workspace/projects/interfaces/:interfaceId',
+        name: 'InterfaceEditor',
+        component: () => import('@/pages/project/InterfaceEditorPage.vue'),
+        meta: { title: '接口编辑' },
+      },
+      {
         path: 'workspace/projects/requirements',
         name: 'RequirementPool',
         component: () => import('@/pages/project/RequirementPoolPage.vue'),

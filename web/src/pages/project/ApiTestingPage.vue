@@ -5,6 +5,7 @@ import type { MenuInstance } from 'element-plus'
 import ProjectSettingsPage from './ProjectSettingsPage.vue'
 import EnvironmentPage from './EnvironmentPage.vue'
 import DebugPage from './DebugPage.vue'
+import InterfacesPage from './InterfacesPage.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -76,6 +77,7 @@ function handleMenuSelect(key: string) {
       <ProjectSettingsPage v-if="activeMenu === 'security'" />
       <EnvironmentPage v-else-if="activeMenu === 'environments'" />
       <DebugPage v-else-if="activeMenu === 'debug'" />
+      <InterfacesPage v-else-if="activeMenu === 'interfaces'" />
       <div v-else class="api-testing__placeholder">
         <div class="api-testing__placeholder-icon">
           <el-icon :size="48"><Connection /></el-icon>
