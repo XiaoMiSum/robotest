@@ -416,6 +416,27 @@ CREATE INDEX idx_ichangelog_interface ON api_interface_change_log(interface_id, 
 COMMENT ON TABLE api_interface_change_log IS '接口变更历史表（每次保存生成一条并递增版本号）';
 COMMENT ON COLUMN api_interface_change_log.action IS '动作：create / update / copy / import / status';
 
+CREATE TABLE IF NOT EXISTS api_import_record (
+    id             UUID          PRIMARY KEY DEFAULT gen_random_uuid(),
+    project_id     UUID          NOT NULL,
+    import_type    VARCHAR(30)   NOT NULL,
+    source_name    VARCHAR(500)  NOT NULL,
+    status         VARCHAR(20)   NOT NULL,
+    summary        JSONB         NOT NULL,
+    error_details  JSONB         NULL,
+    repository_id  UUID          NULL,
+    created_by     UUID          NOT NULL,
+    is_deleted     BOOLEAN       NOT NULL DEFAULT FALSE,
+    created_at     TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at     TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_import_project_created ON api_import_record(project_id, created_at DESC);
+
+COMMENT ON TABLE api_import_record IS '导入记录表（每次文件/URL 导入的结果留痕，基础设施设计 2.1.6）';
+COMMENT ON COLUMN api_import_record.import_type IS '导入方式：file_swagger / file_postman / file_har / file_jmeter / url_swagger';
+COMMENT ON COLUMN api_import_record.status IS '结果状态：success / partial / failed';
+
 -- ============================================================
 -- 7. 注意事项
 -- ============================================================
