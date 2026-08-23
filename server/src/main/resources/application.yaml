@@ -48,6 +48,9 @@ robotest:
   ai:
     # AI 服务密钥加密密钥（Base64 编码 32 字节），未配置时 AI 能力视为未启用
     secret-key: ${AI_SECRET_KEY:4chJwgVabFLPyA0Mty7RDhu7lXR5Hik2QZ0FJjS3rtI=}
+  env:
+    # 环境敏感变量加密密钥（Base64 编码 32 字节），与 AI 密钥独立，支持单独轮换
+    secret-key: ${ENV_SECRET_KEY:4chJwgVabFLPyA0Mty7RDhu7lXR5Hik2QZ0FJjS3rtI=}
 #################### 框架相关配置 ####################
 
 migoo:
