@@ -1553,3 +1553,134 @@ export interface DebugTab {
   dirty: boolean
   response: ApiDebugExecuteResp | null
 }
+
+// ==================== 接口管理（接口管理详细设计 3.1–3.4） ====================
+
+export type ApiInterfaceView = 'all' | 'followed' | 'created'
+export type ApiInterfaceStatus = 'enabled' | 'disabled'
+/** V1.2 仅 http（详细设计 6.3），jdbc 随场景模块梯队三 */
+export type ApiInterfaceProtocol = 'http'
+export type ApiInterfaceMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'HEAD' | 'OPTIONS'
+
+/** 列表行（3.1.1） */
+export interface ApiInterfaceItem {
+  id: string
+  name: string
+  protocol: ApiInterfaceProtocol
+  method: string
+  path: string
+  moduleId?: string | null
+  status: ApiInterfaceStatus
+  referenceCount: number
+  changeVersion: number
+  followed: boolean
+  updatedAt: string
+}
+
+/** 公共步骤（3.2）；validators/extractors 本期透传存储，编辑器随场景模块开放 */
+export interface ApiInterfaceStepPayload {
+  id?: string
+  name: string
+  stepType: 'script' | 'sql' | 'sleep' | 'wait' | 'link'
+  sortOrder: number
+  enabled: boolean
+  requestConfig: Record<string, unknown>
+  processors?: Record<string, unknown>[]
+  validators?: unknown[]
+  extractors?: unknown[]
+}
+
+/** 接口级变量（3.3） */
+export interface ApiInterfaceVariablePayload {
+  id?: string
+  name: string
+  defaultValue?: string
+  description?: string
+  required: boolean
+  sortOrder: number
+}
+
+/** 详情（3.1.2）：params/restParams 与文档字段名对齐 */
+export interface ApiInterfaceDetail {
+  id: string
+  name: string
+  protocol: ApiInterfaceProtocol
+  method: string
+  path: string
+  description?: string | null
+  moduleId?: string | null
+  headers: ApiDebugKeyValue[] | null
+  body: { type?: string; content?: unknown } | null
+  params: ApiDebugKeyValue[] | null
+  restParams: ApiDebugKeyValue[] | null
+  auth?: Record<string, unknown> | null
+  status: ApiInterfaceStatus
+  changeVersion: number
+  responseExample?: Record<string, unknown> | null
+  referenceCount: number
+  followed: boolean
+  steps: (ApiInterfaceStepPayload & { id: string })[]
+  createdAt: string
+  updatedAt: string
+}
+
+export interface ApiInterfaceCreateReq {
+  name: string
+  protocol?: ApiInterfaceProtocol
+  method: string
+  path: string
+  description?: string
+  moduleId?: string | null
+  headers?: ApiDebugKeyValue[]
+  body?: { type?: string; content?: unknown }
+  params?: ApiDebugKeyValue[]
+  restParams?: ApiDebugKeyValue[]
+  auth?: Record<string, unknown>
+  status?: ApiInterfaceStatus
+  responseExample?: Record<string, unknown>
+}
+
+export interface ApiInterfaceUpdateReq extends ApiInterfaceCreateReq {
+  /** 乐观锁版本，服务端不一致返回 7105 */
+  changeVersion: number
+}
+
+/** 变更历史条目（3.1.13） */
+export interface ApiInterfaceChangeLogItem {
+  id: string
+  changeVersion: number
+  action: string
+  summary?: string
+  operatorId?: string | null
+  createdAt: string
+}
+
+/** 引用情况（3.1.7）；场景/Mock 未上线恒为空列表 */
+export interface ApiInterfaceReferences {
+  scenes: { id: string; name: string }[]
+  mocks: { id: string; name: string }[]
+}
+
+export interface ApiInterfaceImportError {
+  source: string
+  message: string
+}
+
+export interface ApiInterfaceImportResult {
+  importHistoryId: string
+  summary: Record<string, number>
+  errors: ApiInterfaceImportError[]
+}
+
+export interface ApiInterfaceImportPreviewItem {
+  name?: string
+  method?: string
+  path?: string
+  action: 'create' | 'update' | 'skip'
+  conflict: boolean
+}
+
+export interface ApiInterfaceImportPreview {
+  items: ApiInterfaceImportPreviewItem[]
+  summary: Record<string, number>
+}
