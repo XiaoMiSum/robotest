@@ -85,6 +85,11 @@ public class ErrorCodeConstants {
     public static final ErrorCode API_DATASOURCE_CONN_FAILED = ErrorCode.of(1000017403, "数据源连接测试失败：{}");
     public static final ErrorCode API_ENV_TASK_BOUND = ErrorCode.of(1000017404, "环境被定时任务绑定无法删除，请先解除绑定");
     public static final ErrorCode API_ENV_NOT_FOUND = ErrorCode.of(1000017405, "环境不存在或不属于当前项目");
+    public static final ErrorCode API_ENV_HTTP_CONFIG_NOT_FOUND = ErrorCode.of(1000017406, "环境 HTTP 配置不存在或不属于当前环境");
+    public static final ErrorCode API_ENV_DATASOURCE_NOT_FOUND = ErrorCode.of(1000017407, "环境数据源不存在或不属于当前环境");
+    public static final ErrorCode API_ENV_PROCESSOR_NOT_FOUND = ErrorCode.of(1000017408, "环境处理器不存在或不属于当前环境");
+    public static final ErrorCode API_ENV_VARIABLE_NOT_FOUND = ErrorCode.of(1000017409, "环境变量不存在或不属于当前环境");
+    public static final ErrorCode API_ENV_VARIABLE_EXISTS = ErrorCode.of(1000017410, "变量已存在");
 
     // ========== 项目设置 1,000,017,701-1,000,017,702（文档简写 77XX，7701 ≙ 1000017701） ==========
     public static final ErrorCode API_SETTING_KEY_INVALID = ErrorCode.of(1000017701, "设置项标识非法（不在注册表白名单）");

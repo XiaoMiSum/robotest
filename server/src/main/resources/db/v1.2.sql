@@ -182,6 +182,8 @@ CREATE TABLE api_environment_variable (
     value          TEXT         NULL,
     description    VARCHAR(500) NULL,
     type           VARCHAR(10)  NOT NULL DEFAULT 'text',
+    source_step_id UUID         NULL,
+    source_report_id UUID       NULL,
     is_deleted     BOOLEAN      NOT NULL DEFAULT FALSE,
     created_at     TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at     TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -193,6 +195,8 @@ COMMENT ON TABLE api_environment_variable IS '环境变量表（变量解析优�
 COMMENT ON COLUMN api_environment_variable.name IS '变量名，仅字母/数字/下划线，同环境内唯一';
 COMMENT ON COLUMN api_environment_variable.value IS '变量值；type=sensitive 时存 AES-256-GCM 密文，不输出明文至前端';
 COMMENT ON COLUMN api_environment_variable.type IS '变量类型：text / number / sensitive';
+COMMENT ON COLUMN api_environment_variable.source_step_id IS '来源步骤 ID：从执行结果添加变量时记录溯源（3.3.2），普通录入为空';
+COMMENT ON COLUMN api_environment_variable.source_report_id IS '来源报告 ID：从执行结果添加变量时记录溯源（3.3.2），普通录入为空';
 
 CREATE TABLE api_data_source (
     id                    UUID         PRIMARY KEY,
