@@ -5,3 +5,4 @@
 
 # Playwright MCP 浏览器自动化产物（快照/控制台日志），不入库
 /.playwright-mcp
+.DS_Store
