@@ -15,9 +15,10 @@ import java.util.UUID;
 @Mapper
 public interface ApiInterfaceMapper extends BaseMapperX<ApiInterface> {
 
-    /** 列表分页：模块/关键词/状态过滤 + 视图（followed 由调用方先解析出 id 集合），按更新时间倒序 */
+    /** 列表分页：模块/关键词/状态过滤 + 视图（followed 传 id 集合、created 传创建人），按更新时间倒序 */
     default PageResult<ApiInterface> selectPage(UUID projectId, UUID moduleId, String search,
-                                                String status, Collection<UUID> viewFilterIds, PageParam pageParam) {
+                                                String status, Collection<UUID> viewFilterIds,
+                                                UUID createdBy, PageParam pageParam) {
         LambdaQueryWrapperX<ApiInterface> wrapper = new LambdaQueryWrapperX<ApiInterface>()
                 .eq(ApiInterface::getProjectId, projectId)
                 .eq(moduleId != null, ApiInterface::getModuleId, moduleId)
@@ -27,6 +28,7 @@ public interface ApiInterfaceMapper extends BaseMapperX<ApiInterface> {
                         .like(ApiInterface::getPath, search))
                 .eq(status != null && !status.isBlank(), ApiInterface::getStatus, status)
                 .in(viewFilterIds != null, ApiInterface::getId, viewFilterIds)
+                .eq(createdBy != null, ApiInterface::getCreatedBy, createdBy)
                 .orderByDesc(ApiInterface::getUpdatedAt);
         return selectPage(pageParam, wrapper);
     }
