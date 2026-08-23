@@ -76,7 +76,7 @@ public class ApiEnvironmentServiceImpl implements ApiEnvironmentService {
     /** 变量名仅允许字母/数字/下划线（详细设计 3.3.1） */
     private static final java.util.regex.Pattern VARIABLE_NAME_PATTERN = java.util.regex.Pattern.compile("^[A-Za-z0-9_]+$");
     /** 仅放行随服务打包的驱动，防止任意类加载（安全约束） */
-    private static final Set<String> SUPPORTED_JDBC_DRIVERS = Set.of("org.postgresql.Driver", "com.mysql.cj.MySQLDriver");
+    private static final Set<String> SUPPORTED_JDBC_DRIVERS = Set.of("org.postgresql.Driver", "com.mysql.cj.jdbc.Driver");
     private static final int JDBC_LOGIN_TIMEOUT_SECONDS = 10;
 
     @Resource
@@ -541,8 +541,10 @@ public class ApiEnvironmentServiceImpl implements ApiEnvironmentService {
     @Override
     public ApiEnvironmentDetailRespDTO exportEnvironment(UUID projectId, UUID workspaceId, UUID userId, UUID id) {
         projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
-        // 详情层已对敏感值掩码化，导出与详情同构即可满足「敏感字段脱敏」要求
-        return assembleDetail(requireEnv(projectId, id));
+        // 详情层已对敏感变量掩码化；数据源凭据内嵌 URL 无法部分脱敏，按「导出脱敏」规则整段排除（需求 3.7.1）
+        ApiEnvironmentDetailRespDTO detail = assembleDetail(requireEnv(projectId, id));
+        detail.setDataSources(List.of());
+        return detail;
     }
 
     @Override
@@ -730,7 +732,8 @@ public class ApiEnvironmentServiceImpl implements ApiEnvironmentService {
             row.setName(source.getName());
             row.setRefName(source.getRefName() != null && !source.getRefName().isBlank()
                     ? source.getRefName() : "http_" + (i + 1));
-            row.setBaseUrl(source.getBaseUrl());
+            row.setBaseUrl(source.getBaseUrl() == null || source.getBaseUrl().isBlank()
+                    ? "" : source.getBaseUrl());
             row.setDefaultMethod(source.getDefaultMethod());
             row.setDefaultHeaders(normalizeHeaders(source.getHeaders()));
             row.setTimeoutMs(source.getTimeoutMs() != null ? source.getTimeoutMs() : 30000);
