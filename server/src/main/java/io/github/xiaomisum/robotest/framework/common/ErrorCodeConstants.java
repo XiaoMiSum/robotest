@@ -91,6 +91,12 @@ public class ErrorCodeConstants {
     public static final ErrorCode API_ENV_VARIABLE_NOT_FOUND = ErrorCode.of(1000017409, "环境变量不存在或不属于当前环境");
     public static final ErrorCode API_ENV_VARIABLE_EXISTS = ErrorCode.of(1000017410, "变量已存在");
 
+    // ========== 接口测试——执行引擎与快速调试 1,000,017,001-1,000,017,019（文档简写 70XX，7001 ≙ 1000017001） ==========
+    public static final ErrorCode API_EXECUTOR_BUSY = ErrorCode.of(1000017001, "执行引擎繁忙，请稍后重试");
+    public static final ErrorCode API_EXEC_TIMEOUT = ErrorCode.of(1000017002, "执行超时：{}");
+    public static final ErrorCode API_FORMAT_CONVERT_FAILED = ErrorCode.of(1000017003, "格式转换失败：{}");
+    public static final ErrorCode API_DEBUG_RECORD_NOT_FOUND = ErrorCode.of(1000017013, "调试记录不存在或不属于当前项目");
+
     // ========== 项目设置 1,000,017,701-1,000,017,702（文档简写 77XX，7701 ≙ 1000017701） ==========
     public static final ErrorCode API_SETTING_KEY_INVALID = ErrorCode.of(1000017701, "设置项标识非法（不在注册表白名单）");
     public static final ErrorCode API_SETTING_VALUE_INVALID = ErrorCode.of(1000017702, "设置值非法（格式或取值范围不满足注册表约束）：{}");
