@@ -29,9 +29,7 @@ export function createTab(): DebugTab {
     params: [],
     bodies: { none: null, json: '', form: '', raw: '' },
     auth: { type: 'none' },
-    connectTimeoutMs: 5000,
     responseTimeoutMs: 30000,
-    followRedirects: true,
     dirty: false,
     response: null,
   }
@@ -85,6 +83,7 @@ export function buildExecutePayload(tab: DebugTab, environmentId?: string): ApiD
     headers,
     params: enabledEntries(tab.params),
     body: activeBody(tab),
+    processors: tab.processors,
     timeoutMs: tab.responseTimeoutMs,
     environmentId,
   }
