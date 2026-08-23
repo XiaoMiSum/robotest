@@ -91,6 +91,23 @@ class ApiEnvironmentSubResourceTest {
         when(environmentMapper.selectById(ENV_ID)).thenReturn(env);
     }
 
+    @Test
+    void exportEnvironment_excludesDataSourcesForMasking() {
+        // 凭据内嵌于 URL 无法部分脱敏，导出必须整段排除数据源（需求 3.7.1 导出脱敏）
+        stubEnv();
+        ApiDataSource ds = new ApiDataSource();
+        ds.setId(UUID.randomUUID());
+        ds.setEnvironmentId(ENV_ID);
+        ds.setName("测试库");
+        ds.setRefName("db_1");
+        ds.setDriver("com.mysql.cj.jdbc.Driver");
+        ds.setUrl("jdbc:mysql://db:3306/test?user=root&password=123456");
+        when(dataSourceMapper.listByEnvironmentId(ENV_ID)).thenReturn(List.of(ds));
+
+        var detail = service.exportEnvironment(PROJECT_ID, WORKSPACE_ID, USER_ID, ENV_ID);
+        assertTrue(detail.getDataSources().isEmpty());
+    }
+
     private static ApiEnvironmentSaveReqDTO.Variable variable(String name, String value, String type) {
         ApiEnvironmentSaveReqDTO.Variable v = new ApiEnvironmentSaveReqDTO.Variable();
         v.setName(name);
