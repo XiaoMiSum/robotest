@@ -1539,12 +1539,17 @@ export interface DebugTab {
   url: string
   headers: ApiDebugKeyValue[]
   params: ApiDebugKeyValue[]
-  /** 四种请求体类型内容独立缓存，切换类型不丢失已填内容（SRS 3.1 业务规则） */
-  bodies: Record<Exclude<ApiDebugBodyType, 'binary'>, unknown>
+  /** 四种请求体类型内容独立缓存，切换类型不丢失已填内容（SRS 3.1 业务规则）；none 非 null 表示不携带请求体 */
+  bodies: {
+    none: boolean | null
+    json: string
+    form: string
+    raw: string
+  }
   auth: ApiDebugAuth
-  connectTimeoutMs: number
   responseTimeoutMs: number
-  followRedirects: boolean
+  /** 前置处理器（Ryze 元件 JSON 结构），仅 http 协议透传 */
+  processors?: Record<string, unknown>[]
   dirty: boolean
   response: ApiDebugExecuteResp | null
 }
