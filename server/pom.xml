@@ -47,6 +47,13 @@
             <version>6.1.0</version>
         </dependency>
 
+        <!-- Swagger/OpenAPI 2.0/3.0 官方解析器（接口管理详细设计 6.1/6.3，导入唯一新增外部依赖） -->
+        <dependency>
+            <groupId>io.swagger.parser.v3</groupId>
+            <artifactId>swagger-parser</artifactId>
+            <version>2.1.22</version>
+        </dependency>
+
         <dependency>
             <groupId>xyz.migoo.springboot</groupId>
             <artifactId>migoo-spring-boot-starter-web</artifactId>
