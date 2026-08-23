@@ -37,7 +37,7 @@ async function loadList() {
   try {
     const page = await fetchDebugRecords(pageNo.value, PAGE_SIZE, keyword.value.trim() || undefined)
     records.value = page.list
-    total.value = Number(page.total)
+    total.value = page.total
   } catch {
     // 拦截器已统一提示错误信息
   } finally {
