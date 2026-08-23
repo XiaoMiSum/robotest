@@ -125,7 +125,118 @@ COMMENT ON COLUMN project_setting.created_at IS '创建时间';
 COMMENT ON COLUMN project_setting.updated_at IS '更新时间';
 
 -- ============================================================
--- 6. 注意事项
+-- 6. 接口测试——环境管理（SRS 3.7.1，详细设计《环境管理详细设计说明书》2.1）
+-- ============================================================
+
+CREATE TABLE api_environment (
+    id          UUID         PRIMARY KEY,
+    project_id  UUID         NOT NULL,
+    name        VARCHAR(100) NOT NULL,
+    description VARCHAR(500) NULL,
+    scope       VARCHAR(10)  NOT NULL DEFAULT 'project',
+    is_default  BOOLEAN      NOT NULL DEFAULT FALSE,
+    sort_order  INT          NOT NULL DEFAULT 0,
+    is_deleted  BOOLEAN      NOT NULL DEFAULT FALSE,
+    created_at  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_env_project ON api_environment(project_id);
+
+COMMENT ON TABLE api_environment IS '接口测试环境表（项目级环境配置集合，配置项与 Ryze 配置元件对齐）';
+COMMENT ON COLUMN api_environment.project_id IS '归属项目 ID，关联 ws_project.id（逻辑关联，无物理外键）';
+COMMENT ON COLUMN api_environment.scope IS '环境归属范围：project（项目级）/ global（全局级，V1.2 预留扩展）';
+COMMENT ON COLUMN api_environment.is_default IS '是否默认环境（项目内唯一）：场景执行未指定环境时使用默认环境';
+COMMENT ON COLUMN api_environment.sort_order IS '排序序号，列表按升序展示（默认环境置顶）';
+
+CREATE TABLE api_environment_http (
+    id                 UUID           PRIMARY KEY,
+    environment_id     UUID           NOT NULL,
+    name               VARCHAR(100)   NOT NULL,
+    ref_name           VARCHAR(100)   NOT NULL,
+    base_url           VARCHAR(2000)  NOT NULL,
+    default_method     VARCHAR(10)    NULL,
+    default_headers    JSONB          NOT NULL DEFAULT '[]',
+    timeout_ms         INT            NOT NULL DEFAULT 30000,
+    connect_timeout_ms INT            NOT NULL DEFAULT 10000,
+    follow_redirects   BOOLEAN        NOT NULL DEFAULT TRUE,
+    verify_ssl         BOOLEAN        NOT NULL DEFAULT TRUE,
+    is_default         BOOLEAN        NOT NULL DEFAULT FALSE,
+    is_deleted         BOOLEAN        NOT NULL DEFAULT FALSE,
+    created_at         TIMESTAMP      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at         TIMESTAMP      NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_ehttp_env ON api_environment_http(environment_id);
+
+COMMENT ON TABLE api_environment_http IS '环境 HTTP 配置表（每环境支持多个目标系统配置，有且仅有一个默认）';
+COMMENT ON COLUMN api_environment_http.environment_id IS '归属环境 ID，关联 api_environment.id（逻辑关联，无物理外键）';
+COMMENT ON COLUMN api_environment_http.ref_name IS '引用名称（对应 Ryze ref_name，用于步骤中引用该配置）';
+COMMENT ON COLUMN api_environment_http.default_headers IS '默认请求头 [{key, value, enabled}]';
+COMMENT ON COLUMN api_environment_http.is_default IS '是否为该环境的默认 HTTP 配置';
+
+CREATE TABLE api_environment_variable (
+    id             UUID         PRIMARY KEY,
+    environment_id UUID         NOT NULL,
+    name           VARCHAR(100) NOT NULL,
+    value          TEXT         NULL,
+    description    VARCHAR(500) NULL,
+    type           VARCHAR(10)  NOT NULL DEFAULT 'text',
+    is_deleted     BOOLEAN      NOT NULL DEFAULT FALSE,
+    created_at     TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at     TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_evar_env ON api_environment_variable(environment_id);
+
+COMMENT ON TABLE api_environment_variable IS '环境变量表（变量解析优先级：内置函数 < 环境变量 < 场景变量 < 步骤级变量 < 提取器变量 < 运行时覆盖）';
+COMMENT ON COLUMN api_environment_variable.name IS '变量名，仅字母/数字/下划线，同环境内唯一';
+COMMENT ON COLUMN api_environment_variable.value IS '变量值；type=sensitive 时存 AES-256-GCM 密文，不输出明文至前端';
+COMMENT ON COLUMN api_environment_variable.type IS '变量类型：text / number / sensitive';
+
+CREATE TABLE api_data_source (
+    id                    UUID         PRIMARY KEY,
+    environment_id        UUID         NOT NULL,
+    name                  VARCHAR(100) NOT NULL,
+    ref_name              VARCHAR(100) NOT NULL,
+    driver                VARCHAR(100) NOT NULL,
+    url                   VARCHAR(500) NOT NULL,
+    connection_properties JSONB        NOT NULL DEFAULT '{}',
+    max_pool_size         INT          NOT NULL DEFAULT 5,
+    is_deleted            BOOLEAN      NOT NULL DEFAULT FALSE,
+    created_at            TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at            TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_ds_env ON api_data_source(environment_id);
+
+COMMENT ON TABLE api_data_source IS '环境数据源表（JDBC 连接信息，用户名密码直接写入 URL）';
+COMMENT ON COLUMN api_data_source.ref_name IS '引用名称（对应 Ryze ref_name，用于步骤中引用该数据源）';
+COMMENT ON COLUMN api_data_source.url IS 'JDBC 连接 URL（凭据内嵌，不在表单独立存储）';
+COMMENT ON COLUMN api_data_source.connection_properties IS '附加连接参数 JSON 对象';
+COMMENT ON COLUMN api_data_source.max_pool_size IS 'HikariCP 连接池最大连接数';
+
+CREATE TABLE api_environment_processor (
+    id             UUID         PRIMARY KEY,
+    environment_id UUID         NOT NULL,
+    processor_type VARCHAR(20)  NOT NULL,
+    name           VARCHAR(100) NOT NULL,
+    config         JSONB        NOT NULL,
+    sort_order     INT          NOT NULL DEFAULT 0,
+    enabled        BOOLEAN      NOT NULL DEFAULT TRUE,
+    is_deleted     BOOLEAN      NOT NULL DEFAULT FALSE,
+    created_at     TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at     TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_eproc_env ON api_environment_processor(environment_id);
+
+COMMENT ON TABLE api_environment_processor IS '环境全局处理器表（前置/后置，作用于该环境下所有请求）';
+COMMENT ON COLUMN api_environment_processor.processor_type IS '处理器类型：preprocessor / postprocessor';
+COMMENT ON COLUMN api_environment_processor.config IS '处理器配置 JSON（与 Ryze 处理器元件结构一致）';
+
+-- ============================================================
+-- 7. 注意事项
 -- ============================================================
 -- - test_case_node.document_id 仍指向文档 ID（现为 test_case_document.id）
 -- - bug.module_id 仍指向模块 ID（现为 project_module.id）

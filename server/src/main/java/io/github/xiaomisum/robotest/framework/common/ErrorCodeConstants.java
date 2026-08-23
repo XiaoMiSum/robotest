@@ -79,6 +79,13 @@ public class ErrorCodeConstants {
     // ========== 用例文档管理 1,000,017,061-1,000,017,069 ==========
     public static final ErrorCode TEST_CASE_DOCUMENT_NAME_EXISTS = ErrorCode.of(1000017061, "同模块下用例名称已存在");
 
+    // ========== 接口测试——环境管理 1,000,017,401-1,000,017,409（文档简写 74XX，7401 ≙ 1000017401） ==========
+    public static final ErrorCode API_ENV_NAME_EXISTS = ErrorCode.of(1000017401, "环境名称重复");
+    public static final ErrorCode API_ENV_REFERENCED = ErrorCode.of(1000017402, "环境被场景引用无法删除，请先解除引用");
+    public static final ErrorCode API_DATASOURCE_CONN_FAILED = ErrorCode.of(1000017403, "数据源连接测试失败：{}");
+    public static final ErrorCode API_ENV_TASK_BOUND = ErrorCode.of(1000017404, "环境被定时任务绑定无法删除，请先解除绑定");
+    public static final ErrorCode API_ENV_NOT_FOUND = ErrorCode.of(1000017405, "环境不存在或不属于当前项目");
+
     // ========== 项目设置 1,000,017,701-1,000,017,702（文档简写 77XX，7701 ≙ 1000017701） ==========
     public static final ErrorCode API_SETTING_KEY_INVALID = ErrorCode.of(1000017701, "设置项标识非法（不在注册表白名单）");
     public static final ErrorCode API_SETTING_VALUE_INVALID = ErrorCode.of(1000017702, "设置值非法（格式或取值范围不满足注册表约束）：{}");
