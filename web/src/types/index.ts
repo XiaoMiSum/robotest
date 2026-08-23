@@ -1443,3 +1443,108 @@ export interface ApiVariableRevealResp {
   name: string
   value?: string
 }
+
+// ==================== 快速调试（详细设计 3.1） ====================
+
+export type ApiDebugBodyType = 'none' | 'json' | 'form' | 'raw' | 'binary'
+
+/** 键值对条目（请求头 / Query 参数共用结构） */
+export interface ApiDebugKeyValue {
+  key: string
+  value: string
+  enabled: boolean
+}
+
+export interface ApiDebugRequestBody {
+  type: ApiDebugBodyType
+  /** json→对象、form→对象、raw/binary→字符串 */
+  content?: unknown
+}
+
+export interface ApiDebugExecuteReq {
+  protocol?: 'http'
+  method: string
+  url: string
+  headers?: ApiDebugKeyValue[]
+  body?: ApiDebugRequestBody
+  params?: ApiDebugKeyValue[]
+  processors?: Record<string, unknown>[]
+  timeoutMs?: number
+  environmentId?: string
+}
+
+export interface ApiDebugExecuteResp {
+  debugRecordId: string
+  status: 'success' | 'failed' | 'error'
+  responseStatus?: number
+  responseHeaders?: Record<string, string>
+  responseBody?: unknown
+  durationMs?: number
+  size?: number
+  errorMessage?: string
+}
+
+export interface ApiDebugCurlImportResp {
+  protocol: string
+  method: string
+  url: string
+  headers: ApiDebugKeyValue[]
+  body: { type: ApiDebugBodyType; content?: unknown }
+  params: ApiDebugKeyValue[]
+}
+
+export interface ApiDebugRecordItem {
+  id: string
+  name?: string
+  method: string
+  url?: string
+  status: ApiDebugExecuteResp['status']
+  responseStatus?: number
+  durationMs?: number
+  executedAt: string
+}
+
+export interface ApiDebugRestoreResp {
+  debugRecordId: string
+  request: {
+    protocol?: string
+    method?: string
+    url?: string
+    headers?: ApiDebugKeyValue[] | null
+    body?: { type?: string; content?: unknown } | null
+    params?: ApiDebugKeyValue[] | null
+  }
+  response: {
+    statusCode?: number
+    headers?: Record<string, string> | null
+    body?: unknown
+    elapsed?: number
+    size?: number
+  }
+  createdAt: string
+}
+
+/** 认证配置：提交时由前端换算为 Authorization 头，不单独持久化（详细设计 5.1） */
+export interface ApiDebugAuth {
+  type: 'none' | 'basic' | 'digest'
+  username?: string
+  password?: string
+}
+
+/** 调试标签页状态（debugModel 状态机维护） */
+export interface DebugTab {
+  id: string
+  name: string
+  method: string
+  url: string
+  headers: ApiDebugKeyValue[]
+  params: ApiDebugKeyValue[]
+  /** 四种请求体类型内容独立缓存，切换类型不丢失已填内容（SRS 3.1 业务规则） */
+  bodies: Record<Exclude<ApiDebugBodyType, 'binary'>, unknown>
+  auth: ApiDebugAuth
+  connectTimeoutMs: number
+  responseTimeoutMs: number
+  followRedirects: boolean
+  dirty: boolean
+  response: ApiDebugExecuteResp | null
+}
