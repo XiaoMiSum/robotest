@@ -40,6 +40,13 @@
             <artifactId>migoo-spring-boot-starter-common</artifactId>
         </dependency>
 
+        <!-- Ryze 执行引擎（基础设施详细设计 6.2，平台模型 → Ryze TestSuite JSON 实时转换执行） -->
+        <dependency>
+            <groupId>io.github.xiaomisum</groupId>
+            <artifactId>ryze</artifactId>
+            <version>6.1.0</version>
+        </dependency>
+
         <dependency>
             <groupId>xyz.migoo.springboot</groupId>
             <artifactId>migoo-spring-boot-starter-web</artifactId>
