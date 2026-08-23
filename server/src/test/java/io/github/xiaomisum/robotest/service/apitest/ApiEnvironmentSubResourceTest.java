@@ -303,6 +303,46 @@ class ApiEnvironmentSubResourceTest {
 
     @SuppressWarnings("unchecked")
     @Test
+    void testDataSource_redisUrlRoutesToRespPingWithoutDriver() throws Exception {
+        // 免驱动设计：driver 为空串仍按 redis:// 协议走 RESP 测试而非白名单校验
+        stubEnv();
+        ApiDataSource ds = new ApiDataSource();
+        ds.setId(UUID.randomUUID());
+        ds.setEnvironmentId(ENV_ID);
+        ds.setDriver("");
+        ds.setUrl("redis://:secret@cache:6379/0");
+        when(dataSourceMapper.selectById(ds.getId())).thenReturn(ds);
+
+        ApiEnvironmentServiceImpl spyService = org.mockito.Mockito.spy(service);
+        doReturn(new ApiDataSourceTestRespDTO(true, "连接成功", "Redis 7.2.4"))
+                .when(spyService).openRedisConnection(ds.getUrl());
+
+        ApiDataSourceTestRespDTO resp = spyService.testDataSource(PROJECT_ID, WORKSPACE_ID, USER_ID, ENV_ID, ds.getId());
+        assertTrue(resp.getSuccess());
+        assertEquals("Redis 7.2.4", resp.getDatabaseVersion());
+    }
+
+    @Test
+    void testDataSource_redisConnectionFailureThrows7403WithCause() throws Exception {
+        stubEnv();
+        ApiDataSource ds = new ApiDataSource();
+        ds.setId(UUID.randomUUID());
+        ds.setEnvironmentId(ENV_ID);
+        ds.setUrl("rediss://cache:6379/0");
+        when(dataSourceMapper.selectById(ds.getId())).thenReturn(ds);
+
+        ApiEnvironmentServiceImpl spyService = org.mockito.Mockito.spy(service);
+        doThrow(new java.net.ConnectException("Connection refused"))
+                .when(spyService).openRedisConnection(ds.getUrl());
+
+        ServiceException ex = assertThrows(ServiceException.class,
+                () -> spyService.testDataSource(PROJECT_ID, WORKSPACE_ID, USER_ID, ENV_ID, ds.getId()));
+        assertEquals(ErrorCodeConstants.API_DATASOURCE_CONN_FAILED.code(), ex.getCode());
+        assertTrue(ex.getMessage().contains("Connection refused"));
+    }
+
+    @SuppressWarnings("unchecked")
+    @Test
     void testHttpConfig_networkFailureReturnsStructuredFalse() throws Exception {
         stubEnv();
         ApiEnvironmentHttp config = new ApiEnvironmentHttp();

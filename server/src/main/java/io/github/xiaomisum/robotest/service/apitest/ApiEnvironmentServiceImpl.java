@@ -49,6 +49,10 @@ import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.DriverManager;
+import io.lettuce.core.RedisClient;
+import io.lettuce.core.RedisURI;
+import io.lettuce.core.api.StatefulRedisConnection;
+
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -425,6 +429,16 @@ public class ApiEnvironmentServiceImpl implements ApiEnvironmentService {
         projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
         requireEnv(projectId, id);
         ApiDataSource ds = requireDataSource(id, dataSourceId);
+        String url = ds.getUrl();
+        // Redis 无 JDBC 驱动，按 URL 协议识别（详细设计 3.1.7），驱动列存空串
+        if (url.startsWith("redis://") || url.startsWith("rediss://")) {
+            try {
+                return openRedisConnection(url);
+            } catch (Exception e) {
+                throw ServiceExceptionUtil.get(ErrorCodeConstants.API_DATASOURCE_CONN_FAILED,
+                        e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage());
+            }
+        }
         if (!SUPPORTED_JDBC_DRIVERS.contains(ds.getDriver())) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.API_DATASOURCE_CONN_FAILED,
                     "不支持的数据库驱动：" + ds.getDriver());
@@ -436,7 +450,7 @@ public class ApiEnvironmentServiceImpl implements ApiEnvironmentService {
                 props.put(keyName, String.valueOf(entry.getValue()));
             }
         }
-        try (Connection connection = openJdbcConnection(ds.getDriver(), ds.getUrl(), props)) {
+        try (Connection connection = openJdbcConnection(ds.getDriver(), url, props)) {
             DatabaseMetaData meta = connection.getMetaData();
             String version = meta.getDatabaseProductName() + " " + meta.getDatabaseMajorVersion()
                     + "." + meta.getDatabaseMinorVersion();
@@ -444,6 +458,37 @@ public class ApiEnvironmentServiceImpl implements ApiEnvironmentService {
         } catch (Exception e) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.API_DATASOURCE_CONN_FAILED,
                     e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage());
+        }
+    }
+
+    /** PING 建连超时，与 JDBC 登录超时口径一致 */
+    private static final Duration REDIS_CONNECT_TIMEOUT = Duration.ofSeconds(10);
+
+    /** 可测接缝：真实 RESP 建连逻辑，单测中以 spy 覆盖 */
+    protected ApiDataSourceTestRespDTO openRedisConnection(String url) throws Exception {
+        // 超时挂在 RedisURI 上（Lettuce 7 的 connect 不接收 Duration），与 JDBC 登录超时口径一致
+        RedisURI uri = RedisURI.create(url);
+        uri.setTimeout(REDIS_CONNECT_TIMEOUT);
+        // RedisClient 持有 Netty 事件循环资源且非 AutoCloseable，测试为一次性短连，用毕显式释放
+        RedisClient client = RedisClient.create(uri);
+        StatefulRedisConnection<String, String> connection = client.connect();
+        try {
+            connection.sync().ping();
+            String info = connection.sync().info("server");
+            String redisVersion = null;
+            if (info != null) {
+                for (String line : info.split("\r?\n")) {
+                    if (line.startsWith("redis_version:")) {
+                        redisVersion = line.substring("redis_version:".length()).trim();
+                        break;
+                    }
+                }
+            }
+            String version = redisVersion == null ? null : "Redis " + redisVersion;
+            return new ApiDataSourceTestRespDTO(true, "连接成功", version);
+        } finally {
+            connection.close();
+            client.shutdown();
         }
     }
 
@@ -705,7 +750,8 @@ public class ApiEnvironmentServiceImpl implements ApiEnvironmentService {
                 ApiDataSource row = new ApiDataSource();
                 row.setName(source.getName());
                 row.setRefName(source.getRefName());
-                row.setDriver(source.getDriver());
+                // Redis 数据源免驱动，空串兜底满足 driver 列 NOT NULL 约束
+                row.setDriver(source.getDriver() == null ? "" : source.getDriver());
                 row.setUrl(source.getUrl());
                 row.setConnectionProperties(source.getConnectionProperties() != null
                         ? source.getConnectionProperties() : Map.of());
