@@ -234,6 +234,7 @@ class ApiEnvironmentServiceImplTest {
         ApiEnvironment existing = environmentMapper.selectById(ENV_ID);
         existing.setIsDefault(false);
         when(environmentMapper.existsByProjectIdAndName(PROJECT_ID, "测试环境", ENV_ID)).thenReturn(false);
+        when(variableMapper.listByEnvironmentId(ENV_ID)).thenReturn(List.of());
 
         ApiEnvironmentSaveReqDTO req = fullReq();
         req.setIsDefault(true);
@@ -244,6 +245,46 @@ class ApiEnvironmentServiceImplTest {
         verify(variableMapper).deleteByEnvironmentId(ENV_ID);
         verify(dataSourceMapper).deleteByEnvironmentId(ENV_ID);
         verify(processorMapper).deleteByEnvironmentId(ENV_ID);
+    }
+
+    @Test
+    void updateEnvironment_sensitiveBlankOrMaskKeepsPreviousCipher() {
+        stubExistingEnv();
+        when(environmentMapper.existsByProjectIdAndName(PROJECT_ID, "测试环境", ENV_ID)).thenReturn(false);
+        ApiEnvironmentVariable oldSensitive = new ApiEnvironmentVariable();
+        oldSensitive.setName("TEST_PASSWORD");
+        oldSensitive.setValue("old-cipher");
+        oldSensitive.setType("sensitive");
+        when(variableMapper.listByEnvironmentId(ENV_ID)).thenReturn(List.of(oldSensitive));
+
+        // 敏感值留空提交：应沿用旧密文而非清空（交互设计 3.3）
+        ApiEnvironmentSaveReqDTO blank = fullReq();
+        blank.getVariables().stream()
+                .filter(v -> "sensitive".equals(v.getType())).findFirst().orElseThrow().setValue(null);
+        service.updateEnvironment(PROJECT_ID, WORKSPACE_ID, USER_ID, ENV_ID, blank);
+
+        ArgumentCaptor<List<ApiEnvironmentVariable>> captor = ArgumentCaptor.captor();
+        verify(variableMapper).insertBatch(captor.capture());
+        assertEquals("old-cipher", captor.getValue().stream()
+                .filter(v -> "sensitive".equals(v.getType())).findFirst().orElseThrow().getValue());
+
+        // 掩码字面量提交：同样沿用旧密文，"******" 永不落库
+        org.mockito.Mockito.reset(variableMapper);
+        stubExistingEnv();
+        when(environmentMapper.existsByProjectIdAndName(PROJECT_ID, "测试环境", ENV_ID)).thenReturn(false);
+        when(variableMapper.listByEnvironmentId(ENV_ID)).thenReturn(List.of(oldSensitive));
+        ApiEnvironmentSaveReqDTO masked = fullReq();
+        masked.getVariables().stream()
+                .filter(v -> "sensitive".equals(v.getType())).findFirst().orElseThrow()
+                .setValue(ApiEnvironmentDetailRespDTO.SENSITIVE_MASK);
+        service.updateEnvironment(PROJECT_ID, WORKSPACE_ID, USER_ID, ENV_ID, masked);
+
+        ArgumentCaptor<List<ApiEnvironmentVariable>> maskCaptor = ArgumentCaptor.captor();
+        verify(variableMapper).insertBatch(maskCaptor.capture());
+        String stored = maskCaptor.getValue().stream()
+                .filter(v -> "sensitive".equals(v.getType())).findFirst().orElseThrow().getValue();
+        assertEquals("old-cipher", stored);
+        assertFalse(stored.contains(ApiEnvironmentDetailRespDTO.SENSITIVE_MASK));
     }
 
     @Test

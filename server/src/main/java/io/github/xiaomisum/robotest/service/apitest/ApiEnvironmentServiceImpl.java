@@ -162,7 +162,9 @@ public class ApiEnvironmentServiceImpl implements ApiEnvironmentService {
         if (environmentMapper.existsByProjectIdAndName(projectId, reqDTO.getName(), id)) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.API_ENV_NAME_EXISTS);
         }
-        NormalizedAggregate aggregate = normalize(reqDTO);
+        // 旧敏感密文须在子资源删除前读取，供「留空不修改」沿用
+        Map<String, String> previousSensitives = loadSensitiveCipherByName(id);
+        NormalizedAggregate aggregate = normalize(reqDTO, previousSensitives);
 
         boolean promoteToDefault = Boolean.TRUE.equals(reqDTO.getIsDefault())
                 && !Boolean.TRUE.equals(existing.getIsDefault());
@@ -317,7 +319,9 @@ public class ApiEnvironmentServiceImpl implements ApiEnvironmentService {
         projectAccessGuard.requireProjectMaintainer(projectId, workspaceId, userId);
         requireEnv(projectId, id);
 
-        List<ApiEnvironmentVariable> rows = normalizeVariables(reqDTO.getVariables());
+        // 旧敏感密文须在删除前读取，供「留空不修改」沿用
+        Map<String, String> previousSensitives = loadSensitiveCipherByName(id);
+        List<ApiEnvironmentVariable> rows = normalizeVariables(reqDTO.getVariables(), previousSensitives);
         rows.forEach(row -> row.setEnvironmentId(id));
         variableMapper.deleteByEnvironmentId(id);
         if (!rows.isEmpty()) {
@@ -655,6 +659,11 @@ public class ApiEnvironmentServiceImpl implements ApiEnvironmentService {
      * ref_name 缺省按 http_N 生成、变量名/类型/取值校验与敏感值加密
      */
     private NormalizedAggregate normalize(ApiEnvironmentSaveReqDTO reqDTO) {
+        return normalize(reqDTO, null);
+    }
+
+    private NormalizedAggregate normalize(ApiEnvironmentSaveReqDTO reqDTO,
+            Map<String, String> previousSensitives) {
         NormalizedAggregate aggregate = new NormalizedAggregate();
 
         List<ApiEnvironmentSaveReqDTO.HttpConfig> httpConfigs = reqDTO.getHttpConfigs();
@@ -688,7 +697,7 @@ public class ApiEnvironmentServiceImpl implements ApiEnvironmentService {
         }
 
         if (reqDTO.getVariables() != null) {
-            aggregate.variables.addAll(normalizeVariables(reqDTO.getVariables()));
+            aggregate.variables.addAll(normalizeVariables(reqDTO.getVariables(), previousSensitives));
         }
 
         if (reqDTO.getDataSources() != null) {
@@ -728,6 +737,11 @@ public class ApiEnvironmentServiceImpl implements ApiEnvironmentService {
      * 名称仅字母/数字/下划线且同批唯一、类型白名单、number 取值校验、敏感值加密
      */
     private List<ApiEnvironmentVariable> normalizeVariables(List<ApiEnvironmentSaveReqDTO.Variable> sources) {
+        return normalizeVariables(sources, null);
+    }
+
+    private List<ApiEnvironmentVariable> normalizeVariables(List<ApiEnvironmentSaveReqDTO.Variable> sources,
+            Map<String, String> previousSensitives) {
         List<ApiEnvironmentVariable> rows = new ArrayList<>();
         Set<String> names = new HashSet<>();
         for (ApiEnvironmentSaveReqDTO.Variable source : sources) {
@@ -751,7 +765,12 @@ public class ApiEnvironmentServiceImpl implements ApiEnvironmentService {
             row.setDescription(source.getDescription());
             row.setType(type);
             String value = source.getValue();
-            if (hasText(value)) {
+            boolean maskedOrBlank = !hasText(value) || ApiEnvironmentDetailRespDTO.SENSITIVE_MASK.equals(value);
+            if (TYPE_SENSITIVE.equals(type) && maskedOrBlank && previousSensitives != null
+                    && previousSensitives.containsKey(source.getName())) {
+                // 交互设计 3.3「已配置（留空不修改）」：沿用旧密文，掩码字面量永不落库
+                row.setValue(previousSensitives.get(source.getName()));
+            } else if (hasText(value)) {
                 if (TYPE_SENSITIVE.equals(type)) {
                     value = SecretCryptoUtil.encrypt(requireCipherKey(), value);
                 }
@@ -851,6 +870,13 @@ public class ApiEnvironmentServiceImpl implements ApiEnvironmentService {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.API_ENV_HTTP_CONFIG_NOT_FOUND);
         }
         return row;
+    }
+
+    /** 现存敏感变量密文按名索引，用于全量替换时的「留空不修改」沿用 */
+    private Map<String, String> loadSensitiveCipherByName(UUID environmentId) {
+        return variableMapper.listByEnvironmentId(environmentId).stream()
+                .filter(row -> TYPE_SENSITIVE.equals(row.getType()) && hasText(row.getValue()))
+                .collect(Collectors.toMap(ApiEnvironmentVariable::getName, ApiEnvironmentVariable::getValue));
     }
 
     /** 变量列表脱敏视图：敏感值恒掩码，hasValue 标识是否已配置 */
