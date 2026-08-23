@@ -19,6 +19,7 @@ import {
 import DebugRequestPanel from './debug/DebugRequestPanel.vue'
 import DebugResponseViewer from './debug/DebugResponseViewer.vue'
 import DebugHistoryView from './debug/DebugHistoryView.vue'
+import { useApiTestingUiStore } from '@/stores/apiTestingUi'
 
 const HISTORY_TAB_ID = '__history__'
 
@@ -134,7 +135,51 @@ async function handleRestoreRecord(record: ApiDebugRecordItem) {
   }
 }
 
-onMounted(() => window.addEventListener('keydown', onHotkey))
+onMounted(() => {
+  window.addEventListener('keydown', onHotkey)
+  consumePendingInterfaceRequest()
+})
+
+/** 接口列表行「调试」联动：消费 store 预填快照并打开新标签 */
+function consumePendingInterfaceRequest() {
+  const pending = useApiTestingUiStore().consumePendingRequest()
+  if (!pending) return
+  const tab = createTab()
+  applyCurlToTab(tab, {
+    method: pending.method,
+    // 接口路径为相对路径，主机部分由用户结合环境补全
+    url: pending.path,
+    headers: (pending.headers ?? []).map((row) => ({ ...row })),
+    body: {
+      type: normalizeBodyType(pending.body?.type),
+      content: normalizeBodyContent(pending.body),
+    },
+    params: (pending.params ?? []).map((row) => ({ ...row })),
+  })
+  tab.name = pending.name || `${pending.method} ${pending.path}`
+  tab.dirty = false
+  tabs.value.push(tab)
+  switchTab(tab.id)
+}
+
+function normalizeBodyType(type?: string): 'none' | 'json' | 'form' | 'raw' | 'binary' {
+  if (type === 'json' || type === 'form' || type === 'raw' || type === 'binary') return type
+  return 'none'
+}
+
+function normalizeBodyContent(body?: { type?: string; content?: unknown } | null): unknown {
+  if (!body) return undefined
+  // 接口定义的表单体为键值数组，调试标签缓存为对象（applyCurlToTab 再转 query-string 文本）
+  if (body.type === 'form' && Array.isArray(body.content)) {
+    const record: Record<string, string> = {}
+    for (const item of body.content as { key: string; value: string }[]) {
+      if (item.key) record[item.key] = item.value
+    }
+    return record
+  }
+  return body.content
+}
+
 onBeforeUnmount(() => window.removeEventListener('keydown', onHotkey))
 
 function onHotkey(event: KeyboardEvent) {
