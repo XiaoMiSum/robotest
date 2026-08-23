@@ -35,7 +35,7 @@ export interface DriverOption {
 /** 需求 3.7.1 五种内置数据源；Redis 由 Ryze 内置客户端支持，连接测试走 RESP PING */
 export const DRIVER_OPTIONS: DriverOption[] = [
   {
-    driver: 'com.mysql.cj.MySQLDriver',
+    driver: 'com.mysql.cj.jdbc.Driver',
     label: 'MySQL',
     urlExample: 'jdbc:mysql://localhost:3306/db?user=root&password=123456',
   },
