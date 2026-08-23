@@ -98,6 +98,15 @@ public class ErrorCodeConstants {
     public static final ErrorCode API_IMPORT_PARSE_FAILED = ErrorCode.of(1000017011, "导入内容解析失败：{}");
     public static final ErrorCode API_DEBUG_RECORD_NOT_FOUND = ErrorCode.of(1000017013, "调试记录不存在或不属于当前项目");
 
+    // ========== 接口测试——接口管理 1,000,017,101-1,000,017,112（文档简写 71XX/70XX，7101 ≙ 1000017101） ==========
+    public static final ErrorCode API_INTERFACE_NOT_FOUND = ErrorCode.of(1000017101, "接口定义不存在或不属于当前项目");
+    public static final ErrorCode API_INTERFACE_NAME_EXISTS = ErrorCode.of(1000017102, "接口定义名称在所属模块内已存在：{}");
+    public static final ErrorCode API_INTERFACE_REFERENCED = ErrorCode.of(1000017103, "接口定义被场景或 Mock 引用，禁止删除");
+    public static final ErrorCode API_INTERFACE_STEP_REFERENCED = ErrorCode.of(1000017104, "公共步骤被场景链接引用，禁止删除");
+    public static final ErrorCode API_INTERFACE_VERSION_CONFLICT = ErrorCode.of(1000017105, "接口已被他人修改，请刷新后重试");
+    public static final ErrorCode API_IMPORT_FORMAT_UNSUPPORTED = ErrorCode.of(1000017010, "导入格式不支持：{}");
+    public static final ErrorCode API_IMPORT_URL_UNREACHABLE = ErrorCode.of(1000017012, "导入目标 URL 不可达或超出超时：{}");
+
     // ========== 项目设置 1,000,017,701-1,000,017,702（文档简写 77XX，7701 ≙ 1000017701） ==========
     public static final ErrorCode API_SETTING_KEY_INVALID = ErrorCode.of(1000017701, "设置项标识非法（不在注册表白名单）");
     public static final ErrorCode API_SETTING_VALUE_INVALID = ErrorCode.of(1000017702, "设置值非法（格式或取值范围不满足注册表约束）：{}");
