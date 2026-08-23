@@ -15,7 +15,7 @@ import java.util.UUID;
 @Builder
 public class ApiDebugRestoreRespDTO {
 
-    private UUID debugRecordId;
+    private String debugRecordId;
     private Snapshot request;
     private Response response;
     private LocalDateTime createdAt;
