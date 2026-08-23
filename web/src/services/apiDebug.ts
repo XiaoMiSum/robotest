@@ -5,6 +5,7 @@ import type {
   ApiDebugExecuteResp,
   ApiDebugRecordItem,
   ApiDebugRestoreResp,
+  PageResult,
 } from '@/types'
 
 function get<T>(url: string, params?: Record<string, unknown>): Promise<T> {
@@ -16,9 +17,9 @@ function post<T>(url: string, data?: unknown): Promise<T> {
 
 // ==================== 快速调试（/api/project/debug*，详细设计 3.1 / 基础设施 3.3） ====================
 
-/** 服务端执行调试请求；结果自动持久化为调试记录 */
+/** 服务端执行调试请求；结果自动持久化为调试记录。后端护栏为 timeoutMs+5s，放宽 axios 全局 15s 超时 */
 export function executeDebug(req: ApiDebugExecuteReq): Promise<ApiDebugExecuteResp> {
-  return post('/project/debug/execute', req)
+  return api.post('/project/debug/execute', req, { timeout: 120_000 }) as unknown as Promise<ApiDebugExecuteResp>
 }
 
 /** cURL 解析：仅解析不执行，结果回填当前标签 */
@@ -26,13 +27,8 @@ export function importCurl(curl: string): Promise<ApiDebugCurlImportResp> {
   return post('/project/debug/import-curl', { curl })
 }
 
-export interface ApiDebugRecordPage {
-  list: ApiDebugRecordItem[]
-  total: number
-}
-
 /** 调试记录分页（仅当前用户），keyword 匹配名称或 URL */
-export function fetchDebugRecords(pageNo: number, pageSize: number, keyword?: string): Promise<ApiDebugRecordPage> {
+export function fetchDebugRecords(pageNo: number, pageSize: number, keyword?: string): Promise<PageResult<ApiDebugRecordItem>> {
   const params: Record<string, unknown> = { pageNo, pageSize }
   if (keyword) params.keyword = keyword
   return get('/project/debug-records', params)
