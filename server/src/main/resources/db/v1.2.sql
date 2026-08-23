@@ -283,6 +283,140 @@ COMMENT ON COLUMN api_debug_record.response_body IS '响应体（截断存储，
 COMMENT ON COLUMN api_debug_record.response_size IS '响应体字节数';
 
 -- ============================================================
+-- 6.x 接口管理（US-API-002，详细设计《接口管理详细设计说明书》2.1）
+-- ============================================================
+CREATE TABLE IF NOT EXISTS api_interface (
+    id               UUID          PRIMARY KEY DEFAULT gen_random_uuid(),
+    project_id       UUID          NOT NULL,
+    module_id        UUID          NULL,
+    name             VARCHAR(200)  NOT NULL,
+    protocol         VARCHAR(20)   NOT NULL DEFAULT 'http',
+    method           VARCHAR(10)   NULL,
+    path             VARCHAR(500)  NULL,
+    description      TEXT          NULL,
+    headers          JSONB         NOT NULL DEFAULT '[]',
+    body_type        VARCHAR(20)   NULL,
+    body             JSONB         NULL,
+    query_params     JSONB         NOT NULL DEFAULT '[]',
+    rest_params      JSONB         NOT NULL DEFAULT '[]',
+    auth             JSONB         NULL,
+    status           VARCHAR(10)   NOT NULL DEFAULT 'enabled',
+    created_by       UUID          NULL,
+    change_version   INT           NOT NULL DEFAULT 1,
+    response_example JSONB         NULL,
+    reference_count  INT           NOT NULL DEFAULT 0,
+    is_deleted       BOOLEAN       NOT NULL DEFAULT FALSE,
+    created_at       TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at       TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_interface_project ON api_interface(project_id);
+CREATE INDEX idx_interface_module ON api_interface(module_id);
+CREATE INDEX idx_interface_path_method ON api_interface(project_id, path, method);
+CREATE INDEX idx_interface_creator ON api_interface(project_id, created_by);
+
+COMMENT ON TABLE api_interface IS '接口定义表（测试场景与 Mock 的数据底座，V1.2 仅 http 协议）';
+COMMENT ON COLUMN api_interface.module_id IS '归属模块（project_module.id），空为未分组';
+COMMENT ON COLUMN api_interface.headers IS '默认请求头 [{key, value, enabled}]';
+COMMENT ON COLUMN api_interface.body_type IS '默认请求体类型：none / json / form-data / x-www-form-urlencoded / raw / binary';
+COMMENT ON COLUMN api_interface.rest_params IS 'REST 路径参数 [{key, value}]（对应路径占位符）';
+COMMENT ON COLUMN api_interface.auth IS '认证配置 {type, username, password}，存储加密';
+COMMENT ON COLUMN api_interface.created_by IS '创建人，「我创建的」视图过滤依据';
+COMMENT ON COLUMN api_interface.change_version IS '变更版本号，每次保存递增（乐观锁，冲突返回错误码 7105）';
+COMMENT ON COLUMN api_interface.reference_count IS '被引用计数（场景/Mock 引用，>0 时禁止删除）';
+
+CREATE TABLE IF NOT EXISTS api_interface_step (
+    id             UUID          PRIMARY KEY DEFAULT gen_random_uuid(),
+    interface_id   UUID          NOT NULL,
+    name           VARCHAR(200)  NOT NULL,
+    step_type      VARCHAR(20)   NOT NULL,
+    sort_order     INT           NOT NULL DEFAULT 0,
+    enabled        BOOLEAN       NOT NULL DEFAULT TRUE,
+    request_config JSONB         NOT NULL,
+    processors     JSONB         NOT NULL DEFAULT '[]',
+    validators     JSONB         NOT NULL DEFAULT '[]',
+    extractors     JSONB         NOT NULL DEFAULT '[]',
+    is_deleted     BOOLEAN       NOT NULL DEFAULT FALSE,
+    created_at     TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at     TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_istep_interface ON api_interface_step(interface_id);
+
+COMMENT ON TABLE api_interface_step IS '接口公共步骤表（http/jdbc 取样器，供场景选择添加；V1.2 仅 http）';
+COMMENT ON COLUMN api_interface_step.request_config IS '请求配置（http: method/path/headers/params/body/auth）';
+
+CREATE TABLE IF NOT EXISTS api_interface_variable (
+    id            UUID          PRIMARY KEY DEFAULT gen_random_uuid(),
+    interface_id  UUID          NOT NULL,
+    name          VARCHAR(100)  NOT NULL,
+    default_value TEXT          NULL,
+    description   VARCHAR(500)  NULL,
+    required      BOOLEAN       NOT NULL DEFAULT FALSE,
+    sort_order    INT           NOT NULL DEFAULT 0,
+    is_deleted    BOOLEAN       NOT NULL DEFAULT FALSE,
+    created_at    TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at    TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_ivariable_interface ON api_interface_variable(interface_id);
+
+COMMENT ON TABLE api_interface_variable IS '接口级变量表（供场景步骤链接引用时自动导入）';
+
+CREATE TABLE IF NOT EXISTS api_import_mapping (
+    id               UUID          PRIMARY KEY DEFAULT gen_random_uuid(),
+    project_id       UUID          NOT NULL,
+    import_record_id UUID          NULL,
+    source_type      VARCHAR(30)   NOT NULL,
+    source_id        VARCHAR(500)  NOT NULL,
+    source_name      VARCHAR(500)  NOT NULL,
+    target_type      VARCHAR(20)   NOT NULL,
+    target_id        UUID          NOT NULL,
+    action           VARCHAR(10)   NOT NULL,
+    is_deleted       BOOLEAN       NOT NULL DEFAULT FALSE,
+    created_at       TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at       TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_imapping_project_source ON api_import_mapping(project_id, source_type, source_id);
+CREATE INDEX idx_imapping_import ON api_import_mapping(import_record_id);
+
+COMMENT ON TABLE api_import_mapping IS '导入映射表（源数据与平台对象映射，支撑增量导入去重）';
+COMMENT ON COLUMN api_import_mapping.source_type IS '源类型：swagger_operation / postman_item / har_entry / jmeter_sampler';
+COMMENT ON COLUMN api_import_mapping.action IS '操作：created / updated / skipped';
+
+CREATE TABLE IF NOT EXISTS api_interface_follow (
+    id            UUID      PRIMARY KEY DEFAULT gen_random_uuid(),
+    interface_id  UUID      NOT NULL,
+    user_id       UUID      NOT NULL,
+    is_deleted    BOOLEAN   NOT NULL DEFAULT FALSE,
+    created_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_ifollow_interface_user ON api_interface_follow(interface_id, user_id);
+CREATE INDEX idx_ifollow_user ON api_interface_follow(user_id);
+
+COMMENT ON TABLE api_interface_follow IS '接口关注表（按用户记录，取消关注即逻辑删除）';
+
+CREATE TABLE IF NOT EXISTS api_interface_change_log (
+    id             UUID          PRIMARY KEY DEFAULT gen_random_uuid(),
+    interface_id   UUID          NOT NULL,
+    change_version INT           NOT NULL,
+    action         VARCHAR(20)   NOT NULL,
+    summary        VARCHAR(500)  NULL,
+    operator_id    UUID          NULL,
+    is_deleted     BOOLEAN       NOT NULL DEFAULT FALSE,
+    created_at     TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at     TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_ichangelog_interface ON api_interface_change_log(interface_id, change_version);
+
+COMMENT ON TABLE api_interface_change_log IS '接口变更历史表（每次保存生成一条并递增版本号）';
+COMMENT ON COLUMN api_interface_change_log.action IS '动作：create / update / copy / import / status';
+
+-- ============================================================
 -- 7. 注意事项
 -- ============================================================
 -- - test_case_node.document_id 仍指向文档 ID（现为 test_case_document.id）
