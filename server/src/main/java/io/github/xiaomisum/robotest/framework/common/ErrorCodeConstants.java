@@ -95,6 +95,7 @@ public class ErrorCodeConstants {
     public static final ErrorCode API_EXECUTOR_BUSY = ErrorCode.of(1000017001, "执行引擎繁忙，请稍后重试");
     public static final ErrorCode API_EXEC_TIMEOUT = ErrorCode.of(1000017002, "执行超时：{}");
     public static final ErrorCode API_FORMAT_CONVERT_FAILED = ErrorCode.of(1000017003, "格式转换失败：{}");
+    public static final ErrorCode API_IMPORT_PARSE_FAILED = ErrorCode.of(1000017011, "导入内容解析失败：{}");
     public static final ErrorCode API_DEBUG_RECORD_NOT_FOUND = ErrorCode.of(1000017013, "调试记录不存在或不属于当前项目");
 
     // ========== 项目设置 1,000,017,701-1,000,017,702（文档简写 77XX，7701 ≙ 1000017701） ==========
