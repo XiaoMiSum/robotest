@@ -81,7 +81,9 @@ function hydrate(next: ApiEnvironmentDetail) {
   editingBasic.value = false
   configForms.value = next.httpConfigs.map((config) => ({ ...config, headers: cloneHeaders(config) }))
   dsForms.value = next.dataSources.map((ds) => ({ ...ds }))
-  variableRows.value = next.variables.map((row) => ({ ...row }))
+  // 变量名按字母序排列（交互设计 3.5）
+  variableRows.value = next.variables.map((row) => ({ ...row })).sort((a, b) => a.name.localeCompare(b.name))
+  variablePage.value = 1
   if (!configForms.value.some((config) => config.id === activeConfigId.value)) {
     activeConfigId.value = configForms.value[0]?.id ?? ''
   }
@@ -223,6 +225,13 @@ function markDirty() {
 
 const editingVariableId = ref('')
 const revealingId = ref('')
+/** 行数超过 10 条时分页展示（交互设计 3.5） */
+const VARIABLE_PAGE_SIZE = 10
+const variablePage = ref(1)
+const pagedVariableRows = computed(() => {
+  const start = (variablePage.value - 1) * VARIABLE_PAGE_SIZE
+  return variableRows.value.slice(start, start + VARIABLE_PAGE_SIZE)
+})
 
 function addVariableRow() {
   const row: ApiVariable = {
@@ -660,7 +669,10 @@ async function removeProcessor(processor: ApiProcessor) {
             <el-button size="small" :disabled="!canEdit" @click="varImportDialogVisible = true">批量导入</el-button>
             <el-button size="small" @click="exportVariableRows">导出</el-button>
           </div>
-          <el-table :data="variableRows" size="small" empty-text="暂无变量">
+          <el-table :data="pagedVariableRows" size="small" empty-text="暂无变量，点击右上角添加">
+            <el-table-column label="作用域" width="80">
+              <template #default>环境级</template>
+            </el-table-column>
             <el-table-column label="变量名" width="200">
               <template #default="{ row }">
                 <el-input
@@ -718,6 +730,18 @@ async function removeProcessor(processor: ApiProcessor) {
               </template>
             </el-table-column>
           </el-table>
+          <el-pagination
+            v-if="variableRows.length > VARIABLE_PAGE_SIZE"
+            v-model:current-page="variablePage"
+            :page-size="VARIABLE_PAGE_SIZE"
+            :total="variableRows.length"
+            layout="prev, pager, next"
+            size="small"
+            class="env-detail__pager"
+          />
+          <p class="env-detail__syntax-tip">
+            引用语法：<code>${'{'}变量名{'}'}</code>，如 <code>${'{'}BASE_URL{'}'}</code>
+          </p>
           <div class="env-detail__toolbar env-detail__toolbar--right">
             <el-button size="small" type="primary" :loading="variablesSaving" :disabled="!canEdit" @click="saveVariables">
               保存变量
@@ -1043,6 +1067,23 @@ async function removeProcessor(processor: ApiProcessor) {
   gap: var(--space-sm);
   font-size: var(--font-size-xs);
   color: var(--color-neutral-500);
+}
+
+.env-detail__pager {
+  margin-top: var(--space-sm);
+}
+
+.env-detail__syntax-tip {
+  margin: var(--space-sm) 0 0;
+  font-size: var(--font-size-xs);
+  color: var(--color-neutral-400);
+
+  code {
+    font-family: var(--font-family-mono, monospace);
+    background: var(--color-neutral-50);
+    padding: 0 4px;
+    border-radius: var(--radius-sm, 3px);
+  }
 }
 </style>
 

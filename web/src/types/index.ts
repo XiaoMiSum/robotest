@@ -1363,7 +1363,9 @@ export interface ApiProcessor {
 export interface ApiEnvironmentListItem {
   id: string
   name: string
-  scope: ApiEnvironmentScope
+  description?: string
+  /** 全局环境为 V1.2 预留扩展位，后端当前恒为 project 且暂未下发该字段 */
+  scope?: ApiEnvironmentScope
   isDefault: boolean
   sortOrder: number
   variableCount: number

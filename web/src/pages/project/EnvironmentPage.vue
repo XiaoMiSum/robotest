@@ -8,6 +8,7 @@ import {
   copyEnvironment,
   createEnvironment,
   deleteEnvironment,
+  downloadEnvironmentJson,
   fetchEnvironments,
   importEnvironment,
   sortEnvironment,
@@ -61,6 +62,17 @@ const selectedIsLast = computed(() => {
   const list = sortedList.value
   return list.length > 0 && list[list.length - 1]?.id === selectedId.value
 })
+
+/** 页头 [导出] 作用于当前选中环境（交互设计 2.1/2.5） */
+async function handleExport() {
+  const selected = environments.value.find((item) => item.id === selectedId.value)
+  if (!selected) return
+  try {
+    await downloadEnvironmentJson(selected.id, `${selected.name}.json`)
+  } catch (err) {
+    ElMessage.error(resolveEnvironmentError(err))
+  }
+}
 
 /** 相邻互换 sortOrder，两次 PATCH 后刷新保证列表与服务端一致 */
 async function handleMove(direction: -1 | 1) {
@@ -212,6 +224,7 @@ onMounted(() => void loadList(false))
       </div>
       <div class="env-page__actions">
         <el-button :disabled="!canEdit" @click="openImportDialog">导入环境</el-button>
+        <el-button :disabled="!selectedId" @click="handleExport">导出</el-button>
         <el-button type="primary" :disabled="!canEdit" @click="openCreateDialog">新建环境</el-button>
       </div>
     </header>
@@ -279,6 +292,8 @@ onMounted(() => void loadList(false))
       </section>
     </div>
 
+    <footer class="env-page__footer">默认环境说明：场景执行未指定环境时使用默认环境</footer>
+
     <!-- 新建弹窗：名称、描述、是否设为默认（交互设计 2.2） -->
     <el-dialog v-model="createDialogVisible" title="新建环境" width="440px">
       <el-form label-width="90px">
@@ -305,7 +320,7 @@ onMounted(() => void loadList(false))
           <el-input v-model="copyForm.name" maxlength="100" />
         </el-form-item>
       </el-form>
-      <p class="env-page__dialog-tip">复制内容含 HTTP 配置与变量；敏感值与数据源不复制，需重新填写</p>
+      <p class="env-page__dialog-tip">复制内容含 HTTP 配置、变量与处理器；敏感值与数据源不复制，需重新填写</p>
       <template #footer>
         <el-button @click="copyDialogVisible = false">取消</el-button>
         <el-button type="primary" @click="submitCopy">确定</el-button>
@@ -461,5 +476,10 @@ onMounted(() => void loadList(false))
   &--wide {
     padding-top: var(--space-xxl, 64px);
   }
+}
+
+.env-page__footer {
+  font-size: var(--font-size-xs);
+  color: var(--color-neutral-400);
 }
 </style>
