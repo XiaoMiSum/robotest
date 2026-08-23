@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import type { MenuInstance } from 'element-plus'
+import ProjectSettingsPage from './ProjectSettingsPage.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -15,21 +16,26 @@ const menuItems = [
   { key: 'schedules', label: '定时任务', icon: 'Timer' },
 ]
 
-// 项目设置分组为平台级框架（交互设计 3.5），设置页路由尚未实装，
-// 以禁用态占位避免跳转到不存在的路由
+// 项目设置分组为平台级框架（交互设计 3.5）；仅安全策略与应用设置已实装，
+// 其余项后端未就绪，保持禁用占位避免跳转到空白页
 const settingsItems = [
-  { key: 'environments', label: '环境管理', icon: 'Compass' },
-  { key: 'assets', label: '全局资产', icon: 'Box' },
-  { key: 'gitlab-repos', label: 'GitLab 仓库配置', icon: 'Platform' },
-  { key: 'security', label: '安全策略与应用设置', icon: 'Lock' },
+  { key: 'environments', label: '环境管理', icon: 'Compass', enabled: false },
+  { key: 'assets', label: '全局资产', icon: 'Box', enabled: false },
+  { key: 'gitlab-repos', label: 'GitLab 仓库配置', icon: 'Platform', enabled: false },
+  { key: 'security', label: '安全策略与应用设置', icon: 'Lock', enabled: true },
 ]
 
 // 刷新与详情页返回时通过 ?tab= 恢复激活子模块（子页切换不走路由，仅初始化读取）
+const selectableKeys = [
+  ...menuItems.map((item) => item.key),
+  ...settingsItems.filter((item) => item.enabled).map((item) => item.key),
+]
 const initialTab = String(route.query.tab ?? '')
-const activeMenu = ref(menuItems.some((m) => m.key === initialTab) ? initialTab : 'debug')
+const activeMenu = ref(selectableKeys.includes(initialTab) ? initialTab : 'debug')
 const menuRef = ref<MenuInstance>()
 
-const activeLabel = computed(() => menuItems.find((m) => m.key === activeMenu.value)?.label ?? '')
+const allItems = [...menuItems, ...settingsItems]
+const activeLabel = computed(() => allItems.find((item) => item.key === activeMenu.value)?.label ?? '')
 
 // replace 避免子页切换污染浏览器历史
 function handleMenuSelect(key: string) {
@@ -56,7 +62,7 @@ function handleMenuSelect(key: string) {
           <span>{{ item.label }}</span>
         </el-menu-item>
         <el-menu-item-group class="api-testing__settings-group" title="项目设置">
-          <el-menu-item v-for="item in settingsItems" :key="item.key" :index="item.key" disabled>
+          <el-menu-item v-for="item in settingsItems" :key="item.key" :index="item.key" :disabled="!item.enabled">
             <el-icon><component :is="item.icon" /></el-icon>
             <span>{{ item.label }}</span>
           </el-menu-item>
@@ -65,7 +71,8 @@ function handleMenuSelect(key: string) {
     </aside>
 
     <main class="api-testing__main">
-      <div class="api-testing__placeholder">
+      <ProjectSettingsPage v-if="activeMenu === 'security'" />
+      <div v-else class="api-testing__placeholder">
         <div class="api-testing__placeholder-icon">
           <el-icon :size="48"><Connection /></el-icon>
         </div>
@@ -152,14 +159,14 @@ function handleMenuSelect(key: string) {
 
 .api-testing__main {
   flex: 1;
-  overflow: hidden;
+  overflow-y: auto;
   padding: var(--space-xl);
   display: flex;
-  align-items: center;
-  justify-content: center;
+  flex-direction: column;
 }
 
 .api-testing__placeholder {
+  margin: auto;
   display: flex;
   flex-direction: column;
   align-items: center;
