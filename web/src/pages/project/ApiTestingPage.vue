@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import type { MenuInstance } from 'element-plus'
 import ProjectSettingsPage from './ProjectSettingsPage.vue'
+import EnvironmentPage from './EnvironmentPage.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -19,7 +20,7 @@ const menuItems = [
 // 项目设置分组为平台级框架（交互设计 3.5）；仅安全策略与应用设置已实装，
 // 其余项后端未就绪，保持禁用占位避免跳转到空白页
 const settingsItems = [
-  { key: 'environments', label: '环境管理', icon: 'Compass', enabled: false },
+  { key: 'environments', label: '环境管理', icon: 'Compass', enabled: true },
   { key: 'assets', label: '全局资产', icon: 'Box', enabled: false },
   { key: 'gitlab-repos', label: 'GitLab 仓库配置', icon: 'Platform', enabled: false },
   { key: 'security', label: '安全策略与应用设置', icon: 'Lock', enabled: true },
@@ -72,6 +73,7 @@ function handleMenuSelect(key: string) {
 
     <main class="api-testing__main">
       <ProjectSettingsPage v-if="activeMenu === 'security'" />
+      <EnvironmentPage v-else-if="activeMenu === 'environments'" />
       <div v-else class="api-testing__placeholder">
         <div class="api-testing__placeholder-icon">
           <el-icon :size="48"><Connection /></el-icon>
