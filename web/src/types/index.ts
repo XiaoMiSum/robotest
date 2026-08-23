@@ -1295,3 +1295,149 @@ export interface ProjectSettingUpdateReq {
 export interface ProjectSettingUpdateResp {
   updated: number
 }
+
+// ==================== 接口测试 · 项目设置（环境管理） ====================
+
+export type ApiEnvironmentScope = 'project' | 'global'
+
+export type ApiVariableType = 'text' | 'number' | 'sensitive'
+
+/** 处理器类别：作用于该环境下所有请求的前置/后置处理器 */
+export type ApiProcessorType = 'preprocessor' | 'postprocessor'
+
+export interface ApiHeaderItem {
+  key: string
+  value: string
+  enabled: boolean
+}
+
+export interface ApiHttpConfigPayload {
+  name: string
+  refName?: string
+  baseUrl?: string
+  defaultMethod?: string
+  headers?: ApiHeaderItem[]
+  timeoutMs?: number
+  connectTimeoutMs?: number
+  followRedirects?: boolean
+  verifySsl?: boolean
+  isDefault?: boolean
+}
+
+export interface ApiHttpConfig extends ApiHttpConfigPayload {
+  id: string
+}
+
+export interface ApiVariablePayload {
+  name: string
+  value?: string
+  type?: ApiVariableType
+  description?: string
+}
+
+/** 敏感值不回显明文：value 恒为掩码或空，hasValue 标识服务端是否已配置 */
+export interface ApiVariable extends ApiVariablePayload {
+  id: string
+  hasValue: boolean
+}
+
+export interface ApiDataSource {
+  id: string
+  name: string
+  refName: string
+  driver: string
+  url: string
+  connectionProperties?: Record<string, unknown>
+  maxPoolSize?: number
+}
+
+export interface ApiProcessor {
+  id: string
+  processorType: ApiProcessorType
+  name: string
+  config?: Record<string, unknown>
+  sortOrder?: number
+  enabled: boolean
+}
+
+export interface ApiEnvironmentListItem {
+  id: string
+  name: string
+  scope: ApiEnvironmentScope
+  isDefault: boolean
+  sortOrder: number
+  variableCount: number
+  dataSourceCount: number
+  processorCount: number
+}
+
+export interface ApiEnvironmentDetail {
+  id: string
+  name: string
+  description?: string
+  scope: ApiEnvironmentScope
+  isDefault: boolean
+  sortOrder: number
+  httpConfigs: ApiHttpConfig[]
+  variables: ApiVariable[]
+  dataSources: ApiDataSource[]
+  processors: ApiProcessor[]
+}
+
+/** 环境聚合保存：子资源全量替换语义，缺省段落视为清空 */
+export interface ApiEnvironmentSaveReq {
+  name: string
+  description?: string
+  sortOrder?: number
+  isDefault?: boolean
+  httpConfigs?: ApiHttpConfigPayload[]
+  variables?: ApiVariablePayload[]
+  dataSources?: {
+    name: string
+    refName?: string
+    driver?: string
+    url?: string
+    connectionProperties?: Record<string, unknown>
+    maxPoolSize?: number
+  }[]
+  processors?: {
+    processorType: ApiProcessorType
+    name: string
+    config?: Record<string, unknown>
+    sortOrder?: number
+    enabled?: boolean
+  }[]
+}
+
+export interface ApiIdResp {
+  id: string
+}
+
+export interface ApiSetDefaultResp {
+  success: boolean
+}
+
+export interface ApiImportResult {
+  createdCount: number
+  overwrittenCount: number
+  skippedCount: number
+}
+
+export interface ApiDataSourceTestResp {
+  success: boolean
+  message: string
+  databaseVersion?: string
+}
+
+export interface ApiHttpTestResp {
+  success: boolean
+  message: string
+  statusCode?: number
+  durationMs?: number
+}
+
+export interface ApiVariableRevealResp {
+  id: string
+  name: string
+  value?: string
+}
