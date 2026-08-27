@@ -1,6 +1,7 @@
 package io.github.xiaomisum.robotest.service.apitest;
 
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
+import io.github.xiaomisum.robotest.framework.security.ProjectAccessGuard;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiInterfaceBatchDeleteReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiInterfaceCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiInterfaceUpdateReqDTO;
@@ -66,6 +67,8 @@ class ApiInterfaceServiceImplTest {
     private ApiImportMappingMapper importMappingMapper;
     @Mock
     private ApiImportRecordMapper importRecordMapper;
+    @Mock
+    private ProjectAccessGuard projectAccessGuard;
 
     @InjectMocks
     private ApiInterfaceServiceImpl service;
@@ -158,7 +161,7 @@ class ApiInterfaceServiceImplTest {
         when(interfaceMapper.selectById(INTERFACE_ID)).thenReturn(referenced);
 
         ServiceException ex = assertThrows(ServiceException.class,
-                () -> service.delete(PROJECT_ID, INTERFACE_ID));
+                () -> service.delete(PROJECT_ID, USER_ID, INTERFACE_ID));
 
         assertEquals(ErrorCodeConstants.API_INTERFACE_REFERENCED.code(), ex.getCode());
         verify(interfaceMapper, never()).deleteById(any(UUID.class));
@@ -180,7 +183,7 @@ class ApiInterfaceServiceImplTest {
         req.setIds(List.of(firstId, secondId));
 
         ServiceException ex = assertThrows(ServiceException.class,
-                () -> service.batchDelete(PROJECT_ID, req));
+                () -> service.batchDelete(PROJECT_ID, USER_ID, req));
 
         assertEquals(ErrorCodeConstants.API_INTERFACE_REFERENCED.code(), ex.getCode());
         verify(interfaceMapper, never()).deleteById(any(UUID.class));
@@ -240,7 +243,7 @@ class ApiInterfaceServiceImplTest {
         ApiInterfaceVariablesReqDTO req = variablesReq(
                 variableItem("token", "zzz"), variableItem("page", "1"));
 
-        service.updateVariables(PROJECT_ID, INTERFACE_ID, req);
+        service.updateVariables(PROJECT_ID, USER_ID, INTERFACE_ID, req);
 
         ArgumentCaptor<ApiInterfaceVariable> updateCaptor = ArgumentCaptor.forClass(ApiInterfaceVariable.class);
         verify(variableMapper).updateById(updateCaptor.capture());
@@ -271,7 +274,7 @@ class ApiInterfaceServiceImplTest {
         when(interfaceMapper.selectByPathAndMethod(PROJECT_ID, "POST", "/exists"))
                 .thenReturn(existingInterface("已有"));
 
-        ApiImportPreviewRespDTO resp = service.preview(PROJECT_ID,
+        ApiImportPreviewRespDTO resp = service.preview(PROJECT_ID, USER_ID,
                 content.getBytes(StandardCharsets.UTF_8), null);
 
         assertThat(resp.getItems()).extracting(i -> i.getAction())
@@ -406,7 +409,7 @@ class ApiInterfaceServiceImplTest {
         when(changeLogMapper.selectPageByInterfaceId(INTERFACE_ID, pageParam))
                 .thenReturn(new PageResult<>(List.of(log), 1L));
 
-        PageResult<?> result = service.changeLogs(PROJECT_ID, INTERFACE_ID, pageParam);
+        PageResult<?> result = service.changeLogs(PROJECT_ID, USER_ID, INTERFACE_ID, pageParam);
 
         assertThat(result.getTotal()).isEqualTo(1L);
         assertThat(result.getList()).first()

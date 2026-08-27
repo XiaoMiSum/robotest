@@ -99,9 +99,9 @@ class ProjectSettingServiceImplTest {
     // ==================== 更新：权限与整批校验 ====================
 
     @Test
-    void updateSettings_notMaintainer_throwsNoPermission() {
+    void updateSettings_notMember_throwsNoPermission() {
         doThrow(new ServiceException(ErrorCodeConstants.NO_PERMISSION.code(), "无权限执行此操作"))
-                .when(projectAccessGuard).requireProjectMaintainer(PROJECT_ID, WORKSPACE_ID, USER_ID);
+                .when(projectAccessGuard).requireProjectMember(PROJECT_ID, WORKSPACE_ID, USER_ID);
 
         assertThrows(ServiceException.class, () -> service.updateSettings(PROJECT_ID, WORKSPACE_ID, USER_ID,
                 req(item("api_test", ProjectSettingRegistry.Key.REPORT_SHARE_ENABLED, "true"))));

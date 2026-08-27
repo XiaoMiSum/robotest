@@ -16,6 +16,7 @@ import io.github.xiaomisum.robotest.repository.apitest.ApiEnvironmentHttpMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiEnvironmentMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiEnvironmentProcessorMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiEnvironmentVariableMapper;
+import io.github.xiaomisum.robotest.repository.apitest.ApiScheduledTaskMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -64,6 +65,8 @@ class ApiEnvironmentServiceImplTest {
     private ApiEnvironmentProcessorMapper processorMapper;
     @Mock
     private ProjectAccessGuard projectAccessGuard;
+    @Mock
+    private ApiScheduledTaskMapper scheduledTaskMapper;
 
     @InjectMocks
     private ApiEnvironmentServiceImpl service;
