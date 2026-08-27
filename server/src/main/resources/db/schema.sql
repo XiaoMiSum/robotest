@@ -1990,3 +1990,20 @@ COMMENT ON COLUMN api_gitlab_sync_history.class_count IS '本次同步的测试�
 COMMENT ON COLUMN api_gitlab_sync_history.method_count IS '本次同步的测试方法数量';
 COMMENT ON COLUMN api_gitlab_sync_history.commit_sha IS '同步时的 commit SHA';
 COMMENT ON COLUMN api_gitlab_sync_history.status IS '同步状态';
+
+CREATE TABLE api_scene_follow (
+    id            UUID      PRIMARY KEY,
+    scene_id      UUID      NOT NULL,
+    user_id       UUID      NOT NULL,
+    is_deleted    BOOLEAN   NOT NULL DEFAULT FALSE,
+    created_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE UNIQUE INDEX uk_scene_follow ON api_scene_follow(scene_id, user_id) WHERE is_deleted = false;
+CREATE INDEX idx_sfollow_scene ON api_scene_follow(scene_id);
+CREATE INDEX idx_sfollow_user ON api_scene_follow(user_id);
+
+COMMENT ON TABLE api_scene_follow IS '场景关注表';
+COMMENT ON COLUMN api_scene_follow.scene_id IS '关联场景 ID';
+COMMENT ON COLUMN api_scene_follow.user_id IS '关注用户 ID';
