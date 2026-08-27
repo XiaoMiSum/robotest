@@ -5,6 +5,8 @@ import type {
   ApiDebugExecuteResp,
   ApiDebugRecordItem,
   ApiDebugRestoreResp,
+  ApiDebugSaveAsInterfaceReq,
+  ApiDebugSaveAsInterfaceResp,
   PageResult,
 } from '@/types'
 
@@ -45,4 +47,12 @@ export function deleteDebugRecord(id: string): Promise<boolean> {
 /** 恢复调试记录：返回完整请求快照与响应，前端据此新建标签并回填 */
 export function restoreDebugRecord(id: string): Promise<ApiDebugRestoreResp> {
   return get(`/project/debug-records/${id}/restore`)
+}
+
+/** 保存为接口定义：新建接口（create）或归属已有接口（attach，携带 changeVersion 乐观锁） */
+export function saveDebugRecordAsInterface(
+  id: string,
+  req: ApiDebugSaveAsInterfaceReq,
+): Promise<ApiDebugSaveAsInterfaceResp> {
+  return post(`/project/debug-records/${id}/save-as-interface`, req)
 }

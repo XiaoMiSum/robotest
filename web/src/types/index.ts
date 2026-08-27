@@ -1453,6 +1453,8 @@ export interface ApiDebugKeyValue {
   key: string
   value: string
   enabled: boolean
+  /** 行描述（Postman 风格 Params/Headers），提交执行时剥离 */
+  description?: string
 }
 
 export interface ApiDebugRequestBody {
@@ -1524,12 +1526,23 @@ export interface ApiDebugRestoreResp {
   createdAt: string
 }
 
-/** 认证配置：提交时由前端换算为 Authorization 头，不单独持久化（详细设计 5.1） */
+/** 认证配置：提交时由前端换算为请求头，不单独持久化（详细设计 5.1） */
 export interface ApiDebugAuth {
-  type: 'none' | 'basic' | 'digest'
+  type: 'none' | 'basic' | 'digest' | 'bearer' | 'apiKey'
   username?: string
   password?: string
+  /** Bearer Token（type='bearer'） */
+  token?: string
+  /** API Key 键名（type='apiKey'），缺省换算为 X-API-Key */
+  apiKeyName?: string
+  apiKeyValue?: string
 }
+
+/** raw 请求体子类型（Postman raw 类型选择器） */
+export type ApiDebugRawSubtype = 'text' | 'json' | 'xml' | 'html' | 'javascript'
+
+/** 调试请求体激活类型行；请求体数据存于 bodies 对应槽位，切换保留 */
+export type ApiDebugBodyKind = 'none' | 'urlencoded' | 'raw'
 
 /** 调试标签页状态（debugModel 状态机维护） */
 export interface DebugTab {
@@ -1539,19 +1552,34 @@ export interface DebugTab {
   url: string
   headers: ApiDebugKeyValue[]
   params: ApiDebugKeyValue[]
-  /** 四种请求体类型内容独立缓存，切换类型不丢失已填内容（SRS 3.1 业务规则）；none 非 null 表示不携带请求体 */
+  /** 各请求体类型内容独立缓存（SRS 3.1 业务规则）；bodyType 记录当前激活类型 */
   bodies: {
-    none: boolean | null
-    json: string
-    form: string
-    raw: string
+    /** x-www-form-urlencoded 键值对 */
+    urlencoded: ApiDebugKeyValue[]
+    /** raw 文本 + 子类型 */
+    raw: { text: string; subtype: ApiDebugRawSubtype } | null
   }
+  bodyType: ApiDebugBodyKind
   auth: ApiDebugAuth
   responseTimeoutMs: number
-  /** 前置处理器（Ryze 元件 JSON 结构），仅 http 协议透传 */
-  processors?: Record<string, unknown>[]
   dirty: boolean
   response: ApiDebugExecuteResp | null
+}
+
+/** 新建接口（mode=create）/归属已有接口（mode=attach）保存请求（详细设计 3.1.3） */
+export interface ApiDebugSaveAsInterfaceReq {
+  mode: 'create' | 'attach'
+  /** create 必填 */
+  name?: string
+  moduleId?: string
+  /** attach 必填 */
+  interfaceId?: string
+  /** attach 必填，乐观锁匹配（详细设计 3.1.3） */
+  changeVersion?: number
+}
+
+export interface ApiDebugSaveAsInterfaceResp {
+  interfaceId: string
 }
 
 // ==================== 接口管理（接口管理详细设计 3.1–3.4） ====================
