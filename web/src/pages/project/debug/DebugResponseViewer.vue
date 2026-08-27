@@ -373,7 +373,6 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
             <el-input
               ref="searchInputRef"
               v-model="searchKeyword"
-              size="small"
               placeholder="搜索响应体"
               clearable
               class="resp-view__search-input"
@@ -420,7 +419,6 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
           <span class="resp-view__mode-label">类型</span>
           <el-select
             :model-value="lang"
-            size="small"
             class="resp-view__lang-select"
             @update:model-value="langOverride = $event"
           >

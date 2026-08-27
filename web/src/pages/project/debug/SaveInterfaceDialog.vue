@@ -153,7 +153,7 @@ async function handleSubmit() {
     width="520px"
     @update:model-value="emit('update:visible', $event)"
   >
-    <el-form label-width="90px" size="default" @submit.prevent>
+    <el-form label-width="90px" @submit.prevent>
       <el-form-item label="接口名称">
         <el-input v-model="name" placeholder="保存后成为接口管理中的资产" :disabled="mode === 'attach'" />
       </el-form-item>
