@@ -176,24 +176,6 @@ class ApiDebugServiceImplTest {
     }
 
     @Test
-    void importCurlMapsParsedCommand() {
-        String curl = "curl -X POST 'https://staging.example.com/api/auth/login' "
-                + "-H 'Content-Type: application/json' -d '{\"u\":1}'";
-        var resp = service.importCurl(PROJECT_ID, WORKSPACE_ID, USER_ID, curl);
-
-        assertEquals("POST", resp.getMethod());
-        assertThat(resp.getBody().getType()).isEqualTo("json");
-        assertThat(resp.getBody().getContent()).isEqualTo(Map.of("u", 1));
-    }
-
-    @Test
-    void importCurlWithoutUrlRaisesParseFailed() {
-        ServiceException ex = assertThrows(ServiceException.class,
-                () -> service.importCurl(PROJECT_ID, WORKSPACE_ID, USER_ID, "curl -X POST"));
-        assertEquals(ErrorCodeConstants.API_IMPORT_PARSE_FAILED.code(), ex.getCode());
-    }
-
-    @Test
     void renameOnlyCarriesNameField() {
         ApiDebugRecord existing = new ApiDebugRecord();
         existing.setId(RECORD_ID);

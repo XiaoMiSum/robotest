@@ -4,7 +4,6 @@ import io.github.xiaomisum.robotest.framework.security.LoginUser;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiDebugExecuteReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiDebugRenameReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiDebugSaveAsInterfaceReqDTO;
-import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiDebugCurlImportRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiDebugExecuteRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiDebugRecordItemRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiDebugRestoreRespDTO;
@@ -27,7 +26,6 @@ import xyz.migoo.framework.common.pojo.PageParam;
 import xyz.migoo.framework.common.pojo.PageResult;
 import xyz.migoo.framework.common.pojo.Result;
 
-import java.util.Map;
 import java.util.UUID;
 
 @RestController
@@ -44,17 +42,6 @@ public class ApiDebugController {
             @RequestHeader("X-Active-Project") UUID projectId,
             @RequestBody @Valid ApiDebugExecuteReqDTO reqDTO) {
         return Result.ok(apiDebugService.execute(projectId, workspaceId, loginUser.getId(), reqDTO));
-    }
-
-    @PostMapping("/api/project/debug/import-curl")
-    @PreAuthorize("hasAuthority('api-debug:view')")
-    public Result<ApiDebugCurlImportRespDTO> importCurl(
-            @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
-            @RequestBody Map<String, String> reqBody) {
-        return Result.ok(apiDebugService.importCurl(projectId, workspaceId, loginUser.getId(),
-                reqBody.getOrDefault("curl", "")));
     }
 
     @GetMapping("/api/project/debug-records")

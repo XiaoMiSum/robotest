@@ -8,7 +8,6 @@ import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiDebugRenameReqD
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiDebugSaveAsInterfaceReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiInterfaceCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiInterfaceUpdateReqDTO;
-import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiDebugCurlImportRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiDebugExecuteRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiDebugRecordItemRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiDebugRestoreRespDTO;
@@ -137,34 +136,6 @@ public class ApiDebugServiceImpl implements ApiDebugService {
                 .durationMs(record.getDurationMs())
                 .size(record.getResponseSize())
                 .errorMessage(record.getErrorMessage())
-                .build();
-    }
-
-    @Override
-    public ApiDebugCurlImportRespDTO importCurl(UUID projectId, UUID workspaceId, UUID userId, String curl) {
-        projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
-        CurlParser.ParsedCurl parsed;
-        try {
-            parsed = CurlParser.parse(curl);
-        } catch (IllegalArgumentException ex) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.API_IMPORT_PARSE_FAILED, ex.getMessage());
-        }
-        Object content = parsed.bodyContent();
-        String type = parsed.bodyType();
-        if (content instanceof String && !"raw".equals(type) && !isJsonText((String) content)) {
-            // 非 JSON 文本负载降级为 raw，与解析器降级规则一致
-            type = "raw";
-        }
-        return ApiDebugCurlImportRespDTO.builder()
-                .protocol("http")
-                .method(parsed.method())
-                .url(parsed.url())
-                .headers(parsed.headers())
-                .body(ApiDebugCurlImportRespDTO.Body.builder()
-                        .type(type == null ? "none" : type)
-                        .content(content)
-                        .build())
-                .params(List.of())
                 .build();
     }
 
@@ -512,12 +483,6 @@ public class ApiDebugServiceImpl implements ApiDebugService {
         } catch (Exception ex) {
             return body;
         }
-    }
-
-    private boolean isJsonText(String text) {
-        String trimmed = text.trim();
-        return (trimmed.startsWith("{") && trimmed.endsWith("}"))
-                || (trimmed.startsWith("[") && trimmed.endsWith("]"));
     }
 
     private Map<String, Object> flattenBody(ApiDebugExecuteReqDTO.Body body) {
