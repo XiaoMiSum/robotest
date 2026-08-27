@@ -7,6 +7,7 @@ import {
   applyCurlToTab,
   buildExecutePayload,
   createTab,
+  ensureUrlScheme,
   markExecuted,
   MAX_DEBUG_TABS,
   tabTitle,
@@ -67,8 +68,7 @@ function addTab() {
   switchTab(tab.id)
 }
 
-async function closeTab(tab: DebugTab) {
-  if (tab.dirty && !await confirmDiscard()) return
+function closeTab(tab: DebugTab) {
   const index = tabs.value.findIndex((item) => item.id === tab.id)
   tabs.value = tabs.value.filter((item) => item.id !== tab.id)
   if (!tabs.value.length) {
@@ -78,12 +78,6 @@ async function closeTab(tab: DebugTab) {
   if (tab.id === activeTabId.value) {
     switchTab(tabs.value[Math.max(0, index - 1)].id)
   }
-}
-
-function confirmDiscard(): Promise<boolean> {
-  return ElMessageBox.confirm('关闭后内容将丢失，是否关闭？', '关闭标签', { type: 'warning' })
-    .then(() => true)
-    .catch(() => false)
 }
 
 const renamingId = ref('')
@@ -112,6 +106,7 @@ async function handleExecute(environmentId?: string) {
   }
   executing.value = true
   try {
+    activeTab.value.url = ensureUrlScheme(activeTab.value.url)
     const payload = buildExecutePayload(activeTab.value, environmentId || undefined)
     const resp = await executeDebug(payload)
     markExecuted(activeTab.value, resp)
@@ -217,7 +212,6 @@ function consumePendingInterfaceRequest() {
     params: (pending.params ?? []).map((row) => ({ ...row })),
   })
   tab.name = pending.name || `${pending.method} ${pending.path}`
-  tab.dirty = false
   tabs.value.push(tab)
   switchTab(tab.id)
 }
@@ -315,7 +309,6 @@ function handleAuxClick(e: MouseEvent, tab: DebugTab) {
               </span>
               <span v-if="renamingId !== tab.id" class="debug-tab__label">
                 {{ tabTitle(tab) }}
-                <i v-if="tab.dirty" class="debug-tab__dot">●</i>
               </span>
               <el-input
                 v-else
@@ -325,16 +318,24 @@ function handleAuxClick(e: MouseEvent, tab: DebugTab) {
                 @keyup.enter="commitRename(tab)"
                 @blur="commitRename(tab)"
               />
-              <el-icon class="debug-tab__close" @click.stop="closeTab(tab)"><Close /></el-icon>
+              <el-button
+                v-if="renamingId !== tab.id"
+                class="debug-tab__close"
+                link
+                aria-label="关闭标签"
+                @click.stop="closeTab(tab)"
+              >
+                <el-icon><Close /></el-icon>
+              </el-button>
             </div>
 
-            <button class="debug-tabbar__add" :disabled="!canAddTab" @click="addTab">
+            <el-button link class="debug-tabbar__add" :disabled="!canAddTab" @click="addTab">
               <el-icon><Plus /></el-icon>
-            </button>
+            </el-button>
           </div>
 
           <div class="debug-tabbar__right">
-            <el-button text @click="curlVisible = true">
+            <el-button link @click="curlVisible = true">
               <el-icon class="mr-1"><Download /></el-icon>
               导入 cURL
             </el-button>
@@ -430,9 +431,7 @@ function handleAuxClick(e: MouseEvent, tab: DebugTab) {
     display: flex;
     align-items: center;
     gap: var(--space-xs);
-    padding: 6px 12px;
-    border-bottom: 1px solid var(--color-neutral-100, #e8e8e8);
-    background: var(--color-neutral-50, #fafafa);
+    padding: 0 12px;
     min-height: 40px;
   }
 
@@ -482,7 +481,7 @@ function handleAuxClick(e: MouseEvent, tab: DebugTab) {
   }
 
   &__divider-line {
-    width: 40px;
+    width: 75%;
     height: 2px;
     border-radius: 1px;
     background: var(--color-neutral-200, #dcdfe6);
@@ -512,25 +511,24 @@ function handleAuxClick(e: MouseEvent, tab: DebugTab) {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 10px;
-  border-radius: 6px;
+  padding: 4px 8px;
+  border-bottom: 2px solid transparent;
   cursor: pointer;
   max-width: 200px;
   font-size: 12px;
-  color: var(--color-neutral-600, #606266);
-  transition: background 0.15s, color 0.15s;
+  color: var(--color-neutral-500, #909399);
+  transition: color 0.15s, border-color 0.15s;
   white-space: nowrap;
   user-select: none;
 
   &:hover {
-    background: var(--color-neutral-100, #e8e8e8);
+    color: var(--color-primary-500, #409eff);
   }
 
   &.is-active {
-    background: var(--color-bg, #fff);
-    color: var(--color-neutral-800, #303133);
+    color: var(--color-primary-500, #409eff);
     font-weight: 500;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+    border-bottom-color: var(--color-primary-500, #409eff);
   }
 
   &--history {
@@ -538,13 +536,12 @@ function handleAuxClick(e: MouseEvent, tab: DebugTab) {
 
     &:hover {
       color: var(--color-primary-500, #409eff);
-      background: var(--color-neutral-100, #e8e8e8);
     }
 
     &.is-active {
-      background: var(--color-bg, #fff);
       color: var(--color-primary-500, #409eff);
       font-weight: 500;
+      border-bottom-color: var(--color-primary-500, #409eff);
     }
   }
 
@@ -572,17 +569,12 @@ function handleAuxClick(e: MouseEvent, tab: DebugTab) {
     gap: 4px;
   }
 
-  &__dot {
-    color: var(--color-warning-500, #e6a23c);
-    font-style: normal;
-    font-size: 8px;
-    line-height: 1;
-  }
-
   &__close {
     opacity: 0;
     font-size: 12px;
     flex-shrink: 0;
+    height: auto;
+    padding: 0 2px;
     transition: opacity 0.15s;
 
     &:hover {
@@ -600,19 +592,11 @@ function handleAuxClick(e: MouseEvent, tab: DebugTab) {
 }
 
 .debug-tabbar__add {
-  border: 1px dashed var(--color-neutral-300, #c0c4cc);
-  background: transparent;
-  border-radius: 6px;
-  padding: 4px 8px;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
+  padding: 2px 4px;
   color: var(--color-neutral-400, #909399);
-  transition: border-color 0.15s, color 0.15s;
   flex-shrink: 0;
 
   &:hover:not(:disabled) {
-    border-color: var(--color-primary-400, #a0cfff);
     color: var(--color-primary-500, #409eff);
   }
 

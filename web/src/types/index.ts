@@ -1562,7 +1562,6 @@ export interface DebugTab {
   bodyType: ApiDebugBodyKind
   auth: ApiDebugAuth
   responseTimeoutMs: number
-  dirty: boolean
   response: ApiDebugExecuteResp | null
 }
 
