@@ -21,6 +21,13 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/pages/workspace/JoinPage.vue'),
     meta: { public: true },
   },
+  // === Public report share page ===
+  {
+    path: '/share/api-report/:id',
+    name: 'ShareReport',
+    component: () => import('@/pages/project/ShareReportPage.vue'),
+    meta: { public: true },
+  },
   // === Admin routes ===
   {
     path: '/admin',

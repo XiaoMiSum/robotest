@@ -4,8 +4,17 @@ import { useRoute, useRouter } from 'vue-router'
 import type { MenuInstance } from 'element-plus'
 import ProjectSettingsPage from './ProjectSettingsPage.vue'
 import EnvironmentPage from './EnvironmentPage.vue'
+import FunctionPage from './FunctionPage.vue'
 import DebugPage from './DebugPage.vue'
 import InterfacesPage from './InterfacesPage.vue'
+import MocksPage from './MocksPage.vue'
+import ComponentPage from './ComponentPage.vue'
+import GitLabRepoPage from './GitLabRepoPage.vue'
+import ScenariosPage from './ScenariosPage.vue'
+import SceneEditorPage from './SceneEditorPage.vue'
+import ReportsPage from './ReportsPage.vue'
+import ReportDetailPage from './ReportDetailPage.vue'
+import SchedulesPage from './SchedulesPage.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -15,7 +24,7 @@ const menuItems = [
   { key: 'interfaces', label: '接口管理', icon: 'Link' },
   { key: 'mocks', label: 'Mock 服务', icon: 'Cpu' },
   { key: 'scenes', label: '测试场景', icon: 'Operation' },
-  { key: 'reports', label: '接口测试报告', icon: 'DataAnalysis' },
+  { key: 'reports', label: '测试报告', icon: 'DataAnalysis' },
   { key: 'schedules', label: '定时任务', icon: 'Timer' },
 ]
 
@@ -23,9 +32,10 @@ const menuItems = [
 // 其余项后端未就绪，保持禁用占位避免跳转到空白页
 const settingsItems = [
   { key: 'environments', label: '环境管理', icon: 'Compass', enabled: true },
-  { key: 'assets', label: '全局资产', icon: 'Box', enabled: false },
-  { key: 'gitlab-repos', label: 'GitLab 仓库配置', icon: 'Platform', enabled: false },
-  { key: 'security', label: '安全策略与应用设置', icon: 'Lock', enabled: true },
+  { key: 'functions', label: '函数管理', icon: 'SetUp', enabled: true },
+  { key: 'assets', label: '公共组件', icon: 'Box', enabled: true },
+  { key: 'gitlab-repos', label: 'GitLab配置', icon: 'Platform', enabled: true },
+  { key: 'security', label: '应用设置', icon: 'Lock', enabled: true },
 ]
 
 // 刷新与详情页返回时通过 ?tab= 恢复激活子模块（子页切换不走路由，仅初始化读取）
@@ -38,12 +48,63 @@ const activeMenu = ref(selectableKeys.includes(initialTab) ? initialTab : 'debug
 const menuRef = ref<MenuInstance>()
 
 const allItems = [...menuItems, ...settingsItems]
-const activeLabel = computed(() => allItems.find((item) => item.key === activeMenu.value)?.label ?? '')
+const activeLabel = computed(
+  () => allItems.find((item) => item.key === activeMenu.value)?.label ?? '',
+)
+
+// 场景编辑器状态
+const sceneEditorSceneId = ref<string | null>(null)
+const sceneCreateMode = ref(false)
+const sceneModuleId = ref<string | null>(null)
+
+// 报告详情状态
+const reportDetailId = ref<string | null>(null)
+
+function initSceneFromQuery() {
+  const q = route.query
+  if (q.sceneId && typeof q.sceneId === 'string') {
+    sceneEditorSceneId.value = q.sceneId
+    sceneCreateMode.value = false
+  } else if (q.action === 'create') {
+    sceneEditorSceneId.value = null
+    sceneCreateMode.value = true
+    sceneModuleId.value = (q.moduleId as string) ?? null
+  } else {
+    sceneEditorSceneId.value = null
+    sceneCreateMode.value = false
+  }
+}
+initSceneFromQuery()
+
+function handleSceneBack() {
+  sceneEditorSceneId.value = null
+  sceneCreateMode.value = false
+  void router.replace({ query: { tab: 'scenes' } })
+}
+
+function handleReportBack() {
+  reportDetailId.value = null
+}
+
+function handleReportView(reportId: string) {
+  reportDetailId.value = reportId
+}
+
+const isSceneEditor = computed(
+  () => activeMenu.value === 'scenes' && (sceneEditorSceneId.value || sceneCreateMode.value),
+)
+
+const isReportDetail = computed(
+  () => activeMenu.value === 'reports' && reportDetailId.value,
+)
 
 // replace 避免子页切换污染浏览器历史
 function handleMenuSelect(key: string) {
   if (key === activeMenu.value) return
   activeMenu.value = key
+  sceneEditorSceneId.value = null
+  sceneCreateMode.value = false
+  reportDetailId.value = null
   router.replace({ query: { ...route.query, tab: key } })
 }
 </script>
@@ -65,7 +126,12 @@ function handleMenuSelect(key: string) {
           <span>{{ item.label }}</span>
         </el-menu-item>
         <el-menu-item-group class="api-testing__settings-group" title="项目设置">
-          <el-menu-item v-for="item in settingsItems" :key="item.key" :index="item.key" :disabled="!item.enabled">
+          <el-menu-item
+            v-for="item in settingsItems"
+            :key="item.key"
+            :index="item.key"
+            :disabled="!item.enabled"
+          >
             <el-icon><component :is="item.icon" /></el-icon>
             <span>{{ item.label }}</span>
           </el-menu-item>
@@ -76,8 +142,34 @@ function handleMenuSelect(key: string) {
     <main class="api-testing__main">
       <ProjectSettingsPage v-if="activeMenu === 'security'" />
       <EnvironmentPage v-else-if="activeMenu === 'environments'" />
+      <FunctionPage v-else-if="activeMenu === 'functions'" />
       <DebugPage v-else-if="activeMenu === 'debug'" />
       <InterfacesPage v-else-if="activeMenu === 'interfaces'" />
+      <MocksPage v-else-if="activeMenu === 'mocks'" />
+      <ComponentPage v-else-if="activeMenu === 'assets'" />
+      <GitLabRepoPage v-else-if="activeMenu === 'gitlab-repos'" />
+      <ReportDetailPage
+        v-else-if="isReportDetail"
+        :report-id="reportDetailId!"
+        @back="handleReportBack"
+      />
+      <ReportsPage
+        v-else-if="activeMenu === 'reports'"
+        @view="handleReportView"
+      />
+      <SceneEditorPage
+        v-else-if="isSceneEditor"
+        :scene-id="sceneEditorSceneId ?? undefined"
+        :create-mode="sceneCreateMode"
+        :module-id="sceneModuleId ?? undefined"
+        @back="handleSceneBack"
+      />
+      <ScenariosPage
+        v-else-if="activeMenu === 'scenes'"
+        @edit="(id: string) => { sceneEditorSceneId = id; sceneCreateMode = false }"
+        @create="(moduleId?: string) => { sceneEditorSceneId = null; sceneCreateMode = true; sceneModuleId = moduleId ?? null }"
+      />
+      <SchedulesPage v-else-if="activeMenu === 'schedules'" />
       <div v-else class="api-testing__placeholder">
         <div class="api-testing__placeholder-icon">
           <el-icon :size="48"><Connection /></el-icon>
