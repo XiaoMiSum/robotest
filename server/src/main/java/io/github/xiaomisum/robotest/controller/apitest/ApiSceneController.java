@@ -61,9 +61,10 @@ public class ApiSceneController {
             @RequestHeader("X-Active-Project") UUID projectId,
             @Valid PageParam pageParam,
             @RequestParam(value = "moduleId", required = false) UUID moduleId,
-            @RequestParam(value = "search", required = false) String search) {
+            @RequestParam(value = "search", required = false) String search,
+            @RequestParam(value = "followedOnly", required = false) Boolean followedOnly) {
         return Result.ok(sceneService.fetchPage(workspaceId, projectId, loginUser.getId(),
-                moduleId, search, pageParam));
+                moduleId, search, followedOnly, pageParam));
     }
 
     @GetMapping("/api/project/api-scenes/{id}")

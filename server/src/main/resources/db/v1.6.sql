@@ -14,3 +14,9 @@ CREATE TABLE IF NOT EXISTS api_scene_follow (
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS uk_scene_follow ON api_scene_follow(scene_id, user_id) WHERE is_deleted = false;
+CREATE INDEX IF NOT EXISTS idx_sfollow_scene ON api_scene_follow(scene_id);
+CREATE INDEX IF NOT EXISTS idx_sfollow_user ON api_scene_follow(user_id);
+
+COMMENT ON TABLE api_scene_follow IS '场景关注表（按用户记录，取消关注即逻辑删除）';
+COMMENT ON COLUMN api_scene_follow.scene_id IS '关联场景 ID';
+COMMENT ON COLUMN api_scene_follow.user_id IS '关注用户 ID';
