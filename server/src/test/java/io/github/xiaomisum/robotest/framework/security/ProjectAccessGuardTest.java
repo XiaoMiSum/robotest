@@ -1,9 +1,7 @@
 package io.github.xiaomisum.robotest.framework.security;
 
-import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseDocument;
 import io.github.xiaomisum.robotest.model.entity.workspace.Project;
-import io.github.xiaomisum.robotest.model.entity.workspace.WorkspaceUser;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseDocumentMapper;
 import io.github.xiaomisum.robotest.repository.workspace.ProjectMapper;
 import io.github.xiaomisum.robotest.repository.workspace.WorkspaceUserMapper;
@@ -17,11 +15,13 @@ import xyz.migoo.framework.common.exception.ServiceException;
 
 import java.util.UUID;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -81,7 +81,7 @@ class ProjectAccessGuardTest {
                 () -> guard.requireProjectMember(PROJECT_ID, USER_ID));
     }
 
-    // ========== requireProjectMember / requireProjectMaintainer（工作空间上下文重载） ==========
+    // ========== requireProjectMember（工作空间上下文重载） ==========
 
     private static final UUID OTHER_WORKSPACE_ID = UUID.fromString("00000000-0000-0000-0000-000000000098");
 
@@ -111,49 +111,23 @@ class ProjectAccessGuardTest {
                 () -> guard.requireProjectMember(PROJECT_ID, WORKSPACE_ID, USER_ID));
     }
 
-    @Test
-    void requireProjectMaintainerWithContext_admin_doesNotThrow() {
-        when(projectMapper.selectById(PROJECT_ID)).thenReturn(project);
-        when(workspaceUserMapper.findByWorkspaceIdAndUserId(WORKSPACE_ID, USER_ID))
-                .thenReturn(member(Constants.WorkspaceRole.ADMIN_ID));
+    // ========== 系统身份直通（定时任务详细设计 4.3：调度触发不校验成员关系） ==========
 
-        guard.requireProjectMaintainer(PROJECT_ID, WORKSPACE_ID, USER_ID);
+    @Test
+    void requireProjectMember_systemOperator_bypassesAllChecks() {
+        guard.requireProjectMember(PROJECT_ID, ProjectAccessGuard.SYSTEM_OPERATOR_ID);
+        verifyNoInteractions(projectMapper, workspaceUserMapper);
     }
 
     @Test
-    void requireProjectMaintainerWithContext_nonAdmin_throws() {
-        when(projectMapper.selectById(PROJECT_ID)).thenReturn(project);
-        when(workspaceUserMapper.findByWorkspaceIdAndUserId(WORKSPACE_ID, USER_ID))
-                .thenReturn(member(UUID.fromString("00000000-0000-0000-0000-000000000002")));
-
-        assertThrows(ServiceException.class,
-                () -> guard.requireProjectMaintainer(PROJECT_ID, WORKSPACE_ID, USER_ID));
+    void requireProjectMemberWithContext_systemOperator_bypassesAllChecks() {
+        guard.requireProjectMember(PROJECT_ID, OTHER_WORKSPACE_ID, ProjectAccessGuard.SYSTEM_OPERATOR_ID);
+        verifyNoInteractions(projectMapper, workspaceUserMapper);
     }
 
     @Test
-    void requireProjectMaintainerWithContext_notInWorkspace_throws() {
-        when(projectMapper.selectById(PROJECT_ID)).thenReturn(project);
-        // 非成员时 findByWorkspaceIdAndUserId 返回 null（Mockito 默认行为），无需显式打桩
-
-        assertThrows(ServiceException.class,
-                () -> guard.requireProjectMaintainer(PROJECT_ID, OTHER_WORKSPACE_ID, USER_ID));
-    }
-
-    @Test
-    void requireProjectMaintainerWithContext_projectNotInWorkspace_throws() {
-        when(projectMapper.selectById(PROJECT_ID)).thenReturn(project);
-
-        assertThrows(ServiceException.class,
-                () -> guard.requireProjectMaintainer(PROJECT_ID, OTHER_WORKSPACE_ID, USER_ID));
-        verify(workspaceUserMapper, never()).findByWorkspaceIdAndUserId(OTHER_WORKSPACE_ID, USER_ID);
-    }
-
-    private WorkspaceUser member(UUID roleId) {
-        WorkspaceUser member = new WorkspaceUser();
-        member.setWorkspaceId(WORKSPACE_ID);
-        member.setUserId(USER_ID);
-        member.setWorkspaceRole(roleId);
-        return member;
+    void systemOperatorId_isAllZeroUuid() {
+        assertEquals(new UUID(0L, 0L), ProjectAccessGuard.SYSTEM_OPERATOR_ID);
     }
 
     // ========== isDocumentMember ==========
