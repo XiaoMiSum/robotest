@@ -41,13 +41,13 @@ const SUBTYPES: ApiDebugRawSubtype[] = ['text', 'json', 'xml', 'html', 'javascri
 function pickBodyType(type: ApiDebugBodyKind) {
   tab.value.bodyType = type
   if (type === 'raw' && !tab.value.bodies.raw) {
-    tab.value.bodies.raw = { text: '', subtype: 'text' }
+    tab.value.bodies.raw = { text: '', subtype: 'json' }
   }
 }
 
 const rawSubtype = computed<ApiDebugRawSubtype>({
   get() {
-    return tab.value.bodies.raw?.subtype ?? 'text'
+    return tab.value.bodies.raw?.subtype ?? 'json'
   },
   set(subtype: ApiDebugRawSubtype) {
     if (!tab.value.bodies.raw) tab.value.bodies.raw = { text: '', subtype }
@@ -60,7 +60,7 @@ const rawText = computed({
     return tab.value.bodies.raw?.text ?? ''
   },
   set(text: string) {
-    if (!tab.value.bodies.raw) tab.value.bodies.raw = { text, subtype: 'text' }
+    if (!tab.value.bodies.raw) tab.value.bodies.raw = { text, subtype: 'json' }
     else tab.value.bodies.raw.text = text
   },
 })
@@ -272,6 +272,7 @@ const methodColor = computed(() => METHOD_COLORS[tab.value.method.toUpperCase()]
             class="req-panel__body-editor"
             placeholder="原始文本（支持变量引用）"
             spellcheck="false"
+            :rows="12"
           />
         </div>
       </div>
@@ -369,6 +370,13 @@ const methodColor = computed(() => METHOD_COLORS[tab.value.method.toUpperCase()]
       border: none;
       box-shadow: none;
       padding-left: 4px;
+
+      &:hover {
+        .el-select__selected-item,
+        .el-select__placeholder {
+          color: var(--color-primary-500, #409eff);
+        }
+      }
     }
   }
 
