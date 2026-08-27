@@ -1684,3 +1684,878 @@ export interface ApiInterfaceImportPreview {
   items: ApiInterfaceImportPreviewItem[]
   summary: Record<string, number>
 }
+
+// ==================== Mock 服务 (3.3) ====================
+
+/** Mock 匹配规则类型 */
+export type ApiMockMatchRuleType = 'header' | 'param' | 'body'
+
+/** Mock 匹配规则条目 */
+export interface ApiMockMatchRule {
+  type: ApiMockMatchRuleType
+  name: string
+  value: string
+}
+
+/** Mock 响应体类型 */
+export type ApiMockBodyType = 'json' | 'text' | 'xml' | 'binary'
+
+/** Mock 列表项 */
+export interface ApiMockItem {
+  id: string
+  name: string
+  interfaceId: string | null
+  method: string
+  path: string
+  priority: number
+  enabled: boolean
+  followApi: boolean
+  responseStatus: number
+  hitCount: number
+  lastHitAt: string | null
+  updatedAt: string
+}
+
+/** Mock 详情 */
+export interface ApiMockDetail {
+  id: string
+  name: string
+  interfaceId: string | null
+  interfaceName: string | null
+  method: string
+  path: string
+  priority: number
+  description: string | null
+  matchRules: ApiMockMatchRule[]
+  enabled: boolean
+  followApi: boolean
+  responseStatus: number
+  responseHeaders: Record<string, string> | null
+  responseBodyType: ApiMockBodyType
+  responseBody: string | null
+  delayMs: number
+  hitCount: number
+  lastHitAt: string | null
+  groupSize: number
+}
+
+/** Mock 创建/更新请求体 */
+export interface ApiMockSavePayload {
+  interfaceId?: string | null
+  name: string
+  description?: string | null
+  method: string
+  path: string
+  priority?: number | null
+  matchRules?: ApiMockMatchRule[]
+  enabled: boolean
+  followApi?: boolean
+  responseStatus: number
+  responseHeaders?: Record<string, string> | null
+  responseBodyType?: ApiMockBodyType
+  responseBody?: string | null
+  delayMs?: number
+}
+
+/** Mock 调试请求 */
+export interface ApiMockDebugRequest {
+  headers?: Record<string, string>
+  body?: unknown
+}
+
+/** Mock 调试响应 */
+export interface ApiMockDebugResponse {
+  status: number
+  headers: Record<string, unknown>
+  body: unknown
+  durationMs: number
+}
+
+/** Mock 访问地址 */
+export interface ApiMockAddress {
+  mockUrl: string
+  method: string
+  headers: Record<string, unknown>
+}
+
+/** Mock 批量启停请求 */
+export interface ApiMockBatchTogglePayload {
+  ids: string[]
+  enabled: boolean
+}
+
+/** Mock 批量启停响应 */
+export interface ApiMockBatchToggleResponse {
+  success: boolean
+  updatedCount: number
+}
+
+/** Mock 移动响应 */
+export interface ApiMockMoveResponse {
+  success: boolean
+}
+
+// ==================== GitLab 仓库配置 ====================
+
+/** GitLab 仓库配置列表项 */
+export interface GitLabRepoListItem {
+  id: string
+  name: string
+  repoUrl: string
+  branch: string
+  tokenSuffix: string | null
+  testSourcePath: string | null
+  lastImportStatus: string | null
+  lastImportAt: string | null
+  lastMetadataSyncAt: string | null
+  updatedAt: string | null
+}
+
+/** GitLab 仓库配置创建/更新请求体 */
+export interface GitLabRepoSavePayload {
+  name: string
+  repoUrl: string
+  accessToken: string | null
+  branch: string
+  testSourcePath: string | null
+}
+
+/** GitLab 仓库测试连接响应 */
+export interface GitLabRepoTestConnectionResult {
+  success: boolean
+  message: string
+  repoName: string | null
+  defaultBranch: string | null
+  commitCount: number | null
+}
+
+// ==================== GitLab 文件浏览 ====================
+
+/** GitLab 文件树节点 */
+export interface GitLabFileTreeNode {
+  name: string
+  path: string
+  type: string
+  children?: GitLabFileTreeNode[]
+}
+
+// ==================== GitLab 可执行导入 ====================
+
+/** 可执行导入请求 */
+export interface GitLabExecutableImportPayload {
+  scope: string
+  classNames?: string[]
+  conflictStrategy?: string
+}
+
+/** 可执行导入响应 */
+export interface GitLabExecutableImportResult {
+  importHistoryId: string
+  summary: Record<string, unknown>
+  scenes: Array<{ id: string; name: string; stepCount: number }>
+  errorDetails: Array<Record<string, unknown>>
+}
+
+// ==================== GitLab 元数据导入 ====================
+
+/** 元数据导入/同步响应 */
+export interface GitLabMetadataImportResult {
+  classCount: number
+  methodCount: number
+  executableCount: number
+  commitSha: string
+  addCount: number
+  modifyCount: number
+  removeCount: number
+}
+
+/** 元数据列表项方法 */
+export interface GitLabMetadataMethodItem {
+  name: string
+  displayName: string
+  annotations: string[]
+}
+
+/** 元数据列表项 */
+export interface GitLabMetadataListItem {
+  id: string
+  fullClassName: string
+  displayName: string
+  description: string
+  resourcePath: string
+  isExecutable: boolean
+  methods: GitLabMetadataMethodItem[]
+}
+
+// ==================== GitLab 同步配置 ====================
+
+/** 同步配置 */
+export interface GitLabSyncConfig {
+  autoSyncEnabled: boolean
+  testSourcePath: string | null
+  annotationFilter: string | null
+  onlyWithResourcePath: boolean
+}
+
+/** 同步配置保存请求 */
+export interface GitLabSyncConfigPayload {
+  autoSyncEnabled?: boolean
+  testSourcePath?: string | null
+  annotationFilter?: string | null
+  onlyWithResourcePath?: boolean
+}
+
+/** 同步历史项 */
+export interface GitLabSyncHistoryItem {
+  id: string
+  syncAt: string
+  classCount: number
+  methodCount: number
+  commitSha: string | null
+  status: string
+}
+
+// ==================== GitLab 测试范围 ====================
+
+/** 测试范围变量项 */
+export interface GitLabTestScopeItem {
+  id: string
+  repositoryId: string
+  variableName: string
+  scopeType: string
+  description: string | null
+}
+
+/** 测试范围保存请求项 */
+export interface GitLabTestScopeSaveItem {
+  variableName: string
+  scopeType: string
+  description?: string
+}
+
+/** 测试范围保存请求 */
+export interface GitLabTestScopeSavePayload {
+  repositoryId: string
+  items: GitLabTestScopeSaveItem[]
+}
+
+// ==================== GitLab 流水线 ====================
+
+/** 流水线触发响应 */
+export interface GitLabPipelineResult {
+  executionRecordId: string
+  pipelineId: string
+  pipelineUrl: string
+  status: string
+  metadataExpired: boolean
+  metadataSyncClassCount: number | null
+}
+
+/** 流水线阶段 */
+export interface GitLabPipelineStageItem {
+  name: string
+  status: string
+}
+
+/** 流水线状态响应 */
+export interface GitLabPipelineStatusResult {
+  pipelineId: string
+  status: string
+  duration: number | null
+  stages: GitLabPipelineStageItem[]
+}
+
+/** 流水线报告响应 */
+export interface GitLabPipelineReportResult {
+  reportId: string
+  summary: Record<string, unknown>
+}
+
+// ==================== 接口测试 · 函数管理与函数助手 ====================
+
+/** 函数类型：builtin（Ryze 内置元数据）/ custom（用户创建的自定义函数） */
+export type ApiFunctionType = 'builtin' | 'custom'
+
+/** 函数作用域：project（项目）/ workspace（空间）/ global（公共） */
+export type ApiFunctionScope = 'project' | 'workspace' | 'global'
+
+/** 内置函数参数说明 */
+export interface ApiBuiltinParam {
+  name: string
+  required: boolean
+  description: string
+}
+
+/** 内置函数项 */
+export interface ApiBuiltinFunction {
+  name: string
+  signature: string
+  description: string
+  params: ApiBuiltinParam[]
+  example: string
+  builtin: boolean
+}
+
+/** 内置函数分组 */
+export interface ApiBuiltinFunctionGroup {
+  name: string
+  functions: ApiBuiltinFunction[]
+}
+
+/** 自定义函数列表项 */
+export interface ApiCustomFunctionListItem {
+  id: string
+  type: ApiFunctionType
+  scope: ApiFunctionScope
+  name: string
+  description: string | null
+  paramsDesc: string | null
+  enabled: boolean
+  updatedAt: string
+}
+
+/** 自定义函数详情（含脚本体） */
+export interface ApiCustomFunctionDetail extends ApiCustomFunctionListItem {
+  script: string
+}
+
+/** 自定义函数创建/更新请求 */
+export interface ApiCustomFunctionSaveReq {
+  name: string
+  description?: string
+  paramsDesc?: string
+  script: string
+  scope?: ApiFunctionScope
+}
+
+/** 函数试算请求 */
+export interface ApiFunctionEvaluateReq {
+  expression: string
+}
+
+/** 函数试算响应 */
+export interface ApiFunctionEvaluateResp {
+  result: string
+  durationMs: number
+}
+
+// ==================== 接口测试 · 公共组件 ====================
+
+/** 公共组件作用域：project（项目）/ workspace（空间）/ global（公共） */
+export type ApiComponentScope = 'project' | 'workspace' | 'global'
+
+/** 公共组件类型：前置处理器 / 后置处理器 / 验证器 / 提取器 */
+export type ApiComponentType = 'preprocessor' | 'postprocessor' | 'validator' | 'extractor'
+
+/** 公共组件列表项 */
+export interface ApiComponentListItem {
+  id: string
+  scope: ApiComponentScope
+  type: ApiComponentType
+  name: string
+  description: string | null
+  /** 组件配置内容（JSON 字符串） */
+  config: string | null
+  enabled: boolean
+  updatedAt: string
+}
+
+/** 公共组件新建/编辑请求 */
+export interface ApiComponentSaveReq {
+  type: ApiComponentType
+  name: string
+  description?: string
+  scope?: ApiComponentScope
+  config?: Record<string, unknown>
+}
+
+/** 公共组件批量操作请求 */
+export interface ApiComponentBatchReq {
+  ids: string[]
+}
+
+// ==================== 接口测试 · 测试场景（测试场景详细设计 3.1–3.12） ====================
+
+/** 场景列表项（3.1.1） */
+export interface ApiScenePageItem {
+  id: string
+  name: string
+  moduleId?: string | null
+  environmentId?: string | null
+  stepCount: number
+  lastExecutedAt?: string | null
+  lastStatus?: string | null
+  updatedAt: string
+  followed?: boolean
+}
+
+/** 场景详情（3.1.2） */
+export interface ApiSceneDetail {
+  id: string
+  name: string
+  moduleId?: string | null
+  description?: string | null
+  environmentId?: string | null
+  followed?: boolean
+  variables: ApiSceneVariableItem[]
+  processors: Record<string, unknown>[]
+  failureRule: string
+  cookieConfig: Record<string, unknown>
+  changeVersion: number
+  steps: ApiSceneStepItem[]
+}
+
+/** 场景步骤（3.1.2 内嵌 steps） */
+export interface ApiSceneStepItem {
+  id: string
+  name: string
+  stepType: string
+  sortOrder: number
+  enabled: boolean
+  sourceType: string
+  sourceId?: string | null
+  sourceInterfaceId?: string | null
+  sourceInterfaceName?: string | null
+  sourceMissing?: boolean
+  requestConfig: Record<string, unknown>
+  variables: ApiSceneStepVariableItem[]
+  processors: Record<string, unknown>[]
+  validators: Record<string, unknown>[]
+  extractors: Record<string, unknown>[]
+}
+
+/** 场景变量条目 */
+export interface ApiSceneVariableItem {
+  name: string
+  value?: string
+  description?: string
+}
+
+/** 步骤级变量条目（3.4.1） */
+export interface ApiSceneStepVariableItem {
+  id: string
+  name: string
+  value?: string
+  source: string
+  interfaceVariableId?: string | null
+  description?: string
+  sortOrder: number
+}
+
+/** 场景创建请求（3.1.3） */
+export interface ApiSceneCreateReq {
+  name: string
+  moduleId?: string | null
+  description?: string
+  environmentId?: string | null
+  variables?: ApiSceneVariableItem[]
+  processors?: Record<string, unknown>[]
+  failureRule?: string
+  cookieConfig?: Record<string, unknown>
+}
+
+/** 场景更新请求（3.1.4，含乐观锁） */
+export interface ApiSceneUpdateReq extends ApiSceneCreateReq {
+  changeVersion: number
+}
+
+/** 场景设置（3.9） */
+export interface ApiSceneSettings {
+  failureRule: string
+  cookieConfig: Record<string, unknown>
+}
+
+/** 场景步骤保存请求（3.3.1） */
+export interface ApiSceneStepSaveReq {
+  name: string
+  stepType?: string
+  sortOrder?: number
+  enabled?: boolean
+  sourceType?: string
+  sourceId?: string | null
+  requestConfig: Record<string, unknown>
+  processors?: Record<string, unknown>[]
+  validators?: Record<string, unknown>[]
+  extractors?: Record<string, unknown>[]
+}
+
+/** 通过接口快速创建步骤请求（3.3.2） */
+export interface ApiSceneQuickCreateReq {
+  interfaceId: string
+  mode?: string
+  importInterfaceVariables?: boolean
+}
+
+/** 通过接口快速创建步骤响应 */
+export interface ApiSceneQuickCreateResp {
+  steps: { id: string; name: string; sourceType: string; sourceInterfaceName?: string }[]
+  associationId: string
+}
+
+/** 添加公共步骤请求（3.3.3） */
+export interface ApiScenePublicStepReq {
+  publicStepId: string
+  mode?: string
+  sortOrder?: number
+}
+
+/** 步骤排序请求（3.3.6） */
+export interface ApiSceneStepReorderReq {
+  stepIds: string[]
+}
+
+/** 场景复制请求（3.1.6） */
+export interface ApiSceneCopyReq {
+  name?: string
+}
+
+/** 步骤复制请求（3.10） */
+export interface ApiSceneStepCopyReq {
+  name?: string
+}
+
+/** 场景变量批量更新请求（3.5.1） */
+export interface ApiSceneVariableBatchReq {
+  variables: ApiSceneVariableItem[]
+}
+
+/** 步骤变量批量更新请求（3.4.2） */
+export interface ApiSceneStepVariableBatchReq {
+  variables: { name: string; value?: string; description?: string }[]
+}
+
+/** 从接口导入步骤变量请求（3.4.3） */
+export interface ApiSceneStepVariableImportReq {
+  interfaceId: string
+  strategy?: string
+}
+
+/** 场景关联接口列表项（3.2.1） */
+export interface ApiSceneAssociationItem {
+  id: string
+  interfaceId: string
+  interfaceName: string | null
+  method: string | null
+  path: string | null
+  syncMode: string
+  publicStepCount: number
+  createdAt: string
+}
+
+/** 场景关联接口请求（3.2.2） */
+export interface ApiSceneInterfaceAssociateReq {
+  interfaceIds: string[]
+  syncMode?: string
+}
+
+/** 切换同步模式请求（3.2.4） */
+export interface ApiSceneInterfaceSyncModeReq {
+  syncMode: string
+}
+
+/** 场景执行请求（3.6.1） */
+export interface ApiSceneExecuteReq {
+  environmentId?: string | null
+  variableOverrides?: Record<string, string>
+}
+
+/** 场景执行启动响应 */
+export interface ApiExecutionStartResp {
+  executionId: string
+  status: string
+}
+
+/** 执行状态响应（3.6.2） */
+export interface ApiExecutionStatusResp {
+  executionId: string
+  status: string
+  currentStepIndex?: number
+  totalSteps?: number
+}
+
+/** 执行历史列表项（3.11.1） */
+export interface ApiExecutionHistoryItem {
+  id: string
+  status: string
+  executionMode: string
+  triggerType: string
+  executedAt: string
+  durationMs: number
+  reportId?: string | null
+}
+
+/** 变更历史列表项（3.11.2） */
+export interface ApiChangeHistoryItem {
+  id: string
+  version: number
+  operatorName: string
+  changeSummary: string
+  changedAt: string
+}
+
+/** 单步调试请求（3.6.3） */
+export interface ApiSceneStepDebugReq {
+  environmentId?: string | null
+}
+
+/** 单步调试响应 */
+export interface ApiSceneStepDebugResp {
+  stepResult: {
+    stepId: string
+    status: string
+    durationMs: number
+    request: Record<string, unknown>
+    response: Record<string, unknown>
+    validatorResults: { name: string; passed: boolean }[]
+    extractedVariables: Record<string, string>
+  }
+}
+
+/** 取消执行响应 */
+export interface ApiExecutionCancelResp {
+  executionId: string
+  status: string
+}
+
+/** 全局资产引入请求（3.12） */
+export interface ApiSceneAssetsImportReq {
+  target: string
+  stepId?: string
+  assetIds: string[]
+}
+
+/** 全局资产引入响应 */
+export interface ApiSceneAssetsImportResp {
+  imported: number
+}
+
+/** 批量删除场景请求 */
+export interface ApiSceneBatchDeleteReq {
+  ids: string[]
+}
+
+/** 公共步骤浏览条目 */
+export interface ApiPublicStepBrowseItem {
+  id: string
+  name: string
+  method: string
+  path: string
+  interfaceId: string
+  interfaceName: string
+}
+
+/** 公共组件复制响应 */
+export interface ApiComponentCopyResp {
+  id: string
+  type: string
+  name: string
+  sourceAssetId: string
+}
+
+// ==================== 测试报告（3.5） ====================
+
+/** 报告列表条目 */
+export interface ApiReportPageItem {
+  id: string
+  sceneId: string | null
+  sceneName: string
+  executionMode: string
+  status: string
+  summary: ApiReportSummary
+  environmentName: string | null
+  createdAt: string
+}
+
+/** 报告汇总 */
+export interface ApiReportSummary {
+  total: number
+  passed: number
+  failed: number
+  skipped: number
+  durationMs: number
+}
+
+/** 报告详情 */
+export interface ApiReportDetail {
+  id: string
+  sceneId: string | null
+  sceneName: string
+  executionMode: string
+  status: string
+  summary: ApiReportSummary
+  environmentName: string | null
+  stepResults: ApiReportStepResult[]
+  shareEnabled: boolean
+  createdAt: string
+}
+
+/** 步骤级结果 */
+export interface ApiReportStepResult {
+  stepId: string
+  name: string
+  type: string
+  status: string
+  request: {
+    method?: string
+    url?: string
+    headers?: Record<string, string>
+    body?: unknown
+  } | null
+  response: {
+    statusCode?: number
+    headers?: Record<string, string>
+    body?: unknown
+  } | null
+  durationMs: number
+  validators?: ApiReportValidator[]
+  extractors?: ApiReportExtractor[]
+  assertions?: ApiReportAssertion[]
+  errorMessage?: string
+}
+
+/** 验证器结果 */
+export interface ApiReportValidator {
+  name: string
+  target: string
+  condition: string
+  expected: string
+  actual: string
+  result: string
+}
+
+/** 提取器结果 */
+export interface ApiReportExtractor {
+  name: string
+  value: string
+}
+
+/** 断言明细 */
+export interface ApiReportAssertion {
+  name: string
+  target: string
+  expression: string
+  condition: string
+  expected: string
+  actual: string
+  result: string
+  error?: string
+}
+
+/** 分享链接响应 */
+export interface ApiReportShareResp {
+  shareUrl: string
+  expiresAt: string
+}
+
+/** 分享访问响应（免登录） */
+export interface ApiPublicReportResp {
+  id: string
+  sceneName: string
+  environmentName: string | null
+  status: string
+  summary: ApiReportSummary
+  stepResults: ApiReportStepResult[]
+  createdAt: string
+}
+
+// ==================== 定时任务（3.6） ====================
+
+/** 任务类型 */
+export type ApiScheduleTaskType = 'scene_execute' | 'import_swagger'
+
+/** 执行状态 */
+export type ApiScheduleExecStatus = 'success' | 'failed' | 'skipped' | 'running'
+
+/** 触发方式 */
+export type ApiScheduleTriggerType = 'scheduled' | 'manual'
+
+/** 定时任务列表项（定时任务详细设计 3.1.1） */
+export interface ApiSchedulePageItem {
+  id: string
+  taskType: ApiScheduleTaskType
+  name: string
+  description: string | null
+  boundObjectId: string
+  boundObjectName: string
+  environmentId: string | null
+  environmentName: string | null
+  cronExpression: string
+  enabled: boolean
+  lastExecutionStatus: ApiScheduleExecStatus | null
+  lastExecutionAt: string | null
+  nextExecutions: string[]
+  createdAt: string
+}
+
+/** 创建/更新定时任务请求（定时任务详细设计 3.1.2/3.1.3） */
+export interface ApiScheduleSaveReq {
+  taskType: ApiScheduleTaskType
+  name: string
+  description?: string
+  boundObjectId: string
+  environmentId?: string
+  cronExpression: string
+  enabled?: boolean
+}
+
+/** 启停定时任务请求（定时任务详细设计 3.1.4） */
+export interface ApiScheduleToggleReq {
+  enabled: boolean
+}
+
+/** Cron 校验请求（定时任务详细设计 3.1.8） */
+export interface ApiScheduleValidateCronReq {
+  cronExpression: string
+}
+
+/** 创建任务响应（定时任务详细设计 3.1.2） */
+export interface ApiScheduleCreatedResp {
+  id: string
+  nextExecutionAt: string | null
+}
+
+/** 立即执行响应（定时任务详细设计 3.1.6） */
+export interface ApiScheduleExecuteNowResp {
+  executionId: string
+  status: string
+}
+
+/** 执行记录列表项（定时任务详细设计 3.1.7） */
+export interface ApiScheduleExecutionItem {
+  id: string
+  triggerType: ApiScheduleTriggerType
+  status: ApiScheduleExecStatus
+  errorMessage: string | null
+  reportId: string | null
+  importRecordId: string | null
+  importSummary: Record<string, unknown> | null
+  triggeredAt: string
+  durationMs: number | null
+}
+
+/** Cron 校验结果（定时任务详细设计 3.1.8） */
+export interface ApiScheduleValidateCronResp {
+  valid: boolean
+  description: string | null
+  nextExecutions: string[] | null
+}
+
+// ==================== Swagger URL 配置（3.6.3） ====================
+
+/** Swagger URL 配置项（定时任务详细设计 3.1.9） */
+export interface ApiSwaggerUrlItem {
+  id: string
+  name: string
+  url: string
+  format: 'swagger' | 'openapi'
+  lastImportStatus: string | null
+  lastImportAt: string | null
+  createdAt: string
+}
+
+/** 创建/更新 Swagger URL 请求（定时任务详细设计 3.1.9） */
+export interface ApiSwaggerUrlSaveReq {
+  name: string
+  url: string
+  format?: 'swagger' | 'openapi'
+}
