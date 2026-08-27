@@ -12,6 +12,7 @@ import io.github.xiaomisum.robotest.service.project.RequirementService;
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import xyz.migoo.framework.common.pojo.PageResult;
@@ -27,6 +28,7 @@ public class RequirementController {
     private RequirementService requirementService;
 
     @GetMapping
+    @PreAuthorize("hasAuthority('requirement:view')")
     public Result<PageResult<RequirementListRespDTO>> getRequirementPage(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestHeader("X-Active-Project") UUID projectId,
@@ -38,6 +40,7 @@ public class RequirementController {
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasAuthority('requirement:view')")
     public Result<RequirementDetailRespDTO> getRequirementDetail(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestHeader("X-Active-Project") UUID projectId,
@@ -46,6 +49,7 @@ public class RequirementController {
     }
 
     @PostMapping
+    @PreAuthorize("hasAuthority('requirement:edit')")
     @ResponseStatus(HttpStatus.CREATED)
     public Result<String> createRequirement(
             @AuthenticationPrincipal LoginUser loginUser,
@@ -55,6 +59,7 @@ public class RequirementController {
     }
 
     @PostMapping("/batch")
+    @PreAuthorize("hasAuthority('requirement:edit')")
     @ResponseStatus(HttpStatus.CREATED)
     public Result<RequirementBatchCreateRespDTO> createRequirementsBatch(
             @AuthenticationPrincipal LoginUser loginUser,
@@ -65,6 +70,7 @@ public class RequirementController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('requirement:edit')")
     public Result<Void> updateRequirement(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestHeader("X-Active-Project") UUID projectId,
@@ -75,6 +81,7 @@ public class RequirementController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('requirement:edit')")
     public Result<Void> deleteRequirement(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestHeader("X-Active-Project") UUID projectId,
@@ -84,6 +91,7 @@ public class RequirementController {
     }
 
     @PutMapping("/{id}/archive")
+    @PreAuthorize("hasAuthority('requirement:edit')")
     public Result<Void> archiveRequirement(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestHeader("X-Active-Project") UUID projectId,

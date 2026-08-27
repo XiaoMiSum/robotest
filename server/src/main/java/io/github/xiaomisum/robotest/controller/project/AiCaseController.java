@@ -25,6 +25,7 @@ import xyz.migoo.framework.common.pojo.Result;
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
 import org.springframework.http.MediaType;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -60,6 +61,7 @@ public class AiCaseController {
     private AiRequirementSplitService aiRequirementSplitService;
 
     @PostMapping("/cases/priority-recommend")
+    @PreAuthorize("hasAuthority('case:view')")
     public Result<AiPriorityRecommendRespDTO> priorityRecommend(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestHeader("X-Active-Workspace") UUID workspaceId,
@@ -69,6 +71,7 @@ public class AiCaseController {
     }
 
     @PostMapping("/cases/missing-points")
+    @PreAuthorize("hasAuthority('case:view')")
     public Result<AiMissingPointRespDTO> missingPoints(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestHeader("X-Active-Workspace") UUID workspaceId,
@@ -78,6 +81,7 @@ public class AiCaseController {
     }
 
     @PostMapping("/cases/plan-recommend")
+    @PreAuthorize("hasAuthority('case:view')")
     public Result<AiCasePlanRecommendRespDTO> planRecommend(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestHeader("X-Active-Workspace") UUID workspaceId,
@@ -87,6 +91,7 @@ public class AiCaseController {
     }
 
     @PostMapping("/plans/{id}/order-recommend")
+    @PreAuthorize("hasAuthority('plan:view')")
     public Result<AiPlanOrderComputeRespDTO> planOrderRecommend(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestHeader("X-Active-Workspace") UUID workspaceId,
@@ -97,6 +102,7 @@ public class AiCaseController {
     }
 
     @GetMapping("/plans/{id}/order-recommend")
+    @PreAuthorize("hasAuthority('plan:view')")
     public Result<AiPlanOrderQueryRespDTO> planOrderRecommendResult(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestHeader("X-Active-Workspace") UUID workspaceId,
@@ -107,6 +113,7 @@ public class AiCaseController {
     }
 
     @PostMapping("/plans/{id}/order-reason")
+    @PreAuthorize("hasAuthority('plan:view')")
     public Result<AiPlanOrderReasonRespDTO> planOrderReason(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestHeader("X-Active-Workspace") UUID workspaceId,
@@ -118,6 +125,7 @@ public class AiCaseController {
     }
 
     @PostMapping(value = "/cases/generate", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    @PreAuthorize("hasAuthority('case:view')")
     public SseEmitter generate(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestHeader("X-Active-Workspace") UUID workspaceId,
@@ -127,6 +135,7 @@ public class AiCaseController {
     }
 
     @PostMapping(value = "/cases/complete-steps", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    @PreAuthorize("hasAuthority('case:view')")
     public SseEmitter completeSteps(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestHeader("X-Active-Workspace") UUID workspaceId,
@@ -136,6 +145,7 @@ public class AiCaseController {
     }
 
     @PostMapping(value = "/minder/import", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    @PreAuthorize("hasAuthority('case:view')")
     public SseEmitter importText(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestHeader("X-Active-Workspace") UUID workspaceId,
@@ -145,6 +155,7 @@ public class AiCaseController {
     }
 
     @PostMapping(value = "/requirements/split", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    @PreAuthorize("hasAuthority('requirement:view')")
     public SseEmitter splitRequirement(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestHeader("X-Active-Workspace") UUID workspaceId,

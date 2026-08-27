@@ -1,5 +1,6 @@
 package io.github.xiaomisum.robotest.service.apitest;
 
+import io.github.xiaomisum.robotest.framework.security.ProjectAccessGuard;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiInterfaceBatchDeleteReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiInterfaceBatchMoveReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiInterfaceCreateReqDTO;
@@ -91,6 +92,8 @@ public class ApiInterfaceServiceImpl implements ApiInterfaceService {
     private ApiImportRecordMapper importRecordMapper;
     @Resource
     private ImportSourceFetcher sourceFetcher;
+    @Resource
+    private ProjectAccessGuard projectAccessGuard;
 
     // ==================== 3.1 接口定义 ====================
 
@@ -98,6 +101,7 @@ public class ApiInterfaceServiceImpl implements ApiInterfaceService {
     public PageResult<ApiInterfaceItemRespDTO> page(UUID projectId, UUID workspaceId, UUID userId,
                                                     UUID moduleId, String search, String status, String view,
                                                     PageParam pageParam) {
+        projectAccessGuard.requireProjectMember(projectId, userId);
         List<UUID> followIds = null;
         UUID createdBy = null;
         if ("followed".equals(view)) {
@@ -119,6 +123,7 @@ public class ApiInterfaceServiceImpl implements ApiInterfaceService {
 
     @Override
     public ApiInterfaceDetailRespDTO getDetail(UUID projectId, UUID interfaceId, UUID userId) {
+        projectAccessGuard.requireProjectMember(projectId, userId);
         ApiInterface entity = requireInterface(projectId, interfaceId);
         boolean followed = followMapper.selectByInterfaceAndUser(interfaceId, userId) != null;
         List<ApiInterfaceStepRespDTO> steps = stepMapper.selectListByInterfaceId(interfaceId).stream()
@@ -150,6 +155,7 @@ public class ApiInterfaceServiceImpl implements ApiInterfaceService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public UUID create(UUID projectId, UUID workspaceId, UUID userId, ApiInterfaceCreateReqDTO reqDTO) {
+        projectAccessGuard.requireProjectMember(projectId, userId);
         validateProtocol(reqDTO.getProtocol());
         assertNameAvailable(projectId, reqDTO.getModuleId(), reqDTO.getName(), null);
         ApiInterface entity = new ApiInterface();
@@ -169,6 +175,7 @@ public class ApiInterfaceServiceImpl implements ApiInterfaceService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void update(UUID projectId, UUID workspaceId, UUID userId, UUID id, ApiInterfaceUpdateReqDTO reqDTO) {
+        projectAccessGuard.requireProjectMember(projectId, userId);
         ApiInterface current = requireInterface(projectId, id);
         if (!Objects.equals(current.getChangeVersion(), reqDTO.getChangeVersion())) {
             throw get(API_INTERFACE_VERSION_CONFLICT);
@@ -188,7 +195,8 @@ public class ApiInterfaceServiceImpl implements ApiInterfaceService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void delete(UUID projectId, UUID id) {
+    public void delete(UUID projectId, UUID userId, UUID id) {
+        projectAccessGuard.requireProjectMember(projectId, userId);
         ApiInterface entity = requireInterface(projectId, id);
         if (entity.getReferenceCount() != null && entity.getReferenceCount() > 0) {
             throw get(API_INTERFACE_REFERENCED);
@@ -201,6 +209,7 @@ public class ApiInterfaceServiceImpl implements ApiInterfaceService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public UUID copy(UUID projectId, UUID userId, UUID id, String copyName) {
+        projectAccessGuard.requireProjectMember(projectId, userId);
         ApiInterface source = requireInterface(projectId, id);
         String name = copyName == null || copyName.isBlank() ? source.getName() + "（副本）" : copyName;
         assertNameAvailable(projectId, source.getModuleId(), name, null);
@@ -244,7 +253,8 @@ public class ApiInterfaceServiceImpl implements ApiInterfaceService {
     }
 
     @Override
-    public ApiInterfaceReferenceRespDTO references(UUID projectId, UUID id) {
+    public ApiInterfaceReferenceRespDTO references(UUID projectId, UUID userId, UUID id) {
+        projectAccessGuard.requireProjectMember(projectId, userId);
         requireInterface(projectId, id);
         // 场景/Mock 模块未上线，恒为空列表（详细设计 3.1.7）
         return ApiInterfaceReferenceRespDTO.builder()
@@ -252,14 +262,16 @@ public class ApiInterfaceServiceImpl implements ApiInterfaceService {
     }
 
     @Override
-    public List<ApiInterfaceReferenceRespDTO.RefItem> referenceScenes(UUID projectId, UUID id) {
+    public List<ApiInterfaceReferenceRespDTO.RefItem> referenceScenes(UUID projectId, UUID userId, UUID id) {
+        projectAccessGuard.requireProjectMember(projectId, userId);
         requireInterface(projectId, id);
         return List.of();
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void batchMove(UUID projectId, ApiInterfaceBatchMoveReqDTO reqDTO) {
+    public void batchMove(UUID projectId, UUID userId, ApiInterfaceBatchMoveReqDTO reqDTO) {
+        projectAccessGuard.requireProjectMember(projectId, userId);
         for (UUID id : reqDTO.getIds()) {
             requireInterface(projectId, id);
             ApiInterface update = new ApiInterface();
@@ -271,7 +283,8 @@ public class ApiInterfaceServiceImpl implements ApiInterfaceService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void batchDelete(UUID projectId, ApiInterfaceBatchDeleteReqDTO reqDTO) {
+    public void batchDelete(UUID projectId, UUID userId, ApiInterfaceBatchDeleteReqDTO reqDTO) {
+        projectAccessGuard.requireProjectMember(projectId, userId);
         // 整体拒绝语义：任一被引用则全部不删（详细设计 3.1.10）
         for (UUID id : reqDTO.getIds()) {
             ApiInterface entity = requireInterface(projectId, id);
@@ -279,11 +292,12 @@ public class ApiInterfaceServiceImpl implements ApiInterfaceService {
                 throw get(API_INTERFACE_REFERENCED);
             }
         }
-        reqDTO.getIds().forEach(id -> delete(projectId, id));
+        reqDTO.getIds().forEach(id -> delete(projectId, userId, id));
     }
 
     @Override
     public void updateStatus(UUID projectId, UUID userId, UUID id, ApiInterfaceStatusReqDTO reqDTO) {
+        projectAccessGuard.requireProjectMember(projectId, userId);
         requireInterface(projectId, id);
         ApiInterface update = new ApiInterface();
         update.setId(id);
@@ -294,6 +308,7 @@ public class ApiInterfaceServiceImpl implements ApiInterfaceService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void follow(UUID projectId, UUID userId, UUID id) {
+        projectAccessGuard.requireProjectMember(projectId, userId);
         requireInterface(projectId, id);
         if (followMapper.selectByInterfaceAndUser(id, userId) == null) {
             ApiInterfaceFollow row = new ApiInterfaceFollow();
@@ -305,6 +320,7 @@ public class ApiInterfaceServiceImpl implements ApiInterfaceService {
 
     @Override
     public void unfollow(UUID projectId, UUID userId, UUID id) {
+        projectAccessGuard.requireProjectMember(projectId, userId);
         requireInterface(projectId, id);
         ApiInterfaceFollow row = followMapper.selectByInterfaceAndUser(id, userId);
         if (row != null) {
@@ -315,7 +331,8 @@ public class ApiInterfaceServiceImpl implements ApiInterfaceService {
     // ==================== 3.2 公共步骤 ====================
 
     @Override
-    public UUID createStep(UUID projectId, UUID interfaceId, ApiInterfaceStepReqDTO reqDTO) {
+    public UUID createStep(UUID projectId, UUID userId, UUID interfaceId, ApiInterfaceStepReqDTO reqDTO) {
+        projectAccessGuard.requireProjectMember(projectId, userId);
         requireInterface(projectId, interfaceId);
         ApiInterfaceStep step = new ApiInterfaceStep();
         step.setInterfaceId(interfaceId);
@@ -325,7 +342,8 @@ public class ApiInterfaceServiceImpl implements ApiInterfaceService {
     }
 
     @Override
-    public void updateStep(UUID projectId, UUID interfaceId, UUID stepId, ApiInterfaceStepReqDTO reqDTO) {
+    public void updateStep(UUID projectId, UUID userId, UUID interfaceId, UUID stepId, ApiInterfaceStepReqDTO reqDTO) {
+        projectAccessGuard.requireProjectMember(projectId, userId);
         requireInterface(projectId, interfaceId);
         requireStep(interfaceId, stepId);
         ApiInterfaceStep update = new ApiInterfaceStep();
@@ -335,7 +353,8 @@ public class ApiInterfaceServiceImpl implements ApiInterfaceService {
     }
 
     @Override
-    public void deleteStep(UUID projectId, UUID interfaceId, UUID stepId) {
+    public void deleteStep(UUID projectId, UUID userId, UUID interfaceId, UUID stepId) {
+        projectAccessGuard.requireProjectMember(projectId, userId);
         requireInterface(projectId, interfaceId);
         requireStep(interfaceId, stepId);
         // 链接引用保护由场景模块维护引用计数后生效，当前无场景引用（V1.2 边界）
@@ -343,7 +362,8 @@ public class ApiInterfaceServiceImpl implements ApiInterfaceService {
     }
 
     @Override
-    public void sortStep(UUID projectId, UUID interfaceId, UUID stepId, ApiInterfaceStepSortReqDTO reqDTO) {
+    public void sortStep(UUID projectId, UUID userId, UUID interfaceId, UUID stepId, ApiInterfaceStepSortReqDTO reqDTO) {
+        projectAccessGuard.requireProjectMember(projectId, userId);
         requireInterface(projectId, interfaceId);
         requireStep(interfaceId, stepId);
         ApiInterfaceStep update = new ApiInterfaceStep();
@@ -355,7 +375,8 @@ public class ApiInterfaceServiceImpl implements ApiInterfaceService {
     // ==================== 3.3 接口级变量 ====================
 
     @Override
-    public List<ApiInterfaceVariableRespDTO> listVariables(UUID projectId, UUID interfaceId) {
+    public List<ApiInterfaceVariableRespDTO> listVariables(UUID projectId, UUID userId, UUID interfaceId) {
+        projectAccessGuard.requireProjectMember(projectId, userId);
         requireInterface(projectId, interfaceId);
         return variableMapper.selectListByInterfaceId(interfaceId).stream()
                 .map(this::toVariable).toList();
@@ -363,7 +384,8 @@ public class ApiInterfaceServiceImpl implements ApiInterfaceService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void updateVariables(UUID projectId, UUID interfaceId, ApiInterfaceVariablesReqDTO reqDTO) {
+    public void updateVariables(UUID projectId, UUID userId, UUID interfaceId, ApiInterfaceVariablesReqDTO reqDTO) {
+        projectAccessGuard.requireProjectMember(projectId, userId);
         requireInterface(projectId, interfaceId);
         // 全量覆盖语义：按 name 匹配更新，请求未包含的删除（详细设计 3.3.2）
         Map<String, ApiInterfaceVariable> byName = variableMapper.selectListByInterfaceId(interfaceId).stream()
@@ -397,6 +419,7 @@ public class ApiInterfaceServiceImpl implements ApiInterfaceService {
     @Transactional(rollbackFor = Exception.class)
     public ApiImportResultRespDTO importFile(UUID projectId, UUID userId, byte[] content,
                                              String filename, String formatHint) {
+        projectAccessGuard.requireProjectMember(projectId, userId);
         String text = content == null ? "" : new String(content, StandardCharsets.UTF_8);
         return doImport(projectId, userId, "file", filename, formatHint, text);
     }
@@ -404,12 +427,14 @@ public class ApiInterfaceServiceImpl implements ApiInterfaceService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public ApiImportResultRespDTO importUrl(UUID projectId, UUID userId, String url, String formatHint) {
+        projectAccessGuard.requireProjectMember(projectId, userId);
         String content = sourceFetcher.fetch(url);
         return doImport(projectId, userId, "url", url, formatHint, content);
     }
 
     @Override
-    public ApiImportPreviewRespDTO preview(UUID projectId, byte[] content, String formatHint) {
+    public ApiImportPreviewRespDTO preview(UUID projectId, UUID userId, byte[] content, String formatHint) {
+        projectAccessGuard.requireProjectMember(projectId, userId);
         String text = content == null ? "" : new String(content, StandardCharsets.UTF_8);
         InterfaceImportParser parser = resolveParser(formatHint, text);
         List<ImportedOperation> operations = parseSafely(parser, text);
@@ -445,7 +470,8 @@ public class ApiInterfaceServiceImpl implements ApiInterfaceService {
     // ==================== 3.1.13 变更历史 ====================
 
     @Override
-    public PageResult<ApiInterfaceChangeLogRespDTO> changeLogs(UUID projectId, UUID interfaceId, PageParam pageParam) {
+    public PageResult<ApiInterfaceChangeLogRespDTO> changeLogs(UUID projectId, UUID userId, UUID interfaceId, PageParam pageParam) {
+        projectAccessGuard.requireProjectMember(projectId, userId);
         requireInterface(projectId, interfaceId);
         PageResult<ApiInterfaceChangeLog> page = changeLogMapper.selectPageByInterfaceId(interfaceId, pageParam);
         return new PageResult<>(page.getList().stream()

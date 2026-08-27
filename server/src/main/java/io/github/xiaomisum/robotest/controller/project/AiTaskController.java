@@ -4,6 +4,7 @@ import io.github.xiaomisum.robotest.framework.security.LoginUser;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiTaskRespDTO;
 import io.github.xiaomisum.robotest.service.ai.task.AiTaskService;
 import jakarta.annotation.Resource;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import xyz.migoo.framework.common.pojo.Result;
@@ -18,6 +19,7 @@ public class AiTaskController {
     private AiTaskService aiTaskService;
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasAuthority('case:view')")
     public Result<AiTaskRespDTO> getTask(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestHeader("X-Active-Project") UUID projectId,
@@ -26,6 +28,7 @@ public class AiTaskController {
     }
 
     @PostMapping("/{id}/cancel")
+    @PreAuthorize("hasAuthority('case:view')")
     public Result<Void> cancelTask(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id) {
@@ -34,6 +37,7 @@ public class AiTaskController {
     }
 
     @PostMapping("/{id}/retry")
+    @PreAuthorize("hasAuthority('case:view')")
     public Result<Void> retryTask(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id) {

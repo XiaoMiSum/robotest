@@ -8,6 +8,7 @@ import io.github.xiaomisum.robotest.service.project.ProjectModuleService;
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
@@ -24,6 +25,7 @@ public class ProjectModuleController {
     private ProjectModuleService projectModuleService;
 
     @GetMapping
+    @PreAuthorize("hasAuthority('case:view')")
     public Result<List<ProjectModuleTreeRespDTO>> getModuleTree(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestHeader("X-Active-Project") UUID projectId,
@@ -32,6 +34,7 @@ public class ProjectModuleController {
     }
 
     @PostMapping
+    @PreAuthorize("hasAuthority('case:edit')")
     @ResponseStatus(HttpStatus.CREATED)
     public Result<ProjectModuleTreeRespDTO> createModule(
             @AuthenticationPrincipal LoginUser loginUser,
@@ -41,6 +44,7 @@ public class ProjectModuleController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('case:edit')")
     public Result<ProjectModuleTreeRespDTO> updateModule(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id,
@@ -49,6 +53,7 @@ public class ProjectModuleController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('case:edit')")
     public Result<Void> deleteModule(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id) {

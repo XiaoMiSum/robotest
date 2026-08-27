@@ -7,6 +7,7 @@ import io.github.xiaomisum.robotest.model.dto.response.project.ProjectSettingUpd
 import io.github.xiaomisum.robotest.service.project.ProjectSettingService;
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -27,6 +28,7 @@ public class ProjectSettingController {
     private ProjectSettingService projectSettingService;
 
     @GetMapping
+    @PreAuthorize("hasAuthority('api-setting:view')")
     public Result<ProjectSettingListRespDTO> getSettings(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestHeader("X-Active-Workspace") UUID workspaceId,
@@ -36,6 +38,7 @@ public class ProjectSettingController {
     }
 
     @PutMapping
+    @PreAuthorize("hasAuthority('api-setting:edit')")
     public Result<ProjectSettingUpdateRespDTO> updateSettings(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestHeader("X-Active-Workspace") UUID workspaceId,

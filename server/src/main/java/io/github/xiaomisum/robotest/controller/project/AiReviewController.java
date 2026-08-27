@@ -9,6 +9,7 @@ import io.github.xiaomisum.robotest.service.ai.review.AiReviewCheckService;
 import io.github.xiaomisum.robotest.service.ai.review.AiReviewSummaryService;
 import jakarta.annotation.Resource;
 import org.springframework.http.MediaType;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -32,6 +33,7 @@ public class AiReviewController {
     private AiReviewCheckService aiReviewCheckService;
 
     @PostMapping(value = "/{id}/summary", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    @PreAuthorize("hasAuthority('review:view')")
     public SseEmitter generateSummary(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestHeader("X-Active-Workspace") UUID workspaceId,
@@ -42,6 +44,7 @@ public class AiReviewController {
     }
 
     @GetMapping("/{id}/summary")
+    @PreAuthorize("hasAuthority('review:view')")
     public Result<AiReviewSummaryRespDTO> getSummary(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestHeader("X-Active-Project") UUID projectId,
@@ -50,6 +53,7 @@ public class AiReviewController {
     }
 
     @PostMapping("/{id}/check")
+    @PreAuthorize("hasAuthority('review:view')")
     public Result<AiReviewCheckStartRespDTO> startCheck(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestHeader("X-Active-Workspace") UUID workspaceId,
@@ -59,6 +63,7 @@ public class AiReviewController {
     }
 
     @GetMapping("/{id}/check-result")
+    @PreAuthorize("hasAuthority('review:view')")
     public Result<AiTaskRespDTO> getCheckResult(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestHeader("X-Active-Project") UUID projectId,

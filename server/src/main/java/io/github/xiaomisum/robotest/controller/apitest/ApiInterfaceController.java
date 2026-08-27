@@ -20,6 +20,7 @@ import io.github.xiaomisum.robotest.service.apitest.ApiInterfaceService;
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
 import org.springframework.http.MediaType;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -52,6 +53,7 @@ public class ApiInterfaceController {
     // ==================== 3.1 接口定义 ====================
 
     @GetMapping("/api/project/interfaces")
+    @PreAuthorize("hasAuthority('api-interface:view')")
     public Result<PageResult<ApiInterfaceItemRespDTO>> page(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestHeader("X-Active-Workspace") UUID workspaceId,
@@ -66,6 +68,7 @@ public class ApiInterfaceController {
     }
 
     @GetMapping("/api/project/interfaces/{id}")
+    @PreAuthorize("hasAuthority('api-interface:view')")
     public Result<ApiInterfaceDetailRespDTO> detail(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestHeader("X-Active-Workspace") UUID workspaceId,
@@ -75,6 +78,7 @@ public class ApiInterfaceController {
     }
 
     @PostMapping("/api/project/interfaces")
+    @PreAuthorize("hasAuthority('api-interface:edit')")
     public Result<Map<String, UUID>> create(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestHeader("X-Active-Workspace") UUID workspaceId,
@@ -85,6 +89,7 @@ public class ApiInterfaceController {
     }
 
     @PutMapping("/api/project/interfaces/{id}")
+    @PreAuthorize("hasAuthority('api-interface:edit')")
     public Result<Boolean> update(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestHeader("X-Active-Workspace") UUID workspaceId,
@@ -96,16 +101,18 @@ public class ApiInterfaceController {
     }
 
     @DeleteMapping("/api/project/interfaces/{id}")
+    @PreAuthorize("hasAuthority('api-interface:delete')")
     public Result<Boolean> delete(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestHeader("X-Active-Workspace") UUID workspaceId,
             @RequestHeader("X-Active-Project") UUID projectId,
             @PathVariable UUID id) {
-        interfaceService.delete(projectId, id);
+        interfaceService.delete(projectId, loginUser.getId(), id);
         return Result.ok(true);
     }
 
     @PostMapping("/api/project/interfaces/{id}/copy")
+    @PreAuthorize("hasAuthority('api-interface:edit')")
     public Result<Map<String, UUID>> copy(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestHeader("X-Active-Workspace") UUID workspaceId,
@@ -117,44 +124,49 @@ public class ApiInterfaceController {
     }
 
     @GetMapping("/api/project/interfaces/{id}/references")
+    @PreAuthorize("hasAuthority('api-interface:view')")
     public Result<ApiInterfaceReferenceRespDTO> references(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestHeader("X-Active-Workspace") UUID workspaceId,
             @RequestHeader("X-Active-Project") UUID projectId,
             @PathVariable UUID id) {
-        return Result.ok(interfaceService.references(projectId, id));
+        return Result.ok(interfaceService.references(projectId, loginUser.getId(), id));
     }
 
     @GetMapping("/api/project/interfaces/{id}/scenes")
+    @PreAuthorize("hasAuthority('api-interface:view')")
     public Result<List<ApiInterfaceReferenceRespDTO.RefItem>> referenceScenes(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestHeader("X-Active-Workspace") UUID workspaceId,
             @RequestHeader("X-Active-Project") UUID projectId,
             @PathVariable UUID id) {
-        return Result.ok(interfaceService.referenceScenes(projectId, id));
+        return Result.ok(interfaceService.referenceScenes(projectId, loginUser.getId(), id));
     }
 
     @PutMapping("/api/project/interfaces/batch/move")
+    @PreAuthorize("hasAuthority('api-interface:edit')")
     public Result<Boolean> batchMove(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestHeader("X-Active-Workspace") UUID workspaceId,
             @RequestHeader("X-Active-Project") UUID projectId,
             @RequestBody @Valid ApiInterfaceBatchMoveReqDTO reqDTO) {
-        interfaceService.batchMove(projectId, reqDTO);
+        interfaceService.batchMove(projectId, loginUser.getId(), reqDTO);
         return Result.ok(true);
     }
 
     @DeleteMapping("/api/project/interfaces/batch")
+    @PreAuthorize("hasAuthority('api-interface:delete')")
     public Result<Boolean> batchDelete(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestHeader("X-Active-Workspace") UUID workspaceId,
             @RequestHeader("X-Active-Project") UUID projectId,
             @RequestBody @Valid ApiInterfaceBatchDeleteReqDTO reqDTO) {
-        interfaceService.batchDelete(projectId, reqDTO);
+        interfaceService.batchDelete(projectId, loginUser.getId(), reqDTO);
         return Result.ok(true);
     }
 
     @PutMapping("/api/project/interfaces/{id}/status")
+    @PreAuthorize("hasAuthority('api-interface:edit')")
     public Result<Boolean> updateStatus(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestHeader("X-Active-Workspace") UUID workspaceId,
@@ -166,6 +178,7 @@ public class ApiInterfaceController {
     }
 
     @PostMapping("/api/project/interfaces/{id}/follow")
+    @PreAuthorize("hasAuthority('api-interface:edit')")
     public Result<Boolean> follow(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestHeader("X-Active-Workspace") UUID workspaceId,
@@ -176,6 +189,7 @@ public class ApiInterfaceController {
     }
 
     @DeleteMapping("/api/project/interfaces/{id}/follow")
+    @PreAuthorize("hasAuthority('api-interface:edit')")
     public Result<Boolean> unfollow(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestHeader("X-Active-Workspace") UUID workspaceId,
@@ -186,28 +200,31 @@ public class ApiInterfaceController {
     }
 
     @GetMapping("/api/project/interfaces/{id}/change-logs")
+    @PreAuthorize("hasAuthority('api-interface:view')")
     public Result<PageResult<ApiInterfaceChangeLogRespDTO>> changeLogs(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestHeader("X-Active-Workspace") UUID workspaceId,
             @RequestHeader("X-Active-Project") UUID projectId,
             @PathVariable UUID id,
             @Valid PageParam pageParam) {
-        return Result.ok(interfaceService.changeLogs(projectId, id, pageParam));
+        return Result.ok(interfaceService.changeLogs(projectId, loginUser.getId(), id, pageParam));
     }
 
     // ==================== 3.2 公共步骤 ====================
 
     @PostMapping("/api/project/interfaces/{interfaceId}/steps")
+    @PreAuthorize("hasAuthority('api-interface:edit')")
     public Result<Map<String, UUID>> createStep(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestHeader("X-Active-Workspace") UUID workspaceId,
             @RequestHeader("X-Active-Project") UUID projectId,
             @PathVariable UUID interfaceId,
             @RequestBody @Valid ApiInterfaceStepReqDTO reqDTO) {
-        return Result.ok(Map.of("id", interfaceService.createStep(projectId, interfaceId, reqDTO)));
+        return Result.ok(Map.of("id", interfaceService.createStep(projectId, loginUser.getId(), interfaceId, reqDTO)));
     }
 
     @PutMapping("/api/project/interfaces/{interfaceId}/steps/{stepId}")
+    @PreAuthorize("hasAuthority('api-interface:edit')")
     public Result<Boolean> updateStep(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestHeader("X-Active-Workspace") UUID workspaceId,
@@ -215,22 +232,24 @@ public class ApiInterfaceController {
             @PathVariable UUID interfaceId,
             @PathVariable UUID stepId,
             @RequestBody @Valid ApiInterfaceStepReqDTO reqDTO) {
-        interfaceService.updateStep(projectId, interfaceId, stepId, reqDTO);
+        interfaceService.updateStep(projectId, loginUser.getId(), interfaceId, stepId, reqDTO);
         return Result.ok(true);
     }
 
     @DeleteMapping("/api/project/interfaces/{interfaceId}/steps/{stepId}")
+    @PreAuthorize("hasAuthority('api-interface:delete')")
     public Result<Boolean> deleteStep(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestHeader("X-Active-Workspace") UUID workspaceId,
             @RequestHeader("X-Active-Project") UUID projectId,
             @PathVariable UUID interfaceId,
             @PathVariable UUID stepId) {
-        interfaceService.deleteStep(projectId, interfaceId, stepId);
+        interfaceService.deleteStep(projectId, loginUser.getId(), interfaceId, stepId);
         return Result.ok(true);
     }
 
     @PutMapping("/api/project/interfaces/{interfaceId}/steps/{stepId}/sort")
+    @PreAuthorize("hasAuthority('api-interface:edit')")
     public Result<Boolean> sortStep(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestHeader("X-Active-Workspace") UUID workspaceId,
@@ -238,35 +257,38 @@ public class ApiInterfaceController {
             @PathVariable UUID interfaceId,
             @PathVariable UUID stepId,
             @RequestBody @Valid ApiInterfaceStepSortReqDTO reqDTO) {
-        interfaceService.sortStep(projectId, interfaceId, stepId, reqDTO);
+        interfaceService.sortStep(projectId, loginUser.getId(), interfaceId, stepId, reqDTO);
         return Result.ok(true);
     }
 
     // ==================== 3.3 接口级变量 ====================
 
     @GetMapping("/api/project/interfaces/{interfaceId}/variables")
+    @PreAuthorize("hasAuthority('api-interface:view')")
     public Result<List<ApiInterfaceVariableRespDTO>> listVariables(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestHeader("X-Active-Workspace") UUID workspaceId,
             @RequestHeader("X-Active-Project") UUID projectId,
             @PathVariable UUID interfaceId) {
-        return Result.ok(interfaceService.listVariables(projectId, interfaceId));
+        return Result.ok(interfaceService.listVariables(projectId, loginUser.getId(), interfaceId));
     }
 
     @PutMapping("/api/project/interfaces/{interfaceId}/variables")
+    @PreAuthorize("hasAuthority('api-interface:edit')")
     public Result<Boolean> updateVariables(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestHeader("X-Active-Workspace") UUID workspaceId,
             @RequestHeader("X-Active-Project") UUID projectId,
             @PathVariable UUID interfaceId,
             @RequestBody @Valid ApiInterfaceVariablesReqDTO reqDTO) {
-        interfaceService.updateVariables(projectId, interfaceId, reqDTO);
+        interfaceService.updateVariables(projectId, loginUser.getId(), interfaceId, reqDTO);
         return Result.ok(true);
     }
 
     // ==================== 3.4 导入 ====================
 
     @PostMapping(value = "/api/project/interfaces/import/file", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasAuthority('api-interface:edit')")
     public Result<ApiImportResultRespDTO> importFile(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestHeader("X-Active-Workspace") UUID workspaceId,
@@ -284,6 +306,7 @@ public class ApiInterfaceController {
     }
 
     @PostMapping("/api/project/interfaces/import/url")
+    @PreAuthorize("hasAuthority('api-interface:edit')")
     public Result<ApiImportResultRespDTO> importUrl(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestHeader("X-Active-Workspace") UUID workspaceId,
@@ -294,6 +317,7 @@ public class ApiInterfaceController {
     }
 
     @PostMapping(value = "/api/project/interfaces/import/preview", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasAuthority('api-interface:view')")
     public Result<ApiImportPreviewRespDTO> preview(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestHeader("X-Active-Workspace") UUID workspaceId,
@@ -306,6 +330,6 @@ public class ApiInterfaceController {
         } catch (IOException exception) {
             throw new IllegalStateException("读取上传文件失败", exception);
         }
-        return Result.ok(interfaceService.preview(projectId, content, format));
+        return Result.ok(interfaceService.preview(projectId, loginUser.getId(), content, format));
     }
 }

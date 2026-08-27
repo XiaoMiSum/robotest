@@ -107,6 +107,54 @@ public class ErrorCodeConstants {
     public static final ErrorCode API_IMPORT_FORMAT_UNSUPPORTED = ErrorCode.of(1000017010, "导入格式不支持：{}");
     public static final ErrorCode API_IMPORT_URL_UNREACHABLE = ErrorCode.of(1000017012, "导入目标 URL 不可达或超出超时：{}");
 
+    // ========== 接口测试——自定义函数 1,000,017,021-1,000,017,024 ==========
+    public static final ErrorCode API_CUSTOM_FUNCTION_NOT_FOUND = ErrorCode.of(1000017021, "自定义函数不存在或不属于当前可见范围");
+    public static final ErrorCode API_CUSTOM_FUNCTION_NAME_CONFLICT = ErrorCode.of(1000017022, "函数名与内置函数重名或同作用域已存在同名函数：{}");
+    public static final ErrorCode API_CUSTOM_FUNCTION_SCRIPT_INVALID = ErrorCode.of(1000017023, "Groovy 脚本编译失败：{}");
+    public static final ErrorCode API_FUNCTION_EVAL_FAILED = ErrorCode.of(1000017024, "函数试算执行失败：{}");
+
+    // ========== 接口测试——Mock 1,000,017,201-1,000,017,202 ==========
+    public static final ErrorCode API_MOCK_NOT_FOUND = ErrorCode.of(1000017201, "Mock 定义不存在或不属于当前项目");
+    public static final ErrorCode API_MOCK_ADDR_CONFLICT = ErrorCode.of(1000017202, "Mock 地址已被占用：{}");
+
+    // ========== 接口测试——场景 1,000,017,301-1,000,017,306 ==========
+    public static final ErrorCode API_SCENE_NOT_FOUND = ErrorCode.of(1000017301, "场景不存在或不属于当前项目");
+    public static final ErrorCode API_SCENE_REFERENCED = ErrorCode.of(1000017302, "场景被定时任务引用，禁止删除");
+    public static final ErrorCode API_SCENE_VERSION_CONFLICT = ErrorCode.of(1000017303, "场景已被他人修改，请刷新后重试");
+    public static final ErrorCode API_SCENE_SETTING_INVALID = ErrorCode.of(1000017304, "场景设置项非法：{}");
+    public static final ErrorCode API_SCENE_STEP_NOT_FOUND = ErrorCode.of(1000017305, "场景步骤不存在或不属于当前场景");
+    public static final ErrorCode API_SCENE_INTERFACE_EXISTS = ErrorCode.of(1000017306, "接口已关联到当前场景");
+
+    // ========== 接口测试——报告与分享 1,000,017,311-1,000,017,313 ==========
+    public static final ErrorCode API_REPORT_NOT_FOUND = ErrorCode.of(1000017311, "报告不存在或不属于当前项目");
+    public static final ErrorCode API_SHARE_NOT_ENABLED = ErrorCode.of(1000017312, "分享功能未启用");
+    public static final ErrorCode API_SHARE_EXPIRED = ErrorCode.of(1000017313, "分享链接已过期或不存在");
+
+    // ========== 接口测试——公共组件 1,000,017,321-1,000,017,322 ==========
+    public static final ErrorCode API_COMMON_COMPONENT_NOT_FOUND = ErrorCode.of(1000017321, "公共组件不存在或不属于当前可见范围");
+    public static final ErrorCode API_COMMON_COMPONENT_NAME_EXISTS = ErrorCode.of(1000017322, "同作用域下已存在同名公共组件");
+
+    // ========== 接口测试——执行记录 1,000,017,331 ==========
+    public static final ErrorCode API_EXECUTION_RECORD_NOT_FOUND = ErrorCode.of(1000017331, "执行记录不存在");
+
+    // ========== 接口测试——定时任务 1,000,017,501-1,000,017,505 ==========
+    public static final ErrorCode API_SCHEDULED_TASK_NOT_FOUND = ErrorCode.of(1000017501, "定时任务不存在或不属于当前项目");
+    public static final ErrorCode API_SCHEDULED_TASK_CRON_INVALID = ErrorCode.of(1000017502, "Cron 表达式不合法：{}");
+    public static final ErrorCode API_SCHEDULED_TASK_ENV_REQUIRED = ErrorCode.of(1000017503, "定时任务必须绑定执行环境");
+    public static final ErrorCode API_SCHEDULED_TASK_RUNNING = ErrorCode.of(1000017504, "任务正在执行中，请等待完成后再操作");
+    public static final ErrorCode API_SCHEDULED_TASK_SCENE_NOT_EXECUTABLE = ErrorCode.of(1000017505, "关联场景不存在或不可执行");
+
+    // ========== 接口测试——Swagger URL 1,000,017,601-1,000,017,602 ==========
+    public static final ErrorCode API_SWAGGER_URL_NOT_FOUND = ErrorCode.of(1000017601, "Swagger URL 不存在或不属于当前项目");
+    public static final ErrorCode API_SWAGGER_URL_TASK_BOUND = ErrorCode.of(1000017602, "Swagger URL 被定时任务绑定无法删除，请先解除绑定");
+
+    // ========== 接口测试——GitLab 集成 1,000,017,651-1,000,017,655 ==========
+    public static final ErrorCode API_GITLAB_TOKEN_INVALID = ErrorCode.of(1000017651, "GitLab Token 无效或已过期");
+    public static final ErrorCode API_GITLAB_REPO_NOT_FOUND = ErrorCode.of(1000017652, "GitLab 仓库不存在或无访问权限");
+    public static final ErrorCode API_GITLAB_REPO_UNREACHABLE = ErrorCode.of(1000017653, "GitLab 仓库不可达：{}");
+    public static final ErrorCode API_GITLAB_REPO_NAME_EXISTS = ErrorCode.of(1000017654, "仓库配置名称已存在：{}");
+    public static final ErrorCode API_GITLAB_SECRET_KEY_MISSING = ErrorCode.of(1000017656, "GitLab 令牌加密密钥未配置（robotest.env.secret-key）");
+
     // ========== 项目设置 1,000,017,701-1,000,017,702（文档简写 77XX，7701 ≙ 1000017701） ==========
     public static final ErrorCode API_SETTING_KEY_INVALID = ErrorCode.of(1000017701, "设置项标识非法（不在注册表白名单）");
     public static final ErrorCode API_SETTING_VALUE_INVALID = ErrorCode.of(1000017702, "设置值非法（格式或取值范围不满足注册表约束）：{}");
