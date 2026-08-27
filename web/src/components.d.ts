@@ -80,6 +80,7 @@ declare module 'vue' {
     ElTree: typeof import('element-plus/es')['ElTree']
     ElTreeSelect: typeof import('element-plus/es')['ElTreeSelect']
     ElUpload: typeof import('element-plus/es')['ElUpload']
+    ExtractorForm: typeof import('./components/api-testing/ExtractorForm.vue')['default']
     MarkdownEditor: typeof import('./components/common/MarkdownEditor.vue')['default']
     MarkdownView: typeof import('./components/common/MarkdownView.vue')['default']
     MessageItem: typeof import('./components/assistant/MessageItem.vue')['default']
@@ -91,6 +92,7 @@ declare module 'vue' {
     PermissionTable: typeof import('./components/admin/PermissionTable.vue')['default']
     PlanMindMap: typeof import('./components/project/PlanMindMap.vue')['default']
     PlanOrderRecommend: typeof import('./components/project/PlanOrderRecommend.vue')['default']
+    ProcessorForm: typeof import('./components/api-testing/ProcessorForm.vue')['default']
     ProjectModuleTree: typeof import('./components/project/ProjectModuleTree.vue')['default']
     RequirementSelector: typeof import('./components/project/RequirementSelector.vue')['default']
     RequirementSplitDialog: typeof import('./components/project/RequirementSplitDialog.vue')['default']
@@ -103,6 +105,7 @@ declare module 'vue' {
     RouterView: typeof import('vue-router')['RouterView']
     SnapshotModuleTree: typeof import('./components/project/SnapshotModuleTree.vue')['default']
     UserPickerDialog: typeof import('./components/admin/UserPickerDialog.vue')['default']
+    ValidatorForm: typeof import('./components/api-testing/ValidatorForm.vue')['default']
   }
   export interface GlobalDirectives {
     vLoading: typeof import('element-plus/es')['ElLoadingDirective']
