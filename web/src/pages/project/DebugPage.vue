@@ -2,7 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import type { ApiDebugCurlImportResp, ApiDebugRecordItem, DebugTab } from '@/types'
+import type { ApiDebugRecordItem, DebugTab } from '@/types'
 import {
   applyCurlToTab,
   buildExecutePayload,
@@ -15,9 +15,9 @@ import {
 } from './debugModel'
 import {
   executeDebug,
-  importCurl,
   restoreDebugRecord,
 } from '@/services/apiDebug'
+import { parseCurl } from './debug/curlParser'
 import DebugRequestPanel from './debug/DebugRequestPanel.vue'
 import DebugResponseViewer from './debug/DebugResponseViewer.vue'
 import DebugHistoryView from './debug/DebugHistoryView.vue'
@@ -121,21 +121,23 @@ async function handleExecute(environmentId?: string) {
 
 const curlVisible = ref(false)
 const curlText = ref('')
-const curlLoading = ref(false)
 
-async function handleImportCurl() {
-  if (!curlText.value.trim()) return
-  curlLoading.value = true
+function handleImportCurl() {
+  const text = curlText.value.trim()
+  if (!text) return
   try {
-    const parsed: ApiDebugCurlImportResp = await importCurl(curlText.value)
-    applyCurlToTab(activeTab.value, parsed)
+    const parsed = parseCurl(text)
+    applyCurlToTab(activeTab.value, {
+      method: parsed.method,
+      url: parsed.url,
+      headers: parsed.headers,
+      body: { type: parsed.bodyType ?? 'none', content: parsed.bodyContent },
+    })
     curlVisible.value = false
     curlText.value = ''
     ElMessage.success('cURL 解析成功，已回填当前标签')
-  } catch {
-    // 拦截器已统一提示错误信息
-  } finally {
-    curlLoading.value = false
+  } catch (err) {
+    ElMessage.error(err instanceof Error ? err.message : 'cURL 解析失败')
   }
 }
 
@@ -335,10 +337,10 @@ function handleAuxClick(e: MouseEvent, tab: DebugTab) {
           </div>
 
           <div class="debug-tabbar__right">
-            <el-button link @click="curlVisible = true">
-              <el-icon class="mr-1"><Download /></el-icon>
-              导入 cURL
-            </el-button>
+            <div class="debug-tab debug-tab--history" @click="curlVisible = true">
+              <el-icon><Download /></el-icon>
+              <span>导入 cURL</span>
+            </div>
             <div
               class="debug-tab debug-tab--history"
               :class="{ 'is-active': showHistory }"
@@ -383,7 +385,7 @@ function handleAuxClick(e: MouseEvent, tab: DebugTab) {
       />
       <template #footer>
         <el-button @click="curlVisible = false">取消</el-button>
-        <el-button type="primary" :loading="curlLoading" :disabled="!curlText.trim()" @click="handleImportCurl">
+        <el-button type="primary" :disabled="!curlText.trim()" @click="handleImportCurl">
           解析并回填
         </el-button>
       </template>

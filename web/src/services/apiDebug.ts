@@ -1,6 +1,5 @@
 import api from '@/services'
 import type {
-  ApiDebugCurlImportResp,
   ApiDebugExecuteReq,
   ApiDebugExecuteResp,
   ApiDebugRecordItem,
@@ -22,11 +21,6 @@ function post<T>(url: string, data?: unknown): Promise<T> {
 /** 服务端执行调试请求；结果自动持久化为调试记录。后端护栏为 timeoutMs+5s，放宽 axios 全局 15s 超时 */
 export function executeDebug(req: ApiDebugExecuteReq): Promise<ApiDebugExecuteResp> {
   return api.post('/project/debug/execute', req, { timeout: 120_000 }) as unknown as Promise<ApiDebugExecuteResp>
-}
-
-/** cURL 解析：仅解析不执行，结果回填当前标签 */
-export function importCurl(curl: string): Promise<ApiDebugCurlImportResp> {
-  return post('/project/debug/import-curl', { curl })
 }
 
 /** 调试记录分页（仅当前用户），keyword 匹配名称或 URL */

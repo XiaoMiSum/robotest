@@ -1486,15 +1486,6 @@ export interface ApiDebugExecuteResp {
   errorMessage?: string
 }
 
-export interface ApiDebugCurlImportResp {
-  protocol: string
-  method: string
-  url: string
-  headers: ApiDebugKeyValue[]
-  body: { type: ApiDebugBodyType; content?: unknown }
-  params: ApiDebugKeyValue[]
-}
-
 export interface ApiDebugRecordItem {
   id: string
   name?: string
