@@ -1,23 +1,64 @@
 <script setup lang="ts">
+import { onMounted } from 'vue'
 import type { ApiDebugKeyValue } from '@/types'
 
 const entries = defineModel<ApiDebugKeyValue[]>('entries', { required: true })
 
 const props = defineProps<{
   placeholderKey?: string
+  /** 渲染描述列（Postman 风格 Params/Headers），提交执行时剥离 */
+  showDescription?: boolean
+  /** Key 列为可下拉选择的常用名（allow-create 支持自定义），缺省为自由文本输入 */
+  suggestions?: readonly string[]
 }>()
 
 const emit = defineEmits<{ (e: 'change'): void }>()
 
+function emptyRow(): ApiDebugKeyValue {
+  return { key: '', value: '', enabled: true, ...(props.showDescription ? { description: '' } : {}) }
+}
+
+function rowFilled(row: ApiDebugKeyValue): boolean {
+  return row.key.trim() !== '' || row.value.trim() !== ''
+}
+
+/** 保证存在一行可编辑行：清掉多余尾部空行，末行非空时自动追加一行（与 Postman 一致） */
+function ensureTrailingRow() {
+  const rows = entries.value
+  while (rows.length > 1 && !rowFilled(rows[rows.length - 1])) {
+    rows.pop()
+  }
+  const last = rows[rows.length - 1]
+  if (!last || rowFilled(last)) {
+    rows.push(emptyRow())
+  }
+}
+
+/** 内容变更：先补空行再通知父级（补行本身不触发 change） */
+function notify() {
+  ensureTrailingRow()
+  emit('change')
+}
+
 function addRow() {
-  entries.value.push({ key: '', value: '', enabled: true })
+  if (!entries.value.length) {
+    entries.value.push(emptyRow())
+    return
+  }
+  entries.value.push(emptyRow())
   emit('change')
 }
 
 function removeRow(index: number) {
   entries.value.splice(index, 1)
-  emit('change')
+  notify()
 }
+
+onMounted(() => {
+  if (!entries.value.length) {
+    entries.value.push(emptyRow())
+  }
+})
 </script>
 
 <template>
@@ -25,31 +66,60 @@ function removeRow(index: number) {
     <table>
       <thead>
         <tr>
-          <th class="kv-table__col-enable">启用</th>
-          <th>{{ placeholderKey ?? '名称' }}</th>
-          <th>值</th>
+          <th class="kv-table__col-enable"></th>
+          <th>{{ placeholderKey ?? 'Key' }}</th>
+          <th>Value</th>
+          <th v-if="props.showDescription">Description</th>
           <th class="kv-table__col-op" />
         </tr>
       </thead>
       <tbody>
-        <tr v-for="(entry, index) in entries" :key="index">
-          <td><el-checkbox v-model="entry.enabled" size="small" @change="emit('change')" /></td>
-          <td>
-            <el-input v-model="entry.key" size="small" :placeholder="props.placeholderKey ?? '名称'" @input="emit('change')" />
+        <tr v-for="(entry, index) in entries" :key="index" class="kv-table__row">
+          <td class="kv-table__col-enable">
+            <el-checkbox v-model="entry.enabled" size="small" @change="notify()" />
           </td>
           <td>
-            <el-input v-model="entry.value" size="small" placeholder="值" @input="emit('change')" />
+            <el-select
+              v-if="props.suggestions"
+              :model-value="entry.key"
+              size="small"
+              filterable
+              allow-create
+              :placeholder="props.placeholderKey ?? 'Key'"
+              class="kv-table__key-select"
+              @update:model-value="entry.key = $event ?? ''; notify()"
+            >
+              <el-option v-for="name in props.suggestions" :key="name" :label="name" :value="name" />
+            </el-select>
+            <el-input
+              v-else
+              v-model="entry.key"
+              size="small"
+              :placeholder="props.placeholderKey ?? 'Key'"
+              @input="notify()"
+            />
           </td>
           <td>
-            <el-button link type="danger" size="small" @click="removeRow(index)">删除</el-button>
+            <el-input v-model="entry.value" size="small" placeholder="Value" @input="notify()" />
           </td>
-        </tr>
-        <tr v-if="!entries.length">
-          <td colspan="4" class="kv-table__empty">暂无条目</td>
+          <td v-if="props.showDescription">
+            <el-input v-model="entry.description" size="small" placeholder="Description" @input="notify()" />
+          </td>
+          <td class="kv-table__col-op">
+            <el-button link type="danger" size="small" @click="removeRow(index)">
+              <el-icon><Delete /></el-icon>
+            </el-button>
+          </td>
         </tr>
       </tbody>
     </table>
-    <el-button size="small" text type="primary" @click="addRow">+ 添加</el-button>
+    <div class="kv-table__footer">
+      <button class="kv-table__add" @click="addRow">
+        <el-icon><Plus /></el-icon>
+        添加 {{ placeholderKey ?? '条目' }}
+      </button>
+      <slot name="actions" />
+    </div>
   </div>
 </template>
 
@@ -62,26 +132,72 @@ function removeRow(index: number) {
 
   th {
     text-align: left;
-    font-weight: normal;
-    font-size: var(--font-size-xs);
-    color: var(--color-neutral-400);
-    padding-bottom: 4px;
+    font-weight: 500;
+    font-size: 11px;
+    color: var(--color-neutral-400, #909399);
+    text-transform: uppercase;
+    padding: 0 8px 8px 0;
+    border-bottom: 1px solid var(--color-neutral-100, #e8e8e8);
   }
 
   td {
-    padding: 2px 6px 2px 0;
+    padding: 4px 8px 4px 0;
   }
 
-  &__col-enable,
+  &__col-enable {
+    width: 36px;
+    text-align: center;
+  }
+
   &__col-op {
-    width: 52px;
+    width: 36px;
+  }
+
+  &__row {
+    transition: background 0.1s;
+
+    &:hover {
+      background: var(--color-neutral-50, #fafafa);
+    }
+  }
+
+  &__key-select {
+    width: 100%;
+
+    :deep(.el-input__wrapper) {
+      padding: 1px 8px;
+    }
   }
 
   &__empty {
-    color: var(--color-neutral-300);
-    font-size: var(--font-size-xs);
+    color: var(--color-neutral-300, #c0c4cc);
+    font-size: 12px;
     text-align: center;
-    padding: 8px 0;
+    padding: 20px 0 !important;
+  }
+
+  &__add {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 8px;
+    padding: 4px 8px;
+    font-size: 12px;
+    color: var(--color-primary-500, #409eff);
+    background: none;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.15s;
+
+    &:hover {
+      background: var(--color-primary-50, #ecf5ff);
+    }
+  }
+
+  &__footer {
+    display: flex;
+    align-items: center;
   }
 }
 </style>
