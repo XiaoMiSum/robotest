@@ -51,6 +51,25 @@ robotest:
   env:
     # 环境敏感变量加密密钥（Base64 编码 32 字节），与 AI 密钥独立，支持单独轮换
     secret-key: ${ENV_SECRET_KEY:4chJwgVabFLPyA0Mty7RDhu7lXR5Hik2QZ0FJjS3rtI=}
+  api-test:
+    mock:
+      # Mock 免登录访问总开关（Mock服务详细设计 6.1），关闭后仅保留管理端 CRUD
+      access-enabled: ${MOCK_ACCESS_ENABLED:true}
+      # 独立监听端口（与 base-url 保持一致）；置空则复用主端口并按 excluded-prefixes 排除业务路由
+      port: ${MOCK_PORT:18080}
+      # 对外可访问基础地址，用于控制台展示 Mock URL；留空按端口推导
+      base-url: ${MOCK_BASE_URL:http://localhost:18080}
+      # 单路径限流（次/秒），超限返回 429
+      path-qps: ${MOCK_PATH_QPS:50}
+      # 主端口复用模式下的业务前缀排除清单
+      excluded-prefixes: /api,/ws,/index.html,/assets
+    scheduler:
+      # 定时任务调度线程池大小（定时任务详细设计 4.1）
+      pool-size: ${SCHEDULER_POOL_SIZE:2}
+      # 场景执行结果轮询等待上限（分钟），超时按 failed 留痕
+      execution-timeout-minutes: ${TASK_EXECUTION_TIMEOUT_MINUTES:30}
+      # 执行状态轮询间隔（毫秒）
+      poll-interval-ms: ${TASK_POLL_INTERVAL_MS:5000}
 #################### 框架相关配置 ####################
 
 migoo:
@@ -82,6 +101,8 @@ migoo:
       - /api/workspace/invitations/verify
       - /api/workspace/invitations/check-email
       - /api/workspace/invitations/join
+      # 报告分享免登录访问（基础设施详细设计 3.4.4），鉴权依赖一次性 token
+      - /api/public/api-reports/**
       - /ws/**
       - /debug/**
       # 合并部署（方案B）：SPA 页面壳与静态资源需匿名访问，数据接口仍由 /api 鉴权保护
