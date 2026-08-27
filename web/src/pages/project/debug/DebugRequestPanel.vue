@@ -135,18 +135,6 @@ const methodColor = computed(() => METHOD_COLORS[tab.value.method.toUpperCase()]
         @input="markDirty"
         @keyup.enter="emit('execute', environmentId || undefined)"
       />
-      <el-tooltip v-if="!canSave" content="请先发送请求获取调试记录" placement="bottom">
-        <span class="req-panel__save-wrap">
-          <el-button class="req-panel__save" disabled>保存</el-button>
-        </span>
-      </el-tooltip>
-      <el-button
-        v-else
-        class="req-panel__save"
-        @click="emit('save')"
-      >
-        保存
-      </el-button>
       <el-button
         class="req-panel__send"
         type="primary"
@@ -154,23 +142,59 @@ const methodColor = computed(() => METHOD_COLORS[tab.value.method.toUpperCase()]
         :disabled="!tab.url.trim()"
         @click="emit('execute', environmentId || undefined)"
       >
-        <template v-if="!executing">发送</template>
+        <template v-if="!executing">
+          <el-icon class="req-panel__btn-icon"><Promotion /></el-icon>发送
+        </template>
+      </el-button>
+      <el-tooltip v-if="!canSave" content="请先发送请求获取调试记录" placement="bottom">
+        <span class="req-panel__save-wrap">
+          <el-button class="req-panel__save" disabled>
+            <el-icon class="req-panel__btn-icon"><Plus /></el-icon>保存
+          </el-button>
+        </span>
+      </el-tooltip>
+      <el-button
+        v-else
+        class="req-panel__save"
+        @click="emit('save')"
+      >
+        <el-icon class="req-panel__btn-icon"><Plus /></el-icon>保存
       </el-button>
     </div>
 
-    <!-- Environment Bar -->
+    <!-- Param Tabs -->
+    <div class="req-panel__tabs">
+      <button
+        v-for="item in (['params', 'body', 'headers', 'auth'] as const)"
+        :key="item"
+        class="req-panel__tab"
+        :class="{ 'is-active': activeParamTab === item }"
+        @click="activeParamTab = item"
+      >
+        {{ item === 'params' ? 'Params' : item === 'body' ? 'Body' : item === 'headers' ? 'Headers' : 'Auth' }}
+        <span v-if="item === 'headers' && tab.headers.length" class="req-panel__tab-count">{{ tab.headers.length }}</span>
+        <span v-else-if="item === 'params' && tab.params.length" class="req-panel__tab-count">{{ tab.params.length }}</span>
+      </button>
+
+      <div class="req-panel__tabs-spacer" />
+
+      <div class="req-panel__env">
+        <el-select v-model="environmentId" clearable placeholder="选择环境（可选）" class="req-panel__env-select">
+          <el-option
+            v-for="env in environments"
+            :key="env.id"
+            :label="`${env.name}${env.isDefault ? '（默认）' : ''}`"
+            :value="env.id"
+          />
+        </el-select>
+        <el-tooltip content="相对路径拼接所选环境 baseUrl；${变量} 取自该环境变量" placement="bottom">
+          <el-icon class="req-panel__hint"><InfoFilled /></el-icon>
+        </el-tooltip>
+      </div>
+    </div>
+
+    <!-- Timeout Bar -->
     <div class="req-panel__env-bar">
-      <el-select v-model="environmentId" clearable placeholder="选择环境（可选）" class="req-panel__env">
-        <el-option
-          v-for="env in environments"
-          :key="env.id"
-          :label="`${env.name}${env.isDefault ? '（默认）' : ''}`"
-          :value="env.id"
-        />
-      </el-select>
-      <el-tooltip content="相对路径拼接所选环境 baseUrl；${变量} 取自该环境变量" placement="bottom">
-        <el-icon class="req-panel__hint"><InfoFilled /></el-icon>
-      </el-tooltip>
       <div class="req-panel__env-spacer" />
       <span class="req-panel__timeout-label">超时</span>
       <el-input-number
@@ -183,21 +207,6 @@ const methodColor = computed(() => METHOD_COLORS[tab.value.method.toUpperCase()]
       />
       <span class="req-panel__timeout-unit">ms</span>
       <el-tag v-if="tab.dirty" type="warning" effect="plain" class="req-panel__dirty">未保存</el-tag>
-    </div>
-
-    <!-- Param Tabs -->
-    <div class="req-panel__tabs">
-      <button
-        v-for="item in (['params', 'auth', 'headers', 'body'] as const)"
-        :key="item"
-        class="req-panel__tab"
-        :class="{ 'is-active': activeParamTab === item }"
-        @click="activeParamTab = item"
-      >
-        {{ item === 'params' ? 'Params' : item === 'auth' ? 'Auth' : item === 'headers' ? 'Headers' : 'Body' }}
-        <span v-if="item === 'headers' && tab.headers.length" class="req-panel__tab-count">{{ tab.headers.length }}</span>
-        <span v-else-if="item === 'params' && tab.params.length" class="req-panel__tab-count">{{ tab.params.length }}</span>
-      </button>
     </div>
 
     <!-- Tab Content -->
@@ -386,7 +395,31 @@ const methodColor = computed(() => METHOD_COLORS[tab.value.method.toUpperCase()]
     flex-shrink: 0;
   }
 
-  // ==================== Environment Bar ====================
+  &__btn-icon {
+    margin-right: 4px;
+  }
+
+  // ==================== Environment (tabs 最右) ====================
+  &__tabs-spacer {
+    flex: 1;
+  }
+
+  &__env {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding-left: 8px;
+  }
+
+  &__env-select {
+    width: 200px;
+  }
+
+  &__hint {
+    color: var(--color-neutral-300, #c0c4cc);
+    cursor: help;
+  }
+
   &__env-bar {
     display: flex;
     align-items: center;
@@ -394,17 +427,8 @@ const methodColor = computed(() => METHOD_COLORS[tab.value.method.toUpperCase()]
     padding: 0 14px 8px;
   }
 
-  &__env {
-    width: 200px;
-  }
-
   &__env-spacer {
     flex: 1;
-  }
-
-  &__hint {
-    color: var(--color-neutral-300, #c0c4cc);
-    cursor: help;
   }
 
   &__timeout-label {
