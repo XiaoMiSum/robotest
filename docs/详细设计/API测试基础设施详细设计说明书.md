@@ -1,7 +1,7 @@
 # 软件测试平台——API 测试基础设施详细设计说明书
 
-**文档版本**：V1.2
-**日期**：2026-08-17
+**文档版本**：V1.3
+**日期**：2026-08-26
 **状态**：起草中
 
 ---
@@ -39,7 +39,7 @@
 
 数据库为 PostgreSQL，字段 snake_case，接口 JSON 使用 camelCase。全部新表遵循平台规范：`id`（UUID v7，应用层生成）、`created_at`、`updated_at`、`is_deleted`，禁止物理外键（C5）；索引遵循 C9。
 
-表名域前缀统一使用 `api_`（接口测试业务域），全局资产使用 `global_asset`。
+表名域前缀统一使用 `api_`（接口测试业务域），公共组件使用 `api_component`。
 
 #### 2.1.1 调试记录表（api_debug_record）
 
@@ -155,27 +155,34 @@
 
 > `step_results` 中每个步骤包含完整的请求/响应快照（请求头、请求体、响应状态码、响应头、响应体截断），供详情查看与导出。`ryze_snapshot` 为执行时生成的完整 Ryze JSON，仅平台内执行时保留，流水线执行时为空。
 
-#### 2.1.5 全局资产表（global_asset）
+#### 2.1.5 公共组件表（api_component）
 
-项目级共享的可复用组件资产库，资产类型包括前置处理器、后置处理器、验证器、提取器。
+三级作用域（项目/空间/公共）的可复用组件资产库，资产类型包括前置处理器、后置处理器、验证器、提取器。
 
 | 字段 | 类型 | 约束 | 说明 |
 | ---- | ---- | ---- | ---- |
 | id | UUID | PK | 主键 |
-| project_id | UUID | NOT NULL | 归属项目 |
-| type | VARCHAR(30) | NOT NULL | 资产类型：preprocessor / postprocessor / validator / extractor |
-| name | VARCHAR(100) | NOT NULL | 资产名称（同项目同类型下唯一） |
-| description | VARCHAR(500) | NULL | 资产描述 |
-| config | JSONB | NOT NULL | 资产配置内容（结构与平台内同类型组件一致） |
+| scope | VARCHAR(10) | NOT NULL DEFAULT 'project' | 作用域：project / workspace / global |
+| workspace_id | UUID | NULL | 归属空间（scope=workspace 时必填） |
+| project_id | UUID | NULL | 归属项目（scope=project 时必填） |
+| type | VARCHAR(30) | NOT NULL | 组件类型：preprocessor / postprocessor / validator / extractor |
+| name | VARCHAR(100) | NOT NULL | 组件名称（同作用域同类型下唯一） |
+| description | VARCHAR(500) | NULL | 组件描述 |
+| config | JSONB | NOT NULL | 组件配置内容（结构与平台内同类型组件一致） |
 | enabled | BOOLEAN | NOT NULL DEFAULT TRUE | 启用状态（停用后不可再引入） |
 | updated_by | UUID | NOT NULL | 最后维护人 |
 | is_deleted | BOOLEAN | NOT NULL DEFAULT FALSE | 是否删除 |
 | created_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | 创建时间 |
 | updated_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | 更新时间 |
 
-**索引**：`uk_global_asset_project_name_type` UNIQUE (project_id, name, type) WHERE is_deleted = false, `idx_global_asset_project_type` (project_id, type)
+**索引**：
+- `idx_api_component_project` (project_id, type) WHERE scope = 'project' AND is_deleted = FALSE
+- `idx_api_component_workspace` (workspace_id, type) WHERE scope = 'workspace' AND is_deleted = FALSE
+- `uk_api_component_global` UNIQUE (type, name) WHERE scope = 'global' AND is_deleted = FALSE
+- `uk_api_component_project` UNIQUE (project_id, type, name) WHERE scope = 'project' AND is_deleted = FALSE
+- `uk_api_component_workspace` UNIQUE (workspace_id, type, name) WHERE scope = 'workspace' AND is_deleted = FALSE
 
-> 全局资产为项目级，按项目隔离；维护权限为项目维护者，项目成员可浏览与复制引入。引入为仅复制，产生独立副本，与源资产无关联。
+> 公共组件支持三级作用域：项目级（仅项目内可见）、空间级（空间内所有项目可见）、全局级（全平台可见）。组件启用/停用状态仅影响资产选择器的可见性，不影响已配置场景的正常执行。维护权限分级：project → `api-component:edit`、workspace → `api-component:edit-space`、global → `api-component:edit-global`。
 
 #### 2.1.6 导入记录表（api_import_record）
 
@@ -219,8 +226,8 @@
 | **7011** | API_IMPORT_PARSE_FAILED | 导入内容解析失败 |
 | **7012** | API_IMPORT_URL_UNREACHABLE | URL 导入目标不可达 |
 | **7013** | API_DEBUG_RECORD_NOT_FOUND | 调试记录不存在 |
-| **7014** | API_GLOBAL_ASSET_NOT_FOUND | 全局资产不存在 |
-| **7015** | API_GLOBAL_ASSET_DISABLED | 全局资产已停用 |
+| **7321** | API_COMMON_COMPONENT_NOT_FOUND | 公共组件不存在或不属于当前可见范围 |
+| **7322** | API_COMMON_COMPONENT_NAME_EXISTS | 同作用域下已存在同名公共组件 |
 | **7016** | API_IMPORT_RECORD_NOT_FOUND | 导入记录不存在 |
 | **7101** | API_INTERFACE_NOT_FOUND | 接口定义不存在 |
 | **7102** | API_INTERFACE_NAME_EXISTS | 接口定义名称重复 |
@@ -406,33 +413,35 @@
 - **路径**：`DELETE /api/project/reports/:id`
 - **响应**：`{ "success": true }`
 
-### 3.5 全局资产接口（项目级）
+### 3.5 公共组件接口（三级作用域）
 
-#### 3.5.1 查询全局资产列表
+#### 3.5.1 分页查询公共组件列表
 
-- **路径**：`GET /api/project/assets?type=preprocessor&enabled=true&page=1&pageSize=20`
-- **筛选参数**：`type`（可选，preprocessor/postprocessor/validator/extractor）、`enabled`（可选）。
+- **路径**：`GET /api/project/components?pageNo=1&pageSize=20&type=preprocessor&scope=project&keyword=Token`
+- **筛选参数**：`type`（可选，preprocessor/postprocessor/validator/extractor）、`scope`（可选，project/workspace/global）、`keyword`（可选，名称模糊搜索）、`enabled`（可选）。
 - **响应**：
 
 ```json
 {
-  "records": [
+  "list": [
     {
       "id": "018f...",
+      "scope": "project",
       "type": "preprocessor",
       "name": "Token 预置",
       "description": "从环境变量获取 Token 并注入请求头",
+      "config": "{\"handlerType\":\"http\",\"method\":\"POST\",\"url\":\"https://api.example.com/token\"}",
       "enabled": true,
-      "updatedAt": "2026-08-17T10:30:00Z"
+      "updatedAt": "2026-08-17 10:30:00"
     }
   ],
   "total": 8
 }
 ```
 
-#### 3.5.2 创建全局资产
+#### 3.5.2 创建公共组件
 
-- **路径**：`POST /api/project/assets`
+- **路径**：`POST /api/project/components`
 - **请求体**：
 
 ```json
@@ -440,44 +449,63 @@
   "type": "preprocessor",
   "name": "Token 预置",
   "description": "从环境变量获取 Token 并注入请求头",
+  "scope": "project",
   "config": {
-    "type": "javascript",
-    "script": "var token = context.getVar('token'); request.addHeader('Authorization', 'Bearer ' + token);"
+    "handlerType": "http",
+    "method": "POST",
+    "url": "https://api.example.com/token",
+    "contentType": "application/json",
+    "headers": [],
+    "body": "",
+    "async": false,
+    "condition": "",
+    "sortOrder": 0
   }
 }
 ```
 
 - **响应**：`{ "id": "018f..." }`
 
-#### 3.5.3 更新全局资产
+#### 3.5.3 更新公共组件
 
-- **路径**：`PUT /api/project/assets/:id`
-- **请求体**：同 3.5.2。
+- **路径**：`PUT /api/project/components/:id`
+- **请求体**：同 3.5.2（`scope` 和 `type` 编辑态不可变更）。
 
-#### 3.5.4 启停全局资产
+#### 3.5.4 启停公共组件
 
-- **路径**：`PATCH /api/project/assets/:id/toggle`
-- **请求体**：`{ "enabled": false }`
+- **路径**：`PATCH /api/project/components/:id/toggle?enabled=false`
 - **响应**：`{ "success": true }`
 
-#### 3.5.5 删除全局资产
+#### 3.5.5 删除公共组件
 
-- **路径**：`DELETE /api/project/assets/:id`
+- **路径**：`DELETE /api/project/components/:id`
 - **响应**：`{ "success": true }`
 
-### 3.6 全局资产复制接口（项目级）
+#### 3.5.6 批量启停
 
-#### 3.6.1 复制全局资产
+- **路径**：`PATCH /api/project/components/batch/toggle?enabled=false`
+- **请求体**：`{ "ids": ["018f...", "018g..."] }`
+- **响应**：`{ "success": true }`
 
-- **路径**：`POST /api/project/assets/:assetId/copy`
-- **说明**：将全局资产复制为同一项目下的新资产，产生独立副本。
+#### 3.5.7 批量删除
+
+- **路径**：`DELETE /api/project/components/batch`
+- **请求体**：`{ "ids": ["018f...", "018g..."] }`
+- **响应**：`{ "success": true }`
+
+### 3.6 公共组件复制接口
+
+#### 3.6.1 复制公共组件
+
+- **路径**：`POST /api/project/components/:id/copy`
+- **说明**：将公共组件复制为同一作用域下的新组件，产生独立副本，名称追加" (副本)"，默认停用。
 - **响应**：
 
 ```json
 {
   "id": "018f...",
   "type": "preprocessor",
-  "name": "Token 预置（副本）",
+  "name": "Token 预置 (副本)",
   "sourceAssetId": "018g..."
 }
 ```
@@ -654,15 +682,16 @@ Ryze 引擎执行完成后，平台收集执行结果并转换为平台自有格
 - 提取器结果：提取的变量名与值。
 - 耗时信息。
 
-### 5.3 全局资产新建/编辑
+### 5.3 公共组件新建/编辑
 
-新建与编辑资产使用抽屉（宽 640px），公共字段 + 随类型切换的配置表单。公共字段：
+新建与编辑组件使用抽屉（宽 640px），公共字段 + 随类型切换的配置表单。公共字段：
 
 | 字段 | 类型 | 必填 | 说明 |
 | ---- | ---- | ---- | ---- |
-| 名称 | text | 是 | 同类型内唯一（7102） |
+| 名称 | text | 是 | 同作用域同类型内唯一（7322） |
 | 类型 | select | 是 | preprocessor / postprocessor / validator / extractor；编辑态置灰不可改 |
-| 描述 | textarea | 否 | 资产用途说明 |
+| 作用域 | select | 是 | project / workspace / global；编辑态隐藏，仅新建时可选 |
+| 描述 | textarea | 否 | 组件用途说明 |
 
 #### 5.3.1 前置处理器 / 后置处理器
 

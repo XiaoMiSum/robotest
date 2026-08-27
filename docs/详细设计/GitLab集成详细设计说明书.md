@@ -54,6 +54,9 @@
 | last_import_at | TIMESTAMP | NULL | 最近导入时间 |
 | last_metadata_sync_at | TIMESTAMP | NULL | 最近元数据同步时间 |
 | last_commit_sha | VARCHAR(40) | NULL | 最近一次同步的 commit SHA |
+| annotation_filter | VARCHAR(500) | NULL | 注解过滤条件（如 `@RyzeTest,@Test`），仅匹配的测试类参与导入 |
+| only_with_resource_path | BOOLEAN | NOT NULL DEFAULT FALSE | 是否仅保留含 resource_path 的测试类（过滤无 yaml 的纯注解类） |
+| auto_sync_enabled | BOOLEAN | NOT NULL DEFAULT FALSE | 是否开启自动同步（定时任务扫描元数据变更） |
 | is_deleted | BOOLEAN | NOT NULL DEFAULT FALSE | 是否删除 |
 | created_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | 创建时间 |
 | updated_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | 更新时间 |
@@ -100,14 +103,34 @@
 
 **索引**：`idx_gscope_repository` (repository_id)
 
+#### 2.1.4 元数据同步历史表（api_gitlab_sync_history）
+
+记录每次元数据同步的结果，供审计与回溯。
+
+| 字段 | 类型 | 约束 | 说明 |
+| ---- | ---- | ---- | ---- |
+| id | UUID | PK | 主键 |
+| repository_id | UUID | NOT NULL | 关联仓库配置（api_gitlab_repository.id） |
+| sync_at | TIMESTAMP | NOT NULL | 同步执行时间 |
+| class_count | INT | NOT NULL DEFAULT 0 | 本次同步的测试类数量 |
+| method_count | INT | NOT NULL DEFAULT 0 | 本次同步的测试方法数量 |
+| commit_sha | VARCHAR(40) | NULL | 同步时的 commit SHA |
+| status | VARCHAR(20) | NOT NULL | 同步状态：success / partial / failed |
+| is_deleted | BOOLEAN | NOT NULL DEFAULT FALSE | 是否删除 |
+| created_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | 创建时间 |
+| updated_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | 更新时间 |
+
+**索引**：`idx_gsync_repository` (repository_id, sync_at DESC)
+
 ### 2.2 错误码补充
 
 | 错误码 | 常量名 | 说明 |
 | ------ | ------ | ---- |
-| 7501 | API_GITLAB_REPO_NOT_FOUND | 仓库配置不存在 |
-| 7502 | API_GITLAB_REPO_UNREACHABLE | 仓库地址不可达 |
-| 7503 | API_GITLAB_TOKEN_INVALID | 令牌无效 |
-| 7504 | API_GITLAB_METADATA_MISSING | 测试类元数据不存在 |
+| 1000017651 | API_GITLAB_TOKEN_INVALID | 令牌无效或已过期 |
+| 1000017652 | API_GITLAB_REPO_NOT_FOUND | 仓库配置不存在 |
+| 1000017653 | API_GITLAB_REPO_UNREACHABLE | 仓库地址不可达 |
+| 1000017654 | API_GITLAB_REPO_NAME_EXISTS | 仓库配置名称已存在 |
+| 1000017655 | API_GITLAB_METADATA_MISSING | 测试类元数据缺失，请先同步 |
 
 ---
 
