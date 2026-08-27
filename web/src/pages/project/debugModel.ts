@@ -44,7 +44,6 @@ export function createTab(): DebugTab {
     bodyType: 'none',
     auth: { type: 'none' },
     responseTimeoutMs: 30000,
-    dirty: false,
     response: null,
   }
 }
@@ -52,6 +51,15 @@ export function createTab(): DebugTab {
 /** 标签名展示：未命名时显示占位名 */
 export function tabTitle(tab: DebugTab): string {
   return tab.name || NEW_TAB_NAME
+}
+
+/** URL 缺省协议补齐：非 http/https 且非相对路径（/ 开头）时补 http://（开发期常见输入） */
+export function ensureUrlScheme(url: string): string {
+  const trimmed = url.trim()
+  if (!trimmed) return trimmed
+  if (/^https?:\/\//i.test(trimmed)) return trimmed
+  if (trimmed.startsWith('/')) return trimmed
+  return `http://${trimmed}`
 }
 
 /** 自动命名规则：方法 + URL 路径（与后端 autoName 一致），路径缺失时回退 URL 本身 */
@@ -152,13 +160,12 @@ function applyBodyContentType(tab: DebugTab, headers: ApiDebugKeyValue[], body?:
   }
 }
 
-/** 执行成功后的标签状态更新：自动命名 + 清除脏标记 */
+/** 执行成功后的标签状态更新：自动命名 */
 export function markExecuted(tab: DebugTab, response: ApiDebugExecuteResp): void {
   if (!tab.name) {
     tab.name = autoTabName(tab.method, tab.url)
   }
   tab.response = response
-  tab.dirty = false
 }
 
 interface CurlLike {
@@ -169,14 +176,13 @@ interface CurlLike {
   params?: ApiDebugKeyValue[]
 }
 
-/** cURL 导入回填当前标签并标记脏；解析的 body 类型映射为四态（form→urlencoded，json/raw→raw） */
+/** cURL 导入回填当前标签；解析的 body 类型映射为四态（form→urlencoded，json/raw→raw） */
 export function applyCurlToTab(tab: DebugTab, parsed: CurlLike): void {
   tab.method = parsed.method
   tab.url = parsed.url
   tab.headers = parsed.headers.map((h) => ({ ...h }))
   tab.params = (parsed.params ?? []).map((p) => ({ ...p }))
   applyBodyCache(tab, parsed.body.type, parsed.body.content)
-  tab.dirty = true
 }
 
 /** 从历史记录恢复：生成新标签快照（响应同时回填） */
@@ -199,9 +205,8 @@ export function tabFromRestore(record: ApiDebugRestoreResp): DebugTab {
     responseHeaders: record.response.headers ?? undefined,
     responseBody: record.response.body,
     durationMs: record.response.elapsed,
-    size: record.response.size,
+size: record.response.size,
   }
-  tab.dirty = false
   return tab
 }
 

@@ -25,12 +25,6 @@ onMounted(async () => {
   }
 })
 
-function markDirty() {
-  tab.value.dirty = true
-}
-
-// ==================== 参数页签（对齐 Postman：Params/Auth/Headers/Body） ====================
-
 type ParamTab = 'params' | 'auth' | 'headers' | 'body'
 
 const activeParamTab = ref<ParamTab>('params')
@@ -49,7 +43,6 @@ function pickBodyType(type: ApiDebugBodyKind) {
   if (type === 'raw' && !tab.value.bodies.raw) {
     tab.value.bodies.raw = { text: '', subtype: 'text' }
   }
-  markDirty()
 }
 
 const rawSubtype = computed<ApiDebugRawSubtype>({
@@ -59,7 +52,6 @@ const rawSubtype = computed<ApiDebugRawSubtype>({
   set(subtype: ApiDebugRawSubtype) {
     if (!tab.value.bodies.raw) tab.value.bodies.raw = { text: '', subtype }
     else tab.value.bodies.raw.subtype = subtype
-    markDirty()
   },
 })
 
@@ -70,7 +62,6 @@ const rawText = computed({
   set(text: string) {
     if (!tab.value.bodies.raw) tab.value.bodies.raw = { text, subtype: 'text' }
     else tab.value.bodies.raw.text = text
-    markDirty()
   },
 })
 
@@ -83,7 +74,7 @@ function formatJsonBody() {
   }
 }
 
-// ==================== Headers 常用头预置 ====================
+// ==================== Headers 常用头名（Key 下拉建议项） ====================
 
 const COMMON_HEADERS = [
   'Accept',
@@ -95,12 +86,6 @@ const COMMON_HEADERS = [
   'If-None-Match',
   'Origin',
 ] as const
-
-function addPresetHeader(name: string) {
-  if (tab.value.headers.some((h) => h.key.toLowerCase() === name.toLowerCase())) return
-  tab.value.headers.push({ key: name, value: '', enabled: true, description: '' })
-  markDirty()
-}
 
 // ==================== Method 颜色 ====================
 
@@ -123,7 +108,7 @@ const methodColor = computed(() => METHOD_COLORS[tab.value.method.toUpperCase()]
     <!-- URL Bar -->
     <div class="req-panel__url-bar">
       <div class="req-panel__method-wrap" :style="{ '--method-color': methodColor }">
-        <el-select v-model="tab.method" class="req-panel__method" @change="markDirty">
+        <el-select v-model="tab.method" class="req-panel__method">
           <el-option v-for="method in HTTP_METHODS" :key="method" :label="method" :value="method" />
         </el-select>
       </div>
@@ -132,7 +117,7 @@ const methodColor = computed(() => METHOD_COLORS[tab.value.method.toUpperCase()]
         class="req-panel__url"
         placeholder="输入请求 URL，例如 https://api.example.com/users"
         clearable
-        @input="markDirty"
+        
         @keyup.enter="emit('execute', environmentId || undefined)"
       />
       <el-button
@@ -193,22 +178,6 @@ const methodColor = computed(() => METHOD_COLORS[tab.value.method.toUpperCase()]
       </div>
     </div>
 
-    <!-- Timeout Bar -->
-    <div class="req-panel__env-bar">
-      <div class="req-panel__env-spacer" />
-      <span class="req-panel__timeout-label">超时</span>
-      <el-input-number
-        v-model="tab.responseTimeoutMs"
-        :min="1000"
-        :step="1000"
-        controls-position="right"
-        class="req-panel__timeout"
-        @change="markDirty"
-      />
-      <span class="req-panel__timeout-unit">ms</span>
-      <el-tag v-if="tab.dirty" type="warning" effect="plain" class="req-panel__dirty">未保存</el-tag>
-    </div>
-
     <!-- Tab Content -->
     <div class="req-panel__content">
       <KeyValueTable
@@ -216,13 +185,13 @@ const methodColor = computed(() => METHOD_COLORS[tab.value.method.toUpperCase()]
         v-model:entries="tab.params"
         placeholder-key="参数名"
         show-description
-        @change="markDirty"
+        
       />
 
       <div v-else-if="activeParamTab === 'auth'" class="req-panel__auth">
         <el-form label-width="90px" @submit.prevent>
           <el-form-item label="认证方式">
-            <el-select v-model="tab.auth.type" @change="markDirty">
+            <el-select v-model="tab.auth.type" >
               <el-option label="No Auth" value="none" />
               <el-option label="Bearer Token" value="bearer" />
               <el-option label="API Key" value="apiKey" />
@@ -232,25 +201,25 @@ const methodColor = computed(() => METHOD_COLORS[tab.value.method.toUpperCase()]
           </el-form-item>
           <template v-if="tab.auth.type === 'bearer'">
             <el-form-item label="Token">
-              <el-input v-model="tab.auth.token" type="password" show-password placeholder="输入 Bearer Token" @input="markDirty" />
+              <el-input v-model="tab.auth.token" type="password" show-password placeholder="输入 Bearer Token"  />
             </el-form-item>
             <p class="req-panel__tip">提交时换算为 Authorization: Bearer 头；手工同名头优先</p>
           </template>
           <template v-else-if="tab.auth.type === 'apiKey'">
             <el-form-item label="Key 名">
-              <el-input v-model="tab.auth.apiKeyName" placeholder="缺省为 X-API-Key" @input="markDirty" />
+              <el-input v-model="tab.auth.apiKeyName" placeholder="缺省为 X-API-Key"  />
             </el-form-item>
             <el-form-item label="Key 值">
-              <el-input v-model="tab.auth.apiKeyValue" type="password" show-password @input="markDirty" />
+              <el-input v-model="tab.auth.apiKeyValue" type="password" show-password  />
             </el-form-item>
             <p class="req-panel__tip">提交时换算为自定义请求头；手工同名头优先</p>
           </template>
           <template v-else-if="tab.auth.type === 'basic'">
             <el-form-item label="用户名">
-              <el-input v-model="tab.auth.username" @input="markDirty" />
+              <el-input v-model="tab.auth.username"  />
             </el-form-item>
             <el-form-item label="密码">
-              <el-input v-model="tab.auth.password" type="password" show-password @input="markDirty" />
+              <el-input v-model="tab.auth.password" type="password" show-password  />
             </el-form-item>
             <p class="req-panel__tip">提交时换算为 Authorization: Basic 头；手工同名头优先</p>
           </template>
@@ -263,24 +232,8 @@ const methodColor = computed(() => METHOD_COLORS[tab.value.method.toUpperCase()]
         placeholder-key="Header 名"
         show-description
         :suggestions="COMMON_HEADERS"
-        @change="markDirty"
-      >
-        <template #actions>
-          <el-dropdown trigger="click" class="req-panel__preset">
-            <el-button text>
-              常用头预置
-              <el-icon class="el-icon--right"><ArrowDown /></el-icon>
-            </el-button>
-            <template #dropdown>
-              <el-dropdown-menu>
-                <el-dropdown-item v-for="name in COMMON_HEADERS" :key="name" @click="addPresetHeader(name)">
-                  {{ name }}
-                </el-dropdown-item>
-              </el-dropdown-menu>
-            </template>
-          </el-dropdown>
-        </template>
-      </KeyValueTable>
+        
+      />
 
       <div v-else-if="activeParamTab === 'body'" class="req-panel__body">
         <div class="req-panel__body-types">
@@ -293,6 +246,13 @@ const methodColor = computed(() => METHOD_COLORS[tab.value.method.toUpperCase()]
           >
             {{ t.label }}
           </button>
+
+          <div v-if="tab.bodyType === 'raw'" class="req-panel__body-types-right">
+            <el-select v-model="rawSubtype" class="req-panel__raw-select">
+              <el-option v-for="s in SUBTYPES" :key="s" :label="s[0].toUpperCase() + s.slice(1)" :value="s" />
+            </el-select>
+            <el-button v-if="rawSubtype === 'json'" text @click="formatJsonBody">格式化</el-button>
+          </div>
         </div>
 
         <div v-if="tab.bodyType === 'none'" class="req-panel__body-empty">
@@ -303,17 +263,10 @@ const methodColor = computed(() => METHOD_COLORS[tab.value.method.toUpperCase()]
           v-else-if="tab.bodyType === 'urlencoded'"
           v-model:entries="tab.bodies.urlencoded"
           placeholder-key="Key"
-          @change="markDirty"
+          
         />
 
         <div v-else class="req-panel__raw">
-          <div class="req-panel__raw-controls">
-            <span class="req-panel__raw-label">类型</span>
-            <el-select v-model="rawSubtype" class="req-panel__raw-select">
-              <el-option v-for="s in SUBTYPES" :key="s" :label="s[0].toUpperCase() + s.slice(1)" :value="s" />
-            </el-select>
-            <el-button v-if="rawSubtype === 'json'" text @click="formatJsonBody">格式化</el-button>
-          </div>
           <textarea
             v-model="rawText"
             class="req-panel__body-editor"
@@ -336,7 +289,7 @@ const methodColor = computed(() => METHOD_COLORS[tab.value.method.toUpperCase()]
   &__url-bar {
     display: flex;
     gap: 8px;
-    padding: 10px 14px;
+    padding: 4px 14px;
     align-items: center;
   }
 
@@ -370,8 +323,6 @@ const methodColor = computed(() => METHOD_COLORS[tab.value.method.toUpperCase()]
 
     :deep(.el-input__wrapper) {
       font-family: ui-monospace, SFMono-Regular, monospace;
-      font-size: 13px;
-      padding: 6px 12px;
     }
   }
 
@@ -413,41 +364,17 @@ const methodColor = computed(() => METHOD_COLORS[tab.value.method.toUpperCase()]
 
   &__env-select {
     width: 200px;
+
+    :deep(.el-select__wrapper) {
+      border: none;
+      box-shadow: none;
+      padding-left: 4px;
+    }
   }
 
   &__hint {
     color: var(--color-neutral-300, #c0c4cc);
     cursor: help;
-  }
-
-  &__env-bar {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 0 14px 8px;
-  }
-
-  &__env-spacer {
-    flex: 1;
-  }
-
-  &__timeout-label {
-    font-size: 12px;
-    color: var(--color-neutral-400, #909399);
-  }
-
-  &__timeout {
-    width: 90px;
-  }
-
-  &__timeout-unit {
-    font-size: 12px;
-    color: var(--color-neutral-400, #909399);
-    margin-left: -4px;
-  }
-
-  &__dirty {
-    margin-left: 8px;
   }
 
   // ==================== Param Tabs ====================
@@ -505,11 +432,6 @@ const methodColor = computed(() => METHOD_COLORS[tab.value.method.toUpperCase()]
     min-height: 0;
   }
 
-  // ==================== Preset ====================
-  &__preset {
-    margin-left: 8px;
-  }
-
   // ==================== Body ====================
   &__body {
     display: flex;
@@ -519,16 +441,20 @@ const methodColor = computed(() => METHOD_COLORS[tab.value.method.toUpperCase()]
 
   &__body-types {
     display: flex;
+    align-items: center;
     gap: 2px;
     background: var(--color-neutral-50, #fafafa);
     border-radius: 6px;
-    padding: 3px;
+    padding: 2px;
     width: fit-content;
     flex-wrap: wrap;
   }
 
   &__body-type {
-    padding: 4px 12px;
+    height: 28px;
+    padding: 0 12px;
+    display: inline-flex;
+    align-items: center;
     font-size: 12px;
     border: none;
     background: none;
@@ -542,10 +468,27 @@ const methodColor = computed(() => METHOD_COLORS[tab.value.method.toUpperCase()]
     }
 
     &.is-active {
-      background: var(--color-bg, #fff);
-      color: var(--color-neutral-800, #303133);
+      background: var(--color-primary-500, #409eff);
+      color: #fff;
       font-weight: 500;
-      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+      box-shadow: none;
+    }
+  }
+
+  &__body-types-right {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-left: 4px;
+
+    :deep(.el-select__wrapper) {
+      min-height: 28px;
+      padding: 1px 8px;
+    }
+
+    :deep(.el-button) {
+      height: 28px;
+      padding: 0 8px;
     }
   }
 
@@ -560,17 +503,6 @@ const methodColor = computed(() => METHOD_COLORS[tab.value.method.toUpperCase()]
     display: flex;
     flex-direction: column;
     gap: 8px;
-  }
-
-  &__raw-controls {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-
-  &__raw-label {
-    font-size: 12px;
-    color: var(--color-neutral-400, #909399);
   }
 
   &__raw-select {

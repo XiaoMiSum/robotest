@@ -40,15 +40,6 @@ function notify() {
   emit('change')
 }
 
-function addRow() {
-  if (!entries.value.length) {
-    entries.value.push(emptyRow())
-    return
-  }
-  entries.value.push(emptyRow())
-  emit('change')
-}
-
 function removeRow(index: number) {
   entries.value.splice(index, 1)
   notify()
@@ -111,13 +102,6 @@ onMounted(() => {
         </tr>
       </tbody>
     </table>
-    <div class="kv-table__footer">
-      <button class="kv-table__add" @click="addRow">
-        <el-icon><Plus /></el-icon>
-        添加 {{ placeholderKey ?? '条目' }}
-      </button>
-      <slot name="actions" />
-    </div>
   </div>
 </template>
 
@@ -176,30 +160,6 @@ onMounted(() => {
     font-size: 12px;
     text-align: center;
     padding: 20px 0 !important;
-  }
-
-  &__add {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    margin-top: 8px;
-    padding: 4px 8px;
-    font-size: 12px;
-    color: var(--color-primary-500, #409eff);
-    background: none;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: background 0.15s;
-
-    &:hover {
-      background: var(--color-primary-50, #ecf5ff);
-    }
-  }
-
-  &__footer {
-    display: flex;
-    align-items: center;
   }
 }
 </style>

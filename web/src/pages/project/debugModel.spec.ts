@@ -5,6 +5,7 @@ import {
   buildAuthHeader,
   buildExecutePayload,
   createTab,
+  ensureUrlScheme,
   markExecuted,
   MAX_DEBUG_TABS,
   tabFromRestore,
@@ -102,13 +103,11 @@ describe('debugModel', () => {
     expect(buildExecutePayload(apiTab).headers?.some((h) => h.key === 'X-Token' && h.value === 'secret')).toBe(true)
   })
 
-  it('markExecuted 首次执行自动命名并清除脏标记', () => {
+  it('markExecuted 首次执行自动命名', () => {
     const tab = createTab()
     tab.url = '/api/users'
-    tab.dirty = true
     markExecuted(tab, { debugRecordId: 'r1', status: 'success', responseStatus: 200 })
     expect(tab.name).toBe('GET /api/users')
-    expect(tab.dirty).toBe(false)
 
     // 已命名标签执行后不覆盖用户命名
     tab.method = 'PUT'
@@ -130,7 +129,6 @@ describe('debugModel', () => {
     expect(tab.bodies.raw?.subtype).toBe('json')
     expect(tab.bodies.raw && JSON.parse(tab.bodies.raw.text)).toEqual({ k: 1 })
     expect(tab.bodies.urlencoded).toEqual([{ key: 'keep', value: 'me', enabled: true }])
-    expect(tab.dirty).toBe(true)
   })
 
   it('历史恢复生成新标签并回填响应', () => {
@@ -157,5 +155,14 @@ describe('debugModel', () => {
 
   it('MAX_DEBUG_TABS 约束为 10', () => {
     expect(MAX_DEBUG_TABS).toBe(10)
+  })
+
+  it('ensureUrlScheme 完整 URL/相对路径不变，其余补 http://', () => {
+    expect(ensureUrlScheme('https://a.com/x')).toBe('https://a.com/x')
+    expect(ensureUrlScheme('http://a.com')).toBe('http://a.com')
+    expect(ensureUrlScheme('/api/users')).toBe('/api/users')
+    expect(ensureUrlScheme('api.example.com/users')).toBe('http://api.example.com/users')
+    expect(ensureUrlScheme('localhost:8080/ping')).toBe('http://localhost:8080/ping')
+    expect(ensureUrlScheme('  ')).toBe('')
   })
 })
