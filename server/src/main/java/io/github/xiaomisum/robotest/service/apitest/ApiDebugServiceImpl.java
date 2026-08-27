@@ -5,20 +5,26 @@ import io.github.xiaomisum.robotest.framework.config.ApiTestProperties;
 import io.github.xiaomisum.robotest.framework.security.ProjectAccessGuard;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiDebugExecuteReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiDebugRenameReqDTO;
+import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiDebugSaveAsInterfaceReqDTO;
+import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiInterfaceCreateReqDTO;
+import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiInterfaceUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiDebugCurlImportRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiDebugExecuteRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiDebugRecordItemRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiDebugRestoreRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiDebugSaveAsInterfaceRespDTO;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiDebugRecord;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiEnvironment;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiEnvironmentHttp;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiEnvironmentProcessor;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiEnvironmentVariable;
+import io.github.xiaomisum.robotest.model.entity.apitest.ApiInterface;
 import io.github.xiaomisum.robotest.repository.apitest.ApiDebugRecordMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiEnvironmentHttpMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiEnvironmentMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiEnvironmentProcessorMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiEnvironmentVariableMapper;
+import io.github.xiaomisum.robotest.repository.apitest.ApiInterfaceMapper;
 import io.github.xiaomisum.ryze.Ryze;
 import io.github.xiaomisum.ryze.TestStatus;
 import io.github.xiaomisum.ryze.protocol.http.RealHTTPResponse;
@@ -39,9 +45,11 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.RejectedExecutionException;
 
@@ -63,13 +71,21 @@ public class ApiDebugServiceImpl implements ApiDebugService {
     @Resource
     private ApiEnvironmentProcessorMapper environmentProcessorMapper;
     @Resource
+    private ApiInterfaceService interfaceService;
+    @Resource
+    private ApiInterfaceMapper interfaceMapper;
+    @Resource
     private ProjectAccessGuard projectAccessGuard;
+    @Resource
+    private EnvironmentSnapshotFactory environmentSnapshotFactory;
     @Resource(name = "apiTestExecutor")
     private ThreadPoolTaskExecutor apiTestExecutor;
     @Resource(name = "apiDebugPersistExecutor")
     private ThreadPoolTaskExecutor persistExecutor;
     @Resource
     private ApiTestProperties properties;
+    @Resource
+    private CustomFunctionRuntime functionRuntime;
 
     @Value("${robotest.env.secret-key:}")
     private String secretKeyBase64;
@@ -108,7 +124,7 @@ public class ApiDebugServiceImpl implements ApiDebugService {
         record.setName(DebugRyzeConverter.autoName(record.getMethod(), reqDTO.getUrl()));
         record.setExecutedAt(LocalDateTime.now());
 
-        TestResultSnapshot snapshot = runSuite(suite, guardMs);
+        TestResultSnapshot snapshot = runSuite(suite, guardMs, projectId);
         applyResult(record, snapshot);
 
         persistAsync(record);
@@ -201,10 +217,149 @@ public class ApiDebugServiceImpl implements ApiDebugService {
                 .build();
     }
 
+    @Override
+    public UUID saveAsInterface(UUID projectId, UUID workspaceId, UUID userId, UUID id,
+            ApiDebugSaveAsInterfaceReqDTO reqDTO) {
+        projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
+        ApiDebugRecord record = requireRecord(projectId, id);
+        if (!record.getUserId().equals(userId)) {
+            // 调试记录按用户隔离（列表口径一致），非本人记录视同不存在，避免探测他人记录
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.API_DEBUG_RECORD_NOT_FOUND);
+        }
+        return switch (reqDTO.getMode()) {
+            case "create" -> saveAsNewInterface(projectId, workspaceId, userId, record, reqDTO);
+            case "attach" -> attachToInterface(projectId, workspaceId, userId, record, reqDTO);
+            default -> throw ServiceExceptionUtil.get(ErrorCodeConstants.VALIDATION_FAILED);
+        };
+    }
+
+    private UUID saveAsNewInterface(UUID projectId, UUID workspaceId, UUID userId, ApiDebugRecord record,
+            ApiDebugSaveAsInterfaceReqDTO reqDTO) {
+        if (reqDTO.getName() == null || reqDTO.getName().isBlank() || reqDTO.getModuleId() == null) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.VALIDATION_FAILED);
+        }
+        ApiInterfaceCreateReqDTO create = new ApiInterfaceCreateReqDTO();
+        applySnapshot(create, record);
+        create.setName(reqDTO.getName().trim());
+        create.setModuleId(reqDTO.getModuleId());
+        return interfaceService.create(projectId, workspaceId, userId, create);
+    }
+
+    private UUID attachToInterface(UUID projectId, UUID workspaceId, UUID userId, ApiDebugRecord record,
+            ApiDebugSaveAsInterfaceReqDTO reqDTO) {
+        if (reqDTO.getInterfaceId() == null || reqDTO.getChangeVersion() == null) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.VALIDATION_FAILED);
+        }
+        // 名称与模块取自目标接口：update 载体仅覆盖主请求字段，元数据原样保留
+        ApiInterface target = interfaceMapper.selectById(reqDTO.getInterfaceId());
+        if (target == null || !projectId.equals(target.getProjectId())) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.API_INTERFACE_NOT_FOUND);
+        }
+        ApiInterfaceUpdateReqDTO update = new ApiInterfaceUpdateReqDTO();
+        update.setChangeVersion(reqDTO.getChangeVersion());
+        update.setName(target.getName());
+        update.setModuleId(target.getModuleId());
+        applySnapshot(update, record);
+        interfaceService.update(projectId, workspaceId, userId, target.getId(), update);
+        return target.getId();
+    }
+
+    /** 调试快照 → 接口定义请求字段映射（快速调试详细设计 4.3） */
+    private void applySnapshot(ApiInterfaceCreateReqDTO target, ApiDebugRecord record) {
+        String baseUrl = resolveBaseUrl(record.getProjectId(), record.getEnvironmentId());
+        target.setProtocol("http");
+        target.setMethod(record.getMethod());
+        target.setPath(extractPath(record.getUrl(), baseUrl));
+        target.setHeaders(safeList(record.getHeaders()));
+        target.setBody(buildInterfaceBody(record));
+        target.setParams(mergeQueryParams(record.getUrl(), safeList(record.getQueryParams())));
+    }
+
+    private String resolveBaseUrl(UUID projectId, UUID environmentId) {
+        ApiEnvironment env = environmentId != null
+                ? environmentMapper.selectById(environmentId)
+                : environmentMapper.selectList(new LambdaQueryWrapperX<ApiEnvironment>()
+                        .eq(ApiEnvironment::getProjectId, projectId)
+                        .eq(ApiEnvironment::getIsDefault, true))
+                .stream().findFirst().orElse(null);
+        if (env == null || !env.getProjectId().equals(projectId)) {
+            return "";
+        }
+        return environmentHttpMapper.listByEnvironmentId(env.getId()).stream()
+                .filter(http -> Boolean.TRUE.equals(http.getIsDefault()))
+                .findFirst()
+                .map(ApiEnvironmentHttp::getBaseUrl)
+                .orElse("");
+    }
+
+    /** 剥离环境 baseUrl 得相对路径；无法剥离时保留完整 URL（query 另行并入 params） */
+    private String extractPath(String url, String baseUrl) {
+        String candidate = baseUrl != null && !baseUrl.isBlank() && url.startsWith(baseUrl)
+                ? url.substring(baseUrl.length())
+                : url;
+        int queryStart = candidate.indexOf('?');
+        String path = queryStart >= 0 ? candidate.substring(0, queryStart) : candidate;
+        return path.isEmpty() ? "/" : path;
+    }
+
+    /** URL query 与已配置参数合并去重，同名参数以已配置值为准 */
+    private List<Map<String, Object>> mergeQueryParams(String url, List<Map<String, Object>> recorded) {
+        Set<String> seen = new LinkedHashSet<>();
+        for (Map<String, Object> item : recorded) {
+            Object key = item.get("key");
+            if (key != null) {
+                seen.add(key.toString());
+            }
+        }
+        List<Map<String, Object>> merged = new ArrayList<>();
+        int queryStart = url.indexOf('?');
+        if (queryStart >= 0) {
+            for (String pair : url.substring(queryStart + 1).split("&")) {
+                if (pair.isEmpty()) {
+                    continue;
+                }
+                int eq = pair.indexOf('=');
+                String key = decodeQueryParam(eq < 0 ? pair : pair.substring(0, eq));
+                if (!seen.add(key)) {
+                    continue;
+                }
+                Map<String, Object> item = new LinkedHashMap<>();
+                item.put("key", key);
+                item.put("value", decodeQueryParam(eq < 0 ? "" : pair.substring(eq + 1)));
+                item.put("enabled", true);
+                merged.add(item);
+            }
+        }
+        merged.addAll(recorded);
+        return merged;
+    }
+
+    private String decodeQueryParam(String value) {
+        try {
+            return java.net.URLDecoder.decode(value, java.nio.charset.StandardCharsets.UTF_8);
+        } catch (IllegalArgumentException ex) {
+            return value;
+        }
+    }
+
+    /** 接口 body 列约定为 {type, content} 结构；调试记录落库时 content 已扁平化，此处还原包装 */
+    private Map<String, Object> buildInterfaceBody(ApiDebugRecord record) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("type", Objects.requireNonNullElse(record.getBodyType(), "none"));
+        Map<String, Object> flat = record.getBody();
+        if (flat != null && !flat.isEmpty()) {
+            body.put("content", flat.size() == 1 && flat.containsKey("content")
+                    ? flat.get("content") : flat);
+        }
+        return body;
+    }
+
     // ========== 执行 ==========
 
-    private TestResultSnapshot runSuite(Map<String, Object> suite, long guardMs) {
+    private TestResultSnapshot runSuite(Map<String, Object> suite, long guardMs, UUID projectId) {
         try {
+            // 执行前注入自定义函数：重写调用名并标记项目上下文
+            functionRuntime.prepareSuite(suite, projectId);
             return apiTestExecutor.submit(() -> {
                 var result = Ryze.start(suite);
                 return collect(result);
@@ -308,72 +463,7 @@ public class ApiDebugServiceImpl implements ApiDebugService {
     // ========== 环境快照 ==========
 
     private DebugRyzeConverter.EnvSnapshot resolveEnvSnapshot(UUID projectId, UUID environmentId) {
-        ApiEnvironment env = environmentId != null
-                ? environmentMapper.selectById(environmentId)
-                : findDefaultEnvironment(projectId);
-        if (env == null || !env.getProjectId().equals(projectId)) {
-            return DebugRyzeConverter.EnvSnapshot.empty();
-        }
-        ApiEnvironmentHttp defaultHttp = environmentHttpMapper.listByEnvironmentId(env.getId()).stream()
-                .filter(http -> Boolean.TRUE.equals(http.getIsDefault()))
-                .findFirst()
-                .orElse(null);
-        Map<String, Object> variables = new LinkedHashMap<>();
-        for (ApiEnvironmentVariable variable : environmentVariableMapper.listByEnvironmentId(env.getId())) {
-            variables.put(variable.getName(), plaintext(variable));
-        }
-        List<Map<String, Object>> pre = processorConfigs(env.getId(), "preprocessor");
-        List<Map<String, Object>> post = processorConfigs(env.getId(), "postprocessor");
-
-        Map<String, Object> envHeaders = new LinkedHashMap<>();
-        if (defaultHttp != null && defaultHttp.getDefaultHeaders() != null) {
-            for (Map<String, Object> entry : defaultHttp.getDefaultHeaders()) {
-                Object key = entry.get("key");
-                if (key != null && !Boolean.FALSE.equals(entry.get("enabled"))) {
-                    envHeaders.put(key.toString(), entry.getOrDefault("value", ""));
-                }
-            }
-        }
-        return new DebugRyzeConverter.EnvSnapshot(
-                defaultHttp == null ? "" : Objects.requireNonNullElse(defaultHttp.getBaseUrl(), ""),
-                envHeaders, variables, pre, post);
-    }
-
-    private ApiEnvironment findDefaultEnvironment(UUID projectId) {
-        return environmentMapper.selectList(
-                        new LambdaQueryWrapperX<ApiEnvironment>()
-                                .eq(ApiEnvironment::getProjectId, projectId)
-                                .eq(ApiEnvironment::getIsDefault, true))
-                .stream()
-                .findFirst()
-                .orElse(null);
-    }
-
-    private List<Map<String, Object>> processorConfigs(UUID envId, String processorType) {
-        List<Map<String, Object>> configs = new ArrayList<>();
-        for (ApiEnvironmentProcessor processor
-                : environmentProcessorMapper.listByEnvironmentIdAndType(envId, processorType)) {
-            if (Boolean.FALSE.equals(processor.getEnabled())) {
-                continue;
-            }
-            configs.add(processor.getConfig());
-        }
-        return configs;
-    }
-
-    /** 变量明文：敏感变量解密后参与执行（执行需要真实值，区别于前端展示掩码） */
-    private String plaintext(ApiEnvironmentVariable variable) {
-        String value = variable.getValue();
-        if (value == null || !TYPE_SENSITIVE.equals(variable.getType())) {
-            return value;
-        }
-        try {
-            byte[] key = SecretCryptoUtil.parseKey(secretKeyBase64);
-            return key == null ? value : SecretCryptoUtil.decrypt(key, value);
-        } catch (Exception ex) {
-            log.warn("[api-debug] 敏感变量 {} 解密失败，按密文参与执行", variable.getName());
-            return value;
-        }
+        return environmentSnapshotFactory.resolve(projectId, environmentId);
     }
 
     // ========== 记录持久化 ==========

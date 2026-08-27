@@ -49,8 +49,8 @@ public class ProjectSettingServiceImpl implements ProjectSettingService {
     @Transactional(rollbackFor = Exception.class)
     @AuditOperation(operation = "UPDATE", entityType = "ProjectSetting")
     public int updateSettings(UUID projectId, UUID workspaceId, UUID userId, ProjectSettingUpdateReqDTO reqDTO) {
-        // 维护者校验已覆盖成员身份（非成员无成员记录同样被拒），不再重复调用成员校验
-        projectAccessGuard.requireProjectMaintainer(projectId, workspaceId, userId);
+        // 写操作授权由 Controller 层 api-setting:edit 权限码承担，此处仅做归属一致性兜底
+        projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
         validateAll(reqDTO);
 
         reqDTO.getItems().forEach(item -> upsert(projectId, userId, item));

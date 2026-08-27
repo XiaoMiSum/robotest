@@ -5,6 +5,7 @@ import io.github.xiaomisum.robotest.model.dto.request.requirement.DocumentRequir
 import io.github.xiaomisum.robotest.model.dto.response.requirement.RequirementSummaryRespDTO;
 import io.github.xiaomisum.robotest.service.project.RequirementService;
 import jakarta.annotation.Resource;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -29,6 +30,7 @@ public class DocumentRequirementController {
     private RequirementService requirementService;
 
     @GetMapping("/{docId}/requirements")
+    @PreAuthorize("hasAuthority('case:view')")
     public Result<List<RequirementSummaryRespDTO>> getDocumentRequirements(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestHeader("X-Active-Project") UUID projectId,
@@ -37,6 +39,7 @@ public class DocumentRequirementController {
     }
 
     @PutMapping("/{docId}/requirements")
+    @PreAuthorize("hasAuthority('case:edit')")
     public Result<Void> setDocumentRequirements(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestHeader("X-Active-Project") UUID projectId,

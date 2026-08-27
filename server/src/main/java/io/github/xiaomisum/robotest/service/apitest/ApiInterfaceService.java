@@ -36,17 +36,17 @@ public interface ApiInterfaceService {
 
     void update(UUID projectId, UUID workspaceId, UUID userId, UUID id, ApiInterfaceUpdateReqDTO reqDTO);
 
-    void delete(UUID projectId, UUID id);
+    void delete(UUID projectId, UUID userId, UUID id);
 
     UUID copy(UUID projectId, UUID userId, UUID id, String copyName);
 
-    ApiInterfaceReferenceRespDTO references(UUID projectId, UUID id);
+    ApiInterfaceReferenceRespDTO references(UUID projectId, UUID userId, UUID id);
 
-    List<ApiInterfaceReferenceRespDTO.RefItem> referenceScenes(UUID projectId, UUID id);
+    List<ApiInterfaceReferenceRespDTO.RefItem> referenceScenes(UUID projectId, UUID userId, UUID id);
 
-    void batchMove(UUID projectId, ApiInterfaceBatchMoveReqDTO reqDTO);
+    void batchMove(UUID projectId, UUID userId, ApiInterfaceBatchMoveReqDTO reqDTO);
 
-    void batchDelete(UUID projectId, ApiInterfaceBatchDeleteReqDTO reqDTO);
+    void batchDelete(UUID projectId, UUID userId, ApiInterfaceBatchDeleteReqDTO reqDTO);
 
     void updateStatus(UUID projectId, UUID userId, UUID id, ApiInterfaceStatusReqDTO reqDTO);
 
@@ -56,19 +56,19 @@ public interface ApiInterfaceService {
 
     // ==================== 公共步骤 3.2 ====================
 
-    UUID createStep(UUID projectId, UUID interfaceId, ApiInterfaceStepReqDTO reqDTO);
+    UUID createStep(UUID projectId, UUID userId, UUID interfaceId, ApiInterfaceStepReqDTO reqDTO);
 
-    void updateStep(UUID projectId, UUID interfaceId, UUID stepId, ApiInterfaceStepReqDTO reqDTO);
+    void updateStep(UUID projectId, UUID userId, UUID interfaceId, UUID stepId, ApiInterfaceStepReqDTO reqDTO);
 
-    void deleteStep(UUID projectId, UUID interfaceId, UUID stepId);
+    void deleteStep(UUID projectId, UUID userId, UUID interfaceId, UUID stepId);
 
-    void sortStep(UUID projectId, UUID interfaceId, UUID stepId, ApiInterfaceStepSortReqDTO reqDTO);
+    void sortStep(UUID projectId, UUID userId, UUID interfaceId, UUID stepId, ApiInterfaceStepSortReqDTO reqDTO);
 
     // ==================== 接口级变量 3.3 ====================
 
-    List<ApiInterfaceVariableRespDTO> listVariables(UUID projectId, UUID interfaceId);
+    List<ApiInterfaceVariableRespDTO> listVariables(UUID projectId, UUID userId, UUID interfaceId);
 
-    void updateVariables(UUID projectId, UUID interfaceId, ApiInterfaceVariablesReqDTO reqDTO);
+    void updateVariables(UUID projectId, UUID userId, UUID interfaceId, ApiInterfaceVariablesReqDTO reqDTO);
 
     // ==================== 导入 3.4 ====================
 
@@ -77,9 +77,9 @@ public interface ApiInterfaceService {
 
     ApiImportResultRespDTO importUrl(UUID projectId, UUID userId, String url, String formatHint);
 
-    ApiImportPreviewRespDTO preview(UUID projectId, byte[] content, String formatHint);
+    ApiImportPreviewRespDTO preview(UUID projectId, UUID userId, byte[] content, String formatHint);
 
     // ==================== 变更历史 3.1.13 ====================
 
-    PageResult<ApiInterfaceChangeLogRespDTO> changeLogs(UUID projectId, UUID interfaceId, PageParam pageParam);
+    PageResult<ApiInterfaceChangeLogRespDTO> changeLogs(UUID projectId, UUID userId, UUID interfaceId, PageParam pageParam);
 }

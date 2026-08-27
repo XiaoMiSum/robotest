@@ -1,10 +1,8 @@
 package io.github.xiaomisum.robotest.framework.security;
 
-import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseDocument;
 import io.github.xiaomisum.robotest.model.entity.workspace.Project;
-import io.github.xiaomisum.robotest.model.entity.workspace.WorkspaceUser;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseDocumentMapper;
 import io.github.xiaomisum.robotest.repository.workspace.ProjectMapper;
 import io.github.xiaomisum.robotest.repository.workspace.WorkspaceUserMapper;
@@ -23,6 +21,12 @@ import java.util.UUID;
 @Component
 public class ProjectAccessGuard {
 
+    /**
+     * 系统操作者特殊值（全零 UUID）：定时任务等后台链路以系统身份执行，
+     * 不归属任何真实用户；成员校验对该值直通放行。
+     */
+    public static final UUID SYSTEM_OPERATOR_ID = new UUID(0L, 0L);
+
     @Resource
     private ProjectMapper projectMapper;
     @Resource
@@ -32,8 +36,12 @@ public class ProjectAccessGuard {
 
     /**
      * 校验 userId 是否为 projectId 对应项目所在工作空间的成员；不满足抛业务异常。
+     * 系统身份（定时任务调度）直通，不做成员校验。
      */
     public void requireProjectMember(UUID projectId, UUID userId) {
+        if (SYSTEM_OPERATOR_ID.equals(userId)) {
+            return;
+        }
         Project project = projectMapper.selectById(projectId);
         if (project == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.PROJECT_NOT_FOUND);
@@ -48,27 +56,15 @@ public class ProjectAccessGuard {
      * 且 userId 为该空间成员。
      *
      * <p>workspaceId 以请求头为准而非 project 行反查，故必须先校验 project.workspaceId 与之一致，
-     * 防止携带自己为管理员的其它空间头跨空间越权；归属不符按项目不存在处理（不泄露跨空间项目存在性）。</p>
+     * 防止携带自己为管理员的其它空间头跨空间越权；归属不符按项目不存在处理（不泄露跨空间项目存在性）。
+     * 读写分级授权由 Controller 层 @PreAuthorize 权限码承担，本守卫只做归属一致性兜底。</p>
      */
     public void requireProjectMember(UUID projectId, UUID workspaceId, UUID userId) {
+        if (SYSTEM_OPERATOR_ID.equals(userId)) {
+            return;
+        }
         requireWorkspaceProject(projectId, workspaceId);
         if (!workspaceUserMapper.existsByWorkspaceIdAndUserId(workspaceId, userId)) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.NO_PERMISSION);
-        }
-    }
-
-    /**
-     * 项目维护者校验（工作空间上下文重载）：projectId 必须归属 workspaceId（X-Active-Workspace 头），
-     * 且 userId 在该空间的成员角色为管理员；不满足抛业务异常。
-     *
-     * <p>平台当前无项目级角色，「项目维护者」以空间管理员身份落地
-     * （需求 3.7.4：维护权限为项目管理员（项目维护者））；非成员无成员记录，同样在此被拒绝，
-     * 后续引入项目角色时收敛至此处。</p>
-     */
-    public void requireProjectMaintainer(UUID projectId, UUID workspaceId, UUID userId) {
-        requireWorkspaceProject(projectId, workspaceId);
-        WorkspaceUser member = workspaceUserMapper.findByWorkspaceIdAndUserId(workspaceId, userId);
-        if (member == null || !Constants.WorkspaceRole.ADMIN_ID.equals(member.getWorkspaceRole())) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.NO_PERMISSION);
         }
     }

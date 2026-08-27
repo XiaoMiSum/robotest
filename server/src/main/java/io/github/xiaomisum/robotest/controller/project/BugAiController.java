@@ -12,6 +12,7 @@ import io.github.xiaomisum.robotest.service.ai.bug.AiBugDedupService;
 import io.github.xiaomisum.robotest.service.ai.bug.AiBugSuggestionService;
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -39,6 +40,7 @@ public class BugAiController {
 
     /** 3.1 缺陷表单智能建议（同步） */
     @PostMapping("/suggest")
+    @PreAuthorize("hasAuthority('bug:view')")
     public Result<AiBugSuggestionRespDTO> suggest(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestHeader("X-Active-Workspace") UUID workspaceId,
@@ -49,6 +51,7 @@ public class BugAiController {
 
     /** 3.2 缺陷语义查重（同步检索） */
     @PostMapping("/dedup")
+    @PreAuthorize("hasAuthority('bug:view')")
     public Result<AiBugDedupRespDTO> dedup(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestHeader("X-Active-Workspace") UUID workspaceId,
@@ -59,6 +62,7 @@ public class BugAiController {
 
     /** 3.3.1 发起聚类任务 */
     @PostMapping("/clustering")
+    @PreAuthorize("hasAuthority('bug:view')")
     public Result<AiBugClusteringStartRespDTO> startClustering(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestHeader("X-Active-Workspace") UUID workspaceId,
@@ -68,6 +72,7 @@ public class BugAiController {
 
     /** 3.3.2 查询最近一次聚类结果（无任务返回 null） */
     @GetMapping("/clustering/latest")
+    @PreAuthorize("hasAuthority('bug:view')")
     public Result<AiTaskRespDTO> getLatestClustering(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestHeader("X-Active-Project") UUID projectId) {

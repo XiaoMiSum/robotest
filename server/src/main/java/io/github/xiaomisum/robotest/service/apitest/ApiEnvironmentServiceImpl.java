@@ -31,6 +31,7 @@ import io.github.xiaomisum.robotest.repository.apitest.ApiEnvironmentHttpMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiEnvironmentMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiEnvironmentProcessorMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiEnvironmentVariableMapper;
+import io.github.xiaomisum.robotest.repository.apitest.ApiScheduledTaskMapper;
 import jakarta.annotation.Resource;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -65,6 +66,8 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import static io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants.API_ENV_TASK_BOUND;
+
 @Service
 public class ApiEnvironmentServiceImpl implements ApiEnvironmentService {
 
@@ -91,6 +94,8 @@ public class ApiEnvironmentServiceImpl implements ApiEnvironmentService {
     private ApiEnvironmentProcessorMapper processorMapper;
     @Resource
     private ProjectAccessGuard projectAccessGuard;
+    @Resource
+    private ApiScheduledTaskMapper scheduledTaskMapper;
 
     /** 敏感变量加密密钥（Base64 编码 32 字节），未配置时保存敏感值直接失败（详细设计 6.2 强制加密） */
     @Value("${robotest.env.secret-key:}")
@@ -132,7 +137,7 @@ public class ApiEnvironmentServiceImpl implements ApiEnvironmentService {
     @AuditOperation(operation = "CREATE", entityType = "ApiEnvironment")
     public ApiEnvironmentIdRespDTO createEnvironment(UUID projectId, UUID workspaceId, UUID userId,
             ApiEnvironmentSaveReqDTO reqDTO) {
-        projectAccessGuard.requireProjectMaintainer(projectId, workspaceId, userId);
+        projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
         if (environmentMapper.existsByProjectIdAndName(projectId, reqDTO.getName(), null)) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.API_ENV_NAME_EXISTS);
         }
@@ -161,7 +166,7 @@ public class ApiEnvironmentServiceImpl implements ApiEnvironmentService {
     @AuditOperation(operation = "UPDATE", entityType = "ApiEnvironment")
     public void updateEnvironment(UUID projectId, UUID workspaceId, UUID userId, UUID id,
             ApiEnvironmentSaveReqDTO reqDTO) {
-        projectAccessGuard.requireProjectMaintainer(projectId, workspaceId, userId);
+        projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
         ApiEnvironment existing = requireEnv(projectId, id);
         if (environmentMapper.existsByProjectIdAndName(projectId, reqDTO.getName(), id)) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.API_ENV_NAME_EXISTS);
@@ -191,10 +196,14 @@ public class ApiEnvironmentServiceImpl implements ApiEnvironmentService {
     @Transactional(rollbackFor = Exception.class)
     @AuditOperation(operation = "DELETE", entityType = "ApiEnvironment")
     public void deleteEnvironment(UUID projectId, UUID workspaceId, UUID userId, UUID id) {
-        projectAccessGuard.requireProjectMaintainer(projectId, workspaceId, userId);
+        projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
         requireEnv(projectId, id);
-        // 删除保护（7402 场景引用 / 7404 定时任务绑定）的引用方模块尚未实现，
-        // 校验点预留于此，测试场景/定时任务模块落地时在下方补齐引用检查
+        // 删除保护（7404）：被定时任务绑定的环境不可删除（定时任务详细设计 4.2）；
+        // 场景引用检查（7402）随测试场景迭代补齐
+        Long boundCount = scheduledTaskMapper.selectCountEnvBound(id);
+        if (boundCount != null && boundCount > 0) {
+            throw ServiceExceptionUtil.get(API_ENV_TASK_BOUND);
+        }
         deleteChildren(id);
         environmentMapper.deleteById(id);
     }
@@ -203,7 +212,7 @@ public class ApiEnvironmentServiceImpl implements ApiEnvironmentService {
     @Transactional(rollbackFor = Exception.class)
     public ApiEnvironmentSetDefaultRespDTO setDefaultEnvironment(UUID projectId, UUID workspaceId, UUID userId,
             UUID id) {
-        projectAccessGuard.requireProjectMaintainer(projectId, workspaceId, userId);
+        projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
         requireEnv(projectId, id);
 
         environmentMapper.clearDefaultByProjectId(projectId);
@@ -219,7 +228,7 @@ public class ApiEnvironmentServiceImpl implements ApiEnvironmentService {
     @AuditOperation(operation = "CREATE", entityType = "ApiEnvironment")
     public ApiEnvironmentIdRespDTO copyEnvironment(UUID projectId, UUID workspaceId, UUID userId, UUID id,
             ApiEnvironmentCopyReqDTO reqDTO) {
-        projectAccessGuard.requireProjectMaintainer(projectId, workspaceId, userId);
+        projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
         ApiEnvironment source = requireEnv(projectId, id);
         if (environmentMapper.existsByProjectIdAndName(projectId, reqDTO.getName(), null)) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.API_ENV_NAME_EXISTS);
@@ -249,7 +258,7 @@ public class ApiEnvironmentServiceImpl implements ApiEnvironmentService {
     @Override
     public void sortEnvironment(UUID projectId, UUID workspaceId, UUID userId, UUID id,
             ApiEnvironmentSortReqDTO reqDTO) {
-        projectAccessGuard.requireProjectMaintainer(projectId, workspaceId, userId);
+        projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
         requireEnv(projectId, id);
 
         ApiEnvironment update = new ApiEnvironment();
@@ -274,7 +283,7 @@ public class ApiEnvironmentServiceImpl implements ApiEnvironmentService {
     @AuditOperation(operation = "CREATE", entityType = "ApiEnvironmentProcessor")
     public ApiEnvironmentProcessorRespDTO createProcessor(UUID projectId, UUID workspaceId, UUID userId,
             UUID id, ApiEnvironmentProcessorSaveReqDTO reqDTO) {
-        projectAccessGuard.requireProjectMaintainer(projectId, workspaceId, userId);
+        projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
         requireEnv(projectId, id);
         validateProcessorType(reqDTO.getProcessorType());
 
@@ -292,7 +301,7 @@ public class ApiEnvironmentServiceImpl implements ApiEnvironmentService {
     @AuditOperation(operation = "UPDATE", entityType = "ApiEnvironmentProcessor")
     public ApiEnvironmentProcessorRespDTO updateProcessor(UUID projectId, UUID workspaceId, UUID userId,
             UUID id, UUID procId, ApiEnvironmentProcessorSaveReqDTO reqDTO) {
-        projectAccessGuard.requireProjectMaintainer(projectId, workspaceId, userId);
+        projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
         requireEnv(projectId, id);
         validateProcessorType(reqDTO.getProcessorType());
         ApiEnvironmentProcessor row = requireProcessor(id, procId);
@@ -307,7 +316,7 @@ public class ApiEnvironmentServiceImpl implements ApiEnvironmentService {
     @Transactional(rollbackFor = Exception.class)
     @AuditOperation(operation = "DELETE", entityType = "ApiEnvironmentProcessor")
     public void deleteProcessor(UUID projectId, UUID workspaceId, UUID userId, UUID id, UUID procId) {
-        projectAccessGuard.requireProjectMaintainer(projectId, workspaceId, userId);
+        projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
         requireEnv(projectId, id);
         requireProcessor(id, procId);
         processorMapper.deleteById(procId);
@@ -320,7 +329,7 @@ public class ApiEnvironmentServiceImpl implements ApiEnvironmentService {
     @AuditOperation(operation = "UPDATE", entityType = "ApiEnvironmentVariable")
     public List<ApiEnvironmentVariableRespDTO> batchReplaceVariables(UUID projectId, UUID workspaceId, UUID userId,
             UUID id, ApiEnvironmentVariableBatchReqDTO reqDTO) {
-        projectAccessGuard.requireProjectMaintainer(projectId, workspaceId, userId);
+        projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
         requireEnv(projectId, id);
 
         // 旧敏感密文须在删除前读取，供「留空不修改」沿用
@@ -339,7 +348,7 @@ public class ApiEnvironmentServiceImpl implements ApiEnvironmentService {
     @AuditOperation(operation = "CREATE", entityType = "ApiEnvironmentVariable")
     public ApiEnvironmentVariableRespDTO addVariableFromResult(UUID projectId, UUID workspaceId, UUID userId,
             UUID id, ApiEnvironmentVariableCreateReqDTO reqDTO) {
-        projectAccessGuard.requireProjectMaintainer(projectId, workspaceId, userId);
+        projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
         requireEnv(projectId, id);
         if (variableMapper.findByEnvironmentIdAndName(id, reqDTO.getName()) != null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.API_ENV_VARIABLE_EXISTS);
@@ -365,7 +374,7 @@ public class ApiEnvironmentServiceImpl implements ApiEnvironmentService {
     @Transactional(rollbackFor = Exception.class)
     public ApiEnvImportResultRespDTO importVariables(UUID projectId, UUID workspaceId, UUID userId,
             UUID id, ApiEnvironmentVariableImportReqDTO reqDTO) {
-        projectAccessGuard.requireProjectMaintainer(projectId, workspaceId, userId);
+        projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
         requireEnv(projectId, id);
 
         List<ApiEnvironmentVariable> incoming = normalizeVariables(reqDTO.getVariables());
@@ -409,7 +418,7 @@ public class ApiEnvironmentServiceImpl implements ApiEnvironmentService {
     @Override
     public ApiEnvironmentVariableRevealRespDTO revealVariable(UUID projectId, UUID workspaceId, UUID userId,
             UUID id, UUID variableId) {
-        projectAccessGuard.requireProjectMaintainer(projectId, workspaceId, userId);
+        projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
         requireEnv(projectId, id);
         ApiEnvironmentVariable row = requireVariable(id, variableId);
 
@@ -552,7 +561,7 @@ public class ApiEnvironmentServiceImpl implements ApiEnvironmentService {
     @AuditOperation(operation = "CREATE", entityType = "ApiEnvironment")
     public ApiEnvImportResultRespDTO importEnvironment(UUID projectId, UUID workspaceId, UUID userId,
             MultipartFile file, boolean overwrite) {
-        projectAccessGuard.requireProjectMaintainer(projectId, workspaceId, userId);
+        projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
         ApiEnvironmentDetailRespDTO payload = parseImportPayload(file);
         if (payload.getName() == null || payload.getName().isBlank()) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.VALIDATION_FAILED);
