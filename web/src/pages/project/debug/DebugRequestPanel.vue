@@ -137,13 +137,12 @@ const methodColor = computed(() => METHOD_COLORS[tab.value.method.toUpperCase()]
       />
       <el-tooltip v-if="!canSave" content="请先发送请求获取调试记录" placement="bottom">
         <span class="req-panel__save-wrap">
-          <el-button class="req-panel__save" size="default" disabled>保存</el-button>
+          <el-button class="req-panel__save" disabled>保存</el-button>
         </span>
       </el-tooltip>
       <el-button
         v-else
         class="req-panel__save"
-        size="default"
         @click="emit('save')"
       >
         保存
@@ -151,7 +150,6 @@ const methodColor = computed(() => METHOD_COLORS[tab.value.method.toUpperCase()]
       <el-button
         class="req-panel__send"
         type="primary"
-        size="default"
         :loading="executing"
         :disabled="!tab.url.trim()"
         @click="emit('execute', environmentId || undefined)"
@@ -162,7 +160,7 @@ const methodColor = computed(() => METHOD_COLORS[tab.value.method.toUpperCase()]
 
     <!-- Environment Bar -->
     <div class="req-panel__env-bar">
-      <el-select v-model="environmentId" size="small" clearable placeholder="选择环境（可选）" class="req-panel__env">
+      <el-select v-model="environmentId" clearable placeholder="选择环境（可选）" class="req-panel__env">
         <el-option
           v-for="env in environments"
           :key="env.id"
@@ -179,13 +177,12 @@ const methodColor = computed(() => METHOD_COLORS[tab.value.method.toUpperCase()]
         v-model="tab.responseTimeoutMs"
         :min="1000"
         :step="1000"
-        size="small"
         controls-position="right"
         class="req-panel__timeout"
         @change="markDirty"
       />
       <span class="req-panel__timeout-unit">ms</span>
-      <el-tag v-if="tab.dirty" size="small" type="warning" effect="plain" class="req-panel__dirty">未保存</el-tag>
+      <el-tag v-if="tab.dirty" type="warning" effect="plain" class="req-panel__dirty">未保存</el-tag>
     </div>
 
     <!-- Param Tabs -->
@@ -214,7 +211,7 @@ const methodColor = computed(() => METHOD_COLORS[tab.value.method.toUpperCase()]
       />
 
       <div v-else-if="activeParamTab === 'auth'" class="req-panel__auth">
-        <el-form label-width="90px" size="small" @submit.prevent>
+        <el-form label-width="90px" @submit.prevent>
           <el-form-item label="认证方式">
             <el-select v-model="tab.auth.type" @change="markDirty">
               <el-option label="No Auth" value="none" />
@@ -261,7 +258,7 @@ const methodColor = computed(() => METHOD_COLORS[tab.value.method.toUpperCase()]
       >
         <template #actions>
           <el-dropdown trigger="click" class="req-panel__preset">
-            <el-button size="small" text>
+            <el-button text>
               常用头预置
               <el-icon class="el-icon--right"><ArrowDown /></el-icon>
             </el-button>
@@ -303,10 +300,10 @@ const methodColor = computed(() => METHOD_COLORS[tab.value.method.toUpperCase()]
         <div v-else class="req-panel__raw">
           <div class="req-panel__raw-controls">
             <span class="req-panel__raw-label">类型</span>
-            <el-select v-model="rawSubtype" size="small" class="req-panel__raw-select">
+            <el-select v-model="rawSubtype" class="req-panel__raw-select">
               <el-option v-for="s in SUBTYPES" :key="s" :label="s[0].toUpperCase() + s.slice(1)" :value="s" />
             </el-select>
-            <el-button v-if="rawSubtype === 'json'" size="small" text @click="formatJsonBody">格式化</el-button>
+            <el-button v-if="rawSubtype === 'json'" text @click="formatJsonBody">格式化</el-button>
           </div>
           <textarea
             v-model="rawText"

@@ -131,7 +131,6 @@ function handleRestore(record: ApiDebugRecordItem) {
     <div class="history__toolbar">
       <el-input
         v-model="keyword"
-        size="small"
         clearable
         placeholder="搜索名称或 URL"
         class="history__search"
@@ -146,15 +145,14 @@ function handleRestore(record: ApiDebugRecordItem) {
       <section v-for="group in groupedRecords" :key="group.label" class="history__group">
         <h4 class="history__group-title">{{ group.label }}</h4>
         <div v-for="record in group.items" :key="record.id" class="history__item">
-          <el-tag size="small" :type="(STATUS_TAG_TYPES[record.status] ?? 'info') as never" effect="plain">
+          <el-tag :type="(STATUS_TAG_TYPES[record.status] ?? 'info') as never" effect="plain">
             {{ record.method }}
           </el-tag>
-          <el-tag v-if="record.responseStatus" size="small" effect="plain">{{ record.responseStatus }}</el-tag>
+          <el-tag v-if="record.responseStatus" effect="plain">{{ record.responseStatus }}</el-tag>
 
           <template v-if="renamingId === record.id">
             <el-input
               v-model="renamingName"
-              size="small"
               autofocus
               @keyup.enter="commitRename(record)"
               @blur="commitRename(record)"
@@ -171,10 +169,10 @@ function handleRestore(record: ApiDebugRecordItem) {
           </span>
 
           <el-tooltip content="恢复到新标签" placement="top">
-            <el-button link type="primary" size="small" @click="handleRestore(record)">恢复</el-button>
+            <el-button link type="primary" @click="handleRestore(record)">恢复</el-button>
           </el-tooltip>
           <el-dropdown trigger="click">
-            <el-button link size="small"><el-icon><MoreFilled /></el-icon></el-button>
+            <el-button link><el-icon><MoreFilled /></el-icon></el-button>
             <template #dropdown>
               <el-dropdown-menu>
                 <el-dropdown-item @click="startRename(record)">重命名</el-dropdown-item>

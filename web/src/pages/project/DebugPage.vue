@@ -296,77 +296,80 @@ function handleAuxClick(e: MouseEvent, tab: DebugTab) {
 
 <template>
   <div ref="containerRef" class="debug-page">
-    <!-- Tab Bar -->
-    <div class="debug-page__tabbar">
-      <div class="debug-page__tabs">
-        <div
-          v-for="tab in tabs"
-          :key="tab.id"
-          class="debug-tab"
-          :class="{ 'is-active': !showHistory && tab.id === activeTabId }"
-          @click="switchTab(tab.id)"
-          @dblclick="startRename(tab)"
-          @auxclick="handleAuxClick($event, tab)"
-        >
-          <span v-if="renamingId !== tab.id" class="debug-tab__method" :style="{ background: methodColor(tab.method) }">
-            {{ tab.method }}
-          </span>
-          <span v-if="renamingId !== tab.id" class="debug-tab__label">
-            {{ tabTitle(tab) }}
-            <i v-if="tab.dirty" class="debug-tab__dot">●</i>
-          </span>
-          <el-input
-            v-else
-            v-model="renamingValue"
-            size="small"
-            autofocus
-            class="debug-tab__rename"
-            @keyup.enter="commitRename(tab)"
-            @blur="commitRename(tab)"
+    <el-card shadow="never" class="debug-page__card">
+      <template #header>
+        <!-- Tab Bar -->
+        <div class="debug-page__tabbar">
+          <div class="debug-page__tabs">
+            <div
+              v-for="tab in tabs"
+              :key="tab.id"
+              class="debug-tab"
+              :class="{ 'is-active': !showHistory && tab.id === activeTabId }"
+              @click="switchTab(tab.id)"
+              @dblclick="startRename(tab)"
+              @auxclick="handleAuxClick($event, tab)"
+            >
+              <span v-if="renamingId !== tab.id" class="debug-tab__method" :style="{ background: methodColor(tab.method) }">
+                {{ tab.method }}
+              </span>
+              <span v-if="renamingId !== tab.id" class="debug-tab__label">
+                {{ tabTitle(tab) }}
+                <i v-if="tab.dirty" class="debug-tab__dot">●</i>
+              </span>
+              <el-input
+                v-else
+                v-model="renamingValue"
+                autofocus
+                class="debug-tab__rename"
+                @keyup.enter="commitRename(tab)"
+                @blur="commitRename(tab)"
+              />
+              <el-icon class="debug-tab__close" @click.stop="closeTab(tab)"><Close /></el-icon>
+            </div>
+
+            <button class="debug-tabbar__add" :disabled="!canAddTab" @click="addTab">
+              <el-icon><Plus /></el-icon>
+            </button>
+          </div>
+
+          <div class="debug-tabbar__right">
+            <el-button text @click="curlVisible = true">
+              <el-icon class="mr-1"><Download /></el-icon>
+              导入 cURL
+            </el-button>
+            <div
+              class="debug-tab debug-tab--history"
+              :class="{ 'is-active': showHistory }"
+              @click="switchTab(HISTORY_TAB_ID)"
+            >
+              <el-icon><Clock /></el-icon>
+              <span>历史记录</span>
+            </div>
+          </div>
+        </div>
+      </template>
+
+      <!-- Main Content -->
+      <template v-if="!showHistory && activeTab">
+        <div class="debug-page__body" :style="{ '--req-h': requestHeight + '%' }">
+          <DebugRequestPanel
+            v-model:tab="activeTab"
+            class="debug-page__request"
+            :executing="executing"
+            :can-save="canSave"
+            @execute="handleExecute($event)"
+            @save="handleSave"
           />
-          <el-icon class="debug-tab__close" @click.stop="closeTab(tab)"><Close /></el-icon>
+          <div class="debug-page__divider" @mousedown="onDividerMouseDown">
+            <div class="debug-page__divider-line" />
+          </div>
+          <DebugResponseViewer class="debug-page__response" :response="activeTab.response" />
         </div>
+      </template>
 
-        <button class="debug-tabbar__add" :disabled="!canAddTab" @click="addTab">
-          <el-icon><Plus /></el-icon>
-        </button>
-      </div>
-
-      <div class="debug-tabbar__right">
-        <el-button size="small" text @click="curlVisible = true">
-          <el-icon class="mr-1"><Download /></el-icon>
-          导入 cURL
-        </el-button>
-        <div
-          class="debug-tab debug-tab--history"
-          :class="{ 'is-active': showHistory }"
-          @click="switchTab(HISTORY_TAB_ID)"
-        >
-          <el-icon><Clock /></el-icon>
-          <span>历史记录</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- Main Content -->
-    <template v-if="!showHistory && activeTab">
-      <div class="debug-page__body" :style="{ '--req-h': requestHeight + '%' }">
-        <DebugRequestPanel
-          v-model:tab="activeTab"
-          class="debug-page__request"
-          :executing="executing"
-          :can-save="canSave"
-          @execute="handleExecute($event)"
-          @save="handleSave"
-        />
-        <div class="debug-page__divider" @mousedown="onDividerMouseDown">
-          <div class="debug-page__divider-line" />
-        </div>
-        <DebugResponseViewer class="debug-page__response" :response="activeTab.response" />
-      </div>
-    </template>
-
-    <DebugHistoryView v-else class="debug-page__history" @restore="handleRestoreRecord" />
+      <DebugHistoryView v-else class="debug-page__history" @restore="handleRestoreRecord" />
+    </el-card>
 
     <!-- cURL Import Dialog -->
     <el-dialog v-model="curlVisible" title="导入 cURL" width="560">
@@ -400,7 +403,27 @@ function handleAuxClick(e: MouseEvent, tab: DebugTab) {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: var(--color-bg, #fff);
+
+  &__card {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    border-radius: var(--radius-lg);
+
+    :deep(.el-card__header) {
+      padding: 0;
+      border-bottom: none;
+    }
+
+    :deep(.el-card__body) {
+      flex: 1;
+      min-height: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+  }
 
   // ==================== Tab Bar ====================
   &__tabbar {

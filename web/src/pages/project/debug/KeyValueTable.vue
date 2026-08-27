@@ -76,13 +76,12 @@ onMounted(() => {
       <tbody>
         <tr v-for="(entry, index) in entries" :key="index" class="kv-table__row">
           <td class="kv-table__col-enable">
-            <el-checkbox v-model="entry.enabled" size="small" @change="notify()" />
+            <el-checkbox v-model="entry.enabled" @change="notify()" />
           </td>
           <td>
             <el-select
               v-if="props.suggestions"
               :model-value="entry.key"
-              size="small"
               filterable
               allow-create
               :placeholder="props.placeholderKey ?? 'Key'"
@@ -94,19 +93,18 @@ onMounted(() => {
             <el-input
               v-else
               v-model="entry.key"
-              size="small"
               :placeholder="props.placeholderKey ?? 'Key'"
               @input="notify()"
             />
           </td>
           <td>
-            <el-input v-model="entry.value" size="small" placeholder="Value" @input="notify()" />
+            <el-input v-model="entry.value" placeholder="Value" @input="notify()" />
           </td>
           <td v-if="props.showDescription">
-            <el-input v-model="entry.description" size="small" placeholder="Description" @input="notify()" />
+            <el-input v-model="entry.description" placeholder="Description" @input="notify()" />
           </td>
           <td class="kv-table__col-op">
-            <el-button link type="danger" size="small" @click="removeRow(index)">
+            <el-button link type="danger" @click="removeRow(index)">
               <el-icon><Delete /></el-icon>
             </el-button>
           </td>
@@ -166,6 +164,10 @@ onMounted(() => {
 
     :deep(.el-input__wrapper) {
       padding: 1px 8px;
+    }
+
+    :deep(.el-select__caret) {
+      display: none;
     }
   }
 
