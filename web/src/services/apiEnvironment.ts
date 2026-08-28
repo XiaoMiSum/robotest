@@ -160,6 +160,13 @@ export function testDataSource(environmentId: string, dataSourceId: string): Pro
   return post(`/project/environments/${environmentId}/data-sources/${dataSourceId}/test`)
 }
 
+export function testDataSourceConfig(
+  environmentId: string,
+  config: Pick<ApiDataSourcePayload, 'driver' | 'url' | 'connectionProperties'>,
+): Promise<ApiDataSourceTestResp> {
+  return post(`/project/environments/${environmentId}/data-sources/test`, config)
+}
+
 export function testHttpConfig(environmentId: string, httpConfigId: string): Promise<ApiHttpTestResp> {
   return post(`/project/environments/${environmentId}/http-configs/${httpConfigId}/test`)
 }
