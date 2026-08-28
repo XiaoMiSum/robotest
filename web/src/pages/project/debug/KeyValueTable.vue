@@ -133,6 +133,7 @@ onMounted(() => {
 
   &__col-op {
     width: 30px;
+    text-align: center;
   }
 
   &__row {
