@@ -183,110 +183,114 @@ async function removeCurrent() {
 
 <template>
   <div v-loading="loading" class="interface-editor">
-    <header class="interface-editor__header">
-      <el-button link data-test="editor-back-btn" @click="goBack">
-        <el-icon><ArrowLeft /></el-icon>
-        返回列表
-      </el-button>
+    <el-card shadow="never">
+      <template #header>
+        <div class="interface-editor__header">
+          <el-button link data-test="editor-back-btn" @click="goBack">
+            <el-icon><ArrowLeft /></el-icon>
+            返回列表
+          </el-button>
 
-      <template v-if="!isNew">
-        <el-icon class="interface-editor__star" :class="{ 'is-active': detail?.followed }" @click="toggleFollow">
-          <StarFilled v-if="detail?.followed" /><Star v-else />
-        </el-icon>
-        <span v-if="detail" class="interface-editor__version">v{{ detail.changeVersion }}</span>
+          <template v-if="!isNew">
+            <el-icon class="interface-editor__star" :class="{ 'is-active': detail?.followed }" @click="toggleFollow">
+              <StarFilled v-if="detail?.followed" /><Star v-else />
+            </el-icon>
+            <span v-if="detail" class="interface-editor__version">v{{ detail.changeVersion }}</span>
+          </template>
+
+          <div class="interface-editor__spacer" />
+
+          <el-button v-if="!isNew" data-test="editor-changelogs-btn" @click="showChangeLogs = true">变更历史</el-button>
+          <el-button v-if="!isNew" type="danger" plain data-test="editor-delete-btn" @click="removeCurrent">删除</el-button>
+          <el-button type="primary" :loading="saving" data-test="editor-save-btn" @click="save">
+            {{ isNew ? '创建' : '保存' }}
+          </el-button>
+        </div>
       </template>
 
-      <div class="interface-editor__spacer" />
+      <div class="interface-editor__request-line">
+        <el-select v-model="form.method" style="width: 130px" data-test="editor-method-select">
+          <el-option v-for="method in METHOD_OPTIONS" :key="method" :value="method" :label="method" />
+        </el-select>
+        <el-tag size="small" :type="methodTagType(form.method)" class="interface-editor__protocol">http</el-tag>
+        <el-input v-model="form.path" placeholder="/api/resource" style="flex: 1" data-test="editor-path-input" />
+        <el-input v-model="form.name" placeholder="接口名称" style="width: 260px" data-test="editor-name-input" />
+      </div>
 
-      <el-button v-if="!isNew" data-test="editor-changelogs-btn" @click="showChangeLogs = true">变更历史</el-button>
-      <el-button v-if="!isNew" type="danger" plain data-test="editor-delete-btn" @click="removeCurrent">删除</el-button>
-      <el-button type="primary" :loading="saving" data-test="editor-save-btn" @click="save">
-        {{ isNew ? '创建' : '保存' }}
-      </el-button>
-    </header>
+      <el-tabs v-model="activeTab" class="interface-editor__tabs">
+        <el-tab-pane name="basic" label="基本信息">
+          <div class="interface-editor__field-row interface-editor__field-row--top">
+            <span class="interface-editor__field-label">描述</span>
+            <el-input v-model="form.description" type="textarea" :rows="3" data-test="editor-description-input" />
+          </div>
+          <div class="interface-editor__field-row interface-editor__field-row--top">
+            <span class="interface-editor__field-label">响应示例</span>
+            <el-input
+              v-model="form.responseExampleText"
+              type="textarea"
+              :rows="8"
+              placeholder='{"status": 200, "body": {...}}'
+              data-test="editor-response-example-input"
+            />
+          </div>
+        </el-tab-pane>
 
-    <div class="interface-editor__request-line">
-      <el-select v-model="form.method" style="width: 130px" data-test="editor-method-select">
-        <el-option v-for="method in METHOD_OPTIONS" :key="method" :value="method" :label="method" />
-      </el-select>
-      <el-tag size="small" :type="methodTagType(form.method)" class="interface-editor__protocol">http</el-tag>
-      <el-input v-model="form.path" placeholder="/api/resource" style="flex: 1" data-test="editor-path-input" />
-      <el-input v-model="form.name" placeholder="接口名称" style="width: 260px" data-test="editor-name-input" />
-    </div>
+        <el-tab-pane name="headers" label="请求头">
+          <KeyValueTable v-model:entries="form.headers" placeholder-key="Header" />
+        </el-tab-pane>
 
-    <el-tabs v-model="activeTab" class="interface-editor__tabs">
-      <el-tab-pane name="basic" label="基本信息">
-        <div class="interface-editor__field-row interface-editor__field-row--top">
-          <span class="interface-editor__field-label">描述</span>
-          <el-input v-model="form.description" type="textarea" :rows="3" data-test="editor-description-input" />
-        </div>
-        <div class="interface-editor__field-row interface-editor__field-row--top">
-          <span class="interface-editor__field-label">响应示例</span>
+        <el-tab-pane name="query" label="Query 参数">
+          <KeyValueTable v-model:entries="form.params" placeholder-key="参数名" />
+        </el-tab-pane>
+
+        <el-tab-pane name="rest" label="路径参数">
+          <p class="interface-editor__hint">路径中以 {id} 形式声明的占位参数在此配置默认值。</p>
+          <KeyValueTable v-model:entries="restRows" placeholder-key="参数名" />
+        </el-tab-pane>
+
+        <el-tab-pane name="body" label="请求体">
+          <el-radio-group v-model="form.bodyType" class="interface-editor__body-types" data-test="editor-body-type-group">
+            <el-radio-button v-for="option in BODY_TYPE_OPTIONS" :key="option.value" :value="option.value">
+              {{ option.label }}
+            </el-radio-button>
+          </el-radio-group>
+
           <el-input
-            v-model="form.responseExampleText"
+            v-if="form.bodyType === 'json'"
+            v-model="form.jsonText"
             type="textarea"
-            :rows="8"
-            placeholder='{"status": 200, "body": {...}}'
-            data-test="editor-response-example-input"
+            :rows="12"
+            placeholder='{ "username": "admin" }'
+            data-test="editor-json-body-input"
           />
-        </div>
-      </el-tab-pane>
+          <template v-else-if="form.bodyType === 'form'">
+            <p class="interface-editor__hint">文件上传字段随测试场景模块开放，当前支持文本表单。</p>
+            <KeyValueTable v-model:entries="form.formRows" placeholder-key="字段名" />
+          </template>
+          <el-input
+            v-else-if="form.bodyType === 'raw'"
+            v-model="form.rawText"
+            type="textarea"
+            :rows="12"
+            placeholder="原始请求体内容"
+          />
+          <p v-else class="interface-editor__hint">该请求不携带请求体。</p>
+        </el-tab-pane>
 
-      <el-tab-pane name="headers" label="请求头">
-        <KeyValueTable v-model:entries="form.headers" placeholder-key="Header" />
-      </el-tab-pane>
+        <el-tab-pane v-if="!isNew" name="steps" label="公共步骤">
+          <StepsPanel
+            v-if="detail"
+            :interface-id="interfaceId"
+            :steps="detail.steps"
+            @change="(steps) => (detail!.steps = steps)"
+          />
+        </el-tab-pane>
 
-      <el-tab-pane name="query" label="Query 参数">
-        <KeyValueTable v-model:entries="form.params" placeholder-key="参数名" />
-      </el-tab-pane>
-
-      <el-tab-pane name="rest" label="路径参数">
-        <p class="interface-editor__hint">路径中以 {id} 形式声明的占位参数在此配置默认值。</p>
-        <KeyValueTable v-model:entries="restRows" placeholder-key="参数名" />
-      </el-tab-pane>
-
-      <el-tab-pane name="body" label="请求体">
-        <el-radio-group v-model="form.bodyType" class="interface-editor__body-types" data-test="editor-body-type-group">
-          <el-radio-button v-for="option in BODY_TYPE_OPTIONS" :key="option.value" :value="option.value">
-            {{ option.label }}
-          </el-radio-button>
-        </el-radio-group>
-
-        <el-input
-          v-if="form.bodyType === 'json'"
-          v-model="form.jsonText"
-          type="textarea"
-          :rows="12"
-          placeholder='{ "username": "admin" }'
-          data-test="editor-json-body-input"
-        />
-        <template v-else-if="form.bodyType === 'form'">
-          <p class="interface-editor__hint">文件上传字段随测试场景模块开放，当前支持文本表单。</p>
-          <KeyValueTable v-model:entries="form.formRows" placeholder-key="字段名" />
-        </template>
-        <el-input
-          v-else-if="form.bodyType === 'raw'"
-          v-model="form.rawText"
-          type="textarea"
-          :rows="12"
-          placeholder="原始请求体内容"
-        />
-        <p v-else class="interface-editor__hint">该请求不携带请求体。</p>
-      </el-tab-pane>
-
-      <el-tab-pane v-if="!isNew" name="steps" label="公共步骤">
-        <StepsPanel
-          v-if="detail"
-          :interface-id="interfaceId"
-          :steps="detail.steps"
-          @change="(steps) => (detail!.steps = steps)"
-        />
-      </el-tab-pane>
-
-      <el-tab-pane v-if="!isNew" name="variables" label="变量">
-        <VariablesPanel :interface-id="interfaceId" />
-      </el-tab-pane>
-    </el-tabs>
+        <el-tab-pane v-if="!isNew" name="variables" label="变量">
+          <VariablesPanel :interface-id="interfaceId" />
+        </el-tab-pane>
+      </el-tabs>
+    </el-card>
 
     <ChangeLogsPanel v-if="!isNew" v-model="showChangeLogs" :interface-id="interfaceId" />
   </div>

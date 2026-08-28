@@ -213,126 +213,130 @@ onMounted(async () => {
 
 <template>
   <div class="interfaces-page">
-    <header class="interfaces-page__toolbar">
-      <el-input
-        v-model="searchText"
-        placeholder="搜索名称 / 路径"
-        clearable
-        style="width: 240px"
-        data-test="interface-search-input"
-        @keyup.enter="handleSearch"
-        @clear="handleSearch"
-      />
-      <el-select v-model="statusFilter" clearable placeholder="状态" style="width: 120px" data-test="interface-status-filter">
-        <el-option value="enabled" label="启用" />
-        <el-option value="disabled" label="停用" />
-      </el-select>
-      <el-segmented
-        v-model="viewFilter"
-        :options="VIEW_OPTIONS"
-        data-test="interface-view-switch"
-      />
-      <div class="interfaces-page__spacer" />
-      <el-button data-test="interface-import-btn" @click="showImport = true">导入</el-button>
-      <el-button type="primary" data-test="interface-create-btn" @click="openCreate">新建接口</el-button>
-    </header>
-
-    <div v-if="hasSelection" class="interfaces-page__banner">
-      <span>已选 {{ selectedRows.length }} 项</span>
-      <el-button size="small" data-test="batch-move-btn" @click="showBatchMove = true">批量移动</el-button>
-      <el-button size="small" type="danger" plain data-test="batch-delete-btn" @click="confirmBatchDelete">批量删除</el-button>
-    </div>
-
-    <div class="interfaces-page__body">
-      <aside class="interfaces-page__modules">
-        <div class="interfaces-page__modules-title">模块</div>
-        <el-tree
-          :data="moduleTree"
-          node-key="id"
-          :props="{ label: 'name', children: 'children' }"
-          :expand-on-click-node="false"
-          highlight-current
-          @node-click="handleModuleSelect"
-        >
-          <template #default="{ data }">
-            <span class="interfaces-page__module-node">{{ data.name }}</span>
+    <el-card v-loading="loading" shadow="never">
+      <template #header>
+        <div class="interfaces-page__toolbar">
+          <el-input
+            v-model="searchText"
+            placeholder="搜索名称 / 路径"
+            clearable
+            style="width: 240px"
+            data-test="interface-search-input"
+            @keyup.enter="handleSearch"
+            @clear="handleSearch"
+          />
+          <el-select v-model="statusFilter" clearable placeholder="状态" style="width: 120px" data-test="interface-status-filter">
+            <el-option value="enabled" label="启用" />
+            <el-option value="disabled" label="停用" />
+          </el-select>
+          <el-segmented
+            v-model="viewFilter"
+            :options="VIEW_OPTIONS"
+            data-test="interface-view-switch"
+          />
+          <div class="interfaces-page__spacer" />
+          <template v-if="hasSelection">
+            <span class="interfaces-page__selected-count">已选 {{ selectedRows.length }} 项</span>
+            <el-button size="small" data-test="batch-move-btn" @click="showBatchMove = true">批量移动</el-button>
+            <el-button size="small" type="danger" plain data-test="batch-delete-btn" @click="confirmBatchDelete">批量删除</el-button>
+            <el-divider direction="vertical" />
           </template>
-        </el-tree>
-      </aside>
+          <el-button data-test="interface-import-btn" @click="showImport = true">导入</el-button>
+          <el-button type="primary" data-test="interface-create-btn" @click="openCreate">新建接口</el-button>
+        </div>
+      </template>
 
-      <section v-loading="loading" class="interfaces-page__table-wrap">
-        <el-table
-          :data="rows"
-          data-test="interface-table"
-          @selection-change="(selection: ApiInterfaceItem[]) => (selectedRows = selection)"
-        >
-          <el-table-column type="selection" width="42" />
-          <el-table-column width="44">
-            <template #default="{ row }">
-              <el-icon
-                class="interfaces-page__star"
-                :class="{ 'is-active': row.followed }"
-                :data-test="'interface-star-' + row.id"
-                @click="toggleFollow(row as ApiInterfaceItem)"
-              ><StarFilled v-if="row.followed" /><Star v-else /></el-icon>
+      <div class="interfaces-page__body">
+        <aside class="interfaces-page__modules">
+          <div class="interfaces-page__modules-title">模块</div>
+          <el-tree
+            :data="moduleTree"
+            node-key="id"
+            :props="{ label: 'name', children: 'children' }"
+            :expand-on-click-node="false"
+            highlight-current
+            @node-click="handleModuleSelect"
+          >
+            <template #default="{ data }">
+              <span class="interfaces-page__module-node">{{ data.name }}</span>
             </template>
-          </el-table-column>
-          <el-table-column prop="name" label="名称" min-width="180" show-overflow-tooltip>
-            <template #default="{ row }">
-              <el-link type="primary" :underline="false" @click="openEditor(row as Pick<ApiInterfaceItem, 'id'>)">{{ row.name }}</el-link>
+          </el-tree>
+        </aside>
+
+        <section class="interfaces-page__table-wrap">
+          <el-table
+            :data="rows"
+            data-test="interface-table"
+            @selection-change="(selection: ApiInterfaceItem[]) => (selectedRows = selection)"
+          >
+            <el-table-column type="selection" width="42" />
+            <el-table-column width="44">
+              <template #default="{ row }">
+                <el-icon
+                  class="interfaces-page__star"
+                  :class="{ 'is-active': row.followed }"
+                  :data-test="'interface-star-' + row.id"
+                  @click="toggleFollow(row as ApiInterfaceItem)"
+                ><StarFilled v-if="row.followed" /><Star v-else /></el-icon>
+              </template>
+            </el-table-column>
+            <el-table-column prop="name" label="名称" min-width="180" show-overflow-tooltip>
+              <template #default="{ row }">
+                <el-link type="primary" :underline="false" @click="openEditor(row as Pick<ApiInterfaceItem, 'id'>)">{{ row.name }}</el-link>
+              </template>
+            </el-table-column>
+            <el-table-column label="方法" width="90">
+              <template #default="{ row }">
+                <el-tag size="small" :type="methodTagType(row.method)">{{ row.method }}</el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column prop="path" label="路径" min-width="220" show-overflow-tooltip />
+            <el-table-column label="模块" width="140">
+              <template #default="{ row }">{{ row.moduleId ? moduleNames.get(row.moduleId) ?? '—' : '—' }}</template>
+            </el-table-column>
+            <el-table-column label="状态" width="90">
+              <template #default="{ row }">
+                <el-switch
+                  :model-value="row.status === 'enabled'"
+                  size="small"
+                  @change="(value: string | number | boolean) => handleStatusChange(row as ApiInterfaceItem, value ? 'enabled' : 'disabled')"
+                />
+              </template>
+            </el-table-column>
+            <el-table-column prop="referenceCount" label="引用" width="70" align="center" />
+            <el-table-column prop="updatedAt" label="更新时间" width="170">
+              <template #default="{ row }">{{ formatDateTime(row.updatedAt) }}</template>
+            </el-table-column>
+            <el-table-column label="操作" width="190" fixed="right">
+              <template #default="{ row }">
+                <el-button link size="small" type="primary" :data-test="'interface-debug-' + row.id" @click="debugFromRow(row as ApiInterfaceItem)">调试</el-button>
+                <el-button link size="small" @click="openEditor(row as Pick<ApiInterfaceItem, 'id'>)">编辑</el-button>
+                <el-dropdown trigger="click" @command="(cmd: string) => cmd === 'copy' ? handleCopy(row as ApiInterfaceItem) : handleDelete(row as ApiInterfaceItem)">
+                  <el-button link size="small">更多</el-button>
+                  <template #dropdown>
+                    <el-dropdown-menu>
+                      <el-dropdown-item command="copy">复制</el-dropdown-item>
+                      <el-dropdown-item command="delete" divided>删除</el-dropdown-item>
+                    </el-dropdown-menu>
+                  </template>
+                </el-dropdown>
+              </template>
+            </el-table-column>
+            <template #empty>
+              <el-empty description="暂无接口，点击右上角「新建接口」或导入现有定义" />
             </template>
-          </el-table-column>
-          <el-table-column label="方法" width="90">
-            <template #default="{ row }">
-              <el-tag size="small" :type="methodTagType(row.method)">{{ row.method }}</el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column prop="path" label="路径" min-width="220" show-overflow-tooltip />
-          <el-table-column label="模块" width="140">
-            <template #default="{ row }">{{ row.moduleId ? moduleNames.get(row.moduleId) ?? '—' : '—' }}</template>
-          </el-table-column>
-          <el-table-column label="状态" width="90">
-            <template #default="{ row }">
-              <el-switch
-                :model-value="row.status === 'enabled'"
-                size="small"
-                @change="(value: string | number | boolean) => handleStatusChange(row as ApiInterfaceItem, value ? 'enabled' : 'disabled')"
-              />
-            </template>
-          </el-table-column>
-          <el-table-column prop="referenceCount" label="引用" width="70" align="center" />
-          <el-table-column prop="updatedAt" label="更新时间" width="170">
-            <template #default="{ row }">{{ formatDateTime(row.updatedAt) }}</template>
-          </el-table-column>
-          <el-table-column label="操作" width="190" fixed="right">
-            <template #default="{ row }">
-              <el-button link size="small" type="primary" :data-test="'interface-debug-' + row.id" @click="debugFromRow(row as ApiInterfaceItem)">调试</el-button>
-              <el-button link size="small" @click="openEditor(row as Pick<ApiInterfaceItem, 'id'>)">编辑</el-button>
-              <el-dropdown trigger="click" @command="(cmd: string) => cmd === 'copy' ? handleCopy(row as ApiInterfaceItem) : handleDelete(row as ApiInterfaceItem)">
-                <el-button link size="small">更多</el-button>
-                <template #dropdown>
-                  <el-dropdown-menu>
-                    <el-dropdown-item command="copy">复制</el-dropdown-item>
-                    <el-dropdown-item command="delete" divided>删除</el-dropdown-item>
-                  </el-dropdown-menu>
-                </template>
-              </el-dropdown>
-            </template>
-          </el-table-column>
-          <template #empty>
-            <el-empty description="暂无接口，点击右上角「新建接口」或导入现有定义" />
-          </template>
-        </el-table>
-        <el-pagination
-          v-model:current-page="pageNo"
-          :page-size="pageSize"
-          :total="total"
-          layout="total, prev, pager, next"
-          class="interfaces-page__pagination"
-          @current-change="loadPage"
-        />
-      </section>
-    </div>
+          </el-table>
+          <el-pagination
+            v-model:current-page="pageNo"
+            :page-size="pageSize"
+            :total="total"
+            layout="total, prev, pager, next"
+            class="interfaces-page__pagination"
+            @current-change="loadPage"
+          />
+        </section>
+      </div>
+    </el-card>
 
     <ImportDialog v-model="showImport" @imported="handleImported" />
 
@@ -358,6 +362,7 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   gap: var(--space-md);
+  height: 100%;
 }
 
 .interfaces-page__toolbar {
@@ -370,14 +375,9 @@ onMounted(async () => {
   flex: 1;
 }
 
-.interfaces-page__banner {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-  padding: var(--space-sm) var(--space-md);
-  background: var(--color-primary-50, #eff6ff);
-  border-radius: var(--radius-md);
+.interfaces-page__selected-count {
   font-size: var(--font-size-sm);
+  color: var(--color-neutral-500);
 }
 
 .interfaces-page__body {

@@ -179,111 +179,117 @@ onMounted(async () => {
 
 <template>
   <div class="scenarios-page">
-    <header class="scenarios-page__toolbar">
-      <el-input
-        v-model="searchText"
-        placeholder="搜索场景名称"
-        clearable
-        style="width: 240px"
-        @keyup.enter="handleSearch"
-        @clear="handleSearch"
-      />
-      <el-select v-model="statusFilter" style="width: 140px">
-        <el-option v-for="opt in STATUS_OPTIONS" :key="opt.value" :value="opt.value" :label="opt.label" />
-      </el-select>
-      <el-checkbox v-model="followedOnly" label="我关注的" border size="default" style="margin-left: 4px" />
-      <div class="scenarios-page__spacer" />
-      <el-button v-if="selectedIds.length > 0" type="danger" plain @click="handleBatchDelete">
-        批量删除 ({{ selectedIds.length }})
-      </el-button>
-      <el-button type="primary" @click="openCreate">新建场景</el-button>
-    </header>
-
-    <div class="scenarios-page__body">
-      <aside class="scenarios-page__modules">
-        <div class="scenarios-page__modules-title">模块</div>
-        <el-tree
-          :data="moduleTree"
-          node-key="id"
-          :props="{ label: 'name', children: 'children' }"
-          :expand-on-click-node="false"
-          highlight-current
-          @node-click="handleModuleSelect"
-        >
-          <template #default="{ data }">
-            <span class="scenarios-page__module-node">{{ data.name }}</span>
+    <el-card v-loading="loading" shadow="never">
+      <template #header>
+        <div class="scenarios-page__toolbar">
+          <el-input
+            v-model="searchText"
+            placeholder="搜索场景名称"
+            clearable
+            style="width: 240px"
+            @keyup.enter="handleSearch"
+            @clear="handleSearch"
+          />
+          <el-select v-model="statusFilter" style="width: 140px">
+            <el-option v-for="opt in STATUS_OPTIONS" :key="opt.value" :value="opt.value" :label="opt.label" />
+          </el-select>
+          <el-checkbox v-model="followedOnly" label="我关注的" border size="default" style="margin-left: 4px" />
+          <div class="scenarios-page__spacer" />
+          <template v-if="selectedIds.length > 0">
+            <span class="scenarios-page__selected-count">已选 {{ selectedIds.length }} 项</span>
+            <el-button type="danger" plain @click="handleBatchDelete">批量删除</el-button>
+            <el-divider direction="vertical" />
           </template>
-        </el-tree>
-      </aside>
+          <el-button type="primary" @click="openCreate">新建场景</el-button>
+        </div>
+      </template>
 
-      <section v-loading="loading" class="scenarios-page__table-wrap">
-        <el-table :data="rows" @selection-change="(val: ApiScenePageItem[]) => selectedIds = val.map(r => r.id)">
-          <el-table-column type="selection" width="40" />
-          <el-table-column label="" width="40" align="center">
-            <template #default="{ row }">
-              <el-button
-                link
-                size="small"
-                :type="row.followed ? 'warning' : 'info'"
-                @click.stop="toggleFollow(row as ApiScenePageItem)"
-              >
-                {{ row.followed ? '★' : '☆' }}
-              </el-button>
+      <div class="scenarios-page__body">
+        <aside class="scenarios-page__modules">
+          <div class="scenarios-page__modules-title">模块</div>
+          <el-tree
+            :data="moduleTree"
+            node-key="id"
+            :props="{ label: 'name', children: 'children' }"
+            :expand-on-click-node="false"
+            highlight-current
+            @node-click="handleModuleSelect"
+          >
+            <template #default="{ data }">
+              <span class="scenarios-page__module-node">{{ data.name }}</span>
             </template>
-          </el-table-column>
-          <el-table-column prop="name" label="场景名称" min-width="200" show-overflow-tooltip>
-            <template #default="{ row }">
-              <el-link type="primary" :underline="false" @click="openDetail(row as ApiScenePageItem)">{{ row.name }}</el-link>
+          </el-tree>
+        </aside>
+
+        <section class="scenarios-page__table-wrap">
+          <el-table :data="rows" @selection-change="(val: ApiScenePageItem[]) => selectedIds = val.map(r => r.id)">
+            <el-table-column type="selection" width="40" />
+            <el-table-column label="" width="40" align="center">
+              <template #default="{ row }">
+                <el-button
+                  link
+                  size="small"
+                  :type="row.followed ? 'warning' : 'info'"
+                  @click.stop="toggleFollow(row as ApiScenePageItem)"
+                >
+                  {{ row.followed ? '★' : '☆' }}
+                </el-button>
+              </template>
+            </el-table-column>
+            <el-table-column prop="name" label="场景名称" min-width="200" show-overflow-tooltip>
+              <template #default="{ row }">
+                <el-link type="primary" :underline="false" @click="openDetail(row as ApiScenePageItem)">{{ row.name }}</el-link>
+              </template>
+            </el-table-column>
+            <el-table-column label="所属模块" width="140">
+              <template #default="{ row }">{{ row.moduleId ? moduleNames.get(row.moduleId) ?? '—' : '未分组' }}</template>
+            </el-table-column>
+            <el-table-column prop="stepCount" label="步骤数" width="80" align="center" />
+            <el-table-column label="最近执行" width="100">
+              <template #default="{ row }">
+                <el-tag v-if="row.lastStatus" size="small" :type="statusType(row.lastStatus)">{{ statusLabel(row.lastStatus) }}</el-tag>
+                <span v-else class="text-neutral-400">—</span>
+              </template>
+            </el-table-column>
+            <el-table-column prop="lastExecutedAt" label="最近执行时间" width="170">
+              <template #default="{ row }">
+                <span v-if="row.lastExecutedAt">{{ formatDateTime(row.lastExecutedAt) }}</span>
+                <span v-else class="text-neutral-400">—</span>
+              </template>
+            </el-table-column>
+            <el-table-column prop="updatedAt" label="更新时间" width="170">
+              <template #default="{ row }">{{ formatDateTime(row.updatedAt) }}</template>
+            </el-table-column>
+            <el-table-column label="操作" width="180" fixed="right">
+              <template #default="{ row }">
+                <el-button link size="small" type="primary" @click="openDetail(row as ApiScenePageItem)">编辑</el-button>
+                <el-dropdown trigger="click" @command="(cmd: string) => handleRowCommand(cmd, row as ApiScenePageItem)">
+                  <el-button link size="small">更多</el-button>
+                  <template #dropdown>
+                    <el-dropdown-menu>
+                      <el-dropdown-item command="execute">执行</el-dropdown-item>
+                      <el-dropdown-item command="copy">复制</el-dropdown-item>
+                      <el-dropdown-item command="delete" divided>删除</el-dropdown-item>
+                    </el-dropdown-menu>
+                  </template>
+                </el-dropdown>
+              </template>
+            </el-table-column>
+            <template #empty>
+              <el-empty description="暂无测试场景，点击右上角「新建场景」开始创建" />
             </template>
-          </el-table-column>
-          <el-table-column label="所属模块" width="140">
-            <template #default="{ row }">{{ row.moduleId ? moduleNames.get(row.moduleId) ?? '—' : '未分组' }}</template>
-          </el-table-column>
-          <el-table-column prop="stepCount" label="步骤数" width="80" align="center" />
-          <el-table-column label="最近执行" width="100">
-            <template #default="{ row }">
-              <el-tag v-if="row.lastStatus" size="small" :type="statusType(row.lastStatus)">{{ statusLabel(row.lastStatus) }}</el-tag>
-              <span v-else class="text-neutral-400">—</span>
-            </template>
-          </el-table-column>
-          <el-table-column prop="lastExecutedAt" label="最近执行时间" width="170">
-            <template #default="{ row }">
-              <span v-if="row.lastExecutedAt">{{ formatDateTime(row.lastExecutedAt) }}</span>
-              <span v-else class="text-neutral-400">—</span>
-            </template>
-          </el-table-column>
-          <el-table-column prop="updatedAt" label="更新时间" width="170">
-            <template #default="{ row }">{{ formatDateTime(row.updatedAt) }}</template>
-          </el-table-column>
-          <el-table-column label="操作" width="180" fixed="right">
-            <template #default="{ row }">
-              <el-button link size="small" type="primary" @click="openDetail(row as ApiScenePageItem)">编辑</el-button>
-              <el-dropdown trigger="click" @command="(cmd: string) => handleRowCommand(cmd, row as ApiScenePageItem)">
-                <el-button link size="small">更多</el-button>
-                <template #dropdown>
-                  <el-dropdown-menu>
-                    <el-dropdown-item command="execute">执行</el-dropdown-item>
-                    <el-dropdown-item command="copy">复制</el-dropdown-item>
-                    <el-dropdown-item command="delete" divided>删除</el-dropdown-item>
-                  </el-dropdown-menu>
-                </template>
-              </el-dropdown>
-            </template>
-          </el-table-column>
-          <template #empty>
-            <el-empty description="暂无测试场景，点击右上角「新建场景」开始创建" />
-          </template>
-        </el-table>
-        <el-pagination
-          v-model:current-page="pageNo"
-          :page-size="pageSize"
-          :total="total"
-          layout="total, prev, pager, next"
-          class="scenarios-page__pagination"
-          @current-change="loadPage"
-        />
-      </section>
-    </div>
+          </el-table>
+          <el-pagination
+            v-model:current-page="pageNo"
+            :page-size="pageSize"
+            :total="total"
+            layout="total, prev, pager, next"
+            class="scenarios-page__pagination"
+            @current-change="loadPage"
+          />
+        </section>
+      </div>
+    </el-card>
   </div>
 </template>
 
@@ -292,6 +298,7 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   gap: var(--space-md);
+  height: 100%;
 }
 
 .scenarios-page__toolbar {
@@ -302,6 +309,11 @@ onMounted(async () => {
 
 .scenarios-page__spacer {
   flex: 1;
+}
+
+.scenarios-page__selected-count {
+  font-size: var(--font-size-sm);
+  color: var(--color-neutral-500);
 }
 
 .scenarios-page__body {

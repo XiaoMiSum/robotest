@@ -324,20 +324,22 @@ onMounted(() => {
 
 <template>
   <div class="schedules-page">
-    <header class="schedules-page__toolbar">
-      <el-select v-model="typeFilter" placeholder="全部类型" clearable style="width: 140px">
-        <el-option
-          v-for="opt in SCHEDULE_TASK_TYPES"
-          :key="opt.value"
-          :value="opt.value"
-          :label="opt.label"
-        />
-      </el-select>
-      <div class="schedules-page__spacer" />
-      <el-button type="primary" @click="openCreate">新建任务</el-button>
-    </header>
+    <el-card v-loading="loading" shadow="never">
+      <template #header>
+        <div class="schedules-page__toolbar">
+          <el-select v-model="typeFilter" placeholder="全部类型" clearable style="width: 140px">
+            <el-option
+              v-for="opt in SCHEDULE_TASK_TYPES"
+              :key="opt.value"
+              :value="opt.value"
+              :label="opt.label"
+            />
+          </el-select>
+          <div class="schedules-page__spacer" />
+          <el-button type="primary" @click="openCreate">新建任务</el-button>
+        </div>
+      </template>
 
-    <section v-loading="loading" class="schedules-page__table-wrap">
       <el-table :data="rows">
         <el-table-column prop="name" label="任务名称" min-width="180" show-overflow-tooltip />
         <el-table-column label="类型" width="100">
@@ -400,7 +402,7 @@ trigger="click" @command="(cmd: string) => {
         class="schedules-page__pagination"
         @current-change="loadPage"
       />
-    </section>
+    </el-card>
 
     <!-- ==================== 新建/编辑弹窗 ==================== -->
     <el-dialog
@@ -559,6 +561,7 @@ trigger="click" @command="(cmd: string) => {
   display: flex;
   flex-direction: column;
   gap: var(--space-md);
+  height: 100%;
 }
 
 .schedules-page__toolbar {
@@ -569,10 +572,6 @@ trigger="click" @command="(cmd: string) => {
 
 .schedules-page__spacer {
   flex: 1;
-}
-
-.schedules-page__table-wrap {
-  min-height: 0;
 }
 
 .schedules-page__pagination {
