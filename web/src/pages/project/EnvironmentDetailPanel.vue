@@ -87,6 +87,9 @@ function hydrate(next: ApiEnvironmentDetail) {
   if (!configForms.value.some((config) => config.id === activeConfigId.value)) {
     activeConfigId.value = configForms.value[0]?.id ?? ''
   }
+  if (!dsForms.value.some((form) => form.id === activeDsId.value)) {
+    activeDsId.value = dsForms.value[0]?.id ?? ''
+  }
 }
 
 async function load() {
@@ -341,64 +344,42 @@ async function submitVarImport() {
   }
 }
 
-// ==================== 数据源（随聚合 PUT 持久化） ====================
+// ==================== 数据源（随聚合 PUT 持久化，交互同默认配置） ====================
 
-const dsDialogVisible = ref(false)
-const dsDialogMode = ref<'create' | 'edit'>('create')
-const dsForm = reactive<DsForm>({ name: '', refName: '', driver: '', url: '' })
-let dsEditTarget: DsForm | null = null
+const activeDsId = ref('')
+const activeDs = computed(() => dsForms.value.find((form) => form.id === activeDsId.value))
 
-const selectedDriverOption = computed(() => DRIVER_OPTIONS.find((option) => option.driver === dsForm.driver))
+function selectDs(form: DsForm) {
+  activeDsId.value = form.id ?? ''
+}
 
-function handleDriverChange(driver: string) {
+const selectedDsDriverOption = computed(() => DRIVER_OPTIONS.find((option) => option.driver === activeDs.value?.driver))
+
+function handleDsDriverChange(driver: string) {
+  // 切换驱动时若尚未填写 URL，自动填充该驱动的示例，避免空 URL 误保存
   const option = DRIVER_OPTIONS.find((item) => item.driver === driver)
-  if (option && !dsForm.url) dsForm.url = option.urlExample
+  if (option && activeDs.value && !activeDs.value.url) activeDs.value.url = option.urlExample
+  markDirty()
 }
 
-function openDsCreateDialog() {
-  dsDialogMode.value = 'create'
-  dsEditTarget = null
-  Object.assign(dsForm, { id: undefined, name: '', refName: `db_${dsForms.value.length + 1}`, driver: DRIVER_OPTIONS[0]?.driver ?? '', url: '' })
-  dsDialogVisible.value = true
+function addDataSource() {
+  const id = `local-${Date.now()}`
+  const next: DsForm = {
+    id,
+    name: '',
+    refName: `db_${dsForms.value.length + 1}`,
+    driver: DRIVER_OPTIONS[0]?.driver ?? '',
+    url: '',
+  }
+  dsForms.value.push(next)
+  activeDsId.value = id
+  markDirty()
 }
 
-function openDsEditDialog(form: DsForm) {
-  dsDialogMode.value = 'edit'
-  dsEditTarget = form
-  Object.assign(dsForm, { ...form })
-  dsDialogVisible.value = true
-}
-
-async function submitDsDialog() {
-  if (!dsForm.name.trim()) {
-    ElMessage.warning('请填写数据源名称')
-    return
-  }
-  if (!dsForm.url.trim()) {
-    ElMessage.warning('请填写 JDBC URL')
-    return
-  }
-  const entry: DsForm = { ...dsForm, name: dsForm.name.trim(), url: dsForm.url.trim() }
-  if (dsDialogMode.value === 'create') {
-    entry.id = `local-${Date.now()}`
-    dsForms.value.push(entry)
-  } else if (dsEditTarget) {
-    entry.id = dsEditTarget.id
-    dsForms.value = dsForms.value.map((form) => (form === dsEditTarget ? entry : form))
-  }
-  dsDialogVisible.value = false
-  if (await persistAggregate()) {
-    ElMessage.success('数据源已保存')
-    await refresh()
-  }
-}
-
-async function removeDataSource(form: DsForm) {
+function removeDs(form: DsForm) {
   dsForms.value = dsForms.value.filter((item) => item !== form)
-  if (await persistAggregate()) {
-    ElMessage.success('数据源已删除')
-    await refresh()
-  }
+  if (activeDsId.value === form.id) activeDsId.value = dsForms.value[0]?.id ?? ''
+  markDirty()
 }
 
 const testingDsId = ref('')
@@ -749,28 +730,78 @@ async function removeProcessor(processor: ApiProcessor) {
           </div>
         </el-tab-pane>
 
-        <!-- ============ 数据源 ============ -->
+        <!-- ============ 数据源（交互同默认配置：左列表 + 右内联表单） ============ -->
         <el-tab-pane :label="`数据源 (${dsForms.length})`" name="datasources">
-          <div class="env-detail__toolbar">
-            <el-button size="small" type="primary" :disabled="!canEdit" @click="openDsCreateDialog">新增数据源</el-button>
+          <div class="env-detail__split">
+            <ul class="env-detail__config-list">
+              <li
+                v-for="form in dsForms"
+                :key="form.id"
+                :class="{ 'is-active': form.id === activeDsId }"
+                @click="selectDs(form)"
+              >
+                {{ form.name || '(未命名)' }}
+              </li>
+              <li v-if="canEdit">
+                <el-button link type="primary" @click="addDataSource">+ 新增数据源</el-button>
+              </li>
+            </ul>
+
+            <div v-if="activeDs" class="env-detail__config-form">
+              <el-form label-width="110px" size="small" :disabled="!canEdit">
+                <el-form-item label="名称" required>
+                  <el-input v-model="activeDs.name" maxlength="100" @input="markDirty" />
+                </el-form-item>
+                <el-form-item label="引用名 refName">
+                  <el-input v-model="activeDs.refName" placeholder="场景中通过该名引用此数据源" @input="markDirty" />
+                </el-form-item>
+                <el-form-item label="驱动">
+                  <el-select v-model="activeDs.driver" @change="handleDsDriverChange">
+                    <el-option
+                      v-for="option in DRIVER_OPTIONS"
+                      :key="option.label"
+                      :label="option.label"
+                      :value="option.driver"
+                    />
+                  </el-select>
+                </el-form-item>
+                <el-form-item label="JDBC URL" required>
+                  <el-input
+                    v-model="activeDs.url"
+                    type="textarea"
+                    :rows="2"
+                    :placeholder="selectedDsDriverOption?.urlExample"
+                    @input="markDirty"
+                  />
+                  <span v-if="activeDs.driver === ''" class="env-detail__hint">Redis 无需驱动，按 redis:// 协议识别</span>
+                </el-form-item>
+                <el-form-item label="连接池上限">
+                  <el-input-number v-model="activeDs.maxPoolSize" :min="1" :max="100" @change="markDirty" />
+                </el-form-item>
+              </el-form>
+
+              <p class="env-detail__dialog-tip">用户名与密码请拼入 URL；保存后可通过「连接测试」验证连通性</p>
+
+              <div class="env-detail__config-footer">
+                <el-button
+                  size="small"
+                  :loading="testingDsId === activeDs.id"
+                  @click="runDsTest(activeDs)"
+                >
+                  连接测试
+                </el-button>
+                <el-button
+                  v-if="canEdit && dsForms.length > 0"
+                  size="small"
+                  type="danger"
+                  plain
+                  @click="removeDs(activeDs)"
+                >
+                  删除数据源
+                </el-button>
+              </div>
+            </div>
           </div>
-          <el-table :data="dsForms" size="small" empty-text="暂无数据源">
-            <el-table-column prop="name" label="名称" min-width="120" />
-            <el-table-column prop="refName" label="引用名" min-width="100" />
-            <el-table-column label="驱动" min-width="90">
-              <template #default="{ row }">
-                {{ DRIVER_OPTIONS.find((o) => o.driver === row.driver)?.label ?? row.driver }}
-              </template>
-            </el-table-column>
-            <el-table-column prop="url" label="JDBC URL" min-width="240" show-overflow-tooltip />
-            <el-table-column label="操作" width="210" fixed="right">
-              <template #default="{ row }">
-                <el-button link size="small" :loading="testingDsId === row.id" @click="runDsTest(row as DsForm)">测试</el-button>
-                <el-button v-if="canEdit" link size="small" @click="openDsEditDialog(row as DsForm)">编辑</el-button>
-                <el-button v-if="canEdit" link type="danger" size="small" @click="removeDataSource(row as DsForm)">删除</el-button>
-              </template>
-            </el-table-column>
-          </el-table>
         </el-tab-pane>
 
         <!-- ============ 处理器 ============ -->
@@ -820,40 +851,6 @@ async function removeProcessor(processor: ApiProcessor) {
       <template #footer>
         <el-button @click="varImportDialogVisible = false">取消</el-button>
         <el-button type="primary" :loading="varImporting" @click="submitVarImport">导入</el-button>
-      </template>
-    </el-dialog>
-
-    <!-- 数据源新建/编辑 -->
-    <el-dialog v-model="dsDialogVisible" :title="dsDialogMode === 'create' ? '新增数据源' : '编辑数据源'" width="560px">
-      <el-form label-width="110px">
-        <el-form-item label="名称" required>
-          <el-input v-model="dsForm.name" maxlength="100" />
-        </el-form-item>
-        <el-form-item label="引用名 refName">
-          <el-input v-model="dsForm.refName" placeholder="场景中通过该名引用此数据源" />
-        </el-form-item>
-        <el-form-item label="驱动">
-          <el-select v-model="dsForm.driver" @change="handleDriverChange">
-            <el-option
-              v-for="option in DRIVER_OPTIONS"
-              :key="option.label"
-              :label="option.label"
-              :value="option.driver"
-            />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="JDBC URL" required>
-          <el-input v-model="dsForm.url" type="textarea" :rows="2" :placeholder="selectedDriverOption?.urlExample" />
-          <span v-if="dsForm.driver === ''" class="env-detail__hint">Redis 无需驱动，按 redis:// 协议识别</span>
-        </el-form-item>
-        <el-form-item label="连接池上限">
-          <el-input-number v-model="dsForm.maxPoolSize" :min="1" :max="100" />
-        </el-form-item>
-      </el-form>
-      <p class="env-detail__dialog-tip">用户名与密码请拼入 URL；保存后可通过「测试」验证连通性</p>
-      <template #footer>
-        <el-button @click="dsDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="saving" @click="submitDsDialog">保存</el-button>
       </template>
     </el-dialog>
 
