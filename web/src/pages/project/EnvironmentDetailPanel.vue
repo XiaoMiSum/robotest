@@ -20,7 +20,7 @@ import {
   exportVariables,
   fetchEnvironmentDetail,
   importVariables,
-  testDataSource,
+  testDataSourceConfig,
   testHttpConfig,
   updateDataSource,
   updateHttpConfig,
@@ -406,13 +406,18 @@ async function deleteDsRow(form: DsForm) {
 const testingDsId = ref('')
 
 async function runDsTest(form: DsForm) {
-  if (!form.id || form.id.startsWith('local-')) {
-    ElMessage.warning('新数据源请先保存后再测试连接')
+  // 免保存试连：直接用表单当前值校验，新建或未保存的修改无需先落库
+  if (!form.url?.trim()) {
+    ElMessage.warning('请先填写 URL 再测试连接')
     return
   }
-  testingDsId.value = form.id
+  testingDsId.value = form.id ?? ''
   try {
-    const result = await testDataSource(props.environmentId, form.id)
+    const result = await testDataSourceConfig(props.environmentId, {
+      driver: form.driver,
+      url: form.url.trim(),
+      connectionProperties: form.connectionProperties,
+    })
     if (result.success) {
       ElMessage.success(`连接成功${result.databaseVersion ? `：${result.databaseVersion}` : ''}`)
     } else {
