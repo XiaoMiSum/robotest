@@ -128,12 +128,16 @@ onMounted(() => {
 
   &__col-enable {
     width: 30px;
-    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
   &__col-op {
     width: 30px;
-    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
   &__row {
