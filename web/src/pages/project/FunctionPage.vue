@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import { Codemirror } from 'vue-codemirror'
+import { java } from '@codemirror/lang-java'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { ApiBuiltinFunctionGroup, ApiCustomFunctionListItem, ApiFunctionScope, ApiCustomFunctionDetail } from '@/types'
 import { useAuthStore } from '@/stores/auth'
@@ -20,7 +22,6 @@ import {
   FUNCTION_TAB_OPTIONS,
   type FunctionTab,
 } from './functionModel'
-import FunctionHelperDialog from './FunctionHelperDialog.vue'
 
 /** 列表项统一类型 */
 interface DisplayListItem {
@@ -31,6 +32,9 @@ interface DisplayListItem {
   id?: string
   enabled?: boolean
 }
+
+// Groovy 与 Java 语法同构，复用 Java 语言包提供高亮
+const editorExtensions = [java()]
 
 const authStore = useAuthStore()
 const canEdit = computed(
@@ -112,6 +116,7 @@ function selectItem(type: 'builtin' | 'custom', name: string, id?: string): void
   selectedType.value = type
   selectedName.value = name
   selectedCustomId.value = id ?? ''
+  panelMode.value = 'view'
 }
 
 // 内置函数选中后的详情
@@ -128,6 +133,26 @@ const selectedBuiltinFn = computed(() => {
 const customDetail = ref<ApiCustomFunctionDetail | null>(null)
 const detailLoading = ref(false)
 
+/** 自定义函数参数：从 paramsDesc（`id:用户ID, name:名称`）解析为与内置函数参数一致的结构 */
+const customParams = computed(() => {
+  const desc = customDetail.value?.paramsDesc
+  if (!desc) return []
+  return desc.split(',').map((p) => {
+    const seg = p.trim()
+    return {
+      name: seg.split(':')[0]?.trim() ?? '',
+      required: true,
+      description: seg,
+    }
+  })
+})
+
+/** 自定义函数签名与示例：按调用名推导展示（无参数时去掉占位参数） */
+const customSignature = computed(() => {
+  const name = customDetail.value?.name ?? ''
+  return `\${${name}${customParams.value.length ? '(参数...)' : '()'}}`
+})
+
 watch(selectedCustomId, async (id) => {
   if (!id || selectedType.value !== 'custom') {
     customDetail.value = null
@@ -143,60 +168,12 @@ watch(selectedCustomId, async (id) => {
   }
 })
 
-// ==================== 新建 ====================
+// ==================== 自定义函数详情面板 ====================
 
-const createDialogVisible = ref(false)
-const createForm = reactive({
-  name: '',
-  description: '',
-  paramsDesc: '',
-  script: '',
-  scope: 'project' as ApiFunctionScope,
-})
-const creating = ref(false)
+type CustomPanelMode = 'view' | 'create' | 'edit'
 
-function openCreateDialog(): void {
-  createForm.name = ''
-  createForm.description = ''
-  createForm.paramsDesc = ''
-  createForm.script = ''
-  createForm.scope = 'project'
-  createDialogVisible.value = true
-}
-
-async function submitCreate(): Promise<void> {
-  if (!createForm.name.trim()) {
-    ElMessage.warning('请填写函数名称')
-    return
-  }
-  if (!createForm.script.trim()) {
-    ElMessage.warning('请填写 Groovy 脚本')
-    return
-  }
-  creating.value = true
-  try {
-    const resp = await createCustomFunction({
-      name: createForm.name.trim(),
-      description: createForm.description.trim() || undefined,
-      paramsDesc: createForm.paramsDesc.trim() || undefined,
-      script: createForm.script.trim(),
-      scope: createForm.scope,
-    })
-    createDialogVisible.value = false
-    ElMessage.success('函数已创建')
-    await loadCustomList()
-    selectItem('custom', createForm.name.trim(), resp.id)
-  } catch (err) {
-    ElMessage.error(resolveFunctionError(err))
-  } finally {
-    creating.value = false
-  }
-}
-
-// ==================== 编辑 ====================
-
-const editDialogVisible = ref(false)
-const editForm = reactive({
+const panelMode = ref<CustomPanelMode>('view')
+const form = reactive({
   id: '',
   name: '',
   description: '',
@@ -204,47 +181,88 @@ const editForm = reactive({
   script: '',
   scope: 'project' as ApiFunctionScope,
 })
-const editing = ref(false)
+const saving = ref(false)
 
-function openEditDialog(): void {
-  if (!customDetail.value) return
-  editForm.id = customDetail.value.id
-  editForm.name = customDetail.value.name
-  editForm.description = customDetail.value.description ?? ''
-  editForm.paramsDesc = customDetail.value.paramsDesc ?? ''
-  editForm.script = customDetail.value.script
-  editForm.scope = customDetail.value.scope
-  editDialogVisible.value = true
+function resetForm(): void {
+  form.id = ''
+  form.name = ''
+  form.description = ''
+  form.paramsDesc = ''
+  form.script = ''
+  form.scope = 'project'
 }
 
-async function submitEdit(): Promise<void> {
-  if (!editForm.name.trim()) {
+function startCreate(): void {
+  selectedType.value = 'custom'
+  selectedName.value = ''
+  selectedCustomId.value = ''
+  customDetail.value = null
+  resetForm()
+  panelMode.value = 'create'
+}
+
+function startEdit(): void {
+  if (!customDetail.value) return
+  form.id = customDetail.value.id
+  form.name = customDetail.value.name
+  form.description = customDetail.value.description ?? ''
+  form.paramsDesc = customDetail.value.paramsDesc ?? ''
+  form.script = customDetail.value.script
+  form.scope = customDetail.value.scope
+  panelMode.value = 'edit'
+}
+
+function cancelEdit(): void {
+  panelMode.value = 'view'
+  // 取消新增时若未选中任何函数则清空选择回到空态
+  if (selectedCustomId.value === '') {
+    selectedType.value = null
+    selectedName.value = ''
+  }
+}
+
+function validateForm(): boolean {
+  if (!form.name.trim()) {
     ElMessage.warning('请填写函数名称')
-    return
+    return false
   }
-  if (!editForm.script.trim()) {
+  if (!form.script.trim()) {
     ElMessage.warning('请填写 Groovy 脚本')
-    return
+    return false
   }
-  editing.value = true
+  return true
+}
+
+async function submitForm(): Promise<void> {
+  if (!validateForm()) return
+  saving.value = true
   try {
-    await updateCustomFunction(editForm.id, {
-      name: editForm.name.trim(),
-      description: editForm.description.trim() || undefined,
-      paramsDesc: editForm.paramsDesc.trim() || undefined,
-      script: editForm.script.trim(),
-      scope: editForm.scope,
-    })
-    editDialogVisible.value = false
-    ElMessage.success('已保存')
-    await loadCustomList()
-    if (selectedCustomId.value === editForm.id) {
-      customDetail.value = await fetchCustomFunctionDetail(editForm.id)
+    const payload = {
+      name: form.name.trim(),
+      description: form.description.trim() || undefined,
+      paramsDesc: form.paramsDesc.trim() || undefined,
+      script: form.script.trim(),
+      scope: form.scope,
+    }
+    if (panelMode.value === 'create') {
+      const resp = await createCustomFunction(payload)
+      ElMessage.success('函数已创建')
+      await loadCustomList()
+      panelMode.value = 'view'
+      selectItem('custom', form.name.trim(), resp.id)
+    } else {
+      await updateCustomFunction(form.id, payload)
+      ElMessage.success('已保存')
+      await loadCustomList()
+      panelMode.value = 'view'
+      if (selectedCustomId.value === form.id) {
+        customDetail.value = await fetchCustomFunctionDetail(form.id)
+      }
     }
   } catch (err) {
     ElMessage.error(resolveFunctionError(err))
   } finally {
-    editing.value = false
+    saving.value = false
   }
 }
 
@@ -299,48 +317,29 @@ async function handleDelete(item: ApiCustomFunctionListItem): Promise<void> {
   }
 }
 
-// ==================== 函数助手 ====================
-
-const helperVisible = ref(false)
-
-function openHelper(): void {
-  helperVisible.value = true
-}
-
-/** 函数助手「插入表达式」回调：函数管理页无目标输入框，复制到剪贴板 */
-function handleInsertExpression(expression: string): void {
-  void navigator.clipboard.writeText(expression).then(
-    () => ElMessage.success(`表达式已复制：${expression}`),
-    () => ElMessage.error('复制失败，请手动复制'),
-  )
-}
-
 onMounted(() => void loadAll())
 </script>
 
 <template>
   <div class="fn-page">
-    <header class="fn-page__header">
-      <div>
-        <h3 class="fn-page__title">函数管理</h3>
-        <p class="fn-page__subtitle">管理内置函数与自定义 Groovy 函数；函数助手可快速生成调用表达式</p>
-      </div>
-      <div class="fn-page__actions">
-        <el-button @click="openHelper">函数助手</el-button>
-        <el-button type="primary" :disabled="!canEdit" @click="openCreateDialog">新建函数</el-button>
-      </div>
-    </header>
-
     <div class="fn-page__body">
       <aside class="fn-page__list">
-        <!-- 搜索 -->
-        <el-input
-          v-model="keyword"
-          placeholder="搜索函数名称..."
-          clearable
-          class="fn-page__search"
-          @input="handleSearchInput"
-        />
+        <!-- 搜索 + 新增 -->
+        <div class="fn-page__search-row">
+          <el-input
+            v-model="keyword"
+            placeholder="搜索函数名称..."
+            clearable
+            class="fn-page__search"
+            @input="handleSearchInput"
+          />
+          <el-button
+            type="primary"
+            :disabled="!canEdit"
+            class="fn-page__add-btn"
+            @click="startCreate"
+          >新增</el-button>
+        </div>
 
         <!-- 标签页筛选 -->
         <el-radio-group v-model="activeTab" class="fn-page__tabs">
@@ -358,7 +357,7 @@ onMounted(() => void loadAll())
         <el-skeleton v-else-if="listLoading" :rows="8" animated class="fn-page__skeleton" />
 
         <div v-else-if="displayItems.length === 0" class="fn-page__empty">
-          <p>{{ keyword ? '无匹配函数' : '暂无自定义函数，点击新建' }}</p>
+          <p>{{ keyword ? '无匹配函数' : '暂无自定义函数，点击新增' }}</p>
           <el-button v-if="keyword" size="small" @click="keyword = ''; loadCustomList()">清除搜索</el-button>
         </div>
 
@@ -423,7 +422,45 @@ onMounted(() => void loadAll())
           </div>
         </div>
 
-        <!-- 自定义函数详情/编辑 -->
+        <!-- 自定义函数详情/编辑/新建 -->
+        <div v-else-if="selectedType === 'custom' && panelMode !== 'view' && !detailLoading" class="fn-detail">
+          <div class="fn-detail__header">
+            <h4 class="fn-detail__name">{{ panelMode === 'create' ? '新建自定义函数' : `编辑：${customDetail?.name ?? ''}` }}</h4>
+            <div class="fn-detail__header-actions">
+              <el-tag effect="plain">自定义</el-tag>
+            </div>
+          </div>
+          <el-form label-width="90px">
+            <el-form-item label="函数名称" required>
+              <el-input v-model="form.name" maxlength="100" placeholder="如：myFunc" />
+            </el-form-item>
+            <el-form-item label="作用域">
+              <el-select v-model="form.scope">
+                <el-option v-for="opt in SCOPE_OPTIONS" :key="opt.value" :label="opt.label" :value="opt.value" />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="描述">
+              <el-input v-model="form.description" type="textarea" :rows="2" maxlength="500" />
+            </el-form-item>
+            <el-form-item label="参数说明">
+              <el-input v-model="form.paramsDesc" placeholder="如：id:用户ID, name:名称" maxlength="500" />
+            </el-form-item>
+            <el-form-item label="Groovy 脚本" required>
+              <Codemirror
+                v-model="form.script"
+                :extensions="editorExtensions"
+                placeholder="// args 数组承接调用参数，返回值即求值结果&#10;return args[0]"
+                :style="{ width: '100%', height: '260px', border: '1px solid var(--color-neutral-100)', borderRadius: 'var(--radius-md)' }"
+              />
+            </el-form-item>
+          </el-form>
+          <div class="fn-detail__footer-actions">
+            <el-button @click="cancelEdit">取消</el-button>
+            <el-button type="primary" :loading="saving" @click="submitForm">保存</el-button>
+          </div>
+        </div>
+
+        <!-- 自定义函数详情（查看） -->
         <div v-else-if="selectedType === 'custom' && !detailLoading" class="fn-detail">
           <template v-if="customDetail">
             <div class="fn-detail__header">
@@ -433,20 +470,40 @@ onMounted(() => void loadAll())
                   {{ customDetail.enabled ? '已启用' : '已禁用' }}
                 </el-tag>
                 <el-tag effect="plain">{{ formatScopeLabel(customDetail.scope) }}</el-tag>
-                <el-button v-if="canEdit" size="small" @click="openEditDialog">编辑</el-button>
+                <el-button v-if="canEdit" size="small" @click="startEdit">编辑</el-button>
               </div>
             </div>
-            <div v-if="customDetail.description" class="fn-detail__section">
-              <label class="fn-detail__label">描述</label>
-              <p class="fn-detail__text">{{ customDetail.description }}</p>
+            <div class="fn-detail__section">
+              <label class="fn-detail__label">签名</label>
+              <code class="fn-detail__code">{{ customSignature }}</code>
             </div>
-            <div v-if="customDetail.paramsDesc" class="fn-detail__section">
-              <label class="fn-detail__label">参数说明</label>
-              <p class="fn-detail__text">{{ customDetail.paramsDesc }}</p>
+            <div class="fn-detail__section">
+              <label class="fn-detail__label">描述</label>
+              <p class="fn-detail__text">{{ customDetail.description || '—' }}</p>
+            </div>
+            <div class="fn-detail__section">
+              <label class="fn-detail__label">参数</label>
+              <div v-if="customParams.length > 0" class="fn-detail__params">
+                <div v-for="p in customParams" :key="p.name" class="fn-detail__param">
+                  <code class="fn-detail__code">{{ p.name }}</code>
+                  <el-tag v-if="p.required" size="small" type="warning" effect="light">必填</el-tag>
+                  <span class="fn-detail__param-desc">{{ p.description }}</span>
+                </div>
+              </div>
+              <p v-else class="fn-detail__text">—</p>
+            </div>
+            <div class="fn-detail__section">
+              <label class="fn-detail__label">示例</label>
+              <code class="fn-detail__code">{{ customSignature }}</code>
             </div>
             <div class="fn-detail__section">
               <label class="fn-detail__label">Groovy 脚本</label>
-              <pre class="fn-detail__script">{{ customDetail.script }}</pre>
+              <Codemirror
+                :model-value="customDetail.script"
+                :extensions="editorExtensions"
+                :disabled="true"
+                :style="{ width: '100%', height: 'auto', border: '1px solid var(--color-neutral-100)', borderRadius: 'var(--radius-md)' }"
+              />
             </div>
           </template>
           <div v-else class="fn-page__empty fn-page__empty--wide">
@@ -460,73 +517,6 @@ onMounted(() => void loadAll())
         </div>
       </section>
     </div>
-
-    <footer class="fn-page__footer">
-      函数助手：可在任意需要输入表达式的位置使用，快速生成 ${} 调用语法
-    </footer>
-
-    <!-- 新建函数弹窗 -->
-    <el-dialog v-model="createDialogVisible" title="新建自定义函数" width="600px">
-      <el-form label-width="90px">
-        <el-form-item label="函数名称" required>
-          <el-input v-model="createForm.name" maxlength="100" placeholder="如：myFunc" />
-        </el-form-item>
-        <el-form-item label="作用域">
-          <el-select v-model="createForm.scope">
-            <el-option v-for="opt in SCOPE_OPTIONS" :key="opt.value" :label="opt.label" :value="opt.value" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="描述">
-          <el-input v-model="createForm.description" type="textarea" :rows="2" maxlength="500" />
-        </el-form-item>
-        <el-form-item label="参数说明">
-          <el-input v-model="createForm.paramsDesc" placeholder="如：id:用户ID, name:名称" maxlength="500" />
-        </el-form-item>
-        <el-form-item label="Groovy 脚本" required>
-          <el-input
-            v-model="createForm.script"
-            type="textarea"
-            :rows="6"
-            maxlength="20000"
-            placeholder="// args 数组承接调用参数，返回值即求值结果&#10;return args[0]"
-          />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="createDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="creating" @click="submitCreate">确定</el-button>
-      </template>
-    </el-dialog>
-
-    <!-- 编辑函数弹窗 -->
-    <el-dialog v-model="editDialogVisible" title="编辑自定义函数" width="600px">
-      <el-form label-width="90px">
-        <el-form-item label="函数名称" required>
-          <el-input v-model="editForm.name" maxlength="100" />
-        </el-form-item>
-        <el-form-item label="作用域">
-          <el-select v-model="editForm.scope">
-            <el-option v-for="opt in SCOPE_OPTIONS" :key="opt.value" :label="opt.label" :value="opt.value" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="描述">
-          <el-input v-model="editForm.description" type="textarea" :rows="2" maxlength="500" />
-        </el-form-item>
-        <el-form-item label="参数说明">
-          <el-input v-model="editForm.paramsDesc" maxlength="500" />
-        </el-form-item>
-        <el-form-item label="Groovy 脚本" required>
-          <el-input v-model="editForm.script" type="textarea" :rows="6" maxlength="20000" />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="editDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="editing" @click="submitEdit">保存</el-button>
-      </template>
-    </el-dialog>
-
-    <!-- 函数助手弹窗 -->
-    <FunctionHelperDialog v-model="helperVisible" @insert="handleInsertExpression" />
   </div>
 </template>
 
@@ -536,23 +526,6 @@ onMounted(() => void loadAll())
   flex-direction: column;
   height: 100%;
   gap: var(--space-md);
-}
-
-.fn-page__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.fn-page__title {
-  margin: 0;
-  font-size: var(--font-size-lg);
-}
-
-.fn-page__subtitle {
-  margin: 4px 0 0;
-  font-size: var(--font-size-xs);
-  color: var(--color-neutral-400);
 }
 
 .fn-page__body {
@@ -575,7 +548,18 @@ onMounted(() => void loadAll())
   gap: var(--space-sm);
 }
 
+.fn-page__search-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-shrink: 0;
+}
+
 .fn-page__search {
+  flex: 1;
+}
+
+.fn-page__add-btn {
   flex-shrink: 0;
 }
 
@@ -672,11 +656,6 @@ onMounted(() => void loadAll())
   }
 }
 
-.fn-page__footer {
-  font-size: var(--font-size-xs);
-  color: var(--color-neutral-400);
-}
-
 // ========== 详情面板 ==========
 
 .fn-detail {
@@ -757,17 +736,23 @@ onMounted(() => void loadAll())
   font-size: var(--font-size-sm);
 }
 
-.fn-detail__script {
-  background: var(--color-neutral-50, #f9fafb);
-  border: 1px solid var(--color-neutral-100, #f3f4f6);
-  border-radius: var(--radius-md);
-  padding: var(--space-md);
-  font-family: monospace;
-  font-size: 13px;
-  line-height: 1.6;
+.fn-detail__footer-actions {
+  margin-top: var(--space-lg);
+  padding-top: var(--space-md);
+  border-top: 1px solid var(--color-neutral-100, #f3f4f6);
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-sm);
+}
+
+// CodeMirror 容器 display: contents，需强制编辑器与滚动区充满可用宽度，
+// 避免随最长行内容宽度自适应撑开（与其他输入框保持一致）
+:deep(.v-codemirror .cm-editor) {
+  width: 100%;
+}
+
+:deep(.v-codemirror .cm-scroller) {
+  width: 100%;
   overflow-x: auto;
-  white-space: pre-wrap;
-  word-break: break-all;
-  margin: 0;
 }
 </style>

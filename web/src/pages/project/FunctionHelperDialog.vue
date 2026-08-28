@@ -55,7 +55,7 @@ watch(visible, (v) => {
 
 const selectedFunctionName = ref('')
 const paramValues = reactive<Record<string, string>>({})
-const customExpression = ref('')
+const expressionInput = ref('')
 
 const allFunctions = computed<UnifiedFunctionItem[]>(() =>
   unifyFunctionList(builtinGroups.value, customList.value),
@@ -94,6 +94,7 @@ watch(selectedFunctionName, () => {
       paramValues[param.name] = ''
     }
   }
+  expressionInput.value = ''
   trialResult.value = null
 })
 
@@ -104,6 +105,11 @@ const generatedExpression = computed(() => {
   return buildEvaluateExpression(selectedFunction.value.name, paramValues)
 })
 
+// 选择函数或参数变化时，自动同步到表达式输入框
+watch(generatedExpression, (val) => {
+  expressionInput.value = val
+})
+
 // ==================== 试算 ====================
 
 const trialResult = ref<string | null>(null)
@@ -111,7 +117,7 @@ const trialDuration = ref<number | null>(null)
 const trialing = ref(false)
 
 async function handleTrial(): Promise<void> {
-  const expr = customExpression.value.trim() || generatedExpression.value
+  const expr = expressionInput.value.trim() || generatedExpression.value
   if (!expr) {
     ElMessage.warning('请输入或生成表达式')
     return
@@ -144,7 +150,7 @@ async function handleCopy(expression: string): Promise<void> {
 // ==================== 插入 ====================
 
 function handleInsert(): void {
-  const expr = generatedExpression.value
+  const expr = expressionInput.value.trim() || generatedExpression.value
   if (!expr) {
     ElMessage.warning('请先选择函数并填写参数')
     return
@@ -158,7 +164,7 @@ function handleInsert(): void {
 function resetState(): void {
   selectedFunctionName.value = ''
   searchKeyword.value = ''
-  customExpression.value = ''
+  expressionInput.value = ''
   trialResult.value = null
   trialDuration.value = null
   for (const key of Object.keys(paramValues)) {
@@ -238,29 +244,17 @@ function resetState(): void {
         </el-form>
       </div>
 
-      <!-- 生成结果 -->
-      <div v-if="selectedFunction" class="fn-helper__section">
-        <label class="fn-helper__label">生成表达式</label>
-        <div class="fn-helper__result">
-          <el-input
-            :model-value="generatedExpression"
-            readonly
-            class="fn-helper__result-input"
-          />
-          <el-button @click="handleCopy(generatedExpression)">复制</el-button>
-        </div>
-      </div>
-
-      <!-- 表达式试算 -->
+      <!-- 生成表达式 + 试算（合并） -->
       <div class="fn-helper__section">
-        <label class="fn-helper__label">表达式试算</label>
-        <div class="fn-helper__trial">
+        <label class="fn-helper__label">表达式</label>
+        <div class="fn-helper__expr-row">
           <el-input
-            v-model="customExpression"
-            :placeholder="generatedExpression || '输入自定义表达式，或先选择函数自动生成'"
-            class="fn-helper__trial-input"
+            v-model="expressionInput"
+            :placeholder="generatedExpression || '选择函数并填写参数后自动生成，或直接输入表达式'"
+            class="fn-helper__expr-input"
           />
-          <el-button type="primary" :loading="trialing" @click="handleTrial">试算</el-button>
+          <el-button :loading="trialing" @click="handleTrial">试算</el-button>
+          <el-button @click="handleCopy(expressionInput)">复制</el-button>
         </div>
         <div v-if="trialResult !== null" class="fn-helper__trial-result">
           <span class="fn-helper__trial-label">试算结果</span>
@@ -364,14 +358,14 @@ function resetState(): void {
   }
 }
 
-.fn-helper__result,
+.fn-helper__expr-row,
 .fn-helper__trial {
   display: flex;
   gap: var(--space-sm);
   align-items: center;
 }
 
-.fn-helper__result-input,
+.fn-helper__expr-input,
 .fn-helper__trial-input {
   flex: 1;
 }

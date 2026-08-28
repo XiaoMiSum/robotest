@@ -13,10 +13,10 @@ function builtinGroup(name: string, fns: { name: string; description: string }[]
     name,
     functions: fns.map((f) => ({
       name: f.name,
-      signature: `\${__${f.name}(...)}`,
+      signature: `\${${f.name}(...)}`,
       description: f.description,
       params: [],
-      example: `\${__${f.name}()}`,
+      example: `\${${f.name}()}`,
       builtin: true,
     })),
   }
@@ -63,21 +63,17 @@ describe('formatScopeLabel', () => {
 
 describe('buildEvaluateExpression', () => {
   it('无参数生成空括号', () => {
-    expect(buildEvaluateExpression('uuid', {})).toBe('${__uuid()}')
+    expect(buildEvaluateExpression('uuid', {})).toBe('${uuid()}')
   })
 
   it('单参数', () => {
-    expect(buildEvaluateExpression('random', { min: '1', max: '100' })).toBe('${__random(1, 100)}')
+    expect(buildEvaluateExpression('random', { min: '1', max: '100' })).toBe('${random(1, 100)}')
   })
 
   it('跳过空值参数', () => {
     expect(buildEvaluateExpression('faker', { path: 'name.fullName', locale: '' })).toBe(
-      '${__faker(name.fullName)}',
+      '${faker(name.fullName)}',
     )
-  })
-
-  it('已含 __ 前缀的函数名不重复添加', () => {
-    expect(buildEvaluateExpression('__random', { min: '1', max: '10' })).toBe('${__random(1, 10)}')
   })
 })
 
