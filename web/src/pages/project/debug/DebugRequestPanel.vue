@@ -290,7 +290,7 @@ const methodColor = computed(() => METHOD_COLORS[tab.value.method.toUpperCase()]
   &__url-bar {
     display: flex;
     gap: 8px;
-    padding: 4px 14px;
+    padding: 4px 10px;
     align-items: center;
   }
 
@@ -389,7 +389,7 @@ const methodColor = computed(() => METHOD_COLORS[tab.value.method.toUpperCase()]
   &__tabs {
     display: flex;
     gap: 0;
-    padding: 0 14px;
+    padding: 0 10px;
     border-bottom: 1px solid var(--color-neutral-100, #e8e8e8);
   }
 
@@ -436,7 +436,7 @@ const methodColor = computed(() => METHOD_COLORS[tab.value.method.toUpperCase()]
   &__content {
     flex: 1;
     overflow: auto;
-    padding: 10px 14px;
+    padding: 10px;
     min-height: 0;
   }
 

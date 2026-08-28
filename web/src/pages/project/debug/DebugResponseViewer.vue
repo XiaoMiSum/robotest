@@ -527,7 +527,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
     display: flex;
     align-items: center;
     gap: 16px;
-    padding: 8px 14px;
+    padding: 8px 10px;
     border-bottom: 1px solid var(--color-neutral-100, #e8e8e8);
     background: var(--color-neutral-50, #fafafa);
     flex-shrink: 0;
@@ -712,7 +712,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
   // ==================== Body ====================
   &__body {
     margin: 0;
-    padding: 14px;
+    padding: 12px 10px;
     font-family: ui-monospace, SFMono-Regular, monospace;
     font-size: 12px;
     line-height: 1.6;
@@ -763,12 +763,12 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
       font-size: 11px;
       color: var(--color-neutral-400, #909399);
       text-transform: uppercase;
-      padding: 8px 14px;
+      padding: 8px 10px;
       border-bottom: 1px solid var(--color-neutral-100, #e8e8e8);
     }
 
     td {
-      padding: 6px 14px;
+      padding: 6px 10px;
       font-size: 12px;
       vertical-align: top;
       border-bottom: 1px solid var(--color-neutral-50, #fafafa);
