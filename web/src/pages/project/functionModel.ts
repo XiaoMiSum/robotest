@@ -51,7 +51,7 @@ export function buildEvaluateExpression(name: string, params: Record<string, str
   const args = Object.values(params)
     .filter((v) => v !== '')
     .join(', ')
-  return name.startsWith('__') ? `\${${name}(${args})}` : `\${__${name}(${args})}`
+  return `\${${name}(${args})}`
 }
 
 // ==================== 函数列表过滤 ====================
@@ -127,7 +127,7 @@ export function unifyFunctionList(
     items.push({
       name: fn.name,
       description: fn.description ?? '',
-      signature: `\${__${fn.name}(参数...)}`,
+      signature: `\${${fn.name}(参数...)}`,
       params: fn.paramsDesc
         ? fn.paramsDesc.split(',').map((p) => ({
             name: p.trim().split(':')[0]?.trim() ?? '',
@@ -135,7 +135,7 @@ export function unifyFunctionList(
             description: p.trim(),
           }))
         : [],
-      example: `\${__${fn.name}()}`,
+      example: `\${${fn.name}()}`,
       type: 'custom',
       scope: fn.scope,
     })

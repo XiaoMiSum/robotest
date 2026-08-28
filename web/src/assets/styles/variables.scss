@@ -173,6 +173,30 @@
   transition: all var(--transition-fast) !important;
 }
 
+/* button-group / 下拉分体钮：组内贴边去圆角、组两端保留圆角，避免分割感：
+   上方统一 radius 的 !important 会压掉 el-button-group 的组内圆角规则 */
+.el-button-group > .el-button {
+  border-radius: 0 !important;
+}
+.el-button-group > .el-button:only-child {
+  border-radius: var(--radius-md) !important;
+}
+.el-button-group > .el-button:first-child:not(:only-child) {
+  border-top-left-radius: var(--radius-md) !important;
+  border-bottom-left-radius: var(--radius-md) !important;
+  border-top-right-radius: 0 !important;
+  border-bottom-right-radius: 0 !important;
+}
+.el-button-group > .el-button:last-child:not(:only-child) {
+  border-top-right-radius: var(--radius-md) !important;
+  border-bottom-right-radius: var(--radius-md) !important;
+  border-top-left-radius: 0 !important;
+  border-bottom-left-radius: 0 !important;
+}
+.el-button-group > .el-button + .el-button {
+  margin-left: 0 !important;
+}
+
 /* 输入框 */
 .el-input__wrapper {
   border-radius: var(--radius-md) !important;
