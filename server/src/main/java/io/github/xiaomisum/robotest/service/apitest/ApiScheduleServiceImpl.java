@@ -78,7 +78,7 @@ public class ApiScheduleServiceImpl implements ApiScheduleService {
     @Resource
     private ScheduledTaskRunner taskRunner;
     @Resource
-    private ApiTestTaskScheduler taskScheduler;
+    private ApiTestTaskScheduler apiTestTaskScheduler;
 
     @Override
     public PageResult<ApiSchedulePageItemRespDTO> page(UUID workspaceId, UUID projectId, UUID userId,
@@ -147,7 +147,7 @@ public class ApiScheduleServiceImpl implements ApiScheduleService {
 
         CronExpression expression = CronSupport.parse(task.getCronExpression());
         LocalDateTime nextExecutionAt = expression != null ? expression.next(LocalDateTime.now()) : null;
-        taskScheduler.onTaskChanged(task.getId());
+        apiTestTaskScheduler.onTaskChanged(task.getId());
         return ApiScheduleCreatedRespDTO.builder()
                 .id(task.getId())
                 .nextExecutionAt(nextExecutionAt)
@@ -173,7 +173,7 @@ public class ApiScheduleServiceImpl implements ApiScheduleService {
                         ? reqDTO.getEnvironmentId() : null)
                 .set(ApiScheduledTask::getCronExpression, reqDTO.getCronExpression().trim()));
         // 启停状态由独立端点维护，编辑不隐式改变调度状态
-        taskScheduler.onTaskChanged(id);
+        apiTestTaskScheduler.onTaskChanged(id);
     }
 
     @Override
@@ -183,7 +183,7 @@ public class ApiScheduleServiceImpl implements ApiScheduleService {
         taskMapper.update(null, new LambdaUpdateWrapperX<ApiScheduledTask>()
                 .eq(ApiScheduledTask::getId, id)
                 .set(ApiScheduledTask::getEnabled, reqDTO.getEnabled()));
-        taskScheduler.onTaskChanged(id);
+        apiTestTaskScheduler.onTaskChanged(id);
     }
 
     @Override
@@ -191,7 +191,7 @@ public class ApiScheduleServiceImpl implements ApiScheduleService {
         projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
         requireTask(projectId, id);
         taskMapper.deleteById(id);
-        taskScheduler.onTaskChanged(id);
+        apiTestTaskScheduler.onTaskChanged(id);
     }
 
     @Override
