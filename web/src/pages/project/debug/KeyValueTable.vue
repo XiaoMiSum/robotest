@@ -57,18 +57,15 @@ onMounted(() => {
     <table>
       <thead>
         <tr>
-          <th class="kv-table__col-enable"></th>
           <th>{{ placeholderKey ?? 'Key' }}</th>
           <th>Value</th>
           <th v-if="props.showDescription">Description</th>
+          <th class="kv-table__col-enable" />
           <th class="kv-table__col-op" />
         </tr>
       </thead>
       <tbody>
         <tr v-for="(entry, index) in entries" :key="index" class="kv-table__row">
-          <td class="kv-table__col-enable">
-            <el-checkbox v-model="entry.enabled" @change="notify()" />
-          </td>
           <td>
             <el-select
               v-if="props.suggestions"
@@ -94,6 +91,9 @@ onMounted(() => {
           <td v-if="props.showDescription">
             <el-input v-model="entry.description" placeholder="Description" @input="notify()" />
           </td>
+          <td class="kv-table__col-enable">
+            <el-checkbox v-model="entry.enabled" @change="notify()" />
+          </td>
           <td class="kv-table__col-op">
             <el-button link type="danger" @click="removeRow(index)">
               <el-icon><Delete /></el-icon>
@@ -118,21 +118,21 @@ onMounted(() => {
     font-size: 11px;
     color: var(--color-neutral-400, #909399);
     text-transform: uppercase;
-    padding: 0 8px 8px 0;
+    padding: 0 6px 8px 0;
     border-bottom: 1px solid var(--color-neutral-100, #e8e8e8);
   }
 
   td {
-    padding: 4px 8px 4px 0;
+    padding: 4px 6px 4px 0;
   }
 
   &__col-enable {
-    width: 36px;
+    width: 30px;
     text-align: center;
   }
 
   &__col-op {
-    width: 36px;
+    width: 30px;
   }
 
   &__row {
