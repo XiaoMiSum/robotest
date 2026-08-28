@@ -11,12 +11,15 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 
+import org.springframework.stereotype.Component;
+
 import static io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants.API_IMPORT_URL_UNREACHABLE;
 
 /**
  * Swagger URL 拉取（接口管理详细设计 4.3 SSRF 防护）：
  * 协议白名单 → 内网/链路本地地址黑名单 → DNS 解析后复核 → 10s 超时
  */
+@Component
 public class ImportSourceFetcher {
 
     private static final Duration TIMEOUT = Duration.ofSeconds(10);
