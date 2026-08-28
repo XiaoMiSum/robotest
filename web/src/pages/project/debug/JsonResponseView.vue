@@ -7,6 +7,8 @@ const props = defineProps<{
   value: unknown
   path: string
   depth: number
+  /** 父级为对象成员时为 true（数组元素不展示下标 key） */
+  parentHasKey?: boolean
 }>()
 
 const collapsed = ref(false)
@@ -67,7 +69,7 @@ const childIndent = computed(() => ({ 'padding-left': `${(props.depth + 1) * 16}
       >
         {{ collapsed ? '▶' : '▼' }}
       </span>
-      <span v-if="kind === 'object' && depth > 0" class="jn-key">"{{ path }}": </span>
+      <span v-if="props.parentHasKey" class="jn-key">"{{ path }}": </span>
       <template v-if="kind === 'primitive'">
         <span class="jn-token" :class="tokenClass">{{ prettyPrimitive() }}</span>
       </template>
@@ -87,7 +89,7 @@ const childIndent = computed(() => ({ 'padding-left': `${(props.depth + 1) * 16}
         class="jn-child"
         :style="childIndent"
       >
-        <JsonNode :value="item" :path="key" :depth="depth + 1" />
+        <JsonNode :value="item" :path="key" :depth="depth + 1" :parent-has-key="kind === 'object'" />
       </div>
       <div class="jn-line" :style="childIndent">
         <span class="jn-token">{{ kind === 'array' ? ']' : '}' }}</span>
