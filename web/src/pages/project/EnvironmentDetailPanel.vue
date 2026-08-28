@@ -226,20 +226,17 @@ function addVariableRow() {
   editingVariableId.value = row.id
 }
 
-function removeVariableRow(row: ApiVariable) {
-  variableRows.value = variableRows.value.filter((item) => item !== row)
-}
-
 const variablesSaving = ref(false)
 
-async function saveVariables() {
+/** 行内编辑/删除后全量校验并提交（详细设计 3.3.1 全量替换），成功后退出编辑态 */
+async function persistVariableRows(exitEdit = true) {
   for (const row of variableRows.value) {
     if (!row.name && !row.value) continue
     const others = new Set(variableRows.value.filter((item) => item !== row).map((item) => item.name))
     const error = validateVariableRow(row, others)
     if (error) {
       ElMessage.warning(`${row.name || '(未命名)'}：${error}`)
-      return
+      return false
     }
   }
   variablesSaving.value = true
@@ -249,13 +246,25 @@ async function saveVariables() {
       toVariablePayloads(variableRows.value.filter((row) => row.name)),
     )
     variableRows.value = saved.map((row) => ({ ...row }))
+    if (exitEdit) editingVariableId.value = ''
     ElMessage.success('变量已保存')
     emit('changed')
+    return true
   } catch (err) {
     ElMessage.error(resolveEnvironmentError(err))
+    return false
   } finally {
     variablesSaving.value = false
   }
+}
+
+function completeVariableEdit() {
+  void persistVariableRows()
+}
+
+async function removeVariableRow(row: ApiVariable) {
+  variableRows.value = variableRows.value.filter((item) => item !== row)
+  await persistVariableRows()
 }
 
 const varImportDialogVisible = ref(false)
@@ -537,7 +546,7 @@ async function removeProcessor(processor: ApiProcessor) {
               >
                 {{ form.name || '(未命名)' }}
               </li>
-              <li v-if="canEdit">
+              <li v-if="canEdit" class="env-detail__config-add">
                 <el-button link type="primary" @click="addHttpConfig">+ 新增配置</el-button>
               </li>
             </ul>
@@ -561,6 +570,12 @@ async function removeProcessor(processor: ApiProcessor) {
                   <el-button v-if="canEdit" link type="primary" @click="addHeader(activeConfig)">
                     + 添加
                   </el-button>
+                </div>
+                <div class="env-detail__header-row env-detail__header-row--head">
+                  <span />
+                  <span class="env-detail__header-label">Key</span>
+                  <span class="env-detail__header-label">Value</span>
+                  <span />
                 </div>
                 <div v-for="(header, index) in activeConfig.headers ?? []" :key="index" class="env-detail__header-row">
                   <el-checkbox
@@ -655,7 +670,7 @@ async function removeProcessor(processor: ApiProcessor) {
             <el-table-column label="操作" width="120" fixed="right">
               <template #default="{ row }">
                 <template v-if="row.id === editingVariableId && canEdit">
-                  <el-button link type="primary" @click="editingVariableId = ''">完成</el-button>
+                  <el-button link type="primary" :loading="variablesSaving" @click="completeVariableEdit">完成</el-button>
                 </template>
                 <template v-else>
                   <el-button v-if="canEdit" link @click="editingVariableId = row.id">编辑</el-button>
@@ -674,13 +689,8 @@ async function removeProcessor(processor: ApiProcessor) {
             class="env-detail__pager"
           />
           <p class="env-detail__syntax-tip">
-            引用语法：<code>${'{'}变量名{'}'}</code>，如 <code>${'{'}BASE_URL{'}'}</code>
+            引用语法：<code>${变量名}</code>，如 <code>${BASE_URL}</code>
           </p>
-          <div class="env-detail__toolbar env-detail__toolbar--right">
-            <el-button type="primary" :loading="variablesSaving" :disabled="!canEdit" @click="saveVariables">
-              保存变量
-            </el-button>
-          </div>
         </el-tab-pane>
 
         <!-- ============ 数据源（交互同 HTTP：左列表 + 右内联表单） ============ -->
@@ -695,7 +705,7 @@ async function removeProcessor(processor: ApiProcessor) {
               >
                 {{ form.name || '(未命名)' }}
               </li>
-              <li v-if="canEdit">
+              <li v-if="canEdit" class="env-detail__config-add">
                 <el-button link type="primary" @click="addDataSource">+ 新增数据源</el-button>
               </li>
             </ul>
@@ -883,6 +893,7 @@ async function removeProcessor(processor: ApiProcessor) {
   gap: 2px;
 
   li {
+    position: relative;
     padding: 6px var(--space-sm);
     border-radius: var(--radius-md);
     cursor: pointer;
@@ -890,13 +901,46 @@ async function removeProcessor(processor: ApiProcessor) {
     display: flex;
     align-items: center;
     gap: 6px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    // 列表项默认中性色，避免纯白面板上缺乏层级
+    color: var(--color-neutral-600);
 
     &:hover {
-      background: var(--color-neutral-50);
+      background: var(--color-primary-50);
     }
 
     &.is-active {
-      background: rgba(59, 130, 246, 0.08);
+      background: var(--color-primary-50);
+      color: var(--color-primary-600);
+      font-weight: 500;
+
+      // 选中态左侧主色竖条，对齐视觉设计「左侧菜单选中项」
+      &::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 3px;
+        height: 60%;
+        border-radius: var(--radius-sm);
+        background: var(--color-primary-500);
+      }
+    }
+  }
+
+  // 新增入口整行虚线标识，与内容项层次区分（视觉设计 2.1 主色系）
+  li.env-detail__config-add {
+    margin-top: var(--space-xs);
+    border: 1px dashed var(--color-neutral-300);
+    justify-content: center;
+    color: var(--color-primary-500);
+
+    &:hover {
+      border-color: var(--color-primary-500);
+      background: var(--color-primary-50);
     }
   }
 }
@@ -904,6 +948,11 @@ async function removeProcessor(processor: ApiProcessor) {
 .env-detail__config-form {
   flex: 1;
   min-width: 0;
+  // 内联表单区置于浅灰卡片内，与白色面板分隔层次
+  background: var(--color-neutral-50);
+  border: 1px solid var(--color-neutral-100);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg);
 }
 
 .env-detail__hint {
@@ -928,10 +977,41 @@ async function removeProcessor(processor: ApiProcessor) {
   gap: var(--space-sm);
   align-items: center;
   margin-bottom: var(--space-sm);
+
+  &:hover {
+    background: var(--color-primary-50);
+    border-radius: var(--radius-md);
+  }
+
+  // 表头标签行不做行悬停高亮
+  &--head {
+    margin-bottom: var(--space-xs);
+    font-size: var(--font-size-xs);
+    color: var(--color-neutral-400);
+
+    &:hover {
+      background: transparent;
+    }
+  }
+}
+
+.env-detail__header-label {
+  font-size: var(--font-size-xs);
+  color: var(--color-neutral-400);
+  user-select: none;
 }
 
 .env-detail__config-footer {
   margin-top: var(--space-md);
+  padding-top: var(--space-md);
+  border-top: 1px solid var(--color-neutral-100);
+  display: flex;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+
+  .el-button + .el-button {
+    margin-left: 0;
+  }
 }
 
 .env-detail__toolbar {
