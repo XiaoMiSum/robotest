@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage, ElMessageBox, type UploadUserFile } from 'element-plus'
 import type { ApiEnvironmentListItem, ApiImportResult } from '@/types'
 import { useAuthStore } from '@/stores/auth'
 import {
@@ -213,11 +213,14 @@ async function submitEdit() {
 
 const importDialogVisible = ref(false)
 const importFile = ref<File | null>(null)
+const importFileList = ref<UploadUserFile[]>([])
 const importOverwrite = ref(false)
 const importing = ref(false)
 
 function openImportDialog() {
+  // 清空上次已选文件列表，避免重开弹窗残留（交互设计 2.5）
   importFile.value = null
+  importFileList.value = []
   importOverwrite.value = false
   importDialogVisible.value = true
 }
@@ -225,6 +228,10 @@ function openImportDialog() {
 function handleImportFileChange(uploadFile: unknown) {
   const raw = (uploadFile as { raw?: File }).raw
   if (raw) importFile.value = raw
+}
+
+function handleImportFileRemove() {
+  importFile.value = null
 }
 
 async function submitImport() {
@@ -436,12 +443,14 @@ onMounted(() => void loadList(false))
     <!-- 导入弹窗：JSON 文件 + 重名处理开关（交互设计 2.5） -->
     <el-dialog v-model="importDialogVisible" title="导入环境" width="480px">
       <el-upload
+        v-model:file-list="importFileList"
         drag
         :auto-upload="false"
         :show-file-list="true"
         :limit="1"
         accept=".json,application/json"
         :on-change="handleImportFileChange"
+        :on-remove="handleImportFileRemove"
       >
         <el-icon :size="32"><UploadFilled /></el-icon>
         <div>拖拽或点击选择环境 JSON 文件</div>
