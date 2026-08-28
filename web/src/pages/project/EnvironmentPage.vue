@@ -8,11 +8,14 @@ import {
   createEnvironment,
   deleteEnvironment,
   downloadEnvironmentJson,
+  fetchEnvironmentDetail,
   fetchEnvironments,
   importEnvironment,
+  setDefaultEnvironment,
   sortEnvironment,
+  updateEnvironment,
 } from '@/services/apiEnvironment'
-import { formatImportResult, resolveEnvironmentError, sortEnvironments } from './environmentsModel'
+import { buildSavePayload, formatImportResult, resolveEnvironmentError, sortEnvironments } from './environmentsModel'
 import EnvironmentDetailPanel from './EnvironmentDetailPanel.vue'
 
 const authStore = useAuthStore()
@@ -56,11 +59,29 @@ function selectEnvironment(id: string) {
   if (id !== selectedId.value) selectedId.value = id
 }
 
-const selectedIsFirst = computed(() => sortedList.value[0]?.id === selectedId.value)
-const selectedIsLast = computed(() => {
-  const list = sortedList.value
-  return list.length > 0 && list[list.length - 1]?.id === selectedId.value
-})
+/** 行内上移/下移：相邻互换 sortOrder，两次 PATCH 后刷新保证列表与服务端一致 */
+function canMove(item: ApiEnvironmentListItem, direction: -1 | 1): boolean {
+  const ordered = sortedList.value
+  const index = ordered.findIndex((entry) => entry.id === item.id)
+  const neighbor = ordered[index + direction]
+  return index >= 0 && Boolean(neighbor)
+}
+
+async function handleMoveItem(item: ApiEnvironmentListItem, direction: -1 | 1) {
+  const ordered = sortedList.value
+  const index = ordered.findIndex((entry) => entry.id === item.id)
+  const neighbor = ordered[index + direction]
+  if (index < 0 || !neighbor) return
+  try {
+    await Promise.all([
+      sortEnvironment(item.id, neighbor.sortOrder),
+      sortEnvironment(neighbor.id, item.sortOrder),
+    ])
+    await loadList()
+  } catch (err) {
+    ElMessage.error(resolveEnvironmentError(err))
+  }
+}
 
 /** 页头 [导出] 作用于当前选中环境（交互设计 2.1/2.5） */
 async function handleExport() {
@@ -73,24 +94,6 @@ async function handleExport() {
   }
 }
 
-/** 相邻互换 sortOrder，两次 PATCH 后刷新保证列表与服务端一致 */
-async function handleMove(direction: -1 | 1) {
-  const ordered = sortedList.value
-  const index = ordered.findIndex((item) => item.id === selectedId.value)
-  const current = ordered[index]
-  const neighbor = ordered[index + direction]
-  if (!current || !neighbor) return
-  try {
-    await Promise.all([
-      sortEnvironment(current.id, neighbor.sortOrder),
-      sortEnvironment(neighbor.id, current.sortOrder),
-    ])
-    await loadList()
-  } catch (err) {
-    ElMessage.error(resolveEnvironmentError(err))
-  }
-}
-
 // ==================== 新建 ====================
 
 const createDialogVisible = ref(false)
@@ -98,6 +101,10 @@ const createForm = reactive({ name: '', description: '', isDefault: false })
 const creating = ref(false)
 
 function openCreateDialog() {
+  if (!canEdit.value) {
+    ElMessage.warning('无环境编辑权限')
+    return
+  }
   createForm.name = ''
   createForm.description = ''
   createForm.isDefault = false
@@ -143,7 +150,7 @@ function openCopyDialog(item: ApiEnvironmentListItem) {
 async function submitCopy() {
   if (!copyForm.name.trim()) return
   try {
-    // 敏感值与数据源不复制（需求 3.7.1），副本需重新填写
+    // 数据源不复制（详细设计 3.1.11），副本需重新填写
     const copied = await copyEnvironment(copySourceName.value, copyForm.name.trim())
     copyDialogVisible.value = false
     ElMessage.success('复制成功')
@@ -151,6 +158,54 @@ async function submitCopy() {
     selectEnvironment(copied.id)
   } catch (err) {
     ElMessage.error(resolveEnvironmentError(err))
+  }
+}
+
+// ==================== 编辑 ====================
+
+const editDialogVisible = ref(false)
+const editTargetId = ref('')
+const editForm = reactive({ name: '', description: '', isDefault: false })
+const editing = ref(false)
+
+function openEditDialog(item: ApiEnvironmentListItem) {
+  if (!canEdit.value) {
+    ElMessage.warning('无环境编辑权限')
+    return
+  }
+  selectEnvironment(item.id)
+  editTargetId.value = item.id
+  editForm.name = item.name
+  editForm.description = item.description || ''
+  editForm.isDefault = item.isDefault
+  editDialogVisible.value = true
+}
+
+/** 编辑走聚合 PUT：名称/描述/设为默认随完整子资源回传，避免未核验段落被清空 */
+async function submitEdit() {
+  if (!editForm.name.trim()) {
+    ElMessage.warning('请填写环境名称')
+    return
+  }
+  editing.value = true
+  try {
+    const detail = await fetchEnvironmentDetail(editTargetId.value)
+    await updateEnvironment(
+      editTargetId.value,
+      buildSavePayload(
+        { name: editForm.name.trim(), description: editForm.description.trim() || '', isDefault: editForm.isDefault },
+        detail,
+        detail.httpConfigs,
+        detail.dataSources,
+      ),
+    )
+    editDialogVisible.value = false
+    ElMessage.success('已保存')
+    await loadList()
+  } catch (err) {
+    ElMessage.error(resolveEnvironmentError(err))
+  } finally {
+    editing.value = false
   }
 }
 
@@ -211,32 +266,51 @@ async function handleDelete(item: ApiEnvironmentListItem) {
   }
 }
 
+/** 行内悬浮 [设为默认]：默认标记项目内唯一，由后端转移并刷新列表 */
+async function handleSetDefault(item: ApiEnvironmentListItem) {
+  try {
+    await ElMessageBox.confirm(
+      `确认将「${item.name}」设为默认环境？场景执行未指定环境时将使用默认环境`,
+      '设为默认',
+      { type: 'warning', confirmButtonText: '确定', cancelButtonText: '取消' },
+    )
+  } catch {
+    return
+  }
+  try {
+    await setDefaultEnvironment(item.id)
+    ElMessage.success('已设为默认')
+    await loadList()
+  } catch (err) {
+    ElMessage.error(resolveEnvironmentError(err))
+  }
+}
+
 onMounted(() => void loadList(false))
 </script>
 
 <template>
   <div class="env-page">
-    <header class="env-page__header">
-      <div>
-        <h3 class="env-page__title">环境管理</h3>
-        <p class="env-page__subtitle">默认环境在场景执行未指定环境时生效；配置项与 Ryze 对应一致</p>
-      </div>
-      <div class="env-page__actions">
-        <el-button :disabled="!canEdit" @click="openImportDialog">导入环境</el-button>
-        <el-button :disabled="!selectedId" @click="handleExport">导出</el-button>
-        <el-button type="primary" :disabled="!canEdit" @click="openCreateDialog">新建环境</el-button>
-      </div>
-    </header>
-
     <div class="env-page__body">
       <aside class="env-page__list">
-        <el-input
-          v-model="keyword"
-          placeholder="搜索环境名称..."
-          clearable
-          class="env-page__search"
-          @input="handleSearchInput"
-        />
+        <div class="env-page__search-row">
+          <el-input
+            v-model="keyword"
+            placeholder="搜索环境名称..."
+            clearable
+            class="env-page__search"
+            @input="handleSearchInput"
+          />
+          <el-dropdown type="primary" split-button trigger="click" @click="openCreateDialog">
+            新增
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item :disabled="!canEdit" @click="openImportDialog">导入环境</el-dropdown-item>
+                <el-dropdown-item :disabled="!selectedId" @click="handleExport">导出当前环境</el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
+        </div>
 
         <div v-if="loadError" class="env-page__empty">
           <p>环境列表加载失败</p>
@@ -261,14 +335,31 @@ onMounted(() => void loadList(false))
             <div class="env-page__item-main">
               <span class="env-page__item-name">{{ item.name }}</span>
               <el-tag v-if="item.isDefault" size="small" type="warning" effect="light">默认</el-tag>
+              <el-button
+                v-else-if="canEdit && !item.isDefault"
+                link
+                size="small"
+                class="env-page__item-set-default"
+                @click.stop="handleSetDefault(item)"
+              >
+                设为默认
+              </el-button>
               <el-tag v-if="item.scope === 'project'" size="small" effect="plain">项目</el-tag>
             </div>
             <div class="env-page__item-meta">
-              {{ item.variableCount }} 变量 · {{ item.dataSourceCount }} 数据源 · {{ item.processorCount }} 处理器
+              {{ item.httpConfigCount }} HTTP · {{ item.variableCount }} 变量 · {{ item.dataSourceCount }} 数据源 ·
+              {{ item.processorCount }} 处理器
             </div>
-            <div v-if="canEdit" class="env-page__item-actions" @click.stop>
-              <el-button link size="small" @click="openCopyDialog(item)">复制</el-button>
-              <el-button link size="small" type="danger" @click="handleDelete(item)">删除</el-button>
+            <div v-if="canEdit" class="env-page__item-actions">
+              <el-button link size="small" :disabled="!canMove(item, -1)" @click.stop="handleMoveItem(item, -1)">
+                上移
+              </el-button>
+              <el-button link size="small" :disabled="!canMove(item, 1)" @click.stop="handleMoveItem(item, 1)">
+                下移
+              </el-button>
+              <el-button link size="small" @click.stop="openEditDialog(item)">编辑</el-button>
+              <el-button link size="small" @click.stop="openCopyDialog(item)">复制</el-button>
+              <el-button link size="small" type="danger" @click.stop="handleDelete(item)">删除</el-button>
             </div>
           </li>
         </ul>
@@ -280,10 +371,7 @@ onMounted(() => void loadList(false))
           :key="selectedId"
           :environment-id="selectedId"
           :can-edit="canEdit"
-          :is-first="selectedIsFirst"
-          :is-last="selectedIsLast"
           @changed="loadList()"
-          @move="handleMove"
         />
         <div v-else class="env-page__empty env-page__empty--wide">
           <p>{{ listLoading ? '加载中...' : '暂无环境，点击「新建环境」创建第一个环境' }}</p>
@@ -312,6 +400,25 @@ onMounted(() => void loadList(false))
       </template>
     </el-dialog>
 
+    <!-- 编辑弹窗：名称/描述/设为默认（交互设计 2.2 编辑环境） -->
+    <el-dialog v-model="editDialogVisible" title="编辑环境" width="440px">
+      <el-form label-width="90px">
+        <el-form-item label="名称" required>
+          <el-input v-model="editForm.name" maxlength="100" placeholder="如：测试环境" />
+        </el-form-item>
+        <el-form-item label="描述">
+          <el-input v-model="editForm.description" type="textarea" :rows="2" maxlength="500" />
+        </el-form-item>
+        <el-form-item label="设为默认">
+          <el-switch v-model="editForm.isDefault" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="editDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="editing" @click="submitEdit">确定</el-button>
+      </template>
+    </el-dialog>
+
     <!-- 复制弹窗：默认「原名称（副本）」（交互设计 2.5） -->
     <el-dialog v-model="copyDialogVisible" title="复制环境" width="440px">
       <el-form label-width="90px">
@@ -319,7 +426,7 @@ onMounted(() => void loadList(false))
           <el-input v-model="copyForm.name" maxlength="100" />
         </el-form-item>
       </el-form>
-      <p class="env-page__dialog-tip">复制内容含 HTTP 配置、变量与处理器；敏感值与数据源不复制，需重新填写</p>
+      <p class="env-page__dialog-tip">复制内容含 HTTP 配置、变量（含取值）与处理器；数据源不复制，需重新填写</p>
       <template #footer>
         <el-button @click="copyDialogVisible = false">取消</el-button>
         <el-button type="primary" @click="submitCopy">确定</el-button>
@@ -359,23 +466,6 @@ onMounted(() => void loadList(false))
   gap: var(--space-md);
 }
 
-.env-page__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.env-page__title {
-  margin: 0;
-  font-size: var(--font-size-lg);
-}
-
-.env-page__subtitle {
-  margin: 4px 0 0;
-  font-size: var(--font-size-xs);
-  color: var(--color-neutral-400);
-}
-
 .env-page__body {
   flex: 1;
   display: flex;
@@ -394,6 +484,15 @@ onMounted(() => void loadList(false))
   display: flex;
   flex-direction: column;
   gap: var(--space-sm);
+}
+
+.env-page__search-row {
+  display: flex;
+  gap: var(--space-sm);
+
+  .env-page__search {
+    flex: 1;
+  }
 }
 
 .env-page__skeleton {
@@ -442,6 +541,17 @@ onMounted(() => void loadList(false))
   white-space: nowrap;
 }
 
+/* 行内 [设为默认] 悬浮行才展示，避免占位干扰名称扫描（交互设计 2.2） */
+.env-page__item-set-default {
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+
+.env-page__item:hover .env-page__item-set-default,
+.env-page__item:focus-within .env-page__item-set-default {
+  opacity: 1;
+}
+
 .env-page__item-meta {
   margin-top: 2px;
   font-size: var(--font-size-xs);
@@ -450,10 +560,21 @@ onMounted(() => void loadList(false))
 
 .env-page__item-actions {
   margin-top: 4px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 6px;
+  // 列表操作默认隐藏，悬浮行/聚焦时展示，避免噪音干扰名称扫描
+  opacity: 0;
+  transition: opacity var(--transition-fast);
 
   .el-button + .el-button {
-    margin-left: 8px;
+    margin-left: 0;
   }
+}
+
+.env-page__item:hover .env-page__item-actions,
+.env-page__item:focus-within .env-page__item-actions {
+  opacity: 1;
 }
 
 .env-page__detail {

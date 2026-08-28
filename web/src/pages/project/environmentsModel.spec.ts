@@ -21,6 +21,7 @@ function listItem(partial: Partial<ApiEnvironmentListItem>): ApiEnvironmentListI
     scope: 'project',
     isDefault: false,
     sortOrder: 0,
+    httpConfigCount: 0,
     variableCount: 0,
     dataSourceCount: 0,
     processorCount: 0,
@@ -29,7 +30,7 @@ function listItem(partial: Partial<ApiEnvironmentListItem>): ApiEnvironmentListI
 }
 
 function variable(partial: Partial<ApiVariable>): ApiVariable {
-  return { id: 'v1', name: 'K', value: 'V', hasValue: true, type: 'text', ...partial }
+  return { id: 'v1', name: 'K', value: 'V', hasValue: true, ...partial }
 }
 
 describe('environmentsModel', () => {
@@ -67,35 +68,31 @@ describe('environmentsModel', () => {
 
   describe('validateVariableRow', () => {
     it('rejects invalid names and duplicates', () => {
-      expect(validateVariableRow({ name: '', value: '', type: 'text' }, new Set())).toBe('变量名不能为空')
-      expect(validateVariableRow({ name: 'bad-name', value: '', type: 'text' }, new Set())).toContain(
+      expect(validateVariableRow({ name: '', value: '' }, new Set())).toBe('变量名不能为空')
+      expect(validateVariableRow({ name: 'bad-name', value: '' }, new Set())).toContain(
         '仅允许字母、数字与下划线',
       )
-      expect(validateVariableRow({ name: 'A', value: '', type: 'text' }, new Set(['A']))).toBe('变量名已存在')
-    })
-
-    it('enforces number parsing but allows blank sensitive values', () => {
-      expect(validateVariableRow({ name: 'N', value: 'abc', type: 'number' }, new Set())).toBe('数字类型取值非法')
-      expect(validateVariableRow({ name: 'S', value: '', type: 'sensitive' }, new Set())).toBeNull()
+      expect(validateVariableRow({ name: 'A', value: '' }, new Set(['A']))).toBe('变量名已存在')
+      expect(validateVariableRow({ name: 'S', value: '' }, new Set())).toBeNull()
       expect(isValidVariableName('BASE_URL_1')).toBe(true)
     })
   })
 
   describe('toVariablePayloads / parseVariablesJson', () => {
-    it('keeps sensitive blanks so backend preserves previous cipher', () => {
+    it('maps name/value/description and keeps blanks as undefined', () => {
       const payloads = toVariablePayloads([
-        variable({ name: 'PWD', type: 'sensitive', value: '' }),
-        variable({ name: 'URL', type: 'text', value: 'https://x' }),
+        variable({ name: 'PWD', value: '' }),
+        variable({ name: 'URL', value: 'https://x' }),
       ])
-      expect(payloads[0]).toEqual({ name: 'PWD', type: 'sensitive', description: undefined, value: undefined })
+      expect(payloads[0]).toEqual({ name: 'PWD', description: undefined, value: undefined })
       expect(payloads[1].value).toBe('https://x')
     })
 
     it('parses variable json arrays with defaults for missing fields', () => {
-      const parsed = parseVariablesJson('[{"name":"userId","value":"1","type":"number"}]')
+      const parsed = parseVariablesJson('[{"name":"userId","value":"1"}]')
       expect(parsed).toEqual({
         ok: true,
-        rows: [{ name: 'userId', type: 'number', value: '1', description: undefined }],
+        rows: [{ name: 'userId', value: '1', description: undefined }],
       })
       expect(parseVariablesJson('not json').ok).toBe(false)
       expect(parseVariablesJson('{"name":"K"}').ok).toBe(false)
@@ -118,13 +115,7 @@ describe('environmentsModel', () => {
             name: '内部 API',
             refName: 'http_1',
             baseUrl: 'https://staging.example.com',
-            defaultMethod: 'GET',
             headers: [{ key: 'Authorization', value: 'Bearer x', enabled: false }],
-            timeoutMs: 30000,
-            connectTimeoutMs: 10000,
-            followRedirects: true,
-            verifySsl: true,
-            isDefault: true,
           },
         ],
         variables: [variable({})],
@@ -137,7 +128,7 @@ describe('environmentsModel', () => {
       expect(payload.name).toBe('测试环境')
       expect(payload.httpConfigs?.[0].headers?.[0]).toEqual({ key: 'Authorization', value: 'Bearer x', enabled: false })
       expect(payload.variables?.length).toBe(1)
-      expect(createEmptyHttpConfig(1).isDefault).toBe(false)
+      expect(createEmptyHttpConfig(1).refName).toBe('http_1')
     })
 
     it('allows overriding dataSources with locally edited rows', () => {
@@ -170,10 +161,11 @@ describe('environmentsModel', () => {
   })
 
   describe('DRIVER_OPTIONS', () => {
-    it('covers the five required datasources with driverless redis', () => {
+    it('covers the five required datasources with placeholder driver for redis', () => {
       const labels = DRIVER_OPTIONS.map((option) => option.label)
       expect(labels).toContain('Redis')
-      expect(DRIVER_OPTIONS.find((option) => option.label === 'Redis')?.driver).toBe('')
+      // Redis 免驱动，'-' 仅占位满足后端 driver NOT NULL 必填校验
+      expect(DRIVER_OPTIONS.find((option) => option.label === 'Redis')?.driver).toBe('-')
       expect(DRIVER_OPTIONS.find((option) => option.label === 'PostgreSQL')?.urlExample).toContain('jdbc:postgresql')
     })
   })
