@@ -44,7 +44,7 @@ class AiReviewCheckServiceImplTest {
         TestReview review = new TestReview();
         review.setId(REVIEW_ID);
         review.setProjectId(PROJECT_ID);
-        review.setInitiatorId(USER_ID.toString());
+        review.setInitiatorId(USER_ID);
         review.setStatus(status);
         return review;
     }
@@ -59,7 +59,7 @@ class AiReviewCheckServiceImplTest {
     @Test
     void startCheck_notInitiator_throws() {
         TestReview review = review(Constants.Status.IN_PROGRESS);
-        review.setInitiatorId(UUID.randomUUID().toString());
+        review.setInitiatorId(UUID.randomUUID());
         when(testReviewMapper.selectById(REVIEW_ID)).thenReturn(review);
         assertThrows(ServiceException.class,
                 () -> service.startCheck(USER_ID, WORKSPACE_ID, PROJECT_ID, REVIEW_ID));
@@ -103,7 +103,7 @@ class AiReviewCheckServiceImplTest {
     @Test
     void getCheckResult_notInitiator_throws() {
         TestReview review = review(Constants.Status.IN_PROGRESS);
-        review.setInitiatorId(UUID.randomUUID().toString());
+        review.setInitiatorId(UUID.randomUUID());
         when(testReviewMapper.selectById(REVIEW_ID)).thenReturn(review);
         assertThrows(ServiceException.class, () -> service.getCheckResult(USER_ID, PROJECT_ID, REVIEW_ID));
     }

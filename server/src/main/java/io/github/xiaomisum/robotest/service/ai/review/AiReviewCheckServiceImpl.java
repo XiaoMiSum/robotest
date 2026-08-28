@@ -49,7 +49,7 @@ public class AiReviewCheckServiceImpl implements AiReviewCheckService {
         if (review == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_REVIEW_NOT_FOUND);
         }
-        if (!review.getInitiatorId().equals(userId.toString())) {
+        if (!review.getInitiatorId().equals(userId)) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.NO_PERMISSION);
         }
         return review;

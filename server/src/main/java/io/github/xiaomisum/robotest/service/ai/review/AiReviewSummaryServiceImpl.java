@@ -24,7 +24,6 @@ import jakarta.annotation.Resource;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
-import tools.jackson.databind.ObjectMapper;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
 import xyz.migoo.framework.common.util.JsonUtils;
 
@@ -60,8 +59,6 @@ public class AiReviewSummaryServiceImpl implements AiReviewSummaryService {
     private TestReviewModuleSnapshotMapper reviewModuleSnapshotMapper;
     @Resource
     private TestReviewRecordMapper reviewRecordMapper;
-    @Resource
-    private ObjectMapper objectMapper;
 
     @Override
     public SseEmitter generateSummary(UUID userId, UUID workspaceId, UUID projectId, UUID reviewId,
@@ -114,7 +111,7 @@ public class AiReviewSummaryServiceImpl implements AiReviewSummaryService {
         if (task == null || task.getResult() == null) {
             return null;
         }
-        AiReviewSummaryRespDTO dto = objectMapper.convertValue(task.getResult(), AiReviewSummaryRespDTO.class);
+        AiReviewSummaryRespDTO dto = JsonUtils.convert(task.getResult(), AiReviewSummaryRespDTO.class);
         dto.setGeneratedAt(task.getUpdatedAt());
         return dto;
     }
@@ -157,7 +154,7 @@ public class AiReviewSummaryServiceImpl implements AiReviewSummaryService {
         if (review == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_REVIEW_NOT_FOUND);
         }
-        if (!review.getInitiatorId().equals(userId.toString())) {
+        if (!review.getInitiatorId().equals(userId)) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.NO_PERMISSION);
         }
         return review;

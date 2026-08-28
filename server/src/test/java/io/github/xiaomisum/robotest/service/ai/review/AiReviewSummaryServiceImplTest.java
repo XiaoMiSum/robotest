@@ -83,7 +83,7 @@ class AiReviewSummaryServiceImplTest {
         review.setId(REVIEW_ID);
         review.setProjectId(PROJECT_ID);
         review.setTitle("登录模块评审");
-        review.setInitiatorId(USER_ID.toString());
+        review.setInitiatorId(USER_ID);
         review.setStatus(status);
         return review;
     }
@@ -125,7 +125,7 @@ class AiReviewSummaryServiceImplTest {
     @Test
     void notInitiator_throws() {
         TestReview review = review(Constants.Status.COMPLETED);
-        review.setInitiatorId(UUID.randomUUID().toString());
+        review.setInitiatorId(UUID.randomUUID());
         when(testReviewMapper.selectById(REVIEW_ID)).thenReturn(review);
         assertThrows(ServiceException.class,
                 () -> service.generateSummary(USER_ID, WORKSPACE_ID, PROJECT_ID, REVIEW_ID, req()));
@@ -295,8 +295,6 @@ class AiReviewSummaryServiceImplTest {
         task.setUpdatedAt(updatedAt);
         when(aiTaskMapper.findLatestSuccessByTypeAndTarget(Constants.AiTaskType.REVIEW_SUMMARY, REVIEW_ID))
                 .thenReturn(task);
-        AiReviewSummaryRespDTO converted = new AiReviewSummaryRespDTO();
-        when(objectMapper.convertValue(task.getResult(), AiReviewSummaryRespDTO.class)).thenReturn(converted);
 
         AiReviewSummaryRespDTO result = service.getSummary(REVIEW_ID, USER_ID);
 

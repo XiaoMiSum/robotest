@@ -20,7 +20,8 @@ public class TestReview extends BaseUuidDO<TestReview> {
     private UUID projectId;
     private String title;
     private String description;
-    private String initiatorId;
+    @TableField(typeHandler = UUIDTypeHandler.class)
+    private UUID initiatorId;
 
     @TableField(typeHandler = Jackson3TypeHandler.class)
     private List<UUID> participantIds;

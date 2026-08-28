@@ -105,7 +105,7 @@ class TestReviewServiceImplTest {
                 review.setId(reviewId);
                 review.setTitle("Review 1");
                 review.setStatus("in_progress");
-                review.setInitiatorId(userId.toString());
+                review.setInitiatorId(userId);
                 review.setParticipantIds(List.of(UUID.fromString("00000000-0000-0000-0000-000000000010"),
                                 UUID.fromString("00000000-0000-0000-0000-000000000011")));
 
@@ -115,7 +115,7 @@ class TestReviewServiceImplTest {
                 SysUser initiator = new SysUser();
                 initiator.setId(userId);
                 initiator.setUsername("reviewer");
-                when(userMapper.selectById(userId.toString())).thenReturn(initiator);
+                when(userMapper.selectById(userId)).thenReturn(initiator);
 
                 PageResult<TestReviewListRespDTO> result = reviewService.getReviewPage(
                                 projectId, userId, null, null, 1, 10);
@@ -179,10 +179,10 @@ class TestReviewServiceImplTest {
                 review.setId(reviewId);
                 review.setProjectId(projectId);
                 review.setTitle("Review");
-                review.setInitiatorId(userId.toString());
+                review.setInitiatorId(userId);
 
                 when(testReviewMapper.selectById(reviewId)).thenReturn(review);
-                when(userMapper.selectById(userId.toString())).thenReturn(null);
+                when(userMapper.selectById(userId)).thenReturn(null);
 
                 TestReviewDetailRespDTO result = reviewService.getReviewDetail(reviewId, userId);
 
@@ -629,7 +629,7 @@ class TestReviewServiceImplTest {
         void completeReview_success() {
                 TestReview review = new TestReview();
                 review.setId(reviewId);
-                review.setInitiatorId(userId.toString());
+                review.setInitiatorId(userId);
                 review.setStatus("in_progress");
 
                 when(testReviewMapper.selectById(reviewId)).thenReturn(review);
@@ -647,7 +647,7 @@ class TestReviewServiceImplTest {
         void completeReview_notInitiator_throws() {
                 TestReview review = new TestReview();
                 review.setId(reviewId);
-                review.setInitiatorId(otherUserId.toString());
+                review.setInitiatorId(otherUserId);
 
                 when(testReviewMapper.selectById(reviewId)).thenReturn(review);
 
@@ -667,7 +667,7 @@ class TestReviewServiceImplTest {
         void deleteReview_success() {
                 TestReview review = new TestReview();
                 review.setId(reviewId);
-                review.setInitiatorId(userId.toString());
+                review.setInitiatorId(userId);
 
                 when(testReviewMapper.selectById(reviewId)).thenReturn(review);
 
@@ -685,7 +685,7 @@ class TestReviewServiceImplTest {
         void deleteReview_notInitiator_throws() {
                 TestReview review = new TestReview();
                 review.setId(reviewId);
-                review.setInitiatorId(otherUserId.toString());
+                review.setInitiatorId(otherUserId);
 
                 when(testReviewMapper.selectById(reviewId)).thenReturn(review);
 
@@ -706,7 +706,7 @@ class TestReviewServiceImplTest {
         void syncReview_success() {
                 TestReview review = new TestReview();
                 review.setId(reviewId);
-                review.setInitiatorId(userId.toString());
+                review.setInitiatorId(userId);
                 review.setStatus("in_progress");
 
                 when(testReviewMapper.selectById(reviewId)).thenReturn(review);
@@ -747,7 +747,7 @@ class TestReviewServiceImplTest {
         void syncReview_notInitiator_throws() {
                 TestReview review = new TestReview();
                 review.setId(reviewId);
-                review.setInitiatorId(otherUserId.toString());
+                review.setInitiatorId(otherUserId);
                 review.setStatus("in_progress");
 
                 when(testReviewMapper.selectById(reviewId)).thenReturn(review);
@@ -760,7 +760,7 @@ class TestReviewServiceImplTest {
         void syncReview_notInProgress_throws() {
                 TestReview review = new TestReview();
                 review.setId(reviewId);
-                review.setInitiatorId(userId.toString());
+                review.setInitiatorId(userId);
                 review.setStatus("completed");
 
                 when(testReviewMapper.selectById(reviewId)).thenReturn(review);
@@ -773,7 +773,7 @@ class TestReviewServiceImplTest {
         void syncReview_deletedOriginal_marksDeleted() {
                 TestReview review = new TestReview();
                 review.setId(reviewId);
-                review.setInitiatorId(userId.toString());
+                review.setInitiatorId(userId);
                 review.setStatus("in_progress");
 
                 when(testReviewMapper.selectById(reviewId)).thenReturn(review);
@@ -857,7 +857,7 @@ class TestReviewServiceImplTest {
         void syncReview_syncsModuleName() {
                 TestReview review = new TestReview();
                 review.setId(reviewId);
-                review.setInitiatorId(userId.toString());
+                review.setInitiatorId(userId);
                 review.setStatus(Constants.Status.IN_PROGRESS);
 
                 when(testReviewMapper.selectById(reviewId)).thenReturn(review);
@@ -894,7 +894,7 @@ class TestReviewServiceImplTest {
         void syncReview_deletesRemovedModule() {
                 TestReview review = new TestReview();
                 review.setId(reviewId);
-                review.setInitiatorId(userId.toString());
+                review.setInitiatorId(userId);
                 review.setStatus(Constants.Status.IN_PROGRESS);
 
                 when(testReviewMapper.selectById(reviewId)).thenReturn(review);
@@ -920,7 +920,7 @@ class TestReviewServiceImplTest {
         void syncReview_deletedModule_cascadesNodeDeletion() {
                 TestReview review = new TestReview();
                 review.setId(reviewId);
-                review.setInitiatorId(userId.toString());
+                review.setInitiatorId(userId);
                 review.setStatus(Constants.Status.IN_PROGRESS);
 
                 when(testReviewMapper.selectById(reviewId)).thenReturn(review);
