@@ -19,7 +19,7 @@ public class ApiBuiltinFunctionGroupRespDTO {
         /** 调用名（不含 __ 前缀） */
         private String name;
 
-        /** 完整签名示例，如 ${__random(min, max)} */
+        /** 完整签名示例，如 ${random(min, max)} */
         private String signature;
 
         private String description;
