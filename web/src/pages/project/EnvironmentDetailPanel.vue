@@ -136,6 +136,14 @@ async function saveHttpConfig(form: ConfigForm) {
     ElMessage.warning('请填写配置名称')
     return
   }
+  if (!form.refName?.trim()) {
+    ElMessage.warning('请填写引用名')
+    return
+  }
+  if (!form.baseUrl?.trim()) {
+    ElMessage.warning('请填写 Base URL')
+    return
+  }
   const isNew = !form.id || form.id.startsWith('local-')
   savingHttpId.value = form.id ?? ''
   try {
@@ -352,6 +360,14 @@ async function saveDs(form: DsForm) {
     ElMessage.warning('请填写数据源名称')
     return
   }
+  if (!form.refName?.trim()) {
+    ElMessage.warning('请填写引用名')
+    return
+  }
+  if (!form.driver?.trim()) {
+    ElMessage.warning('请选择驱动')
+    return
+  }
   if (!form.url?.trim()) {
     ElMessage.warning('请填写连接 URL')
     return
@@ -560,10 +576,10 @@ async function removeProcessor(processor: ApiProcessor) {
                 <el-form-item label="名称" required>
                   <el-input v-model="activeConfig.name" maxlength="100" />
                 </el-form-item>
-                <el-form-item label="引用名">
+                <el-form-item label="引用名" required>
                   <el-input v-model="activeConfig.refName" placeholder="场景中通过该名引用此配置" />
                 </el-form-item>
-                <el-form-item label="Base URL">
+                <el-form-item label="Base URL" required>
                   <el-input v-model="activeConfig.baseUrl" placeholder="https://api.example.com" />
                 </el-form-item>
               </el-form>
@@ -692,10 +708,10 @@ async function removeProcessor(processor: ApiProcessor) {
                 <el-form-item label="名称" required>
                   <el-input v-model="activeDs.name" maxlength="100" />
                 </el-form-item>
-                <el-form-item label="引用名">
+                <el-form-item label="引用名" required>
                   <el-input v-model="activeDs.refName" placeholder="场景中通过该名引用此数据源" />
                 </el-form-item>
-                <el-form-item label="驱动">
+                <el-form-item label="驱动" required>
                   <el-select v-model="activeDs.driver" @change="handleDsDriverChange">
                     <el-option
                       v-for="option in DRIVER_OPTIONS"
@@ -718,8 +734,6 @@ async function removeProcessor(processor: ApiProcessor) {
                   <el-input-number v-model="activeDs.maxPoolSize" :min="1" :max="100" />
                 </el-form-item>
               </el-form>
-
-              <p class="env-detail__dialog-tip">用户名与密码请拼入 URL；保存后可通过「连接测试」验证连通性</p>
 
               <div class="env-detail__config-footer">
                 <el-button
