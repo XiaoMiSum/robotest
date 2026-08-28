@@ -11,6 +11,8 @@ import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.jspecify.annotations.NonNull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -32,6 +34,8 @@ import java.util.UUID;
 @Component
 public class WorkspaceRoleInterceptor implements HandlerInterceptor {
 
+    private static final Logger log = LoggerFactory.getLogger(WorkspaceRoleInterceptor.class);
+
     @Resource
     private WorkspaceUserMapper workspaceUserMapper;
     @Resource
@@ -41,18 +45,20 @@ public class WorkspaceRoleInterceptor implements HandlerInterceptor {
     public boolean preHandle(@NonNull HttpServletRequest request, @NonNull HttpServletResponse response, @NonNull Object handler) {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth == null || !(auth.getPrincipal() instanceof LoginUser loginUser)) {
+            log.debug("[WS-Auth] 无 LoginUser，跳过工作空间权限加载");
             return true;
         }
 
         String workspaceIdStr = request.getHeader("X-Active-Workspace");
         if (!StringUtils.hasText(workspaceIdStr)) {
+            log.debug("[WS-Auth] 无 X-Active-Workspace 头，跳过工作空间权限加载");
             return true;
         }
         UUID workspaceId;
         try {
             workspaceId = UUID.fromString(workspaceIdStr);
         } catch (IllegalArgumentException e) {
-            // 非 UUID 的工作空间头视为无上下文，避免解析异常导致请求 500
+            log.warn("[WS-Auth] X-Active-Workspace 非 UUID 格式: {}", workspaceIdStr);
             return true;
         }
 
@@ -61,11 +67,13 @@ public class WorkspaceRoleInterceptor implements HandlerInterceptor {
                         .eq(WorkspaceUser::getUserId, loginUser.getId())
                         .eq(WorkspaceUser::getWorkspaceId, workspaceId));
         if (workspaceUser == null || workspaceUser.getWorkspaceRole() == null) {
+            log.warn("[WS-Auth] 用户 {} 在工作空间 {} 无角色分配", loginUser.getId(), workspaceId);
             return true;
         }
 
         SysRole role = roleMapper.selectById(workspaceUser.getWorkspaceRole());
         if (role == null) {
+            log.warn("[WS-Auth] 角色 {} 不存在", workspaceUser.getWorkspaceRole());
             return true;
         }
 
@@ -80,6 +88,7 @@ public class WorkspaceRoleInterceptor implements HandlerInterceptor {
         }
 
         loginUser.appendWorkspaceAuthorities(authorities);
+        log.debug("[WS-Auth] 已加载工作空间 {} 权限: {}", workspaceId, loginUser.getPermissions());
         return true;
     }
 }
