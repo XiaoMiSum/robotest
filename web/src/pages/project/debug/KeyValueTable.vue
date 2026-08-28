@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { onMounted, watch } from 'vue'
 import type { ApiDebugKeyValue } from '@/types'
 
 const entries = defineModel<ApiDebugKeyValue[]>('entries', { required: true })
@@ -52,6 +52,16 @@ onMounted(() => {
     entries.value.push(emptyRow())
   }
 })
+
+// 切换数据源后 entries 指向新数组：为空时补一行，避免表格只剩表头（同 onMounted 语义）
+watch(
+  () => entries.value.length,
+  (length) => {
+    if (!props.disabled && length === 0) {
+      entries.value.push(emptyRow())
+    }
+  },
+)
 </script>
 
 <template>

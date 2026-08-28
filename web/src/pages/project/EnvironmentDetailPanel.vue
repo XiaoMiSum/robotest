@@ -38,6 +38,7 @@ import {
   validateVariableRow,
 } from './environmentsModel'
 import KeyValueTable from './debug/KeyValueTable.vue'
+import ProcessorForm from '@/components/api-testing/ProcessorForm.vue'
 
 const props = defineProps<{ environmentId: string; canEdit: boolean }>()
 const emit = defineEmits<{ changed: [] }>()
@@ -449,16 +450,15 @@ async function runDsTest(form: DsForm) {
 
 const procDialogVisible = ref(false)
 const procDialogMode = ref<'create' | 'edit'>('create')
-const procForm = reactive<{ id?: string; processorType: ApiProcessorType; name: string; configRaw: string; enabled: boolean }>({
+const procForm = reactive<{ id?: string; processorType: ApiProcessorType; name: string; config: Record<string, unknown> }>({
   processorType: 'preprocessor',
   name: '',
-  configRaw: '',
-  enabled: true,
+  config: {},
 })
 
 function openProcCreateDialog(processorType: ApiProcessorType) {
   procDialogMode.value = 'create'
-  Object.assign(procForm, { id: undefined, processorType, name: '', configRaw: '', enabled: true })
+  Object.assign(procForm, { id: undefined, processorType, name: '', config: {} })
   procDialogVisible.value = true
 }
 
@@ -468,8 +468,7 @@ function openProcEditDialog(processor: ApiProcessor) {
     id: processor.id,
     processorType: processor.processorType,
     name: processor.name,
-    configRaw: processor.config ? JSON.stringify(processor.config, null, 2) : '',
-    enabled: processor.enabled,
+    config: processor.config ?? {},
   })
   procDialogVisible.value = true
 }
@@ -479,22 +478,14 @@ async function submitProcDialog() {
     ElMessage.warning('请填写处理器名称')
     return
   }
-  let config: Record<string, unknown> | undefined
-  if (procForm.configRaw.trim()) {
-    try {
-      const parsed: unknown = JSON.parse(procForm.configRaw)
-      if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) throw new Error('not object')
-      config = parsed as Record<string, unknown>
-    } catch {
-      ElMessage.error('config 须为合法 JSON 对象')
-      return
-    }
-  }
+  const config = procForm.config
   const body = {
     processorType: procForm.processorType,
     name: procForm.name.trim(),
-    config,
-    enabled: procForm.enabled,
+    config: Object.keys(config).length > 0 ? config : undefined,
+    // ProcessorForm 内编辑的启用/排序号同步到实体顶层列，供列表开关与执行快照过滤使用
+    enabled: config.enabled !== false,
+    sortOrder: typeof config.sortOrder === 'number' ? config.sortOrder : 0,
   }
   try {
     if (procDialogMode.value === 'create') {
@@ -818,7 +809,7 @@ async function removeProcessor(processor: ApiProcessor) {
     </el-dialog>
 
     <!-- 处理器新建/编辑 -->
-    <el-dialog v-model="procDialogVisible" :title="procDialogMode === 'create' ? '新增处理器' : '编辑处理器'" width="560px">
+    <el-dialog v-model="procDialogVisible" :title="procDialogMode === 'create' ? '新增处理器' : '编辑处理器'" width="640px">
       <el-form label-width="110px">
         <el-form-item label="类别">
           <el-radio-group v-model="procForm.processorType" :disabled="procDialogMode === 'edit'">
@@ -829,12 +820,7 @@ async function removeProcessor(processor: ApiProcessor) {
         <el-form-item label="名称" required>
           <el-input v-model="procForm.name" maxlength="100" />
         </el-form-item>
-        <el-form-item label="config (JSON)">
-          <el-input v-model="procForm.configRaw" type="textarea" :rows="6" placeholder='{"script":"..."}' />
-        </el-form-item>
-        <el-form-item label="启用">
-          <el-switch v-model="procForm.enabled" />
-        </el-form-item>
+        <ProcessorForm v-model="procForm.config" />
       </el-form>
       <template #footer>
         <el-button @click="procDialogVisible = false">取消</el-button>
