@@ -19,7 +19,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import tools.jackson.databind.json.JsonMapper;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -54,8 +53,6 @@ class AiMinderTranslationToolTest {
     @Mock
     private TestCaseNodeMapper testCaseNodeMapper;
 
-    private final JsonMapper objectMapper = new JsonMapper();
-
     private AiMinderTranslationTool tool;
     private AiToolContext context;
     private UUID documentId;
@@ -64,7 +61,7 @@ class AiMinderTranslationToolTest {
     @BeforeEach
     void setUp() {
         tool = new AiMinderTranslationTool(promptAssembler, provider, chatModelService,
-                configService, testCaseDocumentMapper, testCaseNodeMapper, objectMapper);
+                configService, testCaseDocumentMapper, testCaseNodeMapper);
         documentId = UUID.randomUUID();
         context = new AiToolContext(UUID.randomUUID(), UUID.randomUUID(),
                 Map.of("documentId", documentId.toString()));

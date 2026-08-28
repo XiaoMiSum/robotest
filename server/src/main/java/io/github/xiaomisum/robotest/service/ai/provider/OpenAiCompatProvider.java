@@ -17,8 +17,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
 import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.ObjectMapper;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
+import xyz.migoo.framework.common.util.JsonUtils;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
@@ -50,12 +50,6 @@ public class OpenAiCompatProvider {
     /** 无法解析的上游 SSE 帧超过该阈值判定上游异常 */
     private static final int BAD_FRAME_THRESHOLD = 20;
 
-    private final ObjectMapper objectMapper;
-
-    public OpenAiCompatProvider(ObjectMapper objectMapper) {
-        this.objectMapper = objectMapper;
-    }
-
     /**
      * 同步对话调用（网络/5xx 自动重试 1 次，401/403 不重试）
      */
@@ -84,7 +78,7 @@ public class OpenAiCompatProvider {
                 .uri("/chat/completions")
                 .header("Authorization", "Bearer " + config.apiKey())
                 .contentType(MediaType.APPLICATION_JSON)
-                .body(objectMapper.writeValueAsString(body))
+                .body(JsonUtils.toJsonString(body))
                 .exchange((request, response) -> {
                     if (!response.getStatusCode().is2xxSuccessful()) {
                         log.warn("[AI] 流式调用上游返回 {}", response.getStatusCode());
@@ -113,7 +107,7 @@ public class OpenAiCompatProvider {
                             }
                             JsonNode chunk;
                             try {
-                                chunk = objectMapper.readTree(data);
+                                chunk = JsonUtils.toJSON(data);
                             } catch (Exception e) {
                                 if (++badFrames > BAD_FRAME_THRESHOLD) {
                                     throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_CALL_FAILED);
@@ -150,7 +144,7 @@ public class OpenAiCompatProvider {
                 .uri("/chat/completions")
                 .header("Authorization", "Bearer " + config.apiKey())
                 .contentType(MediaType.APPLICATION_JSON)
-                .body(objectMapper.writeValueAsString(body))
+                .body(JsonUtils.toJsonString(body))
                 .exchange((request, response) -> {
                     if (!response.getStatusCode().is2xxSuccessful()) {
                         log.warn("[AI] 流式调用上游返回 {}", response.getStatusCode());
@@ -181,7 +175,7 @@ public class OpenAiCompatProvider {
                             }
                             JsonNode chunk;
                             try {
-                                chunk = objectMapper.readTree(data);
+                                chunk = JsonUtils.toJSON(data);
                             } catch (Exception e) {
                                 if (++badFrames > BAD_FRAME_THRESHOLD) {
                                     throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_CALL_FAILED);
@@ -235,8 +229,8 @@ public class OpenAiCompatProvider {
                                     String argsJson = acc.argumentsBuilder.toString();
                                     args = (argsJson.isEmpty() || "{}".equals(argsJson))
                                             ? Map.of()
-                                            : objectMapper.readValue(argsJson, objectMapper.getTypeFactory()
-                                                    .constructMapType(Map.class, String.class, Object.class));
+                                            : JsonUtils.parseObject(argsJson,
+                                                    new tools.jackson.core.type.TypeReference<Map<String, Object>>() {});
                                 } catch (Exception e) {
                                     log.warn("[AI] tool_calls arguments 解析失败: {}", e.getMessage());
                                     args = Map.of();
@@ -342,7 +336,7 @@ public class OpenAiCompatProvider {
             return "{}";
         }
         try {
-            return objectMapper.writeValueAsString(arguments);
+            return JsonUtils.toJsonString(arguments);
         } catch (Exception e) {
             return "{}";
         }
@@ -393,10 +387,10 @@ public class OpenAiCompatProvider {
                 .uri(path)
                 .header("Authorization", "Bearer " + apiKey)
                 .contentType(MediaType.APPLICATION_JSON)
-                .body(objectMapper.writeValueAsString(body))
+                .body(JsonUtils.toJsonString(body))
                 .retrieve()
                 .body(String.class);
-        return objectMapper.readTree(response);
+        return JsonUtils.toJSON(response);
     }
 
     private RestClient buildClient(String baseUrl, int readTimeoutMillis) {

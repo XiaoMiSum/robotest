@@ -25,7 +25,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.ObjectMapper;
+import xyz.migoo.framework.common.util.JsonUtils;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -54,8 +54,6 @@ public class DocumentPersistenceHandler {
 
     private static final String ERROR_CODE_PERMISSION_DENIED = "PERMISSION_DENIED";
 
-    private final ObjectMapper objectMapper = new ObjectMapper();
-
     @Resource
     private TestCaseNodeMapper testCaseNodeMapper;
     @Resource
@@ -71,7 +69,7 @@ public class DocumentPersistenceHandler {
     @Transactional(rollbackFor = Exception.class)
     public void persist(UUID docId, String message, WebSocketSession session) {
         try {
-            JsonNode root = objectMapper.readTree(message);
+            JsonNode root = JsonUtils.toJSON(message);
             String type = root.path("type").asString();
             JsonNode payload = root.path("payload");
 
@@ -86,17 +84,17 @@ public class DocumentPersistenceHandler {
 
             switch (type) {
                 case Constants.WebSocket.MSG_UPDATE_LAYOUT -> {
-                    Map<String, Object> layout = objectMapper.convertValue(payload, Map.class);
+                    Map<String, Object> layout = JsonUtils.convert(payload, Map.class);
                     persistLayout(docId, layout);
                 }
                 case Constants.WebSocket.MSG_ADD_NODE ->
-                        handleAddNode(docId, objectMapper.treeToValue(payload.get("data"), DocumentAddNodeReqDTO.class));
+                        handleAddNode(docId, JsonUtils.toObject(payload.get("data"), DocumentAddNodeReqDTO.class));
                 case Constants.WebSocket.MSG_UPDATE_ATTRS ->
-                        handleUpdateAttrs(objectMapper.treeToValue(payload.get("data"), DocumentUpdateAttrsReqDTO.class));
+                        handleUpdateAttrs(JsonUtils.toObject(payload.get("data"), DocumentUpdateAttrsReqDTO.class));
                 case Constants.WebSocket.MSG_DELETE_NODE ->
-                        handleDeleteNode(objectMapper.treeToValue(payload.get("data"), DocumentDeleteNodeReqDTO.class));
+                        handleDeleteNode(JsonUtils.toObject(payload.get("data"), DocumentDeleteNodeReqDTO.class));
                 case Constants.WebSocket.MSG_MOVE_NODE ->
-                        handleMoveNode(objectMapper.treeToValue(payload.get("data"), DocumentMoveNodeReqDTO.class));
+                        handleMoveNode(JsonUtils.toObject(payload.get("data"), DocumentMoveNodeReqDTO.class));
                 default -> log.debug("Unknown type: {}", type);
             }
         } catch (Exception e) {
@@ -110,7 +108,7 @@ public class DocumentPersistenceHandler {
             return;
         }
         try {
-            String errorJson = objectMapper.writeValueAsString(
+            String errorJson = JsonUtils.toJsonString(
                     Map.of("type", Constants.WebSocket.MSG_TYPE_ERROR, "code", code, "message", message));
             synchronized (session) {
                 session.sendMessage(new TextMessage(errorJson));

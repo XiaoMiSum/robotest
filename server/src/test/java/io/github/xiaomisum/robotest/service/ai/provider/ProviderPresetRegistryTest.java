@@ -3,7 +3,6 @@ package io.github.xiaomisum.robotest.service.ai.provider;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiProviderPresetRespDTO;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import tools.jackson.databind.ObjectMapper;
 import xyz.migoo.framework.common.exception.ServiceException;
 
 import java.util.LinkedHashMap;
@@ -22,7 +21,7 @@ class ProviderPresetRegistryTest {
 
     @BeforeEach
     void setUp() {
-        registry = new ProviderPresetRegistry(new ObjectMapper());
+        registry = new ProviderPresetRegistry();
     }
 
     @Test

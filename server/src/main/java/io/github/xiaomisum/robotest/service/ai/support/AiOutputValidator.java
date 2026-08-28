@@ -3,7 +3,7 @@ package io.github.xiaomisum.robotest.service.ai.support;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validator;
 import org.springframework.stereotype.Component;
-import tools.jackson.databind.ObjectMapper;
+import xyz.migoo.framework.common.util.JsonUtils;
 
 import java.util.Set;
 import java.util.function.Consumer;
@@ -22,11 +22,9 @@ public class AiOutputValidator {
     private static final Pattern THINK_PATTERN = Pattern.compile("<think>[\\s\\S]*?</think>", Pattern.CASE_INSENSITIVE);
     private static final Pattern FENCE_PATTERN = Pattern.compile("```[a-zA-Z]*\\s*|```");
 
-    private final ObjectMapper objectMapper;
     private final Validator validator;
 
-    public AiOutputValidator(ObjectMapper objectMapper, Validator validator) {
-        this.objectMapper = objectMapper;
+    public AiOutputValidator(Validator validator) {
         this.validator = validator;
     }
 
@@ -106,7 +104,7 @@ public class AiOutputValidator {
         }
         T result;
         try {
-            result = objectMapper.readValue(json, resultType);
+            result = JsonUtils.parseObject(json, resultType);
         } catch (Exception e) {
             throw new OutputValidationException("JSON 无法绑定为目标结构：" + e.getMessage());
         }

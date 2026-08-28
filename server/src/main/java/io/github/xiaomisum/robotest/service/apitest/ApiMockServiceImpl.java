@@ -1,6 +1,5 @@
 package io.github.xiaomisum.robotest.service.apitest;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.xiaomisum.robotest.framework.mock.MockAccessProperties;
 import io.github.xiaomisum.robotest.framework.security.ProjectAccessGuard;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiMockBatchToggleReqDTO;
@@ -24,6 +23,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import xyz.migoo.framework.common.pojo.PageParam;
 import xyz.migoo.framework.common.pojo.PageResult;
+import xyz.migoo.framework.common.util.JsonUtils;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -50,8 +50,6 @@ public class ApiMockServiceImpl implements ApiMockService {
     private ApiInterfaceMapper interfaceMapper;
     @Resource
     private ProjectAccessGuard projectAccessGuard;
-    @Resource
-    private ObjectMapper objectMapper;
     @Resource
     private MockAccessProperties mockAccessProperties;
     @Resource
@@ -403,7 +401,7 @@ public class ApiMockServiceImpl implements ApiMockService {
         }
         if ("json".equals(bodyType)) {
             try {
-                return objectMapper.readValue(body, Object.class);
+                return JsonUtils.parseObject(body, Object.class);
             } catch (Exception ignored) {
                 // 非法 JSON 原样返回便于定位配置问题
             }

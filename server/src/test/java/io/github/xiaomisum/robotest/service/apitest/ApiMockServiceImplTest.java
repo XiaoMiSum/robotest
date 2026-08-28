@@ -22,7 +22,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.core.env.Environment;
 import org.springframework.test.util.ReflectionTestUtils;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import xyz.migoo.framework.common.exception.ServiceException;
 import xyz.migoo.framework.common.pojo.PageParam;
 import xyz.migoo.framework.common.pojo.PageResult;
@@ -65,8 +64,6 @@ class ApiMockServiceImplTest {
 
     @BeforeEach
     void injectRealDependencies() {
-        // ObjectMapper/配置对象无外部状态，直接以真实实例注入
-        ReflectionTestUtils.setField(service, "objectMapper", new ObjectMapper());
         MockAccessProperties properties = new MockAccessProperties();
         properties.setBaseUrl("http://localhost:18080/");
         ReflectionTestUtils.setField(service, "mockAccessProperties", properties);
