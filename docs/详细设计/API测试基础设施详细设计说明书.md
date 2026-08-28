@@ -575,7 +575,7 @@
 | 环境配置 | Ryze configelement type | 挂载字段 |
 | -------- | ----------------------- | -------- |
 | api_environment_http（HTTP 配置） | `http_config` | configelements 数组 |
-| api_data_source（数据源） | `data_source` | configelements 数组 |
+| api_environment_data_source（数据源） | `data_source` | configelements 数组 |
 
 **示例**：
 
@@ -721,14 +721,14 @@ Ryze 引擎执行完成后，平台收集执行结果并转换为平台自有格
 | ---- | ---- | ---- | ---- |
 | 数据源 | select | 是 | 从环境管理配置的数据源中选择；未配置时提示「请先在环境管理中配置数据源」 |
 | SQL 语句 | textarea | 是 | 支持 `${变量名}` 引用；执行前校验数据源连接 |
-| 参数 | kv-table | 否 | SQL 占位符参数，键为参数名，值为参数值 |
+| 参数 | list | 否 | SQL 占位符参数，仅值列表（对应 Ryze `args` 数组，按 `?` 占位顺序传入） |
 
 **平台 → Ryze 转换规则**（执行引擎层）：
 
 | 平台处理器类型 | → Ryze testclass | config 映射 |
 | ------------- | ----------------- | ----------- |
 | 发送 HTTP 请求 | `http` | method/method, URL/url, 请求头/headers, 请求体/body, Content-Type/body_type |
-| 执行 SQL | `jdbc` | 数据源/datasourceId, SQL 语句/sql, 参数/queryType |
+| 执行 SQL | `jdbc` | 数据源/datasourceId, SQL 语句/sql, 参数/args |
 
 **提取器（可选）：** 处理器可携带提取器，从处理器响应中提取变量供后续步骤使用。提取器列表与下方 5.3.3 提取器配置一致，以子表形式嵌入处理器配置区底部。
 
