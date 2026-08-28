@@ -60,22 +60,8 @@ public class ApiEnvironmentSaveReqDTO {
         @Size(max = 2000, message = "Base URL 不能超过 2000 字符")
         private String baseUrl;
 
-        @Size(max = 10, message = "默认方法不合法")
-        private String defaultMethod;
-
         @Valid
         private List<HeaderItem> headers;
-
-        private Integer timeoutMs = 30000;
-
-        private Integer connectTimeoutMs = 10000;
-
-        private Boolean followRedirects = true;
-
-        private Boolean verifySsl = true;
-
-        /** 每个环境有且仅有一个默认 HTTP 配置，均未标记时取首项 */
-        private Boolean isDefault = false;
     }
 
     @Data
@@ -101,9 +87,6 @@ public class ApiEnvironmentSaveReqDTO {
 
         @Size(max = 500, message = "变量描述不能超过 500 字符")
         private String description;
-
-        /** text / number / sensitive */
-        private String type = "text";
     }
 
     @Data

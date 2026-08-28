@@ -1,0 +1,27 @@
+package io.github.xiaomisum.robotest.model.dto.request.apitest;
+
+import jakarta.validation.constraints.NotBlank;
+import lombok.Data;
+
+import java.util.Map;
+
+/**
+ * 数据源独立新增/编辑（3.1.12）：按数据源粒度即时保存，连接池随编辑释放重建。
+ */
+@Data
+public class ApiEnvironmentDataSourceSaveReqDTO {
+
+    @NotBlank(message = "数据源名称不能为空")
+    private String name;
+
+    private String refName;
+
+    /** Redis 数据源免驱动，空串兜底满足 driver 列 NOT NULL 约束 */
+    private String driver;
+
+    private String url;
+
+    private Map<String, Object> connectionProperties;
+
+    private Integer maxPoolSize;
+}

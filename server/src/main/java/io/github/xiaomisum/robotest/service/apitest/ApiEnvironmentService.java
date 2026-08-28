@@ -1,6 +1,8 @@
 package io.github.xiaomisum.robotest.service.apitest;
 
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiEnvironmentCopyReqDTO;
+import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiEnvironmentDataSourceSaveReqDTO;
+import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiEnvironmentHttpConfigSaveReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiEnvironmentProcessorSaveReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiEnvironmentSaveReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiEnvironmentSortReqDTO;
@@ -14,7 +16,6 @@ import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiEnvironmentIdR
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiEnvironmentListItemRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiEnvironmentProcessorRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiEnvironmentSetDefaultRespDTO;
-import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiEnvironmentVariableRevealRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiEnvironmentVariableRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiHttpTestRespDTO;
 import org.springframework.web.multipart.MultipartFile;
@@ -62,6 +63,26 @@ public interface ApiEnvironmentService {
 
     void deleteProcessor(UUID projectId, UUID workspaceId, UUID userId, UUID id, UUID procId);
 
+    // ========== HTTP 配置子资源（3.1.12） ==========
+
+    ApiEnvironmentDetailRespDTO.HttpConfig createHttpConfig(UUID projectId, UUID workspaceId, UUID userId,
+            UUID id, ApiEnvironmentHttpConfigSaveReqDTO reqDTO);
+
+    ApiEnvironmentDetailRespDTO.HttpConfig updateHttpConfig(UUID projectId, UUID workspaceId, UUID userId,
+            UUID id, UUID httpConfigId, ApiEnvironmentHttpConfigSaveReqDTO reqDTO);
+
+    void deleteHttpConfig(UUID projectId, UUID workspaceId, UUID userId, UUID id, UUID httpConfigId);
+
+    // ========== 数据源子资源（3.1.12） ==========
+
+    ApiEnvironmentDetailRespDTO.DataSource createDataSource(UUID projectId, UUID workspaceId, UUID userId,
+            UUID id, ApiEnvironmentDataSourceSaveReqDTO reqDTO);
+
+    ApiEnvironmentDetailRespDTO.DataSource updateDataSource(UUID projectId, UUID workspaceId, UUID userId,
+            UUID id, UUID dataSourceId, ApiEnvironmentDataSourceSaveReqDTO reqDTO);
+
+    void deleteDataSource(UUID projectId, UUID workspaceId, UUID userId, UUID id, UUID dataSourceId);
+
     // ========== 变量子资源（3.3） ==========
 
     /** 全量替换环境变量（3.3.1） */
@@ -75,12 +96,8 @@ public interface ApiEnvironmentService {
     ApiEnvImportResultRespDTO importVariables(UUID projectId, UUID workspaceId, UUID userId,
             UUID id, ApiEnvironmentVariableImportReqDTO reqDTO);
 
-    /** 导出变量：敏感值脱敏（3.3.4） */
+    /** 导出变量（3.3.4） */
     List<ApiEnvironmentVariableRespDTO> exportVariables(UUID projectId, UUID workspaceId, UUID userId, UUID id);
-
-    /** 查看敏感变量明文：仅维护者，用于交互设计的 3 秒临时明文场景（文档缺口补充端点） */
-    ApiEnvironmentVariableRevealRespDTO revealVariable(UUID projectId, UUID workspaceId, UUID userId,
-            UUID id, UUID variableId);
 
     // ========== 连接测试（3.1.7 / 3.1.8） ==========
 

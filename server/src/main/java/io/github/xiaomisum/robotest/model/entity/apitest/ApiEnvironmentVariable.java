@@ -18,11 +18,9 @@ public class ApiEnvironmentVariable extends BaseUuidDO<ApiEnvironmentVariable> {
     private UUID environmentId;
     /** 变量名：仅字母/数字/下划线，同环境内唯一 */
     private String name;
-    /** type=sensitive 时存 AES-256-GCM 密文，不输出明文至前端 */
+    /** 变量取值：明文存储（详细设计 3.1.9） */
     private String value;
     private String description;
-    /** 变量类型：text / number / sensitive */
-    private String type;
     @TableField(typeHandler = UUIDTypeHandler.class)
     private UUID sourceStepId;
     @TableField(typeHandler = UUIDTypeHandler.class)

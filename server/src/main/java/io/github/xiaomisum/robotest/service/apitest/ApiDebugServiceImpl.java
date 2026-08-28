@@ -30,14 +30,12 @@ import io.github.xiaomisum.ryze.protocol.http.RealHTTPResponse;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.hc.core5.http.Header;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.stereotype.Service;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
 import xyz.migoo.framework.common.pojo.PageParam;
 import xyz.migoo.framework.common.pojo.PageResult;
 import xyz.migoo.framework.common.util.JsonUtils;
-import io.github.xiaomisum.robotest.framework.util.SecretCryptoUtil;
 import xyz.migoo.framework.mybatis.core.LambdaQueryWrapperX;
 
 import java.time.Duration;
@@ -56,7 +54,6 @@ import java.util.concurrent.RejectedExecutionException;
 @Service
 public class ApiDebugServiceImpl implements ApiDebugService {
 
-    private static final String TYPE_SENSITIVE = "sensitive";
     private static final String DEFAULT_HTTP_CONFIG = "默认 HTTP 配置";
 
     @Resource
@@ -85,9 +82,6 @@ public class ApiDebugServiceImpl implements ApiDebugService {
     private ApiTestProperties properties;
     @Resource
     private CustomFunctionRuntime functionRuntime;
-
-    @Value("${robotest.env.secret-key:}")
-    private String secretKeyBase64;
 
     @Override
     public ApiDebugExecuteRespDTO execute(UUID projectId, UUID workspaceId, UUID userId,
@@ -257,7 +251,6 @@ public class ApiDebugServiceImpl implements ApiDebugService {
             return "";
         }
         return environmentHttpMapper.listByEnvironmentId(env.getId()).stream()
-                .filter(http -> Boolean.TRUE.equals(http.getIsDefault()))
                 .findFirst()
                 .map(ApiEnvironmentHttp::getBaseUrl)
                 .orElse("");

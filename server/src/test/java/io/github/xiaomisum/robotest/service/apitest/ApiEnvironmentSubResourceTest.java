@@ -20,14 +20,12 @@ import io.github.xiaomisum.robotest.repository.apitest.ApiEnvironmentHttpMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiEnvironmentMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiEnvironmentProcessorMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiEnvironmentVariableMapper;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mock.web.MockMultipartFile;
-import org.springframework.test.util.ReflectionTestUtils;
 import xyz.migoo.framework.common.exception.ServiceException;
 import xyz.migoo.framework.common.util.JsonUtils;
 
@@ -45,7 +43,6 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
@@ -61,7 +58,6 @@ class ApiEnvironmentSubResourceTest {
     private static final UUID WORKSPACE_ID = UUID.randomUUID();
     private static final UUID USER_ID = UUID.randomUUID();
     private static final UUID ENV_ID = UUID.randomUUID();
-    private static final String SECRET_KEY_BASE64 = "4chJwgVabFLPyA0Mty7RDhu7lXR5Hik2QZ0FJjS3rtI=";
 
     @Mock
     private ApiEnvironmentMapper environmentMapper;
@@ -78,11 +74,6 @@ class ApiEnvironmentSubResourceTest {
 
     @InjectMocks
     private ApiEnvironmentServiceImpl service;
-
-    @BeforeEach
-    void setUp() {
-        ReflectionTestUtils.setField(service, "secretKeyBase64", SECRET_KEY_BASE64);
-    }
 
     private void stubEnv() {
         ApiEnvironment env = new ApiEnvironment();
@@ -108,11 +99,10 @@ class ApiEnvironmentSubResourceTest {
         assertTrue(detail.getDataSources().isEmpty());
     }
 
-    private static ApiEnvironmentSaveReqDTO.Variable variable(String name, String value, String type) {
+    private static ApiEnvironmentSaveReqDTO.Variable variable(String name, String value) {
         ApiEnvironmentSaveReqDTO.Variable v = new ApiEnvironmentSaveReqDTO.Variable();
         v.setName(name);
         v.setValue(value);
-        v.setType(type);
         return v;
     }
 
@@ -122,7 +112,7 @@ class ApiEnvironmentSubResourceTest {
     void batchReplaceVariables_invalidNamePattern_throwsValidation() {
         stubEnv();
         ApiEnvironmentVariableBatchReqDTO req = new ApiEnvironmentVariableBatchReqDTO();
-        req.setVariables(List.of(variable("bad-name", "1", "text")));
+        req.setVariables(List.of(variable("bad-name", "1")));
 
         ServiceException ex = assertThrows(ServiceException.class,
                 () -> service.batchReplaceVariables(PROJECT_ID, WORKSPACE_ID, USER_ID, ENV_ID, req));
@@ -131,12 +121,12 @@ class ApiEnvironmentSubResourceTest {
     }
 
     @Test
-    void batchReplaceVariables_replacesAndReturnsMaskedList() {
+    void batchReplaceVariables_replacesAndPersistsPlaintext() {
         stubEnv();
         ApiEnvironmentVariableBatchReqDTO req = new ApiEnvironmentVariableBatchReqDTO();
         req.setVariables(List.of(
-                variable("BASE_URL", "https://x", "text"),
-                variable("SECRET", "plain-pass", "sensitive")));
+                variable("BASE_URL", "https://x"),
+                variable("SECRET", "plain-pass")));
 
         when(variableMapper.listByEnvironmentId(ENV_ID)).thenReturn(List.of());
         service.batchReplaceVariables(PROJECT_ID, WORKSPACE_ID, USER_ID, ENV_ID, req);
@@ -144,9 +134,8 @@ class ApiEnvironmentSubResourceTest {
         verify(variableMapper).deleteByEnvironmentId(ENV_ID);
         org.mockito.ArgumentCaptor<List<ApiEnvironmentVariable>> captor = org.mockito.ArgumentCaptor.captor();
         verify(variableMapper).insertBatch(captor.capture());
-        String cipher = captor.getValue().stream().filter(r -> "sensitive".equals(r.getType()))
-                .findFirst().orElseThrow().getValue();
-        assertFalse(cipher.contains("plain-pass"));
+        assertEquals("plain-pass", captor.getValue().stream()
+                .filter(r -> "SECRET".equals(r.getName())).findFirst().orElseThrow().getValue());
     }
 
     @Test
@@ -162,25 +151,24 @@ class ApiEnvironmentSubResourceTest {
     }
 
     @Test
-    void addVariableFromResult_encryptsSensitiveAndParsesSourceIds() {
+    void addVariableFromResult_persistsPlaintextAndParsesSourceIds() {
         stubEnv();
         when(variableMapper.findByEnvironmentIdAndName(ENV_ID, "token")).thenReturn(null);
 
         ApiEnvironmentVariableCreateReqDTO req = new ApiEnvironmentVariableCreateReqDTO();
         req.setName("token");
         req.setValue("secret-value");
-        req.setType("sensitive");
         req.setSourceStepId(UUID.randomUUID().toString());
         req.setSourceReportId("not-a-uuid");
 
         var resp = service.addVariableFromResult(PROJECT_ID, WORKSPACE_ID, USER_ID, ENV_ID, req);
 
-        assertEquals(ApiEnvironmentDetailRespDTO.SENSITIVE_MASK, resp.getValue());
+        assertEquals("secret-value", resp.getValue());
         assertTrue(resp.getHasValue());
         org.mockito.ArgumentCaptor<ApiEnvironmentVariable> captor =
                 org.mockito.ArgumentCaptor.forClass(ApiEnvironmentVariable.class);
         verify(variableMapper).insert(captor.capture());
-        assertFalse(captor.getValue().getValue().contains("secret-value"));
+        assertEquals("secret-value", captor.getValue().getValue());
         assertEquals(req.getSourceStepId(), captor.getValue().getSourceStepId().toString());
         assertNull(captor.getValue().getSourceReportId());
     }
@@ -194,7 +182,7 @@ class ApiEnvironmentSubResourceTest {
         when(variableMapper.listByEnvironmentId(ENV_ID)).thenReturn(List.of(existing));
 
         ApiEnvironmentVariableImportReqDTO req = new ApiEnvironmentVariableImportReqDTO();
-        req.setVariables(List.of(variable("NEW", "1", "text"), variable("A", "2", "text")));
+        req.setVariables(List.of(variable("NEW", "1"), variable("A", "2")));
         req.setOverwrite(false);
 
         ApiEnvImportResultRespDTO result = service.importVariables(PROJECT_ID, WORKSPACE_ID, USER_ID, ENV_ID, req);
@@ -211,59 +199,27 @@ class ApiEnvironmentSubResourceTest {
     }
 
     @Test
-    void exportVariables_masksSensitiveKeepsPlainText() {
+    void exportVariables_returnsPlaintextWithHasValue() {
         stubEnv();
-        ApiEnvironmentVariable sensitive = new ApiEnvironmentVariable();
-        sensitive.setId(UUID.randomUUID());
-        sensitive.setName("PWD");
-        sensitive.setValue("cipher");
-        sensitive.setType("sensitive");
+        ApiEnvironmentVariable unset = new ApiEnvironmentVariable();
+        unset.setId(UUID.randomUUID());
+        unset.setName("PWD");
+        unset.setValue("");
         ApiEnvironmentVariable text = new ApiEnvironmentVariable();
         text.setId(UUID.randomUUID());
         text.setName("URL");
         text.setValue("https://x");
-        text.setType("text");
-        when(variableMapper.listByEnvironmentId(ENV_ID)).thenReturn(List.of(sensitive, text));
+        when(variableMapper.listByEnvironmentId(ENV_ID)).thenReturn(List.of(unset, text));
 
         List<ApiEnvironmentVariableRespDTO> list =
                 service.exportVariables(PROJECT_ID, WORKSPACE_ID, USER_ID, ENV_ID);
 
-        assertEquals(ApiEnvironmentDetailRespDTO.SENSITIVE_MASK,
-                list.stream().filter(v -> "PWD".equals(v.getName())).findFirst().orElseThrow().getValue());
+        ApiEnvironmentVariableRespDTO pwd = list.stream().filter(v -> "PWD".equals(v.getName()))
+                .findFirst().orElseThrow();
+        assertEquals("", pwd.getValue());
+        assertFalse(pwd.getHasValue());
         assertEquals("https://x",
                 list.stream().filter(v -> "URL".equals(v.getName())).findFirst().orElseThrow().getValue());
-    }
-
-    @Test
-    void revealVariable_decryptsSensitiveForMaintainer() {
-        stubEnv();
-        byte[] key = io.github.xiaomisum.robotest.framework.util.SecretCryptoUtil.parseKey(SECRET_KEY_BASE64);
-        String cipher = io.github.xiaomisum.robotest.framework.util.SecretCryptoUtil.encrypt(key, "real-secret");
-        ApiEnvironmentVariable row = new ApiEnvironmentVariable();
-        row.setId(UUID.randomUUID());
-        row.setEnvironmentId(ENV_ID);
-        row.setName("PWD");
-        row.setValue(cipher);
-        row.setType("sensitive");
-        when(variableMapper.selectById(row.getId())).thenReturn(row);
-
-        var resp = service.revealVariable(PROJECT_ID, WORKSPACE_ID, USER_ID, ENV_ID, row.getId());
-        assertEquals("real-secret", resp.getValue());
-    }
-
-    @Test
-    void revealVariable_textTypeReturnsRawValue() {
-        stubEnv();
-        ApiEnvironmentVariable row = new ApiEnvironmentVariable();
-        row.setId(UUID.randomUUID());
-        row.setEnvironmentId(ENV_ID);
-        row.setName("URL");
-        row.setValue("https://x");
-        row.setType("text");
-        when(variableMapper.selectById(row.getId())).thenReturn(row);
-
-        var resp = service.revealVariable(PROJECT_ID, WORKSPACE_ID, USER_ID, ENV_ID, row.getId());
-        assertEquals("https://x", resp.getValue());
     }
 
     // ==================== 连接测试 ====================
@@ -408,7 +364,6 @@ class ApiEnvironmentSubResourceTest {
         ApiEnvironmentDetailRespDTO.Variable text = new ApiEnvironmentDetailRespDTO.Variable();
         text.setName("K");
         text.setValue("v");
-        text.setType("text");
         payload.setVariables(List.of(text));
         MockMultipartFile file = multipartFile(JsonUtils.toJsonString(payload));
 

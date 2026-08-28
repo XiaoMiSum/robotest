@@ -12,9 +12,6 @@ public class ApiEnvironmentVariableCreateReqDTO {
 
     private String value;
 
-    /** text / number / sensitive，缺省 text */
-    private String type;
-
     private String description;
 
     private String sourceStepId;
