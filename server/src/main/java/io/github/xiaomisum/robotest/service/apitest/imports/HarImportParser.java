@@ -1,7 +1,7 @@
 package io.github.xiaomisum.robotest.service.apitest.imports;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import xyz.migoo.framework.common.util.JsonUtils;
 
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
@@ -14,8 +14,6 @@ import java.util.Map;
  * HAR 1.2 解析：entries 逐条转接口定义，始终创建新接口（无稳定 ID，详细设计 4.1）
  */
 public class HarImportParser implements InterfaceImportParser {
-
-    private static final ObjectMapper MAPPER = new ObjectMapper();
 
     @Override
     public String sourceType() {
@@ -34,7 +32,7 @@ public class HarImportParser implements InterfaceImportParser {
     public List<ImportedOperation> parse(String content) {
         JsonNode root;
         try {
-            root = MAPPER.readTree(content);
+            root = JsonUtils.toJSON(content);
         } catch (Exception exception) {
             throw new IllegalArgumentException("JSON 解析失败：" + exception.getMessage(), exception);
         }
@@ -80,7 +78,7 @@ public class HarImportParser implements InterfaceImportParser {
 
         Map<String, Object> body = null;
         JsonNode postData = request.get("postData");
-        if (postData != null && !postData.isEmpty(null)) {
+        if (postData != null && !postData.isEmpty()) {
             body = new LinkedHashMap<>();
             String mimeType = postData.path("mimeType").asText("");
             String text = postData.path("text").asText("");
@@ -132,7 +130,7 @@ public class HarImportParser implements InterfaceImportParser {
     /** JSON 文本解析失败时降级为原始字符串，与 cURL 解析降级口径一致 */
     private Object readValueSafely(String text) {
         try {
-            return MAPPER.readValue(text, Object.class);
+            return JsonUtils.parseObject(text, Object.class);
         } catch (Exception exception) {
             return text;
         }

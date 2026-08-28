@@ -1,6 +1,5 @@
 package io.github.xiaomisum.robotest.framework.mock;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiInterfaceMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiMockAccessLogMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiMockDefinitionMapper;
@@ -28,9 +27,8 @@ public class MockAccessConfiguration {
     public MockAccessFilter mockAccessFilter(ApiMockDefinitionMapper mockMapper,
                                              ApiMockAccessLogMapper accessLogMapper,
                                              ApiInterfaceMapper interfaceMapper,
-                                             ObjectMapper objectMapper,
                                              MockAccessProperties properties) {
-        return new MockAccessFilter(mockMapper, accessLogMapper, interfaceMapper, objectMapper, properties);
+        return new MockAccessFilter(mockMapper, accessLogMapper, interfaceMapper, properties);
     }
 
     @Bean

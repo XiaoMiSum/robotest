@@ -4,8 +4,9 @@ import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiProviderPresetRespDTO;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Component;
-import tools.jackson.databind.ObjectMapper;
+import tools.jackson.core.type.TypeReference;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
+import xyz.migoo.framework.common.util.JsonUtils;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -32,10 +33,9 @@ public class ProviderPresetRegistry {
 
     private final Map<String, AiProviderPresetRespDTO> presets = new LinkedHashMap<>();
 
-    public ProviderPresetRegistry(ObjectMapper objectMapper) {
+    public ProviderPresetRegistry() {
         try (InputStream in = new ClassPathResource("ai/provider-presets.json").getInputStream()) {
-            List<AiProviderPresetRespDTO> list = objectMapper.readValue(in,
-                    objectMapper.getTypeFactory().constructCollectionType(List.class, AiProviderPresetRespDTO.class));
+            List<AiProviderPresetRespDTO> list = JsonUtils.parseObject(in, new TypeReference<>() {});
             list.forEach(preset -> presets.put(preset.getKey(), preset));
         } catch (IOException e) {
             throw new IllegalStateException("Failed to load ai/provider-presets.json", e);

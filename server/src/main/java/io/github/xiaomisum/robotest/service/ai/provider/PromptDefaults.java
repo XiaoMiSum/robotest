@@ -2,7 +2,7 @@ package io.github.xiaomisum.robotest.service.ai.provider;
 
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Component;
-import tools.jackson.databind.ObjectMapper;
+import xyz.migoo.framework.common.util.JsonUtils;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -18,10 +18,10 @@ public class PromptDefaults {
 
     private final Map<String, DefaultTemplate> defaults = new LinkedHashMap<>();
 
-    public PromptDefaults(ObjectMapper objectMapper) {
+    public PromptDefaults() {
         try (InputStream in = new ClassPathResource("ai/prompt-defaults.json").getInputStream()) {
-            Map<String, DefaultTemplate> loaded = objectMapper.readValue(in,
-                    objectMapper.getTypeFactory().constructMapType(LinkedHashMap.class, String.class, DefaultTemplate.class));
+            Map<String, DefaultTemplate> loaded = JsonUtils.parseObject(in,
+                    new tools.jackson.core.type.TypeReference<Map<String, DefaultTemplate>>() {});
             defaults.putAll(loaded);
         } catch (IOException e) {
             throw new IllegalStateException("Failed to load ai/prompt-defaults.json", e);

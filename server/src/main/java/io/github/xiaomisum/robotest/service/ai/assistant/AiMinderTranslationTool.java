@@ -16,7 +16,6 @@ import io.github.xiaomisum.robotest.service.ai.provider.ResolvedChatModel;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.ObjectMapper;
 import xyz.migoo.framework.common.util.JsonUtils;
 
 import java.util.LinkedHashMap;
@@ -70,7 +69,6 @@ public class AiMinderTranslationTool implements AiTool {
     private final AiConfigService configService;
     private final TestCaseDocumentMapper testCaseDocumentMapper;
     private final TestCaseNodeMapper testCaseNodeMapper;
-    private final ObjectMapper objectMapper;
 
     @Override
     public AiToolDefinition definition() {
@@ -150,7 +148,7 @@ public class AiMinderTranslationTool implements AiTool {
         }
         JsonNode root;
         try {
-            root = objectMapper.readTree(cleaned);
+            root = JsonUtils.toJSON(cleaned);
         } catch (Exception e) {
             return errorResult("脑图指令翻译结果解析失败：" + e.getMessage());
         }
@@ -175,7 +173,7 @@ public class AiMinderTranslationTool implements AiTool {
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("summary", summary);
         result.put("documentId", documentId.toString());
-        result.put("commands", objectMapper.convertValue(commands, List.class));
+        result.put("commands", JsonUtils.convert(commands, List.class));
         return JsonUtils.toJsonString(result);
     }
 

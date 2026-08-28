@@ -1,6 +1,6 @@
 package io.github.xiaomisum.robotest.service.apitest.mock;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.databind.JsonNode;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiMockDefinition;
 
 import java.util.List;

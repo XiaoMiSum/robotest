@@ -1,8 +1,8 @@
 package io.github.xiaomisum.robotest.service.apitest.mock;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiMockDefinition;
 import org.junit.jupiter.api.Test;
+import xyz.migoo.framework.common.util.JsonUtils;
 
 import java.util.List;
 import java.util.Map;
@@ -11,8 +11,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class MockMatchEngineTest {
-
-    private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Test
     void methodMismatchRejected() {
@@ -72,14 +70,14 @@ class MockMatchEngineTest {
     }
 
     @Test
-    void bodyRuleWithJsonPathExtraction() throws Exception {
+    void bodyRuleWithJsonPathExtraction() {
         ApiMockDefinition definition = definition("POST", "/api/order",
                 List.of(Map.of("type", "body", "name", "$.items[0].sku", "value", "A\\d+")));
         String body = "{\"items\":[{\"sku\":\"A100\"}]}";
-        var bodyNode = objectMapper.readTree(body);
+        var bodyNode = JsonUtils.toJSON(body);
         assertTrue(MockMatchEngine.matches(definition, "POST", "/api/order", Map.of(), Map.of(), bodyNode));
         assertFalse(MockMatchEngine.matches(definition, "POST", "/api/order", Map.of(), Map.of(),
-                objectMapper.readTree("{\"items\":[]}")));
+                JsonUtils.toJSON("{\"items\":[]}")));
         // body 规则在请求体缺失时不命中
         assertFalse(MockMatchEngine.matches(definition, "POST", "/api/order", Map.of(), Map.of(), null));
     }

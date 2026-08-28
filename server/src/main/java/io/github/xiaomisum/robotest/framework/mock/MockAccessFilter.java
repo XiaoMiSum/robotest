@@ -1,7 +1,6 @@
 package io.github.xiaomisum.robotest.framework.mock;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiInterface;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiMockAccessLog;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiMockDefinition;
@@ -22,6 +21,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletRequestWrapper;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.MediaType;
+import xyz.migoo.framework.common.util.JsonUtils;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -47,19 +47,16 @@ public class MockAccessFilter implements Filter {
     private final ApiMockDefinitionMapper mockMapper;
     private final ApiMockAccessLogMapper accessLogMapper;
     private final ApiInterfaceMapper interfaceMapper;
-    private final ObjectMapper objectMapper;
     private final MockAccessProperties properties;
     private final MockRateLimiter rateLimiter;
 
     public MockAccessFilter(ApiMockDefinitionMapper mockMapper,
                             ApiMockAccessLogMapper accessLogMapper,
                             ApiInterfaceMapper interfaceMapper,
-                            ObjectMapper objectMapper,
                             MockAccessProperties properties) {
         this.mockMapper = mockMapper;
         this.accessLogMapper = accessLogMapper;
         this.interfaceMapper = interfaceMapper;
-        this.objectMapper = objectMapper;
         this.properties = properties;
         this.rateLimiter = new MockRateLimiter(properties.getPathQps());
     }
@@ -112,7 +109,7 @@ public class MockAccessFilter implements Filter {
         JsonNode bodyNode = null;
         if (needBody && request.getContentLengthLong() > 0) {
             cachedBodyRequest = new CachedBodyRequest(request);
-            bodyNode = cachedBodyRequest.parseJson(objectMapper);
+            bodyNode = cachedBodyRequest.parseJson();
         }
         Map<String, String> queryParams = extractQueryParams(request);
 
@@ -277,12 +274,8 @@ public class MockAccessFilter implements Filter {
             return body == null ? null : new String(body, StandardCharsets.UTF_8);
         }
 
-        JsonNode parseJson(ObjectMapper mapper) {
-            try {
-                return mapper.readTree(body);
-            } catch (IOException e) {
-                return null;
-            }
+        JsonNode parseJson() {
+            return JsonUtils.toJSON(bodyText());
         }
 
         @Override

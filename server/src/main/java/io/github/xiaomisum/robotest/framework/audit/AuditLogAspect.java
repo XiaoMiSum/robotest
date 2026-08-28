@@ -1,6 +1,6 @@
 package io.github.xiaomisum.robotest.framework.audit;
 
-import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.ObjectNode;
 import io.github.xiaomisum.robotest.model.entity.admin.AuditLog;
 import io.github.xiaomisum.robotest.repository.admin.AuditLogMapper;
@@ -18,6 +18,7 @@ import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
+import xyz.migoo.framework.common.util.JsonUtils;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
@@ -31,13 +32,11 @@ import java.util.UUID;
 public class AuditLogAspect {
 
     private final AuditLogMapper auditLogMapper;
-    private final ObjectMapper objectMapper;
     private final TransactionTemplate auditTxTemplate;
 
-    public AuditLogAspect(AuditLogMapper auditLogMapper, ObjectMapper objectMapper,
+    public AuditLogAspect(AuditLogMapper auditLogMapper,
                           PlatformTransactionManager transactionManager) {
         this.auditLogMapper = auditLogMapper;
-        this.objectMapper = objectMapper;
         this.auditTxTemplate = new TransactionTemplate(transactionManager);
         // 审计写入独立事务：失败只丢弃审计记录本身，不随业务事务静默回滚
         this.auditTxTemplate.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
@@ -88,7 +87,7 @@ public class AuditLogAspect {
 
             // changes
             if (annotation.logParams()) {
-                ObjectNode changesNode = objectMapper.createObjectNode();
+                ObjectNode changesNode = JsonUtils.createObjectNode();
                 Parameter[] parameters = method.getParameters();
                 Object[] args = joinPoint.getArgs();
                 for (int i = 0; i < parameters.length; i++) {
@@ -97,10 +96,10 @@ public class AuditLogAspect {
                         continue;
                     }
                     if (args[i] != null) {
-                        changesNode.set(name, objectMapper.valueToTree(args[i]));
+                        changesNode.set(name, JsonUtils.valueToTree(args[i]));
                     }
                 }
-                record.setChanges(objectMapper.convertValue(changesNode, Map.class));
+                record.setChanges(JsonUtils.convert(changesNode, Map.class));
             } else {
                 record.setChanges(Map.of());
             }

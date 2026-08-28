@@ -1,7 +1,7 @@
 package io.github.xiaomisum.robotest.service.apitest.imports;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import xyz.migoo.framework.common.util.JsonUtils;
 
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
@@ -14,8 +14,6 @@ import java.util.Map;
  * Postman Collection v2 解析：递归 items 收集 request 条目（接口管理详细设计 4.1）
  */
 public class PostmanImportParser implements InterfaceImportParser {
-
-    private static final ObjectMapper MAPPER = new ObjectMapper();
 
     @Override
     public String sourceType() {
@@ -34,7 +32,7 @@ public class PostmanImportParser implements InterfaceImportParser {
     public List<ImportedOperation> parse(String content) {
         JsonNode root;
         try {
-            root = MAPPER.readTree(content);
+            root = JsonUtils.toJSON(content);
         } catch (Exception exception) {
             throw new IllegalArgumentException("JSON 解析失败：" + exception.getMessage(), exception);
         }
@@ -139,7 +137,7 @@ public class PostmanImportParser implements InterfaceImportParser {
 
     private Object parseJsonSafely(String text) {
         try {
-            return MAPPER.readValue(text, Object.class);
+            return JsonUtils.parseObject(text, Object.class);
         } catch (Exception exception) {
             return text;
         }
