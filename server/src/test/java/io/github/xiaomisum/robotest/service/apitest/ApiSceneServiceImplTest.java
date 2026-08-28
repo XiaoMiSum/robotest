@@ -49,8 +49,8 @@ class ApiSceneServiceImplTest {
     private static final UUID WORKSPACE_ID = UUID.randomUUID();
     private static final UUID USER_ID = UUID.randomUUID();
     private static final UUID SCENE_ID = UUID.randomUUID();
-    private static final int CODE_7205 = 1000017205;
-    private static final int CODE_7208 = 1000017208;
+    private static final int CODE_7205 = 1000017303;
+    private static final int CODE_7208 = 1000017306;
 
     @Mock
     private ApiSceneMapper sceneMapper;
@@ -122,7 +122,7 @@ class ApiSceneServiceImplTest {
         reqDTO.setFailureRule("sometimes");
         ServiceException ex = assertThrows(ServiceException.class,
                 () -> service.create(WORKSPACE_ID, PROJECT_ID, USER_ID, reqDTO));
-        assertEquals(1000017210, ex.getCode());
+        assertEquals(1000017304, ex.getCode());
     }
 
     // ========== 更新（乐观锁） ==========
@@ -229,7 +229,7 @@ class ApiSceneServiceImplTest {
 
         ServiceException ex = assertThrows(ServiceException.class,
                 () -> service.reorderSteps(WORKSPACE_ID, PROJECT_ID, USER_ID, SCENE_ID, reqDTO));
-        assertEquals(1000017202, ex.getCode());
+        assertEquals(1000017305, ex.getCode());
         verify(stepMapper, org.mockito.Mockito.never()).reorder(any(), any());
     }
 

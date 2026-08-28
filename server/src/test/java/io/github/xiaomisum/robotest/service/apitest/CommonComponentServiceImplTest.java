@@ -268,7 +268,7 @@ class CommonComponentServiceImplTest {
             setPageSize(10);
         }};
         CommonComponent comp = entity("project", "preprocessor", "测试组件");
-        PageResult<CommonComponent> pageResult = new PageResult<>(List.of(comp), 1);
+        PageResult<CommonComponent> pageResult = new PageResult<>(List.of(comp), 1L);
         when(componentMapper.selectPageVisible(PROJECT_ID, WORKSPACE_ID, "preprocessor",
                 true, "project", "测试", pageParam)).thenReturn(pageResult);
 

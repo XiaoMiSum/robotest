@@ -39,9 +39,9 @@ class ApiReportServiceImplTest {
     private static final UUID WORKSPACE_ID = UUID.randomUUID();
     private static final UUID USER_ID = UUID.randomUUID();
     private static final UUID REPORT_ID = UUID.randomUUID();
-    private static final int CODE_7007 = 1000017007;
-    private static final int CODE_7008 = 1000017008;
-    private static final int CODE_7009 = 1000017009;
+    private static final int CODE_7007 = 1000017311;
+    private static final int CODE_7008 = 1000017312;
+    private static final int CODE_7009 = 1000017313;
 
     @Mock
     private ApiReportMapper reportMapper;
