@@ -1,6 +1,11 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import type { ApiDebugBodyKind, ApiDebugRawSubtype, ApiEnvironmentListItem, DebugTab } from '@/types'
+import type {
+  ApiDebugBodyKind,
+  ApiDebugRawSubtype,
+  ApiEnvironmentListItem,
+  DebugTab,
+} from '@/types'
 import { fetchEnvironments } from '@/services/apiEnvironment'
 import { HTTP_METHODS } from '../debugModel'
 import KeyValueTable from './KeyValueTable.vue'
@@ -19,7 +24,8 @@ const environmentId = ref('')
 onMounted(async () => {
   try {
     environments.value = await fetchEnvironments()
-    environmentId.value = environments.value.find((env) => env.isDefault)?.id ?? environments.value[0]?.id ?? ''
+    environmentId.value =
+      environments.value.find((env) => env.isDefault)?.id ?? environments.value[0]?.id ?? ''
   } catch {
     // 环境加载失败不阻塞调试
   }
@@ -117,7 +123,6 @@ const methodColor = computed(() => METHOD_COLORS[tab.value.method.toUpperCase()]
         class="req-panel__url"
         placeholder="输入请求 URL，例如 https://api.example.com/users"
         clearable
-        
         @keyup.enter="emit('execute', environmentId || undefined)"
       />
       <el-button
@@ -138,11 +143,7 @@ const methodColor = computed(() => METHOD_COLORS[tab.value.method.toUpperCase()]
           </el-button>
         </span>
       </el-tooltip>
-      <el-button
-        v-else
-        class="req-panel__save"
-        @click="emit('save')"
-      >
+      <el-button v-else class="req-panel__save" @click="emit('save')">
         <el-icon class="req-panel__btn-icon"><Plus /></el-icon>保存
       </el-button>
     </div>
@@ -150,21 +151,38 @@ const methodColor = computed(() => METHOD_COLORS[tab.value.method.toUpperCase()]
     <!-- Param Tabs -->
     <div class="req-panel__tabs">
       <button
-        v-for="item in (['params', 'body', 'headers', 'auth'] as const)"
+        v-for="item in ['params', 'body', 'headers', 'auth'] as const"
         :key="item"
         class="req-panel__tab"
         :class="{ 'is-active': activeParamTab === item }"
         @click="activeParamTab = item"
       >
-        {{ item === 'params' ? 'Params' : item === 'body' ? 'Body' : item === 'headers' ? 'Headers' : 'Auth' }}
-        <span v-if="item === 'headers' && tab.headers.length" class="req-panel__tab-count">{{ tab.headers.length }}</span>
-        <span v-else-if="item === 'params' && tab.params.length" class="req-panel__tab-count">{{ tab.params.length }}</span>
+        {{
+          item === 'params'
+            ? 'Params'
+            : item === 'body'
+              ? 'Body'
+              : item === 'headers'
+                ? 'Headers'
+                : 'Auth'
+        }}
+        <span v-if="item === 'headers' && tab.headers.length" class="req-panel__tab-count">{{
+          tab.headers.length
+        }}</span>
+        <span v-else-if="item === 'params' && tab.params.length" class="req-panel__tab-count">{{
+          tab.params.length
+        }}</span>
       </button>
 
       <div class="req-panel__tabs-spacer" />
 
       <div class="req-panel__env">
-        <el-select v-model="environmentId" clearable placeholder="选择环境（可选）" class="req-panel__env-select">
+        <el-select
+          v-model="environmentId"
+          clearable
+          placeholder="选择环境（可选）"
+          class="req-panel__env-select"
+        >
           <el-option
             v-for="env in environments"
             :key="env.id"
@@ -172,7 +190,10 @@ const methodColor = computed(() => METHOD_COLORS[tab.value.method.toUpperCase()]
             :value="env.id"
           />
         </el-select>
-        <el-tooltip content="相对路径拼接所选环境 baseUrl；${变量} 取自该环境变量" placement="bottom">
+        <el-tooltip
+          content="相对路径拼接所选环境 baseUrl；${变量} 取自该环境变量"
+          placement="bottom"
+        >
           <el-icon class="req-panel__hint"><InfoFilled /></el-icon>
         </el-tooltip>
       </div>
@@ -185,13 +206,12 @@ const methodColor = computed(() => METHOD_COLORS[tab.value.method.toUpperCase()]
         v-model:entries="tab.params"
         placeholder-key="参数名"
         show-description
-        
       />
 
       <div v-else-if="activeParamTab === 'auth'" class="req-panel__auth">
         <el-form label-width="90px" @submit.prevent>
           <el-form-item label="认证方式">
-            <el-select v-model="tab.auth.type" >
+            <el-select v-model="tab.auth.type">
               <el-option label="No Auth" value="none" />
               <el-option label="Bearer Token" value="bearer" />
               <el-option label="API Key" value="apiKey" />
@@ -201,25 +221,30 @@ const methodColor = computed(() => METHOD_COLORS[tab.value.method.toUpperCase()]
           </el-form-item>
           <template v-if="tab.auth.type === 'bearer'">
             <el-form-item label="Token">
-              <el-input v-model="tab.auth.token" type="password" show-password placeholder="输入 Bearer Token"  />
+              <el-input
+                v-model="tab.auth.token"
+                type="password"
+                show-password
+                placeholder="输入 Bearer Token"
+              />
             </el-form-item>
             <p class="req-panel__tip">提交时换算为 Authorization: Bearer 头；手工同名头优先</p>
           </template>
           <template v-else-if="tab.auth.type === 'apiKey'">
             <el-form-item label="Key 名">
-              <el-input v-model="tab.auth.apiKeyName" placeholder="缺省为 X-API-Key"  />
+              <el-input v-model="tab.auth.apiKeyName" placeholder="缺省为 X-API-Key" />
             </el-form-item>
             <el-form-item label="Key 值">
-              <el-input v-model="tab.auth.apiKeyValue" type="password" show-password  />
+              <el-input v-model="tab.auth.apiKeyValue" type="password" show-password />
             </el-form-item>
             <p class="req-panel__tip">提交时换算为自定义请求头；手工同名头优先</p>
           </template>
           <template v-else-if="tab.auth.type === 'basic'">
             <el-form-item label="用户名">
-              <el-input v-model="tab.auth.username"  />
+              <el-input v-model="tab.auth.username" />
             </el-form-item>
             <el-form-item label="密码">
-              <el-input v-model="tab.auth.password" type="password" show-password  />
+              <el-input v-model="tab.auth.password" type="password" show-password />
             </el-form-item>
             <p class="req-panel__tip">提交时换算为 Authorization: Basic 头；手工同名头优先</p>
           </template>
@@ -232,7 +257,6 @@ const methodColor = computed(() => METHOD_COLORS[tab.value.method.toUpperCase()]
         placeholder-key="Header 名"
         show-description
         :suggestions="COMMON_HEADERS"
-        
       />
 
       <div v-else-if="activeParamTab === 'body'" class="req-panel__body">
@@ -249,21 +273,23 @@ const methodColor = computed(() => METHOD_COLORS[tab.value.method.toUpperCase()]
 
           <div v-if="tab.bodyType === 'raw'" class="req-panel__body-types-right">
             <el-select v-model="rawSubtype" class="req-panel__raw-select">
-              <el-option v-for="s in SUBTYPES" :key="s" :label="s[0].toUpperCase() + s.slice(1)" :value="s" />
+              <el-option
+                v-for="s in SUBTYPES"
+                :key="s"
+                :label="s[0].toUpperCase() + s.slice(1)"
+                :value="s"
+              />
             </el-select>
             <el-button v-if="rawSubtype === 'json'" text @click="formatJsonBody">格式化</el-button>
           </div>
         </div>
 
-        <div v-if="tab.bodyType === 'none'" class="req-panel__body-empty">
-          该请求不携带请求体
-        </div>
+        <div v-if="tab.bodyType === 'none'" class="req-panel__body-empty">该请求不携带请求体</div>
 
         <KeyValueTable
           v-else-if="tab.bodyType === 'urlencoded'"
           v-model:entries="tab.bodies.urlencoded"
           placeholder-key="Key"
-          
         />
 
         <div v-else class="req-panel__raw">
@@ -290,7 +316,6 @@ const methodColor = computed(() => METHOD_COLORS[tab.value.method.toUpperCase()]
   &__url-bar {
     display: flex;
     gap: 8px;
-    padding: 4px 10px;
     align-items: center;
   }
 
@@ -389,7 +414,6 @@ const methodColor = computed(() => METHOD_COLORS[tab.value.method.toUpperCase()]
   &__tabs {
     display: flex;
     gap: 0;
-    padding: 0 10px;
     border-bottom: 1px solid var(--color-neutral-100, #e8e8e8);
   }
 
@@ -397,7 +421,7 @@ const methodColor = computed(() => METHOD_COLORS[tab.value.method.toUpperCase()]
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    padding: 8px 14px;
+    padding: 10px 14px;
     font-size: 12px;
     font-weight: 500;
     color: var(--color-neutral-500, #909399);
@@ -405,7 +429,9 @@ const methodColor = computed(() => METHOD_COLORS[tab.value.method.toUpperCase()]
     border: none;
     border-bottom: 2px solid transparent;
     cursor: pointer;
-    transition: color 0.15s, border-color 0.15s;
+    transition:
+      color 0.15s,
+      border-color 0.15s;
     white-space: nowrap;
 
     &:hover {

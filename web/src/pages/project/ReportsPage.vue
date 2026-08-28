@@ -198,111 +198,118 @@ onMounted(async () => {
 
 <template>
   <div class="reports-page">
-    <header class="reports-page__toolbar">
-      <el-select v-model="statusFilter" style="width: 140px" @change="handleFilter">
-        <el-option v-for="opt in statusOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
-      </el-select>
-      <el-select v-model="executionModeFilter" style="width: 160px" @change="handleFilter">
-        <el-option v-for="opt in executionModeOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
-      </el-select>
-      <el-select v-model="sceneFilter" placeholder="全部场景" clearable filterable style="width: 180px" @change="handleFilter">
-        <el-option v-for="scene in sceneOptions" :key="scene.id" :label="scene.name" :value="scene.id" />
-      </el-select>
-      <el-date-picker
-        v-model="dateRange"
-        type="daterange"
-        range-separator="至"
-        start-placeholder="开始日期"
-        end-placeholder="结束日期"
-        value-format="YYYY-MM-DDT00:00:00"
-        style="width: 280px"
-        @change="handleFilter"
-      />
-      <el-input
-        v-model="searchText"
-        placeholder="搜索报告名称或场景名称"
-        clearable
-        style="width: 240px"
-        @keyup.enter="handleFilter"
-        @clear="handleFilter"
-      />
-      <div class="reports-page__spacer" />
-      <el-button :disabled="!hasSelection" @click="handleBatchExport">批量导出</el-button>
-      <el-button :disabled="!hasSelection" type="danger" @click="handleBatchDelete">批量删除</el-button>
-    </header>
-
-    <el-table
-      v-loading="loading"
-      :data="rows"
-      @selection-change="handleSelectionChange"
-    >
-      <el-table-column type="selection" width="40" />
-      <el-table-column label="报告名称" min-width="220" show-overflow-tooltip>
-        <template #default="{ row }">
-          <el-link type="primary" :underline="false" @click="handleView(row as ApiReportPageItem)">
-            {{ reportName(row as ApiReportPageItem) }}
-          </el-link>
-        </template>
-      </el-table-column>
-      <el-table-column prop="sceneName" label="场景名称" width="160" show-overflow-tooltip />
-      <el-table-column label="状态" width="100" align="center">
-        <template #default="{ row }">
-          <el-tag size="small" :type="statusType((row as ApiReportPageItem).status)">
-            {{ statusLabel((row as ApiReportPageItem).status) }}
-          </el-tag>
-          <el-tag v-if="(row as ApiReportPageItem).executionMode === 'pipeline'" size="small" type="info" style="margin-left: 4px">
-            流水线
-          </el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column label="通过率" width="90" align="center">
-        <template #default="{ row }">
-          <span :class="{ 'text-red-500': (row as ApiReportPageItem).summary?.failed > 0 }">
-            {{ passRate((row as ApiReportPageItem).summary) }}
-          </span>
-        </template>
-      </el-table-column>
-      <el-table-column label="耗时" width="90" align="center">
-        <template #default="{ row }">
-          {{ formatDuration((row as ApiReportPageItem).summary?.durationMs) }}
-        </template>
-      </el-table-column>
-      <el-table-column label="创建时间" width="170">
-        <template #default="{ row }">{{ formatDateTime((row as ApiReportPageItem).createdAt) }}</template>
-      </el-table-column>
-      <el-table-column label="操作" width="100" fixed="right">
-        <template #default="{ row }">
-          <el-dropdown
-trigger="click" @command="(cmd: string) => {
-            const r = row as ApiReportPageItem
-            if (cmd === 'view') handleView(r)
-            else if (cmd === 'export') handleExport(r)
-            else if (cmd === 'delete') handleDelete(r)
-          }">
-            <el-button link size="small">操作</el-button>
-            <template #dropdown>
-              <el-dropdown-menu>
-                <el-dropdown-item command="view">查看</el-dropdown-item>
-                <el-dropdown-item command="export">导出</el-dropdown-item>
-                <el-dropdown-item command="delete" divided>删除</el-dropdown-item>
-              </el-dropdown-menu>
-            </template>
-          </el-dropdown>
-        </template>
-      </el-table-column>
-      <template #empty>
-        <el-empty description="暂无测试报告，执行测试场景后生成报告" />
+    <el-card v-loading="loading" shadow="never">
+      <template #header>
+        <div class="reports-page__toolbar">
+          <el-select v-model="statusFilter" style="width: 140px" @change="handleFilter">
+            <el-option v-for="opt in statusOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
+          </el-select>
+          <el-select v-model="executionModeFilter" style="width: 160px" @change="handleFilter">
+            <el-option v-for="opt in executionModeOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
+          </el-select>
+          <el-select v-model="sceneFilter" placeholder="全部场景" clearable filterable style="width: 180px" @change="handleFilter">
+            <el-option v-for="scene in sceneOptions" :key="scene.id" :label="scene.name" :value="scene.id" />
+          </el-select>
+          <el-date-picker
+            v-model="dateRange"
+            type="daterange"
+            range-separator="至"
+            start-placeholder="开始日期"
+            end-placeholder="结束日期"
+            value-format="YYYY-MM-DDT00:00:00"
+            style="width: 280px"
+            @change="handleFilter"
+          />
+          <el-input
+            v-model="searchText"
+            placeholder="搜索报告名称或场景名称"
+            clearable
+            style="width: 240px"
+            @keyup.enter="handleFilter"
+            @clear="handleFilter"
+          />
+          <div class="reports-page__spacer" />
+          <template v-if="hasSelection">
+            <span class="reports-page__selected-count">已选 {{ selectedIds.length }} 项</span>
+            <el-button @click="handleBatchExport">批量导出</el-button>
+            <el-button type="danger" @click="handleBatchDelete">批量删除</el-button>
+            <el-divider direction="vertical" />
+          </template>
+        </div>
       </template>
-    </el-table>
 
-    <el-pagination
-      v-model:current-page="pageNo"
-      :page-size="pageSize"
-      :total="total"
-      layout="total, prev, pager, next"
-      class="reports-page__pagination"
-      @current-change="loadPage"
-    />
+      <el-table
+        :data="rows"
+        @selection-change="handleSelectionChange"
+      >
+        <el-table-column type="selection" width="40" />
+        <el-table-column label="报告名称" min-width="220" show-overflow-tooltip>
+          <template #default="{ row }">
+            <el-link type="primary" :underline="false" @click="handleView(row as ApiReportPageItem)">
+              {{ reportName(row as ApiReportPageItem) }}
+            </el-link>
+          </template>
+        </el-table-column>
+        <el-table-column prop="sceneName" label="场景名称" width="160" show-overflow-tooltip />
+        <el-table-column label="状态" width="100" align="center">
+          <template #default="{ row }">
+            <el-tag size="small" :type="statusType((row as ApiReportPageItem).status)">
+              {{ statusLabel((row as ApiReportPageItem).status) }}
+            </el-tag>
+            <el-tag v-if="(row as ApiReportPageItem).executionMode === 'pipeline'" size="small" type="info" style="margin-left: 4px">
+              流水线
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="通过率" width="90" align="center">
+          <template #default="{ row }">
+            <span :class="{ 'text-red-500': (row as ApiReportPageItem).summary?.failed > 0 }">
+              {{ passRate((row as ApiReportPageItem).summary) }}
+            </span>
+          </template>
+        </el-table-column>
+        <el-table-column label="耗时" width="90" align="center">
+          <template #default="{ row }">
+            {{ formatDuration((row as ApiReportPageItem).summary?.durationMs) }}
+          </template>
+        </el-table-column>
+        <el-table-column label="创建时间" width="170">
+          <template #default="{ row }">{{ formatDateTime((row as ApiReportPageItem).createdAt) }}</template>
+        </el-table-column>
+        <el-table-column label="操作" width="100" fixed="right">
+          <template #default="{ row }">
+            <el-dropdown
+trigger="click" @command="(cmd: string) => {
+              const r = row as ApiReportPageItem
+              if (cmd === 'view') handleView(r)
+              else if (cmd === 'export') handleExport(r)
+              else if (cmd === 'delete') handleDelete(r)
+            }">
+              <el-button link size="small">操作</el-button>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item command="view">查看</el-dropdown-item>
+                  <el-dropdown-item command="export">导出</el-dropdown-item>
+                  <el-dropdown-item command="delete" divided>删除</el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+          </template>
+        </el-table-column>
+        <template #empty>
+          <el-empty description="暂无测试报告，执行测试场景后生成报告" />
+        </template>
+      </el-table>
+
+      <el-pagination
+        v-model:current-page="pageNo"
+        :page-size="pageSize"
+        :total="total"
+        layout="total, prev, pager, next"
+        class="reports-page__pagination"
+        @current-change="loadPage"
+      />
+    </el-card>
   </div>
 </template>
 
@@ -311,6 +318,7 @@ trigger="click" @command="(cmd: string) => {
   display: flex;
   flex-direction: column;
   gap: var(--space-md);
+  height: 100%;
 }
 
 .reports-page__toolbar {
@@ -324,12 +332,17 @@ trigger="click" @command="(cmd: string) => {
   flex: 1;
 }
 
+.reports-page__selected-count {
+  font-size: var(--font-size-sm);
+  color: var(--color-neutral-500);
+}
+
 .reports-page__pagination {
   justify-content: flex-end;
   margin-top: var(--space-md);
 }
 
 .text-red-500 {
-  color: #ef4444;
+  color: var(--color-danger);
 }
 </style>

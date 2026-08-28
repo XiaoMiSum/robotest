@@ -148,106 +148,109 @@ onMounted(loadDetail)
 <template>
   <div v-loading="loading" class="report-detail">
     <template v-if="report">
-      <!-- 头部 -->
-      <header class="report-detail__header">
-        <el-button text @click="emit('back')">
-          <el-icon><ArrowLeft /></el-icon>返回列表
-        </el-button>
-        <div class="report-detail__title-row">
-          <h2 class="report-detail__title">{{ reportName }}</h2>
-          <el-tag size="small" :type="statusType(report.status)">{{ statusLabel(report.status) }}</el-tag>
-        </div>
-        <div class="report-detail__meta">
-          <span>场景：{{ report.sceneName }}</span>
-          <span v-if="report.environmentName">环境：{{ report.environmentName }}</span>
-          <span>执行方式：{{ report.executionMode === 'pipeline' ? '仓库流水线' : '平台内执行' }}</span>
-          <span>执行时间：{{ formatDateTime(report.createdAt) }}</span>
-        </div>
-        <div class="report-detail__actions">
-          <el-button :disabled="!report.shareEnabled" @click="handleShare">
-            <el-icon><Share /></el-icon>分享
-          </el-button>
-          <el-dropdown @command="(cmd: string) => openExport(cmd as 'json' | 'html')">
-            <el-button>
-              <el-icon><Download /></el-icon>导出
+      <el-card shadow="never">
+        <template #header>
+          <div class="report-detail__header">
+            <el-button text @click="emit('back')">
+              <el-icon><ArrowLeft /></el-icon>返回列表
             </el-button>
-            <template #dropdown>
-              <el-dropdown-menu>
-                <el-dropdown-item command="json">导出 JSON</el-dropdown-item>
-                <el-dropdown-item command="html">导出 HTML</el-dropdown-item>
-              </el-dropdown-menu>
-            </template>
-          </el-dropdown>
-        </div>
-      </header>
-
-      <!-- 汇总卡片 -->
-      <section class="report-detail__summary">
-        <div class="summary-card">
-          <div class="summary-card__value">{{ report.summary?.total ?? 0 }}</div>
-          <div class="summary-card__label">总步骤</div>
-        </div>
-        <div class="summary-card summary-card--success">
-          <div class="summary-card__value">{{ report.summary?.passed ?? 0 }}</div>
-          <div class="summary-card__label">通过</div>
-        </div>
-        <div class="summary-card summary-card--danger">
-          <div class="summary-card__value">{{ report.summary?.failed ?? 0 }}</div>
-          <div class="summary-card__label">失败</div>
-        </div>
-        <div class="summary-card summary-card--info">
-          <div class="summary-card__value">{{ report.summary?.skipped ?? 0 }}</div>
-          <div class="summary-card__label">跳过</div>
-        </div>
-        <div class="summary-card summary-card--ring">
-          <div class="ring-chart" :style="{ '--rate': passRate + '%' }">
-            <span class="ring-chart__text">{{ passRate }}%</span>
-          </div>
-          <div class="summary-card__label">通过率</div>
-        </div>
-        <div class="summary-card">
-          <div class="summary-card__value">{{ formatDuration(report.summary?.durationMs) }}</div>
-          <div class="summary-card__label">总耗时</div>
-        </div>
-      </section>
-
-      <!-- 步骤结果表 -->
-      <section class="report-detail__steps">
-        <h3 class="report-detail__section-title">步骤结果</h3>
-        <el-table :data="report.stepResults ?? []" row-key="stepId">
-          <el-table-column type="index" label="#" width="50" />
-          <el-table-column prop="name" label="步骤名称" min-width="160" show-overflow-tooltip />
-          <el-table-column label="接口" min-width="180" show-overflow-tooltip>
-            <template #default="{ row }">
-              <span v-if="(row as ApiReportStepResult).request?.method">
-                {{ (row as ApiReportStepResult).request!.method }}
-                {{ (row as ApiReportStepResult).request!.url }}
-              </span>
-              <span v-else>-</span>
-            </template>
-          </el-table-column>
-          <el-table-column label="状态" width="90" align="center">
-            <template #default="{ row }">
-              <el-tag size="small" :type="statusType((row as ApiReportStepResult).status)">
-                {{ statusLabel((row as ApiReportStepResult).status) }}
-              </el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column label="耗时" width="90" align="center">
-            <template #default="{ row }">{{ formatDuration((row as ApiReportStepResult).durationMs) }}</template>
-          </el-table-column>
-          <el-table-column label="断言" width="80" align="center">
-            <template #default="{ row }">{{ assertionStats(row as ApiReportStepResult) }}</template>
-          </el-table-column>
-          <el-table-column label="操作" width="80" align="center">
-            <template #default="{ row }">
-              <el-button link size="small" @click="openStepDetail(row as ApiReportStepResult)">
-                展开
+            <div class="report-detail__title-row">
+              <h2 class="report-detail__title">{{ reportName }}</h2>
+              <el-tag size="small" :type="statusType(report.status)">{{ statusLabel(report.status) }}</el-tag>
+            </div>
+            <div class="report-detail__meta">
+              <span>场景：{{ report.sceneName }}</span>
+              <span v-if="report.environmentName">环境：{{ report.environmentName }}</span>
+              <span>执行方式：{{ report.executionMode === 'pipeline' ? '仓库流水线' : '平台内执行' }}</span>
+              <span>执行时间：{{ formatDateTime(report.createdAt) }}</span>
+            </div>
+            <div class="report-detail__actions">
+              <el-button :disabled="!report.shareEnabled" @click="handleShare">
+                <el-icon><Share /></el-icon>分享
               </el-button>
-            </template>
-          </el-table-column>
-        </el-table>
-      </section>
+              <el-dropdown @command="(cmd: string) => openExport(cmd as 'json' | 'html')">
+                <el-button>
+                  <el-icon><Download /></el-icon>导出
+                </el-button>
+                <template #dropdown>
+                  <el-dropdown-menu>
+                    <el-dropdown-item command="json">导出 JSON</el-dropdown-item>
+                    <el-dropdown-item command="html">导出 HTML</el-dropdown-item>
+                  </el-dropdown-menu>
+                </template>
+              </el-dropdown>
+            </div>
+          </div>
+        </template>
+
+        <!-- 汇总卡片 -->
+        <section class="report-detail__summary">
+          <div class="summary-card">
+            <div class="summary-card__value">{{ report.summary?.total ?? 0 }}</div>
+            <div class="summary-card__label">总步骤</div>
+          </div>
+          <div class="summary-card summary-card--success">
+            <div class="summary-card__value">{{ report.summary?.passed ?? 0 }}</div>
+            <div class="summary-card__label">通过</div>
+          </div>
+          <div class="summary-card summary-card--danger">
+            <div class="summary-card__value">{{ report.summary?.failed ?? 0 }}</div>
+            <div class="summary-card__label">失败</div>
+          </div>
+          <div class="summary-card summary-card--info">
+            <div class="summary-card__value">{{ report.summary?.skipped ?? 0 }}</div>
+            <div class="summary-card__label">跳过</div>
+          </div>
+          <div class="summary-card summary-card--ring">
+            <div class="ring-chart" :style="{ '--rate': passRate + '%' }">
+              <span class="ring-chart__text">{{ passRate }}%</span>
+            </div>
+            <div class="summary-card__label">通过率</div>
+          </div>
+          <div class="summary-card">
+            <div class="summary-card__value">{{ formatDuration(report.summary?.durationMs) }}</div>
+            <div class="summary-card__label">总耗时</div>
+          </div>
+        </section>
+
+        <!-- 步骤结果表 -->
+        <section class="report-detail__steps">
+          <h3 class="report-detail__section-title">步骤结果</h3>
+          <el-table :data="report.stepResults ?? []" row-key="stepId">
+            <el-table-column type="index" label="#" width="50" />
+            <el-table-column prop="name" label="步骤名称" min-width="160" show-overflow-tooltip />
+            <el-table-column label="接口" min-width="180" show-overflow-tooltip>
+              <template #default="{ row }">
+                <span v-if="(row as ApiReportStepResult).request?.method">
+                  {{ (row as ApiReportStepResult).request!.method }}
+                  {{ (row as ApiReportStepResult).request!.url }}
+                </span>
+                <span v-else>-</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="状态" width="90" align="center">
+              <template #default="{ row }">
+                <el-tag size="small" :type="statusType((row as ApiReportStepResult).status)">
+                  {{ statusLabel((row as ApiReportStepResult).status) }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column label="耗时" width="90" align="center">
+              <template #default="{ row }">{{ formatDuration((row as ApiReportStepResult).durationMs) }}</template>
+            </el-table-column>
+            <el-table-column label="断言" width="80" align="center">
+              <template #default="{ row }">{{ assertionStats(row as ApiReportStepResult) }}</template>
+            </el-table-column>
+            <el-table-column label="操作" width="80" align="center">
+              <template #default="{ row }">
+                <el-button link size="small" @click="openStepDetail(row as ApiReportStepResult)">
+                  展开
+                </el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+        </section>
+      </el-card>
 
       <!-- 步骤详情抽屉 -->
       <el-drawer v-model="drawerVisible" :title="expandedStep?.name ?? '步骤详情'" size="600px">
@@ -324,6 +327,7 @@ onMounted(loadDetail)
   display: flex;
   flex-direction: column;
   gap: var(--space-lg);
+  height: 100%;
 }
 
 .report-detail__header {
@@ -482,6 +486,6 @@ onMounted(loadDetail)
 }
 
 .text-red-500 {
-  color: #ef4444;
+  color: var(--color-danger);
 }
 </style>

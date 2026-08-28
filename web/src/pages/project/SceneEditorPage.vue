@@ -455,43 +455,46 @@ onMounted(async () => { if (props.sceneId) await loadDetail() })
 
 <template>
   <div v-loading="loading" class="scene-editor">
-    <header class="scene-editor__header">
-      <el-button text @click="handleBack">
-        <el-icon><ArrowLeft /></el-icon> 返回列表
-      </el-button>
-      <el-button
-        v-if="!isCreateMode"
-        text
-        :type="followed ? 'warning' : 'info'"
-        @click="toggleFollow"
-      >
-        {{ followed ? '★ 已关注' : '☆ 关注' }}
-      </el-button>
-      <el-input v-model="editName" placeholder="场景名称" style="width: 320px" data-test="scene-name-input" />
-      <div class="scene-editor__header-spacer" />
+    <el-card shadow="never">
+      <template #header>
+        <div class="scene-editor__header">
+          <el-button text @click="handleBack">
+            <el-icon><ArrowLeft /></el-icon> 返回列表
+          </el-button>
+          <el-button
+            v-if="!isCreateMode"
+            text
+            :type="followed ? 'warning' : 'info'"
+            @click="toggleFollow"
+          >
+            {{ followed ? '★ 已关注' : '☆ 关注' }}
+          </el-button>
+          <el-input v-model="editName" placeholder="场景名称" style="width: 320px" data-test="scene-name-input" />
+          <div class="scene-editor__header-spacer" />
 
-      <!-- 执行进度 -->
-      <template v-if="executing">
-        <span class="scene-editor__progress-text">执行中 {{ execProgress.current }}/{{ execProgress.total }}</span>
-        <el-button size="small" type="danger" @click="handleCancelExecution">取消执行</el-button>
+          <!-- 执行进度 -->
+          <template v-if="executing">
+            <span class="scene-editor__progress-text">执行中 {{ execProgress.current }}/{{ execProgress.total }}</span>
+            <el-button size="small" type="danger" @click="handleCancelExecution">取消执行</el-button>
+          </template>
+
+          <el-dropdown v-if="!isCreateMode" trigger="click">
+            <el-button text>更多</el-button>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item @click="handleCopyScene">复制场景</el-dropdown-item>
+                <el-dropdown-item @click="handleCreateSchedule">创建定时任务</el-dropdown-item>
+                <el-dropdown-item divided style="color: var(--el-color-danger)" @click="handleDeleteScene">删除场景</el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
+          <el-button :disabled="saving" @click="handleSave">{{ isCreateMode ? '创建' : '保存' }}</el-button>
+          <el-button v-if="!isCreateMode" type="primary" :loading="executing" @click="handleExecute">执行</el-button>
+        </div>
       </template>
 
-      <el-dropdown v-if="!isCreateMode" trigger="click">
-        <el-button text>更多</el-button>
-        <template #dropdown>
-          <el-dropdown-menu>
-            <el-dropdown-item @click="handleCopyScene">复制场景</el-dropdown-item>
-            <el-dropdown-item @click="handleCreateSchedule">创建定时任务</el-dropdown-item>
-            <el-dropdown-item divided style="color: var(--el-color-danger)" @click="handleDeleteScene">删除场景</el-dropdown-item>
-          </el-dropdown-menu>
-        </template>
-      </el-dropdown>
-      <el-button :disabled="saving" @click="handleSave">{{ isCreateMode ? '创建' : '保存' }}</el-button>
-      <el-button v-if="!isCreateMode" type="primary" :loading="executing" @click="handleExecute">执行</el-button>
-    </header>
-
-    <template v-if="detail || isCreateMode">
-      <el-tabs v-model="activeTab" class="scene-editor__tabs">
+      <template v-if="detail || isCreateMode">
+        <el-tabs v-model="activeTab" class="scene-editor__tabs">
         <!-- ==================== 步骤标签页 ==================== -->
         <el-tab-pane label="步骤编排" name="steps">
           <div class="scene-editor__desc">
@@ -669,6 +672,7 @@ onMounted(async () => { if (props.sceneId) await loadDetail() })
         </el-tab-pane>
       </el-tabs>
     </template>
+    </el-card>
 
     <!-- 步骤编辑抽屉 -->
     <StepEditorDrawer v-model="showStepEditor" :scene-id="props.sceneId ?? ''" :step="editingStep" @saved="handleStepSaved" />
