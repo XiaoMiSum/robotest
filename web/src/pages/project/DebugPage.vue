@@ -433,8 +433,8 @@ function handleAuxClick(e: MouseEvent, tab: DebugTab) {
     display: flex;
     align-items: center;
     gap: var(--space-xs);
-    padding: 0 12px;
-    min-height: 40px;
+    padding: 2px 12px;
+    min-height: 32px;
   }
 
   &__tabs {
