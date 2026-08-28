@@ -54,12 +54,11 @@
         <el-input v-model="localConfig.sql" type="textarea" :rows="4" placeholder="SELECT * FROM table WHERE id = ?" />
       </el-form-item>
       <el-form-item label="参数">
-        <div v-for="(item, index) in localConfig.params" :key="index" class="kv-row">
-          <el-input v-model="item.key" placeholder="参数名" class="kv-input" />
-          <el-input v-model="item.value" placeholder="值" class="kv-input" />
-          <el-button type="danger" :icon="Delete" circle size="small" @click="removeParam(index)" />
+        <div v-for="(_, index) in localConfig.args" :key="index" class="kv-row">
+          <el-input v-model="localConfig.args[index]" placeholder="参数值" class="kv-input" />
+          <el-button type="danger" :icon="Delete" circle size="small" @click="removeArg(index)" />
         </div>
-        <el-button type="primary" link @click="addParam">+ 添加参数</el-button>
+        <el-button type="primary" link @click="addArg">+ 添加参数</el-button>
       </el-form-item>
     </template>
 
@@ -94,7 +93,7 @@ interface ProcessorConfig {
   body: string
   dataSource: string
   sql: string
-  params: KvItem[]
+  args: string[]
   async: boolean
   condition: string
   sortOrder: number
@@ -118,7 +117,7 @@ const defaultConfig: ProcessorConfig = {
   body: '',
   dataSource: '',
   sql: '',
-  params: [],
+  args: [],
   async: false,
   condition: '',
   sortOrder: 0,
@@ -149,12 +148,12 @@ const removeHeader = (index: number) => {
   localConfig.headers.splice(index, 1)
 }
 
-const addParam = () => {
-  localConfig.params.push({ key: '', value: '' })
+const addArg = () => {
+  localConfig.args.push('')
 }
 
-const removeParam = (index: number) => {
-  localConfig.params.splice(index, 1)
+const removeArg = (index: number) => {
+  localConfig.args.splice(index, 1)
 }
 </script>
 
