@@ -134,7 +134,11 @@ watch(() => props.modelValue, (val) => {
 }, { deep: true })
 
 watch(localConfig, (val) => {
-  emit('update:modelValue', JSON.parse(JSON.stringify(val)))
+  const next = JSON.parse(JSON.stringify(val)) as Record<string, unknown>
+  // 内容未变化（父级回写造成）时不再 emit，避免 localConfig⇄父级回声形成递归
+  const current = props.modelValue
+  if (current && JSON.stringify(next) === JSON.stringify(current)) return
+  emit('update:modelValue', next)
 }, { deep: true })
 
 const addHeader = () => {
