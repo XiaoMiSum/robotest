@@ -35,11 +35,8 @@
         </encoder>
     </appender>
 
-    <logger name="io.github.xiaomisum.robotest.aspect.AuditLogAspect" level="INFO" additivity="false">
-        <appender-ref ref="AUDIT_FILE"/>
-    </logger>
 
-    <root level="INFO">
+    <root level="DEBUG">
         <appender-ref ref="CONSOLE"/>
         <appender-ref ref="FILE"/>
     </root>
