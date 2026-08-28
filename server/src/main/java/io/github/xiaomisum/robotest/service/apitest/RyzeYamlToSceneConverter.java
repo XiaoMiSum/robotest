@@ -1,9 +1,5 @@
 package io.github.xiaomisum.robotest.service.apitest;
 
-import com.fasterxml.jackson.core.JsonFactory;
-import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import xyz.migoo.framework.common.util.JsonUtils;
 
 import java.util.ArrayList;
@@ -17,20 +13,13 @@ public final class RyzeYamlToSceneConverter {
     private static final Pattern ANCHORED_START = Pattern.compile("^\\^.*");
     private static final Pattern ANCHORED_END = Pattern.compile("\\$$");
 
-    private static final ObjectMapper MAPPER = new ObjectMapper(
-            new JsonFactory().configure(JsonParser.Feature.ALLOW_COMMENTS, true));
-
     private RyzeYamlToSceneConverter() {
     }
 
     public static Map<String, Object> convert(String ryzeJson) {
-        try {
-            Map<String, Object> suite = MAPPER.readValue(ryzeJson,
-                    new TypeReference<Map<String, Object>>() {});
-            return convertSuite(suite);
-        } catch (Exception e) {
-            throw new IllegalArgumentException("解析 Ryze JSON 失败：" + e.getMessage(), e);
-        }
+        Map<String, Object> suite = JsonUtils.parseObject(ryzeJson,
+                new tools.jackson.core.type.TypeReference<Map<String, Object>>() {});
+        return convertSuite(suite);
     }
 
     @SuppressWarnings("unchecked")
@@ -109,16 +98,18 @@ public final class RyzeYamlToSceneConverter {
         if (dataObj != null) {
             Map<String, Object> body = new LinkedHashMap<>();
             body.put("type", "form");
-            body.put("content", dataObj);
+            body.put("content", dataObj instanceof Map<?, ?> dataMap ? entriesFromMap(dataMap) : dataObj);
             rc.put("body", body);
         } else if (bodyObj != null) {
             if (bodyObj instanceof Map<?, ?> bodyMap) {
                 Object typeObj = bodyMap.get("type");
                 String type = str(typeObj == null ? "json" : typeObj).toLowerCase();
                 if (!"none".equals(type) && !"".equals(type)) {
+                    Object content = bodyMap.get("content");
                     Map<String, Object> normalized = new LinkedHashMap<>();
                     normalized.put("type", type);
-                    normalized.put("content", bodyMap.get("content"));
+                    normalized.put("content", "form".equals(type) && content instanceof Map<?, ?> formMap
+                            ? entriesFromMap(formMap) : content);
                     rc.put("body", normalized);
                 } else {
                     rc.remove("body");
@@ -132,8 +123,12 @@ public final class RyzeYamlToSceneConverter {
     static List<Map<String, Object>> entriesFromMap(Map<?, ?> map) {
         List<Map<String, Object>> entries = new ArrayList<>();
         for (Map.Entry<?, ?> entry : map.entrySet()) {
+            String key = entry.getKey() == null ? "" : entry.getKey().toString();
+            if (key.isBlank()) {
+                continue;
+            }
             Map<String, Object> e = new LinkedHashMap<>();
-            e.put("key", entry.getKey() == null ? "" : entry.getKey().toString());
+            e.put("key", key);
             e.put("value", entry.getValue() == null ? "" : entry.getValue().toString());
             e.put("enabled", true);
             entries.add(e);
