@@ -155,7 +155,7 @@ public class TestReviewServiceImpl implements TestReviewService {
 
         TestReview review = TestReviewConvertMapper.INSTANCE.toEntity(reqDTO);
         review.setProjectId(projectId);
-        review.setInitiatorId(userId.toString());
+        review.setInitiatorId(userId);
         review.setStatus(Constants.Status.NEW);
         testReviewMapper.insert(review);
 
@@ -494,7 +494,7 @@ public class TestReviewServiceImpl implements TestReviewService {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_REVIEW_NOT_FOUND);
         }
         projectAccessGuard.requireProjectMember(review.getProjectId(), userId);
-        if (!review.getInitiatorId().equals(userId.toString())) {
+        if (!review.getInitiatorId().equals(userId)) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.REVIEW_NOT_INITIATOR);
         }
         TestReview update = new TestReview();
@@ -513,7 +513,7 @@ public class TestReviewServiceImpl implements TestReviewService {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_REVIEW_NOT_FOUND);
         }
         projectAccessGuard.requireProjectMember(review.getProjectId(), userId);
-        if (!review.getInitiatorId().equals(userId.toString())) {
+        if (!review.getInitiatorId().equals(userId)) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.REVIEW_NOT_INITIATOR);
         }
         // 无物理外键，需显式级联删除快照与评审记录
@@ -583,7 +583,7 @@ public class TestReviewServiceImpl implements TestReviewService {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_REVIEW_NOT_FOUND);
         }
         projectAccessGuard.requireProjectMember(review.getProjectId(), userId);
-        if (!review.getInitiatorId().equals(userId.toString())) {
+        if (!review.getInitiatorId().equals(userId)) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.REVIEW_NOT_INITIATOR);
         }
         // 已完成的评审快照已定格，不再允许同步
