@@ -14,4 +14,5 @@ public class ApiEnvironmentListItemRespDTO {
     private Long variableCount;
     private Long dataSourceCount;
     private Long processorCount;
+    private Long httpConfigCount;
 }

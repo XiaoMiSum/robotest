@@ -17,7 +17,6 @@ import io.github.xiaomisum.robotest.repository.apitest.ApiEnvironmentMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiEnvironmentProcessorMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiEnvironmentVariableMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiScheduledTaskMapper;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -25,7 +24,6 @@ import org.mockito.Captor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.test.util.ReflectionTestUtils;
 import xyz.migoo.framework.common.exception.ServiceException;
 
 import java.util.List;
@@ -33,7 +31,6 @@ import java.util.Map;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -49,9 +46,6 @@ class ApiEnvironmentServiceImplTest {
     private static final UUID WORKSPACE_ID = UUID.randomUUID();
     private static final UUID USER_ID = UUID.randomUUID();
     private static final UUID ENV_ID = UUID.randomUUID();
-
-    // 与 application.yaml 默认开发密钥一致的 Base64 32 字节密钥，保证敏感值加密路径可测
-    private static final String SECRET_KEY_BASE64 = "4chJwgVabFLPyA0Mty7RDhu7lXR5Hik2QZ0FJjS3rtI=";
 
     @Mock
     private ApiEnvironmentMapper environmentMapper;
@@ -76,12 +70,6 @@ class ApiEnvironmentServiceImplTest {
     @Captor
     private ArgumentCaptor<List<ApiEnvironmentVariable>> varListCaptor;
 
-    @BeforeEach
-    void injectSecretKey() {
-        // @Value 字段不参与构造注入，测试中显式注入以覆盖敏感值加密路径
-        ReflectionTestUtils.setField(service, "secretKeyBase64", SECRET_KEY_BASE64);
-    }
-
     private void stubExistingEnv() {
         ApiEnvironment env = new ApiEnvironment();
         env.setId(ENV_ID);
@@ -104,9 +92,9 @@ class ApiEnvironmentServiceImplTest {
         http.setBaseUrl("https://staging.example.com");
         req.setHttpConfigs(List.of(http));
 
-        ApiEnvironmentSaveReqDTO.Variable text = variable("BASE_URL", "https://staging.example.com", "text");
-        ApiEnvironmentSaveReqDTO.Variable sensitive = variable("TEST_PASSWORD", "123456", "sensitive");
-        req.setVariables(List.of(text, sensitive));
+        ApiEnvironmentSaveReqDTO.Variable base = variable("BASE_URL", "https://staging.example.com");
+        ApiEnvironmentSaveReqDTO.Variable password = variable("TEST_PASSWORD", "123456");
+        req.setVariables(List.of(base, password));
 
         ApiEnvironmentSaveReqDTO.DataSource ds = new ApiEnvironmentSaveReqDTO.DataSource();
         ds.setName("测试库");
@@ -123,11 +111,10 @@ class ApiEnvironmentServiceImplTest {
         return req;
     }
 
-    private static ApiEnvironmentSaveReqDTO.Variable variable(String name, String value, String type) {
+    private static ApiEnvironmentSaveReqDTO.Variable variable(String name, String value) {
         ApiEnvironmentSaveReqDTO.Variable v = new ApiEnvironmentSaveReqDTO.Variable();
         v.setName(name);
         v.setValue(value);
-        v.setType(type);
         return v;
     }
 
@@ -157,37 +144,26 @@ class ApiEnvironmentServiceImplTest {
         List<ApiEnvironmentHttp> rows = httpListCaptor.getValue();
         assertEquals(1, rows.size());
         assertEquals("默认配置", rows.getFirst().getName());
-        assertTrue(rows.getFirst().getIsDefault());
     }
 
     @Test
-    void createEnvironment_sensitiveValueEncryptedAndMaskedInDetail() {
+    void createEnvironment_persistsVariablesPlaintext() {
         when(environmentMapper.existsByProjectIdAndName(PROJECT_ID, "测试环境", null)).thenReturn(false);
 
         service.createEnvironment(PROJECT_ID, WORKSPACE_ID, USER_ID, fullReq());
 
         verify(variableMapper).insertBatch(varListCaptor.capture());
-        ApiEnvironmentVariable sensitive = varListCaptor.getValue().stream()
-                .filter(v -> "sensitive".equals(v.getType())).findFirst().orElseThrow();
-        assertEquals("TEST_PASSWORD", sensitive.getName());
-        assertFalse(sensitive.getValue().contains("123456"));
-    }
-
-    @Test
-    void createEnvironment_numberTypeInvalidValue_throwsValidation() {
-        ApiEnvironmentSaveReqDTO req = fullReq();
-        req.setVariables(List.of(variable("userId", "abc", "number")));
-        when(environmentMapper.existsByProjectIdAndName(PROJECT_ID, "测试环境", null)).thenReturn(false);
-
-        ServiceException ex = assertThrows(ServiceException.class,
-                () -> service.createEnvironment(PROJECT_ID, WORKSPACE_ID, USER_ID, req));
-        assertEquals(ErrorCodeConstants.VALIDATION_FAILED.code(), ex.getCode());
+        ApiEnvironmentVariable password = varListCaptor.getValue().stream()
+                .filter(v -> "TEST_PASSWORD".equals(v.getName())).findFirst().orElseThrow();
+        assertEquals("123456", password.getValue());
+        assertEquals("https://staging.example.com", varListCaptor.getValue().stream()
+                .filter(v -> "BASE_URL".equals(v.getName())).findFirst().orElseThrow().getValue());
     }
 
     @Test
     void createEnvironment_duplicateVariableName_throwsValidation() {
         ApiEnvironmentSaveReqDTO req = fullReq();
-        req.setVariables(List.of(variable("A", "1", "text"), variable("A", "2", "text")));
+        req.setVariables(List.of(variable("A", "1"), variable("A", "2")));
         when(environmentMapper.existsByProjectIdAndName(PROJECT_ID, "测试环境", null)).thenReturn(false);
 
         ServiceException ex = assertThrows(ServiceException.class,
@@ -251,43 +227,20 @@ class ApiEnvironmentServiceImplTest {
     }
 
     @Test
-    void updateEnvironment_sensitiveBlankOrMaskKeepsPreviousCipher() {
+    void updateEnvironment_blankVariableValueStoredAsIs() {
         stubExistingEnv();
         when(environmentMapper.existsByProjectIdAndName(PROJECT_ID, "测试环境", ENV_ID)).thenReturn(false);
-        ApiEnvironmentVariable oldSensitive = new ApiEnvironmentVariable();
-        oldSensitive.setName("TEST_PASSWORD");
-        oldSensitive.setValue("old-cipher");
-        oldSensitive.setType("sensitive");
-        when(variableMapper.listByEnvironmentId(ENV_ID)).thenReturn(List.of(oldSensitive));
 
-        // 敏感值留空提交：应沿用旧密文而非清空（交互设计 3.3）
-        ApiEnvironmentSaveReqDTO blank = fullReq();
-        blank.getVariables().stream()
-                .filter(v -> "sensitive".equals(v.getType())).findFirst().orElseThrow().setValue(null);
-        service.updateEnvironment(PROJECT_ID, WORKSPACE_ID, USER_ID, ENV_ID, blank);
+        // 变量值留空提交：明文存储语义下直接落空值，无密文沿用逻辑
+        ApiEnvironmentSaveReqDTO req = fullReq();
+        req.getVariables().stream()
+                .filter(v -> "TEST_PASSWORD".equals(v.getName())).findFirst().orElseThrow().setValue(null);
+        service.updateEnvironment(PROJECT_ID, WORKSPACE_ID, USER_ID, ENV_ID, req);
 
         ArgumentCaptor<List<ApiEnvironmentVariable>> captor = ArgumentCaptor.captor();
         verify(variableMapper).insertBatch(captor.capture());
-        assertEquals("old-cipher", captor.getValue().stream()
-                .filter(v -> "sensitive".equals(v.getType())).findFirst().orElseThrow().getValue());
-
-        // 掩码字面量提交：同样沿用旧密文，"******" 永不落库
-        org.mockito.Mockito.reset(variableMapper);
-        stubExistingEnv();
-        when(environmentMapper.existsByProjectIdAndName(PROJECT_ID, "测试环境", ENV_ID)).thenReturn(false);
-        when(variableMapper.listByEnvironmentId(ENV_ID)).thenReturn(List.of(oldSensitive));
-        ApiEnvironmentSaveReqDTO masked = fullReq();
-        masked.getVariables().stream()
-                .filter(v -> "sensitive".equals(v.getType())).findFirst().orElseThrow()
-                .setValue(ApiEnvironmentDetailRespDTO.SENSITIVE_MASK);
-        service.updateEnvironment(PROJECT_ID, WORKSPACE_ID, USER_ID, ENV_ID, masked);
-
-        ArgumentCaptor<List<ApiEnvironmentVariable>> maskCaptor = ArgumentCaptor.captor();
-        verify(variableMapper).insertBatch(maskCaptor.capture());
-        String stored = maskCaptor.getValue().stream()
-                .filter(v -> "sensitive".equals(v.getType())).findFirst().orElseThrow().getValue();
-        assertEquals("old-cipher", stored);
-        assertFalse(stored.contains(ApiEnvironmentDetailRespDTO.SENSITIVE_MASK));
+        assertNull(captor.getValue().stream()
+                .filter(v -> "TEST_PASSWORD".equals(v.getName())).findFirst().orElseThrow().getValue());
     }
 
     @Test
@@ -335,36 +288,34 @@ class ApiEnvironmentServiceImplTest {
     // ==================== 详情与复制 ====================
 
     @Test
-    void getEnvironment_masksSensitiveValues() {
+    void getEnvironment_returnsVariablePlaintext() {
         stubExistingEnv();
-        ApiEnvironmentVariable sensitive = new ApiEnvironmentVariable();
-        sensitive.setId(UUID.randomUUID());
-        sensitive.setName("TEST_PASSWORD");
-        sensitive.setValue("ciphertext-base64");
-        sensitive.setType("sensitive");
+        ApiEnvironmentVariable password = new ApiEnvironmentVariable();
+        password.setId(UUID.randomUUID());
+        password.setName("TEST_PASSWORD");
+        password.setValue("123456");
         ApiEnvironmentVariable plain = new ApiEnvironmentVariable();
         plain.setId(UUID.randomUUID());
         plain.setName("BASE_URL");
         plain.setValue("https://staging.example.com");
-        plain.setType("text");
-        when(variableMapper.listByEnvironmentId(ENV_ID)).thenReturn(List.of(sensitive, plain));
+        when(variableMapper.listByEnvironmentId(ENV_ID)).thenReturn(List.of(password, plain));
         when(httpMapper.listByEnvironmentId(ENV_ID)).thenReturn(List.of());
         when(dataSourceMapper.listByEnvironmentId(ENV_ID)).thenReturn(List.of());
         when(processorMapper.listByEnvironmentIdAndType(ENV_ID, null)).thenReturn(List.of());
 
         ApiEnvironmentDetailRespDTO detail = service.getEnvironment(PROJECT_ID, WORKSPACE_ID, USER_ID, ENV_ID);
 
-        ApiEnvironmentDetailRespDTO.Variable masked = detail.getVariables().stream()
+        ApiEnvironmentDetailRespDTO.Variable pwd = detail.getVariables().stream()
                 .filter(v -> "TEST_PASSWORD".equals(v.getName())).findFirst().orElseThrow();
-        assertEquals(ApiEnvironmentDetailRespDTO.SENSITIVE_MASK, masked.getValue());
-        assertTrue(masked.getHasValue());
+        assertEquals("123456", pwd.getValue());
+        assertTrue(pwd.getHasValue());
         ApiEnvironmentDetailRespDTO.Variable textVar = detail.getVariables().stream()
                 .filter(v -> "BASE_URL".equals(v.getName())).findFirst().orElseThrow();
         assertEquals("https://staging.example.com", textVar.getValue());
     }
 
     @Test
-    void copyEnvironment_copiesWithoutSensitiveValuesAndDataSources() {
+    void copyEnvironment_copiesVariablesWithValuesNoDataSources() {
         stubExistingEnv();
         ApiEnvironmentHttp http = new ApiEnvironmentHttp();
         http.setId(UUID.randomUUID());
@@ -372,21 +323,16 @@ class ApiEnvironmentServiceImplTest {
         http.setName("内部 API");
         http.setRefName("http_1");
         http.setBaseUrl("https://staging.example.com");
-        http.setIsDefault(true);
-        http.setTimeoutMs(30000);
-        http.setConnectTimeoutMs(10000);
         when(httpMapper.listByEnvironmentId(ENV_ID)).thenReturn(List.of(http));
-        ApiEnvironmentVariable sensitive = new ApiEnvironmentVariable();
-        sensitive.setId(UUID.randomUUID());
-        sensitive.setName("TOKEN");
-        sensitive.setValue("cipher");
-        sensitive.setType("sensitive");
+        ApiEnvironmentVariable token = new ApiEnvironmentVariable();
+        token.setId(UUID.randomUUID());
+        token.setName("TOKEN");
+        token.setValue("abc123");
         ApiEnvironmentVariable plain = new ApiEnvironmentVariable();
         plain.setId(UUID.randomUUID());
         plain.setName("BASE_URL");
         plain.setValue("https://x");
-        plain.setType("text");
-        when(variableMapper.listByEnvironmentId(ENV_ID)).thenReturn(List.of(sensitive, plain));
+        when(variableMapper.listByEnvironmentId(ENV_ID)).thenReturn(List.of(token, plain));
         when(processorMapper.listByEnvironmentIdAndType(ENV_ID, null)).thenReturn(List.of());
         ApiDataSource ds = new ApiDataSource();
         ds.setId(UUID.randomUUID());
@@ -401,11 +347,11 @@ class ApiEnvironmentServiceImplTest {
 
         // 数据源不复制（详细设计 3.1.11）
         verify(dataSourceMapper, never()).insertBatch(any());
-        // 敏感变量仅保留名称占位（value 置空），明文/密文均不随副本落库
+        // 变量随副本落库且保留取值（明文存储，无脱敏排除逻辑）
         verify(variableMapper).insertBatch(varListCaptor.capture());
         assertEquals(2, varListCaptor.getValue().size());
-        ApiEnvironmentVariable copiedSensitive = varListCaptor.getValue().stream()
+        ApiEnvironmentVariable copiedToken = varListCaptor.getValue().stream()
                 .filter(v -> "TOKEN".equals(v.getName())).findFirst().orElseThrow();
-        assertNull(copiedSensitive.getValue());
+        assertEquals("abc123", copiedToken.getValue());
     }
 }

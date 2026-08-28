@@ -1,6 +1,5 @@
 package io.github.xiaomisum.robotest.service.apitest;
 
-import io.github.xiaomisum.robotest.framework.util.SecretCryptoUtil;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiEnvironment;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiEnvironmentHttp;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiEnvironmentProcessor;
@@ -11,7 +10,6 @@ import io.github.xiaomisum.robotest.repository.apitest.ApiEnvironmentProcessorMa
 import io.github.xiaomisum.robotest.repository.apitest.ApiEnvironmentVariableMapper;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import xyz.migoo.framework.mybatis.core.LambdaQueryWrapperX;
 
@@ -29,8 +27,6 @@ import java.util.UUID;
 @Component
 public class EnvironmentSnapshotFactory {
 
-    private static final String TYPE_SENSITIVE = "sensitive";
-
     @Resource
     private ApiEnvironmentMapper environmentMapper;
     @Resource
@@ -39,9 +35,6 @@ public class EnvironmentSnapshotFactory {
     private ApiEnvironmentVariableMapper environmentVariableMapper;
     @Resource
     private ApiEnvironmentProcessorMapper environmentProcessorMapper;
-
-    @Value("${robotest.env.secret-key:}")
-    private String secretKeyBase64;
 
     /** 指定环境不可用时回退项目默认环境，均缺失时返回空快照 */
     public DebugRyzeConverter.EnvSnapshot resolve(UUID projectId, UUID environmentId) {
@@ -52,7 +45,6 @@ public class EnvironmentSnapshotFactory {
             return DebugRyzeConverter.EnvSnapshot.empty();
         }
         ApiEnvironmentHttp defaultHttp = environmentHttpMapper.listByEnvironmentId(env.getId()).stream()
-                .filter(http -> Boolean.TRUE.equals(http.getIsDefault()))
                 .findFirst()
                 .orElse(null);
         Map<String, Object> variables = new LinkedHashMap<>();
@@ -98,18 +90,8 @@ public class EnvironmentSnapshotFactory {
         return configs;
     }
 
-    /** 变量明文：敏感变量解密后参与执行（执行需要真实值，区别于前端展示掩码） */
+    /** 参与执行的变量取值：环境变量明文存储，直接使用（详细设计 3.1.9） */
     private String plaintext(ApiEnvironmentVariable variable) {
-        String value = variable.getValue();
-        if (value == null || !TYPE_SENSITIVE.equals(variable.getType())) {
-            return value;
-        }
-        try {
-            byte[] key = SecretCryptoUtil.parseKey(secretKeyBase64);
-            return key == null ? value : SecretCryptoUtil.decrypt(key, value);
-        } catch (Exception ex) {
-            log.warn("[api-env] 敏感变量 {} 解密失败，按密文参与执行", variable.getName());
-            return value;
-        }
+        return variable.getValue();
     }
 }
