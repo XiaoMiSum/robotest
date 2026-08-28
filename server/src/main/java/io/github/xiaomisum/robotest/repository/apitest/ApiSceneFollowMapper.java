@@ -20,10 +20,10 @@ public interface ApiSceneFollowMapper extends BaseMapperX<ApiSceneFollow> {
     }
 
     default List<UUID> selectFollowedSceneIdsByUserId(UUID userId) {
-        return selectObjs(new LambdaQueryWrapperX<ApiSceneFollow>()
+        List<Object> objs = selectObjs(new LambdaQueryWrapperX<ApiSceneFollow>()
                 .select(ApiSceneFollow::getSceneId)
-                .eq(ApiSceneFollow::getUserId, userId),
-                ApiSceneFollow::getSceneId);
+                .eq(ApiSceneFollow::getUserId, userId));
+        return objs.stream().map(obj -> (UUID) obj).toList();
     }
 
     default void deleteBySceneId(UUID sceneId) {
