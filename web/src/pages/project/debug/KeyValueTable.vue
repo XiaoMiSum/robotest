@@ -128,16 +128,18 @@ onMounted(() => {
 
   &__col-enable {
     width: 30px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    text-align: center;
+    vertical-align: middle;
+
+    :deep(.el-checkbox) {
+      margin-right: 0;
+    }
   }
 
   &__col-op {
     width: 30px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    text-align: center;
+    vertical-align: middle;
   }
 
   &__row {
