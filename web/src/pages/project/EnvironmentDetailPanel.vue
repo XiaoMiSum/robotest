@@ -547,7 +547,7 @@ async function removeProcessor(processor: ApiProcessor) {
                 <el-form-item label="名称" required>
                   <el-input v-model="activeConfig.name" maxlength="100" />
                 </el-form-item>
-                <el-form-item label="引用名 refName">
+                <el-form-item label="引用名">
                   <el-input v-model="activeConfig.refName" placeholder="场景中通过该名引用此配置" />
                 </el-form-item>
                 <el-form-item label="Base URL">
@@ -705,7 +705,7 @@ async function removeProcessor(processor: ApiProcessor) {
                 <el-form-item label="名称" required>
                   <el-input v-model="activeDs.name" maxlength="100" />
                 </el-form-item>
-                <el-form-item label="引用名 refName">
+                <el-form-item label="引用名">
                   <el-input v-model="activeDs.refName" placeholder="场景中通过该名引用此数据源" />
                 </el-form-item>
                 <el-form-item label="驱动">
