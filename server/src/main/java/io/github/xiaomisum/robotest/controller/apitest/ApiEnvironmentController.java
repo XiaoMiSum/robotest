@@ -1,6 +1,7 @@
 package io.github.xiaomisum.robotest.controller.apitest;
 
 import io.github.xiaomisum.robotest.framework.security.LoginUser;
+import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiDataSourceTestReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiEnvironmentCopyReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiEnvironmentDataSourceSaveReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiEnvironmentHttpConfigSaveReqDTO;
@@ -323,6 +324,17 @@ public class ApiEnvironmentController {
             @PathVariable UUID id,
             @PathVariable UUID dsId) {
         return Result.ok(apiEnvironmentService.testDataSource(projectId, workspaceId, loginUser.getId(), id, dsId));
+    }
+
+    @PostMapping("/{id}/data-sources/test")
+    @PreAuthorize("hasAuthority('api-env:view')")
+    public Result<ApiDataSourceTestRespDTO> testDataSourceConfig(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @RequestHeader("X-Active-Workspace") UUID workspaceId,
+            @RequestHeader("X-Active-Project") UUID projectId,
+            @PathVariable UUID id,
+            @Valid @RequestBody ApiDataSourceTestReqDTO reqDTO) {
+        return Result.ok(apiEnvironmentService.testDataSourceConfig(projectId, workspaceId, loginUser.getId(), id, reqDTO));
     }
 
     @PostMapping("/{id}/http-configs/{httpId}/test")

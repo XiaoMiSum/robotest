@@ -2,6 +2,7 @@ package io.github.xiaomisum.robotest.service.apitest;
 
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.framework.security.ProjectAccessGuard;
+import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiDataSourceTestReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiEnvironmentSaveReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiEnvironmentVariableBatchReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiEnvironmentVariableCreateReqDTO;
@@ -312,6 +313,60 @@ class ApiEnvironmentSubResourceTest {
                 () -> spyService.testDataSource(PROJECT_ID, WORKSPACE_ID, USER_ID, ENV_ID, ds.getId()));
         assertEquals(ErrorCodeConstants.API_DATASOURCE_CONN_FAILED.code(), ex.getCode());
         assertTrue(ex.getMessage().contains("Connection refused"));
+    }
+
+    @SuppressWarnings("unchecked")
+    @Test
+    void testDataSourceConfig_unsavedPayloadRoutesToJdbc() throws Exception {
+        // 免保存测试：仅凭表单当前值试连，不依赖落库行
+        stubEnv();
+        ApiDataSourceTestReqDTO req = new ApiDataSourceTestReqDTO();
+        req.setDriver("com.mysql.cj.jdbc.Driver");
+        req.setUrl("jdbc:mysql://db:3306/test");
+        req.setConnectionProperties(Map.of("user", "tester"));
+
+        DatabaseMetaData meta = mock(DatabaseMetaData.class);
+        when(meta.getDatabaseProductName()).thenReturn("MySQL");
+        when(meta.getDatabaseMajorVersion()).thenReturn(8);
+        when(meta.getDatabaseMinorVersion()).thenReturn(0);
+        Connection connection = mock(Connection.class);
+        when(connection.getMetaData()).thenReturn(meta);
+
+        ApiEnvironmentServiceImpl spyService = org.mockito.Mockito.spy(service);
+        doReturn(connection).when(spyService).openJdbcConnection(eq(req.getDriver()), eq(req.getUrl()), any());
+
+        ApiDataSourceTestRespDTO resp = spyService.testDataSourceConfig(PROJECT_ID, WORKSPACE_ID, USER_ID, ENV_ID, req);
+        assertTrue(resp.getSuccess());
+        assertEquals("MySQL 8.0", resp.getDatabaseVersion());
+    }
+
+    @Test
+    void testDataSourceConfig_unsavedRedisPayloadBypassesDriverWhitelist() throws Exception {
+        stubEnv();
+        ApiDataSourceTestReqDTO req = new ApiDataSourceTestReqDTO();
+        req.setDriver("");
+        req.setUrl("redis://:secret@cache:6379/0");
+
+        ApiEnvironmentServiceImpl spyService = org.mockito.Mockito.spy(service);
+        doReturn(new ApiDataSourceTestRespDTO(true, "连接成功", "Redis 7.2.4"))
+                .when(spyService).openRedisConnection(req.getUrl());
+
+        ApiDataSourceTestRespDTO resp = spyService.testDataSourceConfig(PROJECT_ID, WORKSPACE_ID, USER_ID, ENV_ID, req);
+        assertTrue(resp.getSuccess());
+        assertEquals("Redis 7.2.4", resp.getDatabaseVersion());
+    }
+
+    @Test
+    void testDataSourceConfig_unsupportedDriverThrows7403WithDetail() {
+        stubEnv();
+        ApiDataSourceTestReqDTO req = new ApiDataSourceTestReqDTO();
+        req.setDriver("oracle.jdbc.OracleDriver");
+        req.setUrl("jdbc:oracle:thin:@host:1521/orcl");
+
+        ServiceException ex = assertThrows(ServiceException.class,
+                () -> service.testDataSourceConfig(PROJECT_ID, WORKSPACE_ID, USER_ID, ENV_ID, req));
+        assertEquals(ErrorCodeConstants.API_DATASOURCE_CONN_FAILED.code(), ex.getCode());
+        assertTrue(ex.getMessage().contains("不支持的数据库驱动"));
     }
 
     @SuppressWarnings("unchecked")
