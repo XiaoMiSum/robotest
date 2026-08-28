@@ -13,7 +13,7 @@ import java.util.UUID;
 
 @Data
 @EqualsAndHashCode(callSuper = true)
-@TableName(value = "api_data_source", autoResultMap = true)
+@TableName(value = "api_environment_data_source", autoResultMap = true)
 public class ApiDataSource extends BaseUuidDO<ApiDataSource> {
 
     @TableField(typeHandler = UUIDTypeHandler.class)
