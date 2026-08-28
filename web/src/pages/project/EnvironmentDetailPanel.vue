@@ -721,14 +721,14 @@ async function removeProcessor(processor: ApiProcessor) {
                     />
                   </el-select>
                 </el-form-item>
-                <el-form-item label="JDBC URL" required>
+                <el-form-item label="URL" required>
                   <el-input
                     v-model="activeDs.url"
                     type="textarea"
                     :rows="2"
                     :placeholder="selectedDsDriverOption?.urlExample"
                   />
-                  <span v-if="activeDs.driver === '-'" class="env-detail__hint">Redis 无需驱动，按 redis:// 协议识别</span>
+                  <span class="env-detail__hint">用户名/密码通过 URL 设置</span>
                 </el-form-item>
                 <el-form-item label="连接池上限">
                   <el-input-number v-model="activeDs.maxPoolSize" :min="1" :max="100" />
