@@ -46,10 +46,10 @@ public class ApiBuiltinFunctionRegistry {
             Meta meta = METADATA.get(key);
             ApiBuiltinFunctionGroupRespDTO.BuiltinFunction item = new ApiBuiltinFunctionGroupRespDTO.BuiltinFunction();
             item.setName(key);
-            item.setSignature(meta != null ? meta.signature() : "${__" + key + "(...)}");
+            item.setSignature(meta != null ? meta.signature() : "${" + key + "(...)}");
             item.setDescription(meta != null ? meta.description() : "Ryze 内置函数");
             item.setParams(meta != null ? meta.params() : List.of());
-            item.setExample(meta != null ? meta.example() : "${__" + key + "()}");
+            item.setExample(meta != null ? meta.example() : "${" + key + "()}");
             item.setBuiltin(true);
             grouped.computeIfAbsent(meta != null ? meta.group() : "其他", k -> new ArrayList<>()).add(item);
         }
@@ -78,39 +78,39 @@ public class ApiBuiltinFunctionRegistry {
 
     private static Map<String, Meta> buildMetadata() {
         Map<String, Meta> map = new LinkedHashMap<>();
-        map.put("random", meta("数据生成", "生成指定区间的随机整数", "${__random(min, max)}", "${__random(1, 100)}",
+        map.put("random", meta("数据生成", "生成指定区间的随机整数", "${random(min, max)}", "${random(1, 100)}",
                 param("min", true, "区间下界"), param("max", true, "区间上界")));
-        map.put("random_string", meta("数据生成", "生成指定长度的随机字符串（含字母与数字）", "${__random_string(length)}", "${__random_string(8)}",
+        map.put("random_string", meta("数据生成", "生成指定长度的随机字符串（含字母与数字）", "${random_string(length)}", "${random_string(8)}",
                 param("length", true, "字符串长度")));
-        map.put("faker", meta("数据生成", "按 Faker 表达式生成仿真测试数据", "${__faker(path[, locale])}", "${__faker(name.fullName, zh_CN)}",
+        map.put("faker", meta("数据生成", "按 Faker 表达式生成仿真测试数据", "${faker(path[, locale])}", "${faker(name.fullName, zh_CN)}",
                 param("path", true, "Faker 数据路径，如 name.fullName"),
                 param("locale", false, "语言区域，默认 zh_CN")));
-        map.put("uuid", meta("数据生成", "生成随机 UUID（去连字符）", "${__uuid()}", "${__uuid()}"));
-        map.put("timestamp", meta("日期时间", "当前时间戳，默认毫秒；可指定秒或日期格式", "${__timestamp([format|_s])}", "${__timestamp(_s)}",
+        map.put("uuid", meta("数据生成", "生成随机 UUID（去连字符）", "${uuid()}", "${uuid()}"));
+        map.put("timestamp", meta("日期时间", "当前时间戳，默认毫秒；可指定秒或日期格式", "${timestamp([format|_s])}", "${timestamp(_s)}",
                 param("format|_s", false, "日期格式串；传 _s 返回秒级时间戳")));
-        map.put("time_shift", meta("日期时间", "基于当前时间按 ISO-8601 偏移量平移后格式化输出", "${__time_shift([format,] offset)}", "${__time_shift(+1d)}",
+        map.put("time_shift", meta("日期时间", "基于当前时间按 ISO-8601 偏移量平移后格式化输出", "${time_shift([format,] offset)}", "${time_shift(+1d)}",
                 param("format", false, "输出日期格式，默认 yyyy-MM-dd HH:mm:ss"),
                 param("offset", true, "ISO-8601 偏移量，如 +1d / -2h")));
-        map.put("json", meta("数据处理", "将多组 k=v 参数组装为 JSON 字符串", "${__json(k1=v1, k2=v2)}", "${__json(code=0, msg=ok)}",
+        map.put("json", meta("数据处理", "将多组 k=v 参数组装为 JSON 字符串", "${json(k1=v1, k2=v2)}", "${json(code=0, msg=ok)}",
                 param("k=v", true, "键值参数，至少一组")));
-        map.put("json_read", meta("数据处理", "从 JSON 文本中按 JsonPath 提取值", "${__json_read(json, jsonpath)}", "${__json_read(${__json(id=1)}, $.id)}",
+        map.put("json_read", meta("数据处理", "从 JSON 文本中按 JsonPath 提取值", "${json_read(json, jsonpath)}", "${json_read(${json(id=1)}, $.id)}",
                 param("json", true, "JSON 文本或变量引用"),
                 param("jsonpath", true, "JsonPath 表达式")));
-        map.put("url_encode", meta("数据处理", "URL 编码（application/x-www-form-urlencoded）", "${__url_encode(content)}", "${__url_encode(a b&c=1)}",
+        map.put("url_encode", meta("数据处理", "URL 编码（application/x-www-form-urlencoded）", "${url_encode(content)}", "${url_encode(a b&c=1)}",
                 param("content", true, "待编码文本")));
-        map.put("url_decode", meta("数据处理", "URL 解码", "${__url_decode(content)}", "${__url_decode(%E4%B8%AD%E6%96%87)}",
+        map.put("url_decode", meta("数据处理", "URL 解码", "${url_decode(content)}", "${url_decode(%E4%B8%AD%E6%96%87)}",
                 param("content", true, "待解码文本")));
-        map.put("base64_encode", meta("数据处理", "Base64 编码", "${__base64_encode(content)}", "${__base64_encode(robotest)}",
+        map.put("base64_encode", meta("数据处理", "Base64 编码", "${base64_encode(content)}", "${base64_encode(robotest)}",
                 param("content", true, "待编码文本")));
-        map.put("base64_decode", meta("数据处理", "Base64 解码", "${__base64_decode(content)}", "${__base64_decode(cm9ib3Rlc3Q=)}",
+        map.put("base64_decode", meta("数据处理", "Base64 解码", "${base64_decode(content)}", "${base64_decode(cm9ib3Rlc3Q=)}",
                 param("content", true, "待解码 Base64 文本")));
-        map.put("property", meta("数据处理", "读取平台变量值（就近作用域解析）", "${__property(key)}", "${__property(token)}",
+        map.put("property", meta("数据处理", "读取平台变量值（就近作用域解析）", "${property(key)}", "${property(token)}",
                 param("key", true, "变量名")));
-        map.put("digest", meta("安全加密", "摘要算法（md5/sha-1/sha-256 等，支持盐值）", "${__digest(algorithm, content[, salt])}", "${__digest(md5, password, salt123)}",
+        map.put("digest", meta("安全加密", "摘要算法（md5/sha-1/sha-256 等，支持盐值）", "${digest(algorithm, content[, salt])}", "${digest(md5, password, salt123)}",
                 param("algorithm", true, "摘要算法名"),
                 param("content", true, "原文"),
                 param("salt", false, "盐值")));
-        map.put("google2fa", meta("安全加密", "根据 2FA 密钥生成 Google 验证码", "${__google2fa(secretKey)}", "${__google2fa(JBSWY3DPEHPK3PXP)}",
+        map.put("google2fa", meta("安全加密", "根据 2FA 密钥生成 Google 验证码", "${google2fa(secretKey)}", "${google2fa(JBSWY3DPEHPK3PXP)}",
                 param("secretKey", true, "Google Authenticator 共享密钥")));
         return map;
     }
