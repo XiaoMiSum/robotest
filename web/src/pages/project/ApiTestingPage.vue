@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import type { MenuInstance } from 'element-plus'
+import { useAuthStore } from '@/stores/auth'
 import ProjectSettingsPage from './ProjectSettingsPage.vue'
 import EnvironmentPage from './EnvironmentPage.vue'
 import FunctionPage from './FunctionPage.vue'
@@ -20,31 +21,49 @@ const route = useRoute()
 const router = useRouter()
 
 const menuItems = [
-  { key: 'debug', label: '快速调试', icon: 'Promotion' },
-  { key: 'interfaces', label: '接口管理', icon: 'Link' },
-  { key: 'mocks', label: 'Mock 服务', icon: 'Cpu' },
-  { key: 'scenes', label: '测试场景', icon: 'Operation' },
-  { key: 'reports', label: '测试报告', icon: 'DataAnalysis' },
-  { key: 'schedules', label: '定时任务', icon: 'Timer' },
+  { key: 'debug', label: '快速调试', icon: 'Promotion', permission: 'api-debug:view' },
+  { key: 'interfaces', label: '接口管理', icon: 'Link', permission: 'api-interface:view' },
+  { key: 'mocks', label: 'Mock 服务', icon: 'Cpu', permission: 'api-mock:view' },
+  { key: 'scenes', label: '测试场景', icon: 'Operation', permission: 'api-scene:view' },
+  { key: 'reports', label: '测试报告', icon: 'DataAnalysis', permission: 'api-report:view' },
+  { key: 'schedules', label: '定时任务', icon: 'Timer', permission: 'api-timer:view' },
 ]
 
-// 项目设置分组为平台级框架（交互设计 3.5）；仅安全策略与应用设置已实装，
-// 其余项后端未就绪，保持禁用占位避免跳转到空白页
 const settingsItems = [
-  { key: 'environments', label: '环境管理', icon: 'Compass', enabled: true },
-  { key: 'functions', label: '函数管理', icon: 'SetUp', enabled: true },
-  { key: 'assets', label: '公共组件', icon: 'Box', enabled: true },
-  { key: 'gitlab-repos', label: 'GitLab配置', icon: 'Platform', enabled: true },
-  { key: 'security', label: '应用设置', icon: 'Lock', enabled: true },
+  { key: 'environments', label: '环境管理', icon: 'Compass', enabled: true, permission: 'api-env:view' },
+  { key: 'functions', label: '函数管理', icon: 'SetUp', enabled: true, permission: 'api-func:view' },
+  { key: 'assets', label: '公共组件', icon: 'Box', enabled: true, permission: 'api-component:view' },
+  { key: 'gitlab-repos', label: 'GitLab配置', icon: 'Platform', enabled: true, permission: 'api-gitlab:view' },
+  { key: 'security', label: '应用设置', icon: 'Lock', enabled: true, permission: 'api-setting:view' },
 ]
 
-// 刷新与详情页返回时通过 ?tab= 恢复激活子模块（子页切换不走路由，仅初始化读取）
-const selectableKeys = [
-  ...menuItems.map((item) => item.key),
-  ...settingsItems.filter((item) => item.enabled).map((item) => item.key),
-]
+const authStore = useAuthStore()
+const has = (code: string) => authStore.hasPermission(code)
+const visibleMenuItems = computed(() => menuItems.filter((item) => has(item.permission)))
+const visibleSettingsItems = computed(() => settingsItems.filter((item) => item.enabled && has(item.permission)))
+const visibleKeys = computed(() => [
+  ...visibleMenuItems.value.map((item) => item.key),
+  ...visibleSettingsItems.value.map((item) => item.key),
+])
+
+// 刷新与详情页返回时通过 ?tab= 恢复激活子模块（子页切换不走路由，仅初始化读取）。
+
 const initialTab = String(route.query.tab ?? '')
-const activeMenu = ref(selectableKeys.includes(initialTab) ? initialTab : 'debug')
+// 权限点异步加载完成后可见菜单会变化，激活项须始终落在可见列表内；?tab= 仅在可见时还原
+const activeMenu = ref('')
+watch(
+  visibleKeys,
+  (keys) => {
+    if (!keys.length) {
+      activeMenu.value = ''
+      return
+    }
+    if (!keys.includes(activeMenu.value)) {
+      activeMenu.value = keys.includes(initialTab) ? initialTab : keys[0]
+    }
+  },
+  { immediate: true },
+)
 const menuRef = ref<MenuInstance>()
 
 const allItems = [...menuItems, ...settingsItems]
@@ -121,13 +140,13 @@ function handleMenuSelect(key: string) {
         class="api-testing__sidebar-menu"
         @select="handleMenuSelect"
       >
-        <el-menu-item v-for="item in menuItems" :key="item.key" :index="item.key">
+        <el-menu-item v-for="item in visibleMenuItems" :key="item.key" :index="item.key">
           <el-icon><component :is="item.icon" /></el-icon>
           <span>{{ item.label }}</span>
         </el-menu-item>
-        <el-menu-item-group class="api-testing__settings-group" title="项目设置">
+        <el-menu-item-group v-if="visibleSettingsItems.length" class="api-testing__settings-group" title="项目设置">
           <el-menu-item
-            v-for="item in settingsItems"
+            v-for="item in visibleSettingsItems"
             :key="item.key"
             :index="item.key"
             :disabled="!item.enabled"
@@ -170,6 +189,10 @@ function handleMenuSelect(key: string) {
         @create="(moduleId?: string) => { sceneEditorSceneId = null; sceneCreateMode = true; sceneModuleId = moduleId ?? null }"
       />
       <SchedulesPage v-else-if="activeMenu === 'schedules'" />
+      <div v-else-if="!activeMenu" class="api-testing__norights">
+        <div class="api-testing__norights-title">暂无可用功能模块</div>
+        <p class="api-testing__norights-desc">当前角色未被分配接口测试相关权限，请联系空间管理员</p>
+      </div>
       <div v-else class="api-testing__placeholder">
         <div class="api-testing__placeholder-icon">
           <el-icon :size="48"><Connection /></el-icon>
@@ -261,6 +284,27 @@ function handleMenuSelect(key: string) {
   padding: var(--space-xl);
   display: flex;
   flex-direction: column;
+}
+
+.api-testing__norights {
+  margin: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.api-testing__norights-title {
+  font-size: var(--font-size-lg);
+  font-weight: 700;
+  color: var(--color-neutral-700);
+  margin-bottom: var(--space-sm);
+}
+
+.api-testing__norights-desc {
+  font-size: var(--font-size-sm);
+  color: var(--color-neutral-400);
+  margin: 0;
 }
 
 .api-testing__placeholder {

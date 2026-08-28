@@ -7,6 +7,21 @@ export const useNavStore = defineStore('nav', () => {
   const currentMode = ref<NavMode>('none')
   const authStore = useAuthStore()
 
+  // 接口测试模块的全部 view 权限点，与 ApiTestingPage 侧边导航保持一致
+  const API_MODULE_VIEW_PERMISSIONS = [
+    'api-debug:view',
+    'api-interface:view',
+    'api-mock:view',
+    'api-scene:view',
+    'api-report:view',
+    'api-timer:view',
+    'api-env:view',
+    'api-func:view',
+    'api-component:view',
+    'api-gitlab:view',
+    'api-setting:view',
+  ]
+
   const isAdminMode = computed(() => currentMode.value === 'admin')
   const isWorkspaceMode = computed(() => currentMode.value === 'workspace')
   const isProjectMode = computed(() => currentMode.value === 'project')
@@ -36,8 +51,11 @@ export const useNavStore = defineStore('nav', () => {
         const items: Array<{ label: string; path: string; icon: string }> = []
         if (has('case:view')) items.push({ label: '功能测试', path: '/workspace/projects/functional-testing', icon: 'Monitor' })
         if (has('bug:view')) items.push({ label: '缺陷管理', path: '/workspace/projects/bugs', icon: 'Warning' })
-        // 菜单顺序对齐交互设计 3.3：接口测试位于缺陷管理之后
-        if (has('api-test:view')) items.push({ label: '接口测试', path: '/workspace/projects/api-testing', icon: 'Connection' })
+        // 菜单顺序对齐交互设计 3.3：接口测试位于缺陷管理之后；入口对任一模块 view 权限开放
+        // （环境/函数/等仅持有项目设置类权限的用户也可进入，侧边导航内再按各自 view 过滤）
+        if (API_MODULE_VIEW_PERMISSIONS.some(has)) {
+          items.push({ label: '接口测试', path: '/workspace/projects/api-testing', icon: 'Connection' })
+        }
         return items
       }
       default:
