@@ -703,12 +703,9 @@ CREATE INDEX idx_env_project ON api_environment(project_id);
 CREATE TABLE api_environment_http (
                                       id                 UUID           PRIMARY KEY,
                                       environment_id     UUID           NOT NULL,
-                                      protocol           VARCHAR(10)    NOT NULL DEFAULT 'http',
+                                      name               VARCHAR(100)   NOT NULL,
+                                      ref_name           VARCHAR(100)   NULL,
                                       base_url           VARCHAR(2000)  NOT NULL,
-                                      connect_timeout    INT            NOT NULL DEFAULT 5000,
-                                      read_timeout       INT            NOT NULL DEFAULT 30000,
-                                      follow_redirects   BOOLEAN        NOT NULL DEFAULT TRUE,
-                                      trust_all_certs    BOOLEAN        NOT NULL DEFAULT FALSE,
                                       default_headers    JSONB          NOT NULL DEFAULT '[]',
                                       is_deleted         BOOLEAN        NOT NULL DEFAULT FALSE,
                                       created_at         TIMESTAMP      NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -723,7 +720,6 @@ CREATE TABLE api_environment_variable (
                                           name            VARCHAR(100)  NOT NULL,
                                           value           TEXT          NULL,
                                           description     VARCHAR(500)  NULL,
-                                          sensitive       BOOLEAN       NOT NULL DEFAULT FALSE,
                                           sort_order      INT           NOT NULL DEFAULT 0,
                                           is_deleted      BOOLEAN       NOT NULL DEFAULT FALSE,
                                           created_at      TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -732,22 +728,21 @@ CREATE TABLE api_environment_variable (
 
 CREATE INDEX idx_evar_env ON api_environment_variable(environment_id, sort_order);
 
-CREATE TABLE api_data_source (
-                                 id              UUID          PRIMARY KEY,
-                                 environment_id  UUID          NOT NULL,
-                                 name            VARCHAR(100)  NOT NULL,
-                                 type            VARCHAR(20)   NOT NULL,
-                                 connection_url  VARCHAR(2000) NOT NULL,
-                                 username        VARCHAR(200)  NULL,
-                                 password_cipher VARCHAR(1000) NULL,
-                                 driver_class   VARCHAR(200)  NULL,
-                                 pool_size       INT           NOT NULL DEFAULT 5,
-                                 is_deleted      BOOLEAN       NOT NULL DEFAULT FALSE,
-                                 created_at      TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                                 updated_at      TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP
+CREATE TABLE api_environment_data_source (
+                                 id                   UUID          PRIMARY KEY,
+                                 environment_id       UUID          NOT NULL,
+                                 name                 VARCHAR(100)  NOT NULL,
+                                 ref_name             VARCHAR(100)  NULL,
+                                 driver               VARCHAR(200)  NULL,
+                                 url                  VARCHAR(2000) NOT NULL,
+                                 connection_properties JSONB         NULL,
+                                 max_pool_size        INT           NOT NULL DEFAULT 5,
+                                 is_deleted           BOOLEAN       NOT NULL DEFAULT FALSE,
+                                 created_at           TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                                 updated_at           TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_ds_env ON api_data_source(environment_id);
+CREATE INDEX idx_ds_env ON api_environment_data_source(environment_id);
 
 CREATE TABLE api_environment_processor (
                                            id              UUID         PRIMARY KEY,
@@ -769,25 +764,28 @@ CREATE INDEX idx_eproc_env ON api_environment_processor(environment_id, sort_ord
 -- ============================================================
 
 CREATE TABLE api_interface (
-                               id          UUID         PRIMARY KEY,
-                               project_id  UUID         NOT NULL,
-                               module_id   UUID         NULL,
-                               name        VARCHAR(200) NOT NULL,
-                               method      VARCHAR(10)  NOT NULL,
-                               url         VARCHAR(2000) NOT NULL,
-                               description TEXT         NULL,
-                               status      VARCHAR(20)  NOT NULL DEFAULT 'draft',
-                               headers     JSONB        NOT NULL DEFAULT '[]',
-                               params      JSONB        NOT NULL DEFAULT '[]',
-                               body_type   VARCHAR(20)  NULL,
-                               body        JSONB        NULL,
-                               auth_type   VARCHAR(20)  NULL,
-                               auth_config JSONB        NULL,
-                               timeout     INT          NOT NULL DEFAULT 30000,
-                               follow_redirects BOOLEAN NOT NULL DEFAULT TRUE,
-                               is_deleted  BOOLEAN      NOT NULL DEFAULT FALSE,
-                               created_at  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                               updated_at  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
+                               id              UUID         PRIMARY KEY,
+                               project_id      UUID         NOT NULL,
+                               module_id       UUID         NULL,
+                               name            VARCHAR(200) NOT NULL,
+                               protocol        VARCHAR(20)  NOT NULL DEFAULT 'http',
+                               method          VARCHAR(10)  NOT NULL,
+                               path            VARCHAR(2000) NOT NULL,
+                               description     TEXT         NULL,
+                               headers         JSONB        NOT NULL DEFAULT '[]',
+                               body_type       VARCHAR(20)  NULL,
+                               body            JSONB        NULL,
+                               query_params    JSONB        NOT NULL DEFAULT '[]',
+                               rest_params     JSONB        NOT NULL DEFAULT '[]',
+                               auth            JSONB        NULL,
+                               status          VARCHAR(20)  NOT NULL DEFAULT 'draft',
+                               created_by      UUID         NOT NULL,
+                               change_version  INT          NOT NULL DEFAULT 1,
+                               response_example JSONB       NULL,
+                               reference_count INT          NOT NULL DEFAULT 0,
+                               is_deleted      BOOLEAN      NOT NULL DEFAULT FALSE,
+                               created_at      TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                               updated_at      TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX idx_intf_project ON api_interface(project_id);
@@ -822,15 +820,18 @@ CREATE TABLE api_interface_variable (
 CREATE INDEX idx_ivar_interface ON api_interface_variable(interface_id, sort_order);
 
 CREATE TABLE api_import_mapping (
-                                    id             UUID         PRIMARY KEY,
-                                    project_id     UUID         NOT NULL,
-                                    source_type    VARCHAR(20)  NOT NULL,
-                                    source_id      VARCHAR(200) NOT NULL,
-                                    target_intf_id UUID         NULL,
-                                    status         VARCHAR(20)  NOT NULL DEFAULT 'pending',
-                                    is_deleted     BOOLEAN      NOT NULL DEFAULT FALSE,
-                                    created_at     TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                                    updated_at     TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
+                                    id              UUID         PRIMARY KEY,
+                                    project_id      UUID         NOT NULL,
+                                    import_record_id UUID        NULL,
+                                    source_type     VARCHAR(20)  NOT NULL,
+                                    source_id       VARCHAR(200) NOT NULL,
+                                    source_name     VARCHAR(200) NULL,
+                                    target_type     VARCHAR(20)  NULL,
+                                    target_id       UUID         NULL,
+                                    action          VARCHAR(20)  NULL,
+                                    is_deleted      BOOLEAN      NOT NULL DEFAULT FALSE,
+                                    created_at      TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                                    updated_at      TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX idx_imap_project ON api_import_mapping(project_id);
@@ -863,13 +864,13 @@ CREATE INDEX idx_iclog_interface ON api_interface_change_log(interface_id, versi
 CREATE TABLE api_import_record (
                                    id              UUID         PRIMARY KEY,
                                    project_id      UUID         NOT NULL,
-                                   repository_id   UUID         NULL,
-                                   source_type     VARCHAR(20)  NOT NULL,
+                                   import_type     VARCHAR(20)  NOT NULL,
                                    source_name     VARCHAR(200) NOT NULL,
                                    status          VARCHAR(20)  NOT NULL DEFAULT 'pending',
-                                   imported_count  INT          NOT NULL DEFAULT 0,
-                                   skipped_count   INT          NOT NULL DEFAULT 0,
-                                   error_message   TEXT         NULL,
+                                   summary         JSONB        NULL,
+                                   error_details   JSONB        NULL,
+                                   repository_id   UUID         NULL,
+                                   created_by      UUID         NOT NULL,
                                    is_deleted      BOOLEAN      NOT NULL DEFAULT FALSE,
                                    created_at      TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
                                    updated_at      TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -879,23 +880,32 @@ CREATE INDEX idx_irecord_project ON api_import_record(project_id, created_at DES
 CREATE INDEX idx_irecord_repository ON api_import_record(repository_id) WHERE repository_id IS NOT NULL AND is_deleted = FALSE;
 
 CREATE TABLE api_debug_record (
-                                  id            UUID         PRIMARY KEY,
-                                  project_id    UUID         NOT NULL,
-                                  user_id       UUID         NOT NULL,
-                                  name          VARCHAR(200) NULL,
-                                  method        VARCHAR(10)  NOT NULL,
-                                  url           VARCHAR(2000) NOT NULL,
-                                  headers       JSONB        NOT NULL DEFAULT '[]',
-                                  params        JSONB        NOT NULL DEFAULT '[]',
-                                  body_type     VARCHAR(20)  NULL,
-                                  body          JSONB        NULL,
-                                  auth_type     VARCHAR(20)  NULL,
-                                  auth_config   JSONB        NULL,
-                                  last_status   INT          NULL,
-                                  last_duration INT          NULL,
-                                  is_deleted    BOOLEAN      NOT NULL DEFAULT FALSE,
-                                  created_at    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                                  updated_at    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
+                                   id              UUID         PRIMARY KEY,
+                                   project_id      UUID         NOT NULL,
+                                   user_id         UUID         NOT NULL,
+                                   name            VARCHAR(200) NULL,
+                                   protocol        VARCHAR(20)  NOT NULL DEFAULT 'http',
+                                   method          VARCHAR(10)  NOT NULL,
+                                   url             VARCHAR(2000) NOT NULL,
+                                   headers         JSONB        NOT NULL DEFAULT '[]',
+                                   body_type       VARCHAR(20)  NULL,
+                                   body            JSONB        NULL,
+                                   query_params    JSONB        NOT NULL DEFAULT '[]',
+                                   jdbc_config     JSONB        NULL,
+                                   processors      JSONB        NOT NULL DEFAULT '[]',
+                                   environment_id  UUID         NULL,
+                                   timeout_ms      INT          NULL,
+                                   executed_at     TIMESTAMP    NULL,
+                                   duration_ms     INT          NULL,
+                                   status          VARCHAR(20)  NULL,
+                                   response_status INT          NULL,
+                                   response_headers JSONB       NULL,
+                                   response_body   TEXT         NULL,
+                                   response_size   INT          NULL,
+                                   error_message   TEXT         NULL,
+                                   is_deleted      BOOLEAN      NOT NULL DEFAULT FALSE,
+                                   created_at      TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                                   updated_at      TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX idx_drec_project_user ON api_debug_record(project_id, user_id);
@@ -1108,6 +1118,19 @@ CREATE TABLE api_scene_interface (
 CREATE INDEX idx_sintf_scene ON api_scene_interface(scene_id);
 CREATE INDEX idx_sintf_interface ON api_scene_interface(interface_id);
 
+CREATE TABLE api_scene_follow (
+    id            UUID      PRIMARY KEY,
+    scene_id      UUID      NOT NULL,
+    user_id       UUID      NOT NULL,
+    is_deleted    BOOLEAN   NOT NULL DEFAULT FALSE,
+    created_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE UNIQUE INDEX uk_scene_follow ON api_scene_follow(scene_id, user_id) WHERE is_deleted = false;
+CREATE INDEX idx_sfollow_scene ON api_scene_follow(scene_id);
+CREATE INDEX idx_sfollow_user ON api_scene_follow(user_id);
+
 CREATE TABLE api_execution_record (
                                       id             UUID          PRIMARY KEY,
                                       project_id     UUID          NOT NULL,
@@ -1296,6 +1319,357 @@ CREATE TABLE api_gitlab_sync_history (
 );
 
 CREATE INDEX idx_gsync_repository ON api_gitlab_sync_history(repository_id, sync_at DESC) WHERE is_deleted = FALSE;
+
+-- ============================================================
+-- 21. 种子数据（权限点、角色、提示词模板）
+-- ============================================================
+
+-- ------------------------------------------------------------
+-- 21.1 权限点（系统管理模块）
+-- ------------------------------------------------------------
+INSERT INTO sys_permission (id, code, name, parent_code, module, scope, sort_order, created_at, updated_at, is_deleted) VALUES
+('a0000000-0000-0000-0000-000000000001', 'user',                '用户管理',          NULL,  '用户管理',     'global', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('a0000000-0000-0000-0000-000000000002', 'user:view',           '查看用户',          'user', '用户管理',     'global', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('a0000000-0000-0000-0000-000000000003', 'user:create',         '创建用户',          'user', '用户管理',     'global', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('a0000000-0000-0000-0000-000000000004', 'user:edit',           '编辑用户',          'user', '用户管理',     'global', 3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('a0000000-0000-0000-0000-000000000005', 'user:disable',        '禁用/启用用户',      'user', '用户管理',     'global', 4, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('a0000000-0000-0000-0000-000000000006', 'user:reset-password', '重置密码',          'user', '用户管理',     'global', 5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('a0000000-0000-0000-0000-000000000007', 'workspace',            '工作空间管理',       NULL,  '工作空间管理',  'global', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('a0000000-0000-0000-0000-000000000008', 'workspace:view',       '查看工作空间',       'workspace', '工作空间管理', 'global', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('a0000000-0000-0000-0000-000000000009', 'workspace:create',     '创建工作空间',       'workspace', '工作空间管理', 'global', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('a0000000-0000-0000-0000-000000000010', 'workspace:edit',       '编辑工作空间',       'workspace', '工作空间管理', 'global', 3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('a0000000-0000-0000-0000-000000000011', 'workspace:delete',     '解散工作空间',       'workspace', '工作空间管理', 'global', 4, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('a0000000-0000-0000-0000-000000000012', 'workspace:manage-members', '管理成员',     'workspace', '工作空间管理', 'global', 5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('a0000000-0000-0000-0000-000000000013', 'role',                '角色管理',          NULL,  '角色管理',     'global', 3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('a0000000-0000-0000-0000-000000000014', 'role:view',           '查看角色',          'role', '角色管理',     'global', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('a0000000-0000-0000-0000-000000000015', 'role:create',         '创建角色',          'role', '角色管理',     'global', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('a0000000-0000-0000-0000-000000000016', 'role:edit',           '编辑角色',          'role', '角色管理',     'global', 3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('a0000000-0000-0000-0000-000000000017', 'role:delete',         '删除角色',          'role', '角色管理',     'global', 4, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE);
+
+-- ------------------------------------------------------------
+-- 21.2 权限点（AI 管理模块）
+-- ------------------------------------------------------------
+INSERT INTO sys_permission (id, code, name, parent_code, module, scope, sort_order, created_at, updated_at, is_deleted) VALUES
+('a0000000-0000-0000-0000-000000000018', 'ai',      'AI 管理',           NULL, 'AI 管理', 'global', 4, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('a0000000-0000-0000-0000-000000000019', 'ai:view', '查看 AI 配置与智能体', 'ai', 'AI 管理', 'global', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('a0000000-0000-0000-0000-000000000020', 'ai:edit', '编辑 AI 配置与智能体', 'ai', 'AI 管理', 'global', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE);
+
+-- ------------------------------------------------------------
+-- 21.3 权限点（业务模块 — 工作空间/项目/测试用例/评审/计划/缺陷）
+-- ------------------------------------------------------------
+INSERT INTO sys_permission (id, code, name, parent_code, module, scope, sort_order, created_at, updated_at, is_deleted) VALUES
+('c0000000-0000-0000-0000-000000000001', 'ws-info',            '空间信息',           NULL,           '我的空间', 'workspace', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000002', 'ws-info:view',       '查看空间信息',        'ws-info',      '我的空间', 'workspace', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000003', 'ws-info:edit',       '编辑空间信息',        'ws-info',      '我的空间', 'workspace', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000004', 'ws-member',          '成员管理',            NULL,           '我的空间', 'workspace', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000005', 'ws-member:view',     '查看成员',            'ws-member',    '我的空间', 'workspace', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000006', 'ws-member:manage',   '管理成员',            'ws-member',    '我的空间', 'workspace', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000007', 'ws-invitation',      '邀请链接',            NULL,           '我的空间', 'workspace', 3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000008', 'ws-invitation:view', '查看邀请链接',         'ws-invitation','我的空间', 'workspace', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000009', 'ws-invitation:manage','管理邀请链接',        'ws-invitation','我的空间', 'workspace', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000010', 'project',            '项目',                NULL,           '项目',    'workspace', 4, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000011', 'project:view',       '查看项目',            'project',      '项目',    'workspace', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000017', 'case',               '测试用例',            NULL,           '测试用例', 'workspace', 5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000018', 'case:view',          '查看用例',            'case',         '测试用例', 'workspace', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000019', 'case:edit',          '编辑用例',            'case',         '测试用例', 'workspace', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000020', 'review',             '测试评审',            NULL,           '测试评审', 'workspace', 6, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000021', 'review:view',        '查看评审',            'review',       '测试评审', 'workspace', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000022', 'review:create',      '发起评审',            'review',       '测试评审', 'workspace', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000023', 'review:edit',        '评审操作',            'review',       '测试评审', 'workspace', 3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000024', 'review:complete',    '完成评审',            'review',       '测试评审', 'workspace', 4, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000025', 'plan',               '测试计划',            NULL,           '测试计划', 'workspace', 7, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000026', 'plan:view',          '查看计划',            'plan',         '测试计划', 'workspace', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000027', 'plan:create',        '创建计划',            'plan',         '测试计划', 'workspace', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000028', 'plan:execute',       '执行计划',            'plan',         '测试计划', 'workspace', 3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000029', 'plan:close',         '关闭计划',            'plan',         '测试计划', 'workspace', 4, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000030', 'bug',                '缺陷',                NULL,           '缺陷',    'workspace', 8, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000031', 'bug:view',           '查看缺陷',            'bug',          '缺陷',    'workspace', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE);
+
+-- ------------------------------------------------------------
+-- 21.4 权限点（需求池）
+-- ------------------------------------------------------------
+INSERT INTO sys_permission (id, code, name, parent_code, module, scope, sort_order, created_at, updated_at, is_deleted) VALUES
+('c0000000-0000-0000-0000-000000000034', 'requirement',      '需求池',   NULL,          '需求池', 'workspace', 9, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000035', 'requirement:view', '查看需求池', 'requirement', '需求池', 'workspace', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000036', 'requirement:edit', '编辑需求池', 'requirement', '需求池', 'workspace', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE);
+
+-- ------------------------------------------------------------
+-- 21.5 权限点（接口测试模块）
+-- ------------------------------------------------------------
+INSERT INTO sys_permission (id, code, name, parent_code, module, scope, sort_order, created_at, updated_at, is_deleted) VALUES
+-- GitLab 仓库配置
+('c0000000-0000-0000-0000-000000000037', 'api-gitlab',         'GitLab 仓库',    NULL,            '接口测试·GitLab',   'workspace', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000038', 'api-gitlab:view',    '查看 GitLab 仓库', 'api-gitlab',    '接口测试·GitLab',   'workspace', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000039', 'api-gitlab:edit',    '编辑 GitLab 仓库', 'api-gitlab',    '接口测试·GitLab',   'workspace', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+-- 测试场景
+('c0000000-0000-0000-0000-000000000040', 'api-scene',          '测试场景',        NULL,            '接口测试·测试场景',  'workspace', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000041', 'api-scene:view',     '查看场景',        'api-scene',     '接口测试·测试场景',  'workspace', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000042', 'api-scene:edit',     '编辑场景',        'api-scene',     '接口测试·测试场景',  'workspace', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000043', 'api-scene:import',   '导入场景',        'api-scene',     '接口测试·测试场景',  'workspace', 3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000044', 'api-scene:pipeline', '流水线执行',       'api-scene',     '接口测试·测试场景',  'workspace', 4, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000045', 'api-scene:execute',  '执行场景',        'api-scene',     '接口测试·测试场景',  'workspace', 5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+-- 接口管理
+('c0000000-0000-0000-0000-000000000046', 'api-interface',         '接口管理',    NULL,            '接口测试·接口管理',  'workspace', 3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000047', 'api-interface:view',    '查看接口',    'api-interface',  '接口测试·接口管理',  'workspace', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000048', 'api-interface:edit',    '编辑接口',    'api-interface',  '接口测试·接口管理',  'workspace', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000049', 'api-interface:delete', '删除接口',    'api-interface',  '接口测试·接口管理',  'workspace', 3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+-- 公共组件
+('c0000000-0000-0000-0000-000000000050', 'api-component',         '公共组件',    NULL,            '接口测试·公共组件',  'workspace', 4, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000051', 'api-component:view',    '查看组件',    'api-component',  '接口测试·公共组件',  'workspace', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000052', 'api-component:edit',    '编辑组件',    'api-component',  '接口测试·公共组件',  'workspace', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000070', 'api-component:edit-space', '编辑空间级组件', 'api-component', '接口测试·公共组件', 'workspace', 3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000071', 'api-component:edit-global', '编辑全局组件', 'api-component', '接口测试·公共组件', 'workspace', 4, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+-- 快速调试
+('c0000000-0000-0000-0000-000000000053', 'api-debug',         '快速调试',    NULL,            '接口测试·快速调试',  'workspace', 5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000054', 'api-debug:view',    '查看调试记录', 'api-debug',     '接口测试·快速调试',  'workspace', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+-- 定时任务
+('c0000000-0000-0000-0000-000000000055', 'api-timer',         '定时任务',    NULL,            '接口测试·定时任务',  'workspace', 6, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000056', 'api-timer:view',    '查看定时任务', 'api-timer',     '接口测试·定时任务',  'workspace', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000057', 'api-timer:edit',    '编辑定时任务', 'api-timer',     '接口测试·定时任务',  'workspace', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+-- Mock 服务
+('c0000000-0000-0000-0000-000000000058', 'api-mock',          'Mock 服务',    NULL,            '接口测试·Mock服务',  'workspace', 7, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000059', 'api-mock:view',     '查看 Mock',    'api-mock',      '接口测试·Mock服务',  'workspace', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000060', 'api-mock:edit',     '编辑 Mock',    'api-mock',      '接口测试·Mock服务',  'workspace', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+-- 测试报告
+('c0000000-0000-0000-0000-000000000061', 'api-report',        '测试报告',    NULL,            '接口测试·测试报告',  'workspace', 8, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000062', 'api-report:view',   '查看报告',    'api-report',    '接口测试·测试报告',  'workspace', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000063', 'api-report:delete', '删除报告',    'api-report',    '接口测试·测试报告',  'workspace', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE);
+
+-- ------------------------------------------------------------
+-- 21.5.1 权限点（接口测试·环境管理 / 函数管理 / 应用设置，项目设置分组）
+-- ------------------------------------------------------------
+INSERT INTO sys_permission (id, code, name, parent_code, module, scope, sort_order, created_at, updated_at, is_deleted) VALUES
+('c0000000-0000-0000-0000-000000000064', 'api-env',            '环境管理',       NULL,          '接口测试·环境管理', 'workspace', 9,  CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000065', 'api-env:view',       '查看环境',       'api-env',     '接口测试·环境管理', 'workspace', 1,  CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000066', 'api-env:edit',       '编辑环境',       'api-env',     '接口测试·环境管理', 'workspace', 2,  CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000067', 'api-func',           '函数管理',       NULL,          '接口测试·函数管理', 'workspace', 10, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000068', 'api-func:view',      '查看函数',       'api-func',    '接口测试·函数管理', 'workspace', 1,  CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000069', 'api-func:edit',      '编辑函数',       'api-func',    '接口测试·函数管理', 'workspace', 2,  CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000072', 'api-func:edit-space', '编辑空间级函数', 'api-func',    '接口测试·函数管理', 'workspace', 3,  CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000073', 'api-func:edit-global', '编辑全局函数', 'api-func',    '接口测试·函数管理', 'workspace', 4,  CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000074', 'api-setting',        '应用设置',       NULL,          '接口测试·应用设置', 'workspace', 11, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000075', 'api-setting:view',   '查看应用设置',   'api-setting', '接口测试·应用设置', 'workspace', 1,  CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000076', 'api-setting:edit',   '编辑应用设置',   'api-setting', '接口测试·应用设置', 'workspace', 2,  CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE);
+
+-- ------------------------------------------------------------
+-- 21.6 预置角色（含全部版本权限合并）
+-- ------------------------------------------------------------
+INSERT INTO sys_role (id, name, description, type, is_system, permissions, created_at, updated_at, is_deleted) VALUES
+-- 系统管理员：拥有系统管理 + AI 管理所有权限
+('b0000000-0000-0000-0000-000000000001', '系统管理员',
+ '拥有系统管理所有权限', 'system', TRUE,
+ '["user","user:view","user:create","user:edit","user:disable","user:reset-password","workspace","workspace:view","workspace:create","workspace:edit","workspace:delete","workspace:manage-members","role","role:view","role:create","role:edit","role:delete","ai","ai:view","ai:edit"]',
+ CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+-- 空间管理系统角色：拥有工作空间管理所有权限（跨空间管理）
+('b0000000-0000-0000-0000-000000000002', '空间管理员',
+ '拥有工作空间管理所有权限，可创建/删除/管理所有工作空间', 'system', TRUE,
+ '["workspace","workspace:view","workspace:create","workspace:edit","workspace:delete","workspace:manage-members","ws-info","ws-info:view","ws-info:edit","ws-member","ws-member:view","ws-member:manage","ws-invitation","ws-invitation:view","ws-invitation:manage"]',
+ CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+-- workspace 管理员：空间内全部业务权限（显式授权全部空间权限码）
+('c0000000-0000-0000-0000-000000000001', '管理员',
+ '空间管理员 — 拥有工作空间内全部业务权限', 'workspace', TRUE,
+ '["ws-info","ws-info:view","ws-info:edit","ws-member","ws-member:view","ws-member:manage","ws-invitation","ws-invitation:view","ws-invitation:manage","project","project:view","case","case:view","case:edit","review","review:view","review:create","review:edit","review:complete","plan","plan:view","plan:create","plan:execute","plan:close","bug","bug:view","requirement","requirement:view","requirement:edit","api-gitlab","api-gitlab:view","api-gitlab:edit","api-scene","api-scene:view","api-scene:edit","api-scene:import","api-scene:pipeline","api-scene:execute","api-interface","api-interface:view","api-interface:edit","api-interface:delete","api-component","api-component:view","api-component:edit","api-component:edit-space","api-component:edit-global","api-env","api-env:view","api-env:edit","api-func","api-func:view","api-func:edit","api-func:edit-space","api-func:edit-global","api-debug","api-debug:view","api-timer","api-timer:view","api-timer:edit","api-mock","api-mock:view","api-mock:edit","api-report","api-report:view","api-report:delete","api-setting","api-setting:view","api-setting:edit"]',
+ CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+-- workspace 普通成员：默认角色
+('c0000000-0000-0000-0000-000000000002', '成员',
+ '空间成员 — 除删除/归档项目、管理成员、编辑空间信息外的其他权限', 'workspace', TRUE,
+ '["ws-info:view","ws-member:view","ws-invitation:view","ws-invitation:manage","project:view","case:view","case:edit","review:view","review:create","review:edit","review:complete","plan:view","plan:create","plan:execute","plan:close","bug:view","requirement:view","requirement:edit","api-gitlab","api-gitlab:view","api-gitlab:edit","api-scene","api-scene:view","api-scene:edit","api-scene:import","api-scene:execute","api-interface","api-interface:view","api-interface:edit","api-component","api-component:view","api-component:edit","api-env","api-env:view","api-env:edit","api-func","api-func:view","api-func:edit","api-debug","api-debug:view","api-timer","api-timer:view","api-timer:edit","api-mock","api-mock:view","api-mock:edit","api-report","api-report:view","api-setting","api-setting:view","api-setting:edit"]',
+ CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE);
+
+-- ------------------------------------------------------------
+-- 21.7 智能体提示词模板种子数据
+-- ------------------------------------------------------------
+INSERT INTO ai_prompt_template (id, function_type, role_instruction, format_constraint, format_editable, updated_by, is_deleted, created_at, updated_at) VALUES
+('d0000000-0000-0000-0000-000000000001', 'case_generation', '你是一名资深软件测试工程师，擅长根据需求描述设计结构化的功能测试用例。请基于给定的需求内容，生成覆盖正常流程、异常分支与边界条件的测试用例子树。用例标题应简洁明确，前置条件、步骤与预期结果应具体可执行。', '输出必须为合法 JSON 对象，不得包含 JSON 之外的任何文字。JSON 结构必须严格遵循如下示例（字段名、类型、层级完全一致）：
+{
+  "nodes": [
+    {
+      "type": "case",
+      "title": "用例标题（一句话描述业务场景）",
+      "priority": "P1",
+      "children": [
+        {"type": "precondition", "title": "前置条件描述"},
+        {"type": "step", "title": "操作步骤描述"},
+        {"type": "expected", "title": "预期结果描述"}
+      ]
+    }
+  ]
+}
+
+字段约束：
+- 顶层必须是 nodes 数组，每个元素为一个用例节点
+- type 仅允许 case/precondition/step/expected
+- case 节点必须带 priority，仅允许 P0/P1/P2/P3
+- case 的直接子节点只能是 precondition/step/expected
+- title 必填，不超过 200 字符', FALSE, '00000000-0000-0000-0000-000000000000', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('d0000000-0000-0000-0000-000000000002', 'step_completion', '你是一名资深软件测试工程师，擅长补全测试用例的执行步骤与预期结果。请基于给定的用例标题与已有子节点，补全缺失的前置条件、步骤或预期结果，内容应具体、可执行、与用例主题一致。', '输出必须为合法 JSON 对象，不得包含 JSON 之外的任何文字。JSON 结构必须严格遵循如下示例（字段名、类型、层级完全一致）：
+{
+  "nodes": [
+    {"type": "step", "title": "操作步骤描述"},
+    {"type": "expected", "title": "预期结果描述"}
+  ]
+}
+
+字段约束：
+- 顶层必须是 nodes 数组，元素仅允许 step/expected 类型
+- step/expected 节点不得有子节点，不得带 priority
+- 仅补全缺失部分，不重复输出已有内容
+- title 必填，不超过 200 字符', FALSE, '00000000-0000-0000-0000-000000000000', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('d0000000-0000-0000-0000-000000000003', 'text_import', '你是一名软件测试文档解析助手，擅长将外部文本（需求文档、用例清单等）解析为结构化的测试用例树。请识别文本中的模块层级、用例标题及其前置条件、步骤、预期结果。', '输出必须为合法 JSON 对象，不得包含 JSON 之外的任何文字。JSON 结构必须严格遵循如下示例（字段名、类型、层级完全一致）：
+{
+  "nodes": [
+    {
+      "type": "normal",
+      "title": "模块分组标题",
+      "children": [
+        {
+          "type": "case",
+          "title": "用例标题",
+          "children": [
+            {"type": "precondition", "title": "前置条件描述"},
+            {"type": "step", "title": "操作步骤描述"},
+            {"type": "expected", "title": "预期结果描述"}
+          ]
+        }
+      ]
+    }
+  ]
+}
+
+字段约束：
+- 顶层必须是 nodes 数组
+- type 仅允许 normal/case/precondition/step/expected
+- normal 可嵌套 normal/case；case 的直接子节点只能是 precondition/step/expected
+- title 必填，不超过 200 字符
+- 无法识别为用例结构的内容归入 normal 节点，不得虚构原文没有的用例；完全无法解析出用例结构时输出空 nodes 数组', FALSE, '00000000-0000-0000-0000-000000000000', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('d0000000-0000-0000-0000-000000000004', 'review_summary', '你是一名测试评审总结助手。请基于给定的评审统计数据与未通过用例采样，输出一份简明的评审总结，包含主要问题归纳、改进建议与风险提示三个章节，语言精炼、面向测试负责人。', '输出为 Markdown 文本，章节结构依次为：主要问题归纳、改进建议、风险提示。总篇幅控制在 2000 字以内，不输出统计数据原文，不虚构统计中不存在的数字。', FALSE, '00000000-0000-0000-0000-000000000000', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('d0000000-0000-0000-0000-000000000005', 'assistant_chat', '你是软件测试平台的智能助手，帮助用户查询平台数据、解答测试相关问题，并可在用户确认后执行受支持的写操作。回答应简洁准确，不确定时明确说明，不编造平台数据。', '普通回答使用简体中文纯文本或轻量 Markdown；需要调用工具时严格按照工具调用协议输出，不得在工具调用外虚构工具结果。当问题超出平台使用指引与知识库范围（get_platform_guide 无命中）时，明确告知用户无法回答或超出使用指引范围，不得编造指引内容。', FALSE, '00000000-0000-0000-0000-000000000000', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('d0000000-0000-0000-0000-000000000006', 'priority_recommendation', '你是一名测试用例优先级评估助手。请基于用例标题、所属模块与需求上下文，推荐用例优先级（P0-P3），并保持同类用例判定标准一致。', '输出必须为合法 JSON 对象，不得包含 JSON 之外的任何文字。JSON 结构必须严格遵循如下示例（字段名、类型、层级完全一致）：
+{
+  "priority": "P1"
+}
+
+字段约束：
+- 顶层必须为 JSON 对象，仅包含 priority 字段
+- priority 取值仅允许 P0/P1/P2/P3', FALSE, '00000000-0000-0000-0000-000000000000', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('d0000000-0000-0000-0000-000000000007', 'bug_form_suggestion', '你是一名缺陷管理助手。请基于用户填写的缺陷描述，优化缺陷标题（简洁、含关键现象与场景），并建议严重等级与类型。', '输出必须为合法 JSON 对象，不得包含 JSON 之外的任何文字。JSON 结构必须严格遵循如下示例（字段名、类型、层级完全一致）：
+{
+  "optimizedTitle": "优化后的缺陷标题（简洁、含关键现象与场景）",
+  "severity": "serious",
+  "priority": "high",
+  "reason": "建议依据的一句话说明"
+}
+
+字段约束：
+- 顶层必须为 JSON 对象，仅包含 optimizedTitle/severity/priority/reason 四个字段
+- optimizedTitle 必填，不超过 100 字符
+- severity 仅允许 fatal/serious/general/minor
+- priority 仅允许 high/medium/low
+- reason 必填，一句话说明建议依据', FALSE, '00000000-0000-0000-0000-000000000000', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('d0000000-0000-0000-0000-000000000008', 'dsl_translation', '你是一名脑图操作指令翻译助手。请将用户的自然语言编辑意图翻译为平台脑图 DSL 指令序列，仅使用受支持的指令集，不执行超出用户意图的操作。', '输出必须为合法 JSON 对象，不得包含 JSON 之外的任何文字。JSON 结构必须严格遵循如下示例（字段名、类型、层级完全一致）：
+{
+  "commands": [
+    {
+      "selector": {"types": ["case"], "keyword": "登录"},
+      "action": {"type": "mark_priority", "params": {"priority": "P1"}}
+    }
+  ],
+  "ambiguous": false,
+  "clarification": null
+}
+
+字段约束：
+- 顶层必须为 JSON 对象，仅包含 commands/ambiguous/clarification 字段
+- commands 数组按序执行，上限 10 条；翻译意图不明确时 ambiguous 置 true、clarification 说明原因、commands 为空数组
+- selector 各条件为 AND 关系，可选字段：types（节点类型）/priorities（仅对 case 生效）/keyword/subtreeRootTitle（限定子树范围）/aiGenerated
+- action.type 仅允许 mark_type/mark_priority/highlight/move/add_child
+- mark_type 的 params.nodeType 仅允许 normal/case/precondition/step/expected；mark_priority 的 params.priority 仅允许 P0/P1/P2/P3；move 的 params.targetParentTitle 必须为输入上下文中的节点标题或 @selected
+- 指令必须属于注册的 DSL 指令集，selector.subtreeRootTitle 与 move 目标引用的节点必须来自输入上下文', FALSE, '00000000-0000-0000-0000-000000000000', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('d0000000-0000-0000-0000-000000000009', 'plan_order_reason', '你是一名测试计划执行顺序解释助手。请基于给定用例的评分因子（历史关联缺陷数、优先级权重、模块缺陷密度），用一句话说明推荐优先执行该用例的理由。', '输出为一句简体中文说明，不超过 120 字符，仅陈述因子事实与结论，不输出评分公式与原始数值以外的推断。', FALSE, '00000000-0000-0000-0000-000000000000', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('d0000000-0000-0000-0000-000000000010', 'missing_point_analysis', '你是一名测试覆盖度分析助手。请对比需求描述与现有用例清单，找出需求已提及但用例未覆盖的测试点，说明遗漏原因并给出建议归属模块。', '输出必须为合法 JSON 对象，不得包含 JSON 之外的任何文字。JSON 结构必须严格遵循如下示例（字段名、类型、层级完全一致）：
+{
+  "points": [
+    {
+      "title": "建议新增的用例标题",
+      "description": "遗漏原因说明",
+      "suggestedModulePath": "建议归属模块路径",
+      "relatedCaseTitles": ["关联的候选用例标题"]
+    }
+  ]
+}
+
+字段约束：
+- 顶层必须为 JSON 对象，仅包含 points 数组字段
+- points 数组，遗漏点不超过 30 条
+- title 必填，不超过 200 字符
+- description 必填，说明遗漏原因
+- suggestedModulePath 必须为输入中出现过的模块路径或空字符串
+- relatedCaseTitles 只允许引用输入候选用例的标题，无关联时为空数组', FALSE, '00000000-0000-0000-0000-000000000000', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('d0000000-0000-0000-0000-000000000011', 'keyword_extraction', '你是一名测试需求关键词抽取助手。请从给定需求文本中抽取用于检索测试用例库的关键词，关键词应为需求中出现过的核心业务词或短语，避免空泛词汇。', '输出必须为合法 JSON 对象，不得包含 JSON 之外的任何文字。JSON 结构必须严格遵循如下示例（字段名、类型、层级完全一致）：
+{
+  "keywords": ["登录", "验证码"]
+}
+
+字段约束：
+- 顶层必须为 JSON 对象，仅包含 keywords 数组字段
+- 关键词数量不超过 10 个，每个关键词不超过 20 字符
+- 必须为输入需求文本中出现过的词或短语', FALSE, '00000000-0000-0000-0000-000000000000', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('d0000000-0000-0000-0000-000000000012', 'case_plan_recommendation', '你是一名测试用例规划推荐助手。请基于需求描述与候选用例清单，为每条推荐用例生成一句话理由，说明其应纳入当前评审或测试计划用例清单的原因。', '输出必须为合法 JSON 对象，不得包含 JSON 之外的任何文字。JSON 结构必须严格遵循如下示例（字段名、类型、层级完全一致）：
+{
+  "reasons": ["该用例覆盖登录失败主流程，应纳入本次评审或测试计划"]
+}
+
+字段约束：
+- 顶层必须为 JSON 对象，仅包含 reasons 数组字段
+- reasons 数组长度与输入用例标题清单一一对应、完全一致
+- 每条理由不超过 120 字符
+- 无法给出理由的用例可用空字符串占位', FALSE, '00000000-0000-0000-0000-000000000000', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('d0000000-0000-0000-0000-000000000013', 'review_check', '你是一名测试用例评审检查助手。请检查给定批次用例的完整性：缺少前置条件、步骤描述笼统、缺少预期结果、相似用例优先级冲突，并给出具体改进建议。', '输出必须为合法 JSON 对象，不得包含 JSON 之外的任何文字。JSON 结构必须严格遵循如下示例（字段名、类型、层级完全一致）：
+{
+  "items": [
+    {
+      "snapshotNodeId": "本批输入中的用例快照节点 ID",
+      "dimension": "missing_precondition",
+      "suggestion": "具体改进建议"
+    }
+  ]
+}
+
+字段约束：
+- 顶层必须为 JSON 对象，仅包含 items 数组字段
+- items 数组，每处问题一条建议，无问题的用例不输出
+- snapshotNodeId 必须来自本批输入，不得虚构
+- dimension 仅允许 missing_precondition/vague_step/missing_expected/priority_conflict
+- suggestion 必填，给出具体改进建议', FALSE, '00000000-0000-0000-0000-000000000000', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('d0000000-0000-0000-0000-000000000014', 'bug_clustering', '你是一名缺陷归纳分析助手。请为给定的缺陷簇归纳简短的主题标签，概括该簇缺陷的共性问题。', '输出必须为合法 JSON 对象，不得包含 JSON 之外的任何文字。JSON 结构必须严格遵循如下示例（字段名、类型、层级完全一致）：
+{
+  "label": "登录态失效问题",
+  "rootCause": "会话超时导致登录态失效，疑似为服务端会话校验过期"
+}
+
+字段约束：
+- 顶层必须为 JSON 对象，仅包含 label/rootCause 两个字段
+- label 必填，不超过 30 字符的主题名称
+- rootCause 必填，一句话根因推断；证据不足时使用「疑似」措辞', FALSE, '00000000-0000-0000-0000-000000000000', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('d0000000-0000-0000-0000-000000000015', 'requirement_split', '你是一名测试需求拆分助手。请将整份需求文档按模块/功能拆分为细粒度需求条目：一个需求点 = 一个可测试功能行为（如「用户管理」拆为新增/编辑/删除/查询用户四条），模块仅作归属分组。条目内容需保留原始描述中的关键约束，不得虚构原文没有的功能。', '输出必须为合法 JSON 对象，不得包含 JSON 之外的任何文字。JSON 结构必须严格遵循如下示例（字段名、类型、层级完全一致）：
+{
+  "modules": [
+    {
+      "module": "模块名",
+      "items": [
+        {"title": "需求点标题", "content": "需求点内容（Markdown）"}
+      ]
+    }
+  ]
+}
+
+字段约束：
+- 顶层必须是 modules 数组，非空且不超过 50 个模块
+- module 必填，不超过 100 字符
+- 每模块 items 非空且不超过 50 条
+- title 必填，不超过 200 字符
+- content 必填，为 Markdown 格式的需求点描述', FALSE, '00000000-0000-0000-0000-000000000000', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+ON CONFLICT (function_type) WHERE is_deleted = false DO NOTHING;
 
 -- ============================================================
 -- 20. 表与列注释
@@ -1663,14 +2037,11 @@ COMMENT ON COLUMN api_environment.scope IS '归属范围：project/global';
 COMMENT ON COLUMN api_environment.is_default IS '是否默认环境';
 COMMENT ON COLUMN api_environment.sort_order IS '排序序号';
 
-COMMENT ON TABLE api_environment_http IS '环境 HTTP 默认配置';
+COMMENT ON TABLE api_environment_http IS '环境 HTTP 配置';
 COMMENT ON COLUMN api_environment_http.environment_id IS '关联环境 ID';
-COMMENT ON COLUMN api_environment_http.protocol IS '协议：http/https';
+COMMENT ON COLUMN api_environment_http.name IS '配置名称';
+COMMENT ON COLUMN api_environment_http.ref_name IS '引用名称（步骤中引用该配置）';
 COMMENT ON COLUMN api_environment_http.base_url IS '基础 URL';
-COMMENT ON COLUMN api_environment_http.connect_timeout IS '连接超时（毫秒）';
-COMMENT ON COLUMN api_environment_http.read_timeout IS '读取超时（毫秒）';
-COMMENT ON COLUMN api_environment_http.follow_redirects IS '跟随重定向';
-COMMENT ON COLUMN api_environment_http.trust_all_certs IS '信任所有证书';
 COMMENT ON COLUMN api_environment_http.default_headers IS '默认请求头';
 
 COMMENT ON TABLE api_environment_variable IS '环境变量表';
@@ -1678,18 +2049,16 @@ COMMENT ON COLUMN api_environment_variable.environment_id IS '关联环境 ID';
 COMMENT ON COLUMN api_environment_variable.name IS '变量名';
 COMMENT ON COLUMN api_environment_variable.value IS '变量值';
 COMMENT ON COLUMN api_environment_variable.description IS '变量描述';
-COMMENT ON COLUMN api_environment_variable.sensitive IS '是否敏感值（脱敏展示）';
 COMMENT ON COLUMN api_environment_variable.sort_order IS '排序序号';
 
-COMMENT ON TABLE api_data_source IS '数据源配置表';
-COMMENT ON COLUMN api_data_source.environment_id IS '关联环境 ID';
-COMMENT ON COLUMN api_data_source.name IS '数据源名称';
-COMMENT ON COLUMN api_data_source.type IS '数据源类型：mysql/postgresql';
-COMMENT ON COLUMN api_data_source.connection_url IS 'JDBC 连接 URL';
-COMMENT ON COLUMN api_data_source.username IS '用户名';
-COMMENT ON COLUMN api_data_source.password_cipher IS '密码（加密）';
-COMMENT ON COLUMN api_data_source.driver_class IS 'JDBC 驱动类名';
-COMMENT ON COLUMN api_data_source.pool_size IS '连接池大小';
+COMMENT ON TABLE api_environment_data_source IS '数据源配置表';
+COMMENT ON COLUMN api_environment_data_source.environment_id IS '关联环境 ID';
+COMMENT ON COLUMN api_environment_data_source.name IS '数据源名称';
+COMMENT ON COLUMN api_environment_data_source.ref_name IS '引用名称（步骤中引用该数据源）';
+COMMENT ON COLUMN api_environment_data_source.driver IS 'JDBC 驱动类名';
+COMMENT ON COLUMN api_environment_data_source.url IS 'JDBC 连接 URL';
+COMMENT ON COLUMN api_environment_data_source.connection_properties IS '连接属性';
+COMMENT ON COLUMN api_environment_data_source.max_pool_size IS '连接池大小';
 
 COMMENT ON TABLE api_environment_processor IS '环境级前置/后置处理器';
 COMMENT ON COLUMN api_environment_processor.environment_id IS '关联环境 ID';
@@ -1704,18 +2073,21 @@ COMMENT ON TABLE api_interface IS '接口定义表';
 COMMENT ON COLUMN api_interface.project_id IS '归属项目 ID';
 COMMENT ON COLUMN api_interface.module_id IS '归属模块 ID';
 COMMENT ON COLUMN api_interface.name IS '接口名称';
+COMMENT ON COLUMN api_interface.protocol IS '协议：http/jdbc';
 COMMENT ON COLUMN api_interface.method IS 'HTTP 方法';
-COMMENT ON COLUMN api_interface.url IS '请求 URL';
+COMMENT ON COLUMN api_interface.path IS '请求路径';
 COMMENT ON COLUMN api_interface.description IS '接口描述';
-COMMENT ON COLUMN api_interface.status IS '状态：draft/published';
 COMMENT ON COLUMN api_interface.headers IS '请求头';
-COMMENT ON COLUMN api_interface.params IS '查询参数';
 COMMENT ON COLUMN api_interface.body_type IS '请求体类型';
 COMMENT ON COLUMN api_interface.body IS '请求体';
-COMMENT ON COLUMN api_interface.auth_type IS '认证类型';
-COMMENT ON COLUMN api_interface.auth_config IS '认证配置';
-COMMENT ON COLUMN api_interface.timeout IS '超时时间（毫秒）';
-COMMENT ON COLUMN api_interface.follow_redirects IS '跟随重定向';
+COMMENT ON COLUMN api_interface.query_params IS 'Query 参数';
+COMMENT ON COLUMN api_interface.rest_params IS 'REST 参数';
+COMMENT ON COLUMN api_interface.auth IS '认证配置';
+COMMENT ON COLUMN api_interface.status IS '状态：draft/published';
+COMMENT ON COLUMN api_interface.created_by IS '创建人';
+COMMENT ON COLUMN api_interface.change_version IS '乐观锁版本号';
+COMMENT ON COLUMN api_interface.response_example IS '响应示例';
+COMMENT ON COLUMN api_interface.reference_count IS '引用计数';
 
 COMMENT ON TABLE api_interface_step IS '接口公共步骤表';
 COMMENT ON COLUMN api_interface_step.interface_id IS '关联接口 ID';
@@ -1733,10 +2105,13 @@ COMMENT ON COLUMN api_interface_variable.sort_order IS '排序序号';
 
 COMMENT ON TABLE api_import_mapping IS '导入映射表';
 COMMENT ON COLUMN api_import_mapping.project_id IS '归属项目 ID';
+COMMENT ON COLUMN api_import_mapping.import_record_id IS '关联导入记录 ID';
 COMMENT ON COLUMN api_import_mapping.source_type IS '导入源类型';
 COMMENT ON COLUMN api_import_mapping.source_id IS '导入源 ID';
-COMMENT ON COLUMN api_import_mapping.target_intf_id IS '目标接口 ID';
-COMMENT ON COLUMN api_import_mapping.status IS '映射状态';
+COMMENT ON COLUMN api_import_mapping.source_name IS '导入源名称';
+COMMENT ON COLUMN api_import_mapping.target_type IS '目标类型：interface/scene';
+COMMENT ON COLUMN api_import_mapping.target_id IS '目标 ID';
+COMMENT ON COLUMN api_import_mapping.action IS '操作：created/updated/skipped';
 
 COMMENT ON TABLE api_interface_follow IS '接口关注表';
 COMMENT ON COLUMN api_interface_follow.interface_id IS '关联接口 ID';
@@ -1751,22 +2126,37 @@ COMMENT ON COLUMN api_interface_change_log.created_by IS '变更人';
 
 COMMENT ON TABLE api_import_record IS '导入记录表';
 COMMENT ON COLUMN api_import_record.project_id IS '归属项目 ID';
-COMMENT ON COLUMN api_import_record.repository_id IS '关联仓库 ID';
-COMMENT ON COLUMN api_import_record.source_type IS '导入源类型';
+COMMENT ON COLUMN api_import_record.import_type IS '导入类型：file_swagger/file_postman/file_har/file_jmeter/url_swagger';
 COMMENT ON COLUMN api_import_record.source_name IS '导入源名称';
 COMMENT ON COLUMN api_import_record.status IS '导入状态';
-COMMENT ON COLUMN api_import_record.imported_count IS '成功导入数';
-COMMENT ON COLUMN api_import_record.skipped_count IS '跳过数';
-COMMENT ON COLUMN api_import_record.error_message IS '失败原因';
+COMMENT ON COLUMN api_import_record.summary IS '导入汇总：{created, updated, failed, skipped}';
+COMMENT ON COLUMN api_import_record.error_details IS '错误详情';
+COMMENT ON COLUMN api_import_record.repository_id IS '关联仓库 ID';
+COMMENT ON COLUMN api_import_record.created_by IS '导入人';
 
 COMMENT ON TABLE api_debug_record IS '调试历史记录表';
 COMMENT ON COLUMN api_debug_record.project_id IS '归属项目 ID';
 COMMENT ON COLUMN api_debug_record.user_id IS '操作用户 ID';
 COMMENT ON COLUMN api_debug_record.name IS '记录名称';
+COMMENT ON COLUMN api_debug_record.protocol IS '协议：http/jdbc';
 COMMENT ON COLUMN api_debug_record.method IS 'HTTP 方法';
 COMMENT ON COLUMN api_debug_record.url IS '请求 URL';
-COMMENT ON COLUMN api_debug_record.last_status IS '最近响应状态码';
-COMMENT ON COLUMN api_debug_record.last_duration IS '最近响应耗时（毫秒）';
+COMMENT ON COLUMN api_debug_record.headers IS '请求头';
+COMMENT ON COLUMN api_debug_record.body_type IS '请求体类型';
+COMMENT ON COLUMN api_debug_record.body IS '请求体';
+COMMENT ON COLUMN api_debug_record.query_params IS 'Query 参数';
+COMMENT ON COLUMN api_debug_record.jdbc_config IS 'JDBC 配置';
+COMMENT ON COLUMN api_debug_record.processors IS '前置/后置处理器';
+COMMENT ON COLUMN api_debug_record.environment_id IS '使用的环境 ID';
+COMMENT ON COLUMN api_debug_record.timeout_ms IS '超时时间（毫秒）';
+COMMENT ON COLUMN api_debug_record.executed_at IS '执行时间';
+COMMENT ON COLUMN api_debug_record.duration_ms IS '执行耗时（毫秒）';
+COMMENT ON COLUMN api_debug_record.status IS '执行结果：success/failed/error';
+COMMENT ON COLUMN api_debug_record.response_status IS '响应状态码';
+COMMENT ON COLUMN api_debug_record.response_headers IS '响应头';
+COMMENT ON COLUMN api_debug_record.response_body IS '响应体（截断存储）';
+COMMENT ON COLUMN api_debug_record.response_size IS '响应体大小（字节）';
+COMMENT ON COLUMN api_debug_record.error_message IS '错误信息';
 
 -- 接口测试 — Swagger URL
 COMMENT ON TABLE api_swagger_url IS 'Swagger URL 配置表';
@@ -1886,6 +2276,10 @@ COMMENT ON COLUMN api_scene_interface.interface_id IS '接口定义 ID';
 COMMENT ON COLUMN api_scene_interface.sync_mode IS '同步模式：copy/link';
 COMMENT ON COLUMN api_scene_interface.last_synced_at IS '最近同步时间';
 
+COMMENT ON TABLE api_scene_follow IS '场景关注表';
+COMMENT ON COLUMN api_scene_follow.scene_id IS '关联场景 ID';
+COMMENT ON COLUMN api_scene_follow.user_id IS '关注用户 ID';
+
 COMMENT ON TABLE api_execution_record IS '执行记录表';
 COMMENT ON COLUMN api_execution_record.project_id IS '归属项目 ID';
 COMMENT ON COLUMN api_execution_record.scene_id IS '关联场景 ID';
@@ -1990,20 +2384,3 @@ COMMENT ON COLUMN api_gitlab_sync_history.class_count IS '本次同步的测试�
 COMMENT ON COLUMN api_gitlab_sync_history.method_count IS '本次同步的测试方法数量';
 COMMENT ON COLUMN api_gitlab_sync_history.commit_sha IS '同步时的 commit SHA';
 COMMENT ON COLUMN api_gitlab_sync_history.status IS '同步状态';
-
-CREATE TABLE api_scene_follow (
-    id            UUID      PRIMARY KEY,
-    scene_id      UUID      NOT NULL,
-    user_id       UUID      NOT NULL,
-    is_deleted    BOOLEAN   NOT NULL DEFAULT FALSE,
-    created_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE UNIQUE INDEX uk_scene_follow ON api_scene_follow(scene_id, user_id) WHERE is_deleted = false;
-CREATE INDEX idx_sfollow_scene ON api_scene_follow(scene_id);
-CREATE INDEX idx_sfollow_user ON api_scene_follow(user_id);
-
-COMMENT ON TABLE api_scene_follow IS '场景关注表';
-COMMENT ON COLUMN api_scene_follow.scene_id IS '关联场景 ID';
-COMMENT ON COLUMN api_scene_follow.user_id IS '关注用户 ID';
