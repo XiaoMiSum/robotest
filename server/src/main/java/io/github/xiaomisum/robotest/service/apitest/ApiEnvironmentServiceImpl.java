@@ -3,6 +3,7 @@ package io.github.xiaomisum.robotest.service.apitest;
 import io.github.xiaomisum.robotest.framework.audit.AuditOperation;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.framework.security.ProjectAccessGuard;
+import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiDataSourceTestReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiEnvironmentCopyReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiEnvironmentDataSourceSaveReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiEnvironmentHttpConfigSaveReqDTO;
@@ -498,9 +499,22 @@ public class ApiEnvironmentServiceImpl implements ApiEnvironmentService {
         projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
         requireEnv(projectId, id);
         ApiDataSource ds = requireDataSource(id, dataSourceId);
-        String url = ds.getUrl();
+        return testConnection(ds.getUrl(), ds.getDriver(), ds.getConnectionProperties());
+    }
+
+    @Override
+    public ApiDataSourceTestRespDTO testDataSourceConfig(UUID projectId, UUID workspaceId, UUID userId,
+            UUID id, ApiDataSourceTestReqDTO reqDTO) {
+        projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
+        requireEnv(projectId, id);
+        return testConnection(reqDTO.getUrl(), reqDTO.getDriver(), reqDTO.getConnectionProperties());
+    }
+
+    /** 3.1.7 连接判定核心：Redis 按 URL 协议走 RESP，JDBC 仅放行内置驱动 */
+    private ApiDataSourceTestRespDTO testConnection(String url, String driver,
+            Map<String, Object> connectionProperties) {
         // Redis 无 JDBC 驱动，按 URL 协议识别（详细设计 3.1.7），驱动列存空串
-        if (url.startsWith("redis://") || url.startsWith("rediss://")) {
+        if (url != null && (url.startsWith("redis://") || url.startsWith("rediss://"))) {
             try {
                 return openRedisConnection(url);
             } catch (Exception e) {
@@ -508,18 +522,20 @@ public class ApiEnvironmentServiceImpl implements ApiEnvironmentService {
                         e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage());
             }
         }
-        if (!SUPPORTED_JDBC_DRIVERS.contains(ds.getDriver())) {
+        if (!SUPPORTED_JDBC_DRIVERS.contains(driver)) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.API_DATASOURCE_CONN_FAILED,
-                    "不支持的数据库驱动：" + ds.getDriver());
+                    "不支持的数据库驱动：" + driver);
         }
 
         Properties props = new Properties();
-        for (Map.Entry<String, Object> entry : ds.getConnectionProperties().entrySet()) {
-            if (entry.getValue() != null && entry.getKey() instanceof String keyName) {
-                props.put(keyName, String.valueOf(entry.getValue()));
+        if (connectionProperties != null) {
+            for (Map.Entry<String, Object> entry : connectionProperties.entrySet()) {
+                if (entry.getValue() != null && entry.getKey() instanceof String keyName) {
+                    props.put(keyName, String.valueOf(entry.getValue()));
+                }
             }
         }
-        try (Connection connection = openJdbcConnection(ds.getDriver(), url, props)) {
+        try (Connection connection = openJdbcConnection(driver, url, props)) {
             DatabaseMetaData meta = connection.getMetaData();
             String version = meta.getDatabaseProductName() + " " + meta.getDatabaseMajorVersion()
                     + "." + meta.getDatabaseMinorVersion();
@@ -1024,6 +1040,17 @@ public class ApiEnvironmentServiceImpl implements ApiEnvironmentService {
             source.setName(variable.getName());
             source.setDescription(variable.getDescription());
             source.setValue(Boolean.TRUE.equals(variable.getHasValue()) ? variable.getValue() : null);
+            return source;
+        }).toList());
+        reqDTO.setDataSources((detail.getDataSources() != null ? detail.getDataSources()
+                : List.<ApiEnvironmentDetailRespDTO.DataSource>of()).stream().map(ds -> {
+            ApiEnvironmentSaveReqDTO.DataSource source = new ApiEnvironmentSaveReqDTO.DataSource();
+            source.setName(ds.getName());
+            source.setRefName(ds.getRefName());
+            source.setDriver(ds.getDriver());
+            source.setUrl(ds.getUrl());
+            source.setConnectionProperties(ds.getConnectionProperties());
+            source.setMaxPoolSize(ds.getMaxPoolSize());
             return source;
         }).toList());
         reqDTO.setProcessors((detail.getProcessors() != null ? detail.getProcessors()

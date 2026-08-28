@@ -9,6 +9,7 @@ import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiEnvironmentSort
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiEnvironmentVariableBatchReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiEnvironmentVariableCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiEnvironmentVariableImportReqDTO;
+import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiDataSourceTestReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiDataSourceTestRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiEnvImportResultRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiEnvironmentDetailRespDTO;
@@ -103,6 +104,9 @@ public interface ApiEnvironmentService {
 
     ApiDataSourceTestRespDTO testDataSource(UUID projectId, UUID workspaceId, UUID userId,
             UUID id, UUID dataSourceId);
+
+    ApiDataSourceTestRespDTO testDataSourceConfig(UUID projectId, UUID workspaceId, UUID userId,
+            UUID id, ApiDataSourceTestReqDTO reqDTO);
 
     ApiHttpTestRespDTO testHttpConfig(UUID projectId, UUID workspaceId, UUID userId,
             UUID id, UUID httpConfigId);
