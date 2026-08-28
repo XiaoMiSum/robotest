@@ -3,7 +3,6 @@ import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { ApiEnvironmentListItem, ApiImportResult } from '@/types'
 import { useAuthStore } from '@/stores/auth'
-import { WORKSPACE_ROLE } from '@/services/admin'
 import {
   copyEnvironment,
   createEnvironment,
@@ -17,8 +16,8 @@ import { formatImportResult, resolveEnvironmentError, sortEnvironments } from '.
 import EnvironmentDetailPanel from './EnvironmentDetailPanel.vue'
 
 const authStore = useAuthStore()
-// 空间管理员≙项目维护者（详细设计 4.3），前端仅作交互提示，后端仍兜底校验
-const canEdit = computed(() => authStore.activeWorkspace?.workspaceRole === WORKSPACE_ROLE.ADMIN)
+// 编辑权限以权限点 api-env:edit 控制（与后端 @PreAuthorize 对齐），前端仅作交互提示
+const canEdit = computed(() => authStore.hasPermission('api-env:edit'))
 
 // ==================== 列表状态 ====================
 

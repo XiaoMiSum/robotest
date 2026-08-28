@@ -4,7 +4,6 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance } from 'element-plus'
 import { Platform, MoreFilled, FolderOpened, Document, VideoPlay } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/stores/auth'
-import { WORKSPACE_ROLE } from '@/services/admin'
 import type { GitLabRepoListItem, GitLabRepoTestConnectionResult } from '@/types'
 import {
   createGitLabRepo,
@@ -20,7 +19,8 @@ import GitLabExecutableImportDrawer from './GitLabExecutableImportDrawer.vue'
 import GitLabPipelineDrawer from './GitLabPipelineDrawer.vue'
 
 const authStore = useAuthStore()
-const canEdit = computed(() => authStore.activeWorkspace?.workspaceRole === WORKSPACE_ROLE.ADMIN)
+// 编辑权限以权限点 api-gitlab:edit 控制（与后端 @PreAuthorize 对齐），前端仅作交互提示
+const canEdit = computed(() => authStore.hasPermission('api-gitlab:edit'))
 
 // ==================== 列表状态 ====================
 

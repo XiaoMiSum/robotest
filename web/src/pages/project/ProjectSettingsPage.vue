@@ -2,7 +2,6 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useAuthStore } from '@/stores/auth'
-import { WORKSPACE_ROLE } from '@/services/admin'
 import { fetchProjectSettings, updateProjectSettings } from '@/services/projectSetting'
 import {
   buildUpdatePayload,
@@ -14,8 +13,8 @@ import type { ProjectSettingsForm } from './projectSettingsModel'
 
 const authStore = useAuthStore()
 
-// 空间管理员≙项目维护者（详细设计 4.3），前端仅作交互提示，后端仍兜底校验
-const canEdit = computed(() => authStore.activeWorkspace?.workspaceRole === WORKSPACE_ROLE.ADMIN)
+// 编辑权限以权限点 api-setting:edit 控制（与后端 @PreAuthorize 对齐），前端仅作交互提示
+const canEdit = computed(() => authStore.hasPermission('api-setting:edit'))
 
 const loading = ref(false)
 const loadError = ref(false)
