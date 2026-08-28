@@ -328,7 +328,7 @@ public class ApiEnvironmentServiceImpl implements ApiEnvironmentService {
         // 显式生成主键：insert 返回前即需构建响应体
         row.setId(UUID.randomUUID());
         row.setEnvironmentId(id);
-        applyHttpConfigFields(row, reqDTO, nextHttpRefName(id));
+        applyHttpConfigFields(row, reqDTO);
         httpMapper.insert(row);
         return toHttpConfigResp(row);
     }
@@ -342,8 +342,8 @@ public class ApiEnvironmentServiceImpl implements ApiEnvironmentService {
         requireEnv(projectId, id);
         ApiEnvironmentHttp row = requireHttpConfig(id, httpConfigId);
 
-        // PUT 语义：覆盖内容字段，归属环境不变；引用名/Base URL 缺省沿用现值
-        applyHttpConfigFields(row, reqDTO, row.getRefName());
+        // PUT 语义：覆盖内容字段，归属环境不变；必填字段由 DTO 校验保证
+        applyHttpConfigFields(row, reqDTO);
         httpMapper.updateById(row);
         return toHttpConfigResp(row);
     }
@@ -372,7 +372,7 @@ public class ApiEnvironmentServiceImpl implements ApiEnvironmentService {
         // 显式生成主键：insert 返回前即需构建响应体
         row.setId(UUID.randomUUID());
         row.setEnvironmentId(id);
-        applyDataSourceFields(row, reqDTO, nextDataSourceRefName(id));
+        applyDataSourceFields(row, reqDTO);
         dataSourceMapper.insert(row);
         return toDataSourceResp(row);
     }
@@ -386,8 +386,8 @@ public class ApiEnvironmentServiceImpl implements ApiEnvironmentService {
         requireEnv(projectId, id);
         ApiDataSource row = requireDataSource(id, dataSourceId);
 
-        // PUT 语义：覆盖内容字段，归属环境不变；引用名缺省沿用现值
-        applyDataSourceFields(row, reqDTO, row.getRefName());
+        // PUT 语义：覆盖内容字段，归属环境不变；必填字段由 DTO 校验保证
+        applyDataSourceFields(row, reqDTO);
         dataSourceMapper.updateById(row);
         return toDataSourceResp(row);
     }
@@ -919,17 +919,10 @@ public class ApiEnvironmentServiceImpl implements ApiEnvironmentService {
     }
 
     /** 编辑时沿用现状、新增时生成 http_N 缺省引用名，与聚合保存的索引规则保持一致 */
-    private String nextHttpRefName(UUID environmentId) {
-        return "http_" + (httpMapper.listByEnvironmentId(environmentId).size() + 1);
-    }
-
-    private void applyHttpConfigFields(ApiEnvironmentHttp row, ApiEnvironmentHttpConfigSaveReqDTO reqDTO,
-            String fallbackRefName) {
+    private void applyHttpConfigFields(ApiEnvironmentHttp row, ApiEnvironmentHttpConfigSaveReqDTO reqDTO) {
         row.setName(reqDTO.getName());
-        row.setRefName(reqDTO.getRefName() != null && !reqDTO.getRefName().isBlank()
-                ? reqDTO.getRefName() : fallbackRefName);
-        row.setBaseUrl(reqDTO.getBaseUrl() == null || reqDTO.getBaseUrl().isBlank()
-                ? (row.getBaseUrl() == null ? "" : row.getBaseUrl()) : reqDTO.getBaseUrl());
+        row.setRefName(reqDTO.getRefName());
+        row.setBaseUrl(reqDTO.getBaseUrl());
         row.setDefaultHeaders(normalizeHeaders(reqDTO.getHeaders()));
     }
 
@@ -943,17 +936,11 @@ public class ApiEnvironmentServiceImpl implements ApiEnvironmentService {
         return resp;
     }
 
-    private String nextDataSourceRefName(UUID environmentId) {
-        return "ds_" + (dataSourceMapper.listByEnvironmentId(environmentId).size() + 1);
-    }
-
-    private void applyDataSourceFields(ApiDataSource row, ApiEnvironmentDataSourceSaveReqDTO reqDTO,
-            String fallbackRefName) {
+    private void applyDataSourceFields(ApiDataSource row, ApiEnvironmentDataSourceSaveReqDTO reqDTO) {
         row.setName(reqDTO.getName());
-        row.setRefName(reqDTO.getRefName() != null && !reqDTO.getRefName().isBlank()
-                ? reqDTO.getRefName() : fallbackRefName);
-        // Redis 数据源免驱动，空串兜底满足 driver 列 NOT NULL 约束
-        row.setDriver(reqDTO.getDriver() == null ? "" : reqDTO.getDriver());
+        row.setRefName(reqDTO.getRefName());
+        // Redis 数据源驱动为 '-' 占位（前端），非空串即满足列约束
+        row.setDriver(reqDTO.getDriver());
         row.setUrl(reqDTO.getUrl() == null || reqDTO.getUrl().isBlank()
                 ? (row.getUrl() == null ? "" : row.getUrl()) : reqDTO.getUrl());
         row.setConnectionProperties(reqDTO.getConnectionProperties() != null

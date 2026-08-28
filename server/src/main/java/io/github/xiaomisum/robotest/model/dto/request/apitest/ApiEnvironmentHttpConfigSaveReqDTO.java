@@ -15,9 +15,10 @@ public class ApiEnvironmentHttpConfigSaveReqDTO {
     @NotBlank(message = "配置名称不能为空")
     private String name;
 
-    /** 引用名称，缺省按 http_N 生成（新增时）或沿用现值（编辑时） */
+    @NotBlank(message = "引用名不能为空")
     private String refName;
 
+    @NotBlank(message = "Base URL 不能为空")
     private String baseUrl;
 
     private List<ApiEnvironmentSaveReqDTO.HeaderItem> headers;
