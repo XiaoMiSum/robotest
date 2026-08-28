@@ -107,7 +107,7 @@ class ApiSwaggerUrlServiceImplTest {
 
         ServiceException ex = assertThrows(ServiceException.class,
                 () -> service.update(WORKSPACE_ID, PROJECT_ID, USER_ID, CONFIG_ID, req()));
-        assertEquals(1000017604, ex.getCode().intValue());
+        assertEquals(1000017601, ex.getCode().intValue());
         verifyNoInteractions(sourceFetcher);
     }
 
@@ -129,7 +129,7 @@ class ApiSwaggerUrlServiceImplTest {
 
         ServiceException ex = assertThrows(ServiceException.class,
                 () -> service.delete(WORKSPACE_ID, PROJECT_ID, USER_ID, CONFIG_ID));
-        assertEquals(1000017605, ex.getCode().intValue());
+        assertEquals(1000017602, ex.getCode().intValue());
         verify(swaggerUrlMapper, never()).deleteById(any());
     }
 

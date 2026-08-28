@@ -103,7 +103,7 @@ class ApiScheduleServiceImplTest {
 
         ServiceException ex = assertThrows(ServiceException.class,
                 () -> service.create(WORKSPACE_ID, PROJECT_ID, USER_ID, reqDTO));
-        assertEquals(1000017602, ex.getCode().intValue());
+        assertEquals(1000017502, ex.getCode().intValue());
     }
 
     @Test
@@ -113,7 +113,7 @@ class ApiScheduleServiceImplTest {
 
         ServiceException ex = assertThrows(ServiceException.class,
                 () -> service.create(WORKSPACE_ID, PROJECT_ID, USER_ID, reqDTO));
-        assertEquals(1000017606, ex.getCode().intValue());
+        assertEquals(1000017503, ex.getCode().intValue());
     }
 
     @Test
@@ -138,7 +138,7 @@ class ApiScheduleServiceImplTest {
 
         ServiceException ex = assertThrows(ServiceException.class,
                 () -> service.create(WORKSPACE_ID, PROJECT_ID, USER_ID, reqDTO));
-        assertEquals(1000017607, ex.getCode().intValue());
+        assertEquals(1000017505, ex.getCode().intValue());
         assertNotNull(scene.getName());
     }
 
@@ -149,7 +149,7 @@ class ApiScheduleServiceImplTest {
 
         ServiceException ex = assertThrows(ServiceException.class,
                 () -> service.create(WORKSPACE_ID, PROJECT_ID, USER_ID, reqDTO));
-        assertEquals(1000017604, ex.getCode().intValue());
+        assertEquals(1000017601, ex.getCode().intValue());
     }
 
     @Test
@@ -181,7 +181,7 @@ class ApiScheduleServiceImplTest {
 
         ServiceException ex = assertThrows(ServiceException.class,
                 () -> service.update(WORKSPACE_ID, PROJECT_ID, USER_ID, TASK_ID, baseReq("scene_execute", "0 2 * * *")));
-        assertEquals(1000017601, ex.getCode().intValue());
+        assertEquals(1000017501, ex.getCode().intValue());
     }
 
     @Test
@@ -234,7 +234,7 @@ class ApiScheduleServiceImplTest {
 
         ServiceException ex = assertThrows(ServiceException.class,
                 () -> service.executeNow(WORKSPACE_ID, PROJECT_ID, USER_ID, TASK_ID));
-        assertEquals(1000017603, ex.getCode().intValue());
+        assertEquals(1000017504, ex.getCode().intValue());
     }
 
     @Test

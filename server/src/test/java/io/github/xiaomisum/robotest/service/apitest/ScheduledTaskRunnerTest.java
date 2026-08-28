@@ -101,7 +101,7 @@ class ScheduledTaskRunnerTest {
                 ArgumentCaptor.forClass(ApiScheduledTaskExecution.class);
         verify(executionMapper).insert(captor.capture());
         assertEquals("failed", captor.getValue().getStatus());
-        assertTrue(captor.getValue().getErrorMessage().contains("Swagger URL 配置不存在"));
+        assertTrue(captor.getValue().getErrorMessage().contains("Swagger URL 不存在"));
 
         ArgumentCaptor<ApiScheduledTask> taskCaptor = ArgumentCaptor.forClass(ApiScheduledTask.class);
         verify(taskMapper).updateById(taskCaptor.capture());
