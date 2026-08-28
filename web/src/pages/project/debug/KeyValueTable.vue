@@ -10,6 +10,8 @@ const props = defineProps<{
   showDescription?: boolean
   /** Key 列为可下拉选择的常用名（allow-create 支持自定义），缺省为自由文本输入 */
   suggestions?: readonly string[]
+  /** 只读态：禁止增删改，供无编辑权限场景展示 */
+  disabled?: boolean
 }>()
 
 const emit = defineEmits<{ (e: 'change'): void }>()
@@ -46,7 +48,7 @@ function removeRow(index: number) {
 }
 
 onMounted(() => {
-  if (!entries.value.length) {
+  if (!props.disabled && !entries.value.length) {
     entries.value.push(emptyRow())
   }
 })
@@ -73,6 +75,7 @@ onMounted(() => {
               filterable
               allow-create
               :placeholder="props.placeholderKey ?? 'Key'"
+              :disabled="props.disabled"
               class="kv-table__key-select"
               @update:model-value="entry.key = $event ?? ''; notify()"
             >
@@ -82,20 +85,21 @@ onMounted(() => {
               v-else
               v-model="entry.key"
               :placeholder="props.placeholderKey ?? 'Key'"
+              :disabled="props.disabled"
               @input="notify()"
             />
           </td>
           <td>
-            <el-input v-model="entry.value" placeholder="Value" @input="notify()" />
+            <el-input v-model="entry.value" placeholder="Value" :disabled="props.disabled" @input="notify()" />
           </td>
           <td v-if="props.showDescription">
-            <el-input v-model="entry.description" placeholder="Description" @input="notify()" />
+            <el-input v-model="entry.description" placeholder="Description" :disabled="props.disabled" @input="notify()" />
           </td>
           <td class="kv-table__col-enable">
-            <el-checkbox v-model="entry.enabled" @change="notify()" />
+            <el-checkbox v-model="entry.enabled" :disabled="props.disabled" @change="notify()" />
           </td>
           <td class="kv-table__col-op">
-            <el-button link type="danger" @click="removeRow(index)">
+            <el-button v-if="!props.disabled" link type="danger" @click="removeRow(index)">
               <el-icon><Delete /></el-icon>
             </el-button>
           </td>

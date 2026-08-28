@@ -185,7 +185,7 @@ export function buildSavePayload(
   }
 }
 
-export function createEmptyHttpConfig(index: number): ApiHttpConfigPayload & { id?: string } {
+export function createEmptyHttpConfig(index: number): ApiHttpConfigPayload & { id?: string; headers: ApiHeaderItem[] } {
   return {
     name: `配置 ${index}`,
     refName: `http_${index}`,
