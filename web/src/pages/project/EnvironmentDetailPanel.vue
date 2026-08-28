@@ -4,6 +4,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import type {
   ApiDataSourcePayload,
   ApiEnvironmentDetail,
+  ApiHeaderItem,
   ApiHttpConfigPayload,
   ApiProcessor,
   ApiProcessorType,
@@ -36,6 +37,7 @@ import {
   toVariablePayloads,
   validateVariableRow,
 } from './environmentsModel'
+import KeyValueTable from './debug/KeyValueTable.vue'
 
 const props = defineProps<{ environmentId: string; canEdit: boolean }>()
 const emit = defineEmits<{ changed: [] }>()
@@ -48,6 +50,7 @@ const detail = ref<ApiEnvironmentDetail | null>(null)
 
 interface ConfigForm extends ApiHttpConfigPayload {
   id?: string
+  headers: ApiHeaderItem[]
 }
 interface DsForm extends ApiDataSourcePayload {
   id?: string
@@ -59,7 +62,7 @@ const variableRows = ref<ApiVariable[]>([])
 const activeTab = ref<'http' | 'variables' | 'datasources' | 'processors'>('http')
 const activeConfigId = ref('')
 
-function cloneHeaders(source: ApiHttpConfigPayload): ApiHttpConfigPayload['headers'] {
+function cloneHeaders(source: ApiHttpConfigPayload): ApiHeaderItem[] {
   return (source.headers ?? []).map((header) => ({ ...header }))
 }
 
@@ -176,10 +179,6 @@ async function deleteHttpConfigRow(form: ConfigForm) {
   } catch (err) {
     ElMessage.error(resolveEnvironmentError(err))
   }
-}
-
-function addHeader(form: ConfigForm) {
-  form.headers = [...(form.headers ?? []), { key: '', value: '', enabled: true }]
 }
 
 const testingHttpId = ref('')
@@ -570,35 +569,8 @@ async function removeProcessor(processor: ApiProcessor) {
               </el-form>
 
               <div class="env-detail__headers">
-                <div class="env-detail__section-title">
-                  请求头
-                  <el-button v-if="canEdit" link type="primary" @click="addHeader(activeConfig)">
-                    + 添加
-                  </el-button>
-                </div>
-                <div class="env-detail__header-row env-detail__header-row--head">
-                  <span />
-                  <span class="env-detail__header-label">Key</span>
-                  <span class="env-detail__header-label">Value</span>
-                  <span />
-                </div>
-                <div v-for="(header, index) in activeConfig.headers ?? []" :key="index" class="env-detail__header-row">
-                  <el-checkbox
-                    :model-value="header.enabled"
-                    :disabled="!canEdit"
-                    @change="(value: boolean | string | number) => { header.enabled = value === true }"
-                  />
-                  <el-input v-model="header.key" placeholder="Header" :disabled="!canEdit" />
-                  <el-input v-model="header.value" placeholder="Value" :disabled="!canEdit" />
-                  <el-button
-                    v-if="canEdit"
-                    link
-                    type="danger"
-                    @click="activeConfig.headers?.splice(index, 1)"
-                  >
-                    删除
-                  </el-button>
-                </div>
+                <div class="env-detail__section-title">请求头</div>
+                <KeyValueTable v-model:entries="activeConfig.headers" placeholder-key="Header" :disabled="!canEdit" />
               </div>
 
               <div class="env-detail__config-footer">
@@ -889,10 +861,14 @@ async function removeProcessor(processor: ApiProcessor) {
 .env-detail__config-list {
   list-style: none;
   margin: 0;
-  padding: 0;
+  padding: var(--space-sm);
   width: 180px;
   flex-shrink: 0;
-  border-right: 1px solid var(--color-neutral-100);
+  // 与右侧配置表单一致的卡片化，去掉原中间分割线（视觉设计 2.1）
+  background: var(--color-neutral-50);
+  border: 1px solid var(--color-neutral-100);
+  border-radius: var(--radius-lg);
+  align-self: stretch;
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -974,36 +950,6 @@ async function removeProcessor(processor: ApiProcessor) {
   font-size: var(--font-size-sm);
   font-weight: 500;
   margin-bottom: var(--space-sm);
-}
-
-.env-detail__header-row {
-  display: grid;
-  grid-template-columns: auto 1fr 1fr auto;
-  gap: var(--space-sm);
-  align-items: center;
-  margin-bottom: var(--space-sm);
-
-  &:hover {
-    background: var(--color-primary-50);
-    border-radius: var(--radius-md);
-  }
-
-  // 表头标签行不做行悬停高亮
-  &--head {
-    margin-bottom: var(--space-xs);
-    font-size: var(--font-size-xs);
-    color: var(--color-neutral-400);
-
-    &:hover {
-      background: transparent;
-    }
-  }
-}
-
-.env-detail__header-label {
-  font-size: var(--font-size-xs);
-  color: var(--color-neutral-400);
-  user-select: none;
 }
 
 .env-detail__config-footer {
