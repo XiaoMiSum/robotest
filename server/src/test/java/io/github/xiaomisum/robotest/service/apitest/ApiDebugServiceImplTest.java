@@ -381,7 +381,6 @@ class ApiDebugServiceImplTest {
         env.setProjectId(PROJECT_ID);
         when(environmentMapper.selectById(ENVIRONMENT_ID)).thenReturn(env);
         ApiEnvironmentHttp http = new ApiEnvironmentHttp();
-        http.setIsDefault(true);
         http.setBaseUrl(baseUrl);
         when(environmentHttpMapper.listByEnvironmentId(ENVIRONMENT_ID)).thenReturn(List.of(http));
     }
