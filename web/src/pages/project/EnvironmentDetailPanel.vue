@@ -1,7 +1,8 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type {
+  ApiDataSourcePayload,
   ApiEnvironmentDetail,
   ApiHttpConfigPayload,
   ApiProcessor,
@@ -10,59 +11,46 @@ import type {
 } from '@/types'
 import {
   batchReplaceVariables,
+  createDataSource,
+  createHttpConfig,
   createProcessor,
+  deleteDataSource,
+  deleteHttpConfig,
   deleteProcessor,
   exportVariables,
   fetchEnvironmentDetail,
   importVariables,
-  revealVariable,
-  setDefaultEnvironment,
   testDataSource,
   testHttpConfig,
-  updateEnvironment,
+  updateDataSource,
+  updateHttpConfig,
   updateProcessor,
 } from '@/services/apiEnvironment'
 import {
-  buildSavePayload,
   createEmptyHttpConfig,
-  detailToForm,
   DRIVER_OPTIONS,
   formatImportResult,
-  HTTP_METHOD_OPTIONS,
   parseVariablesJson,
   processorTypeLabel,
   resolveEnvironmentError,
-  SENSITIVE_MASK,
   toVariablePayloads,
-  VARIABLE_TYPE_OPTIONS,
   validateVariableRow,
-  type EnvironmentEditForm,
 } from './environmentsModel'
 
-const props = defineProps<{ environmentId: string; canEdit: boolean; isFirst: boolean; isLast: boolean }>()
-const emit = defineEmits<{ changed: []; move: [direction: -1 | 1] }>()
+const props = defineProps<{ environmentId: string; canEdit: boolean }>()
+const emit = defineEmits<{ changed: [] }>()
 
-// ==================== 详情加载与聚合持久化 ====================
+// ==================== 详情加载与持久化（HTTP/数据源逐条即时保存，处理器/变量独立端点） ====================
 
 const loading = ref(false)
 const loadError = ref(false)
 const detail = ref<ApiEnvironmentDetail | null>(null)
-/** 基础信息与 HTTP 配置的未保存标记（交互设计 2.6） */
-const dirty = ref(false)
-const basicForm = reactive<EnvironmentEditForm>({ name: '', description: '', isDefault: false })
-const editingBasic = ref(false)
-const saving = ref(false)
 
 interface ConfigForm extends ApiHttpConfigPayload {
   id?: string
 }
-interface DsForm {
+interface DsForm extends ApiDataSourcePayload {
   id?: string
-  name: string
-  refName: string
-  driver: string
-  url: string
-  maxPoolSize?: number
 }
 
 const configForms = ref<ConfigForm[]>([])
@@ -77,8 +65,6 @@ function cloneHeaders(source: ApiHttpConfigPayload): ApiHttpConfigPayload['heade
 
 function hydrate(next: ApiEnvironmentDetail) {
   detail.value = next
-  Object.assign(basicForm, detailToForm(next))
-  editingBasic.value = false
   configForms.value = next.httpConfigs.map((config) => ({ ...config, headers: cloneHeaders(config) }))
   dsForms.value = next.dataSources.map((ds) => ({ ...ds }))
   // 变量名按字母序排列（交互设计 3.5）
@@ -116,63 +102,7 @@ async function refresh() {
   }
 }
 
-/** 聚合 PUT：全量替换语义，未编辑段落由 buildSavePayload 从详情回传兜底 */
-async function persistAggregate(): Promise<boolean> {
-  if (!detail.value || !basicForm.name.trim()) {
-    ElMessage.warning('环境名称不能为空')
-    return false
-  }
-  saving.value = true
-  try {
-    await updateEnvironment(
-      detail.value.id,
-      buildSavePayload(
-        basicForm,
-        detail.value,
-        // 本地新增行带 local- 占位 id，剥离后仅上送 payload 字段
-        configForms.value.map(({ id: _ignored, ...payload }) => payload),
-        dsForms.value.map(({ id: _ignored, ...payload }) => payload),
-      ),
-    )
-    dirty.value = false
-    return true
-  } catch (err) {
-    ElMessage.error(resolveEnvironmentError(err))
-    return false
-  } finally {
-    saving.value = false
-  }
-}
-
-async function saveAll() {
-  if (!props.canEdit || !dirty.value) return
-  if (await persistAggregate()) {
-    ElMessage.success('已保存')
-    await refresh()
-  }
-}
-
-async function handleSetDefault() {
-  if (!detail.value || detail.value.isDefault) return
-  try {
-    await ElMessageBox.confirm(
-      `确认将「${detail.value.name}」设为默认环境？场景执行未指定环境时将使用默认环境`,
-      '设为默认',
-      { type: 'warning', confirmButtonText: '确定', cancelButtonText: '取消' },
-    )
-  } catch {
-    return
-  }
-  try {
-    await setDefaultEnvironment(detail.value.id)
-    ElMessage.success('已设为默认')
-    await refresh()
-  } catch (err) {
-    ElMessage.error(resolveEnvironmentError(err))
-  }
-}
-
-// ==================== 默认配置（HTTP 配置） ====================
+// ==================== HTTP 配置（独立新增/编辑端点，3.4） ====================
 
 const activeConfig = computed(() => configForms.value.find((config) => config.id === activeConfigId.value))
 
@@ -185,18 +115,71 @@ function addHttpConfig() {
   next.id = `local-${Date.now()}`
   configForms.value.push(next)
   activeConfigId.value = next.id
-  markDirty()
 }
 
-function removeHttpConfig(form: ConfigForm) {
+/** 新建后本地占位（local- 前缀）未落库，取消即丢弃；已落库走删除端点 */
+function cancelNewHttpConfig(form: ConfigForm) {
+  if (form.id?.startsWith('local-')) form.id = undefined
   configForms.value = configForms.value.filter((config) => config !== form)
-  if (activeConfigId.value === form.id) activeConfigId.value = configForms.value[0]?.id ?? ''
-  markDirty()
+  if (activeConfigId.value === form.id || activeConfigId.value === undefined) {
+    activeConfigId.value = configForms.value[0]?.id ?? ''
+  }
+}
+
+const savingHttpId = ref('')
+
+async function saveHttpConfig(form: ConfigForm) {
+  if (!form.name.trim()) {
+    ElMessage.warning('请填写配置名称')
+    return
+  }
+  const isNew = !form.id || form.id.startsWith('local-')
+  savingHttpId.value = form.id ?? ''
+  try {
+    const saved = isNew
+      ? await createHttpConfig(props.environmentId, toHttpConfigPayload(form))
+      : await updateHttpConfig(props.environmentId, form.id as string, toHttpConfigPayload(form))
+    ElMessage.success(isNew ? '配置已创建' : '已保存')
+    await refresh()
+    activeConfigId.value = saved.id
+  } catch (err) {
+    ElMessage.error(resolveEnvironmentError(err))
+  } finally {
+    savingHttpId.value = ''
+  }
+}
+
+function toHttpConfigPayload(form: ConfigForm): ApiHttpConfigPayload {
+  return {
+    name: form.name.trim(),
+    refName: form.refName || undefined,
+    baseUrl: form.baseUrl || undefined,
+    headers: (form.headers ?? []).filter((header) => header.key.trim() || header.value.trim()),
+  }
+}
+
+async function deleteHttpConfigRow(form: ConfigForm) {
+  if (!form.id || form.id.startsWith('local-')) return
+  try {
+    await ElMessageBox.confirm(`确认删除 HTTP 配置「${form.name || '(未命名)'}」？删除后不可恢复。`, '删除配置', {
+      type: 'warning',
+      confirmButtonText: '删除',
+      cancelButtonText: '取消',
+    })
+  } catch {
+    return
+  }
+  try {
+    await deleteHttpConfig(props.environmentId, form.id)
+    ElMessage.success('已删除')
+    await refresh()
+  } catch (err) {
+    ElMessage.error(resolveEnvironmentError(err))
+  }
 }
 
 function addHeader(form: ConfigForm) {
   form.headers = [...(form.headers ?? []), { key: '', value: '', enabled: true }]
-  markDirty()
 }
 
 const testingHttpId = ref('')
@@ -220,14 +203,9 @@ async function runHttpTest(form: ConfigForm) {
     testingHttpId.value = ''
   }
 }
-
-function markDirty() {
-  dirty.value = true
-}
 // ==================== 变量（独立端点即时保存） ====================
 
 const editingVariableId = ref('')
-const revealingId = ref('')
 /** 行数超过 10 条时分页展示（交互设计 3.5） */
 const VARIABLE_PAGE_SIZE = 10
 const variablePage = ref(1)
@@ -241,7 +219,6 @@ function addVariableRow() {
     id: `local-${Date.now()}-${variableRows.value.length}`,
     name: '',
     value: '',
-    type: 'text',
     description: '',
     hasValue: false,
   }
@@ -249,31 +226,8 @@ function addVariableRow() {
   editingVariableId.value = row.id
 }
 
-function editVariable(row: ApiVariable) {
-  // 敏感值不回显明文：进入编辑清空输入框，留空提交由后端沿用旧密文
-  if (row.type === 'sensitive') row.value = ''
-  editingVariableId.value = row.id
-}
-
 function removeVariableRow(row: ApiVariable) {
   variableRows.value = variableRows.value.filter((item) => item !== row)
-}
-
-async function revealValue(row: ApiVariable) {
-  if (row.type !== 'sensitive' || row.id.startsWith('local-')) return
-  revealingId.value = row.id
-  try {
-    const resp = await revealVariable(props.environmentId, row.id)
-    row.value = resp.value ?? ''
-    // 交互设计 3.3：临时明文展示 3 秒后恢复脱敏，避免旁观泄露
-    setTimeout(() => {
-      row.value = SENSITIVE_MASK
-      revealingId.value = ''
-    }, 3000)
-  } catch (err) {
-    revealingId.value = ''
-    ElMessage.error(resolveEnvironmentError(err))
-  }
 }
 
 const variablesSaving = ref(false)
@@ -344,7 +298,7 @@ async function submitVarImport() {
   }
 }
 
-// ==================== 数据源（随聚合 PUT 持久化，交互同默认配置） ====================
+// ==================== 数据源（独立新增/编辑端点，3.4） ====================
 
 const activeDsId = ref('')
 const activeDs = computed(() => dsForms.value.find((form) => form.id === activeDsId.value))
@@ -359,7 +313,6 @@ function handleDsDriverChange(driver: string) {
   // 切换驱动时若尚未填写 URL，自动填充该驱动的示例，避免空 URL 误保存
   const option = DRIVER_OPTIONS.find((item) => item.driver === driver)
   if (option && activeDs.value && !activeDs.value.url) activeDs.value.url = option.urlExample
-  markDirty()
 }
 
 function addDataSource() {
@@ -373,13 +326,72 @@ function addDataSource() {
   }
   dsForms.value.push(next)
   activeDsId.value = id
-  markDirty()
 }
 
-function removeDs(form: DsForm) {
+/** 新建后本地占位（local- 前缀）未落库，取消即丢弃；已落库走删除端点 */
+function cancelNewDs(form: DsForm) {
+  if (form.id?.startsWith('local-')) form.id = undefined
   dsForms.value = dsForms.value.filter((item) => item !== form)
-  if (activeDsId.value === form.id) activeDsId.value = dsForms.value[0]?.id ?? ''
-  markDirty()
+  if (activeDsId.value === form.id || activeDsId.value === undefined) {
+    activeDsId.value = dsForms.value[0]?.id ?? ''
+  }
+}
+
+const savingDsId = ref('')
+
+async function saveDs(form: DsForm) {
+  if (!form.name.trim()) {
+    ElMessage.warning('请填写数据源名称')
+    return
+  }
+  if (!form.url?.trim()) {
+    ElMessage.warning('请填写连接 URL')
+    return
+  }
+  const isNew = !form.id || form.id.startsWith('local-')
+  savingDsId.value = form.id ?? ''
+  try {
+    const saved = isNew
+      ? await createDataSource(props.environmentId, toDsPayload(form))
+      : await updateDataSource(props.environmentId, form.id as string, toDsPayload(form))
+    ElMessage.success(isNew ? '数据源已创建' : '已保存')
+    await refresh()
+    activeDsId.value = saved.id
+  } catch (err) {
+    ElMessage.error(resolveEnvironmentError(err))
+  } finally {
+    savingDsId.value = ''
+  }
+}
+
+function toDsPayload(form: DsForm): ApiDataSourcePayload {
+  return {
+    name: form.name.trim(),
+    refName: form.refName || undefined,
+    driver: form.driver,
+    url: form.url?.trim(),
+    maxPoolSize: form.maxPoolSize,
+  }
+}
+
+async function deleteDsRow(form: DsForm) {
+  if (!form.id || form.id.startsWith('local-')) return
+  try {
+    await ElMessageBox.confirm(`确认删除数据源「${form.name || '(未命名)'}」？删除后不可恢复。`, '删除数据源', {
+      type: 'warning',
+      confirmButtonText: '删除',
+      cancelButtonText: '取消',
+    })
+  } catch {
+    return
+  }
+  try {
+    await deleteDataSource(props.environmentId, form.id)
+    ElMessage.success('已删除')
+    await refresh()
+  } catch (err) {
+    ElMessage.error(resolveEnvironmentError(err))
+  }
 }
 
 const testingDsId = ref('')
@@ -512,40 +524,9 @@ async function removeProcessor(processor: ApiProcessor) {
     </div>
 
     <template v-else-if="detail">
-      <header class="env-detail__header">
-        <div class="env-detail__title">
-          <template v-if="editingBasic && canEdit">
-            <el-input v-model="basicForm.name" maxlength="100" class="env-detail__name-input" />
-            <el-tag v-if="detail.isDefault" size="small" type="warning" effect="light">默认</el-tag>
-          </template>
-          <template v-else>
-            <h4>{{ detail.name }}</h4>
-            <el-tag v-if="detail.isDefault" size="small" type="warning" effect="light">默认</el-tag>
-          </template>
-          <el-badge v-if="dirty" value="未保存" type="warning" />
-        </div>
-        <div v-if="canEdit" class="env-detail__actions">
-          <el-button-group class="env-detail__sort">
-            <el-button size="small" :disabled="isFirst" @click="emit('move', -1)">上移</el-button>
-            <el-button size="small" :disabled="isLast" @click="emit('move', 1)">下移</el-button>
-          </el-button-group>
-          <el-button v-if="!detail.isDefault" size="small" @click="handleSetDefault">设为默认</el-button>
-          <el-button v-if="!editingBasic" size="small" @click="editingBasic = true">编辑信息</el-button>
-          <el-button size="small" :disabled="!dirty" type="primary" :loading="saving" @click="saveAll">
-            保存{{ dirty ? ' *' : '' }}
-          </el-button>
-        </div>
-      </header>
-
-      <p v-if="editingBasic && canEdit" class="env-detail__desc-edit">
-        <el-input v-model="basicForm.description" type="textarea" :rows="2" maxlength="500" placeholder="描述（可选）" />
-        <el-checkbox v-model="basicForm.isDefault" :disabled="detail.isDefault">设为默认环境</el-checkbox>
-      </p>
-      <p v-else-if="detail.description" class="env-detail__desc">{{ detail.description }}</p>
-
       <el-tabs v-model="activeTab" class="env-detail__tabs">
-        <!-- ============ 默认配置 ============ -->
-        <el-tab-pane label="默认配置" name="http">
+        <!-- ============ HTTP 默认配置 ============ -->
+        <el-tab-pane :label="`HTTP (${configForms.length})`" name="http">
           <div class="env-detail__split">
             <ul class="env-detail__config-list">
               <li
@@ -555,7 +536,6 @@ async function removeProcessor(processor: ApiProcessor) {
                 @click="selectConfig(form)"
               >
                 {{ form.name || '(未命名)' }}
-                <el-tag v-if="form.isDefault" size="small" effect="plain">默认</el-tag>
               </li>
               <li v-if="canEdit">
                 <el-button link type="primary" @click="addHttpConfig">+ 新增配置</el-button>
@@ -564,35 +544,14 @@ async function removeProcessor(processor: ApiProcessor) {
 
             <div v-if="activeConfig" class="env-detail__config-form">
               <el-form label-width="110px" size="small" :disabled="!canEdit">
-                <el-form-item label="名称">
-                  <el-input v-model="activeConfig.name" maxlength="100" @input="markDirty" />
+                <el-form-item label="名称" required>
+                  <el-input v-model="activeConfig.name" maxlength="100" />
                 </el-form-item>
                 <el-form-item label="引用名 refName">
-                  <el-input v-model="activeConfig.refName" placeholder="场景中通过该名引用此配置" @input="markDirty" />
+                  <el-input v-model="activeConfig.refName" placeholder="场景中通过该名引用此配置" />
                 </el-form-item>
                 <el-form-item label="Base URL">
-                  <el-input v-model="activeConfig.baseUrl" placeholder="https://api.example.com" @input="markDirty" />
-                </el-form-item>
-                <el-form-item label="默认方法">
-                  <el-select v-model="activeConfig.defaultMethod" @change="markDirty">
-                    <el-option v-for="method in HTTP_METHOD_OPTIONS" :key="method" :label="method" :value="method" />
-                  </el-select>
-                </el-form-item>
-                <el-form-item label="超时 (ms)">
-                  <el-input-number v-model="activeConfig.timeoutMs" :min="0" :step="1000" @change="markDirty" />
-                  <span class="env-detail__hint">响应超时</span>
-                </el-form-item>
-                <el-form-item label="连接超时 (ms)">
-                  <el-input-number v-model="activeConfig.connectTimeoutMs" :min="0" :step="1000" @change="markDirty" />
-                </el-form-item>
-                <el-form-item label="跟随重定向">
-                  <el-switch v-model="activeConfig.followRedirects" @change="markDirty" />
-                </el-form-item>
-                <el-form-item label="校验 SSL">
-                  <el-switch v-model="activeConfig.verifySsl" @change="markDirty" />
-                </el-form-item>
-                <el-form-item label="默认配置">
-                  <el-switch v-model="activeConfig.isDefault" @change="markDirty" />
+                  <el-input v-model="activeConfig.baseUrl" placeholder="https://api.example.com" />
                 </el-form-item>
               </el-form>
 
@@ -607,15 +566,15 @@ async function removeProcessor(processor: ApiProcessor) {
                   <el-checkbox
                     :model-value="header.enabled"
                     :disabled="!canEdit"
-                    @change="(value: boolean | string | number) => { header.enabled = value === true; markDirty() }"
+                    @change="(value: boolean | string | number) => { header.enabled = value === true }"
                   />
-                  <el-input v-model="header.key" placeholder="Header" :disabled="!canEdit" @input="markDirty" />
-                  <el-input v-model="header.value" placeholder="Value" :disabled="!canEdit" @input="markDirty" />
+                  <el-input v-model="header.key" placeholder="Header" :disabled="!canEdit" />
+                  <el-input v-model="header.value" placeholder="Value" :disabled="!canEdit" />
                   <el-button
                     v-if="canEdit"
                     link
                     type="danger"
-                    @click="activeConfig.headers?.splice(index, 1); markDirty()"
+                    @click="activeConfig.headers?.splice(index, 1)"
                   >
                     删除
                   </el-button>
@@ -630,30 +589,40 @@ async function removeProcessor(processor: ApiProcessor) {
                 >
                   连接测试
                 </el-button>
-                <el-button
-                  v-if="canEdit && configForms.length > 0"
-                  size="small"
-                  type="danger"
-                  plain
-                  @click="removeHttpConfig(activeConfig)"
-                >
-                  删除配置
-                </el-button>
+                <template v-if="canEdit">
+                  <el-button v-if="!activeConfig.id || activeConfig.id.startsWith('local-')" size="small" @click="cancelNewHttpConfig(activeConfig)">
+                    取消
+                  </el-button>
+                  <el-button
+                    size="small"
+                    type="primary"
+                    :loading="savingHttpId === activeConfig.id"
+                    @click="saveHttpConfig(activeConfig)"
+                  >
+                    {{ activeConfig.id && !activeConfig.id.startsWith('local-') ? '保存修改' : '保存' }}
+                  </el-button>
+                  <el-button
+                    v-if="activeConfig.id && !activeConfig.id.startsWith('local-')"
+                    size="small"
+                    type="danger"
+                    plain
+                    @click="deleteHttpConfigRow(activeConfig)"
+                  >
+                    删除配置
+                  </el-button>
+                </template>
               </div>
             </div>
           </div>
         </el-tab-pane>
         <!-- ============ 全局变量 ============ -->
         <el-tab-pane :label="`变量 (${variableRows.length})`" name="variables">
-          <div class="env-detail__toolbar">
-            <el-button size="small" type="primary" :disabled="!canEdit" @click="addVariableRow">新增变量</el-button>
-            <el-button size="small" :disabled="!canEdit" @click="varImportDialogVisible = true">批量导入</el-button>
+          <div class="env-detail__toolbar env-detail__toolbar--right">
+            <el-button size="small" :disabled="!canEdit" @click="varImportDialogVisible = true">导入</el-button>
             <el-button size="small" @click="exportVariableRows">导出</el-button>
+            <el-button size="small" type="primary" :disabled="!canEdit" @click="addVariableRow">新增变量</el-button>
           </div>
           <el-table :data="pagedVariableRows" size="small" empty-text="暂无变量，点击右上角添加">
-            <el-table-column label="作用域" width="80">
-              <template #default>环境级</template>
-            </el-table-column>
             <el-table-column label="变量名" width="200">
               <template #default="{ row }">
                 <el-input
@@ -665,24 +634,14 @@ async function removeProcessor(processor: ApiProcessor) {
                 <span v-else class="env-detail__mono">{{ row.name }}</span>
               </template>
             </el-table-column>
-            <el-table-column label="类型" width="110">
-              <template #default="{ row }">
-                <el-select v-if="row.id === editingVariableId && canEdit" v-model="row.type" size="small">
-                  <el-option v-for="option in VARIABLE_TYPE_OPTIONS" :key="option.value" :label="option.label" :value="option.value" />
-                </el-select>
-                <span v-else>{{ VARIABLE_TYPE_OPTIONS.find((o) => o.value === row.type)?.label ?? row.type }}</span>
-              </template>
-            </el-table-column>
             <el-table-column label="取值">
               <template #default="{ row }">
                 <el-input
                   v-if="row.id === editingVariableId && canEdit"
                   v-model="row.value"
+                  placeholder="变量取值"
                   size="small"
-                  :placeholder="row.type === 'sensitive' ? '留空沿用旧值' : '变量取值'"
-                  show-password
                 />
-                <span v-else-if="row.type === 'sensitive'" class="env-detail__mono">{{ row.hasValue ? SENSITIVE_MASK : '(未设置)' }}</span>
                 <span v-else class="env-detail__mono">{{ row.value || '-' }}</span>
               </template>
             </el-table-column>
@@ -696,16 +655,13 @@ async function removeProcessor(processor: ApiProcessor) {
                 <span v-else>{{ row.description || '-' }}</span>
               </template>
             </el-table-column>
-            <el-table-column label="操作" width="190" fixed="right">
+            <el-table-column label="操作" width="120" fixed="right">
               <template #default="{ row }">
                 <template v-if="row.id === editingVariableId && canEdit">
                   <el-button link type="primary" size="small" @click="editingVariableId = ''">完成</el-button>
                 </template>
                 <template v-else>
-                  <el-button v-if="row.type === 'sensitive'" link size="small" @click="revealValue(row as ApiVariable)">
-                    {{ revealingId === row.id ? '隐藏中' : '显示' }}
-                  </el-button>
-                  <el-button v-if="canEdit" link size="small" @click="editVariable(row as ApiVariable)">编辑</el-button>
+                  <el-button v-if="canEdit" link size="small" @click="editingVariableId = row.id">编辑</el-button>
                   <el-button v-if="canEdit" link type="danger" size="small" @click="removeVariableRow(row as ApiVariable)">删除</el-button>
                 </template>
               </template>
@@ -730,7 +686,7 @@ async function removeProcessor(processor: ApiProcessor) {
           </div>
         </el-tab-pane>
 
-        <!-- ============ 数据源（交互同默认配置：左列表 + 右内联表单） ============ -->
+        <!-- ============ 数据源（交互同 HTTP：左列表 + 右内联表单） ============ -->
         <el-tab-pane :label="`数据源 (${dsForms.length})`" name="datasources">
           <div class="env-detail__split">
             <ul class="env-detail__config-list">
@@ -750,10 +706,10 @@ async function removeProcessor(processor: ApiProcessor) {
             <div v-if="activeDs" class="env-detail__config-form">
               <el-form label-width="110px" size="small" :disabled="!canEdit">
                 <el-form-item label="名称" required>
-                  <el-input v-model="activeDs.name" maxlength="100" @input="markDirty" />
+                  <el-input v-model="activeDs.name" maxlength="100" />
                 </el-form-item>
                 <el-form-item label="引用名 refName">
-                  <el-input v-model="activeDs.refName" placeholder="场景中通过该名引用此数据源" @input="markDirty" />
+                  <el-input v-model="activeDs.refName" placeholder="场景中通过该名引用此数据源" />
                 </el-form-item>
                 <el-form-item label="驱动">
                   <el-select v-model="activeDs.driver" @change="handleDsDriverChange">
@@ -771,12 +727,11 @@ async function removeProcessor(processor: ApiProcessor) {
                     type="textarea"
                     :rows="2"
                     :placeholder="selectedDsDriverOption?.urlExample"
-                    @input="markDirty"
                   />
-                  <span v-if="activeDs.driver === ''" class="env-detail__hint">Redis 无需驱动，按 redis:// 协议识别</span>
+                  <span v-if="activeDs.driver === '-'" class="env-detail__hint">Redis 无需驱动，按 redis:// 协议识别</span>
                 </el-form-item>
                 <el-form-item label="连接池上限">
-                  <el-input-number v-model="activeDs.maxPoolSize" :min="1" :max="100" @change="markDirty" />
+                  <el-input-number v-model="activeDs.maxPoolSize" :min="1" :max="100" />
                 </el-form-item>
               </el-form>
 
@@ -790,15 +745,28 @@ async function removeProcessor(processor: ApiProcessor) {
                 >
                   连接测试
                 </el-button>
-                <el-button
-                  v-if="canEdit && dsForms.length > 0"
-                  size="small"
-                  type="danger"
-                  plain
-                  @click="removeDs(activeDs)"
-                >
-                  删除数据源
-                </el-button>
+                <template v-if="canEdit">
+                  <el-button v-if="!activeDs.id || activeDs.id.startsWith('local-')" size="small" @click="cancelNewDs(activeDs)">
+                    取消
+                  </el-button>
+                  <el-button
+                    size="small"
+                    type="primary"
+                    :loading="savingDsId === activeDs.id"
+                    @click="saveDs(activeDs)"
+                  >
+                    {{ activeDs.id && !activeDs.id.startsWith('local-') ? '保存修改' : '保存' }}
+                  </el-button>
+                  <el-button
+                    v-if="activeDs.id && !activeDs.id.startsWith('local-')"
+                    size="small"
+                    type="danger"
+                    plain
+                    @click="deleteDsRow(activeDs)"
+                  >
+                    删除数据源
+                  </el-button>
+                </template>
               </div>
             </div>
           </div>
@@ -886,66 +854,18 @@ async function removeProcessor(processor: ApiProcessor) {
   background: var(--color-neutral-0, #fff);
   border: 1px solid var(--color-neutral-100);
   border-radius: var(--radius-lg);
-  padding: var(--space-md) var(--space-lg);
+  // 顶部无名称/描述，去掉上内边距让标签贴顶
+  padding: 0 var(--space-lg) var(--space-md);
   min-height: 320px;
 }
 
-.env-detail__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-md);
-}
-
-.env-detail__title {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-  min-width: 0;
-
-  h4 {
-    margin: 0;
-    font-size: var(--font-size-base);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-}
-
-.env-detail__name-input {
-  width: 220px;
-}
-
-.env-detail__actions {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-  flex-shrink: 0;
-
-  .el-button + .el-button {
-    margin-left: 0;
-  }
-}
-
-.env-detail__sort {
-  margin-right: var(--space-xs);
-}
-
-.env-detail__desc {
-  margin: 6px 0 0;
-  font-size: var(--font-size-xs);
-  color: var(--color-neutral-400);
-}
-
-.env-detail__desc-edit {
-  margin: 8px 0 0;
-  display: flex;
-  align-items: center;
-  gap: var(--space-md);
-}
-
 .env-detail__tabs {
-  margin-top: var(--space-sm);
+  margin-top: 0;
+
+  :deep(.el-tabs__header) {
+    // 收紧标签条与内容间距，避免大段留白
+    margin-bottom: var(--space-sm);
+  }
 
   :deep(.el-tabs__content) {
     overflow: visible;

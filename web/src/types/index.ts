@@ -1300,8 +1300,6 @@ export interface ProjectSettingUpdateResp {
 
 export type ApiEnvironmentScope = 'project' | 'global'
 
-export type ApiVariableType = 'text' | 'number' | 'sensitive'
-
 /** 处理器类别：作用于该环境下所有请求的前置/后置处理器 */
 export type ApiProcessorType = 'preprocessor' | 'postprocessor'
 
@@ -1315,40 +1313,37 @@ export interface ApiHttpConfigPayload {
   name: string
   refName?: string
   baseUrl?: string
-  defaultMethod?: string
   headers?: ApiHeaderItem[]
-  timeoutMs?: number
-  connectTimeoutMs?: number
-  followRedirects?: boolean
-  verifySsl?: boolean
-  isDefault?: boolean
 }
 
 export interface ApiHttpConfig extends ApiHttpConfigPayload {
   id: string
 }
 
+/** 数据源独立新增/编辑负载（3.1.12），响应 ApiDataSource 附 id */
+export interface ApiDataSourcePayload {
+  name: string
+  refName?: string
+  driver?: string
+  url?: string
+  connectionProperties?: Record<string, unknown>
+  maxPoolSize?: number
+}
+
 export interface ApiVariablePayload {
   name: string
   value?: string
-  type?: ApiVariableType
   description?: string
 }
 
-/** 敏感值不回显明文：value 恒为掩码或空，hasValue 标识服务端是否已配置 */
+/** 变量取值明文回显；hasValue 标识服务端是否已配置（详细设计 3.1.9） */
 export interface ApiVariable extends ApiVariablePayload {
   id: string
   hasValue: boolean
 }
 
-export interface ApiDataSource {
+export interface ApiDataSource extends ApiDataSourcePayload {
   id: string
-  name: string
-  refName: string
-  driver: string
-  url: string
-  connectionProperties?: Record<string, unknown>
-  maxPoolSize?: number
 }
 
 export interface ApiProcessor {
@@ -1368,6 +1363,7 @@ export interface ApiEnvironmentListItem {
   scope?: ApiEnvironmentScope
   isDefault: boolean
   sortOrder: number
+  httpConfigCount: number
   variableCount: number
   dataSourceCount: number
   processorCount: number
@@ -1436,12 +1432,6 @@ export interface ApiHttpTestResp {
   message: string
   statusCode?: number
   durationMs?: number
-}
-
-export interface ApiVariableRevealResp {
-  id: string
-  name: string
-  value?: string
 }
 
 // ==================== 快速调试（详细设计 3.1） ====================

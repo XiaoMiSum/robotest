@@ -1,9 +1,13 @@
 import api from '@/services'
 import type {
+  ApiDataSource,
+  ApiDataSourcePayload,
   ApiDataSourceTestResp,
   ApiEnvironmentDetail,
   ApiEnvironmentListItem,
   ApiEnvironmentSaveReq,
+  ApiHttpConfig,
+  ApiHttpConfigPayload,
   ApiHttpTestResp,
   ApiIdResp,
   ApiImportResult,
@@ -11,7 +15,6 @@ import type {
   ApiSetDefaultResp,
   ApiVariable,
   ApiVariablePayload,
-  ApiVariableRevealResp,
 } from '@/types'
 
 // 响应拦截器已将 Result<T> 解包为 data，此处集中处理静态类型断言
@@ -96,6 +99,43 @@ export function deleteProcessor(environmentId: string, procId: string): Promise<
   return del(`/project/environments/${environmentId}/processors/${procId}`)
 }
 
+// ---------- HTTP 配置子资源（3.1.12） ----------
+
+/** 新增 HTTP 配置：立即持久化，返回含 id 的配置供行内更新 */
+export function createHttpConfig(environmentId: string, data: ApiHttpConfigPayload): Promise<ApiHttpConfig> {
+  return post(`/project/environments/${environmentId}/http-configs`, data)
+}
+
+export function updateHttpConfig(
+  environmentId: string,
+  httpConfigId: string,
+  data: ApiHttpConfigPayload,
+): Promise<ApiHttpConfig> {
+  return put(`/project/environments/${environmentId}/http-configs/${httpConfigId}`, data)
+}
+
+export function deleteHttpConfig(environmentId: string, httpConfigId: string): Promise<boolean> {
+  return del(`/project/environments/${environmentId}/http-configs/${httpConfigId}`)
+}
+
+// ---------- 数据源子资源（3.1.12） ----------
+
+export function createDataSource(environmentId: string, data: ApiDataSourcePayload): Promise<ApiDataSource> {
+  return post(`/project/environments/${environmentId}/data-sources`, data)
+}
+
+export function updateDataSource(
+  environmentId: string,
+  dsId: string,
+  data: ApiDataSourcePayload,
+): Promise<ApiDataSource> {
+  return put(`/project/environments/${environmentId}/data-sources/${dsId}`, data)
+}
+
+export function deleteDataSource(environmentId: string, dsId: string): Promise<boolean> {
+  return del(`/project/environments/${environmentId}/data-sources/${dsId}`)
+}
+
 // ---------- 变量子资源（3.3） ----------
 
 export function batchReplaceVariables(environmentId: string, variables: ApiVariablePayload[]): Promise<ApiVariable[]> {
@@ -112,11 +152,6 @@ export function importVariables(
 
 export function exportVariables(environmentId: string): Promise<ApiVariable[]> {
   return get(`/project/environments/${environmentId}/variables/export`)
-}
-
-/** 敏感值临时明文（3 秒展示场景），仅维护者可用 */
-export function revealVariable(environmentId: string, variableId: string): Promise<ApiVariableRevealResp> {
-  return post(`/project/environments/${environmentId}/variables/${variableId}/reveal`)
 }
 
 // ---------- 连接测试（3.1.7 / 3.1.8） ----------

@@ -8,25 +8,15 @@ import type {
   ApiProcessorType,
   ApiVariable,
   ApiVariablePayload,
-  ApiVariableType,
 } from '@/types'
 
 // ==================== 常量 ====================
 
-/** 敏感值掩码，与后端 SENSITIVE_MASK 对齐；提交时后端据此沿用旧密文 */
-export const SENSITIVE_MASK = '******'
-
 /** 变量名仅字母/数字/下划线（详细设计 3.3.1） */
 const VARIABLE_NAME_PATTERN = /^[A-Za-z0-9_]+$/
 
-export const VARIABLE_TYPE_OPTIONS: { value: ApiVariableType; label: string }[] = [
-  { value: 'text', label: '文本' },
-  { value: 'number', label: '数字' },
-  { value: 'sensitive', label: '敏感值' },
-]
-
 export interface DriverOption {
-  /** JDBC 驱动类名；Redis 免驱动存空串，按 redis:// 协议识别（详细设计 3.1.7） */
+  /** JDBC 驱动类名；Redis 填 '-' 占位以满足后端 driver 必填校验，按 redis:// 协议识别（详细设计 3.1.7） */
   driver: string
   label: string
   urlExample: string
@@ -56,13 +46,12 @@ export const DRIVER_OPTIONS: DriverOption[] = [
       'jdbc:sqlserver://localhost:1433;databaseName=db;encrypt=true;user=sa;password=YourStrong@Passw0rd',
   },
   {
-    driver: '',
+    // 后端 driver 列为 NOT NULL，空串提交报必填错；'-' 仅占位，连接按协议判定（Redis 不建立 JDBC）
+    driver: '-',
     label: 'Redis',
     urlExample: 'redis://localhost:6379/0',
   },
 ]
-
-export const HTTP_METHOD_OPTIONS = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'] as const
 
 // ==================== 错误码映射 ====================
 
@@ -126,28 +115,21 @@ export function isValidVariableName(name: string): boolean {
   return VARIABLE_NAME_PATTERN.test(name)
 }
 
-/**
- * 行级校验：返回错误文案或 null。
- * sensitive 允许值为空（留空沿用旧值），number 必须可解析为数字。
- */
+/** 行级校验：返回错误文案或 null；值为空允许（未配置） */
 export function validateVariableRow(
-  row: Pick<ApiVariable, 'name' | 'value' | 'type'>,
+  row: Pick<ApiVariable, 'name' | 'value'>,
   otherNames: Set<string>,
 ): string | null {
   if (!row.name) return '变量名不能为空'
   if (!isValidVariableName(row.name)) return '变量名仅允许字母、数字与下划线'
   if (otherNames.has(row.name)) return '变量名已存在'
-  if (row.type === 'number' && row.value && Number.isNaN(Number(row.value))) {
-    return '数字类型取值非法'
-  }
   return null
 }
 
-/** 变量子资源提交体：敏感值空值/掩码原样上送，由后端沿用旧密文 */
+/** 变量子资源提交体：值原样上送，空值表示未配置 */
 export function toVariablePayloads(variables: ApiVariable[]): ApiVariablePayload[] {
   return variables.map((v) => ({
     name: v.name,
-    type: v.type,
     description: v.description || undefined,
     value: v.value || undefined,
   }))
@@ -208,13 +190,7 @@ export function createEmptyHttpConfig(index: number): ApiHttpConfigPayload & { i
     name: `配置 ${index}`,
     refName: `http_${index}`,
     baseUrl: '',
-    defaultMethod: 'GET',
     headers: [],
-    timeoutMs: 30000,
-    connectTimeoutMs: 10000,
-    followRedirects: true,
-    verifySsl: true,
-    isDefault: false,
   }
 }
 
@@ -237,10 +213,8 @@ export function parseVariablesJson(raw: string):
     if (!name || !isValidVariableName(name)) {
       return { ok: false, error: `变量名非法：${String(record['name'] ?? '(空)')}（仅字母/数字/下划线）` }
     }
-    const type = (typeof record['type'] === 'string' ? record['type'] : 'text') as ApiVariableType
     rows.push({
       name,
-      type: VARIABLE_TYPE_OPTIONS.some((option) => option.value === type) ? type : 'text',
       value: typeof record['value'] === 'string' ? record['value'] : undefined,
       description: typeof record['description'] === 'string' ? record['description'] : undefined,
     })
