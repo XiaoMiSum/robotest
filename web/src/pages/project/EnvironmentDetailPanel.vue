@@ -520,7 +520,7 @@ async function removeProcessor(processor: ApiProcessor) {
   <div v-loading="loading" class="env-detail">
     <div v-if="loadError" class="env-detail__empty">
       <p>环境详情加载失败</p>
-      <el-button size="small" @click="load">重试</el-button>
+      <el-button @click="load">重试</el-button>
     </div>
 
     <template v-else-if="detail">
@@ -543,7 +543,7 @@ async function removeProcessor(processor: ApiProcessor) {
             </ul>
 
             <div v-if="activeConfig" class="env-detail__config-form">
-              <el-form label-width="110px" size="small" :disabled="!canEdit">
+              <el-form label-width="110px" :disabled="!canEdit">
                 <el-form-item label="名称" required>
                   <el-input v-model="activeConfig.name" maxlength="100" />
                 </el-form-item>
@@ -558,7 +558,7 @@ async function removeProcessor(processor: ApiProcessor) {
               <div class="env-detail__headers">
                 <div class="env-detail__section-title">
                   请求头
-                  <el-button v-if="canEdit" link type="primary" size="small" @click="addHeader(activeConfig)">
+                  <el-button v-if="canEdit" link type="primary" @click="addHeader(activeConfig)">
                     + 添加
                   </el-button>
                 </div>
@@ -583,18 +583,16 @@ async function removeProcessor(processor: ApiProcessor) {
 
               <div class="env-detail__config-footer">
                 <el-button
-                  size="small"
                   :loading="testingHttpId === activeConfig.id"
                   @click="runHttpTest(activeConfig)"
                 >
                   连接测试
                 </el-button>
                 <template v-if="canEdit">
-                  <el-button v-if="!activeConfig.id || activeConfig.id.startsWith('local-')" size="small" @click="cancelNewHttpConfig(activeConfig)">
+                  <el-button v-if="!activeConfig.id || activeConfig.id.startsWith('local-')" @click="cancelNewHttpConfig(activeConfig)">
                     取消
                   </el-button>
                   <el-button
-                    size="small"
                     type="primary"
                     :loading="savingHttpId === activeConfig.id"
                     @click="saveHttpConfig(activeConfig)"
@@ -603,7 +601,6 @@ async function removeProcessor(processor: ApiProcessor) {
                   </el-button>
                   <el-button
                     v-if="activeConfig.id && !activeConfig.id.startsWith('local-')"
-                    size="small"
                     type="danger"
                     plain
                     @click="deleteHttpConfigRow(activeConfig)"
@@ -618,9 +615,9 @@ async function removeProcessor(processor: ApiProcessor) {
         <!-- ============ 全局变量 ============ -->
         <el-tab-pane :label="`变量 (${variableRows.length})`" name="variables">
           <div class="env-detail__toolbar env-detail__toolbar--right">
-            <el-button size="small" :disabled="!canEdit" @click="varImportDialogVisible = true">导入</el-button>
-            <el-button size="small" @click="exportVariableRows">导出</el-button>
-            <el-button size="small" type="primary" :disabled="!canEdit" @click="addVariableRow">新增变量</el-button>
+            <el-button :disabled="!canEdit" @click="varImportDialogVisible = true">导入</el-button>
+            <el-button @click="exportVariableRows">导出</el-button>
+            <el-button type="primary" :disabled="!canEdit" @click="addVariableRow">新增变量</el-button>
           </div>
           <el-table :data="pagedVariableRows" size="small" empty-text="暂无变量，点击右上角添加">
             <el-table-column label="变量名" width="200">
@@ -658,11 +655,11 @@ async function removeProcessor(processor: ApiProcessor) {
             <el-table-column label="操作" width="120" fixed="right">
               <template #default="{ row }">
                 <template v-if="row.id === editingVariableId && canEdit">
-                  <el-button link type="primary" size="small" @click="editingVariableId = ''">完成</el-button>
+                  <el-button link type="primary" @click="editingVariableId = ''">完成</el-button>
                 </template>
                 <template v-else>
-                  <el-button v-if="canEdit" link size="small" @click="editingVariableId = row.id">编辑</el-button>
-                  <el-button v-if="canEdit" link type="danger" size="small" @click="removeVariableRow(row as ApiVariable)">删除</el-button>
+                  <el-button v-if="canEdit" link @click="editingVariableId = row.id">编辑</el-button>
+                  <el-button v-if="canEdit" link type="danger" @click="removeVariableRow(row as ApiVariable)">删除</el-button>
                 </template>
               </template>
             </el-table-column>
@@ -680,7 +677,7 @@ async function removeProcessor(processor: ApiProcessor) {
             引用语法：<code>${'{'}变量名{'}'}</code>，如 <code>${'{'}BASE_URL{'}'}</code>
           </p>
           <div class="env-detail__toolbar env-detail__toolbar--right">
-            <el-button size="small" type="primary" :loading="variablesSaving" :disabled="!canEdit" @click="saveVariables">
+            <el-button type="primary" :loading="variablesSaving" :disabled="!canEdit" @click="saveVariables">
               保存变量
             </el-button>
           </div>
@@ -704,7 +701,7 @@ async function removeProcessor(processor: ApiProcessor) {
             </ul>
 
             <div v-if="activeDs" class="env-detail__config-form">
-              <el-form label-width="110px" size="small" :disabled="!canEdit">
+              <el-form label-width="110px" :disabled="!canEdit">
                 <el-form-item label="名称" required>
                   <el-input v-model="activeDs.name" maxlength="100" />
                 </el-form-item>
@@ -739,18 +736,16 @@ async function removeProcessor(processor: ApiProcessor) {
 
               <div class="env-detail__config-footer">
                 <el-button
-                  size="small"
                   :loading="testingDsId === activeDs.id"
                   @click="runDsTest(activeDs)"
                 >
                   连接测试
                 </el-button>
                 <template v-if="canEdit">
-                  <el-button v-if="!activeDs.id || activeDs.id.startsWith('local-')" size="small" @click="cancelNewDs(activeDs)">
+                  <el-button v-if="!activeDs.id || activeDs.id.startsWith('local-')" @click="cancelNewDs(activeDs)">
                     取消
                   </el-button>
                   <el-button
-                    size="small"
                     type="primary"
                     :loading="savingDsId === activeDs.id"
                     @click="saveDs(activeDs)"
@@ -759,7 +754,6 @@ async function removeProcessor(processor: ApiProcessor) {
                   </el-button>
                   <el-button
                     v-if="activeDs.id && !activeDs.id.startsWith('local-')"
-                    size="small"
                     type="danger"
                     plain
                     @click="deleteDsRow(activeDs)"
@@ -775,10 +769,10 @@ async function removeProcessor(processor: ApiProcessor) {
         <!-- ============ 处理器 ============ -->
         <el-tab-pane :label="`处理器 (${detail.processors.length})`" name="processors">
           <div class="env-detail__toolbar">
-            <el-button size="small" type="primary" :disabled="!canEdit" @click="openProcCreateDialog('preprocessor')">
+            <el-button type="primary" :disabled="!canEdit" @click="openProcCreateDialog('preprocessor')">
               新增前置
             </el-button>
-            <el-button size="small" type="primary" plain :disabled="!canEdit" @click="openProcCreateDialog('postprocessor')">
+            <el-button type="primary" plain :disabled="!canEdit" @click="openProcCreateDialog('postprocessor')">
               新增后置
             </el-button>
           </div>
@@ -799,8 +793,8 @@ async function removeProcessor(processor: ApiProcessor) {
             </el-table-column>
             <el-table-column label="操作" width="150" fixed="right">
               <template #default="{ row }">
-                <el-button v-if="canEdit" link size="small" @click="openProcEditDialog(row as ApiProcessor)">编辑</el-button>
-                <el-button v-if="canEdit" link type="danger" size="small" @click="removeProcessor(row as ApiProcessor)">删除</el-button>
+                <el-button v-if="canEdit" link @click="openProcEditDialog(row as ApiProcessor)">编辑</el-button>
+                <el-button v-if="canEdit" link type="danger" @click="removeProcessor(row as ApiProcessor)">删除</el-button>
               </template>
             </el-table-column>
           </el-table>
