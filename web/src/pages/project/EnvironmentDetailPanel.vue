@@ -1008,6 +1008,7 @@ async function removeProcessor(processor: ApiProcessor) {
   display: flex;
   gap: var(--space-sm);
   flex-wrap: wrap;
+  justify-content: flex-end;
 
   .el-button + .el-button {
     margin-left: 0;
