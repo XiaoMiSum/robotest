@@ -208,12 +208,14 @@ const form = reactive<{
   name: string
   description: string
   scope: ApiComponentScope
+  sortOrder: number
   config: Record<string, unknown>
 }>({
   type: 'preprocessor',
   name: '',
   description: '',
   scope: 'project',
+  sortOrder: 0,
   config: {},
 })
 
@@ -223,18 +225,11 @@ watch(() => form.type, () => {
   }
 })
 
-// 处理器类组件的启用/排序号配置在基础信息区，读写 config 兜底默认值
+// 基础信息启用开关读写 config；排序号走顶层 sortOrder（sort_order 列），仅处理器类组件显示
 const basicConfigEnabled = computed<boolean>({
   get: () => form.config.enabled !== false,
   set: (value: boolean) => {
     form.config = { ...form.config, enabled: value }
-  },
-})
-
-const basicConfigSortOrder = computed<number>({
-  get: () => (typeof form.config.sortOrder === 'number' ? form.config.sortOrder as number : 0),
-  set: (value: number) => {
-    form.config = { ...form.config, sortOrder: value }
   },
 })
 
@@ -286,6 +281,7 @@ function openCreateDrawer() {
   form.name = ''
   form.description = ''
   form.scope = 'project'
+  form.sortOrder = 0
   form.config = {}
   drawerVisible.value = true
 }
@@ -296,6 +292,7 @@ function openEditDrawer(row: ApiComponentListItem) {
   form.name = row.name
   form.description = row.description ?? ''
   form.scope = row.scope
+  form.sortOrder = typeof row.sortOrder === 'number' ? row.sortOrder : 0
   try {
     form.config = row.config ? JSON.parse(row.config) : {}
   } catch {
@@ -311,12 +308,13 @@ async function handleSave() {
   }
   saving.value = true
   try {
-    // 启用/排序号在基础信息配置，未改动时补齐默认值保证配置自洽
-    const config = { ...defaultComponentConfig(form.type), ...(form.config ?? {}) }
+    // 启用开关在基础信息配置，排序号走顶层 sortOrder 列；未改动时补齐默认值保证配置自洽
+    const config = { ...defaultComponentConfig(), ...(form.config ?? {}) }
     const payload: ApiComponentSaveReq = {
       type: form.type,
       name: form.name.trim(),
       description: form.description.trim() || undefined,
+      sortOrder: form.sortOrder,
       config: Object.keys(config).length > 0 ? config : undefined,
     }
     if (editingId.value) {
@@ -488,7 +486,7 @@ onMounted(() => void loadList())
             <el-switch v-model="basicConfigEnabled" />
           </el-form-item>
           <el-form-item v-if="isProcessorComponentType(form.type)" label="排序号">
-            <el-input-number v-model="basicConfigSortOrder" :min="0" :max="9999" style="width: 100%" />
+            <el-input-number v-model="form.sortOrder" :min="0" :max="9999" style="width: 100%" />
           </el-form-item>
         </div>
 
