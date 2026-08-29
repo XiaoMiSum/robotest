@@ -391,32 +391,34 @@ onMounted(() => void loadList())
       :close-on-click-modal="false"
     >
       <el-form label-position="top" class="component-page__form">
-        <el-form-item label="组件名称" required>
-          <el-input v-model="form.name" maxlength="100" placeholder="如：Token 预置" />
-        </el-form-item>
-        <el-form-item label="组件类型" required>
-          <el-select v-model="form.type" :disabled="!!editingId" style="width: 100%">
-            <el-option
-              v-for="opt in COMPONENT_TYPE_OPTIONS"
-              :key="opt.value"
-              :label="opt.label"
-              :value="opt.value"
-            />
-          </el-select>
-        </el-form-item>
-        <el-form-item v-if="!editingId" label="作用域" required>
-          <el-select v-model="form.scope" style="width: 100%">
-            <el-option
-              v-for="opt in COMPONENT_SCOPE_OPTIONS"
-              :key="opt.value"
-              :label="opt.label"
-              :value="opt.value"
-            />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="描述">
-          <el-input v-model="form.description" type="textarea" :rows="2" maxlength="500" placeholder="组件用途说明" />
-        </el-form-item>
+        <div class="component-page__form-grid">
+          <el-form-item label="组件名称" required>
+            <el-input v-model="form.name" maxlength="100" placeholder="如：Token 预置" />
+          </el-form-item>
+          <el-form-item label="组件类型" required>
+            <el-select v-model="form.type" :disabled="!!editingId" style="width: 100%">
+              <el-option
+                v-for="opt in COMPONENT_TYPE_OPTIONS"
+                :key="opt.value"
+                :label="opt.label"
+                :value="opt.value"
+              />
+            </el-select>
+          </el-form-item>
+          <el-form-item v-if="!editingId" label="作用域" required>
+            <el-select v-model="form.scope" style="width: 100%">
+              <el-option
+                v-for="opt in COMPONENT_SCOPE_OPTIONS"
+                :key="opt.value"
+                :label="opt.label"
+                :value="opt.value"
+              />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="描述">
+            <el-input v-model="form.description" type="textarea" :rows="2" maxlength="500" placeholder="组件用途说明" />
+          </el-form-item>
+        </div>
 
         <!-- 按类型渲染配置表单 -->
         <el-divider v-if="form.type === 'preprocessor' || form.type === 'postprocessor'" content-position="left">处理器配置</el-divider>
@@ -510,5 +512,11 @@ onMounted(() => void loadList())
 
 .component-page__form {
   padding: 0 var(--space-sm);
+
+  .component-page__form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    column-gap: var(--space-md);
+  }
 }
 </style>
