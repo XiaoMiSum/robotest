@@ -1,8 +1,5 @@
 <template>
   <div class="processor-form">
-    <el-form-item label="启用" prop="enabled">
-      <el-switch v-model="localConfig.enabled" />
-    </el-form-item>
     <el-form-item label="处理器类型" prop="handlerType">
       <el-select v-model="localConfig.handlerType" placeholder="选择处理器类型">
         <el-option label="发送 HTTP 请求" value="http" />
@@ -10,7 +7,23 @@
       </el-select>
     </el-form-item>
 
-    <!-- HTTP 请求表单 -->
+    <div class="processor-form__row">
+      <el-form-item label="启用" prop="enabled">
+        <el-switch v-model="localConfig.enabled" />
+      </el-form-item>
+      <el-form-item label="异步执行" prop="async">
+        <el-switch v-model="localConfig.async" />
+      </el-form-item>
+      <el-form-item label="排序号" prop="sortOrder">
+        <el-input-number v-model="localConfig.sortOrder" :min="0" :max="9999" />
+      </el-form-item>
+    </div>
+
+    <el-form-item label="执行条件" prop="condition">
+      <el-input v-model="localConfig.condition" placeholder="留空表示无条件执行" />
+    </el-form-item>
+
+    <!-- 配置信息：HTTP 请求表单 -->
     <template v-if="localConfig.handlerType === 'http'">
       <el-form-item label="请求方法" prop="method">
         <el-select v-model="localConfig.method" placeholder="选择请求方法">
@@ -45,7 +58,7 @@
       </el-form-item>
     </template>
 
-    <!-- SQL 表单 -->
+    <!-- 配置信息：SQL 表单 -->
     <template v-if="localConfig.handlerType === 'sql'">
       <el-form-item label="数据源" prop="dataSource">
         <el-input v-model="localConfig.dataSource" placeholder="数据源名称" />
@@ -61,16 +74,6 @@
         <el-button type="primary" link @click="addArg">+ 添加参数</el-button>
       </el-form-item>
     </template>
-
-    <el-form-item label="异步执行" prop="async">
-      <el-switch v-model="localConfig.async" />
-    </el-form-item>
-    <el-form-item label="执行条件" prop="condition">
-      <el-input v-model="localConfig.condition" placeholder="留空表示无条件执行" />
-    </el-form-item>
-    <el-form-item label="排序号" prop="sortOrder">
-      <el-input-number v-model="localConfig.sortOrder" :min="0" :max="9999" />
-    </el-form-item>
   </div>
 </template>
 
@@ -158,6 +161,12 @@ const removeArg = (index: number) => {
 </script>
 
 <style scoped>
+.processor-form__row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  column-gap: 8px;
+}
+
 .kv-row {
   display: flex;
   gap: 8px;
