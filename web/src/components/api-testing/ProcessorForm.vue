@@ -7,22 +7,6 @@
       </el-select>
     </el-form-item>
 
-    <div class="processor-form__row">
-      <el-form-item label="启用" prop="enabled">
-        <el-switch v-model="localConfig.enabled" />
-      </el-form-item>
-      <el-form-item label="异步执行" prop="async">
-        <el-switch v-model="localConfig.async" />
-      </el-form-item>
-      <el-form-item label="排序号" prop="sortOrder">
-        <el-input-number v-model="localConfig.sortOrder" :min="0" :max="9999" />
-      </el-form-item>
-    </div>
-
-    <el-form-item label="执行条件" prop="condition">
-      <el-input v-model="localConfig.condition" placeholder="留空表示无条件执行" />
-    </el-form-item>
-
     <!-- 配置信息：HTTP 请求表单 -->
     <template v-if="localConfig.handlerType === 'http'">
       <el-form-item label="URL" prop="url">
@@ -76,12 +60,53 @@
         <el-button type="primary" link @click="addArg">+ 添加参数</el-button>
       </el-form-item>
     </template>
+
+    <!-- 提取器（可选）：从处理器响应中提取变量供后续步骤使用 -->
+    <el-divider content-position="left">提取器（可选）</el-divider>
+    <div v-if="localConfig.extractors.length > 0" class="processor-form__extractors">
+      <div class="processor-form__extractors-head">
+        <span class="processor-form__extractors-col processor-form__extractors-col--enabled">启用</span>
+        <span class="processor-form__extractors-col processor-form__extractors-col--source">提取来源</span>
+        <span class="processor-form__extractors-col processor-form__extractors-col--expression">表达式</span>
+        <span class="processor-form__extractors-col processor-form__extractors-col--name">目标变量名</span>
+        <span class="processor-form__extractors-col processor-form__extractors-col--desc">提取描述</span>
+      </div>
+      <div v-for="(extractor, index) in localConfig.extractors" :key="index" class="processor-form__extractors-row">
+        <span class="processor-form__extractors-col processor-form__extractors-col--enabled">
+          <el-switch v-model="extractor.enabled" />
+        </span>
+        <span class="processor-form__extractors-col processor-form__extractors-col--source">
+          <el-select v-model="extractor.source" placeholder="来源">
+            <el-option label="响应体" value="body" />
+            <el-option label="响应头" value="header" />
+            <el-option label="状态码" value="status" />
+          </el-select>
+        </span>
+        <span class="processor-form__extractors-col processor-form__extractors-col--expression">
+          <el-input v-model="extractor.expression" placeholder="如: $.data.token 或 X-Token" />
+        </span>
+        <span class="processor-form__extractors-col processor-form__extractors-col--name">
+          <el-input v-model="extractor.variableName" placeholder="变量名" />
+        </span>
+        <span class="processor-form__extractors-col processor-form__extractors-col--desc">
+          <el-input v-model="extractor.description" placeholder="描述" />
+        </span>
+        <span class="processor-form__extractors-col processor-form__extractors-col--action">
+          <el-button type="danger" :icon="Delete" circle size="small" @click="removeExtractor(index)" />
+        </span>
+      </div>
+    </div>
+    <div class="processor-form__extractor-actions">
+      <el-button type="primary" link @click="addExtractor">+ 添加提取器</el-button>
+      <el-button type="primary" link @click="emit('import-extractors')">从公共组件获取</el-button>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { reactive, watch } from 'vue'
 import { Delete } from '@element-plus/icons-vue'
+import type { ProcessorExtractor } from './processorFormModel'
 
 interface KvItem {
   key: string
@@ -89,7 +114,6 @@ interface KvItem {
 }
 
 interface ProcessorConfig {
-  enabled: boolean
   handlerType: 'http' | 'sql' | ''
   method: string
   url: string
@@ -99,9 +123,7 @@ interface ProcessorConfig {
   dataSource: string
   sql: string
   args: string[]
-  async: boolean
-  condition: string
-  sortOrder: number
+  extractors: ProcessorExtractor[]
 }
 
 const props = defineProps<{
@@ -110,10 +132,10 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'update:modelValue', value: Record<string, unknown>): void
+  (e: 'import-extractors'): void
 }>()
 
 const defaultConfig: ProcessorConfig = {
-  enabled: true,
   handlerType: '',
   method: 'POST',
   url: '',
@@ -123,9 +145,7 @@ const defaultConfig: ProcessorConfig = {
   dataSource: '',
   sql: '',
   args: [],
-  async: false,
-  condition: '',
-  sortOrder: 0,
+  extractors: [],
 }
 
 const localConfig = reactive<ProcessorConfig>({
@@ -160,6 +180,14 @@ const addArg = () => {
 const removeArg = (index: number) => {
   localConfig.args.splice(index, 1)
 }
+
+const addExtractor = () => {
+  localConfig.extractors.push({ enabled: true, source: '', expression: '', variableName: '', description: '' })
+}
+
+const removeExtractor = (index: number) => {
+  localConfig.extractors.splice(index, 1)
+}
 </script>
 
 <style scoped>
@@ -171,6 +199,34 @@ const removeArg = (index: number) => {
   &--2 {
     grid-template-columns: repeat(2, 1fr);
   }
+}
+
+.processor-form__extractors {
+  margin-bottom: var(--space-md);
+}
+
+.processor-form__extractors-head,
+.processor-form__extractors-row {
+  display: grid;
+  grid-template-columns: 48px 104px 1fr 1fr 1fr 36px;
+  column-gap: 8px;
+  align-items: center;
+}
+
+.processor-form__extractors-head {
+  color: var(--color-neutral-400);
+  font-size: var(--font-size-sm);
+  margin-bottom: 4px;
+}
+
+.processor-form__extractors-row {
+  margin-bottom: 8px;
+}
+
+.processor-form__extractor-actions {
+  display: flex;
+  gap: var(--space-md);
+  align-items: center;
 }
 
 .kv-row {

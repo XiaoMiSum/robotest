@@ -84,6 +84,7 @@ declare module 'vue' {
     ElTree: typeof import('element-plus/es')['ElTree']
     ElTreeSelect: typeof import('element-plus/es')['ElTreeSelect']
     ElUpload: typeof import('element-plus/es')['ElUpload']
+    ExtractorAssetPicker: typeof import('./components/api-testing/ExtractorAssetPicker.vue')['default']
     ExtractorForm: typeof import('./components/api-testing/ExtractorForm.vue')['default']
     MarkdownEditor: typeof import('./components/common/MarkdownEditor.vue')['default']
     MarkdownView: typeof import('./components/common/MarkdownView.vue')['default']

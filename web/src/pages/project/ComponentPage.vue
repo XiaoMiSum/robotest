@@ -24,6 +24,13 @@ import {
 import ProcessorForm from '@/components/api-testing/ProcessorForm.vue'
 import ValidatorForm from '@/components/api-testing/ValidatorForm.vue'
 import ExtractorForm from '@/components/api-testing/ExtractorForm.vue'
+import ExtractorAssetPicker from '@/components/api-testing/ExtractorAssetPicker.vue'
+import {
+  defaultProcessorConfig,
+  extractorsFromComponents,
+  isProcessorComponentType,
+  type ProcessorExtractor,
+} from '@/components/api-testing/processorFormModel'
 
 const authStore = useAuthStore()
 const canEdit = computed(() =>
@@ -216,6 +223,63 @@ watch(() => form.type, () => {
   }
 })
 
+// 处理器类组件的启用/排序号配置在基础信息区，读写 config 兜底默认值
+const basicConfigEnabled = computed<boolean>({
+  get: () => form.config.enabled !== false,
+  set: (value: boolean) => {
+    form.config = { ...form.config, enabled: value }
+  },
+})
+
+const basicConfigSortOrder = computed<number>({
+  get: () => (typeof form.config.sortOrder === 'number' ? form.config.sortOrder as number : 0),
+  set: (value: number) => {
+    form.config = { ...form.config, sortOrder: value }
+  },
+})
+
+// ==================== 提取器：从公共组件获取 ====================
+
+const extractorPickerVisible = ref(false)
+const extractorPickerLoading = ref(false)
+const extractorPickerItems = ref<ApiComponentListItem[]>([])
+const extractorPickerKeyword = ref('')
+
+async function loadExtractorAssets(): Promise<void> {
+  extractorPickerLoading.value = true
+  try {
+    const result = await fetchComponents({
+      type: 'extractor',
+      enabled: true,
+      pageNo: 1,
+      pageSize: 100,
+      keyword: extractorPickerKeyword.value.trim() || undefined,
+    })
+    extractorPickerItems.value = result.list
+  } catch (err) {
+    ElMessage.error(resolveComponentError(err))
+  } finally {
+    extractorPickerLoading.value = false
+  }
+}
+
+function openExtractorPicker() {
+  extractorPickerVisible.value = true
+  extractorPickerKeyword.value = ''
+  void loadExtractorAssets()
+}
+
+function handleExtractorPicked(rows: ApiComponentListItem[]) {
+  const incoming = extractorsFromComponents(rows)
+  if (incoming.length === 0) return
+  const existing = Array.isArray(form.config.extractors) ? form.config.extractors as ProcessorExtractor[] : []
+  form.config = {
+    ...form.config,
+    extractors: [...existing, ...incoming],
+  }
+  ElMessage.success(`已引入 ${incoming.length} 个提取器`)
+}
+
 function openCreateDrawer() {
   editingId.value = null
   form.type = 'preprocessor'
@@ -247,11 +311,15 @@ async function handleSave() {
   }
   saving.value = true
   try {
+    // 处理器类组件：启用/排序号于基础信息处配置，未改动时补齐默认值保证配置自洽
+    const config = isProcessorComponentType(form.type)
+      ? { ...defaultProcessorConfig(), ...(form.config ?? {}) }
+      : form.config
     const payload: ApiComponentSaveReq = {
       type: form.type,
       name: form.name.trim(),
       description: form.description.trim() || undefined,
-      config: Object.keys(form.config).length > 0 ? form.config : undefined,
+      config: Object.keys(config).length > 0 ? config : undefined,
     }
     if (editingId.value) {
       await updateComponent(editingId.value, payload)
@@ -418,6 +486,12 @@ onMounted(() => void loadList())
           <el-form-item label="描述">
             <el-input v-model="form.description" type="textarea" :rows="2" maxlength="500" placeholder="组件用途说明" />
           </el-form-item>
+          <el-form-item v-if="isProcessorComponentType(form.type)" label="启用">
+            <el-switch v-model="basicConfigEnabled" />
+          </el-form-item>
+          <el-form-item v-if="isProcessorComponentType(form.type)" label="排序号">
+            <el-input-number v-model="basicConfigSortOrder" :min="0" :max="9999" style="width: 100%" />
+          </el-form-item>
         </div>
 
         <!-- 按类型渲染配置表单 -->
@@ -425,6 +499,7 @@ onMounted(() => void loadList())
         <ProcessorForm
           v-if="form.type === 'preprocessor' || form.type === 'postprocessor'"
           v-model="form.config"
+          @import-extractors="openExtractorPicker"
         />
 
         <el-divider v-if="form.type === 'validator'" content-position="left">验证器配置</el-divider>
@@ -444,6 +519,17 @@ onMounted(() => void loadList())
         <el-button type="primary" :loading="saving" @click="handleSave">保存</el-button>
       </template>
     </el-drawer>
+
+    <!-- 从公共组件引入提取器 -->
+    <ExtractorAssetPicker
+      v-model="extractorPickerVisible"
+      :loading="extractorPickerLoading"
+      :items="extractorPickerItems"
+      :keyword="extractorPickerKeyword"
+      @update:keyword="extractorPickerKeyword = $event"
+      @search="loadExtractorAssets"
+      @confirm="handleExtractorPicked"
+    />
   </div>
 </template>
 

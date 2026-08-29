@@ -2,6 +2,7 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type {
+  ApiComponentListItem,
   ApiDataSourcePayload,
   ApiEnvironmentDetail,
   ApiHeaderItem,
@@ -39,6 +40,13 @@ import {
 } from './environmentsModel'
 import KeyValueTable from './debug/KeyValueTable.vue'
 import ProcessorForm from '@/components/api-testing/ProcessorForm.vue'
+import ExtractorAssetPicker from '@/components/api-testing/ExtractorAssetPicker.vue'
+import {
+  defaultProcessorConfig,
+  extractorsFromComponents,
+  type ProcessorExtractor,
+} from '@/components/api-testing/processorFormModel'
+import { fetchComponents } from '@/services/apiComponent'
 
 const props = defineProps<{ environmentId: string; canEdit: boolean }>()
 const emit = defineEmits<{ changed: [] }>()
@@ -473,17 +481,75 @@ function openProcEditDialog(processor: ApiProcessor) {
   procDialogVisible.value = true
 }
 
+// 处理器对话框基础信息的启用/排序号，读写 config 兜底默认值
+const basicProcEnabled = computed<boolean>({
+  get: () => procForm.config.enabled !== false,
+  set: (value: boolean) => {
+    procForm.config = { ...procForm.config, enabled: value }
+  },
+})
+
+const basicProcSortOrder = computed<number>({
+  get: () => (typeof procForm.config.sortOrder === 'number' ? procForm.config.sortOrder as number : 0),
+  set: (value: number) => {
+    procForm.config = { ...procForm.config, sortOrder: value }
+  },
+})
+
+// ==================== 提取器：从公共组件获取 ====================
+
+const extractorPickerVisible = ref(false)
+const extractorPickerLoading = ref(false)
+const extractorPickerItems = ref<ApiComponentListItem[]>([])
+const extractorPickerKeyword = ref('')
+
+async function loadExtractorAssets(): Promise<void> {
+  extractorPickerLoading.value = true
+  try {
+    const result = await fetchComponents({
+      type: 'extractor',
+      enabled: true,
+      pageNo: 1,
+      pageSize: 100,
+      keyword: extractorPickerKeyword.value.trim() || undefined,
+    })
+    extractorPickerItems.value = result.list
+  } catch (err) {
+    ElMessage.error(resolveEnvironmentError(err))
+  } finally {
+    extractorPickerLoading.value = false
+  }
+}
+
+function openExtractorPicker() {
+  extractorPickerVisible.value = true
+  extractorPickerKeyword.value = ''
+  void loadExtractorAssets()
+}
+
+function handleExtractorPicked(rows: ApiComponentListItem[]) {
+  const incoming = extractorsFromComponents(rows)
+  if (incoming.length === 0) return
+  const existing = Array.isArray(procForm.config.extractors) ? procForm.config.extractors as ProcessorExtractor[] : []
+  procForm.config = {
+    ...procForm.config,
+    extractors: [...existing, ...incoming],
+  }
+  ElMessage.success(`已引入 ${incoming.length} 个提取器`)
+}
+
 async function submitProcDialog() {
   if (!procForm.name.trim()) {
     ElMessage.warning('请填写处理器名称')
     return
   }
-  const config = procForm.config
+  // 启用/排序号于基础信息配置，未改动时补齐默认值，保证 config 与实体顶层列自洽
+  const config = { ...defaultProcessorConfig(), ...(procForm.config ?? {}) }
   const body = {
     processorType: procForm.processorType,
     name: procForm.name.trim(),
     config: Object.keys(config).length > 0 ? config : undefined,
-    // ProcessorForm 内编辑的启用/排序号同步到实体顶层列，供列表开关与执行快照过滤使用
+    // 基础信息的启用/排序号同步到实体顶层列，供列表开关与执行快照过滤使用
     enabled: config.enabled !== false,
     sortOrder: typeof config.sortOrder === 'number' ? config.sortOrder : 0,
   }
@@ -820,13 +886,30 @@ async function removeProcessor(processor: ApiProcessor) {
         <el-form-item label="名称" required>
           <el-input v-model="procForm.name" maxlength="100" />
         </el-form-item>
-        <ProcessorForm v-model="procForm.config" />
+        <el-form-item label="启用">
+          <el-switch v-model="basicProcEnabled" />
+        </el-form-item>
+        <el-form-item label="排序号">
+          <el-input-number v-model="basicProcSortOrder" :min="0" :max="9999" />
+        </el-form-item>
+        <ProcessorForm v-model="procForm.config" @import-extractors="openExtractorPicker" />
       </el-form>
       <template #footer>
         <el-button @click="procDialogVisible = false">取消</el-button>
         <el-button type="primary" @click="submitProcDialog">保存</el-button>
       </template>
     </el-dialog>
+
+    <!-- 从公共组件引入提取器 -->
+    <ExtractorAssetPicker
+      v-model="extractorPickerVisible"
+      :loading="extractorPickerLoading"
+      :items="extractorPickerItems"
+      :keyword="extractorPickerKeyword"
+      @update:keyword="extractorPickerKeyword = $event"
+      @search="loadExtractorAssets"
+      @confirm="handleExtractorPicked"
+    />
   </div>
 </template>
 
