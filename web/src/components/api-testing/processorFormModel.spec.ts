@@ -15,6 +15,7 @@ function extractorComponent(partial: Partial<ApiComponentListItem>): ApiComponen
     type: 'extractor',
     name: '提取 Token',
     description: null,
+    sortOrder: 0,
     config: null,
     enabled: true,
     updatedAt: '2026-08-17 10:30:00',
@@ -39,11 +40,8 @@ describe('processorFormModel', () => {
   })
 
   describe('defaultComponentConfig', () => {
-    it('adds sortOrder for processor types only, enabled for all types', () => {
-      expect(defaultComponentConfig('preprocessor')).toEqual({ enabled: true, sortOrder: 0 })
-      expect(defaultComponentConfig('postprocessor')).toEqual({ enabled: true, sortOrder: 0 })
-      expect(defaultComponentConfig('validator')).toEqual({ enabled: true })
-      expect(defaultComponentConfig('extractor')).toEqual({ enabled: true })
+    it('seeds only enabled default（排序号走顶层 sortOrder，不进入 config）', () => {
+      expect(defaultComponentConfig()).toEqual({ enabled: true })
     })
   })
 

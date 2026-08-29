@@ -2062,6 +2062,8 @@ export interface ApiComponentListItem {
   type: ApiComponentType
   name: string
   description: string | null
+  /** 组件排序号（仅处理器类组件生效，顶层字段，config 不承载） */
+  sortOrder: number
   /** 组件配置内容（JSON 字符串） */
   config: string | null
   enabled: boolean
@@ -2074,6 +2076,7 @@ export interface ApiComponentSaveReq {
   name: string
   description?: string
   scope?: ApiComponentScope
+  sortOrder?: number
   config?: Record<string, unknown>
 }
 
