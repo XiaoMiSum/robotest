@@ -90,7 +90,22 @@ class CommonComponentServiceImplTest {
         assertNull(captor.getValue().getWorkspaceId());
         assertEquals("project", captor.getValue().getScope());
         assertEquals(Boolean.TRUE, captor.getValue().getEnabled());
+        assertEquals(5, captor.getValue().getSortOrder());
         assertEquals(respDTO.getId(), captor.getValue().getId().toString());
+    }
+
+    @Test
+    void create_withoutSortOrder_defaultsToZero() {
+        CommonComponentSaveReqDTO reqDTO = reqDTO();
+        reqDTO.setSortOrder(null);
+        when(componentMapper.existsByScopeAndTypeAndName(any(), any(), any(), any(), any(), any()))
+                .thenReturn(false);
+
+        service.create(WORKSPACE_ID, PROJECT_ID, USER_ID, reqDTO);
+
+        ArgumentCaptor<CommonComponent> captor = ArgumentCaptor.forClass(CommonComponent.class);
+        verify(componentMapper).insert(captor.capture());
+        assertEquals(0, captor.getValue().getSortOrder());
     }
 
     @Test
@@ -139,12 +154,14 @@ class CommonComponentServiceImplTest {
 
         CommonComponentSaveReqDTO reqDTO = reqDTO();
         reqDTO.setName("新名");
+        reqDTO.setSortOrder(9);
 
         service.update(WORKSPACE_ID, PROJECT_ID, USER_ID, existing.getId(), reqDTO);
 
         ArgumentCaptor<CommonComponent> captor = ArgumentCaptor.forClass(CommonComponent.class);
         verify(componentMapper).updateById(captor.capture());
         assertEquals("新名", captor.getValue().getName());
+        assertEquals(9, captor.getValue().getSortOrder());
     }
 
     @Test
@@ -221,6 +238,7 @@ class CommonComponentServiceImplTest {
         verify(componentMapper).insert(captor.capture());
         assertEquals("原始组件 (副本)", captor.getValue().getName());
         assertEquals(Boolean.FALSE, captor.getValue().getEnabled());
+        assertEquals(3, captor.getValue().getSortOrder());
         assertEquals("preprocessor", result.getType());
         assertEquals("原始组件 (副本)", result.getName());
         assertEquals(existing.getId().toString(), result.getSourceAssetId());
@@ -278,6 +296,7 @@ class CommonComponentServiceImplTest {
         assertEquals(1, result.getTotal());
         assertEquals(1, result.getList().size());
         assertEquals("测试组件", result.getList().get(0).getName());
+        assertEquals(3, result.getList().get(0).getSortOrder());
     }
 
     private static void setPermissions(String... codes) {
@@ -303,6 +322,7 @@ class CommonComponentServiceImplTest {
         reqDTO.setDescription("加签前置处理器");
         reqDTO.setScope("project");
         reqDTO.setConfig(Map.of("algorithm", "md5"));
+        reqDTO.setSortOrder(5);
         return reqDTO;
     }
 
@@ -313,6 +333,7 @@ class CommonComponentServiceImplTest {
         entity.setType(type);
         entity.setName(name);
         entity.setEnabled(true);
+        entity.setSortOrder(3);
         return entity;
     }
 }

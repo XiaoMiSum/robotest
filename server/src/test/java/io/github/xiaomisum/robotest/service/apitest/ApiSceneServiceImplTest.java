@@ -2,6 +2,7 @@ package io.github.xiaomisum.robotest.service.apitest;
 
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.framework.security.ProjectAccessGuard;
+import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneAssetsImportReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneInterfaceAssociateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneSettingsReqDTO;
@@ -12,6 +13,7 @@ import io.github.xiaomisum.robotest.model.entity.apitest.ApiInterface;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiScene;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiSceneInterface;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiSceneStep;
+import io.github.xiaomisum.robotest.model.entity.apitest.CommonComponent;
 import io.github.xiaomisum.robotest.repository.admin.SysUserMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiChangeHistoryMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiExecutionRecordMapper;
@@ -23,6 +25,7 @@ import io.github.xiaomisum.robotest.repository.apitest.ApiSceneMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiSceneStepMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiSceneStepVariableMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiScenarioVariableMapper;
+import io.github.xiaomisum.robotest.repository.apitest.CommonComponentMapper;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -32,6 +35,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import xyz.migoo.framework.common.exception.ServiceException;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -74,6 +78,8 @@ class ApiSceneServiceImplTest {
     private ApiInterfaceVariableMapper interfaceVariableMapper;
     @Mock
     private SysUserMapper userMapper;
+    @Mock
+    private CommonComponentMapper componentMapper;
     @Mock
     private ProjectAccessGuard projectAccessGuard;
 
@@ -250,5 +256,43 @@ class ApiSceneServiceImplTest {
         service.reorderSteps(WORKSPACE_ID, PROJECT_ID, USER_ID, SCENE_ID, reqDTO);
 
         verify(stepMapper).reorder(SCENE_ID, List.of(second, first));
+    }
+
+    // ========== 全局资产引入 ==========
+
+    @Test
+    void importAssetsSceneProcessor_insertsOrderedByComponentSortOrder() {
+        stubScene();
+        UUID lowId = UUID.randomUUID();
+        UUID highId = UUID.randomUUID();
+        CommonComponent low = component("请求头签名", 2);
+        low.setId(lowId);
+        CommonComponent high = component("Token 预置", 0);
+        high.setId(highId);
+        when(componentMapper.selectById(lowId)).thenReturn(low);
+        when(componentMapper.selectById(highId)).thenReturn(high);
+        when(sceneMapper.selectById(SCENE_ID)).thenReturn(existingScene());
+
+        ApiSceneAssetsImportReqDTO reqDTO = new ApiSceneAssetsImportReqDTO();
+        reqDTO.setTarget("scene_processor");
+        reqDTO.setAssetIds(List.of(lowId, highId));
+
+        service.importAssets(WORKSPACE_ID, PROJECT_ID, USER_ID, SCENE_ID, reqDTO);
+
+        ArgumentCaptor<ApiScene> captor = ArgumentCaptor.forClass(ApiScene.class);
+        verify(sceneMapper).updateById(captor.capture());
+        List<Map<String, Object>> processors = captor.getValue().getProcessors();
+        assertEquals(2, processors.size());
+        assertEquals("Token 预置", processors.get(0).get("name"));
+        assertEquals("请求头签名", processors.get(1).get("name"));
+    }
+
+    private static CommonComponent component(String name, int sortOrder) {
+        CommonComponent c = new CommonComponent();
+        c.setName(name);
+        c.setSortOrder(sortOrder);
+        c.setEnabled(true);
+        c.setConfig("{\"handlerType\":\"http\"}");
+        return c;
     }
 }

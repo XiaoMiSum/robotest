@@ -29,6 +29,9 @@ public class CommonComponentSaveReqDTO {
     @Size(max = 500, message = "组件描述不能超过 500 字符")
     private String description;
 
+    /** 组件排序号（仅处理器类组件生效，缺省 0） */
+    private Integer sortOrder;
+
     /** project / workspace / global，新建时必传，编辑时传 null 表示不变更 */
     @Pattern(regexp = "project|workspace|global", message = "作用域不合法")
     private String scope;

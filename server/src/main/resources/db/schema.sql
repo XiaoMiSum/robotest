@@ -1208,6 +1208,7 @@ CREATE TABLE api_component (
                                   type         VARCHAR(30)  NOT NULL,
                                   name         VARCHAR(100) NOT NULL,
                                   description  VARCHAR(500) NULL,
+                                  sort_order   INT          NOT NULL DEFAULT 0,
                                   config       JSONB        NOT NULL,
                                   enabled      BOOLEAN      NOT NULL DEFAULT TRUE,
                                   updated_by   UUID         NOT NULL,
