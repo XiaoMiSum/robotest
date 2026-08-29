@@ -18,6 +18,11 @@ export function defaultProcessorConfig(): Record<string, unknown> {
   return { enabled: true, sortOrder: 0 }
 }
 
+/** 组件基础信息默认值：启用各类型均有，排序号仅处理器类组件 */
+export function defaultComponentConfig(type: ApiComponentType): Record<string, unknown> {
+  return isProcessorComponentType(type) ? defaultProcessorConfig() : { enabled: true }
+}
+
 /** 解析公共组件 config 为对象，无法解析返回空对象（避免引入崩溃） */
 export function parseComponentConfig(config: string | null): Record<string, unknown> {
   if (!config) return {}
