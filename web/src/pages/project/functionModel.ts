@@ -124,18 +124,20 @@ export function unifyFunctionList(
     }
   }
   for (const fn of customList) {
+    const params = fn.paramsDesc
+      ? fn.paramsDesc.split(',').map((p) => ({
+          name: p.trim().split(':')[0]?.trim() ?? '',
+          required: true,
+          description: p.trim(),
+        }))
+      : []
+    const args = params.map((p) => p.name).join(', ')
     items.push({
       name: fn.name,
       description: fn.description ?? '',
-      signature: `\${${fn.name}(参数...)}`,
-      params: fn.paramsDesc
-        ? fn.paramsDesc.split(',').map((p) => ({
-            name: p.trim().split(':')[0]?.trim() ?? '',
-            required: true,
-            description: p.trim(),
-          }))
-        : [],
-      example: `\${${fn.name}()}`,
+      signature: `\${${fn.name}${args ? `(${args})` : '()'}}`,
+      params,
+      example: `\${${fn.name}${args ? `(${args})` : '()'}}`,
       type: 'custom',
       scope: fn.scope,
     })

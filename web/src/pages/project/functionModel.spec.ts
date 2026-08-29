@@ -129,6 +129,22 @@ describe('unifyFunctionList', () => {
     expect(result[1].type).toBe('custom')
   })
 
+  it('自定义函数签名与示例使用实际参数名', () => {
+    const custom: ApiCustomFunctionListItem[] = [
+      customItem('myFunc', '自定义', 'id:用户ID, name:名称'),
+    ]
+    const result = unifyFunctionList([], custom)
+    expect(result[0].signature).toBe('${myFunc(id, name)}')
+    expect(result[0].example).toBe('${myFunc(id, name)}')
+  })
+
+  it('自定义函数无参数时签名与示例省略括号占位', () => {
+    const custom: ApiCustomFunctionListItem[] = [customItem('myFunc', '自定义')]
+    const result = unifyFunctionList([], custom)
+    expect(result[0].signature).toBe('${myFunc()}')
+    expect(result[0].example).toBe('${myFunc()}')
+  })
+
   it('空列表返回空数组', () => {
     expect(unifyFunctionList([], [])).toEqual([])
   })
