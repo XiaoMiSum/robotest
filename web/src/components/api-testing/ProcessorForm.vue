@@ -25,26 +25,28 @@
 
     <!-- 配置信息：HTTP 请求表单 -->
     <template v-if="localConfig.handlerType === 'http'">
-      <el-form-item label="请求方法" prop="method">
-        <el-select v-model="localConfig.method" placeholder="选择请求方法">
-          <el-option label="GET" value="GET" />
-          <el-option label="POST" value="POST" />
-          <el-option label="PUT" value="PUT" />
-          <el-option label="DELETE" value="DELETE" />
-          <el-option label="PATCH" value="PATCH" />
-        </el-select>
-      </el-form-item>
       <el-form-item label="URL" prop="url">
         <el-input v-model="localConfig.url" placeholder="https://api.example.com/endpoint" />
       </el-form-item>
-      <el-form-item label="Content-Type" prop="contentType">
-        <el-select v-model="localConfig.contentType" placeholder="选择 Content-Type">
-          <el-option label="application/json" value="application/json" />
-          <el-option label="application/x-www-form-urlencoded" value="application/x-www-form-urlencoded" />
-          <el-option label="multipart/form-data" value="multipart/form-data" />
-          <el-option label="text/plain" value="text/plain" />
-        </el-select>
-      </el-form-item>
+      <div class="processor-form__row processor-form__row--2">
+        <el-form-item label="请求方法" prop="method">
+          <el-select v-model="localConfig.method" placeholder="选择请求方法">
+            <el-option label="GET" value="GET" />
+            <el-option label="POST" value="POST" />
+            <el-option label="PUT" value="PUT" />
+            <el-option label="DELETE" value="DELETE" />
+            <el-option label="PATCH" value="PATCH" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="Content-Type" prop="contentType">
+          <el-select v-model="localConfig.contentType" placeholder="选择 Content-Type">
+            <el-option label="application/json" value="application/json" />
+            <el-option label="application/x-www-form-urlencoded" value="application/x-www-form-urlencoded" />
+            <el-option label="multipart/form-data" value="multipart/form-data" />
+            <el-option label="text/plain" value="text/plain" />
+          </el-select>
+        </el-form-item>
+      </div>
       <el-form-item label="请求头">
         <div v-for="(item, index) in localConfig.headers" :key="index" class="kv-row">
           <el-input v-model="item.key" placeholder="Key" class="kv-input" />
@@ -165,6 +167,10 @@ const removeArg = (index: number) => {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   column-gap: 8px;
+
+  &--2 {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 .kv-row {
