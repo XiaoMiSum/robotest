@@ -26,7 +26,7 @@ import ValidatorForm from '@/components/api-testing/ValidatorForm.vue'
 import ExtractorForm from '@/components/api-testing/ExtractorForm.vue'
 import ExtractorAssetPicker from '@/components/api-testing/ExtractorAssetPicker.vue'
 import {
-  defaultProcessorConfig,
+  defaultComponentConfig,
   extractorsFromComponents,
   isProcessorComponentType,
   type ProcessorExtractor,
@@ -311,10 +311,8 @@ async function handleSave() {
   }
   saving.value = true
   try {
-    // 处理器类组件：启用/排序号于基础信息处配置，未改动时补齐默认值保证配置自洽
-    const config = isProcessorComponentType(form.type)
-      ? { ...defaultProcessorConfig(), ...(form.config ?? {}) }
-      : form.config
+    // 启用/排序号在基础信息配置，未改动时补齐默认值保证配置自洽
+    const config = { ...defaultComponentConfig(form.type), ...(form.config ?? {}) }
     const payload: ApiComponentSaveReq = {
       type: form.type,
       name: form.name.trim(),
@@ -486,7 +484,7 @@ onMounted(() => void loadList())
           <el-form-item label="描述">
             <el-input v-model="form.description" type="textarea" :rows="2" maxlength="500" placeholder="组件用途说明" />
           </el-form-item>
-          <el-form-item v-if="isProcessorComponentType(form.type)" label="启用">
+          <el-form-item label="启用">
             <el-switch v-model="basicConfigEnabled" />
           </el-form-item>
           <el-form-item v-if="isProcessorComponentType(form.type)" label="排序号">

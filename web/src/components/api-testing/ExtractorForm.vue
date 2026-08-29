@@ -1,8 +1,5 @@
 <template>
   <div class="extractor-form">
-    <el-form-item label="启用" prop="enabled">
-      <el-switch v-model="localConfig.enabled" />
-    </el-form-item>
     <el-form-item label="提取来源" prop="source">
       <el-select v-model="localConfig.source" placeholder="选择提取来源">
         <el-option label="响应体" value="body" />
@@ -26,7 +23,6 @@
 import { reactive, watch } from 'vue'
 
 interface ExtractorConfig {
-  enabled: boolean
   source: string
   expression: string
   variableName: string
@@ -42,7 +38,6 @@ const emit = defineEmits<{
 }>()
 
 const defaultConfig: ExtractorConfig = {
-  enabled: true,
   source: '',
   expression: '',
   variableName: '',

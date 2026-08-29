@@ -1,8 +1,5 @@
 <template>
   <div class="validator-form">
-    <el-form-item label="启用" prop="enabled">
-      <el-switch v-model="localConfig.enabled" />
-    </el-form-item>
     <el-form-item label="验证目标" prop="target">
       <el-select v-model="localConfig.target" placeholder="选择验证目标">
         <el-option label="状态码" value="status" />
@@ -42,7 +39,6 @@
 import { reactive, watch } from 'vue'
 
 interface ValidatorConfig {
-  enabled: boolean
   target: string
   expression: string
   operator: string
@@ -59,7 +55,6 @@ const emit = defineEmits<{
 }>()
 
 const defaultConfig: ValidatorConfig = {
-  enabled: true,
   target: '',
   expression: '',
   operator: 'eq',

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  defaultComponentConfig,
   defaultProcessorConfig,
   extractorsFromComponents,
   isProcessorComponentType,
@@ -34,6 +35,15 @@ describe('processorFormModel', () => {
   describe('defaultProcessorConfig', () => {
     it('seeds enabled and sortOrder defaults', () => {
       expect(defaultProcessorConfig()).toEqual({ enabled: true, sortOrder: 0 })
+    })
+  })
+
+  describe('defaultComponentConfig', () => {
+    it('adds sortOrder for processor types only, enabled for all types', () => {
+      expect(defaultComponentConfig('preprocessor')).toEqual({ enabled: true, sortOrder: 0 })
+      expect(defaultComponentConfig('postprocessor')).toEqual({ enabled: true, sortOrder: 0 })
+      expect(defaultComponentConfig('validator')).toEqual({ enabled: true })
+      expect(defaultComponentConfig('extractor')).toEqual({ enabled: true })
     })
   })
 
