@@ -147,10 +147,11 @@ const customParams = computed(() => {
   })
 })
 
-/** 自定义函数签名与示例：按调用名推导展示（无参数时去掉占位参数） */
+/** 自定义函数签名与示例：按实际参数名拼接（无参数时去掉占位参数） */
 const customSignature = computed(() => {
   const name = customDetail.value?.name ?? ''
-  return `\${${name}${customParams.value.length ? '(参数...)' : '()'}}`
+  const args = customParams.value.map((p) => p.name).join(', ')
+  return `\${${name}${args ? `(${args})` : '()'}}`
 })
 
 watch(selectedCustomId, async (id) => {
