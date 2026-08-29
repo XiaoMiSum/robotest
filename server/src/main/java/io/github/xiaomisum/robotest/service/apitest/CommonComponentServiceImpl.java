@@ -50,6 +50,7 @@ public class CommonComponentServiceImpl implements CommonComponentService {
         entity.setType(reqDTO.getType());
         entity.setName(reqDTO.getName());
         entity.setDescription(reqDTO.getDescription());
+        entity.setSortOrder(reqDTO.getSortOrder() == null ? 0 : reqDTO.getSortOrder());
         entity.setEnabled(true);
         entity.setConfig(reqDTO.getConfig() == null ? "{}" : JsonUtils.toJsonString(reqDTO.getConfig()));
         entity.setUpdatedBy(userId);
@@ -81,6 +82,9 @@ public class CommonComponentServiceImpl implements CommonComponentService {
         update.setId(id);
         update.setName(reqDTO.getName());
         update.setDescription(reqDTO.getDescription());
+        if (reqDTO.getSortOrder() != null) {
+            update.setSortOrder(reqDTO.getSortOrder());
+        }
         if (reqDTO.getConfig() != null) {
             update.setConfig(JsonUtils.toJsonString(reqDTO.getConfig()));
         }
@@ -165,6 +169,7 @@ public class CommonComponentServiceImpl implements CommonComponentService {
         copy.setType(existing.getType());
         copy.setName(existing.getName() + " (副本)");
         copy.setDescription(existing.getDescription());
+        copy.setSortOrder(existing.getSortOrder());
         copy.setEnabled(false);
         copy.setConfig(existing.getConfig());
         copy.setUpdatedBy(userId);
@@ -225,6 +230,7 @@ public class CommonComponentServiceImpl implements CommonComponentService {
         item.setType(entity.getType());
         item.setName(entity.getName());
         item.setDescription(entity.getDescription());
+        item.setSortOrder(entity.getSortOrder());
         item.setConfig(entity.getConfig());
         item.setEnabled(entity.getEnabled());
         item.setUpdatedAt(entity.getUpdatedAt() != null ? entity.getUpdatedAt().format(DATETIME) : null);

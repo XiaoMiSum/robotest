@@ -22,6 +22,8 @@ public class CommonComponent extends BaseUuidDO<CommonComponent> {
     private String type;
     private String name;
     private String description;
+    /** 组件排序号（仅前置/后置处理器类使用，场景引入时决定处理器执行顺序） */
+    private Integer sortOrder;
     private Boolean enabled;
     private String config;
     @TableField(typeHandler = UUIDTypeHandler.class)

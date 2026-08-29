@@ -13,6 +13,8 @@ public class CommonComponentListItemRespDTO {
     private String type;
     private String name;
     private String description;
+    /** 组件排序号（仅处理器类组件生效） */
+    private Integer sortOrder;
     /** 组件配置内容（JSON 字符串） */
     private String config;
     private Boolean enabled;

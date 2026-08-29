@@ -62,6 +62,7 @@ import xyz.migoo.framework.mybatis.core.LambdaQueryWrapperX;
 import xyz.migoo.framework.mybatis.core.LambdaUpdateWrapperX;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -1017,6 +1018,8 @@ public class ApiSceneServiceImpl implements ApiSceneService {
         }
 
         int imported = 0;
+        List<Map<String, Object>> processorConfigs = new ArrayList<>();
+        List<Integer> processorSortOrders = new ArrayList<>();
         for (UUID assetId : reqDTO.getAssetIds()) {
             CommonComponent component = componentMapper.selectById(assetId);
             if (component == null || !Boolean.TRUE.equals(component.getEnabled())) {
@@ -1026,18 +1029,13 @@ public class ApiSceneServiceImpl implements ApiSceneService {
             config.put("id", UUID.randomUUID().toString());
             config.put("name", component.getName());
 
+            if ("scene_processor".equals(target)) {
+                // 前置/后置处理器排序使用组件顶层排序字段：收集后统一按 sort_order 升序插入
+                processorConfigs.add(config);
+                processorSortOrders.add(component.getSortOrder() == null ? 0 : component.getSortOrder());
+                continue;
+            }
             switch (target) {
-                case "scene_processor" -> {
-                    ApiScene scene = requireScene(projectId, sceneId);
-                    List<Map<String, Object>> processors = new ArrayList<>(
-                            Objects.requireNonNullElse(scene.getProcessors(), List.of()));
-                    processors.add(config);
-                    ApiScene carrier = new ApiScene();
-                    carrier.setId(sceneId);
-                    carrier.setProcessors(processors);
-                    sceneMapper.updateById(carrier);
-                    imported++;
-                }
                 case "step_validator" -> {
                     ApiSceneStep step = stepMapper.selectById(reqDTO.getStepId());
                     List<Map<String, Object>> validators = new ArrayList<>(
@@ -1061,6 +1059,26 @@ public class ApiSceneServiceImpl implements ApiSceneService {
                     imported++;
                 }
             }
+        }
+        if ("scene_processor".equals(target) && !processorConfigs.isEmpty()) {
+            List<Map<String, Object>> ordered = new ArrayList<>();
+            List<Map.Entry<Integer, Map<String, Object>>> pairs = new ArrayList<>();
+            for (int i = 0; i < processorConfigs.size(); i++) {
+                pairs.add(Map.entry(processorSortOrders.get(i), processorConfigs.get(i)));
+            }
+            pairs.sort(Comparator.comparingInt(Map.Entry::getKey));
+            for (Map.Entry<Integer, Map<String, Object>> pair : pairs) {
+                ordered.add(pair.getValue());
+            }
+            ApiScene scene = requireScene(projectId, sceneId);
+            List<Map<String, Object>> processors = new ArrayList<>(
+                    Objects.requireNonNullElse(scene.getProcessors(), List.of()));
+            processors.addAll(ordered);
+            ApiScene carrier = new ApiScene();
+            carrier.setId(sceneId);
+            carrier.setProcessors(processors);
+            sceneMapper.updateById(carrier);
+            imported += processorConfigs.size();
         }
         writeHistory(projectId, sceneId, "update", "从全局资产引入 " + imported + " 个", userId);
         return ApiSceneAssetsImportRespDTO.builder().imported(imported).build();
