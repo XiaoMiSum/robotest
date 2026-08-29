@@ -168,7 +168,8 @@
 | type | VARCHAR(30) | NOT NULL | 组件类型：preprocessor / postprocessor / validator / extractor |
 | name | VARCHAR(100) | NOT NULL | 组件名称（同作用域同类型下唯一） |
 | description | VARCHAR(500) | NULL | 组件描述 |
-| config | JSONB | NOT NULL | 组件配置内容（结构与平台内同类型组件一致） |
+| sort_order | INT | NOT NULL DEFAULT 0 | 组件排序号（仅前置/后置处理器类使用，场景引入时决定处理器执行顺序） |
+| config | JSONB | NOT NULL | 组件配置内容（结构与平台内同类型组件一致，不承载排序号） |
 | enabled | BOOLEAN | NOT NULL DEFAULT TRUE | 启用状态（停用后不可再引入） |
 | updated_by | UUID | NOT NULL | 最后维护人 |
 | is_deleted | BOOLEAN | NOT NULL DEFAULT FALSE | 是否删除 |
@@ -430,6 +431,7 @@
       "type": "preprocessor",
       "name": "Token 预置",
       "description": "从环境变量获取 Token 并注入请求头",
+      "sortOrder": 0,
       "config": "{\"handlerType\":\"http\",\"method\":\"POST\",\"url\":\"https://api.example.com/token\"}",
       "enabled": true,
       "updatedAt": "2026-08-17 10:30:00"
@@ -450,6 +452,7 @@
   "name": "Token 预置",
   "description": "从环境变量获取 Token 并注入请求头",
   "scope": "project",
+  "sortOrder": 0,
   "config": {
     "handlerType": "http",
     "method": "POST",
@@ -458,7 +461,6 @@
     "headers": [],
     "body": "",
     "enabled": true,
-    "sortOrder": 0,
     "extractors": []
   }
 }
@@ -693,7 +695,7 @@ Ryze 引擎执行完成后，平台收集执行结果并转换为平台自有格
 | 作用域 | select | 是 | project / workspace / global；编辑态隐藏，仅新建时可选 |
 | 描述 | textarea | 否 | 组件用途说明 |
 | 启用 | switch | — | 启用/禁用开关，禁用时不参与执行；四类组件均在基础信息显示 |
-| 排序号 | number | 仅处理器类 | 多处理器执行顺序，升序；仅前置/后置处理器类组件显示 |
+| 排序号 | number | 仅处理器类 | 多处理器执行顺序，升序；仅前置/后置处理器类组件显示，存储于组件顶层 `sort_order` 列（config 不承载），场景引入时按升序决定处理器执行顺序 |
 
 #### 5.3.1 前置处理器 / 后置处理器
 
@@ -705,7 +707,7 @@ Ryze 引擎执行完成后，平台收集执行结果并转换为平台自有格
 | ---- | ---- | ---- | ---- |
 | 处理器类型 | select | 是 | `发送 HTTP 请求` / `执行 SQL`；首期支持两种，其余协议随多协议扩展预留 |
 
-> **说明**：首期不提供处理器级异步与条件字段；启用/禁用与执行顺序统一通过基础信息的启用、排序号控制。
+> **说明**：首期不提供处理器级异步与条件字段；启用/禁用与执行顺序统一通过基础信息的启用、排序号控制。排序号存储于组件顶层 `sort_order` 列（config 不承载），场景引入组件为处理器时按该字段升序插入。
 
 **「发送 HTTP 请求」处理器配置：**
 
