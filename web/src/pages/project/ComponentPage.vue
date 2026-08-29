@@ -277,118 +277,111 @@ onMounted(() => void loadList())
 
 <template>
   <div class="component-page">
-    <header class="component-page__header">
-      <div>
-        <h3 class="component-page__title">公共组件</h3>
-        <p class="component-page__subtitle">三级作用域可复用组件资产库，供快速调试与测试场景复制引入</p>
-      </div>
-      <div class="component-page__actions">
+    <el-card shadow="never" class="component-page__card">
+      <div class="component-page__toolbar">
+        <el-select v-model="filterType" clearable placeholder="组件类型" style="width: 140px">
+          <el-option
+            v-for="opt in COMPONENT_TYPE_OPTIONS"
+            :key="opt.value"
+            :label="opt.label"
+            :value="opt.value"
+          />
+        </el-select>
+        <el-select v-model="filterScope" clearable placeholder="作用域" style="width: 120px">
+          <el-option
+            v-for="opt in COMPONENT_SCOPE_OPTIONS"
+            :key="opt.value"
+            :label="opt.label"
+            :value="opt.value"
+          />
+        </el-select>
+        <el-select v-model="filterEnabled" clearable placeholder="状态" style="width: 100px">
+          <el-option label="已启用" :value="true" />
+          <el-option label="已停用" :value="false" />
+        </el-select>
+        <el-input
+          v-model="keywordDraft"
+          placeholder="搜索组件名称..."
+          clearable
+          style="width: 240px"
+          @keyup.enter="handleSearch"
+        />
+        <el-button type="primary" @click="handleSearch">
+          <el-icon><Search /></el-icon>查询
+        </el-button>
+        <el-button @click="handleReset">重置</el-button>
+        <div class="component-page__toolbar-spacer" />
+        <template v-if="hasSelection">
+          <el-button :disabled="!canEdit" @click="handleBatchToggle(true)">批量启用</el-button>
+          <el-button :disabled="!canEdit" @click="handleBatchToggle(false)">批量停用</el-button>
+          <el-button type="danger" :disabled="!canEdit" @click="handleBatchDelete">批量删除</el-button>
+        </template>
         <el-button type="primary" :disabled="!canEdit" @click="openCreateDrawer">新建组件</el-button>
       </div>
-    </header>
 
-    <div class="component-page__toolbar">
-      <el-select v-model="filterType" clearable placeholder="组件类型" style="width: 140px">
-        <el-option
-          v-for="opt in COMPONENT_TYPE_OPTIONS"
-          :key="opt.value"
-          :label="opt.label"
-          :value="opt.value"
+      <div v-if="loadError" class="component-page__empty">
+        <p>组件列表加载失败</p>
+        <el-button size="small" @click="loadList()">重试</el-button>
+      </div>
+
+      <el-skeleton v-else-if="listLoading" :rows="6" animated style="flex: 1" />
+
+      <div v-else-if="list.length === 0" class="component-page__empty">
+        <el-icon :size="48" class="component-page__empty-icon"><Box /></el-icon>
+        <p>{{ keyword || filterType || filterScope || filterEnabled !== '' ? '无匹配结果' : '暂无公共组件' }}</p>
+        <el-button v-if="keyword || filterType || filterScope || filterEnabled !== ''" size="small" @click="keyword = ''; filterType = ''; filterScope = ''; filterEnabled = ''">清除筛选</el-button>
+      </div>
+
+      <el-table
+        v-else
+        :data="list"
+        row-key="id"
+        class="component-page__table"
+        @selection-change="handleSelectionChange"
+      >
+        <el-table-column type="selection" width="40" :selectable="() => canEdit" />
+        <el-table-column label="名称" prop="name" min-width="180" show-overflow-tooltip />
+        <el-table-column label="类型" width="120" align="center">
+          <template #default="{ row }">
+            {{ componentTypeLabel((row as ApiComponentListItem).type) }}
+          </template>
+        </el-table-column>
+        <el-table-column label="作用域" width="100" align="center">
+          <template #default="{ row }">
+            <el-tag size="small" :type="SCOPE_TAG_TYPE[(row as ApiComponentListItem).scope]">{{ componentScopeLabel((row as ApiComponentListItem).scope) }}</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="启用" width="80" align="center">
+          <template #default="{ row }">
+            <el-switch
+              :model-value="(row as ApiComponentListItem).enabled"
+              :disabled="!canEdit"
+              @change="handleToggle(row as ApiComponentListItem)"
+            />
+          </template>
+        </el-table-column>
+        <el-table-column label="更新时间" prop="updatedAt" width="170" />
+        <el-table-column label="操作" width="200" fixed="right" align="center">
+          <template #default="{ row }">
+            <el-button link type="primary" size="small" :disabled="!canEdit" @click="openEditDrawer(row as ApiComponentListItem)">编辑</el-button>
+            <el-button link type="primary" size="small" @click="handleCopy(row as ApiComponentListItem)">复制</el-button>
+            <el-button link type="danger" size="small" :disabled="!canEdit" @click="handleDelete(row as ApiComponentListItem)">删除</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+
+      <div v-if="total > 0" class="component-page__pagination">
+        <el-pagination
+          v-model:current-page="pageNo"
+          v-model:page-size="pageSize"
+          :page-sizes="[10, 20, 50, 100]"
+          :total="total"
+          layout="total, sizes, prev, pager, next, jumper"
+          @current-change="handlePageChange"
+          @size-change="handleSizeChange"
         />
-      </el-select>
-      <el-select v-model="filterScope" clearable placeholder="作用域" style="width: 120px">
-        <el-option
-          v-for="opt in COMPONENT_SCOPE_OPTIONS"
-          :key="opt.value"
-          :label="opt.label"
-          :value="opt.value"
-        />
-      </el-select>
-      <el-select v-model="filterEnabled" clearable placeholder="状态" style="width: 100px">
-        <el-option label="已启用" :value="true" />
-        <el-option label="已停用" :value="false" />
-      </el-select>
-      <el-input
-        v-model="keywordDraft"
-        placeholder="搜索组件名称..."
-        clearable
-        style="width: 240px"
-        @keyup.enter="handleSearch"
-      />
-      <el-button type="primary" @click="handleSearch">
-        <el-icon><Search /></el-icon>查询
-      </el-button>
-      <el-button @click="handleReset">重置</el-button>
-      <div class="component-page__toolbar-spacer" />
-      <template v-if="hasSelection">
-        <el-button :disabled="!canEdit" @click="handleBatchToggle(true)">批量启用</el-button>
-        <el-button :disabled="!canEdit" @click="handleBatchToggle(false)">批量停用</el-button>
-        <el-button type="danger" :disabled="!canEdit" @click="handleBatchDelete">批量删除</el-button>
-      </template>
-    </div>
-
-    <div v-if="loadError" class="component-page__empty">
-      <p>组件列表加载失败</p>
-      <el-button size="small" @click="loadList()">重试</el-button>
-    </div>
-
-    <el-skeleton v-else-if="listLoading" :rows="6" animated style="flex: 1" />
-
-    <div v-else-if="list.length === 0" class="component-page__empty">
-      <el-icon :size="48" class="component-page__empty-icon"><Box /></el-icon>
-      <p>{{ keyword || filterType || filterScope || filterEnabled !== '' ? '无匹配结果' : '暂无公共组件' }}</p>
-      <el-button v-if="keyword || filterType || filterScope || filterEnabled !== ''" size="small" @click="keyword = ''; filterType = ''; filterScope = ''; filterEnabled = ''">清除筛选</el-button>
-    </div>
-
-    <el-table
-      v-else
-      :data="list"
-      row-key="id"
-      class="component-page__table"
-      @selection-change="handleSelectionChange"
-    >
-      <el-table-column type="selection" width="40" :selectable="() => canEdit" />
-      <el-table-column label="名称" prop="name" min-width="180" show-overflow-tooltip />
-      <el-table-column label="类型" width="120" align="center">
-        <template #default="{ row }">
-          {{ componentTypeLabel((row as ApiComponentListItem).type) }}
-        </template>
-      </el-table-column>
-      <el-table-column label="作用域" width="100" align="center">
-        <template #default="{ row }">
-          <el-tag size="small" :type="SCOPE_TAG_TYPE[(row as ApiComponentListItem).scope]">{{ componentScopeLabel((row as ApiComponentListItem).scope) }}</el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column label="启用" width="80" align="center">
-        <template #default="{ row }">
-          <el-switch
-            :model-value="(row as ApiComponentListItem).enabled"
-            :disabled="!canEdit"
-            @change="handleToggle(row as ApiComponentListItem)"
-          />
-        </template>
-      </el-table-column>
-      <el-table-column label="更新时间" prop="updatedAt" width="170" />
-      <el-table-column label="操作" width="200" fixed="right" align="center">
-        <template #default="{ row }">
-          <el-button link type="primary" size="small" :disabled="!canEdit" @click="openEditDrawer(row as ApiComponentListItem)">编辑</el-button>
-          <el-button link type="primary" size="small" @click="handleCopy(row as ApiComponentListItem)">复制</el-button>
-          <el-button link type="danger" size="small" :disabled="!canEdit" @click="handleDelete(row as ApiComponentListItem)">删除</el-button>
-        </template>
-      </el-table-column>
-    </el-table>
-
-    <div v-if="total > 0" class="component-page__pagination">
-      <el-pagination
-        v-model:current-page="pageNo"
-        v-model:page-size="pageSize"
-        :page-sizes="[10, 20, 50, 100]"
-        :total="total"
-        layout="total, sizes, prev, pager, next, jumper"
-        @current-change="handlePageChange"
-        @size-change="handleSizeChange"
-      />
-    </div>
+      </div>
+    </el-card>
 
     <!-- 新建/编辑抽屉 -->
     <el-drawer
@@ -457,30 +450,28 @@ onMounted(() => void loadList())
   display: flex;
   flex-direction: column;
   height: 100%;
-  gap: var(--space-md);
 }
 
-.component-page__header {
+.component-page__card {
+  flex: 1;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
+  flex-direction: column;
+  min-height: 0;
+  border-radius: var(--radius-lg);
 
-.component-page__title {
-  margin: 0;
-  font-size: var(--font-size-lg);
-}
-
-.component-page__subtitle {
-  margin: 4px 0 0;
-  font-size: var(--font-size-xs);
-  color: var(--color-neutral-400);
+  :deep(.el-card__body) {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
 }
 
 .component-page__toolbar {
   display: flex;
   align-items: center;
   gap: var(--space-sm);
+  flex-shrink: 0;
 }
 
 .component-page__toolbar-spacer {
@@ -507,12 +498,14 @@ onMounted(() => void loadList())
 
 .component-page__table {
   flex: 1;
+  margin-top: var(--space-md);
 }
 
 .component-page__pagination {
   display: flex;
   justify-content: flex-end;
-  padding: var(--space-sm) 0;
+  padding: var(--space-sm) 0 0;
+  flex-shrink: 0;
 }
 
 .component-page__form {
