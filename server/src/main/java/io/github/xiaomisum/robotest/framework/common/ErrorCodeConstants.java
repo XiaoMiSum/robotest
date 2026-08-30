@@ -125,10 +125,9 @@ public class ErrorCodeConstants {
     public static final ErrorCode API_SCENE_STEP_NOT_FOUND = ErrorCode.of(1000017305, "场景步骤不存在或不属于当前场景");
     public static final ErrorCode API_SCENE_INTERFACE_EXISTS = ErrorCode.of(1000017306, "接口已关联到当前场景");
 
-    // ========== 接口测试——报告与分享 1,000,017,311-1,000,017,313 ==========
+    // ========== 接口测试——报告与分享 1,000,017,311-1,000,017,312 ==========
     public static final ErrorCode API_REPORT_NOT_FOUND = ErrorCode.of(1000017311, "报告不存在或不属于当前项目");
-    public static final ErrorCode API_SHARE_NOT_ENABLED = ErrorCode.of(1000017312, "分享功能未启用");
-    public static final ErrorCode API_SHARE_EXPIRED = ErrorCode.of(1000017313, "分享链接已过期或不存在");
+    public static final ErrorCode API_SHARE_EXPIRED = ErrorCode.of(1000017312, "分享链接已过期或不存在");
 
     // ========== 接口测试——公共组件 1,000,017,321-1,000,017,322 ==========
     public static final ErrorCode API_COMMON_COMPONENT_NOT_FOUND = ErrorCode.of(1000017321, "公共组件不存在或不属于当前可见范围");
@@ -154,10 +153,6 @@ public class ErrorCodeConstants {
     public static final ErrorCode API_GITLAB_REPO_UNREACHABLE = ErrorCode.of(1000017653, "GitLab 仓库不可达：{}");
     public static final ErrorCode API_GITLAB_REPO_NAME_EXISTS = ErrorCode.of(1000017654, "仓库配置名称已存在：{}");
     public static final ErrorCode API_GITLAB_SECRET_KEY_MISSING = ErrorCode.of(1000017656, "GitLab 令牌加密密钥未配置（robotest.env.secret-key）");
-
-    // ========== 项目设置 1,000,017,701-1,000,017,702（文档简写 77XX，7701 ≙ 1000017701） ==========
-    public static final ErrorCode API_SETTING_KEY_INVALID = ErrorCode.of(1000017701, "设置项标识非法（不在注册表白名单）");
-    public static final ErrorCode API_SETTING_VALUE_INVALID = ErrorCode.of(1000017702, "设置值非法（格式或取值范围不满足注册表约束）：{}");
 
     // ========== 缺陷管理模块 1,000,012,001-1,000,012,010 ==========
     public static final ErrorCode BUG_INVALID_STATUS_TRANSITION = ErrorCode.of(1000012001, "缺陷状态流转不合法");

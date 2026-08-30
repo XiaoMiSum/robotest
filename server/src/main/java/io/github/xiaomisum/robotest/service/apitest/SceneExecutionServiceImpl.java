@@ -364,7 +364,6 @@ public class SceneExecutionServiceImpl implements SceneExecutionService {
             }
             return entry;
         }).toList());
-        report.setShareEnabled(false);
 
         ApiExecutionRecord carrier = new ApiExecutionRecord();
         carrier.setId(ctx.record().getId());

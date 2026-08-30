@@ -4,10 +4,7 @@ import io.github.xiaomisum.robotest.framework.security.ProjectAccessGuard;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiPublicReportRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiReportShareRespDTO;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiReport;
-import io.github.xiaomisum.robotest.model.entity.project.ProjectSetting;
 import io.github.xiaomisum.robotest.repository.apitest.ApiReportMapper;
-import io.github.xiaomisum.robotest.repository.project.ProjectSettingMapper;
-import io.github.xiaomisum.robotest.service.project.ProjectSettingRegistry;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -40,13 +37,10 @@ class ApiReportServiceImplTest {
     private static final UUID USER_ID = UUID.randomUUID();
     private static final UUID REPORT_ID = UUID.randomUUID();
     private static final int CODE_7007 = 1000017311;
-    private static final int CODE_7008 = 1000017312;
-    private static final int CODE_7009 = 1000017313;
+    private static final int CODE_7009 = 1000017312;
 
     @Mock
     private ApiReportMapper reportMapper;
-    @Mock
-    private ProjectSettingMapper projectSettingMapper;
     @Mock
     private ProjectAccessGuard projectAccessGuard;
 
@@ -60,7 +54,6 @@ class ApiReportServiceImplTest {
         report.setSceneName("登录链路");
         report.setStatus("success");
         report.setCreatedAt(LocalDateTime.now());
-        report.setShareEnabled(true);
         report.setShareToken("a".repeat(32));
         report.setShareExpiresAt(expiresAt);
         report.setSummary(Map.of("total", 2, "passed", 2));
@@ -68,42 +61,14 @@ class ApiReportServiceImplTest {
         return report;
     }
 
-    private void stubShareEnabled(boolean enabled) {
-        ProjectSetting row = new ProjectSetting();
-        row.setSettingValue(enabled ? "true" : "false");
-        when(projectSettingMapper.findByProjectIdAndDomainAndKey(
-                PROJECT_ID, ProjectSettingRegistry.Domain.API_TEST,
-                ProjectSettingRegistry.Key.REPORT_SHARE_ENABLED)).thenReturn(row);
-        if (enabled) {
-            ProjectSetting expireRow = new ProjectSetting();
-            expireRow.setSettingValue("30");
-            when(projectSettingMapper.findByProjectIdAndDomainAndKey(
-                    PROJECT_ID, ProjectSettingRegistry.Domain.API_TEST,
-                    ProjectSettingRegistry.Key.REPORT_SHARE_EXPIRE_DAYS)).thenReturn(expireRow);
-        }
-    }
-
     // ========== 分享 ==========
 
     @Test
-    void shareRejectsWhenProjectSettingDisabled() {
+    void shareDefaultsExpiryTo7DaysWhenNotSpecified() {
         when(reportMapper.selectById(REPORT_ID)).thenReturn(sharedReport(null));
-        stubShareEnabled(false);
-
-        ServiceException ex = assertThrows(ServiceException.class,
-                () -> service.share(WORKSPACE_ID, PROJECT_ID, USER_ID, REPORT_ID, null));
-        assertEquals(CODE_7008, ex.getCode().intValue());
-    }
-
-    @Test
-    void shareWritesTokenAndExpiryFromProjectSettings() {
-        when(reportMapper.selectById(REPORT_ID)).thenReturn(sharedReport(null));
-        stubShareEnabled(true);
 
         ApiReportShareRespDTO resp = service.share(WORKSPACE_ID, PROJECT_ID, USER_ID, REPORT_ID, null);
 
-        assertEquals("/share/api-report/" + REPORT_ID + "?token=" + resp.getShareUrl()
-                .split("token=")[1], resp.getShareUrl());
         assertEquals(32, resp.getShareUrl().split("token=")[1].length());
         assertTrue(resp.getShareUrl().split("token=")[1].matches("[0-9a-f]{32}"));
         assertNotNull(resp.getExpiresAt());
@@ -111,9 +76,21 @@ class ApiReportServiceImplTest {
         ArgumentCaptor<ApiReport> captor = ArgumentCaptor.forClass(ApiReport.class);
         verify(reportMapper).updateById(captor.capture());
         ApiReport carrier = captor.getValue();
-        // 部分更新：只允许携带分享三列，防止整行覆盖并发变更
-        assertEquals(Boolean.TRUE, carrier.getShareEnabled());
+        // 部分更新：只携带分享列，防止整行覆盖并发变更
         assertEquals(32, carrier.getShareToken().length());
+        assertTrue(carrier.getShareExpiresAt().isAfter(LocalDateTime.now().plusDays(6)));
+        assertTrue(carrier.getShareExpiresAt().isBefore(LocalDateTime.now().plusDays(8)));
+    }
+
+    @Test
+    void shareUsesExplicitExpiryDays() {
+        when(reportMapper.selectById(REPORT_ID)).thenReturn(sharedReport(null));
+
+        ApiReportShareRespDTO resp = service.share(WORKSPACE_ID, PROJECT_ID, USER_ID, REPORT_ID, 30);
+
+        ArgumentCaptor<ApiReport> captor = ArgumentCaptor.forClass(ApiReport.class);
+        verify(reportMapper).updateById(captor.capture());
+        ApiReport carrier = captor.getValue();
         assertTrue(carrier.getShareExpiresAt().isAfter(LocalDateTime.now().plusDays(29)));
         assertTrue(carrier.getShareExpiresAt().isBefore(LocalDateTime.now().plusDays(31)));
     }

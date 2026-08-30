@@ -7,10 +7,7 @@ import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiReportDetailRe
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiReportPageItemRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiReportShareRespDTO;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiReport;
-import io.github.xiaomisum.robotest.model.entity.project.ProjectSetting;
 import io.github.xiaomisum.robotest.repository.apitest.ApiReportMapper;
-import io.github.xiaomisum.robotest.repository.project.ProjectSettingMapper;
-import io.github.xiaomisum.robotest.service.project.ProjectSettingRegistry;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
@@ -31,11 +28,11 @@ import java.util.zip.ZipOutputStream;
 public class ApiReportServiceImpl implements ApiReportService {
 
     private static final String SHARE_URL_PREFIX = "/share/api-report/";
+    /** expiresInDays 缺省值：生成时未指定时使用（对齐邀请链接的默认过期时间） */
+    private static final int DEFAULT_SHARE_EXPIRE_DAYS = 7;
 
     @Resource
     private ApiReportMapper reportMapper;
-    @Resource
-    private ProjectSettingMapper projectSettingMapper;
     @Resource
     private ProjectAccessGuard projectAccessGuard;
 
@@ -78,7 +75,6 @@ public class ApiReportServiceImpl implements ApiReportService {
                 .summary(report.getSummary())
                 .environmentName(report.getEnvironmentName())
                 .stepResults(report.getStepResults())
-                .shareEnabled(Boolean.TRUE.equals(report.getShareEnabled()))
                 .createdAt(report.getCreatedAt())
                 .build();
     }
@@ -91,20 +87,16 @@ public class ApiReportServiceImpl implements ApiReportService {
         projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
         requireReport(projectId, id);
 
-        if (!"true".equals(readSetting(projectId, ProjectSettingRegistry.Key.REPORT_SHARE_ENABLED))) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.API_SHARE_NOT_ENABLED);
-        }
-        int days = expiresInDays != null ? expiresInDays
-                : Integer.parseInt(readSetting(projectId, ProjectSettingRegistry.Key.REPORT_SHARE_EXPIRE_DAYS));
+        // 无全局分享开关：有效期生成时选择，缺省 DEFAULT_SHARE_EXPIRE_DAYS（参照邀请链接）
+        int days = expiresInDays != null ? expiresInDays : DEFAULT_SHARE_EXPIRE_DAYS;
 
         // UUID v4 去横线 = 32 位十六进制（测试报告详细设计 4.2.1）
         String token = UUID.randomUUID().toString().replace("-", "");
         LocalDateTime expiresAt = LocalDateTime.now().plusDays(days);
 
-        // 部分更新：只写分享三列
+        // 部分更新：只写分享两列
         ApiReport update = new ApiReport();
         update.setId(id);
-        update.setShareEnabled(true);
         update.setShareToken(token);
         update.setShareExpiresAt(expiresAt);
         reportMapper.updateById(update);
@@ -118,11 +110,9 @@ public class ApiReportServiceImpl implements ApiReportService {
     @Override
     public ApiPublicReportRespDTO publicAccess(UUID id, String token) {
         ApiReport report = token == null || token.isBlank() ? null : reportMapper.selectByIdAndToken(id, token);
-        // 无效/未开启/过期统一 7009，不区分具体原因避免枚举探测
-        if (report == null || !Boolean.TRUE.equals(report.getShareEnabled())) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.API_SHARE_EXPIRED);
-        }
-        if (report.getShareExpiresAt() == null || !report.getShareExpiresAt().isAfter(LocalDateTime.now())) {
+        // 未分享（无 token 行）/过期统一 7009，不区分具体原因避免枚举探测
+        if (report == null || report.getShareExpiresAt() == null
+                || !report.getShareExpiresAt().isAfter(LocalDateTime.now())) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.API_SHARE_EXPIRED);
         }
         return ApiPublicReportRespDTO.builder()
@@ -136,15 +126,7 @@ public class ApiReportServiceImpl implements ApiReportService {
                 .build();
     }
 
-    /** 项目设置读取：未落库键回退注册表默认值（与 ProjectSettingServiceImpl 口径一致） */
-    private String readSetting(UUID projectId, String settingKey) {
-        ProjectSettingRegistry.SettingDefinition definition =
-                ProjectSettingRegistry.find(ProjectSettingRegistry.Domain.API_TEST, settingKey);
-        ProjectSetting row = projectSettingMapper.findByProjectIdAndDomainAndKey(
-                projectId, ProjectSettingRegistry.Domain.API_TEST, settingKey);
-        return row != null ? row.getSettingValue() : definition.defaultValue();
-    }
-
+    /** 报告校验：归属项目校验，避免越权访问其他项目报告 */
     private ApiReport requireReport(UUID projectId, UUID id) {
         ApiReport report = reportMapper.selectById(id);
         if (report == null || !report.getProjectId().equals(projectId)) {

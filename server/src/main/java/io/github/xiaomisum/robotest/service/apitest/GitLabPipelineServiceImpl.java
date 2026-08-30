@@ -455,7 +455,6 @@ public class GitLabPipelineServiceImpl implements GitLabPipelineService {
             report.setStatus(summary.get("failed") instanceof Number num && num.intValue() > 0 ? "failed" : "success");
             report.setSummary(summary);
             report.setStepResults(List.of());
-            report.setShareEnabled(false);
             reportMapper.insert(report);
 
             ApiExecutionRecord update = new ApiExecutionRecord();

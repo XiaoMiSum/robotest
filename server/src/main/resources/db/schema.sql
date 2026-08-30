@@ -663,26 +663,7 @@ CREATE INDEX idx_tcd_project ON test_case_document(project_id);
 CREATE INDEX idx_tcd_module ON test_case_document(module_id);
 
 -- ============================================================
--- 10. 项目设置
--- ============================================================
-
-CREATE TABLE project_setting (
-                                 id            UUID         PRIMARY KEY,
-                                 project_id    UUID         NOT NULL,
-                                 domain        VARCHAR(20)  NOT NULL,
-                                 setting_key   VARCHAR(100) NOT NULL,
-                                 setting_value VARCHAR(500) NOT NULL,
-                                 updated_by    UUID         NOT NULL,
-                                 is_deleted    BOOLEAN      NOT NULL DEFAULT FALSE,
-                                 created_at    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                                 updated_at    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE UNIQUE INDEX uk_project_setting
-    ON project_setting(project_id, domain, setting_key) WHERE is_deleted = FALSE;
-
--- ============================================================
--- 11. 接口测试 — 环境管理
+-- 10. 接口测试 — 环境管理
 -- ============================================================
 
 CREATE TABLE api_environment (
@@ -760,7 +741,7 @@ CREATE TABLE api_environment_processor (
 CREATE INDEX idx_eproc_env ON api_environment_processor(environment_id, sort_order);
 
 -- ============================================================
--- 12. 接口测试 — 接口管理
+-- 11. 接口测试 — 接口管理
 -- ============================================================
 
 CREATE TABLE api_interface (
@@ -911,7 +892,7 @@ CREATE TABLE api_debug_record (
 CREATE INDEX idx_drec_project_user ON api_debug_record(project_id, user_id);
 
 -- ============================================================
--- 13. 接口测试 — Swagger URL 配置
+-- 12. 接口测试 — Swagger URL 配置
 -- ============================================================
 
 CREATE TABLE api_swagger_url (
@@ -930,7 +911,7 @@ CREATE TABLE api_swagger_url (
 CREATE INDEX idx_surl_project ON api_swagger_url(project_id);
 
 -- ============================================================
--- 14. 接口测试 — 定时任务
+-- 13. 接口测试 — 定时任务
 -- ============================================================
 
 CREATE TABLE api_scheduled_task (
@@ -975,7 +956,7 @@ CREATE INDEX idx_stexec_task ON api_scheduled_task_execution(task_id);
 CREATE INDEX idx_stexec_project_triggered ON api_scheduled_task_execution(project_id, triggered_at DESC);
 
 -- ============================================================
--- 15. 接口测试 — Mock 服务
+-- 14. 接口测试 — Mock 服务
 -- ============================================================
 
 CREATE TABLE api_mock_definition (
@@ -1027,7 +1008,7 @@ CREATE INDEX idx_api_mlog_mock ON api_mock_access_log(mock_id);
 CREATE INDEX idx_api_mlog_project_created ON api_mock_access_log(project_id, created_at DESC);
 
 -- ============================================================
--- 16. 接口测试 — 测试场景与执行
+-- 15. 接口测试 — 测试场景与执行
 -- ============================================================
 
 CREATE TABLE api_scene (
@@ -1168,7 +1149,6 @@ CREATE TABLE api_report (
                             summary            JSONB         NOT NULL,
                             step_results       JSONB         NOT NULL,
                             ryze_snapshot      JSONB         NULL,
-                            share_enabled      BOOLEAN       NOT NULL DEFAULT FALSE,
                             share_token        VARCHAR(64)   NULL,
                             share_expires_at   TIMESTAMP     NULL,
                             is_deleted         BOOLEAN       NOT NULL DEFAULT FALSE,
@@ -1197,7 +1177,7 @@ CREATE TABLE api_change_history (
 CREATE INDEX idx_change_target ON api_change_history(target_type, target_id, version DESC);
 
 -- ============================================================
--- 17. 接口测试 — 公共组件
+-- 16. 接口测试 — 公共组件
 -- ============================================================
 
 CREATE TABLE api_component (
@@ -1224,7 +1204,7 @@ CREATE UNIQUE INDEX uk_api_component_project ON api_component(project_id, type, 
 CREATE UNIQUE INDEX uk_api_component_workspace ON api_component(workspace_id, type, name) WHERE scope = 'workspace' AND is_deleted = FALSE;
 
 -- ============================================================
--- 18. 接口测试 — 函数表（内置 + 自定义）
+-- 17. 接口测试 — 函数表（内置 + 自定义）
 -- ============================================================
 
 CREATE TABLE api_function (
@@ -1249,7 +1229,7 @@ CREATE INDEX idx_function_workspace ON api_function(workspace_id, name) WHERE sc
 CREATE UNIQUE INDEX uk_function_global ON api_function(name) WHERE scope = 'global' AND is_deleted = FALSE;
 
 -- ============================================================
--- 19. 接口测试 — GitLab 仓库配置
+-- 18. 接口测试 — GitLab 仓库配置
 -- ============================================================
 
 CREATE TABLE api_gitlab_repository (
@@ -1437,7 +1417,7 @@ INSERT INTO sys_permission (id, code, name, parent_code, module, scope, sort_ord
 ('c0000000-0000-0000-0000-000000000063', 'api-report:delete', '删除报告',    'api-report',    '接口测试·测试报告',  'workspace', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE);
 
 -- ------------------------------------------------------------
--- 21.5.1 权限点（接口测试·环境管理 / 函数管理 / 应用设置，项目设置分组）
+-- 21.5.1 权限点（接口测试·环境管理 / 函数管理，项目设置分组）
 -- ------------------------------------------------------------
 INSERT INTO sys_permission (id, code, name, parent_code, module, scope, sort_order, created_at, updated_at, is_deleted) VALUES
 ('c0000000-0000-0000-0000-000000000064', 'api-env',            '环境管理',       NULL,          '接口测试·环境管理', 'workspace', 9,  CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
@@ -1447,10 +1427,7 @@ INSERT INTO sys_permission (id, code, name, parent_code, module, scope, sort_ord
 ('c0000000-0000-0000-0000-000000000068', 'api-func:view',      '查看函数',       'api-func',    '接口测试·函数管理', 'workspace', 1,  CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
 ('c0000000-0000-0000-0000-000000000069', 'api-func:edit',      '编辑函数',       'api-func',    '接口测试·函数管理', 'workspace', 2,  CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
 ('c0000000-0000-0000-0000-000000000072', 'api-func:edit-space', '编辑空间级函数', 'api-func',    '接口测试·函数管理', 'workspace', 3,  CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000073', 'api-func:edit-global', '编辑全局函数', 'api-func',    '接口测试·函数管理', 'workspace', 4,  CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000074', 'api-setting',        '应用设置',       NULL,          '接口测试·应用设置', 'workspace', 11, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000075', 'api-setting:view',   '查看应用设置',   'api-setting', '接口测试·应用设置', 'workspace', 1,  CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000076', 'api-setting:edit',   '编辑应用设置',   'api-setting', '接口测试·应用设置', 'workspace', 2,  CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE);
+('c0000000-0000-0000-0000-000000000073', 'api-func:edit-global', '编辑全局函数', 'api-func',    '接口测试·函数管理', 'workspace', 4,  CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE);
 
 -- ------------------------------------------------------------
 -- 21.6 预置角色（含全部版本权限合并）
@@ -1469,12 +1446,12 @@ INSERT INTO sys_role (id, name, description, type, is_system, permissions, creat
 -- workspace 管理员：空间内全部业务权限（显式授权全部空间权限码）
 ('c0000000-0000-0000-0000-000000000001', '管理员',
  '空间管理员 — 拥有工作空间内全部业务权限', 'workspace', TRUE,
- '["ws-info","ws-info:view","ws-info:edit","ws-member","ws-member:view","ws-member:manage","ws-invitation","ws-invitation:view","ws-invitation:manage","project","project:view","case","case:view","case:edit","review","review:view","review:create","review:edit","review:complete","plan","plan:view","plan:create","plan:execute","plan:close","bug","bug:view","requirement","requirement:view","requirement:edit","api-gitlab","api-gitlab:view","api-gitlab:edit","api-scene","api-scene:view","api-scene:edit","api-scene:import","api-scene:pipeline","api-scene:execute","api-interface","api-interface:view","api-interface:edit","api-interface:delete","api-component","api-component:view","api-component:edit","api-component:edit-space","api-component:edit-global","api-env","api-env:view","api-env:edit","api-func","api-func:view","api-func:edit","api-func:edit-space","api-func:edit-global","api-debug","api-debug:view","api-timer","api-timer:view","api-timer:edit","api-mock","api-mock:view","api-mock:edit","api-report","api-report:view","api-report:delete","api-setting","api-setting:view","api-setting:edit"]',
+ '["ws-info","ws-info:view","ws-info:edit","ws-member","ws-member:view","ws-member:manage","ws-invitation","ws-invitation:view","ws-invitation:manage","project","project:view","case","case:view","case:edit","review","review:view","review:create","review:edit","review:complete","plan","plan:view","plan:create","plan:execute","plan:close","bug","bug:view","requirement","requirement:view","requirement:edit","api-gitlab","api-gitlab:view","api-gitlab:edit","api-scene","api-scene:view","api-scene:edit","api-scene:import","api-scene:pipeline","api-scene:execute","api-interface","api-interface:view","api-interface:edit","api-interface:delete","api-component","api-component:view","api-component:edit","api-component:edit-space","api-component:edit-global","api-env","api-env:view","api-env:edit","api-func","api-func:view","api-func:edit","api-func:edit-space","api-func:edit-global","api-debug","api-debug:view","api-timer","api-timer:view","api-timer:edit","api-mock","api-mock:view","api-mock:edit","api-report","api-report:view","api-report:delete"]',
  CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
 -- workspace 普通成员：默认角色
 ('c0000000-0000-0000-0000-000000000002', '成员',
  '空间成员 — 除删除/归档项目、管理成员、编辑空间信息外的其他权限', 'workspace', TRUE,
- '["ws-info:view","ws-member:view","ws-invitation:view","ws-invitation:manage","project:view","case:view","case:edit","review:view","review:create","review:edit","review:complete","plan:view","plan:create","plan:execute","plan:close","bug:view","requirement:view","requirement:edit","api-gitlab","api-gitlab:view","api-gitlab:edit","api-scene","api-scene:view","api-scene:edit","api-scene:import","api-scene:execute","api-interface","api-interface:view","api-interface:edit","api-component","api-component:view","api-component:edit","api-env","api-env:view","api-env:edit","api-func","api-func:view","api-func:edit","api-debug","api-debug:view","api-timer","api-timer:view","api-timer:edit","api-mock","api-mock:view","api-mock:edit","api-report","api-report:view","api-setting","api-setting:view","api-setting:edit"]',
+ '["ws-info:view","ws-member:view","ws-invitation:view","ws-invitation:manage","project:view","case:view","case:edit","review:view","review:create","review:edit","review:complete","plan:view","plan:create","plan:execute","plan:close","bug:view","requirement:view","requirement:edit","api-gitlab","api-gitlab:view","api-gitlab:edit","api-scene","api-scene:view","api-scene:edit","api-scene:import","api-scene:execute","api-interface","api-interface:view","api-interface:edit","api-component","api-component:view","api-component:edit","api-env","api-env:view","api-env:edit","api-func","api-func:view","api-func:edit","api-debug","api-debug:view","api-timer","api-timer:view","api-timer:edit","api-mock","api-mock:view","api-mock:edit","api-report","api-report:view"]',
  CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE);
 
 -- ------------------------------------------------------------
@@ -2020,15 +1997,6 @@ COMMENT ON COLUMN test_case_document.name IS '文档名称';
 COMMENT ON COLUMN test_case_document.layout IS '布局数据 JSONB（template/offsets）';
 COMMENT ON COLUMN test_case_document.sort_order IS '同层级排序序号';
 
--- 项目设置
-COMMENT ON TABLE project_setting IS '项目设置表（域+键 统一存储）';
-COMMENT ON COLUMN project_setting.id IS '设置项唯一标识';
-COMMENT ON COLUMN project_setting.project_id IS '所属项目 ID';
-COMMENT ON COLUMN project_setting.domain IS '业务域：common/api_test/func_test';
-COMMENT ON COLUMN project_setting.setting_key IS '设置项标识';
-COMMENT ON COLUMN project_setting.setting_value IS '设置值（字符串化存储）';
-COMMENT ON COLUMN project_setting.updated_by IS '最后维护人';
-
 -- 接口测试 — 环境管理
 COMMENT ON TABLE api_environment IS '接口测试环境表';
 COMMENT ON COLUMN api_environment.project_id IS '归属项目 ID';
@@ -2307,7 +2275,6 @@ COMMENT ON COLUMN api_report.status IS '汇总状态：success/failed/partial';
 COMMENT ON COLUMN api_report.summary IS '结果汇总';
 COMMENT ON COLUMN api_report.step_results IS '步骤级结果明细';
 COMMENT ON COLUMN api_report.ryze_snapshot IS 'Ryze 标准 JSON 快照';
-COMMENT ON COLUMN api_report.share_enabled IS '分享是否开启';
 COMMENT ON COLUMN api_report.share_token IS '分享链接令牌（唯一）';
 COMMENT ON COLUMN api_report.share_expires_at IS '分享链接过期时间';
 

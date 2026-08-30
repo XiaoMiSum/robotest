@@ -42,7 +42,6 @@ public class ApiReport extends BaseUuidDO<ApiReport> {
     /** Ryze 标准 JSON 快照，结果回溯用 */
     @TableField(typeHandler = Jackson3TypeHandler.class)
     private Map<String, Object> ryzeSnapshot;
-    private Boolean shareEnabled;
     private String shareToken;
     private LocalDateTime shareExpiresAt;
 
