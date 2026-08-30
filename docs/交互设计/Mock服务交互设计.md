@@ -34,8 +34,7 @@ V1.2 接口测试域新增 Mock 服务能力。本文档覆盖两部分交互设
 │  项目设置（平台级 · 按业务域过滤）
 │   ├ 环境管理           /workspace/projects/settings/environments
 │   ├ 全局资产           /workspace/projects/settings/assets
-│   ├ GitLab 仓库配置    /workspace/projects/settings/gitlab-repos
-│   └ 安全策略与应用设置 /workspace/projects/settings/security
+│   └ GitLab 仓库配置    /workspace/projects/settings/gitlab-repos
 └──────────────────────────────────┘
 ```
 

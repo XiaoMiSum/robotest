@@ -144,9 +144,8 @@
 | summary | JSONB | NOT NULL | 结果汇总 `{total, passed, failed, skipped, duration_ms}` |
 | step_results | JSONB | NOT NULL | 步骤级结果明细数组 `[{stepId, name, type, status, request, response, duration_ms, validators}]` |
 | ryze_snapshot | JSONB | NULL | 执行时的 Ryze 标准 JSON 快照（用于结果回溯与转换问题定位） |
-| share_enabled | BOOLEAN | NOT NULL DEFAULT FALSE | 分享是否开启 |
-| share_token | VARCHAR(64) | NULL | 分享链接令牌 |
-| share_expires_at | TIMESTAMP | NULL | 分享链接过期时间 |
+| share_token | VARCHAR(64) | NULL | 分享链接令牌（生成分享链接时写入，无全局开关） |
+| share_expires_at | TIMESTAMP | NULL | 分享链接过期时间（生成时由 expiresInDays 计算） |
 | is_deleted | BOOLEAN | NOT NULL DEFAULT FALSE | 是否删除 |
 | created_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | 创建时间 |
 | updated_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | 更新时间 |
@@ -210,7 +209,7 @@
 
 接口测试业务域使用错误码号段 **7001–7799**，与既有号段不冲突：
 
-> 本表错误码为**文档简写**。接口实际返回平台统一十位全码（形如 `1000017701`），简写与全码的映射在 `server/src/main/java/io/github/xiaomisum/robotest/framework/common/ErrorCodeConstants.java` 各号段注释中逐一登记（如 7701 ≙ 1000017701）；前端与联调以实际响应 `code` 为准。
+> 本表错误码为**文档简写**。接口实际返回平台统一十位全码（形如 `1000017009`），简写与全码的映射在 `server/src/main/java/io/github/xiaomisum/robotest/framework/common/ErrorCodeConstants.java` 各号段注释中逐一登记（如 7009 ≙ 1000017009）；前端与联调以实际响应 `code` 为准。
 
 | 错误码 | 常量名 | 说明 |
 | ------ | ------ | ---- |
@@ -221,8 +220,7 @@
 | **7005** | API_EXEC_TASK_STATE_INVALID | 执行任务状态不允许当前操作 |
 | **7006** | API_ENV_NOT_FOUND | 环境不存在 |
 | **7007** | API_REPORT_NOT_FOUND | 报告不存在 |
-| **7008** | API_SHARE_NOT_ENABLED | 报告分享未开启 |
-| **7009** | API_SHARE_EXPIRED | 分享链接已过期 |
+| **7009** | API_SHARE_EXPIRED | 分享链接无效或已过期 |
 | **7010** | API_IMPORT_FORMAT_UNSUPPORTED | 导入格式不支持 |
 | **7011** | API_IMPORT_PARSE_FAILED | 导入内容解析失败 |
 | **7012** | API_IMPORT_URL_UNREACHABLE | URL 导入目标不可达 |
@@ -250,8 +248,6 @@
 | **7601** | API_SCHEDULED_TASK_NOT_FOUND | 定时任务不存在 |
 | **7602** | API_CRON_INVALID | Cron 表达式无效 |
 | **7603** | API_SCHEDULED_TASK_RUNNING | 任务上一次执行未结束 |
-| **7701** | API_SETTING_KEY_INVALID | 设置项标识非法（不在注册表白名单） |
-| **7702** | API_SETTING_VALUE_INVALID | 设置值非法（格式或取值范围不满足注册表约束） |
 
 ---
 
@@ -382,6 +378,7 @@
 #### 3.4.3 生成分享链接
 
 - **路径**：`POST /api/project/reports/:id/share`
+- **说明**：无全局分享开关，具备报告查看/分享权限（`api-report:view`）即可生成；`expiresInDays` 缺省 7 天，有效期写入 `share_expires_at`（参照邀请链接生成时选择过期时间）。
 - **请求体**：
 
 ```json
@@ -402,7 +399,7 @@
 #### 3.4.4 访问分享报告（免登录）
 
 - **路径**：`GET /api/public/api-reports/:id?token=abc123`
-- **说明**：不需要 Authorization 头，通过 token 校验访问权限。token 无效或过期返回 403。
+- **说明**：不需要 Authorization 头，通过 token 校验访问权限。token 不匹配或过期统一返回 403（错误码 7009），不区分具体原因避免枚举探测。
 
 #### 3.4.5 导出报告
 
