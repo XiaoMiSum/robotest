@@ -28,9 +28,6 @@ public class ApiReportDetailRespDTO {
 
     private List<Map<String, Object>> stepResults;
 
-    /** 是否已开启分享（前端据此控制分享按钮可用性） */
-    private Boolean shareEnabled;
-
     private LocalDateTime createdAt;
 
 }
