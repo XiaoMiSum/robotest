@@ -219,15 +219,13 @@ function openPipelineDrawer(row: GitLabRepoListItem) {
 
 <template>
   <div class="gitlab-repo">
-    <header class="gitlab-repo__header">
-      <div>
-        <h3 class="gitlab-repo__title">GitLab 仓库配置</h3>
-        <p class="gitlab-repo__subtitle">项目级公共配置，可执行导入与仓库流水线执行均引用此配置</p>
-      </div>
-      <el-button type="primary" :disabled="!canEdit" @click="openCreateDialog">+ 添加仓库</el-button>
-    </header>
-
     <el-card shadow="never" class="gitlab-repo__card">
+      <template #header>
+        <div class="gitlab-repo__card-header">
+          <el-button type="primary" :disabled="!canEdit" @click="openCreateDialog">+ 添加仓库</el-button>
+        </div>
+      </template>
+
       <el-skeleton v-if="loading" :rows="4" animated />
 
       <div v-else-if="list.length === 0" class="gitlab-repo__empty">
@@ -266,8 +264,8 @@ function openPipelineDrawer(row: GitLabRepoListItem) {
           <template #default="{ row }">
             <el-button link size="small" :disabled="!canEdit" @click="openEditDialog(row as GitLabRepoListItem)">编辑</el-button>
             <el-dropdown trigger="click" :disabled="!canEdit">
-              <el-button link size="small" :disabled="!canEdit">
-                更多<el-icon class="el-icon--right"><MoreFilled /></el-icon>
+              <el-button link size="small" :disabled="!canEdit" aria-label="更多操作">
+                <el-icon><MoreFilled /></el-icon>
               </el-button>
               <template #dropdown>
                 <el-dropdown-menu>
@@ -378,21 +376,9 @@ function openPipelineDrawer(row: GitLabRepoListItem) {
   gap: var(--space-md);
 }
 
-.gitlab-repo__header {
+.gitlab-repo__card-header {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.gitlab-repo__title {
-  margin: 0;
-  font-size: var(--font-size-lg);
-}
-
-.gitlab-repo__subtitle {
-  margin: 4px 0 0;
-  font-size: var(--font-size-xs);
-  color: var(--color-neutral-400);
+  justify-content: flex-end;
 }
 
 .gitlab-repo__card {
