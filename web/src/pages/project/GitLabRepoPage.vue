@@ -2,7 +2,7 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance } from 'element-plus'
-import { Platform, MoreFilled, FolderOpened, Document, VideoPlay } from '@element-plus/icons-vue'
+import { Platform, ArrowDown, FolderOpened, Document, VideoPlay } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/stores/auth'
 import type { GitLabRepoListItem, GitLabRepoTestConnectionResult } from '@/types'
 import {
@@ -262,11 +262,12 @@ function openPipelineDrawer(row: GitLabRepoListItem) {
         </el-table-column>
         <el-table-column label="操作" width="140" fixed="right">
           <template #default="{ row }">
-            <el-button link size="small" :disabled="!canEdit" @click="openEditDialog(row as GitLabRepoListItem)">编辑</el-button>
-            <el-dropdown trigger="click" :disabled="!canEdit">
-              <el-button link size="small" :disabled="!canEdit" aria-label="更多操作">
-                <el-icon><MoreFilled /></el-icon>
-              </el-button>
+            <div class="gitlab-repo__row-actions">
+              <el-button link size="small" :disabled="!canEdit" @click="openEditDialog(row as GitLabRepoListItem)">编辑</el-button>
+              <el-dropdown trigger="click" :disabled="!canEdit">
+                <el-button link size="small" :disabled="!canEdit">
+                  更多<el-icon class="el-icon--right"><ArrowDown /></el-icon>
+                </el-button>
               <template #dropdown>
                 <el-dropdown-menu>
                   <el-dropdown-item @click="openMetadataDrawer(row as GitLabRepoListItem)">
@@ -284,6 +285,7 @@ function openPipelineDrawer(row: GitLabRepoListItem) {
                 </el-dropdown-menu>
               </template>
             </el-dropdown>
+            </div>
           </template>
         </el-table-column>
       </el-table>
@@ -379,6 +381,12 @@ function openPipelineDrawer(row: GitLabRepoListItem) {
 .gitlab-repo__card-header {
   display: flex;
   justify-content: flex-end;
+}
+
+.gitlab-repo__row-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .gitlab-repo__card {
