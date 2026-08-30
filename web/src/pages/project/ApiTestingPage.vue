@@ -3,7 +3,6 @@ import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import type { MenuInstance } from 'element-plus'
 import { useAuthStore } from '@/stores/auth'
-import ProjectSettingsPage from './ProjectSettingsPage.vue'
 import EnvironmentPage from './EnvironmentPage.vue'
 import FunctionPage from './FunctionPage.vue'
 import DebugPage from './DebugPage.vue'
@@ -34,7 +33,6 @@ const settingsItems = [
   { key: 'functions', label: '函数管理', icon: 'SetUp', enabled: true, permission: 'api-func:view' },
   { key: 'assets', label: '公共组件', icon: 'Box', enabled: true, permission: 'api-component:view' },
   { key: 'gitlab-repos', label: 'GitLab配置', icon: 'Platform', enabled: true, permission: 'api-gitlab:view' },
-  { key: 'security', label: '应用设置', icon: 'Lock', enabled: true, permission: 'api-setting:view' },
 ]
 
 const authStore = useAuthStore()
@@ -159,8 +157,7 @@ function handleMenuSelect(key: string) {
     </aside>
 
     <main class="api-testing__main">
-      <ProjectSettingsPage v-if="activeMenu === 'security'" />
-      <EnvironmentPage v-else-if="activeMenu === 'environments'" />
+      <EnvironmentPage v-if="activeMenu === 'environments'" />
       <FunctionPage v-else-if="activeMenu === 'functions'" />
       <DebugPage v-else-if="activeMenu === 'debug'" />
       <InterfacesPage v-else-if="activeMenu === 'interfaces'" />
