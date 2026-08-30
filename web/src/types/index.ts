@@ -1264,38 +1264,6 @@ export interface AiMinderCommand {
   action: AiMinderAction
 }
 
-
-
-// ==================== 接口测试 · 项目设置（安全策略与应用设置） ====================
-
-/** 设置项业务域归属（common 平台通用域预留；func_test 由功能测试域后续扩展注册） */
-export type ProjectSettingDomain = 'common' | 'api_test' | 'func_test'
-
-/** 单个设置项；未落库键由后端以注册表默认值填充（explicit=false） */
-export interface ProjectSettingItem {
-  domain: ProjectSettingDomain
-  settingKey: string
-  settingValue: string
-  defaultValue: string
-  explicit: boolean
-}
-
-export interface ProjectSettingListResp {
-  items: ProjectSettingItem[]
-}
-
-export interface ProjectSettingUpdateReq {
-  items: {
-    domain: ProjectSettingDomain
-    settingKey: string
-    settingValue: string
-  }[]
-}
-
-export interface ProjectSettingUpdateResp {
-  updated: number
-}
-
 // ==================== 接口测试 · 项目设置（环境管理） ====================
 
 export type ApiEnvironmentScope = 'project' | 'global'
@@ -2396,7 +2364,6 @@ export interface ApiReportDetail {
   summary: ApiReportSummary
   environmentName: string | null
   stepResults: ApiReportStepResult[]
-  shareEnabled: boolean
   createdAt: string
 }
 

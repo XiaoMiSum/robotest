@@ -94,23 +94,32 @@ function formatJson(obj: unknown): string {
   }
 }
 
-// ==================== 分享 ====================
+// ==================== 分享（生成时选有效期，参照创建邀请链接） ====================
 const shareDialogVisible = ref(false)
+const shareExpiryDays = ref(7)
 const shareUrl = ref('')
 const shareExpiresAt = ref('')
+const shareLinkGenerated = ref(false)
+const shareSubmitting = ref(false)
 
-async function handleShare() {
-  if (!report.value?.shareEnabled) {
-    ElMessage.warning('需项目管理员在安全策略中开启「允许分享接口测试报告」')
-    return
-  }
+function openShareDialog() {
+  shareUrl.value = ''
+  shareExpiresAt.value = ''
+  shareLinkGenerated.value = false
+  shareDialogVisible.value = true
+}
+
+async function generateShareLink() {
+  shareSubmitting.value = true
   try {
-    const resp = await shareReport(props.reportId)
+    const resp = await shareReport(props.reportId, shareExpiryDays.value)
     shareUrl.value = window.location.origin + resp.shareUrl
     shareExpiresAt.value = resp.expiresAt
-    shareDialogVisible.value = true
+    shareLinkGenerated.value = true
   } catch (error) {
     ElMessage.error(error instanceof Error ? error.message : '分享失败')
+  } finally {
+    shareSubmitting.value = false
   }
 }
 
@@ -165,7 +174,7 @@ onMounted(loadDetail)
               <span>执行时间：{{ formatDateTime(report.createdAt) }}</span>
             </div>
             <div class="report-detail__actions">
-              <el-button :disabled="!report.shareEnabled" @click="handleShare">
+              <el-button @click="openShareDialog">
                 <el-icon><Share /></el-icon>分享
               </el-button>
               <el-dropdown @command="(cmd: string) => openExport(cmd as 'json' | 'html')">
@@ -307,17 +316,34 @@ onMounted(loadDetail)
       </el-drawer>
     </template>
 
-    <!-- 分享弹窗 -->
-    <el-dialog v-model="shareDialogVisible" title="分享报告" width="480px">
-      <div class="share-dialog">
-        <p class="share-dialog__hint">分享链接在有效期内可匿名访问（无需登录）</p>
+    <!-- 分享弹窗：两步式（选有效期 → 生成链接），参照创建邀请链接 -->
+    <el-dialog v-model="shareDialogVisible" title="分享报告" width="480px" :close-on-click-modal="false">
+      <template v-if="!shareLinkGenerated">
+        <p class="share-dialog__hint">选择有效期后生成分享链接，有效期内可免登录访问</p>
+        <el-radio-group v-model="shareExpiryDays" class="share-dialog__expiry">
+          <el-radio-button :value="1">1 天</el-radio-button>
+          <el-radio-button :value="7">7 天</el-radio-button>
+          <el-radio-button :value="30">30 天</el-radio-button>
+          <el-radio-button :value="90">90 天</el-radio-button>
+        </el-radio-group>
+        <div class="share-dialog__actions">
+          <el-button @click="shareDialogVisible = false">取消</el-button>
+          <el-button type="primary" :loading="shareSubmitting" @click="generateShareLink">
+            生成分享链接
+          </el-button>
+        </div>
+      </template>
+      <template v-else>
         <el-input v-model="shareUrl" readonly>
           <template #append>
             <el-button @click="copyShareUrl">复制</el-button>
           </template>
         </el-input>
         <p class="share-dialog__expires">有效期至：{{ formatDateTime(shareExpiresAt) }}</p>
-      </div>
+        <div class="share-dialog__actions">
+          <el-button @click="openShareDialog">重新生成</el-button>
+        </div>
+      </template>
     </el-dialog>
   </div>
 </template>
@@ -477,6 +503,19 @@ onMounted(loadDetail)
   font-size: var(--font-size-sm);
   color: var(--color-neutral-500);
   margin: 0 0 var(--space-sm);
+}
+
+.share-dialog__expiry {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+}
+
+.share-dialog__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-xs);
+  margin-top: var(--space-lg);
 }
 
 .share-dialog__expires {
