@@ -432,7 +432,7 @@
       "name": "Token 预置",
       "description": "从环境变量获取 Token 并注入请求头",
       "sortOrder": 0,
-      "config": "{\"handlerType\":\"http\",\"method\":\"POST\",\"url\":\"https://api.example.com/token\"}",
+      "config": "{\"testclass\":\"http\",\"config\":{\"method\":\"POST\",\"base_url\":\"https://api.example.com\",\"path\":\"/token\"},\"extractors\":[],\"enabled\":true}",
       "enabled": true,
       "updatedAt": "2026-08-17 10:30:00"
     }
@@ -452,17 +452,23 @@
   "name": "Token 预置",
   "description": "从环境变量获取 Token 并注入请求头",
   "scope": "project",
-  "sortOrder": 0,
+"sortOrder": 0,
   "config": {
-    "handlerType": "http",
-    "method": "POST",
-    "url": "https://api.example.com/token",
-    "contentType": "application/json",
-    "headers": [],
-    "body": "",
-    "enabled": true,
-    "extractors": []
+    "testclass": "http",
+    "config": {
+      "method": "POST",
+      "base_url": "https://api.example.com",
+      "path": "/token",
+      "http/2": false,
+      "headers": {},
+      "query": {},
+      "data": {},
+      "body": { "username": "${username}" }
+    },
+    "extractors": [],
+    "enabled": true
   }
+}
 }
 ```
 
@@ -709,15 +715,19 @@ Ryze 引擎执行完成后，平台收集执行结果并转换为平台自有格
 
 > **说明**：首期不提供处理器级异步与条件字段；启用/禁用与执行顺序统一通过基础信息的启用、排序号控制。排序号存储于组件顶层 `sort_order` 列（config 不承载），场景引入组件为处理器时按该字段升序插入。
 
-**「发送 HTTP 请求」处理器配置：**
+**「发送 HTTP 请求」处理器配置：**（字段与 Ryze HTTP 处理器配置项一一对应，存储即 Ryze 元件，执行直接透传，无执行层转换）
 
 | 字段 | 类型 | 必填 | 说明 |
 | ---- | ---- | ---- | ---- |
-| 请求方法 | select | 是 | GET / POST / PUT / PATCH / DELETE |
-| URL | text | 是 | 支持 `${变量名}` 引用 |
-| 请求头 | kv-table | 否 | 键值对编辑器，支持变量引用 |
-| Content-Type | select | 否 | application/json / application/x-www-form-urlencoded / multipart/form-data |
-| 请求体 | textarea / kv-table | 否 | 根据 Content-Type 切换：JSON 为 textarea，form-data 为 kv-table（支持文件类型） |
+| 请求方法 | select | 是 | GET / POST / PUT / PATCH / DELETE / HEAD / OPTIONS（缺省 GET） |
+| 基地址（base_url） | text | 是 | 接口基地址，支持 `${变量名}` 引用 |
+| 路径（path） | text | 否 | 接口路径，支持 `${变量名}` 引用 |
+| HTTP/2（http/2） | switch | 否 | 是否启用 HTTP/2 |
+| 请求头（headers） | kv-table | 否 | 键值对编辑器，保存为 Map；支持变量引用（如 `Content-Type`） |
+| Query 参数（query） | kv-table | 否 | URL 查询参数键值对，保存为 Map |
+| 请求体类型 | select | 否 | 无 / JSON / 表单（data）/ 原始文本（body）：JSON 与原始编译为 `body`（Object/String），表单编译为 `data`（Map），`body` 优先级高于 `data` |
+
+> HTTP `config` 对象仅含 Ryze 配置键：`method` / `base_url` / `path` / `http/2` / `headers` / `query` / `data` / `body`。平台 overlay 键（`enabled` / `sortOrder`/`extractors`）保存于元素顶层或实体列，不写入 `config`。
 
 **「执行 SQL」处理器配置：**
 
@@ -727,12 +737,14 @@ Ryze 引擎执行完成后，平台收集执行结果并转换为平台自有格
 | SQL 语句 | textarea | 是 | 支持 `${变量名}` 引用；执行前校验数据源连接 |
 | 参数 | list | 否 | SQL 占位符参数，仅值列表（对应 Ryze `args` 数组，按 `?` 占位顺序传入） |
 
-**平台 → Ryze 转换规则**（执行引擎层）：
+**元素结构与转换规则**（无执行层转换：处理器元素即 Ryze 元件，`config` 直接透传；前后置语义由承载实体的 `processorType` 列区分）：
 
-| 平台处理器类型 | → Ryze testclass | config 映射 |
-| ------------- | ----------------- | ----------- |
-| 发送 HTTP 请求 | `http` | method/method, URL/url, 请求头/headers, 请求体/body, Content-Type/body_type |
-| 执行 SQL | `jdbc` | 数据源/datasourceId, SQL 语句/sql, 参数/args |
+| 处理器类型 | `testclass` | `config` 键（与 Ryze 一致） |
+| ---------- | ----------- | ------------------------- |
+| 发送 HTTP 请求 | `http` | method / base_url / path / http/2 / headers / query / data / body |
+| 执行 SQL | `jdbc` | datasource / sql / args |
+
+> SQL 处理器 `datasource` 引用环境管理配置数据源的 `ref_name`；`args` 为 `?` 占位符参数数组。处理器元素顶层承载平台 overlay：`extractors`（提取器行列表）、`enabled`（启用）；`sortOrder` 保存于实体 `sort_order` 列。
 
 **提取器（可选）：** 处理器可携带提取器，从处理器响应中提取变量供后续步骤使用。提取器列表以子表形式嵌入处理器配置区底部，每行结构与 5.3.3 提取器配置完全一致（含启用开关，支持逐条启停）。支持：
 
