@@ -23,7 +23,6 @@ export interface HttpProcessorForm {
   method: string
   ref: string
   path: string
-  http2: boolean
   headerRows: ProcessorKvRow[]
   queryRows: ProcessorKvRow[]
   bodyKind: ProcessorBodyKind
@@ -85,10 +84,6 @@ export function isRecord(value: unknown): value is Record<string, unknown> {
 
 function pickString(value: unknown, fallback = ''): string {
   return typeof value === 'string' ? value : fallback
-}
-
-function pickBoolean(value: unknown): boolean {
-  return value === true
 }
 
 function pickStringMap(value: unknown): Record<string, string> {
@@ -156,7 +151,6 @@ export function parseHttpProcessorForm(element: Record<string, unknown> | undefi
     method: pickString(cfg.method, 'GET'),
     ref: pickString(cfg.ref),
     path: pickString(cfg.path),
-    http2: pickBoolean(cfg['http/2']),
     headerRows: mapToKvRows(headers),
     queryRows: mapToKvRows(query),
     bodyKind,
@@ -171,7 +165,6 @@ export function toHttpConfig(form: HttpProcessorForm): Record<string, unknown> {
   if (form.method && form.method !== 'GET') cfg.method = form.method
   if (form.ref.trim()) cfg.ref = form.ref.trim()
   if (form.path.trim()) cfg.path = form.path.trim()
-  if (form.http2) cfg['http/2'] = true
   const headers = kvRowsToMap(form.headerRows)
   if (Object.keys(headers).length > 0) cfg.headers = headers
   const query = kvRowsToMap(form.queryRows)
