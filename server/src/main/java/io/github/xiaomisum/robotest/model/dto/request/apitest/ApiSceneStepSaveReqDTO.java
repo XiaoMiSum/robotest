@@ -13,6 +13,9 @@ import java.util.UUID;
 @Data
 public class ApiSceneStepSaveReqDTO {
 
+    /** 已落库步骤的 id；为空表示新建（场景聚合保存时用于区分「更新/新建」，见测试场景详细设计 3.1.4） */
+    private UUID id;
+
     @NotBlank
     private String name;
 

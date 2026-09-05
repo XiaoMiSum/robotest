@@ -19,6 +19,11 @@ public class ApiScenePageItemRespDTO {
 
     private UUID environmentId;
 
+    private String priority;
+
+    /** 状态：draft（草稿）/ published（已发布） */
+    private String status;
+
     private Integer stepCount;
 
     /** 最近一次执行的完成时间，未执行过为空 */

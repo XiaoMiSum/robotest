@@ -1,13 +1,16 @@
 package io.github.xiaomisum.robotest.controller.apitest;
 
 import io.github.xiaomisum.robotest.framework.security.LoginUser;
+import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneDraftExecuteReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneExecuteReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneStepDebugReqDTO;
+import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneStepDraftDebugReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiChangeHistoryItemRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiExecutionCancelRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiExecutionHistoryItemRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiExecutionStartRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiExecutionStatusRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiSceneDraftExecuteRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiSceneStepDebugRespDTO;
 import io.github.xiaomisum.robotest.service.apitest.SceneExecutionService;
 import jakarta.annotation.Resource;
@@ -106,5 +109,29 @@ public class ApiSceneExecutionController {
             @RequestBody @Valid ApiSceneStepDebugReqDTO reqDTO) {
         return Result.ok(executionService.debugStep(workspaceId, projectId,
                 loginUser.getId(), sceneId, stepId, reqDTO));
+    }
+
+    // ========== 草稿调试/执行（创建态未保存场景，使用页面实时数据） ==========
+
+    @PostMapping("/api/project/api-scenes/draft/debug-step")
+    @PreAuthorize("hasAuthority('api-scene:execute')")
+    public Result<ApiSceneStepDebugRespDTO> draftDebugStep(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @RequestHeader("X-Active-Workspace") UUID workspaceId,
+            @RequestHeader("X-Active-Project") UUID projectId,
+            @RequestBody @Valid ApiSceneStepDraftDebugReqDTO reqDTO) {
+        return Result.ok(executionService.draftDebugStep(workspaceId, projectId,
+                loginUser.getId(), reqDTO));
+    }
+
+    @PostMapping("/api/project/api-scenes/draft/execute")
+    @PreAuthorize("hasAuthority('api-scene:execute')")
+    public Result<ApiSceneDraftExecuteRespDTO> draftExecute(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @RequestHeader("X-Active-Workspace") UUID workspaceId,
+            @RequestHeader("X-Active-Project") UUID projectId,
+            @RequestBody @Valid ApiSceneDraftExecuteReqDTO reqDTO) {
+        return Result.ok(executionService.draftExecute(workspaceId, projectId,
+                loginUser.getId(), reqDTO));
     }
 }

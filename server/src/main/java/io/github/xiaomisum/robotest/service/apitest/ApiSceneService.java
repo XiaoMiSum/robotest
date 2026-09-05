@@ -4,25 +4,16 @@ import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneAssetsImpo
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneBatchDeleteReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneCopyReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneCreateReqDTO;
-import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneInterfaceAssociateReqDTO;
-import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneInterfaceSyncModeReqDTO;
-import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneSettingsReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneStepCopyReqDTO;
-import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneStepPublicStepReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneStepQuickCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneStepReorderReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneStepSaveReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneStepVariableBatchReqDTO;
-import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneStepVariableImportReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneUpdateReqDTO;
-import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneVariableBatchReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiSceneAssetsImportRespDTO;
-import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiSceneAssociationItemRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiSceneDetailRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiScenePageItemRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiSceneQuickCreateRespDTO;
-import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiSceneSettingsRespDTO;
-import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiPublicStepBrowseItemRespDTO;
 import xyz.migoo.framework.common.pojo.PageParam;
 import xyz.migoo.framework.common.pojo.PageResult;
 
@@ -60,17 +51,6 @@ public interface ApiSceneService {
 
     void unfollow(UUID workspaceId, UUID projectId, UUID userId, UUID sceneId);
 
-    // ========== 公共步骤浏览 ==========
-
-    List<ApiPublicStepBrowseItemRespDTO> browsePublicSteps(UUID workspaceId, UUID projectId, UUID userId,
-            UUID sceneId);
-
-    void updateSettings(UUID workspaceId, UUID projectId, UUID userId, UUID sceneId,
-            ApiSceneSettingsReqDTO reqDTO);
-
-    void updateVariables(UUID workspaceId, UUID projectId, UUID userId, UUID sceneId,
-            ApiSceneVariableBatchReqDTO reqDTO);
-
     // ========== 步骤管理 ==========
 
     UUID createStep(UUID workspaceId, UUID projectId, UUID userId, UUID sceneId,
@@ -78,9 +58,6 @@ public interface ApiSceneService {
 
     ApiSceneQuickCreateRespDTO quickCreateSteps(UUID workspaceId, UUID projectId, UUID userId,
             UUID sceneId, ApiSceneStepQuickCreateReqDTO reqDTO);
-
-    UUID addPublicStep(UUID workspaceId, UUID projectId, UUID userId, UUID sceneId,
-            ApiSceneStepPublicStepReqDTO reqDTO);
 
     void updateStep(UUID workspaceId, UUID projectId, UUID userId, UUID sceneId, UUID stepId,
             ApiSceneStepSaveReqDTO reqDTO);
@@ -100,28 +77,6 @@ public interface ApiSceneService {
 
     void updateStepVariables(UUID workspaceId, UUID projectId, UUID userId, UUID sceneId, UUID stepId,
             ApiSceneStepVariableBatchReqDTO reqDTO);
-
-    List<Map<String, Object>> importStepVariables(UUID workspaceId, UUID projectId, UUID userId,
-            UUID sceneId, UUID stepId, ApiSceneStepVariableImportReqDTO reqDTO);
-
-    // ========== 场景关联接口 ==========
-
-    List<ApiSceneAssociationItemRespDTO> listAssociations(UUID workspaceId, UUID projectId, UUID userId,
-            UUID sceneId);
-
-    void associateInterfaces(UUID workspaceId, UUID projectId, UUID userId, UUID sceneId,
-            ApiSceneInterfaceAssociateReqDTO reqDTO);
-
-    /** 仅解除关联，不影响已导入步骤 */
-    void unassociateInterface(UUID workspaceId, UUID projectId, UUID userId, UUID sceneId,
-            UUID associationId);
-
-    void switchSyncMode(UUID workspaceId, UUID projectId, UUID userId, UUID sceneId, UUID associationId,
-            ApiSceneInterfaceSyncModeReqDTO reqDTO);
-
-    // ========== 场景设置 ==========
-
-    ApiSceneSettingsRespDTO getSettings(UUID workspaceId, UUID projectId, UUID userId, UUID sceneId);
 
     // ========== 全局资产引入 ==========
 

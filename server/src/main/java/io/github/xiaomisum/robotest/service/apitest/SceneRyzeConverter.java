@@ -156,13 +156,24 @@ public final class SceneRyzeConverter {
         Object content = bodyMap.get("content");
         switch (type) {
             case "none", "" -> config.remove("body");
-            // 表单负载以 data 传输，原 body 结构必须移除，避免引擎重复解析
+            // 表单负载以 data(map) 传输，原 body 结构必须移除，避免引擎重复解析
             case "form" -> {
                 config.remove("body");
-                config.put("data", content);
+                config.put("data", toFormData(content));
             }
             default -> config.put("body", content);
         }
+    }
+
+    /** 表单负载统一为 {key: value} map：场景编辑器发出 KV-数组行，转为 map 供 Ryze http data 使用 */
+    private static Map<String, Object> toFormData(Object content) {
+        Map<String, Object> data = new LinkedHashMap<>();
+        if (content instanceof Map<?, ?> map) {
+            map.forEach((k, v) -> data.put(k.toString(), v == null ? "" : str(v)));
+        } else if (content instanceof List<?>) {
+            mergeEntries(data, content);
+        }
+        return data;
     }
 
     // ========== 验证器（测试场景详细设计 4.2 转换表） ==========

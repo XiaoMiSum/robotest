@@ -23,6 +23,11 @@ public class ApiSceneDetailRespDTO {
 
     private UUID environmentId;
 
+    private String priority;
+
+    /** 状态：draft（草稿）/ published（已发布） */
+    private String status;
+
     /** 当前用户是否已关注该场景 */
     private Boolean followed;
 
@@ -31,12 +36,6 @@ public class ApiSceneDetailRespDTO {
 
     /** 场景级处理器 */
     private List<Map<String, Object>> processors;
-
-    /** all / continue */
-    private String failureRule;
-
-    /** {sharedEnabled, items:[...]} */
-    private Map<String, Object> cookieConfig;
 
     /** 乐观锁版本号，保存时回传 */
     private Integer changeVersion;

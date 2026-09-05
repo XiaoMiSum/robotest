@@ -1,12 +1,15 @@
 package io.github.xiaomisum.robotest.service.apitest;
 
+import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneDraftExecuteReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneExecuteReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneStepDebugReqDTO;
+import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneStepDraftDebugReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiChangeHistoryItemRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiExecutionCancelRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiExecutionHistoryItemRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiExecutionStartRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiExecutionStatusRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiSceneDraftExecuteRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiSceneStepDebugRespDTO;
 import xyz.migoo.framework.common.pojo.PageParam;
 import xyz.migoo.framework.common.pojo.PageResult;
@@ -30,6 +33,14 @@ public interface SceneExecutionService {
     /** 单步调试：同步执行，不产生执行记录与报告（测试场景详细设计 3.6.3） */
     ApiSceneStepDebugRespDTO debugStep(UUID workspaceId, UUID projectId, UUID userId, UUID sceneId,
             UUID stepId, ApiSceneStepDebugReqDTO reqDTO);
+
+    /** 草稿单步调试：创建态未保存场景，使用页面实时数据（测试场景详细设计 3.6.3） */
+    ApiSceneStepDebugRespDTO draftDebugStep(UUID workspaceId, UUID projectId, UUID userId,
+            ApiSceneStepDraftDebugReqDTO reqDTO);
+
+    /** 场景级草稿执行：创建态未保存场景，同步顺序执行全部草稿步骤（测试场景详细设计 3.6.4） */
+    ApiSceneDraftExecuteRespDTO draftExecute(UUID workspaceId, UUID projectId, UUID userId,
+            ApiSceneDraftExecuteReqDTO reqDTO);
 
     PageResult<ApiExecutionHistoryItemRespDTO> pageExecutions(UUID workspaceId, UUID projectId, UUID userId,
             UUID sceneId, PageParam pageParam);

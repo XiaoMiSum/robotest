@@ -4,28 +4,21 @@ import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.framework.security.ProjectAccessGuard;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneAssetsImportReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneCreateReqDTO;
-import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneInterfaceAssociateReqDTO;
-import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneSettingsReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneStepReorderReqDTO;
+import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneStepSaveReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiChangeHistory;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiInterface;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiScene;
-import io.github.xiaomisum.robotest.model.entity.apitest.ApiSceneInterface;
-import io.github.xiaomisum.robotest.model.entity.apitest.ApiSceneStep;
 import io.github.xiaomisum.robotest.model.entity.apitest.CommonComponent;
 import io.github.xiaomisum.robotest.repository.admin.SysUserMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiChangeHistoryMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiExecutionRecordMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiInterfaceMapper;
-import io.github.xiaomisum.robotest.repository.apitest.ApiInterfaceStepMapper;
-import io.github.xiaomisum.robotest.repository.apitest.ApiInterfaceVariableMapper;
-import io.github.xiaomisum.robotest.repository.apitest.ApiSceneInterfaceMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiSceneMapper;
-import io.github.xiaomisum.robotest.repository.apitest.ApiSceneStepMapper;
-import io.github.xiaomisum.robotest.repository.apitest.ApiSceneStepVariableMapper;
-import io.github.xiaomisum.robotest.repository.apitest.ApiScenarioVariableMapper;
+import io.github.xiaomisum.robotest.repository.apitest.ApiSceneFollowMapper;
 import io.github.xiaomisum.robotest.repository.apitest.CommonComponentMapper;
+import io.github.xiaomisum.robotest.repository.apitest.ApiScheduledTaskMapper;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -34,14 +27,17 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import xyz.migoo.framework.common.exception.ServiceException;
 
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -54,18 +50,9 @@ class ApiSceneServiceImplTest {
     private static final UUID USER_ID = UUID.randomUUID();
     private static final UUID SCENE_ID = UUID.randomUUID();
     private static final int CODE_7205 = 1000017303;
-    private static final int CODE_7208 = 1000017306;
 
     @Mock
     private ApiSceneMapper sceneMapper;
-    @Mock
-    private ApiSceneStepMapper stepMapper;
-    @Mock
-    private ApiSceneStepVariableMapper stepVariableMapper;
-    @Mock
-    private ApiScenarioVariableMapper scenarioVariableMapper;
-    @Mock
-    private ApiSceneInterfaceMapper sceneInterfaceMapper;
     @Mock
     private ApiExecutionRecordMapper executionRecordMapper;
     @Mock
@@ -73,15 +60,15 @@ class ApiSceneServiceImplTest {
     @Mock
     private ApiInterfaceMapper interfaceMapper;
     @Mock
-    private ApiInterfaceStepMapper interfaceStepMapper;
-    @Mock
-    private ApiInterfaceVariableMapper interfaceVariableMapper;
-    @Mock
     private SysUserMapper userMapper;
     @Mock
     private CommonComponentMapper componentMapper;
     @Mock
     private ProjectAccessGuard projectAccessGuard;
+    @Mock
+    private ApiSceneFollowMapper sceneFollowMapper;
+    @Mock
+    private ApiScheduledTaskMapper scheduledTaskMapper;
 
     @InjectMocks
     private ApiSceneServiceImpl service;
@@ -92,6 +79,7 @@ class ApiSceneServiceImplTest {
         scene.setProjectId(PROJECT_ID);
         scene.setName("登录链路");
         scene.setChangeVersion(3);
+        scene.setSteps(new ArrayList<>());
         return scene;
     }
 
@@ -99,21 +87,41 @@ class ApiSceneServiceImplTest {
         when(sceneMapper.selectById(SCENE_ID)).thenReturn(existingScene());
     }
 
+    private ApiScene existingSceneWithStep(Map<String, Object> step) {
+        ApiScene scene = existingScene();
+        scene.setSteps(new ArrayList<>(List.of(step)));
+        return scene;
+    }
+
+    private Map<String, Object> makeStep(String name) {
+        Map<String, Object> step = new LinkedHashMap<>();
+        step.put("id", UUID.randomUUID());
+        step.put("name", name);
+        step.put("stepType", "http");
+        step.put("sortOrder", 1);
+        step.put("enabled", true);
+        step.put("sourceType", "custom");
+        step.put("requestConfig", Map.of());
+        step.put("processors", List.of());
+        step.put("validators", List.of());
+        step.put("extractors", List.of());
+        step.put("variables", List.of());
+        return step;
+    }
+
     // ========== 创建 ==========
 
     @Test
-    void createDefaultsFailureRuleAndWritesFirstHistoryVersion() {
+    void createWritesFirstHistoryVersion() {
         when(changeHistoryMapper.selectMaxVersion(org.mockito.ArgumentMatchers.anyString(),
                 org.mockito.ArgumentMatchers.any())).thenReturn(0);
-        when(scenarioVariableMapper.listBySceneId(org.mockito.ArgumentMatchers.any())).thenReturn(List.of());
 
         service.create(WORKSPACE_ID, PROJECT_ID, USER_ID, new ApiSceneCreateReqDTO());
 
         ArgumentCaptor<ApiScene> sceneCaptor = ArgumentCaptor.forClass(ApiScene.class);
         verify(sceneMapper).insert(sceneCaptor.capture());
         UUID createdId = sceneCaptor.getValue().getId();
-        org.junit.jupiter.api.Assertions.assertNotNull(createdId);
-        assertEquals("all", sceneCaptor.getValue().getFailureRule());
+        assertNotNull(createdId);
         assertEquals(1, sceneCaptor.getValue().getChangeVersion());
 
         ArgumentCaptor<ApiChangeHistory> historyCaptor = ArgumentCaptor.forClass(ApiChangeHistory.class);
@@ -123,12 +131,30 @@ class ApiSceneServiceImplTest {
     }
 
     @Test
-    void createRejectsUnknownFailureRule() {
+    void createPersistsStepsWithSequentialSortOrder() {
+        when(changeHistoryMapper.selectMaxVersion(org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.any())).thenReturn(0);
+
+        ApiSceneStepSaveReqDTO first = new ApiSceneStepSaveReqDTO();
+        first.setName("登录");
+        first.setStepType("http");
+        ApiSceneStepSaveReqDTO second = new ApiSceneStepSaveReqDTO();
+        second.setName("退出");
+        second.setStepType("http");
         ApiSceneCreateReqDTO reqDTO = new ApiSceneCreateReqDTO();
-        reqDTO.setFailureRule("sometimes");
-        ServiceException ex = assertThrows(ServiceException.class,
-                () -> service.create(WORKSPACE_ID, PROJECT_ID, USER_ID, reqDTO));
-        assertEquals(1000017304, ex.getCode());
+        reqDTO.setSteps(List.of(first, second));
+
+        service.create(WORKSPACE_ID, PROJECT_ID, USER_ID, reqDTO);
+
+        ArgumentCaptor<ApiScene> sceneCaptor = ArgumentCaptor.forClass(ApiScene.class);
+        verify(sceneMapper).insert(sceneCaptor.capture());
+        ApiScene inserted = sceneCaptor.getValue();
+        assertNotNull(inserted.getSteps());
+        assertEquals(2, inserted.getSteps().size());
+        assertEquals("登录", inserted.getSteps().get(0).get("name"));
+        assertEquals(1, inserted.getSteps().get(0).get("sortOrder"));
+        assertEquals("退出", inserted.getSteps().get(1).get("name"));
+        assertEquals(2, inserted.getSteps().get(1).get("sortOrder"));
     }
 
     // ========== 更新（乐观锁） ==========
@@ -160,64 +186,63 @@ class ApiSceneServiceImplTest {
         verify(changeHistoryMapper).insert(any(ApiChangeHistory.class));
     }
 
-    // ========== 设置（不递增 changeVersion） ==========
-
     @Test
-    void updateSettingsKeepsChangeVersionUntouched() {
+    void updatePersistsStepsInSceneStepsColumn() {
         stubScene();
-        ApiSceneSettingsReqDTO reqDTO = new ApiSceneSettingsReqDTO();
-        reqDTO.setFailureRule("continue");
-        when(changeHistoryMapper.selectMaxVersion("scene", SCENE_ID)).thenReturn(4);
+        UUID existingStepId = UUID.randomUUID();
+        Map<String, Object> existingStep = makeStep("登录");
+        existingStep.put("id", existingStepId);
+        existingStep.put("sortOrder", 1);
+        // 模拟场景中已有该步骤
+        ApiScene sceneWithStep = existingScene();
+        sceneWithStep.setSteps(new ArrayList<>(List.of(existingStep)));
+        when(sceneMapper.selectById(SCENE_ID)).thenReturn(sceneWithStep);
 
-        service.updateSettings(WORKSPACE_ID, PROJECT_ID, USER_ID, SCENE_ID, reqDTO);
+        ApiSceneStepSaveReqDTO existing = new ApiSceneStepSaveReqDTO();
+        existing.setId(existingStepId);
+        existing.setName("登录");
+        existing.setStepType("http");
+        existing.setSortOrder(1);
+        ApiSceneStepSaveReqDTO fresh = new ApiSceneStepSaveReqDTO();
+        fresh.setName("退出");
+        fresh.setStepType("http");
+        fresh.setSortOrder(2);
+        ApiSceneUpdateReqDTO reqDTO = new ApiSceneUpdateReqDTO();
+        reqDTO.setName("新名字");
+        reqDTO.setChangeVersion(3);
+        reqDTO.setSteps(List.of(existing, fresh));
+        when(sceneMapper.update(any(), any())).thenReturn(1);
+        when(changeHistoryMapper.selectMaxVersion(org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.any())).thenReturn(0);
 
+        service.update(WORKSPACE_ID, PROJECT_ID, USER_ID, SCENE_ID, reqDTO);
+
+        // 验证 sceneMapper.updateById 被调用，且携带 steps（含更新后已有的 + 新增的）
         ArgumentCaptor<ApiScene> captor = ArgumentCaptor.forClass(ApiScene.class);
-        verify(sceneMapper).updateById(captor.capture());
-        assertNull(captor.getValue().getChangeVersion());
-        assertEquals("continue", captor.getValue().getFailureRule());
-    }
-
-    // ========== 关联接口 ==========
-
-    @Test
-    void associateRejectsDuplicateAssociation() {
-        stubScene();
-        UUID interfaceId = UUID.randomUUID();
-        ApiInterface apiInterface = new ApiInterface();
-        apiInterface.setId(interfaceId);
-        apiInterface.setProjectId(PROJECT_ID);
-        when(interfaceMapper.selectById(interfaceId)).thenReturn(apiInterface);
-        when(sceneInterfaceMapper.selectBySceneAndInterface(SCENE_ID, interfaceId))
-                .thenReturn(new ApiSceneInterface());
-
-        ApiSceneInterfaceAssociateReqDTO reqDTO = new ApiSceneInterfaceAssociateReqDTO();
-        reqDTO.setSyncMode("link");
-        reqDTO.setInterfaceIds(java.util.List.of(interfaceId));
-
-        ServiceException ex = assertThrows(ServiceException.class,
-                () -> service.associateInterfaces(WORKSPACE_ID, PROJECT_ID, USER_ID, SCENE_ID, reqDTO));
-        assertEquals(CODE_7208, ex.getCode().longValue());
+        verify(sceneMapper, times(1)).updateById(captor.capture());
+        ApiScene carrier = captor.getValue();
+        assertNotNull(carrier.getSteps());
+        // 已有步骤被保留（partial update），加上新增的一步 = 2 步
+        assertEquals(2, carrier.getSteps().size());
+        assertEquals("退出", carrier.getSteps().get(1).get("name"));
     }
 
     @Test
-    void associateInsertsWithNormalizedMode() {
+    void updateWithInvalidStepAbortsBeforeHistoryWrite() {
         stubScene();
-        UUID interfaceId = UUID.randomUUID();
-        ApiInterface apiInterface = new ApiInterface();
-        apiInterface.setId(interfaceId);
-        apiInterface.setProjectId(PROJECT_ID);
-        when(interfaceMapper.selectById(interfaceId)).thenReturn(apiInterface);
-        when(sceneInterfaceMapper.selectBySceneAndInterface(SCENE_ID, interfaceId)).thenReturn(null);
+        ApiSceneStepSaveReqDTO invalid = new ApiSceneStepSaveReqDTO();
+        invalid.setName("非法");
+        invalid.setStepType("ftp");
+        ApiSceneUpdateReqDTO reqDTO = new ApiSceneUpdateReqDTO();
+        reqDTO.setName("新名字");
+        reqDTO.setChangeVersion(3);
+        reqDTO.setSteps(List.of(invalid));
+        when(sceneMapper.update(any(), any())).thenReturn(1);
 
-        ApiSceneInterfaceAssociateReqDTO reqDTO = new ApiSceneInterfaceAssociateReqDTO();
-        reqDTO.setSyncMode("copy");
-        reqDTO.setInterfaceIds(java.util.List.of(interfaceId));
-
-        service.associateInterfaces(WORKSPACE_ID, PROJECT_ID, USER_ID, SCENE_ID, reqDTO);
-
-        ArgumentCaptor<ApiSceneInterface> captor = ArgumentCaptor.forClass(ApiSceneInterface.class);
-        verify(sceneInterfaceMapper).insert(captor.capture());
-        assertEquals("copy", captor.getValue().getSyncMode());
+        assertThrows(ServiceException.class,
+                () -> service.update(WORKSPACE_ID, PROJECT_ID, USER_ID, SCENE_ID, reqDTO));
+        // 步骤校验失败中止历史写入（真实事务整体回滚，change_version 不会误增）
+        verify(changeHistoryMapper, times(0)).insert(any(ApiChangeHistory.class));
     }
 
     // ========== 步骤重排 ==========
@@ -225,37 +250,41 @@ class ApiSceneServiceImplTest {
     @Test
     void reorderRejectsForeignStepIds() {
         UUID owned = UUID.randomUUID();
-        ApiSceneStep step = new ApiSceneStep();
-        step.setId(owned);
-        step.setSceneId(SCENE_ID);
-        when(stepMapper.listBySceneId(SCENE_ID)).thenReturn(List.of(step));
+        Map<String, Object> step = makeStep("步骤A");
+        step.put("id", owned);
+        ApiScene sceneWithSteps = existingScene();
+        sceneWithSteps.setSteps(new ArrayList<>(List.of(step)));
+        when(sceneMapper.selectById(SCENE_ID)).thenReturn(sceneWithSteps);
 
         ApiSceneStepReorderReqDTO reqDTO = new ApiSceneStepReorderReqDTO();
         reqDTO.setStepIds(List.of(owned, UUID.randomUUID()));
 
-        ServiceException ex = assertThrows(ServiceException.class,
+        assertThrows(ServiceException.class,
                 () -> service.reorderSteps(WORKSPACE_ID, PROJECT_ID, USER_ID, SCENE_ID, reqDTO));
-        assertEquals(1000017305, ex.getCode());
-        verify(stepMapper, org.mockito.Mockito.never()).reorder(any(), any());
     }
 
     @Test
     void reorderAppliesIncomingOrderForOwnedSteps() {
         UUID first = UUID.randomUUID();
         UUID second = UUID.randomUUID();
-        ApiSceneStep stepA = new ApiSceneStep();
-        stepA.setId(first);
-        stepA.setSceneId(SCENE_ID);
-        ApiSceneStep stepB = new ApiSceneStep();
-        stepB.setId(second);
-        stepB.setSceneId(SCENE_ID);
-        when(stepMapper.listBySceneId(SCENE_ID)).thenReturn(List.of(stepA, stepB));
+        Map<String, Object> stepA = makeStep("A");
+        stepA.put("id", first);
+        Map<String, Object> stepB = makeStep("B");
+        stepB.put("id", second);
+        ApiScene sceneWithSteps = existingScene();
+        sceneWithSteps.setSteps(new ArrayList<>(List.of(stepA, stepB)));
+        when(sceneMapper.selectById(SCENE_ID)).thenReturn(sceneWithSteps);
 
         ApiSceneStepReorderReqDTO reqDTO = new ApiSceneStepReorderReqDTO();
         reqDTO.setStepIds(List.of(second, first));
         service.reorderSteps(WORKSPACE_ID, PROJECT_ID, USER_ID, SCENE_ID, reqDTO);
 
-        verify(stepMapper).reorder(SCENE_ID, List.of(second, first));
+        // 验证步骤顺序被重排并持久化
+        ArgumentCaptor<ApiScene> captor = ArgumentCaptor.forClass(ApiScene.class);
+        verify(sceneMapper).updateById(captor.capture());
+        ApiScene carrier = captor.getValue();
+        assertEquals(second, carrier.getSteps().get(0).get("id"));
+        assertEquals(first, carrier.getSteps().get(1).get("id"));
     }
 
     // ========== 全局资产引入 ==========
