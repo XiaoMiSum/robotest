@@ -2,40 +2,48 @@ package io.github.xiaomisum.robotest.service.apitest;
 
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.framework.security.ProjectAccessGuard;
+import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiDataSourceTestReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiEnvironmentCopyReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiEnvironmentSaveReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiEnvironmentSortReqDTO;
+import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiEnvironmentVariableCreateReqDTO;
+import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiHttpConfigTestReqDTO;
+import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiDataSourceTestRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiEnvImportResultRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiEnvironmentDetailRespDTO;
-import io.github.xiaomisum.robotest.model.entity.apitest.ApiDataSource;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiEnvironment;
-import io.github.xiaomisum.robotest.model.entity.apitest.ApiEnvironmentHttp;
-import io.github.xiaomisum.robotest.model.entity.apitest.ApiEnvironmentProcessor;
-import io.github.xiaomisum.robotest.model.entity.apitest.ApiEnvironmentVariable;
-import io.github.xiaomisum.robotest.repository.apitest.ApiDataSourceMapper;
-import io.github.xiaomisum.robotest.repository.apitest.ApiEnvironmentHttpMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiEnvironmentMapper;
-import io.github.xiaomisum.robotest.repository.apitest.ApiEnvironmentProcessorMapper;
-import io.github.xiaomisum.robotest.repository.apitest.ApiEnvironmentVariableMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiScheduledTaskMapper;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.Captor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.mock.web.MockMultipartFile;
 import xyz.migoo.framework.common.exception.ServiceException;
+import xyz.migoo.framework.common.util.JsonUtils;
 
+import java.net.http.HttpResponse;
+import java.sql.Connection;
+import java.sql.DatabaseMetaData;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.never;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -50,27 +58,14 @@ class ApiEnvironmentServiceImplTest {
     @Mock
     private ApiEnvironmentMapper environmentMapper;
     @Mock
-    private ApiEnvironmentHttpMapper httpMapper;
-    @Mock
-    private ApiEnvironmentVariableMapper variableMapper;
-    @Mock
-    private ApiDataSourceMapper dataSourceMapper;
-    @Mock
-    private ApiEnvironmentProcessorMapper processorMapper;
+    private ApiScheduledTaskMapper scheduledTaskMapper;
     @Mock
     private ProjectAccessGuard projectAccessGuard;
-    @Mock
-    private ApiScheduledTaskMapper scheduledTaskMapper;
 
     @InjectMocks
     private ApiEnvironmentServiceImpl service;
 
-    @Captor
-    private ArgumentCaptor<List<ApiEnvironmentHttp>> httpListCaptor;
-    @Captor
-    private ArgumentCaptor<List<ApiEnvironmentVariable>> varListCaptor;
-
-    private void stubExistingEnv() {
+    private void stubExistingEnv(List<Map<String, Object>> variables, List<Map<String, Object>> dataSources) {
         ApiEnvironment env = new ApiEnvironment();
         env.setId(ENV_ID);
         env.setProjectId(PROJECT_ID);
@@ -78,7 +73,20 @@ class ApiEnvironmentServiceImplTest {
         env.setScope("project");
         env.setIsDefault(true);
         env.setSortOrder(0);
+        env.setHttpConfigs(httpConfig("https://staging.example.com"));
+        env.setVariables(new ArrayList<>(variables));
+        env.setDataSources(new ArrayList<>(dataSources));
+        env.setProcessors(List.of());
         when(environmentMapper.selectById(ENV_ID)).thenReturn(env);
+    }
+
+    private static List<Map<String, Object>> httpConfig(String baseUrl) {
+        Map<String, Object> http = new LinkedHashMap<>();
+        http.put("name", "内部 API");
+        http.put("refName", "http_1");
+        http.put("baseUrl", baseUrl);
+        http.put("headers", List.of());
+        return new ArrayList<>(List.of(http));
     }
 
     private static ApiEnvironmentSaveReqDTO fullReq() {
@@ -92,9 +100,7 @@ class ApiEnvironmentServiceImplTest {
         http.setBaseUrl("https://staging.example.com");
         req.setHttpConfigs(List.of(http));
 
-        ApiEnvironmentSaveReqDTO.Variable base = variable("BASE_URL", "https://staging.example.com");
-        ApiEnvironmentSaveReqDTO.Variable password = variable("TEST_PASSWORD", "123456");
-        req.setVariables(List.of(base, password));
+        req.setVariables(List.of(variable("BASE_URL", "https://staging.example.com"), variable("TEST_PASSWORD", "123456")));
 
         ApiEnvironmentSaveReqDTO.DataSource ds = new ApiEnvironmentSaveReqDTO.DataSource();
         ds.setName("测试库");
@@ -118,6 +124,12 @@ class ApiEnvironmentServiceImplTest {
         return v;
     }
 
+    private ApiEnvironment capturedInsert() {
+        ArgumentCaptor<ApiEnvironment> captor = ArgumentCaptor.forClass(ApiEnvironment.class);
+        verify(environmentMapper).insert(captor.capture());
+        return captor.getValue();
+    }
+
     // ==================== 创建 ====================
 
     @Test
@@ -136,14 +148,10 @@ class ApiEnvironmentServiceImplTest {
 
         service.createEnvironment(PROJECT_ID, WORKSPACE_ID, USER_ID, req);
 
-        ArgumentCaptor<ApiEnvironment> envCaptor = ArgumentCaptor.forClass(ApiEnvironment.class);
-        verify(environmentMapper).insert(envCaptor.capture());
-        assertEquals("project", envCaptor.getValue().getScope());
-
-        verify(httpMapper).insertBatch(httpListCaptor.capture());
-        List<ApiEnvironmentHttp> rows = httpListCaptor.getValue();
-        assertEquals(1, rows.size());
-        assertEquals("默认配置", rows.getFirst().getName());
+        ApiEnvironment env = capturedInsert();
+        assertEquals("project", env.getScope());
+        assertEquals(1, env.getHttpConfigs().size());
+        assertEquals("默认配置", env.getHttpConfigs().get(0).get("name"));
     }
 
     @Test
@@ -152,12 +160,9 @@ class ApiEnvironmentServiceImplTest {
 
         service.createEnvironment(PROJECT_ID, WORKSPACE_ID, USER_ID, fullReq());
 
-        verify(variableMapper).insertBatch(varListCaptor.capture());
-        ApiEnvironmentVariable password = varListCaptor.getValue().stream()
-                .filter(v -> "TEST_PASSWORD".equals(v.getName())).findFirst().orElseThrow();
-        assertEquals("123456", password.getValue());
-        assertEquals("https://staging.example.com", varListCaptor.getValue().stream()
-                .filter(v -> "BASE_URL".equals(v.getName())).findFirst().orElseThrow().getValue());
+        ApiEnvironment env = capturedInsert();
+        assertEquals("123456", variableValue(env, "TEST_PASSWORD"));
+        assertEquals("https://staging.example.com", variableValue(env, "BASE_URL"));
     }
 
     @Test
@@ -208,49 +213,49 @@ class ApiEnvironmentServiceImplTest {
     }
 
     @Test
-    void updateEnvironment_promoteToDefault_clearsOthersAndReplacesChildren() {
-        stubExistingEnv();
+    void updateEnvironment_promoteToDefault_clearsOthersAndReplacesAggregate() {
+        stubExistingEnv(List.of(), List.of());
         ApiEnvironment existing = environmentMapper.selectById(ENV_ID);
         existing.setIsDefault(false);
         when(environmentMapper.existsByProjectIdAndName(PROJECT_ID, "测试环境", ENV_ID)).thenReturn(false);
-        when(variableMapper.listByEnvironmentId(ENV_ID)).thenReturn(List.of());
 
         ApiEnvironmentSaveReqDTO req = fullReq();
         req.setIsDefault(true);
         service.updateEnvironment(PROJECT_ID, WORKSPACE_ID, USER_ID, ENV_ID, req);
 
         verify(environmentMapper).clearDefaultByProjectId(PROJECT_ID);
-        verify(httpMapper).deleteByEnvironmentId(ENV_ID);
-        verify(variableMapper).deleteByEnvironmentId(ENV_ID);
-        verify(dataSourceMapper).deleteByEnvironmentId(ENV_ID);
-        verify(processorMapper).deleteByEnvironmentId(ENV_ID);
+        ArgumentCaptor<ApiEnvironment> captor = ArgumentCaptor.forClass(ApiEnvironment.class);
+        verify(environmentMapper).updateById(captor.capture());
+        ApiEnvironment update = captor.getValue();
+        // 聚合资源整批替换写入主表 JSONB
+        assertEquals(1, update.getHttpConfigs().size());
+        assertEquals(2, update.getVariables().size());
+        assertEquals(1, update.getProcessors().size());
+        assertEquals(1, update.getDataSources().size());
     }
 
     @Test
     void updateEnvironment_blankVariableValueStoredAsIs() {
-        stubExistingEnv();
+        stubExistingEnv(List.of(), List.of());
         when(environmentMapper.existsByProjectIdAndName(PROJECT_ID, "测试环境", ENV_ID)).thenReturn(false);
 
-        // 变量值留空提交：明文存储语义下直接落空值，无密文沿用逻辑
         ApiEnvironmentSaveReqDTO req = fullReq();
         req.getVariables().stream()
                 .filter(v -> "TEST_PASSWORD".equals(v.getName())).findFirst().orElseThrow().setValue(null);
         service.updateEnvironment(PROJECT_ID, WORKSPACE_ID, USER_ID, ENV_ID, req);
 
-        ArgumentCaptor<List<ApiEnvironmentVariable>> captor = ArgumentCaptor.captor();
-        verify(variableMapper).insertBatch(captor.capture());
-        assertNull(captor.getValue().stream()
-                .filter(v -> "TEST_PASSWORD".equals(v.getName())).findFirst().orElseThrow().getValue());
+        ArgumentCaptor<ApiEnvironment> captor = ArgumentCaptor.forClass(ApiEnvironment.class);
+        verify(environmentMapper).updateById(captor.capture());
+        assertNull(captor.getValue().getVariables().stream()
+                .filter(v -> "TEST_PASSWORD".equals(v.get("name"))).findFirst().orElseThrow().get("value"));
     }
 
     @Test
-    void deleteEnvironment_removesChildrenThenEnv_protectionStubPasses() {
-        stubExistingEnv();
+    void deleteEnvironment_deletesEnvOnly() {
+        stubExistingEnv(List.of(), List.of());
 
         service.deleteEnvironment(PROJECT_ID, WORKSPACE_ID, USER_ID, ENV_ID);
 
-        verify(httpMapper).deleteByEnvironmentId(ENV_ID);
-        verify(dataSourceMapper).deleteByEnvironmentId(ENV_ID);
         verify(environmentMapper).deleteById(ENV_ID);
     }
 
@@ -258,7 +263,7 @@ class ApiEnvironmentServiceImplTest {
 
     @Test
     void setDefaultEnvironment_clearsAllThenMarksTarget() {
-        stubExistingEnv();
+        stubExistingEnv(List.of(), List.of());
 
         var resp = service.setDefaultEnvironment(PROJECT_ID, WORKSPACE_ID, USER_ID, ENV_ID);
 
@@ -272,7 +277,7 @@ class ApiEnvironmentServiceImplTest {
 
     @Test
     void sortEnvironment_updatesSortOrderOnly() {
-        stubExistingEnv();
+        stubExistingEnv(List.of(), List.of());
 
         ApiEnvironmentSortReqDTO req = new ApiEnvironmentSortReqDTO();
         req.setSortOrder(3);
@@ -289,19 +294,10 @@ class ApiEnvironmentServiceImplTest {
 
     @Test
     void getEnvironment_returnsVariablePlaintext() {
-        stubExistingEnv();
-        ApiEnvironmentVariable password = new ApiEnvironmentVariable();
-        password.setId(UUID.randomUUID());
-        password.setName("TEST_PASSWORD");
-        password.setValue("123456");
-        ApiEnvironmentVariable plain = new ApiEnvironmentVariable();
-        plain.setId(UUID.randomUUID());
-        plain.setName("BASE_URL");
-        plain.setValue("https://staging.example.com");
-        when(variableMapper.listByEnvironmentId(ENV_ID)).thenReturn(List.of(password, plain));
-        when(httpMapper.listByEnvironmentId(ENV_ID)).thenReturn(List.of());
-        when(dataSourceMapper.listByEnvironmentId(ENV_ID)).thenReturn(List.of());
-        when(processorMapper.listByEnvironmentIdAndType(ENV_ID, null)).thenReturn(List.of());
+        List<Map<String, Object>> variables = new ArrayList<>();
+        variables.add(variableRow("TEST_PASSWORD", "123456"));
+        variables.add(variableRow("BASE_URL", "https://staging.example.com"));
+        stubExistingEnv(variables, List.of());
 
         ApiEnvironmentDetailRespDTO detail = service.getEnvironment(PROJECT_ID, WORKSPACE_ID, USER_ID, ENV_ID);
 
@@ -309,35 +305,18 @@ class ApiEnvironmentServiceImplTest {
                 .filter(v -> "TEST_PASSWORD".equals(v.getName())).findFirst().orElseThrow();
         assertEquals("123456", pwd.getValue());
         assertTrue(pwd.getHasValue());
-        ApiEnvironmentDetailRespDTO.Variable textVar = detail.getVariables().stream()
-                .filter(v -> "BASE_URL".equals(v.getName())).findFirst().orElseThrow();
-        assertEquals("https://staging.example.com", textVar.getValue());
+        assertEquals("https://staging.example.com", detail.getVariables().stream()
+                .filter(v -> "BASE_URL".equals(v.getName())).findFirst().orElseThrow().getValue());
     }
 
     @Test
     void copyEnvironment_copiesVariablesWithValuesNoDataSources() {
-        stubExistingEnv();
-        ApiEnvironmentHttp http = new ApiEnvironmentHttp();
-        http.setId(UUID.randomUUID());
-        http.setEnvironmentId(ENV_ID);
-        http.setName("内部 API");
-        http.setRefName("http_1");
-        http.setBaseUrl("https://staging.example.com");
-        when(httpMapper.listByEnvironmentId(ENV_ID)).thenReturn(List.of(http));
-        ApiEnvironmentVariable token = new ApiEnvironmentVariable();
-        token.setId(UUID.randomUUID());
-        token.setName("TOKEN");
-        token.setValue("abc123");
-        ApiEnvironmentVariable plain = new ApiEnvironmentVariable();
-        plain.setId(UUID.randomUUID());
-        plain.setName("BASE_URL");
-        plain.setValue("https://x");
-        when(variableMapper.listByEnvironmentId(ENV_ID)).thenReturn(List.of(token, plain));
-        when(processorMapper.listByEnvironmentIdAndType(ENV_ID, null)).thenReturn(List.of());
-        ApiDataSource ds = new ApiDataSource();
-        ds.setId(UUID.randomUUID());
-        ds.setEnvironmentId(ENV_ID);
-        when(dataSourceMapper.listByEnvironmentId(ENV_ID)).thenReturn(List.of(ds));
+        List<Map<String, Object>> variables = new ArrayList<>();
+        variables.add(variableRow("TOKEN", "abc123"));
+        variables.add(variableRow("BASE_URL", "https://x"));
+        List<Map<String, Object>> dataSources = new ArrayList<>();
+        dataSources.add(dataSourceRow());
+        stubExistingEnv(variables, dataSources);
         when(environmentMapper.listByProject(PROJECT_ID, null)).thenReturn(List.of());
         when(environmentMapper.existsByProjectIdAndName(PROJECT_ID, "预发环境（副本）", null)).thenReturn(false);
 
@@ -346,12 +325,229 @@ class ApiEnvironmentServiceImplTest {
         service.copyEnvironment(PROJECT_ID, WORKSPACE_ID, USER_ID, ENV_ID, req);
 
         // 数据源不复制（详细设计 3.1.11）
-        verify(dataSourceMapper, never()).insertBatch(any());
-        // 变量随副本落库且保留取值（明文存储，无脱敏排除逻辑）
-        verify(variableMapper).insertBatch(varListCaptor.capture());
-        assertEquals(2, varListCaptor.getValue().size());
-        ApiEnvironmentVariable copiedToken = varListCaptor.getValue().stream()
-                .filter(v -> "TOKEN".equals(v.getName())).findFirst().orElseThrow();
-        assertEquals("abc123", copiedToken.getValue());
+        ApiEnvironment copy = capturedInsert();
+        assertTrue(copy.getDataSources().isEmpty());
+        // 变量随副本写入主表 JSONB 且保留取值
+        assertEquals(2, copy.getVariables().size());
+        assertEquals("abc123", copy.getVariables().stream()
+                .filter(v -> "TOKEN".equals(v.get("name"))).findFirst().orElseThrow().get("value"));
+    }
+
+    private static Map<String, Object> variableRow(String name, String value) {
+        Map<String, Object> row = new LinkedHashMap<>();
+        row.put("name", name);
+        row.put("value", value);
+        row.put("description", null);
+        return row;
+    }
+
+    private static Map<String, Object> dataSourceRow() {
+        Map<String, Object> row = new LinkedHashMap<>();
+        row.put("name", "测试库");
+        row.put("refName", "test_db");
+        row.put("driver", "org.postgresql.Driver");
+        row.put("url", "jdbc:postgresql://db:5432/test");
+        return row;
+    }
+
+    private static String variableValue(ApiEnvironment env, String name) {
+        return env.getVariables().stream()
+                .filter(v -> name.equals(v.get("name"))).findFirst().orElseThrow()
+                .get("value").toString();
+    }
+
+    /** 空聚合环境：仅承载 id/projectId，JSONB 列表为空，供导出/连接测试/添加变量使用 */
+    private void stubEmptyEnv() {
+        ApiEnvironment env = new ApiEnvironment();
+        env.setId(ENV_ID);
+        env.setProjectId(PROJECT_ID);
+        env.setHttpConfigs(List.of());
+        env.setVariables(new ArrayList<>());
+        env.setDataSources(new ArrayList<>());
+        env.setProcessors(List.of());
+        when(environmentMapper.selectById(ENV_ID)).thenReturn(env);
+    }
+
+    // ==================== 导出（3.1.9） ====================
+
+    @Test
+    void exportEnvironment_excludesDataSourcesForMasking() {
+        List<Map<String, Object>> variables = new ArrayList<>();
+        variables.add(variableRow("K", "v"));
+        stubExistingEnv(variables, List.of(dataSourceRow()));
+
+        var detail = service.exportEnvironment(PROJECT_ID, WORKSPACE_ID, USER_ID, ENV_ID);
+
+        // 凭据内嵌于连接 URL 无法部分脱敏，导出必须整段排除数据源（需求 3.7.1 导出脱敏）
+        assertTrue(detail.getDataSources().isEmpty());
+        assertEquals(1, detail.getVariables().size());
+    }
+
+    // ==================== 添加变量（3.3.2） ====================
+
+    @Test
+    void addVariableFromResult_duplicateNameThrows() {
+        stubEmptyEnv();
+        ApiEnvironment env = environmentMapper.selectById(ENV_ID);
+        env.getVariables().add(variableRow("orderNo", "1"));
+
+        ApiEnvironmentVariableCreateReqDTO req = new ApiEnvironmentVariableCreateReqDTO();
+        req.setName("orderNo");
+        ServiceException ex = assertThrows(ServiceException.class,
+                () -> service.addVariableFromResult(PROJECT_ID, WORKSPACE_ID, USER_ID, ENV_ID, req));
+        assertEquals(ErrorCodeConstants.API_ENV_VARIABLE_EXISTS.code(), ex.getCode());
+    }
+
+    @Test
+    void addVariableFromResult_persistsPlaintextAndParsesSourceIds() {
+        stubEmptyEnv();
+
+        ApiEnvironmentVariableCreateReqDTO req = new ApiEnvironmentVariableCreateReqDTO();
+        req.setName("token");
+        req.setValue("secret-value");
+        req.setSourceStepId(UUID.randomUUID().toString());
+        req.setSourceReportId("not-a-uuid");
+
+        var resp = service.addVariableFromResult(PROJECT_ID, WORKSPACE_ID, USER_ID, ENV_ID, req);
+
+        assertEquals("secret-value", resp.getValue());
+        assertTrue(resp.getHasValue());
+        ArgumentCaptor<ApiEnvironment> captor = ArgumentCaptor.forClass(ApiEnvironment.class);
+        verify(environmentMapper).updateById(captor.capture());
+        Map<String, Object> saved = captor.getValue().getVariables().get(0);
+        assertEquals("secret-value", saved.get("value"));
+        assertEquals(req.getSourceStepId(), saved.get("sourceStepId").toString());
+        assertNull(saved.get("sourceReportId"));
+    }
+
+    // ==================== 连接测试（3.1.7 / 3.1.8） ====================
+
+    @SuppressWarnings("unchecked")
+    @Test
+    void testDataSourceConfig_unsavedPayloadRoutesToJdbc() throws Exception {
+        stubEmptyEnv();
+        ApiDataSourceTestReqDTO req = new ApiDataSourceTestReqDTO();
+        req.setDriver("com.mysql.cj.jdbc.Driver");
+        req.setUrl("jdbc:mysql://db:3306/test");
+        req.setConnectionProperties(Map.of("user", "tester"));
+
+        DatabaseMetaData meta = mock(DatabaseMetaData.class);
+        when(meta.getDatabaseProductName()).thenReturn("MySQL");
+        when(meta.getDatabaseMajorVersion()).thenReturn(8);
+        when(meta.getDatabaseMinorVersion()).thenReturn(0);
+        Connection connection = mock(Connection.class);
+        when(connection.getMetaData()).thenReturn(meta);
+
+        ApiEnvironmentServiceImpl spyService = spy(service);
+        doReturn(connection).when(spyService).openJdbcConnection(eq(req.getDriver()), eq(req.getUrl()), any());
+
+        ApiDataSourceTestRespDTO resp = spyService.testDataSourceConfig(PROJECT_ID, WORKSPACE_ID, USER_ID, ENV_ID, req);
+        assertTrue(resp.getSuccess());
+        assertEquals("MySQL 8.0", resp.getDatabaseVersion());
+    }
+
+    @Test
+    void testDataSourceConfig_unsavedRedisPayloadBypassesDriverWhitelist() throws Exception {
+        stubEmptyEnv();
+        ApiDataSourceTestReqDTO req = new ApiDataSourceTestReqDTO();
+        req.setDriver("");
+        req.setUrl("redis://:secret@cache:6379/0");
+
+        ApiEnvironmentServiceImpl spyService = spy(service);
+        doReturn(new ApiDataSourceTestRespDTO(true, "连接成功", "Redis 7.2.4"))
+                .when(spyService).openRedisConnection(req.getUrl());
+
+        ApiDataSourceTestRespDTO resp = spyService.testDataSourceConfig(PROJECT_ID, WORKSPACE_ID, USER_ID, ENV_ID, req);
+        assertTrue(resp.getSuccess());
+        assertEquals("Redis 7.2.4", resp.getDatabaseVersion());
+    }
+
+    @Test
+    void testDataSourceConfig_unsupportedDriverThrows7403WithDetail() {
+        stubEmptyEnv();
+        ApiDataSourceTestReqDTO req = new ApiDataSourceTestReqDTO();
+        req.setDriver("oracle.jdbc.OracleDriver");
+        req.setUrl("jdbc:oracle:thin:@host:1521/orcl");
+
+        ServiceException ex = assertThrows(ServiceException.class,
+                () -> service.testDataSourceConfig(PROJECT_ID, WORKSPACE_ID, USER_ID, ENV_ID, req));
+        assertEquals(ErrorCodeConstants.API_DATASOURCE_CONN_FAILED.code(), ex.getCode());
+        assertTrue(ex.getMessage().contains("不支持的数据库驱动"));
+    }
+
+    @Test
+    void testHttpConfig_networkFailureReturnsStructuredFalse() throws Exception {
+        stubEmptyEnv();
+        ApiHttpConfigTestReqDTO req = new ApiHttpConfigTestReqDTO();
+        req.setBaseUrl("https://unreachable.example.com");
+
+        ApiEnvironmentServiceImpl spyService = spy(service);
+        doThrow(new java.net.ConnectException("Connection refused"))
+                .when(spyService).executeHttpGet(req.getBaseUrl());
+
+        var resp = spyService.testHttpConfig(PROJECT_ID, WORKSPACE_ID, USER_ID, ENV_ID, req);
+        assertFalse(resp.getSuccess());
+        assertNull(resp.getStatusCode());
+    }
+
+    @Test
+    void testHttpConfig_httpResponseCountsAsSuccess() throws Exception {
+        stubEmptyEnv();
+        ApiHttpConfigTestReqDTO req = new ApiHttpConfigTestReqDTO();
+        req.setBaseUrl("https://api.example.com");
+
+        HttpResponse<Void> response = mock(HttpResponse.class);
+        when(response.statusCode()).thenReturn(404);
+        ApiEnvironmentServiceImpl spyService = spy(service);
+        doReturn(response).when(spyService).executeHttpGet(req.getBaseUrl());
+
+        var resp = spyService.testHttpConfig(PROJECT_ID, WORKSPACE_ID, USER_ID, ENV_ID, req);
+        assertTrue(resp.getSuccess());
+        assertEquals(404, resp.getStatusCode());
+    }
+
+    // ==================== 环境导入（3.1.10） ====================
+
+    @Test
+    void importEnvironment_createsWhenAbsent() {
+        ApiEnvironmentDetailRespDTO payload = new ApiEnvironmentDetailRespDTO();
+        payload.setName("导入环境");
+        payload.setDescription("来自导出文件");
+        ApiEnvironmentDetailRespDTO.Variable text = new ApiEnvironmentDetailRespDTO.Variable();
+        text.setName("K");
+        text.setValue("v");
+        payload.setVariables(List.of(text));
+        when(environmentMapper.findByProjectIdAndName(PROJECT_ID, "导入环境")).thenReturn(null);
+        when(environmentMapper.listByProject(PROJECT_ID, null)).thenReturn(List.of());
+
+        ApiEnvImportResultRespDTO result = service.importEnvironment(PROJECT_ID, WORKSPACE_ID, USER_ID,
+                multipartFile(JsonUtils.toJsonString(payload)), false);
+
+        assertEquals(1, result.getCreatedCount());
+        verify(environmentMapper).insert(any(ApiEnvironment.class));
+    }
+
+    @Test
+    void importEnvironment_skipsExistingWhenOverwriteOff() {
+        ApiEnvironmentDetailRespDTO payload = new ApiEnvironmentDetailRespDTO();
+        payload.setName("已有环境");
+        when(environmentMapper.findByProjectIdAndName(PROJECT_ID, "已有环境")).thenReturn(new ApiEnvironment());
+
+        ApiEnvImportResultRespDTO result = service.importEnvironment(PROJECT_ID, WORKSPACE_ID, USER_ID,
+                multipartFile(JsonUtils.toJsonString(payload)), false);
+
+        assertEquals(1, result.getSkippedCount());
+        verify(environmentMapper, org.mockito.Mockito.never()).insert(any(ApiEnvironment.class));
+    }
+
+    @Test
+    void importEnvironment_invalidJsonThrowsValidation() {
+        assertThrows(ServiceException.class,
+                () -> service.importEnvironment(PROJECT_ID, WORKSPACE_ID, USER_ID, multipartFile("{ not json"), false));
+    }
+
+    private static MockMultipartFile multipartFile(String content) {
+        return new MockMultipartFile("file", "env.json",
+                org.springframework.http.MediaType.APPLICATION_JSON_VALUE, content.getBytes());
     }
 }

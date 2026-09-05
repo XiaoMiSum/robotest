@@ -5,33 +5,20 @@ import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.framework.security.ProjectAccessGuard;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiDataSourceTestReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiEnvironmentCopyReqDTO;
-import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiEnvironmentDataSourceSaveReqDTO;
-import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiEnvironmentHttpConfigSaveReqDTO;
-import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiEnvironmentProcessorSaveReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiEnvironmentSaveReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiEnvironmentSortReqDTO;
-import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiEnvironmentVariableBatchReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiEnvironmentVariableCreateReqDTO;
-import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiEnvironmentVariableImportReqDTO;
+import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiHttpConfigTestReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiDataSourceTestRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiEnvImportResultRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiEnvironmentDetailRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiEnvironmentIdRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiEnvironmentListItemRespDTO;
-import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiEnvironmentProcessorRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiEnvironmentSetDefaultRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiEnvironmentVariableRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiHttpTestRespDTO;
-import io.github.xiaomisum.robotest.model.entity.apitest.ApiDataSource;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiEnvironment;
-import io.github.xiaomisum.robotest.model.entity.apitest.ApiEnvironmentHttp;
-import io.github.xiaomisum.robotest.model.entity.apitest.ApiEnvironmentProcessor;
-import io.github.xiaomisum.robotest.model.entity.apitest.ApiEnvironmentVariable;
-import io.github.xiaomisum.robotest.repository.apitest.ApiDataSourceMapper;
-import io.github.xiaomisum.robotest.repository.apitest.ApiEnvironmentHttpMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiEnvironmentMapper;
-import io.github.xiaomisum.robotest.repository.apitest.ApiEnvironmentProcessorMapper;
-import io.github.xiaomisum.robotest.repository.apitest.ApiEnvironmentVariableMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiScheduledTaskMapper;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
@@ -57,6 +44,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -76,17 +64,12 @@ public class ApiEnvironmentServiceImpl implements ApiEnvironmentService {
     /** 仅放行随服务打包的驱动，防止任意类加载（安全约束） */
     private static final Set<String> SUPPORTED_JDBC_DRIVERS = Set.of("org.postgresql.Driver", "com.mysql.cj.jdbc.Driver");
     private static final int JDBC_LOGIN_TIMEOUT_SECONDS = 10;
+    /** 处理器类型常量 */
+    private static final String PROC_TYPE_PRE = "preprocessor";
+    private static final String PROC_TYPE_POST = "postprocessor";
 
     @Resource
     private ApiEnvironmentMapper environmentMapper;
-    @Resource
-    private ApiEnvironmentHttpMapper httpMapper;
-    @Resource
-    private ApiEnvironmentVariableMapper variableMapper;
-    @Resource
-    private ApiDataSourceMapper dataSourceMapper;
-    @Resource
-    private ApiEnvironmentProcessorMapper processorMapper;
     @Resource
     private ProjectAccessGuard projectAccessGuard;
     @Resource
@@ -98,11 +81,6 @@ public class ApiEnvironmentServiceImpl implements ApiEnvironmentService {
         projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
 
         List<ApiEnvironment> environments = environmentMapper.listByProject(projectId, keyword);
-        Map<UUID, Long> httpCounts = httpMapper.countGroupByEnvironment();
-        Map<UUID, Long> variableCounts = variableMapper.countGroupByEnvironment();
-        Map<UUID, Long> dataSourceCounts = dataSourceMapper.countGroupByEnvironment();
-        Map<UUID, Long> processorCounts = processorMapper.countGroupByEnvironment();
-
         return environments.stream().map(env -> {
             ApiEnvironmentListItemRespDTO item = new ApiEnvironmentListItemRespDTO();
             item.setId(env.getId().toString());
@@ -110,10 +88,10 @@ public class ApiEnvironmentServiceImpl implements ApiEnvironmentService {
             item.setDescription(env.getDescription());
             item.setIsDefault(env.getIsDefault());
             item.setSortOrder(env.getSortOrder());
-            item.setHttpConfigCount(httpCounts.getOrDefault(env.getId(), 0L));
-            item.setVariableCount(variableCounts.getOrDefault(env.getId(), 0L));
-            item.setDataSourceCount(dataSourceCounts.getOrDefault(env.getId(), 0L));
-            item.setProcessorCount(processorCounts.getOrDefault(env.getId(), 0L));
+            item.setHttpConfigCount(sizeOrZero(env.getHttpConfigs()));
+            item.setVariableCount(sizeOrZero(env.getVariables()));
+            item.setDataSourceCount(sizeOrZero(env.getDataSources()));
+            item.setProcessorCount(sizeOrZero(env.getProcessors()));
             return item;
         }).toList();
     }
@@ -137,7 +115,6 @@ public class ApiEnvironmentServiceImpl implements ApiEnvironmentService {
         NormalizedAggregate aggregate = normalize(reqDTO);
 
         ApiEnvironment env = new ApiEnvironment();
-        // 显式生成主键：子资源行在 insert 返回前即需引用 environment_id
         env.setId(UUID.randomUUID());
         env.setProjectId(projectId);
         env.setName(reqDTO.getName());
@@ -148,9 +125,8 @@ public class ApiEnvironmentServiceImpl implements ApiEnvironmentService {
         if (Boolean.TRUE.equals(env.getIsDefault())) {
             environmentMapper.clearDefaultByProjectId(projectId);
         }
+        applyAggregate(env, aggregate);
         environmentMapper.insert(env);
-
-        saveChildren(env.getId(), aggregate);
         return new ApiEnvironmentIdRespDTO(env.getId().toString());
     }
 
@@ -164,7 +140,6 @@ public class ApiEnvironmentServiceImpl implements ApiEnvironmentService {
         if (environmentMapper.existsByProjectIdAndName(projectId, reqDTO.getName(), id)) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.API_ENV_NAME_EXISTS);
         }
-        // 查询仅做校验，更新载体只携带变更字段（部分更新原则）
         NormalizedAggregate aggregate = normalize(reqDTO);
 
         boolean promoteToDefault = Boolean.TRUE.equals(reqDTO.getIsDefault())
@@ -172,16 +147,14 @@ public class ApiEnvironmentServiceImpl implements ApiEnvironmentService {
         if (promoteToDefault) {
             environmentMapper.clearDefaultByProjectId(projectId);
         }
-        // 查询仅做校验，更新载体只携带变更字段（部分更新原则）
         ApiEnvironment update = new ApiEnvironment();
         update.setId(id);
         update.setName(reqDTO.getName());
         update.setDescription(reqDTO.getDescription());
         update.setIsDefault(Boolean.TRUE.equals(reqDTO.getIsDefault()));
         update.setSortOrder(reqDTO.getSortOrder() != null ? reqDTO.getSortOrder() : existing.getSortOrder());
+        applyAggregate(update, aggregate);
         environmentMapper.updateById(update);
-
-        replaceChildren(id, aggregate);
     }
 
     @Override
@@ -190,13 +163,10 @@ public class ApiEnvironmentServiceImpl implements ApiEnvironmentService {
     public void deleteEnvironment(UUID projectId, UUID workspaceId, UUID userId, UUID id) {
         projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
         requireEnv(projectId, id);
-        // 删除保护（7404）：被定时任务绑定的环境不可删除（定时任务详细设计 4.2）；
-        // 场景引用检查（7402）随测试场景迭代补齐
         Long boundCount = scheduledTaskMapper.selectCountEnvBound(id);
         if (boundCount != null && boundCount > 0) {
             throw ServiceExceptionUtil.get(API_ENV_TASK_BOUND);
         }
-        deleteChildren(id);
         environmentMapper.deleteById(id);
     }
 
@@ -231,7 +201,6 @@ public class ApiEnvironmentServiceImpl implements ApiEnvironmentService {
                 .orElse(-1) + 1;
 
         ApiEnvironment copy = new ApiEnvironment();
-        // 显式生成主键：子资源行在 insert 返回前即需引用 environment_id
         copy.setId(UUID.randomUUID());
         copy.setProjectId(projectId);
         copy.setName(reqDTO.getName());
@@ -240,10 +209,10 @@ public class ApiEnvironmentServiceImpl implements ApiEnvironmentService {
         // 副本始终不抢占默认标记，避免复制操作改变执行默认行为
         copy.setIsDefault(false);
         copy.setSortOrder(nextSort);
-        environmentMapper.insert(copy);
 
         NormalizedAggregate aggregate = fromDetail(detail);
-        saveChildren(copy.getId(), aggregate);
+        applyAggregate(copy, aggregate);
+        environmentMapper.insert(copy);
         return new ApiEnvironmentIdRespDTO(copy.getId().toString());
     }
 
@@ -259,248 +228,41 @@ public class ApiEnvironmentServiceImpl implements ApiEnvironmentService {
         environmentMapper.updateById(update);
     }
 
-    // ========== 处理器子资源（3.2） ==========
-
-    @Override
-    public List<ApiEnvironmentProcessorRespDTO> listProcessors(UUID projectId, UUID workspaceId, UUID userId,
-            UUID id, String processorType) {
-        projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
-        requireEnv(projectId, id);
-        return processorMapper.listByEnvironmentIdAndType(id, processorType).stream()
-                .map(this::toProcessorResp).toList();
-    }
+    // ========== 变量（随环境聚合提交，3.3） ==========
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    @AuditOperation(operation = "CREATE", entityType = "ApiEnvironmentProcessor")
-    public ApiEnvironmentProcessorRespDTO createProcessor(UUID projectId, UUID workspaceId, UUID userId,
-            UUID id, ApiEnvironmentProcessorSaveReqDTO reqDTO) {
-        projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
-        requireEnv(projectId, id);
-        validateProcessorType(reqDTO.getProcessorType());
-
-        ApiEnvironmentProcessor row = new ApiEnvironmentProcessor();
-        // 显式生成主键：insert 返回前即需构建响应体
-        row.setId(UUID.randomUUID());
-        row.setEnvironmentId(id);
-        applyProcessorFields(row, reqDTO);
-        processorMapper.insert(row);
-        return toProcessorResp(row);
-    }
-
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    @AuditOperation(operation = "UPDATE", entityType = "ApiEnvironmentProcessor")
-    public ApiEnvironmentProcessorRespDTO updateProcessor(UUID projectId, UUID workspaceId, UUID userId,
-            UUID id, UUID procId, ApiEnvironmentProcessorSaveReqDTO reqDTO) {
-        projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
-        requireEnv(projectId, id);
-        validateProcessorType(reqDTO.getProcessorType());
-        ApiEnvironmentProcessor row = requireProcessor(id, procId);
-
-        // PUT 语义：全量覆盖处理器内容字段，归属环境不变
-        applyProcessorFields(row, reqDTO);
-        processorMapper.updateById(row);
-        return toProcessorResp(row);
-    }
-
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    @AuditOperation(operation = "DELETE", entityType = "ApiEnvironmentProcessor")
-    public void deleteProcessor(UUID projectId, UUID workspaceId, UUID userId, UUID id, UUID procId) {
-        projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
-        requireEnv(projectId, id);
-        requireProcessor(id, procId);
-        processorMapper.deleteById(procId);
-    }
-
-    // ========== HTTP 配置子资源（3.1.12） ==========
-
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    @AuditOperation(operation = "CREATE", entityType = "ApiEnvironmentHttpConfig")
-    public ApiEnvironmentDetailRespDTO.HttpConfig createHttpConfig(UUID projectId, UUID workspaceId, UUID userId,
-            UUID id, ApiEnvironmentHttpConfigSaveReqDTO reqDTO) {
-        projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
-        requireEnv(projectId, id);
-
-        ApiEnvironmentHttp row = new ApiEnvironmentHttp();
-        // 显式生成主键：insert 返回前即需构建响应体
-        row.setId(UUID.randomUUID());
-        row.setEnvironmentId(id);
-        applyHttpConfigFields(row, reqDTO);
-        httpMapper.insert(row);
-        return toHttpConfigResp(row);
-    }
-
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    @AuditOperation(operation = "UPDATE", entityType = "ApiEnvironmentHttpConfig")
-    public ApiEnvironmentDetailRespDTO.HttpConfig updateHttpConfig(UUID projectId, UUID workspaceId, UUID userId,
-            UUID id, UUID httpConfigId, ApiEnvironmentHttpConfigSaveReqDTO reqDTO) {
-        projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
-        requireEnv(projectId, id);
-        ApiEnvironmentHttp row = requireHttpConfig(id, httpConfigId);
-
-        // PUT 语义：覆盖内容字段，归属环境不变；必填字段由 DTO 校验保证
-        applyHttpConfigFields(row, reqDTO);
-        httpMapper.updateById(row);
-        return toHttpConfigResp(row);
-    }
-
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    @AuditOperation(operation = "DELETE", entityType = "ApiEnvironmentHttpConfig")
-    public void deleteHttpConfig(UUID projectId, UUID workspaceId, UUID userId, UUID id, UUID httpConfigId) {
-        projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
-        requireEnv(projectId, id);
-        requireHttpConfig(id, httpConfigId);
-        httpMapper.deleteById(httpConfigId);
-    }
-
-    // ========== 数据源子资源（3.1.12） ==========
-
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    @AuditOperation(operation = "CREATE", entityType = "ApiEnvironmentDataSource")
-    public ApiEnvironmentDetailRespDTO.DataSource createDataSource(UUID projectId, UUID workspaceId, UUID userId,
-            UUID id, ApiEnvironmentDataSourceSaveReqDTO reqDTO) {
-        projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
-        requireEnv(projectId, id);
-
-        ApiDataSource row = new ApiDataSource();
-        // 显式生成主键：insert 返回前即需构建响应体
-        row.setId(UUID.randomUUID());
-        row.setEnvironmentId(id);
-        applyDataSourceFields(row, reqDTO);
-        dataSourceMapper.insert(row);
-        return toDataSourceResp(row);
-    }
-
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    @AuditOperation(operation = "UPDATE", entityType = "ApiEnvironmentDataSource")
-    public ApiEnvironmentDetailRespDTO.DataSource updateDataSource(UUID projectId, UUID workspaceId, UUID userId,
-            UUID id, UUID dataSourceId, ApiEnvironmentDataSourceSaveReqDTO reqDTO) {
-        projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
-        requireEnv(projectId, id);
-        ApiDataSource row = requireDataSource(id, dataSourceId);
-
-        // PUT 语义：覆盖内容字段，归属环境不变；必填字段由 DTO 校验保证
-        applyDataSourceFields(row, reqDTO);
-        dataSourceMapper.updateById(row);
-        return toDataSourceResp(row);
-    }
-
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    @AuditOperation(operation = "DELETE", entityType = "ApiEnvironmentDataSource")
-    public void deleteDataSource(UUID projectId, UUID workspaceId, UUID userId, UUID id, UUID dataSourceId) {
-        projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
-        requireEnv(projectId, id);
-        requireDataSource(id, dataSourceId);
-        dataSourceMapper.deleteById(dataSourceId);
-    }
-
-    // ========== 变量子资源（3.3） ==========
-
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    @AuditOperation(operation = "UPDATE", entityType = "ApiEnvironmentVariable")
-    public List<ApiEnvironmentVariableRespDTO> batchReplaceVariables(UUID projectId, UUID workspaceId, UUID userId,
-            UUID id, ApiEnvironmentVariableBatchReqDTO reqDTO) {
-        projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
-        requireEnv(projectId, id);
-
-        List<ApiEnvironmentVariable> rows = normalizeVariables(reqDTO.getVariables());
-        rows.forEach(row -> row.setEnvironmentId(id));
-        variableMapper.deleteByEnvironmentId(id);
-        if (!rows.isEmpty()) {
-            variableMapper.insertBatch(rows);
-        }
-        return listVariableResp(id);
-    }
-
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    @AuditOperation(operation = "CREATE", entityType = "ApiEnvironmentVariable")
+    @AuditOperation(operation = "UPDATE", entityType = "ApiEnvironment")
     public ApiEnvironmentVariableRespDTO addVariableFromResult(UUID projectId, UUID workspaceId, UUID userId,
             UUID id, ApiEnvironmentVariableCreateReqDTO reqDTO) {
         projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
-        requireEnv(projectId, id);
-        if (variableMapper.findByEnvironmentIdAndName(id, reqDTO.getName()) != null) {
+        ApiEnvironment env = requireEnv(projectId, id);
+        String name = reqDTO.getName();
+        if (name == null || !VARIABLE_NAME_PATTERN.matcher(name).matches()) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.VALIDATION_FAILED);
+        }
+        List<Map<String, Object>> variables = new ArrayList<>(copyList(env.getVariables()));
+        boolean exists = variables.stream().anyMatch(v -> name.equals(v.get("name")));
+        if (exists) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.API_ENV_VARIABLE_EXISTS);
         }
-        ApiEnvironmentSaveReqDTO.Variable source = new ApiEnvironmentSaveReqDTO.Variable();
-        source.setName(reqDTO.getName());
-        source.setValue(reqDTO.getValue());
-        source.setDescription(reqDTO.getDescription());
+        Map<String, Object> row = new LinkedHashMap<>();
+        row.put("name", name);
+        row.put("value", reqDTO.getValue());
+        row.put("description", reqDTO.getDescription());
+        row.put("sourceStepId", parseUuidOrNull(reqDTO.getSourceStepId()));
+        row.put("sourceReportId", parseUuidOrNull(reqDTO.getSourceReportId()));
+        variables.add(row);
 
-        ApiEnvironmentVariable row = normalizeVariables(List.of(source)).getFirst();
-        // 显式生成主键：insert 返回前即需构建响应体
-        row.setId(UUID.randomUUID());
-        row.setEnvironmentId(id);
-        row.setSourceStepId(parseUuidOrNull(reqDTO.getSourceStepId()));
-        row.setSourceReportId(parseUuidOrNull(reqDTO.getSourceReportId()));
-        variableMapper.insert(row);
-        return toVariableResp(row.getId(), row.getName(), row.getValue(),
-                row.getDescription(), hasText(row.getValue()), null, null);
+        // 仅更新 variables JSONB 列（C9 部分更新原则）
+        ApiEnvironment update = new ApiEnvironment();
+        update.setId(id);
+        update.setVariables(variables);
+        environmentMapper.updateById(update);
+        return toVariableResp(name, row.get("value"), (String) row.get("description"), hasText((String) row.get("value")));
     }
 
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    public ApiEnvImportResultRespDTO importVariables(UUID projectId, UUID workspaceId, UUID userId,
-            UUID id, ApiEnvironmentVariableImportReqDTO reqDTO) {
-        projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
-        requireEnv(projectId, id);
-
-        List<ApiEnvironmentVariable> incoming = normalizeVariables(reqDTO.getVariables());
-        Map<String, ApiEnvironmentVariable> existingByName = variableMapper.listByEnvironmentId(id).stream()
-                .collect(Collectors.toMap(ApiEnvironmentVariable::getName, row -> row));
-        boolean overwrite = Boolean.TRUE.equals(reqDTO.getOverwrite());
-
-        int created = 0;
-        int overwritten = 0;
-        int skipped = 0;
-        for (ApiEnvironmentVariable incomingRow : incoming) {
-            ApiEnvironmentVariable existing = existingByName.get(incomingRow.getName());
-            if (existing == null) {
-                incomingRow.setEnvironmentId(id);
-                variableMapper.insert(incomingRow);
-                created++;
-            } else if (overwrite) {
-                // 部分更新载体：只携带本次导入的字段（C9）
-                ApiEnvironmentVariable update = new ApiEnvironmentVariable();
-                update.setId(existing.getId());
-                update.setDescription(incomingRow.getDescription());
-                update.setValue(incomingRow.getValue());
-                variableMapper.updateById(update);
-                overwritten++;
-            } else {
-                skipped++;
-            }
-        }
-        return new ApiEnvImportResultRespDTO(created, overwritten, skipped);
-    }
-
-    @Override
-    public List<ApiEnvironmentVariableRespDTO> exportVariables(UUID projectId, UUID workspaceId, UUID userId,
-            UUID id) {
-        projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
-        requireEnv(projectId, id);
-        return listVariableResp(id);
-    }
-
-    // ========== 连接测试（3.1.7 / 3.1.8） ==========
-
-    @Override
-    public ApiDataSourceTestRespDTO testDataSource(UUID projectId, UUID workspaceId, UUID userId,
-            UUID id, UUID dataSourceId) {
-        projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
-        requireEnv(projectId, id);
-        ApiDataSource ds = requireDataSource(id, dataSourceId);
-        return testConnection(ds.getUrl(), ds.getDriver(), ds.getConnectionProperties());
-    }
+    // ========== 连接测试（3.1.7 / 3.1.8，请求体传配置不落库） ==========
 
     @Override
     public ApiDataSourceTestRespDTO testDataSourceConfig(UUID projectId, UUID workspaceId, UUID userId,
@@ -510,10 +272,82 @@ public class ApiEnvironmentServiceImpl implements ApiEnvironmentService {
         return testConnection(reqDTO.getUrl(), reqDTO.getDriver(), reqDTO.getConnectionProperties());
     }
 
+    @Override
+    public ApiHttpTestRespDTO testHttpConfig(UUID projectId, UUID workspaceId, UUID userId,
+            UUID id, ApiHttpConfigTestReqDTO reqDTO) {
+        projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
+        requireEnv(projectId, id);
+
+        long start = System.currentTimeMillis();
+        try {
+            HttpResponse<Void> response = executeHttpGet(reqDTO.getBaseUrl());
+            long durationMs = System.currentTimeMillis() - start;
+            // 任意 HTTP 响应均视为连通（含 4xx/5xx），网络层失败才走 success=false 分支
+            return new ApiHttpTestRespDTO(true, "连接成功", response.statusCode(), durationMs);
+        } catch (Exception e) {
+            long durationMs = System.currentTimeMillis() - start;
+            String message = e.getCause() != null && e.getCause().getMessage() != null
+                    ? e.getCause().getMessage() : e.getMessage();
+            return new ApiHttpTestRespDTO(false,
+                    message == null ? e.getClass().getSimpleName() : message, null, durationMs);
+        }
+    }
+
+    @Override
+    public ApiEnvironmentDetailRespDTO exportEnvironment(UUID projectId, UUID workspaceId, UUID userId, UUID id) {
+        projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
+        ApiEnvironmentDetailRespDTO detail = assembleDetail(requireEnv(projectId, id));
+        // 数据源凭据内嵌于连接 URL 无法部分脱敏，导出必须整段排除（详细设计 3.1.9）
+        detail.setDataSources(List.of());
+        return detail;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    @AuditOperation(operation = "CREATE", entityType = "ApiEnvironment")
+    public ApiEnvImportResultRespDTO importEnvironment(UUID projectId, UUID workspaceId, UUID userId,
+            MultipartFile file, boolean overwrite) {
+        projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
+        ApiEnvironmentDetailRespDTO payload = parseImportPayload(file);
+        if (payload.getName() == null || payload.getName().isBlank()) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.VALIDATION_FAILED);
+        }
+
+        NormalizedAggregate aggregate = fromDetail(payload);
+
+        ApiEnvironment existing = environmentMapper.findByProjectIdAndName(projectId, payload.getName());
+        if (existing != null && !overwrite) {
+            return new ApiEnvImportResultRespDTO(0, 0, 1);
+        }
+        int nextSort = nextSortOrder(projectId);
+        if (existing != null) {
+            // 覆盖语义：保留原 id 与排序，仅替换内容与聚合资源
+            ApiEnvironment update = new ApiEnvironment();
+            update.setId(existing.getId());
+            update.setDescription(payload.getDescription());
+            applyAggregate(update, aggregate);
+            environmentMapper.updateById(update);
+            return new ApiEnvImportResultRespDTO(0, 1, 0);
+        }
+
+        ApiEnvironment env = new ApiEnvironment();
+        env.setId(UUID.randomUUID());
+        env.setProjectId(projectId);
+        env.setName(payload.getName());
+        env.setDescription(payload.getDescription());
+        env.setScope(SCOPE_PROJECT);
+        env.setIsDefault(false);
+        env.setSortOrder(nextSort);
+        applyAggregate(env, aggregate);
+        environmentMapper.insert(env);
+        return new ApiEnvImportResultRespDTO(1, 0, 0);
+    }
+
+    // ========== 连接测试内部实现 ==========
+
     /** 3.1.7 连接判定核心：Redis 按 URL 协议走 RESP，JDBC 仅放行内置驱动 */
     private ApiDataSourceTestRespDTO testConnection(String url, String driver,
             Map<String, Object> connectionProperties) {
-        // Redis 无 JDBC 驱动，按 URL 协议识别（详细设计 3.1.7），驱动列存空串
         if (url != null && (url.startsWith("redis://") || url.startsWith("rediss://"))) {
             try {
                 return openRedisConnection(url);
@@ -551,10 +385,8 @@ public class ApiEnvironmentServiceImpl implements ApiEnvironmentService {
 
     /** 可测接缝：真实 RESP 建连逻辑，单测中以 spy 覆盖 */
     protected ApiDataSourceTestRespDTO openRedisConnection(String url) throws Exception {
-        // 超时挂在 RedisURI 上（Lettuce 7 的 connect 不接收 Duration），与 JDBC 登录超时口径一致
         RedisURI uri = RedisURI.create(url);
         uri.setTimeout(REDIS_CONNECT_TIMEOUT);
-        // RedisClient 持有 Netty 事件循环资源且非 AutoCloseable，测试为一次性短连，用毕显式释放
         RedisClient client = RedisClient.create(uri);
         StatefulRedisConnection<String, String> connection = client.connect();
         try {
@@ -584,89 +416,20 @@ public class ApiEnvironmentServiceImpl implements ApiEnvironmentService {
         return DriverManager.getConnection(url, props);
     }
 
-    @Override
-    public ApiHttpTestRespDTO testHttpConfig(UUID projectId, UUID workspaceId, UUID userId,
-            UUID id, UUID httpConfigId) {
-        projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
-        requireEnv(projectId, id);
-        ApiEnvironmentHttp config = requireHttpConfig(id, httpConfigId);
-
-        long start = System.currentTimeMillis();
-        try {
-            HttpResponse<Void> response = executeHttpGet(config);
-            long durationMs = System.currentTimeMillis() - start;
-            // 任意 HTTP 响应均视为连通（含 4xx/5xx），网络层失败才走 success=false 分支
-            return new ApiHttpTestRespDTO(true, "连接成功", response.statusCode(), durationMs);
-        } catch (Exception e) {
-            long durationMs = System.currentTimeMillis() - start;
-            String message = e.getCause() != null && e.getCause().getMessage() != null
-                    ? e.getCause().getMessage() : e.getMessage();
-            return new ApiHttpTestRespDTO(false,
-                    message == null ? e.getClass().getSimpleName() : message, null, durationMs);
-        }
-    }
-
     /** 可测接缝：真实 HTTP GET 逻辑，单测中以 spy 覆盖 */
-    protected HttpResponse<Void> executeHttpGet(ApiEnvironmentHttp config) throws Exception {
+    protected HttpResponse<Void> executeHttpGet(String baseUrl) throws Exception {
         HttpClient client = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofMillis(10000))
                 .followRedirects(HttpClient.Redirect.NORMAL)
                 .build();
-        HttpRequest request = HttpRequest.newBuilder(URI.create(config.getBaseUrl()))
+        HttpRequest request = HttpRequest.newBuilder(URI.create(baseUrl))
                 .timeout(Duration.ofMillis(30000))
                 .GET()
                 .build();
         return client.send(request, HttpResponse.BodyHandlers.discarding());
     }
 
-    // ========== 环境导入导出（3.1.9 / 3.1.10） ==========
-
-    @Override
-    public ApiEnvironmentDetailRespDTO exportEnvironment(UUID projectId, UUID workspaceId, UUID userId, UUID id) {
-        projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
-        return assembleDetail(requireEnv(projectId, id));
-    }
-
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    @AuditOperation(operation = "CREATE", entityType = "ApiEnvironment")
-    public ApiEnvImportResultRespDTO importEnvironment(UUID projectId, UUID workspaceId, UUID userId,
-            MultipartFile file, boolean overwrite) {
-        projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
-        ApiEnvironmentDetailRespDTO payload = parseImportPayload(file);
-        if (payload.getName() == null || payload.getName().isBlank()) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.VALIDATION_FAILED);
-        }
-
-        NormalizedAggregate aggregate = fromDetail(payload);
-
-        ApiEnvironment existing = environmentMapper.findByProjectIdAndName(projectId, payload.getName());
-        if (existing != null && !overwrite) {
-            return new ApiEnvImportResultRespDTO(0, 0, 1);
-        }
-        int nextSort = nextSortOrder(projectId);
-        if (existing != null) {
-            // 覆盖语义：保留原 id 与排序，仅替换内容与子资源
-            ApiEnvironment update = new ApiEnvironment();
-            update.setId(existing.getId());
-            update.setDescription(payload.getDescription());
-            environmentMapper.updateById(update);
-            replaceChildren(existing.getId(), aggregate);
-            return new ApiEnvImportResultRespDTO(0, 1, 0);
-        }
-
-        ApiEnvironment env = new ApiEnvironment();
-        env.setId(UUID.randomUUID());
-        env.setProjectId(projectId);
-        env.setName(payload.getName());
-        env.setDescription(payload.getDescription());
-        env.setScope(SCOPE_PROJECT);
-        env.setIsDefault(false);
-        env.setSortOrder(nextSort);
-        environmentMapper.insert(env);
-        saveChildren(env.getId(), aggregate);
-        return new ApiEnvImportResultRespDTO(1, 0, 0);
-    }
+    // ========== 环境导入导出 ==========
 
     private ApiEnvironmentDetailRespDTO parseImportPayload(MultipartFile file) {
         try {
@@ -699,6 +462,20 @@ public class ApiEnvironmentServiceImpl implements ApiEnvironmentService {
         return env;
     }
 
+    private List<Map<String, Object>> copyList(List<Map<String, Object>> source) {
+        if (source == null) {
+            return List.of();
+        }
+        List<Map<String, Object>> copy = new ArrayList<>(source.size());
+        for (Map<String, Object> item : source) {
+            if (item == null) {
+                continue;
+            }
+            copy.add(new LinkedHashMap<>(item));
+        }
+        return copy;
+    }
+
     private ApiEnvironmentDetailRespDTO assembleDetail(ApiEnvironment env) {
         ApiEnvironmentDetailRespDTO detail = new ApiEnvironmentDetailRespDTO();
         detail.setId(env.getId().toString());
@@ -708,70 +485,76 @@ public class ApiEnvironmentServiceImpl implements ApiEnvironmentService {
         detail.setIsDefault(env.getIsDefault());
         detail.setSortOrder(env.getSortOrder());
 
-        detail.setHttpConfigs(httpMapper.listByEnvironmentId(env.getId()).stream().map(row -> {
-            ApiEnvironmentDetailRespDTO.HttpConfig config = new ApiEnvironmentDetailRespDTO.HttpConfig();
-            config.setId(row.getId().toString());
-            config.setName(row.getName());
-            config.setRefName(row.getRefName());
-            config.setBaseUrl(row.getBaseUrl());
-            config.setHeaders(convertHeaders(row.getDefaultHeaders()));
-            return config;
-        }).toList());
+        List<Map<String, Object>> httpConfigs = env.getHttpConfigs();
+        if (httpConfigs == null || httpConfigs.isEmpty()) {
+            detail.setHttpConfigs(List.of());
+        } else {
+            detail.setHttpConfigs(httpConfigs.stream().map(row -> {
+                ApiEnvironmentDetailRespDTO.HttpConfig config = new ApiEnvironmentDetailRespDTO.HttpConfig();
+                config.setName(str(row.get("name")));
+                config.setRefName(str(row.get("refName")));
+                config.setBaseUrl(str(row.get("baseUrl")));
+                config.setIsDefault(bool(row.get("isDefault")));
+                config.setHeaders(convertHeaders(asList(row.get("headers"))));
+                return config;
+            }).toList());
+        }
 
         // 变量值明文展示，hasValue 标识是否已配置
-        detail.setVariables(variableMapper.listByEnvironmentId(env.getId()).stream().map(row -> {
+        detail.setVariables(copyList(env.getVariables()).stream().map(row -> {
             ApiEnvironmentDetailRespDTO.Variable variable = new ApiEnvironmentDetailRespDTO.Variable();
-            variable.setId(row.getId().toString());
-            variable.setName(row.getName());
-            boolean hasValue = row.getValue() != null && !row.getValue().isEmpty();
-            variable.setValue(hasValue ? row.getValue() : null);
+            variable.setName(str(row.get("name")));
+            String value = str(row.get("value"));
+            boolean hasValue = value != null && !value.isEmpty();
+            variable.setValue(hasValue ? value : null);
             variable.setHasValue(hasValue);
-            variable.setDescription(row.getDescription());
+            variable.setDescription(str(row.get("description")));
             return variable;
         }).toList());
 
-        detail.setDataSources(dataSourceMapper.listByEnvironmentId(env.getId()).stream().map(row -> {
+        detail.setDataSources(copyList(env.getDataSources()).stream().map(row -> {
             ApiEnvironmentDetailRespDTO.DataSource ds = new ApiEnvironmentDetailRespDTO.DataSource();
-            ds.setId(row.getId().toString());
-            ds.setName(row.getName());
-            ds.setRefName(row.getRefName());
-            ds.setDriver(row.getDriver());
-            ds.setUrl(row.getUrl());
-            ds.setConnectionProperties(row.getConnectionProperties());
-            ds.setMaxPoolSize(row.getMaxPoolSize());
+            ds.setName(str(row.get("name")));
+            ds.setRefName(str(row.get("refName")));
+            ds.setDriver(str(row.get("driver")));
+            ds.setUrl(str(row.get("url")));
+            ds.setConnectionProperties(asMap(row.get("connectionProperties")));
+            Integer maxPoolSize = row.get("maxPoolSize") instanceof Number n ? n.intValue() : null;
+            ds.setMaxPoolSize(maxPoolSize);
+            ds.setIsDefault(bool(row.get("isDefault")));
             return ds;
         }).toList());
 
-        detail.setProcessors(processorMapper.listByEnvironmentIdAndType(env.getId(), null).stream().map(row -> {
+        detail.setProcessors(copyList(env.getProcessors()).stream().map(row -> {
             ApiEnvironmentDetailRespDTO.Processor processor = new ApiEnvironmentDetailRespDTO.Processor();
-            processor.setId(row.getId().toString());
-            processor.setProcessorType(row.getProcessorType());
-            processor.setName(row.getName());
-            processor.setConfig(row.getConfig());
-            processor.setSortOrder(row.getSortOrder());
-            processor.setEnabled(row.getEnabled());
+            processor.setProcessorType(str(row.get("processorType")));
+            processor.setName(str(row.get("name")));
+            processor.setConfig(asMap(row.get("config")));
+            Integer sortOrder = row.get("sortOrder") instanceof Number n ? n.intValue() : null;
+            processor.setSortOrder(sortOrder);
+            processor.setEnabled(bool(row.get("enabled")));
             return processor;
         }).toList());
         return detail;
     }
 
-    private List<ApiEnvironmentDetailRespDTO.HeaderItem> convertHeaders(List<Map<String, Object>> rows) {
+    private List<ApiEnvironmentDetailRespDTO.HeaderItem> convertHeaders(List<?> rows) {
         if (rows == null) {
             return List.of();
         }
-        return rows.stream().map(row -> {
+        return rows.stream().filter(row -> row instanceof Map).map(row -> {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> m = (Map<String, Object>) row;
             ApiEnvironmentDetailRespDTO.HeaderItem item = new ApiEnvironmentDetailRespDTO.HeaderItem();
-            item.setKey((String) row.get("key"));
-            item.setValue((String) row.get("value"));
-            Object enabled = row.get("enabled");
-            item.setEnabled(enabled instanceof Boolean flag ? flag : true);
+            item.setKey(str(m.get("key")));
+            item.setValue(str(m.get("value")));
+            item.setEnabled(bool(m.get("enabled")));
             return item;
         }).toList();
     }
 
     /**
-     * 归一化并校验聚合子资源：HTTP 配置缺省自动生成默认配置、每环境唯一默认配置、
-     * ref_name 缺省按 http_N 生成、变量名校验
+     * 归一化并校验聚合子资源：HTTP 配置缺省自动生成默认配置、ref_name 缺省按 http_N 生成、变量名校验
      */
     private NormalizedAggregate normalize(ApiEnvironmentSaveReqDTO reqDTO) {
         NormalizedAggregate aggregate = new NormalizedAggregate();
@@ -782,13 +565,13 @@ public class ApiEnvironmentServiceImpl implements ApiEnvironmentService {
         }
         for (int i = 0; i < httpConfigs.size(); i++) {
             ApiEnvironmentSaveReqDTO.HttpConfig source = httpConfigs.get(i);
-            ApiEnvironmentHttp row = new ApiEnvironmentHttp();
-            row.setName(source.getName());
-            row.setRefName(source.getRefName() != null && !source.getRefName().isBlank()
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("name", source.getName());
+            row.put("refName", source.getRefName() != null && !source.getRefName().isBlank()
                     ? source.getRefName() : "http_" + (i + 1));
-            row.setBaseUrl(source.getBaseUrl() == null || source.getBaseUrl().isBlank()
+            row.put("baseUrl", source.getBaseUrl() == null || source.getBaseUrl().isBlank()
                     ? "" : source.getBaseUrl());
-            row.setDefaultHeaders(normalizeHeaders(source.getHeaders()));
+            row.put("headers", normalizeHeaders(source.getHeaders()));
             aggregate.httpConfigs.add(row);
         }
 
@@ -798,31 +581,30 @@ public class ApiEnvironmentServiceImpl implements ApiEnvironmentService {
 
         if (reqDTO.getDataSources() != null) {
             for (ApiEnvironmentSaveReqDTO.DataSource source : reqDTO.getDataSources()) {
-                ApiDataSource row = new ApiDataSource();
-                row.setName(source.getName());
-                row.setRefName(source.getRefName());
-                // Redis 数据源免驱动，空串兜底满足 driver 列 NOT NULL 约束
-                row.setDriver(source.getDriver() == null ? "" : source.getDriver());
-                row.setUrl(source.getUrl());
-                row.setConnectionProperties(source.getConnectionProperties() != null
-                        ? source.getConnectionProperties() : Map.of());
-                row.setMaxPoolSize(source.getMaxPoolSize() != null ? source.getMaxPoolSize() : 5);
+                Map<String, Object> row = new LinkedHashMap<>();
+                row.put("name", source.getName());
+                row.put("refName", source.getRefName());
+                row.put("driver", source.getDriver() == null ? "" : source.getDriver());
+                row.put("url", source.getUrl());
+                row.put("connectionProperties", source.getConnectionProperties() != null
+                        ? new HashMap<>(source.getConnectionProperties()) : Map.of());
+                row.put("maxPoolSize", source.getMaxPoolSize() != null ? source.getMaxPoolSize() : 5);
                 aggregate.dataSources.add(row);
             }
         }
 
         if (reqDTO.getProcessors() != null) {
             for (ApiEnvironmentSaveReqDTO.Processor source : reqDTO.getProcessors()) {
-                if (!ApiEnvironmentProcessor.TYPE_PRE.equals(source.getProcessorType())
-                        && !ApiEnvironmentProcessor.TYPE_POST.equals(source.getProcessorType())) {
+                if (!PROC_TYPE_PRE.equals(source.getProcessorType())
+                        && !PROC_TYPE_POST.equals(source.getProcessorType())) {
                     throw ServiceExceptionUtil.get(ErrorCodeConstants.VALIDATION_FAILED);
                 }
-                ApiEnvironmentProcessor row = new ApiEnvironmentProcessor();
-                row.setProcessorType(source.getProcessorType());
-                row.setName(source.getName());
-                row.setConfig(source.getConfig() != null ? source.getConfig() : Map.of());
-                row.setSortOrder(source.getSortOrder() != null ? source.getSortOrder() : 0);
-                row.setEnabled(!Boolean.FALSE.equals(source.getEnabled()));
+                Map<String, Object> row = new LinkedHashMap<>();
+                row.put("processorType", source.getProcessorType());
+                row.put("name", source.getName());
+                row.put("config", source.getConfig() != null ? new HashMap<>(source.getConfig()) : Map.of());
+                row.put("sortOrder", source.getSortOrder() != null ? source.getSortOrder() : 0);
+                row.put("enabled", !Boolean.FALSE.equals(source.getEnabled()));
                 aggregate.processors.add(row);
             }
         }
@@ -830,11 +612,10 @@ public class ApiEnvironmentServiceImpl implements ApiEnvironmentService {
     }
 
     /**
-     * 归一化并校验变量列表（聚合保存与 3.3 变量子资源共用）：
-     * 名称仅字母/数字/下划线且同批唯一；取值明文存储
+     * 归一化并校验变量列表（聚合保存与从结果添加共用）：名称仅字母/数字/下划线且同批唯一；取值明文存储
      */
-    private List<ApiEnvironmentVariable> normalizeVariables(List<ApiEnvironmentSaveReqDTO.Variable> sources) {
-        List<ApiEnvironmentVariable> rows = new ArrayList<>();
+    private List<Map<String, Object>> normalizeVariables(List<ApiEnvironmentSaveReqDTO.Variable> sources) {
+        List<Map<String, Object>> rows = new ArrayList<>();
         Set<String> names = new HashSet<>();
         for (ApiEnvironmentSaveReqDTO.Variable source : sources) {
             if (source.getName() == null || !VARIABLE_NAME_PATTERN.matcher(source.getName()).matches()) {
@@ -844,10 +625,10 @@ public class ApiEnvironmentServiceImpl implements ApiEnvironmentService {
                 // 变量重名：同环境内变量名唯一
                 throw ServiceExceptionUtil.get(ErrorCodeConstants.VALIDATION_FAILED);
             }
-            ApiEnvironmentVariable row = new ApiEnvironmentVariable();
-            row.setName(source.getName());
-            row.setDescription(source.getDescription());
-            row.setValue(source.getValue());
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("name", source.getName());
+            row.put("value", source.getValue());
+            row.put("description", source.getDescription());
             rows.add(row);
         }
         return rows;
@@ -866,119 +647,6 @@ public class ApiEnvironmentServiceImpl implements ApiEnvironmentService {
         } catch (IllegalArgumentException e) {
             return null;
         }
-    }
-
-    private void validateProcessorType(String processorType) {
-        if (!ApiEnvironmentProcessor.TYPE_PRE.equals(processorType)
-                && !ApiEnvironmentProcessor.TYPE_POST.equals(processorType)) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.VALIDATION_FAILED);
-        }
-    }
-
-    private void applyProcessorFields(ApiEnvironmentProcessor row, ApiEnvironmentProcessorSaveReqDTO reqDTO) {
-        row.setProcessorType(reqDTO.getProcessorType());
-        row.setName(reqDTO.getName());
-        row.setConfig(reqDTO.getConfig() != null ? reqDTO.getConfig() : Map.of());
-        row.setSortOrder(reqDTO.getSortOrder() != null ? reqDTO.getSortOrder() : 0);
-        row.setEnabled(!Boolean.FALSE.equals(reqDTO.getEnabled()));
-    }
-
-    private ApiEnvironmentProcessorRespDTO toProcessorResp(ApiEnvironmentProcessor row) {
-        ApiEnvironmentProcessorRespDTO resp = new ApiEnvironmentProcessorRespDTO();
-        resp.setId(row.getId().toString());
-        resp.setProcessorType(row.getProcessorType());
-        resp.setName(row.getName());
-        resp.setConfig(row.getConfig());
-        resp.setSortOrder(row.getSortOrder());
-        resp.setEnabled(row.getEnabled());
-        return resp;
-    }
-
-    private ApiEnvironmentProcessor requireProcessor(UUID environmentId, UUID procId) {
-        ApiEnvironmentProcessor row = processorMapper.selectById(procId);
-        if (row == null || !environmentId.equals(row.getEnvironmentId())) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.API_ENV_PROCESSOR_NOT_FOUND);
-        }
-        return row;
-    }
-
-    private ApiDataSource requireDataSource(UUID environmentId, UUID dataSourceId) {
-        ApiDataSource row = dataSourceMapper.selectById(dataSourceId);
-        if (row == null || !environmentId.equals(row.getEnvironmentId())) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.API_ENV_DATASOURCE_NOT_FOUND);
-        }
-        return row;
-    }
-
-    private ApiEnvironmentHttp requireHttpConfig(UUID environmentId, UUID httpConfigId) {
-        ApiEnvironmentHttp row = httpMapper.selectById(httpConfigId);
-        if (row == null || !environmentId.equals(row.getEnvironmentId())) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.API_ENV_HTTP_CONFIG_NOT_FOUND);
-        }
-        return row;
-    }
-
-    /** 编辑时沿用现状、新增时生成 http_N 缺省引用名，与聚合保存的索引规则保持一致 */
-    private void applyHttpConfigFields(ApiEnvironmentHttp row, ApiEnvironmentHttpConfigSaveReqDTO reqDTO) {
-        row.setName(reqDTO.getName());
-        row.setRefName(reqDTO.getRefName());
-        row.setBaseUrl(reqDTO.getBaseUrl());
-        row.setDefaultHeaders(normalizeHeaders(reqDTO.getHeaders()));
-    }
-
-    private ApiEnvironmentDetailRespDTO.HttpConfig toHttpConfigResp(ApiEnvironmentHttp row) {
-        ApiEnvironmentDetailRespDTO.HttpConfig resp = new ApiEnvironmentDetailRespDTO.HttpConfig();
-        resp.setId(row.getId().toString());
-        resp.setName(row.getName());
-        resp.setRefName(row.getRefName());
-        resp.setBaseUrl(row.getBaseUrl());
-        resp.setHeaders(convertHeaders(row.getDefaultHeaders()));
-        return resp;
-    }
-
-    private void applyDataSourceFields(ApiDataSource row, ApiEnvironmentDataSourceSaveReqDTO reqDTO) {
-        row.setName(reqDTO.getName());
-        row.setRefName(reqDTO.getRefName());
-        // Redis 数据源驱动为 '-' 占位（前端），非空串即满足列约束
-        row.setDriver(reqDTO.getDriver());
-        row.setUrl(reqDTO.getUrl() == null || reqDTO.getUrl().isBlank()
-                ? (row.getUrl() == null ? "" : row.getUrl()) : reqDTO.getUrl());
-        row.setConnectionProperties(reqDTO.getConnectionProperties() != null
-                ? reqDTO.getConnectionProperties() : Map.of());
-        row.setMaxPoolSize(reqDTO.getMaxPoolSize() != null ? reqDTO.getMaxPoolSize() : 5);
-    }
-
-    private ApiEnvironmentDetailRespDTO.DataSource toDataSourceResp(ApiDataSource row) {
-        ApiEnvironmentDetailRespDTO.DataSource resp = new ApiEnvironmentDetailRespDTO.DataSource();
-        resp.setId(row.getId().toString());
-        resp.setName(row.getName());
-        resp.setRefName(row.getRefName());
-        resp.setDriver(row.getDriver());
-        resp.setUrl(row.getUrl());
-        resp.setConnectionProperties(row.getConnectionProperties());
-        resp.setMaxPoolSize(row.getMaxPoolSize());
-        return resp;
-    }
-
-    /** 变量列表视图：明文取值，hasValue 标识是否已配置 */
-    private List<ApiEnvironmentVariableRespDTO> listVariableResp(UUID environmentId) {
-        return variableMapper.listByEnvironmentId(environmentId).stream()
-                .map(row -> toVariableResp(row.getId(), row.getName(), row.getValue(),
-                        row.getDescription(), hasText(row.getValue()), row.getSourceStepId(), row.getSourceReportId()))
-                .toList();
-    }
-
-    private ApiEnvironmentVariableRespDTO toVariableResp(UUID id, String name, String value,
-            String description, boolean hasValue, UUID sourceStepId, UUID sourceReportId) {
-        ApiEnvironmentVariableRespDTO resp = new ApiEnvironmentVariableRespDTO();
-        resp.setId(id.toString());
-        resp.setName(name);
-        resp.setValue(value);
-        resp.setHasValue(hasValue);
-        resp.setDescription(description);
-        resp.setSourceStepId(sourceStepId != null ? sourceStepId.toString() : null);
-        resp.setSourceReportId(sourceReportId != null ? sourceReportId.toString() : null);
-        return resp;
     }
 
     private ApiEnvironmentSaveReqDTO.HttpConfig defaultHttpConfig() {
@@ -1005,7 +673,6 @@ public class ApiEnvironmentServiceImpl implements ApiEnvironmentService {
     /** 复制/导入场景：从环境详情反向构建归一化聚合；敏感值已在详情层掩码化，此处还原为「未配置」 */
     private NormalizedAggregate fromDetail(ApiEnvironmentDetailRespDTO detail) {
         ApiEnvironmentSaveReqDTO reqDTO = new ApiEnvironmentSaveReqDTO();
-        // 导入文件的段落可缺省，统一按空列表处理
         reqDTO.setHttpConfigs((detail.getHttpConfigs() != null ? detail.getHttpConfigs() : List.<ApiEnvironmentDetailRespDTO.HttpConfig>of())
                 .stream().map(config -> {
             ApiEnvironmentSaveReqDTO.HttpConfig source = new ApiEnvironmentSaveReqDTO.HttpConfig();
@@ -1029,17 +696,6 @@ public class ApiEnvironmentServiceImpl implements ApiEnvironmentService {
             source.setValue(Boolean.TRUE.equals(variable.getHasValue()) ? variable.getValue() : null);
             return source;
         }).toList());
-        reqDTO.setDataSources((detail.getDataSources() != null ? detail.getDataSources()
-                : List.<ApiEnvironmentDetailRespDTO.DataSource>of()).stream().map(ds -> {
-            ApiEnvironmentSaveReqDTO.DataSource source = new ApiEnvironmentSaveReqDTO.DataSource();
-            source.setName(ds.getName());
-            source.setRefName(ds.getRefName());
-            source.setDriver(ds.getDriver());
-            source.setUrl(ds.getUrl());
-            source.setConnectionProperties(ds.getConnectionProperties());
-            source.setMaxPoolSize(ds.getMaxPoolSize());
-            return source;
-        }).toList());
         reqDTO.setProcessors((detail.getProcessors() != null ? detail.getProcessors()
                 : List.<ApiEnvironmentDetailRespDTO.Processor>of()).stream().map(processor -> {
             ApiEnvironmentSaveReqDTO.Processor source = new ApiEnvironmentSaveReqDTO.Processor();
@@ -1053,45 +709,51 @@ public class ApiEnvironmentServiceImpl implements ApiEnvironmentService {
         return normalize(reqDTO);
     }
 
-    private void saveChildren(UUID environmentId, NormalizedAggregate aggregate) {
-        aggregate.httpConfigs.forEach(row -> row.setEnvironmentId(environmentId));
-        aggregate.variables.forEach(row -> row.setEnvironmentId(environmentId));
-        aggregate.dataSources.forEach(row -> row.setEnvironmentId(environmentId));
-        aggregate.processors.forEach(row -> row.setEnvironmentId(environmentId));
-
-        if (!aggregate.httpConfigs.isEmpty()) {
-            httpMapper.insertBatch(aggregate.httpConfigs);
-        }
-        if (!aggregate.variables.isEmpty()) {
-            variableMapper.insertBatch(aggregate.variables);
-        }
-        if (!aggregate.dataSources.isEmpty()) {
-            dataSourceMapper.insertBatch(aggregate.dataSources);
-        }
-        if (!aggregate.processors.isEmpty()) {
-            processorMapper.insertBatch(aggregate.processors);
-        }
+    /** 把归一化聚合写入环境实体的 JSONB 列（创建/更新/复制/导入共用） */
+    private void applyAggregate(ApiEnvironment env, NormalizedAggregate aggregate) {
+        env.setHttpConfigs(aggregate.httpConfigs);
+        env.setVariables(aggregate.variables);
+        env.setDataSources(aggregate.dataSources);
+        env.setProcessors(aggregate.processors);
     }
 
-    /** 全量替换语义：逻辑删除旧子资源后整批写入新列表 */
-    private void replaceChildren(UUID environmentId, NormalizedAggregate aggregate) {
-        deleteChildren(environmentId);
-        saveChildren(environmentId, aggregate);
+    private Long sizeOrZero(List<?> list) {
+        return (long) (list == null ? 0 : list.size());
     }
 
-    private void deleteChildren(UUID environmentId) {
-        httpMapper.deleteByEnvironmentId(environmentId);
-        variableMapper.deleteByEnvironmentId(environmentId);
-        dataSourceMapper.deleteByEnvironmentId(environmentId);
-        processorMapper.deleteByEnvironmentId(environmentId);
+    private String str(Object value) {
+        return value == null ? null : value.toString();
     }
 
-    /** 归一化后的聚合子资源实体集合 */
+    private Boolean bool(Object value) {
+        return value instanceof Boolean b ? b : null;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> asMap(Object value) {
+        return value instanceof Map ? (Map<String, Object>) value : null;
+    }
+
+    private List<?> asList(Object value) {
+        return value instanceof List ? (List<?>) value : List.of();
+    }
+
+    private ApiEnvironmentVariableRespDTO toVariableResp(String name, Object value, String description,
+            boolean hasValue) {
+        ApiEnvironmentVariableRespDTO resp = new ApiEnvironmentVariableRespDTO();
+        resp.setName(name);
+        resp.setValue(value == null ? null : value.toString());
+        resp.setHasValue(hasValue);
+        resp.setDescription(description);
+        return resp;
+    }
+
+    /** 归一化后的聚合子资源（待写入 JSONB 列的 Map 列表） */
     private static class NormalizedAggregate {
 
-        private final List<ApiEnvironmentHttp> httpConfigs = new ArrayList<>();
-        private final List<ApiEnvironmentVariable> variables = new ArrayList<>();
-        private final List<ApiDataSource> dataSources = new ArrayList<>();
-        private final List<ApiEnvironmentProcessor> processors = new ArrayList<>();
+        private final List<Map<String, Object>> httpConfigs = new ArrayList<>();
+        private final List<Map<String, Object>> variables = new ArrayList<>();
+        private final List<Map<String, Object>> dataSources = new ArrayList<>();
+        private final List<Map<String, Object>> processors = new ArrayList<>();
     }
 }
