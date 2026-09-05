@@ -28,7 +28,7 @@ export const RAW_SUBTYPE_CONTENT_TYPE: Record<ApiDebugRawSubtype, string | undef
 }
 
 /** 提交执行时请求体类型（后端枚举），debug 四态映射到该枚举（详细设计 5.1） */
-const FORM_ENCODED_CONTENT_TYPE = 'application/x-www-form-urlencoded'
+export const FORM_ENCODED_CONTENT_TYPE = 'application/x-www-form-urlencoded'
 
 let tabSeq = 0
 

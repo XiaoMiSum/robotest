@@ -17,8 +17,15 @@ import {
   VALIDATOR_TARGETS,
   VALIDATOR_CONDITIONS,
   EXTRACTOR_SOURCES,
+  SCENE_BODY_TYPES,
+  SCENE_RAW_SUBTYPES,
+  mapBodyEditKind,
+  parseBodyEditState,
+  buildBodyFromEditState,
+  resolveBodyContentType,
+  syncBodyContentTypeHeader,
 } from './scenesModel'
-import type { ApiSceneStepItem } from '@/types'
+import type { ApiDebugKeyValue, ApiSceneStepItem } from '@/types'
 
 function step(overrides: Partial<ApiSceneStepItem> = {}): ApiSceneStepItem {
   return {
@@ -236,6 +243,135 @@ describe('scenesModel', () => {
       expect(values).toContain('json_field')
       expect(values).toContain('regex')
       expect(values).toContain('full_body')
+    })
+  })
+
+  describe('请求体（对齐快速调试三态）', () => {
+    it('SCENE_BODY_TYPES 仅包含 none / urlencoded / raw', () => {
+      expect(SCENE_BODY_TYPES.map((t) => t.value)).toEqual(['none', 'urlencoded', 'raw'])
+    })
+
+    it('SCENE_RAW_SUBTYPES 覆盖调试域全部子类型', () => {
+      expect(SCENE_RAW_SUBTYPES).toEqual(['text', 'json', 'xml', 'html', 'javascript'])
+    })
+
+    it('mapBodyEditKind 映射落库 type → 编辑态三态', () => {
+      expect(mapBodyEditKind('form')).toBe('urlencoded')
+      expect(mapBodyEditKind('json')).toBe('raw')
+      expect(mapBodyEditKind('raw')).toBe('raw')
+      expect(mapBodyEditKind('none')).toBe('none')
+      expect(mapBodyEditKind(undefined)).toBe('none')
+    })
+
+    describe('parseBodyEditState', () => {
+      it('form → urlencoded 行', () => {
+        const state = parseBodyEditState({
+          type: 'form',
+          content: [
+            { key: 'a', value: '1', enabled: true },
+            { key: 'b', value: '2', enabled: false },
+          ],
+        })
+        expect(state.kind).toBe('urlencoded')
+        expect(state.urlencodedRows).toEqual([
+          { key: 'a', value: '1', enabled: true },
+          { key: 'b', value: '2', enabled: false },
+        ])
+      })
+
+      it('json → raw(json) 并格式化对象为文本', () => {
+        const state = parseBodyEditState({ type: 'json', content: { code: 200 } })
+        expect(state.kind).toBe('raw')
+        expect(state.rawSubtype).toBe('json')
+        expect(state.rawText).toContain('"code": 200')
+      })
+
+      it('raw 字符串按 JSON 前缀推断 json 子类型，否则 text', () => {
+        expect(parseBodyEditState({ type: 'raw', content: '{"a":1}' }).rawSubtype).toBe('json')
+        expect(parseBodyEditState({ type: 'raw', content: 'hello' }).rawSubtype).toBe('text')
+      })
+
+      it('none/null → none', () => {
+        expect(parseBodyEditState(undefined).kind).toBe('none')
+        expect(parseBodyEditState({ type: 'none', content: null }).kind).toBe('none')
+      })
+    })
+
+    describe('buildBodyFromEditState', () => {
+      it('urlencoded → form 三元组（去掉禁用行）', () => {
+        const { body } = buildBodyFromEditState({
+          kind: 'urlencoded',
+          rawSubtype: 'text',
+          rawText: '',
+          urlencodedRows: [
+            { key: 'a', value: '1', enabled: true },
+            { key: 'b', value: '2', enabled: false },
+          ],
+        })
+        expect(body).toEqual({ type: 'form', content: [{ key: 'a', value: '1', enabled: true }] })
+      })
+
+      it('raw+json → json 解析对象；空文本 → 空对象', () => {
+        const parsed = buildBodyFromEditState({ kind: 'raw', rawSubtype: 'json', rawText: '{"a":1}', urlencodedRows: [] })
+        expect(parsed.body).toEqual({ type: 'json', content: { a: 1 } })
+        const emptyObj = buildBodyFromEditState({ kind: 'raw', rawSubtype: 'json', rawText: '  ', urlencodedRows: [] })
+        expect(emptyObj.body).toEqual({ type: 'json', content: {} })
+      })
+
+      it('raw+json 解析失败返回错误而非 body', () => {
+        const result = buildBodyFromEditState({ kind: 'raw', rawSubtype: 'json', rawText: '{bad', urlencodedRows: [] })
+        expect(result.body).toBeUndefined()
+        expect(result.error).toMatch(/JSON 请求体格式非法/)
+      })
+
+      it('raw+text → raw 原始文本', () => {
+        const { body } = buildBodyFromEditState({ kind: 'raw', rawSubtype: 'text', rawText: 'plain', urlencodedRows: [] })
+        expect(body).toEqual({ type: 'raw', content: 'plain' })
+      })
+
+      it('none → none', () => {
+        const { body } = buildBodyFromEditState({ kind: 'none', rawSubtype: 'json', rawText: '', urlencodedRows: [] })
+        expect(body).toEqual({ type: 'none', content: null })
+      })
+    })
+
+    describe('Content-Type 联动（对齐快速调试）', () => {
+      it('resolveBodyContentType 返回对应 Content-Type；none/text 不注入', () => {
+        expect(resolveBodyContentType({ kind: 'urlencoded', rawSubtype: 'text', rawText: '', urlencodedRows: [] }))
+          .toBe('application/x-www-form-urlencoded')
+        expect(resolveBodyContentType({ kind: 'raw', rawSubtype: 'json', rawText: '', urlencodedRows: [] }))
+          .toBe('application/json')
+        expect(resolveBodyContentType({ kind: 'raw', rawSubtype: 'xml', rawText: '', urlencodedRows: [] }))
+          .toBe('application/xml')
+        expect(resolveBodyContentType({ kind: 'raw', rawSubtype: 'text', rawText: '', urlencodedRows: [] }))
+          .toBeUndefined()
+        expect(resolveBodyContentType({ kind: 'none', rawSubtype: 'text', rawText: '', urlencodedRows: [] }))
+          .toBeUndefined()
+      })
+
+      function header(k: string, v = k): ApiDebugKeyValue {
+        return { key: k, value: v, enabled: true }
+      }
+
+      it('syncBodyContentTypeHeader 注入 Content-Type 头', () => {
+        const result = syncBodyContentTypeHeader([], { kind: 'urlencoded', rawSubtype: 'text', rawText: '', urlencodedRows: [] })
+        expect(result).toEqual([{ key: 'Content-Type', value: 'application/x-www-form-urlencoded', enabled: true }])
+      })
+
+      it('syncBodyContentTypeHeader 替换已有 Content-Type（大小写不敏感）并保持其他头', () => {
+        const headers = [header('content-type', 'text/plain'), header('Accept', 'application/json')]
+        const result = syncBodyContentTypeHeader(headers, { kind: 'raw', rawSubtype: 'json', rawText: '', urlencodedRows: [] })
+        expect(result).toEqual([
+          { key: 'Content-Type', value: 'application/json', enabled: true },
+          header('Accept', 'application/json'),
+        ])
+      })
+
+      it('syncBodyContentTypeHeader 移除 Content-Type（none/text）', () => {
+        const headers = [header('Content-Type'), header('Accept')]
+        const result = syncBodyContentTypeHeader(headers, { kind: 'none', rawSubtype: 'text', rawText: '', urlencodedRows: [] })
+        expect(result).toEqual([header('Accept')])
+      })
     })
   })
 })

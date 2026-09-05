@@ -1,7 +1,16 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import { ElMessage } from 'element-plus'
 import KeyValueTable from '@/pages/project/debug/KeyValueTable.vue'
-import type { ApiDebugKeyValue } from '@/types'
+import type { ApiDebugKeyValue, ApiDebugRawSubtype } from '@/types'
+import {
+  SCENE_BODY_TYPES,
+  SCENE_RAW_SUBTYPES,
+  buildBodyFromEditState,
+  parseBodyEditState,
+  syncBodyContentTypeHeader,
+  type SceneBodyEditState,
+} from '../scenesModel'
 
 interface KvRow {
   key: string
@@ -30,26 +39,17 @@ const editMethod = ref(props.method ?? 'GET')
 const editUrl = ref(props.url ?? '')
 const editHeaders = ref<ApiDebugKeyValue[]>(props.headers?.length ? props.headers.map((h) => ({ ...h, description: '' })) : [])
 const editParams = ref<ApiDebugKeyValue[]>(props.params?.length ? props.params.map((p) => ({ ...p, description: '' })) : [])
-const bodyType = ref(props.body?.type ?? 'none')
-const jsonText = ref(typeof props.body?.content === 'string' ? String(props.body.content) : '')
-const rawText = ref(typeof props.body?.content === 'string' ? String(props.body.content) : '')
-const formRows = ref<ApiDebugKeyValue[]>(Array.isArray(props.body?.content) ? (props.body.content as KvRow[]).map((r) => ({ ...r, description: '' })) : [])
+const bodyState = ref<SceneBodyEditState>(parseBodyEditState(props.body))
 
 const headersBadge = computed(() => editHeaders.value.filter((h) => h.key.trim()).length || '')
 const queryBadge = computed(() => editParams.value.filter((p) => p.key.trim()).length || '')
 const bodyBadge = computed(() => {
-  if (bodyType.value === 'none') return ''
-  if (bodyType.value === 'json' || bodyType.value === 'raw') return jsonText.value.trim() || rawText.value.trim() ? 1 : ''
-  if (bodyType.value === 'form') return formRows.value.filter((r) => r.key.trim()).length || ''
-  return ''
+  if (bodyState.value.kind === 'none') return ''
+  if (bodyState.value.kind === 'urlencoded') {
+    return bodyState.value.urlencodedRows.filter((r) => r.key.trim() && r.enabled).length || ''
+  }
+  return bodyState.value.rawText.trim() ? 1 : ''
 })
-
-const BODY_TYPES = [
-  { value: 'none', label: '无' },
-  { value: 'json', label: 'JSON' },
-  { value: 'form', label: '表单' },
-  { value: 'raw', label: '原始文本' },
-]
 
 const METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS']
 
@@ -58,27 +58,51 @@ watch(() => props.url, (v) => { editUrl.value = v ?? '' })
 watch(() => props.headers, (v) => { editHeaders.value = v?.length ? v.map((h) => ({ ...h, description: '' })) : [] }, { deep: true })
 watch(() => props.params, (v) => { editParams.value = v?.length ? v.map((p) => ({ ...p, description: '' })) : [] }, { deep: true })
 watch(() => props.body, (v) => {
-  bodyType.value = v?.type ?? 'none'
-  if (v?.type === 'json' && v.content != null && typeof v.content !== 'string') {
-    // 接口/组件导入的 JSON body content 为对象，转为文本供编辑器展示
-    jsonText.value = JSON.stringify(v.content, null, 2)
-  } else if (typeof v?.content === 'string') { jsonText.value = String(v.content); rawText.value = String(v.content) }
-  if (Array.isArray(v?.content)) formRows.value = (v.content as KvRow[]).map((r) => ({ ...r, description: '' }))
+  bodyState.value = parseBodyEditState(v)
 }, { deep: true })
+
+function emitBody(): string | undefined {
+  const { body, error } = buildBodyFromEditState(bodyState.value)
+  if (error) return error
+  // 解析失败时保持上一份合法 body 不被覆盖（对齐接口保存行为），仅提示用户修正
+  emit('update:body', body ?? { type: 'none', content: null })
+  return undefined
+}
 
 function emitAll() {
   emit('update:method', editMethod.value)
   emit('update:url', editUrl.value)
   emit('update:headers', editHeaders.value.filter((h) => h.key.trim()).map(({ key, value, enabled }) => ({ key, value, enabled })))
   emit('update:params', editParams.value.filter((p) => p.key.trim()).map(({ key, value, enabled }) => ({ key, value, enabled })))
-  const content = bodyType.value === 'json' ? jsonText.value
-    : bodyType.value === 'form' ? formRows.value.filter((r) => r.key.trim()).map(({ key, value, enabled }) => ({ key, value, enabled }))
-    : bodyType.value === 'raw' ? rawText.value
-    : null
-  emit('update:body', { type: bodyType.value, content })
+  const error = emitBody()
+  if (error) ElMessage.warning(error)
 }
 
 defineExpose({ emitAll })
+
+/** 切换请求体类型：新选 raw 默认 json 子类型，并联动 Content-Type 头（对齐快速调试） */
+function pickBodyType(kind: SceneBodyEditState['kind']) {
+  if (kind !== bodyState.value.kind && kind === 'raw') bodyState.value.rawSubtype = 'json'
+  bodyState.value.kind = kind
+  editHeaders.value = syncBodyContentTypeHeader(editHeaders.value, bodyState.value)
+  emitAll()
+}
+
+/** raw 子类型变更时联动 Content-Type 头 */
+function onRawSubtypeChange(subtype: ApiDebugRawSubtype) {
+  bodyState.value.rawSubtype = subtype
+  editHeaders.value = syncBodyContentTypeHeader(editHeaders.value, bodyState.value)
+  emitAll()
+}
+
+function formatJsonBody() {
+  try {
+    const parsed: unknown = JSON.parse(bodyState.value.rawText)
+    bodyState.value.rawText = JSON.stringify(parsed, null, 2)
+  } catch {
+    ElMessage.warning('请求体不是合法 JSON，无法格式化')
+  }
+}
 
 // ==================== cURL 导入 ====================
 const showCurlImport = ref(false)
@@ -103,8 +127,14 @@ function parseCurl(curl: string) {
 
   const dataMatch = trimmed.match(/-d\s+['"](.+?)['"]/s) || trimmed.match(/--data\s+['"](.+?)['"]/s)
   if (dataMatch) {
-    bodyType.value = 'json'
-    jsonText.value = dataMatch[1]
+    const text = dataMatch[1]
+    bodyState.value = {
+      kind: 'raw',
+      rawSubtype: /^\s*[{[]/.test(text.trim()) ? 'json' : 'text',
+      rawText: text,
+      urlencodedRows: [],
+    }
+    editHeaders.value = syncBodyContentTypeHeader(editHeaders.value, bodyState.value)
   }
 
   showCurlImport.value = false
@@ -159,34 +189,52 @@ function parseCurl(curl: string) {
           </span>
         </template>
         <div class="req-config-editor__body">
-          <el-radio-group :model-value="bodyType" class="req-config-editor__body-type" @update:model-value="(v) => { bodyType = String(v ?? 'none'); emitAll() }">
-            <el-radio-button v-for="bt in BODY_TYPES" :key="bt.value" :value="bt.value">{{ bt.label }}</el-radio-button>
-          </el-radio-group>
+          <div class="req-config-editor__body-bar">
+            <div class="req-config-editor__body-types">
+              <button
+                v-for="t in SCENE_BODY_TYPES"
+                :key="t.value"
+                class="req-config-editor__body-type"
+                :class="{ 'is-active': bodyState.kind === t.value }"
+                data-test="scene-body-type"
+                @click="pickBodyType(t.value)"
+              >
+                {{ t.label }}
+              </button>
+              <template v-if="bodyState.kind === 'raw'">
+                <el-select :model-value="bodyState.rawSubtype" class="req-config-editor__raw-select" @update:model-value="(v: ApiDebugRawSubtype) => onRawSubtypeChange(v)">
+                  <el-option
+                    v-for="s in SCENE_RAW_SUBTYPES"
+                    :key="s"
+                    :label="s[0].toUpperCase() + s.slice(1)"
+                    :value="s"
+                  />
+                </el-select>
+                <el-tooltip v-if="bodyState.rawSubtype === 'json'" content="格式化（修正 JSON 缩进）" placement="top">
+                  <button class="req-config-editor__body-icon" @click="formatJsonBody">
+                    <el-icon><MagicStick /></el-icon>
+                  </button>
+                </el-tooltip>
+              </template>
+            </div>
+          </div>
 
-          <p v-if="bodyType === 'none'" class="req-config-editor__body-hint">该请求不携带请求体。</p>
+          <p v-if="bodyState.kind === 'none'" class="req-config-editor__body-hint">该请求不携带请求体。</p>
 
           <KeyValueTable
-            v-else-if="bodyType === 'form'"
-            v-model:entries="formRows"
-            placeholder-key="字段名"
+            v-else-if="bodyState.kind === 'urlencoded'"
+            v-model:entries="bodyState.urlencodedRows"
+            placeholder-key="Key"
             @change="emitAll"
           />
 
-          <el-input
-            v-else-if="bodyType === 'json'"
-            v-model="jsonText"
-            type="textarea"
-            :rows="6"
-            placeholder='{"code": 200}'
-            @change="emitAll"
-          />
-
-          <el-input
+          <textarea
             v-else
-            v-model="rawText"
-            type="textarea"
-            :rows="6"
-            placeholder="原始请求体内容"
+            v-model="bodyState.rawText"
+            class="req-config-editor__body-editor"
+            placeholder="原始文本（支持变量引用）"
+            spellcheck="false"
+            :rows="12"
             @change="emitAll"
           />
         </div>
@@ -251,8 +299,98 @@ function parseCurl(curl: string) {
   gap: var(--space-sm);
 }
 
+.req-config-editor__body-bar {
+  display: flex;
+  align-items: center;
+}
+
+.req-config-editor__body-types {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  background: var(--color-neutral-50, #fafafa);
+  border-radius: 6px;
+  padding: 2px;
+  width: fit-content;
+  flex-wrap: wrap;
+}
+
 .req-config-editor__body-type {
-  margin-bottom: 0;
+  height: 28px;
+  padding: 0 12px;
+  display: inline-flex;
+  align-items: center;
+  font-size: 12px;
+  border: none;
+  background: none;
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--color-neutral-500, #909399);
+  transition: all 0.15s;
+
+  &:hover {
+    color: var(--color-neutral-700, #606266);
+  }
+
+  &.is-active {
+    background: var(--color-primary-500, #409eff);
+    color: #fff;
+    font-weight: 500;
+    box-shadow: none;
+  }
+}
+
+.req-config-editor__raw-select {
+  width: 120px;
+  margin-left: 4px;
+
+  :deep(.el-select__wrapper) {
+    min-height: 28px;
+    padding: 1px 8px;
+  }
+}
+
+.req-config-editor__body-icon {
+  height: 28px;
+  width: 28px;
+  margin-left: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: none;
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--color-neutral-400, #909399);
+
+  &:hover {
+    color: var(--color-primary-500, #409eff);
+  }
+}
+
+.req-config-editor__body-editor {
+  width: 100%;
+  min-height: 160px;
+  max-height: 400px;
+  resize: vertical;
+  padding: 12px;
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  color: #d4d4d4;
+  background: #1e1e1e;
+  border: 1px solid #333;
+  border-radius: 6px;
+  outline: none;
+  tab-size: 2;
+
+  &::placeholder {
+    color: #555;
+  }
+
+  &:focus {
+    border-color: var(--color-primary-500, #409eff);
+  }
 }
 
 .req-config-editor__body-hint {

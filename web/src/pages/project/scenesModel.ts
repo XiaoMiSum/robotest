@@ -1,4 +1,5 @@
-import type { ApiSceneStepItem, ApiSceneStepVariableItem } from '@/types'
+import type { ApiDebugKeyValue, ApiDebugRawSubtype, ApiSceneStepItem, ApiSceneStepVariableItem } from '@/types'
+import { FORM_ENCODED_CONTENT_TYPE, RAW_SUBTYPE_CONTENT_TYPE } from './debugModel'
 
 /** 步骤类型选项 */
 export const STEP_TYPE_OPTIONS = [
@@ -164,6 +165,105 @@ export function buildEmptyRequestConfig(): Record<string, unknown> {
     body: { type: 'none', content: null },
     timeout: 30000,
   }
+}
+
+// ==================== 请求体（对齐快速调试：none / x-www-form-urlencoded / raw + 子类型） ====================
+
+/** 场景步骤请求体编辑态：与快速调试/接口编辑器一致的三态 + raw 子类型（接口域详细设计 body_type 映射） */
+export interface SceneBodyEditState {
+  kind: 'none' | 'urlencoded' | 'raw'
+  rawSubtype: ApiDebugRawSubtype
+  rawText: string
+  urlencodedRows: ApiDebugKeyValue[]
+}
+
+export const SCENE_BODY_TYPES = [
+  { value: 'none', label: 'none' },
+  { value: 'urlencoded', label: 'x-www-form-urlencoded' },
+  { value: 'raw', label: 'raw' },
+] as const satisfies ReadonlyArray<{ value: SceneBodyEditState['kind']; label: string }>
+
+export const SCENE_RAW_SUBTYPES: ApiDebugRawSubtype[] = ['text', 'json', 'xml', 'html', 'javascript']
+
+/** 落库 body.type → 编辑态三态：form→urlencoded、json/raw→raw、其余 none（接口域详细设计 body_type 映射） */
+export function mapBodyEditKind(type: string | undefined): SceneBodyEditState['kind'] {
+  if (type === 'form') return 'urlencoded'
+  if (type === 'json' || type === 'raw') return 'raw'
+  return 'none'
+}
+
+/** 将请求头行还原为 {key,value,enabled} 三元组 */
+function toKeyValueTriples(rows: ApiDebugKeyValue[]): { key: string; value: string; enabled: boolean }[] {
+  return rows
+    .filter((row) => row.key.trim() !== '' && row.enabled)
+    .map((row) => ({ key: row.key.trim(), value: row.value, enabled: true }))
+}
+
+/** 落库 content 数组 → urlencoded 行（content 为 null/非数组时回退空表） */
+function kvRowsFromContent(content: unknown): ApiDebugKeyValue[] {
+  if (!Array.isArray(content)) return []
+  return content.map((entry) => {
+    const item = entry as Record<string, unknown>
+    return { key: String(item.key ?? ''), value: String(item.value ?? ''), enabled: item.enabled !== false }
+  })
+}
+
+/** 落库请求体 → 编辑态（回显）；json 保留 json 子类型，raw 按内容前缀推断（对齐 interfacesModel 回读） */
+export function parseBodyEditState(body?: { type?: string; content?: unknown } | null): SceneBodyEditState {
+  const kind = mapBodyEditKind(body?.type)
+  const content = body?.content
+  if (kind === 'urlencoded') {
+    return { kind, rawSubtype: 'text', rawText: '', urlencodedRows: kvRowsFromContent(content) }
+  }
+  if (kind === 'raw') {
+    // 与 interfacesModel 回读一致：json 保留 json 子类型，raw 字符串按 JSON 前缀推断
+    const rawSubtype: ApiDebugRawSubtype = body?.type === 'json'
+      ? 'json'
+      : typeof content === 'string'
+        ? (/^\s*[{[]/.test(content) ? 'json' : 'text')
+        : 'json'
+    const rawText = typeof content === 'string' ? content : JSON.stringify(content ?? {}, null, 2)
+    return { kind, rawSubtype, rawText, urlencodedRows: [] }
+  }
+  return { kind: 'none', rawSubtype: 'text', rawText: '', urlencodedRows: [] }
+}
+
+/** 编辑态 → 落库请求体；raw+json 解析失败返回错误而非静默丢弃（对齐接口保存行为） */
+export function buildBodyFromEditState(
+  state: SceneBodyEditState,
+): { body?: { type: string; content: unknown }; error?: string } {
+  if (state.kind === 'urlencoded') {
+    return { body: { type: 'form', content: toKeyValueTriples(state.urlencodedRows) } }
+  }
+  if (state.kind === 'raw') {
+    if (state.rawSubtype === 'json') {
+      try {
+        return { body: { type: 'json', content: state.rawText.trim() ? (JSON.parse(state.rawText) as unknown) : {} } }
+      } catch {
+        return { error: 'JSON 请求体格式非法，请修正后再保存' }
+      }
+    }
+    return { body: { type: 'raw', content: state.rawText } }
+  }
+  return { body: { type: 'none', content: null } }
+}
+
+/** 编辑态请求体 → 应注入的 Content-Type；none/text 不注入（对齐快速调试联动） */
+export function resolveBodyContentType(state: SceneBodyEditState): string | undefined {
+  if (state.kind === 'urlencoded') return FORM_ENCODED_CONTENT_TYPE
+  if (state.kind === 'raw') return RAW_SUBTYPE_CONTENT_TYPE[state.rawSubtype]
+  return undefined
+}
+
+/** 注入/移除 Content-Type 头行到请求头（替换已存在的同名头，Quick Debug 语义） */
+export function syncBodyContentTypeHeader(
+  headers: ApiDebugKeyValue[],
+  state: SceneBodyEditState,
+): ApiDebugKeyValue[] {
+  const contentType = resolveBodyContentType(state)
+  const rest = headers.filter((h) => h.key.trim().toLowerCase() !== 'content-type')
+  if (!contentType) return rest
+  return [{ key: 'Content-Type', value: contentType, enabled: true }, ...rest]
 }
 
 // ==================== 执行配置 ====================
