@@ -23,11 +23,18 @@ import {
 } from './interfacesModel'
 import type { PendingDebugRequest } from '@/stores/apiTestingUi'
 import ImportDialog from './interfaces/ImportDialog.vue'
+import ProjectModuleTree from '@/components/project/ProjectModuleTree.vue'
 
 const router = useRouter()
 const uiStore = useApiTestingUiStore()
 
+const emit = defineEmits<{
+  (e: 'create', moduleId?: string): void
+  (e: 'edit', interfaceId: string): void
+}>()
+
 // ==================== 模块树 ====================
+// 交互树由 ProjectModuleTree 组件管理；此处仅保留模块名映射供列表「模块」列展示
 const moduleTree = ref<ProjectModule[]>([])
 const moduleNames = computed(() => flattenModuleNames(moduleTree.value))
 const selectedModuleId = ref<string | null>(null)
@@ -36,13 +43,13 @@ async function loadModules() {
   try {
     moduleTree.value = await fetchProjectModuleTree('interface')
   } catch {
-    // 模块服务不可用时列表退化为无模块过滤，不阻塞主流程
+    // 模块服务不可用时列名退化为空，不阻塞主流程
     moduleTree.value = []
   }
 }
 
-function handleModuleSelect(node: ProjectModule | null) {
-  selectedModuleId.value = node?.id ?? null
+function handleSelectModule(moduleId: string) {
+  selectedModuleId.value = moduleId
 }
 
 // ==================== 列表 ====================
@@ -71,6 +78,8 @@ async function loadPage() {
     )
     rows.value = page.list
     total.value = page.total
+    // 模块名映射随每次列表加载刷新，保证重命名/删除/拖拽后「模块」列显示最新名称
+    void loadModules()
   } catch (error) {
     ElMessage.error(error instanceof Error ? error.message : '接口列表加载失败')
   } finally {
@@ -88,6 +97,14 @@ function handleSearch() {
   void loadPage()
 }
 
+function handleReset() {
+  searchText.value = ''
+  statusFilter.value = ''
+  viewFilter.value = 'all'
+  pageNo.value = 1
+  void loadPage()
+}
+
 const VIEW_OPTIONS: { value: ApiInterfaceView; label: string }[] = [
   { value: 'all', label: '全部' },
   { value: 'followed', label: '我关注的' },
@@ -96,12 +113,11 @@ const VIEW_OPTIONS: { value: ApiInterfaceView; label: string }[] = [
 
 // ==================== 行操作 ====================
 function openEditor(item: Pick<ApiInterfaceItem, 'id'>) {
-  void router.push(`/workspace/projects/interfaces/${item.id}`)
+  emit('edit', item.id)
 }
 
 function openCreate() {
-  const query = selectedModuleId.value ? { moduleId: selectedModuleId.value } : {}
-  void router.push({ path: '/workspace/projects/interfaces/new', query })
+  emit('create', selectedModuleId.value ?? undefined)
 }
 
 /** 调试联动：预填快照交给 store，切到快速调试子页由其消费 */
@@ -145,7 +161,7 @@ async function handleCopy(item: ApiInterfaceItem) {
     const newId = await copyInterface(item.id)
     ElMessage.success('已复制，正在打开副本')
     await loadPage()
-    void router.push(`/workspace/projects/interfaces/${newId}`)
+    emit('edit', newId)
   } catch (error) {
     ElMessage.error(error instanceof Error ? error.message : '复制失败')
   }
@@ -201,70 +217,74 @@ async function confirmBatchDelete() {
 // ==================== 导入 ====================
 const showImport = ref(false)
 
+/** 供宿主 workspace 头部「导入」按钮调用：始终优先切回列表后再弹出对话框 */
+function openImport() {
+  showImport.value = true
+}
+
 function handleImported() {
   pageNo.value = 1
   void loadPage()
 }
 
 onMounted(async () => {
-  await Promise.all([loadModules(), loadPage()])
+  await loadPage()
 })
+
+// 头部「新建/导入」按钮通过 ref 委托到列表页，以复用当前模块上下文
+defineExpose({ openCreate, openImport })
 </script>
 
 <template>
   <div class="interfaces-page">
-    <el-card v-loading="loading" shadow="never">
-      <template #header>
-        <div class="interfaces-page__toolbar">
-          <el-input
-            v-model="searchText"
-            placeholder="搜索名称 / 路径"
-            clearable
-            style="width: 240px"
-            data-test="interface-search-input"
-            @keyup.enter="handleSearch"
-            @clear="handleSearch"
+    <el-card shadow="never" class="interfaces-page__search-card">
+      <div class="interfaces-page__toolbar">
+        <el-segmented
+          v-model="viewFilter"
+          :options="VIEW_OPTIONS"
+          data-test="interface-view-switch"
+        />
+        <el-input
+          v-model="searchText"
+          placeholder="搜索名称 / 路径"
+          clearable
+          style="width: 240px"
+          data-test="interface-search-input"
+          @keyup.enter="handleSearch"
+          @clear="handleSearch"
+        />
+        <el-select v-model="statusFilter" clearable placeholder="状态" style="width: 120px" data-test="interface-status-filter">
+          <el-option value="enabled" label="启用" />
+          <el-option value="disabled" label="停用" />
+        </el-select>
+        <el-button type="primary" data-test="interface-search-btn" @click="handleSearch">
+          <el-icon><Search /></el-icon>查询
+        </el-button>
+        <el-button data-test="interface-reset-btn" @click="handleReset">重置</el-button>
+        <div class="interfaces-page__spacer" />
+        <template v-if="hasSelection">
+          <span class="interfaces-page__selected-count">已选 {{ selectedRows.length }} 项</span>
+          <el-button size="small" data-test="batch-move-btn" @click="showBatchMove = true">批量移动</el-button>
+          <el-button size="small" type="danger" plain data-test="batch-delete-btn" @click="confirmBatchDelete">批量删除</el-button>
+          <el-divider direction="vertical" />
+        </template>
+      </div>
+    </el-card>
+
+    <div class="interfaces-page__body">
+      <el-card shadow="never" class="interfaces-page__module-card">
+        <div class="interfaces-page__modules">
+          <ProjectModuleTree
+            asset-type="interface"
+            :current-module-id="selectedModuleId || undefined"
+            @select-module="handleSelectModule"
+            @select-document="handleSelectModule"
           />
-          <el-select v-model="statusFilter" clearable placeholder="状态" style="width: 120px" data-test="interface-status-filter">
-            <el-option value="enabled" label="启用" />
-            <el-option value="disabled" label="停用" />
-          </el-select>
-          <el-segmented
-            v-model="viewFilter"
-            :options="VIEW_OPTIONS"
-            data-test="interface-view-switch"
-          />
-          <div class="interfaces-page__spacer" />
-          <template v-if="hasSelection">
-            <span class="interfaces-page__selected-count">已选 {{ selectedRows.length }} 项</span>
-            <el-button size="small" data-test="batch-move-btn" @click="showBatchMove = true">批量移动</el-button>
-            <el-button size="small" type="danger" plain data-test="batch-delete-btn" @click="confirmBatchDelete">批量删除</el-button>
-            <el-divider direction="vertical" />
-          </template>
-          <el-button data-test="interface-import-btn" @click="showImport = true">导入</el-button>
-          <el-button type="primary" data-test="interface-create-btn" @click="openCreate">新建接口</el-button>
         </div>
-      </template>
+      </el-card>
 
-      <div class="interfaces-page__body">
-        <aside class="interfaces-page__modules">
-          <div class="interfaces-page__modules-title">模块</div>
-          <el-tree
-            :data="moduleTree"
-            node-key="id"
-            :props="{ label: 'name', children: 'children' }"
-            :expand-on-click-node="false"
-            highlight-current
-            @node-click="handleModuleSelect"
-          >
-            <template #default="{ data }">
-              <span class="interfaces-page__module-node">{{ data.name }}</span>
-            </template>
-          </el-tree>
-        </aside>
-
-        <section class="interfaces-page__table-wrap">
-          <el-table
+      <el-card v-loading="loading" shadow="never" class="interfaces-page__data-card">
+        <el-table
             :data="rows"
             data-test="interface-table"
             @selection-change="(selection: ApiInterfaceItem[]) => (selectedRows = selection)"
@@ -311,8 +331,8 @@ onMounted(async () => {
               <template #default="{ row }">
                 <el-button link size="small" type="primary" :data-test="'interface-debug-' + row.id" @click="debugFromRow(row as ApiInterfaceItem)">调试</el-button>
                 <el-button link size="small" @click="openEditor(row as Pick<ApiInterfaceItem, 'id'>)">编辑</el-button>
-                <el-dropdown trigger="click" @command="(cmd: string) => cmd === 'copy' ? handleCopy(row as ApiInterfaceItem) : handleDelete(row as ApiInterfaceItem)">
-                  <el-button link size="small">更多</el-button>
+                <el-dropdown trigger="click" class="interfaces-page__more" @command="(cmd: string) => cmd === 'copy' ? handleCopy(row as ApiInterfaceItem) : handleDelete(row as ApiInterfaceItem)">
+                  <el-button link size="small">更多<el-icon class="el-icon--right"><ArrowDown /></el-icon></el-button>
                   <template #dropdown>
                     <el-dropdown-menu>
                       <el-dropdown-item command="copy">复制</el-dropdown-item>
@@ -334,9 +354,8 @@ onMounted(async () => {
             class="interfaces-page__pagination"
             @current-change="loadPage"
           />
-        </section>
+        </el-card>
       </div>
-    </el-card>
 
     <ImportDialog v-model="showImport" @imported="handleImported" />
 
@@ -365,6 +384,10 @@ onMounted(async () => {
   height: 100%;
 }
 
+.interfaces-page__search-card {
+  flex-shrink: 0;
+}
+
 .interfaces-page__toolbar {
   display: flex;
   align-items: center;
@@ -373,6 +396,12 @@ onMounted(async () => {
 
 .interfaces-page__spacer {
   flex: 1;
+}
+
+// 与前面的 link 操作按钮保持同基线、同间距
+.interfaces-page__more {
+  margin-left: 12px;
+  vertical-align: middle;
 }
 
 .interfaces-page__selected-count {
@@ -384,28 +413,41 @@ onMounted(async () => {
   display: flex;
   gap: var(--space-lg);
   min-height: 0;
+  flex: 1;
+}
+
+.interfaces-page__module-card {
+  width: 280px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 
 .interfaces-page__modules {
-  width: 220px;
-  flex-shrink: 0;
-  overflow-y: auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 
-  .interfaces-page__modules-title {
-    margin-bottom: var(--space-xs);
-    color: var(--color-neutral-500);
-    font-size: var(--font-size-xs);
-    letter-spacing: 0.05em;
-  }
-
-  .interfaces-page__module-node {
-    font-size: var(--font-size-sm);
+  :deep(.module-tree) {
+    min-height: 0;
   }
 }
 
-.interfaces-page__table-wrap {
+.interfaces-page__data-card {
   flex: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+
+  :deep(.el-card__body) {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
 }
 
 .interfaces-page__star {
@@ -421,4 +463,5 @@ onMounted(async () => {
   justify-content: flex-end;
   margin-top: var(--space-md);
 }
+
 </style>

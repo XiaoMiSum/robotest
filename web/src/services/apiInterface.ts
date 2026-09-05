@@ -7,10 +7,8 @@ import type {
   ApiInterfaceDetail,
   ApiInterfaceItem,
   ApiInterfaceReferences,
-  ApiInterfaceStepPayload,
   ApiInterfaceStatus,
   ApiInterfaceUpdateReq,
-  ApiInterfaceVariablePayload,
   ApiInterfaceView,
   PageResult,
 } from '@/types'
@@ -82,35 +80,6 @@ export function unfollowInterface(id: string): Promise<boolean> {
 
 export function fetchInterfaceChangeLogs(id: string, pageNo: number, pageSize: number): Promise<PageResult<ApiInterfaceChangeLogItem>> {
   return get(`/project/interfaces/${id}/change-logs`, { pageNo, pageSize })
-}
-
-// ==================== 公共步骤（3.2） ====================
-
-export function createInterfaceStep(interfaceId: string, step: ApiInterfaceStepPayload): Promise<string> {
-  return post(`/project/interfaces/${interfaceId}/steps`, step).then((resp) => (resp as { id: string }).id)
-}
-
-export function updateInterfaceStep(interfaceId: string, stepId: string, step: ApiInterfaceStepPayload): Promise<boolean> {
-  return put(`/project/interfaces/${interfaceId}/steps/${stepId}`, step)
-}
-
-export function deleteInterfaceStep(interfaceId: string, stepId: string): Promise<boolean> {
-  return api.delete(`/project/interfaces/${interfaceId}/steps/${stepId}`) as unknown as Promise<boolean>
-}
-
-export function sortInterfaceStep(interfaceId: string, stepId: string, sortOrder: number): Promise<boolean> {
-  return put(`/project/interfaces/${interfaceId}/steps/${stepId}/sort`, { sortOrder })
-}
-
-// ==================== 接口级变量（3.3） ====================
-
-export function fetchInterfaceVariables(interfaceId: string): Promise<ApiInterfaceVariablePayload[]> {
-  return get(`/project/interfaces/${interfaceId}/variables`)
-}
-
-/** 全量覆盖语义：按 name 匹配更新，未包含的删除 */
-export function updateInterfaceVariables(interfaceId: string, variables: ApiInterfaceVariablePayload[]): Promise<boolean> {
-  return put(`/project/interfaces/${interfaceId}/variables`, { variables })
 }
 
 // ==================== 导入（3.4） ====================
