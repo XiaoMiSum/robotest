@@ -309,7 +309,7 @@ onMounted(() => void loadList(false))
             @input="handleSearchInput"
           />
           <el-dropdown type="primary" split-button trigger="click" @click="openCreateDialog">
-            新增
+            <el-icon><Plus /></el-icon>新增
             <template #dropdown>
               <el-dropdown-menu>
                 <el-dropdown-item :disabled="!canEdit" @click="openImportDialog">导入环境</el-dropdown-item>

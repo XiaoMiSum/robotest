@@ -1,20 +1,13 @@
 import api from '@/services'
 import type {
-  ApiDataSource,
-  ApiDataSourcePayload,
   ApiDataSourceTestResp,
   ApiEnvironmentDetail,
   ApiEnvironmentListItem,
   ApiEnvironmentSaveReq,
-  ApiHttpConfig,
-  ApiHttpConfigPayload,
   ApiHttpTestResp,
   ApiIdResp,
   ApiImportResult,
-  ApiProcessor,
   ApiSetDefaultResp,
-  ApiVariable,
-  ApiVariablePayload,
 } from '@/types'
 
 // 响应拦截器已将 Result<T> 解包为 data，此处集中处理静态类型断言
@@ -72,103 +65,21 @@ export function copyEnvironment(id: string, name: string): Promise<ApiIdResp> {
   return post(`/project/environments/${id}/copy`, { name })
 }
 
-// ---------- 处理器子资源（3.2） ----------
-
-export function fetchProcessors(environmentId: string, processorType?: string): Promise<ApiProcessor[]> {
-  const params: Record<string, unknown> = {}
-  if (processorType) params.processorType = processorType
-  return get(`/project/environments/${environmentId}/processors`, params)
-}
-
-export function createProcessor(
-  environmentId: string,
-  data: Pick<ApiProcessor, 'processorType' | 'name'> & Partial<Pick<ApiProcessor, 'config' | 'sortOrder' | 'enabled'>>,
-): Promise<ApiProcessor> {
-  return post(`/project/environments/${environmentId}/processors`, data)
-}
-
-export function updateProcessor(
-  environmentId: string,
-  procId: string,
-  data: Pick<ApiProcessor, 'processorType' | 'name'> & Partial<Pick<ApiProcessor, 'config' | 'sortOrder' | 'enabled'>>,
-): Promise<ApiProcessor> {
-  return put(`/project/environments/${environmentId}/processors/${procId}`, data)
-}
-
-export function deleteProcessor(environmentId: string, procId: string): Promise<boolean> {
-  return del(`/project/environments/${environmentId}/processors/${procId}`)
-}
-
-// ---------- HTTP 配置子资源（3.1.12） ----------
-
-/** 新增 HTTP 配置：立即持久化，返回含 id 的配置供行内更新 */
-export function createHttpConfig(environmentId: string, data: ApiHttpConfigPayload): Promise<ApiHttpConfig> {
-  return post(`/project/environments/${environmentId}/http-configs`, data)
-}
-
-export function updateHttpConfig(
-  environmentId: string,
-  httpConfigId: string,
-  data: ApiHttpConfigPayload,
-): Promise<ApiHttpConfig> {
-  return put(`/project/environments/${environmentId}/http-configs/${httpConfigId}`, data)
-}
-
-export function deleteHttpConfig(environmentId: string, httpConfigId: string): Promise<boolean> {
-  return del(`/project/environments/${environmentId}/http-configs/${httpConfigId}`)
-}
-
-// ---------- 数据源子资源（3.1.12） ----------
-
-export function createDataSource(environmentId: string, data: ApiDataSourcePayload): Promise<ApiDataSource> {
-  return post(`/project/environments/${environmentId}/data-sources`, data)
-}
-
-export function updateDataSource(
-  environmentId: string,
-  dsId: string,
-  data: ApiDataSourcePayload,
-): Promise<ApiDataSource> {
-  return put(`/project/environments/${environmentId}/data-sources/${dsId}`, data)
-}
-
-export function deleteDataSource(environmentId: string, dsId: string): Promise<boolean> {
-  return del(`/project/environments/${environmentId}/data-sources/${dsId}`)
-}
-
-// ---------- 变量子资源（3.3） ----------
-
-export function batchReplaceVariables(environmentId: string, variables: ApiVariablePayload[]): Promise<ApiVariable[]> {
-  return put(`/project/environments/${environmentId}/variables`, { variables })
-}
-
-export function importVariables(
-  environmentId: string,
-  variables: ApiVariablePayload[],
-  overwrite: boolean,
-): Promise<ApiImportResult> {
-  return post(`/project/environments/${environmentId}/variables/import`, { variables, overwrite })
-}
-
-export function exportVariables(environmentId: string): Promise<ApiVariable[]> {
-  return get(`/project/environments/${environmentId}/variables/export`)
-}
-
-// ---------- 连接测试（3.1.7 / 3.1.8） ----------
-
-export function testDataSource(environmentId: string, dataSourceId: string): Promise<ApiDataSourceTestResp> {
-  return post(`/project/environments/${environmentId}/data-sources/${dataSourceId}/test`)
-}
+// ---------- 连接测试（3.1.7 / 3.1.8，请求体传配置不落库） ----------
 
 export function testDataSourceConfig(
   environmentId: string,
-  config: Pick<ApiDataSourcePayload, 'driver' | 'url' | 'connectionProperties'>,
+  config: { driver?: string; url: string; connectionProperties?: Record<string, unknown> },
 ): Promise<ApiDataSourceTestResp> {
   return post(`/project/environments/${environmentId}/data-sources/test`, config)
 }
 
-export function testHttpConfig(environmentId: string, httpConfigId: string): Promise<ApiHttpTestResp> {
-  return post(`/project/environments/${environmentId}/http-configs/${httpConfigId}/test`)
+/** HTTP 配置免保存试连：按请求体当前值验证，无需先落库（详细设计 3.1.8） */
+export function testHttpConfig(
+  environmentId: string,
+  config: { baseUrl: string; refName?: string },
+): Promise<ApiHttpTestResp> {
+  return post(`/project/environments/${environmentId}/http-configs/test`, config)
 }
 
 // ---------- 导入导出（3.1.9 / 3.1.10） ----------
