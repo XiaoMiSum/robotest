@@ -50,6 +50,35 @@ const LEGACY_CONFIG_KEYS = ['handlerType', 'url', 'contentType', 'dataSource', '
 
 export const HTTP_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS'] as const
 
+type TagType = 'success' | 'primary' | 'warning' | 'info' | 'danger'
+const PROCESSOR_METHOD_COLORS: Record<string, TagType> = {
+  GET: 'success',
+  POST: 'primary',
+  PUT: 'warning',
+  PATCH: 'warning',
+  DELETE: 'danger',
+}
+function processorMethodTagType(method: string): TagType {
+  return PROCESSOR_METHOD_COLORS[method.toUpperCase()] ?? 'info'
+}
+
+// 处理器卡片摘要标签：http → 请求方法，jdbc → SQL 语句类型（与步骤卡片的 method/SQL 标签同构）
+export function processorSummaryTag(element: Record<string, unknown> | null | undefined): { text: string; type: TagType } | null {
+  if (!isRecord(element)) return null
+  if (element.testclass === 'http') {
+    const config = isRecord(element.config) ? element.config : {}
+    const method = typeof config.method === 'string' && config.method.trim() ? config.method.toUpperCase() : 'GET'
+    return { text: method, type: processorMethodTagType(method) }
+  }
+  if (element.testclass === 'jdbc') {
+    const config = isRecord(element.config) ? element.config : {}
+    if (typeof config.sql !== 'string') return null
+    const match = /^\s*([a-zA-Z]+)/.exec(config.sql)
+    return match ? { text: match[1].toUpperCase(), type: 'primary' } : null
+  }
+  return null
+}
+
 export function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value)
 }

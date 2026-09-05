@@ -11,6 +11,7 @@ import {
   parseJdbcProcessorForm,
   parseProcessorElement,
   processorFromComponent,
+  processorSummaryTag,
   toHttpConfig,
   toJdbcConfig,
   toProcessorElement,
@@ -357,6 +358,27 @@ describe('processorFormModel', () => {
       })
       expect(element.http.bodyKind).toBe('form')
       expect(element.http.formRows).toEqual([{ key: 'k', value: 'v' }])
+    })
+  })
+
+  describe('processorSummaryTag', () => {
+    it('maps http config method to a colored tag (default GET)', () => {
+      expect(processorSummaryTag({ testclass: 'http', config: {} })).toEqual({ text: 'GET', type: 'success' })
+      expect(processorSummaryTag({ testclass: 'http', config: { method: 'post' } })).toEqual({ text: 'POST', type: 'primary' })
+      expect(processorSummaryTag({ testclass: 'http', config: { method: 'DELETE' } })).toEqual({ text: 'DELETE', type: 'danger' })
+    })
+
+    it('maps jdbc sql leading keyword to a tag, unknown sql returns null', () => {
+      expect(processorSummaryTag({ testclass: 'jdbc', config: { sql: 'select * from t' } })).toEqual({ text: 'SELECT', type: 'primary' })
+      expect(processorSummaryTag({ testclass: 'jdbc', config: { sql: '  update t set a=1' } })).toEqual({ text: 'UPDATE', type: 'primary' })
+      expect(processorSummaryTag({ testclass: 'jdbc', config: { sql: 123 } })).toBeNull()
+      expect(processorSummaryTag({ testclass: 'jdbc', config: {} })).toBeNull()
+    })
+
+    it('returns null for unconfigured / non-http or jdbc elements', () => {
+      expect(processorSummaryTag({})).toBeNull()
+      expect(processorSummaryTag({ testclass: 'validator', config: {} })).toBeNull()
+      expect(processorSummaryTag(null as unknown as Record<string, unknown>)).toBeNull()
     })
   })
 })
