@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
+import { ElMessage } from 'element-plus'
 import type {
   ApiDebugBodyKind,
   ApiDebugRawSubtype,
@@ -7,10 +8,12 @@ import type {
   DebugTab,
 } from '@/types'
 import { fetchEnvironments } from '@/services/apiEnvironment'
-import { HTTP_METHODS } from '../debugModel'
+import { HTTP_METHODS, setBodyContentTypeHeader } from '../debugModel'
 import KeyValueTable from './KeyValueTable.vue'
 
 const tab = defineModel<DebugTab>('tab', { required: true })
+
+const environmentId = defineModel<string>('environmentId', { default: '' })
 
 defineProps<{ executing: boolean; canSave: boolean }>()
 
@@ -19,7 +22,6 @@ const emit = defineEmits<{ (e: 'execute', environmentId?: string): void; (e: 'sa
 // ==================== 环境选择 ====================
 
 const environments = ref<ApiEnvironmentListItem[]>([])
-const environmentId = ref('')
 
 onMounted(async () => {
   try {
@@ -49,6 +51,7 @@ function pickBodyType(type: ApiDebugBodyKind) {
   if (type === 'raw' && !tab.value.bodies.raw) {
     tab.value.bodies.raw = { text: '', subtype: 'json' }
   }
+  setBodyContentTypeHeader(tab.value, type, tab.value.bodies.raw?.subtype)
 }
 
 const rawSubtype = computed<ApiDebugRawSubtype>({
@@ -58,6 +61,7 @@ const rawSubtype = computed<ApiDebugRawSubtype>({
   set(subtype: ApiDebugRawSubtype) {
     if (!tab.value.bodies.raw) tab.value.bodies.raw = { text: '', subtype }
     else tab.value.bodies.raw.subtype = subtype
+    if (tab.value.bodyType === 'raw') setBodyContentTypeHeader(tab.value, 'raw', subtype)
   },
 })
 
@@ -76,7 +80,7 @@ function formatJsonBody() {
     const parsed: unknown = JSON.parse(rawText.value)
     rawText.value = JSON.stringify(parsed, null, 2)
   } catch {
-    // 非合法 JSON 不提供格式化，保持原样
+    ElMessage.warning('请求体不是合法 JSON，无法格式化')
   }
 }
 
@@ -179,7 +183,6 @@ const methodColor = computed(() => METHOD_COLORS[tab.value.method.toUpperCase()]
       <div class="req-panel__env">
         <el-select
           v-model="environmentId"
-          clearable
           placeholder="选择环境（可选）"
           class="req-panel__env-select"
         >
@@ -280,7 +283,11 @@ const methodColor = computed(() => METHOD_COLORS[tab.value.method.toUpperCase()]
                 :value="s"
               />
             </el-select>
-            <el-button v-if="rawSubtype === 'json'" text @click="formatJsonBody">格式化</el-button>
+            <el-tooltip v-if="rawSubtype === 'json'" content="格式化（修正 JSON 缩进）" placement="top">
+              <button class="req-panel__body-format" @click="formatJsonBody">
+                <el-icon><MagicStick /></el-icon>
+              </button>
+            </el-tooltip>
           </div>
         </div>
 
@@ -541,6 +548,26 @@ const methodColor = computed(() => METHOD_COLORS[tab.value.method.toUpperCase()]
 
   &__raw-select {
     width: 120px;
+  }
+
+  &__body-format {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border: none;
+    background: none;
+    border-radius: 4px;
+    color: var(--color-neutral-400, #909399);
+    cursor: pointer;
+    font-size: 14px;
+    transition: color 0.15s, background 0.15s;
+
+    &:hover {
+      color: var(--color-neutral-700, #606266);
+      background: var(--color-neutral-100, #e8e8e8);
+    }
   }
 
   &__body-editor {

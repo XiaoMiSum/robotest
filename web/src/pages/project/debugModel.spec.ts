@@ -4,10 +4,12 @@ import {
   autoTabName,
   buildAuthHeader,
   buildExecutePayload,
+  buildRequestSnapshot,
   createTab,
   ensureUrlScheme,
   markExecuted,
   MAX_DEBUG_TABS,
+  setBodyContentTypeHeader,
   tabFromRestore,
   tabTitle,
 } from './debugModel'
@@ -50,10 +52,10 @@ describe('debugModel', () => {
       { key: 'X-On', value: '1', enabled: true },
       { key: 'Content-Type', value: 'application/x-www-form-urlencoded', enabled: true },
     ])
-    expect(payload.body).toEqual({ type: 'form', content: 'a=1' })
+    expect(payload.body).toEqual({ type: 'form', content: [{ key: 'a', value: '1', enabled: true }] })
   })
 
-  it('x-www-form-urlencoded 映射为后端 form 编码串（URL 编码）', () => {
+  it('x-www-form-urlencoded 提交原始 key-value 列表（禁用行剔除，键值原样保留）', () => {
     const tab = createTab()
     tab.bodyType = 'urlencoded'
     tab.bodies.urlencoded = [
@@ -63,8 +65,28 @@ describe('debugModel', () => {
     ]
     expect(buildExecutePayload(tab).body).toEqual({
       type: 'form',
-      content: `name=${encodeURIComponent('张三')}&next=${encodeURIComponent('a=1&b=2')}`,
+      content: [
+        { key: 'name', value: '张三', enabled: true },
+        { key: 'next', value: 'a=1&b=2', enabled: true },
+      ],
     })
+  })
+
+  it('切换 body 类型时 Content-Type 头随动并置于第 0 位（覆盖已有 Content-Type）', () => {
+    const tab = createTab()
+    tab.headers = [{ key: 'Accept', value: 'application/json', enabled: true }]
+    setBodyContentTypeHeader(tab, 'urlencoded')
+    expect(tab.headers[0]).toEqual({ key: 'Content-Type', value: 'application/x-www-form-urlencoded', enabled: true })
+    expect(tab.headers.map((h) => h.key)).toEqual(['Content-Type', 'Accept'])
+
+    setBodyContentTypeHeader(tab, 'raw', 'json')
+    expect(tab.headers[0]).toEqual({ key: 'Content-Type', value: 'application/json', enabled: true })
+
+    setBodyContentTypeHeader(tab, 'raw', 'text')
+    expect(tab.headers.some((h) => h.key === 'Content-Type')).toBe(false)
+
+    setBodyContentTypeHeader(tab, 'none')
+    expect(tab.headers.some((h) => h.key === 'Content-Type')).toBe(false)
   })
 
   it('raw 子类型 json 自动注入 application/json，text 不注入', () => {
@@ -153,6 +175,33 @@ describe('debugModel', () => {
     expect(tab.bodies.raw && JSON.parse(tab.bodies.raw.text)).toEqual({ u: 1 })
   })
 
+  it('历史恢复回填 form 原始 key-value 列表 body', () => {
+    const record: ApiDebugRestoreResp = {
+      debugRecordId: 'r10',
+      request: {
+        method: 'POST',
+        url: '/auth/login',
+        headers: [],
+        body: {
+          type: 'form',
+          content: [
+            { key: 'name', value: '张三', enabled: true },
+            { key: 'next', value: 'a=1&b=2', enabled: true },
+          ],
+        },
+        params: [],
+      },
+      response: { statusCode: 200, body: {}, elapsed: 10, size: 2 },
+      createdAt: '2026-08-17T10:30:00Z',
+    }
+    const tab = tabFromRestore(record)
+    expect(tab.bodyType).toBe('urlencoded')
+    expect(tab.bodies.urlencoded).toEqual([
+      { key: 'name', value: '张三', enabled: true },
+      { key: 'next', value: 'a=1&b=2', enabled: true },
+    ])
+  })
+
   it('MAX_DEBUG_TABS 约束为 10', () => {
     expect(MAX_DEBUG_TABS).toBe(10)
   })
@@ -164,5 +213,27 @@ describe('debugModel', () => {
     expect(ensureUrlScheme('api.example.com/users')).toBe('http://api.example.com/users')
     expect(ensureUrlScheme('localhost:8080/ping')).toBe('http://localhost:8080/ping')
     expect(ensureUrlScheme('  ')).toBe('')
+  })
+
+  it('buildRequestSnapshot 构建不含 timeout/environmentId 的请求快照', () => {
+    const tab = createTab()
+    tab.method = 'POST'
+    tab.url = 'https://api.example.com/login'
+    tab.headers = [{ key: 'Accept', value: '*/*', enabled: true }]
+    tab.params = [{ key: 'src', value: 'curl', enabled: true }]
+    tab.auth = { type: 'bearer', token: 'tk123' }
+    tab.bodyType = 'urlencoded'
+    tab.bodies.urlencoded = [{ key: 'user', value: 'admin', enabled: true }]
+    const snapshot = buildRequestSnapshot(tab)
+    expect(snapshot).toBeDefined()
+    expect(snapshot!.method).toBe('POST')
+    expect(snapshot!.url).toBe('https://api.example.com/login')
+    // auth header 和 Content-Type 均注入到 headers
+    expect(snapshot!.headers!.some((h) => h.key === 'Authorization' && h.value === 'Bearer tk123')).toBe(true)
+    expect(snapshot!.headers!.some((h) => h.key === 'Content-Type' && h.value === 'application/x-www-form-urlencoded')).toBe(true)
+    // body 为原始 KV 列表
+    expect(snapshot!.body).toEqual({ type: 'form', content: [{ key: 'user', value: 'admin', enabled: true }] })
+    // 不含 timeout/environmentId
+    expect(snapshot).not.toHaveProperty('timeoutMs')
   })
 })

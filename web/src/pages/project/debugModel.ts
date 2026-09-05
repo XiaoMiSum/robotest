@@ -6,6 +6,7 @@ import type {
   ApiDebugRawSubtype,
   ApiDebugRequestBody,
   ApiDebugRestoreResp,
+  ApiDebugSaveAsInterfaceReq,
   DebugTab,
 } from '@/types'
 
@@ -137,11 +138,8 @@ function activeBody(tab: DebugTab): ApiDebugRequestBody | undefined {
   if (active.length === 0) {
     return undefined
   }
-  return { type: 'form', content: joinForm(active) }
-}
-
-function joinForm(entries: ApiDebugKeyValue[]): string {
-  return entries.map((e) => `${encodeURIComponent(e.key)}=${encodeURIComponent(e.value)}`).join('&')
+  // 后端保存原始 key-value 列表，仅调用 ryze 时转 map（详细设计 5.1）
+  return { type: 'form', content: active }
 }
 
 /** 表单固定 urlencoded 编码串；raw 按所选子类型注入 Content-Type；均不覆盖用户手工设置（详细设计 5.1） */
@@ -157,6 +155,43 @@ function applyBodyContentType(tab: DebugTab, headers: ApiDebugKeyValue[], body?:
   }
   if (contentType) {
     headers.push({ key: 'Content-Type', value: contentType, enabled: true })
+  }
+}
+
+/** 从当前 tab 表单构建请求快照（供保存为接口 / 导出使用，不含 timeout/environmentId） */
+export function buildRequestSnapshot(tab: DebugTab): ApiDebugSaveAsInterfaceReq['request'] {
+  const headers = [...enabledEntries(tab.headers)]
+  const authHeader = buildAuthHeader(tab.auth)
+  if (authHeader && !headers.some((h) => h.key.toLowerCase() === authHeader.key.toLowerCase())) {
+    headers.push(authHeader)
+  }
+  const body = activeBody(tab)
+  applyBodyContentType(tab, headers, body)
+  return {
+    method: tab.method,
+    url: tab.url,
+    headers,
+    params: enabledEntries(tab.params),
+    body,
+    auth: tab.auth,
+  }
+}
+
+/** 切换 body 类型时更新可见的 Content-Type 头行；none/text 移除该行（快速调试联动） */
+export function setBodyContentTypeHeader(
+  tab: DebugTab,
+  bodyType: 'none' | 'urlencoded' | 'raw',
+  rawSubtype: ApiDebugRawSubtype = 'json',
+): void {
+  let contentType: string | undefined
+  if (bodyType === 'urlencoded') {
+    contentType = FORM_ENCODED_CONTENT_TYPE
+  } else if (bodyType === 'raw') {
+    contentType = RAW_SUBTYPE_CONTENT_TYPE[rawSubtype]
+  }
+  tab.headers = tab.headers.filter((h) => h.key.toLowerCase() !== 'content-type')
+  if (contentType) {
+    tab.headers.unshift({ key: 'Content-Type', value: contentType, enabled: true })
   }
 }
 
@@ -227,6 +262,12 @@ function applyBodyCache(tab: DebugTab, type: string | undefined, content: unknow
 }
 
 function objectToEntries(content: unknown): ApiDebugKeyValue[] {
+  // form 历史/接口 body 已是原始 key-value 列表，直接还原
+  if (Array.isArray(content)) {
+    return content
+      .filter((row): row is ApiDebugKeyValue => !!row && typeof row === 'object' && 'key' in row)
+      .map((row) => ({ key: String(row.key), value: String(row.value ?? ''), enabled: row.enabled !== false }))
+  }
   if (!content || typeof content !== 'object') return []
   return Object.entries(content as Record<string, unknown>).map(([key, value]) => ({
     key,
