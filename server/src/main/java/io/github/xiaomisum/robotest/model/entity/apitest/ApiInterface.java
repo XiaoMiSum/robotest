@@ -55,4 +55,10 @@ public class ApiInterface extends BaseUuidDO<ApiInterface> {
     private Map<String, Object> responseExample;
     /** 场景/Mock 引用计数，>0 时禁止删除 */
     private Integer referenceCount;
+    /** 响应验证器(仅定义存储) */
+    @TableField(typeHandler = Jackson3TypeHandler.class)
+    private List<Map<String, Object>> validators;
+    /** 响应提取器(仅定义存储) */
+    @TableField(typeHandler = Jackson3TypeHandler.class)
+    private List<Map<String, Object>> extractors;
 }

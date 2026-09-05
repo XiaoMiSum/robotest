@@ -5,17 +5,13 @@ import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiInterfaceBatchD
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiInterfaceBatchMoveReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiInterfaceCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiInterfaceStatusReqDTO;
-import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiInterfaceStepReqDTO;
-import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiInterfaceStepSortReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiInterfaceUpdateReqDTO;
-import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiInterfaceVariablesReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiImportPreviewRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiImportResultRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiInterfaceChangeLogRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiInterfaceDetailRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiInterfaceItemRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiInterfaceReferenceRespDTO;
-import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiInterfaceVariableRespDTO;
 import io.github.xiaomisum.robotest.service.apitest.ApiInterfaceService;
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
@@ -208,81 +204,6 @@ public class ApiInterfaceController {
             @PathVariable UUID id,
             @Valid PageParam pageParam) {
         return Result.ok(interfaceService.changeLogs(projectId, loginUser.getId(), id, pageParam));
-    }
-
-    // ==================== 3.2 公共步骤 ====================
-
-    @PostMapping("/api/project/interfaces/{interfaceId}/steps")
-    @PreAuthorize("hasAuthority('api-interface:edit')")
-    public Result<Map<String, UUID>> createStep(
-            @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
-            @PathVariable UUID interfaceId,
-            @RequestBody @Valid ApiInterfaceStepReqDTO reqDTO) {
-        return Result.ok(Map.of("id", interfaceService.createStep(projectId, loginUser.getId(), interfaceId, reqDTO)));
-    }
-
-    @PutMapping("/api/project/interfaces/{interfaceId}/steps/{stepId}")
-    @PreAuthorize("hasAuthority('api-interface:edit')")
-    public Result<Boolean> updateStep(
-            @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
-            @PathVariable UUID interfaceId,
-            @PathVariable UUID stepId,
-            @RequestBody @Valid ApiInterfaceStepReqDTO reqDTO) {
-        interfaceService.updateStep(projectId, loginUser.getId(), interfaceId, stepId, reqDTO);
-        return Result.ok(true);
-    }
-
-    @DeleteMapping("/api/project/interfaces/{interfaceId}/steps/{stepId}")
-    @PreAuthorize("hasAuthority('api-interface:delete')")
-    public Result<Boolean> deleteStep(
-            @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
-            @PathVariable UUID interfaceId,
-            @PathVariable UUID stepId) {
-        interfaceService.deleteStep(projectId, loginUser.getId(), interfaceId, stepId);
-        return Result.ok(true);
-    }
-
-    @PutMapping("/api/project/interfaces/{interfaceId}/steps/{stepId}/sort")
-    @PreAuthorize("hasAuthority('api-interface:edit')")
-    public Result<Boolean> sortStep(
-            @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
-            @PathVariable UUID interfaceId,
-            @PathVariable UUID stepId,
-            @RequestBody @Valid ApiInterfaceStepSortReqDTO reqDTO) {
-        interfaceService.sortStep(projectId, loginUser.getId(), interfaceId, stepId, reqDTO);
-        return Result.ok(true);
-    }
-
-    // ==================== 3.3 接口级变量 ====================
-
-    @GetMapping("/api/project/interfaces/{interfaceId}/variables")
-    @PreAuthorize("hasAuthority('api-interface:view')")
-    public Result<List<ApiInterfaceVariableRespDTO>> listVariables(
-            @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
-            @PathVariable UUID interfaceId) {
-        return Result.ok(interfaceService.listVariables(projectId, loginUser.getId(), interfaceId));
-    }
-
-    @PutMapping("/api/project/interfaces/{interfaceId}/variables")
-    @PreAuthorize("hasAuthority('api-interface:edit')")
-    public Result<Boolean> updateVariables(
-            @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
-            @PathVariable UUID interfaceId,
-            @RequestBody @Valid ApiInterfaceVariablesReqDTO reqDTO) {
-        interfaceService.updateVariables(projectId, loginUser.getId(), interfaceId, reqDTO);
-        return Result.ok(true);
     }
 
     // ==================== 3.4 导入 ====================

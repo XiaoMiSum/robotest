@@ -5,7 +5,6 @@ import io.github.xiaomisum.robotest.framework.security.ProjectAccessGuard;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiInterfaceBatchDeleteReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiInterfaceCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiInterfaceUpdateReqDTO;
-import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiInterfaceVariablesReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiImportPreviewRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiImportResultRespDTO;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiImportMapping;
@@ -13,14 +12,11 @@ import io.github.xiaomisum.robotest.model.entity.apitest.ApiImportRecord;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiInterface;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiInterfaceChangeLog;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiInterfaceFollow;
-import io.github.xiaomisum.robotest.model.entity.apitest.ApiInterfaceVariable;
 import io.github.xiaomisum.robotest.repository.apitest.ApiImportMappingMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiImportRecordMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiInterfaceChangeLogMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiInterfaceFollowMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiInterfaceMapper;
-import io.github.xiaomisum.robotest.repository.apitest.ApiInterfaceStepMapper;
-import io.github.xiaomisum.robotest.repository.apitest.ApiInterfaceVariableMapper;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -44,7 +40,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/** 接口定义管理服务：乐观锁、名称唯一、删除保护、视图分页、变量全量覆盖、导入 upsert */
+/** 接口定义管理服务：乐观锁、名称唯一、删除保护、视图分页、导入 upsert */
 @ExtendWith(MockitoExtension.class)
 class ApiInterfaceServiceImplTest {
 
@@ -55,10 +51,6 @@ class ApiInterfaceServiceImplTest {
 
     @Mock
     private ApiInterfaceMapper interfaceMapper;
-    @Mock
-    private ApiInterfaceStepMapper stepMapper;
-    @Mock
-    private ApiInterfaceVariableMapper variableMapper;
     @Mock
     private ApiInterfaceFollowMapper followMapper;
     @Mock
@@ -229,34 +221,6 @@ class ApiInterfaceServiceImplTest {
         assertThat(captor.getValue().getUserId()).isEqualTo(USER_ID);
     }
 
-    // ==================== 变量全量覆盖 ====================
-
-    @Test
-    void updateVariablesUpsertsByNamesAndDeletesMissing() {
-        when(interfaceMapper.selectById(INTERFACE_ID)).thenReturn(existingInterface("登录"));
-        ApiInterfaceVariable kept = variable("token", "abc");
-        ApiInterfaceVariable dropped = variable("legacy", "x");
-        List<ApiInterfaceVariable> snapshot = List.of(kept, dropped);
-        when(variableMapper.selectListByInterfaceId(INTERFACE_ID))
-                .thenReturn(snapshot).thenReturn(snapshot);
-
-        ApiInterfaceVariablesReqDTO req = variablesReq(
-                variableItem("token", "zzz"), variableItem("page", "1"));
-
-        service.updateVariables(PROJECT_ID, USER_ID, INTERFACE_ID, req);
-
-        ArgumentCaptor<ApiInterfaceVariable> updateCaptor = ArgumentCaptor.forClass(ApiInterfaceVariable.class);
-        verify(variableMapper).updateById(updateCaptor.capture());
-        assertThat(updateCaptor.getValue().getId()).isEqualTo(kept.getId());
-        assertThat(updateCaptor.getValue().getDefaultValue()).isEqualTo("zzz");
-
-        ArgumentCaptor<ApiInterfaceVariable> insertCaptor = ArgumentCaptor.forClass(ApiInterfaceVariable.class);
-        verify(variableMapper).insert(insertCaptor.capture());
-        assertThat(insertCaptor.getValue().getName()).isEqualTo("page");
-
-        verify(variableMapper).deleteById(dropped.getId());
-    }
-
     // ==================== 预览 ====================
 
     @Test
@@ -377,7 +341,6 @@ class ApiInterfaceServiceImplTest {
         when(interfaceMapper.selectById(INTERFACE_ID)).thenReturn(source);
         when(interfaceMapper.selectByNameAndModule(PROJECT_ID, source.getModuleId(), "源接口（副本）"))
                 .thenReturn(null);
-        when(stepMapper.selectListByInterfaceId(INTERFACE_ID)).thenReturn(List.of());
         doAnswer(invocation -> {
             invocation.getArgument(0, ApiInterface.class).setId(UUID.randomUUID());
             return 1;
@@ -392,7 +355,6 @@ class ApiInterfaceServiceImplTest {
         assertThat(captor.getValue().getName()).isEqualTo("源接口（副本）");
         assertThat(captor.getValue().getReferenceCount()).isZero();
         assertThat(captor.getValue().getChangeVersion()).isEqualTo(1);
-        verify(stepMapper, never()).insert(any(io.github.xiaomisum.robotest.model.entity.apitest.ApiInterfaceStep.class));
     }
 
     // ==================== 变更历史 ====================
@@ -437,19 +399,6 @@ class ApiInterfaceServiceImplTest {
         return req;
     }
 
-    private ApiInterfaceVariablesReqDTO variablesReq(ApiInterfaceVariablesReqDTO.VariableItem... items) {
-        ApiInterfaceVariablesReqDTO req = new ApiInterfaceVariablesReqDTO();
-        req.setVariables(List.of(items));
-        return req;
-    }
-
-    private ApiInterfaceVariablesReqDTO.VariableItem variableItem(String name, String value) {
-        ApiInterfaceVariablesReqDTO.VariableItem item = new ApiInterfaceVariablesReqDTO.VariableItem();
-        item.setName(name);
-        item.setDefaultValue(value);
-        return item;
-    }
-
     private ApiInterface existingInterface(String name) {
         ApiInterface entity = new ApiInterface();
         entity.setId(INTERFACE_ID);
@@ -472,12 +421,4 @@ class ApiInterfaceServiceImplTest {
         return row;
     }
 
-    private ApiInterfaceVariable variable(String name, String value) {
-        ApiInterfaceVariable entity = new ApiInterfaceVariable();
-        entity.setId(UUID.randomUUID());
-        entity.setInterfaceId(INTERFACE_ID);
-        entity.setName(name);
-        entity.setDefaultValue(value);
-        return entity;
-    }
 }
