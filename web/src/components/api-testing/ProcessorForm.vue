@@ -15,8 +15,10 @@
             <el-option v-for="m in HTTP_METHODS" :key="m" :label="m" :value="m" />
           </el-select>
         </el-form-item>
-        <el-form-item label="基地址 (base_url)" prop="http.baseUrl">
-          <el-input v-model="state.http.baseUrl" placeholder="https://api.example.com" />
+        <el-form-item label="ref 引用" prop="http.ref">
+          <el-select v-model="state.http.ref" placeholder="选择环境 HTTP 配置">
+            <el-option v-for="opt in httpOptions" :key="opt.refName ?? opt.name" :label="optionLabel(opt.name, opt.refName)" :value="opt.refName ?? ''" />
+          </el-select>
         </el-form-item>
       </div>
       <div class="processor-form__row processor-form__row--2">
@@ -66,8 +68,10 @@
 
     <!-- 配置信息：SQL 表单（config 键与 Ryze jdbc 处理器一致） -->
     <template v-if="state.testclass === 'jdbc'">
-      <el-form-item label="数据源 (datasource)" prop="jdbc.datasource">
-        <el-input v-model="state.jdbc.datasource" placeholder="数据源引用名 (ref_name)" />
+      <el-form-item label="数据源 (ref)" prop="jdbc.ref">
+        <el-select v-model="state.jdbc.ref" placeholder="选择环境数据源">
+          <el-option v-for="opt in dsOptions" :key="opt.refName ?? opt.name" :label="optionLabel(opt.name, opt.refName)" :value="opt.refName ?? ''" />
+        </el-select>
       </el-form-item>
       <el-form-item label="SQL 语句 (sql)" prop="jdbc.sql">
         <el-input v-model="state.jdbc.sql" type="textarea" :rows="4" placeholder="SELECT * FROM table WHERE id = ?" />
@@ -138,8 +142,17 @@ interface KvRow {
   value: string
 }
 
+/** ref 下拉选项：环境 http 配置 / 数据源的最小结构（结构性满足 ApiHttpConfig / ApiDataSource） */
+interface RefOption {
+  name: string
+  refName?: string
+  isDefault?: boolean
+}
+
 const props = defineProps<{
   modelValue: Record<string, unknown>
+  httpOptions?: RefOption[]
+  dsOptions?: RefOption[]
 }>()
 
 const emit = defineEmits<{
@@ -162,6 +175,23 @@ watch(state, () => {
   if (current && JSON.stringify(next) === JSON.stringify(current)) return
   emit('update:modelValue', next)
 }, { deep: true })
+
+// 下拉数据异步到达后，仅当用户尚未选择时自动预选默认项，避免覆盖已有 ref
+watch(() => props.httpOptions, (opts) => {
+  if (state.http.ref) return
+  const def = opts?.find((o) => o.isDefault)
+  if (def?.refName) state.http.ref = def.refName
+})
+watch(() => props.dsOptions, (opts) => {
+  if (state.jdbc.ref) return
+  const def = opts?.find((o) => o.isDefault)
+  if (def?.refName) state.jdbc.ref = def.refName
+})
+
+/** 下拉文案：名称 + 引用名，便于区分同名配置 */
+function optionLabel(name: string, refName?: string): string {
+  return refName ? `${name}（${refName}）` : name
+}
 
 function removeRow(rows: KvRow[] | string[], index: number) {
   rows.splice(index, 1)

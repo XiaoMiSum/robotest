@@ -16,7 +16,6 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   'update:modelValue': [value: boolean]
-  'insert': [expression: string]
 }>()
 
 const visible = computed({
@@ -147,18 +146,6 @@ async function handleCopy(expression: string): Promise<void> {
   }
 }
 
-// ==================== 插入 ====================
-
-function handleInsert(): void {
-  const expr = expressionInput.value.trim() || generatedExpression.value
-  if (!expr) {
-    ElMessage.warning('请先选择函数并填写参数')
-    return
-  }
-  emit('insert', expr)
-  visible.value = false
-}
-
 // ==================== 重置 ====================
 
 function resetState(): void {
@@ -178,7 +165,6 @@ function resetState(): void {
     v-model="visible"
     title="函数助手"
     width="680px"
-    :close-on-click-modal="false"
     destroy-on-close
   >
     <div class="fn-helper">
@@ -266,11 +252,6 @@ function resetState(): void {
         </div>
       </div>
     </div>
-
-    <template #footer>
-      <el-button @click="visible = false">取消</el-button>
-      <el-button type="primary" :disabled="!selectedFunction" @click="handleInsert">插入表达式</el-button>
-    </template>
   </el-dialog>
 </template>
 

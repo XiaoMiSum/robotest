@@ -1,15 +1,15 @@
 <template>
   <el-dialog
     v-model="visible"
-    title="从公共组件获取提取器"
+    :title="title"
     width="580px"
     :close-on-click-modal="false"
   >
-    <p class="extractor-picker__tip">仅展示启用的提取器资产；引入为复制，得到独立副本，与源资产无关联。</p>
+    <p class="extractor-picker__tip">{{ tip }}</p>
     <div class="extractor-picker__search">
       <el-input
         :model-value="keyword"
-        placeholder="搜索提取器名称..."
+        :placeholder="searchPlaceholder"
         clearable
         @update:model-value="handleKeywordInput"
         @keyup.enter="emit('search')"
@@ -24,7 +24,7 @@
       size="small"
       class="extractor-picker__table"
       max-height="320"
-      empty-text="暂无可用提取器"
+      :empty-text="emptyText"
       @selection-change="handleSelectionChange"
     >
       <el-table-column type="selection" width="40" />
@@ -55,12 +55,24 @@ import { computed, ref, watch } from 'vue'
 import { Search } from '@element-plus/icons-vue'
 import type { ApiComponentListItem, ApiComponentScope } from '@/types'
 
-const props = defineProps<{
-  modelValue: boolean
-  loading: boolean
-  items: ApiComponentListItem[]
-  keyword: string
-}>()
+const props = withDefaults(
+  defineProps<{
+    modelValue: boolean
+    loading: boolean
+    items: ApiComponentListItem[]
+    keyword: string
+    title?: string
+    tip?: string
+    emptyText?: string
+    searchPlaceholder?: string
+  }>(),
+  {
+    title: '从公共组件获取提取器',
+    tip: '仅展示启用的提取器资产；引入为复制，得到独立副本，与源资产无关联。',
+    emptyText: '暂无可用提取器',
+    searchPlaceholder: '搜索提取器名称...',
+  },
+)
 
 const emit = defineEmits<{
   (e: 'update:modelValue', value: boolean): void

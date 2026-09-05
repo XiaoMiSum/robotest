@@ -1,7 +1,14 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import type { ApiComponentListItem, ApiComponentSaveReq, ApiComponentScope, ApiComponentType } from '@/types'
+import type {
+  ApiComponentListItem,
+  ApiComponentSaveReq,
+  ApiComponentScope,
+  ApiComponentType,
+  ApiDataSource,
+  ApiHttpConfig,
+} from '@/types'
 import { useAuthStore } from '@/stores/auth'
 import {
   batchDeleteComponents,
@@ -13,6 +20,7 @@ import {
   toggleComponent,
   updateComponent,
 } from '@/services/apiComponent'
+import { fetchEnvironmentDetail, fetchEnvironments } from '@/services/apiEnvironment'
 import {
   COMPONENT_SCOPE_OPTIONS,
   COMPONENT_TYPE_OPTIONS,
@@ -275,6 +283,31 @@ function handleExtractorPicked(rows: ApiComponentListItem[]) {
   ElMessage.success(`已引入 ${incoming.length} 个提取器`)
 }
 
+// ==================== 处理器 ref 下拉：取当前项目默认环境的 http/数据源 ====================
+
+const httpRefOptions = ref<ApiHttpConfig[]>([])
+const dsRefOptions = ref<ApiDataSource[]>([])
+
+/** 加载当前项目默认环境的 http 配置与数据源，供处理器 ref 下拉使用；失败仅提示不阻断编辑 */
+async function loadProcessorRefOptions(): Promise<void> {
+  try {
+    const envs = await fetchEnvironments()
+    const def = envs.find((e) => e.isDefault)
+    if (!def) {
+      httpRefOptions.value = []
+      dsRefOptions.value = []
+      return
+    }
+    const detail = await fetchEnvironmentDetail(def.id)
+    httpRefOptions.value = detail.httpConfigs
+    dsRefOptions.value = detail.dataSources
+  } catch (err) {
+    httpRefOptions.value = []
+    dsRefOptions.value = []
+    ElMessage.error(resolveComponentError(err))
+  }
+}
+
 function openCreateDrawer() {
   editingId.value = null
   form.type = 'preprocessor'
@@ -283,6 +316,7 @@ function openCreateDrawer() {
   form.scope = 'project'
   form.sortOrder = 0
   form.config = {}
+  void loadProcessorRefOptions()
   drawerVisible.value = true
 }
 
@@ -298,6 +332,7 @@ function openEditDrawer(row: ApiComponentListItem) {
   } catch {
     form.config = {}
   }
+  void loadProcessorRefOptions()
   drawerVisible.value = true
 }
 
@@ -380,7 +415,9 @@ onMounted(() => void loadList())
           <el-button :disabled="!canEdit" @click="handleBatchToggle(false)">批量停用</el-button>
           <el-button type="danger" :disabled="!canEdit" @click="handleBatchDelete">批量删除</el-button>
         </template>
-        <el-button type="primary" :disabled="!canEdit" @click="openCreateDrawer">新建组件</el-button>
+        <el-button type="primary" :disabled="!canEdit" @click="openCreateDrawer">
+          <el-icon><Plus /></el-icon>新建组件
+        </el-button>
       </div>
 
       <div v-if="loadError" class="component-page__empty">
@@ -495,6 +532,8 @@ onMounted(() => void loadList())
         <ProcessorForm
           v-if="form.type === 'preprocessor' || form.type === 'postprocessor'"
           v-model="form.config"
+          :http-options="httpRefOptions"
+          :ds-options="dsRefOptions"
           @import-extractors="openExtractorPicker"
         />
 
