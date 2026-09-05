@@ -22,7 +22,6 @@ import io.github.xiaomisum.robotest.repository.apitest.ApiImportRecordMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiScheduledTaskExecutionMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiScheduledTaskMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiSceneMapper;
-import io.github.xiaomisum.robotest.repository.apitest.ApiSceneStepMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiSwaggerUrlMapper;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -68,8 +67,6 @@ class ApiScheduleServiceImplTest {
     private ApiSwaggerUrlMapper swaggerUrlMapper;
     @Mock
     private ApiSceneMapper sceneMapper;
-    @Mock
-    private ApiSceneStepMapper stepMapper;
     @Mock
     private ApiEnvironmentMapper environmentMapper;
     @Mock
@@ -133,8 +130,7 @@ class ApiScheduleServiceImplTest {
     void createSceneTaskRejectsSceneWithoutEnabledSteps() {
         ApiScheduleSaveReqDTO reqDTO = baseReq("scene_execute", "0 2 * * *");
         stubValidEnvironment(reqDTO);
-        ApiScene scene = stubValidScene(reqDTO.getBoundObjectId());
-        when(stepMapper.selectCount(any())).thenReturn(0L);
+        ApiScene scene = stubValidScene(reqDTO.getBoundObjectId(), 0);
 
         ServiceException ex = assertThrows(ServiceException.class,
                 () -> service.create(WORKSPACE_ID, PROJECT_ID, USER_ID, reqDTO));
@@ -156,8 +152,7 @@ class ApiScheduleServiceImplTest {
     void createSnapshotsBoundObjectNameAndNotifiesScheduler() {
         ApiScheduleSaveReqDTO reqDTO = baseReq("scene_execute", "0 2 * * *");
         stubValidEnvironment(reqDTO);
-        ApiScene scene = stubValidScene(reqDTO.getBoundObjectId());
-        when(stepMapper.selectCount(any())).thenReturn(2L);
+        ApiScene scene = stubValidScene(reqDTO.getBoundObjectId(), 2);
 
         ApiScheduleCreatedRespDTO resp = service.create(WORKSPACE_ID, PROJECT_ID, USER_ID, reqDTO);
 
@@ -378,11 +373,19 @@ class ApiScheduleServiceImplTest {
         when(environmentMapper.selectById(reqDTO.getEnvironmentId())).thenReturn(env);
     }
 
-    private ApiScene stubValidScene(UUID sceneId) {
+    private ApiScene stubValidScene(UUID sceneId, int enabledSteps) {
         ApiScene scene = new ApiScene();
         scene.setId(sceneId);
         scene.setProjectId(PROJECT_ID);
         scene.setName("登录链路回归");
+        java.util.ArrayList<java.util.Map<String, Object>> steps = new java.util.ArrayList<>();
+        for (int i = 0; i < enabledSteps; i++) {
+            java.util.Map<String, Object> step = new java.util.LinkedHashMap<>();
+            step.put("id", UUID.randomUUID());
+            step.put("enabled", true);
+            steps.add(step);
+        }
+        scene.setSteps(steps);
         when(sceneMapper.selectById(sceneId)).thenReturn(scene);
         return scene;
     }
