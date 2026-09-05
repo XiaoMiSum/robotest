@@ -27,7 +27,7 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/api': {
-        target: 'http://localhost:8080',
+        target: 'http://localhost:58080',
         changeOrigin: true,
         configure: (proxy) => {
           // SSE 响应禁用代理缓冲：http-proxy 对 text/event-stream 默认缓冲，
