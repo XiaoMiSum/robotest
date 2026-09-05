@@ -31,6 +31,7 @@ public class ApiEnvironmentDetailRespDTO {
         private String name;
         private String refName;
         private String baseUrl;
+        private Boolean isDefault;
         private List<HeaderItem> headers;
     }
 
@@ -64,6 +65,7 @@ public class ApiEnvironmentDetailRespDTO {
         private String url;
         private Map<String, Object> connectionProperties;
         private Integer maxPoolSize;
+        private Boolean isDefault;
     }
 
     @Data

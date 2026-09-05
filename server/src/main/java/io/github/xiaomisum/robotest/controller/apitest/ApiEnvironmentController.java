@@ -3,20 +3,15 @@ package io.github.xiaomisum.robotest.controller.apitest;
 import io.github.xiaomisum.robotest.framework.security.LoginUser;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiDataSourceTestReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiEnvironmentCopyReqDTO;
-import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiEnvironmentDataSourceSaveReqDTO;
-import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiEnvironmentHttpConfigSaveReqDTO;
-import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiEnvironmentProcessorSaveReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiEnvironmentSaveReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiEnvironmentSortReqDTO;
-import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiEnvironmentVariableBatchReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiEnvironmentVariableCreateReqDTO;
-import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiEnvironmentVariableImportReqDTO;
+import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiHttpConfigTestReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiDataSourceTestRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiEnvImportResultRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiEnvironmentDetailRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiEnvironmentIdRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiEnvironmentListItemRespDTO;
-import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiEnvironmentProcessorRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiEnvironmentSetDefaultRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiEnvironmentVariableRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiHttpTestRespDTO;
@@ -136,148 +131,7 @@ public class ApiEnvironmentController {
         return Result.ok(apiEnvironmentService.copyEnvironment(projectId, workspaceId, loginUser.getId(), id, reqDTO));
     }
 
-    // ========== 处理器子资源（3.2） ==========
-
-    @GetMapping("/{id}/processors")
-    @PreAuthorize("hasAuthority('api-env:view')")
-    public Result<List<ApiEnvironmentProcessorRespDTO>> listProcessors(
-            @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
-            @PathVariable UUID id,
-            @RequestParam(value = "processorType", required = false) String processorType) {
-        return Result.ok(apiEnvironmentService.listProcessors(projectId, workspaceId, loginUser.getId(),
-                id, processorType));
-    }
-
-    @PostMapping("/{id}/processors")
-    @PreAuthorize("hasAuthority('api-env:edit')")
-    public Result<ApiEnvironmentProcessorRespDTO> createProcessor(
-            @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
-            @PathVariable UUID id,
-            @RequestBody @Valid ApiEnvironmentProcessorSaveReqDTO reqDTO) {
-        return Result.ok(apiEnvironmentService.createProcessor(projectId, workspaceId, loginUser.getId(),
-                id, reqDTO));
-    }
-
-    @PutMapping("/{id}/processors/{procId}")
-    @PreAuthorize("hasAuthority('api-env:edit')")
-    public Result<ApiEnvironmentProcessorRespDTO> updateProcessor(
-            @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
-            @PathVariable UUID id,
-            @PathVariable UUID procId,
-            @RequestBody @Valid ApiEnvironmentProcessorSaveReqDTO reqDTO) {
-        return Result.ok(apiEnvironmentService.updateProcessor(projectId, workspaceId, loginUser.getId(),
-                id, procId, reqDTO));
-    }
-
-    @DeleteMapping("/{id}/processors/{procId}")
-    @PreAuthorize("hasAuthority('api-env:edit')")
-    public Result<Boolean> deleteProcessor(
-            @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
-            @PathVariable UUID id,
-            @PathVariable UUID procId) {
-        apiEnvironmentService.deleteProcessor(projectId, workspaceId, loginUser.getId(), id, procId);
-        return Result.ok(true);
-    }
-
-    // ========== HTTP 配置子资源（3.1.12） ==========
-
-    @PostMapping("/{id}/http-configs")
-    @PreAuthorize("hasAuthority('api-env:edit')")
-    public Result<ApiEnvironmentDetailRespDTO.HttpConfig> createHttpConfig(
-            @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
-            @PathVariable UUID id,
-            @RequestBody @Valid ApiEnvironmentHttpConfigSaveReqDTO reqDTO) {
-        return Result.ok(apiEnvironmentService.createHttpConfig(projectId, workspaceId, loginUser.getId(),
-                id, reqDTO));
-    }
-
-    @PutMapping("/{id}/http-configs/{httpId}")
-    @PreAuthorize("hasAuthority('api-env:edit')")
-    public Result<ApiEnvironmentDetailRespDTO.HttpConfig> updateHttpConfig(
-            @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
-            @PathVariable UUID id,
-            @PathVariable UUID httpId,
-            @RequestBody @Valid ApiEnvironmentHttpConfigSaveReqDTO reqDTO) {
-        return Result.ok(apiEnvironmentService.updateHttpConfig(projectId, workspaceId, loginUser.getId(),
-                id, httpId, reqDTO));
-    }
-
-    @DeleteMapping("/{id}/http-configs/{httpId}")
-    @PreAuthorize("hasAuthority('api-env:edit')")
-    public Result<Boolean> deleteHttpConfig(
-            @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
-            @PathVariable UUID id,
-            @PathVariable UUID httpId) {
-        apiEnvironmentService.deleteHttpConfig(projectId, workspaceId, loginUser.getId(), id, httpId);
-        return Result.ok(true);
-    }
-
-    // ========== 数据源子资源（3.1.12） ==========
-
-    @PostMapping("/{id}/data-sources")
-    @PreAuthorize("hasAuthority('api-env:edit')")
-    public Result<ApiEnvironmentDetailRespDTO.DataSource> createDataSource(
-            @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
-            @PathVariable UUID id,
-            @RequestBody @Valid ApiEnvironmentDataSourceSaveReqDTO reqDTO) {
-        return Result.ok(apiEnvironmentService.createDataSource(projectId, workspaceId, loginUser.getId(),
-                id, reqDTO));
-    }
-
-    @PutMapping("/{id}/data-sources/{dsId}")
-    @PreAuthorize("hasAuthority('api-env:edit')")
-    public Result<ApiEnvironmentDetailRespDTO.DataSource> updateDataSource(
-            @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
-            @PathVariable UUID id,
-            @PathVariable UUID dsId,
-            @RequestBody @Valid ApiEnvironmentDataSourceSaveReqDTO reqDTO) {
-        return Result.ok(apiEnvironmentService.updateDataSource(projectId, workspaceId, loginUser.getId(),
-                id, dsId, reqDTO));
-    }
-
-    @DeleteMapping("/{id}/data-sources/{dsId}")
-    @PreAuthorize("hasAuthority('api-env:edit')")
-    public Result<Boolean> deleteDataSource(
-            @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
-            @PathVariable UUID id,
-            @PathVariable UUID dsId) {
-        apiEnvironmentService.deleteDataSource(projectId, workspaceId, loginUser.getId(), id, dsId);
-        return Result.ok(true);
-    }
-
-    // ========== 变量子资源（3.3） ==========
-
-    @PutMapping("/{id}/variables")
-    @PreAuthorize("hasAuthority('api-env:edit')")
-    public Result<List<ApiEnvironmentVariableRespDTO>> batchReplaceVariables(
-            @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
-            @PathVariable UUID id,
-            @RequestBody @Valid ApiEnvironmentVariableBatchReqDTO reqDTO) {
-        return Result.ok(apiEnvironmentService.batchReplaceVariables(projectId, workspaceId, loginUser.getId(),
-                id, reqDTO));
-    }
+    // ========== 变量（随环境聚合提交，3.3） ==========
 
     @PostMapping("/{id}/variables")
     @PreAuthorize("hasAuthority('api-env:edit')")
@@ -291,40 +145,7 @@ public class ApiEnvironmentController {
                 id, reqDTO));
     }
 
-    @PostMapping("/{id}/variables/import")
-    @PreAuthorize("hasAuthority('api-env:edit')")
-    public Result<ApiEnvImportResultRespDTO> importVariables(
-            @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
-            @PathVariable UUID id,
-            @RequestBody @Valid ApiEnvironmentVariableImportReqDTO reqDTO) {
-        return Result.ok(apiEnvironmentService.importVariables(projectId, workspaceId, loginUser.getId(),
-                id, reqDTO));
-    }
-
-    @GetMapping("/{id}/variables/export")
-    @PreAuthorize("hasAuthority('api-env:view')")
-    public Result<List<ApiEnvironmentVariableRespDTO>> exportVariables(
-            @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
-            @PathVariable UUID id) {
-        return Result.ok(apiEnvironmentService.exportVariables(projectId, workspaceId, loginUser.getId(), id));
-    }
-
-    // ========== 连接测试（3.1.7 / 3.1.8） ==========
-
-    @PostMapping("/{id}/data-sources/{dsId}/test")
-    @PreAuthorize("hasAuthority('api-env:view')")
-    public Result<ApiDataSourceTestRespDTO> testDataSource(
-            @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
-            @PathVariable UUID id,
-            @PathVariable UUID dsId) {
-        return Result.ok(apiEnvironmentService.testDataSource(projectId, workspaceId, loginUser.getId(), id, dsId));
-    }
+    // ========== 连接测试（3.1.7 / 3.1.8，请求体传配置不落库） ==========
 
     @PostMapping("/{id}/data-sources/test")
     @PreAuthorize("hasAuthority('api-env:view')")
@@ -337,15 +158,15 @@ public class ApiEnvironmentController {
         return Result.ok(apiEnvironmentService.testDataSourceConfig(projectId, workspaceId, loginUser.getId(), id, reqDTO));
     }
 
-    @PostMapping("/{id}/http-configs/{httpId}/test")
+    @PostMapping("/{id}/http-configs/test")
     @PreAuthorize("hasAuthority('api-env:view')")
     public Result<ApiHttpTestRespDTO> testHttpConfig(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestHeader("X-Active-Workspace") UUID workspaceId,
             @RequestHeader("X-Active-Project") UUID projectId,
             @PathVariable UUID id,
-            @PathVariable UUID httpId) {
-        return Result.ok(apiEnvironmentService.testHttpConfig(projectId, workspaceId, loginUser.getId(), id, httpId));
+            @Valid @RequestBody ApiHttpConfigTestReqDTO reqDTO) {
+        return Result.ok(apiEnvironmentService.testHttpConfig(projectId, workspaceId, loginUser.getId(), id, reqDTO));
     }
 
     // ========== 环境导入导出（3.1.9 / 3.1.10） ==========
