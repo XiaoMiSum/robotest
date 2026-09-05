@@ -7,7 +7,6 @@ import type {
   ApiMockDebugResponse,
   ApiMockDetail,
   ApiMockItem,
-  ApiMockMoveResponse,
   ApiMockSavePayload,
   PageResult,
 } from '@/types'
@@ -65,10 +64,6 @@ export function deleteMock(id: string): Promise<boolean> {
   return del(`/project/mocks/${id}`)
 }
 
-export function duplicateMock(id: string): Promise<string> {
-  return post(`/project/mocks/${id}/duplicate`).then((resp) => (resp as { id: string }).id)
-}
-
 export function resetMockHitCount(id: string): Promise<boolean> {
   return post(`/project/mocks/${id}/reset-hit-count`)
 }
@@ -81,14 +76,4 @@ export function fetchMockAddress(id: string): Promise<ApiMockAddress> {
 
 export function debugMock(id: string, req: ApiMockDebugRequest): Promise<ApiMockDebugResponse> {
   return post(`/project/mocks/${id}/debug`, req)
-}
-
-// ==================== Mock 优先级调整（3.1.12） ====================
-
-export function moveMockUp(id: string): Promise<ApiMockMoveResponse> {
-  return post(`/project/mocks/${id}/move-up`)
-}
-
-export function moveMockDown(id: string): Promise<ApiMockMoveResponse> {
-  return post(`/project/mocks/${id}/move-down`)
 }

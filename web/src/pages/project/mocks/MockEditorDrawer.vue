@@ -17,6 +17,7 @@ const props = defineProps<{
   modelValue: boolean
   mockId: string | null
   interfaceId: string | null
+  copyFromId?: string | null
 }>()
 
 const emit = defineEmits<{
@@ -45,6 +46,15 @@ async function loadForm() {
   if (props.mockId) {
     const detail = await fetchMockDetail(props.mockId)
     form.value = detailToForm(detail)
+    responseHeadersInput.value = form.value.responseHeaders.length
+      ? form.value.responseHeaders
+      : [{ key: 'Content-Type', value: 'application/json' }]
+  } else if (props.copyFromId) {
+    // 复制模式：预填源规则全部配置，名称追加「- 副本」且默认停用，避免与源规则地址冲突，由用户调整后保存生成新规则
+    const detail = await fetchMockDetail(props.copyFromId)
+    form.value = detailToForm(detail)
+    form.value.name = `${detail.name} - 副本`
+    form.value.enabled = false
     responseHeadersInput.value = form.value.responseHeaders.length
       ? form.value.responseHeaders
       : [{ key: 'Content-Type', value: 'application/json' }]
@@ -103,7 +113,7 @@ async function handleSave() {
 <template>
   <el-drawer
     v-model="visible"
-    :title="mockId ? '编辑 Mock' : '新建 Mock'"
+    :title="mockId ? '编辑 Mock' : copyFromId ? '复制 Mock' : '新建 Mock'"
     size="640px"
     :close-on-click-modal="false"
   >
