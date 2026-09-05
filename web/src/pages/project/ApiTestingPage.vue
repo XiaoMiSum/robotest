@@ -6,12 +6,11 @@ import { useAuthStore } from '@/stores/auth'
 import EnvironmentPage from './EnvironmentPage.vue'
 import FunctionPage from './FunctionPage.vue'
 import DebugPage from './DebugPage.vue'
-import InterfacesPage from './InterfacesPage.vue'
 import MocksPage from './MocksPage.vue'
 import ComponentPage from './ComponentPage.vue'
 import GitLabRepoPage from './GitLabRepoPage.vue'
-import ScenariosPage from './ScenariosPage.vue'
-import SceneEditorPage from './SceneEditorPage.vue'
+import SceneWorkspace from './SceneWorkspace.vue'
+import InterfaceWorkspace from './InterfaceWorkspace.vue'
 import ReportsPage from './ReportsPage.vue'
 import ReportDetailPage from './ReportDetailPage.vue'
 import SchedulesPage from './SchedulesPage.vue'
@@ -69,34 +68,25 @@ const activeLabel = computed(
   () => allItems.find((item) => item.key === activeMenu.value)?.label ?? '',
 )
 
-// 场景编辑器状态
-const sceneEditorSceneId = ref<string | null>(null)
-const sceneCreateMode = ref(false)
-const sceneModuleId = ref<string | null>(null)
+// 接口管理多 Tab 编辑器：刷新/直链经 query 恢复由 InterfaceWorkspace 内部处理；
+// pendingInterfaceId 供「快速调试 → 查看接口」跨子页跳转打开对应编辑 Tab
+const pendingInterfaceId = ref<string | null>(null)
 
 // 报告详情状态
 const reportDetailId = ref<string | null>(null)
 
-function initSceneFromQuery() {
-  const q = route.query
-  if (q.sceneId && typeof q.sceneId === 'string') {
-    sceneEditorSceneId.value = q.sceneId
-    sceneCreateMode.value = false
-  } else if (q.action === 'create') {
-    sceneEditorSceneId.value = null
-    sceneCreateMode.value = true
-    sceneModuleId.value = (q.moduleId as string) ?? null
-  } else {
-    sceneEditorSceneId.value = null
-    sceneCreateMode.value = false
-  }
-}
-initSceneFromQuery()
-
 function handleSceneBack() {
-  sceneEditorSceneId.value = null
-  sceneCreateMode.value = false
-  void router.replace({ query: { tab: 'scenes' } })
+  void router.replace({ query: { ...route.query, tab: 'scenes' } })
+}
+
+/** 快速调试保存成功后[查看接口]：切到接口管理 Tab，由 InterfaceWorkspace 打开对应编辑 Tab */
+function handleViewInterface(id: string) {
+  activeMenu.value = 'interfaces'
+  pendingInterfaceId.value = id
+}
+
+function handleViewHandled() {
+  pendingInterfaceId.value = null
 }
 
 function handleReportBack() {
@@ -107,10 +97,6 @@ function handleReportView(reportId: string) {
   reportDetailId.value = reportId
 }
 
-const isSceneEditor = computed(
-  () => activeMenu.value === 'scenes' && (sceneEditorSceneId.value || sceneCreateMode.value),
-)
-
 const isReportDetail = computed(
   () => activeMenu.value === 'reports' && reportDetailId.value,
 )
@@ -119,11 +105,22 @@ const isReportDetail = computed(
 function handleMenuSelect(key: string) {
   if (key === activeMenu.value) return
   activeMenu.value = key
-  sceneEditorSceneId.value = null
-  sceneCreateMode.value = false
+  pendingInterfaceId.value = null
   reportDetailId.value = null
-  router.replace({ query: { ...route.query, tab: key } })
+  router.replace({ query: { tab: key } })
 }
+
+// 子页跨模块跳转（如接口管理列表「调试」→ 快速调试）只更新 URL tab，不复用菜单点击，
+// 需同步切换 activeMenu 才会卸载旧页并渲染目标子页（DebugPage 在 onMounted 消费 pendingDebugRequest）
+watch(
+  () => route.query.tab,
+  (tab) => {
+    const key = String(tab ?? '')
+    if (key && key !== activeMenu.value && visibleKeys.value.includes(key)) {
+      activeMenu.value = key
+    }
+  },
+)
 </script>
 
 <template>
@@ -159,8 +156,12 @@ function handleMenuSelect(key: string) {
     <main class="api-testing__main">
       <EnvironmentPage v-if="activeMenu === 'environments'" />
       <FunctionPage v-else-if="activeMenu === 'functions'" />
-      <DebugPage v-else-if="activeMenu === 'debug'" />
-      <InterfacesPage v-else-if="activeMenu === 'interfaces'" />
+      <DebugPage v-else-if="activeMenu === 'debug'" @view-interface="handleViewInterface" />
+      <InterfaceWorkspace
+        v-else-if="activeMenu === 'interfaces'"
+        :pending-interface-id="pendingInterfaceId"
+        @view-handled="handleViewHandled"
+      />
       <MocksPage v-else-if="activeMenu === 'mocks'" />
       <ComponentPage v-else-if="activeMenu === 'assets'" />
       <GitLabRepoPage v-else-if="activeMenu === 'gitlab-repos'" />
@@ -173,18 +174,7 @@ function handleMenuSelect(key: string) {
         v-else-if="activeMenu === 'reports'"
         @view="handleReportView"
       />
-      <SceneEditorPage
-        v-else-if="isSceneEditor"
-        :scene-id="sceneEditorSceneId ?? undefined"
-        :create-mode="sceneCreateMode"
-        :module-id="sceneModuleId ?? undefined"
-        @back="handleSceneBack"
-      />
-      <ScenariosPage
-        v-else-if="activeMenu === 'scenes'"
-        @edit="(id: string) => { sceneEditorSceneId = id; sceneCreateMode = false }"
-        @create="(moduleId?: string) => { sceneEditorSceneId = null; sceneCreateMode = true; sceneModuleId = moduleId ?? null }"
-      />
+      <SceneWorkspace v-else-if="activeMenu === 'scenes'" @edit="handleSceneBack" />
       <SchedulesPage v-else-if="activeMenu === 'schedules'" />
       <div v-else-if="!activeMenu" class="api-testing__norights">
         <div class="api-testing__norights-title">暂无可用功能模块</div>

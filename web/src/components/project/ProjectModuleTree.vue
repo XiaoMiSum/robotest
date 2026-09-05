@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox, ElTree } from 'element-plus'
 import type Node from 'element-plus/es/components/tree/src/model/node'
 import {
@@ -15,11 +15,23 @@ import type { ProjectModule } from '@/types'
 
 const props = defineProps<{
   assetType: 'testcase' | 'interface' | 'scene'
+  /** 筛选模式高亮目标（父页传入当前选中的模块 id） */
+  currentModuleId?: string
+  /**
+   * 点击已展开的父目录时是否收起其子节点。
+   * 默认 false（点击父目录只展开、永不收起，便于快速连续浏览目录）；设为 true 时点击收起。
+   */
+  collapseOnParentClick?: boolean
 }>()
 
 const emit = defineEmits<{
   selectDocument: [docId: string, docName: string]
+  selectModule: [moduleId: string]
 }>()
+
+// 文档模式：testcase 资产按"目录 + 用例文档"组织，点文档 emit selectDocument
+// 筛选模式：interface/scene 资产只有目录，点目录 emit selectModule 供父页过滤列表
+const isDocumentMode = computed(() => props.assetType === 'testcase')
 
 const treeProps = { label: 'name', children: 'children' }
 const treeRef = ref<InstanceType<typeof ElTree>>()
@@ -56,15 +68,25 @@ interface TreeNodeToggle {
 }
 
 async function handleNodeClick(data: ProjectModule, node: TreeNodeToggle) {
-  // 目录整行点击即切换展开/收起（expand-on-click-node 关闭是为了文档点击不误触展开）
+  // 目录：筛选模式选中即过滤并展开/收起；文档模式保持纯展开/收起
   if (data.type === 'directory') {
-    if (node.expanded) node.collapse()
-    else node.expand()
-    // el-tree 点击已把高亮抢到目录上，回退到已打开的文档
-    if (currentDocId.value) treeRef.value?.setCurrentKey(currentDocId.value)
+    const collapseEnabled = props.collapseOnParentClick ?? false
+    // 已展开时再点击：仅当允许收起才收起，否则保持展开；未展开时一律展开
+    if (node.expanded) {
+      if (collapseEnabled) node.collapse()
+    } else {
+      node.expand()
+    }
+    if (isDocumentMode.value) {
+      // el-tree 点击已把高亮抢到目录上，回退到已打开的文档
+      if (currentDocId.value) treeRef.value?.setCurrentKey(currentDocId.value)
+    } else {
+      emit('selectModule', data.id)
+    }
     return
   }
-  if (data.type !== 'document' || data.id === currentDocId.value) return
+  // 文档节点仅在文档模式下存在
+  if (!isDocumentMode.value || data.id === currentDocId.value) return
   // 已打开文档时切换需二次确认，防止误触打断编辑
   if (currentDocId.value) {
     try {
@@ -81,13 +103,15 @@ async function handleNodeClick(data: ProjectModule, node: TreeNodeToggle) {
 }
 
 async function handleCreate(parent: ProjectModule | null, type: 'directory' | 'document') {
-  const typeLabel = type === 'directory' ? '目录' : '文档'
+  // 筛选模式只有目录资产，文档创建入口不可达
+  const createType: 'directory' | 'document' = isDocumentMode.value ? type : 'directory'
+  const typeLabel = createType === 'directory' ? '目录' : '文档'
   try {
     const { value } = await ElMessageBox.prompt(`请输入${typeLabel}名称`, `新建${typeLabel}`, {
       inputPattern: /\S+/,
       inputErrorMessage: '名称不能为空',
     })
-    if (type === 'directory') {
+    if (createType === 'directory') {
       await createProjectModule({ parentId: parent?.id ?? null, name: value.trim() })
     } else {
       await createTestCase({ moduleId: parent?.id ?? null, name: value.trim() })
@@ -107,7 +131,7 @@ async function handleRename(node: ProjectModule) {
       inputPattern: /\S+/,
       inputErrorMessage: '名称不能为空',
     })
-    if (node.type === 'directory') {
+    if (node.type === 'directory' || !isDocumentMode.value) {
       await updateProjectModule(node.id, { name: value.trim() })
     } else {
       await updateTestCase(node.id, { name: value.trim() })
@@ -132,7 +156,7 @@ async function handleDelete(node: ProjectModule) {
     return
   }
   try {
-    if (node.type === 'directory') {
+    if (node.type === 'directory' || !isDocumentMode.value) {
       await deleteProjectModule(node.id)
     } else {
       await deleteTestCase(node.id)
@@ -147,7 +171,7 @@ async function handleDelete(node: ProjectModule) {
   }
 }
 
-defineExpose({ reload: load })
+defineExpose({ reload: load, getTree: () => treeData.value })
 
 // 定时静默刷新：多人协同下模块/文档可能被他人增删改，轮询保证左侧树最终一致；
 // 不走 loading 遮罩且失败不弹窗，避免每分钟打断用户编辑（错误在下次轮询自愈，手动操作仍走 load() 提示）
@@ -196,7 +220,7 @@ async function handleNodeDrop(dragging: Node, drop: Node, dropType: 'before' | '
   )
   const dragNode = nodeData(dragging)
   try {
-    if (dragNode.type === 'directory') {
+    if (dragNode.type === 'directory' || !isDocumentMode.value) {
       await updateProjectModule(dragId, { parentId, targetIndex })
     } else {
       await updateTestCase(dragId, { moduleId: parentId, targetIndex })
@@ -228,6 +252,7 @@ async function handleNodeDrop(dragging: Node, drop: Node, dropType: 'before' | '
         </template>
       </el-input>
       <el-dropdown
+        v-if="isDocumentMode"
         trigger="click"
         @command="(cmd: string) => handleCreate(null, cmd as 'directory' | 'document')"
       >
@@ -241,6 +266,9 @@ async function handleNodeDrop(dragging: Node, drop: Node, dropType: 'before' | '
           </el-dropdown-menu>
         </template>
       </el-dropdown>
+      <el-button v-else size="small" type="primary" @click="handleCreate(null, 'directory')">
+        <el-icon><Plus /></el-icon>新建
+      </el-button>
     </div>
 
     <el-tree
@@ -253,7 +281,7 @@ async function handleNodeDrop(dragging: Node, drop: Node, dropType: 'before' | '
       :expand-on-click-node="false"
       :filter-node-method="filterNode"
       highlight-current
-      :current-node-key="currentDocId || undefined"
+      :current-node-key="isDocumentMode ? (currentDocId || undefined) : (props.currentModuleId || undefined)"
       draggable
       :allow-drop="allowDrop"
       @node-drop="handleNodeDrop"
@@ -283,7 +311,7 @@ async function handleNodeDrop(dragging: Node, drop: Node, dropType: 'before' | '
               <template #dropdown>
                 <el-dropdown-menu>
                   <el-dropdown-item command="directory">新建子目录</el-dropdown-item>
-                  <el-dropdown-item command="document">新建文档</el-dropdown-item>
+                  <el-dropdown-item v-if="isDocumentMode" command="document">新建文档</el-dropdown-item>
                 </el-dropdown-menu>
               </template>
             </el-dropdown>
