@@ -190,6 +190,7 @@ export function createEmptyHttpConfig(index: number): ApiHttpConfigPayload & { i
     name: `配置 ${index}`,
     refName: `http_${index}`,
     baseUrl: '',
+    isDefault: false,
     // 预置一行空 header：KeyValueTable 已在其他配置上挂载时不会重触发补行，空数组将渲染空白（交互设计 2.4）
     headers: [{ key: '', value: '', enabled: true }],
   }
