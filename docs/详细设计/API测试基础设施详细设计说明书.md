@@ -116,6 +116,7 @@
 | report_id | UUID | NULL | 关联报告（api_report.id，1:1） |
 | pipeline_id | VARCHAR(100) | NULL | GitLab 流水线 ID（pipeline 执行时） |
 | pipeline_url | VARCHAR(500) | NULL | 流水线链接 |
+| repository_id | UUID | NULL | 关联 GitLab 仓库配置（api_gitlab_repository.id，pipeline 执行时记录） |
 | error_message | VARCHAR(2000) | NULL | 失败原因 |
 | executed_at | TIMESTAMP | NOT NULL | 执行时间 |
 | duration_ms | INT | NULL | 执行耗时（毫秒） |
@@ -123,7 +124,7 @@
 | created_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | 创建时间 |
 | updated_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | 更新时间 |
 
-**索引**：`idx_exec_scene_id` (scene_id), `idx_exec_project_executed` (project_id, executed_at DESC), `idx_exec_status` (status)
+**索引**：`idx_exec_scene_id` (scene_id), `idx_exec_project_executed` (project_id, executed_at DESC), `idx_exec_status` (status), `idx_api_execution_record_repository_id` (repository_id)
 
 > 执行记录与报告共享清理策略（默认 90 天）；清理后执行记录保留元数据，报告详情置为「执行结果被清理」。
 
@@ -231,7 +232,6 @@
 | **7101** | API_INTERFACE_NOT_FOUND | 接口定义不存在 |
 | **7102** | API_INTERFACE_NAME_EXISTS | 接口定义名称重复 |
 | **7103** | API_INTERFACE_REFERENCED | 接口定义被引用无法删除 |
-| **7104** | API_INTERFACE_STEP_NOT_FOUND | 公共步骤不存在 |
 | **7201** | API_SCENE_NOT_FOUND | 场景不存在 |
 | **7202** | API_SCENE_STEP_NOT_FOUND | 场景步骤不存在 |
 | **7203** | API_SCENE_REFERENCED | 场景被定时任务引用无法删除 |
@@ -429,7 +429,7 @@
       "name": "Token 预置",
       "description": "从环境变量获取 Token 并注入请求头",
       "sortOrder": 0,
-      "config": "{\"testclass\":\"http\",\"config\":{\"method\":\"POST\",\"base_url\":\"https://api.example.com\",\"path\":\"/token\"},\"extractors\":[],\"enabled\":true}",
+      "config": "{\"testclass\":\"http\",\"config\":{\"method\":\"POST\",\"ref\":\"http_1\",\"path\":\"/token\"},\"extractors\":[],\"enabled\":true}",
       "enabled": true,
       "updatedAt": "2026-08-17 10:30:00"
     }
@@ -454,7 +454,7 @@
     "testclass": "http",
     "config": {
       "method": "POST",
-      "base_url": "https://api.example.com",
+      "ref": "http_1",
       "path": "/token",
       "http/2": false,
       "headers": {},
@@ -579,8 +579,8 @@
 
 | 环境配置 | Ryze configelement type | 挂载字段 |
 | -------- | ----------------------- | -------- |
-| api_environment_http（HTTP 配置） | `http_config` | configelements 数组 |
-| api_environment_data_source（数据源） | `data_source` | configelements 数组 |
+| 环境主表 `http_configs`（HTTP 配置 JSONB 列） | `http_config` | configelements 数组 |
+| 环境主表 `data_sources`（数据源 JSONB 列） | `data_source` | configelements 数组 |
 
 **示例**：
 
@@ -642,17 +642,7 @@ Ryze 引擎执行完成后，平台收集执行结果并转换为平台自有格
 3. **Ryze 快照**：执行时生成的完整 Ryze JSON，保存至 `api_report.ryze_snapshot`，用于结果回溯与转换问题定位。
 4. **报告生成**：将结果写入 `api_report` 表，同时更新 `api_execution_record` 状态。
 
-### 4.2 公共步骤机制
-
-公共步骤是接口定义下维护的可复用请求步骤集合，供场景配置时选择添加。
-
-- **存储**：公共步骤归属于接口定义（`api_interface.id`），存储于 `api_interface_step` 表（定义见《接口管理详细设计说明书》）。
-- **引用方式**：场景步骤通过 `sourceId` + 引用模式（copy/link）引用公共步骤。
-  - **复制（copy）**：创建公共步骤的独立副本，后续修改互不影响。
-  - **链接引用（link）**：步骤内容跟随源公共步骤变化同步更新，但当前场景中的启用状态、参数值可独立调整。
-- **删除保护**：被场景引用的公共步骤受删除保护，需先解除引用。
-
-### 4.3 数据清理策略
+### 4.2 数据清理策略
 
 报告与执行记录共享清理策略，默认保留 90 天（系统配置项）：
 
@@ -717,20 +707,22 @@ Ryze 引擎执行完成后，平台收集执行结果并转换为平台自有格
 | 字段 | 类型 | 必填 | 说明 |
 | ---- | ---- | ---- | ---- |
 | 请求方法 | select | 是 | GET / POST / PUT / PATCH / DELETE / HEAD / OPTIONS（缺省 GET） |
-| 基地址（base_url） | text | 是 | 接口基地址，支持 `${变量名}` 引用 |
+| ref 引用 | select | 是 | 从环境 http 配置中选择（选项值 = http 配置 `refName`）；自动预选该环境 `isDefault=true` 的 http 配置 |
 | 路径（path） | text | 否 | 接口路径，支持 `${变量名}` 引用 |
 | HTTP/2（http/2） | switch | 否 | 是否启用 HTTP/2 |
 | 请求头（headers） | kv-table | 否 | 键值对编辑器，保存为 Map；支持变量引用（如 `Content-Type`） |
 | Query 参数（query） | kv-table | 否 | URL 查询参数键值对，保存为 Map |
 | 请求体类型 | select | 否 | 无 / JSON / 表单（data）/ 原始文本（body）：JSON 与原始编译为 `body`（Object/String），表单编译为 `data`（Map），`body` 优先级高于 `data` |
 
-> HTTP `config` 对象仅含 Ryze 配置键：`method` / `base_url` / `path` / `http/2` / `headers` / `query` / `data` / `body`。平台 overlay 键（`enabled` / `sortOrder`/`extractors`）保存于元素顶层或实体列，不写入 `config`。
+> **ref 下拉数据来源**：公共组件（project 作用域）取组件所属项目默认环境（`isDefault=true`）的 http 配置；测试场景级取场景关联环境（`environmentId`）的 http 配置。未配置环境/该环境下无 http 配置时，下拉为空并提示先配置。引用值为元数据（`refName`），本版仅前端编辑，执行层不解析（处理器 `config` 透传，见下）。
+
+> HTTP `config` 对象仅含 Ryze 配置键：`method` / `ref` / `path` / `http/2` / `headers` / `query` / `data` / `body`。HTTP 处理器以 `ref`（引用环境 http 配置的 `refName`）取代原 `base_url` 自由文本框；平台 overlay 键（`enabled` / `sortOrder`/`extractors`）保存于元素顶层或实体列，不写入 `config`。
 
 **「执行 SQL」处理器配置：**
 
 | 字段 | 类型 | 必填 | 说明 |
 | ---- | ---- | ---- | ---- |
-| 数据源 | select | 是 | 从环境管理配置的数据源中选择；未配置时提示「请先在环境管理中配置数据源」 |
+| 数据源 | select | 是 | 从环境数据源中选择（选项值 = 数据源 `refName`，即 `config.datasource`）；数据来源同 HTTP `ref` 下拉（公共组件取项目默认环境、测试场景取关联环境，见上）；未配置时提示「请先在环境管理中配置数据源」 |
 | SQL 语句 | textarea | 是 | 支持 `${变量名}` 引用；执行前校验数据源连接 |
 | 参数 | list | 否 | SQL 占位符参数，仅值列表（对应 Ryze `args` 数组，按 `?` 占位顺序传入） |
 
@@ -738,10 +730,10 @@ Ryze 引擎执行完成后，平台收集执行结果并转换为平台自有格
 
 | 处理器类型 | `testclass` | `config` 键（与 Ryze 一致） |
 | ---------- | ----------- | ------------------------- |
-| 发送 HTTP 请求 | `http` | method / base_url / path / http/2 / headers / query / data / body |
+| 发送 HTTP 请求 | `http` | method / ref / path / http/2 / headers / query / data / body |
 | 执行 SQL | `jdbc` | datasource / sql / args |
 
-> SQL 处理器 `datasource` 引用环境管理配置数据源的 `ref_name`；`args` 为 `?` 占位符参数数组。处理器元素顶层承载平台 overlay：`extractors`（提取器行列表）、`enabled`（启用）；`sortOrder` 保存于实体 `sort_order` 列。
+> SQL 处理器 `datasource` 引用环境管理配置数据源的 `ref_name`；HTTP 处理器 `ref` 引用环境 http 配置的 `refName`（取代原 `base_url`）。`args` 为 `?` 占位符参数数组。处理器元素顶层承载平台 overlay：`extractors`（提取器行列表）、`enabled`（启用）；`sortOrder` 保存于实体 `sort_order` 列。
 
 **提取器（可选）：** 处理器可携带提取器，从处理器响应中提取变量供后续步骤使用。提取器列表以子表形式嵌入处理器配置区底部，每行结构与 5.3.3 提取器配置完全一致（含启用开关，支持逐条启停）。支持：
 
