@@ -23,7 +23,7 @@ import { fetchEnvironmentDetail, fetchEnvironments } from '@/services/apiEnviron
 import { fetchComponents } from '@/services/apiComponent'
 import ProcessorForm from '@/components/api-testing/ProcessorForm.vue'
 import ExtractorAssetPicker from '@/components/api-testing/ExtractorAssetPicker.vue'
-import { extractorsFromComponents, processorFromComponent } from '@/components/api-testing/processorFormModel'
+import { extractorsFromComponents, processorFromComponent, processorSummaryTag } from '@/components/api-testing/processorFormModel'
 import type { ProcessorExtractor } from '@/components/api-testing/processorFormModel'
 import { formatDateTime } from '@/utils/format'
 import { sortedSteps, emptyStepDraft } from './scenesModel'
@@ -578,9 +578,15 @@ function updateProcessor(idx: number, value: Record<string, unknown>) {
   editProcessors.value[idx] = value as SceneProcessorElement
 }
 
-/** 处理器类型 → 摘要标签（ProcessorForm 的 http/jdbc） */
-function processorTypeLabel(testclass: string): string {
-  return testclass === 'jdbc' ? 'SQL' : testclass === 'http' ? 'HTTP' : '待配置'
+/** 左侧卡片头部标签：`[HTTP]/[JDBC]` 类型 + 配置摘要（方法 / SQL 类型），对齐步骤卡片的 method/SQL 标签 */
+function procTags(idx: number): { text: string; type: 'success' | 'primary' | 'warning' | 'info' | 'danger' }[] {
+  const el = editProcessors.value[idx] as SceneProcessorElement | undefined
+  const tags: { text: string; type: 'success' | 'primary' | 'warning' | 'info' | 'danger' }[] = []
+  const klass = typeof el?.testclass === 'string' ? el.testclass : ''
+  if (klass) tags.push({ text: klass.toUpperCase(), type: 'info' })
+  const summary = processorSummaryTag(el as Record<string, unknown> | null | undefined)
+  if (summary) tags.push(summary)
+  return tags
 }
 
 /** 左列表展示名：无名称时回退「处理器 N」 */
@@ -606,10 +612,12 @@ watch(sceneSection, (section) => {
   }
 })
 
-/** 删除右侧明细当前选中的处理器（type 为当前查看的处理器类型） */
-function removeSelectedProcessor(type: 'pre' | 'post') {
-  const pos = processorIndexes(type).indexOf(selectedProcessorIdx.value ?? -1)
-  if (pos >= 0) removeProcessor(type, pos)
+/** 切换选中处理器的类型（http/jdbc，头部 radio），ProcessorForm 经 modelValue 深监听自动重解析配置 */
+function setProcessorType(idx: number, testclass: string) {
+  const el = editProcessors.value[idx] as SceneProcessorElement | undefined
+  if (!el) return
+  // 仅切换类型的键值，ProcessorForm 经 modelValue 深监听自动重解析配置
+  el.testclass = testclass
 }
 
 /** 处理器上移/下移（JSONB 数组顺序即执行顺序，直接交换元素） */
@@ -657,11 +665,6 @@ function copyProcessor(idx: number) {
   const copy = JSON.parse(JSON.stringify(editProcessors.value[idx])) as SceneProcessorElement
   editProcessors.value.splice(idx + 1, 0, copy)
   selectedProcessorIdx.value = idx + 1
-}
-
-function procTestclass(idx: number): string {
-  const v = editProcessors.value[idx]?.testclass
-  return typeof v === 'string' ? v : ''
 }
 
 // ==================== 处理器 / 提取器：从公共组件引入 ====================
@@ -1016,7 +1019,7 @@ onMounted(async () => {
                   <div class="scene-editor__proc-item-header">
                     <el-icon class="scene-editor__proc-drag-handle" title="拖拽排序"><Rank /></el-icon>
                     <span class="scene-editor__proc-index">{{ i + 1 }}</span>
-                    <el-tag v-if="procTestclass(idx)" size="small" type="info">{{ processorTypeLabel(procTestclass(idx)) }}</el-tag>
+                    <el-tag v-for="t in procTags(idx)" :key="t.text" size="small" :type="t.type">{{ t.text }}</el-tag>
                     <div class="scene-editor__proc-header-spacer" />
                     <el-switch v-model="(editProcessors[idx] as SceneProcessorElement).enabled" size="small" @click.stop />
                     <el-dropdown trigger="click" @click.stop>
@@ -1059,13 +1062,21 @@ onMounted(async () => {
                     <el-input v-model="(editProcessors[selectedProcessorIdx] as SceneProcessorElement).name" placeholder="处理器名称" class="scene-editor__proc-inline-name" />
                     <el-switch v-model="(editProcessors[selectedProcessorIdx] as SceneProcessorElement).enabled" active-text="启用" />
                     <el-divider direction="vertical" />
-                    <el-button link size="small" type="danger" @click="removeSelectedProcessor('pre')">删除</el-button>
+                    <el-radio-group
+                      :model-value="String((editProcessors[selectedProcessorIdx] as SceneProcessorElement).testclass ?? '')"
+                      size="small"
+                      @update:model-value="(v) => setProcessorType(selectedProcessorIdx!, String(v))"
+                    >
+                      <el-radio-button value="http">HTTP</el-radio-button>
+                      <el-radio-button value="jdbc">JDBC</el-radio-button>
+                    </el-radio-group>
                   </header>
                   <div class="scene-editor__proc-inline-body">
                     <ProcessorForm
                       :model-value="editProcessors[selectedProcessorIdx]"
                       :http-options="httpRefOptions"
                       :ds-options="dsRefOptions"
+                      :show-type-select="false"
                       @update:model-value="(v) => updateProcessor(selectedProcessorIdx!, v)"
                       @import-extractors="openExtractorPickerForProcessor(selectedProcessorIdx!)"
                     />
@@ -1109,7 +1120,7 @@ onMounted(async () => {
                   <div class="scene-editor__proc-item-header">
                     <el-icon class="scene-editor__proc-drag-handle" title="拖拽排序"><Rank /></el-icon>
                     <span class="scene-editor__proc-index">{{ i + 1 }}</span>
-                    <el-tag v-if="procTestclass(idx)" size="small" type="info">{{ processorTypeLabel(procTestclass(idx)) }}</el-tag>
+                    <el-tag v-for="t in procTags(idx)" :key="t.text" size="small" :type="t.type">{{ t.text }}</el-tag>
                     <div class="scene-editor__proc-header-spacer" />
                     <el-switch v-model="(editProcessors[idx] as SceneProcessorElement).enabled" size="small" @click.stop />
                     <el-dropdown trigger="click" @click.stop>
@@ -1152,13 +1163,21 @@ onMounted(async () => {
                     <el-input v-model="(editProcessors[selectedProcessorIdx] as SceneProcessorElement).name" placeholder="处理器名称" class="scene-editor__proc-inline-name" />
                     <el-switch v-model="(editProcessors[selectedProcessorIdx] as SceneProcessorElement).enabled" active-text="启用" />
                     <el-divider direction="vertical" />
-                    <el-button link size="small" type="danger" @click="removeSelectedProcessor('post')">删除</el-button>
+                    <el-radio-group
+                      :model-value="String((editProcessors[selectedProcessorIdx] as SceneProcessorElement).testclass ?? '')"
+                      size="small"
+                      @update:model-value="(v) => setProcessorType(selectedProcessorIdx!, String(v))"
+                    >
+                      <el-radio-button value="http">HTTP</el-radio-button>
+                      <el-radio-button value="jdbc">JDBC</el-radio-button>
+                    </el-radio-group>
                   </header>
                   <div class="scene-editor__proc-inline-body">
                     <ProcessorForm
                       :model-value="editProcessors[selectedProcessorIdx]"
                       :http-options="httpRefOptions"
                       :ds-options="dsRefOptions"
+                      :show-type-select="false"
                       @update:model-value="(v) => updateProcessor(selectedProcessorIdx!, v)"
                       @import-extractors="openExtractorPickerForProcessor(selectedProcessorIdx!)"
                     />
@@ -1547,17 +1566,18 @@ onMounted(async () => {
   flex-direction: column;
 }
 
-// 左侧列表卡片：对齐 StepCanvas 步骤卡片
+// 左侧列表卡片：完全对齐 StepCanvas 步骤卡片（高度/内边距/选中态）
 .scene-editor__proc-item {
   display: flex;
   flex-direction: column;
-  height: 76px;
+  gap: 0;
+  height: 88px;
   padding: var(--space-md);
   border: 1px solid var(--color-neutral-200);
   border-radius: var(--radius-md);
   transition: all var(--transition-fast);
   cursor: pointer;
-  margin-bottom: var(--space-xs);
+  margin: 2px 0;
   overflow: hidden;
 
   &:hover {
