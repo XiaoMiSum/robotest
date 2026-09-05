@@ -14,15 +14,9 @@ import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiDebugRestoreRe
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiDebugSaveAsInterfaceRespDTO;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiDebugRecord;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiEnvironment;
-import io.github.xiaomisum.robotest.model.entity.apitest.ApiEnvironmentHttp;
-import io.github.xiaomisum.robotest.model.entity.apitest.ApiEnvironmentProcessor;
-import io.github.xiaomisum.robotest.model.entity.apitest.ApiEnvironmentVariable;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiInterface;
 import io.github.xiaomisum.robotest.repository.apitest.ApiDebugRecordMapper;
-import io.github.xiaomisum.robotest.repository.apitest.ApiEnvironmentHttpMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiEnvironmentMapper;
-import io.github.xiaomisum.robotest.repository.apitest.ApiEnvironmentProcessorMapper;
-import io.github.xiaomisum.robotest.repository.apitest.ApiEnvironmentVariableMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiInterfaceMapper;
 import io.github.xiaomisum.ryze.Ryze;
 import io.github.xiaomisum.ryze.TestStatus;
@@ -38,6 +32,7 @@ import xyz.migoo.framework.common.pojo.PageResult;
 import xyz.migoo.framework.common.util.JsonUtils;
 import xyz.migoo.framework.mybatis.core.LambdaQueryWrapperX;
 
+import java.net.URI;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -60,12 +55,6 @@ public class ApiDebugServiceImpl implements ApiDebugService {
     private ApiDebugRecordMapper debugRecordMapper;
     @Resource
     private ApiEnvironmentMapper environmentMapper;
-    @Resource
-    private ApiEnvironmentHttpMapper environmentHttpMapper;
-    @Resource
-    private ApiEnvironmentVariableMapper environmentVariableMapper;
-    @Resource
-    private ApiEnvironmentProcessorMapper environmentProcessorMapper;
     @Resource
     private ApiInterfaceService interfaceService;
     @Resource
@@ -168,7 +157,7 @@ public class ApiDebugServiceImpl implements ApiDebugService {
                         .method(record.getMethod())
                         .url(record.getUrl())
                         .headers(record.getHeaders())
-                        .body(record.getBody())
+                        .body(buildInterfaceBody(record))
                         .params(record.getQueryParams())
                         .build())
                 .response(ApiDebugRestoreRespDTO.Response.builder()
@@ -204,9 +193,10 @@ public class ApiDebugServiceImpl implements ApiDebugService {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.VALIDATION_FAILED);
         }
         ApiInterfaceCreateReqDTO create = new ApiInterfaceCreateReqDTO();
-        applySnapshot(create, record);
+        applyRequestSnapshot(create, record, reqDTO.getRequest());
         create.setName(reqDTO.getName().trim());
         create.setModuleId(reqDTO.getModuleId());
+        create.setResponseExample(reqDTO.getResponseExample());
         return interfaceService.create(projectId, workspaceId, userId, create);
     }
 
@@ -224,9 +214,52 @@ public class ApiDebugServiceImpl implements ApiDebugService {
         update.setChangeVersion(reqDTO.getChangeVersion());
         update.setName(target.getName());
         update.setModuleId(target.getModuleId());
-        applySnapshot(update, record);
+        applyRequestSnapshot(update, record, reqDTO.getRequest());
+        update.setResponseExample(reqDTO.getResponseExample());
         interfaceService.update(projectId, workspaceId, userId, target.getId(), update);
         return target.getId();
+    }
+
+    /**
+     * 从 UI 表单构建的请求快照映射为接口定义请求字段（取代原 applySnapshot(record)）。
+     * request 为 null 时降级到旧 debug record 行为，保持向前兼容。
+     */
+    private void applyRequestSnapshot(ApiInterfaceCreateReqDTO target, ApiDebugRecord record,
+            Map<String, Object> request) {
+        String baseUrl = resolveBaseUrl(record.getProjectId(), record.getEnvironmentId());
+        if (request == null || request.isEmpty()) {
+            applySnapshot(target, record);
+            return;
+        }
+        String method = Objects.toString(request.get("method"), record.getMethod());
+        String url = Objects.toString(request.get("url"), record.getUrl());
+        List<Map<String, Object>> headers = safeCastList(request.get("headers"));
+        List<Map<String, Object>> params = safeCastList(request.get("params"));
+        Map<String, Object> body = request.get("body") instanceof Map<?, ?> b ? castMap(b) : null;
+        Map<String, Object> auth = request.get("auth") instanceof Map<?, ?> a ? castMap(a) : null;
+        target.setProtocol("http");
+        target.setMethod(method);
+        target.setPath(extractPath(url, baseUrl));
+        target.setHeaders(headers);
+        target.setBody(body);
+        target.setParams(mergeQueryParams(url, params));
+        target.setAuth(auth);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <T> List<Map<String, Object>> safeCastList(Object obj) {
+        if (obj instanceof List<?> list) {
+            return list.stream()
+                    .filter(Map.class::isInstance)
+                    .map(e -> (Map<String, Object>) e)
+                    .toList();
+        }
+        return List.of();
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> castMap(Map<?, ?> map) {
+        return (Map<String, Object>) map;
     }
 
     /** 调试快照 → 接口定义请求字段映射（快速调试详细设计 4.3） */
@@ -250,20 +283,33 @@ public class ApiDebugServiceImpl implements ApiDebugService {
         if (env == null || !env.getProjectId().equals(projectId)) {
             return "";
         }
-        return environmentHttpMapper.listByEnvironmentId(env.getId()).stream()
-                .findFirst()
-                .map(ApiEnvironmentHttp::getBaseUrl)
-                .orElse("");
+        if (env.getHttpConfigs() == null || env.getHttpConfigs().isEmpty()) {
+            return "";
+        }
+        Object baseUrl = env.getHttpConfigs().get(0).get("baseUrl");
+        return baseUrl == null ? "" : baseUrl.toString();
     }
 
-    /** 剥离环境 baseUrl 得相对路径；无法剥离时保留完整 URL（query 另行并入 params） */
+    /** 剥离环境 baseUrl 得相对路径；无法剥离时仅截取 URL 路径部分（接口 path 不含域名/端口，接口管理详细设计 2.1.1） */
     private String extractPath(String url, String baseUrl) {
         String candidate = baseUrl != null && !baseUrl.isBlank() && url.startsWith(baseUrl)
                 ? url.substring(baseUrl.length())
-                : url;
+                : stripOrigin(url);
         int queryStart = candidate.indexOf('?');
         String path = queryStart >= 0 ? candidate.substring(0, queryStart) : candidate;
         return path.isEmpty() ? "/" : path;
+    }
+
+    /** 环境 baseUrl 无法剥离时，仅保留 URL 的 path 部分，剔除 scheme/host/port（query 另行并入 params） */
+    private String stripOrigin(String url) {
+        try {
+            URI uri = URI.create(url);
+            if (uri.getRawPath() != null) {
+                return uri.getRawPath();
+            }
+        } catch (Exception ignored) {
+        }
+        return url;
     }
 
     /** URL query 与已配置参数合并去重，同名参数以已配置值为准 */
