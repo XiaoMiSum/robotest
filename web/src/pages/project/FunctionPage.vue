@@ -339,7 +339,9 @@ onMounted(() => void loadAll())
             :disabled="!canEdit"
             class="fn-page__add-btn"
             @click="startCreate"
-          >新增</el-button>
+          >
+            <el-icon><Plus /></el-icon>新增
+          </el-button>
         </div>
 
         <!-- 标签页筛选 -->

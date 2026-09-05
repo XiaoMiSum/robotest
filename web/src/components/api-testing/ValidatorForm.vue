@@ -1,49 +1,33 @@
 <template>
   <div class="validator-form">
-    <el-form-item label="验证目标" prop="target">
+    <el-form-item class="validator-form__field validator-form__field--target" label="验证目标" prop="target">
       <el-select v-model="localConfig.target" placeholder="选择验证目标">
-        <el-option label="状态码" value="status" />
-        <el-option label="响应体" value="body" />
-        <el-option label="响应头" value="header" />
-        <el-option label="变量" value="variable" />
+        <el-option v-for="t in VALIDATOR_TARGETS" :key="t.value" :value="t.value" :label="t.label" />
       </el-select>
     </el-form-item>
-    <el-form-item label="表达式" prop="expression">
-      <el-input v-model="localConfig.expression" placeholder="如: $.code 或 status 或 $.data.id" />
-    </el-form-item>
-    <el-form-item label="比较条件" prop="operator">
-      <el-select v-model="localConfig.operator" placeholder="选择比较条件">
-        <el-option label="等于" value="eq" />
-        <el-option label="不等于" value="neq" />
-        <el-option label="大于" value="gt" />
-        <el-option label="小于" value="lt" />
-        <el-option label="大于等于" value="gte" />
-        <el-option label="小于等于" value="lte" />
-        <el-option label="包含" value="contains" />
-        <el-option label="不包含" value="not_contains" />
-        <el-option label="正则匹配" value="matches" />
-        <el-option label="为空" value="empty" />
-        <el-option label="不为空" value="not_empty" />
+    <el-form-item class="validator-form__field validator-form__field--condition" prop="condition">
+      <el-select v-model="localConfig.condition" placeholder="选择比较条件">
+        <el-option v-for="c in VALIDATOR_CONDITIONS" :key="c.value" :value="c.value" :label="c.label" />
       </el-select>
     </el-form-item>
-    <el-form-item label="期望值" prop="expected">
+    <el-form-item class="validator-form__field validator-form__field--expression" prop="expression">
+      <el-input v-model="localConfig.expression" placeholder="表达式（如 $.code）" />
+    </el-form-item>
+    <el-form-item class="validator-form__field validator-form__field--expected" prop="expected">
       <el-input v-model="localConfig.expected" placeholder="期望值" />
-    </el-form-item>
-    <el-form-item label="断言描述" prop="description">
-      <el-input v-model="localConfig.description" placeholder="描述此断言的目的" />
     </el-form-item>
   </div>
 </template>
 
 <script setup lang="ts">
 import { reactive, watch } from 'vue'
+import { VALIDATOR_TARGETS, VALIDATOR_CONDITIONS } from '@/pages/project/scenesModel'
 
 interface ValidatorConfig {
   target: string
   expression: string
-  operator: string
+  condition: string
   expected: string
-  description: string
 }
 
 const props = defineProps<{
@@ -55,11 +39,10 @@ const emit = defineEmits<{
 }>()
 
 const defaultConfig: ValidatorConfig = {
-  target: '',
+  target: 'status_code',
   expression: '',
-  operator: 'eq',
+  condition: 'equals',
   expected: '',
-  description: '',
 }
 
 const localConfig = reactive<ValidatorConfig>({
@@ -75,3 +58,38 @@ watch(localConfig, (val) => {
   emit('update:modelValue', { ...val })
 }, { deep: true })
 </script>
+
+<style scoped>
+.validator-form {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: var(--space-sm);
+}
+
+.validator-form__field {
+  margin-right: 0;
+  margin-bottom: 0;
+  flex-shrink: 1;
+}
+
+.validator-form__field--target {
+  flex: 0 0 260px;
+}
+
+.validator-form__field--condition {
+  flex: 0 0 150px;
+}
+
+.validator-form__field--expression,
+.validator-form__field--expected {
+  flex: 1 1 0;
+}
+
+.validator-form :deep(.el-form-item__content),
+.validator-form :deep(.el-form-item__content) .el-select {
+  width: 100%;
+}
+</style>

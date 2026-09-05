@@ -18,10 +18,10 @@ export interface ProcessorKvRow {
 /** 请求体编辑类型，与 Ryze `data`（表单）/`body`（JSON/原始）对应 */
 export type ProcessorBodyKind = 'none' | 'json' | 'form' | 'raw'
 
-/** HTTP 处理器表单编辑态 */
+/** HTTP 处理器表单编辑态，`ref` 为环境 http 配置 `refName`（config 键 `ref`） */
 export interface HttpProcessorForm {
   method: string
-  baseUrl: string
+  ref: string
   path: string
   http2: boolean
   headerRows: ProcessorKvRow[]
@@ -31,9 +31,9 @@ export interface HttpProcessorForm {
   formRows: ProcessorKvRow[]
 }
 
-/** JDBC 处理器表单编辑态，`datasource` 为环境数据源 `ref_name` */
+/** JDBC 处理器表单编辑态，`ref` 为环境数据源 `ref_name`（写入 config 键 `datasource`） */
 export interface JdbcProcessorForm {
-  datasource: string
+  ref: string
   sql: string
   args: string[]
 }
@@ -125,7 +125,7 @@ export function parseHttpProcessorForm(element: Record<string, unknown> | undefi
   }
   return {
     method: pickString(cfg.method, 'GET'),
-    baseUrl: pickString(cfg.base_url),
+    ref: pickString(cfg.ref),
     path: pickString(cfg.path),
     http2: pickBoolean(cfg['http/2']),
     headerRows: mapToKvRows(headers),
@@ -140,7 +140,7 @@ export function parseHttpProcessorForm(element: Record<string, unknown> | undefi
 export function toHttpConfig(form: HttpProcessorForm): Record<string, unknown> {
   const cfg: Record<string, unknown> = {}
   if (form.method && form.method !== 'GET') cfg.method = form.method
-  if (form.baseUrl.trim()) cfg.base_url = form.baseUrl.trim()
+  if (form.ref.trim()) cfg.ref = form.ref.trim()
   if (form.path.trim()) cfg.path = form.path.trim()
   if (form.http2) cfg['http/2'] = true
   const headers = kvRowsToMap(form.headerRows)
@@ -164,7 +164,7 @@ export function parseJdbcProcessorForm(element: Record<string, unknown> | undefi
   const rawArgs = Array.isArray(cfg.args) ? cfg.args : []
   const args = rawArgs.filter((item): item is string => typeof item === 'string')
   return {
-    datasource: pickString(cfg.datasource),
+    ref: pickString(cfg.datasource),
     sql: pickString(cfg.sql),
     args,
   }
@@ -173,7 +173,7 @@ export function parseJdbcProcessorForm(element: Record<string, unknown> | undefi
 /** JDBC 表单编辑态 → 元素 config（仅含 Ryze 键） */
 export function toJdbcConfig(form: JdbcProcessorForm): Record<string, unknown> {
   const cfg: Record<string, unknown> = {}
-  if (form.datasource.trim()) cfg.datasource = form.datasource.trim()
+  if (form.ref.trim()) cfg.datasource = form.ref.trim()
   if (form.sql.trim()) cfg.sql = form.sql.trim()
   if (form.args.length > 0) cfg.args = [...form.args]
   return cfg
@@ -252,4 +252,38 @@ export function parseComponentConfig(config: string | null): Record<string, unkn
 /** 提取器资产 → 处理器内嵌提取器行（复制引入，独立副本） */
 export function extractorsFromComponents(items: ApiComponentListItem[]): ProcessorExtractor[] {
   return items.map((item) => toExtractorRow(parseComponentConfig(item.config)))
+}
+
+/** 验证器资产 → 接口验证器元素（复制引入，独立副本；字段与 ValidatorForm 读取一致） */
+export function validatorFromComponent(item: ApiComponentListItem): Record<string, unknown> {
+  const cfg = parseComponentConfig(item.config)
+  return {
+    target: pickString(cfg.target, 'status'),
+    expression: pickString(cfg.expression),
+    operator: pickString(cfg.operator, 'eq'),
+    expected: pickString(cfg.expected),
+    description: pickString(cfg.description),
+  }
+}
+
+/** 提取器资产 → 接口提取器元素（复制引入，独立副本；字段与 ExtractorForm 读取一致） */
+export function extractorFromComponent(item: ApiComponentListItem): Record<string, unknown> {
+  const cfg = parseComponentConfig(item.config)
+  return {
+    source: pickString(cfg.source, 'body'),
+    expression: pickString(cfg.expression),
+    variableName: pickString(cfg.variableName),
+    description: pickString(cfg.description),
+  }
+}
+
+/** 前置/后置处理器资产 → 接口处理器元素（复制引入，独立副本；元素结构同 ProcessorForm 读取的 Ryze 元素） */
+export function processorFromComponent(item: ApiComponentListItem, type: 'pre' | 'post'): Record<string, unknown> {
+  const cfg = parseComponentConfig(item.config)
+  return {
+    type,
+    testclass: pickString(cfg.testclass),
+    config: isRecord(cfg.config) ? cfg.config : {},
+    extractors: Array.isArray(cfg.extractors) ? cfg.extractors.map(toExtractorRow) : [],
+  }
 }

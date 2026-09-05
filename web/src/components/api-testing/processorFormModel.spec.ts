@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   defaultComponentConfig,
   defaultProcessorConfig,
+  extractorFromComponent,
   extractorsFromComponents,
   isProcessorComponentType,
   kvRowsToMap,
@@ -9,9 +10,11 @@ import {
   parseComponentConfig,
   parseJdbcProcessorForm,
   parseProcessorElement,
+  processorFromComponent,
   toHttpConfig,
   toJdbcConfig,
   toProcessorElement,
+  validatorFromComponent,
 } from './processorFormModel'
 import type { ApiComponentListItem } from '@/types'
 
@@ -109,6 +112,82 @@ describe('processorFormModel', () => {
     })
   })
 
+  describe('validatorFromComponent', () => {
+    it('copies a validator component config into an interface validator element', () => {
+      const item = extractorComponent({
+        type: 'validator',
+        config: '{"target":"body","expression":"$.code","operator":"eq","expected":"200","description":"断言业务码"}',
+      })
+      expect(validatorFromComponent(item)).toEqual({
+        target: 'body',
+        expression: '$.code',
+        operator: 'eq',
+        expected: '200',
+        description: '断言业务码',
+      })
+    })
+
+    it('falls back to defaults for missing or broken config', () => {
+      const item = extractorComponent({ type: 'validator', config: null })
+      expect(validatorFromComponent(item)).toEqual({
+        target: 'status',
+        expression: '',
+        operator: 'eq',
+        expected: '',
+        description: '',
+      })
+    })
+  })
+
+  describe('extractorFromComponent', () => {
+    it('copies an extractor component config into an interface extractor element', () => {
+      const item = extractorComponent({
+        config: '{"source":"header","expression":"X-Token","variableName":"token","description":"取 Token 头"}',
+      })
+      expect(extractorFromComponent(item)).toEqual({
+        source: 'header',
+        expression: 'X-Token',
+        variableName: 'token',
+        description: '取 Token 头',
+      })
+    })
+
+    it('falls back to defaults for missing or broken config', () => {
+      const item = extractorComponent({ id: 'comp-2', config: 'not-json' })
+      expect(extractorFromComponent(item)).toEqual({
+        source: 'body',
+        expression: '',
+        variableName: '',
+        description: '',
+      })
+    })
+  })
+
+  describe('processorFromComponent', () => {
+    it('copies a preprocessor component element into an interface processor element', () => {
+      const item = extractorComponent({
+        type: 'preprocessor',
+        config: '{"testclass":"http","config":{"method":"POST","path":"/token"},"extractors":[{"source":"body","expression":"$.token","variableName":"t"}]}',
+      })
+      expect(processorFromComponent(item, 'pre')).toEqual({
+        type: 'pre',
+        testclass: 'http',
+        config: { method: 'POST', path: '/token' },
+        extractors: [{ enabled: true, source: 'body', expression: '$.token', variableName: 't', description: '' }],
+      })
+    })
+
+    it('stamps the given pre/post type and tolerates broken config', () => {
+      const item = extractorComponent({ type: 'postprocessor', config: null })
+      expect(processorFromComponent(item, 'post')).toEqual({
+        type: 'post',
+        testclass: '',
+        config: {},
+        extractors: [],
+      })
+    })
+  })
+
   describe('kvRowsToMap / mapToKvRows', () => {
     it('drops rows with empty keys', () => {
       expect(kvRowsToMap([{ key: '', value: 'x' }, { key: 'A', value: '1' }])).toEqual({ A: '1' })
@@ -124,7 +203,7 @@ describe('processorFormModel', () => {
     it('omits default method, empty fields and empty maps', () => {
       expect(toHttpConfig({
         method: 'GET',
-        baseUrl: '',
+        ref: '',
         path: '',
         http2: false,
         headerRows: [],
@@ -138,7 +217,7 @@ describe('processorFormModel', () => {
     it('maps form editor rows to Ryze keys in order', () => {
       expect(toHttpConfig({
         method: 'POST',
-        baseUrl: 'https://api.example.com',
+        ref: 'http_1',
         path: '/token',
         http2: true,
         headerRows: [{ key: 'Authorization', value: 'Bearer ${token}' }],
@@ -148,7 +227,7 @@ describe('processorFormModel', () => {
         formRows: [],
       })).toEqual({
         method: 'POST',
-        base_url: 'https://api.example.com',
+        ref: 'http_1',
         path: '/token',
         'http/2': true,
         headers: { Authorization: 'Bearer ${token}' },
@@ -160,7 +239,7 @@ describe('processorFormModel', () => {
     it('compiles form body into data and raw body into a string', () => {
       expect(toHttpConfig({
         method: 'POST',
-        baseUrl: '',
+        ref: '',
         path: '',
         http2: false,
         headerRows: [],
@@ -171,7 +250,7 @@ describe('processorFormModel', () => {
       })).toEqual({ method: 'POST', data: { k: 'v' } })
       expect(toHttpConfig({
         method: 'POST',
-        baseUrl: '',
+        ref: '',
         path: '',
         http2: false,
         headerRows: [],
@@ -185,7 +264,7 @@ describe('processorFormModel', () => {
     it('keeps unparseable json text as a string instead of dropping it', () => {
       expect(toHttpConfig({
         method: 'POST',
-        baseUrl: '',
+        ref: '',
         path: '',
         http2: false,
         headerRows: [],
@@ -203,8 +282,8 @@ describe('processorFormModel', () => {
         testclass: 'jdbc',
         config: { datasource: 'mysql_main', sql: 'SELECT 1', args: ['a', 1] },
       }
-      expect(parseJdbcProcessorForm(element)).toEqual({ datasource: 'mysql_main', sql: 'SELECT 1', args: ['a'] })
-      expect(toJdbcConfig({ datasource: ' mysql_main ', sql: ' SELECT 1 ', args: ['a', 'b'] })).toEqual({
+      expect(parseJdbcProcessorForm(element)).toEqual({ ref: 'mysql_main', sql: 'SELECT 1', args: ['a'] })
+      expect(toJdbcConfig({ ref: ' mysql_main ', sql: ' SELECT 1 ', args: ['a', 'b'] })).toEqual({
         datasource: 'mysql_main',
         sql: 'SELECT 1',
         args: ['a', 'b'],
@@ -212,7 +291,7 @@ describe('processorFormModel', () => {
     })
 
     it('omits empty jdbc fields', () => {
-      expect(toJdbcConfig({ datasource: '', sql: '', args: [] })).toEqual({})
+      expect(toJdbcConfig({ ref: '', sql: '', args: [] })).toEqual({})
     })
   })
 
@@ -222,7 +301,7 @@ describe('processorFormModel', () => {
         testclass: 'http',
         config: {
           method: 'POST',
-          base_url: 'https://api.example.com',
+          ref: 'http_1',
           path: '/token',
           headers: { Authorization: 'B' },
           body: { a: 1 },

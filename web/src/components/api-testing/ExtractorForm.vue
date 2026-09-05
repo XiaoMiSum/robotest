@@ -1,32 +1,27 @@
 <template>
   <div class="extractor-form">
-    <el-form-item label="提取来源" prop="source">
+    <el-form-item class="extractor-form__field extractor-form__field--source" label="提取来源" prop="source">
       <el-select v-model="localConfig.source" placeholder="选择提取来源">
-        <el-option label="响应体" value="body" />
-        <el-option label="响应头" value="header" />
-        <el-option label="状态码" value="status" />
+        <el-option v-for="s in EXTRACTOR_SOURCES" :key="s.value" :value="s.value" :label="s.label" />
       </el-select>
     </el-form-item>
-    <el-form-item label="表达式" prop="expression">
-      <el-input v-model="localConfig.expression" placeholder="如: $.data.token 或 Content-Type" />
+    <el-form-item class="extractor-form__field extractor-form__field--expression" prop="expression">
+      <el-input v-model="localConfig.expression" placeholder="表达式" />
     </el-form-item>
-    <el-form-item label="目标变量名" prop="variableName">
-      <el-input v-model="localConfig.variableName" placeholder="提取结果将存入此变量" />
-    </el-form-item>
-    <el-form-item label="提取描述" prop="description">
-      <el-input v-model="localConfig.description" placeholder="描述此提取器的目的" />
+    <el-form-item class="extractor-form__field extractor-form__field--variable" prop="variableName">
+      <el-input v-model="localConfig.variableName" placeholder="变量名" />
     </el-form-item>
   </div>
 </template>
 
 <script setup lang="ts">
 import { reactive, watch } from 'vue'
+import { EXTRACTOR_SOURCES } from '@/pages/project/scenesModel'
 
 interface ExtractorConfig {
   source: string
   expression: string
   variableName: string
-  description: string
 }
 
 const props = defineProps<{
@@ -38,10 +33,9 @@ const emit = defineEmits<{
 }>()
 
 const defaultConfig: ExtractorConfig = {
-  source: '',
+  source: 'json_field',
   expression: '',
   variableName: '',
-  description: '',
 }
 
 const localConfig = reactive<ExtractorConfig>({
@@ -57,3 +51,34 @@ watch(localConfig, (val) => {
   emit('update:modelValue', { ...val })
 }, { deep: true })
 </script>
+
+<style scoped>
+.extractor-form {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: var(--space-sm);
+}
+
+.extractor-form__field {
+  margin-right: 0;
+  margin-bottom: 0;
+  flex-shrink: 1;
+}
+
+.extractor-form__field--source {
+  flex: 0 0 240px;
+}
+
+.extractor-form__field--expression,
+.extractor-form__field--variable {
+  flex: 1 1 0;
+}
+
+.extractor-form :deep(.el-form-item__content),
+.extractor-form :deep(.el-form-item__content) .el-select {
+  width: 100%;
+}
+</style>
