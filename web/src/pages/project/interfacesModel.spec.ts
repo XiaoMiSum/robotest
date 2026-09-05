@@ -1,13 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import type { ApiInterfaceStepPayload, ProjectModule } from '@/types'
+import type { ProjectModule } from '@/types'
 import {
   buildInterfaceListQuery,
-  buildVariablesPayload,
   createEditorForm,
   flattenModuleNames,
   methodTagType,
-  moveStep,
-  reindexSteps,
   summarizeImportResult,
   toCreatePayload,
   toSelectableModuleOptions,
@@ -68,29 +65,6 @@ describe('toSelectableModuleOptions / flattenModuleNames', () => {
   })
 })
 
-describe('step ordering', () => {
-  const steps: ApiInterfaceStepPayload[] = [
-    { id: 'a', name: 'A', stepType: 'script', sortOrder: 0, enabled: true, requestConfig: {} },
-    { id: 'b', name: 'B', stepType: 'sql', sortOrder: 1, enabled: true, requestConfig: {} },
-  ]
-
-  it('reindexSteps 重排序号', () => {
-    const reordered = reindexSteps([steps[1], steps[0]])
-    expect(reordered.map((step) => step.sortOrder)).toEqual([0, 1])
-  })
-
-  it('moveStep 交换相邻项并归一化序号', () => {
-    const moved = moveStep(steps, 'b', -1)
-    expect(moved.map((step) => step.id)).toEqual(['b', 'a'])
-    expect(moved.map((step) => step.sortOrder)).toEqual([0, 1])
-  })
-
-  it('moveStep 越界时返回原数组引用', () => {
-    expect(moveStep(steps, 'a', -1)).toBe(steps)
-    expect(moveStep(steps, 'b', 1)).toBe(steps)
-  })
-})
-
 describe('editor form conversion', () => {
   it('新建默认表单：GET /、none 请求体、空键值行', () => {
     const form = createEditorForm()
@@ -98,7 +72,7 @@ describe('editor form conversion', () => {
     expect(form.headers).toHaveLength(1)
   })
 
-  it('详情回显还原请求体与键值行，剔除空键行', () => {
+  it('详情回显还原请求体与键值行（json→raw tab），剔除空键行', () => {
     const form = createEditorForm({
       id: 'i1',
       name: '登录',
@@ -117,11 +91,12 @@ describe('editor form conversion', () => {
       responseExample: { status: 200 },
       referenceCount: 0,
       followed: false,
-      steps: [],
       createdAt: '',
       updatedAt: '',
     })
-    expect(form.jsonText).toBe(JSON.stringify({ u: 1 }, null, 2))
+    expect(form.bodyType).toBe('raw')
+    expect(form.rawSubtype).toBe('json')
+    expect(form.rawText).toBe(JSON.stringify({ u: 1 }, null, 2))
     expect(form.params).toHaveLength(1)
     const { req, error } = toUpdatePayload(form, 3)
     expect(error).toBeUndefined()
@@ -132,16 +107,17 @@ describe('editor form conversion', () => {
 
   it('非法 JSON 请求体返回错误而不抛出', () => {
     const form = createEditorForm()
-    form.bodyType = 'json'
-    form.jsonText = '{broken'
+    form.bodyType = 'raw'
+    form.rawSubtype = 'json'
+    form.rawText = '{broken'
     const { error } = toCreatePayload(form)
     expect(error).toContain('JSON')
   })
 
-  it('form 请求体序列化为键值数组并剔除禁用与空键行', () => {
+  it('urlencoded 请求体序列化为键值数组并剔除禁用与空键行', () => {
     const form = createEditorForm()
-    form.bodyType = 'form'
-    form.formRows = [
+    form.bodyType = 'urlencoded'
+    form.urlencodedRows = [
       { key: 'u', value: '1', enabled: true },
       { key: 'skip', value: 'x', enabled: false },
       { key: '', value: 'y', enabled: true },
@@ -149,17 +125,107 @@ describe('editor form conversion', () => {
     const { req } = toCreatePayload(form)
     expect(req.body).toEqual({ type: 'form', content: [{ key: 'u', value: '1', enabled: true }] })
   })
-})
 
-describe('buildVariablesPayload', () => {
-  it('剔除空名行并按顺序重排 sortOrder', () => {
-    const payload = buildVariablesPayload([
-      { id: 'v1', name: ' token ', defaultValue: 'a', required: false, sortOrder: 5 },
-      { name: '', required: false, sortOrder: 9 },
-      { name: 'page', defaultValue: undefined, required: true, sortOrder: 0 },
-    ])
-    expect(payload.map((row) => row.name)).toEqual(['token', 'page'])
-    expect(payload.map((row) => row.sortOrder)).toEqual([0, 1])
+  it('raw 非 json 子类型保留原始文本直传', () => {
+    const form = createEditorForm()
+    form.bodyType = 'raw'
+    form.rawSubtype = 'text'
+    form.rawText = 'hello <xml/>'
+    const { req } = toCreatePayload(form)
+    expect(req.body).toEqual({ type: 'raw', content: 'hello <xml/>' })
+  })
+
+  it('回显仅定义存储的验证器/提取器', () => {    const form = createEditorForm({
+      id: 'i2',
+      name: '含配置',
+      protocol: 'http',
+      method: 'GET',
+      path: '/c',
+      description: null,
+      moduleId: null,
+      headers: [],
+      body: null,
+      params: [],
+      restParams: [],
+      auth: null,
+      status: 'enabled',
+      changeVersion: 1,
+      responseExample: null,
+      referenceCount: 0,
+      followed: false,
+      createdAt: '',
+      updatedAt: '',
+      validators: [{ target: 'status_code', condition: 'equals' }],
+      extractors: [{ source: 'json_field', variableName: 'token' }],
+    })
+    expect(form.validators).toEqual([{ target: 'status_code', condition: 'equals' }])
+    const { req } = toCreatePayload(form)
+    expect(req.validators).toEqual([{ target: 'status_code', condition: 'equals' }])
+    expect(req.extractors).toEqual([{ source: 'json_field', variableName: 'token' }])
+  })
+
+
+  it('回显认证配置（basic/bearer/apiKey）并还原', () => {
+    const form = createEditorForm({
+      id: 'i3',
+      name: '带认证',
+      protocol: 'http',
+      method: 'GET',
+      path: '/secure',
+      description: null,
+      moduleId: null,
+      headers: [],
+      body: null,
+      params: [],
+      restParams: [],
+      auth: { type: 'bearer', token: 'abc' },
+      status: 'enabled',
+      changeVersion: 1,
+      responseExample: null,
+      referenceCount: 0,
+      followed: false,
+      createdAt: '',
+      updatedAt: '',
+    })
+    expect(form.auth).toEqual({ type: 'bearer', token: 'abc' })
+  })
+
+  it('No Auth 不发送 auth，已配置认证序列化为 auth 列', () => {
+    const empty = createEditorForm()
+    expect(toCreatePayload(empty).req.auth).toBeUndefined()
+
+    const form = createEditorForm()
+    form.auth = { type: 'apiKey', apiKeyName: 'X-Token', apiKeyValue: 'secret' }
+    const { req } = toCreatePayload(form)
+    expect(req.auth).toEqual({ type: 'apiKey', apiKeyName: 'X-Token', apiKeyValue: 'secret' })
+  })
+
+  it('响应示例 body/headers 分别序列化并保留 status', () => {
+    const form = createEditorForm({
+      id: 'i4', name: 'resp', protocol: 'http', method: 'GET', path: '/r',
+      description: null, moduleId: null, headers: [], body: null, params: [],
+      restParams: [], auth: null, status: 'enabled', changeVersion: 1,
+      responseExample: { status: 201, headers: { 'X-Req': '1' }, body: { ok: true } },
+      referenceCount: 0, followed: false, createdAt: '', updatedAt: '',
+    })
+    expect(form.responseBodyText).toBe(JSON.stringify({ ok: true }, null, 2))
+    expect(form.responseHeadersText).toBe(JSON.stringify({ 'X-Req': '1' }, null, 2))
+    const { req } = toCreatePayload(form)
+    expect(req.responseExample).toEqual({ body: { ok: true }, status: 201, headers: { 'X-Req': '1' } })
+  })
+
+  it('响应示例 JSON 非法返回错误', () => {
+    const form = createEditorForm()
+    form.responseBodyText = '{bad'
+    const { error } = toCreatePayload(form)
+    expect(error).toContain('响应体')
+  })
+
+  it('响应示例 headers JSON 非法返回错误', () => {
+    const form = createEditorForm()
+    form.responseHeadersText = '[1,2'
+    const { error } = toCreatePayload(form)
+    expect(error).toContain('响应头')
   })
 })
 
