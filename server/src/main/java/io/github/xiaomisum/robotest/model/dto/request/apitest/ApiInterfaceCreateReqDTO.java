@@ -45,4 +45,8 @@ public class ApiInterfaceCreateReqDTO {
     private String status;
 
     private Map<String, Object> responseExample;
+
+    private List<Map<String, Object>> validators;
+
+    private List<Map<String, Object>> extractors;
 }

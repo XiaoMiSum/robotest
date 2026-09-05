@@ -4,17 +4,13 @@ import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiInterfaceBatchD
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiInterfaceBatchMoveReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiInterfaceCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiInterfaceStatusReqDTO;
-import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiInterfaceStepReqDTO;
-import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiInterfaceStepSortReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiInterfaceUpdateReqDTO;
-import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiInterfaceVariablesReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiImportPreviewRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiImportResultRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiInterfaceChangeLogRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiInterfaceDetailRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiInterfaceItemRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiInterfaceReferenceRespDTO;
-import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiInterfaceVariableRespDTO;
 import xyz.migoo.framework.common.pojo.PageParam;
 import xyz.migoo.framework.common.pojo.PageResult;
 
@@ -53,22 +49,6 @@ public interface ApiInterfaceService {
     void follow(UUID projectId, UUID userId, UUID id);
 
     void unfollow(UUID projectId, UUID userId, UUID id);
-
-    // ==================== 公共步骤 3.2 ====================
-
-    UUID createStep(UUID projectId, UUID userId, UUID interfaceId, ApiInterfaceStepReqDTO reqDTO);
-
-    void updateStep(UUID projectId, UUID userId, UUID interfaceId, UUID stepId, ApiInterfaceStepReqDTO reqDTO);
-
-    void deleteStep(UUID projectId, UUID userId, UUID interfaceId, UUID stepId);
-
-    void sortStep(UUID projectId, UUID userId, UUID interfaceId, UUID stepId, ApiInterfaceStepSortReqDTO reqDTO);
-
-    // ==================== 接口级变量 3.3 ====================
-
-    List<ApiInterfaceVariableRespDTO> listVariables(UUID projectId, UUID userId, UUID interfaceId);
-
-    void updateVariables(UUID projectId, UUID userId, UUID interfaceId, ApiInterfaceVariablesReqDTO reqDTO);
 
     // ==================== 导入 3.4 ====================
 

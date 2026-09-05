@@ -31,8 +31,9 @@ public class ApiInterfaceDetailRespDTO {
     /** {status, headers, body} */
     private Map<String, Object> responseExample;
     private Integer referenceCount;
+    private List<Map<String, Object>> validators;
+    private List<Map<String, Object>> extractors;
     private Boolean followed;
-    private List<ApiInterfaceStepRespDTO> steps;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

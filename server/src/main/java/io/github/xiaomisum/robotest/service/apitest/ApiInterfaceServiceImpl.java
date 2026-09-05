@@ -5,32 +5,23 @@ import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiInterfaceBatchD
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiInterfaceBatchMoveReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiInterfaceCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiInterfaceStatusReqDTO;
-import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiInterfaceStepReqDTO;
-import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiInterfaceStepSortReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiInterfaceUpdateReqDTO;
-import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiInterfaceVariablesReqDTO;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiImportMapping;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiImportRecord;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiInterface;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiInterfaceChangeLog;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiInterfaceFollow;
-import io.github.xiaomisum.robotest.model.entity.apitest.ApiInterfaceStep;
-import io.github.xiaomisum.robotest.model.entity.apitest.ApiInterfaceVariable;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiImportPreviewRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiImportResultRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiInterfaceChangeLogRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiInterfaceDetailRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiInterfaceItemRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiInterfaceReferenceRespDTO;
-import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiInterfaceStepRespDTO;
-import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiInterfaceVariableRespDTO;
 import io.github.xiaomisum.robotest.repository.apitest.ApiImportMappingMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiImportRecordMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiInterfaceChangeLogMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiInterfaceFollowMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiInterfaceMapper;
-import io.github.xiaomisum.robotest.repository.apitest.ApiInterfaceStepMapper;
-import io.github.xiaomisum.robotest.repository.apitest.ApiInterfaceVariableMapper;
 import io.github.xiaomisum.robotest.service.apitest.imports.ImportedOperation;
 import io.github.xiaomisum.robotest.service.apitest.imports.ImportSourceFetcher;
 import io.github.xiaomisum.robotest.service.apitest.imports.InterfaceImportParser;
@@ -79,10 +70,6 @@ public class ApiInterfaceServiceImpl implements ApiInterfaceService {
     @Resource
     private ApiInterfaceMapper interfaceMapper;
     @Resource
-    private ApiInterfaceStepMapper stepMapper;
-    @Resource
-    private ApiInterfaceVariableMapper variableMapper;
-    @Resource
     private ApiInterfaceFollowMapper followMapper;
     @Resource
     private ApiInterfaceChangeLogMapper changeLogMapper;
@@ -126,8 +113,6 @@ public class ApiInterfaceServiceImpl implements ApiInterfaceService {
         projectAccessGuard.requireProjectMember(projectId, userId);
         ApiInterface entity = requireInterface(projectId, interfaceId);
         boolean followed = followMapper.selectByInterfaceAndUser(interfaceId, userId) != null;
-        List<ApiInterfaceStepRespDTO> steps = stepMapper.selectListByInterfaceId(interfaceId).stream()
-                .map(this::toStep).toList();
         return ApiInterfaceDetailRespDTO.builder()
                 .id(entity.getId())
                 .name(entity.getName())
@@ -145,8 +130,9 @@ public class ApiInterfaceServiceImpl implements ApiInterfaceService {
                 .changeVersion(entity.getChangeVersion())
                 .responseExample(entity.getResponseExample())
                 .referenceCount(entity.getReferenceCount())
+                .validators(entity.getValidators())
+                .extractors(entity.getExtractors())
                 .followed(followed)
-                .steps(steps)
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())
                 .build();
@@ -202,8 +188,6 @@ public class ApiInterfaceServiceImpl implements ApiInterfaceService {
             throw get(API_INTERFACE_REFERENCED);
         }
         interfaceMapper.deleteById(id);
-        stepMapper.deleteByInterfaceId(id);
-        variableMapper.deleteByInterfaceId(id);
     }
 
     @Override
@@ -229,25 +213,12 @@ public class ApiInterfaceServiceImpl implements ApiInterfaceService {
         copy.setAuth(cloneMap(source.getAuth()));
         copy.setStatus("enabled");
         copy.setResponseExample(cloneMap(source.getResponseExample()));
+        copy.setValidators(cloneList(source.getValidators()));
+        copy.setExtractors(cloneList(source.getExtractors()));
         copy.setCreatedBy(userId);
         copy.setChangeVersion(1);
         copy.setReferenceCount(0);
         interfaceMapper.insert(copy);
-        // 公共步骤复制为独立副本，与原接口无关联（详细设计 3.1.6）
-        int sort = 0;
-        for (ApiInterfaceStep step : stepMapper.selectListByInterfaceId(id)) {
-            ApiInterfaceStep copied = new ApiInterfaceStep();
-            copied.setInterfaceId(copy.getId());
-            copied.setName(step.getName());
-            copied.setStepType(step.getStepType());
-            copied.setSortOrder(sort++);
-            copied.setEnabled(step.getEnabled());
-            copied.setRequestConfig(step.getRequestConfig());
-            copied.setProcessors(step.getProcessors());
-            copied.setValidators(step.getValidators());
-            copied.setExtractors(step.getExtractors());
-            stepMapper.insert(copied);
-        }
         writeChangeLog(copy.getId(), 1, "copy", "复制自接口 " + source.getName(), userId);
         return copy.getId();
     }
@@ -326,91 +297,6 @@ public class ApiInterfaceServiceImpl implements ApiInterfaceService {
         if (row != null) {
             followMapper.deleteById(row.getId());
         }
-    }
-
-    // ==================== 3.2 公共步骤 ====================
-
-    @Override
-    public UUID createStep(UUID projectId, UUID userId, UUID interfaceId, ApiInterfaceStepReqDTO reqDTO) {
-        projectAccessGuard.requireProjectMember(projectId, userId);
-        requireInterface(projectId, interfaceId);
-        ApiInterfaceStep step = new ApiInterfaceStep();
-        step.setInterfaceId(interfaceId);
-        applyStepFields(step, reqDTO);
-        stepMapper.insert(step);
-        return step.getId();
-    }
-
-    @Override
-    public void updateStep(UUID projectId, UUID userId, UUID interfaceId, UUID stepId, ApiInterfaceStepReqDTO reqDTO) {
-        projectAccessGuard.requireProjectMember(projectId, userId);
-        requireInterface(projectId, interfaceId);
-        requireStep(interfaceId, stepId);
-        ApiInterfaceStep update = new ApiInterfaceStep();
-        update.setId(stepId);
-        applyStepFields(update, reqDTO);
-        stepMapper.updateById(update);
-    }
-
-    @Override
-    public void deleteStep(UUID projectId, UUID userId, UUID interfaceId, UUID stepId) {
-        projectAccessGuard.requireProjectMember(projectId, userId);
-        requireInterface(projectId, interfaceId);
-        requireStep(interfaceId, stepId);
-        // 链接引用保护由场景模块维护引用计数后生效，当前无场景引用（V1.2 边界）
-        stepMapper.deleteById(stepId);
-    }
-
-    @Override
-    public void sortStep(UUID projectId, UUID userId, UUID interfaceId, UUID stepId, ApiInterfaceStepSortReqDTO reqDTO) {
-        projectAccessGuard.requireProjectMember(projectId, userId);
-        requireInterface(projectId, interfaceId);
-        requireStep(interfaceId, stepId);
-        ApiInterfaceStep update = new ApiInterfaceStep();
-        update.setId(stepId);
-        update.setSortOrder(reqDTO.getSortOrder());
-        stepMapper.updateById(update);
-    }
-
-    // ==================== 3.3 接口级变量 ====================
-
-    @Override
-    public List<ApiInterfaceVariableRespDTO> listVariables(UUID projectId, UUID userId, UUID interfaceId) {
-        projectAccessGuard.requireProjectMember(projectId, userId);
-        requireInterface(projectId, interfaceId);
-        return variableMapper.selectListByInterfaceId(interfaceId).stream()
-                .map(this::toVariable).toList();
-    }
-
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    public void updateVariables(UUID projectId, UUID userId, UUID interfaceId, ApiInterfaceVariablesReqDTO reqDTO) {
-        projectAccessGuard.requireProjectMember(projectId, userId);
-        requireInterface(projectId, interfaceId);
-        // 全量覆盖语义：按 name 匹配更新，请求未包含的删除（详细设计 3.3.2）
-        Map<String, ApiInterfaceVariable> byName = variableMapper.selectListByInterfaceId(interfaceId).stream()
-                .collect(Collectors.toMap(ApiInterfaceVariable::getName, v -> v));
-        List<String> keepNames = new ArrayList<>();
-        List<ApiInterfaceVariablesReqDTO.VariableItem> items = reqDTO.getVariables() == null
-                ? List.of() : reqDTO.getVariables();
-        int sort = 0;
-        for (ApiInterfaceVariablesReqDTO.VariableItem item : items) {
-            keepNames.add(item.getName());
-            ApiInterfaceVariable existing = byName.get(item.getName());
-            ApiInterfaceVariable target = existing == null ? new ApiInterfaceVariable() : null;
-            ApiInterfaceVariable payload = target != null ? target : new ApiInterfaceVariable();
-            payload.setId(existing == null ? null : existing.getId());
-            fillVariable(payload, item, sort++);
-            if (target != null) {
-                target.setInterfaceId(interfaceId);
-                variableMapper.insert(target);
-            } else {
-                variableMapper.updateById(payload);
-            }
-        }
-        variableMapper.selectListByInterfaceId(interfaceId).stream()
-                .filter(v -> !keepNames.contains(v.getName()))
-                .forEach(v -> variableMapper.deleteById(v.getId()));
     }
 
     // ==================== 3.4 导入 ====================
@@ -509,45 +395,12 @@ public class ApiInterfaceServiceImpl implements ApiInterfaceService {
                 .build();
     }
 
-    private ApiInterfaceStepRespDTO toStep(ApiInterfaceStep step) {
-        return ApiInterfaceStepRespDTO.builder()
-                .id(step.getId())
-                .name(step.getName())
-                .stepType(step.getStepType())
-                .sortOrder(step.getSortOrder())
-                .enabled(step.getEnabled())
-                .requestConfig(step.getRequestConfig())
-                .processors(step.getProcessors())
-                .validators(step.getValidators())
-                .extractors(step.getExtractors())
-                .build();
-    }
-
-    private ApiInterfaceVariableRespDTO toVariable(ApiInterfaceVariable variable) {
-        return ApiInterfaceVariableRespDTO.builder()
-                .id(variable.getId())
-                .name(variable.getName())
-                .defaultValue(variable.getDefaultValue())
-                .description(variable.getDescription())
-                .required(variable.getRequired())
-                .sortOrder(variable.getSortOrder())
-                .build();
-    }
-
     private ApiInterface requireInterface(UUID projectId, UUID id) {
         ApiInterface entity = interfaceMapper.selectById(id);
         if (entity == null || !projectId.equals(entity.getProjectId())) {
             throw get(API_INTERFACE_NOT_FOUND);
         }
         return entity;
-    }
-
-    private ApiInterfaceStep requireStep(UUID interfaceId, UUID stepId) {
-        ApiInterfaceStep step = stepMapper.selectById(stepId);
-        if (step == null || !interfaceId.equals(step.getInterfaceId())) {
-            throw get(API_INTERFACE_NOT_FOUND);
-        }
-        return step;
     }
 
     private void assertNameAvailable(UUID projectId, UUID moduleId, String name, UUID excludeId) {
@@ -579,25 +432,8 @@ public class ApiInterfaceServiceImpl implements ApiInterfaceService {
         entity.setAuth(reqDTO.getAuth());
         entity.setStatus(reqDTO.getStatus());
         entity.setResponseExample(reqDTO.getResponseExample());
-    }
-
-    private void applyStepFields(ApiInterfaceStep step, ApiInterfaceStepReqDTO reqDTO) {
-        step.setName(reqDTO.getName());
-        step.setStepType(reqDTO.getStepType());
-        step.setSortOrder(reqDTO.getSortOrder() == null ? 0 : reqDTO.getSortOrder());
-        step.setEnabled(reqDTO.getEnabled() == null || reqDTO.getEnabled());
-        step.setRequestConfig(reqDTO.getRequestConfig());
-        step.setProcessors(reqDTO.getProcessors() == null ? List.of() : reqDTO.getProcessors());
-        step.setValidators(reqDTO.getValidators() == null ? List.of() : reqDTO.getValidators());
-        step.setExtractors(reqDTO.getExtractors() == null ? List.of() : reqDTO.getExtractors());
-    }
-
-    private void fillVariable(ApiInterfaceVariable target, ApiInterfaceVariablesReqDTO.VariableItem item, int sort) {
-        target.setName(item.getName());
-        target.setDefaultValue(item.getDefaultValue());
-        target.setDescription(item.getDescription());
-        target.setRequired(Boolean.TRUE.equals(item.getRequired()));
-        target.setSortOrder(item.getSortOrder() == null ? sort : item.getSortOrder());
+        entity.setValidators(reqDTO.getValidators());
+        entity.setExtractors(reqDTO.getExtractors());
     }
 
     private void writeChangeLog(UUID interfaceId, int version, String action, String summary, UUID operatorId) {
