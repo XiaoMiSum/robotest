@@ -5,29 +5,25 @@ import type {
   ApiExecutionHistoryItem,
   ApiExecutionStartResp,
   ApiExecutionStatusResp,
-  ApiSceneAssociationItem,
   ApiSceneAssetsImportResp,
   ApiSceneCopyReq,
   ApiSceneCreateReq,
   ApiSceneDetail,
+  ApiSceneDraftExecuteReq,
+  ApiSceneDraftExecuteResp,
   ApiSceneExecuteReq,
-  ApiSceneInterfaceAssociateReq,
-  ApiSceneInterfaceSyncModeReq,
   ApiScenePageItem,
-  ApiScenePublicStepReq,
   ApiSceneQuickCreateResp,
-  ApiSceneSettings,
   ApiSceneStepCopyReq,
   ApiSceneStepDebugReq,
   ApiSceneStepDebugResp,
+  ApiSceneStepDraftDebugReq,
   ApiSceneStepReorderReq,
   ApiSceneStepSaveReq,
   ApiSceneStepVariableBatchReq,
   ApiSceneStepVariableImportReq,
   ApiSceneStepVariableItem,
   ApiSceneUpdateReq,
-  ApiSceneVariableBatchReq,
-  ApiPublicStepBrowseItem,
   PageResult,
 } from '@/types'
 
@@ -44,7 +40,7 @@ function put<T>(url: string, data?: unknown): Promise<T> {
 // ==================== 场景管理（3.1） ====================
 
 export function fetchScenePage(
-  params: { pageNo: number; pageSize: number; moduleId?: string; search?: string; followedOnly?: boolean },
+  params: { pageNo: number; pageSize: number; moduleId?: string; search?: string; view?: string; followedOnly?: boolean },
 ): Promise<PageResult<ApiScenePageItem>> {
   return get('/project/api-scenes', { ...params })
 }
@@ -69,22 +65,6 @@ export function copyScene(id: string, req?: ApiSceneCopyReq): Promise<string> {
   return post(`/project/api-scenes/${id}/copy`, req).then((resp) => (resp as { id: string }).id)
 }
 
-// ==================== 场景设置（3.9） ====================
-
-export function fetchSceneSettings(id: string): Promise<ApiSceneSettings> {
-  return get(`/project/api-scenes/${id}/settings`)
-}
-
-export function updateSceneSettings(id: string, req: Partial<ApiSceneSettings>): Promise<boolean> {
-  return put(`/project/api-scenes/${id}/settings`, req)
-}
-
-// ==================== 场景变量（3.5） ====================
-
-export function updateSceneVariables(id: string, req: ApiSceneVariableBatchReq): Promise<boolean> {
-  return put(`/project/api-scenes/${id}/variables`, req)
-}
-
 // ==================== 步骤管理（3.3） ====================
 
 export function createSceneStep(sceneId: string, req: ApiSceneStepSaveReq): Promise<string> {
@@ -93,10 +73,6 @@ export function createSceneStep(sceneId: string, req: ApiSceneStepSaveReq): Prom
 
 export function quickCreateSteps(sceneId: string, req: { interfaceId: string; mode?: string; importInterfaceVariables?: boolean }): Promise<ApiSceneQuickCreateResp> {
   return post(`/project/api-scenes/${sceneId}/steps/quick-create`, req)
-}
-
-export function addPublicStep(sceneId: string, req: ApiScenePublicStepReq): Promise<string> {
-  return post(`/project/api-scenes/${sceneId}/steps/public-step`, req).then((resp) => (resp as { id: string }).id)
 }
 
 export function updateSceneStep(sceneId: string, stepId: string, req: ApiSceneStepSaveReq): Promise<boolean> {
@@ -129,24 +105,6 @@ export function importStepVariables(sceneId: string, stepId: string, req: ApiSce
   return post(`/project/api-scenes/${sceneId}/steps/${stepId}/variables/import`, req)
 }
 
-// ==================== 场景关联接口（3.2） ====================
-
-export function fetchSceneAssociations(sceneId: string): Promise<ApiSceneAssociationItem[]> {
-  return get(`/project/api-scenes/${sceneId}/associations`)
-}
-
-export function associateInterfaces(sceneId: string, req: ApiSceneInterfaceAssociateReq): Promise<boolean> {
-  return post(`/project/api-scenes/${sceneId}/associations`, req)
-}
-
-export function unassociateInterface(sceneId: string, associationId: string): Promise<boolean> {
-  return api.delete(`/project/api-scenes/${sceneId}/associations/${associationId}`) as unknown as Promise<boolean>
-}
-
-export function switchSyncMode(sceneId: string, associationId: string, req: ApiSceneInterfaceSyncModeReq): Promise<boolean> {
-  return put(`/project/api-scenes/${sceneId}/associations/${associationId}/sync-mode`, req)
-}
-
 // ==================== 执行与调试（3.6） ====================
 
 export function executeScene(sceneId: string, req?: ApiSceneExecuteReq): Promise<ApiExecutionStartResp> {
@@ -163,6 +121,16 @@ export function cancelExecution(sceneId: string, executionId: string): Promise<A
 
 export function debugStep(sceneId: string, stepId: string, req?: ApiSceneStepDebugReq): Promise<ApiSceneStepDebugResp> {
   return post(`/project/api-scenes/${sceneId}/steps/${stepId}/debug`, req)
+}
+
+// ==================== 草稿调试/执行（3.6.4 / 3.6.5，创建态未保存） ====================
+
+export function debugDraftStep(req: ApiSceneStepDraftDebugReq): Promise<ApiSceneStepDebugResp> {
+  return post('/project/api-scenes/draft/debug-step', req)
+}
+
+export function executeDraftScene(req: ApiSceneDraftExecuteReq): Promise<ApiSceneDraftExecuteResp> {
+  return post('/project/api-scenes/draft/execute', req)
 }
 
 // ==================== 执行历史与变更历史（3.11） ====================
@@ -195,10 +163,4 @@ export function unfollowScene(sceneId: string): Promise<boolean> {
 
 export function batchDeleteScenes(ids: string[]): Promise<boolean> {
   return api.delete('/project/api-scenes/batch', { data: { ids } }) as unknown as Promise<boolean>
-}
-
-// ==================== 公共步骤浏览 ====================
-
-export function browsePublicSteps(sceneId: string): Promise<ApiPublicStepBrowseItem[]> {
-  return get(`/project/api-scenes/${sceneId}/public-steps`)
 }

@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
 import { ElMessage } from 'element-plus'
-import type { ApiSceneStepItem, ApiSceneStepVariableItem, ApiSceneStepSaveReq, ApiPublicStepBrowseItem } from '@/types'
-import { createSceneStep, updateSceneStep, quickCreateSteps, addPublicStep, fetchStepVariables, updateStepVariables, browsePublicSteps } from '@/services/apiScene'
-import { fetchInterfacePage } from '@/services/apiInterface'
+import type { ApiSceneStepItem, ApiSceneStepVariableItem, ApiSceneStepSaveReq } from '@/types'
+import { createSceneStep, updateSceneStep, quickCreateSteps, fetchStepVariables, updateStepVariables } from '@/services/apiScene'
+import { fetchInterfacePage, fetchInterfaceDetail } from '@/services/apiInterface'
 import type { ApiInterfaceItem } from '@/types'
 import {
   STEP_TYPE_OPTIONS, parseRequestConfig,
@@ -14,8 +14,15 @@ import {
 } from '../scenesModel'
 import RequestConfigEditor from './RequestConfigEditor.vue'
 
-const props = defineProps<{ modelValue: boolean; sceneId: string; step: ApiSceneStepItem | null }>()
-const emit = defineEmits<{ (e: 'update:modelValue', value: boolean): void; (e: 'saved'): void }>()
+const props = defineProps<{ modelValue: boolean; sceneId?: string; step: ApiSceneStepItem | null }>()
+const emit = defineEmits<{
+  (e: 'update:modelValue', value: boolean): void
+  (e: 'saved'): void
+  (e: 'commit', step: ApiSceneStepItem): void
+}>()
+
+/** 草稿模式：创建态未保存场景，步骤不落库，保存时通过 commit 回抛给父级组进草稿列表 */
+const draftMode = computed(() => !props.sceneId)
 
 const visible = ref(props.modelValue)
 watch(() => props.modelValue, (v) => (visible.value = v))
@@ -33,7 +40,6 @@ const activeTab = ref('basic')
 const reqHeaders = ref<{ key: string; value: string; enabled: boolean }[]>([])
 const reqParams = ref<{ key: string; value: string; enabled: boolean }[]>([])
 const reqBody = ref<{ type: string; content: unknown }>({ type: 'none', content: null })
-const reqTimeout = ref(30000)
 
 // ==================== 断言 & 提取器 ====================
 const validators = ref<ValidatorItem[]>([])
@@ -47,15 +53,9 @@ const variablesLoading = ref(false)
 const executionConfig = ref(createExecutionConfig())
 
 // ==================== 快速创建 ====================
-const createMode = ref<'manual' | 'quick' | 'public'>('manual')
+const createMode = ref<'manual' | 'quick'>('manual')
 const quickInterfaceId = ref('')
 const quickMode = ref('copy')
-const publicStepId = ref('')
-const publicMode = ref('copy')
-const browseVisible = ref(false)
-const browseList = ref<ApiPublicStepBrowseItem[]>([])
-const browseLoading = ref(false)
-const browseSearch = ref('')
 const interfaceOptions = ref<ApiInterfaceItem[]>([])
 const interfaceSearch = ref('')
 const interfaceLoading = ref(false)
@@ -75,13 +75,11 @@ watch(visible, async (v) => {
     reqHeaders.value = (cfg.headers ?? []).map((h) => ({ ...h }))
     reqParams.value = (cfg.params ?? []).map((p) => ({ ...p }))
     reqBody.value = cfg.body ?? { type: 'none', content: null }
-    reqTimeout.value = cfg.timeout ?? 30000
     validators.value = (props.step.validators ?? []).map((v) => v as unknown as ValidatorItem)
     extractors.value = (props.step.extractors ?? []).map((e) => e as unknown as ExtractorItem)
     const rc = props.step.requestConfig as Record<string, unknown> | undefined
     executionConfig.value = {
-      timeout: Number(rc?.executionTimeout ?? 30000),
-      retryCount: Number(rc?.retryCount ?? 0),
+      ...createExecutionConfig(),
       conditionExpression: String(rc?.conditionExpression ?? ''),
     }
     await loadStepVariables()
@@ -94,7 +92,6 @@ watch(visible, async (v) => {
     reqHeaders.value = []
     reqParams.value = []
     reqBody.value = { type: 'none', content: null }
-    reqTimeout.value = 30000
     validators.value = []
     extractors.value = []
     stepVariables.value = []
@@ -128,7 +125,7 @@ async function loadInterfaces() {
   }
 }
 
-function handleCreateModeChange(mode: 'manual' | 'quick' | 'public') {
+function handleCreateModeChange(mode: 'manual' | 'quick') {
   createMode.value = mode
   if (mode === 'quick' && interfaceOptions.value.length === 0) void loadInterfaces()
 }
@@ -145,50 +142,21 @@ function removeValidator(i: number) { validators.value.splice(i, 1) }
 function addExtractor() { extractors.value.push(createExtractor()) }
 function removeExtractor(i: number) { extractors.value.splice(i, 1) }
 
-// ==================== 公共步骤浏览 ====================
-async function openBrowse() {
-  browseVisible.value = true
-  await loadBrowse()
-}
-
-async function loadBrowse() {
-  if (!props.sceneId) return
-  browseLoading.value = true
-  try {
-    browseList.value = await browsePublicSteps(props.sceneId)
-  } catch {
-    browseList.value = []
-  } finally {
-    browseLoading.value = false
-  }
-}
-
-const filteredBrowseList = computed(() => {
-  if (!browseSearch.value.trim()) return browseList.value
-  const q = browseSearch.value.trim().toLowerCase()
-  return browseList.value.filter(item => item.name.toLowerCase().includes(q) || item.interfaceName.toLowerCase().includes(q))
-})
-
-function selectPublicStep(item: ApiPublicStepBrowseItem) {
-  publicStepId.value = item.id
-  browseVisible.value = false
-}
-
 // ==================== 保存 ====================
 const saving = ref(false)
 
 async function handleSave() {
-  if (!props.sceneId) return
   saving.value = true
   try {
+    if (draftMode.value) {
+      await handleDraftSave()
+      return
+    }
+    if (!props.sceneId) return
     if (createMode.value === 'quick') {
       if (!quickInterfaceId.value) { ElMessage.warning('请选择接口'); return }
       await quickCreateSteps(props.sceneId, { interfaceId: quickInterfaceId.value, mode: quickMode.value })
       ElMessage.success('步骤已创建')
-    } else if (createMode.value === 'public') {
-      if (!publicStepId.value) { ElMessage.warning('请填写公共步骤 ID'); return }
-      await addPublicStep(props.sceneId, { publicStepId: publicStepId.value, mode: publicMode.value })
-      ElMessage.success('公共步骤已添加')
     } else {
       if (!formName.value.trim()) { ElMessage.warning('请填写步骤名称'); return }
       const requestConfig: Record<string, unknown> = {
@@ -197,9 +165,6 @@ async function handleSave() {
         headers: reqHeaders.value.filter((h) => h.key.trim()),
         params: reqParams.value.filter((p) => p.key.trim()),
         body: reqBody.value,
-        timeout: reqTimeout.value,
-        executionTimeout: executionConfig.value.timeout,
-        retryCount: executionConfig.value.retryCount,
         conditionExpression: executionConfig.value.conditionExpression,
       }
       const payload: ApiSceneStepSaveReq = {
@@ -228,6 +193,76 @@ async function handleSave() {
     saving.value = false
   }
 }
+
+// ==================== 草稿模式（创建态未保存场景，不落库） ====================
+
+function draftId(): string {
+  return `draft-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+}
+
+function buildDraftFromManual(): ApiSceneStepItem {
+  const requestConfig: Record<string, unknown> = {
+    method: formMethod.value,
+    url: formUrl.value,
+    headers: reqHeaders.value.filter((h) => h.key.trim()),
+    params: reqParams.value.filter((p) => p.key.trim()),
+    body: reqBody.value,
+    conditionExpression: executionConfig.value.conditionExpression,
+  }
+  return {
+    id: draftId(),
+    name: formName.value.trim(),
+    stepType: formStepType.value,
+    sortOrder: 0,
+    enabled: formEnabled.value,
+    sourceType: 'custom',
+    requestConfig,
+    variables: [],
+    processors: [],
+    validators: serializeValidators(validators.value),
+    extractors: serializeExtractors(extractors.value),
+  }
+}
+
+async function buildDraftFromInterface(): Promise<ApiSceneStepItem> {
+  const detail = await fetchInterfaceDetail(quickInterfaceId.value)
+  const requestConfig: Record<string, unknown> = {
+    method: detail.method,
+    url: detail.protocol === 'http' ? detail.path : detail.path,
+    headers: detail.headers ?? [],
+    params: detail.params ?? [],
+    body: detail.body ?? { type: 'none', content: null },
+    conditionExpression: '',
+  }
+  return {
+    id: draftId(),
+    name: detail.name,
+    stepType: 'http',
+    sortOrder: 0,
+    enabled: true,
+    sourceType: quickMode.value === 'link' ? 'link' : 'copy',
+    sourceInterfaceId: detail.id,
+    sourceInterfaceName: detail.name,
+    requestConfig,
+    variables: [],
+    // 接口定义不再包含处理器，场景步骤处理器由场景侧单独配置
+    processors: [],
+    validators: detail.validators ?? [],
+    extractors: detail.extractors ?? [],
+  }
+}
+
+async function handleDraftSave() {
+  let step: ApiSceneStepItem
+  if (createMode.value === 'quick') {
+    if (!quickInterfaceId.value) { ElMessage.warning('请选择接口'); return }
+    step = await buildDraftFromInterface()
+  } else {
+    if (!formName.value.trim()) { ElMessage.warning('请填写步骤名称'); return }
+    step = buildDraftFromManual()
+  }
+  emit('commit', step)
+}
 </script>
 
 <template>
@@ -239,10 +274,9 @@ async function handleSave() {
   >
     <!-- 创建模式切换（仅新建时显示） -->
     <div v-if="!step" class="step-editor__mode-switch">
-      <el-radio-group :model-value="createMode" @update:model-value="(v) => handleCreateModeChange(v as 'manual' | 'quick' | 'public')">
+      <el-radio-group :model-value="createMode" @update:model-value="(v) => handleCreateModeChange(v as 'manual' | 'quick')">
         <el-radio-button value="manual">手动创建</el-radio-button>
         <el-radio-button value="quick">通过接口快速创建</el-radio-button>
-        <el-radio-button value="public">添加公共步骤</el-radio-button>
       </el-radio-group>
     </div>
 
@@ -274,13 +308,11 @@ async function handleSave() {
             :headers="reqHeaders"
             :params="reqParams"
             :body="reqBody"
-            :timeout="reqTimeout"
             @update:method="(v: string) => { formMethod = v }"
             @update:url="(v: string) => { formUrl = v }"
             @update:headers="(v: typeof reqHeaders) => { reqHeaders = v }"
             @update:params="(v: typeof reqParams) => { reqParams = v }"
             @update:body="(v: typeof reqBody) => { reqBody = v }"
-            @update:timeout="(v: number) => { reqTimeout = v }"
           />
         </el-tab-pane>
 
@@ -288,20 +320,17 @@ async function handleSave() {
         <el-tab-pane label="断言" name="validators">
           <div class="step-editor__list-section">
             <div v-for="(v, i) in validators" :key="v.id" class="step-editor__validator-card">
-              <div class="step-editor__card-top">
+              <div class="step-editor__card-row">
                 <el-switch v-model="v.enabled" size="small" />
-                <el-input v-model="v.name" size="small" placeholder="断言名称" style="flex:1" />
-                <el-button link size="small" type="danger" @click="removeValidator(i)">删除</el-button>
-              </div>
-              <div class="step-editor__card-fields">
-                <el-select v-model="v.target" size="small" style="width:130px" placeholder="目标">
+                <el-select v-model="v.target" size="small" class="step-editor__field--target" placeholder="验证目标">
                   <el-option v-for="t in VALIDATOR_TARGETS" :key="t.value" :value="t.value" :label="t.label" />
                 </el-select>
-                <el-select v-model="v.condition" size="small" style="width:130px" placeholder="条件">
+                <el-select v-model="v.condition" size="small" class="step-editor__field--condition" placeholder="比较条件">
                   <el-option v-for="c in VALIDATOR_CONDITIONS" :key="c.value" :value="c.value" :label="c.label" />
                 </el-select>
-                <el-input v-model="v.expression" size="small" placeholder="表达式（如 $.code）" style="flex:1" />
-                <el-input v-model="v.expected" size="small" placeholder="期望值" style="flex:1" />
+                <el-input v-model="v.expression" size="small" placeholder="表达式（如 $.code）" class="step-editor__field--flex" />
+                <el-input v-model="v.expected" size="small" placeholder="期望值" class="step-editor__field--flex" />
+                <el-button link size="small" type="danger" @click="removeValidator(i)">删除</el-button>
               </div>
             </div>
             <el-button size="small" @click="addValidator">+ 添加断言</el-button>
@@ -312,17 +341,14 @@ async function handleSave() {
         <el-tab-pane label="提取器" name="extractors">
           <div class="step-editor__list-section">
             <div v-for="(e, i) in extractors" :key="e.id" class="step-editor__validator-card">
-              <div class="step-editor__card-top">
+              <div class="step-editor__card-row">
                 <el-switch v-model="e.enabled" size="small" />
-                <el-input v-model="e.name" size="small" placeholder="提取器名称" style="flex:1" />
-                <el-button link size="small" type="danger" @click="removeExtractor(i)">删除</el-button>
-              </div>
-              <div class="step-editor__card-fields">
-                <el-select v-model="e.source" size="small" style="width:130px" placeholder="来源">
+                <el-select v-model="e.source" size="small" class="step-editor__field--source" placeholder="提取来源">
                   <el-option v-for="s in EXTRACTOR_SOURCES" :key="s.value" :value="s.value" :label="s.label" />
                 </el-select>
-                <el-input v-model="e.expression" size="small" placeholder="表达式" style="flex:1" />
-                <el-input v-model="e.variableName" size="small" placeholder="变量名" style="flex:1" />
+                <el-input v-model="e.expression" size="small" placeholder="表达式" class="step-editor__field--flex" />
+                <el-input v-model="e.variableName" size="small" placeholder="变量名" class="step-editor__field--flex" />
+                <el-button link size="small" type="danger" @click="removeExtractor(i)">删除</el-button>
               </div>
             </div>
             <el-button size="small" @click="addExtractor">+ 添加提取器</el-button>
@@ -330,7 +356,7 @@ async function handleSave() {
         </el-tab-pane>
 
         <!-- 步骤变量 -->
-        <el-tab-pane v-if="step" label="变量" name="variables">
+        <el-tab-pane v-if="step && !draftMode" label="变量" name="variables">
           <div v-loading="variablesLoading" class="step-editor__list-section">
             <table v-if="stepVariables.length" class="step-editor__kv-table">
               <thead>
@@ -354,12 +380,6 @@ async function handleSave() {
         <!-- 执行配置 -->
         <el-tab-pane label="执行配置" name="execution">
           <el-form label-position="top">
-            <el-form-item label="超时时间（毫秒）">
-              <el-input-number v-model="executionConfig.timeout" :min="1000" :max="300000" :step="1000" />
-            </el-form-item>
-            <el-form-item label="重试次数">
-              <el-input-number v-model="executionConfig.retryCount" :min="0" :max="5" />
-            </el-form-item>
             <el-form-item label="条件表达式（为空则始终执行）">
               <el-input v-model="executionConfig.conditionExpression" type="textarea" :rows="3" placeholder="如：${status} == 'success'" />
             </el-form-item>
@@ -398,46 +418,11 @@ async function handleSave() {
       </el-form>
     </template>
 
-    <!-- ==================== 添加公共步骤 ==================== -->
-    <template v-if="createMode === 'public'">
-      <el-form label-position="top">
-        <el-form-item label="公共步骤" required>
-          <div style="display: flex; gap: 8px; width: 100%">
-            <el-input v-model="publicStepId" placeholder="选择公共步骤" readonly style="flex: 1" />
-            <el-button @click="openBrowse">浏览</el-button>
-          </div>
-        </el-form-item>
-        <el-form-item label="同步模式">
-          <el-radio-group v-model="publicMode">
-            <el-radio value="copy">复制</el-radio>
-            <el-radio value="link">链接</el-radio>
-          </el-radio-group>
-        </el-form-item>
-      </el-form>
-    </template>
-
     <template #footer>
       <el-button @click="visible = false">取消</el-button>
       <el-button type="primary" :loading="saving" data-test="step-save-btn" @click="handleSave">保存</el-button>
     </template>
   </el-drawer>
-
-  <!-- 公共步骤浏览弹窗 -->
-  <el-dialog v-model="browseVisible" title="选择公共步骤" width="640px" destroy-on-close>
-    <el-input v-model="browseSearch" placeholder="搜索步骤或接口名称" clearable style="margin-bottom: 12px" />
-    <el-table v-loading="browseLoading" :data="filteredBrowseList" height="400" @row-click="selectPublicStep">
-      <el-table-column prop="name" label="步骤名称" min-width="160" show-overflow-tooltip />
-      <el-table-column prop="interfaceName" label="所属接口" min-width="140" show-overflow-tooltip />
-      <el-table-column prop="method" label="方法" width="80" align="center" />
-      <el-table-column prop="path" label="路径" min-width="180" show-overflow-tooltip />
-      <template #empty>
-        <el-empty description="当前场景未关联接口，无公共步骤可选" />
-      </template>
-    </el-table>
-    <template #footer>
-      <el-button @click="browseVisible = false">取消</el-button>
-    </template>
-  </el-dialog>
 </template>
 
 <style scoped lang="scss">
@@ -465,18 +450,28 @@ async function handleSave() {
   padding: var(--space-sm) var(--space-md);
 }
 
-.step-editor__card-top {
+.step-editor__card-row {
   display: flex;
   align-items: center;
   gap: var(--space-sm);
-  margin-bottom: var(--space-xs);
+  flex-wrap: nowrap;
 }
 
-.step-editor__card-fields {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-  flex-wrap: wrap;
+.step-editor__field--flex {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.step-editor__field--target {
+  flex: 0 0 260px;
+}
+
+.step-editor__field--condition {
+  flex: 0 0 150px;
+}
+
+.step-editor__field--source {
+  flex: 0 0 240px;
 }
 
 .step-editor__empty-text {

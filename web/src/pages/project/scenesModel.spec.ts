@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   methodTagType,
   stepMethod,
-  stepPath,
+  stepSqlType,
   sortedSteps,
   emptyStepDraft,
   createValidator,
@@ -14,11 +14,9 @@ import {
   buildEmptyRequestConfig,
   createExecutionConfig,
   STEP_TYPE_OPTIONS,
-  FAILURE_RULE_OPTIONS,
   VALIDATOR_TARGETS,
   VALIDATOR_CONDITIONS,
   EXTRACTOR_SOURCES,
-  SOURCE_TYPE_LABELS,
 } from './scenesModel'
 import type { ApiSceneStepItem } from '@/types'
 
@@ -71,14 +69,22 @@ describe('scenesModel', () => {
     })
   })
 
-  describe('stepPath', () => {
-    it('extracts url from requestConfig', () => {
-      const s = step({ requestConfig: { method: 'GET', url: '/api/users' } })
-      expect(stepPath(s)).toBe('/api/users')
+  describe('stepSqlType', () => {
+    it('extracts SQL keyword from requestConfig.sql and uppercases', () => {
+      const s = step({ stepType: 'jdbc', requestConfig: { sql: '  select * from user ' } })
+      expect(stepSqlType(s)).toBe('SELECT')
     })
 
-    it('returns null when url is missing', () => {
-      expect(stepPath(step({ requestConfig: {} }))).toBeNull()
+    it('matches insert / update / delete keywords', () => {
+      expect(stepSqlType(step({ requestConfig: { sql: 'INSERT INTO t' } }))).toBe('INSERT')
+      expect(stepSqlType(step({ requestConfig: { sql: 'update t set a=1' } }))).toBe('UPDATE')
+      expect(stepSqlType(step({ requestConfig: { sql: 'DELETE FROM t' } }))).toBe('DELETE')
+    })
+
+    it('returns null when sql is missing or not a string', () => {
+      expect(stepSqlType(step({ requestConfig: {} }))).toBeNull()
+      expect(stepSqlType(step({ requestConfig: { sql: 123 } }))).toBeNull()
+      expect(stepSqlType(step({ requestConfig: null as unknown as Record<string, unknown> }))).toBeNull()
     })
   })
 
@@ -119,15 +125,16 @@ describe('scenesModel', () => {
   })
 
   describe('serializeValidators', () => {
-    it('filters out validators without a name', () => {
+    it('filters out validators without a target and auto-fills name', () => {
       const items = [
-        createValidator(),
-        { ...createValidator(), name: '状态码校验' },
-        { ...createValidator(), name: '  ' },
+        { ...createValidator(), target: '' },
+        { ...createValidator(), target: 'status_code' },
+        { ...createValidator(), target: 'status_code', name: '状态码校验' },
       ]
       const result = serializeValidators(items)
-      expect(result).toHaveLength(1)
-      expect(result[0].name).toBe('状态码校验')
+      expect(result).toHaveLength(2)
+      expect(result[0].name).toBe('断言 status_code')
+      expect(result[1].name).toBe('状态码校验')
     })
 
     it('returns a copy of each item', () => {
@@ -147,16 +154,17 @@ describe('scenesModel', () => {
   })
 
   describe('serializeExtractors', () => {
-    it('filters out extractors without both name and variableName', () => {
+    it('filters out extractors without variableName and auto-fills name', () => {
       const items = [
         createExtractor(),
-        { ...createExtractor(), name: 'token', variableName: 'token_value' },
-        { ...createExtractor(), name: 'missing_var', variableName: '' },
-        { ...createExtractor(), name: '', variableName: 'orphan' },
+        { ...createExtractor(), source: 'json_field', variableName: 'token_value' },
+        { ...createExtractor(), source: 'response_header', variableName: '' },
+        { ...createExtractor(), source: '', variableName: 'orphan' },
       ]
       const result = serializeExtractors(items)
       expect(result).toHaveLength(1)
       expect(result[0].variableName).toBe('token_value')
+      expect(result[0].name).toBe('提取器 json_field')
     })
   })
 
@@ -209,10 +217,6 @@ describe('scenesModel', () => {
       expect(STEP_TYPE_OPTIONS.map((o) => o.value)).toEqual(['http', 'jdbc'])
     })
 
-    it('FAILURE_RULE_OPTIONS has all and continue', () => {
-      expect(FAILURE_RULE_OPTIONS.map((o) => o.value)).toEqual(['all', 'continue'])
-    })
-
     it('VALIDATOR_TARGETS covers expected targets', () => {
       const values = VALIDATOR_TARGETS.map((t) => t.value)
       expect(values).toContain('status_code')
@@ -232,11 +236,6 @@ describe('scenesModel', () => {
       expect(values).toContain('json_field')
       expect(values).toContain('regex')
       expect(values).toContain('full_body')
-    })
-
-    it('SOURCE_TYPE_LABELS maps known source types', () => {
-      expect(SOURCE_TYPE_LABELS.custom).toBe('自定义')
-      expect(SOURCE_TYPE_LABELS.link).toBe('链接引用')
     })
   })
 })
