@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { ApiDebugRecordItem, DebugTab } from '@/types'
 import {
@@ -24,7 +23,7 @@ import DebugHistoryView from './debug/DebugHistoryView.vue'
 import SaveInterfaceDialog from './debug/SaveInterfaceDialog.vue'
 import { useApiTestingUiStore } from '@/stores/apiTestingUi'
 
-const router = useRouter()
+const emit = defineEmits<{ (e: 'view-interface', interfaceId: string): void }>()
 
 const HISTORY_TAB_ID = '__history__'
 
@@ -34,6 +33,7 @@ const showHistory = ref(false)
 
 const activeTab = computed(() => tabs.value.find((tab) => tab.id === activeTabId.value) ?? tabs.value[0])
 const canAddTab = computed(() => tabs.value.length < MAX_DEBUG_TABS)
+const debugEnvironmentId = ref('')
 
 // ==================== 保存为接口定义 ====================
 
@@ -52,7 +52,7 @@ function handleSaved(interfaceId: string) {
     cancelButtonText: '留在调试',
     type: 'success',
   })
-    .then(() => router.push({ name: 'InterfaceEditor', params: { interfaceId } }))
+    .then(() => emit('view-interface', interfaceId))
     .catch(() => {})
 }
 
@@ -358,6 +358,7 @@ function handleAuxClick(e: MouseEvent, tab: DebugTab) {
         <div class="debug-page__body" :style="{ '--req-h': requestHeight + '%' }">
           <DebugRequestPanel
             v-model:tab="activeTab"
+            v-model:environment-id="debugEnvironmentId"
             class="debug-page__request"
             :executing="executing"
             :can-save="canSave"
@@ -395,6 +396,8 @@ function handleAuxClick(e: MouseEvent, tab: DebugTab) {
     <SaveInterfaceDialog
       :visible="saveVisible"
       :record-id="saveRecordId"
+      :tab="activeTab"
+      :environment-id="debugEnvironmentId"
       @update:visible="saveVisible = $event"
       @saved="handleSaved"
     />
