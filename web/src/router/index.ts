@@ -162,11 +162,16 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '接口测试' },
       },
       {
-        // interfaceId 为 'new' 时进入新建模式（交互设计 §3 独立路由约定）
+        // 旧独立编辑路由：接口定义编辑器已内联于接口管理 Tab（?tab=interfaces&interfaceId= 或 &action=create），此处保持旧链接可用
         path: 'workspace/projects/interfaces/:interfaceId',
         name: 'InterfaceEditor',
-        component: () => import('@/pages/project/InterfaceEditorPage.vue'),
-        meta: { title: '接口编辑' },
+        redirect: (to) => ({
+          path: '/workspace/projects/api-testing',
+          query:
+            to.params.interfaceId === 'new'
+              ? { tab: 'interfaces', action: 'create' }
+              : { tab: 'interfaces', interfaceId: to.params.interfaceId as string },
+        }),
       },
       {
         path: 'workspace/projects/requirements',

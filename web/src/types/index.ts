@@ -1282,10 +1282,11 @@ export interface ApiHttpConfigPayload {
   refName?: string
   baseUrl?: string
   headers?: ApiHeaderItem[]
+  isDefault?: boolean
 }
 
 export interface ApiHttpConfig extends ApiHttpConfigPayload {
-  id: string
+  id?: string
 }
 
 /** 数据源独立新增/编辑负载（3.1.12），响应 ApiDataSource 附 id */
@@ -1296,6 +1297,7 @@ export interface ApiDataSourcePayload {
   url?: string
   connectionProperties?: Record<string, unknown>
   maxPoolSize?: number
+  isDefault?: boolean
 }
 
 export interface ApiVariablePayload {
@@ -1306,16 +1308,16 @@ export interface ApiVariablePayload {
 
 /** 变量取值明文回显；hasValue 标识服务端是否已配置（详细设计 3.1.9） */
 export interface ApiVariable extends ApiVariablePayload {
-  id: string
+  id?: string
   hasValue: boolean
 }
 
 export interface ApiDataSource extends ApiDataSourcePayload {
-  id: string
+  id?: string
 }
 
 export interface ApiProcessor {
-  id: string
+  id?: string
   processorType: ApiProcessorType
   name: string
   config?: Record<string, unknown>
@@ -1524,6 +1526,17 @@ export interface ApiDebugSaveAsInterfaceReq {
   interfaceId?: string
   /** attach 必填，乐观锁匹配（详细设计 3.1.3） */
   changeVersion?: number
+  /** 从 UI 表单构建的请求快照（method/url/headers/params/body），取代原先从 debug record 读取 */
+  request?: {
+    method: string
+    url: string
+    headers?: ApiDebugKeyValue[]
+    params?: ApiDebugKeyValue[]
+    body?: ApiDebugRequestBody
+    auth?: ApiDebugAuth
+  }
+  /** 响应示例（status/headers/body），有响应时由前端填充 */
+  responseExample?: { status: number; headers?: Record<string, string> | null; body?: unknown }
 }
 
 export interface ApiDebugSaveAsInterfaceResp {
@@ -1553,29 +1566,6 @@ export interface ApiInterfaceItem {
   updatedAt: string
 }
 
-/** 公共步骤（3.2）；validators/extractors 本期透传存储，编辑器随场景模块开放 */
-export interface ApiInterfaceStepPayload {
-  id?: string
-  name: string
-  stepType: 'script' | 'sql' | 'sleep' | 'wait' | 'link'
-  sortOrder: number
-  enabled: boolean
-  requestConfig: Record<string, unknown>
-  processors?: Record<string, unknown>[]
-  validators?: unknown[]
-  extractors?: unknown[]
-}
-
-/** 接口级变量（3.3） */
-export interface ApiInterfaceVariablePayload {
-  id?: string
-  name: string
-  defaultValue?: string
-  description?: string
-  required: boolean
-  sortOrder: number
-}
-
 /** 详情（3.1.2）：params/restParams 与文档字段名对齐 */
 export interface ApiInterfaceDetail {
   id: string
@@ -1595,9 +1585,12 @@ export interface ApiInterfaceDetail {
   responseExample?: Record<string, unknown> | null
   referenceCount: number
   followed: boolean
-  steps: (ApiInterfaceStepPayload & { id: string })[]
   createdAt: string
   updatedAt: string
+  /** 响应验证器 [{..}]，仅定义存储 */
+  validators?: Record<string, unknown>[]
+  /** 响应提取器 [{..}]，仅定义存储 */
+  extractors?: Record<string, unknown>[]
 }
 
 export interface ApiInterfaceCreateReq {
@@ -1614,6 +1607,10 @@ export interface ApiInterfaceCreateReq {
   auth?: Record<string, unknown>
   status?: ApiInterfaceStatus
   responseExample?: Record<string, unknown>
+  /** 响应验证器 [{..}]，仅定义存储 */
+  validators?: Record<string, unknown>[]
+  /** 响应提取器 [{..}]，仅定义存储 */
+  extractors?: Record<string, unknown>[]
 }
 
 export interface ApiInterfaceUpdateReq extends ApiInterfaceCreateReq {
@@ -1764,11 +1761,6 @@ export interface ApiMockBatchTogglePayload {
 export interface ApiMockBatchToggleResponse {
   success: boolean
   updatedCount: number
-}
-
-/** Mock 移动响应 */
-export interface ApiMockMoveResponse {
-  success: boolean
 }
 
 // ==================== GitLab 仓库配置 ====================
@@ -2061,6 +2053,8 @@ export interface ApiScenePageItem {
   name: string
   moduleId?: string | null
   environmentId?: string | null
+  priority?: string | null
+  status?: string
   stepCount: number
   lastExecutedAt?: string | null
   lastStatus?: string | null
@@ -2075,11 +2069,11 @@ export interface ApiSceneDetail {
   moduleId?: string | null
   description?: string | null
   environmentId?: string | null
+  priority?: string | null
+  status?: string
   followed?: boolean
   variables: ApiSceneVariableItem[]
   processors: Record<string, unknown>[]
-  failureRule: string
-  cookieConfig: Record<string, unknown>
   changeVersion: number
   steps: ApiSceneStepItem[]
 }
@@ -2127,10 +2121,11 @@ export interface ApiSceneCreateReq {
   moduleId?: string | null
   description?: string
   environmentId?: string | null
+  priority?: string | null
+  status?: string
   variables?: ApiSceneVariableItem[]
   processors?: Record<string, unknown>[]
-  failureRule?: string
-  cookieConfig?: Record<string, unknown>
+  steps?: ApiSceneStepSaveReq[]
 }
 
 /** 场景更新请求（3.1.4，含乐观锁） */
@@ -2138,14 +2133,9 @@ export interface ApiSceneUpdateReq extends ApiSceneCreateReq {
   changeVersion: number
 }
 
-/** 场景设置（3.9） */
-export interface ApiSceneSettings {
-  failureRule: string
-  cookieConfig: Record<string, unknown>
-}
-
 /** 场景步骤保存请求（3.3.1） */
 export interface ApiSceneStepSaveReq {
+  id?: string
   name: string
   stepType?: string
   sortOrder?: number
@@ -2168,14 +2158,6 @@ export interface ApiSceneQuickCreateReq {
 /** 通过接口快速创建步骤响应 */
 export interface ApiSceneQuickCreateResp {
   steps: { id: string; name: string; sourceType: string; sourceInterfaceName?: string }[]
-  associationId: string
-}
-
-/** 添加公共步骤请求（3.3.3） */
-export interface ApiScenePublicStepReq {
-  publicStepId: string
-  mode?: string
-  sortOrder?: number
 }
 
 /** 步骤排序请求（3.3.6） */
@@ -2193,11 +2175,6 @@ export interface ApiSceneStepCopyReq {
   name?: string
 }
 
-/** 场景变量批量更新请求（3.5.1） */
-export interface ApiSceneVariableBatchReq {
-  variables: ApiSceneVariableItem[]
-}
-
 /** 步骤变量批量更新请求（3.4.2） */
 export interface ApiSceneStepVariableBatchReq {
   variables: { name: string; value?: string; description?: string }[]
@@ -2207,29 +2184,6 @@ export interface ApiSceneStepVariableBatchReq {
 export interface ApiSceneStepVariableImportReq {
   interfaceId: string
   strategy?: string
-}
-
-/** 场景关联接口列表项（3.2.1） */
-export interface ApiSceneAssociationItem {
-  id: string
-  interfaceId: string
-  interfaceName: string | null
-  method: string | null
-  path: string | null
-  syncMode: string
-  publicStepCount: number
-  createdAt: string
-}
-
-/** 场景关联接口请求（3.2.2） */
-export interface ApiSceneInterfaceAssociateReq {
-  interfaceIds: string[]
-  syncMode?: string
-}
-
-/** 切换同步模式请求（3.2.4） */
-export interface ApiSceneInterfaceSyncModeReq {
-  syncMode: string
 }
 
 /** 场景执行请求（3.6.1） */
@@ -2296,6 +2250,57 @@ export interface ApiExecutionCancelResp {
   status: string
 }
 
+/** 草稿单步骤调试请求（3.6.4，创建态未保存） */
+export interface ApiSceneStepDraftDebugReq {
+  environmentId?: string | null
+  sceneVariables?: { name: string; value?: string }[]
+  step: {
+    name: string
+    stepType?: string
+    sourceType?: string | null
+    sourceId?: string | null
+    requestConfig: Record<string, unknown>
+    validators?: Record<string, unknown>[]
+    extractors?: Record<string, unknown>[]
+    stepVariables?: { name: string; value?: string }[]
+  }
+}
+
+/** 草稿场景执行请求（3.6.5，创建态未保存） */
+export interface ApiSceneDraftExecuteReq {
+  name?: string
+  environmentId?: string | null
+  sceneVariables?: { name: string; value?: string }[]
+  steps: {
+    name: string
+    stepType?: string
+    sourceType?: string | null
+    sourceId?: string | null
+    enabled?: boolean
+    requestConfig: Record<string, unknown>
+    validators?: Record<string, unknown>[]
+    extractors?: Record<string, unknown>[]
+    stepVariables?: { name: string; value?: string }[]
+  }[]
+}
+
+/** 草稿场景执行响应（3.6.5） */
+export interface ApiSceneDraftExecuteResp {
+  status: string
+  passed: number
+  failed: number
+  skipped: number
+  durationMs: number
+  steps: {
+    status: string
+    name: string
+    durationMs?: number
+    request?: Record<string, unknown>
+    response?: Record<string, unknown>
+    errorMessage?: string
+  }[]
+}
+
 /** 全局资产引入请求（3.12） */
 export interface ApiSceneAssetsImportReq {
   target: string
@@ -2311,16 +2316,6 @@ export interface ApiSceneAssetsImportResp {
 /** 批量删除场景请求 */
 export interface ApiSceneBatchDeleteReq {
   ids: string[]
-}
-
-/** 公共步骤浏览条目 */
-export interface ApiPublicStepBrowseItem {
-  id: string
-  name: string
-  method: string
-  path: string
-  interfaceId: string
-  interfaceName: string
 }
 
 /** 公共组件复制响应 */
