@@ -5,6 +5,7 @@ import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -30,4 +31,10 @@ public class ApiDebugSaveAsInterfaceReqDTO {
 
     /** mode=attach 必填，目标接口当前变更版本号（乐观锁） */
     private Integer changeVersion;
+
+    /** 调用方从 UI 表单构建的请求快照（method/url/headers/params/body），取代原先从 debug record 读取 */
+    private Map<String, Object> request;
+
+    /** 响应示例（status/headers/body），有响应时由前端填充 */
+    private Map<String, Object> responseExample;
 }

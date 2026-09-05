@@ -119,10 +119,31 @@ public final class DebugRyzeConverter {
             return;
         }
         switch (body.getType() == null ? "json" : body.getType().toLowerCase()) {
-            case "form" -> config.put("data", body.getContent());
+            // Ryze http 取样器 data 接收 map
+            case "form" -> config.put("data", toFormData(body.getContent()));
             case "raw" -> config.put("body", body.getContent().toString());
             case "binary" -> config.put("body", body.getContent().toString());
             default -> config.put("body", body.getContent());
         }
+    }
+
+    /** 表单负载统一为 {key: value} map（Ryze http data 语义）；入参为原始 key-value 列表 */
+    private static Map<String, Object> toFormData(Object content) {
+        Map<String, Object> data = new LinkedHashMap<>();
+        if (content instanceof Map<?, ?> map) {
+            map.forEach((k, v) -> data.put(k.toString(), v == null ? "" : v));
+        } else if (content instanceof List<?> list) {
+            for (Object entry : list) {
+                if (entry instanceof Map<?, ?> row) {
+                    Object key = row.get("key");
+                    if (key == null || Boolean.FALSE.equals(row.get("enabled"))) {
+                        continue;
+                    }
+                    Object value = row.get("value");
+                    data.put(key.toString(), value == null ? "" : value);
+                }
+            }
+        }
+        return data;
     }
 }
