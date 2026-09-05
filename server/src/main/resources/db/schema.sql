@@ -1859,40 +1859,6 @@ COMMENT ON COLUMN api_environment.scope IS '归属范围：project/global';
 COMMENT ON COLUMN api_environment.is_default IS '是否默认环境';
 COMMENT ON COLUMN api_environment.sort_order IS '排序序号';
 
-COMMENT ON TABLE api_environment_http IS '环境 HTTP 配置';
-COMMENT ON COLUMN api_environment_http.environment_id IS '关联环境 ID';
-COMMENT ON COLUMN api_environment_http.name IS '配置名称';
-COMMENT ON COLUMN api_environment_http.ref_name IS '引用名称（步骤中引用该配置）';
-COMMENT ON COLUMN api_environment_http.base_url IS '基础 URL';
-COMMENT ON COLUMN api_environment_http.default_headers IS '默认请求头';
-COMMENT ON COLUMN api_environment_http.is_default IS '是否默认 HTTP 配置（同一环境内至多一个）';
-
-COMMENT ON TABLE api_environment_variable IS '环境变量表';
-COMMENT ON COLUMN api_environment_variable.environment_id IS '关联环境 ID';
-COMMENT ON COLUMN api_environment_variable.name IS '变量名';
-COMMENT ON COLUMN api_environment_variable.value IS '变量值';
-COMMENT ON COLUMN api_environment_variable.description IS '变量描述';
-COMMENT ON COLUMN api_environment_variable.source_step_id IS '来源步骤 ID（从执行结果快速添加时）';
-COMMENT ON COLUMN api_environment_variable.source_report_id IS '来源报告 ID（从执行结果快速添加时）';
-
-COMMENT ON TABLE api_environment_data_source IS '数据源配置表';
-COMMENT ON COLUMN api_environment_data_source.environment_id IS '关联环境 ID';
-COMMENT ON COLUMN api_environment_data_source.name IS '数据源名称';
-COMMENT ON COLUMN api_environment_data_source.ref_name IS '引用名称（步骤中引用该数据源）';
-COMMENT ON COLUMN api_environment_data_source.driver IS 'JDBC 驱动类名';
-COMMENT ON COLUMN api_environment_data_source.url IS 'JDBC 连接 URL';
-COMMENT ON COLUMN api_environment_data_source.connection_properties IS '连接属性';
-COMMENT ON COLUMN api_environment_data_source.max_pool_size IS '连接池大小';
-COMMENT ON COLUMN api_environment_data_source.is_default IS '是否默认数据源（同一环境内至多一个）';
-
-COMMENT ON TABLE api_environment_processor IS '环境级前置/后置处理器';
-COMMENT ON COLUMN api_environment_processor.environment_id IS '关联环境 ID';
-COMMENT ON COLUMN api_environment_processor.processor_type IS '处理器类型：http/jdbc';
-COMMENT ON COLUMN api_environment_processor.name IS '处理器名称';
-COMMENT ON COLUMN api_environment_processor.enabled IS '启用状态';
-COMMENT ON COLUMN api_environment_processor.sort_order IS '排序序号';
-COMMENT ON COLUMN api_environment_processor.config IS '处理器配置';
-
 -- 接口测试 — 接口管理
 COMMENT ON TABLE api_interface IS '接口定义表';
 COMMENT ON COLUMN api_interface.project_id IS '归属项目 ID';
