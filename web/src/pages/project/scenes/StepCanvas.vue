@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import type { ApiSceneStepItem } from '@/types'
-import { methodTagType, stepMethod, stepPath, SOURCE_TYPE_LABELS } from '../scenesModel'
+import { methodTagType, stepMethod, stepSqlType } from '../scenesModel'
 
-const props = defineProps<{ steps: ApiSceneStepItem[]; isExecuting?: boolean }>()
+const props = defineProps<{ steps: ApiSceneStepItem[]; isExecuting?: boolean; selectedId?: string | null }>()
 const emit = defineEmits<{
   (e: 'add'): void
   (e: 'edit', step: ApiSceneStepItem): void
@@ -17,6 +17,15 @@ const emit = defineEmits<{
 
 const expandedIds = ref<Set<string>>(new Set())
 const dragIndex = ref<number | null>(null)
+
+/** 步骤首行标签：HTTP 显示方法，JDBC 显示 SQL 语句类型 */
+function stepTag(step: ApiSceneStepItem): { text: string; type: 'success' | 'primary' | 'warning' | 'info' | 'danger' } | null {
+  const method = stepMethod(step)
+  if (method) return { text: method, type: methodTagType(method) }
+  const sql = stepSqlType(step)
+  if (sql) return { text: sql, type: 'primary' }
+  return null
+}
 
 function toggleExpand(id: string) {
   if (expandedIds.value.has(id)) expandedIds.value.delete(id)
@@ -72,7 +81,7 @@ function moveDown(index: number) {
 
         <div
           class="step-canvas__card"
-          :class="{ 'is-disabled': !step.enabled, 'is-missing': step.sourceMissing, 'is-expanded': expandedIds.has(step.id) }"
+          :class="{ 'is-disabled': !step.enabled, 'is-missing': step.sourceMissing, 'is-expanded': expandedIds.has(step.id), 'is-selected': step.id === props.selectedId }"
           draggable="true"
           data-test="step-card"
           @dragstart="(e: DragEvent) => onDragStart(index, e)"
@@ -83,9 +92,7 @@ function moveDown(index: number) {
             <el-icon class="step-canvas__drag-handle" title="拖拽排序"><Rank /></el-icon>
             <span class="step-canvas__index">{{ index + 1 }}</span>
             <el-tag v-if="step.stepType" size="small" type="info">{{ step.stepType.toUpperCase() }}</el-tag>
-            <el-tag v-if="step.sourceType && step.sourceType !== 'custom'" size="small">
-              {{ SOURCE_TYPE_LABELS[step.sourceType] ?? step.sourceType }}
-            </el-tag>
+            <el-tag v-if="stepTag(step)" size="small" :type="stepTag(step)!.type">{{ stepTag(step)!.text }}</el-tag>
             <el-tag v-if="step.sourceInterfaceName" size="small" type="warning" class="step-canvas__source-tag">
               {{ step.sourceInterfaceName }}
             </el-tag>
@@ -112,10 +119,6 @@ function moveDown(index: number) {
 
           <div class="step-canvas__card-body" @click="emit('edit', step)">
             <div class="step-canvas__card-name">{{ step.name }}</div>
-            <div v-if="stepMethod(step)" class="step-canvas__card-meta">
-              <el-tag size="small" :type="methodTagType(stepMethod(step) ?? '')">{{ stepMethod(step) }}</el-tag>
-              <span class="step-canvas__card-path">{{ stepPath(step) }}</span>
-            </div>
           </div>
 
           <!-- 展开详情（链接引用的源已删除时显示快照信息） -->
@@ -178,12 +181,14 @@ function moveDown(index: number) {
   display: flex;
   flex-direction: column;
   gap: 0;
+  height: 88px;
   padding: var(--space-md);
   border: 1px solid var(--color-neutral-200);
   border-radius: var(--radius-md);
   transition: all var(--transition-fast);
   cursor: default;
   margin: 2px 0;
+  overflow: hidden;
 
   &:hover {
     border-color: var(--color-primary-300);
@@ -197,6 +202,12 @@ function moveDown(index: number) {
   &.is-missing {
     border-color: var(--color-warning-300);
     background: var(--color-warning-50, #fffbeb);
+  }
+
+  &.is-selected {
+    border-color: var(--color-primary-400);
+    background: var(--color-primary-50, #eff6ff);
+    box-shadow: 0 0 0 1px var(--color-primary-300);
   }
 }
 
@@ -257,17 +268,6 @@ function moveDown(index: number) {
 .step-canvas__card-name {
   font-weight: 500;
   margin-bottom: 2px;
-}
-
-.step-canvas__card-meta {
-  display: flex;
-  align-items: center;
-  gap: var(--space-xs);
-}
-
-.step-canvas__card-path {
-  font-size: var(--font-size-xs);
-  color: var(--color-neutral-500);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

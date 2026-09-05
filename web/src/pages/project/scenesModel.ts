@@ -6,12 +6,6 @@ export const STEP_TYPE_OPTIONS = [
   { value: 'jdbc', label: 'JDBC 请求' },
 ]
 
-/** 失败规则选项 */
-export const FAILURE_RULE_OPTIONS = [
-  { value: 'all', label: '停止运行', desc: '任一步骤失败即终止后续步骤' },
-  { value: 'continue', label: '继续运行', desc: '忽略错误，全部步骤执行完毕' },
-]
-
 /** 方法标签颜色 */
 type TagType = 'success' | 'primary' | 'warning' | 'info' | 'danger'
 const METHOD_COLORS: Record<string, TagType> = {
@@ -34,22 +28,14 @@ export function stepMethod(step: ApiSceneStepItem): string | null {
   return null
 }
 
-/** 从步骤中提取请求路径 */
-export function stepPath(step: ApiSceneStepItem): string | null {
+/** 从步骤提取 SQL 语句类型（JDBC 步骤），无法识别返回 null */
+export function stepSqlType(step: ApiSceneStepItem): string | null {
   const config = step.requestConfig
-  if (config && typeof config === 'object' && 'url' in config) {
-    return String((config as Record<string, unknown>).url ?? '')
+  if (!config || typeof config !== 'object' || typeof (config as Record<string, unknown>).sql !== 'string') {
+    return null
   }
-  return null
-}
-
-/** 来源类型标签 */
-export const SOURCE_TYPE_LABELS: Record<string, string> = {
-  system: '系统请求',
-  custom: '自定义',
-  public_step: '公共步骤',
-  copy: '复制',
-  link: '链接引用',
+  const match = /^\s*([a-zA-Z]+)/.exec(String((config as Record<string, unknown>).sql))
+  return match ? match[1].toUpperCase() : null
 }
 
 /** 按排序序号排列步骤 */
@@ -111,7 +97,9 @@ export function createValidator(): ValidatorItem {
 }
 
 export function serializeValidators(items: ValidatorItem[]): Record<string, unknown>[] {
-  return items.filter((v) => v.name.trim()).map((v) => ({ ...v }))
+  return items
+    .filter((v) => v.target?.trim())
+    .map((v) => ({ ...v, name: v.name?.trim() || `断言 ${v.target}` }))
 }
 
 // ==================== 提取器（Extractor） ====================
@@ -140,7 +128,9 @@ export function createExtractor(): ExtractorItem {
 }
 
 export function serializeExtractors(items: ExtractorItem[]): Record<string, unknown>[] {
-  return items.filter((e) => e.name.trim() && e.variableName.trim()).map((e) => ({ ...e }))
+  return items
+    .filter((e) => e.source?.trim() && e.variableName?.trim())
+    .map((e) => ({ ...e, name: e.name?.trim() || `提取器 ${e.source}` }))
 }
 
 // ==================== 步骤变量 ====================
