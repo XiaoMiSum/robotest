@@ -9,7 +9,6 @@ import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiMockDebugRespD
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiMockDetailRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiMockIdRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiMockItemRespDTO;
-import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiMockMoveRespDTO;
 import xyz.migoo.framework.common.pojo.PageParam;
 import xyz.migoo.framework.common.pojo.PageResult;
 
@@ -50,10 +49,5 @@ public interface ApiMockService {
 
     /** 模拟命中一次，不计入命中统计、不写访问日志（详细设计 3.2.1） */
     ApiMockDebugRespDTO debug(UUID workspaceId, UUID projectId, UUID userId, UUID id, ApiMockDebugReqDTO reqDTO);
-
-    /** 仅同路径同方法组内移动，与相邻规则交换优先级序号（详细设计 3.1.12） */
-    ApiMockMoveRespDTO moveUp(UUID workspaceId, UUID projectId, UUID userId, UUID id);
-
-    ApiMockMoveRespDTO moveDown(UUID workspaceId, UUID projectId, UUID userId, UUID id);
 
 }

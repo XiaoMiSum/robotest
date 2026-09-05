@@ -9,7 +9,6 @@ import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiMockAddressRes
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiMockBatchToggleRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiMockIdRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiMockItemRespDTO;
-import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiMockMoveRespDTO;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiMockDefinition;
 import io.github.xiaomisum.robotest.repository.apitest.ApiInterfaceMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiMockDefinitionMapper;
@@ -192,40 +191,6 @@ class ApiMockServiceImplTest {
         assertFalse(captor.getValue().getEnabled());
         assertEquals(0L, captor.getValue().getHitCount());
         assertEquals(6, captor.getValue().getPriority());
-    }
-
-    @Test
-    void moveUpSwapsPrioritiesWithinGroup() {
-        UUID firstId = UUID.randomUUID();
-        ApiMockDefinition first = existing(firstId, "GET", "/api/list", true, 10);
-        ApiMockDefinition second = existing(MOCK_ID, "GET", "/api/list", true, 20);
-        when(mockMapper.selectById(MOCK_ID)).thenReturn(second);
-        when(mockMapper.selectGroup(PROJECT_ID, "GET", "/api/list")).thenReturn(List.of(first, second));
-
-        ApiMockMoveRespDTO result = service.moveUp(WORKSPACE_ID, PROJECT_ID, USER_ID, MOCK_ID);
-
-        assertTrue(Boolean.TRUE.equals(result.getSuccess()));
-        ArgumentCaptor<ApiMockDefinition> captor = ArgumentCaptor.forClass(ApiMockDefinition.class);
-        verify(mockMapper, times(2)).updateById(captor.capture());
-        // 两条载体按交换顺序：自身降为邻居原优先级，邻居升为自身原优先级
-        var updates = captor.getAllValues();
-        assertEquals(MOCK_ID, updates.get(0).getId());
-        assertEquals(10, updates.get(0).getPriority());
-        assertEquals(firstId, updates.get(1).getId());
-        assertEquals(20, updates.get(1).getPriority());
-    }
-
-    @Test
-    void moveDownAtGroupEdgeReturnsFailure() {
-        when(mockMapper.selectById(MOCK_ID)).thenReturn(existing(MOCK_ID, "GET", "/api/list", true, 20));
-        when(mockMapper.selectGroup(PROJECT_ID, "GET", "/api/list")).thenReturn(List.of(
-                existing(UUID.randomUUID(), "GET", "/api/list", true, 10),
-                existing(MOCK_ID, "GET", "/api/list", true, 20)));
-
-        ApiMockMoveRespDTO result = service.moveDown(WORKSPACE_ID, PROJECT_ID, USER_ID, MOCK_ID);
-
-        assertFalse(Boolean.TRUE.equals(result.getSuccess()));
-        verify(mockMapper, never()).updateById(any(ApiMockDefinition.class));
     }
 
     @Test
