@@ -7,10 +7,7 @@ import {
   toggleMock,
   batchToggleMocks,
   deleteMock,
-  duplicateMock,
   resetMockHitCount,
-  moveMockUp,
-  moveMockDown,
   fetchMockAddress,
 } from '@/services/apiMock'
 import { methodTagType } from './mocksModel'
@@ -29,6 +26,7 @@ const total = ref(0)
 const pageNo = ref(1)
 const pageSize = ref(20)
 const search = ref('')
+const searchDraft = ref('')
 const enabledFilter = ref<boolean | undefined>(undefined)
 const selectedIds = ref<string[]>([])
 
@@ -36,6 +34,8 @@ const selectedIds = ref<string[]>([])
 const editorVisible = ref(false)
 const editorMockId = ref<string | null>(null)
 const editorInterfaceId = ref<string | null>(null)
+// 复制模式：携带源 Mock id 供抽屉预填原配置
+const editorCopyFromId = ref<string | null>(null)
 
 // 调试面板
 const debugVisible = ref(false)
@@ -70,6 +70,15 @@ watch(() => props.interfaceId, () => {
 })
 
 function handleSearch() {
+  search.value = searchDraft.value
+  pageNo.value = 1
+  loadList()
+}
+
+function handleReset() {
+  searchDraft.value = ''
+  search.value = ''
+  enabledFilter.value = undefined
   pageNo.value = 1
   loadList()
 }
@@ -114,10 +123,9 @@ async function handleDelete(row: ApiMockItem) {
   loadList()
 }
 
-async function handleDuplicate(row: ApiMockItem) {
-  await duplicateMock(row.id)
-  ElMessage.success('已复制')
-  loadList()
+function handleDuplicate(row: ApiMockItem) {
+  // 复制 = 用源规则预填新增表单，由用户调整后保存提交，而非后端直接复制落库
+  openEditorWithCopy(row.id)
 }
 
 async function handleResetHit(row: ApiMockItem) {
@@ -125,24 +133,6 @@ async function handleResetHit(row: ApiMockItem) {
   row.hitCount = 0
   row.lastHitAt = null
   ElMessage.success('已重置')
-}
-
-async function handleMoveUp(row: ApiMockItem) {
-  const result = await moveMockUp(row.id)
-  if (!result.success) {
-    ElMessage.warning('已到顶部，无法上移')
-    return
-  }
-  loadList()
-}
-
-async function handleMoveDown(row: ApiMockItem) {
-  const result = await moveMockDown(row.id)
-  if (!result.success) {
-    ElMessage.warning('已到底部，无法下移')
-    return
-  }
-  loadList()
 }
 
 async function handleShowAddress(row: ApiMockItem) {
@@ -154,6 +144,14 @@ async function handleShowAddress(row: ApiMockItem) {
 function openEditor(mockId?: string, interfaceId?: string) {
   editorMockId.value = mockId ?? null
   editorInterfaceId.value = interfaceId ?? null
+  editorCopyFromId.value = null
+  editorVisible.value = true
+}
+
+function openEditorWithCopy(copyFromId: string) {
+  editorMockId.value = null
+  editorInterfaceId.value = null
+  editorCopyFromId.value = copyFromId
   editorVisible.value = true
 }
 
@@ -183,39 +181,40 @@ function formatHitTime(val: string | null): string {
       <template #header>
         <div class="mocks-page__toolbar">
           <div class="mocks-page__toolbar-left">
-            <el-button type="primary" @click="openEditor(undefined, props.interfaceId)">
-              <el-icon><Plus /></el-icon>
-              新建 Mock
-            </el-button>
-            <template v-if="selectedIds.length">
-              <el-button @click="handleBatchToggle(true)">批量启用 ({{ selectedIds.length }})</el-button>
-              <el-button @click="handleBatchToggle(false)">批量停用 ({{ selectedIds.length }})</el-button>
-              <el-divider direction="vertical" />
-            </template>
-          </div>
-          <div class="mocks-page__toolbar-right">
-            <el-select
-              v-model="enabledFilter"
-              clearable
-              placeholder="启用状态"
-              style="width: 120px"
-              @change="handleSearch"
-            >
-              <el-option label="已启用" :value="true" />
-              <el-option label="已停用" :value="false" />
-            </el-select>
             <el-input
-              v-model="search"
+              v-model="searchDraft"
               clearable
-              placeholder="搜索名称或路径"
+              placeholder="请输入名称或路径"
               style="width: 220px"
               @keyup.enter="handleSearch"
-              @clear="handleSearch"
             >
               <template #prefix>
                 <el-icon><Search /></el-icon>
               </template>
             </el-input>
+            <el-select
+              v-model="enabledFilter"
+              clearable
+              placeholder="状态"
+              style="width: 120px"
+            >
+              <el-option label="已启用" :value="true" />
+              <el-option label="已停用" :value="false" />
+            </el-select>
+            <el-button type="primary" @click="handleSearch">
+              <el-icon><Search /></el-icon>查询
+            </el-button>
+            <el-button @click="handleReset">重置</el-button>
+          </div>
+          <div class="mocks-page__toolbar-right">
+            <template v-if="selectedIds.length">
+              <el-button @click="handleBatchToggle(true)">批量启用 ({{ selectedIds.length }})</el-button>
+              <el-button @click="handleBatchToggle(false)">批量停用 ({{ selectedIds.length }})</el-button>
+            </template>
+            <el-button type="primary" @click="openEditor(undefined, props.interfaceId)">
+              <el-icon><Plus /></el-icon>
+              新建 Mock
+            </el-button>
           </div>
         </div>
       </template>
@@ -258,12 +257,10 @@ function formatHitTime(val: string | null): string {
             <el-button link type="primary" size="small" @click="openDebug((row as ApiMockItem).id)">调试</el-button>
             <el-button link type="primary" size="small" @click="handleShowAddress(row as ApiMockItem)">地址</el-button>
             <el-button link type="primary" size="small" @click="handleDuplicate(row as ApiMockItem)">复制</el-button>
-            <el-dropdown trigger="click">
-              <el-button link type="primary" size="small">更多</el-button>
+            <el-dropdown trigger="click" class="mocks-page__more">
+              <el-button link type="primary" size="small">更多<el-icon class="el-icon--right"><ArrowDown /></el-icon></el-button>
               <template #dropdown>
                 <el-dropdown-menu>
-                  <el-dropdown-item @click="handleMoveUp(row as ApiMockItem)">上移</el-dropdown-item>
-                  <el-dropdown-item @click="handleMoveDown(row as ApiMockItem)">下移</el-dropdown-item>
                   <el-dropdown-item @click="handleResetHit(row as ApiMockItem)">重置命中</el-dropdown-item>
                   <el-dropdown-item divided @click="handleDelete(row as ApiMockItem)">删除</el-dropdown-item>
                 </el-dropdown-menu>
@@ -290,6 +287,7 @@ function formatHitTime(val: string | null): string {
       v-model="editorVisible"
       :mock-id="editorMockId"
       :interface-id="editorInterfaceId"
+      :copy-from-id="editorCopyFromId"
       @saved="handleEditorSaved"
     />
 
@@ -333,6 +331,12 @@ function formatHitTime(val: string | null): string {
 
 .mocks-page__table {
   flex: 1;
+}
+
+// 与前面的 link 操作按钮保持同基线、同间距
+.mocks-page__more {
+  margin-left: 12px;
+  vertical-align: middle;
 }
 
 .mocks-page__pagination {
