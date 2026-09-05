@@ -336,7 +336,9 @@ onMounted(() => {
             />
           </el-select>
           <div class="schedules-page__spacer" />
-          <el-button type="primary" @click="openCreate">新建任务</el-button>
+          <el-button type="primary" @click="openCreate">
+            <el-icon><Plus /></el-icon>新建任务
+          </el-button>
         </div>
       </template>
 
