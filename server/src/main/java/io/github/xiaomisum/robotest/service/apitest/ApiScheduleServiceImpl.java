@@ -16,14 +16,12 @@ import io.github.xiaomisum.robotest.model.entity.apitest.ApiImportRecord;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiScheduledTask;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiScheduledTaskExecution;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiScene;
-import io.github.xiaomisum.robotest.model.entity.apitest.ApiSceneStep;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiSwaggerUrl;
 import io.github.xiaomisum.robotest.repository.apitest.ApiEnvironmentMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiImportRecordMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiScheduledTaskExecutionMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiScheduledTaskMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiSceneMapper;
-import io.github.xiaomisum.robotest.repository.apitest.ApiSceneStepMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiSwaggerUrlMapper;
 import jakarta.annotation.Resource;
 import org.springframework.scheduling.support.CronExpression;
@@ -67,8 +65,6 @@ public class ApiScheduleServiceImpl implements ApiScheduleService {
     private ApiSwaggerUrlMapper swaggerUrlMapper;
     @Resource
     private ApiSceneMapper sceneMapper;
-    @Resource
-    private ApiSceneStepMapper stepMapper;
     @Resource
     private ApiEnvironmentMapper environmentMapper;
     @Resource
@@ -288,10 +284,11 @@ public class ApiScheduleServiceImpl implements ApiScheduleService {
                 throw ServiceExceptionUtil.get(API_SCENE_NOT_FOUND);
             }
             // 可执行场景判定口径：至少一个启用步骤（差异点③）
-            Long enabledSteps = stepMapper.selectCount(new LambdaQueryWrapperX<ApiSceneStep>()
-                    .eq(ApiSceneStep::getSceneId, scene.getId())
-                    .eq(ApiSceneStep::getEnabled, true));
-            if (enabledSteps == null || enabledSteps == 0) {
+            long enabledSteps = scene.getSteps() == null ? 0
+                    : scene.getSteps().stream()
+                            .filter(s -> Boolean.TRUE.equals(s.get("enabled")))
+                            .count();
+            if (enabledSteps == 0) {
                 throw ServiceExceptionUtil.get(API_SCHEDULED_TASK_SCENE_NOT_EXECUTABLE);
             }
             return scene.getName();
