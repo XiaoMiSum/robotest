@@ -664,81 +664,27 @@ CREATE INDEX idx_tcd_module ON test_case_document(module_id);
 
 -- ============================================================
 -- 10. 接口测试 — 环境管理
+-- 环境聚合：HTTP 配置/变量/数据源/处理器均以 JSONB 存储在主表（替代原四张子表）
 -- ============================================================
 
 CREATE TABLE api_environment (
-                                 id          UUID         PRIMARY KEY,
-                                 project_id  UUID         NOT NULL,
-                                 name        VARCHAR(100) NOT NULL,
-                                 description VARCHAR(500) NULL,
-                                 scope       VARCHAR(10)  NOT NULL DEFAULT 'project',
-                                 is_default  BOOLEAN      NOT NULL DEFAULT FALSE,
-                                 sort_order  INT          NOT NULL DEFAULT 0,
-                                 is_deleted  BOOLEAN      NOT NULL DEFAULT FALSE,
-                                 created_at  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                                 updated_at  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
+                                 id           UUID         PRIMARY KEY,
+                                 project_id   UUID         NOT NULL,
+                                 name         VARCHAR(100) NOT NULL,
+                                 description  VARCHAR(500) NULL,
+                                 scope        VARCHAR(10)  NOT NULL DEFAULT 'project',
+                                 is_default   BOOLEAN       NOT NULL DEFAULT FALSE,
+                                 sort_order   INT          NOT NULL DEFAULT 0,
+                                 http_configs JSONB        NOT NULL DEFAULT '[]',
+                                 variables    JSONB        NOT NULL DEFAULT '[]',
+                                 data_sources JSONB        NOT NULL DEFAULT '[]',
+                                 processors   JSONB        NOT NULL DEFAULT '[]',
+                                 is_deleted   BOOLEAN      NOT NULL DEFAULT FALSE,
+                                 created_at   TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                                 updated_at   TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX idx_env_project ON api_environment(project_id);
-
-CREATE TABLE api_environment_http (
-                                      id                 UUID           PRIMARY KEY,
-                                      environment_id     UUID           NOT NULL,
-                                      name               VARCHAR(100)   NOT NULL,
-                                      ref_name           VARCHAR(100)   NULL,
-                                      base_url           VARCHAR(2000)  NOT NULL,
-                                      default_headers    JSONB          NOT NULL DEFAULT '[]',
-                                      is_deleted         BOOLEAN        NOT NULL DEFAULT FALSE,
-                                      created_at         TIMESTAMP      NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                                      updated_at         TIMESTAMP      NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE INDEX idx_ehttp_env ON api_environment_http(environment_id);
-
-CREATE TABLE api_environment_variable (
-                                          id              UUID          PRIMARY KEY,
-                                          environment_id  UUID          NOT NULL,
-                                          name            VARCHAR(100)  NOT NULL,
-                                          value           TEXT          NULL,
-                                          description     VARCHAR(500)  NULL,
-                                          sort_order      INT           NOT NULL DEFAULT 0,
-                                          is_deleted      BOOLEAN       NOT NULL DEFAULT FALSE,
-                                          created_at      TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                                          updated_at      TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE INDEX idx_evar_env ON api_environment_variable(environment_id, sort_order);
-
-CREATE TABLE api_environment_data_source (
-                                 id                   UUID          PRIMARY KEY,
-                                 environment_id       UUID          NOT NULL,
-                                 name                 VARCHAR(100)  NOT NULL,
-                                 ref_name             VARCHAR(100)  NULL,
-                                 driver               VARCHAR(200)  NULL,
-                                 url                  VARCHAR(2000) NOT NULL,
-                                 connection_properties JSONB         NULL,
-                                 max_pool_size        INT           NOT NULL DEFAULT 5,
-                                 is_deleted           BOOLEAN       NOT NULL DEFAULT FALSE,
-                                 created_at           TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                                 updated_at           TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE INDEX idx_ds_env ON api_environment_data_source(environment_id);
-
-CREATE TABLE api_environment_processor (
-                                           id              UUID         PRIMARY KEY,
-                                           environment_id  UUID         NOT NULL,
-                                           processor_type  VARCHAR(20)  NOT NULL,
-                                           name            VARCHAR(100) NOT NULL,
-                                           enabled         BOOLEAN      NOT NULL DEFAULT TRUE,
-                                           sort_order      INT          NOT NULL DEFAULT 0,
-                                           config          JSONB        NOT NULL,
-                                           is_deleted      BOOLEAN      NOT NULL DEFAULT FALSE,
-                                           created_at      TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                                           updated_at      TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE INDEX idx_eproc_env ON api_environment_processor(environment_id, sort_order);
 
 -- ============================================================
 -- 11. 接口测试 — 接口管理
@@ -762,43 +708,17 @@ CREATE TABLE api_interface (
                                status          VARCHAR(20)  NOT NULL DEFAULT 'draft',
                                created_by      UUID         NOT NULL,
                                change_version  INT          NOT NULL DEFAULT 1,
-                               response_example JSONB       NULL,
-                               reference_count INT          NOT NULL DEFAULT 0,
-                               is_deleted      BOOLEAN      NOT NULL DEFAULT FALSE,
+                                response_example JSONB       NULL,
+                                 reference_count INT          NOT NULL DEFAULT 0,
+                                 validators      JSONB        NOT NULL DEFAULT '[]',
+                                 extractors      JSONB        NOT NULL DEFAULT '[]',
+                                 is_deleted      BOOLEAN      NOT NULL DEFAULT FALSE,
                                created_at      TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
                                updated_at      TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX idx_intf_project ON api_interface(project_id);
 CREATE INDEX idx_intf_module ON api_interface(module_id);
-
-CREATE TABLE api_interface_step (
-                                    id              UUID         PRIMARY KEY,
-                                    interface_id    UUID         NOT NULL,
-                                    name            VARCHAR(200) NOT NULL,
-                                    sort_order      INT          NOT NULL DEFAULT 0,
-                                    enabled         BOOLEAN      NOT NULL DEFAULT TRUE,
-                                    request_config  JSONB        NOT NULL,
-                                    is_deleted      BOOLEAN      NOT NULL DEFAULT FALSE,
-                                    created_at      TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                                    updated_at      TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE INDEX idx_istep_interface ON api_interface_step(interface_id, sort_order);
-
-CREATE TABLE api_interface_variable (
-                                        id            UUID          PRIMARY KEY,
-                                        interface_id  UUID          NOT NULL,
-                                        name          VARCHAR(100)  NOT NULL,
-                                        value         TEXT          NULL,
-                                        description   VARCHAR(500)  NULL,
-                                        sort_order    INT           NOT NULL DEFAULT 0,
-                                        is_deleted    BOOLEAN       NOT NULL DEFAULT FALSE,
-                                        created_at    TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                                        updated_at    TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE INDEX idx_ivar_interface ON api_interface_variable(interface_id, sort_order);
 
 CREATE TABLE api_import_mapping (
                                     id              UUID         PRIMARY KEY,
@@ -829,18 +749,18 @@ CREATE TABLE api_interface_follow (
 CREATE UNIQUE INDEX uk_intf_follow ON api_interface_follow(interface_id, user_id) WHERE is_deleted = false;
 
 CREATE TABLE api_interface_change_log (
-                                          id            UUID         PRIMARY KEY,
-                                          interface_id  UUID         NOT NULL,
-                                          version       INT          NOT NULL,
-                                          change_type   VARCHAR(20)  NOT NULL,
-                                          content_diff  JSONB        NULL,
-                                          created_by    UUID         NOT NULL,
-                                          is_deleted    BOOLEAN      NOT NULL DEFAULT FALSE,
-                                          created_at    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                                          updated_at    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
+                                          id             UUID         PRIMARY KEY,
+                                          interface_id   UUID         NOT NULL,
+                                          change_version INT          NOT NULL,
+                                          action         VARCHAR(20)  NOT NULL,
+                                          summary        VARCHAR(500) NULL,
+                                          operator_id    UUID         NULL,
+                                          is_deleted     BOOLEAN      NOT NULL DEFAULT FALSE,
+                                          created_at     TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                                          updated_at     TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_iclog_interface ON api_interface_change_log(interface_id, version DESC);
+CREATE INDEX idx_ichangelog_interface ON api_interface_change_log(interface_id, change_version);
 
 CREATE TABLE api_import_record (
                                    id              UUID         PRIMARY KEY,
@@ -1017,87 +937,20 @@ CREATE TABLE api_scene (
                            module_id      UUID          NULL,
                            name           VARCHAR(200)  NOT NULL,
                            description    TEXT          NULL,
-                           environment_id UUID          NULL,
-                           variables      JSONB         NOT NULL DEFAULT '[]',
-                           processors     JSONB         NOT NULL DEFAULT '[]',
-                           failure_rule   VARCHAR(20)   NOT NULL DEFAULT 'all',
-                           cookie_config  JSONB         NOT NULL DEFAULT '{}',
-                           change_version INT           NOT NULL DEFAULT 1,
-                           is_deleted     BOOLEAN       NOT NULL DEFAULT FALSE,
-                           created_at     TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                           updated_at     TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP
+ environment_id UUID          NULL,
+                             priority       VARCHAR(2)    NULL,
+                             status         VARCHAR(10)   NOT NULL DEFAULT 'draft',
+                             variables      JSONB         NOT NULL DEFAULT '[]',  -- 场景变量唯一权威源 [{name, value, description}]
+  processors     JSONB         NOT NULL DEFAULT '[]',
+  steps          JSONB         NOT NULL DEFAULT '[]',
+                             change_version INT           NOT NULL DEFAULT 1,
+                            is_deleted     BOOLEAN       NOT NULL DEFAULT FALSE,
+                            created_at     TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                            updated_at     TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX idx_scene_project ON api_scene(project_id);
 CREATE INDEX idx_scene_module ON api_scene(module_id);
-
-CREATE TABLE api_scene_step (
-                                id              UUID          PRIMARY KEY,
-                                scene_id        UUID          NOT NULL,
-                                name            VARCHAR(200)  NOT NULL,
-                                step_type       VARCHAR(20)   NOT NULL DEFAULT 'http',
-                                sort_order      INT           NOT NULL DEFAULT 0,
-                                enabled         BOOLEAN       NOT NULL DEFAULT TRUE,
-                                source_type     VARCHAR(20)   NULL,
-                                source_id       UUID          NULL,
-                                source_snapshot JSONB         NULL,
-                                source_interface_id   UUID         NULL,
-                                source_interface_name VARCHAR(200) NULL,
-                                request_config  JSONB         NOT NULL,
-                                processors      JSONB         NOT NULL DEFAULT '[]',
-                                validators      JSONB         NOT NULL DEFAULT '[]',
-                                extractors      JSONB         NOT NULL DEFAULT '[]',
-                                is_deleted      BOOLEAN       NOT NULL DEFAULT FALSE,
-                                created_at      TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                                updated_at      TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE INDEX idx_sstep_scene ON api_scene_step(scene_id, sort_order);
-
-CREATE TABLE api_scene_step_variable (
-                                         id                    UUID          PRIMARY KEY,
-                                         step_id               UUID          NOT NULL,
-                                         name                  VARCHAR(100)  NOT NULL,
-                                         value                 TEXT          NULL,
-                                         source                VARCHAR(20)   NOT NULL DEFAULT 'custom',
-                                         interface_variable_id UUID          NULL,
-                                         description           VARCHAR(500)  NULL,
-                                         sort_order            INT           NOT NULL DEFAULT 0,
-                                         is_deleted            BOOLEAN       NOT NULL DEFAULT FALSE,
-                                         created_at            TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                                         updated_at            TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE INDEX idx_svstep_step ON api_scene_step_variable(step_id, sort_order);
-CREATE INDEX idx_svstep_source ON api_scene_step_variable(step_id, source);
-
-CREATE TABLE api_scenario_variable (
-                                       id          UUID          PRIMARY KEY,
-                                       scene_id    UUID          NOT NULL,
-                                       name        VARCHAR(100)  NOT NULL,
-                                       value       TEXT          NULL,
-                                       description VARCHAR(500)  NULL,
-                                       sort_order  INT           NOT NULL DEFAULT 0,
-                                       is_deleted  BOOLEAN       NOT NULL DEFAULT FALSE,
-                                       created_at  TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                                       updated_at  TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE INDEX idx_svar_scene ON api_scenario_variable(scene_id, sort_order);
-
-CREATE TABLE api_scene_interface (
-                                     id             UUID          PRIMARY KEY,
-                                     scene_id       UUID          NOT NULL,
-                                     interface_id   UUID          NOT NULL,
-                                     sync_mode      VARCHAR(10)   NOT NULL DEFAULT 'copy',
-                                     last_synced_at TIMESTAMP     NULL,
-                                     is_deleted     BOOLEAN       NOT NULL DEFAULT FALSE,
-                                     created_at     TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                                     updated_at     TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE INDEX idx_sintf_scene ON api_scene_interface(scene_id);
-CREATE INDEX idx_sintf_interface ON api_scene_interface(interface_id);
 
 CREATE TABLE api_scene_follow (
     id            UUID      PRIMARY KEY,
@@ -2012,13 +1865,15 @@ COMMENT ON COLUMN api_environment_http.name IS '配置名称';
 COMMENT ON COLUMN api_environment_http.ref_name IS '引用名称（步骤中引用该配置）';
 COMMENT ON COLUMN api_environment_http.base_url IS '基础 URL';
 COMMENT ON COLUMN api_environment_http.default_headers IS '默认请求头';
+COMMENT ON COLUMN api_environment_http.is_default IS '是否默认 HTTP 配置（同一环境内至多一个）';
 
 COMMENT ON TABLE api_environment_variable IS '环境变量表';
 COMMENT ON COLUMN api_environment_variable.environment_id IS '关联环境 ID';
 COMMENT ON COLUMN api_environment_variable.name IS '变量名';
 COMMENT ON COLUMN api_environment_variable.value IS '变量值';
 COMMENT ON COLUMN api_environment_variable.description IS '变量描述';
-COMMENT ON COLUMN api_environment_variable.sort_order IS '排序序号';
+COMMENT ON COLUMN api_environment_variable.source_step_id IS '来源步骤 ID（从执行结果快速添加时）';
+COMMENT ON COLUMN api_environment_variable.source_report_id IS '来源报告 ID（从执行结果快速添加时）';
 
 COMMENT ON TABLE api_environment_data_source IS '数据源配置表';
 COMMENT ON COLUMN api_environment_data_source.environment_id IS '关联环境 ID';
@@ -2028,6 +1883,7 @@ COMMENT ON COLUMN api_environment_data_source.driver IS 'JDBC 驱动类名';
 COMMENT ON COLUMN api_environment_data_source.url IS 'JDBC 连接 URL';
 COMMENT ON COLUMN api_environment_data_source.connection_properties IS '连接属性';
 COMMENT ON COLUMN api_environment_data_source.max_pool_size IS '连接池大小';
+COMMENT ON COLUMN api_environment_data_source.is_default IS '是否默认数据源（同一环境内至多一个）';
 
 COMMENT ON TABLE api_environment_processor IS '环境级前置/后置处理器';
 COMMENT ON COLUMN api_environment_processor.environment_id IS '关联环境 ID';
@@ -2057,20 +1913,8 @@ COMMENT ON COLUMN api_interface.created_by IS '创建人';
 COMMENT ON COLUMN api_interface.change_version IS '乐观锁版本号';
 COMMENT ON COLUMN api_interface.response_example IS '响应示例';
 COMMENT ON COLUMN api_interface.reference_count IS '引用计数';
-
-COMMENT ON TABLE api_interface_step IS '接口公共步骤表';
-COMMENT ON COLUMN api_interface_step.interface_id IS '关联接口 ID';
-COMMENT ON COLUMN api_interface_step.name IS '步骤名称';
-COMMENT ON COLUMN api_interface_step.sort_order IS '排序序号';
-COMMENT ON COLUMN api_interface_step.enabled IS '启用状态';
-COMMENT ON COLUMN api_interface_step.request_config IS '请求配置';
-
-COMMENT ON TABLE api_interface_variable IS '接口级变量表';
-COMMENT ON COLUMN api_interface_variable.interface_id IS '关联接口 ID';
-COMMENT ON COLUMN api_interface_variable.name IS '变量名';
-COMMENT ON COLUMN api_interface_variable.value IS '变量值';
-COMMENT ON COLUMN api_interface_variable.description IS '变量描述';
-COMMENT ON COLUMN api_interface_variable.sort_order IS '排序序号';
+COMMENT ON COLUMN api_interface.validators IS '响应验证器(仅定义存储)';
+COMMENT ON COLUMN api_interface.extractors IS '响应提取器(仅定义存储)';
 
 COMMENT ON TABLE api_import_mapping IS '导入映射表';
 COMMENT ON COLUMN api_import_mapping.project_id IS '归属项目 ID';
@@ -2088,10 +1932,10 @@ COMMENT ON COLUMN api_interface_follow.user_id IS '关注用户 ID';
 
 COMMENT ON TABLE api_interface_change_log IS '接口变更历史表';
 COMMENT ON COLUMN api_interface_change_log.interface_id IS '关联接口 ID';
-COMMENT ON COLUMN api_interface_change_log.version IS '变更版本号';
-COMMENT ON COLUMN api_interface_change_log.change_type IS '变更类型';
-COMMENT ON COLUMN api_interface_change_log.content_diff IS '变更内容';
-COMMENT ON COLUMN api_interface_change_log.created_by IS '变更人';
+COMMENT ON COLUMN api_interface_change_log.change_version IS '该次保存后的版本号';
+COMMENT ON COLUMN api_interface_change_log.action IS '变更动作：create/update/copy/import/status';
+COMMENT ON COLUMN api_interface_change_log.summary IS '变更摘要';
+COMMENT ON COLUMN api_interface_change_log.operator_id IS '操作人';
 
 COMMENT ON TABLE api_import_record IS '导入记录表';
 COMMENT ON COLUMN api_import_record.project_id IS '归属项目 ID';
@@ -2201,49 +2045,11 @@ COMMENT ON COLUMN api_scene.module_id IS '归属模块 ID';
 COMMENT ON COLUMN api_scene.name IS '场景名称';
 COMMENT ON COLUMN api_scene.description IS '场景描述';
 COMMENT ON COLUMN api_scene.environment_id IS '默认执行环境 ID';
-COMMENT ON COLUMN api_scene.variables IS '场景变量列表';
-COMMENT ON COLUMN api_scene.processors IS '场景级处理器列表';
-COMMENT ON COLUMN api_scene.failure_rule IS '失败规则：all/continue';
-COMMENT ON COLUMN api_scene.cookie_config IS 'Cookie 配置';
+COMMENT ON COLUMN api_scene.priority IS '优先级：P0/P1/P2/P3，NULL 表示未设置';
+COMMENT ON COLUMN api_scene.variables IS '场景变量唯一权威源 JSONB：[{name, value, description}]，随场景整体读写';
+COMMENT ON COLUMN api_scene.processors IS '场景级处理器列表（元素含 type 区分 pre/post）';
+COMMENT ON COLUMN api_scene.steps IS '步骤聚合 JSONB：结构与前端步骤对象一致，每步含 variables 数组（合并自原 api_scene_step_variable）';
 COMMENT ON COLUMN api_scene.change_version IS '变更版本号（乐观锁）';
-
-COMMENT ON TABLE api_scene_step IS '场景步骤表';
-COMMENT ON COLUMN api_scene_step.scene_id IS '归属场景 ID';
-COMMENT ON COLUMN api_scene_step.name IS '步骤名称';
-COMMENT ON COLUMN api_scene_step.step_type IS '步骤类型：http/jdbc';
-COMMENT ON COLUMN api_scene_step.sort_order IS '排序序号';
-COMMENT ON COLUMN api_scene_step.enabled IS '启用状态';
-COMMENT ON COLUMN api_scene_step.source_type IS '来源类型：system/custom/public_step/copy/link';
-COMMENT ON COLUMN api_scene_step.source_id IS '来源对象 ID';
-COMMENT ON COLUMN api_scene_step.source_snapshot IS '来源快照';
-COMMENT ON COLUMN api_scene_step.source_interface_id IS '来源接口 ID';
-COMMENT ON COLUMN api_scene_step.source_interface_name IS '来源接口名称';
-COMMENT ON COLUMN api_scene_step.request_config IS '请求配置';
-COMMENT ON COLUMN api_scene_step.processors IS '处理器列表';
-COMMENT ON COLUMN api_scene_step.validators IS '验证器列表';
-COMMENT ON COLUMN api_scene_step.extractors IS '提取器列表';
-
-COMMENT ON TABLE api_scene_step_variable IS '步骤级变量表';
-COMMENT ON COLUMN api_scene_step_variable.step_id IS '归属步骤 ID';
-COMMENT ON COLUMN api_scene_step_variable.name IS '变量名';
-COMMENT ON COLUMN api_scene_step_variable.value IS '变量值';
-COMMENT ON COLUMN api_scene_step_variable.source IS '来源：custom/interface';
-COMMENT ON COLUMN api_scene_step_variable.interface_variable_id IS '来源接口变量 ID';
-COMMENT ON COLUMN api_scene_step_variable.description IS '变量描述';
-COMMENT ON COLUMN api_scene_step_variable.sort_order IS '排序序号';
-
-COMMENT ON TABLE api_scenario_variable IS '场景变量表';
-COMMENT ON COLUMN api_scenario_variable.scene_id IS '归属场景 ID';
-COMMENT ON COLUMN api_scenario_variable.name IS '变量名';
-COMMENT ON COLUMN api_scenario_variable.value IS '变量值';
-COMMENT ON COLUMN api_scenario_variable.description IS '变量描述';
-COMMENT ON COLUMN api_scenario_variable.sort_order IS '排序序号';
-
-COMMENT ON TABLE api_scene_interface IS '场景关联接口表';
-COMMENT ON COLUMN api_scene_interface.scene_id IS '场景 ID';
-COMMENT ON COLUMN api_scene_interface.interface_id IS '接口定义 ID';
-COMMENT ON COLUMN api_scene_interface.sync_mode IS '同步模式：copy/link';
-COMMENT ON COLUMN api_scene_interface.last_synced_at IS '最近同步时间';
 
 COMMENT ON TABLE api_scene_follow IS '场景关注表';
 COMMENT ON COLUMN api_scene_follow.scene_id IS '关联场景 ID';
