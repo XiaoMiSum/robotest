@@ -26,16 +26,20 @@ public class ApiSceneCreateReqDTO {
     /** 默认执行环境 */
     private UUID environmentId;
 
+    /** 优先级：P0/P1/P2/P3，缺省空 */
+    private String priority;
+
+    /** 状态：draft（草稿）/ published（已发布），缺省 draft */
+    private String status;
+
     @Valid
     private List<ApiSceneVariableBatchReqDTO.Variable> variables;
 
     /** 场景级处理器，结构与 Ryze 元件一致 */
     private List<Map<String, Object>> processors;
 
-    /** all / continue，缺省 all */
-    private String failureRule;
-
-    /** {sharedEnabled, items:[{id, key, value, enabled, domain}]} */
-    private Map<String, Object> cookieConfig;
+    /** 创建时随场景一并落库的步骤（测试场景详细设计 3.1.3，创建态可预编排步骤） */
+    @Valid
+    private List<ApiSceneStepSaveReqDTO> steps;
 
 }

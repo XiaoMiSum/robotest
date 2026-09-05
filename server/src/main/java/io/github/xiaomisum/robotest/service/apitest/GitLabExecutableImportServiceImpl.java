@@ -9,12 +9,10 @@ import io.github.xiaomisum.robotest.model.dto.response.apitest.GitLabFileTreeNod
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiImportMapping;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiImportRecord;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiScene;
-import io.github.xiaomisum.robotest.model.entity.apitest.ApiSceneStep;
 import io.github.xiaomisum.robotest.model.entity.apitest.GitLabRepository;
 import io.github.xiaomisum.robotest.repository.apitest.ApiImportMappingMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiImportRecordMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiSceneMapper;
-import io.github.xiaomisum.robotest.repository.apitest.ApiSceneStepMapper;
 import io.github.xiaomisum.robotest.repository.apitest.GitLabRepositoryMapper;
 import jakarta.annotation.Resource;
 import org.slf4j.Logger;
@@ -68,9 +66,6 @@ public class GitLabExecutableImportServiceImpl implements GitLabExecutableImport
 
     @Resource
     private ApiSceneMapper apiSceneMapper;
-
-    @Resource
-    private ApiSceneStepMapper apiSceneStepMapper;
 
     @Resource
     private ApiImportRecordMapper importRecordMapper;
@@ -187,8 +182,8 @@ public class GitLabExecutableImportServiceImpl implements GitLabExecutableImport
                             continue;
                         }
                         updateSceneFromData(existing, sceneData);
-                        apiSceneStepMapper.deleteBySceneId(existing.getId());
-                        createSteps(existing.getId(), sceneData);
+                        existing.setSteps(buildSteps(sceneData));
+                        apiSceneMapper.updateById(existing);
                         updated++;
                         action = "updated";
                         writeImportMapping(projectId, importRecordId, cls.fullClassName,
@@ -196,8 +191,8 @@ public class GitLabExecutableImportServiceImpl implements GitLabExecutableImport
                         sceneItems.add(toSceneItem(existing, sceneData));
                     } else {
                         ApiScene scene = createSceneFromData(projectId, sceneData);
+                        scene.setSteps(buildSteps(sceneData));
                         apiSceneMapper.insert(scene);
-                        createSteps(scene.getId(), sceneData);
                         created++;
                         action = "created";
                         writeImportMapping(projectId, importRecordId, cls.fullClassName,
@@ -286,8 +281,8 @@ public class GitLabExecutableImportServiceImpl implements GitLabExecutableImport
                     GitLabExecutableImportRespDTO.SceneItem item = new GitLabExecutableImportRespDTO.SceneItem();
                     item.setId(scene.getId().toString());
                     item.setName(scene.getName());
-                    List<ApiSceneStep> steps = apiSceneStepMapper.listBySceneId(scene.getId());
-                    item.setStepCount(steps.size());
+                    List<Map<String, Object>> steps = scene.getSteps();
+                    item.setStepCount(steps == null ? 0 : steps.size());
                     sceneItems.add(item);
                 }
             }
@@ -479,7 +474,6 @@ public class GitLabExecutableImportServiceImpl implements GitLabExecutableImport
         scene.setName((String) sceneData.getOrDefault("name", "Untitled"));
         scene.setDescription((String) sceneData.get("description"));
         scene.setVariables((List<Map<String, Object>>) sceneData.get("variables"));
-        scene.setFailureRule("continue");
         scene.setChangeVersion(0);
         return scene;
     }
@@ -493,26 +487,28 @@ public class GitLabExecutableImportServiceImpl implements GitLabExecutableImport
     }
 
     @SuppressWarnings("unchecked")
-    private void createSteps(UUID sceneId, Map<String, Object> sceneData) {
+    private List<Map<String, Object>> buildSteps(Map<String, Object> sceneData) {
         List<Map<String, Object>> steps = (List<Map<String, Object>>) sceneData.get("steps");
         if (steps == null) {
-            return;
+            return List.of();
         }
+        List<Map<String, Object>> result = new ArrayList<>();
         for (int i = 0; i < steps.size(); i++) {
             Map<String, Object> stepData = steps.get(i);
-            ApiSceneStep step = new ApiSceneStep();
-            step.setId(UUID.randomUUID());
-            step.setSceneId(sceneId);
-            step.setName((String) stepData.getOrDefault("name", "Step " + (i + 1)));
-            step.setStepType((String) stepData.getOrDefault("type", "http"));
-            step.setSortOrder(i);
-            step.setEnabled(true);
-            step.setSourceType("custom");
-            step.setRequestConfig((Map<String, Object>) stepData.get("requestConfig"));
-            step.setValidators((List<Map<String, Object>>) stepData.get("validators"));
-            step.setExtractors((List<Map<String, Object>>) stepData.get("extractors"));
-            apiSceneStepMapper.insert(step);
+            Map<String, Object> step = new LinkedHashMap<>();
+            step.put("id", UUID.randomUUID());
+            step.put("name", stepData.getOrDefault("name", "Step " + (i + 1)));
+            step.put("stepType", stepData.getOrDefault("type", "http"));
+            step.put("sortOrder", i);
+            step.put("enabled", true);
+            step.put("sourceType", "custom");
+            step.put("requestConfig", stepData.get("requestConfig"));
+            step.put("validators", stepData.get("validators"));
+            step.put("extractors", stepData.get("extractors"));
+            step.put("variables", List.of());
+            result.add(step);
         }
+        return result;
     }
 
     private void writeImportMapping(UUID projectId, UUID importRecordId, String fullClassName,

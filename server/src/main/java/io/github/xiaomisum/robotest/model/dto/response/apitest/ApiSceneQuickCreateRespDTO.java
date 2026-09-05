@@ -13,8 +13,6 @@ public class ApiSceneQuickCreateRespDTO {
 
     private List<CreatedStep> steps;
 
-    private UUID associationId;
-
     @Data
     @Builder
     public static class CreatedStep {

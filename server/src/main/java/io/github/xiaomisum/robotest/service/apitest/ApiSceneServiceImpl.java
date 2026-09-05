@@ -1,52 +1,33 @@
 package io.github.xiaomisum.robotest.service.apitest;
 
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
+import io.github.xiaomisum.robotest.framework.common.SceneStepUtil;
 import io.github.xiaomisum.robotest.framework.security.ProjectAccessGuard;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneAssetsImportReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneBatchDeleteReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneCopyReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneCreateReqDTO;
-import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneInterfaceAssociateReqDTO;
-import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneInterfaceSyncModeReqDTO;
-import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneSettingsReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneStepCopyReqDTO;
-import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneStepPublicStepReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneStepQuickCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneStepReorderReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneStepSaveReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneStepVariableBatchReqDTO;
-import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneStepVariableImportReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneVariableBatchReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiSceneAssetsImportRespDTO;
-import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiSceneAssociationItemRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiSceneDetailRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiScenePageItemRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiSceneQuickCreateRespDTO;
-import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiSceneSettingsRespDTO;
-import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiPublicStepBrowseItemRespDTO;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiExecutionRecord;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiInterface;
-import io.github.xiaomisum.robotest.model.entity.apitest.ApiInterfaceStep;
-import io.github.xiaomisum.robotest.model.entity.apitest.ApiInterfaceVariable;
-import io.github.xiaomisum.robotest.model.entity.apitest.ApiScenarioVariable;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiScene;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiSceneFollow;
-import io.github.xiaomisum.robotest.model.entity.apitest.ApiSceneInterface;
-import io.github.xiaomisum.robotest.model.entity.apitest.ApiSceneStep;
-import io.github.xiaomisum.robotest.model.entity.apitest.ApiSceneStepVariable;
 import io.github.xiaomisum.robotest.model.entity.apitest.CommonComponent;
 import io.github.xiaomisum.robotest.repository.apitest.ApiChangeHistoryMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiExecutionRecordMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiInterfaceMapper;
-import io.github.xiaomisum.robotest.repository.apitest.ApiInterfaceStepMapper;
-import io.github.xiaomisum.robotest.repository.apitest.ApiInterfaceVariableMapper;
-import io.github.xiaomisum.robotest.repository.apitest.ApiScenarioVariableMapper;
-import io.github.xiaomisum.robotest.repository.apitest.ApiSceneInterfaceMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiSceneMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiSceneFollowMapper;
-import io.github.xiaomisum.robotest.repository.apitest.ApiSceneStepMapper;
-import io.github.xiaomisum.robotest.repository.apitest.ApiSceneStepVariableMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiScheduledTaskMapper;
 import io.github.xiaomisum.robotest.repository.apitest.CommonComponentMapper;
 import io.github.xiaomisum.robotest.repository.admin.SysUserMapper;
@@ -81,29 +62,19 @@ import static io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants.A
 public class ApiSceneServiceImpl implements ApiSceneService {
 
     private static final String TARGET_TYPE_SCENE = "scene";
+    private static final String SCENE_STATUS_DRAFT = "draft";
     private static final Set<String> SYNC_MODES = Set.of("copy", "link");
-    private static final Set<String> FAILURE_RULES = Set.of("all", "continue");
+    private static final Set<String> SCENE_PRIORITIES = Set.of("P0", "P1", "P2", "P3");
+    private static final Set<String> SCENE_STATUSES = Set.of("draft", "published");
 
     @Resource
     private ApiSceneMapper sceneMapper;
-    @Resource
-    private ApiSceneStepMapper stepMapper;
-    @Resource
-    private ApiSceneStepVariableMapper stepVariableMapper;
-    @Resource
-    private ApiScenarioVariableMapper scenarioVariableMapper;
-    @Resource
-    private ApiSceneInterfaceMapper sceneInterfaceMapper;
     @Resource
     private ApiExecutionRecordMapper executionRecordMapper;
     @Resource
     private ApiChangeHistoryMapper changeHistoryMapper;
     @Resource
     private ApiInterfaceMapper interfaceMapper;
-    @Resource
-    private ApiInterfaceStepMapper interfaceStepMapper;
-    @Resource
-    private ApiInterfaceVariableMapper interfaceVariableMapper;
     @Resource
     private SysUserMapper userMapper;
     @Resource
@@ -139,12 +110,11 @@ public class ApiSceneServiceImpl implements ApiSceneService {
     }
 
     private Map<UUID, Long> countSteps(List<UUID> sceneIds) {
-        List<ApiSceneStep> steps = stepMapper.selectList(new LambdaQueryWrapperX<ApiSceneStep>()
-                .in(ApiSceneStep::getSceneId, sceneIds)
-                .select(ApiSceneStep::getId, ApiSceneStep::getSceneId));
+        List<ApiScene> scenes = sceneMapper.selectBatchIds(sceneIds);
         Map<UUID, Long> counts = new LinkedHashMap<>();
-        for (ApiSceneStep step : steps) {
-            counts.merge(step.getSceneId(), 1L, Long::sum);
+        for (ApiScene scene : scenes) {
+            List<Map<String, Object>> steps = scene.getSteps();
+            counts.put(scene.getId(), steps == null ? 0L : steps.size());
         }
         return counts;
     }
@@ -170,6 +140,8 @@ public class ApiSceneServiceImpl implements ApiSceneService {
                 .name(scene.getName())
                 .moduleId(scene.getModuleId())
                 .environmentId(scene.getEnvironmentId())
+                .priority(scene.getPriority())
+                .status(scene.getStatus())
                 .stepCount(stepCounts.getOrDefault(scene.getId(), 0L).intValue())
                 .lastExecutedAt(last == null ? null : last.getExecutedAt())
                 .lastStatus(last == null ? null : last.getStatus())
@@ -182,97 +154,74 @@ public class ApiSceneServiceImpl implements ApiSceneService {
     public ApiSceneDetailRespDTO getDetail(UUID workspaceId, UUID projectId, UUID userId, UUID id) {
         projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
         ApiScene scene = requireScene(projectId, id);
-        List<ApiSceneStep> steps = stepMapper.listBySceneId(id);
-        List<ApiScenarioVariable> variables = scenarioVariableMapper.listBySceneId(id);
-        Map<UUID, List<Map<String, Object>>> stepVariables = loadStepVariables(
-                steps.stream().map(ApiSceneStep::getId).toList());
         boolean followed = sceneFollowMapper.selectBySceneAndUser(id, userId) != null;
-        return toDetail(scene, steps, variables, stepVariables, followed);
+        return toDetail(scene, followed);
     }
 
-    private Map<UUID, List<Map<String, Object>>> loadStepVariables(List<UUID> stepIds) {
-        Map<UUID, List<Map<String, Object>>> result = new LinkedHashMap<>();
-        if (stepIds.isEmpty()) {
-            return result;
-        }
-        for (ApiSceneStepVariable variable : stepVariableMapper.listByStepIds(stepIds)) {
-            result.computeIfAbsent(variable.getStepId(), k -> new ArrayList<>()).add(toVariableMap(variable));
-        }
-        return result;
-    }
-
-    private ApiSceneDetailRespDTO toDetail(ApiScene scene, List<ApiSceneStep> steps,
-            List<ApiScenarioVariable> variables,
-            Map<UUID, List<Map<String, Object>>> stepVariables, boolean followed) {
+    private ApiSceneDetailRespDTO toDetail(ApiScene scene, boolean followed) {
         return ApiSceneDetailRespDTO.builder()
                 .id(scene.getId())
                 .name(scene.getName())
                 .moduleId(scene.getModuleId())
                 .description(scene.getDescription())
                 .environmentId(scene.getEnvironmentId())
+                .priority(scene.getPriority())
+                .status(scene.getStatus())
                 .followed(followed)
-                .variables(variables.stream().map(v -> {
-                    Map<String, Object> item = new LinkedHashMap<>();
-                    item.put("name", v.getName());
-                    item.put("value", v.getValue());
-                    item.put("description", v.getDescription());
-                    return item;
-                }).toList())
+                .variables(Objects.requireNonNullElse(scene.getVariables(), List.<Map<String, Object>>of()))
                 .processors(Objects.requireNonNullElse(scene.getProcessors(), List.of()))
-                .failureRule(scene.getFailureRule())
-                .cookieConfig(Objects.requireNonNullElse(scene.getCookieConfig(), Map.of()))
                 .changeVersion(scene.getChangeVersion())
-                .steps(steps.stream().map(step -> toStepDetail(step,
-                        stepVariables.getOrDefault(step.getId(), List.of()))).toList())
+                .steps(Objects.requireNonNullElse(scene.getSteps(), List.<Map<String, Object>>of()).stream()
+                        .map(this::toStepDetail).toList())
                 .build();
     }
 
-    private ApiSceneDetailRespDTO.Step toStepDetail(ApiSceneStep step, List<Map<String, Object>> variables) {
+    private ApiSceneDetailRespDTO.Step toStepDetail(Map<String, Object> step) {
+        UUID stepId = SceneStepUtil.getUUID(step, "id");
         return ApiSceneDetailRespDTO.Step.builder()
-                .id(step.getId())
-                .name(step.getName())
-                .stepType(step.getStepType())
-                .sortOrder(step.getSortOrder())
-                .enabled(step.getEnabled())
-                .sourceType(step.getSourceType() == null ? "custom" : step.getSourceType())
-                .sourceId(step.getSourceId())
-                .sourceInterfaceId(step.getSourceInterfaceId())
-                .sourceInterfaceName(step.getSourceInterfaceName())
+                .id(stepId)
+                .name(SceneStepUtil.getString(step, "name", null))
+                .stepType(SceneStepUtil.getString(step, "stepType", null))
+                .sortOrder(SceneStepUtil.getInteger(step, "sortOrder"))
+                .enabled(SceneStepUtil.getBoolean(step, "enabled"))
+                .sourceType(SceneStepUtil.getString(step, "sourceType", "custom"))
+                .sourceId(SceneStepUtil.getUUID(step, "sourceId"))
+                .sourceInterfaceId(SceneStepUtil.getUUID(step, "sourceInterfaceId"))
+                .sourceInterfaceName(SceneStepUtil.getString(step, "sourceInterfaceName", null))
                 .sourceMissing(isLinkSourceMissing(step))
-                .requestConfig(step.getRequestConfig())
-                .variables(variables)
-                .processors(Objects.requireNonNullElse(step.getProcessors(), List.of()))
-                .validators(Objects.requireNonNullElse(step.getValidators(), List.of()))
-                .extractors(Objects.requireNonNullElse(step.getExtractors(), List.of()))
+                .requestConfig(SceneStepUtil.getMap(step, "requestConfig"))
+                .variables(SceneStepUtil.getList(step, "variables"))
+                .processors(SceneStepUtil.getList(step, "processors"))
+                .validators(SceneStepUtil.getList(step, "validators"))
+                .extractors(SceneStepUtil.getList(step, "extractors"))
                 .build();
     }
 
     /** 链接引用源被删除时置灰展示（测试场景详细设计 4.5） */
-    private Boolean isLinkSourceMissing(ApiSceneStep step) {
-        if (!"link".equals(step.getSourceType()) || step.getSourceId() == null) {
+    private Boolean isLinkSourceMissing(Map<String, Object> step) {
+        if (!"link".equals(SceneStepUtil.getString(step, "sourceType", null))
+                || SceneStepUtil.getUUID(step, "sourceId") == null) {
             return false;
         }
-        return "public_step".equals(step.getSourceType())
-                ? interfaceStepMapper.selectById(step.getSourceId()) == null
-                // system/copy/link 主步骤来源均为接口定义
-                : interfaceMapper.selectById(step.getSourceId()) == null;
+        UUID sourceId = SceneStepUtil.getUUID(step, "sourceId");
+        return interfaceMapper.selectById(sourceId) == null;
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public UUID create(UUID workspaceId, UUID projectId, UUID userId, ApiSceneCreateReqDTO reqDTO) {
         projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
-        validateFailureRule(reqDTO.getFailureRule());
+        validatePriority(reqDTO.getPriority());
+        validateStatus(reqDTO.getStatus());
         ApiScene scene = new ApiScene();
         scene.setId(UUID.randomUUID());
         scene.setProjectId(projectId);
         applyCreateFields(scene, reqDTO);
-        scene.setFailureRule(Objects.requireNonNullElse(reqDTO.getFailureRule(), "all"));
         scene.setChangeVersion(1);
+        scene.setSteps(buildSteps(reqDTO.getSteps()));
+        scene.setVariables(normalizeVariables(reqDTO.getVariables()));
         sceneMapper.insert(scene);
 
-        replaceVariables(scene.getId(), reqDTO.getVariables());
-        syncVariablesSnapshot(scene.getId());
         writeHistory(projectId, scene.getId(), "create", "创建场景", userId);
         return scene.getId();
     }
@@ -282,16 +231,88 @@ public class ApiSceneServiceImpl implements ApiSceneService {
         scene.setModuleId(reqDTO.getModuleId());
         scene.setDescription(reqDTO.getDescription());
         scene.setEnvironmentId(reqDTO.getEnvironmentId());
+        scene.setPriority(reqDTO.getPriority());
+        scene.setStatus(normalizeStatus(reqDTO.getStatus()));
         scene.setProcessors(Objects.requireNonNullElse(reqDTO.getProcessors(), List.of()));
-        scene.setCookieConfig(Objects.requireNonNullElse(reqDTO.getCookieConfig(), Map.of()));
+    }
+
+    /** 创建态随场景一并落库的步骤：按传入顺序自 1 起排序（测试场景详细设计 3.1.3） */
+    private List<Map<String, Object>> buildSteps(List<ApiSceneStepSaveReqDTO> steps) {
+        if (steps == null || steps.isEmpty()) {
+            return List.of();
+        }
+        List<Map<String, Object>> result = new ArrayList<>();
+        int order = 1;
+        for (ApiSceneStepSaveReqDTO reqDTO : steps) {
+            validateStepType(reqDTO.getStepType());
+            Map<String, Object> step = buildNewStep(reqDTO);
+            step.put("sortOrder", order++);
+            result.add(step);
+        }
+        return result;
+    }
+
+    /** 编辑态场景聚合保存：含 id 的步骤局部更新，无 id（前端 new- 临时）新建；
+        与 create 对齐在同一事务内落库，任一步骤失败整事务回滚、change_version 不变（测试场景详细设计 3.1.4） */
+    private void syncSceneSteps(UUID sceneId, List<ApiSceneStepSaveReqDTO> steps, List<Map<String, Object>> originSteps) {
+        if (steps == null || steps.isEmpty()) {
+            return;
+        }
+        List<Map<String, Object>> current = originSteps == null ? new ArrayList<>() : new ArrayList<>(originSteps);
+        int order = 1;
+        for (ApiSceneStepSaveReqDTO reqDTO : steps) {
+            validateStepType(reqDTO.getStepType());
+            if (reqDTO.getId() != null) {
+                int idx = SceneStepUtil.findStepIndex(current, reqDTO.getId());
+                if (idx >= 0) {
+                    partialUpdateStep(current.get(idx), reqDTO);
+                    current.get(idx).put("sortOrder",
+                            reqDTO.getSortOrder() != null ? reqDTO.getSortOrder() : order);
+                }
+            } else {
+                Map<String, Object> step = buildNewStep(reqDTO);
+                step.put("sortOrder", reqDTO.getSortOrder() == null ? order : reqDTO.getSortOrder());
+                current.add(step);
+            }
+            order++;
+        }
+        persistSteps(sceneId, current);
+    }
+
+    /** 对已存在的步骤 map 局部更新（C9：仅更新 reqDTO 实际传入字段） */
+    private void partialUpdateStep(Map<String, Object> step, ApiSceneStepSaveReqDTO reqDTO) {
+        step.put("name", reqDTO.getName());
+        if (reqDTO.getStepType() != null) {
+            validateStepType(reqDTO.getStepType());
+            step.put("stepType", normalizeStepType(reqDTO.getStepType()));
+        }
+        if (reqDTO.getEnabled() != null) {
+            step.put("enabled", reqDTO.getEnabled());
+        }
+        if (reqDTO.getRequestConfig() != null) {
+            step.put("requestConfig", reqDTO.getRequestConfig());
+        }
+        if (reqDTO.getProcessors() != null) {
+            step.put("processors", reqDTO.getProcessors());
+        }
+        if (reqDTO.getValidators() != null) {
+            step.put("validators", reqDTO.getValidators());
+        }
+        if (reqDTO.getExtractors() != null) {
+            step.put("extractors", reqDTO.getExtractors());
+        }
+        if (reqDTO.getSortOrder() != null) {
+            step.put("sortOrder", reqDTO.getSortOrder());
+        }
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void update(UUID workspaceId, UUID projectId, UUID userId, UUID id, ApiSceneUpdateReqDTO reqDTO) {
         projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
-        requireScene(projectId, id);
-        validateFailureRule(reqDTO.getFailureRule());
+        ApiScene scene = requireScene(projectId, id);
+        validatePriority(reqDTO.getPriority());
+        validateStatus(reqDTO.getStatus());
 
         int nextVersion = reqDTO.getChangeVersion() + 1;
         ApiScene carrier = new ApiScene();
@@ -300,10 +321,14 @@ public class ApiSceneServiceImpl implements ApiSceneService {
         carrier.setModuleId(reqDTO.getModuleId());
         carrier.setDescription(reqDTO.getDescription());
         carrier.setEnvironmentId(reqDTO.getEnvironmentId());
+        carrier.setPriority(reqDTO.getPriority());
+        carrier.setStatus(reqDTO.getStatus());
         carrier.setProcessors(reqDTO.getProcessors());
-        carrier.setCookieConfig(reqDTO.getCookieConfig());
-        carrier.setFailureRule(reqDTO.getFailureRule());
         carrier.setChangeVersion(nextVersion);
+        // 场景变量以 JSONB 随场景整体更新：携带该字段时全量覆盖（C9 部分更新，未携带则保留原值）
+        if (reqDTO.getVariables() != null) {
+            carrier.setVariables(normalizeVariables(reqDTO.getVariables()));
+        }
         // 乐观锁：版本号不匹配即 0 行更新（测试场景详细设计 3.1.4）
         int rows = sceneMapper.update(carrier, new LambdaUpdateWrapperX<ApiScene>()
                 .eq(ApiScene::getId, id)
@@ -311,10 +336,8 @@ public class ApiSceneServiceImpl implements ApiSceneService {
         if (rows == 0) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.API_SCENE_VERSION_CONFLICT);
         }
-        if (reqDTO.getVariables() != null) {
-            replaceVariables(id, reqDTO.getVariables());
-            syncVariablesSnapshot(id);
-        }
+        // 步骤随场景在同一事务内一并落库：任一失败整事务回滚，change_version 不会误增
+        syncSceneSteps(id, reqDTO.getSteps(), scene.getSteps());
         writeHistory(projectId, id, "update", "更新场景", userId);
     }
 
@@ -329,11 +352,6 @@ public class ApiSceneServiceImpl implements ApiSceneService {
             throw ServiceExceptionUtil.get(API_SCENE_REFERENCED);
         }
         sceneMapper.deleteById(id);
-        scenarioVariableMapper.deleteBySceneId(id);
-        List<ApiSceneStep> steps = stepMapper.listBySceneId(id);
-        steps.forEach(step -> stepVariableMapper.deleteByStepId(step.getId()));
-        stepMapper.deleteBySceneId(id);
-        sceneInterfaceMapper.deleteBySceneId(id);
         sceneFollowMapper.deleteBySceneId(id);
     }
 
@@ -352,179 +370,78 @@ public class ApiSceneServiceImpl implements ApiSceneService {
         copy.setName(name);
         copy.setDescription(origin.getDescription());
         copy.setEnvironmentId(origin.getEnvironmentId());
-        copy.setVariables(origin.getVariables());
+        copy.setPriority(origin.getPriority());
+        copy.setVariables(copyVariables(origin.getVariables()));
         copy.setProcessors(origin.getProcessors());
-        copy.setFailureRule(origin.getFailureRule());
-        copy.setCookieConfig(origin.getCookieConfig());
         copy.setChangeVersion(1);
+        copy.setStatus(SCENE_STATUS_DRAFT);
+        // 复制模式：步骤与变量全部独立副本，不带链接引用语义（测试场景详细设计 3.1.6）
+        copy.setSteps(copySteps(origin.getSteps()));
         sceneMapper.insert(copy);
 
-        // 复制模式：步骤与变量全部独立副本，不带链接引用语义（测试场景详细设计 3.1.6）
-        List<ApiScenarioVariable> variables = scenarioVariableMapper.listBySceneId(id);
-        if (!variables.isEmpty()) {
-            scenarioVariableMapper.insertBatch(variables.stream().map(v -> {
-                ApiScenarioVariable row = new ApiScenarioVariable();
-                row.setId(UUID.randomUUID());
-                row.setSceneId(copy.getId());
-                row.setName(v.getName());
-                row.setValue(v.getValue());
-                row.setDescription(v.getDescription());
-                row.setSortOrder(v.getSortOrder());
-                return row;
-            }).toList());
-        }
-        List<ApiSceneStep> steps = stepMapper.listBySceneId(id);
-        Map<UUID, List<ApiSceneStepVariable>> varsByStep = groupStepVariables(steps);
-        for (ApiSceneStep step : steps) {
-            ApiSceneStep copied = insertCopiedStep(copy.getId(), step, stepMapper.selectMaxSortOrder(copy.getId()));
-            copyStepVariables(varsByStep.getOrDefault(step.getId(), List.of()), copied.getId());
-        }
         writeHistory(projectId, copy.getId(), "copy", "复制自场景「" + origin.getName() + "」", userId);
         return copy.getId();
     }
 
-    private Map<UUID, List<ApiSceneStepVariable>> groupStepVariables(List<ApiSceneStep> steps) {
-        Map<UUID, List<ApiSceneStepVariable>> result = new LinkedHashMap<>();
-        List<UUID> ids = steps.stream().map(ApiSceneStep::getId).toList();
-        for (ApiSceneStepVariable variable : stepVariableMapper.listByStepIds(ids)) {
-            result.computeIfAbsent(variable.getStepId(), k -> new ArrayList<>()).add(variable);
+    /** 场景变量以 JSONB 随场景复制：逐元素深拷贝为独立对象，避免副本与源共享引用 */
+    private List<Map<String, Object>> copyVariables(List<Map<String, Object>> originVariables) {
+        if (originVariables == null || originVariables.isEmpty()) {
+            return List.of();
+        }
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (Map<String, Object> variable : originVariables) {
+            result.add(SceneStepUtil.deepCopyMap(variable));
         }
         return result;
     }
 
-    private ApiSceneStep insertCopiedStep(UUID sceneId, ApiSceneStep origin, Integer baseSortOrder) {
-        ApiSceneStep copied = new ApiSceneStep();
-        copied.setId(UUID.randomUUID());
-        copied.setSceneId(sceneId);
-        copied.setName(origin.getName());
-        copied.setStepType(origin.getStepType());
-        copied.setSortOrder(baseSortOrder + 1);
-        copied.setEnabled(origin.getEnabled());
-        // 副本一律为 copy 来源，与原步骤无关联（测试场景详细设计 3.10 同语义）
-        copied.setSourceType("copy");
-        copied.setSourceId(origin.getSourceId());
-        copied.setSourceInterfaceId(origin.getSourceInterfaceId());
-        copied.setSourceInterfaceName(origin.getSourceInterfaceName());
-        copied.setRequestConfig(deepCopyMap(origin.getRequestConfig()));
-        copied.setProcessors(copyListWithFreshIds(origin.getProcessors()));
-        copied.setValidators(copyListWithFreshIds(origin.getValidators()));
-        copied.setExtractors(copyListWithFreshIds(origin.getExtractors()));
-        stepMapper.insert(copied);
-        return copied;
-    }
-
-    private void copyStepVariables(List<ApiSceneStepVariable> origin, UUID targetStepId) {
-        if (origin.isEmpty()) {
-            return;
+    /** 深拷贝 steps 列表：重新生成每步及其内嵌变量的 id，sourceType 置 copy，requestConfig 深拷贝 */
+    private List<Map<String, Object>> copySteps(List<Map<String, Object>> originSteps) {
+        if (originSteps == null || originSteps.isEmpty()) {
+            return List.of();
         }
-        stepVariableMapper.insertBatch(origin.stream().map(v -> {
-            ApiSceneStepVariable row = new ApiSceneStepVariable();
-            row.setId(UUID.randomUUID());
-            row.setStepId(targetStepId);
-            row.setName(v.getName());
-            row.setValue(v.getValue());
-            row.setSource(v.getSource());
-            row.setInterfaceVariableId(v.getInterfaceVariableId());
-            row.setDescription(v.getDescription());
-            row.setSortOrder(v.getSortOrder());
-            return row;
-        }).toList());
-    }
-
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    public void updateSettings(UUID workspaceId, UUID projectId, UUID userId, UUID sceneId,
-            ApiSceneSettingsReqDTO reqDTO) {
-        projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
-        requireScene(projectId, sceneId);
-        if (reqDTO.getFailureRule() != null && !FAILURE_RULES.contains(reqDTO.getFailureRule())) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.API_SCENE_SETTING_INVALID,
-                    "失败规则仅支持 all/continue");
-        }
-        validateCookieConfig(reqDTO.getCookieConfig());
-
-        ApiScene carrier = new ApiScene();
-        carrier.setId(sceneId);
-        carrier.setFailureRule(reqDTO.getFailureRule());
-        carrier.setCookieConfig(reqDTO.getCookieConfig());
-        sceneMapper.updateById(carrier);
-        writeHistory(projectId, sceneId, "update", "更新场景设置", userId);
-    }
-
-    @SuppressWarnings("unchecked")
-    private void validateCookieConfig(Map<String, Object> cookieConfig) {
-        if (cookieConfig == null) {
-            return;
-        }
-        try {
-            Object items = cookieConfig.get("items");
-            if (items instanceof List<?> list) {
-                for (Object item : list) {
-                    Map<String, Object> entry = (Map<String, Object>) item;
-                    Object key = entry.get("key");
-                    if (key == null || key.toString().isBlank()) {
-                        throw ServiceExceptionUtil.get(ErrorCodeConstants.API_SCENE_SETTING_INVALID,
-                                "Cookie 条目缺少 key");
-                    }
-                }
+        List<Map<String, Object>> result = new ArrayList<>();
+        int sortOrder = 1;
+        for (Map<String, Object> origin : originSteps) {
+            Map<String, Object> copied = new LinkedHashMap<>(origin);
+            copied.put("id", UUID.randomUUID());
+            copied.put("sourceType", "copy");
+            copied.put("requestConfig", SceneStepUtil.deepCopyMap(SceneStepUtil.getMap(origin, "requestConfig")));
+            copied.put("processors", SceneStepUtil.copyListWithFreshIds(SceneStepUtil.getList(origin, "processors")));
+            copied.put("validators", SceneStepUtil.copyListWithFreshIds(SceneStepUtil.getList(origin, "validators")));
+            copied.put("extractors", SceneStepUtil.copyListWithFreshIds(SceneStepUtil.getList(origin, "extractors")));
+            // 内嵌 variables 重新生成 id
+            List<Map<String, Object>> variables = SceneStepUtil.getList(origin, "variables");
+            List<Map<String, Object>> copiedVariables = new ArrayList<>();
+            for (Map<String, Object> v : variables) {
+                Map<String, Object> cv = new LinkedHashMap<>(v);
+                cv.put("id", UUID.randomUUID());
+                copiedVariables.add(cv);
             }
-        } catch (ClassCastException ex) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.API_SCENE_SETTING_INVALID,
-                    "Cookie 配置结构不合法");
+            copied.put("variables", copiedVariables);
+            copied.put("sortOrder", sortOrder++);
+            result.add(copied);
         }
+        return result;
     }
 
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    public void updateVariables(UUID workspaceId, UUID projectId, UUID userId, UUID sceneId,
-            ApiSceneVariableBatchReqDTO reqDTO) {
-        projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
-        requireScene(projectId, sceneId);
-        replaceVariables(sceneId, reqDTO.getVariables());
-        syncVariablesSnapshot(sceneId);
-        writeHistory(projectId, sceneId, "update", "更新场景变量", userId);
-    }
-
-    /** 全量覆盖语义（测试场景详细设计 3.5.1） */
-    private void replaceVariables(UUID sceneId, List<ApiSceneVariableBatchReqDTO.Variable> variables) {
-        scenarioVariableMapper.deleteBySceneId(sceneId);
+    /** 场景变量归一化：过滤空名、trim 名称，空列表落空数组默认值（全量覆盖语义，测试场景详细设计 3.5.1） */
+    private List<Map<String, Object>> normalizeVariables(List<ApiSceneVariableBatchReqDTO.Variable> variables) {
         if (variables == null || variables.isEmpty()) {
-            return;
+            return List.of();
         }
-        List<ApiScenarioVariable> rows = new ArrayList<>();
-        int order = 0;
+        List<Map<String, Object>> result = new ArrayList<>();
         for (ApiSceneVariableBatchReqDTO.Variable variable : variables) {
             if (variable.getName() == null || variable.getName().isBlank()) {
                 continue;
             }
-            ApiScenarioVariable row = new ApiScenarioVariable();
-            row.setId(UUID.randomUUID());
-            row.setSceneId(sceneId);
-            row.setName(variable.getName().trim());
-            row.setValue(variable.getValue());
-            row.setDescription(variable.getDescription());
-            row.setSortOrder(order++);
-            rows.add(row);
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("name", variable.getName().trim());
+            row.put("value", variable.getValue());
+            row.put("description", variable.getDescription());
+            result.add(row);
         }
-        if (!rows.isEmpty()) {
-            scenarioVariableMapper.insertBatch(rows);
-        }
-    }
-
-    /** api_scene.variables JSONB 为列表页冗余快照，保存后同步 */
-    private void syncVariablesSnapshot(UUID sceneId) {
-        List<Map<String, Object>> snapshot = scenarioVariableMapper.listBySceneId(sceneId).stream()
-                .map(v -> {
-                    Map<String, Object> item = new LinkedHashMap<>();
-                    item.put("name", v.getName());
-                    item.put("value", v.getValue());
-                    item.put("description", v.getDescription());
-                    return item;
-                }).toList();
-        ApiScene carrier = new ApiScene();
-        carrier.setId(sceneId);
-        carrier.setVariables(snapshot);
-        sceneMapper.updateById(carrier);
+        return result;
     }
 
     // ========== 步骤管理 ==========
@@ -534,27 +451,32 @@ public class ApiSceneServiceImpl implements ApiSceneService {
     public UUID createStep(UUID workspaceId, UUID projectId, UUID userId, UUID sceneId,
             ApiSceneStepSaveReqDTO reqDTO) {
         projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
-        requireScene(projectId, sceneId);
+        ApiScene scene = requireScene(projectId, sceneId);
         validateStepType(reqDTO.getStepType());
-        ApiSceneStep step = new ApiSceneStep();
-        step.setId(UUID.randomUUID());
-        step.setSceneId(sceneId);
-        applyStepFields(step, reqDTO);
-        step.setSortOrder(reqDTO.getSortOrder() == null
-                ? stepMapper.selectMaxSortOrder(sceneId) + 1 : reqDTO.getSortOrder());
-        stepMapper.insert(step);
-        return step.getId();
+        List<Map<String, Object>> steps = scene.getSteps() == null ? new ArrayList<>() : new ArrayList<>(scene.getSteps());
+        Map<String, Object> step = buildNewStep(reqDTO);
+        step.put("sortOrder", reqDTO.getSortOrder() == null
+                ? SceneStepUtil.maxSortOrder(steps) + 1 : reqDTO.getSortOrder());
+        UUID stepId = SceneStepUtil.getUUID(step, "id");
+        steps.add(step);
+        persistSteps(sceneId, steps);
+        return stepId;
     }
 
-    private void applyStepFields(ApiSceneStep step, ApiSceneStepSaveReqDTO reqDTO) {
-        step.setName(reqDTO.getName());
-        step.setStepType(normalizeStepType(reqDTO.getStepType()));
-        step.setEnabled(Objects.requireNonNullElse(reqDTO.getEnabled(), true));
-        step.setSourceType(Objects.requireNonNullElse(reqDTO.getSourceType(), "custom"));
-        step.setRequestConfig(Objects.requireNonNullElse(reqDTO.getRequestConfig(), Map.of()));
-        step.setProcessors(Objects.requireNonNullElse(reqDTO.getProcessors(), List.of()));
-        step.setValidators(Objects.requireNonNullElse(reqDTO.getValidators(), List.of()));
-        step.setExtractors(Objects.requireNonNullElse(reqDTO.getExtractors(), List.of()));
+    /** 由 DTO 构建新的步骤 map（默认值：enabled=true、sourceType=custom、stepType=http） */
+    private Map<String, Object> buildNewStep(ApiSceneStepSaveReqDTO reqDTO) {
+        Map<String, Object> step = SceneStepUtil.newStep(UUID.randomUUID());
+        step.put("name", reqDTO.getName());
+        step.put("stepType", normalizeStepType(reqDTO.getStepType()));
+        step.put("enabled", Objects.requireNonNullElse(reqDTO.getEnabled(), true));
+        step.put("sourceType", Objects.requireNonNullElse(reqDTO.getSourceType(), "custom"));
+        step.put("sourceId", reqDTO.getSourceId());
+        step.put("requestConfig", Objects.requireNonNullElse(reqDTO.getRequestConfig(), Map.of()));
+        step.put("processors", Objects.requireNonNullElse(reqDTO.getProcessors(), List.of()));
+        step.put("validators", Objects.requireNonNullElse(reqDTO.getValidators(), List.of()));
+        step.put("extractors", Objects.requireNonNullElse(reqDTO.getExtractors(), List.of()));
+        step.put("variables", List.of());
+        return step;
     }
 
     private String normalizeStepType(String stepType) {
@@ -570,60 +492,38 @@ public class ApiSceneServiceImpl implements ApiSceneService {
         }
     }
 
+    /** 以 carrier（仅 id + steps）向 api_scene 落步骤列（C9 部分更新） */
+    private void persistSteps(UUID sceneId, List<Map<String, Object>> steps) {
+        ApiScene carrier = new ApiScene();
+        carrier.setId(sceneId);
+        carrier.setSteps(steps);
+        sceneMapper.updateById(carrier);
+    }
+
     @Override
     @Transactional(rollbackFor = Exception.class)
     public ApiSceneQuickCreateRespDTO quickCreateSteps(UUID workspaceId, UUID projectId, UUID userId,
             UUID sceneId, ApiSceneStepQuickCreateReqDTO reqDTO) {
         projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
-        requireScene(projectId, sceneId);
+        ApiScene scene = requireScene(projectId, sceneId);
         String mode = normalizeMode(reqDTO.getMode());
         ApiInterface apiInterface = interfaceMapper.selectById(reqDTO.getInterfaceId());
         if (apiInterface == null || !projectId.equals(apiInterface.getProjectId())) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.API_INTERFACE_NOT_FOUND);
         }
 
-        ApiSceneInterface association = upsertAssociation(sceneId, apiInterface.getId(), mode);
-        int order = stepMapper.selectMaxSortOrder(sceneId) + 1;
+        List<Map<String, Object>> steps = scene.getSteps() == null ? new ArrayList<>() : new ArrayList<>(scene.getSteps());
+        int order = SceneStepUtil.maxSortOrder(steps) + 1;
         List<ApiSceneQuickCreateRespDTO.CreatedStep> created = new ArrayList<>();
 
-        ApiSceneStep mainStep = buildFromInterface(apiInterface, mode, order++);
-        stepMapper.insert(mainStep);
-        if (reqDTO.getImportInterfaceVariables() == null || reqDTO.getImportInterfaceVariables()) {
-            importInterfaceVariables(mainStep.getId(), apiInterface.getId(), order);
-        }
+        Map<String, Object> mainStep = buildFromInterface(apiInterface, mode, order++);
+        steps.add(mainStep);
         created.add(toCreatedStep(mainStep));
-
-        for (ApiInterfaceStep publicStep : interfaceStepMapper.selectListByInterfaceId(apiInterface.getId())) {
-            ApiSceneStep step = buildFromPublicStep(publicStep, mode, apiInterface, order++);
-            stepMapper.insert(step);
-            created.add(toCreatedStep(step));
-        }
-        return ApiSceneQuickCreateRespDTO.builder().steps(created).associationId(association.getId()).build();
+        persistSteps(sceneId, steps);
+        return ApiSceneQuickCreateRespDTO.builder().steps(created).build();
     }
 
-    /** 已关联则更新同步模式，否则新建关联（测试场景详细设计 3.3.2 创建逻辑 1） */
-    private ApiSceneInterface upsertAssociation(UUID sceneId, UUID interfaceId, String mode) {
-        ApiSceneInterface association = sceneInterfaceMapper.selectBySceneAndInterface(sceneId, interfaceId);
-        if (association == null) {
-            association = new ApiSceneInterface();
-            association.setId(UUID.randomUUID());
-            association.setSceneId(sceneId);
-            association.setInterfaceId(interfaceId);
-            association.setSyncMode(mode);
-            sceneInterfaceMapper.insert(association);
-            return association;
-        }
-        if (!mode.equals(association.getSyncMode())) {
-            ApiSceneInterface carrier = new ApiSceneInterface();
-            carrier.setId(association.getId());
-            carrier.setSyncMode(mode);
-            sceneInterfaceMapper.updateById(carrier);
-            association.setSyncMode(mode);
-        }
-        return association;
-    }
-
-    private ApiSceneStep buildFromInterface(ApiInterface apiInterface, String mode, int sortOrder) {
+    private Map<String, Object> buildFromInterface(ApiInterface apiInterface, String mode, int sortOrder) {
         Map<String, Object> requestConfig = new LinkedHashMap<>();
         requestConfig.put("method", apiInterface.getMethod());
         requestConfig.put("url", apiInterface.getPath());
@@ -634,99 +534,30 @@ public class ApiSceneServiceImpl implements ApiSceneService {
         body.put("content", apiInterface.getBody());
         requestConfig.put("body", body);
 
-        ApiSceneStep step = new ApiSceneStep();
-        step.setId(UUID.randomUUID());
-        step.setName(apiInterface.getName());
-        step.setSourceType(mode);
-        step.setSourceId(apiInterface.getId());
-        step.setSourceInterfaceId(apiInterface.getId());
-        step.setSourceInterfaceName(apiInterface.getName());
-        step.setRequestConfig(requestConfig);
-        step.setStepType("http");
-        step.setSortOrder(sortOrder);
-        step.setEnabled(true);
-        step.setProcessors(List.of());
-        step.setValidators(List.of());
-        step.setExtractors(List.of());
+        Map<String, Object> step = SceneStepUtil.newStep(UUID.randomUUID());
+        step.put("name", apiInterface.getName());
+        step.put("sourceType", mode);
+        step.put("sourceId", apiInterface.getId());
+        step.put("sourceInterfaceId", apiInterface.getId());
+        step.put("sourceInterfaceName", apiInterface.getName());
+        step.put("requestConfig", requestConfig);
+        step.put("stepType", "http");
+        step.put("sortOrder", sortOrder);
+        step.put("enabled", true);
+        step.put("processors", List.of());
+        step.put("validators", Objects.requireNonNullElse(apiInterface.getValidators(), List.of()));
+        step.put("extractors", Objects.requireNonNullElse(apiInterface.getExtractors(), List.of()));
+        step.put("variables", List.of());
         return step;
     }
 
-    private ApiSceneStep buildFromPublicStep(ApiInterfaceStep publicStep, String mode,
-            ApiInterface apiInterface, int sortOrder) {
-        ApiSceneStep step = new ApiSceneStep();
-        step.setId(UUID.randomUUID());
-        step.setName(publicStep.getName());
-        step.setSourceType(mode);
-        step.setSourceId(publicStep.getId());
-        step.setSourceInterfaceId(apiInterface.getId());
-        step.setSourceInterfaceName(apiInterface.getName());
-        step.setRequestConfig(deepCopyMap(publicStep.getRequestConfig()));
-        step.setProcessors(copyListWithFreshIds(publicStep.getProcessors()));
-        step.setValidators(copyListWithFreshIds(publicStep.getValidators()));
-        step.setExtractors(copyListWithFreshIds(publicStep.getExtractors()));
-        step.setStepType("http");
-        step.setSortOrder(sortOrder);
-        step.setEnabled(true);
-        return step;
-    }
-
-    /** 接口级变量 → 步骤级变量（source=interface，记录来源 ID，测试场景详细设计 3.3.2 创建逻辑 4） */
-    private void importInterfaceVariables(UUID stepId, UUID interfaceId, int baseOrder) {
-        List<ApiInterfaceVariable> sources = interfaceVariableMapper.selectListByInterfaceId(interfaceId);
-        if (sources.isEmpty()) {
-            return;
-        }
-        List<ApiSceneStepVariable> rows = new ArrayList<>();
-        int order = 0;
-        for (ApiInterfaceVariable source : sources) {
-            ApiSceneStepVariable row = new ApiSceneStepVariable();
-            row.setId(UUID.randomUUID());
-            row.setStepId(stepId);
-            row.setName(source.getName());
-            row.setValue(source.getDefaultValue());
-            row.setSource("interface");
-            row.setInterfaceVariableId(source.getId());
-            row.setDescription(source.getDescription());
-            row.setSortOrder(baseOrder + order++);
-            rows.add(row);
-        }
-        stepVariableMapper.insertBatch(rows);
-    }
-
-    private ApiSceneQuickCreateRespDTO.CreatedStep toCreatedStep(ApiSceneStep step) {
+    private ApiSceneQuickCreateRespDTO.CreatedStep toCreatedStep(Map<String, Object> step) {
         return ApiSceneQuickCreateRespDTO.CreatedStep.builder()
-                .id(step.getId())
-                .name(step.getName())
-                .sourceType(step.getSourceType())
-                .sourceInterfaceName(step.getSourceInterfaceName())
+                .id(SceneStepUtil.getUUID(step, "id"))
+                .name(SceneStepUtil.getString(step, "name", null))
+                .sourceType(SceneStepUtil.getString(step, "sourceType", null))
+                .sourceInterfaceName(SceneStepUtil.getString(step, "sourceInterfaceName", null))
                 .build();
-    }
-
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    public UUID addPublicStep(UUID workspaceId, UUID projectId, UUID userId, UUID sceneId,
-            ApiSceneStepPublicStepReqDTO reqDTO) {
-        projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
-        requireScene(projectId, sceneId);
-        String mode = normalizeMode(reqDTO.getMode());
-        ApiInterfaceStep publicStep = interfaceStepMapper.selectById(reqDTO.getPublicStepId());
-        if (publicStep == null) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.VALIDATION_FAILED, "公共步骤不存在");
-        }
-        ApiInterface apiInterface = requireProjectInterface(projectId, publicStep.getInterfaceId());
-        int order = reqDTO.getSortOrder() == null
-                ? stepMapper.selectMaxSortOrder(sceneId) + 1 : reqDTO.getSortOrder();
-        ApiSceneStep step = buildFromPublicStep(publicStep, mode, apiInterface, order);
-        stepMapper.insert(step);
-        return step.getId();
-    }
-
-    private ApiInterface requireProjectInterface(UUID projectId, UUID interfaceId) {
-        ApiInterface apiInterface = interfaceMapper.selectById(interfaceId);
-        if (apiInterface == null || !projectId.equals(apiInterface.getProjectId())) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.API_INTERFACE_NOT_FOUND);
-        }
-        return apiInterface;
     }
 
     @Override
@@ -734,32 +565,23 @@ public class ApiSceneServiceImpl implements ApiSceneService {
     public void updateStep(UUID workspaceId, UUID projectId, UUID userId, UUID sceneId, UUID stepId,
             ApiSceneStepSaveReqDTO reqDTO) {
         projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
-        requireStep(projectId, sceneId, stepId);
-        ApiSceneStep carrier = new ApiSceneStep();
-        carrier.setId(stepId);
-        carrier.setName(reqDTO.getName());
-        if (reqDTO.getStepType() != null) {
-            validateStepType(reqDTO.getStepType());
-            carrier.setStepType(normalizeStepType(reqDTO.getStepType()));
-        }
-        carrier.setEnabled(reqDTO.getEnabled());
-        carrier.setRequestConfig(reqDTO.getRequestConfig());
-        carrier.setProcessors(reqDTO.getProcessors());
-        carrier.setValidators(reqDTO.getValidators());
-        carrier.setExtractors(reqDTO.getExtractors());
-        if (reqDTO.getSortOrder() != null) {
-            carrier.setSortOrder(reqDTO.getSortOrder());
-        }
-        stepMapper.updateById(carrier);
+        ApiScene scene = requireScene(projectId, sceneId);
+        Map<String, Object> step = SceneStepUtil.requireStep(scene.getSteps(), stepId);
+        partialUpdateStep(step, reqDTO);
+        persistSteps(sceneId, scene.getSteps());
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void deleteStep(UUID workspaceId, UUID projectId, UUID userId, UUID sceneId, UUID stepId) {
         projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
-        requireStep(projectId, sceneId, stepId);
-        stepMapper.deleteById(stepId);
-        stepVariableMapper.deleteByStepId(stepId);
+        ApiScene scene = requireScene(projectId, sceneId);
+        int idx = SceneStepUtil.findStepIndex(scene.getSteps(), stepId);
+        if (idx < 0) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.API_SCENE_STEP_NOT_FOUND);
+        }
+        scene.getSteps().remove(idx);
+        persistSteps(sceneId, scene.getSteps());
     }
 
     @Override
@@ -767,14 +589,26 @@ public class ApiSceneServiceImpl implements ApiSceneService {
     public void reorderSteps(UUID workspaceId, UUID projectId, UUID userId, UUID sceneId,
             ApiSceneStepReorderReqDTO reqDTO) {
         projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
-        List<ApiSceneStep> existing = stepMapper.listBySceneId(sceneId);
-        Set<UUID> owned = existing.stream().map(ApiSceneStep::getId).collect(java.util.stream.Collectors.toSet());
+        ApiScene scene = requireScene(projectId, sceneId);
+        List<Map<String, Object>> existing = scene.getSteps() == null ? List.of() : scene.getSteps();
+        Set<UUID> owned = SceneStepUtil.collectStepIds(existing);
         Set<UUID> incoming = new LinkedHashSet<>(reqDTO.getStepIds());
         if (!owned.containsAll(incoming) || incoming.size() != reqDTO.getStepIds().size()) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.API_SCENE_STEP_NOT_FOUND);
         }
         // 数组顺序即为新排序（测试场景详细设计 3.3.6）
-        stepMapper.reorder(sceneId, reqDTO.getStepIds());
+        Map<UUID, Map<String, Object>> byId = new LinkedHashMap<>();
+        for (Map<String, Object> step : existing) {
+            byId.put(SceneStepUtil.getUUID(step, "id"), step);
+        }
+        List<Map<String, Object>> reordered = new ArrayList<>();
+        int order = 0;
+        for (UUID stepId : reqDTO.getStepIds()) {
+            Map<String, Object> step = byId.get(stepId);
+            step.put("sortOrder", order++);
+            reordered.add(step);
+        }
+        persistSteps(sceneId, reordered);
     }
 
     @Override
@@ -782,15 +616,31 @@ public class ApiSceneServiceImpl implements ApiSceneService {
     public UUID copyStep(UUID workspaceId, UUID projectId, UUID userId, UUID sceneId, UUID stepId,
             ApiSceneStepCopyReqDTO reqDTO) {
         projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
-        ApiSceneStep origin = requireStep(projectId, sceneId, stepId);
+        ApiScene scene = requireScene(projectId, sceneId);
+        Map<String, Object> origin = SceneStepUtil.requireStep(scene.getSteps(), stepId);
         String name = reqDTO != null && reqDTO.getName() != null && !reqDTO.getName().isBlank()
-                ? reqDTO.getName() : origin.getName() + "（副本）";
-        ApiSceneStep copied = insertCopiedStep(sceneId, origin, stepMapper.selectMaxSortOrder(sceneId));
-        ApiSceneStep rename = new ApiSceneStep();
-        rename.setId(copied.getId());
-        rename.setName(name);
-        stepMapper.updateById(rename);
-        return copied.getId();
+                ? reqDTO.getName() : SceneStepUtil.getString(origin, "name", "步骤") + "（副本）";
+        Map<String, Object> copied = new LinkedHashMap<>(origin);
+        copied.put("id", UUID.randomUUID());
+        copied.put("name", name);
+        copied.put("sourceType", "copy");
+        copied.put("requestConfig", SceneStepUtil.deepCopyMap(SceneStepUtil.getMap(origin, "requestConfig")));
+        copied.put("processors", SceneStepUtil.copyListWithFreshIds(SceneStepUtil.getList(origin, "processors")));
+        copied.put("validators", SceneStepUtil.copyListWithFreshIds(SceneStepUtil.getList(origin, "validators")));
+        copied.put("extractors", SceneStepUtil.copyListWithFreshIds(SceneStepUtil.getList(origin, "extractors")));
+        List<Map<String, Object>> variables = SceneStepUtil.getList(origin, "variables");
+        List<Map<String, Object>> copiedVariables = new ArrayList<>();
+        for (Map<String, Object> v : variables) {
+            Map<String, Object> cv = new LinkedHashMap<>(v);
+            cv.put("id", UUID.randomUUID());
+            copiedVariables.add(cv);
+        }
+        copied.put("variables", copiedVariables);
+        copied.put("sortOrder", SceneStepUtil.maxSortOrder(scene.getSteps()) + 1);
+        UUID copiedId = SceneStepUtil.getUUID(copied, "id");
+        scene.getSteps().add(copied);
+        persistSteps(sceneId, scene.getSteps());
+        return copiedId;
     }
 
     // ========== 步骤级变量 ==========
@@ -799,20 +649,9 @@ public class ApiSceneServiceImpl implements ApiSceneService {
     public List<Map<String, Object>> listStepVariables(UUID workspaceId, UUID projectId, UUID userId,
             UUID sceneId, UUID stepId) {
         projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
-        requireStep(projectId, sceneId, stepId);
-        return stepVariableMapper.listByStepId(stepId).stream().map(this::toVariableMap).toList();
-    }
-
-    private Map<String, Object> toVariableMap(ApiSceneStepVariable variable) {
-        Map<String, Object> item = new LinkedHashMap<>();
-        item.put("id", variable.getId());
-        item.put("name", variable.getName());
-        item.put("value", variable.getValue());
-        item.put("source", variable.getSource());
-        item.put("interfaceVariableId", variable.getInterfaceVariableId());
-        item.put("description", variable.getDescription());
-        item.put("sortOrder", variable.getSortOrder());
-        return item;
+        ApiScene scene = requireScene(projectId, sceneId);
+        Map<String, Object> step = SceneStepUtil.requireStep(scene.getSteps(), stepId);
+        return new ArrayList<>(SceneStepUtil.getList(step, "variables"));
     }
 
     @Override
@@ -820,182 +659,23 @@ public class ApiSceneServiceImpl implements ApiSceneService {
     public void updateStepVariables(UUID workspaceId, UUID projectId, UUID userId, UUID sceneId, UUID stepId,
             ApiSceneStepVariableBatchReqDTO reqDTO) {
         projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
-        requireStep(projectId, sceneId, stepId);
-        stepVariableMapper.deleteByStepId(stepId);
-        if (reqDTO.getVariables() == null || reqDTO.getVariables().isEmpty()) {
-            return;
-        }
-        List<ApiSceneStepVariable> rows = new ArrayList<>();
-        int order = 0;
-        for (var variable : reqDTO.getVariables()) {
-            if (variable.getName() == null || variable.getName().isBlank()) {
-                continue;
-            }
-            ApiSceneStepVariable row = new ApiSceneStepVariable();
-            row.setId(UUID.randomUUID());
-            row.setStepId(stepId);
-            row.setName(variable.getName().trim());
-            row.setValue(variable.getValue());
-            // 手动更新的变量置 custom（测试场景详细设计 3.4.2）
-            row.setSource("custom");
-            row.setDescription(variable.getDescription());
-            row.setSortOrder(order++);
-            rows.add(row);
-        }
-        if (!rows.isEmpty()) {
-            stepVariableMapper.insertBatch(rows);
-        }
-    }
-
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    public List<Map<String, Object>> importStepVariables(UUID workspaceId, UUID projectId, UUID userId,
-            UUID sceneId, UUID stepId, ApiSceneStepVariableImportReqDTO reqDTO) {
-        projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
-        requireStep(projectId, sceneId, stepId);
-        requireProjectInterface(projectId, reqDTO.getInterfaceId());
-        String strategy = Objects.requireNonNullElse(reqDTO.getStrategy(), "merge");
-
-        List<ApiSceneStepVariable> existing = stepVariableMapper.listByStepId(stepId);
-        List<ApiInterfaceVariable> sources = interfaceVariableMapper.selectListByInterfaceId(reqDTO.getInterfaceId());
-        if ("replace".equals(strategy)) {
-            existing = List.of();
-        }
-
-        // merge：更新已有接口变量（source=interface 且 interface_variable_id 匹配），跳过自定义变量，追加新增变量
-        Map<UUID, ApiSceneStepVariable> existingByIfaceVarId = existing.stream()
-                .filter(v -> "interface".equals(v.getSource()) && v.getInterfaceVariableId() != null)
-                .collect(java.util.stream.Collectors.toMap(
-                        ApiSceneStepVariable::getInterfaceVariableId, v -> v, (a, b) -> b));
-        Set<String> customNames = existing.stream()
-                .filter(v -> "custom".equals(v.getSource()))
-                .map(ApiSceneStepVariable::getName)
-                .collect(java.util.stream.Collectors.toSet());
-
-        // 保留不受影响的自定义变量
-        List<ApiSceneStepVariable> rows = existing.stream()
-                .filter(v -> "custom".equals(v.getSource()))
-                .collect(java.util.stream.Collectors.toCollection(ArrayList::new));
-        int order = 0;
-        for (ApiInterfaceVariable source : sources) {
-            // 已有接口变量 → 更新值与描述
-            ApiSceneStepVariable matched = existingByIfaceVarId.get(source.getId());
-            if (matched != null) {
-                matched.setValue(source.getDefaultValue());
-                matched.setDescription(source.getDescription());
-                matched.setSortOrder(order++);
-                rows.add(matched);
-                continue;
-            }
-            // 同名自定义变量 → 跳过，不覆盖（测试场景详细设计 3.4.3）
-            if (customNames.contains(source.getName())) {
-                continue;
-            }
-            // 新变量 → 追加
-            ApiSceneStepVariable row = new ApiSceneStepVariable();
-            row.setId(UUID.randomUUID());
-            row.setStepId(stepId);
-            row.setName(source.getName());
-            row.setValue(source.getDefaultValue());
-            row.setSource("interface");
-            row.setInterfaceVariableId(source.getId());
-            row.setDescription(source.getDescription());
-            row.setSortOrder(order++);
-            rows.add(row);
-        }
-        stepVariableMapper.deleteByStepId(stepId);
-        if (!rows.isEmpty()) {
-            stepVariableMapper.insertBatch(rows);
-        }
-        return stepVariableMapper.listByStepId(stepId).stream().map(this::toVariableMap).toList();
-    }
-
-    // ========== 场景关联接口 ==========
-
-    @Override
-    public List<ApiSceneAssociationItemRespDTO> listAssociations(UUID workspaceId, UUID projectId, UUID userId,
-            UUID sceneId) {
-        projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
-        requireScene(projectId, sceneId);
-        return sceneInterfaceMapper.listBySceneId(sceneId).stream().map(association -> {
-            ApiInterface apiInterface = interfaceMapper.selectById(association.getInterfaceId());
-            return ApiSceneAssociationItemRespDTO.builder()
-                    .id(association.getId())
-                    .interfaceId(association.getInterfaceId())
-                    .interfaceName(apiInterface == null ? null : apiInterface.getName())
-                    .method(apiInterface == null ? null : apiInterface.getMethod())
-                    .path(apiInterface == null ? null : apiInterface.getPath())
-                    .syncMode(association.getSyncMode())
-                    .publicStepCount(apiInterface == null ? 0
-                            : interfaceStepMapper.selectListByInterfaceId(apiInterface.getId()).size())
-                    .createdAt(association.getCreatedAt())
-                    .build();
-        }).toList();
-    }
-
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    public void associateInterfaces(UUID workspaceId, UUID projectId, UUID userId, UUID sceneId,
-            ApiSceneInterfaceAssociateReqDTO reqDTO) {
-        projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
-        requireScene(projectId, sceneId);
-        String mode = normalizeMode(reqDTO.getSyncMode());
-        for (UUID interfaceId : Objects.requireNonNullElse(reqDTO.getInterfaceIds(), List.<UUID>of())) {
-            ApiInterface apiInterface = requireProjectInterface(projectId, interfaceId);
-            if (sceneInterfaceMapper.selectBySceneAndInterface(sceneId, interfaceId) != null) {
-                // 同一接口只允许关联一次（应用层校验，错误码 7208）
-                throw ServiceExceptionUtil.get(ErrorCodeConstants.API_SCENE_INTERFACE_EXISTS);
-            }
-            ApiSceneInterface association = new ApiSceneInterface();
-            association.setId(UUID.randomUUID());
-            association.setSceneId(sceneId);
-            association.setInterfaceId(apiInterface.getId());
-            association.setSyncMode(mode);
-            sceneInterfaceMapper.insert(association);
-        }
-    }
-
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    public void unassociateInterface(UUID workspaceId, UUID projectId, UUID userId, UUID sceneId,
-            UUID associationId) {
-        projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
-        ApiSceneInterface association = sceneInterfaceMapper.selectById(associationId);
-        if (association == null || !association.getSceneId().equals(sceneId)) {
-            requireScene(projectId, sceneId);
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.API_SCENE_NOT_FOUND);
-        }
-        sceneInterfaceMapper.deleteById(associationId);
-    }
-
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    public void switchSyncMode(UUID workspaceId, UUID projectId, UUID userId, UUID sceneId, UUID associationId,
-            ApiSceneInterfaceSyncModeReqDTO reqDTO) {
-        projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
-        ApiSceneInterface association = sceneInterfaceMapper.selectById(associationId);
-        if (association == null || !association.getSceneId().equals(sceneId)) {
-            requireScene(projectId, sceneId);
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.API_SCENE_NOT_FOUND);
-        }
-        String mode = normalizeMode(reqDTO.getSyncMode());
-        ApiSceneInterface carrier = new ApiSceneInterface();
-        carrier.setId(associationId);
-        carrier.setSyncMode(mode);
-        // link 模式切换后由执行前同步刷新 last_synced_at（测试场景详细设计 3.2.4）
-        sceneInterfaceMapper.updateById(carrier);
-    }
-
-    // ========== 场景设置 ==========
-
-    @Override
-    public ApiSceneSettingsRespDTO getSettings(UUID workspaceId, UUID projectId, UUID userId, UUID sceneId) {
-        projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
         ApiScene scene = requireScene(projectId, sceneId);
-        return ApiSceneSettingsRespDTO.builder()
-                .failureRule(scene.getFailureRule())
-                .cookieConfig(Objects.requireNonNullElse(scene.getCookieConfig(), Map.of()))
-                .build();
+        Map<String, Object> step = SceneStepUtil.requireStep(scene.getSteps(), stepId);
+        List<Map<String, Object>> variables = new ArrayList<>();
+        int order = 0;
+        if (reqDTO.getVariables() != null) {
+            for (var variable : reqDTO.getVariables()) {
+                if (variable.getName() == null || variable.getName().isBlank()) {
+                    continue;
+                }
+                // 手动更新的变量置 custom（测试场景详细设计 3.4.2）
+                variables.add(SceneStepUtil.newVariable(UUID.randomUUID(),
+                        variable.getName().trim(), variable.getValue(), "custom",
+                        null, variable.getDescription(), order++));
+            }
+        }
+        step.put("variables", variables);
+        persistSteps(sceneId, scene.getSteps());
     }
 
     // ========== 全局资产引入 ==========
@@ -1013,8 +693,10 @@ public class ApiSceneServiceImpl implements ApiSceneService {
         if (("step_validator".equals(target) || "step_extractor".equals(target)) && reqDTO.getStepId() == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.VALIDATION_FAILED, "step_validator/step_extractor 需要 stepId");
         }
+        ApiScene scene = requireScene(projectId, sceneId);
+        Map<String, Object> step = null;
         if ("step_validator".equals(target) || "step_extractor".equals(target)) {
-            requireStep(projectId, sceneId, reqDTO.getStepId());
+            step = SceneStepUtil.requireStep(scene.getSteps(), reqDTO.getStepId());
         }
 
         int imported = 0;
@@ -1037,25 +719,15 @@ public class ApiSceneServiceImpl implements ApiSceneService {
             }
             switch (target) {
                 case "step_validator" -> {
-                    ApiSceneStep step = stepMapper.selectById(reqDTO.getStepId());
-                    List<Map<String, Object>> validators = new ArrayList<>(
-                            Objects.requireNonNullElse(step.getValidators(), List.of()));
+                    List<Map<String, Object>> validators = new ArrayList<>(SceneStepUtil.getList(step, "validators"));
                     validators.add(config);
-                    ApiSceneStep stepCarrier = new ApiSceneStep();
-                    stepCarrier.setId(reqDTO.getStepId());
-                    stepCarrier.setValidators(validators);
-                    stepMapper.updateById(stepCarrier);
+                    step.put("validators", validators);
                     imported++;
                 }
                 case "step_extractor" -> {
-                    ApiSceneStep step = stepMapper.selectById(reqDTO.getStepId());
-                    List<Map<String, Object>> extractors = new ArrayList<>(
-                            Objects.requireNonNullElse(step.getExtractors(), List.of()));
+                    List<Map<String, Object>> extractors = new ArrayList<>(SceneStepUtil.getList(step, "extractors"));
                     extractors.add(config);
-                    ApiSceneStep stepCarrier = new ApiSceneStep();
-                    stepCarrier.setId(reqDTO.getStepId());
-                    stepCarrier.setExtractors(extractors);
-                    stepMapper.updateById(stepCarrier);
+                    step.put("extractors", extractors);
                     imported++;
                 }
             }
@@ -1070,7 +742,6 @@ public class ApiSceneServiceImpl implements ApiSceneService {
             for (Map.Entry<Integer, Map<String, Object>> pair : pairs) {
                 ordered.add(pair.getValue());
             }
-            ApiScene scene = requireScene(projectId, sceneId);
             List<Map<String, Object>> processors = new ArrayList<>(
                     Objects.requireNonNullElse(scene.getProcessors(), List.of()));
             processors.addAll(ordered);
@@ -1079,6 +750,8 @@ public class ApiSceneServiceImpl implements ApiSceneService {
             carrier.setProcessors(processors);
             sceneMapper.updateById(carrier);
             imported += processorConfigs.size();
+        } else if (step != null) {
+            persistSteps(sceneId, scene.getSteps());
         }
         writeHistory(projectId, sceneId, "update", "从全局资产引入 " + imported + " 个", userId);
         return ApiSceneAssetsImportRespDTO.builder().imported(imported).build();
@@ -1109,20 +782,23 @@ public class ApiSceneServiceImpl implements ApiSceneService {
         return scene;
     }
 
-    private ApiSceneStep requireStep(UUID projectId, UUID sceneId, UUID stepId) {
-        requireScene(projectId, sceneId);
-        ApiSceneStep step = stepMapper.selectById(stepId);
-        if (step == null || !step.getSceneId().equals(sceneId)) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.API_SCENE_STEP_NOT_FOUND);
+    private void validatePriority(String priority) {
+        if (priority != null && !SCENE_PRIORITIES.contains(priority)) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.API_SCENE_SETTING_INVALID,
+                    "优先级仅支持 P0/P1/P2/P3");
         }
-        return step;
     }
 
-    private void validateFailureRule(String failureRule) {
-        if (failureRule != null && !FAILURE_RULES.contains(failureRule)) {
+    private void validateStatus(String status) {
+        if (status != null && !SCENE_STATUSES.contains(status)) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.API_SCENE_SETTING_INVALID,
-                    "失败规则仅支持 all/continue");
+                    "状态仅支持 draft/published");
         }
+    }
+
+    /** 缺省落草稿；非法取值已在 validateStatus 拦下 */
+    private String normalizeStatus(String status) {
+        return Objects.requireNonNullElse(status, SCENE_STATUS_DRAFT);
     }
 
     private String normalizeMode(String mode) {
@@ -1157,32 +833,9 @@ public class ApiSceneServiceImpl implements ApiSceneService {
             return result;
         }
         for (Map<String, Object> entry : entries) {
-            Map<String, Object> copy = deepCopyMap(entry);
+            Map<String, Object> copy = SceneStepUtil.deepCopyMap(entry);
             copy.putIfAbsent("id", UUID.randomUUID().toString());
             copy.putIfAbsent("enabled", true);
-            result.add(copy);
-        }
-        return result;
-    }
-
-    /** JSON 序列化往返实现深拷贝，避免副本与源共享嵌套可变结构 */
-    @SuppressWarnings("unchecked")
-    private Map<String, Object> deepCopyMap(Map<String, Object> origin) {
-        if (origin == null) {
-            return new LinkedHashMap<>();
-        }
-        return JsonUtils.parseObject(JsonUtils.toJsonString(origin), LinkedHashMap.class);
-    }
-
-    /** 复制配置列表并为元素重新生成 id，保证副本与源无关联（测试场景详细设计 3.10） */
-    private List<Map<String, Object>> copyListWithFreshIds(List<Map<String, Object>> origin) {
-        List<Map<String, Object>> result = new ArrayList<>();
-        if (origin == null) {
-            return result;
-        }
-        for (Map<String, Object> item : origin) {
-            Map<String, Object> copy = deepCopyMap(item);
-            copy.put("id", UUID.randomUUID().toString());
             result.add(copy);
         }
         return result;
@@ -1230,37 +883,6 @@ public class ApiSceneServiceImpl implements ApiSceneService {
         for (UUID id : reqDTO.getIds()) {
             delete(workspaceId, projectId, userId, id);
         }
-    }
-
-    // ========== 公共步骤浏览 ==========
-
-    @Override
-    public List<ApiPublicStepBrowseItemRespDTO> browsePublicSteps(UUID workspaceId, UUID projectId,
-            UUID userId, UUID sceneId) {
-        projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
-        List<ApiSceneInterface> associations = sceneInterfaceMapper.selectList(
-                new LambdaQueryWrapperX<ApiSceneInterface>()
-                        .eq(ApiSceneInterface::getSceneId, sceneId));
-        List<ApiPublicStepBrowseItemRespDTO> result = new ArrayList<>();
-        for (ApiSceneInterface assoc : associations) {
-            List<ApiInterfaceStep> steps = interfaceStepMapper.selectList(
-                    new LambdaQueryWrapperX<ApiInterfaceStep>()
-                            .eq(ApiInterfaceStep::getInterfaceId, assoc.getInterfaceId()));
-            ApiInterface iface = interfaceMapper.selectById(assoc.getInterfaceId());
-            String ifaceName = iface != null ? iface.getName() : "";
-            for (ApiInterfaceStep step : steps) {
-                Map<String, Object> cfg = step.getRequestConfig();
-                result.add(ApiPublicStepBrowseItemRespDTO.builder()
-                        .id(step.getId().toString())
-                        .name(step.getName())
-                        .method(cfg != null ? String.valueOf(cfg.getOrDefault("method", "")) : "")
-                        .path(cfg != null ? String.valueOf(cfg.getOrDefault("url", "")) : "")
-                        .interfaceId(assoc.getInterfaceId().toString())
-                        .interfaceName(ifaceName)
-                        .build());
-            }
-        }
-        return result;
     }
 
 }

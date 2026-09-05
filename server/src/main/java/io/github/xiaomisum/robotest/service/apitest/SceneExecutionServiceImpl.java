@@ -1,33 +1,30 @@
 package io.github.xiaomisum.robotest.service.apitest;
 
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
+import io.github.xiaomisum.robotest.framework.common.SceneStepUtil;
 import io.github.xiaomisum.robotest.framework.config.ApiTestProperties;
 import io.github.xiaomisum.robotest.framework.security.ProjectAccessGuard;
+import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneDraftExecuteReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneExecuteReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneStepDebugReqDTO;
+import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneStepDraftDebugReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiChangeHistoryItemRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiExecutionCancelRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiExecutionHistoryItemRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiExecutionStartRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiExecutionStatusRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiSceneDraftExecuteRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiSceneStepDebugRespDTO;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiChangeHistory;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiExecutionRecord;
-import io.github.xiaomisum.robotest.model.entity.apitest.ApiInterfaceStep;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiReport;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiScene;
-import io.github.xiaomisum.robotest.model.entity.apitest.ApiSceneStep;
-import io.github.xiaomisum.robotest.model.entity.apitest.ApiSceneStepVariable;
 import io.github.xiaomisum.robotest.model.entity.admin.SysUser;
 import io.github.xiaomisum.robotest.repository.admin.SysUserMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiChangeHistoryMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiExecutionRecordMapper;
-import io.github.xiaomisum.robotest.repository.apitest.ApiInterfaceStepMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiReportMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiSceneMapper;
-import io.github.xiaomisum.robotest.repository.apitest.ApiSceneStepMapper;
-import io.github.xiaomisum.robotest.repository.apitest.ApiSceneStepVariableMapper;
-import io.github.xiaomisum.robotest.repository.apitest.ApiScenarioVariableMapper;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.hc.core5.http.Header;
@@ -54,8 +51,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * 场景异步执行引擎（测试场景详细设计 4.4/4.6、基础设施详细设计 3.2）。
  * <p>
  * 单套件架构：所有步骤作为同一个 TestSuite 的 children，extractor 结果通过
- * Ryze context chain 自动流向下序步骤。failure_rule=all 时后序步骤仍会执行
- * （Ryze 无内置中止机制），但在报告中标记为 skipped。
+ * Ryze context chain 自动流向下序步骤。场景执行语义固定为停止运行：某步骤
+ * 失败时后序步骤仍会执行（Ryze 无内置中止机制），但在报告中标记为 skipped。
  */
 @Slf4j
 @Service
@@ -66,19 +63,11 @@ public class SceneExecutionServiceImpl implements SceneExecutionService {
     @Resource
     private ApiSceneMapper sceneMapper;
     @Resource
-    private ApiSceneStepMapper stepMapper;
-    @Resource
-    private ApiSceneStepVariableMapper stepVariableMapper;
-    @Resource
-    private ApiScenarioVariableMapper scenarioVariableMapper;
-    @Resource
     private ApiExecutionRecordMapper executionRecordMapper;
     @Resource
     private ApiReportMapper reportMapper;
     @Resource
     private ApiChangeHistoryMapper changeHistoryMapper;
-    @Resource
-    private ApiInterfaceStepMapper interfaceStepMapper;
     @Resource
     private SysUserMapper userMapper;
     @Resource
@@ -102,7 +91,7 @@ public class SceneExecutionServiceImpl implements SceneExecutionService {
             ApiSceneExecuteReqDTO reqDTO) {
         projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
         ApiScene scene = requireScene(projectId, sceneId);
-        if (stepMapper.listBySceneId(sceneId).isEmpty()) {
+        if (scene.getSteps() == null || scene.getSteps().isEmpty()) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.VALIDATION_FAILED, "场景没有可执行步骤");
         }
 
@@ -160,18 +149,17 @@ public class SceneExecutionServiceImpl implements SceneExecutionService {
     private RunContext loadContext(UUID executionId) {
         ApiExecutionRecord record = executionRecordMapper.selectById(executionId);
         ApiScene scene = sceneMapper.selectById(record.getSceneId());
-        List<ApiSceneStep> steps = stepMapper.listBySceneId(record.getSceneId());
-        List<Map<String, Object>> sceneVariables = scenarioVariableMapper.listBySceneId(record.getSceneId())
-                .stream().map(this::toVariableMap).toList();
+        List<Map<String, Object>> steps = scene.getSteps() == null ? List.of() : scene.getSteps();
+        List<Map<String, Object>> sceneVariables =
+                scene.getVariables() == null ? List.of() : scene.getVariables();
         DebugRyzeConverter.EnvSnapshot env =
                 environmentSnapshotFactory.resolve(record.getProjectId(), record.getEnvironmentId());
-        return new RunContext(record, scene, steps, sceneVariables, env,
-                "continue".equalsIgnoreCase(scene.getFailureRule()) ? "continue" : "all");
+        return new RunContext(record, scene, steps, sceneVariables, env);
     }
 
     private void doRun(RunContext ctx, AtomicBoolean cancelled) {
         long start = System.currentTimeMillis();
-        boolean stopOnFailure = "all".equals(ctx.failureRule());
+        boolean stopOnFailure = true;
         int passed = 0;
         int failed = 0;
         int skipped = 0;
@@ -182,15 +170,15 @@ public class SceneExecutionServiceImpl implements SceneExecutionService {
         // 构建所有步骤的 StepSpec 和 sampler 级变量
         List<SceneRyzeConverter.StepSpec> allSpecs = new ArrayList<>();
         List<Map<String, Object>> perStepVars = new ArrayList<>();
-        List<ApiSceneStep> enabledSteps = new ArrayList<>();
-        for (ApiSceneStep step : ctx.steps()) {
+        List<Map<String, Object>> enabledSteps = new ArrayList<>();
+        for (Map<String, Object> step : ctx.steps()) {
             if (cancelled.get()) {
                 wasCancelled = true;
                 skipped++;
                 stepResults.add(skippedEntry(step));
                 continue;
             }
-            if (!Boolean.TRUE.equals(step.getEnabled())) {
+            if (!Boolean.TRUE.equals(SceneStepUtil.getBoolean(step, "enabled"))) {
                 skipped++;
                 stepResults.add(skippedEntry(step));
                 continue;
@@ -201,18 +189,18 @@ public class SceneExecutionServiceImpl implements SceneExecutionService {
                         new StepOutcome("error", null, null, null, spec.errorMessage(), 0L, List.of())));
                 failed++;
                 anyError = true;
-                // failure_rule=all 时后续步骤跳过
+                // 步骤失败时后续步骤跳过（场景执行语义固定为停止运行）
                 if (stopOnFailure) {
-                    for (ApiSceneStep rest : ctx.steps().subList(ctx.steps().indexOf(step) + 1, ctx.steps().size())) {
+                    for (int restIdx = ctx.steps().indexOf(step) + 1; restIdx < ctx.steps().size(); restIdx++) {
                         skipped++;
-                        stepResults.add(skippedEntry(rest));
+                        stepResults.add(skippedEntry(ctx.steps().get(restIdx)));
                     }
                     break;
                 }
                 continue;
             }
             allSpecs.add(spec.spec());
-            perStepVars.add(buildStepVariables(ctx.sceneVariables(), step.getId()));
+            perStepVars.add(buildStepVariables(ctx.sceneVariables(), step));
             enabledSteps.add(step);
         }
 
@@ -229,7 +217,7 @@ public class SceneExecutionServiceImpl implements SceneExecutionService {
         List<io.github.xiaomisum.ryze.Result> children = suiteOutcome.sampleResults();
         int childIdx = 0;
         for (int i = 0; i < enabledSteps.size(); i++) {
-            ApiSceneStep step = enabledSteps.get(i);
+            Map<String, Object> step = enabledSteps.get(i);
             if (childIdx < children.size()) {
                 io.github.xiaomisum.ryze.Result childResult = children.get(childIdx);
                 StepOutcome outcome = extractChildOutcome(childResult);
@@ -242,7 +230,7 @@ public class SceneExecutionServiceImpl implements SceneExecutionService {
                 stepResults.add(toReportEntry(step,
                         new ResolvedSpec(allSpecs.get(i), null), outcome));
                 childIdx++;
-                // failure_rule=all 时首个非成功结果标记后续为 skipped
+                // 步骤失败时首个非成功结果标记后续为 skipped
                 if (stopOnFailure && !"success".equals(outcome.status())) {
                     for (int j = i + 1; j < enabledSteps.size(); j++) {
                         skipped++;
@@ -305,25 +293,15 @@ public class SceneExecutionServiceImpl implements SceneExecutionService {
                 error == null ? null : error.getMessage(), elapsed, children);
     }
 
-    /** 链接步骤执行时拉取源定义最新版本，源已删除则降级快照（测试场景详细设计 4.5） */
-    private ResolvedSpec resolveSpec(ApiSceneStep step) {
-        Map<String, Object> config = step.getRequestConfig();
-        if ("link".equals(step.getSourceType()) && step.getSourceId() != null) {
-            ApiInterfaceStep source = interfaceStepMapper.selectById(step.getSourceId());
-            if (source == null) {
-                if (config == null || config.isEmpty()) {
-                    return new ResolvedSpec(null, "链接源已删除且无快照，无法执行");
-                }
-                return new ResolvedSpec(new SceneRyzeConverter.StepSpec(step.getName(),
-                        config, orEmpty(step.getValidators()), orEmpty(step.getExtractors())), null);
-            }
-            config = source.getRequestConfig();
-        }
+    private ResolvedSpec resolveSpec(Map<String, Object> step) {
+        Map<String, Object> config = SceneStepUtil.getMap(step, "requestConfig");
+        String name = SceneStepUtil.getString(step, "name", null);
         if (config == null || config.isEmpty()) {
             return new ResolvedSpec(null, "步骤缺少请求配置");
         }
-        return new ResolvedSpec(new SceneRyzeConverter.StepSpec(step.getName(),
-                config, orEmpty(step.getValidators()), orEmpty(step.getExtractors())), null);
+        return new ResolvedSpec(new SceneRyzeConverter.StepSpec(name,
+                config, orEmpty(SceneStepUtil.getList(step, "validators")),
+                orEmpty(SceneStepUtil.getList(step, "extractors"))), null);
     }
 
     private void finishExecution(RunContext ctx, List<Map<String, Object>> stepResults,
@@ -434,8 +412,8 @@ public class SceneExecutionServiceImpl implements SceneExecutionService {
     public ApiSceneStepDebugRespDTO debugStep(UUID workspaceId, UUID projectId, UUID userId, UUID sceneId,
             UUID stepId, ApiSceneStepDebugReqDTO reqDTO) {
         projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
-        requireScene(projectId, sceneId);
-        ApiSceneStep step = requireStep(projectId, sceneId, stepId);
+        ApiScene scene = requireScene(projectId, sceneId);
+        Map<String, Object> step = requireStep(scene.getSteps(), stepId);
         DebugRyzeConverter.EnvSnapshot env =
                 environmentSnapshotFactory.resolve(projectId, reqDTO.getEnvironmentId());
 
@@ -451,13 +429,17 @@ public class SceneExecutionServiceImpl implements SceneExecutionService {
         }
         Map<String, Object> suiteVars = SceneRyzeConverter.buildSuiteVariables(
                 env,
-                scenarioVariableMapper.listBySceneId(sceneId).stream().map(this::toVariableMap).toList());
+                scene.getVariables() == null ? List.of() : scene.getVariables());
         Map<String, Object> stepVars = new LinkedHashMap<>();
-        for (ApiSceneStepVariable row : stepVariableMapper.listByStepId(stepId)) {
-            stepVars.put(row.getName(), row.getValue());
+        for (Map<String, Object> row : SceneStepUtil.getList(step, "variables")) {
+            Object name = row.get("name");
+            if (name != null && !name.toString().isBlank()) {
+                stepVars.put(name.toString(), row.get("value"));
+            }
         }
         StepOutcome outcome = runSingle(SceneRyzeConverter.buildSuite(
-                step.getName(), env, suiteVars, List.of(stepVars), List.of(resolved.spec())), projectId);
+                SceneStepUtil.getString(step, "name", null), env, suiteVars, List.of(stepVars),
+                List.of(resolved.spec())), projectId);
         // 请求摘要取解析后的实际配置（链接步骤为源定义最新值）
         Map<String, Object> request = new LinkedHashMap<>();
         request.put("method", resolved.spec().requestConfig().getOrDefault("method", "GET"));
@@ -478,6 +460,231 @@ public class SceneExecutionServiceImpl implements SceneExecutionService {
                 .extractedVariables(Map.of())
                 .build();
         return ApiSceneStepDebugRespDTO.builder().stepResult(result).build();
+    }
+
+    // ========== 草稿调试/执行（创建态未保存场景，用页面实时数据） ==========
+
+    @Override
+    public ApiSceneStepDebugRespDTO draftDebugStep(UUID workspaceId, UUID projectId, UUID userId,
+            ApiSceneStepDraftDebugReqDTO reqDTO) {
+        projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
+        ApiSceneStepDraftDebugReqDTO.Step draftStep = reqDTO.getStep();
+        DebugRyzeConverter.EnvSnapshot env =
+                environmentSnapshotFactory.resolve(projectId, reqDTO.getEnvironmentId());
+
+        ResolvedSpec resolved = resolveDraftSpec(draftStep.getName(),
+                draftStep.getRequestConfig(), draftStep.getValidators(), draftStep.getExtractors());
+        if (resolved.errorMessage() != null) {
+            return ApiSceneStepDebugRespDTO.builder().stepResult(ApiSceneStepDebugRespDTO.StepResult.builder()
+                    .stepId("draft")
+                    .status("error")
+                    .validatorResults(List.of())
+                    .extractedVariables(Map.of())
+                    .build()).build();
+        }
+        Map<String, Object> suiteVars = SceneRyzeConverter.buildSuiteVariables(
+                env, toVariableMapList(reqDTO.getSceneVariables()));
+        Map<String, Object> stepVars = variablesToMaps(draftStep.getStepVariables());
+        StepOutcome outcome = runSingle(SceneRyzeConverter.buildSuite(
+                draftStep.getName(), env, suiteVars, List.of(stepVars), List.of(resolved.spec())), projectId);
+        // 单步套件取首个采样结果为响应摘要（套件级结果不含 responseStatus）
+        StepOutcome sample = outcome.sampleResults().isEmpty() ? outcome
+                : extractChildOutcome(outcome.sampleResults().get(0));
+        return ApiSceneStepDebugRespDTO.builder().stepResult(ApiSceneStepDebugRespDTO.StepResult.builder()
+                .stepId("draft")
+                .status(outcome.status())
+                .durationMs(outcome.elapsedMs() == null ? null : outcome.elapsedMs().intValue())
+                .request(buildDraftRequest(resolved.spec().requestConfig()))
+                .response(buildDraftResponse(sample))
+                .validatorResults(List.of())
+                .extractedVariables(Map.of())
+                .build()).build();
+    }
+
+    @Override
+    public ApiSceneDraftExecuteRespDTO draftExecute(UUID workspaceId, UUID projectId, UUID userId,
+            ApiSceneDraftExecuteReqDTO reqDTO) {
+        projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
+        List<ApiSceneDraftExecuteReqDTO.DraftStep> steps = reqDTO.getSteps() == null ? List.of() : reqDTO.getSteps();
+        if (steps.isEmpty()) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.VALIDATION_FAILED, "场景没有可执行步骤");
+        }
+        DebugRyzeConverter.EnvSnapshot env =
+                environmentSnapshotFactory.resolve(projectId, reqDTO.getEnvironmentId());
+        List<Map<String, Object>> sceneVariables = toVariableMapList(reqDTO.getSceneVariables());
+
+        long start = System.currentTimeMillis();
+        boolean stopOnFailure = true;
+        int passed = 0;
+        int failed = 0;
+        int skipped = 0;
+        String overall = "success";
+        List<ApiSceneDraftExecuteRespDTO.StepResult> results = new ArrayList<>();
+
+        // 组装所有启用步骤的 StepSpec 与 sampler 级变量；失效步骤预置为 skipped
+        List<Integer> enabledIndexes = new ArrayList<>();
+        List<SceneRyzeConverter.StepSpec> specList = new ArrayList<>();
+        List<Map<String, Object>> perStepVars = new ArrayList<>();
+        for (int i = 0; i < steps.size(); i++) {
+            ApiSceneDraftExecuteReqDTO.DraftStep step = steps.get(i);
+            if (!Boolean.TRUE.equals(step.getEnabled())) {
+                skipped++;
+                results.add(ApiSceneDraftExecuteRespDTO.StepResult.builder()
+                        .status("skipped").name(step.getName()).build());
+                continue;
+            }
+            ResolvedSpec resolved = resolveDraftSpec(step.getName(),
+                    step.getRequestConfig(), step.getValidators(), step.getExtractors());
+            if (resolved.errorMessage() != null) {
+                failed++;
+                overall = "failed";
+                results.add(ApiSceneDraftExecuteRespDTO.StepResult.builder()
+                        .status("error").name(step.getName())
+                        .errorMessage(resolved.errorMessage()).build());
+                if (stopOnFailure) {
+                    results.addAll(skippedRemaining(steps, i + 1));
+                    skipped = countStatus(results, "skipped");
+                    break;
+                }
+                continue;
+            }
+            enabledIndexes.add(i);
+            specList.add(resolved.spec());
+            perStepVars.add(variablesToMaps(step.getStepVariables()));
+        }
+
+        if (!specList.isEmpty()) {
+            Map<String, Object> suiteVariables = SceneRyzeConverter.buildSuiteVariables(env, sceneVariables);
+            Map<String, Object> suite = SceneRyzeConverter.buildSuite(
+                    reqDTO.getName() == null || reqDTO.getName().isBlank() ? "草稿场景" : reqDTO.getName(),
+                    env, suiteVariables, perStepVars, specList);
+            StepOutcome suiteOutcome = runSingle(suite, projectId);
+            List<io.github.xiaomisum.ryze.Result> children = suiteOutcome.sampleResults();
+            int childIdx = 0;
+            if (suiteOutcome.errorMessage() != null) {
+                overall = "error";
+            }
+            for (int k = 0; k < enabledIndexes.size(); k++) {
+                ApiSceneDraftExecuteReqDTO.DraftStep step = steps.get(enabledIndexes.get(k));
+                if (childIdx < children.size()) {
+                    StepOutcome outcome = extractChildOutcome(children.get(childIdx));
+                    boolean ok = "success".equals(outcome.status());
+                    if (ok) {
+                        passed++;
+                    } else {
+                        failed++;
+                        overall = "failed";
+                    }
+                    results.add(toDraftStepResult(step.getName(), outcome, specList.get(k)));
+                    childIdx++;
+                    if (stopOnFailure && !ok) {
+                        results.addAll(skippedRemaining(steps, enabledIndexes.get(k) + 1));
+                        skipped = countStatus(results, "skipped");
+                        break;
+                    }
+                }
+            }
+        }
+        return ApiSceneDraftExecuteRespDTO.builder()
+                .status(overall)
+                .passed(passed)
+                .failed(failed)
+                .skipped(skipped)
+                .durationMs(System.currentTimeMillis() - start)
+                .steps(results)
+                .build();
+    }
+
+    /** 由 DTO 变量行转为 Ryze 变量 Map（name 为空跳过；步骤变量覆盖场景同名变量由 Ryze 处理） */
+    private Map<String, Object> variablesToMaps(List<?> variables) {
+        Map<String, Object> result = new LinkedHashMap<>();
+        if (variables == null) {
+            return result;
+        }
+        for (Object item : variables) {
+            Map<String, Object> row = toVariableMap(item);
+            Object name = row.get("name");
+            if (name != null && !name.toString().isBlank()) {
+                result.put(name.toString(), row.get("value"));
+            }
+        }
+        return result;
+    }
+
+    /** 草稿调试/执行入参的场景变量转 List<Map>，供 buildSuiteVariables 合并环境变量 */
+    private List<Map<String, Object>> toVariableMapList(List<?> variables) {
+        List<Map<String, Object>> result = new ArrayList<>();
+        if (variables == null) {
+            return result;
+        }
+        for (Object item : variables) {
+            Map<String, Object> row = toVariableMap(item);
+            Object name = row.get("name");
+            if (name != null && !name.toString().isBlank()) {
+                LinkedHashMap<String, Object> entry = new LinkedHashMap<>();
+                entry.put("name", name.toString());
+                entry.put("value", row.get("value"));
+                result.add(entry);
+            }
+        }
+        return result;
+    }
+
+    private ResolvedSpec resolveDraftSpec(String name, Map<String, Object> config,
+            List<Map<String, Object>> validators, List<Map<String, Object>> extractors) {
+        if (config == null || config.isEmpty()) {
+            return new ResolvedSpec(null, "步骤缺少请求配置");
+        }
+        return new ResolvedSpec(new SceneRyzeConverter.StepSpec(names(name),
+                config, orEmpty(validators), orEmpty(extractors)), null);
+    }
+
+    private Map<String, Object> buildDraftRequest(Map<String, Object> config) {
+        Map<String, Object> request = new LinkedHashMap<>();
+        request.put("method", config.getOrDefault("method", "GET"));
+        request.put("url", config.get("url"));
+        return request;
+    }
+
+    private Map<String, Object> buildDraftResponse(StepOutcome outcome) {
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("status", outcome.responseStatus());
+        response.put("headers", outcome.responseHeaders());
+        response.put("body", outcome.responseBody() == null ? null
+                : parseJsonSafely(truncate(outcome.responseBody(),
+                        properties.getDebug().getMaxResponseBodyChars())));
+        response.put("errorMessage", outcome.errorMessage());
+        return response;
+    }
+
+    private ApiSceneDraftExecuteRespDTO.StepResult toDraftStepResult(String name, StepOutcome outcome,
+            SceneRyzeConverter.StepSpec spec) {
+        return ApiSceneDraftExecuteRespDTO.StepResult.builder()
+                .status(outcome.status())
+                .name(name)
+                .durationMs(outcome.elapsedMs() == null ? null : outcome.elapsedMs().intValue())
+                .request(buildDraftRequest(spec.requestConfig()))
+                .response(buildDraftResponse(outcome))
+                .errorMessage(outcome.errorMessage())
+                .build();
+    }
+
+    private List<ApiSceneDraftExecuteRespDTO.StepResult> skippedRemaining(
+            List<ApiSceneDraftExecuteReqDTO.DraftStep> steps, int from) {
+        List<ApiSceneDraftExecuteRespDTO.StepResult> result = new ArrayList<>();
+        for (int i = Math.max(0, from); i < steps.size(); i++) {
+            result.add(ApiSceneDraftExecuteRespDTO.StepResult.builder()
+                    .status("skipped").name(steps.get(i).getName()).build());
+        }
+        return result;
+    }
+
+    private int countStatus(List<ApiSceneDraftExecuteRespDTO.StepResult> results, String status) {
+        return (int) results.stream().filter(r -> status.equals(r.getStatus())).count();
+    }
+
+    private String names(String name) {
+        return name == null || name.isBlank() ? "步骤" : name;
     }
 
     // ========== 历史 ==========
@@ -563,24 +770,21 @@ public class SceneExecutionServiceImpl implements SceneExecutionService {
         return scene;
     }
 
-    private ApiSceneStep requireStep(UUID projectId, UUID sceneId, UUID stepId) {
-        ApiSceneStep step = stepMapper.selectById(stepId);
-        if (step == null || !step.getSceneId().equals(sceneId)) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.API_SCENE_STEP_NOT_FOUND);
-        }
-        ApiScene scene = sceneMapper.selectById(sceneId);
-        if (scene == null || !projectId.equals(scene.getProjectId())) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.API_SCENE_STEP_NOT_FOUND);
-        }
-        return step;
+    /** 在场景 steps 中按 id 查找步骤 map，未找到或不属于场景则抛 API_SCENE_STEP_NOT_FOUND */
+    private Map<String, Object> requireStep(List<Map<String, Object>> steps, UUID stepId) {
+        return SceneStepUtil.requireStep(steps, stepId);
     }
 
     /** 步骤级变量（sampler 级），与场景变量分离，由 Ryze context chain 自动覆盖 suite 级同名变量 */
-    private Map<String, Object> buildStepVariables(List<Map<String, Object>> sceneVariables, UUID stepId) {
+    private Map<String, Object> buildStepVariables(List<Map<String, Object>> sceneVariables,
+            Map<String, Object> step) {
         Map<String, Object> variables = new LinkedHashMap<>();
         // 步骤级变量覆盖场景同名变量
-        for (ApiSceneStepVariable row : stepVariableMapper.listByStepId(stepId)) {
-            variables.put(row.getName(), row.getValue());
+        for (Map<String, Object> row : SceneStepUtil.getList(step, "variables")) {
+            Object name = row.get("name");
+            if (name != null && !name.toString().isBlank()) {
+                variables.put(name.toString(), row.get("value"));
+            }
         }
         return variables;
     }
@@ -593,10 +797,11 @@ public class SceneExecutionServiceImpl implements SceneExecutionService {
         return map;
     }
 
-    private Map<String, Object> toReportEntry(ApiSceneStep step, ResolvedSpec spec, StepOutcome outcome) {
+    private Map<String, Object> toReportEntry(Map<String, Object> step, ResolvedSpec spec, StepOutcome outcome) {
         Map<String, Object> entry = new LinkedHashMap<>();
-        entry.put("stepId", step.getId().toString());
-        entry.put("name", step.getName());
+        UUID stepId = SceneStepUtil.getUUID(step, "id");
+        entry.put("stepId", stepId != null ? stepId.toString() : null);
+        entry.put("name", SceneStepUtil.getString(step, "name", null));
         entry.put("status", outcome.status());
         if (spec.spec() != null) {
             // 请求快照取解析后的配置（链接步骤为源定义最新值），与单步调试口径一致
@@ -614,7 +819,7 @@ public class SceneExecutionServiceImpl implements SceneExecutionService {
         entry.put("errorMessage", outcome.errorMessage());
         entry.put("durationMs", outcome.elapsedMs());
         // Ryze SampleResult 无断言级明细，验证器仅落配置供报告展示，通过与否以步骤状态为准
-        List<Map<String, Object>> validators = orEmpty(step.getValidators()).stream()
+        List<Map<String, Object>> validators = orEmpty(SceneStepUtil.getList(step, "validators")).stream()
                 .map(this::normalizeValidatorSnapshot).toList();
         if (!validators.isEmpty()) {
             entry.put("validators", validators);
@@ -632,10 +837,11 @@ public class SceneExecutionServiceImpl implements SceneExecutionService {
         return snapshot;
     }
 
-    private Map<String, Object> skippedEntry(ApiSceneStep step) {
+    private Map<String, Object> skippedEntry(Map<String, Object> step) {
         Map<String, Object> entry = new LinkedHashMap<>();
-        entry.put("stepId", step.getId().toString());
-        entry.put("name", step.getName());
+        UUID stepId = SceneStepUtil.getUUID(step, "id");
+        entry.put("stepId", stepId != null ? stepId.toString() : null);
+        entry.put("name", SceneStepUtil.getString(step, "name", null));
         entry.put("status", "skipped");
         return entry;
     }
@@ -682,8 +888,8 @@ public class SceneExecutionServiceImpl implements SceneExecutionService {
         return list == null ? List.of() : list;
     }
 
-    private record RunContext(ApiExecutionRecord record, ApiScene scene, List<ApiSceneStep> steps,
-            List<Map<String, Object>> sceneVariables, DebugRyzeConverter.EnvSnapshot env, String failureRule) {
+    private record RunContext(ApiExecutionRecord record, ApiScene scene, List<Map<String, Object>> steps,
+            List<Map<String, Object>> sceneVariables, DebugRyzeConverter.EnvSnapshot env) {
     }
 
     /** 步骤规格解析结果：errorMessage 非空表示无法执行 */

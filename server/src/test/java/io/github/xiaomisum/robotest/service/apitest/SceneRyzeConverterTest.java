@@ -106,11 +106,13 @@ class SceneRyzeConverterTest {
 
         Map<String, Object> form = new java.util.LinkedHashMap<>(base);
         form.put("url", "/f");
-        form.put("body", Map.of("type", "form", "content", "a=1"));
+        form.put("body", Map.of("type", "form", "content",
+                List.of(Map.of("key", "a", "value", "1", "enabled", true),
+                        Map.of("key", "skip", "value", "x", "enabled", false))));
         Map<?, ?> formConfig = (Map<?, ?>) firstSampler(
                 SceneRyzeConverter.buildSuite("s", env(), Map.of(), List.of(),
                         List.of(new SceneRyzeConverter.StepSpec("t", form, List.of(), List.of())))).get("config");
-        assertEquals("a=1", formConfig.get("data"));
+        assertEquals(Map.of("a", "1"), formConfig.get("data"));
         assertFalse(formConfig.containsKey("body"));
     }
 
