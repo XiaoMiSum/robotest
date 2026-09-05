@@ -123,7 +123,6 @@ public class ErrorCodeConstants {
     public static final ErrorCode API_SCENE_VERSION_CONFLICT = ErrorCode.of(1000017303, "场景已被他人修改，请刷新后重试");
     public static final ErrorCode API_SCENE_SETTING_INVALID = ErrorCode.of(1000017304, "场景设置项非法：{}");
     public static final ErrorCode API_SCENE_STEP_NOT_FOUND = ErrorCode.of(1000017305, "场景步骤不存在或不属于当前场景");
-    public static final ErrorCode API_SCENE_INTERFACE_EXISTS = ErrorCode.of(1000017306, "接口已关联到当前场景");
 
     // ========== 接口测试——报告与分享 1,000,017,311-1,000,017,312 ==========
     public static final ErrorCode API_REPORT_NOT_FOUND = ErrorCode.of(1000017311, "报告不存在或不属于当前项目");

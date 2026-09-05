@@ -1,5 +1,5 @@
 server:
-  port: ${PORT:8080}
+  port: ${PORT:58080}
 
 spring:
   application:
@@ -88,7 +88,7 @@ migoo:
     mode: jwt
     jwt:
       secret-key: ${JWT_SECRET_KEY:9aef92670f10242388d55d2ffc0eeb43}
-      access-token-expires: PT24H
+      access-token-expires: PT1M
       refresh-token-expires: P7D
       header-name: Authorization
       refresh-header-name: X-Refresh-Token
@@ -97,6 +97,8 @@ migoo:
     permit-all-urls:
       - /api/auth/login
       - /api/auth/logout
+      # 刷新接口仅信任请求头中的 refresh token，无 access token，必须匿名可达（migoo-framework 6.5）
+      - /api/auth/refresh
       - /api/auth/init/**
       - /api/workspace/invitations/verify
       - /api/workspace/invitations/check-email
