@@ -11,7 +11,6 @@ import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiMockDebugRespD
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiMockDetailRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiMockIdRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiMockItemRespDTO;
-import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiMockMoveRespDTO;
 import io.github.xiaomisum.robotest.service.apitest.ApiMockService;
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
@@ -180,26 +179,6 @@ public class ApiMockController {
             @RequestBody @Valid ApiMockDebugReqDTO reqDTO) {
         // 调试为只读模拟命中，不产生持久化数据（详细设计 3.2.1）
         return Result.ok(apiMockService.debug(workspaceId, projectId, loginUser.getId(), id, reqDTO));
-    }
-
-    @PostMapping("/{id}/move-up")
-    @PreAuthorize("hasAuthority('api-mock:edit')")
-    public Result<ApiMockMoveRespDTO> moveUp(
-            @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
-            @PathVariable UUID id) {
-        return Result.ok(apiMockService.moveUp(workspaceId, projectId, loginUser.getId(), id));
-    }
-
-    @PostMapping("/{id}/move-down")
-    @PreAuthorize("hasAuthority('api-mock:edit')")
-    public Result<ApiMockMoveRespDTO> moveDown(
-            @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
-            @PathVariable UUID id) {
-        return Result.ok(apiMockService.moveDown(workspaceId, projectId, loginUser.getId(), id));
     }
 
 }

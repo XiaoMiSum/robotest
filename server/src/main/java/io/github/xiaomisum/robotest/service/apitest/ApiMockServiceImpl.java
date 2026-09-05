@@ -11,7 +11,6 @@ import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiMockDebugRespD
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiMockDetailRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiMockIdRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiMockItemRespDTO;
-import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiMockMoveRespDTO;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiInterface;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiMockDefinition;
 import io.github.xiaomisum.robotest.repository.apitest.ApiInterfaceMapper;
@@ -26,11 +25,9 @@ import xyz.migoo.framework.common.pojo.PageResult;
 import xyz.migoo.framework.common.util.JsonUtils;
 
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.UUID;
 
 import static io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants.API_INTERFACE_NOT_FOUND;
@@ -269,58 +266,6 @@ public class ApiMockServiceImpl implements ApiMockService {
         result.setBody(parseBody(response.bodyType(), response.body()));
         result.setDurationMs(duration);
         return result;
-    }
-
-    @Override
-    public ApiMockMoveRespDTO moveUp(UUID workspaceId, UUID projectId, UUID userId, UUID id) {
-        return move(workspaceId, projectId, userId, id, -1);
-    }
-
-    @Override
-    public ApiMockMoveRespDTO moveDown(UUID workspaceId, UUID projectId, UUID userId, UUID id) {
-        return move(workspaceId, projectId, userId, id, 1);
-    }
-
-    private ApiMockMoveRespDTO move(UUID workspaceId, UUID projectId, UUID userId, UUID id, int direction) {
-        projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
-        ApiMockDefinition definition = getOwned(projectId, id);
-        List<ApiMockDefinition> group = mockMapper.selectGroup(projectId, definition.getMethod(), definition.getPath())
-                .stream()
-                .sorted(Comparator.comparing(ApiMockDefinition::getPriority,
-                                Comparator.nullsLast(Comparator.naturalOrder()))
-                        .thenComparing(ApiMockDefinition::getCreatedAt))
-                .toList();
-        int index = -1;
-        for (int i = 0; i < group.size(); i++) {
-            if (id.equals(group.get(i).getId())) {
-                index = i;
-                break;
-            }
-        }
-        int targetIndex = index + direction;
-        // 组内边界与单规则组不可移动（详细设计 3.1.12：跨组由前端置灰拦截）
-        if (index < 0 || group.size() < 2 || targetIndex < 0 || targetIndex >= group.size()) {
-            return new ApiMockMoveRespDTO(false);
-        }
-        // 与相邻规则交换优先级序号；序号相同时按目标位次重排保证交换生效
-        Integer ownPriority = group.get(index).getPriority();
-        Integer neighborPriority = group.get(targetIndex).getPriority();
-        if (!Objects.equals(ownPriority, neighborPriority)) {
-            updatePriority(group.get(index).getId(), neighborPriority);
-            updatePriority(group.get(targetIndex).getId(), ownPriority);
-        } else {
-            int step = direction < 0 ? -1 : 1;
-            updatePriority(group.get(index).getId(), neighborPriority + step);
-        }
-        return new ApiMockMoveRespDTO(true);
-    }
-
-    /** C9 部分更新：优先级交换仅写 id + priority */
-    private void updatePriority(UUID id, Integer priority) {
-        ApiMockDefinition carrier = new ApiMockDefinition();
-        carrier.setId(id);
-        carrier.setPriority(priority);
-        mockMapper.updateById(carrier);
     }
 
     // ==================== 内部方法 ====================
