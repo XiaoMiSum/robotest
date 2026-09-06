@@ -63,8 +63,8 @@
       <div class="processor-form__section-head">
         <h4 class="processor-form__section-title">提取器（可选）</h4>
         <div class="processor-form__extractor-actions">
-          <el-button size="small" @click="addExtractor">+ 添加提取器</el-button>
-          <el-button size="small" plain @click="emit('import-extractors')">从公共组件获取</el-button>
+          <el-button size="small" link type="primary" @click="addExtractor">+ 添加提取器</el-button>
+          <el-button size="small" link type="primary" @click="emit('import-extractors')">从公共组件获取</el-button>
         </div>
       </div>
       <div class="processor-form__list">
