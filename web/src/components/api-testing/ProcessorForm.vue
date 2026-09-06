@@ -9,145 +9,41 @@
     </el-form-item>
     <p v-else-if="!state.testclass" class="processor-form__hint">请在上方选择处理器类型</p>
 
-    <!-- 配置信息：HTTP 请求分区（请求行 + Tabs 布局对齐步骤 RequestConfigEditor；path 为相对路径，故不放导入 cURL） -->
+    <!-- 配置信息：HTTP 请求分区（复用步骤 RequestConfigEditor：请求行 + KeyValueTable + 分段请求体；path 相对语义故隐藏导入 cURL） -->
     <template v-if="state.testclass === 'http'">
       <section class="processor-form__section">
-        <h4 class="processor-form__section-title">HTTP 请求配置</h4>
-        <el-form label-position="top">
-          <el-form-item label="引用配置 (ref)">
-            <el-select v-model="state.http.ref" placeholder="选择环境 HTTP 配置">
-              <el-option v-for="opt in httpOptions" :key="opt.refName ?? opt.name" :label="optionLabel(opt.name, opt.refName)" :value="opt.refName ?? ''" />
-            </el-select>
-          </el-form-item>
-        </el-form>
-        <div class="processor-form__request-line">
-          <el-select v-model="state.http.method" class="processor-form__method">
-            <el-option v-for="m in HTTP_METHODS" :key="m" :label="m" :value="m" />
+        <div class="processor-form__ref-row">
+          <label class="processor-form__ref-label">引用配置</label>
+          <el-select v-model="state.http.ref" placeholder="选择环境 HTTP 配置" class="processor-form__ref-select">
+            <el-option v-for="opt in httpOptions" :key="opt.refName ?? opt.name" :label="optionLabel(opt.name, opt.refName)" :value="opt.refName ?? ''" />
           </el-select>
-          <el-input v-model="state.http.path" placeholder="/token" class="processor-form__path" />
         </div>
-        <el-tabs v-model="httpTab" class="processor-form__tabs">
-          <el-tab-pane name="headers">
-            <template #label>
-              <span class="processor-form__tab-label">
-                请求头
-                <span v-if="headersBadge" class="processor-form__badge">{{ headersBadge }}</span>
-              </span>
-            </template>
-            <table class="processor-form__kv-table">
-              <thead>
-                <tr>
-                  <th>Key</th>
-                  <th>Value</th>
-                  <th class="processor-form__kv-op" />
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="(item, index) in state.http.headerRows" :key="index" class="processor-form__kv-tr">
-                  <td><el-input v-model="item.key" size="small" placeholder="Key" /></td>
-                  <td><el-input v-model="item.value" size="small" placeholder="Value" /></td>
-                  <td class="processor-form__kv-op">
-                    <el-button link size="small" type="danger" @click="removeRow(state.http.headerRows, index)">✕</el-button>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-            <el-button size="small" @click="state.http.headerRows.push({ key: '', value: '' })">+ 添加请求头</el-button>
-          </el-tab-pane>
-
-          <el-tab-pane name="query">
-            <template #label>
-              <span class="processor-form__tab-label">
-                Query 参数
-                <span v-if="queryBadge" class="processor-form__badge">{{ queryBadge }}</span>
-              </span>
-            </template>
-            <table class="processor-form__kv-table">
-              <thead>
-                <tr>
-                  <th>Key</th>
-                  <th>Value</th>
-                  <th class="processor-form__kv-op" />
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="(item, index) in state.http.queryRows" :key="index" class="processor-form__kv-tr">
-                  <td><el-input v-model="item.key" size="small" placeholder="参数名" /></td>
-                  <td><el-input v-model="item.value" size="small" placeholder="Value" /></td>
-                  <td class="processor-form__kv-op">
-                    <el-button link size="small" type="danger" @click="removeRow(state.http.queryRows, index)">✕</el-button>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-            <el-button size="small" @click="state.http.queryRows.push({ key: '', value: '' })">+ 添加 Query 参数</el-button>
-          </el-tab-pane>
-
-          <el-tab-pane name="body">
-            <template #label>
-              <span class="processor-form__tab-label">
-                请求体
-                <span v-if="bodyBadge" class="processor-form__badge">{{ bodyBadge }}</span>
-              </span>
-            </template>
-            <div class="processor-form__body">
-              <div class="processor-form__body-types">
-                <button
-                  v-for="t in BODY_KINDS"
-                  :key="t.value"
-                  class="processor-form__body-type"
-                  :class="{ 'is-active': state.http.bodyKind === t.value }"
-                  @click="state.http.bodyKind = t.value"
-                >
-                  {{ t.label }}
-                </button>
-              </div>
-
-              <p v-if="state.http.bodyKind === 'none'" class="processor-form__body-hint">该请求不携带请求体。</p>
-
-              <table v-else-if="state.http.bodyKind === 'form'" class="processor-form__kv-table">
-                <thead>
-                  <tr>
-                    <th>Key</th>
-                    <th>Value</th>
-                    <th class="processor-form__kv-op" />
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="(item, index) in state.http.formRows" :key="index" class="processor-form__kv-tr">
-                    <td><el-input v-model="item.key" size="small" placeholder="Key" /></td>
-                    <td><el-input v-model="item.value" size="small" placeholder="Value" /></td>
-                    <td class="processor-form__kv-op">
-                      <el-button link size="small" type="danger" @click="removeRow(state.http.formRows, index)">✕</el-button>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-
-              <textarea
-                v-else
-                v-model="state.http.bodyText"
-                class="processor-form__body-editor"
-                :placeholder="state.http.bodyKind === 'json' ? '{&quot;key&quot;: &quot;value&quot;}' : '原始文本（支持变量引用）'"
-                spellcheck="false"
-                :rows="12"
-              />
-            </div>
-          </el-tab-pane>
-        </el-tabs>
+        <RequestConfigEditor
+          :method="state.http.method"
+          :url="state.http.path"
+          :headers="editorHeaders"
+          :params="editorQuery"
+          :body="editorBody"
+          hide-curl-import
+          @update:method="onMethod"
+          @update:url="onUrl"
+          @update:headers="onHeaders"
+          @update:params="onQuery"
+          @update:body="onBody"
+        />
       </section>
     </template>
 
-    <!-- 配置信息：SQL 分区（config 键与 Ryze jdbc 处理器一致） -->
+    <!-- 配置信息：SQL 分区（config 键与 Ryze jdbc 处理器一致；数据源 label 与选择器同行） -->
     <template v-if="state.testclass === 'jdbc'">
       <section class="processor-form__section">
-        <h4 class="processor-form__section-title">SQL 配置</h4>
+        <div class="processor-form__ref-row">
+          <label class="processor-form__ref-label">数据源</label>
+          <el-select v-model="state.jdbc.ref" placeholder="选择环境数据源" class="processor-form__ref-select">
+            <el-option v-for="opt in dsOptions" :key="opt.refName ?? opt.name" :label="optionLabel(opt.name, opt.refName)" :value="opt.refName ?? ''" />
+          </el-select>
+        </div>
         <el-form label-position="top">
-          <el-form-item label="数据源 (ref)">
-            <el-select v-model="state.jdbc.ref" placeholder="选择环境数据源">
-              <el-option v-for="opt in dsOptions" :key="opt.refName ?? opt.name" :label="optionLabel(opt.name, opt.refName)" :value="opt.refName ?? ''" />
-            </el-select>
-          </el-form-item>
           <el-form-item label="SQL 语句 (sql)">
             <el-input v-model="state.jdbc.sql" type="textarea" :rows="4" placeholder="SELECT * FROM table WHERE id = ?" />
           </el-form-item>
@@ -162,41 +58,46 @@
       </section>
     </template>
 
-    <!-- 提取器（可选）：从处理器响应中提取变量供后续步骤使用，行卡片式与步骤断言/提取器一致 -->
+    <!-- 提取器（可选）：与步骤同款行卡片（switch + 来源 + 表达式 + 变量名 + 删除） -->
     <section class="processor-form__section">
       <h4 class="processor-form__section-title">提取器（可选）</h4>
-      <div v-for="(extractor, index) in state.extractors" :key="index" class="processor-form__extractor-card">
-        <el-switch v-model="extractor.enabled" size="small" />
-        <el-select v-model="extractor.source" size="small" class="processor-form__extractor--source" placeholder="提取来源">
-          <el-option label="响应体" value="body" />
-          <el-option label="响应头" value="header" />
-          <el-option label="状态码" value="status" />
-        </el-select>
-        <el-input v-model="extractor.expression" size="small" class="processor-form__extractor--flex" placeholder="表达式（如 $.data.token）" />
-        <el-input v-model="extractor.variableName" size="small" class="processor-form__extractor--flex" placeholder="目标变量名" />
-        <el-input v-model="extractor.description" size="small" class="processor-form__extractor--flex" placeholder="描述" />
-        <el-button link size="small" type="danger" @click="removeExtractor(index)">✕</el-button>
-      </div>
-      <div class="processor-form__extractor-actions">
-        <el-button size="small" @click="addExtractor">+ 添加提取器</el-button>
-        <el-button size="small" plain @click="emit('import-extractors')">从公共组件获取</el-button>
+      <div class="processor-form__list">
+        <div v-for="(extractor, index) in state.extractors" :key="index" class="processor-form__extractor-card">
+          <div class="processor-form__extractor-row">
+            <el-switch v-model="extractor.enabled" size="small" />
+            <el-select v-model="extractor.source" size="small" class="processor-form__field--source" placeholder="提取来源">
+              <el-option v-for="s in EXTRACTOR_SOURCES" :key="s.value" :value="s.value" :label="s.label" />
+            </el-select>
+            <el-input v-model="extractor.expression" size="small" placeholder="表达式" class="processor-form__field--flex" />
+            <el-input v-model="extractor.variableName" size="small" placeholder="变量名" class="processor-form__field--flex" />
+            <el-button link size="small" type="danger" @click="removeExtractor(index)">删除</el-button>
+          </div>
+        </div>
+        <div class="processor-form__extractor-actions">
+          <el-button size="small" @click="addExtractor">+ 添加提取器</el-button>
+          <el-button size="small" plain @click="emit('import-extractors')">从公共组件获取</el-button>
+        </div>
       </div>
     </section>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from 'vue'
-import {
-  HTTP_METHODS,
-  parseProcessorElement,
-  toProcessorElement,
-} from './processorFormModel'
+import { computed, reactive, watch } from 'vue'
+import { parseProcessorElement, toProcessorElement } from './processorFormModel'
 import type { ProcessorElementForm } from './processorFormModel'
+import { EXTRACTOR_SOURCES } from '@/pages/project/scenesModel'
+import RequestConfigEditor from '@/pages/project/scenes/RequestConfigEditor.vue'
 
-interface KvRow {
+interface ResultEditorRow {
   key: string
   value: string
+  enabled: boolean
+}
+
+interface ResultEditorBody {
+  type: string
+  content: unknown
 }
 
 /** ref 下拉选项：环境 http 配置 / 数据源的最小结构（结构性满足 ApiHttpConfig / ApiDataSource） */
@@ -222,30 +123,58 @@ const emit = defineEmits<{
   (e: 'import-extractors'): void
 }>()
 
-type BodyKind = ProcessorElementForm['http']['bodyKind']
-const BODY_KINDS: { value: BodyKind; label: string }[] = [
-  { value: 'none', label: '无' },
-  { value: 'json', label: 'JSON' },
-  { value: 'form', label: '表单' },
-  { value: 'raw', label: '原始文本' },
-]
+const state = reactive<ProcessorElementForm>(parseProcessorElement(props.modelValue))
 
-// HTTP 请求行 + Tabs 布局（对齐步骤 RequestConfigEditor）；Tabs 内容按需惰性渲染
-const httpTab = ref<'headers' | 'query' | 'body'>('headers')
-
-function nonEmptyKeyCount(rows: { key: string }[]): number {
-  return rows.filter((row) => row.key.trim()).length
-}
-
-const headersBadge = computed<number | string>(() => nonEmptyKeyCount(state.http.headerRows))
-const queryBadge = computed<number | string>(() => nonEmptyKeyCount(state.http.queryRows))
-const bodyBadge = computed<number | string>(() => {
-  if (state.http.bodyKind === 'none') return ''
-  if (state.http.bodyKind === 'form') return nonEmptyKeyCount(state.http.formRows) || ''
-  return state.http.bodyText.trim() ? 1 : ''
+// —— RequestConfigEditor 双向绑定映射（headers/query 的启用态与 body 的分段类型收敛于此）——
+// 处理器为 Ryze map（无启用态），路径语义为相对 path，故编辑器行统一开启、body 用 bodyKind 直通
+const editorHeaders = computed<ResultEditorRow[]>(() => state.http.headerRows.map((row) => ({ key: row.key, value: row.value, enabled: row.enabled ?? true })))
+const editorQuery = computed<ResultEditorRow[]>(() => state.http.queryRows.map((row) => ({ key: row.key, value: row.value, enabled: row.enabled ?? true })))
+const editorBody = computed<ResultEditorBody>(() => {
+  // 复用步骤请求体编辑态的三态映射：form → urlencoded 行三元组，json/raw → 文本直通（content 结构见 buildBodyFromEditState）
+  if (state.http.bodyKind === 'form') {
+    return { type: 'form', content: state.http.formRows.map((row) => ({ key: row.key, value: row.value, enabled: row.enabled ?? true })) }
+  }
+  return { type: state.http.bodyKind, content: state.http.bodyText }
 })
 
-const state = reactive<ProcessorElementForm>(parseProcessorElement(props.modelValue))
+const onHeaders = (rows: ResultEditorRow[]) => {
+  state.http.headerRows = rows.map((row) => ({ key: row.key, value: row.value, enabled: row.enabled ?? true }))
+}
+const onQuery = (rows: ResultEditorRow[]) => {
+  state.http.queryRows = rows.map((row) => ({ key: row.key, value: row.value, enabled: row.enabled ?? true }))
+}
+const onBody = (body: ResultEditorBody) => {
+  const kind = body.type as ProcessorElementForm['http']['bodyKind']
+  state.http.bodyKind = kind
+  if (kind === 'form') {
+    // 步骤编辑器回送的是 urlencoded 三元组，需拆回 formRows（bodyText 在 form 下不参与落库）
+    const rows = Array.isArray(body.content) ? body.content : []
+    state.http.formRows = rows.map((entry) => {
+      const item = entry as Record<string, unknown>
+      return { key: String(item.key ?? ''), value: String(item.value ?? ''), enabled: item.enabled !== false }
+    })
+    state.http.bodyText = ''
+    return
+  }
+  // json 回送的是 JSON.parse 后的对象，raw 回送原始文本；统一还原为可序列化文本
+  const content = body.content
+  let text: string
+  if (kind === 'json' && typeof content === 'object' && content !== null) {
+    text = JSON.stringify(content)
+  } else if (kind === 'none') {
+    text = ''
+  } else {
+    text = typeof content === 'string' ? content : String(content ?? '')
+  }
+  state.http.bodyText = text
+}
+
+function onMethod(method: string) {
+  state.http.method = method
+}
+function onUrl(url: string) {
+  state.http.path = url
+}
 
 watch(() => props.modelValue, (val) => {
   const incoming = val ?? {}
@@ -278,7 +207,7 @@ function optionLabel(name: string, refName?: string): string {
   return refName ? `${name}（${refName}）` : name
 }
 
-function removeRow(rows: KvRow[] | string[], index: number) {
+function removeRow(rows: string[], index: number) {
   rows.splice(index, 1)
 }
 
@@ -312,154 +241,60 @@ const removeExtractor = (index: number) => {
   font-size: var(--font-size-sm);
 }
 
-// 请求行：方法与 path 同行（对齐步骤 RequestConfigEditor）
-.processor-form__request-line {
+// 引用配置 / 数据源：label 与选择器同行
+.processor-form__ref-row {
   display: flex;
+  align-items: center;
   gap: var(--space-sm);
 }
 
-.processor-form__method {
-  width: 120px;
+.processor-form__ref-label {
+  flex: 0 0 72px;
+  font-size: var(--font-size-sm);
+  color: var(--color-neutral-600);
 }
 
-.processor-form__path {
+.processor-form__ref-select {
   flex: 1;
+  min-width: 0;
 }
 
-.processor-form__tabs {
-  :deep(.el-tabs__header) {
-    margin: 0;
-  }
-}
-
-.processor-form__tab-label {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.processor-form__badge {
-  display: inline-block;
-  min-width: 16px;
-  height: 16px;
-  line-height: 16px;
-  padding: 0 4px;
-  border-radius: 8px;
-  background: var(--color-primary);
-  color: #fff;
-  font-size: 10px;
-  text-align: center;
-}
-
-// 键值表格：对齐步骤 KeyValueTable，处理器为 Ryze map（无行启用态）故省略 enabled 列
-.processor-form__kv-table {
-  width: 100%;
-  border-collapse: collapse;
-
-  th {
-    text-align: left;
-    font-weight: 500;
-    font-size: 11px;
-    color: var(--color-neutral-400);
-    text-transform: uppercase;
-    padding: 0 6px 8px 0;
-    border-bottom: 1px solid var(--color-neutral-100);
-  }
-}
-
-.processor-form__kv-op {
-  width: 30px;
-  text-align: center;
-  vertical-align: middle;
-}
-
-.processor-form__kv-tr {
-  transition: background 0.1s;
-
-  td {
-    padding: 4px 6px 4px 0;
-  }
-
-  &:hover {
-    background: var(--color-neutral-50);
-  }
-}
-
-// 请求体：分段类型按钮 + 表单表格 / 深色文本编辑器（镜像 RequestConfigEditor）
-.processor-form__body {
+// 提取器行卡片：对齐步骤断言行（step-inline__card / __card-bottom 同构）
+.processor-form__list {
   display: flex;
   flex-direction: column;
   gap: var(--space-sm);
 }
 
-.processor-form__body-types {
+.processor-form__extractor-card {
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: var(--radius-md);
+  padding: var(--space-sm) var(--space-md);
+}
+
+.processor-form__extractor-row {
   display: flex;
   align-items: center;
-  gap: 2px;
-  background: var(--color-neutral-50);
-  border-radius: 6px;
-  padding: 2px;
-  width: fit-content;
-  flex-wrap: wrap;
+  gap: var(--space-sm);
+  flex-wrap: nowrap;
 }
 
-.processor-form__body-type {
-  height: 28px;
-  padding: 0 12px;
-  display: inline-flex;
+.processor-form__field--source {
+  flex: 0 0 240px;
+}
+
+.processor-form__field--flex {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.processor-form__extractor-actions {
+  display: flex;
+  gap: var(--space-md);
   align-items: center;
-  font-size: 12px;
-  border: none;
-  background: none;
-  border-radius: 4px;
-  cursor: pointer;
-  color: var(--color-neutral-500);
-  transition: all 0.15s;
-
-  &:hover {
-    color: var(--color-neutral-700);
-  }
-
-  &.is-active {
-    background: var(--color-primary);
-    color: #fff;
-    font-weight: 500;
-  }
 }
 
-.processor-form__body-hint {
-  padding: var(--space-lg);
-  text-align: center;
-  color: var(--color-neutral-400);
-  margin: 0;
-}
-
-.processor-form__body-editor {
-  width: 100%;
-  min-height: 160px;
-  max-height: 400px;
-  resize: vertical;
-  padding: 12px;
-  font-family: ui-monospace, SFMono-Regular, monospace;
-  font-size: 12px;
-  line-height: 1.6;
-  color: #d4d4d4;
-  background: #1e1e1e;
-  border: 1px solid #333;
-  border-radius: 6px;
-  outline: none;
-  tab-size: 2;
-
-  &::placeholder {
-    color: #555;
-  }
-
-  &:focus {
-    border-color: var(--color-primary);
-  }
-}
-
-// 键值/参数行：对齐步骤编辑器 arg-row（小号输入 + ✕ 删除）
+// JDBC 参数行：小号输入 + ✕ 删除（对齐步骤 arg-row）
 .processor-form__kv-row {
   display: flex;
   align-items: center;
@@ -469,32 +304,5 @@ const removeExtractor = (index: number) => {
   :deep(.el-input) {
     flex: 1;
   }
-}
-
-// 提取器行卡片：对齐步骤断言行（step-inline__card）
-.processor-form__extractor-card {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-  flex-wrap: nowrap;
-  border: 1px solid var(--el-border-color-lighter);
-  border-radius: var(--radius-md);
-  padding: var(--space-sm) var(--space-md);
-  margin-bottom: var(--space-xs);
-}
-
-.processor-form__extractor--source {
-  flex: 0 0 240px;
-}
-
-.processor-form__extractor--flex {
-  flex: 1 1 0;
-  min-width: 0;
-}
-
-.processor-form__extractor-actions {
-  display: flex;
-  gap: var(--space-md);
-  align-items: center;
 }
 </style>
