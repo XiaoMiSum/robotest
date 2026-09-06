@@ -2,7 +2,7 @@
 import { computed, onMounted, onUnmounted, ref, watch, type ComponentPublicInstance } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { MagicStick, Collection, Plus, Rank } from '@element-plus/icons-vue'
-import type { ApiSceneDetail, ApiSceneStepItem, ApiSceneStepDebugResp, ApiSceneVariableItem, ApiExecutionHistoryItem, ApiChangeHistoryItem, ApiEnvironmentListItem, ApiComponentListItem, ApiComponentType, ProjectModule, ApiDataSource, ApiHttpConfig, ApiVariable } from '@/types'
+import type { ApiSceneDetail, ApiSceneStepItem, ApiSceneStepDebugResp, ApiSceneVariableItem, ApiExecutionHistoryItem, ApiChangeHistoryItem, ApiEnvironmentListItem, ApiComponentListItem, ApiComponentType, ProjectModule, ApiDataSource, ApiHttpConfig, ApiVariable, ApiDebugKeyValue } from '@/types'
 import type { CascaderOption } from 'element-plus'
 import {
   createScene,
@@ -35,6 +35,7 @@ import InterfacePickerDialog from './scenes/InterfacePickerDialog.vue'
 import StepDebugResultDialog from './scenes/StepDebugResultDialog.vue'
 import SceneVariableHelperDialog from './scenes/SceneVariableHelperDialog.vue'
 import FunctionHelperDialog from './FunctionHelperDialog.vue'
+import KeyValueTable from './debug/KeyValueTable.vue'
 
 const props = defineProps<{ sceneId?: string; createMode?: boolean; moduleId?: string }>()
 const emit = defineEmits<{ (e: 'back'): void; (e: 'edit', id: string): void; (e: 'title-update', name: string): void; (e: 'dirty-change', dirty: boolean): void }>()
@@ -185,7 +186,7 @@ async function handleSave(status?: string): Promise<boolean> {
         environmentId: editEnvironmentId.value,
         priority: editPriority.value,
         status: editStatus.value,
-        variables: detail.value.variables,
+        variables: sceneVariablePayload(),
         processors: editProcessors.value,
         steps: detail.value.steps
           .slice()
@@ -217,7 +218,7 @@ async function handleSave(status?: string): Promise<boolean> {
         environmentId: editEnvironmentId.value,
         priority: editPriority.value,
         status: editStatus.value,
-        variables: editVariables.value.filter((v) => v.name.trim()),
+        variables: sceneVariablePayload(),
         processors: editProcessors.value,
         steps: draftSteps.value.map((s) => ({
           name: s.name,
@@ -434,7 +435,7 @@ async function handleRun() {
       const resp = await executeDraftScene({
         name: editName.value.trim() || undefined,
         environmentId: editEnvironmentId.value,
-        sceneVariables: editVariables.value.filter((v) => v.name.trim()),
+        sceneVariables: sceneVariablePayload(),
         steps: draftSteps.value.map((s) => ({
           name: s.name,
           stepType: s.stepType,
@@ -472,14 +473,25 @@ async function handleRun() {
 }
 
 // ==================== 变量管理 ====================
-const editVariables = ref<{ name: string; value: string; description: string }[]>([])
+const editVariables = ref<ApiDebugKeyValue[]>([])
 
 watch(detail, (d) => {
-  if (d) editVariables.value = d.variables.map((v: ApiSceneVariableItem) => ({ ...v, value: v.value ?? '', description: v.description ?? '' }))
+  if (d) {
+    editVariables.value = d.variables.map((v: ApiSceneVariableItem) => ({ key: v.name, value: v.value ?? '', description: v.description ?? '', enabled: true }))
+  }
 })
 
-function addVariable() { editVariables.value.push({ name: '', value: '', description: '' }) }
-function removeVariable(index: number) { editVariables.value.splice(index, 1) }
+/** 序列化为提交结构：key 即变量名，过滤空行与空名 */
+function sceneVariablePayload(): ApiSceneVariableItem[] {
+  return editVariables.value
+    .filter((v) => v.key.trim())
+    .map((v) => ({ name: v.key.trim(), value: v.value || undefined, description: v.description || undefined }))
+}
+
+/** 变量助手按 name/value 展示，类型对齐其 props 声明 */
+const sceneVariablesForHelper = computed(() =>
+  editVariables.value.filter((v) => v.key.trim()).map((v) => ({ name: v.key, value: v.value, description: v.description ?? '' }))
+)
 
 // ==================== Tabs 头部：函数助手 / 变量助手 ====================
 
@@ -978,14 +990,13 @@ onMounted(async () => {
         <el-tab-pane label="场景变量" name="variables">
           <div class="scene-editor__section-head">
             <span>场景变量</span>
-            <el-button size="small" @click="addVariable">+ 添加变量</el-button>
           </div>
-          <div v-for="(v, i) in editVariables" :key="i" class="scene-editor__variable-row">
-            <el-input v-model="v.name" placeholder="变量名" />
-            <el-input v-model="v.value" placeholder="值（支持 ${} 引用）" />
-            <el-input v-model="v.description" placeholder="描述" />
-            <el-button link size="small" type="danger" @click="removeVariable(i)">✕</el-button>
-          </div>
+          <KeyValueTable
+            v-model:entries="editVariables"
+            placeholder-key="变量名"
+            show-description
+            :show-enabled="false"
+          />
         </el-tab-pane>
 
         <el-tab-pane label="前置处理器" name="pre">
@@ -1231,7 +1242,7 @@ onMounted(async () => {
       v-model="showVariableHelper"
       :environment-variables="envVariables"
       :environment-name="envVariablesName"
-      :scene-variables="editVariables"
+      :scene-variables="sceneVariablesForHelper"
     />
   </div>
 </template>
@@ -1523,17 +1534,6 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   gap: var(--space-xs);
-}
-
-.scene-editor__variable-row {
-  display: flex;
-  align-items: center;
-  gap: var(--space-xs);
-  margin-bottom: var(--space-xs);
-
-  :deep(.el-input) {
-    flex: 1;
-  }
 }
 
 // ==================== 处理器：左列表 + 右明细（对齐步骤 tab） ====================
