@@ -24,8 +24,6 @@ const props = defineProps<{
   headers?: KvRow[]
   params?: KvRow[]
   body?: { type: string; content: unknown }
-  /** 复用该编辑器但入参语义非完整 URL（如处理器相对 path）时隐藏导入 cURL */
-  hideCurlImport?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -106,43 +104,6 @@ function formatJsonBody() {
   }
 }
 
-// ==================== cURL 导入 ====================
-const showCurlImport = ref(false)
-const curlText = ref('')
-
-function parseCurl(curl: string) {
-  const trimmed = curl.trim().replace(/\\\n/g, ' ').replace(/\\/g, ' ')
-  const methodMatch = trimmed.match(/-X\s+(\w+)/)
-  if (methodMatch) editMethod.value = methodMatch[1].toUpperCase()
-
-  const urlMatch = trimmed.match(/(?:curl\s+)?['"]?(https?:\/\/[^\s'"]+)['"]?/)
-  if (urlMatch) editUrl.value = urlMatch[1]
-
-  const headerRegex = /-H\s+['"]([^'"]+)['"]/g
-  let hm: RegExpExecArray | null
-  const headers: ApiDebugKeyValue[] = []
-  while ((hm = headerRegex.exec(trimmed)) !== null) {
-    const [key, ...rest] = hm[1].split(':')
-    if (key) headers.push({ key: key.trim(), value: rest.join(':').trim(), enabled: true, description: '' })
-  }
-  if (headers.length) editHeaders.value = headers
-
-  const dataMatch = trimmed.match(/-d\s+['"](.+?)['"]/s) || trimmed.match(/--data\s+['"](.+?)['"]/s)
-  if (dataMatch) {
-    const text = dataMatch[1]
-    bodyState.value = {
-      kind: 'raw',
-      rawSubtype: /^\s*[{[]/.test(text.trim()) ? 'json' : 'text',
-      rawText: text,
-      urlencodedRows: [],
-    }
-    editHeaders.value = syncBodyContentTypeHeader(editHeaders.value, bodyState.value)
-  }
-
-  showCurlImport.value = false
-  curlText.value = ''
-  emitAll()
-}
 </script>
 
 <template>
@@ -158,7 +119,6 @@ function parseCurl(curl: string) {
         class="req-config-editor__url"
         @update:model-value="(v: string) => { editUrl = v; emitAll() }"
       />
-      <el-button v-if="!props.hideCurlImport" size="small" @click="showCurlImport = true">导入 cURL</el-button>
     </div>
 
     <!-- ==================== Tabs: 请求头 / Query 参数 / 请求体 ==================== -->
@@ -242,15 +202,6 @@ function parseCurl(curl: string) {
         </div>
       </el-tab-pane>
     </el-tabs>
-
-    <!-- cURL 导入弹窗 -->
-    <el-dialog v-model="showCurlImport" title="导入 cURL 命令" width="560px">
-      <el-input v-model="curlText" type="textarea" :rows="8" placeholder="粘贴 cURL 命令..." />
-      <template #footer>
-        <el-button @click="showCurlImport = false">取消</el-button>
-        <el-button type="primary" :disabled="!curlText.trim()" @click="parseCurl(curlText)">导入</el-button>
-      </template>
-    </el-dialog>
   </div>
 </template>
 
