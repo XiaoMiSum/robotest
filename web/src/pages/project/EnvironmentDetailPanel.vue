@@ -4,13 +4,13 @@ import { ElMessage } from 'element-plus'
 import type {
   ApiComponentListItem,
   ApiDataSourcePayload,
+  ApiDebugKeyValue,
   ApiEnvironmentDetail,
   ApiEnvironmentSaveReq,
   ApiHeaderItem,
   ApiHttpConfigPayload,
   ApiProcessor,
   ApiProcessorType,
-  ApiVariable,
 } from '@/types'
 import { fetchEnvironmentDetail, testDataSourceConfig, testHttpConfig, updateEnvironment } from '@/services/apiEnvironment'
 import {
@@ -47,9 +47,14 @@ interface DsForm extends ApiDataSourcePayload {
   id: string
 }
 
+/** 变量编辑行：key=变量名，enabled 恒 true（数据模型无启用语义，仅适配 KeyValueTable） */
+interface VariableRow extends ApiDebugKeyValue {
+  id: string
+}
+
 const configForms = ref<ConfigForm[]>([])
 const dsForms = ref<DsForm[]>([])
-const variableRows = ref<ApiVariable[]>([])
+const variableRows = ref<VariableRow[]>([])
 const processorRows = ref<ApiProcessor[]>([])
 const activeTab = ref<'http' | 'variables' | 'datasources' | 'processors'>('http')
 const activeConfigId = ref('')
@@ -76,10 +81,9 @@ function hydrate(next: ApiEnvironmentDetail) {
   }))
   dsForms.value = next.dataSources.map((ds) => ({ ...ds, id: nextLocalId() }))
   variableRows.value = next.variables
-    .map((row) => ({ ...row, id: nextLocalId() }))
-    .sort((a, b) => a.name.localeCompare(b.name))
+    .map((row) => ({ id: nextLocalId(), key: row.name, value: row.value ?? '', description: row.description ?? '', enabled: true }))
+    .sort((a, b) => a.key.localeCompare(b.key))
   processorRows.value = next.processors.map((processor) => ({ ...processor, id: nextLocalId() }))
-  variablePage.value = 1
   if (!configForms.value.some((config) => config.id === activeConfigId.value)) {
     activeConfigId.value = configForms.value[0]?.id ?? ''
   }
@@ -160,33 +164,10 @@ async function runHttpTest(form: ConfigForm) {
   }
 }
 
-// ==================== 全局变量（就地编辑，聚合提交） ====================
+// ==================== 全局变量（KeyValueTable 就地编辑，聚合提交） ====================
 
-const editingVariableId = ref('')
-/** 行数超过 10 条时分页展示（交互设计 3.5） */
-const VARIABLE_PAGE_SIZE = 10
-const variablePage = ref(1)
-const pagedVariableRows = computed(() => {
-  const start = (variablePage.value - 1) * VARIABLE_PAGE_SIZE
-  return variableRows.value.slice(start, start + VARIABLE_PAGE_SIZE)
-})
-
-function addVariableRow() {
-  const row: ApiVariable = {
-    id: nextLocalId(),
-    name: '',
-    value: '',
-    description: '',
-    hasValue: false,
-  }
-  variableRows.value.push(row)
-  editingVariableId.value = row.id ?? ''
-}
-
-function removeVariableRow(row: ApiVariable) {
-  variableRows.value = variableRows.value.filter((item) => item !== row)
-  if (editingVariableId.value === row.id) editingVariableId.value = ''
-}
+/** tab 徽标按有效变量计数，不把 KeyValueTable 自动补的末行空行算入 */
+const variableCount = computed(() => variableRows.value.filter((row) => row.key.trim()).length)
 
 // ==================== 数据源（就地编辑，交互同 HTTP：左列表 + 右内联表单） ====================
 
@@ -389,14 +370,14 @@ function validateAll(): string | null {
     if (!ds.driver?.trim()) return `数据源「${ds.name}」未选择驱动`
     if (!ds.url?.trim()) return `数据源「${ds.name}」缺少连接 URL`
   }
-  const namedVariables = variableRows.value.filter((row) => row.name)
+  const namedVariables = variableRows.value.filter((row) => row.key)
   for (let index = 0; index < namedVariables.length; index += 1) {
     const row = namedVariables[index]
-    const others = new Set(namedVariables.map((other) => other.name))
-    others.delete(row.name)
-    const error = validateVariableRow(row, others)
+    const others = new Set(namedVariables.map((other) => other.key))
+    others.delete(row.key)
+    const error = validateVariableRow({ name: row.key, value: row.value }, others)
     if (error) {
-      return `变量 ${row.name || '(未命名)'}：${error}`
+      return `变量 ${row.key || '(未命名)'}：${error}`
     }
   }
   for (const processor of processorRows.value) {
@@ -414,8 +395,8 @@ function buildAggregatePayload(): ApiEnvironmentSaveReq {
     headers: (config.headers ?? []).filter((header) => header.key.trim() || header.value.trim()),
   }))
   const variables = variableRows.value
-    .filter((row) => row.name.trim())
-    .map((row) => ({ name: row.name.trim(), value: row.value || undefined, description: row.description || undefined }))
+    .filter((row) => row.key.trim())
+    .map((row) => ({ name: row.key.trim(), value: row.value || undefined, description: row.description || undefined }))
   const dataSources = dsForms.value.map((ds) => ({
     name: ds.name.trim(),
     refName: ds.refName || undefined,
@@ -526,60 +507,13 @@ async function saveAll() {
           </div>
         </el-tab-pane>
         <!-- ============ 全局变量 ============ -->
-        <el-tab-pane :label="`变量 (${variableRows.length})`" name="variables">
-          <div class="env-detail__toolbar env-detail__toolbar--right">
-            <el-button type="primary" :disabled="!canEdit" @click="addVariableRow">
-              <el-icon><Plus /></el-icon>新增变量
-            </el-button>
-          </div>
-          <el-table :data="pagedVariableRows" size="small" empty-text="暂无变量，点击右上角添加">
-            <el-table-column label="变量名" width="200">
-              <template #default="{ row }">
-                <el-input
-                  v-if="row.id === editingVariableId && canEdit"
-                  v-model="row.name"
-                  placeholder="仅字母/数字/下划线"
-                  size="small"
-                />
-                <span v-else class="env-detail__mono">{{ row.name }}</span>
-              </template>
-            </el-table-column>
-            <el-table-column label="取值">
-              <template #default="{ row }">
-                <el-input
-                  v-if="row.id === editingVariableId && canEdit"
-                  v-model="row.value"
-                  placeholder="变量取值"
-                  size="small"
-                />
-                <span v-else class="env-detail__mono">{{ row.value || '-' }}</span>
-              </template>
-            </el-table-column>
-            <el-table-column label="描述" min-width="140">
-              <template #default="{ row }">
-                <el-input
-                  v-if="row.id === editingVariableId && canEdit"
-                  v-model="row.description"
-                  size="small"
-                />
-                <span v-else>{{ row.description || '-' }}</span>
-              </template>
-            </el-table-column>
-            <el-table-column label="操作" width="120" fixed="right">
-              <template #default="{ row }">
-                <el-button v-if="canEdit" link @click="editingVariableId = row.id">编辑</el-button>
-                <el-button v-if="canEdit" link type="danger" @click="removeVariableRow(row as ApiVariable)">删除</el-button>
-              </template>
-            </el-table-column>
-          </el-table>
-          <el-pagination
-            v-if="variableRows.length > VARIABLE_PAGE_SIZE"
-            v-model:current-page="variablePage"
-            :page-size="VARIABLE_PAGE_SIZE"
-            :total="variableRows.length"
-            layout="prev, pager, next"
-            size="small"
-            class="env-detail__pager"
+        <el-tab-pane :label="`变量 (${variableCount})`" name="variables">
+          <KeyValueTable
+            v-model:entries="variableRows"
+            placeholder-key="变量名"
+            show-description
+            :show-enabled="false"
+            :disabled="!canEdit"
           />
           <p class="env-detail__syntax-tip">
             引用语法：<code>${变量名}</code>，如 <code>${BASE_URL}</code>
@@ -890,12 +824,6 @@ async function saveAll() {
   }
 }
 
-.env-detail__mono {
-  font-family: var(--font-family-mono, monospace);
-  font-size: var(--font-size-xs);
-  word-break: break-all;
-}
-
 .env-detail__empty {
   text-align: center;
   padding: var(--space-xl) 0;
@@ -904,10 +832,6 @@ async function saveAll() {
   p {
     margin-bottom: var(--space-sm);
   }
-}
-
-.env-detail__pager {
-  margin-top: var(--space-sm);
 }
 
 .env-detail__syntax-tip {
