@@ -9,10 +9,11 @@ export interface ProcessorExtractor {
   description: string
 }
 
-/** 键值对编辑器行（请求头 / Query / 表单） */
+/** 键值对编辑器行（请求头 / Query / 表单；enabled 仅编辑态承载，Ryze map 序列化时跳过未启用行） */
 export interface ProcessorKvRow {
   key: string
   value: string
+  enabled?: boolean
 }
 
 /** 请求体编辑类型，与 Ryze `data`（表单）/`body`（JSON/原始）对应 */
@@ -99,19 +100,20 @@ function readConfig(element: Record<string, unknown> | undefined): Record<string
   return element && isRecord(element.config) ? element.config : {}
 }
 
-/** kv 行 → Map（忽略空键，供保存为 Ryze headers/query/data） */
+/** kv 行 → Map（忽略空键与未启用行，供保存为 Ryze headers/query/data） */
 export function kvRowsToMap(rows: ProcessorKvRow[]): Record<string, string> {
   const out: Record<string, string> = {}
   rows.forEach((row) => {
+    if (row.enabled === false) return
     const key = row.key.trim()
     if (key) out[key] = row.value
   })
   return out
 }
 
-/** Map → kv 行（供表单回填） */
+/** Map → kv 行（供表单回填；新行默认启用） */
 export function mapToKvRows(map: Record<string, string> | undefined): ProcessorKvRow[] {
-  return Object.entries(map ?? {}).map(([key, value]) => ({ key, value }))
+  return Object.entries(map ?? {}).map(([key, value]) => ({ key, value, enabled: true }))
 }
 
 /** 请求体 JSON 文本 → 对象；解析失败保留原文本，避免破坏用户输入 */

@@ -191,11 +191,22 @@ describe('processorFormModel', () => {
 
   describe('kvRowsToMap / mapToKvRows', () => {
     it('drops rows with empty keys', () => {
-      expect(kvRowsToMap([{ key: '', value: 'x' }, { key: 'A', value: '1' }])).toEqual({ A: '1' })
+      expect(kvRowsToMap([{ key: '', value: 'x', enabled: true }, { key: 'A', value: '1', enabled: true }])).toEqual({ A: '1' })
     })
 
-    it('round-trips a map through rows', () => {
-      expect(mapToKvRows({ A: '1', B: '2' })).toEqual([{ key: 'A', value: '1' }, { key: 'B', value: '2' }])
+    it('skips rows explicitly disabled (map has no enabled state in Ryze config)', () => {
+      expect(kvRowsToMap([
+        { key: 'A', value: '1', enabled: false },
+        { key: 'B', value: '2', enabled: true },
+        { key: 'C', value: '3' },
+      ])).toEqual({ B: '2', C: '3' })
+    })
+
+    it('round-trips a map through rows with enabled defaulted on', () => {
+      expect(mapToKvRows({ A: '1', B: '2' })).toEqual([
+        { key: 'A', value: '1', enabled: true },
+        { key: 'B', value: '2', enabled: true },
+      ])
       expect(mapToKvRows(undefined)).toEqual([])
     })
   })
@@ -351,7 +362,7 @@ describe('processorFormModel', () => {
         config: { data: { k: 'v' }, body: { a: 1 } },
       })
       expect(element.http.bodyKind).toBe('form')
-      expect(element.http.formRows).toEqual([{ key: 'k', value: 'v' }])
+      expect(element.http.formRows).toEqual([{ key: 'k', value: 'v', enabled: true }])
     })
   })
 

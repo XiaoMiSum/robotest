@@ -24,6 +24,8 @@ const props = defineProps<{
   headers?: KvRow[]
   params?: KvRow[]
   body?: { type: string; content: unknown }
+  /** 复用该编辑器但入参语义非完整 URL（如处理器相对 path）时隐藏导入 cURL */
+  hideCurlImport?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -156,7 +158,7 @@ function parseCurl(curl: string) {
         class="req-config-editor__url"
         @update:model-value="(v: string) => { editUrl = v; emitAll() }"
       />
-      <el-button size="small" @click="showCurlImport = true">导入 cURL</el-button>
+      <el-button v-if="!props.hideCurlImport" size="small" @click="showCurlImport = true">导入 cURL</el-button>
     </div>
 
     <!-- ==================== Tabs: 请求头 / Query 参数 / 请求体 ==================== -->
