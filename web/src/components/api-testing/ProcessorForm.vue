@@ -58,9 +58,15 @@
       </section>
     </template>
 
-    <!-- 提取器（可选）：与步骤同款行卡片（switch + 来源 + 表达式 + 变量名 + 删除） -->
+    <!-- 提取器（可选）：行卡片 + 标题行右侧操作（与步骤同款卡片，操作钮挂标题行避免列表底部留白） -->
     <section class="processor-form__section">
-      <h4 class="processor-form__section-title">提取器（可选）</h4>
+      <div class="processor-form__section-head">
+        <h4 class="processor-form__section-title">提取器（可选）</h4>
+        <div class="processor-form__extractor-actions">
+          <el-button size="small" @click="addExtractor">+ 添加提取器</el-button>
+          <el-button size="small" plain @click="emit('import-extractors')">从公共组件获取</el-button>
+        </div>
+      </div>
       <div class="processor-form__list">
         <div v-for="(extractor, index) in state.extractors" :key="index" class="processor-form__extractor-card">
           <div class="processor-form__extractor-row">
@@ -72,10 +78,6 @@
             <el-input v-model="extractor.variableName" size="small" placeholder="变量名" class="processor-form__field--flex" />
             <el-button link size="small" type="danger" @click="removeExtractor(index)">删除</el-button>
           </div>
-        </div>
-        <div class="processor-form__extractor-actions">
-          <el-button size="small" @click="addExtractor">+ 添加提取器</el-button>
-          <el-button size="small" plain @click="emit('import-extractors')">从公共组件获取</el-button>
         </div>
       </div>
     </section>
@@ -233,6 +235,14 @@ const removeExtractor = (index: number) => {
   font-size: var(--font-size-sm);
   font-weight: 600;
   color: var(--color-neutral-600);
+}
+
+// 提取器标题行：标题居左、操作钮居右（水平对齐）
+.processor-form__section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
 }
 
 .processor-form__hint {
