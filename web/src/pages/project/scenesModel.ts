@@ -1,5 +1,6 @@
-import type { ApiDebugKeyValue, ApiDebugRawSubtype, ApiSceneStepItem, ApiSceneStepVariableItem } from '@/types'
+import type { ApiComponentListItem, ApiDebugKeyValue, ApiDebugRawSubtype, ApiSceneStepItem, ApiSceneStepVariableItem } from '@/types'
 import { FORM_ENCODED_CONTENT_TYPE, RAW_SUBTYPE_CONTENT_TYPE } from './debugModel'
+import { parseComponentConfig } from '@/components/api-testing/processorFormModel'
 
 /** 步骤类型选项 */
 export const STEP_TYPE_OPTIONS = [
@@ -132,6 +133,42 @@ export function serializeExtractors(items: ExtractorItem[]): Record<string, unkn
   return items
     .filter((e) => e.source?.trim() && e.variableName?.trim())
     .map((e) => ({ ...e, name: e.name?.trim() || `提取器 ${e.source}` }))
+}
+
+/** 读取字符串字段，非字符串或空串回退默认值（组件 config 直通存储，字段可能缺失） */
+function pickString(value: unknown, fallback = ''): string {
+  return typeof value === 'string' ? value.trim() : fallback
+}
+
+/** 验证器资产 → 步骤验证器行（复制引入，独立副本；target/condition 与 VALIDATOR_* 回读一致） */
+export function stepValidatorsFromComponents(items: ApiComponentListItem[]): ValidatorItem[] {
+  return items.map((item) => {
+    const cfg = parseComponentConfig(item.config)
+    return {
+      id: crypto.randomUUID(),
+      name: item.name,
+      enabled: true,
+      target: pickString(cfg.target, 'status_code'),
+      condition: pickString(cfg.condition, 'equals'),
+      expression: pickString(cfg.expression),
+      expected: pickString(cfg.expected),
+    }
+  })
+}
+
+/** 提取器资产 → 步骤提取器行（复制引入，独立副本；source 与 EXTRACTOR_SOURCES 回读一致） */
+export function stepExtractorsFromComponents(items: ApiComponentListItem[]): ExtractorItem[] {
+  return items.map((item) => {
+    const cfg = parseComponentConfig(item.config)
+    return {
+      id: crypto.randomUUID(),
+      name: item.name,
+      enabled: true,
+      source: pickString(cfg.source, 'json_field'),
+      expression: pickString(cfg.expression),
+      variableName: pickString(cfg.variableName),
+    }
+  })
 }
 
 // ==================== 步骤变量 ====================

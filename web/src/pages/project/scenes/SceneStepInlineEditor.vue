@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
-import type { ApiSceneStepItem } from '@/types'
+import { ElMessage } from 'element-plus'
+import type { ApiComponentListItem, ApiComponentType, ApiSceneStepItem } from '@/types'
 import { fetchEnvironmentDetail } from '@/services/apiEnvironment'
+import { fetchComponents } from '@/services/apiComponent'
+import ExtractorAssetPicker from '@/components/api-testing/ExtractorAssetPicker.vue'
 import {
   STEP_TYPE_OPTIONS,
   parseRequestConfig,
@@ -11,6 +14,8 @@ import {
   createExtractor,
   serializeValidators,
   serializeExtractors,
+  stepValidatorsFromComponents,
+  stepExtractorsFromComponents,
   VALIDATOR_TARGETS,
   VALIDATOR_CONDITIONS,
   EXTRACTOR_SOURCES,
@@ -103,6 +108,61 @@ function addValidator() { validators.value.push(createValidator()) }
 function removeValidator(i: number) { validators.value.splice(i, 1) }
 function addExtractor() { extractors.value.push(createExtractor()) }
 function removeExtractor(i: number) { extractors.value.splice(i, 1) }
+
+// ==================== 从公共组件获取（验证器/提取器，复制引入） ====================
+type StepAssetKind = 'validator' | 'extractor'
+const STEP_ASSET_TYPE: Record<StepAssetKind, ApiComponentType> = {
+  validator: 'validator',
+  extractor: 'extractor',
+}
+const STEP_ASSET_TITLE: Record<StepAssetKind, string> = {
+  validator: '从公共组件获取验证器',
+  extractor: '从公共组件获取提取器',
+}
+const STEP_ASSET_NAME: Record<StepAssetKind, string> = {
+  validator: '验证器',
+  extractor: '提取器',
+}
+const assetPickerVisible = ref(false)
+const assetPickerLoading = ref(false)
+const assetPickerItems = ref<ApiComponentListItem[]>([])
+const assetPickerKeyword = ref('')
+const assetPickerKind = ref<StepAssetKind>('validator')
+
+async function loadAssetPicker(): Promise<void> {
+  assetPickerLoading.value = true
+  try {
+    const result = await fetchComponents({
+      type: STEP_ASSET_TYPE[assetPickerKind.value],
+      enabled: true,
+      pageNo: 1,
+      pageSize: 100,
+      keyword: assetPickerKeyword.value.trim() || undefined,
+    })
+    assetPickerItems.value = result.list
+  } catch {
+    ElMessage.error('公共组件加载失败')
+  } finally {
+    assetPickerLoading.value = false
+  }
+}
+
+function openAssetPicker(kind: StepAssetKind) {
+  assetPickerKind.value = kind
+  assetPickerKeyword.value = ''
+  assetPickerVisible.value = true
+  void loadAssetPicker()
+}
+
+function handleAssetPicked(rows: ApiComponentListItem[]) {
+  if (rows.length === 0) return
+  if (assetPickerKind.value === 'validator') {
+    validators.value.push(...stepValidatorsFromComponents(rows))
+  } else {
+    extractors.value.push(...stepExtractorsFromComponents(rows))
+  }
+  ElMessage.success(`已引入 ${rows.length} 个${STEP_ASSET_NAME[assetPickerKind.value]}`)
+}
 
 function buildRequestConfig(): Record<string, unknown> {
   if (formStepType.value === 'jdbc') {
@@ -205,7 +265,13 @@ watch(
       </template>
 
       <section class="step-inline__section">
-        <h4 class="step-inline__section-title">断言</h4>
+        <div class="step-inline__section-head">
+          <h4 class="step-inline__section-title">断言</h4>
+          <div class="step-inline__section-actions">
+            <el-button size="small" link type="primary" @click="addValidator">+ 添加断言</el-button>
+            <el-button size="small" link type="primary" @click="openAssetPicker('validator')">从公共组件获取</el-button>
+          </div>
+        </div>
         <div class="step-inline__list">
           <div v-for="(v, i) in validators" :key="i" class="step-inline__card">
             <div class="step-inline__card-bottom">
@@ -221,12 +287,17 @@ watch(
               <el-button link size="small" type="danger" @click="removeValidator(i)">删除</el-button>
             </div>
           </div>
-          <el-button size="small" @click="addValidator">+ 添加断言</el-button>
         </div>
       </section>
 
       <section class="step-inline__section">
-        <h4 class="step-inline__section-title">提取器</h4>
+        <div class="step-inline__section-head">
+          <h4 class="step-inline__section-title">提取器</h4>
+          <div class="step-inline__section-actions">
+            <el-button size="small" link type="primary" @click="addExtractor">+ 添加提取器</el-button>
+            <el-button size="small" link type="primary" @click="openAssetPicker('extractor')">从公共组件获取</el-button>
+          </div>
+        </div>
         <div class="step-inline__list">
           <div v-for="(e, i) in extractors" :key="i" class="step-inline__card">
             <div class="step-inline__card-bottom">
@@ -239,11 +310,22 @@ watch(
               <el-button link size="small" type="danger" @click="removeExtractor(i)">删除</el-button>
             </div>
           </div>
-          <el-button size="small" @click="addExtractor">+ 添加提取器</el-button>
         </div>
       </section>
     </div>
   </div>
+
+  <!-- 从公共组件获取 验证器/提取器 -->
+  <ExtractorAssetPicker
+    v-model="assetPickerVisible"
+    :loading="assetPickerLoading"
+    :items="assetPickerItems"
+    :keyword="assetPickerKeyword"
+    :title="STEP_ASSET_TITLE[assetPickerKind]"
+    @update:keyword="assetPickerKeyword = $event"
+    @search="loadAssetPicker"
+    @confirm="handleAssetPicked"
+  />
 </template>
 
 <style scoped lang="scss">
@@ -297,6 +379,20 @@ watch(
     font-size: var(--font-size-sm);
     font-weight: 600;
     color: var(--color-neutral-600);
+  }
+
+  // 断言/提取器标题行：标题居左、操作钮居右（与处理器提取器对齐）
+  &__section-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-sm);
+  }
+
+  &__section-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
   }
 
   &__list {

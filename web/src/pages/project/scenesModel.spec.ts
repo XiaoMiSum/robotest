@@ -9,6 +9,8 @@ import {
   serializeValidators,
   createExtractor,
   serializeExtractors,
+  stepValidatorsFromComponents,
+  stepExtractorsFromComponents,
   createStepVariable,
   parseRequestConfig,
   buildEmptyRequestConfig,
@@ -25,7 +27,7 @@ import {
   resolveBodyContentType,
   syncBodyContentTypeHeader,
 } from './scenesModel'
-import type { ApiDebugKeyValue, ApiSceneStepItem } from '@/types'
+import type { ApiComponentListItem, ApiDebugKeyValue, ApiSceneStepItem } from '@/types'
 
 function step(overrides: Partial<ApiSceneStepItem> = {}): ApiSceneStepItem {
   return {
@@ -172,6 +174,30 @@ describe('scenesModel', () => {
       expect(result).toHaveLength(1)
       expect(result[0].variableName).toBe('token_value')
       expect(result[0].name).toBe('提取器 json_field')
+    })
+  })
+
+  describe('stepValidatorsFromComponents', () => {
+    it('maps validator assets to step validator rows with fallbacks', () => {
+      const rows = stepValidatorsFromComponents([
+        { name: 'code 校验', config: JSON.stringify({ target: 'json_field', condition: 'contains', expression: '$.code', expected: '200' }) } as unknown as ApiComponentListItem,
+        { name: '空配置', config: null } as unknown as ApiComponentListItem,
+      ])
+      expect(rows[0]).toMatchObject({ name: 'code 校验', enabled: true, target: 'json_field', condition: 'contains', expression: '$.code', expected: '200' })
+      expect(rows[1]).toMatchObject({ name: '空配置', enabled: true, target: 'status_code', condition: 'equals', expression: '', expected: '' })
+      expect(rows[0].id).toBeTruthy()
+      expect(rows[1].id).not.toBe(rows[0].id)
+    })
+  })
+
+  describe('stepExtractorsFromComponents', () => {
+    it('maps extractor assets to step extractor rows with fallbacks', () => {
+      const rows = stepExtractorsFromComponents([
+        { name: '取 token', config: JSON.stringify({ source: 'regex', expression: 'token=(.+?)', variableName: 'token' }) } as unknown as ApiComponentListItem,
+        { name: '空配置', config: '' } as unknown as ApiComponentListItem,
+      ])
+      expect(rows[0]).toMatchObject({ name: '取 token', enabled: true, source: 'regex', expression: 'token=(.+?)', variableName: 'token' })
+      expect(rows[1]).toMatchObject({ name: '空配置', enabled: true, source: 'json_field', expression: '', variableName: '' })
     })
   })
 
