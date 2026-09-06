@@ -932,8 +932,8 @@ onMounted(async () => {
               <div class="scene-editor__section-head">
                 <span>{{ (isCreateMode ? draftSteps : sorted).length }} 个步骤</span>
                 <div class="scene-editor__section-actions">
-                  <el-button size="small" @click="handleQuickAddStep">从接口添加</el-button>
-                  <el-button size="small" :type="isCreateMode ? 'primary' : 'default'" @click="isCreateMode ? handleDraftAddStep() : handleAddStep()">+ 添加步骤</el-button>
+                  <el-button size="small" link type="primary" @click="handleQuickAddStep">从接口添加</el-button>
+                  <el-button size="small" link type="primary" @click="isCreateMode ? handleDraftAddStep() : handleAddStep()">+ 添加步骤</el-button>
                 </div>
               </div>
               <StepCanvas
@@ -941,7 +941,6 @@ onMounted(async () => {
                 :steps="isCreateMode ? draftSteps : sorted"
                 :selected-id="selectedStep?.id ?? null"
                 :is-executing="false"
-                @add="isCreateMode ? handleDraftAddStep() : handleAddStep()"
                 @edit="handleSelectStep"
                 @delete="(s) => isCreateMode ? handleDraftDeleteStep(s) : handleDeleteStep(s)"
                 @toggle="(s) => isCreateMode ? handleDraftToggleStep(s) : handleToggleStep(s)"

@@ -5,7 +5,6 @@ import { methodTagType, stepMethod, stepSqlType } from '../scenesModel'
 
 const props = defineProps<{ steps: ApiSceneStepItem[]; isExecuting?: boolean; selectedId?: string | null }>()
 const emit = defineEmits<{
-  (e: 'add'): void
   (e: 'edit', step: ApiSceneStepItem): void
   (e: 'delete', step: ApiSceneStepItem): void
   (e: 'toggle', step: ApiSceneStepItem): void
@@ -143,10 +142,6 @@ function moveDown(index: number) {
         @drop="() => onDrop(steps.length)"
       />
     </div>
-
-    <el-button class="step-canvas__add" data-test="step-add-btn" @click="emit('add')">
-      <el-icon><Plus /></el-icon> 添加步骤
-    </el-button>
   </div>
 </template>
 
@@ -291,11 +286,5 @@ function moveDown(index: number) {
 
 .step-canvas__detail-item {
   margin-top: 2px;
-}
-
-.step-canvas__add {
-  border-style: dashed;
-  width: 100%;
-  margin-top: var(--space-sm);
 }
 </style>
