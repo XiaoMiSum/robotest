@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, watch } from 'vue'
+import { computed, onMounted, watch } from 'vue'
 import type { ApiDebugKeyValue } from '@/types'
 
 const entries = defineModel<ApiDebugKeyValue[]>('entries', { required: true })
@@ -12,7 +12,11 @@ const props = defineProps<{
   suggestions?: readonly string[]
   /** 只读态：禁止增删改，供无编辑权限场景展示 */
   disabled?: boolean
+  /** 隐藏启用勾选列：条目无启用语义时（如环境/场景变量）避免误导，缺省展示 */
+  showEnabled?: boolean
 }>()
+
+const withEnabled = computed(() => props.showEnabled !== false)
 
 const emit = defineEmits<{ (e: 'change'): void }>()
 
@@ -72,7 +76,7 @@ watch(
           <th>{{ placeholderKey ?? 'Key' }}</th>
           <th>Value</th>
           <th v-if="props.showDescription">Description</th>
-          <th class="kv-table__col-enable" />
+          <th v-if="withEnabled" class="kv-table__col-enable" />
           <th class="kv-table__col-op" />
         </tr>
       </thead>
@@ -105,7 +109,7 @@ watch(
           <td v-if="props.showDescription">
             <el-input v-model="entry.description" placeholder="Description" :disabled="props.disabled" @input="notify()" />
           </td>
-          <td class="kv-table__col-enable">
+          <td v-if="withEnabled" class="kv-table__col-enable">
             <el-checkbox v-model="entry.enabled" :disabled="props.disabled" @change="notify()" />
           </td>
           <td class="kv-table__col-op">
