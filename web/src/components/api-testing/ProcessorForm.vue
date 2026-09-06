@@ -12,19 +12,15 @@
     <!-- 配置信息：HTTP 请求分区（复用步骤 RequestConfigEditor：请求行 + KeyValueTable + 分段请求体；path 相对语义故隐藏导入 cURL） -->
     <template v-if="state.testclass === 'http'">
       <section class="processor-form__section">
-        <div class="processor-form__ref-row">
-          <label class="processor-form__ref-label">引用配置</label>
-          <el-select v-model="state.http.ref" placeholder="选择环境 HTTP 配置" class="processor-form__ref-select">
-            <el-option v-for="opt in httpOptions" :key="opt.refName ?? opt.name" :label="optionLabel(opt.name, opt.refName)" :value="opt.refName ?? ''" />
-          </el-select>
-        </div>
+        <el-select v-model="state.http.ref" placeholder="选择环境 HTTP 配置" class="processor-form__ref-select" filterable>
+          <el-option v-for="opt in httpOptions" :key="opt.refName ?? opt.name" :label="optionLabel(opt.name, opt.refName)" :value="opt.refName ?? ''" />
+        </el-select>
         <RequestConfigEditor
           :method="state.http.method"
           :url="state.http.path"
           :headers="editorHeaders"
           :params="editorQuery"
           :body="editorBody"
-          hide-curl-import
           @update:method="onMethod"
           @update:url="onUrl"
           @update:headers="onHeaders"
@@ -37,12 +33,9 @@
     <!-- 配置信息：SQL 分区（config 键与 Ryze jdbc 处理器一致；数据源 label 与选择器同行） -->
     <template v-if="state.testclass === 'jdbc'">
       <section class="processor-form__section">
-        <div class="processor-form__ref-row">
-          <label class="processor-form__ref-label">数据源</label>
-          <el-select v-model="state.jdbc.ref" placeholder="选择环境数据源" class="processor-form__ref-select">
-            <el-option v-for="opt in dsOptions" :key="opt.refName ?? opt.name" :label="optionLabel(opt.name, opt.refName)" :value="opt.refName ?? ''" />
-          </el-select>
-        </div>
+        <el-select v-model="state.jdbc.ref" placeholder="选择环境数据源" class="processor-form__ref-select" filterable>
+          <el-option v-for="opt in dsOptions" :key="opt.refName ?? opt.name" :label="optionLabel(opt.name, opt.refName)" :value="opt.refName ?? ''" />
+        </el-select>
         <el-form label-position="top">
           <el-form-item label="SQL 语句 (sql)">
             <el-input v-model="state.jdbc.sql" type="textarea" :rows="4" placeholder="SELECT * FROM table WHERE id = ?" />
@@ -251,22 +244,9 @@ const removeExtractor = (index: number) => {
   font-size: var(--font-size-sm);
 }
 
-// 引用配置 / 数据源：label 与选择器同行
-.processor-form__ref-row {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-}
-
-.processor-form__ref-label {
-  flex: 0 0 72px;
-  font-size: var(--font-size-sm);
-  color: var(--color-neutral-600);
-}
-
+// 引用配置/数据源选择器：整行宽度（无标签，占位符承载语义）
 .processor-form__ref-select {
-  flex: 1;
-  min-width: 0;
+  width: 100%;
 }
 
 // 提取器行卡片：对齐步骤断言行（step-inline__card / __card-bottom 同构）

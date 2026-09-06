@@ -216,12 +216,9 @@ watch(
     <div class="step-inline__body">
       <template v-if="formStepType === 'http'">
         <section class="step-inline__section">
-          <div class="step-inline__ref-row">
-            <label class="step-inline__ref-label">引用配置 (ref_name)</label>
-            <el-select v-model="httpRefName" placeholder="选择环境 HTTP 配置" filterable class="step-inline__ref-select">
-              <el-option v-for="opt in httpConfigOptions" :key="opt.value" :value="opt.value" :label="opt.label" />
-            </el-select>
-          </div>
+          <el-select v-model="httpRefName" placeholder="选择环境 HTTP 配置" filterable class="step-inline__ref-select">
+            <el-option v-for="opt in httpConfigOptions" :key="opt.value" :value="opt.value" :label="opt.label" />
+          </el-select>
           <RequestConfigEditor
             :method="formMethod"
             :url="formUrl"
@@ -239,12 +236,9 @@ watch(
 
       <template v-if="formStepType === 'jdbc'">
         <section class="step-inline__section">
-          <div class="step-inline__ref-row">
-            <label class="step-inline__ref-label">数据源 (ref_name)</label>
-            <el-select v-model="jdbcDatasource" placeholder="选择环境数据源" filterable class="step-inline__ref-select">
-              <el-option v-for="opt in datasourceOptions" :key="opt.value" :value="opt.value" :label="opt.label" />
-            </el-select>
-          </div>
+          <el-select v-model="jdbcDatasource" placeholder="选择环境数据源" filterable class="step-inline__ref-select">
+            <el-option v-for="opt in datasourceOptions" :key="opt.value" :value="opt.value" :label="opt.label" />
+          </el-select>
           <el-form label-position="top">
             <el-form-item label="SQL 语句">
               <el-input v-model="jdbcSql" type="textarea" :rows="5" placeholder="SELECT * FROM table WHERE id = ?" />
@@ -372,22 +366,9 @@ watch(
     gap: var(--space-sm);
   }
 
-  // 引用配置/数据源：label 与选择器同一行（与处理器对齐，去分区标题）
-  &__ref-row {
-    display: flex;
-    align-items: center;
-    gap: var(--space-sm);
-  }
-
-  &__ref-label {
-    flex: 0 0 140px;
-    font-size: var(--font-size-sm);
-    color: var(--color-neutral-600);
-  }
-
+  // 引用配置/数据源选择器：整行宽度（无标签，占位符承载语义）
   &__ref-select {
-    flex: 1;
-    min-width: 0;
+    width: 100%;
   }
 
   &__section-title {
