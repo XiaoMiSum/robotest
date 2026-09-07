@@ -1,5 +1,5 @@
 ﻿<script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import type {
   ApiComponentListItem,
@@ -16,7 +16,6 @@ import { fetchEnvironmentDetail, testDataSourceConfig, testHttpConfig, updateEnv
 import {
   createEmptyHttpConfig,
   DRIVER_OPTIONS,
-  processorTypeLabel,
   resolveEnvironmentError,
   validateVariableRow,
 } from './environmentsModel'
@@ -26,6 +25,9 @@ import ExtractorAssetPicker from '@/components/api-testing/ExtractorAssetPicker.
 import {
   defaultProcessorConfig,
   extractorsFromComponents,
+  isRecord,
+  processorFromComponent,
+  processorSummaryTag,
   type ProcessorExtractor,
 } from '@/components/api-testing/processorFormModel'
 import { fetchComponents } from '@/services/apiComponent'
@@ -56,7 +58,7 @@ const configForms = ref<ConfigForm[]>([])
 const dsForms = ref<DsForm[]>([])
 const variableRows = ref<VariableRow[]>([])
 const processorRows = ref<ApiProcessor[]>([])
-const activeTab = ref<'http' | 'variables' | 'datasources' | 'processors'>('http')
+const activeTab = ref<'http' | 'variables' | 'datasources' | 'preprocessors' | 'postprocessors'>('http')
 const activeConfigId = ref('')
 const activeDsId = ref('')
 
@@ -83,12 +85,20 @@ function hydrate(next: ApiEnvironmentDetail) {
   variableRows.value = next.variables
     .map((row) => ({ id: nextLocalId(), key: row.name, value: row.value ?? '', description: row.description ?? '', enabled: true }))
     .sort((a, b) => a.key.localeCompare(b.key))
-  processorRows.value = next.processors.map((processor) => ({ ...processor, id: nextLocalId() }))
+  processorRows.value = next.processors.map((processor) => ({
+    ...processor,
+    id: nextLocalId(),
+    // config 即 Ryze 元素，本地编辑要求恒为对象（v-model 绑定目标），缺失时按空元素处理
+    config: isRecord(processor.config) ? processor.config : {},
+  }))
   if (!configForms.value.some((config) => config.id === activeConfigId.value)) {
     activeConfigId.value = configForms.value[0]?.id ?? ''
   }
   if (!dsForms.value.some((form) => form.id === activeDsId.value)) {
     activeDsId.value = dsForms.value[0]?.id ?? ''
+  }
+  if (!processorRows.value.some((processor) => processor.id === activeProcId.value)) {
+    activeProcId.value = ''
   }
 }
 
@@ -236,56 +246,176 @@ async function runDsTest(form: DsForm) {
   }
 }
 
-// ==================== 处理器（就地编辑） ====================
+// ==================== 处理器（左列表 + 右内联明细，交互同测试场景 3.5） ====================
 
-const procDialogVisible = ref(false)
-const procDialogMode = ref<'create' | 'edit'>('create')
-const procForm = reactive<{ id?: string; processorType: ApiProcessorType; name: string; config: Record<string, unknown> }>({
-  processorType: 'preprocessor',
-  name: '',
-  config: {},
-})
+const activeProcId = ref('')
 
-function openProcCreateDialog(processorType: ApiProcessorType) {
-  procDialogMode.value = 'create'
-  Object.assign(procForm, { id: undefined, processorType, name: '', config: {} })
-  procDialogVisible.value = true
+/** 某类型处理器列表（数组顺序即执行顺序，与 sortOrder 一致） */
+function procList(type: ApiProcessorType): ApiProcessor[] {
+  return processorRows.value.filter((processor) => processor.processorType === type)
 }
 
-function openProcEditDialog(processor: ApiProcessor) {
-  procDialogMode.value = 'edit'
-  Object.assign(procForm, {
-    id: processor.id,
-    processorType: processor.processorType,
-    name: processor.name,
-    config: processor.config ?? {},
-  })
-  procDialogVisible.value = true
+const preProcCount = computed(() => procList('preprocessor').length)
+const postProcCount = computed(() => procList('postprocessor').length)
+
+const selectedProcessor = computed<ApiProcessor | null>(
+  () => processorRows.value.find((processor) => processor.id === activeProcId.value) ?? null,
+)
+
+/** 处理器元素：config 即 Ryze 元素（testclass/config/extractors），读取统一回退空对象 */
+function procElement(processor: ApiProcessor): Record<string, unknown> {
+  return isRecord(processor.config) ? processor.config : {}
 }
 
-const basicProcEnabled = computed<boolean>({
-  get: () => procForm.config.enabled !== false,
-  set: (value: boolean) => {
-    procForm.config = { ...procForm.config, enabled: value }
-  },
+/** 修正选中：当前 pane 无效时切到该类型第一个，避免跨类型失配 */
+function fixActiveProc(type: ApiProcessorType) {
+  const list = procList(type)
+  if (!list.some((processor) => processor.id === activeProcId.value)) {
+    activeProcId.value = list[0]?.id ?? ''
+  }
+}
+
+watch(activeTab, (tab) => {
+  if (tab !== 'preprocessors' && tab !== 'postprocessors') {
+    activeProcId.value = ''
+    return
+  }
+  fixActiveProc(tab === 'preprocessors' ? 'preprocessor' : 'postprocessor')
 })
 
-const basicProcSortOrder = computed<number>({
-  get: () => (typeof procForm.config.sortOrder === 'number' ? procForm.config.sortOrder as number : 0),
-  set: (value: number) => {
-    procForm.config = { ...procForm.config, sortOrder: value }
-  },
-})
+function selectProcessor(processor: ApiProcessor) {
+  activeProcId.value = processor.id ?? ''
+}
 
-function toggleProcessor(processor: ApiProcessor) {
-  processor.enabled = !processor.enabled
+/** 新建处理器的执行序号：当前最大排序号 +1，保持执行顺序递增 */
+function nextProcSortOrder(): number {
+  return processorRows.value.reduce((max, processor) => Math.max(max, processor.sortOrder ?? 0), 0) + 1
+}
+
+function addProcessor(type: ApiProcessorType) {
+  const sortOrder = nextProcSortOrder()
+  const processor: ApiProcessor = {
+    id: nextLocalId(),
+    processorType: type,
+    name: '',
+    // 默认 HTTP 类型（同测试场景），config 合入启用/排序 overlay 保持落库结构一致
+    config: { ...defaultProcessorConfig(), sortOrder, testclass: 'http', config: {}, extractors: [] },
+    enabled: true,
+    sortOrder,
+  }
+  processorRows.value.push(processor)
+  activeProcId.value = processor.id ?? ''
 }
 
 function removeProcessor(processor: ApiProcessor) {
   processorRows.value = processorRows.value.filter((item) => item !== processor)
+  fixActiveProc(processor.processorType)
 }
 
-// ==================== 提取器：从公共组件获取 ====================
+/** 上移/下移：数组顺序即执行顺序，position 为该类型列表内下标；同步互换 sortOrder 保持落库一致 */
+function moveProcessor(type: ApiProcessorType, position: number, dir: -1 | 1) {
+  const list = procList(type)
+  const from = list[position]
+  const to = list[position + dir]
+  if (!from || !to) return
+  const fromOrder = from.sortOrder ?? 0
+  const toOrder = to.sortOrder ?? 0
+  from.sortOrder = toOrder
+  to.sortOrder = fromOrder
+  const arr = processorRows.value
+  const fromIdx = arr.indexOf(from)
+  const toIdx = arr.indexOf(to)
+  ;[arr[fromIdx], arr[toIdx]] = [arr[toIdx], arr[fromIdx]]
+  activeProcId.value = to.id ?? ''
+}
+
+/** 复制：深拷贝元素并分配新行 id，紧随源行插入（同场景复制语义） */
+function copyProcessor(processor: ApiProcessor) {
+  const index = processorRows.value.indexOf(processor)
+  if (index < 0) return
+  const element = JSON.parse(JSON.stringify(procElement(processor))) as Record<string, unknown>
+  const copy: ApiProcessor = {
+    ...processor,
+    id: nextLocalId(),
+    config: element,
+  }
+  processorRows.value.splice(index + 1, 0, copy)
+  activeProcId.value = copy.id ?? ''
+}
+
+/** 切换处理器类型（http/jdbc）：仅改元素 testclass，ProcessorForm 深监听自动重解析配置 */
+const procTestclass = computed<string>({
+  get: () => {
+    const processor = selectedProcessor.value
+    if (!processor) return ''
+    const klass = procElement(processor).testclass
+    return klass === 'http' || klass === 'jdbc' ? klass : ''
+  },
+  set: (value: string) => {
+    const processor = selectedProcessor.value
+    if (!processor) return
+    processor.config = { ...procElement(processor), testclass: value }
+  },
+})
+
+/** 头部 ref 下拉：取本环境自身的 http 配置 / 数据源（编辑中未保存的引用名同样可选） */
+const procHttpRefOptions = computed(() =>
+  orderedConfigForms.value.map((form) => ({ value: form.refName ?? '', label: form.refName ? `${form.name}（${form.refName}）` : form.name })),
+)
+const procDsRefOptions = computed(() =>
+  orderedDsForms.value.map((form) => ({ value: form.refName ?? '', label: form.refName ? `${form.name}（${form.refName}）` : form.name })),
+)
+
+/** 环境引用写回元素 config：http → config.ref，jdbc → config.datasource；ProcessorForm 深监听 modelValue 自动重解析同步 */
+const procHttpRef = computed<string>({
+  get: () => {
+    const processor = selectedProcessor.value
+    if (!processor) return ''
+    const element = procElement(processor)
+    if (element.testclass !== 'http' || !isRecord(element.config)) return ''
+    return typeof element.config.ref === 'string' ? element.config.ref : ''
+  },
+  set: (value: string) => {
+    const processor = selectedProcessor.value
+    if (!processor) return
+    const element = procElement(processor)
+    processor.config = { ...element, config: { ...(isRecord(element.config) ? element.config : {}), ref: value } }
+  },
+})
+
+const procDsRef = computed<string>({
+  get: () => {
+    const processor = selectedProcessor.value
+    if (!processor) return ''
+    const element = procElement(processor)
+    if (element.testclass !== 'jdbc' || !isRecord(element.config)) return ''
+    return typeof element.config.datasource === 'string' ? element.config.datasource : ''
+  },
+  set: (value: string) => {
+    const processor = selectedProcessor.value
+    if (!processor) return
+    const element = procElement(processor)
+    processor.config = { ...element, config: { ...(isRecord(element.config) ? element.config : {}), datasource: value } }
+  },
+})
+
+/** 左侧卡片标签：`[HTTP]/[JDBC]` 类型 + 方法 / SQL 摘要，同场景处理器卡片 */
+function procTags(processor: ApiProcessor): { text: string; type: 'success' | 'primary' | 'warning' | 'info' | 'danger' }[] {
+  const element = procElement(processor)
+  const tags: { text: string; type: 'success' | 'primary' | 'warning' | 'info' | 'danger' }[] = []
+  const klass = typeof element.testclass === 'string' ? element.testclass : ''
+  if (klass === 'http' || klass === 'jdbc') tags.push({ text: klass.toUpperCase(), type: 'info' })
+  const summary = processorSummaryTag(element)
+  if (summary) tags.push(summary)
+  return tags
+}
+
+/** 左列表展示名：未命名时回退「处理器 N」 */
+function procDisplayName(processor: ApiProcessor, index: number): string {
+  return processor.name.trim() ? processor.name : `处理器 ${index + 1}`
+}
+
+// ==================== 处理器 / 提取器：从公共组件引入 ====================
 
 const extractorPickerVisible = ref(false)
 const extractorPickerLoading = ref(false)
@@ -317,38 +447,71 @@ function openExtractorPicker() {
 }
 
 function handleExtractorPicked(rows: ApiComponentListItem[]) {
+  const processor = selectedProcessor.value
+  if (!processor) return
   const incoming = extractorsFromComponents(rows)
   if (incoming.length === 0) return
-  const existing = Array.isArray(procForm.config.extractors) ? procForm.config.extractors as ProcessorExtractor[] : []
-  procForm.config = {
-    ...procForm.config,
-    extractors: [...existing, ...incoming],
-  }
+  const element = procElement(processor)
+  const existing = Array.isArray(element.extractors) ? element.extractors as ProcessorExtractor[] : []
+  processor.config = { ...element, extractors: [...existing, ...incoming] }
   ElMessage.success(`已引入 ${incoming.length} 个提取器`)
 }
 
-function submitProcDialog() {
-  if (!procForm.name.trim()) {
-    ElMessage.warning('请填写处理器名称')
-    return
+const procAssetPickerVisible = ref(false)
+const procAssetPickerLoading = ref(false)
+const procAssetPickerItems = ref<ApiComponentListItem[]>([])
+const procAssetPickerKeyword = ref('')
+const procAssetPickerType = ref<ApiProcessorType>('preprocessor')
+
+async function loadProcAssets(): Promise<void> {
+  procAssetPickerLoading.value = true
+  try {
+    const result = await fetchComponents({
+      type: procAssetPickerType.value,
+      enabled: true,
+      pageNo: 1,
+      pageSize: 100,
+      keyword: procAssetPickerKeyword.value.trim() || undefined,
+    })
+    procAssetPickerItems.value = result.list
+  } catch (err) {
+    ElMessage.error(resolveEnvironmentError(err))
+  } finally {
+    procAssetPickerLoading.value = false
   }
-  const config = { ...defaultProcessorConfig(), ...(procForm.config ?? {}) }
-  const body: ApiProcessor = {
-    id: procForm.id ?? nextLocalId(),
-    processorType: procForm.processorType,
-    name: procForm.name.trim(),
-    config: Object.keys(config).length > 0 ? config : undefined,
-    enabled: config.enabled !== false,
-    sortOrder: typeof config.sortOrder === 'number' ? config.sortOrder : 0,
-  }
-  if (procDialogMode.value === 'create') {
-    processorRows.value.push(body)
-  } else {
-    const index = processorRows.value.findIndex((item) => item.id === body.id)
-    if (index >= 0) processorRows.value[index] = body
-  }
-  procDialogVisible.value = false
-  ElMessage.success('处理器已保存')
+}
+
+function openProcessorAssetPicker(type: ApiProcessorType) {
+  procAssetPickerType.value = type
+  procAssetPickerKeyword.value = ''
+  procAssetPickerVisible.value = true
+  void loadProcAssets()
+}
+
+function handleProcessorAssetPicked(rows: ApiComponentListItem[]) {
+  rows.forEach((item) => {
+    const element = processorFromComponent(item, procAssetPickerType.value === 'postprocessor' ? 'post' : 'pre')
+    // 资产无类型时默认 HTTP，避免引入后无从编辑；config 仅落 Ryze 键（不携带组件级 type）
+    const testclass = element.testclass === 'http' || element.testclass === 'jdbc' ? element.testclass : 'http'
+    const sortOrder = nextProcSortOrder()
+    processorRows.value.push({
+      id: nextLocalId(),
+      processorType: procAssetPickerType.value,
+      name: item.name,
+      config: {
+        ...defaultProcessorConfig(),
+        testclass,
+        config: isRecord(element.config) ? element.config : {},
+        extractors: Array.isArray(element.extractors) ? element.extractors : [],
+        sortOrder,
+      },
+      enabled: true,
+      sortOrder,
+    })
+  })
+  const last = processorRows.value[processorRows.value.length - 1]
+  if (last && last.id) activeProcId.value = last.id
+  ElMessage.success(`已引入 ${rows.length} 个处理器`)
 }
 
 // ==================== 聚合保存 ====================
@@ -585,67 +748,212 @@ async function saveAll() {
           </div>
         </el-tab-pane>
 
-        <!-- ============ 处理器 ============ -->
-        <el-tab-pane :label="`处理器 (${processorRows.length})`" name="processors">
-          <div class="env-detail__toolbar">
-            <el-button type="primary" :disabled="!canEdit" @click="openProcCreateDialog('preprocessor')">
-              <el-icon><Plus /></el-icon>新增前置
-            </el-button>
-            <el-button type="primary" plain :disabled="!canEdit" @click="openProcCreateDialog('postprocessor')">
-              <el-icon><Plus /></el-icon>新增后置
-            </el-button>
+        <!-- ============ 前置处理器（左列表 + 右内联明细，交互同测试场景 3.5） ============ -->
+        <el-tab-pane :label="`前置处理器 (${preProcCount})`" name="preprocessors">
+          <div class="env-detail__proc-split">
+            <div class="env-detail__proc-left">
+              <div class="env-detail__proc-head">
+                <span>前置处理器</span>
+                <div class="env-detail__proc-actions">
+                  <el-button size="small" :disabled="!canEdit" @click="openProcessorAssetPicker('preprocessor')">从公共组件引入</el-button>
+                  <el-button size="small" type="primary" :disabled="!canEdit" @click="addProcessor('preprocessor')">+ 添加处理器</el-button>
+                </div>
+              </div>
+              <template v-for="(processor, i) in procList('preprocessor')" :key="processor.id">
+                <div
+                  class="env-detail__proc-item"
+                  :class="{ 'is-selected': processor.id === activeProcId, 'is-disabled': !processor.enabled }"
+                  @click="selectProcessor(processor)"
+                >
+                  <div class="env-detail__proc-item-header">
+                    <span class="env-detail__proc-index">{{ i + 1 }}</span>
+                    <el-tag v-for="t in procTags(processor)" :key="t.text" size="small" :type="t.type">{{ t.text }}</el-tag>
+                    <div class="env-detail__proc-header-spacer" />
+                    <el-switch v-model="processor.enabled" size="small" :disabled="!canEdit" @click.stop />
+                    <el-dropdown v-if="canEdit" trigger="click" @click.stop>
+                      <el-button link size="small">操作</el-button>
+                      <template #dropdown>
+                        <el-dropdown-menu>
+                          <el-dropdown-item @click="selectProcessor(processor)">编辑</el-dropdown-item>
+                          <el-dropdown-item :disabled="i === 0" @click="moveProcessor('preprocessor', i, -1)">上移</el-dropdown-item>
+                          <el-dropdown-item :disabled="i === preProcCount - 1" @click="moveProcessor('preprocessor', i, 1)">下移</el-dropdown-item>
+                          <el-dropdown-item divided @click="copyProcessor(processor)">复制</el-dropdown-item>
+                          <el-dropdown-item divided style="color: var(--el-color-danger)" @click="removeProcessor(processor)">删除</el-dropdown-item>
+                        </el-dropdown-menu>
+                      </template>
+                    </el-dropdown>
+                  </div>
+                  <div class="env-detail__proc-item-name">{{ procDisplayName(processor, i) }}</div>
+                </div>
+              </template>
+              <el-empty v-if="preProcCount === 0" description="暂无前置处理器" :image-size="60" />
+              <el-button v-if="preProcCount === 0 && canEdit" size="small" class="env-detail__proc-add" @click="addProcessor('preprocessor')">
+                <el-icon><Plus /></el-icon> 添加处理器
+              </el-button>
+            </div>
+
+            <div class="env-detail__proc-right">
+              <template v-if="selectedProcessor">
+                <div class="env-detail__proc-inline">
+                  <header class="env-detail__proc-inline-head">
+                    <el-input v-model="selectedProcessor.name" placeholder="处理器名称" class="env-detail__proc-inline-name" :disabled="!canEdit" />
+                    <el-switch v-model="selectedProcessor.enabled" :disabled="!canEdit" active-text="启用" />
+                    <el-divider direction="vertical" />
+                    <el-radio-group v-model="procTestclass" :disabled="!canEdit" size="small">
+                      <el-radio-button value="http">HTTP</el-radio-button>
+                      <el-radio-button value="jdbc">JDBC</el-radio-button>
+                    </el-radio-group>
+                    <el-select
+                      v-if="procTestclass === 'http'"
+                      v-model="procHttpRef"
+                      placeholder="选择环境 HTTP 配置"
+                      filterable
+                      :disabled="!canEdit"
+                      class="env-detail__proc-inline-ref"
+                    >
+                      <el-option v-for="opt in procHttpRefOptions" :key="opt.value" :value="opt.value" :label="opt.label" />
+                    </el-select>
+                    <el-select
+                      v-else-if="procTestclass === 'jdbc'"
+                      v-model="procDsRef"
+                      placeholder="选择环境数据源"
+                      filterable
+                      :disabled="!canEdit"
+                      class="env-detail__proc-inline-ref"
+                    >
+                      <el-option v-for="opt in procDsRefOptions" :key="opt.value" :value="opt.value" :label="opt.label" />
+                    </el-select>
+                  </header>
+                  <div class="env-detail__proc-inline-body" :class="{ 'is-readonly': !canEdit }">
+                    <ProcessorForm
+                      v-model="selectedProcessor.config"
+                      :http-options="configForms"
+                      :ds-options="dsForms"
+                      :show-type-select="false"
+                      :show-ref-select="false"
+                      @import-extractors="openExtractorPicker"
+                    />
+                  </div>
+                </div>
+              </template>
+              <div v-else class="env-detail__right-empty">
+                <p>选中左侧处理器后在右侧编辑</p>
+              </div>
+            </div>
           </div>
-          <el-table :data="processorRows" size="small" empty-text="暂无处理器">
-            <el-table-column label="类别" width="80">
-              <template #default="{ row }">{{ processorTypeLabel(row.processorType) }}</template>
-            </el-table-column>
-            <el-table-column prop="name" label="名称" min-width="160" />
-            <el-table-column label="启用" width="80">
-              <template #default="{ row }">
-                <el-switch
-                  :model-value="row.enabled"
-                  size="small"
-                  :disabled="!canEdit"
-                  @change="() => toggleProcessor(row as ApiProcessor)"
-                />
+        </el-tab-pane>
+
+        <!-- ============ 后置处理器（左列表 + 右内联明细） ============ -->
+        <el-tab-pane :label="`后置处理器 (${postProcCount})`" name="postprocessors">
+          <div class="env-detail__proc-split">
+            <div class="env-detail__proc-left">
+              <div class="env-detail__proc-head">
+                <span>后置处理器</span>
+                <div class="env-detail__proc-actions">
+                  <el-button size="small" :disabled="!canEdit" @click="openProcessorAssetPicker('postprocessor')">从公共组件引入</el-button>
+                  <el-button size="small" type="primary" :disabled="!canEdit" @click="addProcessor('postprocessor')">+ 添加处理器</el-button>
+                </div>
+              </div>
+              <template v-for="(processor, i) in procList('postprocessor')" :key="processor.id">
+                <div
+                  class="env-detail__proc-item"
+                  :class="{ 'is-selected': processor.id === activeProcId, 'is-disabled': !processor.enabled }"
+                  @click="selectProcessor(processor)"
+                >
+                  <div class="env-detail__proc-item-header">
+                    <span class="env-detail__proc-index">{{ i + 1 }}</span>
+                    <el-tag v-for="t in procTags(processor)" :key="t.text" size="small" :type="t.type">{{ t.text }}</el-tag>
+                    <div class="env-detail__proc-header-spacer" />
+                    <el-switch v-model="processor.enabled" size="small" :disabled="!canEdit" @click.stop />
+                    <el-dropdown v-if="canEdit" trigger="click" @click.stop>
+                      <el-button link size="small">操作</el-button>
+                      <template #dropdown>
+                        <el-dropdown-menu>
+                          <el-dropdown-item @click="selectProcessor(processor)">编辑</el-dropdown-item>
+                          <el-dropdown-item :disabled="i === 0" @click="moveProcessor('postprocessor', i, -1)">上移</el-dropdown-item>
+                          <el-dropdown-item :disabled="i === postProcCount - 1" @click="moveProcessor('postprocessor', i, 1)">下移</el-dropdown-item>
+                          <el-dropdown-item divided @click="copyProcessor(processor)">复制</el-dropdown-item>
+                          <el-dropdown-item divided style="color: var(--el-color-danger)" @click="removeProcessor(processor)">删除</el-dropdown-item>
+                        </el-dropdown-menu>
+                      </template>
+                    </el-dropdown>
+                  </div>
+                  <div class="env-detail__proc-item-name">{{ procDisplayName(processor, i) }}</div>
+                </div>
               </template>
-            </el-table-column>
-            <el-table-column label="操作" width="150" fixed="right">
-              <template #default="{ row }">
-                <el-button v-if="canEdit" link @click="openProcEditDialog(row as ApiProcessor)">编辑</el-button>
-                <el-button v-if="canEdit" link type="danger" @click="removeProcessor(row as ApiProcessor)">删除</el-button>
+              <el-empty v-if="postProcCount === 0" description="暂无后置处理器" :image-size="60" />
+              <el-button v-if="postProcCount === 0 && canEdit" size="small" class="env-detail__proc-add" @click="addProcessor('postprocessor')">
+                <el-icon><Plus /></el-icon> 添加处理器
+              </el-button>
+            </div>
+
+            <div class="env-detail__proc-right">
+              <template v-if="selectedProcessor">
+                <div class="env-detail__proc-inline">
+                  <header class="env-detail__proc-inline-head">
+                    <el-input v-model="selectedProcessor.name" placeholder="处理器名称" class="env-detail__proc-inline-name" :disabled="!canEdit" />
+                    <el-switch v-model="selectedProcessor.enabled" :disabled="!canEdit" active-text="启用" />
+                    <el-divider direction="vertical" />
+                    <el-radio-group v-model="procTestclass" :disabled="!canEdit" size="small">
+                      <el-radio-button value="http">HTTP</el-radio-button>
+                      <el-radio-button value="jdbc">JDBC</el-radio-button>
+                    </el-radio-group>
+                    <el-select
+                      v-if="procTestclass === 'http'"
+                      v-model="procHttpRef"
+                      placeholder="选择环境 HTTP 配置"
+                      filterable
+                      :disabled="!canEdit"
+                      class="env-detail__proc-inline-ref"
+                    >
+                      <el-option v-for="opt in procHttpRefOptions" :key="opt.value" :value="opt.value" :label="opt.label" />
+                    </el-select>
+                    <el-select
+                      v-else-if="procTestclass === 'jdbc'"
+                      v-model="procDsRef"
+                      placeholder="选择环境数据源"
+                      filterable
+                      :disabled="!canEdit"
+                      class="env-detail__proc-inline-ref"
+                    >
+                      <el-option v-for="opt in procDsRefOptions" :key="opt.value" :value="opt.value" :label="opt.label" />
+                    </el-select>
+                  </header>
+                  <div class="env-detail__proc-inline-body" :class="{ 'is-readonly': !canEdit }">
+                    <ProcessorForm
+                      v-model="selectedProcessor.config"
+                      :http-options="configForms"
+                      :ds-options="dsForms"
+                      :show-type-select="false"
+                      :show-ref-select="false"
+                      @import-extractors="openExtractorPicker"
+                    />
+                  </div>
+                </div>
               </template>
-            </el-table-column>
-          </el-table>
+              <div v-else class="env-detail__right-empty">
+                <p>选中左侧处理器后在右侧编辑</p>
+              </div>
+            </div>
+          </div>
         </el-tab-pane>
       </el-tabs>
     </template>
 
-    <!-- 处理器新建/编辑 -->
-    <el-dialog v-model="procDialogVisible" :title="procDialogMode === 'create' ? '新增处理器' : '编辑处理器'" width="640px">
-      <el-form label-width="110px">
-        <el-form-item label="类别">
-          <el-radio-group v-model="procForm.processorType" :disabled="procDialogMode === 'edit'">
-            <el-radio value="preprocessor">前置</el-radio>
-            <el-radio value="postprocessor">后置</el-radio>
-          </el-radio-group>
-        </el-form-item>
-        <el-form-item label="名称" required>
-          <el-input v-model="procForm.name" maxlength="100" />
-        </el-form-item>
-        <el-form-item label="启用">
-          <el-switch v-model="basicProcEnabled" />
-        </el-form-item>
-        <el-form-item label="排序号">
-          <el-input-number v-model="basicProcSortOrder" :min="0" :max="9999" />
-        </el-form-item>
-        <ProcessorForm v-model="procForm.config" @import-extractors="openExtractorPicker" />
-      </el-form>
-      <template #footer>
-        <el-button @click="procDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="submitProcDialog">保存</el-button>
-      </template>
-    </el-dialog>
+    <!-- 从公共组件引入处理器 -->
+    <ExtractorAssetPicker
+      v-model="procAssetPickerVisible"
+      :loading="procAssetPickerLoading"
+      :items="procAssetPickerItems"
+      :keyword="procAssetPickerKeyword"
+      title="从公共组件引入处理器"
+      tip="仅展示启用的处理器资产；引入为复制，得到独立副本，与源资产无关联。"
+      empty-text="暂无可用处理器"
+      search-placeholder="搜索处理器名称..."
+      @update:keyword="procAssetPickerKeyword = $event"
+      @search="loadProcAssets"
+      @confirm="handleProcessorAssetPicked"
+    />
 
     <!-- 从公共组件引入提取器 -->
     <ExtractorAssetPicker
@@ -809,19 +1117,167 @@ async function saveAll() {
   }
 }
 
-.env-detail__toolbar {
-  margin-bottom: var(--space-md);
+// ==================== 处理器：左列表 + 右内联明细（对齐测试场景 3.5） ====================
+.env-detail__proc-split {
   display: flex;
-  gap: var(--space-sm);
+  align-items: flex-start;
+  gap: var(--space-lg);
+}
 
-  &--right {
-    justify-content: flex-end;
-    margin-top: var(--space-md);
+.env-detail__proc-left {
+  width: 320px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.env-detail__proc-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-md);
+  font-weight: 600;
+}
+
+.env-detail__proc-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+// 左侧列表卡片：尺寸/内边距/选中态完全对齐场景处理器卡片
+.env-detail__proc-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  height: 88px;
+  padding: var(--space-md);
+  border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-md);
+  transition: all var(--transition-fast);
+  cursor: pointer;
+  margin: 2px 0;
+  overflow: hidden;
+
+  &:hover {
+    border-color: var(--color-primary-300);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
   }
 
-  .el-button + .el-button {
-    margin-left: 0;
+  &.is-selected {
+    border-color: var(--color-primary-400);
+    background: var(--color-primary-50, #eff6ff);
+    box-shadow: 0 0 0 1px var(--color-primary-300);
   }
+
+  &.is-disabled {
+    opacity: 0.5;
+  }
+}
+
+.env-detail__proc-item-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.env-detail__proc-index {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--color-neutral-100);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-neutral-600);
+  flex-shrink: 0;
+}
+
+.env-detail__proc-header-spacer {
+  flex: 1;
+}
+
+.env-detail__proc-item-name {
+  padding: var(--space-xs) 0 0 0;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.env-detail__proc-add {
+  border-style: dashed;
+  width: 100%;
+  margin-top: var(--space-sm);
+}
+
+.env-detail__proc-right {
+  flex: 1;
+  min-width: 0;
+}
+
+// 右侧明细卡片：对齐场景处理器的 inline 编辑结构
+.env-detail__proc-inline {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.env-detail__proc-inline-head {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-md) var(--space-lg);
+  border-bottom: 1px solid var(--color-neutral-100);
+  background: var(--color-neutral-50);
+
+  // 头部空间允许换行，窄屏下 ref 下拉不被挤破
+  flex-wrap: wrap;
+}
+
+.env-detail__proc-inline-name {
+  flex: 1;
+  min-width: 160px;
+  max-width: 320px;
+}
+
+// 头部环境引用选择器：定宽不收缩，与场景 inline-ref 对齐
+.env-detail__proc-inline-ref {
+  width: 240px;
+  flex-shrink: 0;
+}
+
+.env-detail__proc-inline-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+  padding: var(--space-lg);
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+
+  // 只读态整块禁用交互仅作预览，避免处理器表单逐控件加 disabled
+  &.is-readonly {
+    pointer-events: none;
+    opacity: 0.65;
+  }
+}
+
+.env-detail__right-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 240px;
+  color: var(--color-neutral-400);
+  font-size: var(--font-size-sm);
 }
 
 .env-detail__empty {

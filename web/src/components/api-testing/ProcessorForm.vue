@@ -99,12 +99,14 @@ interface RefOption {
 }
 
 const props = withDefaults(defineProps<{
-  modelValue: Record<string, unknown>
+  // config 可选：未配置的处理器（环境/组件新建态）可能缺失元素对象
+  modelValue?: Record<string, unknown>
   httpOptions?: RefOption[]
   dsOptions?: RefOption[]
   showTypeSelect?: boolean
   showRefSelect?: boolean
 }>(), {
+  modelValue: () => ({}),
   httpOptions: () => [],
   dsOptions: () => [],
   showTypeSelect: true,
