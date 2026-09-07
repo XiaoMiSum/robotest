@@ -275,13 +275,10 @@ watch(
                 <el-form-item label="SQL 语句">
                   <el-input v-model="jdbcSql" type="textarea" :rows="5" placeholder="SELECT * FROM table WHERE id = ?" />
                 </el-form-item>
-                <el-form-item>
+                <el-form-item class="step-inline__args-item">
                   <template #label>
-                    <!-- 添加按钮与标题同行右侧，避免独占一行挤占参数区 -->
-                    <span class="step-inline__args-label">
-                      参数（? 占位符对应）
-                      <el-button link type="primary" size="small" class="step-inline__args-add" @click="jdbcArgs.push('')">+ 添加参数</el-button>
-                    </span>
+                    参数（? 占位符对应）
+                    <el-button link type="primary" size="small" class="step-inline__args-add" @click="jdbcArgs.push('')">+ 添加参数</el-button>
                   </template>
                   <div class="step-inline__args">
                     <div v-for="(_, i) in jdbcArgs" :key="i" class="step-inline__arg-row">
@@ -387,11 +384,14 @@ watch(
     flex-shrink: 0;
   }
 
-  &__args-label {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    width: 100%;
+  &__args-item {
+    // label 本身作为整行 flex，按钮推到最右侧
+    :deep(.el-form-item__label) {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+    }
   }
 
   &__args {
