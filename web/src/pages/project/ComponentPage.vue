@@ -34,6 +34,7 @@ import ValidatorForm from '@/components/api-testing/ValidatorForm.vue'
 import ExtractorForm from '@/components/api-testing/ExtractorForm.vue'
 import ExtractorAssetPicker from '@/components/api-testing/ExtractorAssetPicker.vue'
 import {
+  createProcessorComponentConfig,
   defaultComponentConfig,
   extractorsFromComponents,
   type ProcessorExtractor,
@@ -228,7 +229,7 @@ const form = reactive<{
 
 watch(() => form.type, () => {
   if (!editingId.value) {
-    form.config = {}
+    form.config = form.type === 'preprocessor' || form.type === 'postprocessor' ? createProcessorComponentConfig() : {}
   }
 })
 
@@ -314,7 +315,7 @@ function openCreateDrawer() {
   form.description = ''
   form.scope = 'project'
   form.sortOrder = 0
-  form.config = {}
+  form.config = createProcessorComponentConfig()
   void loadProcessorRefOptions()
   drawerVisible.value = true
 }

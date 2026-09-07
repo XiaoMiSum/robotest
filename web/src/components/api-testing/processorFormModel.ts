@@ -262,6 +262,11 @@ export function defaultComponentConfig(): Record<string, unknown> {
   return { enabled: true }
 }
 
+/** 新建处理器组件的 config 默认值：类型默认 http，避免新建后还需手动点选 */
+export function createProcessorComponentConfig(): Record<string, unknown> {
+  return { enabled: true, testclass: 'http', config: {}, extractors: [] }
+}
+
 /** 解析公共组件 config 为对象，无法解析返回空对象（避免引入崩溃） */
 export function parseComponentConfig(config: string | null): Record<string, unknown> {
   if (!config) return {}
