@@ -755,8 +755,8 @@ async function saveAll() {
               <div class="env-detail__proc-head">
                 <span>前置处理器</span>
                 <div class="env-detail__proc-actions">
-                  <el-button size="small" :disabled="!canEdit" @click="openProcessorAssetPicker('preprocessor')">从公共组件引入</el-button>
-                  <el-button size="small" type="primary" :disabled="!canEdit" @click="addProcessor('preprocessor')">+ 添加处理器</el-button>
+                  <el-button link type="primary" size="small" :disabled="!canEdit" @click="openProcessorAssetPicker('preprocessor')">从公共组件引入</el-button>
+                  <el-button link type="primary" size="small" :disabled="!canEdit" @click="addProcessor('preprocessor')">+ 添加处理器</el-button>
                 </div>
               </div>
               <template v-for="(processor, i) in procList('preprocessor')" :key="processor.id">
@@ -850,8 +850,8 @@ async function saveAll() {
               <div class="env-detail__proc-head">
                 <span>后置处理器</span>
                 <div class="env-detail__proc-actions">
-                  <el-button size="small" :disabled="!canEdit" @click="openProcessorAssetPicker('postprocessor')">从公共组件引入</el-button>
-                  <el-button size="small" type="primary" :disabled="!canEdit" @click="addProcessor('postprocessor')">+ 添加处理器</el-button>
+                  <el-button link type="primary" size="small" :disabled="!canEdit" @click="openProcessorAssetPicker('postprocessor')">从公共组件引入</el-button>
+                  <el-button link type="primary" size="small" :disabled="!canEdit" @click="addProcessor('postprocessor')">+ 添加处理器</el-button>
                 </div>
               </div>
               <template v-for="(processor, i) in procList('postprocessor')" :key="processor.id">

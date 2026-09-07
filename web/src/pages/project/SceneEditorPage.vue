@@ -1051,8 +1051,8 @@ onMounted(async () => {
               <div class="scene-editor__section-head">
                 <span>前置处理器（{{ processorIndexes('pre').length }}）</span>
                 <div class="scene-editor__section-actions">
-                  <el-button size="small" @click="openAssetPicker('pre')">从公共组件引入</el-button>
-                  <el-button size="small" type="primary" @click="addProcessor('pre')">+ 添加处理器</el-button>
+                  <el-button link type="primary" size="small" @click="openAssetPicker('pre')">从公共组件引入</el-button>
+                  <el-button link type="primary" size="small" @click="addProcessor('pre')">+ 添加处理器</el-button>
                 </div>
               </div>
               <template v-for="(idx, i) in processorIndexes('pre')" :key="idx">
@@ -1171,8 +1171,8 @@ onMounted(async () => {
               <div class="scene-editor__section-head">
                 <span>后置处理器（{{ processorIndexes('post').length }}）</span>
                 <div class="scene-editor__section-actions">
-                  <el-button size="small" @click="openAssetPicker('post')">从公共组件引入</el-button>
-                  <el-button size="small" type="primary" @click="addProcessor('post')">+ 添加处理器</el-button>
+                  <el-button link type="primary" size="small" @click="openAssetPicker('post')">从公共组件引入</el-button>
+                  <el-button link type="primary" size="small" @click="addProcessor('post')">+ 添加处理器</el-button>
                 </div>
               </div>
               <template v-for="(idx, i) in processorIndexes('post')" :key="idx">
