@@ -89,6 +89,8 @@ public class SceneExecutionServiceImpl implements SceneExecutionService {
     @Override
     public ApiExecutionStartRespDTO execute(UUID workspaceId, UUID projectId, UUID userId, UUID sceneId,
             ApiSceneExecuteReqDTO reqDTO) {
+        // 约定：请求体为可选（详细设计 3.6.1），缺省时按场景默认配置执行
+        ApiSceneExecuteReqDTO req = reqDTO != null ? reqDTO : new ApiSceneExecuteReqDTO();
         projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
         ApiScene scene = requireScene(projectId, sceneId);
         if (scene.getSteps() == null || scene.getSteps().isEmpty()) {
@@ -99,11 +101,11 @@ public class SceneExecutionServiceImpl implements SceneExecutionService {
         record.setId(UUID.randomUUID());
         record.setProjectId(projectId);
         record.setSceneId(sceneId);
-        record.setEnvironmentId(reqDTO.getEnvironmentId());
+        record.setEnvironmentId(req.getEnvironmentId());
         record.setExecutionMode("platform");
         record.setStatus("pending");
-        record.setTriggerType(reqDTO.getTriggerType() == null || reqDTO.getTriggerType().isBlank()
-                ? "manual" : reqDTO.getTriggerType());
+        record.setTriggerType(req.getTriggerType() == null || req.getTriggerType().isBlank()
+                ? "manual" : req.getTriggerType());
         record.setExecutedAt(LocalDateTime.now());
 
         try {
