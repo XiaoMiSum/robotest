@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
+import { Delete } from '@element-plus/icons-vue'
 import type { ApiComponentListItem, ApiComponentType, ApiSceneStepItem } from '@/types'
 import { fetchEnvironmentDetail } from '@/services/apiEnvironment'
 import { fetchComponents } from '@/services/apiComponent'
@@ -274,13 +275,21 @@ watch(
                 <el-form-item label="SQL 语句">
                   <el-input v-model="jdbcSql" type="textarea" :rows="5" placeholder="SELECT * FROM table WHERE id = ?" />
                 </el-form-item>
-                <el-form-item label="参数（? 占位符对应）">
+                <el-form-item>
+                  <template #label>
+                    <!-- 添加按钮与标题同行右侧，避免独占一行挤占参数区 -->
+                    <span class="step-inline__args-label">
+                      参数（? 占位符对应）
+                      <el-button link type="primary" size="small" class="step-inline__args-add" @click="jdbcArgs.push('')">+ 添加参数</el-button>
+                    </span>
+                  </template>
                   <div class="step-inline__args">
                     <div v-for="(_, i) in jdbcArgs" :key="i" class="step-inline__arg-row">
                       <el-input v-model="jdbcArgs[i]" size="small" placeholder="参数值" />
-                      <el-button link size="small" type="danger" @click="jdbcArgs.splice(i, 1)">✕</el-button>
+                      <el-button link size="small" type="danger" @click="jdbcArgs.splice(i, 1)">
+                        <el-icon><Delete /></el-icon>
+                      </el-button>
                     </div>
-                    <el-button size="small" @click="jdbcArgs.push('')">+ 添加参数</el-button>
                   </div>
                 </el-form-item>
               </el-form>
@@ -376,6 +385,13 @@ watch(
   &__ref-select {
     width: 240px;
     flex-shrink: 0;
+  }
+
+  &__args-label {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
   }
 
   &__args {
