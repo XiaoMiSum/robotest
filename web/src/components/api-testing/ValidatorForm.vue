@@ -5,15 +5,15 @@
         <el-option v-for="t in VALIDATOR_TARGETS" :key="t.value" :value="t.value" :label="t.label" />
       </el-select>
     </el-form-item>
-    <el-form-item class="validator-form__field validator-form__field--condition" prop="condition">
+    <el-form-item class="validator-form__field validator-form__field--condition" label="比较条件" prop="condition">
       <el-select v-model="localConfig.condition" placeholder="选择比较条件">
         <el-option v-for="c in VALIDATOR_CONDITIONS" :key="c.value" :value="c.value" :label="c.label" />
       </el-select>
     </el-form-item>
-    <el-form-item class="validator-form__field validator-form__field--expression" prop="expression">
+    <el-form-item class="validator-form__field validator-form__field--expression" label="表达式" prop="expression">
       <el-input v-model="localConfig.expression" placeholder="表达式（如 $.code）" />
     </el-form-item>
-    <el-form-item class="validator-form__field validator-form__field--expected" prop="expected">
+    <el-form-item class="validator-form__field validator-form__field--expected" label="期望值" prop="expected">
       <el-input v-model="localConfig.expected" placeholder="期望值" />
     </el-form-item>
   </div>
@@ -64,7 +64,7 @@ watch(localConfig, (val) => {
   flex: 1;
   min-width: 0;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   flex-wrap: nowrap;
   gap: var(--space-sm);
 }
@@ -75,10 +75,8 @@ watch(localConfig, (val) => {
   flex-shrink: 1;
 }
 
-.validator-form__field--target {
-  flex: 0 0 260px;
-}
-
+// 下拉与输入对齐到统一列宽
+.validator-form__field--target,
 .validator-form__field--condition {
   flex: 0 0 150px;
 }
@@ -86,6 +84,18 @@ watch(localConfig, (val) => {
 .validator-form__field--expression,
 .validator-form__field--expected {
   flex: 1 1 0;
+  min-width: 0;
+}
+
+// 无论外层容器 label 朝向（含非 el-form 容器），强制标签置顶，保证控件同一水平线对齐
+.validator-form :deep(.el-form-item__label) {
+  display: block;
+  width: 100%;
+  height: auto;
+  padding: 0;
+  margin-bottom: var(--space-xs);
+  text-align: left;
+  line-height: 1.4;
 }
 
 .validator-form :deep(.el-form-item__content),
