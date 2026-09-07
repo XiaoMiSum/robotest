@@ -167,6 +167,7 @@ function formatJsonBody() {
               <button
                 v-for="t in SCENE_BODY_TYPES"
                 :key="t.value"
+                type="button"
                 class="req-config-editor__body-type"
                 :class="{ 'is-active': bodyState.kind === t.value }"
                 data-test="scene-body-type"
@@ -184,7 +185,7 @@ function formatJsonBody() {
                   />
                 </el-select>
                 <el-tooltip v-if="bodyState.rawSubtype === 'json'" content="格式化（修正 JSON 缩进）" placement="top">
-                  <button class="req-config-editor__body-icon" @click="formatJsonBody">
+                  <button type="button" class="req-config-editor__body-icon" @click="formatJsonBody">
                     <el-icon><MagicStick /></el-icon>
                   </button>
                 </el-tooltip>
