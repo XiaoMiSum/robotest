@@ -1,20 +1,23 @@
 <template>
   <div class="processor-form">
-    <!-- 类型选择：场景内由头部 radio 控制（show-type-select=false 时隐藏，避免双控件） -->
-    <el-form-item v-if="showTypeSelect" label="处理器类型">
-      <el-select v-model="state.testclass" placeholder="选择处理器类型">
-        <el-option label="发送 HTTP 请求" value="http" />
-        <el-option label="执行 SQL" value="jdbc" />
+    <!-- 类型选择：与测试场景处理器头部一致（radio，无 label）；引用选择与之水平对齐 -->
+    <div v-if="showTypeSelect || showRefSelect" class="processor-form__type-row">
+      <el-radio-group v-if="showTypeSelect" v-model="state.testclass" size="small">
+        <el-radio-button value="http">HTTP</el-radio-button>
+        <el-radio-button value="jdbc">JDBC</el-radio-button>
+      </el-radio-group>
+      <el-select v-if="showRefSelect && state.testclass === 'http'" v-model="state.http.ref" placeholder="选择环境 HTTP 配置" class="processor-form__ref-select" filterable>
+        <el-option v-for="opt in httpOptions" :key="opt.refName ?? opt.name" :label="optionLabel(opt.name, opt.refName)" :value="opt.refName ?? ''" />
       </el-select>
-    </el-form-item>
-    <p v-else-if="!state.testclass" class="processor-form__hint">请在上方选择处理器类型</p>
+      <el-select v-else-if="showRefSelect && state.testclass === 'jdbc'" v-model="state.jdbc.ref" placeholder="选择环境数据源" class="processor-form__ref-select" filterable>
+        <el-option v-for="opt in dsOptions" :key="opt.refName ?? opt.name" :label="optionLabel(opt.name, opt.refName)" :value="opt.refName ?? ''" />
+      </el-select>
+    </div>
+    <p v-if="!showTypeSelect && !state.testclass" class="processor-form__hint">请在上方选择处理器类型</p>
 
     <!-- 配置 / 提取器：http 直接并入请求配置 tabs，jdbc 用同构 tabs（SQL / 提取器） -->
     <template v-if="state.testclass === 'http'">
       <section class="processor-form__section">
-        <el-select v-if="showRefSelect" v-model="state.http.ref" placeholder="选择环境 HTTP 配置" class="processor-form__ref-select" filterable>
-          <el-option v-for="opt in httpOptions" :key="opt.refName ?? opt.name" :label="optionLabel(opt.name, opt.refName)" :value="opt.refName ?? ''" />
-        </el-select>
         <RequestConfigEditor
           :method="state.http.method"
           :url="state.http.path"
@@ -38,9 +41,6 @@
       <el-tabs class="processor-form__tabs">
         <el-tab-pane label="SQL" name="sql">
           <section class="processor-form__section">
-            <el-select v-if="showRefSelect" v-model="state.jdbc.ref" placeholder="选择环境数据源" class="processor-form__ref-select" filterable>
-              <el-option v-for="opt in dsOptions" :key="opt.refName ?? opt.name" :label="optionLabel(opt.name, opt.refName)" :value="opt.refName ?? ''" />
-            </el-select>
             <el-form label-position="top">
               <el-form-item label="SQL 语句 (sql)">
                 <el-input v-model="state.jdbc.sql" type="textarea" :rows="4" placeholder="SELECT * FROM table WHERE id = ?" />
@@ -233,9 +233,17 @@ const addExtractor = () => {
   font-size: var(--font-size-sm);
 }
 
-// 引用配置/数据源选择器：整行宽度（无标签，占位符承载语义）
+// 类型 radio + 引用选择器水平对齐行（与测试场景处理器头部同构）
+.processor-form__type-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+// 引用配置/数据源选择器：定宽不收缩（标签过长溢出省略）
 .processor-form__ref-select {
-  width: 100%;
+  width: 240px;
+  flex-shrink: 0;
 }
 
 // JDBC 参数行：小号输入 + ✕ 删除（对齐步骤 arg-row）
