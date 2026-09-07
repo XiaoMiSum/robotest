@@ -79,6 +79,17 @@ const jdbcDatasource = ref('')
 const jdbcSql = ref('')
 const jdbcArgs = ref<string[]>([])
 
+// 明细面板分区：配置 / 断言 / 提取器 统一 tabs 结构（http 与 jdbc 共享同一布局）
+const stepTab = ref<'config' | 'validators' | 'extractors'>('config')
+
+// 空态默认行：字段全空，序列化时被过滤，仅提供即时输入起点（避免默认 target/source 被持久化）
+function emptyValidatorRow(): ValidatorItem {
+  return { id: crypto.randomUUID(), name: '', enabled: true, target: '', condition: '', expected: '', expression: '' }
+}
+function emptyExtractorRow(): ExtractorItem {
+  return { id: crypto.randomUUID(), name: '', enabled: true, source: '', expression: '', variableName: '' }
+}
+
 // 当前编辑的目标（编辑时浅拷贝对象字段，保存时写回并 emit commit）
 let source: ApiSceneStepItem | null = null
 
@@ -102,6 +113,8 @@ watch(() => props.step, (s) => {
     : []
   validators.value = (s.validators ?? []).map((v) => ({ ...(v as unknown as ValidatorItem) }))
   extractors.value = (s.extractors ?? []).map((e) => ({ ...(e as unknown as ExtractorItem) }))
+  if (validators.value.length === 0) validators.value = [emptyValidatorRow()]
+  if (extractors.value.length === 0) extractors.value = [emptyExtractorRow()]
 }, { immediate: true })
 
 function addValidator() { validators.value.push(createValidator()) }
@@ -232,90 +245,87 @@ watch(
     </header>
 
     <div class="step-inline__body">
-      <template v-if="formStepType === 'http'">
-        <section class="step-inline__section">
-          <RequestConfigEditor
-            :method="formMethod"
-            :url="formUrl"
-            :headers="reqHeaders"
-            :params="reqParams"
-            :body="reqBody"
-            @update:method="(v: string) => (formMethod = v)"
-            @update:url="(v: string) => (formUrl = v)"
-            @update:headers="(v: typeof reqHeaders) => (reqHeaders = v)"
-            @update:params="(v: typeof reqParams) => (reqParams = v)"
-            @update:body="(v: typeof reqBody) => (reqBody = v)"
-          />
-        </section>
-      </template>
+      <el-tabs v-model="stepTab" class="step-inline__tabs">
+        <el-tab-pane label="配置" name="config">
+          <template v-if="formStepType === 'http'">
+            <section class="step-inline__section">
+              <RequestConfigEditor
+                :method="formMethod"
+                :url="formUrl"
+                :headers="reqHeaders"
+                :params="reqParams"
+                :body="reqBody"
+                @update:method="(v: string) => (formMethod = v)"
+                @update:url="(v: string) => (formUrl = v)"
+                @update:headers="(v: typeof reqHeaders) => (reqHeaders = v)"
+                @update:params="(v: typeof reqParams) => (reqParams = v)"
+                @update:body="(v: typeof reqBody) => (reqBody = v)"
+              />
+            </section>
+          </template>
+          <template v-else>
+            <section class="step-inline__section">
+              <el-form label-position="top">
+                <el-form-item label="SQL 语句">
+                  <el-input v-model="jdbcSql" type="textarea" :rows="5" placeholder="SELECT * FROM table WHERE id = ?" />
+                </el-form-item>
+                <el-form-item label="参数（? 占位符对应）">
+                  <div class="step-inline__args">
+                    <div v-for="(_, i) in jdbcArgs" :key="i" class="step-inline__arg-row">
+                      <el-input v-model="jdbcArgs[i]" size="small" placeholder="参数值" />
+                      <el-button link size="small" type="danger" @click="jdbcArgs.splice(i, 1)">✕</el-button>
+                    </div>
+                    <el-button size="small" @click="jdbcArgs.push('')">+ 添加参数</el-button>
+                  </div>
+                </el-form-item>
+              </el-form>
+            </section>
+          </template>
+        </el-tab-pane>
 
-      <template v-if="formStepType === 'jdbc'">
-        <section class="step-inline__section">
-          <el-form label-position="top">
-            <el-form-item label="SQL 语句">
-              <el-input v-model="jdbcSql" type="textarea" :rows="5" placeholder="SELECT * FROM table WHERE id = ?" />
-            </el-form-item>
-            <el-form-item label="参数（? 占位符对应）">
-              <div class="step-inline__args">
-                <div v-for="(_, i) in jdbcArgs" :key="i" class="step-inline__arg-row">
-                  <el-input v-model="jdbcArgs[i]" size="small" placeholder="参数值" />
-                  <el-button link size="small" type="danger" @click="jdbcArgs.splice(i, 1)">✕</el-button>
-                </div>
-                <el-button size="small" @click="jdbcArgs.push('')">+ 添加参数</el-button>
-              </div>
-            </el-form-item>
-          </el-form>
-        </section>
-      </template>
-
-      <section class="step-inline__section">
-        <div class="step-inline__section-head">
-          <h4 class="step-inline__section-title">断言</h4>
+        <el-tab-pane label="断言" name="validators">
           <div class="step-inline__section-actions">
             <el-button size="small" link type="primary" @click="addValidator">+ 添加断言</el-button>
             <el-button size="small" link type="primary" @click="openAssetPicker('validator')">从公共组件获取</el-button>
           </div>
-        </div>
-        <div class="step-inline__list">
-          <div v-for="(v, i) in validators" :key="i" class="step-inline__card">
-            <div class="step-inline__card-bottom">
-              <el-switch v-model="v.enabled" size="small" />
-              <el-select v-model="v.target" size="small" class="step-inline__field--target" placeholder="验证目标">
-                <el-option v-for="t in VALIDATOR_TARGETS" :key="t.value" :value="t.value" :label="t.label" />
-              </el-select>
-              <el-select v-model="v.condition" size="small" class="step-inline__field--condition" placeholder="比较条件">
-                <el-option v-for="c in VALIDATOR_CONDITIONS" :key="c.value" :value="c.value" :label="c.label" />
-              </el-select>
-              <el-input v-model="v.expression" size="small" placeholder="表达式（如 $.code）" class="step-inline__field--flex" />
-              <el-input v-model="v.expected" size="small" placeholder="期望值" class="step-inline__field--flex" />
-              <el-button link size="small" type="danger" @click="removeValidator(i)">删除</el-button>
+          <div class="step-inline__list">
+            <div v-for="(v, i) in validators" :key="i" class="step-inline__card">
+              <div class="step-inline__card-bottom">
+                <el-switch v-model="v.enabled" size="small" />
+                <el-select v-model="v.target" size="small" class="step-inline__field--target" placeholder="验证目标">
+                  <el-option v-for="t in VALIDATOR_TARGETS" :key="t.value" :value="t.value" :label="t.label" />
+                </el-select>
+                <el-select v-model="v.condition" size="small" class="step-inline__field--condition" placeholder="比较条件">
+                  <el-option v-for="c in VALIDATOR_CONDITIONS" :key="c.value" :value="c.value" :label="c.label" />
+                </el-select>
+                <el-input v-model="v.expression" size="small" placeholder="表达式（如 $.code）" class="step-inline__field--flex" />
+                <el-input v-model="v.expected" size="small" placeholder="期望值" class="step-inline__field--flex" />
+                <el-button link size="small" type="danger" @click="removeValidator(i)">删除</el-button>
+              </div>
             </div>
           </div>
-        </div>
-      </section>
+        </el-tab-pane>
 
-      <section class="step-inline__section">
-        <div class="step-inline__section-head">
-          <h4 class="step-inline__section-title">提取器</h4>
+        <el-tab-pane label="提取器" name="extractors">
           <div class="step-inline__section-actions">
             <el-button size="small" link type="primary" @click="addExtractor">+ 添加提取器</el-button>
             <el-button size="small" link type="primary" @click="openAssetPicker('extractor')">从公共组件获取</el-button>
           </div>
-        </div>
-        <div class="step-inline__list">
-          <div v-for="(e, i) in extractors" :key="i" class="step-inline__card">
-            <div class="step-inline__card-bottom">
-              <el-switch v-model="e.enabled" size="small" />
-              <el-select v-model="e.source" size="small" class="step-inline__field--source" placeholder="提取来源">
-                <el-option v-for="s in EXTRACTOR_SOURCES" :key="s.value" :value="s.value" :label="s.label" />
-              </el-select>
-              <el-input v-model="e.expression" size="small" placeholder="表达式" class="step-inline__field--flex" />
-              <el-input v-model="e.variableName" size="small" placeholder="变量名" class="step-inline__field--flex" />
-              <el-button link size="small" type="danger" @click="removeExtractor(i)">删除</el-button>
+          <div class="step-inline__list">
+            <div v-for="(e, i) in extractors" :key="i" class="step-inline__card">
+              <div class="step-inline__card-bottom">
+                <el-switch v-model="e.enabled" size="small" />
+                <el-select v-model="e.source" size="small" class="step-inline__field--source" placeholder="提取来源">
+                  <el-option v-for="s in EXTRACTOR_SOURCES" :key="s.value" :value="s.value" :label="s.label" />
+                </el-select>
+                <el-input v-model="e.expression" size="small" placeholder="表达式" class="step-inline__field--flex" />
+                <el-input v-model="e.variableName" size="small" placeholder="变量名" class="step-inline__field--flex" />
+                <el-button link size="small" type="danger" @click="removeExtractor(i)">删除</el-button>
+              </div>
             </div>
           </div>
-        </div>
-      </section>
+        </el-tab-pane>
+      </el-tabs>
     </div>
   </div>
 
@@ -376,6 +386,17 @@ watch(
     display: flex;
     flex-direction: column;
     gap: var(--space-sm);
+  }
+
+  // tabs 统一 http/jdbc 分区结构；收窄默认间距，内容区零内边距
+  &__tabs {
+    :deep(.el-tabs__header) {
+      margin-bottom: var(--space-sm);
+    }
+
+    :deep(.el-tabs__content) {
+      padding: 0;
+    }
   }
 
   // 环境引用选择器：置于头部类型选择右侧水平对齐，定宽不收缩（标签过长溢出省略）
