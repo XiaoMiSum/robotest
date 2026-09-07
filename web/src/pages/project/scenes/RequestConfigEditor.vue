@@ -10,7 +10,10 @@ import {
   parseBodyEditState,
   syncBodyContentTypeHeader,
   type SceneBodyEditState,
+  type PaneValidatorItem,
+  type PaneExtractorItem,
 } from '../scenesModel'
+import ValidatorsExtractorsPanes from './ValidatorsExtractorsPanes.vue'
 
 interface KvRow {
   key: string
@@ -24,6 +27,8 @@ const props = defineProps<{
   headers?: KvRow[]
   params?: KvRow[]
   body?: { type: string; content: unknown }
+  validators?: PaneValidatorItem[]
+  extractors?: PaneExtractorItem[]
 }>()
 
 const emit = defineEmits<{
@@ -32,6 +37,12 @@ const emit = defineEmits<{
   (e: 'update:headers', value: KvRow[]): void
   (e: 'update:params', value: KvRow[]): void
   (e: 'update:body', value: { type: string; content: unknown }): void
+  (e: 'update:validators', value: PaneValidatorItem[]): void
+  (e: 'update:extractors', value: PaneExtractorItem[]): void
+  (e: 'add-validator'): void
+  (e: 'add-extractor'): void
+  (e: 'import-validators'): void
+  (e: 'import-extractors'): void
 }>()
 
 const activeTab = ref('headers')
@@ -201,6 +212,19 @@ function formatJsonBody() {
           />
         </div>
       </el-tab-pane>
+
+      <!-- 断言/提取器：交给共享面板，仅当调用方传入数据时显示对应 tab -->
+      <ValidatorsExtractorsPanes
+        v-if="validators !== undefined || extractors !== undefined"
+        :validators="validators"
+        :extractors="extractors"
+        @update:validators="(v) => emit('update:validators', v)"
+        @update:extractors="(v) => emit('update:extractors', v)"
+        @add-validator="emit('add-validator')"
+        @add-extractor="emit('add-extractor')"
+        @import-validators="emit('import-validators')"
+        @import-extractors="emit('import-extractors')"
+      />
     </el-tabs>
   </div>
 </template>

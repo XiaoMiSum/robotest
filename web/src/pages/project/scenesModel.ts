@@ -70,6 +70,23 @@ export interface ValidatorItem {
   expression: string
 }
 
+// 步骤/处理器共用编辑行的最小字段集（id/name/description 等额外字段由调用方持有，编辑器拷贝保留）
+export interface PaneValidatorItem {
+  enabled: boolean
+  target: string
+  condition: string
+  expression: string
+  expected: string
+}
+
+export interface PaneExtractorItem {
+  enabled: boolean
+  source: string
+  expression: string
+  variableName: string
+  description?: string
+}
+
 export const VALIDATOR_TARGETS = [
   { value: 'status_code', label: '状态码' },
   { value: 'json_field', label: 'JSON 字段' },
