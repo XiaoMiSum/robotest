@@ -572,6 +572,7 @@ public class ApiEnvironmentServiceImpl implements ApiEnvironmentService {
             row.put("baseUrl", source.getBaseUrl() == null || source.getBaseUrl().isBlank()
                     ? "" : source.getBaseUrl());
             row.put("headers", normalizeHeaders(source.getHeaders()));
+            row.put("isDefault", Boolean.TRUE.equals(source.getIsDefault()));
             aggregate.httpConfigs.add(row);
         }
 
@@ -589,6 +590,7 @@ public class ApiEnvironmentServiceImpl implements ApiEnvironmentService {
                 row.put("connectionProperties", source.getConnectionProperties() != null
                         ? new HashMap<>(source.getConnectionProperties()) : Map.of());
                 row.put("maxPoolSize", source.getMaxPoolSize() != null ? source.getMaxPoolSize() : 5);
+                row.put("isDefault", Boolean.TRUE.equals(source.getIsDefault()));
                 aggregate.dataSources.add(row);
             }
         }
@@ -654,6 +656,8 @@ public class ApiEnvironmentServiceImpl implements ApiEnvironmentService {
         config.setName("默认配置");
         config.setRefName("default");
         config.setBaseUrl("http://localhost");
+        // 缺省生成的配置即默认配置，保证引用未指定时仍可预选
+        config.setIsDefault(true);
         return config;
     }
 
@@ -679,6 +683,7 @@ public class ApiEnvironmentServiceImpl implements ApiEnvironmentService {
             source.setName(config.getName());
             source.setRefName(config.getRefName());
             source.setBaseUrl(config.getBaseUrl());
+            source.setIsDefault(config.getIsDefault());
             source.setHeaders(config.getHeaders().stream().map(header -> {
                 ApiEnvironmentSaveReqDTO.HeaderItem item = new ApiEnvironmentSaveReqDTO.HeaderItem();
                 item.setKey(header.getKey());

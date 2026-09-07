@@ -62,6 +62,9 @@ public class ApiEnvironmentSaveReqDTO {
 
         @Valid
         private List<HeaderItem> headers;
+
+        /** 是否默认 HTTP 配置：引用未显式指定时优先预选，缺省 false */
+        private Boolean isDefault = false;
     }
 
     @Data
@@ -111,6 +114,9 @@ public class ApiEnvironmentSaveReqDTO {
         private Map<String, Object> connectionProperties;
 
         private Integer maxPoolSize = 5;
+
+        /** 是否默认数据源：引用未显式指定时优先预选，缺省 false */
+        private Boolean isDefault = false;
     }
 
     @Data

@@ -555,6 +555,7 @@ function buildAggregatePayload(): ApiEnvironmentSaveReq {
     name: config.name.trim(),
     refName: config.refName || undefined,
     baseUrl: config.baseUrl,
+    isDefault: !!config.isDefault,
     headers: (config.headers ?? []).filter((header) => header.key.trim() || header.value.trim()),
   }))
   const variables = variableRows.value
@@ -565,6 +566,7 @@ function buildAggregatePayload(): ApiEnvironmentSaveReq {
     refName: ds.refName || undefined,
     driver: ds.driver,
     url: ds.url,
+    isDefault: !!ds.isDefault,
     maxPoolSize: ds.maxPoolSize,
   }))
   const processors = processorRows.value.map((processor) => ({
