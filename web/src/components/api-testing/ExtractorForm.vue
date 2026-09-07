@@ -68,7 +68,7 @@ watch(localConfig, (val) => {
   flex-shrink: 1;
 }
 
-// 提取来源下拉收窄并与表达式/变量名对齐到统一列宽
+/* 提取来源下拉收窄并与表达式/变量名对齐到统一列宽 */
 .extractor-form__field--source {
   flex: 0 0 150px;
 }
@@ -79,7 +79,7 @@ watch(localConfig, (val) => {
   min-width: 0;
 }
 
-// 无论外层容器 label 朝向（含非 el-form 容器），强制标签置顶，保证控件同一水平线对齐
+/* 无论外层容器 label 朝向（含非 el-form 容器），强制标签置顶，保证控件同一水平线对齐 */
 .extractor-form :deep(.el-form-item__label) {
   display: block;
   width: 100%;
