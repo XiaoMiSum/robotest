@@ -285,7 +285,7 @@ watch(
                   </template>
                   <div class="step-inline__args">
                     <div v-for="(_, i) in jdbcArgs" :key="i" class="step-inline__arg-row">
-                      <el-input v-model="jdbcArgs[i]" size="small" placeholder="参数值" />
+                      <el-input v-model="jdbcArgs[i]" placeholder="参数值" />
                       <el-button link size="small" type="danger" @click="jdbcArgs.splice(i, 1)">
                         <el-icon><Delete /></el-icon>
                       </el-button>
