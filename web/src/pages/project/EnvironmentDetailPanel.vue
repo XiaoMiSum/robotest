@@ -355,6 +355,8 @@ const procTestclass = computed<string>({
     const processor = selectedProcessor.value
     if (!processor) return
     processor.config = { ...procElement(processor), testclass: value }
+    // 类型切换后未设置过引用，按新类型下拉的默认标记预选默认值
+    applyDefaultProcRef(processor)
   },
 })
 
@@ -397,6 +399,27 @@ const procDsRef = computed<string>({
     const element = procElement(processor)
     processor.config = { ...element, config: { ...(isRecord(element.config) ? element.config : {}), datasource: value } }
   },
+})
+
+/** 引用预填：处理器未显式设过引用时，按下拉选项中「是否默认」标记补默认值（处理器已显式设置则不动，避免覆盖用户选择） */
+function applyDefaultProcRef(processor: ApiProcessor | null) {
+  if (!processor) return
+  const element = procElement(processor)
+  const config = isRecord(element.config) ? element.config : {}
+  if (element.testclass === 'http' && typeof config.ref !== 'string') {
+    const def = orderedConfigForms.value.find((form) => form.isDefault)
+    if (def?.refName) processor.config = { ...element, config: { ...config, ref: def.refName } }
+    return
+  }
+  if (element.testclass === 'jdbc' && typeof config.datasource !== 'string') {
+    const def = orderedDsForms.value.find((form) => form.isDefault)
+    if (def?.refName) processor.config = { ...element, config: { ...config, datasource: def.refName } }
+  }
+}
+
+// 切换处理器 / 环境 HTTP 配置、数据源列表变更时，为未设引用的当前处理器预填默认引用
+watch([selectedProcessor, orderedConfigForms, orderedDsForms], ([processor]) => {
+  applyDefaultProcRef(processor)
 })
 
 /** 左侧卡片标签：`[HTTP]/[JDBC]` 类型 + 方法 / SQL 摘要，同场景处理器卡片 */
