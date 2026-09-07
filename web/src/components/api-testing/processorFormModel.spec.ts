@@ -364,6 +364,20 @@ describe('processorFormModel', () => {
       expect(element.http.bodyKind).toBe('form')
       expect(element.http.formRows).toEqual([{ key: 'k', value: 'v', enabled: true }])
     })
+
+    it('drops fully-empty extractor rows but keeps partial rows (空态默认行不落库)', () => {
+      const element: Record<string, unknown> = {
+        testclass: 'jdbc',
+        config: { datasource: 'mysql_main', sql: 'SELECT 1' },
+        extractors: [
+          { enabled: true, source: '', expression: '', variableName: '', description: '' },
+          { enabled: true, source: 'body', expression: '$.id', variableName: 'id', description: '' },
+        ],
+        sortOrder: 1,
+      }
+      const compiled = toProcessorElement(element, parseProcessorElement(element))
+      expect(compiled.extractors).toEqual([{ enabled: true, source: 'body', expression: '$.id', variableName: 'id', description: '' }])
+    })
   })
 
   describe('processorSummaryTag', () => {

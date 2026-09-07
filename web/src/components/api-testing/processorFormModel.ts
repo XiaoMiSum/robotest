@@ -240,7 +240,10 @@ export function toProcessorElement(
     : form.testclass === 'jdbc'
       ? toJdbcConfig(form.jdbc)
       : {}
-  const extractors = form.extractors.map((item) => ({ ...item }))
+  const extractors = form.extractors
+    // 丢弃全空行（空态默认行/误加的空行不落库），部分填写行保留避免编辑中断
+    .filter((item) => item.source.trim() || item.expression.trim() || item.variableName.trim() || item.description.trim())
+    .map((item) => ({ ...item }))
   return { ...overlay, testclass: form.testclass, config, extractors }
 }
 
