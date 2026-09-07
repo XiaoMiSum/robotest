@@ -211,14 +211,29 @@ watch(
           {{ opt.label }}
         </el-radio-button>
       </el-radio-group>
+      <el-select
+        v-if="formStepType === 'http'"
+        v-model="httpRefName"
+        placeholder="选择环境 HTTP 配置"
+        filterable
+        class="step-inline__ref-select"
+      >
+        <el-option v-for="opt in httpConfigOptions" :key="opt.value" :value="opt.value" :label="opt.label" />
+      </el-select>
+      <el-select
+        v-else
+        v-model="jdbcDatasource"
+        placeholder="选择环境数据源"
+        filterable
+        class="step-inline__ref-select"
+      >
+        <el-option v-for="opt in datasourceOptions" :key="opt.value" :value="opt.value" :label="opt.label" />
+      </el-select>
     </header>
 
     <div class="step-inline__body">
       <template v-if="formStepType === 'http'">
         <section class="step-inline__section">
-          <el-select v-model="httpRefName" placeholder="选择环境 HTTP 配置" filterable class="step-inline__ref-select">
-            <el-option v-for="opt in httpConfigOptions" :key="opt.value" :value="opt.value" :label="opt.label" />
-          </el-select>
           <RequestConfigEditor
             :method="formMethod"
             :url="formUrl"
@@ -236,9 +251,6 @@ watch(
 
       <template v-if="formStepType === 'jdbc'">
         <section class="step-inline__section">
-          <el-select v-model="jdbcDatasource" placeholder="选择环境数据源" filterable class="step-inline__ref-select">
-            <el-option v-for="opt in datasourceOptions" :key="opt.value" :value="opt.value" :label="opt.label" />
-          </el-select>
           <el-form label-position="top">
             <el-form-item label="SQL 语句">
               <el-input v-model="jdbcSql" type="textarea" :rows="5" placeholder="SELECT * FROM table WHERE id = ?" />
@@ -366,9 +378,10 @@ watch(
     gap: var(--space-sm);
   }
 
-  // 引用配置/数据源选择器：整行宽度（无标签，占位符承载语义）
+  // 环境引用选择器：置于头部类型选择右侧水平对齐，定宽不收缩（标签过长溢出省略）
   &__ref-select {
-    width: 100%;
+    width: 240px;
+    flex-shrink: 0;
   }
 
   &__section-title {

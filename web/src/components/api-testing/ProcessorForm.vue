@@ -12,7 +12,7 @@
     <!-- 配置信息：HTTP 请求分区（复用步骤 RequestConfigEditor：请求行 + KeyValueTable + 分段请求体；path 相对语义故隐藏导入 cURL） -->
     <template v-if="state.testclass === 'http'">
       <section class="processor-form__section">
-        <el-select v-model="state.http.ref" placeholder="选择环境 HTTP 配置" class="processor-form__ref-select" filterable>
+        <el-select v-if="showRefSelect" v-model="state.http.ref" placeholder="选择环境 HTTP 配置" class="processor-form__ref-select" filterable>
           <el-option v-for="opt in httpOptions" :key="opt.refName ?? opt.name" :label="optionLabel(opt.name, opt.refName)" :value="opt.refName ?? ''" />
         </el-select>
         <RequestConfigEditor
@@ -33,7 +33,7 @@
     <!-- 配置信息：SQL 分区（config 键与 Ryze jdbc 处理器一致；数据源 label 与选择器同行） -->
     <template v-if="state.testclass === 'jdbc'">
       <section class="processor-form__section">
-        <el-select v-model="state.jdbc.ref" placeholder="选择环境数据源" class="processor-form__ref-select" filterable>
+        <el-select v-if="showRefSelect" v-model="state.jdbc.ref" placeholder="选择环境数据源" class="processor-form__ref-select" filterable>
           <el-option v-for="opt in dsOptions" :key="opt.refName ?? opt.name" :label="optionLabel(opt.name, opt.refName)" :value="opt.refName ?? ''" />
         </el-select>
         <el-form label-position="top">
@@ -107,10 +107,12 @@ const props = withDefaults(defineProps<{
   httpOptions?: RefOption[]
   dsOptions?: RefOption[]
   showTypeSelect?: boolean
+  showRefSelect?: boolean
 }>(), {
   httpOptions: () => [],
   dsOptions: () => [],
   showTypeSelect: true,
+  showRefSelect: true,
 })
 
 const emit = defineEmits<{
