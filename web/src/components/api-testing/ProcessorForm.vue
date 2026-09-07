@@ -9,32 +9,34 @@
     </el-form-item>
     <p v-else-if="!state.testclass" class="processor-form__hint">请在上方选择处理器类型</p>
 
-    <!-- 配置 / 提取器 统一 tabs 结构（http 与 jdbc 处理器共享布局） -->
-    <el-tabs v-model="procTab" class="processor-form__tabs">
-      <el-tab-pane label="配置" name="config">
-        <!-- 配置信息：HTTP 请求分区（复用步骤 RequestConfigEditor：请求行 + KeyValueTable + 分段请求体；path 相对语义故隐藏导入 cURL） -->
-        <template v-if="state.testclass === 'http'">
-          <section class="processor-form__section">
-            <el-select v-if="showRefSelect" v-model="state.http.ref" placeholder="选择环境 HTTP 配置" class="processor-form__ref-select" filterable>
-              <el-option v-for="opt in httpOptions" :key="opt.refName ?? opt.name" :label="optionLabel(opt.name, opt.refName)" :value="opt.refName ?? ''" />
-            </el-select>
-            <RequestConfigEditor
-              :method="state.http.method"
-              :url="state.http.path"
-              :headers="editorHeaders"
-              :params="editorQuery"
-              :body="editorBody"
-              @update:method="onMethod"
-              @update:url="onUrl"
-              @update:headers="onHeaders"
-              @update:params="onQuery"
-              @update:body="onBody"
-            />
-          </section>
-        </template>
+    <!-- 配置 / 提取器：http 直接并入请求配置 tabs，jdbc 用同构 tabs（SQL / 提取器） -->
+    <template v-if="state.testclass === 'http'">
+      <section class="processor-form__section">
+        <el-select v-if="showRefSelect" v-model="state.http.ref" placeholder="选择环境 HTTP 配置" class="processor-form__ref-select" filterable>
+          <el-option v-for="opt in httpOptions" :key="opt.refName ?? opt.name" :label="optionLabel(opt.name, opt.refName)" :value="opt.refName ?? ''" />
+        </el-select>
+        <RequestConfigEditor
+          :method="state.http.method"
+          :url="state.http.path"
+          :headers="editorHeaders"
+          :params="editorQuery"
+          :body="editorBody"
+          :extractors="state.extractors"
+          @update:method="onMethod"
+          @update:url="onUrl"
+          @update:headers="onHeaders"
+          @update:params="onQuery"
+          @update:body="onBody"
+          @update:extractors="(v) => (state.extractors = v as ProcessorExtractor[])"
+          @add-extractor="addExtractor"
+          @import-extractors="() => emit('import-extractors')"
+        />
+      </section>
+    </template>
 
-        <!-- 配置信息：SQL 分区（config 键与 Ryze jdbc 处理器一致；数据源 label 与选择器同行） -->
-        <template v-if="state.testclass === 'jdbc'">
+    <template v-if="state.testclass === 'jdbc'">
+      <el-tabs class="processor-form__tabs">
+        <el-tab-pane label="SQL" name="sql">
           <section class="processor-form__section">
             <el-select v-if="showRefSelect" v-model="state.jdbc.ref" placeholder="选择环境数据源" class="processor-form__ref-select" filterable>
               <el-option v-for="opt in dsOptions" :key="opt.refName ?? opt.name" :label="optionLabel(opt.name, opt.refName)" :value="opt.refName ?? ''" />
@@ -52,38 +54,25 @@
               </el-form-item>
             </el-form>
           </section>
-        </template>
-      </el-tab-pane>
+        </el-tab-pane>
 
-      <el-tab-pane label="提取器" name="extractors">
-        <div class="processor-form__extractor-actions">
-          <el-button size="small" link type="primary" @click="addExtractor">+ 添加提取器</el-button>
-          <el-button size="small" link type="primary" @click="emit('import-extractors')">从公共组件获取</el-button>
-        </div>
-        <div class="processor-form__list">
-          <div v-for="(extractor, index) in state.extractors" :key="index" class="processor-form__extractor-card">
-            <div class="processor-form__extractor-row">
-              <el-switch v-model="extractor.enabled" size="small" />
-              <el-select v-model="extractor.source" size="small" class="processor-form__field--source" placeholder="提取来源">
-                <el-option v-for="s in EXTRACTOR_SOURCES" :key="s.value" :value="s.value" :label="s.label" />
-              </el-select>
-              <el-input v-model="extractor.expression" size="small" placeholder="表达式" class="processor-form__field--flex" />
-              <el-input v-model="extractor.variableName" size="small" placeholder="变量名" class="processor-form__field--flex" />
-              <el-button link size="small" type="danger" @click="removeExtractor(index)">删除</el-button>
-            </div>
-          </div>
-        </div>
-      </el-tab-pane>
-    </el-tabs>
+        <ValidatorsExtractorsPanes
+          :extractors="state.extractors"
+          @update:extractors="(v) => (state.extractors = v as ProcessorExtractor[])"
+          @add-extractor="addExtractor"
+          @import-extractors="() => emit('import-extractors')"
+        />
+      </el-tabs>
+    </template>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, reactive, watch } from 'vue'
 import { parseProcessorElement, toProcessorElement } from './processorFormModel'
-import type { ProcessorElementForm } from './processorFormModel'
-import { EXTRACTOR_SOURCES } from '@/pages/project/scenesModel'
+import type { ProcessorElementForm, ProcessorExtractor } from './processorFormModel'
 import RequestConfigEditor from '@/pages/project/scenes/RequestConfigEditor.vue'
+import ValidatorsExtractorsPanes from '@/pages/project/scenes/ValidatorsExtractorsPanes.vue'
 
 interface ResultEditorRow {
   key: string
@@ -122,9 +111,6 @@ const emit = defineEmits<{
 }>()
 
 const state = reactive<ProcessorElementForm>(parseProcessorElement(props.modelValue))
-
-// 处理器分区：配置 / 提取器 统一 tabs 结构（http 与 jdbc 共享布局）
-const procTab = ref<'config' | 'extractors'>('config')
 
 // 提取器空态默认行：字段全空，编译时被过滤，仅提供即时输入起点
 if (state.extractors.length === 0) {
@@ -220,10 +206,6 @@ function removeRow(rows: string[], index: number) {
 const addExtractor = () => {
   state.extractors.push({ enabled: true, source: '', expression: '', variableName: '', description: '' })
 }
-
-const removeExtractor = (index: number) => {
-  state.extractors.splice(index, 1)
-}
 </script>
 
 <style scoped lang="scss">
@@ -254,41 +236,6 @@ const removeExtractor = (index: number) => {
 // 引用配置/数据源选择器：整行宽度（无标签，占位符承载语义）
 .processor-form__ref-select {
   width: 100%;
-}
-
-// 提取器行卡片：对齐步骤断言行（step-inline__card / __card-bottom 同构）
-.processor-form__list {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-sm);
-}
-
-.processor-form__extractor-card {
-  border: 1px solid var(--el-border-color-lighter);
-  border-radius: var(--radius-md);
-  padding: var(--space-sm) var(--space-md);
-}
-
-.processor-form__extractor-row {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-  flex-wrap: nowrap;
-}
-
-.processor-form__field--source {
-  flex: 0 0 240px;
-}
-
-.processor-form__field--flex {
-  flex: 1 1 0;
-  min-width: 0;
-}
-
-.processor-form__extractor-actions {
-  display: flex;
-  gap: var(--space-md);
-  align-items: center;
 }
 
 // JDBC 参数行：小号输入 + ✕ 删除（对齐步骤 arg-row）

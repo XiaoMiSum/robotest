@@ -16,11 +16,9 @@ import {
   serializeExtractors,
   stepValidatorsFromComponents,
   stepExtractorsFromComponents,
-  VALIDATOR_TARGETS,
-  VALIDATOR_CONDITIONS,
-  EXTRACTOR_SOURCES,
 } from '../scenesModel'
 import RequestConfigEditor from './RequestConfigEditor.vue'
+import ValidatorsExtractorsPanes from './ValidatorsExtractorsPanes.vue'
 
 const props = defineProps<{
   step: ApiSceneStepItem | null
@@ -79,8 +77,8 @@ const jdbcDatasource = ref('')
 const jdbcSql = ref('')
 const jdbcArgs = ref<string[]>([])
 
-// 明细面板分区：配置 / 断言 / 提取器 统一 tabs 结构（http 与 jdbc 共享同一布局）
-const stepTab = ref<'config' | 'validators' | 'extractors'>('config')
+// jdbc 分区：SQL（请求配置） / 断言 / 提取器 tabs（http 复用 RequestConfigEditor 内嵌 tabs，无外层 tabs）
+const jdbcTab = ref<'sql' | 'validators' | 'extractors'>('sql')
 
 // 空态默认行：字段全空，序列化时被过滤，仅提供即时输入起点（避免默认 target/source 被持久化）
 function emptyValidatorRow(): ValidatorItem {
@@ -118,9 +116,7 @@ watch(() => props.step, (s) => {
 }, { immediate: true })
 
 function addValidator() { validators.value.push(createValidator()) }
-function removeValidator(i: number) { validators.value.splice(i, 1) }
 function addExtractor() { extractors.value.push(createExtractor()) }
-function removeExtractor(i: number) { extractors.value.splice(i, 1) }
 
 // ==================== 从公共组件获取（验证器/提取器，复制引入） ====================
 type StepAssetKind = 'validator' | 'extractor'
@@ -245,25 +241,34 @@ watch(
     </header>
 
     <div class="step-inline__body">
-      <el-tabs v-model="stepTab" class="step-inline__tabs">
-        <el-tab-pane label="配置" name="config">
-          <template v-if="formStepType === 'http'">
-            <section class="step-inline__section">
-              <RequestConfigEditor
-                :method="formMethod"
-                :url="formUrl"
-                :headers="reqHeaders"
-                :params="reqParams"
-                :body="reqBody"
-                @update:method="(v: string) => (formMethod = v)"
-                @update:url="(v: string) => (formUrl = v)"
-                @update:headers="(v: typeof reqHeaders) => (reqHeaders = v)"
-                @update:params="(v: typeof reqParams) => (reqParams = v)"
-                @update:body="(v: typeof reqBody) => (reqBody = v)"
-              />
-            </section>
-          </template>
-          <template v-else>
+      <template v-if="formStepType === 'http'">
+        <!-- http：断言/提取器直接并入请求配置 tabs（请求头/Query/请求体/断言/提取器） -->
+        <RequestConfigEditor
+          :method="formMethod"
+          :url="formUrl"
+          :headers="reqHeaders"
+          :params="reqParams"
+          :body="reqBody"
+          :validators="validators"
+          :extractors="extractors"
+          @update:method="(v: string) => (formMethod = v)"
+          @update:url="(v: string) => (formUrl = v)"
+          @update:headers="(v: typeof reqHeaders) => (reqHeaders = v)"
+          @update:params="(v: typeof reqParams) => (reqParams = v)"
+          @update:body="(v: typeof reqBody) => (reqBody = v)"
+          @update:validators="(v) => (validators = v as ValidatorItem[])"
+          @update:extractors="(v) => (extractors = v as ExtractorItem[])"
+          @add-validator="addValidator"
+          @add-extractor="addExtractor"
+          @import-validators="() => openAssetPicker('validator')"
+          @import-extractors="() => openAssetPicker('extractor')"
+        />
+      </template>
+
+      <template v-else>
+        <!-- jdbc：与 http 同构的 tabs，SQL 为请求配置 tab，断言/提取器随后 -->
+        <el-tabs v-model="jdbcTab" class="step-inline__tabs">
+          <el-tab-pane label="SQL" name="sql">
             <section class="step-inline__section">
               <el-form label-position="top">
                 <el-form-item label="SQL 语句">
@@ -280,52 +285,20 @@ watch(
                 </el-form-item>
               </el-form>
             </section>
-          </template>
-        </el-tab-pane>
+          </el-tab-pane>
 
-        <el-tab-pane label="断言" name="validators">
-          <div class="step-inline__section-actions">
-            <el-button size="small" link type="primary" @click="addValidator">+ 添加断言</el-button>
-            <el-button size="small" link type="primary" @click="openAssetPicker('validator')">从公共组件获取</el-button>
-          </div>
-          <div class="step-inline__list">
-            <div v-for="(v, i) in validators" :key="i" class="step-inline__card">
-              <div class="step-inline__card-bottom">
-                <el-switch v-model="v.enabled" size="small" />
-                <el-select v-model="v.target" size="small" class="step-inline__field--target" placeholder="验证目标">
-                  <el-option v-for="t in VALIDATOR_TARGETS" :key="t.value" :value="t.value" :label="t.label" />
-                </el-select>
-                <el-select v-model="v.condition" size="small" class="step-inline__field--condition" placeholder="比较条件">
-                  <el-option v-for="c in VALIDATOR_CONDITIONS" :key="c.value" :value="c.value" :label="c.label" />
-                </el-select>
-                <el-input v-model="v.expression" size="small" placeholder="表达式（如 $.code）" class="step-inline__field--flex" />
-                <el-input v-model="v.expected" size="small" placeholder="期望值" class="step-inline__field--flex" />
-                <el-button link size="small" type="danger" @click="removeValidator(i)">删除</el-button>
-              </div>
-            </div>
-          </div>
-        </el-tab-pane>
-
-        <el-tab-pane label="提取器" name="extractors">
-          <div class="step-inline__section-actions">
-            <el-button size="small" link type="primary" @click="addExtractor">+ 添加提取器</el-button>
-            <el-button size="small" link type="primary" @click="openAssetPicker('extractor')">从公共组件获取</el-button>
-          </div>
-          <div class="step-inline__list">
-            <div v-for="(e, i) in extractors" :key="i" class="step-inline__card">
-              <div class="step-inline__card-bottom">
-                <el-switch v-model="e.enabled" size="small" />
-                <el-select v-model="e.source" size="small" class="step-inline__field--source" placeholder="提取来源">
-                  <el-option v-for="s in EXTRACTOR_SOURCES" :key="s.value" :value="s.value" :label="s.label" />
-                </el-select>
-                <el-input v-model="e.expression" size="small" placeholder="表达式" class="step-inline__field--flex" />
-                <el-input v-model="e.variableName" size="small" placeholder="变量名" class="step-inline__field--flex" />
-                <el-button link size="small" type="danger" @click="removeExtractor(i)">删除</el-button>
-              </div>
-            </div>
-          </div>
-        </el-tab-pane>
-      </el-tabs>
+          <ValidatorsExtractorsPanes
+            :validators="validators"
+            :extractors="extractors"
+            @update:validators="(v) => (validators = v as ValidatorItem[])"
+            @update:extractors="(v) => (extractors = v as ExtractorItem[])"
+            @add-validator="addValidator"
+            @add-extractor="addExtractor"
+            @import-validators="() => openAssetPicker('validator')"
+            @import-extractors="() => openAssetPicker('extractor')"
+          />
+        </el-tabs>
+      </template>
     </div>
   </div>
 
@@ -405,33 +378,6 @@ watch(
     flex-shrink: 0;
   }
 
-  &__section-title {
-    margin: 0;
-    font-size: var(--font-size-sm);
-    font-weight: 600;
-    color: var(--color-neutral-600);
-  }
-
-  // 断言/提取器标题行：标题居左、操作钮居右（与处理器提取器对齐）
-  &__section-head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--space-sm);
-  }
-
-  &__section-actions {
-    display: flex;
-    align-items: center;
-    gap: var(--space-md);
-  }
-
-  &__list {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-sm);
-  }
-
   &__args {
     display: flex;
     flex-direction: column;
@@ -443,36 +389,6 @@ watch(
     display: flex;
     align-items: center;
     gap: var(--space-xs);
-  }
-
-  &__card {
-    border: 1px solid var(--el-border-color-lighter);
-    border-radius: var(--radius-md);
-    padding: var(--space-sm) var(--space-md);
-  }
-
-  &__card-bottom {
-    display: flex;
-    align-items: center;
-    gap: var(--space-sm);
-    flex-wrap: nowrap;
-  }
-
-  &__field--flex {
-    flex: 1 1 0;
-    min-width: 0;
-  }
-
-  &__field--target {
-    flex: 0 0 260px;
-  }
-
-  &__field--condition {
-    flex: 0 0 150px;
-  }
-
-  &__field--source {
-    flex: 0 0 240px;
   }
 }
 </style>
