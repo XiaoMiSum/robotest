@@ -54,7 +54,7 @@
                   </span>
                 </template>
                 <div v-for="(_, index) in state.jdbc.args" :key="index" class="processor-form__kv-row">
-                  <el-input v-model="state.jdbc.args[index]" size="small" placeholder="参数值" />
+                  <el-input v-model="state.jdbc.args[index]" placeholder="参数值" />
                   <el-button link size="small" type="danger" @click="removeRow(state.jdbc.args, index)">
                     <el-icon><Delete /></el-icon>
                   </el-button>
