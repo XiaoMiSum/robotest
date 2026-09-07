@@ -23,7 +23,7 @@ import { fetchEnvironmentDetail, fetchEnvironments } from '@/services/apiEnviron
 import { fetchComponents } from '@/services/apiComponent'
 import ProcessorForm from '@/components/api-testing/ProcessorForm.vue'
 import ExtractorAssetPicker from '@/components/api-testing/ExtractorAssetPicker.vue'
-import { extractorsFromComponents, processorFromComponent, processorSummaryTag } from '@/components/api-testing/processorFormModel'
+import { extractorsFromComponents, isRecord, processorFromComponent, processorSummaryTag } from '@/components/api-testing/processorFormModel'
 import type { ProcessorExtractor } from '@/components/api-testing/processorFormModel'
 import { formatDateTime } from '@/utils/format'
 import { sortedSteps, emptyStepDraft } from './scenesModel'
@@ -590,6 +590,48 @@ function updateProcessor(idx: number, value: Record<string, unknown>) {
   editProcessors.value[idx] = value as SceneProcessorElement
 }
 
+// ==================== 头部 ref 下拉：类型选择右侧水平对齐（http 配置 / 数据源） ====================
+
+/** 当前选中的处理器元素；头部下拉与右侧 ProcessorForm 共用同一编辑态 */
+const selectedProcessorEl = computed<SceneProcessorElement | null>(
+  () => (selectedProcessorIdx.value === null ? null : (editProcessors.value[selectedProcessorIdx.value] ?? null)),
+)
+
+/** 环境 http 配置 / 数据源 → 下拉选项（结构化满足 ApiHttpConfig / ApiDataSource） */
+const httpRefSelectOptions = computed(() =>
+  httpRefOptions.value.map((hc) => ({ value: String(hc.refName ?? ''), label: hc.refName ? `${hc.name}（${hc.refName}）` : hc.name })),
+)
+const dsRefSelectOptions = computed(() =>
+  dsRefOptions.value.map((ds) => ({ value: String(ds.refName ?? ''), label: ds.refName ? `${ds.name}（${ds.refName}）` : ds.name })),
+)
+
+/** 写回处理器 config.ref / config.datasource，ProcessorForm 经 modelValue 深监听自动重解析同步 */
+const procHttpRef = computed({
+  get: () => {
+    const el = selectedProcessorEl.value
+    if (!el || el.testclass !== 'http' || !isRecord(el.config)) return ''
+    return typeof el.config.ref === 'string' ? el.config.ref : ''
+  },
+  set: (value: string) => {
+    const el = selectedProcessorEl.value
+    if (!el || el.testclass !== 'http') return
+    el.config = { ...(isRecord(el.config) ? el.config : {}), ref: value }
+  },
+})
+
+const procDsRef = computed({
+  get: () => {
+    const el = selectedProcessorEl.value
+    if (!el || el.testclass !== 'jdbc' || !isRecord(el.config)) return ''
+    return typeof el.config.datasource === 'string' ? el.config.datasource : ''
+  },
+  set: (value: string) => {
+    const el = selectedProcessorEl.value
+    if (!el || el.testclass !== 'jdbc') return
+    el.config = { ...(isRecord(el.config) ? el.config : {}), datasource: value }
+  },
+})
+
 /** 左侧卡片头部标签：`[HTTP]/[JDBC]` 类型 + 配置摘要（方法 / SQL 类型），对齐步骤卡片的 method/SQL 标签 */
 function procTags(idx: number): { text: string; type: 'success' | 'primary' | 'warning' | 'info' | 'danger' }[] {
   const el = editProcessors.value[idx] as SceneProcessorElement | undefined
@@ -1080,6 +1122,24 @@ onMounted(async () => {
                       <el-radio-button value="http">HTTP</el-radio-button>
                       <el-radio-button value="jdbc">JDBC</el-radio-button>
                     </el-radio-group>
+                    <el-select
+                      v-if="String((editProcessors[selectedProcessorIdx] as SceneProcessorElement).testclass ?? '') === 'http'"
+                      v-model="procHttpRef"
+                      placeholder="选择环境 HTTP 配置"
+                      filterable
+                      class="scene-editor__proc-inline-ref"
+                    >
+                      <el-option v-for="opt in httpRefSelectOptions" :key="opt.value" :value="opt.value" :label="opt.label" />
+                    </el-select>
+                    <el-select
+                      v-else-if="String((editProcessors[selectedProcessorIdx] as SceneProcessorElement).testclass ?? '') === 'jdbc'"
+                      v-model="procDsRef"
+                      placeholder="选择环境数据源"
+                      filterable
+                      class="scene-editor__proc-inline-ref"
+                    >
+                      <el-option v-for="opt in dsRefSelectOptions" :key="opt.value" :value="opt.value" :label="opt.label" />
+                    </el-select>
                   </header>
                   <div class="scene-editor__proc-inline-body">
                     <ProcessorForm
@@ -1087,6 +1147,7 @@ onMounted(async () => {
                       :http-options="httpRefOptions"
                       :ds-options="dsRefOptions"
                       :show-type-select="false"
+                      :show-ref-select="false"
                       @update:model-value="(v) => updateProcessor(selectedProcessorIdx!, v)"
                       @import-extractors="openExtractorPickerForProcessor(selectedProcessorIdx!)"
                     />
@@ -1181,6 +1242,24 @@ onMounted(async () => {
                       <el-radio-button value="http">HTTP</el-radio-button>
                       <el-radio-button value="jdbc">JDBC</el-radio-button>
                     </el-radio-group>
+                    <el-select
+                      v-if="String((editProcessors[selectedProcessorIdx] as SceneProcessorElement).testclass ?? '') === 'http'"
+                      v-model="procHttpRef"
+                      placeholder="选择环境 HTTP 配置"
+                      filterable
+                      class="scene-editor__proc-inline-ref"
+                    >
+                      <el-option v-for="opt in httpRefSelectOptions" :key="opt.value" :value="opt.value" :label="opt.label" />
+                    </el-select>
+                    <el-select
+                      v-else-if="String((editProcessors[selectedProcessorIdx] as SceneProcessorElement).testclass ?? '') === 'jdbc'"
+                      v-model="procDsRef"
+                      placeholder="选择环境数据源"
+                      filterable
+                      class="scene-editor__proc-inline-ref"
+                    >
+                      <el-option v-for="opt in dsRefSelectOptions" :key="opt.value" :value="opt.value" :label="opt.label" />
+                    </el-select>
                   </header>
                   <div class="scene-editor__proc-inline-body">
                     <ProcessorForm
@@ -1188,6 +1267,7 @@ onMounted(async () => {
                       :http-options="httpRefOptions"
                       :ds-options="dsRefOptions"
                       :show-type-select="false"
+                      :show-ref-select="false"
                       @update:model-value="(v) => updateProcessor(selectedProcessorIdx!, v)"
                       @import-extractors="openExtractorPickerForProcessor(selectedProcessorIdx!)"
                     />
@@ -1688,6 +1768,12 @@ onMounted(async () => {
 .scene-editor__proc-inline-name {
   flex: 1;
   max-width: 320px;
+}
+
+// 头部环境引用选择器：置于类型选择右侧水平对齐，定宽不收缩
+.scene-editor__proc-inline-ref {
+  width: 240px;
+  flex-shrink: 0;
 }
 
 .scene-editor__proc-inline-body {
