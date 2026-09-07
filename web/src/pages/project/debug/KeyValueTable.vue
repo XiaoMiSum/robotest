@@ -57,13 +57,13 @@ onMounted(() => {
   }
 })
 
-// 切换数据源后 entries 指向新数组：为空时补一行，避免表格只剩表头（同 onMounted 语义）
+// 父级整表回填（序列化过滤掉空行后的新数组）会抹掉自动补出的末行空行，而长度监听在"整表替换但长度不变"时失效：
+// 改为按 entries 引用监听重跑 ensureTrailingRow，保证末行填入 key 后自动追加新空行（与 Postman 一致）
 watch(
-  () => entries.value.length,
-  (length) => {
-    if (!props.disabled && length === 0) {
-      entries.value.push(emptyRow())
-    }
+  () => entries.value,
+  () => {
+    if (props.disabled) return
+    ensureTrailingRow()
   },
 )
 </script>
