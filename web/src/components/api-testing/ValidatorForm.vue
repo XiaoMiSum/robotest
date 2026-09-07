@@ -75,7 +75,7 @@ watch(localConfig, (val) => {
   flex-shrink: 1;
 }
 
-// 下拉与输入对齐到统一列宽
+/* 下拉与输入对齐到统一列宽 */
 .validator-form__field--target,
 .validator-form__field--condition {
   flex: 0 0 150px;
@@ -87,7 +87,7 @@ watch(localConfig, (val) => {
   min-width: 0;
 }
 
-// 无论外层容器 label 朝向（含非 el-form 容器），强制标签置顶，保证控件同一水平线对齐
+/* 无论外层容器 label 朝向（含非 el-form 容器），强制标签置顶，保证控件同一水平线对齐 */
 .validator-form :deep(.el-form-item__label) {
   display: block;
   width: 100%;
