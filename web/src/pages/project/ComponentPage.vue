@@ -36,7 +36,6 @@ import ExtractorAssetPicker from '@/components/api-testing/ExtractorAssetPicker.
 import {
   defaultComponentConfig,
   extractorsFromComponents,
-  isProcessorComponentType,
   type ProcessorExtractor,
 } from '@/components/api-testing/processorFormModel'
 
@@ -521,9 +520,6 @@ onMounted(() => void loadList())
           </el-form-item>
           <el-form-item label="启用">
             <el-switch v-model="basicConfigEnabled" />
-          </el-form-item>
-          <el-form-item v-if="isProcessorComponentType(form.type)" label="排序号">
-            <el-input-number v-model="form.sortOrder" :min="0" :max="9999" style="width: 100%" />
           </el-form-item>
         </div>
 

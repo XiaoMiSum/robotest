@@ -209,6 +209,13 @@ const addExtractor = () => {
 </script>
 
 <style scoped lang="scss">
+// 纵向分区间距：类型行 / 提示 / 配置区 之间的呼吸感（请求方法·path 行与上方组件留白即由此产生）
+.processor-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
 // 分区布局对齐步骤内联编辑器的 step-inline__section 结构
 .processor-form__section {
   display: flex;
