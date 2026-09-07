@@ -45,12 +45,20 @@
               <el-form-item label="SQL 语句 (sql)">
                 <el-input v-model="state.jdbc.sql" type="textarea" :rows="4" placeholder="SELECT * FROM table WHERE id = ?" />
               </el-form-item>
-              <el-form-item label="参数 (args)">
+              <el-form-item>
+                <template #label>
+                  <!-- 添加按钮与标题同行右侧，避免独占一行挤占参数区 -->
+                  <span class="processor-form__args-label">
+                    参数 (args)
+                    <el-button link type="primary" size="small" class="processor-form__args-add" @click="state.jdbc.args.push('')">+ 添加参数</el-button>
+                  </span>
+                </template>
                 <div v-for="(_, index) in state.jdbc.args" :key="index" class="processor-form__kv-row">
                   <el-input v-model="state.jdbc.args[index]" size="small" placeholder="参数值" />
-                  <el-button link size="small" type="danger" @click="removeRow(state.jdbc.args, index)">✕</el-button>
+                  <el-button link size="small" type="danger" @click="removeRow(state.jdbc.args, index)">
+                    <el-icon><Delete /></el-icon>
+                  </el-button>
                 </div>
-                <el-button size="small" @click="state.jdbc.args.push('')">+ 添加参数</el-button>
               </el-form-item>
             </el-form>
           </section>
@@ -69,6 +77,7 @@
 
 <script setup lang="ts">
 import { computed, reactive, watch } from 'vue'
+import { Delete } from '@element-plus/icons-vue'
 import { parseProcessorElement, toProcessorElement } from './processorFormModel'
 import type { ProcessorElementForm, ProcessorExtractor } from './processorFormModel'
 import RequestConfigEditor from '@/pages/project/scenes/RequestConfigEditor.vue'
@@ -253,7 +262,15 @@ const addExtractor = () => {
   flex-shrink: 0;
 }
 
-// JDBC 参数行：小号输入 + ✕ 删除（对齐步骤 arg-row）
+// 参数标签行：添加按钮与标题右对齐
+.processor-form__args-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+// JDBC 参数行：小号输入 + 删除图标（对齐步骤 arg-row）
 .processor-form__kv-row {
   display: flex;
   align-items: center;
