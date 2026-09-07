@@ -574,7 +574,7 @@ function processorIndexes(type: 'pre' | 'post'): number[] {
 }
 
 function addProcessor(type: 'pre' | 'post') {
-  editProcessors.value.push({ type, name: '', enabled: true, testclass: '', config: {}, extractors: [] })
+  editProcessors.value.push({ type, name: '', enabled: true, testclass: 'http', config: {}, extractors: [] })
   selectedProcessorIdx.value = editProcessors.value.length - 1
 }
 

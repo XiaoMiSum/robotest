@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  createProcessorComponentConfig,
   defaultComponentConfig,
   defaultProcessorConfig,
   extractorFromComponent,
@@ -53,6 +54,12 @@ describe('processorFormModel', () => {
   describe('defaultComponentConfig', () => {
     it('seeds only enabled default（排序号走顶层 sortOrder，不进入 config）', () => {
       expect(defaultComponentConfig()).toEqual({ enabled: true })
+    })
+  })
+
+  describe('createProcessorComponentConfig', () => {
+    it('seeds processor type default http，避免新建后手动点选', () => {
+      expect(createProcessorComponentConfig()).toEqual({ enabled: true, testclass: 'http', config: {}, extractors: [] })
     })
   })
 
