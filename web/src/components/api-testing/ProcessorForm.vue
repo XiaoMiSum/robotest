@@ -45,13 +45,10 @@
               <el-form-item label="SQL 语句 (sql)">
                 <el-input v-model="state.jdbc.sql" type="textarea" :rows="4" placeholder="SELECT * FROM table WHERE id = ?" />
               </el-form-item>
-              <el-form-item>
+              <el-form-item class="processor-form__args-item">
                 <template #label>
-                  <!-- 添加按钮与标题同行右侧，避免独占一行挤占参数区 -->
-                  <span class="processor-form__args-label">
-                    参数 (args)
-                    <el-button link type="primary" size="small" class="processor-form__args-add" @click="state.jdbc.args.push('')">+ 添加参数</el-button>
-                  </span>
+                  参数 (args)
+                  <el-button link type="primary" size="small" class="processor-form__args-add" @click="state.jdbc.args.push('')">+ 添加参数</el-button>
                 </template>
                 <div v-for="(_, index) in state.jdbc.args" :key="index" class="processor-form__kv-row">
                   <el-input v-model="state.jdbc.args[index]" placeholder="参数值" />
@@ -262,12 +259,14 @@ const addExtractor = () => {
   flex-shrink: 0;
 }
 
-// 参数标签行：添加按钮与标题右对齐
-.processor-form__args-label {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
+// 参数标签行：label 本身作为整行 flex，按钮推到最右侧
+.processor-form__args-item {
+  :deep(.el-form-item__label) {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+  }
 }
 
 // JDBC 参数行：小号输入 + 删除图标（对齐步骤 arg-row）
