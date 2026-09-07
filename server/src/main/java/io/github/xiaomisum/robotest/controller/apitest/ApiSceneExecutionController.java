@@ -43,7 +43,7 @@ public class ApiSceneExecutionController {
             @RequestHeader("X-Active-Workspace") UUID workspaceId,
             @RequestHeader("X-Active-Project") UUID projectId,
             @PathVariable UUID sceneId,
-            @RequestBody @Valid ApiSceneExecuteReqDTO reqDTO) {
+            @RequestBody(required = false) @Valid ApiSceneExecuteReqDTO reqDTO) {
         return Result.ok(executionService.execute(workspaceId, projectId,
                 loginUser.getId(), sceneId, reqDTO));
     }
