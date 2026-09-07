@@ -98,6 +98,7 @@ class ApiEnvironmentServiceImplTest {
         ApiEnvironmentSaveReqDTO.HttpConfig http = new ApiEnvironmentSaveReqDTO.HttpConfig();
         http.setName("内部 API");
         http.setBaseUrl("https://staging.example.com");
+        http.setIsDefault(true);
         req.setHttpConfigs(List.of(http));
 
         req.setVariables(List.of(variable("BASE_URL", "https://staging.example.com"), variable("TEST_PASSWORD", "123456")));
@@ -107,6 +108,7 @@ class ApiEnvironmentServiceImplTest {
         ds.setRefName("test_db");
         ds.setDriver("org.postgresql.Driver");
         ds.setUrl("jdbc:postgresql://db:5432/test");
+        ds.setIsDefault(true);
         req.setDataSources(List.of(ds));
 
         ApiEnvironmentSaveReqDTO.Processor processor = new ApiEnvironmentSaveReqDTO.Processor();
@@ -152,6 +154,7 @@ class ApiEnvironmentServiceImplTest {
         assertEquals("project", env.getScope());
         assertEquals(1, env.getHttpConfigs().size());
         assertEquals("默认配置", env.getHttpConfigs().get(0).get("name"));
+        assertEquals(Boolean.TRUE, env.getHttpConfigs().get(0).get("isDefault"));
     }
 
     @Test
@@ -232,6 +235,9 @@ class ApiEnvironmentServiceImplTest {
         assertEquals(2, update.getVariables().size());
         assertEquals(1, update.getProcessors().size());
         assertEquals(1, update.getDataSources().size());
+        // HTTP 配置 / 数据源的默认标记随请求落库（引用预选依赖）
+        assertEquals(Boolean.TRUE, update.getHttpConfigs().get(0).get("isDefault"));
+        assertEquals(Boolean.TRUE, update.getDataSources().get(0).get("isDefault"));
     }
 
     @Test
