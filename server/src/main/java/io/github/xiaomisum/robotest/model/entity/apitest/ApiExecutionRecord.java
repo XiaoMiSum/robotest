@@ -26,19 +26,15 @@ public class ApiExecutionRecord extends BaseUuidDO<ApiExecutionRecord> {
     private UUID sceneId;
     @TableField(typeHandler = UUIDTypeHandler.class)
     private UUID environmentId;
-    /** platform / pipeline */
+    /** platform */
     private String executionMode;
     /** pending → running → success / failed / error / cancelled / timeout */
     private String status;
-    /** manual / scheduled / pipeline */
+    /** manual / scheduled */
     private String triggerType;
     /** 执行完成后写入关联报告 ID */
     @TableField(typeHandler = UUIDTypeHandler.class)
     private UUID reportId;
-    @TableField(typeHandler = UUIDTypeHandler.class)
-    private UUID repositoryId;
-    private String pipelineId;
-    private String pipelineUrl;
     private String errorMessage;
     private LocalDateTime executedAt;
     private Integer durationMs;

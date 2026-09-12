@@ -146,13 +146,6 @@ public class ErrorCodeConstants {
     public static final ErrorCode API_SWAGGER_URL_NOT_FOUND = ErrorCode.of(1000017601, "Swagger URL 不存在或不属于当前项目");
     public static final ErrorCode API_SWAGGER_URL_TASK_BOUND = ErrorCode.of(1000017602, "Swagger URL 被定时任务绑定无法删除，请先解除绑定");
 
-    // ========== 接口测试——GitLab 集成 1,000,017,651-1,000,017,655 ==========
-    public static final ErrorCode API_GITLAB_TOKEN_INVALID = ErrorCode.of(1000017651, "GitLab Token 无效或已过期");
-    public static final ErrorCode API_GITLAB_REPO_NOT_FOUND = ErrorCode.of(1000017652, "GitLab 仓库不存在或无访问权限");
-    public static final ErrorCode API_GITLAB_REPO_UNREACHABLE = ErrorCode.of(1000017653, "GitLab 仓库不可达：{}");
-    public static final ErrorCode API_GITLAB_REPO_NAME_EXISTS = ErrorCode.of(1000017654, "仓库配置名称已存在：{}");
-    public static final ErrorCode API_GITLAB_SECRET_KEY_MISSING = ErrorCode.of(1000017656, "GitLab 令牌加密密钥未配置（robotest.env.secret-key）");
-
     // ========== 缺陷管理模块 1,000,012,001-1,000,012,010 ==========
     public static final ErrorCode BUG_INVALID_STATUS_TRANSITION = ErrorCode.of(1000012001, "缺陷状态流转不合法");
     public static final ErrorCode BUG_ALREADY_CLOSED = ErrorCode.of(1000012002, "缺陷已关闭，不可再修改状态");
