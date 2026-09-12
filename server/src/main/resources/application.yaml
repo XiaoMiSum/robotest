@@ -91,7 +91,7 @@ migoo:
     mode: jwt
     jwt:
       secret-key: ${JWT_SECRET_KEY:9aef92670f10242388d55d2ffc0eeb43}
-      access-token-expires: PT1M
+      access-token-expires: PT24H
       refresh-token-expires: P7D
       header-name: Authorization
       refresh-header-name: X-Refresh-Token
