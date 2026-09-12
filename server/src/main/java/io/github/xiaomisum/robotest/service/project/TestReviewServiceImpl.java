@@ -36,6 +36,9 @@ import io.github.xiaomisum.robotest.repository.workspace.ProjectMapper;
 import io.github.xiaomisum.robotest.repository.workspace.WorkspaceUserMapper;
 import io.github.xiaomisum.robotest.service.ai.task.AiTaskService;
 import io.github.xiaomisum.robotest.service.project.TestReviewService;
+import io.github.xiaomisum.robotest.service.project.review.ReviewEvent;
+import io.github.xiaomisum.robotest.service.project.review.ReviewStatus;
+import io.github.xiaomisum.robotest.service.project.review.ReviewWorkflow;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -76,6 +79,8 @@ public class TestReviewServiceImpl implements TestReviewService {
     private AiTaskService aiTaskService;
     @Resource
     private ProjectAccessGuard projectAccessGuard;
+    @Resource
+    private ReviewWorkflow reviewWorkflow;
 
     @Override
     public PageResult<TestReviewListRespDTO> getReviewPage(UUID projectId, UUID userId, String status,
@@ -156,7 +161,7 @@ public class TestReviewServiceImpl implements TestReviewService {
         TestReview review = TestReviewConvertMapper.INSTANCE.toEntity(reqDTO);
         review.setProjectId(projectId);
         review.setInitiatorId(userId);
-        review.setStatus(Constants.Status.NEW);
+        review.setStatus(ReviewStatus.NEW.getCode());
         testReviewMapper.insert(review);
 
         generateSnapshots(review.getId(), reqDTO.getSelectedNodes());
@@ -264,9 +269,7 @@ public class TestReviewServiceImpl implements TestReviewService {
         }
         projectAccessGuard.requireProjectMember(review.getProjectId(), userId);
         // 已完成的评审不可再调整，待评审/进行中均允许
-        if (Constants.Status.COMPLETED.equals(review.getStatus())) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_REVIEW_FINISHED);
-        }
+        reviewWorkflow.assertTransition(review, ReviewEvent.UPDATE_CASES);
 
         // 批量校验选中文档：一次 IN 查询替代逐条 selectById，避免 N+1
         Set<UUID> selectedDocIds = reqDTO.getSelectedNodes().stream()
@@ -407,10 +410,8 @@ public class TestReviewServiceImpl implements TestReviewService {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_REVIEW_NOT_FOUND);
         }
         projectAccessGuard.requireProjectMember(review.getProjectId(), userId);
-        // 完成后不可再标记；待评审状态首次标记即视为评审开始
-        if (Constants.Status.COMPLETED.equals(review.getStatus())) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_REVIEW_FINISHED);
-        }
+        // 完成后不可再标记；非法跃迁（COMPLETED 状态下提交记录）由状态机统一拦截
+        reviewWorkflow.assertTransition(review, ReviewEvent.SUBMIT_RECORD);
 
         TestReviewNodeSnapshot snapshotNode = reviewNodeSnapshotMapper.selectById(
                 reqDTO.getSnapshotNodeId());
@@ -440,11 +441,12 @@ public class TestReviewServiceImpl implements TestReviewService {
                 reviewNodeSnapshotMapper.updateById(snapUpdate);
             }
             // 需求：标记评审结果后待评审评审自动转入进行中
-            if (Constants.Status.NEW.equals(review.getStatus())) {
-                review.setStatus(Constants.Status.IN_PROGRESS);
+            ReviewStatus next = reviewWorkflow.transition(review, ReviewEvent.SUBMIT_RECORD);
+            if (next == ReviewStatus.IN_PROGRESS && !ReviewStatus.IN_PROGRESS.equals(review.getStatus())) {
+                review.setStatus(next.getCode());
                 TestReview reviewUpdate = new TestReview();
                 reviewUpdate.setId(review.getId());
-                reviewUpdate.setStatus(Constants.Status.IN_PROGRESS);
+                reviewUpdate.setStatus(next.getCode());
                 testReviewMapper.updateById(reviewUpdate);
             }
         }
@@ -497,9 +499,11 @@ public class TestReviewServiceImpl implements TestReviewService {
         if (!review.getInitiatorId().equals(userId)) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.REVIEW_NOT_INITIATOR);
         }
+        // 完成评审只允许发起人；终态幂等（COMPLETED × COMPLETE 返回 COMPLETED）
+        reviewWorkflow.assertTransition(review, ReviewEvent.COMPLETE);
         TestReview update = new TestReview();
         update.setId(review.getId());
-        update.setStatus(Constants.Status.COMPLETED);
+        update.setStatus(ReviewStatus.COMPLETED.getCode());
         testReviewMapper.updateById(update);
         // 评审离开 in_progress 联动取消检查任务（4.1：事务提交后执行，协作式取消由处理器感知）
         cancelReviewCheckAfterCommit(reviewId);
@@ -586,10 +590,8 @@ public class TestReviewServiceImpl implements TestReviewService {
         if (!review.getInitiatorId().equals(userId)) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.REVIEW_NOT_INITIATOR);
         }
-        // 已完成的评审快照已定格，不再允许同步
-        if (Constants.Status.COMPLETED.equals(review.getStatus())) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_REVIEW_FINISHED);
-        }
+        // 已完成的评审快照已定格，不再允许同步（非法跃迁由状态机拦截）
+        reviewWorkflow.assertTransition(review, ReviewEvent.SYNC);
 
         List<TestReviewNodeSnapshot> snapshotNodes = reviewNodeSnapshotMapper.listByReviewId(reviewId);
 

@@ -30,12 +30,15 @@ import io.github.xiaomisum.robotest.repository.tcase.TestCaseNodeMapper;
 import io.github.xiaomisum.robotest.repository.admin.SysUserMapper;
 import io.github.xiaomisum.robotest.repository.workspace.ProjectMapper;
 import io.github.xiaomisum.robotest.repository.workspace.WorkspaceUserMapper;
+import io.github.xiaomisum.robotest.service.project.review.ReviewWorkflow;
+import io.github.xiaomisum.robotest.service.project.review.ReviewWorkflowImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import xyz.migoo.framework.common.exception.ServiceException;
 import xyz.migoo.framework.common.pojo.PageParam;
@@ -82,6 +85,9 @@ class TestReviewServiceImplTest {
 
         @Mock
         private io.github.xiaomisum.robotest.service.ai.task.AiTaskService aiTaskService;
+
+        @Spy
+        private ReviewWorkflow reviewWorkflow = new ReviewWorkflowImpl();
 
         @InjectMocks
         private TestReviewServiceImpl reviewService;
