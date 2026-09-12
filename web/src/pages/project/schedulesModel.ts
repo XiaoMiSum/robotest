@@ -1,4 +1,4 @@
-import type { ApiScheduleExecStatus, ApiScheduleTaskType } from '@/types'
+import type { ApiScheduleExecStatus, ApiScheduleExecutionScope, ApiSchedulePageItem, ApiScheduleTaskType } from '@/types'
 
 // ==================== Cron 预设（定时任务详细设计 4.1） ====================
 
@@ -23,9 +23,39 @@ export interface ScheduleTaskTypeOption {
 }
 
 export const SCHEDULE_TASK_TYPES: ScheduleTaskTypeOption[] = [
-  { value: 'scene_execute', label: '场景执行' },
-  { value: 'import_swagger', label: '接口导入' },
+  // 值沿用旧契约 scene_execute/import_swagger，展示文案为「测试计划/接口同步」
+  { value: 'scene_execute', label: '测试计划' },
+  { value: 'import_swagger', label: '接口同步' },
 ]
+
+// ==================== 执行方式 ====================
+
+export interface ExecutionScopeOption {
+  value: ApiScheduleExecutionScope
+  label: string
+}
+
+export const EXECUTION_SCOPES: ExecutionScopeOption[] = [
+  { value: 'all', label: '全部' },
+  { value: 'modules', label: '指定模块' },
+  { value: 'scenes', label: '指定场景' },
+]
+
+/** 列表「执行范围」列摘要：测试计划展示圈选口径，接口同步展示文档 URL */
+export function taskExecutionSummary(item: ApiSchedulePageItem): string {
+  if (item.taskType === 'import_swagger') return item.openapiUrl ?? '-'
+  const count = item.moduleIds?.length ?? item.sceneIds?.length ?? 0
+  switch (item.executionScope) {
+    case 'all':
+      return '全部场景'
+    case 'modules':
+      return `指定模块×${item.moduleIds?.length ?? 0}`
+    case 'scenes':
+      return `指定场景×${item.sceneIds?.length ?? 0}`
+    default:
+      return count > 0 ? `执行范围×${count}` : '旧版绑定对象'
+  }
+}
 
 // ==================== 执行状态 ====================
 

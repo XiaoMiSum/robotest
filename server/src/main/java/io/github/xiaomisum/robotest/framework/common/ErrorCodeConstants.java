@@ -135,12 +135,17 @@ public class ErrorCodeConstants {
     // ========== 接口测试——执行记录 1,000,017,331 ==========
     public static final ErrorCode API_EXECUTION_RECORD_NOT_FOUND = ErrorCode.of(1000017331, "执行记录不存在");
 
-    // ========== 接口测试——定时任务 1,000,017,501-1,000,017,505 ==========
+    // ========== 接口测试——定时任务 1,000,017,501-1,000,017,509 ==========
     public static final ErrorCode API_SCHEDULED_TASK_NOT_FOUND = ErrorCode.of(1000017501, "定时任务不存在或不属于当前项目");
     public static final ErrorCode API_SCHEDULED_TASK_CRON_INVALID = ErrorCode.of(1000017502, "Cron 表达式不合法：{}");
     public static final ErrorCode API_SCHEDULED_TASK_ENV_REQUIRED = ErrorCode.of(1000017503, "定时任务必须绑定执行环境");
     public static final ErrorCode API_SCHEDULED_TASK_RUNNING = ErrorCode.of(1000017504, "任务正在执行中，请等待完成后再操作");
     public static final ErrorCode API_SCHEDULED_TASK_SCENE_NOT_EXECUTABLE = ErrorCode.of(1000017505, "关联场景不存在或不可执行");
+    public static final ErrorCode API_SCHEDULED_TASK_SCOPE_INVALID = ErrorCode.of(1000017506, "执行方式不合法，仅支持 all / modules / scenes");
+    public static final ErrorCode API_SCHEDULED_TASK_MODULE_IDS_REQUIRED = ErrorCode.of(1000017507, "指定模块（多选）时模块列表必填");
+    public static final ErrorCode API_SCHEDULED_TASK_SCENE_IDS_REQUIRED = ErrorCode.of(1000017508, "指定场景（多选）时场景列表必填");
+    public static final ErrorCode API_SCHEDULED_TASK_MODULE_NOT_FOUND = ErrorCode.of(1000017509, "指定的模块不存在或不属于当前项目");
+    public static final ErrorCode API_SCHEDULED_TASK_OPENAPI_URL_REQUIRED = ErrorCode.of(1000017510, "接口同步任务必须指定 OpenAPI/Swagger 文档 URL");
 
     // ========== 接口测试——Swagger URL 1,000,017,601-1,000,017,602 ==========
     public static final ErrorCode API_SWAGGER_URL_NOT_FOUND = ErrorCode.of(1000017601, "Swagger URL 不存在或不属于当前项目");

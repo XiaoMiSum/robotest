@@ -18,8 +18,13 @@ public class ApiSchedulePageItemRespDTO {
     private String taskType;
     private String name;
     private String description;
+    /** 历史遗留字段（旧版绑定对象），新任务为 null */
     private UUID boundObjectId;
     private String boundObjectName;
+    private String executionScope;
+    private List<UUID> moduleIds;
+    private List<UUID> sceneIds;
+    private String openapiUrl;
     private UUID environmentId;
     private String environmentName;
     private String cronExpression;

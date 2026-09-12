@@ -45,6 +45,20 @@ export function sortedSteps(steps: ApiSceneStepItem[]): ApiSceneStepItem[] {
   return [...steps].sort((a, b) => a.sortOrder - b.sortOrder)
 }
 
+/** 复制预填：深拷贝源场景步骤为新建态草稿，重新生成 new- 临时 id；
+    sourceType/sourceId 保留，供置灰展示与来源追溯（测试场景详细设计 3.1.6） */
+export function prefillDraftSteps(steps: ApiSceneStepItem[]): ApiSceneStepItem[] {
+  let nonce = 0
+  return sortedSteps(steps).map((s) => ({
+    ...s,
+    id: `new-${Date.now()}-${nonce++}-${Math.random().toString(36).slice(2, 8)}`,
+    processors: [...s.processors],
+    validators: [...s.validators],
+    extractors: [...s.extractors],
+    variables: [...s.variables],
+  }))
+}
+
 /** 构造空步骤默认值 */
 export function emptyStepDraft(): {
   name: string
@@ -58,7 +72,7 @@ export function emptyStepDraft(): {
   }
 }
 
-// ==================== 断言（Validator） ====================
+// ==================== 验证器（Validator） ====================
 
 export interface ValidatorItem {
   id: string
@@ -93,8 +107,6 @@ export const VALIDATOR_TARGETS = [
   { value: 'response_header', label: '响应头' },
   { value: 'response_body', label: '响应体' },
   { value: 'regex', label: '正则匹配' },
-  { value: 'xpath', label: 'XPath' },
-  { value: 'groovy', label: 'Groovy 脚本' },
 ]
 
 export const VALIDATOR_CONDITIONS = [
@@ -118,7 +130,7 @@ export function createValidator(): ValidatorItem {
 export function serializeValidators(items: ValidatorItem[]): Record<string, unknown>[] {
   return items
     .filter((v) => v.target?.trim())
-    .map((v) => ({ ...v, name: v.name?.trim() || `断言 ${v.target}` }))
+    .map((v) => ({ ...v, name: v.name?.trim() || `验证器 ${v.target}` }))
 }
 
 // ==================== 提取器（Extractor） ====================
@@ -135,11 +147,8 @@ export interface ExtractorItem {
 export const EXTRACTOR_SOURCES = [
   { value: 'json_field', label: 'JSON 字段' },
   { value: 'response_header', label: '响应头' },
-  { value: 'xpath', label: 'XPath' },
   { value: 'regex', label: '正则匹配' },
-  { value: 'boundary', label: '边界值' },
   { value: 'full_body', label: '完整响应体' },
-  { value: 'groovy', label: 'Groovy 脚本' },
 ]
 
 export function createExtractor(): ExtractorItem {

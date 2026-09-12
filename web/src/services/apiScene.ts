@@ -6,7 +6,6 @@ import type {
   ApiExecutionStartResp,
   ApiExecutionStatusResp,
   ApiSceneAssetsImportResp,
-  ApiSceneCopyReq,
   ApiSceneCreateReq,
   ApiSceneDetail,
   ApiSceneDraftExecuteReq,
@@ -40,7 +39,7 @@ function put<T>(url: string, data?: unknown): Promise<T> {
 // ==================== 场景管理（3.1） ====================
 
 export function fetchScenePage(
-  params: { pageNo: number; pageSize: number; moduleId?: string; search?: string; view?: string; followedOnly?: boolean },
+  params: { pageNo: number; pageSize: number; moduleId?: string; search?: string; status?: string; view?: string; followedOnly?: boolean },
 ): Promise<PageResult<ApiScenePageItem>> {
   return get('/project/api-scenes', { ...params })
 }
@@ -59,10 +58,6 @@ export function updateScene(id: string, req: ApiSceneUpdateReq): Promise<boolean
 
 export function deleteScene(id: string): Promise<boolean> {
   return api.delete(`/project/api-scenes/${id}`) as unknown as Promise<boolean>
-}
-
-export function copyScene(id: string, req?: ApiSceneCopyReq): Promise<string> {
-  return post(`/project/api-scenes/${id}/copy`, req).then((resp) => (resp as { id: string }).id)
 }
 
 // ==================== 步骤管理（3.3） ====================
@@ -163,4 +158,8 @@ export function unfollowScene(sceneId: string): Promise<boolean> {
 
 export function batchDeleteScenes(ids: string[]): Promise<boolean> {
   return api.delete('/project/api-scenes/batch', { data: { ids } }) as unknown as Promise<boolean>
+}
+
+export function batchMoveScenes(ids: string[], moduleId: string | null): Promise<boolean> {
+  return api.put('/project/api-scenes/batch/move', { ids, moduleId }) as unknown as Promise<boolean>
 }

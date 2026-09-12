@@ -26,7 +26,7 @@ import ExtractorAssetPicker from '@/components/api-testing/ExtractorAssetPicker.
 import { extractorsFromComponents, isRecord, processorFromComponent, processorSummaryTag } from '@/components/api-testing/processorFormModel'
 import type { ProcessorExtractor } from '@/components/api-testing/processorFormModel'
 import { formatDateTime } from '@/utils/format'
-import { sortedSteps, emptyStepDraft } from './scenesModel'
+import { sortedSteps, emptyStepDraft, prefillDraftSteps } from './scenesModel'
 import { fetchProjectModuleTree } from '@/services/project'
 import { toSelectableModuleOptions } from './interfacesModel'
 import StepCanvas from './scenes/StepCanvas.vue'
@@ -34,11 +34,12 @@ import SceneStepInlineEditor from './scenes/SceneStepInlineEditor.vue'
 import InterfacePickerDialog from './scenes/InterfacePickerDialog.vue'
 import StepDebugResultDialog from './scenes/StepDebugResultDialog.vue'
 import SceneVariableHelperDialog from './scenes/SceneVariableHelperDialog.vue'
+import ReportDetailDialog from './scenes/ReportDetailDialog.vue'
 import FunctionHelperDialog from './FunctionHelperDialog.vue'
 import KeyValueTable from './debug/KeyValueTable.vue'
 
-const props = defineProps<{ sceneId?: string; createMode?: boolean; moduleId?: string }>()
-const emit = defineEmits<{ (e: 'back'): void; (e: 'edit', id: string): void; (e: 'title-update', name: string): void; (e: 'dirty-change', dirty: boolean): void }>()
+const props = defineProps<{ sceneId?: string; createMode?: boolean; moduleId?: string; copyFromId?: string }>()
+const emit = defineEmits<{ (e: 'back'): void; (e: 'title-update', name: string): void; (e: 'dirty-change', dirty: boolean): void }>()
 
 // ==================== 场景数据 ====================
 const loading = ref(false)
@@ -164,6 +165,29 @@ async function loadDetail() {
     emit('title-update', detail.value.name)
   } catch (error) {
     ElMessage.error(error instanceof Error ? error.message : '场景加载失败')
+  } finally {
+    loading.value = false
+  }
+}
+
+// ==================== 复制预填 ====================
+/** 复制：拉取源场景整体回填到新建态编辑器，保存走创建接口生成独立副本（测试场景详细设计 3.1.6）；
+    name 默认「原名称（副本）」可改；步骤沿用源 sourceType/sourceId 以便置灰展示与来源追溯 */
+async function prefillFromCopy() {
+  if (!props.copyFromId) return
+  loading.value = true
+  try {
+    const src = await fetchSceneDetail(props.copyFromId)
+    editName.value = `${src.name}（副本）`
+    editDescription.value = src.description ?? ''
+    editModuleId.value = src.moduleId ?? null
+    editEnvironmentId.value = src.environmentId ?? null
+    editPriority.value = src.priority ?? null
+    editVariables.value = src.variables.map((v: ApiSceneVariableItem) => ({ key: v.name, value: v.value ?? '', description: v.description ?? '', enabled: true }))
+    editProcessors.value = src.processors.map((p) => ({ ...(p as SceneProcessorElement) }))
+    draftSteps.value = prefillDraftSteps(src.steps)
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : '复制预填失败')
   } finally {
     loading.value = false
   }
@@ -547,7 +571,8 @@ async function loadSceneRefOptions(environmentId: string | null | undefined): Pr
   }
 }
 
-watch(() => detail.value?.environmentId, (id) => { void loadSceneRefOptions(id) })
+// 处理器 ref 下拉跟随顶部「默认环境」加载（新建/编辑均由 editEnvironmentId 驱动，两模式同源）
+watch(editEnvironmentId, (id) => { void loadSceneRefOptions(id) })
 
 // ==================== 场景处理器 ====================
 /** 处理器元素（Ryze 结构 + 场景级 name/type），直接作为 JSONB 片段随场景保存 */
@@ -834,8 +859,13 @@ const showHistory = ref(false)
 
 watch(showHistory, (v) => { if (v) void loadHistory() })
 
+// 执行记录中的报告（含场景页运行）在弹窗中查看，场景页运行报告不进报告列表页
+const reportDialogVisible = ref(false)
+const reportDetailId = ref('')
+
 function handleViewReport(reportId: string) {
-  emit('edit', `report:${reportId}`)
+  reportDetailId.value = reportId
+  reportDialogVisible.value = true
 }
 
 // ==================== 计算属性 ====================
@@ -848,7 +878,11 @@ const currentPriorityColor = computed(() =>
 onMounted(async () => {
   void loadModules()
   void loadEnvironments()
-  if (props.sceneId) await loadDetail()
+  if (props.copyFromId && isCreateMode.value) {
+    await prefillFromCopy()
+  } else if (props.sceneId) {
+    await loadDetail()
+  }
 })
 </script>
 
@@ -927,7 +961,7 @@ onMounted(async () => {
               执行历史
             </el-button>
           </template>
-          <div v-loading="historyLoading" style="max-height: 360px; overflow-y: auto">
+          <div v-loading="historyLoading" class="scene-editor__history-panel">
             <div class="scene-editor__settings-section">
               <div class="scene-editor__settings-head">执行历史</div>
               <div v-for="h in executionHistory" :key="h.id" class="scene-editor__history-row">
@@ -936,6 +970,16 @@ onMounted(async () => {
                 <el-button v-if="h.reportId" link size="small" type="primary" @click="handleViewReport(h.reportId)">报告</el-button>
               </div>
               <div v-if="!executionHistory.length" class="scene-editor__empty-text">暂无执行记录</div>
+              <el-pagination
+                v-if="executionHistoryTotal > 0"
+                v-model:current-page="executionHistoryPage"
+                :page-size="20"
+                :total="executionHistoryTotal"
+                layout="prev, pager, next"
+                small
+                class="scene-editor__history-pager"
+                @current-change="loadHistory"
+              />
             </div>
           </div>
         </el-popover>
@@ -1324,6 +1368,9 @@ onMounted(async () => {
       :environment-name="envVariablesName"
       :scene-variables="sceneVariablesForHelper"
     />
+
+    <!-- 执行记录查看报告（弹窗） -->
+    <ReportDetailDialog v-model="reportDialogVisible" :report-id="reportDetailId" :scene-id="props.sceneId ?? null" />
   </div>
 </template>
 
@@ -1431,6 +1478,17 @@ onMounted(async () => {
 
 .scene-editor__nav-spacer { flex: 1; }
 
+.scene-editor__history-panel {
+  max-height: 360px;
+  overflow-y: auto;
+  padding: 4px 0;
+}
+
+.scene-editor__history-pager {
+  justify-content: center;
+  margin-top: var(--space-xs);
+}
+
 .scene-editor__history-row {
   display: flex;
   align-items: center;
@@ -1441,12 +1499,13 @@ onMounted(async () => {
 }
 
 .scene-editor__history-status {
-  width: 26px;
+  min-width: 60px;
   text-align: center;
   font-size: 11px;
   padding: 1px 4px;
   border-radius: var(--radius-sm);
   color: #fff;
+  white-space: nowrap;
 
   &.is-success { background: var(--el-color-success); }
   &.is-failed,

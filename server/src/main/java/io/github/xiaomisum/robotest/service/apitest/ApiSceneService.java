@@ -2,7 +2,7 @@ package io.github.xiaomisum.robotest.service.apitest;
 
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneAssetsImportReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneBatchDeleteReqDTO;
-import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneCopyReqDTO;
+import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneBatchMoveReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneStepCopyReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneStepQuickCreateReqDTO;
@@ -29,7 +29,7 @@ public interface ApiSceneService {
     // ========== 场景管理 ==========
 
     PageResult<ApiScenePageItemRespDTO> fetchPage(UUID workspaceId, UUID projectId, UUID userId,
-            UUID moduleId, String search, Boolean followedOnly, PageParam pageParam);
+            UUID moduleId, String search, Boolean followedOnly, String status, PageParam pageParam);
 
     ApiSceneDetailRespDTO getDetail(UUID workspaceId, UUID projectId, UUID userId, UUID id);
 
@@ -40,10 +40,11 @@ public interface ApiSceneService {
     /** 被定时任务引用时拒绝删除（7203）；定时任务于后续迭代交付，当前无引用来源 */
     void delete(UUID workspaceId, UUID projectId, UUID userId, UUID id);
 
-    UUID copy(UUID workspaceId, UUID projectId, UUID userId, UUID id, ApiSceneCopyReqDTO reqDTO);
-
     /** 批量删除场景（被定时任务引用的拒绝删除） */
     void batchDelete(UUID workspaceId, UUID projectId, UUID userId, ApiSceneBatchDeleteReqDTO reqDTO);
+
+    /** 批量移动场景至目标模块（3.1.7），目标模块空为未分组；任一场景不属于当前项目则整体拒绝 */
+    void batchMove(UUID workspaceId, UUID projectId, UUID userId, ApiSceneBatchMoveReqDTO reqDTO);
 
     // ========== 关注 ==========
 

@@ -5,25 +5,26 @@ import type { FormInstance } from 'element-plus'
 import type {
   ApiEnvironmentListItem,
   ApiScheduleExecutionItem,
+  ApiScheduleExecutionScope,
   ApiSchedulePageItem,
   ApiScheduleSaveReq,
-  ApiScenePageItem,
-  ApiSwaggerUrlItem,
+  ProjectModule,
 } from '@/types'
+import ScenePickerDialog from '@/components/project/ScenePickerDialog.vue'
 import {
   createSchedule,
   deleteSchedule,
   executeSchedule,
   fetchScheduleExecutions,
   fetchSchedulePage,
-  fetchSwaggerUrlList,
   toggleSchedule,
   updateSchedule,
   validateCron,
 } from '@/services/apiSchedule'
 import { fetchScenePage } from '@/services/apiScene'
 import { fetchEnvironments } from '@/services/apiEnvironment'
-import { execStatusLabel, execStatusType, SCHEDULE_TASK_TYPES, CRON_PRESETS } from './schedulesModel'
+import { fetchProjectModuleTree } from '@/services/project'
+import { CRON_PRESETS, EXECUTION_SCOPES, SCHEDULE_TASK_TYPES, taskExecutionSummary, execStatusLabel, execStatusType } from './schedulesModel'
 import { formatDateTime, formatShortDateTime } from '@/utils/format'
 
 // ==================== 列表 ====================
@@ -62,71 +63,95 @@ const editingId = ref<string | null>(null)
 const formRef = ref<FormInstance>()
 const saving = ref(false)
 
-const form = reactive<ApiScheduleSaveReq>({
+const form = reactive<{
+  taskType: ApiScheduleSaveReq['taskType']
+  name: string
+  description: string
+  executionScope: ApiScheduleExecutionScope
+  moduleIds: string[]
+  sceneIds: string[]
+  openapiUrl: string
+  environmentId: string | undefined
+  cronExpression: string
+  enabled: boolean
+}>({
   taskType: 'scene_execute',
   name: '',
   description: '',
-  boundObjectId: '',
+  executionScope: 'all',
+  moduleIds: [],
+  sceneIds: [],
+  openapiUrl: '',
   environmentId: undefined,
   cronExpression: '',
   enabled: true,
 })
 
-// 绑定对象选项
-const sceneOptions = ref<ApiScenePageItem[]>([])
-const swaggerOptions = ref<ApiSwaggerUrlItem[]>([])
-const boundObjectLoading = ref(false)
+const isTestPlanTask = computed(() => form.taskType === 'scene_execute')
 
-const isSceneTask = computed(() => form.taskType === 'scene_execute')
+// 执行范围选项加载（模块树）
+const moduleOptions = ref<ProjectModule[]>([])
+const scopeOptionLoading = ref(false)
+
+async function loadScopeOptions(scope: ApiScheduleExecutionScope) {
+  scopeOptionLoading.value = true
+  try {
+    if (scope === 'modules') {
+      moduleOptions.value = await fetchProjectModuleTree('scene')
+    }
+  } catch (error) {
+    moduleOptions.value = []
+    if (scope === 'modules') {
+      ElMessage.error(error instanceof Error ? `模块加载失败：${error.message}` : '模块加载失败')
+    }
+  } finally {
+    scopeOptionLoading.value = false
+  }
+}
+
+// 指定场景：选择对话框 + 已选标签
+const scenePickerVisible = ref(false)
+const selectedScenes = ref<{ id: string; name: string }[]>([])
+
+// 标签过多时折叠，避免挤占表单单行高度
+const MAX_VISIBLE_SCENE_TAGS = 8
+const sceneTagsExpanded = ref(false)
+const visibleSceneTags = computed(() =>
+  sceneTagsExpanded.value ? selectedScenes.value : selectedScenes.value.slice(0, MAX_VISIBLE_SCENE_TAGS),
+)
+
+function handleSceneConfirm(selected: { id: string; name: string }[]) {
+  selectedScenes.value = selected
+  form.sceneIds = selected.map((s) => s.id)
+}
+
+function removeScene(id: string) {
+  form.sceneIds = form.sceneIds.filter((sceneId) => sceneId !== id)
+  selectedScenes.value = selectedScenes.value.filter((s) => s.id !== id)
+}
+
+// 编辑场景任务回填标签：PageParam.pageSize 上限 100，需分页拉全量场景名
+async function hydrateSelectedSceneNames(): Promise<void> {
+  if (!form.sceneIds.length) {
+    selectedScenes.value = []
+    return
+  }
+  const names = new Map<string, string>()
+  let pageNo = 1
+  let total = Infinity
+  while (names.size < total) {
+    const page = await fetchScenePage({ pageNo, pageSize: 100 })
+    for (const s of page.list) names.set(s.id, s.name)
+    total = page.total
+    if (!page.list.length) break
+    pageNo += 1
+  }
+  selectedScenes.value = form.sceneIds.map((id) => ({ id, name: names.get(id) ?? '（已删除场景）' }))
+}
 
 // 环境列表
 const environmentOptions = ref<ApiEnvironmentListItem[]>([])
 const environmentLoading = ref(false)
-
-function openCreate() {
-  editingId.value = null
-  form.taskType = 'scene_execute'
-  form.name = ''
-  form.description = ''
-  form.boundObjectId = ''
-  form.environmentId = undefined
-  form.cronExpression = ''
-  form.enabled = true
-  showFormDialog.value = true
-  void loadBoundObjects()
-  void loadEnvironments()
-}
-
-function openEdit(item: ApiSchedulePageItem) {
-  editingId.value = item.id
-  form.taskType = item.taskType
-  form.name = item.name
-  form.description = item.description ?? ''
-  form.boundObjectId = item.boundObjectId
-  form.environmentId = item.environmentId ?? undefined
-  form.cronExpression = item.cronExpression
-  form.enabled = item.enabled
-  showFormDialog.value = true
-  void loadBoundObjects()
-  void loadEnvironments()
-}
-
-async function loadBoundObjects() {
-  boundObjectLoading.value = true
-  try {
-    if (isSceneTask.value) {
-      const page = await fetchScenePage({ pageNo: 1, pageSize: 200 })
-      sceneOptions.value = page.list
-    } else {
-      swaggerOptions.value = await fetchSwaggerUrlList()
-    }
-  } catch {
-    sceneOptions.value = []
-    swaggerOptions.value = []
-  } finally {
-    boundObjectLoading.value = false
-  }
-}
 
 async function loadEnvironments() {
   environmentLoading.value = true
@@ -139,10 +164,63 @@ async function loadEnvironments() {
   }
 }
 
-watch(() => form.taskType, () => {
-  form.boundObjectId = ''
+function resetForm() {
+  editingId.value = null
+  form.taskType = 'scene_execute'
+  form.name = ''
+  form.description = ''
+  form.executionScope = 'all'
+  form.moduleIds = []
+  form.sceneIds = []
+  form.openapiUrl = ''
   form.environmentId = undefined
-  void loadBoundObjects()
+  form.cronExpression = ''
+  form.enabled = true
+  moduleOptions.value = []
+  selectedScenes.value = []
+}
+
+function openCreate() {
+  resetForm()
+  showFormDialog.value = true
+  void loadScopeOptions(form.executionScope)
+  void loadEnvironments()
+}
+
+function openEdit(item: ApiSchedulePageItem) {
+  editingId.value = item.id
+  // 旧版绑定对象任务（历史遗留 taskType）按测试计划口径打开，保存即迁移为新模型
+  form.taskType = item.taskType === 'import_swagger' ? 'import_swagger' : 'scene_execute'
+  form.name = item.name
+  form.description = item.description ?? ''
+  form.executionScope = item.executionScope ?? 'all'
+  form.moduleIds = item.moduleIds ?? []
+  form.sceneIds = item.sceneIds ?? []
+  form.openapiUrl = item.openapiUrl ?? ''
+  form.environmentId = item.environmentId ?? undefined
+  form.cronExpression = item.cronExpression
+  form.enabled = item.enabled
+  showFormDialog.value = true
+  void loadScopeOptions(form.executionScope)
+  void loadEnvironments()
+  if (form.executionScope === 'scenes') void hydrateSelectedSceneNames()
+}
+
+watch(() => form.taskType, (type) => {
+  if (type === 'import_swagger') {
+    form.executionScope = 'all'
+    form.moduleIds = []
+    form.sceneIds = []
+    form.environmentId = undefined
+  } else {
+    form.openapiUrl = ''
+    void loadScopeOptions('all')
+  }
+})
+
+watch(() => form.executionScope, (scope) => {
+  void loadScopeOptions(scope)
+  if (scope === 'scenes') void hydrateSelectedSceneNames()
 })
 
 // Cron 校验
@@ -189,12 +267,21 @@ async function handleSave() {
     ElMessage.warning('请输入 Cron 表达式')
     return
   }
-  if (!form.boundObjectId) {
-    ElMessage.warning('请选择绑定对象')
-    return
-  }
-  if (isSceneTask.value && !form.environmentId) {
-    ElMessage.warning('场景执行任务需选择目标环境')
+  if (isTestPlanTask.value) {
+    if (!form.environmentId) {
+      ElMessage.warning('测试计划任务需选择目标环境')
+      return
+    }
+    if (form.executionScope === 'modules' && !form.moduleIds.length) {
+      ElMessage.warning('请选择执行模块')
+      return
+    }
+    if (form.executionScope === 'scenes' && !form.sceneIds.length) {
+      ElMessage.warning('请选择执行场景')
+      return
+    }
+  } else if (!form.openapiUrl.trim()) {
+    ElMessage.warning('接口同步任务需填写接口文档 URL')
     return
   }
   saving.value = true
@@ -203,8 +290,11 @@ async function handleSave() {
       taskType: form.taskType,
       name: form.name.trim(),
       description: form.description?.trim() || undefined,
-      boundObjectId: form.boundObjectId,
-      environmentId: form.environmentId || undefined,
+      executionScope: isTestPlanTask.value ? form.executionScope : undefined,
+      moduleIds: isTestPlanTask.value && form.executionScope === 'modules' ? form.moduleIds : undefined,
+      sceneIds: isTestPlanTask.value && form.executionScope === 'scenes' ? form.sceneIds : undefined,
+      openapiUrl: isTestPlanTask.value ? undefined : form.openapiUrl.trim() || undefined,
+      environmentId: isTestPlanTask.value ? form.environmentId || undefined : undefined,
       cronExpression: form.cronExpression.trim(),
       enabled: form.enabled,
     }
@@ -346,10 +436,14 @@ onMounted(() => {
         <el-table-column prop="name" label="任务名称" min-width="180" show-overflow-tooltip />
         <el-table-column label="类型" width="100">
           <template #default="{ row }">
-            {{ row.taskType === 'scene_execute' ? '场景执行' : '接口导入' }}
+            {{ row.taskType === 'scene_execute' ? '测试计划' : row.taskType === 'import_swagger' ? '接口同步' : row.taskType }}
           </template>
         </el-table-column>
-        <el-table-column prop="boundObjectName" label="绑定对象" min-width="160" show-overflow-tooltip />
+        <el-table-column label="执行范围" min-width="160" show-overflow-tooltip>
+          <template #default="{ row }">
+            {{ taskExecutionSummary(row as ApiSchedulePageItem) }}
+          </template>
+        </el-table-column>
         <el-table-column prop="cronExpression" label="调度" width="130" />
         <el-table-column label="状态" width="80" align="center">
           <template #default="{ row }">
@@ -378,11 +472,11 @@ onMounted(() => {
             <el-button link size="small" type="primary" :disabled="row.lastExecutionStatus === 'running'" @click="handleExecuteNow(row as ApiSchedulePageItem)">立即执行</el-button>
             <el-button link size="small" @click="openExecutions(row as ApiSchedulePageItem)">执行记录</el-button>
             <el-dropdown
-trigger="click" @command="(cmd: string) => {
-              if (cmd === 'edit') openEdit(row as ApiSchedulePageItem)
-              else if (cmd === 'delete') void handleDelete(row as ApiSchedulePageItem)
-            }">
-              <el-button link size="small">更多</el-button>
+              trigger="click" class="schedules-page__more" @command="(cmd: string) => {
+                if (cmd === 'edit') openEdit(row as ApiSchedulePageItem)
+                else if (cmd === 'delete') void handleDelete(row as ApiSchedulePageItem)
+              }">
+              <el-button link size="small">更多<el-icon class="el-icon--right"><ArrowDown /></el-icon></el-button>
               <template #dropdown>
                 <el-dropdown-menu>
                   <el-dropdown-item command="edit">编辑</el-dropdown-item>
@@ -426,48 +520,70 @@ trigger="click" @command="(cmd: string) => {
             <el-radio v-for="opt in SCHEDULE_TASK_TYPES" :key="opt.value" :value="opt.value">{{ opt.label }}</el-radio>
           </el-radio-group>
         </el-form-item>
-        <el-form-item label="绑定对象" prop="boundObjectId" :rules="[{ required: true, message: '请选择绑定对象', trigger: 'change' }]">
-          <el-select
-            v-model="form.boundObjectId"
-            placeholder="请选择绑定对象"
-            :loading="boundObjectLoading"
-            style="width: 100%"
-            filterable
-          >
-            <template v-if="isSceneTask">
-              <el-option
-                v-for="s in sceneOptions"
-                :key="s.id"
-                :value="s.id"
-                :label="s.name"
-              />
-            </template>
-            <template v-else>
-              <el-option
-                v-for="s in swaggerOptions"
-                :key="s.id"
-                :value="s.id"
-                :label="`${s.name} (${s.url})`"
-              />
-            </template>
-          </el-select>
-        </el-form-item>
-        <el-form-item v-if="isSceneTask" label="目标环境" prop="environmentId" :rules="[{ required: true, message: '请选择目标环境', trigger: 'change' }]">
-          <el-select
-            v-model="form.environmentId"
-            placeholder="请选择目标环境"
-            :loading="environmentLoading"
-            style="width: 100%"
-            filterable
-          >
-            <el-option
-              v-for="env in environmentOptions"
-              :key="env.id"
-              :value="env.id"
-              :label="env.name"
+
+        <template v-if="isTestPlanTask">
+          <el-form-item label="执行方式" prop="executionScope" :rules="[{ required: true, message: '请选择执行方式', trigger: 'change' }]">
+            <el-radio-group v-model="form.executionScope">
+              <el-radio v-for="opt in EXECUTION_SCOPES" :key="opt.value" :value="opt.value">{{ opt.label }}</el-radio>
+            </el-radio-group>
+          </el-form-item>
+          <el-form-item v-if="form.executionScope === 'modules'" label="指定模块" prop="moduleIds" :rules="[{ required: true, message: '请选择执行模块', trigger: 'change' }]">
+            <el-tree-select
+              v-model="form.moduleIds"
+              :data="moduleOptions"
+              :props="{ label: 'name', children: 'children' }"
+              node-key="id"
+              multiple
+              show-checkbox
+              check-strictly
+              default-expand-all
+              :loading="scopeOptionLoading"
+              placeholder="选择执行模块（勾选父模块将包含其全部子模块）"
+              style="width: 100%"
             />
-          </el-select>
-          <div class="schedules-page__form-hint">场景执行任务需指定目标环境</div>
+          </el-form-item>
+          <el-form-item v-else-if="form.executionScope === 'scenes'" label="指定场景" prop="sceneIds" :rules="[{ required: true, message: '请选择执行场景', trigger: 'change' }]">
+            <div class="schedules-page__scene-picker">
+              <el-button link type="primary" @click="scenePickerVisible = true">
+                {{ form.sceneIds.length ? `已选 ${form.sceneIds.length} 个场景` : '选择场景' }}
+              </el-button>
+              <el-tag
+                v-for="s in visibleSceneTags"
+                :key="s.id"
+                size="small"
+                closable
+                :disable-transitions="true"
+                :title="s.name"
+                @close="removeScene(s.id)"
+              >
+                <span class="schedules-page__scene-tag-text">{{ s.name }}</span>
+              </el-tag>
+              <el-button v-if="selectedScenes.length > MAX_VISIBLE_SCENE_TAGS" link @click="sceneTagsExpanded = !sceneTagsExpanded">
+                {{ sceneTagsExpanded ? '收起' : `+${selectedScenes.length - MAX_VISIBLE_SCENE_TAGS}` }}
+              </el-button>
+            </div>
+          </el-form-item>
+          <el-form-item label="目标环境" prop="environmentId" :rules="[{ required: true, message: '请选择目标环境', trigger: 'change' }]">
+            <el-select
+              v-model="form.environmentId"
+              placeholder="请选择目标环境"
+              :loading="environmentLoading"
+              style="width: 100%"
+              filterable
+            >
+              <el-option
+                v-for="env in environmentOptions"
+                :key="env.id"
+                :value="env.id"
+                :label="env.name"
+              />
+            </el-select>
+            <div class="schedules-page__form-hint">测试计划任务需指定目标环境</div>
+          </el-form-item>
+        </template>
+        <el-form-item v-else label="接口文档 URL" prop="openapiUrl" :rules="[{ required: true, message: '请填写接口文档 URL', trigger: 'blur' }]">
+          <el-input v-model="form.openapiUrl" placeholder="https://example.com/v3/api-docs" maxlength="2000" />
+          <div class="schedules-page__form-hint">接口同步任务必填；保存时校验 URL 可达性与合法性</div>
         </el-form-item>
 
         <el-divider content-position="left">调度配置</el-divider>
@@ -514,6 +630,8 @@ trigger="click" @command="(cmd: string) => {
         <el-button type="primary" :loading="saving" @click="handleSave">保存</el-button>
       </template>
     </el-dialog>
+
+    <ScenePickerDialog v-model="scenePickerVisible" :selected-ids="form.sceneIds" @confirm="handleSceneConfirm" />
 
     <!-- ==================== 执行记录抽屉 ==================== -->
     <el-drawer
@@ -587,11 +705,30 @@ trigger="click" @command="(cmd: string) => {
   margin-top: 2px;
 }
 
+// 与前面的 link 操作按钮保持同基线、同间距
+.schedules-page__more {
+  margin-left: 12px;
+  vertical-align: middle;
+}
+
 .schedules-page__cron-row {
   display: flex;
   gap: var(--space-xs);
   align-items: center;
   width: 100%;
+}
+
+.schedules-page__scene-picker {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+  width: 100%;
+
+  // .el-button.is-link 高度 auto（约 20px），显式撑到组件行高，与 label 垂直居中
+  .el-button {
+    height: var(--el-component-size);
+  }
 }
 
 .schedules-page__cron-result {

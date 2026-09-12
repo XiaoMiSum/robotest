@@ -8,8 +8,6 @@ import type {
   ApiScheduleToggleReq,
   ApiScheduleValidateCronReq,
   ApiScheduleValidateCronResp,
-  ApiSwaggerUrlItem,
-  ApiSwaggerUrlSaveReq,
   PageResult,
 } from '@/types'
 
@@ -63,22 +61,4 @@ export function fetchScheduleExecutions(
 
 export function validateCron(req: ApiScheduleValidateCronReq): Promise<ApiScheduleValidateCronResp> {
   return post('/project/scheduled-tasks/validate-cron', req)
-}
-
-// ==================== Swagger URL 配置（定时任务详细设计 3.1.9） ====================
-
-export function fetchSwaggerUrlList(name?: string): Promise<ApiSwaggerUrlItem[]> {
-  return get('/project/swagger-urls', name ? { name } : undefined)
-}
-
-export function createSwaggerUrl(req: ApiSwaggerUrlSaveReq): Promise<string> {
-  return post('/project/swagger-urls', req).then((resp) => (resp as { id: string }).id)
-}
-
-export function updateSwaggerUrl(id: string, req: ApiSwaggerUrlSaveReq): Promise<boolean> {
-  return put(`/project/swagger-urls/${id}`, req)
-}
-
-export function deleteSwaggerUrl(id: string): Promise<boolean> {
-  return del(`/project/swagger-urls/${id}`)
 }
