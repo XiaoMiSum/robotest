@@ -18,7 +18,6 @@ export const useNavStore = defineStore('nav', () => {
     'api-env:view',
     'api-func:view',
     'api-component:view',
-    'api-gitlab:view',
   ]
 
   const isAdminMode = computed(() => currentMode.value === 'admin')

@@ -767,18 +767,16 @@ CREATE TABLE api_import_record (
                                    project_id      UUID         NOT NULL,
                                    import_type     VARCHAR(20)  NOT NULL,
                                    source_name     VARCHAR(200) NOT NULL,
-                                   status          VARCHAR(20)  NOT NULL DEFAULT 'pending',
-                                   summary         JSONB        NULL,
-                                   error_details   JSONB        NULL,
-                                   repository_id   UUID         NULL,
-                                   created_by      UUID         NOT NULL,
-                                   is_deleted      BOOLEAN      NOT NULL DEFAULT FALSE,
-                                   created_at      TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                                   updated_at      TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
+status          VARCHAR(20)  NOT NULL DEFAULT 'pending',
+                                    summary         JSONB        NULL,
+                                    error_details   JSONB        NULL,
+                                    created_by      UUID         NOT NULL,
+                                    is_deleted      BOOLEAN      NOT NULL DEFAULT FALSE,
+                                    created_at      TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                                    updated_at      TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX idx_irecord_project ON api_import_record(project_id, created_at DESC);
-CREATE INDEX idx_irecord_repository ON api_import_record(repository_id) WHERE repository_id IS NOT NULL AND is_deleted = FALSE;
 
 CREATE TABLE api_debug_record (
                                    id              UUID         PRIMARY KEY,
@@ -974,12 +972,9 @@ CREATE TABLE api_execution_record (
                                       status         VARCHAR(20)   NOT NULL DEFAULT 'pending',
                                       trigger_type   VARCHAR(20)   NOT NULL DEFAULT 'manual',
                                       report_id      UUID          NULL,
-                                      pipeline_id    VARCHAR(100)  NULL,
-                                      pipeline_url   VARCHAR(500)  NULL,
                                       error_message  VARCHAR(2000) NULL,
                                        executed_at    TIMESTAMP     NOT NULL,
                                        duration_ms    INT           NULL,
-                                       repository_id  UUID          NULL,
                                        is_deleted     BOOLEAN       NOT NULL DEFAULT FALSE,
                                       created_at     TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
                                       updated_at     TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -988,7 +983,6 @@ CREATE TABLE api_execution_record (
 CREATE INDEX idx_exec_scene_id ON api_execution_record(scene_id, executed_at DESC);
 CREATE INDEX idx_exec_project_executed ON api_execution_record(project_id, executed_at DESC);
 CREATE INDEX idx_exec_status ON api_execution_record(status);
-CREATE INDEX idx_api_execution_record_repository_id ON api_execution_record(repository_id) WHERE repository_id IS NOT NULL AND is_deleted = FALSE;
 
 CREATE TABLE api_report (
                             id                 UUID          PRIMARY KEY,
@@ -1082,79 +1076,6 @@ CREATE INDEX idx_function_workspace ON api_function(workspace_id, name) WHERE sc
 CREATE UNIQUE INDEX uk_function_global ON api_function(name) WHERE scope = 'global' AND is_deleted = FALSE;
 
 -- ============================================================
--- 18. 接口测试 — GitLab 仓库配置
--- ============================================================
-
-CREATE TABLE api_gitlab_repository (
-                                       id                    UUID         PRIMARY KEY,
-                                       project_id            UUID         NOT NULL,
-                                       name                  VARCHAR(100) NOT NULL,
-                                       repo_url              VARCHAR(500) NOT NULL,
-                                       branch                VARCHAR(200) NOT NULL DEFAULT 'main',
-                                       access_token_cipher   VARCHAR(1000) NOT NULL,
-                                       token_suffix          VARCHAR(4)   NULL,
-                                       test_source_path      VARCHAR(500) NULL,
-                                       last_import_status    VARCHAR(20)  NULL,
-                                       last_import_at        TIMESTAMP    NULL,
-                                       last_metadata_sync_at TIMESTAMP    NULL,
-                                       last_commit_sha       VARCHAR(40)  NULL,
-                                       annotation_filter      VARCHAR(500) NULL,
-                                       only_with_resource_path BOOLEAN      NOT NULL DEFAULT FALSE,
-                                       auto_sync_enabled     BOOLEAN      NOT NULL DEFAULT FALSE,
-                                       is_deleted            BOOLEAN      NOT NULL DEFAULT FALSE,
-                                       created_at            TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                                       updated_at            TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE INDEX idx_glab_repository_project ON api_gitlab_repository(project_id) WHERE is_deleted = FALSE;
-
-CREATE TABLE api_gitlab_test_class_metadata (
-                                                id                   UUID         PRIMARY KEY,
-                                                repository_id        UUID         NOT NULL,
-                                                full_class_name      VARCHAR(500) NOT NULL,
-                                                class_annotations    JSONB        NOT NULL DEFAULT '[]',
-                                                display_name         VARCHAR(200) NULL,
-                                                description          TEXT         NULL,
-                                                resource_path        VARCHAR(500) NULL,
-                                                is_executable        BOOLEAN      NOT NULL DEFAULT FALSE,
-                                                methods              JSONB        NOT NULL DEFAULT '[]',
-                                                is_deleted           BOOLEAN      NOT NULL DEFAULT FALSE,
-                                                created_at           TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                                                updated_at           TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE INDEX idx_gmeta_repository ON api_gitlab_test_class_metadata(repository_id) WHERE is_deleted = FALSE;
-CREATE INDEX idx_gmeta_class_name ON api_gitlab_test_class_metadata(repository_id, full_class_name) WHERE is_deleted = FALSE;
-
-CREATE TABLE api_gitlab_test_scope (
-                                       id                   UUID         PRIMARY KEY,
-                                       repository_id        UUID         NOT NULL,
-                                       variable_name        VARCHAR(100) NOT NULL,
-                                       scope_type           VARCHAR(20)  NOT NULL,
-                                       description          VARCHAR(500) NULL,
-                                       is_deleted           BOOLEAN      NOT NULL DEFAULT FALSE,
-                                       created_at           TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                                       updated_at           TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE INDEX idx_gscope_repository ON api_gitlab_test_scope(repository_id) WHERE is_deleted = FALSE;
-
-CREATE TABLE api_gitlab_sync_history (
-                                         id                   UUID         PRIMARY KEY,
-                                         repository_id        UUID         NOT NULL,
-                                         sync_at              TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                                         class_count          INT          NOT NULL DEFAULT 0,
-                                         method_count         INT          NOT NULL DEFAULT 0,
-                                         commit_sha           VARCHAR(100) NULL,
-                                         status               VARCHAR(20)  NOT NULL DEFAULT 'success',
-                                         is_deleted           BOOLEAN      NOT NULL DEFAULT FALSE,
-                                         created_at           TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                                         updated_at           TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE INDEX idx_gsync_repository ON api_gitlab_sync_history(repository_id, sync_at DESC) WHERE is_deleted = FALSE;
-
--- ============================================================
 -- 21. 种子数据（权限点、角色、提示词模板）
 -- ============================================================
 
@@ -1231,16 +1152,11 @@ INSERT INTO sys_permission (id, code, name, parent_code, module, scope, sort_ord
 -- 21.5 权限点（接口测试模块）
 -- ------------------------------------------------------------
 INSERT INTO sys_permission (id, code, name, parent_code, module, scope, sort_order, created_at, updated_at, is_deleted) VALUES
--- GitLab 仓库配置
-('c0000000-0000-0000-0000-000000000037', 'api-gitlab',         'GitLab 仓库',    NULL,            '接口测试·GitLab',   'workspace', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000038', 'api-gitlab:view',    '查看 GitLab 仓库', 'api-gitlab',    '接口测试·GitLab',   'workspace', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000039', 'api-gitlab:edit',    '编辑 GitLab 仓库', 'api-gitlab',    '接口测试·GitLab',   'workspace', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
 -- 测试场景
 ('c0000000-0000-0000-0000-000000000040', 'api-scene',          '测试场景',        NULL,            '接口测试·测试场景',  'workspace', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
 ('c0000000-0000-0000-0000-000000000041', 'api-scene:view',     '查看场景',        'api-scene',     '接口测试·测试场景',  'workspace', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
 ('c0000000-0000-0000-0000-000000000042', 'api-scene:edit',     '编辑场景',        'api-scene',     '接口测试·测试场景',  'workspace', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
 ('c0000000-0000-0000-0000-000000000043', 'api-scene:import',   '导入场景',        'api-scene',     '接口测试·测试场景',  'workspace', 3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000044', 'api-scene:pipeline', '流水线执行',       'api-scene',     '接口测试·测试场景',  'workspace', 4, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
 ('c0000000-0000-0000-0000-000000000045', 'api-scene:execute',  '执行场景',        'api-scene',     '接口测试·测试场景',  'workspace', 5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
 -- 接口管理
 ('c0000000-0000-0000-0000-000000000046', 'api-interface',         '接口管理',    NULL,            '接口测试·接口管理',  'workspace', 3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
@@ -1299,12 +1215,12 @@ INSERT INTO sys_role (id, name, description, type, is_system, permissions, creat
 -- workspace 管理员：空间内全部业务权限（显式授权全部空间权限码）
 ('c0000000-0000-0000-0000-000000000001', '管理员',
  '空间管理员 — 拥有工作空间内全部业务权限', 'workspace', TRUE,
- '["ws-info","ws-info:view","ws-info:edit","ws-member","ws-member:view","ws-member:manage","ws-invitation","ws-invitation:view","ws-invitation:manage","project","project:view","case","case:view","case:edit","review","review:view","review:create","review:edit","review:complete","plan","plan:view","plan:create","plan:execute","plan:close","bug","bug:view","requirement","requirement:view","requirement:edit","api-gitlab","api-gitlab:view","api-gitlab:edit","api-scene","api-scene:view","api-scene:edit","api-scene:import","api-scene:pipeline","api-scene:execute","api-interface","api-interface:view","api-interface:edit","api-interface:delete","api-component","api-component:view","api-component:edit","api-component:edit-space","api-component:edit-global","api-env","api-env:view","api-env:edit","api-func","api-func:view","api-func:edit","api-func:edit-space","api-func:edit-global","api-debug","api-debug:view","api-timer","api-timer:view","api-timer:edit","api-mock","api-mock:view","api-mock:edit","api-report","api-report:view","api-report:delete"]',
+ '["ws-info","ws-info:view","ws-info:edit","ws-member","ws-member:view","ws-member:manage","ws-invitation","ws-invitation:view","ws-invitation:manage","project","project:view","case","case:view","case:edit","review","review:view","review:create","review:edit","review:complete","plan","plan:view","plan:create","plan:execute","plan:close","bug","bug:view","requirement","requirement:view","requirement:edit","api-scene","api-scene:view","api-scene:edit","api-scene:import","api-scene:execute","api-interface","api-interface:view","api-interface:edit","api-interface:delete","api-component","api-component:view","api-component:edit","api-component:edit-space","api-component:edit-global","api-env","api-env:view","api-env:edit","api-func","api-func:view","api-func:edit","api-func:edit-space","api-func:edit-global","api-debug","api-debug:view","api-timer","api-timer:view","api-timer:edit","api-mock","api-mock:view","api-mock:edit","api-report","api-report:view","api-report:delete"]',
  CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
 -- workspace 普通成员：默认角色
 ('c0000000-0000-0000-0000-000000000002', '成员',
  '空间成员 — 除删除/归档项目、管理成员、编辑空间信息外的其他权限', 'workspace', TRUE,
- '["ws-info:view","ws-member:view","ws-invitation:view","ws-invitation:manage","project:view","case:view","case:edit","review:view","review:create","review:edit","review:complete","plan:view","plan:create","plan:execute","plan:close","bug:view","requirement:view","requirement:edit","api-gitlab","api-gitlab:view","api-gitlab:edit","api-scene","api-scene:view","api-scene:edit","api-scene:import","api-scene:execute","api-interface","api-interface:view","api-interface:edit","api-component","api-component:view","api-component:edit","api-env","api-env:view","api-env:edit","api-func","api-func:view","api-func:edit","api-debug","api-debug:view","api-timer","api-timer:view","api-timer:edit","api-mock","api-mock:view","api-mock:edit","api-report","api-report:view"]',
+ '["ws-info:view","ws-member:view","ws-invitation:view","ws-invitation:manage","project:view","case:view","case:edit","review:view","review:create","review:edit","review:complete","plan:view","plan:create","plan:execute","plan:close","bug:view","requirement:view","requirement:edit","api-scene","api-scene:view","api-scene:edit","api-scene:import","api-scene:execute","api-interface","api-interface:view","api-interface:edit","api-component","api-component:view","api-component:edit","api-env","api-env:view","api-env:edit","api-func","api-func:view","api-func:edit","api-debug","api-debug:view","api-timer","api-timer:view","api-timer:edit","api-mock","api-mock:view","api-mock:edit","api-report","api-report:view"]',
  CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE);
 
 -- ------------------------------------------------------------
@@ -1910,7 +1826,6 @@ COMMENT ON COLUMN api_import_record.source_name IS '导入源名称';
 COMMENT ON COLUMN api_import_record.status IS '导入状态';
 COMMENT ON COLUMN api_import_record.summary IS '导入汇总：{created, updated, failed, skipped}';
 COMMENT ON COLUMN api_import_record.error_details IS '错误详情';
-COMMENT ON COLUMN api_import_record.repository_id IS '关联仓库 ID';
 COMMENT ON COLUMN api_import_record.created_by IS '导入人';
 
 COMMENT ON TABLE api_debug_record IS '调试历史记录表';
@@ -2025,16 +1940,14 @@ COMMENT ON TABLE api_execution_record IS '执行记录表';
 COMMENT ON COLUMN api_execution_record.project_id IS '归属项目 ID';
 COMMENT ON COLUMN api_execution_record.scene_id IS '关联场景 ID';
 COMMENT ON COLUMN api_execution_record.environment_id IS '使用的环境 ID';
-COMMENT ON COLUMN api_execution_record.execution_mode IS '执行方式：platform/pipeline';
+COMMENT ON COLUMN api_execution_record.execution_mode IS '执行方式：platform';
 COMMENT ON COLUMN api_execution_record.status IS '状态：pending/running/success/failed/error/cancelled/timeout';
-COMMENT ON COLUMN api_execution_record.trigger_type IS '触发方式：manual/scheduled/pipeline';
+COMMENT ON COLUMN api_execution_record.trigger_type IS '触发方式：manual/scheduled';
+COMMENT ON COLUMN api_execution_record.source IS '报告来源：scene（场景页运行，报告不进列表）/schedule（定时任务含立即执行）';
 COMMENT ON COLUMN api_execution_record.report_id IS '关联报告 ID';
-COMMENT ON COLUMN api_execution_record.pipeline_id IS '流水线 ID';
-COMMENT ON COLUMN api_execution_record.pipeline_url IS '流水线 URL';
 COMMENT ON COLUMN api_execution_record.error_message IS '失败原因';
 COMMENT ON COLUMN api_execution_record.executed_at IS '触发时间';
 COMMENT ON COLUMN api_execution_record.duration_ms IS '执行耗时（毫秒）';
-COMMENT ON COLUMN api_execution_record.repository_id IS '关联 GitLab 仓库配置 ID（流水线执行时记录）';
 
 COMMENT ON TABLE api_report IS '报告表';
 COMMENT ON COLUMN api_report.project_id IS '归属项目 ID';
@@ -2042,7 +1955,8 @@ COMMENT ON COLUMN api_report.execution_record_id IS '关联执行记录 ID';
 COMMENT ON COLUMN api_report.scene_id IS '关联场景 ID';
 COMMENT ON COLUMN api_report.scene_name IS '场景名称快照';
 COMMENT ON COLUMN api_report.environment_name IS '环境名称快照';
-COMMENT ON COLUMN api_report.execution_mode IS '执行方式：platform/pipeline';
+COMMENT ON COLUMN api_report.execution_mode IS '执行方式：platform';
+COMMENT ON COLUMN api_report.source IS '报告来源：scene（场景页运行，不进列表）/schedule（定时任务含立即执行）';
 COMMENT ON COLUMN api_report.status IS '汇总状态：success/failed/partial';
 COMMENT ON COLUMN api_report.summary IS '结果汇总';
 COMMENT ON COLUMN api_report.step_results IS '步骤级结果明细';
@@ -2083,44 +1997,3 @@ COMMENT ON COLUMN api_function.script IS 'Groovy 脚本体';
 COMMENT ON COLUMN api_function.type IS '函数类型：builtin/custom';
 COMMENT ON COLUMN api_function.enabled IS '启用状态';
 COMMENT ON COLUMN api_function.updated_by IS '最后维护人';
-
--- 接口测试 — GitLab 仓库
-COMMENT ON TABLE api_gitlab_repository IS 'GitLab 仓库配置表';
-COMMENT ON COLUMN api_gitlab_repository.project_id IS '归属项目 ID';
-COMMENT ON COLUMN api_gitlab_repository.name IS '配置名称';
-COMMENT ON COLUMN api_gitlab_repository.repo_url IS 'GitLab 仓库地址';
-COMMENT ON COLUMN api_gitlab_repository.branch IS '默认分支或标签';
-COMMENT ON COLUMN api_gitlab_repository.access_token_cipher IS '访问令牌（AES-256-GCM 密文）';
-COMMENT ON COLUMN api_gitlab_repository.token_suffix IS '令牌末 4 位';
-COMMENT ON COLUMN api_gitlab_repository.test_source_path IS '测试源码相对路径';
-COMMENT ON COLUMN api_gitlab_repository.last_import_status IS '最近导入状态';
-COMMENT ON COLUMN api_gitlab_repository.last_import_at IS '最近导入时间';
-COMMENT ON COLUMN api_gitlab_repository.last_metadata_sync_at IS '最近元数据同步时间';
-COMMENT ON COLUMN api_gitlab_repository.last_commit_sha IS '最近同步的 commit SHA';
-COMMENT ON COLUMN api_gitlab_repository.annotation_filter IS '注解过滤';
-COMMENT ON COLUMN api_gitlab_repository.only_with_resource_path IS '仅保留含 resourcePath 的测试类';
-COMMENT ON COLUMN api_gitlab_repository.auto_sync_enabled IS '是否开启自动同步';
-
-COMMENT ON TABLE api_gitlab_test_class_metadata IS 'GitLab 测试类元数据表';
-COMMENT ON COLUMN api_gitlab_test_class_metadata.repository_id IS '关联仓库配置';
-COMMENT ON COLUMN api_gitlab_test_class_metadata.full_class_name IS '测试类全限定名';
-COMMENT ON COLUMN api_gitlab_test_class_metadata.class_annotations IS '类级注解配置';
-COMMENT ON COLUMN api_gitlab_test_class_metadata.display_name IS '场景显示名';
-COMMENT ON COLUMN api_gitlab_test_class_metadata.description IS '描述';
-COMMENT ON COLUMN api_gitlab_test_class_metadata.resource_path IS 'resource path';
-COMMENT ON COLUMN api_gitlab_test_class_metadata.is_executable IS '是否可执行';
-COMMENT ON COLUMN api_gitlab_test_class_metadata.methods IS '测试方法清单';
-
-COMMENT ON TABLE api_gitlab_test_scope IS 'GitLab 测试范围参数表';
-COMMENT ON COLUMN api_gitlab_test_scope.repository_id IS '关联仓库配置';
-COMMENT ON COLUMN api_gitlab_test_scope.variable_name IS 'CI 变量名';
-COMMENT ON COLUMN api_gitlab_test_scope.scope_type IS '范围类型：class/method/tag/custom';
-COMMENT ON COLUMN api_gitlab_test_scope.description IS '描述';
-
-COMMENT ON TABLE api_gitlab_sync_history IS 'GitLab 元数据同步历史记录';
-COMMENT ON COLUMN api_gitlab_sync_history.repository_id IS '关联仓库配置';
-COMMENT ON COLUMN api_gitlab_sync_history.sync_at IS '同步时间';
-COMMENT ON COLUMN api_gitlab_sync_history.class_count IS '本次同步的测试类数量';
-COMMENT ON COLUMN api_gitlab_sync_history.method_count IS '本次同步的测试方法数量';
-COMMENT ON COLUMN api_gitlab_sync_history.commit_sha IS '同步时的 commit SHA';
-COMMENT ON COLUMN api_gitlab_sync_history.status IS '同步状态';

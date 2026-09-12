@@ -8,7 +8,6 @@ import FunctionPage from './FunctionPage.vue'
 import DebugPage from './DebugPage.vue'
 import MocksPage from './MocksPage.vue'
 import ComponentPage from './ComponentPage.vue'
-import GitLabRepoPage from './GitLabRepoPage.vue'
 import SceneWorkspace from './SceneWorkspace.vue'
 import InterfaceWorkspace from './InterfaceWorkspace.vue'
 import ReportsPage from './ReportsPage.vue'
@@ -31,7 +30,6 @@ const settingsItems = [
   { key: 'environments', label: '环境管理', icon: 'Compass', enabled: true, permission: 'api-env:view' },
   { key: 'functions', label: '函数管理', icon: 'SetUp', enabled: true, permission: 'api-func:view' },
   { key: 'assets', label: '公共组件', icon: 'Box', enabled: true, permission: 'api-component:view' },
-  { key: 'gitlab-repos', label: 'GitLab配置', icon: 'Platform', enabled: true, permission: 'api-gitlab:view' },
 ]
 
 const authStore = useAuthStore()
@@ -164,7 +162,6 @@ watch(
       />
       <MocksPage v-else-if="activeMenu === 'mocks'" />
       <ComponentPage v-else-if="activeMenu === 'assets'" />
-      <GitLabRepoPage v-else-if="activeMenu === 'gitlab-repos'" />
       <ReportDetailPage
         v-else-if="isReportDetail"
         :report-id="reportDetailId!"

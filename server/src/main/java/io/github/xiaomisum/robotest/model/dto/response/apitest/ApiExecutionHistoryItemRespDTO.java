@@ -26,8 +26,4 @@ public class ApiExecutionHistoryItemRespDTO {
 
     private String reportId;
 
-    private String pipelineId;
-
-    private String pipelineUrl;
-
 }
