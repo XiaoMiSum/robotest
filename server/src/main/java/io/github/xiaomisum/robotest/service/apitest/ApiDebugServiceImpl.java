@@ -19,7 +19,6 @@ import io.github.xiaomisum.robotest.repository.apitest.ApiDebugRecordMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiEnvironmentMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiInterfaceMapper;
 import io.github.xiaomisum.ryze.Ryze;
-import io.github.xiaomisum.ryze.TestStatus;
 import io.github.xiaomisum.ryze.protocol.http.RealHTTPResponse;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
@@ -383,7 +382,7 @@ public class ApiDebugServiceImpl implements ApiDebugService {
                 throw runtime;
             }
             log.warn("[api-debug] 调试执行异常", ex);
-            return new TestResultSnapshot(TestStatus.broken, null, null, null, 0,
+            return new TestResultSnapshot("error", null, null, null, 0,
                     ex.getMessage() == null ? "执行失败" : ex.getMessage(), 0L);
         }
     }
@@ -398,11 +397,13 @@ public class ApiDebugServiceImpl implements ApiDebugService {
                 .findFirst()
                 .orElse(null);
 
-        Long elapsed = Duration.between(suiteResult.getStartTime(), suiteResult.getEndTime()).toMillis();
+        // 异常/中止执行可能未记录起止时间，缺失时直接判为 0 避免 Duration.between NPE
+        Long elapsed = suiteResult.getStartTime() == null || suiteResult.getEndTime() == null ? 0L
+                : Duration.between(suiteResult.getStartTime(), suiteResult.getEndTime()).toMillis();
         if (step == null) {
             Throwable error = suiteResult.getThrowable();
-            return new TestResultSnapshot(suiteResult.getStatus(), null, null, null, 0,
-                    error == null ? "未产生执行结果" : error.getMessage(), elapsed);
+            return new TestResultSnapshot(RyzeResultAdapter.resolveStepStatus(suiteResult), null, null, null, 0,
+                    error == null ? "未产生执行结果" : RyzeResultAdapter.errorMessage(error), elapsed);
         }
         Integer responseStatus = null;
         Map<String, Object> responseHeaders = null;
@@ -416,8 +417,8 @@ public class ApiDebugServiceImpl implements ApiDebugService {
             responseHeaders = toHeaderMap(response.headers());
         }
         Throwable error = step.getThrowable() != null ? step.getThrowable() : suiteResult.getThrowable();
-        return new TestResultSnapshot(step.getStatus(), responseStatus, responseHeaders, responseBody, size,
-                error == null ? null : error.getMessage(), elapsed);
+        return new TestResultSnapshot(RyzeResultAdapter.resolveStepStatus(step), responseStatus, responseHeaders,
+                responseBody, size, RyzeResultAdapter.errorMessage(error), elapsed);
     }
 
     private String bytesAsString(RealHTTPResponse response) {
@@ -443,7 +444,7 @@ public class ApiDebugServiceImpl implements ApiDebugService {
     }
 
     private void applyResult(ApiDebugRecord record, TestResultSnapshot snapshot) {
-        record.setStatus(mapStatus(snapshot.status()));
+        record.setStatus(snapshot.status());
         record.setResponseStatus(snapshot.responseStatus());
         record.setResponseHeaders(snapshot.responseHeaders());
         record.setDurationMs(snapshot.elapsedMs() == null ? null
@@ -461,13 +462,6 @@ public class ApiDebugServiceImpl implements ApiDebugService {
             return snapshot.responseSize();
         }
         return snapshot.responseBody() == null ? null : snapshot.responseBody().getBytes().length;
-    }
-
-    private String mapStatus(TestStatus status) {
-        if (status == TestStatus.passed) {
-            return "success";
-        }
-        return status == TestStatus.failed ? "failed" : "error";
     }
 
     // ========== 环境快照 ==========
@@ -547,8 +541,8 @@ public class ApiDebugServiceImpl implements ApiDebugService {
         return text.substring(0, maxChars);
     }
 
-    /** 取样器结果切片：状态/响应/耗时 */
-    private record TestResultSnapshot(TestStatus status, Integer responseStatus,
+    /** 取样器结果切片：状态（平台 resolved 口径）/响应/耗时 */
+    private record TestResultSnapshot(String status, Integer responseStatus,
             Map<String, Object> responseHeaders, String responseBody, int responseSize,
             String errorMessage, Long elapsedMs) {
     }

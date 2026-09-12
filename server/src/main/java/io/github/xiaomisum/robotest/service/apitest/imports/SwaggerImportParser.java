@@ -12,6 +12,8 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Swagger/OpenAPI 2.0/3.0 解析（JSON/YAML，含 $ref），委托官方 swagger-parser
@@ -19,6 +21,8 @@ import java.util.Map;
 public class SwaggerImportParser implements InterfaceImportParser {
 
     private static final List<String> METHODS = List.of("get", "post", "put", "patch", "delete", "options", "head");
+    /** OpenAPI 路径模板参数 {@code {id}} → 平台 {@code ${id}} 占位（路径变量统一 ${} 语法） */
+    private static final Pattern PATH_PARAM = Pattern.compile("\\{([a-zA-Z0-9_]+)}");
 
     @Override
     public String sourceType() {
@@ -56,9 +60,9 @@ public class SwaggerImportParser implements InterfaceImportParser {
             Map<String, Object> body = extractBody(operation);
             ImportedOperation.ImportedOperationBuilder builder = ImportedOperation.builder()
                     .sourceId(StringUtils.defaultIfBlank(operation.getOperationId(), method + ":" + path))
-                    .sourceName(StringUtils.defaultIfBlank(operation.getSummary(), method.toUpperCase() + " " + path))
+                    .sourceName(interfaceName(operation, method, path))
                     .method(method.toUpperCase())
-                    .path(path)
+                    .path(normalizePath(path))
                     .description(operation.getDescription())
                     .headers(new ArrayList<>())
                     .queryParams(extractQueryParams(operation))
@@ -73,6 +77,26 @@ public class SwaggerImportParser implements InterfaceImportParser {
             }
             out.add(builder.build());
         }
+    }
+
+    /** 接口名称：summary → operationId → METHOD path 逐级降级 */
+    private static String interfaceName(Operation operation, String method, String path) {
+        String name = StringUtils.defaultIfBlank(operation.getSummary(), operation.getOperationId());
+        return StringUtils.defaultIfBlank(name, method.toUpperCase() + " " + path);
+    }
+
+    /** 路径模板参数 {@code {id}} → 平台 {@code ${id}} 占位（限制变量名为字母/数字/下划线，避免误替换花括号常量） */
+    private static String normalizePath(String path) {
+        if (path == null || path.indexOf('{') < 0) {
+            return path;
+        }
+        Matcher matcher = PATH_PARAM.matcher(path);
+        StringBuffer sb = new StringBuffer();
+        while (matcher.find()) {
+            matcher.appendReplacement(sb, "\\${" + matcher.group(1) + "}");
+        }
+        matcher.appendTail(sb);
+        return sb.toString();
     }
 
     private List<Map<String, Object>> extractQueryParams(Operation operation) {

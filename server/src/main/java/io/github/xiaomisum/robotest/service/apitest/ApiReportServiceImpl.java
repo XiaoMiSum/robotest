@@ -6,7 +6,9 @@ import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiPublicReportRe
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiReportDetailRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiReportPageItemRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiReportShareRespDTO;
+import io.github.xiaomisum.robotest.model.entity.admin.SysUser;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiReport;
+import io.github.xiaomisum.robotest.repository.admin.SysUserMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiReportMapper;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
@@ -15,14 +17,9 @@ import xyz.migoo.framework.common.pojo.PageParam;
 import xyz.migoo.framework.common.pojo.PageResult;
 import xyz.migoo.framework.common.util.JsonUtils;
 
-import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipOutputStream;
 
 @Service
 public class ApiReportServiceImpl implements ApiReportService {
@@ -35,16 +32,18 @@ public class ApiReportServiceImpl implements ApiReportService {
     private ApiReportMapper reportMapper;
     @Resource
     private ProjectAccessGuard projectAccessGuard;
+    @Resource
+    private SysUserMapper sysUserMapper;
 
     // ========== 查询 ==========
 
     @Override
     public PageResult<ApiReportPageItemRespDTO> page(UUID workspaceId, UUID projectId, UUID userId,
-            PageParam pageParam, String status, UUID sceneId, String executionMode, String keyword,
+            PageParam pageParam, String status, String reportType, String executionMode, String keyword,
             LocalDateTime startDate, LocalDateTime endDate) {
         projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
         PageResult<ApiReport> pageResult = reportMapper.selectPageByProject(
-                projectId, pageParam, status, sceneId, executionMode, keyword, startDate, endDate);
+                projectId, pageParam, status, reportType, executionMode, keyword, startDate, endDate);
         List<ApiReportPageItemRespDTO> items = pageResult.getList().stream().map(this::toPageItem).toList();
         return new PageResult<>(items, pageResult.getTotal());
     }
@@ -52,8 +51,10 @@ public class ApiReportServiceImpl implements ApiReportService {
     private ApiReportPageItemRespDTO toPageItem(ApiReport report) {
         return ApiReportPageItemRespDTO.builder()
                 .id(report.getId().toString())
-                .sceneId(report.getSceneId() == null ? null : report.getSceneId().toString())
-                .sceneName(report.getSceneName())
+                .reportType(report.getReportType())
+                .externalId(report.getExternalId() == null ? null : report.getExternalId().toString())
+                .name(report.getName())
+                .sceneName(sceneNameOf(report))
                 .executionMode(report.getExecutionMode())
                 .status(report.getStatus())
                 .summary(report.getSummary())
@@ -62,19 +63,30 @@ public class ApiReportServiceImpl implements ApiReportService {
                 .build();
     }
 
+    /** 场景报告取数据集内 sceneName 快照；套件报告列表不展示场景名 */
+    private String sceneNameOf(ApiReport report) {
+        if (report.getResult() == null) {
+            return null;
+        }
+        Object sceneName = report.getResult().get("sceneName");
+        return sceneName == null ? null : sceneName.toString();
+    }
+
     @Override
     public ApiReportDetailRespDTO detail(UUID workspaceId, UUID projectId, UUID userId, UUID id) {
         projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
         ApiReport report = requireReport(projectId, id);
         return ApiReportDetailRespDTO.builder()
                 .id(report.getId().toString())
-                .sceneId(report.getSceneId() == null ? null : report.getSceneId().toString())
-                .sceneName(report.getSceneName())
+                .reportType(report.getReportType())
+                .externalId(report.getExternalId() == null ? null : report.getExternalId().toString())
+                .name(report.getName())
                 .executionMode(report.getExecutionMode())
                 .status(report.getStatus())
                 .summary(report.getSummary())
                 .environmentName(report.getEnvironmentName())
-                .stepResults(report.getStepResults())
+                .result(report.getResult())
+                .share(shareOf(report))
                 .createdAt(report.getCreatedAt())
                 .build();
     }
@@ -94,17 +106,40 @@ public class ApiReportServiceImpl implements ApiReportService {
         String token = UUID.randomUUID().toString().replace("-", "");
         LocalDateTime expiresAt = LocalDateTime.now().plusDays(days);
 
-        // 部分更新：只写分享两列
+        // 部分更新：只写分享三列，防止整行覆盖并发变更
         ApiReport update = new ApiReport();
         update.setId(id);
         update.setShareToken(token);
         update.setShareExpiresAt(expiresAt);
+        update.setShareUserId(userId);
         reportMapper.updateById(update);
 
         return ApiReportShareRespDTO.builder()
                 .shareUrl(SHARE_URL_PREFIX + id + "?token=" + token)
                 .expiresAt(expiresAt)
+                .shareBy(usernameOf(userId))
                 .build();
+    }
+
+    /** 当前未过期分享记录（分享弹窗直接复用展示）；无分享/已过期返回 null */
+    private ApiReportShareRespDTO shareOf(ApiReport report) {
+        if (report.getShareToken() == null || report.getShareExpiresAt() == null
+                || !report.getShareExpiresAt().isAfter(LocalDateTime.now())) {
+            return null;
+        }
+        return ApiReportShareRespDTO.builder()
+                .shareUrl(SHARE_URL_PREFIX + report.getId() + "?token=" + report.getShareToken())
+                .expiresAt(report.getShareExpiresAt())
+                .shareBy(usernameOf(report.getShareUserId()))
+                .build();
+    }
+
+    private String usernameOf(UUID userId) {
+        if (userId == null) {
+            return null;
+        }
+        List<SysUser> users = sysUserMapper.listByIds(List.of(userId));
+        return users.isEmpty() ? null : users.get(0).getUsername();
     }
 
     @Override
@@ -117,11 +152,12 @@ public class ApiReportServiceImpl implements ApiReportService {
         }
         return ApiPublicReportRespDTO.builder()
                 .id(report.getId().toString())
-                .sceneName(report.getSceneName())
+                .reportType(report.getReportType())
+                .name(report.getName())
                 .environmentName(report.getEnvironmentName())
                 .status(report.getStatus())
                 .summary(report.getSummary())
-                .stepResults(report.getStepResults())
+                .result(report.getResult())
                 .createdAt(report.getCreatedAt())
                 .build();
     }
@@ -133,68 +169,6 @@ public class ApiReportServiceImpl implements ApiReportService {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.API_REPORT_NOT_FOUND);
         }
         return report;
-    }
-
-    // ========== 导出 ==========
-
-    @Override
-    public ExportFile exportJson(UUID workspaceId, UUID projectId, UUID userId, UUID id) {
-        projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
-        ApiReport report = requireReport(projectId, id);
-        byte[] content = JsonUtils.toJsonString(toExportMap(report)).getBytes(StandardCharsets.UTF_8);
-        return new ExportFile(exportFilename(report, "json"), "application/json", content);
-    }
-
-    @Override
-    public ExportFile exportHtml(UUID workspaceId, UUID projectId, UUID userId, UUID id) {
-        projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
-        ApiReport report = requireReport(projectId, id);
-        String html = HtmlReportRenderer.render(report.getSceneName(), report.getStatus(),
-                report.getEnvironmentName(), report.getExecutionMode(), report.getCreatedAt(),
-                report.getSummary(), report.getStepResults());
-        return new ExportFile(exportFilename(report, "html"), "text/html", html.getBytes(StandardCharsets.UTF_8));
-    }
-
-    @Override
-    public ExportFile batchExportZip(UUID workspaceId, UUID projectId, UUID userId, List<UUID> ids) {
-        projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
-        List<ApiReport> reports = ids.stream().map(id -> requireReport(projectId, id)).toList();
-        try (var baos = new java.io.ByteArrayOutputStream();
-                var zip = new ZipOutputStream(baos)) {
-            for (int i = 0; i < reports.size(); i++) {
-                ApiReport report = reports.get(i);
-                // 前缀序号防重名：同场景多次执行会派生同名文件
-                zip.putNextEntry(new ZipEntry((i + 1) + "-" + exportFilename(report, "json")));
-                zip.write(JsonUtils.toJsonString(toExportMap(report)).getBytes(StandardCharsets.UTF_8));
-                zip.closeEntry();
-            }
-            zip.finish();
-            return new ExportFile("api-reports-" + System.currentTimeMillis() + ".zip", "application/zip", baos.toByteArray());
-        } catch (Exception ex) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.API_FORMAT_CONVERT_FAILED, ex.getMessage());
-        }
-    }
-
-    /** 导出内容：元数据 + 汇总 + 步骤级明细（测试报告详细设计 4.3.1），不含 ryze_snapshot */
-    private Map<String, Object> toExportMap(ApiReport report) {
-        Map<String, Object> map = new LinkedHashMap<>();
-        map.put("sceneName", report.getSceneName());
-        map.put("environmentName", report.getEnvironmentName());
-        map.put("executionMode", report.getExecutionMode());
-        map.put("status", report.getStatus());
-        map.put("createdAt", report.getCreatedAt());
-        map.put("summary", report.getSummary());
-        map.put("stepResults", report.getStepResults());
-        return map;
-    }
-
-    private String exportFilename(ApiReport report, String extension) {
-        String sceneName = report.getSceneName() == null ? "report" : report.getSceneName();
-        // 文件名只保留安全字符，避免路径穿越与非法字符
-        String safe = sceneName.replaceAll("[\\\\/:*?\"<>|\\s]+", "_");
-        String stamp = report.getCreatedAt() == null ? Long.toString(System.currentTimeMillis())
-                : report.getCreatedAt().toLocalDate().toString();
-        return safe + "-" + stamp + "." + extension;
     }
 
     // ========== 删除 ==========

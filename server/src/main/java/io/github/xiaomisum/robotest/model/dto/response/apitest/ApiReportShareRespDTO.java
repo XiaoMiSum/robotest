@@ -15,4 +15,7 @@ public class ApiReportShareRespDTO {
 
     private LocalDateTime expiresAt;
 
+    /** 分享者 username（分享记录展示与复制文本，测试报告详细设计 4.2.3） */
+    private String shareBy;
+
 }

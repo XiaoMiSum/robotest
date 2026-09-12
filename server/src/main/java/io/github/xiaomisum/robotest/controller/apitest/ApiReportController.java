@@ -10,10 +10,6 @@ import io.github.xiaomisum.robotest.service.apitest.ApiReportService;
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
 import org.springframework.format.annotation.DateTimeFormat;
-import org.springframework.http.ContentDisposition;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -28,7 +24,6 @@ import xyz.migoo.framework.common.pojo.PageParam;
 import xyz.migoo.framework.common.pojo.PageResult;
 import xyz.migoo.framework.common.pojo.Result;
 
-import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -47,7 +42,7 @@ public class ApiReportController {
             @RequestHeader("X-Active-Project") UUID projectId,
             @Valid PageParam pageParam,
             @RequestParam(value = "status", required = false) String status,
-            @RequestParam(value = "sceneId", required = false) UUID sceneId,
+            @RequestParam(value = "reportType", required = false) String reportType,
             @RequestParam(value = "executionMode", required = false) String executionMode,
             @RequestParam(value = "keyword", required = false) String keyword,
             @RequestParam(value = "startDate", required = false)
@@ -55,7 +50,7 @@ public class ApiReportController {
             @RequestParam(value = "endDate", required = false)
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate) {
         return Result.ok(reportService.page(workspaceId, projectId, loginUser.getId(), pageParam,
-                status, sceneId, executionMode, keyword, startDate, endDate));
+                status, reportType, executionMode, keyword, startDate, endDate));
     }
 
     @GetMapping("/api/project/reports/{id}")
@@ -80,30 +75,6 @@ public class ApiReportController {
                 reqDTO == null ? null : reqDTO.getExpiresInDays()));
     }
 
-    @GetMapping("/api/project/reports/{id}/export")
-    @PreAuthorize("hasAuthority('api-report:view')")
-    public ResponseEntity<byte[]> export(
-            @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
-            @PathVariable UUID id,
-            @RequestParam(value = "format", defaultValue = "json") String format) {
-        ApiReportService.ExportFile file = "html".equalsIgnoreCase(format)
-                ? reportService.exportHtml(workspaceId, projectId, loginUser.getId(), id)
-                : reportService.exportJson(workspaceId, projectId, loginUser.getId(), id);
-        return fileResponse(file);
-    }
-
-    @PostMapping("/api/project/reports/batch-export")
-    @PreAuthorize("hasAuthority('api-report:view')")
-    public ResponseEntity<byte[]> batchExport(
-            @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
-            @RequestBody @Valid ApiReportBatchReqDTO reqDTO) {
-        return fileResponse(reportService.batchExportZip(workspaceId, projectId, loginUser.getId(), reqDTO.getIds()));
-    }
-
     @DeleteMapping("/api/project/reports/{id}")
     @PreAuthorize("hasAuthority('api-report:delete')")
     public Result<Boolean> delete(
@@ -124,15 +95,6 @@ public class ApiReportController {
             @RequestBody @Valid ApiReportBatchReqDTO reqDTO) {
         reportService.batchDelete(workspaceId, projectId, loginUser.getId(), reqDTO.getIds());
         return Result.ok(true);
-    }
-
-    private ResponseEntity<byte[]> fileResponse(ApiReportService.ExportFile file) {
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.parseMediaType(file.contentType()));
-        headers.setContentDisposition(ContentDisposition.attachment()
-                .filename(file.filename(), StandardCharsets.UTF_8)
-                .build());
-        return ResponseEntity.ok().headers(headers).body(file.content());
     }
 
 }
