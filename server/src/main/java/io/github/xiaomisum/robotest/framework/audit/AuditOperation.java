@@ -4,7 +4,7 @@ import java.lang.annotation.*;
 
 /**
  * 标记需要审计日志的方法。
- * 方法参数中第一个 String 类型参数会被视为 entityId。
+ * 方法参数中第一个 UUID 类型参数会被视为 entityId（见 {@code AuditLogAspect#around}）。
  */
 @Target(ElementType.METHOD)
 @Retention(RetentionPolicy.RUNTIME)
