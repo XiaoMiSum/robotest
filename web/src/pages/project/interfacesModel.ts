@@ -121,6 +121,15 @@ function keyValuesFromContent(content: unknown): ApiDebugKeyValue[] | null {
   })
 }
 
+/** 兼容共享验证器面板：缺失开关位时视为启用，避免旧数据在编辑面板中显示为禁用 */
+function normalizeValidators(rows: Record<string, unknown>[] | undefined): Record<string, unknown>[] {
+  return (rows ?? []).map((row) => (row.enabled === undefined ? { ...row, enabled: true } : row))
+}
+
+function normalizeExtractors(rows: Record<string, unknown>[] | undefined): Record<string, unknown>[] {
+  return (rows ?? []).map((row) => (row.enabled === undefined ? { ...row, enabled: true } : row))
+}
+
 /** 后端 auth 列（Map）→ 表单认证结构；无/未知类型归为 No Auth */
 function authFromDetail(auth: Record<string, unknown> | null | undefined): ApiDebugAuth {
   if (!auth || typeof auth !== 'object') return { type: 'none' }
@@ -157,8 +166,8 @@ export function createEditorForm(detail?: ApiInterfaceDetail): InterfaceEditorFo
     status: 'enabled' as const,
     headers: normalizeKeyValues(detail?.headers),
     params: normalizeKeyValues(detail?.params),
-    validators: detail?.validators ?? [],
-    extractors: detail?.extractors ?? [],
+    validators: normalizeValidators(detail?.validators),
+    extractors: normalizeExtractors(detail?.extractors),
     auth: authFromDetail(detail?.auth),
     rawSubtype: 'text' as ApiDebugRawSubtype,
     rawText: '',
@@ -206,8 +215,8 @@ export function createEditorForm(detail?: ApiInterfaceDetail): InterfaceEditorFo
     rawSubtype,
     rawText,
     urlencodedRows,
-    validators: detail.validators ?? [],
-    extractors: detail.extractors ?? [],
+    validators: normalizeValidators(detail.validators),
+    extractors: normalizeExtractors(detail.extractors),
     auth: authFromDetail(detail.auth),
     responseBodyText: detail.responseExample?.body != null
       ? JSON.stringify(detail.responseExample.body, null, 2) : '',

@@ -7,8 +7,8 @@ import { createInterface, fetchInterfaceDetail, updateInterface } from '@/servic
 import { fetchProjectModuleTree } from '@/services/project'
 import { fetchComponents } from '@/services/apiComponent'
 import KeyValueTable from './debug/KeyValueTable.vue'
-import ValidatorForm from '@/components/api-testing/ValidatorForm.vue'
-import ExtractorForm from '@/components/api-testing/ExtractorForm.vue'
+import ValidatorsExtractorsPanes from '@/components/api-testing/ValidatorsExtractorsPanes.vue'
+import type { PaneValidatorItem, PaneExtractorItem } from './scenesModel'
 import ExtractorAssetPicker from '@/components/api-testing/ExtractorAssetPicker.vue'
 import {
   extractorFromComponent,
@@ -140,30 +140,12 @@ function formatJsonBody() {
 
 // ==================== 接口级配置 Tab（仅定义存储，执行随场景模块；详细设计 6.3） ====================
 
-type ConfigItem = Record<string, unknown>
-
 function addValidator() {
-  form.value.validators.push({ target: 'status_code', expression: '', condition: 'equals', expected: '' })
-}
-
-function removeValidator(index: number) {
-  form.value.validators.splice(index, 1)
-}
-
-function updateValidator(index: number, value: ConfigItem) {
-  form.value.validators[index] = value
+  form.value.validators.push({ enabled: true, target: 'status_code', expression: '', condition: 'equals', expected: '' })
 }
 
 function addExtractor() {
-  form.value.extractors.push({ source: 'json_field', expression: '', variableName: '' })
-}
-
-function removeExtractor(index: number) {
-  form.value.extractors.splice(index, 1)
-}
-
-function updateExtractor(index: number, value: ConfigItem) {
-  form.value.extractors[index] = value
+  form.value.extractors.push({ enabled: true, source: 'json_field', expression: '', variableName: '' })
 }
 
 // ==================== 从公共组件引入（验证器/提取器，复制语义） ====================
@@ -221,11 +203,24 @@ function handleAssetPicked(rows: ApiComponentListItem[]) {
   if (rows.length === 0) return
   const kind = assetPickerKind.value
   if (kind === 'validator') {
-    rows.forEach((r) => form.value.validators.push(validatorFromComponent(r)))
+    rows.forEach((r) => form.value.validators.push({ ...validatorFromComponent(r), enabled: true }))
   } else {
-    rows.forEach((r) => form.value.extractors.push(extractorFromComponent(r)))
+    rows.forEach((r) => form.value.extractors.push({ ...extractorFromComponent(r), enabled: true }))
   }
   ElMessage.success(`已引入 ${rows.length} 个${ASSET_NAME[kind]}`)
+}
+
+// ==================== 共享验证器/提取器面板桥接（卡片+开关样式，验证器/提取器定义） ====================
+
+const paneValidators = computed<PaneValidatorItem[]>(() => form.value.validators as unknown as PaneValidatorItem[])
+const paneExtractors = computed<PaneExtractorItem[]>(() => form.value.extractors as unknown as PaneExtractorItem[])
+
+function handleValidatorsUpdate(rows: PaneValidatorItem[]) {
+  form.value.validators = rows as unknown as Record<string, unknown>[]
+}
+
+function handleExtractorsUpdate(rows: PaneExtractorItem[]) {
+  form.value.extractors = rows as unknown as Record<string, unknown>[]
 }
 
 // ==================== 响应示例（独立区，对齐快速调试响应组件） ====================
@@ -552,33 +547,16 @@ onBeforeUnmount(() => {
           </div>
         </el-tab-pane>
 
-        <el-tab-pane name="validators" label="验证器">
-          <div v-for="(_, i) in form.validators" :key="i" class="interface-editor__config-item">
-            <ValidatorForm
-              :model-value="form.validators[i]"
-              @update:model-value="(v) => updateValidator(i, v)"
-            />
-            <el-button class="interface-editor__config-delete" type="danger" link @click="removeValidator(i)">删除</el-button>
-          </div>
-          <div class="interface-editor__add-row">
-            <el-button type="primary" link @click="addValidator">+ 添加验证器</el-button>
-            <el-button type="primary" link @click="openAssetPicker('validator')">从公共组件引入</el-button>
-          </div>
-        </el-tab-pane>
-
-        <el-tab-pane name="extractors" label="提取器">
-          <div v-for="(_, i) in form.extractors" :key="i" class="interface-editor__config-item">
-            <ExtractorForm
-              :model-value="form.extractors[i]"
-              @update:model-value="(v) => updateExtractor(i, v)"
-            />
-            <el-button class="interface-editor__config-delete" type="danger" link @click="removeExtractor(i)">删除</el-button>
-          </div>
-          <div class="interface-editor__add-row">
-            <el-button type="primary" link @click="addExtractor">+ 添加提取器</el-button>
-            <el-button type="primary" link @click="openAssetPicker('extractor')">从公共组件引入</el-button>
-          </div>
-        </el-tab-pane>
+        <ValidatorsExtractorsPanes
+          :validators="paneValidators"
+          :extractors="paneExtractors"
+          @update:validators="handleValidatorsUpdate"
+          @update:extractors="handleExtractorsUpdate"
+          @add-validator="addValidator"
+          @add-extractor="addExtractor"
+          @import-validators="openAssetPicker('validator')"
+          @import-extractors="openAssetPicker('extractor')"
+        />
       </el-tabs>
       </div>
 
