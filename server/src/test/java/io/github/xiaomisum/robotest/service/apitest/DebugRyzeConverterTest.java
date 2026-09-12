@@ -39,7 +39,7 @@ class DebugRyzeConverterTest {
     }
 
     @Test
-    void relativeUrlPrefixesDefaultBaseUrlAndMergesHeaders() {
+    void relativeUrlGoesToPathRefsDefaultHttpConfigAndMergesStepHeaders() {
         ApiDebugExecuteReqDTO req = new ApiDebugExecuteReqDTO();
         req.setMethod("POST");
         req.setUrl("/auth/login");
@@ -48,23 +48,29 @@ class DebugRyzeConverterTest {
                 header("X-Drop", "ignored", false),
                 header("Content-Type", "application/json", true)));
         var env = new DebugRyzeConverter.EnvSnapshot(
-                "http://staging.local:8080",
-                Map.of("Content-Type", "text/plain"),
-                Map.of("token", "abc"),
+                null, Map.of("token", "abc"),
                 List.of(Map.of("testclass", "debug")),
+                List.of(),
+                List.of(Map.of("refName", "staging", "baseUrl", "http://staging.local:8080",
+                        "headers", List.of(header("Content-Type", "text/plain", true)))),
                 List.of());
 
         Map<String, Object> suite = DebugRyzeConverter.buildSuite(env, req);
         assertThat(suite.get("variables")).isEqualTo(Map.of("token", "abc"));
         assertThat(suite.get("preprocessors")).isEqualTo(List.of(Map.of("testclass", "debug")));
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> configElements = (List<Map<String, Object>>) suite.get("configelements");
+        assertThat(configElements).extracting(e -> e.get("testclass")).containsExactly("http");
 
         Map<String, Object> child = firstChild(suite);
         @SuppressWarnings("unchecked")
         Map<String, Object> config = (Map<String, Object>) child.get("config");
-        assertThat(config).containsEntry("base_url", "http://staging.local:8080/auth/login");
+        assertThat(config).containsEntry("path", "/auth/login")
+                .containsEntry("ref", "staging")
+                .doesNotContainKey("base_url");
         @SuppressWarnings("unchecked")
         Map<String, Object> headers = (Map<String, Object>) config.get("headers");
-        // 环境默认头在前，请求头同名覆盖，禁用项不参与
+        // 环境默认头随 configelements，请求头同名覆盖、禁用项不参与
         assertThat(headers).containsEntry("Content-Type", "application/json")
                 .containsEntry("Authorization", "Bearer t")
                 .doesNotContainKey("X-Drop");

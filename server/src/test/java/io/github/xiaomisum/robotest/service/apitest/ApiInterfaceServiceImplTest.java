@@ -5,6 +5,7 @@ import io.github.xiaomisum.robotest.framework.security.ProjectAccessGuard;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiInterfaceBatchDeleteReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiInterfaceCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiInterfaceUpdateReqDTO;
+import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiParsedImportReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiImportPreviewRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiImportResultRespDTO;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiImportMapping;
@@ -17,6 +18,7 @@ import io.github.xiaomisum.robotest.repository.apitest.ApiImportRecordMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiInterfaceChangeLogMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiInterfaceFollowMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiInterfaceMapper;
+import io.github.xiaomisum.robotest.service.apitest.imports.ImportSourceFetcher;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -24,11 +26,12 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import xyz.migoo.framework.common.exception.ServiceException;
+import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
 import xyz.migoo.framework.common.pojo.PageParam;
 import xyz.migoo.framework.common.pojo.PageResult;
 
-import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -36,6 +39,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -59,6 +63,8 @@ class ApiInterfaceServiceImplTest {
     private ApiImportMappingMapper importMappingMapper;
     @Mock
     private ApiImportRecordMapper importRecordMapper;
+    @Mock
+    private ImportSourceFetcher sourceFetcher;
     @Mock
     private ProjectAccessGuard projectAccessGuard;
 
@@ -221,25 +227,26 @@ class ApiInterfaceServiceImplTest {
         assertThat(captor.getValue().getUserId()).isEqualTo(USER_ID);
     }
 
-    // ==================== 预览 ====================
+    // ==================== URL 预览 ====================
 
     @Test
     void previewMarksConflictsByPathAndMethod() {
         String content = """
                 {
-                  "info": {"name": "col"},
-                  "item": [
-                    {"name": "新建", "request": {"method": "POST", "url": "https://a.example.com/new"}},
-                    {"name": "已有", "request": {"method": "POST", "url": "https://a.example.com/exists"}}
-                  ]
+                  "openapi": "3.0.0",
+                  "info": {"title": "col", "version": "1.0"},
+                  "paths": {
+                    "/new":   {"post": {"operationId": "new", "summary": "新建", "responses": {"200": {"description": "ok"}}}},
+                    "/exists":{"post": {"operationId": "exists", "summary": "已有", "responses": {"200": {"description": "ok"}}}}
+                  }
                 }
                 """;
+        when(sourceFetcher.fetch("https://a.example.com/swagger.json")).thenReturn(content);
         when(interfaceMapper.selectByPathAndMethod(PROJECT_ID, "POST", "/new")).thenReturn(null);
         when(interfaceMapper.selectByPathAndMethod(PROJECT_ID, "POST", "/exists"))
                 .thenReturn(existingInterface("已有"));
 
-        ApiImportPreviewRespDTO resp = service.preview(PROJECT_ID, USER_ID,
-                content.getBytes(StandardCharsets.UTF_8), null);
+        ApiImportPreviewRespDTO resp = service.preview(PROJECT_ID, USER_ID, "https://a.example.com/swagger.json", null);
 
         assertThat(resp.getItems()).extracting(i -> i.getAction())
                 .containsExactly("create", "update");
@@ -248,19 +255,10 @@ class ApiInterfaceServiceImplTest {
         verify(importRecordMapper, never()).insert(any(ApiImportRecord.class));
     }
 
-    // ==================== 文件导入 ====================
+    // ==================== 解析结果导入 ====================
 
     @Test
-    void importFileCreatesInterfacesMappingsAndRecord() {
-        String content = """
-                {
-                  "info": {"name": "col"},
-                  "item": [
-                    {"name": "登录", "id": "req-9",
-                     "request": {"method": "POST", "url": "https://api.example.com/auth/login"}}
-                  ]
-                }
-                """;
+    void importParsedCreatesInterfacesMappingsAndRecord() {
         when(importMappingMapper.selectBySource(any(), any(), any())).thenReturn(null);
         doAnswer(invocation -> {
             invocation.getArgument(0, ApiInterface.class).setId(UUID.randomUUID());
@@ -269,8 +267,16 @@ class ApiInterfaceServiceImplTest {
         when(importRecordMapper.insert(any(ApiImportRecord.class))).thenReturn(1);
         when(changeLogMapper.insert(any(ApiInterfaceChangeLog.class))).thenReturn(1);
 
-        ApiImportResultRespDTO resp = service.importFile(PROJECT_ID, USER_ID,
-                content.getBytes(StandardCharsets.UTF_8), "collection.json", null);
+        ApiParsedImportReqDTO.Operation login = new ApiParsedImportReqDTO.Operation();
+        login.setName("登录");
+        login.setMethod("POST");
+        login.setPath("/auth/login");
+        login.setHeaders(List.of(Map.of("key", "Content-Type", "value", "application/json", "enabled", true)));
+        login.setBody(Map.of("type", "json", "content", Map.of("username", "admin")));
+        ApiParsedImportReqDTO reqDTO = new ApiParsedImportReqDTO();
+        reqDTO.setOperations(List.of(login));
+
+        ApiImportResultRespDTO resp = service.importParsed(PROJECT_ID, USER_ID, reqDTO);
 
         assertThat(resp.getSummary()).containsEntry("created", 1).containsEntry("failed", 0);
 
@@ -283,26 +289,19 @@ class ApiInterfaceServiceImplTest {
 
         ArgumentCaptor<ApiImportMapping> mappingCaptor = ArgumentCaptor.forClass(ApiImportMapping.class);
         verify(importMappingMapper).insert(mappingCaptor.capture());
-        assertThat(mappingCaptor.getValue().getSourceType()).isEqualTo("postman_item");
-        assertThat(mappingCaptor.getValue().getSourceId()).isEqualTo("req-9");
+        assertThat(mappingCaptor.getValue().getSourceType()).isEqualTo("curl_operation");
+        assertThat(mappingCaptor.getValue().getSourceId()).isEqualTo("POST:/auth/login");
         assertThat(mappingCaptor.getValue().getAction()).isEqualTo("created");
 
         ArgumentCaptor<ApiImportRecord> recordCaptor = ArgumentCaptor.forClass(ApiImportRecord.class);
         verify(importRecordMapper).insert(recordCaptor.capture());
         assertThat(recordCaptor.getValue().getStatus()).isEqualTo("success");
+        assertThat(recordCaptor.getValue().getImportType()).isEqualTo("curl");
         assertThat(recordCaptor.getValue().getCreatedBy()).isEqualTo(USER_ID);
     }
 
     @Test
-    void importFileSuffixesDuplicateNames() {
-        String content = """
-                {
-                  "info": {"name": "col"},
-                  "item": [
-                    {"name": "登录", "request": {"method": "POST", "url": "https://a.example.com/login"}}
-                  ]
-                }
-                """;
+    void importParsedSuffixesDuplicateNames() {
         when(importMappingMapper.selectBySource(any(), any(), any())).thenReturn(null);
         when(interfaceMapper.selectByPathAndMethod(any(), any(), any())).thenReturn(null);
         when(interfaceMapper.selectByNameAndModule(PROJECT_ID, null, "登录"))
@@ -315,8 +314,14 @@ class ApiInterfaceServiceImplTest {
         when(importRecordMapper.insert(any(ApiImportRecord.class))).thenReturn(1);
         when(changeLogMapper.insert(any(ApiInterfaceChangeLog.class))).thenReturn(1);
 
-        service.importFile(PROJECT_ID, USER_ID, content.getBytes(StandardCharsets.UTF_8),
-                "collection.json", null);
+        ApiParsedImportReqDTO.Operation login = new ApiParsedImportReqDTO.Operation();
+        login.setName("登录");
+        login.setMethod("POST");
+        login.setPath("/auth/login");
+        ApiParsedImportReqDTO reqDTO = new ApiParsedImportReqDTO();
+        reqDTO.setOperations(List.of(login));
+
+        service.importParsed(PROJECT_ID, USER_ID, reqDTO);
 
         ArgumentCaptor<ApiInterface> captor = ArgumentCaptor.forClass(ApiInterface.class);
         verify(interfaceMapper).insert(captor.capture());
@@ -324,13 +329,24 @@ class ApiInterfaceServiceImplTest {
     }
 
     @Test
-    void importFileWithUnknownFormatRaisesUnsupported() {
-        byte[] garbage = "not a recognized format".getBytes(StandardCharsets.UTF_8);
+    void importParsedWithUnknownSourceKeepsPartialRecord() {
+        when(importMappingMapper.selectBySource(any(), any(), any())).thenReturn(null);
+        doThrow(ServiceExceptionUtil.get(ErrorCodeConstants.API_INTERFACE_NOT_FOUND))
+                .when(interfaceMapper).insert(any(ApiInterface.class));
+        when(importRecordMapper.insert(any(ApiImportRecord.class))).thenReturn(1);
 
-        ServiceException ex = assertThrows(ServiceException.class,
-                () -> service.importFile(PROJECT_ID, USER_ID, garbage, "x.txt", null));
+        ApiParsedImportReqDTO.Operation bad = new ApiParsedImportReqDTO.Operation();
+        bad.setName("坏条目");
+        bad.setMethod("POST");
+        bad.setPath("/broken");
+        ApiParsedImportReqDTO reqDTO = new ApiParsedImportReqDTO();
+        reqDTO.setOperations(List.of(bad));
 
-        assertEquals(ErrorCodeConstants.API_IMPORT_FORMAT_UNSUPPORTED.code(), ex.getCode());
+        ApiImportResultRespDTO resp = service.importParsed(PROJECT_ID, USER_ID, reqDTO);
+
+        assertThat(resp.getErrors()).hasSize(1);
+        assertThat(resp.getErrors().get(0)).containsKey("message");
+        assertThat(resp.getSummary()).containsEntry("created", 0).containsEntry("failed", 1);
     }
 
     // ==================== 复制 ====================
