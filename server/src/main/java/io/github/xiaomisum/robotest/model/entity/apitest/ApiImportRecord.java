@@ -33,7 +33,5 @@ public class ApiImportRecord extends BaseUuidDO<ApiImportRecord> {
     @TableField(typeHandler = Jackson3TypeHandler.class)
     private List<Map<String, Object>> errorDetails;
     @TableField(typeHandler = UUIDTypeHandler.class)
-    private UUID repositoryId;
-    @TableField(typeHandler = UUIDTypeHandler.class)
     private UUID createdBy;
 }
