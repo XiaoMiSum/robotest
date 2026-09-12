@@ -73,4 +73,15 @@ public class LoginUser extends AuthUserDetails<LoginUser, UUID> {
         return getAuthorities().stream().map(GrantedAuthority::getAuthority).distinct().toList();
     }
 
+    /**
+     * 业务权限点编码：排除 ROLE_ 前缀，供前端权限按钮与 @PreAuthorize 语义对照。
+     */
+    public List<String> getPermissionCodes() {
+        return getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .filter(auth -> !auth.startsWith("ROLE_"))
+                .distinct()
+                .toList();
+    }
+
 }
