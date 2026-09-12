@@ -10,23 +10,19 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.UUID;
 
 /**
  * 环境快照装配：调试与场景执行共用同一解析口径。
  *
  * <p>环境聚合存储于主表 api_environment 的 JSONB 列（详细设计《环境管理详细设计说明书》），
- * 快照直接解析第一条 HTTP 配置、变量明文、启用的前后置处理器。</p>
+ * 快照装配 http 配置/数据源整表与变量明文、启用的前后置处理器，由两个转换器据此生成 suite configelements。</p>
  */
 @Component
 public class EnvironmentSnapshotFactory {
 
     @Resource
     private ApiEnvironmentMapper environmentMapper;
-
-    /** 默认 HTTP 配置：取 JSONB http_configs 首条 */
-    private static final Map<String, Object> NO_HTTP = Map.of();
 
     /** 指定环境不可用时回退项目默认环境，均缺失时返回空快照 */
     public DebugRyzeConverter.EnvSnapshot resolve(UUID projectId, UUID environmentId) {
@@ -36,7 +32,6 @@ public class EnvironmentSnapshotFactory {
         if (env == null || !env.getProjectId().equals(projectId)) {
             return DebugRyzeConverter.EnvSnapshot.empty();
         }
-        Map<String, Object> defaultHttp = first(env.getHttpConfigs());
 
         Map<String, Object> variables = new LinkedHashMap<>();
         for (Map<String, Object> row : nullToEmpty(env.getVariables())) {
@@ -49,23 +44,11 @@ public class EnvironmentSnapshotFactory {
         List<Map<String, Object>> pre = processorConfigs(env.getProcessors(), "preprocessor");
         List<Map<String, Object>> post = processorConfigs(env.getProcessors(), "postprocessor");
 
-        Map<String, Object> envHeaders = new LinkedHashMap<>();
-        Object headers = defaultHttp.get("headers");
-        if (headers instanceof List<?> rawHeaders) {
-            for (Object entryObj : rawHeaders) {
-                if (!(entryObj instanceof Map<?, ?> entry)) {
-                    continue;
-                }
-                Object key = entry.get("key");
-                if (key != null && !Boolean.FALSE.equals(entry.get("enabled"))) {
-                    Object value = entry.get("value");
-                    envHeaders.put(key.toString(), value == null ? "" : value);
-                }
-            }
-        }
+        // http 配置/数据源整表透传，由转换器装配 configelements（基设详设 4.1.2）
         return new DebugRyzeConverter.EnvSnapshot(
-                Objects.requireNonNullElse(defaultHttp.get("baseUrl"), "").toString(),
-                envHeaders, variables, pre, post);
+                env.getName(), variables, pre, post,
+                nullToEmpty(env.getHttpConfigs()),
+                nullToEmpty(env.getDataSources()));
     }
 
     private ApiEnvironment findDefaultEnvironment(UUID projectId) {
@@ -89,19 +72,46 @@ public class EnvironmentSnapshotFactory {
             }
             Object config = row.get("config");
             if (config instanceof Map<?, ?> map) {
-                configs.add(castMap(map));
+                configs.add(normalizeProcessorElement(castMap(map)));
             }
         }
         return configs;
     }
 
-    private static <T> List<T> nullToEmpty(List<T> list) {
-        return list == null ? List.of() : list;
+    /**
+     * 将平台存储的处理器元素标准化为 Ryze 引擎可识别的格式。
+     * <p>平台存储结构（web 侧 toProcessorElement 编译产物）：{testclass, config, extractors, enabled, sortOrder}。
+     * Ryze 引擎仅识别 {testclass, config, extractors}，需剥离平台 overlay 字段并将提取器由平台格式
+     * ({source, expression, variableName}) 转为 Ryze 格式 ({testclass, field, ref_name})。</p>
+     */
+    static Map<String, Object> normalizeProcessorElement(Map<String, Object> element) {
+        Map<String, Object> result = new LinkedHashMap<>(element);
+        // 剥离平台 overlay 字段（Ryze 引擎不识别）
+        result.remove("enabled");
+        result.remove("sortOrder");
+        // 将提取器由平台存储格式转为 Ryze 元件格式
+        if (result.get("extractors") instanceof List<?> rawList) {
+            List<Map<String, Object>> source = SceneRyzeConverter.toStringKeyMapList(rawList);
+            // 过滤无效提取器（空来源/禁用项），避免转换期抛出异常
+            List<Map<String, Object>> valid = source.stream()
+                    .filter(e -> {
+                        Object s = e.get("source");
+                        return s != null && !s.toString().isBlank()
+                                && !Boolean.FALSE.equals(e.get("enabled"));
+                    })
+                    .toList();
+            List<Map<String, Object>> converted = SceneRyzeConverter.convertExtractors(valid);
+            if (converted.isEmpty()) {
+                result.remove("extractors");
+            } else {
+                result.put("extractors", converted);
+            }
+        }
+        return result;
     }
 
-    private static Map<String, Object> first(List<Map<String, Object>> rows) {
-        List<Map<String, Object>> safe = nullToEmpty(rows);
-        return safe.isEmpty() ? NO_HTTP : safe.get(0);
+    private static <T> List<T> nullToEmpty(List<T> list) {
+        return list == null ? List.of() : list;
     }
 
     @SuppressWarnings("unchecked")

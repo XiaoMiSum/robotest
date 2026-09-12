@@ -2155,8 +2155,14 @@ export interface ApiComponentCopyResp {
 /** 报告列表条目 */
 export interface ApiReportPageItem {
   id: string
-  sceneId: string | null
-  sceneName: string
+  /** 报告粒度：scene / suite */
+  reportType: string
+  /** 外部关联 ID（suite=任务 ID；scene=场景 ID） */
+  externalId: string | null
+  /** 报告名称（场景报告：场景名+时间戳；套件报告：任务名+时间戳） */
+  name: string
+  /** 场景报告时场景名称快照；套件报告为 null */
+  sceneName: string | null
   executionMode: string
   status: string
   summary: ApiReportSummary
@@ -2164,94 +2170,142 @@ export interface ApiReportPageItem {
   createdAt: string
 }
 
-/** 报告汇总 */
+/** 报告汇总：场景报告 {total, passed, failed, skipped, durationMs}，套件报告为套件口径 */
 export interface ApiReportSummary {
-  total: number
-  passed: number
-  failed: number
-  skipped: number
-  durationMs: number
+  total?: number
+  passed?: number
+  failed?: number
+  skipped?: number
+  totalScenes?: number
+  passedScenes?: number
+  failedScenes?: number
+  totalSteps?: number
+  passedSteps?: number
+  failedSteps?: number
+  skippedSteps?: number
+  durationMs?: number
 }
 
 /** 报告详情 */
 export interface ApiReportDetail {
   id: string
-  sceneId: string | null
-  sceneName: string
+  reportType: string
+  externalId: string | null
+  name: string
   executionMode: string
   status: string
   summary: ApiReportSummary
   environmentName: string | null
-  stepResults: ApiReportStepResult[]
+  /** 按 reportType 构建的结果数据集（测试报告详细设计 2.3） */
+  result: ApiReportSceneResult | ApiReportSuiteResult | null
+  /** 未过期分享记录；无分享/已过期为 null（测试报告详细设计 4.2.3） */
+  share: ApiReportShareInfo | null
   createdAt: string
 }
 
-/** 步骤级结果 */
-export interface ApiReportStepResult {
-  stepId: string
-  name: string
-  type: string
+/** 场景数据集（report_type='scene'，测试报告详细设计 2.3.1） */
+export interface ApiReportSceneResult {
+  sceneId: string | null
+  sceneName: string | null
   status: string
-  request: {
-    method?: string
-    url?: string
-    headers?: Record<string, string>
+  summary: ApiReportSummary
+  environmentName: string | null
+  executedAt: string | null
+  steps: ApiReportStepResult[]
+  preprocessors?: ApiReportStepResult[]
+  postprocessors?: ApiReportStepResult[]
+}
+
+/** 套件数据集（report_type='suite'，测试报告详细设计 2.3.2），每项 scenes 即场景数据集 */
+export interface ApiReportSuiteResult {
+  taskId: string | null
+  taskName: string | null
+  source: string
+  status: string
+  summary: ApiReportSummary
+  environmentName: string | null
+  triggeredAt: string | null
+  scenes: ApiReportSceneResult[]
+  /** 环境级前置/后置处理器执行明细（形状同步骤元素） */
+  preprocessors?: ApiReportStepResult[]
+  postprocessors?: ApiReportStepResult[]
+}
+
+/** 步骤级结果（场景数据集 steps[]，测试报告详细设计 2.3.1 步骤元素） */
+export interface ApiReportStepResult {
+  stepId: string | null
+  name: string | null
+  /** 协议类型（HTTP / JDBC / Redis / WebSocket / …） */
+  type?: string | null
+  status: string
+  durationMs?: number | null
+  /** 请求快照（Real*Request 按协议序列化：HTTP 含 method/url/query/version/headers/body） */
+  request?: {
+    method: string | null
+    url?: unknown
+    query?: unknown
+    version?: unknown
+    headers?: Record<string, unknown> | null
     body?: unknown
+    format?: string | null
   } | null
-  response: {
-    statusCode?: number
-    headers?: Record<string, string>
+  /** 响应快照（Real*Response 按协议序列化） */
+  response?: {
+    status?: number | null
+    headers?: Record<string, unknown> | null
     body?: unknown
+    format?: string | null
   } | null
-  durationMs: number
-  validators?: ApiReportValidator[]
-  extractors?: ApiReportExtractor[]
   assertions?: ApiReportAssertion[]
-  errorMessage?: string
+  extractors?: ApiReportExtractor[]
+  errorMessage?: string | null
 }
 
-/** 验证器结果 */
-export interface ApiReportValidator {
-  name: string
-  target: string
-  condition: string
-  expected: string
-  actual: string
-  result: string
-}
-
-/** 提取器结果 */
-export interface ApiReportExtractor {
-  name: string
-  value: string
-}
-
-/** 断言明细 */
+/** 断言明细（测试报告详细设计 2.3.1 assertions[]） */
 export interface ApiReportAssertion {
-  name: string
-  target: string
-  expression: string
-  condition: string
-  expected: string
-  actual: string
-  result: string
-  error?: string
+  field?: string | null
+  rule?: string | null
+  expected?: unknown
+  actual?: unknown
+  status?: string | null
+  message?: string | null
+}
+
+/** 提取器明细（测试报告详细设计 2.3.1 extractors[]） */
+export interface ApiReportExtractor {
+  refName: string
+  field?: string | null
+  value?: unknown
+  defaultValue?: boolean
+  message?: string | null
 }
 
 /** 分享链接响应 */
 export interface ApiReportShareResp {
   shareUrl: string
   expiresAt: string
+  /** 分享者 username */
+  shareBy: string | null
+}
+
+/** 分享记录（报告详情 share 字段：未过期分享存在时返回，否则为 null） */
+export interface ApiReportShareInfo {
+  shareUrl: string
+  expiresAt: string
+  /** 分享者 username */
+  shareBy: string | null
 }
 
 /** 分享访问响应（免登录） */
 export interface ApiPublicReportResp {
   id: string
-  sceneName: string
+  reportType: string
+  name: string
   environmentName: string | null
   status: string
   summary: ApiReportSummary
-  stepResults: ApiReportStepResult[]
+  /** 按 reportType 构建的结果数据集（测试报告详细设计 2.3） */
+  result: ApiReportSceneResult | ApiReportSuiteResult | null
   createdAt: string
 }
 

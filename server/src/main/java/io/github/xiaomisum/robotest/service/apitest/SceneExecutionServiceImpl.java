@@ -25,6 +25,10 @@ import io.github.xiaomisum.robotest.repository.apitest.ApiChangeHistoryMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiExecutionRecordMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiReportMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiSceneMapper;
+import io.github.xiaomisum.ryze.Ryze;
+import io.github.xiaomisum.ryze.protocol.http.RealHTTPRequest;
+import io.github.xiaomisum.ryze.protocol.http.RealHTTPResponse;
+import io.github.xiaomisum.ryze.testelement.sampler.SampleResult;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.hc.core5.http.Header;
@@ -35,8 +39,10 @@ import xyz.migoo.framework.common.pojo.PageParam;
 import xyz.migoo.framework.common.pojo.PageResult;
 import xyz.migoo.framework.common.util.JsonUtils;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -59,6 +65,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class SceneExecutionServiceImpl implements SceneExecutionService {
 
     private static final String TARGET_TYPE_SCENE = "scene";
+
+    /** 报告名称时间戳格式（测试报告详细设计 2.1.1：场景名 + 执行时间戳） */
+    private static final DateTimeFormatter NAME_STAMP = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     @Resource
     private ApiSceneMapper sceneMapper;
@@ -106,6 +115,8 @@ public class SceneExecutionServiceImpl implements SceneExecutionService {
         record.setStatus("pending");
         record.setTriggerType(req.getTriggerType() == null || req.getTriggerType().isBlank()
                 ? "manual" : req.getTriggerType());
+        record.setSource(req.getSource() == null || req.getSource().isBlank()
+                ? "scene" : req.getSource());
         record.setExecutedAt(LocalDateTime.now());
 
         try {
@@ -154,9 +165,11 @@ public class SceneExecutionServiceImpl implements SceneExecutionService {
         List<Map<String, Object>> steps = scene.getSteps() == null ? List.of() : scene.getSteps();
         List<Map<String, Object>> sceneVariables =
                 scene.getVariables() == null ? List.of() : scene.getVariables();
+        List<Map<String, Object>> sceneProcessors =
+                scene.getProcessors() == null ? List.of() : scene.getProcessors();
         DebugRyzeConverter.EnvSnapshot env =
                 environmentSnapshotFactory.resolve(record.getProjectId(), record.getEnvironmentId());
-        return new RunContext(record, scene, steps, sceneVariables, env);
+        return new RunContext(record, scene, steps, sceneVariables, env, sceneProcessors);
     }
 
     private void doRun(RunContext ctx, AtomicBoolean cancelled) {
@@ -210,7 +223,8 @@ public class SceneExecutionServiceImpl implements SceneExecutionService {
         Map<String, Object> suiteVariables = SceneRyzeConverter.buildSuiteVariables(
                 ctx.env(), ctx.sceneVariables());
         Map<String, Object> suite = SceneRyzeConverter.buildSuite(
-                ctx.scene().getName(), ctx.env(), suiteVariables, perStepVars, allSpecs);
+                ctx.scene().getName(), ctx.env(), suiteVariables, perStepVars, allSpecs,
+                ctx.sceneProcessors());
 
         // 执行单套件，extractor 结果通过 Ryze context chain 流向下序步骤
         StepOutcome suiteOutcome = runSingle(suite, ctx.record().getProjectId());
@@ -240,31 +254,151 @@ public class SceneExecutionServiceImpl implements SceneExecutionService {
                     }
                     break;
                 }
+            } else {
+                // 引擎提前终止（超时/异常/取消）未再产出样本：逐步骤兜底写入，防止落"空成功"报告丢步骤
+                boolean terminatedByCancel = wasCancelled || cancelled.get();
+                stepResults.add(unproducedStepEntry(step, terminatedByCancel, suiteOutcome));
+                if (terminatedByCancel) {
+                    skipped++;
+                    continue;
+                }
+                failed++;
+                anyError = true;
+                // 失败语义固定停止运行：首个漏检步骤记 error，其余标记 skipped
+                if (stopOnFailure) {
+                    for (int j = i + 1; j < enabledSteps.size(); j++) {
+                        skipped++;
+                        stepResults.add(skippedEntry(enabledSteps.get(j)));
+                    }
+                }
+                break;
             }
         }
 
         finishExecution(ctx, stepResults, passed, failed, skipped, anyError, wasCancelled,
-                System.currentTimeMillis() - start);
+                System.currentTimeMillis() - start, suiteOutcome.rootResult());
+    }
+
+    /** 结果节点耗时：任一时间缺失（异常/中止执行未记录起止）返回 null，避免 Duration.between NPE */
+    private Long elapsedMillis(java.time.LocalDateTime start, java.time.LocalDateTime end) {
+        return start == null || end == null ? null : Duration.between(start, end).toMillis();
     }
 
     private StepOutcome extractChildOutcome(io.github.xiaomisum.ryze.Result childResult) {
-        Long elapsed = Duration.between(childResult.getStartTime(), childResult.getEndTime()).toMillis();
+        Long elapsed = elapsedMillis(childResult.getStartTime(), childResult.getEndTime());
         Throwable error = childResult.getThrowable();
-        if (childResult instanceof io.github.xiaomisum.ryze.testelement.sampler.SampleResult sample) {
+        if (childResult instanceof SampleResult sample) {
             Integer responseStatus = null;
             Map<String, Object> responseHeaders = null;
             String responseBody = null;
-            if (sample.getResponse() instanceof io.github.xiaomisum.ryze.protocol.http.RealHTTPResponse response) {
+            if (sample.getResponse() instanceof RealHTTPResponse response) {
                 responseStatus = response.status();
                 responseHeaders = toHeaderMap(response.headers());
                 responseBody = bytesAsString(response);
             }
             Throwable sampleError = sample.getThrowable() != null ? sample.getThrowable() : error;
-            return new StepOutcome(mapStatus(sample.getStatus()), responseStatus, responseHeaders, responseBody,
-                    sampleError == null ? null : sampleError.getMessage(), elapsed, List.of());
+            return new StepOutcome(RyzeResultAdapter.resolveStepStatus(sample), responseStatus, responseHeaders,
+                    responseBody, RyzeResultAdapter.errorMessage(sampleError), elapsed,
+                    toRequestSnapshot(sample.getRequest()), List.of(),
+                    toResponseSnapshot(sample), toAssertionSnapshots(sample), toExtractorSnapshots(sample), null);
         }
-        return new StepOutcome(mapStatus(childResult.getStatus()), null, null, null,
-                error == null ? null : error.getMessage(), elapsed, List.of());
+        return new StepOutcome(RyzeResultAdapter.resolveStepStatus(childResult), null, null, null,
+                RyzeResultAdapter.errorMessage(error), elapsed, List.of());
+    }
+
+    /** 响应快照：状态码/头/体（采样结果），入数据集 result.steps[].response */
+    private Map<String, Object> toResponseSnapshot(SampleResult sample) {
+        Map<String, Object> snapshot = new LinkedHashMap<>();
+        if (sample.getResponse() instanceof RealHTTPResponse response) {
+            snapshot.put("status", response.status());
+            snapshot.put("headers", toHeaderMap(response.headers()));
+            snapshot.put("body", truncate(bytesAsString(response), properties.getDebug().getMaxResponseBodyChars()));
+            snapshot.put("format", response.format());
+        }
+        return snapshot.isEmpty() ? null : snapshot;
+    }
+
+    /** 请求快照：取引擎实际发出的请求（Ryze Result 树序列化口径，测试报告详细设计 2.3.1） */
+    private Map<String, Object> toRequestSnapshot(SampleResult.RealRequest request) {
+        if (request == null) {
+            return null;
+        }
+        Map<String, Object> snapshot = new LinkedHashMap<>();
+        if (request instanceof RealHTTPRequest http) {
+            snapshot.put("url", http.getUrl());
+            snapshot.put("method", http.getMethod());
+            snapshot.put("query", http.getQuery());
+            snapshot.put("version", http.getVersion());
+            snapshot.put("headers", toHeaderMap(http.getHeaders()));
+            snapshot.put("body", bytesAsString(http.getBody()));
+        }
+        snapshot.put("format", request.getFormat());
+        return snapshot;
+    }
+
+    /**
+     * 前置/后置处理器结果节点 → 处理器执行明细（形状同步骤元素，测试报告详细设计 2.3）。
+     * 处理器即 SampleResult，携带 request/response/assertions/extractors，可直接复用快照构建。
+     */
+    @Override
+    public List<Map<String, Object>> toProcessorEntries(List<io.github.xiaomisum.ryze.Result> nodes) {
+        if (nodes == null || nodes.isEmpty()) {
+            return List.of();
+        }
+        List<Map<String, Object>> entries = new ArrayList<>();
+        for (io.github.xiaomisum.ryze.Result node : nodes) {
+            Map<String, Object> entry = new LinkedHashMap<>();
+            entry.put("name", node.getTitle());
+            entry.put("status", RyzeResultAdapter.resolveStepStatus(node));
+            if (node instanceof SampleResult sample) {
+                Throwable sampleError = sample.getThrowable() != null ? sample.getThrowable() : node.getThrowable();
+                Long elapsed = elapsedMillis(sample.getStartTime(), sample.getEndTime());
+                entry.put("type", sample.getRequest() == null ? null : "HTTP");
+                entry.put("durationMs", elapsed);
+                entry.put("request", toRequestSnapshot(sample.getRequest()));
+                entry.put("response", toResponseSnapshot(sample));
+                entry.put("assertions", toAssertionSnapshots(sample));
+                entry.put("extractors", toExtractorSnapshots(sample));
+                entry.put("errorMessage", RyzeResultAdapter.errorMessage(sampleError));
+            } else {
+                entry.put("errorMessage", RyzeResultAdapter.errorMessage(node.getThrowable()));
+            }
+            entries.add(entry);
+        }
+        return entries;
+    }
+
+    /** 断言明细（AssertionResult → {field, rule, expected, actual, status, message}，测试报告详细设计 2.3.1） */
+    private List<Map<String, Object>> toAssertionSnapshots(SampleResult sample) {
+        if (sample.getAssertions() == null || sample.getAssertions().isEmpty()) {
+            return List.of();
+        }
+        return sample.getAssertions().stream().map(assertion -> {
+            Map<String, Object> snapshot = new LinkedHashMap<>();
+            snapshot.put("field", assertion.getField());
+            snapshot.put("rule", assertion.getRule());
+            snapshot.put("expected", assertion.getExpected());
+            snapshot.put("actual", assertion.getActual());
+            snapshot.put("status", assertion.getStatus() == null ? null : assertion.getStatus().name());
+            snapshot.put("message", assertion.getMessage());
+            return snapshot;
+        }).toList();
+    }
+
+    /** 提取器明细（ExtractorResult → {refName, field, value, defaultValue, message}，测试报告详细设计 2.3.1） */
+    private List<Map<String, Object>> toExtractorSnapshots(SampleResult sample) {
+        if (sample.getExtractors() == null || sample.getExtractors().isEmpty()) {
+            return List.of();
+        }
+        return sample.getExtractors().stream().map(extractor -> {
+            Map<String, Object> snapshot = new LinkedHashMap<>();
+            snapshot.put("refName", extractor.getRefName());
+            snapshot.put("field", extractor.getField());
+            snapshot.put("value", extractor.getValue());
+            snapshot.put("defaultValue", extractor.isDefaultValue());
+            snapshot.put("message", extractor.getMessage());
+            return snapshot;
+        }).toList();
     }
 
     private StepOutcome runSingle(Map<String, Object> suite, UUID projectId) {
@@ -272,7 +406,7 @@ public class SceneExecutionServiceImpl implements SceneExecutionService {
         try {
             // 执行前注入自定义函数：重写调用名并标记项目上下文
             functionRuntime.prepareSuite(suite, projectId);
-            var result = apiTestExecutor.submit(() -> io.github.xiaomisum.ryze.Ryze.start(suite))
+            var result = apiTestExecutor.submit(() -> Ryze.start(suite))
                     .get(guardMs, java.util.concurrent.TimeUnit.MILLISECONDS);
             return extractSuiteOutcome(result);
         } catch (java.util.concurrent.TimeoutException ex) {
@@ -285,14 +419,26 @@ public class SceneExecutionServiceImpl implements SceneExecutionService {
         }
     }
 
+    /**
+     * 同步执行一个（大）TestSuite 并返回原始 Ryze 结果树（不设超时，等待完整执行结束）。
+     * <p>供定时任务测试计划把全部场景组织为单个顶层 TestSuite 一次执行后，按场景子 suite 的
+     * metadata.sceneId 从结果树反查各场景结果（定时任务详细设计 4.3）。调用方需自行捕获异常。
+     */
+    @Override
+    public io.github.xiaomisum.ryze.Result startSuite(Map<String, Object> suite, UUID projectId) throws Exception {
+        functionRuntime.prepareSuite(suite, projectId);
+        return apiTestExecutor.submit(() -> Ryze.start(suite)).get();
+    }
+
     private StepOutcome extractSuiteOutcome(io.github.xiaomisum.ryze.Result suiteResult) {
         List<io.github.xiaomisum.ryze.Result> children =
                 suiteResult instanceof io.github.xiaomisum.ryze.testelement.TestSuiteResult suite
                         ? new ArrayList<>(suite.getChildren()) : List.of();
-        Long elapsed = Duration.between(suiteResult.getStartTime(), suiteResult.getEndTime()).toMillis();
+        Long elapsed = elapsedMillis(suiteResult.getStartTime(), suiteResult.getEndTime());
         Throwable error = suiteResult.getThrowable();
-        return new StepOutcome(mapStatus(suiteResult.getStatus()), null, null, null,
-                error == null ? null : error.getMessage(), elapsed, children);
+        return new StepOutcome(RyzeResultAdapter.resolveStepStatus(suiteResult), null, null, null,
+                RyzeResultAdapter.errorMessage(error), elapsed, null, children, null, List.of(), List.of(),
+                suiteResult);
     }
 
     private ResolvedSpec resolveSpec(Map<String, Object> step) {
@@ -307,7 +453,8 @@ public class SceneExecutionServiceImpl implements SceneExecutionService {
     }
 
     private void finishExecution(RunContext ctx, List<Map<String, Object>> stepResults,
-            int passed, int failed, int skipped, boolean anyError, boolean wasCancelled, long durationMs) {
+            int passed, int failed, int skipped, boolean anyError, boolean wasCancelled, long durationMs,
+            io.github.xiaomisum.ryze.Result rootResult) {
         String status = anyError ? "error" : "failed";
         if (wasCancelled) {
             status = "cancelled";
@@ -321,29 +468,40 @@ public class SceneExecutionServiceImpl implements SceneExecutionService {
             case "error" -> "failed";
             default -> "partial";
         };
-        ApiReport report = new ApiReport();
-        report.setId(UUID.randomUUID());
-        report.setProjectId(ctx.record().getProjectId());
-        report.setExecutionRecordId(ctx.record().getId());
-        report.setSceneId(ctx.scene().getId());
-        report.setSceneName(ctx.scene().getName());
-        report.setExecutionMode(ctx.record().getExecutionMode());
-        report.setStatus(reportStatus);
         Map<String, Object> summary = new LinkedHashMap<>();
         summary.put("total", stepResults.size());
         summary.put("passed", passed);
         summary.put("failed", failed);
         summary.put("skipped", skipped);
         summary.put("durationMs", durationMs);
+
+        // 场景数据集（测试报告详细设计 2.3.1）：场景报告 result 的平面化结构
+        Map<String, Object> dataset = new LinkedHashMap<>();
+        dataset.put("sceneId", ctx.scene().getId().toString());
+        dataset.put("sceneName", ctx.scene().getName());
+        dataset.put("status", reportStatus);
+        dataset.put("summary", summary);
+        dataset.put("environmentName", ctx.env().name());
+        dataset.put("executedAt", toUtcIso(ctx.record().getExecutedAt()));
+        dataset.put("steps", stepResults);
+        dataset.put("preprocessors", rootResult == null ? List.of() : toProcessorEntries(rootResult.getPreprocessors()));
+        dataset.put("postprocessors", rootResult == null ? List.of() : toProcessorEntries(rootResult.getPostprocessors()));
+
+        ApiReport report = new ApiReport();
+        report.setId(UUID.randomUUID());
+        report.setProjectId(ctx.record().getProjectId());
+        report.setExecutionRecordId(ctx.record().getId());
+        report.setReportType("scene");
+        report.setExternalId(ctx.scene().getId());
+        report.setName(reportName(ctx.scene().getName(), ctx.record().getExecutedAt()));
+        report.setEnvironmentName(ctx.env().name());
+        report.setExecutionMode(ctx.record().getExecutionMode());
+        report.setSource(ctx.record().getSource() == null ? "scene" : ctx.record().getSource());
+        report.setStatus(reportStatus);
         report.setSummary(summary);
-        // 响应体截断后落库，防止大响应撑爆 JSONB
-        report.setStepResults(stepResults.stream().map(entry -> {
-            Object body = entry.get("responseBody");
-            if (body instanceof String text) {
-                entry.put("responseBody", truncate(text, properties.getDebug().getMaxResponseBodyChars()));
-            }
-            return entry;
-        }).toList());
+        report.setResult(dataset);
+        // Ryze 结果树快照：执行结果整体序列化落库，供结果回溯（测试报告详细设计 2.3.3）
+        report.setRyzeSnapshot(RyzeResultSnapshotConverter.toSnapshot(rootResult));
 
         ApiExecutionRecord carrier = new ApiExecutionRecord();
         carrier.setId(ctx.record().getId());
@@ -359,12 +517,136 @@ public class SceneExecutionServiceImpl implements SceneExecutionService {
         executionRecordMapper.updateById(carrier);
     }
 
+    /** 报告名称（执行时固化）：场景名 + 执行时间戳（测试报告详细设计 2.1.1） */
+    private String reportName(String sceneName, LocalDateTime executedAt) {
+        LocalDateTime stamp = executedAt == null ? LocalDateTime.now() : executedAt;
+        return sceneName + "-" + stamp.format(NAME_STAMP);
+    }
+
+    /** 时间口径：对外一律下发 ISO-8601 UTC 墙钟字符串（docs/spec 时间约定），前端按浏览器时区还原 */
+    private String toUtcIso(LocalDateTime value) {
+        return value == null ? null : value.toString();
+    }
+
     private String lastErrorMessage(List<Map<String, Object>> stepResults) {
         return stepResults.stream()
                 .filter(entry -> !"success".equals(entry.get("status")) && entry.get("errorMessage") != null)
                 .map(entry -> entry.get("errorMessage").toString())
                 .reduce((first, second) -> second)
                 .orElse(null);
+    }
+
+    /**
+     * 由单个场景子 TestSuite 的结果节点构建场景数据集（定时任务详细设计 4.3，测试报告详细设计 2.3.1）。
+     * 用于测试计划任务把多场景组织为单个顶层 TestSuite 一次执行后，按各场景子 suite 的 metadata.sceneId
+     * 反查结果——不再走单场景异步执行 → 单独读取场景报告 → 调度侧拼接的旧路径。
+     * 只做结果映射，不落库、不改变执行记录。
+     *
+     * @param scene        平台场景（步骤与名称快照来源）
+     * @param env          目标环境快照（environmentName 快照来源）
+     * @param result       该场景子 TestSuite 的执行结果节点（其 children 为该场景的 SampleResult）
+     * @param executedAt   本套件触发/执行时间（executedAt 快照）
+     */
+    @Override
+    public SceneDatasetSnapshot buildSceneDataset(ApiScene scene, DebugRyzeConverter.EnvSnapshot env,
+            io.github.xiaomisum.ryze.Result result, LocalDateTime executedAt) {
+        long durationMs = result.getStartTime() == null || result.getEndTime() == null ? 0L
+                : Duration.between(result.getStartTime(), result.getEndTime()).toMillis();
+        List<io.github.xiaomisum.ryze.Result> children = result instanceof io.github.xiaomisum.ryze.testelement.TestSuiteResult suite
+                ? new ArrayList<>(suite.getChildren()) : List.of();
+        List<Map<String, Object>> steps = scene.getSteps() == null ? List.of() : scene.getSteps();
+        List<Map<String, Object>> stepResults = new ArrayList<>();
+        int passed = 0;
+        int failed = 0;
+        int skipped = 0;
+        boolean anyError = result.getThrowable() != null;
+        int childIdx = 0;
+        boolean stopOnFailure = true;
+        for (int i = 0; i < steps.size(); i++) {
+            Map<String, Object> step = steps.get(i);
+            if (!Boolean.TRUE.equals(SceneStepUtil.getBoolean(step, "enabled"))) {
+                skipped++;
+                stepResults.add(skippedEntry(step));
+                continue;
+            }
+            ResolvedSpec spec = resolveSpec(step);
+            if (spec.errorMessage() != null) {
+                failed++;
+                anyError = true;
+                stepResults.add(toReportEntry(step, spec,
+                        new StepOutcome("error", null, null, null, spec.errorMessage(), 0L, List.of())));
+                if (stopOnFailure) {
+                    for (int restIdx = i + 1; restIdx < steps.size(); restIdx++) {
+                        skipped++;
+                        stepResults.add(skippedEntry(steps.get(restIdx)));
+                    }
+                    break;
+                }
+                continue;
+            }
+            if (childIdx < children.size()) {
+                StepOutcome outcome = extractChildOutcome(children.get(childIdx));
+                anyError |= "error".equals(outcome.status());
+                if ("success".equals(outcome.status())) {
+                    passed++;
+                } else {
+                    failed++;
+                }
+                stepResults.add(toReportEntry(step, spec, outcome));
+                childIdx++;
+                if (stopOnFailure && !"success".equals(outcome.status())) {
+                    for (int j = i + 1; j < steps.size(); j++) {
+                        skipped++;
+                        stepResults.add(skippedEntry(steps.get(j)));
+                    }
+                    break;
+                }
+            } else {
+                failed++;
+                anyError = true;
+                stepResults.add(toReportEntry(step, spec,
+                        new StepOutcome("error", null, null, null, engineFailureMessage(
+                                new StepOutcome(RyzeResultAdapter.resolveStepStatus(result), null, null, null,
+                                        RyzeResultAdapter.errorMessage(result.getThrowable()),
+                                        durationMs, children)), 0L, List.of())));
+                if (stopOnFailure) {
+                    for (int j = i + 1; j < steps.size(); j++) {
+                        skipped++;
+                        stepResults.add(skippedEntry(steps.get(j)));
+                    }
+                }
+                break;
+            }
+        }
+
+        String status = anyError ? "error" : "failed";
+        if (failed == 0 && !anyError) {
+            status = "success";
+        }
+        // 报告状态口径（基础设施详细设计 2.1.4）：全部通过 success，含引擎异常 failed，部分失败 partial
+        String reportStatus = switch (status) {
+            case "success" -> "success";
+            case "error" -> "failed";
+            default -> "partial";
+        };
+        Map<String, Object> summary = new LinkedHashMap<>();
+        summary.put("total", stepResults.size());
+        summary.put("passed", passed);
+        summary.put("failed", failed);
+        summary.put("skipped", skipped);
+        summary.put("durationMs", durationMs);
+
+        Map<String, Object> dataset = new LinkedHashMap<>();
+        dataset.put("sceneId", scene.getId().toString());
+        dataset.put("sceneName", scene.getName());
+        dataset.put("status", reportStatus);
+        dataset.put("summary", summary);
+        dataset.put("environmentName", env == null ? null : env.name());
+        dataset.put("executedAt", toUtcIso(executedAt));
+        dataset.put("steps", stepResults);
+        dataset.put("preprocessors", toProcessorEntries(result.getPreprocessors()));
+        dataset.put("postprocessors", toProcessorEntries(result.getPostprocessors()));
+        return new SceneDatasetSnapshot(dataset, reportStatus, passed, failed, skipped, durationMs);
     }
 
     // ========== 轮询 / 取消 ==========
@@ -441,7 +723,8 @@ public class SceneExecutionServiceImpl implements SceneExecutionService {
         }
         StepOutcome outcome = runSingle(SceneRyzeConverter.buildSuite(
                 SceneStepUtil.getString(step, "name", null), env, suiteVars, List.of(stepVars),
-                List.of(resolved.spec())), projectId);
+                List.of(resolved.spec()),
+                scene.getProcessors() == null ? List.of() : scene.getProcessors()), projectId);
         // 请求摘要取解析后的实际配置（链接步骤为源定义最新值）
         Map<String, Object> request = new LinkedHashMap<>();
         request.put("method", resolved.spec().requestConfig().getOrDefault("method", "GET"));
@@ -488,7 +771,8 @@ public class SceneExecutionServiceImpl implements SceneExecutionService {
                 env, toVariableMapList(reqDTO.getSceneVariables()));
         Map<String, Object> stepVars = variablesToMaps(draftStep.getStepVariables());
         StepOutcome outcome = runSingle(SceneRyzeConverter.buildSuite(
-                draftStep.getName(), env, suiteVars, List.of(stepVars), List.of(resolved.spec())), projectId);
+                draftStep.getName(), env, suiteVars, List.of(stepVars), List.of(resolved.spec()),
+                List.of()), projectId);
         // 单步套件取首个采样结果为响应摘要（套件级结果不含 responseStatus）
         StepOutcome sample = outcome.sampleResults().isEmpty() ? outcome
                 : extractChildOutcome(outcome.sampleResults().get(0));
@@ -559,7 +843,7 @@ public class SceneExecutionServiceImpl implements SceneExecutionService {
             Map<String, Object> suiteVariables = SceneRyzeConverter.buildSuiteVariables(env, sceneVariables);
             Map<String, Object> suite = SceneRyzeConverter.buildSuite(
                     reqDTO.getName() == null || reqDTO.getName().isBlank() ? "草稿场景" : reqDTO.getName(),
-                    env, suiteVariables, perStepVars, specList);
+                    env, suiteVariables, perStepVars, specList, List.of());
             StepOutcome suiteOutcome = runSingle(suite, projectId);
             List<io.github.xiaomisum.ryze.Result> children = suiteOutcome.sampleResults();
             int childIdx = 0;
@@ -710,8 +994,6 @@ public class SceneExecutionServiceImpl implements SceneExecutionService {
                 .executedAt(record.getExecutedAt())
                 .durationMs(record.getDurationMs())
                 .reportId(record.getReportId() == null ? null : record.getReportId().toString())
-                .pipelineId(record.getPipelineId())
-                .pipelineUrl(record.getPipelineUrl())
                 .build();
     }
 
@@ -804,39 +1086,31 @@ public class SceneExecutionServiceImpl implements SceneExecutionService {
         UUID stepId = SceneStepUtil.getUUID(step, "id");
         entry.put("stepId", stepId != null ? stepId.toString() : null);
         entry.put("name", SceneStepUtil.getString(step, "name", null));
+        entry.put("type", "HTTP");
         entry.put("status", outcome.status());
         if (spec.spec() != null) {
-            // 请求快照取解析后的配置（链接步骤为源定义最新值），与单步调试口径一致
-            Map<String, Object> config = spec.spec().requestConfig();
-            Map<String, Object> request = new LinkedHashMap<>();
-            request.put("method", config.getOrDefault("method", "GET"));
-            request.put("url", config.get("url"));
-            request.put("headers", config.get("headers"));
-            request.put("body", config.get("body"));
+            // 请求快照优先取引擎实际发出的请求（SampleResult 真实 URL/合并头/渲染体）；
+            // 超时/未产出时回退解析后配置，保证报告仍有请求信息可看
+            Map<String, Object> request = outcome.request() != null ? outcome.request()
+                    : configRequest(spec.spec().requestConfig());
             entry.put("request", request);
         }
-        entry.put("responseStatus", outcome.responseStatus());
-        entry.put("responseHeaders", outcome.responseHeaders());
-        entry.put("responseBody", outcome.responseBody());
+        entry.put("response", outcome.response());
+        entry.put("assertions", outcome.assertions());
+        entry.put("extractors", outcome.extractors());
         entry.put("errorMessage", outcome.errorMessage());
         entry.put("durationMs", outcome.elapsedMs());
-        // Ryze SampleResult 无断言级明细，验证器仅落配置供报告展示，通过与否以步骤状态为准
-        List<Map<String, Object>> validators = orEmpty(SceneStepUtil.getList(step, "validators")).stream()
-                .map(this::normalizeValidatorSnapshot).toList();
-        if (!validators.isEmpty()) {
-            entry.put("validators", validators);
-        }
         return entry;
     }
 
-    private Map<String, Object> normalizeValidatorSnapshot(Map<String, Object> validator) {
-        Map<String, Object> snapshot = new LinkedHashMap<>();
-        for (String key : List.of("id", "name", "enabled", "target", "condition", "expected", "expression")) {
-            if (validator.get(key) != null) {
-                snapshot.put(key, validator.get(key));
-            }
-        }
-        return snapshot;
+    /** 步骤配置直译请求快照：仅做回退用（无样本时可读），与旧报告口径一致 */
+    private Map<String, Object> configRequest(Map<String, Object> config) {
+        Map<String, Object> request = new LinkedHashMap<>();
+        request.put("method", config.getOrDefault("method", "GET"));
+        request.put("url", config.get("url"));
+        request.put("headers", config.get("headers"));
+        request.put("body", config.get("body"));
+        return request;
     }
 
     private Map<String, Object> skippedEntry(Map<String, Object> step) {
@@ -848,11 +1122,22 @@ public class SceneExecutionServiceImpl implements SceneExecutionService {
         return entry;
     }
 
-    private String mapStatus(io.github.xiaomisum.ryze.TestStatus status) {
-        if (status == io.github.xiaomisum.ryze.TestStatus.passed) {
-            return "success";
+    /**
+     * 引擎提前终止（超时/异常/取消）未能产出结果的步骤兜底条目：取消记 skipped；
+     * 否则记 error 并附套件级错误信息，避免执行落"空成功"报告导致前端看不到失败原因。
+     */
+    private Map<String, Object> unproducedStepEntry(Map<String, Object> step, boolean cancelled,
+            StepOutcome suiteOutcome) {
+        if (cancelled) {
+            return skippedEntry(step);
         }
-        return status == io.github.xiaomisum.ryze.TestStatus.failed ? "failed" : "error";
+        return toReportEntry(step, new ResolvedSpec(null, null),
+                new StepOutcome("error", null, null, null, engineFailureMessage(suiteOutcome), 0L, List.of()));
+    }
+
+    private String engineFailureMessage(StepOutcome suiteOutcome) {
+        String message = suiteOutcome.errorMessage();
+        return message == null || message.isBlank() ? "步骤执行异常，引擎未产出结果" : message;
     }
 
     private Map<String, Object> toHeaderMap(List<Header> headers) {
@@ -869,6 +1154,10 @@ public class SceneExecutionServiceImpl implements SceneExecutionService {
         } catch (Exception ex) {
             return response.format();
         }
+    }
+
+    private String bytesAsString(byte[] bytes) {
+        return bytes == null ? "" : new String(bytes, StandardCharsets.UTF_8);
     }
 
     private Object parseJsonSafely(String text) {
@@ -891,16 +1180,27 @@ public class SceneExecutionServiceImpl implements SceneExecutionService {
     }
 
     private record RunContext(ApiExecutionRecord record, ApiScene scene, List<Map<String, Object>> steps,
-            List<Map<String, Object>> sceneVariables, DebugRyzeConverter.EnvSnapshot env) {
+            List<Map<String, Object>> sceneVariables, DebugRyzeConverter.EnvSnapshot env,
+            List<Map<String, Object>> sceneProcessors) {
     }
 
     /** 步骤规格解析结果：errorMessage 非空表示无法执行 */
     private record ResolvedSpec(SceneRyzeConverter.StepSpec spec, String errorMessage) {
     }
 
-    /** 单步骤结果切片：状态/响应/耗时/子结果 */
+    /** 单步骤结果切片：状态/响应/耗时/子结果；request/response/assertions/extractors 为数据集快照 */
     private record StepOutcome(String status, Integer responseStatus, Map<String, Object> responseHeaders,
-            String responseBody, String errorMessage, Long elapsedMs,
-            List<io.github.xiaomisum.ryze.Result> sampleResults) {
+            String responseBody, String errorMessage, Long elapsedMs, Map<String, Object> request,
+            List<io.github.xiaomisum.ryze.Result> sampleResults,
+            Map<String, Object> response, List<Map<String, Object>> assertions,
+            List<Map<String, Object>> extractors, io.github.xiaomisum.ryze.Result rootResult) {
+
+        /** 无数据集快照的构造（超时/异常/步骤级结果聚合场景），根结果为空 */
+        private StepOutcome(String status, Integer responseStatus, Map<String, Object> responseHeaders,
+                String responseBody, String errorMessage, Long elapsedMs,
+                List<io.github.xiaomisum.ryze.Result> sampleResults) {
+            this(status, responseStatus, responseHeaders, responseBody, errorMessage, elapsedMs, null, sampleResults,
+                    null, List.of(), List.of(), null);
+        }
     }
 }

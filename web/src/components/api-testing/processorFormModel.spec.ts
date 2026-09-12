@@ -219,7 +219,7 @@ describe('processorFormModel', () => {
   })
 
   describe('toHttpConfig', () => {
-    it('omits default method, empty fields and empty maps', () => {
+    it('always writes method (incl get) but omits other empty fields and maps', () => {
       expect(toHttpConfig({
         method: 'GET',
         ref: '',
@@ -229,7 +229,7 @@ describe('processorFormModel', () => {
         bodyKind: 'none',
         bodyText: '',
         formRows: [],
-      })).toEqual({})
+      })).toEqual({ method: 'GET' })
     })
 
     it('maps form editor rows to Ryze keys in order', () => {

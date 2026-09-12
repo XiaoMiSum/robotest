@@ -4,7 +4,6 @@ import lombok.Builder;
 import lombok.Data;
 
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.Map;
 
 /**
@@ -17,7 +16,11 @@ public class ApiPublicReportRespDTO {
 
     private String id;
 
-    private String sceneName;
+    /** 报告粒度：scene / suite */
+    private String reportType;
+
+    /** 报告名称 */
+    private String name;
 
     private String environmentName;
 
@@ -25,7 +28,8 @@ public class ApiPublicReportRespDTO {
 
     private Map<String, Object> summary;
 
-    private List<Map<String, Object>> stepResults;
+    /** 按 reportType 构建的结果数据集（测试报告详细设计 2.3） */
+    private Map<String, Object> result;
 
     private LocalDateTime createdAt;
 

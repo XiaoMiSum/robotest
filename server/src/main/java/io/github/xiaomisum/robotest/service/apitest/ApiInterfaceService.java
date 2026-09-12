@@ -5,6 +5,7 @@ import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiInterfaceBatchM
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiInterfaceCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiInterfaceStatusReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiInterfaceUpdateReqDTO;
+import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiParsedImportReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiImportPreviewRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiImportResultRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiInterfaceChangeLogRespDTO;
@@ -52,12 +53,11 @@ public interface ApiInterfaceService {
 
     // ==================== 导入 3.4 ====================
 
-    ApiImportResultRespDTO importFile(UUID projectId, UUID userId, byte[] content,
-                                      String filename, String formatHint);
+    ApiImportResultRespDTO importParsed(UUID projectId, UUID userId, ApiParsedImportReqDTO reqDTO);
 
     ApiImportResultRespDTO importUrl(UUID projectId, UUID userId, String url, String formatHint);
 
-    ApiImportPreviewRespDTO preview(UUID projectId, UUID userId, byte[] content, String formatHint);
+    ApiImportPreviewRespDTO preview(UUID projectId, UUID userId, String url, String formatHint);
 
     // ==================== 变更历史 3.1.13 ====================
 
