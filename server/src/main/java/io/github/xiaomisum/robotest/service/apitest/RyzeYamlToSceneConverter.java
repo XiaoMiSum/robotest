@@ -171,7 +171,8 @@ public final class RyzeYamlToSceneConverter {
                     v.put("target", "response_header");
                     v.put("condition", reverseCompareRule(rule));
                     v.put("expected", expected);
-                    String headerField = field.startsWith("headers.") ? field.substring(8) : field;
+                    String headerField = field.startsWith("header.") ? field.substring(7)
+                            : field.startsWith("headers.") ? field.substring(8) : field;
                     v.put("expression", headerField);
                 }
                 case "result" -> {
@@ -251,7 +252,7 @@ public final class RyzeYamlToSceneConverter {
                     ex.put("source", "json_field");
                     ex.put("expression", field);
                 }
-                case "http_header" -> {
+                case "http", "http_header" -> {
                     ex.put("source", "response_header");
                     ex.put("expression", field);
                 }

@@ -56,7 +56,7 @@ function buildStepFromInterface(detail: ApiInterfaceDetail): ApiSceneStepItem {
   // 接口侧验证器/提取器不含场景步骤所需的 id/name/enabled，补齐以防序列化崩溃
   const validators = (detail.validators ?? []).map((v) => ({
     id: crypto.randomUUID(),
-    name: `断言 ${(v as Record<string, unknown>).target ?? 'custom'}`,
+    name: `验证器 ${(v as Record<string, unknown>).target ?? 'custom'}`,
     enabled: true,
     ...v,
   }))

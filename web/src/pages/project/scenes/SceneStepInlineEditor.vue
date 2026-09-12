@@ -19,7 +19,7 @@ import {
   stepExtractorsFromComponents,
 } from '../scenesModel'
 import RequestConfigEditor from './RequestConfigEditor.vue'
-import ValidatorsExtractorsPanes from './ValidatorsExtractorsPanes.vue'
+import ValidatorsExtractorsPanes from '@/components/api-testing/ValidatorsExtractorsPanes.vue'
 
 const props = defineProps<{
   step: ApiSceneStepItem | null
@@ -78,7 +78,7 @@ const jdbcDatasource = ref('')
 const jdbcSql = ref('')
 const jdbcArgs = ref<string[]>([])
 
-// jdbc 分区：SQL（请求配置） / 断言 / 提取器 tabs（http 复用 RequestConfigEditor 内嵌 tabs，无外层 tabs）
+// jdbc 分区：SQL（请求配置） / 验证器 / 提取器 tabs（http 复用 RequestConfigEditor 内嵌 tabs，无外层 tabs）
 const jdbcTab = ref<'sql' | 'validators' | 'extractors'>('sql')
 
 // 空态默认行：字段全空，序列化时被过滤，仅提供即时输入起点（避免默认 target/source 被持久化）
@@ -243,7 +243,7 @@ watch(
 
     <div class="step-inline__body">
       <template v-if="formStepType === 'http'">
-        <!-- http：断言/提取器直接并入请求配置 tabs（请求头/Query/请求体/断言/提取器） -->
+        <!-- http：验证器/提取器直接并入请求配置 tabs（请求头/Query/请求体/验证器/提取器） -->
         <RequestConfigEditor
           :method="formMethod"
           :url="formUrl"
@@ -267,7 +267,7 @@ watch(
       </template>
 
       <template v-else>
-        <!-- jdbc：与 http 同构的 tabs，SQL 为请求配置 tab，断言/提取器随后 -->
+        <!-- jdbc：与 http 同构的 tabs，SQL 为请求配置 tab，验证器/提取器随后 -->
         <el-tabs v-model="jdbcTab" class="step-inline__tabs">
           <el-tab-pane label="SQL" name="sql">
             <section class="step-inline__section">

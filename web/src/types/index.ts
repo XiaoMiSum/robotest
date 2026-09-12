@@ -1989,11 +1989,6 @@ export interface ApiSceneStepReorderReq {
   stepIds: string[]
 }
 
-/** 场景复制请求（3.1.6） */
-export interface ApiSceneCopyReq {
-  name?: string
-}
-
 /** 步骤复制请求（3.10） */
 export interface ApiSceneStepCopyReq {
   name?: string
@@ -2314,6 +2309,9 @@ export interface ApiPublicReportResp {
 /** 任务类型 */
 export type ApiScheduleTaskType = 'scene_execute' | 'import_swagger'
 
+/** Test 计划执行方式 */
+export type ApiScheduleExecutionScope = 'all' | 'modules' | 'scenes'
+
 /** 执行状态 */
 export type ApiScheduleExecStatus = 'success' | 'failed' | 'skipped' | 'running'
 
@@ -2326,8 +2324,13 @@ export interface ApiSchedulePageItem {
   taskType: ApiScheduleTaskType
   name: string
   description: string | null
-  boundObjectId: string
-  boundObjectName: string
+  /** 历史遗留字段（旧版绑定对象），V1.3 新任务为 null */
+  boundObjectId: string | null
+  boundObjectName: string | null
+  executionScope: ApiScheduleExecutionScope | null
+  moduleIds: string[] | null
+  sceneIds: string[] | null
+  openapiUrl: string | null
   environmentId: string | null
   environmentName: string | null
   cronExpression: string
@@ -2343,7 +2346,15 @@ export interface ApiScheduleSaveReq {
   taskType: ApiScheduleTaskType
   name: string
   description?: string
-  boundObjectId: string
+  /** scene_execute 任务执行方式 */
+  executionScope?: ApiScheduleExecutionScope
+  /** 指定模块（多选），executionScope=modules 时必填 */
+  moduleIds?: string[]
+  /** 指定场景（多选），executionScope=scenes 时必填 */
+  sceneIds?: string[]
+  /** import_swagger 任务必填（OpenAPI/Swagger JSON 文件 URL） */
+  openapiUrl?: string
+  /** scene_execute 任务必填（目标环境） */
   environmentId?: string
   cronExpression: string
   enabled?: boolean
@@ -2389,24 +2400,4 @@ export interface ApiScheduleValidateCronResp {
   valid: boolean
   description: string | null
   nextExecutions: string[] | null
-}
-
-// ==================== Swagger URL 配置（3.6.3） ====================
-
-/** Swagger URL 配置项（定时任务详细设计 3.1.9） */
-export interface ApiSwaggerUrlItem {
-  id: string
-  name: string
-  url: string
-  format: 'swagger' | 'openapi'
-  lastImportStatus: string | null
-  lastImportAt: string | null
-  createdAt: string
-}
-
-/** 创建/更新 Swagger URL 请求（定时任务详细设计 3.1.9） */
-export interface ApiSwaggerUrlSaveReq {
-  name: string
-  url: string
-  format?: 'swagger' | 'openapi'
 }

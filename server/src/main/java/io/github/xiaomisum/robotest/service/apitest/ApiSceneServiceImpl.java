@@ -5,7 +5,7 @@ import io.github.xiaomisum.robotest.framework.common.SceneStepUtil;
 import io.github.xiaomisum.robotest.framework.security.ProjectAccessGuard;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneAssetsImportReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneBatchDeleteReqDTO;
-import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneCopyReqDTO;
+import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneBatchMoveReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneStepCopyReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneStepQuickCreateReqDTO;
@@ -23,14 +23,15 @@ import io.github.xiaomisum.robotest.model.entity.apitest.ApiInterface;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiScene;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiSceneFollow;
 import io.github.xiaomisum.robotest.model.entity.apitest.CommonComponent;
+import io.github.xiaomisum.robotest.model.entity.tcase.ProjectModule;
 import io.github.xiaomisum.robotest.repository.apitest.ApiChangeHistoryMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiExecutionRecordMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiInterfaceMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiSceneMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiSceneFollowMapper;
-import io.github.xiaomisum.robotest.repository.apitest.ApiScheduledTaskMapper;
 import io.github.xiaomisum.robotest.repository.apitest.CommonComponentMapper;
 import io.github.xiaomisum.robotest.repository.admin.SysUserMapper;
+import io.github.xiaomisum.robotest.repository.tcase.ProjectModuleMapper;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -53,6 +54,7 @@ import java.util.Set;
 import java.util.UUID;
 
 import static io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants.API_SCENE_REFERENCED;
+import static io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants.PROJECT_MODULE_NOT_FOUND;
 
 /**
  * 测试场景管理实现（测试场景详细设计 3.1-3.5、3.9-3.10）
@@ -80,23 +82,25 @@ public class ApiSceneServiceImpl implements ApiSceneService {
     @Resource
     private ProjectAccessGuard projectAccessGuard;
     @Resource
-    private ApiScheduledTaskMapper scheduledTaskMapper;
-    @Resource
     private CommonComponentMapper componentMapper;
     @Resource
+    private TestPlanSceneGuard testPlanSceneGuard;
+    @Resource
     private ApiSceneFollowMapper sceneFollowMapper;
+    @Resource
+    private ProjectModuleMapper moduleMapper;
 
     // ========== 场景管理 ==========
 
     @Override
     public PageResult<ApiScenePageItemRespDTO> fetchPage(UUID workspaceId, UUID projectId, UUID userId,
-            UUID moduleId, String search, Boolean followedOnly, PageParam pageParam) {
+            UUID moduleId, String search, Boolean followedOnly, String status, PageParam pageParam) {
         projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
         List<UUID> followedIds = null;
         if (Boolean.TRUE.equals(followedOnly)) {
             followedIds = sceneFollowMapper.selectFollowedSceneIdsByUserId(userId);
         }
-        PageResult<ApiScene> page = sceneMapper.selectPage(projectId, moduleId, search, followedIds, pageParam);
+        PageResult<ApiScene> page = sceneMapper.selectPage(projectId, moduleId, search, followedIds, status, pageParam);
         List<ApiScene> scenes = page.getList();
         if (scenes.isEmpty()) {
             return new PageResult<>(List.of(), page.getTotal());
@@ -345,84 +349,13 @@ public class ApiSceneServiceImpl implements ApiSceneService {
     @Transactional(rollbackFor = Exception.class)
     public void delete(UUID workspaceId, UUID projectId, UUID userId, UUID id) {
         projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
-        requireScene(projectId, id);
-        // 删除保护（7203）：被定时任务绑定的场景不可删除（定时任务详细设计 4.2）
-        Long boundCount = scheduledTaskMapper.selectCountBound("scene_execute", id);
-        if (boundCount != null && boundCount > 0) {
+        ApiScene scene = requireScene(projectId, id);
+        // 删除保护（7302）：被测试计划任务选中的场景不可删除（定时任务详细设计 4.2）
+        if (testPlanSceneGuard.isSceneReferenced(projectId, id, scene.getModuleId())) {
             throw ServiceExceptionUtil.get(API_SCENE_REFERENCED);
         }
         sceneMapper.deleteById(id);
         sceneFollowMapper.deleteBySceneId(id);
-    }
-
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    public UUID copy(UUID workspaceId, UUID projectId, UUID userId, UUID id, ApiSceneCopyReqDTO reqDTO) {
-        projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
-        ApiScene origin = requireScene(projectId, id);
-        String name = reqDTO != null && reqDTO.getName() != null && !reqDTO.getName().isBlank()
-                ? reqDTO.getName() : origin.getName() + "（副本）";
-
-        ApiScene copy = new ApiScene();
-        copy.setId(UUID.randomUUID());
-        copy.setProjectId(projectId);
-        copy.setModuleId(origin.getModuleId());
-        copy.setName(name);
-        copy.setDescription(origin.getDescription());
-        copy.setEnvironmentId(origin.getEnvironmentId());
-        copy.setPriority(origin.getPriority());
-        copy.setVariables(copyVariables(origin.getVariables()));
-        copy.setProcessors(origin.getProcessors());
-        copy.setChangeVersion(1);
-        copy.setStatus(SCENE_STATUS_DRAFT);
-        // 复制模式：步骤与变量全部独立副本，不带链接引用语义（测试场景详细设计 3.1.6）
-        copy.setSteps(copySteps(origin.getSteps()));
-        sceneMapper.insert(copy);
-
-        writeHistory(projectId, copy.getId(), "copy", "复制自场景「" + origin.getName() + "」", userId);
-        return copy.getId();
-    }
-
-    /** 场景变量以 JSONB 随场景复制：逐元素深拷贝为独立对象，避免副本与源共享引用 */
-    private List<Map<String, Object>> copyVariables(List<Map<String, Object>> originVariables) {
-        if (originVariables == null || originVariables.isEmpty()) {
-            return List.of();
-        }
-        List<Map<String, Object>> result = new ArrayList<>();
-        for (Map<String, Object> variable : originVariables) {
-            result.add(SceneStepUtil.deepCopyMap(variable));
-        }
-        return result;
-    }
-
-    /** 深拷贝 steps 列表：重新生成每步及其内嵌变量的 id，sourceType 置 copy，requestConfig 深拷贝 */
-    private List<Map<String, Object>> copySteps(List<Map<String, Object>> originSteps) {
-        if (originSteps == null || originSteps.isEmpty()) {
-            return List.of();
-        }
-        List<Map<String, Object>> result = new ArrayList<>();
-        int sortOrder = 1;
-        for (Map<String, Object> origin : originSteps) {
-            Map<String, Object> copied = new LinkedHashMap<>(origin);
-            copied.put("id", UUID.randomUUID());
-            copied.put("sourceType", "copy");
-            copied.put("requestConfig", SceneStepUtil.deepCopyMap(SceneStepUtil.getMap(origin, "requestConfig")));
-            copied.put("processors", SceneStepUtil.copyListWithFreshIds(SceneStepUtil.getList(origin, "processors")));
-            copied.put("validators", SceneStepUtil.copyListWithFreshIds(SceneStepUtil.getList(origin, "validators")));
-            copied.put("extractors", SceneStepUtil.copyListWithFreshIds(SceneStepUtil.getList(origin, "extractors")));
-            // 内嵌 variables 重新生成 id
-            List<Map<String, Object>> variables = SceneStepUtil.getList(origin, "variables");
-            List<Map<String, Object>> copiedVariables = new ArrayList<>();
-            for (Map<String, Object> v : variables) {
-                Map<String, Object> cv = new LinkedHashMap<>(v);
-                cv.put("id", UUID.randomUUID());
-                copiedVariables.add(cv);
-            }
-            copied.put("variables", copiedVariables);
-            copied.put("sortOrder", sortOrder++);
-            result.add(copied);
-        }
-        return result;
     }
 
     /** 场景变量归一化：过滤空名、trim 名称，空列表落空数组默认值（全量覆盖语义，测试场景详细设计 3.5.1） */
@@ -874,7 +807,24 @@ public class ApiSceneServiceImpl implements ApiSceneService {
         }
     }
 
-    // ========== 批量删除 ==========
+    // ========== 批量操作 ==========
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void batchMove(UUID workspaceId, UUID projectId, UUID userId, ApiSceneBatchMoveReqDTO reqDTO) {
+        projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
+        requireModuleInProject(projectId, reqDTO.getModuleId());
+        // 整体成功语义：先做存在性校验，任一场景不属于当前项目即整体拒绝（详细设计 3.1.7）
+        for (UUID id : reqDTO.getIds()) {
+            requireScene(projectId, id);
+        }
+        for (UUID id : reqDTO.getIds()) {
+            ApiScene update = new ApiScene();
+            update.setId(id);
+            update.setModuleId(reqDTO.getModuleId());
+            sceneMapper.updateById(update);
+        }
+    }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -882,6 +832,17 @@ public class ApiSceneServiceImpl implements ApiSceneService {
             ApiSceneBatchDeleteReqDTO reqDTO) {
         for (UUID id : reqDTO.getIds()) {
             delete(workspaceId, projectId, userId, id);
+        }
+    }
+
+    /** 目标模块为空表示未分组；非空时须与场景同属当前项目 */
+    private void requireModuleInProject(UUID projectId, UUID moduleId) {
+        if (moduleId == null) {
+            return;
+        }
+        ProjectModule module = moduleMapper.selectById(moduleId);
+        if (module == null || !module.getProjectId().equals(projectId)) {
+            throw ServiceExceptionUtil.get(PROJECT_MODULE_NOT_FOUND);
         }
     }
 

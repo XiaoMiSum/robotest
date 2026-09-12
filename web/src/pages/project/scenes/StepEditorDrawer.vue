@@ -41,7 +41,7 @@ const reqHeaders = ref<{ key: string; value: string; enabled: boolean }[]>([])
 const reqParams = ref<{ key: string; value: string; enabled: boolean }[]>([])
 const reqBody = ref<{ type: string; content: unknown }>({ type: 'none', content: null })
 
-// ==================== 断言 & 提取器 ====================
+// ==================== 验证器 & 提取器 ====================
 const validators = ref<ValidatorItem[]>([])
 const extractors = ref<ExtractorItem[]>([])
 
@@ -134,7 +134,7 @@ function handleCreateModeChange(mode: 'manual' | 'quick') {
 function addStepVariable() { stepVariables.value.push(createStepVariable()) }
 function removeStepVariable(i: number) { stepVariables.value.splice(i, 1) }
 
-// ==================== 断言操作 ====================
+// ==================== 验证器操作 ====================
 function addValidator() { validators.value.push(createValidator()) }
 function removeValidator(i: number) { validators.value.splice(i, 1) }
 
@@ -316,8 +316,8 @@ async function handleDraftSave() {
           />
         </el-tab-pane>
 
-        <!-- 断言 -->
-        <el-tab-pane label="断言" name="validators">
+        <!-- 验证器 -->
+        <el-tab-pane label="验证器" name="validators">
           <div class="step-editor__list-section">
             <div v-for="(v, i) in validators" :key="v.id" class="step-editor__validator-card">
               <div class="step-editor__card-row">
@@ -333,7 +333,7 @@ async function handleDraftSave() {
                 <el-button link size="small" type="danger" @click="removeValidator(i)">删除</el-button>
               </div>
             </div>
-            <el-button size="small" @click="addValidator">+ 添加断言</el-button>
+            <el-button size="small" @click="addValidator">+ 添加验证器</el-button>
           </div>
         </el-tab-pane>
 

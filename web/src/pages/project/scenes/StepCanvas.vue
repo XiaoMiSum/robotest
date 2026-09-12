@@ -126,7 +126,7 @@ function moveDown(index: number) {
               <el-icon><WarningFilled /></el-icon> 源已删除，使用创建时的快照执行
             </div>
             <div v-if="step.validators?.length" class="step-canvas__detail-item">
-              断言：{{ step.validators.length }} 条
+              验证器：{{ step.validators.length }} 条
             </div>
             <div v-if="step.extractors?.length" class="step-canvas__detail-item">
               提取器：{{ step.extractors.length }} 条

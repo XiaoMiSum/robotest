@@ -13,7 +13,7 @@ import {
   type PaneValidatorItem,
   type PaneExtractorItem,
 } from '../scenesModel'
-import ValidatorsExtractorsPanes from './ValidatorsExtractorsPanes.vue'
+import ValidatorsExtractorsPanes from '@/components/api-testing/ValidatorsExtractorsPanes.vue'
 
 interface KvRow {
   key: string
@@ -214,7 +214,7 @@ function formatJsonBody() {
         </div>
       </el-tab-pane>
 
-      <!-- 断言/提取器：交给共享面板，仅当调用方传入数据时显示对应 tab -->
+      <!-- 验证器/提取器：交给共享面板，仅当调用方传入数据时显示对应 tab -->
       <ValidatorsExtractorsPanes
         v-if="validators !== undefined || extractors !== undefined"
         :validators="validators"

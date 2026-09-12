@@ -5,9 +5,7 @@ import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import io.github.xiaomisum.robotest.framework.security.ProjectAccessGuard;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSwaggerUrlSaveReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiSwaggerUrlItemRespDTO;
-import io.github.xiaomisum.robotest.model.entity.apitest.ApiScheduledTask;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiSwaggerUrl;
-import io.github.xiaomisum.robotest.repository.apitest.ApiScheduledTaskMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiSwaggerUrlMapper;
 import io.github.xiaomisum.robotest.service.apitest.imports.ImportSourceFetcher;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
@@ -37,7 +35,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
-/** Swagger URL 配置管理（定时任务详细设计 3.1.9）：SSRF 校验、删除保护 */
+/** Swagger URL 配置管理（~~定时任务详细设计 3.1.9~~，V1.3 起废弃）：SSRF 校验、配置 CRUD */
 @ExtendWith(MockitoExtension.class)
 class ApiSwaggerUrlServiceImplTest {
 
@@ -48,8 +46,6 @@ class ApiSwaggerUrlServiceImplTest {
 
     @Mock
     private ApiSwaggerUrlMapper swaggerUrlMapper;
-    @Mock
-    private ApiScheduledTaskMapper taskMapper;
     @Mock
     private ProjectAccessGuard projectAccessGuard;
     @Mock
@@ -123,24 +119,26 @@ class ApiSwaggerUrlServiceImplTest {
     }
 
     @Test
-    void deleteRejectsWhenBoundByImportTask() {
+    void deleteRemovesConfigWithoutTaskReferenceCheck() {
+        // V1.3 起定时任务不再绑定 Swagger URL 配置（设计 2.1.3 废弃说明），删除无需任务引用检查
         when(swaggerUrlMapper.selectById(CONFIG_ID)).thenReturn(config());
-        when(taskMapper.selectCount(any())).thenReturn(1L);
-
-        ServiceException ex = assertThrows(ServiceException.class,
-                () -> service.delete(WORKSPACE_ID, PROJECT_ID, USER_ID, CONFIG_ID));
-        assertEquals(1000017602, ex.getCode().intValue());
-        verify(swaggerUrlMapper, never()).deleteById(any());
-    }
-
-    @Test
-    void deleteRemovesUnboundConfig() {
-        when(swaggerUrlMapper.selectById(CONFIG_ID)).thenReturn(config());
-        when(taskMapper.selectCount(any())).thenReturn(0L);
 
         service.delete(WORKSPACE_ID, PROJECT_ID, USER_ID, CONFIG_ID);
 
         verify(swaggerUrlMapper).deleteById(CONFIG_ID);
+    }
+
+    @Test
+    void deleteRejectsForeignConfig() {
+        ApiSwaggerUrl foreign = new ApiSwaggerUrl();
+        foreign.setId(CONFIG_ID);
+        foreign.setProjectId(UUID.randomUUID());
+        when(swaggerUrlMapper.selectById(CONFIG_ID)).thenReturn(foreign);
+
+        ServiceException ex = assertThrows(ServiceException.class,
+                () -> service.delete(WORKSPACE_ID, PROJECT_ID, USER_ID, CONFIG_ID));
+        assertEquals(1000017601, ex.getCode().intValue());
+        verify(swaggerUrlMapper, never()).deleteById(any());
     }
 
     @Test

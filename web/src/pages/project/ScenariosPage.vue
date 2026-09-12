@@ -3,7 +3,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { ApiScenePageItem, ProjectModule } from '@/types'
 import { fetchProjectModuleTree } from '@/services/project'
-import { copyScene, deleteScene, fetchScenePage, executeScene, followScene, unfollowScene, batchDeleteScenes } from '@/services/apiScene'
+import { deleteScene, fetchScenePage, executeScene, followScene, unfollowScene, batchDeleteScenes, batchMoveScenes } from '@/services/apiScene'
 import { flattenModuleNames } from './interfacesModel'
 import { formatDateTime } from '@/utils/format'
 import ProjectModuleTree from '@/components/project/ProjectModuleTree.vue'
@@ -11,6 +11,7 @@ import ProjectModuleTree from '@/components/project/ProjectModuleTree.vue'
 const emit = defineEmits<{
   (e: 'edit', sceneId: string): void
   (e: 'create', moduleId?: string): void
+  (e: 'copy', sceneId: string): void
 }>()
 
 // ==================== 模块树 ====================
@@ -39,12 +40,17 @@ const pageNo = ref(1)
 const pageSize = 20
 const loading = ref(false)
 const searchText = ref('')
-const statusFilter = ref<string>('')
+const lastStatusFilter = ref<string>('')
+const publishStatusFilter = ref<string>('')
 
-const STATUS_OPTIONS = [
+const LAST_STATUS_OPTIONS = [
   { value: 'success', label: '执行成功' },
   { value: 'failed', label: '执行失败' },
   { value: 'not_executed', label: '未执行' },
+]
+const PUBLISH_STATUS_OPTIONS = [
+  { value: 'draft', label: '草稿' },
+  { value: 'published', label: '已发布' },
 ]
 const VIEW_OPTIONS = [
   { value: 'all', label: '全部' },
@@ -60,10 +66,11 @@ async function loadPage() {
     const query: Record<string, unknown> = { pageNo: pageNo.value, pageSize }
     if (selectedModuleId.value) query.moduleId = selectedModuleId.value
     if (searchText.value.trim()) query.search = searchText.value.trim()
-    if (statusFilter.value === 'not_executed') query.lastStatus = null
-    else if (statusFilter.value) query.lastStatus = statusFilter.value
+    if (lastStatusFilter.value === 'not_executed') query.lastStatus = null
+    else if (lastStatusFilter.value) query.lastStatus = lastStatusFilter.value
+    if (publishStatusFilter.value) query.status = publishStatusFilter.value
     if (viewFilter.value && viewFilter.value !== 'all') query.view = viewFilter.value
-    const page = await fetchScenePage(query as { pageNo: number; pageSize: number; moduleId?: string; search?: string; view?: string })
+    const page = await fetchScenePage(query as { pageNo: number; pageSize: number; moduleId?: string; search?: string; status?: string; view?: string })
     rows.value = page.list
     total.value = page.total
     // 模块名映射随每次列表加载刷新，保证重命名/删除/拖拽后「所属模块」列显示最新名称
@@ -80,7 +87,12 @@ watch(selectedModuleId, () => {
   void loadPage()
 })
 
-watch(statusFilter, () => {
+watch(lastStatusFilter, () => {
+  pageNo.value = 1
+  void loadPage()
+})
+
+watch(publishStatusFilter, () => {
   pageNo.value = 1
   void loadPage()
 })
@@ -98,7 +110,8 @@ function handleSearch() {
 
 function handleReset() {
   searchText.value = ''
-  statusFilter.value = ''
+  lastStatusFilter.value = ''
+  publishStatusFilter.value = ''
   viewFilter.value = 'all'
   pageNo.value = 1
   void loadPage()
@@ -109,15 +122,9 @@ function openDetail(item: ApiScenePageItem) {
   emit('edit', item.id)
 }
 
-async function handleCopy(item: ApiScenePageItem) {
-  try {
-    const newId = await copyScene(item.id)
-    ElMessage.success('已复制')
-    await loadPage()
-    emit('edit', newId)
-  } catch (error) {
-    ElMessage.error(error instanceof Error ? error.message : '复制失败')
-  }
+/** 复制：交由上层打开预填新建页（3.1.6），不直接调后端复制 */
+function handleCopy(item: ApiScenePageItem) {
+  emit('copy', item.id)
 }
 
 async function handleDelete(item: ApiScenePageItem) {
@@ -172,6 +179,26 @@ async function handleBatchDelete() {
   }
 }
 
+// ==================== 批量移动（3.1.7） ====================
+const showBatchMove = ref(false)
+const batchMoveTarget = ref<string | null>(null)
+
+async function confirmBatchMove() {
+  if (!batchMoveTarget.value) {
+    ElMessage.warning('请选择目标模块')
+    return
+  }
+  try {
+    await batchMoveScenes(selectedIds.value, batchMoveTarget.value)
+    ElMessage.success(`已移动 ${selectedIds.value.length} 个场景`)
+    showBatchMove.value = false
+    selectedIds.value = []
+    void loadPage()
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : '批量移动失败')
+  }
+}
+
 function statusType(status: string | null): 'success' | 'danger' | 'info' | 'warning' {
   if (status === 'success') return 'success'
   if (status === 'failed') return 'danger'
@@ -206,8 +233,11 @@ onMounted(async () => {
           @keyup.enter="handleSearch"
           @clear="handleSearch"
         />
-        <el-select v-model="statusFilter" clearable placeholder="状态" style="width: 140px">
-          <el-option v-for="opt in STATUS_OPTIONS" :key="opt.value" :value="opt.value" :label="opt.label" />
+        <el-select v-model="lastStatusFilter" clearable placeholder="执行状态" style="width: 130px">
+          <el-option v-for="opt in LAST_STATUS_OPTIONS" :key="opt.value" :value="opt.value" :label="opt.label" />
+        </el-select>
+        <el-select v-model="publishStatusFilter" clearable placeholder="发布状态" style="width: 130px">
+          <el-option v-for="opt in PUBLISH_STATUS_OPTIONS" :key="opt.value" :value="opt.value" :label="opt.label" />
         </el-select>
         <el-button type="primary" @click="handleSearch">
           <el-icon><Search /></el-icon>查询
@@ -216,6 +246,7 @@ onMounted(async () => {
         <div class="scenarios-page__spacer" />
         <template v-if="selectedIds.length > 0">
           <span class="scenarios-page__selected-count">已选 {{ selectedIds.length }} 项</span>
+          <el-button @click="showBatchMove = true">批量移动</el-button>
           <el-button type="danger" plain @click="handleBatchDelete">批量删除</el-button>
         </template>
       </div>
@@ -260,6 +291,15 @@ onMounted(async () => {
               </template>
             </el-table-column>
             <el-table-column prop="stepCount" label="步骤数" width="80" align="center" />
+            <el-table-column label="状态" width="90" align="center">
+              <template #default="{ row }">
+                <!-- 发布状态徽标，视觉对齐场景编辑器顶部的状态标签 -->
+                <span
+                  class="scenarios-page__publish-status"
+                  :class="(row as ApiScenePageItem).status === 'published' ? 'is-published' : 'is-draft'"
+                >{{ (row as ApiScenePageItem).status === 'published' ? '已发布' : (row as ApiScenePageItem).status === 'draft' ? '草稿' : '—' }}</span>
+              </template>
+            </el-table-column>
             <el-table-column label="最近执行" width="100">
               <template #default="{ row }">
                 <el-tag v-if="row.lastStatus" size="small" :type="statusType(row.lastStatus)">{{ statusLabel(row.lastStatus) }}</el-tag>
@@ -304,6 +344,21 @@ onMounted(async () => {
           />
         </el-card>
       </div>
+
+    <el-dialog v-model="showBatchMove" title="批量移动到模块" width="420px">
+      <el-tree
+        :data="moduleTree"
+        node-key="id"
+        :props="{ label: 'name', children: 'children' }"
+        :expand-on-click-node="false"
+        highlight-current
+        @node-click="(node: ProjectModule) => (batchMoveTarget = node.id)"
+      />
+      <template #footer>
+        <el-button @click="showBatchMove = false">取消</el-button>
+        <el-button type="primary" data-test="batch-move-confirm-btn" @click="confirmBatchMove">确 定</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -411,6 +466,27 @@ onMounted(async () => {
 .scenarios-page__priority--p1 { background: var(--color-priority-p1); }
 .scenarios-page__priority--p2 { background: var(--color-priority-p2); }
 .scenarios-page__priority--p3 { background: var(--color-priority-p3); }
+
+// 发布状态徽标：视觉对齐场景编辑器顶部的状态标签（草稿中性/已发布主色）
+.scenarios-page__publish-status {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 8px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 20px;
+
+  &.is-draft {
+    background: var(--color-neutral-100);
+    color: var(--color-neutral-600);
+  }
+
+  &.is-published {
+    background: rgba(var(--el-color-success-rgb), 0.1);
+    color: var(--el-color-success);
+  }
+}
 
 .text-neutral-400 {
   color: var(--color-neutral-400);

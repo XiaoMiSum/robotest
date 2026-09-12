@@ -1,8 +1,8 @@
 package io.github.xiaomisum.robotest.controller.apitest;
 
 import io.github.xiaomisum.robotest.framework.security.LoginUser;
-import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneCopyReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneBatchDeleteReqDTO;
+import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneBatchMoveReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneAssetsImportReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneStepCopyReqDTO;
@@ -53,9 +53,10 @@ public class ApiSceneController {
             @Valid PageParam pageParam,
             @RequestParam(value = "moduleId", required = false) UUID moduleId,
             @RequestParam(value = "search", required = false) String search,
-            @RequestParam(value = "followedOnly", required = false) Boolean followedOnly) {
+            @RequestParam(value = "followedOnly", required = false) Boolean followedOnly,
+            @RequestParam(value = "status", required = false) String status) {
         return Result.ok(sceneService.fetchPage(workspaceId, projectId, loginUser.getId(),
-                moduleId, search, followedOnly, pageParam));
+                moduleId, search, followedOnly, status, pageParam));
     }
 
     @GetMapping("/api/project/api-scenes/{id}")
@@ -100,18 +101,6 @@ public class ApiSceneController {
             @PathVariable UUID id) {
         sceneService.delete(workspaceId, projectId, loginUser.getId(), id);
         return Result.ok(true);
-    }
-
-    @PostMapping("/api/project/api-scenes/{id}/copy")
-    @PreAuthorize("hasAuthority('api-scene:edit')")
-    public Result<Map<String, String>> copy(
-            @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
-            @PathVariable UUID id,
-            @RequestBody @Valid ApiSceneCopyReqDTO reqDTO) {
-        return Result.ok(Map.of("id", sceneService.copy(workspaceId, projectId,
-                loginUser.getId(), id, reqDTO).toString()));
     }
 
     // ========== 步骤 ==========
@@ -264,6 +253,17 @@ public class ApiSceneController {
             @RequestHeader("X-Active-Project") UUID projectId,
             @RequestBody @Valid ApiSceneBatchDeleteReqDTO reqDTO) {
         sceneService.batchDelete(workspaceId, projectId, loginUser.getId(), reqDTO);
+        return Result.ok(true);
+    }
+
+    @PutMapping("/api/project/api-scenes/batch/move")
+    @PreAuthorize("hasAuthority('api-scene:edit')")
+    public Result<Boolean> batchMove(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @RequestHeader("X-Active-Workspace") UUID workspaceId,
+            @RequestHeader("X-Active-Project") UUID projectId,
+            @RequestBody @Valid ApiSceneBatchMoveReqDTO reqDTO) {
+        sceneService.batchMove(workspaceId, projectId, loginUser.getId(), reqDTO);
         return Result.ok(true);
     }
 }

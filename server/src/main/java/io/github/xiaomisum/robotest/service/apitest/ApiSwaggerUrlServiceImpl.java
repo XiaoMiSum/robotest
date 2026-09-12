@@ -3,9 +3,7 @@ package io.github.xiaomisum.robotest.service.apitest;
 import io.github.xiaomisum.robotest.framework.security.ProjectAccessGuard;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSwaggerUrlSaveReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiSwaggerUrlItemRespDTO;
-import io.github.xiaomisum.robotest.model.entity.apitest.ApiScheduledTask;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiSwaggerUrl;
-import io.github.xiaomisum.robotest.repository.apitest.ApiScheduledTaskMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiSwaggerUrlMapper;
 import io.github.xiaomisum.robotest.service.apitest.imports.ImportSourceFetcher;
 import jakarta.annotation.Resource;
@@ -18,21 +16,19 @@ import java.util.List;
 import java.util.UUID;
 
 import static io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants.API_SWAGGER_URL_NOT_FOUND;
-import static io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants.API_SWAGGER_URL_TASK_BOUND;
 
 /**
- * Swagger URL 配置管理实现（定时任务详细设计 3.1.9）：
- * 新增/更新时经 ImportSourceFetcher 校验可达性与 SSRF，删除前检查任务绑定
+ * Swagger URL 配置管理实现（~~定时任务详细设计 3.1.9~~，V1.3 起废弃）：
+ * 新增/更新时经 ImportSourceFetcher 校验可达性与 SSRF；配置不再被定时任务绑定
  */
 @Service
 public class ApiSwaggerUrlServiceImpl implements ApiSwaggerUrlService {
 
-    private final ImportSourceFetcher sourceFetcher = new ImportSourceFetcher();
+    @Resource
+    private ImportSourceFetcher sourceFetcher;
 
     @Resource
     private ApiSwaggerUrlMapper swaggerUrlMapper;
-    @Resource
-    private ApiScheduledTaskMapper taskMapper;
     @Resource
     private ProjectAccessGuard projectAccessGuard;
 
@@ -83,12 +79,7 @@ public class ApiSwaggerUrlServiceImpl implements ApiSwaggerUrlService {
     public void delete(UUID workspaceId, UUID projectId, UUID userId, UUID id) {
         projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
         requireConfig(projectId, id);
-        Long boundCount = taskMapper.selectCount(new LambdaQueryWrapperX<ApiScheduledTask>()
-                .eq(ApiScheduledTask::getTaskType, "import_swagger")
-                .eq(ApiScheduledTask::getBoundObjectId, id));
-        if (boundCount != null && boundCount > 0) {
-            throw ServiceExceptionUtil.get(API_SWAGGER_URL_TASK_BOUND);
-        }
+        // V1.3 起定时任务不再绑定 Swagger URL 配置（设计 2.1.3 废弃说明），无需任务引用检查
         swaggerUrlMapper.deleteById(id);
     }
 
