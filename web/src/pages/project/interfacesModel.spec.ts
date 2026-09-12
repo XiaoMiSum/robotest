@@ -158,10 +158,10 @@ describe('editor form conversion', () => {
       validators: [{ target: 'status_code', condition: 'equals' }],
       extractors: [{ source: 'json_field', variableName: 'token' }],
     })
-    expect(form.validators).toEqual([{ target: 'status_code', condition: 'equals' }])
+    expect(form.validators).toEqual([{ target: 'status_code', condition: 'equals', enabled: true }])
     const { req } = toCreatePayload(form)
-    expect(req.validators).toEqual([{ target: 'status_code', condition: 'equals' }])
-    expect(req.extractors).toEqual([{ source: 'json_field', variableName: 'token' }])
+    expect(req.validators).toEqual([{ target: 'status_code', condition: 'equals', enabled: true }])
+    expect(req.extractors).toEqual([{ source: 'json_field', variableName: 'token', enabled: true }])
   })
 
 
