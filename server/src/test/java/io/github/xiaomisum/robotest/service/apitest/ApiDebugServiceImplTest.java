@@ -15,6 +15,10 @@ import io.github.xiaomisum.robotest.model.entity.apitest.ApiInterface;
 import io.github.xiaomisum.robotest.repository.apitest.ApiDebugRecordMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiEnvironmentMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiInterfaceMapper;
+import io.github.xiaomisum.ryze.TestStatus;
+import io.github.xiaomisum.ryze.result.AssertionResult;
+import io.github.xiaomisum.ryze.testelement.TestSuiteResult;
+import io.github.xiaomisum.ryze.testelement.sampler.DefaultSampleResult;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -160,6 +164,55 @@ class ApiDebugServiceImplTest {
 
         assertThat(resp.getStatus()).isEqualTo("error");
         assertThat(resp.getErrorMessage()).isNotBlank();
+    }
+
+    @Test
+    void assertionFailureMarksDebugFailed() throws Exception {
+        DefaultSampleResult sample = new DefaultSampleResult("步骤");
+        sample.setStatus(TestStatus.broken);
+        sample.setThrowable(new AssertionError("期望 0 实际 1"));
+        AssertionResult assertion = new AssertionResult();
+        assertion.setField("$.code");
+        assertion.setExpected(0);
+        assertion.setActual(1);
+        assertion.setStatus(TestStatus.failed);
+        sample.addAssertion(assertion);
+        TestSuiteResult top = new TestSuiteResult("调试");
+        top.setStatus(TestStatus.failed);
+        top.addChild(sample);
+
+        Object snapshot = collect(top);
+
+        assertEquals("failed", accessor(snapshot, "status"));
+    }
+
+    @Test
+    void exceptionGroupExpandsSubMessagesInDebugError() throws Exception {
+        DefaultSampleResult sample = new DefaultSampleResult("步骤");
+        sample.setStatus(TestStatus.broken);
+        sample.setThrowable(new io.github.xiaomisum.ryze.support.ExceptionGroup("提取器执行失败", List.of(
+                new IllegalArgumentException("未提取到数据且无默认值，表达式: $.token"))));
+        TestSuiteResult top = new TestSuiteResult("调试");
+        top.setStatus(TestStatus.broken);
+        top.addChild(sample);
+
+        Object snapshot = collect(top);
+
+        assertEquals("error", accessor(snapshot, "status"));
+        assertTrue(((String) accessor(snapshot, "errorMessage")).contains("未提取到数据且无默认值"));
+    }
+
+    /** 调用私有 collect：验证 suite 结果 → 快照切片的状态/错误消息映射（绕开 executor，结果可控） */
+    private Object collect(io.github.xiaomisum.ryze.Result result) throws Exception {
+        var collect = ApiDebugServiceImpl.class.getDeclaredMethod("collect", io.github.xiaomisum.ryze.Result.class);
+        collect.setAccessible(true);
+        return collect.invoke(service, result);
+    }
+
+    private Object accessor(Object snapshot, String name) throws Exception {
+        var method = snapshot.getClass().getDeclaredMethod(name);
+        method.setAccessible(true);
+        return method.invoke(snapshot);
     }
 
     @Test

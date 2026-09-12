@@ -2,8 +2,11 @@ package io.github.xiaomisum.robotest.service.apitest;
 
 import io.github.xiaomisum.robotest.framework.security.ProjectAccessGuard;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiPublicReportRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiReportDetailRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiReportShareRespDTO;
+import io.github.xiaomisum.robotest.model.entity.admin.SysUser;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiReport;
+import io.github.xiaomisum.robotest.repository.admin.SysUserMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiReportMapper;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -13,7 +16,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import xyz.migoo.framework.common.exception.ServiceException;
 
-import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -22,6 +24,7 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -43,21 +46,34 @@ class ApiReportServiceImplTest {
     private ApiReportMapper reportMapper;
     @Mock
     private ProjectAccessGuard projectAccessGuard;
+    @Mock
+    private SysUserMapper sysUserMapper;
 
     @InjectMocks
     private ApiReportServiceImpl service;
+
+    private void mockShareUserName() {
+        SysUser user = new SysUser();
+        user.setId(USER_ID);
+        user.setUsername("tester");
+        when(sysUserMapper.listByIds(any())).thenReturn(List.of(user));
+    }
 
     private ApiReport sharedReport(LocalDateTime expiresAt) {
         ApiReport report = new ApiReport();
         report.setId(REPORT_ID);
         report.setProjectId(PROJECT_ID);
-        report.setSceneName("登录链路");
+        report.setReportType("scene");
+        report.setName("登录链路");
         report.setStatus("success");
         report.setCreatedAt(LocalDateTime.now());
         report.setShareToken("a".repeat(32));
         report.setShareExpiresAt(expiresAt);
+        report.setShareUserId(USER_ID);
         report.setSummary(Map.of("total", 2, "passed", 2));
-        report.setStepResults(List.of(Map.of("stepId", "s1", "name", "登录", "status", "success")));
+        report.setResult(Map.of("sceneId", "scene-1", "sceneName", "登录链路", "status", "success",
+                "summary", Map.of("total", 2, "passed", 2),
+                "steps", List.of(Map.of("stepId", "s1", "name", "登录", "status", "success"))));
         return report;
     }
 
@@ -66,12 +82,15 @@ class ApiReportServiceImplTest {
     @Test
     void shareDefaultsExpiryTo7DaysWhenNotSpecified() {
         when(reportMapper.selectById(REPORT_ID)).thenReturn(sharedReport(null));
+        mockShareUserName();
 
         ApiReportShareRespDTO resp = service.share(WORKSPACE_ID, PROJECT_ID, USER_ID, REPORT_ID, null);
 
         assertEquals(32, resp.getShareUrl().split("token=")[1].length());
         assertTrue(resp.getShareUrl().split("token=")[1].matches("[0-9a-f]{32}"));
         assertNotNull(resp.getExpiresAt());
+        // 分享者随分享记录返回，供复制文本展示
+        assertEquals("tester", resp.getShareBy());
 
         ArgumentCaptor<ApiReport> captor = ArgumentCaptor.forClass(ApiReport.class);
         verify(reportMapper).updateById(captor.capture());
@@ -80,11 +99,13 @@ class ApiReportServiceImplTest {
         assertEquals(32, carrier.getShareToken().length());
         assertTrue(carrier.getShareExpiresAt().isAfter(LocalDateTime.now().plusDays(6)));
         assertTrue(carrier.getShareExpiresAt().isBefore(LocalDateTime.now().plusDays(8)));
+        assertEquals(USER_ID, carrier.getShareUserId());
     }
 
     @Test
     void shareUsesExplicitExpiryDays() {
         when(reportMapper.selectById(REPORT_ID)).thenReturn(sharedReport(null));
+        mockShareUserName();
 
         ApiReportShareRespDTO resp = service.share(WORKSPACE_ID, PROJECT_ID, USER_ID, REPORT_ID, 30);
 
@@ -123,12 +144,15 @@ class ApiReportServiceImplTest {
 
         ApiPublicReportRespDTO resp = service.publicAccess(REPORT_ID, "a".repeat(32));
 
-        assertEquals("登录链路", resp.getSceneName());
-        assertEquals(1, resp.getStepResults().size());
+        assertEquals("登录链路", resp.getName());
+        @SuppressWarnings("unchecked")
+        Map<String, Object> result = (Map<String, Object>) resp.getResult();
+        assertEquals("scene", resp.getReportType());
+        assertEquals(1, ((List<?>) result.get("steps")).size());
         assertFalse(resp.toString().contains("ryzeSnapshot"));
     }
 
-    // ========== 查询与导出 ==========
+    // ========== 查询与删除 ==========
 
     @Test
     void detailRejectsForeignOrMissingReportWith7007() {
@@ -140,35 +164,35 @@ class ApiReportServiceImplTest {
     }
 
     @Test
-    void exportJsonContainsMetadataAndStepsButNoRyzeSnapshot() {
-        when(reportMapper.selectById(REPORT_ID)).thenReturn(sharedReport(null));
+    void detailReturnsShareOnlyWhenUnexpired() {
+        when(reportMapper.selectById(REPORT_ID)).thenReturn(sharedReport(LocalDateTime.now().plusDays(7)));
+        mockShareUserName();
 
-        ApiReportService.ExportFile file = service.exportJson(WORKSPACE_ID, PROJECT_ID, USER_ID, REPORT_ID);
-        String json = new String(file.content(), StandardCharsets.UTF_8);
+        ApiReportDetailRespDTO resp = service.detail(WORKSPACE_ID, PROJECT_ID, USER_ID, REPORT_ID);
 
-        assertTrue(json.contains("\"sceneName\":\"登录链路\""));
-        assertTrue(json.contains("\"stepResults\""));
-        assertFalse(json.contains("ryzeSnapshot"));
-        assertEquals("application/json", file.contentType());
+        assertNotNull(resp.getShare());
+        assertTrue(resp.getShare().getShareUrl().contains(reportShareToken()));
+        assertEquals("tester", resp.getShare().getShareBy());
     }
 
     @Test
-    void batchExportZipProducesOneEntryPerReport() throws Exception {
-        UUID secondId = UUID.randomUUID();
-        ApiReport first = sharedReport(null);
-        ApiReport second = sharedReport(null);
-        second.setId(secondId);
-        when(reportMapper.selectById(REPORT_ID)).thenReturn(first);
-        when(reportMapper.selectById(secondId)).thenReturn(second);
+    void detailOmitsExpiredOrMissingShare() {
+        when(reportMapper.selectById(REPORT_ID)).thenReturn(sharedReport(LocalDateTime.now().minusMinutes(1)));
 
-        ApiReportService.ExportFile zip = service.batchExportZip(
-                WORKSPACE_ID, PROJECT_ID, USER_ID, List.of(REPORT_ID, secondId));
+        ApiReportDetailRespDTO expired = service.detail(WORKSPACE_ID, PROJECT_ID, USER_ID, REPORT_ID);
+        assertNull(expired.getShare());
 
-        assertEquals("application/zip", zip.contentType());
-        try (var zis = new java.util.zip.ZipInputStream(new java.io.ByteArrayInputStream(zip.content()))) {
-            assertEquals("1-登录链路-" + LocalDateTime.now().toLocalDate() + ".json", zis.getNextEntry().getName());
-            assertNotNull(zis.getNextEntry());
-        }
+        ApiReport none = sharedReport(null);
+        none.setShareToken(null);
+        none.setShareExpiresAt(null);
+        when(reportMapper.selectById(REPORT_ID)).thenReturn(none);
+        ApiReportDetailRespDTO missing = service.detail(WORKSPACE_ID, PROJECT_ID, USER_ID, REPORT_ID);
+        assertNull(missing.getShare());
+    }
+
+    /** 与 sharedReport() 中固化的 token 保持一致 */
+    private String reportShareToken() {
+        return "a".repeat(32);
     }
 
     @Test
