@@ -73,11 +73,6 @@ const pendingInterfaceId = ref<string | null>(null)
 // 报告详情状态
 const reportDetailId = ref<string | null>(null)
 
-function handleSceneBack() {
-  void router.replace({ query: { ...route.query, tab: 'scenes' } })
-}
-
-/** 快速调试保存成功后[查看接口]：切到接口管理 Tab，由 InterfaceWorkspace 打开对应编辑 Tab */
 function handleViewInterface(id: string) {
   activeMenu.value = 'interfaces'
   pendingInterfaceId.value = id
@@ -171,7 +166,7 @@ watch(
         v-else-if="activeMenu === 'reports'"
         @view="handleReportView"
       />
-      <SceneWorkspace v-else-if="activeMenu === 'scenes'" @edit="handleSceneBack" />
+      <SceneWorkspace v-else-if="activeMenu === 'scenes'" />
       <SchedulesPage v-else-if="activeMenu === 'schedules'" />
       <div v-else-if="!activeMenu" class="api-testing__norights">
         <div class="api-testing__norights-title">暂无可用功能模块</div>

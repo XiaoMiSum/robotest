@@ -43,11 +43,11 @@ function formatJson(obj: unknown): string {
           <pre class="debug-result__pre">{{ formatJson(result.stepResult.response) }}</pre>
         </div>
 
-        <!-- 断言结果 -->
+        <!-- 验证器结果 -->
         <div v-if="result.stepResult.validatorResults?.length" class="debug-result__section">
-          <div class="debug-result__section-title">断言结果</div>
+          <div class="debug-result__section-title">验证器结果</div>
           <el-table :data="result.stepResult.validatorResults" size="small">
-            <el-table-column prop="name" label="断言" min-width="160" />
+            <el-table-column prop="name" label="验证器" min-width="160" />
             <el-table-column label="结果" width="100">
               <template #default="{ row }">
                 <el-tag size="small" :type="row.passed ? 'success' : 'danger'">{{ row.passed ? '通过' : '失败' }}</el-tag>

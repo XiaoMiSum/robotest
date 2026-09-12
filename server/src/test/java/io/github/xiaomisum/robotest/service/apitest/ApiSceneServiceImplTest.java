@@ -3,6 +3,7 @@ package io.github.xiaomisum.robotest.service.apitest;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.framework.security.ProjectAccessGuard;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneAssetsImportReqDTO;
+import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneBatchMoveReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneStepReorderReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneStepSaveReqDTO;
@@ -11,6 +12,7 @@ import io.github.xiaomisum.robotest.model.entity.apitest.ApiChangeHistory;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiInterface;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiScene;
 import io.github.xiaomisum.robotest.model.entity.apitest.CommonComponent;
+import io.github.xiaomisum.robotest.model.entity.tcase.ProjectModule;
 import io.github.xiaomisum.robotest.repository.admin.SysUserMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiChangeHistoryMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiExecutionRecordMapper;
@@ -19,6 +21,7 @@ import io.github.xiaomisum.robotest.repository.apitest.ApiSceneMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiSceneFollowMapper;
 import io.github.xiaomisum.robotest.repository.apitest.CommonComponentMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiScheduledTaskMapper;
+import io.github.xiaomisum.robotest.repository.tcase.ProjectModuleMapper;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -69,6 +72,8 @@ class ApiSceneServiceImplTest {
     private ApiSceneFollowMapper sceneFollowMapper;
     @Mock
     private ApiScheduledTaskMapper scheduledTaskMapper;
+    @Mock
+    private ProjectModuleMapper moduleMapper;
 
     @InjectMocks
     private ApiSceneServiceImpl service;
@@ -314,6 +319,80 @@ class ApiSceneServiceImplTest {
         assertEquals(2, processors.size());
         assertEquals("Token 预置", processors.get(0).get("name"));
         assertEquals("请求头签名", processors.get(1).get("name"));
+    }
+
+    // ========== 批量移动（3.1.7） ==========
+
+    @Test
+    void batchMoveUpdatesModuleIdForAllScenes() {
+        UUID firstId = UUID.randomUUID();
+        UUID secondId = UUID.randomUUID();
+        UUID moduleId = UUID.randomUUID();
+        ApiScene first = existingScene();
+        first.setId(firstId);
+        ApiScene second = existingScene();
+        second.setId(secondId);
+        when(sceneMapper.selectById(firstId)).thenReturn(first);
+        when(sceneMapper.selectById(secondId)).thenReturn(second);
+        ProjectModule module = new ProjectModule();
+        module.setId(moduleId);
+        module.setProjectId(PROJECT_ID);
+        when(moduleMapper.selectById(moduleId)).thenReturn(module);
+
+        ApiSceneBatchMoveReqDTO reqDTO = new ApiSceneBatchMoveReqDTO();
+        reqDTO.setIds(List.of(firstId, secondId));
+        reqDTO.setModuleId(moduleId);
+        service.batchMove(WORKSPACE_ID, PROJECT_ID, USER_ID, reqDTO);
+
+        verify(sceneMapper, times(2)).updateById(any(ApiScene.class));
+        verify(moduleMapper).selectById(moduleId);
+    }
+
+    @Test
+    void batchMoveAllowsUngroupedWhenModuleIdNull() {
+        UUID sceneId = UUID.randomUUID();
+        ApiScene scene = existingScene();
+        scene.setId(sceneId);
+        when(sceneMapper.selectById(sceneId)).thenReturn(scene);
+
+        ApiSceneBatchMoveReqDTO reqDTO = new ApiSceneBatchMoveReqDTO();
+        reqDTO.setIds(List.of(sceneId));
+        service.batchMove(WORKSPACE_ID, PROJECT_ID, USER_ID, reqDTO);
+
+        ArgumentCaptor<ApiScene> captor = ArgumentCaptor.forClass(ApiScene.class);
+        verify(sceneMapper).updateById(captor.capture());
+        assertEquals(null, captor.getValue().getModuleId());
+    }
+
+    @Test
+    void batchMoveRejectsModuleOutsideProject() {
+        UUID sceneId = UUID.randomUUID();
+        UUID moduleId = UUID.randomUUID();
+        ProjectModule module = new ProjectModule();
+        module.setId(moduleId);
+        module.setProjectId(UUID.randomUUID());
+        when(moduleMapper.selectById(moduleId)).thenReturn(module);
+
+        ApiSceneBatchMoveReqDTO reqDTO = new ApiSceneBatchMoveReqDTO();
+        reqDTO.setIds(List.of(sceneId));
+        reqDTO.setModuleId(moduleId);
+
+        assertThrows(ServiceException.class,
+                () -> service.batchMove(WORKSPACE_ID, PROJECT_ID, USER_ID, reqDTO));
+    }
+
+    @Test
+    void batchMoveRejectsSceneOutsideProjectOverall() {
+        UUID foreignId = UUID.randomUUID();
+        ApiScene foreign = existingScene();
+        foreign.setId(foreignId);
+        foreign.setProjectId(UUID.randomUUID());
+        when(sceneMapper.selectById(foreignId)).thenReturn(foreign);
+
+        ApiSceneBatchMoveReqDTO reqDTO = new ApiSceneBatchMoveReqDTO();
+        reqDTO.setIds(List.of(foreignId));
+        assertThrows(ServiceException.class,
+                () -> service.batchMove(WORKSPACE_ID, PROJECT_ID, USER_ID, reqDTO));
     }
 
     private static CommonComponent component(String name, int sortOrder) {

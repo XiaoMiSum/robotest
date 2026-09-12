@@ -16,17 +16,18 @@ import io.github.xiaomisum.robotest.model.entity.apitest.ApiImportRecord;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiScheduledTask;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiScheduledTaskExecution;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiScene;
-import io.github.xiaomisum.robotest.model.entity.apitest.ApiSwaggerUrl;
+import io.github.xiaomisum.robotest.model.entity.tcase.ProjectModule;
 import io.github.xiaomisum.robotest.repository.apitest.ApiEnvironmentMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiImportRecordMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiScheduledTaskExecutionMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiScheduledTaskMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiSceneMapper;
-import io.github.xiaomisum.robotest.repository.apitest.ApiSwaggerUrlMapper;
+import io.github.xiaomisum.robotest.repository.tcase.ProjectModuleMapper;
+import io.github.xiaomisum.robotest.service.apitest.imports.ImportSourceFetcher;
+import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -35,6 +36,10 @@ import xyz.migoo.framework.common.exception.ServiceException;
 import xyz.migoo.framework.common.pojo.PageParam;
 import xyz.migoo.framework.common.pojo.PageResult;
 
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -64,13 +69,15 @@ class ApiScheduleServiceImplTest {
     @Mock
     private ApiScheduledTaskExecutionMapper executionMapper;
     @Mock
-    private ApiSwaggerUrlMapper swaggerUrlMapper;
-    @Mock
     private ApiSceneMapper sceneMapper;
     @Mock
     private ApiEnvironmentMapper environmentMapper;
     @Mock
+    private ProjectModuleMapper moduleMapper;
+    @Mock
     private ApiImportRecordMapper importRecordMapper;
+    @Mock
+    private ImportSourceFetcher importSourceFetcher;
     @Mock
     private ProjectAccessGuard projectAccessGuard;
     @Mock
@@ -104,7 +111,7 @@ class ApiScheduleServiceImplTest {
     }
 
     @Test
-    void createSceneTaskRequiresEnvironment() {
+    void createTestPlanTaskRequiresEnvironment() {
         ApiScheduleSaveReqDTO reqDTO = baseReq("scene_execute", "0 2 * * *");
         reqDTO.setEnvironmentId(null);
 
@@ -114,8 +121,8 @@ class ApiScheduleServiceImplTest {
     }
 
     @Test
-    void createSceneTaskRejectsForeignEnvironment() {
-        ApiScheduleSaveReqDTO reqDTO = baseReq("scene_execute", "0 2 * * *");
+    void createTestPlanTaskRejectsForeignEnvironment() {
+        ApiScheduleSaveReqDTO reqDTO = testPlanReq("all", "0 2 * * *");
         ApiEnvironment foreign = new ApiEnvironment();
         foreign.setId(reqDTO.getEnvironmentId());
         foreign.setProjectId(UUID.randomUUID());
@@ -127,32 +134,87 @@ class ApiScheduleServiceImplTest {
     }
 
     @Test
-    void createSceneTaskRejectsSceneWithoutEnabledSteps() {
-        ApiScheduleSaveReqDTO reqDTO = baseReq("scene_execute", "0 2 * * *");
+    void createScenesScopeRejectsSceneWithoutEnabledSteps() {
+        ApiScheduleSaveReqDTO reqDTO = testPlanReq("scenes", "0 2 * * *");
+        UUID sceneId = UUID.randomUUID();
+        reqDTO.setSceneIds(List.of(sceneId));
         stubValidEnvironment(reqDTO);
-        ApiScene scene = stubValidScene(reqDTO.getBoundObjectId(), 0);
+        ApiScene scene = sceneWithSteps(sceneId, 0);
+        when(sceneMapper.selectByIds(List.of(sceneId))).thenReturn(List.of(scene));
 
         ServiceException ex = assertThrows(ServiceException.class,
                 () -> service.create(WORKSPACE_ID, PROJECT_ID, USER_ID, reqDTO));
         assertEquals(1000017505, ex.getCode().intValue());
-        assertNotNull(scene.getName());
     }
 
     @Test
-    void createImportTaskRejectsMissingSwaggerConfig() {
-        ApiScheduleSaveReqDTO reqDTO = baseReq("import_swagger", "*/5 * * * *");
-        when(swaggerUrlMapper.selectById(reqDTO.getBoundObjectId())).thenReturn(null);
+    void createScenesScopeRejectsForeignScene() {
+        ApiScheduleSaveReqDTO reqDTO = testPlanReq("scenes", "0 2 * * *");
+        UUID sceneId = UUID.randomUUID();
+        reqDTO.setSceneIds(List.of(sceneId));
+        stubValidEnvironment(reqDTO);
+        ApiScene foreign = sceneWithSteps(sceneId, 1);
+        foreign.setProjectId(UUID.randomUUID());
+        when(sceneMapper.selectByIds(List.of(sceneId))).thenReturn(List.of(foreign));
 
         ServiceException ex = assertThrows(ServiceException.class,
                 () -> service.create(WORKSPACE_ID, PROJECT_ID, USER_ID, reqDTO));
-        assertEquals(1000017601, ex.getCode().intValue());
+        assertEquals(1000017301, ex.getCode().intValue());
     }
 
     @Test
-    void createSnapshotsBoundObjectNameAndNotifiesScheduler() {
-        ApiScheduleSaveReqDTO reqDTO = baseReq("scene_execute", "0 2 * * *");
+    void createScenesScopeRejectsMissingScene() {
+        ApiScheduleSaveReqDTO reqDTO = testPlanReq("scenes", "0 2 * * *");
+        UUID sceneId = UUID.randomUUID();
+        reqDTO.setSceneIds(List.of(sceneId));
         stubValidEnvironment(reqDTO);
-        ApiScene scene = stubValidScene(reqDTO.getBoundObjectId(), 2);
+        when(sceneMapper.selectByIds(List.of(sceneId))).thenReturn(List.of());
+
+        ServiceException ex = assertThrows(ServiceException.class,
+                () -> service.create(WORKSPACE_ID, PROJECT_ID, USER_ID, reqDTO));
+        assertEquals(1000017301, ex.getCode().intValue());
+    }
+
+    @Test
+    void createModulesScopeRejectsForeignModule() {
+        ApiScheduleSaveReqDTO reqDTO = testPlanReq("modules", "0 2 * * *");
+        UUID moduleId = UUID.randomUUID();
+        reqDTO.setModuleIds(List.of(moduleId));
+        stubValidEnvironment(reqDTO);
+        ProjectModule foreign = new ProjectModule();
+        foreign.setId(moduleId);
+        foreign.setProjectId(UUID.randomUUID());
+        when(moduleMapper.listByIds(List.of(moduleId))).thenReturn(List.of(foreign));
+
+        ServiceException ex = assertThrows(ServiceException.class,
+                () -> service.create(WORKSPACE_ID, PROJECT_ID, USER_ID, reqDTO));
+        assertEquals(1000017509, ex.getCode().intValue());
+    }
+
+    @Test
+    void createSyncTaskRequiresOpenapiUrl() {
+        ApiScheduleSaveReqDTO reqDTO = syncReq("0 * * * *", null);
+
+        ServiceException ex = assertThrows(ServiceException.class,
+                () -> service.create(WORKSPACE_ID, PROJECT_ID, USER_ID, reqDTO));
+        assertEquals(1000017510, ex.getCode().intValue());
+    }
+
+    @Test
+    void createSyncTaskRejectsUnreachableUrl() {
+        ApiScheduleSaveReqDTO reqDTO = syncReq("0 * * * *", "https://example.com/v3/api-docs");
+        when(importSourceFetcher.fetch("https://example.com/v3/api-docs"))
+                .thenThrow(new ServiceException(1000017012, "超时"));
+
+        ServiceException ex = assertThrows(ServiceException.class,
+                () -> service.create(WORKSPACE_ID, PROJECT_ID, USER_ID, reqDTO));
+        assertEquals(1000017012, ex.getCode().intValue());
+    }
+
+    @Test
+    void createTestPlanTaskPersistsScopeAndNotifiesScheduler() {
+        ApiScheduleSaveReqDTO reqDTO = testPlanReq("all", "0 2 * * *");
+        stubValidEnvironment(reqDTO);
 
         ApiScheduleCreatedRespDTO resp = service.create(WORKSPACE_ID, PROJECT_ID, USER_ID, reqDTO);
 
@@ -162,10 +224,32 @@ class ApiScheduleServiceImplTest {
         ArgumentCaptor<ApiScheduledTask> captor = ArgumentCaptor.forClass(ApiScheduledTask.class);
         verify(taskMapper).insert(captor.capture());
         ApiScheduledTask inserted = captor.getValue();
-        assertEquals(scene.getName(), inserted.getBoundObjectName());
+        assertEquals("scene_execute", inserted.getTaskType());
+        assertEquals("all", inserted.getExecutionScope());
+        assertEquals(reqDTO.getEnvironmentId(), inserted.getEnvironmentId());
         assertEquals(Boolean.TRUE, inserted.getEnabled());
         assertEquals(PROJECT_ID, inserted.getProjectId());
+        // 非对应类型字段不落库
+        assertNull(inserted.getSceneIds());
+        assertNull(inserted.getModuleIds());
+        assertNull(inserted.getOpenapiUrl());
         verify(taskScheduler).onTaskChanged(inserted.getId());
+    }
+
+    @Test
+    void createSyncTaskPersistsTrimmedUrl() {
+        ApiScheduleSaveReqDTO reqDTO = syncReq("0 * * * *", "  https://example.com/v3/api-docs  ");
+        when(importSourceFetcher.fetch("https://example.com/v3/api-docs")).thenReturn("{}");
+
+        service.create(WORKSPACE_ID, PROJECT_ID, USER_ID, reqDTO);
+
+        ArgumentCaptor<ApiScheduledTask> captor = ArgumentCaptor.forClass(ApiScheduledTask.class);
+        verify(taskMapper).insert(captor.capture());
+        ApiScheduledTask inserted = captor.getValue();
+        assertEquals("https://example.com/v3/api-docs", inserted.getOpenapiUrl());
+        // 接口同步任务不落 scene_execute 字段
+        assertNull(inserted.getExecutionScope());
+        assertNull(inserted.getEnvironmentId());
     }
 
     // ========== 更新/启停/删除 ==========
@@ -175,23 +259,19 @@ class ApiScheduleServiceImplTest {
         when(taskMapper.selectById(TASK_ID)).thenReturn(null);
 
         ServiceException ex = assertThrows(ServiceException.class,
-                () -> service.update(WORKSPACE_ID, PROJECT_ID, USER_ID, TASK_ID, baseReq("scene_execute", "0 2 * * *")));
+                () -> service.update(WORKSPACE_ID, PROJECT_ID, USER_ID, TASK_ID, testPlanReq("all", "0 2 * * *")));
         assertEquals(1000017501, ex.getCode().intValue());
     }
 
     @Test
-    void updateSwitchingToImportClearsEnvironment() {
+    void updateSwitchingToSyncClearsTestPlanFields() {
         when(taskMapper.selectById(TASK_ID)).thenReturn(existingTask());
-        ApiScheduleSaveReqDTO reqDTO = baseReq("import_swagger", "0 * * * *");
-        ApiSwaggerUrl config = new ApiSwaggerUrl();
-        config.setId(reqDTO.getBoundObjectId());
-        config.setProjectId(PROJECT_ID);
-        config.setName("生产 Swagger");
-        when(swaggerUrlMapper.selectById(reqDTO.getBoundObjectId())).thenReturn(config);
+        ApiScheduleSaveReqDTO reqDTO = syncReq("0 * * * *", "https://example.com/v3/api-docs");
+        when(importSourceFetcher.fetch(reqDTO.getOpenapiUrl())).thenReturn("{}");
 
         service.update(WORKSPACE_ID, PROJECT_ID, USER_ID, TASK_ID, reqDTO);
 
-        // C9 部分更新：显式置 null 的环境列必须走 wrapper 更新，而非 updateById
+        // C9 部分更新：类型切换时废弃字段显式置 null，必须走 wrapper 更新而非 updateById
         verify(taskMapper).update(eq(null), any());
         verify(taskScheduler).onTaskChanged(TASK_ID);
     }
@@ -233,29 +313,27 @@ class ApiScheduleServiceImplTest {
     }
 
     @Test
-    void executeNowSceneReturnsRunningWithExecutionId() {
+    void executeNowTestPlanReturnsRunningAndLaunchesBatch() {
         ApiScheduledTask task = existingTask();
         task.setLastExecutionStatus("success");
         when(taskMapper.selectById(TASK_ID)).thenReturn(task);
-        String executionId = UUID.randomUUID().toString();
-        when(taskRunner.launchSceneAsyncFinalize(task, USER_ID, "manual"))
-                .thenReturn(new ScheduledTaskRunner.SceneLaunch(WORKSPACE_ID, executionId));
 
         ApiScheduleExecuteNowRespDTO resp =
                 service.executeNow(WORKSPACE_ID, PROJECT_ID, USER_ID, TASK_ID);
 
-        assertEquals(executionId, resp.getExecutionId().toString());
+        verify(taskRunner).launchTestPlanAsyncFinalize(task, USER_ID, "manual");
+        assertEquals(TASK_ID, resp.getExecutionId());
         assertEquals("running", resp.getStatus());
     }
 
     @Test
-    void executeNowImportReturnsFinalOutcome() {
+    void executeNowSyncReturnsFinalOutcome() {
         ApiScheduledTask task = existingTask();
         task.setTaskType("import_swagger");
         task.setLastExecutionStatus(null);
         when(taskMapper.selectById(TASK_ID)).thenReturn(task);
         UUID importId = UUID.randomUUID();
-        when(taskRunner.runImportRethrow(task, USER_ID, "manual"))
+        when(taskRunner.runSyncRethrow(task, USER_ID, "manual"))
                 .thenReturn(new ScheduledTaskRunner.ImportOutcome(importId, "success"));
 
         ApiScheduleExecuteNowRespDTO resp =
@@ -281,7 +359,7 @@ class ApiScheduleServiceImplTest {
         ApiImportRecord importRecord = new ApiImportRecord();
         importRecord.setId(importId);
         importRecord.setSummary(Map.of("created", 3));
-        when(importRecordMapper.selectBatchIds(List.of(importId))).thenReturn(List.of(importRecord));
+        when(importRecordMapper.selectByIds(List.of(importId))).thenReturn(List.of(importRecord));
 
         PageResult<ApiScheduleExecutionItemRespDTO> page =
                 service.executions(WORKSPACE_ID, PROJECT_ID, USER_ID, TASK_ID, new PageParam());
@@ -289,6 +367,27 @@ class ApiScheduleServiceImplTest {
         assertEquals(1, page.getList().size());
         assertEquals(Map.of("created", 3), page.getList().get(0).getImportSummary());
         assertEquals("scheduled", page.getList().get(0).getTriggerType());
+    }
+
+    @Test
+    void executionsWithoutImportRecordIdDoNotThrow() {
+        // 测试计划类型（scene_execute）执行记录不写 importRecordId（ScheduledTaskRunner 传 null），
+        // 全页无导入记录时 importSummaries 为不可变空 Map，MapN.get(null) 会 NPE——必须产出空摘要而非报错
+        when(taskMapper.selectById(TASK_ID)).thenReturn(existingTask());
+        ApiScheduledTaskExecution record = new ApiScheduledTaskExecution();
+        record.setId(UUID.randomUUID());
+        record.setTriggerType("scheduled");
+        record.setStatus("success");
+        record.setImportRecordId(null);
+        when(executionMapper.selectPageByTask(eq(TASK_ID), any(PageParam.class)))
+                .thenReturn(new PageResult<>(List.of(record), 1L));
+
+        PageResult<ApiScheduleExecutionItemRespDTO> page =
+                service.executions(WORKSPACE_ID, PROJECT_ID, USER_ID, TASK_ID, new PageParam());
+
+        assertEquals(1, page.getList().size());
+        assertNull(page.getList().get(0).getImportSummary());
+        assertNull(page.getList().get(0).getImportRecordId());
     }
 
     // ========== Cron 校验与列表预览 ==========
@@ -315,6 +414,23 @@ class ApiScheduleServiceImplTest {
         assertFalse(resp.isValid());
         assertNull(resp.getDescription());
         assertNull(resp.getNextExecutions());
+    }
+
+    @Test
+    void validateCronNormalizesTimesToUtc() {
+        ApiScheduleValidateCronReqDTO reqDTO = new ApiScheduleValidateCronReqDTO();
+        reqDTO.setCronExpression("0 2 * * *");
+
+        ApiScheduleValidateCronRespDTO resp = service.validateCron(reqDTO);
+
+        LocalDateTime nowUtc = LocalDateTime.now(ZoneOffset.UTC);
+        // 归一化为 UTC 钟面后，所有触发时刻均应晚于当前 UTC 时刻（未归一化的本地钟面在 UTC 环境会早）
+        assertTrue(resp.getNextExecutions().stream().allMatch(t -> t.isAfter(nowUtc)));
+        // 与服务器本地钟面换算回 UTC 的结果完全一致（任意 JVM 时区下均成立）
+        List<LocalDateTime> expected = CronSupport.nextN("0 2 * * *", LocalDateTime.now(), 5).stream()
+                .map(t -> t.atZone(ZoneId.systemDefault()).withZoneSameInstant(ZoneOffset.UTC).toLocalDateTime())
+                .toList();
+        assertEquals(expected, resp.getNextExecutions());
     }
 
     @Test
@@ -352,17 +468,26 @@ class ApiScheduleServiceImplTest {
         assertTrue(item.getNextExecutions().size() <= 3);
     }
 
-    // ========== 系统身份直通（差异点④变更：调度不做成员校验，见 ProjectAccessGuardTest） ==========
-
     // ========== 夹具 ==========
 
     private ApiScheduleSaveReqDTO baseReq(String taskType, String cron) {
         ApiScheduleSaveReqDTO reqDTO = new ApiScheduleSaveReqDTO();
         reqDTO.setTaskType(taskType);
         reqDTO.setName("夜间回归");
-        reqDTO.setBoundObjectId(UUID.randomUUID());
-        reqDTO.setEnvironmentId(UUID.randomUUID());
         reqDTO.setCronExpression(cron);
+        return reqDTO;
+    }
+
+    private ApiScheduleSaveReqDTO testPlanReq(String scope, String cron) {
+        ApiScheduleSaveReqDTO reqDTO = baseReq("scene_execute", cron);
+        reqDTO.setExecutionScope(scope);
+        reqDTO.setEnvironmentId(UUID.randomUUID());
+        return reqDTO;
+    }
+
+    private ApiScheduleSaveReqDTO syncReq(String cron, String openapiUrl) {
+        ApiScheduleSaveReqDTO reqDTO = baseReq("import_swagger", cron);
+        reqDTO.setOpenapiUrl(openapiUrl);
         return reqDTO;
     }
 
@@ -373,20 +498,18 @@ class ApiScheduleServiceImplTest {
         when(environmentMapper.selectById(reqDTO.getEnvironmentId())).thenReturn(env);
     }
 
-    private ApiScene stubValidScene(UUID sceneId, int enabledSteps) {
+    private ApiScene sceneWithSteps(UUID sceneId, int enabledSteps) {
         ApiScene scene = new ApiScene();
         scene.setId(sceneId);
         scene.setProjectId(PROJECT_ID);
-        scene.setName("登录链路回归");
-        java.util.ArrayList<java.util.Map<String, Object>> steps = new java.util.ArrayList<>();
+        java.util.ArrayList<Map<String, Object>> steps = new java.util.ArrayList<>();
         for (int i = 0; i < enabledSteps; i++) {
-            java.util.Map<String, Object> step = new java.util.LinkedHashMap<>();
+            Map<String, Object> step = new LinkedHashMap<>();
             step.put("id", UUID.randomUUID());
             step.put("enabled", true);
             steps.add(step);
         }
         scene.setSteps(steps);
-        when(sceneMapper.selectById(sceneId)).thenReturn(scene);
         return scene;
     }
 
@@ -396,7 +519,7 @@ class ApiScheduleServiceImplTest {
         task.setProjectId(PROJECT_ID);
         task.setTaskType("scene_execute");
         task.setName("夜间回归");
-        task.setBoundObjectId(UUID.randomUUID());
+        task.setExecutionScope("all");
         task.setEnvironmentId(UUID.randomUUID());
         task.setCronExpression("*/5 * * * *");
         task.setEnabled(true);

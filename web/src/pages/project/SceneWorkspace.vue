@@ -11,13 +11,12 @@ interface EditorTab {
   createMode: boolean
   sceneId?: string
   moduleId?: string
+  copyFromId?: string
   name: string
   dirty: boolean
 }
 
 // 由刷新 / 直链恢复与列表页跳转驱动
-const emit = defineEmits<{ (e: 'edit', sceneId: string): void }>()
-
 const route = useRoute()
 const router = useRouter()
 
@@ -45,6 +44,14 @@ function openCreate(moduleId?: string) {
   tabs.value.push({ key, createMode: true, moduleId, name: '新场景', dirty: false })
   active.value = key
   void router.replace({ query: { tab: 'scenes', action: 'create', ...(moduleId ? { moduleId } : {}) } })
+}
+
+/** 复制：打开新建态编辑器并预填源场景（测试场景详细设计 3.1.6），保存走创建接口 */
+function openCopyFrom(id: string) {
+  const key = `create-${Date.now()}`
+  tabs.value.push({ key, createMode: true, copyFromId: id, name: '新场景', dirty: false })
+  active.value = key
+  void router.replace({ query: { ...route.query, tab: 'scenes', action: 'create', copyFrom: id } })
 }
 
 async function closeByName(name: string | number) {
@@ -76,6 +83,10 @@ function handleEdit(id: string) {
   openEdit(id)
 }
 
+function handleCopy(id: string) {
+  openCopyFrom(id)
+}
+
 /** 新建成功（back）→ 关闭创建 Tab 回列表并让列表刷新 */
 async function handleEditorBack(tab: EditorTab) {
   closeTabNoConfirm(tab)
@@ -97,11 +108,13 @@ function handleDirty(key: string, dirty: boolean) {
   if (tab) tab.dirty = dirty
 }
 
-// 刷新 / 直链恢复：与既有 query 约定一致（?tab=scenes&sceneId= / &action=create）
+// 刷新 / 直链恢复：与既有 query 约定一致（?tab=scenes&sceneId= / &action=create&copyFrom=）
 function restoreFromQuery() {
   const q = route.query
   if (typeof q.sceneId === 'string') {
     openEdit(q.sceneId)
+  } else if (q.action === 'create' && typeof q.copyFrom === 'string') {
+    openCopyFrom(q.copyFrom)
   } else if (q.action === 'create') {
     openCreate((q.moduleId as string) ?? undefined)
   }
@@ -126,6 +139,7 @@ restoreFromQuery()
             v-if="active === LIST_KEY"
             @create="handleCreate"
             @edit="handleEdit"
+            @copy="handleCopy"
           />
         </KeepAlive>
       </el-tab-pane>
@@ -151,8 +165,8 @@ restoreFromQuery()
             :scene-id="tab.createMode ? undefined : tab.sceneId"
             :create-mode="tab.createMode"
             :module-id="tab.moduleId"
+            :copy-from-id="tab.copyFromId"
             @back="handleEditorBack(tab)"
-            @edit="(id: string) => emit('edit', id)"
             @title-update="(n: string) => handleTitle(tab.key, n)"
             @dirty-change="(d: boolean) => handleDirty(tab.key, d)"
           />

@@ -1,11 +1,11 @@
 package io.github.xiaomisum.robotest.model.dto.request.apitest;
 
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -25,9 +25,18 @@ public class ApiScheduleSaveReqDTO {
     @Size(max = 500)
     private String description;
 
-    /** UUID 以字符串传输，归属校验由 Service 完成 */
-    @NotNull
-    private UUID boundObjectId;
+    /** 执行方式（scene_execute 任务）：all / modules / scenes，是否必填由 Service 按类型校验 */
+    private String executionScope;
+
+    /** 指定模块（多选），execution_scope=modules 时 Service 校验必填 */
+    private List<UUID> moduleIds;
+
+    /** 指定场景（多选），execution_scope=scenes 时 Service 校验必填 */
+    private List<UUID> sceneIds;
+
+    /** import_swagger 任务必填（OpenAPI/Swagger JSON 文件 URL） */
+    @Size(max = 2000)
+    private String openapiUrl;
 
     /** task_type = scene_execute 时必填（目标环境） */
     private UUID environmentId;

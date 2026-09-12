@@ -5,6 +5,7 @@ import {
   stepSqlType,
   sortedSteps,
   emptyStepDraft,
+  prefillDraftSteps,
   createValidator,
   serializeValidators,
   createExtractor,
@@ -142,7 +143,7 @@ describe('scenesModel', () => {
       ]
       const result = serializeValidators(items)
       expect(result).toHaveLength(2)
-      expect(result[0].name).toBe('断言 status_code')
+      expect(result[0].name).toBe('验证器 status_code')
       expect(result[1].name).toBe('状态码校验')
     })
 
@@ -254,7 +255,9 @@ describe('scenesModel', () => {
       const values = VALIDATOR_TARGETS.map((t) => t.value)
       expect(values).toContain('status_code')
       expect(values).toContain('json_field')
-      expect(values).toContain('groovy')
+      expect(values).toContain('response_header')
+      expect(values).toContain('response_body')
+      expect(values).toContain('regex')
     })
 
     it('VALIDATOR_CONDITIONS covers standard comparison operators', () => {
@@ -398,6 +401,50 @@ describe('scenesModel', () => {
         const result = syncBodyContentTypeHeader(headers, { kind: 'none', rawSubtype: 'text', rawText: '', urlencodedRows: [] })
         expect(result).toEqual([header('Accept')])
       })
+    })
+  })
+
+  describe('prefillDraftSteps', () => {
+    it('returns empty list for empty input', () => {
+      expect(prefillDraftSteps([])).toEqual([])
+    })
+
+    it('preserves step count and reorders by sortOrder', () => {
+      const a = step({ id: 'a', sortOrder: 2 })
+      const b = step({ id: 'b', sortOrder: 1 })
+      const result = prefillDraftSteps([a, b])
+      expect(result).toHaveLength(2)
+      expect(result.map((s) => s.sortOrder)).toEqual([1, 2])
+    })
+
+    it('regenerates new- prefixed temporary ids unique per step', () => {
+      const result = prefillDraftSteps([step({ id: 'a' }), step({ id: 'b' }), step({ id: 'c' })])
+      const ids = result.map((s) => s.id)
+      expect(ids.every((id) => id.startsWith('new-'))).toBe(true)
+      expect(new Set(ids).size).toBe(3)
+      expect(ids.some((id) => id === 'a')).toBe(false)
+    })
+
+    it('keeps sourceType/sourceId but copies nested arrays without sharing references', () => {
+      const processors = [{ testclass: 'http' }]
+      const validators = [{ target: 'status_code' }]
+      const extractors = [{ source: 'json_field' }]
+      const variables = [{ id: 'v1', name: 'token', source: 'custom', sortOrder: 1 }]
+      const source = step({ id: 'a', sourceType: 'copy', sourceId: 'src-1', processors, validators, extractors, variables })
+      const cloned = prefillDraftSteps([source])[0]
+      expect(cloned.sourceType).toBe('copy')
+      expect(cloned.sourceId).toBe('src-1')
+      expect(cloned.processors).toEqual(processors)
+      expect(cloned.processors).not.toBe(processors)
+      expect(cloned.validators).not.toBe(validators)
+      expect(cloned.extractors).not.toBe(extractors)
+      expect(cloned.variables).not.toBe(variables)
+    })
+
+    it('does not mutate the input steps', () => {
+      const source = [step({ id: 'a', sortOrder: 2 }), step({ id: 'b', sortOrder: 1 })]
+      prefillDraftSteps(source)
+      expect(source.map((s) => s.id)).toEqual(['a', 'b'])
     })
   })
 })
