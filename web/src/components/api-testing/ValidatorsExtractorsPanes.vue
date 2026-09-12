@@ -6,9 +6,9 @@ import {
   EXTRACTOR_SOURCES,
   type PaneValidatorItem,
   type PaneExtractorItem,
-} from '../scenesModel'
+} from '@/pages/project/scenesModel'
 
-// 断言 + 提取器 统一 tab 面板：供请求配置 tabs（http）与 jdbc 配置 tabs 复用同一编辑交互
+// 验证器 + 提取器 统一 tab 面板：供请求配置 tabs（http）与 jdbc 配置 tabs 复用同一编辑交互
 // 与 KeyValueTable 同策略：本地编辑副本，变更后整表回传，父级负责序列化过滤
 const props = defineProps<{
   validators?: PaneValidatorItem[]
@@ -67,12 +67,12 @@ function removeExtractor(index: number) {
   <el-tab-pane v-if="validators !== undefined" name="validators">
     <template #label>
       <span class="pane-label">
-        断言
+        验证器
         <span v-if="validatorCount" class="pane-label__badge">{{ validatorCount }}</span>
       </span>
     </template>
     <div class="pane-actions">
-      <el-button size="small" link type="primary" @click="emit('add-validator')">+ 添加断言</el-button>
+      <el-button size="small" link type="primary" @click="emit('add-validator')">+ 添加验证器</el-button>
       <el-button size="small" link type="primary" @click="emit('import-validators')">从公共组件获取</el-button>
     </div>
     <div class="pane-list">
