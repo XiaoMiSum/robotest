@@ -48,6 +48,8 @@ public class RoleServiceImpl implements RoleService {
     private SysUserMapper userMapper;
     @Resource
     private WorkspaceMapper workspaceMapper;
+    @Resource
+    private PermissionFacade permissionFacade;
 
     @Override
     public List<RoleSimpleRespDTO> getRoleList(String type) {
@@ -273,20 +275,6 @@ public class RoleServiceImpl implements RoleService {
 
     @Override
     public List<String> getUserPermissionCodes(UUID userId) {
-        List<SysUserRole> userRoles = userRoleMapper.listByUserId(userId);
-        if (userRoles.isEmpty()) {
-            return new ArrayList<>();
-        }
-
-        List<UUID> roleIds = userRoles.stream().map(SysUserRole::getRoleId).collect(Collectors.toList());
-        List<SysRole> roles = roleMapper.listByIds(roleIds);
-
-        return roles.stream()
-                .flatMap(role -> {
-                    List<String> perms = role.getPermissions() != null ? role.getPermissions() : List.of();
-                    return perms.stream();
-                })
-                .distinct()
-                .collect(Collectors.toList());
+        return new ArrayList<>(permissionFacade.permissionsOf(userId, PermissionScope.SYSTEM, null));
     }
 }
