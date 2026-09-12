@@ -325,24 +325,24 @@ onMounted(() => {
             </el-button>
           </div>
           <el-table v-loading="invitationsLoading" :data="invitations" row-key="id">
-            <el-table-column label="使用次数" width="120">
+            <el-table-column label="使用次数" min-width="120">
               <template #default="{ row }">
                 {{ row.useCount }}{{ row.maxUses != null ? ` / ${row.maxUses}` : ' / 不限' }}
               </template>
             </el-table-column>
-            <el-table-column label="过期时间" width="170">
+            <el-table-column label="过期时间" min-width="170">
               <template #default="{ row }">
                 {{ row.expiresAt ? formatDateTime(row.expiresAt) : '永不过期' }}
               </template>
             </el-table-column>
-            <el-table-column label="状态" width="90">
+            <el-table-column label="状态" min-width="90">
               <template #default="{ row }">
                 <el-tag :type="row.status === 'active' ? 'success' : 'info'" size="small" effect="light" round>
                   {{ row.status === 'active' ? '有效' : '已撤销' }}
                 </el-tag>
               </template>
             </el-table-column>
-            <el-table-column label="创建时间" width="170">
+            <el-table-column label="创建时间" min-width="170">
               <template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template>
             </el-table-column>
             <el-table-column label="操作" width="80" fixed="right">
