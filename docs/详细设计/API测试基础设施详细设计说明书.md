@@ -10,7 +10,7 @@
 
 ### 1.1 编写目的
 
-本文档对软件测试平台 V1.2 接口测试业务域的**公共基础设施**进行详细设计，定义公共数据结构、接口规范、错误码与执行引擎机制，为开发实现提供完整依据。各接口测试业务功能（接口管理、测试场景、环境管理、Mock 服务、GitLab 集成、定时任务等）的详细设计见对应的独立文档，它们均构建在本文档定义的基础设施之上。
+本文档对软件测试平台 V1.2 接口测试业务域的**公共基础设施**进行详细设计，定义公共数据结构、接口规范、错误码与执行引擎机制，为开发实现提供完整依据。各接口测试业务功能（接口管理、测试场景、环境管理、Mock 服务、定时任务等）的详细设计见对应的独立文档，它们均构建在本文档定义的基础设施之上。
 
 ### 1.2 范围
 
@@ -110,13 +110,11 @@
 | project_id | UUID | NOT NULL | 归属项目 |
 | scene_id | UUID | NOT NULL | 关联场景（api_scene.id） |
 | environment_id | UUID | NULL | 使用的环境（api_environment.id） |
-| execution_mode | VARCHAR(20) | NOT NULL | 执行方式：platform / pipeline |
+| execution_mode | VARCHAR(20) | NOT NULL | 执行方式：platform |
 | status | VARCHAR(20) | NOT NULL DEFAULT 'pending' | pending / running / success / failed / cancelled / timeout |
-| trigger_type | VARCHAR(20) | NOT NULL | 触发方式：manual / scheduled / pipeline |
-| report_id | UUID | NULL | 关联报告（api_report.id，1:1） |
-| pipeline_id | VARCHAR(100) | NULL | GitLab 流水线 ID（pipeline 执行时） |
-| pipeline_url | VARCHAR(500) | NULL | 流水线链接 |
-| repository_id | UUID | NULL | 关联 GitLab 仓库配置（api_gitlab_repository.id，pipeline 执行时记录） |
+| trigger_type | VARCHAR(20) | NOT NULL | 触发方式：manual / scheduled |
+| source | VARCHAR(20) | NOT NULL DEFAULT 'scene' | 报告来源：scene（场景页运行）/ schedule（定时任务含立即执行）。场景页 [运行] 产生的报告不进报告列表（见 3.4.1） |
+| report_id | UUID | NULL | 关联报告（api_report.id）。场景执行：场景报告 1:1；套件执行（定时任务）：同一套件下每个场景的执行记录共享同一套件报告 ID |
 | error_message | VARCHAR(2000) | NULL | 失败原因 |
 | executed_at | TIMESTAMP | NOT NULL | 执行时间 |
 | duration_ms | INT | NULL | 执行耗时（毫秒） |
@@ -124,36 +122,41 @@
 | created_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | 创建时间 |
 | updated_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | 更新时间 |
 
-**索引**：`idx_exec_scene_id` (scene_id), `idx_exec_project_executed` (project_id, executed_at DESC), `idx_exec_status` (status), `idx_api_execution_record_repository_id` (repository_id)
+**索引**：`idx_exec_scene_id` (scene_id), `idx_exec_project_executed` (project_id, executed_at DESC), `idx_exec_status` (status)
 
 > 执行记录与报告共享清理策略（默认 90 天）；清理后执行记录保留元数据，报告详情置为「执行结果被清理」。
 
 #### 2.1.4 报告表（api_report）
 
-存储场景执行结果的完整快照，包括步骤级明细。
+存储场景/套件执行结果的完整快照，包括明细数据集。报告按粒度分**场景报告**（`report_type='scene'`）与**套件报告**（`report_type='suite'`，定时任务含立即执行聚合生成，内嵌多个场景）。
 
 | 字段 | 类型 | 约束 | 说明 |
 | ---- | ---- | ---- | ---- |
 | id | UUID | PK | 主键 |
 | project_id | UUID | NOT NULL | 归属项目 |
-| execution_record_id | UUID | NOT NULL | 关联执行记录（api_execution_record.id） |
-| scene_id | UUID | NOT NULL | 关联场景 |
-| scene_name | VARCHAR(200) | NOT NULL | 场景名称快照（执行时固化） |
+| execution_record_id | UUID | NULL | 关联执行记录（api_execution_record.id）。场景报告关联单一执行记录；套件报告对应多条执行记录，此字段置空，聚合通过 `external_id`（= 任务 ID）关联 |
+| report_type | VARCHAR(20) | NOT NULL | 报告粒度：`scene`（场景报告，单场景）/ `suite`（套件报告，定时任务含立即执行聚合多场景） |
+| external_id | UUID | NULL | 外部关联 ID，语义随 `report_type`：`suite` 时为任务 ID（api_scheduled_task.id）；`scene` 时为场景 ID（api_scene.id）。场景页 [运行] 产生场景报告时填充场景 ID |
+| name | VARCHAR(200) | NOT NULL | 报告名称：场景报告 = 场景名 + 执行时间戳；套件报告 = 任务名 + 执行时间戳（执行时固化） |
 | environment_name | VARCHAR(100) | NULL | 环境名称快照 |
-| execution_mode | VARCHAR(20) | NOT NULL | 执行方式：platform / pipeline |
-| status | VARCHAR(20) | NOT NULL | success / failed / partial |
-| summary | JSONB | NOT NULL | 结果汇总 `{total, passed, failed, skipped, duration_ms}` |
-| step_results | JSONB | NOT NULL | 步骤级结果明细数组 `[{stepId, name, type, status, request, response, duration_ms, validators}]` |
-| ryze_snapshot | JSONB | NULL | 执行时的 Ryze 标准 JSON 快照（用于结果回溯与转换问题定位） |
+| execution_mode | VARCHAR(20) | NOT NULL | 执行方式：platform |
+| status | VARCHAR(20) | NOT NULL | success / failed / partial（scene）；套件报告按整体判定 |
+| source | VARCHAR(20) | NOT NULL DEFAULT 'scene' | 报告来源：scene（场景页运行）/ schedule（定时任务含立即执行）。场景页 [运行] 产生的报告不进报告列表（见 3.4.1） |
+| summary | JSONB | NOT NULL | 结果汇总 `{total, passed, failed, skipped, duration_ms}`；套件报告额外含场景级汇总 `{totalScenes, passedScenes, failedScenes, totalSteps, passedSteps, failedSteps, skippedSteps}` |
+| result | JSONB | NOT NULL | 结果明细数据集，按 `report_type` 分别构建：`scene` 为**场景数据集**（单场景步骤明细 `{sceneId, sceneName, status, summary, steps[]}`）；`suite` 为**套件数据集**（`{taskId, taskName, status, summary, scenes[]}`，每项即一份场景数据集，形成「场景 → 步骤」两级）。字段结构分别定义于《测试报告详细设计说明书》2.3 |
+| ryze_snapshot | JSONB | NULL | 执行时序列化后的完整 Ryze 结果树（TestSuiteResult 树，getter 序列化，原始留档）。场景报告存单场景树；套件报告存聚合的套件树（若聚合为一份）。用于结果回溯与转换问题定位 |
 | share_token | VARCHAR(64) | NULL | 分享链接令牌（生成分享链接时写入，无全局开关） |
 | share_expires_at | TIMESTAMP | NULL | 分享链接过期时间（生成时由 expiresInDays 计算） |
+| share_user_id | UUID | NULL | 分享者（最后一次生成分享链接的用户），用于分享记录展示与复制文本（见《测试报告详细设计说明书》4.2.3） |
 | is_deleted | BOOLEAN | NOT NULL DEFAULT FALSE | 是否删除 |
 | created_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | 创建时间 |
 | updated_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | 更新时间 |
 
-**索引**：`idx_report_scene_id` (scene_id), `idx_report_project_created` (project_id, created_at DESC), `idx_report_share_token` UNIQUE (share_token) WHERE share_token IS NOT NULL
+**索引**：`idx_report_type_external` (report_type, external_id)、`idx_report_project_created` (project_id, created_at DESC)、`idx_report_share_token` UNIQUE (share_token) WHERE share_token IS NOT NULL、`idx_report_share_user` (share_user_id) WHERE share_user_id IS NOT NULL
 
-> `step_results` 中每个步骤包含完整的请求/响应快照（请求头、请求体、响应状态码、响应头、响应体截断），供详情查看与导出。`ryze_snapshot` 为执行时生成的完整 Ryze JSON，仅平台内执行时保留，流水线执行时为空。
+> `result` 数据集的步骤/接口/协议快照取自 Ryze 结果树（`SampleResult`），`request`/`response` 按对应协议 Real 类 getter 序列化（响应体截断防撑爆 JSONB）；`assertions`/`extractors` 分别来自 `AssertionResult`/`ExtractorResult`。`ryze_snapshot` 为执行时生成的完整 Ryze 树 JSON。
+>
+> **状态口径（执行异常重构后）**：平台通过 `RyzeResultAdapter` 将 Ryze 状态映射为报告状态——`passed→success`、`failed→failed`、`skipped/disabled→skipped`、`broken→error`（引擎异常）。**验证器失败**（采样器/处理器 `broken` + 失败验证器记录或 `AssertionError`）步骤映射为 `failed`（报告 `partial`）；处理器条件不满足显式 `skipped` 时，处理器条目映射 `skipped` 且不计入步骤失败。**多提取器异常**聚合为 `ExceptionGroup`，步骤归 `error`，`errorMessage` 展开各子异常消息（`提取器执行失败：<明细1>；<明细2>`）而非引导语；`ryze_snapshot` 中对 `ExceptionGroup` 序列化 `exceptions[]`、对链包装异常序列化 `suppressed[]`，普通异常保持 `{type, message}` 不变。
 
 #### 2.1.5 公共组件表（api_component）
 
@@ -187,18 +190,17 @@
 
 #### 2.1.6 导入记录表（api_import_record）
 
-记录每次导入操作的结果，支持文件导入、Swagger URL 导入、可执行导入、元数据导入。
+记录每次导入操作的结果，支持文件导入、Swagger URL 导入。
 
 | 字段 | 类型 | 约束 | 说明 |
 | ---- | ---- | ---- | ---- |
 | id | UUID | PK | 主键 |
 | project_id | UUID | NOT NULL | 归属项目 |
-| import_type | VARCHAR(30) | NOT NULL | 导入方式：file_swagger / file_postman / file_har / file_jmeter / url_swagger / executable / metadata |
+| import_type | VARCHAR(30) | NOT NULL | 导入方式：url_swagger / curl |
 | source_name | VARCHAR(500) | NOT NULL | 导入源名称（文件名或 URL） |
 | status | VARCHAR(20) | NOT NULL | success / partial / failed |
 | summary | JSONB | NOT NULL | 导入结果 `{created, updated, failed, skipped}` |
 | error_details | JSONB | NULL | 失败明细 `[{path, message}]` |
-| repository_id | UUID | NULL | 关联 GitLab 仓库配置（executable/metadata 导入时） |
 | created_by | UUID | NOT NULL | 导入人 |
 | is_deleted | BOOLEAN | NOT NULL DEFAULT FALSE | 是否删除 |
 | created_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | 创建时间 |
@@ -241,10 +243,6 @@
 | **7401** | API_ENV_NAME_EXISTS | 环境名称重复 |
 | **7402** | API_ENV_REFERENCED | 环境被场景引用无法删除 |
 | **7403** | API_DATASOURCE_CONN_FAILED | 数据源连接测试失败 |
-| **7501** | API_GITLAB_REPO_NOT_FOUND | 仓库配置不存在 |
-| **7502** | API_GITLAB_REPO_UNREACHABLE | 仓库地址不可达 |
-| **7503** | API_GITLAB_TOKEN_INVALID | 令牌无效 |
-| **7504** | API_GITLAB_METADATA_MISSING | 测试类元数据不存在 |
 | **7601** | API_SCHEDULED_TASK_NOT_FOUND | 定时任务不存在 |
 | **7602** | API_CRON_INVALID | Cron 表达式无效 |
 | **7603** | API_SCHEDULED_TASK_RUNNING | 任务上一次执行未结束 |
@@ -278,7 +276,7 @@
 ```
 
 - `environmentId`：目标环境 ID（可选，缺省使用项目默认环境）。
-- `executionMode`：`platform`（平台内执行）；`pipeline`（仓库流水线执行，需 sceneIds 中的场景为元数据导入场景）。
+- `executionMode`：`platform`（平台内执行）。
 - `sceneIds`：批量执行时传入多个场景 ID；单场景执行时传入单个 ID 或通过路径参数指定。
 - `variableOverrides`：运行时变量覆盖（可选）。
 - **响应**：
@@ -350,7 +348,8 @@
 #### 3.4.1 查询报告列表
 
 - **路径**：`GET /api/project/reports?page=1&pageSize=20&status=success`
-- **筛选参数**：`status`（可选）、`sceneId`（可选）、`startDate` / `endDate`（可选）。
+- **筛选参数**：`status`（可选）、`reportType`（可选，scene / suite）、`sceneId`（可选，仅筛场景报告）、`keyword`（可选，报告名称/套件内场景名模糊搜索）、`startDate` / `endDate`（可选）。
+- **列表范围**：只返回 `source IN ('schedule')` 的报告。场景页 [运行] 直接产生的报告（`source = 'scene'`、`report_type = 'scene'`）不进列表，但可在对应场景的执行记录中通过弹窗查看（见《测试报告详细设计说明书》4.6）；定时任务（含调度页"立即执行"）聚合生成套件报告，正常展示。
 - **响应**：
 
 ```json
@@ -358,10 +357,14 @@
   "records": [
     {
       "id": "018f...",
-      "sceneName": "登录接口测试",
+      "reportType": "suite",
+      "name": "每日回归-登录支付-20260909-0200",
+      "sceneName": null,
+      "externalId": "task-uuid",
       "executionMode": "platform",
-      "status": "success",
-      "summary": { "total": 10, "passed": 9, "failed": 1, "skipped": 0, "durationMs": 5230 },
+      "source": "schedule",
+      "status": "failed",
+      "summary": { "totalScenes": 3, "passedScenes": 2, "failedScenes": 1, "totalSteps": 15, "passedSteps": 12, "failedSteps": 2, "skippedSteps": 1, "durationMs": 15800 },
       "environmentName": "测试环境",
       "createdAt": "2026-08-17T10:30:00Z"
     }
@@ -370,15 +373,30 @@
 }
 ```
 
+> `reportType`：`scene`（场景报告）/ `suite`（套件报告）。场景报告 `name` = 场景名 + 时间戳、`sceneName` 有值；套件报告 `name` = 任务名 + 时间戳、`sceneName` 为 null、`summary` 采用场景级汇总。
+
 #### 3.4.2 查询报告详情
 
 - **路径**：`GET /api/project/reports/:id`
-- **响应**：包含完整 `stepResults` 数组（步骤级请求/响应快照）。
+- **响应**：`data.result` 为按 `reportType` 构建的结果数据集（`scene`/`suite`，字段结构见《测试报告详细设计说明书》2.3），前端按「场景 → 步骤」两级或单场景步骤渲染；`stepResults` 旧字段废弃。详情不含 `ryze_snapshot`（内部字段，仅保留后端）。当报告存在**未过期分享**时附带 `data.share`（`{shareUrl, expiresAt, shareBy}`），供分享弹窗直接复用展示；无分享/已过期为 `null`：
+
+```json
+{
+  "id": "018f...",
+  "reportType": "scene",
+  "name": "登录链路-2026-08-17 10:30",
+  "share": {
+    "shareUrl": "/share/api-report/018f...?token=abc123",
+    "expiresAt": "2026-08-24T10:30:00Z",
+    "shareBy": "zhangsan"
+  }
+}
+```
 
 #### 3.4.3 生成分享链接
 
 - **路径**：`POST /api/project/reports/:id/share`
-- **说明**：无全局分享开关，具备报告查看/分享权限（`api-report:view`）即可生成；`expiresInDays` 缺省 7 天，有效期写入 `share_expires_at`（参照邀请链接生成时选择过期时间）。
+- **说明**：无全局分享开关，具备报告查看/分享权限（`api-report:view`）即可生成；`expiresInDays` 缺省 7 天，有效期写入 `share_expires_at`，并写入分享者 `share_user_id`（参照邀请链接生成时选择过期时间）。接口**每次重新生成** token 并覆盖旧分享；前端在存在未过期分享时复用展示，不调用本接口（见《测试报告详细设计说明书》4.2）。
 - **请求体**：
 
 ```json
@@ -392,7 +410,8 @@
 ```json
 {
   "shareUrl": "/share/api-report/018f...?token=abc123",
-  "expiresAt": "2026-08-24T10:30:00Z"
+  "expiresAt": "2026-08-24T10:30:00Z",
+  "shareBy": "zhangsan"
 }
 ```
 
@@ -401,12 +420,7 @@
 - **路径**：`GET /api/public/api-reports/:id?token=abc123`
 - **说明**：不需要 Authorization 头，通过 token 校验访问权限。token 不匹配或过期统一返回 403（错误码 7009），不区分具体原因避免枚举探测。
 
-#### 3.4.5 导出报告
-
-- **路径**：`GET /api/project/reports/:id/export?format=json`
-- **说明**：支持 `json` / `html` 格式。响应为文件流。
-
-#### 3.4.6 删除报告
+#### 3.4.5 删除报告
 
 - **路径**：`DELETE /api/project/reports/:id`
 - **响应**：`{ "success": true }`
@@ -527,7 +541,7 @@
   "records": [
     {
       "id": "018f...",
-      "importType": "file_swagger",
+      "importType": "url_swagger",
       "sourceName": "petstore.yaml",
       "status": "success",
       "summary": { "created": 12, "updated": 3, "failed": 0, "skipped": 1 },
@@ -551,7 +565,6 @@
 | 模式 | 说明 | 资源消耗 |
 | ---- | ---- | ---- |
 | 平台内执行 | 调试请求与场景执行由平台执行引擎在服务端执行，格式转换后交 Ryze 引擎运行 | 消耗平台执行引擎资源 |
-| 仓库流水线执行 | 平台通过 GitLab API 触发仓库 CI 流水线执行 | 不占用平台执行引擎资源 |
 
 #### 4.1.2 格式转换机制
 
@@ -563,8 +576,8 @@
 | -------- | -------------- |
 | 场景 | TestSuite（顶层集合） |
 | 场景参数 | variables |
-| 环境 HTTP 配置（多个） | configelements（http 类型，挂载到 root testsuite） |
-| 环境数据源（多个） | configelements（data_source 类型，挂载到 root testsuite） |
+| 环境 HTTP 配置（多个） | configelements（testclass: http，挂载到 root testsuite） |
+| 环境数据源（多个） | configelements（testclass: jdbc，挂载到 root testsuite） |
 | 全局前置/后置处理器 | preprocessors / postprocessors |
 | 场景步骤（http 取样器） | children（testclass: http） |
 | 场景步骤（jdbc 取样器） | children（testclass: jdbc） |
@@ -575,12 +588,14 @@
 
 **环境配置 → configelements 转换规则**：
 
-环境中的 HTTP 配置和数据源在执行时转为 Ryze configelements，挂载到 root testsuite 级别，由 Ryze 框架自动处理继承与覆盖：
+环境中的 HTTP 配置和数据源在执行时转为 Ryze configelements，挂载到 root testsuite 级别，由 Ryze 框架按 `ref` 自动处理继承与覆盖。
 
-| 环境配置 | Ryze configelement type | 挂载字段 |
-| -------- | ----------------------- | -------- |
-| 环境主表 `http_configs`（HTTP 配置 JSONB 列） | `http_config` | configelements 数组 |
-| 环境主表 `data_sources`（数据源 JSONB 列） | `data_source` | configelements 数组 |
+| 环境配置 | Ryze configelement（testclass） | 挂载字段 |
+| -------- | ------------------------------- | -------- |
+| 环境主表 `http_configs`（HTTP 配置 JSONB 列） | `http`（元件 `HTTPDefaults`，KW 含 `http`/`http_defaults`/`https`） | configelements 数组 |
+| 环境主表 `data_sources`（数据源 JSONB 列） | `jdbc`（元件 `JDBCDatasource`，KW 含 `jdbc`/`jdbc_datasource`/`jdbc_data_source`） | configelements 数组 |
+
+> 配置元件结构与 Ryze 引擎反序列化契约一致：顶层 `testclass` + `ref_name`（引用名，缺省时引擎按默认键 `__http_configure_element_default_ref_name__`/`__jdbc_configure_element_default_ref_name__` 注册），协议键放 `config` 对象内（HTTP：`base_url`/`headers`/`cookie`/`query`/`path` 等；JDBC：`driver`/`url`/`username`/`password`/`max_active` 等）。环境模型中 `refName` 直译为 `ref_name`，`baseUrl` 直译为 `base_url`，`maxPoolSize` 映射为 `max_active`（`connectionProperties` 本版仅留存环境 JSONB，不映射执行）。
 
 **示例**：
 
@@ -588,9 +603,9 @@
 {
   "title": "测试场景",
   "configelements": [
-    { "type": "http_config", "name": "内部API", "base_url": "https://api.internal.com", "headers": {"Authorization": "${token}"} },
-    { "type": "http_config", "name": "第三方支付", "base_url": "https://pay.third.com", "headers": {} },
-    { "type": "data_source", "name": "测试库", "driver": "com.mysql.cj.jdbc.Driver", "url": "jdbc:mysql://staging-db:3306/test" }
+    { "testclass": "http", "ref_name": "internal-api", "config": { "base_url": "https://api.internal.com", "headers": { "Authorization": "${token}" } } },
+    { "testclass": "http", "ref_name": "pay-third", "config": { "base_url": "https://pay.third.com", "headers": {} } },
+    { "testclass": "jdbc", "ref_name": "staging-db", "config": { "driver": "com.mysql.cj.jdbc.Driver", "url": "jdbc:mysql://staging-db:3306/test" } }
   ],
   "children": [...]
 }
@@ -598,7 +613,13 @@
 
 **步骤级 request_config 与 configelements 的关系**：
 
-步骤的 `request_config` 保存步骤自身的差异配置（api 路径、额外 headers/params/body 等）。`base_url` 允许为空，为空时继承环境 HTTP 配置的 base_url。步骤无需重复配置环境中已有的值，配置了也没关系——Ryze 以最低层级优先（步骤级 > 环境级）。
+步骤的 `request_config` 保存步骤自身的差异配置（http 步骤：`method`/`url`/`headers`/`params`/`body`/`base_url`）。http 取样器 `config` 通过 `ref` 引用环境默认 HTTP 配置的 `ref_name`（步骤未显式指定时使用 `isDefault = true` 的配置，环境内未设默认取第一条，见《环境管理详细设计说明书》2.1.2），由 Ryze 引擎将环境配置元件与步骤配置合并执行：
+
+- `url` 为相对路径时映射为 Ryze `config.path`，`base_url` 由环境配置元件经 `ref` 继承；
+- `url` 为绝对地址或步骤显式配置 `base_url` 时写入 `config.base_url`（步骤级覆盖环境值）；
+- 步骤无需重复配置环境中已有的值，配置了也没关系——Ryze 合并遵循最低层级优先（步骤级 > 环境级）。
+
+> http 处理器（前置/后置）同理：其 `config.ref` 引用环境 http 配置的 `refName`，取代合并写法；处理器 `config` 仅含 Ryze 配置键，平台 overlay 键保存于元素顶层或实体列。
 
 **多场景组合执行的层级映射**：
 
@@ -612,6 +633,8 @@ Ryze TestSuite 支持多层嵌套（项目级 → 模块级 → 用例级），�
 | 场景 A | TestSuite（模块级子集合） |
 | 场景 A 的步骤 | children（testclass: http/jdbc） |
 | 场景 B | TestSuite（模块级子集合） |
+
+> **定时任务（含立即执行）即按此模型实现**：测试计划任务把圈选出的全部场景组织为一个顶层 TestSuite，**环境相关内容全部挂载顶层、只取任务绑定环境**（顶层 `variables`=任务绑定环境变量、`preprocessors`/`postprocessors`=任务绑定环境前置/后置处理器、`configelements`=任务绑定环境的 HTTP 配置与数据源），各场景为子 TestSuite，其 `variables`=场景变量（不含环境）、`children`=场景启用步骤、`pre/postprocessors`=场景处理器（不含环境），场景自身关联环境**不参与构建**（定时任务以任务绑定环境为唯一执行环境）），**一次 `Ryze.start` 运行**。环境处理器顶层挂载后每次任务执行一次（而非每场景一次）。**顶层 suite 携带 `id` = 任务 ID（taskId），各场景子 suite 携带 `id` = 场景 ID（sceneId）**（suite 元素 `id` 映射到 `TestSuiteResult.id`，供结果树/快照直接定位），场景子 Suite 另携带 `metadata: {sceneId, taskId}`，执行引擎将元素 metadata 复制到对应 `TestSuiteResult` 节点，平台据此从单一大 suite 结果树按 `sceneId` 反查各场景结果并关联逐场景执行记录（执行/记录/报告详述见《定时任务详细设计说明书》4.3）。
 
 **配置继承与优先级**（遵循 Ryze 原生语义）：
 
@@ -639,8 +662,10 @@ Ryze 引擎执行完成后，平台收集执行结果并转换为平台自有格
 
 1. **步骤级结果**：每个步骤的请求/响应快照、耗时、验证器结果、提取器结果。
 2. **结果汇总**：总步骤数、通过数、失败数、跳过数、总耗时。
-3. **Ryze 快照**：执行时生成的完整 Ryze JSON，保存至 `api_report.ryze_snapshot`，用于结果回溯与转换问题定位。
-4. **报告生成**：将结果写入 `api_report` 表，同时更新 `api_execution_record` 状态。
+3. **Ryze 快照**：执行时生成的完整 Ryze 结果树 JSON，保存至 `api_report.ryze_snapshot`，用于结果回溯与转换问题定位。
+4. **报告生成**：
+   - **场景报告**：场景执行完成后将结果写入 `api_report`（`report_type='scene'`、`result`=场景数据集），同时更新 `api_execution_record` 状态与 `report_id`；
+   - **套件报告**：测试计划任务（含立即执行）以一个顶层 TestSuite 一次运行，执行后由调度器侧从该大 suite 的 `TestSuiteResult` 树按场景子 suite 的 `metadata.sceneId` 递归抽取各场景步骤结果，聚合写入 `api_report`（`report_type='suite'`、`result`=套件数据集），并将套件报告 ID 回写本套件内各场景执行记录共享的 `report_id`（执行模型见《定时任务详细设计说明书》4.3，数据集结构见《测试报告详细设计说明书》2.3）。
 
 ### 4.2 数据清理策略
 
@@ -669,13 +694,12 @@ Ryze 引擎执行完成后，平台收集执行结果并转换为平台自有格
 
 ### 5.2 报告详情渲染
 
-报告详情页根据 `stepResults` 数组渲染步骤树，每个步骤可展开查看：
+报告详情页根据 `result` 数据集（按 `reportType`）渲染：
 
-- 请求信息：方法、URL、请求头、请求体。
-- 响应信息：状态码、响应头、响应体（格式化展示）。
-- 验证器结果：断言通过/失败明细。
-- 提取器结果：提取的变量名与值。
-- 耗时信息。
+- **场景报告**（`report_type='scene'`）：渲染步骤表，遍历 `result.steps[]`，每个步骤可展开查看请求信息（方法/URL/请求头/请求体）、响应信息（状态码/响应头/响应体格式化）、验证器结果（验证通过/失败明细）、提取器结果（变量名与值）、耗时。
+- **套件报告**（`report_type='suite'`）：先渲染场景列表（`result.scenes[]`，含各场景状态/通过率/耗时），点击场景展开其 `steps[]` 步骤表（渲染规则同场景报告），形成「场景 → 步骤」两级。
+
+`ApiReportDetailRespDTO` 以 `result`（Object）承载数据集，替代原 `stepResults` 数组。
 
 ### 5.3 公共组件新建/编辑
 
@@ -757,7 +781,7 @@ Ryze 引擎执行完成后，平台收集执行结果并转换为平台自有格
 | 表达式 | text | 视目标 | JSONPath / XPath / 正则 / 响应头名（仅部分目标需要） |
 | 比较条件 | select | 是 | `等于` / `不等于` / `大于` / `小于` / `大于等于` / `小于等于` / `包含` / `不包含` / `以...开头` / `以...结尾` / `匹配正则` |
 | 期望值 | text | 视目标 | 期望值（仅部分目标需要） |
-| 断言描述 | text | 否 | 用于报告展示的断言说明 |
+| 验证器描述 | text | 否 | 用于报告展示的验证器说明 |
 
 **目标与条件的联动关系**：
 
@@ -800,6 +824,37 @@ Ryze 引擎执行完成后，平台收集执行结果并转换为平台自有格
 ### 6.1 迁移脚本
 
 新建 DDL 迁移脚本 `server/src/main/resources/db/v1.2.sql`，包含本文档定义的全部公共表（2.1.1–2.1.6）以及其余详细设计文档定义的业务表。脚本随本文档同步修订。
+
+**app_report 结构性变更迁移（场景/套件两级报告模型）**——本迭代由单场景报告升级为场景/套件两类报告，需将既有 `api_report` 结构调整如下（无物理外键，符合 C5）：
+
+```sql
+-- 1) 类型化：新增 report_type（默认按旧数据回填为 scene）
+ALTER TABLE api_report ADD COLUMN report_type VARCHAR(20) NOT NULL DEFAULT 'scene';
+ALTER TABLE api_report ALTER COLUMN report_type DROP DEFAULT;
+
+-- 2) 场景 ID 通配化：scene_id 语义随 report_type，suite 时为任务 ID
+ALTER TABLE api_report RENAME COLUMN scene_id TO external_id;
+
+-- 3) scene_id 原为 NOT NULL，suite 报告不再强绑单场景
+ALTER TABLE api_report ALTER COLUMN external_id DROP NOT NULL;
+
+-- 4) 执行记录关联可空：套件报告对应多条执行记录
+ALTER TABLE api_report ALTER COLUMN execution_record_id DROP NOT NULL;
+
+-- 5) 步骤明细升级为结果数据集：旧 step_results 数据回写为 result（scene 数据集包裹）
+ALTER TABLE api_report RENAME COLUMN step_results TO result;
+
+-- 6) 新增/维持索引：以 report_type+external_id 作聚合/场景维度查询入口
+CREATE INDEX IF NOT EXISTS idx_report_type_external ON api_report (report_type, external_id);
+CREATE INDEX IF NOT EXISTS idx_report_project_created ON api_report (project_id, created_at DESC);
+DROP INDEX IF EXISTS idx_report_scene_id;
+
+-- 7) 分享者记录：分享复制文本需展示分享人（测试报告详细设计 4.2.3）
+ALTER TABLE api_report ADD COLUMN share_user_id UUID NULL;
+CREATE INDEX IF NOT EXISTS idx_report_share_user ON api_report (share_user_id) WHERE share_user_id IS NOT NULL;
+```
+
+> 迁移需由 v1.2 脚本按上述 DDL 执行；旧 `step_results`（扁平步骤数组）在迁移或读取层包装为 `scene` 数据集（`{sceneId, sceneName, status, summary, steps: step_results}`）以兼容历史报告展示。
 
 ### 6.2 Ryze 依赖引入
 
