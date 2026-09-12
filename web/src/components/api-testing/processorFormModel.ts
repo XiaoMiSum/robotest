@@ -161,10 +161,10 @@ export function parseHttpProcessorForm(element: Record<string, unknown> | undefi
   }
 }
 
-/** HTTP 表单编辑态 → 元素 config（仅含 Ryze 键，空值省略；`body` 优先级高于 `data`） */
+/** HTTP 表单编辑态 → 元素 config（仅含 Ryze 键，空值省略；method 始终写入，与取样器 requestConfig 一致，避免转换后缺请求方法；`body` 优先级高于 `data`） */
 export function toHttpConfig(form: HttpProcessorForm): Record<string, unknown> {
   const cfg: Record<string, unknown> = {}
-  if (form.method && form.method !== 'GET') cfg.method = form.method
+  if (form.method) cfg.method = form.method
   if (form.ref.trim()) cfg.ref = form.ref.trim()
   if (form.path.trim()) cfg.path = form.path.trim()
   const headers = kvRowsToMap(form.headerRows)

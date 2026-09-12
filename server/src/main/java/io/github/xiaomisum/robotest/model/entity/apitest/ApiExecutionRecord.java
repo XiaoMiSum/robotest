@@ -32,6 +32,8 @@ public class ApiExecutionRecord extends BaseUuidDO<ApiExecutionRecord> {
     private String status;
     /** manual / scheduled */
     private String triggerType;
+    /** 报告来源：scene（场景页运行）/ schedule（定时任务含立即执行） */
+    private String source;
     /** 执行完成后写入关联报告 ID */
     @TableField(typeHandler = UUIDTypeHandler.class)
     private UUID reportId;

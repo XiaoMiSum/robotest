@@ -6,6 +6,7 @@ import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiInterfaceBatchM
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiInterfaceCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiInterfaceStatusReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiInterfaceUpdateReqDTO;
+import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiParsedImportReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiImportPreviewRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiImportResultRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiInterfaceChangeLogRespDTO;
@@ -15,7 +16,6 @@ import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiInterfaceRefer
 import io.github.xiaomisum.robotest.service.apitest.ApiInterfaceService;
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
-import org.springframework.http.MediaType;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -27,12 +27,10 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.multipart.MultipartFile;
 import xyz.migoo.framework.common.pojo.PageParam;
 import xyz.migoo.framework.common.pojo.PageResult;
 import xyz.migoo.framework.common.pojo.Result;
 
-import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -208,22 +206,14 @@ public class ApiInterfaceController {
 
     // ==================== 3.4 导入 ====================
 
-    @PostMapping(value = "/api/project/interfaces/import/file", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PostMapping("/api/project/interfaces/import/parsed")
     @PreAuthorize("hasAuthority('api-interface:edit')")
-    public Result<ApiImportResultRespDTO> importFile(
+    public Result<ApiImportResultRespDTO> importParsed(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestHeader("X-Active-Workspace") UUID workspaceId,
             @RequestHeader("X-Active-Project") UUID projectId,
-            @RequestParam("file") MultipartFile file,
-            @RequestParam(value = "format", required = false) String format) {
-        byte[] content;
-        try {
-            content = file.getBytes();
-        } catch (IOException exception) {
-            throw new IllegalStateException("读取上传文件失败", exception);
-        }
-        return Result.ok(interfaceService.importFile(projectId, loginUser.getId(), content,
-                file.getOriginalFilename(), format));
+            @RequestBody @Valid ApiParsedImportReqDTO reqDTO) {
+        return Result.ok(interfaceService.importParsed(projectId, loginUser.getId(), reqDTO));
     }
 
     @PostMapping("/api/project/interfaces/import/url")
@@ -237,20 +227,14 @@ public class ApiInterfaceController {
                 body.getOrDefault("url", ""), body.get("format")));
     }
 
-    @PostMapping(value = "/api/project/interfaces/import/preview", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PostMapping("/api/project/interfaces/import/preview")
     @PreAuthorize("hasAuthority('api-interface:view')")
     public Result<ApiImportPreviewRespDTO> preview(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestHeader("X-Active-Workspace") UUID workspaceId,
             @RequestHeader("X-Active-Project") UUID projectId,
-            @RequestParam("file") MultipartFile file,
-            @RequestParam(value = "format", required = false) String format) {
-        byte[] content;
-        try {
-            content = file.getBytes();
-        } catch (IOException exception) {
-            throw new IllegalStateException("读取上传文件失败", exception);
-        }
-        return Result.ok(interfaceService.preview(projectId, loginUser.getId(), content, format));
+            @RequestBody Map<String, String> body) {
+        return Result.ok(interfaceService.preview(projectId, loginUser.getId(),
+                body.getOrDefault("url", ""), body.get("format")));
     }
 }

@@ -52,6 +52,9 @@ robotest:
     # 环境敏感变量加密密钥（Base64 编码 32 字节），与 AI 密钥独立，支持单独轮换
     secret-key: ${ENV_SECRET_KEY:4chJwgVabFLPyA0Mty7RDhu7lXR5Hik2QZ0FJjS3rtI=}
   api-test:
+    import:
+      # Swagger URL 拉取安全策略（接口管理详细设计 4.3）：strict（默认，公网/云上部署，禁内网地址）或 intranet（内网测试环境，放行内网地址但仅允许 swagger 文档路径）
+      url-policy: ${IMPORT_URL_POLICY:intranet}
     mock:
       # Mock 免登录访问总开关（Mock服务详细设计 6.1），关闭后仅保留管理端 CRUD
       access-enabled: ${MOCK_ACCESS_ENABLED:true}

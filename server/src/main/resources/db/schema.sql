@@ -971,6 +971,7 @@ CREATE TABLE api_execution_record (
                                       execution_mode VARCHAR(20)   NOT NULL DEFAULT 'platform',
                                       status         VARCHAR(20)   NOT NULL DEFAULT 'pending',
                                       trigger_type   VARCHAR(20)   NOT NULL DEFAULT 'manual',
+                                      source         VARCHAR(20)   NOT NULL DEFAULT 'scene',
                                       report_id      UUID          NULL,
                                       error_message  VARCHAR(2000) NULL,
                                        executed_at    TIMESTAMP     NOT NULL,
@@ -987,25 +988,29 @@ CREATE INDEX idx_exec_status ON api_execution_record(status);
 CREATE TABLE api_report (
                             id                 UUID          PRIMARY KEY,
                             project_id         UUID          NOT NULL,
-                            execution_record_id UUID         NOT NULL,
-                            scene_id           UUID          NOT NULL,
-                            scene_name         VARCHAR(200)  NOT NULL,
+                            execution_record_id UUID         NULL,
+                            report_type        VARCHAR(20)   NOT NULL,
+                            external_id        UUID          NULL,
+                            name               VARCHAR(200)  NOT NULL,
                             environment_name   VARCHAR(100)  NULL,
                             execution_mode     VARCHAR(20)   NOT NULL DEFAULT 'platform',
+                            source             VARCHAR(20)   NOT NULL DEFAULT 'scene',
                             status             VARCHAR(20)   NOT NULL,
                             summary            JSONB         NOT NULL,
-                            step_results       JSONB         NOT NULL,
+                            result             JSONB         NOT NULL,
                             ryze_snapshot      JSONB         NULL,
                             share_token        VARCHAR(64)   NULL,
                             share_expires_at   TIMESTAMP     NULL,
+                            share_user_id      UUID          NULL,
                             is_deleted         BOOLEAN       NOT NULL DEFAULT FALSE,
                             created_at         TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
                             updated_at         TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_report_scene_id ON api_report(scene_id, created_at DESC);
+CREATE INDEX idx_report_type_external ON api_report(report_type, external_id);
 CREATE INDEX idx_report_project_created ON api_report(project_id, created_at DESC);
 CREATE UNIQUE INDEX uk_report_share_token ON api_report(share_token) WHERE share_token IS NOT NULL;
+CREATE INDEX idx_report_share_user ON api_report(share_user_id) WHERE share_user_id IS NOT NULL;
 
 CREATE TABLE api_change_history (
                                     id           UUID          PRIMARY KEY,
@@ -1821,7 +1826,7 @@ COMMENT ON COLUMN api_interface_change_log.operator_id IS '操作人';
 
 COMMENT ON TABLE api_import_record IS '导入记录表';
 COMMENT ON COLUMN api_import_record.project_id IS '归属项目 ID';
-COMMENT ON COLUMN api_import_record.import_type IS '导入类型：file_swagger/file_postman/file_har/file_jmeter/url_swagger';
+COMMENT ON COLUMN api_import_record.import_type IS '导入类型：url_swagger/curl';
 COMMENT ON COLUMN api_import_record.source_name IS '导入源名称';
 COMMENT ON COLUMN api_import_record.status IS '导入状态';
 COMMENT ON COLUMN api_import_record.summary IS '导入汇总：{created, updated, failed, skipped}';
@@ -1952,17 +1957,19 @@ COMMENT ON COLUMN api_execution_record.duration_ms IS '执行耗时（毫秒）'
 COMMENT ON TABLE api_report IS '报告表';
 COMMENT ON COLUMN api_report.project_id IS '归属项目 ID';
 COMMENT ON COLUMN api_report.execution_record_id IS '关联执行记录 ID';
-COMMENT ON COLUMN api_report.scene_id IS '关联场景 ID';
-COMMENT ON COLUMN api_report.scene_name IS '场景名称快照';
+COMMENT ON COLUMN api_report.report_type IS '报告类型：scene（场景报告）/suite（套件报告）';
+COMMENT ON COLUMN api_report.external_id IS '外部对象 ID：场景报告=场景 ID，套件报告=任务 ID';
+COMMENT ON COLUMN api_report.name IS '报告名称（场景/任务名 + 执行时间戳）';
 COMMENT ON COLUMN api_report.environment_name IS '环境名称快照';
 COMMENT ON COLUMN api_report.execution_mode IS '执行方式：platform';
 COMMENT ON COLUMN api_report.source IS '报告来源：scene（场景页运行，不进列表）/schedule（定时任务含立即执行）';
 COMMENT ON COLUMN api_report.status IS '汇总状态：success/failed/partial';
 COMMENT ON COLUMN api_report.summary IS '结果汇总';
-COMMENT ON COLUMN api_report.step_results IS '步骤级结果明细';
+COMMENT ON COLUMN api_report.result IS '报告数据集（场景数据集或套件数据集）';
 COMMENT ON COLUMN api_report.ryze_snapshot IS 'Ryze 标准 JSON 快照';
 COMMENT ON COLUMN api_report.share_token IS '分享链接令牌（唯一）';
 COMMENT ON COLUMN api_report.share_expires_at IS '分享链接过期时间';
+COMMENT ON COLUMN api_report.share_user_id IS '分享者（最后一次生成分享链接的用户）';
 
 COMMENT ON TABLE api_change_history IS '变更历史表';
 COMMENT ON COLUMN api_change_history.project_id IS '归属项目 ID';

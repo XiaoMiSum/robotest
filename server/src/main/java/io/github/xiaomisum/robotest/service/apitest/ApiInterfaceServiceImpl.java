@@ -6,6 +6,7 @@ import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiInterfaceBatchM
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiInterfaceCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiInterfaceStatusReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiInterfaceUpdateReqDTO;
+import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiParsedImportReqDTO;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiImportMapping;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiImportRecord;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiInterface;
@@ -32,7 +33,6 @@ import xyz.migoo.framework.common.exception.ServiceException;
 import xyz.migoo.framework.common.pojo.PageParam;
 import xyz.migoo.framework.common.pojo.PageResult;
 
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -60,12 +60,9 @@ import static xyz.migoo.framework.common.exception.ServiceExceptionUtil.get;
 @Service
 public class ApiInterfaceServiceImpl implements ApiInterfaceService {
 
-    /** 解析策略注册表：按 format 提示与内容嗅探选择实现（3.4.1） */
+    /** 解析策略注册表：按 format 提示与内容嗅探选择实现（详细设计 4.1，仅保留 Swagger） */
     private final List<InterfaceImportParser> parsers = List.of(
-            new io.github.xiaomisum.robotest.service.apitest.imports.SwaggerImportParser(),
-            new io.github.xiaomisum.robotest.service.apitest.imports.PostmanImportParser(),
-            new io.github.xiaomisum.robotest.service.apitest.imports.HarImportParser(),
-            new io.github.xiaomisum.robotest.service.apitest.imports.JmeterImportParser());
+            new io.github.xiaomisum.robotest.service.apitest.imports.SwaggerImportParser());
 
     @Resource
     private ApiInterfaceMapper interfaceMapper;
@@ -303,11 +300,12 @@ public class ApiInterfaceServiceImpl implements ApiInterfaceService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public ApiImportResultRespDTO importFile(UUID projectId, UUID userId, byte[] content,
-                                             String filename, String formatHint) {
+    public ApiImportResultRespDTO importParsed(UUID projectId, UUID userId, ApiParsedImportReqDTO reqDTO) {
         projectAccessGuard.requireProjectMember(projectId, userId);
-        String text = content == null ? "" : new String(content, StandardCharsets.UTF_8);
-        return doImport(projectId, userId, "file", filename, formatHint, text);
+        List<ImportedOperation> operations = reqDTO.getOperations().stream()
+                .map(this::toImportedOperation)
+                .toList();
+        return doImport(projectId, userId, "curl", "cURL 粘贴导入", operations);
     }
 
     @Override
@@ -315,15 +313,17 @@ public class ApiInterfaceServiceImpl implements ApiInterfaceService {
     public ApiImportResultRespDTO importUrl(UUID projectId, UUID userId, String url, String formatHint) {
         projectAccessGuard.requireProjectMember(projectId, userId);
         String content = sourceFetcher.fetch(url);
-        return doImport(projectId, userId, "url", url, formatHint, content);
+        InterfaceImportParser parser = resolveParser(formatHint, content);
+        List<ImportedOperation> operations = parseSafely(parser, content);
+        return doImport(projectId, userId, "url", url, operations);
     }
 
     @Override
-    public ApiImportPreviewRespDTO preview(UUID projectId, UUID userId, byte[] content, String formatHint) {
+    public ApiImportPreviewRespDTO preview(UUID projectId, UUID userId, String url, String formatHint) {
         projectAccessGuard.requireProjectMember(projectId, userId);
-        String text = content == null ? "" : new String(content, StandardCharsets.UTF_8);
-        InterfaceImportParser parser = resolveParser(formatHint, text);
-        List<ImportedOperation> operations = parseSafely(parser, text);
+        String content = sourceFetcher.fetch(url);
+        InterfaceImportParser parser = resolveParser(formatHint, content);
+        List<ImportedOperation> operations = parseSafely(parser, content);
         List<ApiImportPreviewRespDTO.PreviewItem> items = new ArrayList<>();
         int toCreate = 0;
         int toUpdate = 0;
@@ -474,19 +474,17 @@ public class ApiInterfaceServiceImpl implements ApiInterfaceService {
     /**
      * 导入主流程（详细设计 4.1）：解析 → 逐条 upsert → 导入记录留痕 → 映射关系落库。
      * 单条失败不中断整体，失败项计入 errors 并标记 partial 状态。
+     * importType 取值：url_swagger / curl。
      */
-    private ApiImportResultRespDTO doImport(UUID projectId, UUID userId, String channel,
-                                            String sourceName, String formatHint, String content) {
-        InterfaceImportParser parser = resolveParser(formatHint, content);
-        String importType = channel + "_" + parserType(parser);
-        List<ImportedOperation> operations = parseSafely(parser, content);
+    private ApiImportResultRespDTO doImport(UUID projectId, UUID userId, String importType,
+                                            String sourceName, List<ImportedOperation> operations) {
         int created = 0;
         int updated = 0;
         List<Map<String, Object>> errors = new ArrayList<>();
         List<PendingMapping> mappings = new ArrayList<>();
         for (ImportedOperation operation : operations) {
             try {
-                UpsertResult result = upsertOperation(projectId, userId, parser.sourceType(), operation);
+                UpsertResult result = upsertOperation(projectId, userId, sourceTypeOf(importType), operation);
                 mappings.add(new PendingMapping(operation, result.targetId(), result.action()));
                 if ("updated".equals(result.action())) {
                     updated += 1;
@@ -511,7 +509,7 @@ public class ApiInterfaceServiceImpl implements ApiInterfaceService {
             ApiImportMapping mapping = new ApiImportMapping();
             mapping.setProjectId(projectId);
             mapping.setImportRecordId(record.getId());
-            mapping.setSourceType(parser.sourceType());
+            mapping.setSourceType(sourceTypeOf(importType));
             mapping.setSourceId(pending.operation().getSourceId());
             mapping.setSourceName(pending.operation().getSourceName());
             mapping.setTargetType("interface");
@@ -526,21 +524,30 @@ public class ApiInterfaceServiceImpl implements ApiInterfaceService {
                 .build();
     }
 
+    private String sourceTypeOf(String importType) {
+        return "curl".equals(importType) ? "curl_operation" : "swagger_operation";
+    }
+
+    /** 前端 cURL 解析结果 → 后端规范化中间模型（cURL 无稳定源标识，以 method:path 作为来源键） */
+    private ImportedOperation toImportedOperation(ApiParsedImportReqDTO.Operation operation) {
+        return ImportedOperation.builder()
+                .sourceId(operation.getMethod() + ":" + operation.getPath())
+                .sourceName(operation.getName())
+                .method(operation.getMethod())
+                .path(operation.getPath())
+                .description(operation.getDescription())
+                .headers(operation.getHeaders())
+                .queryParams(operation.getQueryParams())
+                .body(operation.getBody())
+                .build();
+    }
+
     private Map<String, Object> importSummary(int created, int updated, int failed) {
         Map<String, Object> summary = new LinkedHashMap<>();
         summary.put("created", created);
         summary.put("updated", updated);
         summary.put("failed", failed);
         return summary;
-    }
-
-    private String parserType(InterfaceImportParser parser) {
-        return switch (parser.sourceType()) {
-            case "swagger_operation" -> "swagger";
-            case "postman_item" -> "postman";
-            case "har_entry" -> "har";
-            default -> "jmeter";
-        };
     }
 
     /** 增量导入：优先按导入映射匹配源标识，缺失时按路径+方法去重（详细设计 4.1/6.2） */

@@ -3,10 +3,12 @@ import { computed, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import type { ApiInterfaceImportPreview, ApiInterfaceImportResult } from '@/types'
 import {
-  importInterfacesFile,
   importInterfacesUrl,
-  previewInterfaceImport,
+  importParsedInterfaces,
+  previewInterfaceImportUrl,
+  type ApiParsedImportOperation,
 } from '@/services/apiInterface'
+import { parseCurlImport } from '@/pages/project/interfaces/curlImport'
 import { summarizeImportResult } from '../interfacesModel'
 
 const props = defineProps<{ modelValue: boolean }>()
@@ -20,52 +22,63 @@ const visible = computed({
   set: (value: boolean) => emit('update:modelValue', value),
 })
 
-const FORMAT_OPTIONS = [
-  { value: '', label: '自动识别' },
-  { value: 'swagger', label: 'Swagger / OpenAPI' },
-  { value: 'postman', label: 'Postman Collection' },
-  { value: 'har', label: 'HAR' },
-  { value: 'jmeter', label: 'JMeter (.jmx)' },
-]
-
-const sourceMode = ref<'file' | 'url'>('file')
-const fileInput = ref<File | null>(null)
+// 来源切换：url = Swagger 文档地址；curl = 粘贴 cURL 命令
+const sourceMode = ref<'url' | 'curl'>('url')
 const urlText = ref('')
-const formatHint = ref('')
+const curlText = ref('')
 const importing = ref(false)
 /** 预览结果：仅展示不入库，用户确认后再执行导入 */
 const preview = ref<ApiInterfaceImportPreview | null>(null)
+/** curl 本地解析结果（后端暂不复用，见接口管理详细设计 3.4.1） */
+const parsedOperations = ref<ApiParsedImportOperation[]>([])
 const importResult = ref<ApiInterfaceImportResult | null>(null)
 
 watch(visible, (open) => {
   if (open) reset()
 })
 
-function reset() {
-  fileInput.value = null
-  urlText.value = ''
-  formatHint.value = ''
+watch(sourceMode, () => {
   preview.value = null
+  parsedOperations.value = []
+})
+
+function reset() {
+  urlText.value = ''
+  curlText.value = ''
+  preview.value = null
+  parsedOperations.value = []
   importResult.value = null
 }
 
-function pickFile(file: File | undefined) {
-  if (!file) return
-  fileInput.value = file
-  // 切换文件后旧预览失效
-  preview.value = null
-}
-
 async function handlePreview() {
-  const file = fileInput.value
-  if (!file) {
-    ElMessage.warning('请先选择导入文件')
-    return
-  }
   try {
-    preview.value = await previewInterfaceImport(file, formatHint.value || undefined)
+    if (sourceMode.value === 'url') {
+      const url = urlText.value.trim()
+      if (!url) {
+        ElMessage.warning('请输入 Swagger 文档 URL')
+        return
+      }
+      preview.value = await previewInterfaceImportUrl(url)
+    } else {
+      const parsed = parseCurlImport(curlText.value)
+      if (!parsed.length) {
+        ElMessage.warning('未解析到任何接口，请检查 cURL 命令格式')
+        return
+      }
+      preview.value = {
+        items: parsed.map((operation) => ({
+          name: operation.name,
+          method: operation.method,
+          path: operation.path,
+          action: 'create' as const,
+          conflict: false,
+        })),
+        summary: { toCreate: parsed.length, toUpdate: 0, toSkip: 0 },
+      }
+      parsedOperations.value = parsed
+    }
   } catch (error) {
-    ElMessage.error(error instanceof Error ? error.message : '解析失败，请检查文件格式')
+    ElMessage.error(error instanceof Error ? error.message : '解析失败，请检查输入内容')
   }
 }
 
@@ -79,18 +92,23 @@ async function handleImport() {
         ElMessage.warning('请输入 Swagger 文档 URL')
         return
       }
-      result = await importInterfacesUrl(urlText.value.trim(), formatHint.value || undefined)
+      result = await importInterfacesUrl(urlText.value.trim())
     } else {
-      if (!fileInput.value) {
-        ElMessage.warning('请先选择导入文件')
+      const operations = parsedOperations.value.length
+        ? parsedOperations.value
+        : parseCurlImport(curlText.value)
+      if (!operations.length) {
+        ElMessage.warning('未解析到任何接口，请检查 cURL 命令格式')
         return
       }
-      result = await importInterfacesFile(fileInput.value, formatHint.value || undefined)
+      result = await importParsedInterfaces(operations)
     }
     importResult.value = result
     ElMessage.success(summarizeImportResult(result))
     if (result.errors.length) {
       ElMessage.warning(`部分条目失败（${result.errors.length}），详见导入结果`)
+    } else {
+      visible.value = false
     }
     emit('imported', result)
   } catch (error) {
@@ -104,19 +122,11 @@ async function handleImport() {
 <template>
   <el-dialog v-model="visible" title="导入接口" width="720px" destroy-on-close>
     <el-radio-group v-model="sourceMode" class="import-dialog__mode">
-      <el-radio-button value="file">文件导入</el-radio-button>
       <el-radio-button value="url">Swagger URL</el-radio-button>
+      <el-radio-button value="curl">cURL</el-radio-button>
     </el-radio-group>
 
-    <div v-if="sourceMode === 'file'" class="import-dialog__section">
-      <input
-        type="file"
-        accept=".json,.yaml,.yml,.har,.jmx"
-        data-test="import-file-input"
-        @change="pickFile(($event.target as HTMLInputElement).files?.[0])"
-      />
-    </div>
-    <div v-else class="import-dialog__section">
+    <div v-if="sourceMode === 'url'" class="import-dialog__section">
       <el-input
         v-model="urlText"
         placeholder="https://petstore.example.com/v2/swagger.json"
@@ -124,12 +134,15 @@ async function handleImport() {
         data-test="import-url-input"
       />
     </div>
-
-    <div class="import-dialog__section import-dialog__format">
-      <span class="import-dialog__label">格式</span>
-      <el-select v-model="formatHint" style="width: 220px" data-test="import-format-select">
-        <el-option v-for="option in FORMAT_OPTIONS" :key="option.value" :value="option.value" :label="option.label" />
-      </el-select>
+    <div v-else class="import-dialog__section">
+      <el-input
+        v-model="curlText"
+        type="textarea"
+        :rows="7"
+        placeholder="粘贴 cURL 命令（支持多条），如：curl -X POST 'https://api.example.com/auth/login' -H 'Content-Type: application/json' -d '{&quot;username&quot;:&quot;admin&quot;}'"
+        resize="none"
+        data-test="import-curl-input"
+      />
     </div>
 
     <template v-if="preview">
@@ -156,8 +169,8 @@ async function handleImport() {
     </template>
 
     <template #footer>
-      <el-button v-if="sourceMode === 'file' && !preview" :disabled="!fileInput" data-test="preview-btn" @click="handlePreview">
-        预 览
+      <el-button v-if="!preview" data-test="preview-btn" @click="handlePreview">
+        {{ sourceMode === 'url' ? '解 析 预 览' : '本 地 解 析' }}
       </el-button>
       <el-button type="primary" :loading="importing" :data-test="'import-confirm-btn'" @click="handleImport">执 行 导 入</el-button>
     </template>
@@ -171,17 +184,6 @@ async function handleImport() {
 
 .import-dialog__section {
   margin-bottom: var(--space-md);
-}
-
-.import-dialog__format {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-}
-
-.import-dialog__label {
-  color: var(--color-neutral-600);
-  font-size: var(--font-size-sm);
 }
 
 .import-dialog__errors {

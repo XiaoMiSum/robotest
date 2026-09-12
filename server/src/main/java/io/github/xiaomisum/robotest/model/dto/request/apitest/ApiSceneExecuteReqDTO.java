@@ -23,4 +23,10 @@ public class ApiSceneExecuteReqDTO {
      */
     private String triggerType;
 
+    /**
+     * 报告来源标记：场景页手动执行不传按 scene 落库（报告不进列表）；
+     * 定时任务链路传 schedule（报告正常进列表）
+     */
+    private String source;
+
 }

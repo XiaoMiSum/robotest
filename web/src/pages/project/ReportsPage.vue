@@ -4,9 +4,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import type { ApiReportPageItem, ApiScenePageItem } from '@/types'
 import {
   batchDeleteReports,
-  batchExportReports,
   deleteReport,
-  exportReportUrl,
   fetchReportPage,
 } from '@/services/apiReport'
 import { fetchScenePage } from '@/services/apiScene'
@@ -36,7 +34,6 @@ const statusOptions = [
 const executionModeOptions = [
   { value: '', label: '全部执行方式' },
   { value: 'platform', label: '平台内执行' },
-  { value: 'pipeline', label: '仓库流水线' },
 ]
 
 // ==================== 场景列表（用于筛选） ====================
@@ -44,7 +41,7 @@ const sceneOptions = ref<ApiScenePageItem[]>([])
 
 async function loadScenes() {
   try {
-    const page = await fetchScenePage({ pageNo: 1, pageSize: 200 })
+    const page = await fetchScenePage({ pageNo: 1, pageSize: 100 })
     sceneOptions.value = page.list
   } catch {
     sceneOptions.value = []
@@ -86,8 +83,10 @@ watch([statusFilter, executionModeFilter, sceneFilter], handleFilter)
 
 // ==================== 报告名称派生 ====================
 function reportName(row: ApiReportPageItem): string {
+  // 后端已固化报告名称（场景报告：场景名+时间戳；套件报告：任务名+时间戳）
+  if (row.name) return row.name
   const date = row.createdAt ? formatDateTime(row.createdAt) : ''
-  return `${row.sceneName}-${date}`
+  return `${row.sceneName ?? ''}-${date}`
 }
 
 // ==================== 状态样式 ====================
@@ -126,14 +125,6 @@ function handleView(row: ApiReportPageItem) {
   emit('view', row.id)
 }
 
-function handleExport(row: ApiReportPageItem) {
-  const url = exportReportUrl(row.id, 'json')
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `${reportName(row)}.json`
-  a.click()
-}
-
 async function handleDelete(row: ApiReportPageItem) {
   await ElMessageBox.confirm(`删除报告「${reportName(row)}」？删除后不可恢复。`, '删除报告', {
     type: 'warning',
@@ -155,22 +146,6 @@ const hasSelection = computed(() => selectedIds.value.length > 0)
 
 function handleSelectionChange(selection: ApiReportPageItem[]) {
   selectedIds.value = selection.map((r) => r.id)
-}
-
-async function handleBatchExport() {
-  if (!selectedIds.value.length) return
-  try {
-    const blob = await batchExportReports(selectedIds.value, 'json')
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `api-reports-${Date.now()}.zip`
-    a.click()
-    URL.revokeObjectURL(url)
-    ElMessage.success('导出成功')
-  } catch (error) {
-    ElMessage.error(error instanceof Error ? error.message : '导出失败')
-  }
 }
 
 async function handleBatchDelete() {
@@ -231,7 +206,6 @@ onMounted(async () => {
           <div class="reports-page__spacer" />
           <template v-if="hasSelection">
             <span class="reports-page__selected-count">已选 {{ selectedIds.length }} 项</span>
-            <el-button @click="handleBatchExport">批量导出</el-button>
             <el-button type="danger" @click="handleBatchDelete">批量删除</el-button>
             <el-divider direction="vertical" />
           </template>
@@ -250,20 +224,23 @@ onMounted(async () => {
             </el-link>
           </template>
         </el-table-column>
-        <el-table-column prop="sceneName" label="场景名称" width="160" show-overflow-tooltip />
-        <el-table-column label="状态" width="100" align="center">
+        <el-table-column label="类型" width="90" align="center">
+          <template #default="{ row }">
+            <el-tag size="small" :type="(row as ApiReportPageItem).reportType === 'suite' ? 'info' : 'primary'">
+              {{ (row as ApiReportPageItem).reportType === 'suite' ? '套件报告' : '场景报告' }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="状态" width="110" align="center">
           <template #default="{ row }">
             <el-tag size="small" :type="statusType((row as ApiReportPageItem).status)">
               {{ statusLabel((row as ApiReportPageItem).status) }}
-            </el-tag>
-            <el-tag v-if="(row as ApiReportPageItem).executionMode === 'pipeline'" size="small" type="info" style="margin-left: 4px">
-              流水线
             </el-tag>
           </template>
         </el-table-column>
         <el-table-column label="通过率" width="90" align="center">
           <template #default="{ row }">
-            <span :class="{ 'text-red-500': (row as ApiReportPageItem).summary?.failed > 0 }">
+            <span :class="{ 'text-red-500': ((row as ApiReportPageItem).summary?.failed ?? 0) > 0 }">
               {{ passRate((row as ApiReportPageItem).summary) }}
             </span>
           </template>
@@ -276,28 +253,14 @@ onMounted(async () => {
         <el-table-column label="创建时间" width="170">
           <template #default="{ row }">{{ formatDateTime((row as ApiReportPageItem).createdAt) }}</template>
         </el-table-column>
-        <el-table-column label="操作" width="100" fixed="right">
+        <el-table-column label="操作" width="120" fixed="right">
           <template #default="{ row }">
-            <el-dropdown
-trigger="click" @command="(cmd: string) => {
-              const r = row as ApiReportPageItem
-              if (cmd === 'view') handleView(r)
-              else if (cmd === 'export') handleExport(r)
-              else if (cmd === 'delete') handleDelete(r)
-            }">
-              <el-button link size="small">操作</el-button>
-              <template #dropdown>
-                <el-dropdown-menu>
-                  <el-dropdown-item command="view">查看</el-dropdown-item>
-                  <el-dropdown-item command="export">导出</el-dropdown-item>
-                  <el-dropdown-item command="delete" divided>删除</el-dropdown-item>
-                </el-dropdown-menu>
-              </template>
-            </el-dropdown>
+            <el-button link type="primary" size="small" @click="handleView(row as ApiReportPageItem)">查看</el-button>
+            <el-button link type="danger" size="small" @click="handleDelete(row as ApiReportPageItem)">删除</el-button>
           </template>
         </el-table-column>
         <template #empty>
-          <el-empty description="暂无测试报告，执行测试场景后生成报告" />
+          <el-empty description="暂无测试报告，定时任务执行后生成；场景页运行报告可在场景执行历史中查看" />
         </template>
       </el-table>
 

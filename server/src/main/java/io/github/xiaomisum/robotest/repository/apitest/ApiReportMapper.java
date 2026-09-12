@@ -20,16 +20,21 @@ public interface ApiReportMapper extends BaseMapperX<ApiReport> {
                 .eq(ApiReport::getExecutionRecordId, executionRecordId));
     }
 
-    /** 报告列表：状态/场景/执行方式/关键字/时间范围叠加筛选，时间倒序（基础设施详细设计 3.4.1 + 测试报告详细设计 3.1） */
+    /** 报告列表：类型/状态/执行方式/关键字/时间范围叠加筛选，时间倒序
+     * 列表范围（基础设施详细设计 3.4.1）：场景页运行（source=scene）不进列表；
+     * 定时任务触发的场景级报告（schedule+scene）仅作聚合数据源，不进列表；
+     * 仅展示套件报告（schedule+suite）。 */
     default PageResult<ApiReport> selectPageByProject(UUID projectId, PageParam pageParam, String status,
-            UUID sceneId, String executionMode, String keyword, LocalDateTime startDate, LocalDateTime endDate) {
+            String reportType, String executionMode, String keyword, LocalDateTime startDate, LocalDateTime endDate) {
         String kw = keyword == null || keyword.isBlank() ? null : keyword.trim();
         return selectPage(pageParam, new LambdaQueryWrapperX<ApiReport>()
                 .eq(ApiReport::getProjectId, projectId)
+                .eq(ApiReport::getSource, "schedule")
+                .eq(ApiReport::getReportType, "suite")
                 .eqIfPresent(ApiReport::getStatus, status)
-                .eqIfPresent(ApiReport::getSceneId, sceneId)
+                .eqIfPresent(ApiReport::getReportType, reportType)
                 .eqIfPresent(ApiReport::getExecutionMode, executionMode)
-                .likeIfPresent(ApiReport::getSceneName, kw)
+                .likeIfPresent(ApiReport::getName, kw)
                 .geIfPresent(ApiReport::getCreatedAt, startDate)
                 .leIfPresent(ApiReport::getCreatedAt, endDate)
                 .orderByDesc(ApiReport::getCreatedAt));

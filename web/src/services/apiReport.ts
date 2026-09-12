@@ -46,21 +46,6 @@ export function fetchPublicReport(id: string, token: string): Promise<ApiPublicR
   return get(`/public/api-reports/${id}`, { token })
 }
 
-// ==================== 导出 ====================
-
-export function exportReportUrl(id: string, format: 'json' | 'html' = 'json'): string {
-  return `${api.defaults.baseURL}/project/reports/${id}/export?format=${format}`
-}
-
-export function batchExportReports(ids: string[], format: 'json' | 'html' = 'json'): Promise<Blob> {
-  return api
-    .post(
-      '/project/reports/batch-export',
-      { ids, format },
-      { responseType: 'blob' },
-    ) as unknown as Promise<Blob>
-}
-
 // ==================== 删除 ====================
 
 export function deleteReport(id: string): Promise<boolean> {

@@ -84,23 +84,24 @@ export function fetchInterfaceChangeLogs(id: string, pageNo: number, pageSize: n
 
 // ==================== 导入（3.4） ====================
 
-function withFormat(form: FormData, format?: string): FormData {
-  if (format) form.append('format', format)
-  return form
+export interface ApiParsedImportOperation {
+  name?: string
+  method?: string
+  path?: string
+  description?: string
+  headers?: { key: string; value: string; enabled: boolean }[]
+  queryParams?: { key: string; value: string; enabled: boolean }[]
+  body?: { type: string; content: unknown }
 }
 
-export function importInterfacesFile(file: File, format?: string): Promise<ApiInterfaceImportResult> {
-  const form = new FormData()
-  form.append('file', file)
-  return post('/project/interfaces/import/file', withFormat(form, format))
+export function importParsedInterfaces(operations: ApiParsedImportOperation[]): Promise<ApiInterfaceImportResult> {
+  return post('/project/interfaces/import/parsed', { operations })
 }
 
 export function importInterfacesUrl(url: string, format?: string): Promise<ApiInterfaceImportResult> {
   return post('/project/interfaces/import/url', format ? { url, format } : { url })
 }
 
-export function previewInterfaceImport(file: File, format?: string): Promise<ApiInterfaceImportPreview> {
-  const form = new FormData()
-  form.append('file', file)
-  return post('/project/interfaces/import/preview', withFormat(form, format))
+export function previewInterfaceImportUrl(url: string, format?: string): Promise<ApiInterfaceImportPreview> {
+  return post('/project/interfaces/import/preview', format ? { url, format } : { url })
 }
