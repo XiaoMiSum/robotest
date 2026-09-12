@@ -1,4 +1,4 @@
-package io.github.xiaomisum.robotest.service.admin;
+package io.github.xiaomisum.robotest.service.workspace;
 
 import io.github.xiaomisum.robotest.model.dto.response.workspace.WorkspaceMyRespDTO;
 import xyz.migoo.framework.common.pojo.PageResult;
