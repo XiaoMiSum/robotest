@@ -30,6 +30,7 @@ import io.github.xiaomisum.robotest.repository.tcase.TestCaseNodeMapper;
 import io.github.xiaomisum.robotest.repository.admin.SysUserMapper;
 import io.github.xiaomisum.robotest.repository.workspace.ProjectMapper;
 import io.github.xiaomisum.robotest.repository.workspace.WorkspaceUserMapper;
+import io.github.xiaomisum.robotest.service.project.review.ReviewLifecycleEvent;
 import io.github.xiaomisum.robotest.service.project.review.ReviewSnapshotService;
 import io.github.xiaomisum.robotest.service.project.review.ReviewSnapshotServiceImpl;
 import io.github.xiaomisum.robotest.service.project.review.ReviewWorkflow;
@@ -42,6 +43,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.test.util.ReflectionTestUtils;
 import xyz.migoo.framework.common.exception.ServiceException;
 import xyz.migoo.framework.common.pojo.PageParam;
@@ -87,7 +89,7 @@ class TestReviewServiceImplTest {
         private ProjectAccessGuard projectAccessGuard;
 
         @Mock
-        private io.github.xiaomisum.robotest.service.ai.task.AiTaskService aiTaskService;
+        private ApplicationEventPublisher eventPublisher;
 
         @Spy
         private ReviewWorkflow reviewWorkflow = new ReviewWorkflowImpl();
@@ -657,8 +659,10 @@ class TestReviewServiceImplTest {
                 ArgumentCaptor<TestReview> captor = ArgumentCaptor.forClass(TestReview.class);
                 verify(testReviewMapper).updateById(captor.capture());
                 assertEquals("completed", captor.getValue().getStatus());
-                // 评审离开 in_progress：事务提交后联动取消 review_check 任务（无事务时同步执行）
-                verify(aiTaskService).cancelByTypeAndTarget(Constants.AiTaskType.REVIEW_CHECK, reviewId);
+                // 评审离开 in_progress：发布生命周期事件，由 AI 消费者在事务提交后取消 review_check
+                ArgumentCaptor<ReviewLifecycleEvent> eventCaptor = ArgumentCaptor.forClass(ReviewLifecycleEvent.class);
+                verify(eventPublisher).publishEvent(eventCaptor.capture());
+                assertEquals(reviewId, eventCaptor.getValue().reviewId());
         }
 
         @Test
@@ -692,11 +696,12 @@ class TestReviewServiceImplTest {
                 reviewService.deleteReview(reviewId, userId);
 
                 verify(reviewRecordMapper).deleteByReviewId(reviewId);
-                verify(reviewNodeSnapshotMapper).deleteByReviewId(reviewId);
-                verify(reviewModuleSnapshotMapper).deleteByReviewId(reviewId);
+                verify(reviewSnapshotService).deleteByReviewId(reviewId);
                 verify(testReviewMapper).deleteById(reviewId);
-                // 实体级出口联动取消 review_check 任务
-                verify(aiTaskService).cancelByTypeAndTarget(Constants.AiTaskType.REVIEW_CHECK, reviewId);
+                // 实体级出口同样发布生命周期事件
+                ArgumentCaptor<ReviewLifecycleEvent> eventCaptor = ArgumentCaptor.forClass(ReviewLifecycleEvent.class);
+                verify(eventPublisher).publishEvent(eventCaptor.capture());
+                assertEquals(reviewId, eventCaptor.getValue().reviewId());
         }
 
         @Test
