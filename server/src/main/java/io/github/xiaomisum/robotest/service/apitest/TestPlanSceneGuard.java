@@ -6,6 +6,7 @@ import io.github.xiaomisum.robotest.model.entity.tcase.ProjectModule;
 import io.github.xiaomisum.robotest.repository.apitest.ApiSceneMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiScheduledTaskMapper;
 import io.github.xiaomisum.robotest.repository.tcase.ProjectModuleMapper;
+import io.github.xiaomisum.robotest.service.domain.tcasedoc.ModuleReferencedGuard;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
 
@@ -14,10 +15,11 @@ import java.util.UUID;
 
 /**
  * 定时任务删除保护（定时任务详细设计 4.2）：
- * 被测试计划任务引用的场景/模块禁止删除，引用关系按实时任务配置判定
+ * 被测试计划任务引用的场景/模块禁止删除，引用关系按实时任务配置判定。
+ * 实现 tcasedoc 域端口 ModuleReferencedGuard，供模块删除侧依赖（03 §4⑤）。
  */
 @Service
-public class TestPlanSceneGuard {
+public class TestPlanSceneGuard implements ModuleReferencedGuard {
 
     private static final String EXECUTION_SCOPE_ALL = "all";
     private static final String EXECUTION_SCOPE_MODULES = "modules";
@@ -42,6 +44,7 @@ public class TestPlanSceneGuard {
     }
 
     /** 模块删除保护：模块（或其子模块）下存在被任务引用的场景 */
+    @Override
     public boolean isModuleReferenced(UUID projectId, UUID moduleId) {
         List<ApiScheduledTask> tasks = scheduledTaskMapper.listTestPlanByProject(projectId);
         for (ApiScheduledTask task : tasks) {
