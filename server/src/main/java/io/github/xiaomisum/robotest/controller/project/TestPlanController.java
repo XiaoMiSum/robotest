@@ -11,7 +11,7 @@ import io.github.xiaomisum.robotest.model.dto.response.plan.TestPlanExecutionRec
 import io.github.xiaomisum.robotest.model.dto.response.plan.TestPlanProgressRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.tcase.SnapshotModuleTreeRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.plan.PlannedCasesRespDTO;
-import io.github.xiaomisum.robotest.service.project.TestPlanService;
+import io.github.xiaomisum.robotest.service.domain.plan.TestPlanService;
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
