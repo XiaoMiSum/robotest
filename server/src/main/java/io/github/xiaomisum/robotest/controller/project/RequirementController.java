@@ -8,7 +8,7 @@ import io.github.xiaomisum.robotest.model.dto.request.requirement.RequirementUpd
 import io.github.xiaomisum.robotest.model.dto.response.requirement.RequirementBatchCreateRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.requirement.RequirementDetailRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.requirement.RequirementListRespDTO;
-import io.github.xiaomisum.robotest.service.project.RequirementService;
+import io.github.xiaomisum.robotest.service.domain.requirement.RequirementService;
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;

@@ -1,0 +1,39 @@
+package io.github.xiaomisum.robotest.service.domain.tcasedoc;
+
+import io.github.xiaomisum.robotest.model.dto.request.tcase.TestCaseNodeUpdateReqDTO;
+import io.github.xiaomisum.robotest.model.dto.response.tcase.TestCaseCaseListRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.tcase.TestCaseDocumentNodesRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.tcase.TestCaseNodeTreeRespDTO;
+import xyz.migoo.framework.common.pojo.PageResult;
+
+import java.util.UUID;
+
+public interface TestCaseNodeService {
+
+    TestCaseDocumentNodesRespDTO getDocumentNodes(UUID documentId, UUID userId);
+
+    TestCaseNodeTreeRespDTO getCaseDetail(UUID caseId, UUID userId);
+
+    /**
+     * 查询项目下的用例列表（支持按标题关键词、优先级过滤）
+     *
+     * @param projectId 项目 ID
+     * @param userId    当前用户 ID（用于项目归属校验）
+     * @param keyword   标题关键词（模糊搜索）
+     * @param priority  优先级筛选
+     * @param pageNo    页码
+     * @param pageSize  每页大小
+     * @return 分页用例列表
+     */
+    PageResult<TestCaseCaseListRespDTO> getCaseList(UUID projectId, UUID userId, String keyword,
+                                                     String priority, Integer pageNo, Integer pageSize);
+
+    /**
+     * 更新用例节点属性（标题、优先级）
+     *
+     * @param caseId 用例节点 ID
+     * @param userId 当前用户 ID（用于项目归属校验）
+     * @param reqDTO 更新内容
+     */
+    void updateCaseNode(UUID caseId, UUID userId, TestCaseNodeUpdateReqDTO reqDTO);
+}

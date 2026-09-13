@@ -2,7 +2,7 @@ package io.github.xiaomisum.robotest.service.ai.review;
 
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.service.ai.task.AiTaskService;
-import io.github.xiaomisum.robotest.service.project.review.ReviewLifecycleEvent;
+import io.github.xiaomisum.robotest.service.domain.review.ReviewLifecycleEvent;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

@@ -1,7 +1,7 @@
 package io.github.xiaomisum.robotest.service.ai.support;
 
 import io.github.xiaomisum.robotest.model.entity.requirement.RequirementPoolItem;
-import io.github.xiaomisum.robotest.service.project.RequirementService;
+import io.github.xiaomisum.robotest.service.domain.requirement.RequirementService;
 import io.github.xiaomisum.robotest.service.ai.provider.PromptAssembler;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Component;

@@ -2,7 +2,7 @@ package io.github.xiaomisum.robotest.service.ai.assistant;
 
 import io.github.xiaomisum.robotest.model.dto.response.tcase.TestCaseCaseListRespDTO;
 import io.github.xiaomisum.robotest.model.entity.workspace.Project;
-import io.github.xiaomisum.robotest.service.project.TestCaseNodeService;
+import io.github.xiaomisum.robotest.service.domain.tcasedoc.TestCaseNodeService;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Component;
 import xyz.migoo.framework.common.pojo.PageResult;
