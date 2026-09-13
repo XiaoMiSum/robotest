@@ -94,6 +94,25 @@ export function resolveUniqueParams(
 }
 
 /**
+ * 按给定供应商预设抽取 extraParams 中的独有配置项编辑值（含点号路径），
+ * 缺失项回填默认值以保持与后端 schema 口径一致。
+ */
+export function extractUniqueValuesForScope(
+  extraParams: Record<string, unknown>,
+  scope: 'chat' | 'embedding',
+  preset: AiProviderPreset | undefined,
+): Record<string, unknown> {
+  const values: Record<string, unknown> = {}
+  for (const param of resolveUniqueParams(preset, scope)) {
+    const value = param.key.includes('.')
+      ? getByPath(extraParams ?? {}, param.key)
+      : (extraParams ?? {})[param.key]
+    values[param.key] = value !== undefined ? value : param.defaultValue
+  }
+  return values
+}
+
+/**
  * 系统配置项表单纯逻辑（抽离以便单测，见详细设计 5.2 系统配置项表单）。
  */
 
