@@ -1161,7 +1161,7 @@ onMounted(async () => {
                     <el-radio-group
                       :model-value="String((editProcessors[selectedProcessorIdx] as SceneProcessorElement).testclass ?? '')"
                       size="small"
-                      @update:model-value="(v) => setProcessorType(selectedProcessorIdx!, String(v))"
+                      @update:model-value="(v: string | number) => setProcessorType(selectedProcessorIdx!, String(v))"
                     >
                       <el-radio-button value="http">HTTP</el-radio-button>
                       <el-radio-button value="jdbc">JDBC</el-radio-button>
@@ -1281,7 +1281,7 @@ onMounted(async () => {
                     <el-radio-group
                       :model-value="String((editProcessors[selectedProcessorIdx] as SceneProcessorElement).testclass ?? '')"
                       size="small"
-                      @update:model-value="(v) => setProcessorType(selectedProcessorIdx!, String(v))"
+                      @update:model-value="(v: string | number) => setProcessorType(selectedProcessorIdx!, String(v))"
                     >
                       <el-radio-button value="http">HTTP</el-radio-button>
                       <el-radio-button value="jdbc">JDBC</el-radio-button>
