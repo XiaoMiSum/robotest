@@ -32,9 +32,13 @@ class AuditLogAspectTest {
     private AuditLogMapper auditLogMapper;
     @Mock
     private PlatformTransactionManager transactionManager;
+    @Mock
+    private org.springframework.context.ApplicationEventPublisher eventPublisher;
 
     @Captor
     private ArgumentCaptor<AuditLog> auditLogCaptor;
+    @Captor
+    private ArgumentCaptor<AuditRecordedEvent> eventCaptor;
 
     private AuditLogAspect aspect;
 
@@ -42,7 +46,7 @@ class AuditLogAspectTest {
     void setUp() {
         // mock 事务管理器：返回假 transaction status，避免真实事务基础设施启动
         when(transactionManager.getTransaction(any())).thenReturn(mock(TransactionStatus.class));
-        aspect = new AuditLogAspect(auditLogMapper, transactionManager);
+        aspect = new AuditLogAspect(auditLogMapper, transactionManager, eventPublisher);
 
         LoginUser loginUser = new LoginUser();
         loginUser.setId(UUID.fromString("00000000-0000-0000-0000-000000000007"));
@@ -66,6 +70,11 @@ class AuditLogAspectTest {
         assertEquals("update", record.getOperation());
         assertEquals("User", record.getEntityType());
         assertEquals(UUID.fromString("00000000-0000-0000-0000-000000000007"), record.getOperatorId());
+        // 写库成功后发布消费事件
+        verify(eventPublisher).publishEvent(eventCaptor.capture());
+        AuditRecordedEvent event = eventCaptor.getValue();
+        assertEquals(record.getId(), event.auditLogId());
+        assertEquals("User", event.entityType());
     }
 
     @Test
@@ -95,6 +104,20 @@ class AuditLogAspectTest {
 
         assertEquals("business-ok", result);
         verify(auditLogMapper).insert(any(AuditLog.class));
+    }
+
+    @Test
+    void around_auditFailureDoesNotPublishEvent() throws Throwable {
+        var jp = joinPoint(new Object[]{probeEntityId, "pw", 1});
+        when(jp.proceed()).thenReturn("business-ok");
+        // 审计写入失败：业务结果不受影响，且不得发布消费事件（避免消费不存在的记录）
+        doThrow(new RuntimeException("db down")).when(auditLogMapper).insert(any(AuditLog.class));
+
+        Object result = aspect.around(jp);
+
+        assertEquals("business-ok", result);
+        verify(auditLogMapper).insert(any(AuditLog.class));
+        verify(eventPublisher, never()).publishEvent(any());
     }
 
     @Test
