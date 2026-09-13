@@ -11,7 +11,7 @@ import io.github.xiaomisum.robotest.model.entity.tcase.ProjectModule;
 import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseDocument;
 import io.github.xiaomisum.robotest.repository.tcase.ProjectModuleMapper;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseDocumentMapper;
-import io.github.xiaomisum.robotest.service.apitest.TestPlanSceneGuard;
+import io.github.xiaomisum.robotest.service.domain.tcasedoc.ModuleReferencedGuard;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,7 +33,7 @@ public class ProjectModuleServiceImpl implements ProjectModuleService {
     @Resource
     private ProjectAccessGuard projectAccessGuard;
     @Resource
-    private TestPlanSceneGuard testPlanSceneGuard;
+    private ModuleReferencedGuard moduleReferencedGuard;
 
     @Override
     public List<ProjectModuleTreeRespDTO> getModuleTree(UUID projectId, UUID userId, String assetType) {
@@ -175,7 +175,7 @@ public class ProjectModuleServiceImpl implements ProjectModuleService {
         }
 
         // 删除保护：测试计划任务圈选的模块（其下场景被任务引用）不可删除（定时任务详细设计 4.2）
-        if (testPlanSceneGuard.isModuleReferenced(module.getProjectId(), moduleId)) {
+        if (moduleReferencedGuard.isModuleReferenced(module.getProjectId(), moduleId)) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.API_SCENE_REFERENCED);
         }
 

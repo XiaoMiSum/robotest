@@ -6,6 +6,7 @@ import io.github.xiaomisum.robotest.model.entity.tcase.ProjectModule;
 import io.github.xiaomisum.robotest.repository.apitest.ApiSceneMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiScheduledTaskMapper;
 import io.github.xiaomisum.robotest.repository.tcase.ProjectModuleMapper;
+import io.github.xiaomisum.robotest.service.domain.tcasedoc.ModuleReferencedGuard;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -37,6 +38,11 @@ class TestPlanSceneGuardTest {
 
     @InjectMocks
     private TestPlanSceneGuard guard;
+
+    @Test
+    void guardImplementsTcasedocPort() {
+        assertTrue(guard instanceof ModuleReferencedGuard);
+    }
 
     @Test
     void isSceneReferencedFalseWhenNoTasks() {
