@@ -3,7 +3,7 @@ package io.github.xiaomisum.robotest.service.ai.assistant;
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.model.dto.response.review.TestReviewListRespDTO;
 import io.github.xiaomisum.robotest.model.entity.workspace.Project;
-import io.github.xiaomisum.robotest.service.project.TestReviewService;
+import io.github.xiaomisum.robotest.service.domain.review.TestReviewService;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Component;
 import xyz.migoo.framework.common.pojo.PageResult;

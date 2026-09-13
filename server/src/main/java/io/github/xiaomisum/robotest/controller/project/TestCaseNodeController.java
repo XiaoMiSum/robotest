@@ -5,7 +5,7 @@ import io.github.xiaomisum.robotest.model.dto.request.tcase.TestCaseNodeUpdateRe
 import io.github.xiaomisum.robotest.model.dto.response.tcase.TestCaseCaseListRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.tcase.TestCaseDocumentNodesRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.tcase.TestCaseNodeTreeRespDTO;
-import io.github.xiaomisum.robotest.service.project.TestCaseNodeService;
+import io.github.xiaomisum.robotest.service.domain.tcasedoc.TestCaseNodeService;
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;

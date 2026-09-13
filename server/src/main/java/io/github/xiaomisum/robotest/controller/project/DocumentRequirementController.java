@@ -3,7 +3,7 @@ package io.github.xiaomisum.robotest.controller.project;
 import io.github.xiaomisum.robotest.framework.security.LoginUser;
 import io.github.xiaomisum.robotest.model.dto.request.requirement.DocumentRequirementsUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.requirement.RequirementSummaryRespDTO;
-import io.github.xiaomisum.robotest.service.project.RequirementService;
+import io.github.xiaomisum.robotest.service.domain.requirement.RequirementService;
 import jakarta.annotation.Resource;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
