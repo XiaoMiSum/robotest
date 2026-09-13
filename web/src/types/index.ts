@@ -741,6 +741,19 @@ export interface AiChatModelSavePayload {
   extraParams?: Record<string, unknown>
 }
 
+/** 对话模型新建/编辑弹窗的表单编辑态（与 AiConfigEmbeddingGroup 同构的编辑视图） */
+export interface AiModelFormState {
+  name: string
+  provider: string
+  baseUrl: string
+  model: string
+  apiKey: string
+  apiKeyConfigured: boolean
+  keySuffix: string | null
+  uniqueValues: Record<string, unknown>
+  customParams: string
+}
+
 /** 保存 AI 配置的对话临时配置（供连通性测试临时透传） */
 export interface AiConfigChatGroupPayload {
   provider: string

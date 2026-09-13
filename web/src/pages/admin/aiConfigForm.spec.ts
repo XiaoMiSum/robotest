@@ -4,6 +4,7 @@ import {
   buildConfigPayload,
   buildDefaultUniqueParams,
   collectSettingErrors,
+  extractUniqueValuesForScope,
   getByPath,
   isSettingModified,
   mergeExtraParams,
@@ -288,5 +289,26 @@ describe('buildConfigPayload 载荷组装', () => {
         settings: {},
       }),
     ).toThrow('必须为 JSON 对象')
+  })
+})
+
+describe('extractUniqueValuesForScope 抽取独有配置项', () => {
+  it('点号路径键从嵌套 extraParams 读取', () => {
+    const values = extractUniqueValuesForScope(
+      { thinking: { type: 'enabled' } },
+      'chat',
+      zhipuPreset,
+    )
+    expect(values).toEqual({ 'thinking.type': 'enabled' })
+  })
+
+  it('缺失项回填默认值', () => {
+    const values = extractUniqueValuesForScope({}, 'chat', zhipuPreset)
+    expect(values).toEqual({ 'thinking.type': 'disabled' })
+  })
+
+  it('preset 缺省时返回空对象（自定义供应商）', () => {
+    const values = extractUniqueValuesForScope({ a: 1 }, 'chat', undefined)
+    expect(values).toEqual({})
   })
 })
