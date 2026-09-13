@@ -1119,6 +1119,13 @@ INSERT INTO sys_permission (id, code, name, parent_code, module, scope, sort_ord
 ('a0000000-0000-0000-0000-000000000020', 'ai:edit', '编辑 AI 配置与智能体', 'ai', 'AI 管理', 'global', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE);
 
 -- ------------------------------------------------------------
+-- 21.2.1 权限点（审计日志模块，全局系统管理，审计查询详细设计 2.1）
+-- ------------------------------------------------------------
+INSERT INTO sys_permission (id, code, name, parent_code, module, scope, sort_order, created_at, updated_at, is_deleted) VALUES
+('a0000000-0000-0000-0000-000000000021', 'audit',      '审计日志',    NULL, '审计日志', 'global', 5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('a0000000-0000-0000-0000-000000000022', 'audit:view', '查看审计日志', 'audit', '审计日志', 'global', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE);
+
+-- ------------------------------------------------------------
 -- 21.3 权限点（业务模块 — 工作空间/项目/测试用例/评审/计划/缺陷）
 -- ------------------------------------------------------------
 INSERT INTO sys_permission (id, code, name, parent_code, module, scope, sort_order, created_at, updated_at, is_deleted) VALUES

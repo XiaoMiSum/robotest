@@ -33,11 +33,14 @@ public class AuditLogAspect {
 
     private final AuditLogMapper auditLogMapper;
     private final TransactionTemplate auditTxTemplate;
+    private final org.springframework.context.ApplicationEventPublisher eventPublisher;
 
     public AuditLogAspect(AuditLogMapper auditLogMapper,
-                          PlatformTransactionManager transactionManager) {
+                          PlatformTransactionManager transactionManager,
+                          org.springframework.context.ApplicationEventPublisher eventPublisher) {
         this.auditLogMapper = auditLogMapper;
         this.auditTxTemplate = new TransactionTemplate(transactionManager);
+        this.eventPublisher = eventPublisher;
         // 审计写入独立事务：失败只丢弃审计记录本身，不随业务事务静默回滚
         this.auditTxTemplate.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
     }
@@ -104,7 +107,13 @@ public class AuditLogAspect {
                 record.setChanges(Map.of());
             }
 
-            auditTxTemplate.executeWithoutResult(status -> auditLogMapper.insert(record));
+            auditTxTemplate.executeWithoutResult(status -> {
+                auditLogMapper.insert(record);
+                // 写入成功后再发布消费事件：查询侧/报表依赖已落库记录，且不得回滚审计
+                eventPublisher.publishEvent(new AuditRecordedEvent(
+                        record.getId(), record.getEntityType(),
+                        record.getEntityId(), record.getOperation(), record.getOperatorId()));
+            });
         } catch (Exception e) {
             log.warn("[AuditLog] Failed to write audit log: {}", e.getMessage());
         }
