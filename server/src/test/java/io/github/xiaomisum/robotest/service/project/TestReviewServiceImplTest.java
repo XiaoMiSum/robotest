@@ -30,6 +30,8 @@ import io.github.xiaomisum.robotest.repository.tcase.TestCaseNodeMapper;
 import io.github.xiaomisum.robotest.repository.admin.SysUserMapper;
 import io.github.xiaomisum.robotest.repository.workspace.ProjectMapper;
 import io.github.xiaomisum.robotest.repository.workspace.WorkspaceUserMapper;
+import io.github.xiaomisum.robotest.service.project.review.ReviewSnapshotService;
+import io.github.xiaomisum.robotest.service.project.review.ReviewSnapshotServiceImpl;
 import io.github.xiaomisum.robotest.service.project.review.ReviewWorkflow;
 import io.github.xiaomisum.robotest.service.project.review.ReviewWorkflowImpl;
 import org.junit.jupiter.api.BeforeEach;
@@ -40,6 +42,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 import xyz.migoo.framework.common.exception.ServiceException;
 import xyz.migoo.framework.common.pojo.PageParam;
 import xyz.migoo.framework.common.pojo.PageResult;
@@ -89,6 +92,8 @@ class TestReviewServiceImplTest {
         @Spy
         private ReviewWorkflow reviewWorkflow = new ReviewWorkflowImpl();
 
+        private ReviewSnapshotService reviewSnapshotService;
+
         @InjectMocks
         private TestReviewServiceImpl reviewService;
 
@@ -103,6 +108,13 @@ class TestReviewServiceImplTest {
                 userId = UUID.fromString("00000000-0000-0000-0000-000000000002");
                 reviewId = UUID.fromString("00000000-0000-0000-0000-000000000003");
                 otherUserId = UUID.fromString("00000000-0000-0000-0000-000000000011");
+
+                // 快照域已独立：以真实实现（Spy）注入，mapper 仍为 @Mock，保证
+                // 既有对 mapper 的 verify/stub 断言原样成立（行为等价迁移）
+                reviewSnapshotService = spy(new ReviewSnapshotServiceImpl(
+                        reviewModuleSnapshotMapper, reviewNodeSnapshotMapper,
+                        testCaseDocumentMapper, projectModuleMapper, testCaseNodeMapper));
+                ReflectionTestUtils.setField(reviewService, "reviewSnapshotService", reviewSnapshotService);
         }
 
         @Test
