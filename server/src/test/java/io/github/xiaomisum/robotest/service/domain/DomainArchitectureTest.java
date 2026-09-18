@@ -99,6 +99,15 @@ class DomainArchitectureTest {
                 "bug 域非法跃迁等业务异常必须经 ServiceExceptionUtil（C3）:\n" + violations);
     }
 
+    @Test
+    void bugDomainDoesNotImportServiceAi() throws IOException {
+        List<String> imports = readSourceFiles("bug").stream()
+                .filter(line -> line.startsWith("import io.github.xiaomisum.robotest.service.ai."))
+                .toList();
+        assertTrue(imports.isEmpty(),
+                "bug 域不得依赖 service.ai 任何类（06 §3.1.1 砖墙，只允许事件/端口）:\n" + imports);
+    }
+
     private List<Path> listJavaFiles(Path root) throws IOException {
         try (Stream<Path> walk = Files.walk(root)) {
             return walk.filter(p -> p.toString().endsWith(".java")).toList();
