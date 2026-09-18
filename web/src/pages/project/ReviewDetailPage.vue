@@ -19,6 +19,7 @@ import CaseSelector from '@/components/project/CaseSelector.vue'
 import CasePlanRecommendDialog from '@/components/project/CasePlanRecommendDialog.vue'
 import ReviewAiSummary from '@/components/project/ReviewAiSummary.vue'
 import ReviewAiCheckPanel from '@/components/project/ReviewAiCheckPanel.vue'
+import ReviewAiConclusionPanel from '@/components/project/ReviewAiConclusionPanel.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useAiStore } from '@/stores/ai'
 
@@ -59,6 +60,10 @@ const canShowSummary = computed(
     detail.value?.initiator.id === authStore.user?.id,
 )
 const summaryVisible = ref(false)
+const conclusionVisible = ref(false)
+
+// AI 评审结论：随完成事件自动生成，此处可手动/重新生成（06 §5.2）；入口条件与摘要一致
+const canShowConclusion = computed(() => canShowSummary.value)
 
 // AI 一键检查：仅评审发起人 + AI 启用可见；待评审/评审中可发起，已完成只读查看历史结果（交互设计 2.2）
 const canShowCheck = computed(
@@ -281,11 +286,23 @@ onMounted(load)
               <el-icon><MagicStick /></el-icon>AI 生成摘要
             </el-button>
           </div>
+          <!-- AI 评审结论：评审已完成后展示（自动结论随完成事件落库，此处可手动触发/重新生成） -->
+          <div v-if="canShowConclusion" class="review-detail__actions">
+            <el-button size="small" plain @click="conclusionVisible = true">
+              <el-icon><MagicStick /></el-icon>AI 评审结论
+            </el-button>
+          </div>
         </div>
       </template>
     </el-page-header>
 
     <ReviewAiSummary v-if="summaryVisible" v-model="summaryVisible" :review-id="reviewId" />
+
+    <ReviewAiConclusionPanel
+      v-if="conclusionVisible"
+      v-model="conclusionVisible"
+      :review-id="reviewId"
+    />
 
     <ReviewAiCheckPanel
       v-if="checkVisible"

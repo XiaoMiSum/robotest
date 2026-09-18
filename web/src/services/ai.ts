@@ -8,6 +8,7 @@ import type {
   AiPlanOrderComputeResp,
   AiPlanOrderQueryResp,
   AiPlanOrderReasonResp,
+  AiReviewConclusion,
   AiReviewSummary,
   AiStatus,
   AiTask,
@@ -64,6 +65,20 @@ export function startReviewCheck(reviewId: string): Promise<AiReviewCheckStartRe
 /** 查询评审最近一次检查任务（无记录返回 null；running/cancelled 亦含已产出部分结果，3.1.2） */
 export function fetchReviewCheckResult(reviewId: string): Promise<AiTask | null> {
   return get(`/project/ai/reviews/${reviewId}/check-result`)
+}
+
+// ==================== AI 评审结论（项目级，06 §5.2） ====================
+
+/** 查询评审最近一次结论任务（无记录返回 null；result 为 AiReviewConclusion，经 toReviewConclusion 断言） */
+export function fetchReviewConclusion(reviewId: string): Promise<AiTask | null> {
+  return get(`/project/ai/reviews/${reviewId}/conclusion`)
+}
+
+/** 结论任务 result 裸对象断言为强类型（result 为松散 Map，集中一处断言） */
+export function toReviewConclusion(
+  result: Record<string, unknown> | null | undefined,
+): AiReviewConclusion | null {
+  return (result ?? null) as unknown as AiReviewConclusion | null
 }
 
 // ==================== 优先级推荐（项目级，US-AI-003） ====================
