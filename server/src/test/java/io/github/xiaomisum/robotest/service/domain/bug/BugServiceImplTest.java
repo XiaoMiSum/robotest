@@ -21,7 +21,7 @@ import io.github.xiaomisum.robotest.repository.workspace.ProjectMapper;
 import io.github.xiaomisum.robotest.repository.admin.SysUserMapper;
 import io.github.xiaomisum.robotest.repository.tcase.ProjectModuleMapper;
 import io.github.xiaomisum.robotest.repository.workspace.WorkspaceUserMapper;
-import io.github.xiaomisum.robotest.service.ai.vector.AiEmbeddingWriteService;
+import org.springframework.context.ApplicationEventPublisher;
 import org.mockito.ArgumentCaptor;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -60,7 +60,7 @@ class BugServiceImplTest {
     private ProjectModuleMapper projectModuleMapper;
 
     @Mock
-    private AiEmbeddingWriteService aiEmbeddingWriteService;
+    private ApplicationEventPublisher eventPublisher;
 
     @Mock
     private ProjectAccessGuard projectAccessGuard;
@@ -224,6 +224,12 @@ class BugServiceImplTest {
         assertEquals(Boolean.FALSE, captor.getValue().getConfirmed());
         assertEquals(0, captor.getValue().getReopenCount());
         verify(bugLogMapper).insert(any(BugLog.class));
+
+        // 向量写入解耦为领域事件：缺陷域只发布，消费在 service.ai（06 §3.1.1）
+        ArgumentCaptor<BugChangedEvent> eventCaptor = ArgumentCaptor.forClass(BugChangedEvent.class);
+        verify(eventPublisher).publishEvent(eventCaptor.capture());
+        assertEquals(BugChangeOp.CREATED, eventCaptor.getValue().op());
+        assertEquals(captor.getValue().getId(), eventCaptor.getValue().bugId());
     }
 
     @Test
@@ -279,6 +285,12 @@ class BugServiceImplTest {
         assertEquals(Constants.BugType.PERFORMANCE, captor.getValue().getBugType());
         assertEquals("updated steps", captor.getValue().getReproSteps());
         verify(bugLogMapper).insert(any(BugLog.class));
+
+        // 标题/重现步骤变更才触发向量事件（hash 去重）
+        ArgumentCaptor<BugChangedEvent> eventCaptor = ArgumentCaptor.forClass(BugChangedEvent.class);
+        verify(eventPublisher).publishEvent(eventCaptor.capture());
+        assertEquals(BugChangeOp.UPDATED, eventCaptor.getValue().op());
+        assertEquals(bugId, eventCaptor.getValue().bugId());
     }
 
     @Test
@@ -349,6 +361,8 @@ class BugServiceImplTest {
         assertEquals(caseId, captor.getValue().getRelatedCaseId());
         assertEquals(planId, captor.getValue().getRelatedPlanId());
         verify(bugMapper, never()).clearRelationById(any(), anyBoolean(), anyBoolean());
+        // 仅关联字段变更不发向量事件
+        verify(eventPublisher, never()).publishEvent(any());
     }
 
     @Test
@@ -626,6 +640,11 @@ class BugServiceImplTest {
         assertEquals(Constants.BugStatus.CLOSED, captor.getValue().getStatus());
         assertEquals(userId, captor.getValue().getClosedBy());
         assertNotNull(captor.getValue().getClosedAt());
+        // 关闭分支发布 CLOSED 事件，消费端事务提交后据此删向量
+        ArgumentCaptor<BugChangedEvent> eventCaptor = ArgumentCaptor.forClass(BugChangedEvent.class);
+        verify(eventPublisher).publishEvent(eventCaptor.capture());
+        assertEquals(BugChangeOp.CLOSED, eventCaptor.getValue().op());
+        assertEquals(bugId, eventCaptor.getValue().bugId());
     }
 
     @Test
