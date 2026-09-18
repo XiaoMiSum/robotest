@@ -17,6 +17,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.springframework.test.util.ReflectionTestUtils;
 import xyz.migoo.framework.common.exception.ServiceException;
 
@@ -43,6 +44,8 @@ class AiChatModelServiceImplTest {
     private AiChatModelMapper aiChatModelMapper;
     @Mock
     private ProviderPresetRegistry presetRegistry;
+    @Spy
+    private ModelFallbackPolicyImpl modelFallbackPolicy;
 
     @InjectMocks
     private AiChatModelServiceImpl service;
