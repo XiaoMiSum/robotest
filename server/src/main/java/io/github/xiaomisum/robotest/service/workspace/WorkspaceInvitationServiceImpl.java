@@ -19,10 +19,14 @@ import io.github.xiaomisum.robotest.repository.admin.SysUserMapper;
 import io.github.xiaomisum.robotest.repository.workspace.WorkspaceInvitationMapper;
 import io.github.xiaomisum.robotest.repository.workspace.WorkspaceMapper;
 import io.github.xiaomisum.robotest.repository.workspace.WorkspaceUserMapper;
+import io.github.xiaomisum.robotest.service.workspace.member.InvitationDecision;
+import io.github.xiaomisum.robotest.service.workspace.member.InvitationRejectReason;
+import io.github.xiaomisum.robotest.service.workspace.member.InvitationStateMachine;
 import jakarta.annotation.Resource;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import xyz.migoo.framework.common.exception.ErrorCode;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
 import xyz.migoo.framework.common.pojo.PageParam;
 import xyz.migoo.framework.common.pojo.PageResult;
@@ -49,6 +53,8 @@ public class WorkspaceInvitationServiceImpl implements WorkspaceInvitationServic
     private PasswordEncoder passwordEncoder;
     @Resource
     private JwtTokenProvider jwtTokenProvider;
+    @Resource
+    private InvitationStateMachine invitationStateMachine;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -179,31 +185,27 @@ public class WorkspaceInvitationServiceImpl implements WorkspaceInvitationServic
     }
 
     private boolean isValidInvitation(WorkspaceInvitation invitation) {
-        if (invitation == null || !Constants.Status.ACTIVE.equals(invitation.getStatus())) {
-            return false;
-        }
-        if (invitation.getExpiresAt() != null && invitation.getExpiresAt().isBefore(LocalDateTime.now())) {
-            return false;
-        }
-        return invitation.getMaxUses() == null || invitation.getUseCount() < invitation.getMaxUses();
+        return invitationStateMachine.decision(invitation, LocalDateTime.now()).joinable();
     }
 
     private WorkspaceInvitation validateAndGetInvitation(String token) {
         WorkspaceInvitation invitation = invitationMapper.selectOne(WorkspaceInvitation::getToken, token);
 
-        if (invitation == null) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.INVITATION_INVALID);
-        }
-        if (!Constants.Status.ACTIVE.equals(invitation.getStatus())) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.INVITATION_REVOKED);
-        }
-        if (invitation.getExpiresAt() != null && invitation.getExpiresAt().isBefore(LocalDateTime.now())) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.INVITATION_EXPIRED);
-        }
-        if (invitation.getMaxUses() != null && invitation.getUseCount() >= invitation.getMaxUses()) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.INVITATION_MAX_USES);
+        InvitationDecision decision = invitationStateMachine.decision(invitation, LocalDateTime.now());
+        if (!decision.joinable()) {
+            throw ServiceExceptionUtil.get(rejectToError(decision.reason()));
         }
         return invitation;
+    }
+
+    private ErrorCode rejectToError(InvitationRejectReason reason) {
+        // 拒绝优先级已收敛进状态机判定（REVOKED > EXPIRED > 达上限），这里只做原因→错误码的机械映射
+        return switch (reason) {
+            case INVALID -> ErrorCodeConstants.INVITATION_INVALID;
+            case REVOKED -> ErrorCodeConstants.INVITATION_REVOKED;
+            case EXPIRED -> ErrorCodeConstants.INVITATION_EXPIRED;
+            case USE_EXHAUSTED -> ErrorCodeConstants.INVITATION_MAX_USES;
+        };
     }
 
     private SysUser findOrCreateUser(String email, String password, String name) {
