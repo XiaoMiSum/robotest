@@ -927,6 +927,18 @@ export interface AiReviewSummary {
   generatedAt?: string
 }
 
+/** AI 评审结论判定（06 §5.2：无关联用例→INCONCLUSIVE，有 FAIL→FAIL，有 PENDING→INCONCLUSIVE，否则 PASS；后端确定性计算，LLM 不产出） */
+export type AiReviewConclusionVerdict = 'PASS' | 'FAIL' | 'INCONCLUSIVE'
+
+/** AI 评审结论（GET 查询 task.result 与 done 帧共用；generatedAt 仅持久化查询返回） */
+export interface AiReviewConclusion {
+  verdict: AiReviewConclusionVerdict
+  reason: string
+  keyFindings: string[]
+  statistics: AiReviewSummaryStats
+  generatedAt?: string
+}
+
 /** AI 一键检查建议维度（US-AI-005，详细设计 2.2.1 枚举） */
 export type AiReviewCheckDimension =
   | 'missing_precondition'
