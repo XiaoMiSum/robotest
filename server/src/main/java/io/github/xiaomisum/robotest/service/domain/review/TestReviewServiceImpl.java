@@ -309,6 +309,11 @@ public class TestReviewServiceImpl implements TestReviewService {
         testReviewMapper.updateById(update);
         // 评审离开 in_progress：发布生命周期事件（AI 域消费者在事务提交后取消 review_check 任务）
         eventPublisher.publishEvent(new ReviewLifecycleEvent(reviewId));
+        // 评审结论事件：verdict 由评审域按快照确定性判定，AI 域事务提交后生成 review 级结论（06 §5.2）
+        ReviewConclusionEvaluator.Conclusion conclusion = ReviewConclusionEvaluator.evaluate(
+                reviewSnapshotService.listAssociatedByReviewId(reviewId, Constants.NodeType.CASE));
+        eventPublisher.publishEvent(new ReviewConclusionEvent(reviewId,
+                conclusion.verdict().getCode(), conclusion.reason()));
     }
 
     @Override

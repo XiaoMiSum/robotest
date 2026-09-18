@@ -659,10 +659,17 @@ class TestReviewServiceImplTest {
                 ArgumentCaptor<TestReview> captor = ArgumentCaptor.forClass(TestReview.class);
                 verify(testReviewMapper).updateById(captor.capture());
                 assertEquals("completed", captor.getValue().getStatus());
-                // 评审离开 in_progress：发布生命周期事件，由 AI 消费者在事务提交后取消 review_check
-                ArgumentCaptor<ReviewLifecycleEvent> eventCaptor = ArgumentCaptor.forClass(ReviewLifecycleEvent.class);
-                verify(eventPublisher).publishEvent(eventCaptor.capture());
-                assertEquals(reviewId, eventCaptor.getValue().reviewId());
+                // 评审离开 in_progress：发布生命周期事件（取消 review_check）+ 结论事件（生成 review 级结论，06 §5.2）
+                ArgumentCaptor<Object> eventObjectsCaptor = ArgumentCaptor.forClass(Object.class);
+                verify(eventPublisher, times(2)).publishEvent(eventObjectsCaptor.capture());
+                List<Object> events = eventObjectsCaptor.getAllValues();
+                assertTrue(events.stream().anyMatch(ReviewLifecycleEvent.class::isInstance));
+                assertTrue(events.stream().anyMatch(ReviewConclusionEvent.class::isInstance));
+                ReviewConclusionEvent conclusionEvent = events.stream()
+                        .filter(ReviewConclusionEvent.class::isInstance)
+                        .map(ReviewConclusionEvent.class::cast).findFirst().orElseThrow();
+                assertEquals(reviewId, conclusionEvent.reviewId());
+                assertEquals("INCONCLUSIVE", conclusionEvent.verdict());
         }
 
         @Test

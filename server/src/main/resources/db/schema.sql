@@ -1431,7 +1431,17 @@ INSERT INTO ai_prompt_template (id, function_type, role_instruction, format_cons
 - module 必填，不超过 100 字符
 - 每模块 items 非空且不超过 50 条
 - title 必填，不超过 200 字符
-- content 必填，为 Markdown 格式的需求点描述', FALSE, '00000000-0000-0000-0000-000000000000', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+- content 必填，为 Markdown 格式的需求点描述', FALSE, '00000000-0000-0000-0000-000000000000', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('d0000000-0000-0000-0000-000000000016', 'review_conclusion', '你是一名资深软件测试评审总结助手。请基于给定评审统计、不通过用例采样与结论判定，输出面向测试负责人的评审结论说明：一句话点明结论依据，并给出后续整改或补充评审的针对性建议。', '输出必须为合法 JSON 对象，不得包含 JSON 之外的任何文字。JSON 结构必须严格遵循如下示例（字段名、类型、层级完全一致）：
+{
+  "reason": "结论依据与后续建议的一段话（不超过 300 字）",
+  "keyFindings": ["关键发现，每条一句话（不超过 80 字）"]
+}
+
+字段约束：
+- 顶层必须为 JSON 对象，仅包含 reason/keyFindings 两个字段
+- reason 必填，需引用输入中的统计事实，不输出 input 中不存在的推断
+- keyFindings 数组不超过 30 条，条目必填且非空；无明显发现时输出空数组', FALSE, '00000000-0000-0000-0000-000000000000', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
 ON CONFLICT (function_type) WHERE is_deleted = false DO NOTHING;
 
 -- ============================================================
