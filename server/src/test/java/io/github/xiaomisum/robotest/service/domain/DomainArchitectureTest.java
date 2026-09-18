@@ -77,6 +77,28 @@ class DomainArchitectureTest {
                 "review 域不得依赖 service.ai/service.apitest（事件/端口放共享层）");
     }
 
+    @Test
+    void bugStatusValueOnlyFromEnumOrWorkflow() throws IOException {
+        List<String> violations = readSourceFiles("bug").stream()
+                .filter(line -> line.contains(".setStatus(") && !line.contains("dto.setStatus"))
+                // 载体落库与实体跟踪 belong 到 ServiceImpl，但值只能来自 workflow 目标状态或枚举
+                .filter(line -> !line.contains("BugStatus.") && !line.contains(".getCode()"))
+                .toList();
+        assertTrue(violations.isEmpty(),
+                "bug 域 setStatus 值只能来自 BugWorkflow.transition 目标状态或 BugStatus 枚举:\n" + violations);
+    }
+
+    @Test
+    void bugDomainUsesServiceExceptionUtil() throws IOException {
+        List<String> violations = readSourceFiles("bug").stream()
+                // 业务异常统一经 ServiceExceptionUtil；禁止裸 RuntimeException 抛出
+                .filter(line -> line.matches(".*throw new [A-Z][A-Za-z]*\\(.*"))
+                .filter(line -> !line.contains("ServiceExceptionUtil"))
+                .toList();
+        assertTrue(violations.isEmpty(),
+                "bug 域非法跃迁等业务异常必须经 ServiceExceptionUtil（C3）:\n" + violations);
+    }
+
     private List<Path> listJavaFiles(Path root) throws IOException {
         try (Stream<Path> walk = Files.walk(root)) {
             return walk.filter(p -> p.toString().endsWith(".java")).toList();

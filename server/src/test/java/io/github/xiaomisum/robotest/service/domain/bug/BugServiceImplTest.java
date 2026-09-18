@@ -28,6 +28,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import xyz.migoo.framework.common.exception.ServiceException;
 import xyz.migoo.framework.common.pojo.PageParam;
@@ -63,6 +64,10 @@ class BugServiceImplTest {
 
     @Mock
     private ProjectAccessGuard projectAccessGuard;
+
+    // 状态机用真实实现裁决：让 Service 的非法跃迁断言与领域测试保持同源（同一张迁移矩阵）
+    @Spy
+    private BugWorkflow bugWorkflow = new BugWorkflowImpl();
 
     @InjectMocks
     private BugServiceImpl bugService;

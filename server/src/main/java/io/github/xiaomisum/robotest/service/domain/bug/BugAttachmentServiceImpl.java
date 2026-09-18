@@ -145,7 +145,7 @@ public class BugAttachmentServiceImpl implements BugAttachmentService {
         if (bug == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.BUG_NOT_FOUND);
         }
-        if (Constants.BugStatus.CLOSED.equals(bug.getStatus())) {
+        if (BugStatus.CLOSED.getCode().equals(bug.getStatus())) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.BUG_CLOSED_ATTACHMENT_FORBIDDEN);
         }
         return bug;
