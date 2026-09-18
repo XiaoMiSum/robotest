@@ -208,8 +208,9 @@ public class AiReviewSummaryServiceImpl implements AiReviewSummaryService {
 
     /**
      * LLM 输入：评审基本信息 + 统计 + 不通过用例采样（标题 + 最近一条评论，≤60，按评论长度降序）。
+     * 同包 review_conclusion 处理器复用同一拼装（06 §5.2 业务数据格式一致）。
      */
-    private String buildBusinessData(TestReview review, AiReviewSummaryRespDTO.Statistics stats,
+    String buildBusinessData(TestReview review, AiReviewSummaryRespDTO.Statistics stats,
             List<TestReviewNodeSnapshot> caseNodes) {
         // 一次性加载评审全部记录，按节点取最近一条非空评论
         Map<UUID, String> latestCommentByNode = reviewRecordMapper.listByReviewId(review.getId()).stream()

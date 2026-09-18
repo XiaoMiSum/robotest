@@ -166,6 +166,7 @@ public final class Constants {
     public interface AiTaskType {
         String REVIEW_CHECK = "review_check";
         String REVIEW_SUMMARY = "review_summary";
+        String REVIEW_CONCLUSION = "review_conclusion";
         String BUG_CLUSTERING = "bug_clustering";
         String EMBEDDING_REBUILD = "embedding_rebuild";
         String PLAN_ORDER_RECOMMEND = "plan_order_recommend";
