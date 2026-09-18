@@ -24,6 +24,7 @@ public enum AiFunctionType {
     CASE_PLAN_RECOMMENDATION("case_plan_recommendation", "用例规划推荐", RateLimitCategory.RETRIEVAL, true),
     BUG_DEDUP("bug_dedup", "缺陷语义查重", RateLimitCategory.RETRIEVAL, false),
     REVIEW_CHECK("review_check", "评审完整性检查", RateLimitCategory.TASK, true),
+    REVIEW_CONCLUSION("review_conclusion", "评审结论生成", RateLimitCategory.TASK, true),
     BUG_CLUSTERING("bug_clustering", "缺陷聚类归纳", RateLimitCategory.TASK, true),
     REQUIREMENT_SPLIT("requirement_split", "需求文档拆分", RateLimitCategory.GENERATION, true),
     EMBEDDING_INDEX("embedding_index", "向量写入与重建", null, false);
