@@ -1,7 +1,6 @@
 package io.github.xiaomisum.robotest.model.dto.response.ai;
 
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
@@ -22,7 +21,7 @@ public class AiReviewConclusionRespDTO {
     @Size(max = 2000)
     private String reason;
 
-    @NotEmpty
+    /** 无发现时允许空数组（null 由业务断言拒绝），因此不加 @NotEmpty */
     @Size(max = 30)
     private List<@NotBlank @Size(max = 500) String> keyFindings;
 
