@@ -34,7 +34,7 @@ public interface BugService {
     BugDetailRespDTO getBugDetail(UUID bugId, UUID userId);
 
     /**
-     * 变更缺陷状态（三态状态机：active → resolved → closed，重开回 active）
+     * 变更缺陷状态（四态状态机：active → resolved/rejected → closed，重开回 active，裁决见 BugWorkflow）
      *
      * @param bugId  缺陷 ID
      * @param userId 操作用户 ID

@@ -72,6 +72,8 @@ public class BugServiceImpl implements BugService {
     private AiEmbeddingWriteService aiEmbeddingWriteService;
     @Resource
     private ProjectAccessGuard projectAccessGuard;
+    @Resource
+    private BugWorkflow bugWorkflow;
 
     @Override
     public PageResult<BugListRespDTO> getBugPage(UUID projectId, UUID userId, String status, String severity,
@@ -162,7 +164,7 @@ public class BugServiceImpl implements BugService {
 
         Bug bug = BugConvertMapper.INSTANCE.toEntity(reqDTO);
         bug.setProjectId(projectId);
-        bug.setStatus(Constants.BugStatus.ACTIVE);
+        bug.setStatus(BugStatus.ACTIVE.getCode());
         bug.setConfirmed(false);
         bug.setReopenCount(0);
         bug.setReporterId(userId);
@@ -185,7 +187,7 @@ public class BugServiceImpl implements BugService {
         }
         projectAccessGuard.requireProjectMember(bug.getProjectId(), userId);
         // 已关闭缺陷不允许编辑，仅允许通过状态机重新激活
-        if (Constants.BugStatus.CLOSED.equals(bug.getStatus())) {
+        if (BugStatus.CLOSED.getCode().equals(bug.getStatus())) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.BUG_CLOSED_EDIT_FORBIDDEN);
         }
 
@@ -262,26 +264,23 @@ public class BugServiceImpl implements BugService {
         }
         projectAccessGuard.requireProjectMember(bug.getProjectId(), userId);
 
-        String currentStatus = bug.getStatus();
-        String targetStatus = reqDTO.getStatus();
+        BugStatus from = BugStatus.fromCode(bug.getStatus());
+        BugStatus target = BugStatus.fromCode(reqDTO.getStatus());
+        // 迁移合法性收敛到状态机裁决（唯一入口，未知/非法跃迁统一抛 BUG_INVALID_STATUS_TRANSITION）
+        bugWorkflow.assertTransition(from, target);
 
-        if (!isValidTransition(currentStatus, targetStatus)) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.BUG_INVALID_STATUS_TRANSITION);
-        }
-
-        switch (targetStatus) {
-            case Constants.BugStatus.RESOLVED -> resolveBug(bug, userId, reqDTO);
-            case Constants.BugStatus.REJECTED -> rejectBug(bug, userId, reqDTO.getComment());
-            case Constants.BugStatus.CLOSED -> closeBug(bug, userId, reqDTO.getComment());
-            case Constants.BugStatus.ACTIVE -> reopenBug(bug, userId, reqDTO.getComment());
-            default -> throw ServiceExceptionUtil.get(ErrorCodeConstants.BUG_INVALID_STATUS_TRANSITION);
+        switch (target) {
+            case RESOLVED -> resolveBug(bug, userId, reqDTO);
+            case REJECTED -> rejectBug(bug, userId, reqDTO.getComment());
+            case CLOSED -> closeBug(bug, userId, reqDTO.getComment());
+            case ACTIVE -> reopenBug(bug, userId, reqDTO.getComment());
         }
 
         // 缺陷关闭后事务提交即删除向量索引（关闭缺陷不参与查重，见详细设计 4.1）
-        if (Constants.BugStatus.CLOSED.equals(targetStatus)) {
+        if (target == BugStatus.CLOSED) {
             Bug closed = new Bug();
             closed.setId(bugId);
-            closed.setStatus(Constants.BugStatus.CLOSED);
+            closed.setStatus(BugStatus.CLOSED.getCode());
             afterCommit(() -> aiEmbeddingWriteService.handleBugChanged(closed));
         }
     }
@@ -351,7 +350,7 @@ public class BugServiceImpl implements BugService {
 
         Bug update = new Bug();
         update.setId(bug.getId());
-        update.setStatus(Constants.BugStatus.REJECTED);
+        update.setStatus(BugStatus.REJECTED.getCode());
         update.setAssigneeId(bug.getReporterId());
         // 记录拒绝人，重开时处理人回设给他
         update.setRejectedBy(userId);
@@ -370,7 +369,7 @@ public class BugServiceImpl implements BugService {
 
         Bug update = new Bug();
         update.setId(bug.getId());
-        update.setStatus(Constants.BugStatus.CLOSED);
+        update.setStatus(BugStatus.CLOSED.getCode());
         update.setClosedBy(userId);
         update.setClosedAt(LocalDateTime.now());
         bugMapper.updateById(update);
@@ -402,7 +401,7 @@ public class BugServiceImpl implements BugService {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.BUG_NOT_FOUND);
         }
         projectAccessGuard.requireProjectMember(bug.getProjectId(), userId);
-        if (!Constants.BugStatus.ACTIVE.equals(bug.getStatus())) {
+        if (!BugStatus.ACTIVE.getCode().equals(bug.getStatus())) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.BUG_CONFIRM_INVALID_STATUS);
         }
         if (Boolean.TRUE.equals(bug.getConfirmed())) {
@@ -426,7 +425,7 @@ public class BugServiceImpl implements BugService {
         }
         projectAccessGuard.requireProjectMember(bug.getProjectId(), userId);
         // 已关闭缺陷不允许改派处理人
-        if (Constants.BugStatus.CLOSED.equals(bug.getStatus())) {
+        if (BugStatus.CLOSED.getCode().equals(bug.getStatus())) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.BUG_CLOSED_EDIT_FORBIDDEN);
         }
 
@@ -512,18 +511,6 @@ public class BugServiceImpl implements BugService {
         info.setId(user.getId());
         info.setName(user.getUsername());
         return info;
-    }
-
-    private boolean isValidTransition(String currentStatus, String targetStatus) {
-        // 四态状态机：active → resolved/rejected → closed，重开：resolved/rejected/closed → active
-        Map<String, Set<String>> transitions = Map.of(
-                Constants.BugStatus.ACTIVE, Set.of(Constants.BugStatus.RESOLVED, Constants.BugStatus.REJECTED),
-                Constants.BugStatus.RESOLVED, Set.of(Constants.BugStatus.CLOSED, Constants.BugStatus.ACTIVE),
-                Constants.BugStatus.REJECTED, Set.of(Constants.BugStatus.CLOSED, Constants.BugStatus.ACTIVE),
-                Constants.BugStatus.CLOSED, Set.of(Constants.BugStatus.ACTIVE)
-        );
-        Set<String> allowed = transitions.getOrDefault(currentStatus, Set.of());
-        return allowed.contains(targetStatus);
     }
 
     @Override
