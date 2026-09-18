@@ -3,35 +3,18 @@ package io.github.xiaomisum.robotest.service.domain.bug;
 import io.github.xiaomisum.robotest.model.dto.request.bug.BugCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.bug.BugStatusChangeReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.bug.BugUpdateReqDTO;
-import io.github.xiaomisum.robotest.model.dto.response.bug.BugDetailRespDTO;
-import io.github.xiaomisum.robotest.model.dto.response.bug.BugListRespDTO;
-import io.github.xiaomisum.robotest.model.dto.response.bug.BugLogRespDTO;
-import io.github.xiaomisum.robotest.model.dto.response.bug.BugStatisticsRespDTO;
 
-import xyz.migoo.framework.common.pojo.PageResult;
-
-import java.util.List;
 import java.util.UUID;
 
+/**
+ * 缺陷命令面端口（05 §3.1.3 CQRS 落位）：写操作（创建/编辑/状态流转/确认/指派）。
+ * 读模型见 {@link BugQueryService}。
+ */
 public interface BugService {
-
-    PageResult<BugListRespDTO> getBugPage(UUID projectId, UUID userId, String status, String severity,
-                                     String priority, String bugType, UUID assigneeId,
-                                     UUID reporterId, UUID resolvedBy, UUID closedBy, String keyword,
-                                     Integer pageNo, Integer pageSize);
 
     String createBug(UUID projectId, UUID userId, BugCreateReqDTO reqDTO);
 
     void updateBug(UUID bugId, UUID userId, BugUpdateReqDTO reqDTO);
-
-    /**
-     * 获取缺陷详情（含最近操作日志）
-     *
-     * @param bugId  缺陷 ID
-     * @param userId 当前用户 ID（用于项目归属校验）
-     * @return 缺陷详情
-     */
-    BugDetailRespDTO getBugDetail(UUID bugId, UUID userId);
 
     /**
      * 变更缺陷状态（四态状态机：active → resolved/rejected → closed，重开回 active，裁决见 BugWorkflow）
@@ -58,15 +41,4 @@ public interface BugService {
      * @param assigneeId 新处理人用户 ID
      */
     void assignBug(UUID bugId, UUID userId, UUID assigneeId);
-
-    /**
-     * 统计项目缺陷概况
-     *
-     * @param projectId 项目 ID
-     * @param userId    当前用户 ID（用于项目归属校验）
-     * @return 按状态/严重等级/优先级/处理人/报告人分组统计
-     */
-    BugStatisticsRespDTO getBugStatistics(UUID projectId, UUID userId);
-
-    List<BugLogRespDTO> getBugLogs(UUID bugId, UUID userId);
 }
