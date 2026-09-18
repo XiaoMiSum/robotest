@@ -6,7 +6,7 @@ import lombok.Data;
 import java.util.UUID;
 
 /**
- * 缺陷状态变更请求 DTO（三态模型：active / resolved / closed）
+ * 缺陷状态变更请求 DTO（四态模型：active / resolved / rejected / closed，迁移矩阵见 BugWorkflow）
  */
 @Data
 public class BugStatusChangeReqDTO {
