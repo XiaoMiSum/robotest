@@ -12,6 +12,7 @@ import io.github.xiaomisum.robotest.model.dto.response.bug.BugListRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.bug.BugLogRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.bug.BugStatisticsRespDTO;
 import io.github.xiaomisum.robotest.service.domain.bug.BugAttachmentService;
+import io.github.xiaomisum.robotest.service.domain.bug.BugQueryService;
 import io.github.xiaomisum.robotest.service.domain.bug.BugService;
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
@@ -38,6 +39,8 @@ public class BugController {
     @Resource
     private BugService bugService;
     @Resource
+    private BugQueryService bugQueryService;
+    @Resource
     private BugAttachmentService bugAttachmentService;
 
     @GetMapping
@@ -56,7 +59,7 @@ public class BugController {
             @RequestParam(required = false) String keyword,
             @RequestParam(defaultValue = "1") Integer pageNo,
             @RequestParam(defaultValue = "20") Integer pageSize) {
-        return Result.ok(bugService.getBugPage(projectId, loginUser.getId(), status, severity, priority,
+        return Result.ok(bugQueryService.getBugPage(projectId, loginUser.getId(), status, severity, priority,
                 bugType, assigneeId, reporterId, resolvedBy, closedBy, keyword, pageNo, pageSize));
     }
 
@@ -73,7 +76,7 @@ public class BugController {
     public Result<BugDetailRespDTO> getBugDetail(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id) {
-        return Result.ok(bugService.getBugDetail(id, loginUser.getId()));
+        return Result.ok(bugQueryService.getBugDetail(id, loginUser.getId()));
     }
 
     @PutMapping("/{id}")
@@ -89,7 +92,7 @@ public class BugController {
     public Result<List<BugLogRespDTO>> getBugLogs(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id) {
-        return Result.ok(bugService.getBugLogs(id, loginUser.getId()));
+        return Result.ok(bugQueryService.getBugLogs(id, loginUser.getId()));
     }
 
     @PatchMapping("/{id}/status")
@@ -123,7 +126,7 @@ public class BugController {
     public Result<BugStatisticsRespDTO> getBugStatistics(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestHeader("X-Active-Project") UUID projectId) {
-        return Result.ok(bugService.getBugStatistics(projectId, loginUser.getId()));
+        return Result.ok(bugQueryService.getBugStatistics(projectId, loginUser.getId()));
     }
 
     @PostMapping("/{id}/attachments")

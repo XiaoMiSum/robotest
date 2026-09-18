@@ -5,10 +5,6 @@ import io.github.xiaomisum.robotest.framework.security.ProjectAccessGuard;
 import io.github.xiaomisum.robotest.model.dto.request.bug.BugCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.bug.BugStatusChangeReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.bug.BugUpdateReqDTO;
-import io.github.xiaomisum.robotest.model.dto.response.bug.BugDetailRespDTO;
-import io.github.xiaomisum.robotest.model.dto.response.bug.BugListRespDTO;
-import io.github.xiaomisum.robotest.model.dto.response.bug.BugLogRespDTO;
-import io.github.xiaomisum.robotest.model.dto.response.bug.BugStatisticsRespDTO;
 import io.github.xiaomisum.robotest.model.entity.bug.Bug;
 import io.github.xiaomisum.robotest.model.entity.bug.BugLog;
 import io.github.xiaomisum.robotest.model.entity.workspace.Project;
@@ -31,8 +27,6 @@ import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import xyz.migoo.framework.common.exception.ServiceException;
-import xyz.migoo.framework.common.pojo.PageParam;
-import xyz.migoo.framework.common.pojo.PageResult;
 
 import java.time.LocalDateTime;
 import java.util.Collections;
@@ -96,92 +90,6 @@ class BugServiceImplTest {
         bug.setProjectId(projectId);
         bug.setStatus(Constants.BugStatus.ACTIVE);
         return bug;
-    }
-
-    // ========== getBugPage ==========
-
-    @Test
-    void getBugPage_withFilters() {
-        Bug bug = new Bug();
-        bug.setId(bugId);
-        bug.setTitle("Test Bug");
-        bug.setSeverity("high");
-        bug.setPriority("high");
-        bug.setStatus(Constants.BugStatus.ACTIVE);
-        bug.setBugType(Constants.BugType.CODE_ERROR);
-        bug.setReporterId(UUID.fromString("00000000-0000-0000-0000-000000000004"));
-
-        PageResult<Bug> pageResult = new PageResult<>(List.of(bug), 1L);
-        doReturn(pageResult).when(bugMapper).findPage(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any());
-
-        SysUser reporter = new SysUser();
-        reporter.setId(UUID.fromString("00000000-0000-0000-0000-000000000004"));
-        reporter.setUsername("reporter");
-        when(userMapper.listByIds(anyCollection())).thenReturn(List.of(reporter));
-
-        PageResult<BugListRespDTO> result = bugService.getBugPage(
-                projectId, userId, Constants.BugStatus.ACTIVE, "high", "high",
-                Constants.BugType.CODE_ERROR, null, null, null, null, null, 1, 10);
-
-        assertNotNull(result);
-        assertEquals(1, result.getList().size());
-        assertEquals(1L, result.getTotal());
-        assertEquals("Test Bug", result.getList().get(0).getTitle());
-        assertEquals(Constants.BugType.CODE_ERROR, result.getList().get(0).getBugType());
-        assertEquals("reporter", result.getList().get(0).getReporter().getName());
-        verify(projectAccessGuard).requireProjectMember(projectId, userId);
-    }
-
-    @Test
-    void getBugPage_withResolvedInfo() {
-        UUID reporterId = UUID.fromString("00000000-0000-0000-0000-000000000004");
-        UUID resolverId = UUID.fromString("00000000-0000-0000-0000-000000000005");
-        LocalDateTime resolvedAt = LocalDateTime.of(2026, 7, 30, 10, 0);
-        LocalDateTime closedAt = LocalDateTime.of(2026, 7, 30, 12, 0);
-
-        Bug bug = new Bug();
-        bug.setId(bugId);
-        bug.setTitle("Resolved Bug");
-        bug.setStatus(Constants.BugStatus.CLOSED);
-        bug.setResolution(Constants.BugResolution.FIXED);
-        bug.setReporterId(reporterId);
-        bug.setResolvedBy(resolverId);
-        bug.setResolvedAt(resolvedAt);
-        bug.setClosedAt(closedAt);
-
-        PageResult<Bug> pageResult = new PageResult<>(List.of(bug), 1L);
-        doReturn(pageResult).when(bugMapper).findPage(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any());
-
-        SysUser reporter = new SysUser();
-        reporter.setId(reporterId);
-        reporter.setUsername("reporter");
-        SysUser resolver = new SysUser();
-        resolver.setId(resolverId);
-        resolver.setUsername("resolver");
-        when(userMapper.listByIds(anyCollection())).thenReturn(List.of(reporter, resolver));
-
-        PageResult<BugListRespDTO> result = bugService.getBugPage(
-                projectId, userId, null, null, null, null, null, null, null, null, null, 1, 10);
-
-        BugListRespDTO dto = result.getList().get(0);
-        assertEquals("resolver", dto.getResolvedBy().getName());
-        assertEquals(Constants.BugResolution.FIXED, dto.getResolution());
-        assertEquals(resolvedAt, dto.getResolvedAt());
-        assertEquals(closedAt, dto.getClosedAt());
-    }
-
-    @Test
-    void getBugPage_emptyResult() {
-        PageResult<Bug> pageResult = new PageResult<>(Collections.emptyList(), 0L);
-        doReturn(pageResult).when(bugMapper).findPage(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any());
-
-        PageResult<BugListRespDTO> result = bugService.getBugPage(
-                projectId, userId, null, null, null, null, null, null, null, null, null, 1, 10);
-
-        assertNotNull(result);
-        assertTrue(result.getList().isEmpty());
-        assertEquals(0L, result.getTotal());
-        verify(projectAccessGuard).requireProjectMember(projectId, userId);
     }
 
     // ========== createBug ==========
@@ -413,67 +321,6 @@ class BugServiceImplTest {
         assertThrows(ServiceException.class,
                 () -> bugService.updateBug(bugId, userId, reqDTO));
         verify(bugMapper, never()).updateById(any(Bug.class));
-    }
-
-    // ========== getBugDetail ==========
-
-    @Test
-    void getBugDetail_success() {
-        Bug bug = activeBug();
-        bug.setTitle("Detail Bug");
-        bug.setSeverity("fatal");
-        bug.setPriority("high");
-        bug.setBugType(Constants.BugType.CODE_ERROR);
-        bug.setReproSteps("steps");
-        bug.setConfirmed(true);
-        bug.setReopenCount(2);
-        bug.setReporterId(UUID.fromString("00000000-0000-0000-0000-000000000004"));
-        bug.setAssigneeId(UUID.fromString("00000000-0000-0000-0000-000000000005"));
-
-        when(bugMapper.selectById(bugId)).thenReturn(bug);
-
-        SysUser reporter = new SysUser();
-        reporter.setId(UUID.fromString("00000000-0000-0000-0000-000000000004"));
-        reporter.setUsername("reporter");
-
-        SysUser assignee = new SysUser();
-        assignee.setId(UUID.fromString("00000000-0000-0000-0000-000000000005"));
-        assignee.setUsername("assignee");
-
-        // resolvedBy/closedBy 为 null 时服务会以 null 入参查询，需用 Answer 兼容
-        when(userMapper.selectById(any())).thenAnswer(inv -> {
-            Object id = inv.getArgument(0);
-            if (reporter.getId().equals(id)) {
-                return reporter;
-            }
-            if (assignee.getId().equals(id)) {
-                return assignee;
-            }
-            return null;
-        });
-
-        when(bugLogMapper.findRecentLogs(bugId, 10)).thenReturn(Collections.emptyList());
-
-        BugDetailRespDTO result = bugService.getBugDetail(bugId, userId);
-
-        assertNotNull(result);
-        assertEquals("Detail Bug", result.getTitle());
-        assertEquals("fatal", result.getSeverity());
-        assertEquals(Constants.BugType.CODE_ERROR, result.getBugType());
-        assertEquals("steps", result.getReproSteps());
-        assertEquals(Boolean.TRUE, result.getConfirmed());
-        assertEquals(2, result.getReopenCount());
-        assertEquals("reporter", result.getReporter().getName());
-        assertEquals("assignee", result.getAssignee().getName());
-        assertNotNull(result.getRecentLogs());
-    }
-
-    @Test
-    void getBugDetail_notFound_throws() {
-        when(bugMapper.selectById(bugId)).thenReturn(null);
-
-        assertThrows(ServiceException.class,
-                () -> bugService.getBugDetail(bugId, userId));
     }
 
     // ========== changeBugStatus：解决 ==========
@@ -1039,87 +886,5 @@ class BugServiceImplTest {
         ArgumentCaptor<Bug> captor = ArgumentCaptor.forClass(Bug.class);
         verify(bugMapper).updateById(captor.capture());
         assertEquals(assigneeId, captor.getValue().getAssigneeId());
-    }
-
-    // ========== getBugStatistics ==========
-
-    @Test
-    void getBugStatistics_groupsCorrectly() {
-        Bug b1 = new Bug();
-        b1.setId(UUID.randomUUID());
-        b1.setStatus(Constants.BugStatus.ACTIVE);
-        b1.setSeverity("fatal");
-        b1.setPriority("high");
-        b1.setReporterId(UUID.fromString("00000000-0000-0000-0000-000000000004"));
-        b1.setAssigneeId(UUID.fromString("00000000-0000-0000-0000-000000000005"));
-
-        Bug b2 = new Bug();
-        b2.setId(UUID.randomUUID());
-        b2.setStatus(Constants.BugStatus.ACTIVE);
-        b2.setSeverity("general");
-        b2.setPriority("low");
-        b2.setReporterId(UUID.fromString("00000000-0000-0000-0000-000000000004"));
-
-        when(bugMapper.findByProjectId(projectId))
-                .thenReturn(List.of(b1, b2));
-
-        BugStatisticsRespDTO result = bugService.getBugStatistics(projectId, userId);
-
-        assertNotNull(result);
-        assertEquals(2, result.getTotal());
-        assertEquals(2L, result.getByStatus().get(Constants.BugStatus.ACTIVE));
-        assertEquals(1L, result.getBySeverity().get("fatal"));
-        assertEquals(1L, result.getBySeverity().get("general"));
-        assertEquals(2L, result.getByReporter().get(UUID.fromString("00000000-0000-0000-0000-000000000004")));
-    }
-
-    @Test
-    void getBugStatistics_emptyProject() {
-        when(bugMapper.findByProjectId(projectId))
-                .thenReturn(Collections.emptyList());
-
-        BugStatisticsRespDTO result = bugService.getBugStatistics(projectId, userId);
-
-        assertNotNull(result);
-        assertEquals(0, result.getTotal());
-    }
-
-    // ========== getBugLogs ==========
-
-    @Test
-    void getBugLogs_returnsLogs() {
-        Bug bug = activeBug();
-        when(bugMapper.selectById(bugId)).thenReturn(bug);
-
-        BugLog log = new BugLog();
-        log.setId(UUID.fromString("00000000-0000-0000-0000-000000000005"));
-        log.setBugId(bugId);
-        log.setOperatorId(UUID.fromString("00000000-0000-0000-0000-000000000004"));
-        log.setOperationType("create");
-        log.setContent("Created");
-
-        when(bugLogMapper.findByBugId(bugId))
-                .thenReturn(List.of(log));
-
-        SysUser operator = new SysUser();
-        operator.setId(UUID.fromString("00000000-0000-0000-0000-000000000004"));
-        operator.setUsername("operator");
-        when(userMapper.selectById(UUID.fromString("00000000-0000-0000-0000-000000000004"))).thenReturn(operator);
-
-        List<BugLogRespDTO> result = bugService.getBugLogs(bugId, userId);
-
-        assertNotNull(result);
-        assertEquals(1, result.size());
-        assertEquals("operator", result.get(0).getOperatorName());
-        verify(projectAccessGuard).requireProjectMember(projectId, userId);
-    }
-
-    @Test
-    void getBugLogs_bugNotFound_throws() {
-        when(bugMapper.selectById(bugId)).thenReturn(null);
-
-        assertThrows(ServiceException.class,
-                () -> bugService.getBugLogs(bugId, userId));
-        verify(projectAccessGuard, never()).requireProjectMember(any(), any());
     }
 }

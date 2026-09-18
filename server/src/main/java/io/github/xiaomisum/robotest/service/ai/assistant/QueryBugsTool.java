@@ -3,7 +3,7 @@ package io.github.xiaomisum.robotest.service.ai.assistant;
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.model.dto.response.bug.BugListRespDTO;
 import io.github.xiaomisum.robotest.model.entity.workspace.Project;
-import io.github.xiaomisum.robotest.service.domain.bug.BugService;
+import io.github.xiaomisum.robotest.service.domain.bug.BugQueryService;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Component;
 import xyz.migoo.framework.common.pojo.PageResult;
@@ -24,7 +24,7 @@ public class QueryBugsTool extends AbstractQueryTool {
     private static final String TOOL_NAME = "query_bugs";
 
     @Resource
-    private BugService bugService;
+    private BugQueryService bugQueryService;
 
     @Override
     public AiToolDefinition definition() {
@@ -56,7 +56,7 @@ public class QueryBugsTool extends AbstractQueryTool {
         long total = 0;
 
         for (Project project : listProjects(context.workspaceId())) {
-            PageResult<BugListRespDTO> page = bugService.getBugPage(
+            PageResult<BugListRespDTO> page = bugQueryService.getBugPage(
                     project.getId(), context.userId(), status, severity, null, null,
                     assigneeIsMe ? context.userId() : null,
                     null, null, null, keyword, 1, PER_PROJECT_LIMIT);
