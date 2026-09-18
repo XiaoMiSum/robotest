@@ -33,6 +33,8 @@ public class AiChatModelServiceImpl implements AiChatModelService {
     private AiChatModelMapper aiChatModelMapper;
     @Resource
     private ProviderPresetRegistry presetRegistry;
+    @Resource
+    private ModelFallbackPolicy modelFallbackPolicy;
 
     @Value("${robotest.ai.secret-key:}")
     private String secretKeyBase64;
@@ -159,24 +161,7 @@ public class AiChatModelServiceImpl implements AiChatModelService {
         if (secretKey == null) {
             return null;
         }
-        List<AiChatModel> enabled = loadEnabledCached();
-        AiChatModel row = null;
-        if (modelId != null) {
-            row = enabled.stream().filter(m -> modelId.equals(m.getId())).findFirst().orElse(null);
-        }
-        if (row == null) {
-            // modelId 缺省或失效（不存在/已停用/已删除）静默回退系统默认（4.11）
-            row = enabled.stream().filter(m -> Boolean.TRUE.equals(m.getIsDefault())).findFirst().orElse(null);
-        }
-        if (row == null) {
-            return null;
-        }
-        String apiKey = AiCryptoUtil.decrypt(secretKey, row.getApiKeyCipher());
-        if (apiKey == null) {
-            return null;
-        }
-        return new ResolvedChatModel(row.getId(), row.getName(), row.getProvider(), row.getBaseUrl(),
-                apiKey, row.getModel(), row.getExtraParams() != null ? row.getExtraParams() : Map.of());
+        return modelFallbackPolicy.resolve(modelId, loadEnabledCached(), secretKey);
     }
 
     @Override
