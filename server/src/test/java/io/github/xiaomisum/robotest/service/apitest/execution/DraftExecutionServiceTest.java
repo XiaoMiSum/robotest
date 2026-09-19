@@ -1,4 +1,4 @@
-package io.github.xiaomisum.robotest.service.apitest;
+package io.github.xiaomisum.robotest.service.apitest.execution;
 import io.github.xiaomisum.robotest.service.apitest.execution.adapters.ryze.RyzeEnvironmentSnapshotProvider;
 
 import com.sun.net.httpserver.HttpServer;
@@ -11,10 +11,17 @@ import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiSceneDraftExec
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiSceneStepDebugRespDTO;
 import io.github.xiaomisum.robotest.repository.apitest.ApiEnvironmentMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiExecutionRecordMapper;
+import io.github.xiaomisum.robotest.repository.apitest.ApiFunctionMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiReportMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiSceneMapper;
 import io.github.xiaomisum.robotest.repository.admin.SysUserMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiChangeHistoryMapper;
+import io.github.xiaomisum.robotest.repository.workspace.ProjectMapper;
+import io.github.xiaomisum.robotest.service.apitest.ApiFunctionScriptEngine;
+import io.github.xiaomisum.robotest.service.apitest.CustomFunctionRuntime;
+import io.github.xiaomisum.robotest.service.apitest.execution.adapters.ryze.RyzeResultMapper;
+import io.github.xiaomisum.robotest.service.apitest.execution.adapters.ryze.RyzeSuiteRunner;
+import io.github.xiaomisum.robotest.service.apitest.execution.adapters.ryze.SceneSuiteBuilder;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -36,10 +43,10 @@ import static org.mockito.Mockito.mock;
 
 /**
  * 草稿（创建态未保存场景）调试/执行：用页面实时数据，复用 Ryze 引擎。
- * 走真实 HttpServer 回显验证实际请求命中与响应解析。
+ * 走真实 HttpServer 回显验证实际请求命中与响应解析；编排经 Launcher 真实引擎接缝（RyzeSuiteRunner/SceneSuiteBuilder）。
  */
 @ExtendWith(MockitoExtension.class)
-class SceneExecutionServiceImplDraftTest {
+class DraftExecutionServiceTest {
 
     private static final UUID PROJECT_ID = UUID.randomUUID();
     private static final UUID WORKSPACE_ID = UUID.randomUUID();
@@ -60,7 +67,7 @@ class SceneExecutionServiceImplDraftTest {
     @Mock
     private ApiEnvironmentMapper environmentMapper;
 
-    private SceneExecutionServiceImpl service;
+    private DraftExecutionService service;
     private ThreadPoolTaskExecutor executor;
     private HttpServer httpServer;
 
@@ -72,25 +79,35 @@ class SceneExecutionServiceImplDraftTest {
         executor.setQueueCapacity(10);
         executor.afterPropertiesSet();
 
-        service = new SceneExecutionServiceImpl();
-        ReflectionSet.set(service, "sceneMapper", sceneMapper);
-        ReflectionSet.set(service, "executionRecordMapper", executionRecordMapper);
-        ReflectionSet.set(service, "reportMapper", reportMapper);
-        ReflectionSet.set(service, "changeHistoryMapper", changeHistoryMapper);
-        ReflectionSet.set(service, "userMapper", userMapper);
-        ReflectionSet.set(service, "projectAccessGuard", projectAccessGuard);
-        ReflectionSet.set(service, "apiTestExecutor", executor);
-        ReflectionSet.set(service, "properties", new ApiTestProperties());
-
+        ApiTestProperties properties = new ApiTestProperties();
         RyzeEnvironmentSnapshotProvider envFactory = new RyzeEnvironmentSnapshotProvider();
         ReflectionSet.set(envFactory, "environmentMapper", environmentMapper);
-        ReflectionSet.set(service, "environmentSnapshotFactory", envFactory);
 
         CustomFunctionRuntime functionRuntime = new CustomFunctionRuntime(
-                mock(io.github.xiaomisum.robotest.repository.apitest.ApiFunctionMapper.class),
-                mock(io.github.xiaomisum.robotest.repository.workspace.ProjectMapper.class),
+                mock(ApiFunctionMapper.class),
+                mock(ProjectMapper.class),
                 new ApiFunctionScriptEngine());
-        ReflectionSet.set(service, "functionRuntime", functionRuntime);
+
+        SceneExecutionLauncher launcher = new SceneExecutionLauncher();
+        ReflectionSet.set(launcher, "sceneMapper", sceneMapper);
+        ReflectionSet.set(launcher, "executionRecordMapper", executionRecordMapper);
+        ReflectionSet.set(launcher, "reportMapper", reportMapper);
+        ReflectionSet.set(launcher, "projectAccessGuard", projectAccessGuard);
+        ReflectionSet.set(launcher, "apiTestExecutor", executor);
+        ReflectionSet.set(launcher, "properties", properties);
+        ReflectionSet.set(launcher, "environmentSnapshotFactory", envFactory);
+        ReflectionSet.set(launcher, "functionRuntime", functionRuntime);
+        ReflectionSet.set(launcher, "suiteRunner", new RyzeSuiteRunner(new RyzeResultMapper(properties)));
+        ReflectionSet.set(launcher, "suiteBuilder", new SceneSuiteBuilder());
+        ReflectionSet.set(launcher, "cancelRegistry", new ExecutionCancelRegistry());
+
+        service = new DraftExecutionService();
+        ReflectionSet.set(service, "projectAccessGuard", projectAccessGuard);
+        ReflectionSet.set(service, "sceneMapper", sceneMapper);
+        ReflectionSet.set(service, "environmentSnapshotFactory", envFactory);
+        ReflectionSet.set(service, "suiteBuilder", new SceneSuiteBuilder());
+        ReflectionSet.set(service, "properties", properties);
+        ReflectionSet.set(service, "launcher", launcher);
     }
 
     @AfterEach
