@@ -12,7 +12,7 @@ import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiExecutionStart
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiExecutionStatusRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiSceneDraftExecuteRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiSceneStepDebugRespDTO;
-import io.github.xiaomisum.robotest.service.apitest.SceneExecutionService;
+import io.github.xiaomisum.robotest.service.apitest.execution.SceneExecutionService;
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
 import org.springframework.security.access.prepost.PreAuthorize;

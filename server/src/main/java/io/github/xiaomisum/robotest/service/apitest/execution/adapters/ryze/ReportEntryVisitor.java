@@ -15,7 +15,7 @@ import java.util.UUID;
 /**
  * MappedResult 树 → 报表条目映射（接口测试域重构方案 04 §3.1.2：toProcessorEntries/toReportEntry/extractChildOutcome）。
  * 步骤/处理器执行明细采用数据集快照形状（快照已由 {@link RyzeResultMapper} 在防腐层内投影）；
- * 仅剩编排语义（scene 步骤 map 字段、停止运行连线逻辑）留在 SceneExecutionServiceImpl。
+ * 仅剩编排语义（scene 步骤 map 字段、停止运行连线逻辑）留在 SceneExecutionLauncher。
  */
 public final class ReportEntryVisitor {
 
