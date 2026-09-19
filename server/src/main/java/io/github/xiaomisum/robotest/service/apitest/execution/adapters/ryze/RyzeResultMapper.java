@@ -1,6 +1,7 @@
 package io.github.xiaomisum.robotest.service.apitest.execution.adapters.ryze;
 
 import io.github.xiaomisum.robotest.framework.config.ApiTestProperties;
+import io.github.xiaomisum.robotest.service.apitest.execution.ReportEntryVisitor;
 import io.github.xiaomisum.robotest.service.apitest.execution.ports.MappedResult;
 import io.github.xiaomisum.robotest.service.apitest.execution.ports.ResultMapper;
 import io.github.xiaomisum.ryze.Result;

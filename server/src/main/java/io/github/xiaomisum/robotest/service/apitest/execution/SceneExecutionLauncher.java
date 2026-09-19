@@ -1,5 +1,7 @@
 package io.github.xiaomisum.robotest.service.apitest.execution;
 
+import io.github.xiaomisum.robotest.service.apitest.execution.ReportEntryVisitor.ResolvedSpec;
+import io.github.xiaomisum.robotest.service.apitest.execution.ReportEntryVisitor.StepOutcome;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.framework.common.SceneStepUtil;
 import io.github.xiaomisum.robotest.framework.config.ApiTestProperties;
@@ -15,9 +17,6 @@ import io.github.xiaomisum.robotest.repository.apitest.ApiExecutionRecordMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiReportMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiSceneMapper;
 import io.github.xiaomisum.robotest.service.apitest.CustomFunctionRuntime;
-import io.github.xiaomisum.robotest.service.apitest.execution.adapters.ryze.ReportEntryVisitor;
-import io.github.xiaomisum.robotest.service.apitest.execution.adapters.ryze.ReportEntryVisitor.ResolvedSpec;
-import io.github.xiaomisum.robotest.service.apitest.execution.adapters.ryze.ReportEntryVisitor.StepOutcome;
 import io.github.xiaomisum.robotest.service.apitest.execution.ports.EnvSnapshot;
 import io.github.xiaomisum.robotest.service.apitest.execution.ports.EnvironmentSnapshotProvider;
 import io.github.xiaomisum.robotest.service.apitest.execution.ports.MappedResult;
