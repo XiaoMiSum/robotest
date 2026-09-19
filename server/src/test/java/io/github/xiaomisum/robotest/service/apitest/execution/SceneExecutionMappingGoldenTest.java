@@ -1,4 +1,4 @@
-package io.github.xiaomisum.robotest.service.apitest;
+package io.github.xiaomisum.robotest.service.apitest.execution;
 import io.github.xiaomisum.robotest.service.apitest.execution.ports.EnvSnapshot;
 
 import io.github.xiaomisum.robotest.framework.config.ApiTestProperties;
@@ -20,7 +20,6 @@ import org.junit.jupiter.api.Test;
 import xyz.migoo.framework.common.util.JsonUtils;
 
 import java.io.InputStream;
-import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -38,8 +37,9 @@ import static org.junit.jupiter.api.Assertions.fail;
  * 执行映射黄金文件：固定场景冻结 Result→报告/快照 JSON 字节（04 重构方案 §4.1 步骤 1）。
  * <p>
  * 仅覆盖纯映射面（buildSceneDataset / toProcessorEntries / toSnapshot），不触异步编排状态机，
- * 入参全部固定可复现（固定 UUID/时间），输出字节稳定。切片 2 将映射迁入 adapters/ryze 后，
- * 本测试原样保留，黄金文件 diff 为 ∅ 即证明拆分未改变语义。
+ * 入参全部固定可复现（固定 UUID/时间），输出字节稳定。切片 2 将映射迁入 adapters/ryze 后、
+ * 步骤 4 拆分至 SceneDatasetBuilder，本测试随之重定向到 SceneDatasetBuilder 实例，
+ * 黄金文件 diff 为 ∅ 即证明拆分未改变语义。
  * 更新/创建方式：mvn -Dgolden.update=true test -Dtest=SceneExecutionMappingGoldenTest
  */
 class SceneExecutionMappingGoldenTest {
@@ -263,19 +263,7 @@ class SceneExecutionMappingGoldenTest {
         }
     }
 
-    private static SceneExecutionServiceImpl service() {
-        SceneExecutionServiceImpl service = new SceneExecutionServiceImpl();
-        inject(service, "properties", new ApiTestProperties());
-        return service;
-    }
-
-    private static void inject(SceneExecutionServiceImpl service, String field, Object value) {
-        try {
-            Field f = SceneExecutionServiceImpl.class.getDeclaredField(field);
-            f.setAccessible(true);
-            f.set(service, value);
-        } catch (Exception ex) {
-            throw new RuntimeException(ex);
-        }
+    private static SceneDatasetBuilder service() {
+        return new SceneDatasetBuilder();
     }
 }
