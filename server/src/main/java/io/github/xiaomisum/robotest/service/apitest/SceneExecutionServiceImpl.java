@@ -28,6 +28,7 @@ import io.github.xiaomisum.robotest.repository.apitest.ApiChangeHistoryMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiExecutionRecordMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiReportMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiSceneMapper;
+import io.github.xiaomisum.robotest.service.apitest.execution.ExecutionCancelRegistry;
 import io.github.xiaomisum.robotest.service.apitest.execution.adapters.ryze.ReportEntryVisitor;
 import io.github.xiaomisum.robotest.service.apitest.execution.adapters.ryze.ReportEntryVisitor.ResolvedSpec;
 import io.github.xiaomisum.robotest.service.apitest.execution.adapters.ryze.ReportEntryVisitor.StepOutcome;
@@ -51,7 +52,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -95,9 +95,10 @@ public class SceneExecutionServiceImpl implements SceneExecutionService {
     private SuiteRunner suiteRunner;
     @Resource
     private SuiteBuilder suiteBuilder;
+    @Resource
+    private ExecutionCancelRegistry cancelRegistry;
 
-    /** 运行中执行的取消标志；终态后清理 */
-    private final ConcurrentHashMap<UUID, AtomicBoolean> cancelFlags = new ConcurrentHashMap<>();
+    // ========== 异步执行 ==========
 
     // ========== 异步执行 ==========
 
@@ -144,8 +145,7 @@ public class SceneExecutionServiceImpl implements SceneExecutionService {
 
     /** 工作线程：pending → running → 终态；异常兜底置 error，避免轮询悬挂 */
     private void run(UUID executionId, UUID userId) {
-        AtomicBoolean cancelled = new AtomicBoolean(false);
-        cancelFlags.put(executionId, cancelled);
+        AtomicBoolean cancelled = cancelRegistry.register(executionId);
         ApiExecutionRecord carrier = new ApiExecutionRecord();
         carrier.setId(executionId);
         carrier.setStatus("running");
@@ -161,7 +161,7 @@ public class SceneExecutionServiceImpl implements SceneExecutionService {
             failed.setErrorMessage(truncate(ex.getMessage() == null ? "执行失败" : ex.getMessage(), 2000));
             executionRecordMapper.updateById(failed);
         } finally {
-            cancelFlags.remove(executionId);
+            cancelRegistry.release(executionId);
         }
     }
 
@@ -564,11 +564,8 @@ public class SceneExecutionServiceImpl implements SceneExecutionService {
         ApiExecutionRecord record = requireRecord(projectId, executionId);
         boolean running = "pending".equals(record.getStatus()) || "running".equals(record.getStatus());
         if (running) {
-            AtomicBoolean flag = cancelFlags.get(executionId);
-            if (flag != null) {
-                flag.set(true);
-            } else {
-                // 队列积压尚未起跑：直接标记取消，任务起跑时按标志跳过全部步骤
+            // 未命中运行中标志说明队列积压尚未起跑：直接标记取消，任务起跑时按标志跳过全部步骤
+            if (!cancelRegistry.requestCancellation(executionId)) {
                 ApiExecutionRecord carrier = new ApiExecutionRecord();
                 carrier.setId(executionId);
                 carrier.setStatus("cancelled");
