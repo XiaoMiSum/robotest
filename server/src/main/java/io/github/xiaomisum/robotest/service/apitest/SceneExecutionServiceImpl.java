@@ -1,4 +1,7 @@
 package io.github.xiaomisum.robotest.service.apitest;
+import io.github.xiaomisum.robotest.service.apitest.execution.ports.StepSpec;
+import io.github.xiaomisum.robotest.service.apitest.execution.ports.EnvironmentSnapshotProvider;
+import io.github.xiaomisum.robotest.service.apitest.execution.ports.EnvSnapshot;
 
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.framework.common.SceneStepUtil;
@@ -88,7 +91,7 @@ public class SceneExecutionServiceImpl implements SceneExecutionService {
     @Resource
     private ApiTestProperties properties;
     @Resource
-    private EnvironmentSnapshotFactory environmentSnapshotFactory;
+    private EnvironmentSnapshotProvider environmentSnapshotFactory;
     @Resource
     private CustomFunctionRuntime functionRuntime;
 
@@ -169,7 +172,7 @@ public class SceneExecutionServiceImpl implements SceneExecutionService {
                 scene.getVariables() == null ? List.of() : scene.getVariables();
         List<Map<String, Object>> sceneProcessors =
                 scene.getProcessors() == null ? List.of() : scene.getProcessors();
-        DebugRyzeConverter.EnvSnapshot env =
+        EnvSnapshot env =
                 environmentSnapshotFactory.resolve(record.getProjectId(), record.getEnvironmentId());
         return new RunContext(record, scene, steps, sceneVariables, env, sceneProcessors);
     }
@@ -185,7 +188,7 @@ public class SceneExecutionServiceImpl implements SceneExecutionService {
         List<Map<String, Object>> stepResults = new ArrayList<>();
 
         // 构建所有步骤的 StepSpec 和 sampler 级变量
-        List<SceneRyzeConverter.StepSpec> allSpecs = new ArrayList<>();
+        List<StepSpec> allSpecs = new ArrayList<>();
         List<Map<String, Object>> perStepVars = new ArrayList<>();
         List<Map<String, Object>> enabledSteps = new ArrayList<>();
         for (Map<String, Object> step : ctx.steps()) {
@@ -338,7 +341,7 @@ public class SceneExecutionServiceImpl implements SceneExecutionService {
         if (config == null || config.isEmpty()) {
             return new ResolvedSpec(null, "步骤缺少请求配置");
         }
-        return new ResolvedSpec(new SceneRyzeConverter.StepSpec(name,
+        return new ResolvedSpec(new StepSpec(name,
                 config, orEmpty(SceneStepUtil.getList(step, "validators")),
                 orEmpty(SceneStepUtil.getList(step, "extractors"))), null);
     }
@@ -441,7 +444,7 @@ public class SceneExecutionServiceImpl implements SceneExecutionService {
      * @param executedAt   本套件触发/执行时间（executedAt 快照）
      */
     @Override
-    public SceneDatasetSnapshot buildSceneDataset(ApiScene scene, DebugRyzeConverter.EnvSnapshot env,
+    public SceneDatasetSnapshot buildSceneDataset(ApiScene scene, EnvSnapshot env,
             io.github.xiaomisum.ryze.Result result, LocalDateTime executedAt) {
         long durationMs = result.getStartTime() == null || result.getEndTime() == null ? 0L
                 : Duration.between(result.getStartTime(), result.getEndTime()).toMillis();
@@ -594,7 +597,7 @@ public class SceneExecutionServiceImpl implements SceneExecutionService {
         projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
         ApiScene scene = requireScene(projectId, sceneId);
         Map<String, Object> step = requireStep(scene.getSteps(), stepId);
-        DebugRyzeConverter.EnvSnapshot env =
+        EnvSnapshot env =
                 environmentSnapshotFactory.resolve(projectId, reqDTO.getEnvironmentId());
 
         ResolvedSpec resolved = resolveSpec(step);
@@ -650,7 +653,7 @@ public class SceneExecutionServiceImpl implements SceneExecutionService {
             ApiSceneStepDraftDebugReqDTO reqDTO) {
         projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
         ApiSceneStepDraftDebugReqDTO.Step draftStep = reqDTO.getStep();
-        DebugRyzeConverter.EnvSnapshot env =
+        EnvSnapshot env =
                 environmentSnapshotFactory.resolve(projectId, reqDTO.getEnvironmentId());
 
         ResolvedSpec resolved = resolveDraftSpec(draftStep.getName(),
@@ -691,7 +694,7 @@ public class SceneExecutionServiceImpl implements SceneExecutionService {
         if (steps.isEmpty()) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.VALIDATION_FAILED, "场景没有可执行步骤");
         }
-        DebugRyzeConverter.EnvSnapshot env =
+        EnvSnapshot env =
                 environmentSnapshotFactory.resolve(projectId, reqDTO.getEnvironmentId());
         List<Map<String, Object>> sceneVariables = toVariableMapList(reqDTO.getSceneVariables());
 
@@ -705,7 +708,7 @@ public class SceneExecutionServiceImpl implements SceneExecutionService {
 
         // 组装所有启用步骤的 StepSpec 与 sampler 级变量；失效步骤预置为 skipped
         List<Integer> enabledIndexes = new ArrayList<>();
-        List<SceneRyzeConverter.StepSpec> specList = new ArrayList<>();
+        List<StepSpec> specList = new ArrayList<>();
         List<Map<String, Object>> perStepVars = new ArrayList<>();
         for (int i = 0; i < steps.size(); i++) {
             ApiSceneDraftExecuteReqDTO.DraftStep step = steps.get(i);
@@ -818,7 +821,7 @@ public class SceneExecutionServiceImpl implements SceneExecutionService {
         if (config == null || config.isEmpty()) {
             return new ResolvedSpec(null, "步骤缺少请求配置");
         }
-        return new ResolvedSpec(new SceneRyzeConverter.StepSpec(names(name),
+        return new ResolvedSpec(new StepSpec(names(name),
                 config, orEmpty(validators), orEmpty(extractors)), null);
     }
 
@@ -841,7 +844,7 @@ public class SceneExecutionServiceImpl implements SceneExecutionService {
     }
 
     private ApiSceneDraftExecuteRespDTO.StepResult toDraftStepResult(String name, StepOutcome outcome,
-            SceneRyzeConverter.StepSpec spec) {
+            StepSpec spec) {
         return ApiSceneDraftExecuteRespDTO.StepResult.builder()
                 .status(outcome.status())
                 .name(name)
@@ -1025,7 +1028,7 @@ public class SceneExecutionServiceImpl implements SceneExecutionService {
     }
 
     private record RunContext(ApiExecutionRecord record, ApiScene scene, List<Map<String, Object>> steps,
-            List<Map<String, Object>> sceneVariables, DebugRyzeConverter.EnvSnapshot env,
+            List<Map<String, Object>> sceneVariables, EnvSnapshot env,
             List<Map<String, Object>> sceneProcessors) {
     }
 }

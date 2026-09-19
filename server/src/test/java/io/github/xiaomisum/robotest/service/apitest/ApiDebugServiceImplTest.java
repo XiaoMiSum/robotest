@@ -1,4 +1,5 @@
 package io.github.xiaomisum.robotest.service.apitest;
+import io.github.xiaomisum.robotest.service.apitest.execution.adapters.ryze.RyzeEnvironmentSnapshotProvider;
 
 import com.sun.net.httpserver.HttpServer;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
@@ -98,7 +99,7 @@ class ApiDebugServiceImplTest {
         ReflectionSet.set(service, "properties", properties);
 
         // 环境快照装配已抽取为共享工厂，测试内以同一组环境 mock 组装真实工厂注入
-        EnvironmentSnapshotFactory environmentSnapshotFactory = new EnvironmentSnapshotFactory();
+        RyzeEnvironmentSnapshotProvider environmentSnapshotFactory = new RyzeEnvironmentSnapshotProvider();
         ReflectionSet.set(environmentSnapshotFactory, "environmentMapper", environmentMapper);
         ReflectionSet.set(service, "environmentSnapshotFactory", environmentSnapshotFactory);
 

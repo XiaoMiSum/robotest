@@ -1,4 +1,6 @@
 package io.github.xiaomisum.robotest.service.apitest;
+import io.github.xiaomisum.robotest.service.apitest.execution.ports.EnvironmentSnapshotProvider;
+import io.github.xiaomisum.robotest.service.apitest.execution.ports.EnvSnapshot;
 
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.framework.config.ApiTestProperties;
@@ -63,7 +65,7 @@ public class ApiDebugServiceImpl implements ApiDebugService {
     @Resource
     private ProjectAccessGuard projectAccessGuard;
     @Resource
-    private EnvironmentSnapshotFactory environmentSnapshotFactory;
+    private EnvironmentSnapshotProvider environmentSnapshotFactory;
     @Resource(name = "apiTestExecutor")
     private ThreadPoolTaskExecutor apiTestExecutor;
     @Resource(name = "apiDebugPersistExecutor")
@@ -80,7 +82,7 @@ public class ApiDebugServiceImpl implements ApiDebugService {
         if (reqDTO.getProtocol() != null && !"http".equalsIgnoreCase(reqDTO.getProtocol())) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.API_FORMAT_CONVERT_FAILED, "V1.2 仅支持 http 协议");
         }
-        DebugRyzeConverter.EnvSnapshot env = resolveEnvSnapshot(projectId, reqDTO.getEnvironmentId());
+        EnvSnapshot env = resolveEnvSnapshot(projectId, reqDTO.getEnvironmentId());
         Map<String, Object> suite = DebugRyzeConverter.buildSuite(env, reqDTO);
 
         int timeoutMs = reqDTO.getTimeoutMs() != null && reqDTO.getTimeoutMs() > 0
@@ -468,7 +470,7 @@ public class ApiDebugServiceImpl implements ApiDebugService {
 
     // ========== 环境快照 ==========
 
-    private DebugRyzeConverter.EnvSnapshot resolveEnvSnapshot(UUID projectId, UUID environmentId) {
+    private EnvSnapshot resolveEnvSnapshot(UUID projectId, UUID environmentId) {
         return environmentSnapshotFactory.resolve(projectId, environmentId);
     }
 

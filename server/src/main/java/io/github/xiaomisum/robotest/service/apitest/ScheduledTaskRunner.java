@@ -1,4 +1,7 @@
 package io.github.xiaomisum.robotest.service.apitest;
+import io.github.xiaomisum.robotest.service.apitest.execution.ports.StepSpec;
+import io.github.xiaomisum.robotest.service.apitest.execution.ports.EnvironmentSnapshotProvider;
+import io.github.xiaomisum.robotest.service.apitest.execution.ports.EnvSnapshot;
 
 import io.github.xiaomisum.robotest.framework.common.SceneStepUtil;
 import io.github.xiaomisum.robotest.framework.security.ProjectAccessGuard;
@@ -57,7 +60,7 @@ public class ScheduledTaskRunner {
     @Resource
     private SceneExecutionService sceneExecutionService;
     @Resource
-    private EnvironmentSnapshotFactory environmentSnapshotFactory;
+    private EnvironmentSnapshotProvider environmentSnapshotFactory;
     @Resource
     private ApiInterfaceService apiInterfaceService;
     @Resource
@@ -172,7 +175,7 @@ public class ScheduledTaskRunner {
             updateTaskLastExecution(task.getId(), "failed");
             return;
         }
-        DebugRyzeConverter.EnvSnapshot env = environmentSnapshotFactory.resolve(
+        EnvSnapshot env = environmentSnapshotFactory.resolve(
                 task.getProjectId(), task.getEnvironmentId());
 
         // 组装顶层大 TestSuite：场景 = 子 TestSuite，环境内容（变量/前后置处理器/配置元件）统一挂顶层供子级继承
@@ -306,7 +309,7 @@ public class ScheduledTaskRunner {
     /** 套件报告（report_type=suite）：scenes[] 为逐场景数据集（测试报告详细设计 2.3.2、4.1） */
     private ApiReport buildSuiteReport(ApiScheduledTask task, int totalScenes,
             List<Map<String, Object>> scenes, int passedScenes, int failedScenes,
-            long startedAt, LocalDateTime triggeredAt, DebugRyzeConverter.EnvSnapshot env,
+            long startedAt, LocalDateTime triggeredAt, EnvSnapshot env,
             io.github.xiaomisum.ryze.Result rootResult) {
         int totalSteps = 0;
         int passedSteps = 0;
@@ -446,8 +449,8 @@ public class ScheduledTaskRunner {
     }
 
     /** 场景步骤 → 仅启用步骤的 StepSpec 列表（与 perStepVariables 位置一一对应，供 buildSceneSuite 组装） */
-    private List<SceneRyzeConverter.StepSpec> stepSpecs(ApiScene scene) {
-        List<SceneRyzeConverter.StepSpec> specs = new ArrayList<>();
+    private List<StepSpec> stepSpecs(ApiScene scene) {
+        List<StepSpec> specs = new ArrayList<>();
         for (Map<String, Object> step : orEmpty(scene.getSteps())) {
             if (!Boolean.TRUE.equals(step.get("enabled"))) {
                 continue;
@@ -456,7 +459,7 @@ public class ScheduledTaskRunner {
             if (config == null || config.isEmpty()) {
                 continue;
             }
-            specs.add(new SceneRyzeConverter.StepSpec(
+            specs.add(new StepSpec(
                     SceneStepUtil.getString(step, "name", null),
                     config,
                     SceneStepUtil.getList(step, "validators"),

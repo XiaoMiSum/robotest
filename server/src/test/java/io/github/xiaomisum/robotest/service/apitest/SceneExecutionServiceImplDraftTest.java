@@ -1,4 +1,5 @@
 package io.github.xiaomisum.robotest.service.apitest;
+import io.github.xiaomisum.robotest.service.apitest.execution.adapters.ryze.RyzeEnvironmentSnapshotProvider;
 
 import com.sun.net.httpserver.HttpServer;
 import io.github.xiaomisum.robotest.framework.config.ApiTestProperties;
@@ -81,7 +82,7 @@ class SceneExecutionServiceImplDraftTest {
         ReflectionSet.set(service, "apiTestExecutor", executor);
         ReflectionSet.set(service, "properties", new ApiTestProperties());
 
-        EnvironmentSnapshotFactory envFactory = new EnvironmentSnapshotFactory();
+        RyzeEnvironmentSnapshotProvider envFactory = new RyzeEnvironmentSnapshotProvider();
         ReflectionSet.set(envFactory, "environmentMapper", environmentMapper);
         ReflectionSet.set(service, "environmentSnapshotFactory", envFactory);
 
