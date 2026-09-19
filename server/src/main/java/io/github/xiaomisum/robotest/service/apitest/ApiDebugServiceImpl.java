@@ -18,6 +18,8 @@ import io.github.xiaomisum.robotest.model.entity.apitest.ApiInterface;
 import io.github.xiaomisum.robotest.repository.apitest.ApiDebugRecordMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiEnvironmentMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiInterfaceMapper;
+import io.github.xiaomisum.robotest.service.apitest.execution.adapters.ryze.DebugRyzeConverter;
+import io.github.xiaomisum.robotest.service.apitest.execution.adapters.ryze.RyzeResultAdapter;
 import io.github.xiaomisum.ryze.Ryze;
 import io.github.xiaomisum.ryze.protocol.http.RealHTTPResponse;
 import jakarta.annotation.Resource;
