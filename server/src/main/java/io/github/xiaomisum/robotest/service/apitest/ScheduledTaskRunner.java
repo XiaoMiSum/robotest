@@ -18,9 +18,8 @@ import io.github.xiaomisum.robotest.repository.apitest.ApiSceneMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiScheduledTaskExecutionMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiScheduledTaskMapper;
 import io.github.xiaomisum.robotest.repository.tcase.ProjectModuleMapper;
-import io.github.xiaomisum.robotest.service.apitest.execution.adapters.ryze.DebugRyzeConverter;
-import io.github.xiaomisum.robotest.service.apitest.execution.adapters.ryze.RyzeResultSnapshotConverter;
 import io.github.xiaomisum.robotest.service.apitest.execution.adapters.ryze.SceneRyzeConverter;
+import io.github.xiaomisum.robotest.service.apitest.execution.ports.MappedResult;
 import jakarta.annotation.PreDestroy;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
@@ -206,25 +205,23 @@ public class ScheduledTaskRunner {
             root.put("postprocessors", env.postprocessors());
         }
 
-        io.github.xiaomisum.ryze.Result result;
+        MappedResult result;
         try {
             result = sceneExecutionService.startSuite(root, task.getProjectId());
         } catch (Exception e) {
             recordFailure(task, triggerType, triggeredAt, e);
             return;
         }
-        if (result.getThrowable() != null) {
-            // 顶层 suite 构建/启动异常（ryze 捕获进 result.throwable 而非抛出）：
+        if (result.throwableMessage() != null) {
+            // 顶层 suite 构建/启动异常（引擎捕获进结果而非抛出）：
             // 不生成套件报告、不写逐场景执行记录，仅落一条任务级 failed 留痕（定时任务详细设计 4.3）
-            Throwable throwable = result.getThrowable();
-            String message = truncate(throwable.getMessage() != null
-                    ? throwable.getMessage() : throwable.getClass().getSimpleName());
+            String message = truncate(result.throwableMessage());
             insertRecord(task.getId(), task.getProjectId(), triggerType, "failed", message,
                     null, null, triggeredAt, (int) (System.currentTimeMillis() - startedAt));
             updateTaskLastExecution(task.getId(), "failed");
             return;
         }
-        Map<UUID, io.github.xiaomisum.ryze.Result> byScene = new LinkedHashMap<>();
+        Map<UUID, MappedResult> byScene = new LinkedHashMap<>();
         collectSceneResults(result, byScene);
 
         // 逐场景结果映射 + 数据采集（全部场景共享同一 report_id，见下）
@@ -234,7 +231,7 @@ public class ScheduledTaskRunner {
         int failedScenes = 0;
         String manualTrigger = ProjectAccessGuard.SYSTEM_OPERATOR_ID.equals(executorUserId) ? "scheduled" : "manual";
         for (ApiScene scene : eligible) {
-            io.github.xiaomisum.ryze.Result sceneResult = byScene.get(scene.getId());
+            MappedResult sceneResult = byScene.get(scene.getId());
             if (sceneResult == null) {
                 failedScenes++;
                 datasets.add(placeholderSceneDataset(scene.getName(), triggeredAt));
@@ -270,19 +267,18 @@ public class ScheduledTaskRunner {
         updateTaskLastExecution(task.getId(), failedScenes > 0 ? "failed" : "success");
     }
 
-    /** 沿结果树递归收集各场景子 TestSuite 结果，keyed by metadata.sceneId（定时任务详细设计 4.3） */
-    private void collectSceneResults(io.github.xiaomisum.ryze.Result node,
-            Map<UUID, io.github.xiaomisum.ryze.Result> byScene) {
-        if (node instanceof io.github.xiaomisum.ryze.testelement.TestSuiteResult suite) {
-            Object metaSceneId = suite.getMetadata() == null ? null : suite.getMetadata().get("sceneId");
+    /** 沿结果树递归收集各场景子 suite 结果，keyed by metadata.sceneId（定时任务详细设计 4.3） */
+    private void collectSceneResults(MappedResult node, Map<UUID, MappedResult> byScene) {
+        if (node.suite()) {
+            Object metaSceneId = node.metadata() == null ? null : node.metadata().get("sceneId");
             if (metaSceneId != null) {
                 try {
-                    byScene.putIfAbsent(UUID.fromString(metaSceneId.toString()), suite);
+                    byScene.putIfAbsent(UUID.fromString(metaSceneId.toString()), node);
                 } catch (IllegalArgumentException ignored) {
                     // 非 sceneId 元数据（如无来源的顶层 suite），忽略
                 }
             }
-            for (io.github.xiaomisum.ryze.Result child : suite.getChildren()) {
+            for (MappedResult child : node.children()) {
                 collectSceneResults(child, byScene);
             }
         }
@@ -310,7 +306,7 @@ public class ScheduledTaskRunner {
     private ApiReport buildSuiteReport(ApiScheduledTask task, int totalScenes,
             List<Map<String, Object>> scenes, int passedScenes, int failedScenes,
             long startedAt, LocalDateTime triggeredAt, EnvSnapshot env,
-            io.github.xiaomisum.ryze.Result rootResult) {
+            MappedResult rootResult) {
         int totalSteps = 0;
         int passedSteps = 0;
         int failedSteps = 0;
@@ -345,10 +341,10 @@ public class ScheduledTaskRunner {
         dataset.put("triggeredAt", triggeredAt.toString());
         dataset.put("scenes", scenes);
         List<Map<String, Object>> envPre = rootResult == null ? List.of()
-                : sceneExecutionService.toProcessorEntries(rootResult.getPreprocessors());
+                : sceneExecutionService.toProcessorEntries(rootResult.preprocessors());
         dataset.put("preprocessors", envPre == null ? List.of() : envPre);
         List<Map<String, Object>> envPost = rootResult == null ? List.of()
-                : sceneExecutionService.toProcessorEntries(rootResult.getPostprocessors());
+                : sceneExecutionService.toProcessorEntries(rootResult.postprocessors());
         dataset.put("postprocessors", envPost == null ? List.of() : envPost);
 
         ApiReport report = new ApiReport();
@@ -362,8 +358,8 @@ public class ScheduledTaskRunner {
         report.setStatus(suiteStatus);
         report.setSummary(summary);
         report.setResult(dataset);
-        // 整包 Ryze 结果树快照（含各场景子 suite），供结果回溯（测试报告详细设计 2.3.3）
-        report.setRyzeSnapshot(RyzeResultSnapshotConverter.toSnapshot(rootResult));
+        // 整包平台结果树快照（含各场景子 suite），供结果回溯（测试报告详细设计 2.3.3）
+        report.setRyzeSnapshot(rootResult == null ? null : rootResult.treeSnapshot());
         return report;
     }
 

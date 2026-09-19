@@ -61,6 +61,7 @@ public class RyzeResultMapper implements ResultMapper {
         Integer responseStatus = null;
         Map<String, Object> responseHeaders = null;
         String fullResponseBody = null;
+        Integer responseSize = 0;
         List<Map<String, Object>> assertions = List.of();
         List<Map<String, Object>> extractors = List.of();
         Throwable error = result.getThrowable();
@@ -73,6 +74,7 @@ public class RyzeResultMapper implements ResultMapper {
                 responseStatus = raw.status();
                 responseHeaders = SnapshotVisitor.toHeaderMap(raw.headers());
                 fullResponseBody = SnapshotVisitor.bytesAsString(raw);
+                responseSize = raw.bytes() == null ? 0 : raw.bytes().length;
             }
             request = SnapshotVisitor.requestSnapshot(sample.getRequest());
             response = SnapshotVisitor.responseSnapshot(sample, maxChars);
@@ -96,6 +98,7 @@ public class RyzeResultMapper implements ResultMapper {
                 responseStatus,
                 responseHeaders,
                 fullResponseBody,
+                responseSize,
                 assertions,
                 extractors,
                 isSuite ? mapChildren(((TestSuiteResult) result).getChildren(), maxChars) : List.of(),
