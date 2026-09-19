@@ -13,7 +13,9 @@ import io.github.xiaomisum.robotest.repository.apitest.ApiSceneMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiScheduledTaskExecutionMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiScheduledTaskMapper;
 import io.github.xiaomisum.robotest.repository.workspace.ProjectMapper;
-import io.github.xiaomisum.robotest.service.apitest.execution.adapters.ryze.DebugRyzeConverter;
+import io.github.xiaomisum.robotest.framework.config.ApiTestProperties;
+import io.github.xiaomisum.robotest.service.apitest.execution.adapters.ryze.RyzeResultMapper;
+import io.github.xiaomisum.robotest.service.apitest.execution.ports.MappedResult;
 import io.github.xiaomisum.ryze.testelement.TestSuiteResult;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -141,7 +143,7 @@ class ScheduledTaskRunnerTest {
         when(environmentSnapshotFactory.resolve(PROJECT_ID, ENV_ID))
                 .thenReturn(EnvSnapshot.empty());
         when(sceneExecutionService.startSuite(any(), eq(PROJECT_ID)))
-                .thenReturn(topSuiteResult(sceneSubSuite()));
+                .thenReturn(mappedTop(topSuiteResult(sceneSubSuite())));
         when(sceneExecutionService.buildSceneDataset(eq(scene), any(), any(), any()))
                 .thenReturn(snapshot("success", 2, 0));
 
@@ -201,7 +203,7 @@ class ScheduledTaskRunnerTest {
         when(environmentSnapshotFactory.resolve(PROJECT_ID, ENV_ID))
                 .thenReturn(EnvSnapshot.empty());
         when(sceneExecutionService.startSuite(any(), eq(PROJECT_ID)))
-                .thenReturn(topSuiteResult(sceneSubSuite()));
+                .thenReturn(mappedTop(topSuiteResult(sceneSubSuite())));
         when(sceneExecutionService.buildSceneDataset(eq(scene), any(), any(), any()))
                 .thenReturn(snapshot("failed", 1, 1));
 
@@ -228,7 +230,7 @@ class ScheduledTaskRunnerTest {
                 .thenReturn(EnvSnapshot.empty());
         TestSuiteResult top = topSuiteResult(sceneSubSuite());
         top.setThrowable(new RuntimeException("数据库连接池耗尽"));
-        when(sceneExecutionService.startSuite(any(), eq(PROJECT_ID))).thenReturn(top);
+        when(sceneExecutionService.startSuite(any(), eq(PROJECT_ID))).thenReturn(mappedTop(top));
 
         runner.runTask(task, "scheduled");
 
@@ -310,7 +312,7 @@ class ScheduledTaskRunnerTest {
         when(sceneMapper.listByProject(PROJECT_ID)).thenReturn(List.of(scene));
         when(environmentSnapshotFactory.resolve(PROJECT_ID, ENV_ID)).thenReturn(envWithContent());
         when(sceneExecutionService.startSuite(any(), eq(PROJECT_ID)))
-                .thenReturn(topSuiteResult(sceneSubSuite()));
+                .thenReturn(mappedTop(topSuiteResult(sceneSubSuite())));
         when(sceneExecutionService.buildSceneDataset(eq(scene), any(), any(), any()))
                 .thenReturn(snapshot("success", 1, 0));
 
@@ -413,6 +415,11 @@ class ScheduledTaskRunnerTest {
         TestSuiteResult top = new TestSuiteResult("冒烟任务");
         top.addChild(sceneSubSuite);
         return top;
+    }
+
+    /** 经防腐层投影为平台结果模型（编排层 startSuite 现返回 MappedResult） */
+    private MappedResult mappedTop(TestSuiteResult top) {
+        return RyzeResultMapper.map(top, new ApiTestProperties().getDebug().getMaxResponseBodyChars());
     }
 
     private TestSuiteResult sceneSubSuite() {
