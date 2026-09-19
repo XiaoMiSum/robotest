@@ -19,6 +19,7 @@ import io.github.xiaomisum.robotest.repository.apitest.ApiScheduledTaskExecution
 import io.github.xiaomisum.robotest.repository.apitest.ApiScheduledTaskMapper;
 import io.github.xiaomisum.robotest.repository.tcase.ProjectModuleMapper;
 import io.github.xiaomisum.robotest.service.apitest.execution.adapters.ryze.SceneRyzeConverter;
+import io.github.xiaomisum.robotest.service.apitest.execution.SceneExecutionService;
 import io.github.xiaomisum.robotest.service.apitest.execution.ports.MappedResult;
 import jakarta.annotation.PreDestroy;
 import jakarta.annotation.Resource;
