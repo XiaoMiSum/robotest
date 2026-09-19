@@ -3,8 +3,9 @@ import io.github.xiaomisum.robotest.service.apitest.execution.ports.EnvSnapshot;
 
 import io.github.xiaomisum.robotest.framework.config.ApiTestProperties;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiScene;
-import io.github.xiaomisum.robotest.service.apitest.execution.adapters.ryze.DebugRyzeConverter;
+import io.github.xiaomisum.robotest.service.apitest.execution.adapters.ryze.RyzeResultMapper;
 import io.github.xiaomisum.robotest.service.apitest.execution.adapters.ryze.RyzeResultSnapshotConverter;
+import io.github.xiaomisum.robotest.service.apitest.execution.ports.MappedResult;
 import io.github.xiaomisum.ryze.TestStatus;
 import io.github.xiaomisum.ryze.protocol.http.RealHTTPResponse;
 import io.github.xiaomisum.ryze.result.AssertionResult;
@@ -47,6 +48,7 @@ class SceneExecutionMappingGoldenTest {
     private static final UUID SCENE_ID = UUID.fromString("00000000-0000-0000-0000-00000000a001");
     private static final LocalDateTime T0 = LocalDateTime.of(2026, 9, 10, 10, 0);
     private static final LocalDateTime T1 = LocalDateTime.of(2026, 9, 10, 10, 0, 1);
+    private static final int MAX_CHARS = new ApiTestProperties().getDebug().getMaxResponseBodyChars();
 
     @Test
     void successSceneDatasetGolden() {
@@ -168,7 +170,10 @@ class SceneExecutionMappingGoldenTest {
         post.setStartTime(T0);
         post.setEndTime(T1);
 
-        List<Map<String, Object>> entries = service().toProcessorEntries(List.of(pre, post));
+        // 处理器结果先经防腐层投影为平台结果模型，再进入编排映射（04 §3.1.1 切片 3）
+        List<MappedResult> nodes = List.of(RyzeResultMapper.map(pre, MAX_CHARS),
+                RyzeResultMapper.map(post, MAX_CHARS));
+        List<Map<String, Object>> entries = service().toProcessorEntries(nodes);
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("entries", entries);
 
@@ -210,7 +215,8 @@ class SceneExecutionMappingGoldenTest {
         scene.setId(SCENE_ID);
         scene.setName("登录链路");
         scene.setSteps(sceneSteps(2));
-        return service().buildSceneDataset(scene, EnvSnapshot.empty(), suite, T0)
+        return service().buildSceneDataset(scene, EnvSnapshot.empty(),
+                RyzeResultMapper.map(suite, MAX_CHARS), T0)
                 .dataset();
     }
 
