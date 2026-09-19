@@ -9,7 +9,6 @@ import io.github.xiaomisum.ryze.result.VariableRecord;
 import io.github.xiaomisum.ryze.support.ExceptionGroup;
 import io.github.xiaomisum.ryze.testelement.TestSuiteResult;
 import io.github.xiaomisum.ryze.testelement.sampler.SampleResult;
-import org.apache.hc.core5.http.Header;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -22,8 +21,10 @@ import java.util.Map;
  * Ryze 结果树 → 可持久化 JSON 快照（测试报告详细设计 2.3.3：ryze_snapshot 保存平台自有字段模型之外
  * 的完整执行结果树，供结果回溯与转换问题定位）。
  * <p>
- * 序列化忠实保留结果树层级（suite.children / sample 的 assertions.extractors / 层级合上下文处理器与
- * 变量增量），字段与 ryze {result.md} 表述一致；响应体按完整字节写入不截断。仅序列化不做还原。
+ * 树形快照由 {@link ResultTreeWalker} 遍历生成（接口测试域重构方案 04 §3.1.2），
+ * 保留结果树层级（suite.children / sample 的 assertions.extractors / 各级 preprocessors.postprocessors
+ * 与变量增量），字段与 ryze {result.md} 表述一致；响应体按完整字节写入不截断。仅序列化不做还原。
+ * 与数据集快照（{@link SnapshotVisitor}）共享 toHeaderMap 助手，不重复实现。
  */
 public final class RyzeResultSnapshotConverter {
 
@@ -37,11 +38,64 @@ public final class RyzeResultSnapshotConverter {
      * @return 树形 JSON 快照，入参为 null 时返回 null
      */
     public static Map<String, Object> toSnapshot(Result result) {
-        return result == null ? null : toNode(result);
+        if (result == null) {
+            return null;
+        }
+        Map<Result, Map<String, Object>> nodes = new LinkedHashMap<>();
+        List<Result> order = new ArrayList<>();
+        ResultTreeWalker.walk(result, new ResultVisitor() {
+            @Override
+            public void visitSuite(TestSuiteResult suite) {
+                nodes.put(suite, commonNode(suite));
+                order.add(suite);
+            }
+
+            @Override
+            public void visitSample(SampleResult sample) {
+                nodes.put(sample, sampleNode(sample));
+                order.add(sample);
+            }
+
+            @Override
+            public void visitFailure(Result failed) {
+                nodes.put(failed, commonNode(failed));
+                order.add(failed);
+            }
+        });
+        // children 在遍历后统一挂接：保持公共字段在前、children 在后的键序（黄金文件字节门禁）
+        for (Result node : order) {
+            if (node instanceof TestSuiteResult suite) {
+                nodes.get(suite).put("children", linkedChildren(nodes, suite));
+            }
+        }
+        return nodes.get(result);
+    }
+
+    private static List<Map<String, Object>> linkedChildren(
+            Map<Result, Map<String, Object>> nodes, TestSuiteResult suite) {
+        List<Map<String, Object>> children = new ArrayList<>();
+        if (suite.getChildren() == null) {
+            return children;
+        }
+        for (Result child : suite.getChildren()) {
+            children.add(nodes.get(child));
+        }
+        return children;
     }
 
     /** 单个结果节点：公共字段 + 子类扩展字段（TestSuiteResult/children、SampleResult/取样快照） */
     private static Map<String, Object> toNode(Result node) {
+        Map<String, Object> snapshot = commonNode(node);
+        if (node instanceof TestSuiteResult suite) {
+            snapshot.put("children", toNodes(suite.getChildren()));
+        } else if (node instanceof SampleResult sample) {
+            extendSample(snapshot, sample);
+        }
+        return snapshot;
+    }
+
+    /** 公共字段：id/title/status/起止/异常/元数据/变量增量/前后置处理器（处理器多级以完整节点递归） */
+    private static Map<String, Object> commonNode(Result node) {
         Map<String, Object> snapshot = new LinkedHashMap<>();
         snapshot.put("id", node.getId());
         snapshot.put("title", node.getTitle());
@@ -54,17 +108,23 @@ public final class RyzeResultSnapshotConverter {
         snapshot.put("variables", toVariables(node.getVariables()));
         snapshot.put("preprocessors", toNodes(node.getPreprocessors()));
         snapshot.put("postprocessors", toNodes(node.getPostprocessors()));
-        if (node instanceof TestSuiteResult suite) {
-            snapshot.put("children", toNodes(suite.getChildren()));
-        } else if (node instanceof SampleResult sample) {
-            snapshot.put("sampleStartTime", toIso(sample.getSampleStartTime()));
-            snapshot.put("sampleEndTime", toIso(sample.getSampleEndTime()));
-            snapshot.put("duration", sample.getDuration());
-            snapshot.put("request", toRequest(sample.getRequest()));
-            snapshot.put("response", toResponse(sample.getResponse()));
-            snapshot.put("assertions", toAssertions(sample.getAssertions()));
-            snapshot.put("extractors", toExtractors(sample.getExtractors()));
-        }
+        return snapshot;
+    }
+
+    private static void extendSample(Map<String, Object> snapshot, SampleResult sample) {
+        snapshot.put("sampleStartTime", toIso(sample.getSampleStartTime()));
+        snapshot.put("sampleEndTime", toIso(sample.getSampleEndTime()));
+        snapshot.put("duration", sample.getDuration());
+        snapshot.put("request", toRequest(sample.getRequest()));
+        snapshot.put("response", toResponse(sample.getResponse()));
+        snapshot.put("assertions", toAssertions(sample.getAssertions()));
+        snapshot.put("extractors", toExtractors(sample.getExtractors()));
+    }
+
+    /** SampleResult 叶节点：公共字段 + 取样快照字段（无 children） */
+    private static Map<String, Object> sampleNode(SampleResult sample) {
+        Map<String, Object> snapshot = commonNode(sample);
+        extendSample(snapshot, sample);
         return snapshot;
     }
 
@@ -125,7 +185,7 @@ public final class RyzeResultSnapshotConverter {
             snapshot.put("method", http.getMethod());
             snapshot.put("query", http.getQuery());
             snapshot.put("version", http.getVersion());
-            snapshot.put("headers", toHeaderMap(http.getHeaders()));
+            snapshot.put("headers", SnapshotVisitor.toHeaderMap(http.getHeaders()));
             snapshot.put("body", bytesAsString(http.getBody()));
         }
         snapshot.put("format", request.getFormat());
@@ -142,7 +202,7 @@ public final class RyzeResultSnapshotConverter {
         if (response instanceof RealHTTPResponse http) {
             snapshot.put("version", http.getVersion());
             snapshot.put("message", http.getMessage());
-            snapshot.put("headers", toHeaderMap(http.getHeaders()));
+            snapshot.put("headers", SnapshotVisitor.toHeaderMap(http.getHeaders()));
             snapshot.put("body", bytesAsString(http.getBody()));
         }
         snapshot.put("format", response.getFormat());
@@ -178,18 +238,6 @@ public final class RyzeResultSnapshotConverter {
             snapshot.put("message", extractor.getMessage());
             return snapshot;
         }).toList();
-    }
-
-    /** 请求/响应头：同名 header 合并为逗号分隔（与数据集响应头口径一致） */
-    private static Map<String, Object> toHeaderMap(List<Header> headers) {
-        if (headers == null || headers.isEmpty()) {
-            return Map.of();
-        }
-        Map<String, Object> map = new LinkedHashMap<>();
-        for (Header header : headers) {
-            map.merge(header.getName(), header.getValue(), (a, b) -> a + ", " + b);
-        }
-        return map;
     }
 
     private static String bytesAsString(byte[] bytes) {
