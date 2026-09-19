@@ -28,14 +28,12 @@ import io.github.xiaomisum.robotest.repository.apitest.ApiChangeHistoryMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiExecutionRecordMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiReportMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiSceneMapper;
-import io.github.xiaomisum.robotest.service.apitest.execution.adapters.ryze.DebugRyzeConverter;
 import io.github.xiaomisum.robotest.service.apitest.execution.adapters.ryze.ReportEntryVisitor;
 import io.github.xiaomisum.robotest.service.apitest.execution.adapters.ryze.ReportEntryVisitor.ResolvedSpec;
 import io.github.xiaomisum.robotest.service.apitest.execution.adapters.ryze.ReportEntryVisitor.StepOutcome;
-import io.github.xiaomisum.robotest.service.apitest.execution.adapters.ryze.RyzeResultAdapter;
-import io.github.xiaomisum.robotest.service.apitest.execution.adapters.ryze.RyzeResultSnapshotConverter;
-import io.github.xiaomisum.robotest.service.apitest.execution.adapters.ryze.SceneRyzeConverter;
-import io.github.xiaomisum.ryze.Ryze;
+import io.github.xiaomisum.robotest.service.apitest.execution.ports.MappedResult;
+import io.github.xiaomisum.robotest.service.apitest.execution.ports.SuiteBuilder;
+import io.github.xiaomisum.robotest.service.apitest.execution.ports.SuiteRunner;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
@@ -45,7 +43,6 @@ import xyz.migoo.framework.common.pojo.PageParam;
 import xyz.migoo.framework.common.pojo.PageResult;
 import xyz.migoo.framework.common.util.JsonUtils;
 
-import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -94,6 +91,10 @@ public class SceneExecutionServiceImpl implements SceneExecutionService {
     private EnvironmentSnapshotProvider environmentSnapshotFactory;
     @Resource
     private CustomFunctionRuntime functionRuntime;
+    @Resource
+    private SuiteRunner suiteRunner;
+    @Resource
+    private SuiteBuilder suiteBuilder;
 
     /** 运行中执行的取消标志；终态后清理 */
     private final ConcurrentHashMap<UUID, AtomicBoolean> cancelFlags = new ConcurrentHashMap<>();
@@ -225,9 +226,9 @@ public class SceneExecutionServiceImpl implements SceneExecutionService {
         }
 
         // 构建单套件：suite.variables = 环境 + 场景，sampler.variables = 步骤级
-        Map<String, Object> suiteVariables = SceneRyzeConverter.buildSuiteVariables(
+        Map<String, Object> suiteVariables = suiteBuilder.buildSuiteVariables(
                 ctx.env(), ctx.sceneVariables());
-        Map<String, Object> suite = SceneRyzeConverter.buildSuite(
+        Map<String, Object> suite = suiteBuilder.buildSuite(
                 ctx.scene().getName(), ctx.env(), suiteVariables, perStepVars, allSpecs,
                 ctx.sceneProcessors());
 
@@ -235,13 +236,13 @@ public class SceneExecutionServiceImpl implements SceneExecutionService {
         StepOutcome suiteOutcome = runSingle(suite, ctx.record().getProjectId());
 
         // 从套件结果中提取各步骤的 SampleResult
-        List<io.github.xiaomisum.ryze.Result> children = suiteOutcome.sampleResults();
+        List<MappedResult> children = suiteOutcome.sampleResults();
         int childIdx = 0;
         for (int i = 0; i < enabledSteps.size(); i++) {
             Map<String, Object> step = enabledSteps.get(i);
             if (childIdx < children.size()) {
-                io.github.xiaomisum.ryze.Result childResult = children.get(childIdx);
-                StepOutcome outcome = ReportEntryVisitor.extractChildOutcome(childResult, maxResponseBodyChars());
+                MappedResult childResult = children.get(childIdx);
+                StepOutcome outcome = ReportEntryVisitor.extractChildOutcome(childResult);
                 anyError |= "error".equals(outcome.status());
                 if ("success".equals(outcome.status())) {
                     passed++;
@@ -286,13 +287,8 @@ public class SceneExecutionServiceImpl implements SceneExecutionService {
 
     /** 前置/后置处理器结果节点 → 处理器执行明细：委托 ReportEntryVisitor（接口测试域重构方案 04 §3.1.2） */
     @Override
-    public List<Map<String, Object>> toProcessorEntries(List<io.github.xiaomisum.ryze.Result> nodes) {
-        return ReportEntryVisitor.processorEntries(nodes, maxResponseBodyChars());
-    }
-
-    /** 响应体截断上限（数据集/处理器明细共用，避免调用方各自携带） */
-    private int maxResponseBodyChars() {
-        return properties.getDebug().getMaxResponseBodyChars();
+    public List<Map<String, Object>> toProcessorEntries(List<MappedResult> nodes) {
+        return ReportEntryVisitor.processorEntries(nodes);
     }
 
     private StepOutcome runSingle(Map<String, Object> suite, UUID projectId) {
@@ -300,7 +296,7 @@ public class SceneExecutionServiceImpl implements SceneExecutionService {
         try {
             // 执行前注入自定义函数：重写调用名并标记项目上下文
             functionRuntime.prepareSuite(suite, projectId);
-            var result = apiTestExecutor.submit(() -> Ryze.start(suite))
+            var result = apiTestExecutor.submit(() -> suiteRunner.run(suite))
                     .get(guardMs, java.util.concurrent.TimeUnit.MILLISECONDS);
             return extractSuiteOutcome(result);
         } catch (java.util.concurrent.TimeoutException ex) {
@@ -314,24 +310,21 @@ public class SceneExecutionServiceImpl implements SceneExecutionService {
     }
 
     /**
-     * 同步执行一个（大）TestSuite 并返回原始 Ryze 结果树（不设超时，等待完整执行结束）。
+     * 同步执行一个（大）TestSuite 并返回平台结果模型（不设超时，等待完整执行结束）。
      * <p>供定时任务测试计划把全部场景组织为单个顶层 TestSuite 一次执行后，按场景子 suite 的
      * metadata.sceneId 从结果树反查各场景结果（定时任务详细设计 4.3）。调用方需自行捕获异常。
      */
     @Override
-    public io.github.xiaomisum.ryze.Result startSuite(Map<String, Object> suite, UUID projectId) throws Exception {
+    public MappedResult startSuite(Map<String, Object> suite, UUID projectId) throws Exception {
         functionRuntime.prepareSuite(suite, projectId);
-        return apiTestExecutor.submit(() -> Ryze.start(suite)).get();
+        return apiTestExecutor.submit(() -> suiteRunner.run(suite)).get();
     }
 
-    private StepOutcome extractSuiteOutcome(io.github.xiaomisum.ryze.Result suiteResult) {
-        List<io.github.xiaomisum.ryze.Result> children =
-                suiteResult instanceof io.github.xiaomisum.ryze.testelement.TestSuiteResult suite
-                        ? new ArrayList<>(suite.getChildren()) : List.of();
-        Long elapsed = ReportEntryVisitor.elapsedMillis(suiteResult.getStartTime(), suiteResult.getEndTime());
-        Throwable error = suiteResult.getThrowable();
-        return new StepOutcome(RyzeResultAdapter.resolveStepStatus(suiteResult), null, null, null,
-                RyzeResultAdapter.errorMessage(error), elapsed, null, children, null, List.of(), List.of(),
+    private StepOutcome extractSuiteOutcome(MappedResult suiteResult) {
+        List<MappedResult> children =
+                suiteResult.suite() ? new ArrayList<>(suiteResult.children()) : List.of();
+        return new StepOutcome(suiteResult.status(), null, null, null,
+                suiteResult.errorMessage(), suiteResult.elapsedMs(), null, children, null, List.of(), List.of(),
                 suiteResult);
     }
 
@@ -348,7 +341,7 @@ public class SceneExecutionServiceImpl implements SceneExecutionService {
 
     private void finishExecution(RunContext ctx, List<Map<String, Object>> stepResults,
             int passed, int failed, int skipped, boolean anyError, boolean wasCancelled, long durationMs,
-            io.github.xiaomisum.ryze.Result rootResult) {
+            MappedResult rootResult) {
         String status = anyError ? "error" : "failed";
         if (wasCancelled) {
             status = "cancelled";
@@ -379,9 +372,9 @@ public class SceneExecutionServiceImpl implements SceneExecutionService {
         dataset.put("executedAt", toUtcIso(ctx.record().getExecutedAt()));
         dataset.put("steps", stepResults);
         dataset.put("preprocessors", rootResult == null ? List.of()
-                : ReportEntryVisitor.processorEntries(rootResult.getPreprocessors(), maxResponseBodyChars()));
+                : ReportEntryVisitor.processorEntries(rootResult.preprocessors()));
         dataset.put("postprocessors", rootResult == null ? List.of()
-                : ReportEntryVisitor.processorEntries(rootResult.getPostprocessors(), maxResponseBodyChars()));
+                : ReportEntryVisitor.processorEntries(rootResult.postprocessors()));
 
         ApiReport report = new ApiReport();
         report.setId(UUID.randomUUID());
@@ -396,8 +389,8 @@ public class SceneExecutionServiceImpl implements SceneExecutionService {
         report.setStatus(reportStatus);
         report.setSummary(summary);
         report.setResult(dataset);
-        // Ryze 结果树快照：执行结果整体序列化落库，供结果回溯（测试报告详细设计 2.3.3）
-        report.setRyzeSnapshot(RyzeResultSnapshotConverter.toSnapshot(rootResult));
+        // 平台结果模型快照：执行结果整体序列化落库，供结果回溯（测试报告详细设计 2.3.3）
+        report.setRyzeSnapshot(rootResult == null ? null : rootResult.treeSnapshot());
 
         ApiExecutionRecord carrier = new ApiExecutionRecord();
         carrier.setId(ctx.record().getId());
@@ -445,17 +438,16 @@ public class SceneExecutionServiceImpl implements SceneExecutionService {
      */
     @Override
     public SceneDatasetSnapshot buildSceneDataset(ApiScene scene, EnvSnapshot env,
-            io.github.xiaomisum.ryze.Result result, LocalDateTime executedAt) {
-        long durationMs = result.getStartTime() == null || result.getEndTime() == null ? 0L
-                : Duration.between(result.getStartTime(), result.getEndTime()).toMillis();
-        List<io.github.xiaomisum.ryze.Result> children = result instanceof io.github.xiaomisum.ryze.testelement.TestSuiteResult suite
-                ? new ArrayList<>(suite.getChildren()) : List.of();
+            MappedResult result, LocalDateTime executedAt) {
+        long durationMs = result.elapsedMs() == null ? 0L : result.elapsedMs();
+        List<MappedResult> children =
+                result.suite() ? new ArrayList<>(result.children()) : List.of();
         List<Map<String, Object>> steps = scene.getSteps() == null ? List.of() : scene.getSteps();
         List<Map<String, Object>> stepResults = new ArrayList<>();
         int passed = 0;
         int failed = 0;
         int skipped = 0;
-        boolean anyError = result.getThrowable() != null;
+        boolean anyError = result.errorMessage() != null;
         int childIdx = 0;
         boolean stopOnFailure = true;
         for (int i = 0; i < steps.size(); i++) {
@@ -481,8 +473,7 @@ public class SceneExecutionServiceImpl implements SceneExecutionService {
                 continue;
             }
             if (childIdx < children.size()) {
-                StepOutcome outcome = ReportEntryVisitor.extractChildOutcome(children.get(childIdx),
-                        maxResponseBodyChars());
+                StepOutcome outcome = ReportEntryVisitor.extractChildOutcome(children.get(childIdx));
                 anyError |= "error".equals(outcome.status());
                 if ("success".equals(outcome.status())) {
                     passed++;
@@ -503,8 +494,8 @@ public class SceneExecutionServiceImpl implements SceneExecutionService {
                 anyError = true;
                 stepResults.add(ReportEntryVisitor.reportEntry(step, spec,
                         new StepOutcome("error", null, null, null, engineFailureMessage(
-                                new StepOutcome(RyzeResultAdapter.resolveStepStatus(result), null, null, null,
-                                        RyzeResultAdapter.errorMessage(result.getThrowable()),
+                                new StepOutcome(result.status(), null, null, null,
+                                        result.errorMessage(),
                                         durationMs, children)), 0L, List.of())));
                 if (stopOnFailure) {
                     for (int j = i + 1; j < steps.size(); j++) {
@@ -541,10 +532,8 @@ public class SceneExecutionServiceImpl implements SceneExecutionService {
         dataset.put("environmentName", env == null ? null : env.name());
         dataset.put("executedAt", toUtcIso(executedAt));
         dataset.put("steps", stepResults);
-        dataset.put("preprocessors", ReportEntryVisitor.processorEntries(result.getPreprocessors(),
-                maxResponseBodyChars()));
-        dataset.put("postprocessors", ReportEntryVisitor.processorEntries(result.getPostprocessors(),
-                maxResponseBodyChars()));
+        dataset.put("preprocessors", ReportEntryVisitor.processorEntries(result.preprocessors()));
+        dataset.put("postprocessors", ReportEntryVisitor.processorEntries(result.postprocessors()));
         return new SceneDatasetSnapshot(dataset, reportStatus, passed, failed, skipped, durationMs);
     }
 
@@ -610,7 +599,7 @@ public class SceneExecutionServiceImpl implements SceneExecutionService {
                     .build();
             return ApiSceneStepDebugRespDTO.builder().stepResult(error).build();
         }
-        Map<String, Object> suiteVars = SceneRyzeConverter.buildSuiteVariables(
+        Map<String, Object> suiteVars = suiteBuilder.buildSuiteVariables(
                 env,
                 scene.getVariables() == null ? List.of() : scene.getVariables());
         Map<String, Object> stepVars = new LinkedHashMap<>();
@@ -620,7 +609,7 @@ public class SceneExecutionServiceImpl implements SceneExecutionService {
                 stepVars.put(name.toString(), row.get("value"));
             }
         }
-        StepOutcome outcome = runSingle(SceneRyzeConverter.buildSuite(
+        StepOutcome outcome = runSingle(suiteBuilder.buildSuite(
                 SceneStepUtil.getString(step, "name", null), env, suiteVars, List.of(stepVars),
                 List.of(resolved.spec()),
                 scene.getProcessors() == null ? List.of() : scene.getProcessors()), projectId);
@@ -666,15 +655,15 @@ public class SceneExecutionServiceImpl implements SceneExecutionService {
                     .extractedVariables(Map.of())
                     .build()).build();
         }
-        Map<String, Object> suiteVars = SceneRyzeConverter.buildSuiteVariables(
+        Map<String, Object> suiteVars = suiteBuilder.buildSuiteVariables(
                 env, toVariableMapList(reqDTO.getSceneVariables()));
         Map<String, Object> stepVars = variablesToMaps(draftStep.getStepVariables());
-        StepOutcome outcome = runSingle(SceneRyzeConverter.buildSuite(
+        StepOutcome outcome = runSingle(suiteBuilder.buildSuite(
                 draftStep.getName(), env, suiteVars, List.of(stepVars), List.of(resolved.spec()),
                 List.of()), projectId);
         // 单步套件取首个采样结果为响应摘要（套件级结果不含 responseStatus）
         StepOutcome sample = outcome.sampleResults().isEmpty() ? outcome
-                : ReportEntryVisitor.extractChildOutcome(outcome.sampleResults().get(0), maxResponseBodyChars());
+                : ReportEntryVisitor.extractChildOutcome(outcome.sampleResults().get(0));
         return ApiSceneStepDebugRespDTO.builder().stepResult(ApiSceneStepDebugRespDTO.StepResult.builder()
                 .stepId("draft")
                 .status(outcome.status())
@@ -739,12 +728,12 @@ public class SceneExecutionServiceImpl implements SceneExecutionService {
         }
 
         if (!specList.isEmpty()) {
-            Map<String, Object> suiteVariables = SceneRyzeConverter.buildSuiteVariables(env, sceneVariables);
-            Map<String, Object> suite = SceneRyzeConverter.buildSuite(
+            Map<String, Object> suiteVariables = suiteBuilder.buildSuiteVariables(env, sceneVariables);
+            Map<String, Object> suite = suiteBuilder.buildSuite(
                     reqDTO.getName() == null || reqDTO.getName().isBlank() ? "草稿场景" : reqDTO.getName(),
                     env, suiteVariables, perStepVars, specList, List.of());
             StepOutcome suiteOutcome = runSingle(suite, projectId);
-            List<io.github.xiaomisum.ryze.Result> children = suiteOutcome.sampleResults();
+            List<MappedResult> children = suiteOutcome.sampleResults();
             int childIdx = 0;
             if (suiteOutcome.errorMessage() != null) {
                 overall = "error";
@@ -752,8 +741,7 @@ public class SceneExecutionServiceImpl implements SceneExecutionService {
             for (int k = 0; k < enabledIndexes.size(); k++) {
                 ApiSceneDraftExecuteReqDTO.DraftStep step = steps.get(enabledIndexes.get(k));
                 if (childIdx < children.size()) {
-                    StepOutcome outcome = ReportEntryVisitor.extractChildOutcome(children.get(childIdx),
-                            maxResponseBodyChars());
+                    StepOutcome outcome = ReportEntryVisitor.extractChildOutcome(children.get(childIdx));
                     boolean ok = "success".equals(outcome.status());
                     if (ok) {
                         passed++;

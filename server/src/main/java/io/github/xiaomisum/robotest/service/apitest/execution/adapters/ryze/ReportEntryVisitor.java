@@ -1,10 +1,8 @@
 package io.github.xiaomisum.robotest.service.apitest.execution.adapters.ryze;
-import io.github.xiaomisum.robotest.service.apitest.execution.ports.StepSpec;
 
 import io.github.xiaomisum.robotest.framework.common.SceneStepUtil;
-import io.github.xiaomisum.ryze.Result;
-import io.github.xiaomisum.ryze.protocol.http.RealHTTPResponse;
-import io.github.xiaomisum.ryze.testelement.sampler.SampleResult;
+import io.github.xiaomisum.robotest.service.apitest.execution.ports.MappedResult;
+import io.github.xiaomisum.robotest.service.apitest.execution.ports.StepSpec;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -15,8 +13,8 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * Result 树 → 报表条目映射（接口测试域重构方案 04 §3.1.2：toProcessorEntries/toReportEntry/extractChildOutcome）。
- * 步骤/处理器执行明细采用数据集快照形状，快照细节委托 {@link SnapshotVisitor}；
+ * MappedResult 树 → 报表条目映射（接口测试域重构方案 04 §3.1.2：toProcessorEntries/toReportEntry/extractChildOutcome）。
+ * 步骤/处理器执行明细采用数据集快照形状（快照已由 {@link RyzeResultMapper} 在防腐层内投影）；
  * 仅剩编排语义（scene 步骤 map 字段、停止运行连线逻辑）留在 SceneExecutionServiceImpl。
  */
 public final class ReportEntryVisitor {
@@ -27,14 +25,14 @@ public final class ReportEntryVisitor {
     /** 单步骤结果切片：状态/响应/耗时/子结果；request/response/assertions/extractors 为数据集快照 */
     public record StepOutcome(String status, Integer responseStatus, Map<String, Object> responseHeaders,
             String responseBody, String errorMessage, Long elapsedMs, Map<String, Object> request,
-            List<Result> sampleResults,
+            List<MappedResult> sampleResults,
             Map<String, Object> response, List<Map<String, Object>> assertions,
-            List<Map<String, Object>> extractors, Result rootResult) {
+            List<Map<String, Object>> extractors, MappedResult rootResult) {
 
         /** 无数据集快照的构造（超时/异常/步骤级结果聚合场景），根结果为空 */
         public StepOutcome(String status, Integer responseStatus, Map<String, Object> responseHeaders,
                 String responseBody, String errorMessage, Long elapsedMs,
-                List<Result> sampleResults) {
+                List<MappedResult> sampleResults) {
             this(status, responseStatus, responseHeaders, responseBody, errorMessage, elapsedMs, null, sampleResults,
                     null, List.of(), List.of(), null);
         }
@@ -45,54 +43,39 @@ public final class ReportEntryVisitor {
     }
 
     /** 单个子结果 → 步骤结果切片（SampleResult 取响应摘要与数据集快照，非 SampleResult 仅状态/错误） */
-    public static StepOutcome extractChildOutcome(Result childResult, int maxResponseBodyChars) {
-        Long elapsed = elapsedMillis(childResult.getStartTime(), childResult.getEndTime());
-        Throwable error = childResult.getThrowable();
-        if (childResult instanceof SampleResult sample) {
-            Integer responseStatus = null;
-            Map<String, Object> responseHeaders = null;
-            String responseBody = null;
-            if (sample.getResponse() instanceof RealHTTPResponse response) {
-                responseStatus = response.status();
-                responseHeaders = SnapshotVisitor.toHeaderMap(response.headers());
-                responseBody = SnapshotVisitor.bytesAsString(response);
-            }
-            Throwable sampleError = sample.getThrowable() != null ? sample.getThrowable() : error;
-            return new StepOutcome(RyzeResultAdapter.resolveStepStatus(sample), responseStatus, responseHeaders,
-                    responseBody, RyzeResultAdapter.errorMessage(sampleError), elapsed,
-                    SnapshotVisitor.requestSnapshot(sample.getRequest()), List.of(),
-                    SnapshotVisitor.responseSnapshot(sample, maxResponseBodyChars),
-                    SnapshotVisitor.assertionSnapshots(sample), SnapshotVisitor.extractorSnapshots(sample), null);
+    public static StepOutcome extractChildOutcome(MappedResult child) {
+        if (!child.sample()) {
+            return new StepOutcome(child.status(), null, null, null, child.errorMessage(), child.elapsedMs(),
+                    List.of());
         }
-        return new StepOutcome(RyzeResultAdapter.resolveStepStatus(childResult), null, null, null,
-                RyzeResultAdapter.errorMessage(error), elapsed, List.of());
+        return new StepOutcome(child.status(), child.responseStatus(), child.responseHeaders(),
+                child.fullResponseBody(), child.errorMessage(), child.elapsedMs(), child.request(), List.of(),
+                child.response(), child.assertions(), child.extractors(), child);
     }
 
     /**
      * 前置/后置处理器结果节点 → 处理器执行明细（形状同步骤元素，测试报告详细设计 2.3）。
-     * 处理器即 SampleResult，携带 request/response/assertions/extractors，可直接复用快照构建。
+     * 处理器即 SampleResult，携带 request/response/assertions/extractors 快照，直接复用。
      */
-    public static List<Map<String, Object>> processorEntries(List<Result> nodes, int maxResponseBodyChars) {
+    public static List<Map<String, Object>> processorEntries(List<MappedResult> nodes) {
         if (nodes == null || nodes.isEmpty()) {
             return List.of();
         }
         List<Map<String, Object>> entries = new ArrayList<>();
-        for (Result node : nodes) {
+        for (MappedResult node : nodes) {
             Map<String, Object> entry = new LinkedHashMap<>();
-            entry.put("name", node.getTitle());
-            entry.put("status", RyzeResultAdapter.resolveStepStatus(node));
-            if (node instanceof SampleResult sample) {
-                Throwable sampleError = sample.getThrowable() != null ? sample.getThrowable() : node.getThrowable();
-                Long elapsed = elapsedMillis(sample.getStartTime(), sample.getEndTime());
-                entry.put("type", sample.getRequest() == null ? null : "HTTP");
-                entry.put("durationMs", elapsed);
-                entry.put("request", SnapshotVisitor.requestSnapshot(sample.getRequest()));
-                entry.put("response", SnapshotVisitor.responseSnapshot(sample, maxResponseBodyChars));
-                entry.put("assertions", SnapshotVisitor.assertionSnapshots(sample));
-                entry.put("extractors", SnapshotVisitor.extractorSnapshots(sample));
-                entry.put("errorMessage", RyzeResultAdapter.errorMessage(sampleError));
+            entry.put("name", node.title());
+            entry.put("status", node.status());
+            if (node.sample()) {
+                entry.put("type", node.request() == null ? null : "HTTP");
+                entry.put("durationMs", node.elapsedMs());
+                entry.put("request", node.request());
+                entry.put("response", node.response());
+                entry.put("assertions", node.assertions());
+                entry.put("extractors", node.extractors());
+                entry.put("errorMessage", node.errorMessage());
             } else {
-                entry.put("errorMessage", RyzeResultAdapter.errorMessage(node.getThrowable()));
+                entry.put("errorMessage", node.errorMessage());
             }
             entries.add(entry);
         }
