@@ -1,4 +1,6 @@
 package io.github.xiaomisum.robotest.service.apitest;
+import io.github.xiaomisum.robotest.service.apitest.execution.ports.StepSpec;
+import io.github.xiaomisum.robotest.service.apitest.execution.ports.EnvSnapshot;
 
 import io.github.xiaomisum.robotest.service.apitest.execution.adapters.ryze.DebugRyzeConverter;
 import io.github.xiaomisum.robotest.service.apitest.execution.adapters.ryze.SceneRyzeConverter;
@@ -21,7 +23,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class SceneRyzeConverterTest {
 
-    private static DebugRyzeConverter.EnvSnapshot env() {
+    private static EnvSnapshot env() {
         Map<String, Object> variables = new java.util.LinkedHashMap<>();
         variables.put("envVar", "v1");
         variables.put("host", "resolved.example.com");
@@ -31,15 +33,15 @@ class SceneRyzeConverterTest {
                         "headers", List.of(Map.of("key", "X-Env-Header", "value", "env-value", "enabled", true)),
                         "isDefault", true),
                 Map.of("name", "备用", "refName", "alt-http", "baseUrl", "http://alt.example.com", "isDefault", false));
-        return new DebugRyzeConverter.EnvSnapshot(
+        return new EnvSnapshot(
                 "测试环境", variables, List.of(), List.of(), httpConfigs, List.of());
     }
 
-    private static SceneRyzeConverter.StepSpec spec(String url) {
+    private static StepSpec spec(String url) {
         Map<String, Object> config = new java.util.LinkedHashMap<>();
         config.put("method", "GET");
         config.put("url", url);
-        return new SceneRyzeConverter.StepSpec("step-1", config, List.of(), List.of());
+        return new StepSpec("step-1", config, List.of(), List.of());
     }
 
     @SuppressWarnings("unchecked")
@@ -96,7 +98,7 @@ class SceneRyzeConverterTest {
 
     @Test
     void absoluteUrlOverridesBaseUrlAndDisabledHttpConfigKeepsFirstRef() {
-        DebugRyzeConverter.EnvSnapshot env = new DebugRyzeConverter.EnvSnapshot(
+        EnvSnapshot env = new EnvSnapshot(
                 null, Map.of(), List.of(), List.of(),
                 List.of(Map.of("refName", "alt", "baseUrl", "http://alt.example.com", "isDefault", false)),
                 List.of());
@@ -109,14 +111,14 @@ class SceneRyzeConverterTest {
 
         // 无 http 配置时不设 ref，避免引用不存在的配置
         Map<String, Object> noEnv = firstSampler(SceneRyzeConverter.buildSuite(
-                "s", DebugRyzeConverter.EnvSnapshot.empty(), Map.of(), List.of(),
+                "s", EnvSnapshot.empty(), Map.of(), List.of(),
                 List.of(spec("/rel"))));
         assertNull(((Map<?, ?>) noEnv.get("config")).get("ref"));
     }
 
     @Test
     void stepHeadersNoLongerMergeEnvHeadersOnlyConfigureElementCarriesThem() {
-        SceneRyzeConverter.StepSpec step = new SceneRyzeConverter.StepSpec("step",
+        StepSpec step = new StepSpec("step",
                 new java.util.LinkedHashMap<>(Map.of(
                         "method", "GET", "url", "/a",
                         "headers", List.of(
@@ -132,7 +134,7 @@ class SceneRyzeConverterTest {
 
     @Test
     void configureElementsCarryHttpAndDatasourceWithMergedHeaders() {
-        DebugRyzeConverter.EnvSnapshot env = new DebugRyzeConverter.EnvSnapshot(
+        EnvSnapshot env = new EnvSnapshot(
                 null, Map.of(), List.of(), List.of(),
                 List.of(Map.of("refName", "a", "baseUrl", "http://a.com",
                         "headers", List.of(Map.of("key", "X-A", "value", "1", "enabled", true)))),
@@ -159,7 +161,7 @@ class SceneRyzeConverterTest {
 
     @Test
     void sceneProcessorsMergedWithEnvPreAndPost() {
-        DebugRyzeConverter.EnvSnapshot env = new DebugRyzeConverter.EnvSnapshot(
+        EnvSnapshot env = new EnvSnapshot(
                 null, Map.of(),
                 List.of(Map.of("testclass", "http", "config", Map.of("path", "/env-pre"))),
                 List.of(Map.of("testclass", "http", "config", Map.of("path", "/env-post"))),
@@ -196,7 +198,7 @@ class SceneRyzeConverterTest {
 
     @Test
     void noSceneProcessorsKeepsOnlyEnvProcessors() {
-        DebugRyzeConverter.EnvSnapshot env = new DebugRyzeConverter.EnvSnapshot(
+        EnvSnapshot env = new EnvSnapshot(
                 null, Map.of(),
                 List.of(Map.of("testclass", "http", "config", Map.of("path", "/env-pre"))),
                 List.of(), List.of(), List.of());
@@ -227,7 +229,7 @@ class SceneRyzeConverterTest {
         none.put("body", Map.of("type", "none", "content", "x"));
         Map<?, ?> noneConfig = (Map<?, ?>) firstSampler(
                 SceneRyzeConverter.buildSuite("s", env(), Map.of(), List.of(),
-                        List.of(new SceneRyzeConverter.StepSpec("t", none, List.of(), List.of())))).get("config");
+                        List.of(new StepSpec("t", none, List.of(), List.of())))).get("config");
         assertFalse(noneConfig.containsKey("body"));
 
         Map<String, Object> form = new java.util.LinkedHashMap<>(base);
@@ -237,7 +239,7 @@ class SceneRyzeConverterTest {
                         Map.of("key", "skip", "value", "x", "enabled", false))));
         Map<?, ?> formConfig = (Map<?, ?>) firstSampler(
                 SceneRyzeConverter.buildSuite("s", env(), Map.of(), List.of(),
-                        List.of(new SceneRyzeConverter.StepSpec("t", form, List.of(), List.of())))).get("config");
+                        List.of(new StepSpec("t", form, List.of(), List.of())))).get("config");
         assertEquals(Map.of("a", "1"), formConfig.get("data"));
         assertFalse(formConfig.containsKey("body"));
     }
@@ -249,7 +251,7 @@ class SceneRyzeConverterTest {
         config.put("method", "GET");
         config.put("url", "/a");
         config.put("refName", "default");
-        SceneRyzeConverter.StepSpec step = new SceneRyzeConverter.StepSpec("s", config, List.of(), List.of());
+        StepSpec step = new StepSpec("s", config, List.of(), List.of());
         Map<String, Object> sampler = firstSampler(
                 SceneRyzeConverter.buildSuite("s", env(), Map.of(), List.of(), List.of(step)));
         Map<?, ?> samplerConfig = (Map<?, ?>) sampler.get("config");
@@ -371,7 +373,7 @@ class SceneRyzeConverterTest {
 
     @Test
     void httpStepRequestMethodIsConverted() {
-        SceneRyzeConverter.StepSpec step = new SceneRyzeConverter.StepSpec("t",
+        StepSpec step = new StepSpec("t",
                 new java.util.LinkedHashMap<>(Map.of("method", "POST", "url", "/a")),
                 List.of(), List.of());
         Map<String, Object> sampler = firstSampler(
@@ -455,7 +457,7 @@ class SceneRyzeConverterTest {
                 Map.of("type", "post", "name", "后置", "enabled", true,
                         "testclass", "http", "config", Map.of("path", "/clean")));
         Map<String, Object> suite = SceneRyzeConverter.buildSuite(
-                "s", DebugRyzeConverter.EnvSnapshot.empty(), Map.of(), List.of(),
+                "s", EnvSnapshot.empty(), Map.of(), List.of(),
                 List.of(spec("/a")), sceneProcessors);
         @SuppressWarnings("unchecked")
         List<Map<String, Object>> post = (List<Map<String, Object>>) suite.get("postprocessors");
@@ -464,7 +466,7 @@ class SceneRyzeConverterTest {
 
     @Test
     void stepExtractorsAndValidatorsPlacedOnSampler() {
-        SceneRyzeConverter.StepSpec step = new SceneRyzeConverter.StepSpec("t",
+        StepSpec step = new StepSpec("t",
                 new java.util.LinkedHashMap<>(Map.of("method", "GET", "url", "/a")),
                 List.of(Map.of("target", "status_code", "condition", "equals", "expected", 200)),
                 List.of(Map.of("source", "json_field", "expression", "$.token", "variableName", "token")));
@@ -486,7 +488,7 @@ class SceneRyzeConverterTest {
         Map<String, Object> config = new java.util.LinkedHashMap<>();
         config.put("method", "GET");
         config.put("url", "/api/${host}/port/${port}");
-        SceneRyzeConverter.StepSpec step = new SceneRyzeConverter.StepSpec("t", config, List.of(), List.of());
+        StepSpec step = new StepSpec("t", config, List.of(), List.of());
 
         Map<String, Object> sampler = firstSampler(SceneRyzeConverter.buildSuite(
                 "s", env(), Map.of(), List.of(), List.of(step)));

@@ -1,4 +1,5 @@
 package io.github.xiaomisum.robotest.service.apitest.execution.adapters.ryze;
+import io.github.xiaomisum.robotest.service.apitest.execution.ports.StepSpec;
 
 import io.github.xiaomisum.robotest.framework.common.SceneStepUtil;
 import io.github.xiaomisum.ryze.Result;
@@ -40,7 +41,7 @@ public final class ReportEntryVisitor {
     }
 
     /** 步骤规格解析结果：errorMessage 非空表示无法执行 */
-    public record ResolvedSpec(SceneRyzeConverter.StepSpec spec, String errorMessage) {
+    public record ResolvedSpec(StepSpec spec, String errorMessage) {
     }
 
     /** 单个子结果 → 步骤结果切片（SampleResult 取响应摘要与数据集快照，非 SampleResult 仅状态/错误） */

@@ -1,5 +1,8 @@
 package io.github.xiaomisum.robotest.service.apitest.execution.adapters.ryze;
 
+import io.github.xiaomisum.robotest.service.apitest.execution.ports.EnvSnapshot;
+import io.github.xiaomisum.robotest.service.apitest.execution.ports.StepSpec;
+
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -24,18 +27,12 @@ public final class SceneRyzeConverter {
     private SceneRyzeConverter() {
     }
 
-    /** 单个步骤的执行规格：请求配置 + 处理器/验证器/提取器（均为平台存储结构） */
-    public record StepSpec(String title, Map<String, Object> requestConfig,
-            List<Map<String, Object>> validators,
-            List<Map<String, Object>> extractors) {
-    }
-
     /**
      * 构建 suite 级变量：环境变量 + 场景变量（场景覆盖同名环境变量）。
      * 变量值保持原始 {@code ${...}} 引用不预解析，由 Ryze 引擎运行时求值。
      */
     public static Map<String, Object> buildSuiteVariables(
-            DebugRyzeConverter.EnvSnapshot env,
+            EnvSnapshot env,
             List<Map<String, Object>> sceneVariables) {
         Map<String, Object> variables = new LinkedHashMap<>();
         // 环境变量（最低优先级）
@@ -74,7 +71,7 @@ public final class SceneRyzeConverter {
      * sampler.variables = 步骤级（Ryze context chain 自动继承覆盖）。
      */
     public static Map<String, Object> buildSuite(String title,
-            DebugRyzeConverter.EnvSnapshot env,
+            EnvSnapshot env,
             Map<String, Object> suiteVariables,
             List<Map<String, Object>> perStepVariables,
             List<StepSpec> steps) {
@@ -90,7 +87,7 @@ public final class SceneRyzeConverter {
      *                        按需求 3.9 与场景处理器合并：前置 环境级→场景级，后置 场景级→环境级。
      */
     public static Map<String, Object> buildSuite(String title,
-            DebugRyzeConverter.EnvSnapshot env,
+            EnvSnapshot env,
             Map<String, Object> suiteVariables,
             List<Map<String, Object>> perStepVariables,
             List<StepSpec> steps,
@@ -111,7 +108,7 @@ public final class SceneRyzeConverter {
      * @param taskId  任务 ID（写入子 suite metadata）
      */
     public static Map<String, Object> buildSceneSuite(String title,
-            DebugRyzeConverter.EnvSnapshot env,
+            EnvSnapshot env,
             Map<String, Object> suiteVariables,
             List<Map<String, Object>> perStepVariables,
             List<StepSpec> steps,
@@ -131,7 +128,7 @@ public final class SceneRyzeConverter {
      * 供引擎反序列化为 TestSuite；metadata 写入子 suite 用于结果反查。
      */
     private static Map<String, Object> buildSuiteElement(String title,
-            DebugRyzeConverter.EnvSnapshot env,
+            EnvSnapshot env,
             Map<String, Object> suiteVariables,
             List<Map<String, Object>> perStepVariables,
             List<StepSpec> steps,
@@ -279,7 +276,7 @@ public final class SceneRyzeConverter {
      * 引擎反序列化契约（ConfigureElementObjectReader）：{testclass, ref_name, config}。
      * 返回环境 http 配置与数据源的 configelements 列表；http 配置 headers 由 KV-数组行转 map。
      */
-    public static List<Map<String, Object>> buildConfigureElements(DebugRyzeConverter.EnvSnapshot env) {
+    public static List<Map<String, Object>> buildConfigureElements(EnvSnapshot env) {
         List<Map<String, Object>> elements = new ArrayList<>();
         for (Map<String, Object> http : env.httpConfigs()) {
             Map<String, Object> config = new LinkedHashMap<>();
@@ -310,7 +307,7 @@ public final class SceneRyzeConverter {
      * 默认 http 配置引用名：isDefault=true 优先，否则取首条；无 http 配置返回空串
      * （此时步骤不设 ref，命中引擎默认键 __http_configure_element_default_ref_name__）。
      */
-    public static String defaultHttpRef(DebugRyzeConverter.EnvSnapshot env) {
+    public static String defaultHttpRef(EnvSnapshot env) {
         Map<String, Object> fallback = null;
         for (Map<String, Object> http : env.httpConfigs()) {
             if (Boolean.TRUE.equals(http.get("isDefault"))) {
@@ -363,7 +360,7 @@ public final class SceneRyzeConverter {
         return map;
     }
 
-    private static Map<String, Object> buildSampler(DebugRyzeConverter.EnvSnapshot env,
+    private static Map<String, Object> buildSampler(EnvSnapshot env,
             Map<String, Object> stepVariables, StepSpec step) {
         Map<String, Object> config = step.requestConfig() == null
                 ? new LinkedHashMap<>() : new LinkedHashMap<>(step.requestConfig());

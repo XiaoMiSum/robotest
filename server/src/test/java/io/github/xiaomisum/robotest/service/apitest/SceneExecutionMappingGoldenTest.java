@@ -1,4 +1,5 @@
 package io.github.xiaomisum.robotest.service.apitest;
+import io.github.xiaomisum.robotest.service.apitest.execution.ports.EnvSnapshot;
 
 import io.github.xiaomisum.robotest.framework.config.ApiTestProperties;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiScene;
@@ -209,7 +210,7 @@ class SceneExecutionMappingGoldenTest {
         scene.setId(SCENE_ID);
         scene.setName("登录链路");
         scene.setSteps(sceneSteps(2));
-        return service().buildSceneDataset(scene, DebugRyzeConverter.EnvSnapshot.empty(), suite, T0)
+        return service().buildSceneDataset(scene, EnvSnapshot.empty(), suite, T0)
                 .dataset();
     }
 

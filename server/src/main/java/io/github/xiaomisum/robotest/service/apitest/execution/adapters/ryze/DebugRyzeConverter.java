@@ -1,6 +1,7 @@
 package io.github.xiaomisum.robotest.service.apitest.execution.adapters.ryze;
 
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiDebugExecuteReqDTO;
+import io.github.xiaomisum.robotest.service.apitest.execution.ports.EnvSnapshot;
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -13,23 +14,6 @@ import java.util.Map;
 public final class DebugRyzeConverter {
 
     private DebugRyzeConverter() {
-    }
-
-    /**
-     * 执行引用的环境快照：http 配置与数据源原样透传（过渡器转为 suite configelements）、
-     * 变量明文、全局前置/后置处理器。
-     * 处理器元素结构与 Ryze 元件一致（api_environment_processor.config 直接透传）。
-     */
-    public record EnvSnapshot(String name,
-                              Map<String, Object> variables,
-                              List<Map<String, Object>> preprocessors,
-                              List<Map<String, Object>> postprocessors,
-                              List<Map<String, Object>> httpConfigs,
-                              List<Map<String, Object>> dataSources) {
-
-        public static EnvSnapshot empty() {
-            return new EnvSnapshot(null, Map.of(), List.of(), List.of(), List.of(), List.of());
-        }
     }
 
     /** 记录命名规则：方法 + URL 路径（快速调试详细设计 4.1） */

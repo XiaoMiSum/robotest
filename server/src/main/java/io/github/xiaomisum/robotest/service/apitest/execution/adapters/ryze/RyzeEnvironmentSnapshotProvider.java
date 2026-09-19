@@ -1,9 +1,9 @@
-package io.github.xiaomisum.robotest.service.apitest;
+package io.github.xiaomisum.robotest.service.apitest.execution.adapters.ryze;
 
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiEnvironment;
 import io.github.xiaomisum.robotest.repository.apitest.ApiEnvironmentMapper;
-import io.github.xiaomisum.robotest.service.apitest.execution.adapters.ryze.DebugRyzeConverter;
-import io.github.xiaomisum.robotest.service.apitest.execution.adapters.ryze.SceneRyzeConverter;
+import io.github.xiaomisum.robotest.service.apitest.execution.ports.EnvSnapshot;
+import io.github.xiaomisum.robotest.service.apitest.execution.ports.EnvironmentSnapshotProvider;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Component;
 import xyz.migoo.framework.mybatis.core.LambdaQueryWrapperX;
@@ -15,24 +15,25 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * 环境快照装配：调试与场景执行共用同一解析口径。
+ * 环境快照装配（端口 {@link EnvironmentSnapshotProvider} 实现）：调试与场景执行共用同一解析口径。
  *
  * <p>环境聚合存储于主表 api_environment 的 JSONB 列（详细设计《环境管理详细设计说明书》），
  * 快照装配 http 配置/数据源整表与变量明文、启用的前后置处理器，由两个转换器据此生成 suite configelements。</p>
  */
 @Component
-public class EnvironmentSnapshotFactory {
+public class RyzeEnvironmentSnapshotProvider implements EnvironmentSnapshotProvider {
 
     @Resource
     private ApiEnvironmentMapper environmentMapper;
 
     /** 指定环境不可用时回退项目默认环境，均缺失时返回空快照 */
-    public DebugRyzeConverter.EnvSnapshot resolve(UUID projectId, UUID environmentId) {
+    @Override
+    public EnvSnapshot resolve(UUID projectId, UUID environmentId) {
         ApiEnvironment env = environmentId != null
                 ? environmentMapper.selectById(environmentId)
                 : findDefaultEnvironment(projectId);
         if (env == null || !env.getProjectId().equals(projectId)) {
-            return DebugRyzeConverter.EnvSnapshot.empty();
+            return EnvSnapshot.empty();
         }
 
         Map<String, Object> variables = new LinkedHashMap<>();
@@ -47,7 +48,7 @@ public class EnvironmentSnapshotFactory {
         List<Map<String, Object>> post = processorConfigs(env.getProcessors(), "postprocessor");
 
         // http 配置/数据源整表透传，由转换器装配 configelements（基设详设 4.1.2）
-        return new DebugRyzeConverter.EnvSnapshot(
+        return new EnvSnapshot(
                 env.getName(), variables, pre, post,
                 nullToEmpty(env.getHttpConfigs()),
                 nullToEmpty(env.getDataSources()));
@@ -86,7 +87,7 @@ public class EnvironmentSnapshotFactory {
      * Ryze 引擎仅识别 {testclass, config, extractors}，需剥离平台 overlay 字段并将提取器由平台格式
      * ({source, expression, variableName}) 转为 Ryze 格式 ({testclass, field, ref_name})。</p>
      */
-    static Map<String, Object> normalizeProcessorElement(Map<String, Object> element) {
+    public static Map<String, Object> normalizeProcessorElement(Map<String, Object> element) {
         Map<String, Object> result = new LinkedHashMap<>(element);
         // 剥离平台 overlay 字段（Ryze 引擎不识别）
         result.remove("enabled");

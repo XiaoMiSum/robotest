@@ -1,4 +1,5 @@
 package io.github.xiaomisum.robotest.service.apitest;
+import io.github.xiaomisum.robotest.service.apitest.execution.ports.EnvSnapshot;
 
 import io.github.xiaomisum.robotest.framework.config.ApiTestProperties;
 import io.github.xiaomisum.robotest.framework.security.ProjectAccessGuard;
@@ -298,7 +299,7 @@ class SceneExecutionServiceImplExecuteTest {
                 "requestConfig", Map.of("method", "GET", "url", "http://localhost:1/a"))));
 
         SceneExecutionService.SceneDatasetSnapshot snapshot = service.buildSceneDataset(
-                scene, DebugRyzeConverter.EnvSnapshot.empty(), sub,
+                scene, EnvSnapshot.empty(), sub,
                 java.time.LocalDateTime.of(2026, 9, 10, 10, 0));
 
         List<Map<String, Object>> steps = (List<Map<String, Object>>) snapshot.dataset().get("steps");
@@ -433,7 +434,7 @@ class SceneExecutionServiceImplExecuteTest {
                 "requestConfig", Map.of("method", "GET", "url", "http://localhost:1/a"))));
 
         SceneExecutionService.SceneDatasetSnapshot snapshot = service.buildSceneDataset(
-                scene, DebugRyzeConverter.EnvSnapshot.empty(), sub,
+                scene, EnvSnapshot.empty(), sub,
                 java.time.LocalDateTime.of(2026, 9, 10, 10, 0));
 
         List<Map<String, Object>> postprocessors = (List<Map<String, Object>>)
@@ -456,7 +457,7 @@ class SceneExecutionServiceImplExecuteTest {
                 "io.github.xiaomisum.robotest.service.apitest.SceneExecutionServiceImpl$RunContext");
         Constructor<?> ctor = ctxClass.getDeclaredConstructors()[0];
         ctor.setAccessible(true);
-        Object ctx = ctor.newInstance(record, scene, steps, List.of(), DebugRyzeConverter.EnvSnapshot.empty(),
+        Object ctx = ctor.newInstance(record, scene, steps, List.of(), EnvSnapshot.empty(),
                 List.of());
         Method doRun = service.getClass().getDeclaredMethod("doRun", ctxClass, AtomicBoolean.class);
         doRun.setAccessible(true);

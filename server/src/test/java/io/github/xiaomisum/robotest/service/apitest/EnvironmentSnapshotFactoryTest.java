@@ -1,4 +1,5 @@
 package io.github.xiaomisum.robotest.service.apitest;
+import io.github.xiaomisum.robotest.service.apitest.execution.adapters.ryze.RyzeEnvironmentSnapshotProvider;
 
 import org.junit.jupiter.api.Test;
 
@@ -21,7 +22,7 @@ class EnvironmentSnapshotFactoryTest {
                 "config", Map.of("path", "/pre"),
                 "enabled", true,
                 "sortOrder", 1);
-        Map<String, Object> result = EnvironmentSnapshotFactory.normalizeProcessorElement(element);
+        Map<String, Object> result = RyzeEnvironmentSnapshotProvider.normalizeProcessorElement(element);
         assertFalse(result.containsKey("enabled"));
         assertFalse(result.containsKey("sortOrder"));
         assertEquals("http", result.get("testclass"));
@@ -36,7 +37,7 @@ class EnvironmentSnapshotFactoryTest {
                 "extractors", List.of(
                         Map.of("source", "json_field", "expression", "$.code",
                                 "variableName", "_var1", "enabled", true, "description", "")));
-        Map<String, Object> result = EnvironmentSnapshotFactory.normalizeProcessorElement(element);
+        Map<String, Object> result = RyzeEnvironmentSnapshotProvider.normalizeProcessorElement(element);
         @SuppressWarnings("unchecked")
         List<Map<String, Object>> extractors =
                 (List<Map<String, Object>>) result.get("extractors");
@@ -56,7 +57,7 @@ class EnvironmentSnapshotFactoryTest {
                 "config", Map.of("path", "/pre"),
                 "extractors", List.of(
                         Map.of("source", "", "expression", "", "variableName", "", "enabled", true)));
-        Map<String, Object> result = EnvironmentSnapshotFactory.normalizeProcessorElement(element);
+        Map<String, Object> result = RyzeEnvironmentSnapshotProvider.normalizeProcessorElement(element);
         assertFalse(result.containsKey("extractors"));
     }
 
@@ -65,7 +66,7 @@ class EnvironmentSnapshotFactoryTest {
         Map<String, Object> element = Map.of(
                 "testclass", "http",
                 "config", Map.of("path", "/pre"));
-        Map<String, Object> result = EnvironmentSnapshotFactory.normalizeProcessorElement(element);
+        Map<String, Object> result = RyzeEnvironmentSnapshotProvider.normalizeProcessorElement(element);
         assertEquals("http", result.get("testclass"));
         assertEquals(Map.of("path", "/pre"), result.get("config"));
     }
