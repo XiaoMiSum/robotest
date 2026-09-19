@@ -10,7 +10,10 @@ import io.github.xiaomisum.robotest.model.entity.apitest.ApiScene;
 import io.github.xiaomisum.robotest.repository.apitest.ApiExecutionRecordMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiReportMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiSceneMapper;
-import io.github.xiaomisum.robotest.service.apitest.execution.adapters.ryze.DebugRyzeConverter;
+import io.github.xiaomisum.robotest.service.apitest.execution.adapters.ryze.RyzeResultMapper;
+import io.github.xiaomisum.robotest.service.apitest.execution.ports.MappedResult;
+import io.github.xiaomisum.robotest.service.apitest.execution.ports.SuiteBuilder;
+import io.github.xiaomisum.robotest.service.apitest.execution.ports.SuiteRunner;
 import io.github.xiaomisum.ryze.TestStatus;
 import io.github.xiaomisum.ryze.protocol.http.RealHTTPResponse;
 import io.github.xiaomisum.ryze.result.AssertionResult;
@@ -66,6 +69,10 @@ class SceneExecutionServiceImplExecuteTest {
     @Mock
     private CustomFunctionRuntime functionRuntime;
     @Mock
+    private SuiteBuilder suiteBuilder;
+    @Mock
+    private SuiteRunner suiteRunner;
+    @Mock
     private ThreadPoolTaskExecutor apiTestExecutor;
 
     private SceneExecutionServiceImpl service;
@@ -79,6 +86,8 @@ class SceneExecutionServiceImplExecuteTest {
         inject("reportMapper", reportMapper);
         inject("functionRuntime", functionRuntime);
         inject("apiTestExecutor", apiTestExecutor);
+        inject("suiteRunner", suiteRunner);
+        inject("suiteBuilder", suiteBuilder);
         inject("properties", new ApiTestProperties());
     }
 
@@ -129,7 +138,7 @@ class SceneExecutionServiceImplExecuteTest {
         // 引擎侧超时（submit 的 Future.get 抛 TimeoutException）时套件无子结果：
         // 步骤不得被静默丢弃，须落 error 条目并附引擎错误信息，报告不得写成"空成功"
         // 永不完成的 Future：get(timeout) 必然超时，模拟引擎侧挂起直到守卫超时
-        CompletableFuture<io.github.xiaomisum.ryze.Result> timeoutFuture = new CompletableFuture<>();
+        CompletableFuture<MappedResult> timeoutFuture = new CompletableFuture<>();
         doReturn(timeoutFuture).when(apiTestExecutor).submit(any(java.util.concurrent.Callable.class));
         doNothing().when(functionRuntime).prepareSuite(any(), any());
         ApiExecutionRecord record = new ApiExecutionRecord();
@@ -192,8 +201,8 @@ class SceneExecutionServiceImplExecuteTest {
         second.setStartTime(java.time.LocalDateTime.of(2026, 9, 10, 10, 0));
         second.setEndTime(java.time.LocalDateTime.of(2026, 9, 10, 10, 0, 1));
         suiteResult.addChild(second);
-        CompletableFuture<io.github.xiaomisum.ryze.Result> doneFuture =
-                CompletableFuture.completedFuture(suiteResult);
+        CompletableFuture<MappedResult> doneFuture =
+                CompletableFuture.completedFuture(RyzeResultMapper.map(suiteResult, 0));
         doReturn(doneFuture).when(apiTestExecutor).submit(any(java.util.concurrent.Callable.class));
         doNothing().when(functionRuntime).prepareSuite(any(), any());
         ApiExecutionRecord record = new ApiExecutionRecord();
@@ -259,7 +268,8 @@ class SceneExecutionServiceImplExecuteTest {
                 new io.github.xiaomisum.ryze.testelement.TestSuiteResult("环境");
         top.addPreprocessor(pre);
 
-        List<Map<String, Object>> entries = service.toProcessorEntries(top.getPreprocessors());
+        List<Map<String, Object>> entries = service.toProcessorEntries(
+                top.getPreprocessors().stream().map(node -> RyzeResultMapper.map(node, 0)).toList());
 
         // 处理器明细复用步骤元素形状（测试报告详细设计 2.3）：name/status/request/response/assertions/extractors/durationMs
         assertEquals(1, entries.size());
@@ -299,7 +309,7 @@ class SceneExecutionServiceImplExecuteTest {
                 "requestConfig", Map.of("method", "GET", "url", "http://localhost:1/a"))));
 
         SceneExecutionService.SceneDatasetSnapshot snapshot = service.buildSceneDataset(
-                scene, EnvSnapshot.empty(), sub,
+                scene, EnvSnapshot.empty(), RyzeResultMapper.map(sub, 0),
                 java.time.LocalDateTime.of(2026, 9, 10, 10, 0));
 
         List<Map<String, Object>> steps = (List<Map<String, Object>>) snapshot.dataset().get("steps");
@@ -334,7 +344,7 @@ class SceneExecutionServiceImplExecuteTest {
         assertion.setMessage("期望 0 实际 1");
         sample.addAssertion(assertion);
         suiteResult.addChild(sample);
-        doReturn(CompletableFuture.completedFuture(suiteResult))
+        doReturn(CompletableFuture.completedFuture(RyzeResultMapper.map(suiteResult, 0)))
                 .when(apiTestExecutor).submit(any(java.util.concurrent.Callable.class));
         doNothing().when(functionRuntime).prepareSuite(any(), any());
 
@@ -387,7 +397,7 @@ class SceneExecutionServiceImplExecuteTest {
         extractor.setMessage("未提取到数据且无默认值，表达式: $.token");
         sample.addExtractor(extractor);
         suiteResult.addChild(sample);
-        doReturn(CompletableFuture.completedFuture(suiteResult))
+        doReturn(CompletableFuture.completedFuture(RyzeResultMapper.map(suiteResult, 0)))
                 .when(apiTestExecutor).submit(any(java.util.concurrent.Callable.class));
         doNothing().when(functionRuntime).prepareSuite(any(), any());
 
@@ -434,7 +444,7 @@ class SceneExecutionServiceImplExecuteTest {
                 "requestConfig", Map.of("method", "GET", "url", "http://localhost:1/a"))));
 
         SceneExecutionService.SceneDatasetSnapshot snapshot = service.buildSceneDataset(
-                scene, EnvSnapshot.empty(), sub,
+                scene, EnvSnapshot.empty(), RyzeResultMapper.map(sub, 0),
                 java.time.LocalDateTime.of(2026, 9, 10, 10, 0));
 
         List<Map<String, Object>> postprocessors = (List<Map<String, Object>>)
