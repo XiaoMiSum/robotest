@@ -1,4 +1,6 @@
 package io.github.xiaomisum.robotest.service.apitest;
+import io.github.xiaomisum.robotest.service.apitest.execution.ports.EnvironmentSnapshotProvider;
+import io.github.xiaomisum.robotest.service.apitest.execution.ports.EnvSnapshot;
 
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiExecutionRecord;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiReport;
@@ -56,7 +58,7 @@ class ScheduledTaskRunnerTest {
     @Mock
     private ApiInterfaceService apiInterfaceService;
     @Mock
-    private EnvironmentSnapshotFactory environmentSnapshotFactory;
+    private EnvironmentSnapshotProvider environmentSnapshotFactory;
     @Mock
     private ProjectMapper projectMapper;
     @Mock
@@ -137,7 +139,7 @@ class ScheduledTaskRunnerTest {
         ApiScene scene = sceneWithSteps(SCENE_ID, 2);
         when(sceneMapper.listByProject(PROJECT_ID)).thenReturn(List.of(scene));
         when(environmentSnapshotFactory.resolve(PROJECT_ID, ENV_ID))
-                .thenReturn(DebugRyzeConverter.EnvSnapshot.empty());
+                .thenReturn(EnvSnapshot.empty());
         when(sceneExecutionService.startSuite(any(), eq(PROJECT_ID)))
                 .thenReturn(topSuiteResult(sceneSubSuite()));
         when(sceneExecutionService.buildSceneDataset(eq(scene), any(), any(), any()))
@@ -197,7 +199,7 @@ class ScheduledTaskRunnerTest {
         ApiScene scene = sceneWithSteps(SCENE_ID, 1);
         when(sceneMapper.listByProject(PROJECT_ID)).thenReturn(List.of(scene));
         when(environmentSnapshotFactory.resolve(PROJECT_ID, ENV_ID))
-                .thenReturn(DebugRyzeConverter.EnvSnapshot.empty());
+                .thenReturn(EnvSnapshot.empty());
         when(sceneExecutionService.startSuite(any(), eq(PROJECT_ID)))
                 .thenReturn(topSuiteResult(sceneSubSuite()));
         when(sceneExecutionService.buildSceneDataset(eq(scene), any(), any(), any()))
@@ -223,7 +225,7 @@ class ScheduledTaskRunnerTest {
         ApiScene scene = sceneWithSteps(SCENE_ID, 1);
         when(sceneMapper.listByProject(PROJECT_ID)).thenReturn(List.of(scene));
         when(environmentSnapshotFactory.resolve(PROJECT_ID, ENV_ID))
-                .thenReturn(DebugRyzeConverter.EnvSnapshot.empty());
+                .thenReturn(EnvSnapshot.empty());
         TestSuiteResult top = topSuiteResult(sceneSubSuite());
         top.setThrowable(new RuntimeException("数据库连接池耗尽"));
         when(sceneExecutionService.startSuite(any(), eq(PROJECT_ID))).thenReturn(top);
@@ -339,7 +341,7 @@ class ScheduledTaskRunnerTest {
     }
 
     /** 含环境变量/前后置处理器/配置元件的环境快照，验证顶层挂载与子 suite 场景变量隔离 */
-    private DebugRyzeConverter.EnvSnapshot envWithContent() {
+    private EnvSnapshot envWithContent() {
         Map<String, Object> variables = new LinkedHashMap<>();
         variables.put("envVar", "env-value");
         // 处理器含平台 overlay（enabled/sortOrder）和平台格式提取器，验证标准化逻辑
@@ -358,7 +360,7 @@ class ScheduledTaskRunnerTest {
                 "sortOrder", 2);
         List<Map<String, Object>> httpConfigs = List.of(
                 Map.of("name", "默认", "refName", "default-http", "baseUrl", "http://env.example.com", "isDefault", true));
-        return new DebugRyzeConverter.EnvSnapshot(
+        return new EnvSnapshot(
                 "测试环境", variables, List.of(pre), List.of(post), httpConfigs, List.of());
     }
 

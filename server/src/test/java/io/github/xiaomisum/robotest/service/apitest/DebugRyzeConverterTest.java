@@ -1,4 +1,5 @@
 package io.github.xiaomisum.robotest.service.apitest;
+import io.github.xiaomisum.robotest.service.apitest.execution.ports.EnvSnapshot;
 
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiDebugExecuteReqDTO;
 import io.github.xiaomisum.robotest.service.apitest.execution.adapters.ryze.DebugRyzeConverter;
@@ -28,7 +29,7 @@ class DebugRyzeConverterTest {
         ApiDebugExecuteReqDTO req = new ApiDebugExecuteReqDTO();
         req.setMethod("GET");
         req.setUrl("https://api.example.com/users");
-        Map<String, Object> suite = DebugRyzeConverter.buildSuite(DebugRyzeConverter.EnvSnapshot.empty(), req);
+        Map<String, Object> suite = DebugRyzeConverter.buildSuite(EnvSnapshot.empty(), req);
 
         assertThat(suite.get("title")).isEqualTo("GET /users");
         Map<String, Object> child = firstChild(suite);
@@ -48,7 +49,7 @@ class DebugRyzeConverterTest {
                 header("Authorization", "Bearer t", true),
                 header("X-Drop", "ignored", false),
                 header("Content-Type", "application/json", true)));
-        var env = new DebugRyzeConverter.EnvSnapshot(
+        var env = new EnvSnapshot(
                 null, Map.of("token", "abc"),
                 List.of(Map.of("testclass", "debug")),
                 List.of(),
@@ -118,7 +119,7 @@ class DebugRyzeConverterTest {
 
     private Map<String, Object> configOf(ApiDebugExecuteReqDTO req) {
         Map<String, Object> child = firstChild(DebugRyzeConverter.buildSuite(
-                DebugRyzeConverter.EnvSnapshot.empty(), req));
+                EnvSnapshot.empty(), req));
         @SuppressWarnings("unchecked")
         Map<String, Object> config = (Map<String, Object>) child.get("config");
         return config;

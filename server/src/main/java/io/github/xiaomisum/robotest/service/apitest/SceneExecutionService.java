@@ -1,4 +1,5 @@
 package io.github.xiaomisum.robotest.service.apitest;
+import io.github.xiaomisum.robotest.service.apitest.execution.ports.EnvSnapshot;
 
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneDraftExecuteReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneExecuteReqDTO;
@@ -64,7 +65,7 @@ public interface SceneExecutionService {
      * 由单个场景子 TestSuite 的结果节点构建场景数据集（结果映射，不落库、不改变执行记录）。
      * 调度器用于从单一大 suite 结果树反查各场景数据集（定时任务详细设计 4.3）。
      */
-    SceneDatasetSnapshot buildSceneDataset(ApiScene scene, DebugRyzeConverter.EnvSnapshot env,
+    SceneDatasetSnapshot buildSceneDataset(ApiScene scene, EnvSnapshot env,
             io.github.xiaomisum.ryze.Result result, LocalDateTime executedAt);
 
     /**
