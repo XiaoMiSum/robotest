@@ -4,6 +4,7 @@ import io.github.xiaomisum.ryze.TestStatus;
 import io.github.xiaomisum.ryze.result.AssertionResult;
 import io.github.xiaomisum.ryze.support.ExceptionGroup;
 import io.github.xiaomisum.ryze.testelement.sampler.DefaultSampleResult;
+import io.github.xiaomisum.robotest.service.apitest.execution.adapters.ryze.RyzeResultAdapter;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;

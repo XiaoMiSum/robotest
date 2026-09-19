@@ -11,6 +11,7 @@ import io.github.xiaomisum.robotest.repository.apitest.ApiSceneMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiScheduledTaskExecutionMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiScheduledTaskMapper;
 import io.github.xiaomisum.robotest.repository.workspace.ProjectMapper;
+import io.github.xiaomisum.robotest.service.apitest.execution.adapters.ryze.DebugRyzeConverter;
 import io.github.xiaomisum.ryze.testelement.TestSuiteResult;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
