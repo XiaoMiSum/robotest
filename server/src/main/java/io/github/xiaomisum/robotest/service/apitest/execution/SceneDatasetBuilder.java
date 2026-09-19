@@ -1,10 +1,9 @@
 package io.github.xiaomisum.robotest.service.apitest.execution;
 
+import io.github.xiaomisum.robotest.service.apitest.execution.ReportEntryVisitor.ResolvedSpec;
+import io.github.xiaomisum.robotest.service.apitest.execution.ReportEntryVisitor.StepOutcome;
 import io.github.xiaomisum.robotest.framework.common.SceneStepUtil;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiScene;
-import io.github.xiaomisum.robotest.service.apitest.execution.adapters.ryze.ReportEntryVisitor;
-import io.github.xiaomisum.robotest.service.apitest.execution.adapters.ryze.ReportEntryVisitor.ResolvedSpec;
-import io.github.xiaomisum.robotest.service.apitest.execution.adapters.ryze.ReportEntryVisitor.StepOutcome;
 import io.github.xiaomisum.robotest.service.apitest.execution.ports.EnvSnapshot;
 import io.github.xiaomisum.robotest.service.apitest.execution.ports.MappedResult;
 import org.springframework.stereotype.Service;

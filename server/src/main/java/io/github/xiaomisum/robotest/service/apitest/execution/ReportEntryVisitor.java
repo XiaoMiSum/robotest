@@ -1,4 +1,4 @@
-package io.github.xiaomisum.robotest.service.apitest.execution.adapters.ryze;
+package io.github.xiaomisum.robotest.service.apitest.execution;
 
 import io.github.xiaomisum.robotest.framework.common.SceneStepUtil;
 import io.github.xiaomisum.robotest.service.apitest.execution.ports.MappedResult;
