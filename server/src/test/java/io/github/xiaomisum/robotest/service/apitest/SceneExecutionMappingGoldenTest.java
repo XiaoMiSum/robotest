@@ -2,6 +2,8 @@ package io.github.xiaomisum.robotest.service.apitest;
 
 import io.github.xiaomisum.robotest.framework.config.ApiTestProperties;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiScene;
+import io.github.xiaomisum.robotest.service.apitest.execution.adapters.ryze.DebugRyzeConverter;
+import io.github.xiaomisum.robotest.service.apitest.execution.adapters.ryze.RyzeResultSnapshotConverter;
 import io.github.xiaomisum.ryze.TestStatus;
 import io.github.xiaomisum.ryze.protocol.http.RealHTTPResponse;
 import io.github.xiaomisum.ryze.result.AssertionResult;

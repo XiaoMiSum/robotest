@@ -1,4 +1,4 @@
-package io.github.xiaomisum.robotest.service.apitest;
+package io.github.xiaomisum.robotest.service.apitest.execution.adapters.ryze;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -265,7 +265,7 @@ public final class SceneRyzeConverter {
     }
 
     @SuppressWarnings("unchecked")
-    static List<Map<String, Object>> toStringKeyMapList(List<?> list) {
+    public static List<Map<String, Object>> toStringKeyMapList(List<?> list) {
         List<Map<String, Object>> result = new ArrayList<>(list.size());
         for (Object item : list) {
             if (item instanceof Map<?, ?> map) {
@@ -466,7 +466,7 @@ public final class SceneRyzeConverter {
 
     // ========== 验证器（测试场景详细设计 4.2 转换表） ==========
 
-    static List<Map<String, Object>> convertValidators(List<Map<String, Object>> validators) {
+    public static List<Map<String, Object>> convertValidators(List<Map<String, Object>> validators) {
         List<Map<String, Object>> result = new ArrayList<>();
         if (validators == null) {
             return result;
@@ -522,14 +522,14 @@ public final class SceneRyzeConverter {
         return result;
     }
 
-    static String anchoredExpected(String condition, String expected) {
+    public static String anchoredExpected(String condition, String expected) {
         return "ends_with".equals(condition)
                 ? Pattern.quote(expected) + "$"
                 : "^" + Pattern.quote(expected);
     }
 
     /** 平台比较条件 → Ryze 匹配器规则名（KW 实测注册名） */
-    static String compareRule(String condition) {
+    public static String compareRule(String condition) {
         return switch (condition) {
             case "equals" -> "equals";
             case "not_equals" -> "not_equals";
@@ -546,7 +546,7 @@ public final class SceneRyzeConverter {
 
     // ========== 提取器（测试场景详细设计 4.3 转换表） ==========
 
-    static List<Map<String, Object>> convertExtractors(List<Map<String, Object>> extractors) {
+    public static List<Map<String, Object>> convertExtractors(List<Map<String, Object>> extractors) {
         List<Map<String, Object>> result = new ArrayList<>();
         if (extractors == null) {
             return result;

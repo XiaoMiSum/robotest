@@ -1,4 +1,4 @@
-package io.github.xiaomisum.robotest.service.apitest;
+package io.github.xiaomisum.robotest.service.apitest.execution.adapters.ryze;
 
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiDebugExecuteReqDTO;
 

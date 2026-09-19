@@ -2,6 +2,8 @@ package io.github.xiaomisum.robotest.service.apitest;
 
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiEnvironment;
 import io.github.xiaomisum.robotest.repository.apitest.ApiEnvironmentMapper;
+import io.github.xiaomisum.robotest.service.apitest.execution.adapters.ryze.DebugRyzeConverter;
+import io.github.xiaomisum.robotest.service.apitest.execution.adapters.ryze.SceneRyzeConverter;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Component;
 import xyz.migoo.framework.mybatis.core.LambdaQueryWrapperX;

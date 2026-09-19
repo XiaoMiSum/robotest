@@ -1,4 +1,4 @@
-package io.github.xiaomisum.robotest.service.apitest;
+package io.github.xiaomisum.robotest.service.apitest.execution.adapters.ryze;
 
 import io.github.xiaomisum.ryze.Result;
 import io.github.xiaomisum.ryze.TestStatus;
