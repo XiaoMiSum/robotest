@@ -1,5 +1,8 @@
 package io.github.xiaomisum.robotest.service.apitest;
 import io.github.xiaomisum.robotest.service.apitest.execution.adapters.ryze.RyzeEnvironmentSnapshotProvider;
+import io.github.xiaomisum.robotest.service.apitest.execution.adapters.ryze.RyzeResultMapper;
+import io.github.xiaomisum.robotest.service.apitest.execution.adapters.ryze.RyzeSuiteRunner;
+import io.github.xiaomisum.robotest.service.apitest.execution.ports.MappedResult;
 
 import com.sun.net.httpserver.HttpServer;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
@@ -103,6 +106,9 @@ class ApiDebugServiceImplTest {
         ReflectionSet.set(environmentSnapshotFactory, "environmentMapper", environmentMapper);
         ReflectionSet.set(service, "environmentSnapshotFactory", environmentSnapshotFactory);
 
+        // 执行接缝走真实适配器（RyzeSuiteRunner + RyzeResultMapper），engine 真实执行结果经端口模型返回
+        ReflectionSet.set(service, "suiteRunner", new RyzeSuiteRunner(new RyzeResultMapper(properties)));
+
         // 执行前自定义函数注入依赖运行时，测试中装配真实实例（mapper 交互均被 mock）
         CustomFunctionRuntime functionRuntime = new CustomFunctionRuntime(
                 org.mockito.Mockito.mock(io.github.xiaomisum.robotest.repository.apitest.ApiFunctionMapper.class),
@@ -182,7 +188,7 @@ class ApiDebugServiceImplTest {
         top.setStatus(TestStatus.failed);
         top.addChild(sample);
 
-        Object snapshot = collect(top);
+        Object snapshot = collect(mapped(top));
 
         assertEquals("failed", accessor(snapshot, "status"));
     }
@@ -197,17 +203,22 @@ class ApiDebugServiceImplTest {
         top.setStatus(TestStatus.broken);
         top.addChild(sample);
 
-        Object snapshot = collect(top);
+        Object snapshot = collect(mapped(top));
 
         assertEquals("error", accessor(snapshot, "status"));
         assertTrue(((String) accessor(snapshot, "errorMessage")).contains("未提取到数据且无默认值"));
     }
 
-    /** 调用私有 collect：验证 suite 结果 → 快照切片的状态/错误消息映射（绕开 executor，结果可控） */
-    private Object collect(io.github.xiaomisum.ryze.Result result) throws Exception {
-        var collect = ApiDebugServiceImpl.class.getDeclaredMethod("collect", io.github.xiaomisum.ryze.Result.class);
+    /** 调用私有 collect：验证 MappedResult → 快照切片的状态/错误消息映射（绕开 executor，结果可控） */
+    private Object collect(MappedResult result) throws Exception {
+        var collect = ApiDebugServiceImpl.class.getDeclaredMethod("collect", MappedResult.class);
         collect.setAccessible(true);
         return collect.invoke(service, result);
+    }
+
+    /** 私有 collect 输入从引擎结果经真实 ResultMapper 投影为端口模型，沿用引擎状态/错误口径 */
+    private MappedResult mapped(io.github.xiaomisum.ryze.Result result) {
+        return RyzeResultMapper.map(result, 20000);
     }
 
     private Object accessor(Object snapshot, String name) throws Exception {
