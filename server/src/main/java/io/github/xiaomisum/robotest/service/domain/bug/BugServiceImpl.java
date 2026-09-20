@@ -19,7 +19,6 @@ import io.github.xiaomisum.robotest.repository.workspace.ProjectMapper;
 import io.github.xiaomisum.robotest.repository.admin.SysUserMapper;
 import io.github.xiaomisum.robotest.repository.tcase.ProjectModuleMapper;
 import io.github.xiaomisum.robotest.repository.workspace.WorkspaceUserMapper;
-import io.github.xiaomisum.robotest.service.domain.bug.BugService;
 import jakarta.annotation.Resource;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
@@ -27,7 +26,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
 
-import java.time.LocalDateTime;
 import java.util.*;
 
 @Service
@@ -39,12 +37,6 @@ public class BugServiceImpl implements BugService {
             Constants.BugType.INSTALLATION, Constants.BugType.SECURITY,
             Constants.BugType.PERFORMANCE, Constants.BugType.STANDARD_SPEC,
             Constants.BugType.OTHER);
-
-    private static final Set<String> VALID_RESOLUTIONS = Set.of(
-            Constants.BugResolution.FIXED, Constants.BugResolution.BY_DESIGN,
-            Constants.BugResolution.DUPLICATE, Constants.BugResolution.EXTERNAL,
-            Constants.BugResolution.CANNOT_REPRODUCE, Constants.BugResolution.DEFERRED,
-            Constants.BugResolution.WONT_FIX);
 
     @Resource
     private BugMapper bugMapper;
@@ -63,7 +55,7 @@ public class BugServiceImpl implements BugService {
     @Resource
     private ProjectAccessGuard projectAccessGuard;
     @Resource
-    private BugWorkflow bugWorkflow;
+    private BugStatusChangeService bugStatusChangeService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -82,8 +74,6 @@ public class BugServiceImpl implements BugService {
         bugMapper.insert(bug);
 
         writeBugLog(bug.getId(), userId, Constants.BugOperation.CREATE, "创建缺陷");
-
-        // 只发布事件，不再感知 AI 实现；向量写入的"事务提交后"时序由消费端 AFTER_COMMIT 保证
         eventPublisher.publishEvent(new BugChangedEvent(bug.getId(), BugChangeOp.CREATED));
 
         return bug.getId().toString();
@@ -97,12 +87,10 @@ public class BugServiceImpl implements BugService {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.BUG_NOT_FOUND);
         }
         projectAccessGuard.requireProjectMember(bug.getProjectId(), userId);
-        // 已关闭缺陷不允许编辑，仅允许通过状态机重新激活
         if (BugStatus.CLOSED.getCode().equals(bug.getStatus())) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.BUG_CLOSED_EDIT_FORBIDDEN);
         }
 
-        // 查询结果仅用于校验；更新载体只携带前端传入的字段，避免全列覆盖导致并发丢失更新
         Bug update = new Bug();
         update.setId(bugId);
         if (StringUtils.hasText(reqDTO.getTitle())) {
@@ -135,7 +123,6 @@ public class BugServiceImpl implements BugService {
             validateAssigneeInWorkspace(bug.getProjectId(), reqDTO.getAssigneeId());
             update.setAssigneeId(reqDTO.getAssigneeId());
         }
-        // 关联字段三态：null=不修改、空串=清空、UUID 串=更新
         boolean clearCase = "".equals(reqDTO.getRelatedCaseId());
         boolean clearPlan = "".equals(reqDTO.getRelatedPlanId());
         if (StringUtils.hasText(reqDTO.getRelatedCaseId())) {
@@ -144,15 +131,12 @@ public class BugServiceImpl implements BugService {
         if (StringUtils.hasText(reqDTO.getRelatedPlanId())) {
             update.setRelatedPlanId(parseRelationId(reqDTO.getRelatedPlanId()));
         }
-        // status 不再通过 updateBug 修改，须走 changeBugStatus 状态机
         bugMapper.updateById(update);
         if (clearCase || clearPlan) {
             bugMapper.clearRelationById(bugId, clearCase, clearPlan);
         }
 
         writeBugLog(bugId, userId, Constants.BugOperation.UPDATE, "更新缺陷");
-
-        // 标题或重现步骤变更时发布变更事件；消费端事务提交后重查最新数据（hash 相同则内部跳过）
         if (StringUtils.hasText(reqDTO.getTitle()) || reqDTO.getReproSteps() != null) {
             eventPublisher.publishEvent(new BugChangedEvent(bugId, BugChangeOp.UPDATED));
         }
@@ -174,112 +158,7 @@ public class BugServiceImpl implements BugService {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.BUG_NOT_FOUND);
         }
         projectAccessGuard.requireProjectMember(bug.getProjectId(), userId);
-
-        BugStatus from = BugStatus.fromCode(bug.getStatus());
-        BugStatus target = BugStatus.fromCode(reqDTO.getStatus());
-        // 迁移合法性收敛到状态机裁决（唯一入口，未知/非法跃迁统一抛 BUG_INVALID_STATUS_TRANSITION）
-        bugWorkflow.assertTransition(from, target);
-
-        switch (target) {
-            case RESOLVED -> resolveBug(bug, userId, reqDTO);
-            case REJECTED -> rejectBug(bug, userId, reqDTO.getComment());
-            case CLOSED -> closeBug(bug, userId, reqDTO.getComment());
-            case ACTIVE -> reopenBug(bug, userId, reqDTO.getComment());
-        }
-
-        // 缺陷关闭即删除向量索引（关闭缺陷不参与查重，见详细设计 4.1）；发布事件由消费端在事务提交后按 CLOSED 分支删除
-        if (target == BugStatus.CLOSED) {
-            eventPublisher.publishEvent(new BugChangedEvent(bugId, BugChangeOp.CLOSED));
-        }
-    }
-
-    /**
-     * 解决缺陷：必填合法 resolution 与备注说明，duplicate 需指定同项目且非自身的原始缺陷
-     */
-    private void resolveBug(Bug bug, UUID userId, BugStatusChangeReqDTO reqDTO) {
-        String resolution = reqDTO.getResolution();
-        if (!StringUtils.hasText(resolution)) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.BUG_RESOLUTION_REQUIRED);
-        }
-        if (!VALID_RESOLUTIONS.contains(resolution)) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.BUG_RESOLUTION_INVALID);
-        }
-        if (!StringUtils.hasText(reqDTO.getComment())) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.BUG_RESOLVE_COMMENT_REQUIRED);
-        }
-
-        UUID duplicateOfBugId = null;
-        if (Constants.BugResolution.DUPLICATE.equals(resolution)) {
-            duplicateOfBugId = reqDTO.getDuplicateOfBugId();
-            if (duplicateOfBugId == null) {
-                throw ServiceExceptionUtil.get(ErrorCodeConstants.BUG_DUPLICATE_OF_REQUIRED);
-            }
-            Bug original = bugMapper.selectById(duplicateOfBugId);
-            if (original == null || duplicateOfBugId.equals(bug.getId())
-                    || !bug.getProjectId().equals(original.getProjectId())) {
-                throw ServiceExceptionUtil.get(ErrorCodeConstants.BUG_DUPLICATE_OF_NOT_FOUND);
-            }
-        }
-
-        // 修复完成后交回创建人验证，处理人回设为创建人
-        bugMapper.resolveById(bug.getId(), userId, resolution, duplicateOfBugId, bug.getReporterId());
-
-        writeBugLog(bug.getId(), userId, Constants.BugOperation.RESOLVE,
-                String.format("解决缺陷，方案「%s」%s", resolution,
-                        StringUtils.hasText(reqDTO.getComment()) ? "，说明：" + reqDTO.getComment() : ""));
-    }
-
-    /**
-     * 拒绝缺陷：必填拒绝说明，处理人回设为创建人，由创建人决定重新激活或关闭
-     */
-    private void rejectBug(Bug bug, UUID userId, String comment) {
-        if (!StringUtils.hasText(comment)) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.BUG_REJECT_COMMENT_REQUIRED);
-        }
-
-        Bug update = new Bug();
-        update.setId(bug.getId());
-        update.setStatus(BugStatus.REJECTED.getCode());
-        update.setAssigneeId(bug.getReporterId());
-        // 记录拒绝人，重开时处理人回设给他
-        update.setRejectedBy(userId);
-        bugMapper.updateById(update);
-
-        writeBugLog(bug.getId(), userId, Constants.BugOperation.REJECT, "拒绝缺陷，说明：" + comment);
-    }
-
-    /**
-     * 关闭缺陷：必填关闭说明
-     */
-    private void closeBug(Bug bug, UUID userId, String comment) {
-        if (!StringUtils.hasText(comment)) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.BUG_CLOSE_COMMENT_REQUIRED);
-        }
-
-        Bug update = new Bug();
-        update.setId(bug.getId());
-        update.setStatus(BugStatus.CLOSED.getCode());
-        update.setClosedBy(userId);
-        update.setClosedAt(LocalDateTime.now());
-        bugMapper.updateById(update);
-
-        writeBugLog(bug.getId(), userId, Constants.BugOperation.CLOSE, "关闭缺陷，说明：" + comment);
-    }
-
-    /**
-     * 重开（激活）缺陷：必填说明，计数累加并清空解决/关闭信息。
-     * 处理人流转：已修复重开给修复人，已拒绝重开给拒绝人（reopenById 会清空两者，须先取值）
-     */
-    private void reopenBug(Bug bug, UUID userId, String comment) {
-        if (!StringUtils.hasText(comment)) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.BUG_REOPEN_COMMENT_REQUIRED);
-        }
-
-        int nextReopenCount = bug.getReopenCount() == null ? 1 : bug.getReopenCount() + 1;
-        UUID nextAssigneeId = bug.getResolvedBy() != null ? bug.getResolvedBy() : bug.getRejectedBy();
-        bugMapper.reopenById(bug.getId(), nextReopenCount, nextAssigneeId);
-
-        writeBugLog(bug.getId(), userId, Constants.BugOperation.REOPEN, "重开缺陷，说明：" + comment);
+        bugStatusChangeService.changeBugStatus(bug, userId, reqDTO);
     }
 
     @Override
@@ -301,7 +180,6 @@ public class BugServiceImpl implements BugService {
         update.setId(bugId);
         update.setConfirmed(true);
         bugMapper.updateById(update);
-
         writeBugLog(bugId, userId, Constants.BugOperation.CONFIRM, "确认缺陷");
     }
 
@@ -313,7 +191,6 @@ public class BugServiceImpl implements BugService {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.BUG_NOT_FOUND);
         }
         projectAccessGuard.requireProjectMember(bug.getProjectId(), userId);
-        // 已关闭缺陷不允许改派处理人
         if (BugStatus.CLOSED.getCode().equals(bug.getStatus())) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.BUG_CLOSED_EDIT_FORBIDDEN);
         }
@@ -328,7 +205,6 @@ public class BugServiceImpl implements BugService {
         update.setId(bugId);
         update.setAssigneeId(assigneeId);
         bugMapper.updateById(update);
-
         writeBugLog(bugId, userId, Constants.BugOperation.ASSIGN,
                 String.format("指派处理人为「%s」", assignee.getUsername()));
     }
