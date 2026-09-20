@@ -25,7 +25,6 @@ public class TestCaseNodeController {
     @GetMapping("/documents/{docId}/nodes")
     public Result<TestCaseDocumentNodesRespDTO> getDocumentNodes(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @PathVariable UUID docId) {
         return Result.ok(testCaseNodeService.getDocumentNodes(docId, loginUser.getId()));
     }
@@ -33,7 +32,6 @@ public class TestCaseNodeController {
     @GetMapping("/cases/{caseId}")
     public Result<TestCaseNodeTreeRespDTO> getCaseDetail(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @PathVariable UUID caseId) {
         return Result.ok(testCaseNodeService.getCaseDetail(caseId, loginUser.getId()));
     }
@@ -41,18 +39,16 @@ public class TestCaseNodeController {
     @GetMapping("/cases")
     public Result<PageResult<TestCaseCaseListRespDTO>> getCaseList(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) String priority,
             @RequestParam(defaultValue = "1") Integer pageNo,
             @RequestParam(defaultValue = "20") Integer pageSize) {
-        return Result.ok(testCaseNodeService.getCaseList(projectId, loginUser.getId(), keyword, priority, pageNo, pageSize));
+        return Result.ok(testCaseNodeService.getCaseList(loginUser.getActiveProjectId(), loginUser.getId(), keyword, priority, pageNo, pageSize));
     }
 
     @PutMapping("/cases/{caseId}")
     public Result<Void> updateCaseNode(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @PathVariable UUID caseId,
             @RequestBody @Valid TestCaseNodeUpdateReqDTO reqDTO) {
         testCaseNodeService.updateCaseNode(caseId, loginUser.getId(), reqDTO);
