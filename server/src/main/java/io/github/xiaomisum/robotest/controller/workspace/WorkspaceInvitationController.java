@@ -27,30 +27,27 @@ public class WorkspaceInvitationController {
     @PostMapping
     public Result<InvitationRespDTO> createInvitation(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
             @RequestBody @Valid InvitationCreateReqDTO reqDTO) {
         InvitationRespDTO result = invitationService.createInvitation(
-                loginUser.getId(), workspaceId, reqDTO);
+                loginUser.getId(), loginUser.getActiveWorkspaceId(), reqDTO);
         return Result.ok(result);
     }
 
     @GetMapping
     public Result<PageResult<InvitationListRespDTO>> getInvitations(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
             @RequestParam(defaultValue = "1") Integer pageNo,
             @RequestParam(defaultValue = "20") Integer pageSize) {
         PageResult<InvitationListRespDTO> result = invitationService.getInvitationPage(
-                loginUser.getId(), workspaceId, pageNo, pageSize);
+                loginUser.getId(), loginUser.getActiveWorkspaceId(), pageNo, pageSize);
         return Result.ok(result);
     }
 
     @PutMapping("/{id}/revoke")
     public Result<Void> revokeInvitation(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
             @PathVariable UUID id) {
-        invitationService.revokeInvitation(loginUser.getId(), workspaceId, id);
+        invitationService.revokeInvitation(loginUser.getId(), loginUser.getActiveWorkspaceId(), id);
         return Result.ok();
     }
 }

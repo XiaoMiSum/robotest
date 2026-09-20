@@ -11,7 +11,6 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import xyz.migoo.framework.common.pojo.Result;
@@ -33,19 +32,17 @@ public class DocumentRequirementController {
     @PreAuthorize("hasAuthority('case:view')")
     public Result<List<RequirementSummaryRespDTO>> getDocumentRequirements(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @PathVariable UUID docId) {
-        return Result.ok(requirementService.getDocumentRequirements(docId, projectId));
+        return Result.ok(requirementService.getDocumentRequirements(docId, loginUser.getActiveProjectId()));
     }
 
     @PutMapping("/{docId}/requirements")
     @PreAuthorize("hasAuthority('case:edit')")
     public Result<Void> setDocumentRequirements(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @PathVariable UUID docId,
             @RequestBody DocumentRequirementsUpdateReqDTO reqDTO) {
-        requirementService.setDocumentRequirements(docId, projectId, reqDTO.getRequirementIds());
+        requirementService.setDocumentRequirements(docId, loginUser.getActiveProjectId(), reqDTO.getRequirementIds());
         return Result.ok();
     }
 }

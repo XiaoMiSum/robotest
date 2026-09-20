@@ -25,41 +25,37 @@ public class WorkspaceMemberController {
     @GetMapping
     public Result<PageResult<WorkspaceMemberRespDTO>> getMembers(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
             @RequestParam(required = false) String keyword,
             @RequestParam(defaultValue = "1") Integer pageNo,
             @RequestParam(defaultValue = "20") Integer pageSize) {
         PageResult<WorkspaceMemberRespDTO> result = workspaceMemberService.getMemberPage(
-                loginUser.getId(), workspaceId, keyword, pageNo, pageSize);
+                loginUser.getId(), loginUser.getActiveWorkspaceId(), keyword, pageNo, pageSize);
         return Result.ok(result);
     }
 
     @PostMapping
     public Result<WorkspaceMemberAddResultRespDTO> addMembers(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
             @RequestBody @Valid WorkspaceMembersAddReqDTO reqDTO) {
         WorkspaceMemberAddResultRespDTO result = workspaceMemberService.addMembers(
-                loginUser.getId(), workspaceId, reqDTO);
+                loginUser.getId(), loginUser.getActiveWorkspaceId(), reqDTO);
         return Result.ok(result);
     }
 
     @PutMapping("/{userId}")
     public Result<Void> updateMemberRole(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
             @PathVariable UUID userId,
             @RequestBody WorkspaceMemberRoleUpdateReqDTO reqDTO) {
-        workspaceMemberService.updateMemberRole(loginUser.getId(), workspaceId, userId, reqDTO.getWorkspaceRole());
+        workspaceMemberService.updateMemberRole(loginUser.getId(), loginUser.getActiveWorkspaceId(), userId, reqDTO.getWorkspaceRole());
         return Result.ok();
     }
 
     @DeleteMapping("/{userId}")
     public Result<Void> removeMember(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
             @PathVariable UUID userId) {
-        workspaceMemberService.removeMember(loginUser.getId(), workspaceId, userId);
+        workspaceMemberService.removeMember(loginUser.getId(), loginUser.getActiveWorkspaceId(), userId);
         return Result.ok();
     }
 }

@@ -28,9 +28,8 @@ public class TestCaseDocumentController {
     @PreAuthorize("hasAuthority('case:view')")
     public Result<List<TestCaseDocumentRespDTO>> getTestCaseList(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @RequestParam(required = false) UUID moduleId) {
-        return Result.ok(testCaseDocumentService.getTestCaseList(projectId, loginUser.getId(), moduleId));
+        return Result.ok(testCaseDocumentService.getTestCaseList(loginUser.getActiveProjectId(), loginUser.getId(), moduleId));
     }
 
     @PostMapping
@@ -38,9 +37,8 @@ public class TestCaseDocumentController {
     @ResponseStatus(HttpStatus.CREATED)
     public Result<TestCaseDocumentRespDTO> createTestCase(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @RequestBody @Valid TestCaseDocumentCreateReqDTO reqDTO) {
-        return Result.ok(testCaseDocumentService.createTestCase(projectId, loginUser.getId(), reqDTO));
+        return Result.ok(testCaseDocumentService.createTestCase(loginUser.getActiveProjectId(), loginUser.getId(), reqDTO));
     }
 
     @PutMapping("/{id}")

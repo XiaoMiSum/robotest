@@ -22,9 +22,8 @@ public class AiTaskController {
     @PreAuthorize("hasAuthority('case:view')")
     public Result<AiTaskRespDTO> getTask(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @PathVariable UUID id) {
-        return Result.ok(aiTaskService.getTask(id, projectId));
+        return Result.ok(aiTaskService.getTask(id, loginUser.getActiveProjectId()));
     }
 
     @PostMapping("/{id}/cancel")

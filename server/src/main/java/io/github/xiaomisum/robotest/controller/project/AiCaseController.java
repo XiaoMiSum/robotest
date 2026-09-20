@@ -31,7 +31,6 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
@@ -64,103 +63,83 @@ public class AiCaseController {
     @PreAuthorize("hasAuthority('case:view')")
     public Result<AiPriorityRecommendRespDTO> priorityRecommend(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @RequestBody @Valid AiPriorityRecommendReqDTO reqDTO) {
-        return Result.ok(aiPriorityRecommendService.recommend(loginUser.getId(), workspaceId, projectId, reqDTO));
+        return Result.ok(aiPriorityRecommendService.recommend(loginUser.getId(), loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId(), reqDTO));
     }
 
     @PostMapping("/cases/missing-points")
     @PreAuthorize("hasAuthority('case:view')")
     public Result<AiMissingPointRespDTO> missingPoints(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @RequestBody @Valid AiMissingPointReqDTO reqDTO) {
-        return Result.ok(aiMissingPointService.analyze(loginUser.getId(), workspaceId, projectId, reqDTO));
+        return Result.ok(aiMissingPointService.analyze(loginUser.getId(), loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId(), reqDTO));
     }
 
     @PostMapping("/cases/plan-recommend")
     @PreAuthorize("hasAuthority('case:view')")
     public Result<AiCasePlanRecommendRespDTO> planRecommend(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @RequestBody @Valid AiCasePlanRecommendReqDTO reqDTO) {
-        return Result.ok(aiCasePlanRecommendService.recommend(loginUser.getId(), workspaceId, projectId, reqDTO));
+        return Result.ok(aiCasePlanRecommendService.recommend(loginUser.getId(), loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId(), reqDTO));
     }
 
     @PostMapping("/plans/{id}/order-recommend")
     @PreAuthorize("hasAuthority('plan:view')")
     public Result<AiPlanOrderComputeRespDTO> planOrderRecommend(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @PathVariable("id") UUID planId) {
         return Result.ok(aiPlanOrderRecommendService.compute(
-                loginUser.getId(), workspaceId, projectId, planId));
+                loginUser.getId(), loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId(), planId));
     }
 
     @GetMapping("/plans/{id}/order-recommend")
     @PreAuthorize("hasAuthority('plan:view')")
     public Result<AiPlanOrderQueryRespDTO> planOrderRecommendResult(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @PathVariable("id") UUID planId) {
         return Result.ok(aiPlanOrderRecommendService.query(
-                loginUser.getId(), workspaceId, projectId, planId));
+                loginUser.getId(), loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId(), planId));
     }
 
     @PostMapping("/plans/{id}/order-reason")
     @PreAuthorize("hasAuthority('plan:view')")
     public Result<AiPlanOrderReasonRespDTO> planOrderReason(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @PathVariable("id") UUID planId,
             @RequestBody @Valid AiPlanOrderReasonReqDTO reqDTO) {
         return Result.ok(aiPlanOrderRecommendService.reason(
-                loginUser.getId(), workspaceId, projectId, planId, reqDTO));
+                loginUser.getId(), loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId(), planId, reqDTO));
     }
 
     @PostMapping(value = "/cases/generate", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     @PreAuthorize("hasAuthority('case:view')")
     public SseEmitter generate(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @RequestBody @Valid AiCaseGenerateReqDTO reqDTO) {
-        return aiCaseGenerationService.generateCaseTree(loginUser.getId(), workspaceId, projectId, reqDTO);
+        return aiCaseGenerationService.generateCaseTree(loginUser.getId(), loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId(), reqDTO);
     }
 
     @PostMapping(value = "/cases/complete-steps", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     @PreAuthorize("hasAuthority('case:view')")
     public SseEmitter completeSteps(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @RequestBody @Valid AiStepCompleteReqDTO reqDTO) {
-        return aiCaseGenerationService.completeSteps(loginUser.getId(), workspaceId, projectId, reqDTO);
+        return aiCaseGenerationService.completeSteps(loginUser.getId(), loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId(), reqDTO);
     }
 
     @PostMapping(value = "/minder/import", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     @PreAuthorize("hasAuthority('case:view')")
     public SseEmitter importText(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @RequestBody @Valid AiTextImportReqDTO reqDTO) {
-        return aiCaseGenerationService.importText(loginUser.getId(), workspaceId, projectId, reqDTO);
+        return aiCaseGenerationService.importText(loginUser.getId(), loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId(), reqDTO);
     }
 
     @PostMapping(value = "/requirements/split", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     @PreAuthorize("hasAuthority('requirement:view')")
     public SseEmitter splitRequirement(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @RequestBody @Valid AiRequirementSplitReqDTO reqDTO) {
-        return aiRequirementSplitService.split(loginUser.getId(), workspaceId, projectId, reqDTO);
+        return aiRequirementSplitService.split(loginUser.getId(), loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId(), reqDTO);
     }
 }

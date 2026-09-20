@@ -17,7 +17,6 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import xyz.migoo.framework.common.pojo.Result;
@@ -43,10 +42,8 @@ public class BugAiController {
     @PreAuthorize("hasAuthority('bug:view')")
     public Result<AiBugSuggestionRespDTO> suggest(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @Valid @RequestBody AiBugSuggestionReqDTO reqDTO) {
-        return Result.ok(aiBugSuggestionService.suggest(loginUser.getId(), workspaceId, projectId, reqDTO));
+        return Result.ok(aiBugSuggestionService.suggest(loginUser.getId(), loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId(), reqDTO));
     }
 
     /** 3.2 缺陷语义查重（同步检索） */
@@ -54,28 +51,23 @@ public class BugAiController {
     @PreAuthorize("hasAuthority('bug:view')")
     public Result<AiBugDedupRespDTO> dedup(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @Valid @RequestBody AiBugDedupReqDTO reqDTO) {
-        return Result.ok(aiBugDedupService.dedup(loginUser.getId(), workspaceId, projectId, reqDTO));
+        return Result.ok(aiBugDedupService.dedup(loginUser.getId(), loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId(), reqDTO));
     }
 
     /** 3.3.1 发起聚类任务 */
     @PostMapping("/clustering")
     @PreAuthorize("hasAuthority('bug:view')")
     public Result<AiBugClusteringStartRespDTO> startClustering(
-            @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId) {
-        return Result.ok(aiBugClusteringService.startClustering(loginUser.getId(), workspaceId, projectId));
+            @AuthenticationPrincipal LoginUser loginUser) {
+        return Result.ok(aiBugClusteringService.startClustering(loginUser.getId(), loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId()));
     }
 
     /** 3.3.2 查询最近一次聚类结果（无任务返回 null） */
     @GetMapping("/clustering/latest")
     @PreAuthorize("hasAuthority('bug:view')")
     public Result<AiTaskRespDTO> getLatestClustering(
-            @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Project") UUID projectId) {
-        return Result.ok(aiBugClusteringService.getLatestClustering(projectId));
+            @AuthenticationPrincipal LoginUser loginUser) {
+        return Result.ok(aiBugClusteringService.getLatestClustering(loginUser.getActiveProjectId()));
     }
 }

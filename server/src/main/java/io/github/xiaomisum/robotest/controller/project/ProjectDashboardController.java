@@ -19,8 +19,7 @@ public class ProjectDashboardController {
 
     @GetMapping
     public Result<ProjectDashboardRespDTO> getDashboard(
-            @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Project") UUID projectId) {
-        return Result.ok(projectDashboardService.getDashboard(projectId));
+            @AuthenticationPrincipal LoginUser loginUser) {
+        return Result.ok(projectDashboardService.getDashboard(loginUser.getActiveProjectId()));
     }
 }
