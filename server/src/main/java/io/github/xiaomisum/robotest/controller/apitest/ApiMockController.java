@@ -23,7 +23,6 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -47,8 +46,6 @@ public class ApiMockController {
     @PreAuthorize("hasAuthority('api-mock:view')")
     public Result<PageResult<ApiMockItemRespDTO>> page(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @RequestParam(value = "interfaceId", required = false) UUID interfaceId,
             @RequestParam(value = "search", required = false) String search,
             @RequestParam(value = "enabled", required = false) Boolean enabled,
@@ -57,7 +54,7 @@ public class ApiMockController {
         PageParam pageParam = new PageParam();
         pageParam.setPageNo(pageNo);
         pageParam.setPageSize(pageSize);
-        return Result.ok(apiMockService.fetchPage(workspaceId, projectId, loginUser.getId(),
+        return Result.ok(apiMockService.fetchPage(loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId(), loginUser.getId(),
                 interfaceId, search, enabled, pageParam));
     }
 
@@ -65,21 +62,17 @@ public class ApiMockController {
     @PreAuthorize("hasAuthority('api-mock:edit')")
     public Result<ApiMockIdRespDTO> create(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @RequestBody @Valid ApiMockSaveReqDTO reqDTO) {
-        return Result.ok(apiMockService.create(workspaceId, projectId, loginUser.getId(), reqDTO));
+        return Result.ok(apiMockService.create(loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId(), loginUser.getId(), reqDTO));
     }
 
     @PostMapping("/from-interface/{interfaceId}")
     @PreAuthorize("hasAuthority('api-mock:edit')")
     public Result<ApiMockIdRespDTO> createFromInterface(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @PathVariable UUID interfaceId,
             @RequestBody @Valid ApiMockSaveReqDTO reqDTO) {
-        return Result.ok(apiMockService.createFromInterface(workspaceId, projectId, loginUser.getId(),
+        return Result.ok(apiMockService.createFromInterface(loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId(), loginUser.getId(),
                 interfaceId, reqDTO));
     }
 
@@ -87,21 +80,17 @@ public class ApiMockController {
     @PreAuthorize("hasAuthority('api-mock:view')")
     public Result<ApiMockDetailRespDTO> detail(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @PathVariable UUID id) {
-        return Result.ok(apiMockService.getDetail(workspaceId, projectId, loginUser.getId(), id));
+        return Result.ok(apiMockService.getDetail(loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId(), loginUser.getId(), id));
     }
 
     @PutMapping("/{id}")
     @PreAuthorize("hasAuthority('api-mock:edit')")
     public Result<Boolean> update(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @PathVariable UUID id,
             @RequestBody @Valid ApiMockSaveReqDTO reqDTO) {
-        apiMockService.update(workspaceId, projectId, loginUser.getId(), id, reqDTO);
+        apiMockService.update(loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId(), loginUser.getId(), id, reqDTO);
         return Result.ok(true);
     }
 
@@ -109,11 +98,9 @@ public class ApiMockController {
     @PreAuthorize("hasAuthority('api-mock:edit')")
     public Result<Boolean> toggle(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @PathVariable UUID id,
             @RequestBody @Valid ApiMockToggleReqDTO reqDTO) {
-        apiMockService.toggle(workspaceId, projectId, loginUser.getId(), id, reqDTO.getEnabled());
+        apiMockService.toggle(loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId(), loginUser.getId(), id, reqDTO.getEnabled());
         return Result.ok(true);
     }
 
@@ -121,20 +108,16 @@ public class ApiMockController {
     @PreAuthorize("hasAuthority('api-mock:edit')")
     public Result<ApiMockBatchToggleRespDTO> batchToggle(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @RequestBody @Valid ApiMockBatchToggleReqDTO reqDTO) {
-        return Result.ok(apiMockService.batchToggle(workspaceId, projectId, loginUser.getId(), reqDTO));
+        return Result.ok(apiMockService.batchToggle(loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId(), loginUser.getId(), reqDTO));
     }
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAuthority('api-mock:edit')")
     public Result<Boolean> delete(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @PathVariable UUID id) {
-        apiMockService.delete(workspaceId, projectId, loginUser.getId(), id);
+        apiMockService.delete(loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId(), loginUser.getId(), id);
         return Result.ok(true);
     }
 
@@ -142,20 +125,16 @@ public class ApiMockController {
     @PreAuthorize("hasAuthority('api-mock:edit')")
     public Result<ApiMockIdRespDTO> duplicate(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @PathVariable UUID id) {
-        return Result.ok(apiMockService.duplicate(workspaceId, projectId, loginUser.getId(), id));
+        return Result.ok(apiMockService.duplicate(loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId(), loginUser.getId(), id));
     }
 
     @PostMapping("/{id}/reset-hit-count")
     @PreAuthorize("hasAuthority('api-mock:edit')")
     public Result<Boolean> resetHitCount(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @PathVariable UUID id) {
-        apiMockService.resetHitCount(workspaceId, projectId, loginUser.getId(), id);
+        apiMockService.resetHitCount(loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId(), loginUser.getId(), id);
         return Result.ok(true);
     }
 
@@ -163,22 +142,18 @@ public class ApiMockController {
     @PreAuthorize("hasAuthority('api-mock:view')")
     public Result<ApiMockAddressRespDTO> address(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @PathVariable UUID id) {
-        return Result.ok(apiMockService.getAddress(workspaceId, projectId, loginUser.getId(), id));
+        return Result.ok(apiMockService.getAddress(loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId(), loginUser.getId(), id));
     }
 
     @PostMapping("/{id}/debug")
     @PreAuthorize("hasAuthority('api-mock:view')")
     public Result<ApiMockDebugRespDTO> debug(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @PathVariable UUID id,
             @RequestBody @Valid ApiMockDebugReqDTO reqDTO) {
         // 调试为只读模拟命中，不产生持久化数据（详细设计 3.2.1）
-        return Result.ok(apiMockService.debug(workspaceId, projectId, loginUser.getId(), id, reqDTO));
+        return Result.ok(apiMockService.debug(loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId(), loginUser.getId(), id, reqDTO));
     }
 
 }
