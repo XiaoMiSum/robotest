@@ -53,6 +53,7 @@ class WorkspaceRoleInterceptorTest {
         loginUser.setId(userId);
         loginUser.setUsername("testuser");
         loginUser.setName("testuser");
+        loginUser.setActiveWorkspaceId(UUID.fromString(workspaceId));
         loginUser.setAuthorities(Collections.emptyList());
         loginUser.setWorkspaceAuthorities(new ArrayList<>());
 
@@ -71,8 +72,6 @@ class WorkspaceRoleInterceptorTest {
         SecurityContextHolder.setContext(securityContext);
 
         MockHttpServletRequest request = new MockHttpServletRequest();
-        request.addHeader("X-Active-Workspace", workspaceId);
-
         // when
         boolean result = interceptor.preHandle(request, new MockHttpServletResponse(), new Object());
 
@@ -82,23 +81,10 @@ class WorkspaceRoleInterceptorTest {
     }
 
     @Test
-    void preHandle_noWorkspaceHeader_returnsTrue() {
-        // given
+    void preHandle_noActiveWorkspace_returnsTrue() {
+        // given：LoginUser 无活跃工作空间（ContextHeaderInterceptor 未注入）
+        loginUser.setActiveWorkspaceId(null);
         MockHttpServletRequest request = new MockHttpServletRequest();
-
-        // when
-        boolean result = interceptor.preHandle(request, new MockHttpServletResponse(), new Object());
-
-        // then
-        assertTrue(result);
-        assertTrue(loginUser.getWorkspaceAuthorities().isEmpty());
-    }
-
-    @Test
-    void preHandle_malformedWorkspaceHeader_returnsTrue() {
-        // given：非法 UUID 头必须静默降级，不能抛 500
-        MockHttpServletRequest request = new MockHttpServletRequest();
-        request.addHeader("X-Active-Workspace", "not-a-uuid");
 
         // when
         boolean result = interceptor.preHandle(request, new MockHttpServletResponse(), new Object());
@@ -113,8 +99,6 @@ class WorkspaceRoleInterceptorTest {
     void preHandle_userNotInWorkspace_returnsTrue() {
         // given
         MockHttpServletRequest request = new MockHttpServletRequest();
-        request.addHeader("X-Active-Workspace", workspaceId);
-
         when(workspaceUserMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(null);
 
         // when
@@ -129,8 +113,6 @@ class WorkspaceRoleInterceptorTest {
     void preHandle_workspaceUserNoRole_returnsTrue() {
         // given
         MockHttpServletRequest request = new MockHttpServletRequest();
-        request.addHeader("X-Active-Workspace", workspaceId);
-
         WorkspaceUser workspaceUser = new WorkspaceUser();
         workspaceUser.setWorkspaceRole(null);
         when(workspaceUserMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(workspaceUser);
@@ -147,8 +129,6 @@ class WorkspaceRoleInterceptorTest {
     void preHandle_roleNotFound_returnsTrue() {
         // given
         MockHttpServletRequest request = new MockHttpServletRequest();
-        request.addHeader("X-Active-Workspace", workspaceId);
-
         WorkspaceUser workspaceUser = new WorkspaceUser();
         workspaceUser.setWorkspaceRole(Constants.WorkspaceRole.ADMIN_ID);
         when(workspaceUserMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(workspaceUser);
@@ -166,8 +146,6 @@ class WorkspaceRoleInterceptorTest {
     void preHandle_adminRole_appendsRoleAndPermissions() {
         // given
         MockHttpServletRequest request = new MockHttpServletRequest();
-        request.addHeader("X-Active-Workspace", workspaceId);
-
         WorkspaceUser workspaceUser = new WorkspaceUser();
         workspaceUser.setWorkspaceRole(Constants.WorkspaceRole.ADMIN_ID);
         when(workspaceUserMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(workspaceUser);
@@ -195,8 +173,6 @@ class WorkspaceRoleInterceptorTest {
     void preHandle_memberRole_appendsOnlyRole() {
         // given
         MockHttpServletRequest request = new MockHttpServletRequest();
-        request.addHeader("X-Active-Workspace", workspaceId);
-
         WorkspaceUser workspaceUser = new WorkspaceUser();
         workspaceUser.setWorkspaceRole(Constants.WorkspaceRole.MEMBER_ID);
         when(workspaceUserMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(workspaceUser);
@@ -220,8 +196,6 @@ class WorkspaceRoleInterceptorTest {
     void preHandle_emptyPermissions_appendsOnlyRole() {
         // given
         MockHttpServletRequest request = new MockHttpServletRequest();
-        request.addHeader("X-Active-Workspace", workspaceId);
-
         WorkspaceUser workspaceUser = new WorkspaceUser();
         workspaceUser.setWorkspaceRole(Constants.WorkspaceRole.ADMIN_ID);
         when(workspaceUserMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(workspaceUser);
