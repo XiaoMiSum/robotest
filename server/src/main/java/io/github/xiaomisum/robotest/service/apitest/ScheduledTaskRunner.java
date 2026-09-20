@@ -18,9 +18,9 @@ import io.github.xiaomisum.robotest.repository.apitest.ApiSceneMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiScheduledTaskExecutionMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiScheduledTaskMapper;
 import io.github.xiaomisum.robotest.repository.tcase.ProjectModuleMapper;
-import io.github.xiaomisum.robotest.service.apitest.execution.adapters.ryze.SceneRyzeConverter;
 import io.github.xiaomisum.robotest.service.apitest.execution.SceneExecutionService;
 import io.github.xiaomisum.robotest.service.apitest.execution.ports.MappedResult;
+import io.github.xiaomisum.robotest.service.apitest.execution.ports.SuiteBuilder;
 import jakarta.annotation.PreDestroy;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
@@ -75,6 +75,8 @@ public class ScheduledTaskRunner {
     private ApiExecutionRecordMapper executionRecordMapper;
     @Resource
     private ApiReportMapper reportMapper;
+    @Resource
+    private SuiteBuilder suiteBuilder;
 
     /** 手动触发场景执行后的完成监听与调度线程隔离，避免长轮询占满调度池 */
     private final ExecutorService trackerPool = Executors.newFixedThreadPool(2, runnable -> {
@@ -186,8 +188,8 @@ public class ScheduledTaskRunner {
         List<Map<String, Object>> children = new ArrayList<>();
         for (ApiScene scene : eligible) {
             // 子 suite variables 仅场景变量（不含环境），环境变量经 Ryze context chain 从顶层继承（定时任务详细设计 4.3）
-            children.add(SceneRyzeConverter.buildSceneSuite(scene.getName(), env,
-                    SceneRyzeConverter.buildSceneVariables(orEmpty(scene.getVariables())),
+            children.add(suiteBuilder.buildSceneSuite(scene.getName(), env,
+                    suiteBuilder.buildSceneVariables(orEmpty(scene.getVariables())),
                     perStepVariables(scene), stepSpecs(scene), orEmpty(scene.getProcessors()),
                     scene.getId(), task.getId()));
         }
@@ -195,7 +197,7 @@ public class ScheduledTaskRunner {
         if (!env.variables().isEmpty()) {
             root.put("variables", env.variables());
         }
-        List<Map<String, Object>> configElements = SceneRyzeConverter.buildConfigureElements(env);
+        List<Map<String, Object>> configElements = suiteBuilder.buildConfigureElements(env);
         if (!configElements.isEmpty()) {
             root.put("configelements", configElements);
         }

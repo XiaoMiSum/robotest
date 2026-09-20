@@ -4,7 +4,6 @@ import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.model.entity.workspace.Project;
 import io.github.xiaomisum.robotest.repository.apitest.ApiFunctionMapper;
 import io.github.xiaomisum.robotest.repository.workspace.ProjectMapper;
-import io.github.xiaomisum.ryze.context.ContextWrapper;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,7 +25,7 @@ import java.util.regex.Pattern;
  * 自定义函数运行时：执行期缓存、名称重写与项目上下文注入的统一入口。
  *
  * <p>为什么在执行前重写调用名：自定义函数无法注册进 Ryze 的静态函数注册表，
- * 统一经 {@link RobotestCustomFunctionDispatcher}（robotest）分发；
+ * 统一经适配器层 {@code RobotestCustomFunctionDispatcher}（robotest）分发；
  * 重写仅针对当前项目可见且启用的自定义函数名，未命中名称保持原样交由框架按内置函数处理。</p>
  */
 @Slf4j
@@ -46,9 +45,17 @@ public class CustomFunctionRuntime {
     /** 项目 → 函数名 → 脚本条目；CRUD 后按作用域失效 */
     private final ConcurrentHashMap<UUID, Map<String, ScriptEntry>> caches = new ConcurrentHashMap<>();
 
+    /** 适配层分发器经 ServiceLoader 早于 Spring 容器就绪加载，单例在此回填供其取用 */
+    private static volatile CustomFunctionRuntime active;
+
     @PostConstruct
-    void bindDispatcher() {
-        RobotestCustomFunctionDispatcher.bind(this);
+    void registerAsActive() {
+        active = this;
+    }
+
+    /** 分发器取运行时引用：Spring 就绪后回填，未就绪时为 null 由调用方判空 */
+    public static CustomFunctionRuntime active() {
+        return active;
     }
 
     /**
@@ -118,9 +125,8 @@ public class CustomFunctionRuntime {
         }
     }
 
-    /** 从执行上下文读取项目标识（分发器回调） */
-    public UUID resolveProjectId(ContextWrapper contextWrapper) {
-        Object value = contextWrapper.getAllVariablesWrapper().get(PROJECT_TAG);
+    /** 解析项目标识（分发器回调，ContextWrapper 取值由适配层完成） */
+    public UUID resolveProjectId(Object value) {
         if (value == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.API_FUNCTION_EVAL_FAILED,
                     "执行上下文缺少项目标识，无法解析自定义函数");

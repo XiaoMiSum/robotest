@@ -1,8 +1,8 @@
 package io.github.xiaomisum.robotest.service.apitest;
 
-import io.github.xiaomisum.ryze.function.Function;
-import io.github.xiaomisum.ryze.template.freemarker.FreeMarkerFunctionRegistry;
+import io.github.xiaomisum.robotest.service.apitest.execution.ports.EngineFunctionRegistry;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiBuiltinFunctionGroupRespDTO;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -13,16 +13,19 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * 内置函数注册表：以 Ryze 运行时实际注册的函数为准（{@link FreeMarkerFunctionRegistry}），
+ * 内置函数注册表：以引擎运行时实际注册的函数为准（{@link EngineFunctionRegistry} 端口），
  * 叠加平台侧维护的分组与描述元数据，保证「函数助手」展示清单与执行期可用函数一致。
  *
- * <p>为什么以运行时为基准而非纯静态清单：Ryze 升级新增/移除内置函数时无需同步改代码，
+ * <p>为什么以运行时为基准而非纯静态清单：引擎升级新增/移除内置函数时无需同步改代码，
  * 未匹配到元数据的函数回退通用描述，避免出现「文档有、执行无」的漂移。</p>
  */
 @Component
+@RequiredArgsConstructor
 public class ApiBuiltinFunctionRegistry {
 
-    /** 函数名 → 元数据（key 为不含 __ 前缀的调用名，与 ryze Function#key() 对齐） */
+    private final EngineFunctionRegistry engineFunctionRegistry;
+
+    /** 函数名 → 元数据（key 为不含 __ 前缀的调用名，与引擎 Function#key() 对齐） */
     private static final Map<String, Meta> METADATA = buildMetadata();
 
     private record Meta(String group, String description, String signature,
@@ -32,17 +35,14 @@ public class ApiBuiltinFunctionRegistry {
     /** 平台已知全部内置调用名（含元数据缺失项），用于自定义函数重名校验 */
     public Set<String> knownKeys() {
         Set<String> keys = new LinkedHashSet<>(METADATA.keySet());
-        for (Function function : FreeMarkerFunctionRegistry.getFunctions()) {
-            keys.add(function.key());
-        }
+        keys.addAll(engineFunctionRegistry.functionKeys());
         return keys;
     }
 
     /** 分组目录：仅包含当前运行时真实可调用的函数 */
     public List<ApiBuiltinFunctionGroupRespDTO> catalog() {
         Map<String, List<ApiBuiltinFunctionGroupRespDTO.BuiltinFunction>> grouped = new LinkedHashMap<>();
-        for (Function function : FreeMarkerFunctionRegistry.getFunctions()) {
-            String key = function.key();
+        for (String key : engineFunctionRegistry.functionKeys()) {
             Meta meta = METADATA.get(key);
             ApiBuiltinFunctionGroupRespDTO.BuiltinFunction item = new ApiBuiltinFunctionGroupRespDTO.BuiltinFunction();
             item.setName(key);
