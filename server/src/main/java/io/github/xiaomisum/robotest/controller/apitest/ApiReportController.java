@@ -17,7 +17,6 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import xyz.migoo.framework.common.pojo.PageParam;
@@ -38,8 +37,6 @@ public class ApiReportController {
     @PreAuthorize("hasAuthority('api-report:view')")
     public Result<PageResult<ApiReportPageItemRespDTO>> page(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @Valid PageParam pageParam,
             @RequestParam(value = "status", required = false) String status,
             @RequestParam(value = "reportType", required = false) String reportType,
@@ -49,7 +46,7 @@ public class ApiReportController {
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate,
             @RequestParam(value = "endDate", required = false)
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate) {
-        return Result.ok(reportService.page(workspaceId, projectId, loginUser.getId(), pageParam,
+        return Result.ok(reportService.page(loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId(), loginUser.getId(), pageParam,
                 status, reportType, executionMode, keyword, startDate, endDate));
     }
 
@@ -57,21 +54,17 @@ public class ApiReportController {
     @PreAuthorize("hasAuthority('api-report:view')")
     public Result<ApiReportDetailRespDTO> detail(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @PathVariable UUID id) {
-        return Result.ok(reportService.detail(workspaceId, projectId, loginUser.getId(), id));
+        return Result.ok(reportService.detail(loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId(), loginUser.getId(), id));
     }
 
     @PostMapping("/api/project/reports/{id}/share")
     @PreAuthorize("hasAuthority('api-report:view')")
     public Result<ApiReportShareRespDTO> share(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @PathVariable UUID id,
             @RequestBody(required = false) @Valid ApiReportShareReqDTO reqDTO) {
-        return Result.ok(reportService.share(workspaceId, projectId, loginUser.getId(), id,
+        return Result.ok(reportService.share(loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId(), loginUser.getId(), id,
                 reqDTO == null ? null : reqDTO.getExpiresInDays()));
     }
 
@@ -79,10 +72,8 @@ public class ApiReportController {
     @PreAuthorize("hasAuthority('api-report:delete')")
     public Result<Boolean> delete(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @PathVariable UUID id) {
-        reportService.delete(workspaceId, projectId, loginUser.getId(), id);
+        reportService.delete(loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId(), loginUser.getId(), id);
         return Result.ok(true);
     }
 
@@ -90,10 +81,8 @@ public class ApiReportController {
     @PreAuthorize("hasAuthority('api-report:delete')")
     public Result<Boolean> batchDelete(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @RequestBody @Valid ApiReportBatchReqDTO reqDTO) {
-        reportService.batchDelete(workspaceId, projectId, loginUser.getId(), reqDTO.getIds());
+        reportService.batchDelete(loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId(), loginUser.getId(), reqDTO.getIds());
         return Result.ok(true);
     }
 

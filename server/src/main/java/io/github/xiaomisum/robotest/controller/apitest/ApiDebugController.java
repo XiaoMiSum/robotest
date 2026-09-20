@@ -19,7 +19,6 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import xyz.migoo.framework.common.pojo.PageParam;
@@ -38,21 +37,17 @@ public class ApiDebugController {
     @PreAuthorize("hasAuthority('api-debug:view')")
     public Result<ApiDebugExecuteRespDTO> execute(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @RequestBody @Valid ApiDebugExecuteReqDTO reqDTO) {
-        return Result.ok(apiDebugService.execute(projectId, workspaceId, loginUser.getId(), reqDTO));
+        return Result.ok(apiDebugService.execute(loginUser.getActiveProjectId(), loginUser.getActiveWorkspaceId(), loginUser.getId(), reqDTO));
     }
 
     @GetMapping("/api/project/debug-records")
     @PreAuthorize("hasAuthority('api-debug:view')")
     public Result<PageResult<ApiDebugRecordItemRespDTO>> pageRecords(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @Valid PageParam pageParam,
             @RequestParam(value = "keyword", required = false) String keyword) {
-        return Result.ok(apiDebugService.pageRecords(projectId, workspaceId, loginUser.getId(),
+        return Result.ok(apiDebugService.pageRecords(loginUser.getActiveProjectId(), loginUser.getActiveWorkspaceId(), loginUser.getId(),
                 keyword, pageParam));
     }
 
@@ -60,11 +55,9 @@ public class ApiDebugController {
     @PreAuthorize("hasAuthority('api-debug:view')")
     public Result<Boolean> rename(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @PathVariable UUID id,
             @RequestBody @Valid ApiDebugRenameReqDTO reqDTO) {
-        apiDebugService.renameRecord(projectId, workspaceId, loginUser.getId(), id, reqDTO);
+        apiDebugService.renameRecord(loginUser.getActiveProjectId(), loginUser.getActiveWorkspaceId(), loginUser.getId(), id, reqDTO);
         return Result.ok(true);
     }
 
@@ -72,10 +65,8 @@ public class ApiDebugController {
     @PreAuthorize("hasAuthority('api-debug:view')")
     public Result<Boolean> delete(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @PathVariable UUID id) {
-        apiDebugService.deleteRecord(projectId, workspaceId, loginUser.getId(), id);
+        apiDebugService.deleteRecord(loginUser.getActiveProjectId(), loginUser.getActiveWorkspaceId(), loginUser.getId(), id);
         return Result.ok(true);
     }
 
@@ -83,21 +74,17 @@ public class ApiDebugController {
     @PreAuthorize("hasAuthority('api-debug:view')")
     public Result<ApiDebugRestoreRespDTO> restore(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @PathVariable UUID id) {
-        return Result.ok(apiDebugService.restore(projectId, workspaceId, loginUser.getId(), id));
+        return Result.ok(apiDebugService.restore(loginUser.getActiveProjectId(), loginUser.getActiveWorkspaceId(), loginUser.getId(), id));
     }
 
     @PostMapping("/api/project/debug-records/{id}/save-as-interface")
     @PreAuthorize("hasAuthority('api-interface:edit')")
     public Result<ApiDebugSaveAsInterfaceRespDTO> saveAsInterface(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @PathVariable UUID id,
             @RequestBody @Valid ApiDebugSaveAsInterfaceReqDTO reqDTO) {
-        UUID interfaceId = apiDebugService.saveAsInterface(projectId, workspaceId,
+        UUID interfaceId = apiDebugService.saveAsInterface(loginUser.getActiveProjectId(), loginUser.getActiveWorkspaceId(),
                 loginUser.getId(), id, reqDTO);
         return Result.ok(ApiDebugSaveAsInterfaceRespDTO.builder().interfaceId(interfaceId).build());
     }

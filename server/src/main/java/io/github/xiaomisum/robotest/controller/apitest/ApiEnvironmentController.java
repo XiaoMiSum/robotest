@@ -28,7 +28,6 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -49,41 +48,33 @@ public class ApiEnvironmentController {
     @PreAuthorize("hasAuthority('api-env:view')")
     public Result<List<ApiEnvironmentListItemRespDTO>> list(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @RequestParam(value = "keyword", required = false) String keyword) {
-        return Result.ok(apiEnvironmentService.fetchEnvironments(projectId, workspaceId, loginUser.getId(), keyword));
+        return Result.ok(apiEnvironmentService.fetchEnvironments(loginUser.getActiveProjectId(), loginUser.getActiveWorkspaceId(), loginUser.getId(), keyword));
     }
 
     @PostMapping
     @PreAuthorize("hasAuthority('api-env:edit')")
     public Result<ApiEnvironmentIdRespDTO> create(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @RequestBody @Valid ApiEnvironmentSaveReqDTO reqDTO) {
-        return Result.ok(apiEnvironmentService.createEnvironment(projectId, workspaceId, loginUser.getId(), reqDTO));
+        return Result.ok(apiEnvironmentService.createEnvironment(loginUser.getActiveProjectId(), loginUser.getActiveWorkspaceId(), loginUser.getId(), reqDTO));
     }
 
     @GetMapping("/{id}")
     @PreAuthorize("hasAuthority('api-env:view')")
     public Result<ApiEnvironmentDetailRespDTO> detail(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @PathVariable UUID id) {
-        return Result.ok(apiEnvironmentService.getEnvironment(projectId, workspaceId, loginUser.getId(), id));
+        return Result.ok(apiEnvironmentService.getEnvironment(loginUser.getActiveProjectId(), loginUser.getActiveWorkspaceId(), loginUser.getId(), id));
     }
 
     @PutMapping("/{id}")
     @PreAuthorize("hasAuthority('api-env:edit')")
     public Result<Boolean> update(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @PathVariable UUID id,
             @RequestBody @Valid ApiEnvironmentSaveReqDTO reqDTO) {
-        apiEnvironmentService.updateEnvironment(projectId, workspaceId, loginUser.getId(), id, reqDTO);
+        apiEnvironmentService.updateEnvironment(loginUser.getActiveProjectId(), loginUser.getActiveWorkspaceId(), loginUser.getId(), id, reqDTO);
         return Result.ok(true);
     }
 
@@ -91,10 +82,8 @@ public class ApiEnvironmentController {
     @PreAuthorize("hasAuthority('api-env:edit')")
     public Result<Boolean> delete(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @PathVariable UUID id) {
-        apiEnvironmentService.deleteEnvironment(projectId, workspaceId, loginUser.getId(), id);
+        apiEnvironmentService.deleteEnvironment(loginUser.getActiveProjectId(), loginUser.getActiveWorkspaceId(), loginUser.getId(), id);
         return Result.ok(true);
     }
 
@@ -102,21 +91,17 @@ public class ApiEnvironmentController {
     @PreAuthorize("hasAuthority('api-env:edit')")
     public Result<ApiEnvironmentSetDefaultRespDTO> setDefault(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @PathVariable UUID id) {
-        return Result.ok(apiEnvironmentService.setDefaultEnvironment(projectId, workspaceId, loginUser.getId(), id));
+        return Result.ok(apiEnvironmentService.setDefaultEnvironment(loginUser.getActiveProjectId(), loginUser.getActiveWorkspaceId(), loginUser.getId(), id));
     }
 
     @PatchMapping("/{id}/sort")
     @PreAuthorize("hasAuthority('api-env:edit')")
     public Result<Boolean> sort(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @PathVariable UUID id,
             @RequestBody @Valid ApiEnvironmentSortReqDTO reqDTO) {
-        apiEnvironmentService.sortEnvironment(projectId, workspaceId, loginUser.getId(), id, reqDTO);
+        apiEnvironmentService.sortEnvironment(loginUser.getActiveProjectId(), loginUser.getActiveWorkspaceId(), loginUser.getId(), id, reqDTO);
         return Result.ok(true);
     }
 
@@ -124,11 +109,9 @@ public class ApiEnvironmentController {
     @PreAuthorize("hasAuthority('api-env:edit')")
     public Result<ApiEnvironmentIdRespDTO> copy(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @PathVariable UUID id,
             @RequestBody @Valid ApiEnvironmentCopyReqDTO reqDTO) {
-        return Result.ok(apiEnvironmentService.copyEnvironment(projectId, workspaceId, loginUser.getId(), id, reqDTO));
+        return Result.ok(apiEnvironmentService.copyEnvironment(loginUser.getActiveProjectId(), loginUser.getActiveWorkspaceId(), loginUser.getId(), id, reqDTO));
     }
 
     // ========== 变量（随环境聚合提交，3.3） ==========
@@ -137,11 +120,9 @@ public class ApiEnvironmentController {
     @PreAuthorize("hasAuthority('api-env:edit')")
     public Result<ApiEnvironmentVariableRespDTO> addVariableFromResult(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @PathVariable UUID id,
             @RequestBody @Valid ApiEnvironmentVariableCreateReqDTO reqDTO) {
-        return Result.ok(apiEnvironmentService.addVariableFromResult(projectId, workspaceId, loginUser.getId(),
+        return Result.ok(apiEnvironmentService.addVariableFromResult(loginUser.getActiveProjectId(), loginUser.getActiveWorkspaceId(), loginUser.getId(),
                 id, reqDTO));
     }
 
@@ -151,22 +132,18 @@ public class ApiEnvironmentController {
     @PreAuthorize("hasAuthority('api-env:view')")
     public Result<ApiDataSourceTestRespDTO> testDataSourceConfig(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @PathVariable UUID id,
             @Valid @RequestBody ApiDataSourceTestReqDTO reqDTO) {
-        return Result.ok(apiEnvironmentService.testDataSourceConfig(projectId, workspaceId, loginUser.getId(), id, reqDTO));
+        return Result.ok(apiEnvironmentService.testDataSourceConfig(loginUser.getActiveProjectId(), loginUser.getActiveWorkspaceId(), loginUser.getId(), id, reqDTO));
     }
 
     @PostMapping("/{id}/http-configs/test")
     @PreAuthorize("hasAuthority('api-env:view')")
     public Result<ApiHttpTestRespDTO> testHttpConfig(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @PathVariable UUID id,
             @Valid @RequestBody ApiHttpConfigTestReqDTO reqDTO) {
-        return Result.ok(apiEnvironmentService.testHttpConfig(projectId, workspaceId, loginUser.getId(), id, reqDTO));
+        return Result.ok(apiEnvironmentService.testHttpConfig(loginUser.getActiveProjectId(), loginUser.getActiveWorkspaceId(), loginUser.getId(), id, reqDTO));
     }
 
     // ========== 环境导入导出（3.1.9 / 3.1.10） ==========
@@ -175,21 +152,17 @@ public class ApiEnvironmentController {
     @PreAuthorize("hasAuthority('api-env:view')")
     public Result<ApiEnvironmentDetailRespDTO> exportEnvironment(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @PathVariable UUID id) {
-        return Result.ok(apiEnvironmentService.exportEnvironment(projectId, workspaceId, loginUser.getId(), id));
+        return Result.ok(apiEnvironmentService.exportEnvironment(loginUser.getActiveProjectId(), loginUser.getActiveWorkspaceId(), loginUser.getId(), id));
     }
 
     @PostMapping(value = "/import", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasAuthority('api-env:edit')")
     public Result<ApiEnvImportResultRespDTO> importEnvironment(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @RequestParam("file") MultipartFile file,
             @RequestParam(value = "overwrite", defaultValue = "false") boolean overwrite) {
-        return Result.ok(apiEnvironmentService.importEnvironment(projectId, workspaceId, loginUser.getId(),
+        return Result.ok(apiEnvironmentService.importEnvironment(loginUser.getActiveProjectId(), loginUser.getActiveWorkspaceId(), loginUser.getId(),
                 file, overwrite));
     }
 }

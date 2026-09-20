@@ -20,7 +20,6 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import xyz.migoo.framework.common.pojo.PageParam;
@@ -40,32 +39,26 @@ public class ApiScheduleController {
     @PreAuthorize("hasAuthority('api-timer:view')")
     public Result<PageResult<ApiSchedulePageItemRespDTO>> page(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @Valid PageParam pageParam,
             @RequestParam(value = "taskType", required = false) String taskType) {
-        return Result.ok(scheduleService.page(workspaceId, projectId, loginUser.getId(), taskType, pageParam));
+        return Result.ok(scheduleService.page(loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId(), loginUser.getId(), taskType, pageParam));
     }
 
     @PostMapping("/api/project/scheduled-tasks")
     @PreAuthorize("hasAuthority('api-timer:edit')")
     public Result<ApiScheduleCreatedRespDTO> create(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @RequestBody @Valid ApiScheduleSaveReqDTO reqDTO) {
-        return Result.ok(scheduleService.create(workspaceId, projectId, loginUser.getId(), reqDTO));
+        return Result.ok(scheduleService.create(loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId(), loginUser.getId(), reqDTO));
     }
 
     @PutMapping("/api/project/scheduled-tasks/{id}")
     @PreAuthorize("hasAuthority('api-timer:edit')")
     public Result<Boolean> update(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @PathVariable UUID id,
             @RequestBody @Valid ApiScheduleSaveReqDTO reqDTO) {
-        scheduleService.update(workspaceId, projectId, loginUser.getId(), id, reqDTO);
+        scheduleService.update(loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId(), loginUser.getId(), id, reqDTO);
         return Result.ok(true);
     }
 
@@ -73,11 +66,9 @@ public class ApiScheduleController {
     @PreAuthorize("hasAuthority('api-timer:edit')")
     public Result<Boolean> toggle(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @PathVariable UUID id,
             @RequestBody @Valid ApiScheduleToggleReqDTO reqDTO) {
-        scheduleService.toggle(workspaceId, projectId, loginUser.getId(), id, reqDTO);
+        scheduleService.toggle(loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId(), loginUser.getId(), id, reqDTO);
         return Result.ok(true);
     }
 
@@ -85,10 +76,8 @@ public class ApiScheduleController {
     @PreAuthorize("hasAuthority('api-timer:edit')")
     public Result<Boolean> delete(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @PathVariable UUID id) {
-        scheduleService.delete(workspaceId, projectId, loginUser.getId(), id);
+        scheduleService.delete(loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId(), loginUser.getId(), id);
         return Result.ok(true);
     }
 
@@ -96,21 +85,17 @@ public class ApiScheduleController {
     @PreAuthorize("hasAuthority('api-timer:edit')")
     public Result<ApiScheduleExecuteNowRespDTO> executeNow(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @PathVariable UUID id) {
-        return Result.ok(scheduleService.executeNow(workspaceId, projectId, loginUser.getId(), id));
+        return Result.ok(scheduleService.executeNow(loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId(), loginUser.getId(), id));
     }
 
     @GetMapping("/api/project/scheduled-tasks/{id}/executions")
     @PreAuthorize("hasAuthority('api-timer:view')")
     public Result<PageResult<ApiScheduleExecutionItemRespDTO>> executions(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @PathVariable UUID id,
             @Valid PageParam pageParam) {
-        return Result.ok(scheduleService.executions(workspaceId, projectId, loginUser.getId(), id, pageParam));
+        return Result.ok(scheduleService.executions(loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId(), loginUser.getId(), id, pageParam));
     }
 
     @PostMapping("/api/project/scheduled-tasks/validate-cron")

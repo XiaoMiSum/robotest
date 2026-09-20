@@ -18,7 +18,6 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -47,14 +46,12 @@ public class CommonComponentController {
     @PreAuthorize("hasAuthority('api-component:view')")
     public Result<PageResult<CommonComponentListItemRespDTO>> list(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @Valid PageParam pageParam,
             @RequestParam(value = "type", required = false) String type,
             @RequestParam(value = "enabled", required = false) Boolean enabled,
             @RequestParam(value = "scope", required = false) String scope,
             @RequestParam(value = "keyword", required = false) String keyword) {
-        return Result.ok(commonComponentService.fetchList(workspaceId, projectId, loginUser.getId(),
+        return Result.ok(commonComponentService.fetchList(loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId(), loginUser.getId(),
                 pageParam, type, enabled, scope, keyword));
     }
 
@@ -62,21 +59,17 @@ public class CommonComponentController {
     @PreAuthorize(WRITE_AUTHORITY)
     public Result<CommonComponentIdRespDTO> create(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @RequestBody @Valid CommonComponentSaveReqDTO reqDTO) {
-        return Result.ok(commonComponentService.create(workspaceId, projectId, loginUser.getId(), reqDTO));
+        return Result.ok(commonComponentService.create(loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId(), loginUser.getId(), reqDTO));
     }
 
     @PutMapping("/{id}")
     @PreAuthorize(WRITE_AUTHORITY)
     public Result<Boolean> update(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @PathVariable UUID id,
             @RequestBody @Valid CommonComponentSaveReqDTO reqDTO) {
-        commonComponentService.update(workspaceId, projectId, loginUser.getId(), id, reqDTO);
+        commonComponentService.update(loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId(), loginUser.getId(), id, reqDTO);
         return Result.ok(true);
     }
 
@@ -84,11 +77,9 @@ public class CommonComponentController {
     @PreAuthorize(WRITE_AUTHORITY)
     public Result<Boolean> toggle(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @PathVariable UUID id,
             @RequestParam("enabled") boolean enabled) {
-        commonComponentService.toggle(workspaceId, projectId, loginUser.getId(), id, enabled);
+        commonComponentService.toggle(loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId(), loginUser.getId(), id, enabled);
         return Result.ok(true);
     }
 
@@ -96,10 +87,8 @@ public class CommonComponentController {
     @PreAuthorize(WRITE_AUTHORITY)
     public Result<Boolean> delete(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @PathVariable UUID id) {
-        commonComponentService.delete(workspaceId, projectId, loginUser.getId(), id);
+        commonComponentService.delete(loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId(), loginUser.getId(), id);
         return Result.ok(true);
     }
 
@@ -107,21 +96,17 @@ public class CommonComponentController {
     @PreAuthorize("hasAuthority('api-component:view')")
     public Result<CommonComponentCopyRespDTO> copy(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @PathVariable UUID id) {
-        return Result.ok(commonComponentService.copy(workspaceId, projectId, loginUser.getId(), id));
+        return Result.ok(commonComponentService.copy(loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId(), loginUser.getId(), id));
     }
 
     @PatchMapping("/batch/toggle")
     @PreAuthorize(WRITE_AUTHORITY)
     public Result<Boolean> batchToggle(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @RequestBody @Valid CommonComponentBatchReqDTO reqDTO,
             @RequestParam("enabled") boolean enabled) {
-        commonComponentService.batchToggle(workspaceId, projectId, loginUser.getId(), reqDTO.getIds(), enabled);
+        commonComponentService.batchToggle(loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId(), loginUser.getId(), reqDTO.getIds(), enabled);
         return Result.ok(true);
     }
 
@@ -129,10 +114,8 @@ public class CommonComponentController {
     @PreAuthorize(WRITE_AUTHORITY)
     public Result<Boolean> batchDelete(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @RequestBody @Valid CommonComponentBatchReqDTO reqDTO) {
-        commonComponentService.batchDelete(workspaceId, projectId, loginUser.getId(), reqDTO.getIds());
+        commonComponentService.batchDelete(loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId(), loginUser.getId(), reqDTO.getIds());
         return Result.ok(true);
     }
 }
