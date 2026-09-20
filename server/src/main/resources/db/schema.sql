@@ -1085,11 +1085,11 @@ CREATE INDEX idx_function_workspace ON api_function(workspace_id, name) WHERE sc
 CREATE UNIQUE INDEX uk_function_global ON api_function(name) WHERE scope = 'global' AND is_deleted = FALSE;
 
 -- ============================================================
--- 21. 种子数据（权限点、角色、提示词模板）
+-- 18. 种子数据（权限点、角色、提示词模板）
 -- ============================================================
 
 -- ------------------------------------------------------------
--- 21.1 权限点（系统管理模块）
+-- 18.1 权限点（系统管理模块）
 -- ------------------------------------------------------------
 INSERT INTO sys_permission (id, code, name, parent_code, module, scope, sort_order, created_at, updated_at, is_deleted) VALUES
 ('a0000000-0000-0000-0000-000000000001', 'user',                '用户管理',          NULL,  '用户管理',     'global', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
@@ -1111,7 +1111,7 @@ INSERT INTO sys_permission (id, code, name, parent_code, module, scope, sort_ord
 ('a0000000-0000-0000-0000-000000000017', 'role:delete',         '删除角色',          'role', '角色管理',     'global', 4, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE);
 
 -- ------------------------------------------------------------
--- 21.2 权限点（AI 管理模块）
+-- 18.2 权限点（AI 管理模块）
 -- ------------------------------------------------------------
 INSERT INTO sys_permission (id, code, name, parent_code, module, scope, sort_order, created_at, updated_at, is_deleted) VALUES
 ('a0000000-0000-0000-0000-000000000018', 'ai',      'AI 管理',           NULL, 'AI 管理', 'global', 4, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
@@ -1119,14 +1119,14 @@ INSERT INTO sys_permission (id, code, name, parent_code, module, scope, sort_ord
 ('a0000000-0000-0000-0000-000000000020', 'ai:edit', '编辑 AI 配置与智能体', 'ai', 'AI 管理', 'global', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE);
 
 -- ------------------------------------------------------------
--- 21.2.1 权限点（审计日志模块，全局系统管理，审计查询详细设计 2.1）
+-- 18.2.1 权限点（审计日志模块，全局系统管理，审计查询详细设计 2.1）
 -- ------------------------------------------------------------
 INSERT INTO sys_permission (id, code, name, parent_code, module, scope, sort_order, created_at, updated_at, is_deleted) VALUES
 ('a0000000-0000-0000-0000-000000000021', 'audit',      '审计日志',    NULL, '审计日志', 'global', 5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
 ('a0000000-0000-0000-0000-000000000022', 'audit:view', '查看审计日志', 'audit', '审计日志', 'global', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE);
 
 -- ------------------------------------------------------------
--- 21.3 权限点（业务模块 — 工作空间/项目/测试用例/评审/计划/缺陷）
+-- 18.3 权限点（业务模块 — 工作空间/项目/测试用例/评审/计划/缺陷）
 -- ------------------------------------------------------------
 INSERT INTO sys_permission (id, code, name, parent_code, module, scope, sort_order, created_at, updated_at, is_deleted) VALUES
 ('c0000000-0000-0000-0000-000000000001', 'ws-info',            '空间信息',           NULL,           '我的空间', 'workspace', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
@@ -1157,7 +1157,7 @@ INSERT INTO sys_permission (id, code, name, parent_code, module, scope, sort_ord
 ('c0000000-0000-0000-0000-000000000031', 'bug:view',           '查看缺陷',            'bug',          '缺陷',    'workspace', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE);
 
 -- ------------------------------------------------------------
--- 21.4 权限点（需求池）
+-- 18.4 权限点（需求池）
 -- ------------------------------------------------------------
 INSERT INTO sys_permission (id, code, name, parent_code, module, scope, sort_order, created_at, updated_at, is_deleted) VALUES
 ('c0000000-0000-0000-0000-000000000034', 'requirement',      '需求池',   NULL,          '需求池', 'workspace', 9, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
@@ -1165,7 +1165,7 @@ INSERT INTO sys_permission (id, code, name, parent_code, module, scope, sort_ord
 ('c0000000-0000-0000-0000-000000000036', 'requirement:edit', '编辑需求池', 'requirement', '需求池', 'workspace', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE);
 
 -- ------------------------------------------------------------
--- 21.5 权限点（接口测试模块）
+-- 18.5 权限点（接口测试模块）
 -- ------------------------------------------------------------
 INSERT INTO sys_permission (id, code, name, parent_code, module, scope, sort_order, created_at, updated_at, is_deleted) VALUES
 -- 测试场景
@@ -1202,7 +1202,7 @@ INSERT INTO sys_permission (id, code, name, parent_code, module, scope, sort_ord
 ('c0000000-0000-0000-0000-000000000063', 'api-report:delete', '删除报告',    'api-report',    '接口测试·测试报告',  'workspace', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE);
 
 -- ------------------------------------------------------------
--- 21.5.1 权限点（接口测试·环境管理 / 函数管理，项目设置分组）
+-- 18.5.1 权限点（接口测试·环境管理 / 函数管理，项目设置分组）
 -- ------------------------------------------------------------
 INSERT INTO sys_permission (id, code, name, parent_code, module, scope, sort_order, created_at, updated_at, is_deleted) VALUES
 ('c0000000-0000-0000-0000-000000000064', 'api-env',            '环境管理',       NULL,          '接口测试·环境管理', 'workspace', 9,  CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
@@ -1215,7 +1215,7 @@ INSERT INTO sys_permission (id, code, name, parent_code, module, scope, sort_ord
 ('c0000000-0000-0000-0000-000000000073', 'api-func:edit-global', '编辑全局函数', 'api-func',    '接口测试·函数管理', 'workspace', 4,  CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE);
 
 -- ------------------------------------------------------------
--- 21.6 预置角色（含全部版本权限合并）
+-- 18.6 预置角色（含全部版本权限合并）
 -- ------------------------------------------------------------
 INSERT INTO sys_role (id, name, description, type, is_system, permissions, created_at, updated_at, is_deleted) VALUES
 -- 系统管理员：拥有系统管理 + AI 管理所有权限
@@ -1240,7 +1240,7 @@ INSERT INTO sys_role (id, name, description, type, is_system, permissions, creat
  CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE);
 
 -- ------------------------------------------------------------
--- 21.7 智能体提示词模板种子数据
+-- 18.7 智能体提示词模板种子数据
 -- ------------------------------------------------------------
 INSERT INTO ai_prompt_template (id, function_type, role_instruction, format_constraint, format_editable, updated_by, is_deleted, created_at, updated_at) VALUES
 ('d0000000-0000-0000-0000-000000000001', 'case_generation', '你是一名资深软件测试工程师，擅长根据需求描述设计结构化的功能测试用例。请基于给定的需求内容，生成覆盖正常流程、异常分支与边界条件的测试用例子树。用例标题应简洁明确，前置条件、步骤与预期结果应具体可执行。', '输出必须为合法 JSON 对象，不得包含 JSON 之外的任何文字。JSON 结构必须严格遵循如下示例（字段名、类型、层级完全一致）：
@@ -1445,7 +1445,7 @@ INSERT INTO ai_prompt_template (id, function_type, role_instruction, format_cons
 ON CONFLICT (function_type) WHERE is_deleted = false DO NOTHING;
 
 -- ============================================================
--- 20. 表与列注释
+-- 19. 表与列注释
 -- ============================================================
 
 -- 系统管理
