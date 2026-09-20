@@ -13,13 +13,7 @@ import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiCustomFunction
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiFunctionEvaluateRespDTO;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiFunction;
 import io.github.xiaomisum.robotest.repository.apitest.ApiFunctionMapper;
-import io.github.xiaomisum.ryze.context.ContextWrapper;
-import io.github.xiaomisum.ryze.context.TestSuiteContext;
-import io.github.xiaomisum.ryze.function.Args;
-import io.github.xiaomisum.ryze.function.Function;
-import io.github.xiaomisum.ryze.template.freemarker.FreeMarkerFunctionRegistry;
-import io.github.xiaomisum.ryze.template.freemarker.FreeMarkerFunctionAdapter;
-import io.github.xiaomisum.ryze.template.freemarker.FreeMarkerTemplateEngine;
+import io.github.xiaomisum.robotest.service.apitest.execution.ports.ExpressionEvaluator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -42,6 +36,7 @@ public class ApiFunctionServiceImpl implements ApiFunctionService {
     private final ApiBuiltinFunctionRegistry builtinRegistry;
     private final ApiFunctionScriptEngine scriptEngine;
     private final CustomFunctionRuntime functionRuntime;
+    private final ExpressionEvaluator expressionEvaluator;
     private final ApiFunctionMapper functionMapper;
     private final ProjectAccessGuard projectAccessGuard;
 
@@ -55,20 +50,15 @@ public class ApiFunctionServiceImpl implements ApiFunctionService {
                                                ApiFunctionEvaluateReqDTO reqDTO) {
         projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
         long start = System.currentTimeMillis();
-        // 试算上下文：空套件上下文即可满足内置函数对变量链的访问，无需真实执行环境
-        ContextWrapper wrapper = new ContextWrapper(List.of(new TestSuiteContext()));
-        Map<String, Object> model = new HashMap<>();
-        for (Function function : FreeMarkerFunctionRegistry.getFunctions()) {
-            model.put(function.key(), new FreeMarkerFunctionAdapter(wrapper, function));
-        }
-        functionRuntime.functionsFor(projectId).values()
-                .forEach(entry -> model.put(entry.getName(),
-                        new FreeMarkerFunctionAdapter(wrapper, new ScriptFunction(entry))));
+        // 自定义函数按名绑定调用器，与内置函数统一由适配层装配进引擎模型求值（ExpressionEvaluator 端口）
+        Map<String, ExpressionEvaluator.ScriptCallable> customFunctions = new HashMap<>();
+        functionRuntime.functionsFor(projectId)
+                .forEach((name, entry) -> customFunctions.put(name, entry::execute));
         Object evaluated;
         try {
-            evaluated = new FreeMarkerTemplateEngine().evaluate(model, reqDTO.getExpression());
+            evaluated = expressionEvaluator.evaluate(reqDTO.getExpression(), customFunctions);
         } catch (Exception e) {
-            // 表达式语法错误与脚本编译错误同码（7019），执行失败走 7020；ryze 会包装底层异常，需沿 cause 链判别
+            // 表达式语法错误与脚本编译错误同码（7019），执行失败走 7020；引擎会包装底层异常，需沿 cause 链判别
             if (rootCause(e) instanceof ParseException) {
                 throw ServiceExceptionUtil.get(ErrorCodeConstants.API_CUSTOM_FUNCTION_SCRIPT_INVALID,
                         rootMessage(e));
@@ -252,25 +242,5 @@ public class ApiFunctionServiceImpl implements ApiFunctionService {
         item.setEnabled(entity.getEnabled());
         item.setUpdatedAt(entity.getUpdatedAt() != null ? entity.getUpdatedAt().format(DATETIME) : null);
         return item;
-    }
-
-    /** 函数试算适配：把缓存中的脚本条目包装成 Ryze Function，与内置函数走同一适配通道 */
-    record ScriptFunction(CustomFunctionRuntime.ScriptEntry entry) implements Function {
-
-        @Override
-        public String key() {
-            return entry.getName();
-        }
-
-        @Override
-        public Object execute(ContextWrapper contextWrapper, Args args) {
-            // 试算路径按函数名直接绑定模型，参数不含名称占位符，全量透传
-            List<Object> realArgs = (args == null || args.isEmpty()) ? List.of() : new java.util.ArrayList<>(args);
-            java.util.Map<String, Object> contextVars = new java.util.LinkedHashMap<>();
-            if (contextWrapper != null) {
-                contextVars.putAll(contextWrapper.getAllVariablesWrapper().mergeVariables());
-            }
-            return entry.execute(realArgs, contextVars);
-        }
     }
 }
