@@ -17,7 +17,6 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
-import org.springframework.util.StringUtils;
 import org.springframework.web.servlet.HandlerInterceptor;
 
 import java.util.ArrayList;
@@ -27,7 +26,8 @@ import java.util.UUID;
 /**
  * 工作空间角色权限拦截器。
  *
- * <p>在请求到达 Controller 之前，读取 {@code X-Active-Workspace} 头，
+ * <p>在请求到达 Controller 之前，读取 {@link LoginUser#activeWorkspaceId}
+ * （由 ContextHeaderInterceptor 从 {@code X-Active-Workspace} 解析注入，07 §3.1.2 避免双读），
  * 查询当前用户在该工作空间中的角色及权限，追加到 {@link LoginUser#workspaceAuthorities} 中，
  * 使后续 {@code @PreAuthorize} 等注解可以基于工作空间角色进行授权判断。</p>
  */
@@ -49,16 +49,9 @@ public class WorkspaceRoleInterceptor implements HandlerInterceptor {
             return true;
         }
 
-        String workspaceIdStr = request.getHeader("X-Active-Workspace");
-        if (!StringUtils.hasText(workspaceIdStr)) {
-            log.debug("[WS-Auth] 无 X-Active-Workspace 头，跳过工作空间权限加载");
-            return true;
-        }
-        UUID workspaceId;
-        try {
-            workspaceId = UUID.fromString(workspaceIdStr);
-        } catch (IllegalArgumentException e) {
-            log.warn("[WS-Auth] X-Active-Workspace 非 UUID 格式: {}", workspaceIdStr);
+        UUID workspaceId = loginUser.getActiveWorkspaceId();
+        if (workspaceId == null) {
+            log.debug("[WS-Auth] 无活跃工作空间，跳过工作空间权限加载");
             return true;
         }
 

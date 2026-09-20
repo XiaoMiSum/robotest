@@ -22,6 +22,16 @@ public class LoginUser extends AuthUserDetails<LoginUser, UUID> {
     private String email;
 
     /**
+     * 当前活跃工作空间（由 ContextHeaderInterceptor 从 X-Active-Workspace 解析注入）
+     */
+    private UUID activeWorkspaceId;
+
+    /**
+     * 当前活跃项目（由 ContextHeaderInterceptor 从 X-Active-Project 解析注入）
+     */
+    private UUID activeProjectId;
+
+    /**
      * 是否拥有至少一个工作空间
      */
     private boolean hasWorkspace;
