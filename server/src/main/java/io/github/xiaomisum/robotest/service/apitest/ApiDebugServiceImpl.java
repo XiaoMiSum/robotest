@@ -1,6 +1,8 @@
 package io.github.xiaomisum.robotest.service.apitest;
-import io.github.xiaomisum.robotest.service.apitest.execution.ports.EnvironmentSnapshotProvider;
 import io.github.xiaomisum.robotest.service.apitest.execution.ports.EnvSnapshot;
+import io.github.xiaomisum.robotest.service.apitest.execution.ports.EnvironmentSnapshotProvider;
+import io.github.xiaomisum.robotest.service.apitest.execution.ports.MappedResult;
+import io.github.xiaomisum.robotest.service.apitest.execution.ports.SuiteRunner;
 
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.framework.config.ApiTestProperties;
@@ -21,12 +23,8 @@ import io.github.xiaomisum.robotest.repository.apitest.ApiDebugRecordMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiEnvironmentMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiInterfaceMapper;
 import io.github.xiaomisum.robotest.service.apitest.execution.adapters.ryze.DebugRyzeConverter;
-import io.github.xiaomisum.robotest.service.apitest.execution.adapters.ryze.RyzeResultAdapter;
-import io.github.xiaomisum.ryze.Ryze;
-import io.github.xiaomisum.ryze.protocol.http.RealHTTPResponse;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.hc.core5.http.Header;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.stereotype.Service;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
@@ -36,7 +34,6 @@ import xyz.migoo.framework.common.util.JsonUtils;
 import xyz.migoo.framework.mybatis.core.LambdaQueryWrapperX;
 
 import java.net.URI;
-import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -66,6 +63,8 @@ public class ApiDebugServiceImpl implements ApiDebugService {
     private ProjectAccessGuard projectAccessGuard;
     @Resource
     private EnvironmentSnapshotProvider environmentSnapshotFactory;
+    @Resource
+    private SuiteRunner suiteRunner;
     @Resource(name = "apiTestExecutor")
     private ThreadPoolTaskExecutor apiTestExecutor;
     @Resource(name = "apiDebugPersistExecutor")
@@ -373,10 +372,8 @@ public class ApiDebugServiceImpl implements ApiDebugService {
         try {
             // 执行前注入自定义函数：重写调用名并标记项目上下文
             functionRuntime.prepareSuite(suite, projectId);
-            return apiTestExecutor.submit(() -> {
-                var result = Ryze.start(suite);
-                return collect(result);
-            }).get(guardMs, java.util.concurrent.TimeUnit.MILLISECONDS);
+            return apiTestExecutor.submit(() -> collect(suiteRunner.run(suite)))
+                    .get(guardMs, java.util.concurrent.TimeUnit.MILLISECONDS);
         } catch (RejectedExecutionException ex) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.API_EXECUTOR_BUSY);
         } catch (java.util.concurrent.TimeoutException ex) {
@@ -391,60 +388,24 @@ public class ApiDebugServiceImpl implements ApiDebugService {
         }
     }
 
-    private TestResultSnapshot collect(io.github.xiaomisum.ryze.Result suiteResult) {
-        var children = suiteResult instanceof io.github.xiaomisum.ryze.testelement.TestSuiteResult suite
-                ? suite.getChildren()
-                : List.of();
-        io.github.xiaomisum.ryze.testelement.sampler.SampleResult step = children.stream()
-                .filter(child -> child instanceof io.github.xiaomisum.ryze.testelement.sampler.SampleResult)
-                .map(child -> (io.github.xiaomisum.ryze.testelement.sampler.SampleResult) child)
+    /** 平台结果树 → 调试快照切片：首个采样步骤或整树（顶层无采样时为 suite 聚合） */
+    private TestResultSnapshot collect(MappedResult root) {
+        MappedResult step = root.children() == null ? null : root.children().stream()
+                .filter(MappedResult::isSample)
                 .findFirst()
                 .orElse(null);
 
-        // 异常/中止执行可能未记录起止时间，缺失时直接判为 0 避免 Duration.between NPE
-        Long elapsed = suiteResult.getStartTime() == null || suiteResult.getEndTime() == null ? 0L
-                : Duration.between(suiteResult.getStartTime(), suiteResult.getEndTime()).toMillis();
+        // 异常/中止执行可能未记录起止时间，缺失时直接判为 0，等同旧 collect 的 0L 兜底
+        Long elapsed = root.elapsedMs() == null ? 0L : root.elapsedMs();
         if (step == null) {
-            Throwable error = suiteResult.getThrowable();
-            return new TestResultSnapshot(RyzeResultAdapter.resolveStepStatus(suiteResult), null, null, null, 0,
-                    error == null ? "未产生执行结果" : RyzeResultAdapter.errorMessage(error), elapsed);
+            return new TestResultSnapshot(root.status(), null, null, null, 0,
+                    root.errorMessage() == null ? "未产生执行结果" : root.errorMessage(), elapsed);
         }
-        Integer responseStatus = null;
-        Map<String, Object> responseHeaders = null;
-        String responseBody = null;
-        int size = 0;
-        if (step.getResponse() instanceof RealHTTPResponse response) {
-            responseStatus = response.status();
-            byte[] bytes = response.bytes();
-            size = bytes == null ? 0 : bytes.length;
-            responseBody = bytesAsString(response);
-            responseHeaders = toHeaderMap(response.headers());
-        }
-        Throwable error = step.getThrowable() != null ? step.getThrowable() : suiteResult.getThrowable();
-        return new TestResultSnapshot(RyzeResultAdapter.resolveStepStatus(step), responseStatus, responseHeaders,
-                responseBody, size, RyzeResultAdapter.errorMessage(error), elapsed);
-    }
-
-    private String bytesAsString(RealHTTPResponse response) {
-        try {
-            return response.bytesAsString();
-        } catch (Exception ex) {
-            return response.format();
-        }
-    }
-
-    private Map<String, Object> toHeaderMap(List<Header> headers) {
-        Map<String, Object> map = new LinkedHashMap<>();
-        for (Header header : headers) {
-            String name = header.getName();
-            String value = header.getValue();
-            if (map.containsKey(name)) {
-                map.put(name, map.get(name) + ", " + value);
-            } else {
-                map.put(name, value);
-            }
-        }
-        return map;
+        // step 无异常时回退 suite 根的异常，等同旧 collect 的 throwable 优先链
+        String error = step.errorMessage() != null ? step.errorMessage() : root.errorMessage();
+        return new TestResultSnapshot(step.status(), step.responseStatus(), step.responseHeaders(),
+                step.fullResponseBody(), step.responseSize() == null ? 0 : step.responseSize(),
+                error, elapsed);
     }
 
     private void applyResult(ApiDebugRecord record, TestResultSnapshot snapshot) {
