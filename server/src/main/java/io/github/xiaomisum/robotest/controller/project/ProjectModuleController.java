@@ -28,9 +28,8 @@ public class ProjectModuleController {
     @PreAuthorize("hasAuthority('case:view')")
     public Result<List<ProjectModuleTreeRespDTO>> getModuleTree(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @RequestParam(required = false) String assetType) {
-        return Result.ok(projectModuleService.getModuleTree(projectId, loginUser.getId(), assetType));
+        return Result.ok(projectModuleService.getModuleTree(loginUser.getActiveProjectId(), loginUser.getId(), assetType));
     }
 
     @PostMapping
@@ -38,9 +37,8 @@ public class ProjectModuleController {
     @ResponseStatus(HttpStatus.CREATED)
     public Result<ProjectModuleTreeRespDTO> createModule(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @RequestBody @Valid ProjectModuleCreateReqDTO reqDTO) {
-        return Result.ok(projectModuleService.createModule(projectId, loginUser.getId(), reqDTO));
+        return Result.ok(projectModuleService.createModule(loginUser.getActiveProjectId(), loginUser.getId(), reqDTO));
     }
 
     @PutMapping("/{id}")

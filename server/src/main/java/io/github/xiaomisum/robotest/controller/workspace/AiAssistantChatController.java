@@ -11,7 +11,6 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
@@ -22,7 +21,7 @@ import java.util.UUID;
 /**
  * 全局智能助手对话接口（详细设计 3.2 / 3.3）。
  *
- * <p>上下文标识（workspaceId）经 X-Active-Workspace 头传递（C4），不出现在 URL 或请求体。</p>
+ * <p>上下文标识（loginUser.getActiveWorkspaceId()）经 X-Active-Workspace 头传递（C4），不出现在 URL 或请求体。</p>
  */
 @RestController
 @RequestMapping("/api/workspace/ai")
@@ -37,10 +36,9 @@ public class AiAssistantChatController {
     @PostMapping(value = "/conversations/{id}/messages", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter sendMessage(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
             @PathVariable("id") UUID conversationId,
             @RequestBody @Valid AiAssistantSendReqDTO reqDTO) {
-        return aiAssistantChatService.sendMessage(loginUser.getId(), workspaceId, conversationId, reqDTO);
+        return aiAssistantChatService.sendMessage(loginUser.getId(), loginUser.getActiveWorkspaceId(), conversationId, reqDTO);
     }
 
     /**
@@ -49,9 +47,8 @@ public class AiAssistantChatController {
     @PostMapping(value = "/confirmations/approve", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter approve(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
             @RequestBody @Valid AiConfirmReqDTO reqDTO) {
-        return aiAssistantChatService.approve(loginUser.getId(), workspaceId, reqDTO.getConfirmToken());
+        return aiAssistantChatService.approve(loginUser.getId(), loginUser.getActiveWorkspaceId(), reqDTO.getConfirmToken());
     }
 
     /**
@@ -60,9 +57,8 @@ public class AiAssistantChatController {
     @PostMapping("/confirmations/cancel")
     public Result<Void> cancel(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
             @RequestBody @Valid AiConfirmReqDTO reqDTO) {
-        aiAssistantChatService.cancel(loginUser.getId(), workspaceId, reqDTO.getConfirmToken());
+        aiAssistantChatService.cancel(loginUser.getId(), loginUser.getActiveWorkspaceId(), reqDTO.getConfirmToken());
         return Result.ok();
     }
 }

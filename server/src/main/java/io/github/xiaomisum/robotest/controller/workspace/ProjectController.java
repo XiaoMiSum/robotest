@@ -26,22 +26,20 @@ public class ProjectController {
     @GetMapping
     public Result<PageResult<ProjectRespDTO>> getProjects(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) String status,
             @RequestParam(defaultValue = "1") Integer pageNo,
             @RequestParam(defaultValue = "20") Integer pageSize) {
         PageResult<ProjectRespDTO> result = projectService.getProjectPage(
-                workspaceId, loginUser.getId(), keyword, status, pageNo, pageSize);
+                loginUser.getActiveWorkspaceId(), loginUser.getId(), keyword, status, pageNo, pageSize);
         return Result.ok(result);
     }
 
     @GetMapping("/{id}")
     public Result<ProjectRespDTO> getProjectDetail(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
             @PathVariable UUID id) {
-        ProjectRespDTO result = projectService.getProjectDetail(workspaceId, id);
+        ProjectRespDTO result = projectService.getProjectDetail(loginUser.getActiveWorkspaceId(), id);
         return Result.ok(result);
     }
 
@@ -49,40 +47,36 @@ public class ProjectController {
     @ResponseStatus(HttpStatus.CREATED)
     public Result<ProjectRespDTO> createProject(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
             @RequestBody @Valid ProjectCreateReqDTO reqDTO) {
         ProjectRespDTO result = projectService.createProject(
-                loginUser.getId(), workspaceId, reqDTO);
+                loginUser.getId(), loginUser.getActiveWorkspaceId(), reqDTO);
         return Result.ok(result);
     }
 
     @PutMapping("/{id}")
     public Result<ProjectRespDTO> updateProject(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
             @PathVariable UUID id,
             @RequestBody @Valid ProjectUpdateReqDTO reqDTO) {
         ProjectRespDTO result = projectService.updateProject(
-                loginUser.getId(), workspaceId, id, reqDTO);
+                loginUser.getId(), loginUser.getActiveWorkspaceId(), id, reqDTO);
         return Result.ok(result);
     }
 
     @PostMapping("/{id}/archive")
     public Result<Void> archiveProject(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
             @PathVariable UUID id,
             @RequestBody @Valid ProjectArchiveReqDTO reqDTO) {
-        projectService.archiveProject(loginUser.getId(), workspaceId, id, reqDTO);
+        projectService.archiveProject(loginUser.getId(), loginUser.getActiveWorkspaceId(), id, reqDTO);
         return Result.ok();
     }
 
     @DeleteMapping("/{id}")
     public Result<Void> deleteProject(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
             @PathVariable UUID id) {
-        projectService.deleteProject(loginUser.getId(), workspaceId, id);
+        projectService.deleteProject(loginUser.getId(), loginUser.getActiveWorkspaceId(), id);
         return Result.ok();
     }
 }

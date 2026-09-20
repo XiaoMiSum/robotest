@@ -22,30 +22,27 @@ public class WorkspaceContextController {
 
     @GetMapping
     public Result<WorkspaceContextRespDTO> getWorkspaceContext(
-            @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId) {
+            @AuthenticationPrincipal LoginUser loginUser) {
         WorkspaceContextRespDTO result = workspaceContextService.getWorkspaceContext(
-                loginUser.getId(), workspaceId);
+                loginUser.getId(), loginUser.getActiveWorkspaceId());
         return Result.ok(result);
     }
 
     @PutMapping
     public Result<WorkspaceContextRespDTO> updateWorkspace(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
             @RequestBody @Valid WorkspaceUpdateReqDTO reqDTO) {
         WorkspaceContextRespDTO result = workspaceContextService.updateWorkspace(
-                loginUser.getId(), workspaceId, reqDTO);
+                loginUser.getId(), loginUser.getActiveWorkspaceId(), reqDTO);
         return Result.ok(result);
     }
 
     @PutMapping("/default-project")
     public Result<WorkspaceContextRespDTO> setDefaultProject(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
             @RequestBody WorkspaceDefaultProjectReqDTO reqDTO) {
         WorkspaceContextRespDTO result = workspaceContextService.setDefaultProject(
-                loginUser.getId(), workspaceId, reqDTO);
+                loginUser.getId(), loginUser.getActiveWorkspaceId(), reqDTO);
         return Result.ok(result);
     }
 }

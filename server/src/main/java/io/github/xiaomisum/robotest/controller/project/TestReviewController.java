@@ -34,21 +34,19 @@ public class TestReviewController {
     @GetMapping
     public Result<PageResult<TestReviewListRespDTO>> getReviewPage(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String keyword,
             @RequestParam(defaultValue = "1") Integer pageNo,
             @RequestParam(defaultValue = "20") Integer pageSize) {
-        return Result.ok(testReviewService.getReviewPage(projectId, loginUser.getId(), status, keyword, pageNo, pageSize));
+        return Result.ok(testReviewService.getReviewPage(loginUser.getActiveProjectId(), loginUser.getId(), status, keyword, pageNo, pageSize));
     }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public Result<TestReviewDetailRespDTO> createReview(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @RequestBody @Valid TestReviewCreateReqDTO reqDTO) {
-        return Result.ok(testReviewService.createReview(projectId, loginUser.getId(), reqDTO));
+        return Result.ok(testReviewService.createReview(loginUser.getActiveProjectId(), loginUser.getId(), reqDTO));
     }
 
     @GetMapping("/{id}")

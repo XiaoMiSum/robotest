@@ -31,21 +31,19 @@ public class RequirementController {
     @PreAuthorize("hasAuthority('requirement:view')")
     public Result<PageResult<RequirementListRespDTO>> getRequirementPage(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) String status,
             @RequestParam(defaultValue = "1") Integer pageNo,
             @RequestParam(defaultValue = "20") Integer pageSize) {
-        return Result.ok(requirementService.getPage(projectId, keyword, status, pageNo, pageSize));
+        return Result.ok(requirementService.getPage(loginUser.getActiveProjectId(), keyword, status, pageNo, pageSize));
     }
 
     @GetMapping("/{id}")
     @PreAuthorize("hasAuthority('requirement:view')")
     public Result<RequirementDetailRespDTO> getRequirementDetail(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @PathVariable UUID id) {
-        return Result.ok(requirementService.getDetail(id, projectId));
+        return Result.ok(requirementService.getDetail(id, loginUser.getActiveProjectId()));
     }
 
     @PostMapping
@@ -53,9 +51,8 @@ public class RequirementController {
     @ResponseStatus(HttpStatus.CREATED)
     public Result<String> createRequirement(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @RequestBody @Valid RequirementCreateReqDTO reqDTO) {
-        return Result.ok(requirementService.create(projectId, loginUser.getId(), reqDTO));
+        return Result.ok(requirementService.create(loginUser.getActiveProjectId(), loginUser.getId(), reqDTO));
     }
 
     @PostMapping("/batch")
@@ -63,9 +60,8 @@ public class RequirementController {
     @ResponseStatus(HttpStatus.CREATED)
     public Result<RequirementBatchCreateRespDTO> createRequirementsBatch(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @RequestBody @Valid RequirementBatchCreateReqDTO reqDTO) {
-        int count = requirementService.createBatch(projectId, loginUser.getId(), reqDTO);
+        int count = requirementService.createBatch(loginUser.getActiveProjectId(), loginUser.getId(), reqDTO);
         return Result.ok(RequirementBatchCreateRespDTO.of(count));
     }
 
@@ -73,10 +69,9 @@ public class RequirementController {
     @PreAuthorize("hasAuthority('requirement:edit')")
     public Result<Void> updateRequirement(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @PathVariable UUID id,
             @RequestBody @Valid RequirementUpdateReqDTO reqDTO) {
-        requirementService.update(id, projectId, loginUser.getId(), reqDTO);
+        requirementService.update(id, loginUser.getActiveProjectId(), loginUser.getId(), reqDTO);
         return Result.ok();
     }
 
@@ -84,9 +79,8 @@ public class RequirementController {
     @PreAuthorize("hasAuthority('requirement:edit')")
     public Result<Void> deleteRequirement(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @PathVariable UUID id) {
-        requirementService.delete(id, projectId, loginUser.getId());
+        requirementService.delete(id, loginUser.getActiveProjectId(), loginUser.getId());
         return Result.ok();
     }
 
@@ -94,10 +88,9 @@ public class RequirementController {
     @PreAuthorize("hasAuthority('requirement:edit')")
     public Result<Void> archiveRequirement(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @PathVariable UUID id,
             @RequestBody @Valid RequirementArchiveReqDTO reqDTO) {
-        requirementService.archive(id, projectId, loginUser.getId(), reqDTO.getArchived());
+        requirementService.archive(id, loginUser.getActiveProjectId(), loginUser.getId(), reqDTO.getArchived());
         return Result.ok();
     }
 }

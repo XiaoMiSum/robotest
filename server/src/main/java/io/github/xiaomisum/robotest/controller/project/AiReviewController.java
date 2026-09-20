@@ -17,7 +17,6 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
@@ -40,18 +39,15 @@ public class AiReviewController {
     @PreAuthorize("hasAuthority('review:view')")
     public SseEmitter generateSummary(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @PathVariable UUID id,
             @RequestBody AiReviewSummaryReqDTO reqDTO) {
-        return aiReviewSummaryService.generateSummary(loginUser.getId(), workspaceId, projectId, id, reqDTO);
+        return aiReviewSummaryService.generateSummary(loginUser.getId(), loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId(), id, reqDTO);
     }
 
     @GetMapping("/{id}/summary")
     @PreAuthorize("hasAuthority('review:view')")
     public Result<AiReviewSummaryRespDTO> getSummary(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @PathVariable UUID id) {
         return Result.ok(aiReviewSummaryService.getSummary(id, loginUser.getId()));
     }
@@ -60,38 +56,32 @@ public class AiReviewController {
     @PreAuthorize("hasAuthority('review:view')")
     public Result<AiReviewCheckStartRespDTO> startCheck(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @PathVariable UUID id) {
-        return Result.ok(aiReviewCheckService.startCheck(loginUser.getId(), workspaceId, projectId, id));
+        return Result.ok(aiReviewCheckService.startCheck(loginUser.getId(), loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId(), id));
     }
 
     @GetMapping("/{id}/check-result")
     @PreAuthorize("hasAuthority('review:view')")
     public Result<AiTaskRespDTO> getCheckResult(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @PathVariable UUID id) {
-        return Result.ok(aiReviewCheckService.getCheckResult(loginUser.getId(), projectId, id));
+        return Result.ok(aiReviewCheckService.getCheckResult(loginUser.getId(), loginUser.getActiveProjectId(), id));
     }
 
     @PostMapping(value = "/{id}/conclusion", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     @PreAuthorize("hasAuthority('review:view')")
     public SseEmitter generateConclusion(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @PathVariable UUID id,
             @RequestBody(required = false) AiReviewConclusionReqDTO reqDTO) {
-        return aiReviewConclusionService.generateConclusion(loginUser.getId(), workspaceId, projectId, id, reqDTO);
+        return aiReviewConclusionService.generateConclusion(loginUser.getId(), loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId(), id, reqDTO);
     }
 
     @GetMapping("/{id}/conclusion")
     @PreAuthorize("hasAuthority('review:view')")
     public Result<AiTaskRespDTO> getConclusion(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @PathVariable UUID id) {
-        return Result.ok(aiReviewConclusionService.getConclusion(loginUser.getId(), projectId, id));
+        return Result.ok(aiReviewConclusionService.getConclusion(loginUser.getId(), loginUser.getActiveProjectId(), id));
     }
 }
