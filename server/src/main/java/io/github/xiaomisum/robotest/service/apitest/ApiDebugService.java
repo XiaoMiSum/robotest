@@ -2,7 +2,6 @@ package io.github.xiaomisum.robotest.service.apitest;
 
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiDebugExecuteReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiDebugRenameReqDTO;
-import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiDebugSaveAsInterfaceReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiDebugExecuteRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiDebugRecordItemRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiDebugRestoreRespDTO;
@@ -23,7 +22,4 @@ public interface ApiDebugService {
     void renameRecord(UUID projectId, UUID workspaceId, UUID userId, UUID id, ApiDebugRenameReqDTO reqDTO);
 
     ApiDebugRestoreRespDTO restore(UUID projectId, UUID workspaceId, UUID userId, UUID id);
-
-    UUID saveAsInterface(UUID projectId, UUID workspaceId, UUID userId, UUID id,
-            ApiDebugSaveAsInterfaceReqDTO reqDTO);
 }

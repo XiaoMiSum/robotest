@@ -10,15 +10,9 @@ import io.github.xiaomisum.robotest.framework.config.ApiTestProperties;
 import io.github.xiaomisum.robotest.framework.security.ProjectAccessGuard;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiDebugExecuteReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiDebugRenameReqDTO;
-import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiDebugSaveAsInterfaceReqDTO;
-import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiInterfaceCreateReqDTO;
-import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiInterfaceUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiDebugRecord;
-import io.github.xiaomisum.robotest.model.entity.apitest.ApiEnvironment;
-import io.github.xiaomisum.robotest.model.entity.apitest.ApiInterface;
 import io.github.xiaomisum.robotest.repository.apitest.ApiDebugRecordMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiEnvironmentMapper;
-import io.github.xiaomisum.robotest.repository.apitest.ApiInterfaceMapper;
 import io.github.xiaomisum.ryze.TestStatus;
 import io.github.xiaomisum.ryze.result.AssertionResult;
 import io.github.xiaomisum.ryze.testelement.TestSuiteResult;
@@ -48,11 +42,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/** 快速调试服务：执行、cURL 导入、记录管理 */
+/** 快速调试服务：执行、记录管理 */
 @ExtendWith(MockitoExtension.class)
 class ApiDebugServiceImplTest {
 
@@ -60,18 +53,11 @@ class ApiDebugServiceImplTest {
     private static final UUID WORKSPACE_ID = UUID.randomUUID();
     private static final UUID USER_ID = UUID.randomUUID();
     private static final UUID RECORD_ID = UUID.randomUUID();
-    private static final UUID ENVIRONMENT_ID = UUID.randomUUID();
-    private static final UUID INTERFACE_ID = UUID.randomUUID();
-    private static final UUID MODULE_ID = UUID.randomUUID();
 
     @Mock
     private ApiDebugRecordMapper debugRecordMapper;
     @Mock
     private ApiEnvironmentMapper environmentMapper;
-    @Mock
-    private ApiInterfaceService interfaceService;
-    @Mock
-    private ApiInterfaceMapper interfaceMapper;
     @Mock
     private ProjectAccessGuard projectAccessGuard;
 
@@ -101,15 +87,12 @@ class ApiDebugServiceImplTest {
         ReflectionSet.set(service, "persistExecutor", persistExecutor);
         ReflectionSet.set(service, "properties", properties);
 
-        // 环境快照装配已抽取为共享工厂，测试内以同一组环境 mock 组装真实工厂注入
         RyzeEnvironmentSnapshotProvider environmentSnapshotFactory = new RyzeEnvironmentSnapshotProvider();
         ReflectionSet.set(environmentSnapshotFactory, "environmentMapper", environmentMapper);
         ReflectionSet.set(service, "environmentSnapshotFactory", environmentSnapshotFactory);
 
-        // 执行接缝走真实适配器（RyzeSuiteRunner + RyzeResultMapper），engine 真实执行结果经端口模型返回
         ReflectionSet.set(service, "suiteRunner", new RyzeSuiteRunner(new RyzeResultMapper(properties)));
 
-        // 执行前自定义函数注入依赖运行时，测试中装配真实实例（mapper 交互均被 mock）
         CustomFunctionRuntime functionRuntime = new CustomFunctionRuntime(
                 org.mockito.Mockito.mock(io.github.xiaomisum.robotest.repository.apitest.ApiFunctionMapper.class),
                 org.mockito.Mockito.mock(io.github.xiaomisum.robotest.repository.workspace.ProjectMapper.class),
@@ -162,7 +145,6 @@ class ApiDebugServiceImplTest {
 
     @Test
     void executeUnreachableUrlMarksErrorWithoutThrowing() {
-        // 端口 1 保留端口，连接必然快速失败
         ApiDebugExecuteReqDTO req = new ApiDebugExecuteReqDTO();
         req.setMethod("GET");
         req.setUrl("http://127.0.0.1:1/health");
@@ -209,14 +191,12 @@ class ApiDebugServiceImplTest {
         assertTrue(((String) accessor(snapshot, "errorMessage")).contains("未提取到数据且无默认值"));
     }
 
-    /** 调用私有 collect：验证 MappedResult → 快照切片的状态/错误消息映射（绕开 executor，结果可控） */
     private Object collect(MappedResult result) throws Exception {
         var collect = ApiDebugServiceImpl.class.getDeclaredMethod("collect", MappedResult.class);
         collect.setAccessible(true);
         return collect.invoke(service, result);
     }
 
-    /** 私有 collect 输入从引擎结果经真实 ResultMapper 投影为端口模型，沿用引擎状态/错误口径 */
     private MappedResult mapped(io.github.xiaomisum.ryze.Result result) {
         return RyzeResultMapper.map(result, 20000);
     }
@@ -241,7 +221,6 @@ class ApiDebugServiceImplTest {
         ArgumentCaptor<ApiDebugRecord> captor = ArgumentCaptor.forClass(ApiDebugRecord.class);
         verify(debugRecordMapper).updateById(captor.capture());
         assertThat(captor.getValue().getName()).isEqualTo("登录调试");
-        // C9：更新载体仅携带 id 与变更字段，其余字段保持 null
         assertThat(captor.getValue().getUrl()).isNull();
     }
 
@@ -299,7 +278,6 @@ class ApiDebugServiceImplTest {
         record.setMethod("POST");
         record.setUrl("/login");
         record.setBodyType("form");
-        // form 落库扁平化为 {content: [KV 行]}
         record.setBody(Map.of("content", List.of(
                 Map.of("key", "name", "value", "张三", "enabled", true),
                 Map.of("key", "next", "value", "a=1&b=2", "enabled", true))));
@@ -313,222 +291,7 @@ class ApiDebugServiceImplTest {
                 Map.of("key", "next", "value", "a=1&b=2", "enabled", true)));
     }
 
-    @Test
-    void saveAsInterfaceCreatesInterfaceWithMappedSnapshot() {
-        ApiDebugRecord record = ownedRecord();
-        record.setEnvironmentId(ENVIRONMENT_ID);
-        record.setMethod("POST");
-        record.setUrl("https://staging.example.com/api/auth/login?src=curl&flag=1");
-        record.setBodyType("json");
-        record.setBody(Map.of("username", "admin"));
-        record.setQueryParams(List.of(Map.of("key", "src", "value", "db", "enabled", true)));
-        when(debugRecordMapper.selectById(RECORD_ID)).thenReturn(record);
-        stubDefaultHttpBaseUrl("https://staging.example.com");
-        when(interfaceService.create(any(UUID.class), any(UUID.class), any(UUID.class), any()))
-                .thenReturn(INTERFACE_ID);
-
-        ApiDebugSaveAsInterfaceReqDTO reqDTO = new ApiDebugSaveAsInterfaceReqDTO();
-        reqDTO.setMode("create");
-        reqDTO.setName("  用户登录  ");
-        reqDTO.setModuleId(MODULE_ID);
-        UUID result = service.saveAsInterface(PROJECT_ID, WORKSPACE_ID, USER_ID, RECORD_ID, reqDTO);
-
-        assertEquals(INTERFACE_ID, result);
-        ArgumentCaptor<ApiInterfaceCreateReqDTO> captor =
-                ArgumentCaptor.forClass(ApiInterfaceCreateReqDTO.class);
-        verify(interfaceService).create(any(), any(), any(), captor.capture());
-        ApiInterfaceCreateReqDTO payload = captor.getValue();
-        assertEquals("用户登录", payload.getName());
-        assertEquals(MODULE_ID, payload.getModuleId());
-        assertEquals("http", payload.getProtocol());
-        assertEquals("POST", payload.getMethod());
-        // baseUrl 剥离得相对路径
-        assertEquals("/api/auth/login", payload.getPath());
-        // URL query 与已配置参数合并，同名以已配置值为准
-        assertThat(payload.getParams()).extracting(p -> p.get("key"))
-                .containsExactlyInAnyOrder("src", "flag");
-        Object srcParam = payload.getParams().stream()
-                .filter(p -> "src".equals(p.get("key")))
-                .findFirst().orElseThrow();
-        assertEquals("db", ((Map<?, ?>) srcParam).get("value"));
-        assertThat(payload.getBody())
-                .containsEntry("type", "json")
-                .containsEntry("content", Map.of("username", "admin"));
-    }
-
-    @Test
-    void saveAsInterfaceWithoutEnvKeepsOnlyPath() {
-        ApiDebugRecord record = ownedRecord();
-        record.setMethod("GET");
-        record.setUrl("https://other.example.com:8443/users?page=2");
-        when(debugRecordMapper.selectById(RECORD_ID)).thenReturn(record);
-
-        ApiDebugSaveAsInterfaceReqDTO reqDTO = new ApiDebugSaveAsInterfaceReqDTO();
-        reqDTO.setMode("create");
-        reqDTO.setName("用户列表");
-        reqDTO.setModuleId(MODULE_ID);
-        service.saveAsInterface(PROJECT_ID, WORKSPACE_ID, USER_ID, RECORD_ID, reqDTO);
-
-        ArgumentCaptor<ApiInterfaceCreateReqDTO> captor =
-                ArgumentCaptor.forClass(ApiInterfaceCreateReqDTO.class);
-        verify(interfaceService).create(any(), any(), any(), captor.capture());
-        // 环境 baseUrl 无法剥离时，path 仅保留路径部分，剔除 scheme/host/port（query 并入 params）
-        assertEquals("/users", captor.getValue().getPath());
-    }
-
-    @Test
-    void saveAsInterfaceAttachesToExistingInterface() {
-        ApiDebugRecord record = ownedRecord();
-        record.setMethod("PUT");
-        record.setUrl("/users/1");
-        when(debugRecordMapper.selectById(RECORD_ID)).thenReturn(record);
-        ApiInterface target = new ApiInterface();
-        target.setId(INTERFACE_ID);
-        target.setProjectId(PROJECT_ID);
-        target.setName("用户登录");
-        target.setModuleId(MODULE_ID);
-        target.setChangeVersion(3);
-        when(interfaceMapper.selectById(INTERFACE_ID)).thenReturn(target);
-
-        ApiDebugSaveAsInterfaceReqDTO reqDTO = new ApiDebugSaveAsInterfaceReqDTO();
-        reqDTO.setMode("attach");
-        reqDTO.setInterfaceId(INTERFACE_ID);
-        reqDTO.setChangeVersion(3);
-        UUID result = service.saveAsInterface(PROJECT_ID, WORKSPACE_ID, USER_ID, RECORD_ID, reqDTO);
-
-        assertEquals(INTERFACE_ID, result);
-        ArgumentCaptor<ApiInterfaceUpdateReqDTO> captor =
-                ArgumentCaptor.forClass(ApiInterfaceUpdateReqDTO.class);
-        verify(interfaceService).update(any(), any(), any(), eq(INTERFACE_ID), captor.capture());
-        ApiInterfaceUpdateReqDTO payload = captor.getValue();
-        // 名称/模块取自目标接口原样保留，仅覆盖主请求字段
-        assertEquals("用户登录", payload.getName());
-        assertEquals(MODULE_ID, payload.getModuleId());
-        assertEquals(Integer.valueOf(3), payload.getChangeVersion());
-        assertEquals("PUT", payload.getMethod());
-        assertEquals("/users/1", payload.getPath());
-    }
-
-    @Test
-    void saveAsInterfaceRejectsForeignRecord() {
-        ApiDebugRecord record = ownedRecord();
-        record.setUserId(UUID.randomUUID());
-        when(debugRecordMapper.selectById(RECORD_ID)).thenReturn(record);
-
-        ApiDebugSaveAsInterfaceReqDTO reqDTO = new ApiDebugSaveAsInterfaceReqDTO();
-        reqDTO.setMode("create");
-        reqDTO.setName("任意");
-        reqDTO.setModuleId(MODULE_ID);
-        ServiceException ex = assertThrows(ServiceException.class,
-                () -> service.saveAsInterface(PROJECT_ID, WORKSPACE_ID, USER_ID, RECORD_ID, reqDTO));
-        assertEquals(ErrorCodeConstants.API_DEBUG_RECORD_NOT_FOUND.code(), ex.getCode());
-    }
-
-    @Test
-    void saveAsInterfaceAttachMissingTargetThrowsNotFound() {
-        ApiDebugRecord record = ownedRecord();
-        when(debugRecordMapper.selectById(RECORD_ID)).thenReturn(record);
-        when(interfaceMapper.selectById(INTERFACE_ID)).thenReturn(null);
-
-        ApiDebugSaveAsInterfaceReqDTO reqDTO = new ApiDebugSaveAsInterfaceReqDTO();
-        reqDTO.setMode("attach");
-        reqDTO.setInterfaceId(INTERFACE_ID);
-        reqDTO.setChangeVersion(1);
-        ServiceException ex = assertThrows(ServiceException.class,
-                () -> service.saveAsInterface(PROJECT_ID, WORKSPACE_ID, USER_ID, RECORD_ID, reqDTO));
-        assertEquals(ErrorCodeConstants.API_INTERFACE_NOT_FOUND.code(), ex.getCode());
-    }
-
-    @Test
-    void saveAsInterfaceUsesUiRequestSnapshot() {
-        ApiDebugRecord record = ownedRecord();
-        record.setEnvironmentId(ENVIRONMENT_ID);
-        record.setMethod("GET");
-        record.setUrl("https://staging.example.com/old-path");
-        when(debugRecordMapper.selectById(RECORD_ID)).thenReturn(record);
-        stubDefaultHttpBaseUrl("https://staging.example.com");
-        when(interfaceService.create(any(UUID.class), any(UUID.class), any(UUID.class), any()))
-                .thenReturn(INTERFACE_ID);
-
-        ApiDebugSaveAsInterfaceReqDTO reqDTO = new ApiDebugSaveAsInterfaceReqDTO();
-        reqDTO.setMode("create");
-        reqDTO.setName("UI 请求快照");
-        reqDTO.setModuleId(MODULE_ID);
-        reqDTO.setRequest(Map.of(
-                "method", "PATCH",
-                "url", "https://staging.example.com/api/users/1?active=true",
-                "headers", List.of(Map.of("key", "X-Token", "value", "abc", "enabled", true)),
-                "params", List.of(),
-                "body", Map.of("type", "json", "content", Map.of("name", "新名字"))));
-        UUID result = service.saveAsInterface(PROJECT_ID, WORKSPACE_ID, USER_ID, RECORD_ID, reqDTO);
-
-        assertEquals(INTERFACE_ID, result);
-        ArgumentCaptor<ApiInterfaceCreateReqDTO> captor =
-                ArgumentCaptor.forClass(ApiInterfaceCreateReqDTO.class);
-        verify(interfaceService).create(any(), any(), any(), captor.capture());
-        ApiInterfaceCreateReqDTO payload = captor.getValue();
-        // 使用 UI 表单的 method/url，而非 debug record 中的旧值
-        assertEquals("PATCH", payload.getMethod());
-        assertEquals("/api/users/1", payload.getPath());
-        assertThat(payload.getHeaders()).extracting(h -> h.get("key")).containsExactly("X-Token");
-        assertThat(payload.getBody())
-                .containsEntry("type", "json")
-                .containsEntry("content", Map.of("name", "新名字"));
-    }
-
-    @Test
-    void saveAsInterfaceIncludesResponseExample() {
-        ApiDebugRecord record = ownedRecord();
-        record.setEnvironmentId(ENVIRONMENT_ID);
-        record.setMethod("POST");
-        record.setUrl("/api/auth/login");
-        when(debugRecordMapper.selectById(RECORD_ID)).thenReturn(record);
-        stubDefaultHttpBaseUrl("https://api.example.com");
-        when(interfaceService.create(any(UUID.class), any(UUID.class), any(UUID.class), any()))
-                .thenReturn(INTERFACE_ID);
-
-        ApiDebugSaveAsInterfaceReqDTO reqDTO = new ApiDebugSaveAsInterfaceReqDTO();
-        reqDTO.setMode("create");
-        reqDTO.setName("带响应示例");
-        reqDTO.setModuleId(MODULE_ID);
-        reqDTO.setRequest(Map.of("method", "POST", "url", "/api/auth/login"));
-        reqDTO.setResponseExample(Map.of(
-                "status", 200,
-                "headers", Map.of("Content-Type", "application/json"),
-                "body", Map.of("token", "eyJhbGciOiJIUzI1NiJ9")));
-        service.saveAsInterface(PROJECT_ID, WORKSPACE_ID, USER_ID, RECORD_ID, reqDTO);
-
-        ArgumentCaptor<ApiInterfaceCreateReqDTO> captor =
-                ArgumentCaptor.forClass(ApiInterfaceCreateReqDTO.class);
-        verify(interfaceService).create(any(), any(), any(), captor.capture());
-        ApiInterfaceCreateReqDTO payload = captor.getValue();
-        assertThat(payload.getResponseExample())
-                .containsEntry("status", 200)
-                .containsEntry("body", Map.of("token", "eyJhbGciOiJIUzI1NiJ9"));
-    }
-
     // ========== helpers ==========
-
-    private ApiDebugRecord ownedRecord() {
-        ApiDebugRecord record = new ApiDebugRecord();
-        record.setId(RECORD_ID);
-        record.setProjectId(PROJECT_ID);
-        record.setUserId(USER_ID);
-        return record;
-    }
-
-    private void stubDefaultHttpBaseUrl(String baseUrl) {
-        ApiEnvironment env = new ApiEnvironment();
-        env.setId(ENVIRONMENT_ID);
-        env.setProjectId(PROJECT_ID);
-        java.util.LinkedHashMap<String, Object> http = new java.util.LinkedHashMap<>();
-        http.put("name", "默认配置");
-        http.put("refName", "http_1");
-        http.put("baseUrl", baseUrl);
-        http.put("headers", List.of());
-        env.setHttpConfigs(List.of(http));
-        when(environmentMapper.selectById(ENVIRONMENT_ID)).thenReturn(env);
-    }
 
     private void startEchoServer(EchoResponder responder) throws Exception {
         httpServer = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
@@ -546,7 +309,6 @@ class ApiDebugServiceImplTest {
         Object[] respond();
     }
 
-    /** 等待异步落库队列清空，保证 verify(insert) 时序稳定 */
     private boolean persistDrained() throws InterruptedException {
         for (int i = 0; i < 50 && persistExecutor.getQueueSize() > 0; i++) {
             Thread.sleep(20);
@@ -555,7 +317,6 @@ class ApiDebugServiceImplTest {
         return true;
     }
 
-    /** 测试内反射注入 @Resource 字段 */
     static final class ReflectionSet {
         static void set(Object target, String field, Object value) {
             try {
