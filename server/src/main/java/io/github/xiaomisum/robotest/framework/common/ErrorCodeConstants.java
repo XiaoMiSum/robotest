@@ -23,6 +23,8 @@ public class ErrorCodeConstants {
     public static final ErrorCode ACCOUNT_DISABLED = ErrorCode.of(1000002005, "账户已被禁用或登录凭证失效");
     public static final ErrorCode CANNOT_REMOVE_LAST_SYSTEM_ROLE = ErrorCode.of(1000002006, "不能移除自己的最后一个系统角色");
     public static final ErrorCode SYSTEM_ALREADY_INITIALIZED = ErrorCode.of(1000002007, "系统已初始化，请直接登录");
+    public static final ErrorCode CONTEXT_HEADER_MISSING = ErrorCode.of(1000002008, "缺少上下文请求头，请刷新页面后重试");
+    public static final ErrorCode CONTEXT_HEADER_INVALID = ErrorCode.of(1000002009, "上下文请求头格式非法");
 
     // ========== 数据不存在 1,000,003,001-1,000,003,004 ==========
     public static final ErrorCode USER_NOT_FOUND = ErrorCode.of(1000003001, "用户不存在");
