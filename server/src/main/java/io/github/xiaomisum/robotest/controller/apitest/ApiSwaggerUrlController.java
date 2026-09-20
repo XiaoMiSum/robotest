@@ -14,7 +14,6 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import xyz.migoo.framework.common.pojo.Result;
@@ -33,31 +32,25 @@ public class ApiSwaggerUrlController {
     @PreAuthorize("hasAuthority('api-timer:view')")
     public Result<List<ApiSwaggerUrlItemRespDTO>> list(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @RequestParam(value = "name", required = false) String name) {
-        return Result.ok(swaggerUrlService.list(workspaceId, projectId, loginUser.getId(), name));
+        return Result.ok(swaggerUrlService.list(loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId(), loginUser.getId(), name));
     }
 
     @PostMapping("/api/project/swagger-urls")
     @PreAuthorize("hasAuthority('api-timer:edit')")
     public Result<UUID> create(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @RequestBody @Valid ApiSwaggerUrlSaveReqDTO reqDTO) {
-        return Result.ok(swaggerUrlService.create(workspaceId, projectId, loginUser.getId(), reqDTO));
+        return Result.ok(swaggerUrlService.create(loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId(), loginUser.getId(), reqDTO));
     }
 
     @PutMapping("/api/project/swagger-urls/{id}")
     @PreAuthorize("hasAuthority('api-timer:edit')")
     public Result<Boolean> update(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @PathVariable UUID id,
             @RequestBody @Valid ApiSwaggerUrlSaveReqDTO reqDTO) {
-        swaggerUrlService.update(workspaceId, projectId, loginUser.getId(), id, reqDTO);
+        swaggerUrlService.update(loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId(), loginUser.getId(), id, reqDTO);
         return Result.ok(true);
     }
 
@@ -65,10 +58,8 @@ public class ApiSwaggerUrlController {
     @PreAuthorize("hasAuthority('api-timer:edit')")
     public Result<Boolean> delete(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @PathVariable UUID id) {
-        swaggerUrlService.delete(workspaceId, projectId, loginUser.getId(), id);
+        swaggerUrlService.delete(loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId(), loginUser.getId(), id);
         return Result.ok(true);
     }
 }

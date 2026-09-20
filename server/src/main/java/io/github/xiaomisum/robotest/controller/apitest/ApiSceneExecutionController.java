@@ -21,7 +21,6 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
 import xyz.migoo.framework.common.pojo.PageParam;
 import xyz.migoo.framework.common.pojo.PageResult;
@@ -40,11 +39,9 @@ public class ApiSceneExecutionController {
     @PreAuthorize("hasAuthority('api-scene:execute')")
     public Result<ApiExecutionStartRespDTO> execute(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @PathVariable UUID sceneId,
             @RequestBody(required = false) @Valid ApiSceneExecuteReqDTO reqDTO) {
-        return Result.ok(executionService.execute(workspaceId, projectId,
+        return Result.ok(executionService.execute(loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId(),
                 loginUser.getId(), sceneId, reqDTO));
     }
 
@@ -52,11 +49,9 @@ public class ApiSceneExecutionController {
     @PreAuthorize("hasAuthority('api-scene:view')")
     public Result<ApiExecutionStatusRespDTO> getStatus(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @PathVariable UUID sceneId,
             @PathVariable UUID executionId) {
-        return Result.ok(executionService.getStatus(workspaceId, projectId,
+        return Result.ok(executionService.getStatus(loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId(),
                 loginUser.getId(), executionId));
     }
 
@@ -64,11 +59,9 @@ public class ApiSceneExecutionController {
     @PreAuthorize("hasAuthority('api-scene:execute')")
     public Result<ApiExecutionCancelRespDTO> cancel(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @PathVariable UUID sceneId,
             @PathVariable UUID executionId) {
-        return Result.ok(executionService.cancel(workspaceId, projectId,
+        return Result.ok(executionService.cancel(loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId(),
                 loginUser.getId(), executionId));
     }
 
@@ -76,11 +69,9 @@ public class ApiSceneExecutionController {
     @PreAuthorize("hasAuthority('api-scene:view')")
     public Result<PageResult<ApiExecutionHistoryItemRespDTO>> pageExecutions(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @PathVariable UUID sceneId,
             @Valid PageParam pageParam) {
-        return Result.ok(executionService.pageExecutions(workspaceId, projectId,
+        return Result.ok(executionService.pageExecutions(loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId(),
                 loginUser.getId(), sceneId, pageParam));
     }
 
@@ -88,11 +79,9 @@ public class ApiSceneExecutionController {
     @PreAuthorize("hasAuthority('api-scene:view')")
     public Result<PageResult<ApiChangeHistoryItemRespDTO>> pageChangeHistory(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @PathVariable UUID sceneId,
             @Valid PageParam pageParam) {
-        return Result.ok(executionService.pageChangeHistory(workspaceId, projectId,
+        return Result.ok(executionService.pageChangeHistory(loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId(),
                 loginUser.getId(), sceneId, pageParam));
     }
 
@@ -102,12 +91,10 @@ public class ApiSceneExecutionController {
     @PreAuthorize("hasAuthority('api-scene:execute')")
     public Result<ApiSceneStepDebugRespDTO> debugStep(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @PathVariable UUID sceneId,
             @PathVariable UUID stepId,
             @RequestBody @Valid ApiSceneStepDebugReqDTO reqDTO) {
-        return Result.ok(executionService.debugStep(workspaceId, projectId,
+        return Result.ok(executionService.debugStep(loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId(),
                 loginUser.getId(), sceneId, stepId, reqDTO));
     }
 
@@ -117,10 +104,8 @@ public class ApiSceneExecutionController {
     @PreAuthorize("hasAuthority('api-scene:execute')")
     public Result<ApiSceneStepDebugRespDTO> draftDebugStep(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @RequestBody @Valid ApiSceneStepDraftDebugReqDTO reqDTO) {
-        return Result.ok(executionService.draftDebugStep(workspaceId, projectId,
+        return Result.ok(executionService.draftDebugStep(loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId(),
                 loginUser.getId(), reqDTO));
     }
 
@@ -128,10 +113,8 @@ public class ApiSceneExecutionController {
     @PreAuthorize("hasAuthority('api-scene:execute')")
     public Result<ApiSceneDraftExecuteRespDTO> draftExecute(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @RequestBody @Valid ApiSceneDraftExecuteReqDTO reqDTO) {
-        return Result.ok(executionService.draftExecute(workspaceId, projectId,
+        return Result.ok(executionService.draftExecute(loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId(),
                 loginUser.getId(), reqDTO));
     }
 }

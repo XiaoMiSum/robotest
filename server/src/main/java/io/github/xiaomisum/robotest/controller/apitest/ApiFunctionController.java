@@ -20,7 +20,6 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -56,10 +55,8 @@ public class ApiFunctionController {
     @PreAuthorize("hasAuthority('api-func:view')")
     public Result<ApiFunctionEvaluateRespDTO> evaluate(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @RequestBody @Valid ApiFunctionEvaluateReqDTO reqDTO) {
-        return Result.ok(apiFunctionService.evaluate(workspaceId, projectId, loginUser.getId(), reqDTO));
+        return Result.ok(apiFunctionService.evaluate(loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId(), loginUser.getId(), reqDTO));
     }
 
     // ========== 自定义函数（3.8.3 – 3.8.7） ==========
@@ -68,12 +65,10 @@ public class ApiFunctionController {
     @PreAuthorize("hasAuthority('api-func:view')")
     public Result<List<ApiCustomFunctionListItemRespDTO>> listCustom(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @RequestParam(value = "enabled", required = false) Boolean enabled,
             @RequestParam(value = "scope", required = false) String scope,
             @RequestParam(value = "keyword", required = false) String keyword) {
-        return Result.ok(apiFunctionService.fetchCustomList(workspaceId, projectId, loginUser.getId(),
+        return Result.ok(apiFunctionService.fetchCustomList(loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId(), loginUser.getId(),
                 enabled, scope, keyword));
     }
 
@@ -81,31 +76,25 @@ public class ApiFunctionController {
     @PreAuthorize("hasAuthority('api-func:view')")
     public Result<ApiCustomFunctionDetailRespDTO> getCustomDetail(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @PathVariable UUID id) {
-        return Result.ok(apiFunctionService.fetchCustomDetail(workspaceId, projectId, loginUser.getId(), id));
+        return Result.ok(apiFunctionService.fetchCustomDetail(loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId(), loginUser.getId(), id));
     }
 
     @PostMapping("/custom-functions")
     @PreAuthorize(WRITE_AUTHORITY)
     public Result<ApiCustomFunctionIdRespDTO> createCustom(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @RequestBody @Valid ApiCustomFunctionSaveReqDTO reqDTO) {
-        return Result.ok(apiFunctionService.createCustom(workspaceId, projectId, loginUser.getId(), reqDTO));
+        return Result.ok(apiFunctionService.createCustom(loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId(), loginUser.getId(), reqDTO));
     }
 
     @PutMapping("/custom-functions/{id}")
     @PreAuthorize(WRITE_AUTHORITY)
     public Result<Boolean> updateCustom(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @PathVariable UUID id,
             @RequestBody @Valid ApiCustomFunctionSaveReqDTO reqDTO) {
-        apiFunctionService.updateCustom(workspaceId, projectId, loginUser.getId(), id, reqDTO);
+        apiFunctionService.updateCustom(loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId(), loginUser.getId(), id, reqDTO);
         return Result.ok(true);
     }
 
@@ -113,11 +102,9 @@ public class ApiFunctionController {
     @PreAuthorize(WRITE_AUTHORITY)
     public Result<Boolean> toggleCustom(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @PathVariable UUID id,
             @RequestParam("enabled") boolean enabled) {
-        apiFunctionService.toggleCustom(workspaceId, projectId, loginUser.getId(), id, enabled);
+        apiFunctionService.toggleCustom(loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId(), loginUser.getId(), id, enabled);
         return Result.ok(true);
     }
 
@@ -125,10 +112,8 @@ public class ApiFunctionController {
     @PreAuthorize(WRITE_AUTHORITY)
     public Result<Boolean> deleteCustom(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @PathVariable UUID id) {
-        apiFunctionService.deleteCustom(workspaceId, projectId, loginUser.getId(), id);
+        apiFunctionService.deleteCustom(loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId(), loginUser.getId(), id);
         return Result.ok(true);
     }
 }

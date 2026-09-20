@@ -26,7 +26,6 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import xyz.migoo.framework.common.pojo.PageParam;
@@ -48,14 +47,12 @@ public class ApiSceneController {
     @PreAuthorize("hasAuthority('api-scene:view')")
     public Result<PageResult<ApiScenePageItemRespDTO>> fetchPage(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @Valid PageParam pageParam,
             @RequestParam(value = "moduleId", required = false) UUID moduleId,
             @RequestParam(value = "search", required = false) String search,
             @RequestParam(value = "followedOnly", required = false) Boolean followedOnly,
             @RequestParam(value = "status", required = false) String status) {
-        return Result.ok(sceneService.fetchPage(workspaceId, projectId, loginUser.getId(),
+        return Result.ok(sceneService.fetchPage(loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId(), loginUser.getId(),
                 moduleId, search, followedOnly, status, pageParam));
     }
 
@@ -63,20 +60,16 @@ public class ApiSceneController {
     @PreAuthorize("hasAuthority('api-scene:view')")
     public Result<ApiSceneDetailRespDTO> getDetail(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @PathVariable UUID id) {
-        return Result.ok(sceneService.getDetail(workspaceId, projectId, loginUser.getId(), id));
+        return Result.ok(sceneService.getDetail(loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId(), loginUser.getId(), id));
     }
 
     @PostMapping("/api/project/api-scenes")
     @PreAuthorize("hasAuthority('api-scene:edit')")
     public Result<Map<String, String>> create(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @RequestBody @Valid ApiSceneCreateReqDTO reqDTO) {
-        return Result.ok(Map.of("id", sceneService.create(workspaceId, projectId,
+        return Result.ok(Map.of("id", sceneService.create(loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId(),
                 loginUser.getId(), reqDTO).toString()));
     }
 
@@ -84,11 +77,9 @@ public class ApiSceneController {
     @PreAuthorize("hasAuthority('api-scene:edit')")
     public Result<Boolean> update(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @PathVariable UUID id,
             @RequestBody @Valid ApiSceneUpdateReqDTO reqDTO) {
-        sceneService.update(workspaceId, projectId, loginUser.getId(), id, reqDTO);
+        sceneService.update(loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId(), loginUser.getId(), id, reqDTO);
         return Result.ok(true);
     }
 
@@ -96,10 +87,8 @@ public class ApiSceneController {
     @PreAuthorize("hasAuthority('api-scene:edit')")
     public Result<Boolean> delete(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @PathVariable UUID id) {
-        sceneService.delete(workspaceId, projectId, loginUser.getId(), id);
+        sceneService.delete(loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId(), loginUser.getId(), id);
         return Result.ok(true);
     }
 
@@ -109,11 +98,9 @@ public class ApiSceneController {
     @PreAuthorize("hasAuthority('api-scene:edit')")
     public Result<Map<String, String>> createStep(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @PathVariable UUID id,
             @RequestBody @Valid ApiSceneStepSaveReqDTO reqDTO) {
-        return Result.ok(Map.of("id", sceneService.createStep(workspaceId, projectId,
+        return Result.ok(Map.of("id", sceneService.createStep(loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId(),
                 loginUser.getId(), id, reqDTO).toString()));
     }
 
@@ -121,11 +108,9 @@ public class ApiSceneController {
     @PreAuthorize("hasAuthority('api-scene:edit')")
     public Result<ApiSceneQuickCreateRespDTO> quickCreateSteps(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @PathVariable UUID id,
             @RequestBody @Valid ApiSceneStepQuickCreateReqDTO reqDTO) {
-        return Result.ok(sceneService.quickCreateSteps(workspaceId, projectId,
+        return Result.ok(sceneService.quickCreateSteps(loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId(),
                 loginUser.getId(), id, reqDTO));
     }
 
@@ -133,11 +118,9 @@ public class ApiSceneController {
     @PreAuthorize("hasAuthority('api-scene:edit')")
     public Result<Boolean> reorderSteps(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @PathVariable UUID id,
             @RequestBody @Valid ApiSceneStepReorderReqDTO reqDTO) {
-        sceneService.reorderSteps(workspaceId, projectId, loginUser.getId(), id, reqDTO);
+        sceneService.reorderSteps(loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId(), loginUser.getId(), id, reqDTO);
         return Result.ok(true);
     }
 
@@ -145,12 +128,10 @@ public class ApiSceneController {
     @PreAuthorize("hasAuthority('api-scene:edit')")
     public Result<Boolean> updateStep(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @PathVariable UUID id,
             @PathVariable UUID stepId,
             @RequestBody @Valid ApiSceneStepSaveReqDTO reqDTO) {
-        sceneService.updateStep(workspaceId, projectId, loginUser.getId(), id, stepId, reqDTO);
+        sceneService.updateStep(loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId(), loginUser.getId(), id, stepId, reqDTO);
         return Result.ok(true);
     }
 
@@ -158,11 +139,9 @@ public class ApiSceneController {
     @PreAuthorize("hasAuthority('api-scene:edit')")
     public Result<Boolean> deleteStep(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @PathVariable UUID id,
             @PathVariable UUID stepId) {
-        sceneService.deleteStep(workspaceId, projectId, loginUser.getId(), id, stepId);
+        sceneService.deleteStep(loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId(), loginUser.getId(), id, stepId);
         return Result.ok(true);
     }
 
@@ -170,12 +149,10 @@ public class ApiSceneController {
     @PreAuthorize("hasAuthority('api-scene:edit')")
     public Result<Map<String, String>> copyStep(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @PathVariable UUID id,
             @PathVariable UUID stepId,
             @RequestBody @Valid ApiSceneStepCopyReqDTO reqDTO) {
-        return Result.ok(Map.of("id", sceneService.copyStep(workspaceId, projectId,
+        return Result.ok(Map.of("id", sceneService.copyStep(loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId(),
                 loginUser.getId(), id, stepId, reqDTO).toString()));
     }
 
@@ -185,11 +162,9 @@ public class ApiSceneController {
     @PreAuthorize("hasAuthority('api-scene:view')")
     public Result<List<Map<String, Object>>> listStepVariables(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @PathVariable UUID id,
             @PathVariable UUID stepId) {
-        return Result.ok(sceneService.listStepVariables(workspaceId, projectId,
+        return Result.ok(sceneService.listStepVariables(loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId(),
                 loginUser.getId(), id, stepId));
     }
 
@@ -197,12 +172,10 @@ public class ApiSceneController {
     @PreAuthorize("hasAuthority('api-scene:edit')")
     public Result<Boolean> updateStepVariables(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @PathVariable UUID id,
             @PathVariable UUID stepId,
             @RequestBody @Valid ApiSceneStepVariableBatchReqDTO reqDTO) {
-        sceneService.updateStepVariables(workspaceId, projectId, loginUser.getId(), id, stepId, reqDTO);
+        sceneService.updateStepVariables(loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId(), loginUser.getId(), id, stepId, reqDTO);
         return Result.ok(true);
     }
 
@@ -212,11 +185,9 @@ public class ApiSceneController {
     @PreAuthorize("hasAuthority('api-scene:edit')")
     public Result<ApiSceneAssetsImportRespDTO> importAssets(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @PathVariable UUID id,
             @RequestBody @Valid ApiSceneAssetsImportReqDTO reqDTO) {
-        return Result.ok(sceneService.importAssets(workspaceId, projectId, loginUser.getId(), id, reqDTO));
+        return Result.ok(sceneService.importAssets(loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId(), loginUser.getId(), id, reqDTO));
     }
 
     // ========== 关注 ==========
@@ -225,10 +196,8 @@ public class ApiSceneController {
     @PreAuthorize("hasAuthority('api-scene:edit')")
     public Result<Boolean> follow(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @PathVariable UUID id) {
-        sceneService.follow(workspaceId, projectId, loginUser.getId(), id);
+        sceneService.follow(loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId(), loginUser.getId(), id);
         return Result.ok(true);
     }
 
@@ -236,10 +205,8 @@ public class ApiSceneController {
     @PreAuthorize("hasAuthority('api-scene:edit')")
     public Result<Boolean> unfollow(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @PathVariable UUID id) {
-        sceneService.unfollow(workspaceId, projectId, loginUser.getId(), id);
+        sceneService.unfollow(loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId(), loginUser.getId(), id);
         return Result.ok(true);
     }
 
@@ -249,10 +216,8 @@ public class ApiSceneController {
     @PreAuthorize("hasAuthority('api-scene:edit')")
     public Result<Boolean> batchDelete(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @RequestBody @Valid ApiSceneBatchDeleteReqDTO reqDTO) {
-        sceneService.batchDelete(workspaceId, projectId, loginUser.getId(), reqDTO);
+        sceneService.batchDelete(loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId(), loginUser.getId(), reqDTO);
         return Result.ok(true);
     }
 
@@ -260,10 +225,8 @@ public class ApiSceneController {
     @PreAuthorize("hasAuthority('api-scene:edit')")
     public Result<Boolean> batchMove(
             @AuthenticationPrincipal LoginUser loginUser,
-            @RequestHeader("X-Active-Workspace") UUID workspaceId,
-            @RequestHeader("X-Active-Project") UUID projectId,
             @RequestBody @Valid ApiSceneBatchMoveReqDTO reqDTO) {
-        sceneService.batchMove(workspaceId, projectId, loginUser.getId(), reqDTO);
+        sceneService.batchMove(loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId(), loginUser.getId(), reqDTO);
         return Result.ok(true);
     }
 }
