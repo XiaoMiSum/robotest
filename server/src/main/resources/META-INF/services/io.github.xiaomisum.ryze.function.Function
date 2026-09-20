@@ -1,1 +1,1 @@
-io.github.xiaomisum.robotest.service.apitest.RobotestCustomFunctionDispatcher
+io.github.xiaomisum.robotest.service.apitest.execution.adapters.ryze.RobotestCustomFunctionDispatcher

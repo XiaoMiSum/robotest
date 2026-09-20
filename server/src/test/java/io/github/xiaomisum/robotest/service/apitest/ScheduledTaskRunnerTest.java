@@ -16,8 +16,10 @@ import io.github.xiaomisum.robotest.repository.workspace.ProjectMapper;
 import io.github.xiaomisum.robotest.framework.config.ApiTestProperties;
 import io.github.xiaomisum.robotest.service.apitest.execution.SceneExecutionService;
 import io.github.xiaomisum.robotest.service.apitest.execution.adapters.ryze.RyzeResultMapper;
+import io.github.xiaomisum.robotest.service.apitest.execution.adapters.ryze.SceneSuiteBuilder;
 import io.github.xiaomisum.robotest.service.apitest.execution.ports.MappedResult;
 import io.github.xiaomisum.ryze.testelement.TestSuiteResult;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -77,6 +79,12 @@ class ScheduledTaskRunnerTest {
 
     @InjectMocks
     private ScheduledTaskRunner runner;
+
+    @BeforeEach
+    void setUp() {
+        // 端口实现注入真实转换器：runTestPlan 断言顶层/子套件结构，需保持引擎转换口径
+        ReflectionSet.set(runner, "suiteBuilder", new SceneSuiteBuilder());
+    }
 
     @Test
     void writeSkippedRecordsSkippedStatusWithoutTouchingLastExecution() {
@@ -466,6 +474,19 @@ class ScheduledTaskRunnerTest {
 
         ApiScheduledTask last() {
             return captor.getAllValues().get(captor.getAllValues().size() - 1);
+        }
+    }
+
+    /** 便捷反射注入助手：绕过 @Resource 字段注入，注入真实依赖 */
+    private static final class ReflectionSet {
+        static void set(Object target, String field, Object value) {
+            try {
+                var f = target.getClass().getDeclaredField(field);
+                f.setAccessible(true);
+                f.set(target, value);
+            } catch (Exception ex) {
+                throw new RuntimeException(ex);
+            }
         }
     }
 }
