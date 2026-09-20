@@ -8,6 +8,7 @@ import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiDebugExecuteRe
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiDebugRecordItemRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiDebugRestoreRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiDebugSaveAsInterfaceRespDTO;
+import io.github.xiaomisum.robotest.service.apitest.ApiDebugSaveAsInterfaceService;
 import io.github.xiaomisum.robotest.service.apitest.ApiDebugService;
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
@@ -32,6 +33,8 @@ public class ApiDebugController {
 
     @Resource
     private ApiDebugService apiDebugService;
+    @Resource
+    private ApiDebugSaveAsInterfaceService apiDebugSaveAsInterfaceService;
 
     @PostMapping("/api/project/debug/execute")
     @PreAuthorize("hasAuthority('api-debug:view')")
@@ -84,7 +87,7 @@ public class ApiDebugController {
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id,
             @RequestBody @Valid ApiDebugSaveAsInterfaceReqDTO reqDTO) {
-        UUID interfaceId = apiDebugService.saveAsInterface(loginUser.getActiveProjectId(), loginUser.getActiveWorkspaceId(),
+        UUID interfaceId = apiDebugSaveAsInterfaceService.saveAsInterface(loginUser.getActiveProjectId(), loginUser.getActiveWorkspaceId(),
                 loginUser.getId(), id, reqDTO);
         return Result.ok(ApiDebugSaveAsInterfaceRespDTO.builder().interfaceId(interfaceId).build());
     }
