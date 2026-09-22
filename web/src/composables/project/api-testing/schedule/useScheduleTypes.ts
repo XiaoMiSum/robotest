@@ -15,7 +15,7 @@ import {
   taskExecutionSummary,
   execStatusLabel,
   execStatusType,
-} from '@/pages/project/schedulesModel'
+} from '@/pages/project/api-testing/schedule/schedulesModel'
 import { formatDateTime, formatShortDateTime } from '@/utils/format'
 
 export interface UseSchedulesReturn {

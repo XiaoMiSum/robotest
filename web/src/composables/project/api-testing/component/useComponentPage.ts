@@ -27,7 +27,7 @@ import {
   componentScopeLabel,
   componentTypeLabel,
   resolveComponentError,
-} from '@/pages/project/componentModel'
+} from '@/pages/project/api-testing/component/componentModel'
 import {
   createProcessorComponentConfig,
   defaultComponentConfig,

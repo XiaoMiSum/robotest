@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import type { ApiSceneStepItem } from '@/types'
-import { methodTagType, stepMethod, stepSqlType } from '../scenesModel'
+import { methodTagType, stepMethod, stepSqlType } from './scenesModel'
 
 const props = defineProps<{ steps: ApiSceneStepItem[]; isExecuting?: boolean; selectedId?: string | null }>()
 const emit = defineEmits<{

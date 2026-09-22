@@ -1,5 +1,5 @@
 import type { ApiComponentListItem, ApiDebugKeyValue, ApiDebugRawSubtype, ApiSceneStepItem, ApiSceneStepVariableItem } from '@/types'
-import { FORM_ENCODED_CONTENT_TYPE, RAW_SUBTYPE_CONTENT_TYPE } from './debugModel'
+import { FORM_ENCODED_CONTENT_TYPE, RAW_SUBTYPE_CONTENT_TYPE } from '@/pages/project/api-testing/debug/debugModel'
 import { parseComponentConfig } from '@/components/api-testing/processorFormModel'
 
 /** 步骤类型选项 */

@@ -19,7 +19,7 @@ vi.mock('@/services/project/environment', () => ({
   testDataSourceConfig: mocks.testDataSourceConfig,
 }))
 
-vi.mock('@/pages/project/environmentsModel', () => ({
+vi.mock('@/pages/project/api-testing/environment/environmentsModel', () => ({
   createEmptyHttpConfig: mocks.createEmptyHttpConfig,
   DRIVER_OPTIONS: [
     { driver: 'com.mysql.cj.jdbc.Driver', label: 'MySQL', urlExample: 'jdbc:mysql://localhost:3306/db' },

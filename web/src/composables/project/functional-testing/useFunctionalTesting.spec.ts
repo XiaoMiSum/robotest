@@ -43,7 +43,7 @@ vi.mock('@/services/project/function', () => ({
   deleteCustomFunction: mocks.deleteCustomFunction,
 }))
 
-vi.mock('@/pages/project/functionModel', () => ({
+vi.mock('@/pages/project/api-testing/function/functionModel', () => ({
   filterFunctions: mocks.filterFunctions,
   resolveFunctionError: mocks.resolveFunctionError,
   SCOPE_OPTIONS: [

@@ -24,8 +24,8 @@ import {
   SCOPE_OPTIONS,
   FUNCTION_TAB_OPTIONS,
   type FunctionTab,
-} from '@/pages/project/functionModel'
-import type TestCasePage from '@/pages/project/TestCasePage.vue'
+} from '@/pages/project/api-testing/function/functionModel'
+import type TestCasePage from '@/pages/project/functional-testing/TestCasePage.vue'
 
 interface DisplayListItem {
   type: 'builtin' | 'custom'
