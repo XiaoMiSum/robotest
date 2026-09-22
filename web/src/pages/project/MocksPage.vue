@@ -9,7 +9,7 @@ import {
   deleteMock,
   resetMockHitCount,
   fetchMockAddress,
-} from '@/services/apiMock'
+} from '@/services/project/mock'
 import { methodTagType } from './mocksModel'
 import { formatDateTime } from '@/utils/format'
 import MockEditorDrawer from './mocks/MockEditorDrawer.vue'

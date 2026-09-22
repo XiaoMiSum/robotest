@@ -18,8 +18,8 @@ import {
   fetchComponents,
   toggleComponent,
   updateComponent,
-} from '@/services/apiComponent'
-import { fetchEnvironmentDetail, fetchEnvironments } from '@/services/apiEnvironment'
+} from '@/services/project/component'
+import { fetchEnvironmentDetail, fetchEnvironments } from '@/services/project/environment'
 import {
   COMPONENT_SCOPE_OPTIONS,
   COMPONENT_TYPE_OPTIONS,

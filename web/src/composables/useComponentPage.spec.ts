@@ -30,7 +30,7 @@ vi.mock('@/stores/auth', () => ({
   useAuthStore: mocks.useAuthStore,
 }))
 
-vi.mock('@/services/apiComponent', () => ({
+vi.mock('@/services/project/component', () => ({
   batchDeleteComponents: mocks.batchDeleteComponents,
   batchToggleComponents: mocks.batchToggleComponents,
   copyComponent: mocks.copyComponent,
@@ -41,7 +41,7 @@ vi.mock('@/services/apiComponent', () => ({
   updateComponent: mocks.updateComponent,
 }))
 
-vi.mock('@/services/apiEnvironment', () => ({
+vi.mock('@/services/project/environment', () => ({
   fetchEnvironments: mocks.fetchEnvironments,
   fetchEnvironmentDetail: mocks.fetchEnvironmentDetail,
 }))

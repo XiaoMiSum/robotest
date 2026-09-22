@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import type { ApiMockDebugResponse } from '@/types'
-import { debugMock } from '@/services/apiMock'
+import { debugMock } from '@/services/project/mock'
 
 const props = defineProps<{
   modelValue: boolean

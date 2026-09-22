@@ -14,7 +14,7 @@ vi.mock('element-plus', () => ({
   ElMessage: mocks.ElMessage,
 }))
 
-vi.mock('@/services/apiEnvironment', () => ({
+vi.mock('@/services/project/environment', () => ({
   testHttpConfig: mocks.testHttpConfig,
   testDataSourceConfig: mocks.testDataSourceConfig,
 }))

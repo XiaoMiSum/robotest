@@ -2,7 +2,7 @@
 import { onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import type { ApiReportDetail, ApiReportShareInfo } from '@/types'
-import { fetchReportDetail, shareReport } from '@/services/apiReport'
+import { fetchReportDetail, shareReport } from '@/services/project/report'
 import { formatDateTime } from '@/utils/format'
 import ReportResultView from '@/components/api-testing/ReportResultView.vue'
 

@@ -2,7 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import type { ApiReportDetail } from '@/types'
-import { fetchReportDetail } from '@/services/apiReport'
+import { fetchReportDetail } from '@/services/project/report'
 import ReportResultView from '@/components/api-testing/ReportResultView.vue'
 
 const props = defineProps<{

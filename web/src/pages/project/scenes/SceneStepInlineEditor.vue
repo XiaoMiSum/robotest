@@ -3,8 +3,8 @@ import { ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Delete } from '@element-plus/icons-vue'
 import type { ApiComponentListItem, ApiComponentType, ApiSceneStepItem } from '@/types'
-import { fetchEnvironmentDetail } from '@/services/apiEnvironment'
-import { fetchComponents } from '@/services/apiComponent'
+import { fetchEnvironmentDetail } from '@/services/project/environment'
+import { fetchComponents } from '@/services/project/component'
 import ExtractorAssetPicker from '@/components/api-testing/ExtractorAssetPicker.vue'
 import {
   STEP_TYPE_OPTIONS,

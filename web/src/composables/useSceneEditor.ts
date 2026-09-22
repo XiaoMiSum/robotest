@@ -9,8 +9,8 @@ import {
   deleteScene,
   executeScene,
   executeDraftScene,
-} from '@/services/apiScene'
-import { fetchEnvironments } from '@/services/apiEnvironment'
+} from '@/services/project/scene'
+import { fetchEnvironments } from '@/services/project/environment'
 import { fetchProjectModuleTree } from '@/services/project'
 import { toSelectableModuleOptions } from '@/pages/project/interfacesModel'
 import type { SceneProcessorElement } from './useSceneProcessors'

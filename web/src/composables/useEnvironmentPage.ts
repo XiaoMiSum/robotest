@@ -13,7 +13,7 @@ import {
   setDefaultEnvironment,
   sortEnvironment,
   updateEnvironment,
-} from '@/services/apiEnvironment'
+} from '@/services/project/environment'
 import { buildSavePayload, formatImportResult, resolveEnvironmentError, sortEnvironments } from '@/pages/project/environmentsModel'
 
 export function useEnvironmentPage() {
