@@ -1,6 +1,6 @@
 import { ref, type Ref } from 'vue'
 import { ElMessage } from 'element-plus'
-import { fetchComponents } from '@/services/apiComponent'
+import { fetchComponents } from '@/services/project/component'
 import { extractorsFromComponents, processorFromComponent } from '@/components/api-testing/processorFormModel'
 import type { ApiComponentListItem, ApiComponentType } from '@/types'
 import type { SceneProcessorElement } from './useSceneProcessors'

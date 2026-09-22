@@ -41,7 +41,7 @@ vi.mock('@/stores/auth', () => ({
   useAuthStore: mocks.useAuthStore,
 }))
 
-vi.mock('@/services/apiEnvironment', () => ({
+vi.mock('@/services/project/environment', () => ({
   fetchEnvironments: mocks.fetchEnvironments,
   fetchEnvironmentDetail: mocks.fetchEnvironmentDetail,
   createEnvironment: mocks.createEnvironment,

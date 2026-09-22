@@ -1,6 +1,6 @@
 import { ref, watch, computed, type Ref } from 'vue'
 import type { ApiSceneDetail, ApiSceneVariableItem, ApiDebugKeyValue, ApiVariable } from '@/types'
-import { fetchEnvironmentDetail } from '@/services/apiEnvironment'
+import { fetchEnvironmentDetail } from '@/services/project/environment'
 import { ElMessage } from 'element-plus'
 
 /**

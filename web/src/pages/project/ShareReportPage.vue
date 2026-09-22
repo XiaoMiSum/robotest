@@ -2,7 +2,7 @@
 import { onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import type { ApiPublicReportResp } from '@/types'
-import { fetchPublicReport } from '@/services/apiReport'
+import { fetchPublicReport } from '@/services/project/report'
 import ReportResultView from '@/components/api-testing/ReportResultView.vue'
 
 const route = useRoute()

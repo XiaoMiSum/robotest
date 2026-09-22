@@ -6,7 +6,7 @@ const mocks = vi.hoisted(() => ({
   ElMessage: { success: vi.fn(), error: vi.fn(), warning: vi.fn() },
 }))
 
-vi.mock('@/services/apiSchedule', () => ({
+vi.mock('@/services/project/schedule', () => ({
   fetchScheduleExecutions: mocks.fetchScheduleExecutions,
 }))
 

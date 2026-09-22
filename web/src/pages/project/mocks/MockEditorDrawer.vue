@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
-import { fetchMockDetail, createMock, createMockFromInterface, updateMock } from '@/services/apiMock'
+import { fetchMockDetail, createMock, createMockFromInterface, updateMock } from '@/services/project/mock'
 import {
   HTTP_METHODS,
   MATCH_RULE_TYPES,

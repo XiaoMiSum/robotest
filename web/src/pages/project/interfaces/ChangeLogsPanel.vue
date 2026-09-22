@@ -2,7 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import type { ApiInterfaceChangeLogItem } from '@/types'
-import { fetchInterfaceChangeLogs } from '@/services/apiInterface'
+import { fetchInterfaceChangeLogs } from '@/services/project/interface'
 import { formatDateTime } from '@/utils/format'
 
 const props = defineProps<{ interfaceId: string; modelValue: boolean }>()
