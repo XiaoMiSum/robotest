@@ -6,159 +6,172 @@
 <title>评审详情 · 功能测试 · RoboTest</title>
 <link rel="stylesheet" href="../assets/tokens.css">
 <link rel="stylesheet" href="../assets/base.css">
+<style>
+  /* 页面结构对齐 ReviewDetailPage：页头条（返回 + 标题状态 + 进度统计 + 操作）+ 快照树(240) + 评审脑图 */
+  .detail-head {
+    display: flex; align-items: center; justify-content: space-between; gap: 20px; flex-wrap: wrap;
+    background: var(--n-0); border: 1px solid var(--n-200); border-radius: var(--radius-lg);
+    padding: 12px 16px; margin-bottom: 16px;
+  }
+  .detail-back {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 28px; height: 28px; border-radius: var(--radius-md);
+    color: var(--n-500); text-decoration: none; font-size: 16px;
+  }
+  .detail-back:hover { background: var(--n-100); color: var(--n-900); }
+  .detail-title { margin: 0; font-size: 17px; font-weight: 700; color: var(--n-900); white-space: nowrap; }
+  .detail-extra { display: flex; align-items: center; gap: 20px; }
+  .detail-progress { display: flex; align-items: center; gap: 12px; }
+  .detail-progress .progress { width: 140px; }
+  .detail-stats { display: flex; gap: 12px; }
+  .detail-actions {
+    display: flex; align-items: center; gap: 8px;
+    padding-left: 20px; border-left: 1px solid var(--n-200);
+  }
+
+  .rv-workspace { display: flex; gap: 16px; align-items: stretch; }
+  .rv-tree { width: 240px; flex-shrink: 0; }
+  .rv-mind { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+
+  /* 脑图工具条（评审标记操作） */
+  .mm-bar {
+    display: flex; align-items: center; gap: 4px; flex-wrap: wrap;
+    padding: 7px 12px; border-bottom: 1px solid var(--n-200);
+  }
+  .mm-tool {
+    display: inline-flex; align-items: center; gap: 5px;
+    height: 26px; padding: 0 9px; border-radius: var(--radius-md);
+    font-size: 12.5px; color: var(--n-600); background: transparent;
+  }
+  .mm-tool:hover { background: var(--n-100); color: var(--n-900); }
+  .mm-sep { width: 1px; height: 15px; background: var(--n-200); margin: 0 5px; }
+  .mm-spacer { flex: 1; }
+
+  /* 脑图画布：快照树 + 评审标记徽标 */
+  .mm {
+    flex: 1; min-height: 440px; padding: 26px 30px; overflow: auto;
+    background-image: radial-gradient(var(--n-200) 1px, transparent 1px);
+    background-size: 18px 18px;
+  }
+  .mm ul { list-style: none; margin: 0; padding: 0; }
+  .mm ul ul { margin-top: 4px; margin-left: 10px; padding-left: 20px; border-left: 1.5px solid var(--n-300); }
+  .mm li { position: relative; padding: 6px 0; }
+  .mm-node {
+    position: relative;
+    display: inline-flex; align-items: center; gap: 7px;
+    background: var(--n-0); border: 1px solid var(--n-200); border-radius: var(--radius-lg);
+    padding: 4px 12px; font-size: 13px; color: var(--n-800); box-shadow: var(--shadow-card);
+  }
+  .mm ul ul > li > .mm-node::before {
+    content: ''; position: absolute; left: -21px; top: 50%;
+    width: 15px; border-top: 1.5px solid var(--n-300);
+  }
+  .mm-node--root { background: var(--brand-50); border-color: var(--brand-200); color: var(--brand-600); font-weight: 600; }
+  .mm-type { font-size: 11px; color: var(--n-500); }
+  .tdot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+  .tdot--case { background: #a464ff; }
+  .tdot--precondition { background: #409eff; }
+  .tdot--step { background: #67c23a; }
+  .tdot--expected { background: #e6a23c; }
+  .mm-badge { font-size: 11px; line-height: 1; padding: 3px 8px; border-radius: 999px; font-weight: 500; }
+  .mm-badge--pass { background: #f0f9eb; color: #67c23a; }
+  .mm-badge--fail { background: #fef0f0; color: #f56c6c; }
+  .mm-badge--pending { background: var(--n-100); color: var(--n-500); }
+</style>
 </head>
 <body data-shell="business" data-mode="project" data-active="ft" data-workspace="质量中台" data-project="电商核心系统">
 
-<main class="content content--flush">
-  <div class="split">
-    <aside class="split__side">
-      <div class="menu-item side__item"><span data-icon="document"></span><span>测试用例</span></div>
-      <div class="menu-item side__item menu-item--active"><span data-icon="check-circle"></span><span>测试评审</span></div>
-      <div class="menu-item side__item"><span data-icon="calendar"></span><span>测试计划</span></div>
-      <div class="menu-item side__item"><span data-icon="tickets"></span><span>需求池</span></div>
-    </aside>
+<main class="content">
 
-    <div class="split__main">
-      <div class="breadcrumb">
-        <a href="reviews.html">测试评审</a>
-        <span data-icon="chevron-right"></span>
-        <span>下单模块用例评审</span>
+  <!-- 页头条：返回 + 标题/状态 + 进度统计 + 操作组 -->
+  <div class="detail-head">
+    <div class="flex-center flex-gap-sm">
+      <a class="detail-back" href="reviews.html" title="返回评审列表">←</a>
+      <div class="flex-center flex-gap-sm">
+        <h1 class="detail-title">下单模块用例评审</h1>
+        <span class="status status--running"><span class="dot"></span>评审中</span>
       </div>
-
-      <div class="page-head">
-        <div>
-          <div class="flex-center flex-gap-sm">
-            <h1 class="page-head__title">下单模块用例评审</h1>
-            <span class="status status--running"><span class="dot"></span>进行中</span>
-          </div>
-          <p class="page-head__desc">张明 发起 · 2026-09-21 11:20 · 参与者 4 人 · 关联用例 32 条</p>
+    </div>
+    <div class="detail-extra">
+      <div class="detail-progress">
+        <div class="progress">
+          <div class="progress__track"><div class="progress__fill progress__fill--warning" style="width:56%"></div></div>
+          <span class="progress__text">18/32</span>
         </div>
-        <div class="page-head__actions">
-          <button class="btn btn--default">催办</button>
-          <button class="btn btn--primary"><span data-icon="check"></span>提交我的结论</button>
+        <div class="detail-stats">
+          <span class="text-xs" style="color:var(--st-success)">通过 15</span>
+          <span class="text-xs" style="color:var(--st-danger)">不通过 3</span>
+          <span class="text-xs" style="color:var(--st-warning)">待评审 14</span>
+          <span class="text-xs muted">共 32</span>
         </div>
       </div>
-
-      <div class="card-grid card-grid--3 mb-lg">
-        <div class="card kpi">
-          <div class="kpi__label"><span data-icon="tickets"></span>评审进度</div>
-          <div class="kpi__value">60<span class="unit">%</span></div>
-          <div class="mt-sm"><div class="progress"><div class="progress__track"><div class="progress__fill progress__fill--warning" style="width:60%"></div></div><span class="progress__text">18/30</span></div></div>
-        </div>
-        <div class="card kpi">
-          <div class="kpi__label"><span data-icon="check-circle"></span>已通过</div>
-          <div class="kpi__value text-success">15</div>
-          <div class="kpi__foot">占已评审 83.3%</div>
-        </div>
-        <div class="card kpi">
-          <div class="kpi__label"><span data-icon="x-circle"></span>已驳回</div>
-          <div class="kpi__value text-danger">3</div>
-          <div class="kpi__foot">需修改后重新提交</div>
-        </div>
-      </div>
-
-      <div class="card-grid" style="grid-template-columns: 1fr 300px; align-items:start">
-        <!-- 用例清单 -->
-        <div class="card">
-          <div class="card__header">
-            <h3 class="card__title">用例清单<span class="card__subtitle">逐条给出结论</span></h3>
-            <div class="toolbar__filters">
-              <select class="select" style="width:130px"><option>全部结论</option><option>未评审</option><option>通过</option><option>驳回</option></select>
-            </div>
-          </div>
-          <div class="table-wrap">
-            <table class="table">
-              <thead><tr><th>编号</th><th>标题</th><th>优先级</th><th>结论</th><th>评审意见</th></tr></thead>
-              <tbody>
-                <tr>
-                  <td class="mono">TC-1024</td>
-                  <td class="cell-main">下单页优惠券叠加校验</td>
-                  <td><span class="prio prio--p0">P0</span></td>
-                  <td><span class="tag tag--success"><span data-icon="check"></span>通过</span></td>
-                  <td class="muted text-xs">预期结果描述清晰</td>
-                </tr>
-                <tr>
-                  <td class="mono">TC-1025</td>
-                  <td class="cell-main">库存不足时下单拦截</td>
-                  <td><span class="prio prio--p1">P1</span></td>
-                  <td><span class="tag tag--success"><span data-icon="check"></span>通过</span></td>
-                  <td class="muted text-xs">—</td>
-                </tr>
-                <tr>
-                  <td class="mono">TC-1031</td>
-                  <td class="cell-main">地址簿选择后金额重算</td>
-                  <td><span class="prio prio--p1">P1</span></td>
-                  <td><span class="tag tag--danger"><span data-icon="x"></span>驳回</span></td>
-                  <td class="text-xs text-danger">缺少跨省运费的预期结果</td>
-                </tr>
-                <tr>
-                  <td class="mono">TC-1033</td>
-                  <td class="cell-main">同收货人合并下单</td>
-                  <td><span class="prio prio--p2">P2</span></td>
-                  <td><span class="tag tag--neutral"><span class="dot"></span>未评审</span></td>
-                  <td class="muted text-xs">—</td>
-                </tr>
-                <tr>
-                  <td class="mono">TC-1035</td>
-                  <td class="cell-main">下单接口超时重试</td>
-                  <td><span class="prio prio--p0">P0</span></td>
-                  <td><span class="tag tag--danger"><span data-icon="x"></span>驳回</span></td>
-                  <td class="text-xs text-danger">超时阈值需与网关约定一致</td>
-                </tr>
-                <tr>
-                  <td class="mono">TC-1038</td>
-                  <td class="cell-main">预售定金尾款计算</td>
-                  <td><span class="prio prio--p1">P1</span></td>
-                  <td><span class="tag tag--neutral"><span class="dot"></span>未评审</span></td>
-                  <td class="muted text-xs">—</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-          <div class="pagination">
-            <span class="pagination__total">共 32 条 · 已评审 18</span>
-            <button class="page-btn page-btn--active">1</button>
-            <button class="page-btn">2</button>
-            <button class="page-btn">›</button>
-          </div>
-        </div>
-
-        <!-- 参与者 + 评审说明 -->
-        <div>
-          <div class="card">
-            <div class="card__header"><h3 class="card__title">参与者</h3></div>
-            <div class="card__body" style="display:flex;flex-direction:column;gap:14px">
-              <div class="flex-between">
-                <span class="flex-center flex-gap-sm"><span class="avatar avatar--sm avatar--brand">张</span><span class="text-sm">张明 <span class="muted text-xs">· 发起人</span></span></span>
-                <span class="tag tag--success tag--sm">已完成</span>
-              </div>
-              <div class="flex-between">
-                <span class="flex-center flex-gap-sm"><span class="avatar avatar--sm">李</span><span class="text-sm">李华</span></span>
-                <span class="tag tag--success tag--sm">已完成</span>
-              </div>
-              <div class="flex-between">
-                <span class="flex-center flex-gap-sm"><span class="avatar avatar--sm">王</span><span class="text-sm">王芳</span></span>
-                <span class="tag tag--warning tag--sm">进行中 6/10</span>
-              </div>
-              <div class="flex-between">
-                <span class="flex-center flex-gap-sm"><span class="avatar avatar--sm">陈</span><span class="text-sm">陈强</span></span>
-                <span class="tag tag--neutral tag--sm">未开始</span>
-              </div>
-            </div>
-          </div>
-
-          <div class="card">
-            <div class="card__header"><h3 class="card__title">评审说明</h3></div>
-            <div class="card__body text-sm" style="color:var(--n-600);line-height:1.8">
-              本次评审聚焦下单主链路的异常分支：库存不足、优惠互斥、运费计算。请重点确认<b>预期结果</b>是否可自动化断言。
-              <hr class="divider divider--dashed">
-              <div class="text-xs muted">截止时间：<span class="num">2026-09-24 18:00</span></div>
-            </div>
-          </div>
-        </div>
+      <div class="detail-actions">
+        <button class="btn btn--default btn--sm"><span data-icon="sparkle"></span>AI 推荐用例</button>
+        <button class="btn btn--default btn--sm"><span data-icon="edit"></span>调整用例</button>
+        <button class="btn btn--default btn--sm"><span data-icon="refresh"></span>同步用例</button>
+        <button class="btn btn--primary btn--sm" disabled title="全部用例评审通过后才能完成评审"><span data-icon="check"></span>完成评审</button>
+        <span class="mm-sep" style="height:20px"></span>
+        <button class="btn btn--default btn--sm"><span data-icon="sparkle"></span>AI 一键检查</button>
       </div>
     </div>
   </div>
+
+  <!-- 工作区：快照文档树(240) + 评审脑图 -->
+  <div class="rv-workspace">
+    <div class="card rv-tree">
+      <div class="card__header" style="padding:10px 14px">
+        <h3 class="card__title" style="font-size:13px">快照文档</h3>
+        <span class="text-xs muted">只读</span>
+      </div>
+      <div class="card__body" style="padding:8px 10px">
+        <div class="tree">
+          <div class="tree__item"><span data-icon="folder"></span>下单模块</div>
+          <div class="tree__item tree__indent tree__item--active"><span data-icon="document"></span>下单主流程</div>
+          <div class="tree__item" style="padding-left:44px"><span data-icon="document"></span>优惠券规则</div>
+          <div class="tree__item"><span data-icon="folder"></span>支付模块</div>
+          <div class="tree__item" style="padding-left:44px"><span data-icon="document"></span>支付回调</div>
+          <div class="tree__item"><span data-icon="folder"></span>履约模块</div>
+          <div class="tree__item" style="padding-left:44px"><span data-icon="document"></span>发货时效</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card rv-mind">
+      <div class="mm-bar">
+        <button class="mm-tool"><span data-icon="check"></span>标记通过</button>
+        <button class="mm-tool"><span data-icon="x"></span>标记不通过</button>
+        <button class="mm-tool"><span data-icon="refresh"></span>重置待评审</button>
+        <span class="mm-sep"></span>
+        <button class="mm-tool"><span data-icon="message"></span>评论</button>
+        <button class="mm-tool"><span data-icon="trash"></span>移除用例</button>
+        <span class="mm-spacer"></span>
+        <span class="text-xs muted">选中用例节点后标记 · 快照只读</span>
+      </div>
+      <div class="mm">
+        <ul>
+          <li><span class="mm-node mm-node--root"><span data-icon="document"></span>下单主流程（v1 快照）</span>
+            <ul>
+              <li><span class="mm-node"><i class="tdot tdot--case"></i>下单页优惠券叠加校验<span class="mm-badge mm-badge--pass">通过</span></span>
+                <ul>
+                  <li><span class="mm-node"><i class="tdot tdot--precondition"></i><span class="mm-type">前置</span>已登录并持有可用优惠券</span></li>
+                  <li><span class="mm-node"><i class="tdot tdot--step"></i><span class="mm-type">步骤</span>提交含两张券的订单</span></li>
+                  <li><span class="mm-node"><i class="tdot tdot--expected"></i><span class="mm-type">预期</span>优惠金额为各券之和</span></li>
+                </ul>
+              </li>
+              <li><span class="mm-node"><i class="tdot tdot--case"></i>地址簿选择后金额重算<span class="mm-badge mm-badge--fail">不通过</span></span>
+                <ul>
+                  <li><span class="mm-node"><i class="tdot tdot--expected"></i><span class="mm-type">预期</span>缺少跨省运费的预期结果</span></li>
+                </ul>
+              </li>
+              <li><span class="mm-node"><i class="tdot tdot--case"></i>同收货人合并下单<span class="mm-badge mm-badge--pending">待评审</span></span></li>
+              <li><span class="mm-node"><i class="tdot tdot--case"></i>预售定金尾款计算<span class="mm-badge mm-badge--pending">待评审</span></span></li>
+            </ul>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
 </main>
 
 <script src="../assets/icons.js"></script>
