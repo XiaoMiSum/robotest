@@ -1,5 +1,5 @@
 import { ref, computed, type Ref } from 'vue'
-import { defaultProcessorConfig, processorSummaryTag, isRecord } from '@/components/project/api-testing/processorFormModel'
+import { defaultProcessorConfig, processorSummaryTag, isRecord } from '@/composables/project/api-testing/processorFormModel'
 import type { ApiProcessor, ApiProcessorType } from '@/types'
 
 export type EnvConfigForm = { id: string; refName?: string; isDefault?: boolean }

@@ -25,7 +25,7 @@ vi.mock('@/composables/project/api-testing/environment/environmentsModel', () =>
   validateVariableRow: mocks.validateVariableRow,
 }))
 vi.mock('@/services/project/api-testing/component', () => ({ fetchComponents: mocks.fetchComponents }))
-vi.mock('@/components/project/api-testing/processorFormModel', () => ({
+vi.mock('@/composables/project/api-testing/processorFormModel', () => ({
   extractorsFromComponents: mocks.extractorsFromComponents,
   isRecord: mocks.isRecord,
   processorFromComponent: mocks.processorFromComponent,

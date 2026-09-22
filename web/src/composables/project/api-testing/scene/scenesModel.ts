@@ -1,6 +1,6 @@
 import type { ApiComponentListItem, ApiDebugKeyValue, ApiDebugRawSubtype, ApiSceneStepItem, ApiSceneStepVariableItem } from '@/types'
 import { FORM_ENCODED_CONTENT_TYPE, RAW_SUBTYPE_CONTENT_TYPE } from '@/composables/project/api-testing/debug/debugModel'
-import { parseComponentConfig } from '@/components/project/api-testing/processorFormModel'
+import { parseComponentConfig } from '@/composables/project/api-testing/processorFormModel'
 
 /** 步骤类型选项 */
 export const STEP_TYPE_OPTIONS = [
