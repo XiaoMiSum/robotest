@@ -12,7 +12,7 @@ import {
   remainingMs,
   resolveConfirmStatus,
   type ConfirmCardState,
-} from '@/components/assistant/assistantConfirm'
+} from '@/composables/assistant/assistantConfirm'
 
 export interface AssistantMessageItem {
   id: string

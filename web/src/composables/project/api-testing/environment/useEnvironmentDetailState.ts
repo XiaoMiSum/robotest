@@ -18,8 +18,8 @@ import {
   isRecord,
   processorFromComponent,
   type ProcessorExtractor,
-} from '@/components/project/api-testing/processorFormModel'
-import { defaultProcessorConfig } from '@/components/project/api-testing/processorFormModel'
+} from '@/composables/project/api-testing/processorFormModel'
+import { defaultProcessorConfig } from '@/composables/project/api-testing/processorFormModel'
 
 export interface VariableRow { id: string; key: string; value: string; description: string; enabled: boolean }
 

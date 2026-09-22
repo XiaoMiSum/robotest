@@ -4,8 +4,6 @@ import AssistantIcon from './AssistantIcons.vue'
 import DslPreviewDialog from './DslPreviewDialog.vue'
 import { useMessageItem, type AssistantMessageItem } from '@/composables/assistant/useMessageItem'
 
-export type { AssistantMessageItem }
-
 const props = defineProps<{ message: AssistantMessageItem }>()
 
 const emit = defineEmits<{

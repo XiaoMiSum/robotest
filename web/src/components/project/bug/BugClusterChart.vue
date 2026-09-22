@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ModuleBar, SeveritySegment } from './bugClusterChart'
+import type { ModuleBar, SeveritySegment } from '@/composables/project/bug/bugClusterChart'
 
 defineProps<{ moduleBars: ModuleBar[]; severitySegments: SeveritySegment[] }>()
 

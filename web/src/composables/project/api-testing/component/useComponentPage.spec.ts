@@ -64,7 +64,7 @@ vi.mock('@/composables/project/api-testing/component/componentModel', () => ({
   resolveComponentError: mocks.resolveComponentError,
 }))
 
-vi.mock('@/components/project/api-testing/processorFormModel', () => ({
+vi.mock('@/composables/project/api-testing/processorFormModel', () => ({
   createProcessorComponentConfig: mocks.createProcessorComponentConfig,
   defaultComponentConfig: mocks.defaultComponentConfig,
   extractorsFromComponents: mocks.extractorsFromComponents,

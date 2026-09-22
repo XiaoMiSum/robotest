@@ -15,7 +15,7 @@ import {
   fetchMessages,
 } from '@/services/assistant'
 import type { AiConversation, AiMessage } from '@/types'
-import type { AssistantMessageItem } from '@/components/assistant/MessageItem.vue'
+import type { AssistantMessageItem } from './useMessageItem'
 import type { DslPlan } from '@/minder/ai/dslRunner'
 
 export interface UseAssistantPanelOptions {
