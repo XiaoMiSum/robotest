@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { ApiSceneStepItem } from '@/types'
-import { STEP_TYPE_OPTIONS, VALIDATOR_TARGETS, VALIDATOR_CONDITIONS, EXTRACTOR_SOURCES } from './scenesModel'
-import RequestConfigEditor from './RequestConfigEditor.vue'
+import { STEP_TYPE_OPTIONS, VALIDATOR_TARGETS, VALIDATOR_CONDITIONS, EXTRACTOR_SOURCES } from '@/composables/project/api-testing/scene/scenesModel'
+import RequestConfigEditor from '@/components/project/api-testing/RequestConfigEditor.vue'
 import { useStepEditorDrawer } from '@/composables/project/api-testing/scene/useStepEditorDrawer'
 
 const props = defineProps<{ modelValue: boolean; sceneId?: string; step: ApiSceneStepItem | null }>()

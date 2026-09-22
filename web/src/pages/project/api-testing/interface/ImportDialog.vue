@@ -8,8 +8,8 @@ import {
   previewInterfaceImportUrl,
   type ApiParsedImportOperation,
 } from '@/services/project/api-testing/interface'
-import { parseCurlImport } from '@/pages/project/api-testing/interface/curlImport'
-import { summarizeImportResult } from './interfacesModel'
+import { parseCurlImport } from '@/composables/project/api-testing/interface/curlImport'
+import { summarizeImportResult } from '@/composables/project/api-testing/interface/interfacesModel'
 
 const props = defineProps<{ modelValue: boolean }>()
 const emit = defineEmits<{

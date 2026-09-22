@@ -11,7 +11,7 @@ import {
   detailToForm,
   formToPayload,
   type MockEditorForm,
-} from './mocksModel'
+} from '@/composables/project/api-testing/mock/mocksModel'
 
 const props = defineProps<{
   modelValue: boolean

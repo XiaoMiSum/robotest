@@ -17,8 +17,8 @@ import {
   serializeExtractors,
   stepValidatorsFromComponents,
   stepExtractorsFromComponents,
-} from './scenesModel'
-import RequestConfigEditor from './RequestConfigEditor.vue'
+} from '@/composables/project/api-testing/scene/scenesModel'
+import RequestConfigEditor from '@/components/project/api-testing/RequestConfigEditor.vue'
 import ValidatorsExtractorsPanes from '@/components/project/api-testing/ValidatorsExtractorsPanes.vue'
 
 const props = defineProps<{

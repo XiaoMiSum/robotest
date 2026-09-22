@@ -19,7 +19,7 @@ import StepDebugResultDialog from './StepDebugResultDialog.vue'
 import SceneVariableHelperDialog from './SceneVariableHelperDialog.vue'
 import ReportDetailDialog from './ReportDetailDialog.vue'
 import FunctionHelperDialog from '@/pages/project/api-testing/function/FunctionHelperDialog.vue'
-import KeyValueTable from '@/pages/project/api-testing/debug/KeyValueTable.vue'
+import KeyValueTable from '@/components/project/api-testing/KeyValueTable.vue'
 import SceneEditorHeader from './SceneEditorHeader.vue'
 import SceneEditorFooter from './SceneEditorFooter.vue'
 

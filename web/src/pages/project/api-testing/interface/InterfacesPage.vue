@@ -20,7 +20,7 @@ import {
   buildInterfaceListQuery,
   flattenModuleNames,
   methodTagType,
-} from './interfacesModel'
+} from '@/composables/project/api-testing/interface/interfacesModel'
 import type { PendingDebugRequest } from '@/stores/apiTestingUi'
 import ImportDialog from './ImportDialog.vue'
 import ProjectModuleTree from '@/components/project/ProjectModuleTree.vue'

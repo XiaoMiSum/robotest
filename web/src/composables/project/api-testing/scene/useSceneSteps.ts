@@ -7,7 +7,7 @@ import {
   updateSceneStep,
   copySceneStep,
 } from '@/services/project/api-testing/scene'
-import { sortedSteps, emptyStepDraft } from '@/pages/project/api-testing/scene/scenesModel'
+import { sortedSteps, emptyStepDraft } from '@/composables/project/api-testing/scene/scenesModel'
 
 export interface UseSceneStepsOptions {
   sceneId?: string

@@ -34,7 +34,7 @@ vi.mock('@/services/project/api-testing/interface', () => ({
   fetchInterfaceDetail: mocks.fetchInterfaceDetail,
 }))
 
-vi.mock('@/pages/project/api-testing/scene/scenesModel', () => ({
+vi.mock('@/composables/project/api-testing/scene/scenesModel', () => ({
   parseRequestConfig: mocks.parseRequestConfig,
   createValidator: mocks.createValidator,
   createExtractor: mocks.createExtractor,
