@@ -7,150 +7,180 @@
 <link rel="stylesheet" href="../assets/tokens.css">
 <link rel="stylesheet" href="../assets/base.css">
 <style>
-  .ring { display: flex; align-items: center; gap: 14px; }
+  /* 页面结构对齐 PlanDetailPage：页头条（返回 + 标题状态 + 进度统计 + 操作）+ 标签页 + 快照树(240) + 执行脑图 */
+  .detail-head {
+    display: flex; align-items: center; justify-content: space-between; gap: 20px; flex-wrap: wrap;
+    background: var(--n-0); border: 1px solid var(--n-200); border-radius: var(--radius-lg);
+    padding: 12px 16px; margin-bottom: 16px;
+  }
+  .detail-back {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 28px; height: 28px; border-radius: var(--radius-md);
+    color: var(--n-500); text-decoration: none; font-size: 16px;
+  }
+  .detail-back:hover { background: var(--n-100); color: var(--n-900); }
+  .detail-title { margin: 0; font-size: 17px; font-weight: 700; color: var(--n-900); white-space: nowrap; }
+  .detail-extra { display: flex; align-items: center; gap: 20px; }
+  .detail-progress { display: flex; align-items: center; gap: 12px; }
+  .detail-progress .progress { width: 140px; }
+  .detail-stats { display: flex; gap: 12px; }
+  .detail-actions {
+    display: flex; align-items: center; gap: 8px;
+    padding-left: 20px; border-left: 1px solid var(--n-200);
+  }
+
+  /* 标签页：执行记录 / 执行顺序推荐（推荐项仅负责人与执行人可见） */
+  .detail-tabs {
+    display: flex; align-items: center; gap: 4px;
+    border-bottom: 1px solid var(--n-200); margin-bottom: 16px;
+  }
+
+  .rv-workspace { display: flex; gap: 16px; align-items: stretch; }
+  .rv-tree { width: 240px; flex-shrink: 0; }
+  .rv-mind { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+
+  /* 脑图工具条（执行标记操作） */
+  .mm-bar {
+    display: flex; align-items: center; gap: 4px; flex-wrap: wrap;
+    padding: 7px 12px; border-bottom: 1px solid var(--n-200);
+  }
+  .mm-tool {
+    display: inline-flex; align-items: center; gap: 5px;
+    height: 26px; padding: 0 9px; border-radius: var(--radius-md);
+    font-size: 12.5px; color: var(--n-600); background: transparent;
+  }
+  .mm-tool:hover { background: var(--n-100); color: var(--n-900); }
+  .mm-sep { width: 1px; height: 15px; background: var(--n-200); margin: 0 5px; }
+  .mm-spacer { flex: 1; }
+
+  /* 脑图画布：快照树 + 执行标记徽标 + 推荐序号 */
+  .mm {
+    flex: 1; min-height: 440px; padding: 26px 30px; overflow: auto;
+    background-image: radial-gradient(var(--n-200) 1px, transparent 1px);
+    background-size: 18px 18px;
+  }
+  .mm ul { list-style: none; margin: 0; padding: 0; }
+  .mm ul ul { margin-top: 4px; margin-left: 10px; padding-left: 20px; border-left: 1.5px solid var(--n-300); }
+  .mm li { position: relative; padding: 6px 0; }
+  .mm-node {
+    position: relative;
+    display: inline-flex; align-items: center; gap: 7px;
+    background: var(--n-0); border: 1px solid var(--n-200); border-radius: var(--radius-lg);
+    padding: 4px 12px; font-size: 13px; color: var(--n-800); box-shadow: var(--shadow-card);
+  }
+  .mm ul ul > li > .mm-node::before {
+    content: ''; position: absolute; left: -21px; top: 50%;
+    width: 15px; border-top: 1.5px solid var(--n-300);
+  }
+  .mm-node--root { background: var(--brand-50); border-color: var(--brand-200); color: var(--brand-600); font-weight: 600; }
+  .mm-type { font-size: 11px; color: var(--n-500); }
+  .tdot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+  .tdot--case { background: #a464ff; }
+  .mm-badge { font-size: 11px; line-height: 1; padding: 3px 8px; border-radius: 999px; font-weight: 500; }
+  .mm-badge--pass { background: #f0f9eb; color: #67c23a; }
+  .mm-badge--fail { background: #fef0f0; color: #f56c6c; }
+  .mm-badge--block { background: #f9eeee; color: #c45656; }
+  .mm-badge--pending { background: var(--n-100); color: var(--n-500); }
+  .mm-order {
+    font-size: 11px; line-height: 1; padding: 3px 7px; border-radius: 999px; font-weight: 600;
+    background: var(--brand-50); color: var(--brand-600); border: 1px solid var(--brand-100);
+  }
 </style>
 </head>
 <body data-shell="business" data-mode="project" data-active="ft" data-workspace="质量中台" data-project="电商核心系统">
 
-<main class="content content--flush">
-  <div class="split">
-    <aside class="split__side">
-      <div class="menu-item side__item"><span data-icon="document"></span><span>测试用例</span></div>
-      <div class="menu-item side__item"><span data-icon="check-circle"></span><span>测试评审</span></div>
-      <div class="menu-item side__item menu-item--active"><span data-icon="calendar"></span><span>测试计划</span></div>
-      <div class="menu-item side__item"><span data-icon="tickets"></span><span>需求池</span></div>
-    </aside>
+<main class="content">
 
-    <div class="split__main">
-      <div class="breadcrumb">
-        <a href="plans.html">测试计划</a>
-        <span data-icon="chevron-right"></span>
-        <span>V1.4.2 回归测试</span>
+  <!-- 页头条：返回 + 标题/状态 + 进度统计 + 操作组 -->
+  <div class="detail-head">
+    <div class="flex-center flex-gap-sm">
+      <a class="detail-back" href="plans.html" title="返回计划列表">←</a>
+      <div class="flex-center flex-gap-sm">
+        <h1 class="detail-title">V1.4.2 回归测试</h1>
+        <span class="status status--running"><span class="dot"></span>进行中</span>
       </div>
-
-      <div class="page-head">
-        <div>
-          <div class="flex-center flex-gap-sm">
-            <h1 class="page-head__title">V1.4.2 回归测试</h1>
-            <span class="status status--running"><span class="dot"></span>执行中</span>
-          </div>
-          <p class="page-head__desc">负责人 张明 · 2026-09-20 ~ 2026-09-24 · 环境 staging · 关联用例 47 条</p>
+    </div>
+    <div class="detail-extra">
+      <div class="detail-progress">
+        <div class="progress">
+          <div class="progress__track"><div class="progress__fill progress__fill--warning" style="width:58%"></div></div>
+          <span class="progress__text">27/47</span>
         </div>
-        <div class="page-head__actions">
-          <button class="btn btn--default"><span data-icon="pause"></span>暂停</button>
-          <button class="btn btn--primary"><span data-icon="play"></span>继续执行</button>
+        <div class="detail-stats">
+          <span class="text-xs" style="color:var(--st-success)">通过 24</span>
+          <span class="text-xs" style="color:var(--st-danger)">失败 2</span>
+          <span class="text-xs" style="color:var(--st-blocked)">阻塞 1</span>
+          <span class="text-xs muted">待执行 20</span>
+          <span class="text-xs muted">共 47</span>
         </div>
       </div>
-
-      <div class="alert alert--warning mb-lg">
-        <span data-icon="sparkle"></span>
-        <div><b>执行顺序推荐</b>：根据用例历史失败率与依赖关系，建议先执行「支付中心」再执行「下单流程」，预计缩短 12% 执行时长。
-          <span class="op-link" style="margin-left:6px">采纳并重排</span></div>
-      </div>
-
-      <!-- 进度概览 -->
-      <div class="card-grid card-grid--4">
-        <div class="card kpi">
-          <div class="kpi__label"><span data-icon="play"></span>执行进度</div>
-          <div class="ring mt-sm">
-            <svg width="72" height="72" viewBox="0 0 72 72">
-              <circle cx="36" cy="36" r="28" fill="none" stroke="#f0f2f5" stroke-width="9"/>
-              <circle cx="36" cy="36" r="28" fill="none" stroke="#e6a23c" stroke-width="9" stroke-dasharray="102 176" transform="rotate(-90 36 36)" stroke-linecap="round"/>
-              <text x="36" y="40" text-anchor="middle" font-size="14" font-weight="650" fill="#303133">58%</text>
-            </svg>
-            <div class="text-sm muted">已执行 <b class="strong">27</b> / 47</div>
-          </div>
-        </div>
-        <div class="card kpi">
-          <div class="kpi__label"><span data-icon="check-circle"></span>通过率</div>
-          <div class="kpi__value text-success">94.6<span class="unit">%</span></div>
-          <div class="kpi__foot">通过 63 · 失败 3 · 阻塞 1</div>
-        </div>
-        <div class="card kpi">
-          <div class="kpi__label"><span data-icon="timer"></span>执行耗时</div>
-          <div class="kpi__value">18.4<span class="unit">min</span></div>
-          <div class="kpi__foot">最近一次 14:32 完成</div>
-        </div>
-        <div class="card kpi">
-          <div class="kpi__label"><span data-icon="bug"></span>关联缺陷</div>
-          <div class="kpi__value">4</div>
-          <div class="kpi__foot">修复中 2 · 待验证 2</div>
-        </div>
-      </div>
-
-      <!-- Tabs -->
-      <div class="card block-gap">
-        <div class="tabs">
-          <span class="tab tab--active">执行记录<span class="count">6</span></span>
-          <span class="tab">关联用例<span class="count">47</span></span>
-          <span class="tab">关联缺陷<span class="count">4</span></span>
-        </div>
-        <div class="table-wrap">
-          <table class="table table--clickable">
-            <thead>
-              <tr><th>执行批次</th><th>触发方式</th><th>开始时间</th><th>耗时</th><th>结果</th><th>通过率</th><th>状态</th><th>操作</th></tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td class="cell-main mono">#006</td>
-                <td><span class="chip">手动</span></td>
-                <td class="num">2026-09-22 14:30</td>
-                <td class="num">6m 12s</td>
-                <td><span class="status status--success"><span class="dot"></span>通过 12</span> <span class="status status--danger" style="margin-left:8px"><span class="dot"></span>失败 1</span></td>
-                <td class="num">92.3%</td>
-                <td><span class="status status--success"><span class="dot"></span>完成</span></td>
-                <td><span class="op-link">报告</span></td>
-              </tr>
-              <tr>
-                <td class="cell-main mono">#005</td>
-                <td><span class="chip">定时任务</span></td>
-                <td class="num">2026-09-22 09:00</td>
-                <td class="num">5m 48s</td>
-                <td><span class="status status--success"><span class="dot"></span>通过 14</span></td>
-                <td class="num">100%</td>
-                <td><span class="status status--success"><span class="dot"></span>完成</span></td>
-                <td><span class="op-link">报告</span></td>
-              </tr>
-              <tr>
-                <td class="cell-main mono">#004</td>
-                <td><span class="chip">手动</span></td>
-                <td class="num">2026-09-21 16:12</td>
-                <td class="num">3m 02s</td>
-                <td><span class="status status--success"><span class="dot"></span>通过 5</span> <span class="status status--blocked" style="margin-left:8px"><span class="dot"></span>阻塞 1</span></td>
-                <td class="num">83.3%</td>
-                <td><span class="status status--blocked"><span class="dot"></span>已中止</span></td>
-                <td><span class="op-link">报告</span></td>
-              </tr>
-              <tr>
-                <td class="cell-main mono">#003</td>
-                <td><span class="chip">接口触发</span></td>
-                <td class="num">2026-09-21 11:04</td>
-                <td class="num">—</td>
-                <td><span class="status status--neutral"><span class="dot"></span>执行中</span></td>
-                <td class="num">—</td>
-                <td><span class="status status--running"><span class="dot"></span>进行中</span></td>
-                <td><span class="op-link">监控</span></td>
-              </tr>
-              <tr>
-                <td class="cell-main mono">#002</td>
-                <td><span class="chip">手动</span></td>
-                <td class="num">2026-09-20 15:40</td>
-                <td class="num">7m 31s</td>
-                <td><span class="status status--success"><span class="dot"></span>通过 16</span> <span class="status status--danger" style="margin-left:8px"><span class="dot"></span>失败 2</span></td>
-                <td class="num">88.9%</td>
-                <td><span class="status status--success"><span class="dot"></span>完成</span></td>
-                <td><span class="op-link">报告</span></td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-        <div class="pagination">
-          <span class="pagination__total">共 6 次执行</span>
-          <button class="page-btn page-btn--active">1</button>
-        </div>
+      <div class="detail-actions">
+        <button class="btn btn--default btn--sm"><span data-icon="sparkle"></span>AI 推荐用例</button>
+        <button class="btn btn--default btn--sm"><span data-icon="edit"></span>调整用例</button>
+        <button class="btn btn--default btn--sm"><span data-icon="refresh"></span>同步用例</button>
+        <button class="btn btn--primary btn--sm"><span data-icon="check"></span>完成执行</button>
       </div>
     </div>
   </div>
+
+  <!-- 标签页：执行记录（默认） / 执行顺序推荐 -->
+  <div class="detail-tabs">
+    <span class="tab tab--active">执行记录</span>
+    <span class="tab" title="仅计划负责人 / 执行人可见">执行顺序推荐 ✨</span>
+  </div>
+
+  <!-- 工作区：快照文档树(240) + 执行脑图 -->
+  <div class="rv-workspace">
+    <div class="card rv-tree">
+      <div class="card__header" style="padding:10px 14px">
+        <h3 class="card__title" style="font-size:13px">快照文档</h3>
+        <span class="text-xs muted">只读</span>
+      </div>
+      <div class="card__body" style="padding:8px 10px">
+        <div class="tree">
+          <div class="tree__item"><span data-icon="folder"></span>下单模块</div>
+          <div class="tree__item tree__indent tree__item--active"><span data-icon="document"></span>下单主流程</div>
+          <div class="tree__item" style="padding-left:44px"><span data-icon="document"></span>优惠券规则</div>
+          <div class="tree__item"><span data-icon="folder"></span>支付模块</div>
+          <div class="tree__item" style="padding-left:44px"><span data-icon="document"></span>支付回调</div>
+          <div class="tree__item"><span data-icon="folder"></span>履约模块</div>
+          <div class="tree__item" style="padding-left:44px"><span data-icon="document"></span>发货时效</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card rv-mind">
+      <div class="mm-bar">
+        <button class="mm-tool"><span data-icon="check"></span>标记通过</button>
+        <button class="mm-tool"><span data-icon="x"></span>标记失败</button>
+        <button class="mm-tool"><span data-icon="ban"></span>标记阻塞</button>
+        <button class="mm-tool"><span data-icon="circle"></span>标记待执行</button>
+        <span class="mm-sep"></span>
+        <button class="mm-tool"><span data-icon="trash"></span>移除用例</button>
+        <span class="mm-spacer"></span>
+        <span class="text-xs muted">仅关联用例节点可标记 · ① 为执行顺序推荐序号</span>
+      </div>
+      <div class="mm">
+        <ul>
+          <li><span class="mm-node mm-node--root"><span data-icon="document"></span>下单主流程（执行快照）</span>
+            <ul>
+              <li><span class="mm-node"><i class="tdot tdot--case"></i>库存不足时下单拦截<span class="mm-order">1</span><span class="mm-badge mm-badge--pass">通过</span></span>
+                <ul>
+                  <li><span class="mm-node"><span class="mm-type">前置</span>目标商品库存为 0</span></li>
+                  <li><span class="mm-node"><span class="mm-type">预期</span>提示库存不足并阻止下单</span></li>
+                </ul>
+              </li>
+              <li><span class="mm-node"><i class="tdot tdot--case"></i>支付回调幂等性验证<span class="mm-order">2</span><span class="mm-badge mm-badge--fail">失败</span></span></li>
+              <li><span class="mm-node"><i class="tdot tdot--case"></i>下单接口超时重试<span class="mm-order">3</span><span class="mm-badge mm-badge--block">阻塞</span></span></li>
+              <li><span class="mm-node"><i class="tdot tdot--case"></i>多优惠券互斥规则<span class="mm-badge mm-badge--pending">待执行</span></span></li>
+              <li><span class="mm-node"><i class="tdot tdot--case"></i>历史订单导出上限<span class="mm-badge mm-badge--pending">待执行</span></span></li>
+            </ul>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
 </main>
 
 <script src="../assets/icons.js"></script>

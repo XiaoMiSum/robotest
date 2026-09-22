@@ -7,9 +7,67 @@
 <link rel="stylesheet" href="../assets/tokens.css">
 <link rel="stylesheet" href="../assets/base.css">
 <style>
-  .case-layout { display: flex; gap: 20px; align-items: flex-start; }
-  .case-tree { width: 240px; flex-shrink: 0; }
-  .case-table { flex: 1; min-width: 0; }
+  /* 页面结构对齐 TestCasePage：项目模块树(280) + 文档编辑卡（文档头 + 用例脑图） */
+  .ft-workspace { display: flex; gap: 16px; align-items: stretch; }
+  .ft-tree { width: 280px; flex-shrink: 0; }
+  .ft-doc { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+
+  .doc-head {
+    display: flex; align-items: center; gap: 8px;
+    padding: 9px 14px; font-size: 13px; font-weight: 500; color: var(--n-700);
+    border-bottom: 1px solid var(--n-200);
+  }
+
+  /* 脑图工具条（对齐 CaseMindMap 顶栏） */
+  .mm-bar {
+    display: flex; align-items: center; gap: 4px; flex-wrap: wrap;
+    padding: 7px 12px; border-bottom: 1px solid var(--n-200);
+  }
+  .mm-tool {
+    display: inline-flex; align-items: center; gap: 5px;
+    height: 26px; padding: 0 9px; border-radius: var(--radius-md);
+    font-size: 12.5px; color: var(--n-600); background: transparent;
+  }
+  .mm-tool:hover { background: var(--n-100); color: var(--n-900); }
+  .mm-sep { width: 1px; height: 15px; background: var(--n-200); margin: 0 5px; }
+  .mm-spacer { flex: 1; }
+  .type-btn {
+    display: inline-flex; align-items: center; gap: 5px;
+    height: 26px; padding: 0 9px; border-radius: var(--radius-md);
+    font-size: 12.5px; color: var(--n-600);
+  }
+  .type-btn:hover { background: var(--n-100); }
+  .type-btn.is-selected { background: var(--brand-50); color: var(--brand-600); font-weight: 500; }
+  .tdot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+  .tdot--case { background: #a464ff; }
+  .tdot--precondition { background: #409eff; }
+  .tdot--step { background: #67c23a; }
+  .tdot--expected { background: #e6a23c; }
+
+  /* 脑图画布：静态树形示意（dot grid 底 + 节点 + 折线） */
+  .mm {
+    flex: 1; min-height: 440px; padding: 26px 30px; overflow: auto;
+    background-image: radial-gradient(var(--n-200) 1px, transparent 1px);
+    background-size: 18px 18px;
+  }
+  .mm ul { list-style: none; margin: 0; padding: 0; }
+  .mm ul ul { margin-top: 4px; margin-left: 10px; padding-left: 20px; border-left: 1.5px solid var(--n-300); }
+  .mm li { position: relative; padding: 6px 0; }
+  .mm-node {
+    position: relative;
+    display: inline-flex; align-items: center; gap: 7px;
+    background: var(--n-0); border: 1px solid var(--n-200); border-radius: var(--radius-lg);
+    padding: 4px 12px; font-size: 13px; color: var(--n-800); box-shadow: var(--shadow-card);
+  }
+  .mm ul ul > li > .mm-node::before {
+    content: ''; position: absolute; left: -21px; top: 50%;
+    width: 15px; border-top: 1.5px solid var(--n-300);
+  }
+  .mm-node--root { background: var(--brand-50); border-color: var(--brand-200); color: var(--brand-600); font-weight: 600; }
+  .mm-node--sel { border-color: var(--brand-500); box-shadow: 0 0 0 3px var(--brand-50); }
+  .mm-type { font-size: 11px; color: var(--n-500); }
+
+  .tree-search { padding: 8px 10px 4px; }
 </style>
 </head>
 <body data-shell="business" data-mode="project" data-active="ft" data-workspace="质量中台" data-project="电商核心系统">
@@ -24,132 +82,89 @@
     </aside>
 
     <div class="split__main">
-      <div class="page-head">
-        <div>
-          <h1 class="page-head__title">测试用例</h1>
-          <p class="page-head__desc">共 1,284 条用例 · 覆盖 6 个模块 · 支持表格与脑图双模式</p>
-        </div>
-        <div class="page-head__actions">
-          <button class="btn btn--default"><span data-icon="upload"></span>导入</button>
-          <button class="btn btn--default"><span data-icon="layers"></span>脑图模式</button>
-          <button class="btn btn--primary"><span data-icon="plus"></span>新建用例</button>
-        </div>
-      </div>
+      <div class="ft-workspace">
 
-      <div class="case-layout">
-        <!-- 模块树 -->
-        <div class="card case-tree">
-          <div class="card__header" style="padding:12px 16px">
+        <!-- 项目模块树（目录 + 用例文档，点文档打开编辑） -->
+        <div class="card ft-tree">
+          <div class="card__header" style="padding:10px 12px">
             <h3 class="card__title" style="font-size:13px">模块</h3>
-            <span class="op-link" style="margin-right:0">+ 新增</span>
+            <span class="op-link" style="margin-right:0" title="新建目录 / 文档">+ 新建</span>
           </div>
-          <div class="card__body" style="padding:8px">
+          <div class="tree-search">
+            <div class="input-wrap"><span data-icon="search"></span><input class="input" placeholder="筛选目录 / 文档"></div>
+          </div>
+          <div class="card__body" style="padding:4px 8px 10px">
             <div class="tree">
-              <div class="tree__item"><span data-icon="folder"></span>全部用例<span class="tree__count">1284</span></div>
-              <div class="tree__item tree__indent tree__item--active"><span data-icon="folder"></span>下单流程<span class="tree__count">236</span></div>
-              <div class="tree__item tree__indent"><span data-icon="folder"></span>支付中心<span class="tree__count">198</span></div>
-              <div class="tree__item tree__indent"><span data-icon="folder"></span>购物车<span class="tree__count">174</span></div>
-              <div class="tree__item tree__indent"><span data-icon="folder"></span>商品详情<span class="tree__count">156</span></div>
-              <div class="tree__item tree__indent"><span data-icon="folder"></span>履约配送<span class="tree__count">142</span></div>
-              <div class="tree__item tree__indent"><span data-icon="folder"></span>营销优惠<span class="tree__count">118</span></div>
-              <div class="tree__item"><span data-icon="tag"></span>回归专用集<span class="tree__count">60</span></div>
-              <div class="tree__item"><span data-icon="tag"></span>冒烟集<span class="tree__count">32</span></div>
+              <div class="tree__item"><span data-icon="folder"></span>下单流程</div>
+              <div class="tree__item tree__indent tree__item--active" style="padding-left:44px"><span data-icon="document"></span>优惠券叠加规则</div>
+              <div class="tree__item" style="padding-left:44px"><span data-icon="document"></span>库存拦截用例</div>
+              <div class="tree__item" style="padding-left:44px"><span data-icon="document"></span>地址簿用例</div>
+              <div class="tree__item"><span data-icon="folder"></span>支付中心</div>
+              <div class="tree__item" style="padding-left:44px"><span data-icon="document"></span>支付回调幂等</div>
+              <div class="tree__item" style="padding-left:44px"><span data-icon="document"></span>退款链路</div>
+              <div class="tree__item"><span data-icon="folder"></span>履约配送</div>
+              <div class="tree__item" style="padding-left:44px"><span data-icon="document"></span>发货时效</div>
+              <div class="tree__item"><span data-icon="tag"></span>冒烟用例集</div>
             </div>
           </div>
         </div>
 
-        <!-- 用例表 -->
-        <div class="card case-table">
-          <div class="toolbar">
-            <div class="toolbar__filters">
-              <div class="input-wrap"><span data-icon="search"></span><input class="input" placeholder="编号 / 标题"></div>
-              <select class="select" style="width:120px"><option>全部优先级</option><option>P0</option><option>P1</option><option>P2</option><option>P3</option></select>
-              <select class="select" style="width:120px"><option>全部类型</option><option>功能</option><option>边界</option><option>性能</option></select>
-            </div>
-            <div class="toolbar__count">下单流程 · 236 条</div>
+        <!-- 文档编辑卡：文档头 + 用例脑图 -->
+        <div class="card ft-doc">
+          <div class="doc-head"><span data-icon="document"></span>优惠券叠加规则</div>
+
+          <div class="mm-bar">
+            <button class="mm-tool" title="撤销 (Ctrl+Z)">↶</button>
+            <button class="mm-tool" title="重做 (Ctrl+Y)">↷</button>
+            <span class="mm-sep"></span>
+            <button class="mm-tool"><span data-icon="plus"></span>下级</button>
+            <button class="mm-tool"><span data-icon="plus"></span>同级</button>
+            <button class="mm-tool"><span data-icon="edit"></span>编辑</button>
+            <button class="mm-tool"><span data-icon="trash"></span>删除</button>
+            <span class="mm-sep"></span>
+            <button class="mm-tool"><span data-icon="grid"></span>恢复排版</button>
+            <span class="mm-sep"></span>
+            <span class="text-xs muted" style="margin-right:2px">类型</span>
+            <button class="type-btn is-selected"><i class="tdot tdot--case"></i>用例</button>
+            <button class="type-btn"><i class="tdot tdot--precondition"></i>前置</button>
+            <button class="type-btn"><i class="tdot tdot--step"></i>步骤</button>
+            <button class="type-btn"><i class="tdot tdot--expected"></i>预期</button>
+            <span class="mm-spacer"></span>
+            <button class="mm-tool"><span data-icon="link"></span>关联需求</button>
+            <button class="mm-tool" style="color:var(--brand-600)"><span data-icon="sparkle"></span>AI 生成用例</button>
+            <button class="mm-tool" style="color:var(--brand-600)"><span data-icon="sparkle"></span>遗漏测试点</button>
           </div>
 
-          <div class="table-wrap">
-            <table class="table table--clickable">
-              <thead>
-                <tr><th>编号</th><th>标题</th><th>优先级</th><th>类型</th><th>状态</th><th>更新人</th><th>更新时间</th><th>操作</th></tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td class="mono">TC-1024</td>
-                  <td class="cell-main">下单页优惠券叠加校验<span class="cell-sub">回归 · P0 通道</span></td>
-                  <td><span class="prio prio--p0">P0</span></td>
-                  <td><span class="chip">功能</span></td>
-                  <td><span class="status status--success"><span class="dot"></span>通过</span></td>
-                  <td>张明</td>
-                  <td class="num">2026-09-20 14:32</td>
-                  <td><span class="op-link">编辑</span><span class="op-link op-link--danger">删除</span></td>
-                </tr>
-                <tr>
-                  <td class="mono">TC-1025</td>
-                  <td class="cell-main">库存不足时下单拦截<span class="cell-sub">边界值</span></td>
-                  <td><span class="prio prio--p1">P1</span></td>
-                  <td><span class="chip">边界</span></td>
-                  <td><span class="status status--blocked"><span class="dot"></span>阻塞</span></td>
-                  <td>李华</td>
-                  <td class="num">2026-09-20 11:08</td>
-                  <td><span class="op-link">编辑</span><span class="op-link op-link--danger">删除</span></td>
-                </tr>
-                <tr>
-                  <td class="mono">TC-1026</td>
-                  <td class="cell-main">支付回调幂等性验证<span class="cell-sub">接口联调</span></td>
-                  <td><span class="prio prio--p1">P1</span></td>
-                  <td><span class="chip">功能</span></td>
-                  <td><span class="status status--running"><span class="dot"></span>进行中</span></td>
-                  <td>王芳</td>
-                  <td class="num">2026-09-19 18:45</td>
-                  <td><span class="op-link">编辑</span><span class="op-link op-link--danger">删除</span></td>
-                </tr>
-                <tr>
-                  <td class="mono">TC-1027</td>
-                  <td class="cell-main">历史订单导出上限<span class="cell-sub">10 万行分页</span></td>
-                  <td><span class="prio prio--p2">P2</span></td>
-                  <td><span class="chip">性能</span></td>
-                  <td><span class="status status--neutral"><span class="dot"></span>未执行</span></td>
-                  <td>张明</td>
-                  <td class="num">2026-09-18 09:21</td>
-                  <td><span class="op-link">编辑</span><span class="op-link op-link--danger">删除</span></td>
-                </tr>
-                <tr>
-                  <td class="mono">TC-1028</td>
-                  <td class="cell-main">收货地址超长字符<span class="cell-sub">兼容性</span></td>
-                  <td><span class="prio prio--p3">P3</span></td>
-                  <td><span class="chip">边界</span></td>
-                  <td><span class="status status--danger"><span class="dot"></span>失败</span></td>
-                  <td>周敏</td>
-                  <td class="num">2026-09-17 16:52</td>
-                  <td><span class="op-link">编辑</span><span class="op-link op-link--danger">删除</span></td>
-                </tr>
-                <tr>
-                  <td class="mono">TC-1029</td>
-                  <td class="cell-main">多优惠券互斥规则<span class="cell-sub">营销活动期</span></td>
-                  <td><span class="prio prio--p0">P0</span></td>
-                  <td><span class="chip">功能</span></td>
-                  <td><span class="status status--neutral"><span class="dot"></span>未执行</span></td>
-                  <td>张明</td>
-                  <td class="num">2026-09-16 10:04</td>
-                  <td><span class="op-link">编辑</span><span class="op-link op-link--danger">删除</span></td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-
-          <div class="pagination">
-            <span class="pagination__total">共 236 条 · 每页 20 条</span>
-            <button class="page-btn" disabled>‹</button>
-            <button class="page-btn page-btn--active">1</button>
-            <button class="page-btn">2</button>
-            <button class="page-btn">3</button>
-            <button class="page-btn">…</button>
-            <button class="page-btn">12</button>
-            <button class="page-btn">›</button>
+          <div class="mm">
+            <ul>
+              <li><span class="mm-node mm-node--root"><span data-icon="document"></span>优惠券叠加规则</span>
+                <ul>
+                  <li><span class="mm-node mm-node--sel"><i class="tdot tdot--case"></i>下单页优惠券叠加校验<span class="prio prio--p0">P0</span></span>
+                    <ul>
+                      <li><span class="mm-node"><i class="tdot tdot--precondition"></i><span class="mm-type">前置</span>已登录并持有可用优惠券</span></li>
+                      <li><span class="mm-node"><i class="tdot tdot--step"></i><span class="mm-type">步骤</span>提交含两张券的订单</span></li>
+                      <li><span class="mm-node"><i class="tdot tdot--expected"></i><span class="mm-type">预期</span>优惠金额为各券之和</span></li>
+                    </ul>
+                  </li>
+                  <li><span class="mm-node"><i class="tdot tdot--case"></i>库存不足时下单拦截<span class="prio prio--p1">P1</span></span>
+                    <ul>
+                      <li><span class="mm-node"><i class="tdot tdot--precondition"></i><span class="mm-type">前置</span>目标商品库存为 0</span></li>
+                      <li><span class="mm-node"><i class="tdot tdot--expected"></i><span class="mm-type">预期</span>提示库存不足并阻止下单</span></li>
+                    </ul>
+                  </li>
+                  <li><span class="mm-node"><i class="tdot tdot--case"></i>多优惠券互斥规则<span class="prio prio--p0">P0</span></span>
+                    <ul>
+                      <li><span class="mm-node"><i class="tdot tdot--step"></i><span class="mm-type">步骤</span>勾选互斥的两张券</span></li>
+                      <li><span class="mm-node"><i class="tdot tdot--expected"></i><span class="mm-type">预期</span>提示互斥，仅可使用一张</span></li>
+                    </ul>
+                  </li>
+                  <li><span class="mm-node"><i class="tdot tdot--case"></i>历史订单导出上限<span class="prio prio--p2">P2</span></span></li>
+                </ul>
+              </li>
+            </ul>
           </div>
         </div>
+
       </div>
     </div>
   </div>
