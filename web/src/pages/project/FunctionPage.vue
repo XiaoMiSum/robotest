@@ -1,331 +1,46 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { Codemirror } from 'vue-codemirror'
 import { java } from '@codemirror/lang-java'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import type { ApiBuiltinFunctionGroup, ApiCustomFunctionListItem, ApiFunctionScope, ApiCustomFunctionDetail } from '@/types'
-import { useAuthStore } from '@/stores/auth'
-import {
-  fetchBuiltinCatalog,
-  fetchCustomFunctions,
-  fetchCustomFunctionDetail,
-  createCustomFunction,
-  updateCustomFunction,
-  toggleCustomFunction,
-  deleteCustomFunction,
-} from '@/services/apiFunction'
-import {
-  filterFunctions,
-  formatScopeLabel,
-  resolveFunctionError,
-  SCOPE_OPTIONS,
-  FUNCTION_TAB_OPTIONS,
-  type FunctionTab,
-} from './functionModel'
+import { useFunctionalTesting } from '@/composables/useFunctionalTesting'
+import { formatScopeLabel } from './functionModel'
 
-/** 列表项统一类型 */
-interface DisplayListItem {
-  type: 'builtin' | 'custom'
-  name: string
-  description: string
-  scope?: ApiFunctionScope
-  id?: string
-  enabled?: boolean
-}
-
-// Groovy 与 Java 语法同构，复用 Java 语言包提供高亮
 const editorExtensions = [java()]
 
-const authStore = useAuthStore()
-const canEdit = computed(
-  () =>
-    authStore.hasPermission('api-func:edit') ||
-    authStore.hasPermission('api-func:edit-space') ||
-    authStore.hasPermission('api-func:edit-global'),
-)
-
-// ==================== 列表状态 ====================
-
-const listLoading = ref(false)
-const loadError = ref(false)
-const builtinGroups = ref<ApiBuiltinFunctionGroup[]>([])
-const customList = ref<ApiCustomFunctionListItem[]>([])
-const keyword = ref('')
-const activeTab = ref<FunctionTab>('all')
-
-let searchTimer: ReturnType<typeof setTimeout> | undefined
-function handleSearchInput(): void {
-  clearTimeout(searchTimer)
-  searchTimer = setTimeout(() => void loadCustomList(), 300)
-}
-onBeforeUnmount(() => clearTimeout(searchTimer))
-
-const filtered = computed(() => filterFunctions(builtinGroups.value, customList.value, keyword.value))
-
-const displayItems = computed(() => {
-  const { builtin, custom } = filtered.value
-  const items: DisplayListItem[] = []
-  if (activeTab.value === 'all' || activeTab.value === 'builtin') {
-    for (const group of builtin) {
-      for (const fn of group.functions) {
-        items.push({ type: 'builtin', name: fn.name, description: fn.description })
-      }
-    }
-  }
-  if (activeTab.value === 'all' || activeTab.value === 'custom') {
-    for (const fn of custom) {
-      items.push({ type: 'custom', name: fn.name, description: fn.description ?? '', scope: fn.scope, id: fn.id, enabled: fn.enabled })
-    }
-  }
-  return items
-})
-
-const selectedType = ref<'builtin' | 'custom' | null>(null)
-const selectedName = ref('')
-const selectedCustomId = ref('')
-
-async function loadBuiltin(): Promise<void> {
-  try {
-    builtinGroups.value = await fetchBuiltinCatalog()
-  } catch (err) {
-    loadError.value = true
-    ElMessage.error(resolveFunctionError(err))
-  }
-}
-
-async function loadCustomList(): Promise<void> {
-  try {
-    customList.value = await fetchCustomFunctions(keyword.value.trim() ? { keyword: keyword.value.trim() } : undefined)
-  } catch (err) {
-    loadError.value = true
-    ElMessage.error(resolveFunctionError(err))
-  }
-}
-
-async function loadAll(): Promise<void> {
-  listLoading.value = true
-  loadError.value = false
-  try {
-    await Promise.all([loadBuiltin(), loadCustomList()])
-  } finally {
-    listLoading.value = false
-  }
-}
-
-function selectItem(type: 'builtin' | 'custom', name: string, id?: string): void {
-  selectedType.value = type
-  selectedName.value = name
-  selectedCustomId.value = id ?? ''
-  panelMode.value = 'view'
-}
-
-// 内置函数选中后的详情
-const selectedBuiltinFn = computed(() => {
-  if (selectedType.value !== 'builtin') return null
-  for (const group of builtinGroups.value) {
-    const found = group.functions.find((fn) => fn.name === selectedName.value)
-    if (found) return found
-  }
-  return null
-})
-
-// 自定义函数详情
-const customDetail = ref<ApiCustomFunctionDetail | null>(null)
-const detailLoading = ref(false)
-
-/** 自定义函数参数：从 paramsDesc（`id:用户ID, name:名称`）解析为与内置函数参数一致的结构 */
-const customParams = computed(() => {
-  const desc = customDetail.value?.paramsDesc
-  if (!desc) return []
-  return desc.split(',').map((p) => {
-    const seg = p.trim()
-    return {
-      name: seg.split(':')[0]?.trim() ?? '',
-      required: true,
-      description: seg,
-    }
-  })
-})
-
-/** 自定义函数签名与示例：按实际参数名拼接（无参数时去掉占位参数） */
-const customSignature = computed(() => {
-  const name = customDetail.value?.name ?? ''
-  const args = customParams.value.map((p) => p.name).join(', ')
-  return `\${${name}${args ? `(${args})` : '()'}}`
-})
-
-watch(selectedCustomId, async (id) => {
-  if (!id || selectedType.value !== 'custom') {
-    customDetail.value = null
-    return
-  }
-  detailLoading.value = true
-  try {
-    customDetail.value = await fetchCustomFunctionDetail(id)
-  } catch (err) {
-    ElMessage.error(resolveFunctionError(err))
-  } finally {
-    detailLoading.value = false
-  }
-})
-
-// ==================== 自定义函数详情面板 ====================
-
-type CustomPanelMode = 'view' | 'create' | 'edit'
-
-const panelMode = ref<CustomPanelMode>('view')
-const form = reactive({
-  id: '',
-  name: '',
-  description: '',
-  paramsDesc: '',
-  script: '',
-  scope: 'project' as ApiFunctionScope,
-})
-const saving = ref(false)
-
-function resetForm(): void {
-  form.id = ''
-  form.name = ''
-  form.description = ''
-  form.paramsDesc = ''
-  form.script = ''
-  form.scope = 'project'
-}
-
-function startCreate(): void {
-  selectedType.value = 'custom'
-  selectedName.value = ''
-  selectedCustomId.value = ''
-  customDetail.value = null
-  resetForm()
-  panelMode.value = 'create'
-}
-
-function startEdit(): void {
-  if (!customDetail.value) return
-  form.id = customDetail.value.id
-  form.name = customDetail.value.name
-  form.description = customDetail.value.description ?? ''
-  form.paramsDesc = customDetail.value.paramsDesc ?? ''
-  form.script = customDetail.value.script
-  form.scope = customDetail.value.scope
-  panelMode.value = 'edit'
-}
-
-function cancelEdit(): void {
-  panelMode.value = 'view'
-  // 取消新增时若未选中任何函数则清空选择回到空态
-  if (selectedCustomId.value === '') {
-    selectedType.value = null
-    selectedName.value = ''
-  }
-}
-
-function validateForm(): boolean {
-  if (!form.name.trim()) {
-    ElMessage.warning('请填写函数名称')
-    return false
-  }
-  if (!form.script.trim()) {
-    ElMessage.warning('请填写 Groovy 脚本')
-    return false
-  }
-  return true
-}
-
-async function submitForm(): Promise<void> {
-  if (!validateForm()) return
-  saving.value = true
-  try {
-    const payload = {
-      name: form.name.trim(),
-      description: form.description.trim() || undefined,
-      paramsDesc: form.paramsDesc.trim() || undefined,
-      script: form.script.trim(),
-      scope: form.scope,
-    }
-    if (panelMode.value === 'create') {
-      const resp = await createCustomFunction(payload)
-      ElMessage.success('函数已创建')
-      await loadCustomList()
-      panelMode.value = 'view'
-      selectItem('custom', form.name.trim(), resp.id)
-    } else {
-      await updateCustomFunction(form.id, payload)
-      ElMessage.success('已保存')
-      await loadCustomList()
-      panelMode.value = 'view'
-      if (selectedCustomId.value === form.id) {
-        customDetail.value = await fetchCustomFunctionDetail(form.id)
-      }
-    }
-  } catch (err) {
-    ElMessage.error(resolveFunctionError(err))
-  } finally {
-    saving.value = false
-  }
-}
-
-// ==================== 启停 ====================
-
-function handleToggleItem(item: DisplayListItem): void {
-  void handleToggle(item)
-}
-
-async function handleToggle(item: DisplayListItem): Promise<void> {
-  if (!item.id) return
-  try {
-    await toggleCustomFunction(item.id, !item.enabled)
-    ElMessage.success(item.enabled ? '已禁用' : '已启用')
-    await loadCustomList()
-    if (selectedCustomId.value === item.id && customDetail.value) {
-      customDetail.value.enabled = !item.enabled
-    }
-  } catch (err) {
-    ElMessage.error(resolveFunctionError(err))
-  }
-}
-
-// ==================== 删除 ====================
-
-function handleDeleteItem(item: DisplayListItem): void {
-  void handleDelete(item as ApiCustomFunctionListItem)
-}
-
-async function handleDelete(item: ApiCustomFunctionListItem): Promise<void> {
-  try {
-    await ElMessageBox.confirm(`删除后函数不可恢复，确认删除「${item.name}」？`, '删除函数', {
-      type: 'warning',
-      confirmButtonText: '删除',
-      cancelButtonText: '取消',
-    })
-  } catch {
-    return
-  }
-  try {
-    await deleteCustomFunction(item.id)
-    ElMessage.success('已删除')
-    if (selectedCustomId.value === item.id) {
-      selectedType.value = null
-      selectedName.value = ''
-      selectedCustomId.value = ''
-      customDetail.value = null
-    }
-    await loadCustomList()
-  } catch (err) {
-    ElMessage.error(resolveFunctionError(err))
-  }
-}
-
-onMounted(() => void loadAll())
+const {
+  canEdit,
+  listLoading,
+  loadError,
+  keyword,
+  activeTab,
+  handleSearchInput,
+  displayItems,
+  selectedType,
+  selectedName,
+  selectedBuiltinFn,
+  detailLoading,
+  customDetail,
+  customParams,
+  customSignature,
+  panelMode,
+  form,
+  saving,
+  loadAll,
+  selectItem,
+  startCreate,
+  startEdit,
+  cancelEdit,
+  submitForm,
+  handleToggleItem,
+  handleDeleteItem,
+  FUNCTION_TAB_OPTIONS,
+  SCOPE_OPTIONS,
+} = useFunctionalTesting()
 </script>
 
 <template>
   <div class="fn-page">
     <div class="fn-page__body">
       <aside class="fn-page__list">
-        <!-- 搜索 + 新增 -->
         <div class="fn-page__search-row">
           <el-input
             v-model="keyword"
@@ -344,14 +59,12 @@ onMounted(() => void loadAll())
           </el-button>
         </div>
 
-        <!-- 标签页筛选 -->
         <el-radio-group v-model="activeTab" class="fn-page__tabs">
           <el-radio-button v-for="tab in FUNCTION_TAB_OPTIONS" :key="tab.value" :value="tab.value">
             {{ tab.label }}
           </el-radio-button>
         </el-radio-group>
 
-        <!-- 加载/错误/空态 -->
         <div v-if="loadError" class="fn-page__empty">
           <p>函数列表加载失败</p>
           <el-button size="small" @click="loadAll()">重试</el-button>
@@ -361,10 +74,9 @@ onMounted(() => void loadAll())
 
         <div v-else-if="displayItems.length === 0" class="fn-page__empty">
           <p>{{ keyword ? '无匹配函数' : '暂无自定义函数，点击新增' }}</p>
-          <el-button v-if="keyword" size="small" @click="keyword = ''; loadCustomList()">清除搜索</el-button>
+          <el-button v-if="keyword" size="small" @click="keyword = ''; loadAll()">清除搜索</el-button>
         </div>
 
-        <!-- 函数列表 -->
         <ul v-else class="fn-page__items">
           <li
             v-for="item in displayItems"
@@ -393,9 +105,7 @@ onMounted(() => void loadAll())
         </ul>
       </aside>
 
-      <!-- 右侧详情面板 -->
       <section class="fn-page__detail">
-        <!-- 内置函数详情 -->
         <div v-if="selectedType === 'builtin' && selectedBuiltinFn" class="fn-detail">
           <div class="fn-detail__header">
             <h4 class="fn-detail__name">{{ selectedBuiltinFn.name }}</h4>
@@ -425,7 +135,6 @@ onMounted(() => void loadAll())
           </div>
         </div>
 
-        <!-- 自定义函数详情/编辑/新建 -->
         <div v-else-if="selectedType === 'custom' && panelMode !== 'view' && !detailLoading" class="fn-detail">
           <div class="fn-detail__header">
             <h4 class="fn-detail__name">{{ panelMode === 'create' ? '新建自定义函数' : `编辑：${customDetail?.name ?? ''}` }}</h4>
@@ -463,7 +172,6 @@ onMounted(() => void loadAll())
           </div>
         </div>
 
-        <!-- 自定义函数详情（查看） -->
         <div v-else-if="selectedType === 'custom' && !detailLoading" class="fn-detail">
           <template v-if="customDetail">
             <div class="fn-detail__header">
@@ -514,7 +222,6 @@ onMounted(() => void loadAll())
           </div>
         </div>
 
-        <!-- 空态 -->
         <div v-else class="fn-page__empty fn-page__empty--wide">
           <p>{{ listLoading ? '加载中...' : '选择函数查看详情' }}</p>
         </div>
@@ -659,8 +366,6 @@ onMounted(() => void loadAll())
   }
 }
 
-// ========== 详情面板 ==========
-
 .fn-detail {
   background: var(--color-neutral-0, #fff);
   border: 1px solid var(--color-neutral-100);
@@ -748,8 +453,6 @@ onMounted(() => void loadAll())
   gap: var(--space-sm);
 }
 
-// CodeMirror 容器 display: contents，需强制编辑器与滚动区充满可用宽度，
-// 避免随最长行内容宽度自适应撑开（与其他输入框保持一致）
 :deep(.v-codemirror .cm-editor) {
   width: 100%;
 }
