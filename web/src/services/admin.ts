@@ -1,5 +1,4 @@
-import api from '@/services'
-import type { AxiosRequestConfig } from 'axios'
+import { get, post, put, patch, del } from '@/services'
 import type {
   AdminUser,
   AdminWorkspace,
@@ -28,23 +27,6 @@ import type {
   UserUpdatePayload,
   WorkspaceMember,
 } from '@/types'
-
-// 响应拦截器已将 Result<T> 解包为 data，此处集中处理静态类型断言（C1：unknown + 断言）
-function get<T>(url: string, params?: Record<string, unknown>): Promise<T> {
-  return api.get(url, { params }) as unknown as Promise<T>
-}
-function post<T>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T> {
-  return api.post(url, data, config) as unknown as Promise<T>
-}
-function put<T>(url: string, data?: unknown): Promise<T> {
-  return api.put(url, data) as unknown as Promise<T>
-}
-function patch<T>(url: string, data?: unknown): Promise<T> {
-  return api.patch(url, data) as unknown as Promise<T>
-}
-function del<T>(url: string): Promise<T> {
-  return api.delete(url) as unknown as Promise<T>
-}
 
 /** 预置工作空间角色 ID（与后端 Constants.WorkspaceRole / V5 迁移脚本保持一致） */
 export const WORKSPACE_ROLE = {

@@ -5,17 +5,12 @@ import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiInterfaceBatchM
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiInterfaceCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiInterfaceStatusReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiInterfaceUpdateReqDTO;
-import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiParsedImportReqDTO;
-import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiImportPreviewRespDTO;
-import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiImportResultRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiInterfaceChangeLogRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiInterfaceDetailRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiInterfaceItemRespDTO;
-import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiInterfaceReferenceRespDTO;
 import xyz.migoo.framework.common.pojo.PageParam;
 import xyz.migoo.framework.common.pojo.PageResult;
 
-import java.util.List;
 import java.util.UUID;
 
 /**
@@ -37,10 +32,6 @@ public interface ApiInterfaceService {
 
     UUID copy(UUID projectId, UUID userId, UUID id, String copyName);
 
-    ApiInterfaceReferenceRespDTO references(UUID projectId, UUID userId, UUID id);
-
-    List<ApiInterfaceReferenceRespDTO.RefItem> referenceScenes(UUID projectId, UUID userId, UUID id);
-
     void batchMove(UUID projectId, UUID userId, ApiInterfaceBatchMoveReqDTO reqDTO);
 
     void batchDelete(UUID projectId, UUID userId, ApiInterfaceBatchDeleteReqDTO reqDTO);
@@ -50,14 +41,6 @@ public interface ApiInterfaceService {
     void follow(UUID projectId, UUID userId, UUID id);
 
     void unfollow(UUID projectId, UUID userId, UUID id);
-
-    // ==================== 导入 3.4 ====================
-
-    ApiImportResultRespDTO importParsed(UUID projectId, UUID userId, ApiParsedImportReqDTO reqDTO);
-
-    ApiImportResultRespDTO importUrl(UUID projectId, UUID userId, String url, String formatHint);
-
-    ApiImportPreviewRespDTO preview(UUID projectId, UUID userId, String url, String formatHint);
 
     // ==================== 变更历史 3.1.13 ====================
 

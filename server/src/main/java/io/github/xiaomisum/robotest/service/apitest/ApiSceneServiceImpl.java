@@ -3,7 +3,6 @@ package io.github.xiaomisum.robotest.service.apitest;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.framework.common.SceneStepUtil;
 import io.github.xiaomisum.robotest.framework.security.ProjectAccessGuard;
-import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneAssetsImportReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneBatchDeleteReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneBatchMoveReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneCreateReqDTO;
@@ -12,7 +11,6 @@ import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneStepQuickC
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneStepReorderReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneStepSaveReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneUpdateReqDTO;
-import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiSceneAssetsImportRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiSceneDetailRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiScenePageItemRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiSceneQuickCreateRespDTO;
@@ -25,7 +23,6 @@ import io.github.xiaomisum.robotest.repository.apitest.ApiExecutionRecordMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiInterfaceMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiSceneMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiSceneFollowMapper;
-import io.github.xiaomisum.robotest.repository.apitest.CommonComponentMapper;
 import io.github.xiaomisum.robotest.repository.tcase.ProjectModuleMapper;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
@@ -63,8 +60,6 @@ public class ApiSceneServiceImpl implements ApiSceneService {
     private ApiInterfaceMapper interfaceMapper;
     @Resource
     private ProjectAccessGuard projectAccessGuard;
-    @Resource
-    private CommonComponentMapper componentMapper;
     @Resource
     private TestPlanSceneGuard testPlanSceneGuard;
     @Resource
@@ -250,21 +245,6 @@ public class ApiSceneServiceImpl implements ApiSceneService {
         Map<String, Object> step = SceneStepUtil.requireStep(scene.getSteps(), stepId);
         step.put("variables", SceneStepEditor.buildStepVariables(reqDTO.getVariables()));
         persistSteps(sceneId, scene.getSteps());
-    }
-
-    // ========== 全局资产引入 ==========
-
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    public ApiSceneAssetsImportRespDTO importAssets(UUID workspaceId, UUID projectId, UUID userId, UUID sceneId,
-            ApiSceneAssetsImportReqDTO reqDTO) {
-        projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
-        ApiScene scene = requireScene(projectId, sceneId);
-        Map<String, Object> step = SceneAssetImporter.resolveTarget(scene, reqDTO.getTarget(), reqDTO.getStepId());
-        int imported = SceneAssetImporter.apply(sceneMapper, componentMapper, scene, step,
-                reqDTO.getTarget(), reqDTO.getAssetIds());
-        writeHistory(projectId, sceneId, "update", "从全局资产引入 " + imported + " 个", userId);
-        return ApiSceneAssetsImportRespDTO.builder().imported(imported).build();
     }
 
     // ========== 关注 ==========

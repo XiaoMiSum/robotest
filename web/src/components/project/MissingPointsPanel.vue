@@ -1,194 +1,37 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
 import RequirementSelector from '@/components/project/RequirementSelector.vue'
-import { analyzeMissingPoints, type AiMissingPointReq } from '@/services/ai'
-import { fetchProjectModuleTree, getDocumentRequirements } from '@/services/project'
-import type { AiMissingPoint, AiMissingPointResult, RequirementSummary } from '@/types'
-import {
-  buildMissingPointText,
-  collectDocumentOptions,
-  pickPreselectDocument,
-  type MissingPointDocumentOption,
-} from './missingPoints'
+import { useMissingPointsPanel } from '@/composables/useMissingPointsPanel'
+import { MagicStick, Close } from '@element-plus/icons-vue'
 
-/**
- * 遗漏测试点分析面板（US-AI-007，交互设计第 4 章）：
- * 关键词 / 需求文本 / 需求条目三态输入至少一项 → 同步长调用（70s 超时，可取消）→
- * 勾选结果「转用例生成」：预选出现次数最多的建议模块对应文档，直达用例页预填 AI 生成抽屉。
- */
 const props = defineProps<{ docId: string }>()
 const visible = defineModel<boolean>({ required: true })
-const router = useRouter()
 
-const keywords = ref<string[]>([])
-const text = ref('')
-const requirementIds = ref<string[]>([])
-const requirementTitles = ref<RequirementSummary[]>([])
-const reqSelectorVisible = ref(false)
-
-const analyzing = ref(false)
-const result = ref<AiMissingPointResult | null>(null)
-const checkedIndexes = ref<Set<number>>(new Set())
-
-let controller: AbortController | null = null
-
-const hasAnyInput = computed(
-  () => keywords.value.length > 0 || text.value.trim() !== '' || requirementIds.value.length > 0,
-)
-
-const checkedPoints = computed<AiMissingPoint[]>(() =>
-  (result.value?.points ?? []).filter((_, index) => checkedIndexes.value.has(index)),
-)
-const allChecked = computed(
-  () => result.value !== null && checkedIndexes.value.size === result.value.points.length,
-)
-
-function toggleAll(checked: boolean): void {
-  if (!result.value) return
-  checkedIndexes.value = checked
-    ? new Set(result.value.points.map((_, index) => index))
-    : new Set<number>()
-}
-
-function toggleItem(index: number, checked: boolean): void {
-  const next = new Set(checkedIndexes.value)
-  if (checked) next.add(index)
-  else next.delete(index)
-  checkedIndexes.value = next
-}
-
-function handleRequirementConfirm(selected: RequirementSummary[]): void {
-  requirementIds.value = selected.map((r) => r.id)
-  // 选取器仅回传 id，标题可能为空（跨页场景）；从上次已选补全，避免标签只剩关闭按钮
-  requirementTitles.value = selected.map((r) => {
-    if (r.title) return r
-    return requirementTitles.value.find((prev) => prev.id === r.id) ?? r
-  })
-}
-
-function removeRequirement(id: string): void {
-  requirementIds.value = requirementIds.value.filter((rid) => rid !== id)
-  requirementTitles.value = requirementTitles.value.filter((r) => r.id !== id)
-}
-
-/** 打开时默认带入当前文档已关联的需求条目（交互设计 4.2，同 AI 生成抽屉 6.3） */
-async function loadDocumentRequirements(): Promise<void> {
-  try {
-    const list = await getDocumentRequirements(props.docId)
-    requirementIds.value = list.map((r) => r.id)
-    requirementTitles.value = list
-  } catch (err) {
-    // 加载失败不阻断输入，保持空态由用户手动选取
-    ElMessage.error(err instanceof Error ? err.message : '加载文档关联需求失败')
-  }
-}
-
-// 每次打开重新同步关联条目，上次手动调整不残留（同 AiGeneratePanel）
-watch(visible, (open) => {
-  if (open) void loadDocumentRequirements()
-})
-
-/** 切换文档：中断进行中的分析并重置整份会话（交互设计 4.2 会话保持，绑定文档生命周期） */
-watch(
-  () => props.docId,
-  () => {
-    cancelAnalyze()
-    keywords.value = []
-    text.value = ''
-    requirementIds.value = []
-    requirementTitles.value = []
-    result.value = null
-    checkedIndexes.value = new Set()
-  },
-)
-
-function buildReq(): AiMissingPointReq | null {
-  if (!hasAnyInput.value) {
-    ElMessage.warning('请至少输入关键词、需求文本或选择需求')
-    return null
-  }
-  const req: AiMissingPointReq = {
-    keywords: keywords.value.length ? keywords.value : undefined,
-    text: text.value.trim() || undefined,
-    requirementIds: requirementIds.value.length ? requirementIds.value : undefined,
-  }
-  return req
-}
-
-async function analyze(): Promise<void> {
-  const req = buildReq()
-  if (!req) return
-  analyzing.value = true
-  result.value = null
-  const { controller: c, promise } = analyzeMissingPoints(req)
-  controller = c
-  try {
-    const resp = await promise
-    result.value = resp
-    checkedIndexes.value = new Set(resp.points.map((_, index) => index))
-  } catch (err) {
-    // 用户主动取消不提示（同步调用无部分结果）
-    if (controller?.signal.aborted) return
-    ElMessage.error(err instanceof Error ? err.message : '分析失败')
-  } finally {
-    analyzing.value = false
-    controller = null
-  }
-}
-
-function cancelAnalyze(): void {
-  controller?.abort()
-  controller = null
-  analyzing.value = false
-}
-
-// ==================== 转用例生成（交互设计 4.3） ====================
-
-const documentOptions = ref<MissingPointDocumentOption[]>([])
-const docSelectVisible = ref(false)
-const targetDocId = ref('')
-
-async function openTargetSelect(): Promise<void> {
-  const points = checkedPoints.value
-  if (!points.length) {
-    ElMessage.warning('请至少勾选一个遗漏测试点')
-    return
-  }
-  try {
-    // 文档选项需含文档节点，必须带 assetType=testcase（后端仅该类型合并文档节点）
-    const tree = await fetchProjectModuleTree('testcase')
-    documentOptions.value = collectDocumentOptions(tree)
-    if (!documentOptions.value.length) {
-      ElMessage.warning('项目暂无文档，无法生成用例')
-      return
-    }
-    targetDocId.value = pickPreselectDocument(documentOptions.value, points)
-    docSelectVisible.value = true
-  } catch (err) {
-    ElMessage.error(err instanceof Error ? err.message : '加载模块树失败')
-  }
-}
-
-function toCaseGenerate(): void {
-  const points = checkedPoints.value
-  if (!points.length || !targetDocId.value) return
-  docSelectVisible.value = false
-  visible.value = false
-  // 勾选点拼接为需求文本直达用例页，预填「AI 生成用例」抽屉（详细设计 3.3）
-  router.push({
-    name: 'FunctionalTesting',
-    query: { tab: 'cases', documentId: targetDocId.value, aiGenerate: buildMissingPointText(points) },
-  })
-}
-
-onBeforeUnmount(() => controller?.abort())
+const {
+  keywords,
+  text,
+  requirementIds,
+  requirementTitles,
+  reqSelectorVisible,
+  analyzing,
+  result,
+  checkedIndexes,
+  hasAnyInput,
+  allChecked,
+  toggleAll,
+  toggleItem,
+  handleRequirementConfirm,
+  removeRequirement,
+  analyze,
+  cancelAnalyze,
+  documentOptions,
+  docSelectVisible,
+  targetDocId,
+  openTargetSelect,
+  toCaseGenerate,
+} = useMissingPointsPanel(() => props.docId, visible)
 </script>
 
 <template>
-  <!-- 非阻断侧滑面板：同 AiGeneratePanel——el-drawer 的 overlay 在 modal=false 下仍拦截整页点击、
-       focus-trap 会劫持外部键盘焦点（均无 prop 可关）；自绘 fixed 容器让分析期间页面完全可操作 -->
   <transition name="mp-slide">
     <aside v-show="visible" class="mp-drawer" role="dialog" aria-label="遗漏测试点分析">
       <header class="mp-drawer__header">
@@ -198,7 +41,6 @@ onBeforeUnmount(() => controller?.abort())
 
       <div class="mp-drawer__body">
         <div class="mp">
-      <!-- 三态输入：关键词 / 需求文本 / 需求条目，至少一项非空（详细设计 3.3） -->
       <div class="mp-inputs">
         <div class="mp-field">
           <div class="mp-field__label">关键词</div>
@@ -265,7 +107,6 @@ onBeforeUnmount(() => controller?.abort())
         </el-button>
       </div>
 
-      <!-- 关键词版恒为语义降级，顶部提示（交互设计 4.3） -->
       <el-alert
         v-if="result && result.semanticDegraded"
         type="warning"
@@ -279,7 +120,7 @@ onBeforeUnmount(() => controller?.abort())
           <el-checkbox
             :model-value="allChecked"
             :indeterminate="checkedIndexes.size > 0 && !allChecked"
-            @update:model-value="(v: boolean) => toggleAll(v === true)"
+            @update:model-value="(v) => toggleAll(v === true)"
           >全选</el-checkbox>
           <span class="mp-result-count">共 {{ result.points.length }} 条，已选 {{ checkedIndexes.size }} 条</span>
         </div>
@@ -288,7 +129,7 @@ onBeforeUnmount(() => controller?.abort())
           <div v-for="(point, index) in result.points" :key="index" class="mp-item">
             <el-checkbox
               :model-value="checkedIndexes.has(index)"
-              @update:model-value="(v: boolean) => toggleItem(index, v === true)"
+              @update:model-value="(v) => toggleItem(index, v === true)"
             />
             <div class="mp-item__body">
               <div class="mp-item__title">{{ point.title }}</div>
@@ -345,7 +186,6 @@ onBeforeUnmount(() => controller?.abort())
 </template>
 
 <style scoped lang="scss">
-/* 非阻断侧滑面板：fixed 悬浮于画布之上，不渲染任何遮罩层，页面其余区域保持可交互（同 AiGeneratePanel） */
 .mp-drawer {
   position: fixed;
   top: 0;
@@ -375,7 +215,6 @@ onBeforeUnmount(() => controller?.abort())
   padding: 16px 20px;
 }
 
-/* 右侧滑入/滑出，观感与 el-drawer 一致 */
 .mp-slide-enter-active,
 .mp-slide-leave-active {
   transition: transform 0.3s ease;
@@ -441,7 +280,6 @@ onBeforeUnmount(() => controller?.abort())
   gap: 8px;
 }
 
-/* 分析中虚假进度条：占满按钮组剩余空间，纤细线宽（同 AI 生成抽屉） */
 .mp-actions__progress {
   flex: 1;
   min-width: 0;

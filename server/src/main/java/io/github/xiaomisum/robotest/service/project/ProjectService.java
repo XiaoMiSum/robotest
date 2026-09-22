@@ -13,8 +13,6 @@ public interface ProjectService {
     PageResult<ProjectRespDTO> getProjectPage(UUID workspaceId, UUID userId, String keyword,
                                                String status, Integer pageNo, Integer pageSize);
 
-    ProjectRespDTO getProjectDetail(UUID workspaceId, UUID projectId);
-
     ProjectRespDTO createProject(UUID userId, UUID workspaceId, ProjectCreateReqDTO reqDTO);
 
     ProjectRespDTO updateProject(UUID userId, UUID workspaceId, UUID projectId, ProjectUpdateReqDTO reqDTO);

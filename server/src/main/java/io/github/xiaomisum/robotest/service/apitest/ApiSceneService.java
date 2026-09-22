@@ -1,6 +1,5 @@
 package io.github.xiaomisum.robotest.service.apitest;
 
-import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneAssetsImportReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneBatchDeleteReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneBatchMoveReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneCreateReqDTO;
@@ -10,7 +9,6 @@ import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneStepReorde
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneStepSaveReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneStepVariableBatchReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneUpdateReqDTO;
-import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiSceneAssetsImportRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiSceneDetailRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiScenePageItemRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiSceneQuickCreateRespDTO;
@@ -78,10 +76,5 @@ public interface ApiSceneService {
 
     void updateStepVariables(UUID workspaceId, UUID projectId, UUID userId, UUID sceneId, UUID stepId,
             ApiSceneStepVariableBatchReqDTO reqDTO);
-
-    // ========== 全局资产引入 ==========
-
-    ApiSceneAssetsImportRespDTO importAssets(UUID workspaceId, UUID projectId, UUID userId, UUID sceneId,
-            ApiSceneAssetsImportReqDTO reqDTO);
 
 }

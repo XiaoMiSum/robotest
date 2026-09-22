@@ -1,16 +1,5 @@
-import api from '@/services'
+import { get, post, del } from '@/services'
 import type { AiConversation, AiConversationListResp, AiMessage } from '@/types'
-
-// 响应拦截器已将 Result<T> 解包为 data，此处集中处理静态类型断言（C1：unknown + 断言）
-function get<T>(url: string, params?: Record<string, unknown>): Promise<T> {
-  return api.get(url, { params }) as unknown as Promise<T>
-}
-function post<T>(url: string): Promise<T> {
-  return api.post(url) as unknown as Promise<T>
-}
-function postData<T>(url: string, data: Record<string, unknown>): Promise<T> {
-  return api.post(url, data) as unknown as Promise<T>
-}
 
 // ==================== 会话管理（全局智能助手详细设计 3.1） ====================
 
@@ -29,12 +18,7 @@ export function createConversation(): Promise<AiConversation> {
 
 /** 删除会话（逻辑删除，级联逻辑删除消息） */
 export function deleteConversation(conversationId: string): Promise<void> {
-  return api.delete(`/workspace/ai/conversations/${conversationId}`) as unknown as Promise<void>
-}
-
-/** 清空当前用户当前空间全部会话 */
-export function clearConversations(): Promise<void> {
-  return api.delete('/workspace/ai/conversations') as unknown as Promise<void>
+  return del(`/workspace/ai/conversations/${conversationId}`)
 }
 
 /** 会话消息历史（按时间升序全量；role=tool 前端渲染为工具调用卡片） */
@@ -49,5 +33,5 @@ export const APPROVE_CONFIRMATION_URL = '/workspace/ai/confirmations/approve'
 
 /** 取消写操作（即时落库 tool 消息，返回 200） */
 export function cancelConfirmation(confirmToken: string): Promise<void> {
-  return postData('/workspace/ai/confirmations/cancel', { confirmToken })
+  return post('/workspace/ai/confirmations/cancel', { confirmToken })
 }

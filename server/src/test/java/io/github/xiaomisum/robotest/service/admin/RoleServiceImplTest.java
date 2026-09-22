@@ -66,17 +66,6 @@ class RoleServiceImplTest {
     }
 
     @Test
-    void getUserPermissionCodes_delegatesToSystemFacade() {
-        when(permissionFacade.permissionsOf(userId, PermissionScope.SYSTEM, null))
-                .thenReturn(Set.of("user:view", "role:edit"));
-
-        List<String> codes = roleService.getUserPermissionCodes(userId);
-
-        assertEquals(2, codes.size());
-        assertTrue(codes.containsAll(List.of("user:view", "role:edit")));
-    }
-
-    @Test
     void createRole_duplicateName_throws() {
         RoleCreateReqDTO dto = new RoleCreateReqDTO();
         dto.setName("测试角色");

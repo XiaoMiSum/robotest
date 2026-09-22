@@ -1,4 +1,4 @@
-import api from '@/services'
+import { get, post, put, del } from '@/services'
 import type {
   ApiDebugExecuteReq,
   ApiDebugExecuteResp,
@@ -9,18 +9,11 @@ import type {
   PageResult,
 } from '@/types'
 
-function get<T>(url: string, params?: Record<string, unknown>): Promise<T> {
-  return api.get(url, { params }) as unknown as Promise<T>
-}
-function post<T>(url: string, data?: unknown): Promise<T> {
-  return api.post(url, data) as unknown as Promise<T>
-}
-
 // ==================== 快速调试（/api/project/debug*，详细设计 3.1 / 基础设施 3.3） ====================
 
 /** 服务端执行调试请求；结果自动持久化为调试记录。后端护栏为 timeoutMs+5s，放宽 axios 全局 15s 超时 */
 export function executeDebug(req: ApiDebugExecuteReq): Promise<ApiDebugExecuteResp> {
-  return api.post('/project/debug/execute', req, { timeout: 120_000 }) as unknown as Promise<ApiDebugExecuteResp>
+  return post('/project/debug/execute', req, { timeout: 120_000 })
 }
 
 /** 调试记录分页（仅当前用户），keyword 匹配名称或 URL */
@@ -31,11 +24,11 @@ export function fetchDebugRecords(pageNo: number, pageSize: number, keyword?: st
 }
 
 export function renameDebugRecord(id: string, name: string): Promise<boolean> {
-  return api.put(`/project/debug-records/${id}`, { name }) as unknown as Promise<boolean>
+  return put(`/project/debug-records/${id}`, { name })
 }
 
 export function deleteDebugRecord(id: string): Promise<boolean> {
-  return api.delete(`/project/debug-records/${id}`) as unknown as Promise<boolean>
+  return del(`/project/debug-records/${id}`)
 }
 
 /** 恢复调试记录：返回完整请求快照与响应，前端据此新建标签并回填 */

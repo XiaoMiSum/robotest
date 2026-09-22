@@ -6,7 +6,6 @@ import io.github.xiaomisum.robotest.model.dto.request.plan.TestPlanCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.plan.TestPlanRecordReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.plan.PlannedCasesRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.plan.TestPlanDetailRespDTO;
-import io.github.xiaomisum.robotest.model.dto.response.plan.TestPlanExecutionRecordRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.plan.TestPlanListRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.plan.TestPlanSnapshotNodeRespDTO;
 import io.github.xiaomisum.robotest.model.entity.admin.SysUser;
@@ -453,34 +452,6 @@ class TestPlanServiceImplTest {
         }
 
         @Test
-        void getNodeExecutionRecords_success() {
-                TestPlan plan = new TestPlan();
-                plan.setId(planId);
-                plan.setProjectId(projectId);
-                when(testPlanMapper.selectById(planId)).thenReturn(plan);
-
-                TestPlanExecutionRecord record = new TestPlanExecutionRecord();
-                record.setId(UUID.fromString("00000000-0000-0000-0000-000000000005"));
-                record.setPlanId(planId);
-                record.setSnapshotNodeId(UUID.fromString("00000000-0000-0000-0000-000000000004"));
-                record.setExecutorId(userId);
-                record.setResult("pass");
-
-                when(planExecutionRecordMapper.listByPlanIdAndNodeId(planId,
-                                UUID.fromString("00000000-0000-0000-0000-000000000004")))
-                                .thenReturn(List.of(record));
-                when(userMapper.selectById(userId)).thenReturn(null);
-
-                List<TestPlanExecutionRecordRespDTO> result = planService.getNodeExecutionRecords(planId,
-                                UUID.fromString("00000000-0000-0000-0000-000000000004"), userId);
-
-                assertNotNull(result);
-                assertEquals(1, result.size());
-                assertEquals("pass", result.get(0).getResult());
-                verify(projectAccessGuard).requireProjectMember(projectId, userId);
-        }
-
-        @Test
         void syncPlan_success() {
                 TestPlan plan = new TestPlan();
                 plan.setId(planId);
@@ -573,62 +544,6 @@ class TestPlanServiceImplTest {
                 ArgumentCaptor<TestPlanNodeSnapshot> delCaptor = ArgumentCaptor.forClass(TestPlanNodeSnapshot.class);
                 verify(planNodeSnapshotMapper).updateById(delCaptor.capture());
                 assertTrue(delCaptor.getValue().getIsDeleted());
-        }
-
-        @Test
-        void closePlan_success() {
-                TestPlan plan = new TestPlan();
-                plan.setId(planId);
-                plan.setExecutorId(userId);
-                plan.setStatus("in_progress");
-
-                when(testPlanMapper.selectById(planId)).thenReturn(plan);
-                when(planNodeSnapshotMapper.countUntestedAssociatedByPlanId(planId, Constants.Status.UNTESTED))
-                                .thenReturn(0L);
-
-                planService.closePlan(planId, userId);
-
-                ArgumentCaptor<TestPlan> captor = ArgumentCaptor.forClass(TestPlan.class);
-                verify(testPlanMapper).updateById(captor.capture());
-                assertEquals("closed", captor.getValue().getStatus());
-        }
-
-        @Test
-        void closePlan_withUntestedCases_warns() {
-                TestPlan plan = new TestPlan();
-                plan.setId(planId);
-                plan.setExecutorId(userId);
-                plan.setStatus("in_progress");
-
-                when(testPlanMapper.selectById(planId)).thenReturn(plan);
-                when(planNodeSnapshotMapper.countUntestedAssociatedByPlanId(planId, Constants.Status.UNTESTED))
-                                .thenReturn(3L);
-
-                planService.closePlan(planId, userId);
-
-                ArgumentCaptor<TestPlan> captor = ArgumentCaptor.forClass(TestPlan.class);
-                verify(testPlanMapper).updateById(captor.capture());
-                assertEquals("closed", captor.getValue().getStatus());
-        }
-
-        @Test
-        void closePlan_notExecutor_throws() {
-                TestPlan plan = new TestPlan();
-                plan.setId(planId);
-                plan.setExecutorId(otherUserId);
-
-                when(testPlanMapper.selectById(planId)).thenReturn(plan);
-
-                assertThrows(ServiceException.class,
-                                () -> planService.closePlan(planId, userId));
-        }
-
-        @Test
-        void closePlan_notFound_throws() {
-                when(testPlanMapper.selectById(planId)).thenReturn(null);
-
-                assertThrows(ServiceException.class,
-                                () -> planService.closePlan(planId, userId));
         }
 
         // ========== completePlan / deletePlan ==========

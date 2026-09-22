@@ -3,7 +3,6 @@ package io.github.xiaomisum.robotest.service.apitest;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiMockBatchToggleReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiMockDebugReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiMockSaveReqDTO;
-import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiMockAddressRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiMockBatchToggleRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiMockDebugRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiMockDetailRespDTO;
@@ -39,13 +38,6 @@ public interface ApiMockService {
                                           ApiMockBatchToggleReqDTO reqDTO);
 
     void delete(UUID workspaceId, UUID projectId, UUID userId, UUID id);
-
-    /** 复制为「- 副本」并默认停用，避免与源规则地址冲突（详细设计 3.1.10） */
-    ApiMockIdRespDTO duplicate(UUID workspaceId, UUID projectId, UUID userId, UUID id);
-
-    void resetHitCount(UUID workspaceId, UUID projectId, UUID userId, UUID id);
-
-    ApiMockAddressRespDTO getAddress(UUID workspaceId, UUID projectId, UUID userId, UUID id);
 
     /** 模拟命中一次，不计入命中统计、不写访问日志（详细设计 3.2.1） */
     ApiMockDebugRespDTO debug(UUID workspaceId, UUID projectId, UUID userId, UUID id, ApiMockDebugReqDTO reqDTO);

@@ -4,12 +4,9 @@ import io.github.xiaomisum.robotest.framework.security.LoginUser;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneDraftExecuteReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneExecuteReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneStepDebugReqDTO;
-import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneStepDraftDebugReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiChangeHistoryItemRespDTO;
-import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiExecutionCancelRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiExecutionHistoryItemRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiExecutionStartRespDTO;
-import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiExecutionStatusRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiSceneDraftExecuteRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiSceneStepDebugRespDTO;
 import io.github.xiaomisum.robotest.service.apitest.execution.SceneExecutionService;
@@ -45,26 +42,6 @@ public class ApiSceneExecutionController {
                 loginUser.getId(), sceneId, reqDTO));
     }
 
-    @GetMapping("/api/project/api-scenes/{sceneId}/executions/{executionId}")
-    @PreAuthorize("hasAuthority('api-scene:view')")
-    public Result<ApiExecutionStatusRespDTO> getStatus(
-            @AuthenticationPrincipal LoginUser loginUser,
-            @PathVariable UUID sceneId,
-            @PathVariable UUID executionId) {
-        return Result.ok(executionService.getStatus(loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId(),
-                loginUser.getId(), executionId));
-    }
-
-    @PostMapping("/api/project/api-scenes/{sceneId}/executions/{executionId}/cancel")
-    @PreAuthorize("hasAuthority('api-scene:execute')")
-    public Result<ApiExecutionCancelRespDTO> cancel(
-            @AuthenticationPrincipal LoginUser loginUser,
-            @PathVariable UUID sceneId,
-            @PathVariable UUID executionId) {
-        return Result.ok(executionService.cancel(loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId(),
-                loginUser.getId(), executionId));
-    }
-
     @GetMapping("/api/project/api-scenes/{sceneId}/executions")
     @PreAuthorize("hasAuthority('api-scene:view')")
     public Result<PageResult<ApiExecutionHistoryItemRespDTO>> pageExecutions(
@@ -96,17 +73,6 @@ public class ApiSceneExecutionController {
             @RequestBody @Valid ApiSceneStepDebugReqDTO reqDTO) {
         return Result.ok(executionService.debugStep(loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId(),
                 loginUser.getId(), sceneId, stepId, reqDTO));
-    }
-
-    // ========== 草稿调试/执行（创建态未保存场景，使用页面实时数据） ==========
-
-    @PostMapping("/api/project/api-scenes/draft/debug-step")
-    @PreAuthorize("hasAuthority('api-scene:execute')")
-    public Result<ApiSceneStepDebugRespDTO> draftDebugStep(
-            @AuthenticationPrincipal LoginUser loginUser,
-            @RequestBody @Valid ApiSceneStepDraftDebugReqDTO reqDTO) {
-        return Result.ok(executionService.draftDebugStep(loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId(),
-                loginUser.getId(), reqDTO));
     }
 
     @PostMapping("/api/project/api-scenes/draft/execute")

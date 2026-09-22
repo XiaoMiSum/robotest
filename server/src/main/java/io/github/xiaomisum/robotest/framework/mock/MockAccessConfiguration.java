@@ -1,8 +1,5 @@
 package io.github.xiaomisum.robotest.framework.mock;
 
-import io.github.xiaomisum.robotest.repository.apitest.ApiInterfaceMapper;
-import io.github.xiaomisum.robotest.repository.apitest.ApiMockAccessLogMapper;
-import io.github.xiaomisum.robotest.repository.apitest.ApiMockDefinitionMapper;
 import org.apache.catalina.connector.Connector;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -24,24 +21,20 @@ import org.springframework.core.Ordered;
 public class MockAccessConfiguration {
 
     @Bean
-    public MockAccessFilter mockAccessFilter(ApiMockDefinitionMapper mockMapper,
-                                             ApiMockAccessLogMapper accessLogMapper,
-                                             ApiInterfaceMapper interfaceMapper,
+    public MockAccessFilter mockAccessFilter(MockDefinitionReader reader,
                                              MockAccessProperties properties) {
-        return new MockAccessFilter(mockMapper, accessLogMapper, interfaceMapper, properties);
+        return new MockAccessFilter(reader, properties);
     }
 
     @Bean
     public FilterRegistrationBean<MockAccessFilter> mockAccessFilterRegistration(MockAccessFilter filter) {
         FilterRegistrationBean<MockAccessFilter> registration = new FilterRegistrationBean<>(filter);
-        // 先于 Spring Security FilterChainProxy 默认 order(-100)，保证免登录可达
         registration.setOrder(Ordered.HIGHEST_PRECEDENCE + 100);
         registration.addUrlPatterns("/*");
         registration.setName("mockAccessFilter");
         return registration;
     }
 
-    /** 独立端口部署形态（详细设计 6.1）：为 Mock 访问追加 Tomcat 监听端口 */
     @Bean
     public WebServerFactoryCustomizer<TomcatServletWebServerFactory> mockPortCustomizer(
             MockAccessProperties properties) {

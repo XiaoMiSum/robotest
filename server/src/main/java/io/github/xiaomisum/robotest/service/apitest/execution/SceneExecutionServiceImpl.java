@@ -3,12 +3,9 @@ package io.github.xiaomisum.robotest.service.apitest.execution;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneDraftExecuteReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneExecuteReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneStepDebugReqDTO;
-import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneStepDraftDebugReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiChangeHistoryItemRespDTO;
-import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiExecutionCancelRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiExecutionHistoryItemRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiExecutionStartRespDTO;
-import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiExecutionStatusRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiSceneDraftExecuteRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiSceneStepDebugRespDTO;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiScene;
@@ -48,25 +45,9 @@ public class SceneExecutionServiceImpl implements SceneExecutionService {
     }
 
     @Override
-    public ApiExecutionStatusRespDTO getStatus(UUID workspaceId, UUID projectId, UUID userId, UUID executionId) {
-        return launcher.getStatus(workspaceId, projectId, userId, executionId);
-    }
-
-    @Override
-    public ApiExecutionCancelRespDTO cancel(UUID workspaceId, UUID projectId, UUID userId, UUID executionId) {
-        return launcher.cancel(workspaceId, projectId, userId, executionId);
-    }
-
-    @Override
     public ApiSceneStepDebugRespDTO debugStep(UUID workspaceId, UUID projectId, UUID userId, UUID sceneId,
             UUID stepId, ApiSceneStepDebugReqDTO reqDTO) {
         return draftExecutionService.debugStep(workspaceId, projectId, userId, sceneId, stepId, reqDTO);
-    }
-
-    @Override
-    public ApiSceneStepDebugRespDTO draftDebugStep(UUID workspaceId, UUID projectId, UUID userId,
-            ApiSceneStepDraftDebugReqDTO reqDTO) {
-        return draftExecutionService.draftDebugStep(workspaceId, projectId, userId, reqDTO);
     }
 
     @Override

@@ -114,8 +114,7 @@ public final class DebugRyzeConverter {
         switch (body.getType() == null ? "json" : body.getType().toLowerCase()) {
             // Ryze http 取样器 data 接收 map
             case "form" -> config.put("data", toFormData(body.getContent()));
-            case "raw" -> config.put("body", body.getContent().toString());
-            case "binary" -> config.put("body", body.getContent().toString());
+            case "raw", "binary" -> config.put("body", body.getContent().toString());
             default -> config.put("body", body.getContent());
         }
     }

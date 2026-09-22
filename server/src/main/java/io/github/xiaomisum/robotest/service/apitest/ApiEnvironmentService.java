@@ -4,7 +4,6 @@ import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiDataSourceTestR
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiEnvironmentCopyReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiEnvironmentSaveReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiEnvironmentSortReqDTO;
-import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiEnvironmentVariableCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiHttpConfigTestReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiDataSourceTestRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiEnvImportResultRespDTO;
@@ -12,7 +11,6 @@ import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiEnvironmentDet
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiEnvironmentIdRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiEnvironmentListItemRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiEnvironmentSetDefaultRespDTO;
-import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiEnvironmentVariableRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiHttpTestRespDTO;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -49,12 +47,6 @@ public interface ApiEnvironmentService {
             ApiEnvironmentCopyReqDTO reqDTO);
 
     void sortEnvironment(UUID projectId, UUID workspaceId, UUID userId, UUID id, ApiEnvironmentSortReqDTO reqDTO);
-
-    // ========== 变量（随环境聚合提交，3.3） ==========
-
-    /** 从执行结果添加单条变量，重名报「变量已存在」（3.3.2）；以聚合写回主表 variables JSONB */
-    ApiEnvironmentVariableRespDTO addVariableFromResult(UUID projectId, UUID workspaceId, UUID userId,
-            UUID id, ApiEnvironmentVariableCreateReqDTO reqDTO);
 
     // ========== 连接测试（3.1.7 / 3.1.8，请求体传配置不落库） ==========
 

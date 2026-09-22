@@ -66,20 +66,6 @@ public class ProjectServiceImpl implements ProjectService {
     }
 
     @Override
-    public ProjectRespDTO getProjectDetail(UUID workspaceId, UUID projectId) {
-        Project project = projectMapper.selectById(projectId);
-        if (project == null || !project.getWorkspaceId().equals(workspaceId)) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.PROJECT_NOT_FOUND);
-        }
-        ProjectRespDTO dto = ProjectConvertMapper.INSTANCE.toRespDTO(project, null);
-        SysUser creator = userMapper.selectById(project.getCreatedBy());
-        dto.setCreatedBy(ProjectConvertMapper.INSTANCE.toCreatorInfo(
-                creator != null ? creator.getId() : null,
-                creator != null ? creator.getUsername() : null));
-        return dto;
-    }
-
-    @Override
     @Transactional(rollbackFor = Exception.class)
     public ProjectRespDTO createProject(UUID userId, UUID workspaceId, ProjectCreateReqDTO reqDTO) {
         WorkspaceUser workspaceUser = workspaceUserMapper.findByWorkspaceIdAndUserId(workspaceId, userId);

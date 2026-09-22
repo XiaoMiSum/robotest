@@ -7,9 +7,7 @@ import io.github.xiaomisum.robotest.framework.common.SceneStepUtil;
 import io.github.xiaomisum.robotest.framework.config.ApiTestProperties;
 import io.github.xiaomisum.robotest.framework.security.ProjectAccessGuard;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneExecuteReqDTO;
-import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiExecutionCancelRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiExecutionStartRespDTO;
-import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiExecutionStatusRespDTO;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiExecutionRecord;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiReport;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiScene;
@@ -345,40 +343,6 @@ public class SceneExecutionLauncher {
     }
 
     // ========== 轮询 / 取消 ==========
-
-    public ApiExecutionStatusRespDTO getStatus(UUID workspaceId, UUID projectId, UUID userId, UUID executionId) {
-        projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
-        ApiExecutionRecord record = SceneExecutionSupport.requireRecord(executionRecordMapper, projectId, executionId);
-        ApiScene scene = sceneMapper.selectById(record.getSceneId());
-        return ApiExecutionStatusRespDTO.builder()
-                .id(record.getId().toString())
-                .sceneId(record.getSceneId().toString())
-                .sceneName(scene == null ? null : scene.getName())
-                .status(record.getStatus())
-                .executionMode(record.getExecutionMode())
-                .triggerType(record.getTriggerType())
-                .executedAt(record.getExecutedAt())
-                .durationMs(record.getDurationMs())
-                .errorMessage(record.getErrorMessage())
-                .reportId(record.getReportId() == null ? null : record.getReportId().toString())
-                .build();
-    }
-
-    public ApiExecutionCancelRespDTO cancel(UUID workspaceId, UUID projectId, UUID userId, UUID executionId) {
-        projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
-        ApiExecutionRecord record = SceneExecutionSupport.requireRecord(executionRecordMapper, projectId, executionId);
-        boolean running = "pending".equals(record.getStatus()) || "running".equals(record.getStatus());
-        if (running) {
-            // 未命中运行中标志说明队列积压尚未起跑：直接标记取消，任务起跑时按标志跳过全部步骤
-            if (!cancelRegistry.requestCancellation(executionId)) {
-                ApiExecutionRecord carrier = new ApiExecutionRecord();
-                carrier.setId(executionId);
-                carrier.setStatus("cancelled");
-                executionRecordMapper.updateById(carrier);
-            }
-        }
-        return new ApiExecutionCancelRespDTO(true);
-    }
 
     /**
      * 同步执行一个（大）TestSuite 并返回平台结果模型（不设超时，等待完整执行结束）。

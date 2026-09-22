@@ -75,6 +75,12 @@ robotest:
       poll-interval-ms: ${TASK_POLL_INTERVAL_MS:5000}
 #################### 框架相关配置 ####################
 
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    enabled: false
+
 migoo:
   debug: ${DEBUG_STATUS:false}
   xss:
@@ -110,6 +116,7 @@ migoo:
       - /api/public/api-reports/**
       - /ws/**
       - /debug/**
+      - /v3/api-docs/**
       # 合并部署（方案B）：SPA 页面壳与静态资源需匿名访问，数据接口仍由 /api 鉴权保护
       - /
       - /index.html

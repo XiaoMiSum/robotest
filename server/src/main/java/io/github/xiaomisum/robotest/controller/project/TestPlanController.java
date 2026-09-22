@@ -7,7 +7,6 @@ import io.github.xiaomisum.robotest.model.dto.request.plan.TestPlanRecordReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.plan.TestPlanListRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.plan.TestPlanDetailRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.plan.TestPlanSnapshotNodeRespDTO;
-import io.github.xiaomisum.robotest.model.dto.response.plan.TestPlanExecutionRecordRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.plan.TestPlanProgressRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.tcase.SnapshotModuleTreeRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.plan.PlannedCasesRespDTO;
@@ -96,14 +95,6 @@ public class TestPlanController {
         return Result.ok();
     }
 
-    @GetMapping("/{id}/nodes/{nodeId}/records")
-    public Result<List<TestPlanExecutionRecordRespDTO>> getNodeExecutionRecords(
-            @AuthenticationPrincipal LoginUser loginUser,
-            @PathVariable UUID id,
-            @PathVariable UUID nodeId) {
-        return Result.ok(testPlanService.getNodeExecutionRecords(id, nodeId, loginUser.getId()));
-    }
-
     @PostMapping("/{id}/sync")
     public Result<Void> syncPlan(
             @AuthenticationPrincipal LoginUser loginUser,
@@ -117,14 +108,6 @@ public class TestPlanController {
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id) {
         return Result.ok(testPlanService.getPlanProgress(id, loginUser.getId()));
-    }
-
-    @PostMapping("/{id}/close")
-    public Result<Void> closePlan(
-            @AuthenticationPrincipal LoginUser loginUser,
-            @PathVariable UUID id) {
-        testPlanService.closePlan(id, loginUser.getId());
-        return Result.ok();
     }
 
     @PostMapping("/{id}/complete")
