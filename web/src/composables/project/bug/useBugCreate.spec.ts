@@ -45,7 +45,7 @@ vi.mock('@/components/project/bug/BugAiSuggest.vue', () => ({
   default: { name: 'BugAiSuggest' },
 }))
 
-vi.mock('@/utils/bugStatus', () => ({
+vi.mock('@/composables/project/bug/bugStatus', () => ({
   BUG_STATUS_LABEL: { active: '激活', resolved: '已修复', rejected: '已拒绝', closed: '已关闭' },
   BUG_STATUS_TAG_TYPE: { active: 'primary', resolved: 'success', rejected: 'warning', closed: 'info' },
   BUG_TYPE_LABEL: { code_error: '代码缺陷', function_error: '功能缺陷', performance: '性能问题', security: '安全问题' },

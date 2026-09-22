@@ -1,5 +1,5 @@
-import type { CaseNodeType } from './project'
-import type { BugSeverity, BugPriority, BugStatus } from './bug'
+import type { CaseNodeType } from './project/shared'
+import type { BugSeverity, BugPriority, BugStatus } from './project/bug'
 
 /** AI 可用性状态（GET /api/workspace/ai/status） */
 export interface AiStatus {

@@ -60,7 +60,7 @@ vi.mock('@/services/workspace', () => ({
   fetchMembers: mocks.fetchMembers,
 }))
 
-vi.mock('@/utils/bugStatus', () => ({
+vi.mock('@/composables/project/bug/bugStatus', () => ({
   BUG_RESOLUTION_LABEL: {},
   BUG_STATUS_LABEL: {},
   BUG_STATUS_TAG_TYPE: {},

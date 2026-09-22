@@ -1,7 +1,7 @@
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import type { AiMessageRole, AiMinderCommandsEvent } from '@/types'
-import { filterAssistantLinks, collectRegisteredPrefixes } from '@/utils/assistantLinkWhitelist'
+import { filterAssistantLinks, collectRegisteredPrefixes } from '@/composables/assistant/assistantLinkWhitelist'
 import { useAssistantContextStore } from '@/stores/assistantContext'
 import { useAuthStore } from '@/stores/auth'
 import router from '@/router'

@@ -1,4 +1,4 @@
-import type { CaseNodeType } from './project'
+import type { CaseNodeType } from '../shared'
 
 /** 计划状态 */
 export type PlanStatus = 'new' | 'in_progress' | 'completed' | 'closed'
