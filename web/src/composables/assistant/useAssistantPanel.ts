@@ -16,7 +16,7 @@ import {
 } from '@/services/assistant'
 import type { AiConversation, AiMessage } from '@/types'
 import type { AssistantMessageItem } from '@/components/assistant/MessageItem.vue'
-import type { DslPlan } from '@/components/project/functional-testing/minder/ai/dslRunner'
+import type { DslPlan } from '@/minder/ai/dslRunner'
 
 export interface UseAssistantPanelOptions {
   minimized?: boolean

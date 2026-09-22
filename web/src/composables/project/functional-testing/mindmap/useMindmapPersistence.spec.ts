@@ -9,7 +9,7 @@ const { uuidv7, UUID_RE } = vi.hoisted(() => {
   }
 })
 
-vi.mock('@/components/project/functional-testing/minder/adapter', () => ({ uuidv7, UUID_RE }))
+vi.mock('@/minder/adapter', () => ({ uuidv7, UUID_RE }))
 
 const ID_A = '00000000-0000-7000-8000-000000000001'
 const ID_B = '00000000-0000-7000-8000-000000000002'

@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import type { AiMinderCommand, AiPageContext } from '@/types'
-import type { DslApplyResult, DslPlan, DslPlanResult } from '@/components/project/functional-testing/minder/ai/dslRunner'
+import type { DslApplyResult, DslPlan, DslPlanResult } from '@/minder/ai/dslRunner'
 
 /** 与 stores/auth.ts PROJECT_KEY 同源：当前项目标识（X-Active-Project 请求头亦取自该键，见 services/index.ts） */
 const ACTIVE_PROJECT_KEY = 'robotest_active_project'

@@ -1,17 +1,17 @@
 import { watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
 import { fetchDocumentNodes } from '@/services/project'
-import { caseNodeToKm } from '@/components/project/functional-testing/minder/adapter'
-import { loadMinderEngine } from '@/components/project/functional-testing/minder/loader'
-import { KMEditor } from '@/components/project/functional-testing/minder/editor'
-import { buildDslPlan, applyDslPlan } from '@/components/project/functional-testing/minder/ai/dslRunner'
+import { caseNodeToKm } from '@/minder/adapter'
+import { loadMinderEngine } from '@/minder/loader'
+import { KMEditor } from '@/minder/editor'
+import { buildDslPlan, applyDslPlan } from '@/minder/ai/dslRunner'
 import {
   useContextMenu,
   type ContextMenuAnchorNode,
-} from '@/components/project/functional-testing/minder/useContextMenu'
-import type { MountTargetSource } from '@/components/project/functional-testing/minder/ai/aiMount'
+} from '@/minder/useContextMenu'
+import type { MountTargetSource } from '@/minder/ai/aiMount'
 import type { DslHost } from '@/stores/assistantContext'
-import type { Minder } from '@/components/project/functional-testing/minder/types'
+import type { Minder } from '@/minder/types'
 
 interface KMEditorLike {
   minder: Minder

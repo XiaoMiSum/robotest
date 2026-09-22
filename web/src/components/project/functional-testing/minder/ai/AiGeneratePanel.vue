@@ -11,8 +11,8 @@ import {
   buildPreviewTree,
   findNodeById,
   type MountTargetSource,
-} from './aiMount'
-import { AI_PANEL_MODES, type AiPanelMode } from './aiPanelModes'
+} from '@/minder/ai/aiMount'
+import { AI_PANEL_MODES, type AiPanelMode } from '@/minder/ai/aiPanelModes'
 import AiPreviewDialog from './AiPreviewDialog.vue'
 
 /**
