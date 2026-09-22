@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { MagicStick, Collection } from '@element-plus/icons-vue'
-import ExtractorAssetPicker from '@/components/api-testing/ExtractorAssetPicker.vue'
+import ExtractorAssetPicker from '@/components/project/api-testing/ExtractorAssetPicker.vue'
 import { useEditorSplit } from '@/composables/project/api-testing/scene/useEditorSplit'
 import { useSceneHistory } from '@/composables/project/api-testing/scene/useSceneHistory'
 import { useSceneDebug } from '@/composables/project/api-testing/scene/useSceneDebug'

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
-import RequirementSelector from '@/components/project/RequirementSelector.vue'
+import RequirementSelector from '@/components/project/functional-testing/requirement/RequirementSelector.vue'
 import { planRecommend, type AiCasePlanRecommendReq } from '@/services/ai'
 import type { AiCasePlanRecommendItem, AiCasePlanRecommendResult, RequirementSummary } from '@/types'
 

@@ -8,7 +8,7 @@ const mocks = vi.hoisted(() => ({
   isRecord: vi.fn<(value: unknown) => boolean>(),
 }))
 
-vi.mock('@/components/api-testing/processorFormModel', () => ({
+vi.mock('@/components/project/api-testing/processorFormModel', () => ({
   defaultProcessorConfig: mocks.defaultProcessorConfig,
   processorSummaryTag: mocks.processorSummaryTag,
   isRecord: mocks.isRecord,

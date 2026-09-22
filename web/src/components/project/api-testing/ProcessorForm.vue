@@ -78,7 +78,7 @@ import { Delete } from '@element-plus/icons-vue'
 import { parseProcessorElement, toProcessorElement } from './processorFormModel'
 import type { ProcessorElementForm, ProcessorExtractor } from './processorFormModel'
 import RequestConfigEditor from '@/pages/project/api-testing/scene/RequestConfigEditor.vue'
-import ValidatorsExtractorsPanes from '@/components/api-testing/ValidatorsExtractorsPanes.vue'
+import ValidatorsExtractorsPanes from '@/components/project/api-testing/ValidatorsExtractorsPanes.vue'
 
 interface ResultEditorRow {
   key: string

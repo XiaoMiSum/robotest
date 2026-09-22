@@ -13,7 +13,7 @@ import { useAuthStore } from '@/stores/auth'
 import { formatDateTime } from '@/utils/format'
 import type { RequirementPoolItem } from '@/types'
 import MarkdownEditor from '@/components/common/MarkdownEditor.vue'
-import RequirementSplitDialog from '@/components/project/RequirementSplitDialog.vue'
+import RequirementSplitDialog from '@/components/project/functional-testing/requirement/RequirementSplitDialog.vue'
 
 const authStore = useAuthStore()
 // 编辑/删除/归档入口按权限点显隐；后端按"创建人或项目管理权限"强校验兜底

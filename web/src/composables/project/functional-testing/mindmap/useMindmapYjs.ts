@@ -14,8 +14,8 @@ import {
   applyRemoteDiff,
   type KmExportJson,
   type MinderLike,
-} from '@/components/project/minder/yjsSync'
-import type { Minder } from '@/components/project/minder/types'
+} from '@/components/project/functional-testing/minder/yjsSync'
+import type { Minder } from '@/components/project/functional-testing/minder/types'
 
 export function useMindmapYjs(
   getMinder: () => Minder | null,

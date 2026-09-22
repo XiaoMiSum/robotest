@@ -18,8 +18,8 @@ import type {
   TestPlanDetail,
   TestPlanProgress,
 } from '@/types'
-import PlanMindMap from '@/components/project/PlanMindMap.vue'
-import PlanOrderRecommend from '@/components/project/PlanOrderRecommend.vue'
+import PlanMindMap from '@/components/project/functional-testing/plan/PlanMindMap.vue'
+import PlanOrderRecommend from '@/components/project/functional-testing/plan/PlanOrderRecommend.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useAiStore } from '@/stores/ai'
 

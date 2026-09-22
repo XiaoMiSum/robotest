@@ -1,7 +1,7 @@
 ﻿<script setup lang="ts">
 import { useEnvironmentDetailState } from '@/composables/project/api-testing/environment/useEnvironmentDetailState'
 import KeyValueTable from '@/pages/project/api-testing/debug/KeyValueTable.vue'
-import ExtractorAssetPicker from '@/components/api-testing/ExtractorAssetPicker.vue'
+import ExtractorAssetPicker from '@/components/project/api-testing/ExtractorAssetPicker.vue'
 import EnvironmentProcessorPane from './EnvironmentProcessorPane.vue'
 import { DRIVER_OPTIONS } from './environmentsModel'
 

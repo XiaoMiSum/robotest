@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { useComponentPage } from '@/composables/project/api-testing/component/useComponentPage'
 import type { ApiComponentListItem } from '@/types'
-import ProcessorForm from '@/components/api-testing/ProcessorForm.vue'
-import ValidatorForm from '@/components/api-testing/ValidatorForm.vue'
-import ExtractorForm from '@/components/api-testing/ExtractorForm.vue'
-import ExtractorAssetPicker from '@/components/api-testing/ExtractorAssetPicker.vue'
+import ProcessorForm from '@/components/project/api-testing/ProcessorForm.vue'
+import ValidatorForm from '@/components/project/api-testing/ValidatorForm.vue'
+import ExtractorForm from '@/components/project/api-testing/ExtractorForm.vue'
+import ExtractorAssetPicker from '@/components/project/api-testing/ExtractorAssetPicker.vue'
 
 const {
   canEdit,

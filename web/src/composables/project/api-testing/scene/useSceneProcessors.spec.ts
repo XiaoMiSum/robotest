@@ -7,7 +7,7 @@ const mocks = vi.hoisted(() => ({
   processorSummaryTag: vi.fn<(element: Record<string, unknown> | null | undefined) => { text: string; type: string } | null>(),
 }))
 
-vi.mock('@/components/api-testing/processorFormModel', () => ({
+vi.mock('@/components/project/api-testing/processorFormModel', () => ({
   isRecord: mocks.isRecord,
   processorSummaryTag: mocks.processorSummaryTag,
 }))

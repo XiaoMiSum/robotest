@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { useBugDetail } from '@/composables/project/bug/useBugDetail'
 import { formatDateTime, formatShortId } from '@/utils/format'
-import BugResolveDialog from '@/components/project/BugResolveDialog.vue'
-import BugSidebar from '@/components/project/BugSidebar.vue'
-import CaseSelector from '@/components/project/CaseSelector.vue'
+import BugResolveDialog from '@/components/project/bug/BugResolveDialog.vue'
+import BugSidebar from '@/components/project/bug/BugSidebar.vue'
+import CaseSelector from '@/components/project/functional-testing/case/CaseSelector.vue'
 import MarkdownEditor from '@/components/common/MarkdownEditor.vue'
 import MarkdownView from '@/components/common/MarkdownView.vue'
 

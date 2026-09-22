@@ -3,7 +3,7 @@ import { nextTick, ref, watch } from 'vue'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import { ElMessageBox } from 'element-plus'
 import ProjectModuleTree from '@/components/project/ProjectModuleTree.vue'
-import CaseMindMap from '@/components/project/CaseMindMap.vue'
+import CaseMindMap from '@/components/project/functional-testing/case/CaseMindMap.vue'
 import { fetchProjectModuleTree } from '@/services/project'
 import type { ProjectModule } from '@/types'
 

@@ -3,8 +3,8 @@ import type { ApiReportStepResult } from '@/types'
 import { formatDateTime } from '@/utils/format'
 import { useReportResultView } from '@/composables/project/api-testing/report/useReportResultView'
 import type { ReportViewReport } from '@/composables/project/api-testing/report/useReportResultView'
-import ReportProcessorsTabs from './report/ReportProcessorsTabs.vue'
-import ReportStepCard from './report/ReportStepCard.vue'
+import ReportProcessorsTabs from './ReportProcessorsTabs.vue'
+import ReportStepCard from './ReportStepCard.vue'
 
 const props = defineProps<{
   report: ReportViewReport

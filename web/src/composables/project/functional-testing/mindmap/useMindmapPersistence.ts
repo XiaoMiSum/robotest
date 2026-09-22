@@ -4,7 +4,7 @@
  * 提交给后端 DocumentPersistenceHandler 持久化，否则刷新后编辑内容丢失
  */
 import type { DocumentLayout } from '@/types'
-import { uuidv7, UUID_RE } from '@/components/project/minder/adapter'
+import { uuidv7, UUID_RE } from '@/components/project/functional-testing/minder/adapter'
 
 export interface PersistSnap {
   title: string

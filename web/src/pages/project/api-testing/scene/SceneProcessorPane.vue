@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Rank, Plus } from '@element-plus/icons-vue'
 import type { ApiHttpConfig, ApiDataSource } from '@/types'
-import ProcessorForm from '@/components/api-testing/ProcessorForm.vue'
+import ProcessorForm from '@/components/project/api-testing/ProcessorForm.vue'
 import type { SceneProcessorElement } from '@/composables/project/api-testing/scene/useSceneProcessors'
 import type { useEditorSplit } from '@/composables/project/api-testing/scene/useEditorSplit'
 

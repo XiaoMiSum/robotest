@@ -13,7 +13,7 @@ import {
   type PaneValidatorItem,
   type PaneExtractorItem,
 } from './scenesModel'
-import ValidatorsExtractorsPanes from '@/components/api-testing/ValidatorsExtractorsPanes.vue'
+import ValidatorsExtractorsPanes from '@/components/project/api-testing/ValidatorsExtractorsPanes.vue'
 
 interface KvRow {
   key: string

@@ -40,7 +40,7 @@ vi.mock('@/services/project/component', () => ({
   fetchComponents: mocks.fetchComponents,
 }))
 
-vi.mock('@/components/api-testing/processorFormModel', () => ({
+vi.mock('@/components/project/api-testing/processorFormModel', () => ({
   validatorFromComponent: mocks.validatorFromComponent,
   extractorFromComponent: mocks.extractorFromComponent,
 }))

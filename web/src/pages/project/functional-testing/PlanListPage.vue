@@ -6,7 +6,7 @@ import { completePlan, createPlan, deletePlan, fetchPlans } from '@/services/pro
 import { fetchMembers } from '@/services/workspace'
 import type { PlanStatus, TestPlanListItem, WorkspaceMember } from '@/types'
 import { formatDateTime, formatDate } from '@/utils/format'
-import CaseSelector from '@/components/project/CaseSelector.vue'
+import CaseSelector from '@/components/project/functional-testing/case/CaseSelector.vue'
 
 const router = useRouter()
 const loading = ref(false)
