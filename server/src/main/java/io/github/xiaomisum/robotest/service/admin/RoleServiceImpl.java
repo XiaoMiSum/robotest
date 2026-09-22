@@ -48,8 +48,6 @@ public class RoleServiceImpl implements RoleService {
     private SysUserMapper userMapper;
     @Resource
     private WorkspaceMapper workspaceMapper;
-    @Resource
-    private PermissionFacade permissionFacade;
 
     @Override
     public List<RoleSimpleRespDTO> getRoleList(String type) {
@@ -271,10 +269,5 @@ public class RoleServiceImpl implements RoleService {
                     return dto;
                 })
                 .collect(Collectors.toList());
-    }
-
-    @Override
-    public List<String> getUserPermissionCodes(UUID userId) {
-        return new ArrayList<>(permissionFacade.permissionsOf(userId, PermissionScope.SYSTEM, null));
     }
 }

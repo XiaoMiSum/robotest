@@ -171,4 +171,44 @@ api.interceptors.response.use(
   },
 )
 
+// ==================== 统一 Helper 函数 ====================
+// 所有 service 文件应从 '@/services' 导入这些 helper，而非本地定义
+
+/** 通用 GET 请求 — params 自动序列化为 query string */
+export function get<T>(url: string, params?: Record<string, unknown>): Promise<T> {
+  return api.get(url, { params }) as unknown as Promise<T>
+}
+
+/** 通用 POST 请求 — 支持可选 config（timeout、signal、headers 等） */
+export function post<T>(
+  url: string,
+  data?: unknown,
+  config?: AxiosRequestConfig,
+): Promise<T> {
+  return api.post(url, data, config) as unknown as Promise<T>
+}
+
+/** 通用 PUT 请求 — 支持可选 config */
+export function put<T>(
+  url: string,
+  data?: unknown,
+  config?: AxiosRequestConfig,
+): Promise<T> {
+  return api.put(url, data, config) as unknown as Promise<T>
+}
+
+/** 通用 PATCH 请求 — 支持可选 config */
+export function patch<T>(
+  url: string,
+  data?: unknown,
+  config?: AxiosRequestConfig,
+): Promise<T> {
+  return api.patch(url, data, config) as unknown as Promise<T>
+}
+
+/** 通用 DELETE 请求 — 支持可选 config（含 data 用于批量删除） */
+export function del<T>(url: string, config?: AxiosRequestConfig): Promise<T> {
+  return api.delete(url, config) as unknown as Promise<T>
+}
+
 export default api

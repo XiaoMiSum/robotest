@@ -18,14 +18,8 @@ public interface AiEmbeddingWriteService {
     /** 缺陷创建/标题/重现步骤变更后触发（事务提交后异步调用） */
     void handleBugChanged(Bug bug);
 
-    /** 缺陷逻辑删除时同步删除向量（与业务同事务调用） */
-    void handleBugDeleted(UUID bugId);
-
     /** 用例节点变更后触发（标题或子节点变更、含新增） */
     void handleCaseChanged(TestCaseNode node);
-
-    /** 单个用例节点删除 */
-    void handleCaseDeleted(UUID nodeId);
 
     /** 批量用例节点删除（文档/子树删除场景） */
     void handleCasesDeleted(Collection<UUID> nodeIds);

@@ -2,16 +2,13 @@ package io.github.xiaomisum.robotest.service.apitest;
 
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.framework.security.ProjectAccessGuard;
-import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneAssetsImportReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneBatchMoveReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneStepReorderReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneStepSaveReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiChangeHistory;
-import io.github.xiaomisum.robotest.model.entity.apitest.ApiInterface;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiScene;
-import io.github.xiaomisum.robotest.model.entity.apitest.CommonComponent;
 import io.github.xiaomisum.robotest.model.entity.tcase.ProjectModule;
 import io.github.xiaomisum.robotest.repository.admin.SysUserMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiChangeHistoryMapper;
@@ -19,8 +16,6 @@ import io.github.xiaomisum.robotest.repository.apitest.ApiExecutionRecordMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiInterfaceMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiSceneMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiSceneFollowMapper;
-import io.github.xiaomisum.robotest.repository.apitest.CommonComponentMapper;
-import io.github.xiaomisum.robotest.repository.apitest.ApiScheduledTaskMapper;
 import io.github.xiaomisum.robotest.repository.tcase.ProjectModuleMapper;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -65,13 +60,9 @@ class ApiSceneServiceImplTest {
     @Mock
     private SysUserMapper userMapper;
     @Mock
-    private CommonComponentMapper componentMapper;
-    @Mock
     private ProjectAccessGuard projectAccessGuard;
     @Mock
     private ApiSceneFollowMapper sceneFollowMapper;
-    @Mock
-    private ApiScheduledTaskMapper scheduledTaskMapper;
     @Mock
     private ProjectModuleMapper moduleMapper;
 
@@ -292,35 +283,6 @@ class ApiSceneServiceImplTest {
         assertEquals(first, carrier.getSteps().get(1).get("id"));
     }
 
-    // ========== 全局资产引入 ==========
-
-    @Test
-    void importAssetsSceneProcessor_insertsOrderedByComponentSortOrder() {
-        stubScene();
-        UUID lowId = UUID.randomUUID();
-        UUID highId = UUID.randomUUID();
-        CommonComponent low = component("请求头签名", 2);
-        low.setId(lowId);
-        CommonComponent high = component("Token 预置", 0);
-        high.setId(highId);
-        when(componentMapper.selectById(lowId)).thenReturn(low);
-        when(componentMapper.selectById(highId)).thenReturn(high);
-        when(sceneMapper.selectById(SCENE_ID)).thenReturn(existingScene());
-
-        ApiSceneAssetsImportReqDTO reqDTO = new ApiSceneAssetsImportReqDTO();
-        reqDTO.setTarget("scene_processor");
-        reqDTO.setAssetIds(List.of(lowId, highId));
-
-        service.importAssets(WORKSPACE_ID, PROJECT_ID, USER_ID, SCENE_ID, reqDTO);
-
-        ArgumentCaptor<ApiScene> captor = ArgumentCaptor.forClass(ApiScene.class);
-        verify(sceneMapper).updateById(captor.capture());
-        List<Map<String, Object>> processors = captor.getValue().getProcessors();
-        assertEquals(2, processors.size());
-        assertEquals("Token 预置", processors.get(0).get("name"));
-        assertEquals("请求头签名", processors.get(1).get("name"));
-    }
-
     // ========== 批量移动（3.1.7） ==========
 
     @Test
@@ -393,14 +355,5 @@ class ApiSceneServiceImplTest {
         reqDTO.setIds(List.of(foreignId));
         assertThrows(ServiceException.class,
                 () -> service.batchMove(WORKSPACE_ID, PROJECT_ID, USER_ID, reqDTO));
-    }
-
-    private static CommonComponent component(String name, int sortOrder) {
-        CommonComponent c = new CommonComponent();
-        c.setName(name);
-        c.setSortOrder(sortOrder);
-        c.setEnabled(true);
-        c.setConfig("{\"handlerType\":\"http\"}");
-        return c;
     }
 }

@@ -117,7 +117,7 @@ watch(
         <label v-for="item in items" :key="item.id" class="req-selector__item">
           <el-checkbox
             :model-value="selected.has(item.id)"
-            @update:model-value="(v: boolean) => toggle(item.id, item.title, v === true)"
+            @update:model-value="(v) => toggle(item.id, item.title, v === true)"
           />
           <span class="req-selector__title">{{ item.title }}</span>
         </label>

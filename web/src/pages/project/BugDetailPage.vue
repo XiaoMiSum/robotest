@@ -1,390 +1,68 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import { ElMessage, ElMessageBox, type UploadRequestOptions } from 'element-plus'
-import {
-  assignBug,
-  changeBugStatus,
-  confirmBug,
-  deleteBugAttachment,
-  downloadBugAttachment,
-  fetchBugAttachments,
-  fetchPlans,
-  fetchProjectModuleTree,
-  getBugDetail,
-  getBugLogs,
-  getCaseDetail,
-  updateBug,
-  uploadBugAttachment,
-} from '@/services/project'
-import { fetchMembers } from '@/services/workspace'
-import type {
-  BugAttachment,
-  BugDetail,
-  BugLog,
-  BugResolution,
-  CaseNodeType,
-  ProjectModule,
-  TestCaseNode,
-  TestPlanListItem,
-  WorkspaceMember,
-} from '@/types'
+import { useBugDetail } from '@/composables/useBugDetail'
 import { formatDateTime, formatShortId } from '@/utils/format'
-import {
-  BUG_RESOLUTION_LABEL,
-  BUG_STATUS_LABEL,
-  BUG_STATUS_TAG_TYPE,
-  BUG_TYPE_LABEL,
-  promptStatusChangeComment,
-} from '@/utils/bugStatus'
 import BugResolveDialog from '@/components/project/BugResolveDialog.vue'
+import BugSidebar from '@/components/project/BugSidebar.vue'
 import CaseSelector from '@/components/project/CaseSelector.vue'
 import MarkdownEditor from '@/components/common/MarkdownEditor.vue'
 import MarkdownView from '@/components/common/MarkdownView.vue'
-import { typeBadge, type Badge } from '@/components/project/minder/badges'
 
-const route = useRoute()
-const router = useRouter()
-const bugId = route.params.bugId as string
+const props = defineProps<{ bugId: string }>()
 
-const loading = ref(false)
-const saving = ref(false)
-const detail = ref<BugDetail | null>(null)
-const logs = ref<BugLog[]>([])
-const memberOptions = ref<WorkspaceMember[]>([])
-const resolveDialogVisible = ref(false)
+const {
+  loading,
+  saving,
+  detail,
+  logs,
+  memberOptions,
+  resolveDialogVisible,
+  form,
+  isClosed,
+  isActive,
+  isResolved,
+  isRejected,
+  dirTree,
+  planOptions,
+  relatedPlanName,
+  currentRelatedCaseId,
+  caseDetail,
+  caseDetailLoading,
+  caseDetailRows,
+  caseDocName,
+  caseSelectorVisible,
+  attachments,
+  uploading,
+  handleCaseSelected,
+  loadCaseDetail,
+  openCaseDocument,
+  handleSave,
+  handleConfirm,
+  handleResolve,
+  handleReject,
+  handleClose,
+  handleReopen,
+  handleAttachmentUpload,
+  handleAttachmentDownload,
+  handleAttachmentDelete,
+  router,
+  severityLabel,
+  priorityLabel,
+  severityType,
+  priorityType,
+  statusLabel,
+  BUG_RESOLUTION_LABEL,
+  BUG_STATUS_TAG_TYPE,
+  BUG_TYPE_LABEL,
+  formatFileSize,
+} = useBugDetail({ bugId: props.bugId })
 
-const isClosed = computed(() => detail.value?.status === 'closed')
-const isActive = computed(() => detail.value?.status === 'active')
-const isResolved = computed(() => detail.value?.status === 'resolved')
-const isRejected = computed(() => detail.value?.status === 'rejected')
-
-const form = reactive({
-  title: '',
-  severity: '' as string,
-  priority: '' as string,
-  bugType: '' as string,
-  moduleId: '' as string,
-  keywords: '',
-  dueDate: '' as string,
-  reproSteps: '',
-  assigneeId: '' as string,
-  relatedCaseId: '' as string,
-  relatedPlanId: '' as string,
-})
-
-// 合并树（含文档）供关联用例的所属文档名查找；所属模块下拉经 dirTree 剔除文档节点
-const moduleTree = ref<ProjectModule[]>([])
-async function loadModuleTree() {
-  try {
-    moduleTree.value = await fetchProjectModuleTree('testcase')
-  } catch { /* ignore */ }
+function handleClearCase() {
+  form.relatedCaseId = ''
 }
 
-// 所属模块仅目录可选（后端按 project_module 校验 moduleId），从合并树中剔除文档节点
-function stripDocuments(nodes: ProjectModule[]): ProjectModule[] {
-  return nodes
-    .filter((n) => n.type === 'directory')
-    .map((n) => ({ ...n, children: stripDocuments(n.children) }))
+function handleOpenCaseSelector() {
+  caseSelectorVisible.value = true
 }
-const dirTree = computed(() => stripDocuments(moduleTree.value))
-
-// 不按状态过滤，保证已关联的历史计划也能正常回显
-const planOptions = ref<TestPlanListItem[]>([])
-async function loadPlanOptions() {
-  try {
-    const page = await fetchPlans({ pageNo: 1, pageSize: 100 })
-    planOptions.value = page.list
-  } catch { /* ignore */ }
-}
-
-const relatedPlanName = computed(() => {
-  const id = detail.value?.relatedPlanId
-  if (!id) return '-'
-  return planOptions.value.find((p) => p.id === id)?.name ?? id
-})
-
-const caseSelectorVisible = ref(false)
-// 单选模式下选择器只会返回一个用例
-function handleCaseSelected(nodes: { documentId: string; caseIds: string[] }[]) {
-  if (nodes.length && nodes[0].caseIds.length) {
-    form.relatedCaseId = nodes[0].caseIds[0]
-  }
-}
-
-// ==================== 关联用例悬停明细 ====================
-
-// 编辑态跟随表单值，关闭态（只读）跟随详情值
-const currentRelatedCaseId = computed(() =>
-  isClosed.value ? (detail.value?.relatedCaseId ?? '') : form.relatedCaseId,
-)
-
-const caseDetail = ref<TestCaseNode | null>(null)
-const caseDetailLoading = ref(false)
-// 首次悬停懒加载并按 id 缓存，更换关联后自动重取
-async function loadCaseDetail() {
-  const id = currentRelatedCaseId.value
-  if (!id || caseDetail.value?.id === id || caseDetailLoading.value) return
-  caseDetailLoading.value = true
-  caseDetail.value = null
-  try {
-    caseDetail.value = await getCaseDetail(id)
-  } catch {
-    // 用例可能已被删除，popover 内展示空态兜底
-  } finally {
-    caseDetailLoading.value = false
-  }
-}
-
-// 只展示标记了前置/步骤/预期的子孙节点，未标记节点跳过但不阻断更深层的标记节点；
-// 徽标复用脑图 badges 模块，颜色样式与文档中保持一致
-const MARKED_TYPES = new Set<CaseNodeType>(['precondition', 'step', 'expected'])
-const caseDetailRows = computed(() => {
-  const rows: { id: string; depth: number; badge: Badge; title: string }[] = []
-  function walk(node: TestCaseNode, depth: number) {
-    node.children.forEach((child) => {
-      const badge = MARKED_TYPES.has(child.type) ? typeBadge(child.type) : null
-      if (badge) rows.push({ id: child.id, depth, badge, title: child.title })
-      walk(child, badge ? depth + 1 : depth)
-    })
-  }
-  if (caseDetail.value) walk(caseDetail.value, 0)
-  return rows
-})
-
-function findModuleName(nodes: ProjectModule[], id: string): string | null {
-  for (const n of nodes) {
-    if (n.id === id) return n.name
-    const found = findModuleName(n.children ?? [], id)
-    if (found) return found
-  }
-  return null
-}
-
-const caseDocName = computed(() => {
-  const docId = caseDetail.value?.documentId
-  if (!docId) return ''
-  return findModuleName(moduleTree.value, docId) ?? ''
-})
-
-function openCaseDocument() {
-  const docId = caseDetail.value?.documentId
-  if (!docId) return
-  router.push({
-    path: '/workspace/projects/functional-testing',
-    query: { tab: 'cases', documentId: docId },
-  })
-}
-
-const severityLabel: Record<string, string> = { fatal: '致命', serious: '严重', general: '一般', minor: '轻微' }
-const priorityLabel: Record<string, string> = { high: '高', medium: '中', low: '低' }
-// 严重等级/优先级标签配色与缺陷列表保持一致
-const severityType: Record<string, 'primary' | 'danger' | 'warning' | 'info'> = { fatal: 'danger', serious: 'warning', general: 'primary', minor: 'info' }
-const priorityType: Record<string, 'primary' | 'warning' | 'info'> = { high: 'warning', medium: 'primary', low: 'info' }
-const statusLabel = BUG_STATUS_LABEL
-
-async function load() {
-  loading.value = true
-  try {
-    const [bugData, logData, memberData] = await Promise.all([
-      getBugDetail(bugId),
-      getBugLogs(bugId),
-      fetchMembers({ pageNo: 1, pageSize: 100 }),
-    ])
-    detail.value = bugData
-    logs.value = logData
-    memberOptions.value = memberData.list
-    form.title = bugData.title
-    form.severity = bugData.severity
-    form.priority = bugData.priority
-    form.bugType = bugData.bugType
-    form.moduleId = bugData.moduleId ?? ''
-    form.keywords = bugData.keywords ?? ''
-    form.dueDate = bugData.dueDate ?? ''
-    form.reproSteps = bugData.reproSteps ?? ''
-    form.assigneeId = bugData.assignee?.id ?? ''
-    form.relatedCaseId = bugData.relatedCaseId ?? ''
-    form.relatedPlanId = bugData.relatedPlanId ?? ''
-  } catch (err) {
-    ElMessage.error(err instanceof Error ? err.message : '加载缺陷详情失败')
-  } finally {
-    loading.value = false
-  }
-}
-
-async function handleSave() {
-  if (!detail.value) return
-  saving.value = true
-  try {
-    // 关联字段仅在变更时提交：空串表示清空，未变更不传避免误清
-    const originalRelatedCaseId = detail.value.relatedCaseId ?? ''
-    const originalRelatedPlanId = detail.value.relatedPlanId ?? ''
-    await updateBug(bugId, {
-      title: form.title.trim(),
-      severity: form.severity as BugDetail['severity'],
-      priority: form.priority as BugDetail['priority'],
-      bugType: form.bugType as BugDetail['bugType'],
-      moduleId: form.moduleId || undefined,
-      keywords: form.keywords.trim() || undefined,
-      dueDate: form.dueDate || undefined,
-      reproSteps: form.reproSteps.trim() || undefined,
-      relatedCaseId: form.relatedCaseId !== originalRelatedCaseId ? form.relatedCaseId : undefined,
-      relatedPlanId: form.relatedPlanId !== originalRelatedPlanId ? form.relatedPlanId : undefined,
-    })
-    // 处理人变更走专用指派接口，后端会校验工作空间成员并写指派日志
-    const originalAssigneeId = detail.value.assignee?.id ?? ''
-    if (form.assigneeId && form.assigneeId !== originalAssigneeId) {
-      await assignBug(bugId, form.assigneeId)
-    }
-    ElMessage.success('已保存')
-    load()
-  } catch (err) {
-    ElMessage.error(err instanceof Error ? err.message : '保存失败')
-  } finally {
-    saving.value = false
-  }
-}
-
-// ==================== 状态操作 ====================
-
-async function handleConfirm() {
-  try {
-    await ElMessageBox.confirm('确认该缺陷有效并需要处理吗？', '确认缺陷', { type: 'info' })
-  } catch {
-    return
-  }
-  try {
-    await confirmBug(bugId)
-    ElMessage.success('缺陷已确认')
-    load()
-  } catch (err) {
-    ElMessage.error(err instanceof Error ? err.message : '确认失败')
-  }
-}
-
-async function handleResolve(payload: {
-  resolution: BugResolution
-  duplicateOfBugId?: string
-  comment?: string
-}) {
-  try {
-    await changeBugStatus(bugId, { status: 'resolved', ...payload })
-    ElMessage.success('缺陷已解决')
-    load()
-  } catch (err) {
-    ElMessage.error(err instanceof Error ? err.message : '解决失败')
-  }
-}
-
-async function handleReject() {
-  const current = detail.value?.status
-  if (!current) return
-  const comment = await promptStatusChangeComment(current, 'rejected')
-  if (comment === null) return
-  try {
-    await changeBugStatus(bugId, { status: 'rejected', comment: comment || undefined })
-    ElMessage.success('缺陷已拒绝')
-    load()
-  } catch (err) {
-    ElMessage.error(err instanceof Error ? err.message : '拒绝失败')
-  }
-}
-
-async function handleClose() {
-  const current = detail.value?.status
-  if (!current) return
-  const comment = await promptStatusChangeComment(current, 'closed')
-  if (comment === null) return
-  try {
-    await changeBugStatus(bugId, { status: 'closed', comment: comment || undefined })
-    ElMessage.success('缺陷已关闭')
-    load()
-  } catch (err) {
-    ElMessage.error(err instanceof Error ? err.message : '关闭失败')
-  }
-}
-
-async function handleReopen() {
-  const current = detail.value?.status
-  if (!current) return
-  const comment = await promptStatusChangeComment(current, 'active')
-  if (comment === null) return
-  try {
-    await changeBugStatus(bugId, { status: 'active', comment: comment || undefined })
-    ElMessage.success('缺陷已激活')
-    load()
-  } catch (err) {
-    ElMessage.error(err instanceof Error ? err.message : '激活失败')
-  }
-}
-
-// ==================== 附件 ====================
-
-const MAX_FILE_SIZE = 10 * 1024 * 1024
-const attachments = ref<BugAttachment[]>([])
-const uploading = ref(false)
-
-async function loadAttachments() {
-  try {
-    attachments.value = await fetchBugAttachments(bugId)
-  } catch {
-    // 附件加载失败不阻塞详情展示
-  }
-}
-
-function formatFileSize(size: number): string {
-  if (size < 1024) return `${size} B`
-  if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`
-  return `${(size / 1024 / 1024).toFixed(1)} MB`
-}
-
-async function handleAttachmentUpload(options: UploadRequestOptions) {
-  const file = options.file
-  if (file.size > MAX_FILE_SIZE) {
-    ElMessage.warning(`「${file.name}」超过 10MB，无法上传`)
-    return
-  }
-  uploading.value = true
-  try {
-    await uploadBugAttachment(bugId, file)
-    ElMessage.success('附件已上传')
-    loadAttachments()
-  } catch (err) {
-    ElMessage.error(err instanceof Error ? err.message : '附件上传失败')
-  } finally {
-    uploading.value = false
-  }
-}
-
-async function handleAttachmentDownload(item: BugAttachment) {
-  try {
-    await downloadBugAttachment(item.id, item.fileName)
-  } catch (err) {
-    ElMessage.error(err instanceof Error ? err.message : '附件下载失败')
-  }
-}
-
-async function handleAttachmentDelete(item: BugAttachment) {
-  try {
-    await ElMessageBox.confirm(`确定删除附件「${item.fileName}」吗？`, '确认', { type: 'warning' })
-  } catch {
-    return
-  }
-  try {
-    await deleteBugAttachment(item.id)
-    ElMessage.success('附件已删除')
-    loadAttachments()
-  } catch (err) {
-    ElMessage.error(err instanceof Error ? err.message : '附件删除失败')
-  }
-}
-
-onMounted(() => {
-  load()
-  loadModuleTree()
-  loadPlanOptions()
-  loadAttachments()
-})
 </script>
 
 <template>
@@ -454,8 +132,8 @@ onMounted(() => {
               </el-table-column>
               <el-table-column label="操作" width="120">
                 <template #default="{ row }">
-                  <el-button link type="primary" @click="handleAttachmentDownload(row as BugAttachment)">下载</el-button>
-                  <el-button v-if="!isClosed" link type="danger" @click="handleAttachmentDelete(row as BugAttachment)">删除</el-button>
+                  <el-button link type="primary" @click="handleAttachmentDownload(row as any)">下载</el-button>
+                  <el-button v-if="!isClosed" link type="danger" @click="handleAttachmentDelete(row as any)">删除</el-button>
                 </template>
               </el-table-column>
             </el-table>
@@ -477,168 +155,33 @@ onMounted(() => {
           </el-card>
         </div>
 
-        <div class="bug-detail__side">
-          <el-card v-if="isResolved || isClosed" shadow="never" class="bug-detail__resolution">
-            <template #header><span class="bug-detail__section">解决信息</span></template>
-            <el-descriptions :column="1" size="small">
-              <el-descriptions-item label="解决方案">
-                <el-tag v-if="detail.resolution" size="small" type="success" effect="light" round>
-                  {{ BUG_RESOLUTION_LABEL[detail.resolution] }}
-                </el-tag>
-                <span v-else>-</span>
-              </el-descriptions-item>
-              <el-descriptions-item v-if="detail.duplicateOfBugId" label="重复缺陷">
-                <el-link
-                  type="primary"
-                  underline="never"
-                  @click="router.push(`/workspace/projects/bugs/${detail.duplicateOfBugId}`)"
-                >
-                  查看原始缺陷
-                </el-link>
-              </el-descriptions-item>
-              <el-descriptions-item label="解决人">
-                {{ detail.resolvedBy ? `${detail.resolvedBy.name}（${formatDateTime(detail.resolvedAt!)}）` : '-' }}
-              </el-descriptions-item>
-              <el-descriptions-item v-if="isClosed" label="关闭人">
-                {{ detail.closedBy ? `${detail.closedBy.name}（${formatDateTime(detail.closedAt!)}）` : '-' }}
-              </el-descriptions-item>
-            </el-descriptions>
-          </el-card>
-
-          <el-card shadow="never">
-            <template #header><span class="bug-detail__section">属性</span></template>
-            <el-form label-position="top" class="bug-detail__props">
-              <el-form-item label="缺陷类型">
-                <el-select v-if="!isClosed" v-model="form.bugType">
-                  <el-option v-for="(label, key) in BUG_TYPE_LABEL" :key="key" :label="label" :value="key" />
-                </el-select>
-                <span v-else class="bug-detail__text">{{ BUG_TYPE_LABEL[detail.bugType] }}</span>
-              </el-form-item>
-              <el-form-item label="所属模块">
-                <el-tree-select
-                  v-if="!isClosed"
-                  v-model="form.moduleId"
-                  :data="dirTree"
-                  :props="{ label: 'name', children: 'children' }"
-                  node-key="id"
-                  check-strictly
-                  placeholder="选择所属模块"
-                />
-                <span v-else class="bug-detail__text">{{ detail.moduleName ?? '-' }}</span>
-              </el-form-item>
-              <el-form-item label="严重等级">
-                <el-select v-if="!isClosed" v-model="form.severity">
-                  <el-option v-for="(label, key) in severityLabel" :key="key" :label="label" :value="key">
-                    <span class="bug-detail__severity-dot" :class="`bug-detail__severity-dot--${key}`" />{{ label }}
-                  </el-option>
-                </el-select>
-                <el-tag v-else :type="severityType[detail.severity]" size="small" effect="light" round>
-                  {{ severityLabel[detail.severity] }}
-                </el-tag>
-              </el-form-item>
-              <el-form-item label="优先级">
-                <el-select v-if="!isClosed" v-model="form.priority">
-                  <el-option v-for="(label, key) in priorityLabel" :key="key" :label="label" :value="key" />
-                </el-select>
-                <el-tag v-else :type="priorityType[detail.priority]" size="small" effect="light" round>
-                  {{ priorityLabel[detail.priority] }}
-                </el-tag>
-              </el-form-item>
-              <el-form-item label="截止日期">
-                <el-date-picker
-                  v-if="!isClosed"
-                  v-model="form.dueDate"
-                  type="date"
-                  value-format="YYYY-MM-DD"
-                  placeholder="选择截止日期"
-                  class="bug-detail__date"
-                />
-                <span v-else class="bug-detail__text">{{ detail.dueDate ?? '-' }}</span>
-              </el-form-item>
-              <el-form-item label="关键词">
-                <el-input v-if="!isClosed" v-model="form.keywords" maxlength="255" placeholder="多个关键词用空格分隔" />
-                <span v-else class="bug-detail__text">{{ detail.keywords || '-' }}</span>
-              </el-form-item>
-              <el-form-item label="指派给">
-                <el-select v-if="!isClosed" v-model="form.assigneeId" filterable>
-                  <el-option v-for="m in memberOptions" :key="m.userId" :label="m.username" :value="m.userId" />
-                </el-select>
-                <span v-else class="bug-detail__text">{{ detail.assignee?.name ?? '-' }}</span>
-              </el-form-item>
-              <el-form-item label="关联用例">
-                <div class="bug-detail__relation">
-                  <el-popover
-                    v-if="currentRelatedCaseId"
-                    placement="left-start"
-                    :width="380"
-                    trigger="hover"
-                    @before-enter="loadCaseDetail"
-                  >
-                    <template #reference>
-                      <span class="bug-detail__text bug-detail__case-trigger">已关联 1 个用例</span>
-                    </template>
-                    <div v-loading="caseDetailLoading" class="bug-detail__case-pop">
-                      <template v-if="caseDetail">
-                        <div class="bug-detail__case-pop-header">
-                          <span class="bug-detail__case-pop-title">{{ caseDetail.title }}</span>
-                          <span
-                            v-if="caseDetail.priority"
-                            class="bug-detail__case-pop-priority"
-                            :class="`bug-detail__case-pop-priority--${caseDetail.priority.toLowerCase()}`"
-                          >
-                            {{ caseDetail.priority }}
-                          </span>
-                        </div>
-                        <div v-if="caseDocName" class="bug-detail__case-pop-doc">所属文档：{{ caseDocName }}</div>
-                        <div v-if="caseDetailRows.length" class="bug-detail__case-pop-body">
-                          <div
-                            v-for="row in caseDetailRows"
-                            :key="row.id"
-                            class="bug-detail__case-pop-row"
-                            :style="{ paddingLeft: `${row.depth * 14}px` }"
-                          >
-                            <span
-                              class="bug-detail__case-pop-type"
-                              :style="{ background: row.badge.color }"
-                            >
-                              {{ row.badge.label }}
-                            </span>
-                            <span class="bug-detail__case-pop-text">{{ row.title }}</span>
-                          </div>
-                        </div>
-                        <div class="bug-detail__case-pop-footer">
-                          <el-link type="primary" underline="never" @click="openCaseDocument">
-                            <el-icon><Position /></el-icon>打开所在文档
-                          </el-link>
-                        </div>
-                      </template>
-                      <el-empty
-                        v-else-if="!caseDetailLoading"
-                        description="用例不存在或已删除"
-                        :image-size="40"
-                      />
-                    </div>
-                  </el-popover>
-                  <span v-else class="bug-detail__text">{{ isClosed ? '-' : '未关联' }}</span>
-                  <template v-if="!isClosed">
-                    <el-button size="small" @click="caseSelectorVisible = true">
-                      {{ form.relatedCaseId ? '更换' : '选择用例' }}
-                    </el-button>
-                    <el-button v-if="form.relatedCaseId" size="small" link type="danger" @click="form.relatedCaseId = ''">
-                      清除
-                    </el-button>
-                  </template>
-                </div>
-              </el-form-item>
-              <el-form-item label="关联计划">
-                <el-select v-if="!isClosed" v-model="form.relatedPlanId" filterable clearable placeholder="选择计划（可选）">
-                  <el-option v-for="p in planOptions" :key="p.id" :label="p.name" :value="p.id" />
-                </el-select>
-                <span v-else class="bug-detail__text">{{ relatedPlanName }}</span>
-              </el-form-item>
-            </el-form>
-          </el-card>
-        </div>
+        <BugSidebar
+          v-if="detail"
+          :detail="detail"
+          :form="form"
+          :is-closed="isClosed"
+          :is-resolved="isResolved"
+          :is-rejected="isRejected"
+          :dir-tree="dirTree"
+          :plan-options="planOptions"
+          :related-plan-name="relatedPlanName"
+          :member-options="memberOptions"
+          :severity-label="severityLabel"
+          :priority-label="priorityLabel"
+          :severity-type="severityType"
+          :priority-type="priorityType"
+          :bug-resolution-label="BUG_RESOLUTION_LABEL"
+          :bug-type-label="BUG_TYPE_LABEL"
+          :current-related-case-id="currentRelatedCaseId"
+          :case-detail="caseDetail"
+          :case-detail-loading="caseDetailLoading"
+          :case-detail-rows="caseDetailRows"
+          :case-doc-name="caseDocName"
+          :load-case-detail="loadCaseDetail"
+          :open-case-document="openCaseDocument"
+          @open-case-selector="handleOpenCaseSelector"
+          @clear-case="handleClearCase"
+        />
       </div>
 
       <div class="bug-detail__footer">
@@ -653,7 +196,7 @@ onMounted(() => {
 
     <BugResolveDialog
       v-model="resolveDialogVisible"
-      :exclude-bug-id="bugId"
+      :exclude-bug-id="props.bugId"
       @confirm="handleResolve"
     />
 
@@ -668,8 +211,6 @@ onMounted(() => {
   color: var(--color-neutral-800);
 }
 
-// 顶栏弃用 el-page-header：其 content 区域不占满剩余宽度会压窄标题，
-// 自控 flex 布局让标题吃满中段、右侧组固定贴最右
 .bug-detail__topbar {
   display: flex;
   align-items: center;
@@ -699,7 +240,6 @@ onMounted(() => {
   font-family: var(--font-family-mono, monospace);
 }
 
-// 标题弱化输入框边框，聚焦时才显现，兼顾展示观感与可编辑性
 .bug-detail__title-input {
   flex: 1;
   min-width: 0;
@@ -751,8 +291,7 @@ onMounted(() => {
   }
 }
 
-.bug-detail__main,
-.bug-detail__side {
+.bug-detail__main {
   display: flex;
   flex-direction: column;
   gap: var(--space-lg);
@@ -770,159 +309,6 @@ onMounted(() => {
   justify-content: space-between;
 }
 
-.bug-detail__resolution :deep(.el-descriptions__label) {
-  color: var(--color-neutral-500);
-}
-
-.bug-detail__props :deep(.el-form-item__label) {
-  font-weight: 500;
-  color: var(--color-neutral-600);
-  margin-bottom: var(--space-xs);
-}
-
-.bug-detail__props :deep(.el-form-item) {
-  margin-bottom: var(--space-md);
-}
-
-.bug-detail__props :deep(.el-form-item:last-child) {
-  margin-bottom: 0;
-}
-
-.bug-detail__props :deep(.el-select),
-.bug-detail__props :deep(.el-tree-select) {
-  width: 100%;
-}
-
-// el-date-picker 根节点是 fragment，scoped 的 data-v 属性不会落到控件上，须经 :deep 命中；宽度还受组件级 CSS 变量控制
-.bug-detail__props :deep(.bug-detail__date) {
-  width: 100%;
-  --el-date-editor-width: 100%;
-}
-
-.bug-detail__text {
-  font-size: var(--font-size-sm);
-  color: var(--color-neutral-700);
-  line-height: 1.6;
-}
-
-.bug-detail__relation {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-  width: 100%;
-
-  .bug-detail__text {
-    flex: 1;
-  }
-}
-
-// 悬停触发元素加虚线下划线提示可交互
-.bug-detail__case-trigger {
-  cursor: pointer;
-  color: var(--el-color-primary);
-  text-decoration: underline dashed;
-  text-underline-offset: 3px;
-}
-
-.bug-detail__case-pop {
-  min-height: 60px;
-}
-
-.bug-detail__case-pop-header {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-}
-
-.bug-detail__case-pop-title {
-  font-weight: 600;
-  font-size: var(--font-size-sm);
-  color: var(--color-neutral-800);
-  flex: 1;
-  min-width: 0;
-  word-break: break-all;
-}
-
-/* 优先级徽标配色与脑图/用例选择树保持一致 */
-.bug-detail__case-pop-priority {
-  font-size: 11px;
-  font-weight: 600;
-  color: #fff;
-  border-radius: 8px;
-  padding: 0 6px;
-  line-height: 16px;
-  flex-shrink: 0;
-
-  &--p0 { background: #f56c6c; }
-  &--p1 { background: #e6a23c; }
-  &--p2 { background: #409eff; }
-  &--p3 { background: #909399; }
-}
-
-.bug-detail__case-pop-doc {
-  margin-top: var(--space-xs);
-  font-size: var(--font-size-xs);
-  color: var(--el-text-color-secondary);
-}
-
-.bug-detail__case-pop-body {
-  margin-top: var(--space-sm);
-  padding-top: var(--space-sm);
-  border-top: 1px solid var(--el-border-color-lighter);
-  max-height: 260px;
-  overflow: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.bug-detail__case-pop-row {
-  display: flex;
-  align-items: flex-start;
-  gap: 6px;
-  font-size: var(--font-size-xs);
-  line-height: 18px;
-}
-
-.bug-detail__case-pop-type {
-  font-size: 11px;
-  color: #fff;
-  border-radius: 8px;
-  padding: 0 6px;
-  line-height: 16px;
-  flex-shrink: 0;
-}
-
-.bug-detail__case-pop-text {
-  color: var(--color-neutral-700);
-  word-break: break-all;
-}
-
-.bug-detail__case-pop-footer {
-  margin-top: var(--space-sm);
-  padding-top: var(--space-sm);
-  border-top: 1px solid var(--el-border-color-lighter);
-  text-align: right;
-
-  .el-icon {
-    margin-right: var(--space-xs);
-  }
-}
-
-.bug-detail__severity-dot {
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  margin-right: var(--space-sm);
-  vertical-align: middle;
-
-  &--fatal { background: var(--color-bug-fatal); }
-  &--serious { background: var(--color-bug-serious); }
-  &--general { background: var(--color-bug-general); }
-  &--minor { background: var(--color-bug-minor); }
-}
-
 .bug-detail__timeline {
   padding-left: var(--space-xs);
 }
@@ -933,7 +319,6 @@ onMounted(() => {
   font-size: var(--font-size-xs);
 }
 
-// 底部粘性操作栏：透明背景居中悬浮，栏体不拦截点击，仅按钮可交互
 .bug-detail__footer {
   position: sticky;
   bottom: 0;
@@ -951,5 +336,4 @@ onMounted(() => {
     box-shadow: var(--shadow-md);
   }
 }
-
 </style>

@@ -1,4 +1,4 @@
-import api from '@/services'
+import api, { get, post } from '@/services'
 import type {
   AiBugClusterSnapshot,
   AiBugDedupResult,
@@ -13,17 +13,6 @@ import type {
   AiStatus,
   AiTask,
 } from '@/types'
-
-// 响应拦截器已将 Result<T> 解包为 data，此处集中处理静态类型断言（C1：unknown + 断言）
-function get<T>(url: string, params?: Record<string, unknown>): Promise<T> {
-  return api.get(url, { params }) as unknown as Promise<T>
-}
-function post<T>(url: string): Promise<T> {
-  return api.post(url) as unknown as Promise<T>
-}
-function postData<T>(url: string, data: Record<string, unknown>): Promise<T> {
-  return api.post(url, data) as unknown as Promise<T>
-}
 
 // ==================== AI 能力开关（工作空间级） ====================
 
@@ -59,7 +48,7 @@ export interface AiReviewCheckStartResp {
 
 /** 发起评审一键检查，创建异步任务并返回任务 ID（US-AI-005，3.1.1） */
 export function startReviewCheck(reviewId: string): Promise<AiReviewCheckStartResp> {
-  return post(`/project/ai/reviews/${reviewId}/check`)
+  return post<AiReviewCheckStartResp>(`/project/ai/reviews/${reviewId}/check`)
 }
 
 /** 查询评审最近一次检查任务（无记录返回 null；running/cancelled 亦含已产出部分结果，3.1.2） */
@@ -92,7 +81,7 @@ export interface AiPriorityRecommendResp {
 
 /** 手工标记用例时同步推荐优先级（rule 命中瞬时返回，LLM 兜底失败返回 null） */
 export function recommendPriority(title: string, ancestorTitles: string[]): Promise<AiPriorityRecommendResp> {
-  return postData('/project/ai/cases/priority-recommend', { title, ancestorTitles })
+  return post('/project/ai/cases/priority-recommend', { title, ancestorTitles })
 }
 
 // ==================== 遗漏测试点分析（项目级，US-AI-007） ====================
@@ -187,7 +176,7 @@ export function suggestBugForm(data: {
   title: string
   reproSteps?: string
 }): Promise<AiBugSuggestion> {
-  return postData('/project/ai/bugs/suggest', data)
+  return post('/project/ai/bugs/suggest', data)
 }
 
 /** 缺陷语义查重（3.2，同步检索；编辑既有缺陷时排除自身） */
@@ -196,7 +185,7 @@ export function dedupBugs(data: {
   reproSteps?: string
   excludeBugId?: string
 }): Promise<AiBugDedupResult> {
-  return postData('/project/ai/bugs/dedup', data)
+  return post('/project/ai/bugs/dedup', data)
 }
 
 /** 发起缺陷聚类分析（3.3.1）：返回异步任务 ID，前端 2s 轮询任务状态 */
@@ -205,7 +194,7 @@ export interface AiBugClusteringStartResp {
 }
 
 export function startBugClustering(): Promise<AiBugClusteringStartResp> {
-  return post('/project/ai/bugs/clustering')
+  return post<AiBugClusteringStartResp>('/project/ai/bugs/clustering')
 }
 
 /** 查询缺陷聚类最近一次任务（3.3.2，无记录返回 null；running/cancelled 亦含部分快照） */

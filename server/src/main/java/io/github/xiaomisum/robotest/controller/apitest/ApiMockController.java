@@ -5,7 +5,6 @@ import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiMockBatchToggle
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiMockDebugReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiMockSaveReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiMockToggleReqDTO;
-import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiMockAddressRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiMockBatchToggleRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiMockDebugRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiMockDetailRespDTO;
@@ -119,31 +118,6 @@ public class ApiMockController {
             @PathVariable UUID id) {
         apiMockService.delete(loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId(), loginUser.getId(), id);
         return Result.ok(true);
-    }
-
-    @PostMapping("/{id}/duplicate")
-    @PreAuthorize("hasAuthority('api-mock:edit')")
-    public Result<ApiMockIdRespDTO> duplicate(
-            @AuthenticationPrincipal LoginUser loginUser,
-            @PathVariable UUID id) {
-        return Result.ok(apiMockService.duplicate(loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId(), loginUser.getId(), id));
-    }
-
-    @PostMapping("/{id}/reset-hit-count")
-    @PreAuthorize("hasAuthority('api-mock:edit')")
-    public Result<Boolean> resetHitCount(
-            @AuthenticationPrincipal LoginUser loginUser,
-            @PathVariable UUID id) {
-        apiMockService.resetHitCount(loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId(), loginUser.getId(), id);
-        return Result.ok(true);
-    }
-
-    @GetMapping("/{id}/address")
-    @PreAuthorize("hasAuthority('api-mock:view')")
-    public Result<ApiMockAddressRespDTO> address(
-            @AuthenticationPrincipal LoginUser loginUser,
-            @PathVariable UUID id) {
-        return Result.ok(apiMockService.getAddress(loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId(), loginUser.getId(), id));
     }
 
     @PostMapping("/{id}/debug")

@@ -1,249 +1,45 @@
 <script setup lang="ts">
-import { computed, reactive, ref } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import { ElMessage, type FormInstance, type FormRules, type UploadUserFile } from 'element-plus'
-import { changeBugStatus, createBug, fetchPlans, fetchProjectModuleTree, getBugDetail, uploadBugAttachment } from '@/services/project'
-import { fetchMembers } from '@/services/workspace'
-import { useAiStore } from '@/stores/ai'
-import type {
-  AiBugDedupItem,
-  BugPriority,
-  BugSeverity,
-  BugType,
-  ProjectModule,
-  TestPlanListItem,
-  WorkspaceMember,
-} from '@/types'
-import { BUG_STATUS_LABEL, BUG_STATUS_TAG_TYPE, BUG_TYPE_LABEL } from '@/utils/bugStatus'
+import { useBugCreate } from '@/composables/useBugCreate'
 import CaseSelector from '@/components/project/CaseSelector.vue'
 import MarkdownEditor from '@/components/common/MarkdownEditor.vue'
 import BugAiSuggest from '@/components/project/BugAiSuggest.vue'
 
-const route = useRoute()
-const router = useRouter()
-const aiStore = useAiStore()
-// AI 能力随工作空间开关显隐；关闭时表单回退 V1.0 形态（交互设计 1）
-const aiEnabled = computed(() => aiStore.aiEnabled)
-const formRef = ref<FormInstance>()
-const submitting = ref(false)
-// AI 建议入口按钮位于标题输入框 #append（方案 A），经 ref 调用组件暴露的请求方法
-const aiSuggestRef = ref<InstanceType<typeof BugAiSuggest>>()
-
-// 查重命中列表经 BugAiSuggest 上抛维护，提交时据此决定是否拦截确认（无命中不弹层）
-const dedupItems = ref<AiBugDedupItem[]>([])
-const dedupConfirmVisible = ref(false)
-const dedupSubmitting = ref(false)
-// 确认层内「原始缺陷」的选中 id；卡片「选为原始」预选先写入，弹层以其为默认选中
-const dedupTargetId = ref('')
-
-// AI 建议仅回填表单待用户确认（交互设计 2.1），提交前可任意修改
-function applyTitle(title: string): void {
-  form.title = title
-}
-function applySeverity(severity: BugSeverity): void {
-  form.severity = severity
-}
-function applyPriority(priority: BugPriority): void {
-  form.priority = priority
-}
-
-const form = reactive({
-  title: '',
-  bugType: 'code_error' as BugType,
-  moduleId: '' as string,
-  severity: 'general' as BugSeverity,
-  priority: 'medium' as BugPriority,
-  dueDate: '' as string,
-  keywords: '',
-  reproSteps: '',
-  assigneeId: '' as string,
-  relatedCaseId: '' as string,
-  relatedPlanId: '' as string,
-})
-
-const severityLabel: Record<BugSeverity, string> = { fatal: '致命', serious: '严重', general: '一般', minor: '轻微' }
-const priorityLabel: Record<BugPriority, string> = { high: '高', medium: '中', low: '低' }
-
-// 所属模块仅目录可选（后端按 project_module 校验），不带 assetType 即纯目录树
-const moduleTree = ref<ProjectModule[]>([])
-async function loadModuleTree() {
-  try {
-    moduleTree.value = await fetchProjectModuleTree()
-  } catch { /* ignore */ }
-}
-loadModuleTree()
-
-const caseSelectorVisible = ref(false)
-const selectedCaseTitle = ref('')
-// 单选模式下选择器只会返回一个用例
-function handleCaseSelected(nodes: { documentId: string; caseIds: string[] }[]) {
-  if (nodes.length && nodes[0].caseIds.length) {
-    form.relatedCaseId = nodes[0].caseIds[0]
-    selectedCaseTitle.value = `已选 1 个用例`
-  }
-}
-
-const planOptions = ref<TestPlanListItem[]>([])
-async function loadPlanOptions() {
-  try {
-    const page = await fetchPlans({ status: 'in_progress', pageNo: 1, pageSize: 50 })
-    planOptions.value = page.list
-  } catch { /* ignore */ }
-}
-
-// 列表"复制"入口经 ?copyFrom= 回填源缺陷信息，处理人不复制由提交人重新指派
-async function applyCopySource() {
-  const copyFrom = String(route.query.copyFrom ?? '')
-  if (!copyFrom) return
-  try {
-    const src = await getBugDetail(copyFrom)
-    form.title = src.title
-    form.bugType = src.bugType
-    form.moduleId = src.moduleId ?? ''
-    form.severity = src.severity
-    form.priority = src.priority
-    form.dueDate = src.dueDate ?? ''
-    form.keywords = src.keywords ?? ''
-    form.reproSteps = src.reproSteps ?? ''
-    form.relatedCaseId = src.relatedCaseId ?? ''
-    if (form.relatedCaseId) selectedCaseTitle.value = '已选 1 个用例'
-    // 计划下拉仅含进行中的计划，源计划已结束时放弃回填避免下拉显示原始 id
-    const planId = src.relatedPlanId ?? ''
-    form.relatedPlanId = planOptions.value.some((p) => p.id === planId) ? planId : ''
-  } catch (err) {
-    ElMessage.error(err instanceof Error ? err.message : '加载源缺陷信息失败')
-  }
-}
-loadPlanOptions().then(applyCopySource)
-
-const rules: FormRules = {
-  title: [{ required: true, message: '请输入缺陷标题', trigger: 'blur' }],
-  bugType: [{ required: true, message: '请选择缺陷类型', trigger: 'change' }],
-  severity: [{ required: true, message: '请选择严重等级', trigger: 'change' }],
-  priority: [{ required: true, message: '请选择优先级', trigger: 'change' }],
-  assigneeId: [{ required: true, message: '请选择处理人', trigger: 'change' }],
-}
-
-const memberOptions = ref<WorkspaceMember[]>([])
-async function loadMembers() {
-  try {
-    const page = await fetchMembers({ pageNo: 1, pageSize: 100 })
-    memberOptions.value = page.list
-  } catch {
-    // 加载失败不阻塞
-  }
-}
-loadMembers()
-
-// 附件本地暂存，创建成功拿到 bugId 后再逐个上传
-const MAX_FILE_SIZE = 10 * 1024 * 1024
-const attachmentFiles = ref<UploadUserFile[]>([])
-function handleAttachmentChange(_file: UploadUserFile, files: UploadUserFile[]) {
-  attachmentFiles.value = files.filter((f) => {
-    if (f.size && f.size > MAX_FILE_SIZE) {
-      ElMessage.warning(`「${f.name}」超过 10MB，已忽略`)
-      return false
-    }
-    return true
-  })
-}
-function handleAttachmentRemove(_file: UploadUserFile, files: UploadUserFile[]) {
-  attachmentFiles.value = files
-}
-
-// 卡片「选为原始」预选 → 确认层默认选中该原始缺陷
-function handleSelectDuplicate(item: AiBugDedupItem | null): void {
-  dedupTargetId.value = item ? item.bugId : ''
-}
-
-// 查重列表内「放弃提交」：直接返回列表页（与底部「取消」同义，交互设计 3.3）
-function handleAbandonSubmit(): void {
-  router.push('/workspace/projects/bugs')
-}
-
-// 创建 + 上传附件（可选：创建后立即标记为重复缺陷，复用 V1.0 resolution 机制，需求 3.4.2）
-async function runCreate(duplicateOfBugId?: string): Promise<void> {
-  submitting.value = true
-  try {
-    const bugId = await createBug({
-      title: form.title.trim(),
-      severity: form.severity,
-      priority: form.priority,
-      bugType: form.bugType,
-      reproSteps: form.reproSteps.trim() || undefined,
-      moduleId: form.moduleId || undefined,
-      keywords: form.keywords.trim() || undefined,
-      dueDate: form.dueDate || undefined,
-      assigneeId: form.assigneeId,
-      relatedCaseId: form.relatedCaseId || undefined,
-      relatedPlanId: form.relatedPlanId || undefined,
-    })
-    for (const item of attachmentFiles.value) {
-      if (item.raw) {
-        await uploadBugAttachment(bugId, item.raw)
-      }
-    }
-    if (duplicateOfBugId) {
-      await changeBugStatus(bugId, {
-        status: 'resolved',
-        resolution: 'duplicate',
-        duplicateOfBugId,
-        comment: '创建时标记为重复缺陷',
-      })
-    }
-    ElMessage.success(duplicateOfBugId ? '缺陷已提交并标记为重复' : '缺陷已提交')
-    router.push('/workspace/projects/bugs')
-  } catch (err) {
-    ElMessage.error(err instanceof Error ? err.message : '提交失败')
-  } finally {
-    submitting.value = false
-  }
-}
-
-async function handleSubmit() {
-  if (!formRef.value) return
-  try {
-    await formRef.value.validate()
-  } catch {
-    return
-  }
-  // 查重命中时先经确认层由用户决策（放弃/继续/继续并标记重复）；无命中保持原直提路径
-  if (dedupItems.value.length > 0) {
-    dedupConfirmVisible.value = true
-    return
-  }
-  await runCreate()
-}
-
-function handleDedupAbandon(): void {
-  if (dedupSubmitting.value) return
-  dedupConfirmVisible.value = false
-  router.push('/workspace/projects/bugs')
-}
-
-async function handleDedupContinue(): Promise<void> {
-  if (dedupSubmitting.value) return
-  dedupSubmitting.value = true
-  try {
-    await runCreate()
-  } finally {
-    dedupSubmitting.value = false
-  }
-}
-
-async function handleDedupMarkDuplicate(): Promise<void> {
-  if (dedupSubmitting.value) return
-  if (!dedupTargetId.value) {
-    ElMessage.warning('请选择要标记为重复所对应的原始缺陷')
-    return
-  }
-  dedupSubmitting.value = true
-  try {
-    await runCreate(dedupTargetId.value)
-  } finally {
-    dedupSubmitting.value = false
-  }
-}
+const {
+  aiEnabled,
+  formRef,
+  submitting,
+  aiSuggestRef,
+  dedupItems,
+  dedupConfirmVisible,
+  dedupSubmitting,
+  dedupTargetId,
+  applyTitle,
+  applySeverity,
+  applyPriority,
+  form,
+  moduleTree,
+  caseSelectorVisible,
+  selectedCaseTitle,
+  handleCaseSelected,
+  planOptions,
+  rules,
+  memberOptions,
+  attachmentFiles,
+  handleAttachmentChange,
+  handleAttachmentRemove,
+  handleSelectDuplicate,
+  handleAbandonSubmit,
+  handleSubmit,
+  handleDedupAbandon,
+  handleDedupContinue,
+  handleDedupMarkDuplicate,
+  router,
+  severityLabel,
+  priorityLabel,
+  BUG_STATUS_LABEL,
+  BUG_STATUS_TAG_TYPE,
+  BUG_TYPE_LABEL,
+} = useBugCreate()
 </script>
 
 <template>
@@ -265,8 +61,6 @@ async function handleDedupMarkDuplicate(): Promise<void> {
                 show-word-limit
                 size="large"
               >
-                <!-- AI 建议入口内嵌标题输入框（方案 A）：紧贴输入焦点，请求经 ref 调组件暴露方法，loading 驱动按钮态；
-                     无标题时禁用，输入后呼吸光晕 + 魔棒微晃动画提示可操作 -->
                 <template #append>
                   <el-button
                     v-if="aiEnabled"
@@ -462,27 +256,21 @@ async function handleDedupMarkDuplicate(): Promise<void> {
   color: var(--color-neutral-800);
 }
 
-// 侧栏与主区表单控件统一撑满，视觉对齐
 .bug-create__form :deep(.el-select),
 .bug-create__form :deep(.el-tree-select) {
   width: 100%;
 }
 
-// el-date-picker 根节点是 fragment，scoped 的 data-v 属性不会落到控件上，须经 :deep 命中；宽度还受组件级 CSS 变量控制
 .bug-create__form :deep(.bug-create__date) {
   width: 100%;
   --el-date-editor-width: 100%;
 }
 
-// 标题输入组圆角统一：全局 .el-input__wrapper 强制 6px 圆角（含右端），与 append 直角边
-// 拼接成「弧-直」接缝；此处 wrapper 右端去圆角（须 !important 对抗全局），append 右端
-// 用与全局一致的 --radius-md，并裁剪按钮溢出，使输入组两侧角对称
 .bug-create__form :deep(.el-input-group--append .el-input__wrapper) {
   border-top-right-radius: 0 !important;
   border-bottom-right-radius: 0 !important;
 }
 
-// 标题输入栏与 AI 按钮自然衔接：去色块底与粗分割线，仅保留 1px 常规分隔（append 默认样式），按钮以成功绿语义区分
 .bug-create__form :deep(.el-input-group__append) {
   padding: 0;
   background: transparent;
@@ -491,7 +279,6 @@ async function handleDedupMarkDuplicate(): Promise<void> {
   overflow: hidden;
 }
 
-// append 内按钮填满容器、圆角归零，与输入栏构成一个整体输入组
 .bug-create__form :deep(.bug-create__ai-append) {
   height: 100%;
   margin: 0;
@@ -501,19 +288,16 @@ async function handleDedupMarkDuplicate(): Promise<void> {
   color: var(--color-success);
   font-weight: 600;
 
-  // 未输入标题：禁用灰显，无动画
   &.is-disabled {
     background: transparent;
     color: var(--color-neutral-400);
   }
 
-  // 覆盖 EP 默认 hover 底色，保持与输入栏一体；可操作态悬停仅加深文字
   &:hover {
     background: transparent;
     color: var(--color-success);
   }
 
-  // 输入标题后（可操作态）：绿色呼吸光晕 + 魔棒微晃，吸引点击注意力；loading 时 EP 自带 is-disabled 自动停用动画
   &:not(.is-disabled):not(.is-loading) {
     animation: bug-create-ai-glow 2s ease-in-out infinite;
 
@@ -589,7 +373,6 @@ async function handleDedupMarkDuplicate(): Promise<void> {
   width: 100%;
 }
 
-// 弹层内单选行撑满并允许标签溢出省略
 .bug-create__dedup-confirm-item {
   display: flex;
   align-items: center;
@@ -641,7 +424,6 @@ async function handleDedupMarkDuplicate(): Promise<void> {
   &--minor { background: var(--color-bug-minor); }
 }
 
-// 底部粘性操作栏：透明背景居中悬浮，栏体不拦截点击，仅按钮可交互（与详情页操作栏样式一致）
 .bug-create__footer {
   position: sticky;
   bottom: 0;

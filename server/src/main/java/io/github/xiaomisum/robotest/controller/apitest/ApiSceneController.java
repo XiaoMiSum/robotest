@@ -4,14 +4,13 @@ import io.github.xiaomisum.robotest.framework.security.LoginUser;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneBatchDeleteReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneBatchMoveReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneCreateReqDTO;
-import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneAssetsImportReqDTO;
+
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneStepCopyReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneStepQuickCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneStepReorderReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneStepSaveReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneStepVariableBatchReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneUpdateReqDTO;
-import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiSceneAssetsImportRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiSceneDetailRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiScenePageItemRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiSceneQuickCreateRespDTO;
@@ -177,17 +176,6 @@ public class ApiSceneController {
             @RequestBody @Valid ApiSceneStepVariableBatchReqDTO reqDTO) {
         sceneService.updateStepVariables(loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId(), loginUser.getId(), id, stepId, reqDTO);
         return Result.ok(true);
-    }
-
-    // ========== 全局资产引入 ==========
-
-    @PostMapping("/api/project/api-scenes/{id}/assets/import")
-    @PreAuthorize("hasAuthority('api-scene:edit')")
-    public Result<ApiSceneAssetsImportRespDTO> importAssets(
-            @AuthenticationPrincipal LoginUser loginUser,
-            @PathVariable UUID id,
-            @RequestBody @Valid ApiSceneAssetsImportReqDTO reqDTO) {
-        return Result.ok(sceneService.importAssets(loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId(), loginUser.getId(), id, reqDTO));
     }
 
     // ========== 关注 ==========

@@ -1,6 +1,7 @@
 package io.github.xiaomisum.robotest.service.apitest.mock;
 
 import tools.jackson.databind.JsonNode;
+import io.github.xiaomisum.robotest.framework.mock.MockDefinitionReader.MockDefinitionSnapshot;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiMockDefinition;
 
 import java.util.List;
@@ -19,8 +20,8 @@ public class MockMatchEngine {
     }
 
     public static boolean matches(ApiMockDefinition definition, String method, String path,
-                                  Map<String, String> headers, Map<String, String> queryParams,
-                                  JsonNode bodyNode) {
+                                   Map<String, String> headers, Map<String, String> queryParams,
+                                   JsonNode bodyNode) {
         if (!definition.getMethod().equalsIgnoreCase(method)) {
             return false;
         }
@@ -28,6 +29,23 @@ public class MockMatchEngine {
             return false;
         }
         List<Map<String, Object>> rules = definition.getMatchRules();
+        if (rules == null || rules.isEmpty()) {
+            return true;
+        }
+        return rules.stream().allMatch(rule -> ruleMatches(rule, headers, queryParams, bodyNode));
+    }
+
+    /** 快照版本：供 framework/mock 端口调用，不依赖业务实体 */
+    public static boolean matches(MockDefinitionSnapshot snapshot, String method, String path,
+                                   Map<String, String> headers, Map<String, String> queryParams,
+                                   JsonNode bodyNode) {
+        if (!snapshot.method().equalsIgnoreCase(method)) {
+            return false;
+        }
+        if (!pathMatches(snapshot.path(), path)) {
+            return false;
+        }
+        List<Map<String, Object>> rules = snapshot.matchRules();
         if (rules == null || rules.isEmpty()) {
             return true;
         }

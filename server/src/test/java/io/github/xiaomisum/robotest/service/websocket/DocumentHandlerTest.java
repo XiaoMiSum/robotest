@@ -18,11 +18,14 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
+import org.springframework.web.socket.TextMessage;
+
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -117,5 +120,60 @@ class DocumentHandlerTest {
         verify(session, never()).close(any());
         verify(sessionManager).joinRoom(DOC_ID, USER_ID);
         assertTrue(attributes.containsKey("docId"));
+    }
+
+    @Test
+    void handleTextMessage_shouldBroadcastAndPersist() throws Exception {
+        attributes.put("docId", DOC_ID);
+        attributes.put("USER_ID", USER_ID);
+        when(sessionManager.getUserId(SESSION_ID)).thenReturn(USER_ID);
+
+        String payload = "{\"type\":\"update\",\"data\":{}}";
+        handler.handleTextMessage(session, new TextMessage(payload));
+
+        verify(sessionManager).sendToRoomExcept(eq(DOC_ID), eq(USER_ID), any());
+        verify(persistenceHandler).persist(eq(UUID.fromString(DOC_ID)), eq(payload), eq(session));
+    }
+
+    @Test
+    void handleTextMessage_withoutDocId_shouldDoNothing() throws Exception {
+        handler.handleTextMessage(session, new TextMessage("{}"));
+
+        verify(sessionManager, never()).sendToRoomExcept(anyString(), anyString(), any());
+        verify(persistenceHandler, never()).persist(any(), any(), any());
+    }
+
+    @Test
+    void afterConnectionClosed_withDocId_shouldLeaveRoom() throws Exception {
+        attributes.put("docId", DOC_ID);
+        when(sessionManager.getUserId(SESSION_ID)).thenReturn(USER_ID);
+
+        handler.afterConnectionClosed(session, CloseStatus.NORMAL);
+
+        verify(sessionManager).leaveRoom(DOC_ID, USER_ID);
+    }
+
+    @Test
+    void afterConnectionClosed_withoutDocId_shouldNotLeaveRoom() throws Exception {
+        handler.afterConnectionClosed(session, CloseStatus.NORMAL);
+
+        verify(sessionManager, never()).leaveRoom(anyString(), anyString());
+    }
+
+    @Test
+    void handleTransportError_withDocId_shouldLeaveRoom() throws Exception {
+        attributes.put("docId", DOC_ID);
+        when(sessionManager.getUserId(SESSION_ID)).thenReturn(USER_ID);
+
+        handler.handleTransportError(session, new RuntimeException("connection lost"));
+
+        verify(sessionManager).leaveRoom(DOC_ID, USER_ID);
+    }
+
+    @Test
+    void handleTransportError_withoutDocId_shouldNotLeaveRoom() throws Exception {
+        handler.handleTransportError(session, new RuntimeException("connection lost"));
+
+        verify(sessionManager, never()).leaveRoom(anyString(), anyString());
     }
 }

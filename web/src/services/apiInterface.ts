@@ -1,4 +1,4 @@
-import api from '@/services'
+import { get, post, put, del } from '@/services'
 import type {
   ApiInterfaceImportPreview,
   ApiInterfaceImportResult,
@@ -6,22 +6,11 @@ import type {
   ApiInterfaceCreateReq,
   ApiInterfaceDetail,
   ApiInterfaceItem,
-  ApiInterfaceReferences,
   ApiInterfaceStatus,
   ApiInterfaceUpdateReq,
   ApiInterfaceView,
   PageResult,
 } from '@/types'
-
-function get<T>(url: string, params?: Record<string, unknown>): Promise<T> {
-  return api.get(url, { params }) as unknown as Promise<T>
-}
-function post<T>(url: string, data?: unknown): Promise<T> {
-  return api.post(url, data) as unknown as Promise<T>
-}
-function put<T>(url: string, data?: unknown): Promise<T> {
-  return api.put(url, data) as unknown as Promise<T>
-}
 
 // ==================== 接口定义（3.1） ====================
 
@@ -44,7 +33,7 @@ export function updateInterface(id: string, req: ApiInterfaceUpdateReq): Promise
 }
 
 export function deleteInterface(id: string): Promise<boolean> {
-  return api.delete(`/project/interfaces/${id}`) as unknown as Promise<boolean>
+  return del(`/project/interfaces/${id}`)
 }
 
 /** 复制接口：copyName 缺省时服务端追加「（副本）」后缀 */
@@ -54,16 +43,12 @@ export function copyInterface(id: string, copyName?: string): Promise<string> {
   )
 }
 
-export function fetchInterfaceReferences(id: string): Promise<ApiInterfaceReferences> {
-  return get(`/project/interfaces/${id}/references`)
-}
-
 export function batchMoveInterfaces(ids: string[], moduleId: string): Promise<boolean> {
   return put('/project/interfaces/batch/move', { ids, moduleId })
 }
 
 export function batchDeleteInterfaces(ids: string[]): Promise<boolean> {
-  return api.delete('/project/interfaces/batch', { data: { ids } }) as unknown as Promise<boolean>
+  return del('/project/interfaces/batch', { data: { ids } })
 }
 
 export function updateInterfaceStatus(id: string, status: ApiInterfaceStatus): Promise<boolean> {
@@ -75,7 +60,7 @@ export function followInterface(id: string): Promise<boolean> {
 }
 
 export function unfollowInterface(id: string): Promise<boolean> {
-  return api.delete(`/project/interfaces/${id}/follow`) as unknown as Promise<boolean>
+  return del(`/project/interfaces/${id}/follow`)
 }
 
 export function fetchInterfaceChangeLogs(id: string, pageNo: number, pageSize: number): Promise<PageResult<ApiInterfaceChangeLogItem>> {

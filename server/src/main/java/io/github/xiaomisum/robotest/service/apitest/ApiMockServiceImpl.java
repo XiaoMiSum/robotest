@@ -5,7 +5,6 @@ import io.github.xiaomisum.robotest.framework.security.ProjectAccessGuard;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiMockBatchToggleReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiMockDebugReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiMockSaveReqDTO;
-import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiMockAddressRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiMockBatchToggleRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiMockDebugRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiMockDetailRespDTO;
@@ -194,51 +193,6 @@ public class ApiMockServiceImpl implements ApiMockService {
         projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
         getOwned(projectId, id);
         mockMapper.deleteById(id);
-    }
-
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    public ApiMockIdRespDTO duplicate(UUID workspaceId, UUID projectId, UUID userId, UUID id) {
-        projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
-        ApiMockDefinition source = getOwned(projectId, id);
-        ApiMockDefinition copy = new ApiMockDefinition();
-        copy.setProjectId(source.getProjectId());
-        copy.setInterfaceId(source.getInterfaceId());
-        copy.setName(source.getName() + " - 副本");
-        copy.setDescription(source.getDescription());
-        copy.setMethod(source.getMethod());
-        copy.setPath(source.getPath());
-        // 默认停用避免与源规则地址冲突；命中统计不随复制（详细设计 3.1.10）
-        copy.setEnabled(false);
-        copy.setFollowApi(source.getFollowApi());
-        copy.setResponseStatus(source.getResponseStatus());
-        copy.setResponseHeaders(source.getResponseHeaders() == null ? null : new LinkedHashMap<>(source.getResponseHeaders()));
-        copy.setResponseBodyType(source.getResponseBodyType());
-        copy.setResponseBody(source.getResponseBody());
-        copy.setDelayMs(source.getDelayMs());
-        copy.setMatchRules(source.getMatchRules() == null ? null : new ArrayList<>(source.getMatchRules()));
-        copy.setHitCount(0L);
-        copy.setPriority(mockMapper.selectMaxPriority(projectId, source.getMethod(), source.getPath()) + 1);
-        mockMapper.insert(copy);
-        return new ApiMockIdRespDTO(copy.getId());
-    }
-
-    @Override
-    public void resetHitCount(UUID workspaceId, UUID projectId, UUID userId, UUID id) {
-        projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
-        getOwned(projectId, id);
-        mockMapper.resetHit(id);
-    }
-
-    @Override
-    public ApiMockAddressRespDTO getAddress(UUID workspaceId, UUID projectId, UUID userId, UUID id) {
-        projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
-        ApiMockDefinition definition = getOwned(projectId, id);
-        ApiMockAddressRespDTO address = new ApiMockAddressRespDTO();
-        address.setMockUrl(buildBaseUrl() + definition.getPath());
-        address.setMethod(definition.getMethod());
-        address.setHeaders(Map.of());
-        return address;
     }
 
     @Override

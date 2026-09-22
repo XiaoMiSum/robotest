@@ -1,12 +1,7 @@
 package io.github.xiaomisum.robotest.framework.mock;
 
 import tools.jackson.databind.JsonNode;
-import io.github.xiaomisum.robotest.model.entity.apitest.ApiInterface;
-import io.github.xiaomisum.robotest.model.entity.apitest.ApiMockAccessLog;
-import io.github.xiaomisum.robotest.model.entity.apitest.ApiMockDefinition;
-import io.github.xiaomisum.robotest.repository.apitest.ApiInterfaceMapper;
-import io.github.xiaomisum.robotest.repository.apitest.ApiMockAccessLogMapper;
-import io.github.xiaomisum.robotest.repository.apitest.ApiMockDefinitionMapper;
+import io.github.xiaomisum.robotest.framework.mock.MockDefinitionReader.MockDefinitionSnapshot;
 import io.github.xiaomisum.robotest.service.apitest.mock.MockMatchEngine;
 import io.github.xiaomisum.robotest.service.apitest.mock.MockRateLimiter;
 import io.github.xiaomisum.robotest.service.apitest.mock.MockResponseFactory;
@@ -33,7 +28,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
 
 /**
  * 免登录 Mock 响应服务（Mock服务详细设计 3.3/4.1/6.1）。
@@ -44,19 +38,12 @@ public class MockAccessFilter implements Filter {
     private static final int BODY_LOG_LIMIT = 4096;
     private static final int DELAY_UPPER_BOUND_MS = 60_000;
 
-    private final ApiMockDefinitionMapper mockMapper;
-    private final ApiMockAccessLogMapper accessLogMapper;
-    private final ApiInterfaceMapper interfaceMapper;
+    private final MockDefinitionReader reader;
     private final MockAccessProperties properties;
     private final MockRateLimiter rateLimiter;
 
-    public MockAccessFilter(ApiMockDefinitionMapper mockMapper,
-                            ApiMockAccessLogMapper accessLogMapper,
-                            ApiInterfaceMapper interfaceMapper,
-                            MockAccessProperties properties) {
-        this.mockMapper = mockMapper;
-        this.accessLogMapper = accessLogMapper;
-        this.interfaceMapper = interfaceMapper;
+    public MockAccessFilter(MockDefinitionReader reader, MockAccessProperties properties) {
+        this.reader = reader;
         this.properties = properties;
         this.rateLimiter = new MockRateLimiter(properties.getPathQps());
     }
@@ -76,7 +63,6 @@ public class MockAccessFilter implements Filter {
         try {
             handleMock(httpRequest, response, path, chain);
         } catch (Exception e) {
-            // 匹配或响应构建异常时不得阻断平台业务路由
             chain.doFilter(request, response);
         }
     }
@@ -84,7 +70,6 @@ public class MockAccessFilter implements Filter {
     private boolean excluded(HttpServletRequest request, String path) {
         Integer mockPort = properties.getPort();
         if (mockPort != null) {
-            // 独立端口即 Mock 域：与真实接口同构，不做业务前缀排除（详细设计 6.1 路由优先级 2）
             return request.getLocalPort() != mockPort;
         }
         return properties.getExcludedPrefixes().stream().anyMatch(path::startsWith);
@@ -92,17 +77,16 @@ public class MockAccessFilter implements Filter {
 
     private void handleMock(HttpServletRequest request, ServletResponse response, String path, FilterChain chain)
             throws IOException, ServletException {
-        // Mock 地址与真实接口同构（详细设计 3.3），免登录访问按方法+路径匹配规则
         String method = request.getMethod();
-        List<ApiMockDefinition> candidates = new ArrayList<>(mockMapper.selectEnabledForMatch(method, path));
-        candidates.addAll(mockMapper.selectEnabledWildcards(method));
+        List<MockDefinitionSnapshot> candidates = new ArrayList<>(reader.findEnabledForMatch(method, path));
+        candidates.addAll(reader.findEnabledWildcards(method));
         if (candidates.isEmpty()) {
             chain.doFilter(request, response);
             return;
         }
 
         boolean needBody = candidates.stream()
-                .map(ApiMockDefinition::getMatchRules)
+                .map(MockDefinitionSnapshot::matchRules)
                 .anyMatch(rules -> rules != null && rules.stream()
                         .anyMatch(rule -> "body".equals(String.valueOf(rule.get("type")))));
         CachedBodyRequest cachedBodyRequest = null;
@@ -113,8 +97,8 @@ public class MockAccessFilter implements Filter {
         }
         Map<String, String> queryParams = extractQueryParams(request);
 
-        ApiMockDefinition hit = null;
-        for (ApiMockDefinition candidate : candidates) {
+        MockDefinitionSnapshot hit = null;
+        for (MockDefinitionSnapshot candidate : candidates) {
             if (MockMatchEngine.matches(candidate, method, path,
                     extractHeaders(request), queryParams, bodyNode)) {
                 hit = candidate;
@@ -122,39 +106,31 @@ public class MockAccessFilter implements Filter {
             }
         }
         if (hit == null) {
-            // 未命中放行；已缓存的请求体通过包装件继续供下游读取
             chain.doFilter(cachedBodyRequest != null ? cachedBodyRequest : request, response);
             return;
         }
 
         HttpServletRequest servletRequest = cachedBodyRequest != null ? cachedBodyRequest : request;
-        if (!rateLimiter.allow(hit.getPath())) {
+        if (!rateLimiter.allow(hit.path())) {
             writeSimple(response, 429, MediaType.TEXT_PLAIN_VALUE, "mock rate limit exceeded");
             logAccessAsync(hit, servletRequest, 429, "rate limit exceeded", 0);
             return;
         }
 
         long start = System.currentTimeMillis();
-        Map<String, Object> example = loadResponseExample(hit.getInterfaceId());
+        Map<String, Object> example = reader.loadResponseExample(hit.interfaceId());
         MockResponseFactory.MockResponse mockResponse = MockResponseFactory.build(hit, example);
         applyDelay(hit);
         long duration = System.currentTimeMillis() - start;
 
         writeResponse(response, mockResponse);
-        final ApiMockDefinition matched = hit;
-        CompletableFuture.runAsync(() -> {
-            try {
-                mockMapper.incrementHit(matched.getId());
-            } catch (Exception ignored) {
-                // 统计失败不影响响应
-            }
-        });
+        reader.incrementHitAsync(hit.id());
         logAccessAsync(hit, servletRequest, mockResponse.status(),
                 truncate(mockResponse.body()), (int) Math.min(duration, Integer.MAX_VALUE));
     }
 
-    private void applyDelay(ApiMockDefinition hit) {
-        int delay = hit.getDelayMs() == null ? 0 : Math.min(hit.getDelayMs(), DELAY_UPPER_BOUND_MS);
+    private void applyDelay(MockDefinitionSnapshot hit) {
+        int delay = hit.delayMs() == null ? 0 : Math.min(hit.delayMs(), DELAY_UPPER_BOUND_MS);
         if (delay > 0) {
             try {
                 Thread.sleep(delay);
@@ -162,14 +138,6 @@ public class MockAccessFilter implements Filter {
                 Thread.currentThread().interrupt();
             }
         }
-    }
-
-    private Map<String, Object> loadResponseExample(UUID interfaceId) {
-        if (interfaceId == null) {
-            return null;
-        }
-        ApiInterface apiInterface = interfaceMapper.selectById(interfaceId);
-        return apiInterface == null ? null : apiInterface.getResponseExample();
     }
 
     private void writeResponse(ServletResponse response, MockResponseFactory.MockResponse mockResponse)
@@ -200,29 +168,13 @@ public class MockAccessFilter implements Filter {
         response.getWriter().flush();
     }
 
-    private void logAccessAsync(ApiMockDefinition hit, HttpServletRequest request, int status,
+    private void logAccessAsync(MockDefinitionSnapshot hit, HttpServletRequest request, int status,
                                 String responseBody, int durationMs) {
         Map<String, String> requestHeaders = extractHeaders(request);
         String requestBody = request instanceof CachedBodyRequest cached ? cached.bodyText() : null;
         String clientIp = resolveClientIp(request);
-        CompletableFuture.runAsync(() -> {
-            try {
-                ApiMockAccessLog log = new ApiMockAccessLog();
-                log.setMockId(hit.getId());
-                log.setProjectId(hit.getProjectId());
-                log.setMethod(hit.getMethod());
-                log.setPath(hit.getPath());
-                log.setRequestHeaders(new LinkedHashMap<>(requestHeaders));
-                log.setRequestBody(truncate(requestBody));
-                log.setResponseStatus(status);
-                log.setResponseBody(responseBody);
-                log.setDurationMs(durationMs);
-                log.setClientIp(clientIp);
-                accessLogMapper.insert(log);
-            } catch (Exception ignored) {
-                // 审计日志失败不影响主流程
-            }
-        });
+        reader.logAccessAsync(hit.id(), hit.projectId(), hit.method(), hit.path(),
+                requestHeaders, requestBody, status, responseBody, durationMs, clientIp);
     }
 
     private String resolveClientIp(HttpServletRequest request) {
@@ -294,7 +246,6 @@ public class MockAccessFilter implements Filter {
 
                 @Override
                 public void setReadListener(ReadListener readListener) {
-                    // 同步读取场景不需要监听器
                 }
 
                 @Override

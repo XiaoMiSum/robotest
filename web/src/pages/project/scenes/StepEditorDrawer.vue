@@ -1,18 +1,8 @@
 <script setup lang="ts">
-import { ref, watch, computed } from 'vue'
-import { ElMessage } from 'element-plus'
-import type { ApiSceneStepItem, ApiSceneStepVariableItem, ApiSceneStepSaveReq } from '@/types'
-import { createSceneStep, updateSceneStep, quickCreateSteps, fetchStepVariables, updateStepVariables } from '@/services/apiScene'
-import { fetchInterfacePage, fetchInterfaceDetail } from '@/services/apiInterface'
-import type { ApiInterfaceItem } from '@/types'
-import {
-  STEP_TYPE_OPTIONS, parseRequestConfig,
-  type ValidatorItem, type ExtractorItem,
-  createValidator, createExtractor, serializeValidators, serializeExtractors,
-  createStepVariable, createExecutionConfig,
-  VALIDATOR_TARGETS, VALIDATOR_CONDITIONS, EXTRACTOR_SOURCES,
-} from '../scenesModel'
+import type { ApiSceneStepItem } from '@/types'
+import { STEP_TYPE_OPTIONS, VALIDATOR_TARGETS, VALIDATOR_CONDITIONS, EXTRACTOR_SOURCES } from '../scenesModel'
 import RequestConfigEditor from './RequestConfigEditor.vue'
+import { useStepEditorDrawer } from '@/composables/useStepEditorDrawer'
 
 const props = defineProps<{ modelValue: boolean; sceneId?: string; step: ApiSceneStepItem | null }>()
 const emit = defineEmits<{
@@ -21,248 +11,40 @@ const emit = defineEmits<{
   (e: 'commit', step: ApiSceneStepItem): void
 }>()
 
-/** 草稿模式：创建态未保存场景，步骤不落库，保存时通过 commit 回抛给父级组进草稿列表 */
-const draftMode = computed(() => !props.sceneId)
-
-const visible = ref(props.modelValue)
-watch(() => props.modelValue, (v) => (visible.value = v))
-watch(visible, (v) => emit('update:modelValue', v))
-
-// ==================== 基本信息 ====================
-const formName = ref('')
-const formStepType = ref('http')
-const formMethod = ref('GET')
-const formUrl = ref('')
-const formEnabled = ref(true)
-const activeTab = ref('basic')
-
-// ==================== 请求配置 ====================
-const reqHeaders = ref<{ key: string; value: string; enabled: boolean }[]>([])
-const reqParams = ref<{ key: string; value: string; enabled: boolean }[]>([])
-const reqBody = ref<{ type: string; content: unknown }>({ type: 'none', content: null })
-
-// ==================== 验证器 & 提取器 ====================
-const validators = ref<ValidatorItem[]>([])
-const extractors = ref<ExtractorItem[]>([])
-
-// ==================== 步骤变量 ====================
-const stepVariables = ref<ApiSceneStepVariableItem[]>([])
-const variablesLoading = ref(false)
-
-// ==================== 执行配置 ====================
-const executionConfig = ref(createExecutionConfig())
-
-// ==================== 快速创建 ====================
-const createMode = ref<'manual' | 'quick'>('manual')
-const quickInterfaceId = ref('')
-const quickMode = ref('copy')
-const interfaceOptions = ref<ApiInterfaceItem[]>([])
-const interfaceSearch = ref('')
-const interfaceLoading = ref(false)
-
-// ==================== 初始化 ====================
-watch(visible, async (v) => {
-  if (!v) return
-  activeTab.value = 'basic'
-  if (props.step) {
-    formName.value = props.step.name
-    formStepType.value = props.step.stepType
-    formEnabled.value = props.step.enabled
-    createMode.value = 'manual'
-    const cfg = parseRequestConfig(props.step.requestConfig)
-    formMethod.value = String(cfg.method ?? 'GET')
-    formUrl.value = String(cfg.url ?? '')
-    reqHeaders.value = (cfg.headers ?? []).map((h) => ({ ...h }))
-    reqParams.value = (cfg.params ?? []).map((p) => ({ ...p }))
-    reqBody.value = cfg.body ?? { type: 'none', content: null }
-    validators.value = (props.step.validators ?? []).map((v) => v as unknown as ValidatorItem)
-    extractors.value = (props.step.extractors ?? []).map((e) => e as unknown as ExtractorItem)
-    const rc = props.step.requestConfig as Record<string, unknown> | undefined
-    executionConfig.value = {
-      ...createExecutionConfig(),
-      conditionExpression: String(rc?.conditionExpression ?? ''),
-    }
-    await loadStepVariables()
-  } else {
-    formName.value = ''
-    formStepType.value = 'http'
-    formMethod.value = 'GET'
-    formUrl.value = ''
-    formEnabled.value = true
-    reqHeaders.value = []
-    reqParams.value = []
-    reqBody.value = { type: 'none', content: null }
-    validators.value = []
-    extractors.value = []
-    stepVariables.value = []
-    executionConfig.value = createExecutionConfig()
-    createMode.value = 'manual'
-  }
-})
-
-async function loadStepVariables() {
-  if (!props.sceneId || !props.step) return
-  variablesLoading.value = true
-  try {
-    stepVariables.value = await fetchStepVariables(props.sceneId, props.step.id)
-  } catch {
-    stepVariables.value = []
-  } finally {
-    variablesLoading.value = false
-  }
-}
-
-// ==================== 接口选择 ====================
-async function loadInterfaces() {
-  interfaceLoading.value = true
-  try {
-    const resp = await fetchInterfacePage({ pageNo: 1, pageSize: 50, search: interfaceSearch.value || undefined })
-    interfaceOptions.value = resp.list
-  } catch {
-    interfaceOptions.value = []
-  } finally {
-    interfaceLoading.value = false
-  }
-}
-
-function handleCreateModeChange(mode: 'manual' | 'quick') {
-  createMode.value = mode
-  if (mode === 'quick' && interfaceOptions.value.length === 0) void loadInterfaces()
-}
-
-// ==================== 变量操作 ====================
-function addStepVariable() { stepVariables.value.push(createStepVariable()) }
-function removeStepVariable(i: number) { stepVariables.value.splice(i, 1) }
-
-// ==================== 验证器操作 ====================
-function addValidator() { validators.value.push(createValidator()) }
-function removeValidator(i: number) { validators.value.splice(i, 1) }
-
-// ==================== 提取器操作 ====================
-function addExtractor() { extractors.value.push(createExtractor()) }
-function removeExtractor(i: number) { extractors.value.splice(i, 1) }
-
-// ==================== 保存 ====================
-const saving = ref(false)
-
-async function handleSave() {
-  saving.value = true
-  try {
-    if (draftMode.value) {
-      await handleDraftSave()
-      return
-    }
-    if (!props.sceneId) return
-    if (createMode.value === 'quick') {
-      if (!quickInterfaceId.value) { ElMessage.warning('请选择接口'); return }
-      await quickCreateSteps(props.sceneId, { interfaceId: quickInterfaceId.value, mode: quickMode.value })
-      ElMessage.success('步骤已创建')
-    } else {
-      if (!formName.value.trim()) { ElMessage.warning('请填写步骤名称'); return }
-      const requestConfig: Record<string, unknown> = {
-        method: formMethod.value,
-        url: formUrl.value,
-        headers: reqHeaders.value.filter((h) => h.key.trim()),
-        params: reqParams.value.filter((p) => p.key.trim()),
-        body: reqBody.value,
-        conditionExpression: executionConfig.value.conditionExpression,
-      }
-      const payload: ApiSceneStepSaveReq = {
-        name: formName.value.trim(),
-        stepType: formStepType.value,
-        enabled: formEnabled.value,
-        requestConfig,
-        validators: serializeValidators(validators.value),
-        extractors: serializeExtractors(extractors.value),
-      }
-      if (props.step) {
-        await updateSceneStep(props.sceneId, props.step.id, payload)
-        ElMessage.success('步骤已更新')
-        if (stepVariables.value.length > 0) {
-          await updateStepVariables(props.sceneId, props.step.id, { variables: stepVariables.value.filter((v) => v.name.trim()) })
-        }
-      } else {
-        await createSceneStep(props.sceneId, { ...payload, sourceType: 'custom' })
-        ElMessage.success('步骤已创建')
-      }
-    }
-    emit('saved')
-  } catch (error) {
-    ElMessage.error(error instanceof Error ? error.message : '保存失败')
-  } finally {
-    saving.value = false
-  }
-}
-
-// ==================== 草稿模式（创建态未保存场景，不落库） ====================
-
-function draftId(): string {
-  return `draft-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
-}
-
-function buildDraftFromManual(): ApiSceneStepItem {
-  const requestConfig: Record<string, unknown> = {
-    method: formMethod.value,
-    url: formUrl.value,
-    headers: reqHeaders.value.filter((h) => h.key.trim()),
-    params: reqParams.value.filter((p) => p.key.trim()),
-    body: reqBody.value,
-    conditionExpression: executionConfig.value.conditionExpression,
-  }
-  return {
-    id: draftId(),
-    name: formName.value.trim(),
-    stepType: formStepType.value,
-    sortOrder: 0,
-    enabled: formEnabled.value,
-    sourceType: 'custom',
-    requestConfig,
-    variables: [],
-    processors: [],
-    validators: serializeValidators(validators.value),
-    extractors: serializeExtractors(extractors.value),
-  }
-}
-
-async function buildDraftFromInterface(): Promise<ApiSceneStepItem> {
-  const detail = await fetchInterfaceDetail(quickInterfaceId.value)
-  const requestConfig: Record<string, unknown> = {
-    method: detail.method,
-    url: detail.protocol === 'http' ? detail.path : detail.path,
-    headers: detail.headers ?? [],
-    params: detail.params ?? [],
-    body: detail.body ?? { type: 'none', content: null },
-    conditionExpression: '',
-  }
-  return {
-    id: draftId(),
-    name: detail.name,
-    stepType: 'http',
-    sortOrder: 0,
-    enabled: true,
-    sourceType: quickMode.value === 'link' ? 'link' : 'copy',
-    sourceInterfaceId: detail.id,
-    sourceInterfaceName: detail.name,
-    requestConfig,
-    variables: [],
-    // 接口定义不再包含处理器，场景步骤处理器由场景侧单独配置
-    processors: [],
-    validators: detail.validators ?? [],
-    extractors: detail.extractors ?? [],
-  }
-}
-
-async function handleDraftSave() {
-  let step: ApiSceneStepItem
-  if (createMode.value === 'quick') {
-    if (!quickInterfaceId.value) { ElMessage.warning('请选择接口'); return }
-    step = await buildDraftFromInterface()
-  } else {
-    if (!formName.value.trim()) { ElMessage.warning('请填写步骤名称'); return }
-    step = buildDraftFromManual()
-  }
-  emit('commit', step)
-}
+const {
+  draftMode,
+  visible,
+  formName,
+  formStepType,
+  formMethod,
+  formUrl,
+  formEnabled,
+  activeTab,
+  reqHeaders,
+  reqParams,
+  reqBody,
+  validators,
+  extractors,
+  stepVariables,
+  variablesLoading,
+  executionConfig,
+  createMode,
+  quickInterfaceId,
+  quickMode,
+  interfaceOptions,
+  interfaceSearch,
+  interfaceLoading,
+  saving,
+  handleCreateModeChange,
+  loadInterfaces,
+  addStepVariable,
+  removeStepVariable,
+  addValidator,
+  removeValidator,
+  addExtractor,
+  removeExtractor,
+  handleSave,
+} = useStepEditorDrawer(props, emit)
 </script>
 
 <template>
@@ -272,18 +54,15 @@ async function handleDraftSave() {
     size="680px"
     data-test="step-editor-drawer"
   >
-    <!-- 创建模式切换（仅新建时显示） -->
     <div v-if="!step" class="step-editor__mode-switch">
-      <el-radio-group :model-value="createMode" @update:model-value="(v: string | number) => handleCreateModeChange(v as 'manual' | 'quick')">
+      <el-radio-group :model-value="createMode" @update:model-value="(v) => handleCreateModeChange(v as 'manual' | 'quick')">
         <el-radio-button value="manual">手动创建</el-radio-button>
         <el-radio-button value="quick">通过接口快速创建</el-radio-button>
       </el-radio-group>
     </div>
 
-    <!-- ==================== 手动创建 / 编辑：标签页 ==================== -->
     <template v-if="createMode === 'manual'">
       <el-tabs v-model="activeTab" type="border-card" class="step-editor__tabs">
-        <!-- 基本信息 -->
         <el-tab-pane label="基本信息" name="basic">
           <el-form label-position="top">
             <el-form-item label="步骤名称" required>
@@ -300,7 +79,6 @@ async function handleDraftSave() {
           </el-form>
         </el-tab-pane>
 
-        <!-- 请求配置 -->
         <el-tab-pane label="请求配置" name="request">
           <RequestConfigEditor
             :method="formMethod"
@@ -316,7 +94,6 @@ async function handleDraftSave() {
           />
         </el-tab-pane>
 
-        <!-- 验证器 -->
         <el-tab-pane label="验证器" name="validators">
           <div class="step-editor__list-section">
             <div v-for="(v, i) in validators" :key="v.id" class="step-editor__validator-card">
@@ -337,7 +114,6 @@ async function handleDraftSave() {
           </div>
         </el-tab-pane>
 
-        <!-- 提取器 -->
         <el-tab-pane label="提取器" name="extractors">
           <div class="step-editor__list-section">
             <div v-for="(e, i) in extractors" :key="e.id" class="step-editor__validator-card">
@@ -355,7 +131,6 @@ async function handleDraftSave() {
           </div>
         </el-tab-pane>
 
-        <!-- 步骤变量 -->
         <el-tab-pane v-if="step && !draftMode" label="变量" name="variables">
           <div v-loading="variablesLoading" class="step-editor__list-section">
             <table v-if="stepVariables.length" class="step-editor__kv-table">
@@ -377,7 +152,6 @@ async function handleDraftSave() {
           </div>
         </el-tab-pane>
 
-        <!-- 执行配置 -->
         <el-tab-pane label="执行配置" name="execution">
           <el-form label-position="top">
             <el-form-item label="条件表达式（为空则始终执行）">
@@ -388,7 +162,6 @@ async function handleDraftSave() {
       </el-tabs>
     </template>
 
-    <!-- ==================== 通过接口快速创建 ==================== -->
     <template v-if="createMode === 'quick'">
       <el-form label-position="top">
         <el-form-item label="选择接口" required>

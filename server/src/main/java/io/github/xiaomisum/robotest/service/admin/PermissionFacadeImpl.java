@@ -1,9 +1,6 @@
 package io.github.xiaomisum.robotest.service.admin;
 
-import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
-import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
-import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
 
 import java.util.Map;
 import java.util.Set;
@@ -30,13 +27,6 @@ public class PermissionFacadeImpl implements PermissionFacade {
     public Set<String> permissionsOf(UUID userId, PermissionScope scope, UUID workspaceId) {
         PermissionChecker checker = requireChecker(scope);
         return checker.codes(userId, workspaceId);
-    }
-
-    @Override
-    public void require(UUID userId, PermissionScope scope, UUID workspaceId, String code) {
-        if (!permissionsOf(userId, scope, workspaceId).contains(code)) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.NO_PERMISSION);
-        }
     }
 
     private PermissionChecker requireChecker(PermissionScope scope) {

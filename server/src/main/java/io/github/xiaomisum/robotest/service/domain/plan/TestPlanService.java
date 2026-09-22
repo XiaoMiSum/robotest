@@ -6,7 +6,6 @@ import io.github.xiaomisum.robotest.model.dto.request.plan.TestPlanRecordReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.plan.TestPlanListRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.plan.TestPlanDetailRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.plan.TestPlanSnapshotNodeRespDTO;
-import io.github.xiaomisum.robotest.model.dto.response.plan.TestPlanExecutionRecordRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.plan.TestPlanProgressRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.tcase.SnapshotModuleTreeRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.plan.PlannedCasesRespDTO;
@@ -56,8 +55,6 @@ public interface TestPlanService {
 
     void submitExecutionRecord(UUID planId, UUID userId, TestPlanRecordReqDTO reqDTO);
 
-    List<TestPlanExecutionRecordRespDTO> getNodeExecutionRecords(UUID planId, UUID nodeId, UUID userId);
-
     void syncPlan(UUID planId, UUID userId);
 
     /**
@@ -68,8 +65,6 @@ public interface TestPlanService {
      * @return 执行进度
      */
     TestPlanProgressRespDTO getPlanProgress(UUID planId, UUID userId);
-
-    void closePlan(UUID planId, UUID userId);
 
     /**
      * 完成计划（仅负责人）

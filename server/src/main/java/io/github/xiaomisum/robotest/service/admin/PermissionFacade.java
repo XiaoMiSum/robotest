@@ -14,9 +14,4 @@ import java.util.UUID;
 public interface PermissionFacade {
 
     Set<String> permissionsOf(UUID userId, PermissionScope scope, UUID workspaceId);
-
-    /**
-     * 无权限时抛业务异常（code=NO_PERMISSION，见 ErrorCodeConstants）。
-     */
-    void require(UUID userId, PermissionScope scope, UUID workspaceId, String code);
 }

@@ -216,7 +216,7 @@ onBeforeUnmount(() => controller?.abort())
           <el-checkbox
             :model-value="allChecked"
             :indeterminate="checkedIndexes.size > 0 && !allChecked"
-            @update:model-value="(v: boolean) => toggleAll(v === true)"
+            @update:model-value="(v) => toggleAll(v === true)"
           >全选</el-checkbox>
           <span class="cpr-result-count">共 {{ result.items.length }} 条，已选 {{ checkedIndexes.size }} 条</span>
         </div>
@@ -225,7 +225,7 @@ onBeforeUnmount(() => controller?.abort())
           <div v-for="(item, index) in result.items" :key="item.caseNodeId" class="cpr-item">
             <el-checkbox
               :model-value="checkedIndexes.has(index)"
-              @update:model-value="(v: boolean) => toggleItem(index, v === true)"
+              @update:model-value="(v) => toggleItem(index, v === true)"
             />
             <div class="cpr-item__body">
               <div class="cpr-item__title">{{ item.title }}</div>

@@ -35,14 +35,6 @@ public class ProjectController {
         return Result.ok(result);
     }
 
-    @GetMapping("/{id}")
-    public Result<ProjectRespDTO> getProjectDetail(
-            @AuthenticationPrincipal LoginUser loginUser,
-            @PathVariable UUID id) {
-        ProjectRespDTO result = projectService.getProjectDetail(loginUser.getActiveWorkspaceId(), id);
-        return Result.ok(result);
-    }
-
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public Result<ProjectRespDTO> createProject(

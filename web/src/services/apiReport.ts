@@ -1,4 +1,4 @@
-import api from '@/services'
+import { get, post, del } from '@/services'
 import type {
   ApiPublicReportResp,
   ApiReportDetail,
@@ -6,13 +6,6 @@ import type {
   ApiReportShareResp,
   PageResult,
 } from '@/types'
-
-function get<T>(url: string, params?: Record<string, unknown>): Promise<T> {
-  return api.get(url, { params }) as unknown as Promise<T>
-}
-function post<T>(url: string, data?: unknown): Promise<T> {
-  return api.post(url, data) as unknown as Promise<T>
-}
 
 // ==================== 报告列表与详情 ====================
 
@@ -49,7 +42,7 @@ export function fetchPublicReport(id: string, token: string): Promise<ApiPublicR
 // ==================== 删除 ====================
 
 export function deleteReport(id: string): Promise<boolean> {
-  return api.delete(`/project/reports/${id}`) as unknown as Promise<boolean>
+  return del(`/project/reports/${id}`)
 }
 
 export function batchDeleteReports(ids: string[]): Promise<boolean> {

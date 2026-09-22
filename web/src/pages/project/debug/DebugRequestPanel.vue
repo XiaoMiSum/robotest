@@ -1,14 +1,6 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
-import { ElMessage } from 'element-plus'
-import type {
-  ApiDebugBodyKind,
-  ApiDebugRawSubtype,
-  ApiEnvironmentListItem,
-  DebugTab,
-} from '@/types'
-import { fetchEnvironments } from '@/services/apiEnvironment'
-import { HTTP_METHODS, setBodyContentTypeHeader } from '../debugModel'
+import type { DebugTab } from '@/types'
+import { useDebugRequestPanel } from '@/composables/useDebugRequestPanel'
 import KeyValueTable from './KeyValueTable.vue'
 
 const tab = defineModel<DebugTab>('tab', { required: true })
@@ -19,98 +11,22 @@ defineProps<{ executing: boolean; canSave: boolean }>()
 
 const emit = defineEmits<{ (e: 'execute', environmentId?: string): void; (e: 'save'): void }>()
 
-// ==================== 环境选择 ====================
-
-const environments = ref<ApiEnvironmentListItem[]>([])
-
-onMounted(async () => {
-  try {
-    environments.value = await fetchEnvironments()
-    environmentId.value =
-      environments.value.find((env) => env.isDefault)?.id ?? environments.value[0]?.id ?? ''
-  } catch {
-    // 环境加载失败不阻塞调试
-  }
-})
-
-type ParamTab = 'params' | 'auth' | 'headers' | 'body'
-
-const activeParamTab = ref<ParamTab>('params')
-
-// ==================== 请求体（Postman 四态） ====================
-
-const BODY_TYPES = [
-  { value: 'none', label: 'none' },
-  { value: 'urlencoded', label: 'x-www-form-urlencoded' },
-  { value: 'raw', label: 'raw' },
-] as const satisfies ReadonlyArray<{ value: ApiDebugBodyKind; label: string }>
-const SUBTYPES: ApiDebugRawSubtype[] = ['text', 'json', 'xml', 'html', 'javascript']
-
-function pickBodyType(type: ApiDebugBodyKind) {
-  tab.value.bodyType = type
-  if (type === 'raw' && !tab.value.bodies.raw) {
-    tab.value.bodies.raw = { text: '', subtype: 'json' }
-  }
-  setBodyContentTypeHeader(tab.value, type, tab.value.bodies.raw?.subtype)
-}
-
-const rawSubtype = computed<ApiDebugRawSubtype>({
-  get() {
-    return tab.value.bodies.raw?.subtype ?? 'json'
-  },
-  set(subtype: ApiDebugRawSubtype) {
-    if (!tab.value.bodies.raw) tab.value.bodies.raw = { text: '', subtype }
-    else tab.value.bodies.raw.subtype = subtype
-    if (tab.value.bodyType === 'raw') setBodyContentTypeHeader(tab.value, 'raw', subtype)
-  },
-})
-
-const rawText = computed({
-  get(): string {
-    return tab.value.bodies.raw?.text ?? ''
-  },
-  set(text: string) {
-    if (!tab.value.bodies.raw) tab.value.bodies.raw = { text, subtype: 'json' }
-    else tab.value.bodies.raw.text = text
-  },
-})
-
-function formatJsonBody() {
-  try {
-    const parsed: unknown = JSON.parse(rawText.value)
-    rawText.value = JSON.stringify(parsed, null, 2)
-  } catch {
-    ElMessage.warning('请求体不是合法 JSON，无法格式化')
-  }
-}
-
-// ==================== Headers 常用头名（Key 下拉建议项） ====================
-
-const COMMON_HEADERS = [
-  'Accept',
-  'Authorization',
-  'Content-Type',
-  'Cookie',
-  'User-Agent',
-  'X-Requested-With',
-  'If-None-Match',
-  'Origin',
-] as const
-
-// ==================== Method 颜色 ====================
-
-const METHOD_COLORS: Record<string, string> = {
-  GET: '#61affe',
-  POST: '#49cc90',
-  PUT: '#fca130',
-  PATCH: '#50e3c2',
-  DELETE: '#f93e3e',
-  OPTIONS: '#0d5aa7',
-  HEAD: '#9012fe',
-  CONNECT: '#e8d44d',
-}
-
-const methodColor = computed(() => METHOD_COLORS[tab.value.method.toUpperCase()] ?? '#999')
+const {
+  environments,
+  activeParamTab,
+  BODY_TYPES,
+  SUBTYPES,
+  COMMON_HEADERS,
+  HTTP_METHODS,
+  pickBodyType,
+  rawSubtype,
+  rawText,
+  formatJsonBody,
+  methodColor,
+} = useDebugRequestPanel(
+  () => tab.value,
+  environmentId,
+)
 </script>
 
 <template>

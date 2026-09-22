@@ -32,11 +32,6 @@ public interface AiConversationService {
     void deleteConversation(UUID userId, UUID workspaceId, UUID conversationId);
 
     /**
-     * 清空当前用户当前空间全部会话（级联删除消息）
-     */
-    void clearConversations(UUID userId, UUID workspaceId);
-
-    /**
      * 消息历史（按时间升序全量返回；归属校验同 3.1，非本人会话按不存在处理）
      */
     List<AiMessageRespDTO> listMessages(UUID userId, UUID workspaceId, UUID conversationId);

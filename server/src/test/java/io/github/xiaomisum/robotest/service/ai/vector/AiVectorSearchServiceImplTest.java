@@ -91,11 +91,6 @@ class AiVectorSearchServiceImplTest {
     }
 
     @Test
-    void vectorToText_producesVectorLiteral() {
-        assertEquals("[0.0,1.0,-2.5]", service.vectorToText(new float[]{0f, 1f, -2.5f}));
-    }
-
-    @Test
     void buildCaseIndexTexts_includesAncestorsAndChildren() {
         UUID doc = UUID.randomUUID();
         UUID module = UUID.randomUUID();

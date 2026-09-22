@@ -10,7 +10,6 @@ import io.github.xiaomisum.robotest.model.dto.response.bug.BugAttachmentRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.bug.BugDetailRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.bug.BugListRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.bug.BugLogRespDTO;
-import io.github.xiaomisum.robotest.model.dto.response.bug.BugStatisticsRespDTO;
 import io.github.xiaomisum.robotest.service.domain.bug.BugAttachmentService;
 import io.github.xiaomisum.robotest.service.domain.bug.BugQueryService;
 import io.github.xiaomisum.robotest.service.domain.bug.BugService;
@@ -118,12 +117,6 @@ public class BugController {
         bugService.assignBug(id, loginUser.getId(),
                 reqDTO.getAssigneeId());
         return Result.ok();
-    }
-
-    @GetMapping("/statistics")
-    public Result<BugStatisticsRespDTO> getBugStatistics(
-            @AuthenticationPrincipal LoginUser loginUser) {
-        return Result.ok(bugQueryService.getBugStatistics(loginUser.getActiveProjectId(), loginUser.getId()));
     }
 
     @PostMapping("/{id}/attachments")

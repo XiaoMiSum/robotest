@@ -1,43 +1,11 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import type { MenuInstance } from 'element-plus'
+import { useFunctionalTesting } from '@/composables/useFunctionalTesting'
 import TestCasePage from '@/pages/project/TestCasePage.vue'
 import ReviewListPage from '@/pages/project/ReviewListPage.vue'
 import PlanListPage from '@/pages/project/PlanListPage.vue'
 import RequirementPoolPage from '@/pages/project/RequirementPoolPage.vue'
 
-const route = useRoute()
-const router = useRouter()
-
-const menuItems = [
-  { key: 'cases', label: '测试用例', icon: 'Document' },
-  { key: 'reviews', label: '测试评审', icon: 'Checked' },
-  { key: 'plans', label: '测试计划', icon: 'Calendar' },
-  { key: 'requirements', label: '需求池', icon: 'Tickets' },
-]
-
-// 详情页返回与刷新时通过 ?tab= 恢复激活子模块（子页切换不走路由，仅初始化读取）
-const initialTab = String(route.query.tab ?? '')
-const activeMenu = ref(menuItems.some((m) => m.key === initialTab) ? initialTab : 'cases')
-const menuRef = ref<MenuInstance>()
-const testCaseRef = ref<InstanceType<typeof TestCasePage>>()
-
-// 子页面切换不走路由，TestCasePage 的路由守卫覆盖不到，需在此拦截确认
-async function handleMenuSelect(key: string) {
-  if (key === activeMenu.value) return
-  if (activeMenu.value === 'cases' && testCaseRef.value) {
-    const ok = await testCaseRef.value.confirmLeave()
-    if (!ok) {
-      // el-menu 点击瞬间已抢先高亮新项，取消后须显式回退
-      menuRef.value?.updateActiveIndex(activeMenu.value)
-      return
-    }
-  }
-  activeMenu.value = key
-  // 同步到 URL 使刷新后保持当前子页；replace 避免子页切换污染浏览器历史
-  router.replace({ query: { ...route.query, tab: key } })
-}
+const { activeMenu, menuRef, testCaseRef, menuItems, handleMenuSelect } = useFunctionalTesting()
 </script>
 
 <template>

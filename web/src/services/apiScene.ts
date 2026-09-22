@@ -1,11 +1,8 @@
-import api from '@/services'
+import { get, post, put, del } from '@/services'
 import type {
   ApiChangeHistoryItem,
-  ApiExecutionCancelResp,
   ApiExecutionHistoryItem,
   ApiExecutionStartResp,
-  ApiExecutionStatusResp,
-  ApiSceneAssetsImportResp,
   ApiSceneCreateReq,
   ApiSceneDetail,
   ApiSceneDraftExecuteReq,
@@ -16,25 +13,13 @@ import type {
   ApiSceneStepCopyReq,
   ApiSceneStepDebugReq,
   ApiSceneStepDebugResp,
-  ApiSceneStepDraftDebugReq,
   ApiSceneStepReorderReq,
   ApiSceneStepSaveReq,
   ApiSceneStepVariableBatchReq,
-  ApiSceneStepVariableImportReq,
   ApiSceneStepVariableItem,
   ApiSceneUpdateReq,
   PageResult,
 } from '@/types'
-
-function get<T>(url: string, params?: Record<string, unknown>): Promise<T> {
-  return api.get(url, { params }) as unknown as Promise<T>
-}
-function post<T>(url: string, data?: unknown): Promise<T> {
-  return api.post(url, data) as unknown as Promise<T>
-}
-function put<T>(url: string, data?: unknown): Promise<T> {
-  return api.put(url, data) as unknown as Promise<T>
-}
 
 // ==================== 场景管理（3.1） ====================
 
@@ -57,7 +42,7 @@ export function updateScene(id: string, req: ApiSceneUpdateReq): Promise<boolean
 }
 
 export function deleteScene(id: string): Promise<boolean> {
-  return api.delete(`/project/api-scenes/${id}`) as unknown as Promise<boolean>
+  return del(`/project/api-scenes/${id}`)
 }
 
 // ==================== 步骤管理（3.3） ====================
@@ -75,7 +60,7 @@ export function updateSceneStep(sceneId: string, stepId: string, req: ApiSceneSt
 }
 
 export function deleteSceneStep(sceneId: string, stepId: string): Promise<boolean> {
-  return api.delete(`/project/api-scenes/${sceneId}/steps/${stepId}`) as unknown as Promise<boolean>
+  return del(`/project/api-scenes/${sceneId}/steps/${stepId}`)
 }
 
 export function reorderSceneSteps(sceneId: string, req: ApiSceneStepReorderReq): Promise<boolean> {
@@ -96,22 +81,10 @@ export function updateStepVariables(sceneId: string, stepId: string, req: ApiSce
   return put(`/project/api-scenes/${sceneId}/steps/${stepId}/variables`, req)
 }
 
-export function importStepVariables(sceneId: string, stepId: string, req: ApiSceneStepVariableImportReq): Promise<ApiSceneStepVariableItem[]> {
-  return post(`/project/api-scenes/${sceneId}/steps/${stepId}/variables/import`, req)
-}
-
 // ==================== 执行与调试（3.6） ====================
 
 export function executeScene(sceneId: string, req?: ApiSceneExecuteReq): Promise<ApiExecutionStartResp> {
   return post(`/project/api-scenes/${sceneId}/executions`, req)
-}
-
-export function getExecutionStatus(sceneId: string, executionId: string): Promise<ApiExecutionStatusResp> {
-  return get(`/project/api-scenes/${sceneId}/executions/${executionId}`)
-}
-
-export function cancelExecution(sceneId: string, executionId: string): Promise<ApiExecutionCancelResp> {
-  return post(`/project/api-scenes/${sceneId}/executions/${executionId}/cancel`)
 }
 
 export function debugStep(sceneId: string, stepId: string, req?: ApiSceneStepDebugReq): Promise<ApiSceneStepDebugResp> {
@@ -119,10 +92,6 @@ export function debugStep(sceneId: string, stepId: string, req?: ApiSceneStepDeb
 }
 
 // ==================== 草稿调试/执行（3.6.4 / 3.6.5，创建态未保存） ====================
-
-export function debugDraftStep(req: ApiSceneStepDraftDebugReq): Promise<ApiSceneStepDebugResp> {
-  return post('/project/api-scenes/draft/debug-step', req)
-}
 
 export function executeDraftScene(req: ApiSceneDraftExecuteReq): Promise<ApiSceneDraftExecuteResp> {
   return post('/project/api-scenes/draft/execute', req)
@@ -140,10 +109,6 @@ export function fetchChangeHistory(sceneId: string, pageNo: number, pageSize: nu
 
 // ==================== 全局资产引入（3.12） ====================
 
-export function importAssets(sceneId: string, req: { target: string; stepId?: string; assetIds: string[] }): Promise<ApiSceneAssetsImportResp> {
-  return post(`/project/api-scenes/${sceneId}/assets/import`, req)
-}
-
 // ==================== 关注（follow/unfollow） ====================
 
 export function followScene(sceneId: string): Promise<boolean> {
@@ -151,15 +116,15 @@ export function followScene(sceneId: string): Promise<boolean> {
 }
 
 export function unfollowScene(sceneId: string): Promise<boolean> {
-  return api.delete(`/project/api-scenes/${sceneId}/follow`) as unknown as Promise<boolean>
+  return del(`/project/api-scenes/${sceneId}/follow`)
 }
 
 // ==================== 批量操作 ====================
 
 export function batchDeleteScenes(ids: string[]): Promise<boolean> {
-  return api.delete('/project/api-scenes/batch', { data: { ids } }) as unknown as Promise<boolean>
+  return del('/project/api-scenes/batch', { data: { ids } })
 }
 
 export function batchMoveScenes(ids: string[], moduleId: string | null): Promise<boolean> {
-  return api.put('/project/api-scenes/batch/move', { ids, moduleId }) as unknown as Promise<boolean>
+  return put('/project/api-scenes/batch/move', { ids, moduleId })
 }

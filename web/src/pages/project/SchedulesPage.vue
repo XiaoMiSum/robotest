@@ -1,415 +1,64 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, watch } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import type { FormInstance } from 'element-plus'
-import type {
-  ApiEnvironmentListItem,
-  ApiScheduleExecutionItem,
-  ApiScheduleExecutionScope,
-  ApiSchedulePageItem,
-  ApiScheduleSaveReq,
-  ProjectModule,
-} from '@/types'
 import ScenePickerDialog from '@/components/project/ScenePickerDialog.vue'
-import {
-  createSchedule,
-  deleteSchedule,
-  executeSchedule,
-  fetchScheduleExecutions,
-  fetchSchedulePage,
-  toggleSchedule,
-  updateSchedule,
-  validateCron,
-} from '@/services/apiSchedule'
-import { fetchScenePage } from '@/services/apiScene'
-import { fetchEnvironments } from '@/services/apiEnvironment'
-import { fetchProjectModuleTree } from '@/services/project'
-import { CRON_PRESETS, EXECUTION_SCOPES, SCHEDULE_TASK_TYPES, taskExecutionSummary, execStatusLabel, execStatusType } from './schedulesModel'
-import { formatDateTime, formatShortDateTime } from '@/utils/format'
+import { useSchedules } from '@/composables/useSchedules'
+import type { ApiSchedulePageItem } from '@/types'
 
-// ==================== 列表 ====================
-
-const rows = ref<ApiSchedulePageItem[]>([])
-const total = ref(0)
-const pageNo = ref(1)
-const pageSize = 20
-const loading = ref(false)
-const typeFilter = ref<string>('')
-
-async function loadPage() {
-  loading.value = true
-  try {
-    const params: { pageNo: number; pageSize: number; taskType?: string } = { pageNo: pageNo.value, pageSize }
-    if (typeFilter.value) params.taskType = typeFilter.value
-    const page = await fetchSchedulePage(params)
-    rows.value = page.list
-    total.value = page.total
-  } catch (error) {
-    ElMessage.error(error instanceof Error ? error.message : '定时任务列表加载失败')
-  } finally {
-    loading.value = false
-  }
-}
-
-watch(typeFilter, () => {
-  pageNo.value = 1
-  void loadPage()
-})
-
-// ==================== 新建/编辑弹窗 ====================
-
-const showFormDialog = ref(false)
-const editingId = ref<string | null>(null)
-const formRef = ref<FormInstance>()
-const saving = ref(false)
-
-const form = reactive<{
-  taskType: ApiScheduleSaveReq['taskType']
-  name: string
-  description: string
-  executionScope: ApiScheduleExecutionScope
-  moduleIds: string[]
-  sceneIds: string[]
-  openapiUrl: string
-  environmentId: string | undefined
-  cronExpression: string
-  enabled: boolean
-}>({
-  taskType: 'scene_execute',
-  name: '',
-  description: '',
-  executionScope: 'all',
-  moduleIds: [],
-  sceneIds: [],
-  openapiUrl: '',
-  environmentId: undefined,
-  cronExpression: '',
-  enabled: true,
-})
-
-const isTestPlanTask = computed(() => form.taskType === 'scene_execute')
-
-// 执行范围选项加载（模块树）
-const moduleOptions = ref<ProjectModule[]>([])
-const scopeOptionLoading = ref(false)
-
-async function loadScopeOptions(scope: ApiScheduleExecutionScope) {
-  scopeOptionLoading.value = true
-  try {
-    if (scope === 'modules') {
-      moduleOptions.value = await fetchProjectModuleTree('scene')
-    }
-  } catch (error) {
-    moduleOptions.value = []
-    if (scope === 'modules') {
-      ElMessage.error(error instanceof Error ? `模块加载失败：${error.message}` : '模块加载失败')
-    }
-  } finally {
-    scopeOptionLoading.value = false
-  }
-}
-
-// 指定场景：选择对话框 + 已选标签
-const scenePickerVisible = ref(false)
-const selectedScenes = ref<{ id: string; name: string }[]>([])
-
-// 标签过多时折叠，避免挤占表单单行高度
-const MAX_VISIBLE_SCENE_TAGS = 8
-const sceneTagsExpanded = ref(false)
-const visibleSceneTags = computed(() =>
-  sceneTagsExpanded.value ? selectedScenes.value : selectedScenes.value.slice(0, MAX_VISIBLE_SCENE_TAGS),
-)
-
-function handleSceneConfirm(selected: { id: string; name: string }[]) {
-  selectedScenes.value = selected
-  form.sceneIds = selected.map((s) => s.id)
-}
-
-function removeScene(id: string) {
-  form.sceneIds = form.sceneIds.filter((sceneId) => sceneId !== id)
-  selectedScenes.value = selectedScenes.value.filter((s) => s.id !== id)
-}
-
-// 编辑场景任务回填标签：PageParam.pageSize 上限 100，需分页拉全量场景名
-async function hydrateSelectedSceneNames(): Promise<void> {
-  if (!form.sceneIds.length) {
-    selectedScenes.value = []
-    return
-  }
-  const names = new Map<string, string>()
-  let pageNo = 1
-  let total = Infinity
-  while (names.size < total) {
-    const page = await fetchScenePage({ pageNo, pageSize: 100 })
-    for (const s of page.list) names.set(s.id, s.name)
-    total = page.total
-    if (!page.list.length) break
-    pageNo += 1
-  }
-  selectedScenes.value = form.sceneIds.map((id) => ({ id, name: names.get(id) ?? '（已删除场景）' }))
-}
-
-// 环境列表
-const environmentOptions = ref<ApiEnvironmentListItem[]>([])
-const environmentLoading = ref(false)
-
-async function loadEnvironments() {
-  environmentLoading.value = true
-  try {
-    environmentOptions.value = await fetchEnvironments()
-  } catch {
-    environmentOptions.value = []
-  } finally {
-    environmentLoading.value = false
-  }
-}
-
-function resetForm() {
-  editingId.value = null
-  form.taskType = 'scene_execute'
-  form.name = ''
-  form.description = ''
-  form.executionScope = 'all'
-  form.moduleIds = []
-  form.sceneIds = []
-  form.openapiUrl = ''
-  form.environmentId = undefined
-  form.cronExpression = ''
-  form.enabled = true
-  moduleOptions.value = []
-  selectedScenes.value = []
-}
-
-function openCreate() {
-  resetForm()
-  showFormDialog.value = true
-  void loadScopeOptions(form.executionScope)
-  void loadEnvironments()
-}
-
-function openEdit(item: ApiSchedulePageItem) {
-  editingId.value = item.id
-  // 旧版绑定对象任务（历史遗留 taskType）按测试计划口径打开，保存即迁移为新模型
-  form.taskType = item.taskType === 'import_swagger' ? 'import_swagger' : 'scene_execute'
-  form.name = item.name
-  form.description = item.description ?? ''
-  form.executionScope = item.executionScope ?? 'all'
-  form.moduleIds = item.moduleIds ?? []
-  form.sceneIds = item.sceneIds ?? []
-  form.openapiUrl = item.openapiUrl ?? ''
-  form.environmentId = item.environmentId ?? undefined
-  form.cronExpression = item.cronExpression
-  form.enabled = item.enabled
-  showFormDialog.value = true
-  void loadScopeOptions(form.executionScope)
-  void loadEnvironments()
-  if (form.executionScope === 'scenes') void hydrateSelectedSceneNames()
-}
-
-watch(() => form.taskType, (type) => {
-  if (type === 'import_swagger') {
-    form.executionScope = 'all'
-    form.moduleIds = []
-    form.sceneIds = []
-    form.environmentId = undefined
-  } else {
-    form.openapiUrl = ''
-    void loadScopeOptions('all')
-  }
-})
-
-watch(() => form.executionScope, (scope) => {
-  void loadScopeOptions(scope)
-  if (scope === 'scenes') void hydrateSelectedSceneNames()
-})
-
-// Cron 校验
-const cronValidation = ref<{ valid: boolean; description: string | null; nextExecutions: string[] | null } | null>(null)
-const cronValidating = ref(false)
-
-async function handleValidateCron() {
-  if (!form.cronExpression.trim()) return
-  cronValidating.value = true
-  try {
-    cronValidation.value = await validateCron({ cronExpression: form.cronExpression.trim() })
-  } catch {
-    cronValidation.value = { valid: false, description: null, nextExecutions: null }
-  } finally {
-    cronValidating.value = false
-  }
-}
-
-function handlePresetSelect(preset: string) {
-  form.cronExpression = preset
-  void handleValidateCron()
-}
-
-// Cron 构建器状态
-const cronBuilder = reactive({
-  minute: '0',
-  hour: '2',
-  day: '*',
-  month: '*',
-  weekday: '*',
-})
-const showCronBuilder = ref(false)
-
-function applyCronBuilder() {
-  form.cronExpression = `${cronBuilder.minute} ${cronBuilder.hour} ${cronBuilder.day} ${cronBuilder.month} ${cronBuilder.weekday}`
-  showCronBuilder.value = false
-  void handleValidateCron()
-}
-
-async function handleSave() {
-  if (!formRef.value) return
-  await formRef.value.validate()
-  if (!form.cronExpression.trim()) {
-    ElMessage.warning('请输入 Cron 表达式')
-    return
-  }
-  if (isTestPlanTask.value) {
-    if (!form.environmentId) {
-      ElMessage.warning('测试计划任务需选择目标环境')
-      return
-    }
-    if (form.executionScope === 'modules' && !form.moduleIds.length) {
-      ElMessage.warning('请选择执行模块')
-      return
-    }
-    if (form.executionScope === 'scenes' && !form.sceneIds.length) {
-      ElMessage.warning('请选择执行场景')
-      return
-    }
-  } else if (!form.openapiUrl.trim()) {
-    ElMessage.warning('接口同步任务需填写接口文档 URL')
-    return
-  }
-  saving.value = true
-  try {
-    const req: ApiScheduleSaveReq = {
-      taskType: form.taskType,
-      name: form.name.trim(),
-      description: form.description?.trim() || undefined,
-      executionScope: isTestPlanTask.value ? form.executionScope : undefined,
-      moduleIds: isTestPlanTask.value && form.executionScope === 'modules' ? form.moduleIds : undefined,
-      sceneIds: isTestPlanTask.value && form.executionScope === 'scenes' ? form.sceneIds : undefined,
-      openapiUrl: isTestPlanTask.value ? undefined : form.openapiUrl.trim() || undefined,
-      environmentId: isTestPlanTask.value ? form.environmentId || undefined : undefined,
-      cronExpression: form.cronExpression.trim(),
-      enabled: form.enabled,
-    }
-    if (editingId.value) {
-      await updateSchedule(editingId.value, req)
-      ElMessage.success('已更新')
-    } else {
-      await createSchedule(req)
-      ElMessage.success('已创建')
-    }
-    showFormDialog.value = false
-    await loadPage()
-  } catch (error) {
-    ElMessage.error(error instanceof Error ? error.message : '保存失败')
-  } finally {
-    saving.value = false
-  }
-}
-
-// ==================== 启停 ====================
-
-async function handleToggle(item: ApiSchedulePageItem) {
-  const newEnabled = !item.enabled
-  const label = newEnabled ? '启用' : '停用'
-  try {
-    await toggleSchedule(item.id, { enabled: newEnabled })
-    ElMessage.success(`已${label}`)
-    await loadPage()
-  } catch (error) {
-    ElMessage.error(error instanceof Error ? error.message : `${label}失败`)
-  }
-}
-
-// ==================== 删除 ====================
-
-async function handleDelete(item: ApiSchedulePageItem) {
-  await ElMessageBox.confirm(`删除定时任务「${item.name}」？删除不影响已产生的执行记录与报告。`, '删除定时任务', {
-    type: 'warning',
-    confirmButtonText: '删除',
-    confirmButtonClass: 'el-button--danger',
-  })
-  try {
-    await deleteSchedule(item.id)
-    ElMessage.success('已删除')
-    if (!rows.value.length && pageNo.value > 1) pageNo.value -= 1
-    else await loadPage()
-  } catch (error) {
-    ElMessage.error(error instanceof Error ? error.message : '删除失败')
-  }
-}
-
-// ==================== 立即执行 ====================
-
-async function handleExecuteNow(item: ApiSchedulePageItem) {
-  if (item.lastExecutionStatus === 'running') {
-    ElMessage.warning('上一次执行未结束，请稍后再试')
-    return
-  }
-  await ElMessageBox.confirm(`立即执行定时任务「${item.name}」？`, '立即执行', { type: 'info' })
-  try {
-    await executeSchedule(item.id)
-    ElMessage.success('已触发执行')
-    await loadPage()
-  } catch (error) {
-    ElMessage.error(error instanceof Error ? error.message : '执行失败')
-  }
-}
-
-// ==================== 执行记录抽屉 ====================
-
-const showExecutionDrawer = ref(false)
-const executionTask = ref<ApiSchedulePageItem | null>(null)
-const executionRows = ref<ApiScheduleExecutionItem[]>([])
-const executionTotal = ref(0)
-const executionPageNo = ref(1)
-const executionLoading = ref(false)
-
-async function openExecutions(item: ApiSchedulePageItem) {
-  executionTask.value = item
-  executionRows.value = []
-  executionTotal.value = 0
-  executionPageNo.value = 1
-  showExecutionDrawer.value = true
-  await loadExecutions()
-}
-
-async function loadExecutions() {
-  if (!executionTask.value) return
-  executionLoading.value = true
-  try {
-    const page = await fetchScheduleExecutions(executionTask.value.id, { pageNo: executionPageNo.value, pageSize: 10 })
-    executionRows.value = page.list
-    executionTotal.value = page.total
-  } catch (error) {
-    ElMessage.error(error instanceof Error ? error.message : '执行记录加载失败')
-  } finally {
-    executionLoading.value = false
-  }
-}
-
-function triggerTypeLabel(type: string): string {
-  return type === 'manual' ? '手动' : '定时'
-}
-
-function formatDuration(ms: number | null): string {
-  if (ms == null) return '-'
-  if (ms < 1000) return `${ms}ms`
-  return `${(ms / 1000).toFixed(1)}s`
-}
-
-// ==================== 初始化 ====================
-
-onMounted(() => {
-  void loadPage()
-})
+const {
+  rows,
+  total,
+  pageNo,
+  loading,
+  typeFilter,
+  loadPage,
+  showFormDialog,
+  editingId,
+  formRef,
+  saving,
+  form,
+  isTestPlanTask,
+  openCreate,
+  openEdit,
+  handleSave,
+  moduleOptions,
+  scopeOptionLoading,
+  scenePickerVisible,
+  selectedScenes,
+  visibleSceneTags,
+  sceneTagsExpanded,
+  handleSceneConfirm,
+  removeScene,
+  environmentOptions,
+  environmentLoading,
+  cronValidation,
+  cronValidating,
+  handleValidateCron,
+  handlePresetSelect,
+  cronBuilder,
+  showCronBuilder,
+  applyCronBuilder,
+  handleToggle,
+  handleDelete,
+  handleExecuteNow,
+  showExecutionDrawer,
+  executionTask,
+  executionRows,
+  executionTotal,
+  executionPageNo,
+  executionLoading,
+  openExecutions,
+  loadExecutions,
+  triggerTypeLabel,
+  formatDuration,
+  SCHEDULE_TASK_TYPES,
+  EXECUTION_SCOPES,
+  CRON_PRESETS,
+  taskExecutionSummary,
+  execStatusLabel,
+  execStatusType,
+  formatDateTime,
+  formatShortDateTime,
+  MAX_VISIBLE_SCENE_TAGS,
+} = useSchedules()
 </script>
 
 <template>
@@ -492,7 +141,7 @@ onMounted(() => {
       </el-table>
       <el-pagination
         v-model:current-page="pageNo"
-        :page-size="pageSize"
+        :page-size="20"
         :total="total"
         layout="total, prev, pager, next"
         class="schedules-page__pagination"
