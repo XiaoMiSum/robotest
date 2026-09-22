@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { MountTargetSource } from '@/components/project/functional-testing/minder/ai/aiMount'
-import type { Minder } from '@/components/project/functional-testing/minder/types'
+import type { MountTargetSource } from '@/minder/ai/aiMount'
+import type { Minder } from '@/minder/types'
 
 const mocks = vi.hoisted(() => ({
   recommendPriority: vi.fn<(title: string, ancestorTitles: string[]) => Promise<{ priority: string | null; source: 'rule' | 'llm' }>>(),
@@ -20,7 +20,7 @@ vi.mock('@/stores/ai', () => ({
   useAiStore: mocks.useAiStore,
 }))
 
-vi.mock('@/components/project/functional-testing/minder/clipboard', () => ({
+vi.mock('@/minder/clipboard', () => ({
   copySelected: mocks.copySelected,
   cutSelected: mocks.cutSelected,
   pasteToSelected: mocks.pasteToSelected,

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { MountTargetSource } from '@/components/project/functional-testing/minder/ai/aiMount'
+import type { MountTargetSource } from '@/minder/ai/aiMount'
 import type { AiGeneratedNode, RequirementSummary } from '@/types'
 
 const mocks = vi.hoisted(() => ({
@@ -14,7 +14,7 @@ vi.mock('@/services/project', () => ({
   setDocumentRequirements: mocks.setDocumentRequirements,
 }))
 
-vi.mock('@/components/project/functional-testing/minder/ai/aiMount', () => ({
+vi.mock('@/minder/ai/aiMount', () => ({
   mountGeneratedNodes: mocks.mountGeneratedNodes,
 }))
 

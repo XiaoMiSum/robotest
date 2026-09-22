@@ -35,7 +35,7 @@ import {
   BUG_TYPE_LABEL,
   promptStatusChangeComment,
 } from '@/composables/project/bug/bugStatus'
-import { typeBadge, type Badge } from '@/components/project/functional-testing/minder/badges'
+import { typeBadge, type Badge } from '@/minder/badges'
 
 // ==================== Constants ====================
 

@@ -94,7 +94,7 @@ vi.mock('y-websocket', () => {
   }
 })
 
-vi.mock('@/components/project/functional-testing/minder/yjsSync', () => ({
+vi.mock('@/minder/yjsSync', () => ({
   publishCanvasToYjs: vi.fn(),
   buildJsonFromYjs: vi.fn(() => null),
   applyRemoteDiff: vi.fn(() => true),
@@ -103,7 +103,7 @@ vi.mock('@/components/project/functional-testing/minder/yjsSync', () => ({
 import { WebsocketProvider } from 'y-websocket'
 import { getAccessToken } from '@/services'
 import { ElMessage } from 'element-plus'
-import { publishCanvasToYjs, buildJsonFromYjs, applyRemoteDiff } from '@/components/project/functional-testing/minder/yjsSync'
+import { publishCanvasToYjs, buildJsonFromYjs, applyRemoteDiff } from '@/minder/yjsSync'
 
 function makeSut() {
   const getMinder = vi.fn()

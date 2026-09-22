@@ -2,13 +2,13 @@
 import { computed } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useAssistantContextStore } from '@/stores/assistantContext'
-import { useMinderInstance } from '../minder/useMinderInstance'
+import { useMinderInstance } from '@/minder/useMinderInstance'
 import MinderContextMenu from '../minder/MinderContextMenu.vue'
 import MinderNavigator from '../minder/MinderNavigator.vue'
 import AiGeneratePanel from '../minder/ai/AiGeneratePanel.vue'
 import RequirementSelector from '../requirement/RequirementSelector.vue'
 import MissingPointsPanel from './MissingPointsPanel.vue'
-import { KMEditor } from '../minder/editor'
+import { KMEditor } from '@/minder/editor'
 import { useMindmapPersistence } from '@/composables/project/functional-testing/mindmap/useMindmapPersistence'
 import { useMindmapAI } from '@/composables/project/functional-testing/mindmap/useMindmapAI'
 import { useMindmapLayout } from '@/composables/project/functional-testing/mindmap/useMindmapLayout'
@@ -45,7 +45,7 @@ const {
   },
 })
 
-const getMinderTyped = () => getMinder() as unknown as import('../minder/types').Minder | null
+const getMinderTyped = () => getMinder() as unknown as import('@/minder/types').Minder | null
 
 const persistence = useMindmapPersistence(getMinderTyped)
 

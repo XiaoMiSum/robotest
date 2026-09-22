@@ -7,10 +7,10 @@ import { ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { recommendPriority, type AiPriorityRecommendResp } from '@/services/ai'
 import { useAiStore } from '@/stores/ai'
-import { copySelected, cutSelected, pasteToSelected, hasClipboard } from '@/components/project/functional-testing/minder/clipboard'
-import { DEFAULT_NODE_TEXT } from '@/components/project/functional-testing/minder/jumping'
-import type { MountTargetSource } from '@/components/project/functional-testing/minder/ai/aiMount'
-import type { Minder } from '@/components/project/functional-testing/minder/types'
+import { copySelected, cutSelected, pasteToSelected, hasClipboard } from '@/minder/clipboard'
+import { DEFAULT_NODE_TEXT } from '@/minder/jumping'
+import type { MountTargetSource } from '@/minder/ai/aiMount'
+import type { Minder } from '@/minder/types'
 
 interface KMEditorLike {
   minder: Minder

@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
-import { loadMinderEngine } from '../loader'
-import { previewToKityJsonDeep } from './aiPreviewRender'
-import { filterCheckedTree, type AiPreviewNode } from './aiMount'
+import { loadMinderEngine } from '@/minder/loader'
+import { previewToKityJsonDeep } from '@/minder/ai/aiPreviewRender'
+import { filterCheckedTree, type AiPreviewNode } from '@/minder/ai/aiMount'
 import type { AiGeneratedNode } from '@/types'
-import type { Minder, MinderEvent, MinderNode } from '../types'
+import type { Minder, MinderEvent, MinderNode } from '@/minder/types'
 
 /**
  * AI 生成结果独立预览弹窗（交互设计 2.1/2.2/2.3）：生成抽屉点击 [查看预览] 后打开（两窗并存、本弹窗置顶）；

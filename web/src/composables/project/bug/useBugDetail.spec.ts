@@ -68,7 +68,7 @@ vi.mock('@/composables/project/bug/bugStatus', () => ({
   promptStatusChangeComment: mocks.promptStatusChangeComment,
 }))
 
-vi.mock('@/components/project/functional-testing/minder/badges', () => ({
+vi.mock('@/minder/badges', () => ({
   typeBadge: mocks.typeBadge,
 }))
 
