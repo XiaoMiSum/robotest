@@ -17,11 +17,11 @@ import {
 import type { PlannedCases, ReviewMark, ReviewRecord } from '@/types'
 import { formatDateTime } from '@/utils/format'
 // window.kity / window.kityminder 的类型声明在 minder/types.ts 中统一维护
-import { reviewNodeToKm } from '../minder/adapter'
-import type { Minder, MinderNode } from '../minder/types'
-import { loadMinderEngine } from '../minder/loader'
-import { useMinderInstance } from '../minder/useMinderInstance'
-import { useContextMenu, type ContextMenuAnchorNode } from '../minder/useContextMenu'
+import { reviewNodeToKm } from '@/minder/adapter'
+import type { Minder, MinderNode } from '@/minder/types'
+import { loadMinderEngine } from '@/minder/loader'
+import { useMinderInstance } from '@/minder/useMinderInstance'
+import { useContextMenu, type ContextMenuAnchorNode } from '@/minder/useContextMenu'
 import MinderContextMenu from '../minder/MinderContextMenu.vue'
 import MinderNavigator from '../minder/MinderNavigator.vue'
 

@@ -6,7 +6,7 @@
  */
 import { onMounted, onBeforeUnmount, ref, computed } from 'vue'
 import { ElMessage } from 'element-plus'
-import type { NavMinder, KityBox, KityPoint, MinderEvent } from './types'
+import type { NavMinder, KityBox, KityPoint, MinderEvent } from '@/minder/types'
 
 const props = defineProps<{
   // kity 实例经 shallowRef 透传，此处收窄为导航器所需的视图层接口

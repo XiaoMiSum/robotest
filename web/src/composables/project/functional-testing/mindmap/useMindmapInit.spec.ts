@@ -36,24 +36,24 @@ vi.mock('@/services/project', () => ({
   fetchDocumentNodes: mocks.fetchDocumentNodes,
 }))
 
-vi.mock('@/components/project/functional-testing/minder/adapter', () => ({
+vi.mock('@/minder/adapter', () => ({
   caseNodeToKm: mocks.caseNodeToKm,
 }))
 
-vi.mock('@/components/project/functional-testing/minder/loader', () => ({
+vi.mock('@/minder/loader', () => ({
   loadMinderEngine: mocks.loadMinderEngine,
 }))
 
-vi.mock('@/components/project/functional-testing/minder/editor', () => ({
+vi.mock('@/minder/editor', () => ({
   KMEditor: mocks.KMEditor,
 }))
 
-vi.mock('@/components/project/functional-testing/minder/ai/dslRunner', () => ({
+vi.mock('@/minder/ai/dslRunner', () => ({
   buildDslPlan: mocks.buildDslPlan,
   applyDslPlan: mocks.applyDslPlan,
 }))
 
-vi.mock('@/components/project/functional-testing/minder/useContextMenu', () => {
+vi.mock('@/minder/useContextMenu', () => {
   function simpleRef(v: unknown) {
     return { get value() { return v }, set value(n: unknown) { v = n } }
   }
