@@ -11,7 +11,7 @@ import {
   tabTitle,
   tabFromRestore,
 } from '@/pages/project/api-testing/debug/debugModel'
-import { executeDebug, restoreDebugRecord } from '@/services/project/debug'
+import { executeDebug, restoreDebugRecord } from '@/services/project/api-testing/debug'
 import { parseCurl } from '@/pages/project/api-testing/debug/curlParser'
 import { useApiTestingUiStore } from '@/stores/apiTestingUi'
 

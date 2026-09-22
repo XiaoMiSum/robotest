@@ -7,12 +7,12 @@ import type {
   ApiProcessor,
   ApiProcessorType,
 } from '@/types'
-import { fetchEnvironmentDetail, updateEnvironment } from '@/services/project/environment'
+import { fetchEnvironmentDetail, updateEnvironment } from '@/services/project/api-testing/environment'
 import { resolveEnvironmentError, validateVariableRow } from '@/pages/project/api-testing/environment/environmentsModel'
 import { useEnvironmentHttpConfig, useEnvironmentDatasource } from './useEnvironmentConfig'
 import type { HttpConfigForm, DsForm } from './useEnvironmentConfig'
 import { useEnvironmentProcessors } from './useEnvironmentProcessors'
-import { fetchComponents } from '@/services/project/component'
+import { fetchComponents } from '@/services/project/api-testing/component'
 import {
   extractorsFromComponents,
   isRecord,

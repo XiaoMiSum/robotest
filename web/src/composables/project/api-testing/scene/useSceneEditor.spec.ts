@@ -22,7 +22,7 @@ vi.mock('element-plus', () => ({
   ElMessageBox: mocks.ElMessageBox,
 }))
 
-vi.mock('@/services/project/scene', () => ({
+vi.mock('@/services/project/api-testing/scene', () => ({
   fetchSceneDetail: mocks.fetchSceneDetail,
   createScene: mocks.createScene,
   updateScene: mocks.updateScene,
@@ -31,7 +31,7 @@ vi.mock('@/services/project/scene', () => ({
   executeDraftScene: mocks.executeDraftScene,
 }))
 
-vi.mock('@/services/project/environment', () => ({
+vi.mock('@/services/project/api-testing/environment', () => ({
   fetchEnvironments: mocks.fetchEnvironments,
 }))
 

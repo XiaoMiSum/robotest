@@ -16,7 +16,7 @@ const mocks = vi.hoisted(() => ({
 }))
 
 vi.mock('element-plus', () => ({ ElMessage: mocks.ElMessage }))
-vi.mock('@/services/project/environment', () => ({
+vi.mock('@/services/project/api-testing/environment', () => ({
   fetchEnvironmentDetail: mocks.fetchEnvironmentDetail,
   updateEnvironment: mocks.updateEnvironment,
 }))
@@ -24,7 +24,7 @@ vi.mock('@/pages/project/api-testing/environment/environmentsModel', () => ({
   resolveEnvironmentError: mocks.resolveEnvironmentError,
   validateVariableRow: mocks.validateVariableRow,
 }))
-vi.mock('@/services/project/component', () => ({ fetchComponents: mocks.fetchComponents }))
+vi.mock('@/services/project/api-testing/component', () => ({ fetchComponents: mocks.fetchComponents }))
 vi.mock('@/components/project/api-testing/processorFormModel', () => ({
   extractorsFromComponents: mocks.extractorsFromComponents,
   isRecord: mocks.isRecord,

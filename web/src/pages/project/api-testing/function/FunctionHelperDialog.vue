@@ -2,7 +2,7 @@
 import { computed, reactive, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import type { ApiBuiltinFunctionGroup, ApiCustomFunctionListItem } from '@/types'
-import { fetchBuiltinCatalog, fetchCustomFunctions, evaluateFunction } from '@/services/project/function'
+import { fetchBuiltinCatalog, fetchCustomFunctions, evaluateFunction } from '@/services/project/api-testing/function'
 import {
   buildEvaluateExpression,
   resolveFunctionError,

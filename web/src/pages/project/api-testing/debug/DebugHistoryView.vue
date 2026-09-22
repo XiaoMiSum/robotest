@@ -6,7 +6,7 @@ import {
   deleteDebugRecord,
   fetchDebugRecords,
   renameDebugRecord,
-} from '@/services/project/debug'
+} from '@/services/project/api-testing/debug'
 import { formatDateTime } from '@/utils/format'
 
 const emit = defineEmits<{ (e: 'restore', record: ApiDebugRecordItem): void }>()

@@ -11,17 +11,17 @@ const mocks = vi.hoisted(() => ({
   ElMessage: { success: vi.fn(), error: vi.fn(), warning: vi.fn() },
 }))
 
-vi.mock('@/services/project/schedule', () => ({
+vi.mock('@/services/project/api-testing/schedule', () => ({
   createSchedule: mocks.createSchedule,
   updateSchedule: mocks.updateSchedule,
   validateCron: mocks.validateCron,
 }))
 
-vi.mock('@/services/project/scene', () => ({
+vi.mock('@/services/project/api-testing/scene', () => ({
   fetchScenePage: mocks.fetchScenePage,
 }))
 
-vi.mock('@/services/project/environment', () => ({
+vi.mock('@/services/project/api-testing/environment', () => ({
   fetchEnvironments: mocks.fetchEnvironments,
 }))
 

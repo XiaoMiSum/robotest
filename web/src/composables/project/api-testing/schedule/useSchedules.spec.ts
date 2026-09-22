@@ -20,7 +20,7 @@ const mocks = vi.hoisted(() => ({
   formatShortDateTime: vi.fn((v?: string | null) => v ?? ''),
 }))
 
-vi.mock('@/services/project/schedule', () => ({
+vi.mock('@/services/project/api-testing/schedule', () => ({
   fetchSchedulePage: mocks.fetchSchedulePage,
   createSchedule: mocks.createSchedule,
   updateSchedule: mocks.updateSchedule,
@@ -31,11 +31,11 @@ vi.mock('@/services/project/schedule', () => ({
   validateCron: mocks.validateCron,
 }))
 
-vi.mock('@/services/project/scene', () => ({
+vi.mock('@/services/project/api-testing/scene', () => ({
   fetchScenePage: mocks.fetchScenePage,
 }))
 
-vi.mock('@/services/project/environment', () => ({
+vi.mock('@/services/project/api-testing/environment', () => ({
   fetchEnvironments: mocks.fetchEnvironments,
 }))
 

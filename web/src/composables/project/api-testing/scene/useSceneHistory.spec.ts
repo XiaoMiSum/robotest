@@ -6,7 +6,7 @@ const mocks = vi.hoisted(() => ({
   fetchChangeHistory: vi.fn(),
 }))
 
-vi.mock('@/services/project/scene', () => ({
+vi.mock('@/services/project/api-testing/scene', () => ({
   fetchExecutionHistory: mocks.fetchExecutionHistory,
   fetchChangeHistory: mocks.fetchChangeHistory,
 }))

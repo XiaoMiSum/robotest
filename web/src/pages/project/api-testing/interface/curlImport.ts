@@ -4,7 +4,7 @@
  */
 
 import { parseCurl, type ParsedCurl } from '@/pages/project/api-testing/debug/curlParser'
-import type { ApiParsedImportOperation } from '@/services/project/interface'
+import type { ApiParsedImportOperation } from '@/services/project/api-testing/interface'
 
 /** 按行切分多条 cURL 命令；续行会跟随上一个命令，直到下一条 curl 开头 */
 export function splitCurlCommands(text: string): string[] {

@@ -4,8 +4,8 @@ import { ElMessage } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 import type { ApiDebugSaveAsInterfaceReq, ApiInterfaceItem, DebugTab, ProjectModule } from '@/types'
 import { fetchProjectModuleTree } from '@/services/project'
-import { fetchInterfacePage } from '@/services/project/interface'
-import { saveDebugRecordAsInterface } from '@/services/project/debug'
+import { fetchInterfacePage } from '@/services/project/api-testing/interface'
+import { saveDebugRecordAsInterface } from '@/services/project/api-testing/debug'
 import { buildRequestSnapshot } from './debugModel'
 
 const props = defineProps<{

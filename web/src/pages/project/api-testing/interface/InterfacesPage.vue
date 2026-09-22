@@ -13,7 +13,7 @@ import {
   followInterface,
   unfollowInterface,
   updateInterfaceStatus,
-} from '@/services/project/interface'
+} from '@/services/project/api-testing/interface'
 import { useApiTestingUiStore } from '@/stores/apiTestingUi'
 import { formatDateTime } from '@/utils/format'
 import {
