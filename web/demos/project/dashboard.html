@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>项目工作台 · RoboTest</title>
+<link rel="stylesheet" href="../assets/tokens.css">
+<link rel="stylesheet" href="../assets/base.css">
+<style>
+  .quick {
+    display: flex; align-items: center; gap: 12px; padding: 16px 18px;
+    border: 1px solid var(--n-200); border-radius: var(--radius-lg); background: var(--n-0);
+    cursor: pointer; transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  }
+  .quick:hover { border-color: var(--brand-300); box-shadow: var(--shadow-card-hover); }
+  .quick__ic { width: 34px; height: 34px; border-radius: 8px; background: var(--n-50); border: 1px solid var(--n-200); display: flex; align-items: center; justify-content: center; color: var(--n-600); }
+  .quick__ic svg { width: 17px; height: 17px; }
+  .quick__t { font-size: 13.5px; font-weight: 600; color: var(--n-900); }
+  .quick__d { font-size: 11.5px; color: var(--n-500); margin-top: 1px; }
+</style>
+</head>
+<body data-shell="business" data-mode="project" data-active="" data-workspace="质量中台" data-project="电商核心系统">
+
+<main class="content">
+
+  <div class="page-head">
+    <div>
+      <h1 class="page-head__title">项目工作台</h1>
+      <p class="page-head__desc">电商核心系统 · 本周质量概况（09-16 ~ 09-22）</p>
+    </div>
+    <div class="page-head__actions">
+      <button class="btn btn--default"><span data-icon="download"></span>导出周报</button>
+      <a class="btn btn--primary" href="functional-testing.html"><span data-icon="play"></span>发起执行</a>
+    </div>
+  </div>
+
+  <!-- KPI -->
+  <div class="card-grid card-grid--4">
+    <div class="card kpi">
+      <div class="kpi__label"><span data-icon="document"></span>用例总数</div>
+      <div class="kpi__value">1,284</div>
+      <div class="kpi__foot">本周新增 <span class="kpi__delta kpi__delta--up">+37</span> · 覆盖 6 模块</div>
+    </div>
+    <div class="card kpi">
+      <div class="kpi__label"><span data-icon="play"></span>今日执行</div>
+      <div class="kpi__value">96<span class="unit">条</span></div>
+      <div class="kpi__foot">执行中计划 2 个</div>
+    </div>
+    <div class="card kpi">
+      <div class="kpi__label"><span data-icon="check-circle"></span>综合通过率</div>
+      <div class="kpi__value">91.2<span class="unit">%</span></div>
+      <div class="kpi__foot">较上周 <span class="kpi__delta kpi__delta--up">+2.1%</span></div>
+    </div>
+    <div class="card kpi">
+      <div class="kpi__label"><span data-icon="bug"></span>未关闭缺陷</div>
+      <div class="kpi__value">18</div>
+      <div class="kpi__foot">致命 <span class="text-danger strong">1</span> · 严重 4 · 修复中 6</div>
+    </div>
+  </div>
+
+  <!-- 图表 -->
+  <div class="card-grid card-grid--3 block-gap">
+    <div class="card" style="grid-column:span 2">
+      <div class="card__header">
+        <h3 class="card__title">近 7 日执行结果<span class="card__subtitle">按执行时间统计</span></h3>
+        <div class="legend">
+          <span class="legend__item"><span class="legend__swatch" style="background:#4c8a5f"></span>通过</span>
+          <span class="legend__item"><span class="legend__swatch" style="background:#c4453d"></span>失败</span>
+          <span class="legend__item"><span class="legend__swatch" style="background:#9b332d"></span>阻塞</span>
+        </div>
+      </div>
+      <div class="card__body">
+        <svg class="chart" height="210" viewBox="0 0 640 210">
+          <line x1="0" y1="170" x2="640" y2="170" stroke="#e4e4e7"/>
+          <line x1="0" y1="115" x2="640" y2="115" stroke="#efeff1"/>
+          <line x1="0" y1="60" x2="640" y2="60" stroke="#efeff1"/>
+          <!-- 周一 -->
+          <rect x="30" y="96" width="44" height="74" rx="3" fill="#4c8a5f"/>
+          <rect x="30" y="74" width="44" height="22" rx="3" fill="#c4453d"/>
+          <rect x="30" y="62" width="44" height="12" rx="3" fill="#9b332d"/>
+          <!-- 周二 -->
+          <rect x="118" y="82" width="44" height="88" rx="3" fill="#4c8a5f"/>
+          <rect x="118" y="62" width="44" height="20" rx="3" fill="#c4453d"/>
+          <!-- 周三 -->
+          <rect x="206" y="110" width="44" height="60" rx="3" fill="#4c8a5f"/>
+          <rect x="206" y="92" width="44" height="18" rx="3" fill="#c4453d"/>
+          <rect x="206" y="80" width="44" height="12" rx="3" fill="#9b332d"/>
+          <!-- 周四 -->
+          <rect x="294" y="66" width="44" height="104" rx="3" fill="#4c8a5f"/>
+          <rect x="294" y="46" width="44" height="20" rx="3" fill="#c4453d"/>
+          <!-- 周五 -->
+          <rect x="382" y="76" width="44" height="94" rx="3" fill="#4c8a5f"/>
+          <rect x="382" y="54" width="44" height="22" rx="3" fill="#c4453d"/>
+          <rect x="382" y="42" width="44" height="12" rx="3" fill="#9b332d"/>
+          <!-- 周六 -->
+          <rect x="470" y="124" width="44" height="46" rx="3" fill="#4c8a5f"/>
+          <rect x="470" y="110" width="44" height="14" rx="3" fill="#c4453d"/>
+          <!-- 周日 -->
+          <rect x="558" y="102" width="44" height="68" rx="3" fill="#4c8a5f"/>
+          <rect x="558" y="84" width="44" height="18" rx="3" fill="#c4453d"/>
+          <text x="52" y="190" font-size="10" fill="#a1a1aa" text-anchor="middle">周一</text>
+          <text x="140" y="190" font-size="10" fill="#a1a1aa" text-anchor="middle">周二</text>
+          <text x="228" y="190" font-size="10" fill="#a1a1aa" text-anchor="middle">周三</text>
+          <text x="316" y="190" font-size="10" fill="#a1a1aa" text-anchor="middle">周四</text>
+          <text x="404" y="190" font-size="10" fill="#a1a1aa" text-anchor="middle">周五</text>
+          <text x="492" y="190" font-size="10" fill="#a1a1aa" text-anchor="middle">周六</text>
+          <text x="580" y="190" font-size="10" fill="#a1a1aa" text-anchor="middle">周日</text>
+        </svg>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card__header"><h3 class="card__title">缺陷等级分布</h3></div>
+      <div class="card__body">
+        <svg class="chart" height="150" viewBox="0 0 300 150">
+          <text x="0" y="18" font-size="11" fill="#3f3f46">致命</text>
+          <rect x="52" y="9" width="180" height="12" rx="3" fill="#faeceb"/>
+          <rect x="52" y="9" width="26" height="12" rx="3" fill="#c4453d"/>
+          <text x="242" y="19" font-size="11" fill="#71717a" font-family="monospace">1</text>
+          <text x="0" y="50" font-size="11" fill="#3f3f46">严重</text>
+          <rect x="52" y="41" width="180" height="12" rx="3" fill="#fbf1e5"/>
+          <rect x="52" y="41" width="74" height="12" rx="3" fill="#c07a30"/>
+          <text x="242" y="51" font-size="11" fill="#71717a" font-family="monospace">4</text>
+          <text x="0" y="82" font-size="11" fill="#3f3f46">一般</text>
+          <rect x="52" y="73" width="180" height="12" rx="3" fill="#f9f4e0"/>
+          <rect x="52" y="73" width="130" height="12" rx="3" fill="#b99a2e"/>
+          <text x="242" y="83" font-size="11" fill="#71717a" font-family="monospace">9</text>
+          <text x="0" y="114" font-size="11" fill="#3f3f46">轻微</text>
+          <rect x="52" y="105" width="180" height="12" rx="3" fill="#ecf5ef"/>
+          <rect x="52" y="105" width="86" height="12" rx="3" fill="#4c8a5f"/>
+          <text x="242" y="115" font-size="11" fill="#71717a" font-family="monospace">4</text>
+          <line x1="0" y1="132" x2="300" y2="132" stroke="#e4e4e7"/>
+        </svg>
+        <div class="legend" style="margin-top:8px">
+          <span class="legend__item"><span class="legend__swatch" style="background:#c4453d"></span>未关闭 18</span>
+          <span class="legend__item"><span class="legend__swatch" style="background:#e4e4e7"></span>已关闭 64</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 快捷入口 + 动态 -->
+  <div class="card-grid card-grid--3 block-gap">
+    <div class="card">
+      <div class="card__header"><h3 class="card__title">快捷入口</h3></div>
+      <div class="card__body" style="display:flex;flex-direction:column;gap:12px">
+        <a class="quick" href="functional-testing.html"><span class="quick__ic" data-icon="document"></span><span><span class="quick__t">编写测试用例</span><span class="quick__d" style="display:block">脑图 / 表格双模式</span></span></a>
+        <a class="quick" href="plans.html"><span class="quick__ic" data-icon="calendar"></span><span><span class="quick__t">新建测试计划</span><span class="quick__d" style="display:block">关联用例并调度执行</span></span></a>
+        <a class="quick" href="bugs.html"><span class="quick__ic" data-icon="bug"></span><span><span class="quick__t">提交缺陷</span><span class="quick__d" style="display:block">结构化重现步骤</span></span></a>
+        <a class="quick" href="api-testing.html"><span class="quick__ic" data-icon="connection"></span><span><span class="quick__t">接口调试</span><span class="quick__d" style="display:block">快速调试 · Mock · 场景</span></span></a>
+      </div>
+    </div>
+
+    <div class="card" style="grid-column:span 2">
+      <div class="card__header">
+        <h3 class="card__title">最近动态</h3>
+        <a class="text-sm" href="reviews.html">查看全部 →</a>
+      </div>
+      <div class="card__body">
+        <ul class="timeline">
+          <li class="timeline__item"><span class="timeline__dot timeline__dot--success"></span>
+            <div class="timeline__head">V1.4.2 回归计划执行完成，通过率 <span class="text-success">94.6%</span><span class="timeline__time">14:32</span></div>
+            <div class="timeline__body">通过 216 · 失败 9 · 阻塞 4 · 耗时 18m 24s</div></li>
+          <li class="timeline__item"><span class="timeline__dot timeline__dot--danger"></span>
+            <div class="timeline__head">王芳 提交缺陷 <span class="text-danger">BUG-208</span>（严重）<span class="timeline__time">13:58</span></div>
+            <div class="timeline__body">支付回调重复入账，已指派给 李华</div></li>
+          <li class="timeline__item"><span class="timeline__dot timeline__dot--brand"></span>
+            <div class="timeline__head">张明 发起评审「下单模块用例评审」<span class="timeline__time">11:20</span></div>
+            <div class="timeline__body">参与者 4 人 · 关联用例 32 条</div></li>
+          <li class="timeline__item"><span class="timeline__dot timeline__dot--warning"></span>
+            <div class="timeline__head">定时任务「冒烟接口巡检」执行中<span class="timeline__time">09:00</span></div>
+            <div class="timeline__body">Cron 0 0 9 * * ? · 目标环境 staging</div></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<script src="../assets/icons.js"></script>
+<script src="../assets/shell.js"></script>
+</body>
+</html>

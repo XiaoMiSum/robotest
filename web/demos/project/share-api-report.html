@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>测试报告分享 · RoboTest</title>
+<link rel="stylesheet" href="../assets/tokens.css">
+<link rel="stylesheet" href="../assets/base.css">
+<style>
+  .share-head {
+    background: var(--n-900); color: #fff; padding: 18px 0;
+    border-bottom: 1px solid var(--shell-border);
+  }
+  .share-inner { max-width: 1080px; margin: 0 auto; padding: 0 32px; }
+  .share-badge {
+    font-size: 11px; padding: 3px 10px; border-radius: 999px;
+    background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.14);
+    color: rgba(255,255,255,.75);
+  }
+</style>
+</head>
+<body data-shell="bare">
+
+<header class="share-head">
+  <div class="share-inner flex-between">
+    <div class="flex-center flex-gap-md">
+      <span class="flex-center flex-gap-sm" style="font-weight:700;font-size:16px">
+        <span class="topbar__logo-mark"><span data-icon="zap"></span></span>RoboTest
+      </span>
+      <span class="share-badge">公开分享 · 只读</span>
+    </div>
+    <div class="flex-center flex-gap-md text-xs" style="color:rgba(255,255,255,.55)">
+      <span>链接有效期至 2026-10-22</span>
+      <a class="btn btn--sm" style="background:rgba(255,255,255,.1);color:#fff;border-color:rgba(255,255,255,.2)" href="../auth/login.html">进入平台</a>
+    </div>
+  </div>
+</header>
+
+<main class="content" style="max-width:1080px;margin:0 auto;padding-top:32px">
+
+  <div class="page-head">
+    <div>
+      <div class="flex-center flex-gap-sm mb-sm">
+        <h1 class="page-head__title">V1.4.2 回归测试报告</h1>
+        <span class="status status--success"><span class="dot"></span>已完成</span>
+      </div>
+      <p class="page-head__desc">质量中台 / 电商核心系统 · 执行于 2026-09-20 09:00 ~ 2026-09-22 14:32 · 环境 staging</p>
+    </div>
+    <div class="page-head__actions">
+      <button class="btn btn--default"><span data-icon="download"></span>下载 PDF</button>
+    </div>
+  </div>
+
+  <!-- 概览 -->
+  <div class="card-grid card-grid--4">
+    <div class="card kpi">
+      <div class="kpi__label"><span data-icon="check-circle"></span>通过率</div>
+      <div class="kpi__value text-success">94.6<span class="unit">%</span></div>
+      <div class="kpi__foot">216 / 229 条</div>
+    </div>
+    <div class="card kpi">
+      <div class="kpi__label"><span data-icon="x-circle"></span>失败</div>
+      <div class="kpi__value text-danger">9</div>
+      <div class="kpi__foot">已关联缺陷 4 个</div>
+    </div>
+    <div class="card kpi">
+      <div class="kpi__label"><span data-icon="stop-circle"></span>阻塞</div>
+      <div class="kpi__value" style="color:var(--st-blocked)">4</div>
+      <div class="kpi__foot">环境依赖未就绪</div>
+    </div>
+    <div class="card kpi">
+      <div class="kpi__label"><span data-icon="timer"></span>总耗时</div>
+      <div class="kpi__value">18.4<span class="unit">min</span></div>
+      <div class="kpi__foot">6 次执行批次</div>
+    </div>
+  </div>
+
+  <div class="card-grid card-grid--3 block-gap">
+    <div class="card" style="grid-column:span 2">
+      <div class="card__header"><h3 class="card__title">各模块通过情况</h3></div>
+      <div class="card__body">
+        <svg class="chart" height="180" viewBox="0 0 560 180">
+          <text x="0" y="18" font-size="11" fill="#3f3f46">下单流程</text>
+          <rect x="88" y="9" width="360" height="12" rx="3" fill="#ecf5ef"/>
+          <rect x="88" y="9" width="338" height="12" rx="3" fill="#4c8a5f"/>
+          <rect x="426" y="9" width="14" height="12" rx="3" fill="#c4453d"/>
+          <rect x="440" y="9" width="8" height="12" rx="3" fill="#9b332d"/>
+          <text x="466" y="19" font-size="11" fill="#71717a" font-family="monospace">96%</text>
+          <text x="0" y="52" font-size="11" fill="#3f3f46">支付中心</text>
+          <rect x="88" y="43" width="360" height="12" rx="3" fill="#ecf5ef"/>
+          <rect x="88" y="43" width="322" height="12" rx="3" fill="#4c8a5f"/>
+          <rect x="410" y="43" width="24" height="12" rx="3" fill="#c4453d"/>
+          <rect x="434" y="43" width="14" height="12" rx="3" fill="#9b332d"/>
+          <text x="466" y="53" font-size="11" fill="#71717a" font-family="monospace">91%</text>
+          <text x="0" y="86" font-size="11" fill="#3f3f46">履约配送</text>
+          <rect x="88" y="77" width="360" height="12" rx="3" fill="#ecf5ef"/>
+          <rect x="88" y="77" width="344" height="12" rx="3" fill="#4c8a5f"/>
+          <rect x="432" y="77" width="16" height="12" rx="3" fill="#c4453d"/>
+          <text x="466" y="87" font-size="11" fill="#71717a" font-family="monospace">97%</text>
+          <text x="0" y="120" font-size="11" fill="#3f3f46">营销优惠</text>
+          <rect x="88" y="111" width="360" height="12" rx="3" fill="#ecf5ef"/>
+          <rect x="88" y="111" width="300" height="12" rx="3" fill="#4c8a5f"/>
+          <rect x="388" y="111" width="34" height="12" rx="3" fill="#c4453d"/>
+          <rect x="422" y="111" width="26" height="12" rx="3" fill="#9b332d"/>
+          <text x="466" y="121" font-size="11" fill="#71717a" font-family="monospace">85%</text>
+          <line x1="0" y1="144" x2="560" y2="144" stroke="#e4e4e7"/>
+          <g font-size="11" fill="#71717a">
+            <rect x="88" y="156" width="10" height="10" rx="2" fill="#4c8a5f"/><text x="104" y="165">通过</text>
+            <rect x="150" y="156" width="10" height="10" rx="2" fill="#c4453d"/><text x="166" y="165">失败</text>
+            <rect x="212" y="156" width="10" height="10" rx="2" fill="#9b332d"/><text x="228" y="165">阻塞</text>
+            <rect x="274" y="156" width="10" height="10" rx="2" fill="#ecf5ef"/><text x="290" y="165">未执行</text>
+          </g>
+        </svg>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card__header"><h3 class="card__title">结果分布</h3></div>
+      <div class="card__body flex-center" style="gap:18px;min-height:180px">
+        <svg width="124" height="124" viewBox="0 0 120 120">
+          <circle cx="60" cy="60" r="46" fill="none" stroke="#ecf5ef" stroke-width="14"/>
+          <circle cx="60" cy="60" r="46" fill="none" stroke="#4c8a5f" stroke-width="14" stroke-dasharray="216 289" transform="rotate(-90 60 60)"/>
+          <circle cx="60" cy="60" r="46" fill="none" stroke="#c4453d" stroke-width="14" stroke-dasharray="24 289" stroke-dashoffset="-216" transform="rotate(-90 60 60)"/>
+          <circle cx="60" cy="60" r="46" fill="none" stroke="#9b332d" stroke-width="14" stroke-dasharray="12 289" stroke-dashoffset="-240" transform="rotate(-90 60 60)"/>
+          <text x="60" y="57" text-anchor="middle" font-size="19" font-weight="650" fill="#18181b">94.6%</text>
+          <text x="60" y="74" text-anchor="middle" font-size="10" fill="#71717a">通过率</text>
+        </svg>
+        <div class="legend" style="flex-direction:column;gap:9px">
+          <span class="legend__item"><span class="legend__swatch" style="background:#4c8a5f"></span>通过 216</span>
+          <span class="legend__item"><span class="legend__swatch" style="background:#c4453d"></span>失败 9</span>
+          <span class="legend__item"><span class="legend__swatch" style="background:#9b332d"></span>阻塞 4</span>
+          <span class="legend__item"><span class="legend__swatch" style="background:#ecf5ef;border:1px solid #cfe5d7"></span>未执行 0</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 失败明细 -->
+  <div class="card block-gap">
+    <div class="card__header">
+      <h3 class="card__title">失败与阻塞明细<span class="card__subtitle">13 条</span></h3>
+      <div class="toolbar__filters">
+        <select class="select" style="width:120px"><option>全部结果</option><option>失败</option><option>阻塞</option></select>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th>编号</th><th>用例标题</th><th>模块</th><th>结果</th><th>断言信息</th><th>耗时</th></tr></thead>
+        <tbody>
+          <tr>
+            <td class="mono">TC-1026</td>
+            <td class="cell-main">支付回调幂等性验证</td>
+            <td><span class="chip">支付中心</span></td>
+            <td><span class="tag tag--danger"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M9 9l6 6M15 9l-6 6"/></svg>失败</span></td>
+            <td class="mono text-xs text-danger">expected ledger.count == 1, got 2</td>
+            <td class="num">1.2s</td>
+          </tr>
+          <tr>
+            <td class="mono">TC-1031</td>
+            <td class="cell-main">地址簿选择后金额重算</td>
+            <td><span class="chip">下单流程</span></td>
+            <td><span class="tag tag--danger"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M9 9l6 6M15 9l-6 6"/></svg>失败</span></td>
+            <td class="mono text-xs text-danger">freight mismatch: expected 12.00, got 0.00</td>
+            <td class="num">0.8s</td>
+          </tr>
+          <tr>
+            <td class="mono">TC-1042</td>
+            <td class="cell-main">配送时效计算跨时区</td>
+            <td><span class="chip">履约配送</span></td>
+            <td><span class="tag tag--blocked"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><rect x="9" y="9" width="6" height="6" rx="1"/></svg>阻塞</span></td>
+            <td class="mono text-xs">env: logistics-mock 未就绪</td>
+            <td class="num">—</td>
+          </tr>
+          <tr>
+            <td class="mono">TC-1035</td>
+            <td class="cell-main">下单接口超时重试</td>
+            <td><span class="chip">下单流程</span></td>
+            <td><span class="tag tag--danger"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M9 9l6 6M15 9l-6 6"/></svg>失败</span></td>
+            <td class="mono text-xs text-danger">retry count 3 &gt; threshold 2</td>
+            <td class="num">30.4s</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="pagination">
+      <span class="pagination__total">共 13 条</span>
+      <button class="page-btn page-btn--active">1</button>
+      <button class="page-btn">2</button>
+      <button class="page-btn">›</button>
+    </div>
+  </div>
+
+  <footer class="text-xs text-light text-center" style="padding:28px 0 8px">
+    本报告由 RoboTest 自动生成 · 分享链接只读，不含操作入口
+  </footer>
+
+</main>
+
+<script src="../assets/icons.js"></script>
+</body>
+</html>

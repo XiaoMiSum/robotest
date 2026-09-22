@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RoboTest · 新视觉基调页面演示导航</title>
+<link rel="stylesheet" href="assets/tokens.css">
+<link rel="stylesheet" href="assets/base.css">
+<style>
+  .hero {
+    background: var(--n-900);
+    color: #fff;
+    border-radius: var(--radius-xl);
+    padding: 40px 44px;
+    margin-bottom: 32px;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero::after {
+    content: '';
+    position: absolute;
+    right: -60px; top: -60px;
+    width: 240px; height: 240px;
+    border-radius: 50%;
+    border: 40px solid rgba(51,112,255,.18);
+  }
+  .hero h1 { margin: 0; font-size: 26px; font-weight: 700; letter-spacing: -0.02em; }
+  .hero p { margin: 10px 0 0; font-size: 14px; color: rgba(255,255,255,.6); max-width: 640px; }
+  .hero .badges { display: flex; gap: 8px; margin-top: 20px; flex-wrap: wrap; }
+  .hero .b {
+    font-size: 12px; padding: 4px 10px; border-radius: 999px;
+    background: rgba(255,255,255,.08); color: rgba(255,255,255,.8);
+    border: 1px solid rgba(255,255,255,.1);
+  }
+  .group { margin-bottom: 32px; }
+  .group__head { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+  .group__head h2 { margin: 0; font-size: 16px; font-weight: 650; color: var(--n-900); }
+  .group__head .n {
+    font-size: 11px; font-family: var(--font-mono); color: var(--n-500);
+    background: var(--n-100); border-radius: 999px; padding: 1px 8px;
+  }
+  .group__head .line { flex: 1; height: 1px; background: var(--n-200); }
+  .demo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(252px, 1fr)); gap: 14px; }
+  .demo-card {
+    display: block; background: var(--n-0); border: 1px solid var(--n-200);
+    border-radius: var(--radius-lg); padding: 16px 18px;
+    transition: border-color var(--transition-fast), box-shadow var(--transition-fast), transform var(--transition-fast);
+    text-decoration: none; color: inherit;
+  }
+  .demo-card:hover {
+    border-color: var(--brand-300); box-shadow: var(--shadow-card-hover); transform: translateY(-1px);
+  }
+  .demo-card__top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .demo-card__title { font-size: 14px; font-weight: 600; color: var(--n-900); }
+  .demo-card__desc { font-size: 12px; color: var(--n-500); margin-top: 5px; line-height: 1.55; }
+  .demo-card__path { font-size: 10px; font-family: var(--font-mono); color: var(--n-400); margin-top: 10px; }
+  .ic {
+    width: 30px; height: 30px; border-radius: 7px; background: var(--n-50);
+    border: 1px solid var(--n-200); display: flex; align-items: center; justify-content: center;
+    color: var(--n-600); flex-shrink: 0;
+  }
+  .ic svg { width: 16px; height: 16px; }
+  .ic--brand { background: var(--brand-50); border-color: var(--brand-100); color: var(--brand-500); }
+</style>
+</head>
+<body data-shell="bare">
+
+<main class="content" style="max-width: 1180px; margin: 0 auto; padding-top: 32px;">
+
+  <div class="hero">
+    <h1>RoboTest · 新视觉基调页面演示</h1>
+    <p>克制的专业美学：中性色（白/灰/黑）为基调，低饱和科研风辅助色，飞书式按钮体系，线条扁平化图标与几何数据可视化。
+       状态色逻辑全站统一 —— 绿=通过、红系=失败/阻塞、橙=警告/进行中、灰=未执行，蓝色仅用于按钮/链接/选中。</p>
+    <div class="badges">
+      <span class="b">26 个路由页面</span>
+      <span class="b">系统字体栈</span>
+      <span class="b">状态三重编码（色+形+文）</span>
+      <span class="b">纯静态 · 不参与构建</span>
+    </div>
+    <div class="btn-row" style="margin-top:24px;position:relative;z-index:1">
+      <a class="btn btn--primary" href="style-guide.html">打开样式总览</a>
+      <a class="btn btn--default" style="background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.18);color:#fff" href="admin/dashboard.html">从管理端开始</a>
+    </div>
+  </div>
+
+  <!-- 公开页 -->
+  <section class="group">
+    <div class="group__head"><h2>公开页</h2><span class="n">4</span><span class="line"></span></div>
+    <div class="demo-grid">
+      <a class="demo-card" href="auth/login.html">
+        <div class="demo-card__top"><span class="demo-card__title">登录</span><span class="ic ic--brand" data-icon="lock"></span></div>
+        <div class="demo-card__desc">左侧品牌区 + 右侧登录卡片，克制的分栏布局</div>
+        <div class="demo-card__path">/login</div>
+      </a>
+      <a class="demo-card" href="auth/init.html">
+        <div class="demo-card__top"><span class="demo-card__title">初始化</span><span class="ic" data-icon="sparkle"></span></div>
+        <div class="demo-card__desc">首次部署创建系统管理员</div>
+        <div class="demo-card__path">/init</div>
+      </a>
+      <a class="demo-card" href="workspace/join.html">
+        <div class="demo-card__top"><span class="demo-card__title">邀请加入</span><span class="ic" data-icon="userfilled"></span></div>
+        <div class="demo-card__desc">邀请链接落地页，已有账号登录 / 新用户注册</div>
+        <div class="demo-card__path">/join</div>
+      </a>
+      <a class="demo-card" href="project/share-api-report.html">
+        <div class="demo-card__top"><span class="demo-card__title">测试报告分享</span><span class="ic" data-icon="data-chart"></span></div>
+        <div class="demo-card__desc">公开只读报告，无应用壳层</div>
+        <div class="demo-card__path">/share/api-report/:id</div>
+      </a>
+    </div>
+  </section>
+
+  <!-- 管理端 -->
+  <section class="group">
+    <div class="group__head"><h2>系统管理端</h2><span class="n">7</span><span class="line"></span></div>
+    <div class="demo-grid">
+      <a class="demo-card" href="admin/dashboard.html">
+        <div class="demo-card__top"><span class="demo-card__title">数据概览</span><span class="ic" data-icon="gauge"></span></div>
+        <div class="demo-card__desc">KPI + 趋势折线 + 环形分布 + 最近空间</div>
+        <div class="demo-card__path">/admin/dashboard</div>
+      </a>
+      <a class="demo-card" href="admin/users.html">
+        <div class="demo-card__top"><span class="demo-card__title">用户管理</span><span class="ic" data-icon="user"></span></div>
+        <div class="demo-card__desc">筛选 + 用户表格 + 启停状态</div>
+        <div class="demo-card__path">/admin/users</div>
+      </a>
+      <a class="demo-card" href="admin/user-form.html">
+        <div class="demo-card__top"><span class="demo-card__title">新建 / 编辑用户</span><span class="ic" data-icon="edit"></span></div>
+        <div class="demo-card__desc">分组表单 + 系统角色分配</div>
+        <div class="demo-card__path">/admin/users/create</div>
+      </a>
+      <a class="demo-card" href="admin/workspaces.html">
+        <div class="demo-card__top"><span class="demo-card__title">空间管理</span><span class="ic" data-icon="building"></span></div>
+        <div class="demo-card__desc">活跃 / 已归档分段 + 空间表格</div>
+        <div class="demo-card__path">/admin/workspaces</div>
+      </a>
+      <a class="demo-card" href="admin/workspace-detail.html">
+        <div class="demo-card__top"><span class="demo-card__title">空间详情</span><span class="ic" data-icon="grid"></span></div>
+        <div class="demo-card__desc">空间信息 + 统计卡 + 成员表</div>
+        <div class="demo-card__path">/admin/workspaces/:id</div>
+      </a>
+      <a class="demo-card" href="admin/roles.html">
+        <div class="demo-card__top"><span class="demo-card__title">角色管理</span><span class="ic" data-icon="shield"></span></div>
+        <div class="demo-card__desc">权限点树 + 关联用户</div>
+        <div class="demo-card__path">/admin/roles</div>
+      </a>
+      <a class="demo-card" href="admin/ai-config.html">
+        <div class="demo-card__top"><span class="demo-card__title">AI 配置</span><span class="ic" data-icon="sparkle"></span></div>
+        <div class="demo-card__desc">模型参数表单 + 调用统计图表</div>
+        <div class="demo-card__path">/admin/ai-config</div>
+      </a>
+    </div>
+  </section>
+
+  <!-- 工作空间 -->
+  <section class="group">
+    <div class="group__head"><h2>工作空间</h2><span class="n">4</span><span class="line"></span></div>
+    <div class="demo-grid">
+      <a class="demo-card" href="workspace/list.html">
+        <div class="demo-card__top"><span class="demo-card__title">我的空间</span><span class="ic" data-icon="folder-open"></span></div>
+        <div class="demo-card__desc">空间卡片网格 + 搜索 + 新建</div>
+        <div class="demo-card__path">/workspaces</div>
+      </a>
+      <a class="demo-card" href="workspace/info.html">
+        <div class="demo-card__top"><span class="demo-card__title">空间信息</span><span class="ic" data-icon="info-filled"></span></div>
+        <div class="demo-card__desc">基础信息表单 + 统计卡</div>
+        <div class="demo-card__path">/workspace/:workspaceId</div>
+      </a>
+      <a class="demo-card" href="workspace/members.html">
+        <div class="demo-card__top"><span class="demo-card__title">成员管理</span><span class="ic" data-icon="userfilled"></span></div>
+        <div class="demo-card__desc">成员表 + 邀请链接表（双 Tab）</div>
+        <div class="demo-card__path">/workspace/members</div>
+      </a>
+      <a class="demo-card" href="workspace/projects.html">
+        <div class="demo-card__top"><span class="demo-card__title">项目列表</span><span class="ic" data-icon="folder"></span></div>
+        <div class="demo-card__desc">活跃 / 已归档 + 项目表格</div>
+        <div class="demo-card__path">/workspace/projects</div>
+      </a>
+    </div>
+  </section>
+
+  <!-- 项目 -->
+  <section class="group">
+    <div class="group__head"><h2>项目空间</h2><span class="n">11</span><span class="line"></span></div>
+    <div class="demo-grid">
+      <a class="demo-card" href="project/dashboard.html">
+        <div class="demo-card__top"><span class="demo-card__title">项目工作台</span><span class="ic" data-icon="gauge"></span></div>
+        <div class="demo-card__desc">质量 KPI + 执行趋势 + 缺陷分布 + 动态</div>
+        <div class="demo-card__path">/workspace/projects/dashboard</div>
+      </a>
+      <a class="demo-card" href="project/functional-testing.html">
+        <div class="demo-card__top"><span class="demo-card__title">功能测试 · 测试用例</span><span class="ic" data-icon="document"></span></div>
+        <div class="demo-card__desc">深色模块侧栏 + 用例树 + 用例表格</div>
+        <div class="demo-card__path">/workspace/projects/functional-testing</div>
+      </a>
+      <a class="demo-card" href="project/reviews.html">
+        <div class="demo-card__top"><span class="demo-card__title">测试评审列表</span><span class="ic" data-icon="check-circle"></span></div>
+        <div class="demo-card__desc">评审表格：状态 / 进度 / 通过率</div>
+        <div class="demo-card__path">/workspace/projects/reviews</div>
+      </a>
+      <a class="demo-card" href="project/review-detail.html">
+        <div class="demo-card__top"><span class="demo-card__title">评审详情</span><span class="ic" data-icon="tickets"></span></div>
+        <div class="demo-card__desc">逐条通过 / 驳回 + 参与人 + 进度</div>
+        <div class="demo-card__path">/workspace/projects/reviews/:reviewId</div>
+      </a>
+      <a class="demo-card" href="project/plans.html">
+        <div class="demo-card__top"><span class="demo-card__title">测试计划列表</span><span class="ic" data-icon="calendar"></span></div>
+        <div class="demo-card__desc">计划表格：进度条 / 通过率 / 环境</div>
+        <div class="demo-card__path">/workspace/projects/plans</div>
+      </a>
+      <a class="demo-card" href="project/plan-detail.html">
+        <div class="demo-card__top"><span class="demo-card__title">计划详情</span><span class="ic" data-icon="play"></span></div>
+        <div class="demo-card__desc">执行环形进度 + 执行记录 + 关联用例</div>
+        <div class="demo-card__path">/workspace/projects/plans/:planId</div>
+      </a>
+      <a class="demo-card" href="project/requirements.html">
+        <div class="demo-card__top"><span class="demo-card__title">需求池</span><span class="ic" data-icon="tickets"></span></div>
+        <div class="demo-card__desc">启用 / 已归档 + 需求表格</div>
+        <div class="demo-card__path">/workspace/projects/requirements</div>
+      </a>
+      <a class="demo-card" href="project/bugs.html">
+        <div class="demo-card__top"><span class="demo-card__title">缺陷管理</span><span class="ic" data-icon="bug"></span></div>
+        <div class="demo-card__desc">多维筛选 + 缺陷表格 + 等级色</div>
+        <div class="demo-card__path">/workspace/projects/bugs</div>
+      </a>
+      <a class="demo-card" href="project/bug-create.html">
+        <div class="demo-card__top"><span class="demo-card__title">提交缺陷</span><span class="ic" data-icon="plus"></span></div>
+        <div class="demo-card__desc">结构化表单：等级 / 优先级 / 重现步骤</div>
+        <div class="demo-card__path">/workspace/projects/bugs/create</div>
+      </a>
+      <a class="demo-card" href="project/bug-detail.html">
+        <div class="demo-card__top"><span class="demo-card__title">缺陷详情</span><span class="ic" data-icon="alert-circle"></span></div>
+        <div class="demo-card__desc">详情 + 附件表 + 评论时间线 + 侧栏信息</div>
+        <div class="demo-card__path">/workspace/projects/bugs/:bugId</div>
+      </a>
+      <a class="demo-card" href="project/api-testing.html">
+        <div class="demo-card__top"><span class="demo-card__title">接口测试 · 接口管理</span><span class="ic" data-icon="connection"></span></div>
+        <div class="demo-card__desc">九模块侧栏 + 接口表格 + 方法 chip</div>
+        <div class="demo-card__path">/workspace/projects/api-testing</div>
+      </a>
+    </div>
+  </section>
+
+  <footer class="text-xs text-light text-center" style="padding: 8px 0 32px;">
+    共 26 个路由页面 + 本导航页 + <a href="style-guide.html">样式总览</a> ·
+    演示为纯静态资源（web/demos/），不参与前端构建
+  </footer>
+
+</main>
+
+<script src="assets/icons.js"></script>
+</body>
+</html>
