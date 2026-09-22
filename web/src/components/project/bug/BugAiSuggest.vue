@@ -1,10 +1,9 @@
 <script setup lang="ts">
+import { useBugSuggestion } from '@/composables/project/bug/useBugSuggestion'
 import { computed, ref, watch } from 'vue'
-import { ElMessage } from 'element-plus'
-import { suggestBugForm } from '@/services/ai'
 import { useBugDedup } from '@/composables/project/bug/useBugDedup'
 import BugDedupList from '@/components/project/bug/BugDedupList.vue'
-import type { AiBugDedupItem, AiBugSuggestion, BugPriority, BugSeverity } from '@/types'
+import type { AiBugDedupItem, BugPriority, BugSeverity } from '@/types'
 
 /**
  * 缺陷表单 AI 结果面板（US-AI-008 / US-AI-009，交互设计 1.1/2.1/3.1）：
@@ -35,11 +34,21 @@ const emit = defineEmits<{
 const severityLabel: Record<BugSeverity, string> = { fatal: '致命', serious: '严重', general: '一般', minor: '轻微' }
 const priorityLabel: Record<BugPriority, string> = { high: '高', medium: '中', low: '低' }
 
-const suggestion = ref<AiBugSuggestion | null>(null)
-const loading = ref(false)
-const titleState = ref<'idle' | 'accepted' | 'dismissed'>('idle')
-const severityAdopted = ref(false)
-const priorityAdopted = ref(false)
+const {
+  suggestion,
+  loading,
+  titleState,
+  severityAdopted,
+  priorityAdopted,
+  requestSuggestion,
+} = useBugSuggestion({
+  title: () => props.title,
+  reproSteps: () => props.reproSteps,
+  runDedup: () => void runDedup(),
+  expandPanel: () => {
+    collapsed.value = false
+  },
+})
 
 // 面板收起为仅标题行；本地 UI 状态，收起不清除结果（交互设计 2.1）
 const collapsed = ref(false)
@@ -70,32 +79,6 @@ watch(dedupItems, () => {
 
 // 过滤后列表上抛给父级，父级据其最新值决定提交时是否拦截确认（无命中不弹层）
 watch(filteredDedupItems, (list) => emit('dedup-change', list))
-
-// 建议请求进行中不阻塞输入与提交（非侵入原则）；标题为空时后端会校验拒绝，先在前端拦截
-async function requestSuggestion(): Promise<void> {
-  if (!props.title.trim()) {
-    ElMessage.warning('请先输入缺陷标题')
-    return
-  }
-  loading.value = true
-  // 新请求触发时自动展开面板，便于查看最新结果
-  collapsed.value = false
-  // 查重与建议并发发起，各区域独立 loading，互不阻断
-  void runDedup()
-  try {
-    suggestion.value = await suggestBugForm({
-      title: props.title,
-      reproSteps: props.reproSteps?.trim() || undefined,
-    })
-    titleState.value = 'idle'
-    severityAdopted.value = false
-    priorityAdopted.value = false
-  } catch (err) {
-    ElMessage.error(err instanceof Error ? err.message : 'AI 建议获取失败')
-  } finally {
-    loading.value = false
-  }
-}
 
 // 父组件标题输入框 #append 按钮经 ref 调用；loading 解包后驱动按钮 loading 态
 defineExpose({ requestSuggestion, loading })
