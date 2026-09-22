@@ -26,7 +26,7 @@ const mocks = vi.hoisted(() => ({
   ElMessageBox: { confirm: vi.fn() },
 }))
 
-vi.mock('@/services/apiInterface', () => ({
+vi.mock('@/services/project/interface', () => ({
   createInterface: mocks.createInterface,
   fetchInterfaceDetail: mocks.fetchInterfaceDetail,
   updateInterface: mocks.updateInterface,
@@ -36,7 +36,7 @@ vi.mock('@/services/project', () => ({
   fetchProjectModuleTree: mocks.fetchProjectModuleTree,
 }))
 
-vi.mock('@/services/apiComponent', () => ({
+vi.mock('@/services/project/component', () => ({
   fetchComponents: mocks.fetchComponents,
 }))
 

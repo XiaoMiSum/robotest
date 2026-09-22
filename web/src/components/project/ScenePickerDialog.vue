@@ -2,7 +2,7 @@
 import { ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import type { ApiScenePageItem, ProjectModule } from '@/types'
-import { fetchScenePage } from '@/services/apiScene'
+import { fetchScenePage } from '@/services/project/scene'
 import { fetchProjectModuleTree } from '@/services/project'
 import { flattenModuleNames } from '@/pages/project/interfacesModel'
 import { formatDateTime } from '@/utils/format'

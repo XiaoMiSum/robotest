@@ -1,6 +1,6 @@
 import { ref, watch, type Ref } from 'vue'
 import { ElMessage } from 'element-plus'
-import { fetchEnvironmentDetail } from '@/services/apiEnvironment'
+import { fetchEnvironmentDetail } from '@/services/project/environment'
 import type { ApiHttpConfig, ApiDataSource } from '@/types'
 
 /**

@@ -8,7 +8,7 @@ import {
   executeSchedule,
   fetchSchedulePage,
   toggleSchedule,
-} from '@/services/apiSchedule'
+} from '@/services/project/schedule'
 import { CRON_PRESETS, EXECUTION_SCOPES, SCHEDULE_TASK_TYPES, taskExecutionSummary, execStatusLabel, execStatusType } from '@/pages/project/schedulesModel'
 import { formatDateTime, formatShortDateTime } from '@/utils/format'
 import { useScheduleForm } from './useScheduleForm'

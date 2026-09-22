@@ -2,7 +2,7 @@
 import { ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import type { ApiInterfaceDetail, ApiInterfaceItem, ApiSceneStepItem } from '@/types'
-import { fetchInterfacePage, fetchInterfaceDetail } from '@/services/apiInterface'
+import { fetchInterfacePage, fetchInterfaceDetail } from '@/services/project/interface'
 
 const props = defineProps<{ modelValue: boolean }>()
 const emit = defineEmits<{

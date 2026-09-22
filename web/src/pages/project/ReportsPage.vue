@@ -6,8 +6,8 @@ import {
   batchDeleteReports,
   deleteReport,
   fetchReportPage,
-} from '@/services/apiReport'
-import { fetchScenePage } from '@/services/apiScene'
+} from '@/services/project/report'
+import { fetchScenePage } from '@/services/project/scene'
 import { formatDateTime } from '@/utils/format'
 
 const emit = defineEmits<{

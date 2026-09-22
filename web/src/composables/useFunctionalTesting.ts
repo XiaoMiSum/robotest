@@ -17,7 +17,7 @@ import {
   updateCustomFunction,
   toggleCustomFunction,
   deleteCustomFunction,
-} from '@/services/apiFunction'
+} from '@/services/project/function'
 import {
   filterFunctions,
   resolveFunctionError,

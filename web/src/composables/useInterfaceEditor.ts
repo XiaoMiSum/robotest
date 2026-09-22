@@ -8,9 +8,9 @@ import type {
   ApiInterfaceDetail,
   ProjectModule,
 } from '@/types'
-import { createInterface, fetchInterfaceDetail, updateInterface } from '@/services/apiInterface'
+import { createInterface, fetchInterfaceDetail, updateInterface } from '@/services/project/interface'
 import { fetchProjectModuleTree } from '@/services/project'
-import { fetchComponents } from '@/services/apiComponent'
+import { fetchComponents } from '@/services/project/component'
 import {
   createEditorForm,
   toCreatePayload,

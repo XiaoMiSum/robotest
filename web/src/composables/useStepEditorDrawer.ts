@@ -2,8 +2,8 @@ import { ref, watch, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import type { ApiSceneStepItem, ApiSceneStepVariableItem, ApiSceneStepSaveReq } from '@/types'
 import type { ApiInterfaceItem } from '@/types'
-import { createSceneStep, updateSceneStep, quickCreateSteps, fetchStepVariables, updateStepVariables } from '@/services/apiScene'
-import { fetchInterfacePage, fetchInterfaceDetail } from '@/services/apiInterface'
+import { createSceneStep, updateSceneStep, quickCreateSteps, fetchStepVariables, updateStepVariables } from '@/services/project/scene'
+import { fetchInterfacePage, fetchInterfaceDetail } from '@/services/project/interface'
 import {
   parseRequestConfig,
   type ValidatorItem, type ExtractorItem,
