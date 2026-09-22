@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>登录 · RoboTest</title>
+<link rel="stylesheet" href="../assets/tokens.css">
+<link rel="stylesheet" href="../assets/base.css">
+<style>
+  .auth { display: flex; min-height: 100vh; }
+  .auth__brand {
+    flex: 1.1; background: var(--n-900); color: #fff;
+    padding: 56px 60px; display: flex; flex-direction: column; justify-content: space-between;
+    position: relative; overflow: hidden;
+  }
+  .auth__brand::before {
+    content: ''; position: absolute; right: -120px; bottom: -120px;
+    width: 380px; height: 380px; border-radius: 50%;
+    border: 56px solid rgba(51,112,255,.14);
+  }
+  .auth__brand::after {
+    content: ''; position: absolute; right: 90px; top: 90px;
+    width: 140px; height: 140px; border-radius: 24px;
+    border: 1.5px solid rgba(255,255,255,.12); transform: rotate(18deg);
+  }
+  .auth__logo { display: flex; align-items: center; gap: 10px; font-size: 18px; font-weight: 700; letter-spacing: -0.01em; position: relative; z-index: 1; }
+  .auth__slogan { position: relative; z-index: 1; }
+  .auth__slogan h2 { margin: 0; font-size: 34px; font-weight: 700; line-height: 1.35; letter-spacing: -0.02em; }
+  .auth__slogan h2 span { color: var(--brand-400); }
+  .auth__slogan p { margin: 16px 0 0; font-size: 14px; color: rgba(255,255,255,.55); max-width: 420px; line-height: 1.8; }
+  .auth__points { display: flex; gap: 28px; position: relative; z-index: 1; }
+  .auth__point { font-size: 12px; color: rgba(255,255,255,.45); display: flex; align-items: center; gap: 7px; }
+  .auth__point svg { width: 15px; height: 15px; color: var(--brand-400); }
+  .auth__form-wrap {
+    flex: 1; display: flex; align-items: center; justify-content: center;
+    background: var(--n-25); padding: 40px;
+  }
+  .auth__card { width: 360px; }
+  .auth__title { font-size: 24px; font-weight: 650; color: var(--n-900); letter-spacing: -0.02em; }
+  .auth__sub { font-size: 13px; color: var(--n-500); margin: 8px 0 32px; }
+</style>
+</head>
+<body data-shell="bare">
+
+<div class="auth">
+  <div class="auth__brand">
+    <div class="auth__logo">
+      <span class="topbar__logo-mark"><span data-icon="zap"></span></span>RoboTest
+    </div>
+    <div class="auth__slogan">
+      <h2>让每一次测试<br>都<span>有据可依</span></h2>
+      <p>用例、评审、计划、接口与缺陷的一体化协作平台。克制的界面，把注意力还给测试本身。</p>
+    </div>
+    <div class="auth__points">
+      <span class="auth__point"><span data-icon="check-circle"></span>用例与脑图协同</span>
+      <span class="auth__point"><span data-icon="check-circle"></span>接口全流程测试</span>
+      <span class="auth__point"><span data-icon="check-circle"></span>质量数据看板</span>
+    </div>
+  </div>
+
+  <div class="auth__form-wrap">
+    <div class="auth__card">
+      <div class="auth__title">登录</div>
+      <div class="auth__sub">使用你的平台账号继续</div>
+
+      <div class="field">
+        <label class="field__label">账号</label>
+        <div class="input-wrap"><span data-icon="user"></span><input class="input" placeholder="用户名或邮箱" value="zhangming"></div>
+      </div>
+      <div class="field">
+        <label class="field__label">密码</label>
+        <div class="input-wrap"><span data-icon="lock"></span><input class="input" type="password" placeholder="请输入密码" value="12345678"></div>
+      </div>
+
+      <div class="flex-between mb-lg">
+        <span class="flex-center flex-gap-sm text-sm muted" style="cursor:pointer">
+          <span class="checkbox checkbox--on"></span>记住我
+        </span>
+        <a class="text-sm" href="#">忘记密码？</a>
+      </div>
+
+      <button class="btn btn--primary btn--lg btn--block">登 录</button>
+
+      <div class="text-xs text-light text-center" style="margin-top:28px;line-height:1.8">
+        登录即表示同意《平台使用协议》与《隐私政策》<br>
+        首次部署？<a href="../auth/init.html">初始化系统管理员</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="../assets/icons.js"></script>
+</body>
+</html>

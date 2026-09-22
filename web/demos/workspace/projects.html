@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>项目列表 · RoboTest</title>
+<link rel="stylesheet" href="../assets/tokens.css">
+<link rel="stylesheet" href="../assets/base.css">
+</head>
+<body data-shell="business" data-mode="workspace" data-active="projects" data-workspace="质量中台">
+
+<main class="content">
+
+  <div class="page-head">
+    <div>
+      <h1 class="page-head__title">项目列表</h1>
+      <p class="page-head__desc">质量中台空间下的全部项目</p>
+    </div>
+    <div class="page-head__actions">
+      <button class="btn btn--primary"><span data-icon="plus"></span>新建项目</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="toolbar">
+      <div class="toolbar__filters">
+        <div class="segment">
+          <span class="segment__item segment__item--active">活跃（5）</span>
+          <span class="segment__item">已归档（1）</span>
+        </div>
+        <div class="input-wrap"><span data-icon="search"></span><input class="input" placeholder="项目名称 / 描述"></div>
+      </div>
+      <div class="toolbar__count">按最近更新排序</div>
+    </div>
+
+    <div class="table-wrap">
+      <table class="table table--clickable">
+        <thead>
+          <tr><th>项目名称</th><th>描述</th><th>开始时间</th><th>结束时间</th><th>操作</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>
+              <span class="flex-center flex-gap-sm"><span class="ic" style="width:28px;height:28px;border-radius:7px;background:var(--brand-50);border:1px solid var(--brand-100);color:var(--brand-500);display:flex;align-items:center;justify-content:center" data-icon="monitor"></span>
+              <span class="cell-main">电商核心系统</span></span>
+              <span class="cell-sub">主链路回归 · 日常迭代</span>
+            </td>
+            <td class="muted">下单、支付、履约全链路质量保障</td>
+            <td class="num">2026-06-01</td>
+            <td class="num">2026-12-31</td>
+            <td><span class="op-link">进入</span><span class="op-link">设置</span><span class="op-link op-link--muted">归档</span></td>
+          </tr>
+          <tr>
+            <td>
+              <span class="flex-center flex-gap-sm"><span class="ic" style="width:28px;height:28px;border-radius:7px;background:var(--n-50);border:1px solid var(--n-200);color:var(--n-600);display:flex;align-items:center;justify-content:center" data-icon="connection"></span>
+              <span class="cell-main">开放平台</span></span>
+              <span class="cell-sub">第三方接入</span>
+            </td>
+            <td class="muted">开放 API 合同、鉴权与限流验证</td>
+            <td class="num">2026-07-15</td>
+            <td class="num">2026-11-30</td>
+            <td><span class="op-link">进入</span><span class="op-link">设置</span><span class="op-link op-link--muted">归档</span></td>
+          </tr>
+          <tr>
+            <td>
+              <span class="flex-center flex-gap-sm"><span class="ic" style="width:28px;height:28px;border-radius:7px;background:var(--n-50);border:1px solid var(--n-200);color:var(--n-600);display:flex;align-items:center;justify-content:center" data-icon="layers"></span>
+              <span class="cell-main">数据服务</span></span>
+              <span class="cell-sub">报表与口径</span>
+            </td>
+            <td class="muted">数仓分层校验与经营报表口径验证</td>
+            <td class="num">2026-08-01</td>
+            <td class="num">2027-03-31</td>
+            <td><span class="op-link">进入</span><span class="op-link">设置</span><span class="op-link op-link--muted">归档</span></td>
+          </tr>
+          <tr>
+            <td>
+              <span class="flex-center flex-gap-sm"><span class="ic" style="width:28px;height:28px;border-radius:7px;background:var(--n-50);border:1px solid var(--n-200);color:var(--n-600);display:flex;align-items:center;justify-content:center" data-icon="zap"></span>
+              <span class="cell-main">性能压测专项</span></span>
+              <span class="cell-sub">大促预案</span>
+            </td>
+            <td class="muted">大促峰值场景容量与稳定性验证</td>
+            <td class="num">2026-09-10</td>
+            <td class="num">2026-11-01</td>
+            <td><span class="op-link">进入</span><span class="op-link">设置</span><span class="op-link op-link--muted">归档</span></td>
+          </tr>
+          <tr>
+            <td>
+              <span class="flex-center flex-gap-sm"><span class="ic" style="width:28px;height:28px;border-radius:7px;background:var(--n-50);border:1px solid var(--n-200);color:var(--n-600);display:flex;align-items:center;justify-content:center" data-icon="shield"></span>
+              <span class="cell-main">安全合规</span></span>
+              <span class="cell-sub">等保测评</span>
+            </td>
+            <td class="muted">渗透测试与合规基线检查</td>
+            <td class="num">2026-05-20</td>
+            <td class="num">2026-10-30</td>
+            <td><span class="op-link">进入</span><span class="op-link">设置</span><span class="op-link op-link--muted">归档</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="pagination">
+      <span class="pagination__total">共 5 个活跃项目</span>
+      <button class="page-btn page-btn--active">1</button>
+    </div>
+  </div>
+
+</main>
+
+<script src="../assets/icons.js"></script>
+<script src="../assets/shell.js"></script>
+</body>
+</html>

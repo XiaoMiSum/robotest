@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>功能测试 · 测试用例 · RoboTest</title>
+<link rel="stylesheet" href="../assets/tokens.css">
+<link rel="stylesheet" href="../assets/base.css">
+<style>
+  .case-layout { display: flex; gap: 20px; align-items: flex-start; }
+  .case-tree { width: 240px; flex-shrink: 0; }
+  .case-table { flex: 1; min-width: 0; }
+</style>
+</head>
+<body data-shell="business" data-mode="project" data-active="ft" data-workspace="质量中台" data-project="电商核心系统">
+
+<main class="content content--flush">
+  <div class="split">
+    <aside class="split__side">
+      <div class="menu-item side__item menu-item--active"><span data-icon="document"></span><span>测试用例</span></div>
+      <div class="menu-item side__item"><span data-icon="check-circle"></span><span>测试评审</span></div>
+      <div class="menu-item side__item"><span data-icon="calendar"></span><span>测试计划</span></div>
+      <div class="menu-item side__item"><span data-icon="tickets"></span><span>需求池</span></div>
+    </aside>
+
+    <div class="split__main">
+      <div class="page-head">
+        <div>
+          <h1 class="page-head__title">测试用例</h1>
+          <p class="page-head__desc">共 1,284 条用例 · 覆盖 6 个模块 · 支持表格与脑图双模式</p>
+        </div>
+        <div class="page-head__actions">
+          <button class="btn btn--default"><span data-icon="upload"></span>导入</button>
+          <button class="btn btn--default"><span data-icon="layers"></span>脑图模式</button>
+          <button class="btn btn--primary"><span data-icon="plus"></span>新建用例</button>
+        </div>
+      </div>
+
+      <div class="case-layout">
+        <!-- 模块树 -->
+        <div class="card case-tree">
+          <div class="card__header" style="padding:12px 16px">
+            <h3 class="card__title" style="font-size:13px">模块</h3>
+            <span class="op-link" style="margin-right:0">+ 新增</span>
+          </div>
+          <div class="card__body" style="padding:8px">
+            <div class="tree">
+              <div class="tree__item"><span data-icon="folder"></span>全部用例<span class="tree__count">1284</span></div>
+              <div class="tree__item tree__indent tree__item--active"><span data-icon="folder"></span>下单流程<span class="tree__count">236</span></div>
+              <div class="tree__item tree__indent"><span data-icon="folder"></span>支付中心<span class="tree__count">198</span></div>
+              <div class="tree__item tree__indent"><span data-icon="folder"></span>购物车<span class="tree__count">174</span></div>
+              <div class="tree__item tree__indent"><span data-icon="folder"></span>商品详情<span class="tree__count">156</span></div>
+              <div class="tree__item tree__indent"><span data-icon="folder"></span>履约配送<span class="tree__count">142</span></div>
+              <div class="tree__item tree__indent"><span data-icon="folder"></span>营销优惠<span class="tree__count">118</span></div>
+              <div class="tree__item"><span data-icon="tag"></span>回归专用集<span class="tree__count">60</span></div>
+              <div class="tree__item"><span data-icon="tag"></span>冒烟集<span class="tree__count">32</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 用例表 -->
+        <div class="card case-table">
+          <div class="toolbar">
+            <div class="toolbar__filters">
+              <div class="input-wrap"><span data-icon="search"></span><input class="input" placeholder="编号 / 标题"></div>
+              <select class="select" style="width:120px"><option>全部优先级</option><option>P0</option><option>P1</option><option>P2</option><option>P3</option></select>
+              <select class="select" style="width:120px"><option>全部类型</option><option>功能</option><option>边界</option><option>性能</option></select>
+            </div>
+            <div class="toolbar__count">下单流程 · 236 条</div>
+          </div>
+
+          <div class="table-wrap">
+            <table class="table table--clickable">
+              <thead>
+                <tr><th>编号</th><th>标题</th><th>优先级</th><th>类型</th><th>状态</th><th>更新人</th><th>更新时间</th><th>操作</th></tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="mono">TC-1024</td>
+                  <td class="cell-main">下单页优惠券叠加校验<span class="cell-sub">回归 · P0 通道</span></td>
+                  <td><span class="prio prio--p0">P0</span></td>
+                  <td><span class="chip">功能</span></td>
+                  <td><span class="status status--success"><span class="dot"></span>通过</span></td>
+                  <td>张明</td>
+                  <td class="num">2026-09-20 14:32</td>
+                  <td><span class="op-link">编辑</span><span class="op-link op-link--danger">删除</span></td>
+                </tr>
+                <tr>
+                  <td class="mono">TC-1025</td>
+                  <td class="cell-main">库存不足时下单拦截<span class="cell-sub">边界值</span></td>
+                  <td><span class="prio prio--p1">P1</span></td>
+                  <td><span class="chip">边界</span></td>
+                  <td><span class="status status--blocked"><span class="dot"></span>阻塞</span></td>
+                  <td>李华</td>
+                  <td class="num">2026-09-20 11:08</td>
+                  <td><span class="op-link">编辑</span><span class="op-link op-link--danger">删除</span></td>
+                </tr>
+                <tr>
+                  <td class="mono">TC-1026</td>
+                  <td class="cell-main">支付回调幂等性验证<span class="cell-sub">接口联调</span></td>
+                  <td><span class="prio prio--p1">P1</span></td>
+                  <td><span class="chip">功能</span></td>
+                  <td><span class="status status--running"><span class="dot"></span>进行中</span></td>
+                  <td>王芳</td>
+                  <td class="num">2026-09-19 18:45</td>
+                  <td><span class="op-link">编辑</span><span class="op-link op-link--danger">删除</span></td>
+                </tr>
+                <tr>
+                  <td class="mono">TC-1027</td>
+                  <td class="cell-main">历史订单导出上限<span class="cell-sub">10 万行分页</span></td>
+                  <td><span class="prio prio--p2">P2</span></td>
+                  <td><span class="chip">性能</span></td>
+                  <td><span class="status status--neutral"><span class="dot"></span>未执行</span></td>
+                  <td>张明</td>
+                  <td class="num">2026-09-18 09:21</td>
+                  <td><span class="op-link">编辑</span><span class="op-link op-link--danger">删除</span></td>
+                </tr>
+                <tr>
+                  <td class="mono">TC-1028</td>
+                  <td class="cell-main">收货地址超长字符<span class="cell-sub">兼容性</span></td>
+                  <td><span class="prio prio--p3">P3</span></td>
+                  <td><span class="chip">边界</span></td>
+                  <td><span class="status status--danger"><span class="dot"></span>失败</span></td>
+                  <td>周敏</td>
+                  <td class="num">2026-09-17 16:52</td>
+                  <td><span class="op-link">编辑</span><span class="op-link op-link--danger">删除</span></td>
+                </tr>
+                <tr>
+                  <td class="mono">TC-1029</td>
+                  <td class="cell-main">多优惠券互斥规则<span class="cell-sub">营销活动期</span></td>
+                  <td><span class="prio prio--p0">P0</span></td>
+                  <td><span class="chip">功能</span></td>
+                  <td><span class="status status--neutral"><span class="dot"></span>未执行</span></td>
+                  <td>张明</td>
+                  <td class="num">2026-09-16 10:04</td>
+                  <td><span class="op-link">编辑</span><span class="op-link op-link--danger">删除</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="pagination">
+            <span class="pagination__total">共 236 条 · 每页 20 条</span>
+            <button class="page-btn" disabled>‹</button>
+            <button class="page-btn page-btn--active">1</button>
+            <button class="page-btn">2</button>
+            <button class="page-btn">3</button>
+            <button class="page-btn">…</button>
+            <button class="page-btn">12</button>
+            <button class="page-btn">›</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script src="../assets/icons.js"></script>
+<script src="../assets/shell.js"></script>
+</body>
+</html>

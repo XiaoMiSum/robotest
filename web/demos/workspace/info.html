@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>空间信息 · RoboTest</title>
+<link rel="stylesheet" href="../assets/tokens.css">
+<link rel="stylesheet" href="../assets/base.css">
+</head>
+<body data-shell="business" data-mode="workspace" data-active="info" data-workspace="质量中台">
+
+<main class="content">
+
+  <div class="page-head">
+    <div>
+      <h1 class="page-head__title">空间信息</h1>
+      <p class="page-head__desc">空间基础资料与运行统计</p>
+    </div>
+    <div class="page-head__actions">
+      <button class="btn btn--default"><span data-icon="edit"></span>编辑模式</button>
+    </div>
+  </div>
+
+  <div class="card-grid card-grid--4">
+    <div class="card kpi"><div class="kpi__label"><span data-icon="userfilled"></span>成员</div><div class="kpi__value">24<span class="unit">人</span></div><div class="kpi__foot">本周新增 2 人</div></div>
+    <div class="card kpi"><div class="kpi__label"><span data-icon="folder"></span>项目</div><div class="kpi__value">6<span class="unit">个</span></div><div class="kpi__foot">活跃 5</div></div>
+    <div class="card kpi"><div class="kpi__label"><span data-icon="document"></span>用例</div><div class="kpi__value">1,024</div><div class="kpi__foot">本周新增 <span class="kpi__delta kpi__delta--up">+37</span></div></div>
+    <div class="card kpi"><div class="kpi__label"><span data-icon="bug"></span>未关闭缺陷</div><div class="kpi__value">18</div><div class="kpi__foot">致命 1 · 严重 4 · 一般 9</div></div>
+  </div>
+
+  <div class="card block-gap">
+    <div class="card__header"><h3 class="card__title">基础信息</h3></div>
+    <div class="card__body">
+      <div class="form-grid">
+        <div class="field">
+          <label class="field__label">名称</label>
+          <input class="input" value="质量中台">
+        </div>
+        <div class="field">
+          <label class="field__label">空间 ID</label>
+          <input class="input mono" value="ws_8f3a21c4" disabled>
+        </div>
+      </div>
+      <div class="field">
+        <label class="field__label">描述</label>
+        <textarea class="textarea" style="min-height:80px">核心业务线质量保障与用例资产沉淀，覆盖电商主链路的回归与专项测试。</textarea>
+      </div>
+      <div class="desc-list" style="margin-bottom:0">
+        <div class="desc-item">
+          <div class="desc-item__label">创建时间</div>
+          <div class="desc-item__value num">2026-09-18 10:24</div>
+        </div>
+        <div class="desc-item">
+          <div class="desc-item__label">创建人</div>
+          <div class="desc-item__value">张明</div>
+        </div>
+      </div>
+    </div>
+    <div class="toolbar" style="border-top:1px solid var(--n-100);border-bottom:none;justify-content:flex-end">
+      <button class="btn btn--text">放弃修改</button>
+      <button class="btn btn--primary">保存</button>
+    </div>
+  </div>
+
+</main>
+
+<script src="../assets/icons.js"></script>
+<script src="../assets/shell.js"></script>
+</body>
+</html>

@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>初始化 · RoboTest</title>
+<link rel="stylesheet" href="../assets/tokens.css">
+<link rel="stylesheet" href="../assets/base.css">
+<style>
+  .init-wrap { min-height: 100vh; background: var(--n-25); display: flex; flex-direction: column; align-items: center; padding: 64px 24px; }
+  .init-logo { display: flex; align-items: center; gap: 10px; font-size: 18px; font-weight: 700; color: var(--n-900); margin-bottom: 32px; }
+  .steps { display: flex; align-items: center; gap: 0; margin-bottom: 28px; }
+  .step { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--n-400); }
+  .step .n { width: 22px; height: 22px; border-radius: 50%; background: var(--n-100); color: var(--n-500); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; }
+  .step--active { color: var(--n-900); font-weight: 600; }
+  .step--active .n { background: var(--brand-500); color: #fff; }
+  .step--done .n { background: var(--st-success); color: #fff; }
+  .step--done { color: var(--st-success); }
+  .step-line { width: 56px; height: 1px; background: var(--n-300); margin: 0 14px; }
+  .init-card { width: 480px; }
+</style>
+</head>
+<body data-shell="bare">
+
+<div class="init-wrap">
+  <div class="init-logo"><span class="topbar__logo-mark"><span data-icon="zap"></span></span>RoboTest</div>
+
+  <div class="steps">
+    <span class="step step--done"><span class="n">✓</span>检测环境</span>
+    <span class="step-line"></span>
+    <span class="step step--active"><span class="n">2</span>创建管理员</span>
+    <span class="step-line"></span>
+    <span class="step"><span class="n">3</span>创建空间</span>
+    <span class="step-line"></span>
+    <span class="step"><span class="n">4</span>完成</span>
+  </div>
+
+  <div class="card init-card">
+    <div class="card__body">
+      <div class="alert alert--info mb-lg">
+        <span data-icon="info-filled"></span>
+        <div>初始化向导仅可执行一次，创建的账号将拥有系统最高权限。</div>
+      </div>
+
+      <div class="form-grid">
+        <div class="field">
+          <label class="field__label">用户名<span class="req">*</span></label>
+          <input class="input" placeholder="登录账号" value="admin">
+        </div>
+        <div class="field">
+          <label class="field__label">邮箱<span class="req">*</span></label>
+          <input class="input" placeholder="用于接收通知" value="admin@robotest.cn">
+        </div>
+        <div class="field">
+          <label class="field__label">密码<span class="req">*</span></label>
+          <input class="input" type="password" placeholder="至少 8 位，含字母与数字" value="Passw0rd!">
+          <div class="field__hint">强度：<span class="text-success strong">强</span></div>
+        </div>
+        <div class="field">
+          <label class="field__label">确认密码<span class="req">*</span></label>
+          <input class="input" type="password" value="Passw0rd!">
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="field__label">管理员姓名<span class="req">*</span></label>
+        <input class="input" placeholder="显示名称" value="平台管理员">
+      </div>
+
+      <div class="btn-row" style="justify-content:flex-end">
+        <a class="btn btn--default" href="../auth/login.html">返回登录</a>
+        <button class="btn btn--primary">下一步：创建空间</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="text-xs text-light" style="margin-top:24px">RoboTest v1.0 · 软件测试平台</div>
+</div>
+
+<script src="../assets/icons.js"></script>
+</body>
+</html>

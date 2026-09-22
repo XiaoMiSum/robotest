@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>缺陷详情 · RoboTest</title>
+<link rel="stylesheet" href="../assets/tokens.css">
+<link rel="stylesheet" href="../assets/base.css">
+</head>
+<body data-shell="business" data-mode="project" data-active="bugs" data-workspace="质量中台" data-project="电商核心系统">
+
+<main class="content">
+
+  <div class="breadcrumb">
+    <a href="bugs.html">缺陷管理</a>
+    <span data-icon="chevron-right"></span>
+    <span>BUG-208</span>
+  </div>
+
+  <div class="page-head">
+    <div>
+      <div class="flex-center flex-gap-sm">
+        <span class="mono muted text-sm">BUG-208</span>
+        <h1 class="page-head__title" style="font-size:20px">支付回调重复入账</h1>
+        <span class="status status--warning"><span class="dot"></span>修复中</span>
+        <span class="tag tag--danger"><span class="dot"></span>严重</span>
+        <span class="prio prio--p0">P0</span>
+      </div>
+      <p class="page-head__desc">王芳 创建于 2026-09-22 13:58 · 关联 TC-1026 · 来自计划「V1.4.2 回归测试」</p>
+    </div>
+    <div class="page-head__actions">
+      <button class="btn btn--default"><span data-icon="user"></span>转派</button>
+      <button class="btn btn--default">标记待验证</button>
+      <button class="btn btn--primary"><span data-icon="check"></span>解决缺陷</button>
+    </div>
+  </div>
+
+  <div class="card-grid" style="grid-template-columns: 1fr 300px; align-items:start">
+    <div>
+      <!-- 描述 -->
+      <div class="card">
+        <div class="card__header"><h3 class="card__title">问题描述</h3></div>
+        <div class="card__body text-sm" style="color:var(--n-700);line-height:1.9">
+          <div class="strong mb-md">重现步骤</div>
+          <ol style="margin:0;padding-left:20px;color:var(--n-600)">
+            <li>沙箱环境连续发起两笔相同金额的支付；</li>
+            <li>第一次回调正常入账后，人为重放同一回调报文；</li>
+            <li>账务流水出现两笔同渠道记录。</li>
+          </ol>
+          <div class="form-grid mt-lg">
+            <div>
+              <div class="field__label text-success">期望结果</div>
+              <div class="text-sm muted">回调具备幂等性，重放报文被去重拒绝。</div>
+            </div>
+            <div>
+              <div class="field__label text-danger">实际结果</div>
+              <div class="text-sm muted">重复入账，余额与流水不一致。</div>
+            </div>
+          </div>
+          <hr class="divider divider--dashed">
+          <div class="text-xs muted">环境 staging · 渠道 mock-pay · 发现版本 <span class="mono">v1.4.2-rc.3</span></div>
+        </div>
+      </div>
+
+      <!-- 附件 -->
+      <div class="card">
+        <div class="card__header">
+          <h3 class="card__title">附件<span class="card__subtitle">2 个文件</span></h3>
+          <button class="btn btn--default btn--sm"><span data-icon="upload"></span>上传</button>
+        </div>
+        <div class="table-wrap">
+          <table class="table">
+            <thead><tr><th>文件名</th><th>大小</th><th>上传者</th><th>上传时间</th><th>操作</th></tr></thead>
+            <tbody>
+              <tr>
+                <td class="flex-center flex-gap-sm"><span data-icon="document" style="width:15px;height:15px;color:var(--n-400)"></span><span class="mono text-sm">callback-replay.json</span></td>
+                <td class="num">4.2 KB</td><td>王芳</td><td class="num">2026-09-22 14:02</td>
+                <td><span class="op-link">预览</span><span class="op-link op-link--danger">删除</span></td>
+              </tr>
+              <tr>
+                <td class="flex-center flex-gap-sm"><span data-icon="document" style="width:15px;height:15px;color:var(--n-400)"></span><span class="mono text-sm">ledger-diff.png</span></td>
+                <td class="num">128 KB</td><td>王芳</td><td class="num">2026-09-22 14:03</td>
+                <td><span class="op-link">预览</span><span class="op-link op-link--danger">删除</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 评论 -->
+      <div class="card">
+        <div class="card__header"><h3 class="card__title">评论与动态<span class="card__subtitle">4</span></h3></div>
+        <div class="card__body">
+          <ul class="timeline mb-lg">
+            <li class="timeline__item"><span class="timeline__dot timeline__dot--brand"></span>
+              <div class="timeline__head">李华 认领并开始修复<span class="timeline__time">15:10</span></div>
+              <div class="timeline__body">定位到回调缺少幂等键，准备加 Redis 去重 + 流水唯一索引兜底。</div></li>
+            <li class="timeline__item"><span class="timeline__dot timeline__dot--warning"></span>
+              <div class="timeline__head">系统 将状态变更为「修复中」<span class="timeline__time">15:10</span></div></li>
+            <li class="timeline__item"><span class="timeline__dot timeline__dot--brand"></span>
+              <div class="timeline__head">王芳 添加评论<span class="timeline__time">14:12</span></div>
+              <div class="timeline__body">已附上报文重放与流水差异截图，可在 staging 稳定复现（3/3）。</div></li>
+            <li class="timeline__item"><span class="timeline__dot"></span>
+              <div class="timeline__head">王芳 创建缺陷<span class="timeline__time">13:58</span></div></li>
+          </ul>
+
+          <div class="field" style="margin-bottom:12px">
+            <textarea class="textarea" style="min-height:76px" placeholder="补充说明、修复进展或验证结论…"></textarea>
+          </div>
+          <div class="flex-between">
+            <span class="text-xs muted">支持 Markdown · @ 提及成员</span>
+            <button class="btn btn--primary btn--sm">发表</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 侧栏属性 -->
+    <div>
+      <div class="card">
+        <div class="card__header"><h3 class="card__title">属性</h3></div>
+        <div class="card__body" style="display:flex;flex-direction:column;gap:16px">
+          <div class="desc-item"><div class="desc-item__label">状态</div><div class="desc-item__value"><span class="status status--warning"><span class="dot"></span>修复中</span></div></div>
+          <div class="desc-item"><div class="desc-item__label">严重等级</div><div class="desc-item__value"><span class="tag tag--danger"><span class="dot"></span>严重</span></div></div>
+          <div class="desc-item"><div class="desc-item__label">优先级</div><div class="desc-item__value"><span class="prio prio--p0">P0</span></div></div>
+          <div class="desc-item"><div class="desc-item__label">所属模块</div><div class="desc-item__value"><span class="chip">支付中心</span></div></div>
+          <div class="desc-item"><div class="desc-item__label">创建人</div><div class="desc-item__value flex-center flex-gap-sm"><span class="avatar avatar--sm">王</span>王芳</div></div>
+          <div class="desc-item"><div class="desc-item__label">指派给</div><div class="desc-item__value flex-center flex-gap-sm"><span class="avatar avatar--sm">李</span>李华</div></div>
+          <div class="desc-item"><div class="desc-item__label">创建时间</div><div class="desc-item__value num text-sm">2026-09-22 13:58</div></div>
+          <div class="desc-item"><div class="desc-item__label">修复截止</div><div class="desc-item__value num text-sm">2026-09-23 18:00 <span class="tag tag--warning tag--sm" style="margin-left:4px">剩余 1 天</span></div></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card__header"><h3 class="card__title">流转记录</h3></div>
+        <div class="card__body">
+          <ul class="timeline">
+            <li class="timeline__item"><span class="timeline__dot timeline__dot--warning"></span>
+              <div class="timeline__head">修复中<span class="timeline__time">15:10</span></div>
+              <div class="timeline__body">李华 认领</div></li>
+            <li class="timeline__item"><span class="timeline__dot"></span>
+              <div class="timeline__head">新建<span class="timeline__time">13:58</span></div>
+              <div class="timeline__body">王芳 提交</div></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<script src="../assets/icons.js"></script>
+<script src="../assets/shell.js"></script>
+</body>
+</html>

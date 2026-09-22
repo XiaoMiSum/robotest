@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>成员管理 · RoboTest</title>
+<link rel="stylesheet" href="../assets/tokens.css">
+<link rel="stylesheet" href="../assets/base.css">
+</head>
+<body data-shell="business" data-mode="workspace" data-active="members" data-workspace="质量中台">
+
+<main class="content">
+
+  <div class="page-head">
+    <div>
+      <h1 class="page-head__title">成员管理</h1>
+      <p class="page-head__desc">管理空间成员与角色，通过邀请链接扩招</p>
+    </div>
+    <div class="page-head__actions">
+      <button class="btn btn--default"><span data-icon="link"></span>复制邀请链接</button>
+      <button class="btn btn--primary"><span data-icon="plus"></span>邀请成员</button>
+    </div>
+  </div>
+
+  <!-- 成员列表 -->
+  <div class="card">
+    <div class="card__header">
+      <h3 class="card__title">成员列表<span class="card__subtitle">24 人</span></h3>
+      <div class="toolbar__filters">
+        <div class="input-wrap"><span data-icon="search"></span><input class="input" placeholder="姓名 / 邮箱" style="width:200px"></div>
+        <select class="select" style="width:150px"><option>全部角色</option><option>空间管理员</option><option>测试工程师</option><option>只读成员</option></select>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th>用户</th><th>角色</th><th>加入时间</th><th>操作</th></tr></thead>
+        <tbody>
+          <tr>
+            <td class="flex-center flex-gap-sm"><span class="avatar avatar--sm avatar--brand">张</span>
+              <span><span class="cell-main">张明</span><span class="cell-sub">zhangming@robotest.cn</span></span></td>
+            <td><span class="tag tag--info">空间管理员</span></td>
+            <td class="num">2026-09-18 10:24</td>
+            <td><span class="op-link">改角色</span><span class="op-link op-link--muted">移除</span></td>
+          </tr>
+          <tr>
+            <td class="flex-center flex-gap-sm"><span class="avatar avatar--sm">李</span>
+              <span><span class="cell-main">李华</span><span class="cell-sub">lihua@robotest.cn</span></span></td>
+            <td><span class="tag tag--info">空间管理员</span></td>
+            <td class="num">2026-09-18 10:31</td>
+            <td><span class="op-link">改角色</span><span class="op-link op-link--muted">移除</span></td>
+          </tr>
+          <tr>
+            <td class="flex-center flex-gap-sm"><span class="avatar avatar--sm">王</span>
+              <span><span class="cell-main">王芳</span><span class="cell-sub">wangfang@robotest.cn</span></span></td>
+            <td><span class="tag tag--outline">测试工程师</span></td>
+            <td class="num">2026-09-18 14:02</td>
+            <td><span class="op-link">改角色</span><span class="op-link op-link--danger">移除</span></td>
+          </tr>
+          <tr>
+            <td class="flex-center flex-gap-sm"><span class="avatar avatar--sm">陈</span>
+              <span><span class="cell-main">陈强</span><span class="cell-sub">chenqiang@robotest.cn</span></span></td>
+            <td><span class="tag tag--outline">只读成员</span></td>
+            <td class="num">2026-09-19 09:15</td>
+            <td><span class="op-link">改角色</span><span class="op-link op-link--danger">移除</span></td>
+          </tr>
+          <tr>
+            <td class="flex-center flex-gap-sm"><span class="avatar avatar--sm">周</span>
+              <span><span class="cell-main">周敏</span><span class="cell-sub">zhoumin@robotest.cn</span></span></td>
+            <td><span class="tag tag--outline">测试工程师</span></td>
+            <td class="num">2026-09-20 16:44</td>
+            <td><span class="op-link">改角色</span><span class="op-link op-link--danger">移除</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="pagination">
+      <span class="pagination__total">共 24 人 · 每页 20 条</span>
+      <button class="page-btn page-btn--active">1</button><button class="page-btn">2</button><button class="page-btn">›</button>
+    </div>
+  </div>
+
+  <!-- 邀请链接 -->
+  <div class="card block-gap">
+    <div class="card__header">
+      <h3 class="card__title">邀请链接<span class="card__subtitle">通过链接加入的成员按默认角色进入</span></h3>
+      <button class="btn btn--primary btn--sm"><span data-icon="plus"></span>生成链接</button>
+    </div>
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th>邀请链接</th><th>使用次数</th><th>过期时间</th><th>状态</th><th>创建时间</th><th>操作</th></tr></thead>
+        <tbody>
+          <tr>
+            <td class="mono">join/8f3a…c4e1</td>
+            <td class="num">7 / 20</td>
+            <td class="num">2026-09-27 10:00</td>
+            <td><span class="status status--success"><span class="dot"></span>有效</span></td>
+            <td class="num">2026-09-18 10:30</td>
+            <td><span class="op-link">复制</span><span class="op-link op-link--danger">失效</span></td>
+          </tr>
+          <tr>
+            <td class="mono">join/91bc…7a02</td>
+            <td class="num">20 / 20</td>
+            <td class="num">2026-10-15 09:00</td>
+            <td><span class="status status--neutral"><span class="dot"></span>已达上限</span></td>
+            <td class="num">2026-09-10 11:20</td>
+            <td><span class="op-link">复制</span><span class="op-link op-link--danger">失效</span></td>
+          </tr>
+          <tr>
+            <td class="mono">join/2d7e…19f8</td>
+            <td class="num">3 / 10</td>
+            <td class="num">2026-09-15 18:00</td>
+            <td><span class="status status--danger"><span class="dot"></span>已过期</span></td>
+            <td class="num">2026-09-01 15:41</td>
+            <td><span class="op-link op-link--muted">复制</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<script src="../assets/icons.js"></script>
+<script src="../assets/shell.js"></script>
+</body>
+</html>
