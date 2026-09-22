@@ -14,7 +14,7 @@ const mocks = vi.hoisted(() => ({
   ElMessage: { warning: vi.fn() },
 }))
 
-vi.mock('@/utils/assistantLinkWhitelist', () => ({
+vi.mock('@/composables/assistant/assistantLinkWhitelist', () => ({
   filterAssistantLinks: mocks.filterAssistantLinks,
   collectRegisteredPrefixes: mocks.collectRegisteredPrefixes,
 }))

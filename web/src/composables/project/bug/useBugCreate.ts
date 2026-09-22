@@ -13,7 +13,7 @@ import type {
   TestPlanListItem,
   WorkspaceMember,
 } from '@/types'
-import { BUG_STATUS_LABEL, BUG_STATUS_TAG_TYPE, BUG_TYPE_LABEL } from '@/utils/bugStatus'
+import { BUG_STATUS_LABEL, BUG_STATUS_TAG_TYPE, BUG_TYPE_LABEL } from '@/composables/project/bug/bugStatus'
 import BugAiSuggest from '@/components/project/bug/BugAiSuggest.vue'
 
 // ==================== Constants ====================

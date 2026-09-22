@@ -39,7 +39,7 @@ vi.mock('element-plus', () => ({
   ElMessageBox: mocks.ElMessageBox,
 }))
 
-vi.mock('@/utils/bugStatus', () => ({
+vi.mock('@/composables/project/bug/bugStatus', () => ({
   BUG_STATUS_LABEL: { active: '激活', resolved: '已修复', rejected: '已拒绝', closed: '已关闭' },
   BUG_STATUS_TAG_TYPE: { active: 'primary', resolved: 'success', rejected: 'warning', closed: 'info' },
   BUG_TYPE_LABEL: { code_error: '代码错误' },

@@ -3,7 +3,7 @@ import { reactive, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { fetchBugs } from '@/services/project'
 import type { BugListItem, BugResolution } from '@/types'
-import { BUG_RESOLUTION_LABEL } from '@/utils/bugStatus'
+import { BUG_RESOLUTION_LABEL } from '@/composables/project/bug/bugStatus'
 
 const props = defineProps<{
   modelValue: boolean

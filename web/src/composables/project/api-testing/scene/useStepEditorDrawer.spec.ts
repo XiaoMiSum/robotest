@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { reactive } from 'vue'
 import type { ApiSceneStepItem, ApiSceneStepVariableItem, ApiInterfaceItem } from '@/types'
-import type { ApiInterfaceDetail } from '@/types/apitest'
+import type { ApiInterfaceDetail } from '@/types/project/api-testing/apitest'
 
 const mocks = vi.hoisted(() => ({
   createSceneStep: vi.fn<() => Promise<string>>(),
