@@ -54,7 +54,7 @@ vi.mock('@/services/project/environment', () => ({
   importEnvironment: mocks.importEnvironment,
 }))
 
-vi.mock('@/pages/project/environmentsModel', () => ({
+vi.mock('@/pages/project/api-testing/environment/environmentsModel', () => ({
   buildSavePayload: mocks.buildSavePayload,
   formatImportResult: mocks.formatImportResult,
   resolveEnvironmentError: mocks.resolveEnvironmentError,

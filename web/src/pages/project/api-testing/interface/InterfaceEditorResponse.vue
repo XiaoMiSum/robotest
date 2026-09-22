@@ -2,7 +2,7 @@
 import { ref } from 'vue'
 import { MagicStick, CopyDocument } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
-import type { InterfaceEditorForm } from '@/pages/project/interfacesModel'
+import type { InterfaceEditorForm } from '@/pages/project/api-testing/interface/interfacesModel'
 
 const form = defineModel<InterfaceEditorForm>({ required: true })
 

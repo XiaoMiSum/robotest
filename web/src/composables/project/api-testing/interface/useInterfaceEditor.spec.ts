@@ -409,7 +409,7 @@ describe('useInterfaceEditor', () => {
     })
 
     it('toCreatePayload error shows warning', async () => {
-      const interfacesModel = await import('@/pages/project/interfacesModel')
+      const interfacesModel = await import('@/pages/project/api-testing/interface/interfacesModel')
       const spy = vi.spyOn(interfacesModel, 'toCreatePayload')
       spy.mockReturnValue({ req: {} as never, error: 'missing field' })
       const { sut } = makeSut({ createMode: true })

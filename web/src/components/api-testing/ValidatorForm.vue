@@ -21,7 +21,7 @@
 
 <script setup lang="ts">
 import { reactive, watch } from 'vue'
-import { VALIDATOR_TARGETS, VALIDATOR_CONDITIONS } from '@/pages/project/scenesModel'
+import { VALIDATOR_TARGETS, VALIDATOR_CONDITIONS } from '@/pages/project/api-testing/scene/scenesModel'
 
 interface ValidatorConfig {
   target: string

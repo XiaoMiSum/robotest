@@ -20,7 +20,7 @@ vi.mock('@/services/project/environment', () => ({
   fetchEnvironmentDetail: mocks.fetchEnvironmentDetail,
   updateEnvironment: mocks.updateEnvironment,
 }))
-vi.mock('@/pages/project/environmentsModel', () => ({
+vi.mock('@/pages/project/api-testing/environment/environmentsModel', () => ({
   resolveEnvironmentError: mocks.resolveEnvironmentError,
   validateVariableRow: mocks.validateVariableRow,
 }))

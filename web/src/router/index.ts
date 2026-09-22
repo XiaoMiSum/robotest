@@ -25,7 +25,7 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/share/api-report/:id',
     name: 'ShareReport',
-    component: () => import('@/pages/project/ShareReportPage.vue'),
+    component: () => import('@/pages/project/api-testing/report/ShareReportPage.vue'),
     meta: { public: true },
   },
   // === Admin routes ===
@@ -128,37 +128,37 @@ const routes: RouteRecordRaw[] = [
       {
         path: 'workspace/projects/functional-testing',
         name: 'FunctionalTesting',
-        component: () => import('@/pages/project/FunctionalTestingPage.vue'),
+        component: () => import('@/pages/project/functional-testing/FunctionalTestingPage.vue'),
         meta: { title: '功能测试' },
       },
       {
         path: 'workspace/projects/reviews',
         name: 'ReviewList',
-        component: () => import('@/pages/project/ReviewListPage.vue'),
+        component: () => import('@/pages/project/functional-testing/ReviewListPage.vue'),
         meta: { title: '测试评审' },
       },
       {
         path: 'workspace/projects/reviews/:reviewId',
         name: 'ReviewDetail',
-        component: () => import('@/pages/project/ReviewDetailPage.vue'),
+        component: () => import('@/pages/project/functional-testing/ReviewDetailPage.vue'),
         meta: { title: '评审详情' },
       },
       {
         path: 'workspace/projects/plans',
         name: 'PlanList',
-        component: () => import('@/pages/project/PlanListPage.vue'),
+        component: () => import('@/pages/project/functional-testing/PlanListPage.vue'),
         meta: { title: '测试计划' },
       },
       {
         path: 'workspace/projects/plans/:planId',
         name: 'PlanDetail',
-        component: () => import('@/pages/project/PlanDetailPage.vue'),
+        component: () => import('@/pages/project/functional-testing/PlanDetailPage.vue'),
         meta: { title: '计划详情' },
       },
       {
         path: 'workspace/projects/api-testing',
         name: 'ApiTesting',
-        component: () => import('@/pages/project/ApiTestingPage.vue'),
+        component: () => import('@/pages/project/api-testing/ApiTestingPage.vue'),
         meta: { title: '接口测试' },
       },
       {
@@ -176,25 +176,25 @@ const routes: RouteRecordRaw[] = [
       {
         path: 'workspace/projects/requirements',
         name: 'RequirementPool',
-        component: () => import('@/pages/project/RequirementPoolPage.vue'),
+        component: () => import('@/pages/project/functional-testing/RequirementPoolPage.vue'),
         meta: { title: '需求池' },
       },
       {
         path: 'workspace/projects/bugs',
         name: 'BugList',
-        component: () => import('@/pages/project/BugListPage.vue'),
+        component: () => import('@/pages/project/bug/BugListPage.vue'),
         meta: { title: '缺陷管理' },
       },
       {
         path: 'workspace/projects/bugs/create',
         name: 'BugCreate',
-        component: () => import('@/pages/project/BugCreatePage.vue'),
+        component: () => import('@/pages/project/bug/BugCreatePage.vue'),
         meta: { title: '提交缺陷' },
       },
       {
         path: 'workspace/projects/bugs/:bugId',
         name: 'BugDetail',
-        component: () => import('@/pages/project/BugDetailPage.vue'),
+        component: () => import('@/pages/project/bug/BugDetailPage.vue'),
         meta: { title: '缺陷详情' },
       },
     ],

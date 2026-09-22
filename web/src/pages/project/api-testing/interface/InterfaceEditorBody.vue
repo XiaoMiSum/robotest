@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { MagicStick } from '@element-plus/icons-vue'
-import KeyValueTable from './debug/KeyValueTable.vue'
+import KeyValueTable from '@/pages/project/api-testing/debug/KeyValueTable.vue'
 import type { ApiDebugRawSubtype } from '@/types'
-import type { InterfaceEditorForm } from '@/pages/project/interfacesModel'
+import type { InterfaceEditorForm } from '@/pages/project/api-testing/interface/interfacesModel'
 
 const form = defineModel<InterfaceEditorForm>({ required: true })
 
