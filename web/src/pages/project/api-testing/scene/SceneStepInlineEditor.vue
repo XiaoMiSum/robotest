@@ -17,7 +17,7 @@ import {
   serializeExtractors,
   stepValidatorsFromComponents,
   stepExtractorsFromComponents,
-} from '../scenesModel'
+} from './scenesModel'
 import RequestConfigEditor from './RequestConfigEditor.vue'
 import ValidatorsExtractorsPanes from '@/components/api-testing/ValidatorsExtractorsPanes.vue'
 

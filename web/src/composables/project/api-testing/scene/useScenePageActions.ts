@@ -2,7 +2,7 @@ import { onMounted } from 'vue'
 import type { Ref } from 'vue'
 import type { ApiSceneVariableItem, ApiSceneStepItem } from '@/types'
 import type { SceneProcessorElement } from './useSceneProcessors'
-import { prefillDraftSteps } from '@/pages/project/scenesModel'
+import { prefillDraftSteps } from '@/pages/project/api-testing/scene/scenesModel'
 
 export interface UseScenePageActionsOptions {
   sceneId?: string

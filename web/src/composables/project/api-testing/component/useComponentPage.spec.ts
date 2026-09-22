@@ -46,7 +46,7 @@ vi.mock('@/services/project/environment', () => ({
   fetchEnvironmentDetail: mocks.fetchEnvironmentDetail,
 }))
 
-vi.mock('@/pages/project/componentModel', () => ({
+vi.mock('@/pages/project/api-testing/component/componentModel', () => ({
   COMPONENT_SCOPE_OPTIONS: [
     { value: 'global', label: '公共' },
     { value: 'workspace', label: '空间' },

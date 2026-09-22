@@ -14,7 +14,7 @@ import {
   sortEnvironment,
   updateEnvironment,
 } from '@/services/project/environment'
-import { buildSavePayload, formatImportResult, resolveEnvironmentError, sortEnvironments } from '@/pages/project/environmentsModel'
+import { buildSavePayload, formatImportResult, resolveEnvironmentError, sortEnvironments } from '@/pages/project/api-testing/environment/environmentsModel'
 
 export function useEnvironmentPage() {
   const authStore = useAuthStore()

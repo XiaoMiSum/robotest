@@ -11,7 +11,7 @@ import {
   detailToForm,
   formToPayload,
   type MockEditorForm,
-} from '../mocksModel'
+} from './mocksModel'
 
 const props = defineProps<{
   modelValue: boolean

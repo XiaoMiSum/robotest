@@ -22,7 +22,7 @@ import {
   methodTagType,
 } from './interfacesModel'
 import type { PendingDebugRequest } from '@/stores/apiTestingUi'
-import ImportDialog from './interfaces/ImportDialog.vue'
+import ImportDialog from './ImportDialog.vue'
 import ProjectModuleTree from '@/components/project/ProjectModuleTree.vue'
 
 const router = useRouter()

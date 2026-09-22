@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { useFunctionalTesting } from '@/composables/project/functional-testing/useFunctionalTesting'
-import TestCasePage from '@/pages/project/TestCasePage.vue'
-import ReviewListPage from '@/pages/project/ReviewListPage.vue'
-import PlanListPage from '@/pages/project/PlanListPage.vue'
-import RequirementPoolPage from '@/pages/project/RequirementPoolPage.vue'
+import TestCasePage from '@/pages/project/functional-testing/TestCasePage.vue'
+import ReviewListPage from '@/pages/project/functional-testing/ReviewListPage.vue'
+import PlanListPage from '@/pages/project/functional-testing/PlanListPage.vue'
+import RequirementPoolPage from '@/pages/project/functional-testing/RequirementPoolPage.vue'
 
 const { activeMenu, menuRef, testCaseRef, menuItems, handleMenuSelect } = useFunctionalTesting()
 </script>

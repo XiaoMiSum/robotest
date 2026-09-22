@@ -6,7 +6,7 @@ import type { ApiDebugSaveAsInterfaceReq, ApiInterfaceItem, DebugTab, ProjectMod
 import { fetchProjectModuleTree } from '@/services/project'
 import { fetchInterfacePage } from '@/services/project/interface'
 import { saveDebugRecordAsInterface } from '@/services/project/debug'
-import { buildRequestSnapshot } from '../debugModel'
+import { buildRequestSnapshot } from './debugModel'
 
 const props = defineProps<{
   visible: boolean

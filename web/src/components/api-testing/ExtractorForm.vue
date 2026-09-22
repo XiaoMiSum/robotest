@@ -16,7 +16,7 @@
 
 <script setup lang="ts">
 import { reactive, watch } from 'vue'
-import { EXTRACTOR_SOURCES } from '@/pages/project/scenesModel'
+import { EXTRACTOR_SOURCES } from '@/pages/project/api-testing/scene/scenesModel'
 
 interface ExtractorConfig {
   source: string

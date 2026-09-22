@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
-import KeyValueTable from '@/pages/project/debug/KeyValueTable.vue'
+import KeyValueTable from '@/pages/project/api-testing/debug/KeyValueTable.vue'
 import type { ApiDebugKeyValue, ApiDebugRawSubtype } from '@/types'
 import {
   SCENE_BODY_TYPES,
@@ -12,7 +12,7 @@ import {
   type SceneBodyEditState,
   type PaneValidatorItem,
   type PaneExtractorItem,
-} from '../scenesModel'
+} from './scenesModel'
 import ValidatorsExtractorsPanes from '@/components/api-testing/ValidatorsExtractorsPanes.vue'
 
 interface KvRow {

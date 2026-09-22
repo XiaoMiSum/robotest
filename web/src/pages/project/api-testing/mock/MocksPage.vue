@@ -12,9 +12,9 @@ import {
 } from '@/services/project/mock'
 import { methodTagType } from './mocksModel'
 import { formatDateTime } from '@/utils/format'
-import MockEditorDrawer from './mocks/MockEditorDrawer.vue'
-import MockDebugPanel from './mocks/MockDebugPanel.vue'
-import MockAddressDialog from './mocks/MockAddressDialog.vue'
+import MockEditorDrawer from './MockEditorDrawer.vue'
+import MockDebugPanel from './MockDebugPanel.vue'
+import MockAddressDialog from './MockAddressDialog.vue'
 
 const props = defineProps<{
   interfaceId?: string

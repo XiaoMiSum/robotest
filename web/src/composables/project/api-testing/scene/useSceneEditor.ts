@@ -12,7 +12,7 @@ import {
 } from '@/services/project/scene'
 import { fetchEnvironments } from '@/services/project/environment'
 import { fetchProjectModuleTree } from '@/services/project'
-import { toSelectableModuleOptions } from '@/pages/project/interfacesModel'
+import { toSelectableModuleOptions } from '@/pages/project/api-testing/interface/interfacesModel'
 import type { SceneProcessorElement } from './useSceneProcessors'
 
 export interface UseSceneEditorOptions {

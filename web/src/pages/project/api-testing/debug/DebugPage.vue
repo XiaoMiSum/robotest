@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { useDebugPage } from '@/composables/project/api-testing/debug/useDebugPage'
-import DebugRequestPanel from './debug/DebugRequestPanel.vue'
-import DebugResponseViewer from './debug/DebugResponseViewer.vue'
-import DebugHistoryView from './debug/DebugHistoryView.vue'
-import SaveInterfaceDialog from './debug/SaveInterfaceDialog.vue'
+import DebugRequestPanel from './DebugRequestPanel.vue'
+import DebugResponseViewer from './DebugResponseViewer.vue'
+import DebugHistoryView from './DebugHistoryView.vue'
+import SaveInterfaceDialog from './SaveInterfaceDialog.vue'
 
 const emit = defineEmits<{ (e: 'view-interface', interfaceId: string): void }>()
 
