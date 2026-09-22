@@ -1,6 +1,6 @@
 import { ref } from 'vue'
 import { ElMessage } from 'element-plus'
-import { debugStep } from '@/services/project/scene'
+import { debugStep } from '@/services/project/api-testing/scene'
 import type { ApiSceneStepItem, ApiSceneStepDebugResp } from '@/types'
 
 /**

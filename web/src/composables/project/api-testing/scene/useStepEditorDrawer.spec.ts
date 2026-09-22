@@ -21,7 +21,7 @@ const mocks = vi.hoisted(() => ({
   ElMessage: { success: vi.fn(), error: vi.fn(), warning: vi.fn() },
 }))
 
-vi.mock('@/services/project/scene', () => ({
+vi.mock('@/services/project/api-testing/scene', () => ({
   createSceneStep: mocks.createSceneStep,
   updateSceneStep: mocks.updateSceneStep,
   quickCreateSteps: mocks.quickCreateSteps,
@@ -29,7 +29,7 @@ vi.mock('@/services/project/scene', () => ({
   updateStepVariables: mocks.updateStepVariables,
 }))
 
-vi.mock('@/services/project/interface', () => ({
+vi.mock('@/services/project/api-testing/interface', () => ({
   fetchInterfacePage: mocks.fetchInterfacePage,
   fetchInterfaceDetail: mocks.fetchInterfaceDetail,
 }))

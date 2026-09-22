@@ -14,7 +14,7 @@ vi.mock('element-plus', () => ({
   ElMessage: mocks.ElMessage,
 }))
 
-vi.mock('@/services/project/component', () => ({
+vi.mock('@/services/project/api-testing/component', () => ({
   fetchComponents: mocks.fetchComponents,
 }))
 

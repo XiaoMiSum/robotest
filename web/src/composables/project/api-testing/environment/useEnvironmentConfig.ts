@@ -1,6 +1,6 @@
 import { ref, computed, type Ref } from 'vue'
 import { ElMessage } from 'element-plus'
-import { testHttpConfig, testDataSourceConfig } from '@/services/project/environment'
+import { testHttpConfig, testDataSourceConfig } from '@/services/project/api-testing/environment'
 import { createEmptyHttpConfig, DRIVER_OPTIONS, resolveEnvironmentError } from '@/pages/project/api-testing/environment/environmentsModel'
 import type { ApiHeaderItem, ApiHttpConfigPayload, ApiDataSourcePayload } from '@/types'
 

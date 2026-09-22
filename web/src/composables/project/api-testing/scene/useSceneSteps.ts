@@ -6,7 +6,7 @@ import {
   reorderSceneSteps,
   updateSceneStep,
   copySceneStep,
-} from '@/services/project/scene'
+} from '@/services/project/api-testing/scene'
 import { sortedSteps, emptyStepDraft } from '@/pages/project/api-testing/scene/scenesModel'
 
 export interface UseSceneStepsOptions {

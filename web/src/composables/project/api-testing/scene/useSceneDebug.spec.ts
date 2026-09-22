@@ -10,7 +10,7 @@ vi.mock('element-plus', () => ({
   ElMessage: mocks.ElMessage,
 }))
 
-vi.mock('@/services/project/scene', () => ({
+vi.mock('@/services/project/api-testing/scene', () => ({
   debugStep: mocks.debugStep,
 }))
 

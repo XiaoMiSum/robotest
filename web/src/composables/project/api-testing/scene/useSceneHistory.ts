@@ -1,5 +1,5 @@
 import { ref, watch } from 'vue'
-import { fetchExecutionHistory, fetchChangeHistory } from '@/services/project/scene'
+import { fetchExecutionHistory, fetchChangeHistory } from '@/services/project/api-testing/scene'
 import type { ApiExecutionHistoryItem, ApiChangeHistoryItem } from '@/types'
 
 /**

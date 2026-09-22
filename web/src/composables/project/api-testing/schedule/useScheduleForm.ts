@@ -12,9 +12,9 @@ import {
   createSchedule,
   updateSchedule,
   validateCron,
-} from '@/services/project/schedule'
-import { fetchScenePage } from '@/services/project/scene'
-import { fetchEnvironments } from '@/services/project/environment'
+} from '@/services/project/api-testing/schedule'
+import { fetchScenePage } from '@/services/project/api-testing/scene'
+import { fetchEnvironments } from '@/services/project/api-testing/environment'
 import { fetchProjectModuleTree } from '@/services/project'
 
 const MAX_VISIBLE_SCENE_TAGS = 8
