@@ -6,7 +6,7 @@ import ExtractorAssetPicker from '@/components/api-testing/ExtractorAssetPicker.
 import InterfaceEditorAuth from './InterfaceEditorAuth.vue'
 import InterfaceEditorBody from './InterfaceEditorBody.vue'
 import InterfaceEditorResponse from './InterfaceEditorResponse.vue'
-import { useInterfaceEditor } from '@/composables/useInterfaceEditor'
+import { useInterfaceEditor } from '@/composables/project/api-testing/interface/useInterfaceEditor'
 
 const props = defineProps<{ interfaceId?: string; createMode?: boolean; moduleId?: string }>()
 const emit = defineEmits<{

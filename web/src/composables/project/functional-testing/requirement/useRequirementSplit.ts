@@ -1,6 +1,6 @@
 import { computed, onBeforeUnmount, ref } from 'vue'
 import { ElMessage } from 'element-plus'
-import { useAiStream, type AiStreamController } from '@/composables/useAiStream'
+import { useAiStream, type AiStreamController } from '@/composables/ai/useAiStream'
 import { useAiStore } from '@/stores/ai'
 import { batchCreateRequirements } from '@/services/project'
 import type { AiRequirementSplitResult } from '@/types'

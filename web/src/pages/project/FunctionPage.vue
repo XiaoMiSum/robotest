@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Codemirror } from 'vue-codemirror'
 import { java } from '@codemirror/lang-java'
-import { useFunctionalTesting } from '@/composables/useFunctionalTesting'
+import { useFunctionalTesting } from '@/composables/project/functional-testing/useFunctionalTesting'
 import { formatScopeLabel } from './functionModel'
 
 const editorExtensions = [java()]

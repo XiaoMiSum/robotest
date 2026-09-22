@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useEnvironmentPage } from '@/composables/useEnvironmentPage'
+import { useEnvironmentPage } from '@/composables/project/api-testing/environment/useEnvironmentPage'
 import EnvironmentDetailPanel from './EnvironmentDetailPanel.vue'
 
 const {

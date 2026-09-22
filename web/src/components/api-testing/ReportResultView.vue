@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import type { ApiReportStepResult } from '@/types'
 import { formatDateTime } from '@/utils/format'
-import { useReportResultView } from '@/composables/useReportResultView'
-import type { ReportViewReport } from '@/composables/useReportResultView'
+import { useReportResultView } from '@/composables/project/api-testing/report/useReportResultView'
+import type { ReportViewReport } from '@/composables/project/api-testing/report/useReportResultView'
 import ReportProcessorsTabs from './report/ReportProcessorsTabs.vue'
 import ReportStepCard from './report/ReportStepCard.vue'
 

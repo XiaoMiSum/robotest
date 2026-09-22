@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useFunctionalTesting } from '@/composables/useFunctionalTesting'
+import { useFunctionalTesting } from '@/composables/project/functional-testing/useFunctionalTesting'
 import TestCasePage from '@/pages/project/TestCasePage.vue'
 import ReviewListPage from '@/pages/project/ReviewListPage.vue'
 import PlanListPage from '@/pages/project/PlanListPage.vue'

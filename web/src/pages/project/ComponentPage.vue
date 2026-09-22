@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useComponentPage } from '@/composables/useComponentPage'
+import { useComponentPage } from '@/composables/project/api-testing/component/useComponentPage'
 import type { ApiComponentListItem } from '@/types'
 import ProcessorForm from '@/components/api-testing/ProcessorForm.vue'
 import ValidatorForm from '@/components/api-testing/ValidatorForm.vue'

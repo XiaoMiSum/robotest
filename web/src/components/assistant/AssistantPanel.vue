@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useAssistantPanel } from '@/composables/useAssistantPanel'
+import { useAssistantPanel } from '@/composables/assistant/useAssistantPanel'
 import { formatDateTime, truncateText } from '@/utils/format'
 import MessageItem from './MessageItem.vue'
 import AssistantIcon from './AssistantIcons.vue'

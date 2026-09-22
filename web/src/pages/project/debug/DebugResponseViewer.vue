@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { ApiDebugExecuteResp } from '@/types'
 import JsonResponseView from './JsonResponseView.vue'
-import { useDebugResponse } from '@/composables/useDebugResponse'
+import { useDebugResponse } from '@/composables/project/api-testing/debug/useDebugResponse'
 
 const props = defineProps<{
   response: ApiDebugExecuteResp | null

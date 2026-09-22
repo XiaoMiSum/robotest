@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { useAiStream, type AiStreamController } from '@/composables/useAiStream'
+import { useAiStream, type AiStreamController } from '@/composables/ai/useAiStream'
 import { useAiStore } from '@/stores/ai'
 import { fetchReviewSummary } from '@/services/ai'
 import type { AiReviewSummary, AiReviewSummaryStats } from '@/types'

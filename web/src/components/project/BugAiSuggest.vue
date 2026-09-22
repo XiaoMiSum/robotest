@@ -2,7 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { suggestBugForm } from '@/services/ai'
-import { useBugDedup } from '@/composables/useBugDedup'
+import { useBugDedup } from '@/composables/project/bug/useBugDedup'
 import BugDedupList from '@/components/project/BugDedupList.vue'
 import type { AiBugDedupItem, AiBugSuggestion, BugPriority, BugSeverity } from '@/types'
 

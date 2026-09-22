@@ -9,12 +9,12 @@ import AiGeneratePanel from './minder/ai/AiGeneratePanel.vue'
 import RequirementSelector from './RequirementSelector.vue'
 import MissingPointsPanel from './MissingPointsPanel.vue'
 import { KMEditor } from './minder/editor'
-import { useMindmapPersistence } from '@/composables/useMindmapPersistence'
-import { useMindmapAI } from '@/composables/useMindmapAI'
-import { useMindmapLayout } from '@/composables/useMindmapLayout'
-import { useMindmapNodeOps } from '@/composables/useMindmapNodeOps'
-import { useMindmapYjs } from '@/composables/useMindmapYjs'
-import { useMindmapInit } from '@/composables/useMindmapInit'
+import { useMindmapPersistence } from '@/composables/project/functional-testing/mindmap/useMindmapPersistence'
+import { useMindmapAI } from '@/composables/project/functional-testing/mindmap/useMindmapAI'
+import { useMindmapLayout } from '@/composables/project/functional-testing/mindmap/useMindmapLayout'
+import { useMindmapNodeOps } from '@/composables/project/functional-testing/mindmap/useMindmapNodeOps'
+import { useMindmapYjs } from '@/composables/project/functional-testing/mindmap/useMindmapYjs'
+import { useMindmapInit } from '@/composables/project/functional-testing/mindmap/useMindmapInit'
 
 const props = defineProps<{ docId: string }>()
 
