@@ -7,7 +7,7 @@ import type {
   DebugTab,
 } from '@/types'
 import { fetchEnvironments } from '@/services/project/api-testing/environment'
-import { HTTP_METHODS, setBodyContentTypeHeader } from '@/pages/project/api-testing/debug/debugModel'
+import { HTTP_METHODS, setBodyContentTypeHeader } from '@/composables/project/api-testing/debug/debugModel'
 
 export type ParamTab = 'params' | 'auth' | 'headers' | 'body'
 

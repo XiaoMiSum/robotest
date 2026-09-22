@@ -6,7 +6,7 @@ import {
   EXTRACTOR_SOURCES,
   type PaneValidatorItem,
   type PaneExtractorItem,
-} from '@/pages/project/api-testing/scene/scenesModel'
+} from '@/composables/project/api-testing/scene/scenesModel'
 
 // 验证器 + 提取器 统一 tab 面板：供请求配置 tabs（http）与 jdbc 配置 tabs 复用同一编辑交互
 // 与 KeyValueTable 同策略：本地编辑副本，变更后整表回传，父级负责序列化过滤

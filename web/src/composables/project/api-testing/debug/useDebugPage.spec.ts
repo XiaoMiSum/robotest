@@ -49,7 +49,7 @@ vi.mock('element-plus', () => ({
   ElMessageBox: mocks.ElMessageBox,
 }))
 
-vi.mock('@/pages/project/api-testing/debug/debugModel', () => ({
+vi.mock('@/composables/project/api-testing/debug/debugModel', () => ({
   createTab: mocks.createTab,
   tabTitle: mocks.tabTitle,
   ensureUrlScheme: mocks.ensureUrlScheme,
@@ -65,7 +65,7 @@ vi.mock('@/services/project/api-testing/debug', () => ({
   restoreDebugRecord: mocks.restoreDebugRecord,
 }))
 
-vi.mock('@/pages/project/api-testing/debug/curlParser', () => ({
+vi.mock('@/composables/project/api-testing/debug/curlParser', () => ({
   parseCurl: mocks.parseCurl,
 }))
 

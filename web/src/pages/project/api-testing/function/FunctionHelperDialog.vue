@@ -8,7 +8,7 @@ import {
   resolveFunctionError,
   type UnifiedFunctionItem,
   unifyFunctionList,
-} from './functionModel'
+} from '@/composables/project/api-testing/function/functionModel'
 
 const props = defineProps<{
   modelValue: boolean

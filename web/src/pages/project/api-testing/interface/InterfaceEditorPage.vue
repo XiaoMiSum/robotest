@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, onBeforeUnmount } from 'vue'
-import KeyValueTable from '@/pages/project/api-testing/debug/KeyValueTable.vue'
+import KeyValueTable from '@/components/project/api-testing/KeyValueTable.vue'
 import ValidatorsExtractorsPanes from '@/components/project/api-testing/ValidatorsExtractorsPanes.vue'
 import ExtractorAssetPicker from '@/components/project/api-testing/ExtractorAssetPicker.vue'
 import InterfaceEditorAuth from './InterfaceEditorAuth.vue'

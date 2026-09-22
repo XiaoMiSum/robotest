@@ -3,7 +3,7 @@
  * 复用快速调试的 curlParser；区别在于这里要为接口定义提取相对路径与查询参数，剥离 host。
  */
 
-import { parseCurl, type ParsedCurl } from '@/pages/project/api-testing/debug/curlParser'
+import { parseCurl, type ParsedCurl } from '@/composables/project/api-testing/debug/curlParser'
 import type { ApiParsedImportOperation } from '@/services/project/api-testing/interface'
 
 /** 按行切分多条 cURL 命令；续行会跟随上一个命令，直到下一条 curl 开头 */

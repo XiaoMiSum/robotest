@@ -39,7 +39,7 @@ vi.mock('@/services/project', () => ({
   fetchProjectModuleTree: mocks.fetchProjectModuleTree,
 }))
 
-vi.mock('@/pages/project/api-testing/interface/interfacesModel', () => ({
+vi.mock('@/composables/project/api-testing/interface/interfacesModel', () => ({
   toSelectableModuleOptions: mocks.toSelectableModuleOptions,
 }))
 

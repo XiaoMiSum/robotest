@@ -9,7 +9,7 @@ import {
   type ValidatorItem, type ExtractorItem,
   createValidator, createExtractor, serializeValidators, serializeExtractors,
   createStepVariable, createExecutionConfig,
-} from '@/pages/project/api-testing/scene/scenesModel'
+} from '@/composables/project/api-testing/scene/scenesModel'
 
 export interface UseStepEditorDrawerOptions {
   modelValue: boolean

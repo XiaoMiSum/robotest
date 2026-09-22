@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { AiSettingSchemaGroup, AiSettingSchemaItem } from '@/types'
-import { isSettingModified, weightsSum } from '@/pages/admin/aiConfigForm'
+import { isSettingModified, weightsSum } from '@/composables/admin/aiConfigForm'
 
 defineProps<{
   groups: AiSettingSchemaGroup[]

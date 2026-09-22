@@ -24,8 +24,12 @@ import {
   SCOPE_OPTIONS,
   FUNCTION_TAB_OPTIONS,
   type FunctionTab,
-} from '@/pages/project/api-testing/function/functionModel'
-import type TestCasePage from '@/pages/project/functional-testing/TestCasePage.vue'
+} from '@/composables/project/api-testing/function/functionModel'
+
+// 以 expose 契约替代组件类型导入，避免组合式函数反向依赖 pages
+interface TestCaseExpose {
+  confirmLeave: () => Promise<boolean>
+}
 
 interface DisplayListItem {
   type: 'builtin' | 'custom'
@@ -55,7 +59,7 @@ export function useFunctionalTesting() {
   const initialTab = String(route.query.tab ?? '')
   const activeMenu = ref(menuItems.some((m) => m.key === initialTab) ? initialTab : 'cases')
   const menuRef = ref<MenuInstance>()
-  const testCaseRef = ref<InstanceType<typeof TestCasePage>>()
+  const testCaseRef = ref<TestCaseExpose>()
 
   async function handleMenuSelect(key: string) {
     if (key === activeMenu.value) return

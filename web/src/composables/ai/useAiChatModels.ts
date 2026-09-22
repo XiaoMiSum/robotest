@@ -18,7 +18,7 @@ import {
   resolveDefaultBaseUrl,
   resolveModelHints,
   resolveUniqueParams,
-} from '@/pages/admin/aiConfigForm'
+} from '@/composables/admin/aiConfigForm'
 
 /**
  * AI 配置页对话模型管理（01 §3.1.3 拆分）：列表 + 新建/编辑弹窗 + 行内操作。
