@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>方案B · 悬浮白卡 · RoboTest</title>
+<link rel="stylesheet" href="../assets/tokens.css">
+<link rel="stylesheet" href="../assets/base.css">
+<style>
+  /* 方案B：主体同为悬浮白卡 —— 与侧栏成对称双卡，四周 16px 页边距 */
+  .content--admin {
+    margin: calc(var(--header-height) + var(--float-gap)) var(--float-gap) var(--float-gap) calc(var(--float-gap) * 2 + var(--sidebar-width));
+    padding: var(--page-pad);
+    min-height: calc(100vh - var(--header-height) - var(--float-gap) * 2);
+    background: var(--n-0);
+    border: 1px solid var(--shell-border);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-float);
+  }
+</style>
+</head>
+<body data-shell="admin" data-active="users" data-mode="admin">
+
+<main class="content content--admin">
+
+  <div class="page-head">
+    <div>
+      <h1 class="page-head__title">用户管理</h1>
+      <p class="page-head__desc">布局方案 B · 悬浮白卡 —— 主体包进与侧栏同款卡片，左右对称、四周 16px 页边距</p>
+    </div>
+    <div class="page-head__actions">
+      <button class="btn btn--default"><span data-icon="download"></span>导出</button>
+      <button class="btn btn--primary"><span data-icon="plus"></span>新建用户</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="toolbar">
+      <div class="toolbar__filters">
+        <div class="input-wrap"><span data-icon="search"></span><input class="input" placeholder="用户名 / 邮箱"></div>
+        <select class="select"><option>全部状态</option><option>启用</option><option>停用</option></select>
+        <select class="select"><option>全部角色</option><option>系统管理员</option><option>空间管理员</option><option>测试工程师</option><option>只读成员</option></select>
+        <button class="btn btn--default btn--sm"><span data-icon="filter"></span>筛选</button>
+      </div>
+      <div class="toolbar__count">共 128 个账号</div>
+    </div>
+
+    <div class="table-wrap">
+      <table class="table table--clickable">
+        <thead>
+          <tr><th style="width:36px"><span class="checkbox"></span></th><th>用户</th><th>邮箱</th><th>状态</th><th>系统角色</th><th>创建时间</th><th>操作</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="checkbox"></span></td>
+            <td class="flex-center flex-gap-sm"><span class="avatar avatar--sm avatar--brand">张</span><span class="cell-main">张明</span></td>
+            <td class="muted">zhangming@robotest.cn</td>
+            <td><span class="status status--success"><span class="dot"></span>启用</span></td>
+            <td><span class="tag tag--outline">系统管理员</span></td>
+            <td class="num">2026-03-02 09:15</td>
+            <td><span class="op-link">编辑</span><span class="op-link">重置密码</span><span class="op-link op-link--danger">停用</span></td>
+          </tr>
+          <tr>
+            <td><span class="checkbox"></span></td>
+            <td class="flex-center flex-gap-sm"><span class="avatar avatar--sm">李</span><span class="cell-main">李华</span></td>
+            <td class="muted">lihua@robotest.cn</td>
+            <td><span class="status status--success"><span class="dot"></span>启用</span></td>
+            <td><span class="tag tag--outline">空间管理员</span></td>
+            <td class="num">2026-04-18 14:20</td>
+            <td><span class="op-link">编辑</span><span class="op-link">重置密码</span><span class="op-link op-link--danger">停用</span></td>
+          </tr>
+          <tr>
+            <td><span class="checkbox"></span></td>
+            <td class="flex-center flex-gap-sm"><span class="avatar avatar--sm">王</span><span class="cell-main">王芳</span></td>
+            <td class="muted">wangfang@robotest.cn</td>
+            <td><span class="status status--success"><span class="dot"></span>启用</span></td>
+            <td><span class="tag tag--outline">测试工程师</span></td>
+            <td class="num">2026-05-06 11:48</td>
+            <td><span class="op-link">编辑</span><span class="op-link">重置密码</span><span class="op-link op-link--danger">停用</span></td>
+          </tr>
+          <tr>
+            <td><span class="checkbox"></span></td>
+            <td class="flex-center flex-gap-sm"><span class="avatar avatar--sm">陈</span><span class="cell-main">陈强</span></td>
+            <td class="muted">chenqiang@robotest.cn</td>
+            <td><span class="status status--neutral"><span class="dot"></span>停用</span></td>
+            <td><span class="tag tag--outline">只读成员</span></td>
+            <td class="num">2026-06-30 16:05</td>
+            <td><span class="op-link">编辑</span><span class="op-link">启用</span><span class="op-link op-link--danger">删除</span></td>
+          </tr>
+          <tr>
+            <td><span class="checkbox"></span></td>
+            <td class="flex-center flex-gap-sm"><span class="avatar avatar--sm">赵</span><span class="cell-main">赵磊</span></td>
+            <td class="muted">zhaolei@robotest.cn</td>
+            <td><span class="status status--danger"><span class="dot"></span>锁定</span></td>
+            <td><span class="tag tag--outline">测试工程师</span></td>
+            <td class="num">2026-07-14 10:33</td>
+            <td><span class="op-link">解锁</span><span class="op-link">编辑</span><span class="op-link op-link--danger">删除</span></td>
+          </tr>
+          <tr>
+            <td><span class="checkbox"></span></td>
+            <td class="flex-center flex-gap-sm"><span class="avatar avatar--sm">周</span><span class="cell-main">周敏</span></td>
+            <td class="muted">zhoumin@robotest.cn</td>
+            <td><span class="status status--success"><span class="dot"></span>启用</span></td>
+            <td><span class="tag tag--outline">测试工程师</span></td>
+            <td class="num">2026-08-01 09:52</td>
+            <td><span class="op-link">编辑</span><span class="op-link">重置密码</span><span class="op-link op-link--danger">停用</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="pagination">
+      <span class="pagination__total">共 128 条 · 每页 20 条</span>
+      <button class="page-btn" disabled>‹</button>
+      <button class="page-btn page-btn--active">1</button>
+      <button class="page-btn">2</button>
+      <button class="page-btn">3</button>
+      <button class="page-btn">…</button>
+      <button class="page-btn">7</button>
+      <button class="page-btn">›</button>
+    </div>
+  </div>
+
+</main>
+
+<script src="../assets/icons.js"></script>
+<script src="../assets/shell.js"></script>
+</body>
+</html>

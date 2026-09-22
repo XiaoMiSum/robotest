@@ -69,7 +69,7 @@
 
   <div class="hero">
     <h1>RoboTest · 新视觉基调页面演示</h1>
-    <p>克制的专业美学：中性色（白/灰/黑）为基调，低饱和科研风辅助色，飞书式按钮体系，线条扁平化图标与几何数据可视化。
+    <p>克制的专业美学：中性色（白/灰/黑）为基调，色彩直接对齐 Element Plus 官方色板（primary #409EFF + 四功能色 + 中性色阶），线条扁平化图标与几何数据可视化。
        状态色逻辑全站统一 —— 绿=通过、红系=失败/阻塞、橙=警告/进行中、灰=未执行，蓝色仅用于按钮/链接/选中。</p>
     <div class="badges">
       <span class="b">26 个路由页面</span>
@@ -190,7 +190,7 @@
       </a>
       <a class="demo-card" href="project/functional-testing.html">
         <div class="demo-card__top"><span class="demo-card__title">功能测试 · 测试用例</span><span class="ic" data-icon="document"></span></div>
-        <div class="demo-card__desc">深色模块侧栏 + 用例树 + 用例表格</div>
+        <div class="demo-card__desc">悬浮模块侧栏 + 用例树 + 用例表格</div>
         <div class="demo-card__path">/workspace/projects/functional-testing</div>
       </a>
       <a class="demo-card" href="project/reviews.html">
@@ -241,8 +241,30 @@
     </div>
   </section>
 
+  <!-- 布局方案对比 -->
+  <section class="group">
+    <div class="group__head"><h2>布局方案对比</h2><span class="n">3</span><span class="line"></span></div>
+    <div class="demo-grid">
+      <a class="demo-card" href="options/a-white-workspace.html">
+        <div class="demo-card__top"><span class="demo-card__title">方案 A · 白色通铺工作区</span><span class="ic" data-icon="grid"></span></div>
+        <div class="demo-card__desc">右侧满铺白面上贴顶栏，侧栏悬浮于左侧灰色导航列，材质分区明确</div>
+        <div class="demo-card__path">options/a-white-workspace.html</div>
+      </a>
+      <a class="demo-card" href="options/b-float-card.html">
+        <div class="demo-card__top"><span class="demo-card__title">方案 B · 主体悬浮白卡</span><span class="ic" data-icon="tickets"></span></div>
+        <div class="demo-card__desc">主体包进与侧栏同款的悬浮白卡，左右对称、四周 16px 页边距</div>
+        <div class="demo-card__path">options/b-float-card.html</div>
+      </a>
+      <a class="demo-card" href="options/c-flush-sidebar.html">
+        <div class="demo-card__top"><span class="demo-card__title">方案 C · 贴边侧栏 + 白底通铺</span><span class="ic" data-icon="document"></span></div>
+        <div class="demo-card__desc">侧栏去悬浮回贴边（浅色），右侧白底通铺的经典双区结构</div>
+        <div class="demo-card__path">options/c-flush-sidebar.html</div>
+      </a>
+    </div>
+  </section>
+
   <footer class="text-xs text-light text-center" style="padding: 8px 0 32px;">
-    共 26 个路由页面 + 本导航页 + <a href="style-guide.html">样式总览</a> ·
+    共 26 个路由页面 + 3 个布局方案 + 本导航页 + <a href="style-guide.html">样式总览</a> ·
     演示为纯静态资源（web/demos/），不参与前端构建
   </footer>
 
