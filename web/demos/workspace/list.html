@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>我的空间 · RoboTest</title>
+<link rel="stylesheet" href="../assets/tokens.css">
+<link rel="stylesheet" href="../assets/base.css">
+<style>
+  .ws-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
+  .ws-card {
+    background: var(--n-0); border: 1px solid var(--n-200); border-radius: var(--radius-lg);
+    padding: 22px 24px; box-shadow: var(--shadow-card); cursor: pointer; position: relative;
+    transition: border-color var(--transition-fast), box-shadow var(--transition-fast), transform var(--transition-fast);
+  }
+  .ws-card:hover { border-color: var(--brand-300); box-shadow: var(--shadow-card-hover); transform: translateY(-2px); }
+  .ws-card__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+  .ws-card__icon {
+    width: 40px; height: 40px; border-radius: 10px; background: var(--n-900); color: #fff;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .ws-card__icon svg { width: 20px; height: 20px; }
+  .ws-card__icon--brand { background: var(--brand-500); }
+  .ws-card__name { font-size: 15px; font-weight: 650; color: var(--n-900); margin-top: 14px; }
+  .ws-card__desc { font-size: 12.5px; color: var(--n-500); margin-top: 6px; line-height: 1.6; min-height: 40px; }
+  .ws-card__stats { display: flex; gap: 18px; margin-top: 14px; padding-top: 14px; border-top: 1px dashed var(--n-200); font-size: 12px; color: var(--n-500); }
+  .ws-card__stats b { color: var(--n-900); font-weight: 650; font-variant-numeric: tabular-nums; margin-right: 3px; }
+</style>
+</head>
+<body data-shell="business" data-mode="none">
+
+<main class="content">
+
+  <div class="page-head">
+    <div>
+      <h1 class="page-head__title">我的空间</h1>
+      <p class="page-head__desc">选择一个工作空间开始协作，或创建新的空间</p>
+    </div>
+    <div class="page-head__actions">
+      <button class="btn btn--primary"><span data-icon="plus"></span>新建空间</button>
+    </div>
+  </div>
+
+  <div class="card mb-lg">
+    <div class="toolbar" style="border-bottom:none">
+      <div class="toolbar__filters">
+        <div class="input-wrap"><span data-icon="search"></span><input class="input" placeholder="搜索空间名称"></div>
+        <div class="segment">
+          <span class="segment__item segment__item--active">全部（6）</span>
+          <span class="segment__item">我管理的（2）</span>
+          <span class="segment__item">已归档（1）</span>
+        </div>
+      </div>
+      <div class="toolbar__count">按最近访问排序</div>
+    </div>
+  </div>
+
+  <div class="ws-grid">
+    <div class="ws-card">
+      <div class="ws-card__head">
+        <span class="ws-card__icon ws-card__icon--brand" data-icon="folder"></span>
+        <span class="tag tag--info tag--sm">我管理</span>
+      </div>
+      <div class="ws-card__name">质量中台</div>
+      <div class="ws-card__desc">核心业务线质量保障与用例资产沉淀，覆盖电商主链路的回归与专项测试。</div>
+      <div class="ws-card__stats"><span><b>24</b>成员</span><span><b>6</b>项目</span><span><b>1,024</b>用例</span></div>
+    </div>
+
+    <div class="ws-card">
+      <div class="ws-card__head">
+        <span class="ws-card__icon" data-icon="folder"></span>
+        <span class="tag tag--neutral tag--sm">成员</span>
+      </div>
+      <div class="ws-card__name">供应链测试组</div>
+      <div class="ws-card__desc">仓储、履约与结算链路的日常回归，含大促专项预案验证。</div>
+      <div class="ws-card__stats"><span><b>17</b>成员</span><span><b>4</b>项目</span><span><b>736</b>用例</span></div>
+    </div>
+
+    <div class="ws-card">
+      <div class="ws-card__head">
+        <span class="ws-card__icon ws-card__icon--brand" data-icon="folder"></span>
+        <span class="tag tag--info tag--sm">我管理</span>
+      </div>
+      <div class="ws-card__name">数据平台验证</div>
+      <div class="ws-card__desc">数据仓库分层校验与报表口径准确性验证。</div>
+      <div class="ws-card__stats"><span><b>9</b>成员</span><span><b>3</b>项目</span><span><b>412</b>用例</span></div>
+    </div>
+
+    <div class="ws-card">
+      <div class="ws-card__head">
+        <span class="ws-card__icon" data-icon="folder"></span>
+        <span class="tag tag--neutral tag--sm">成员</span>
+      </div>
+      <div class="ws-card__name">移动端专项</div>
+      <div class="ws-card__desc">iOS / Android 兼容性、弱网与性能专项测试空间。</div>
+      <div class="ws-card__stats"><span><b>13</b>成员</span><span><b>5</b>项目</span><span><b>588</b>用例</span></div>
+    </div>
+
+    <div class="ws-card">
+      <div class="ws-card__head">
+        <span class="ws-card__icon" data-icon="folder"></span>
+        <span class="tag tag--neutral tag--sm">成员</span>
+      </div>
+      <div class="ws-card__name">开放平台联调</div>
+      <div class="ws-card__desc">第三方接入鉴权、限流与开放 API 合同验证。</div>
+      <div class="ws-card__stats"><span><b>11</b>成员</span><span><b>4</b>项目</span><span><b>349</b>用例</span></div>
+    </div>
+
+    <div class="ws-card" style="border-style:dashed;display:flex;align-items:center;justify-content:center;min-height:200px;background:transparent;box-shadow:none">
+      <div class="text-center">
+        <div class="state-block__icon" style="margin-bottom:12px"><span data-icon="plus"></span></div>
+        <div class="text-sm strong">新建工作空间</div>
+        <div class="text-xs muted" style="margin-top:4px">从空间开始组织你的项目与成员</div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<script src="../assets/icons.js"></script>
+<script src="../assets/shell.js"></script>
+</body>
+</html>

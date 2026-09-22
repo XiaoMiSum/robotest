@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>样式总览 · RoboTest 新视觉基调</title>
+<link rel="stylesheet" href="assets/tokens.css">
+<link rel="stylesheet" href="assets/base.css">
+<style>
+  .sg-section { margin-bottom: 40px; }
+  .sg-h2 {
+    font-size: 18px; font-weight: 650; color: var(--n-900);
+    margin: 0 0 6px; letter-spacing: -0.01em;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .sg-h2 .idx {
+    font-family: var(--font-mono); font-size: 12px; font-weight: 600;
+    color: var(--brand-500); background: var(--brand-50);
+    border-radius: 6px; padding: 2px 8px;
+  }
+  .sg-desc { font-size: 13px; color: var(--n-500); margin: 0 0 18px; }
+  .swatch-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(116px, 1fr)); gap: 12px; }
+  .swatch { border: 1px solid var(--n-200); border-radius: 8px; overflow: hidden; background: var(--n-0); }
+  .swatch__color { height: 62px; }
+  .swatch__meta { padding: 8px 10px; font-size: 11px; line-height: 1.5; }
+  .swatch__meta b { display: block; font-size: 12px; color: var(--n-800); font-weight: 600; }
+  .swatch__meta span { color: var(--n-500); font-family: var(--font-mono); }
+  .sem-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .sem-table th { text-align: left; padding: 9px 14px; background: var(--n-50); border-bottom: 1px solid var(--n-200); font-size: 12px; color: var(--n-600); text-transform: uppercase; letter-spacing: .04em; }
+  .sem-table td { padding: 11px 14px; border-bottom: 1px solid var(--n-100); color: var(--n-700); }
+  .sem-table tr:last-child td { border-bottom: none; }
+  .type-row { display: flex; align-items: baseline; gap: 24px; padding: 14px 0; border-bottom: 1px dashed var(--n-200); }
+  .type-row:last-child { border-bottom: none; }
+  .type-meta { font-family: var(--font-mono); font-size: 12px; color: var(--n-400); width: 210px; flex-shrink: 0; }
+  .demo-pad { padding: 24px; background: var(--n-0); border: 1px solid var(--n-200); border-radius: 8px; }
+  .icon-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 10px; }
+  .icon-cell {
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+    padding: 14px 6px; border: 1px solid var(--n-200); border-radius: 8px;
+    background: var(--n-0); font-size: 11px; color: var(--n-500);
+  }
+  .icon-cell svg { width: 22px; height: 22px; color: var(--n-700); }
+  .state-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
+  .space-demo { display: flex; align-items: flex-end; gap: 18px; }
+  .space-item { text-align: center; font-size: 11px; color: var(--n-500); font-family: var(--font-mono); }
+  .space-bar { background: var(--brand-200); border-radius: 3px; margin: 0 auto 8px; }
+  .radius-demo { width: 72px; height: 52px; background: var(--brand-100); border: 1.5px solid var(--brand-500); }
+  .radius-row { display: flex; gap: 20px; }
+</style>
+</head>
+<body data-shell="bare">
+
+<main class="content" style="max-width: 1180px; margin: 0 auto; padding-top: 32px;">
+
+  <div class="page-head">
+    <div>
+      <h1 class="page-head__title">样式总览 Style Guide</h1>
+      <p class="page-head__desc">克制的专业美学 · 中性色基调 · 低饱和科研风辅助色 · 统一状态色逻辑 · 线条扁平化图标</p>
+    </div>
+    <div class="page-head__actions">
+      <a class="btn btn--default" href="index.html">← 返回导航页</a>
+      <a class="btn btn--primary" href="project/dashboard.html">查看页面演示</a>
+    </div>
+  </div>
+
+  <div class="alert alert--info mb-lg">
+    <span data-icon="info-filled"></span>
+    <div><b>状态色铁律</b>：绿 = 通过/正常 ｜ 红系 = 失败/高风险/<b>阻塞</b>（深浅两阶）｜ 橙 = 警告/<b>进行中</b> ｜ 灰 = 未执行/待评审 ｜
+    飞书蓝仅用于主按钮、链接与选中态，<b>不表达任何状态</b>。所有状态均以「颜色 + 形状 + 文案」三重编码，不单靠颜色区分。</div>
+  </div>
+
+  <!-- ============ 1 色彩 ============ -->
+  <section class="sg-section">
+    <h2 class="sg-h2"><span class="idx">01</span>色彩体系</h2>
+    <p class="sg-desc">白 / 灰 / 黑构成 90% 以上的画面；辅助色低饱和，仅在语义处出现。</p>
+
+    <h3 class="text-sm strong mb-md">中性色阶（略冷灰）</h3>
+    <div class="swatch-grid mb-lg">
+      <div class="swatch"><div class="swatch__color" style="background:#ffffff"></div><div class="swatch__meta"><b>Neutral 0</b><span>#FFFFFF</span></div></div>
+      <div class="swatch"><div class="swatch__color" style="background:#fafafa"></div><div class="swatch__meta"><b>Neutral 25 · 页面底</b><span>#FAFAFA</span></div></div>
+      <div class="swatch"><div class="swatch__color" style="background:#f5f5f6"></div><div class="swatch__meta"><b>Neutral 50 · 表头</b><span>#F5F5F6</span></div></div>
+      <div class="swatch"><div class="swatch__color" style="background:#efeff1"></div><div class="swatch__meta"><b>Neutral 100 · 斑马</b><span>#EFEFF1</span></div></div>
+      <div class="swatch"><div class="swatch__color" style="background:#e4e4e7"></div><div class="swatch__meta"><b>Neutral 200 · 边框</b><span>#E4E4E7</span></div></div>
+      <div class="swatch"><div class="swatch__color" style="background:#d4d4d8"></div><div class="swatch__meta"><b>Neutral 300 · 禁用框</b><span>#D4D4D8</span></div></div>
+      <div class="swatch"><div class="swatch__color" style="background:#a1a1aa"></div><div class="swatch__meta"><b>Neutral 400 · 占位</b><span>#A1A1AA</span></div></div>
+      <div class="swatch"><div class="swatch__color" style="background:#71717a"></div><div class="swatch__meta"><b>Neutral 500 · 次要字</b><span>#71717A</span></div></div>
+      <div class="swatch"><div class="swatch__color" style="background:#52525b"></div><div class="swatch__meta"><b>Neutral 600 · 辅助字</b><span>#52525B</span></div></div>
+      <div class="swatch"><div class="swatch__color" style="background:#3f3f46"></div><div class="swatch__meta"><b>Neutral 700 · 正文</b><span>#3F3F46</span></div></div>
+      <div class="swatch"><div class="swatch__color" style="background:#27272a"></div><div class="swatch__meta"><b>Neutral 800</b><span>#27272A</span></div></div>
+      <div class="swatch"><div class="swatch__color" style="background:#18181b"></div><div class="swatch__meta"><b>Neutral 900 · 标题/壳</b><span>#18181B</span></div></div>
+    </div>
+
+    <h3 class="text-sm strong mb-md">品牌与交互色（飞书蓝 · 仅按钮 / 链接 / 选中）</h3>
+    <div class="swatch-grid mb-lg">
+      <div class="swatch"><div class="swatch__color" style="background:#f0f5ff"></div><div class="swatch__meta"><b>Brand 50</b><span>#F0F5FF</span></div></div>
+      <div class="swatch"><div class="swatch__color" style="background:#e1eaff"></div><div class="swatch__meta"><b>Brand 100</b><span>#E1EAFF</span></div></div>
+      <div class="swatch"><div class="swatch__color" style="background:#c7d9ff"></div><div class="swatch__meta"><b>Brand 200</b><span>#C7D9FF</span></div></div>
+      <div class="swatch"><div class="swatch__color" style="background:#94b5ff"></div><div class="swatch__meta"><b>Brand 300</b><span>#94B5FF</span></div></div>
+      <div class="swatch"><div class="swatch__color" style="background:#6392ff"></div><div class="swatch__meta"><b>Brand 400</b><span>#6392FF</span></div></div>
+      <div class="swatch"><div class="swatch__color" style="background:#3370ff"></div><div class="swatch__meta"><b>Brand 500 · 主</b><span>#3370FF</span></div></div>
+      <div class="swatch"><div class="swatch__color" style="background:#245bdb"></div><div class="swatch__meta"><b>Brand 600 · 悬停</b><span>#245BDB</span></div></div>
+      <div class="swatch"><div class="swatch__color" style="background:#1d4cc4"></div><div class="swatch__meta"><b>Brand 700 · 按下</b><span>#1D4CC4</span></div></div>
+    </div>
+
+    <h3 class="text-sm strong mb-md">状态色（低饱和 · 逻辑统一）</h3>
+    <div class="swatch-grid mb-lg">
+      <div class="swatch"><div class="swatch__color" style="background:#4c8a5f"></div><div class="swatch__meta"><b>通过/正常 · 绿</b><span>#4C8A5F</span></div></div>
+      <div class="swatch"><div class="swatch__color" style="background:#c4453d"></div><div class="swatch__meta"><b>失败/致命 · 红</b><span>#C4453D</span></div></div>
+      <div class="swatch"><div class="swatch__color" style="background:#9b332d"></div><div class="swatch__meta"><b>阻塞 · 深红</b><span>#9B332D</span></div></div>
+      <div class="swatch"><div class="swatch__color" style="background:#c07a30"></div><div class="swatch__meta"><b>警告/进行中 · 橙</b><span>#C07A30</span></div></div>
+      <div class="swatch"><div class="swatch__color" style="background:#b99a2e"></div><div class="swatch__meta"><b>一般 · 暗黄</b><span>#B99A2E</span></div></div>
+      <div class="swatch"><div class="swatch__color" style="background:#71717a"></div><div class="swatch__meta"><b>未执行 · 灰</b><span>#71717A</span></div></div>
+    </div>
+
+    <div class="demo-pad">
+      <table class="sem-table">
+        <thead><tr><th>语义</th><th>色值</th><th>浅底</th><th>使用场景</th></tr></thead>
+        <tbody>
+          <tr><td><span class="tag tag--success"><span class="dot"></span>通过 / 正常</span></td><td class="mono">#4C8A5F</td><td class="mono">#ECF5EF</td><td>用例通过、执行成功、账号启用、接口 2xx</td></tr>
+          <tr><td><span class="tag tag--danger"><span class="dot"></span>失败 / 高风险</span></td><td class="mono">#C4453D</td><td class="mono">#FAECEB</td><td>用例失败、执行异常、致命缺陷、删除操作</td></tr>
+          <tr><td><span class="tag tag--blocked"><span class="dot"></span>阻塞</span></td><td class="mono">#9B332D</td><td class="mono">#F6E7E5</td><td>用例阻塞（红系深阶，与失败同相区分）</td></tr>
+          <tr><td><span class="tag tag--warning"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5v4M12 16.5v4M3.5 12h4M16.5 12h4M6 6l2.8 2.8M15.2 15.2L18 18M18 6l-2.8 2.8M8.8 15.2L6 18"/></svg>进行中</span></td><td class="mono">#C07A30</td><td class="mono">#FBF1E5</td><td>执行中、评审中、警告（<b>进行中用 loader 形状</b>与警告三角区分）</td></tr>
+          <tr><td><span class="tag tag--warning"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4.5l8.5 15h-17z"/><path d="M12 10v4"/><circle cx="12" cy="16.8" r="0.9" fill="currentColor" stroke="none"/></svg>警告</span></td><td class="mono">#C07A30</td><td class="mono">#FBF1E5</td><td>配置缺失、临期提醒</td></tr>
+          <tr><td><span class="tag tag--neutral"><span class="dot"></span>未执行 / 待评审</span></td><td class="mono">#71717A</td><td class="mono">#F4F4F5</td><td>未执行、待处理、已停用</td></tr>
+          <tr><td><span class="tag tag--yellow"><span class="dot"></span>一般</span></td><td class="mono">#B99A2E</td><td class="mono">#F9F4E0</td><td>缺陷「一般」等级专用弱化档</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ============ 2 字体与排版 ============ -->
+  <section class="sg-section">
+    <h2 class="sg-h2"><span class="idx">02</span>字体与排版</h2>
+    <p class="sg-desc">系统无衬线字体栈（Segoe UI / PingFang SC / Microsoft YaHei …），不依赖外部字体；靠留白与字重建立层级。</p>
+    <div class="demo-pad">
+      <div class="type-row"><span class="type-meta">20px / 650 · 页面标题</span><span style="font-size:20px;font-weight:650;color:var(--n-900)">测试计划详情</span></div>
+      <div class="type-row"><span class="type-meta">16px / 600 · 卡片标题</span><span style="font-size:16px;font-weight:600;color:var(--n-900)">执行记录</span></div>
+      <div class="type-row"><span class="type-meta">14px / 400 · 正文</span><span style="font-size:14px;color:var(--n-700)">用于日常操作与表格内容，保证长时间阅读不疲劳。</span></div>
+      <div class="type-row"><span class="type-meta">13px / 500 · 表头/菜单</span><span style="font-size:13px;font-weight:500;color:var(--n-600)">状态 · 优先级 · 通过率</span></div>
+      <div class="type-row"><span class="type-meta">12px / 400 · 辅助说明</span><span style="font-size:12px;color:var(--n-500)">最后执行于 2026-09-20 14:32 · 由 张明 触发</span></div>
+      <div class="type-row"><span class="type-meta">mono · 标识符/路径</span><span class="mono" style="font-size:13px;color:var(--n-700)">GET /api/v1/orders/{id}</span></div>
+    </div>
+  </section>
+
+  <!-- ============ 3 间距与圆角 ============ -->
+  <section class="sg-section">
+    <h2 class="sg-h2"><span class="idx">03</span>留白与间距</h2>
+    <p class="sg-desc">充足呼吸空间：页面边距 32px、卡片内距 24px、区块间距 24px、表单行距 20px。</p>
+    <div class="demo-pad mb-lg">
+      <div class="space-demo">
+        <div class="space-item"><div class="space-bar" style="width:4px;height:28px"></div>4</div>
+        <div class="space-item"><div class="space-bar" style="width:8px;height:28px"></div>8</div>
+        <div class="space-item"><div class="space-bar" style="width:12px;height:28px"></div>12</div>
+        <div class="space-item"><div class="space-bar" style="width:16px;height:28px"></div>16</div>
+        <div class="space-item"><div class="space-bar" style="width:24px;height:28px"></div>24</div>
+        <div class="space-item"><div class="space-bar" style="width:32px;height:28px"></div>32</div>
+        <div class="space-item" style="margin-left:24px"><div class="radius-demo" style="border-radius:4px"></div>4</div>
+        <div class="space-item"><div class="radius-demo" style="border-radius:6px"></div>6 · 按钮</div>
+        <div class="space-item"><div class="radius-demo" style="border-radius:8px"></div>8 · 卡片</div>
+        <div class="space-item"><div class="radius-demo" style="border-radius:12px"></div>12 · 弹窗</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 4 按钮 ============ -->
+  <section class="sg-section">
+    <h2 class="sg-h2"><span class="idx">04</span>按钮体系（对齐飞书）</h2>
+    <p class="sg-desc">主按钮实底蓝 + 白字（hover 加深）；次按钮白底描边；文字按钮透明；危险按钮与状态红同源。圆角 6px、高 32px。</p>
+    <div class="demo-pad">
+      <div class="btn-row mb-lg">
+        <button class="btn btn--primary"><span data-icon="plus"></span>新建用例</button>
+        <button class="btn btn--default">导出报告</button>
+        <button class="btn btn--text">取消</button>
+        <button class="btn btn--danger"><span data-icon="trash"></span>删除</button>
+        <button class="btn btn--link">查看详情</button>
+      </div>
+      <div class="btn-row mb-lg">
+        <button class="btn btn--primary btn--sm">小号主钮</button>
+        <button class="btn btn--default btn--sm">小号次钮</button>
+        <button class="btn btn--primary btn--lg">大号主钮</button>
+        <button class="btn btn--default btn--lg">大号次钮</button>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn--primary" disabled>禁用主钮</button>
+        <button class="btn btn--default" disabled>禁用次钮</button>
+        <span class="text-xs muted">hover：主钮 #3370FF → #245BDB；次钮描边加深 + 浅灰底</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 5 表单 ============ -->
+  <section class="sg-section">
+    <h2 class="sg-h2"><span class="idx">05</span>表单控件</h2>
+    <p class="sg-desc">聚焦态 1px 蓝描边 + 3px 淡蓝光圈；错误态红描边 + 行下红字提示。</p>
+    <div class="card-grid card-grid--2">
+      <div class="card"><div class="card__body">
+        <div class="form-grid">
+          <div class="field"><label class="field__label">默认</label><input class="input" placeholder="请输入名称"></div>
+          <div class="field"><label class="field__label">聚焦（蓝环）</label><input class="input" style="border-color:var(--brand-500);box-shadow:0 0 0 3px rgba(51,112,255,.14)" value="电商核心系统"></div>
+          <div class="field"><label class="field__label">错误</label><input class="input input--error" value="admin@"><div class="field__error">邮箱格式不正确</div></div>
+          <div class="field"><label class="field__label">禁用</label><input class="input" disabled value="只读内容"></div>
+          <div class="field"><label class="field__label">下拉选择</label><select class="select"><option>全部状态</option></select></div>
+          <div class="field"><label class="field__label">搜索框</label><div class="input-wrap"><span data-icon="search"></span><input class="input" placeholder="搜索用例标题 / 编号"></div></div>
+        </div>
+        <div class="flex-center flex-gap-lg">
+          <span class="text-sm muted">开关</span><span class="switch switch--on"></span><span class="switch"></span>
+          <span class="text-sm muted">勾选</span><span class="checkbox checkbox--on"></span><span class="checkbox"></span><span class="checkbox checkbox--disabled"></span>
+        </div>
+      </div></div>
+      <div class="card"><div class="card__body">
+        <div class="field"><label class="field__label">多行文本</label><textarea class="textarea" placeholder="重现步骤、备注说明…"></textarea><div class="field__hint">支持 Markdown，粘贴截图自动插入附件</div></div>
+        <div class="field"><label class="field__label">必填项<span class="req">*</span></label><input class="input" placeholder="带红色星号标记"></div>
+        <div class="alert alert--warning"><span data-icon="alert-triangle"></span><div>执行环境未配置，计划将使用「默认环境」运行。</div></div>
+      </div></div>
+    </div>
+  </section>
+
+  <!-- ============ 6 状态标识 ============ -->
+  <section class="sg-section">
+    <h2 class="sg-h2"><span class="idx">06</span>状态标识与徽标</h2>
+    <p class="sg-desc">Tag = 浅底 + 深字 + 细边；表格内用圆点 + 文案；优先级用色 + 字重；分类信息（HTTP 方法等）只用中性 chip。</p>
+    <div class="demo-pad">
+      <div class="flex-wrap flex-gap-sm mb-lg">
+        <span class="tag tag--success"><span class="dot"></span>通过</span>
+        <span class="tag tag--success"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M8.2 12.3l2.6 2.6 5-5.4"/></svg>已完成</span>
+        <span class="tag tag--danger"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M9 9l6 6M15 9l-6 6"/></svg>失败</span>
+        <span class="tag tag--danger"><span class="dot"></span>致命</span>
+        <span class="tag tag--blocked"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><rect x="9" y="9" width="6" height="6" rx="1"/></svg>阻塞</span>
+        <span class="tag tag--warning"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5v4M12 16.5v4M3.5 12h4M16.5 12h4M6 6l2.8 2.8M15.2 15.2L18 18M18 6l-2.8 2.8M8.8 15.2L6 18"/></svg>进行中</span>
+        <span class="tag tag--warning"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4.5l8.5 15h-17z"/><path d="M12 10v4"/><circle cx="12" cy="16.8" r="0.9" fill="currentColor" stroke="none"/></svg>警告</span>
+        <span class="tag tag--yellow"><span class="dot"></span>一般</span>
+        <span class="tag tag--neutral"><span class="dot"></span>未执行</span>
+        <span class="tag tag--neutral"><span class="dot"></span>待评审</span>
+        <span class="tag tag--info">信息提示</span>
+        <span class="tag tag--solid">v1.4.2</span>
+        <span class="tag tag--outline">只读</span>
+      </div>
+      <div class="flex-wrap flex-gap-lg mb-lg">
+        <span class="status status--success"><span class="dot"></span>启用</span>
+        <span class="status status--danger"><span class="dot"></span>已禁用</span>
+        <span class="status status--blocked"><span class="dot"></span>阻塞</span>
+        <span class="status status--running"><span class="dot"></span>执行中</span>
+        <span class="status status--warning"><span class="dot"></span>待修复</span>
+        <span class="status status--neutral"><span class="dot"></span>未开始</span>
+      </div>
+      <div class="flex-wrap flex-gap-md mb-lg">
+        <span class="prio prio--p0">P0</span><span class="prio prio--p1">P1</span>
+        <span class="prio prio--p2">P2</span><span class="prio prio--p3">P3</span>
+        <span style="width:1px;height:18px;background:var(--n-200)"></span>
+        <span class="chip">GET</span><span class="chip">POST</span>
+        <span class="chip">PUT</span><span class="chip">DELETE</span>
+        <span class="chip">PATCH</span><span class="chip">/api/v1/orders</span>
+      </div>
+      <div class="flex-wrap flex-gap-md">
+        <div class="progress" style="width:180px"><div class="progress__track"><div class="progress__fill" style="width:92%"></div></div><span class="progress__text">92%</span></div>
+        <div class="progress" style="width:180px"><div class="progress__track"><div class="progress__fill progress__fill--warning" style="width:58%"></div></div><span class="progress__text">58%</span></div>
+        <div class="progress" style="width:180px"><div class="progress__track"><div class="progress__fill progress__fill--danger" style="width:23%"></div></div><span class="progress__text">23%</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 7 表格与分页 ============ -->
+  <section class="sg-section">
+    <h2 class="sg-h2"><span class="idx">07</span>表格与分页</h2>
+    <p class="sg-desc">浅灰表头 + 大写小字号；行悬停极浅灰；行高宽松（13px 纵向内距）保证呼吸感。</p>
+    <div class="card">
+      <div class="table-wrap">
+        <table class="table">
+          <thead><tr><th>用例编号</th><th>标题</th><th>优先级</th><th>状态</th><th>更新人</th><th>更新时间</th><th>操作</th></tr></thead>
+          <tbody>
+            <tr>
+              <td class="mono">TC-1024</td>
+              <td class="cell-main">下单页优惠券叠加校验<span class="cell-sub">回归 · P0 通道</span></td>
+              <td><span class="prio prio--p0">P0</span></td>
+              <td><span class="status status--success"><span class="dot"></span>通过</span></td>
+              <td>张明</td>
+              <td class="num">2026-09-20 14:32</td>
+              <td><span class="op-link">编辑</span><span class="op-link op-link--danger">删除</span></td>
+            </tr>
+            <tr>
+              <td class="mono">TC-1025</td>
+              <td class="cell-main">库存不足时下单拦截<span class="cell-sub">边界值</span></td>
+              <td><span class="prio prio--p1">P1</span></td>
+              <td><span class="status status--blocked"><span class="dot"></span>阻塞</span></td>
+              <td>李华</td>
+              <td class="num">2026-09-20 11:08</td>
+              <td><span class="op-link">编辑</span><span class="op-link op-link--danger">删除</span></td>
+            </tr>
+            <tr>
+              <td class="mono">TC-1026</td>
+              <td class="cell-main">支付回调幂等性验证<span class="cell-sub">接口联调</span></td>
+              <td><span class="prio prio--p2">P2</span></td>
+              <td><span class="status status--warning"><span class="dot" style="box-shadow:0 0 0 3px var(--st-warning-light)"></span>进行中</span></td>
+              <td>王芳</td>
+              <td class="num">2026-09-19 18:45</td>
+              <td><span class="op-link">编辑</span><span class="op-link op-link--danger">删除</span></td>
+            </tr>
+            <tr>
+              <td class="mono">TC-1027</td>
+              <td class="cell-main">历史订单导出上限<span class="cell-sub">性能</span></td>
+              <td><span class="prio prio--p3">P3</span></td>
+              <td><span class="status status--neutral"><span class="dot"></span>未执行</span></td>
+              <td>张明</td>
+              <td class="num">2026-09-18 09:21</td>
+              <td><span class="op-link">编辑</span><span class="op-link op-link--danger">删除</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="pagination">
+        <span class="pagination__total">共 128 条 · 每页 20 条</span>
+        <button class="page-btn" disabled>‹</button>
+        <button class="page-btn page-btn--active">1</button>
+        <button class="page-btn">2</button>
+        <button class="page-btn">3</button>
+        <button class="page-btn">…</button>
+        <button class="page-btn">7</button>
+        <button class="page-btn">›</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 8 图标 ============ -->
+  <section class="sg-section">
+    <h2 class="sg-h2"><span class="idx">08</span>图标（线条扁平化）</h2>
+    <p class="sg-desc">24 网格、1.5 描边、圆角端点；小尺寸（15–16px）下保持清晰，语义图标与状态色解耦。</p>
+    <div class="icon-grid">
+      <div class="icon-cell"><span data-icon="gauge"></span>概览</div>
+      <div class="icon-cell"><span data-icon="user"></span>用户</div>
+      <div class="icon-cell"><span data-icon="building"></span>空间</div>
+      <div class="icon-cell"><span data-icon="lock"></span>角色</div>
+      <div class="icon-cell"><span data-icon="sparkle"></span>AI</div>
+      <div class="icon-cell"><span data-icon="folder"></span>项目</div>
+      <div class="icon-cell"><span data-icon="monitor"></span>执行</div>
+      <div class="icon-cell"><span data-icon="bug"></span>缺陷</div>
+      <div class="icon-cell"><span data-icon="connection"></span>接口</div>
+      <div class="icon-cell"><span data-icon="document"></span>用例</div>
+      <div class="icon-cell"><span data-icon="tickets"></span>需求</div>
+      <div class="icon-cell"><span data-icon="calendar"></span>计划</div>
+      <div class="icon-cell"><span data-icon="cpu"></span>Mock</div>
+      <div class="icon-cell"><span data-icon="compass"></span>环境</div>
+      <div class="icon-cell"><span data-icon="timer"></span>定时</div>
+      <div class="icon-cell"><span data-icon="data-chart"></span>报告</div>
+      <div class="icon-cell"><span data-icon="shield"></span>安全</div>
+      <div class="icon-cell"><span data-icon="terminal"></span>调试</div>
+      <div class="icon-cell"><span data-icon="search"></span>搜索</div>
+      <div class="icon-cell"><span data-icon="filter"></span>筛选</div>
+      <div class="icon-cell"><span data-icon="plus"></span>新建</div>
+      <div class="icon-cell"><span data-icon="edit"></span>编辑</div>
+      <div class="icon-cell"><span data-icon="trash"></span>删除</div>
+      <div class="icon-cell"><span data-icon="download"></span>导出</div>
+      <div class="icon-cell"><span data-icon="check-circle"></span>通过</div>
+      <div class="icon-cell"><span data-icon="x-circle"></span>失败</div>
+      <div class="icon-cell"><span data-icon="stop-circle"></span>阻塞</div>
+      <div class="icon-cell"><span data-icon="alert-triangle"></span>警告</div>
+      <div class="icon-cell"><span data-icon="clock-circle"></span>待办</div>
+      <div class="icon-cell"><span data-icon="settings"></span>设置</div>
+      <div class="icon-cell"><span data-icon="bell"></span>消息</div>
+      <div class="icon-cell"><span data-icon="layers"></span>组件</div>
+    </div>
+  </section>
+
+  <!-- ============ 9 数据可视化 ============ -->
+  <section class="sg-section">
+    <h2 class="sg-h2"><span class="idx">09</span>数据可视化</h2>
+    <p class="sg-desc">几何图形 + 低饱和填充；无渐变；数据标签用等宽数字；颜色沿用状态语义（绿=通过、红=失败、灰=未执行）。</p>
+    <div class="card-grid card-grid--3">
+      <div class="card"><div class="card__header"><h3 class="card__title">执行结果分布</h3></div><div class="card__body flex-center" style="gap:20px">
+        <svg width="120" height="120" viewBox="0 0 120 120">
+          <circle cx="60" cy="60" r="46" fill="none" stroke="#e4e4e7" stroke-width="14"/>
+          <circle cx="60" cy="60" r="46" fill="none" stroke="#4c8a5f" stroke-width="14" stroke-dasharray="216 289" stroke-dashoffset="0" transform="rotate(-90 60 60)"/>
+          <circle cx="60" cy="60" r="46" fill="none" stroke="#c4453d" stroke-width="14" stroke-dasharray="43 289" stroke-dashoffset="-216" transform="rotate(-90 60 60)"/>
+          <circle cx="60" cy="60" r="46" fill="none" stroke="#9b332d" stroke-width="14" stroke-dasharray="17 289" stroke-dashoffset="-259" transform="rotate(-90 60 60)"/>
+          <text x="60" y="57" text-anchor="middle" font-size="20" font-weight="650" fill="#18181b">74.7%</text>
+          <text x="60" y="74" text-anchor="middle" font-size="10" fill="#71717a">通过率</text>
+        </svg>
+        <div class="legend" style="flex-direction:column;gap:8px">
+          <span class="legend__item"><span class="legend__swatch" style="background:#4c8a5f"></span>通过 216</span>
+          <span class="legend__item"><span class="legend__swatch" style="background:#c4453d"></span>失败 43</span>
+          <span class="legend__item"><span class="legend__swatch" style="background:#9b332d"></span>阻塞 17</span>
+          <span class="legend__item"><span class="legend__swatch" style="background:#e4e4e7"></span>未执行 13</span>
+        </div>
+      </div></div>
+      <div class="card"><div class="card__header"><h3 class="card__title">近 7 日执行量</h3></div><div class="card__body">
+        <svg class="chart" height="150" viewBox="0 0 300 150">
+          <line x1="0" y1="120" x2="300" y2="120" stroke="#e4e4e7"/>
+          <line x1="0" y1="80" x2="300" y2="80" stroke="#efeff1"/>
+          <line x1="0" y1="40" x2="300" y2="40" stroke="#efeff1"/>
+          <rect x="14" y="72" width="22" height="48" rx="3" fill="#c7d9ff"/>
+          <rect x="54" y="56" width="22" height="64" rx="3" fill="#c7d9ff"/>
+          <rect x="94" y="86" width="22" height="34" rx="3" fill="#c7d9ff"/>
+          <rect x="134" y="40" width="22" height="80" rx="3" fill="#94b5ff"/>
+          <rect x="174" y="62" width="22" height="58" rx="3" fill="#c7d9ff"/>
+          <rect x="214" y="30" width="22" height="90" rx="3" fill="#3370ff"/>
+          <rect x="254" y="50" width="22" height="70" rx="3" fill="#94b5ff"/>
+          <text x="25" y="138" font-size="9" fill="#a1a1aa" text-anchor="middle">周一</text>
+          <text x="65" y="138" font-size="9" fill="#a1a1aa" text-anchor="middle">周二</text>
+          <text x="105" y="138" font-size="9" fill="#a1a1aa" text-anchor="middle">周三</text>
+          <text x="145" y="138" font-size="9" fill="#a1a1aa" text-anchor="middle">周四</text>
+          <text x="185" y="138" font-size="9" fill="#a1a1aa" text-anchor="middle">周五</text>
+          <text x="225" y="138" font-size="9" fill="#a1a1aa" text-anchor="middle">周六</text>
+          <text x="265" y="138" font-size="9" fill="#a1a1aa" text-anchor="middle">周日</text>
+        </svg>
+      </div></div>
+      <div class="card"><div class="card__header"><h3 class="card__title">缺陷等级分布</h3></div><div class="card__body">
+        <svg class="chart" height="150" viewBox="0 0 300 150">
+          <text x="0" y="18" font-size="11" fill="#3f3f46">致命</text>
+          <rect x="52" y="9" width="180" height="12" rx="3" fill="#faeceb"/>
+          <rect x="52" y="9" width="46" height="12" rx="3" fill="#c4453d"/>
+          <text x="242" y="19" font-size="11" fill="#71717a" font-family="monospace">12</text>
+          <text x="0" y="50" font-size="11" fill="#3f3f46">严重</text>
+          <rect x="52" y="41" width="180" height="12" rx="3" fill="#fbf1e5"/>
+          <rect x="52" y="41" width="104" height="12" rx="3" fill="#c07a30"/>
+          <text x="242" y="51" font-size="11" fill="#71717a" font-family="monospace">27</text>
+          <text x="0" y="82" font-size="11" fill="#3f3f46">一般</text>
+          <rect x="52" y="73" width="180" height="12" rx="3" fill="#f9f4e0"/>
+          <rect x="52" y="73" width="132" height="12" rx="3" fill="#b99a2e"/>
+          <text x="242" y="83" font-size="11" fill="#71717a" font-family="monospace">34</text>
+          <text x="0" y="114" font-size="11" fill="#3f3f46">轻微</text>
+          <rect x="52" y="105" width="180" height="12" rx="3" fill="#ecf5ef"/>
+          <rect x="52" y="105" width="74" height="12" rx="3" fill="#4c8a5f"/>
+          <text x="242" y="115" font-size="11" fill="#71717a" font-family="monospace">19</text>
+          <line x1="0" y1="132" x2="300" y2="132" stroke="#e4e4e7"/>
+        </svg>
+      </div></div>
+    </div>
+  </section>
+
+  <!-- ============ 10 状态分支 ============ -->
+  <section class="sg-section">
+    <h2 class="sg-h2"><span class="idx">10</span>状态分支（空 / 加载 / 错误 / 权限不足）</h2>
+    <p class="sg-desc">全部页面按此四类状态区块套用：统一图标圆底、标题、说明与主行动按钮。</p>
+    <div class="state-grid">
+      <div class="card"><div class="state-block">
+        <div class="state-block__icon"><span data-icon="folder"></span></div>
+        <div class="state-block__title">暂无数据</div>
+        <div class="state-block__desc">当前筛选条件下没有匹配的记录，换个关键词试试</div>
+        <div class="state-block__action"><button class="btn btn--primary"><span data-icon="plus"></span>新建第一条</button></div>
+      </div></div>
+      <div class="card"><div class="state-block">
+        <div class="state-block__icon"><span data-icon="loader"></span></div>
+        <div class="state-block__title">加载中…</div>
+        <div class="state-block__desc">正在拉取用例列表，通常不超过 2 秒</div>
+        <div class="state-block__action" style="width:60%;margin:18px auto 0">
+          <div class="skeleton" style="height:12px;margin-bottom:10px"></div>
+          <div class="skeleton" style="height:12px;width:78%;margin-bottom:10px"></div>
+          <div class="skeleton" style="height:12px;width:56%"></div>
+        </div>
+      </div></div>
+      <div class="card"><div class="state-block">
+        <div class="state-block__icon state-block__icon--danger"><span data-icon="alert-circle"></span></div>
+        <div class="state-block__title">加载失败</div>
+        <div class="state-block__desc">网络异常或服务暂时不可用（错误码 503），请稍后重试</div>
+        <div class="state-block__action"><button class="btn btn--default"><span data-icon="refresh"></span>重新加载</button></div>
+      </div></div>
+      <div class="card"><div class="state-block">
+        <div class="state-block__icon state-block__icon--warning"><span data-icon="lock"></span></div>
+        <div class="state-block__title">权限不足</div>
+        <div class="state-block__desc">你当前的角色（只读成员）无权访问该模块，请联系空间管理员</div>
+        <div class="state-block__action"><a class="btn btn--default" href="workspace/members.html">查看成员与角色</a></div>
+      </div></div>
+    </div>
+  </section>
+
+  <!-- ============ 11 反馈组件 ============ -->
+  <section class="sg-section">
+    <h2 class="sg-h2"><span class="idx">11</span>反馈组件</h2>
+    <p class="sg-desc">提示条、弹窗、进度与时间线沿用同一状态语义；弹窗圆角 12px、底部操作右对齐。</p>
+    <div class="card-grid card-grid--2">
+      <div class="card"><div class="card__body">
+        <div class="alert alert--success mb-lg"><span data-icon="check-circle"></span><div>执行完成：通过 216 / 失败 43，通过率 74.7%。</div></div>
+        <div class="alert alert--danger mb-lg"><span data-icon="x-circle"></span><div>保存失败：用例编号 TC-1024 已存在，请更换。</div></div>
+        <div class="alert alert--warning mb-lg"><span data-icon="alert-triangle"></span><div>阻塞：依赖的支付网关环境未就绪，计划已自动暂停。</div></div>
+        <div class="alert alert--info"><span data-icon="info-filled"></span><div>提示：切换工作空间后筛选条件会被重置。</div></div>
+      </div></div>
+      <div class="card"><div class="card__header"><h3 class="card__title">操作时间线</h3></div><div class="card__body">
+        <ul class="timeline">
+          <li class="timeline__item"><span class="timeline__dot timeline__dot--success"></span>
+            <div class="timeline__head">王芳 将用例标记为<span class="text-success">通过</span><span class="timeline__time">14:32</span></div>
+            <div class="timeline__body">TC-1024 下单页优惠券叠加校验</div></li>
+          <li class="timeline__item"><span class="timeline__dot timeline__dot--danger"></span>
+            <div class="timeline__head">系统 判定执行<span class="text-danger">失败</span><span class="timeline__time">14:31</span></div>
+            <div class="timeline__body">断言 mismatch：expected 200, got 502</div></li>
+          <li class="timeline__item"><span class="timeline__dot timeline__dot--brand"></span>
+            <div class="timeline__head">张明 创建了测试计划<span class="timeline__time">11:02</span></div>
+            <div class="timeline__body">V1.4.2 回归测试 · 关联用例 47 条</div></li>
+          <li class="timeline__item"><span class="timeline__dot"></span>
+            <div class="timeline__head">李华 提交了缺陷<span class="timeline__time">昨天 18:20</span></div>
+            <div class="timeline__body">BUG-208 支付回调重复入账</div></li>
+        </ul>
+      </div></div>
+    </div>
+  </section>
+
+  <footer class="text-xs text-light text-center" style="padding: 24px 0 8px;">
+    RoboTest · 新视觉基调演示 · 设计令牌见 assets/tokens.css（正式落地前将回写 docs/交互设计/视觉设计.md）
+  </footer>
+
+</main>
+
+<script src="assets/icons.js"></script>
+</body>
+</html>

@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>缺陷管理 · RoboTest</title>
+<link rel="stylesheet" href="../assets/tokens.css">
+<link rel="stylesheet" href="../assets/base.css">
+</head>
+<body data-shell="business" data-mode="project" data-active="bugs" data-workspace="质量中台" data-project="电商核心系统">
+
+<main class="content">
+
+  <div class="page-head">
+    <div>
+      <h1 class="page-head__title">缺陷管理</h1>
+      <p class="page-head__desc">未关闭 18 · 致命 1 · 严重 4 · 平均修复时长 1.8 天</p>
+    </div>
+    <div class="page-head__actions">
+      <button class="btn btn--default"><span data-icon="download"></span>导出</button>
+      <a class="btn btn--primary" href="bug-create.html"><span data-icon="plus"></span>提交缺陷</a>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="toolbar">
+      <div class="toolbar__filters">
+        <div class="input-wrap"><span data-icon="search"></span><input class="input" placeholder="编号 / 标题 / 创建人"></div>
+        <select class="select" style="width:126px"><option>全部状态</option><option>新建</option><option>修复中</option><option>待验证</option><option>已关闭</option></select>
+        <select class="select" style="width:126px"><option>全部等级</option><option>致命</option><option>严重</option><option>一般</option><option>轻微</option></select>
+        <select class="select" style="width:120px"><option>全部优先级</option><option>P0</option><option>P1</option><option>P2</option><option>P3</option></select>
+        <select class="select" style="width:140px"><option>全部模块</option><option>下单流程</option><option>支付中心</option><option>履约配送</option></select>
+        <button class="btn btn--default btn--sm"><span data-icon="filter"></span>筛选</button>
+      </div>
+      <div class="toolbar__count">共 82 个缺陷</div>
+    </div>
+
+    <div class="table-wrap">
+      <table class="table table--clickable">
+        <thead>
+          <tr><th>编号 / 标题</th><th>状态</th><th>严重等级</th><th>优先级</th><th>所属模块</th><th>创建人</th><th>创建时间</th><th>操作</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="mono text-xs muted">BUG-208</span><span class="cell-main" style="display:block">支付回调重复入账</span><span class="cell-sub">关联 TC-1026 · 指派 李华</span></td>
+            <td><span class="status status--warning"><span class="dot"></span>修复中</span></td>
+            <td><span class="tag tag--danger"><span class="dot"></span>严重</span></td>
+            <td><span class="prio prio--p0">P0</span></td>
+            <td><span class="chip">支付中心</span></td>
+            <td>王芳</td>
+            <td class="num">2026-09-22 13:58</td>
+            <td><span class="op-link">详情</span></td>
+          </tr>
+          <tr>
+            <td><span class="mono text-xs muted">BUG-207</span><span class="cell-main" style="display:block">下单超时未释放库存</span><span class="cell-sub">关联 TC-1025 · 指派 张明</span></td>
+            <td><span class="status status--neutral"><span class="dot"></span>新建</span></td>
+            <td><span class="tag tag--danger"><span class="dot"></span>致命</span></td>
+            <td><span class="prio prio--p0">P0</span></td>
+            <td><span class="chip">下单流程</span></td>
+            <td>李华</td>
+            <td class="num">2026-09-22 11:20</td>
+            <td><span class="op-link">详情</span></td>
+          </tr>
+          <tr>
+            <td><span class="mono text-xs muted">BUG-205</span><span class="cell-main" style="display:block">优惠券叠加计算少于预期</span><span class="cell-sub">关联 TC-1024 · 指派 周敏</span></td>
+            <td><span class="status status--warning"><span class="dot"></span>待验证</span></td>
+            <td><span class="tag tag--warning"><span class="dot"></span>一般</span></td>
+            <td><span class="prio prio--p1">P1</span></td>
+            <td><span class="chip">营销优惠</span></td>
+            <td>张明</td>
+            <td class="num">2026-09-21 16:44</td>
+            <td><span class="op-link">详情</span></td>
+          </tr>
+          <tr>
+            <td><span class="mono text-xs muted">BUG-203</span><span class="cell-main" style="display:block">订单列表分页跳转闪烁</span><span class="cell-sub">指派 陈强</span></td>
+            <td><span class="status status--success"><span class="dot"></span>已关闭</span></td>
+            <td><span class="tag tag--neutral"><span class="dot"></span>轻微</span></td>
+            <td><span class="prio prio--p3">P3</span></td>
+            <td><span class="chip">订单中心</span></td>
+            <td>周敏</td>
+            <td class="num">2026-09-19 10:12</td>
+            <td><span class="op-link">详情</span></td>
+          </tr>
+          <tr>
+            <td><span class="mono text-xs muted">BUG-201</span><span class="cell-main" style="display:block">配送时效计算跨时区错误</span><span class="cell-sub">关联 TC-1042 · 指派 李华</span></td>
+            <td><span class="status status--danger"><span class="dot"></span>重新打开</span></td>
+            <td><span class="tag tag--warning"><span class="dot"></span>严重</span></td>
+            <td><span class="prio prio--p1">P1</span></td>
+            <td><span class="chip">履约配送</span></td>
+            <td>王芳</td>
+            <td class="num">2026-09-17 14:06</td>
+            <td><span class="op-link">详情</span></td>
+          </tr>
+          <tr>
+            <td><span class="mono text-xs muted">BUG-198</span><span class="cell-main" style="display:block">支付失败提示文案歧义</span><span class="cell-sub">指派 王芳</span></td>
+            <td><span class="status status--success"><span class="dot"></span>已关闭</span></td>
+            <td><span class="tag tag--yellow"><span class="dot"></span>一般</span></td>
+            <td><span class="prio prio--p2">P2</span></td>
+            <td><span class="chip">支付中心</span></td>
+            <td>陈强</td>
+            <td class="num">2026-09-15 09:33</td>
+            <td><span class="op-link">详情</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="pagination">
+      <span class="pagination__total">共 82 条 · 每页 20 条</span>
+      <button class="page-btn" disabled>‹</button>
+      <button class="page-btn page-btn--active">1</button>
+      <button class="page-btn">2</button>
+      <button class="page-btn">3</button>
+      <button class="page-btn">…</button>
+      <button class="page-btn">5</button>
+      <button class="page-btn">›</button>
+    </div>
+  </div>
+
+</main>
+
+<script src="../assets/icons.js"></script>
+<script src="../assets/shell.js"></script>
+</body>
+</html>

@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>提交缺陷 · RoboTest</title>
+<link rel="stylesheet" href="../assets/tokens.css">
+<link rel="stylesheet" href="../assets/base.css">
+<style>
+  .upload {
+    border: 1.5px dashed var(--n-300); border-radius: var(--radius-lg);
+    padding: 26px; text-align: center; color: var(--n-500); font-size: 13px;
+    background: var(--n-25); cursor: pointer; transition: border-color var(--transition-fast);
+  }
+  .upload:hover { border-color: var(--brand-400); color: var(--brand-600); }
+  .upload svg { width: 22px; height: 22px; display: block; margin: 0 auto 8px; }
+</style>
+</head>
+<body data-shell="business" data-mode="project" data-active="bugs" data-workspace="质量中台" data-project="电商核心系统">
+
+<main class="content">
+
+  <div class="breadcrumb">
+    <a href="bugs.html">缺陷管理</a>
+    <span data-icon="chevron-right"></span>
+    <span>提交缺陷</span>
+  </div>
+
+  <div class="page-head">
+    <div>
+      <h1 class="page-head__title">提交缺陷</h1>
+      <p class="page-head__desc">完整的重现步骤有助于更快定位问题</p>
+    </div>
+    <div class="page-head__actions">
+      <a class="btn btn--text" href="bugs.html">取消</a>
+      <button class="btn btn--primary">提交缺陷</button>
+    </div>
+  </div>
+
+  <div class="card-grid" style="grid-template-columns: 1fr 300px; align-items:start">
+    <div class="card">
+      <div class="card__header"><h3 class="card__title">缺陷内容</h3></div>
+      <div class="card__body">
+        <div class="field">
+          <label class="field__label">标题<span class="req">*</span></label>
+          <input class="input" placeholder="一句话描述现象，如：支付回调重复入账" value="下单超时未释放库存，二次下单报缺货">
+        </div>
+
+        <div class="form-grid form-grid--3">
+          <div class="field">
+            <label class="field__label">所属模块<span class="req">*</span></label>
+            <select class="select"><option>下单流程</option></select>
+          </div>
+          <div class="field">
+            <label class="field__label">严重等级<span class="req">*</span></label>
+            <select class="select"><option>致命</option></select>
+          </div>
+          <div class="field">
+            <label class="field__label">优先级<span class="req">*</span></label>
+            <select class="select"><option>P0</option></select>
+          </div>
+        </div>
+
+        <div class="field">
+          <label class="field__label">重现步骤<span class="req">*</span></label>
+          <textarea class="textarea" style="min-height:120px">1. 使用测试账号创建一笔待支付订单，库存锁定 1 件；
+2. 不支付等待 30 分钟（超过超时阈值）；
+3. 回到商品页再次下单同 SKU；
+4. 预期：库存已释放，可正常下单；实际：提示「库存不足」。</textarea>
+          <div class="field__hint">支持 Markdown；每行一步，附上预期与实际</div>
+        </div>
+
+        <div class="form-grid">
+          <div class="field">
+            <label class="field__label">期望结果</label>
+            <textarea class="textarea" style="min-height:72px">超时后自动释放库存锁定，用户可立即重新下单。</textarea>
+          </div>
+          <div class="field">
+            <label class="field__label">实际结果</label>
+            <textarea class="textarea" style="min-height:72px">库存未释放，重复下单被拦截为缺货，需人工解锁。</textarea>
+          </div>
+        </div>
+
+        <div class="field" style="margin-bottom:0">
+          <label class="field__label">附件</label>
+          <div class="upload">
+            <span data-icon="upload"></span>
+            点击或拖拽上传截图 / 日志，单文件不超过 20MB
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="card">
+        <div class="card__header"><h3 class="card__title">关联关系</h3></div>
+        <div class="card__body">
+          <div class="field">
+            <label class="field__label">关联用例</label>
+            <select class="select"><option>TC-1025 库存不足时下单拦截</option></select>
+            <div class="field__hint">从失败执行结果一键带入</div>
+          </div>
+          <div class="field">
+            <label class="field__label">所属计划</label>
+            <select class="select"><option>V1.4.2 回归测试</option></select>
+          </div>
+          <div class="field">
+            <label class="field__label">指派给</label>
+            <select class="select"><option>张明（下单流程 Owner）</option></select>
+          </div>
+          <div class="field" style="margin-bottom:0">
+            <label class="field__label">发现版本</label>
+            <input class="input mono" value="v1.4.2-rc.3">
+          </div>
+        </div>
+      </div>
+
+      <div class="alert alert--info block-gap">
+        <span data-icon="info-filled"></span>
+        <div>提交后将通知指派对象；若来自计划执行，会自动回链到执行记录。</div>
+      </div>
+
+      <div class="btn-row block-gap" style="justify-content:flex-end">
+        <button class="btn btn--default">存为草稿</button>
+        <button class="btn btn--primary">提交缺陷</button>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<script src="../assets/icons.js"></script>
+<script src="../assets/shell.js"></script>
+</body>
+</html>

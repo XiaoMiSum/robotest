@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>需求池 · 功能测试 · RoboTest</title>
+<link rel="stylesheet" href="../assets/tokens.css">
+<link rel="stylesheet" href="../assets/base.css">
+</head>
+<body data-shell="business" data-mode="project" data-active="ft" data-workspace="质量中台" data-project="电商核心系统">
+
+<main class="content content--flush">
+  <div class="split">
+    <aside class="split__side">
+      <div class="menu-item side__item"><span data-icon="document"></span><span>测试用例</span></div>
+      <div class="menu-item side__item"><span data-icon="check-circle"></span><span>测试评审</span></div>
+      <div class="menu-item side__item"><span data-icon="calendar"></span><span>测试计划</span></div>
+      <div class="menu-item side__item menu-item--active"><span data-icon="tickets"></span><span>需求池</span></div>
+    </aside>
+
+    <div class="split__main">
+      <div class="page-head">
+        <div>
+          <h1 class="page-head__title">需求池</h1>
+          <p class="page-head__desc">沉淀需求条目，作为用例设计与评审的输入</p>
+        </div>
+        <div class="page-head__actions">
+          <button class="btn btn--primary"><span data-icon="plus"></span>新建需求</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="toolbar">
+          <div class="toolbar__filters">
+            <div class="segment">
+              <span class="segment__item segment__item--active">启用（63）</span>
+              <span class="segment__item">已归档（17）</span>
+            </div>
+            <div class="input-wrap"><span data-icon="search"></span><input class="input" placeholder="需求标题 / 来源"></div>
+            <select class="select" style="width:130px"><option>全部状态</option><option>待分析</option><option>分析中</option><option>已实现</option></select>
+          </div>
+          <div class="toolbar__count">按更新时间排序</div>
+        </div>
+
+        <div class="table-wrap">
+          <table class="table table--clickable">
+            <thead>
+              <tr><th>标题</th><th>来源 URL</th><th>状态</th><th>更新人</th><th>更新时间</th><th>操作</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="cell-main">多收货地址智能推荐<span class="cell-sub">V1.5 需求 · 已拆 8 条用例</span></td>
+                <td><a class="mono text-xs" href="#">prd.internal/1523</a> <span data-icon="external" style="width:11px;height:11px;display:inline-block;vertical-align:-1px"></span></td>
+                <td><span class="status status--warning"><span class="dot"></span>分析中</span></td>
+                <td>张明</td>
+                <td class="num">2026-09-21 17:02</td>
+                <td><span class="op-link">详情</span><span class="op-link">转用例</span></td>
+              </tr>
+              <tr>
+                <td class="cell-main">优惠券与积分叠加规则调整<span class="cell-sub">运营需求</span></td>
+                <td><a class="mono text-xs" href="#">prd.internal/1519</a> <span data-icon="external" style="width:11px;height:11px;display:inline-block;vertical-align:-1px"></span></td>
+                <td><span class="status status--neutral"><span class="dot"></span>待分析</span></td>
+                <td>王芳</td>
+                <td class="num">2026-09-20 11:26</td>
+                <td><span class="op-link">详情</span><span class="op-link">转用例</span></td>
+              </tr>
+              <tr>
+                <td class="cell-main">订单导出支持按维度筛选<span class="cell-sub">客户成功反馈</span></td>
+                <td><span class="muted text-xs">内部提出</span></td>
+                <td><span class="status status--success"><span class="dot"></span>已实现</span></td>
+                <td>李华</td>
+                <td class="num">2026-09-18 09:41</td>
+                <td><span class="op-link">详情</span><span class="op-link">查看用例</span></td>
+              </tr>
+              <tr>
+                <td class="cell-main">支付失败自动重试上限<span class="cell-sub">线上问题衍生</span></td>
+                <td><a class="mono text-xs" href="#">issue/BUG-198</a> <span data-icon="external" style="width:11px;height:11px;display:inline-block;vertical-align:-1px"></span></td>
+                <td><span class="status status--warning"><span class="dot"></span>分析中</span></td>
+                <td>周敏</td>
+                <td class="num">2026-09-17 15:33</td>
+                <td><span class="op-link">详情</span><span class="op-link">转用例</span></td>
+              </tr>
+              <tr>
+                <td class="cell-main">预售尾款提醒推送<span class="cell-sub">V1.4 需求</span></td>
+                <td><a class="mono text-xs" href="#">prd.internal/1495</a> <span data-icon="external" style="width:11px;height:11px;display:inline-block;vertical-align:-1px"></span></td>
+                <td><span class="status status--success"><span class="dot"></span>已实现</span></td>
+                <td>张明</td>
+                <td class="num">2026-09-12 10:08</td>
+                <td><span class="op-link">详情</span><span class="op-link">查看用例</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="pagination">
+          <span class="pagination__total">共 63 条 · 每页 20 条</span>
+          <button class="page-btn page-btn--active">1</button>
+          <button class="page-btn">2</button>
+          <button class="page-btn">3</button>
+          <button class="page-btn">…</button>
+          <button class="page-btn">4</button>
+          <button class="page-btn">›</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script src="../assets/icons.js"></script>
+<script src="../assets/shell.js"></script>
+</body>
+</html>

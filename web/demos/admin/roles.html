@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>角色管理 · 系统管理 · RoboTest</title>
+<link rel="stylesheet" href="../assets/tokens.css">
+<link rel="stylesheet" href="../assets/base.css">
+<style>
+  .role-layout { display: grid; grid-template-columns: 280px 1fr; gap: 24px; align-items: start; }
+  .role-item {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    padding: 14px 16px; border-radius: var(--radius-md); cursor: pointer;
+    border: 1px solid transparent;
+  }
+  .role-item:hover { background: var(--n-25); }
+  .role-item--active { background: var(--brand-50); border-color: var(--brand-100); }
+  .role-item__name { font-size: 14px; font-weight: 600; color: var(--n-900); }
+  .role-item__desc { font-size: 12px; color: var(--n-500); margin-top: 2px; }
+  .perm-group { padding: 16px 0; border-bottom: 1px dashed var(--n-200); }
+  .perm-group:last-child { border-bottom: none; }
+  .perm-group__title { font-size: 13px; font-weight: 600; color: var(--n-800); margin-bottom: 10px; }
+  .perm-list { display: flex; flex-wrap: wrap; gap: 10px 22px; }
+  .perm { display: flex; align-items: center; gap: 7px; font-size: 13px; color: var(--n-600); cursor: pointer; }
+</style>
+</head>
+<body data-shell="admin" data-active="roles" data-mode="admin">
+
+<main class="content content--admin">
+
+  <div class="page-head">
+    <div>
+      <h1 class="page-head__title">角色管理</h1>
+      <p class="page-head__desc">系统角色的权限点配置与关联用户</p>
+    </div>
+    <div class="page-head__actions">
+      <button class="btn btn--primary"><span data-icon="plus"></span>新建角色</button>
+    </div>
+  </div>
+
+  <div class="role-layout">
+    <!-- 角色列表 -->
+    <div class="card">
+      <div class="card__header"><h3 class="card__title">系统角色<span class="card__subtitle">4</span></h3></div>
+      <div class="card__body" style="padding:8px">
+        <div class="role-item role-item--active">
+          <div><div class="role-item__name">系统管理员</div><div class="role-item__desc">全部系统权限</div></div>
+          <span class="tag tag--neutral tag--sm">3 人</span>
+        </div>
+        <div class="role-item">
+          <div><div class="role-item__name">空间管理员</div><div class="role-item__desc">空间级管理权限</div></div>
+          <span class="tag tag--neutral tag--sm">8 人</span>
+        </div>
+        <div class="role-item">
+          <div><div class="role-item__name">测试工程师</div><div class="role-item__desc">业务执行权限</div></div>
+          <span class="tag tag--neutral tag--sm">96 人</span>
+        </div>
+        <div class="role-item">
+          <div><div class="role-item__name">只读成员</div><div class="role-item__desc">仅查看权限</div></div>
+          <span class="tag tag--neutral tag--sm">21 人</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 权限点 -->
+    <div class="card">
+      <div class="card__header">
+        <h3 class="card__title">权限点<span class="card__subtitle">系统管理员 · 64 项已授予</span></h3>
+        <div class="btn-row">
+          <button class="btn btn--text btn--sm">全部取消</button>
+          <button class="btn btn--primary btn--sm">保存权限</button>
+        </div>
+      </div>
+      <div class="card__body" style="padding-top:4px">
+        <div class="perm-group">
+          <div class="perm-group__title">系统管理</div>
+          <div class="perm-list">
+            <span class="perm"><span class="checkbox checkbox--on"></span>用户查看</span>
+            <span class="perm"><span class="checkbox checkbox--on"></span>用户编辑</span>
+            <span class="perm"><span class="checkbox checkbox--on"></span>空间查看</span>
+            <span class="perm"><span class="checkbox checkbox--on"></span>空间管理</span>
+            <span class="perm"><span class="checkbox checkbox--on"></span>角色管理</span>
+            <span class="perm"><span class="checkbox checkbox--on"></span>AI 配置</span>
+          </div>
+        </div>
+        <div class="perm-group">
+          <div class="perm-group__title">功能测试</div>
+          <div class="perm-list">
+            <span class="perm"><span class="checkbox checkbox--on"></span>用例查看</span>
+            <span class="perm"><span class="checkbox checkbox--on"></span>用例编辑</span>
+            <span class="perm"><span class="checkbox checkbox--on"></span>评审管理</span>
+            <span class="perm"><span class="checkbox checkbox--on"></span>计划执行</span>
+            <span class="perm"><span class="checkbox checkbox--on"></span>需求池维护</span>
+          </div>
+        </div>
+        <div class="perm-group">
+          <div class="perm-group__title">接口测试</div>
+          <div class="perm-list">
+            <span class="perm"><span class="checkbox checkbox--on"></span>快速调试</span>
+            <span class="perm"><span class="checkbox checkbox--on"></span>接口管理</span>
+            <span class="perm"><span class="checkbox checkbox--on"></span>Mock 服务</span>
+            <span class="perm"><span class="checkbox checkbox--on"></span>测试场景</span>
+            <span class="perm"><span class="checkbox checkbox--on"></span>测试报告</span>
+            <span class="perm"><span class="checkbox checkbox--on"></span>定时任务</span>
+            <span class="perm"><span class="checkbox checkbox--on"></span>环境管理</span>
+          </div>
+        </div>
+        <div class="perm-group">
+          <div class="perm-group__title">缺陷管理</div>
+          <div class="perm-list">
+            <span class="perm"><span class="checkbox checkbox--on"></span>缺陷查看</span>
+            <span class="perm"><span class="checkbox checkbox--on"></span>缺陷编辑</span>
+            <span class="perm"><span class="checkbox checkbox--on"></span>缺陷删除</span>
+            <span class="perm"><span class="checkbox" ></span>缺陷导出</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 关联用户 -->
+  <div class="card block-gap">
+    <div class="card__header">
+      <h3 class="card__title">关联用户<span class="card__subtitle">系统管理员 · 3 人</span></h3>
+      <button class="btn btn--default btn--sm"><span data-icon="plus"></span>添加用户</button>
+    </div>
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th>用户</th><th>邮箱</th><th>状态</th><th>加入时间</th><th>操作</th></tr></thead>
+        <tbody>
+          <tr>
+            <td class="flex-center flex-gap-sm"><span class="avatar avatar--sm avatar--brand">张</span><span class="cell-main">张明</span></td>
+            <td class="muted">zhangming@robotest.cn</td>
+            <td><span class="status status--success"><span class="dot"></span>启用</span></td>
+            <td class="num">2026-03-02 09:15</td>
+            <td><span class="op-link op-link--danger">移除角色</span></td>
+          </tr>
+          <tr>
+            <td class="flex-center flex-gap-sm"><span class="avatar avatar--sm">李</span><span class="cell-main">李华</span></td>
+            <td class="muted">lihua@robotest.cn</td>
+            <td><span class="status status--success"><span class="dot"></span>启用</span></td>
+            <td class="num">2026-04-18 14:20</td>
+            <td><span class="op-link op-link--danger">移除角色</span></td>
+          </tr>
+          <tr>
+            <td class="flex-center flex-gap-sm"><span class="avatar avatar--sm">刘</span><span class="cell-main">刘洋</span></td>
+            <td class="muted">liuyang@robotest.cn</td>
+            <td><span class="status status--success"><span class="dot"></span>启用</span></td>
+            <td class="num">2026-07-25 10:08</td>
+            <td><span class="op-link op-link--danger">移除角色</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<script src="../assets/icons.js"></script>
+<script src="../assets/shell.js"></script>
+</body>
+</html>

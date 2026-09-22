@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>空间管理 · 系统管理 · RoboTest</title>
+<link rel="stylesheet" href="../assets/tokens.css">
+<link rel="stylesheet" href="../assets/base.css">
+</head>
+<body data-shell="admin" data-active="workspaces" data-mode="admin">
+
+<main class="content content--admin">
+
+  <div class="page-head">
+    <div>
+      <h1 class="page-head__title">空间管理</h1>
+      <p class="page-head__desc">平台内全部工作空间及其规模</p>
+    </div>
+    <div class="page-head__actions">
+      <button class="btn btn--primary"><span data-icon="plus"></span>新建空间</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="toolbar">
+      <div class="toolbar__filters">
+        <div class="segment">
+          <span class="segment__item segment__item--active">活跃（14）</span>
+          <span class="segment__item">已归档（2）</span>
+        </div>
+        <div class="input-wrap"><span data-icon="search"></span><input class="input" placeholder="空间名称 / 创建人"></div>
+      </div>
+      <div class="toolbar__count">按创建时间倒序</div>
+    </div>
+
+    <div class="table-wrap">
+      <table class="table table--clickable">
+        <thead>
+          <tr><th>空间名称</th><th>描述</th><th>状态</th><th>成员</th><th>项目</th><th>创建时间</th><th>操作</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="cell-main">质量中台</td>
+            <td class="muted">核心业务线质量保障与用例资产沉淀</td>
+            <td><span class="status status--success"><span class="dot"></span>活跃</span></td>
+            <td class="num">24</td><td class="num">6</td>
+            <td class="num">2026-09-18 10:24</td>
+            <td><span class="op-link">详情</span><span class="op-link">编辑</span><span class="op-link op-link--danger">归档</span></td>
+          </tr>
+          <tr>
+            <td class="cell-main">供应链测试组</td>
+            <td class="muted">仓储、履约与结算链路回归</td>
+            <td><span class="status status--success"><span class="dot"></span>活跃</span></td>
+            <td class="num">17</td><td class="num">4</td>
+            <td class="num">2026-09-12 15:02</td>
+            <td><span class="op-link">详情</span><span class="op-link">编辑</span><span class="op-link op-link--danger">归档</span></td>
+          </tr>
+          <tr>
+            <td class="cell-main">数据平台验证</td>
+            <td class="muted">数据仓库与报表准确性验证</td>
+            <td><span class="status status--success"><span class="dot"></span>活跃</span></td>
+            <td class="num">9</td><td class="num">3</td>
+            <td class="num">2026-09-05 09:47</td>
+            <td><span class="op-link">详情</span><span class="op-link">编辑</span><span class="op-link op-link--danger">归档</span></td>
+          </tr>
+          <tr>
+            <td class="cell-main">移动端专项</td>
+            <td class="muted">iOS / Android 客户端兼容性测试</td>
+            <td><span class="status status--success"><span class="dot"></span>活跃</span></td>
+            <td class="num">13</td><td class="num">5</td>
+            <td class="num">2026-08-21 14:11</td>
+            <td><span class="op-link">详情</span><span class="op-link">编辑</span><span class="op-link op-link--danger">归档</span></td>
+          </tr>
+          <tr>
+            <td class="cell-main">开放平台联调</td>
+            <td class="muted">第三方接入与开放 API 验证</td>
+            <td><span class="status status--success"><span class="dot"></span>活跃</span></td>
+            <td class="num">11</td><td class="num">4</td>
+            <td class="num">2026-08-08 16:39</td>
+            <td><span class="op-link">详情</span><span class="op-link">编辑</span><span class="op-link op-link--danger">归档</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="pagination">
+      <span class="pagination__total">共 14 个活跃空间 · 每页 20 条</span>
+      <button class="page-btn page-btn--active">1</button>
+      <button class="page-btn">›</button>
+    </div>
+  </div>
+
+</main>
+
+<script src="../assets/icons.js"></script>
+<script src="../assets/shell.js"></script>
+</body>
+</html>

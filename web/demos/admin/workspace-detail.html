@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>空间详情 · 系统管理 · RoboTest</title>
+<link rel="stylesheet" href="../assets/tokens.css">
+<link rel="stylesheet" href="../assets/base.css">
+</head>
+<body data-shell="admin" data-active="workspaces" data-mode="admin">
+
+<main class="content content--admin">
+
+  <div class="breadcrumb">
+    <a href="workspaces.html">空间管理</a>
+    <span data-icon="chevron-right"></span>
+    <span>质量中台</span>
+  </div>
+
+  <div class="page-head">
+    <div>
+      <div class="flex-center flex-gap-sm">
+        <h1 class="page-head__title">质量中台</h1>
+        <span class="status status--success"><span class="dot"></span>活跃</span>
+      </div>
+      <p class="page-head__desc">空间 ID <span class="mono">ws_8f3a21c4</span> · 创建于 2026-09-18 10:24</p>
+    </div>
+    <div class="page-head__actions">
+      <button class="btn btn--default"><span data-icon="edit"></span>编辑信息</button>
+      <button class="btn btn--danger"><span data-icon="ban"></span>解散空间</button>
+    </div>
+  </div>
+
+  <div class="card-grid card-grid--4">
+    <div class="card kpi"><div class="kpi__label"><span data-icon="userfilled"></span>成员</div><div class="kpi__value">24<span class="unit">人</span></div><div class="kpi__foot">管理员 3 · 成员 21</div></div>
+    <div class="card kpi"><div class="kpi__label"><span data-icon="folder"></span>项目</div><div class="kpi__value">6<span class="unit">个</span></div><div class="kpi__foot">活跃 5 · 归档 1</div></div>
+    <div class="card kpi"><div class="kpi__label"><span data-icon="document"></span>用例总数</div><div class="kpi__value">1,024</div><div class="kpi__foot">本周新增 <span class="kpi__delta kpi__delta--up">+37</span></div></div>
+    <div class="card kpi"><div class="kpi__label"><span data-icon="bug"></span>未关闭缺陷</div><div class="kpi__value">18</div><div class="kpi__foot">致命 1 · 严重 4</div></div>
+  </div>
+
+  <div class="card block-gap">
+    <div class="card__header"><h3 class="card__title">空间信息</h3></div>
+    <div class="card__body">
+      <div class="form-grid">
+        <div class="field"><label class="field__label">空间名称</label><input class="input" value="质量中台"></div>
+        <div class="field"><label class="field__label">创建人</label><input class="input" value="张明" disabled></div>
+      </div>
+      <div class="field"><label class="field__label">描述</label><textarea class="textarea" style="min-height:72px">核心业务线质量保障与用例资产沉淀，覆盖电商主链路的回归与专项测试。</textarea></div>
+      <div class="flex-center flex-gap-md" style="justify-content:flex-end;margin-bottom:0">
+        <button class="btn btn--text">重置</button>
+        <button class="btn btn--primary">保存修改</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card block-gap">
+    <div class="card__header">
+      <h3 class="card__title">成员列表<span class="card__subtitle">24 人</span></h3>
+      <button class="btn btn--default btn--sm"><span data-icon="plus"></span>添加用户</button>
+    </div>
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th>用户</th><th>空间角色</th><th>加入时间</th><th>操作</th></tr></thead>
+        <tbody>
+          <tr>
+            <td class="flex-center flex-gap-sm"><span class="avatar avatar--sm avatar--brand">张</span><span class="cell-main">张明</span></td>
+            <td><span class="tag tag--info">空间管理员</span></td>
+            <td class="num">2026-09-18 10:24</td>
+            <td><span class="op-link op-link--muted">不可移除</span></td>
+          </tr>
+          <tr>
+            <td class="flex-center flex-gap-sm"><span class="avatar avatar--sm">李</span><span class="cell-main">李华</span></td>
+            <td><span class="tag tag--info">空间管理员</span></td>
+            <td class="num">2026-09-18 10:31</td>
+            <td><span class="op-link">改角色</span><span class="op-link op-link--danger">移除</span></td>
+          </tr>
+          <tr>
+            <td class="flex-center flex-gap-sm"><span class="avatar avatar--sm">王</span><span class="cell-main">王芳</span></td>
+            <td><span class="tag tag--outline">测试工程师</span></td>
+            <td class="num">2026-09-18 14:02</td>
+            <td><span class="op-link">改角色</span><span class="op-link op-link--danger">移除</span></td>
+          </tr>
+          <tr>
+            <td class="flex-center flex-gap-sm"><span class="avatar avatar--sm">陈</span><span class="cell-main">陈强</span></td>
+            <td><span class="tag tag--outline">只读成员</span></td>
+            <td class="num">2026-09-19 09:15</td>
+            <td><span class="op-link">改角色</span><span class="op-link op-link--danger">移除</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="pagination"><span class="pagination__total">共 24 人</span>
+      <button class="page-btn page-btn--active">1</button><button class="page-btn">2</button><button class="page-btn">›</button>
+    </div>
+  </div>
+
+</main>
+
+<script src="../assets/icons.js"></script>
+<script src="../assets/shell.js"></script>
+</body>
+</html>
