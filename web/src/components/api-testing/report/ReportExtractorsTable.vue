@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { ApiReportExtractor } from '@/types'
-import { useReportDisplay } from '@/composables/useReportDisplay'
+import { useReportDisplay } from '@/composables/project/api-testing/report/useReportDisplay'
 
 defineProps<{ extractors: ApiReportExtractor[] }>()
 

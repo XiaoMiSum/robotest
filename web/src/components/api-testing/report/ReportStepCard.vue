@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useReportStepCard } from '@/composables/useReportStepCard'
+import { useReportStepCard } from '@/composables/project/api-testing/report/useReportStepCard'
 import type { ApiReportStepResult } from '@/types'
 import ReportStepAssertions from './ReportStepAssertions.vue'
 import ReportStepExtractors from './ReportStepExtractors.vue'

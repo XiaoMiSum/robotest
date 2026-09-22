@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, watch } from 'vue'
-import { useAiConfigPage } from '@/composables/useAiConfigPage'
-import { useAiChatModels } from '@/composables/useAiChatModels'
+import { useAiConfigPage } from '@/composables/ai/useAiConfigPage'
+import { useAiChatModels } from '@/composables/ai/useAiChatModels'
 import AiAgentsTab from '@/components/admin/AiAgentsTab.vue'
 import AiMasterSwitchCard from '@/components/admin/AiMasterSwitchCard.vue'
 import AiChatModelTable from '@/components/admin/AiChatModelTable.vue'

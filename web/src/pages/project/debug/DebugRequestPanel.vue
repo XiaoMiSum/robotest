@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { DebugTab } from '@/types'
-import { useDebugRequestPanel } from '@/composables/useDebugRequestPanel'
+import { useDebugRequestPanel } from '@/composables/project/api-testing/debug/useDebugRequestPanel'
 import KeyValueTable from './KeyValueTable.vue'
 
 const tab = defineModel<DebugTab>('tab', { required: true })

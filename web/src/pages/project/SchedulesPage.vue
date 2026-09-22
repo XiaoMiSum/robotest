@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import ScenePickerDialog from '@/components/project/ScenePickerDialog.vue'
-import { useSchedules } from '@/composables/useSchedules'
+import { useSchedules } from '@/composables/project/api-testing/schedule/useSchedules'
 import type { ApiSchedulePageItem } from '@/types'
 
 const {

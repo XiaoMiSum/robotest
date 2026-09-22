@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { MagicStick } from '@element-plus/icons-vue'
-import { useBugCluster } from '@/composables/useBugCluster'
+import { useBugCluster } from '@/composables/project/bug/useBugCluster'
 import { formatDateTime, formatShortId } from '@/utils/format'
 import BugClusterChart from './BugClusterChart.vue'
 

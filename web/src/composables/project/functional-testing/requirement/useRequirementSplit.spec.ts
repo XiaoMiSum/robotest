@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { UseAiStreamOptions } from '@/composables/useAiStream'
+import type { UseAiStreamOptions } from '@/composables/ai/useAiStream'
 import type { AiRequirementSplitResult } from '@/types'
 
 const mocks = vi.hoisted(() => {
@@ -17,7 +17,7 @@ vi.mock('element-plus', () => ({
   ElMessage: mocks.ElMessage,
 }))
 
-vi.mock('@/composables/useAiStream', () => ({
+vi.mock('@/composables/ai/useAiStream', () => ({
   useAiStream: mocks.useAiStream,
 }))
 

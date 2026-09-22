@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useBugDetail } from '@/composables/useBugDetail'
+import { useBugDetail } from '@/composables/project/bug/useBugDetail'
 import { formatDateTime, formatShortId } from '@/utils/format'
 import BugResolveDialog from '@/components/project/BugResolveDialog.vue'
 import BugSidebar from '@/components/project/BugSidebar.vue'

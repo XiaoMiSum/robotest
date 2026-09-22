@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useDebugPage } from '@/composables/useDebugPage'
+import { useDebugPage } from '@/composables/project/api-testing/debug/useDebugPage'
 import DebugRequestPanel from './debug/DebugRequestPanel.vue'
 import DebugResponseViewer from './debug/DebugResponseViewer.vue'
 import DebugHistoryView from './debug/DebugHistoryView.vue'

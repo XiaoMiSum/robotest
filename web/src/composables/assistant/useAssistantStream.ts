@@ -1,4 +1,4 @@
-import { useAiStream, type AiStreamController, type AiStreamEvent } from './useAiStream'
+import { useAiStream, type AiStreamController, type AiStreamEvent } from '@/composables/ai/useAiStream'
 import type {
   AiConfirmRequiredEvent,
   AiDeltaEvent,

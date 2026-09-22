@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { ApiProcessor, ApiProcessorType } from '@/types'
-import type { HttpConfigForm, DsForm } from '@/composables/useEnvironmentConfig'
+import type { HttpConfigForm, DsForm } from '@/composables/project/api-testing/environment/useEnvironmentConfig'
 import ProcessorForm from '@/components/api-testing/ProcessorForm.vue'
 
 defineProps<{

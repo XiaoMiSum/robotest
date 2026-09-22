@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { ApiReportAssertion } from '@/types'
-import { useReportDisplay } from '@/composables/useReportDisplay'
+import { useReportDisplay } from '@/composables/project/api-testing/report/useReportDisplay'
 
 defineProps<{ assertions: ApiReportAssertion[] }>()
 

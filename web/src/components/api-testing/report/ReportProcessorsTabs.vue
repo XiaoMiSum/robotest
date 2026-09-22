@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { ApiReportStepResult } from '@/types'
-import { useReportProcessors } from '@/composables/useReportProcessors'
+import { useReportProcessors } from '@/composables/project/api-testing/report/useReportProcessors'
 import ReportProcCard from './ReportProcCard.vue'
 
 const props = defineProps<{
