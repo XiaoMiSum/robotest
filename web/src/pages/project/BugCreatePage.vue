@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useBugCreate } from '@/composables/useBugCreate'
+import { useBugCreate } from '@/composables/project/bug/useBugCreate'
 import CaseSelector from '@/components/project/CaseSelector.vue'
 import MarkdownEditor from '@/components/common/MarkdownEditor.vue'
 import BugAiSuggest from '@/components/project/BugAiSuggest.vue'

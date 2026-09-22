@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useRoute } from 'vue-router'
-import { usePlanDetail } from '@/composables/usePlanDetail'
+import { usePlanDetail } from '@/composables/project/functional-testing/plan/usePlanDetail'
 import { MagicStick } from '@element-plus/icons-vue'
 
 const route = useRoute()

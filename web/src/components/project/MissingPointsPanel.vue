@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import RequirementSelector from '@/components/project/RequirementSelector.vue'
-import { useMissingPointsPanel } from '@/composables/useMissingPointsPanel'
+import { useMissingPointsPanel } from '@/composables/project/functional-testing/case/useMissingPointsPanel'
 import { MagicStick, Close } from '@element-plus/icons-vue'
 
 const props = defineProps<{ docId: string }>()

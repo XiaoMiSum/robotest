@@ -34,11 +34,11 @@ vi.mock('@/stores/assistantContext', () => ({
   useAssistantContextStore: mocks.useAssistantContextStore,
 }))
 
-vi.mock('@/composables/useAssistantStream', () => ({
+vi.mock('@/composables/assistant/useAssistantStream', () => ({
   useAssistantStream: mocks.useAssistantStream,
 }))
 
-vi.mock('@/composables/useConversationList', () => ({
+vi.mock('@/composables/assistant/useConversationList', () => ({
   useConversationList: mocks.useConversationList,
 }))
 

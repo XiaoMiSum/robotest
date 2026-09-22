@@ -5,7 +5,7 @@ import { formatShortDateTime, formatShortId, truncateText } from '@/utils/format
 import type { BugListItem, BugResolution, BugStatus, BugType } from '@/types'
 import BugClusterPanel from '@/components/project/BugClusterPanel.vue'
 import BugResolveDialog from '@/components/project/BugResolveDialog.vue'
-import { useBugList } from '@/composables/useBugList'
+import { useBugList } from '@/composables/project/bug/useBugList'
 import { useAiStore } from '@/stores/ai'
 import { computed } from 'vue'
 

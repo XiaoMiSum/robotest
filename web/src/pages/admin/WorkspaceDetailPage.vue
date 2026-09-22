@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useWorkspaceDetail } from '@/composables/useWorkspaceDetail'
+import { useWorkspaceDetail } from '@/composables/admin/useWorkspaceDetail'
 import type { WorkspaceMember } from '@/types'
 import { formatDateTime } from '@/utils/format'
 

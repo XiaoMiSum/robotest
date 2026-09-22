@@ -2,7 +2,7 @@
 import MarkdownView from '@/components/common/MarkdownView.vue'
 import AssistantIcon from './AssistantIcons.vue'
 import DslPreviewDialog from './DslPreviewDialog.vue'
-import { useMessageItem, type AssistantMessageItem } from '@/composables/useMessageItem'
+import { useMessageItem, type AssistantMessageItem } from '@/composables/assistant/useMessageItem'
 
 export type { AssistantMessageItem }
 

@@ -3,7 +3,7 @@ import { onBeforeUnmount, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import RequirementSelector from '@/components/project/RequirementSelector.vue'
 import { getDocumentRequirements } from '@/services/project'
-import { type AiStreamController, useAiStream } from '@/composables/useAiStream'
+import { type AiStreamController, useAiStream } from '@/composables/ai/useAiStream'
 import { useAiStore } from '@/stores/ai'
 import type { AiCaseGenerateResult, AiGeneratedNode, RequirementSummary } from '@/types'
 import {

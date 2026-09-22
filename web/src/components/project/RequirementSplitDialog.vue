@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useRequirementSplit } from '@/composables/useRequirementSplit'
+import { useRequirementSplit } from '@/composables/project/functional-testing/requirement/useRequirementSplit'
 import AiModelSelect from '@/components/common/AiModelSelect.vue'
 import MarkdownEditor from '@/components/common/MarkdownEditor.vue'
 

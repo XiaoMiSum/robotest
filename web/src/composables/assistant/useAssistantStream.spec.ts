@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import type { AiStreamEvent } from './useAiStream'
+import type { AiStreamEvent } from '@/composables/ai/useAiStream'
 import {
   parseConfirmRequiredEvent,
   parseDeltaEvent,
@@ -30,7 +30,7 @@ const { captured, useAiStreamMock } = vi.hoisted(() => {
   }
 })
 
-vi.mock('./useAiStream', () => ({ useAiStream: useAiStreamMock }))
+vi.mock('@/composables/ai/useAiStream', () => ({ useAiStream: useAiStreamMock }))
 
 describe('useAssistantStream 事件分发（多事件解析）', () => {
   function setup() {

@@ -1,5 +1,5 @@
 ﻿<script setup lang="ts">
-import { useEnvironmentDetailState } from '@/composables/useEnvironmentDetailState'
+import { useEnvironmentDetailState } from '@/composables/project/api-testing/environment/useEnvironmentDetailState'
 import KeyValueTable from './debug/KeyValueTable.vue'
 import ExtractorAssetPicker from '@/components/api-testing/ExtractorAssetPicker.vue'
 import EnvironmentProcessorPane from './EnvironmentProcessorPane.vue'
