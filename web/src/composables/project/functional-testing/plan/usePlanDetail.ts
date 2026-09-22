@@ -18,8 +18,6 @@ import type {
   TestPlanDetail,
   TestPlanProgress,
 } from '@/types'
-import PlanMindMap from '@/components/project/functional-testing/plan/PlanMindMap.vue'
-import PlanOrderRecommend from '@/components/project/functional-testing/plan/PlanOrderRecommend.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useAiStore } from '@/stores/ai'
 
@@ -55,6 +53,21 @@ export interface UsePlanDetailOptions {
 
 // ==================== Composable ====================
 
+// 以 expose 契约替代组件类型导入，避免组合式函数反向依赖 components
+interface PlanMindMapRef {
+  openBug: (bugId: string) => void
+  reload: () => Promise<void>
+  setOrderBadges: (items: AiPlanOrderRecommendItem[]) => void
+  locateNode: (snapshotNodeId: string) => boolean
+}
+interface PlanOrderRecommendRef {
+  compute: () => Promise<void>
+  load: () => Promise<void>
+  scrollToOrder: (order: number) => void
+  hasResult: boolean
+  computing: boolean
+}
+
 export function usePlanDetail(options: UsePlanDetailOptions) {
   const { planId } = options
   const router = useRouter()
@@ -65,12 +78,12 @@ export function usePlanDetail(options: UsePlanDetailOptions) {
   const loading = ref(false)
   const detail = ref<TestPlanDetail | null>(null)
   const progress = ref<TestPlanProgress | null>(null)
-  const mindMapRef = ref<InstanceType<typeof PlanMindMap>>()
+  const mindMapRef = ref<PlanMindMapRef>()
   const moduleTree = ref<SnapshotModule[]>([])
   const selectedDocId = ref('')
 
   const activeTab = ref<'records' | 'order'>('records')
-  const orderPanelRef = ref<InstanceType<typeof PlanOrderRecommend>>()
+  const orderPanelRef = ref<PlanOrderRecommendRef>()
 
   const canShowOrder = computed(
     () => aiStore.aiEnabled && detail.value?.executor?.id === authStore.user?.id,

@@ -75,8 +75,8 @@
 <script setup lang="ts">
 import { computed, reactive, watch } from 'vue'
 import { Delete } from '@element-plus/icons-vue'
-import { parseProcessorElement, toProcessorElement } from './processorFormModel'
-import type { ProcessorElementForm, ProcessorExtractor } from './processorFormModel'
+import { parseProcessorElement, toProcessorElement } from '@/composables/project/api-testing/processorFormModel'
+import type { ProcessorElementForm, ProcessorExtractor } from '@/composables/project/api-testing/processorFormModel'
 import RequestConfigEditor from '@/components/project/api-testing/RequestConfigEditor.vue'
 import ValidatorsExtractorsPanes from '@/components/project/api-testing/ValidatorsExtractorsPanes.vue'
 

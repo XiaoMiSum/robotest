@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { ConfirmCardState } from '@/components/assistant/assistantConfirm'
+import type { ConfirmCardState } from '@/composables/assistant/assistantConfirm'
 
 const mocks = vi.hoisted(() => ({
   filterAssistantLinks: vi.fn<(markdown: string) => string>(),
@@ -27,7 +27,7 @@ vi.mock('@/stores/auth', () => ({
   useAuthStore: mocks.useAuthStore,
 }))
 
-vi.mock('@/components/assistant/assistantConfirm', () => ({
+vi.mock('@/composables/assistant/assistantConfirm', () => ({
   resolveConfirmStatus: mocks.resolveConfirmStatus,
   formatCountdown: mocks.formatCountdown,
   remainingMs: mocks.remainingMs,

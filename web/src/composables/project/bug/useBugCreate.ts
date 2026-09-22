@@ -14,8 +14,12 @@ import type {
   WorkspaceMember,
 } from '@/types'
 import { BUG_STATUS_LABEL, BUG_STATUS_TAG_TYPE, BUG_TYPE_LABEL } from '@/composables/project/bug/bugStatus'
-import BugAiSuggest from '@/components/project/bug/BugAiSuggest.vue'
 
+// 以 expose 契约替代组件类型导入，避免组合式函数反向依赖 components
+interface BugAiSuggestRef {
+  requestSuggestion: () => Promise<void>
+  loading: boolean
+}
 // ==================== Constants ====================
 
 const severityLabel: Record<BugSeverity, string> = { fatal: '致命', serious: '严重', general: '一般', minor: '轻微' }
@@ -32,7 +36,7 @@ export function useBugCreate() {
   const aiEnabled = aiStore.aiEnabled
   const formRef = ref<FormInstance>()
   const submitting = ref(false)
-  const aiSuggestRef = ref<InstanceType<typeof BugAiSuggest>>()
+  const aiSuggestRef = ref<BugAiSuggestRef>()
 
   const dedupItems = ref<AiBugDedupItem[]>([])
   const dedupConfirmVisible = ref(false)

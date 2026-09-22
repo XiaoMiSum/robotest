@@ -1,6 +1,6 @@
 import { ref, watch, computed, type Ref } from 'vue'
 import type { ApiSceneDetail, ApiHttpConfig, ApiDataSource } from '@/types'
-import { isRecord, processorSummaryTag } from '@/components/project/api-testing/processorFormModel'
+import { isRecord, processorSummaryTag } from '@/composables/project/api-testing/processorFormModel'
 
 export type SceneProcessorElement = Record<string, unknown> & {
   name?: string

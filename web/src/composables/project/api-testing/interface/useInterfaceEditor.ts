@@ -20,7 +20,7 @@ import {
 import {
   extractorFromComponent,
   validatorFromComponent,
-} from '@/components/project/api-testing/processorFormModel'
+} from '@/composables/project/api-testing/processorFormModel'
 import type { PaneValidatorItem, PaneExtractorItem } from '@/composables/project/api-testing/scene/scenesModel'
 
 // ==================== Constants ====================
