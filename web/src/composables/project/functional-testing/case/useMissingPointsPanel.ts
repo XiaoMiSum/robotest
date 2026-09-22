@@ -9,7 +9,7 @@ import {
   collectDocumentOptions,
   pickPreselectDocument,
   type MissingPointDocumentOption,
-} from '@/components/project/missingPoints'
+} from '@/components/project/functional-testing/case/missingPoints'
 
 export function useMissingPointsPanel(docId: () => string, visible: Ref<boolean>) {
   const router = useRouter()

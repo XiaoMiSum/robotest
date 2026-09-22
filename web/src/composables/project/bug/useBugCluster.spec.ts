@@ -38,7 +38,7 @@ vi.mock('@/stores/ai', () => ({
   useAiStore: mocks.useAiStore,
 }))
 
-vi.mock('@/components/project/bugClusterChart', () => ({
+vi.mock('@/components/project/bug/bugClusterChart', () => ({
   buildModuleBars: mocks.buildModuleBars,
   buildSeveritySegments: mocks.buildSeveritySegments,
 }))

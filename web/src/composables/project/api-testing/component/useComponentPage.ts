@@ -33,7 +33,7 @@ import {
   defaultComponentConfig,
   extractorsFromComponents,
   type ProcessorExtractor,
-} from '@/components/api-testing/processorFormModel'
+} from '@/components/project/api-testing/processorFormModel'
 
 export function useComponentPage() {
   const authStore = useAuthStore()

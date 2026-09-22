@@ -2,7 +2,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { ElMessage, ElTree } from 'element-plus'
 import { fetchDocumentNodes, fetchProjectModuleTree } from '@/services/project'
-import CaseSelectTree from '@/components/project/CaseSelectTree.vue'
+import CaseSelectTree from '@/components/project/functional-testing/case/CaseSelectTree.vue'
 import type { ProjectModule, TestCaseNode } from '@/types'
 
 const props = defineProps<{

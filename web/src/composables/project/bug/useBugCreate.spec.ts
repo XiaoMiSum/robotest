@@ -41,7 +41,7 @@ vi.mock('vue-router', () => ({
   useRouter: mocks.useRouter,
 }))
 
-vi.mock('@/components/project/BugAiSuggest.vue', () => ({
+vi.mock('@/components/project/bug/BugAiSuggest.vue', () => ({
   default: { name: 'BugAiSuggest' },
 }))
 

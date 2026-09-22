@@ -11,7 +11,7 @@ const props = defineProps<{ message: AssistantMessageItem }>()
 const emit = defineEmits<{
   confirm: [confirmToken: string]
   cancel: [confirmToken: string]
-  confirmDsl: [plan: import('@/components/project/minder/ai/dslRunner').DslPlan]
+  confirmDsl: [plan: import('@/components/project/functional-testing/minder/ai/dslRunner').DslPlan]
   cancelDsl: []
 }>()
 

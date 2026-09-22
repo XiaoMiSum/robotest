@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onBeforeUnmount, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
-import RequirementSelector from '@/components/project/RequirementSelector.vue'
+import RequirementSelector from '@/components/project/functional-testing/requirement/RequirementSelector.vue'
 import { getDocumentRequirements } from '@/services/project'
 import { type AiStreamController, useAiStream } from '@/composables/ai/useAiStream'
 import { useAiStore } from '@/stores/ai'

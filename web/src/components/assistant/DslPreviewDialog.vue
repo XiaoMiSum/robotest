@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { AiPriority } from '@/types'
-import { TYPE_LABELS, type DslPlan } from '@/components/project/minder/ai/dslRunner'
+import { TYPE_LABELS, type DslPlan } from '@/components/project/functional-testing/minder/ai/dslRunner'
 
 /**
  * 命中预览确认弹窗（全局智能助手交互设计 6.2）：

@@ -6,7 +6,7 @@ import { completeReview, createReview, deleteReview, fetchReviews } from '@/serv
 import { fetchMembers } from '@/services/workspace'
 import type { ReviewStatus, TestReviewListItem, WorkspaceMember } from '@/types'
 import { formatDateTime } from '@/utils/format'
-import CaseSelector from '@/components/project/CaseSelector.vue'
+import CaseSelector from '@/components/project/functional-testing/case/CaseSelector.vue'
 
 const router = useRouter()
 const loading = ref(false)

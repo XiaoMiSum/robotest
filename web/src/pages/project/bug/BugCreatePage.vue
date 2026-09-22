@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { useBugCreate } from '@/composables/project/bug/useBugCreate'
-import CaseSelector from '@/components/project/CaseSelector.vue'
+import CaseSelector from '@/components/project/functional-testing/case/CaseSelector.vue'
 import MarkdownEditor from '@/components/common/MarkdownEditor.vue'
-import BugAiSuggest from '@/components/project/BugAiSuggest.vue'
+import BugAiSuggest from '@/components/project/bug/BugAiSuggest.vue'
 
 const {
   aiEnabled,

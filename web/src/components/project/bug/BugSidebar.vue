@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { formatDateTime } from '@/utils/format'
 import type { BugDetail, ProjectModule, TestCaseNode, TestPlanListItem, WorkspaceMember } from '@/types'
-import type { Badge } from '@/components/project/minder/badges'
+import type { Badge } from '@/components/project/functional-testing/minder/badges'
 
 export interface BugSidebarForm {
   severity: string
