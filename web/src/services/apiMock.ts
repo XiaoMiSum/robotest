@@ -1,4 +1,4 @@
-import api from '@/services'
+import { get, post, put, patch, del } from '@/services'
 import type {
   ApiMockAddress,
   ApiMockBatchTogglePayload,
@@ -10,19 +10,6 @@ import type {
   ApiMockSavePayload,
   PageResult,
 } from '@/types'
-
-function get<T>(url: string, params?: Record<string, unknown>): Promise<T> {
-  return api.get(url, { params }) as unknown as Promise<T>
-}
-function post<T>(url: string, data?: unknown): Promise<T> {
-  return api.post(url, data) as unknown as Promise<T>
-}
-function put<T>(url: string, data?: unknown): Promise<T> {
-  return api.put(url, data) as unknown as Promise<T>
-}
-function del<T>(url: string): Promise<T> {
-  return api.delete(url) as unknown as Promise<T>
-}
 
 // ==================== Mock 管理（3.1） ====================
 
@@ -53,7 +40,7 @@ export function updateMock(id: string, req: ApiMockSavePayload): Promise<boolean
 }
 
 export function toggleMock(id: string, enabled: boolean): Promise<boolean> {
-  return api.patch(`/project/mocks/${id}/toggle`, { enabled }) as unknown as Promise<boolean>
+  return patch(`/project/mocks/${id}/toggle`, { enabled })
 }
 
 export function batchToggleMocks(req: ApiMockBatchTogglePayload): Promise<ApiMockBatchToggleResponse> {

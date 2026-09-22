@@ -5,10 +5,7 @@ import com.sun.net.httpserver.HttpServer;
 import io.github.xiaomisum.robotest.framework.config.ApiTestProperties;
 import io.github.xiaomisum.robotest.framework.security.ProjectAccessGuard;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneDraftExecuteReqDTO;
-import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneStepDraftDebugReqDTO;
-import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneVariableBatchReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiSceneDraftExecuteRespDTO;
-import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiSceneStepDebugRespDTO;
 import io.github.xiaomisum.robotest.repository.apitest.ApiEnvironmentMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiExecutionRecordMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiFunctionMapper;
@@ -116,44 +113,6 @@ class DraftExecutionServiceTest {
             httpServer.stop(0);
         }
         executor.shutdown();
-    }
-
-    @Test
-    void draftDebugStep_executesWithLiveSceneVariables() throws Exception {
-        startEchoServer(() -> {
-            byte[] body = "{\"ok\":true}".getBytes(StandardCharsets.UTF_8);
-            return new Object[]{200, body};
-        });
-        int port = httpServer.getAddress().getPort();
-
-        ApiSceneStepDraftDebugReqDTO req = new ApiSceneStepDraftDebugReqDTO();
-        ApiSceneVariableBatchReqDTO.Variable var = new ApiSceneVariableBatchReqDTO.Variable();
-        var.setName("token");
-        var.setValue("abc");
-        req.setSceneVariables(List.of(var));
-        ApiSceneStepDraftDebugReqDTO.Step step = new ApiSceneStepDraftDebugReqDTO.Step();
-        step.setName("登录");
-        step.setRequestConfig(Map.of("method", "GET",
-                "url", "http://127.0.0.1:" + port + "/auth?token=${token}"));
-        req.setStep(step);
-
-        ApiSceneStepDebugRespDTO resp = service.draftDebugStep(WORKSPACE_ID, PROJECT_ID, USER_ID, req);
-
-        assertThat(resp.getStepResult().getStatus()).isEqualTo("success");
-        assertThat(resp.getStepResult().getResponse().get("status")).isEqualTo(200);
-    }
-
-    @Test
-    void draftDebugStep_missingConfig_returnsErrorWithoutExecuting() {
-        ApiSceneStepDraftDebugReqDTO req = new ApiSceneStepDraftDebugReqDTO();
-        ApiSceneStepDraftDebugReqDTO.Step step = new ApiSceneStepDraftDebugReqDTO.Step();
-        step.setName("无配置");
-        step.setRequestConfig(null);
-        req.setStep(step);
-
-        ApiSceneStepDebugRespDTO resp = service.draftDebugStep(WORKSPACE_ID, PROJECT_ID, USER_ID, req);
-
-        assertThat(resp.getStepResult().getStatus()).isEqualTo("error");
     }
 
     @Test

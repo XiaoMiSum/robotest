@@ -6,7 +6,6 @@ import io.github.xiaomisum.robotest.framework.security.ProjectAccessGuard;
 import io.github.xiaomisum.robotest.model.dto.response.bug.BugDetailRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.bug.BugListRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.bug.BugLogRespDTO;
-import io.github.xiaomisum.robotest.model.dto.response.bug.BugStatisticsRespDTO;
 import io.github.xiaomisum.robotest.model.entity.admin.SysUser;
 import io.github.xiaomisum.robotest.model.entity.bug.Bug;
 import io.github.xiaomisum.robotest.model.entity.bug.BugLog;
@@ -17,7 +16,6 @@ import io.github.xiaomisum.robotest.repository.bug.BugMapper;
 import io.github.xiaomisum.robotest.repository.tcase.ProjectModuleMapper;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
-import org.springframework.util.StringUtils;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
 import xyz.migoo.framework.common.pojo.PageParam;
 import xyz.migoo.framework.common.pojo.PageResult;
@@ -121,31 +119,6 @@ public class BugQueryServiceImpl implements BugQueryService {
         }).collect(Collectors.toList()));
 
         return dto;
-    }
-
-    @Override
-    public BugStatisticsRespDTO getBugStatistics(UUID projectId, UUID userId) {
-        projectAccessGuard.requireProjectMember(projectId, userId);
-        List<Bug> bugs = bugMapper.findByProjectId(projectId);
-
-        BugStatisticsRespDTO stats = new BugStatisticsRespDTO();
-        stats.setTotal(bugs.size());
-        stats.setByStatus(bugs.stream()
-                .filter(b -> StringUtils.hasText(b.getStatus()))
-                .collect(Collectors.groupingBy(Bug::getStatus, Collectors.counting())));
-        stats.setBySeverity(bugs.stream()
-                .filter(b -> StringUtils.hasText(b.getSeverity()))
-                .collect(Collectors.groupingBy(Bug::getSeverity, Collectors.counting())));
-        stats.setByPriority(bugs.stream()
-                .filter(b -> StringUtils.hasText(b.getPriority()))
-                .collect(Collectors.groupingBy(Bug::getPriority, Collectors.counting())));
-        stats.setByAssignee(bugs.stream()
-                .filter(b -> b.getAssigneeId() != null)
-                .collect(Collectors.groupingBy(Bug::getAssigneeId, Collectors.counting())));
-        stats.setByReporter(bugs.stream()
-                .filter(b -> b.getReporterId() != null)
-                .collect(Collectors.groupingBy(Bug::getReporterId, Collectors.counting())));
-        return stats;
     }
 
     @Override

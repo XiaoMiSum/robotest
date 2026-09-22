@@ -5,7 +5,11 @@ import io.github.xiaomisum.robotest.framework.interceptor.WorkspaceRoleIntercept
 import jakarta.annotation.Resource;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
+import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+import org.springframework.web.servlet.resource.PathResourceResolver;
+
+import java.io.IOException;
 
 @Configuration
 public class WebMvcConfig implements WebMvcConfigurer {
@@ -17,7 +21,6 @@ public class WebMvcConfig implements WebMvcConfigurer {
 
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
-        // C4 单点（02 §3.1.1）：先解析上下文头注入 LoginUser，WorkspaceRoleInterceptor 不再自读头
         registry.addInterceptor(contextHeaderInterceptor)
                 .addPathPatterns("/api/workspace/**", "/api/project/**", "/api/auth/permissions")
                 .excludePathPatterns(
@@ -46,5 +49,28 @@ public class WebMvcConfig implements WebMvcConfigurer {
                         "/ws/**",
                         "/debug/**"
                 );
+    }
+
+    @Override
+    public void addResourceHandlers(ResourceHandlerRegistry registry) {
+        // OpenAPI 端点：先注册，防止被静态资源处理器拦截
+        registry.addResourceHandler("/v3/api-docs/**")
+                .addResourceLocations("classpath:/META-INF/resources/webjars/springdoc-openapi-ui/")
+                .resourceChain(false);
+
+        // 静态资源：排除 OpenAPI 路径
+        registry.addResourceHandler("/**")
+                .addResourceLocations("classpath:/static/")
+                .resourceChain(true)
+                .addResolver(new PathResourceResolver() {
+                    @Override
+                    protected org.springframework.core.io.Resource getResource(
+                            String resourcePath, org.springframework.core.io.Resource location) throws IOException {
+                        if (resourcePath.startsWith("v3/api-docs")) {
+                            return null;
+                        }
+                        return super.getResource(resourcePath, location);
+                    }
+                });
     }
 }

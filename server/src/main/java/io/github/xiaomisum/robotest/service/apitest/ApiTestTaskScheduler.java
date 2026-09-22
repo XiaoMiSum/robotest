@@ -24,6 +24,11 @@ import java.util.concurrent.TimeUnit;
  * JVM 内分钟级 Cron 调度器（定时任务详细设计 4.1）：
  * 启动加载 enabled 任务注册一次性延迟触发，触发后重算下次时间续订；
  * 多实例部署下各实例均会触发，任务级 running 跳过语义保证不重复执行。
+ *
+ * <p><b>单实例内存态约束（总体重构计划 R5）：</b>
+ * {@code registrations} 为 JVM 内定时器注册表，仅对当前实例有效。
+ * 多实例部署时各实例独立调度，通过任务级 {@code lastExecutionStatus='running'} 跳过保证幂等，
+ * 不提供跨实例调度协调。
  */
 @Component
 public class ApiTestTaskScheduler {

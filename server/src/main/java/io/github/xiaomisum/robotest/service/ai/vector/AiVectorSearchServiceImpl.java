@@ -307,8 +307,7 @@ public class AiVectorSearchServiceImpl implements AiVectorSearchService {
         caseEmbeddingMapper.upsert(entity);
     }
 
-    @Override
-    public String vectorToText(float[] vector) {
+    private String vectorToText(float[] vector) {
         StringBuilder sb = new StringBuilder("[");
         for (int i = 0; i < vector.length; i++) {
             if (i > 0) {

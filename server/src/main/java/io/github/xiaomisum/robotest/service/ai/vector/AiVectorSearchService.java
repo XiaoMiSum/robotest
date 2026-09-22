@@ -104,11 +104,6 @@ public interface AiVectorSearchService {
     void upsertCase(UUID nodeId, UUID projectId, float[] vector, String sourceHash);
 
     /**
-     * float[] → pgvector 文本字面量（float → double 精确转文本，保证 float4 回读一致）
-     */
-    String vectorToText(float[] vector);
-
-    /**
      * 当前配置的向量维度；未配置返回 0
      */
     int configuredEmbeddingDimension();

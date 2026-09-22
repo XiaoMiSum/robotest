@@ -1,4 +1,4 @@
-import api from '@/services'
+import api, { get, post, put, del } from '@/services'
 import type {
   ApiBuiltinFunctionGroup,
   ApiCustomFunctionDetail,
@@ -9,20 +9,9 @@ import type {
   ApiFunctionScope,
 } from '@/types'
 
-function get<T>(url: string, params?: Record<string, unknown>): Promise<T> {
-  return api.get(url, { params }) as unknown as Promise<T>
-}
-function post<T>(url: string, data?: unknown): Promise<T> {
-  return api.post(url, data) as unknown as Promise<T>
-}
-function put<T>(url: string, data?: unknown): Promise<T> {
-  return api.put(url, data) as unknown as Promise<T>
-}
-function patch<T>(url: string, params?: Record<string, unknown>): Promise<T> {
+/** PATCH with query params（无 body）— apiFunction 特殊语义 */
+function patchWithParams<T>(url: string, params?: Record<string, unknown>): Promise<T> {
   return api.patch(url, null, { params }) as unknown as Promise<T>
-}
-function del<T>(url: string): Promise<T> {
-  return api.delete(url) as unknown as Promise<T>
 }
 
 // ==================== 内置函数目录 ====================
@@ -62,7 +51,7 @@ export function updateCustomFunction(id: string, data: ApiCustomFunctionSaveReq)
 }
 
 export function toggleCustomFunction(id: string, enabled: boolean): Promise<boolean> {
-  return patch(`/project/functions/custom-functions/${id}/toggle`, { enabled: String(enabled) })
+  return patchWithParams(`/project/functions/custom-functions/${id}/toggle`, { enabled: String(enabled) })
 }
 
 export function deleteCustomFunction(id: string): Promise<boolean> {

@@ -57,13 +57,6 @@ public class AiConversationController {
         return Result.ok();
     }
 
-    @DeleteMapping
-    public Result<Void> clearConversations(
-            @AuthenticationPrincipal LoginUser loginUser) {
-        aiConversationService.clearConversations(loginUser.getId(), loginUser.getActiveWorkspaceId());
-        return Result.ok();
-    }
-
     @GetMapping("/{id}/messages")
     public Result<List<AiMessageRespDTO>> listMessages(
             @AuthenticationPrincipal LoginUser loginUser,

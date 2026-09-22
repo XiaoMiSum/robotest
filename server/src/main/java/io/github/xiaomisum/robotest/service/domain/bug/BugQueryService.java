@@ -3,8 +3,6 @@ package io.github.xiaomisum.robotest.service.domain.bug;
 import io.github.xiaomisum.robotest.model.dto.response.bug.BugDetailRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.bug.BugListRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.bug.BugLogRespDTO;
-import io.github.xiaomisum.robotest.model.dto.response.bug.BugStatisticsRespDTO;
-
 import xyz.migoo.framework.common.pojo.PageResult;
 
 import java.util.List;
@@ -29,15 +27,6 @@ public interface BugQueryService {
      * @return 缺陷详情
      */
     BugDetailRespDTO getBugDetail(UUID bugId, UUID userId);
-
-    /**
-     * 统计项目缺陷概况
-     *
-     * @param projectId 项目 ID
-     * @param userId    当前用户 ID（用于项目归属校验）
-     * @return 按状态/严重等级/优先级/处理人/报告人分组统计
-     */
-    BugStatisticsRespDTO getBugStatistics(UUID projectId, UUID userId);
 
     List<BugLogRespDTO> getBugLogs(UUID bugId, UUID userId);
 }

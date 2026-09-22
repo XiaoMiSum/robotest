@@ -12,7 +12,7 @@ import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiImportResultRe
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiInterfaceChangeLogRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiInterfaceDetailRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiInterfaceItemRespDTO;
-import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiInterfaceReferenceRespDTO;
+import io.github.xiaomisum.robotest.service.apitest.ApiInterfaceImportService;
 import io.github.xiaomisum.robotest.service.apitest.ApiInterfaceService;
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
@@ -42,6 +42,8 @@ public class ApiInterfaceController {
 
     @Resource
     private ApiInterfaceService interfaceService;
+    @Resource
+    private ApiInterfaceImportService importService;
 
     // ==================== 3.1 接口定义 ====================
 
@@ -102,22 +104,6 @@ public class ApiInterfaceController {
             @RequestBody(required = false) Map<String, String> body) {
         return Result.ok(Map.of("id", interfaceService.copy(loginUser.getActiveProjectId(), loginUser.getId(), id,
                 body == null ? null : body.get("name"))));
-    }
-
-    @GetMapping("/api/project/interfaces/{id}/references")
-    @PreAuthorize("hasAuthority('api-interface:view')")
-    public Result<ApiInterfaceReferenceRespDTO> references(
-            @AuthenticationPrincipal LoginUser loginUser,
-            @PathVariable UUID id) {
-        return Result.ok(interfaceService.references(loginUser.getActiveProjectId(), loginUser.getId(), id));
-    }
-
-    @GetMapping("/api/project/interfaces/{id}/scenes")
-    @PreAuthorize("hasAuthority('api-interface:view')")
-    public Result<List<ApiInterfaceReferenceRespDTO.RefItem>> referenceScenes(
-            @AuthenticationPrincipal LoginUser loginUser,
-            @PathVariable UUID id) {
-        return Result.ok(interfaceService.referenceScenes(loginUser.getActiveProjectId(), loginUser.getId(), id));
     }
 
     @PutMapping("/api/project/interfaces/batch/move")
@@ -182,7 +168,7 @@ public class ApiInterfaceController {
     public Result<ApiImportResultRespDTO> importParsed(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestBody @Valid ApiParsedImportReqDTO reqDTO) {
-        return Result.ok(interfaceService.importParsed(loginUser.getActiveProjectId(), loginUser.getId(), reqDTO));
+        return Result.ok(importService.importParsed(loginUser.getActiveProjectId(), loginUser.getId(), reqDTO));
     }
 
     @PostMapping("/api/project/interfaces/import/url")
@@ -190,7 +176,7 @@ public class ApiInterfaceController {
     public Result<ApiImportResultRespDTO> importUrl(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestBody Map<String, String> body) {
-        return Result.ok(interfaceService.importUrl(loginUser.getActiveProjectId(), loginUser.getId(),
+        return Result.ok(importService.importUrl(loginUser.getActiveProjectId(), loginUser.getId(),
                 body.getOrDefault("url", ""), body.get("format")));
     }
 
@@ -199,7 +185,7 @@ public class ApiInterfaceController {
     public Result<ApiImportPreviewRespDTO> preview(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestBody Map<String, String> body) {
-        return Result.ok(interfaceService.preview(loginUser.getActiveProjectId(), loginUser.getId(),
+        return Result.ok(importService.preview(loginUser.getActiveProjectId(), loginUser.getId(),
                 body.getOrDefault("url", ""), body.get("format")));
     }
 }

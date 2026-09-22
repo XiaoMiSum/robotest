@@ -5,7 +5,6 @@ import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiDataSourceTestR
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiEnvironmentCopyReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiEnvironmentSaveReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiEnvironmentSortReqDTO;
-import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiEnvironmentVariableCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiHttpConfigTestReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiDataSourceTestRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiEnvImportResultRespDTO;
@@ -13,7 +12,6 @@ import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiEnvironmentDet
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiEnvironmentIdRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiEnvironmentListItemRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiEnvironmentSetDefaultRespDTO;
-import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiEnvironmentVariableRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiHttpTestRespDTO;
 import io.github.xiaomisum.robotest.service.apitest.ApiEnvironmentService;
 import jakarta.annotation.Resource;
@@ -112,18 +110,6 @@ public class ApiEnvironmentController {
             @PathVariable UUID id,
             @RequestBody @Valid ApiEnvironmentCopyReqDTO reqDTO) {
         return Result.ok(apiEnvironmentService.copyEnvironment(loginUser.getActiveProjectId(), loginUser.getActiveWorkspaceId(), loginUser.getId(), id, reqDTO));
-    }
-
-    // ========== 变量（随环境聚合提交，3.3） ==========
-
-    @PostMapping("/{id}/variables")
-    @PreAuthorize("hasAuthority('api-env:edit')")
-    public Result<ApiEnvironmentVariableRespDTO> addVariableFromResult(
-            @AuthenticationPrincipal LoginUser loginUser,
-            @PathVariable UUID id,
-            @RequestBody @Valid ApiEnvironmentVariableCreateReqDTO reqDTO) {
-        return Result.ok(apiEnvironmentService.addVariableFromResult(loginUser.getActiveProjectId(), loginUser.getActiveWorkspaceId(), loginUser.getId(),
-                id, reqDTO));
     }
 
     // ========== 连接测试（3.1.7 / 3.1.8，请求体传配置不落库） ==========

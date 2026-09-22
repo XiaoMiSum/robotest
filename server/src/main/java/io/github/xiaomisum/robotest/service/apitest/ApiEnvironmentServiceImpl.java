@@ -7,7 +7,6 @@ import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiDataSourceTestR
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiEnvironmentCopyReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiEnvironmentSaveReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiEnvironmentSortReqDTO;
-import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiEnvironmentVariableCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiHttpConfigTestReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiDataSourceTestRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiEnvImportResultRespDTO;
@@ -15,7 +14,6 @@ import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiEnvironmentDet
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiEnvironmentIdRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiEnvironmentListItemRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiEnvironmentSetDefaultRespDTO;
-import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiEnvironmentVariableRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiHttpTestRespDTO;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiEnvironment;
 import io.github.xiaomisum.robotest.repository.apitest.ApiEnvironmentMapper;
@@ -183,38 +181,6 @@ public class ApiEnvironmentServiceImpl implements ApiEnvironmentService {
         update.setId(id);
         update.setSortOrder(reqDTO.getSortOrder());
         environmentMapper.updateById(update);
-    }
-
-    // ========== 变量（随环境聚合提交，3.3） ==========
-
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    @AuditOperation(operation = "UPDATE", entityType = "ApiEnvironment")
-    public ApiEnvironmentVariableRespDTO addVariableFromResult(UUID projectId, UUID workspaceId, UUID userId,
-            UUID id, ApiEnvironmentVariableCreateReqDTO reqDTO) {
-        projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
-        ApiEnvironment env = requireEnv(projectId, id);
-        String name = reqDTO.getName();
-        if (name == null || !EnvironmentEffectiveSnapshot.VARIABLE_NAME_PATTERN.matcher(name).matches()) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.VALIDATION_FAILED);
-        }
-        List<Map<String, Object>> variables = new ArrayList<>(EnvironmentEffectiveSnapshot.copyList(env.getVariables()));
-        boolean exists = variables.stream().anyMatch(v -> name.equals(v.get("name")));
-        if (exists) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.API_ENV_VARIABLE_EXISTS);
-        }
-        Map<String, Object> row = EnvironmentEffectiveSnapshot.variableRow(name, reqDTO.getValue(),
-                reqDTO.getDescription(), reqDTO.getSourceStepId(), reqDTO.getSourceReportId());
-        variables.add(row);
-
-        // 仅更新 variables JSONB 列（C9 部分更新原则）
-        ApiEnvironment update = new ApiEnvironment();
-        update.setId(id);
-        update.setVariables(variables);
-        environmentMapper.updateById(update);
-        boolean hasValue = EnvironmentEffectiveSnapshot.hasText((String) row.get("value"));
-        return EnvironmentEffectiveSnapshot.toVariableResp(name, row.get("value"),
-                (String) row.get("description"), hasValue);
     }
 
     // ========== 连接测试（3.1.7 / 3.1.8，请求体传配置不落库） ==========

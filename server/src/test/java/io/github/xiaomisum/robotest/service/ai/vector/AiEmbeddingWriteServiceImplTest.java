@@ -100,20 +100,6 @@ class AiEmbeddingWriteServiceImplTest {
     }
 
     @Test
-    void handleBugDeleted_deletesIndex() {
-        UUID bugId = UUID.randomUUID();
-        service.handleBugDeleted(bugId);
-        verify(vectorSearchService).deleteBugIndex(bugId);
-    }
-
-    @Test
-    void handleCaseDeleted_deletesIndex() {
-        UUID nodeId = UUID.randomUUID();
-        service.handleCaseDeleted(nodeId);
-        verify(vectorSearchService).deleteCaseIndex(nodeId);
-    }
-
-    @Test
     void compensate_skipsWhenRebuildInProgress() {
         when(aiAnalysisTaskMapper.hasInProgressRebuild()).thenReturn(true);
         service.compensate();

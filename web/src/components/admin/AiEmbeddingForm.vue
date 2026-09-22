@@ -34,7 +34,7 @@ const emit = defineEmits<{
 
 <template>
   <el-card shadow="never" class="ai-embedding">
-    <el-collapse :model-value="open" @update:model-value="(v: string[]) => emit('update:open', v)">
+    <el-collapse :model-value="open" @update:model-value="(v) => emit('update:open', v as string[])">
       <el-collapse-item name="embedding">
         <template #title>
           <div class="ai-embedding__header">

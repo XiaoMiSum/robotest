@@ -1,5 +1,6 @@
 package io.github.xiaomisum.robotest.service.apitest.mock;
 
+import io.github.xiaomisum.robotest.framework.mock.MockDefinitionReader.MockDefinitionSnapshot;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiMockDefinition;
 
 import java.util.LinkedHashMap;
@@ -26,6 +27,37 @@ public class MockResponseFactory {
 
         // 跟随 API：仅当自身未配置响应内容且开关打开时生效（需求 3.3）
         if ((body == null || body.isBlank()) && Boolean.TRUE.equals(definition.getFollowApi())
+                && interfaceResponseExample != null && !interfaceResponseExample.isEmpty()) {
+            Object exampleStatus = interfaceResponseExample.get("status");
+            if (exampleStatus instanceof Number number) {
+                status = number.intValue();
+            }
+            Object exampleHeaders = interfaceResponseExample.get("headers");
+            if (exampleHeaders instanceof Map<?, ?> map && !map.isEmpty()) {
+                rawHeaders = castHeaders(map);
+            }
+            Object exampleBody = interfaceResponseExample.get("body");
+            if (exampleBody != null) {
+                body = exampleBody instanceof String s ? s : String.valueOf(exampleBody);
+            }
+        }
+
+        Map<String, String> headers = new LinkedHashMap<>();
+        if (rawHeaders != null) {
+            rawHeaders.forEach((key, value) -> headers.put(key, value == null ? "" : String.valueOf(value)));
+        }
+        headers.putIfAbsent("Content-Type", defaultContentType(bodyType));
+        return new MockResponse(status, headers, body == null ? "" : body, bodyType);
+    }
+
+    /** 快照版本：供 framework/mock 端口调用，不依赖业务实体 */
+    public static MockResponse build(MockDefinitionSnapshot snapshot, Map<String, Object> interfaceResponseExample) {
+        String bodyType = snapshot.responseBodyType() == null ? "json" : snapshot.responseBodyType();
+        String body = MockVariableResolver.resolve(snapshot.responseBody());
+        int status = snapshot.responseStatus() == null ? 200 : snapshot.responseStatus();
+        Map<String, Object> rawHeaders = snapshot.responseHeaders();
+
+        if ((body == null || body.isBlank()) && Boolean.TRUE.equals(snapshot.followApi())
                 && interfaceResponseExample != null && !interfaceResponseExample.isEmpty()) {
             Object exampleStatus = interfaceResponseExample.get("status");
             if (exampleStatus instanceof Number number) {

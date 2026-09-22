@@ -13,7 +13,6 @@ import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
-import xyz.migoo.framework.mybatis.core.LambdaQueryWrapperX;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -80,16 +79,6 @@ public class AiConversationServiceImpl implements AiConversationService {
         AiConversation conversation = requireOwnedInternal(userId, workspaceId, conversationId);
         messageMapper.deleteByConversationIds(List.of(conversation.getId()));
         conversationMapper.deleteById(conversation.getId());
-    }
-
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    public void clearConversations(UUID userId, UUID workspaceId) {
-        List<UUID> conversationIds = conversationMapper.selectIdsByUserAndWorkspace(userId, workspaceId);
-        messageMapper.deleteByConversationIds(conversationIds);
-        conversationMapper.delete(new LambdaQueryWrapperX<AiConversation>()
-                .eq(AiConversation::getUserId, userId)
-                .eq(AiConversation::getWorkspaceId, workspaceId));
     }
 
     @Override

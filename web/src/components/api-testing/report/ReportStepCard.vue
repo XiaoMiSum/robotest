@@ -1,136 +1,29 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
-import type { ApiReportAssertion, ApiReportExtractor, ApiReportStepResult } from '@/types'
+import { useReportStepCard } from '@/composables/useReportStepCard'
+import type { ApiReportStepResult } from '@/types'
+import ReportStepAssertions from './ReportStepAssertions.vue'
+import ReportStepExtractors from './ReportStepExtractors.vue'
 
-/**
- * 场景步骤卡列表：工具栏「全部展开/收起」+ 步骤卡（details）。展开含
- * 请求块 / 响应块 / 验证器表 / 提取器表 / 错误告警；失败与错误步骤默认展开。
- */
 const props = defineProps<{
   steps: ApiReportStepResult[]
 }>()
 
-watch(
-  () => props.steps.length,
-  () => {
-    // 数据变化（报告重载）时重置展开状态为默认
-    openKeys.value = defaultOpenKeys()
-  },
-)
-
-const openKeys = ref<Set<string>>(new Set(defaultOpenKeys()))
-
-function defaultOpenKeys(): Set<string> {
-  return new Set(
-    props.steps
-      .filter((s) => s.status === 'failed' || s.status === 'error')
-      .map((step, index) => stepKey(step, index)),
-  )
-}
-
-function stepKey(step: ApiReportStepResult, index: number): string {
-  return step.stepId ?? `step-${index}`
-}
-
-function isOpen(key: string): boolean {
-  return openKeys.value.has(key)
-}
-
-function onToggle(key: string, event: Event) {
-  const open = (event.target as HTMLDetailsElement).open
-  const set = new Set(openKeys.value)
-  if (open) set.add(key)
-  else set.delete(key)
-  openKeys.value = set
-}
-
-const allOpen = ref(false)
-
-function toggleAll() {
-  const set = new Set(openKeys.value)
-  if (allOpen.value) {
-    set.clear()
-  } else {
-    props.steps.forEach((step, index) => set.add(stepKey(step, index)))
-  }
-  openKeys.value = set
-  allOpen.value = !allOpen.value
-}
-
-// ==================== 状态与格式化 ====================
-function statusLabel(status: string | null | undefined): string {
-  const map: Record<string, string> = {
-    success: '成功',
-    passed: '成功',
-    failed: '失败',
-    skipped: '跳过',
-    error: '错误',
-    not_executed: '未执行',
-  }
-  return map[status ?? ''] ?? status ?? '-'
-}
-
-function assertionLabel(status: string | null | undefined): string {
-  if (status === 'passed' || status === 'success') return '通过'
-  if (status === 'failed') return '失败'
-  if (status === 'skipped') return '跳过'
-  return status ?? '-'
-}
-
-function badgeClass(status: string | null | undefined): string {
-  if (status === 'success' || status === 'passed') return 'rsc-badge--ok'
-  if (status === 'failed') return 'rsc-badge--fail'
-  return 'rsc-badge--skip'
-}
-
-function methodChipClass(method: string | null | undefined): string {
-  const m = method?.toUpperCase() ?? ''
-  if (m === 'GET') return 'rsc-chip--get'
-  if (m === 'POST') return 'rsc-chip--post'
-  if (m === 'PUT') return 'rsc-chip--put'
-  if (m === 'DELETE') return 'rsc-chip--delete'
-  return ''
-}
-
-function pretty(value: unknown): string {
-  if (value == null) return '-'
-  if (typeof value === 'string') {
-    try {
-      return JSON.stringify(JSON.parse(value), null, 2)
-    } catch {
-      return value
-    }
-  }
-  return JSON.stringify(value, null, 2)
-}
-
-function displayValue(value: unknown): string {
-  if (value == null) return '-'
-  return typeof value === 'string' ? value : JSON.stringify(value)
-}
-
-function formatDuration(ms: number | null | undefined): string {
-  if (ms == null) return '-'
-  if (ms < 1000) return `${ms} ms`
-  return `${(ms / 1000).toFixed(1)} s`
-}
-
-function headersEntries(headers: Record<string, unknown> | null | undefined): Array<[string, unknown]> {
-  return headers ? Object.entries(headers) : []
-}
-
-function headerValue(headers: Record<string, unknown> | null | undefined, key: string): string | null {
-  if (!headers) return null
-  const hit = Object.keys(headers).find((k) => k.toLowerCase() === key.toLowerCase())
-  if (hit == null) return null
-  const v = headers[hit]
-  return v == null ? null : typeof v === 'string' ? v : String(v)
-}
-
-function responseMeta(step: ApiReportStepResult): string {
-  const contentType = headerValue(step.response?.headers ?? null, 'content-type') ?? ''
-  return ['HTTP/1.1', contentType].filter(Boolean).join(' · ')
-}
+const {
+  allOpen,
+  stepKey,
+  isOpen,
+  onToggle,
+  toggleAll,
+  statusLabel,
+  badgeClass,
+  methodChipClass,
+  pretty,
+  displayValue,
+  formatDuration,
+  headersEntries,
+  responseMeta,
+  assertionLabel,
+} = useReportStepCard(() => props.steps)
 </script>
 
 <template>
@@ -161,7 +54,7 @@ function responseMeta(step: ApiReportStepResult): string {
         <span
           v-if="step.assertions?.length"
           class="rsc-chip"
-          :class="step.assertions.some((a) => (a as ApiReportAssertion).status === 'failed') ? 'rsc-chip--delete' : 'rsc-chip--post'"
+          :class="step.assertions.some((a) => a.status === 'failed') ? 'rsc-chip--delete' : 'rsc-chip--post'"
         >
           验证器 {{ step.assertions.length }}
         </span>
@@ -171,7 +64,6 @@ function responseMeta(step: ApiReportStepResult): string {
       </summary>
 
       <div class="rsc__body">
-        <!-- 请求 -->
         <div v-if="step.request" class="rsc__block">
           <div class="rsc__block-title">请求</div>
           <div class="rsc__reqline">
@@ -181,8 +73,9 @@ function responseMeta(step: ApiReportStepResult): string {
             <span class="rsc__url">{{ step.request.url == null ? '-' : String(step.request.url) }}</span>
           </div>
           <div
-v-if="headersEntries(step.request.headers ?? null).length || step.request.query != null || step.request.body != null"
-            class="rsc__grid2">
+            v-if="headersEntries(step.request.headers ?? null).length || step.request.query != null || step.request.body != null"
+            class="rsc__grid2"
+          >
             <div v-if="headersEntries(step.request.headers ?? null).length">
               <p class="rsc__sub-label">请求头</p>
               <table class="rsc__kv">
@@ -201,7 +94,6 @@ v-if="headersEntries(step.request.headers ?? null).length || step.request.query 
           </div>
         </div>
 
-        <!-- 响应 -->
         <div v-if="step.response" class="rsc__block">
           <div class="rsc__block-title">响应</div>
           <div class="rsc__reqline">
@@ -222,76 +114,21 @@ v-if="headersEntries(step.request.headers ?? null).length || step.request.query 
           </table>
         </div>
 
-        <!-- 验证器 -->
-        <div v-if="step.assertions?.length" class="rsc__block">
-          <div class="rsc__block-title">验证器（{{ step.assertions.length }}）</div>
-          <table class="rsc__tbl">
-            <thead>
-              <tr>
-                <th>字段</th>
-                <th>规则</th>
-                <th>期望值</th>
-                <th>实际值</th>
-                <th>结果</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="(a, i) in step.assertions" :key="`${(a as ApiReportAssertion).field}-${i}`">
-                <td class="rsc__mono">{{ (a as ApiReportAssertion).field ?? '-' }}</td>
-                <td>{{ (a as ApiReportAssertion).rule ?? '-' }}</td>
-                <td class="rsc__mono">{{ displayValue((a as ApiReportAssertion).expected) }}</td>
-                <td
-                  class="rsc__mono"
-                  :class="{
-                    'rsc__val-ok':
-                      (a as ApiReportAssertion).status === 'passed' || (a as ApiReportAssertion).status === 'success',
-                  }"
-                >
-                  {{ displayValue((a as ApiReportAssertion).actual) }}
-                </td>
-                <td>
-                  <span class="rsc-badge" :class="badgeClass((a as ApiReportAssertion).status)">
-                    {{ assertionLabel((a as ApiReportAssertion).status) }}
-                  </span>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+        <ReportStepAssertions
+          v-if="step.assertions?.length"
+          :assertions="step.assertions"
+          :display-value="displayValue"
+          :badge-class="badgeClass"
+          :assertion-label="assertionLabel"
+        />
 
-        <!-- 提取器 -->
-        <div v-if="step.extractors?.length" class="rsc__block">
-          <div class="rsc__block-title">提取器（{{ step.extractors.length }}）</div>
-          <table class="rsc__tbl">
-            <thead>
-              <tr>
-                <th>引用名</th>
-                <th>字段</th>
-                <th>提取值</th>
-                <th>默认值</th>
-                <th>结果</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="(e, i) in step.extractors" :key="`${(e as ApiReportExtractor).refName}-${i}`">
-                <td class="rsc__ref">{{ (e as ApiReportExtractor).refName }}</td>
-                <td class="rsc__mono">{{ (e as ApiReportExtractor).field ?? '-' }}</td>
-                <td class="rsc__mono rsc__val-ok">{{ displayValue((e as ApiReportExtractor).value) }}</td>
-                <td class="rsc__null">{{ (e as ApiReportExtractor).defaultValue ? '是' : '-' }}</td>
-                <td>
-                  <span
-                    class="rsc-badge"
-                    :class="badgeClass((e as ApiReportExtractor).message ? 'failed' : 'success')"
-                  >
-                    {{ (e as ApiReportExtractor).message ? '提取失败' : '成功' }}
-                  </span>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+        <ReportStepExtractors
+          v-if="step.extractors?.length"
+          :extractors="step.extractors"
+          :display-value="displayValue"
+          :badge-class="badgeClass"
+        />
 
-        <!-- 错误信息 -->
         <div v-if="step.errorMessage" class="rsc__block">
           <el-alert :title="step.errorMessage" type="error" show-icon :closable="false" />
         </div>
@@ -549,57 +386,6 @@ v-if="headersEntries(step.request.headers ?? null).length || step.request.query 
     color: #334155;
     border: 1px solid #eef1f5;
   }
-}
-
-.rsc__tbl {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 12.6px;
-  border: 1px solid #eef1f5;
-  border-radius: 9px;
-  overflow: hidden;
-
-  th {
-    background: #f8fafc;
-    color: #64748b;
-    font-weight: 600;
-    text-align: left;
-    padding: 8px 12px;
-    border-bottom: 1px solid #eef1f5;
-    font-size: 12px;
-    white-space: nowrap;
-  }
-
-  td {
-    padding: 8px 12px;
-    border-bottom: 1px solid #f4f7fa;
-    vertical-align: top;
-    word-break: break-all;
-  }
-
-  tr:last-child td {
-    border-bottom: none;
-  }
-}
-
-.rsc__mono {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-}
-
-.rsc__ref {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  color: var(--color-success);
-  font-weight: 600;
-}
-
-.rsc__val-ok {
-  color: #15803d;
-  font-weight: 600;
-}
-
-.rsc__null {
-  color: #9aa4b2;
-  font-style: italic;
 }
 
 .rsc-chip {

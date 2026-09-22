@@ -5,7 +5,6 @@ import io.github.xiaomisum.robotest.framework.security.ProjectAccessGuard;
 import io.github.xiaomisum.robotest.model.dto.response.bug.BugDetailRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.bug.BugListRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.bug.BugLogRespDTO;
-import io.github.xiaomisum.robotest.model.dto.response.bug.BugStatisticsRespDTO;
 import io.github.xiaomisum.robotest.model.entity.admin.SysUser;
 import io.github.xiaomisum.robotest.model.entity.bug.Bug;
 import io.github.xiaomisum.robotest.model.entity.bug.BugLog;
@@ -214,53 +213,10 @@ class BugQueryServiceImplTest {
                 () -> bugQueryService.getBugDetail(bugId, userId));
     }
 
-    // ========== getBugStatistics ==========
-
-    @Test
-    void getBugStatistics_groupsCorrectly() {
-        Bug b1 = new Bug();
-        b1.setId(UUID.randomUUID());
-        b1.setStatus(Constants.BugStatus.ACTIVE);
-        b1.setSeverity("fatal");
-        b1.setPriority("high");
-        b1.setReporterId(UUID.fromString("00000000-0000-0000-0000-000000000004"));
-        b1.setAssigneeId(UUID.fromString("00000000-0000-0000-0000-000000000005"));
-
-        Bug b2 = new Bug();
-        b2.setId(UUID.randomUUID());
-        b2.setStatus(Constants.BugStatus.ACTIVE);
-        b2.setSeverity("general");
-        b2.setPriority("low");
-        b2.setReporterId(UUID.fromString("00000000-0000-0000-0000-000000000004"));
-
-        when(bugMapper.findByProjectId(projectId))
-                .thenReturn(List.of(b1, b2));
-
-        BugStatisticsRespDTO result = bugQueryService.getBugStatistics(projectId, userId);
-
-        assertNotNull(result);
-        assertEquals(2, result.getTotal());
-        assertEquals(2L, result.getByStatus().get(Constants.BugStatus.ACTIVE));
-        assertEquals(1L, result.getBySeverity().get("fatal"));
-        assertEquals(1L, result.getBySeverity().get("general"));
-        assertEquals(2L, result.getByReporter().get(UUID.fromString("00000000-0000-0000-0000-000000000004")));
-    }
-
-    @Test
-    void getBugStatistics_emptyProject() {
-        when(bugMapper.findByProjectId(projectId))
-                .thenReturn(Collections.emptyList());
-
-        BugStatisticsRespDTO result = bugQueryService.getBugStatistics(projectId, userId);
-
-        assertNotNull(result);
-        assertEquals(0, result.getTotal());
-    }
-
     // ========== getBugLogs ==========
 
     @Test
-    void getBugLogs_returnsLogs() {
+    void getBugLogs_success() {
         Bug bug = activeBug();
         when(bugMapper.selectById(bugId)).thenReturn(bug);
 

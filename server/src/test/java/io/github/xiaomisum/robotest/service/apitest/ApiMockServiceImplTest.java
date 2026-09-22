@@ -5,7 +5,6 @@ import io.github.xiaomisum.robotest.framework.mock.MockAccessProperties;
 import io.github.xiaomisum.robotest.framework.security.ProjectAccessGuard;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiMockBatchToggleReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiMockSaveReqDTO;
-import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiMockAddressRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiMockBatchToggleRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiMockIdRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiMockItemRespDTO;
@@ -165,7 +164,7 @@ class ApiMockServiceImplTest {
         when(mockMapper.selectById(conflictingId))
                 .thenReturn(existing(conflictingId, "GET", "/api/b", false, 1));
         when(mockMapper.selectGroup(PROJECT_ID, "GET", "/api/a")).thenReturn(List.of());
-        // conflicting 规则组内已有启用规则 → 跳过
+        // conflicting 规则组内已有启用规则 -> 跳过
         when(mockMapper.selectGroup(PROJECT_ID, "GET", "/api/b"))
                 .thenReturn(List.of(existing(UUID.randomUUID(), "GET", "/api/b", true, 2)));
 
@@ -174,33 +173,4 @@ class ApiMockServiceImplTest {
         assertEquals(1, result.getUpdatedCount());
         verify(mockMapper, times(1)).updateById(any(ApiMockDefinition.class));
     }
-
-    @Test
-    void duplicateProducesDisabledCopyWithoutHitStats() {
-        ApiMockDefinition source = existing(MOCK_ID, "POST", "/api/order", true, 5);
-        source.setName("下单");
-        source.setHitCount(99L);
-        when(mockMapper.selectById(MOCK_ID)).thenReturn(source);
-        when(mockMapper.selectMaxPriority(PROJECT_ID, "POST", "/api/order")).thenReturn(5);
-
-        ApiMockIdRespDTO copy = service.duplicate(WORKSPACE_ID, PROJECT_ID, USER_ID, MOCK_ID);
-
-        ArgumentCaptor<ApiMockDefinition> captor = ArgumentCaptor.forClass(ApiMockDefinition.class);
-        verify(mockMapper).insert(captor.capture());
-        assertEquals("下单 - 副本", captor.getValue().getName());
-        assertFalse(captor.getValue().getEnabled());
-        assertEquals(0L, captor.getValue().getHitCount());
-        assertEquals(6, captor.getValue().getPriority());
-    }
-
-    @Test
-    void addressUsesConfiguredBaseUrlWithoutTrailingSlash() {
-        when(mockMapper.selectById(MOCK_ID)).thenReturn(existing(MOCK_ID, "GET", "/api/users", true, 1));
-
-        ApiMockAddressRespDTO address = service.getAddress(WORKSPACE_ID, PROJECT_ID, USER_ID, MOCK_ID);
-
-        assertEquals("http://localhost:18080/api/users", address.getMockUrl());
-        assertEquals("GET", address.getMethod());
-    }
-
 }

@@ -1,4 +1,4 @@
-import api from '@/services'
+import { get, post, put, patch, del } from '@/services'
 import type {
   ApiDataSourceTestResp,
   ApiEnvironmentDetail,
@@ -9,23 +9,6 @@ import type {
   ApiImportResult,
   ApiSetDefaultResp,
 } from '@/types'
-
-// 响应拦截器已将 Result<T> 解包为 data，此处集中处理静态类型断言
-function get<T>(url: string, params?: Record<string, unknown>): Promise<T> {
-  return api.get(url, { params }) as unknown as Promise<T>
-}
-function post<T>(url: string, data?: unknown, config?: Record<string, unknown>): Promise<T> {
-  return api.post(url, data, config) as unknown as Promise<T>
-}
-function put<T>(url: string, data?: unknown): Promise<T> {
-  return api.put(url, data) as unknown as Promise<T>
-}
-function patch<T>(url: string, data?: unknown): Promise<T> {
-  return api.patch(url, data) as unknown as Promise<T>
-}
-function del<T>(url: string): Promise<T> {
-  return api.delete(url) as unknown as Promise<T>
-}
 
 // ==================== 环境管理（/api/project/environments，详细设计 3.1–3.3） ====================
 

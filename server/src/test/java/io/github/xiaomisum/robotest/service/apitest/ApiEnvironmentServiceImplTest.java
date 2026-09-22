@@ -389,43 +389,6 @@ class ApiEnvironmentServiceImplTest {
         assertEquals(1, detail.getVariables().size());
     }
 
-    // ==================== 添加变量（3.3.2） ====================
-
-    @Test
-    void addVariableFromResult_duplicateNameThrows() {
-        stubEmptyEnv();
-        ApiEnvironment env = environmentMapper.selectById(ENV_ID);
-        env.getVariables().add(variableRow("orderNo", "1"));
-
-        ApiEnvironmentVariableCreateReqDTO req = new ApiEnvironmentVariableCreateReqDTO();
-        req.setName("orderNo");
-        ServiceException ex = assertThrows(ServiceException.class,
-                () -> service.addVariableFromResult(PROJECT_ID, WORKSPACE_ID, USER_ID, ENV_ID, req));
-        assertEquals(ErrorCodeConstants.API_ENV_VARIABLE_EXISTS.code(), ex.getCode());
-    }
-
-    @Test
-    void addVariableFromResult_persistsPlaintextAndParsesSourceIds() {
-        stubEmptyEnv();
-
-        ApiEnvironmentVariableCreateReqDTO req = new ApiEnvironmentVariableCreateReqDTO();
-        req.setName("token");
-        req.setValue("secret-value");
-        req.setSourceStepId(UUID.randomUUID().toString());
-        req.setSourceReportId("not-a-uuid");
-
-        var resp = service.addVariableFromResult(PROJECT_ID, WORKSPACE_ID, USER_ID, ENV_ID, req);
-
-        assertEquals("secret-value", resp.getValue());
-        assertTrue(resp.getHasValue());
-        ArgumentCaptor<ApiEnvironment> captor = ArgumentCaptor.forClass(ApiEnvironment.class);
-        verify(environmentMapper).updateById(captor.capture());
-        Map<String, Object> saved = captor.getValue().getVariables().get(0);
-        assertEquals("secret-value", saved.get("value"));
-        assertEquals(req.getSourceStepId(), saved.get("sourceStepId").toString());
-        assertNull(saved.get("sourceReportId"));
-    }
-
     // ==================== 连接测试（3.1.7 / 3.1.8） ====================
 
     @SuppressWarnings("unchecked")

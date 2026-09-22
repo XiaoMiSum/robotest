@@ -10,10 +10,9 @@ import io.github.xiaomisum.robotest.model.dto.request.plan.TestPlanRecordReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.plan.TestPlanListRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.plan.TestPlanDetailRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.plan.TestPlanSnapshotNodeRespDTO;
-import io.github.xiaomisum.robotest.model.dto.response.plan.TestPlanExecutionRecordRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.plan.TestPlanProgressRespDTO;
-import io.github.xiaomisum.robotest.model.dto.response.tcase.SnapshotModuleTreeRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.plan.PlannedCasesRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.tcase.SnapshotModuleTreeRespDTO;
 import io.github.xiaomisum.robotest.model.entity.admin.SysUser;
 import io.github.xiaomisum.robotest.model.entity.plan.TestPlan;
 import io.github.xiaomisum.robotest.model.entity.plan.TestPlanExecutionRecord;
@@ -443,33 +442,6 @@ public class TestPlanServiceImpl implements TestPlanService {
     }
 
     @Override
-    public List<TestPlanExecutionRecordRespDTO> getNodeExecutionRecords(UUID planId, UUID nodeId, UUID userId) {
-        TestPlan plan = testPlanMapper.selectById(planId);
-        if (plan == null) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_PLAN_NOT_FOUND);
-        }
-        projectAccessGuard.requireProjectMember(plan.getProjectId(), userId);
-        List<TestPlanExecutionRecord> records = planExecutionRecordMapper.listByPlanIdAndNodeId(planId, nodeId);
-
-        return records.stream().map(record -> {
-            TestPlanExecutionRecordRespDTO dto = new TestPlanExecutionRecordRespDTO();
-            dto.setId(record.getId());
-            dto.setSnapshotNodeId(record.getSnapshotNodeId());
-            dto.setExecutorId(record.getExecutorId());
-            dto.setResult(record.getResult());
-            dto.setNote(record.getNote());
-            dto.setExecutedAt(record.getExecutedAt());
-            dto.setCreatedAt(record.getCreatedAt());
-
-            SysUser executor = userMapper.selectById(record.getExecutorId());
-            if (executor != null) {
-                dto.setExecutorName(executor.getUsername());
-            }
-            return dto;
-        }).collect(Collectors.toList());
-    }
-
-    @Override
     @Transactional(rollbackFor = Exception.class)
     public void syncPlan(UUID planId, UUID userId) {
         TestPlan plan = testPlanMapper.selectById(planId);
@@ -613,29 +585,6 @@ public class TestPlanServiceImpl implements TestPlanService {
                 : 0.0);
 
         return dto;
-    }
-
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    public void closePlan(UUID planId, UUID userId) {
-        TestPlan plan = testPlanMapper.selectById(planId);
-        if (plan == null) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_PLAN_NOT_FOUND);
-        }
-        projectAccessGuard.requireProjectMember(plan.getProjectId(), userId);
-        if (!userId.equals(plan.getExecutorId())) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.NO_PERMISSION);
-        }
-
-        long untestedCount = planNodeSnapshotMapper.countUntestedAssociatedByPlanId(planId, Constants.Status.UNTESTED);
-        if (untestedCount > 0) {
-            log.warn("Plan {} closed with {} untested associated cases", planId, untestedCount);
-        }
-
-        TestPlan update = new TestPlan();
-        update.setId(planId);
-        update.setStatus(Constants.Status.CLOSED);
-        testPlanMapper.updateById(update);
     }
 
     @Override

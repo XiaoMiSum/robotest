@@ -86,13 +86,6 @@ public class AiEmbeddingWriteServiceImpl implements AiEmbeddingWriteService {
     }
 
     @Override
-    public void handleBugDeleted(UUID bugId) {
-        if (bugId != null) {
-            vectorSearchService.deleteBugIndex(bugId);
-        }
-    }
-
-    @Override
     public void handleCaseChanged(TestCaseNode node) {
         if (isRebuildInProgress()) {
             return;
@@ -104,13 +97,6 @@ public class AiEmbeddingWriteServiceImpl implements AiEmbeddingWriteService {
             vectorSearchService.indexCase(node);
         } catch (Exception e) {
             log.warn("[AI] 用例向量增量写入异常（留待补偿）nodeId={}: {}", node.getId(), e.getMessage());
-        }
-    }
-
-    @Override
-    public void handleCaseDeleted(UUID nodeId) {
-        if (nodeId != null) {
-            vectorSearchService.deleteCaseIndex(nodeId);
         }
     }
 
