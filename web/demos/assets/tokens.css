@@ -4,6 +4,7 @@
  * 状态色逻辑（全站统一）：
  *   绿=通过/正常 · 红系=失败/高风险/阻塞 · 橙=警告/进行中 · 灰=未执行/待评审
  *   蓝（飞书蓝）仅用于主按钮/链接/选中态，不表达任何状态
+ * 壳层：浅色白底顶栏 + 悬浮卡片侧栏（刻意区别于 element-admin 的深色侧栏轮廓）
  */
 :root {
   /* ==================== 中性色（略冷灰阶） ==================== */
@@ -76,6 +77,8 @@
   --header-height: 52px;
   --sidebar-width: 180px;
   --sidebar-collapsed-width: 48px;
+  /* 悬浮侧栏与视口边缘的留白（区别于贴边侧栏的关键参数） */
+  --float-gap: 16px;
   --page-pad: 32px;
   --card-pad: 24px;
   --block-gap: 24px;
@@ -116,16 +119,18 @@
   --shadow-lg: 0 12px 32px -8px rgba(0, 0, 0, 0.12);
   --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.04);
   --shadow-card-hover: 0 6px 16px -4px rgba(0, 0, 0, 0.08);
+  /* 悬浮卡片侧栏专用：让侧栏"浮"在页面底色上 */
+  --shadow-float: 0 6px 20px -6px rgba(0, 0, 0, 0.08);
 
   /* ==================== 过渡 ==================== */
   --transition-fast: 0.15s ease;
   --transition-base: 0.2s ease;
 
-  /* ==================== 深色壳层（顶栏/侧边栏） ==================== */
-  --shell-bg: #18181b;
-  --shell-border: rgba(255, 255, 255, 0.08);
-  --shell-text: rgba(255, 255, 255, 0.55);
-  --shell-text-strong: rgba(255, 255, 255, 0.92);
-  --shell-item-hover: rgba(255, 255, 255, 0.07);
-  --shell-item-active: rgba(51, 112, 255, 0.2);
+  /* ==================== 壳层（浅色白底顶栏 + 悬浮侧栏） ==================== */
+  --shell-bg: #ffffff;
+  --shell-border: #e4e4e7;
+  --shell-text: #52525b;
+  --shell-text-strong: #18181b;
+  --shell-item-hover: #f4f4f5;
+  --shell-item-active: #f0f5ff;
 }

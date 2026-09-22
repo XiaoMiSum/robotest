@@ -58,7 +58,7 @@
   function tagsHtml() {
     let html = '';
     if (shell === 'admin') {
-      html += '<span class="shell-tag shell-tag--neutral">系统管理</span>';
+      html += '<span class="shell-tag shell-tag--solid">系统管理</span>';
       return '<div class="topbar__tags">' + html + '</div>';
     }
     if (workspace && (mode === 'workspace' || mode === 'project')) {
