@@ -12,7 +12,7 @@ import {
   BUG_TYPE_LABEL,
   getValidTargetStatuses,
   promptStatusChangeComment,
-} from '@/utils/bugStatus'
+} from '@/composables/project/bug/bugStatus'
 
 type QuickFilter = '' | 'unresolved' | 'reported' | 'assigned' | 'resolved' | 'closed'
 type BoardStatus = Extract<BugStatus, 'active' | 'resolved' | 'closed'>

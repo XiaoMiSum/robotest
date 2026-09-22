@@ -4,7 +4,7 @@ import { useRouter } from 'vue-router'
 import { getBugDetail } from '@/services/project'
 import type { AiBugDedupItem, BugDetail } from '@/types'
 import { formatDateTime, formatShortId } from '@/utils/format'
-import { BUG_STATUS_LABEL, BUG_STATUS_TAG_TYPE, BUG_TYPE_LABEL } from '@/utils/bugStatus'
+import { BUG_STATUS_LABEL, BUG_STATUS_TAG_TYPE, BUG_TYPE_LABEL } from '@/composables/project/bug/bugStatus'
 import MarkdownView from '@/components/common/MarkdownView.vue'
 
 /**
