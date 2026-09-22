@@ -8,14 +8,14 @@
 <link rel="stylesheet" href="../assets/base.css">
 <style>
   .share-head {
-    background: var(--n-900); color: #fff; padding: 18px 0;
+    background: var(--shell-bg); color: var(--n-900); padding: 18px 0;
     border-bottom: 1px solid var(--shell-border);
   }
   .share-inner { max-width: 1080px; margin: 0 auto; padding: 0 32px; }
   .share-badge {
     font-size: 11px; padding: 3px 10px; border-radius: 999px;
-    background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.14);
-    color: rgba(255,255,255,.75);
+    background: var(--n-100); border: 1px solid var(--n-200);
+    color: var(--n-600);
   }
 </style>
 </head>
@@ -29,9 +29,9 @@
       </span>
       <span class="share-badge">公开分享 · 只读</span>
     </div>
-    <div class="flex-center flex-gap-md text-xs" style="color:rgba(255,255,255,.55)">
+    <div class="flex-center flex-gap-md text-xs muted">
       <span>链接有效期至 2026-10-22</span>
-      <a class="btn btn--sm" style="background:rgba(255,255,255,.1);color:#fff;border-color:rgba(255,255,255,.2)" href="../auth/login.html">进入平台</a>
+      <a class="btn btn--default btn--sm" href="../auth/login.html">进入平台</a>
     </div>
   </div>
 </header>
