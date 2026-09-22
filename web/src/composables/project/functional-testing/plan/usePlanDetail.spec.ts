@@ -59,8 +59,8 @@ vi.mock('@/stores/ai', () => ({
   useAiStore: mocks.useAiStore,
 }))
 
-vi.mock('@/components/project/PlanMindMap.vue', () => ({ default: {} }))
-vi.mock('@/components/project/PlanOrderRecommend.vue', () => ({ default: {} }))
+vi.mock('@/components/project/functional-testing/plan/PlanMindMap.vue', () => ({ default: {} }))
+vi.mock('@/components/project/functional-testing/plan/PlanOrderRecommend.vue', () => ({ default: {} }))
 
 import { usePlanDetail } from './usePlanDetail'
 

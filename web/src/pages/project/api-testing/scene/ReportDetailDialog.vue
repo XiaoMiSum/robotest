@@ -3,7 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import type { ApiReportDetail } from '@/types'
 import { fetchReportDetail } from '@/services/project/report'
-import ReportResultView from '@/components/api-testing/ReportResultView.vue'
+import ReportResultView from '@/components/project/api-testing/ReportResultView.vue'
 
 const props = defineProps<{
   modelValue: boolean

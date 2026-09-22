@@ -14,7 +14,7 @@ import type {
   WorkspaceMember,
 } from '@/types'
 import { BUG_STATUS_LABEL, BUG_STATUS_TAG_TYPE, BUG_TYPE_LABEL } from '@/utils/bugStatus'
-import BugAiSuggest from '@/components/project/BugAiSuggest.vue'
+import BugAiSuggest from '@/components/project/bug/BugAiSuggest.vue'
 
 // ==================== Constants ====================
 

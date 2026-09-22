@@ -29,7 +29,7 @@ vi.mock('@/services/project', () => ({
   getDocumentRequirements: mocks.getDocumentRequirements,
 }))
 
-vi.mock('@/components/project/missingPoints', () => ({
+vi.mock('@/components/project/functional-testing/case/missingPoints', () => ({
   buildMissingPointText: mocks.buildMissingPointText,
   collectDocumentOptions: mocks.collectDocumentOptions,
   pickPreselectDocument: mocks.pickPreselectDocument,

@@ -11,7 +11,7 @@ import {
 } from '@/services/ai'
 import { useAiStore } from '@/stores/ai'
 import type { AiBugClusterSnapshot, AiTask, BugSeverity } from '@/types'
-import { buildModuleBars, buildSeveritySegments } from '@/components/project/bugClusterChart'
+import { buildModuleBars, buildSeveritySegments } from '@/components/project/bug/bugClusterChart'
 
 const SEVERITY_DOT_MAX = 4
 const STATUS_LABEL: Record<string, string> = {

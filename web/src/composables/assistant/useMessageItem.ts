@@ -5,7 +5,7 @@ import { filterAssistantLinks, collectRegisteredPrefixes } from '@/utils/assista
 import { useAssistantContextStore } from '@/stores/assistantContext'
 import { useAuthStore } from '@/stores/auth'
 import router from '@/router'
-import type { DslPlan, DslPlanResult } from '@/components/project/minder/ai/dslRunner'
+import type { DslPlan, DslPlanResult } from '@/components/project/functional-testing/minder/ai/dslRunner'
 import {
   formatCountdown,
   parseConfirmPreview,

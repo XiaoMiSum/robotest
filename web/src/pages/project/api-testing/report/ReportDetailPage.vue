@@ -4,7 +4,7 @@ import { ElMessage } from 'element-plus'
 import type { ApiReportDetail, ApiReportShareInfo } from '@/types'
 import { fetchReportDetail, shareReport } from '@/services/project/report'
 import { formatDateTime } from '@/utils/format'
-import ReportResultView from '@/components/api-testing/ReportResultView.vue'
+import ReportResultView from '@/components/project/api-testing/ReportResultView.vue'
 
 const props = defineProps<{
   reportId: string

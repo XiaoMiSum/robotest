@@ -17,13 +17,13 @@ import {
 import type { PlannedCases, ReviewMark, ReviewRecord } from '@/types'
 import { formatDateTime } from '@/utils/format'
 // window.kity / window.kityminder 的类型声明在 minder/types.ts 中统一维护
-import { reviewNodeToKm } from './minder/adapter'
-import type { Minder, MinderNode } from './minder/types'
-import { loadMinderEngine } from './minder/loader'
-import { useMinderInstance } from './minder/useMinderInstance'
-import { useContextMenu, type ContextMenuAnchorNode } from './minder/useContextMenu'
-import MinderContextMenu from './minder/MinderContextMenu.vue'
-import MinderNavigator from './minder/MinderNavigator.vue'
+import { reviewNodeToKm } from '../minder/adapter'
+import type { Minder, MinderNode } from '../minder/types'
+import { loadMinderEngine } from '../minder/loader'
+import { useMinderInstance } from '../minder/useMinderInstance'
+import { useContextMenu, type ContextMenuAnchorNode } from '../minder/useContextMenu'
+import MinderContextMenu from '../minder/MinderContextMenu.vue'
+import MinderNavigator from '../minder/MinderNavigator.vue'
 
 const props = defineProps<{ reviewId: string; documentId?: string; removable?: boolean }>()
 
@@ -308,7 +308,7 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped lang="scss">
-@use './minder/minder-base';
+@use '../minder/minder-base';
 
 /* 评论抽屉：body 撑满成 flex 列，列表滚动、输入区固定底部；
    drawer 会 teleport 到 body，scoped :deep 命中不了，须用 :global */

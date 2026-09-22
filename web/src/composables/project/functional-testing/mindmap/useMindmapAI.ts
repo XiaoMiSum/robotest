@@ -6,9 +6,9 @@
 import { ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { getDocumentRequirements, setDocumentRequirements } from '@/services/project'
-import { mountGeneratedNodes, type MountTargetSource } from '@/components/project/minder/ai/aiMount'
+import { mountGeneratedNodes, type MountTargetSource } from '@/components/project/functional-testing/minder/ai/aiMount'
 import type { AiGeneratedNode } from '@/types'
-import type { AiPanelMode } from '@/components/project/minder/ai/aiPanelModes'
+import type { AiPanelMode } from '@/components/project/functional-testing/minder/ai/aiPanelModes'
 import type { RequirementSummary } from '@/types'
 
 interface ReselectTreeNode {
