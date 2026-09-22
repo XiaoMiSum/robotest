@@ -18,7 +18,7 @@ vi.mock('element-plus', () => ({
   ElMessageBox: mocks.ElMessageBox,
 }))
 
-vi.mock('@/services/project/scene', () => ({
+vi.mock('@/services/project/api-testing/scene', () => ({
   deleteSceneStep: mocks.deleteSceneStep,
   reorderSceneSteps: mocks.reorderSceneSteps,
   updateSceneStep: mocks.updateSceneStep,

@@ -7,7 +7,7 @@ import {
   importParsedInterfaces,
   previewInterfaceImportUrl,
   type ApiParsedImportOperation,
-} from '@/services/project/interface'
+} from '@/services/project/api-testing/interface'
 import { parseCurlImport } from '@/pages/project/api-testing/interface/curlImport'
 import { summarizeImportResult } from './interfacesModel'
 

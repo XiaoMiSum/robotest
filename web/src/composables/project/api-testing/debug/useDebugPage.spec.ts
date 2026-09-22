@@ -60,7 +60,7 @@ vi.mock('@/pages/project/api-testing/debug/debugModel', () => ({
   MAX_DEBUG_TABS: mocks.MAX_DEBUG_TABS,
 }))
 
-vi.mock('@/services/project/debug', () => ({
+vi.mock('@/services/project/api-testing/debug', () => ({
   executeDebug: mocks.executeDebug,
   restoreDebugRecord: mocks.restoreDebugRecord,
 }))

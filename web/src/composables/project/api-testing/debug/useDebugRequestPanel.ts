@@ -6,7 +6,7 @@ import type {
   ApiEnvironmentListItem,
   DebugTab,
 } from '@/types'
-import { fetchEnvironments } from '@/services/project/environment'
+import { fetchEnvironments } from '@/services/project/api-testing/environment'
 import { HTTP_METHODS, setBodyContentTypeHeader } from '@/pages/project/api-testing/debug/debugModel'
 
 export type ParamTab = 'params' | 'auth' | 'headers' | 'body'

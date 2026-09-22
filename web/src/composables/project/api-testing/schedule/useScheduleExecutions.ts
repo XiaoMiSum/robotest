@@ -1,7 +1,7 @@
 import { ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import type { ApiScheduleExecutionItem, ApiSchedulePageItem } from '@/types'
-import { fetchScheduleExecutions } from '@/services/project/schedule'
+import { fetchScheduleExecutions } from '@/services/project/api-testing/schedule'
 
 const EXECUTION_PAGE_SIZE = 10
 

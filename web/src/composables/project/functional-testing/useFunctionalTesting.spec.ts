@@ -33,7 +33,7 @@ vi.mock('@/stores/auth', () => ({
   useAuthStore: mocks.useAuthStore,
 }))
 
-vi.mock('@/services/project/function', () => ({
+vi.mock('@/services/project/api-testing/function', () => ({
   fetchBuiltinCatalog: mocks.fetchBuiltinCatalog,
   fetchCustomFunctions: mocks.fetchCustomFunctions,
   fetchCustomFunctionDetail: mocks.fetchCustomFunctionDetail,
