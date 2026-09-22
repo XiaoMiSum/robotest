@@ -314,25 +314,36 @@ a:hover {
   color: var(--n-400);
 }
 
-/* ==================== 内容区 ==================== */
+/* ==================== 内容区（方案B：主体整体一张悬浮白卡，与侧栏成对称双卡） ==================== */
 .content {
-  min-height: 100vh;
-  padding: calc(var(--header-height) + var(--float-gap)) var(--page-pad) var(--page-pad);
+  min-height: calc(100vh - var(--header-height) - var(--float-gap) * 2);
+  margin: calc(var(--header-height) + var(--float-gap)) var(--float-gap) var(--float-gap);
+  padding: var(--page-pad);
+  background: var(--n-0);
+  border: 1px solid var(--shell-border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-float);
 }
 
 .content--admin {
   margin-left: calc(var(--float-gap) * 2 + var(--sidebar-width));
 }
 
+/* 双栏页：容器让位（透明无框），卡片拆分为「模块侧栏卡 + 主内容卡」 */
 .content--flush {
-  padding: calc(var(--header-height) + var(--float-gap)) var(--page-pad) var(--page-pad) var(--float-gap);
+  margin: calc(var(--header-height) + var(--float-gap)) var(--float-gap) var(--float-gap);
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
 }
 
-/* 内部双栏（功能测试 / 接口测试）：模块侧栏同样为悬浮卡片 */
+/* 内部双栏（功能测试 / 接口测试）：两张等高悬浮卡片并排 */
 .split {
   display: flex;
   gap: var(--float-gap);
-  height: calc(100vh - var(--header-height) - var(--float-gap) - var(--page-pad));
+  height: calc(100vh - var(--header-height) - var(--float-gap) * 2);
 }
 
 .split__side {
@@ -357,7 +368,11 @@ a:hover {
   flex: 1;
   min-width: 0;
   overflow: auto;
-  padding: 0;
+  padding: var(--page-pad);
+  background: var(--n-0);
+  border: 1px solid var(--shell-border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-float);
 }
 
 /* ==================== 页面头部 ==================== */

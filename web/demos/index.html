@@ -65,7 +65,7 @@
 </head>
 <body data-shell="bare">
 
-<main class="content" style="max-width: 1180px; margin: 0 auto; padding-top: 32px;">
+<main class="content" style="max-width: 1180px; margin: var(--float-gap) auto;">
 
   <div class="hero">
     <h1>RoboTest · 新视觉基调页面演示</h1>
@@ -241,30 +241,9 @@
     </div>
   </section>
 
-  <!-- 布局方案对比 -->
-  <section class="group">
-    <div class="group__head"><h2>布局方案对比</h2><span class="n">3</span><span class="line"></span></div>
-    <div class="demo-grid">
-      <a class="demo-card" href="options/a-white-workspace.html">
-        <div class="demo-card__top"><span class="demo-card__title">方案 A · 白色通铺工作区</span><span class="ic" data-icon="grid"></span></div>
-        <div class="demo-card__desc">右侧满铺白面上贴顶栏，侧栏悬浮于左侧灰色导航列，材质分区明确</div>
-        <div class="demo-card__path">options/a-white-workspace.html</div>
-      </a>
-      <a class="demo-card" href="options/b-float-card.html">
-        <div class="demo-card__top"><span class="demo-card__title">方案 B · 主体悬浮白卡</span><span class="ic" data-icon="tickets"></span></div>
-        <div class="demo-card__desc">主体包进与侧栏同款的悬浮白卡，左右对称、四周 16px 页边距</div>
-        <div class="demo-card__path">options/b-float-card.html</div>
-      </a>
-      <a class="demo-card" href="options/c-flush-sidebar.html">
-        <div class="demo-card__top"><span class="demo-card__title">方案 C · 贴边侧栏 + 白底通铺</span><span class="ic" data-icon="document"></span></div>
-        <div class="demo-card__desc">侧栏去悬浮回贴边（浅色），右侧白底通铺的经典双区结构</div>
-        <div class="demo-card__path">options/c-flush-sidebar.html</div>
-      </a>
-    </div>
-  </section>
 
   <footer class="text-xs text-light text-center" style="padding: 8px 0 32px;">
-    共 26 个路由页面 + 3 个布局方案 + 本导航页 + <a href="style-guide.html">样式总览</a> ·
+    共 26 个路由页面 + 本导航页 + <a href="style-guide.html">样式总览</a> ·
     演示为纯静态资源（web/demos/），不参与前端构建
   </footer>
 
