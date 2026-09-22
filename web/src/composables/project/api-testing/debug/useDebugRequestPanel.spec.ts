@@ -39,7 +39,7 @@ vi.mock('@/services/project/api-testing/environment', () => ({
   fetchEnvironments: mocks.fetchEnvironments,
 }))
 
-vi.mock('@/pages/project/api-testing/debug/debugModel', () => ({
+vi.mock('@/composables/project/api-testing/debug/debugModel', () => ({
   HTTP_METHODS: mocks.HTTP_METHODS,
   setBodyContentTypeHeader: mocks.setBodyContentTypeHeader,
 }))

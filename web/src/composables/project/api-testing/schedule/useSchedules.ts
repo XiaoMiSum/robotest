@@ -9,7 +9,7 @@ import {
   fetchSchedulePage,
   toggleSchedule,
 } from '@/services/project/api-testing/schedule'
-import { CRON_PRESETS, EXECUTION_SCOPES, SCHEDULE_TASK_TYPES, taskExecutionSummary, execStatusLabel, execStatusType } from '@/pages/project/api-testing/schedule/schedulesModel'
+import { CRON_PRESETS, EXECUTION_SCOPES, SCHEDULE_TASK_TYPES, taskExecutionSummary, execStatusLabel, execStatusType } from '@/composables/project/api-testing/schedule/schedulesModel'
 import { formatDateTime, formatShortDateTime } from '@/utils/format'
 import { useScheduleForm } from './useScheduleForm'
 import { useScheduleExecutions } from './useScheduleExecutions'

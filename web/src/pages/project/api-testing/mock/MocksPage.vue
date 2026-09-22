@@ -10,7 +10,7 @@ import {
   resetMockHitCount,
   fetchMockAddress,
 } from '@/services/project/api-testing/mock'
-import { methodTagType } from './mocksModel'
+import { methodTagType } from '@/composables/project/api-testing/mock/mocksModel'
 import { formatDateTime } from '@/utils/format'
 import MockEditorDrawer from './MockEditorDrawer.vue'
 import MockDebugPanel from './MockDebugPanel.vue'

@@ -8,7 +8,7 @@ import type {
   ApiProcessorType,
 } from '@/types'
 import { fetchEnvironmentDetail, updateEnvironment } from '@/services/project/api-testing/environment'
-import { resolveEnvironmentError, validateVariableRow } from '@/pages/project/api-testing/environment/environmentsModel'
+import { resolveEnvironmentError, validateVariableRow } from '@/composables/project/api-testing/environment/environmentsModel'
 import { useEnvironmentHttpConfig, useEnvironmentDatasource } from './useEnvironmentConfig'
 import type { HttpConfigForm, DsForm } from './useEnvironmentConfig'
 import { useEnvironmentProcessors } from './useEnvironmentProcessors'

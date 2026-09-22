@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { InterfaceEditorForm } from '@/pages/project/api-testing/interface/interfacesModel'
+import type { InterfaceEditorForm } from '@/composables/project/api-testing/interface/interfacesModel'
 
 defineProps<{ form: InterfaceEditorForm }>()
 </script>

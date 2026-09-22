@@ -2,7 +2,7 @@
 import { Codemirror } from 'vue-codemirror'
 import { java } from '@codemirror/lang-java'
 import { useFunctionalTesting } from '@/composables/project/functional-testing/useFunctionalTesting'
-import { formatScopeLabel } from './functionModel'
+import { formatScopeLabel } from '@/composables/project/api-testing/function/functionModel'
 
 const editorExtensions = [java()]
 

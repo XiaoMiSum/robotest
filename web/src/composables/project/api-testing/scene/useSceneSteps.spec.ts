@@ -25,7 +25,7 @@ vi.mock('@/services/project/api-testing/scene', () => ({
   copySceneStep: mocks.copySceneStep,
 }))
 
-vi.mock('@/pages/project/api-testing/scene/scenesModel', () => ({
+vi.mock('@/composables/project/api-testing/scene/scenesModel', () => ({
   sortedSteps: mocks.sortedSteps,
   emptyStepDraft: mocks.emptyStepDraft,
 }))

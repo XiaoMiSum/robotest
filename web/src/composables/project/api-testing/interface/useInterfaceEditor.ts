@@ -16,12 +16,12 @@ import {
   toCreatePayload,
   toSelectableModuleOptions,
   type InterfaceEditorForm,
-} from '@/pages/project/api-testing/interface/interfacesModel'
+} from '@/composables/project/api-testing/interface/interfacesModel'
 import {
   extractorFromComponent,
   validatorFromComponent,
 } from '@/components/project/api-testing/processorFormModel'
-import type { PaneValidatorItem, PaneExtractorItem } from '@/pages/project/api-testing/scene/scenesModel'
+import type { PaneValidatorItem, PaneExtractorItem } from '@/composables/project/api-testing/scene/scenesModel'
 
 // ==================== Constants ====================
 

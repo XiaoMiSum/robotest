@@ -16,7 +16,7 @@ vi.mock('vue', async (importOriginal) => {
   }
 })
 
-vi.mock('@/pages/project/api-testing/scene/scenesModel', () => ({
+vi.mock('@/composables/project/api-testing/scene/scenesModel', () => ({
   prefillDraftSteps: mocks.prefillDraftSteps,
 }))
 

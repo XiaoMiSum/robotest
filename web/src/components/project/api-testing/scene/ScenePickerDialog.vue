@@ -4,7 +4,7 @@ import { ElMessage } from 'element-plus'
 import type { ApiScenePageItem, ProjectModule } from '@/types'
 import { fetchScenePage } from '@/services/project/api-testing/scene'
 import { fetchProjectModuleTree } from '@/services/project'
-import { flattenModuleNames } from '@/pages/project/api-testing/interface/interfacesModel'
+import { flattenModuleNames } from '@/composables/project/api-testing/interface/interfacesModel'
 import { formatDateTime } from '@/utils/format'
 
 /**

@@ -10,9 +10,9 @@ import {
   MAX_DEBUG_TABS,
   tabTitle,
   tabFromRestore,
-} from '@/pages/project/api-testing/debug/debugModel'
+} from '@/composables/project/api-testing/debug/debugModel'
 import { executeDebug, restoreDebugRecord } from '@/services/project/api-testing/debug'
-import { parseCurl } from '@/pages/project/api-testing/debug/curlParser'
+import { parseCurl } from '@/composables/project/api-testing/debug/curlParser'
 import { useApiTestingUiStore } from '@/stores/apiTestingUi'
 
 const HISTORY_TAB_ID = '__history__'

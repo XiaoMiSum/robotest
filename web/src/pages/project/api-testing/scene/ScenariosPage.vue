@@ -4,7 +4,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import type { ApiScenePageItem, ProjectModule } from '@/types'
 import { fetchProjectModuleTree } from '@/services/project'
 import { deleteScene, fetchScenePage, executeScene, followScene, unfollowScene, batchDeleteScenes, batchMoveScenes } from '@/services/project/api-testing/scene'
-import { flattenModuleNames } from '@/pages/project/api-testing/interface/interfacesModel'
+import { flattenModuleNames } from '@/composables/project/api-testing/interface/interfacesModel'
 import { formatDateTime } from '@/utils/format'
 import ProjectModuleTree from '@/components/project/ProjectModuleTree.vue'
 

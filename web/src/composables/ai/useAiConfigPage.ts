@@ -24,8 +24,8 @@ import {
   isEmbeddingGroupEmpty,
   resolveModelHints,
   resolveUniqueParams,
-} from '@/pages/admin/aiConfigForm'
-import { extractUniqueValuesForScope } from '@/pages/admin/aiConfigForm'
+} from '@/composables/admin/aiConfigForm'
+import { extractUniqueValuesForScope } from '@/composables/admin/aiConfigForm'
 
 const AUTO_SAVE_DEBOUNCE_MS = 800
 
