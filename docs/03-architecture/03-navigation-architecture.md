@@ -104,9 +104,9 @@ flowchart TD
     E -- 无权限 --> C
     E -- 有权限 --> F[按 order 升序排序]
     F --> G{声明 section?}
-    G -- 管理模式侧栏: 有 --> H[并入同标题连续分组]
-    G -- 管理模式侧栏: 无 --> I[置顶组<br/>无分组标题]
-    G -- 业务模式顶栏 --> J[顶栏动态菜单项]
+    G -->|管理模式侧栏 有| H[并入同标题连续分组]
+    G -->|管理模式侧栏 无| I[置顶组<br/>无分组标题]
+    G -->|业务模式顶栏| J[顶栏动态菜单项]
     H --> K[侧栏渲染<br/>空分组整体不产生]
     I --> K
     J --> L[顶栏渲染<br/>无活动空间时显示引导提示]
@@ -150,9 +150,9 @@ flowchart TD
     B -- 否 --> D{持任意系统权限?}
     D -- 是 --> E[跳转 /admin/dashboard 数据概览<br/>渲染 AdminLayout 左侧分组侧栏]
     D -- 否 --> C
-    E --> F[点击顶栏 系统管理 图标<br/>需 hasSystemPermission] --> E
-    C --> G[选择/持有活跃空间] --> H[进入 /workspace/*<br/>顶栏动态菜单切换为空间组]
-    H --> I[进入项目] --> J[/workspace/projects/*<br/>顶栏动态菜单切换为项目组]
+    C -. 点击顶栏「系统管理」<br/>需 hasSystemPermission .-> E
+    C --> G[选择/持有活跃空间] --> H[进入 workspace 路由<br/>顶栏动态菜单切换为空间组]
+    H --> I[进入项目] --> J[进入 projects 路由<br/>顶栏动态菜单切换为项目组]
 ```
 
 * 进入管理模式：点击顶栏「系统管理」图标（需 `hasSystemPermission`）→ 路由跳转 `/admin/dashboard` → 模式与侧栏随路由派生。
