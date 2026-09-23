@@ -25,22 +25,6 @@ watch(
   { immediate: true },
 )
 
-watch(
-  () => route.path,
-  (path) => {
-    if (path.startsWith('/admin')) {
-      navStore.setMode('admin')
-    } else if (path.startsWith('/workspace/projects/')) {
-      navStore.setMode('project')
-    } else if (path.startsWith('/workspace')) {
-      navStore.setMode('workspace')
-    } else if (path === '/workspaces') {
-      navStore.setMode('none')
-    }
-  },
-  { immediate: true },
-)
-
 const activeDynamicMenu = computed(() => {
   const p = route.path
   const items = navStore.dynamicMenuItems
@@ -51,7 +35,6 @@ const activeDynamicMenu = computed(() => {
 const showMyProject = computed(() => navStore.isProjectMode)
 const showWorkspaceManage = computed(() => (navStore.isWorkspaceMode || navStore.isProjectMode) && authStore.hasWorkspaceAccess)
 const showSystemAdmin = computed(() => authStore.hasSystemPermission)
-const isSystemActive = computed(() => navStore.isAdminMode)
 
 // 项目 tag 仅 project 模式显示：workspace 模式（项目列表页）下 activeProjectName 可能是上次进入的残留
 const showProjectTag = computed(() => navStore.isProjectMode && Boolean(authStore.activeProjectName))
@@ -68,42 +51,37 @@ function handleDynamicMenuClick(path: string) {
 }
 
 function goHome() {
-  if (navStore.isAdminMode) {
-    router.push('/admin/dashboard')
-  } else if (navStore.isProjectMode) {
-    router.push('/workspace/projects/dashboard')
+  // 管理端由 AdminLayout 承载，业务布局内模式只可能是 project / 其他（Logo 回当前上下文首页）
+  if (navStore.isProjectMode) {
+    router.push({ name: 'ProjectDashboard' })
   } else {
-    router.push('/workspaces')
-    navStore.setMode('none')
+    router.push({ name: 'Workspaces' })
   }
 }
 
 function goMyProjects() {
-  router.push('/workspace/projects')
-  navStore.setMode('workspace')
+  router.push({ name: 'WorkspaceProjects' })
 }
 
 // 我的空间固定回空间列表；goHome 是 logo 的"回当前上下文首页"语义，两者不可复用
 function goMyWorkspaces() {
-  router.push('/workspaces')
-  navStore.setMode('none')
+  router.push({ name: 'Workspaces' })
 }
 
 function goWorkspaceManage() {
-  if (authStore.activeWorkspace?.id) {
-    router.push(`/workspace/${authStore.activeWorkspace.id}`)
+  const workspaceId = authStore.activeWorkspace?.id
+  if (workspaceId) {
+    router.push({ name: 'WorkspaceInfo', params: { workspaceId } })
   }
-  navStore.setMode('workspace')
 }
 
 function goSystemAdmin() {
-  router.push('/admin/dashboard')
-  navStore.setMode('admin')
+  router.push({ name: 'AdminDashboard' })
 }
 
 function handleLogout() {
   authStore.logout()
-  router.push('/login')
+  router.push({ name: 'Login' })
 }
 
 const pwdDialogVisible = ref(false)
@@ -170,7 +148,6 @@ function handleUserCommand(cmd: string) {
         <div
           v-if="showSystemAdmin"
           class="top-nav__icon-btn"
-          :class="{ 'top-nav__icon-btn--active': isSystemActive }"
           @click="goSystemAdmin"
         >
           <el-icon><Monitor /></el-icon>
