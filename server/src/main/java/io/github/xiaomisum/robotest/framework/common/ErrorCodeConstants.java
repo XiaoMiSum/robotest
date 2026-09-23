@@ -4,7 +4,7 @@ import xyz.migoo.framework.common.exception.ErrorCode;
 
 public class ErrorCodeConstants {
 
-    // ========== 参数校验 1,000,001,001-1,000,001,009 ==========
+    // ========== 参数校验 1,000,001,001-1,000,001,010 ==========
     public static final ErrorCode VALIDATION_FAILED = ErrorCode.of(1000001001, "参数校验失败");
     public static final ErrorCode USERNAME_EXISTS = ErrorCode.of(1000001002, "用户名已存在");
     public static final ErrorCode EMAIL_EXISTS = ErrorCode.of(1000001003, "邮箱已存在");
@@ -14,6 +14,7 @@ public class ErrorCodeConstants {
     public static final ErrorCode OLD_PASSWORD_WRONG = ErrorCode.of(1000001007, "原密码错误");
     public static final ErrorCode ROLE_TYPE_ERROR = ErrorCode.of(1000001008, "角色类型错误（只能选择系统角色）");
     public static final ErrorCode MUST_KEEP_ONE_WORKSPACE_ADMIN = ErrorCode.of(1000001009, "必须保留至少一个空间管理员");
+    public static final ErrorCode USER_STATUS_INVALID = ErrorCode.of(1000001010, "用户状态不合法");
 
     // ========== 权限校验 1,000,002,001-1,000,002,006 ==========
     public static final ErrorCode NO_PERMISSION = ErrorCode.of(1000002001, "无权限执行此操作");

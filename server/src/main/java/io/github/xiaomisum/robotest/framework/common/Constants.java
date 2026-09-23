@@ -13,6 +13,8 @@ public final class Constants {
         String DISSOLVED = "dissolved";
         String REVOKED = "revoked";
         String DISABLED = "disabled";
+        /** 用户锁定（V1.2）：与 disabled 同样阻止登录，仅提示文案不同 */
+        String LOCKED = "locked";
         String NEW = "new";
         String IN_PROGRESS = "in_progress";
         String CLOSED = "closed";

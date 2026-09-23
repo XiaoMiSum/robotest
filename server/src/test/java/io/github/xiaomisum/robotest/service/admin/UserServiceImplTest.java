@@ -348,7 +348,38 @@ class UserServiceImplTest {
         verify(userMapper, never()).updateById(any(SysUser.class));
     }
 
+    @Test
+    void updateUserStatus_locked_setsLockedStatus() {
+        when(userMapper.selectById(userId)).thenReturn(user);
+        stubEmptyAggregations();
+
+        userService.updateUserStatus(userId, Constants.Status.LOCKED);
+
+        ArgumentCaptor<SysUser> captor = ArgumentCaptor.forClass(SysUser.class);
+        verify(userMapper).updateById(captor.capture());
+        assertEquals(Constants.Status.LOCKED, captor.getValue().getStatus());
+    }
+
+    @Test
+    void updateUserStatus_invalidStatus_throwsWithoutUpdate() {
+        // 状态白名单先于查询校验：非法取值不触发任何读写
+        assertThrows(ServiceException.class, () -> userService.updateUserStatus(userId, "banned"));
+        verify(userMapper, never()).selectById(any(UUID.class));
+        verify(userMapper, never()).updateById(any(SysUser.class));
+    }
+
     // ========== batchUpdateStatus ==========
+
+    @Test
+    void batchUpdateStatus_invalidStatus_throwsWithoutUpdate() {
+        UserBatchStatusReqDTO req = new UserBatchStatusReqDTO();
+        req.setUserIds(List.of(userId));
+        req.setStatus("banned");
+
+        assertThrows(ServiceException.class, () -> userService.batchUpdateStatus(req));
+        verify(userMapper, never()).selectById(any(UUID.class));
+        verify(userMapper, never()).updateById(any(SysUser.class));
+    }
 
     @Test
     void batchUpdateStatus_skipsMissingUsers() {
