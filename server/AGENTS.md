@@ -28,8 +28,8 @@ mvn test
 
 分层：**Controller → Service → Repository**
 
-- `controller/{admin,workspace,project}/`：仅路由 + 参数校验（`@Valid`），无业务逻辑
-- `service/{admin,workspace,project}/`：接口 + 实现同包，按业务域分组
+- `controller/{admin,apitest,project,workspace}/`：仅路由 + 参数校验（`@Valid`），无业务逻辑
+- `service/{admin,ai,apitest,domain,project,websocket,workspace}/`：接口 + 实现同包，按业务域分组
 - `service/websocket/`：业务 WebSocket 处理（DocumentHandler、DocumentPersistenceHandler）
 - `repository/`：JPA / MyBatis-Plus 数据访问
 - `model/entity/` ↔ `model/dto/request|response/`
@@ -51,12 +51,14 @@ mvn test
 
 | 编号  | 规则                                                    | 检查方式      |
 | --- | ----------------------------------------------------- | --------- |
-| C1  | 优先使用 migoo 框架提供的基础功能（验证注解、工具类等），禁止重复造轮子     | 代码审查      |
+| C10 | 优先使用 migoo 框架提供的基础功能（验证注解、工具类等），禁止重复造轮子（后端）     | 代码审查      |
 | C2  | Controller 不允许包含业务逻辑，只能路由+校验                        | 代码审查      |
 | C3  | 所有业务异常必须抛出 `BusinessException(code, msg)`，不抛原始异常      | 代码审查      |
-| C5  | 数据库每表必须有 `id`（自增或雪花）、`created_at`、`updated_at`，禁止物理外键 | 数据库审查     |
+| C5  | 数据库每表必须有 `id`（自增或雪花）、`created_at`、`updated_at`、`is_deleted`（逻辑删除），禁止物理外键 | 数据库审查     |
 | C8  | 单测覆盖率 ≥ 70%                                            | CI        |
-| C9  | 更新数据只更新调用方实际传入的字段：查询仅做校验，禁止整行查询结果作 `updateById` 载体；显式置 null 用 `LambdaUpdateWrapperX` | 代码审查      |
+| C11 | 更新数据只更新调用方实际传入的字段：查询仅做校验，禁止整行查询结果作 `updateById` 载体；显式置 null 用 `LambdaUpdateWrapperX` | 代码审查      |
+
+> 编号以根目录 `AGENTS.md` 总则为准，本表只列后端专属与共享条目在后端的落地口径；C4（上下文头）、C7（提交格式）见总则。
 
 ## 边界
 
@@ -94,7 +96,7 @@ new LambdaQueryWrapperX<SysUser>()
     .eqIfPresent(SysUser::getStatus, status);
 ```
 
-### 数据更新（部分更新原则，C9）
+### 数据更新（部分更新原则，C11）
 
 > 完整规范见 `docs/spec/backend.md` 第 8 节。查询仅用于校验，更新载体只携带 `id` + 本次变更字段。
 
