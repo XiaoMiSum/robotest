@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { reactive, ref, watch } from 'vue'
+import { useBugResolve } from '@/composables/project/bug/useBugResolve'
+import { reactive, watch } from 'vue'
 import { ElMessage } from 'element-plus'
-import { fetchBugs } from '@/services/project'
-import type { BugListItem, BugResolution } from '@/types'
+import type { BugResolution } from '@/types'
 import { BUG_RESOLUTION_LABEL } from '@/composables/project/bug/bugStatus'
 
 const props = defineProps<{
@@ -22,20 +22,11 @@ const form = reactive({
   comment: '',
 })
 
-const duplicateOptions = ref<BugListItem[]>([])
-const searching = ref(false)
-
-async function searchBugs(keyword: string) {
-  searching.value = true
-  try {
-    const page = await fetchBugs({ keyword: keyword || undefined, pageNo: 1, pageSize: 20 })
-    duplicateOptions.value = page.list.filter((b) => b.id !== props.excludeBugId)
-  } catch {
-    // 搜索失败不阻塞，用户可重试
-  } finally {
-    searching.value = false
-  }
-}
+const {
+  duplicateOptions,
+  searching,
+  searchBugs,
+} = useBugResolve(() => props.excludeBugId)
 
 watch(
   () => props.modelValue,

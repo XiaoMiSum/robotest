@@ -1,9 +1,9 @@
 <script setup lang="ts">
+import { useCasePlanRecommend } from '@/composables/project/functional-testing/review/useCasePlanRecommend'
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import RequirementSelector from '@/components/project/functional-testing/requirement/RequirementSelector.vue'
-import { planRecommend, type AiCasePlanRecommendReq } from '@/services/ai'
-import type { AiCasePlanRecommendItem, AiCasePlanRecommendResult, RequirementSummary } from '@/types'
+import type { AiCasePlanRecommendItem, RequirementSummary } from '@/types'
 
 /**
  * 用例规划智能推荐抽屉（US-AI-018，交互设计第 6 章）：
@@ -29,11 +29,20 @@ const requirementIds = ref<string[]>([])
 const requirementTitles = ref<RequirementSummary[]>([])
 const reqSelectorVisible = ref(false)
 
-const recommending = ref(false)
-const result = ref<AiCasePlanRecommendResult | null>(null)
-const checkedIndexes = ref<Set<number>>(new Set())
-
-let controller: AbortController | null = null
+const {
+  recommending,
+  result,
+  checkedIndexes,
+  recommend,
+  cancelRecommend,
+  handleClosed,
+  controller,
+} = useCasePlanRecommend({
+  getText: () => text.value,
+  getRequirementIds: () => requirementIds.value,
+  getExcludeCaseNodeIds: () => props.excludeCaseNodeIds,
+  getHasAnyInput: () => hasAnyInput.value,
+})
 
 const hasAnyInput = computed(
   () => text.value.trim() !== '' || requirementIds.value.length > 0,
@@ -72,46 +81,6 @@ function removeRequirement(id: string): void {
   requirementTitles.value = requirementTitles.value.filter((r) => r.id !== id)
 }
 
-function buildReq(): AiCasePlanRecommendReq | null {
-  if (!hasAnyInput.value) {
-    ElMessage.warning('请至少输入需求文本或选择需求条目')
-    return null
-  }
-  const req: AiCasePlanRecommendReq = {
-    text: text.value.trim() || undefined,
-    requirementIds: requirementIds.value.length ? requirementIds.value : undefined,
-    excludeCaseNodeIds: props.excludeCaseNodeIds.length ? props.excludeCaseNodeIds : undefined,
-  }
-  return req
-}
-
-async function recommend(): Promise<void> {
-  const req = buildReq()
-  if (!req) return
-  recommending.value = true
-  result.value = null
-  const { controller: c, promise } = planRecommend(req)
-  controller = c
-  try {
-    const resp = await promise
-    result.value = resp
-    checkedIndexes.value = new Set(resp.items.map((_, index) => index))
-  } catch (err) {
-    // 用户主动取消不提示（同步调用无部分结果）
-    if (controller?.signal.aborted) return
-    ElMessage.error(err instanceof Error ? err.message : '推荐失败')
-  } finally {
-    recommending.value = false
-    controller = null
-  }
-}
-
-function cancelRecommend(): void {
-  controller?.abort()
-  controller = null
-  recommending.value = false
-}
-
 function handleBringIn(): void {
   const items = checkedItems.value
   if (!items.length) {
@@ -119,14 +88,6 @@ function handleBringIn(): void {
     return
   }
   emit('bring-in', items.map((item) => item.caseNodeId))
-}
-
-// 抽屉关闭不保留本次推荐结果（交互设计 6.2），并中止进行中的长调用；
-// watch 而非关闭按钮回调：父组件程序化关闭（如加入成功后）同样触发清理
-function handleClosed(): void {
-  cancelRecommend()
-  result.value = null
-  checkedIndexes.value = new Set()
 }
 
 watch(visible, (open) => {

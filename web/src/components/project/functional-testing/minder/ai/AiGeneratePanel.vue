@@ -1,8 +1,8 @@
 <script setup lang="ts">
+import { useDocumentRequirements } from '@/composables/project/functional-testing/minder/ai/useDocumentRequirements'
 import { onBeforeUnmount, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import RequirementSelector from '@/components/project/functional-testing/requirement/RequirementSelector.vue'
-import { getDocumentRequirements } from '@/services/project'
 import { type AiStreamController, useAiStream } from '@/composables/ai/useAiStream'
 import { useAiStore } from '@/stores/ai'
 import type { AiCaseGenerateResult, AiGeneratedNode, RequirementSummary } from '@/types'
@@ -52,8 +52,11 @@ const previewNodes = ref<AiPreviewNode[]>([])
 const warnings = ref<string[]>([])
 /** 目标节点在预览组装时已缺失：回退仅展示生成节点树（挂载确认时走重选流程） */
 const targetMissing = ref(false)
-/** 已选需求池条目（US-AI-004），随请求体透传；打开时默认带入文档关联条目 */
-const selectedRequirements = ref<RequirementSummary[]>([])
+const {
+  selectedRequirements,
+  loadDocumentRequirements,
+} = useDocumentRequirements(() => props.docId)
+
 const requirementSelectorVisible = ref(false)
 /** 超 10 秒未见首帧的可取消提示（AI 通用交互规范 2.3） */
 const slowHint = ref(false)
@@ -180,15 +183,6 @@ function handleRequirementConfirm(selected: RequirementSummary[]): void {
 
 function removeRequirement(id: string): void {
   selectedRequirements.value = selectedRequirements.value.filter((r) => r.id !== id)
-}
-
-/** 打开时默认带入文档关联条目（交互设计 6.1），仅 generate/complete 消费 */
-async function loadDocumentRequirements(): Promise<void> {
-  try {
-    selectedRequirements.value = await getDocumentRequirements(props.docId)
-  } catch (err) {
-    ElMessage.error(err instanceof Error ? err.message : '加载文档关联需求失败')
-  }
 }
 
 // 每次打开重新同步文档关联条目
