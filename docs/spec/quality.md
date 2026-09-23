@@ -17,7 +17,7 @@
 
 **配置文件位置**：
 
-- 前端：`web/.eslintrc.cjs`、`web/.prettierrc`
+- 前端：`web/eslint.config.mjs`、`web/.prettierrc`
 
 **CI 门禁规则**：
 
