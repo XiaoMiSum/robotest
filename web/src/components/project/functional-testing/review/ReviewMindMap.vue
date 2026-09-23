@@ -274,7 +274,7 @@ onBeforeUnmount(() => {
   flex-shrink: 0;
   padding: var(--space-md) var(--space-lg);
   border-top: 1px solid var(--el-border-color-lighter);
-  background: #fff;
+  background: var(--color-neutral-0);
 }
 
 .comment-input__footer {
