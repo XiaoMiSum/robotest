@@ -255,8 +255,8 @@ function goMyWorkspaces() {
 .admin-layout__sidebar {
   width: var(--sidebar-width);
   flex-shrink: 0;
-  /* top 贴顶栏下沿、left/bottom 留 16px（视觉设计 6.1 悬浮卡片侧栏） */
-  margin: 0 0 var(--float-gap) var(--float-gap);
+  /* 顶边与内容卡对齐（视觉设计 6.1 与验收基准演示稿一致）；right 保持 0，与内容卡间距由内容区 margin-left 构成 */
+  margin: var(--float-gap) 0 var(--float-gap) var(--float-gap);
   background: var(--shell-bg);
   border: 1px solid var(--shell-border);
   border-radius: var(--radius-xl);
