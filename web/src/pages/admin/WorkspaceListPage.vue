@@ -4,9 +4,24 @@ import { useRouter } from 'vue-router'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import { createWorkspace, fetchWorkspaces } from '@/services/admin'
 import type { AdminWorkspace } from '@/types'
-import { formatDate } from '@/utils/format'
+import { formatDateTime } from '@/utils/format'
 
 const router = useRouter()
+
+// 后端状态仅 active/dissolved 两态，且无按状态计数接口，故 segment 不展示计数
+const STATUS_OPTIONS = [
+  { value: 'active', label: '活跃' },
+  { value: 'dissolved', label: '已解散' },
+] as const
+
+const STATUS_META: Record<string, { label: string; dot: string }> = {
+  active: { label: '活跃', dot: 'workspace-list__status--success' },
+  dissolved: { label: '已解散', dot: 'workspace-list__status--neutral' },
+}
+
+function statusMeta(status: string) {
+  return STATUS_META[status] ?? { label: status, dot: 'workspace-list__status--neutral' }
+}
 
 const loading = ref(false)
 const workspaces = ref<AdminWorkspace[]>([])
@@ -14,7 +29,7 @@ const total = ref(0)
 
 const query = reactive({
   keyword: '',
-  status: '' as string,
+  status: 'active' as string,
   pageNo: 1,
   pageSize: 20,
 })
@@ -44,13 +59,23 @@ function handleSearch() {
 
 function handleReset() {
   query.keyword = ''
-  query.status = ''
+  query.status = 'active'
   query.pageNo = 1
   loadWorkspaces()
 }
 
+function handleStatusChange(value: string) {
+  if (query.status === value) return
+  query.status = value
+  handleSearch()
+}
+
 function goDetail(id: string) {
   router.push(`/admin/workspaces/${id}`)
+}
+
+function handleRowClick(row: AdminWorkspace) {
+  goDetail(row.id)
 }
 
 const createDialogVisible = ref(false)
@@ -101,68 +126,91 @@ onMounted(loadWorkspaces)
 
 <template>
   <div class="workspace-list">
-    <el-card shadow="never" class="workspace-list__filters">
-      <el-form :inline="true" class="workspace-list__filter-form" @submit.prevent>
-        <el-form-item>
+    <div class="workspace-list__head">
+      <div>
+        <h1 class="workspace-list__title">空间管理</h1>
+        <p class="workspace-list__desc">平台内全部工作空间及其规模</p>
+      </div>
+      <el-button type="primary" @click="openCreateDialog">
+        <el-icon><Plus /></el-icon>新建空间
+      </el-button>
+    </div>
+
+    <section class="workspace-list__card">
+      <div class="workspace-list__toolbar">
+        <div class="workspace-list__filters">
+          <div class="workspace-list__segment">
+            <button
+              v-for="opt in STATUS_OPTIONS"
+              :key="opt.value"
+              type="button"
+              class="workspace-list__seg-item"
+              :class="{ 'is-active': query.status === opt.value }"
+              @click="handleStatusChange(opt.value)"
+            >
+              {{ opt.label }}
+            </button>
+          </div>
           <el-input
             v-model="query.keyword"
-            placeholder="搜索工作空间名称"
+            placeholder="搜索空间名称"
             clearable
             :prefix-icon="'Search'"
             style="width: 220px"
             @keyup.enter="handleSearch"
           />
-        </el-form-item>
-        <el-form-item>
-          <el-select v-model="query.status" placeholder="状态" clearable style="width: 120px" @change="handleSearch">
-            <el-option label="活跃" value="active" />
-            <el-option label="已解散" value="dissolved" />
-          </el-select>
-        </el-form-item>
-        <el-form-item>
           <el-button type="primary" @click="handleSearch">
             <el-icon><Search /></el-icon>查询
           </el-button>
           <el-button @click="handleReset">重置</el-button>
-        </el-form-item>
-        <el-form-item class="workspace-list__filter-spacer" />
-        <el-form-item>
-          <el-button type="primary" @click="openCreateDialog">
-            <el-icon><Plus /></el-icon>新建工作空间
-          </el-button>
-        </el-form-item>
-      </el-form>
-    </el-card>
+        </div>
+        <span class="workspace-list__sort-note">按创建时间倒序</span>
+      </div>
 
-    <el-card shadow="never">
-      <el-table v-loading="loading" :data="workspaces" row-key="id">
-        <el-table-column label="名称" min-width="160">
+      <el-table
+        v-loading="loading"
+        :data="workspaces"
+        row-key="id"
+        class="workspace-list__table"
+        @row-click="handleRowClick"
+      >
+        <el-table-column label="空间名称" min-width="160">
           <template #default="{ row }">
-            <el-link type="primary" underline="never" @click="goDetail(row.id)">
+            <el-link type="primary" underline="never" @click.stop="goDetail(row.id)">
               {{ row.name }}
             </el-link>
           </template>
         </el-table-column>
-        <el-table-column prop="description" label="描述" min-width="200" show-overflow-tooltip />
-        <el-table-column label="状态" width="100">
+        <el-table-column label="描述" min-width="200" show-overflow-tooltip>
           <template #default="{ row }">
-            <el-tag :type="row.status === 'active' ? 'success' : 'info'" size="small" effect="light" round>
-              {{ row.status === 'active' ? '活跃' : '已解散' }}
-            </el-tag>
+            <span class="workspace-list__desc-cell">{{ row.description || '—' }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="成员" width="80" align="center">
-          <template #default="{ row }">{{ row.memberCount }}</template>
-        </el-table-column>
-        <el-table-column label="项目" width="80" align="center">
-          <template #default="{ row }">{{ row.projectCount }}</template>
-        </el-table-column>
-        <el-table-column label="创建时间" width="160">
-          <template #default="{ row }">{{ formatDate(row.createdAt) }}</template>
-        </el-table-column>
-        <el-table-column label="操作" width="100" fixed="right">
+        <el-table-column label="状态" width="100">
           <template #default="{ row }">
-            <el-button link type="primary" @click="goDetail(row.id)">查看详情</el-button>
+            <span class="workspace-list__status" :class="statusMeta(row.status).dot">
+              <span class="workspace-list__dot" />{{ statusMeta(row.status).label }}
+            </span>
+          </template>
+        </el-table-column>
+        <el-table-column label="成员" width="80">
+          <template #default="{ row }">
+            <span class="workspace-list__num">{{ row.memberCount }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="项目" width="80">
+          <template #default="{ row }">
+            <span class="workspace-list__num">{{ row.projectCount }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="创建时间" width="170">
+          <template #default="{ row }">
+            <span class="workspace-list__num">{{ formatDateTime(row.createdAt) }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="110" fixed="right">
+          <template #default="{ row }">
+            <el-button link type="primary" @click.stop="goDetail(row.id)">查看详情</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -178,7 +226,7 @@ onMounted(loadWorkspaces)
           @size-change="handleSearch"
         />
       </div>
-    </el-card>
+    </section>
 
     <el-dialog v-model="createDialogVisible" title="新建工作空间" width="480px">
       <el-form ref="createFormRef" :model="createForm" :rules="createRules" label-width="80px">
@@ -210,30 +258,125 @@ onMounted(loadWorkspaces)
 </template>
 
 <style scoped lang="scss">
-.workspace-list__filters {
-  margin-bottom: var(--space-lg);
+.workspace-list__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-lg);
+  margin-bottom: var(--space-xl);
 }
 
-.workspace-list__filters :deep(.el-form-item) {
-  margin-bottom: 0;
+.workspace-list__title {
+  margin: 0 0 var(--space-xs);
+  font-size: var(--font-size-2xl);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--color-neutral-900);
 }
 
-.workspace-list__filter-form {
+.workspace-list__desc {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-neutral-500);
+}
+
+/* 单卡片承载 toolbar/表格/分页，对齐演示稿 workspaces.html 结构 */
+.workspace-list__card {
+  background: var(--color-neutral-0);
+  border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+}
+
+.workspace-list__toolbar {
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--color-neutral-100);
   flex-wrap: wrap;
-  gap: 0;
 }
 
-.workspace-list__filter-spacer {
-  flex: 1;
+.workspace-list__filters {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  flex-wrap: wrap;
+}
+
+/* 分段控件对齐演示稿 segment，替代原状态下拉 */
+.workspace-list__segment {
+  display: inline-flex;
+  background: var(--color-neutral-100);
+  border-radius: var(--radius-md);
+  padding: 3px;
+  gap: 2px;
+}
+
+.workspace-list__seg-item {
+  padding: 4px 14px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-neutral-600);
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  line-height: 1.4;
+  cursor: pointer;
+}
+
+.workspace-list__seg-item.is-active {
+  background: var(--color-neutral-0);
+  color: var(--color-neutral-900);
+  box-shadow: var(--shadow-sm);
+}
+
+.workspace-list__sort-note {
+  font-size: var(--font-size-xs);
+  color: var(--color-neutral-500);
+  white-space: nowrap;
+}
+
+/* 状态点标对齐演示稿 status（圆点 + 文案），色义：活跃绿 / 已解散灰 */
+.workspace-list__status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: var(--font-size-sm);
+  color: var(--color-neutral-700);
+  white-space: nowrap;
+}
+
+.workspace-list__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--color-neutral-400);
+}
+
+.workspace-list__status--success .workspace-list__dot {
+  background: var(--color-success);
+}
+
+.workspace-list__table :deep(.el-table__row) {
+  cursor: pointer;
+}
+
+.workspace-list__desc-cell {
+  color: var(--color-neutral-500);
+}
+
+.workspace-list__num {
+  font-variant-numeric: tabular-nums;
 }
 
 .workspace-list__pager {
   display: flex;
   justify-content: flex-end;
-  margin-top: var(--space-lg);
-  padding-top: var(--space-lg);
+  padding: 14px 20px;
   border-top: 1px solid var(--color-neutral-100);
 }
 </style>
