@@ -137,6 +137,7 @@ onMounted(async () => {
       <el-tab-pane label="调用统计" name="statistics">
         <AiStatisticsTab
           v-model:group-by="cfg.statQuery.groupBy"
+          v-model:date-range="cfg.statQuery.dateRange"
           :statistics="cfg.statistics.value"
           @change="cfg.loadStatistics"
         />
