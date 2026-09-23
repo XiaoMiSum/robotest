@@ -27,14 +27,14 @@ pnpm run lint && pnpm run typecheck && pnpm run test:unit -- --coverage
 
 ## 架构
 
-分层：**路由 → API → 页面 → 组件 → 状态**
+分层：**路由 → 页面 → 组件 → 组合式 → 服务/状态**（页面可直连 services/stores；层级由 ESLint `no-restricted-imports` 门禁强制）
 
 - `router/`：懒加载 + meta 守卫（`admin` / `business`）
 - `services/`：Axios 实例，拦截器注入 Token / 上下文头（`X-Active-Workspace`）
 - `pages/`：编排数据，调用 services 与 stores
-- `components/`：纯展示 + emit 事件
+- `components/`：纯展示 + emit 事件；不直接 import services（状态与 API 调用下沉到本地 composable）
 - `stores/`（Pinia）：全局 + 模块状态
-- `composables/`：可复用组合式逻辑
+- `composables/`：可复用组合式逻辑；组件本地 composable 封装状态与 services 调用
 - 脑图：自研 SVG/Canvas + Yjs CRDT 协同（详见 `docs/spec/api.md#4`）
 
 > 详细分层职责参见 `docs/spec/frontend.md`。
