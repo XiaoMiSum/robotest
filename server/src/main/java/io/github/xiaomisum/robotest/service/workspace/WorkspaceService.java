@@ -14,7 +14,8 @@ public interface WorkspaceService {
 
     PageResult<WorkspaceRespDTO> getWorkspacePage(String keyword, String status, Integer pageNo, Integer pageSize);
 
-    String createWorkspace(WorkspaceCreateReqDTO reqDTO);
+    /** creatorId 为当前登录用户 ID（由 Controller 从 @AuthenticationPrincipal 传入，写入 created_by） */
+    String createWorkspace(WorkspaceCreateReqDTO reqDTO, UUID creatorId);
 
     WorkspaceRespDTO getWorkspaceDetail(UUID id);
 

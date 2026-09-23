@@ -48,11 +48,13 @@ class WorkspaceServiceImplTest {
     private WorkspaceServiceImpl workspaceService;
 
     private UUID workspaceId;
+    private UUID creatorId;
     private Workspace workspace;
 
     @BeforeEach
     void setUp() {
         workspaceId = UUID.fromString("00000000-0000-0000-0000-000000000001");
+        creatorId = UUID.fromString("00000000-0000-0000-0000-0000000000aa");
         workspace = new Workspace();
         workspace.setId(workspaceId);
         workspace.setName("WS 1");
@@ -112,13 +114,15 @@ class WorkspaceServiceImplTest {
         WorkspaceCreateReqDTO req = new WorkspaceCreateReqDTO();
         req.setName("新空间");
         req.setDescription("desc");
-        String id = workspaceService.createWorkspace(req);
+        String id = workspaceService.createWorkspace(req, creatorId);
 
         assertNotNull(id);
         ArgumentCaptor<Workspace> captor = ArgumentCaptor.forClass(Workspace.class);
         verify(workspaceMapper).insert(captor.capture());
         assertEquals("新空间", captor.getValue().getName());
         assertEquals(Constants.Status.ACTIVE, captor.getValue().getStatus());
+        // 创建人来自当前登录用户，写入 created_by
+        assertEquals(creatorId, captor.getValue().getCreatedBy());
     }
 
     @Test
@@ -128,8 +132,57 @@ class WorkspaceServiceImplTest {
         WorkspaceCreateReqDTO req = new WorkspaceCreateReqDTO();
         req.setName("重复");
 
-        assertThrows(ServiceException.class, () -> workspaceService.createWorkspace(req));
+        assertThrows(ServiceException.class, () -> workspaceService.createWorkspace(req, creatorId));
         verify(workspaceMapper, never()).insert(any(Workspace.class));
+    }
+
+    // ========== created_by 回填 ==========
+
+    @Test
+    void getWorkspacePage_backfillsCreatedByName() {
+        workspace.setCreatedBy(creatorId);
+        SysUser creator = new SysUser();
+        creator.setId(creatorId);
+        creator.setUsername("zhangming");
+        PageResult<Workspace> page = new PageResult<>(List.of(workspace), 1L);
+        doReturn(page).when(workspaceMapper).findPage(any(PageParam.class), any(), any());
+        when(userMapper.listByIds(List.of(creatorId))).thenReturn(List.of(creator));
+        when(workspaceUserMapper.countByWorkspaceId(workspaceId)).thenReturn(1L);
+        when(projectMapper.countByWorkspaceId(workspaceId)).thenReturn(1L);
+
+        PageResult<WorkspaceRespDTO> result = workspaceService.getWorkspacePage(null, null, 1, 20);
+
+        assertEquals("zhangming", result.getList().get(0).getCreatedByName());
+    }
+
+    @Test
+    void getWorkspaceDetail_historicalWorkspaceWithoutCreatorIsNull() {
+        // created_by 为 null（历史数据）：不发起回查，createdByName 保持 null，前端展示 —
+        when(workspaceMapper.selectById(workspaceId)).thenReturn(workspace);
+        when(workspaceUserMapper.countByWorkspaceId(workspaceId)).thenReturn(0L);
+        when(projectMapper.countByWorkspaceId(workspaceId)).thenReturn(0L);
+
+        WorkspaceRespDTO result = workspaceService.getWorkspaceDetail(workspaceId);
+
+        assertNull(result.getCreatedByName());
+        verify(userMapper, never()).listByIds(any());
+    }
+
+    @Test
+    void updateWorkspace_carrierNeverCarriesCreatedBy() {
+        when(workspaceMapper.selectById(workspaceId)).thenReturn(workspace);
+        when(workspaceMapper.findByName(anyString())).thenReturn(null);
+        when(workspaceUserMapper.countByWorkspaceId(workspaceId)).thenReturn(0L);
+        when(projectMapper.countByWorkspaceId(workspaceId)).thenReturn(0L);
+
+        WorkspaceUpdateReqDTO req = new WorkspaceUpdateReqDTO();
+        req.setName("改名");
+        workspaceService.updateWorkspace(workspaceId, req);
+
+        ArgumentCaptor<Workspace> captor = ArgumentCaptor.forClass(Workspace.class);
+        verify(workspaceMapper).updateById(captor.capture());
+        // 更新空间不触碰 created_by（部分更新原则）
+        assertNull(captor.getValue().getCreatedBy());
     }
 
     // ========== updateWorkspace ==========
