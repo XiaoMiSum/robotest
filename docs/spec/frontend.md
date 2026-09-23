@@ -67,9 +67,9 @@ import type { User } from '@/types'
 import { computed } from 'vue'
 import { ElMessage } from 'element-plus'
 
-// 3. 业务导入
+// 3. 业务导入（API 经组件本地 composable，组件不直接 import services —— 见 3.4）
 import { useAuthStore } from '@/stores/auth'
-import { fetchUsers } from '@/services/admin'
+import { useUserList } from '@/composables/admin/useUserList'
 
 // 4. Props 定义（类型安全）
 const props = defineProps({
@@ -123,6 +123,18 @@ async function handleSave() { ... }
 - 页面组件（`pages/`）负责数据编排，纯 UI 组件（`components/`）不直接调用 API。
 - 列表 + 表单是常见组合：`PageA.vue` 引用 `ATable.vue` + `AFormModal.vue`。
 - 组件通信：Props 下传、Emit 上传；跨层级用 provide/inject；跨页面用 Pinia。
+
+### 3.4 分层依赖与门禁
+
+依赖方向（单向，禁止反向）：**pages → components → composables → services / stores**。
+
+- `pages/`：数据编排，可调用 services 与 stores。
+- `components/`：纯展示 + emit；状态与 services 调用下沉到组件本地 composable，**不直接 import `services/`**，不得依赖 `pages/`。
+- `composables/`：封装状态与 services 调用；可依赖 `types/`、`utils/`、`services/` 及组件旁的 `.ts` 辅助模块；不得依赖 `pages/`。
+- `services/`：仅依赖 `types/`、`utils/` 与请求基础设施；不得依赖 components / pages / composables / stores。
+- `stores/`：全局状态；不得依赖 components / pages / composables。
+
+以上依赖由 ESLint `no-restricted-imports` 层级门禁强制（`web/eslint.config.mjs`），违规即 lint 失败。
 
 ---
 

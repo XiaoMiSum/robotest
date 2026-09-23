@@ -31,6 +31,98 @@ export default tseslint.config(
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
     },
   },
+  // 层级门禁：依赖方向 pages → components → composables → services/stores，详见 docs/spec/frontend.md 3.4
+  {
+    files: ['src/components/**/*.{vue,ts}'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['@/services', '@/services/*', '@/services/**'],
+              message: '组件不直接 import services：API 调用下沉到组件本地 composable（frontend.md 3.4）',
+            },
+            {
+              group: ['@/pages', '@/pages/*', '@/pages/**'],
+              message: '组件不得依赖 pages（frontend.md 3.4）',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ['src/composables/**/*.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['@/pages', '@/pages/*', '@/pages/**'],
+              message: 'composables 不得依赖 pages（frontend.md 3.4）',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ['src/services/**/*.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: [
+                '@/components',
+                '@/components/*',
+                '@/components/**',
+                '@/pages',
+                '@/pages/*',
+                '@/pages/**',
+                '@/composables',
+                '@/composables/*',
+                '@/composables/**',
+                '@/stores',
+                '@/stores/*',
+                '@/stores/**',
+              ],
+              message: 'services 不得依赖上层模块（frontend.md 3.4）',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ['src/stores/**/*.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: [
+                '@/components',
+                '@/components/*',
+                '@/components/**',
+                '@/pages',
+                '@/pages/*',
+                '@/pages/**',
+                '@/composables',
+                '@/composables/*',
+                '@/composables/**',
+              ],
+              message: 'stores 不得依赖 components/pages/composables（frontend.md 3.4）',
+            },
+          ],
+        },
+      ],
+    },
+  },
   {
     ignores: ['dist', 'node_modules', '*.d.ts'],
   },
