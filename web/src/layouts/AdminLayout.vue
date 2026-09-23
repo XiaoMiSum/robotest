@@ -52,10 +52,11 @@ function goMyWorkspaces() {
   <div class="admin-layout">
     <header class="admin-layout__topbar">
       <div class="admin-layout__topbar-left">
-        <span class="admin-layout__logo">RoboTest</span>
-        <el-tag type="danger" size="small" effect="dark" class="admin-layout__mode-tag">
-          系统管理
-        </el-tag>
+        <span class="admin-layout__logo">
+          <span class="admin-layout__logo-mark"><el-icon><Lightning /></el-icon></span>
+          RoboTest
+        </span>
+        <span class="admin-layout__mode-tag">系统管理</span>
       </div>
 
       <div class="admin-layout__topbar-right">
@@ -107,8 +108,8 @@ function goMyWorkspaces() {
         <el-menu
           :default-active="activeSidebarPath"
           background-color="transparent"
-          text-color="rgba(255,255,255,0.65)"
-          active-text-color="#ffffff"
+          text-color="var(--shell-text)"
+          active-text-color="var(--color-primary-500)"
           class="admin-layout__sidebar-menu"
           @select="handleSidebarSelect"
         >
@@ -138,11 +139,11 @@ function goMyWorkspaces() {
   align-items: center;
   justify-content: space-between;
   height: var(--header-height);
-  background: linear-gradient(90deg, var(--color-neutral-800) 0%, var(--color-neutral-900) 100%);
+  background: var(--shell-bg);
   padding: 0 20px;
   z-index: 100;
   flex-shrink: 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid var(--shell-border);
 }
 
 .admin-layout__topbar-left {
@@ -152,16 +153,36 @@ function goMyWorkspaces() {
 }
 
 .admin-layout__logo {
-  font-size: 17px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 16px;
   font-weight: 700;
-  color: #ffffff;
-  letter-spacing: -0.02em;
+  color: var(--shell-text-strong);
+  letter-spacing: -0.01em;
+}
+
+.admin-layout__logo-mark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  font-size: 14px;
+  border-radius: 5px;
+  background: var(--color-primary-500);
+  color: #fff;
+  flex-shrink: 0;
 }
 
 .admin-layout__mode-tag {
   font-size: 10px;
   letter-spacing: 0.04em;
   padding: 2px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+  background: var(--color-neutral-900);
+  color: var(--color-neutral-0);
 }
 
 .admin-layout__topbar-right {
@@ -177,20 +198,20 @@ function goMyWorkspaces() {
   padding: 6px 10px;
   border-radius: var(--radius-md);
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.55);
+  color: var(--shell-text);
   cursor: pointer;
   transition: all var(--transition-fast);
   white-space: nowrap;
   user-select: none;
 
   &:hover {
-    color: #ffffff;
-    background: rgba(255, 255, 255, 0.08);
+    color: var(--color-neutral-900);
+    background: var(--shell-item-hover);
   }
 
   &--active {
-    color: #ffffff;
-    background: rgba(255, 255, 255, 0.1);
+    color: var(--color-primary-700);
+    background: var(--shell-item-active);
     font-weight: 500;
   }
 }
@@ -205,19 +226,24 @@ function goMyWorkspaces() {
   transition: background-color var(--transition-fast);
 
   &:hover {
-    background: rgba(255, 255, 255, 0.08);
+    background: var(--shell-item-hover);
   }
 }
 
 .admin-layout__username {
   font-size: 13px;
   font-weight: 500;
-  color: rgba(255, 255, 255, 0.85);
+  color: var(--color-neutral-900);
 }
 
 .admin-layout__user-arrow {
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.45);
+  color: var(--color-neutral-400);
+}
+
+.admin-layout__topbar :deep(.el-avatar) {
+  background: var(--color-primary-500);
+  color: #fff;
 }
 
 .admin-layout__body {
@@ -228,44 +254,39 @@ function goMyWorkspaces() {
 
 .admin-layout__sidebar {
   width: var(--sidebar-width);
-  background: linear-gradient(180deg, var(--color-neutral-800) 0%, var(--color-neutral-900) 100%);
   flex-shrink: 0;
+  /* top 贴顶栏下沿、left/bottom 留 16px（视觉设计 6.1 悬浮卡片侧栏） */
+  margin: 0 0 var(--float-gap) var(--float-gap);
+  background: var(--shell-bg);
+  border: 1px solid var(--shell-border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-float);
   overflow-y: auto;
 }
 
 .admin-layout__sidebar-menu {
   border-right: none;
-  padding: 8px 0;
+  padding: 12px 8px;
 
   :deep(.el-menu-item) {
-    height: 42px;
-    line-height: 42px;
-    margin: 2px 8px;
-    border-radius: var(--radius-md);
+    height: 38px;
+    line-height: 38px;
+    margin: 3px 0;
+    padding: 0 12px;
+    border-radius: var(--radius-lg);
     font-size: 13px;
+    color: var(--shell-text);
     transition: all var(--transition-fast);
 
     &:hover {
-      background: rgba(255, 255, 255, 0.06) !important;
-      color: #e2e8f0 !important;
+      background: var(--shell-item-hover) !important;
+      color: var(--shell-text-strong) !important;
     }
 
     &.is-active {
-      background: rgba(59, 130, 246, 0.18) !important;
-      color: #60a5fa !important;
-      font-weight: 500;
-
-      &::before {
-        content: '';
-        position: absolute;
-        left: 0;
-        top: 50%;
-        transform: translateY(-50%);
-        width: 3px;
-        height: 16px;
-        background: var(--color-primary-400);
-        border-radius: 0 2px 2px 0;
-      }
+      background: var(--shell-item-active) !important;
+      color: var(--color-primary-500) !important;
+      font-weight: 600;
     }
 
     .el-icon {
@@ -274,10 +295,15 @@ function goMyWorkspaces() {
   }
 }
 
+/* 方案B：主体整体一张悬浮白卡，左缘 = 侧栏(16+180) + 间距 16 = 212px（视觉设计 6.1） */
 .admin-layout__content {
   flex: 1;
   overflow: auto;
-  background-color: var(--color-neutral-50);
-  padding: var(--space-xl);
+  margin: var(--float-gap);
+  padding: var(--page-pad);
+  background: var(--color-neutral-0);
+  border: 1px solid var(--shell-border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-float);
 }
 </style>
