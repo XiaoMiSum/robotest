@@ -93,8 +93,8 @@
 
 | 分册 | 文件 | 覆盖章节 |
 |---|---|---|
-| 总览 | `10-system-management-ui-overview.md` | 前言、1. 引言、2. 总体布局、7. 通用交互模式总结 |
-| 数据概览 | `11-system-management-ui-dashboard.md` | 3. 数据概览页 |
-| 用户管理 | `12-system-management-ui-user.md` | 4. 用户管理 |
-| 工作空间管理 | `13-system-management-ui-workspace.md` | 5. 工作空间管理 |
-| 角色与权限管理 | `14-system-management-ui-role.md` | 6. 角色与权限管理 |
+| 总览 | `02-system-management-ui-overview.md` | 前言、1. 引言、2. 总体布局、7. 通用交互模式总结 |
+| 数据概览 | `03-system-management-ui-dashboard.md` | 3. 数据概览页 |
+| 用户管理 | `04-system-management-ui-user.md` | 4. 用户管理 |
+| 工作空间管理 | `05-system-management-ui-workspace.md` | 5. 工作空间管理 |
+| 角色与权限管理 | `06-system-management-ui-role.md` | 6. 角色与权限管理 |
