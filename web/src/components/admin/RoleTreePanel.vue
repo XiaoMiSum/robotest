@@ -52,7 +52,13 @@ defineExpose({ reload: load })
         @node-click="handleNodeClick"
       >
         <template #default="{ data }">
-          <div class="role-tree__node" :class="{ 'role-tree__node--group': data.isGroup }">
+          <div
+            class="role-tree__node"
+            :class="{
+              'role-tree__node--group': data.isGroup,
+              'role-tree__node--custom': !data.isGroup && !data.isSystem,
+            }"
+          >
             <span class="role-tree__label">
               {{ data.name }}
               <el-tag
@@ -185,18 +191,23 @@ defineExpose({ reload: load })
   color: var(--color-neutral-500);
 }
 
+/* 隐藏态用 display:none 而非透明度：不占布局，人数徽标才能与预置行对齐 */
 .role-tree__actions {
-  display: flex;
+  display: none;
   align-items: center;
-  opacity: 0;
-  transition: opacity var(--transition-fast);
 
   .el-button + .el-button {
     margin-left: 2px;
   }
 }
 
-.role-tree__node:hover .role-tree__actions {
-  opacity: 1;
+/* 操作按钮跟随节点选中态（高亮哪行哪行出按钮），悬浮不再触发 */
+:deep(.el-tree-node.is-current) .role-tree__actions {
+  display: flex;
+}
+
+/* 自定义角色出按钮的行由按钮接替人数位置，人数让位避免两者同行挤压 */
+:deep(.el-tree-node.is-current) .role-tree__node--custom .role-tree__count {
+  display: none;
 }
 </style>
