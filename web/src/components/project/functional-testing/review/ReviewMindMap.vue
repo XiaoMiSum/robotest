@@ -1,25 +1,15 @@
 <script setup lang="ts">
+import { useReviewMindmapOps } from '@/composables/project/functional-testing/review/useReviewMindmapOps'
 /**
- * ReviewMindMap 直接调用 services 而非通过 props 接收数据，
+ * ReviewMindMap 经本地 composable 直接调用 services 而非通过 props 接收数据，
  * 因为脑图组件承担"容器组件"角色：需响应用户标记/评论操作并即时提交，
  * 数据流与交互深度耦合，抽到 page 层会导致大量 props/emit 透传。
  * 设计文档第 13 节代码骨架同样在组件内直接调用 API。
  */
 import { computed, onMounted, onBeforeUnmount, ref, watch } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import {
-  getReviewSnapshotTree,
-  getReviewPlannedCases,
-  submitReviewRecord,
-  getNodeReviewRecords,
-  updateReviewCases,
-} from '@/services/project'
-import type { PlannedCases, ReviewMark, ReviewRecord } from '@/types'
 import { formatDateTime } from '@/utils/format'
 // window.kity / window.kityminder 的类型声明在 minder/types.ts 中统一维护
-import { reviewNodeToKm } from '@/minder/adapter'
 import type { Minder, MinderNode } from '@/minder/types'
-import { loadMinderEngine } from '@/minder/loader'
 import { useMinderInstance } from '@/minder/useMinderInstance'
 import { useContextMenu, type ContextMenuAnchorNode } from '@/minder/useContextMenu'
 import MinderContextMenu from '../minder/MinderContextMenu.vue'
@@ -52,137 +42,34 @@ const {
   },
 })
 
-// 评论抽屉
-const commentVisible = ref(false)
-const comments = ref<ReviewRecord[]>([])
-const newComment = ref('')
-
-// ==================== 初始化 ====================
-async function initMinder() {
-  if (!containerRef.value || !props.reviewId) return
-  const token = beginInit()
-  loading.value = true
-  destroyMinder()
-  try {
-    // documentId 限定单文档快照；不传时后端返回多文档多根，仅取首个，页面应始终传入
-    const tree = await getReviewSnapshotTree(props.reviewId, props.documentId || undefined)
-    const root = tree.length ? reviewNodeToKm(tree[0]) : { data: { text: '空快照' }, children: [] }
-    const kmData = { root, template: 'default', theme: 'fresh-green' }
-
-    const km = await loadMinderEngine()
-    // 异步等待期间组件可能已卸载或已切换目标，过期结果直接丢弃
-    if (isStale(token) || !containerRef.value) return
-
-    // 快照只读展示，裸 minder 即可，无需编辑内核
-    const instance: unknown = new km.Minder({ renderTo: containerRef.value })
-    minder.value = instance
-    const m = instance as Record<string, (...args: unknown[]) => unknown>
-    m.importJson(kmData)
-
-    // 禁用画布编辑以防止用户修改快照原始数据
-    m.disable?.()
-
-    m.on('selectionchange', updateSelectedState)
-  } catch (err) {
-    ElMessage.error(err instanceof Error ? err.message : '加载脑图失败')
-  } finally {
-    loading.value = false
-  }
-}
-
-// ==================== 评审操作 ====================
-async function markReview(mark: ReviewMark | null) {
-  if (!props.reviewId || !selectedNodeId.value) return
-  // 仅 case 节点可标记
-  if (selectedType.value !== 'case' && mark !== null) {
-    ElMessage.warning('仅用例节点可标记评审结果')
-    return
-  }
-  try {
-    await submitReviewRecord(props.reviewId, {
-      snapshotNodeId: selectedNodeId.value,
-      operationType: 'mark',
-      // 后端以显式 pending 表示重置回待评审（落库 last_mark = null）
-      mark: mark ?? 'pending',
-    })
-    reviewResult.value = mark
-    const data = getSelectedNodeData()
-    if (data) { data.lastMark = mark; data.reviewStatus = mark ? { result: mark } : null }
-    getMinder()?.refresh?.()
-    ElMessage.success(mark ? `已标记${mark === 'pass' ? '通过' : '不通过'}` : '已重置为待评审')
-    emit('marked')
-  } catch (err) {
-    ElMessage.error(err instanceof Error ? err.message : '提交标记失败')
-  }
-}
-
-// 移除选中用例：仅已关联 case 节点可移除，剔除后走全量覆盖接口（后端按新列表重刷快照关联）
-async function removeSelectedCase() {
-  if (!props.removable) return
-  if (selectedType.value !== 'case') {
-    ElMessage.warning('仅关联用例节点可移除')
-    return
-  }
-  const data = getSelectedNodeData()
-  const originalNodeId = data?.originalNodeId as string | undefined
-  // 快照含文档全部节点，仅关联节点才在规划列表中，未关联的 case 无关联可删
-  if (!originalNodeId || data?.isAssociated !== true) {
-    ElMessage.warning('该用例未关联，无需移除')
-    return
-  }
-  try {
-    await ElMessageBox.confirm(
-      `确定从该评审中移除用例「${data.text as string}」吗？移除后该用例及其评审标记将不再展示，历史标记记录保留作审计。`,
-      '移除用例',
-      { type: 'warning' },
-    )
-  } catch { return }
-  try {
-    const planned = await getReviewPlannedCases(props.reviewId)
-    const next = planned
-      .map((doc) => ({
-        documentId: doc.documentId,
-        // 剔除目标用例；该文档剩余用例为空时整文档移除（后端删文档快照并清理空目录）
-        caseIds: doc.caseIds.filter((id) => id !== originalNodeId),
-      }))
-      .filter((doc) => doc.caseIds.length > 0) as PlannedCases[]
-    await updateReviewCases(props.reviewId, next)
-    ElMessage.success('已移除用例')
-    emit('removed')
-    await initMinder()
-  } catch (err) {
-    ElMessage.error(err instanceof Error ? err.message : '移除用例失败')
-  }
-}
-
-async function openComments() {
-  if (!props.reviewId || !selectedNodeId.value) {
-    ElMessage.warning('请先选中一个节点')
-    return
-  }
-  commentVisible.value = true
-  try {
-    comments.value = await getNodeReviewRecords(props.reviewId, selectedNodeId.value)
-  } catch {
-    comments.value = []
-  }
-}
-
-async function addCommentFn() {
-  if (!newComment.value.trim() || !props.reviewId || !selectedNodeId.value) return
-  try {
-    await submitReviewRecord(props.reviewId, {
-      snapshotNodeId: selectedNodeId.value,
-      operationType: 'comment',
-      comment: newComment.value.trim(),
-    })
-    ElMessage.success('评论已发送')
-    newComment.value = ''
-    comments.value = await getNodeReviewRecords(props.reviewId, selectedNodeId.value)
-  } catch (err) {
-    ElMessage.error(err instanceof Error ? err.message : '发送评论失败')
-  }
-}
+const {
+  commentVisible,
+  comments,
+  newComment,
+  markReview,
+  removeSelectedCase,
+  openComments,
+  addCommentFn,
+  initMinder,
+} = useReviewMindmapOps({
+  containerRef,
+  loading,
+  minder,
+  selectedNodeId,
+  selectedType,
+  beginInit,
+  isStale,
+  getMinder,
+  getSelectedNodeData,
+  updateSelectedState,
+  destroyMinder,
+  reviewResult,
+  getReviewId: () => props.reviewId,
+  getDocumentId: () => props.documentId,
+  getRemovable: () => props.removable,
+  onMarked: () => emit('marked'),
+  onRemoved: () => emit('removed'),
+})
 
 // 移除按钮可用态：评审未完成（详情页传入）且当前选中为已关联 case 节点
 const canRemove = computed(() => props.removable === true && selectedType.value === 'case')

@@ -1,9 +1,9 @@
 <script setup lang="ts">
+import { useCaseSelector } from '@/composables/project/functional-testing/case/useCaseSelector'
 import { computed, onMounted, ref, watch } from 'vue'
 import { ElMessage, ElTree } from 'element-plus'
-import { fetchDocumentNodes, fetchProjectModuleTree } from '@/services/project'
 import CaseSelectTree from '@/components/project/functional-testing/case/CaseSelectTree.vue'
-import type { ProjectModule, TestCaseNode } from '@/types'
+import type { TestCaseNode } from '@/types'
 
 const props = defineProps<{
   modelValue: boolean
@@ -18,17 +18,22 @@ const emit = defineEmits<{
   confirm: [selectedNodes: { documentId: string; caseIds: string[] }[]]
 }>()
 
-const loading = ref(false)
-const modules = ref<ProjectModule[]>([])
+const {
+  loading,
+  modules,
+  selectedDocId,
+  docLoading,
+  filterKeyword,
+  filterPriority,
+  handleNodeClick,
+  docNodes,
+  loadModules,
+} = useCaseSelector()
+
 const treeRef = ref<InstanceType<typeof ElTree>>()
-const selectedDocId = ref('')
-const docNodes = ref<TestCaseNode | null>(null)
-const docLoading = ref(false)
 
 const selectedMap = ref<Record<string, Set<string>>>({})
 
-const filterKeyword = ref('')
-const filterPriority = ref('')
 const priorities = ['P0', 'P1', 'P2', 'P3']
 
 const showFullDoc = ref(false)
@@ -109,35 +114,6 @@ const totalSelected = computed(() => {
   })
   return count
 })
-
-async function loadModules() {
-  loading.value = true
-  try {
-    // 规划用例需在左树展示文档节点，必须带 assetType=testcase（后端仅该类型合并文档节点）
-    modules.value = await fetchProjectModuleTree('testcase')
-  } catch (err) {
-    ElMessage.error(err instanceof Error ? err.message : '加载模块树失败')
-  } finally {
-    loading.value = false
-  }
-}
-
-async function handleNodeClick(data: ProjectModule) {
-  if (data.type !== 'document') return
-  selectedDocId.value = data.id
-  filterKeyword.value = ''
-  filterPriority.value = ''
-  docLoading.value = true
-  try {
-    const result = await fetchDocumentNodes(data.id)
-    docNodes.value = result.node
-  } catch (err) {
-    ElMessage.error(err instanceof Error ? err.message : '加载文档节点失败')
-    docNodes.value = null
-  } finally {
-    docLoading.value = false
-  }
-}
 
 function collectCaseIds(node: TestCaseNode, acc: string[]) {
   if (node.type === 'case') acc.push(node.id)
