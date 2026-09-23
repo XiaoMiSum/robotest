@@ -188,10 +188,10 @@ function visibleChildren(node: TestCaseNode): TestCaseNode[] {
   flex-shrink: 0;
 }
 
-.cst-chip__priority--p0 { background: #f56c6c; }
-.cst-chip__priority--p1 { background: #e6a23c; }
-.cst-chip__priority--p2 { background: #409eff; }
-.cst-chip__priority--p3 { background: #909399; }
+.cst-chip__priority--p0 { background: var(--color-priority-p0); }
+.cst-chip__priority--p1 { background: var(--color-priority-p1); }
+.cst-chip__priority--p2 { background: var(--color-priority-p2); }
+.cst-chip__priority--p3 { background: var(--color-priority-p3); }
 
 /* 父芯片到子分支纵轨的水平连线 */
 .cst-stub {

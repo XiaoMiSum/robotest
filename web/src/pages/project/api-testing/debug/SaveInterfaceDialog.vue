@@ -240,7 +240,7 @@ async function handleSubmit() {
   &__tip {
     margin: 0 0 4px 90px;
     font-size: 12px;
-    color: var(--color-neutral-400, #909399);
+    color: var(--color-neutral-400);
     line-height: 1.6;
   }
 }

@@ -227,7 +227,7 @@ const {
 
     &:hover .debug-page__divider-line,
     &:active .debug-page__divider-line {
-      background: var(--color-primary-300, #a0cfff);
+      background: var(--color-primary-300);
     }
   }
 
@@ -235,7 +235,7 @@ const {
     width: 75%;
     height: 2px;
     border-radius: 1px;
-    background: var(--color-neutral-200, #dcdfe6);
+    background: var(--color-neutral-200);
     transition: background 0.15s;
   }
 
@@ -266,32 +266,32 @@ const {
   cursor: pointer;
   max-width: 200px;
   font-size: 12px;
-  color: var(--color-neutral-500, #909399);
+  color: var(--color-neutral-500);
   transition: color 0.15s, border-color 0.15s;
   white-space: nowrap;
   user-select: none;
 
   &:hover {
-    color: var(--color-primary-500, #409eff);
+    color: var(--color-primary-500);
   }
 
   &.is-active {
-    color: var(--color-primary-500, #409eff);
+    color: var(--color-primary-500);
     font-weight: 500;
-    border-bottom-color: var(--color-primary-500, #409eff);
+    border-bottom-color: var(--color-primary-500);
   }
 
   &--history {
-    color: var(--color-neutral-500, #909399);
+    color: var(--color-neutral-500);
 
     &:hover {
-      color: var(--color-primary-500, #409eff);
+      color: var(--color-primary-500);
     }
 
     &.is-active {
-      color: var(--color-primary-500, #409eff);
+      color: var(--color-primary-500);
       font-weight: 500;
-      border-bottom-color: var(--color-primary-500, #409eff);
+      border-bottom-color: var(--color-primary-500);
     }
   }
 
@@ -328,7 +328,7 @@ const {
     transition: opacity 0.15s;
 
     &:hover {
-      color: var(--color-danger-500, #f56c6c);
+      color: var(--color-danger);
     }
   }
 
@@ -343,11 +343,11 @@ const {
 
 .debug-tabbar__add {
   padding: 2px 4px;
-  color: var(--color-neutral-400, #909399);
+  color: var(--color-neutral-400);
   flex-shrink: 0;
 
   &:hover:not(:disabled) {
-    color: var(--color-primary-500, #409eff);
+    color: var(--color-primary-500);
   }
 
   &:disabled {

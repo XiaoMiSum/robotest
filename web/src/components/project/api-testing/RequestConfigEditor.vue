@@ -265,7 +265,7 @@ function formatJsonBody() {
   line-height: 16px;
   padding: 0 4px;
   border-radius: 8px;
-  background: var(--color-primary, #409eff);
+  background: var(--color-primary-500);
   color: #fff;
   font-size: 10px;
   text-align: center;
@@ -286,7 +286,7 @@ function formatJsonBody() {
   display: flex;
   align-items: center;
   gap: 2px;
-  background: var(--color-neutral-50, #fafafa);
+  background: var(--color-neutral-50);
   border-radius: 6px;
   padding: 2px;
   width: fit-content;
@@ -303,15 +303,15 @@ function formatJsonBody() {
   background: none;
   border-radius: 4px;
   cursor: pointer;
-  color: var(--color-neutral-500, #909399);
+  color: var(--color-neutral-500);
   transition: all 0.15s;
 
   &:hover {
-    color: var(--color-neutral-700, #606266);
+    color: var(--color-neutral-700);
   }
 
   &.is-active {
-    background: var(--color-primary-500, #409eff);
+    background: var(--color-primary-500);
     color: #fff;
     font-weight: 500;
     box-shadow: none;
@@ -339,10 +339,10 @@ function formatJsonBody() {
   background: none;
   border-radius: 4px;
   cursor: pointer;
-  color: var(--color-neutral-400, #909399);
+  color: var(--color-neutral-400);
 
   &:hover {
-    color: var(--color-primary-500, #409eff);
+    color: var(--color-primary-500);
   }
 }
 
@@ -367,7 +367,7 @@ function formatJsonBody() {
   }
 
   &:focus {
-    border-color: var(--color-primary-500, #409eff);
+    border-color: var(--color-primary-500);
   }
 }
 

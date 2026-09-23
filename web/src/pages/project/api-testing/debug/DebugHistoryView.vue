@@ -241,7 +241,7 @@ function handleRestore(record: ApiDebugRecordItem) {
     border-radius: var(--radius-sm, 4px);
 
     &:hover {
-      background: var(--color-neutral-50, #fafafa);
+      background: var(--color-neutral-50);
     }
   }
 

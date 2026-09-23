@@ -279,8 +279,8 @@ function resetState(): void {
 }
 
 .fn-helper__info {
-  background: var(--color-neutral-50, #f9fafb);
-  border: 1px solid var(--color-neutral-100, #f3f4f6);
+  background: var(--color-neutral-50);
+  border: 1px solid var(--color-neutral-100);
   border-radius: var(--radius-md);
   padding: var(--space-md);
 }
@@ -292,7 +292,7 @@ function resetState(): void {
   font-size: var(--font-size-sm);
 
   & + & {
-    border-top: 1px solid var(--color-neutral-100, #f3f4f6);
+    border-top: 1px solid var(--color-neutral-100);
     padding-top: 8px;
     margin-top: 4px;
   }
@@ -311,7 +311,7 @@ function resetState(): void {
 }
 
 .fn-helper__code {
-  background: var(--color-neutral-100, #f3f4f6);
+  background: var(--color-neutral-100);
   padding: 2px 6px;
   border-radius: var(--radius-sm);
   font-family: monospace;
@@ -357,8 +357,8 @@ function resetState(): void {
   gap: var(--space-sm);
   margin-top: var(--space-sm);
   padding: var(--space-sm) var(--space-md);
-  background: var(--color-neutral-50, #f9fafb);
-  border: 1px solid var(--color-neutral-100, #f3f4f6);
+  background: var(--color-neutral-50);
+  border: 1px solid var(--color-neutral-100);
   border-radius: var(--radius-md);
   font-size: var(--font-size-sm);
 }

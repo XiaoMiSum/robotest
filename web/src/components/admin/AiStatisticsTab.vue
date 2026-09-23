@@ -32,7 +32,7 @@ const emit = defineEmits<{
             <div class="stat-card__value">{{ statistics.totalCalls }}</div>
           </div>
         </div>
-        <div class="stat-card stat-card--teal">
+        <div class="stat-card stat-card--info">
           <div class="stat-card__icon"><el-icon :size="22"><Coin /></el-icon></div>
           <div>
             <div class="stat-card__label">总 Token</div>
@@ -112,21 +112,22 @@ const emit = defineEmits<{
     }
   }
 
-  :deep(.stat-card--teal) {
-    background: var(--color-teal-50, #f0f9f9);
+  /* 总 Token 为中性消耗量，取信息灰（视觉设计 4.1 中性信息→灰） */
+  :deep(.stat-card--info) {
+    background: var(--color-info-light);
 
     .stat-card__icon {
-      background: var(--color-teal-100, #d3f2f2);
-      color: var(--color-teal-600, #0a8f8f);
+      background: var(--color-neutral-200);
+      color: var(--color-info);
     }
   }
 
   :deep(.stat-card--danger) {
-    background: var(--color-danger-50, #fef0f0);
+    background: var(--color-danger-light);
 
     .stat-card__icon {
-      background: var(--color-danger-100, #fde2e2);
-      color: var(--color-danger-600, #d03050);
+      background: var(--color-danger-border);
+      color: var(--color-danger-strong);
     }
   }
 }

@@ -250,8 +250,8 @@ const {
 }
 
 .ws-detail__stat-badge--blue {
-  background: #eff6ff;
-  color: #1d4ed8;
+  background: var(--color-primary-50);
+  color: var(--color-primary-700);
 }
 
 .ws-detail__user {
@@ -267,8 +267,8 @@ const {
 }
 
 .ws-detail__danger {
-  border: 1px solid var(--color-danger-200);
-  background: var(--color-danger-50);
+  border: 1px solid var(--color-danger-border);
+  background: var(--color-danger-light);
 }
 
 .ws-detail__danger-body {
@@ -279,13 +279,13 @@ const {
 
 .ws-detail__danger-label {
   font-weight: 600;
-  color: var(--color-danger-700);
+  color: var(--color-danger-strong);
 }
 
 .ws-detail__danger-tip {
   margin-top: 4px;
   font-size: var(--font-size-xs);
-  color: var(--color-danger-500);
+  color: var(--color-danger);
 }
 
 .ws-detail__pending {

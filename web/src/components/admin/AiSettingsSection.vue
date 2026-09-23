@@ -161,7 +161,7 @@ function settingItemIsFull(item: AiSettingSchemaItem, index: number, total: numb
   margin-left: var(--space-sm);
 
   &.is-error {
-    color: var(--color-danger, #f56c6c);
+    color: var(--color-danger);
   }
 }
 

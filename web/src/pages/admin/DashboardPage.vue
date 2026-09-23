@@ -43,8 +43,8 @@ onMounted(loadDashboard)
 
 const stats = [
   { key: 'users', label: '用户总数', icon: 'User', to: '/admin/users', value: userTotal, colorClass: 'stat-card--primary' },
-  { key: 'workspaces', label: '工作空间', icon: 'OfficeBuilding', to: '/admin/workspaces', value: workspaceTotal, colorClass: 'stat-card--blue' },
-  { key: 'roles', label: '系统角色', icon: 'Lock', to: '/admin/roles', value: systemRoleTotal, colorClass: 'stat-card--teal' },
+  { key: 'workspaces', label: '工作空间', icon: 'OfficeBuilding', to: '/admin/workspaces', value: workspaceTotal, colorClass: 'stat-card--success' },
+  { key: 'roles', label: '系统角色', icon: 'Lock', to: '/admin/roles', value: systemRoleTotal, colorClass: 'stat-card--info' },
   { key: 'disabled', label: '禁用用户', icon: 'WarningFilled', to: '/admin/users', value: disabledUserTotal, colorClass: 'stat-card--danger' },
 ]
 </script>
@@ -152,23 +152,23 @@ const stats = [
 }
 .stat-card--primary .stat-card__value { color: var(--color-primary-600); }
 
-.stat-card--blue .stat-card__icon {
-  background: #eff6ff;
-  color: #2563eb;
+.stat-card--success .stat-card__icon {
+  background: var(--color-success-light);
+  color: var(--color-success-strong);
 }
-.stat-card--blue .stat-card__value { color: #2563eb; }
+.stat-card--success .stat-card__value { color: var(--color-success-strong); }
 
-.stat-card--teal .stat-card__icon {
-  background: #f0fdfa;
-  color: #0d9488;
+.stat-card--info .stat-card__icon {
+  background: var(--color-neutral-200);
+  color: var(--color-info);
 }
-.stat-card--teal .stat-card__value { color: #0d9488; }
+.stat-card--info .stat-card__value { color: var(--color-info); }
 
 .stat-card--danger .stat-card__icon {
-  background: var(--color-danger-50);
-  color: var(--color-danger-600);
+  background: var(--color-danger-light);
+  color: var(--color-danger-strong);
 }
-.stat-card--danger .stat-card__value { color: var(--color-danger-600); }
+.stat-card--danger .stat-card__value { color: var(--color-danger-strong); }
 
 .stat-card__label {
   font-size: var(--font-size-xs);

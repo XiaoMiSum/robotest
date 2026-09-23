@@ -158,8 +158,8 @@ function formatJson(obj: unknown): string {
 }
 
 .mock-debug__pre {
-  background: var(--color-neutral-50, #f5f5f5);
-  border: 1px solid var(--color-neutral-200, #e5e5e5);
+  background: var(--color-neutral-50);
+  border: 1px solid var(--color-neutral-200);
   border-radius: var(--radius-md);
   padding: 12px;
   font-family: 'JetBrains Mono', 'Fira Code', monospace;

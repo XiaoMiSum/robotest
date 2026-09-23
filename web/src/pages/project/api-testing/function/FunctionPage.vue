@@ -249,7 +249,7 @@ const {
   width: 340px;
   flex-shrink: 0;
   overflow-y: auto;
-  background: var(--color-neutral-0, #fff);
+  background: var(--color-neutral-0);
   border: 1px solid var(--color-neutral-100);
   border-radius: var(--radius-lg);
   padding: var(--space-sm);
@@ -302,7 +302,7 @@ const {
   }
 
   &.is-active {
-    border-color: var(--color-primary-200, #bfdbfe);
+    border-color: var(--color-primary-200);
     background: rgba(59, 130, 246, 0.06);
   }
 
@@ -367,7 +367,7 @@ const {
 }
 
 .fn-detail {
-  background: var(--color-neutral-0, #fff);
+  background: var(--color-neutral-0);
   border: 1px solid var(--color-neutral-100);
   border-radius: var(--radius-lg);
   padding: var(--space-lg);
@@ -396,7 +396,7 @@ const {
   & + & {
     margin-top: var(--space-md);
     padding-top: var(--space-md);
-    border-top: 1px solid var(--color-neutral-100, #f3f4f6);
+    border-top: 1px solid var(--color-neutral-100);
   }
 }
 
@@ -418,13 +418,13 @@ const {
 
 .fn-detail__code {
   display: inline-block;
-  background: var(--color-neutral-50, #f9fafb);
-  border: 1px solid var(--color-neutral-100, #f3f4f6);
+  background: var(--color-neutral-50);
+  border: 1px solid var(--color-neutral-100);
   padding: 4px 8px;
   border-radius: var(--radius-sm);
   font-family: monospace;
   font-size: 13px;
-  color: var(--color-primary-600, #2563eb);
+  color: var(--color-primary-600);
 }
 
 .fn-detail__params {
@@ -447,7 +447,7 @@ const {
 .fn-detail__footer-actions {
   margin-top: var(--space-lg);
   padding-top: var(--space-md);
-  border-top: 1px solid var(--color-neutral-100, #f3f4f6);
+  border-top: 1px solid var(--color-neutral-100);
   display: flex;
   justify-content: flex-end;
   gap: var(--space-sm);

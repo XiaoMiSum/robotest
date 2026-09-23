@@ -292,10 +292,10 @@ const emit = defineEmits<{
   line-height: 16px;
   flex-shrink: 0;
 
-  &--p0 { background: #f56c6c; }
-  &--p1 { background: #e6a23c; }
-  &--p2 { background: #409eff; }
-  &--p3 { background: #909399; }
+  &--p0 { background: var(--color-priority-p0); }
+  &--p1 { background: var(--color-priority-p1); }
+  &--p2 { background: var(--color-priority-p2); }
+  &--p3 { background: var(--color-priority-p3); }
 }
 
 .bug-detail__case-pop-doc {

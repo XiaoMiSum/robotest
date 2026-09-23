@@ -228,7 +228,7 @@ const {
   width: 300px;
   flex-shrink: 0;
   overflow-y: auto;
-  background: var(--color-neutral-0, #fff);
+  background: var(--color-neutral-0);
   border: 1px solid var(--color-neutral-100);
   border-radius: var(--radius-lg);
   padding: var(--space-sm);
@@ -271,7 +271,7 @@ const {
   }
 
   &.is-active {
-    border-color: var(--color-primary-200, #bfdbfe);
+    border-color: var(--color-primary-200);
     background: rgba(59, 130, 246, 0.06);
   }
 }

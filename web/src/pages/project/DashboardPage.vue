@@ -25,8 +25,8 @@ onMounted(load)
 
 const statCards = [
   { key: 'cases', label: '用例总数', icon: 'Document', to: '/workspace/projects/functional-testing', colorClass: 'stat-card--primary', valueKey: 'caseCount' as const },
-  { key: 'reviews', label: '进行中评审', icon: 'Checked', to: '/workspace/projects/reviews', colorClass: 'stat-card--blue', valueKey: 'activeReviewCount' as const },
-  { key: 'plans', label: '进行中计划', icon: 'Calendar', to: '/workspace/projects/plans', colorClass: 'stat-card--teal', valueKey: 'activePlanCount' as const },
+  { key: 'reviews', label: '进行中评审', icon: 'Checked', to: '/workspace/projects/reviews', colorClass: 'stat-card--warning', valueKey: 'activeReviewCount' as const },
+  { key: 'plans', label: '进行中计划', icon: 'Calendar', to: '/workspace/projects/plans', colorClass: 'stat-card--warning', valueKey: 'activePlanCount' as const },
   { key: 'bugs', label: '未关闭缺陷', icon: 'WarningFilled', to: '/workspace/projects/bugs', colorClass: 'stat-card--danger', valueKey: 'openBugCount' as const },
 ]
 </script>
@@ -131,12 +131,10 @@ const statCards = [
 
 .stat-card--primary .stat-card__icon { background: var(--color-primary-50); color: var(--color-primary-600); }
 .stat-card--primary .stat-card__value { color: var(--color-primary-600); }
-.stat-card--blue .stat-card__icon { background: #eff6ff; color: #2563eb; }
-.stat-card--blue .stat-card__value { color: #2563eb; }
-.stat-card--teal .stat-card__icon { background: #f0fdfa; color: #0d9488; }
-.stat-card--teal .stat-card__value { color: #0d9488; }
-.stat-card--danger .stat-card__icon { background: var(--color-danger-50); color: var(--color-danger-600); }
-.stat-card--danger .stat-card__value { color: var(--color-danger-600); }
+.stat-card--warning .stat-card__icon { background: var(--color-warning-light); color: var(--color-warning-strong); }
+.stat-card--warning .stat-card__value { color: var(--color-warning-strong); }
+.stat-card--danger .stat-card__icon { background: var(--color-danger-light); color: var(--color-danger-strong); }
+.stat-card--danger .stat-card__value { color: var(--color-danger-strong); }
 
 .stat-card__label {
   font-size: var(--font-size-xs);

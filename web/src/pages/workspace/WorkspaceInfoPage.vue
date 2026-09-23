@@ -154,8 +154,8 @@ onMounted(load)
 }
 
 .ws-info__stat-badge--blue {
-  background: #eff6ff;
-  color: #1d4ed8;
+  background: var(--color-primary-50);
+  color: var(--color-primary-700);
 }
 
 .ws-info__meta {

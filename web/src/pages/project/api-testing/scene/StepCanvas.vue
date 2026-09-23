@@ -163,7 +163,7 @@ function moveDown(index: number) {
 
   &:hover {
     height: 24px;
-    background: var(--color-primary-50, #eff6ff);
+    background: var(--color-primary-50);
     border-radius: var(--radius-sm);
   }
 }
@@ -195,13 +195,13 @@ function moveDown(index: number) {
   }
 
   &.is-missing {
-    border-color: var(--color-warning-300);
-    background: var(--color-warning-50, #fffbeb);
+    border-color: var(--color-warning-border);
+    background: var(--color-warning-light);
   }
 
   &.is-selected {
     border-color: var(--color-primary-400);
-    background: var(--color-primary-50, #eff6ff);
+    background: var(--color-primary-50);
     box-shadow: 0 0 0 1px var(--color-primary-300);
   }
 }
@@ -252,7 +252,7 @@ function moveDown(index: number) {
 
 .step-canvas__missing-badge {
   font-size: 11px;
-  color: var(--color-warning-600, #d97706);
+  color: var(--color-warning-strong);
 }
 
 .step-canvas__card-body {
@@ -280,7 +280,7 @@ function moveDown(index: number) {
   display: flex;
   align-items: center;
   gap: var(--space-xs);
-  color: var(--color-warning-600, #d97706);
+  color: var(--color-warning-strong);
   margin-bottom: var(--space-xs);
 }
 

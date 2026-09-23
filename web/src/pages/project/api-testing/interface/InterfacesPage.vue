@@ -455,7 +455,7 @@ defineExpose({ openCreate, openImport })
   color: var(--color-neutral-300);
 
   &.is-active {
-    color: #f59e0b;
+    color: var(--color-warning);
   }
 }
 

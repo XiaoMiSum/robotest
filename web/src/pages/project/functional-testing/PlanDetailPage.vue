@@ -181,7 +181,7 @@ const {
 .plan-detail__page-header {
   flex-shrink: 0;
   padding: var(--space-sm) var(--space-md);
-  background: #fff;
+  background: var(--color-neutral-0);
   border: 1px solid var(--color-neutral-200);
   border-radius: var(--radius-lg);
 
