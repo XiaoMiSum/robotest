@@ -18,7 +18,6 @@ const model = defineModel<AiEmbeddingFormState>({ required: true })
 const rebuildDialog = defineModel<boolean>('rebuildDialogVisible', { default: false })
 
 const props = defineProps<{
-  open: string[]
   providers: AiProviderPreset[]
   uniqueParams: AiProviderUniqueParam[]
   modelHints: string[]
@@ -30,7 +29,6 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  (e: 'update:open', value: string[]): void
   (e: 'test'): void
   (e: 'save'): void
   (e: 'open-rebuild'): void
@@ -90,87 +88,83 @@ const semanticState = computed(() => {
 
 <template>
   <el-card shadow="never" class="ai-embedding">
-    <el-collapse :model-value="open" @update:model-value="(v) => emit('update:open', v as string[])">
-      <el-collapse-item name="embedding">
-        <template #title>
-          <div class="ai-embedding__header">
-            <el-icon class="ai-embedding__icon"><DataLine /></el-icon>
-            <span>Embedding 模型</span>
-            <span v-if="headSummary" class="ai-embedding__sub">{{ headSummary }}</span>
-            <el-tag
-              class="ai-embedding__state"
-              :type="configured ? 'success' : 'info'"
-              size="small"
-              effect="light"
-            >
-              <span class="ai-embedding__dot" />{{ configured ? '已配置' : '未配置' }}
-            </el-tag>
-            <span
-              v-if="rebuildBadge"
-              class="ai-embedding__task"
-              :class="rebuildBadge.tone"
-              role="button"
-              tabindex="0"
-              title="点击查看重建任务详情"
-              @click.stop.prevent="emit('open-rebuild')"
-              @keydown.enter.prevent="emit('open-rebuild')"
-            >
-              <el-icon v-if="rebuildBadge.tone === 'is-running'" class="is-loading">
-                <Loading />
-              </el-icon>
-              <el-icon v-else><CircleCloseFilled /></el-icon>
-              {{ rebuildBadge.label }}
-            </span>
-          </div>
-        </template>
-        <div class="ai-embedding__body">
-          <el-form-item label="供应商">
-            <el-select v-model="model.provider" class="ai-embedding__control">
-              <el-option v-for="p in providers" :key="p.key" :label="p.name" :value="p.key" />
-            </el-select>
-          </el-form-item>
-          <el-form-item label="模型名">
-            <el-select v-model="model.model" class="ai-embedding__control" filterable allow-create default-first-option>
-              <el-option v-for="m in modelHints" :key="m" :label="m" :value="m" />
-            </el-select>
-          </el-form-item>
-          <el-form-item label="服务地址">
-            <el-input v-model="model.baseUrl" class="ai-embedding__control" />
-          </el-form-item>
-          <el-form-item label="向量维度">
-            <el-input-number v-model="model.dimension" :min="1" :max="2000" class="ai-embedding__control" />
-          </el-form-item>
-          <el-form-item label="API 密钥" class="ai-embedding__full">
-            <el-input
-              v-model="model.apiKey"
-              type="password"
-              show-password
-              class="ai-embedding__control"
-              :placeholder="
-                model.apiKeyConfigured
-                  ? `已配置（末位 ${model.keySuffix ?? '****'}），留空不修改`
-                  : '请输入密钥'
-              "
-            />
-          </el-form-item>
-          <el-form-item v-for="param in uniqueParams" :key="param.key" :label="param.label">
-            <el-input v-model="model.uniqueValues[param.key] as string" class="ai-embedding__control" />
-            <span class="ai-embedding__hint">{{ param.description }}</span>
-          </el-form-item>
-          <el-collapse class="ai-embedding__advanced ai-embedding__full">
-            <el-collapse-item title="高级自定义参数（JSON）" name="embeddingAdvanced">
-              <el-input v-model="model.customParams" type="textarea" :rows="4" />
-            </el-collapse-item>
-          </el-collapse>
-          <div class="ai-embedding__actions ai-embedding__full">
-            <el-button :loading="testing" @click="emit('test')">
-              <el-icon><Connection /></el-icon>连通性测试
-            </el-button>
-            <el-button type="primary" :loading="saving" @click="emit('save')">保存</el-button>
-          </div>
-        </div>
-      </el-collapse-item>
-    </el-collapse>
+    <template #header>
+      <div class="ai-embedding__header">
+        <el-icon class="ai-embedding__icon"><DataLine /></el-icon>
+        <span>Embedding 模型</span>
+        <span v-if="headSummary" class="ai-embedding__sub">{{ headSummary }}</span>
+        <el-tag
+          class="ai-embedding__state"
+          :type="configured ? 'success' : 'info'"
+          size="small"
+          effect="light"
+        >
+          <span class="ai-embedding__dot" />{{ configured ? '已配置' : '未配置' }}
+        </el-tag>
+        <span
+          v-if="rebuildBadge"
+          class="ai-embedding__task"
+          :class="rebuildBadge.tone"
+          role="button"
+          tabindex="0"
+          title="点击查看重建任务详情"
+          @click.stop.prevent="emit('open-rebuild')"
+          @keydown.enter.prevent="emit('open-rebuild')"
+        >
+          <el-icon v-if="rebuildBadge.tone === 'is-running'" class="is-loading">
+            <Loading />
+          </el-icon>
+          <el-icon v-else><CircleCloseFilled /></el-icon>
+          {{ rebuildBadge.label }}
+        </span>
+      </div>
+    </template>
+    <div class="ai-embedding__body">
+      <el-form-item label="供应商">
+        <el-select v-model="model.provider" class="ai-embedding__control">
+          <el-option v-for="p in providers" :key="p.key" :label="p.name" :value="p.key" />
+        </el-select>
+      </el-form-item>
+      <el-form-item label="模型名">
+        <el-select v-model="model.model" class="ai-embedding__control" filterable allow-create default-first-option>
+          <el-option v-for="m in modelHints" :key="m" :label="m" :value="m" />
+        </el-select>
+      </el-form-item>
+      <el-form-item label="服务地址">
+        <el-input v-model="model.baseUrl" class="ai-embedding__control" />
+      </el-form-item>
+      <el-form-item label="向量维度">
+        <el-input-number v-model="model.dimension" :min="1" :max="2000" class="ai-embedding__control" />
+      </el-form-item>
+      <el-form-item label="API 密钥" class="ai-embedding__full">
+        <el-input
+          v-model="model.apiKey"
+          type="password"
+          show-password
+          class="ai-embedding__control"
+          :placeholder="
+            model.apiKeyConfigured
+              ? `已配置（末位 ${model.keySuffix ?? '****'}），留空不修改`
+              : '请输入密钥'
+          "
+        />
+      </el-form-item>
+      <el-form-item v-for="param in uniqueParams" :key="param.key" :label="param.label">
+        <el-input v-model="model.uniqueValues[param.key] as string" class="ai-embedding__control" />
+        <span class="ai-embedding__hint">{{ param.description }}</span>
+      </el-form-item>
+      <el-collapse class="ai-embedding__advanced ai-embedding__full">
+        <el-collapse-item title="高级自定义参数（JSON）" name="embeddingAdvanced">
+          <el-input v-model="model.customParams" type="textarea" :rows="4" />
+        </el-collapse-item>
+      </el-collapse>
+      <div class="ai-embedding__actions ai-embedding__full">
+        <el-button :loading="testing" @click="emit('test')">
+          <el-icon><Connection /></el-icon>连通性测试
+        </el-button>
+        <el-button type="primary" :loading="saving" @click="emit('save')">保存</el-button>
+      </div>
+    </div>
 
     <el-dialog v-model="rebuildDialog" title="向量重建任务详情" width="520px">
       <template v-if="rebuildTask">
@@ -226,17 +220,6 @@ const semanticState = computed(() => {
 <style scoped lang="scss">
 .ai-embedding {
   margin-bottom: var(--space-lg);
-
-  :deep(.el-collapse-item__header) {
-    height: auto;
-    line-height: 1.5;
-    padding: 4px 0;
-    border-bottom: 1px solid var(--color-neutral-100);
-  }
-
-  :deep(.el-collapse-item__wrap) {
-    border-bottom: none;
-  }
 }
 
 .ai-embedding__header {
@@ -339,8 +322,11 @@ const semanticState = computed(() => {
   padding: 0 var(--space-sm);
 
   :deep(.el-collapse-item__header) {
+    /* 行高与内边距沿用卡级折叠原值，卡级折叠移除后避免高级参数头视觉跳变 */
     font-size: 13px;
     color: var(--color-neutral-500);
+    line-height: 1.5;
+    padding: 4px 0;
     border-bottom: none;
     height: 36px;
   }

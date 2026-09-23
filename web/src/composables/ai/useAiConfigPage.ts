@@ -41,7 +41,6 @@ export function useAiConfigPage() {
   const providers = ref<AiProviderPreset[]>([])
   const config = ref<AiConfig | null>(null)
 
-  const embeddingOpen = ref<string[]>([])
   const form = reactive({
     enabled: false,
     embedding: {
@@ -403,7 +402,6 @@ export function useAiConfigPage() {
     activeTab,
     providers,
     config,
-    embeddingOpen,
     form,
     settingsSchema,
     settingsForm,
