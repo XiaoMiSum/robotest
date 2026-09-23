@@ -1,5 +1,5 @@
-/** 通用状态：启用 / 禁用 */
-export type UserStatus = 'active' | 'disabled'
+/** 通用状态：启用 / 禁用 / 锁定（locked 由管理员设置，与 disabled 一样阻止登录） */
+export type UserStatus = 'active' | 'disabled' | 'locked'
 
 /** 角色类型 */
 export type RoleType = 'system' | 'workspace'

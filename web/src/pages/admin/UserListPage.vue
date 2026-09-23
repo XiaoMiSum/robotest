@@ -14,6 +14,13 @@ import { formatDateTime } from '@/utils/format'
 
 const router = useRouter()
 
+/** 状态三态的文案与标签类型（交互设计 4.2.2） */
+const STATUS_META: Record<UserStatus, { label: string; tagType: 'success' | 'info' | 'danger' }> = {
+  active: { label: '启用', tagType: 'success' },
+  disabled: { label: '禁用', tagType: 'info' },
+  locked: { label: '锁定', tagType: 'danger' },
+}
+
 const loading = ref(false)
 const users = ref<AdminUser[]>([])
 const total = ref(0)
@@ -78,9 +85,9 @@ function handleSelectionChange(rows: AdminUser[]) {
   selectedIds.value = rows.map((r) => r.id)
 }
 
-async function handleToggleStatus(user: AdminUser) {
-  const next: UserStatus = user.status === 'active' ? 'disabled' : 'active'
-  const actionText = next === 'disabled' ? '禁用' : '启用'
+/** 状态流转（启用/禁用/锁定三态互转），均需二次确认（交互设计 4.2.3） */
+async function handleChangeStatus(user: AdminUser, next: UserStatus) {
+  const actionText = STATUS_META[next].label
   try {
     await ElMessageBox.confirm(`确定要${actionText}用户「${user.username}」吗？`, '确认操作', {
       type: 'warning',
@@ -99,7 +106,7 @@ async function handleToggleStatus(user: AdminUser) {
 
 async function handleBatchStatus(status: UserStatus) {
   if (!selectedIds.value.length) return
-  const actionText = status === 'disabled' ? '禁用' : '启用'
+  const actionText = STATUS_META[status].label
   try {
     await ElMessageBox.confirm(
       `确定要批量${actionText}选中的 ${selectedIds.value.length} 个用户吗？`,
@@ -171,6 +178,7 @@ onMounted(() => {
           <el-select v-model="query.status" placeholder="状态" clearable style="width: 120px" @change="handleSearch">
             <el-option label="启用" value="active" />
             <el-option label="禁用" value="disabled" />
+            <el-option label="锁定" value="locked" />
           </el-select>
         </el-form-item>
         <el-form-item>
@@ -234,23 +242,45 @@ onMounted(() => {
         </el-table-column>
         <el-table-column label="状态" width="90">
           <template #default="{ row }">
-            <el-tag :type="row.status === 'active' ? 'success' : 'info'" size="small" effect="light" round>
-              {{ row.status === 'active' ? '启用' : '禁用' }}
+            <el-tag
+              :type="STATUS_META[row.status as UserStatus].tagType"
+              size="small"
+              effect="light"
+              round
+            >
+              {{ STATUS_META[row.status as UserStatus].label }}
             </el-tag>
           </template>
         </el-table-column>
         <el-table-column label="创建时间" width="160">
           <template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template>
         </el-table-column>
-        <el-table-column label="操作" width="200" fixed="right">
+        <el-table-column label="操作" width="240" fixed="right">
           <template #default="{ row }">
             <el-button link type="primary" @click="router.push(`/admin/users/${row.id}`)">编辑</el-button>
             <el-button
+              v-if="row.status !== 'active'"
               link
-              :type="row.status === 'active' ? 'warning' : 'success'"
-              @click="handleToggleStatus(row as AdminUser)"
+              type="success"
+              @click="handleChangeStatus(row as AdminUser, 'active')"
             >
-              {{ row.status === 'active' ? '禁用' : '启用' }}
+              启用
+            </el-button>
+            <el-button
+              v-if="row.status !== 'disabled'"
+              link
+              type="warning"
+              @click="handleChangeStatus(row as AdminUser, 'disabled')"
+            >
+              禁用
+            </el-button>
+            <el-button
+              v-if="row.status !== 'locked'"
+              link
+              type="danger"
+              @click="handleChangeStatus(row as AdminUser, 'locked')"
+            >
+              锁定
             </el-button>
             <el-button link type="primary" @click="openResetDialog(row as AdminUser)">重置密码</el-button>
           </template>
