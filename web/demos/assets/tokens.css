@@ -81,7 +81,7 @@
   --sidebar-collapsed-width: 48px;
   /* 悬浮侧栏与视口边缘的留白（区别于贴边侧栏的关键参数） */
   --float-gap: 16px;
-  --page-pad: 32px;
+  --page-pad: 16px;
   --card-pad: 24px;
   --block-gap: 24px;
 
