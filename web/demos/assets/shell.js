@@ -107,27 +107,46 @@
     rightIconsHtml() +
     '</header>';
 
-  /* ---------- 管理端侧边栏 ---------- */
+  /* ---------- 管理端侧边栏（概览置顶不入组；功能按组织与权限/平台配置分组，角色管理与用户管理相邻） ---------- */
   const ADMIN_SIDE = [
-    { key: 'dashboard', label: '数据概览', icon: 'gauge' },
-    { key: 'users', label: '用户管理', icon: 'user' },
-    { key: 'workspaces', label: '空间管理', icon: 'building' },
-    { key: 'roles', label: '角色管理', icon: 'lock' },
-    { key: 'ai-config', label: 'AI 配置', icon: 'sparkle' },
+    {
+      items: [
+        { key: 'dashboard', label: '数据概览', icon: 'gauge' },
+      ],
+    },
+    {
+      title: '组织与权限',
+      items: [
+        { key: 'users', label: '用户管理', icon: 'user' },
+        { key: 'roles', label: '角色管理', icon: 'lock' },
+        { key: 'workspaces', label: '空间管理', icon: 'building' },
+      ],
+    },
+    {
+      title: '平台配置',
+      items: [
+        { key: 'ai-config', label: 'AI 配置', icon: 'sparkle' },
+      ],
+    },
   ];
 
   function sideHtml() {
     if (shell !== 'admin') return '';
     let html = '<aside class="side">';
-    ADMIN_SIDE.forEach(function (it) {
-      html +=
-        '<div class="menu-item side__item' +
-        (active === it.key ? ' menu-item--active' : '') +
-        '">' +
-        icon(it.icon) +
-        '<span>' +
-        it.label +
-        '</span></div>';
+    ADMIN_SIDE.forEach(function (section) {
+      if (section.title) {
+        html += '<div class="side__group-title">' + section.title + '</div>';
+      }
+      section.items.forEach(function (it) {
+        html +=
+          '<div class="menu-item side__item' +
+          (active === it.key ? ' menu-item--active' : '') +
+          '">' +
+          icon(it.icon) +
+          '<span>' +
+          it.label +
+          '</span></div>';
+      });
     });
     return html + '</aside>';
   }
