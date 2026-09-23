@@ -33,6 +33,10 @@ const defaultModelName = computed(
   () => models.chatModels.value.find((m) => m.isDefault)?.name ?? '—',
 )
 
+// 供应商显示名取预设名，缺失回退 provider key，避免表格裸 key
+const providerLabel = (provider: string): string =>
+  cfg.presetOf(provider)?.name ?? provider
+
 onMounted(async () => {
   await cfg.loadAll()
   await models.refresh()
@@ -73,29 +77,32 @@ onMounted(async () => {
     >
       <el-tab-pane label="AI 配置" name="config">
         <el-form v-loading="cfg.loading.value" label-width="120px">
-          <AiChatModelTable
-            :models="models.chatModels.value"
-            :row-testing-id="models.rowTestingId.value"
-            @create="models.openCreateModel"
-            @edit="models.openEditModel"
-            @test="models.handleRowTest"
-            @set-default="models.handleSetDefault"
-            @toggle-enabled="models.handleToggleEnabled"
-            @delete="models.handleDeleteModel"
-          />
+          <div class="model-row">
+            <AiChatModelTable
+              :models="models.chatModels.value"
+              :row-testing-id="models.rowTestingId.value"
+              :provider-label="providerLabel"
+              @create="models.openCreateModel"
+              @edit="models.openEditModel"
+              @test="models.handleRowTest"
+              @set-default="models.handleSetDefault"
+              @toggle-enabled="models.handleToggleEnabled"
+              @delete="models.handleDeleteModel"
+            />
 
-          <AiEmbeddingForm
-            v-model="cfg.form.embedding"
-            v-model:open="cfg.embeddingOpen.value"
-            :providers="cfg.embeddingProviderOptions.value"
-            :unique-params="cfg.embeddingUniqueParams.value"
-            :model-hints="cfg.embeddingModelHints.value"
-            :configured="cfg.embeddingConfigured.value"
-            :testing="cfg.testing.embedding"
-            :saving="cfg.saving.value"
-            @test="cfg.handleTestEmbedding"
-            @save="cfg.handleSaveEmbedding"
-          />
+            <AiEmbeddingForm
+              v-model="cfg.form.embedding"
+              v-model:open="cfg.embeddingOpen.value"
+              :providers="cfg.embeddingProviderOptions.value"
+              :unique-params="cfg.embeddingUniqueParams.value"
+              :model-hints="cfg.embeddingModelHints.value"
+              :configured="cfg.embeddingConfigured.value"
+              :testing="cfg.testing.embedding"
+              :saving="cfg.saving.value"
+              @test="cfg.handleTestEmbedding"
+              @save="cfg.handleSaveEmbedding"
+            />
+          </div>
 
           <AiSettingsSection
             :groups="cfg.settingsSchema.value"
@@ -182,6 +189,33 @@ onMounted(async () => {
   margin: 4px 0 0;
   font-size: var(--font-size-sm);
   color: var(--color-neutral-500);
+}
+
+/* 双卡并排等高（demo：460px 按表单展开态实测留余量），超出卡内滚动 */
+.model-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--block-gap);
+  margin-bottom: var(--block-gap);
+
+  > * {
+    height: 460px;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    /* grid gap 已承担间距，覆盖组件堆叠期遗留的 margin */
+    margin-bottom: 0;
+  }
+
+  > * :deep(.el-card__header) {
+    flex-shrink: 0;
+  }
+
+  > * :deep(.el-card__body) {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+  }
 }
 
 .ai-config-page__tabs {
