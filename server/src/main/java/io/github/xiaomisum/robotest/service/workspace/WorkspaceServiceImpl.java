@@ -154,7 +154,23 @@ public class WorkspaceServiceImpl implements WorkspaceService {
         update.setId(id);
         update.setStatus(Constants.Status.DISSOLVED);
         workspaceMapper.updateById(update);
-        workspaceUserMapper.deleteByWorkspaceId(id);
+        // 成员行保留：归档仅冻结状态，重新启用时成员关系原样还原
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void restoreWorkspace(UUID id) {
+        Workspace workspace = workspaceMapper.selectById(id);
+        if (workspace == null) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.WORKSPACE_NOT_FOUND);
+        }
+        if (!Constants.Status.DISSOLVED.equals(workspace.getStatus())) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.WORKSPACE_NOT_DISSOLVED);
+        }
+        Workspace update = new Workspace();
+        update.setId(id);
+        update.setStatus(Constants.Status.ACTIVE);
+        workspaceMapper.updateById(update);
     }
 
     @Override
