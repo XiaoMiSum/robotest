@@ -34,10 +34,11 @@ const REVIEW_MARK_BADGES: Record<string, Badge> = {
   fail: { label: '✕ 不通过', color: '#F56C6C' },
 }
 
+// 阻塞取 danger dark-2 深红而非橙：与「✕ 失败」同为红系，靠深浅 + ⚠ 文案三重编码区分
 const EXECUTION_RESULT_BADGES: Record<string, Badge> = {
   pass: { label: '✓ 通过', color: '#67C23A' },
   fail: { label: '✕ 失败', color: '#F56C6C' },
-  block: { label: '⚠ 阻塞', color: '#E6A23C' },
+  block: { label: '⚠ 阻塞', color: '#C45656' },
 }
 
 // AI 标识徽标（V1.1）：区别于类型/优先级配色，读取节点 data 的 aiGenerated

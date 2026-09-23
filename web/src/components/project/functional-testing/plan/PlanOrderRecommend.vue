@@ -183,7 +183,7 @@ defineExpose({ compute, load, scrollToOrder, hasResult, computing })
 .plan-order__no {
   flex-shrink: 0;
   font-weight: 700;
-  color: #ff6f00;
+  color: var(--color-order-badge);
 }
 
 .plan-order__title {
