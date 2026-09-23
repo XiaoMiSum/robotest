@@ -21,8 +21,7 @@ body,
 #app {
   height: 100%;
   width: 100%;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
-    'Noto Sans SC', sans-serif;
+  font-family: var(--font-family);
   color: var(--color-neutral-800);
   background-color: var(--color-neutral-50);
   line-height: 1.5;
@@ -44,7 +43,7 @@ img {
 /* 选中文本颜色 */
 ::selection {
   background-color: var(--color-primary-100);
-  color: var(--color-primary-800);
+  color: var(--color-primary-700);
 }
 
 /* 聚焦轮廓 */
