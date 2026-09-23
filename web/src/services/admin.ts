@@ -15,6 +15,7 @@ import type {
   AiSettingSchemaGroup,
   AiStatistics,
   AiTask,
+  DashboardStats,
   PageResult,
   PermissionModule,
   RoleDetail,
@@ -73,6 +74,12 @@ export function batchUpdateUserStatus(userIds: string[], status: UserStatus): Pr
 
 export function resetUserPassword(id: string, newPassword: string): Promise<void> {
   return post(`/admin/users/${id}/reset-password`, { newPassword })
+}
+
+// ==================== 数据概览 ====================
+
+export function fetchDashboardStats(): Promise<DashboardStats> {
+  return get('/admin/dashboard/stats')
 }
 
 // ==================== 工作空间管理 ====================
