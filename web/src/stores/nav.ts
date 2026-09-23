@@ -32,7 +32,7 @@ export const useNavStore = defineStore('nav', () => {
         const items: Array<{ label: string; path: string; icon: string }> = []
         if (has('user:view')) items.push({ label: '用户管理', path: '/admin/users', icon: 'User' })
         if (has('workspace:view')) items.push({ label: '空间管理', path: '/admin/workspaces', icon: 'OfficeBuilding' })
-        if (has('role:view')) items.push({ label: '角色管理', path: '/admin/roles', icon: 'Lock' })
+        if (has('role:view')) items.push({ label: '角色管理', path: '/admin/roles', icon: 'Key' })
         if (has('ai:view')) items.push({ label: 'AI 配置', path: '/admin/ai-config', icon: 'MagicStick' })
         if (has('ai:view')) items.push({ label: '智能体', path: '/admin/ai-agents', icon: 'ChatDotRound' })
         return items
