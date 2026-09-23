@@ -123,8 +123,8 @@ watch(
         ref="menuRef"
         :default-active="activeMenu"
         background-color="transparent"
-        text-color="rgba(255,255,255,0.65)"
-        active-text-color="#ffffff"
+        text-color="var(--shell-text)"
+        active-text-color="var(--color-primary-500)"
         class="api-testing__sidebar-menu"
         @select="handleMenuSelect"
       >
@@ -186,49 +186,45 @@ watch(
 <style scoped lang="scss">
 .api-testing {
   display: flex;
+  gap: var(--float-gap);
   height: 100%;
 }
 
+/* 模块侧栏 = 悬浮白卡，与主内容卡等高并排（视觉设计 6.1 双栏页） */
 .api-testing__sidebar {
   width: var(--sidebar-width);
   flex-shrink: 0;
-  background: linear-gradient(180deg, var(--color-neutral-800) 0%, var(--color-neutral-900) 100%);
+  background: var(--shell-bg);
+  border: 1px solid var(--shell-border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-float);
+  padding: 12px 8px;
   overflow-y: auto;
 }
 
 .api-testing__sidebar-menu {
   border-right: none;
-  padding: 8px 0;
+  padding: 0;
 
   :deep(.el-menu-item) {
-    height: 42px;
-    line-height: 42px;
-    margin: 2px 8px;
-    border-radius: var(--radius-md);
+    height: 38px;
+    line-height: 38px;
+    margin: 3px 0;
+    padding: 0 12px;
+    border-radius: var(--radius-lg);
     font-size: 13px;
+    color: var(--shell-text);
     transition: all var(--transition-fast);
 
     &:hover {
-      background: rgba(255, 255, 255, 0.06) !important;
-      color: #e2e8f0 !important;
+      background: var(--shell-item-hover) !important;
+      color: var(--shell-text-strong) !important;
     }
 
     &.is-active {
-      background: rgba(59, 130, 246, 0.18) !important;
-      color: #60a5fa !important;
-      font-weight: 500;
-
-      &::before {
-        content: '';
-        position: absolute;
-        left: 0;
-        top: 50%;
-        transform: translateY(-50%);
-        width: 3px;
-        height: 16px;
-        background: var(--color-primary-400);
-        border-radius: 0 2px 2px 0;
-      }
+      background: var(--shell-item-active) !important;
+      color: var(--color-primary-500) !important;
+      font-weight: 600;
     }
 
     &.is-disabled {
@@ -237,7 +233,7 @@ watch(
 
       &:hover {
         background: transparent !important;
-        color: rgba(255, 255, 255, 0.65) !important;
+        color: var(--shell-text) !important;
       }
     }
 
@@ -247,22 +243,26 @@ watch(
   }
 
   :deep(.el-menu-item-group__title) {
-    padding: 12px 16px 4px;
-    margin: 0 8px;
-    border-top: 1px solid rgba(255, 255, 255, 0.08);
-    margin-top: 8px;
-    font-size: 11px;
-    letter-spacing: 0.05em;
-    color: rgba(255, 255, 255, 0.35);
+    padding: 14px 12px 6px;
+    margin: 0;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-neutral-400);
   }
 }
 
 .api-testing__main {
   flex: 1;
+  min-width: 0;
   overflow-y: auto;
-  padding: var(--space-xl);
+  padding: var(--page-pad);
   display: flex;
   flex-direction: column;
+  background: var(--color-neutral-0);
+  border: 1px solid var(--shell-border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-float);
 }
 
 .api-testing__norights {
