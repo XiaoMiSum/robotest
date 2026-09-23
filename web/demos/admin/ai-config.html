@@ -16,8 +16,7 @@
   .card-title-icon { display: inline-flex; color: var(--brand-500); }
   .card-title-icon svg { width: 16px; height: 16px; }
 
-  /* 总开关卡 */
-  .ai-master { display: flex; align-items: center; gap: var(--space-lg); }
+  /* 图标贴片（智能体头卡与智能体卡共用） */
   .ai-tile {
     width: 44px; height: 44px; flex-shrink: 0;
     display: flex; align-items: center; justify-content: center;
@@ -27,9 +26,6 @@
   .ai-tile svg { width: 22px; height: 22px; }
   .ai-tile--sm { width: 40px; height: 40px; }
   .ai-tile--sm svg { width: 20px; height: 20px; }
-  .ai-master__text { flex: 1; }
-  .ai-master__title { font-size: 15px; font-weight: 600; color: var(--n-800); }
-  .ai-master__hint { font-size: 12px; color: var(--n-500); margin-top: 2px; }
 
   /* 对话模型表：默认星标（形状 + 语义色 + 表头文案三重编码） */
   .star-on { display: inline-flex; color: var(--st-warning); }
@@ -184,6 +180,18 @@
   .stat-card--danger .stat-card__icon { background: var(--st-danger-border); color: var(--st-danger-strong); }
   .stats-table tbody tr:nth-child(even) { background: var(--n-25); }
   .stats-table tbody tr:hover { background: var(--n-50); }
+
+  /* 融合版首屏：页头内联总开关 + KPI 行 */
+  .head-master {
+    display: inline-flex; align-items: center; gap: var(--space-sm);
+    font-size: var(--font-size-sm); font-weight: 500; color: var(--n-700);
+  }
+  /* 网格自带 gap，须归零兄弟卡的 margin-top，否则 grid 子项行内错位 */
+  .kpi-row { margin-bottom: var(--block-gap); }
+  .kpi-row > .card { margin-top: 0; }
+  .kpi__value--modified, .kpi__value--modified .unit { color: var(--st-warning); }
+  .embed__sub { font-size: var(--font-size-xs); font-weight: 400; color: var(--n-500); }
+  .stat-card__foot { margin-top: 2px; font-size: var(--font-size-2xs); color: var(--n-400); }
 </style>
 </head>
 <body data-shell="admin" data-active="ai-config" data-mode="admin">
@@ -193,35 +201,46 @@
   <div class="page-head">
     <div>
       <h1 class="page-head__title">AI 配置</h1>
-      <p class="page-head__desc">AI 能力总开关、模型接入、智能体模板与调用统计</p>
+      <p class="page-head__desc">关闭后前端隐藏全部 AI 入口，进行中任务被取消；开启需已启用至少一个对话模型</p>
+    </div>
+    <div class="page-head__actions">
+      <span class="status status--success"><span class="dot"></span>AI 已启用</span>
+      <span class="head-master">AI 能力总开关 <span class="switch switch--on"></span></span>
+    </div>
+  </div>
+
+  <!-- 首屏状态 KPI（真值派生自实现状态，与统计页口径自洽） -->
+  <div class="card-grid card-grid--3 kpi-row">
+    <div class="card kpi">
+      <div class="kpi__label"><span data-icon="message"></span>对话模型</div>
+      <div class="kpi__value">2<span class="unit">个已启用</span></div>
+      <div class="kpi__foot">共 3 个 · 默认 DeepSeek-V3</div>
+    </div>
+    <div class="card kpi">
+      <div class="kpi__label"><span data-icon="data-chart"></span>Embedding 模型</div>
+      <div class="kpi__value">1536<span class="unit">维</span></div>
+      <div class="kpi__foot">text-embedding-3-small · <span class="kpi__delta kpi__delta--up">已配置</span></div>
+    </div>
+    <div class="card kpi">
+      <div class="kpi__label"><span data-icon="settings"></span>系统配置项</div>
+      <div class="kpi__value kpi__value--modified">1<span class="unit">项已修改</span></div>
+      <div class="kpi__foot">共 20 项 · 修改即自动保存</div>
     </div>
   </div>
 
   <div class="tabs ai-tabs">
     <span class="tab tab--active" data-ai-tab="config">AI 配置</span>
-    <span class="tab" data-ai-tab="agents">智能体</span>
+    <span class="tab" data-ai-tab="agents">智能体<span class="count">14</span></span>
     <span class="tab" data-ai-tab="stats">调用统计</span>
   </div>
 
   <!-- ============ Tab 1 · AI 配置 ============ -->
   <div class="ai-panel" data-ai-panel="config">
 
-    <!-- 总开关 -->
-    <div class="card">
-      <div class="card__body ai-master">
-        <span class="ai-tile"><span data-icon="cpu"></span></span>
-        <div class="ai-master__text">
-          <div class="ai-master__title">AI 能力总开关</div>
-          <div class="ai-master__hint">关闭后前端隐藏全部 AI 入口，进行中任务被取消；开启需已启用至少一个对话模型</div>
-        </div>
-        <span class="switch switch--on" title="已开启"></span>
-      </div>
-    </div>
-
     <!-- 对话模型 -->
     <div class="card">
       <div class="card__header">
-        <span class="title-row"><span class="card-title-icon" data-icon="message"></span><h3 class="card__title">对话模型</h3></span>
+        <span class="title-row"><span class="card-title-icon" data-icon="message"></span><h3 class="card__title">对话模型<span class="card__subtitle">3 个 · 2 已启用</span></h3></span>
         <button class="btn btn--primary btn--sm"><span data-icon="plus"></span>新建模型</button>
       </div>
       <div class="table-wrap">
@@ -229,7 +248,7 @@
           <thead>
             <tr>
               <th style="min-width:140px">名称</th>
-              <th style="width:120px">供应商</th>
+              <th style="width:200px">供应商</th>
               <th style="min-width:140px">模型名</th>
               <th style="width:80px">状态</th>
               <th class="ta-c" style="width:70px">默认</th>
@@ -239,7 +258,7 @@
           <tbody>
             <tr>
               <td class="cell-main">DeepSeek-V3</td>
-              <td class="mono">deepseek</td>
+              <td><span class="cell-main">DeepSeek</span><span class="cell-sub">deepseek</span></td>
               <td class="mono">deepseek-chat</td>
               <td><span class="status status--success"><span class="dot"></span>启用</span></td>
               <td class="ta-c"><span class="star-on" data-icon="star" title="默认模型"></span></td>
@@ -249,7 +268,7 @@
             </tr>
             <tr>
               <td class="cell-main">GPT-4o-mini</td>
-              <td class="mono">openai</td>
+              <td><span class="cell-main">OpenAI</span><span class="cell-sub">openai</span></td>
               <td class="mono">gpt-4o-mini</td>
               <td><span class="status status--success"><span class="dot"></span>启用</span></td>
               <td class="ta-c"></td>
@@ -259,7 +278,7 @@
             </tr>
             <tr>
               <td class="cell-main">Qwen-Max</td>
-              <td class="mono">qwen</td>
+              <td><span class="cell-main">阿里云百炼（通义千问）</span><span class="cell-sub">qwen</span></td>
               <td class="mono">qwen-max</td>
               <td><span class="status status--neutral"><span class="dot"></span>停用</span></td>
               <td class="ta-c"></td>
@@ -278,6 +297,7 @@
         <div class="embed__head">
           <span class="card-title-icon" data-icon="data-chart"></span>
           <span>Embedding 模型</span>
+          <span class="embed__sub">OpenAI · text-embedding-3-small · 1536 维</span>
           <span class="tag tag--success tag--sm"><span class="dot"></span>已配置</span>
           <span class="embed__arrow" data-icon="chevron-down" title="收起"></span>
         </div>
@@ -333,7 +353,7 @@
       <div class="card__header">
         <span class="title-row">
           <span class="card-title-icon" data-icon="settings"></span>
-          <h3 class="card__title">系统配置项<span class="card__subtitle">修改即自动保存</span></h3>
+          <h3 class="card__title">系统配置项<span class="card__subtitle">20 项 · 修改即自动保存</span></h3>
         </span>
       </div>
       <div class="card__body">
@@ -629,6 +649,7 @@
         <div>
           <div class="stat-card__label">总调用次数</div>
           <div class="stat-card__value">12500</div>
+          <div class="stat-card__foot">统计窗口近 30 天</div>
         </div>
       </div>
       <div class="stat-card stat-card--info">
@@ -636,6 +657,7 @@
         <div>
           <div class="stat-card__label">总 Token</div>
           <div class="stat-card__value">3900100</div>
+          <div class="stat-card__foot">单次平均约 312 token</div>
         </div>
       </div>
       <div class="stat-card stat-card--danger">
@@ -643,6 +665,7 @@
         <div>
           <div class="stat-card__label">失败次数</div>
           <div class="stat-card__value">17</div>
+          <div class="stat-card__foot">失败率 0.14%</div>
         </div>
       </div>
     </div>
