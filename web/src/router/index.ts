@@ -39,7 +39,7 @@ const routes: RouteRecordRaw[] = [
         path: 'dashboard',
         name: 'AdminDashboard',
         component: () => import('@/pages/admin/DashboardPage.vue'),
-        meta: { title: '仪表盘' },
+        meta: { title: '数据概览' },
       },
       {
         path: 'users',
