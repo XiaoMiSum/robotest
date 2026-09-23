@@ -1456,7 +1456,7 @@ COMMENT ON COLUMN sys_user.name IS '用户显示名称';
 COMMENT ON COLUMN sys_user.email IS '邮箱地址，用于登录和通知';
 COMMENT ON COLUMN sys_user.password_hash IS '密码 BCrypt 哈希值';
 COMMENT ON COLUMN sys_user.avatar_url IS '头像 URL';
-COMMENT ON COLUMN sys_user.status IS '用户状态：active=正常, disabled=禁用';
+COMMENT ON COLUMN sys_user.status IS '用户状态：active=正常, disabled=禁用, locked=锁定';
 COMMENT ON COLUMN sys_user.last_active_workspace_id IS '上次登录默认进入的工作空间 ID';
 
 COMMENT ON TABLE sys_role IS '角色表（系统级 + 空间级）';

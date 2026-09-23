@@ -29,11 +29,16 @@ import xyz.migoo.framework.common.pojo.PageResult;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
 public class UserServiceImpl implements UserService {
+
+    /** 状态三态白名单（V1.2）：active / disabled / locked，其余取值一律拒绝 */
+    private static final Set<String> ALLOWED_STATUSES = Set.of(
+            Constants.Status.ACTIVE, Constants.Status.DISABLED, Constants.Status.LOCKED);
 
     @Resource
     private SysUserMapper userMapper;
@@ -163,6 +168,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public UserRespDTO updateUserStatus(UUID id, String status) {
+        validateStatus(status);
         SysUser user = userMapper.selectById(id);
         if (user == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.USER_NOT_FOUND);
@@ -178,6 +184,7 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void batchUpdateStatus(UserBatchStatusReqDTO reqDTO) {
+        validateStatus(reqDTO.getStatus());
         for (UUID userId : reqDTO.getUserIds()) {
             SysUser user = userMapper.selectById(userId);
             if (user != null) {
@@ -224,6 +231,12 @@ public class UserServiceImpl implements UserService {
     @Override
     public SysUser getUserByEmail(String email) {
         return userMapper.findByEmail(email);
+    }
+
+    private void validateStatus(String status) {
+        if (!ALLOWED_STATUSES.contains(status)) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.USER_STATUS_INVALID);
+        }
     }
 
     private UserRespDTO convertToUserRespDTO(SysUser user) {
