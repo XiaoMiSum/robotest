@@ -301,7 +301,7 @@ score(case) = w1 · norm(relatedBugCount) + w2 · priorityWeight + w3 · norm(mo
 | ---- | ---- |
 | `components/project/ReviewAiCheckPanel.vue` | 评审详情「AI 检查」抽屉（640px、透明遮罩不压暗画布、点击空白关闭）：发起按钮（仅发起人，待评审/评审中可发起，已完成只读展示历史结果）、批次进度条（宽 4px）、建议列表（维度过滤、点击定位高亮）、取消任务、底部操作行（右侧对齐） |
 | `components/project/ReviewAiSummary.vue` | 评审摘要抽屉（640px、透明遮罩不压暗画布、点击空白关闭）：操作行（右侧对齐，`AiModelSelect` + 复制 + 生成/停止）+ statistics 卡片区（即时渲染）+ 流式 Markdown 总结（MarkdownView 复用） |
-| `components/project/MissingPointsPanel.vue` | 用例模块页「遗漏测试点分析」抽屉（640px、常驻挂载、关闭仅隐藏，透明遮罩 4.2）：三态输入（关键词/文本/条目选择器复用 RequirementSelector）+ 操作行（右侧对齐，分析中虚假进度条占位 + [取消] + [开始分析]）+ 结果清单（勾选）+「转用例生成」按钮（含目标文档选择，规则见 3.3）；**打开时自动带入当前文档关联条目**（同《智能用例生成》3.1.6，见 3.3 前端预填）；关闭抽屉仅隐藏不 abort，watch `docId` 切换文档时中断分析并重置（`docs/交互设计/AI评审与测试计划辅助页面交互设计.md` §4.2 会话保持） |
+| `components/project/MissingPointsPanel.vue` | 用例模块页「遗漏测试点分析」抽屉（640px、常驻挂载、关闭仅隐藏，透明遮罩 4.2）：三态输入（关键词/文本/条目选择器复用 RequirementSelector）+ 操作行（右侧对齐，分析中虚假进度条占位 + [取消] + [开始分析]）+ 结果清单（勾选）+「转用例生成」按钮（含目标文档选择，规则见 3.3）；**打开时自动带入当前文档关联条目**（同《智能用例生成》3.1.6，见 3.3 前端预填）；关闭抽屉仅隐藏不 abort，watch `docId` 切换文档时中断分析并重置（`docs/交互设计/README.md` §4.2 会话保持） |
 | `components/project/PlanOrderRecommend.vue` | 计划详情「执行顺序推荐」标签页：按指数排序列表（分值、因子明细展开、按需生成理由）+ stale 重算提示 + 脑图序号徽标联动 |
 | `components/project/CasePlanRecommendDialog.vue` | 用例规划推荐抽屉（评审/计划共用，640px、透明遮罩不压暗画布、点击空白关闭）：需求池（多选，[+ 选择需求] 选取）+ 需求文本输入 + 操作行（右侧对齐，推荐中虚假进度条占位 + [取消] + [开始推荐]）+ 结果勾选清单 +「加入评审/计划」（携带勾选用例进入既有关联流程） |
 | `services/project.ts` / `types/index.ts` | 3.1–3.5 接口封装与类型 |
@@ -309,7 +309,7 @@ score(case) = w1 · norm(relatedBugCount) + w2 · priorityWeight + w3 · norm(mo
 ### 5.2 交互要点
 
 - 检查/摘要入口仅评审发起人可见（前端按当前用户 = initiator 判断，后端强校验兜底）；顺序推荐入口仅计划负责人/执行人可见；
-- 摘要生成为交互式功能：`ReviewAiSummary` 的生成/重新生成入口旁内嵌公共组件 `AiModelSelect`（对话模型选择器，基础设施 5.1 / `docs/交互设计/AI基础设施与管理端页面交互设计.md` §2.8），所选 `modelId` 随 3.2.1 请求提交；其余功能固定默认模型，不展示选择器；
+- 摘要生成为交互式功能：`ReviewAiSummary` 的生成/重新生成入口旁内嵌公共组件 `AiModelSelect`（对话模型选择器，基础设施 5.1 / `docs/交互设计/README.md` §2.8），所选 `modelId` 随 3.2.1 请求提交；其余功能固定默认模型，不展示选择器；
 - 检查任务进行中允许离开页面，返回后面板轮询恢复展示（任务状态即真相源）；
 - 遗漏分析「转用例生成」：勾选 points 拼接为需求文本（title + description 列表），按 3.3 说明的目标文档选择规则确定跳转目标，路由跳转至该文档脑图页并透传文本预填生成面板；
 - 遗漏分析（3.3）与用例规划推荐（3.5）为同步长调用（后端 LLM 读超时功能级放宽至 60s，见 4.3/4.5），`services/ai.ts` 中这两个接口的请求超时单独配置为 70s（默认超时不足会先于后端中断），调用期间面板展示持续加载态并提供取消（abort）按钮；

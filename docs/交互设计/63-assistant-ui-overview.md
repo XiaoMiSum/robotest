@@ -1,0 +1,172 @@
+# 软件测试平台——（总览分册）
+
+**文档版本**：V1.0  
+**日期**：2026-09-23  
+**状态**：起草中
+
+> 本分册为《》按功能模块拆分后的总览分册，承载前言、引言、数据设计与公共约定等非模块内容；各功能模块正文见本目录对应分册，原章节编号保持不变，分册-章节对照表见文末。
+
+---
+
+> AI 通用交互规范见 `docs/交互设计/README.md` 第 2 章，本文档不再重复。  
+> 覆盖用户故事：US-AI-011（自然语言查询）、US-AI-012（快捷操作执行）、US-AI-013（对话式脑图编辑）、US-AI-014（平台使用指引）。
+
+---
+
+## 8. 通用交互模式总结
+
+### 8.1 卡片类型
+
+| 类型 | 使用场景 |
+| ---- | ---- |
+| 工具过程卡片 | 只读工具调用过程与结果概要 |
+| 确认卡片 | 写操作预览-确认-执行（含倒计时） |
+| DSL 预览入口 | 对话式脑图编辑的执行确认 |
+
+### 8.2 加载状态
+
+- 消息回复：流式逐字渲染 + 打字光标；输入框禁用 + [停止] 按钮；
+- 会话列表：滚动加载骨架条；
+- 消息历史：50 条以上虚拟滚动，保障长会话性能。
+
+### 8.3 状态保持与重置
+
+| 场景 | 行为 |
+| ---- | ---- |
+| 最小化 | 会话与流式回复保持 |
+| 页面路由切换（同空间） | 面板状态保持 |
+| 工作空间切换 | 会话列表重置，当前会话关闭 |
+| 未选择工作空间 | 悬浮按钮随全局 `aiEnabled` 保持显示；点击提示「请先进入工作空间」不打开面板；面板已打开时（中途离开空间）显示「请先选择工作空间」引导态，无会话能力 |
+| AI 开关关闭 | 悬浮按钮与面板隐藏，进行中回复中断并提示 |
+
+---
+
+
+## 9. 视觉与状态规范
+
+> 本章为智能助手 UI 视觉基线，对应实现：`web/src/components/assistant/`（AssistantPanel / MessageItem / AssistantFab）。
+> 所有颜色 / 圆角 / 阴影 / 过渡令牌均来自 `docs/交互设计/视觉设计.md` 第 7 节 CSS 变量定义（实现于 `web/src/assets/styles/variables.scss`），本章不另行定义色值；图标一律使用 SVG 组件（Sparkles / Check / Close / Wrench / Clipboard），禁止 emoji（正文 ASCII 示意图中的 emoji 仅为标记）。
+
+### 9.1 设计方向
+
+| 现状问题 | 目标（参考主流 AI 助手） |
+| --- | --- |
+| 无头像，缺乏"助手感" | AI 品牌渐变头像 + 用户头像，消息左右对齐分明 |
+| 用户气泡浅蓝、assistant 裸文本 | 用户主色实心气泡白字；assistant 顶格内容 + 头像列 |
+| emoji 图标（✨） | 统一 SVG 图标 |
+| 面板头部一行字、无氛围 | 头部信息完整（标题 + 状态），底部细分隔线 |
+| 输入区普通文本框 | 胶囊圆角 + 聚焦光环 + 渐变发送按钮 |
+| 无进入动效 | GPU 合成过渡（仅 transform/opacity），克制不喧宾夺主 |
+
+### 9.2 视觉令牌（引用 `docs/交互设计/视觉设计.md` 第 7 节）
+
+- 主色：`--color-primary-400/500/600/700`、`--color-primary-50/100`
+- 中性：`--color-neutral-0/50/100/200/300/400/500/600/700/800`
+- 语义：`--color-success`、`--color-danger`、`--color-info`、`--color-info-light`
+- 圆角：`--radius-sm(4)` / `md(6)` / `lg(8)` / `xl(12)`
+- 阴影：`--shadow-sm` / `md` / `lg` / `card` / `card-hover`
+- 过渡：`--transition-fast(0.15s)` / `base(0.2s)` / `slow(0.3s)`
+- 间距：`--space-xs(4)` / `sm(8)` / `md(12)` / `lg(16)` / `xl(24)`
+- 主色透明变体（仅限两处光晕场景，为主色 500 的 alpha 派生，不新增色板）：输入聚焦光环 `rgba(59, 130, 246, 0.12)`；悬浮球外圈光晕 `rgba(59, 130, 246, 0.15)`
+
+### 9.3 消息视觉
+
+#### 9.3.1 AI 头像（assistant 消息）
+- 尺寸：28px 圆角方形，`border-radius: var(--radius-lg)`
+- 底：`linear-gradient(135deg, var(--color-primary-400), var(--color-primary-700))`
+- 内容：白色 SVG Sparkles（14px，非 emoji）
+- 位置：消息左侧，与内容列 `gap: var(--space-md)`；头像与首行文字顶端对齐
+
+#### 9.3.2 用户头像
+- 尺寸：28px 圆角方形
+- 内容：优先显示当前登录用户信息的头像 URL（`avatarUrl`，图片 `object-fit: cover` 铺满）；无头像时回退用户名首字符（`--color-neutral-600` 粗体）
+- 底：`var(--color-neutral-200)`（仅回退首字符时可见）
+- 位置：用户气泡右侧
+- 数据来源：消息模型不携带用户信息，取 `authStore` 当前登录用户
+
+#### 9.3.3 用户消息气泡
+- 底：`var(--color-primary-500)`，文字 `--color-neutral-0`
+- 圆角：`var(--radius-xl)`，右上角收为 `var(--radius-md)`（小角指向头像）
+- 最大宽度：容器 82%；内边距 `10px 14px`
+- 字体：13px，行高 1.6
+
+#### 9.3.4 assistant 内容列
+- 无气泡底色（顶格排版，ChatGPT 模式），宽度 100%
+- Markdown 正文：13.5px，行高 1.75，`color: var(--color-neutral-700)`
+- 代码块 / 引用 / 列表沿用现有 DSL 样式，仅间距与圆角对齐令牌
+
+#### 9.3.5 消息组间距
+- 组内（消息 + 过程卡片）：`gap: var(--space-sm)`
+- 组间：`margin-top: var(--space-xl)`
+- 消息区水平内边距：`--space-lg`
+
+### 9.4 工具过程卡片（交互行为见 4.3）
+
+- 底：`var(--color-neutral-50)`，圆角 `var(--radius-lg)`，边框 `1px solid var(--color-neutral-100)`
+- 状态图标：运行中为加载旋转动画（主色）；完成为 SVG ✓（`--color-success`）；失败为 SVG ✕（`--color-danger`）
+- 状态徽标：运行中 `--color-info-light` 底 + `--color-info` 字；完成 `--color-success` 字
+- 展开 / 收起箭头 hover 过渡
+
+### 9.5 流式光标
+
+- 保留 `▍` 字符光标，`color: var(--color-primary-500)`，`animation: blink 1s step-end infinite`
+
+### 9.6 面板头部
+
+- 高度 52px，`padding: 0 var(--space-lg)`，`border-bottom: 1px solid var(--color-neutral-100)`
+- 标题行：SVG Sparkles（主色渐变底圆角小方块）+「智能助手」（600 字重，14px）
+- 副信息（模型名 / 状态点）：12px，`--color-neutral-400`；在线状态点 `--color-success`
+- 右侧按钮：icon-only，hover `--color-neutral-100` 圆角底
+
+### 9.7 会话列表
+
+- 激活项：`--color-primary-50` 底 + 左 3px `--color-primary-500` 圆角条，过渡 `--transition-fast`
+- hover：`--color-neutral-100`
+- 标题 13px / 时间 11px，`--color-neutral-400`
+- [＋新会话] 按钮右对齐（列表顶部右缘，与消息区对齐）
+
+### 9.8 输入区
+
+- textarea 容器：圆角 `var(--radius-xl)`，边框 `1px solid var(--color-neutral-200)`
+- 自动增高：`autosize`（minRows 1 / maxRows 3），输入超出可视宽度自动换行并增高，达到 3 行上限后内部滚动（`overflow-y: auto`）
+- 聚焦：`box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12)` + 边框 `--color-primary-500`
+- 发送按钮：`--color-primary-500` 底白字，圆角 `var(--radius-md)`；hover `--color-primary-600`；禁用态 `--color-neutral-200`
+- 工具栏操作组（提示行 + 发送/停止）恒靠右（`margin-left: auto`）：单一可用模型时模型选择器不渲染（见 4.1），避免操作组落入左侧
+- 占位符：`--color-neutral-400`；提示行 11px `--color-neutral-400`
+
+### 9.9 悬浮球（AssistantFab）
+
+- 尺寸 48px 圆形，渐变底不变（primary-400 → 600）
+- 内容：SVG Sparkles 白图标（20px，非 emoji）
+- 光晕：外圈 `box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.15)` + `--shadow-lg`；hover 放大 + 光晕增强
+- 拖拽逻辑、显隐逻辑不变
+
+### 9.10 动效规范
+
+- 一律用 `transform` / `opacity`（GPU 合成），禁止重排属性动画
+- 消息进入：`opacity 0 → 1` + `translateY(8px) → 0`，`--transition-slow`，`animation-fill-mode: both`
+- hover 过渡：`--transition-fast`
+- 光标 blink：`1s step-end infinite`（两端不可见）
+- 面板开合过渡（若存在）保持既有行为
+
+### 9.11 设计约束
+
+- ❌ 新增 CSS 变量 / 色值 / 第三方库
+- ❌ 修改组件 `<script>` 逻辑（事件、状态、请求、滚动）
+- ❌ 全局样式污染（所有样式保持 scoped，必要时 `:deep()` 限定在组件子树内）
+- ❌ emoji 作图标（一律 SVG；示意图 emoji 仅为标记）
+- ❌ 大幅增加文件行数（优先替换既有样式，保持 diff 精简）
+
+---
+
+**文档结束**
+
+## 分册-章节对照表
+
+| 分册 | 文件 | 覆盖章节 |
+|---|---|---|
+| 总览 | `63-assistant-ui-overview.md` | 前言、8. 通用交互模式总结、9. 视觉与状态规范 |
+| 面板与会话 | `64-assistant-ui-panel.md` | 1. 总体布局、2. 悬浮按钮、3. 会话管理 |
+| 消息交互 | `65-assistant-ui-message.md` | 4. 消息交互 |
+| 快捷操作执行 | `66-assistant-ui-quick-action.md` | 5. 快捷操作执行 |
+| 脑图编辑与使用指引 | `67-assistant-ui-mindmap-guide.md` | 6. 对话式脑图编辑、7. 平台使用指引 |
