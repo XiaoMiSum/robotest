@@ -28,6 +28,9 @@ import org.springframework.transaction.annotation.Transactional;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
 
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -251,23 +254,67 @@ public class RoleServiceImpl implements RoleService {
     @Override
     public List<PermissionTableRespDTO> getPermissionTable(String roleType) {
         String scope = Constants.RoleType.WORKSPACE.equals(roleType) ? "workspace" : "global";
-        List<SysPermission> permissions = permissionMapper.findByScopeOrdered(scope);
+        List<SysPermission> rows = permissionMapper.findByScopeOrdered(scope);
 
-        return permissions.stream()
-                .filter(p -> p.getParentCode() != null)
-                .collect(Collectors.groupingBy(SysPermission::getModule))
-                .entrySet().stream()
-                .map(entry -> {
-                    PermissionTableRespDTO dto = new PermissionTableRespDTO();
-                    dto.setModule(entry.getKey());
-                    dto.setPermissions(entry.getValue().stream().map(p -> {
-                        PermissionTableRespDTO.PermissionItem item = new PermissionTableRespDTO.PermissionItem();
-                        item.setCode(p.getCode());
-                        item.setName(p.getName());
-                        return item;
-                    }).collect(Collectors.toList()));
-                    return dto;
-                })
-                .collect(Collectors.toList());
+        Map<String, SysPermission> roots = new HashMap<>();
+        List<SysPermission> leaves = new ArrayList<>();
+        for (SysPermission permission : rows) {
+            if (permission.getParentCode() == null) {
+                roots.put(permission.getCode(), permission);
+            } else {
+                leaves.add(permission);
+            }
+        }
+
+        // 一级取 top_module、二级命名与排序取根节点，展示顺序完全由种子 sort_order 驱动（一级=组内最小根 sort）
+        Map<String, Map<String, List<SysPermission>>> grouped = new LinkedHashMap<>();
+        for (SysPermission leaf : leaves) {
+            grouped.computeIfAbsent(leaf.getTopModule(), key -> new LinkedHashMap<>())
+                    .computeIfAbsent(leaf.getParentCode(), key -> new ArrayList<>())
+                    .add(leaf);
+        }
+
+        record RankedModule(int sort, PermissionTableRespDTO.ModuleGroup dto) {
+        }
+        record RankedTop(int sort, PermissionTableRespDTO dto) {
+        }
+
+        List<RankedTop> rankedTops = new ArrayList<>();
+        for (Map.Entry<String, Map<String, List<SysPermission>>> topEntry : grouped.entrySet()) {
+            List<RankedModule> modules = new ArrayList<>();
+            for (Map.Entry<String, List<SysPermission>> moduleEntry : topEntry.getValue().entrySet()) {
+                SysPermission root = roots.get(moduleEntry.getKey());
+                String moduleName;
+                int moduleSort;
+                if (root != null) {
+                    moduleName = root.getName();
+                    moduleSort = root.getSortOrder();
+                } else {
+                    // 根节点缺失的孤儿叶子兜底用叶子 module 作组名并排末尾，脏数据不打断整体分组
+                    moduleName = moduleEntry.getValue().get(0).getModule();
+                    moduleSort = Integer.MAX_VALUE;
+                }
+                PermissionTableRespDTO.ModuleGroup group = new PermissionTableRespDTO.ModuleGroup();
+                group.setModule(moduleName);
+                group.setPermissions(moduleEntry.getValue().stream()
+                        .sorted(Comparator.comparing(SysPermission::getSortOrder))
+                        .map(leaf -> {
+                            PermissionTableRespDTO.PermissionItem item = new PermissionTableRespDTO.PermissionItem();
+                            item.setCode(leaf.getCode());
+                            item.setName(leaf.getName());
+                            return item;
+                        })
+                        .collect(Collectors.toList()));
+                modules.add(new RankedModule(moduleSort, group));
+            }
+            modules.sort(Comparator.comparingInt(RankedModule::sort));
+            PermissionTableRespDTO topDto = new PermissionTableRespDTO();
+            topDto.setTopModule(topEntry.getKey());
+            topDto.setModules(modules.stream().map(RankedModule::dto).collect(Collectors.toList()));
+            int topSort = modules.stream().mapToInt(RankedModule::sort).min().orElse(Integer.MAX_VALUE);
+            rankedTops.add(new RankedTop(topSort, topDto));
+        }
+        rankedTops.sort(Comparator.comparingInt(RankedTop::sort));
+        return rankedTops.stream().map(RankedTop::dto).collect(Collectors.toList());
     }
 }

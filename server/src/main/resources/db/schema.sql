@@ -71,6 +71,7 @@ CREATE TABLE sys_permission (
                                 name        VARCHAR(100) NOT NULL,
                                 parent_code VARCHAR(100),
                                 module      VARCHAR(50)  NOT NULL,
+                                top_module  VARCHAR(50)  NOT NULL DEFAULT '',
                                 scope       VARCHAR(20)  NOT NULL DEFAULT 'global',
                                 sort_order  INT          NOT NULL DEFAULT 0,
                                 is_deleted  BOOLEAN      NOT NULL DEFAULT FALSE,
@@ -1093,128 +1094,128 @@ CREATE UNIQUE INDEX uk_function_global ON api_function(name) WHERE scope = 'glob
 -- ------------------------------------------------------------
 -- 18.1 权限点（系统管理模块）
 -- ------------------------------------------------------------
-INSERT INTO sys_permission (id, code, name, parent_code, module, scope, sort_order, created_at, updated_at, is_deleted) VALUES
-('a0000000-0000-0000-0000-000000000001', 'user',                '用户管理',          NULL,  '用户管理',     'global', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('a0000000-0000-0000-0000-000000000002', 'user:view',           '查看用户',          'user', '用户管理',     'global', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('a0000000-0000-0000-0000-000000000003', 'user:create',         '创建用户',          'user', '用户管理',     'global', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('a0000000-0000-0000-0000-000000000004', 'user:edit',           '编辑用户',          'user', '用户管理',     'global', 3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('a0000000-0000-0000-0000-000000000005', 'user:disable',        '禁用/启用用户',      'user', '用户管理',     'global', 4, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('a0000000-0000-0000-0000-000000000006', 'user:reset-password', '重置密码',          'user', '用户管理',     'global', 5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('a0000000-0000-0000-0000-000000000007', 'workspace',            '工作空间管理',       NULL,  '工作空间管理',  'global', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('a0000000-0000-0000-0000-000000000008', 'workspace:view',       '查看工作空间',       'workspace', '工作空间管理', 'global', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('a0000000-0000-0000-0000-000000000009', 'workspace:create',     '创建工作空间',       'workspace', '工作空间管理', 'global', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('a0000000-0000-0000-0000-000000000010', 'workspace:edit',       '编辑工作空间',       'workspace', '工作空间管理', 'global', 3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('a0000000-0000-0000-0000-000000000011', 'workspace:delete',     '解散工作空间',       'workspace', '工作空间管理', 'global', 4, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('a0000000-0000-0000-0000-000000000012', 'workspace:manage-members', '管理成员',     'workspace', '工作空间管理', 'global', 5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('a0000000-0000-0000-0000-000000000013', 'role',                '角色管理',          NULL,  '角色管理',     'global', 3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('a0000000-0000-0000-0000-000000000014', 'role:view',           '查看角色',          'role', '角色管理',     'global', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('a0000000-0000-0000-0000-000000000015', 'role:create',         '创建角色',          'role', '角色管理',     'global', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('a0000000-0000-0000-0000-000000000016', 'role:edit',           '编辑角色',          'role', '角色管理',     'global', 3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('a0000000-0000-0000-0000-000000000017', 'role:delete',         '删除角色',          'role', '角色管理',     'global', 4, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE);
+INSERT INTO sys_permission (id, code, name, parent_code, module, top_module, scope, sort_order, created_at, updated_at, is_deleted) VALUES
+('a0000000-0000-0000-0000-000000000001', 'user',                '用户管理',       NULL,  '用户管理',     '系统管理', 'global', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('a0000000-0000-0000-0000-000000000002', 'user:view',           '查看用户',       'user', '用户管理',     '系统管理', 'global', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('a0000000-0000-0000-0000-000000000003', 'user:create',         '创建用户',       'user', '用户管理',     '系统管理', 'global', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('a0000000-0000-0000-0000-000000000004', 'user:edit',           '编辑用户',       'user', '用户管理',     '系统管理', 'global', 3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('a0000000-0000-0000-0000-000000000005', 'user:disable',        '禁用/启用用户',   'user', '用户管理',     '系统管理', 'global', 4, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('a0000000-0000-0000-0000-000000000006', 'user:reset-password', '重置密码',       'user', '用户管理',     '系统管理', 'global', 5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('a0000000-0000-0000-0000-000000000007', 'workspace',            '空间管理',       NULL,  '工作空间管理',  '系统管理', 'global', 3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('a0000000-0000-0000-0000-000000000008', 'workspace:view',       '查看工作空间',    'workspace', '工作空间管理', '系统管理', 'global', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('a0000000-0000-0000-0000-000000000009', 'workspace:create',     '创建工作空间',    'workspace', '工作空间管理', '系统管理', 'global', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('a0000000-0000-0000-0000-000000000010', 'workspace:edit',       '编辑工作空间',    'workspace', '工作空间管理', '系统管理', 'global', 3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('a0000000-0000-0000-0000-000000000011', 'workspace:delete',     '解散工作空间',    'workspace', '工作空间管理', '系统管理', 'global', 4, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('a0000000-0000-0000-0000-000000000012', 'workspace:manage-members', '管理成员',   'workspace', '工作空间管理', '系统管理', 'global', 5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('a0000000-0000-0000-0000-000000000013', 'role',                '角色管理',       NULL,  '角色管理',     '系统管理', 'global', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('a0000000-0000-0000-0000-000000000014', 'role:view',           '查看角色',       'role', '角色管理',     '系统管理', 'global', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('a0000000-0000-0000-0000-000000000015', 'role:create',         '创建角色',       'role', '角色管理',     '系统管理', 'global', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('a0000000-0000-0000-0000-000000000016', 'role:edit',           '编辑角色',       'role', '角色管理',     '系统管理', 'global', 3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('a0000000-0000-0000-0000-000000000017', 'role:delete',         '删除角色',       'role', '角色管理',     '系统管理', 'global', 4, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE);
 
 -- ------------------------------------------------------------
 -- 18.2 权限点（AI 管理模块）
 -- ------------------------------------------------------------
-INSERT INTO sys_permission (id, code, name, parent_code, module, scope, sort_order, created_at, updated_at, is_deleted) VALUES
-('a0000000-0000-0000-0000-000000000018', 'ai',      'AI 管理',           NULL, 'AI 管理', 'global', 4, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('a0000000-0000-0000-0000-000000000019', 'ai:view', '查看 AI 配置与智能体', 'ai', 'AI 管理', 'global', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('a0000000-0000-0000-0000-000000000020', 'ai:edit', '编辑 AI 配置与智能体', 'ai', 'AI 管理', 'global', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE);
+INSERT INTO sys_permission (id, code, name, parent_code, module, top_module, scope, sort_order, created_at, updated_at, is_deleted) VALUES
+('a0000000-0000-0000-0000-000000000018', 'ai',      'AI 配置',            NULL, 'AI 管理', '系统管理', 'global', 4, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('a0000000-0000-0000-0000-000000000019', 'ai:view', '查看 AI 配置与智能体', 'ai', 'AI 管理', '系统管理', 'global', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('a0000000-0000-0000-0000-000000000020', 'ai:edit', '编辑 AI 配置与智能体', 'ai', 'AI 管理', '系统管理', 'global', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE);
 
 -- ------------------------------------------------------------
 -- 18.2.1 权限点（审计日志模块，全局系统管理，审计查询详细设计 2.1）
 -- ------------------------------------------------------------
-INSERT INTO sys_permission (id, code, name, parent_code, module, scope, sort_order, created_at, updated_at, is_deleted) VALUES
-('a0000000-0000-0000-0000-000000000021', 'audit',      '审计日志',    NULL, '审计日志', 'global', 5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('a0000000-0000-0000-0000-000000000022', 'audit:view', '查看审计日志', 'audit', '审计日志', 'global', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE);
+INSERT INTO sys_permission (id, code, name, parent_code, module, top_module, scope, sort_order, created_at, updated_at, is_deleted) VALUES
+('a0000000-0000-0000-0000-000000000021', 'audit',      '审计日志',    NULL, '审计日志', '系统管理', 'global', 5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('a0000000-0000-0000-0000-000000000022', 'audit:view', '查看审计日志', 'audit', '审计日志', '系统管理', 'global', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE);
 
 -- ------------------------------------------------------------
 -- 18.3 权限点（业务模块 — 工作空间/项目/测试用例/评审/计划/缺陷）
 -- ------------------------------------------------------------
-INSERT INTO sys_permission (id, code, name, parent_code, module, scope, sort_order, created_at, updated_at, is_deleted) VALUES
-('c0000000-0000-0000-0000-000000000001', 'ws-info',            '空间信息',           NULL,           '我的空间', 'workspace', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000002', 'ws-info:view',       '查看空间信息',        'ws-info',      '我的空间', 'workspace', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000003', 'ws-info:edit',       '编辑空间信息',        'ws-info',      '我的空间', 'workspace', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000004', 'ws-member',          '成员管理',            NULL,           '我的空间', 'workspace', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000005', 'ws-member:view',     '查看成员',            'ws-member',    '我的空间', 'workspace', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000006', 'ws-member:manage',   '管理成员',            'ws-member',    '我的空间', 'workspace', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000007', 'ws-invitation',      '邀请链接',            NULL,           '我的空间', 'workspace', 3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000008', 'ws-invitation:view', '查看邀请链接',         'ws-invitation','我的空间', 'workspace', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000009', 'ws-invitation:manage','管理邀请链接',        'ws-invitation','我的空间', 'workspace', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000010', 'project',            '项目',                NULL,           '项目',    'workspace', 4, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000011', 'project:view',       '查看项目',            'project',      '项目',    'workspace', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000017', 'case',               '测试用例',            NULL,           '测试用例', 'workspace', 5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000018', 'case:view',          '查看用例',            'case',         '测试用例', 'workspace', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000019', 'case:edit',          '编辑用例',            'case',         '测试用例', 'workspace', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000020', 'review',             '测试评审',            NULL,           '测试评审', 'workspace', 6, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000021', 'review:view',        '查看评审',            'review',       '测试评审', 'workspace', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000022', 'review:create',      '发起评审',            'review',       '测试评审', 'workspace', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000023', 'review:edit',        '评审操作',            'review',       '测试评审', 'workspace', 3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000024', 'review:complete',    '完成评审',            'review',       '测试评审', 'workspace', 4, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000025', 'plan',               '测试计划',            NULL,           '测试计划', 'workspace', 7, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000026', 'plan:view',          '查看计划',            'plan',         '测试计划', 'workspace', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000027', 'plan:create',        '创建计划',            'plan',         '测试计划', 'workspace', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000028', 'plan:execute',       '执行计划',            'plan',         '测试计划', 'workspace', 3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000029', 'plan:close',         '关闭计划',            'plan',         '测试计划', 'workspace', 4, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000030', 'bug',                '缺陷',                NULL,           '缺陷',    'workspace', 8, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000031', 'bug:view',           '查看缺陷',            'bug',          '缺陷',    'workspace', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE);
+INSERT INTO sys_permission (id, code, name, parent_code, module, top_module, scope, sort_order, created_at, updated_at, is_deleted) VALUES
+('c0000000-0000-0000-0000-000000000001', 'ws-info',            '空间信息',     NULL,           '我的空间', '我的空间', 'workspace', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000002', 'ws-info:view',       '查看空间信息',  'ws-info',      '我的空间', '我的空间', 'workspace', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000003', 'ws-info:edit',       '编辑空间信息',  'ws-info',      '我的空间', '我的空间', 'workspace', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000004', 'ws-member',          '成员管理',     NULL,           '我的空间', '我的空间', 'workspace', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000005', 'ws-member:view',     '查看成员',     'ws-member',    '我的空间', '我的空间', 'workspace', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000006', 'ws-member:manage',   '管理成员',     'ws-member',    '我的空间', '我的空间', 'workspace', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000007', 'ws-invitation',      '邀请链接',     NULL,           '我的空间', '我的空间', 'workspace', 3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000008', 'ws-invitation:view', '查看邀请链接',  'ws-invitation','我的空间', '我的空间', 'workspace', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000009', 'ws-invitation:manage','管理邀请链接', 'ws-invitation','我的空间', '我的空间', 'workspace', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000010', 'project',            '项目列表',     NULL,           '项目',    '我的空间', 'workspace', 4, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000011', 'project:view',       '查看项目',     'project',      '项目',    '我的空间', 'workspace', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000017', 'case',               '测试用例',     NULL,           '测试用例', '功能测试', 'workspace', 5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000018', 'case:view',          '查看用例',     'case',         '测试用例', '功能测试', 'workspace', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000019', 'case:edit',          '编辑用例',     'case',         '测试用例', '功能测试', 'workspace', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000020', 'review',             '测试评审',     NULL,           '测试评审', '功能测试', 'workspace', 6, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000021', 'review:view',        '查看评审',     'review',       '测试评审', '功能测试', 'workspace', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000022', 'review:create',      '发起评审',     'review',       '测试评审', '功能测试', 'workspace', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000023', 'review:edit',        '评审操作',     'review',       '测试评审', '功能测试', 'workspace', 3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000024', 'review:complete',    '完成评审',     'review',       '测试评审', '功能测试', 'workspace', 4, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000025', 'plan',               '测试计划',     NULL,           '测试计划', '功能测试', 'workspace', 7, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000026', 'plan:view',          '查看计划',     'plan',         '测试计划', '功能测试', 'workspace', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000027', 'plan:create',        '创建计划',     'plan',         '测试计划', '功能测试', 'workspace', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000028', 'plan:execute',       '执行计划',     'plan',         '测试计划', '功能测试', 'workspace', 3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000029', 'plan:close',         '关闭计划',     'plan',         '测试计划', '功能测试', 'workspace', 4, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000030', 'bug',                '缺陷',        NULL,           '缺陷',    '缺陷管理', 'workspace', 18, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000031', 'bug:view',           '查看缺陷',     'bug',          '缺陷',    '缺陷管理', 'workspace', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE);
 
 -- ------------------------------------------------------------
 -- 18.4 权限点（需求池）
 -- ------------------------------------------------------------
-INSERT INTO sys_permission (id, code, name, parent_code, module, scope, sort_order, created_at, updated_at, is_deleted) VALUES
-('c0000000-0000-0000-0000-000000000034', 'requirement',      '需求池',   NULL,          '需求池', 'workspace', 9, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000035', 'requirement:view', '查看需求池', 'requirement', '需求池', 'workspace', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000036', 'requirement:edit', '编辑需求池', 'requirement', '需求池', 'workspace', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE);
+INSERT INTO sys_permission (id, code, name, parent_code, module, top_module, scope, sort_order, created_at, updated_at, is_deleted) VALUES
+('c0000000-0000-0000-0000-000000000034', 'requirement',      '需求池',   NULL,          '需求池', '功能测试', 'workspace', 8, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000035', 'requirement:view', '查看需求池', 'requirement', '需求池', '功能测试', 'workspace', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000036', 'requirement:edit', '编辑需求池', 'requirement', '需求池', '功能测试', 'workspace', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE);
 
 -- ------------------------------------------------------------
 -- 18.5 权限点（接口测试模块）
 -- ------------------------------------------------------------
-INSERT INTO sys_permission (id, code, name, parent_code, module, scope, sort_order, created_at, updated_at, is_deleted) VALUES
+INSERT INTO sys_permission (id, code, name, parent_code, module, top_module, scope, sort_order, created_at, updated_at, is_deleted) VALUES
 -- 测试场景
-('c0000000-0000-0000-0000-000000000040', 'api-scene',          '测试场景',        NULL,            '接口测试·测试场景',  'workspace', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000041', 'api-scene:view',     '查看场景',        'api-scene',     '接口测试·测试场景',  'workspace', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000042', 'api-scene:edit',     '编辑场景',        'api-scene',     '接口测试·测试场景',  'workspace', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000043', 'api-scene:import',   '导入场景',        'api-scene',     '接口测试·测试场景',  'workspace', 3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000045', 'api-scene:execute',  '执行场景',        'api-scene',     '接口测试·测试场景',  'workspace', 5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000040', 'api-scene',          '测试场景',        NULL,            '接口测试·测试场景',  '接口测试', 'workspace', 12, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000041', 'api-scene:view',     '查看场景',        'api-scene',     '接口测试·测试场景',  '接口测试', 'workspace', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000042', 'api-scene:edit',     '编辑场景',        'api-scene',     '接口测试·测试场景',  '接口测试', 'workspace', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000043', 'api-scene:import',   '导入场景',        'api-scene',     '接口测试·测试场景',  '接口测试', 'workspace', 3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000045', 'api-scene:execute',  '执行场景',        'api-scene',     '接口测试·测试场景',  '接口测试', 'workspace', 5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
 -- 接口管理
-('c0000000-0000-0000-0000-000000000046', 'api-interface',         '接口管理',    NULL,            '接口测试·接口管理',  'workspace', 3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000047', 'api-interface:view',    '查看接口',    'api-interface',  '接口测试·接口管理',  'workspace', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000048', 'api-interface:edit',    '编辑接口',    'api-interface',  '接口测试·接口管理',  'workspace', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000049', 'api-interface:delete', '删除接口',    'api-interface',  '接口测试·接口管理',  'workspace', 3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000046', 'api-interface',         '接口管理',    NULL,            '接口测试·接口管理',  '接口测试', 'workspace', 10, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000047', 'api-interface:view',    '查看接口',    'api-interface',  '接口测试·接口管理',  '接口测试', 'workspace', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000048', 'api-interface:edit',    '编辑接口',    'api-interface',  '接口测试·接口管理',  '接口测试', 'workspace', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000049', 'api-interface:delete', '删除接口',    'api-interface',  '接口测试·接口管理',  '接口测试', 'workspace', 3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
 -- 公共组件
-('c0000000-0000-0000-0000-000000000050', 'api-component',         '公共组件',    NULL,            '接口测试·公共组件',  'workspace', 4, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000051', 'api-component:view',    '查看组件',    'api-component',  '接口测试·公共组件',  'workspace', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000052', 'api-component:edit',    '编辑组件',    'api-component',  '接口测试·公共组件',  'workspace', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000070', 'api-component:edit-space', '编辑空间级组件', 'api-component', '接口测试·公共组件', 'workspace', 3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000071', 'api-component:edit-global', '编辑全局组件', 'api-component', '接口测试·公共组件', 'workspace', 4, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000050', 'api-component',         '公共组件',    NULL,            '接口测试·公共组件',  '接口测试', 'workspace', 17, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000051', 'api-component:view',    '查看组件',    'api-component',  '接口测试·公共组件',  '接口测试', 'workspace', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000052', 'api-component:edit',    '编辑组件',    'api-component',  '接口测试·公共组件',  '接口测试', 'workspace', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000070', 'api-component:edit-space', '编辑空间级组件', 'api-component', '接口测试·公共组件', '接口测试', 'workspace', 3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000071', 'api-component:edit-global', '编辑全局组件', 'api-component', '接口测试·公共组件', '接口测试', 'workspace', 4, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
 -- 快速调试
-('c0000000-0000-0000-0000-000000000053', 'api-debug',         '快速调试',    NULL,            '接口测试·快速调试',  'workspace', 5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000054', 'api-debug:view',    '查看调试记录', 'api-debug',     '接口测试·快速调试',  'workspace', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000053', 'api-debug',         '快速调试',    NULL,            '接口测试·快速调试',  '接口测试', 'workspace', 9, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000054', 'api-debug:view',    '查看调试记录', 'api-debug',     '接口测试·快速调试',  '接口测试', 'workspace', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
 -- 定时任务
-('c0000000-0000-0000-0000-000000000055', 'api-timer',         '定时任务',    NULL,            '接口测试·定时任务',  'workspace', 6, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000056', 'api-timer:view',    '查看定时任务', 'api-timer',     '接口测试·定时任务',  'workspace', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000057', 'api-timer:edit',    '编辑定时任务', 'api-timer',     '接口测试·定时任务',  'workspace', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000055', 'api-timer',         '定时任务',    NULL,            '接口测试·定时任务',  '接口测试', 'workspace', 14, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000056', 'api-timer:view',    '查看定时任务', 'api-timer',     '接口测试·定时任务',  '接口测试', 'workspace', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000057', 'api-timer:edit',    '编辑定时任务', 'api-timer',     '接口测试·定时任务',  '接口测试', 'workspace', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
 -- Mock 服务
-('c0000000-0000-0000-0000-000000000058', 'api-mock',          'Mock 服务',    NULL,            '接口测试·Mock服务',  'workspace', 7, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000059', 'api-mock:view',     '查看 Mock',    'api-mock',      '接口测试·Mock服务',  'workspace', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000060', 'api-mock:edit',     '编辑 Mock',    'api-mock',      '接口测试·Mock服务',  'workspace', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000058', 'api-mock',          'Mock 服务',    NULL,            '接口测试·Mock服务',  '接口测试', 'workspace', 11, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000059', 'api-mock:view',     '查看 Mock',    'api-mock',      '接口测试·Mock服务',  '接口测试', 'workspace', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000060', 'api-mock:edit',     '编辑 Mock',    'api-mock',      '接口测试·Mock服务',  '接口测试', 'workspace', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
 -- 测试报告
-('c0000000-0000-0000-0000-000000000061', 'api-report',        '测试报告',    NULL,            '接口测试·测试报告',  'workspace', 8, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000062', 'api-report:view',   '查看报告',    'api-report',    '接口测试·测试报告',  'workspace', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000063', 'api-report:delete', '删除报告',    'api-report',    '接口测试·测试报告',  'workspace', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE);
+('c0000000-0000-0000-0000-000000000061', 'api-report',        '测试报告',    NULL,            '接口测试·测试报告',  '接口测试', 'workspace', 13, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000062', 'api-report:view',   '查看报告',    'api-report',    '接口测试·测试报告',  '接口测试', 'workspace', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000063', 'api-report:delete', '删除报告',    'api-report',    '接口测试·测试报告',  '接口测试', 'workspace', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE);
 
 -- ------------------------------------------------------------
 -- 18.5.1 权限点（接口测试·环境管理 / 函数管理，项目设置分组）
 -- ------------------------------------------------------------
-INSERT INTO sys_permission (id, code, name, parent_code, module, scope, sort_order, created_at, updated_at, is_deleted) VALUES
-('c0000000-0000-0000-0000-000000000064', 'api-env',            '环境管理',       NULL,          '接口测试·环境管理', 'workspace', 9,  CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000065', 'api-env:view',       '查看环境',       'api-env',     '接口测试·环境管理', 'workspace', 1,  CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000066', 'api-env:edit',       '编辑环境',       'api-env',     '接口测试·环境管理', 'workspace', 2,  CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000067', 'api-func',           '函数管理',       NULL,          '接口测试·函数管理', 'workspace', 10, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000068', 'api-func:view',      '查看函数',       'api-func',    '接口测试·函数管理', 'workspace', 1,  CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000069', 'api-func:edit',      '编辑函数',       'api-func',    '接口测试·函数管理', 'workspace', 2,  CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000072', 'api-func:edit-space', '编辑空间级函数', 'api-func',    '接口测试·函数管理', 'workspace', 3,  CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000073', 'api-func:edit-global', '编辑全局函数', 'api-func',    '接口测试·函数管理', 'workspace', 4,  CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE);
+INSERT INTO sys_permission (id, code, name, parent_code, module, top_module, scope, sort_order, created_at, updated_at, is_deleted) VALUES
+('c0000000-0000-0000-0000-000000000064', 'api-env',            '环境管理',       NULL,          '接口测试·环境管理', '接口测试', 'workspace', 15, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000065', 'api-env:view',       '查看环境',       'api-env',     '接口测试·环境管理', '接口测试', 'workspace', 1,  CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000066', 'api-env:edit',       '编辑环境',       'api-env',     '接口测试·环境管理', '接口测试', 'workspace', 2,  CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000067', 'api-func',           '函数管理',       NULL,          '接口测试·函数管理', '接口测试', 'workspace', 16, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000068', 'api-func:view',      '查看函数',       'api-func',    '接口测试·函数管理', '接口测试', 'workspace', 1,  CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000069', 'api-func:edit',      '编辑函数',       'api-func',    '接口测试·函数管理', '接口测试', 'workspace', 2,  CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000072', 'api-func:edit-space', '编辑空间级函数', 'api-func',    '接口测试·函数管理', '接口测试', 'workspace', 3,  CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000073', 'api-func:edit-global', '编辑全局函数', 'api-func',    '接口测试·函数管理', '接口测试', 'workspace', 4,  CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE);
 
 -- ------------------------------------------------------------
 -- 18.6 预置角色（含全部版本权限合并）
@@ -1481,6 +1482,7 @@ COMMENT ON COLUMN sys_permission.code IS '权限点代码，如 user:view';
 COMMENT ON COLUMN sys_permission.name IS '权限点显示名称';
 COMMENT ON COLUMN sys_permission.parent_code IS '父级权限点代码，NULL=根节点';
 COMMENT ON COLUMN sys_permission.module IS '所属模块';
+COMMENT ON COLUMN sys_permission.top_module IS '所属一级模块：系统管理/我的空间/功能测试/接口测试/缺陷管理';
 COMMENT ON COLUMN sys_permission.scope IS '作用域：global=全局, workspace=空间级';
 COMMENT ON COLUMN sys_permission.sort_order IS '同级排序序号';
 
