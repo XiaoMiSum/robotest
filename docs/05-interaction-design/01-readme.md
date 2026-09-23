@@ -10,11 +10,7 @@
 | [07-workspace-ui-test-review](07-workspace-ui-test-review.md)（分册：测试评审） | V1.0 | 2026-09-23 | 起草中 |
 | [08-workspace-ui-test-plan](08-workspace-ui-test-plan.md)（分册：测试计划） | V1.0 | 2026-09-23 | 起草中 |
 | [09-workspace-ui-bug](09-workspace-ui-bug.md)（分册：缺陷管理） | V1.0 | 2026-09-23 | 起草中 |
-| [10-system-management-ui-overview](10-system-management-ui-overview.md)（总览分册） | V1.0 | 2026-09-23 | 起草中 |
-| [11-system-management-ui-dashboard](11-system-management-ui-dashboard.md)（分册：数据概览） | V1.0 | 2026-09-23 | 起草中 |
-| [12-system-management-ui-user](12-system-management-ui-user.md)（分册：用户管理） | V1.0 | 2026-09-23 | 起草中 |
-| [13-system-management-ui-workspace](13-system-management-ui-workspace.md)（分册：工作空间管理） | V1.0 | 2026-09-23 | 起草中 |
-| [14-system-management-ui-role](14-system-management-ui-role.md)（分册：角色与权限管理） | V1.0 | 2026-09-23 | 起草中 |
+| [system-management](system-management/01-readme.md)（模块：系统管理） | V1.0 | 2026-09-23 | 起草中 |
 | [15-space-ui-overview](15-space-ui-overview.md)（总览分册） | V1.0 | 2026-09-23 | 已发布 |
 | [16-space-ui-my-workspace](16-space-ui-my-workspace.md)（分册：我的空间页面） | V1.0 | 2026-09-23 | 已发布 |
 | [17-space-ui-workspace-detail](17-space-ui-workspace-detail.md)（分册：工作空间详情页） | V1.0 | 2026-09-23 | 已发布 |

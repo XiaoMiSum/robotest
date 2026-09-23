@@ -396,9 +396,9 @@ CREATE INDEX idx_ws_workspace_created_by ON ws_workspace (created_by);
 
 | 分册 | 文件 | 覆盖章节 |
 |---|---|---|
-| 总览 | `08-system-management-overview.md` | 前言、1. 引言、2. 数据设计、3.1 通用约定、4.4 权限校验中间件、5.1 路由规划、5.2.1 AdminLayout、5.3 状态管理（Pinia Store）、5.6 数据绑定与格式化、6. 错误码定义、7. 安全设计、8. 实施说明、9. 附录 |
-| 认证 | `09-system-management-auth.md` | 3.2 认证接口、4.6 密码策略、4.7 系统初始化流程、4.10 登录审计写入 |
-| 用户管理 | `10-system-management-user.md` | 3.3 用户管理接口、4.1 用户创建流程、4.2 用户更新流程、4.5 用户状态变更、禁用与强制下线 |
-| 工作空间管理 | `11-system-management-workspace.md` | 3.4 工作空间管理接口、4.9 空间创建人写入与回填 |
-| 角色与权限管理 | `12-system-management-role.md` | 3.5 角色与权限管理接口、4.3 角色管理流程、5.2.2 角色管理页、5.2.3 PermissionTable组件、5.2.4 RoleUsersTable组件、5.4 关键组件交互 |
-| 数据概览 | `13-system-management-dashboard.md` | 3.6 数据概览统计、4.8 DashboardStatsService 端口、5.5 数据概览与状态扩展的文件分层、5.7 图表计算（composable 纯函数） |
+| 总览 | `02-system-management-overview.md` | 前言、1. 引言、2. 数据设计、3.1 通用约定、4.4 权限校验中间件、5.1 路由规划、5.2.1 AdminLayout、5.3 状态管理（Pinia Store）、5.6 数据绑定与格式化、6. 错误码定义、7. 安全设计、8. 实施说明、9. 附录 |
+| 认证 | `03-system-management-auth.md` | 3.2 认证接口、4.6 密码策略、4.7 系统初始化流程、4.10 登录审计写入 |
+| 用户管理 | `04-system-management-user.md` | 3.3 用户管理接口、4.1 用户创建流程、4.2 用户更新流程、4.5 用户状态变更、禁用与强制下线 |
+| 工作空间管理 | `05-system-management-workspace.md` | 3.4 工作空间管理接口、4.9 空间创建人写入与回填 |
+| 角色与权限管理 | `06-system-management-role.md` | 3.5 角色与权限管理接口、4.3 角色管理流程、5.2.2 角色管理页、5.2.3 PermissionTable组件、5.2.4 RoleUsersTable组件、5.4 关键组件交互 |
+| 数据概览 | `07-system-management-dashboard.md` | 3.6 数据概览统计、4.8 DashboardStatsService 端口、5.5 数据概览与状态扩展的文件分层、5.7 图表计算（composable 纯函数） |

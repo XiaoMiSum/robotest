@@ -3,7 +3,7 @@
 | 文档 | 版本 | 日期 | 状态 |
 | ---- | ---- | ---- | ---- |
 | [02-srs-overview](02-srs-overview.md)（总览分册） | V1.0 | 2026-09-23 | 起草中 |
-| [03-srs-system-management](03-srs-system-management.md)（分册：系统管理模块） | V1.0 | 2026-09-23 | 起草中 |
+| [system-management](system-management/01-readme.md)（模块：系统管理） | V1.0 | 2026-09-23 | 起草中 |
 | [04-srs-business-features](04-srs-business-features.md)（分册：业务功能模块） | V1.0 | 2026-09-23 | 起草中 |
 | [05-srs-ai-infrastructure](05-srs-ai-infrastructure.md)（分册：AI 基础设施） | V1.0 | 2026-09-23 | 起草中 |
 | [06-srs-intelligent-case](06-srs-intelligent-case.md)（分册：智能测试用例生成） | V1.0 | 2026-09-23 | 起草中 |

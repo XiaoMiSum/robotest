@@ -8,12 +8,7 @@
 | [05-project-workspace-test-review](05-project-workspace-test-review.md)（分册：测试评审管理） | V1.0 | 2026-09-23 | 已发布 |
 | [06-project-workspace-test-plan](06-project-workspace-test-plan.md)（分册：测试计划管理） | V1.0 | 2026-09-23 | 已发布 |
 | [07-project-workspace-bug](07-project-workspace-bug.md)（分册：缺陷管理） | V1.0 | 2026-09-23 | 已发布 |
-| [08-system-management-overview](08-system-management-overview.md)（总览分册） | V1.0 | 2026-09-23 | 起草中 |
-| [09-system-management-auth](09-system-management-auth.md)（分册：认证） | V1.0 | 2026-09-23 | 起草中 |
-| [10-system-management-user](10-system-management-user.md)（分册：用户管理） | V1.0 | 2026-09-23 | 起草中 |
-| [11-system-management-workspace](11-system-management-workspace.md)（分册：工作空间管理） | V1.0 | 2026-09-23 | 起草中 |
-| [12-system-management-role](12-system-management-role.md)（分册：角色与权限管理） | V1.0 | 2026-09-23 | 起草中 |
-| [13-system-management-dashboard](13-system-management-dashboard.md)（分册：数据概览） | V1.0 | 2026-09-23 | 起草中 |
+| [system-management](system-management/01-readme.md)（模块：系统管理） | V1.0 | 2026-09-23 | 起草中 |
 | [14-space-management-overview](14-space-management-overview.md)（总览分册） | V1.0 | 2026-09-23 | 已发布 |
 | [15-space-management-my-workspace](15-space-management-my-workspace.md)（分册：我的空间） | V1.0 | 2026-09-23 | 已发布 |
 | [16-space-management-workspace-admin](16-space-management-workspace-admin.md)（分册：空间与成员管理） | V1.0 | 2026-09-23 | 已发布 |
