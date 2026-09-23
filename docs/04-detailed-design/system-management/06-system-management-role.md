@@ -6,9 +6,9 @@
 
 ---
 
-### 3.5 角色与权限管理接口
+## 1. 角色与权限管理接口
 
-#### 3.5.1 获取角色列表
+### 1.1 获取角色列表
 
 - **路径**：`GET /api/admin/roles`
 
@@ -48,32 +48,32 @@
   ]
   ```
 
-#### 3.5.2 创建角色
+### 1.2 创建角色
 
 - **路径**：`POST /api/admin/roles`
 - **请求体**：`{ "name": "新角色", "type": "system" }`
 - **校验**：`name` 唯一；`type` 仅允许 `"system"`；`permissions` 初始为空数组。
 - **响应**：返回创建的角色信息，状态码 201。
 
-#### 3.5.3 更新角色名称
+### 1.3 更新角色名称
 
 - **路径**：`PUT /api/admin/roles/:id`
 - **请求体**：`{ "name": "新名称" }`
 - **校验**：名称唯一；仅允许修改系统角色。
 - **响应**：返回更新后的角色信息。
 
-#### 3.5.4 删除角色
+### 1.4 删除角色
 
 - **路径**：`DELETE /api/admin/roles/:id`
 - **校验**：系统预置角色（is_system=true）不可删除；若存在用户引用该角色，禁止删除并返回引用用户列表。
 - **响应**：成功提示。
 
-#### 3.5.5 获取角色详情
+### 1.5 获取角色详情
 
 - **路径**：`GET /api/admin/roles/:id`
 - **响应**：`{ id, name, description, type, isSystem, permissions: [], userCount }`
 
-#### 3.5.6 获取角色关联用户
+### 1.6 获取角色关联用户
 
 - 系统角色：**复用用户分页接口** `GET /api/admin/users?roleId=:roleId`（可叠加 `keyword`、`status`、`pageNo`、`pageSize` 参数），响应为用户分页结构。
 - 工作空间角色：`GET /api/admin/roles/:id/workspace-users`，响应为按用户聚合的关联清单：
@@ -91,20 +91,20 @@
 
 - **权限**：`role:view`
 
-#### 3.5.7 添加角色关联用户（系统角色）
+### 1.7 添加角色关联用户（系统角色）
 
 - **路径**：`POST /api/admin/roles/:id/users`
 - **请求体**：`{ "userIds": ["uuid-1", "uuid-2"] }`
 - **权限**：`role:edit`
 - **响应**：成功提示；批量插入 `sys_user_role` 关联。
 
-#### 3.5.8 移除角色关联用户（系统角色）
+### 1.8 移除角色关联用户（系统角色）
 
 - **路径**：`DELETE /api/admin/roles/:id/users/:userId`
 - **权限**：`role:edit`
 - **响应**：成功提示。
 
-#### 3.5.9 更新角色权限
+### 1.9 更新角色权限
 
 - **路径**：`PUT /api/admin/roles/:id/permissions`
 - **请求体**：`{ "permissions": ["user:view", "user:create"] }`
@@ -113,7 +113,7 @@
   - 全量权限（full_access=true）的角色不可编辑权限，返回 400 错误。
 - **响应**：返回更新后的角色信息。
 
-#### 3.5.10 获取权限点表格数据
+### 1.10 获取权限点表格数据
 
 - **路径**：`GET /api/admin/permissions/table`
 
@@ -161,7 +161,7 @@
   ]
   ```
 
-#### 3.5.11 批量添加角色关联用户（工作空间角色）
+### 1.11 批量添加角色关联用户（工作空间角色）
 
 - **路径**：`POST /api/admin/roles/:id/workspace-users`
 - **请求体**：
@@ -177,36 +177,36 @@
 - **权限**：`role:edit`
 - **响应**：成功提示。
 
-#### 3.5.12 移除角色关联用户（工作空间角色，按空间维度）
+### 1.12 移除角色关联用户（工作空间角色，按空间维度）
 
 - **路径**：`DELETE /api/admin/roles/:id/users/:userId/workspace/:workspaceId`
 - **权限**：`role:edit`
 - **响应**：成功提示；仅解除该用户在此工作空间上的该角色绑定，不影响其在其他工作空间的关联。
 
 
-### 4.3 角色管理流程
+## 2. 角色管理流程
 
-#### 4.3.1 创建角色
+### 2.1 创建角色
 
 - 点击类型根节点（如“系统角色”）的[+]按钮，前端在树中新增可编辑节点。
 - 输入角色名称，失焦后调用 `POST /api/admin/roles`，提交 `name` 和 `type='system'`。
 - 后端校验名称唯一性，permissions 初始化为空数组，插入 sys_role 表。
 - 返回新角色信息，前端更新树节点。
 
-#### 4.3.2 编辑角色名称
+### 2.2 编辑角色名称
 
 - 双击树节点进入编辑模式，修改名称后失焦自动调用 `PUT /api/admin/roles/:id`。
 - 后端校验名称唯一性，更新 sys_role.name。
 - 成功后更新树节点显示。
 
-#### 4.3.3 删除角色
+### 2.3 删除角色
 
 - 右键角色节点或选中后点击删除按钮，前端弹出二次确认弹窗。
 - 确认后调用 `DELETE /api/admin/roles/:id`。
 - 后端校验：系统预置角色（is_system=true）不可删除；若 sys_user_role 中存在引用，返回引用用户列表，阻止删除。
 - 成功后从树中移除节点。
 
-#### 4.3.4 权限配置
+### 2.4 权限配置
 
 - 单击角色节点，右侧加载角色详情，默认激活"权限配置"Tab。
 - 调用 `GET /api/admin/roles/:id` 获取角色已有权限列表，调用 `GET /api/admin/permissions/table?roleType=<type>` 获取对应作用域的权限点。
@@ -217,15 +217,15 @@
 - 点击[保存权限]：调用 `PUT /api/admin/roles/:id/permissions`，提交当前选中的权限 code 列表。
 - 后端校验：全量权限角色拒绝编辑；系统预置角色权限不可移除。保存并返回更新后信息。
 
-#### 4.3.5 关联用户管理
+### 2.5 关联用户管理
 
-- 切换到“关联用户”Tab，系统角色调用 `GET /api/admin/users?roleId=:roleId` 分页加载关联用户列表；工作空间角色调用 `GET /api/admin/roles/:id/workspace-users` 聚合加载（见 3.5.6）。
+- 切换到“关联用户”Tab，系统角色调用 `GET /api/admin/users?roleId=:roleId` 分页加载关联用户列表；工作空间角色调用 `GET /api/admin/roles/:id/workspace-users` 聚合加载（见 1.6）。
 - 点击[添加用户]弹出搜索弹窗，支持多选和远程搜索活跃用户，系统角色提交后调用 `POST /api/admin/roles/:id/users` 批量插入 sys_user_role；工作空间角色调用 `POST /api/admin/roles/:id/workspace-users`（同时携带 `workspaceIds`）。
 - 每行用户有[移除]按钮，点击二次确认后系统角色调用 `DELETE /api/admin/roles/:id/users/:userId`，工作空间角色按空间行调用 `DELETE /api/admin/roles/:id/users/:userId/workspace/:workspaceId`。
 - 操作完成后刷新列表。
 
 
-#### 5.2.2 角色管理页（RoleManagementPage）
+### 2.6 角色管理页（RoleManagementPage）
 
 ```
 RoleManagementPage
@@ -247,19 +247,19 @@ RoleManagementPage
 ```
 
 
-#### 5.2.3 PermissionTable组件
+### 2.7 PermissionTable组件
 
 使用 el-table 渲染权限点，列为“操作对象”和“权限点”。权限点列中每个权限渲染为 el-checkbox。系统预置角色的已有权限复选框添加 disabled 属性。
 
 
-#### 5.2.4 RoleUsersTable组件
+### 2.8 RoleUsersTable组件
 
 表格展示关联用户（用户名、邮箱、状态、操作）。顶部[添加用户]按钮，每行[移除]按钮。
 
 
-### 5.4 关键组件交互
+## 3. 关键组件交互
 
-#### 5.4.1 角色树组件（RoleTreePanel）
+### 3.1 角色树组件（RoleTreePanel）
 
 - **数据源**：`GET /api/admin/roles/tree` 返回角色扁平列表，前端按 `type` 分组构建树结构（系统角色、工作空间角色）。
 - **添加角色**：点击分组节点的[+]按钮，在对应类型下新增角色。输入名称后失焦，校验通过则调用创建角色接口，成功后刷新列表。
@@ -267,20 +267,20 @@ RoleManagementPage
 - **删除角色**：点击删除按钮，二次确认后调用删除接口。
 - **选择角色**：单击角色节点，右侧加载角色详情，默认激活“权限配置”Tab。
 
-#### 5.4.2 权限表格组件（PermissionTable）
+### 3.2 权限表格组件（PermissionTable）
 
 - **数据源**：`GET /api/admin/permissions/table` 返回的模块分组数组。
 - **勾选状态**：根据角色已有权限 code 列表初始化复选框状态。用户勾选/取消时更新本地快照。
 - **撤销修改**：点击[撤销修改]按钮，恢复到上次保存时的权限快照。
 - **保存权限**：点击[保存权限]按钮，收集所有选中 code，调用更新角色权限接口。成功后更新本地快照，Toast提示。
 
-#### 5.4.3 关联用户组件（RoleUsersTable）
+### 3.3 关联用户组件（RoleUsersTable）
 
-- **数据源**：系统角色走 `GET /api/admin/users?roleId=:roleId` 分页加载；工作空间角色走 `GET /api/admin/roles/:id/workspace-users`（见 3.5.6）。
-- **添加用户**：点击[添加用户]弹出搜索弹窗，支持多选和远程搜索活跃用户，提交后调用对应批量添加接口（见 3.5.7、3.5.11）。
-- **移除用户**：每行[移除]按钮，二次确认后调用移除接口（见 3.5.8、3.5.12），刷新列表。
+- **数据源**：系统角色走 `GET /api/admin/users?roleId=:roleId` 分页加载；工作空间角色走 `GET /api/admin/roles/:id/workspace-users`（见 1.6）。
+- **添加用户**：点击[添加用户]弹出搜索弹窗，支持多选和远程搜索活跃用户，提交后调用对应批量添加接口（见 1.7、1.11）。
+- **移除用户**：每行[移除]按钮，二次确认后调用移除接口（见 1.8、1.12），刷新列表。
 
-#### 5.4.4 角色选择器（用户表单中使用）
+### 3.4 角色选择器（用户表单中使用）
 
 - 多选下拉，仅显示系统角色（调用 `GET /api/admin/roles` 过滤 type='system'）。
 - 允许不选任何角色。

@@ -26,7 +26,7 @@
 ### 1.3 参考资料
 
 - 《接口测试需求规格说明书》（`docs/01-requirements/01-readme.md`，3.8–3.12）
-- 《概要设计说明书》（`docs/02-high-level-design/02-high-level-design.md`，4.1–4.2）
+- 《概要设计说明书》（`docs/02-high-level-design/02-high-level-design.md`，4.1–2.4）
 - 《工程规范 — API 设计》（`docs/06-spec/05-api.md`）
 - 《工程规范 — 数据库》（`docs/06-spec/06-database.md`）
 - Ryze 多协议测试框架文档（`https://xiaomisum.github.io/ryze/`）
@@ -251,7 +251,7 @@
 ---
 
 
-### 3.1 通用约定
+### 2.3 通用约定
 
 - 项目级：`/api/project/**`，头 `Authorization` + `X-Active-Workspace` + `X-Active-Project`。
 - 通用响应：`{ "code": 200, "message": "success", "data": {} }`；命名 camelCase。下文各接口的响应示例**仅展示 `data` 字段内容**，省略外层 `code` / `message` 包裹。
@@ -259,7 +259,7 @@
 - 所有接口的错误响应遵循统一格式：`{ "code": 7001, "message": "执行引擎繁忙" }`。
 
 
-### 4.2 数据清理策略
+### 2.4 数据清理策略
 
 报告与执行记录共享清理策略，默认保留 90 天（系统配置项）：
 
@@ -271,7 +271,7 @@
 ---
 
 
-### 6.1 迁移脚本
+### 2.5 迁移脚本
 
 新建 DDL 迁移脚本 `server/src/main/resources/db/v1.2.sql`，包含本文档定义的全部公共表（2.1.1–2.1.6）以及其余详细设计文档定义的业务表。脚本随本文档同步修订。
 
@@ -307,7 +307,7 @@ CREATE INDEX IF NOT EXISTS idx_report_share_user ON api_report (share_user_id) W
 > 迁移需由 v1.2 脚本按上述 DDL 执行；旧 `step_results`（扁平步骤数组）在迁移或读取层包装为 `scene` 数据集（`{sceneId, sceneName, status, summary, steps: step_results}`）以兼容历史报告展示。
 
 
-### 6.4 Mock 服务端口
+### 2.6 Mock 服务端口
 
 Mock 服务随应用进程运行，通过平台 HTTP 端口或独立端口提供 Mock 响应。端口配置：
 
@@ -325,7 +325,7 @@ api-test:
 
 | 分册 | 文件 | 覆盖章节 |
 |---|---|---|
-| 总览 | `21-api-test-infra-overview.md` | 前言、1. 引言、2. 数据设计、3.1 通用约定、4.2 数据清理策略、6.1 迁移脚本、6.4 Mock 服务端口 |
+| 总览 | `21-api-test-infra-overview.md` | 前言、1. 引言、2. 数据设计、2.3 通用约定、2.4 数据清理策略、2.5 迁移脚本、2.6 Mock 服务端口 |
 | 执行引擎 | `22-api-test-infra-engine.md` | 3.2 执行引擎接口、4.1 执行引擎与格式转换、5.1 执行状态轮询、6.2 Ryze 依赖引入、6.3 执行引擎线程池配置 |
 | 调试记录 | `23-api-test-infra-debug-record.md` | 3.3 调试记录接口 |
 | 测试报告 | `24-api-test-infra-report.md` | 3.4 报告接口、5.2 报告详情渲染 |

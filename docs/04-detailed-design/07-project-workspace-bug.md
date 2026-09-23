@@ -6,9 +6,9 @@
 
 ---
 
-### 3.6 缺陷管理接口
+## 1. 缺陷管理接口
 
-#### 3.6.1 缺陷列表
+### 1.1 缺陷列表
 
 - **路径**：`GET /api/project/bugs`
 
@@ -57,7 +57,7 @@
 
 - **列表列**：缩略 ID（显示 ID 前 8 位）、解决人、解决时间、解决方案、关闭人、关闭时间；时间列格式统一为 `MM-dd HH:mm`。
 
-#### 3.6.2 创建缺陷
+### 1.2 创建缺陷
 
 - **路径**：`POST /api/project/bugs`
 
@@ -83,57 +83,57 @@
 
 - **响应**：201。
 
-#### 3.6.3 更新缺陷
+### 1.3 更新缺陷
 
 - **路径**：`PUT /api/project/bugs/:id`
-- **请求体**：可更新 title、severity、priority、bugType、reproSteps、moduleId、keywords、dueDate、assigneeId、relatedCaseId、relatedPlanId（status 不可通过本接口修改，须走 3.6.5 状态流转接口）。
+- **请求体**：可更新 title、severity、priority、bugType、reproSteps、moduleId、keywords、dueDate、assigneeId、relatedCaseId、relatedPlanId（status 不可通过本接口修改，须走 1.5 状态流转接口）。
 - **处理**：缺陷已关闭（closed）时拒绝编辑（错误码 1000012019），须先激活；修改 assigneeId 时校验其为当前工作空间成员；关联字段采用三态语义：null=不修改、空串=清空、UUID 串=更新；记录变更到 bug_log。
 
-#### 3.6.4 获取缺陷日志
+### 1.4 获取缺陷日志
 
 - **路径**：`GET /api/project/bugs/:id/logs`
 - **响应**：按时间排序的操作记录列表。
 
-#### 3.6.5 变更缺陷状态
+### 1.5 变更缺陷状态
 
 - **路径**：`PATCH /api/project/bugs/:id/status`
 - **请求体**：`{ "status": "resolved|rejected|closed|active", "resolution": "fixed", "duplicateOfBugId": "<uuid>", "comment": "变更说明" }`（resolution/duplicateOfBugId 仅 status=resolved 时使用，comment 在 reject/close/reopen 时必填）
 - **处理**：按四态状态机校验流转合法性（active→resolved/rejected、resolved/rejected→closed/active、closed→active）；解决时 resolution 必填且需备注说明，resolution=duplicate 时 duplicateOfBugId 必填（校验存在、非自身且同项目），并自动置 confirmed=true（解决即视为确认），**处理人自动回设为创建人**；拒绝时 comment 必填，处理人回设为创建人，记录 rejected_by；关闭与重开时 comment 必填；重开时 reopen_count+1 并清空解决/关闭字段，**重开处理人流转**：已解决→回设给解决人，已拒绝→回设给拒绝人；写入 bug_log（RESOLVE/REJECT/CLOSE/REOPEN）。
 
-#### 3.6.6 确认缺陷
+### 1.6 确认缺陷
 
 - **路径**：`PATCH /api/project/bugs/:id/confirm`
 - **处理**：仅 active 且未确认的缺陷可执行；confirmed=true，写入 bug_log。
 
-#### 3.6.7 指派处理人
+### 1.7 指派处理人
 
 - **路径**：`PUT /api/project/bugs/:id/assign`
 - **请求体**：`{ "assigneeId": "<uuid>" }`
 - **处理**：缺陷已关闭（closed）时拒绝改派（错误码 1000012019）；校验处理人为当前工作空间成员，写入 bug_log。
 
-#### 3.6.8 缺陷统计
+### 1.8 缺陷统计
 
 - **路径**：`GET /api/project/bugs/statistics`
 - **响应**：`{ "total": 10, "byStatus": {}, "bySeverity": {}, "byPriority": {}, "byAssignee": {}, "byReporter": {} }`
 
-#### 3.6.9 上传附件
+### 1.9 上传附件
 
 - **路径**：`POST /api/project/bugs/:id/attachments`
 - **请求**：multipart/form-data，字段名 `file`，单文件上限 10MB。
 - **处理**：缺陷已关闭时拒绝上传；文件落盘后写入 bug_attachment 与 bug_log。
 - **响应**：附件信息 `{ "id", "fileName", "fileSize", "contentType", "uploader", "createdAt" }`。
 
-#### 3.6.10 附件列表
+### 1.10 附件列表
 
 - **路径**：`GET /api/project/bugs/:id/attachments`
 - **响应**：按上传时间排序的附件列表。
 
-#### 3.6.11 下载附件
+### 1.11 下载附件
 
 - **路径**：`GET /api/project/bugs/attachments/:attachmentId/download`
 - **响应**：文件流，`Content-Disposition` 携带原始文件名。
 
-#### 3.6.12 删除附件
+### 1.12 删除附件
 
 - **路径**：`DELETE /api/project/bugs/attachments/:attachmentId`
 - **处理**：缺陷已关闭时拒绝删除；逻辑删除附件记录并写入 bug_log。
@@ -141,7 +141,7 @@
 ---
 
 
-#### 5.3.7 缺陷管理页
+### 1.13 缺陷管理页
 
 **路由**：`/workspace/projects/bugs`
 

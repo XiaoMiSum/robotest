@@ -6,7 +6,7 @@
 
 ---
 
-### 4.1 定时调度器
+## 1. 定时调度器
 
 定时调度器基于 JVM 内的 ScheduledExecutorService 实现，精度为分钟级：**调度流程**：
 1. 应用启动时加载所有 `enabled = true` 的定时任务。
@@ -39,7 +39,7 @@
 | 工作日 | `0 2 * * 1-5` | 周一至周五 02:00 |
 
 
-### 4.3 测试计划任务执行（场景批量执行）
+## 2. 测试计划任务执行（场景批量执行）
 
 `task_type = scene_execute` 的任务触发时，按执行范围基于**实时数据**圈选场景并**组织为一个顶层 TestSuite 一次执行**：
 
@@ -52,14 +52,14 @@
 - 圈选结果执行前重新查询（实时数据），已删除/草稿/不可执行的场景跳过并在执行记录中给出提示。
 - 圈选出的全部可执行场景组织为**一个顶层 TestSuite**：**环境相关内容全部挂载顶层、只取任务绑定环境（`environment_id`）**——顶层 `variables` 挂任务绑定环境变量、`preprocessors`/`postprocessors` 挂任务绑定环境前置/后置处理器、`configelements` 挂任务绑定环境的 HTTP 配置与数据源；各场景作为顶层 TestSuite 的**子 TestSuite**（子 suite 的 `variables` = 该场景变量（不含环境）、`children` = 该场景启用步骤、`pre/postprocessors` = 该场景处理器（不含环境））。**场景自身关联环境不参与构建**（定时任务以任务绑定环境为唯一执行环境），环境处理器顶层挂载后每次任务执行一次（而非每场景一次）。**顶层 suite 携带 `id` = 任务 ID（taskId）**；**场景子 suite 携带 `id` = 场景 ID（sceneId）**（`id` 供结果树/快照直接定位所属任务与场景），并携带 `metadata: {sceneId, taskId}` 用于执行结果按场景反查。整个任务**一次提交执行引擎、一次 `Ryze.start` 运行**（层级映射与配置继承见《API 测试基础设施详细设计说明书》4.1.2）。
 - 每次触发**生成一份套件报告**（`report_type = 'suite'`，`source = 'schedule'`），报告名称为「任务名 + 执行时间戳」，明细按「场景 → 步骤」两级（套件数据集结构见《测试报告详细设计说明书》2.3.2）。区别于场景页 [运行] 的 `source = scene`（场景报告，不进报告列表）。执行后从单个大 suite 的 `TestSuiteResult` 树按场景子 suite 的 `metadata.sceneId` 递归抽取各场景步骤结果，作为套件报告的 `result.scenes[]` 与各场景执行记录的状态来源。
-- 执行完成后汇总各场景结果，任一个场景失败则任务整体判 failed，套件报告状态置 failed（整体判定规则见《测试报告详细设计说明书》4.1）。
+- 执行完成后汇总各场景结果，任一个场景失败则任务整体判 failed，套件报告状态置 failed（整体判定规则见《测试报告详细设计说明书》1）。
 - 场景执行记录逐场景落库（`api_execution_record`，一场景一条，`execution_record.scene_id` 单值，`report_id` 共享本套件报告 ID）；任务执行记录（`api_scheduled_task_execution.report_id`）关联该套件报告。
 - **顶层执行异常（整包构建/启动失败）**：若 `Ryze.start` 返回的顶层 `TestSuiteResult` 携带 `throwable`（引擎兜底捕获而非抛出），本次触发**不生成套件报告**（无 `api_report` 行）、**不写 `api_execution_record`**（无逐场景结果）；仅落一条 `status = failed` 的 `api_scheduled_task_execution`（`error_message` = 异常摘要，按执行记录 2000 长度截断），任务最近执行状态置 `failed`。
 - 不提供取消与超时：任务执行等待大 suite 完成后一次性汇总（无单场景级 cancel/timeout 语义）。
 - 被圈选场景/模块的删除保护见 4.2。
 
 
-### 4.4 接口同步任务执行
+## 3. 接口同步任务执行
 
 `task_type = import_swagger` 的任务触发时，直接拉取 `openapi_url` 指定的 OpenAPI/Swagger JSON 文件并增量更新接口定义：
 
@@ -71,7 +71,7 @@
 ---
 
 
-### 6.1 调度器线程池
+## 4. 调度器线程池
 
 定时调度器使用独立的 ScheduledExecutorService，线程数 2（一个用于调度，一个用于执行）：
 

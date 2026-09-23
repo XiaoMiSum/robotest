@@ -100,7 +100,7 @@
 
 **索引**：`idx_imapping_project_source` (project_id, source_type, source_id), `idx_imapping_import` (import_record_id)
 
-#### 2.1.6 接口关注表（api_interface_follow）
+#### 2.1.4 接口关注表（api_interface_follow）
 
 记录用户对接口定义的关注关系，支撑列表页「我关注的」视图切换。
 
@@ -117,7 +117,7 @@
 
 > 关注关系按用户维度记录，取消关注即逻辑删除对应记录。
 
-#### 2.1.7 接口变更历史表（api_interface_change_log）
+#### 2.1.5 接口变更历史表（api_interface_change_log）
 
 记录接口定义每次保存产生的变更，支撑详情页「变更历史」视图（每次保存生成一条记录并递增 `change_version`）。
 
@@ -152,7 +152,7 @@
 ---
 
 
-### 4.3 URL 安全策略
+### 2.3 URL 安全策略
 
 Swagger URL 导入的 SSRF 防护采用**配置文件可切换的两级策略**（配置项 `robotest.api-test.import.url-policy`，环境变量 `IMPORT_URL_POLICY`；实测默认 `strict`）。拉取入口统一为 `ImportSourceFetcher`（含 Swagger URL 保存校验、URL 导入/预览、定时任务 `import_swagger`）。
 
@@ -181,7 +181,7 @@ Swagger URL 导入的 SSRF 防护采用**配置文件可切换的两级策略**�
 > **安全权衡**：`intranet` 策略放宽了目标地址范围以满足内网测试场景，但通过「路径白名单 + 云元数据/组播恒禁用」将访问面收敛到 Swagger 文档本身，避免将服务端变成内网任意资产扫描器。公网 / 云上部署应保持默认 `strict` 策略，除非确认全部被测环境仅存在于内网。
 
 
-### 6.3 实施边界
+### 2.4 实施边界
 
 - **协议范围**：本期仅 http；`protocol` 字段保留并缺省 `http`，jdbc 协议的编辑区与执行随测试场景模块（梯队三）提供。
 - **解析依赖**：引入 `io.swagger.parser.v3:swagger-parser`（Apache-2.0）解析 OpenAPI 2.0/3.0 的 JSON/YAML（含 `$ref`）；cURL 由前端 `curlParser` 解析（复用快速调试），后端不引入 cURL 解析依赖。
@@ -197,6 +197,6 @@ Swagger URL 导入的 SSRF 防护采用**配置文件可切换的两级策略**�
 
 | 分册 | 文件 | 覆盖章节 |
 |---|---|---|
-| 总览 | `27-interface-management-overview.md` | 前言、1. 引言、2. 数据设计、4.3 URL 安全策略、6.3 实施边界 |
+| 总览 | `27-interface-management-overview.md` | 前言、1. 引言、2. 数据设计、2.3 URL 安全策略、2.4 实施边界 |
 | 接口定义管理 | `28-interface-management-definition.md` | 3.1 接口定义管理、5.1 接口模块树组件、5.2 接口预览页 |
 | 导入 | `29-interface-management-import.md` | 3.2 导入接口、4.1 导入格式解析、4.4 cURL 解析规则、5.3 导入弹窗、6.1 文件解析库选型、6.2 增量导入策略 |

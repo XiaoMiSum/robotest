@@ -6,9 +6,9 @@
 
 ---
 
-### 3.1 定时任务管理
+## 1. 定时任务管理
 
-#### 3.1.1 查询定时任务列表
+### 1.1 查询定时任务列表
 
 - **路径**：`GET /api/project/scheduled-tasks?taskType=&page=1&pageSize=20`
 - **响应**：
@@ -53,7 +53,7 @@
 
 - **时间口径**：`nextExecutions` 为 cron 触发时刻（服务器本地钟面）换算到 UTC 钟面后的值；前端按浏览器时区还原展示，保证与服务器实际触发时刻一致。创建接口响应 `nextExecutionAt`、校验接口响应 `nextExecutions` 同口径。
 
-#### 3.1.2 创建定时任务
+### 1.2 创建定时任务
 
 - **路径**：`POST /api/project/scheduled-tasks`
 - **请求体**：
@@ -87,22 +87,22 @@
 }
 ```
 
-#### 3.1.3 更新定时任务
+### 1.3 更新定时任务
 
 - **路径**：`PUT /api/project/scheduled-tasks/:id`
-- **请求体**：同 3.1.2。
+- **请求体**：同 1.2。
 
-#### 3.1.4 启停定时任务
+### 1.4 启停定时任务
 
 - **路径**：`PATCH /api/project/scheduled-tasks/:id/toggle`
 - **请求体**：`{ "enabled": false }`
 
-#### 3.1.5 删除定时任务
+### 1.5 删除定时任务
 
 - **路径**：`DELETE /api/project/scheduled-tasks/:id`
 - **响应**：`{ "success": true }`
 
-#### 3.1.6 立即执行
+### 1.6 立即执行
 
 - **路径**：`POST /api/project/scheduled-tasks/:id/execute-now`
 - **说明**：手动触发一次执行，不受 Cron 调度影响。立即执行与 Cron 触发一致，聚合生成**套件报告**（`source = schedule`、`report_type = suite`），保证所产报告保留在报告列表（区别于场景页 [运行] 的 `source = scene` 场景报告）。调度页展示的 `triggerType` 仍为 manual，场景执行记录语义不变。
@@ -116,7 +116,7 @@
 }
 ```
 
-#### 3.1.7 查询执行记录
+### 1.7 查询执行记录
 
 - **路径**：`GET /api/project/scheduled-tasks/:id/executions?page=1&pageSize=20`
 - **响应**：
@@ -137,7 +137,7 @@
 }
 ```
 
-#### 3.1.8 校验 Cron 表达式
+### 1.8 校验 Cron 表达式
 
 - **路径**：`POST /api/project/scheduled-tasks/validate-cron`
 - **请求体**：`{ "cronExpression": "0 2 * * *" }`
@@ -158,13 +158,13 @@
 ---
 
 
-### 4.2 删除保护
+## 2. 删除保护
 
 - 被定时任务选中的接口测试场景（`task_type = scene_execute` 且 `execution_scope = scenes` 时选中，或 `execution_scope = all / modules` 时涵盖）受删除保护，需先删除任务或移除选中。
 - 被定时任务选中的模块（`task_type = scene_execute` 且 `execution_scope = modules`）删除前需校验其下场景是否存在任务引用。
 
 
-### 5.1 定时任务管理页
+## 3. 定时任务管理页
 
 - **任务列表**：展示任务名称、类型、执行范围、Cron 表达式、启用状态、上次执行。
 - **任务编辑表单**：

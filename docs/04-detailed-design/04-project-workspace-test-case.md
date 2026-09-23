@@ -6,14 +6,14 @@
 
 ---
 
-### 3.3 测试用例管理接口
+## 1. 测试用例管理接口
 
-#### 3.3.1 获取模块树
+### 1.1 获取模块树
 
 - **路径**：`GET /api/project/modules`
 - **响应**：直接返回树形数组，每个节点包含 id、name、type、children。
 
-#### 3.3.2 创建模块节点
+### 1.2 创建模块节点
 
 - **路径**：`POST /api/project/modules`
 - **请求体**：`{ "parentId": null, "type": "directory", "name": "新目录" }`
@@ -21,7 +21,7 @@
 - **文档类型特殊处理**：当 `type=document` 时，事务中创建文档节点并自动创建默认根节点（title 与文档 name 一致，type='normal'）。
 - **响应**：创建后的模块节点信息，状态码 201。
 
-#### 3.3.3 更新/删除模块节点
+### 1.3 更新/删除模块节点
 
 - **路径**：`PUT/DELETE /api/project/modules/:id`
 - 更新：可修改 name；也用于拖拽移动——请求体中 `targetIndex` 非空时视为移动操作，`parentId` 为目标父目录（空表示根层级），`targetIndex` 为目标层级下的位置下标。
@@ -30,7 +30,7 @@
   - 前端：模块树 el-tree 开启 draggable，文档节点仅允许平级排序或放入目录内部；提交失败时整树重载回滚。
 - 删除：目录需为空；文档级联删除所有节点及布局。
 
-#### 3.3.4 获取文档全量节点
+### 1.4 获取文档全量节点
 
 - **路径**：`GET /api/project/documents/:docId/nodes`
 
@@ -98,23 +98,23 @@
 
 - **字段说明**：node 为嵌套的根节点对象，每个节点包含 id、parentId、type、title、priority、sortOrder、version 和 children 数组。根节点的 parentId 为 null，叶子节点的 children 为空数组。
 
-#### 3.3.5 获取用例详情
+### 1.5 获取用例详情
 
 - **路径**：`GET /api/project/cases/:caseId`
 - **响应**：包含 type、priority、title 等完整属性。
 
 
-### 4.1 文档创建与默认根节点
+## 2. 文档创建与默认根节点
 
 创建 type=document 的模块节点时，事务中插入 test_case_module 记录，并在 test_case_node 表中创建默认根节点（title 与文档名称相同，type='normal'，sort_order=0，parent_id 为 NULL）。此根节点作为文档脑图的唯一顶层节点，用户可在其下添加子节点并标记为不同用例类型。获取文档节点树时，该根节点作为顶层节点返回，其 children 包含所有用户创建的节点。
 
 
-### 4.2 脑图实时协作
+## 3. 脑图实时协作
 
 通过 WebSocket 连接 `/ws/documents/:docId`，客户端加入文档房间。操作消息包含 op（add_node、move_node、update_attrs、delete_node、update_layout）及 payload。服务端校验权限后更新 test_case_node 和 test_case_document_layout，广播给同房间其他用户。冲突处理使用节点 version 字段的乐观锁机制。脑图数据以嵌套树形结构在前端组件中渲染，保存时递归遍历节点树并更新数据库。
 
 
-#### 5.3.2 用例管理页（功能测试 - 测试用例）
+### 3.1 用例管理页（功能测试 - 测试用例）
 
 **路由**：`/workspace/projects/cases`
 
