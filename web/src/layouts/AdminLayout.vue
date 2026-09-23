@@ -22,7 +22,7 @@ const sidebarMenu = computed<SidebarSection[]>(() => {
       title: '组织与权限',
       items: [
         { label: '用户管理', path: '/admin/users', icon: 'User', permission: 'user:view' },
-        { label: '角色管理', path: '/admin/roles', icon: 'Lock', permission: 'role:view' },
+        { label: '角色管理', path: '/admin/roles', icon: 'Key', permission: 'role:view' },
         { label: '空间管理', path: '/admin/workspaces', icon: 'OfficeBuilding', permission: 'workspace:view' },
       ],
     },
