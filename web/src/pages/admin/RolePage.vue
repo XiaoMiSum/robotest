@@ -12,9 +12,12 @@ interface SelectedRole {
 }
 
 const selectedRole = ref<SelectedRole | null>(null)
+const activeTab = ref('permissions')
 
 function handleSelect(node: SelectedRole) {
   selectedRole.value = node
+  // 分册 14 §6.3：单击树节点默认显示「权限点」Tab
+  activeTab.value = 'permissions'
 }
 
 function handleCleared() {
@@ -32,35 +35,41 @@ function handleCleared() {
     <div class="role-layout">
       <RoleTreePanel @select="handleSelect" @cleared="handleCleared" />
 
-      <section v-if="!selectedRole" class="role-card role-page__placeholder">
-        <header class="role-card__head">
-          <h3 class="role-card__title">权限点</h3>
-        </header>
-        <div class="role-card__body role-page__placeholder-body">
-          <el-empty description="请选择左侧角色查看详情" />
-        </div>
-      </section>
-      <PermissionTable
-        v-else
-        :role-id="selectedRole.id"
-        :is-system="selectedRole.isSystem"
-        :role-type="selectedRole.type"
-        :role-name="selectedRole.name"
-      />
-    </div>
+      <!-- Tab 标签承担卡头，权限点/关联用户共用等高占满的卡体，滚动收进各 pane -->
+      <section class="role-card role-detail">
+        <el-tabs v-model="activeTab" class="role-detail__tabs">
+          <el-tab-pane label="权限点" name="permissions">
+            <PermissionTable
+              v-if="selectedRole"
+              :role-id="selectedRole.id"
+              :is-system="selectedRole.isSystem"
+              :role-type="selectedRole.type"
+              :role-name="selectedRole.name"
+            />
+            <div v-else class="role-detail__empty">
+              <el-empty description="请选择左侧角色查看详情" />
+            </div>
+          </el-tab-pane>
 
-    <RoleUsersTable
-      v-if="selectedRole"
-      class="role-page__users"
-      :role-id="selectedRole.id"
-      :role-type="selectedRole.type"
-      :role-name="selectedRole.name"
-    />
+          <el-tab-pane label="关联用户" name="users">
+            <RoleUsersTable
+              v-if="selectedRole"
+              :role-id="selectedRole.id"
+              :role-type="selectedRole.type"
+              :role-name="selectedRole.name"
+            />
+            <div v-else class="role-detail__empty">
+              <el-empty description="请选择左侧角色查看详情" />
+            </div>
+          </el-tab-pane>
+        </el-tabs>
+      </section>
+    </div>
   </div>
 </template>
 
 <style scoped lang="scss">
-/* 整页锁定在 AdminLayout 内容卡视口内：左右卡等高占满，溢出走卡内细滚动条 */
+/* 整页锁定在 AdminLayout 内容卡视口内：左右两栏等高占满，溢出走栏内细滚动条 */
 .role-page {
   display: flex;
   flex-direction: column;
@@ -87,7 +96,7 @@ function handleCleared() {
   color: var(--color-neutral-500);
 }
 
-/* 左角色列表 / 右权限点：grid stretch 天然等高，flex:1 占满剩余可视区 */
+/* 左角色列表 / 右详情：grid stretch 天然等高，flex:1 占满剩余可视区 */
 .role-layout {
   flex: 1;
   min-height: 0;
@@ -97,13 +106,37 @@ function handleCleared() {
   align-items: stretch;
 }
 
-/* 关联用户卡随内容收缩、封顶 38% 高，保证三卡同屏不撑破视口 */
-.role-page__users {
-  flex: 0 1 auto;
-  max-height: 38%;
+/* Tab 头固定、内容区接管剩余高度，滚动收进各 TabPane 内部 */
+.role-detail__tabs {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+
+  :deep(.el-tabs__header) {
+    flex-shrink: 0;
+    margin-bottom: 0;
+    padding: 0 24px;
+    border-bottom: 1px solid var(--color-neutral-100);
+  }
+
+  /* EP 默认整条下划线会与自绘的头部分隔线叠成双线，隐藏之 */
+  :deep(.el-tabs__nav-wrap::after) {
+    display: none;
+  }
+
+  :deep(.el-tabs__content) {
+    flex: 1;
+    min-height: 0;
+  }
+
+  :deep(.el-tab-pane) {
+    height: 100%;
+  }
 }
 
-.role-page__placeholder-body {
+.role-detail__empty {
+  height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -117,15 +150,11 @@ function handleCleared() {
   .role-layout {
     grid-template-columns: 1fr;
   }
-
-  .role-page__users {
-    max-height: none;
-  }
 }
 </style>
 
 <style>
-/* 卡片壳由页面与其三个子组件共用；scoped 样式无法命中子组件子树，故此全局定义（.role-card 命名空间限定作用域） */
+/* 卡片壳由页面与子组件共用；scoped 样式无法命中子组件子树，故此全局定义（.role-card 命名空间限定作用域） */
 .role-card {
   display: flex;
   flex-direction: column;
