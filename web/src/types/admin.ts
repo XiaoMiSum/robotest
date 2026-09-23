@@ -72,7 +72,54 @@ export interface AdminWorkspace {
   status: string
   memberCount: number
   projectCount: number
+  /** 创建人姓名（created_by 回查）；历史数据无创建人时为 null，前端展示 — */
+  createdByName?: string | null
   createdAt: string
+}
+
+// ==================== 数据概览统计 ====================
+
+/** 用户维度统计（口径见《系统管理模块详细设计说明书》§3.2） */
+export interface DashboardUsersStats {
+  total: number
+  weekNew: number
+  enabled: number
+  disabled: number
+  locked: number
+}
+
+/** 工作空间维度统计 */
+export interface DashboardWorkspacesStats {
+  total: number
+  active: number
+  dissolved: number
+}
+
+/** 项目维度统计 */
+export interface DashboardProjectsStats {
+  total: number
+  weekNew: number
+}
+
+/** 今日活跃（登录人次，接口调用/失败率按需求裁剪不返回） */
+export interface DashboardActivityStats {
+  todayLogins: number
+}
+
+/** 单日活跃用户（按日去重），date 为 YYYY-MM-DD */
+export interface DailyActiveUsers {
+  date: string
+  count: number
+}
+
+/** 数据概览统计（GET /admin/dashboard/stats） */
+export interface DashboardStats {
+  generatedAt: string
+  users: DashboardUsersStats
+  workspaces: DashboardWorkspacesStats
+  projects: DashboardProjectsStats
+  activity: DashboardActivityStats
+  activeUsersDaily: DailyActiveUsers[]
 }
 
 /** 工作空间成员（workspaceRole 为 workspace 类型角色的 UUID） */
