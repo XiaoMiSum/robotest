@@ -11,12 +11,12 @@ const router = useRouter()
 // 后端状态仅 active/dissolved 两态，且无按状态计数接口，故 segment 不展示计数
 const STATUS_OPTIONS = [
   { value: 'active', label: '活跃' },
-  { value: 'dissolved', label: '已解散' },
+  { value: 'dissolved', label: '归档' },
 ] as const
 
 const STATUS_META: Record<string, { label: string; dot: string }> = {
   active: { label: '活跃', dot: 'workspace-list__status--success' },
-  dissolved: { label: '已解散', dot: 'workspace-list__status--neutral' },
+  dissolved: { label: '归档', dot: 'workspace-list__status--neutral' },
 }
 
 function statusMeta(status: string) {
@@ -339,7 +339,7 @@ onMounted(loadWorkspaces)
   white-space: nowrap;
 }
 
-/* 状态点标对齐演示稿 status（圆点 + 文案），色义：活跃绿 / 已解散灰 */
+/* 状态点标对齐演示稿 status（圆点 + 文案），色义：活跃绿 / 归档灰 */
 .workspace-list__status {
   display: inline-flex;
   align-items: center;
