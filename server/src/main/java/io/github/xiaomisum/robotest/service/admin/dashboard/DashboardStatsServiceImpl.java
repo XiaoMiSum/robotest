@@ -12,6 +12,8 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -39,7 +41,8 @@ public class DashboardStatsServiceImpl implements DashboardStatsService {
         LocalDateTime weekAgo = now.minusDays(7);
 
         DashboardStatsRespDTO dto = new DashboardStatsRespDTO();
-        dto.setGeneratedAt(now);
+        // why: 对外统一下发 UTC 墙钟（docs/spec/frontend.md §8），前端补 Z 还原本地时区；直发本地钟面会导致前端再 +8 偏移
+        dto.setGeneratedAt(now.atZone(ZoneId.systemDefault()).withZoneSameInstant(ZoneOffset.UTC).toLocalDateTime());
         dto.setUsers(buildUsers(weekAgo));
         dto.setWorkspaces(buildWorkspaces());
         dto.setProjects(buildProjects(weekAgo));
