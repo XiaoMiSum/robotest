@@ -3,14 +3,12 @@ import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useAuthStore } from '@/stores/auth'
-import { useNavStore } from '@/stores/nav'
 import { checkEmail, joinByInvitation, verifyInvitation } from '@/services/workspace'
 import PasswordStrengthBar from '@/components/common/PasswordStrengthBar.vue'
 
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
-const navStore = useNavStore()
 
 const token = (route.query.token as string) || ''
 
@@ -124,8 +122,7 @@ async function loginAndRedirect(accessToken: string, refreshToken: string, resul
     { id: result.activeWorkspace.id, name: result.activeWorkspace.name, workspaceRole: result.activeWorkspace.workspaceRole },
   )
   await authStore.loadPermissions()
-  navStore.setMode('workspace')
-  router.push('/workspace/projects')
+  router.push({ name: 'WorkspaceProjects' })
 }
 
 function goBackToEmail() {
@@ -149,7 +146,7 @@ onMounted(verify)
           </div>
           <div class="join-page__heading">邀请链接无效</div>
           <p class="join-page__hint">{{ errorMsg }}</p>
-          <el-button @click="router.push('/login')">返回登录</el-button>
+          <el-button @click="router.push({ name: 'Login' })">返回登录</el-button>
         </template>
         <template v-else>
           <el-icon class="is-loading" :size="32"><Loading /></el-icon>

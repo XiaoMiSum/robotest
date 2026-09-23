@@ -1,69 +1,76 @@
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
-import type { NavMode } from '@/types'
+import { computed } from 'vue'
+import type { RouteRecordNormalized } from 'vue-router'
+import router from '@/router'
 import { useAuthStore } from '@/stores/auth'
+import type { NavMode } from '@/types'
+
+export interface NavMenuItem {
+  label: string
+  path: string
+  icon: string
+}
+
+export interface NavMenuSection {
+  title?: string
+  items: NavMenuItem[]
+}
 
 export const useNavStore = defineStore('nav', () => {
-  const currentMode = ref<NavMode>('none')
   const authStore = useAuthStore()
 
-  // 接口测试模块的全部 view 权限点，与 ApiTestingPage 侧边导航保持一致
-  const API_MODULE_VIEW_PERMISSIONS = [
-    'api-debug:view',
-    'api-interface:view',
-    'api-mock:view',
-    'api-scene:view',
-    'api-report:view',
-    'api-timer:view',
-    'api-env:view',
-    'api-func:view',
-    'api-component:view',
-  ]
+  // 模式从当前路由 meta 派生：此前 watch 路径推导与各页面命令式 setMode 并存，
+  // 登录页等处只能打补丁纠正残留模式，双真相源导致状态漂移
+  const currentMode = computed<NavMode>(() => router.currentRoute.value.meta.mode ?? 'none')
 
   const isAdminMode = computed(() => currentMode.value === 'admin')
   const isWorkspaceMode = computed(() => currentMode.value === 'workspace')
   const isProjectMode = computed(() => currentMode.value === 'project')
 
-  /** Dynamic menu items based on current mode, filtered by permissions */
-  const dynamicMenuItems = computed(() => {
-    const has = (code: string) => authStore.hasPermission(code)
-    switch (currentMode.value) {
-      case 'admin': {
-        const items: Array<{ label: string; path: string; icon: string }> = []
-        if (has('user:view')) items.push({ label: '用户管理', path: '/admin/users', icon: 'User' })
-        if (has('workspace:view')) items.push({ label: '空间管理', path: '/admin/workspaces', icon: 'OfficeBuilding' })
-        if (has('role:view')) items.push({ label: '角色管理', path: '/admin/roles', icon: 'Key' })
-        if (has('ai:view')) items.push({ label: 'AI 配置', path: '/admin/ai-config', icon: 'MagicStick' })
-        if (has('ai:view')) items.push({ label: '智能体', path: '/admin/ai-agents', icon: 'ChatDotRound' })
-        return items
-      }
-      case 'workspace': {
-        const wsId = authStore.activeWorkspace?.id ?? ''
-        const items: Array<{ label: string; path: string; icon: string }> = []
-        if (has('ws-info:view')) items.push({ label: '空间信息', path: `/workspace/${wsId}`, icon: 'InfoFilled' })
-        if (has('ws-member:view')) items.push({ label: '成员管理', path: '/workspace/members', icon: 'UserFilled' })
-        if (has('project:view')) items.push({ label: '项目列表', path: '/workspace/projects', icon: 'Folder' })
-        return items
-      }
-      case 'project': {
-        const items: Array<{ label: string; path: string; icon: string }> = []
-        if (has('case:view')) items.push({ label: '功能测试', path: '/workspace/projects/functional-testing', icon: 'Monitor' })
-        if (has('bug:view')) items.push({ label: '缺陷管理', path: '/workspace/projects/bugs', icon: 'Warning' })
-        // 菜单顺序对齐交互设计 3.3：接口测试位于缺陷管理之后；入口对任一模块 view 权限开放
-        // （环境/函数/等仅持有项目设置类权限的用户也可进入，侧边导航内再按各自 view 过滤）
-        if (API_MODULE_VIEW_PERMISSIONS.some(has)) {
-          items.push({ label: '接口测试', path: '/workspace/projects/api-testing', icon: 'Connection' })
-        }
-        return items
-      }
-      default:
-        return []
-    }
-  })
-
-  function setMode(mode: NavMode) {
-    currentMode.value = mode
+  // 空间信息菜单路径含 :workspaceId 动态段：注册表存模板，渲染时用活跃空间填充
+  function resolvePath(path: string): string {
+    return path.replace(':workspaceId', authStore.activeWorkspace?.id ?? '')
   }
+
+  function toMenuItem(record: RouteRecordNormalized): NavMenuItem | null {
+    const menu = record.meta.menu
+    if (!menu) return null
+    if (menu.permission && !authStore.hasPermission(menu.permission)) return null
+    if (menu.permissionAny && !menu.permissionAny.some((code) => authStore.hasPermission(code))) return null
+    return { label: menu.label, icon: menu.icon, path: resolvePath(record.path) }
+  }
+
+  /** 按模式从路由注册表取菜单记录（meta.menu 缺省即不进菜单），按 order 升序 */
+  function menuRecords(mode: NavMode): RouteRecordNormalized[] {
+    return router
+      .getRoutes()
+      .filter((record) => record.meta.mode === mode && record.meta.menu)
+      .sort((a, b) => (a.meta.menu?.order ?? 0) - (b.meta.menu?.order ?? 0))
+  }
+
+  /** 顶部动态菜单（交互设计 3.2/3.3）：当前模式的注册表菜单项再按权限过滤 */
+  const dynamicMenuItems = computed<NavMenuItem[]>(() =>
+    menuRecords(currentMode.value)
+      .map(toMenuItem)
+      .filter((item): item is NavMenuItem => item !== null),
+  )
+
+  /** 管理端侧边栏（AdminLayout）：同一路由注册表按 section 连续分组，权限过滤后为空的组不产生 */
+  const adminSidebarSections = computed<NavMenuSection[]>(() => {
+    const sections: NavMenuSection[] = []
+    for (const record of menuRecords('admin')) {
+      const item = toMenuItem(record)
+      if (!item) continue
+      const title = record.meta.menu?.section
+      const last = sections[sections.length - 1]
+      if (last && last.title === title) {
+        last.items.push(item)
+      } else {
+        sections.push({ title, items: [item] })
+      }
+    }
+    return sections
+  })
 
   return {
     currentMode,
@@ -71,6 +78,6 @@ export const useNavStore = defineStore('nav', () => {
     isWorkspaceMode,
     isProjectMode,
     dynamicMenuItems,
-    setMode,
+    adminSidebarSections,
   }
 })
