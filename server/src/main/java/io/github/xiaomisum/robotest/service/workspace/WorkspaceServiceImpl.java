@@ -125,7 +125,7 @@ public class WorkspaceServiceImpl implements WorkspaceService {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.WORKSPACE_NOT_FOUND);
         }
         if (Constants.Status.DISSOLVED.equals(workspace.getStatus())) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.WORKSPACE_NOT_FOUND);
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.WORKSPACE_DISSOLVED);
         }
         Workspace update = new Workspace();
         update.setId(id);
@@ -189,10 +189,7 @@ public class WorkspaceServiceImpl implements WorkspaceService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public List<String> addWorkspaceMembers(UUID id, List<WorkspaceMembersAddReqDTO.MemberItem> members) {
-        Workspace workspace = workspaceMapper.selectById(id);
-        if (workspace == null) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.WORKSPACE_NOT_FOUND);
-        }
+        requireNotDissolved(id);
 
         List<String> skippedUserIds = new ArrayList<>();
         for (WorkspaceMembersAddReqDTO.MemberItem member : members) {
@@ -218,6 +215,7 @@ public class WorkspaceServiceImpl implements WorkspaceService {
 
     @Override
     public void updateWorkspaceMemberRole(UUID id, UUID userId, UUID workspaceRole) {
+        requireNotDissolved(id);
         WorkspaceUser wu = workspaceUserMapper.findByWorkspaceIdAndUserId(id, userId);
         if (wu == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.USER_NOT_FOUND);
@@ -237,6 +235,7 @@ public class WorkspaceServiceImpl implements WorkspaceService {
 
     @Override
     public void removeWorkspaceMember(UUID id, UUID userId) {
+        requireNotDissolved(id);
         WorkspaceUser wu = workspaceUserMapper.findByWorkspaceIdAndUserId(id, userId);
         if (wu == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.USER_NOT_FOUND);
@@ -248,5 +247,16 @@ public class WorkspaceServiceImpl implements WorkspaceService {
             }
         }
         workspaceUserMapper.deleteById(wu.getId());
+    }
+
+    /** 归档空间处于冻结态，此处作为前端只读化之外的 API 层兜底 */
+    private void requireNotDissolved(UUID id) {
+        Workspace workspace = workspaceMapper.selectById(id);
+        if (workspace == null) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.WORKSPACE_NOT_FOUND);
+        }
+        if (Constants.Status.DISSOLVED.equals(workspace.getStatus())) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.WORKSPACE_DISSOLVED);
+        }
     }
 }

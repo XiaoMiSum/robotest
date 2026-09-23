@@ -41,7 +41,7 @@ public class ErrorCodeConstants {
     // ========== 服务器错误 1,000,005,000 ==========
     public static final ErrorCode INTERNAL_SERVER_ERROR = ErrorCode.of(1000005000, "服务器内部错误");
 
-    // ========== 空间管理模块 1,000,010,020-1,000,010,032 ==========
+    // ========== 空间管理模块 1,000,010,020-1,000,010,033 ==========
     public static final ErrorCode PROJECT_NAME_EXISTS = ErrorCode.of(1000010020, "项目名称在当前工作空间已存在");
     public static final ErrorCode PROJECT_NOT_FOUND = ErrorCode.of(1000010021, "项目不存在或不属于当前工作空间");
     public static final ErrorCode PROJECT_HAS_ACTIVE_PLANS = ErrorCode.of(1000010022, "项目下存在进行中的测试计划，无法归档");
@@ -55,6 +55,7 @@ public class ErrorCodeConstants {
     public static final ErrorCode INVITATION_MAX_USES = ErrorCode.of(1000010030, "邀请链接已达到最大使用次数");
     public static final ErrorCode INVITATION_EXPIRED = ErrorCode.of(1000010031, "邀请链接已过期");
     public static final ErrorCode INVITATION_REVOKED = ErrorCode.of(1000010032, "邀请链接已被撤销");
+    public static final ErrorCode WORKSPACE_DISSOLVED = ErrorCode.of(1000010033, "工作空间已解散，不可操作");
 
     // ========== 功能测试模块 1,000,011,010-1,000,011,028 ==========
     public static final ErrorCode TEST_PLAN_NOT_FOUND = ErrorCode.of(1000011010, "测试计划不存在");
