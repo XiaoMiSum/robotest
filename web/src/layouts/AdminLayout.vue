@@ -277,7 +277,7 @@ function goMyWorkspaces() {
 .admin-layout__content {
   flex: 1;
   overflow: auto;
-  background-color: var(--color-admin-bg);
+  background-color: var(--color-neutral-50);
   padding: var(--space-xl);
 }
 </style>
