@@ -10,15 +10,34 @@ const route = useRoute()
 const authStore = useAuthStore()
 const navStore = useNavStore()
 
-const sidebarMenu = computed(() => {
+type SidebarItem = { label: string; path: string; icon: string; permission?: string }
+type SidebarSection = { title?: string; items: SidebarItem[] }
+
+const sidebarMenu = computed<SidebarSection[]>(() => {
   const has = (code: string) => authStore.hasPermission(code)
-  const items: Array<{ label: string; path: string; icon: string }> = []
-  items.push({ label: '数据概览', path: '/admin/dashboard', icon: 'Odometer' })
-  if (has('user:view')) items.push({ label: '用户管理', path: '/admin/users', icon: 'User' })
-  if (has('workspace:view')) items.push({ label: '空间管理', path: '/admin/workspaces', icon: 'OfficeBuilding' })
-  if (has('role:view')) items.push({ label: '角色管理', path: '/admin/roles', icon: 'Lock' })
-  if (has('ai:view')) items.push({ label: 'AI 配置', path: '/admin/ai-config', icon: 'MagicStick' })
-  return items
+  // 概览置顶不入组；角色管理紧随用户管理（人与其授权语义相邻），空间管理殿后
+  const sections: SidebarSection[] = [
+    { items: [{ label: '数据概览', path: '/admin/dashboard', icon: 'Odometer' }] },
+    {
+      title: '组织与权限',
+      items: [
+        { label: '用户管理', path: '/admin/users', icon: 'User', permission: 'user:view' },
+        { label: '角色管理', path: '/admin/roles', icon: 'Lock', permission: 'role:view' },
+        { label: '空间管理', path: '/admin/workspaces', icon: 'OfficeBuilding', permission: 'workspace:view' },
+      ],
+    },
+    {
+      title: '平台配置',
+      items: [{ label: 'AI 配置', path: '/admin/ai-config', icon: 'MagicStick', permission: 'ai:view' }],
+    },
+  ]
+  // 权限过滤后为空的分组连同标题整体隐藏
+  return sections
+    .map((section) => ({
+      ...section,
+      items: section.items.filter((item) => !item.permission || has(item.permission)),
+    }))
+    .filter((section) => section.items.length > 0)
 })
 
 const activeSidebarPath = computed(() => route.path)
@@ -113,10 +132,13 @@ function goMyWorkspaces() {
           class="admin-layout__sidebar-menu"
           @select="handleSidebarSelect"
         >
-          <el-menu-item v-for="item in sidebarMenu" :key="item.path" :index="item.path">
-            <el-icon><component :is="item.icon" /></el-icon>
-            <span>{{ item.label }}</span>
-          </el-menu-item>
+          <template v-for="section in sidebarMenu" :key="section.title || 'pinned'">
+            <li v-if="section.title" class="admin-layout__sidebar-group-title">{{ section.title }}</li>
+            <el-menu-item v-for="item in section.items" :key="item.path" :index="item.path">
+              <el-icon><component :is="item.icon" /></el-icon>
+              <span>{{ item.label }}</span>
+            </el-menu-item>
+          </template>
         </el-menu>
       </aside>
 
@@ -293,6 +315,15 @@ function goMyWorkspaces() {
       font-size: 16px;
     }
   }
+}
+
+/* 分组标题：镜像 demo 侧栏 .side__group-title（与业务域「项目设置」同一分组词汇：10px 大写灰字 + 留白分隔） */
+.admin-layout__sidebar-group-title {
+  padding: 14px 12px 6px;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-neutral-400);
 }
 
 /* 方案B：主体整体一张悬浮白卡，左缘 = 侧栏(16+180) + 间距 16 = 212px（视觉设计 6.1） */
