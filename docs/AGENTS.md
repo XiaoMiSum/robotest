@@ -113,6 +113,7 @@ docs/
 以下文件无归档副本，不参与归档基线切换，直接在原位更新：
 
 - `docs/03-architecture/02-repository-architecture.md`
+- `docs/03-architecture/03-navigation-architecture.md`
 - `docs/05-interaction-design/02-global-navigation.md`
 - `docs/05-interaction-design/03-visual-design.md`
 - `docs/04-detailed-design/57-mindmap-component.md`
