@@ -1,9 +1,7 @@
 package io.github.xiaomisum.robotest.framework.audit;
 
-import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.ObjectNode;
 import io.github.xiaomisum.robotest.model.entity.admin.AuditLog;
-import io.github.xiaomisum.robotest.repository.admin.AuditLogMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.ProceedingJoinPoint;
@@ -13,9 +11,6 @@ import org.aspectj.lang.reflect.MethodSignature;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.PlatformTransactionManager;
-import org.springframework.transaction.TransactionDefinition;
-import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 import xyz.migoo.framework.common.util.JsonUtils;
@@ -31,18 +26,12 @@ import java.util.UUID;
 @Component
 public class AuditLogAspect {
 
-    private final AuditLogMapper auditLogMapper;
-    private final TransactionTemplate auditTxTemplate;
-    private final org.springframework.context.ApplicationEventPublisher eventPublisher;
+    private final AuditLogWriter auditLogWriter;
+    private final ClientIpResolver clientIpResolver;
 
-    public AuditLogAspect(AuditLogMapper auditLogMapper,
-                          PlatformTransactionManager transactionManager,
-                          org.springframework.context.ApplicationEventPublisher eventPublisher) {
-        this.auditLogMapper = auditLogMapper;
-        this.auditTxTemplate = new TransactionTemplate(transactionManager);
-        this.eventPublisher = eventPublisher;
-        // 审计写入独立事务：失败只丢弃审计记录本身，不随业务事务静默回滚
-        this.auditTxTemplate.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+    public AuditLogAspect(AuditLogWriter auditLogWriter, ClientIpResolver clientIpResolver) {
+        this.auditLogWriter = auditLogWriter;
+        this.clientIpResolver = clientIpResolver;
     }
 
     private static final Set<String> SENSITIVE_FIELDS = Set.of(
@@ -73,7 +62,7 @@ public class AuditLogAspect {
             ServletRequestAttributes attrs = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
             if (attrs != null) {
                 HttpServletRequest request = attrs.getRequest();
-                record.setRequestIp(getClientIp(request));
+                record.setRequestIp(clientIpResolver.resolve(request));
             }
 
             // entityId：取第一个 UUID 参数
@@ -107,31 +96,11 @@ public class AuditLogAspect {
                 record.setChanges(Map.of());
             }
 
-            auditTxTemplate.executeWithoutResult(status -> {
-                auditLogMapper.insert(record);
-                // 写入成功后再发布消费事件：查询侧/报表依赖已落库记录，且不得回滚审计
-                eventPublisher.publishEvent(new AuditRecordedEvent(
-                        record.getId(), record.getEntityType(),
-                        record.getEntityId(), record.getOperation(), record.getOperatorId()));
-            });
+            auditLogWriter.write(record);
         } catch (Exception e) {
             log.warn("[AuditLog] Failed to write audit log: {}", e.getMessage());
         }
 
         return result;
-    }
-
-    private String getClientIp(HttpServletRequest request) {
-        String ip = request.getHeader("X-Forwarded-For");
-        if (ip == null || ip.isBlank()) {
-            ip = request.getHeader("X-Real-IP");
-        }
-        if (ip == null || ip.isBlank()) {
-            ip = request.getRemoteAddr();
-        }
-        if (ip != null && ip.contains(",")) {
-            ip = ip.split(",")[0].trim();
-        }
-        return ip != null ? ip : "";
     }
 }

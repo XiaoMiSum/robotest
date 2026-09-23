@@ -17,12 +17,13 @@ import java.util.Map;
 @Mapper
 public interface AuditLogMapper extends BaseMapperX<AuditLog> {
 
-    default PageResult<AuditLog> selectPageByCondition(String operatorName, String entityType,
+    default PageResult<AuditLog> selectPageByCondition(String operatorName, String entityType, String operation,
                                                        LocalDateTime beginTime, LocalDateTime endTime,
                                                        Integer pageNo, Integer pageSize) {
         LambdaQueryWrapperX<AuditLog> wrapper = new LambdaQueryWrapperX<AuditLog>()
                 .likeIfPresent(AuditLog::getOperatorName, operatorName)
                 .eqIfPresent(AuditLog::getEntityType, entityType)
+                .eqIfPresent(AuditLog::getOperation, operation)
                 .geIfPresent(AuditLog::getCreatedAt, beginTime)
                 .leIfPresent(AuditLog::getCreatedAt, endTime)
                 .orderByDesc(AuditLog::getCreatedAt);
