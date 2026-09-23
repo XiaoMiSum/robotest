@@ -22,9 +22,9 @@ import {
   buildConfigPayload,
   collectSettingErrors,
   isEmbeddingGroupEmpty,
-  isSettingModified,
   resolveModelHints,
   resolveUniqueParams,
+  settingsStats,
 } from '@/composables/admin/aiConfigForm'
 import { extractUniqueValuesForScope } from '@/composables/admin/aiConfigForm'
 
@@ -95,18 +95,10 @@ export function useAiConfigPage() {
     () => rebuildTask.value?.status === 'failed' || rebuildTask.value?.status === 'cancelled',
   )
 
-  const settingsTotalCount = computed(() =>
-    settingsSchema.value.reduce((total, group) => total + group.items.length, 0),
-  )
-
-  const settingsModifiedCount = computed(() =>
-    settingsSchema.value.reduce(
-      (total, group) =>
-        total +
-        group.items.filter((item) => isSettingModified(item, settingsForm[item.key])).length,
-      0,
-    ),
-  )
+  // 计数收敛到 settingsStats：与系统配置卡头徽标共用同一口径
+  const settingsStat = computed(() => settingsStats(settingsSchema.value, settingsForm))
+  const settingsTotalCount = computed(() => settingsStat.value.total)
+  const settingsModifiedCount = computed(() => settingsStat.value.modified)
 
   // 由 useAiChatModels 注入：开启总开关需至少一个已启用对话模型
   const chatModelsEnabledCount = ref(0)

@@ -5,6 +5,7 @@ import {
   buildDefaultUniqueParams,
   collectSettingErrors,
   extractUniqueValuesForScope,
+  filterSettingGroups,
   getByPath,
   isSettingModified,
   mergeExtraParams,
@@ -12,6 +13,7 @@ import {
   resolveModelHints,
   resolveUniqueParams,
   setByPath,
+  settingsStats,
   validateSetting,
   weightsSum,
 } from './aiConfigForm'
@@ -310,5 +312,125 @@ describe('extractUniqueValuesForScope 抽取独有配置项', () => {
   it('preset 缺省时返回空对象（自定义供应商）', () => {
     const values = extractUniqueValuesForScope({ a: 1 }, 'chat', undefined)
     expect(values).toEqual({})
+  })
+})
+
+describe('settingsStats 配置项计数', () => {
+  const groups: AiSettingSchemaGroup[] = [
+    { group: 'limit', groupLabel: '限流阈值', items: [intItem] },
+    { group: 'order', groupLabel: '执行顺序推荐', items: [weightsItem] },
+  ]
+
+  it('统计总数与已修改数', () => {
+    const stats = settingsStats(groups, {
+      'dedup.topK': 8,
+      'planOrder.weights': weightsItem.defaultValue,
+    })
+    expect(stats).toEqual({ total: 2, modified: 1 })
+  })
+
+  it('空 schema 返回零', () => {
+    expect(settingsStats([], {})).toEqual({ total: 0, modified: 0 })
+  })
+})
+
+describe('filterSettingGroups 系统配置检索', () => {
+  const thresholdItem: AiSettingSchemaItem = {
+    key: 'dedup.threshold',
+    type: 'int',
+    label: '查重相似度阈值',
+    description: '判定疑似重复的余弦相似度阈值（hourly TopK）',
+    defaultValue: 0.75,
+    min: null,
+    max: null,
+    step: null,
+  }
+  const limitItem: AiSettingSchemaItem = {
+    key: 'limit.hourly',
+    type: 'int',
+    label: '生成类调用上限',
+    description: '生成类每用户每小时调用上限',
+    defaultValue: 20,
+    min: 1,
+    max: 999,
+    step: null,
+  }
+  const groups: AiSettingSchemaGroup[] = [
+    { group: 'limit', groupLabel: '限流阈值', items: [limitItem] },
+    { group: 'dedup', groupLabel: '语义查重', items: [intItem, thresholdItem] },
+  ]
+  const form: Record<string, unknown> = {
+    'limit.hourly': 20,
+    'dedup.topK': 5,
+    'dedup.threshold': 0.75,
+  }
+
+  it('无条件返回全部组与项', () => {
+    const result = filterSettingGroups(groups, form, { query: '', modifiedOnly: false })
+    expect(result.map((g) => g.group)).toEqual(['limit', 'dedup'])
+    expect(result.flatMap((g) => g.items.map((i) => i.key))).toEqual([
+      'limit.hourly',
+      'dedup.topK',
+      'dedup.threshold',
+    ])
+  })
+
+  it('组名命中整组保留', () => {
+    const result = filterSettingGroups(groups, form, { query: '语义', modifiedOnly: false })
+    expect(result.map((g) => g.group)).toEqual(['dedup'])
+    expect(result.flatMap((g) => g.items.map((i) => i.key))).toEqual([
+      'dedup.topK',
+      'dedup.threshold',
+    ])
+  })
+
+  it('字段文本命中仅保留命中项，组内无命中整组剔除', () => {
+    const result = filterSettingGroups(groups, form, { query: '相似度阈值', modifiedOnly: false })
+    expect(result.map((g) => g.group)).toEqual(['dedup'])
+    expect(result.flatMap((g) => g.items.map((i) => i.key))).toEqual(['dedup.threshold'])
+  })
+
+  it('检索不区分大小写并命中说明文本与对象默认值', () => {
+    const byDesc = filterSettingGroups(groups, form, { query: 'topk', modifiedOnly: false })
+    expect(byDesc.flatMap((g) => g.items.map((i) => i.key))).toEqual(['dedup.threshold'])
+
+    const weightGroups: AiSettingSchemaGroup[] = [
+      { group: 'order', groupLabel: '执行顺序推荐', items: [weightsItem] },
+    ]
+    const byDefault = filterSettingGroups(
+      weightGroups,
+      { 'planOrder.weights': { w1: 0.5, w2: 0.3, w3: 0.2 } },
+      { query: 'w1', modifiedOnly: false },
+    )
+    expect(byDefault.flatMap((g) => g.items.map((i) => i.key))).toEqual(['planOrder.weights'])
+  })
+
+  it('仅看已修改保留已修改项并剔除未修改组', () => {
+    const modifiedForm: Record<string, unknown> = {
+      'limit.hourly': 50,
+      'dedup.topK': 5,
+      'dedup.threshold': 0.75,
+    }
+    const result = filterSettingGroups(groups, modifiedForm, { query: '', modifiedOnly: true })
+    expect(result.map((g) => g.group)).toEqual(['limit'])
+    expect(result.flatMap((g) => g.items.map((i) => i.key))).toEqual(['limit.hourly'])
+  })
+
+  it('检索与仅看已修改叠加为与条件', () => {
+    const modifiedForm: Record<string, unknown> = {
+      'limit.hourly': 50,
+      'dedup.topK': 5,
+      'dedup.threshold': 0.75,
+    }
+    const hit = filterSettingGroups(groups, modifiedForm, { query: '限流', modifiedOnly: true })
+    expect(hit.map((g) => g.group)).toEqual(['limit'])
+
+    const miss = filterSettingGroups(groups, modifiedForm, { query: '语义', modifiedOnly: true })
+    expect(miss).toEqual([])
+  })
+
+  it('去空白后为空视为无条件', () => {
+    const result = filterSettingGroups(groups, form, { query: '  ', modifiedOnly: false })
+    expect(result.map((g) => g.group)).toEqual(['limit', 'dedup'])
   })
 })
