@@ -134,10 +134,10 @@ watch(
     text-align: left;
     font-weight: 500;
     font-size: 11px;
-    color: var(--color-neutral-400, #909399);
+    color: var(--color-neutral-400);
     text-transform: uppercase;
     padding: 0 6px 8px 0;
-    border-bottom: 1px solid var(--color-neutral-100, #e8e8e8);
+    border-bottom: 1px solid var(--color-neutral-100);
   }
 
   td {
@@ -164,7 +164,7 @@ watch(
     transition: background 0.1s;
 
     &:hover {
-      background: var(--color-neutral-50, #fafafa);
+      background: var(--color-neutral-50);
     }
   }
 
@@ -181,7 +181,7 @@ watch(
   }
 
   &__empty {
-    color: var(--color-neutral-300, #c0c4cc);
+    color: var(--color-neutral-300);
     font-size: 12px;
     text-align: center;
     padding: 20px 0 !important;

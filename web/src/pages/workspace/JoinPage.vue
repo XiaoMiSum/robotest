@@ -246,7 +246,7 @@ onMounted(verify)
   align-items: center;
   justify-content: center;
   min-height: 100vh;
-  background: linear-gradient(135deg, var(--color-primary-50) 0%, var(--color-neutral-100) 50%, #eef2ff 100%);
+  background: linear-gradient(135deg, var(--color-primary-50) 0%, var(--color-neutral-100) 50%, var(--color-neutral-200) 100%);
 }
 
 .join-page__card {
@@ -282,8 +282,8 @@ onMounted(verify)
 }
 
 .join-page__icon--danger {
-  background: var(--color-danger-50);
-  color: var(--color-danger-500);
+  background: var(--color-danger-light);
+  color: var(--color-danger);
 }
 
 .join-page__heading {

@@ -74,8 +74,8 @@ async function handleCopy() {
   display: flex;
   align-items: center;
   gap: 8px;
-  background: var(--color-neutral-50, #f5f5f5);
-  border: 1px solid var(--color-neutral-200, #e5e5e5);
+  background: var(--color-neutral-50);
+  border: 1px solid var(--color-neutral-200);
   border-radius: var(--radius-md);
   padding: 10px 12px;
 }
@@ -107,7 +107,7 @@ async function handleCopy() {
 .mock-address__header-key {
   font-family: 'JetBrains Mono', 'Fira Code', monospace;
   font-size: 12px;
-  background: var(--color-neutral-100, #eee);
+  background: var(--color-neutral-100);
   padding: 2px 6px;
   border-radius: var(--radius-sm, 3px);
 }

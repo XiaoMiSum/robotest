@@ -128,7 +128,7 @@ function asModel(row: unknown): AiChatModel {
 }
 
 .ai-model-table__star {
-  color: var(--color-warning, #e6a23c);
+  color: var(--color-warning);
 }
 
 .ai-model-table__empty {

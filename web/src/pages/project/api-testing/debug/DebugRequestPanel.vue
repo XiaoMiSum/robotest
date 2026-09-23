@@ -322,14 +322,14 @@ const {
       &:hover {
         .el-select__selected-item,
         .el-select__placeholder {
-          color: var(--color-primary-500, #409eff);
+          color: var(--color-primary-500);
         }
       }
     }
   }
 
   &__hint {
-    color: var(--color-neutral-300, #c0c4cc);
+    color: var(--color-neutral-300);
     cursor: help;
   }
 
@@ -337,7 +337,7 @@ const {
   &__tabs {
     display: flex;
     gap: 0;
-    border-bottom: 1px solid var(--color-neutral-100, #e8e8e8);
+    border-bottom: 1px solid var(--color-neutral-100);
   }
 
   &__tab {
@@ -347,7 +347,7 @@ const {
     padding: 10px 14px;
     font-size: 12px;
     font-weight: 500;
-    color: var(--color-neutral-500, #909399);
+    color: var(--color-neutral-500);
     background: none;
     border: none;
     border-bottom: 2px solid transparent;
@@ -358,26 +358,26 @@ const {
     white-space: nowrap;
 
     &:hover {
-      color: var(--color-neutral-700, #606266);
+      color: var(--color-neutral-700);
     }
 
     &.is-active {
-      color: var(--color-primary-500, #409eff);
-      border-bottom-color: var(--color-primary-500, #409eff);
+      color: var(--color-primary-500);
+      border-bottom-color: var(--color-primary-500);
     }
   }
 
   &__tab-count {
-    background: var(--color-neutral-100, #e8e8e8);
-    color: var(--color-neutral-500, #909399);
+    background: var(--color-neutral-100);
+    color: var(--color-neutral-500);
     font-size: 10px;
     padding: 0 5px;
     border-radius: 8px;
     line-height: 16px;
 
     .is-active & {
-      background: var(--color-primary-100, #ecf5ff);
-      color: var(--color-primary-500, #409eff);
+      background: var(--color-primary-100);
+      color: var(--color-primary-500);
     }
   }
 
@@ -400,7 +400,7 @@ const {
     display: flex;
     align-items: center;
     gap: 2px;
-    background: var(--color-neutral-50, #fafafa);
+    background: var(--color-neutral-50);
     border-radius: 6px;
     padding: 2px;
     width: fit-content;
@@ -417,15 +417,15 @@ const {
     background: none;
     border-radius: 4px;
     cursor: pointer;
-    color: var(--color-neutral-500, #909399);
+    color: var(--color-neutral-500);
     transition: all 0.15s;
 
     &:hover {
-      color: var(--color-neutral-700, #606266);
+      color: var(--color-neutral-700);
     }
 
     &.is-active {
-      background: var(--color-primary-500, #409eff);
+      background: var(--color-primary-500);
       color: #fff;
       font-weight: 500;
       box-shadow: none;
@@ -452,7 +452,7 @@ const {
   &__body-empty {
     padding: 32px 0;
     text-align: center;
-    color: var(--color-neutral-300, #c0c4cc);
+    color: var(--color-neutral-300);
     font-size: 13px;
   }
 
@@ -475,14 +475,14 @@ const {
     border: none;
     background: none;
     border-radius: 4px;
-    color: var(--color-neutral-400, #909399);
+    color: var(--color-neutral-400);
     cursor: pointer;
     font-size: 14px;
     transition: color 0.15s, background 0.15s;
 
     &:hover {
-      color: var(--color-neutral-700, #606266);
-      background: var(--color-neutral-100, #e8e8e8);
+      color: var(--color-neutral-700);
+      background: var(--color-neutral-100);
     }
   }
 
@@ -507,11 +507,11 @@ const {
     }
 
     &:focus {
-      border-color: var(--color-primary-500, #409eff);
+      border-color: var(--color-primary-500);
     }
 
     &.is-invalid {
-      border-color: var(--color-danger-500, #f56c6c);
+      border-color: var(--color-danger);
     }
   }
 
@@ -524,10 +524,10 @@ const {
   &__tip {
     margin: 4px 0 0;
     font-size: 11px;
-    color: var(--color-neutral-400, #909399);
+    color: var(--color-neutral-400);
 
     &--error {
-      color: var(--color-danger-500, #f56c6c);
+      color: var(--color-danger);
     }
   }
 }

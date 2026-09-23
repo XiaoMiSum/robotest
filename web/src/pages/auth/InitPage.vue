@@ -226,7 +226,7 @@ async function handleSetup() {
 }
 
 .init-card__hint--ok {
-  color: #16a34a;
+  color: var(--color-success-strong);
 }
 
 .init-card__btn {

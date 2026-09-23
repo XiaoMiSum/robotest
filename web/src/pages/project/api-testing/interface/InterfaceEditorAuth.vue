@@ -52,6 +52,6 @@ defineProps<{ form: InterfaceEditorForm }>()
 .interface-editor__tip {
   margin: 4px 0 0;
   font-size: 11px;
-  color: var(--color-neutral-400, #909399);
+  color: var(--color-neutral-400);
 }
 </style>
