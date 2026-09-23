@@ -173,6 +173,65 @@ export function collectSettingErrors(
   return null
 }
 
+/** 系统配置计数：总数与已修改数（系统配置卡头徽标与 KPI 行共用同一口径） */
+export interface SettingsStats {
+  total: number
+  modified: number
+}
+
+export function settingsStats(
+  groups: AiSettingSchemaGroup[],
+  form: Record<string, unknown>,
+): SettingsStats {
+  let total = 0
+  let modified = 0
+  for (const group of groups) {
+    for (const item of group.items) {
+      total += 1
+      if (isSettingModified(item, form[item.key])) modified += 1
+    }
+  }
+  return { total, modified }
+}
+
+export interface SettingsGroupFilter {
+  query: string
+  modifiedOnly: boolean
+}
+
+/** 配置项检索面文本与 hint 渲染同源（标签+说明+默认值），保证搜到的就是看到的 */
+function settingSearchText(item: AiSettingSchemaItem): string {
+  const { defaultValue } = item
+  const text =
+    typeof defaultValue === 'object' && defaultValue !== null
+      ? JSON.stringify(defaultValue)
+      : String(defaultValue)
+  return `${item.label}${item.description}（默认 ${text}）`.toLowerCase()
+}
+
+/**
+ * 系统配置检索过滤（对齐 demo applySetFilter 语义）：组名命中整组保留，
+ * 字段按检索面文本命中裁剪；组内无命中整组剔除；仅看已修改叠加为与条件。
+ */
+export function filterSettingGroups(
+  groups: AiSettingSchemaGroup[],
+  form: Record<string, unknown>,
+  filter: SettingsGroupFilter,
+): AiSettingSchemaGroup[] {
+  const q = filter.query.trim().toLowerCase()
+  return groups
+    .map((group) => {
+      const nameHit = !!q && group.groupLabel.toLowerCase().includes(q)
+      const items = group.items.filter(
+        (item) =>
+          (!q || nameHit || settingSearchText(item).includes(q)) &&
+          (!filter.modifiedOnly || isSettingModified(item, form[item.key])),
+      )
+      return { ...group, items }
+    })
+    .filter((group) => group.items.length > 0)
+}
+
 /** Embedding 组载荷来源：form 取表单编辑值（含高级参数 JSON 解析，失败抛错）；saved 取已保存配置（不再解析） */
 export type EmbeddingPayloadSource =
   | {
