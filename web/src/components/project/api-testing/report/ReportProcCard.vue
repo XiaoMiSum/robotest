@@ -69,9 +69,9 @@ defineProps<{
 
 <style scoped lang="scss">
 .rr-proc {
-  border: 1px solid #eef1f5;
+  border: 1px solid var(--color-neutral-200);
   border-radius: 11px;
-  background: #fcfdff;
+  background: var(--color-neutral-50);
   margin-bottom: 10px;
   overflow: hidden;
 
@@ -86,7 +86,7 @@ defineProps<{
   gap: 10px;
   flex-wrap: wrap;
   padding: 10px 14px;
-  background: linear-gradient(180deg, #fbfdff, #fff);
+  background: linear-gradient(180deg, var(--color-neutral-50), var(--color-neutral-0));
 }
 
 .rr-proc__name {
@@ -104,7 +104,7 @@ defineProps<{
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: #94a3b8;
+  color: var(--color-neutral-500);
   border-radius: 6px;
   flex: 0 0 auto;
   font-family: inherit;
@@ -113,8 +113,8 @@ defineProps<{
     color 0.15s;
 
   &:hover {
-    background: #eef2f7;
-    color: #475569;
+    background: var(--color-neutral-100);
+    color: var(--color-neutral-600);
   }
 }
 
@@ -135,8 +135,8 @@ defineProps<{
 
 .rr-proc__meta {
   font-size: 12.2px;
-  color: #64748b;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color: var(--color-neutral-600);
+  font-family: var(--font-mono);
   word-break: break-all;
   padding: 0 14px 10px;
   margin: 0;
@@ -155,7 +155,7 @@ defineProps<{
 .rr-sub-label {
   font-size: 12px;
   font-weight: 600;
-  color: #64748b;
+  color: var(--color-neutral-600);
   margin: 0 0 6px;
 }
 
@@ -163,8 +163,8 @@ defineProps<{
   width: 100%;
   border-collapse: collapse;
   font-size: 12.6px;
-  background: #fff;
-  border: 1px solid #eef1f5;
+  background: var(--color-neutral-0);
+  border: 1px solid var(--color-neutral-200);
   border-radius: 9px;
   overflow: hidden;
 
@@ -172,7 +172,7 @@ defineProps<{
   td {
     text-align: left;
     padding: 7px 12px;
-    border-bottom: 1px solid #f1f5f9;
+    border-bottom: 1px solid var(--color-neutral-200);
     vertical-align: top;
   }
 
@@ -182,26 +182,26 @@ defineProps<{
   }
 
   th {
-    background: #f8fafc;
-    color: #64748b;
+    background: var(--color-neutral-50);
+    color: var(--color-neutral-600);
     font-weight: 600;
     width: 40%;
   }
 
   td {
-    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-    color: #1f2937;
+    font-family: var(--font-mono);
+    color: var(--color-neutral-800);
     word-break: break-all;
   }
 }
 
 .rr-code {
   margin: 0;
-  background: #1c2620;
-  color: #e2e8e4;
+  background: #1e1e1e;
+  color: #d4d4d4;
   border-radius: 9px;
   padding: 12px 14px;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-family: var(--font-mono);
   font-size: 12.4px;
   line-height: 1.65;
   overflow-x: auto;
@@ -209,9 +209,9 @@ defineProps<{
   word-break: break-word;
 
   &--light {
-    background: #f8fafc;
-    color: #334155;
-    border: 1px solid #eef1f5;
+    background: var(--color-neutral-50);
+    color: var(--color-neutral-800);
+    border: 1px solid var(--color-neutral-200);
   }
 }
 </style>
