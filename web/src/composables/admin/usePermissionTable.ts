@@ -1,12 +1,12 @@
 import { computed, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { fetchPermissionTable, fetchRoleDetail, updateRolePermissions } from '@/services/admin'
-import type { PermissionModule } from '@/types'
+import type { PermissionTopModule } from '@/types'
 
 export function usePermissionTable(getRoleId: () => string, getRoleType: () => string, getIsSystem: () => boolean) {
   const loading = ref(false)
   const saving = ref(false)
-  const modules = ref<PermissionModule[]>([])
+  const topModules = ref<PermissionTopModule[]>([])
   const checkedCodes = ref<string[]>([])
   const savedCodes = ref<string[]>([])
 
@@ -21,7 +21,7 @@ export function usePermissionTable(getRoleId: () => string, getRoleType: () => s
     loading.value = true
     try {
       const [perms, detail] = await Promise.all([fetchPermissionTable(getRoleType()), fetchRoleDetail(getRoleId())])
-      modules.value = perms
+      topModules.value = perms
       savedCodes.value = [...detail.permissions]
       checkedCodes.value = [...detail.permissions]
     } catch (err) {
@@ -55,7 +55,9 @@ export function usePermissionTable(getRoleId: () => string, getRoleType: () => s
   }
 
   const allVisibleCodes = computed(() =>
-    modules.value.flatMap((m) => m.permissions.filter((p) => !isLocked(p.code)).map((p) => p.code)),
+    topModules.value.flatMap((top) =>
+      top.modules.flatMap((m) => m.permissions.filter((p) => !isLocked(p.code)).map((p) => p.code)),
+    ),
   )
   const allChecked = computed(() => allVisibleCodes.value.length > 0 && allVisibleCodes.value.every((c) => checkedCodes.value.includes(c)))
   const indeterminate = computed(() => {
@@ -78,7 +80,7 @@ export function usePermissionTable(getRoleId: () => string, getRoleType: () => s
   return {
     loading,
     saving,
-    modules,
+    topModules,
     checkedCodes,
     savedCodes,
     dirty,

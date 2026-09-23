@@ -186,3 +186,9 @@ export interface PermissionModule {
   module: string
   permissions: PermissionItem[]
 }
+
+/** 按一级模块分组的权限配置表格（一级模块 → 二级模块 → 权限点） */
+export interface PermissionTopModule {
+  topModule: string
+  modules: PermissionModule[]
+}

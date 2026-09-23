@@ -17,7 +17,7 @@ import type {
   AiTask,
   DashboardStats,
   PageResult,
-  PermissionModule,
+  PermissionTopModule,
   RoleDetail,
   RoleTreeNode,
   RoleWorkspaceUser,
@@ -192,7 +192,7 @@ export function removeWorkspaceRoleUser(roleId: string, userId: string, workspac
   return del(`/admin/roles/${roleId}/users/${userId}/workspace/${workspaceId}`)
 }
 
-export function fetchPermissionTable(roleType?: string): Promise<PermissionModule[]> {
+export function fetchPermissionTable(roleType?: string): Promise<PermissionTopModule[]> {
   return get('/admin/roles/permissions/table', { roleType })
 }
 
