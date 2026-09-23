@@ -23,6 +23,9 @@ public interface WorkspaceService {
 
     void dissolveWorkspace(UUID id);
 
+    /** 归档（dissolved）重新启用为活跃；成员行归档期间保留，恢复后原样生效 */
+    void restoreWorkspace(UUID id);
+
     PageResult<WorkspaceMemberRespDTO> getWorkspaceMembers(UUID id, Integer pageNo, Integer pageSize);
 
     List<String> addWorkspaceMembers(UUID id, List<WorkspaceMembersAddReqDTO.MemberItem> members);
