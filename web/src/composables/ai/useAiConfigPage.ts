@@ -64,7 +64,7 @@ export function useAiConfigPage() {
   // 重建详情弹层开关：入口在 Embedding 卡头徽标，状态本身仍由 rebuildTask 承载
   const rebuildDialogVisible = ref(false)
   const statistics = ref<AiStatistics | null>(null)
-  const statQuery = reactive({ groupBy: 'functionType' })
+  const statQuery = reactive({ groupBy: 'functionType', dateRange: null as [string, string] | null })
 
   const hydrated = ref(false)
   const isApplying = ref(false)
@@ -344,7 +344,11 @@ export function useAiConfigPage() {
 
   async function loadStatistics() {
     try {
-      statistics.value = await fetchAiStatistics({ groupBy: statQuery.groupBy })
+      statistics.value = await fetchAiStatistics({
+        groupBy: statQuery.groupBy,
+        startDate: statQuery.dateRange?.[0],
+        endDate: statQuery.dateRange?.[1],
+      })
     } catch (err) {
       ElMessage.error(err instanceof Error ? err.message : '加载统计失败')
     }
