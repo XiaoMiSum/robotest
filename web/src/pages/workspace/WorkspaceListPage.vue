@@ -3,14 +3,12 @@ import { onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useAuthStore } from '@/stores/auth'
-import { useNavStore } from '@/stores/nav'
 import { fetchMyWorkspaces, setActiveWorkspacePreference } from '@/services/workspace'
 import { WORKSPACE_ROLE, workspaceRoleLabel } from '@/services/admin'
 import type { WorkspaceItem } from '@/types'
 
 const router = useRouter()
 const authStore = useAuthStore()
-const navStore = useNavStore()
 
 const loading = ref(false)
 const workspaces = ref<WorkspaceItem[]>([])
@@ -32,7 +30,6 @@ async function loadWorkspaces() {
 
 async function enterWorkspace(ws: WorkspaceItem) {
   authStore.setActiveWorkspace({ id: ws.id, name: ws.name, workspaceRole: ws.workspaceRole })
-  navStore.setMode('workspace')
   try {
     await setActiveWorkspacePreference(ws.id)
   } catch {
@@ -41,10 +38,10 @@ async function enterWorkspace(ws: WorkspaceItem) {
   if (ws.defaultProjectId) {
     // 有默认项目时自动激活，让 X-Active-Project 请求头生效（名称一并带入供顶栏展示）
     authStore.setActiveProject(ws.defaultProjectId, ws.defaultProjectName)
-    router.push('/workspace/projects/dashboard')
+    router.push({ name: 'ProjectDashboard' })
   } else {
     authStore.setActiveProject(null)
-    router.push('/workspace/projects')
+    router.push({ name: 'WorkspaceProjects' })
   }
 }
 

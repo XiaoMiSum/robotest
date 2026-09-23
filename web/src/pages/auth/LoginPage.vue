@@ -2,7 +2,6 @@
 import { onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import { useNavStore } from '@/stores/nav'
 import { checkInitStatus } from '@/services/init'
 import api from '@/services'
 import type { Result, LoginResult } from '@/types'
@@ -11,7 +10,6 @@ import BrandLogo from '@/components/common/BrandLogo.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
-const navStore = useNavStore()
 
 const currentYear = new Date().getFullYear()
 
@@ -26,7 +24,7 @@ onMounted(async () => {
   try {
     const status = await checkInitStatus()
     if (!status.initialized) {
-      router.replace('/init')
+      router.replace({ name: 'Init' })
     }
   } catch {
     // 网络错误：静默失败，不阻塞登录页展示
@@ -57,12 +55,11 @@ async function handleLogin() {
     await authStore.loadPermissions()
 
     if (result.user.hasWorkspace) {
-      router.push('/workspaces')
+      router.push({ name: 'Workspaces' })
     } else if (authStore.hasSystemPermission) {
-      navStore.setMode('admin')
-      router.push('/admin/dashboard')
+      router.push({ name: 'AdminDashboard' })
     } else {
-      router.push('/workspaces')
+      router.push({ name: 'Workspaces' })
     }
     ElMessage.success('登录成功')
   } catch (err) {
