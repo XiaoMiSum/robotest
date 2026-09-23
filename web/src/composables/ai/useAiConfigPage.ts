@@ -62,6 +62,8 @@ export function useAiConfigPage() {
 
   const testing = reactive({ embedding: false })
   const rebuildTask = ref<AiTask | null>(null)
+  // 重建详情弹层开关：入口在 Embedding 卡头徽标，状态本身仍由 rebuildTask 承载
+  const rebuildDialogVisible = ref(false)
   const statistics = ref<AiStatistics | null>(null)
   const statQuery = reactive({ groupBy: 'functionType' })
 
@@ -418,6 +420,7 @@ export function useAiConfigPage() {
     embeddingModelHints,
     embeddingConfigured,
     rebuildRetryable,
+    rebuildDialogVisible,
     settingsTotalCount,
     settingsModifiedCount,
     footerStatusText,
