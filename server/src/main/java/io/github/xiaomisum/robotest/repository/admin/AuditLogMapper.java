@@ -42,4 +42,24 @@ public interface AuditLogMapper extends BaseMapperX<AuditLog> {
             """)
     List<Map<String, Object>> aggregateByDay(@org.apache.ibatis.annotations.Param("entityType") String entityType,
                                              @org.apache.ibatis.annotations.Param("from") LocalDateTime from);
+
+    /** 指定时间窗内的登录人次（数据概览「今日活跃」） */
+    default long countLoginsBetween(LocalDateTime begin, LocalDateTime end) {
+        LambdaQueryWrapperX<AuditLog> wrapper = new LambdaQueryWrapperX<AuditLog>()
+                .eq(AuditLog::getOperation, "LOGIN")
+                .ge(AuditLog::getCreatedAt, begin)
+                .le(AuditLog::getCreatedAt, end);
+        Long cnt = selectCount(wrapper);
+        return cnt == null ? 0 : cnt;
+    }
+
+    /** 自 from 起按日去重的登录用户数（数据概览 14 日趋势，key=日期, users=人数） */
+    @Select("""
+            SELECT TO_CHAR(created_at, 'YYYY-MM-DD') AS key, COUNT(DISTINCT operator_id) AS users
+            FROM sys_audit_log
+            WHERE is_deleted = FALSE AND operation = 'LOGIN' AND created_at >= #{from}
+            GROUP BY TO_CHAR(created_at, 'YYYY-MM-DD')
+            ORDER BY key
+            """)
+    List<Map<String, Object>> countDistinctLoginsByDay(@org.apache.ibatis.annotations.Param("from") LocalDateTime from);
 }
