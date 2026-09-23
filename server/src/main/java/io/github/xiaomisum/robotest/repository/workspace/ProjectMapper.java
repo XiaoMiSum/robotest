@@ -4,6 +4,7 @@ import io.github.xiaomisum.robotest.model.entity.workspace.Project;
 import xyz.migoo.framework.mybatis.core.BaseMapperX;
 import xyz.migoo.framework.mybatis.core.LambdaQueryWrapperX;
 
+import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
@@ -15,6 +16,18 @@ public interface ProjectMapper extends BaseMapperX<Project> {
 
     default long countByWorkspaceId(UUID workspaceId) {
         return selectCount(Project::getWorkspaceId, workspaceId);
+    }
+
+    /** 全量项目数（数据概览，含归档态） */
+    default long countAll() {
+        Long cnt = selectCount();
+        return cnt == null ? 0 : cnt;
+    }
+
+    /** 近 N 日新增项目数（数据概览脚注口径：created_at >= since） */
+    default long countCreatedSince(LocalDateTime since) {
+        Long cnt = selectCount(new LambdaQueryWrapperX<Project>().ge(Project::getCreatedAt, since));
+        return cnt == null ? 0 : cnt;
     }
 
     default List<Project> listByIds(Collection<UUID> ids) {
