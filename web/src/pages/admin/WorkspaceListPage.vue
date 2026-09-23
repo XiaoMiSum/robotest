@@ -2,8 +2,8 @@
 import { onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
-import { createWorkspace, fetchWorkspaces } from '@/services/admin'
-import type { AdminWorkspace } from '@/types'
+import { createWorkspace, fetchSimpleUserList, fetchWorkspaces } from '@/services/admin'
+import type { AdminWorkspace, UserSimple } from '@/types'
 import { formatDateTime } from '@/utils/format'
 
 const router = useRouter()
@@ -84,17 +84,40 @@ const createSubmitting = ref(false)
 const createForm = reactive({
   name: '',
   description: '',
+  adminUserId: '',
 })
 const createRules: FormRules = {
   name: [
     { required: true, message: '请输入工作空间名称', trigger: 'blur' },
     { min: 2, max: 50, message: '名称长度需在 2-50 字符之间', trigger: 'blur' },
   ],
+  adminUserId: [{ required: true, message: '请选择空间管理员', trigger: 'change' }],
+}
+
+const adminSearching = ref(false)
+const adminOptions = ref<UserSimple[]>([])
+
+// 只搜活跃用户（/users/simple 数据源），避免选中停用账户提交后被后端拒绝
+async function searchAdmin(keyword: string) {
+  if (!keyword) {
+    adminOptions.value = []
+    return
+  }
+  adminSearching.value = true
+  try {
+    adminOptions.value = await fetchSimpleUserList(keyword)
+  } catch {
+    adminOptions.value = []
+  } finally {
+    adminSearching.value = false
+  }
 }
 
 function openCreateDialog() {
   createForm.name = ''
   createForm.description = ''
+  createForm.adminUserId = ''
+  adminOptions.value = []
   createDialogVisible.value = true
 }
 
@@ -110,6 +133,7 @@ async function submitCreate() {
     const id = await createWorkspace({
       name: createForm.name.trim(),
       description: createForm.description.trim() || undefined,
+      adminUserId: createForm.adminUserId,
     })
     ElMessage.success('工作空间已创建')
     createDialogVisible.value = false
@@ -237,6 +261,21 @@ onMounted(loadWorkspaces)
             maxlength="50"
             show-word-limit
           />
+        </el-form-item>
+        <el-form-item label="管理员" prop="adminUserId">
+          <el-select
+            v-model="createForm.adminUserId"
+            filterable
+            remote
+            reserve-keyword
+            clearable
+            placeholder="输入姓名搜索（仅活跃用户）"
+            :remote-method="searchAdmin"
+            :loading="adminSearching"
+            style="width: 100%"
+          >
+            <el-option v-for="u in adminOptions" :key="u.id" :label="u.name" :value="u.id" />
+          </el-select>
         </el-form-item>
         <el-form-item label="描述" prop="description">
           <el-input
