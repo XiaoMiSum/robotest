@@ -121,23 +121,18 @@ function handleUserCommand(cmd: string) {
   <div class="business-layout">
     <header class="top-nav">
       <div class="top-nav__logo" @click="goHome">
+        <span class="top-nav__logo-mark"><el-icon><Lightning /></el-icon></span>
         <span class="top-nav__logo-text">RoboTest</span>
       </div>
 
-      <!-- 当前上下文名称（样式参考管理模式顶栏的系统管理标签）：空间名 + 项目名 -->
+      <!-- 当前上下文名称（视觉设计 8.2：空间=品牌浅底胶囊 / 项目=中性胶囊）：空间名 + 项目名 -->
       <div class="top-nav__context-tags">
-        <el-tag
-          v-if="authStore.activeWorkspace?.name"
-          class="top-nav__context-tag"
-          type="primary"
-          size="small"
-          effect="dark"
-        >
+        <span v-if="authStore.activeWorkspace?.name" class="top-nav__context-tag top-nav__context-tag--brand">
           {{ authStore.activeWorkspace.name }}
-        </el-tag>
-        <el-tag v-if="showProjectTag" class="top-nav__context-tag" type="info" size="small" effect="dark">
+        </span>
+        <span v-if="showProjectTag" class="top-nav__context-tag top-nav__context-tag--neutral">
           {{ authStore.activeProjectName }}
-        </el-tag>
+        </span>
       </div>
 
       <nav class="top-nav__dynamic-menu">
@@ -237,25 +232,41 @@ function handleUserCommand(cmd: string) {
   display: flex;
   align-items: center;
   height: var(--header-height);
-  background: linear-gradient(90deg, var(--color-neutral-800) 0%, var(--color-neutral-900) 100%);
+  background: var(--shell-bg);
   padding: 0 20px;
   z-index: 100;
   flex-shrink: 0;
   gap: 8px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid var(--shell-border);
 }
 
 .top-nav__logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   cursor: pointer;
   margin-right: 12px;
   flex-shrink: 0;
 }
 
+.top-nav__logo-mark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  font-size: 14px;
+  border-radius: 5px;
+  background: var(--color-primary-500);
+  color: #fff;
+  flex-shrink: 0;
+}
+
 .top-nav__logo-text {
-  font-size: 17px;
+  font-size: 16px;
   font-weight: 700;
-  color: #ffffff;
-  letter-spacing: -0.02em;
+  color: var(--shell-text-strong);
+  letter-spacing: -0.01em;
 }
 
 .top-nav__context-tags {
@@ -270,6 +281,21 @@ function handleUserCommand(cmd: string) {
   font-size: 10px;
   letter-spacing: 0.04em;
   padding: 2px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+  border: 1px solid transparent;
+
+  &--brand {
+    background: var(--color-primary-50);
+    color: var(--color-primary-700);
+    border-color: var(--color-primary-100);
+  }
+
+  &--neutral {
+    background: var(--color-neutral-100);
+    color: var(--color-neutral-600);
+    border-color: var(--color-neutral-200);
+  }
 }
 
 .top-nav__dynamic-menu {
@@ -288,20 +314,21 @@ function handleUserCommand(cmd: string) {
   border-radius: var(--radius-md);
   font-size: 13px;
   font-weight: 500;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--shell-text);
   cursor: pointer;
   transition: all var(--transition-fast);
   white-space: nowrap;
   user-select: none;
 
   &:hover {
-    background: rgba(255, 255, 255, 0.08);
-    color: #ffffff;
+    background: var(--shell-item-hover);
+    color: var(--shell-text-strong);
   }
 
+  /* 视觉设计 6.2：动态菜单选中为蓝字 + 底部指示条（区别于侧栏的浅蓝底胶囊选中） */
   &--active {
-    background: rgba(255, 255, 255, 0.1);
-    color: #ffffff;
+    background: transparent;
+    color: var(--color-primary-500);
     font-weight: 600;
     position: relative;
 
@@ -313,15 +340,20 @@ function handleUserCommand(cmd: string) {
       transform: translateX(-50%);
       width: 60%;
       height: 2px;
-      background: var(--color-primary-400);
+      background: var(--color-primary-500);
       border-radius: 1px;
     }
+  }
+
+  &--active:hover {
+    background: var(--shell-item-active);
+    color: var(--color-primary-500);
   }
 }
 
 .top-nav__menu-hint {
   font-size: 13px;
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--color-neutral-400);
 }
 
 .top-nav__icons {
@@ -338,20 +370,20 @@ function handleUserCommand(cmd: string) {
   padding: 6px 10px;
   border-radius: var(--radius-md);
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.55);
+  color: var(--shell-text);
   cursor: pointer;
   transition: all var(--transition-fast);
   white-space: nowrap;
   user-select: none;
 
   &:hover {
-    color: #ffffff;
-    background: rgba(255, 255, 255, 0.08);
+    color: var(--color-neutral-900);
+    background: var(--shell-item-hover);
   }
 
   &--active {
-    color: #ffffff;
-    background: rgba(255, 255, 255, 0.1);
+    color: var(--color-primary-700);
+    background: var(--shell-item-active);
     font-weight: 500;
   }
 }
@@ -366,28 +398,43 @@ function handleUserCommand(cmd: string) {
   transition: background-color var(--transition-fast);
 
   &:hover {
-    background: rgba(255, 255, 255, 0.08);
+    background: var(--shell-item-hover);
   }
 }
 
 .top-nav__username {
   font-size: 13px;
   font-weight: 500;
-  color: rgba(255, 255, 255, 0.85);
+  color: var(--color-neutral-900);
   max-width: 80px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+.top-nav :deep(.el-avatar) {
+  background: var(--color-primary-500);
+  color: #fff;
+}
+
+/* 方案B：主体整体一张悬浮白卡，四周 16px 页边距（视觉设计 6.1） */
 .business-layout__content {
   flex: 1;
   overflow: auto;
-  background-color: var(--color-neutral-50);
-  padding: var(--space-xl);
+  margin: var(--float-gap);
+  padding: var(--page-pad);
+  background: var(--color-neutral-0);
+  border: 1px solid var(--shell-border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-float);
 
+  /* 双栏页容器透明让位，由页内「模块侧栏卡 + 主内容卡」自行成形 */
   &--full {
     padding: 0;
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
   }
 }
 </style>
