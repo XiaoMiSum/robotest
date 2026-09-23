@@ -299,6 +299,7 @@ class WorkspaceServiceImplTest {
 
     @Test
     void updateWorkspaceMemberRole_keepLastAdmin_throws() {
+        when(workspaceMapper.selectById(workspaceId)).thenReturn(workspace);
         WorkspaceUser admin = new WorkspaceUser();
         admin.setId(UUID.randomUUID());
         admin.setUserId(UUID.randomUUID());
@@ -315,6 +316,7 @@ class WorkspaceServiceImplTest {
 
     @Test
     void removeWorkspaceMember_nonAdmin_success() {
+        when(workspaceMapper.selectById(workspaceId)).thenReturn(workspace);
         WorkspaceUser member = new WorkspaceUser();
         member.setId(UUID.randomUUID());
         member.setUserId(UUID.randomUUID());
@@ -328,6 +330,7 @@ class WorkspaceServiceImplTest {
 
     @Test
     void removeWorkspaceMember_lastAdmin_throws() {
+        when(workspaceMapper.selectById(workspaceId)).thenReturn(workspace);
         WorkspaceUser admin = new WorkspaceUser();
         admin.setId(UUID.randomUUID());
         admin.setUserId(UUID.randomUUID());
@@ -337,6 +340,45 @@ class WorkspaceServiceImplTest {
 
         assertThrows(ServiceException.class,
                 () -> workspaceService.removeWorkspaceMember(workspaceId, admin.getUserId()));
+        verify(workspaceUserMapper, never()).deleteById(any());
+    }
+
+    // ========== 已解散空间写操作守卫 ==========
+
+    @Test
+    void addWorkspaceMembers_dissolved_throws() {
+        Workspace dissolved = new Workspace();
+        dissolved.setId(workspaceId);
+        dissolved.setStatus(Constants.Status.DISSOLVED);
+        when(workspaceMapper.selectById(workspaceId)).thenReturn(dissolved);
+
+        assertThrows(ServiceException.class, () -> workspaceService.addWorkspaceMembers(workspaceId, List.of()));
+        verify(workspaceUserMapper, never()).insert(any(WorkspaceUser.class));
+    }
+
+    @Test
+    void updateWorkspaceMemberRole_dissolved_throws() {
+        Workspace dissolved = new Workspace();
+        dissolved.setId(workspaceId);
+        dissolved.setStatus(Constants.Status.DISSOLVED);
+        when(workspaceMapper.selectById(workspaceId)).thenReturn(dissolved);
+        UUID target = UUID.randomUUID();
+
+        assertThrows(ServiceException.class,
+                () -> workspaceService.updateWorkspaceMemberRole(workspaceId, target, Constants.WorkspaceRole.MEMBER_ID));
+        verify(workspaceUserMapper, never()).updateById(any(WorkspaceUser.class));
+    }
+
+    @Test
+    void removeWorkspaceMember_dissolved_throws() {
+        Workspace dissolved = new Workspace();
+        dissolved.setId(workspaceId);
+        dissolved.setStatus(Constants.Status.DISSOLVED);
+        when(workspaceMapper.selectById(workspaceId)).thenReturn(dissolved);
+        UUID target = UUID.randomUUID();
+
+        assertThrows(ServiceException.class,
+                () -> workspaceService.removeWorkspaceMember(workspaceId, target));
         verify(workspaceUserMapper, never()).deleteById(any());
     }
 
