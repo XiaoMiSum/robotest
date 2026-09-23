@@ -6,7 +6,7 @@
 
 ---
 
-### 3.6 数据概览统计
+## 1. 数据概览统计
 
 **接口**：`GET /api/admin/dashboard/stats`  
 **方法**：GET  
@@ -60,7 +60,7 @@
 ---
 
 
-### 4.8 DashboardStatsService 端口
+## 2. DashboardStatsService 端口
 
 ```java
 public interface DashboardStatsService {
@@ -80,7 +80,7 @@ public interface DashboardStatsService {
 4. 只读接口，无事务注解；任何单表查询异常向上抛出，由全局异常处理器统一返回。
 
 
-### 5.5 数据概览与状态扩展的文件分层
+## 3. 数据概览与状态扩展的文件分层
 
 | 层 | 文件 | 职责 |
 | -- | ---- | ---- |
@@ -95,7 +95,7 @@ public interface DashboardStatsService {
 > 分层约束（web/AGENTS.md）：组件不直接 import services，状态与 services 调用置于本地 composable；SVG 图表为纯展示，计算逻辑全部在 composable 内以便覆盖。
 
 
-### 5.7 图表计算（composable 纯函数）
+## 4. 图表计算（composable 纯函数）
 
 - 折线图：14 点等分 X 轴，`y = 基线 - (count / max(count,1)) * 绘图区高度`；输出 `points` 串、面积 `path`、末点坐标与标签；全 0 时贴基线。
 - 环图：三段 `stroke-dasharray = [seg, C-seg]`，`stroke-dashoffset` 依次累加，`C = 2πr`；`total = 0` 时只画底环。

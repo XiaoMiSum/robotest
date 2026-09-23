@@ -6,22 +6,22 @@
 
 ---
 
-### 3.1 评审一键检查
+## 1. 评审一键检查
 
-#### 3.1.1 发起检查
+### 1.1 发起检查
 
 - **路径**：`POST /api/project/ai/reviews/:id/check`
 - **响应**：`{ "taskId": "0198…" }`
 - **校验**：仅评审发起人（2001）；评审状态为 `new` / `in_progress`，已完成 `completed` 不可发起（6012）；同评审无进行中检查任务（6005）。
 
-#### 3.1.2 查询检查结果
+### 1.2 查询检查结果
 
 - **路径**：`GET /api/project/ai/reviews/:id/check-result`
 - **响应**：该评审最近一次 review_check 任务（含 status/progress/result，result 结构见 2.2.1）；无记录返回 `null`。
 - **权限**：仅评审发起人可查看（与发起权限一致）。
 
 
-### 4.1 评审检查任务（分批执行）
+## 2. 评审检查任务（分批执行）
 
 ```mermaid
 flowchart TD

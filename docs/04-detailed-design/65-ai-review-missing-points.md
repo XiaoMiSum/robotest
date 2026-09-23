@@ -6,7 +6,7 @@
 
 ---
 
-### 3.3 遗漏测试点分析
+## 1. 遗漏测试点分析
 
 - **路径**：`POST /api/project/ai/cases/missing-points`（同步，`missing_point_analysis`）
 - **请求体**：
@@ -42,7 +42,7 @@
 - **前端预填**：面板打开时调用文档关联查询（《智能用例生成》3.1.6 `GET /api/project/documents/:docId/requirements`，`:docId` 为当前脑图文档）自动带入关联条目至 `requirementIds`，作为默认上下文，用户可临时改选；加载失败提示但不阻断输入。
 
 
-### 4.3 遗漏测试点分析（关键词版 → 语义升级）
+## 2. 遗漏测试点分析（关键词版 → 语义升级）
 
 两阶段检索 + LLM 比对：
 

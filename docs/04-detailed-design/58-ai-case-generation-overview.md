@@ -83,7 +83,7 @@ AI 标识是节点数据的一部分（SRS 3.4.1 业务规则），随快照继�
 
 ### 2.2 结构化输出数据结构（AI 生成用例树）
 
-用例子树生成、步骤补全共用同一输出结构（网关侧按下述规则校验，见基础设施文档 4.4）：
+用例子树生成、步骤补全共用同一输出结构（网关侧按下述规则校验，见基础设施文档 2.3）：
 
 ```json
 {
@@ -105,7 +105,7 @@ AI 标识是节点数据的一部分（SRS 3.4.1 业务规则），随快照继�
 **校验规则**（Bean Validation + 自定义结构断言）：
 
 - `type` ∈ `case / normal / precondition / step / expected`（`@InEnum`，与 V1.0 节点模型一致）；
-- `title` 非空且 ≤ 200 字符；超长在 Schema 校验**前**的宽容规整步骤中截断（与基础设施 4.4 的剥离 think 段/代码围栏同层处理），截断计入 warnings，不触发校验失败与带错重试；
+- `title` 非空且 ≤ 200 字符；超长在 Schema 校验**前**的宽容规整步骤中截断（与基础设施 2.3 的剥离 think 段/代码围栏同层处理），截断计入 warnings，不触发校验失败与带错重试；
 - `priority` 仅允许出现在 `case` 节点，∈ P0–P3；非 case 节点出现 priority 视为校验失败；
 - 父子合法性：`precondition / step / expected` 只能是 `case` 的直接子节点且自身无子节点；`case` 下不得再嵌套 `case`（与既有编辑器约束一致）；`normal` 可嵌套 `normal / case`；
 - 树深度 ≤ 5、单次节点总数 ≤ 200，超限校验失败（防失控输出）；
@@ -118,9 +118,9 @@ AI 标识是节点数据的一部分（SRS 3.4.1 业务规则），随快照继�
 通用约定、SSE 帧格式、错误码见《AI 基础设施详细设计说明书》3.1 / 3.6。本章接口均为项目级（`/api/project/**`，头 `Authorization` + `X-Active-Workspace` + `X-Active-Project`）。
 
 
-### 4.4 脑图操作指令集（DSL）完整定义
+### 2.3 脑图操作指令集（DSL）完整定义
 
-#### 4.4.1 结构
+#### 2.3.1 结构
 
 ```typescript
 interface MinderCommand {
@@ -145,7 +145,7 @@ interface MinderCommand {
 - **解析中止粒度**：全部标题引用（含 `@selected`）在**预览阶段一次性解析**：唯一命中则使用；任一命令出现零命中、多义或 `@selected` 无对应选中节点，则**整批不进入预览**、直接提示改写（前端本地等同 `clarification` 分支），不做部分执行；
 - 当前版本不支持跨文档操作：标题引用只在当前文档树内解析，跨文档语义的指令由 LLM 按歧义处理（`ambiguous = true`）。
 
-#### 4.4.2 分工与执行
+#### 2.3.2 分工与执行
 
 - **LLM 只做翻译**（`dsl_translation`，同步调用 + 结构校验：action 枚举、selector 字段类型、优先级枚举、`add_child.nodes` 套用 2.2 结构断言、标题引用字段放行保留值 `@selected`）；后端翻译时附带文档骨架上下文（模块下节点类型/优先级分布统计与一级标题清单，不传全量节点，控制 token）；
 - **前端确定性执行**：`dslRunner.ts` 遍历当前 minder 树计算命中集合 → 弹出**影响范围预览**（命中数量 + 节点标题清单，可展开；含「将跳过」清单，见下）→ 用户确认 → 经编辑内核批量执行（单撤销组，同 4.2）；`add_child` 新增节点写 `aiGenerated: true`；
@@ -156,7 +156,7 @@ interface MinderCommand {
 - 命中为空 → 提示"未找到匹配节点"；`ambiguous` → 展示 `clarification` 要求改写。
 
 
-### 4.5 AI 标识（aiGenerated）全链路
+### 2.4 AI 标识（aiGenerated）全链路
 
 - **协议**：WS `add_node` / `update_attrs` 帧的节点属性集扩展 `aiGenerated`（布尔，缺省 false）；后端 diff 持久化写入 `test_case_node.ai_generated`；Yjs 协同帧为二进制透传，无需变更；
 - **渲染**：`badges.ts` 徽标体系新增「AI」徽标（注册规则同既有类型徽标，读取节点 data 的 `aiGenerated`）；
@@ -165,27 +165,27 @@ interface MinderCommand {
 - **快照继承**：评审/计划创建快照的字段拷贝清单加入 `ai_generated`。
 
 
-### 5.1 文件与组件
+### 2.5 文件与组件
 
 | 文件 | 说明 |
 | ---- | ---- |
 | `pages/project/RequirementPoolPage.vue` | 需求池管理页（列表 + 状态筛选 + 关键字搜索 + 新建/编辑抽屉 + 归档/取消归档 + **AI 拆分入口**，MarkdownEditor 复用）；项目工作区侧边菜单新增入口，**不受 AI 开关控制** |
-| `components/project/RequirementSplitDialog.vue` | AI 文档拆分对话框（US-AI-019）：文本域粘贴文档 → [AI 拆分]（SSE 消费 `useAiStream()`）→ 模块分组预览（逐条编辑/删除/勾选 + 全选）→ [批量入库] 调 3.1.7 批量接口；见 5.2 |
+| `components/project/RequirementSplitDialog.vue` | AI 文档拆分对话框（US-AI-019）：文本域粘贴文档 → [AI 拆分]（SSE 消费 `useAiStream()`）→ 模块分组预览（逐条编辑/删除/勾选 + 全选）→ [批量入库] 调 3.1.7 批量接口；见 2.6 |
 | `components/project/RequirementSelector.vue` | 条目选取器弹窗（多选 + 关键字过滤，**仅展示 active 条目**），供各 AI 入口复用 |
 | `components/project/minder/ai/AiGeneratePanel.vue` | 「AI 生成用例」/「AI 补全用例」抽屉（右侧滑出约 640px、透明遮罩不压暗画布，常驻挂载、关闭仅隐藏）：需求文本域 / 条目选择 / 操作行内进度条（flex:1 占位、与按钮同行左侧，完成态不显示）；模式文案由 `aiPanelModes.ts` 配置驱动——生成模式标题「AI 生成用例」、按钮 [开始生成]/[重新生成]/[确认挂载]，补全模式标题「AI 补全用例」、按钮 [开始补全]/[重新补全]/[确认追加]；done 后操作行主按钮消失，底部提供 [重新生成]（次要按钮样式，无主按钮底色）[查看预览]（主按钮，位于 [重新生成] 右侧），不再内嵌预览树；watch `docId` 切换文档时断开 SSE 并重置 |
 | `components/project/minder/ai/aiPanelModes.ts` | 面板模式配置表（generate / complete）：标题、主按钮文案（开始/重新）、底部确认按钮、placeholder、`buildBody` 请求体映射、SSE 路径、`inputOptional` 等；`AiGeneratePanel` 按 mode 读取，保证两模式 UI 文案与请求构造一致 |
 | `components/project/minder/ai/AiPreviewDialog.vue` | 独立预览弹窗（宽 70% × 高 80%（视口））：弹窗内创建 kityminder 只读实例渲染生成节点树快照，可勾选节点按模式区分（生成=仅用例节点、点击随用例级联内部结构；补全=全部生成节点、逐项独立取舍），底部「已勾选 N/M 个用例/项」[确认挂载] [关闭]；两窗并存、预览置顶 |
 | `components/project/minder/ai/aiPreviewRender.ts` | 预览脑图渲染支撑：`AiPreviewNode[]` → kityminder `importJson` 结构转换；勾选框渲染器注册（仿 `badges.ts` 的 `defineBadgeRenderer`，读取节点 `data.aiSelected` 绘制 ☑/☐）；仅预览弹窗内实例可见 |
 | `components/project/minder/ai/aiMount.ts` | 挂载执行器（4.2）：`AiPreviewNode` 携带 `aiSelected` 与 `aiSelectable`；`buildPreviewTree`（生成=仅 case 子树默认勾选，补全=全部节点默认勾选）/ `filterCheckedTree` 按勾选状态过滤 |
-| `components/project/minder/ai/dslRunner.ts` | DSL 标题引用解析、命中计算与合法性过滤（4.4.2，纯函数便于单测）；highlight 视觉态与预览弹窗由调用方组件维护 |
+| `components/project/minder/ai/dslRunner.ts` | DSL 标题引用解析、命中计算与合法性过滤（2.3.2，纯函数便于单测）；highlight 视觉态与预览弹窗由调用方组件维护 |
 | `components/project/minder/badges.ts` | 扩展 AI 徽标 |
 | `services/project.ts` / `types/index.ts` | 3.1–3.3 接口封装与类型（无 `any`） |
 
 
-### 5.2 交互要点
+### 2.6 交互要点
 
 - 脑图工具栏新增「AI 生成用例」按钮（`stores/ai.ts` 的 `aiEnabled` 控制显隐）；右键菜单在 case 节点上显示「AI 补全步骤」；
-- 生成/补全为交互式功能：`AiGeneratePanel` 内嵌公共组件 `AiModelSelect`（对话模型选择器，基础设施 5.1 / `docs/05-interaction-design/01-readme.md` §2.8），所选 `modelId` 随 3.2 请求提交；
+- 生成/补全为交互式功能：`AiGeneratePanel` 内嵌公共组件 `AiModelSelect`（对话模型选择器，基础设施 2.5 / `docs/05-interaction-design/01-readme.md` §2.8），所选 `modelId` 随 3.2 请求提交；
 - 全部 SSE 消费走基础设施的 `useAiStream()`（支持取消按钮、超 10 秒未见首帧提示可取消重试）；
 - 预览-确认阶段：生成抽屉保持打开（右侧滑出，透明遮罩）；done 后点击 [查看预览] 打开独立预览弹窗（两窗并存、预览置顶）；预览弹窗内为 kityminder 只读实例渲染的本地快照（`buildPreviewTree`，仅生成节点树，文档既有数据不并入预览），不落库、不产生撤销历史；确认挂载成功 → 关闭预览弹窗与生成抽屉；未确认挂载（仅关闭预览弹窗）→ 生成抽屉保留「完成」态、快照可重新预览；
 - 会话保持：`AiGeneratePanel` 在 `CaseMindMap` 中常驻挂载（generate / complete 双实例，各自 `resetToken` 信号）；关闭抽屉仅 `visible=false`，不触发 `stop()`；`handleClose` 仅关闭抽屉与预览弹窗；切换文档（watch `docId`）时 `controller.cancel()` + 全量重置；补全实例在目标节点变化（`resetToken` 自增）时重置，生成实例不随目标变化重置；
@@ -196,16 +196,16 @@ interface MinderCommand {
 ---
 
 
-## 6. 测试设计（C8）
+## 3. 测试设计（C8）
 
-### 6.1 前端单元测试
+### 3.1 前端单元测试
 
 - `dslRunner.ts`：selector 组合命中、空命中、标题引用解析（唯一命中/零命中/多义/`@selected` 替换/解析失败整批中止）、mark_type 非法变更跳过与优先级清除联动、move 非法移动与环检测跳过、add_child 多目标挂载与非法目标跳过、执行为单撤销组；
 - `aiPanelModes.ts`：generate / complete 两模式配置字段齐全（标题/主按钮/确认按钮/placeholder/buildBody/SSE 路径/inputOptional/countLabel），模式缺字段编译期暴露；`buildBody` 请求体构造正确；
 - `aiMount.ts`：勾选过滤规则（`aiSelected` 父子联动、生成模式仅 case 子树默认勾选、补全模式 selectAll 全节点默认勾选且逐项取舍）、aiGenerated 写入、目标节点缺失分支（生成重选与补全不可挂载两种场景）；
 - `badges.ts`：AI 徽标注册与移除后消失；`clipboard` 断言 aiGenerated 随复制保留。
 
-### 6.2 后端单元测试
+### 3.2 后端单元测试
 
 - 需求池 Service：创建/更新的长度校验分支、非创建人且无项目管理权限的 2001 分支、archived 条目更新被拒的 2001 分支、归档/取消归档分支、删除条目联动解除文档关联、requireByIds 过滤 archived 条目；
 - 批量创建（3.1.7）：items 空列表拒绝、单条长度超限拒绝、aiGenerated 透传落库；
@@ -217,7 +217,7 @@ interface MinderCommand {
 ---
 
 
-## 7. 实施说明
+## 4. 实施说明
 
 - **数据库迁移**：遵循脚本版本化约定（基础设施文档第 6 章）：2.1.1 / 2.1.2 两张新表 DDL 与 2.1.3 的三条 `ALTER TABLE … ADD COLUMN ai_generated`（默认 false，存量数据零影响）均写入 `v1.1.sql`——`v1.sql`（V1.0 基线）内容保持不变，不改动其中的建表语句；首次建库按 `v1.sql` → `v1.1.sql` 顺序执行后自动包含该列；
 - **增量修订**：需求池条目新增 `status` 列（默认 `'active'`）属未发布阶段的表结构修订，直接同步至 `v1.1.sql` 的 `requirement_pool_item` 建表语句（存量开发库按 3.1.5 归档态限制手工 `ALTER TABLE requirement_pool_item ADD COLUMN status VARCHAR(20) NOT NULL DEFAULT 'active'`），不另立增量脚本；
@@ -233,7 +233,7 @@ interface MinderCommand {
 
 | 分册 | 文件 | 覆盖章节 |
 |---|---|---|
-| 总览 | `58-ai-case-generation-overview.md` | 前言、1. 引言、2. 数据设计、4.4 脑图操作指令集、4.5 AI 标识、5.1 文件与组件、5.2 交互要点、6. 测试设计（C8）、7. 实施说明、3. 接口详细设计 |
+| 总览 | `58-ai-case-generation-overview.md` | 前言、1. 引言、2. 数据设计、2.3 脑图操作指令集、2.4 AI 标识、2.5 文件与组件、2.6 交互要点、6. 测试设计（C8）、7. 实施说明、3. 接口详细设计 |
 | 轻量需求池 | `59-ai-case-generation-pool.md` | 3.1 需求池接口 |
 | AI 生成用例 | `60-ai-case-generation-ai-gen.md` | 3.2 AI 生成类接口、4.1 生成-预览-挂载总链路、4.2 挂载执行器、4.3 优先级推荐、4.6 生成类 Prompt 上下文组装 |
 | 同步建议 | `61-ai-case-generation-sync.md` | 3.3 同步建议类接口 |

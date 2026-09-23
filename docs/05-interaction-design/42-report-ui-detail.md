@@ -6,7 +6,7 @@
 
 ---
 
-### 2.2 报告详情页
+## 1. 报告详情页
 
 **路由**：`/workspace/projects/reports/:id`
 

@@ -6,9 +6,9 @@
 
 ---
 
-### 3.3 用户管理接口
+## 1. 用户管理接口
 
-#### 3.3.1 获取用户列表
+### 1.1 获取用户列表
 
 - **路径**：`GET /api/admin/users`
 - **请求参数**：
@@ -46,7 +46,7 @@
   }
   ```
 
-#### 3.3.2 创建用户
+### 1.2 创建用户
 
 - **路径**：`POST /api/admin/users`
 
@@ -74,12 +74,12 @@
 
 - **响应**：返回创建的用户完整信息，状态码 201。
 
-#### 3.3.3 获取用户详情
+### 1.3 获取用户详情
 
 - **路径**：`GET /api/admin/users/:id`
 - **响应**：返回单个用户的完整信息，含 roles 列表和 workspaces 列表（字段同上）。
 
-#### 3.3.4 更新用户
+### 1.4 更新用户
 
 - **路径**：`PUT /api/admin/users/:id`
 
@@ -102,22 +102,22 @@
 
 - **响应**：返回更新后的用户信息。
 
-#### 3.3.5 更新用户状态
+### 1.5 更新用户状态
 
 - **路径**：`PATCH /api/admin/users/:id/status`
 - **请求体**：`{ "status": "disabled" }`
-- **校验**：`status` 取值由 `active | disabled` **扩展**为 `active | disabled | locked`（见 2.2）；Service 层校验 `status ∈ {active, disabled, locked}`，非法值返回错误码 `1000001010`（见 6. 错误码定义）。不引入「不可操作自身」的限制（见 4.5）。
-- **处理**：更新 status 字段，若置为 disabled/locked 则立即将用户所有 Token 加入黑名单或递增版本号（见 4.5）。
+- **校验**：`status` 取值由 `active | disabled` **扩展**为 `active | disabled | locked`（见 2.2）；Service 层校验 `status ∈ {active, disabled, locked}`，非法值返回错误码 `1000001010`（见 6. 错误码定义）。不引入「不可操作自身」的限制（见 4）。
+- **处理**：更新 status 字段，若置为 disabled/locked 则立即将用户所有 Token 加入黑名单或递增版本号（见 4）。
 - **响应**：返回更新后的用户信息。
 
-#### 3.3.6 批量操作
+### 1.6 批量操作
 
 - **路径**：`PATCH /api/admin/users/batch-status`
 - **请求体**：`{ "userIds": [1, 2, 3], "status": "disabled" }`
-- **校验**：`status` 取值同 3.3.5（`active | disabled | locked`），非法值返回错误码 `1000001010`（见 6. 错误码定义）。
+- **校验**：`status` 取值同 1.5（`active | disabled | locked`），非法值返回错误码 `1000001010`（见 6. 错误码定义）。
 - **响应**：返回成功和失败列表。
 
-#### 3.3.7 重置密码
+### 1.7 重置密码
 
 - **路径**：`POST /api/admin/users/:id/reset-password`
 - **请求体**：`{ "newPassword": "NewPass@123" }`
@@ -126,7 +126,7 @@
 - **响应**：操作成功提示，不返回密码。
 
 
-### 4.1 用户创建流程
+## 2. 用户创建流程
 
 ```
 POST /api/admin/users
@@ -141,7 +141,7 @@ POST /api/admin/users
 ```
 
 
-### 4.2 用户更新流程
+## 3. 用户更新流程
 
 ```
 PUT /api/admin/users/:id
@@ -156,9 +156,9 @@ PUT /api/admin/users/:id
 ```
 
 
-### 4.5 用户状态变更、禁用与强制下线
+## 4. 用户状态变更、禁用与强制下线
 
-- `updateUserStatus` / `batchUpdateStatus`：先校验状态取值合法性（`status ∈ {active, disabled, locked}`，非法值返回错误码 `1000001010`，见 3.3.5 与 6. 错误码定义），其余沿用既有逻辑（存在性校验、仅更新 `status` 字段，载体为新建实体，C11）。
+- `updateUserStatus` / `batchUpdateStatus`：先校验状态取值合法性（`status ∈ {active, disabled, locked}`，非法值返回错误码 `1000001010`，见 1.5 与 6. 错误码定义），其余沿用既有逻辑（存在性校验、仅更新 `status` 字段，载体为新建实体，C11）。
 - 不引入「不可操作自身」的限制，与既有禁用行为保持一致（管理员可禁用/锁定自身账户；后续如需收紧另行立项）。
 - 管理员将用户状态置为 disabled（或 locked）后，系统立即将该用户所有活跃 Token 加入 Redis 黑名单或递增 token 版本号。
 - 网关中间件验证 Token 时，检查用户状态及 token 版本，不匹配返回 401（错误码 2005）。

@@ -6,9 +6,9 @@
 
 ---
 
-### 3.2 Mock 调试
+## 1. Mock 调试
 
-#### 3.2.1 执行 Mock 调试
+### 1.1 执行 Mock 调试
 
 - **路径**：`POST /api/project/mocks/:id/debug`
 - **说明**：模拟请求命中该 Mock，返回配置的响应（不计入 hit_count）。

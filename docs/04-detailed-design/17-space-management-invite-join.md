@@ -6,16 +6,16 @@
 
 ---
 
-### 3.4 公开接口（无需认证）
+## 1. 公开接口（无需认证）
 
-#### 3.4.1 验证邀请令牌
+### 1.1 验证邀请令牌
 
 - **路径**：`GET /api/workspace/invitations/verify`
 - **参数**：`token`（必填）
 - **响应**：`{ "valid": true, "workspaceName": "电商平台测试", "expiresAt": "..." }`
 - **校验**：token 存在且 status='active'，未过期，未达最大使用次数。
 
-#### 3.4.2 通过邀请链接加入并登录
+### 1.2 通过邀请链接加入并登录
 
 - **路径**：`POST /api/workspace/invitations/join`
 
@@ -77,7 +77,7 @@
 ---
 
 
-#### 5.3.5 邀请加入页面
+### 1.3 邀请加入页面
 
 **路由**：`/join?token=xxx`，无需登录。
 
