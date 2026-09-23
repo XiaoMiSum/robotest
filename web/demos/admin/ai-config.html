@@ -88,13 +88,7 @@
   }
   .multi-box__arrow svg { width: 15px; height: 15px; }
 
-  /* 系统配置项分组（左标线标题 + 双列网格，实现 AiSettingsSection） */
-  .set-group-title {
-    font-size: 13px; color: var(--n-500);
-    border-left: 3px solid var(--brand-500);
-    padding-left: var(--space-sm);
-    margin: var(--space-md) 0;
-  }
+  /* 系统配置项字段（已修改标记 + 权重行，实现 AiSettingsSection） */
   .modified { display: inline-flex; align-items: center; gap: var(--space-sm); margin-top: var(--space-sm); }
   .modified .op-link { margin-right: 0; }
   .weights { display: flex; align-items: center; gap: var(--space-sm); }
@@ -210,6 +204,76 @@
   .model-row .card__header { flex-shrink: 0; }
   .model-row .table-wrap { flex: 1; min-height: 0; overflow: auto; }
   .model-row .card__body { flex: 1; min-height: 0; overflow: auto; }
+
+  /* 系统配置检索工具（搜索与仅看已修改为实现外新增交互，demo 先行、已备案） */
+  .set-tools { display: flex; align-items: center; gap: var(--space-sm); }
+  .set-search .input { width: 220px; }
+  .set-filter {
+    display: inline-flex; align-items: center; gap: 6px;
+    height: 32px; padding: 0 12px;
+    border: 1px solid var(--n-300); border-radius: 999px;
+    background: var(--n-0); color: var(--n-700);
+    font-family: inherit; font-size: var(--font-size-sm);
+    cursor: pointer; white-space: nowrap;
+    transition: background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
+  }
+  .set-filter:hover { background: var(--n-50); }
+  /* 蓝仅表达交互：过滤激活态即交互态 */
+  .set-filter.is-active { background: var(--brand-50); border-color: var(--brand-200); color: var(--brand-600); }
+  .set-filter__count {
+    font-size: var(--font-size-2xs); font-weight: 600;
+    color: var(--n-500); background: var(--n-100);
+    border-radius: 999px; padding: 1px 7px;
+  }
+  .set-filter.is-active .set-filter__count { color: var(--brand-600); background: var(--brand-100); }
+
+  /* 分组折叠：箭头右置、展开朝下（对齐实现 EP collapse 口径），头行即折叠面 */
+  .set-group + .set-group { border-top: 1px solid var(--n-100); }
+  .set-group__head {
+    display: flex; align-items: center; gap: var(--space-sm);
+    padding: 10px 12px;
+    border-radius: var(--radius-md);
+    font-size: 14px; font-weight: 600; color: var(--n-800);
+    cursor: pointer; user-select: none;
+  }
+  .set-group__head:hover { background: var(--n-50); }
+  .set-group__count {
+    font-size: var(--font-size-2xs); font-weight: 600;
+    color: var(--n-400); background: var(--n-100);
+    border-radius: 999px; padding: 1px 7px;
+  }
+  .set-group__end { margin-left: auto; display: inline-flex; align-items: center; gap: var(--space-sm); }
+  .set-group__chev {
+    display: inline-flex; color: var(--n-400);
+    transform: rotate(-90deg);
+    transition: transform var(--transition-fast);
+  }
+  .set-group__chev svg { width: 14px; height: 14px; }
+  .set-group.is-open .set-group__chev { transform: rotate(0); }
+  .set-group .form-grid { padding: 4px 12px 20px; }
+  .set-group:not(.is-open) .form-grid { display: none; }
+  .set-empty { padding: 40px 0; text-align: center; font-size: var(--font-size-sm); color: var(--n-400); }
+
+  /* 读态降噪：未修改控件去框成行，hover/聚焦回框（聚焦环沿用基类）；已修改项常显框体 */
+  .set-group .field:not(.is-modified) .input,
+  .set-group .field:not(.is-modified) .select,
+  .set-group .field:not(.is-modified) .multi-box,
+  .set-group .field:not(.is-modified) .numin__btn {
+    border-color: transparent;
+    background-color: transparent;
+  }
+  .set-group .field:not(.is-modified):hover .input,
+  .set-group .field:not(.is-modified):hover .select,
+  .set-group .field:not(.is-modified):hover .multi-box,
+  .set-group .field:not(.is-modified):hover .numin__btn {
+    border-color: var(--n-300);
+    background-color: var(--n-0);
+  }
+  .set-group .field:not(.is-modified) .input:focus,
+  .set-group .field:not(.is-modified) .select:focus {
+    border-color: var(--brand-500);
+    background-color: var(--n-0);
+  }
 </style>
 </head>
 <body data-shell="admin" data-active="ai-config" data-mode="admin">
@@ -374,11 +438,24 @@
           <span class="card-title-icon" data-icon="settings"></span>
           <h3 class="card__title">系统配置项<span class="card__subtitle">20 项 · 修改即自动保存</span></h3>
         </span>
+        <div class="set-tools">
+          <div class="input-wrap set-search">
+            <span data-icon="search"></span>
+            <input class="input" type="text" placeholder="搜索配置项" aria-label="搜索配置项">
+          </div>
+          <button type="button" class="set-filter" aria-pressed="false">仅看已修改<span class="set-filter__count">1/20</span></button>
+        </div>
       </div>
       <div class="card__body">
 
         <div class="set-group">
-          <div class="set-group-title">限流阈值</div>
+          <div class="set-group__head">
+            <span class="set-group__name">限流阈值</span>
+            <span class="set-group__count">5</span>
+            <span class="set-group__end">
+              <span class="set-group__chev" data-icon="chevron-down"></span>
+            </span>
+          </div>
           <div class="form-grid">
             <div class="field">
               <label class="field__label">生成类调用上限</label>
@@ -408,15 +485,22 @@
           </div>
         </div>
 
-        <div class="set-group">
-          <div class="set-group-title">语义查重</div>
+        <div class="set-group is-open set-group--modified">
+          <div class="set-group__head">
+            <span class="set-group__name">语义查重</span>
+            <span class="set-group__count">2</span>
+            <span class="set-group__end">
+              <span class="tag tag--warning tag--sm"><span class="dot"></span>已修改</span>
+              <span class="set-group__chev" data-icon="chevron-down"></span>
+            </span>
+          </div>
           <div class="form-grid">
             <div class="field">
               <label class="field__label">查重返回条数</label>
               <div class="numin"><span class="numin__btn numin__btn--dec">−</span><input class="input num" value="5"><span class="numin__btn numin__btn--inc">+</span></div>
               <div class="field__hint">语义查重返回的最相似候选条数（默认 5）</div>
             </div>
-            <div class="field">
+            <div class="field is-modified">
               <label class="field__label">查重相似度阈值</label>
               <div class="numin"><span class="numin__btn numin__btn--dec">−</span><input class="input num" value="0.8"><span class="numin__btn numin__btn--inc">+</span></div>
               <span class="modified"><span class="tag tag--warning tag--sm"><span class="dot"></span>已修改</span><span class="op-link">恢复默认</span></span>
@@ -426,7 +510,13 @@
         </div>
 
         <div class="set-group">
-          <div class="set-group-title">聚类分析</div>
+          <div class="set-group__head">
+            <span class="set-group__name">聚类分析</span>
+            <span class="set-group__count">3</span>
+            <span class="set-group__end">
+              <span class="set-group__chev" data-icon="chevron-down"></span>
+            </span>
+          </div>
           <div class="form-grid">
             <div class="field">
               <label class="field__label">聚类相似度阈值</label>
@@ -447,7 +537,13 @@
         </div>
 
         <div class="set-group">
-          <div class="set-group-title">检索与推荐</div>
+          <div class="set-group__head">
+            <span class="set-group__name">检索与推荐</span>
+            <span class="set-group__count">3</span>
+            <span class="set-group__end">
+              <span class="set-group__chev" data-icon="chevron-down"></span>
+            </span>
+          </div>
           <div class="form-grid">
             <div class="field">
               <label class="field__label">遗漏点检索条数</label>
@@ -468,7 +564,13 @@
         </div>
 
         <div class="set-group">
-          <div class="set-group-title">执行顺序推荐</div>
+          <div class="set-group__head">
+            <span class="set-group__name">执行顺序推荐</span>
+            <span class="set-group__count">1</span>
+            <span class="set-group__end">
+              <span class="set-group__chev" data-icon="chevron-down"></span>
+            </span>
+          </div>
           <div class="form-grid">
             <div class="field full">
               <label class="field__label">推荐权重</label>
@@ -484,7 +586,13 @@
         </div>
 
         <div class="set-group">
-          <div class="set-group-title">长度限制</div>
+          <div class="set-group__head">
+            <span class="set-group__name">长度限制</span>
+            <span class="set-group__count">2</span>
+            <span class="set-group__end">
+              <span class="set-group__chev" data-icon="chevron-down"></span>
+            </span>
+          </div>
           <div class="form-grid">
             <div class="field">
               <label class="field__label">导入文本上限</label>
@@ -500,7 +608,13 @@
         </div>
 
         <div class="set-group">
-          <div class="set-group-title">全局助手</div>
+          <div class="set-group__head">
+            <span class="set-group__name">全局助手</span>
+            <span class="set-group__count">2</span>
+            <span class="set-group__end">
+              <span class="set-group__chev" data-icon="chevron-down"></span>
+            </span>
+          </div>
           <div class="form-grid">
             <div class="field">
               <label class="field__label">写操作确认超时</label>
@@ -520,7 +634,13 @@
         </div>
 
         <div class="set-group">
-          <div class="set-group-title">数据保留</div>
+          <div class="set-group__head">
+            <span class="set-group__name">数据保留</span>
+            <span class="set-group__count">2</span>
+            <span class="set-group__end">
+              <span class="set-group__chev" data-icon="chevron-down"></span>
+            </span>
+          </div>
           <div class="form-grid">
             <div class="field">
               <label class="field__label">审计日志保留天数</label>
@@ -535,6 +655,7 @@
           </div>
         </div>
 
+        <div class="set-empty" hidden>无匹配的配置项</div>
       </div>
     </div>
 
@@ -731,6 +852,76 @@
       });
     });
   });
+
+  // 系统配置项分组折叠与检索过滤；搜索/仅看已修改为实现外新增交互，demo 先行、已备案
+  var setGroups = document.querySelectorAll('.set-group');
+  var setAllFields = document.querySelectorAll('.set-group .field');
+  var setModifiedFields = document.querySelectorAll('.set-group .field.is-modified');
+  var setSearch = document.querySelector('.set-search .input');
+  var setFilterBtn = document.querySelector('.set-filter');
+  var setEmpty = document.querySelector('.set-empty');
+  var setAutoOpened = [];
+
+  var setCount = document.querySelector('.set-filter__count');
+  if (setCount) setCount.textContent = setModifiedFields.length + '/' + setAllFields.length;
+
+  setGroups.forEach(function (group) {
+    group.querySelector('.set-group__head').addEventListener('click', function () {
+      group.classList.toggle('is-open');
+    });
+  });
+
+  function applySetFilter() {
+    var q = (setSearch && setSearch.value ? setSearch.value : '').trim().toLowerCase();
+    var onlyModified = !!(setFilterBtn && setFilterBtn.classList.contains('is-active'));
+    var filtering = !!q || onlyModified;
+    var anyGroup = false;
+    setGroups.forEach(function (group) {
+      var name = group.querySelector('.set-group__name');
+      var nameHit = !!q && name && name.textContent.toLowerCase().indexOf(q) > -1;
+      var shown = 0;
+      group.querySelectorAll('.field').forEach(function (field) {
+        var isModified = field.classList.contains('is-modified');
+        var hit = nameHit || (!!q && field.textContent.toLowerCase().indexOf(q) > -1);
+        var visible = (!q || hit) && (!onlyModified || isModified);
+        field.hidden = !visible;
+        if (visible) shown++;
+      });
+      group.hidden = shown === 0;
+      if (shown) {
+        anyGroup = true;
+        if (filtering && !group.classList.contains('is-open')) {
+          group.classList.add('is-open');
+          setAutoOpened.push(group);
+        }
+      }
+    });
+    if (!filtering) {
+      // 检索清除后收回由过滤自动展开的分组，用户手动展开的保持原状
+      setAutoOpened.forEach(function (group) {
+        if (!group.classList.contains('set-group--modified')) group.classList.remove('is-open');
+      });
+      setAutoOpened = [];
+    }
+    if (setEmpty) setEmpty.hidden = anyGroup;
+  }
+
+  if (setSearch) {
+    setSearch.addEventListener('input', applySetFilter);
+    setSearch.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') {
+        setSearch.value = '';
+        applySetFilter();
+      }
+    });
+  }
+  if (setFilterBtn) {
+    setFilterBtn.addEventListener('click', function () {
+      var active = setFilterBtn.classList.toggle('is-active');
+      setFilterBtn.setAttribute('aria-pressed', active ? 'true' : 'false');
+      applySetFilter();
+    });
+  }
 </script>
 </body>
 </html>
