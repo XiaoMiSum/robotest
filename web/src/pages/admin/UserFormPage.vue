@@ -156,102 +156,216 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="user-form">
-    <el-page-header class="user-form__header" @back="router.push('/admin/users')">
-      <template #content>
-        <span class="user-form__title">{{ isEdit ? '编辑用户' : '新建用户' }}</span>
-      </template>
-    </el-page-header>
+  <div v-loading="loading" class="user-form">
+    <div class="user-form__breadcrumb">
+      <router-link to="/admin/users">用户管理</router-link>
+      <el-icon :size="12"><ArrowRight /></el-icon>
+      <span>{{ isEdit ? '编辑用户' : '新建用户' }}</span>
+    </div>
 
-    <el-card v-loading="loading" shadow="never" class="user-form__card">
-      <el-form
-        ref="formRef"
-        :model="form"
-        :rules="rules"
-        label-width="96px"
-        class="user-form__el-form"
-      >
-        <el-form-item label="用户名" prop="username">
-          <el-input
-            v-model="form.username"
-            :disabled="isEdit"
-            placeholder="3-30 个字符，字母/数字/_/-"
-          />
-        </el-form-item>
-        <el-form-item label="姓名" prop="name">
-          <el-input
-            v-model="form.name"
-            placeholder="请输入姓名"
-            maxlength="50"
-            show-word-limit
-          />
-        </el-form-item>
-        <el-form-item label="邮箱" prop="email">
-          <el-input v-model="form.email" placeholder="请输入邮箱" />
-        </el-form-item>
+    <div class="user-form__head">
+      <div>
+        <h1 class="user-form__title">{{ isEdit ? '编辑用户' : '新建用户' }}</h1>
+        <p class="user-form__desc">
+          {{ isEdit ? '更新账号信息与系统角色分配' : '创建平台账号并分配系统级角色' }}
+        </p>
+      </div>
+      <div class="user-form__actions">
+        <el-button link @click="router.push('/admin/users')">取消</el-button>
+        <el-button type="primary" :loading="submitting" @click="handleSave">保存</el-button>
+      </div>
+    </div>
 
-        <el-form-item v-if="!isEdit" label="密码" prop="password">
-          <el-input
-            v-model="form.password"
-            type="password"
-            show-password
-            placeholder="8-64 字符"
-          />
-          <PasswordStrengthBar :password="form.password" />
-        </el-form-item>
-        <el-form-item v-else label="密码">
-          <el-button link type="primary" @click="pwdDialogVisible = true">修改密码</el-button>
-        </el-form-item>
+    <el-form
+      ref="formRef"
+      :model="form"
+      :rules="rules"
+      label-position="top"
+      class="user-form__form"
+    >
+      <div class="user-form__grid">
+        <section class="user-form__card">
+          <header class="user-form__card-head">
+            <h3 class="user-form__card-title">基本信息</h3>
+          </header>
+          <div class="user-form__card-body">
+            <el-form-item label="用户名" prop="username">
+              <el-input v-model="form.username" :disabled="isEdit" placeholder="登录账号" />
+              <div class="user-form__hint">3-30 个字符，允许字母、数字、_、-</div>
+            </el-form-item>
+            <el-form-item label="姓名" prop="name">
+              <el-input
+                v-model="form.name"
+                placeholder="请输入姓名"
+                maxlength="50"
+                show-word-limit
+              />
+            </el-form-item>
+            <el-form-item label="邮箱" prop="email">
+              <el-input v-model="form.email" placeholder="请输入邮箱" />
+            </el-form-item>
 
-        <el-form-item label="系统角色">
-          <el-select
-            v-model="form.roleIds"
-            multiple
-            filterable
-            clearable
-            placeholder="可为空，可多选"
-            style="width: 100%"
-          >
-            <el-option
-              v-for="role in roleOptions"
-              :key="role.id"
-              :label="role.name"
-              :value="role.id"
-            />
-          </el-select>
-        </el-form-item>
+            <el-form-item v-if="!isEdit" label="密码" prop="password">
+              <el-input
+                v-model="form.password"
+                type="password"
+                show-password
+                placeholder="8-64 字符"
+              />
+              <PasswordStrengthBar :password="form.password" />
+            </el-form-item>
+            <el-form-item v-else label="密码">
+              <el-button link type="primary" @click="pwdDialogVisible = true">修改密码</el-button>
+            </el-form-item>
+          </div>
+        </section>
 
-        <el-form-item>
-          <el-button type="primary" :loading="submitting" @click="handleSave">保存</el-button>
-          <el-button @click="router.push('/admin/users')">取消</el-button>
-        </el-form-item>
-      </el-form>
-    </el-card>
+        <section class="user-form__card">
+          <header class="user-form__card-head">
+            <h3 class="user-form__card-title">
+              系统角色<span class="user-form__card-subtitle">决定全局管理权限</span>
+            </h3>
+          </header>
+          <div class="user-form__card-body">
+            <el-checkbox-group v-model="form.roleIds" class="user-form__roles">
+              <el-checkbox v-for="role in roleOptions" :key="role.id" :value="role.id">
+                {{ role.name }}
+              </el-checkbox>
+            </el-checkbox-group>
+          </div>
+        </section>
+      </div>
+    </el-form>
 
     <el-dialog v-model="pwdDialogVisible" title="修改密码" width="420px">
       <el-input v-model="newPassword" type="password" show-password placeholder="请输入新密码" />
       <PasswordStrengthBar :password="newPassword" />
       <template #footer>
         <el-button @click="pwdDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="pwdSubmitting" @click="submitChangePassword">确定</el-button>
+        <el-button type="primary" :loading="pwdSubmitting" @click="submitChangePassword">
+          确定
+        </el-button>
       </template>
     </el-dialog>
   </div>
 </template>
 
 <style scoped lang="scss">
-.user-form__header {
+/* 面包屑对齐演示稿基准（xs 灰字、链接 hover 主色、分隔符浅灰） */
+.user-form__breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: var(--space-sm);
+  font-size: var(--font-size-xs);
+  color: var(--color-neutral-500);
+}
+
+.user-form__breadcrumb a {
+  color: var(--color-neutral-500);
+  text-decoration: none;
+}
+
+.user-form__breadcrumb a:hover {
+  color: var(--color-primary-500);
+}
+
+.user-form__breadcrumb .el-icon {
+  color: var(--color-neutral-400);
+}
+
+.user-form__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-lg);
   margin-bottom: var(--space-xl);
 }
 
 .user-form__title {
-  font-size: var(--font-size-lg);
-  font-weight: 700;
-  color: var(--color-neutral-800);
+  margin: 0 0 var(--space-xs);
+  font-size: var(--font-size-2xl);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--color-neutral-900);
 }
 
-.user-form__el-form {
-  max-width: 560px;
+.user-form__desc {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-neutral-500);
 }
 
+.user-form__actions {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+/* 双列卡片对齐演示稿 card-grid--2，列间距同 block-gap(24px) */
+.user-form__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-xl);
+}
+
+.user-form__card {
+  min-width: 0;
+  background: var(--color-neutral-0);
+  border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+}
+
+.user-form__card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--color-neutral-100);
+}
+
+.user-form__card-title {
+  margin: 0;
+  font-size: var(--font-size-base);
+  font-weight: 600;
+  color: var(--color-neutral-900);
+}
+
+.user-form__card-subtitle {
+  margin-left: 8px;
+  font-size: var(--font-size-xs);
+  font-weight: 400;
+  color: var(--color-neutral-500);
+}
+
+/* 字段纵向间距对齐演示稿 .field(20px)；标签 13px/500 对齐 field__label */
+.user-form__card-body {
+  padding: 24px;
+  --el-form-item-margin-bottom: 20px;
+}
+
+.user-form__card-body :deep(.el-form-item__label) {
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: var(--color-neutral-700);
+  line-height: 1.4;
+}
+
+/* 宽度撑满，保证提示行换行到输入框下方（表单内容为 flex 布局） */
+.user-form__hint {
+  width: 100%;
+  margin-top: 6px;
+  font-size: var(--font-size-xs);
+  color: var(--color-neutral-500);
+  line-height: 1.5;
+}
+
+/* 角色复选竖排，仅展示角色名（角色描述无数据源，见交互设计 4.3.1） */
+.user-form__roles {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
 </style>
