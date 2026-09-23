@@ -1,7 +1,7 @@
 # 软件测试平台——AI 评审与测试计划辅助详细设计说明书
 
-**文档版本**：V1.1
-**日期**：2026-07-31
+**文档版本**：V1.0
+**日期**：2026-09-23
 **状态**：起草中
 
 ---
@@ -10,18 +10,18 @@
 
 ### 1.1 编写目的
 
-本文档对 V1.1 AI 能力域中的**评审辅助与测试计划辅助功能**进行详细设计：评审一键检查、评审摘要生成、遗漏测试点分析、执行顺序推荐、用例规划智能推荐，为开发实现提供完整依据。
+本文档对 AI 能力域中的**评审辅助与测试计划辅助功能**进行详细设计：评审一键检查、评审摘要生成、遗漏测试点分析、执行顺序推荐、用例规划智能推荐，为开发实现提供完整依据。
 
 ### 1.2 范围
 
-覆盖 SRS 3.3（AI 辅助评审与覆盖度分析）与 3.6（测试计划与风险评估）。依赖的向量基建（ai_case_embedding 表、写入与重建机制）见《缺陷智能分析与向量检索详细设计说明书》；异步任务框架、SSE 帧格式、错误码见《AI 基础设施详细设计说明书》。
+覆盖 SRS 3.5（AI 辅助评审与覆盖度分析）与 3.8（测试计划与风险评估）。依赖的向量基建（ai_case_embedding 表、写入与重建机制）见《缺陷智能分析与向量检索详细设计说明书》；异步任务框架、SSE 帧格式、错误码见《AI 基础设施详细设计说明书》。
 
 ### 1.3 参考资料
 
-- 《软件测试平台需求规格说明书 V1.1》（3.3、3.6、6.2 附录 B）
-- 《软件测试平台概要设计说明书 V1.1》（3.2、4.5、4.6）
-- 《AI 基础设施详细设计说明书 V1.1》
-- 《项目工作区详细设计说明书 V1.0》（归档，评审/计划快照模型）
+- 《软件测试平台需求规格说明书》（3.5、3.8、6.1 附录 A）
+- 《软件测试平台概要设计说明书》（3.2、4.11、4.12）
+- 《AI 基础设施详细设计说明书》
+- 《项目工作区详细设计说明书》（归档，评审/计划快照模型）
 
 ---
 
@@ -60,7 +60,7 @@
 }
 ```
 
-`dimension` ∈ `missing_precondition`（缺前置）/ `vague_step`（步骤笼统）/ `missing_expected`（缺预期）/ `priority_conflict`（相似用例优先级冲突）。`skippedBatches` 为重试后仍失败被跳过的批次数（见 4.1），前端非 0 时提示「部分用例未完成检查」。分批执行中**每批完成即累计写入** items 与 checkedCaseCount——任务被取消时已产出部分仍可查看（SRS 3.3.1；基础设施 3.5.2 已为 review_check 定义取消保留豁免）。
+`dimension` ∈ `missing_precondition`（缺前置）/ `vague_step`（步骤笼统）/ `missing_expected`（缺预期）/ `priority_conflict`（相似用例优先级冲突）。`skippedBatches` 为重试后仍失败被跳过的批次数（见 4.1），前端非 0 时提示「部分用例未完成检查」。分批执行中**每批完成即累计写入** items 与 checkedCaseCount——任务被取消时已产出部分仍可查看（SRS 3.5.1；基础设施 3.5.2 已为 review_check 定义取消保留豁免）。
 
 #### 2.2.2 评审摘要（type=review_summary，target=评审 ID）
 
@@ -148,7 +148,7 @@ statistics 由 SQL 精确计算（不依赖 LLM）；重复生成覆盖本记录
 
 三种输入（keywords / text / requirementIds）至少一项非空。
 
-- **权限**：项目成员即可（附录 B 覆盖度分析无额外角色限定）。
+- **权限**：项目成员即可（附录 A 覆盖度分析无额外角色限定）。
 - **响应**：
 
 ```json
@@ -174,7 +174,7 @@ statistics 由 SQL 精确计算（不依赖 LLM）；重复生成覆盖本记录
 
 - **路径**：`POST /api/project/ai/plans/:id/order-recommend`
 - **响应**：`{ "taskId": "0198…", "result": { …2.2.3 结构… } }`（同步计算，立即返回结果）
-- **校验**：仅计划负责人或计划执行人（附录 B，其余角色 2001）；计划需已关联快照（6012）。重复计算覆盖旧记录。
+- **校验**：仅计划负责人或计划执行人（附录 A，其余角色 2001）；计划需已关联快照（6012）。重复计算覆盖旧记录。
 
 #### 3.4.2 查询推荐结果
 
@@ -191,7 +191,7 @@ statistics 由 SQL 精确计算（不依赖 LLM）；重复生成覆盖本记录
 ### 3.5 用例规划智能推荐
 
 - **路径**：`POST /api/project/ai/cases/plan-recommend`（同步，`case_plan_recommendation`）
-- **权限**：项目成员即可（附录 B 覆盖度分析无额外角色限定）。
+- **权限**：项目成员即可（附录 A 覆盖度分析无额外角色限定）。
 - **请求体**：`{ "text": "需求文本，可空", "requirementIds": [], "excludeCaseNodeIds": [] }`（text / requirementIds 至少一项非空；excludeCaseNodeIds 为当前评审/计划已纳入的用例节点 ID，用于排除重复推荐）
 - **响应**：
 
@@ -244,7 +244,7 @@ flowchart TD
 
 - 批输入为用例节点及其 precondition/step/expected 子节点标题 + 同批相似标题分组（供优先级冲突判断）；`priority_conflict` 维度只在同批内比较（跨批冲突不检测，属已知精度取舍）；
 - 单批 LLM 失败重试 1 次，仍失败跳过该批并在 result 记录 `skippedBatches`，不整体失败；全部批次跳过才置 failed；
-- **联动取消**：评审离开 `in_progress` 的全部路径均须在事务提交后调用 `AiTaskService.cancelByTypeAndTarget(review_check, reviewId)`（基础设施 4.6 协作式取消）。现行评审状态机为 `new / in_progress / completed`，出口共两条：① 完成评审（`completeReview` 方法，覆盖 `new / in_progress → completed`）；② 删除评审（既有 `deleteReview` 方法，实体级出口）。检查可在 `new` 状态发起，故进行中任务无论起步于 `new` 还是 `in_progress`，评审完成或删除时均被该钩子终止。SRS 3.3.1「完成或结束」在现行模型中即上述两条；后续若评审新增其他终态，须同步挂接本钩子；
+- **联动取消**：评审离开 `in_progress` 的全部路径均须在事务提交后调用 `AiTaskService.cancelByTypeAndTarget(review_check, reviewId)`（基础设施 4.6 协作式取消）。现行评审状态机为 `new / in_progress / completed`，出口共两条：① 完成评审（`completeReview` 方法，覆盖 `new / in_progress → completed`）；② 删除评审（既有 `deleteReview` 方法，实体级出口）。检查可在 `new` 状态发起，故进行中任务无论起步于 `new` 还是 `in_progress`，评审完成或删除时均被该钩子终止。SRS 3.5.1「完成或结束」在现行模型中即上述两条；后续若评审新增其他终态，须同步挂接本钩子；
 - 前端结果面板按 dimension 过滤，点击建议项经 `jumping.ts` 定位并高亮对应快照节点。
 
 ### 4.2 评审摘要生成
