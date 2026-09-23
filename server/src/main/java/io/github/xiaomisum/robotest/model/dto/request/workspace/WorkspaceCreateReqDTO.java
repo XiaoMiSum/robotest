@@ -1,8 +1,11 @@
 package io.github.xiaomisum.robotest.model.dto.request.workspace;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
+
+import java.util.UUID;
 
 @Data
 public class WorkspaceCreateReqDTO {
@@ -13,4 +16,8 @@ public class WorkspaceCreateReqDTO {
 
     @Size(max = 500, message = "描述最多500个字符")
     private String description;
+
+    // 只传用户 ID：空间管理员角色由后端赋预置 ADMIN，不接受请求体指定，防越权
+    @NotNull(message = "请选择空间管理员")
+    private UUID adminUserId;
 }
