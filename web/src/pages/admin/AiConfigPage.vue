@@ -76,7 +76,7 @@ onMounted(async () => {
       @tab-change="cfg.handleTabChange"
     >
       <el-tab-pane label="AI 配置" name="config">
-        <el-form v-loading="cfg.loading.value" label-width="120px">
+        <el-form v-loading="cfg.loading.value" label-position="top">
           <div class="model-row">
             <AiChatModelTable
               :models="models.chatModels.value"
@@ -93,12 +93,17 @@ onMounted(async () => {
             <AiEmbeddingForm
               v-model="cfg.form.embedding"
               v-model:open="cfg.embeddingOpen.value"
+              v-model:rebuild-dialog-visible="cfg.rebuildDialogVisible.value"
               :providers="cfg.embeddingProviderOptions.value"
               :unique-params="cfg.embeddingUniqueParams.value"
               :model-hints="cfg.embeddingModelHints.value"
               :configured="cfg.embeddingConfigured.value"
               :testing="cfg.testing.embedding"
               :saving="cfg.saving.value"
+              :rebuild-task="cfg.rebuildTask.value"
+              :rebuild-retryable="cfg.rebuildRetryable.value"
+              @open-rebuild="cfg.rebuildDialogVisible.value = true"
+              @retry-rebuild="cfg.handleRetryRebuild"
               @test="cfg.handleTestEmbedding"
               @save="cfg.handleSaveEmbedding"
             />
@@ -109,19 +114,6 @@ onMounted(async () => {
             :form="cfg.settingsForm"
             @reset="cfg.resetSetting"
           />
-
-          <el-alert
-            v-if="cfg.rebuildTask.value"
-            class="ai-config-page__rebuild"
-            :type="cfg.rebuildRetryable.value ? 'error' : 'info'"
-            :closable="false"
-          >
-            向量重建任务状态：{{ cfg.rebuildTask.value.status }}（进度 {{ cfg.rebuildTask.value.progress }}%）
-            <span v-if="cfg.rebuildTask.value.errorMessage">，原因：{{ cfg.rebuildTask.value.errorMessage }}</span>
-            <el-button v-if="cfg.rebuildRetryable.value" size="small" type="primary" link @click="cfg.handleRetryRebuild">
-              重试
-            </el-button>
-          </el-alert>
 
           <div class="ai-config-page__footer">
             <span
@@ -276,10 +268,6 @@ onMounted(async () => {
   border-radius: 999px;
   padding: 1px 6px;
   font-weight: 500;
-}
-
-.ai-config-page__rebuild {
-  margin-bottom: var(--space-lg);
 }
 
 .ai-config-page__footer {
