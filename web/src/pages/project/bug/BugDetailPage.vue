@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useBugDetail } from '@/composables/project/bug/useBugDetail'
+import type { BugAttachment } from '@/types'
 import { formatDateTime, formatShortId } from '@/utils/format'
 import BugResolveDialog from '@/components/project/bug/BugResolveDialog.vue'
 import BugSidebar from '@/components/project/bug/BugSidebar.vue'
@@ -132,8 +133,8 @@ function handleOpenCaseSelector() {
               </el-table-column>
               <el-table-column label="操作" width="120">
                 <template #default="{ row }">
-                  <el-button link type="primary" @click="handleAttachmentDownload(row as any)">下载</el-button>
-                  <el-button v-if="!isClosed" link type="danger" @click="handleAttachmentDelete(row as any)">删除</el-button>
+                  <el-button link type="primary" @click="handleAttachmentDownload(row as BugAttachment)">下载</el-button>
+                  <el-button v-if="!isClosed" link type="danger" @click="handleAttachmentDelete(row as BugAttachment)">删除</el-button>
                 </template>
               </el-table-column>
             </el-table>
