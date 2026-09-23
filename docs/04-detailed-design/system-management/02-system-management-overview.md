@@ -292,7 +292,9 @@ AdminLayout
 | 1000003001  | 404      | 用户不存在            |
 | 1000003002  | 404      | 工作空间不存在          |
 | 1000003003  | 404      | 角色不存在            |
-| 1000004001  | 409      | 工作空间下存在项目，无法解散   |
+| 1000004001  | 409      | 工作空间下存在项目，无法解散（归档语义下保留定义，暂不触发）   |
+| 1000010033  | 409      | 工作空间已归档，不可操作   |
+| 1000010034  | 409      | 仅已归档的工作空间可重新启用 |
 | 1000002007  | 400      | 系统已初始化，禁止重复初始化   |
 | 1000004002  | 409      | 角色被用户引用，无法删除     |
 | 1000005000  | 500      | 服务器内部错误          |
@@ -307,7 +309,7 @@ AdminLayout
 - 管理端所有接口要求 Token 中包含系统角色。
 - 任何角色变更、密码重置、禁用/锁定操作都强制相关用户 Token 失效（Redis 黑名单或 token 版本号递增）。
 - 所有写操作（创建、更新、删除）记录操作日志（操作人、时间、IP、操作对象、变更内容）。
-- 敏感操作（重置密码、解散工作空间、删除角色）额外记录详细日志。
+- 敏感操作（重置密码、归档/重新启用工作空间、删除角色）额外记录详细日志。
 - 登录成功写入审计日志（含登录 IP），写入设计见 `docs/04-detailed-design/20-audit-query.md`，本模块仅消费其记录做数据概览统计（见 2.4、3.6、4.10）。
 
 ---
@@ -372,7 +374,7 @@ CREATE INDEX idx_ws_workspace_created_by ON ws_workspace (created_by);
 | workspace:view           | 查看工作空间  | workspace   | admin  | global    | 1   |
 | workspace:create         | 创建工作空间  | workspace   | admin  | global    | 2   |
 | workspace:edit           | 编辑工作空间  | workspace   | admin  | global    | 3   |
-| workspace:delete         | 解散工作空间  | workspace   | admin  | global    | 4   |
+| workspace:delete         | 解散工作空间（归档语义，同时用于重新启用）  | workspace   | admin  | global    | 4   |
 | workspace:manage-members | 管理成员    | workspace   | admin  | global    | 5   |
 | role                     | 角色管理    | null        | admin  | global    | 3   |
 | role:view                | 查看角色    | role        | admin  | global    | 1   |
