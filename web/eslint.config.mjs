@@ -29,6 +29,8 @@ export default tseslint.config(
     rules: {
       'vue/multi-word-component-names': 'off',
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+      // 共享表单对象依赖引用不变的深层原地编辑（既定契约），仍禁 prop 整体重赋值
+      'vue/no-mutating-props': ['error', { shallowOnly: true }],
     },
   },
   // 层级门禁：依赖方向 pages → components → composables → services/stores，详见 docs/spec/frontend.md 3.4
