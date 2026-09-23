@@ -63,6 +63,13 @@ public class AdminWorkspaceController {
         return Result.ok();
     }
 
+    @PostMapping("/{id}/restore")
+    @PreAuthorize("hasAuthority('workspace:delete')")
+    public Result<Void> restoreWorkspace(@PathVariable UUID id) {
+        workspaceService.restoreWorkspace(id);
+        return Result.ok();
+    }
+
     @GetMapping("/{id}/members")
     @PreAuthorize("hasAuthority('workspace:view')")
     public Result<PageResult<WorkspaceMemberRespDTO>> getWorkspaceMembers(

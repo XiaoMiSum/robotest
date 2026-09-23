@@ -236,7 +236,7 @@ class WorkspaceServiceImplTest {
     // ========== dissolveWorkspace ==========
 
     @Test
-    void dissolveWorkspace_success_deletesMembers() {
+    void dissolveWorkspace_success_keepsMembers() {
         when(workspaceMapper.selectById(workspaceId)).thenReturn(workspace);
 
         workspaceService.dissolveWorkspace(workspaceId);
@@ -244,7 +244,8 @@ class WorkspaceServiceImplTest {
         ArgumentCaptor<Workspace> captor = ArgumentCaptor.forClass(Workspace.class);
         verify(workspaceMapper).updateById(captor.capture());
         assertEquals(Constants.Status.DISSOLVED, captor.getValue().getStatus());
-        verify(workspaceUserMapper).deleteByWorkspaceId(workspaceId);
+        // 成员行保留（归档语义）：重新启用后成员关系无需重建
+        verify(workspaceUserMapper, never()).deleteByWorkspaceId(workspaceId);
     }
 
     @Test
@@ -253,6 +254,38 @@ class WorkspaceServiceImplTest {
 
         assertThrows(ServiceException.class, () -> workspaceService.dissolveWorkspace(workspaceId));
         verify(workspaceMapper, never()).updateById(any(Workspace.class));
+    }
+
+    // ========== restoreWorkspace ==========
+
+    @Test
+    void restoreWorkspace_dissolvedToActive() {
+        Workspace dissolved = new Workspace();
+        dissolved.setId(workspaceId);
+        dissolved.setStatus(Constants.Status.DISSOLVED);
+        when(workspaceMapper.selectById(workspaceId)).thenReturn(dissolved);
+
+        workspaceService.restoreWorkspace(workspaceId);
+
+        ArgumentCaptor<Workspace> captor = ArgumentCaptor.forClass(Workspace.class);
+        verify(workspaceMapper).updateById(captor.capture());
+        assertEquals(Constants.Status.ACTIVE, captor.getValue().getStatus());
+        assertEquals(workspaceId, captor.getValue().getId());
+    }
+
+    @Test
+    void restoreWorkspace_active_throws() {
+        when(workspaceMapper.selectById(workspaceId)).thenReturn(workspace);
+
+        assertThrows(ServiceException.class, () -> workspaceService.restoreWorkspace(workspaceId));
+        verify(workspaceMapper, never()).updateById(any(Workspace.class));
+    }
+
+    @Test
+    void restoreWorkspace_notFound_throws() {
+        when(workspaceMapper.selectById(workspaceId)).thenReturn(null);
+
+        assertThrows(ServiceException.class, () -> workspaceService.restoreWorkspace(workspaceId));
     }
 
     // ========== addWorkspaceMembers ==========
