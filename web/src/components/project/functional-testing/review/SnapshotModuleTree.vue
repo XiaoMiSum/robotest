@@ -89,7 +89,7 @@ function handleNodeClick(data: SnapshotModule, node: TreeNodeToggle) {
 }
 
 .snapshot-tree__icon--doc {
-  color: var(--color-primary, #409eff);
+  color: var(--color-primary-500);
 }
 
 .snapshot-tree__name {

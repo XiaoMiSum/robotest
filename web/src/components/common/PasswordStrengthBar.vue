@@ -3,7 +3,12 @@ import { computed } from 'vue'
 
 const props = defineProps<{ password: string }>()
 
-const STRENGTH_COLORS = ['var(--color-danger)', 'var(--color-warning)', '#f97316', 'var(--color-success)']
+const STRENGTH_COLORS = [
+  'var(--color-danger)',
+  'var(--color-warning)',
+  'var(--color-success-strong)',
+  'var(--color-success)',
+]
 
 const strength = computed(() => {
   const val = props.password

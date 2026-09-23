@@ -228,7 +228,7 @@ watch(
   }
 
   :deep(.el-tabs__item.is-closable:hover .el-icon-close) {
-    background: var(--color-neutral-100, #e8e8e8);
+    background: var(--color-neutral-100);
     border-radius: 50%;
   }
 }
@@ -264,7 +264,7 @@ watch(
     height: 6px;
     margin-right: 6px;
     border-radius: 50%;
-    background: var(--color-primary-500, #409eff);
+    background: var(--color-primary-500);
     vertical-align: middle;
   }
 }

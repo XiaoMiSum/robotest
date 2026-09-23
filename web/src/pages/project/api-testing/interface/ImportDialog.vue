@@ -189,7 +189,7 @@ async function handleImport() {
 .import-dialog__errors {
   margin: 0;
   padding-left: var(--space-lg);
-  color: var(--color-danger-600, #c45656);
+  color: var(--color-danger-strong);
   font-size: var(--font-size-sm);
   li + li {
     margin-top: 4px;

@@ -400,8 +400,8 @@ $priorities: p0, p1, p2, p3;
 .toolbar-btn--danger { --el-button-hover-text-color: var(--color-danger); }
 
 .ai-entry-btn {
-  --el-button-text-color: #13c2c2;
-  --el-button-hover-text-color: #0da8a8;
+  --el-button-text-color: var(--color-ai-badge);
+  --el-button-hover-text-color: var(--color-ai-badge);
 }
 
 .toolbar-caret { margin-left: 2px; font-size: 10px; }

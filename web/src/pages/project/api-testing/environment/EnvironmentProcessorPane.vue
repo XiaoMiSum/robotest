@@ -182,7 +182,7 @@ const emit = defineEmits<{
 
   &.is-selected {
     border-color: var(--color-primary-400);
-    background: var(--color-primary-50, #eff6ff);
+    background: var(--color-primary-50);
     box-shadow: 0 0 0 1px var(--color-primary-300);
   }
 

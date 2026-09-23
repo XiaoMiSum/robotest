@@ -102,7 +102,7 @@ async function handleCopyResponse() {
   align-items: center;
   gap: var(--space-md);
   padding: 8px 12px;
-  border-bottom: 1px solid var(--color-neutral-100, #e8e8e8);
+  border-bottom: 1px solid var(--color-neutral-100);
 }
 
 .interface-editor__response-title {
@@ -123,16 +123,16 @@ async function handleCopyResponse() {
   background: none;
   border-radius: 4px;
   cursor: pointer;
-  color: var(--color-neutral-500, #909399);
+  color: var(--color-neutral-500);
   transition: all 0.15s;
 
   &:hover {
-    color: var(--color-neutral-700, #606266);
+    color: var(--color-neutral-700);
   }
 
   &.is-active {
-    background: var(--color-neutral-100, #e8e8e8);
-    color: var(--color-neutral-800, #303133);
+    background: var(--color-neutral-100);
+    color: var(--color-neutral-800);
     font-weight: 500;
   }
 }
@@ -146,14 +146,14 @@ async function handleCopyResponse() {
   border: none;
   background: none;
   border-radius: 4px;
-  color: var(--color-neutral-400, #909399);
+  color: var(--color-neutral-400);
   cursor: pointer;
   font-size: 14px;
   transition: color 0.15s, background 0.15s;
 
   &:hover {
-    color: var(--color-neutral-700, #606266);
-    background: var(--color-neutral-100, #e8e8e8);
+    color: var(--color-neutral-700);
+    background: var(--color-neutral-100);
   }
 }
 

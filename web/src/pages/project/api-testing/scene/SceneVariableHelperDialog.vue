@@ -101,11 +101,11 @@ async function copyReference(name: string): Promise<void> {
   align-items: center;
   gap: var(--space-sm);
   padding: 6px 8px;
-  border: 1px solid var(--color-neutral-100, #f3f4f6);
+  border: 1px solid var(--color-neutral-100);
   border-radius: var(--radius-sm);
   font-size: var(--font-size-sm);
 
-  &:hover { background: var(--color-neutral-50, #f9fafb); }
+  &:hover { background: var(--color-neutral-50); }
 }
 
 .var-helper__name {

@@ -98,7 +98,7 @@ function formatJson(obj: unknown): string {
 
 .debug-result__section-title {
   padding: var(--space-xs) var(--space-md);
-  background: var(--color-neutral-50, #fafafa);
+  background: var(--color-neutral-50);
   font-weight: 600;
   font-size: var(--font-size-sm);
   border-bottom: 1px solid var(--el-border-color-lighter);
@@ -110,7 +110,7 @@ function formatJson(obj: unknown): string {
   font-size: 12px;
   line-height: 1.5;
   overflow-x: auto;
-  background: var(--color-neutral-50, #fafafa);
+  background: var(--color-neutral-50);
   max-height: 300px;
   overflow-y: auto;
 }

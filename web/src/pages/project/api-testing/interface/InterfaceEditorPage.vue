@@ -284,7 +284,7 @@ onBeforeUnmount(unmount)
 
   &:hover .interface-editor__divider-line,
   &:active .interface-editor__divider-line {
-    background: var(--color-primary-300, #a0cfff);
+    background: var(--color-primary-300);
   }
 }
 
@@ -292,7 +292,7 @@ onBeforeUnmount(unmount)
   width: 75%;
   height: 2px;
   border-radius: 1px;
-  background: var(--color-neutral-200, #dcdfe6);
+  background: var(--color-neutral-200);
   transition: background 0.15s;
 }
 </style>

@@ -258,7 +258,7 @@ const {
 
 <style scoped lang="scss">
 .env-detail {
-  background: var(--color-neutral-0, #fff);
+  background: var(--color-neutral-0);
   border: 1px solid var(--color-neutral-100);
   border-radius: var(--radius-lg);
   padding: 0 var(--space-lg) var(--space-md);
@@ -414,7 +414,7 @@ const {
   color: var(--color-neutral-400);
 
   code {
-    font-family: var(--font-family-mono, monospace);
+    font-family: var(--font-mono);
     background: var(--color-neutral-50);
     padding: 0 4px;
     border-radius: var(--radius-sm, 3px);

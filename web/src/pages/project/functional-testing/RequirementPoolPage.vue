@@ -335,11 +335,11 @@ onMounted(load)
   color: var(--el-text-color-placeholder);
 }
 
-/* AI 拆分入库条目标识：青色 AI 徽标，与 mindmap badges 的 AI_BADGE 色值一致（#13C2C2） */
+/* AI 拆分入库条目标识：青色 AI 徽标，与 mindmap badges 的 AI_BADGE 同源（视觉设计 --color-ai-badge） */
 .requirement-pool__ai-badge {
   margin-right: var(--space-xs);
-  color: #13c2c2;
-  border-color: #13c2c2;
-  background-color: rgba(19, 194, 194, 0.1);
+  color: var(--color-ai-badge);
+  border-color: var(--color-ai-badge);
+  background-color: color-mix(in srgb, var(--color-ai-badge) 10%, transparent);
 }
 </style>

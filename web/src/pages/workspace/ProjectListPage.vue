@@ -430,7 +430,7 @@ onMounted(loadProjects)
 }
 
 .proj-card__star {
-  color: var(--color-warning-500);
+  color: var(--color-warning);
   font-size: 14px;
 }
 

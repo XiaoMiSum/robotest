@@ -162,7 +162,7 @@ function removeExtractor(index: number) {
   line-height: 16px;
   padding: 0 4px;
   border-radius: 8px;
-  background: var(--color-primary, #409eff);
+  background: var(--color-primary-500);
   color: #fff;
   font-size: 10px;
   text-align: center;

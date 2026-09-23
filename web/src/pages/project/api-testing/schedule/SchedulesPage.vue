@@ -415,6 +415,6 @@ const {
 }
 
 .text-danger {
-  color: var(--color-danger-500);
+  color: var(--color-danger);
 }
 </style>

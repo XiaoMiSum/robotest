@@ -381,8 +381,8 @@ const {
 
   &:hover,
   &.is-dragging {
-    background: var(--color-primary-50, #eff6ff);
-    .scene-editor__splitter-line { background: var(--color-primary-400, #60a5fa); }
+    background: var(--color-primary-50);
+    .scene-editor__splitter-line { background: var(--color-primary-400); }
   }
 }
 
@@ -421,7 +421,7 @@ const {
   align-items: center;
   gap: var(--space-xs);
   padding: 7px 8px;
-  background: #fff;
+  background: var(--color-neutral-0);
 }
 
 .scene-editor__section-head {

@@ -233,7 +233,7 @@ const {
     align-items: center;
     justify-content: center;
     height: 100%;
-    color: var(--color-neutral-300, #c0c4cc);
+    color: var(--color-neutral-300);
     gap: 8px;
 
     &-icon {
@@ -253,8 +253,8 @@ const {
     align-items: center;
     gap: 16px;
     padding: 8px 10px;
-    border-bottom: 1px solid var(--color-neutral-100, #e8e8e8);
-    background: var(--color-neutral-50, #fafafa);
+    border-bottom: 1px solid var(--color-neutral-100);
+    background: var(--color-neutral-50);
     flex-shrink: 0;
   }
 
@@ -277,21 +277,21 @@ const {
 
   &__meta-label {
     font-size: 11px;
-    color: var(--color-neutral-400, #909399);
+    color: var(--color-neutral-400);
     text-transform: uppercase;
   }
 
   &__meta-value {
     font-size: 12px;
     font-weight: 500;
-    color: var(--color-neutral-700, #606266);
+    color: var(--color-neutral-700);
     font-family: ui-monospace, SFMono-Regular, monospace;
   }
 
   &__error {
     margin-left: auto;
     font-size: 12px;
-    color: var(--color-danger-500, #f56c6c);
+    color: var(--color-danger);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -304,7 +304,7 @@ const {
     align-items: center;
     justify-content: space-between;
     padding: 0 10px;
-    border-bottom: 1px solid var(--color-neutral-100, #e8e8e8);
+    border-bottom: 1px solid var(--color-neutral-100);
     flex-shrink: 0;
   }
 
@@ -316,7 +316,7 @@ const {
     padding: 8px 14px;
     font-size: 12px;
     font-weight: 500;
-    color: var(--color-neutral-500, #909399);
+    color: var(--color-neutral-500);
     background: none;
     border: none;
     border-bottom: 2px solid transparent;
@@ -325,12 +325,12 @@ const {
     white-space: nowrap;
 
     &:hover {
-      color: var(--color-neutral-700, #606266);
+      color: var(--color-neutral-700);
     }
 
     &.is-active {
-      color: var(--color-primary-500, #409eff);
-      border-bottom-color: var(--color-primary-500, #409eff);
+      color: var(--color-primary-500);
+      border-bottom-color: var(--color-primary-500);
     }
   }
 
@@ -349,19 +349,19 @@ const {
     border: none;
     background: none;
     border-radius: 4px;
-    color: var(--color-neutral-400, #909399);
+    color: var(--color-neutral-400);
     cursor: pointer;
     font-size: 14px;
     transition: color 0.15s, background 0.15s;
 
     &:hover {
-      color: var(--color-neutral-700, #606266);
-      background: var(--color-neutral-100, #e8e8e8);
+      color: var(--color-neutral-700);
+      background: var(--color-neutral-100);
     }
 
     &.is-active {
-      color: var(--color-primary-500, #409eff);
-      background: var(--color-primary-50, #ecf5ff);
+      color: var(--color-primary-500);
+      background: var(--color-primary-50);
     }
   }
 
@@ -371,7 +371,7 @@ const {
 
   &__search-count {
     font-size: 12px;
-    color: var(--color-neutral-400, #909399);
+    color: var(--color-neutral-400);
     white-space: nowrap;
   }
 
@@ -381,7 +381,7 @@ const {
     align-items: center;
     justify-content: space-between;
     padding: 4px 10px;
-    border-bottom: 1px solid var(--color-neutral-100, #e8e8e8);
+    border-bottom: 1px solid var(--color-neutral-100);
     flex-shrink: 0;
   }
 
@@ -397,16 +397,16 @@ const {
     background: none;
     border-radius: 4px;
     cursor: pointer;
-    color: var(--color-neutral-500, #909399);
+    color: var(--color-neutral-500);
     transition: all 0.15s;
 
     &:hover {
-      color: var(--color-neutral-700, #606266);
+      color: var(--color-neutral-700);
     }
 
     &.is-active {
-      background: var(--color-neutral-100, #e8e8e8);
-      color: var(--color-neutral-800, #303133);
+      background: var(--color-neutral-100);
+      color: var(--color-neutral-800);
       font-weight: 500;
     }
   }
@@ -419,7 +419,7 @@ const {
 
   &__mode-label {
     font-size: 11px;
-    color: var(--color-neutral-400, #909399);
+    color: var(--color-neutral-400);
     text-transform: uppercase;
   }
 
@@ -482,61 +482,61 @@ const {
     th {
       position: sticky;
       top: 0;
-      background: var(--color-neutral-50, #fafafa);
+      background: var(--color-neutral-50);
       text-align: left;
       font-weight: 500;
       font-size: 11px;
-      color: var(--color-neutral-400, #909399);
+      color: var(--color-neutral-400);
       text-transform: uppercase;
       padding: 8px 10px;
-      border-bottom: 1px solid var(--color-neutral-100, #e8e8e8);
+      border-bottom: 1px solid var(--color-neutral-100);
     }
 
     td {
       padding: 6px 10px;
       font-size: 12px;
       vertical-align: top;
-      border-bottom: 1px solid var(--color-neutral-50, #fafafa);
+      border-bottom: 1px solid var(--color-neutral-50);
       word-break: break-all;
     }
 
     tr:hover td {
-      background: var(--color-neutral-50, #fafafa);
+      background: var(--color-neutral-50);
     }
   }
 
   &__header-name {
     font-weight: 500;
-    color: var(--color-neutral-700, #606266);
+    color: var(--color-neutral-700);
     font-family: ui-monospace, SFMono-Regular, monospace;
     white-space: nowrap;
   }
 
   &__header-value {
-    color: var(--color-neutral-600, #606266);
+    color: var(--color-neutral-600);
     font-family: ui-monospace, SFMono-Regular, monospace;
   }
 
   &__cookie-name {
     font-weight: 500;
-    color: var(--color-neutral-700, #606266);
+    color: var(--color-neutral-700);
     font-family: ui-monospace, SFMono-Regular, monospace;
     white-space: nowrap;
   }
 
   &__cookie-value {
-    color: var(--color-neutral-600, #606266);
+    color: var(--color-neutral-600);
     font-family: ui-monospace, SFMono-Regular, monospace;
   }
 
   &__cookie-attrs {
-    color: var(--color-neutral-400, #909399);
+    color: var(--color-neutral-400);
     font-size: 11px;
   }
 
   &__empty-row {
     text-align: center;
-    color: var(--color-neutral-300, #c0c4cc);
+    color: var(--color-neutral-300);
     padding: 24px 0 !important;
     font-size: 13px;
   }

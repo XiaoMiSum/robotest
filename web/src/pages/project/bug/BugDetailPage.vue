@@ -237,7 +237,7 @@ function handleOpenCaseSelector() {
 
 .bug-detail__id-tag {
   flex-shrink: 0;
-  font-family: var(--font-family-mono, monospace);
+  font-family: var(--font-mono);
 }
 
 .bug-detail__title-input {
