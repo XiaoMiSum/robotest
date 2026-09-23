@@ -84,13 +84,13 @@ defineExpose({ agentsCount })
             <el-icon :size="22"><MagicStick /></el-icon>
           </div>
           <div class="agent-card__head-actions" @click.stop>
-            <el-tag v-if="agent.customized" type="success" size="small" effect="light" round>
-              已自定义
+            <el-tag v-if="agent.customized" type="success" size="small" effect="light">
+              <span class="ai-agents-tab__tag-dot" />已自定义
             </el-tag>
             <el-button
               v-if="agent.customized"
               size="small"
-              text
+              link
               type="warning"
               class="agent-card__hover-action"
               @click="handleRestore(agent)"
@@ -99,8 +99,8 @@ defineExpose({ agentsCount })
             </el-button>
             <el-button
               size="small"
+              link
               type="primary"
-              plain
               class="agent-card__hover-action"
               @click="openEditor(agent)"
             >
@@ -130,8 +130,8 @@ defineExpose({ agentsCount })
         <div class="ai-agents-tab__drawer-title">
           <el-icon :size="18"><MagicStick /></el-icon>
           <span>{{ detail?.name ?? '编辑智能体' }}</span>
-          <el-tag v-if="detail?.customized" type="success" size="small" effect="light" round>
-            已自定义
+          <el-tag v-if="detail?.customized" type="success" size="small" effect="light">
+            <span class="ai-agents-tab__tag-dot" />已自定义
           </el-tag>
         </div>
       </template>
@@ -353,6 +353,16 @@ defineExpose({ agentsCount })
   height: 3px;
   border-radius: 50%;
   background: var(--color-neutral-300);
+}
+
+/* 状态 tag 冗余点：形状+色+文案三重编码（对齐 demo .tag .dot） */
+.ai-agents-tab__tag-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  margin-right: 4px;
 }
 
 .ai-agents-tab__drawer-title {
