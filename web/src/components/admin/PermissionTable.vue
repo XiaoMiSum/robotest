@@ -28,13 +28,10 @@ const {
 </script>
 
 <template>
-  <section class="role-card perm-card">
-    <header class="role-card__head">
-      <h3 class="role-card__title">
-        权限点
-        <span class="role-card__subtitle">{{ roleName }} · {{ checkedCodes.length }} 项已授予</span>
-      </h3>
-      <div class="perm-card__actions">
+  <div class="perm-pane">
+    <div class="perm-pane__toolbar">
+      <span class="role-card__subtitle">{{ roleName }} · {{ checkedCodes.length }} 项已授予</span>
+      <div class="perm-pane__actions">
         <el-checkbox
           :model-value="allChecked"
           :indeterminate="indeterminate"
@@ -50,9 +47,9 @@ const {
           </el-button>
         </template>
       </div>
-    </header>
+    </div>
 
-    <div v-loading="loading" class="role-card__body perm-card__body">
+    <div v-loading="loading" class="perm-pane__body">
       <el-checkbox-group v-model="checkedCodes">
         <div v-for="row in modules" :key="row.module" class="perm-group">
           <div class="perm-group__title">{{ row.module }}</div>
@@ -70,11 +67,29 @@ const {
         </div>
       </el-checkbox-group>
     </div>
-  </section>
+  </div>
 </template>
 
 <style scoped lang="scss">
-.perm-card__actions {
+/* pane 内工具行：Tab 头已承担标题角色，此处只留副标题与操作区 */
+.perm-pane {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.perm-pane__toolbar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  padding: 12px 24px;
+  border-bottom: 1px solid var(--color-neutral-100);
+}
+
+.perm-pane__actions {
   display: flex;
   align-items: center;
   gap: var(--space-md);
@@ -85,8 +100,13 @@ const {
   }
 }
 
-.perm-card__body {
-  padding: 4px 20px 16px;
+.perm-pane__body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  /* Firefox 对齐全局 6px webkit 细滚动条规范 */
+  scrollbar-width: thin;
+  padding: 4px 24px 16px;
 }
 
 /* 模块分组对齐演示稿 perm-group：虚线分隔、末组免线 */
