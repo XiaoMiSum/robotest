@@ -20,11 +20,11 @@ public class AuditQueryServiceImpl implements AuditQueryService {
     private AuditLogMapper auditLogMapper;
 
     @Override
-    public PageResult<AuditLogRespDTO> page(String operatorName, String entityType,
+    public PageResult<AuditLogRespDTO> page(String operatorName, String entityType, String operation,
                                             LocalDate beginTime, LocalDate endTime,
                                             Integer pageNo, Integer pageSize) {
         PageResult<AuditLog> result = auditLogMapper.selectPageByCondition(
-                operatorName, entityType,
+                operatorName, entityType, operation,
                 toStartOfDay(beginTime), toEndOfDay(endTime),
                 pageNo, pageSize);
         List<AuditLogRespDTO> list = result.getList().stream().map(AuditQueryServiceImpl::toRespDTO).toList();

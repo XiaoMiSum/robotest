@@ -39,10 +39,10 @@ class AuditQueryServiceImplTest {
         log.setEntityId(UUID.fromString("00000000-0000-0000-0000-000000000002"));
         log.setChanges(Map.of("name", "x"));
         log.setCreatedAt(LocalDateTime.of(2026, 9, 13, 10, 0));
-        when(auditLogMapper.selectPageByCondition("admin", "AiConfig", null, null, 1, 20))
+        when(auditLogMapper.selectPageByCondition("admin", "AiConfig", null, null, null, 1, 20))
                 .thenReturn(new PageResult<>(List.of(log), 12L));
 
-        PageResult<AuditLogRespDTO> result = service.page("admin", "AiConfig", null, null, 1, 20);
+        PageResult<AuditLogRespDTO> result = service.page("admin", "AiConfig", null, null, null, 1, 20);
 
         assertEquals(12L, result.getTotal());
         assertEquals(1, result.getList().size());
@@ -54,16 +54,26 @@ class AuditQueryServiceImplTest {
 
     @Test
     void page_withDateRangeConvertsToDayBoundaries() {
-        when(auditLogMapper.selectPageByCondition("admin", null,
+        when(auditLogMapper.selectPageByCondition("admin", null, null,
                 LocalDate.of(2026, 9, 1).atStartOfDay(),
                 LocalDate.of(2026, 9, 2).atTime(23, 59, 59), 1, 20))
                 .thenReturn(new PageResult<>(List.of(), 0L));
 
-        service.page("admin", null, LocalDate.of(2026, 9, 1), LocalDate.of(2026, 9, 2), 1, 20);
+        service.page("admin", null, null, LocalDate.of(2026, 9, 1), LocalDate.of(2026, 9, 2), 1, 20);
 
-        verify(auditLogMapper).selectPageByCondition("admin", null,
+        verify(auditLogMapper).selectPageByCondition("admin", null, null,
                 LocalDate.of(2026, 9, 1).atStartOfDay(),
                 LocalDate.of(2026, 9, 2).atTime(23, 59, 59), 1, 20);
+    }
+
+    @Test
+    void page_operationFilterIsPassedThrough() {
+        when(auditLogMapper.selectPageByCondition(null, "User", "LOGIN", null, null, 1, 20))
+                .thenReturn(new PageResult<>(List.of(), 0L));
+
+        service.page(null, "User", "LOGIN", null, null, 1, 20);
+
+        verify(auditLogMapper).selectPageByCondition(null, "User", "LOGIN", null, null, 1, 20);
     }
 
     @Test

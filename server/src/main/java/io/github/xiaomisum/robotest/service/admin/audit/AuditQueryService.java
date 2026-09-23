@@ -8,9 +8,9 @@ import java.util.Map;
 
 public interface AuditQueryService {
 
-    PageResult<AuditLogRespDTO> page(String operatorName, String entityType,
+    PageResult<AuditLogRespDTO> page(String operatorName, String entityType, String operation,
                                      LocalDate beginTime, LocalDate endTime,
-                                     Integer pageNo, Integer pageSize);
+                                     Integer pageNo, Integer pageSize);  // operation 为 V1.2 新增可选过滤
 
     Map<String, Long> aggregate(String entityType, LocalDate from);
 }
