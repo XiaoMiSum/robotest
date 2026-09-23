@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useAiAgents } from '@/composables/admin/useAiAgents'
 import { formatShortDateTime } from '@/utils/format'
 
@@ -36,6 +37,11 @@ const {
   handleSave,
   handleRestore,
 } = useAiAgents()
+
+// 页级 tab 计数徽标经实例回传，页面不再重复拉取智能体列表
+const agentsCount = computed(() => agents.value.length)
+
+defineExpose({ agentsCount })
 </script>
 
 <template>
