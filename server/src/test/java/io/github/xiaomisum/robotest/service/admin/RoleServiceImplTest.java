@@ -262,23 +262,49 @@ class RoleServiceImplTest {
     }
 
     @Test
-    void getPermissionTable_groupsByModule_filtersNoParent() {
-        SysPermission child = new SysPermission();
-        child.setParentCode("root");
-        child.setModule("测试模块");
-        child.setCode("bug:edit");
-        child.setName("编辑缺陷");
-        SysPermission orphan = new SysPermission();
-        orphan.setParentCode(null);
-        orphan.setModule("孤立模块");
-        orphan.setCode("orphan:code");
-        when(permissionMapper.findByScopeOrdered("workspace")).thenReturn(List.of(child, orphan));
+    void getPermissionTable_threeLevelGrouping_ordersBySort() {
+        SysPermission spaceRoot = permission("ws-info", null, "空间信息", "我的空间", 1);
+        SysPermission viewLeaf = permission("ws-info:view", "ws-info", "查看空间信息", "我的空间", 1);
+        SysPermission editLeaf = permission("ws-info:edit", "ws-info", "编辑空间信息", "我的空间", 2);
+        SysPermission caseRoot = permission("case", null, "测试用例", "功能测试", 5);
+        SysPermission caseLeaf = permission("case:view", "case", "查看用例", "功能测试", 1);
+        // 打乱返回顺序，验证展示序来自内存排序而非 SQL 返回序
+        when(permissionMapper.findByScopeOrdered("workspace"))
+                .thenReturn(List.of(editLeaf, caseRoot, viewLeaf, spaceRoot, caseLeaf));
+
+        List<PermissionTableRespDTO> result = roleService.getPermissionTable(Constants.RoleType.WORKSPACE);
+
+        assertEquals(2, result.size());
+        // 一级序 = 组内最小根 sort：我的空间(1) 先于 功能测试(5)
+        assertEquals("我的空间", result.get(0).getTopModule());
+        assertEquals("功能测试", result.get(1).getTopModule());
+        assertEquals("空间信息", result.get(0).getModules().get(0).getModule());
+        // 根行不作为权限点下发，叶子按 sort 升序
+        assertEquals(List.of("ws-info:view", "ws-info:edit"),
+                result.get(0).getModules().get(0).getPermissions().stream()
+                        .map(PermissionTableRespDTO.PermissionItem::getCode)
+                        .toList());
+        assertEquals("测试用例", result.get(1).getModules().get(0).getModule());
+    }
+
+    @Test
+    void getPermissionTable_orphanLeaf_fallsBackToModuleAndSortsLast() {
+        SysPermission caseRoot = permission("case", null, "测试用例", "功能测试", 5);
+        SysPermission caseLeaf = permission("case:view", "case", "查看用例", "功能测试", 1);
+        SysPermission orphanLeaf = permission("ghost:view", "ghost", "幽灵权限", "功能测试", 1);
+        orphanLeaf.setModule("幽灵模块");
+        when(permissionMapper.findByScopeOrdered("workspace"))
+                .thenReturn(List.of(orphanLeaf, caseRoot, caseLeaf));
 
         List<PermissionTableRespDTO> result = roleService.getPermissionTable(Constants.RoleType.WORKSPACE);
 
         assertEquals(1, result.size());
-        assertEquals("测试模块", result.get(0).getModule());
-        assertEquals("bug:edit", result.get(0).getPermissions().get(0).getCode());
+        assertEquals("功能测试", result.get(0).getTopModule());
+        assertEquals(2, result.get(0).getModules().size());
+        assertEquals("测试用例", result.get(0).getModules().get(0).getModule());
+        // 根缺失的孤儿组用叶子 module 兜底并排末尾，不打断整体分组
+        assertEquals("幽灵模块", result.get(0).getModules().get(1).getModule());
+        assertEquals("ghost:view", result.get(0).getModules().get(1).getPermissions().get(0).getCode());
     }
 
     @Test
@@ -288,5 +314,15 @@ class RoleServiceImplTest {
         roleService.getPermissionTable(Constants.RoleType.SYSTEM);
 
         verify(permissionMapper).findByScopeOrdered("global");
+    }
+
+    private static SysPermission permission(String code, String parentCode, String name, String topModule, int sortOrder) {
+        SysPermission permission = new SysPermission();
+        permission.setCode(code);
+        permission.setParentCode(parentCode);
+        permission.setName(name);
+        permission.setTopModule(topModule);
+        permission.setSortOrder(sortOrder);
+        return permission;
     }
 }

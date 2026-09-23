@@ -14,6 +14,7 @@ public class SysPermission extends BaseUuidDO<SysPermission> {
     private String name;
     private String parentCode;
     private String module;
+    private String topModule;
     private String scope;
     private Integer sortOrder;
 }

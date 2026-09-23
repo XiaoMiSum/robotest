@@ -7,8 +7,14 @@ import java.util.List;
 @Data
 public class PermissionTableRespDTO {
 
-    private String module;
-    private List<PermissionItem> permissions;
+    private String topModule;
+    private List<ModuleGroup> modules;
+
+    @Data
+    public static class ModuleGroup {
+        private String module;
+        private List<PermissionItem> permissions;
+    }
 
     @Data
     public static class PermissionItem {
