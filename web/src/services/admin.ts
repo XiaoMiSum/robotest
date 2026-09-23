@@ -97,7 +97,11 @@ export function fetchWorkspaceDetail(id: string): Promise<AdminWorkspace> {
   return get(`/admin/workspaces/${id}`)
 }
 
-export function createWorkspace(data: { name: string; description?: string }): Promise<string> {
+export function createWorkspace(data: {
+  name: string
+  description?: string
+  adminUserId: string
+}): Promise<string> {
   return post('/admin/workspaces', data)
 }
 
