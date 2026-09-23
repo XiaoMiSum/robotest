@@ -35,6 +35,8 @@
 | Git 与开发流程规范 | `docs/spec/workflow.md` | 分支模型 + 提交规范 + PR 规范             |
 | 构建与部署规范     | `docs/spec/deploy.md`   | 构建流程 + 环境配置 + 部署 + CI           |
 | 安全规范        | `docs/spec/security.md` | 认证 + 数据安全 + 防攻击 + 日志审计          |
+| migoo 框架集成规范 | `docs/spec/migoo-framework.md` | Starter 清单 + 响应/实体/分页/转换约定 |
+| 任务执行模板      | `docs/spec/task-template.md` | AI 任务八步流程（理解→评估→探查→方案→编码→验证→自检→交付） |
 
 ---
 
@@ -43,56 +45,53 @@
 ### 2.1 仓库目录结构
 
 ```
-software-testing-platform/
+robotest/
 ├── .gitignore
-├── README.md
-├── AGENTS.md                  # AI 辅助开发约定
+├── AGENTS.md                  # AI 辅助开发约定（总则）
 │
 ├── web/                       # 前端 SPA (Vue3 + Element Plus)
 │   ├── package.json
+│   ├── pnpm-workspace.yaml
 │   ├── vite.config.ts
-│   ├── tsconfig.json
+│   ├── tsconfig.json / tsconfig.app.json / tsconfig.node.json
 │   ├── index.html
-│   ├── .eslintrc.cjs
+│   ├── eslint.config.mjs      # ESLint flat config（含 no-restricted-imports 分层门禁）
 │   ├── .prettierrc
-│   ├── .env
 │   ├── .env.development
 │   ├── .env.production
 │   └── src/
 │       ├── main.ts
 │       ├── App.vue
-│       ├── router/            # index.ts / admin.ts / business.ts
-│       ├── layouts/           # AdminLayout / WorkspaceLayout / ProjectLayout
-│       ├── pages/             # admin/ / workspace/ / project/
-│       ├── components/        # common/ / admin/ / workspace/ / project/
-│       ├── stores/            # auth.ts / workspace.ts / project.ts
-│       ├── composables/       # useAuth / useWebSocket / usePermission
-│       ├── services/          # request.ts / admin.ts / workspace.ts / project.ts
-│       ├── types/             # api.ts / admin.ts / workspace.ts / project.ts
-│       ├── constants/         # permission.ts / status.ts / error.ts
-│       ├── ws/                # index.ts / handlers.ts
-│       ├── utils/             # format.ts / validate.ts / tree.ts
+│       ├── router/            # index.ts（懒加载 + meta 守卫 admin/business）
+│       ├── layouts/           # AdminLayout / BusinessLayout
+│       ├── pages/             # admin/ auth/ workspace/ project/
+│       ├── components/        # common/ admin/ assistant/ project/{api-testing,functional-testing,bug}
+│       ├── stores/            # auth.ts / nav.ts / ai.ts / apiTestingUi.ts / assistantContext.ts
+│       ├── composables/       # admin/ ai/ assistant/ auth/ project/
+│       ├── services/          # index.ts / admin.ts / workspace.ts / project.ts / ai.ts + project/
+│       ├── types/             # index.ts / admin.ts / workspace.ts / ai.ts / common.ts + project/
+│       ├── minder/            # 自研脑图组件（SVG/Canvas + Yjs，ai/ 智能编辑）
+│       ├── utils/             # format.ts
 │       └── assets/styles/     # variables.scss / global.scss
 │
 ├── server/                    # 后端服务 (Spring Boot)
 │   ├── pom.xml
 │   └── src/
-│       ├── main/java/com/platform/
-│       │   ├── PlatformApplication.java
-│       │   ├── config/        # Security / WebSocket / Cors / WebMvc / Jackson
-│       │   ├── controller/    # admin/ / workspace/ / project/
-│       │   ├── service/       # (interfaces)
-│       │   ├── service/impl/  # (implementations)
-│       │   ├── repository/
-│       │   ├── model/entity/
-│       │   ├── model/dto/request/
-│       │   ├── model/dto/response/
-│       │   ├── security/      # JwtProvider / JwtAuthFilter / AccessContext
-│       │   ├── websocket/     # DocumentHandler / YjsDecoder / RoomManager
-│       │   ├── interceptor/   # WorkspaceContext / ProjectContext
-│       │   ├── exception/     # GlobalHandler / BusinessException / ErrorCode
-│       │   └── common/        # ApiResponse / PageResult
-│       ├── main/resources/    # application-{profile}.yml
+│       ├── main/java/io/github/xiaomisum/robotest/
+│       │   ├── RobotestServer.java
+│       │   ├── controller/    # admin/ apitest/ project/ workspace/
+│       │   ├── service/       # admin/ ai/ apitest/ domain/ project/ websocket/ workspace/（接口+实现同包）
+│       │   ├── repository/    # JPA / MyBatis-Plus 数据访问
+│       │   ├── model/
+│       │   │   ├── entity/            # 数据库映射（继承 BaseUuidDO）
+│       │   │   └── dto/request|response/  # 按域分子目录
+│       │   └── framework/     # 基础框架层（与业务无关）
+│       │       ├── audit/ config/ convert/ interceptor/ security/
+│       │       ├── common/    # Constants / ErrorCodeConstants
+│       │       ├── mock/      # Mock 服务
+│       │       ├── task/      # 定时任务
+│       │       └── util/
+│       ├── main/resources/    # application.yaml / db/ i18n/ ai/ logback-spring.xml
 │       └── test/
 │
 ├── scripts/                   # 构建与部署脚本
@@ -100,21 +99,19 @@ software-testing-platform/
 │   ├── build-backend.sh
 │   ├── dev.sh
 │   ├── deploy-separate.sh
-│   └── deploy-merged.sh
+│   ├── deploy-merged.sh
+│   ├── validate.sh            # 提交前质量验证（提交格式 + lint + typecheck + test）
+│   └── nginx.conf.example
 │
 └── docs/
-    ├── spec/                  # ← 工程规范拆分目录
-    │   ├── overview.md
-    │   ├── frontend.md
-    │   ├── backend.md
-    │   ├── api.md
-    │   ├── database.md
-    │   ├── quality.md
-    │   ├── workflow.md
-    │   ├── deploy.md
-    │   └── security.md
-    ├── 工程规范说明书.md        # 索引文件（指向 spec/）
-    └── (其他设计文档)
+    ├── AGENTS.md              # 文档管理约定
+    ├── spec/                  # ← 工程规范
+    │   ├── README.md          # 规范索引
+    │   ├── overview.md / frontend.md / backend.md / api.md
+    │   ├── database.md / quality.md / workflow.md / deploy.md
+    │   ├── security.md / migoo-framework.md / task-template.md
+    ├── 需求/ 概要/ 架构/ 详细设计/ 交互设计/   # 业务设计文档（各含 README 索引）
+    └── archive/               # 归档基线（只读）
 ```
 
 **核心原则**：
@@ -131,7 +128,7 @@ software-testing-platform/
 | TypeScript 文件 | camelCase              | `useAuth.ts`                 |
 | 页面目录          | kebab-case，与路由 path 一致 | `pages/admin/users/`         |
 | 后端 Java 类     | PascalCase             | `UserController.java`        |
-| 后端 Java 包     | 全小写                    | `com.platform.service.admin` |
+| 后端 Java 包     | 全小写                    | `io.github.xiaomisum.robotest.service.admin` |
 | 后端资源文件        | kebab-case             | `application-dev.yml`        |
 | 数据库表          | snake_case             | `test_case_module`           |
 | 脚本文件          | kebab-case             | `build-frontend.sh`          |
@@ -166,7 +163,7 @@ software-testing-platform/
 | 概要设计说明书 | 架构师       | 架构调整时更新      |
 | 详细设计说明书 | 开发工程师     | 接口/数据结构变更时同步 |
 | 页面交互设计  | 前端 / UX   | UI 变更时同步     |
-| 工程规范说明书 | Tech Lead | 定期评审更新       |
+| 工程规范（`docs/spec/`） | Tech Lead | 定期评审更新       |
 
 文档格式：Markdown，存放在 `docs/` 目录，与代码仓库同步管理。
 
@@ -226,7 +223,7 @@ cd server && mvn test
 - 《软件测试平台项目仓库框架与技术架构设计》
 - 《软件测试平台系统管理模块详细设计说明书》
 - 《软件测试平台空间管理业务模块详细设计说明书》
-- 《软件测试平台功能测试模块详细设计说明书》
+- 《软件测试平台项目模块详细设计说明书》
 
 ---
 

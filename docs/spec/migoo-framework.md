@@ -1,5 +1,11 @@
 # migoo 框架集成规范
 
+**文档版本**：V1.0
+**日期**：2026-07-21
+**状态**：已发布
+
+---
+
 > 本项目基于 **migoo-spring-boot-starter**（v1.3.18）构建，BOM 通过 `migoo-framework-dependencies` 统一管理版本。  
 > 框架文档：https://xiaomisum.github.io/springboot-migoo-framework/  
 > 版本发布：https://github.com/xiaomisum/migoo-framework/releases
