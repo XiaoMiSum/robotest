@@ -29,12 +29,10 @@ check_commit_format() {
   local N=5
   local BAD=0
   while IFS= read -r msg; do
-    # 首字符为非 ASCII 词符（emoji）+ type(scope): description；ERE 保证 GNU/BSD grep 双端可用
-    if ! echo "$msg" | grep -qE '^[^a-zA-Z0-9[:space:]] (feat|fix|refactor|style|docs|test|chore|perf|deps|security)\(.+\): .+'; then
-      if ! echo "$msg" | grep -qE '^(feat|fix|refactor|style|docs|test|chore|perf|deps|security)\(.+\): .+'; then
-        fail "提交格式错误: $msg"
-        BAD=1
-      fi
+    # emoji 前缀可选且可能占多个字节（C locale 下按字节匹配），用 + 量化；无 emoji 提交由可选组兜底
+    if ! echo "$msg" | grep -qE '^([^[:alnum:][:space:]]+ )?(feat|fix|refactor|style|docs|test|chore|perf|deps|security)\(.+\): .+'; then
+      fail "提交格式错误: $msg"
+      BAD=1
     fi
   done < <(git log --format="%s" -n "$N" 2>/dev/null)
 
