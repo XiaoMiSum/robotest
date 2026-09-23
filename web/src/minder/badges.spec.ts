@@ -49,7 +49,7 @@ describe('executionResultBadge', () => {
   it('通过/失败/阻塞映射到文案与颜色', () => {
     expect(executionResultBadge('pass')).toEqual({ label: '✓ 通过', color: '#67C23A' })
     expect(executionResultBadge('fail')).toEqual({ label: '✕ 失败', color: '#F56C6C' })
-    expect(executionResultBadge('block')).toEqual({ label: '⚠ 阻塞', color: '#E6A23C' })
+    expect(executionResultBadge('block')).toEqual({ label: '⚠ 阻塞', color: '#C45656' })
   })
 
   it('未执行是默认态不显示徽标', () => {
