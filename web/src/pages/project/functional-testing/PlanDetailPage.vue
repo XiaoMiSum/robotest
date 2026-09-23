@@ -268,7 +268,7 @@ const {
 }
 
 .plan-detail__stat--blocked {
-  color: var(--color-warning);
+  color: var(--color-blocked);
 }
 
 // 标签容器撑满剩余高度：header 固定、内容区弹性占满，脑图/推荐面板在其中整高布局
