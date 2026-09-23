@@ -19,7 +19,7 @@ defineProps<{
   procDsRefOptions: { value: string; label: string }[]
   configForms: HttpConfigForm[]
   dsForms: DsForm[]
-  procTags: (processor: ApiProcessor) => { text: string; type: string }[]
+  procTags: (processor: ApiProcessor) => { text: string; type: 'success' | 'primary' | 'warning' | 'info' | 'danger' }[]
   procDisplayName: (processor: ApiProcessor, index: number) => string
 }>()
 
@@ -55,7 +55,7 @@ const emit = defineEmits<{
         >
           <div class="env-proc-pane__item-header">
             <span class="env-proc-pane__index">{{ i + 1 }}</span>
-            <el-tag v-for="t in procTags(processor)" :key="t.text" size="small" :type="t.type as 'success' | 'primary' | 'warning' | 'info' | 'danger'">{{ t.text }}</el-tag>
+            <el-tag v-for="t in procTags(processor)" :key="t.text" size="small" :type="t.type">{{ t.text }}</el-tag>
             <div class="env-proc-pane__header-spacer" />
             <el-switch v-model="processor.enabled" size="small" :disabled="!canEdit" @click.stop />
             <el-dropdown v-if="canEdit" trigger="click" @click.stop>

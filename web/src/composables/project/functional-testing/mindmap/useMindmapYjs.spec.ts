@@ -7,12 +7,12 @@ vi.stubGlobal('window', {
 
 const shared = vi.hoisted(() => ({
   deepListeners: [] as ((events: unknown[], transaction: { local: boolean }) => void)[],
-  awarenessListeners: new Map<string, Function[]>(),
+  awarenessListeners: new Map<string, (() => void)[]>(),
   awarenessState: {} as Record<string, unknown>,
   wsOnmessage: null as ((event: MessageEvent) => void) | null,
   wsTextPatched: false,
   wsLastMessageReceived: undefined as number | undefined,
-  statusListeners: [] as Function[],
+  statusListeners: [] as ((event: { status: string }) => void)[],
   providerDestroy: vi.fn(),
 }))
 
@@ -32,7 +32,9 @@ vi.mock('yjs', () => {
     delete(key: string) { this.data.delete(key) }
     keys() { return this.data.keys() }
     observeDeep(fn: (events: unknown[], transaction: { local: boolean }) => void) { shared.deepListeners.push(fn) }
-    unobserveDeep(fn: Function) { shared.deepListeners.splice(shared.deepListeners.indexOf(fn as never), 1) }
+    unobserveDeep(fn: (events: unknown[], transaction: { local: boolean }) => void) {
+      shared.deepListeners.splice(shared.deepListeners.indexOf(fn), 1)
+    }
   }
 
   class FakeDoc {
@@ -42,7 +44,7 @@ vi.mock('yjs', () => {
       if (!this.maps.has(name)) this.maps.set(name, new FakeMap())
       return this.maps.get(name)!
     }
-    transact(fn: Function) { fn() }
+    transact(fn: () => void) { fn() }
     destroy() {
       shared.deepListeners.length = 0
       shared.awarenessListeners.clear()
@@ -56,7 +58,7 @@ vi.mock('y-websocket', () => {
   const awareness = {
     state: shared.awarenessState,
     setLocalStateField(field: string, value: unknown) { this.state[field] = value },
-    on(event: string, fn: Function) {
+    on(event: string, fn: () => void) {
       if (!shared.awarenessListeners.has(event)) shared.awarenessListeners.set(event, [])
       shared.awarenessListeners.get(event)!.push(fn)
     },
@@ -83,7 +85,7 @@ vi.mock('y-websocket', () => {
     ws,
     wsLastMessageReceived: 0,
     destroy: shared.providerDestroy,
-    on(event: string, fn: Function) {
+    on(event: string, fn: (event: { status: string }) => void) {
       if (event === 'status') shared.statusListeners.push(fn)
     },
     statusListeners: shared.statusListeners,

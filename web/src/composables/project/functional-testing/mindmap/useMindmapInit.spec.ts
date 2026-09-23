@@ -120,10 +120,10 @@ function makeOptions(overrides?: Record<string, unknown>) {
 }
 
 function createFakeMinder() {
-  const listeners = new Map<string, Function[]>()
+  const listeners = new Map<string, unknown[]>()
   return {
     importJson: vi.fn(),
-    on: vi.fn((event: string, fn: Function) => {
+    on: vi.fn((event: string, fn: unknown) => {
       if (!listeners.has(event)) listeners.set(event, [])
       listeners.get(event)!.push(fn)
     }),

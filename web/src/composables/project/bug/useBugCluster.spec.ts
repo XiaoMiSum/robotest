@@ -553,7 +553,7 @@ describe('useBugCluster', () => {
       mocks.toBugClusterSnapshot.mockReturnValue(snapshot)
       const s = init()
       s.task.value = makeTask({ result: {} })
-      s.severitySegments.value
+      expect(s.severitySegments.value).toEqual([])
       expect(mocks.buildSeveritySegments).toHaveBeenCalledWith({ fatal: 3, serious: 3, general: 0, minor: 0 })
     })
   })
