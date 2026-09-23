@@ -7,6 +7,7 @@ import UserPickerDialog from '@/components/admin/UserPickerDialog.vue'
 const props = defineProps<{
   roleId: string
   roleType: string
+  roleName: string
 }>()
 
 const {
@@ -32,37 +33,71 @@ const {
 </script>
 
 <template>
-  <div class="role-users">
-    <div class="role-users__toolbar">
-      <el-button type="primary" @click="pickerVisible = true">
+  <section class="role-card role-users">
+    <header class="role-card__head">
+      <h3 class="role-card__title">
+        关联用户
+        <span class="role-card__subtitle">
+          {{ roleName }} · {{ isWorkspaceRole() ? workspaceUsers.length : total }} 人
+        </span>
+      </h3>
+      <el-button size="small" @click="pickerVisible = true">
         <el-icon><Plus /></el-icon>添加用户
       </el-button>
-    </div>
+    </header>
 
-    <!-- 系统角色用户列表 -->
-    <template v-if="!isWorkspaceRole()">
-      <el-table v-loading="loading" :data="users" row-key="id">
-        <el-table-column prop="username" label="用户名" min-width="140" />
-        <el-table-column prop="name" label="姓名" min-width="120" />
-        <el-table-column prop="email" label="邮箱" min-width="200" show-overflow-tooltip />
-        <el-table-column label="状态" width="90">
-          <template #default="{ row }">
-            <el-tag :type="row.status === 'active' ? 'success' : 'info'" size="small">
-              {{ row.status === 'active' ? '启用' : '禁用' }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column label="创建时间" width="170">
-          <template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template>
-        </el-table-column>
-        <el-table-column label="操作" width="90" fixed="right">
-          <template #default="{ row }">
-            <el-button link type="danger" @click="handleRemove(row as AdminUser)">移除</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
+    <div class="role-card__body role-users__body">
+      <div class="role-users__scroll">
+        <!-- 系统角色用户列表 -->
+        <el-table v-if="!isWorkspaceRole()" v-loading="loading" :data="users" row-key="id">
+          <el-table-column prop="username" label="用户名" min-width="140" />
+          <el-table-column prop="name" label="姓名" min-width="120" />
+          <el-table-column prop="email" label="邮箱" min-width="200" show-overflow-tooltip />
+          <el-table-column label="状态" width="90">
+            <template #default="{ row }">
+              <el-tag :type="row.status === 'active' ? 'success' : 'info'" size="small">
+                {{ row.status === 'active' ? '启用' : '禁用' }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column label="创建时间" width="170">
+            <template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template>
+          </el-table-column>
+          <el-table-column label="操作" width="90" fixed="right">
+            <template #default="{ row }">
+              <el-button link type="danger" @click="handleRemove(row as AdminUser)">移除</el-button>
+            </template>
+          </el-table-column>
+        </el-table>
 
-      <div class="role-users__pager">
+        <!-- 空间角色用户列表 -->
+        <el-table v-else v-loading="loading" :data="workspaceUsers" row-key="userId">
+          <el-table-column prop="username" label="用户名" min-width="140" />
+          <el-table-column prop="name" label="姓名" min-width="120" />
+          <el-table-column label="归属空间" min-width="200">
+            <template #default="{ row }">
+              <el-tag
+                v-for="ws in row.workspaces"
+                :key="ws.workspaceId"
+                size="small"
+                class="role-users__ws-tag"
+              >
+                {{ ws.workspaceName }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column label="操作" width="90" fixed="right">
+            <template #default="{ row }">
+              <el-button link type="danger" @click="handleRemoveWorkspace(row as RoleWorkspaceUser)">
+                移除
+              </el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+      </div>
+
+      <!-- 分页钉在卡底，滚动只作用于表体，避免长列表把分页顶出可视区 -->
+      <div v-if="!isWorkspaceRole()" class="role-users__pager">
         <el-pagination
           v-model:current-page="query.pageNo"
           v-model:page-size="query.pageSize"
@@ -73,34 +108,7 @@ const {
           @size-change="load"
         />
       </div>
-    </template>
-
-    <!-- 空间角色用户列表 -->
-    <template v-else>
-      <el-table v-loading="loading" :data="workspaceUsers" row-key="userId">
-        <el-table-column prop="username" label="用户名" min-width="140" />
-        <el-table-column prop="name" label="姓名" min-width="120" />
-        <el-table-column label="归属空间" min-width="200">
-          <template #default="{ row }">
-            <el-tag
-              v-for="ws in row.workspaces"
-              :key="ws.workspaceId"
-              size="small"
-              class="role-users__ws-tag"
-            >
-              {{ ws.workspaceName }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="90" fixed="right">
-          <template #default="{ row }">
-            <el-button link type="danger" @click="handleRemoveWorkspace(row as RoleWorkspaceUser)">
-              移除
-            </el-button>
-          </template>
-        </el-table-column>
-      </el-table>
-    </template>
+    </div>
 
     <!-- 用户选择弹窗 -->
     <UserPickerDialog
@@ -130,20 +138,30 @@ const {
         <el-button type="danger" @click="handleWsRemoveConfirm">移除</el-button>
       </template>
     </el-dialog>
-  </div>
+  </section>
 </template>
 
 <style scoped lang="scss">
-.role-users__toolbar {
+/* 卡体不滚动，拆成「表体滚动 + 分页钉底」两段，卡片高度由页面统一约束 */
+.role-users__body {
   display: flex;
-  justify-content: flex-end;
-  margin-bottom: 12px;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.role-users__scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
 }
 
 .role-users__pager {
+  flex-shrink: 0;
   display: flex;
   justify-content: flex-end;
-  margin-top: 16px;
+  padding: 14px 20px;
+  border-top: 1px solid var(--color-neutral-100);
 }
 
 .role-users__ws-tag {

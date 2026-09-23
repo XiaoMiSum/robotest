@@ -3,7 +3,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { createRole, deleteRole, fetchRoleList, updateRole } from '@/services/admin'
 import type { RoleTreeNode, RoleType } from '@/types'
 
-export function useRoleTree(onSelect: (node: { id: string; isSystem: boolean; type: string }) => void, onCleared: () => void) {
+export function useRoleTree(onSelect: (node: { id: string; isSystem: boolean; type: string; name: string }) => void, onCleared: () => void) {
   const treeData = ref<RoleTreeNode[]>([])
   const loading = ref(false)
   const currentId = ref('')
@@ -48,7 +48,7 @@ export function useRoleTree(onSelect: (node: { id: string; isSystem: boolean; ty
   function handleNodeClick(node: RoleTreeNode) {
     if (node.isGroup) return
     currentId.value = node.id
-    onSelect({ id: node.id, isSystem: node.isSystem ?? false, type: node.type })
+    onSelect({ id: node.id, isSystem: node.isSystem ?? false, type: node.type, name: node.name })
   }
 
   async function handleAdd(group: RoleTreeNode) {
@@ -61,7 +61,7 @@ export function useRoleTree(onSelect: (node: { id: string; isSystem: boolean; ty
       ElMessage.success('角色已创建')
       await load()
       currentId.value = id
-      onSelect({ id, isSystem: false, type: group.type })
+      onSelect({ id, isSystem: false, type: group.type, name: value.trim() })
     } catch (err) {
       if (err === 'cancel' || err === 'close') return
       ElMessage.error(err instanceof Error ? err.message : '创建角色失败')
