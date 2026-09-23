@@ -75,7 +75,7 @@ final class SceneExecutionSupport {
         return text.substring(0, maxChars);
     }
 
-    /** 时间口径：对外一律下发 ISO-8601 UTC 墙钟字符串（docs/spec 时间约定），前端按浏览器时区还原 */
+    /** 时间口径：对外一律下发 ISO-8601 UTC 墙钟字符串（docs/06-spec 时间约定），前端按浏览器时区还原 */
     static String toUtcIso(LocalDateTime value) {
         return value == null ? null : value.toString();
     }

@@ -69,7 +69,7 @@ class DashboardStatsServiceImplTest {
 
         DashboardStatsRespDTO stats = service.getStats();
 
-        // generatedAt 须为 UTC 墙钟（docs/spec/frontend.md §8），容差 ≤60s 防止回退为本地钟面
+        // generatedAt 须为 UTC 墙钟（docs/06-spec/03-frontend.md §8），容差 ≤60s 防止回退为本地钟面
         Duration skew = Duration.between(stats.getGeneratedAt(), LocalDateTime.now(ZoneOffset.UTC));
         assertTrue(skew.abs().toSeconds() <= 60, "generatedAt 应为 UTC 墙钟，实际=" + stats.getGeneratedAt());
         assertEquals(128L, stats.getUsers().getTotal());
