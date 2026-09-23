@@ -1,78 +1,96 @@
 /**
- * 全局设计令牌 — 来源于《整体样式色调设计》文档 V1.0 第 7 节
- * 所有颜色、间距、布局尺寸统一在此定义，组件通过 var(--xxx) 引用
+ * 全局设计令牌 — 来源于《交互设计/视觉设计.md》V1.0 第 7 节
+ * 色板与 Element Plus 官方 var.scss 同源；所有颜色、间距、布局尺寸统一在此定义，
+ * 组件通过 var(--xxx) 引用，禁止在组件内硬编码色值。
  */
 
 :root {
-  /* ==================== 主色调 ==================== */
-  --color-primary-50: #eff6ff;
-  --color-primary-100: #dbeafe;
-  --color-primary-200: #bfdbfe;
-  --color-primary-300: #93c5fd;
-  --color-primary-400: #60a5fa;
-  --color-primary-500: #3b82f6;
-  --color-primary-600: #2563eb;
-  --color-primary-700: #1d4ed8;
-  --color-primary-800: #1e40af;
-  --color-primary-900: #1e3a8a;
+  /* ==================== 主色（Element Plus primary · 仅按钮/链接/选中，不表达状态） ==================== */
+  --color-primary-50: #ecf5ff; /* light-9 · 选中浅底 */
+  --color-primary-100: #c6e2ff; /* light-7 */
+  --color-primary-200: #a0cfff; /* light-5 */
+  --color-primary-300: #8cc5ff; /* light-4 */
+  --color-primary-400: #79bbff; /* light-3 */
+  --color-primary-500: #409eff; /* base */
+  --color-primary-600: #337ecc; /* dark-2 · 悬停 */
+  --color-primary-700: #337ecc; /* dark-2 · 按下（EP 最深阶，同值复用） */
 
-  /* ==================== 中性色 ==================== */
-  --color-neutral-0: #ffffff;
-  --color-neutral-50: #f8fafc;
-  --color-neutral-100: #f1f5f9;
-  --color-neutral-200: #e2e8f0;
-  --color-neutral-300: #cbd5e1;
-  --color-neutral-400: #94a3b8;
-  --color-neutral-500: #64748b;
-  --color-neutral-600: #475569;
-  --color-neutral-700: #334155;
-  --color-neutral-800: #1e293b;
-  --color-neutral-900: #0f172a;
+  /* ==================== 中性色（EP text / border / fill 三级体系） ==================== */
+  --color-neutral-0: #ffffff; /* fill-blank · 卡片白底 */
+  --color-neutral-25: #fafafa; /* fill-lighter · 表格行悬停 */
+  --color-neutral-50: #f5f7fa; /* fill-light · 页面底、表头 */
+  --color-neutral-100: #f0f2f5; /* fill · 斑马纹、块填充 */
+  --color-neutral-200: #e4e7ed; /* border-light · 卡片描边 */
+  --color-neutral-300: #dcdfe6; /* border · 输入框描边 */
+  --color-neutral-400: #a8abb2; /* text-placeholder · 占位/禁用字 */
+  --color-neutral-500: #909399; /* text-secondary · 次要字 */
+  --color-neutral-600: #606266; /* text-regular · 辅助字 */
+  --color-neutral-700: #606266; /* text-regular · 正文（EP 无更深阶，同值复用） */
+  --color-neutral-800: #303133; /* text-primary · 主要文字 */
+  --color-neutral-900: #303133; /* text-primary · 标题（同值复用） */
 
-  /* ==================== 语义色 ==================== */
-  --color-success: #22c55e;
-  --color-success-light: #f0fdf4;
-  --color-danger: #ef4444;
-  --color-danger-light: #fef2f2;
-  --color-warning: #f59e0b;
-  --color-warning-light: #fffbeb;
-  --color-info: #3b82f6;
-  --color-info-light: #eff6ff;
+  /* ==================== 状态色（EP 四功能色 + danger dark-2 阻塞档） ==================== */
+  /* 绿：通过 / 正常 / 轻微 */
+  --color-success: #67c23a;
+  --color-success-strong: #529b2e; /* success dark-2 */
+  --color-success-light: #f0f9eb; /* success light-9 */
+  --color-success-border: #c2e7b0; /* success light-6 */
+  /* 橙：警告 / 进行中 / 严重 */
+  --color-warning: #e6a23c;
+  --color-warning-strong: #b88230; /* warning dark-2 */
+  --color-warning-light: #fdf6ec;
+  --color-warning-border: #f5dab1;
+  /* 红：失败 / 致命 / 高风险 */
+  --color-danger: #f56c6c;
+  --color-danger-strong: #c45656; /* danger dark-2 */
+  --color-danger-light: #fef0f0;
+  --color-danger-border: #fbc4c4;
+  /* 信息灰：未执行 / 待评审 / 停用 / 缺陷「一般」（EP 无 info dark-2，取中性灰强调档） */
+  --color-info: #909399;
+  --color-info-light: #f4f4f5;
+  /* 阻塞 = danger dark-2 深档（EP 无独立深红，与失败同相以深浅区分） */
+  --color-blocked: #c45656;
+  --color-blocked-light: #f9eeee;
+  --color-blocked-border: #e7bbbb;
 
-  /* ==================== 优先级色 ==================== */
-  --color-priority-p0: #ef4444;
-  --color-priority-p1: #f59e0b;
-  --color-priority-p2: #3b82f6;
-  --color-priority-p3: #94a3b8;
+  /* ==================== 优先级色（EP 四功能色） ==================== */
+  --color-priority-p0: #f56c6c;
+  --color-priority-p1: #e6a23c;
+  --color-priority-p2: #409eff;
+  --color-priority-p3: #909399;
 
   /* ==================== 缺陷等级色 ==================== */
-  --color-bug-fatal: #ef4444;
-  --color-bug-serious: #f97316;
-  --color-bug-general: #eab308;
-  --color-bug-minor: #22c55e;
+  --color-bug-fatal: #f56c6c;
+  --color-bug-serious: #e6a23c;
+  --color-bug-general: #909399;
+  --color-bug-minor: #67c23a;
 
   /* ==================== 脑图节点色 ==================== */
-  --color-node-normal: #475569;
-  --color-node-case: #1d4ed8;
-  --color-node-precondition: #0891b2;
-  --color-node-step: #059669;
-  --color-node-expected: #d97706;
+  --color-node-normal: #606266;
+  --color-node-case: #a464ff; /* 自定义紫，与优先级蓝互斥区分 */
+  --color-node-precondition: #409eff;
+  --color-node-step: #67c23a;
+  --color-node-expected: #e6a23c;
 
-  /* ==================== 管理端 ==================== */
-  --color-admin-bg: #f1f5f9;
-  --color-admin-sidebar-bg: #1e293b;
-  --color-admin-sidebar-text: #cbd5e1;
-  --color-admin-sidebar-active: #3b82f6;
+  /* AI 标识（徽标与入口统一青色，与类型/优先级徽标区分） */
+  --color-ai-badge: #13c2c2;
 
-  /* ==================== 业务端 ==================== */
-  --color-workspace-active: #22c55e;
-  --color-workspace-admin-badge: #16a34a;
-  --color-project-active: #3b82f6;
+  /* ==================== 壳层（浅色白底顶栏 + 悬浮卡片侧栏） ==================== */
+  --shell-bg: #ffffff;
+  --shell-border: #e4e7ed;
+  --shell-text: #606266;
+  --shell-text-strong: #303133;
+  --shell-item-hover: #f5f7fa;
+  --shell-item-active: #ecf5ff;
 
-  /* ==================== 布局尺寸 ==================== */
+  /* ==================== 布局尺寸（悬浮壳层） ==================== */
   --header-height: 52px;
   --sidebar-width: 180px;
   --sidebar-collapsed-width: 48px;
+  --float-gap: 16px; /* 悬浮卡与视口 / 相邻卡的留白 */
+  --page-pad: 32px; /* 内容白卡内边距 */
+  --card-pad: 24px; /* 卡片内边距 */
+  --block-gap: 24px; /* 区块间距 */
 
   /* ==================== 字号系统 ==================== */
   /* 页面自引用（如 workspace 卡片、登录页）此前悬空未定义，导致回退继承值参差；与 EP 基准对齐 */
@@ -88,6 +106,12 @@
   /* Element Plus 基准字号显式锁定，防止 EP 版本升级漂移 */
   --el-font-size-base: 14px;
 
+  /* ==================== 字体（系统无衬线字体栈，不引外部字体） ==================== */
+  --font-family:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei',
+    'Helvetica Neue', Arial, sans-serif;
+  --font-mono: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
+
   /* ==================== 间距系统 ==================== */
   --space-xs: 4px;
   --space-sm: 8px;
@@ -102,16 +126,18 @@
   --radius-lg: 8px;
   --radius-xl: 12px;
 
-  /* ==================== 阴影 ==================== */
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.04);
-  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
-  --shadow-card-hover: 0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.04);
+  /* ==================== 阴影（收敛、低对比） ==================== */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 12px -2px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 12px 32px -8px rgba(0, 0, 0, 0.12);
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-card-hover: 0 6px 16px -4px rgba(0, 0, 0, 0.08);
+  --shadow-float: 0 6px 20px -6px rgba(0, 0, 0, 0.08); /* 悬浮侧栏卡 / 内容卡 */
 
   /* ==================== 过渡 ==================== */
   --transition-fast: 0.15s ease;
   --transition-base: 0.2s ease;
+  /* 保留：视觉设计 §7 仅定义 fast/base，此处供 assistant 消息卡片等较长过渡引用 */
   --transition-slow: 0.3s ease;
 }
 
@@ -144,12 +170,12 @@
   padding: 20px !important;
 }
 
-/* 表格 */
+/* 表格（视觉设计 §8.3：表头 #F5F7FA · 行悬停 #FAFAFA · 斑马 #F0F2F5 · 边框 #E4E7ED） */
 .el-table {
-  --el-table-border-color: var(--color-neutral-100);
+  --el-table-border-color: var(--color-neutral-200);
   --el-table-header-bg-color: var(--color-neutral-50);
   --el-table-header-text-color: var(--color-neutral-600);
-  --el-table-row-hover-bg-color: var(--color-primary-50);
+  --el-table-row-hover-bg-color: var(--color-neutral-25);
   --el-table-text-color: var(--color-neutral-700);
   border-radius: var(--radius-md) !important;
   font-size: var(--font-size-base) !important;
@@ -163,7 +189,7 @@
 }
 
 .el-table--striped .el-table__body tr.el-table__row--striped td.el-table__cell {
-  background: var(--color-neutral-50) !important;
+  background: var(--color-neutral-100) !important;
 }
 
 /* 按钮 */
@@ -200,16 +226,16 @@
 /* 输入框 */
 .el-input__wrapper {
   border-radius: var(--radius-md) !important;
-  box-shadow: 0 0 0 1px var(--color-neutral-200) inset !important;
+  box-shadow: 0 0 0 1px var(--color-neutral-300) inset !important;
   transition: all var(--transition-fast) !important;
 }
 
 .el-input__wrapper:hover {
-  box-shadow: 0 0 0 1px var(--color-neutral-300) inset !important;
+  box-shadow: 0 0 0 1px var(--color-neutral-400) inset !important;
 }
 
 .el-input__wrapper.is-focus {
-  box-shadow: 0 0 0 1px var(--color-primary-500) inset, 0 0 0 3px rgba(59, 130, 246, 0.1) inset !important;
+  box-shadow: 0 0 0 1px var(--color-primary-500) inset, 0 0 0 3px rgba(64, 158, 255, 0.1) inset !important;
 }
 
 /* 下拉框 */
