@@ -75,17 +75,36 @@
 - **路径**：`GET /api/admin/roles/:id`
 - **响应**：`{ id, name, description, type, isSystem, permissions: [], userCount }`
 
-#### 3.5.6 获取角色关联用户（已移除）
+#### 3.5.6 获取角色关联用户
 
-> **该端点已移除**，改为通过用户管理模块的 `GET /api/admin/users?roleId=:roleId` 查询。
+- 系统角色：**复用用户分页接口** `GET /api/admin/users?roleId=:roleId`（可叠加 `keyword`、`status`、`pageNo`、`pageSize` 参数），响应为用户分页结构。
+- 工作空间角色：`GET /api/admin/roles/:id/workspace-users`，响应为按用户聚合的关联清单：
 
-#### 3.5.7 添加角色关联用户（已移除）
+  ```json
+  [
+    {
+      "userId": "uuid",
+      "username": "zhangsan",
+      "name": "张三",
+      "workspaces": [{ "workspaceId": "uuid", "workspaceName": "电商平台" }]
+    }
+  ]
+  ```
 
-> **该端点已移除**，改为通过用户管理模块更新用户的 `roleIds` 字段来管理角色关联。
+- **权限**：`role:view`
 
-#### 3.5.8 移除角色关联用户（已移除）
+#### 3.5.7 添加角色关联用户（系统角色）
 
-> **该端点已移除**，改为通过用户管理模块更新用户的 `roleIds` 字段来管理角色关联。
+- **路径**：`POST /api/admin/roles/:id/users`
+- **请求体**：`{ "userIds": ["uuid-1", "uuid-2"] }`
+- **权限**：`role:edit`
+- **响应**：成功提示；批量插入 `sys_user_role` 关联。
+
+#### 3.5.8 移除角色关联用户（系统角色）
+
+- **路径**：`DELETE /api/admin/roles/:id/users/:userId`
+- **权限**：`role:edit`
+- **响应**：成功提示。
 
 #### 3.5.9 更新角色权限
 
@@ -144,6 +163,28 @@
   ]
   ```
 
+#### 3.5.11 批量添加角色关联用户（工作空间角色）
+
+- **路径**：`POST /api/admin/roles/:id/workspace-users`
+- **请求体**：
+
+  ```json
+  {
+    "userIds": ["uuid-1", "uuid-2"],
+    "workspaceIds": ["ws-uuid-1", "ws-uuid-2"]
+  }
+  ```
+
+- **校验**：`userIds`、`workspaceIds` 均必填非空（`@NotEmpty`）；为指定用户在指定工作空间上批量绑定该工作空间角色。
+- **权限**：`role:edit`
+- **响应**：成功提示。
+
+#### 3.5.12 移除角色关联用户（工作空间角色，按空间维度）
+
+- **路径**：`DELETE /api/admin/roles/:id/users/:userId/workspace/:workspaceId`
+- **权限**：`role:edit`
+- **响应**：成功提示；仅解除该用户在此工作空间上的该角色绑定，不影响其在其他工作空间的关联。
+
 
 ### 4.3 角色管理流程
 
@@ -180,9 +221,9 @@
 
 #### 4.3.5 关联用户管理
 
-- 切换到“关联用户”Tab，调用 `GET /api/admin/roles/:id/users` 分页加载关联用户列表。
-- 点击[添加用户]弹出搜索弹窗，支持多选和远程搜索活跃用户，提交后调用 `POST /api/admin/roles/:id/users` 批量插入 sys_user_role。
-- 每行用户有[移除]按钮，点击二次确认后调用 `DELETE /api/admin/roles/:id/users/:userId`。
+- 切换到“关联用户”Tab，系统角色调用 `GET /api/admin/users?roleId=:roleId` 分页加载关联用户列表；工作空间角色调用 `GET /api/admin/roles/:id/workspace-users` 聚合加载（见 3.5.6）。
+- 点击[添加用户]弹出搜索弹窗，支持多选和远程搜索活跃用户，系统角色提交后调用 `POST /api/admin/roles/:id/users` 批量插入 sys_user_role；工作空间角色调用 `POST /api/admin/roles/:id/workspace-users`（同时携带 `workspaceIds`）。
+- 每行用户有[移除]按钮，点击二次确认后系统角色调用 `DELETE /api/admin/roles/:id/users/:userId`，工作空间角色按空间行调用 `DELETE /api/admin/roles/:id/users/:userId/workspace/:workspaceId`。
 - 操作完成后刷新列表。
 
 
@@ -237,9 +278,9 @@ RoleManagementPage
 
 #### 5.4.3 关联用户组件（RoleUsersTable）
 
-- **数据源**：`GET /api/admin/roles/:id/users` 分页加载。
-- **添加用户**：点击[添加用户]弹出搜索弹窗，支持多选和远程搜索活跃用户，提交后调用批量添加接口。
-- **移除用户**：每行[移除]按钮，二次确认后调用移除接口，刷新列表。
+- **数据源**：系统角色走 `GET /api/admin/users?roleId=:roleId` 分页加载；工作空间角色走 `GET /api/admin/roles/:id/workspace-users`（见 3.5.6）。
+- **添加用户**：点击[添加用户]弹出搜索弹窗，支持多选和远程搜索活跃用户，提交后调用对应批量添加接口（见 3.5.7、3.5.11）。
+- **移除用户**：每行[移除]按钮，二次确认后调用移除接口（见 3.5.8、3.5.12），刷新列表。
 
 #### 5.4.4 角色选择器（用户表单中使用）
 
