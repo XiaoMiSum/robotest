@@ -1,5 +1,6 @@
 package io.github.xiaomisum.robotest.controller.admin;
 
+import io.github.xiaomisum.robotest.framework.security.LoginUser;
 import io.github.xiaomisum.robotest.model.dto.request.workspace.WorkspaceCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.workspace.WorkspaceMembersAddReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.workspace.WorkspaceMemberRoleUpdateReqDTO;
@@ -10,6 +11,7 @@ import io.github.xiaomisum.robotest.service.workspace.WorkspaceService;
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import xyz.migoo.framework.common.pojo.PageResult;
 import xyz.migoo.framework.common.pojo.Result;
@@ -35,8 +37,10 @@ public class AdminWorkspaceController {
 
     @PostMapping
     @PreAuthorize("hasAuthority('workspace:create')")
-    public Result<String> createWorkspace(@RequestBody @Valid WorkspaceCreateReqDTO reqDTO) {
-        return Result.ok(workspaceService.createWorkspace(reqDTO));
+    public Result<String> createWorkspace(@RequestBody @Valid WorkspaceCreateReqDTO reqDTO,
+                                          @AuthenticationPrincipal LoginUser loginUser) {
+        // 仅取当前用户 ID 传入 Service 写入 created_by，不含业务逻辑（C2）
+        return Result.ok(workspaceService.createWorkspace(reqDTO, loginUser != null ? loginUser.getId() : null));
     }
 
     @GetMapping("/{id}")

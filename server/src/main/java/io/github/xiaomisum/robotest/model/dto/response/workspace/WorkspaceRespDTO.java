@@ -14,5 +14,7 @@ public class WorkspaceRespDTO {
     private String status;
     private Long memberCount;
     private Long projectCount;
+    /** 创建人用户名，由 created_by 批量回查；历史数据无创建人时为 null（前端展示 —） */
+    private String createdByName;
     private LocalDateTime createdAt;
 }
