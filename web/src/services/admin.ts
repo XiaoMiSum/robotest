@@ -112,6 +112,10 @@ export function dissolveWorkspace(id: string): Promise<void> {
   return del(`/admin/workspaces/${id}`)
 }
 
+export function restoreWorkspace(id: string): Promise<void> {
+  return post(`/admin/workspaces/${id}/restore`)
+}
+
 export function fetchWorkspaceMembers(
   id: string,
   params: { pageNo?: number; pageSize?: number },

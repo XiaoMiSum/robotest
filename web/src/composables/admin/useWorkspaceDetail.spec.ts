@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   removeWorkspaceMember: vi.fn(),
   addWorkspaceMembers: vi.fn(),
   dissolveWorkspace: vi.fn(),
+  restoreWorkspace: vi.fn(),
   useRoute: vi.fn(),
   useRouter: vi.fn(),
   ElMessage: { success: vi.fn(), error: vi.fn(), warning: vi.fn() },
@@ -50,6 +51,7 @@ vi.mock('@/services/admin', () => ({
   removeWorkspaceMember: mocks.removeWorkspaceMember,
   addWorkspaceMembers: mocks.addWorkspaceMembers,
   dissolveWorkspace: mocks.dissolveWorkspace,
+  restoreWorkspace: mocks.restoreWorkspace,
 }))
 
 import { useWorkspaceDetail } from './useWorkspaceDetail'
@@ -732,13 +734,14 @@ describe('useWorkspaceDetail', () => {
       expect(mocks.ElMessageBox.prompt).not.toHaveBeenCalled()
     })
 
-    it('有项目时显示警告', async () => {
+    it('有项目时不再拦截，归档不校验项目数', async () => {
+      mocks.dissolveWorkspace.mockResolvedValue(undefined)
       setupMocks({ workspace: makeWorkspace({ projectCount: 3 }) })
       const s = init()
       await vi.dynamicImportSettled()
       await s.handleDissolve()
-      expect(mocks.ElMessage.warning).toHaveBeenCalledWith('该工作空间下仍有项目，无法解散')
-      expect(mocks.ElMessageBox.prompt).not.toHaveBeenCalled()
+      expect(mocks.ElMessageBox.prompt).toHaveBeenCalled()
+      expect(mocks.dissolveWorkspace).toHaveBeenCalledWith('ws-1')
     })
 
     it('用户取消时不执行解散', async () => {
@@ -759,26 +762,26 @@ describe('useWorkspaceDetail', () => {
       await vi.dynamicImportSettled()
       await s.handleDissolve()
       expect(mocks.dissolveWorkspace).toHaveBeenCalledWith('ws-1')
-      expect(mocks.ElMessage.success).toHaveBeenCalledWith('工作空间已解散')
+      expect(mocks.ElMessage.success).toHaveBeenCalledWith('空间已归档')
       expect(mockPush).toHaveBeenCalledWith('/admin/workspaces')
     })
 
-    it('解散失败时显示错误（Error）', async () => {
-      mocks.dissolveWorkspace.mockRejectedValue(new Error('解散失败'))
+    it('归档失败时显示错误（Error）', async () => {
+      mocks.dissolveWorkspace.mockRejectedValue(new Error('归档失败'))
       setupMocks()
       const s = init()
       await vi.dynamicImportSettled()
       await s.handleDissolve()
-      expect(mocks.ElMessage.error).toHaveBeenCalledWith('解散失败')
+      expect(mocks.ElMessage.error).toHaveBeenCalledWith('归档失败')
     })
 
-    it('解散失败时显示通用消息（非 Error）', async () => {
+    it('归档失败时显示通用消息（非 Error）', async () => {
       mocks.dissolveWorkspace.mockRejectedValue(42)
       setupMocks()
       const s = init()
       await vi.dynamicImportSettled()
       await s.handleDissolve()
-      expect(mocks.ElMessage.error).toHaveBeenCalledWith('解散失败')
+      expect(mocks.ElMessage.error).toHaveBeenCalledWith('归档失败')
     })
 
     it('ElMessageBox.prompt 的 inputValidator 校验名称匹配', async () => {
@@ -790,6 +793,28 @@ describe('useWorkspaceDetail', () => {
       const validator = callArgs[2].inputValidator
       expect(validator('测试空间')).toBe(true)
       expect(validator('错误名称')).toBe('名称不匹配')
+    })
+  })
+
+  describe('handleRestore', () => {
+    it('成功后提示并刷新详情', async () => {
+      mocks.restoreWorkspace.mockResolvedValue(undefined)
+      setupMocks()
+      const s = init()
+      await vi.dynamicImportSettled()
+      await s.handleRestore()
+      expect(mocks.restoreWorkspace).toHaveBeenCalledWith('ws-1')
+      expect(mocks.ElMessage.success).toHaveBeenCalledWith('空间已重新启用')
+      expect(mocks.fetchWorkspaceDetail).toHaveBeenCalledTimes(2)
+    })
+
+    it('失败时显示通用消息（非 Error）', async () => {
+      mocks.restoreWorkspace.mockRejectedValue(42)
+      setupMocks()
+      const s = init()
+      await vi.dynamicImportSettled()
+      await s.handleRestore()
+      expect(mocks.ElMessage.error).toHaveBeenCalledWith('重新启用失败')
     })
   })
 
