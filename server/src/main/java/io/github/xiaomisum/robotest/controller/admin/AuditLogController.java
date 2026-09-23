@@ -27,11 +27,12 @@ public class AuditLogController {
     public Result<PageResult<AuditLogRespDTO>> getAuditLogPage(
             @RequestParam(required = false) String operatorName,
             @RequestParam(required = false) String entityType,
+            @RequestParam(required = false) String operation,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate beginTime,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endTime,
             @RequestParam(defaultValue = "1") Integer pageNo,
             @RequestParam(defaultValue = "20") Integer pageSize) {
-        return Result.ok(auditQueryService.page(operatorName, entityType, beginTime, endTime, pageNo, pageSize));
+        return Result.ok(auditQueryService.page(operatorName, entityType, operation, beginTime, endTime, pageNo, pageSize));
     }
 
     @GetMapping("/aggregate")

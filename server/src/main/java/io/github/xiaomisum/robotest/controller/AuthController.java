@@ -4,7 +4,9 @@ import io.github.xiaomisum.robotest.framework.security.LoginUser;
 import io.github.xiaomisum.robotest.model.dto.request.admin.LoginReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.admin.PasswordChangeReqDTO;
 import io.github.xiaomisum.robotest.service.admin.UserService;
+import io.github.xiaomisum.robotest.service.admin.audit.LoginAuditService;
 import jakarta.annotation.Resource;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -22,11 +24,17 @@ public class AuthController {
     private AuthUserDetailsFetcher<LoginUser> authUserDetailsFetcher;
     @Resource
     private UserService userService;
+    @Resource
+    private LoginAuditService loginAuditService;
 
     @PostMapping("/login")
-    public Result<LoginResult<LoginUser>> login(@RequestBody @Valid LoginReqDTO reqDTO) {
+    public Result<LoginResult<LoginUser>> login(@RequestBody @Valid LoginReqDTO reqDTO,
+                                                HttpServletRequest request) {
         LoginResult<LoginUser> loginResult = authUserDetailsFetcher.authenticate(
                 reqDTO.getIdentifier(), reqDTO.getPassword());
+        // 记录登录 IP 供数据概览活跃统计与审计查询消费；写入失败不影响登录
+        loginAuditService.recordLogin(loginResult.getUser().getId(),
+                loginResult.getUser().getUsername(), request);
         return Result.ok(loginResult);
     }
 

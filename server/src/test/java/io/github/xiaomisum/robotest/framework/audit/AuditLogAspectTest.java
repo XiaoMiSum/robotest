@@ -46,7 +46,10 @@ class AuditLogAspectTest {
     void setUp() {
         // mock 事务管理器：返回假 transaction status，避免真实事务基础设施启动
         when(transactionManager.getTransaction(any())).thenReturn(mock(TransactionStatus.class));
-        aspect = new AuditLogAspect(auditLogMapper, transactionManager, eventPublisher);
+        // 复用真实写入器与 IP 解析器：断言的是端到端审计语义（记录 + 事件），而非 mock 调用
+        aspect = new AuditLogAspect(
+                new AuditLogWriter(auditLogMapper, transactionManager, eventPublisher),
+                new ClientIpResolver());
 
         LoginUser loginUser = new LoginUser();
         loginUser.setId(UUID.fromString("00000000-0000-0000-0000-000000000007"));
