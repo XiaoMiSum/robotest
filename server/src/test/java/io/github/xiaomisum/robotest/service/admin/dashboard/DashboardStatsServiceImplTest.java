@@ -11,7 +11,10 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.Duration;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -66,7 +69,9 @@ class DashboardStatsServiceImplTest {
 
         DashboardStatsRespDTO stats = service.getStats();
 
-        assertNotNull(stats.getGeneratedAt());
+        // generatedAt 须为 UTC 墙钟（docs/spec/frontend.md §8），容差 ≤60s 防止回退为本地钟面
+        Duration skew = Duration.between(stats.getGeneratedAt(), LocalDateTime.now(ZoneOffset.UTC));
+        assertTrue(skew.abs().toSeconds() <= 60, "generatedAt 应为 UTC 墙钟，实际=" + stats.getGeneratedAt());
         assertEquals(128L, stats.getUsers().getTotal());
         assertEquals(100L, stats.getUsers().getEnabled());
         assertEquals(20L, stats.getUsers().getDisabled());
