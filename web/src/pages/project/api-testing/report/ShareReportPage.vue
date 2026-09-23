@@ -69,7 +69,7 @@ onMounted(loadReport)
 }
 
 .share-page__result {
-  background: #f2f4f7;
+  background: var(--color-neutral-50);
   border-radius: 16px;
   padding: 20px 24px;
 }

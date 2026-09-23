@@ -79,8 +79,8 @@ const {
   display: flex;
   gap: 2px;
   padding: 8px 14px 0;
-  border-bottom: 1px solid #eef1f5;
-  background: linear-gradient(180deg, #fbfdff, #fff);
+  border-bottom: 1px solid var(--color-neutral-200);
+  background: linear-gradient(180deg, var(--color-neutral-50), var(--color-neutral-0));
   flex-wrap: wrap;
 }
 
@@ -89,7 +89,7 @@ const {
   border: 1px solid transparent;
   border-bottom: none;
   background: transparent;
-  color: #64748b;
+  color: var(--color-neutral-600);
   font-family: inherit;
   font-size: 13px;
   font-weight: 600;
@@ -108,20 +108,20 @@ const {
 
   &:hover {
     color: var(--color-success);
-    background: #f0fdf4;
+    background: var(--color-success-light);
   }
 
   &--active {
-    background: #fff;
+    background: var(--color-neutral-0);
     color: var(--color-success);
-    border-color: #eef1f5;
+    border-color: var(--color-neutral-200);
     box-shadow: inset 0 2px 0 var(--color-success);
   }
 }
 
 .rr-tab__cnt {
-  background: #e5e9f0;
-  color: #475569;
+  background: var(--color-neutral-200);
+  color: var(--color-neutral-600);
   font-size: 11px;
   font-weight: 700;
   padding: 0 6px;
@@ -129,11 +129,11 @@ const {
   min-width: 18px;
   text-align: center;
   line-height: 16px;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-family: var(--font-mono);
 
   .rr-tab--active & {
-    background: #d1fae5;
-    color: #15803d;
+    background: var(--color-success-light);
+    color: var(--color-success-strong);
   }
 }
 
@@ -141,25 +141,25 @@ const {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: #cbd5e1;
+  background: var(--color-neutral-300);
   flex: 0 0 auto;
 
   &--ok {
-    background: #22c55e;
-    box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.15);
+    background: var(--color-success);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-success) 15%, transparent);
   }
 
   &--fail {
-    background: #ef4444;
-    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15);
+    background: var(--color-danger);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-danger) 15%, transparent);
   }
 
   &--skip {
-    background: #f59e0b;
+    background: var(--color-warning);
   }
 
   &--empty {
-    background: #e2e8f0;
+    background: var(--color-neutral-200);
   }
 }
 
@@ -173,17 +173,17 @@ const {
   align-items: center;
   gap: 6px;
   font-size: 11.5px;
-  color: #94a3b8;
-  background: #f8fafc;
-  border: 1px dashed #e2e8f0;
+  color: var(--color-neutral-500);
+  background: var(--color-neutral-50);
+  border: 1px dashed var(--color-neutral-200);
   border-radius: 8px;
   padding: 6px 11px;
   margin: 0 0 14px;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-family: var(--font-mono);
 
   b {
     font-weight: 600;
-    color: #64748b;
+    color: var(--color-neutral-600);
   }
 
   .rr-order-tip__current {
@@ -193,7 +193,7 @@ const {
 }
 
 .rr-order-tip__arrow {
-  color: #cbd5e1;
+  color: var(--color-neutral-300);
 }
 
 .rr-badge {
@@ -214,18 +214,18 @@ const {
   }
 
   &--ok {
-    background: #ecfdf3;
-    color: #15803d;
+    background: var(--color-success-light);
+    color: var(--color-success-strong);
   }
 
   &--fail {
-    background: #fef2f2;
-    color: #b91c1c;
+    background: var(--color-danger-light);
+    color: var(--color-danger-strong);
   }
 
   &--skip {
-    background: #f3f4f6;
-    color: #4b5563;
+    background: var(--color-neutral-100);
+    color: var(--color-neutral-600);
   }
 }
 
@@ -237,30 +237,30 @@ const {
   font-size: 11.5px;
   font-weight: 700;
   letter-spacing: 0.5px;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-family: var(--font-mono);
 
   &--get {
-    background: #e0f2fe;
-    color: #0369a1;
+    background: var(--color-primary-50);
+    color: var(--color-primary-700);
   }
 
   &--post {
-    background: #dcfce7;
-    color: #15803d;
+    background: var(--color-success-light);
+    color: var(--color-success-strong);
   }
 
   &--put {
-    background: #fef3c7;
-    color: #b45309;
+    background: var(--color-warning-light);
+    color: var(--color-warning-strong);
   }
 
   &--delete {
-    background: #fee2e2;
-    color: #b91c1c;
+    background: var(--color-danger-light);
+    color: var(--color-danger-strong);
   }
 }
 
 .rr-monotag {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-family: var(--font-mono);
 }
 </style>
