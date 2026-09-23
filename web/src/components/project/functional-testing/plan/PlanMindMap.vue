@@ -157,7 +157,7 @@ onBeforeUnmount(() => {
       <el-button-group size="small">
         <el-button :type="execResult==='pass'?'success':''" @click="markExecution('pass')">✅通过</el-button>
         <el-button :type="execResult==='fail'?'danger':''" @click="markExecution('fail')">❌失败</el-button>
-        <el-button :type="execResult==='block'?'warning':''" @click="markExecution('block')">❓阻塞</el-button>
+        <el-button :class="execResult==='block'?'exec-block-active':''" @click="markExecution('block')">❓阻塞</el-button>
         <el-button :type="execResult==='untested'?'info':''" @click="markExecution('untested')">🔄待执行</el-button>
       </el-button-group>
       <el-button v-if="removable" size="small" :disabled="!canRemove" @click="removeSelectedCase">🗑移除用例</el-button>
@@ -193,4 +193,18 @@ onBeforeUnmount(() => {
 
 <style scoped lang="scss">
 @use '../minder/minder-base';
+
+// EP 无内建阻塞档：danger 会与「失败」按钮撞色、warning 为橙，故覆盖按钮变量取
+// --color-blocked 深红（视觉设计 4.1），悬停/按下取同相加深档
+.exec-block-active {
+  --el-button-bg-color: var(--color-blocked);
+  --el-button-border-color: var(--color-blocked);
+  --el-button-text-color: var(--color-neutral-0);
+  --el-button-hover-bg-color: color-mix(in srgb, var(--color-blocked) 88%, black);
+  --el-button-hover-border-color: color-mix(in srgb, var(--color-blocked) 88%, black);
+  --el-button-hover-text-color: var(--color-neutral-0);
+  --el-button-active-bg-color: color-mix(in srgb, var(--color-blocked) 88%, black);
+  --el-button-active-border-color: color-mix(in srgb, var(--color-blocked) 88%, black);
+  --el-button-active-text-color: var(--color-neutral-0);
+}
 </style>
