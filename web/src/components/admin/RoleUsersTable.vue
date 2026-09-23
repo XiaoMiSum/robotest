@@ -33,20 +33,17 @@ const {
 </script>
 
 <template>
-  <section class="role-card role-users">
-    <header class="role-card__head">
-      <h3 class="role-card__title">
-        关联用户
-        <span class="role-card__subtitle">
-          {{ roleName }} · {{ isWorkspaceRole() ? workspaceUsers.length : total }} 人
-        </span>
-      </h3>
+  <div class="role-users">
+    <div class="role-users__toolbar">
+      <span class="role-card__subtitle">
+        {{ roleName }} · {{ isWorkspaceRole() ? workspaceUsers.length : total }} 人
+      </span>
       <el-button size="small" @click="pickerVisible = true">
         <el-icon><Plus /></el-icon>添加用户
       </el-button>
-    </header>
+    </div>
 
-    <div class="role-card__body role-users__body">
+    <div class="role-users__body">
       <div class="role-users__scroll">
         <!-- 系统角色用户列表 -->
         <el-table v-if="!isWorkspaceRole()" v-loading="loading" :data="users" row-key="id">
@@ -96,7 +93,7 @@ const {
         </el-table>
       </div>
 
-      <!-- 分页钉在卡底，滚动只作用于表体，避免长列表把分页顶出可视区 -->
+      <!-- 分页钉在 pane 底，滚动只作用于表体，避免长列表把分页顶出可视区 -->
       <div v-if="!isWorkspaceRole()" class="role-users__pager">
         <el-pagination
           v-model:current-page="query.pageNo"
@@ -138,12 +135,31 @@ const {
         <el-button type="danger" @click="handleWsRemoveConfirm">移除</el-button>
       </template>
     </el-dialog>
-  </section>
+  </div>
 </template>
 
 <style scoped lang="scss">
-/* 卡体不滚动，拆成「表体滚动 + 分页钉底」两段，卡片高度由页面统一约束 */
+/* pane 整体不滚动，拆成「表体滚动 + 分页钉底」两段，高度由页面与 Tab 统一约束 */
+.role-users {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.role-users__toolbar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  padding: 12px 24px;
+  border-bottom: 1px solid var(--color-neutral-100);
+}
+
 .role-users__body {
+  flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -160,7 +176,7 @@ const {
   flex-shrink: 0;
   display: flex;
   justify-content: flex-end;
-  padding: 14px 20px;
+  padding: 14px 24px;
   border-top: 1px solid var(--color-neutral-100);
 }
 
