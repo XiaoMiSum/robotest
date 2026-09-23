@@ -300,6 +300,13 @@ function goMyWorkspaces() {
 .admin-layout__content {
   flex: 1;
   overflow: auto;
+  /* 悬浮白卡右缘滚动条割裂整体感：隐藏滚动条但保留滚动能力 */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
   margin: var(--float-gap);
   padding: var(--page-pad);
   background: var(--color-neutral-0);
