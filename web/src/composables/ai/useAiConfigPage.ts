@@ -22,6 +22,7 @@ import {
   buildConfigPayload,
   collectSettingErrors,
   isEmbeddingGroupEmpty,
+  isSettingModified,
   resolveModelHints,
   resolveUniqueParams,
 } from '@/composables/admin/aiConfigForm'
@@ -91,6 +92,19 @@ export function useAiConfigPage() {
   const embeddingConfigured = computed(() => !isEmbeddingGroupEmpty(form.embedding))
   const rebuildRetryable = computed(
     () => rebuildTask.value?.status === 'failed' || rebuildTask.value?.status === 'cancelled',
+  )
+
+  const settingsTotalCount = computed(() =>
+    settingsSchema.value.reduce((total, group) => total + group.items.length, 0),
+  )
+
+  const settingsModifiedCount = computed(() =>
+    settingsSchema.value.reduce(
+      (total, group) =>
+        total +
+        group.items.filter((item) => isSettingModified(item, settingsForm[item.key])).length,
+      0,
+    ),
   )
 
   // 由 useAiChatModels 注入：开启总开关需至少一个已启用对话模型
@@ -404,6 +418,8 @@ export function useAiConfigPage() {
     embeddingModelHints,
     embeddingConfigured,
     rebuildRetryable,
+    settingsTotalCount,
+    settingsModifiedCount,
     footerStatusText,
     footerStatusError,
     loadAll,
