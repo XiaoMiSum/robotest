@@ -176,7 +176,7 @@ CREATE INDEX idx_ws_workspace_created_by ON ws_workspace (created_by);
 ---
 
 
-### 3.1 通用约定
+### 2.5 通用约定
 
 - 基础路径：`/api/admin`（管理端）、`/api/auth`（认证）；仅需 `Authorization` 请求头（系统管理域无上下文头，C4）。
 - 认证：`Authorization: Bearer <token>`
@@ -186,7 +186,7 @@ CREATE INDEX idx_ws_workspace_created_by ON ws_workspace (created_by);
 - 数据概览接口与用户/空间列表一致，**不设独立权限点**（进入 `/admin` 即可见菜单，路由守卫 `requiresAdmin` 把关）。
 
 
-### 4.4 权限校验中间件
+### 2.6 权限校验中间件
 
 - 后端实现授权中间件，在管理端路由组统一挂载。
 - 从 JWT 提取 userId 和所有角色，查询合并后的权限 code 列表。
@@ -211,7 +211,7 @@ CREATE INDEX idx_ws_workspace_created_by ON ws_workspace (created_by);
 | /api/admin/roles/:id                | DELETE | role:delete              |
 
 
-### 5.1 路由规划
+### 2.7 路由规划
 
 **公开路由**（无需认证）：
 
@@ -236,7 +236,7 @@ CREATE INDEX idx_ws_workspace_created_by ON ws_workspace (created_by);
 ```
 
 
-#### 5.2.1 AdminLayout
+#### 2.7.1 AdminLayout
 
 ```
 AdminLayout
@@ -253,7 +253,7 @@ AdminLayout
 ```
 
 
-### 5.3 状态管理（Pinia Store）
+### 2.8 状态管理（Pinia Store）
 
 - `adminUser`：当前管理员信息及系统角色列表
 - `systemRoles`：系统角色列表（用于选择器）
@@ -261,13 +261,13 @@ AdminLayout
 - `roleTreeData`：角色树数据
 
 
-### 5.6 数据绑定与格式化
+### 2.9 数据绑定与格式化
 
 - 时间一律走 `utils/format.ts`：`formatDateTime(generatedAt)`、`formatDateTime(createdAt)`、图表轴标签用 `MM-dd`（由 `date` 字符串截取或 `formatShortDateTime` 派生），后端 UTC+0 → 本地时区（`docs/06-spec/03-frontend.md` §8）。
 - 图表颜色使用既有设计令牌（`variables.scss`）：折线 `--color-primary-500`（#409eff）、面积 `rgba(51,112,255,.08)`、环图三段 `--color-success` / `--color-info` / `--color-danger`，不在组件内硬编码新色值。
 
 
-## 6. 错误码定义
+## 3. 错误码定义
 
 | 错误码       | HTTP 状态码 | 说明               |
 | ----------- | -------- | ---------------- |
@@ -302,7 +302,7 @@ AdminLayout
 ---
 
 
-## 7. 安全设计
+## 4. 安全设计
 
 - 管理端所有接口要求 Token 中包含系统角色。
 - 任何角色变更、密码重置、禁用/锁定操作都强制相关用户 Token 失效（Redis 黑名单或 token 版本号递增）。
@@ -313,7 +313,7 @@ AdminLayout
 ---
 
 
-## 8. 实施说明
+## 5. 实施说明
 
 **新增文件**
 
@@ -356,9 +356,9 @@ CREATE INDEX idx_ws_workspace_created_by ON ws_workspace (created_by);
 ---
 
 
-## 9. 附录
+## 6. 附录
 
-### 9.1 初始权限点定义
+### 6.1 初始权限点定义
 
 | code                     | 名称      | parent_code | module | scope     | 排序  |
 | ------------------------ | ------- | ----------- | ------ | --------- | --- |
@@ -382,7 +382,7 @@ CREATE INDEX idx_ws_workspace_created_by ON ws_workspace (created_by);
 
 > **业务侧权限点**由 V7 迁移脚本定义（33 个节点），`scope='workspace'`，涵盖我的空间、项目、测试用例、测试评审、测试计划、缺陷等模块。
 
-### 9.2 预置角色
+### 6.2 预置角色
 
 - **系统管理员**（type='system', scope='global', is_system=true）：拥有 admin 模块所有全局权限。
 - **空间管理员**（type='workspace', scope='workspace', is_system=true, full_access=true）：拥有所有空间级权限，运行时自动注入。
@@ -396,7 +396,7 @@ CREATE INDEX idx_ws_workspace_created_by ON ws_workspace (created_by);
 
 | 分册 | 文件 | 覆盖章节 |
 |---|---|---|
-| 总览 | `02-system-management-overview.md` | 前言、1. 引言、2. 数据设计、3.1 通用约定、4.4 权限校验中间件、5.1 路由规划、5.2.1 AdminLayout、5.3 状态管理（Pinia Store）、5.6 数据绑定与格式化、6. 错误码定义、7. 安全设计、8. 实施说明、9. 附录 |
+| 总览 | `02-system-management-overview.md` | 前言、1. 引言、2. 数据设计、2.5 通用约定、2.6 权限校验中间件、2.7 路由规划、2.7.1 AdminLayout、2.8 状态管理（Pinia Store）、2.9 数据绑定与格式化、6. 错误码定义、7. 安全设计、8. 实施说明、9. 附录 |
 | 认证 | `03-system-management-auth.md` | 3.2 认证接口、4.6 密码策略、4.7 系统初始化流程、4.10 登录审计写入 |
 | 用户管理 | `04-system-management-user.md` | 3.3 用户管理接口、4.1 用户创建流程、4.2 用户更新流程、4.5 用户状态变更、禁用与强制下线 |
 | 工作空间管理 | `05-system-management-workspace.md` | 3.4 工作空间管理接口、4.9 空间创建人写入与回填 |

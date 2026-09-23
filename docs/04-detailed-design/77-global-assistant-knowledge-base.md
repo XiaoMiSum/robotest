@@ -6,7 +6,7 @@
 
 ---
 
-### 4.5 平台使用指引知识库
+## 1. 平台使用指引知识库
 
 - **形态**：`server/src/main/resources/ai/guide/*.md` 静态知识片段，每片段头部 YAML 元数据：`topic`（主题词数组）、`route`（平台路由模板）、`roles`（适用角色，可空）；启动时加载内存；
 - **检索**：`get_platform_guide` 先按 `roles` 过滤（该字段非空时仅保留包含当前用户在本空间角色的片段，为空表示全员适用），再按 topic 关键词匹配取 Top 3 片段注入 Prompt；LLM 基于片段作答并附 `route` 生成跳转链接；

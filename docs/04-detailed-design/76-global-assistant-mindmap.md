@@ -6,7 +6,7 @@
 
 ---
 
-### 4.3 对话式脑图编辑
+## 1. 对话式脑图编辑
 
 - 触发条件：`pageContext.documentId` 非空且用户消息为编辑意图（LLM 决策调用 `translate_minder_command`）；无文档上下文时 LLM 告知"请在脑图编辑页使用该能力"；
 - 后端校验用户对该文档的编辑权限（无权则工具返回错误文本）；
@@ -15,7 +15,7 @@
 - 指令歧义时 LLM 直接以文本追问（`ambiguous` 结果转化为澄清问题），不做模糊执行。
 
 
-### 4.4 页面上下文桥（前端）
+## 2. 页面上下文桥（前端）
 
 - `stores/assistantContext.ts`：脑图编辑页 `onMounted/onUnmounted` 注册/注销当前 `{projectId, documentId, selectedNodeId}`，选中节点变化时更新；
 - 助手面板发送消息时读取该 store 注入 `pageContext`；非脑图页仅注入当前 projectId（若在项目内）；

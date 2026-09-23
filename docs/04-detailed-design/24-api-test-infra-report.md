@@ -6,9 +6,9 @@
 
 ---
 
-### 3.4 报告接口
+## 1. 报告接口
 
-#### 3.4.1 查询报告列表
+### 1.1 查询报告列表
 
 - **路径**：`GET /api/project/reports?page=1&pageSize=20&status=success`
 - **筛选参数**：`status`（可选）、`reportType`（可选，scene / suite）、`sceneId`（可选，仅筛场景报告）、`keyword`（可选，报告名称/套件内场景名模糊搜索）、`startDate` / `endDate`（可选）。
@@ -38,7 +38,7 @@
 
 > `reportType`：`scene`（场景报告）/ `suite`（套件报告）。场景报告 `name` = 场景名 + 时间戳、`sceneName` 有值；套件报告 `name` = 任务名 + 时间戳、`sceneName` 为 null、`summary` 采用场景级汇总。
 
-#### 3.4.2 查询报告详情
+### 1.2 查询报告详情
 
 - **路径**：`GET /api/project/reports/:id`
 - **响应**：`data.result` 为按 `reportType` 构建的结果数据集（`scene`/`suite`，字段结构见《测试报告详细设计说明书》2.3），前端按「场景 → 步骤」两级或单场景步骤渲染；`stepResults` 旧字段废弃。详情不含 `ryze_snapshot`（内部字段，仅保留后端）。当报告存在**未过期分享**时附带 `data.share`（`{shareUrl, expiresAt, shareBy}`），供分享弹窗直接复用展示；无分享/已过期为 `null`：
@@ -56,7 +56,7 @@
 }
 ```
 
-#### 3.4.3 生成分享链接
+### 1.3 生成分享链接
 
 - **路径**：`POST /api/project/reports/:id/share`
 - **说明**：无全局分享开关，具备报告查看/分享权限（`api-report:view`）即可生成；`expiresInDays` 缺省 7 天，有效期写入 `share_expires_at`，并写入分享者 `share_user_id`（参照邀请链接生成时选择过期时间）。接口**每次重新生成** token 并覆盖旧分享；前端在存在未过期分享时复用展示，不调用本接口（见《测试报告详细设计说明书》4.2）。
@@ -78,18 +78,18 @@
 }
 ```
 
-#### 3.4.4 访问分享报告（免登录）
+### 1.4 访问分享报告（免登录）
 
 - **路径**：`GET /api/public/api-reports/:id?token=abc123`
 - **说明**：不需要 Authorization 头，通过 token 校验访问权限。token 不匹配或过期统一返回 403（错误码 7009），不区分具体原因避免枚举探测。
 
-#### 3.4.5 删除报告
+### 1.5 删除报告
 
 - **路径**：`DELETE /api/project/reports/:id`
 - **响应**：`{ "success": true }`
 
 
-### 5.2 报告详情渲染
+## 2. 报告详情渲染
 
 报告详情页根据 `result` 数据集（按 `reportType`）渲染：
 

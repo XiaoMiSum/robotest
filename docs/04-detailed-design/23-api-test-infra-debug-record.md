@@ -6,9 +6,9 @@
 
 ---
 
-### 3.3 调试记录接口
+## 1. 调试记录接口
 
-#### 3.3.1 查询调试记录列表
+### 1.1 查询调试记录列表
 
 - **路径**：`GET /api/project/debug-records?page=1&pageSize=20`
 - **响应**：
@@ -31,7 +31,7 @@
 }
 ```
 
-#### 3.3.2 删除调试记录
+### 1.2 删除调试记录
 
 - **路径**：`DELETE /api/project/debug-records/:id`
 - **响应**：`{ "success": true }`

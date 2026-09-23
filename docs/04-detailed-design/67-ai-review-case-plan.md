@@ -6,7 +6,7 @@
 
 ---
 
-### 3.5 用例规划智能推荐
+## 1. 用例规划智能推荐
 
 - **路径**：`POST /api/project/ai/cases/plan-recommend`（同步，`case_plan_recommendation`）
 - **权限**：项目成员即可（附录 A 覆盖度分析无额外角色限定）。
@@ -33,7 +33,7 @@
 - 「加入评审/计划」由前端将勾选的 `caseNodeId` 集合解析为所属文档，与既有已选合并去重后预选进「调整用例」关联流程（评审走 `GET/PUT /api/project/reviews/:id/cases`，计划走 `GET/PUT /api/project/plans/:id/cases`），最终关联以用户在既有流程中的确认为准。
 
 
-### 4.5 用例规划推荐检索
+## 2. 用例规划推荐检索
 
 1. **输入归一**：需求条目（标题定界，按选取顺序）与需求文本按条目拆分为**检索块列表**（每块独立参与检索，同 4.3 截断规则）；同时拼接为需求描述块（供理由生成 LLM 输入）；
 2. **语义匹配**（可用时）：检索块列表**单次批量向量化**（一次 Embedding 调用，避免逐块多次外部调用）→ 逐块对 ai_case_embedding 独立 TopK（每块 K = `planRecommend.topK` 默认 50）→ **按 nodeId 合并去重、保留最高相似度** → 阈值过滤（`planRecommend.similarityThreshold` 默认 0.7，均为基础设施 2.2 配置键），`matchType = semantic`，score = 相似度。按块独立检索保证多需求条目场景下每个所选需求都有独立召回机会，避免合并单向量语义稀释导致偏科；降级态改为**按块分别 LLM 抽取关键词（每块 ≤ 10 个）合并去重** + 标题 ILIKE（score = 0.6，代码内置常量，仅作展示排序用）；`semanticSearch = unavailable` 或调用异常自动降级并置 `semanticDegraded = true`；

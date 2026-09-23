@@ -6,15 +6,15 @@
 
 ---
 
-### 4.1 AI 网关总体结构
+## 1. AI 网关总体结构
 
 后端新增 `service/ai` 子域（包结构 `io.github.xiaomisum.robotest.service.ai`），核心类划分：
 
 | 类 | 职责 |
 | ---- | ---- |
-| AiGatewayService | 调用总入口：模型解析（4.11） → 限流检查 → Prompt 组装 → Provider 调用 → 输出校验 → 审计；对业务 Service 暴露 `complete()` / `stream()` / `embed()` 三个方法，交互式功能调用可携带可选 `modelId` |
+| AiGatewayService | 调用总入口：模型解析（9） → 限流检查 → Prompt 组装 → Provider 调用 → 输出校验 → 审计；对业务 Service 暴露 `complete()` / `stream()` / `embed()` 三个方法，交互式功能调用可携带可选 `modelId` |
 | AiConfigService | 配置 CRUD、密钥加解密、连通性测试、配置缓存（内存缓存 + 变更失效） |
-| AiChatModelService | 对话模型多行配置管理（增删改查/设默认/启停，见 3.3.7）、按 `modelId` 解析运行期模型配置与默认回退（4.11）、清单缓存（内存缓存 + 变更失效） |
+| AiChatModelService | 对话模型多行配置管理（增删改查/设默认/启停，见 3.3.7）、按 `modelId` 解析运行期模型配置与默认回退（9）、清单缓存（内存缓存 + 变更失效） |
 | PromptAssembler | 模板加载（DB 记录优先 → 代码默认兜底）与消息组装、上下文定界 |
 | OpenAiCompatProvider | OpenAI 兼容协议 HTTP 客户端（Spring `RestClient`：同步调用直接绑定响应体；流式调用经 `exchange` 直读响应字节流逐行解析 SSE，阻塞读取由虚拟线程承载——平台已全局启用虚拟线程），唯一 Provider 实现 |
 | AiRateLimiter | Redis 滑动窗口限流 |
@@ -38,9 +38,9 @@ flowchart LR
 依赖约定：仅使用 Spring 自带 `RestClient`（spring-web 已随既有 starter 引入）与 Jackson，**不引入 spring-webflux、spring-ai 等新外部依赖**；输出结构校验不引入 json-schema 校验库，采用「Jackson 强类型 DTO 绑定 + 平台既有 Bean Validation 注解（`@NotBlank` / `@Size` / `@InEnum` 等，`Validator` 程序化触发）+ 少量自定义结构断言（树深度、节点类型父子合法性等）」实现，校验错误经 i18n 生成中文消息用于 LLM 带错重试与用户提示——与人工输入走同一套校验体系（SRS 3.3 业务规则）。
 
 
-### 4.2 Provider 适配器
+## 2. Provider 适配器
 
-#### 4.2.1 请求参数白名单
+### 2.1 请求参数白名单
 
 适配器构造请求体时仅使用标准参数集：
 
@@ -48,14 +48,14 @@ flowchart LR
 
 `extraParams`（配置透传）在白名单参数装配**之后**浅合并进请求体：白名单键不可被覆盖（配置保存时已校验），其余键原样透传。Embedding 请求白名单为 `model`、`input`、`dimensions`（配置了维度且探测支持时传入）+ `embedding_extra_params`。供应商预设（2.5）不参与运行期装配——独有配置项的值在保存时已并入 `extraParams`，适配器对全部供应商走同一条装配路径。
 
-#### 4.2.2 响应宽容解析
+### 2.2 响应宽容解析
 
 - 只消费标准字段：`choices[].message.content` / `choices[].delta.content`、`choices[].message.tool_calls` / `delta.tool_calls`、`choices[].finish_reason`、`usage`；
 - 未知字段（如 `reasoning_content`）静默忽略；
 - 结构化解析前统一剥离 `content` 中的 `<think>…</think>` 段与 Markdown 代码围栏；
 - SSE 上游流按 `data:` 行解析，`data: [DONE]` 为结束标记，无法解析的帧跳过并计数（超过阈值 20 帧判定上游异常，按 6002 终止）。
 
-#### 4.2.3 超时与重试
+### 2.3 超时与重试
 
 | 场景 | 连接超时 | 读超时 | 自动重试 |
 | ---- | ---- | ---- | ---- |
@@ -66,7 +66,7 @@ flowchart LR
 超时或重试耗尽按 6002 处理；`401/403` 上游鉴权错误不重试，直接失败并在管理端统计中可见。
 
 
-### 4.3 Prompt 组装与注入隔离
+## 3. Prompt 组装与注入隔离
 
 - **模板加载**：按 `function_type` 查 `ai_prompt_template` 有效记录，命中用数据库记录（初始化种子或自定义修改），未命中用代码内置默认（内置模板以资源文件形式随代码维护，与种子数据同源，键与 2.3 枚举一致）；
 - **消息结构**：
@@ -83,7 +83,7 @@ user:    <任务参数说明>
 - **上下文裁剪**：输入预算按字符数估算（中文 1 字 ≈ 1 token，英文 4 字符 ≈ 1 token），单次请求输入预算默认 24000 token；超限时由各功能自行决定截断或分批（各业务文档定义），网关只负责超预算时拒绝（1001）。
 
 
-### 4.4 结构化输出防线
+## 4. 结构化输出防线
 
 ```mermaid
 flowchart TD
@@ -103,7 +103,7 @@ flowchart TD
 - 流式调用的校验发生在 `done` 帧组装前：增量阶段只透传文本，结束时对完整输出做提取与校验，失败发 `error` 帧。
 
 
-### 4.5 流式调用链路（SSE）
+## 5. 流式调用链路（SSE）
 
 - 实现：Spring MVC `SseEmitter`，AI 流式接口统一超时 120s；
 - 网关将上游增量 `delta.content` 直接映射为 `delta` 帧转发，不缓冲全文（首内容 3s 目标）；
@@ -111,7 +111,7 @@ flowchart TD
 - AI 总开关关闭时，进行中的流式调用由网关在下一帧转发前检测并主动发送 `error`（6001）后终止（SRS 3.3：开关关闭中断进行中生成）。
 
 
-### 4.7 限流
+## 6. 限流
 
 - **算法**：Redis ZSET 滑动窗口。key `ai:rl:{userId}:{category}`，member 为调用时间戳（毫秒+随机后缀），窗口 1 小时：
   1. `ZREMRANGEBYSCORE key 0 (now-3600000)`；
@@ -123,14 +123,14 @@ flowchart TD
 - Redis 不可用时限流**失败开放**（放行并记录 WARN），不阻断 AI 功能。
 
 
-### 4.8 调用审计
+## 7. 调用审计
 
 - 每次经网关的调用（含 Embedding、含失败/取消/被限流）组装一条 `ai_invocation_log`，投递到独立单线程执行器异步落库；落库失败仅记 WARN，不影响调用主链路；
 - 流式调用在连接关闭时落一条（含最终状态与累计 token）；助手 Function Calling 循环内同一 SSE 连接的多次上游调用**合并计入该条**（function_type=assistant_chat，token 累加）；异步任务内的多轮 LLM 调用**每轮各落一条**（同 function_type）；
 - 保留期清理：每日 03:00 定时任务，`is_deleted = true` 标记超过 `logRetentionDays` 的记录，并物理删除已标记超过 1 天的记录（两阶段，避免误删无法恢复）；助手会话按 `conversationRetentionDays` 随本任务清理（见 2.4）。
 
 
-### 4.9 密钥加密存储
+## 8. 密钥加密存储
 
 - 算法：AES-256-GCM；加密密钥来自环境变量 `AI_SECRET_KEY`（Base64 编码 32 字节），随部署环境注入（`application.yaml` 占位符）；
 - 存储格式：`Base64(12字节IV || 密文 || 16字节Tag)`，每次加密随机 IV；
@@ -138,7 +138,7 @@ flowchart TD
 - 明文密钥仅存在于网关调用栈内存中，禁止进入日志、异常消息、审计与接口响应；管理端脱敏展示所需的末 4 位在保存时截取明文写入 `ai_chat_model.key_suffix` / `ai_config.embedding_key_suffix` 列，读取路径不接触密文。
 
 
-### 4.11 对话模型解析与默认唯一性
+## 9. 对话模型解析与默认唯一性
 
 **调用期模型解析**（`AiChatModelService.resolve(modelId)`，网关每次对话调用入口执行）：
 
