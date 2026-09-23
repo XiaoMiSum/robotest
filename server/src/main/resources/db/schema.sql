@@ -112,6 +112,7 @@ CREATE TABLE ws_workspace (
                               name        VARCHAR(50)  NOT NULL,
                               description VARCHAR(500),
                               status      VARCHAR(20)  NOT NULL DEFAULT 'active',
+                              created_by  UUID,
                               is_deleted  BOOLEAN      NOT NULL DEFAULT FALSE,
                               created_at  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
                               updated_at  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -119,6 +120,7 @@ CREATE TABLE ws_workspace (
 
 CREATE UNIQUE INDEX uk_ws_workspace_name ON ws_workspace (name) WHERE is_deleted = false;
 CREATE INDEX idx_ws_workspace_created ON ws_workspace (created_at DESC);
+CREATE INDEX idx_ws_workspace_created_by ON ws_workspace (created_by);
 
 -- 用户-工作空间关联表
 CREATE TABLE ws_user (
@@ -1498,6 +1500,7 @@ COMMENT ON COLUMN ws_workspace.id IS '工作空间唯一标识';
 COMMENT ON COLUMN ws_workspace.name IS '工作空间名称，唯一';
 COMMENT ON COLUMN ws_workspace.description IS '工作空间描述';
 COMMENT ON COLUMN ws_workspace.status IS '工作空间状态：active=正常, dissolved=已解散';
+COMMENT ON COLUMN ws_workspace.created_by IS '创建人 user id（逻辑外键 → sys_user.id，无物理外键，C5）';
 
 COMMENT ON TABLE ws_user IS '用户-工作空间关联表';
 COMMENT ON COLUMN ws_user.id IS '关联唯一标识';

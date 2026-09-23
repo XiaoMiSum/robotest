@@ -25,6 +25,7 @@ import xyz.migoo.framework.common.pojo.PageResult;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -49,6 +50,7 @@ public class WorkspaceServiceImpl implements WorkspaceService {
                     setPageSize(pageSize);
                 }}, keyword, status);
 
+        Map<UUID, String> creatorNames = loadCreatorNames(page.getList());
         List<WorkspaceRespDTO> records = page.getList().stream().map(ws -> {
             WorkspaceRespDTO dto = new WorkspaceRespDTO();
             dto.setId(ws.getId());
@@ -58,6 +60,7 @@ public class WorkspaceServiceImpl implements WorkspaceService {
             dto.setCreatedAt(ws.getCreatedAt());
             dto.setMemberCount(workspaceUserMapper.countByWorkspaceId(ws.getId()));
             dto.setProjectCount(projectMapper.countByWorkspaceId(ws.getId()));
+            dto.setCreatedByName(creatorNameOf(creatorNames, ws.getCreatedBy()));
             return dto;
         }).collect(Collectors.toList());
 
@@ -66,13 +69,14 @@ public class WorkspaceServiceImpl implements WorkspaceService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public String createWorkspace(WorkspaceCreateReqDTO reqDTO) {
+    public String createWorkspace(WorkspaceCreateReqDTO reqDTO, UUID creatorId) {
         if (workspaceMapper.findByName(reqDTO.getName()) != null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.WORKSPACE_NAME_EXISTS);
         }
 
         Workspace workspace = WorkspaceConvertMapper.INSTANCE.toEntity(reqDTO);
         workspace.setStatus(Constants.Status.ACTIVE);
+        workspace.setCreatedBy(creatorId);
         workspaceMapper.insert(workspace);
         return workspace.getId().toString();
     }
@@ -91,7 +95,27 @@ public class WorkspaceServiceImpl implements WorkspaceService {
         dto.setCreatedAt(workspace.getCreatedAt());
         dto.setMemberCount(workspaceUserMapper.countByWorkspaceId(workspace.getId()));
         dto.setProjectCount(projectMapper.countByWorkspaceId(workspace.getId()));
+        dto.setCreatedByName(creatorNameOf(loadCreatorNames(List.of(workspace)), workspace.getCreatedBy()));
         return dto;
+    }
+
+    /** Map.of 空表对 null 键会抛 NPE，历史数据 created_by 为 null 时直接返回 null */
+    private static String creatorNameOf(Map<UUID, String> names, UUID createdBy) {
+        return createdBy == null ? null : names.get(createdBy);
+    }
+
+    /** 批量回查创建人用户名；created_by 为 null（历史数据）时返回值即 null（C10：批量查询避免 N+1） */
+    private Map<UUID, String> loadCreatorNames(List<Workspace> list) {
+        List<UUID> creatorIds = list.stream()
+                .map(Workspace::getCreatedBy)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+        if (creatorIds.isEmpty()) {
+            return Map.of();
+        }
+        return userMapper.listByIds(creatorIds).stream()
+                .collect(Collectors.toMap(SysUser::getId, SysUser::getUsername, (first, ignored) -> first));
     }
 
     @Override
