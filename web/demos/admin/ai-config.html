@@ -192,6 +192,24 @@
   .kpi__value--modified, .kpi__value--modified .unit { color: var(--st-warning); }
   .embed__sub { font-size: var(--font-size-xs); font-weight: 400; color: var(--n-500); }
   .stat-card__foot { margin-top: 2px; font-size: var(--font-size-2xs); color: var(--n-400); }
+
+  /* 对话模型与 Embedding 并排等宽：固定等高（460px 按右侧表单展开态实测约 418px 取整留余量），超出部分卡内滚动 */
+  .model-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--block-gap);
+    margin-bottom: var(--block-gap);
+  }
+  .model-row > .card {
+    height: 460px;
+    margin-top: 0; /* 同 kpi-row：归零兄弟卡 margin，否则 grid 子项行内错位 */
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+  .model-row .card__header { flex-shrink: 0; }
+  .model-row .table-wrap { flex: 1; min-height: 0; overflow: auto; }
+  .model-row .card__body { flex: 1; min-height: 0; overflow: auto; }
 </style>
 </head>
 <body data-shell="admin" data-active="ai-config" data-mode="admin">
@@ -237,115 +255,116 @@
   <!-- ============ Tab 1 · AI 配置 ============ -->
   <div class="ai-panel" data-ai-panel="config">
 
-    <!-- 对话模型 -->
-    <div class="card">
-      <div class="card__header">
-        <span class="title-row"><span class="card-title-icon" data-icon="message"></span><h3 class="card__title">对话模型<span class="card__subtitle">3 个 · 2 已启用</span></h3></span>
-        <button class="btn btn--primary btn--sm"><span data-icon="plus"></span>新建模型</button>
-      </div>
-      <div class="table-wrap">
-        <table class="table">
-          <thead>
-            <tr>
-              <th style="min-width:140px">名称</th>
-              <th style="width:200px">供应商</th>
-              <th style="min-width:140px">模型名</th>
-              <th style="width:80px">状态</th>
-              <th class="ta-c" style="width:70px">默认</th>
-              <th style="min-width:260px">操作</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td class="cell-main">DeepSeek-V3</td>
-              <td><span class="cell-main">DeepSeek</span><span class="cell-sub">deepseek</span></td>
-              <td class="mono">deepseek-chat</td>
-              <td><span class="status status--success"><span class="dot"></span>启用</span></td>
-              <td class="ta-c"><span class="star-on" data-icon="star" title="默认模型"></span></td>
-              <td>
-                <span class="op-link">编辑</span><span class="op-link">测试</span><span class="op-link op-link--muted op-link--disabled" title="已是默认模型">设为默认</span><span class="op-link op-link--muted op-link--disabled" title="默认模型不可停用，需先转移默认">停用</span><span class="op-link op-link--muted op-link--disabled" title="默认模型不可删除">删除</span>
-              </td>
-            </tr>
-            <tr>
-              <td class="cell-main">GPT-4o-mini</td>
-              <td><span class="cell-main">OpenAI</span><span class="cell-sub">openai</span></td>
-              <td class="mono">gpt-4o-mini</td>
-              <td><span class="status status--success"><span class="dot"></span>启用</span></td>
-              <td class="ta-c"></td>
-              <td>
-                <span class="op-link">编辑</span><span class="op-link">测试</span><span class="op-link">设为默认</span><span class="op-link op-link--warning">停用</span><span class="op-link op-link--danger">删除</span>
-              </td>
-            </tr>
-            <tr>
-              <td class="cell-main">Qwen-Max</td>
-              <td><span class="cell-main">阿里云百炼（通义千问）</span><span class="cell-sub">qwen</span></td>
-              <td class="mono">qwen-max</td>
-              <td><span class="status status--neutral"><span class="dot"></span>停用</span></td>
-              <td class="ta-c"></td>
-              <td>
-                <span class="op-link">编辑</span><span class="op-link">测试</span><span class="op-link op-link--muted op-link--disabled" title="停用模型不可设为默认">设为默认</span><span class="op-link op-link--warning">启用</span><span class="op-link op-link--danger">删除</span>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
+    <!-- 对话模型与 Embedding 并排（固定等高，超出卡内滚动） -->
+    <div class="model-row">
 
-    <!-- Embedding 模型（展开 · 已配置） -->
-    <div class="card">
-      <div class="card__body">
-        <div class="embed__head">
-          <span class="card-title-icon" data-icon="data-chart"></span>
-          <span>Embedding 模型</span>
-          <span class="embed__sub">OpenAI · text-embedding-3-small · 1536 维</span>
-          <span class="tag tag--success tag--sm"><span class="dot"></span>已配置</span>
-          <span class="embed__arrow" data-icon="chevron-down" title="收起"></span>
+      <!-- 对话模型 -->
+      <div class="card">
+        <div class="card__header">
+          <span class="title-row"><span class="card-title-icon" data-icon="message"></span><h3 class="card__title">对话模型<span class="card__subtitle">3 个 · 2 已启用</span></h3></span>
+          <button class="btn btn--primary btn--sm"><span data-icon="plus"></span>新建模型</button>
         </div>
-        <div class="form-grid embed-body">
-          <div class="field">
-            <label class="field__label">供应商</label>
-            <select class="select">
-              <option selected>OpenAI</option>
-              <option>阿里云百炼（通义千问）</option>
-              <option>智谱 AI</option>
-              <option>通用 OpenAI 兼容</option>
-            </select>
+        <div class="table-wrap">
+          <table class="table">
+            <thead>
+              <tr>
+                <th style="min-width:140px">名称</th>
+                <th style="width:190px">供应商</th>
+                <th style="width:80px">状态</th>
+                <th class="ta-c" style="width:56px">默认</th>
+                <th style="min-width:240px">操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><span class="cell-main">DeepSeek-V3</span><span class="cell-sub mono">deepseek-chat</span></td>
+                <td><span class="cell-main">DeepSeek</span><span class="cell-sub">deepseek</span></td>
+                <td><span class="status status--success"><span class="dot"></span>启用</span></td>
+                <td class="ta-c"><span class="star-on" data-icon="star" title="默认模型"></span></td>
+                <td>
+                  <span class="op-link">编辑</span><span class="op-link">测试</span><span class="op-link op-link--muted op-link--disabled" title="已是默认模型">设为默认</span><span class="op-link op-link--muted op-link--disabled" title="默认模型不可停用，需先转移默认">停用</span><span class="op-link op-link--muted op-link--disabled" title="默认模型不可删除">删除</span>
+                </td>
+              </tr>
+              <tr>
+                <td><span class="cell-main">GPT-4o-mini</span><span class="cell-sub mono">gpt-4o-mini</span></td>
+                <td><span class="cell-main">OpenAI</span><span class="cell-sub">openai</span></td>
+                <td><span class="status status--success"><span class="dot"></span>启用</span></td>
+                <td class="ta-c"></td>
+                <td>
+                  <span class="op-link">编辑</span><span class="op-link">测试</span><span class="op-link">设为默认</span><span class="op-link op-link--warning">停用</span><span class="op-link op-link--danger">删除</span>
+                </td>
+              </tr>
+              <tr>
+                <td><span class="cell-main">Qwen-Max</span><span class="cell-sub mono">qwen-max</span></td>
+                <td><span class="cell-main">阿里云百炼（通义千问）</span><span class="cell-sub">qwen</span></td>
+                <td><span class="status status--neutral"><span class="dot"></span>停用</span></td>
+                <td class="ta-c"></td>
+                <td>
+                  <span class="op-link">编辑</span><span class="op-link">测试</span><span class="op-link op-link--muted op-link--disabled" title="停用模型不可设为默认">设为默认</span><span class="op-link op-link--warning">启用</span><span class="op-link op-link--danger">删除</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Embedding 模型（展开 · 已配置） -->
+      <div class="card">
+        <div class="card__body">
+          <div class="embed__head">
+            <span class="card-title-icon" data-icon="data-chart"></span>
+            <span>Embedding 模型</span>
+            <span class="embed__sub">OpenAI · text-embedding-3-small · 1536 维</span>
+            <span class="tag tag--success tag--sm"><span class="dot"></span>已配置</span>
+            <span class="embed__arrow" data-icon="chevron-down" title="收起"></span>
           </div>
-          <div class="field">
-            <label class="field__label">模型名</label>
-            <select class="select">
-              <option selected>text-embedding-3-small</option>
-              <option>text-embedding-3-large</option>
-            </select>
-          </div>
-          <div class="field">
-            <label class="field__label">服务地址</label>
-            <input class="input" value="https://api.openai.com/v1">
-          </div>
-          <div class="field">
-            <label class="field__label">向量维度</label>
-            <div class="numin">
-              <span class="numin__btn numin__btn--dec">−</span>
-              <input class="input num" value="1536">
-              <span class="numin__btn numin__btn--inc">+</span>
+          <div class="form-grid embed-body">
+            <div class="field">
+              <label class="field__label">供应商</label>
+              <select class="select">
+                <option selected>OpenAI</option>
+                <option>阿里云百炼（通义千问）</option>
+                <option>智谱 AI</option>
+                <option>通用 OpenAI 兼容</option>
+              </select>
             </div>
-          </div>
-          <div class="field full">
-            <label class="field__label">API 密钥</label>
-            <div class="input-wrap">
-              <span data-icon="key"></span>
-              <input class="input" placeholder="已配置（末位 9f2a），留空不修改">
+            <div class="field">
+              <label class="field__label">模型名</label>
+              <select class="select">
+                <option selected>text-embedding-3-small</option>
+                <option>text-embedding-3-large</option>
+              </select>
             </div>
-          </div>
-          <div class="full advanced-fold">
-            <div class="advanced-fold__head"><span data-icon="chevron-right"></span>高级自定义参数（JSON）</div>
-          </div>
-          <div class="full form-actions">
-            <button class="btn btn--default"><span data-icon="connection"></span>连通性测试</button>
-            <button class="btn btn--primary">保存</button>
+            <div class="field">
+              <label class="field__label">服务地址</label>
+              <input class="input" value="https://api.openai.com/v1">
+            </div>
+            <div class="field">
+              <label class="field__label">向量维度</label>
+              <div class="numin">
+                <span class="numin__btn numin__btn--dec">−</span>
+                <input class="input num" value="1536">
+                <span class="numin__btn numin__btn--inc">+</span>
+              </div>
+            </div>
+            <div class="field full">
+              <label class="field__label">API 密钥</label>
+              <div class="input-wrap">
+                <span data-icon="key"></span>
+                <input class="input" placeholder="已配置（末位 9f2a），留空不修改">
+              </div>
+            </div>
+            <div class="full advanced-fold">
+              <div class="advanced-fold__head"><span data-icon="chevron-right"></span>高级自定义参数（JSON）</div>
+            </div>
+            <div class="full form-actions">
+              <button class="btn btn--default"><span data-icon="connection"></span>连通性测试</button>
+              <button class="btn btn--primary">保存</button>
+            </div>
           </div>
         </div>
       </div>
+
     </div>
 
     <!-- 系统配置项（8 组全量） -->
