@@ -103,8 +103,13 @@ class WorkspaceServiceImplTest {
     // ========== createWorkspace ==========
 
     @Test
-    void createWorkspace_success_insertsActive() {
+    void createWorkspace_success_insertsActiveWithAdmin() {
+        UUID adminId = UUID.fromString("00000000-0000-0000-0000-0000000000bb");
+        SysUser admin = new SysUser();
+        admin.setId(adminId);
+        admin.setStatus(Constants.Status.ACTIVE);
         when(workspaceMapper.findByName(anyString())).thenReturn(null);
+        when(userMapper.selectById(adminId)).thenReturn(admin);
         doAnswer(invocation -> {
             Workspace w = invocation.getArgument(0);
             w.setId(UUID.randomUUID());
@@ -114,6 +119,7 @@ class WorkspaceServiceImplTest {
         WorkspaceCreateReqDTO req = new WorkspaceCreateReqDTO();
         req.setName("新空间");
         req.setDescription("desc");
+        req.setAdminUserId(adminId);
         String id = workspaceService.createWorkspace(req, creatorId);
 
         assertNotNull(id);
@@ -123,6 +129,14 @@ class WorkspaceServiceImplTest {
         assertEquals(Constants.Status.ACTIVE, captor.getValue().getStatus());
         // 创建人来自当前登录用户，写入 created_by
         assertEquals(creatorId, captor.getValue().getCreatedBy());
+
+        // 创建即写入管理员成员行，角色取预置 ADMIN_ID，空间归属与刚落库的空间一致
+        ArgumentCaptor<WorkspaceUser> wuCaptor = ArgumentCaptor.forClass(WorkspaceUser.class);
+        verify(workspaceUserMapper).insert(wuCaptor.capture());
+        assertEquals(adminId, wuCaptor.getValue().getUserId());
+        assertEquals(captor.getValue().getId(), wuCaptor.getValue().getWorkspaceId());
+        assertEquals(Constants.WorkspaceRole.ADMIN_ID, wuCaptor.getValue().getWorkspaceRole());
+        assertNotNull(wuCaptor.getValue().getJoinedAt());
     }
 
     @Test
@@ -134,6 +148,40 @@ class WorkspaceServiceImplTest {
 
         assertThrows(ServiceException.class, () -> workspaceService.createWorkspace(req, creatorId));
         verify(workspaceMapper, never()).insert(any(Workspace.class));
+    }
+
+    @Test
+    void createWorkspace_adminUserNotFound_throws() {
+        UUID adminId = UUID.randomUUID();
+        when(workspaceMapper.findByName(anyString())).thenReturn(null);
+        when(userMapper.selectById(adminId)).thenReturn(null);
+
+        WorkspaceCreateReqDTO req = new WorkspaceCreateReqDTO();
+        req.setName("新空间");
+        req.setAdminUserId(adminId);
+
+        // 校验在插库前 fail-fast：空间行与成员行都不落库
+        assertThrows(ServiceException.class, () -> workspaceService.createWorkspace(req, creatorId));
+        verify(workspaceMapper, never()).insert(any(Workspace.class));
+        verify(workspaceUserMapper, never()).insert(any(WorkspaceUser.class));
+    }
+
+    @Test
+    void createWorkspace_adminUserDisabled_throws() {
+        UUID adminId = UUID.randomUUID();
+        SysUser admin = new SysUser();
+        admin.setId(adminId);
+        admin.setStatus(Constants.Status.DISABLED);
+        when(workspaceMapper.findByName(anyString())).thenReturn(null);
+        when(userMapper.selectById(adminId)).thenReturn(admin);
+
+        WorkspaceCreateReqDTO req = new WorkspaceCreateReqDTO();
+        req.setName("新空间");
+        req.setAdminUserId(adminId);
+
+        assertThrows(ServiceException.class, () -> workspaceService.createWorkspace(req, creatorId));
+        verify(workspaceMapper, never()).insert(any(Workspace.class));
+        verify(workspaceUserMapper, never()).insert(any(WorkspaceUser.class));
     }
 
     // ========== created_by 回填 ==========

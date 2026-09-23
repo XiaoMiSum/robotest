@@ -73,11 +73,27 @@ public class WorkspaceServiceImpl implements WorkspaceService {
         if (workspaceMapper.findByName(reqDTO.getName()) != null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.WORKSPACE_NAME_EXISTS);
         }
+        // 管理员先校验后插库：避免空间行落库而管理员成员缺失的半成品数据
+        SysUser admin = userMapper.selectById(reqDTO.getAdminUserId());
+        if (admin == null) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.USER_NOT_FOUND);
+        }
+        if (!Constants.Status.ACTIVE.equals(admin.getStatus())) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.USER_STATUS_INVALID);
+        }
 
         Workspace workspace = WorkspaceConvertMapper.INSTANCE.toEntity(reqDTO);
         workspace.setStatus(Constants.Status.ACTIVE);
         workspace.setCreatedBy(creatorId);
         workspaceMapper.insert(workspace);
+
+        // 创建即绑定预置管理员角色，让「至少保留一个空间管理员」从源头成立
+        WorkspaceUser adminMember = new WorkspaceUser();
+        adminMember.setUserId(admin.getId());
+        adminMember.setWorkspaceId(workspace.getId());
+        adminMember.setWorkspaceRole(Constants.WorkspaceRole.ADMIN_ID);
+        adminMember.setJoinedAt(LocalDateTime.now());
+        workspaceUserMapper.insert(adminMember);
         return workspace.getId().toString();
     }
 
