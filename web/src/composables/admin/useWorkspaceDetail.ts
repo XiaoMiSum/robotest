@@ -9,6 +9,7 @@ import {
   fetchWorkspaceDetail,
   fetchWorkspaceMembers,
   removeWorkspaceMember,
+  restoreWorkspace,
   updateWorkspace,
   updateWorkspaceMemberRole,
 } from '@/services/admin'
@@ -218,14 +219,10 @@ export function useWorkspaceDetail() {
 
   async function handleDissolve() {
     if (!detail.value) return
-    if (detail.value.projectCount > 0) {
-      ElMessage.warning('该工作空间下仍有项目，无法解散')
-      return
-    }
     try {
       await ElMessageBox.prompt(
-        `解散后数据不可恢复。请输入工作空间名称「${detail.value.name}」以确认解散。`,
-        '解散工作空间',
+        `归档后空间将转为只读，成员与数据保留，可随时重新启用。请输入工作空间名称「${detail.value.name}」以确认归档。`,
+        '归档空间',
         {
           type: 'warning',
           inputPlaceholder: '请输入工作空间名称',
@@ -237,10 +234,21 @@ export function useWorkspaceDetail() {
     }
     try {
       await dissolveWorkspace(workspaceId)
-      ElMessage.success('工作空间已解散')
+      ElMessage.success('空间已归档')
       router.push('/admin/workspaces')
     } catch (err) {
-      ElMessage.error(err instanceof Error ? err.message : '解散失败')
+      ElMessage.error(err instanceof Error ? err.message : '归档失败')
+    }
+  }
+
+  // 直接执行，无确认弹窗：恢复是幂等的可逆操作，误触成本低
+  async function handleRestore() {
+    try {
+      await restoreWorkspace(workspaceId)
+      ElMessage.success('空间已重新启用')
+      loadDetail()
+    } catch (err) {
+      ElMessage.error(err instanceof Error ? err.message : '重新启用失败')
     }
   }
 
@@ -282,5 +290,6 @@ export function useWorkspaceDetail() {
     selectedUsers,
     submitAddMembers,
     handleDissolve,
+    handleRestore,
   }
 }

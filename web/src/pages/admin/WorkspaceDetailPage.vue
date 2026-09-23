@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { nextTick, ref, type ComponentPublicInstance } from 'vue'
+import { computed, nextTick, ref, type ComponentPublicInstance } from 'vue'
 import { useWorkspaceDetail } from '@/composables/admin/useWorkspaceDetail'
 import { WORKSPACE_ROLE, workspaceRoleLabel } from '@/services/admin'
 import type { WorkspaceMember } from '@/types'
@@ -34,13 +34,17 @@ const {
   selectedUsers,
   submitAddMembers,
   handleDissolve,
+  handleRestore,
 } = useWorkspaceDetail()
 
 function statusMeta(status?: string) {
   if (status === 'active') return { label: '活跃', dot: 'ws-detail__status--success' }
-  if (status === 'dissolved') return { label: '已解散', dot: 'ws-detail__status--neutral' }
+  if (status === 'dissolved') return { label: '归档', dot: 'ws-detail__status--neutral' }
   return { label: status ?? '', dot: 'ws-detail__status--neutral' }
 }
+
+// 归档态整页只读：信息/成员维护入口全部收起，仅留[重新启用]
+const isDissolved = computed(() => detail.value?.status === 'dissolved')
 
 function roleTag(member: WorkspaceMember) {
   return {
@@ -93,7 +97,13 @@ function handleRoleVisibleChange(visible: boolean) {
           ><template v-if="detail?.createdAt"> · 创建于 {{ formatDateTime(detail.createdAt) }}</template>
         </p>
       </div>
-      <el-button v-if="detail" type="danger" @click="handleDissolve">解散空间</el-button>
+      <el-button
+        v-if="detail && isDissolved"
+        type="primary"
+        @click="handleRestore"
+        >重新启用</el-button
+      >
+      <el-button v-else-if="detail" type="danger" @click="handleDissolve">归档空间</el-button>
     </div>
 
     <section v-loading="infoLoading" class="ws-detail__card">
@@ -105,6 +115,7 @@ function handleRoleVisibleChange(visible: boolean) {
           ref="infoFormRef"
           :model="infoForm"
           :rules="infoRules"
+          :disabled="isDissolved"
           label-position="top"
           class="ws-detail__form"
         >
@@ -138,7 +149,7 @@ function handleRoleVisibleChange(visible: boolean) {
           </div>
         </div>
 
-        <div class="ws-detail__form-actions">
+        <div v-if="!isDissolved" class="ws-detail__form-actions">
           <el-button link @click="resetInfo">重置</el-button>
           <el-button type="primary" :loading="infoSaving" @click="saveInfo">保存修改</el-button>
         </div>
@@ -151,7 +162,7 @@ function handleRoleVisibleChange(visible: boolean) {
           <h3 class="ws-detail__card-title">成员列表</h3>
           <span class="ws-detail__card-subtitle">{{ memberTotal }} 人</span>
         </div>
-        <el-button size="small" @click="openAddDialog">
+        <el-button v-if="!isDissolved" size="small" @click="openAddDialog">
           <el-icon><Plus /></el-icon>添加用户
         </el-button>
       </header>
@@ -197,7 +208,7 @@ function handleRoleVisibleChange(visible: boolean) {
             <span class="ws-detail__num">{{ formatDateTime(row.joinedAt) }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="130" fixed="right">
+        <el-table-column v-if="!isDissolved" label="操作" width="130" fixed="right">
           <template #default="{ row }">
             <el-button link type="primary" @click="startEditRole(row.userId)">改角色</el-button>
             <el-button link type="danger" @click="handleRemoveMember(row as WorkspaceMember)"
@@ -323,7 +334,7 @@ function handleRoleVisibleChange(visible: boolean) {
   word-break: break-all;
 }
 
-/* 状态点标对齐演示稿 status（圆点 + 文案），色义：活跃绿 / 已解散灰 */
+/* 状态点标对齐演示稿 status（圆点 + 文案），色义：活跃绿 / 归档灰 */
 .ws-detail__status {
   display: inline-flex;
   align-items: center;
