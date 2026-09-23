@@ -82,6 +82,12 @@ export function useWorkspaceDetail() {
     }
   }
 
+  function resetInfo() {
+    if (!detail.value) return
+    infoForm.name = detail.value.name
+    infoForm.description = detail.value.description ?? ''
+  }
+
   const members = ref<WorkspaceMember[]>([])
   const membersLoading = ref(false)
   const memberTotal = ref(0)
@@ -256,6 +262,7 @@ export function useWorkspaceDetail() {
     infoForm,
     infoRules,
     saveInfo,
+    resetInfo,
     members,
     membersLoading,
     memberTotal,
