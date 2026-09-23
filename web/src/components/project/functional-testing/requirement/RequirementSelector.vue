@@ -1,8 +1,7 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
-import { ElMessage } from 'element-plus'
-import { fetchRequirements } from '@/services/project'
-import type { RequirementPoolItem, RequirementSummary } from '@/types'
+import { useRequirementPicker } from '@/composables/project/functional-testing/requirement/useRequirementPicker'
+import { watch } from 'vue'
+import type { RequirementSummary } from '@/types'
 
 /**
  * 需求选取器（US-AI-004 交互设计 6.2，可复用）：
@@ -18,55 +17,24 @@ const emit = defineEmits<{
   confirm: [selected: RequirementSummary[]]
 }>()
 
-const loading = ref(false)
-const items = ref<RequirementPoolItem[]>([])
-const total = ref(0)
-const keyword = ref('')
-const pageNo = ref(1)
-const pageSize = ref(10)
-// 跨页保留选择：id → title，保序
-const selected = ref<Map<string, string>>(new Map())
-
-async function load() {
-  loading.value = true
-  try {
-    const page = await fetchRequirements({
-      keyword: keyword.value || undefined,
-      // 选取器仅展示 active 条目：已归档不参与 AI 消费与文档关联（需求规格 3.2.4）
-      status: 'active',
-      pageNo: pageNo.value,
-      pageSize: pageSize.value,
-    })
-    items.value = page.list
-    total.value = page.total
-    // 回填已选项标题：打开时 selected 仅占位空串，列表就绪后补全，避免确认后标签只显示关闭按钮
-    const next = new Map(selected.value)
-    for (const item of page.list) {
-      if (next.has(item.id)) next.set(item.id, item.title)
-    }
-    selected.value = next
-  } catch (err) {
-    ElMessage.error(err instanceof Error ? err.message : '加载需求失败')
-  } finally {
-    loading.value = false
-  }
-}
+const {
+  loading,
+  items,
+  total,
+  keyword,
+  pageNo,
+  pageSize,
+  selected,
+  search,
+  handlePageChange,
+  load,
+} = useRequirementPicker()
 
 function toggle(id: string, title: string, checked: boolean): void {
   const next = new Map(selected.value)
   if (checked) next.set(id, title)
   else next.delete(id)
   selected.value = next
-}
-
-function search(): void {
-  pageNo.value = 1
-  load()
-}
-
-function handlePageChange(page: number): void {
-  pageNo.value = page
-  load()
 }
 
 function confirm(): void {
