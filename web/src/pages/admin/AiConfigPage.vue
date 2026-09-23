@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { onMounted, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useAiConfigPage } from '@/composables/ai/useAiConfigPage'
 import { useAiChatModels } from '@/composables/ai/useAiChatModels'
 import AiAgentsTab from '@/components/admin/AiAgentsTab.vue'
-import AiMasterSwitchCard from '@/components/admin/AiMasterSwitchCard.vue'
+import AiMasterSwitch from '@/components/admin/AiMasterSwitch.vue'
+import AiConfigKpiRow from '@/components/admin/AiConfigKpiRow.vue'
 import AiChatModelTable from '@/components/admin/AiChatModelTable.vue'
 import AiEmbeddingForm from '@/components/admin/AiEmbeddingForm.vue'
 import AiSettingsSection from '@/components/admin/AiSettingsSection.vue'
@@ -25,6 +26,13 @@ watch(
   },
 )
 
+// tab 计数徽标经面板实例回传，页面不重复拉取智能体列表
+const agentsTabRef = ref<InstanceType<typeof AiAgentsTab> | null>(null)
+const agentsCount = computed(() => agentsTabRef.value?.agentsCount ?? 0)
+const defaultModelName = computed(
+  () => models.chatModels.value.find((m) => m.isDefault)?.name ?? '—',
+)
+
 onMounted(async () => {
   await cfg.loadAll()
   await models.refresh()
@@ -33,15 +41,38 @@ onMounted(async () => {
 
 <template>
   <div class="ai-config-page">
-    <el-tabs v-model="cfg.activeTab.value" @tab-change="cfg.handleTabChange">
+    <div class="ai-config-page__head">
+      <div class="ai-config-page__head-text">
+        <h1 class="ai-config-page__title">AI 配置</h1>
+        <p class="ai-config-page__desc">
+          关闭后前端隐藏全部 AI 入口，进行中任务被取消；开启需已启用至少一个对话模型
+        </p>
+      </div>
+      <AiMasterSwitch
+        v-model="cfg.form.enabled"
+        :loading="cfg.loading.value"
+        @before-change="cfg.handleMasterBeforeChange"
+      />
+    </div>
+
+    <AiConfigKpiRow
+      :models-enabled="models.enabledCount.value"
+      :models-total="models.chatModels.value.length"
+      :default-model-name="defaultModelName"
+      :embedding-configured="cfg.embeddingConfigured.value"
+      :embedding-model="cfg.form.embedding.model"
+      :embedding-dimension="cfg.form.embedding.dimension"
+      :settings-modified="cfg.settingsModifiedCount.value"
+      :settings-total="cfg.settingsTotalCount.value"
+    />
+
+    <el-tabs
+      v-model="cfg.activeTab.value"
+      class="ai-config-page__tabs"
+      @tab-change="cfg.handleTabChange"
+    >
       <el-tab-pane label="AI 配置" name="config">
         <el-form v-loading="cfg.loading.value" label-width="120px">
-          <AiMasterSwitchCard
-            v-model="cfg.form.enabled"
-            :loading="cfg.loading.value"
-            @before-change="cfg.handleMasterBeforeChange"
-          />
-
           <AiChatModelTable
             :models="models.chatModels.value"
             :row-testing-id="models.rowTestingId.value"
@@ -97,8 +128,12 @@ onMounted(async () => {
         </el-form>
       </el-tab-pane>
 
-      <el-tab-pane label="智能体" name="agents" lazy>
-        <AiAgentsTab />
+      <!-- 不用 lazy：tab 计数徽标依赖面板挂载回传数量，lazy 会使徽标首屏为 0 -->
+      <el-tab-pane name="agents">
+        <template #label>
+          智能体<span class="ai-config-page__tab-count">{{ agentsCount }}</span>
+        </template>
+        <AiAgentsTab ref="agentsTabRef" />
       </el-tab-pane>
 
       <el-tab-pane label="调用统计" name="statistics">
@@ -127,6 +162,88 @@ onMounted(async () => {
 </template>
 
 <style scoped lang="scss">
+.ai-config-page__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-lg);
+  margin-bottom: var(--block-gap);
+}
+
+.ai-config-page__title {
+  margin: 0;
+  font-size: var(--font-size-2xl);
+  font-weight: 650;
+  color: var(--color-neutral-900);
+  letter-spacing: -0.01em;
+}
+
+.ai-config-page__desc {
+  margin: 4px 0 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-neutral-500);
+}
+
+.ai-config-page__tabs {
+  :deep(.el-tabs__header) {
+    margin-bottom: var(--block-gap) !important;
+  }
+
+  /* 条目两侧内缩 10px（对齐 demo .ai-tabs），底线仍通栏 */
+  :deep(.el-tabs__nav-wrap) {
+    padding: 0 10px;
+  }
+
+  :deep(.el-tabs__nav-wrap::after) {
+    height: 1px;
+    background: var(--color-neutral-200);
+  }
+
+  :deep(.el-tabs__item) {
+    position: relative;
+    padding: 12px 14px;
+    height: auto;
+    line-height: 1.5;
+    font-size: var(--font-size-base);
+    color: var(--color-neutral-500);
+
+    &:hover:not(.is-active) {
+      color: var(--color-neutral-800);
+    }
+
+    &.is-active {
+      color: var(--color-neutral-900);
+      font-weight: 600;
+    }
+  }
+
+  /* 自绘 2px 品牌下划线（demo .tab--active::after），隐藏 EP 活动条避免双线 */
+  :deep(.el-tabs__item.is-active)::after {
+    content: '';
+    position: absolute;
+    left: 14px;
+    right: 14px;
+    bottom: -1px;
+    height: 2px;
+    border-radius: 1px;
+    background: var(--color-primary-500);
+  }
+
+  :deep(.el-tabs__active-bar) {
+    display: none;
+  }
+}
+
+.ai-config-page__tab-count {
+  margin-left: 6px;
+  font-size: var(--font-size-2xs);
+  color: var(--color-neutral-500);
+  background: var(--color-neutral-100);
+  border-radius: 999px;
+  padding: 1px 6px;
+  font-weight: 500;
+}
+
 .ai-config-page__rebuild {
   margin-bottom: var(--space-lg);
 }
