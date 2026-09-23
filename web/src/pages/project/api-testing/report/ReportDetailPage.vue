@@ -161,20 +161,20 @@ onMounted(loadDetail)
 }
 
 .report-detail__content {
-  background: #f2f4f7;
+  background: var(--color-neutral-50);
   border-radius: 16px;
   padding: 20px 24px;
   flex: 1;
 }
 
 .detail-actions__btn {
-  background: rgba(255, 255, 255, 0.85);
-  border: 1px solid rgba(61, 122, 85, 0.18);
-  color: #1a4a2e;
+  background: color-mix(in srgb, var(--color-neutral-0) 85%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-success) 18%, transparent);
+  color: var(--color-success-strong);
 
   &:hover {
-    background: #fff;
-    border-color: rgba(61, 122, 85, 0.4);
+    background: var(--color-neutral-0);
+    border-color: color-mix(in srgb, var(--color-success) 40%, transparent);
   }
 }
 

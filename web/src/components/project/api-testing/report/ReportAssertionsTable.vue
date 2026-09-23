@@ -48,7 +48,7 @@ const { displayValue, badgeClass, assertionLabel } = useReportDisplay()
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 1px;
-  color: #64748b;
+  color: var(--color-neutral-600);
   text-transform: uppercase;
   margin-bottom: 8px;
   display: flex;
@@ -59,7 +59,7 @@ const { displayValue, badgeClass, assertionLabel } = useReportDisplay()
     content: '';
     flex: 1;
     height: 1px;
-    background: #eef1f5;
+    background: var(--color-neutral-200);
   }
 }
 
@@ -67,24 +67,24 @@ const { displayValue, badgeClass, assertionLabel } = useReportDisplay()
   width: 100%;
   border-collapse: collapse;
   font-size: 12.6px;
-  border: 1px solid #eef1f5;
+  border: 1px solid var(--color-neutral-200);
   border-radius: 9px;
   overflow: hidden;
 
   th {
-    background: #f8fafc;
-    color: #64748b;
+    background: var(--color-neutral-50);
+    color: var(--color-neutral-600);
     font-weight: 600;
     text-align: left;
     padding: 8px 12px;
-    border-bottom: 1px solid #eef1f5;
+    border-bottom: 1px solid var(--color-neutral-200);
     font-size: 12px;
     white-space: nowrap;
   }
 
   td {
     padding: 8px 12px;
-    border-bottom: 1px solid #f4f7fa;
+    border-bottom: 1px solid var(--color-neutral-200);
     vertical-align: top;
     word-break: break-all;
   }
@@ -95,11 +95,11 @@ const { displayValue, badgeClass, assertionLabel } = useReportDisplay()
 }
 
 .rr-monotag {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-family: var(--font-mono);
 }
 
 .rr-val-ok {
-  color: #15803d;
+  color: var(--color-success-strong);
   font-weight: 600;
 }
 </style>

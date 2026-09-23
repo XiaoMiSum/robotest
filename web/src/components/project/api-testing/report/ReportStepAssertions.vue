@@ -59,7 +59,7 @@ defineProps<{
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 1px;
-  color: #64748b;
+  color: var(--color-neutral-600);
   text-transform: uppercase;
   margin-bottom: 8px;
   display: flex;
@@ -70,7 +70,7 @@ defineProps<{
     content: '';
     flex: 1;
     height: 1px;
-    background: #eef1f5;
+    background: var(--color-neutral-200);
   }
 }
 
@@ -78,24 +78,24 @@ defineProps<{
   width: 100%;
   border-collapse: collapse;
   font-size: 12.6px;
-  border: 1px solid #eef1f5;
+  border: 1px solid var(--color-neutral-200);
   border-radius: 9px;
   overflow: hidden;
 
   th {
-    background: #f8fafc;
-    color: #64748b;
+    background: var(--color-neutral-50);
+    color: var(--color-neutral-600);
     font-weight: 600;
     text-align: left;
     padding: 8px 12px;
-    border-bottom: 1px solid #eef1f5;
+    border-bottom: 1px solid var(--color-neutral-200);
     font-size: 12px;
     white-space: nowrap;
   }
 
   td {
     padding: 8px 12px;
-    border-bottom: 1px solid #f4f7fa;
+    border-bottom: 1px solid var(--color-neutral-200);
     vertical-align: top;
     word-break: break-all;
   }
@@ -106,11 +106,11 @@ defineProps<{
 }
 
 .rsc__mono {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-family: var(--font-mono);
 }
 
 .rsc__val-ok {
-  color: #15803d;
+  color: var(--color-success-strong);
   font-weight: 600;
 }
 
@@ -132,18 +132,18 @@ defineProps<{
   }
 
   &--ok {
-    background: #ecfdf3;
-    color: #15803d;
+    background: var(--color-success-light);
+    color: var(--color-success-strong);
   }
 
   &--fail {
-    background: #fef2f2;
-    color: #b91c1c;
+    background: var(--color-danger-light);
+    color: var(--color-danger-strong);
   }
 
   &--skip {
-    background: #f3f4f6;
-    color: #4b5563;
+    background: var(--color-neutral-100);
+    color: var(--color-neutral-600);
   }
 }
 </style>
