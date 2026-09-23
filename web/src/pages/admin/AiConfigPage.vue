@@ -92,7 +92,6 @@ onMounted(async () => {
 
             <AiEmbeddingForm
               v-model="cfg.form.embedding"
-              v-model:open="cfg.embeddingOpen.value"
               v-model:rebuild-dialog-visible="cfg.rebuildDialogVisible.value"
               :providers="cfg.embeddingProviderOptions.value"
               :unique-params="cfg.embeddingUniqueParams.value"
