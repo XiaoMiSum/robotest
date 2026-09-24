@@ -12,6 +12,7 @@
     "format:check": "prettier --check \"src/**/*.{vue,ts,tsx,css,json}\"",
     "typecheck": "vue-tsc --noEmit",
     "test:unit": "vitest run",
+    "test:lint": "vitest run eslint-rules",
     "contract:gen": "node scripts/gen-contract.mjs"
   },
   "dependencies": {
