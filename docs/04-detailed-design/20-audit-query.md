@@ -70,8 +70,8 @@ INSERT INTO sys_permission (id, code, name, parent_code, module, scope, sort_ord
 
 | 参数 | 类型 | 必填 | 说明 |
 | ---- | ---- | ---- | ---- |
-| pageNo | Integer | 是 | 页码（默认 1） |
-| pageSize | Integer | 是 | 每页条数（默认 20） |
+| pageNo | Integer | 否 | 页码，从 1 开始，默认 1 |
+| pageSize | Integer | 否 | 每页条数，默认 20，最大 100 |
 | operatorName | String | 否 | 操作人名称模糊过滤 |
 | entityType | String | 否 | 实体类型精确过滤 |
 | operation | String | 否 | 操作类型精确过滤（如 `LOGIN` / `CREATE` / `UPDATE` / `DELETE`） |
