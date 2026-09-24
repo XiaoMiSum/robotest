@@ -74,5 +74,6 @@ export interface WorkspaceContext {
   memberCount: number
   projectCount: number
   status: string
+  createdByName: string | null
   createdAt: string
 }

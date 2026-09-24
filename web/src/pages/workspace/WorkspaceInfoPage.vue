@@ -79,7 +79,7 @@ onMounted(load)
     </header>
 
     <section class="ws-info__kpi-grid" aria-label="工作空间统计">
-      <article class="ws-info__kpi-card">
+      <router-link to="/workspace/members" class="ws-info__kpi-card" aria-label="查看工作空间成员">
         <div class="ws-info__kpi-label">
           <el-icon><User /></el-icon>
           <span>成员</span>
@@ -87,8 +87,8 @@ onMounted(load)
         <div class="ws-info__kpi-value">
           {{ detail?.memberCount ?? 0 }}<span class="ws-info__kpi-unit">人</span>
         </div>
-      </article>
-      <article class="ws-info__kpi-card">
+      </router-link>
+      <router-link to="/workspace/projects" class="ws-info__kpi-card" aria-label="查看工作空间项目">
         <div class="ws-info__kpi-label">
           <el-icon><Folder /></el-icon>
           <span>项目</span>
@@ -96,7 +96,7 @@ onMounted(load)
         <div class="ws-info__kpi-value">
           {{ detail?.projectCount ?? 0 }}<span class="ws-info__kpi-unit">个</span>
         </div>
-      </article>
+      </router-link>
     </section>
 
     <el-card shadow="never" class="ws-info__card">
@@ -130,10 +130,16 @@ onMounted(load)
         </el-form-item>
       </el-form>
 
-      <div class="ws-info__meta">
-        <span class="ws-info__meta-label">创建时间</span>
-        <span class="ws-info__meta-value">{{ formatDateTime(detail?.createdAt) }}</span>
-      </div>
+      <dl class="ws-info__meta-grid">
+        <div class="ws-info__meta-item">
+          <dt class="ws-info__meta-label">创建人</dt>
+          <dd class="ws-info__meta-value">{{ detail?.createdByName || '—' }}</dd>
+        </div>
+        <div class="ws-info__meta-item">
+          <dt class="ws-info__meta-label">创建时间</dt>
+          <dd class="ws-info__meta-value">{{ formatDateTime(detail?.createdAt) }}</dd>
+        </div>
+      </dl>
 
       <div v-if="canEdit" class="ws-info__actions">
         <el-button type="primary" :loading="saving" @click="handleSave">保存修改</el-button>
@@ -173,12 +179,28 @@ onMounted(load)
 }
 
 .ws-info__kpi-card {
+  display: block;
   min-height: 128px;
   padding: 20px var(--card-pad);
   border: 1px solid var(--color-neutral-200);
   border-radius: var(--radius-lg);
   background: var(--color-neutral-0);
+  color: inherit;
   box-shadow: var(--shadow-card);
+  text-decoration: none;
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease;
+
+  &:hover {
+    border-color: var(--color-primary-200);
+    box-shadow: var(--shadow-card-hover);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-primary-500);
+    outline-offset: 2px;
+  }
 }
 
 .ws-info__kpi-label {
@@ -257,11 +279,23 @@ onMounted(load)
   color: var(--color-neutral-500);
 }
 
-.ws-info__meta {
+.ws-info__meta-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-lg);
+  margin: 0;
+  padding: var(--space-xs) 0 0;
+}
+
+.ws-info__meta-item {
   display: flex;
   flex-direction: column;
   gap: var(--space-xs);
-  padding-top: var(--space-xs);
+}
+
+.ws-info__meta-label,
+.ws-info__meta-value {
+  margin: 0;
 }
 
 .ws-info__meta-label {
@@ -285,7 +319,8 @@ onMounted(load)
 
 @media (max-width: 768px) {
   .ws-info__kpi-grid,
-  .ws-info__form-grid {
+  .ws-info__form-grid,
+  .ws-info__meta-grid {
     grid-template-columns: minmax(0, 1fr);
   }
 }
