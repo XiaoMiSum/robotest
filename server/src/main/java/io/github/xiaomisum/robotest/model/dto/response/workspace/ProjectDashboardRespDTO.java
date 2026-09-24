@@ -9,6 +9,10 @@ import java.util.UUID;
 @Data
 public class ProjectDashboardRespDTO {
 
+    private String projectName;
+    private String projectStatus;
+    private LocalDateTime startTime;
+    private LocalDateTime endTime;
     private Long caseCount;
     private Long activeReviewCount;
     private Long activePlanCount;
@@ -16,6 +20,7 @@ public class ProjectDashboardRespDTO {
     private List<RecentItem> recentReviews;
     private List<RecentItem> recentPlans;
     private List<RecentBugItem> recentBugs;
+    private List<ProjectActivityRespDTO> recentActivities;
 
     @Data
     public static class RecentItem {

@@ -6,5 +6,5 @@ import java.util.UUID;
 
 public interface ProjectDashboardService {
 
-    ProjectDashboardRespDTO getDashboard(UUID projectId);
+    ProjectDashboardRespDTO getDashboard(UUID projectId, UUID workspaceId, UUID userId);
 }

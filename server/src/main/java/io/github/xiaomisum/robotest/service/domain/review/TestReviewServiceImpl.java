@@ -31,6 +31,7 @@ import io.github.xiaomisum.robotest.service.domain.review.ReviewLifecycleEvent;
 import io.github.xiaomisum.robotest.service.domain.review.ReviewSnapshotService;
 import io.github.xiaomisum.robotest.service.domain.review.ReviewStatus;
 import io.github.xiaomisum.robotest.service.domain.review.ReviewWorkflow;
+import io.github.xiaomisum.robotest.service.project.ProjectActivityService;
 import jakarta.annotation.Resource;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
@@ -64,6 +65,8 @@ public class TestReviewServiceImpl implements TestReviewService {
     private ReviewSnapshotService reviewSnapshotService;
     @Resource
     private ApplicationEventPublisher eventPublisher;
+    @Resource
+    private ProjectActivityService projectActivityService;
 
     @Override
     public PageResult<TestReviewListRespDTO> getReviewPage(UUID projectId, UUID userId, String status,
@@ -148,6 +151,8 @@ public class TestReviewServiceImpl implements TestReviewService {
         testReviewMapper.insert(review);
 
         reviewSnapshotService.generateSnapshots(review.getId(), reqDTO.getSelectedNodes());
+        projectActivityService.record(projectId, userId, "TEST_REVIEW", review.getId(),
+                review.getTitle(), "REVIEW_CREATED", "创建评审「" + review.getTitle() + "」");
 
         return convertToDetailDTO(review);
     }
@@ -207,6 +212,8 @@ public class TestReviewServiceImpl implements TestReviewService {
         reviewWorkflow.assertTransition(review, ReviewEvent.UPDATE_CASES);
 
         reviewSnapshotService.updateCases(reviewId, review.getProjectId(), reqDTO.getSelectedNodes());
+        projectActivityService.record(review.getProjectId(), userId, "TEST_REVIEW", reviewId,
+                review.getTitle(), "REVIEW_CASES_UPDATED", "调整评审「" + review.getTitle() + "」的用例");
     }
 
     @Override
@@ -218,6 +225,7 @@ public class TestReviewServiceImpl implements TestReviewService {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_REVIEW_NOT_FOUND);
         }
         projectAccessGuard.requireProjectMember(review.getProjectId(), userId);
+        String previousStatus = review.getStatus();
         // 完成后不可再标记；非法跃迁（COMPLETED 状态下提交记录）由状态机统一拦截
         reviewWorkflow.assertTransition(review, ReviewEvent.SUBMIT_RECORD);
 
@@ -261,6 +269,10 @@ public class TestReviewServiceImpl implements TestReviewService {
         record.setMark(reqDTO.getMark());
         record.setComment(reqDTO.getComment());
         reviewRecordMapper.insert(record);
+        if (!Objects.equals(previousStatus, review.getStatus())) {
+            projectActivityService.record(review.getProjectId(), userId, "TEST_REVIEW", reviewId,
+                    review.getTitle(), "REVIEW_STATUS_CHANGED", "评审「" + review.getTitle() + "」状态更新");
+        }
     }
 
     @Override
@@ -314,6 +326,8 @@ public class TestReviewServiceImpl implements TestReviewService {
                 reviewSnapshotService.listAssociatedByReviewId(reviewId, Constants.NodeType.CASE));
         eventPublisher.publishEvent(new ReviewConclusionEvent(reviewId,
                 conclusion.verdict().getCode(), conclusion.reason()));
+        projectActivityService.record(review.getProjectId(), userId, "TEST_REVIEW", reviewId,
+                review.getTitle(), "REVIEW_COMPLETED", "完成评审「" + review.getTitle() + "」");
     }
 
     @Override
@@ -331,6 +345,8 @@ public class TestReviewServiceImpl implements TestReviewService {
         reviewRecordMapper.deleteByReviewId(reviewId);
         reviewSnapshotService.deleteByReviewId(reviewId);
         testReviewMapper.deleteById(reviewId);
+        projectActivityService.record(review.getProjectId(), userId, "TEST_REVIEW", reviewId,
+                review.getTitle(), "REVIEW_DELETED", "删除评审「" + review.getTitle() + "」");
         // 评审实体级出口同样发布生命周期事件（事务提交后取消 review_check 任务）
         eventPublisher.publishEvent(new ReviewLifecycleEvent(reviewId));
     }

@@ -180,6 +180,27 @@ CREATE UNIQUE INDEX uk_ws_project_workspace_name ON ws_project (workspace_id, na
 CREATE INDEX idx_ws_project_ws_created ON ws_project (workspace_id, created_at DESC);
 CREATE INDEX idx_ws_project_status ON ws_project (status);
 
+-- 项目动态表
+CREATE TABLE ws_project_activity (
+                                id UUID PRIMARY KEY,
+                                project_id UUID NOT NULL,
+                                actor_id UUID NOT NULL,
+                                actor_name VARCHAR(100) NOT NULL,
+                                resource_type VARCHAR(32) NOT NULL,
+                                resource_id UUID NOT NULL,
+                                resource_name VARCHAR(200) NOT NULL,
+                                action VARCHAR(32) NOT NULL,
+                                summary VARCHAR(500) NOT NULL,
+                                occurred_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                                is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
+                                created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                                updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_project_activity_project_occurred
+    ON ws_project_activity (project_id, occurred_at DESC, id DESC)
+    WHERE is_deleted = FALSE;
+
 -- ============================================================
 -- 3. 功能测试 — 测试用例
 -- ============================================================
