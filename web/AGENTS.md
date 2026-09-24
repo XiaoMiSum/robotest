@@ -71,5 +71,5 @@ count++  // 跳过过期 token，防止脏数据进入报表
 - 只修改 `web/` 目录下的文件，不碰 `server/` 代码
 - 上下文标识（如 workspaceId）仅通过请求头 `X-Active-Workspace` / `X-Active-Project` 传递（C4），不出现在活动上下文 URL 或请求体中；资源自身 ID 按 API 规范处理
 - 后端返回的普通时间字段为 UTC+0 无时区标识字符串，展示必须走 `utils/format.ts` 的 `formatDateTime` / `formatDate` 转本地时区，禁止直接 `new Date()` 或直接插值（详见 `docs/00-spec/10-engineering/01-frontend.md` 第 9 节）
-- 邀请链接 `expiresAt` 是用户选择的业务本地时间，按设计使用无时区字符串提交，并使用 `formatLocalDateTime` 展示，不做 UTC 转换
+- 邀请链接 `expiresAt` 按统一时间格式化工具展示；创建时使用无时区字符串提交
 - 避免新增外部依赖，确有必要时需经团队讨论

@@ -21,23 +21,31 @@ function invitation(effectiveStatus: InvitationEffectiveStatus): InvitationListI
 }
 
 describe('workspace invitation presentation', () => {
-  it('生成包含工作空间、链接和加入说明的复制文本', () => {
+  it('生成包含工作空间、邀请人、链接和加入说明的复制文本', () => {
     expect(
-      buildInvitationShareText('https://example.com/join?token=abc', '质量中台'),
+      buildInvitationShareText('https://example.com/join?token=abc', {
+        workspaceName: '质量中台',
+        inviterUsername: 'qa-admin',
+      }),
     ).toBe(
       [
         '【RoboTest 工作空间邀请】',
         '工作空间：质量中台',
+        '邀请人：qa-admin',
         '邀请链接：https://example.com/join?token=abc',
         '说明：打开链接后按页面提示完成身份验证并加入工作空间。',
       ].join('\n'),
     )
   })
 
-  it('工作空间缺失时使用兜底文案，达上限时追加提醒', () => {
-    const text = buildInvitationShareText('https://example.com/join?token=abc', '  ', true)
+  it('邀请人缺失时使用兜底文案，达上限时追加提醒', () => {
+    const text = buildInvitationShareText('https://example.com/join?token=abc', {
+      workspaceName: '  ',
+      exhausted: true,
+    })
 
     expect(text).toContain('工作空间：当前工作空间')
+    expect(text).toContain('邀请人：未知用户')
     expect(text).toContain('说明：该邀请已达使用上限，加入前请先确认剩余名额。')
   })
 
