@@ -63,7 +63,7 @@
 | 端级工程 | `03-frontend.md`、`04-backend.md` | 前端和后端实现边界 |
 | 跨端契约 | `05-api.md`、`15-realtime-protocol.md` | HTTP、响应、分页、错误码、通用实时协议 |
 | 数据 | `06-database.md` | PostgreSQL 主规范、MySQL 兼容说明、迁移和索引 |
-| 质量与交付 | `07-quality.md`、`08-workflow.md`、`09-deploy.md` | 测试门禁、Git/PR、构建部署 |
+| 质量与交付 | `07-quality.md`、`08-workflow.md`、`09-deploy.md`、`16-deployment-runbook.md` | 质量门禁、Git/PR、通用部署规范和项目 Runbook |
 | 安全与框架 | `10-security.md`、`11-migoo-framework.md` | 安全基线、框架兼容性和差异 |
 | 模板与专项 | `12-task-template.md`、`13-scroll-container.md` | AI 任务流程、滚动 UI 专项 |
 | 待办治理 | `14-improvement-backlog.md` | 未执行任务、依赖、优先级和验收标准 |
