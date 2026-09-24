@@ -87,7 +87,7 @@ DEC-004 不再作为通用规范决策；上下文路由/请求体边界由各�
 | DOC-006 | P0 | 在各业务详细设计中审查上下文路由、请求体和专用接口边界 | 业务详细设计 | 每个上下文 ID 都有明确的 Header、资源 ID 或业务例外结论 | 已完成 |
 | DOC-007 | P1 | 同步 `docs/05-interaction-design/` 的分页、错误和实时交互描述 | DOC-002、DOC-005 | 交互文档不再引用旧响应和旧消息结构 | 已完成 |
 | DOC-008 | P1 | 修正所有文档章节锚点和交叉引用 | DOC-001～DOC-007 | 链接检查无断链、错锚点和旧章节引用 | 已完成 |
-| DOC-009 | P2 | 将 `docs/00-spec/50-ui/01-scroll-container.md` 的角色管理页案例迁移到交互设计 | DOC-007 | 13 只保留通用 UI-SC 规则 | 已完成 |
+| DOC-009 | P2 | 将 `docs/00-spec/50-ui/03-scroll-container.md` 的角色管理页案例迁移到交互设计 | DOC-007 | 13 只保留通用 UI-SC 规则 | 已完成 |
 | DOC-010 | P2 | 从 `docs/00-spec/20-contracts/01-api.md` 拆出实时协议文档 | DEC-007、DOC-005 | 使用 `docs/00-spec/20-contracts/03-realtime-protocol.md`，05 仅保留入口和边界 | 已完成 |
 | DOC-011 | P1 | 将脑图节点 ID、布局和业务事件规则迁移到业务设计 | DEC-005 | 通用规范不包含脑图/Yjs业务语义，详细设计成为唯一来源 | 已完成 |
 | DOC-012 | P1 | 拆分通用部署规范和项目部署 Runbook | — | `docs/00-spec/30-quality-delivery/03-deploy.md` 保留通用要求，`docs/00-spec/30-quality-delivery/04-deployment-runbook.md` 记录实际命令和限制 | 已完成 |
@@ -106,6 +106,28 @@ DEC-004 不再作为通用规范决策；上下文路由/请求体边界由各�
 | CODE-006 | P1 | 对齐前端路由 meta、Store 和请求拦截器 | DOC-001 | 规范、路由、Store 和测试契约一致 | 待实施 |
 | CODE-007 | P1 | 补齐 C1 的 ESLint/静态检查门禁 | — | `any`、`@ts-ignore` 和层级违规可自动失败 | 待实施 |
 | CODE-008 | P2 | 清理 `!important` 和新增全局样式例外 | — | 例外限定作用域并有登记 | 待实施 |
+| CODE-009 | P1 | 统一列表型页面的后端错误提示 | UI-PAGE-11 | 下列列表页面、列表组件及其责任 composable 均展示后端可展示错误消息，处理竞态、加载状态和重试；补齐页面/组件测试 | 待实施 |
+
+### 6.1 CODE-009 页面组件清单
+
+以下文件是本次“列表请求错误可见性”整改的明确范围；页面级 composable 是列表请求的责任层，页面组件负责展示和恢复入口。`web/src/pages/workspace/MemberListPage.vue` 已按后端消息透传，可作为实现参考，不重复列入整改清单。
+
+| 页面/组件及责任层 | 当前缺口 | 整改要求 |
+| --- | --- | --- |
+| `web/src/pages/workspace/WorkspaceListPage.vue` / `web/src/composables/workspace/useWorkspaceListPage.ts` | 当前以页面错误态呈现，尚未统一通过消息提示展示后端错误 | 保留重试入口，同时透传后端可展示消息并避免重复提示 |
+| `web/src/pages/project/api-testing/mock/MocksPage.vue` | 列表加载只有 `try/finally`，失败时用户看不到错误 | 捕获当前列表请求错误，展示后端消息并正确结束加载状态 |
+| `web/src/pages/project/api-testing/debug/DebugHistoryView.vue` | 列表加载使用空 `catch`，依赖了不存在的全局错误提示 | 列表加载及同页行操作统一透传后端消息，处理过期请求 |
+| `web/src/pages/admin/DashboardPage.vue` / `web/src/composables/admin/useDashboard.ts` | 最近列表失败只显示固定文案 | 改为优先展示后端消息，缺失时使用页面场景兜底文案 |
+| `web/src/pages/admin/AiConfigPage.vue` / `web/src/composables/ai/useAiChatModels.ts` | 对话模型列表刷新缺少错误处理 | 补齐列表失败提示、加载状态和重试边界 |
+| `web/src/pages/project/api-testing/scene/SceneEditorPage.vue`、`SceneEditorHeader.vue` / `web/src/composables/project/api-testing/scene/useSceneHistory.ts` | 执行/变更历史通过 `Promise.all` 加载，失败时静默 | 展示失败请求的后端消息；必要时拆分独立错误和重试状态 |
+| `web/src/pages/project/api-testing/debug/SaveInterfaceDialog.vue` | 归属接口和模块树加载失败时无提示 | 为接口候选列表和依赖数据建立可见错误边界 |
+| `web/src/pages/project/api-testing/scene/InterfacePickerDialog.vue` | 远程接口搜索失败后仅清空选项 | 展示后端错误并保留可重试的搜索入口 |
+| `web/src/pages/project/api-testing/scene/StepEditorDrawer.vue` / `web/src/composables/project/api-testing/scene/useStepEditorDrawer.ts` | 步骤变量和接口候选列表静默失败 | 由责任 composable 透传错误，页面展示并支持重新加载 |
+| `web/src/pages/project/api-testing/scene/SceneStepInlineEditor.vue` | 公共组件加载失败只显示固定文案 | 优先展示后端消息，保留组件选择器的重试能力 |
+| `web/src/pages/project/api-testing/interface/InterfaceEditorPage.vue` / `web/src/composables/project/api-testing/interface/useInterfaceEditor.ts` | 公共组件列表使用固定文案，模块树失败静默 | 补齐列表/依赖数据的后端错误提示和恢复入口 |
+| `web/src/components/project/api-testing/ExtractorAssetPicker.vue` / `web/src/composables/project/api-testing/scene/useAssetPicker.ts` | 公共组件选择列表加载失败无提示 | 由 composable 捕获并展示后端消息，组件提供重试反馈 |
+
+本次不把仅用于筛选器、候选下拉或非阻塞辅助数据的静默失败自动扩大为“主列表页面”整改范围；若产品要求所有远程辅助数据也统一提示，应另行拆分任务并明确提示频率、竞态和去重策略。
 
 ## 7. 安全整改任务
 

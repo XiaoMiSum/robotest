@@ -14,15 +14,15 @@
 
 | 文档 | 职责 | 状态 |
 | --- | --- | --- |
-| [01-scroll-container](01-scroll-container.md) | 滚动容器、滚动拥有者和滚动条 | 已发布 |
-| [02-frontend-design](02-frontend-design.md) | 视觉层级、设计令牌、状态和可访问性 | 已发布 |
-| [03-page-development](03-page-development.md) | 大页面、小组件、状态归属和数据流 | 已发布 |
+| [01-frontend-design](01-frontend-design.md) | 视觉层级、设计令牌、状态和可访问性 | 已发布 |
+| [02-page-development](02-page-development.md) | 大页面、小组件、状态归属和数据流 | 已发布 |
+| [03-scroll-container](03-scroll-container.md) | 滚动容器、滚动拥有者和滚动条 | 已发布 |
 
 ## 3. 阅读顺序
 
-1. 新页面先阅读 `03-page-development.md`；
-2. 视觉和状态设计阅读 `02-frontend-design.md`；
-3. 涉及固定区域、长列表或表格时阅读 `01-scroll-container.md`。
+1. 先阅读 `01-frontend-design.md`，确认通用视觉、状态和可访问性要求；
+2. 新页面和页面重构阅读 `02-page-development.md`；
+3. 涉及固定区域、长列表或表格时阅读 `03-scroll-container.md`。
 
 ## 4. 维护规则
 

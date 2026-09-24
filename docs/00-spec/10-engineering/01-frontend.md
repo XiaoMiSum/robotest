@@ -58,7 +58,7 @@ services          → types / utils / request infrastructure
 
 ### 3.1 页面
 
-`pages/` 负责页面级数据编排、路由参数消费、权限状态和页面布局，可以调用 composables、stores 和 services。页面拆分、状态归属和小组件接口遵循 `docs/00-spec/50-ui/03-page-development.md`。
+`pages/` 负责页面级数据编排、路由参数消费、权限状态和页面布局，可以调用 composables、stores 和 services。页面拆分、状态归属和小组件接口遵循 `docs/00-spec/50-ui/02-page-development.md`。
 
 ### 3.2 组件
 
@@ -134,7 +134,7 @@ const displayName = computed(() => props.user.name)
 
 ### 4.3 命名
 
-组件和页面的拆分边界、Props/Emits/Slots 约定以及大页面迁移策略见 `docs/00-spec/50-ui/03-page-development.md`。
+组件和页面的拆分边界、Props/Emits/Slots 约定以及大页面迁移策略见 `docs/00-spec/50-ui/02-page-development.md`。
 
 | 要素 | 规范 | 示例 |
 | --- | --- | --- |
@@ -227,9 +227,9 @@ export interface PageResult<T> {
 
 - 使用 SCSS 和工程 CSS 变量。
 - 组件样式默认使用 `<style scoped lang="scss">`。
-- 颜色、字体、间距和层级使用设计令牌，禁止随意硬编码；通用视觉、状态和可访问性要求见 `docs/00-spec/50-ui/02-frontend-design.md`。
+- 颜色、字体、间距和层级使用设计令牌，禁止随意硬编码；通用视觉、状态和可访问性要求见 `docs/00-spec/50-ui/01-frontend-design.md`。
 - 目标规范禁止使用 `!important`；现有第三方覆盖或历史代码需要例外时，必须限定作用域并登记原因，不得新增全局覆盖。
-- 页面级布局、表格和滚动区域遵循 `docs/00-spec/50-ui/01-scroll-container.md`。
+- 页面级布局、表格和滚动区域遵循 `docs/00-spec/50-ui/03-scroll-container.md`。
 - 不通过全局通配选择器修改单个页面的布局或滚动行为。
 
 ## 9. 时间处理
@@ -276,9 +276,9 @@ export interface PageResult<T> {
 
 - API 契约：`docs/00-spec/20-contracts/01-api.md`
 - 质量门禁：`docs/00-spec/30-quality-delivery/01-quality.md`
-- 通用设计：`docs/00-spec/50-ui/02-frontend-design.md`
-- 页面开发：`docs/00-spec/50-ui/03-page-development.md`
-- 滚动专项：`docs/00-spec/50-ui/01-scroll-container.md`
+- 通用设计：`docs/00-spec/50-ui/01-frontend-design.md`
+- 页面开发：`docs/00-spec/50-ui/02-page-development.md`
+- 滚动专项：`docs/00-spec/50-ui/03-scroll-container.md`
 - 前端约定：`web/AGENTS.md`
 
 ---
