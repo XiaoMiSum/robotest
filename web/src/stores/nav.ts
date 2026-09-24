@@ -18,6 +18,9 @@ export interface NavMenuSection {
 
 export const useNavStore = defineStore('nav', () => {
   const authStore = useAuthStore()
+  const activeWorkspaceId = computed(
+    () => authStore.activeWorkspaceId ?? authStore.activeWorkspace?.id ?? null,
+  )
 
   // 模式从当前路由 meta 派生：此前 watch 路径推导与各页面命令式 setMode 并存，
   // 登录页等处只能打补丁纠正残留模式，双真相源导致状态漂移
@@ -29,7 +32,7 @@ export const useNavStore = defineStore('nav', () => {
 
   // 空间信息菜单路径含 :workspaceId 动态段：注册表存模板，渲染时用活跃空间填充
   function resolvePath(path: string): string {
-    return path.replace(':workspaceId', authStore.activeWorkspace?.id ?? '')
+    return path.replace(':workspaceId', activeWorkspaceId.value ?? '')
   }
 
   function toMenuItem(record: RouteRecordNormalized): NavMenuItem | null {
