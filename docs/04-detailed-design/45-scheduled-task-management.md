@@ -10,12 +10,12 @@
 
 ### 1.1 查询定时任务列表
 
-- **路径**：`GET /api/project/scheduled-tasks?taskType=&page=1&pageSize=20`
+- **路径**：`GET /api/project/scheduled-tasks?taskType=&pageNo=1&pageSize=20`
 - **响应**：
 
 ```json
 {
-  "records": [
+  "list": [
     {
       "id": "018f...",
       "taskType": "scene_execute",
@@ -118,12 +118,12 @@
 
 ### 1.7 查询执行记录
 
-- **路径**：`GET /api/project/scheduled-tasks/:id/executions?page=1&pageSize=20`
+- **路径**：`GET /api/project/scheduled-tasks/:id/executions?pageNo=1&pageSize=20`
 - **响应**：
 
 ```json
 {
-  "records": [
+  "list": [
     {
       "id": "018f...",
       "triggerType": "scheduled",

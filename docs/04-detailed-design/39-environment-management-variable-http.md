@@ -95,7 +95,7 @@ Redis 数据源不建立 HikariCP 连接池（`max_pool_size` 对其无意义）
 ## 5. 数据源连接池
 
 连接池设计见 4，实现注意点：
-- 数据源连接失败抛出 `BusinessException`（错误码 7403），不影响环境保存与删除。
+- 数据源连接失败通过 `ServiceExceptionUtil.get(ErrorCodeConstants.API_DATASOURCE_CONN_FAILED)` 抛出（错误码 1000017403），不影响环境保存与删除。
 - 连接池按「环境 + 数据源」维度缓存，环境更新或数据源删除后释放对应连接池。
 
 

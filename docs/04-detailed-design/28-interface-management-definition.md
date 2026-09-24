@@ -10,13 +10,13 @@
 
 ### 1.1 查询接口列表
 
-- **路径**：`GET /api/project/interfaces?moduleId=&search=&page=1&pageSize=20`
+- **路径**：`GET /api/project/interfaces?moduleId=&search=&pageNo=1&pageSize=20`
 - **筛选参数**：`moduleId`（可选，模块 ID）、`search`（可选，模糊匹配名称/路径）、`status`（可选，启用/停用）、`view`（可选，视图切换：followed=我关注的 / created=我创建的 / all=全部，缺省 all；followed 按当前用户关注关系过滤，created 按 `created_by` 过滤）。
 - **响应**：
 
 ```json
 {
-  "records": [
+  "list": [
     {
       "id": "018f...",
       "name": "用户登录",
@@ -177,7 +177,7 @@
 
 ### 1.13 查询变更历史
 
-- **路径**：`GET /api/project/interfaces/:id/change-logs?page=1&pageSize=20`
+- **路径**：`GET /api/project/interfaces/:id/change-logs?pageNo=1&pageSize=20`
 - **说明**：创建、更新、复制、导入更新、状态切换均写入一条记录；按 `change_version` 倒序分页。
 - **响应**：
 

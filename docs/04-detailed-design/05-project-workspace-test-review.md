@@ -12,13 +12,13 @@
 
 - **路径**：`GET /api/project/reviews`
 
-- **参数**：`status`（可选，new/in_progress/completed）、`keyword`（可选，标题模糊匹配）、`page`、`pageSize`
+- **参数**：`status`（可选，new/in_progress/completed）、`keyword`（可选，标题模糊匹配）、`pageNo`、`pageSize`
 
 - **响应**：
   
   ```json
   {
-  "records": [
+  "list": [
     {
       "id": 1,
       "title": "登录模块评审",

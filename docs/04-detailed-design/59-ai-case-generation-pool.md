@@ -11,8 +11,8 @@
 ### 1.1 条目列表
 
 - **路径**：`GET /api/project/requirements`
-- **参数**：`keyword`（可选，标题模糊）、`status`（可选，active / archived，缺省返回全部）、`page`、`pageSize`
-- **响应**：`{ "records": [{ "id", "title", "sourceUrl", "status", "createdBy", "creatorName", "updatedAt" }], "total": 12 }`
+- **参数**：`keyword`（可选，标题模糊）、`status`（可选，active / archived，缺省返回全部）、`pageNo`、`pageSize`
+- **响应**：`{ "list": [{ "id", "title", "sourceUrl", "status", "createdBy", "creatorName", "updatedAt" }], "total": 12 }`
 
 ### 1.2 条目详情
 

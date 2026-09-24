@@ -17,7 +17,7 @@
 ```json
 {
   "code": 200,
-  "message": "success",
+  "msg": "success",
   "data": {
     "accessToken": "eyJhb...",
     "refreshToken": "eyJhb...",
@@ -66,7 +66,7 @@
   ```json
   {
     "code": 200,
-    "message": "success",
+    "msg": "success",
     "data": {
       "initialized": false
     }
@@ -94,7 +94,7 @@
   4. 在 `sys_user_role` 表中插入 admin 与系统管理员角色（UUID `b0000000-0000-0000-0000-000000000001`）的关联。
 - **响应**：
   ```json
-  { "code": 200, "message": "success", "data": {} }
+  { "code": 200, "msg": "success", "data": {} }
   ```
 
 ### 1.5 修改密码（登录用户自助）

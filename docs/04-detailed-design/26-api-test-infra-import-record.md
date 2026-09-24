@@ -10,12 +10,12 @@
 
 ### 1.1 查询导入记录
 
-- **路径**：`GET /api/project/import-records?page=1&pageSize=20`
+- **路径**：`GET /api/project/import-records?pageNo=1&pageSize=20`
 - **响应**：
 
 ```json
 {
-  "records": [
+  "list": [
     {
       "id": "018f...",
       "importType": "url_swagger",

@@ -316,8 +316,8 @@
 - 认证：`Authorization: Bearer <token>`
 - 业务请求头：必须带 `X-Active-Project`
 - 命名风格：camelCase
-- 分页：`page`、`pageSize` → `{ records: [], total: number }`
-- 通用响应：`{ "code": 200, "message": "success", "data": {} }`
+- 分页：`pageNo`、`pageSize` → `{ list: [], total: number }`
+- 通用响应：`{ "code": 200, "msg": "success", "data": {} }`
 
 
 ### 2.3 评审/执行记录与状态更新

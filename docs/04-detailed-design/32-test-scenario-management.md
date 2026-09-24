@@ -10,13 +10,13 @@
 
 ### 1.1 查询场景列表
 
-- **路径**：`GET /api/project/scenes?moduleId=&search=&status=&page=1&pageSize=20`
+- **路径**：`GET /api/project/scenes?moduleId=&search=&status=&pageNo=1&pageSize=20`
 - **筛选参数**：`moduleId`（可选，模块 ID）、`search`（可选，场景名称模糊匹配）、`status`（可选，发布状态过滤：`draft`=草稿 / `published`=已发布）。
 - **响应**：
 
 ```json
 {
-  "records": [
+  "list": [
     {
       "id": "018f...",
       "name": "登录流程测试",

@@ -10,13 +10,13 @@
 
 ### 1.1 查询 Mock 列表
 
-- **路径**：`GET /api/project/mocks?interfaceId=&search=&enabled=&page=1&pageSize=20`
+- **路径**：`GET /api/project/mocks?interfaceId=&search=&enabled=&pageNo=1&pageSize=20`
 - **参数说明**：`interfaceId` 按关联接口过滤；`search` 按名称/路径模糊搜索；`enabled` 按启用状态过滤（true/false，可选，不传返回全部）。
 - **响应**：
 
 ```json
 {
-  "records": [
+  "list": [
     {
       "id": "018f...",
       "name": "登录成功 Mock",

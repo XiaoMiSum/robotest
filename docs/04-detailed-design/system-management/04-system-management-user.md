@@ -25,7 +25,7 @@
   
   ```json
   {
-  "records": [
+  "list": [
     {
       "id": 1,
       "username": "zhangsan",
