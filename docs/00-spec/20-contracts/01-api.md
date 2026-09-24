@@ -11,7 +11,7 @@
 本规范定义 HTTP API、响应体、分页、错误码、作用域传递和实时通信的通用契约。
 
 - HTTP 响应、分页和错误码以本文为唯一事实源。
-- migoo 框架的类名和配置细节引用 `11-migoo-framework.md`。
+- migoo 框架的类名和配置细节引用 `docs/00-spec/10-engineering/03-migoo-framework.md`。
 - 业务接口的具体字段、权限和业务规则在对应的详细设计文档中定义。
 - 当前实现与本文不一致时，必须暂停并由用户确认，不得静默修改契约。
 
@@ -166,7 +166,7 @@ ErrorCode.of(1000003001, "用户不存在");
 - 作用域、目标资源 ID 和专用参数必须经过服务端授权、归属校验和隔离。
 - 密码、Token、密钥和加密字段禁止出现在响应 DTO 中。
 - 文件上传必须声明大小、扩展名、内容类型、存储位置和病毒扫描策略。
-- 导入外部 URL 的接口必须执行 SSRF 防护，详见 `10-security.md`。
+- 导入外部 URL 的接口必须执行 SSRF 防护，详见 `docs/00-spec/40-security/01-security.md`。
 
 ## 8. OpenAPI 契约
 
@@ -181,7 +181,7 @@ ErrorCode.of(1000003001, "用户不存在");
 WebSocket 连接鉴权、通用帧格式、错误帧和连接生命周期统一引用：
 
 ```text
-docs/00-spec/15-realtime-protocol.md
+docs/00-spec/20-contracts/03-realtime-protocol.md
 ```
 
 本文只约束实时接口与 HTTP API 的边界：
@@ -204,10 +204,10 @@ docs/00-spec/15-realtime-protocol.md
 
 ## 11. 参考
 
-- 框架响应、异常和分页实现：`docs/00-spec/11-migoo-framework.md`
-- 通用实时协议：`docs/00-spec/15-realtime-protocol.md`
-- 安全基线：`docs/00-spec/10-security.md`
-- 数据库和分页查询：`docs/00-spec/06-database.md`、`docs/00-spec/04-backend.md`
+- 框架响应、异常和分页实现：`docs/00-spec/10-engineering/03-migoo-framework.md`
+- 通用实时协议：`docs/00-spec/20-contracts/03-realtime-protocol.md`
+- 安全基线：`docs/00-spec/40-security/01-security.md`
+- 数据库和分页查询：`docs/00-spec/20-contracts/02-database.md`、`docs/00-spec/10-engineering/02-backend.md`
 
 ---
 

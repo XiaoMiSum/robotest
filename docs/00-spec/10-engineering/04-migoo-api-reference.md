@@ -10,12 +10,12 @@
 
 本文是采用 migoo 框架时的 API 速查摘要，帮助开发者定位当前版本可用的组件入口、典型类和适配边界。
 
-本文不是官方 API 手册，也不替代锁定版本的官方文档。组件页面 URL、版本和发布说明见 [`11-migoo-framework.md`](11-migoo-framework.md) 2. 官方文档与本文不一致时，以官方文档和实际依赖版本为准，并在通用规范中记录差异。
+本文不是官方 API 手册，也不替代锁定版本的官方文档。组件页面 URL、版本和发布说明见 [`03-migoo-framework.md`](03-migoo-framework.md) 2. 官方文档与本文不一致时，以官方文档和实际依赖版本为准，并在通用规范中记录差异。
 
 ## 2. 使用边界
 
 - 本文只说明“框架提供什么入口”和“如何适配”；
-- 工程的响应字段、错误码、分页参数、权限和业务异常规则分别以 `05-api.md`、`10-security.md` 和 `04-backend.md` 为准；
+- 工程的响应字段、错误码、分页参数、权限和业务异常规则分别以 `docs/00-spec/20-contracts/01-api.md`、`docs/00-spec/40-security/01-security.md` 和 `docs/00-spec/10-engineering/02-backend.md` 为准；
 - 业务实体、DTO、事件、持久化和事务边界由详细设计定义；
 - 不得通过复制官方示例创建第二套 Result、异常体系或全局处理器。
 
@@ -25,7 +25,7 @@
 
 | 能力 | 典型入口 | 接入适配 |
 | --- | --- | --- |
-| 成功响应 | `Result.ok(data)` / `Result.ok()` | 字段和 HTTP 状态遵循 `05-api.md` |
+| 成功响应 | `Result.ok(data)` / `Result.ok()` | 字段和 HTTP 状态遵循 `docs/00-spec/20-contracts/01-api.md` |
 | 错误响应 | `Result.error(ErrorCode)` | 错误码登记在工程 `ErrorCodeConstants` |
 | 业务异常 | `ServiceExceptionUtil.get(ErrorCode, args...)` | 只用于工程业务错误，不创建平行异常体系 |
 | 分页请求 | `PageParam` | 统一 `pageNo/pageSize` |
@@ -40,7 +40,7 @@ return Result.ok(data);
 return Result.error(ErrorCodeConstants.SOME_ERROR);
 ```
 
-`Result` 的外层字段名称、错误响应中的 `data: null` 和特殊响应例外由 `05-api.md` 定义。SSE、文件、二进制和 WebSocket 帧不机械套用普通 JSON `Result`。
+`Result` 的外层字段名称、错误响应中的 `data: null` 和特殊响应例外由 `docs/00-spec/20-contracts/01-api.md` 定义。SSE、文件、二进制和 WebSocket 帧不机械套用普通 JSON `Result`。
 
 ### 3.2 ServiceExceptionUtil
 
@@ -83,7 +83,7 @@ PageResult<ResourceDTO> result = resourceMapper.selectPage(pageParam, wrapper);
 | Mapper 基类 | `BaseMapperX<T>` | 提供采用的查询、分页和批量方法 |
 | 查询 Wrapper | `LambdaQueryWrapperX<T>` | 简单动态条件可在 Service 组合 |
 | 更新 Wrapper | `LambdaUpdateWrapperX<T>` | 需要显式清空字段或部分更新时使用 |
-| 分页 | `PageParam` / `PageResult` | 对外契约以 `05-api.md` 为准 |
+| 分页 | `PageParam` / `PageResult` | 对外契约以 `docs/00-spec/20-contracts/01-api.md` 为准 |
 | TypeHandler | JSON、加密、列表等 Handler | 使用前核对类型、方言、密钥和迁移策略 |
 
 ### 5.1 Entity 和 Mapper 适配
@@ -99,7 +99,7 @@ public interface ResourceMapper extends BaseMapperX<Resource> {
 }
 ```
 
-实体不承载跨层业务方法；复杂或可复用查询下沉 Mapper，简单动态过滤可以由 Service 组合，具体边界遵循 `04-backend.md`。
+实体不承载跨层业务方法；复杂或可复用查询下沉 Mapper，简单动态过滤可以由 Service 组合，具体边界遵循 `docs/00-spec/10-engineering/02-backend.md`。
 
 ### 5.2 部分更新
 
@@ -131,7 +131,7 @@ MapStruct 不是 migoo Starter 的通用 API，接入约定如下：
 | JWT | 框架 Token Provider / Security 配置 | 工程定义密钥、有效期、请求头和错误码 |
 | 用户加载 | UserDetails / 用户桥接适配 | 从用户服务加载，不把外部 Header 当可信身份 |
 | 角色权限 | Security 角色/权限能力 | 资源级 Guard 再次校验作用域权限 |
-| Token 刷新 | 框架刷新能力 | 按 `10-security.md` 和系统管理详细设计执行 |
+| Token 刷新 | 框架刷新能力 | 按 `docs/00-spec/40-security/01-security.md` 和系统管理详细设计执行 |
 | 审计 | AOP/审计服务 | 记录操作者、资源、结果和脱敏变更 |
 
 框架认证成功不等于业务授权成功。各业务域和实时资源均必须在服务端校验角色与归属关系。
@@ -148,7 +148,7 @@ MapStruct 不是 migoo Starter 的通用 API，接入约定如下：
 | Token 认证 | 框架握手拦截能力 | 迁移期可兼容旧 Token，目标使用一次性 Ticket |
 | 分布式模式 | 框架 Redis 分布式能力 | 明确 Redis 依赖、顺序、故障降级和日志脱敏 |
 
-通用消息信封、错误码、生命周期和安全要求见 `15-realtime-protocol.md`；接入 Ticket、Origin、前端适配器和实现差距见 `docs/04-detailed-design/78-realtime-websocket.md`。业务事件不得在本文档中定义。
+通用消息信封、错误码、生命周期和安全要求见 `docs/00-spec/20-contracts/03-realtime-protocol.md`；接入 Ticket、Origin、前端适配器和实现差距见 `docs/04-detailed-design/78-realtime-websocket.md`。业务事件不得在本文档中定义。
 
 ## 9. Redis API 摘要
 
@@ -185,13 +185,13 @@ MapStruct 不是 migoo Starter 的通用 API，接入约定如下：
 
 ## 12. 参考
 
-- 框架集成策略：[`11-migoo-framework.md`](11-migoo-framework.md)
+- 框架集成策略：[`03-migoo-framework.md`](03-migoo-framework.md)
 - 官方总览：<https://xiaomisum.github.io/springboot-migoo-framework/>
 - 官方发布说明：<https://github.com/XiaoMiSum/springboot-migoo-framework/releases>
-- API 契约：`docs/00-spec/05-api.md`
-- 后端分层：`docs/00-spec/04-backend.md`
-- 安全规范：`docs/00-spec/10-security.md`
-- 实时协议：`docs/00-spec/15-realtime-protocol.md`
+- API 契约：`docs/00-spec/20-contracts/01-api.md`
+- 后端分层：`docs/00-spec/10-engineering/02-backend.md`
+- 安全规范：`docs/00-spec/40-security/01-security.md`
+- 实时协议：`docs/00-spec/20-contracts/03-realtime-protocol.md`
 
 ---
 

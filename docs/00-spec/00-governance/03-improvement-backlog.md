@@ -10,7 +10,7 @@
 
 本清单记录 `docs/00-spec/` 规范治理第一轮完成后仍未执行的任务。任务覆盖下游文档同步、代码与配置整改、质量门禁、部署、数据库、Git 治理和文档自动化。
 
-本清单不是规范正文。规范决策以 `docs/00-spec/01-readme.md` 和 `02-overview.md` 为准；当前实现与目标规范冲突时，必须先由用户确认。
+本清单不是规范正文。规范决策以 `docs/00-spec/00-readme.md` 和 `docs/00-spec/00-governance/01-overview.md` 为准；当前实现与目标规范冲突时，必须先由用户确认。
 
 ### 1.1 已确认决策（2026-09-24）
 
@@ -27,8 +27,8 @@
 | SEC-011 | 采用建议：Bearer Header 场景默认不启用 CSRF，公共接口使用限流、Origin、一次性 Token 和审计；未来 Cookie 场景再启用 CSRF |
 | QA-007 | 移除 SpotBugs、ArchUnit、JaCoCo，不作为当前强制门禁 |
 | DB-004 | 脑图节点 ID 和持久化主键边界迁移到脑图业务设计，不放在通用数据库规范 |
-| DOC-010 / GOV-006 | 实时协议从 `05-api.md` 拆出为 `15-realtime-protocol.md` |
-| GOV-007 | 工程规范目录调整为 `docs/00-spec/`，继续保持平铺结构，不进行后续文件重命名或子目录拆分 |
+| DOC-010 / GOV-006 | 实时协议从 `docs/00-spec/20-contracts/01-api.md` 拆出为 `docs/00-spec/20-contracts/03-realtime-protocol.md` |
+| GOV-007 | 工程规范按治理、工程、契约、质量交付、安全和 UI 分类整理，根目录保留总索引 |
 
 DEC-004 不再作为通用规范决策；上下文路由/请求体边界由各业务详细设计分别说明。DEC-005（时间模型）仍待用户确认，比较材料见 `docs/04-detailed-design/79-time-contract-comparison.md`。
 
@@ -52,7 +52,7 @@ DEC-004 不再作为通用规范决策；上下文路由/请求体边界由各�
 
 | 范围 | 状态 | 说明 |
 | --- | --- | --- |
-| `docs/00-spec/` 规范收敛 | 已完成第一轮 | 16 篇规范已按统一决策重构或新增 |
+| `docs/00-spec/` 规范收敛 | 已完成第一轮 | 19 篇规范正文已按统一决策重构或新增 |
 | 根目录及端级 AGENTS 同步 | 已完成第一轮 | 已同步核心契约和引用 |
 | 下游架构/详细设计同步 | 部分完成 | 架构文档和脑图业务边界已处理，其余详细设计见 `DOC-*` |
 | 代码和配置整改 | 部分完成 | SEC-001 已完成；其余见 `CODE-*`、`SEC-*` |
@@ -87,10 +87,10 @@ DEC-004 不再作为通用规范决策；上下文路由/请求体边界由各�
 | DOC-006 | P0 | 在各业务详细设计中审查上下文路由、请求体和专用接口边界 | 业务详细设计 | 每个上下文 ID 都有明确的 Header、资源 ID 或业务例外结论 | 已完成 |
 | DOC-007 | P1 | 同步 `docs/05-interaction-design/` 的分页、错误和实时交互描述 | DOC-002、DOC-005 | 交互文档不再引用旧响应和旧消息结构 | 已完成 |
 | DOC-008 | P1 | 修正所有文档章节锚点和交叉引用 | DOC-001～DOC-007 | 链接检查无断链、错锚点和旧章节引用 | 已完成 |
-| DOC-009 | P2 | 将 `13-scroll-container.md` 的角色管理页案例迁移到交互设计 | DOC-007 | 13 只保留通用 UI-SC 规则 | 已完成 |
-| DOC-010 | P2 | 从 `05-api.md` 拆出实时协议文档 | DEC-007、DOC-005 | 使用 `15-realtime-protocol.md`，05 仅保留入口和边界 | 已完成 |
+| DOC-009 | P2 | 将 `docs/00-spec/50-ui/01-scroll-container.md` 的角色管理页案例迁移到交互设计 | DOC-007 | 13 只保留通用 UI-SC 规则 | 已完成 |
+| DOC-010 | P2 | 从 `docs/00-spec/20-contracts/01-api.md` 拆出实时协议文档 | DEC-007、DOC-005 | 使用 `docs/00-spec/20-contracts/03-realtime-protocol.md`，05 仅保留入口和边界 | 已完成 |
 | DOC-011 | P1 | 将脑图节点 ID、布局和业务事件规则迁移到业务设计 | DEC-005 | 通用规范不包含脑图/Yjs业务语义，详细设计成为唯一来源 | 已完成 |
-| DOC-012 | P1 | 拆分通用部署规范和项目部署 Runbook | — | `09-deploy.md` 保留通用要求，`16-deployment-runbook.md` 记录实际命令和限制 | 已完成 |
+| DOC-012 | P1 | 拆分通用部署规范和项目部署 Runbook | — | `docs/00-spec/30-quality-delivery/03-deploy.md` 保留通用要求，`docs/00-spec/30-quality-delivery/04-deployment-runbook.md` 记录实际命令和限制 | 已完成 |
 
 > DOC-008 已完成本地 Markdown 文件链接和章节锚点扫描，当前未发现断链或错锚点；C4 语义交叉引用按各业务详细设计完成后复核。
 
@@ -101,7 +101,7 @@ DEC-004 不再作为通用规范决策；上下文路由/请求体边界由各�
 | CODE-001 | P0 | 将 MapStruct 转换器迁移到 `model/convert/` | DEC-008 | 所有转换器路径统一，编译和转换测试通过 | 待实施 |
 | CODE-002 | P0 | 清理 C11 违规的整行实体更新 | — | Service 不再使用查询实体作为全量 `updateById` 载体 | 待实施 |
 | CODE-003 | P1 | 处理 Service 直接构造 Wrapper 的代码 | DEC-009 | 规则与实现一致，复杂查询有 Mapper 测试 | 待实施 |
-| CODE-004 | P1 | 统一 Controller、DTO、Entity 和 Mapper 命名 | — | 与 `04-backend.md` 命名表一致 | 待实施 |
+| CODE-004 | P1 | 统一 Controller、DTO、Entity 和 Mapper 命名 | — | 与 `docs/00-spec/10-engineering/02-backend.md` 命名表一致 | 待实施 |
 | CODE-005 | P1 | 统一前端时间解析和格式化 | DEC-005 | 页面不再直接解析后端时间字符串 | 待实施 |
 | CODE-006 | P1 | 对齐前端路由 meta、Store 和请求拦截器 | DOC-001 | 规范、路由、Store 和测试契约一致 | 待实施 |
 | CODE-007 | P1 | 补齐 C1 的 ESLint/静态检查门禁 | — | `any`、`@ts-ignore` 和层级违规可自动失败 | 待实施 |
@@ -169,8 +169,8 @@ DEC-004 不再作为通用规范决策；上下文路由/请求体边界由各�
 | GOV-003 | P1 | 增加 PR 模板文件和 CODEOWNERS | — | PR 自动包含需求、风险、验证和回滚字段 | 待实施 |
 | GOV-004 | P1 | 建立 release tag、变更日志和 hotfix 流程 | GOV-001 | 版本发布和紧急修复可追踪 | 待实施 |
 | GOV-005 | P2 | 拆分 migoo 框架策略和 API 参考 | DOC-004、DOC-005 | `11` 只保留项目策略和差异 | 已完成 |
-| GOV-006 | P2 | 拆分通用实时协议文档 | DEC-007、DOC-005 | 使用 `15-realtime-protocol.md`，不包含具体业务语义 | 已完成 |
-| GOV-007 | P2 | 规范目录优先级调整与平铺结构维护 | GOV-005、GOV-006 | 使用 `docs/00-spec/`，保持平铺结构，不进行后续文件重命名或子目录拆分 | 已完成 |
+| GOV-006 | P2 | 拆分通用实时协议文档 | DEC-007、DOC-005 | 使用 `docs/00-spec/20-contracts/03-realtime-protocol.md`，不包含具体业务语义 | 已完成 |
+| GOV-007 | P2 | 规范文件分类整理 | GOV-005、GOV-006 | 根目录保留总索引，正文按六类目录和分类内编号维护 | 已完成 |
 | GOV-008 | P1 | 建立文档链接、元信息和规则编号检查 | DOC-008 | CI 可发现断链、旧锚点和未登记规则 | 待实施 |
 
 ## 11. 当前不应误判为已完成的事项
