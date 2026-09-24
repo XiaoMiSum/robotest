@@ -2,7 +2,7 @@ package io.github.xiaomisum.robotest.service.domain.tcasedoc;
 
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
-import io.github.xiaomisum.robotest.framework.convert.ProjectModuleConvertMapper;
+import io.github.xiaomisum.robotest.model.convert.ProjectModuleConvertMapper;
 import io.github.xiaomisum.robotest.framework.security.ProjectAccessGuard;
 import io.github.xiaomisum.robotest.model.dto.request.tcase.ProjectModuleCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.tcase.ProjectModuleUpdateReqDTO;
@@ -34,6 +34,8 @@ public class ProjectModuleServiceImpl implements ProjectModuleService {
     private ProjectAccessGuard projectAccessGuard;
     @Resource
     private ModuleReferencedGuard moduleReferencedGuard;
+    @Resource
+    private ProjectModuleConvertMapper projectModuleConvertMapper;
 
     @Override
     public List<ProjectModuleTreeRespDTO> getModuleTree(UUID projectId, UUID userId, String assetType) {
@@ -200,7 +202,7 @@ public class ProjectModuleServiceImpl implements ProjectModuleService {
     }
 
     private ProjectModuleTreeRespDTO convertToTreeDTO(ProjectModule module) {
-        return ProjectModuleConvertMapper.INSTANCE.toTreeDTO(module);
+        return projectModuleConvertMapper.toTreeDTO(module);
     }
 
     private ProjectModuleTreeRespDTO convertDocumentToTreeDTO(TestCaseDocument document) {

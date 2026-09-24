@@ -7,7 +7,7 @@ import {
   fetchDebugRecords,
   renameDebugRecord,
 } from '@/services/project/api-testing/debug'
-import { formatDateTime } from '@/utils/format'
+import { formatDateTime, parseDateTime } from '@/utils/format'
 
 const emit = defineEmits<{ (e: 'restore', record: ApiDebugRecordItem): void }>()
 
@@ -91,7 +91,7 @@ const groupedRecords = computed<RecordGroup[]>(() => {
     { label: '更早', items: [] },
   ]
   for (const record of records.value) {
-    const time = new Date(record.executedAt).getTime()
+    const time = parseDateTime(record.executedAt)?.getTime() ?? 0
     if (time >= startOfToday) groups[0].items.push(record)
     else if (time >= startOfYesterday) groups[1].items.push(record)
     else groups[2].items.push(record)

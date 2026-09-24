@@ -1,16 +1,13 @@
-package io.github.xiaomisum.robotest.framework.convert;
+package io.github.xiaomisum.robotest.model.convert;
 
 import io.github.xiaomisum.robotest.model.dto.response.workspace.InvitationListRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.workspace.InvitationRespDTO;
 import io.github.xiaomisum.robotest.model.entity.workspace.WorkspaceInvitation;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
-import org.mapstruct.factory.Mappers;
 
-@Mapper
+@Mapper(componentModel = "spring")
 public interface WorkspaceInvitationConvertMapper {
-
-    WorkspaceInvitationConvertMapper INSTANCE = Mappers.getMapper(WorkspaceInvitationConvertMapper.class);
 
     InvitationRespDTO toRespDTO(WorkspaceInvitation invitation);
 

@@ -1,6 +1,8 @@
 package io.github.xiaomisum.robotest.service.domain.tcasedoc;
 
 import io.github.xiaomisum.robotest.framework.security.ProjectAccessGuard;
+import io.github.xiaomisum.robotest.model.convert.TestCaseNodeConvertMapper;
+import io.github.xiaomisum.robotest.model.convert.TestCaseNodeConvertMapperImpl;
 import io.github.xiaomisum.robotest.model.dto.request.tcase.TestCaseNodeUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.tcase.TestCaseCaseListRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.tcase.TestCaseDocumentNodesRespDTO;
@@ -15,6 +17,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import xyz.migoo.framework.common.exception.ServiceException;
 import xyz.migoo.framework.common.pojo.PageParam;
@@ -38,6 +41,8 @@ class TestCaseNodeServiceImplTest {
     private TestCaseDocumentMapper testCaseDocumentMapper;
     @Mock
     private ProjectAccessGuard projectAccessGuard;
+    @Spy
+    private TestCaseNodeConvertMapper testCaseNodeConvertMapper = new TestCaseNodeConvertMapperImpl();
 
     @InjectMocks
     private TestCaseNodeServiceImpl nodeService;

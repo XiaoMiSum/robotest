@@ -1,6 +1,8 @@
 package io.github.xiaomisum.robotest.service.domain.review;
 
 import io.github.xiaomisum.robotest.framework.common.Constants;
+import io.github.xiaomisum.robotest.model.convert.TestReviewConvertMapper;
+import io.github.xiaomisum.robotest.model.convert.TestReviewConvertMapperImpl;
 import io.github.xiaomisum.robotest.model.dto.request.review.TestReviewCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.plan.PlannedCasesRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.review.TestReviewSnapshotNodeRespDTO;
@@ -20,6 +22,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDateTime;
@@ -44,6 +47,8 @@ class ReviewSnapshotServiceImplTest {
         private ProjectModuleMapper projectModuleMapper;
         @Mock
         private TestCaseNodeMapper testCaseNodeMapper;
+        @Spy
+        private TestReviewConvertMapper testReviewConvertMapper = new TestReviewConvertMapperImpl();
 
         private ReviewSnapshotServiceImpl snapshotService;
 
@@ -59,7 +64,8 @@ class ReviewSnapshotServiceImplTest {
 
                 snapshotService = new ReviewSnapshotServiceImpl(
                         reviewModuleSnapshotMapper, reviewNodeSnapshotMapper,
-                        testCaseDocumentMapper, projectModuleMapper, testCaseNodeMapper);
+                        testCaseDocumentMapper, projectModuleMapper, testCaseNodeMapper,
+                        testReviewConvertMapper);
         }
 
         @Test

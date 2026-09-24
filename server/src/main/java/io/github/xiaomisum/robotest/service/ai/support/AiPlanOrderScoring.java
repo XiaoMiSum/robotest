@@ -1,6 +1,9 @@
 package io.github.xiaomisum.robotest.service.ai.support;
 
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeParseException;
 import java.util.Objects;
 
 /**
@@ -82,6 +85,21 @@ public final class AiPlanOrderScoring {
      */
     public static boolean isStale(String storedPlanSyncedAt, LocalDateTime currentSnapshotSyncedAt) {
         String current = currentSnapshotSyncedAt == null ? null : currentSnapshotSyncedAt.toString();
-        return !Objects.equals(storedPlanSyncedAt, current);
+        return !Objects.equals(normalize(storedPlanSyncedAt), normalize(current));
+    }
+
+    private static String normalize(String value) {
+        if (value == null || value.isBlank()) {
+            return value;
+        }
+        try {
+            if (value.endsWith("Z") || value.matches(".*[+-]\\d{2}:?\\d{2}$")) {
+                return OffsetDateTime.parse(value).withOffsetSameInstant(ZoneOffset.UTC)
+                        .toLocalDateTime().toString();
+            }
+            return LocalDateTime.parse(value).toString();
+        } catch (DateTimeParseException ignored) {
+            return value;
+        }
     }
 }

@@ -15,6 +15,13 @@ function parseUtc(value: string): Date {
   return new Date(timePart && !hasZone ? `${normalized}Z` : normalized)
 }
 
+/** 解析 UTC API 时间，供排序、比较和倒计时复用统一解析规则。 */
+export function parseDateTime(value?: string | null): Date | null {
+  if (!value) return null
+  const date = parseUtc(value)
+  return Number.isNaN(date.getTime()) ? null : date
+}
+
 /** 业务本地时间不能套用 UTC 解析，否则用户选择的时间会发生时区偏移。 */
 function parseLocalDateTime(value: string): Date {
   return new Date(normalizeDateTime(value))

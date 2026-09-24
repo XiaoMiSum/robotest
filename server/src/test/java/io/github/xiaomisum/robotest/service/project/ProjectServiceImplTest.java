@@ -2,6 +2,8 @@ package io.github.xiaomisum.robotest.service.project;
 
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
+import io.github.xiaomisum.robotest.model.convert.ProjectConvertMapper;
+import io.github.xiaomisum.robotest.model.convert.ProjectConvertMapperImpl;
 import io.github.xiaomisum.robotest.model.dto.response.workspace.ProjectStatusCountsRespDTO;
 import io.github.xiaomisum.robotest.model.entity.workspace.WorkspaceUser;
 import io.github.xiaomisum.robotest.repository.admin.SysUserMapper;
@@ -12,6 +14,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import xyz.migoo.framework.common.exception.ServiceException;
 
@@ -33,6 +36,8 @@ class ProjectServiceImplTest {
     private WorkspaceUserMapper workspaceUserMapper;
     @Mock
     private TestPlanMapper testPlanMapper;
+    @Spy
+    private ProjectConvertMapper projectConvertMapper = new ProjectConvertMapperImpl();
     @InjectMocks
     private ProjectServiceImpl projectService;
 

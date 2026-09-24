@@ -452,7 +452,7 @@ class ScheduledTaskRunnerTest {
         dataset.put("status", status);
         dataset.put("summary", summary);
         dataset.put("environmentName", "测试环境");
-        dataset.put("executedAt", "2026-08-25T10:00:00");
+        dataset.put("executedAt", "2026-08-25T10:00:00Z");
         dataset.put("steps", List.of(Map.of("stepId", "s1", "name", "登录", "status", "success")));
         return new SceneExecutionService.SceneDatasetSnapshot(dataset, status, passed, failed, 0, 12L);
     }

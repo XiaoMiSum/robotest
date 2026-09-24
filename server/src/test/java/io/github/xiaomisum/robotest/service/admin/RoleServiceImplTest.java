@@ -2,6 +2,8 @@ package io.github.xiaomisum.robotest.service.admin;
 
 import com.baomidou.mybatisplus.core.toolkit.support.SFunction;
 import io.github.xiaomisum.robotest.framework.common.Constants;
+import io.github.xiaomisum.robotest.model.convert.RoleConvertMapper;
+import io.github.xiaomisum.robotest.model.convert.RoleConvertMapperImpl;
 import io.github.xiaomisum.robotest.model.dto.request.admin.RoleCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.admin.RolePermissionsUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.admin.RoleUpdateReqDTO;
@@ -26,6 +28,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import xyz.migoo.framework.common.exception.ServiceException;
 import xyz.migoo.framework.common.pojo.PageParam;
@@ -55,6 +58,8 @@ class RoleServiceImplTest {
     private SysUserMapper userMapper;
     @Mock
     private WorkspaceMapper workspaceMapper;
+    @Spy
+    private RoleConvertMapper roleConvertMapper = new RoleConvertMapperImpl();
     @Mock
     private PermissionFacade permissionFacade;
 

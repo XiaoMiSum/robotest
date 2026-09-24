@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useReviewAiConclusion } from '@/composables/project/functional-testing/review/useReviewAiConclusion'
+import { formatDateTime } from '@/utils/format'
 
 /**
  * AI 评审结论抽屉（06 §5.2）：
@@ -87,7 +88,7 @@ const {
           </div>
         </template>
       </div>
-      <div v-if="conclusion?.generatedAt" class="ai-conclusion-time">生成于 {{ conclusion.generatedAt }}</div>
+      <div v-if="conclusion?.generatedAt" class="ai-conclusion-time">生成于 {{ formatDateTime(conclusion.generatedAt) }}</div>
     </div>
   </el-drawer>
 </template>

@@ -77,8 +77,8 @@ CREATE INDEX idx_test_case_node_document_type
         "projectCount": 6,
         "testCaseCount": 1024,
         "status": "active",
-        "createdAt": "2026-09-18T02:24:00",
-        "lastAccessedAt": "2026-09-23T08:30:00"
+        "createdAt": "2026-09-18T02:24:00Z",
+        "lastAccessedAt": "2026-09-23T08:30:00Z"
       }
     ],
     "total": 6

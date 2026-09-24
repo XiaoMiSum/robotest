@@ -1,4 +1,4 @@
-package io.github.xiaomisum.robotest.framework.convert;
+package io.github.xiaomisum.robotest.model.convert;
 
 import io.github.xiaomisum.robotest.model.dto.request.bug.BugCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.bug.BugAttachmentRespDTO;
@@ -11,14 +11,11 @@ import io.github.xiaomisum.robotest.model.entity.bug.BugLog;
 import io.github.xiaomisum.robotest.model.entity.admin.SysUser;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
-import org.mapstruct.factory.Mappers;
 
 import java.util.UUID;
 
-@Mapper
+@Mapper(componentModel = "spring")
 public interface BugConvertMapper {
-
-    BugConvertMapper INSTANCE = Mappers.getMapper(BugConvertMapper.class);
 
     @Mapping(target = "reporter", ignore = true)
     @Mapping(target = "assignee", ignore = true)

@@ -108,6 +108,12 @@ class AiPlanOrderScoringTest {
     }
 
     @Test
+    void isStale_utcZAndLegacyNoZone_areEqual() {
+        assertFalse(AiPlanOrderScoring.isStale("2026-08-01T10:00Z",
+                LocalDateTime.of(2026, 8, 1, 10, 0)));
+    }
+
+    @Test
     void isStale_differentValues_stale() {
         LocalDateTime stored = LocalDateTime.of(2026, 8, 1, 10, 0);
         LocalDateTime current = LocalDateTime.of(2026, 8, 2, 10, 0);

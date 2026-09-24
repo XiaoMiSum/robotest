@@ -1,6 +1,7 @@
 package io.github.xiaomisum.robotest.service.apitest;
 
 import freemarker.core.ParseException;
+import io.github.xiaomisum.robotest.framework.time.UtcTime;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.framework.security.LoginUser;
 import io.github.xiaomisum.robotest.framework.security.ProjectAccessGuard;
@@ -21,7 +22,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
 
-import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -30,8 +30,6 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 public class ApiFunctionServiceImpl implements ApiFunctionService {
-
-    private static final DateTimeFormatter DATETIME = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     private final ApiBuiltinFunctionRegistry builtinRegistry;
     private final ApiFunctionScriptEngine scriptEngine;
@@ -104,7 +102,7 @@ public class ApiFunctionServiceImpl implements ApiFunctionService {
         detail.setParamsDesc(entity.getParamsDesc());
         detail.setEnabled(entity.getEnabled());
         detail.setScript(entity.getScript());
-        detail.setUpdatedAt(entity.getUpdatedAt() != null ? entity.getUpdatedAt().format(DATETIME) : null);
+        detail.setUpdatedAt(UtcTime.toIso(entity.getUpdatedAt()));
         return detail;
     }
 
@@ -240,7 +238,7 @@ public class ApiFunctionServiceImpl implements ApiFunctionService {
         item.setDescription(entity.getDescription());
         item.setParamsDesc(entity.getParamsDesc());
         item.setEnabled(entity.getEnabled());
-        item.setUpdatedAt(entity.getUpdatedAt() != null ? entity.getUpdatedAt().format(DATETIME) : null);
+        item.setUpdatedAt(UtcTime.toIso(entity.getUpdatedAt()));
         return item;
     }
 }

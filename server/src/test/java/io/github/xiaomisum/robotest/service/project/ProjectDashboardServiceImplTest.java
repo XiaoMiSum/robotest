@@ -1,5 +1,7 @@
 package io.github.xiaomisum.robotest.service.project;
 
+import io.github.xiaomisum.robotest.model.convert.ProjectDashboardConvertMapper;
+import io.github.xiaomisum.robotest.model.convert.ProjectDashboardConvertMapperImpl;
 import io.github.xiaomisum.robotest.model.dto.response.workspace.ProjectDashboardRespDTO;
 import io.github.xiaomisum.robotest.model.entity.admin.SysUser;
 import io.github.xiaomisum.robotest.model.entity.workspace.Project;
@@ -20,6 +22,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.Collections;
@@ -54,6 +57,9 @@ class ProjectDashboardServiceImplTest {
     private ProjectActivityService projectActivityService;
     @Mock
     private PermissionFacade permissionFacade;
+    @Spy
+    private ProjectDashboardConvertMapper projectDashboardConvertMapper =
+            new ProjectDashboardConvertMapperImpl();
 
     @InjectMocks
     private ProjectDashboardServiceImpl dashboardService;

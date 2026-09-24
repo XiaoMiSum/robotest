@@ -2,7 +2,7 @@ package io.github.xiaomisum.robotest.service.domain.review;
 
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
-import io.github.xiaomisum.robotest.framework.convert.TestReviewConvertMapper;
+import io.github.xiaomisum.robotest.model.convert.TestReviewConvertMapper;
 import io.github.xiaomisum.robotest.framework.security.ProjectAccessGuard;
 import io.github.xiaomisum.robotest.model.dto.request.review.TestReviewCasesUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.review.TestReviewCreateReqDTO;
@@ -25,12 +25,6 @@ import io.github.xiaomisum.robotest.repository.review.TestReviewRecordMapper;
 import io.github.xiaomisum.robotest.repository.admin.SysUserMapper;
 import io.github.xiaomisum.robotest.repository.workspace.ProjectMapper;
 import io.github.xiaomisum.robotest.repository.workspace.WorkspaceUserMapper;
-import io.github.xiaomisum.robotest.service.domain.review.TestReviewService;
-import io.github.xiaomisum.robotest.service.domain.review.ReviewEvent;
-import io.github.xiaomisum.robotest.service.domain.review.ReviewLifecycleEvent;
-import io.github.xiaomisum.robotest.service.domain.review.ReviewSnapshotService;
-import io.github.xiaomisum.robotest.service.domain.review.ReviewStatus;
-import io.github.xiaomisum.robotest.service.domain.review.ReviewWorkflow;
 import io.github.xiaomisum.robotest.service.project.ProjectActivityService;
 import jakarta.annotation.Resource;
 import org.springframework.context.ApplicationEventPublisher;
@@ -65,6 +59,8 @@ public class TestReviewServiceImpl implements TestReviewService {
     private ReviewSnapshotService reviewSnapshotService;
     @Resource
     private ApplicationEventPublisher eventPublisher;
+    @Resource
+    private TestReviewConvertMapper testReviewConvertMapper;
     @Resource
     private ProjectActivityService projectActivityService;
 
@@ -144,7 +140,7 @@ public class TestReviewServiceImpl implements TestReviewService {
             }
         }
 
-        TestReview review = TestReviewConvertMapper.INSTANCE.toEntity(reqDTO);
+        TestReview review = testReviewConvertMapper.toEntity(reqDTO);
         review.setProjectId(projectId);
         review.setInitiatorId(userId);
         review.setStatus(ReviewStatus.NEW.getCode());
@@ -405,7 +401,7 @@ public class TestReviewServiceImpl implements TestReviewService {
     }
 
     private TestReviewDetailRespDTO convertToDetailDTO(TestReview review) {
-        TestReviewDetailRespDTO dto = TestReviewConvertMapper.INSTANCE.toDetailDTO(review);
+        TestReviewDetailRespDTO dto = testReviewConvertMapper.toDetailDTO(review);
 
         SysUser initiator = userMapper.selectById(review.getInitiatorId());
         if (initiator != null) {

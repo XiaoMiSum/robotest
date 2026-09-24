@@ -2,7 +2,7 @@ package io.github.xiaomisum.robotest.service.domain.tcasedoc;
 
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
-import io.github.xiaomisum.robotest.framework.convert.TestCaseDocumentConvertMapper;
+import io.github.xiaomisum.robotest.model.convert.TestCaseDocumentConvertMapper;
 import io.github.xiaomisum.robotest.framework.security.ProjectAccessGuard;
 import io.github.xiaomisum.robotest.model.dto.request.tcase.TestCaseDocumentCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.tcase.TestCaseDocumentUpdateReqDTO;
@@ -36,6 +36,8 @@ public class TestCaseDocumentServiceImpl implements TestCaseDocumentService {
     @Resource
     private ProjectAccessGuard projectAccessGuard;
     @Resource
+    private TestCaseDocumentConvertMapper testCaseDocumentConvertMapper;
+    @Resource
     private ProjectActivityService projectActivityService;
 
     @Override
@@ -50,7 +52,7 @@ public class TestCaseDocumentServiceImpl implements TestCaseDocumentService {
         }
 
         return documents.stream()
-                .map(TestCaseDocumentConvertMapper.INSTANCE::toRespDTO)
+                .map(testCaseDocumentConvertMapper::toRespDTO)
                 .collect(Collectors.toList());
     }
 
@@ -93,7 +95,7 @@ public class TestCaseDocumentServiceImpl implements TestCaseDocumentService {
         projectActivityService.record(projectId, userId, "TEST_CASE_DOCUMENT", document.getId(),
                 document.getName(), "CASE_CREATED", "创建用例「" + document.getName() + "」");
 
-        return TestCaseDocumentConvertMapper.INSTANCE.toRespDTO(document);
+        return testCaseDocumentConvertMapper.toRespDTO(document);
     }
 
     @Override
@@ -135,7 +137,7 @@ public class TestCaseDocumentServiceImpl implements TestCaseDocumentService {
             projectActivityService.record(document.getProjectId(), userId, "TEST_CASE_DOCUMENT", documentId,
                     resourceName, "CASE_UPDATED", "更新用例「" + resourceName + "」");
         }
-        return TestCaseDocumentConvertMapper.INSTANCE.toRespDTO(document);
+        return testCaseDocumentConvertMapper.toRespDTO(document);
     }
 
     @Override

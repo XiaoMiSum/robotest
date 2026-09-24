@@ -2,7 +2,7 @@ package io.github.xiaomisum.robotest.service.admin;
 
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
-import io.github.xiaomisum.robotest.framework.convert.UserConvertMapper;
+import io.github.xiaomisum.robotest.model.convert.UserConvertMapper;
 import io.github.xiaomisum.robotest.model.dto.request.admin.UserBatchStatusReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.admin.UserCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.admin.UserUpdateReqDTO;
@@ -53,6 +53,8 @@ public class UserServiceImpl implements UserService {
     private WorkspaceUserMapper workspaceUserMapper;
     @Resource
     private PasswordEncoder passwordEncoder;
+    @Resource
+    private UserConvertMapper userConvertMapper;
 
     @Override
     public PageResult<UserRespDTO> getUserPage(String keyword, String status, UUID roleId,
@@ -254,13 +256,13 @@ public class UserServiceImpl implements UserService {
     }
 
     private UserRespDTO convertToUserRespDTO(SysUser user) {
-        UserRespDTO dto = UserConvertMapper.INSTANCE.toRespDTO(user);
+        UserRespDTO dto = userConvertMapper.toRespDTO(user);
 
         List<SysUserRole> userRoles = userRoleMapper.listByUserId(user.getId());
         if (!userRoles.isEmpty()) {
             List<UUID> roleIds = userRoles.stream().map(SysUserRole::getRoleId).collect(Collectors.toList());
             List<SysRole> roles = roleMapper.listByIds(roleIds);
-            dto.setRoles(roles.stream().map(UserConvertMapper.INSTANCE::toRoleSimple).collect(Collectors.toList()));
+            dto.setRoles(roles.stream().map(userConvertMapper::toRoleSimple).collect(Collectors.toList()));
         } else {
             dto.setRoles(new ArrayList<>());
         }
@@ -273,7 +275,7 @@ public class UserServiceImpl implements UserService {
                 WorkspaceUser matchedWs = workspaceUsers.stream()
                         .filter(wu -> wu.getWorkspaceId().equals(ws.getId()))
                         .findFirst().orElse(null);
-                return UserConvertMapper.INSTANCE.toWorkspaceSimple(ws, matchedWs);
+                return userConvertMapper.toWorkspaceSimple(ws, matchedWs);
             }).collect(Collectors.toList()));
         } else {
             dto.setWorkspaces(new ArrayList<>());

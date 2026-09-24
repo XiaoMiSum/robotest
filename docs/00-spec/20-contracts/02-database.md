@@ -74,7 +74,7 @@ is_deleted  boolean     NOT NULL DEFAULT false
 | 长文本 | `text` | 不用于无条件排序 |
 | 结构化数据 | `jsonb` | 需要查询的字段应评估索引 |
 | 布尔值 | `boolean` | 禁止使用魔法字符串 |
-| 时间 | `timestamp_type` | 按 DEC-005 和数据模型确定 |
+| 时间 | `timestamp_type` | 存储类型按 DEC-005 和数据模型确定；API `date-time` 字段在序列化边界统一输出带 `Z` 的 UTC |
 | 向量 | `vector(n)` | 仅在启用 pgvector 时使用 |
 
 ## 4. 索引规范

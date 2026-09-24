@@ -1,15 +1,12 @@
-package io.github.xiaomisum.robotest.framework.convert;
+package io.github.xiaomisum.robotest.model.convert;
 
 import io.github.xiaomisum.robotest.model.dto.request.workspace.WorkspaceCreateReqDTO;
 import io.github.xiaomisum.robotest.model.entity.workspace.Workspace;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
-import org.mapstruct.factory.Mappers;
 
-@Mapper
+@Mapper(componentModel = "spring")
 public interface WorkspaceConvertMapper {
-
-    WorkspaceConvertMapper INSTANCE = Mappers.getMapper(WorkspaceConvertMapper.class);
 
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "status", ignore = true)

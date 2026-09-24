@@ -2,7 +2,7 @@ package io.github.xiaomisum.robotest.service.domain.bug;
 
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
-import io.github.xiaomisum.robotest.framework.convert.BugConvertMapper;
+import io.github.xiaomisum.robotest.model.convert.BugConvertMapper;
 import io.github.xiaomisum.robotest.framework.security.ProjectAccessGuard;
 import io.github.xiaomisum.robotest.model.dto.response.bug.BugAttachmentDownloadRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.bug.BugAttachmentRespDTO;
@@ -45,6 +45,8 @@ public class BugAttachmentServiceImpl implements BugAttachmentService {
     private SysUserMapper userMapper;
     @Resource
     private ProjectAccessGuard projectAccessGuard;
+    @Resource
+    private BugConvertMapper bugConvertMapper;
 
     @Value("${robotest.upload.dir:./uploads/bug}")
     private String uploadDir;
@@ -161,7 +163,7 @@ public class BugAttachmentServiceImpl implements BugAttachmentService {
     }
 
     private BugAttachmentRespDTO toAttachmentRespDTO(BugAttachment attachment) {
-        BugAttachmentRespDTO dto = BugConvertMapper.INSTANCE.toAttachmentRespDTO(attachment);
+        BugAttachmentRespDTO dto = bugConvertMapper.toAttachmentRespDTO(attachment);
         if (attachment.getUploaderId() != null) {
             SysUser uploader = userMapper.selectById(attachment.getUploaderId());
             if (uploader != null) {

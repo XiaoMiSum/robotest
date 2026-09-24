@@ -21,8 +21,8 @@
   "data": {
     "accessToken": "eyJhb...",
     "refreshToken": "eyJhb...",
-    "accessExpiry": "2026-07-26T12:00:00",
-    "refreshExpiry": "2026-08-09T12:00:00",
+    "accessExpiry": "2026-07-26T12:00:00Z",
+    "refreshExpiry": "2026-08-09T12:00:00Z",
     "user": {
       "id": "uuid",
       "username": "admin",

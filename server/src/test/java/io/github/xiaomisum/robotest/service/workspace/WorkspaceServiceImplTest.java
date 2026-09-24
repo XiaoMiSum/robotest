@@ -1,6 +1,8 @@
 package io.github.xiaomisum.robotest.service.workspace;
 
 import io.github.xiaomisum.robotest.framework.common.Constants;
+import io.github.xiaomisum.robotest.model.convert.WorkspaceConvertMapper;
+import io.github.xiaomisum.robotest.model.convert.WorkspaceConvertMapperImpl;
 import io.github.xiaomisum.robotest.model.dto.request.workspace.WorkspaceCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.workspace.WorkspaceMembersAddReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.workspace.WorkspaceUpdateReqDTO;
@@ -19,6 +21,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import xyz.migoo.framework.common.exception.ServiceException;
 import xyz.migoo.framework.common.pojo.PageParam;
@@ -43,6 +46,8 @@ class WorkspaceServiceImplTest {
     private SysUserMapper userMapper;
     @Mock
     private ProjectMapper projectMapper;
+    @Spy
+    private WorkspaceConvertMapper workspaceConvertMapper = new WorkspaceConvertMapperImpl();
 
     @InjectMocks
     private WorkspaceServiceImpl workspaceService;

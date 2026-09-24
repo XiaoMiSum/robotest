@@ -1,6 +1,8 @@
 package io.github.xiaomisum.robotest.service.domain.review;
 
 import io.github.xiaomisum.robotest.framework.security.ProjectAccessGuard;
+import io.github.xiaomisum.robotest.model.convert.TestReviewConvertMapper;
+import io.github.xiaomisum.robotest.model.convert.TestReviewConvertMapperImpl;
 import io.github.xiaomisum.robotest.model.dto.request.review.TestReviewCasesUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.review.TestReviewCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.review.TestReviewRecordReqDTO;
@@ -96,6 +98,8 @@ class TestReviewServiceImplTest {
 
         @Spy
         private ReviewWorkflow reviewWorkflow = new ReviewWorkflowImpl();
+        @Spy
+        private TestReviewConvertMapper testReviewConvertMapper = new TestReviewConvertMapperImpl();
 
         private ReviewSnapshotService reviewSnapshotService;
 
@@ -118,7 +122,8 @@ class TestReviewServiceImplTest {
                 // 既有对 mapper 的 verify/stub 断言原样成立（行为等价迁移）
                 reviewSnapshotService = spy(new ReviewSnapshotServiceImpl(
                         reviewModuleSnapshotMapper, reviewNodeSnapshotMapper,
-                        testCaseDocumentMapper, projectModuleMapper, testCaseNodeMapper));
+                        testCaseDocumentMapper, projectModuleMapper, testCaseNodeMapper,
+                        testReviewConvertMapper));
                 ReflectionTestUtils.setField(reviewService, "reviewSnapshotService", reviewSnapshotService);
         }
 
