@@ -10,7 +10,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import xyz.migoo.framework.mybatis.core.LambdaQueryWrapperX;
 
 import java.util.Set;
 import java.util.UUID;
@@ -45,7 +44,7 @@ class WorkspacePermissionCheckerTest {
         wu.setWorkspaceId(workspaceId);
         UUID roleId = UUID.randomUUID();
         wu.setWorkspaceRole(roleId);
-        when(workspaceUserMapper.selectOne(any(LambdaQueryWrapperX.class))).thenReturn(wu);
+        when(workspaceUserMapper.findByWorkspaceIdAndUserId(workspaceId, userId)).thenReturn(wu);
 
         SysRole role = new SysRole();
         role.setPermissions(Set.of("bug:edit", "bug:view").stream().toList());
@@ -63,7 +62,7 @@ class WorkspacePermissionCheckerTest {
 
     @Test
     void codes_noMembership_returnsEmpty() {
-        when(workspaceUserMapper.selectOne(any(LambdaQueryWrapperX.class))).thenReturn(null);
+        when(workspaceUserMapper.findByWorkspaceIdAndUserId(workspaceId, userId)).thenReturn(null);
 
         assertTrue(checker.codes(userId, workspaceId).isEmpty());
     }
@@ -72,7 +71,7 @@ class WorkspacePermissionCheckerTest {
     void codes_roleMissing_returnsEmpty() {
         WorkspaceUser wu = new WorkspaceUser();
         wu.setWorkspaceRole(UUID.randomUUID());
-        when(workspaceUserMapper.selectOne(any(LambdaQueryWrapperX.class))).thenReturn(wu);
+        when(workspaceUserMapper.findByWorkspaceIdAndUserId(workspaceId, userId)).thenReturn(wu);
         when(roleMapper.selectById(wu.getWorkspaceRole())).thenReturn(null);
 
         assertTrue(checker.codes(userId, workspaceId).isEmpty());
@@ -82,7 +81,7 @@ class WorkspacePermissionCheckerTest {
     void codes_workspaceRoleNull_returnsEmpty() {
         WorkspaceUser wu = new WorkspaceUser();
         wu.setWorkspaceRole(null);
-        when(workspaceUserMapper.selectOne(any(LambdaQueryWrapperX.class))).thenReturn(wu);
+        when(workspaceUserMapper.findByWorkspaceIdAndUserId(workspaceId, userId)).thenReturn(wu);
 
         assertTrue(checker.codes(userId, workspaceId).isEmpty());
     }
@@ -92,7 +91,7 @@ class WorkspacePermissionCheckerTest {
         WorkspaceUser wu = new WorkspaceUser();
         UUID roleId = UUID.randomUUID();
         wu.setWorkspaceRole(roleId);
-        when(workspaceUserMapper.selectOne(any(LambdaQueryWrapperX.class))).thenReturn(wu);
+        when(workspaceUserMapper.findByWorkspaceIdAndUserId(workspaceId, userId)).thenReturn(wu);
 
         SysRole role = new SysRole();
         role.setPermissions(null);

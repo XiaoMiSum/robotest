@@ -29,6 +29,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -103,8 +104,12 @@ class ApiDebugSaveAsInterfaceServiceImplTest {
     void saveAsInterfaceWithoutEnvKeepsOnlyPath() {
         ApiDebugRecord record = ownedRecord();
         record.setMethod("GET");
-        record.setUrl("https://other.example.com:8443/users?page=2");
+        record.setUrl("https://staging.example.com/users?page=2");
         when(debugRecordMapper.selectById(RECORD_ID)).thenReturn(record);
+        ApiEnvironment environment = new ApiEnvironment();
+        environment.setProjectId(PROJECT_ID);
+        environment.setHttpConfigs(List.of(Map.of("baseUrl", "https://staging.example.com")));
+        when(environmentMapper.findDefaultByProjectId(PROJECT_ID)).thenReturn(environment);
 
         ApiDebugSaveAsInterfaceReqDTO reqDTO = new ApiDebugSaveAsInterfaceReqDTO();
         reqDTO.setMode("create");
@@ -115,6 +120,7 @@ class ApiDebugSaveAsInterfaceServiceImplTest {
         ArgumentCaptor<ApiInterfaceCreateReqDTO> captor =
                 ArgumentCaptor.forClass(ApiInterfaceCreateReqDTO.class);
         verify(interfaceService).create(any(), any(), any(), captor.capture());
+        verify(environmentMapper, atLeastOnce()).findDefaultByProjectId(PROJECT_ID);
         assertEquals("/users", captor.getValue().getPath());
     }
 

@@ -7,6 +7,7 @@ import xyz.migoo.framework.common.pojo.PageParam;
 import xyz.migoo.framework.common.pojo.PageResult;
 import xyz.migoo.framework.mybatis.core.BaseMapperX;
 import xyz.migoo.framework.mybatis.core.LambdaQueryWrapperX;
+import xyz.migoo.framework.mybatis.core.LambdaUpdateWrapperX;
 
 import java.util.Collection;
 import java.util.List;
@@ -50,6 +51,13 @@ public interface ApiSceneMapper extends BaseMapperX<ApiScene> {
         delete(new LambdaQueryWrapperX<ApiScene>()
                 .eq(ApiScene::getProjectId, projectId)
                 .eq(ApiScene::getName, name));
+    }
+
+    /** 场景设置保存：按当前版本条件更新，影响行数为 0 表示版本冲突。 */
+    default int updateByIdAndChangeVersion(UUID id, Integer currentVersion, ApiScene carrier) {
+        return update(carrier, new LambdaUpdateWrapperX<ApiScene>()
+                .eq(ApiScene::getId, id)
+                .eq(ApiScene::getChangeVersion, currentVersion));
     }
 
 }

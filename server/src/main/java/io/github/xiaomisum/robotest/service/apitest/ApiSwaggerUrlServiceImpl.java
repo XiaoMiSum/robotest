@@ -9,8 +9,6 @@ import io.github.xiaomisum.robotest.service.apitest.imports.ImportSourceFetcher;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
-import xyz.migoo.framework.mybatis.core.LambdaQueryWrapperX;
-import xyz.migoo.framework.mybatis.core.LambdaUpdateWrapperX;
 
 import java.util.List;
 import java.util.UUID;
@@ -68,11 +66,7 @@ public class ApiSwaggerUrlServiceImpl implements ApiSwaggerUrlService {
         requireConfig(projectId, id);
         requireReachable(reqDTO.getUrl());
         // 部分更新原则（C9）：仅更新调用方传入的字段
-        swaggerUrlMapper.update(null, new LambdaUpdateWrapperX<ApiSwaggerUrl>()
-                .eq(ApiSwaggerUrl::getId, id)
-                .set(ApiSwaggerUrl::getName, reqDTO.getName().trim())
-                .set(ApiSwaggerUrl::getUrl, reqDTO.getUrl().trim())
-                .set(ApiSwaggerUrl::getFormat, reqDTO.getFormat()));
+        swaggerUrlMapper.updateFieldsById(id, reqDTO.getName().trim(), reqDTO.getUrl().trim(), reqDTO.getFormat());
     }
 
     @Override

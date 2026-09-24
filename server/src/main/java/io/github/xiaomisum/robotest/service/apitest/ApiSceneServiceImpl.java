@@ -30,7 +30,6 @@ import org.springframework.transaction.annotation.Transactional;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
 import xyz.migoo.framework.common.pojo.PageParam;
 import xyz.migoo.framework.common.pojo.PageResult;
-import xyz.migoo.framework.mybatis.core.LambdaUpdateWrapperX;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -107,10 +106,8 @@ public class ApiSceneServiceImpl implements ApiSceneService {
         SceneSettingsValidator.validateStatus(reqDTO.getStatus());
 
         // 乐观锁：版本号不匹配即 0 行更新（测试场景详细设计 3.1.4）
-        int rows = sceneMapper.update(SceneSettingsValidator.buildUpdateCarrier(id, reqDTO,
-                reqDTO.getChangeVersion() + 1), new LambdaUpdateWrapperX<ApiScene>()
-                        .eq(ApiScene::getId, id)
-                        .eq(ApiScene::getChangeVersion, reqDTO.getChangeVersion()));
+        int rows = sceneMapper.updateByIdAndChangeVersion(id, reqDTO.getChangeVersion(),
+                SceneSettingsValidator.buildUpdateCarrier(id, reqDTO, reqDTO.getChangeVersion() + 1));
         if (rows == 0) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.API_SCENE_VERSION_CONFLICT);
         }

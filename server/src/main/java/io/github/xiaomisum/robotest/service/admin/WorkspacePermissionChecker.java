@@ -6,7 +6,6 @@ import io.github.xiaomisum.robotest.repository.admin.SysRoleMapper;
 import io.github.xiaomisum.robotest.repository.workspace.WorkspaceUserMapper;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Component;
-import xyz.migoo.framework.mybatis.core.LambdaQueryWrapperX;
 
 import java.util.List;
 import java.util.Set;
@@ -34,10 +33,7 @@ public class WorkspacePermissionChecker implements PermissionChecker {
             return Set.of();
         }
 
-        WorkspaceUser workspaceUser = workspaceUserMapper.selectOne(
-                new LambdaQueryWrapperX<WorkspaceUser>()
-                        .eq(WorkspaceUser::getUserId, userId)
-                        .eq(WorkspaceUser::getWorkspaceId, workspaceId));
+        WorkspaceUser workspaceUser = workspaceUserMapper.findByWorkspaceIdAndUserId(workspaceId, userId);
         if (workspaceUser == null || workspaceUser.getWorkspaceRole() == null) {
             return Set.of();
         }

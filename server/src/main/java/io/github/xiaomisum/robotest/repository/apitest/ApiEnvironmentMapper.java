@@ -25,6 +25,16 @@ public interface ApiEnvironmentMapper extends BaseMapperX<ApiEnvironment> {
                 .eq(ApiEnvironment::getName, name));
     }
 
+    /** 项目默认环境：按环境排序取首条，兼容历史数据中短暂存在多条默认标记的情况。 */
+    default ApiEnvironment findDefaultByProjectId(UUID projectId) {
+        return selectOne(new LambdaQueryWrapperX<ApiEnvironment>()
+                .eq(ApiEnvironment::getProjectId, projectId)
+                .eq(ApiEnvironment::getIsDefault, true)
+                .orderByAsc(ApiEnvironment::getSortOrder)
+                .orderByAsc(ApiEnvironment::getCreatedAt)
+                .last("LIMIT 1"));
+    }
+
     default boolean existsByProjectIdAndName(UUID projectId, String name, UUID excludeId) {
         return selectCount(new LambdaQueryWrapperX<ApiEnvironment>()
                 .eq(ApiEnvironment::getProjectId, projectId)

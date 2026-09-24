@@ -271,8 +271,18 @@ class ApiScheduleServiceImplTest {
 
         service.update(WORKSPACE_ID, PROJECT_ID, USER_ID, TASK_ID, reqDTO);
 
-        // C9 部分更新：类型切换时废弃字段显式置 null，必须走 wrapper 更新而非 updateById
-        verify(taskMapper).update(eq(null), any());
+        // C9 部分更新：类型切换时废弃字段显式置 null，必须走 Mapper 的显式更新方法
+        verify(taskMapper).updateEditableFields(
+                eq(TASK_ID),
+                eq("import_swagger"),
+                eq(reqDTO.getName().trim()),
+                eq(reqDTO.getDescription()),
+                eq(null),
+                eq(null),
+                eq(null),
+                eq(reqDTO.getOpenapiUrl().trim()),
+                eq(null),
+                eq(reqDTO.getCronExpression().trim()));
         verify(taskScheduler).onTaskChanged(TASK_ID);
     }
 
@@ -284,8 +294,8 @@ class ApiScheduleServiceImplTest {
         reqDTO.setEnabled(false);
         service.toggle(WORKSPACE_ID, PROJECT_ID, USER_ID, TASK_ID, reqDTO);
 
-        // 启停只改 enabled 一列（C9 部分更新），载体为 wrapper
-        verify(taskMapper).update(eq(null), any());
+        // 启停只改 enabled 一列（C9 部分更新），由 Mapper 封装显式更新
+        verify(taskMapper).updateEnabled(TASK_ID, false);
         verify(taskScheduler).onTaskChanged(TASK_ID);
     }
 
@@ -437,7 +447,7 @@ class ApiScheduleServiceImplTest {
     void pageHidesNextExecutionsForDisabledTasks() {
         ApiScheduledTask disabled = existingTask();
         disabled.setEnabled(false);
-        when(taskMapper.selectPage(any(PageParam.class), any()))
+        when(taskMapper.selectPageByProject(any(PageParam.class), eq(PROJECT_ID), eq(null)))
                 .thenReturn(new PageResult<>(List.of(disabled), 1L));
 
         PageResult<ApiSchedulePageItemRespDTO> page =
@@ -452,7 +462,7 @@ class ApiScheduleServiceImplTest {
         enabled.setEnabled(true);
         enabled.setCronExpression("0 2 * * *");
         UUID envId = enabled.getEnvironmentId();
-        when(taskMapper.selectPage(any(PageParam.class), any()))
+        when(taskMapper.selectPageByProject(any(PageParam.class), eq(PROJECT_ID), eq("scene_execute")))
                 .thenReturn(new PageResult<>(List.of(enabled), 1L));
         ApiEnvironment env = new ApiEnvironment();
         env.setId(envId);
