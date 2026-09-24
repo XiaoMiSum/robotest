@@ -68,17 +68,23 @@ class WorkspaceMemberServiceImplTest {
     // ========== getMemberPage ==========
 
     @Test
-    void getMemberPage_appliesWorkspaceRoleFilter() {
+    void getMemberPage_appliesWorkspaceRoleFilterAndReturnsDisplayName() {
+        WorkspaceUser targetMember = memberUser(targetUserId);
+        targetMember.setWorkspaceRole(Constants.WorkspaceRole.ADMIN_ID);
+        SysUser targetUser = activeUser(targetUserId);
+        targetUser.setName("李四");
         when(workspaceUserMapper.findByWorkspaceIdAndUserId(workspaceId, adminId)).thenReturn(adminUser());
         when(workspaceUserMapper.findPageByWorkspaceIdAndUserIds(
                 any(PageParam.class), eq(workspaceId), isNull(), eq(Constants.WorkspaceRole.ADMIN_ID)))
-                .thenReturn(new PageResult<>(List.of(), 0L));
+                .thenReturn(new PageResult<>(List.of(targetMember), 1L));
+        when(userMapper.listByIds(List.of(targetUserId))).thenReturn(List.of(targetUser));
 
         PageResult<WorkspaceMemberRespDTO> result = memberService.getMemberPage(
                 adminId, workspaceId, null, Constants.WorkspaceRole.ADMIN_ID, 1, 20);
 
-        assertTrue(result.getList().isEmpty());
-        assertEquals(0L, result.getTotal());
+        assertEquals(1L, result.getTotal());
+        assertEquals("李四", result.getList().get(0).getName());
+        assertEquals(targetUserId, result.getList().get(0).getUserId());
     }
 
     // ========== addMembers ==========

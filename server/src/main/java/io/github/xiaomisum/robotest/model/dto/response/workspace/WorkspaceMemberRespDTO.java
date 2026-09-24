@@ -10,6 +10,7 @@ public class WorkspaceMemberRespDTO {
 
     private UUID userId;
     private String username;
+    private String name;
     private String email;
     private String avatarUrl;
     private UUID workspaceRole;
