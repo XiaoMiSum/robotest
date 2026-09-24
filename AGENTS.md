@@ -178,7 +178,7 @@ bash scripts/deploy-merged.sh
 ### 6.3 工具与脚本
 
 - 任务执行模板：`docs/00-spec/00-governance/02-task-template.md` — 编码前必须按模板填写理解、一致性评估、探查、方案
-- 质量验证脚本：`bash scripts/validate.sh` — 提交前运行，检查提交格式、lint、typecheck、test
+- 质量验证脚本：`bash scripts/validate.sh` — 提交前运行，检查提交格式、文档链接/元信息/规则编号（`scripts/check-docs.mjs`）、lint、typecheck、test
   - `bash scripts/validate.sh --frontend` 仅检查前端
   - `bash scripts/validate.sh --backend` 仅检查后端
   - `bash scripts/validate.sh --all` 全量检查（默认）
