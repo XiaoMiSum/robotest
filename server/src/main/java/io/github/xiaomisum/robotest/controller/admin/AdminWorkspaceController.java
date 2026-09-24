@@ -27,6 +27,8 @@ public class AdminWorkspaceController {
     private WorkspaceService workspaceService;
 
     @GetMapping
+    // user:view/role:view 覆盖数据概览与角色页的 workspace 筛选入口
+    @PreAuthorize("hasAnyAuthority('workspace:view', 'user:view', 'role:view')")
     public Result<PageResult<WorkspaceRespDTO>> getWorkspacePage(
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) String status,
