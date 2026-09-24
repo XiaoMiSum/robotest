@@ -192,7 +192,7 @@
 
 **页面布局**：以 `web/demos/workspace/list.html` 为基准。页头展示标题、说明与按权限显隐的[新建空间]；工具栏提供名称搜索、“全部 / 我管理的 / 已归档”分段筛选及最近访问排序说明；主体使用工作空间卡片网格，末尾在有创建权限时展示虚线创建卡片。详细设计见 `docs/05-interaction-design/16-space-ui-my-workspace.md`。
 
-**数据与分页**：后端接口 `GET /api/workspaces` 支持 `keyword`、`scope`、`pageNo`、`pageSize`，返回当前范围列表、总数及三个范围计数。前端默认每页 12 条，超过单页容量时显示 Element Plus 分页器。
+**数据与分页**：后端接口 `GET /api/workspaces` 支持 `keyword`、`scope`、`pageNo`、`pageSize`，返回当前范围列表、总数及三个范围计数。前端默认每页 20 条，超过单页容量时显示 Element Plus 分页器。
 
 **卡片交互**：
 
