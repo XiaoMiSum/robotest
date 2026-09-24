@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed, reactive, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useProjectListPage } from '@/composables/workspace/useProjectListPage'
+import ProjectCard from '@/components/workspace/ProjectCard.vue'
 import {
   archiveProject,
   createProject,
@@ -11,31 +12,27 @@ import {
 } from '@/services/workspace'
 import type { Project, ProjectStatus } from '@/types'
 import { isWorkspaceAdmin } from '@/utils/workspaceRole'
-import { formatDate } from '@/utils/format'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
-import { Monitor, Plus, Promotion, Search, StarFilled } from '@element-plus/icons-vue'
+import { Loading, Plus, Promotion, Search } from '@element-plus/icons-vue'
 
 const authStore = useAuthStore()
 const {
   projects,
-  total,
   counts,
   keyword,
   status,
-  pageNo,
-  pageSize,
   error,
   isInitialLoading,
   isRefreshing,
+  isLoadingMore,
+  hasMore,
   isWorkspaceEmpty,
-  currentStatusLabel,
   loadProjects,
+  loadMoreProjects,
   handleSearch,
   handleClear,
   clearFilters,
   changeStatus,
-  changePage,
-  changePageSize,
   retry,
   enterProject,
 } = useProjectListPage()
@@ -46,10 +43,43 @@ const statusOptions: { value: ProjectStatus; label: string }[] = [
 ]
 
 const isAdmin = computed(() => isWorkspaceAdmin(authStore.activeWorkspace?.workspaceRole ?? ''))
+const canCreateProject = computed(() => authStore.hasPermission('project:create'))
 const currentUserId = computed(() => authStore.user?.id ?? '')
 const workspaceDescription = computed(() => {
   const workspaceName = authStore.activeWorkspace?.name
   return workspaceName ? `${workspaceName}空间下的全部项目` : '当前工作空间下的全部项目'
+})
+
+const loadMoreTarget = ref<HTMLElement | null>(null)
+let loadMoreObserver: IntersectionObserver | null = null
+
+function observeLoadMoreTarget(): void {
+  if (!loadMoreObserver || !loadMoreTarget.value) return
+  loadMoreObserver.disconnect()
+  loadMoreObserver.observe(loadMoreTarget.value)
+}
+
+onMounted(async () => {
+  if (typeof IntersectionObserver === 'undefined') return
+  loadMoreObserver = new IntersectionObserver(
+    (entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) {
+        void loadMoreProjects()
+      }
+    },
+    { rootMargin: '240px 0px' },
+  )
+  await nextTick()
+  observeLoadMoreTarget()
+})
+
+watch([projects, isInitialLoading, isLoadingMore, hasMore], () => {
+  void nextTick().then(observeLoadMoreTarget)
+})
+
+onBeforeUnmount(() => {
+  loadMoreObserver?.disconnect()
+  loadMoreObserver = null
 })
 
 const formDialogVisible = ref(false)
@@ -70,29 +100,12 @@ const formRules: FormRules = {
   ],
 }
 
-function toProject(row: unknown): Project {
-  return row as Project
-}
-
-function canEdit(row: unknown): boolean {
-  const project = toProject(row)
+function canEdit(project: Project): boolean {
   return isAdmin.value || project.createdBy?.id === currentUserId.value
 }
 
-function handleRowClick(row: unknown): void {
-  enterProject(toProject(row))
-}
-
-function enterProjectRow(row: unknown): void {
-  enterProject(toProject(row))
-}
-
-function projectRowClassName({ row }: { row: unknown }): string {
-  return toProject(row).status === 'archived' ? 'project-list-page__row--archived' : ''
-}
-
-function handleSetDefault(row: unknown): void {
-  void setDefaultProjectAndRefresh(toProject(row))
+function handleSetDefault(project: Project): void {
+  void setDefaultProjectAndRefresh(project)
 }
 
 async function setDefaultProjectAndRefresh(project: Project): Promise<void> {
@@ -105,8 +118,7 @@ async function setDefaultProjectAndRefresh(project: Project): Promise<void> {
   }
 }
 
-async function handleArchive(row: unknown, archived: boolean): Promise<void> {
-  const project = toProject(row)
+async function handleArchive(project: Project, archived: boolean): Promise<void> {
   const action = archived ? '归档' : '启封'
   try {
     await ElMessageBox.confirm(`确定要${action}项目「${project.name}」吗？`, `确认${action}`, {
@@ -124,8 +136,7 @@ async function handleArchive(row: unknown, archived: boolean): Promise<void> {
   }
 }
 
-async function handleDelete(row: unknown): Promise<void> {
-  const project = toProject(row)
+async function handleDelete(project: Project): Promise<void> {
   try {
     await ElMessageBox.confirm(
       `确定要删除项目「${project.name}」吗？删除后不可恢复。`,
@@ -145,6 +156,7 @@ async function handleDelete(row: unknown): Promise<void> {
 }
 
 function openCreateDialog(): void {
+  if (!canCreateProject.value) return
   editingProject.value = null
   formDialogTitle.value = '新建项目'
   form.name = ''
@@ -162,10 +174,6 @@ function openEditDialog(project: Project): void {
   form.startTime = project.startTime ?? ''
   form.endTime = project.endTime ?? ''
   formDialogVisible.value = true
-}
-
-function openEditRow(row: unknown): void {
-  openEditDialog(toProject(row))
 }
 
 async function submitForm(): Promise<void> {
@@ -207,7 +215,7 @@ async function submitForm(): Promise<void> {
         <h1 class="page-head__title">项目列表</h1>
         <p class="page-head__desc">{{ workspaceDescription }}</p>
       </div>
-      <div class="page-head__actions">
+      <div v-if="canCreateProject" class="page-head__actions">
         <button type="button" class="project-list-page__primary-button" @click="openCreateDialog">
           <el-icon><Plus /></el-icon>
           新建项目
@@ -257,8 +265,8 @@ async function submitForm(): Promise<void> {
       正在刷新项目列表…
     </div>
 
-    <section v-if="isInitialLoading" class="project-list-page__table-card" aria-busy="true">
-      <el-skeleton :rows="6" animated />
+    <section v-if="isInitialLoading" class="project-list-page__grid" aria-busy="true">
+      <el-skeleton v-for="index in 6" :key="index" class="project-list-page__skeleton-card" :rows="5" animated />
     </section>
 
     <section v-else-if="error && !projects.length" class="project-list-page__state" role="alert">
@@ -272,7 +280,12 @@ async function submitForm(): Promise<void> {
       <div class="project-list-page__state-icon"><el-icon :size="42"><Promotion /></el-icon></div>
       <h2>欢迎来到「{{ authStore.activeWorkspace?.name || '当前工作空间' }}」</h2>
       <p>当前工作空间还没有任何项目，创建您的第一个项目开始测试管理</p>
-      <button type="button" class="project-list-page__primary-button" @click="openCreateDialog">
+      <button
+        v-if="canCreateProject"
+        type="button"
+        class="project-list-page__primary-button"
+        @click="openCreateDialog"
+      >
         创建第一个项目
       </button>
     </section>
@@ -289,96 +302,40 @@ async function submitForm(): Promise<void> {
         <span>{{ error }}</span>
         <button type="button" @click="retry">重试</button>
       </div>
-      <section class="project-list-page__table-card">
-        <el-table
-          :data="projects"
-          row-key="id"
-          class="project-list-page__table"
-          :row-class-name="projectRowClassName"
-          @row-click="handleRowClick"
-        >
-          <el-table-column label="项目名称" min-width="230">
-            <template #default="{ row }">
-              <div class="project-list-page__project-cell">
-                <span class="project-list-page__project-icon" aria-hidden="true">
-                  <el-icon><Monitor /></el-icon>
-                </span>
-                <span class="project-list-page__project-main">
-                  <span class="project-list-page__project-name">
-                    <el-icon v-if="row.isDefault" class="project-list-page__default-icon" title="默认项目">
-                      <StarFilled />
-                    </el-icon>
-                    {{ row.name }}
-                  </span>
-                  <span class="project-list-page__project-subtitle">
-                    {{ row.createdBy?.name || '未知创建人' }} · 创建于 {{ formatDate(row.createdAt) }}
-                  </span>
-                </span>
-                <el-tag :type="row.status === 'active' ? 'success' : 'info'" size="small" effect="light">
-                  {{ row.status === 'active' ? '活跃' : '已归档' }}
-                </el-tag>
-              </div>
-            </template>
-          </el-table-column>
-          <el-table-column label="描述" min-width="260" show-overflow-tooltip>
-            <template #default="{ row }">
-              {{ row.description || '暂无描述' }}
-            </template>
-          </el-table-column>
-          <el-table-column label="开始时间" width="130">
-            <template #default="{ row }">{{ formatDate(row.startTime) }}</template>
-          </el-table-column>
-          <el-table-column label="结束时间" width="130">
-            <template #default="{ row }">{{ formatDate(row.endTime) }}</template>
-          </el-table-column>
-          <el-table-column label="操作" width="300" fixed="right">
-            <template #default="{ row }">
-              <div class="project-list-page__actions" @click.stop>
-                <el-button v-if="row.status === 'active'" link type="primary" @click="enterProjectRow(row)">
-                  进入
-                </el-button>
-                <el-button
-                  v-if="row.status === 'active' && !row.isDefault"
-                  link
-                  type="primary"
-                  @click="handleSetDefault(row)"
-                >
-                  设为默认
-                </el-button>
-                <el-button
-                  v-if="row.status === 'active' && canEdit(row)"
-                  link
-                  @click="openEditRow(row)"
-                >
-                  编辑
-                </el-button>
-                <el-button v-if="isAdmin && row.status === 'active'" link type="warning" @click="handleArchive(row, true)">
-                  归档
-                </el-button>
-                <el-button v-if="isAdmin && row.status === 'archived'" link @click="handleArchive(row, false)">
-                  启封
-                </el-button>
-                <el-button v-if="isAdmin" link type="danger" @click="handleDelete(row)">
-                  删除
-                </el-button>
-                <span v-if="row.status === 'archived'" class="project-list-page__readonly">只读</span>
-              </div>
-            </template>
-          </el-table-column>
-        </el-table>
-      </section>
-
-      <div v-if="total > pageSize" class="project-list-page__pager">
-        <span class="project-list-page__total">共 {{ total }} 个{{ currentStatusLabel }}项目</span>
-        <el-pagination
-          v-model:current-page="pageNo"
-          v-model:page-size="pageSize"
-          :total="total"
-          :page-sizes="[12, 24, 48]"
-          layout="sizes, prev, pager, next"
-          @current-change="changePage"
-          @size-change="changePageSize"
+      <section class="project-list-page__grid" aria-label="项目列表">
+        <ProjectCard
+          v-for="project in projects"
+          :key="project.id"
+          :project="project"
+          :can-edit="canEdit(project)"
+          :is-admin="isAdmin"
+          @enter="enterProject(project)"
+          @set-default="handleSetDefault(project)"
+          @edit="openEditDialog(project)"
+          @archive="handleArchive(project, true)"
+          @unarchive="handleArchive(project, false)"
+          @delete="handleDelete(project)"
         />
+        <button
+          v-if="canCreateProject"
+          type="button"
+          class="project-list-page__create-card"
+          @click="openCreateDialog"
+        >
+          <span class="project-list-page__create-icon" aria-hidden="true">
+            <el-icon><Plus /></el-icon>
+          </span>
+          <strong>新建项目</strong>
+          <span>从项目开始组织测试资产与团队协作</span>
+        </button>
+      </section>
+      <div ref="loadMoreTarget" class="project-list-page__load-more" aria-live="polite">
+        <div v-if="isLoadingMore" class="project-list-page__loading-more">
+          <el-icon class="is-loading"><Loading /></el-icon>
+          正在加载更多项目…
+        </div>
+        <span v-else-if="hasMore">继续向下滚动加载更多项目</span>
+        <span v-else>没有更多项目</span>
       </div>
     </template>
 
@@ -475,8 +432,7 @@ async function submitForm(): Promise<void> {
   }
 }
 
-.project-list-page__toolbar-card,
-.project-list-page__table-card {
+.project-list-page__toolbar-card {
   border: 1px solid var(--color-neutral-200);
   border-radius: var(--radius-lg);
   background: var(--color-neutral-0);
@@ -599,99 +555,89 @@ async function submitForm(): Promise<void> {
   font-size: var(--font-size-xs);
 }
 
-.project-list-page__table-card {
-  overflow: hidden;
+.project-list-page__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: var(--space-lg);
 }
 
-.project-list-page__table {
-  width: 100%;
-
-  :deep(.el-table__row) {
-    cursor: pointer;
-  }
-
-  :deep(.project-list-page__row--archived) {
-    cursor: default;
-    color: var(--color-neutral-400);
-  }
+.project-list-page__skeleton-card {
+  min-height: 270px;
+  padding: 20px;
+  border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-lg);
+  background: var(--color-neutral-0);
 }
 
-.project-list-page__project-cell {
+.project-list-page__create-card {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 10px;
-  min-width: 0;
+  justify-content: center;
+  min-height: 270px;
+  padding: 20px;
+  border: 1px dashed var(--color-primary-300);
+  border-radius: var(--radius-lg);
+  background: var(--color-primary-50);
+  color: var(--color-primary-700);
+  cursor: pointer;
+  font: inherit;
+  text-align: center;
+  transition:
+    background var(--transition-fast),
+    border-color var(--transition-fast),
+    transform var(--transition-fast);
+
+  &:hover,
+  &:focus-visible {
+    border-color: var(--color-primary-500);
+    background: var(--color-primary-100);
+    outline: none;
+    transform: translateY(-2px);
+  }
+
+  strong {
+    margin-top: var(--space-sm);
+    font-size: var(--font-size-base);
+    font-weight: 600;
+  }
+
+  > span:last-child {
+    max-width: 220px;
+    margin-top: var(--space-xs);
+    color: var(--color-primary-600);
+    font-size: var(--font-size-xs);
+    line-height: 1.5;
+  }
 }
 
-.project-list-page__project-icon {
+.project-list-page__create-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  flex: 0 0 30px;
-  width: 30px;
-  height: 30px;
-  border: 1px solid var(--color-primary-100);
-  border-radius: 8px;
-  background: var(--color-primary-50);
+  width: 42px;
+  height: 42px;
+  border: 1px solid var(--color-primary-200);
+  border-radius: 50%;
+  background: var(--color-neutral-0);
   color: var(--color-primary-500);
+  font-size: 20px;
 }
 
-.project-list-page__project-main {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  gap: 3px;
-}
-
-.project-list-page__project-name {
+.project-list-page__load-more {
   display: flex;
   align-items: center;
-  min-width: 0;
-  overflow: hidden;
-  color: var(--color-neutral-800);
-  font-size: var(--font-size-sm);
-  font-weight: 600;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.project-list-page__default-icon {
-  flex-shrink: 0;
-  margin-right: 4px;
-  color: var(--color-warning);
-}
-
-.project-list-page__project-subtitle {
-  overflow: hidden;
+  justify-content: center;
+  min-height: 56px;
   color: var(--color-neutral-400);
-  font-size: var(--font-size-xs);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.project-list-page__actions {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 2px;
-}
-
-.project-list-page__readonly {
-  color: var(--color-neutral-400);
-  font-size: var(--font-size-xs);
-}
-
-.project-list-page__pager {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-md);
-  margin-top: var(--space-lg);
-}
-
-.project-list-page__total {
-  color: var(--color-neutral-500);
   font-size: var(--font-size-sm);
+  text-align: center;
+}
+
+.project-list-page__loading-more {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .project-list-page__error-banner {
@@ -771,9 +717,8 @@ async function submitForm(): Promise<void> {
     flex-wrap: wrap;
   }
 
-  .project-list-page__pager {
-    align-items: flex-start;
-    flex-direction: column;
+  .project-list-page__grid {
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   }
 
   .project-list-page__search {

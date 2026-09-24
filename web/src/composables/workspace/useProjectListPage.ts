@@ -1,17 +1,11 @@
 import { computed, getCurrentInstance, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import {
-  fetchProjectStatusCounts,
-  fetchProjects,
-} from '@/services/workspace'
-import type {
-  Project,
-  ProjectStatus,
-  ProjectStatusCounts,
-} from '@/types'
+import { fetchProjectStatusCounts, fetchProjects } from '@/services/workspace'
+import type { Project, ProjectStatus, ProjectStatusCounts } from '@/types'
 
 const SEARCH_DEBOUNCE_MS = 300
+const PAGE_SIZE = 20
 const DEFAULT_COUNTS: ProjectStatusCounts = { active: 0, archived: 0 }
 
 export interface ProjectListPageOptions {
@@ -39,8 +33,10 @@ export function useProjectListPage(options: ProjectListPageOptions = {}) {
   const keyword = ref('')
   const status = ref<ProjectStatus>('active')
   const pageNo = ref(1)
-  const pageSize = ref(12)
+  const pageSize = ref(PAGE_SIZE)
   const loading = ref(false)
+  const loadingMore = ref(false)
+  const hasMore = ref(false)
   const error = ref<string | null>(null)
   const hasLoadedOnce = ref(false)
 
@@ -54,6 +50,7 @@ export function useProjectListPage(options: ProjectListPageOptions = {}) {
 
   const isInitialLoading = computed(() => loading.value && !hasLoadedOnce.value)
   const isRefreshing = computed(() => loading.value && hasLoadedOnce.value)
+  const isLoadingMore = computed(() => loadingMore.value)
   const hasFilters = computed(() => Boolean(keyword.value.trim()) || status.value !== 'active')
   const workspaceProjectCount = computed(() => counts.value.active + counts.value.archived)
   const isWorkspaceEmpty = computed(
@@ -62,7 +59,7 @@ export function useProjectListPage(options: ProjectListPageOptions = {}) {
   const currentStatusLabel = computed(() => (status.value === 'active' ? '活跃' : '已归档'))
 
   function requestKey(): string {
-    return [status.value, keyword.value.trim(), pageNo.value, pageSize.value].join('|')
+    return [status.value, keyword.value.trim()].join('|')
   }
 
   function cancelDebounce(): void {
@@ -89,6 +86,7 @@ export function useProjectListPage(options: ProjectListPageOptions = {}) {
 
     const sequence = ++requestSequence
     activeRequestKey = key
+    loadingMore.value = false
     loading.value = true
     error.value = null
 
@@ -98,14 +96,16 @@ export function useProjectListPage(options: ProjectListPageOptions = {}) {
         fetchProjects({
           keyword: requestKeyword,
           status: status.value,
-          pageNo: pageNo.value,
+          pageNo: 1,
           pageSize: pageSize.value,
         }),
         fetchProjectStatusCounts({ keyword: requestKeyword }),
       ])
       if (disposed || sequence !== requestSequence) return
-      projects.value = page.list
+      projects.value = page.list ?? []
       total.value = page.total
+      pageNo.value = 1
+      hasMore.value = projects.value.length > 0 && projects.value.length < page.total
       counts.value = normalizeCounts(statusCounts)
       hasLoadedOnce.value = true
     } catch (loadError) {
@@ -115,6 +115,42 @@ export function useProjectListPage(options: ProjectListPageOptions = {}) {
       if (!disposed && sequence === requestSequence) {
         loading.value = false
         activeRequestKey = null
+      }
+    }
+  }
+
+  async function loadMoreProjects(): Promise<void> {
+    if (disposed || loading.value || loadingMore.value || !hasMore.value) return
+
+    const sequence = ++requestSequence
+    const nextPage = pageNo.value + 1
+    activeRequestKey = null
+    loadingMore.value = true
+    error.value = null
+
+    try {
+      const requestKeyword = keyword.value.trim() || undefined
+      const page = await fetchProjects({
+        keyword: requestKeyword,
+        status: status.value,
+        pageNo: nextPage,
+        pageSize: pageSize.value,
+      })
+      if (disposed || sequence !== requestSequence) return
+
+      const existingIds = new Set(projects.value.map((project) => project.id))
+      const nextProjects = (page.list ?? []).filter((project) => !existingIds.has(project.id))
+      projects.value = [...projects.value, ...nextProjects]
+      total.value = page.total
+      pageNo.value = nextPage
+      hasMore.value = page.list.length > 0 && projects.value.length < page.total
+      hasLoadedOnce.value = true
+    } catch (loadError) {
+      if (disposed || sequence !== requestSequence) return
+      error.value = errorMessage(loadError, '加载更多项目失败')
+    } finally {
+      if (!disposed && sequence === requestSequence) {
+        loadingMore.value = false
       }
     }
   }
@@ -168,19 +204,6 @@ export function useProjectListPage(options: ProjectListPageOptions = {}) {
     return loadProjects()
   }
 
-  function changePage(nextPage: number): Promise<void> {
-    cancelDebounce()
-    pageNo.value = nextPage
-    return loadProjects()
-  }
-
-  function changePageSize(nextSize: number): Promise<void> {
-    cancelDebounce()
-    pageSize.value = nextSize
-    pageNo.value = 1
-    return loadProjects()
-  }
-
   function retry(): Promise<void> {
     return loadProjects({ force: true })
   }
@@ -222,20 +245,20 @@ export function useProjectListPage(options: ProjectListPageOptions = {}) {
     status,
     pageNo,
     pageSize,
-    loading,
     error,
     isInitialLoading,
     isRefreshing,
+    isLoadingMore,
+    hasMore,
     hasFilters,
     isWorkspaceEmpty,
     currentStatusLabel,
     loadProjects,
+    loadMoreProjects,
     handleSearch,
     handleClear,
     clearFilters,
     changeStatus,
-    changePage,
-    changePageSize,
     retry,
     enterProject,
   }
