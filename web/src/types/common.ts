@@ -52,12 +52,15 @@ export interface WorkspaceItem {
   name: string
   description: string
   workspaceRole: string
+  workspaceRoleName: string
   defaultProjectId: string | null
   defaultProjectName: string | null
   memberCount: number
   projectCount: number
+  testCaseCount: number
   status: string
   createdAt: string
+  lastAccessedAt: string | null
 }
 
 /** Workspace context info */

@@ -183,3 +183,31 @@ describe('services/index.ts 401 刷新流程', () => {
     expect(getAccessToken()).toBe('new-access')
   })
 })
+
+describe('services/index.ts 空间上下文请求头', () => {
+  it('空间选择列表不携带当前空间上下文', async () => {
+    let received: string | undefined
+    withAdapter((config) => {
+      received = config.headers['X-Active-Workspace'] as string | undefined
+      return okResponse(config, { code: 200, data: null })
+    })
+
+    await api.get('/workspaces')
+
+    expect(received).toBeUndefined()
+  })
+
+  it('显式目标空间头不会被已保存的当前空间覆盖', async () => {
+    let received: string | undefined
+    withAdapter((config) => {
+      received = config.headers['X-Active-Workspace'] as string | undefined
+      return okResponse(config, { code: 200, data: null })
+    })
+
+    await api.put('/workspaces/active', undefined, {
+      headers: { 'X-Active-Workspace': 'workspace-target' },
+    })
+
+    expect(received).toBe('workspace-target')
+  })
+})
