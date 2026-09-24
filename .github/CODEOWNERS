@@ -1,0 +1,5 @@
+# CODEOWNERS — 代码审查默认指派
+# 语法见 https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+# 邮箱须为账号公开邮箱，否则规则不生效且不报错。
+
+*       mi_xiao@qq.com
