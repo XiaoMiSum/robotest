@@ -6,13 +6,14 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 /**
- * 邀请链接列表项：不含 token，避免敏感凭据随列表接口下发
- * （token 仅在创建接口返回，供创建者立即展示链接）。
+ * 邀请链接列表项：仅返回脱敏预览，服务端计算有效状态，完整 token 按需获取。
  */
 @Data
 public class InvitationListRespDTO {
 
     private UUID id;
+    private String tokenPreview;
+    private String effectiveStatus;
     private LocalDateTime expiresAt;
     private Integer maxUses;
     private Integer useCount;

@@ -5,7 +5,9 @@ import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.model.dto.request.workspace.InvitationCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.workspace.InvitationJoinReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.workspace.InvitationCheckEmailRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.workspace.InvitationCopyLinkRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.workspace.InvitationJoinRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.workspace.InvitationListRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.workspace.InvitationRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.workspace.InvitationVerifyRespDTO;
 import io.github.xiaomisum.robotest.model.entity.admin.SysUser;
@@ -27,9 +29,12 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import xyz.migoo.framework.common.exception.ServiceException;
+import xyz.migoo.framework.common.pojo.PageParam;
+import xyz.migoo.framework.common.pojo.PageResult;
 import xyz.migoo.framework.security.core.authentication.JwtTokenProvider;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
@@ -84,6 +89,12 @@ class WorkspaceInvitationServiceImplTest {
         return inv;
     }
 
+    private WorkspaceInvitation invitationWithToken(String status) {
+        WorkspaceInvitation invitation = invitation(status);
+        invitation.setToken("0123456789abcdef");
+        return invitation;
+    }
+
     private WorkspaceUser admin() {
         WorkspaceUser scope = new WorkspaceUser();
         scope.setUserId(userId);
@@ -114,6 +125,95 @@ class WorkspaceInvitationServiceImplTest {
         when(invitationMapper.selectOne(any(SFunction.class), eq(token))).thenReturn(invitation(Constants.Status.ACTIVE));
         when(invitationStateMachine.decision(any(WorkspaceInvitation.class), any(LocalDateTime.class)))
                 .thenReturn(InvitationDecision.allowed());
+    }
+
+    // ========== getInvitationPage ==========
+
+    @Test
+    void getInvitationPage_returnsPreviewAndEffectiveStatus() {
+        when(workspaceUserMapper.findByWorkspaceIdAndUserId(workspaceId, userId)).thenReturn(admin());
+        List<WorkspaceInvitation> invitations = List.of(
+                invitationWithToken(Constants.Status.ACTIVE),
+                invitationWithToken(Constants.Status.ACTIVE),
+                invitationWithToken(Constants.Status.ACTIVE),
+                invitationWithToken(Constants.Status.REVOKED));
+        when(invitationMapper.findPageByWorkspaceId(any(PageParam.class), eq(workspaceId)))
+                .thenReturn(new PageResult<>(invitations, 4L));
+        when(invitationStateMachine.decision(any(WorkspaceInvitation.class), any(LocalDateTime.class)))
+                .thenReturn(
+                        InvitationDecision.allowed(),
+                        InvitationDecision.rejected(InvitationRejectReason.USE_EXHAUSTED),
+                        InvitationDecision.rejected(InvitationRejectReason.EXPIRED),
+                        InvitationDecision.rejected(InvitationRejectReason.REVOKED));
+
+        PageResult<InvitationListRespDTO> result = invitationService.getInvitationPage(
+                userId, workspaceId, 1, 20);
+
+        assertEquals(4L, result.getTotal());
+        assertEquals("0123…cdef", result.getList().get(0).getTokenPreview());
+        assertEquals("active", result.getList().get(0).getEffectiveStatus());
+        assertEquals("exhausted", result.getList().get(1).getEffectiveStatus());
+        assertEquals("expired", result.getList().get(2).getEffectiveStatus());
+        assertEquals("revoked", result.getList().get(3).getEffectiveStatus());
+    }
+
+    @Test
+    void getInvitationPage_notAdmin_throws() {
+        when(workspaceUserMapper.findByWorkspaceIdAndUserId(workspaceId, userId)).thenReturn(null);
+
+        assertThrows(ServiceException.class,
+                () -> invitationService.getInvitationPage(userId, workspaceId, 1, 20));
+        verify(invitationMapper, never()).findPageByWorkspaceId(any(PageParam.class), any());
+    }
+
+    // ========== getInvitationCopyLink ==========
+
+    @Test
+    void getInvitationCopyLink_active_returnsToken() {
+        when(workspaceUserMapper.findByWorkspaceIdAndUserId(workspaceId, userId)).thenReturn(admin());
+        when(invitationMapper.selectById(invitationId)).thenReturn(invitation(Constants.Status.ACTIVE));
+        when(invitationStateMachine.decision(any(WorkspaceInvitation.class), any(LocalDateTime.class)))
+                .thenReturn(InvitationDecision.allowed());
+
+        InvitationCopyLinkRespDTO result = invitationService.getInvitationCopyLink(userId, workspaceId, invitationId);
+
+        assertEquals(token, result.getToken());
+    }
+
+    @Test
+    void getInvitationCopyLink_exhausted_returnsToken() {
+        when(workspaceUserMapper.findByWorkspaceIdAndUserId(workspaceId, userId)).thenReturn(admin());
+        when(invitationMapper.selectById(invitationId)).thenReturn(invitation(Constants.Status.ACTIVE));
+        when(invitationStateMachine.decision(any(WorkspaceInvitation.class), any(LocalDateTime.class)))
+                .thenReturn(InvitationDecision.rejected(InvitationRejectReason.USE_EXHAUSTED));
+
+        InvitationCopyLinkRespDTO result = invitationService.getInvitationCopyLink(userId, workspaceId, invitationId);
+
+        assertEquals(token, result.getToken());
+    }
+
+    @Test
+    void getInvitationCopyLink_expired_throws() {
+        when(workspaceUserMapper.findByWorkspaceIdAndUserId(workspaceId, userId)).thenReturn(admin());
+        when(invitationMapper.selectById(invitationId)).thenReturn(invitation(Constants.Status.ACTIVE));
+        when(invitationStateMachine.decision(any(WorkspaceInvitation.class), any(LocalDateTime.class)))
+                .thenReturn(InvitationDecision.rejected(InvitationRejectReason.EXPIRED));
+
+        ServiceException error = assertThrows(ServiceException.class,
+                () -> invitationService.getInvitationCopyLink(userId, workspaceId, invitationId));
+        assertEquals(1000010031, error.getCode());
+    }
+
+    @Test
+    void getInvitationCopyLink_revoked_throws() {
+        when(workspaceUserMapper.findByWorkspaceIdAndUserId(workspaceId, userId)).thenReturn(admin());
+        when(invitationMapper.selectById(invitationId)).thenReturn(invitation(Constants.Status.REVOKED));
+        when(invitationStateMachine.decision(any(WorkspaceInvitation.class), any(LocalDateTime.class)))
+                .thenReturn(InvitationDecision.rejected(InvitationRejectReason.REVOKED));
+
+        ServiceException error = assertThrows(ServiceException.class,
+                () -> invitationService.getInvitationCopyLink(userId, workspaceId, invitationId));
+        assertEquals(1000010032, error.getCode());
     }
 
     // ========== verifyInvitation ==========
