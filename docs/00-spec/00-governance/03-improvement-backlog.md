@@ -108,9 +108,9 @@ DEC-004 不再作为通用规范决策；上下文路由/请求体边界由各�
 | CODE-007 | P1 | 补齐 C1 的 ESLint/静态检查门禁 | — | `any`、`@ts-ignore` 和层级违规可自动失败 | 已完成 |
 | CODE-008 | P2 | 清理 `!important` 和新增全局样式例外 | — | 例外限定作用域并有登记 | 已完成 |
 | CODE-009 | P1 | 统一列表型页面的后端错误提示 | UI-PAGE-11 | 下列列表页面、列表组件及其责任 composable 均展示后端可展示错误消息，处理竞态、加载状态和重试；补齐页面/组件测试 | 已完成 |
-| CODE-010 | P1 | 强制优先使用 Element Plus 默认样式和组件配置属性 | UI-DS-09 | 页面/组件开发先使用组件默认样式、配置属性、插槽和 CSS 变量；不得用自定义 CSS 重写组件内部结构；默认能力不足时中断实现并由开发者确认，确认前不得继续扩展覆盖；完成标准含检查清单、例外登记和测试/审查证据 | 已完成（`22e809d1`：检查清单 + `50-ui/04-style-exceptions.md` 登记与扫描基线） |
+| CODE-010 | P1 | 强制优先使用 Element Plus 默认样式和组件配置属性 | UI-DS-09 | 页面/组件开发先使用组件默认样式、配置属性、插槽和 CSS 变量；不得用自定义 CSS 重写组件内部结构；默认能力不足时中断实现并由开发者确认，确认前不得继续扩展覆盖；完成标准含检查清单、例外登记和测试/审查证据 | 已完成（`22e809d1`：检查清单 + `docs/00-spec/50-ui/04-style-exceptions.md` 登记与扫描基线） |
 
-> 本轮进度（2026-09-24）：CODE-002、CODE-003、CODE-004、CODE-006、CODE-007、CODE-008、CODE-009 已完成并有独立提交；CODE-001 已随 `31c7fc15` 落地（13 个转换器全部位于 `model/convert/`，全仓无 `Mappers.getMapper()`，`MapStructConvertersTest` 通过）；CODE-005 已完成（`ea4cb785`：`formatRelativeTime` 相对时间工具、浏览器时区变化测试，存量合规项经审查确认）；CODE-010 已完成（`22e809d1`：UI-DS-09 检查清单与 `50-ui/04-style-exceptions.md` 例外登记，扫描基线 163 处 / 53 文件、`!important` 0 处）。第 6 节任务全部关闭。
+> 本轮进度（2026-09-24）：CODE-002、CODE-003、CODE-004、CODE-006、CODE-007、CODE-008、CODE-009 已完成并有独立提交；CODE-001 已随 `31c7fc15` 落地（13 个转换器全部位于 `model/convert/`，全仓无 `Mappers.getMapper()`，`MapStructConvertersTest` 通过）；CODE-005 已完成（`ea4cb785`：`formatRelativeTime` 相对时间工具、浏览器时区变化测试，存量合规项经审查确认）；CODE-010 已完成（`22e809d1`：UI-DS-09 检查清单与 `docs/00-spec/50-ui/04-style-exceptions.md` 例外登记，扫描基线 163 处 / 53 文件、`!important` 0 处）。第 6 节任务全部关闭。
 
 ### 6.1 CODE-009 页面组件清单
 

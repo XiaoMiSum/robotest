@@ -22,7 +22,7 @@
 ### 1.3 参考资料
 
 - 《接口测试需求规格说明书》（`docs/01-requirements/01-readme.md`，3.3）
-- 《概要设计说明书》（`docs/02-high-level-design/02-high-level-design.md`）
+- 《概要设计说明书》（`docs/02-high-level-design/01-readme.md`，分册索引）
 - 《API 测试基础设施详细设计说明书》（`docs/04-detailed-design/01-readme.md`）
 - 《测试报告详细设计说明书》（`docs/04-detailed-design/01-readme.md`）
 
