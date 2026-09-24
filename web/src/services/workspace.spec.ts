@@ -17,6 +17,7 @@ vi.mock('@/services', () => ({
 }))
 
 import {
+  createInvitation,
   fetchInvitationCopyLink,
   fetchMembers,
   fetchMyWorkspaces,
@@ -50,6 +51,15 @@ describe('workspace service', () => {
       workspaceRole: 'role-admin',
       pageNo: 2,
       pageSize: 20,
+    })
+  })
+
+  it('创建邀请链接时原样传递业务本地过期时间', () => {
+    void createInvitation({ expiresAt: '2026-09-25T00:00:00', maxUses: null })
+
+    expect(mocks.post).toHaveBeenCalledWith('/workspace/invitations', {
+      expiresAt: '2026-09-25T00:00:00',
+      maxUses: null,
     })
   })
 
