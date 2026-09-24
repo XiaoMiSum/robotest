@@ -1,6 +1,7 @@
 package io.github.xiaomisum.robotest.service.apitest;
 
 import io.github.xiaomisum.robotest.framework.security.ProjectAccessGuard;
+import io.github.xiaomisum.robotest.framework.time.UtcTime;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiPublicReportRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiReportDetailRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiReportShareRespDTO;
@@ -59,6 +60,7 @@ class ApiReportServiceImplTest {
         when(sysUserMapper.listByIds(any())).thenReturn(List.of(user));
     }
 
+    /** expiresAt 为读取域（UTC 墙钟）：mock 绕过持久化适配层，须与 shareOf/publicAccess 的 utcNow 比较同域 */
     private ApiReport sharedReport(LocalDateTime expiresAt) {
         ApiReport report = new ApiReport();
         report.setId(REPORT_ID);
@@ -130,7 +132,7 @@ class ApiReportServiceImplTest {
     @Test
     void publicAccessRejectsExpiredTokenWith7009() {
         when(reportMapper.selectByIdAndToken(REPORT_ID, "a".repeat(32)))
-                .thenReturn(sharedReport(LocalDateTime.now().minusMinutes(1)));
+                .thenReturn(sharedReport(UtcTime.utcNow().minusMinutes(1)));
 
         ServiceException ex = assertThrows(ServiceException.class,
                 () -> service.publicAccess(REPORT_ID, "a".repeat(32)));
@@ -140,7 +142,7 @@ class ApiReportServiceImplTest {
     @Test
     void publicAccessReturnsContentWithoutInternalSnapshot() {
         when(reportMapper.selectByIdAndToken(REPORT_ID, "a".repeat(32)))
-                .thenReturn(sharedReport(LocalDateTime.now().plusDays(7)));
+                .thenReturn(sharedReport(UtcTime.utcNow().plusDays(7)));
 
         ApiPublicReportRespDTO resp = service.publicAccess(REPORT_ID, "a".repeat(32));
 
@@ -165,7 +167,7 @@ class ApiReportServiceImplTest {
 
     @Test
     void detailReturnsShareOnlyWhenUnexpired() {
-        when(reportMapper.selectById(REPORT_ID)).thenReturn(sharedReport(LocalDateTime.now().plusDays(7)));
+        when(reportMapper.selectById(REPORT_ID)).thenReturn(sharedReport(UtcTime.utcNow().plusDays(7)));
         mockShareUserName();
 
         ApiReportDetailRespDTO resp = service.detail(WORKSPACE_ID, PROJECT_ID, USER_ID, REPORT_ID);
@@ -177,7 +179,7 @@ class ApiReportServiceImplTest {
 
     @Test
     void detailOmitsExpiredOrMissingShare() {
-        when(reportMapper.selectById(REPORT_ID)).thenReturn(sharedReport(LocalDateTime.now().minusMinutes(1)));
+        when(reportMapper.selectById(REPORT_ID)).thenReturn(sharedReport(UtcTime.utcNow().minusMinutes(1)));
 
         ApiReportDetailRespDTO expired = service.detail(WORKSPACE_ID, PROJECT_ID, USER_ID, REPORT_ID);
         assertNull(expired.getShare());
