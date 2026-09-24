@@ -1,8 +1,8 @@
 package io.github.xiaomisum.robotest.service.domain.plan;
 
 import io.github.xiaomisum.robotest.framework.security.ProjectAccessGuard;
-import io.github.xiaomisum.robotest.framework.convert.TestPlanConvertMapper;
-import io.github.xiaomisum.robotest.framework.convert.TestPlanConvertMapperImpl;
+import io.github.xiaomisum.robotest.model.convert.TestPlanConvertMapper;
+import io.github.xiaomisum.robotest.model.convert.TestPlanConvertMapperImpl;
 import io.github.xiaomisum.robotest.model.dto.request.plan.TestPlanCasesUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.plan.TestPlanCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.plan.TestPlanRecordReqDTO;

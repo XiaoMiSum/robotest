@@ -70,6 +70,8 @@ count++  // 跳过过期 token，防止脏数据进入报表
 
 - 只修改 `web/` 目录下的文件，不碰 `server/` 代码
 - 上下文标识（如 workspaceId）仅通过请求头 `X-Active-Workspace` / `X-Active-Project` 传递（C4），不出现在活动上下文 URL 或请求体中；资源自身 ID 按 API 规范处理
-- 后端返回的普通时间字段为 UTC+0 无时区标识字符串，展示必须走 `utils/format.ts` 的 `formatDateTime` / `formatDate` 转本地时区，禁止直接 `new Date()` 或直接插值（详见 `docs/00-spec/10-engineering/01-frontend.md` 第 9 节）
-- 邀请链接 `expiresAt` 按统一时间格式化工具展示；创建时使用无时区字符串提交
+- 后端事件时间按 UTC `Z` 格式返回，前端使用 `utils/format.ts` 的 `formatDateTime` / `formatDate` 按浏览器时区展示，禁止直接 `new Date()` 或直接插值（详见 `docs/00-spec/10-engineering/01-frontend.md` 第 9 节）
+- 邀请链接 `expiresAt` 按统一时间格式化工具展示；创建时提交无时区墙钟值，由后端持久化适配层统一转换为 UTC
+- 列表型页面的加载、分页、筛选和刷新失败必须由页面或页面级 composable 捕获并通过统一消息提示机制展示，不能只依赖请求拦截器或静默忽略（详见 `docs/00-spec/50-ui/02-page-development.md` UI-PAGE-11）
+- 页面和组件开发强制优先使用 Element Plus 组件默认样式与配置属性（props、插槽、CSS 变量），不得用自定义 CSS 重写组件内部结构；默认样式或组件配置无法满足需求时，必须中断任务并由开发者确认后再继续（UI-DS-09）
 - 避免新增外部依赖，确有必要时需经团队讨论

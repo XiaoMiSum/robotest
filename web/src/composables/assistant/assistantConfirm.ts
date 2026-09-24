@@ -1,3 +1,5 @@
+import { parseDateTime } from '@/utils/format'
+
 /**
  * 确认卡片状态机（全局智能助手详细设计 5.3 单测点）：
  * 状态流转 待确认 →（倒计时归零）已超时 /（用户操作）已执行 | 已取消。
@@ -26,7 +28,8 @@ export interface ConfirmCardState {
  */
 export function resolveConfirmStatus(card: ConfirmCardState, now: number): ConfirmStatus {
   if (card.status !== 'waiting') return card.status
-  return now >= Date.parse(card.expiresAt) ? 'expired' : 'waiting'
+  const expiresAt = parseDateTime(card.expiresAt)?.getTime()
+  return expiresAt == null || now >= expiresAt ? 'expired' : 'waiting'
 }
 
 /**
@@ -35,7 +38,9 @@ export function resolveConfirmStatus(card: ConfirmCardState, now: number): Confi
  */
 export function remainingMs(card: ConfirmCardState, now: number): number {
   if (card.status !== 'waiting') return 0
-  const remain = Date.parse(card.expiresAt) - now
+  const expiresAt = parseDateTime(card.expiresAt)?.getTime()
+  if (expiresAt == null) return 0
+  const remain = expiresAt - now
   return remain > 0 ? remain : 0
 }
 

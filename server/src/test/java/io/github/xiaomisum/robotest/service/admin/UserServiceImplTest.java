@@ -1,6 +1,8 @@
 package io.github.xiaomisum.robotest.service.admin;
 
 import io.github.xiaomisum.robotest.framework.common.Constants;
+import io.github.xiaomisum.robotest.model.convert.UserConvertMapper;
+import io.github.xiaomisum.robotest.model.convert.UserConvertMapperImpl;
 import io.github.xiaomisum.robotest.model.dto.request.admin.UserBatchStatusReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.admin.UserCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.admin.UserUpdateReqDTO;
@@ -22,6 +24,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import xyz.migoo.framework.common.exception.ServiceException;
@@ -50,6 +53,8 @@ class UserServiceImplTest {
     private WorkspaceUserMapper workspaceUserMapper;
     @Mock
     private PasswordEncoder passwordEncoder;
+    @Spy
+    private UserConvertMapper userConvertMapper = new UserConvertMapperImpl();
 
     @InjectMocks
     private UserServiceImpl userService;

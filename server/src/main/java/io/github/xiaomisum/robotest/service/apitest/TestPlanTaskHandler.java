@@ -1,5 +1,6 @@
 package io.github.xiaomisum.robotest.service.apitest;
 
+import io.github.xiaomisum.robotest.framework.time.UtcTime;
 import io.github.xiaomisum.robotest.framework.task.DispatchableTask;
 import io.github.xiaomisum.robotest.framework.task.TaskDispatchContext;
 import io.github.xiaomisum.robotest.service.apitest.execution.ports.StepSpec;
@@ -265,7 +266,7 @@ public class TestPlanTaskHandler implements DispatchableTask {
         dataset.put("status", suiteStatus);
         dataset.put("summary", summary);
         dataset.put("environmentName", env == null ? null : env.name());
-        dataset.put("triggeredAt", triggeredAt.toString());
+        dataset.put("triggeredAt", UtcTime.toIsoFromSystemLocal(triggeredAt));
         dataset.put("scenes", scenes);
         List<Map<String, Object>> envPre = rootResult == null ? List.of()
                 : sceneExecutionService.toProcessorEntries(rootResult.preprocessors());
@@ -301,7 +302,7 @@ public class TestPlanTaskHandler implements DispatchableTask {
         dataset.put("status", "failed");
         dataset.put("summary", summary);
         dataset.put("environmentName", null);
-        dataset.put("executedAt", triggeredAt.toString());
+        dataset.put("executedAt", UtcTime.toIsoFromSystemLocal(triggeredAt));
         dataset.put("steps", List.of());
         dataset.put("preprocessors", List.of());
         dataset.put("postprocessors", List.of());

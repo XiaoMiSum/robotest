@@ -2,7 +2,7 @@ package io.github.xiaomisum.robotest.service.domain.bug;
 
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
-import io.github.xiaomisum.robotest.framework.convert.BugConvertMapper;
+import io.github.xiaomisum.robotest.model.convert.BugConvertMapper;
 import io.github.xiaomisum.robotest.framework.security.ProjectAccessGuard;
 import io.github.xiaomisum.robotest.model.dto.request.bug.BugCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.bug.BugStatusChangeReqDTO;
@@ -58,6 +58,8 @@ public class BugServiceImpl implements BugService {
     @Resource
     private BugStatusChangeService bugStatusChangeService;
     @Resource
+    private BugConvertMapper bugConvertMapper;
+    @Resource
     private ProjectActivityService projectActivityService;
 
     @Override
@@ -68,7 +70,7 @@ public class BugServiceImpl implements BugService {
         validateModuleInProject(projectId, reqDTO.getModuleId());
         validateAssigneeInWorkspace(projectId, reqDTO.getAssigneeId());
 
-        Bug bug = BugConvertMapper.INSTANCE.toEntity(reqDTO);
+        Bug bug = bugConvertMapper.toEntity(reqDTO);
         bug.setProjectId(projectId);
         bug.setStatus(BugStatus.ACTIVE.getCode());
         bug.setConfirmed(false);

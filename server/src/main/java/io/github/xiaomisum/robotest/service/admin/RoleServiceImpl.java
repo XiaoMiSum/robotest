@@ -1,8 +1,9 @@
 package io.github.xiaomisum.robotest.service.admin;
 
+import java.time.LocalDateTime;
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
-import io.github.xiaomisum.robotest.framework.convert.RoleConvertMapper;
+import io.github.xiaomisum.robotest.model.convert.RoleConvertMapper;
 import io.github.xiaomisum.robotest.model.dto.request.admin.RoleCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.admin.RolePermissionsUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.admin.RoleUpdateReqDTO;
@@ -54,6 +55,8 @@ public class RoleServiceImpl implements RoleService {
     private SysUserMapper userMapper;
     @Resource
     private WorkspaceMapper workspaceMapper;
+    @Resource
+    private RoleConvertMapper roleConvertMapper;
 
     @Override
     public List<RoleSimpleRespDTO> getRoleList(String type) {
@@ -68,7 +71,7 @@ public class RoleServiceImpl implements RoleService {
                 .collect(Collectors.groupingBy(SysUserRole::getRoleId, Collectors.counting()));
 
         return roles.stream().map(role -> {
-            RoleSimpleRespDTO node = RoleConvertMapper.INSTANCE.toSimpleRespDTO(role);
+            RoleSimpleRespDTO node = roleConvertMapper.toSimpleRespDTO(role);
             node.setUserCount(Math.toIntExact(userCountMap.getOrDefault(role.getId(), 0L)));
             return node;
         }).collect(Collectors.toList());
@@ -85,7 +88,7 @@ public class RoleServiceImpl implements RoleService {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.ROLE_TYPE_ERROR);
         }
 
-        SysRole role = RoleConvertMapper.INSTANCE.toEntity(reqDTO);
+        SysRole role = roleConvertMapper.toEntity(reqDTO);
         role.setIsSystem(false);
         role.setPermissions(List.of());
         roleMapper.insert(role);
@@ -107,7 +110,7 @@ public class RoleServiceImpl implements RoleService {
         update.setId(id);
         update.setName(reqDTO.getName());
         roleMapper.updateById(update);
-        RoleRespDTO dto = RoleConvertMapper.INSTANCE.toRespDTO(role);
+        RoleRespDTO dto = roleConvertMapper.toRespDTO(role);
         dto.setUserCount(Math.toIntExact(userRoleMapper.selectCount(SysUserRole::getRoleId, role.getId())));
         return dto;
     }
@@ -134,7 +137,7 @@ public class RoleServiceImpl implements RoleService {
         if (role == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.ROLE_NOT_FOUND);
         }
-        RoleRespDTO dto = RoleConvertMapper.INSTANCE.toRespDTO(role);
+        RoleRespDTO dto = roleConvertMapper.toRespDTO(role);
         dto.setUserCount(Math.toIntExact(userRoleMapper.selectCount(SysUserRole::getRoleId, role.getId())));
         return dto;
     }
@@ -213,7 +216,7 @@ public class RoleServiceImpl implements RoleService {
             SysUserRole userRole = new SysUserRole();
             userRole.setUserId(userId);
             userRole.setRoleId(id);
-            userRole.setAssignedAt(java.time.LocalDateTime.now());
+            userRole.setAssignedAt(LocalDateTime.now());
             userRoleMapper.insert(userRole);
         }
     }
@@ -233,7 +236,7 @@ public class RoleServiceImpl implements RoleService {
                 workspaceUser.setUserId(userId);
                 workspaceUser.setWorkspaceId(workspaceId);
                 workspaceUser.setWorkspaceRole(roleId);
-                workspaceUser.setJoinedAt(java.time.LocalDateTime.now());
+                workspaceUser.setJoinedAt(LocalDateTime.now());
                 workspaceUserMapper.insert(workspaceUser);
             }
         }
@@ -263,7 +266,7 @@ public class RoleServiceImpl implements RoleService {
         update.setId(id);
         update.setPermissions(reqDTO.getPermissions());
         roleMapper.updateById(update);
-        RoleRespDTO dto = RoleConvertMapper.INSTANCE.toRespDTO(role);
+        RoleRespDTO dto = roleConvertMapper.toRespDTO(role);
         dto.setUserCount(Math.toIntExact(userRoleMapper.selectCount(SysUserRole::getRoleId, role.getId())));
         return dto;
     }

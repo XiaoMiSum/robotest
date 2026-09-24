@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useReviewAiSummary } from '@/composables/project/functional-testing/review/useReviewAiSummary'
 import MarkdownView from '@/components/common/MarkdownView.vue'
+import { formatDateTime } from '@/utils/format'
 
 /**
  * AI 评审摘要抽屉（US-AI-006，交互设计第 3 章）：
@@ -76,7 +77,7 @@ const {
         </div>
         <MarkdownView v-else :content="summaryMarkdown || '正在生成…'" />
       </div>
-      <div v-if="generatedAt" class="ai-summary-time">生成于 {{ generatedAt }}</div>
+      <div v-if="generatedAt" class="ai-summary-time">生成于 {{ formatDateTime(generatedAt) }}</div>
     </div>
   </el-drawer>
 </template>

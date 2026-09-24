@@ -2,6 +2,8 @@ package io.github.xiaomisum.robotest.service.domain.bug;
 
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.security.ProjectAccessGuard;
+import io.github.xiaomisum.robotest.model.convert.BugConvertMapper;
+import io.github.xiaomisum.robotest.model.convert.BugConvertMapperImpl;
 import io.github.xiaomisum.robotest.model.dto.response.bug.BugAttachmentDownloadRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.bug.BugAttachmentRespDTO;
 import io.github.xiaomisum.robotest.model.entity.bug.Bug;
@@ -19,6 +21,7 @@ import org.junit.jupiter.api.io.TempDir;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -49,6 +52,8 @@ class BugAttachmentServiceImplTest {
 
     @Mock
     private ProjectAccessGuard projectAccessGuard;
+    @Spy
+    private BugConvertMapper bugConvertMapper = new BugConvertMapperImpl();
 
     @InjectMocks
     private BugAttachmentServiceImpl bugAttachmentService;

@@ -41,7 +41,7 @@ public class DashboardStatsServiceImpl implements DashboardStatsService {
         LocalDateTime weekAgo = now.minusDays(7);
 
         DashboardStatsRespDTO dto = new DashboardStatsRespDTO();
-        // why: 对外统一下发 UTC 墙钟（docs/00-spec/10-engineering/01-frontend.md §8），前端补 Z 还原本地时区；直发本地钟面会导致前端再 +8 偏移
+        // 对外统一下发 UTC 墙钟，前端按浏览器时区还原。
         dto.setGeneratedAt(now.atZone(ZoneId.systemDefault()).withZoneSameInstant(ZoneOffset.UTC).toLocalDateTime());
         dto.setUsers(buildUsers(weekAgo));
         dto.setWorkspaces(buildWorkspaces());

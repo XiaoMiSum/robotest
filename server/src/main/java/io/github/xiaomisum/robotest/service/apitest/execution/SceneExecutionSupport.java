@@ -3,6 +3,7 @@ package io.github.xiaomisum.robotest.service.apitest.execution;
 import io.github.xiaomisum.robotest.service.apitest.execution.ReportEntryVisitor.ResolvedSpec;
 import io.github.xiaomisum.robotest.service.apitest.execution.ReportEntryVisitor.StepOutcome;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
+import io.github.xiaomisum.robotest.framework.time.UtcTime;
 import io.github.xiaomisum.robotest.framework.common.SceneStepUtil;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiExecutionRecord;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiScene;
@@ -77,7 +78,7 @@ final class SceneExecutionSupport {
 
     /** 时间口径：对外一律下发 ISO-8601 UTC 墙钟字符串（docs/00-spec 时间约定），前端按浏览器时区还原 */
     static String toUtcIso(LocalDateTime value) {
-        return value == null ? null : value.toString();
+        return UtcTime.toIsoFromSystemLocal(value);
     }
 
     static List<Map<String, Object>> orEmpty(List<Map<String, Object>> list) {

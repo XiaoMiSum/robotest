@@ -1,4 +1,4 @@
-package io.github.xiaomisum.robotest.framework.convert;
+package io.github.xiaomisum.robotest.model.convert;
 
 import io.github.xiaomisum.robotest.model.dto.request.plan.TestPlanCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.plan.TestPlanDetailRespDTO;
@@ -7,12 +7,9 @@ import io.github.xiaomisum.robotest.model.entity.plan.TestPlan;
 import io.github.xiaomisum.robotest.model.entity.plan.TestPlanNodeSnapshot;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
-import org.mapstruct.factory.Mappers;
 
-@Mapper
+@Mapper(componentModel = "spring")
 public interface TestPlanConvertMapper {
-
-    TestPlanConvertMapper INSTANCE = Mappers.getMapper(TestPlanConvertMapper.class);
 
     @Mapping(target = "executor", ignore = true)
     TestPlanDetailRespDTO toDetailDTO(TestPlan plan);

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   formatDate,
   formatDateTime,
+  parseDateTime,
   formatLocalDateTime,
   formatShortDateTime,
   formatShortId,
@@ -38,6 +39,21 @@ describe('formatDateTime UTC 转本地时区', () => {
     expect(formatDateTime(undefined)).toBe('-')
     expect(formatDateTime('')).toBe('-')
     expect(formatDateTime('not-a-date')).toBe('-')
+  })
+})
+
+describe('parseDateTime UTC 解析', () => {
+  it('解析带 Z 的 UTC 时间', () => {
+    expect(parseDateTime('2026-01-15T08:30:00Z')?.toISOString()).toBe('2026-01-15T08:30:00.000Z')
+  })
+
+  it('兼容无时区字符串并按 UTC 解析', () => {
+    expect(parseDateTime('2026-01-15T08:30:00')?.toISOString()).toBe('2026-01-15T08:30:00.000Z')
+  })
+
+  it('空值和非法值返回 null', () => {
+    expect(parseDateTime(null)).toBeNull()
+    expect(parseDateTime('not-a-date')).toBeNull()
   })
 })
 

@@ -2,6 +2,8 @@ package io.github.xiaomisum.robotest.service.workspace;
 
 import com.baomidou.mybatisplus.core.toolkit.support.SFunction;
 import io.github.xiaomisum.robotest.framework.common.Constants;
+import io.github.xiaomisum.robotest.model.convert.WorkspaceInvitationConvertMapper;
+import io.github.xiaomisum.robotest.model.convert.WorkspaceInvitationConvertMapperImpl;
 import io.github.xiaomisum.robotest.model.dto.request.workspace.InvitationCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.workspace.InvitationJoinReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.workspace.InvitationCheckEmailRespDTO;
@@ -26,6 +28,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import xyz.migoo.framework.common.exception.ServiceException;
@@ -68,6 +71,9 @@ class WorkspaceInvitationServiceImplTest {
     private JwtTokenProvider jwtTokenProvider;
     @Mock
     private InvitationStateMachine invitationStateMachine;
+    @Spy
+    private WorkspaceInvitationConvertMapper workspaceInvitationConvertMapper =
+            new WorkspaceInvitationConvertMapperImpl();
 
     @InjectMocks
     private WorkspaceInvitationServiceImpl invitationService;
@@ -227,7 +233,7 @@ class WorkspaceInvitationServiceImplTest {
 
         assertTrue(result.getValid());
         assertEquals("QA 团队", result.getWorkspaceName());
-        assertEquals("2026-12-31T23:59:00", result.getExpiresAt());
+        assertEquals("2026-12-31T23:59:00Z", result.getExpiresAt());
     }
 
     @Test

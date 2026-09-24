@@ -92,7 +92,7 @@ INSERT INTO sys_permission (id, code, name, parent_code, module, scope, sort_ord
       "entityId": "a0000000000000000000000002",
       "changes": "{\"apiKey\":\"***\"}",
       "requestIp": "10.0.0.1",
-      "createdAt": "2026-09-13T10:00:00"
+      "createdAt": "2026-09-13T10:00:00Z"
     }
   ],
   "total": 128

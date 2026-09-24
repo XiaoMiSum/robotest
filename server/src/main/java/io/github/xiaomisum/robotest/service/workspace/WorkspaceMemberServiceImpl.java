@@ -2,7 +2,7 @@ package io.github.xiaomisum.robotest.service.workspace;
 
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
-import io.github.xiaomisum.robotest.framework.convert.WorkspaceMemberConvertMapper;
+import io.github.xiaomisum.robotest.model.convert.WorkspaceMemberConvertMapper;
 import io.github.xiaomisum.robotest.model.dto.request.workspace.WorkspaceMembersAddReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.workspace.WorkspaceMemberAddResultRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.workspace.WorkspaceMemberRespDTO;
@@ -31,6 +31,8 @@ public class WorkspaceMemberServiceImpl implements WorkspaceMemberService {
     private SysUserMapper userMapper;
     @Resource
     private WorkspaceUserMapper workspaceUserMapper;
+    @Resource
+    private WorkspaceMemberConvertMapper workspaceMemberConvertMapper;
 
     @Override
     public PageResult<WorkspaceMemberRespDTO> getMemberPage(UUID userId, UUID workspaceId, String keyword,
@@ -71,7 +73,7 @@ public class WorkspaceMemberServiceImpl implements WorkspaceMemberService {
                     .filter(u -> u.getId().equals(wu.getUserId()))
                     .findFirst()
                     .orElse(null);
-            WorkspaceMemberRespDTO dto = WorkspaceMemberConvertMapper.INSTANCE.toRespDTO(wu, user);
+            WorkspaceMemberRespDTO dto = workspaceMemberConvertMapper.toRespDTO(wu, user);
             if (!isAdmin && dto.getEmail() != null) {
                 dto.setEmail(maskEmail(dto.getEmail()));
             }

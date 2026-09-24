@@ -3,7 +3,7 @@ package io.github.xiaomisum.robotest.service.project;
 import io.github.xiaomisum.robotest.framework.security.ProjectAccessGuard;
 import io.github.xiaomisum.robotest.service.admin.PermissionFacade;
 import io.github.xiaomisum.robotest.service.admin.PermissionScope;
-import io.github.xiaomisum.robotest.framework.convert.ProjectDashboardConvertMapper;
+import io.github.xiaomisum.robotest.model.convert.ProjectDashboardConvertMapper;
 import io.github.xiaomisum.robotest.model.dto.response.workspace.ProjectActivityRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.workspace.ProjectDashboardRespDTO;
 import io.github.xiaomisum.robotest.model.entity.admin.SysUser;
@@ -48,6 +48,8 @@ public class ProjectDashboardServiceImpl implements ProjectDashboardService {
     private SysUserMapper userMapper;
     @Resource
     private ProjectMapper projectMapper;
+    @Resource
+    private ProjectDashboardConvertMapper projectDashboardConvertMapper;
     @Resource
     private ProjectAccessGuard projectAccessGuard;
     @Resource
@@ -99,7 +101,7 @@ public class ProjectDashboardServiceImpl implements ProjectDashboardService {
                         .stream().collect(Collectors.toMap(SysUser::getId, SysUser::getUsername));
 
         dto.setRecentBugs(recentBugs.stream().map(b -> {
-            ProjectDashboardRespDTO.RecentBugItem item = ProjectDashboardConvertMapper.INSTANCE.toRecentBugItem(b);
+            ProjectDashboardRespDTO.RecentBugItem item = projectDashboardConvertMapper.toRecentBugItem(b);
             if (b.getAssigneeId() != null) {
                 item.setAssignee(nameMap.get(b.getAssigneeId()));
             }
@@ -108,12 +110,12 @@ public class ProjectDashboardServiceImpl implements ProjectDashboardService {
 
         List<TestReview> recentReviews = testReviewMapper.findRecentReviews(projectId, 5);
         dto.setRecentReviews(recentReviews.stream()
-                .map(ProjectDashboardConvertMapper.INSTANCE::toRecentItem)
+                .map(projectDashboardConvertMapper::toRecentItem)
                 .collect(Collectors.toList()));
 
         List<TestPlan> recentPlans = testPlanMapper.findRecentPlans(projectId, 5);
         dto.setRecentPlans(recentPlans.stream()
-                .map(ProjectDashboardConvertMapper.INSTANCE::toRecentItemFromPlan)
+                .map(projectDashboardConvertMapper::toRecentItemFromPlan)
                 .collect(Collectors.toList()));
 
         return dto;

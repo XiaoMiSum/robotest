@@ -2,7 +2,7 @@ package io.github.xiaomisum.robotest.service.workspace;
 
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
-import io.github.xiaomisum.robotest.framework.convert.WorkspaceConvertMapper;
+import io.github.xiaomisum.robotest.model.convert.WorkspaceConvertMapper;
 import io.github.xiaomisum.robotest.model.dto.request.workspace.WorkspaceCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.workspace.WorkspaceMembersAddReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.workspace.WorkspaceUpdateReqDTO;
@@ -41,6 +41,8 @@ public class WorkspaceServiceImpl implements WorkspaceService {
     private SysUserMapper userMapper;
     @Resource
     private ProjectMapper projectMapper;
+    @Resource
+    private WorkspaceConvertMapper workspaceConvertMapper;
 
     @Override
     public PageResult<WorkspaceRespDTO> getWorkspacePage(String keyword, String status, Integer pageNo, Integer pageSize) {
@@ -82,7 +84,7 @@ public class WorkspaceServiceImpl implements WorkspaceService {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.USER_STATUS_INVALID);
         }
 
-        Workspace workspace = WorkspaceConvertMapper.INSTANCE.toEntity(reqDTO);
+        Workspace workspace = workspaceConvertMapper.toEntity(reqDTO);
         workspace.setStatus(Constants.Status.ACTIVE);
         workspace.setCreatedBy(creatorId);
         workspaceMapper.insert(workspace);
