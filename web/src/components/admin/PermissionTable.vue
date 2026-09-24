@@ -5,7 +5,6 @@ import type { PermissionItem } from '@/types'
 
 const props = defineProps<{
   roleId: string
-  roleName: string
   isSystem: boolean
   roleType: string
 }>()
@@ -55,79 +54,57 @@ const spanMethod = ({ row, columnIndex }: { row: PermissionTableRow; columnIndex
 
 <template>
   <div class="perm-pane">
-    <div class="perm-pane__toolbar">
-      <span class="role-card__subtitle">{{ roleName }} · {{ checkedCodes.length }} 项已授予</span>
-      <div class="perm-pane__actions">
-        <el-checkbox
-          :model-value="allChecked"
-          :indeterminate="indeterminate"
-          :disabled="isSystem"
-          @change="toggleAll"
-        >
-          全选
-        </el-checkbox>
-        <template v-if="!isSystem">
-          <el-button :disabled="!dirty" @click="handleRevert">撤销修改</el-button>
-          <el-button type="primary" :loading="saving" :disabled="!dirty" @click="handleSave">
-            保存权限
-          </el-button>
-        </template>
-      </div>
-    </div>
-
     <div v-loading="loading" class="perm-pane__body">
-      <el-checkbox-group v-model="checkedCodes">
-        <el-table :data="rows" :span-method="spanMethod" border class="perm-table">
-          <el-table-column prop="topModule" label="一级模块" width="110" />
-          <el-table-column prop="module" label="二级模块" width="130" />
-          <el-table-column label="权限点">
-            <template #default="{ row }">
-              <div class="perm-table__points">
+      <el-table :data="rows" :span-method="spanMethod" border class="perm-table">
+        <el-table-column prop="topModule" label="一级模块" width="110" />
+        <el-table-column prop="module" label="二级模块" width="130" />
+        <el-table-column>
+          <template #header>
+            <div class="perm-table__header">
+              <div class="perm-table__header-main">
+                <!-- 全选框留在表头而非 group 内：EP 在分组中会忽略自身 model-value -->
                 <el-checkbox
-                  v-for="p in row.permissions"
-                  :key="p.code"
-                  :value="p.code"
-                  :disabled="isLocked(p.code)"
-                >
-                  {{ p.name }}
-                </el-checkbox>
+                  :model-value="allChecked"
+                  :indeterminate="indeterminate"
+                  :disabled="isSystem"
+                  aria-label="全选"
+                  @change="toggleAll"
+                />
+                <span>权限点</span>
               </div>
-            </template>
-          </el-table-column>
-        </el-table>
-      </el-checkbox-group>
+              <div v-if="!isSystem" class="perm-table__header-actions">
+                <el-button :disabled="!dirty" @click="handleRevert">撤销修改</el-button>
+                <el-button type="primary" :loading="saving" :disabled="!dirty" @click="handleSave">
+                  保存权限
+                </el-button>
+              </div>
+            </div>
+          </template>
+          <template #default="{ row }">
+            <el-checkbox-group v-model="checkedCodes" class="perm-table__points">
+              <el-checkbox
+                v-for="p in row.permissions"
+                :key="p.code"
+                :value="p.code"
+                :disabled="isLocked(p.code)"
+              >
+                {{ p.name }}
+              </el-checkbox>
+            </el-checkbox-group>
+          </template>
+        </el-table-column>
+      </el-table>
     </div>
   </div>
 </template>
 
 <style scoped lang="scss">
-/* pane 内工具行：Tab 头已承担标题角色，此处只留副标题与操作区 */
+/* 操作项与描述均已收进表头，pane 只剩承载滚动的表体 */
 .perm-pane {
   display: flex;
   flex-direction: column;
   height: 100%;
   min-height: 0;
-}
-
-.perm-pane__toolbar {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-md);
-  padding: 12px 24px;
-  border-bottom: 1px solid var(--color-neutral-100);
-}
-
-.perm-pane__actions {
-  display: flex;
-  align-items: center;
-  gap: var(--space-md);
-
-  /* 间距由 gap 统一控制，抵消按钮相邻默认外边距 */
-  .el-button + .el-button {
-    margin-left: 0;
-  }
 }
 
 .perm-pane__body {
@@ -145,6 +122,31 @@ const spanMethod = ({ row, columnIndex }: { row: PermissionTableRow; columnIndex
 
   :deep(td.el-table__cell) {
     vertical-align: middle;
+  }
+}
+
+/* 全选与列名靠左、撤销保存靠右，同行两端对齐 */
+.perm-table__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+}
+
+.perm-table__header-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.perm-table__header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+
+  /* 间距由 gap 统一控制，抵消按钮相邻默认外边距 */
+  .el-button + .el-button {
+    margin-left: 0;
   }
 }
 

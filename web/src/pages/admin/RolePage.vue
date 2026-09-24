@@ -44,7 +44,6 @@ function handleCleared() {
               :role-id="selectedRole.id"
               :is-system="selectedRole.isSystem"
               :role-type="selectedRole.type"
-              :role-name="selectedRole.name"
             />
             <div v-else class="role-detail__empty">
               <el-empty description="请选择左侧角色查看详情" />
@@ -56,7 +55,6 @@ function handleCleared() {
               v-if="selectedRole"
               :role-id="selectedRole.id"
               :role-type="selectedRole.type"
-              :role-name="selectedRole.name"
             />
             <div v-else class="role-detail__empty">
               <el-empty description="请选择左侧角色查看详情" />
