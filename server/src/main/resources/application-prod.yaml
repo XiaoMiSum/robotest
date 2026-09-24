@@ -1,0 +1,35 @@
+# 生产环境配置覆盖
+# 只有 SPRING_PROFILES_ACTIVE=prod 时加载；生产环境不得回退到开发默认密钥。
+
+spring:
+  config:
+    activate:
+      on-profile: prod
+  datasource:
+    driver-class-name: ${DATABASE_DRIVER:org.postgresql.Driver}
+    url: ${DATASOURCE_URL}
+    username: ${DATASOURCE_USERNAME}
+    password: ${DATASOURCE_PASSWORD}
+  data:
+    redis:
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD}
+
+robotest:
+  debug: ${DEBUG_STATUS:false}
+  ai:
+    secret-key: ${AI_SECRET_KEY}
+  env:
+    secret-key: ${ENV_SECRET_KEY}
+  api-test:
+    import:
+      url-policy: ${IMPORT_URL_POLICY:strict}
+  mock:
+    access-enabled: ${MOCK_ACCESS_ENABLED:false}
+
+migoo:
+  security:
+    password-secret: ${PASSWORD_SECRET}
+    jwt:
+      secret-key: ${JWT_SECRET_KEY}

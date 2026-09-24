@@ -15,7 +15,7 @@
 
 ```bash
 # 开发（端口 58080，dev profile）
-mvn spring-boot:run -Pdev
+SPRING_PROFILES_ACTIVE=dev mvn spring-boot:run -Pdev
 
 # 构建 → target/*.jar（prod profile）
 mvn package -Pprod

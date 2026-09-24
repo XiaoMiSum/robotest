@@ -47,7 +47,7 @@ bash scripts/dev.sh
 ```bash
 # 终端 1：后端
 cd server
-mvn spring-boot:run -Pdev
+SPRING_PROFILES_ACTIVE=dev mvn spring-boot:run -Pdev
 
 # 终端 2：前端
 cd web
@@ -156,7 +156,14 @@ AI_SECRET_KEY
 ENV_SECRET_KEY
 ```
 
-生产环境必须显式注入密钥，不能使用 `application.yaml` 中的开发默认值。
+生产环境必须设置：
+
+```bash
+export SPRING_PROFILES_ACTIVE=prod
+java -jar server/target/robotest-server.jar
+```
+
+`application-prod.yaml` 中的数据源、Redis 和安全密钥没有开发默认值，缺少变量时应用必须启动失败。
 
 当前前端环境文件：
 
@@ -282,7 +289,7 @@ bash scripts/validate.sh --all
 - 版本化数据库迁移尚未建立；
 - CI、覆盖率、Secret 扫描和分支保护尚未全部接入；
 - 端口和脚本注释仍需持续与配置同步；
-- 生产默认密钥和 SQL 日志配置需要单独整改。
+- SQL 日志配置仍需单独整改。
 
 ## 14. 参考
 
