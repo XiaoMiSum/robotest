@@ -278,6 +278,22 @@
 - **校验**：项目下不能有任何数据。
 - **处理**：若删除的项目是任一用户的个人默认项目，自动清除。
 
+### 1.18 获取空间角色选项
+
+- **路径**：`GET /api/workspace/roles`
+- **权限**：`ws-member:view`（服务端 `@PreAuthorize`；工作空间角色权限由拦截器注入）。
+- **说明**：返回全部 `type=workspace` 角色的扁平列表，供成员列表的角色标签、筛选和改角色下拉使用；空间侧页面不再访问 `/api/admin/roles`（安全规范 §3.1，见 `docs/00-spec/40-security/01-security.md`）。
+- **响应**（`data`）：与 `GET /api/admin/roles` 相同的角色对象数组（`id`/`name`/`type`/`isSystem`/`userCount`）。
+- **请求头**：需 `X-Active-Workspace`（上下文标识不进 URL，C4）。
+
+### 1.19 搜索候选用户（添加成员）
+
+- **路径**：`GET /api/workspace/members/candidates`
+- **参数**：`keyword`（可选，匹配姓名或用户名后返回启用用户）。
+- **权限**：`ws-member:manage`（服务端 `@PreAuthorize`）。
+- **说明**：添加成员弹窗的用户远程搜索；空间侧替代 `/api/admin/users/simple`，仅返回 `id`/`name`，不返回邮箱。
+- **响应**（`data`）：`[{ "id": "uuid", "name": "张三" }]`
+
 
 ## 2. 项目归档/删除联动
 
