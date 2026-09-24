@@ -1,250 +1,181 @@
 # 软件测试平台——项目仓库框架与技术架构设计
 
-**文档版本**：V1.0
-**日期**：2026-09-23
+**文档版本**：V1.1
+**日期**：2026-09-24
 **状态**：已发布
 
-***
+---
 
 ## 1. 设计目标
 
-基于概要设计说明书的整体架构，定义项目代码仓库结构、技术选型、开发运行模式及构建部署方案，满足以下要求：
+本设计定义项目的仓库结构、技术边界、开发运行模式、构建部署方式和质量保障入口。
 
-* 前后端分离开发，清晰模块边界。
-* 支持两种部署方案：**前后端分离部署**和**前后端合并打包部署**。
-* 支持 WebSocket 实时协作。
-
-***
+架构设计只描述系统边界和技术关系；具体 API、数据库、业务流程和页面行为分别由对应的需求、详细设计和交互设计文档定义。
 
 ## 2. 仓库整体结构
 
-前端与后端作为两个独立项目共存于同一仓库，各自拥有独立的依赖管理和构建流程，根目录通过 Shell 脚本统一协调构建与部署操作。
+前端与后端作为同一仓库中的两个独立项目，各自管理依赖和构建流程，跨端操作通过根目录 `scripts/` 协调。
 
-    software-testing-platform/
-    ├── .gitignore
-    ├── README.md
-    │
-    ├── web/                         # 前端 SPA 应用 (Vue3 + Element Plus)
-    │   ├── package.json
-    │   ├── vite.config.ts
-    │   ├── tsconfig.json
-    │   ├── index.html
-    │   └── src/
-    │       ├── main.ts
-    │       ├── App.vue
-    │       ├── router/              # 路由配置 (管理端/业务端分离)
-    │       ├── layouts/             # 布局组件 (AdminLayout, WorkspaceLayout, ProjectLayout)
-    │       ├── pages/               # 页面组件
-    │       │   ├── admin/           # 管理端页面
-    │       │   ├── workspace/       # 空间管理页面
-    │       │   └── project/         # 功能测试页面
-    │       ├── components/          # 通用UI组件
-    │       ├── stores/              # 状态管理 (Pinia)
-    │       ├── composables/         # 组合式函数 (useAuth, useWebSocket等)
-    │       ├── services/            # API 请求层 (axios封装)
-    │       ├── types/               # TypeScript 类型定义
-    │       ├── constants/           # 通用常量 (权限点code、状态枚举等)
-    │       ├── ws/                  # WebSocket 管理与消息处理
-    │       └── assets/              # 静态资源
-    │
-    ├── server/                      # 后端服务 (Spring Boot)
-    │   ├── pom.xml
-    │   └── src/
-    │       ├── main/
-    │       │   ├── java/com/platform/
-    │       │   │   ├── PlatformApplication.java
-    │       │   │   ├── config/          # 配置类 (Security, WebSocket, CORS等)
-    │       │   │   ├── controller/
-    │       │   │   │   ├── admin/
-    │       │   │   │   ├── workspace/
-    │       │   │   │   └── project/
-    │       │   │   ├── service/
-    │       │   │   ├── repository/
-    │       │   │   ├── model/
-    │       │   │   │   ├── entity/
-    │       │   │   │   └── dto/
-    │       │   │   ├── security/
-    │       │   │   ├── websocket/
-    │       │   │   └── exception/
-    │       │   └── resources/
-    │       │       ├── application.yml
-    │       │       ├── application-dev.yml
-    │       │       ├── application-prod.yml
-    │       │       └── static/          # 合并部署时存放前端构建产物
-    │       └── test/
-    │
-    ├── scripts/                     # 构建与部署脚本
-    │   ├── build-frontend.sh        # 构建前端
-    │   ├── build-backend.sh         # 构建后端
-    │   ├── dev.sh                   # 同时启动前后端开发服务器
-    │   ├── deploy-separate.sh       # 分离部署
-    │   └── deploy-merged.sh         # 合并打包部署
-    │
-    └── docs/                        # 设计文档
+```text
+robotest/
+├── web/                         # 前端 SPA
+│   ├── package.json
+│   ├── pnpm-lock.yaml
+│   ├── vite.config.ts
+│   ├── tsconfig*.json
+│   └── src/
+│       ├── router/              # 路由和导航元信息
+│       ├── layouts/             # 页面布局
+│       ├── pages/               # 页面级编排
+│       ├── components/          # 可复用 UI 组件
+│       ├── composables/         # 组合式逻辑
+│       ├── services/            # HTTP/SSE/实时请求适配
+│       ├── stores/              # Pinia 全局状态
+│       ├── types/               # TypeScript 类型
+│       └── assets/              # 样式和静态资源
+│
+├── server/                      # 后端服务
+│   ├── pom.xml
+│   └── src/
+│       ├── main/java/io/github/xiaomisum/robotest/
+│       │   ├── RobotestServer.java
+│       │   ├── controller/      # 路由、参数校验和响应包装
+│       │   ├── service/         # 业务编排和事务
+│       │   ├── repository/      # Mapper 和数据访问
+│       │   ├── model/           # Entity、DTO、转换器
+│       │   └── framework/       # 安全、配置、审计和公共适配
+│       ├── main/resources/
+│       │   ├── application.yaml
+│       │   └── db/              # 初始化基线和迁移脚本
+│       └── test/
+│
+├── scripts/                     # 构建、启动和部署脚本
+├── docs/                        # 需求、设计、规范和交互文档
+└── AGENTS.md                    # AI 开发总约定
+```
 
-**说明**：前端与后端各自独立管理依赖（前端使用 npm/pnpm，后端使用 Maven），根目录不设置 `package.json` 工作空间，通过 `scripts/` 下的 Shell 脚本串联跨端操作。
-
-***
+目录名称和实现细节以当前仓库为准；本树只表达职责边界，不作为完整文件清单。
 
 ## 3. 技术选型
 
-| 层次        | 技术                                                               | 说明                                 |
-| --------- | ---------------------------------------------------------------- | ---------------------------------- |
-| 前端框架      | Vue 3.5 + TypeScript                                             | Composition API + `<script setup>` |
-| 构建工具      | Vite 8                                                           | 快速开发构建，支持 SPA                      |
-| 状态管理      | Pinia                                                            | Vue 3 官方推荐，组合式 API 风格              |
-| UI 组件库    | Element Plus                                                     | 企业级 Vue 3 组件库                      |
-| 脑图编辑器     | 自研 SVG/Canvas 组件 + Yjs                                           | 支持实时协作，Yjs CRDT 解决冲突               |
-| WebSocket | y-websocket (前端) + Spring WebSocket (后端)                         | 脑图实时同步                             |
-| HTTP 客户端  | Axios                                                            | 请求/响应拦截，Token 自动携带                 |
-| 后端框架      | Spring Boot 4.x + Java 21 + springboot-migoo-framework 1.3.18    | 企业级，生态丰富                           |
-| 数据访问      | migoo-spring-boot-starter-mybatis                                | MyBatis 复杂查询                       |
-| 认证授权      | Spring Security(migoo-spring-boot-starter-security) + JWT + RBAC | Token 认证，角色权限并集校验                  |
-| 数据库       | PostgreSQL                                                       | 关系型，主从复制；启用 pgvector 扩展支持向量检索 |
-| 缓存        | Redis 7                                                          | 会话、权限缓存、WS 消息订阅                    |
-| API 文档    | SpringDoc (OpenAPI 3)                                            | 自动生成接口文档                           |
-| 包管理       | pnpm (前端) + Maven (后端)                                           | 根目录通过脚本协调                          |
-
-***
+| 层次 | 技术 | 约束和来源 |
+| --- | --- | --- |
+| 前端框架 | Vue 3.5 + TypeScript strict | 版本以 `web/package.json` 和锁文件为准 |
+| 前端构建 | Vite | 版本以 `web/package.json` 和锁文件为准 |
+| UI | Element Plus | 以依赖锁定版本为准 |
+| 状态管理 | Pinia | 以依赖锁定版本为准 |
+| HTTP | Axios | 统一请求拦截器和响应解包 |
+| 实时通信 | WebSocket；协作场景可采用 Yjs | 通用协议见 `docs/06-spec/15-realtime-protocol.md` |
+| 后端运行时 | Java 21 + Spring Boot 4.x | 版本由 Maven BOM 和 `server/pom.xml` 管理 |
+| 后端框架 | migoo `1.3.18` | 组件手册见 `docs/06-spec/11-migoo-framework.md` |
+| 数据访问 | MyBatis-Plus + migoo MyBatis Starter | 复杂查询按后端规范封装 |
+| 认证授权 | Spring Security + migoo Security Starter | 服务端执行最终授权 |
+| 数据库 | PostgreSQL 14+ | 优先正式方案，MySQL 仅保留兼容说明 |
+| 缓存/消息 | Redis；按需启用 MQ | 组件能力按实际部署需要选择 |
+| API 文档 | SpringDoc OpenAPI | 前后端契约通过 OpenAPI 同步 |
+| 包管理 | pnpm + Maven | 依赖版本分别由锁文件和 BOM 管理 |
 
 ## 4. 开发运行模式
 
 ### 4.1 本地开发
 
-**前端**（端口 5173）：`cd web && npm run dev`，Vite 开发服务器启动，API 请求代理至 `localhost:8080`，WebSocket 代理至 `ws://localhost:8080/ws`。
+- 前端开发端口：`5173`。
+- 后端默认端口：`58080`。
+- 前端 `/api` 和 `/ws` 代理到后端运行端口。
+- 实际启动命令和环境变量参考 `docs/06-spec/16-deployment-runbook.md`。
+- 端口、代理和后端配置必须保持一致。
 
-Vite 代理配置：
+### 4.2 前后端边界
 
-```ts
-// web/vite.config.ts
-export default defineConfig({
-  server: {
-    proxy: {
-      '/api': 'http://localhost:8080',
-      '/ws': {
-        target: 'ws://localhost:8080',
-        ws: true
-      }
-    }
-  }
-})
+- 前端页面负责用户交互和数据编排。
+- 后端 Controller 负责路由、校验和响应包装。
+- Service 负责业务规则、权限和事务。
+- Mapper 负责数据访问和查询意图。
+- Entity 不跨层暴露，敏感字段不进入响应 DTO。
+- 跨端 API 以 OpenAPI 和 `Result` 契约为准。
+
+## 5. 构建和部署
+
+通用要求见：
+
+```text
+docs/06-spec/09-deploy.md
 ```
 
-**后端**（端口 8080）：Spring Boot 启动，配置 CORS 允许 `localhost:5173` 跨域，开发时使用 `application-dev.yml` 连接本地 PostgreSQL 和 Redis。
+当前项目的实际命令、端口、脚本、环境变量和发布步骤见：
 
-**一键启动**：根目录提供 `scripts/dev.sh`，同时启动前端和后端开发服务器（需安装 `concurrently` 或使用 Shell 后台进程）。
-
-### 4.2 类型与常量维护
-
-前端类型定义放在 `web/src/types/` 目录下，常量放在 `web/src/constants/` 目录下。后端 DTO 独立维护于 `com.platform.model.dto` 包中，双方通过 API 文档 (SpringDoc) 和约定保持字段名与结构一致。前端使用 camelCase，后端使用 snake\_case，Jackson 自动进行命名转换。
-
-***
-
-## 5. 构建流程
-
-### 5.1 前后端分离部署构建
-
-    前端构建: cd web && npm run build
-              → 生成 web/dist/ 目录
-              → 部署至 Nginx 或 CDN
-    
-    后端构建: cd server && mvn package -Pprod
-              → 生成 server/target/platform-server.jar
-              → 独立部署
-
-Nginx 配置示例：
-
-```nginx
-location /api/ {
-    proxy_pass http://backend:8080;
-}
-location /ws/ {
-    proxy_pass http://backend:8080;
-    proxy_http_version 1.1;
-    proxy_set_header Upgrade $http_upgrade;
-    proxy_set_header Connection "upgrade";
-}
-location / {
-    root /var/www/html;
-    try_files $uri $uri/ /index.html;
-}
+```text
+docs/06-spec/16-deployment-runbook.md
 ```
 
-### 5.2 前后端合并打包部署构建
+支持两种部署形态：
 
-    1. 前端构建: cd web && npm run build  → dist/
-    2. 复制产物: 将 dist/ 下所有文件复制到 server/src/main/resources/static/
-    3. 后端构建: cd server && mvn package -Pmerged
-              → 生成包含前端资源的可执行 jar
+| 方案 | 说明 |
+| --- | --- |
+| 分离部署 | 前端静态资源与后端服务独立发布 |
+| 合并部署 | 前端静态资源随后端制品发布 |
 
-Spring Boot 静态资源配置：
+数据库迁移必须版本化、可追踪并提供恢复方案。当前全量初始化脚本不能代替生产迁移流程。
 
-```java
-@Configuration
-public class WebMvcConfig implements WebMvcConfigurer {
-    @Override
-    public void addResourceHandlers(ResourceHandlerRegistry registry) {
-        registry.addResourceHandler("/**")
-                .addResourceLocations("classpath:/static/");
-    }
+## 6. 实时通信架构
 
-    @Override
-    public void addViewControllers(ViewControllerRegistry registry) {
-        registry.addViewController("/{path:^(?!api|ws).*}")
-                .setViewName("forward:/index.html");
-    }
-}
+平台使用 WebSocket 作为实时通信传输层。通用连接、房间/主题、消息信封、错误、生命周期和安全要求见：
+
+```text
+docs/06-spec/15-realtime-protocol.md
 ```
 
-合并构建脚本 `scripts/deploy-merged.sh` 自动完成上述步骤。
+协作算法、业务事件、Payload、持久化和冲突处理由对应业务详细设计定义，不在架构文档中重复规定。
 
-***
+实时部署是否启用分布式模式由 Redis、实例数量和部署拓扑决定，并通过 Runbook 配置。
 
-## 6. 部署架构对应关系
+## 7. 环境配置管理
 
-| 部署方案     | 前端部署位置            | 后端部署位置       | 特点                 |
-| -------- | ----------------- | ------------ | ------------------ |
-| 方案A (分离) | Nginx / CDN 独立服务  | 独立服务器 / 容器集群 | 前端可 CDN 加速，后端独立扩缩容 |
-| 方案B (合并) | 嵌入后端 jar 的 static | 同一可执行 jar    | 单进程部署，运维简单，无跨域     |
+| 环境 | 前端 | 后端 | 数据服务 |
+| --- | --- | --- | --- |
+| dev | `.env.development` | 本地配置和环境变量 | 本地 PostgreSQL/Redis |
+| test | 测试环境变量 | 测试环境变量 | 测试 PostgreSQL/Redis |
+| prod | `.env.production` | 生产环境变量和密钥服务 | 生产 PostgreSQL/Redis |
 
-两种方案共用同一代码仓库，仅构建参数和部署脚本不同。
+敏感配置不得提交到仓库。生产环境缺少密钥、数据库或 Redis 配置时必须启动失败。
 
-***
+## 8. 质量保障
 
-## 7. WebSocket 实时协作技术实现
+质量门禁由 `docs/06-spec/07-quality.md` 统一定义，部署流程由 `docs/06-spec/09-deploy.md` 和 Runbook 维护。
 
-* 前端每个文档使用 `Y.Doc` 实例，通过 `y-websocket` 连接到 `/ws/documents/{docId}`。
-* 连接时附带 JWT Token 作为查询参数，后端 `WebSocketHandler` 验证 Token 和用户对文档的访问权限。
-* 后端将 Yjs 更新广播给同房间的其他客户端，同时异步持久化到 `test_case_node` 表和 `test_case_document_layout` 表。
-* 冲突自动由 Yjs CRDT 算法解决。
+当前质量基线包括：
 
-### 7.1 单实例声明（R5）
+- 前端格式、ESLint、TypeScript 和 Vitest；
+- 后端 Maven 编译和 JUnit 测试；
+- OpenAPI 契约检查；
+- Secret、依赖和许可证扫描；
+- 核心路径的集成、权限和发布验证。
 
-本平台 WebSocket 房间管理采用单实例模式：`RoomRegistry` 仅在应用启动时初始化一次，作为全进程共享的单例，负责文档房间的创建、查找与销毁。房间状态不跨进程同步，合并部署方案下由单一 Java 进程保证唯一性；分离部署方案下仅允许部署单个后端实例，或需引入外部分布式房间注册表（Redis Pub/Sub + 分布式锁），详见《详细设计/WebSocket 房间管理设计.md》。
+本项目当前不将 SpotBugs、ArchUnit 和 JaCoCo 作为强制门禁；未来如重新引入，必须更新规范、配置和 CI 验收标准。
 
-***
+## 9. Git 分支和协作文档
 
-## 8. 环境配置管理
+- 生产主分支：`master`。
+- 日常集成分支：`develop`。
+- 功能分支：`feature/*`。
+- 缺陷分支：`fix/*`。
+- 发布分支：`release/*`。
+- 紧急修复分支：`hotfix/*`。
 
-| 环境   | 数据库                | Redis       | 部署方式                 |
-| ---- | ------------------ | ----------- | -------------------- |
-| dev  | 本地 PostgreSQL      | 本地 Redis    | 前端 Vite + 后端 Boot 分离 |
-| test | 测试服 PostgreSQL     | 测试服 Redis   | 合并部署 jar             |
-| prod | 生产 PostgreSQL (主从) | 生产 Redis 集群 | 分离部署                 |
+详细协作规则见 `docs/06-spec/08-workflow.md`。
 
-通过 Spring 的 `application-{profile}.yml` 和前端 `.env` 文件切换环境。
+## 10. 参考
 
-***
+- 工程规范索引：`docs/06-spec/01-readme.md`
+- 规范总览：`docs/06-spec/02-overview.md`
+- 前端规范：`docs/06-spec/03-frontend.md`
+- 后端规范：`docs/06-spec/04-backend.md`
+- API 契约：`docs/06-spec/05-api.md`
+- 通用实时协议：`docs/06-spec/15-realtime-protocol.md`
+- 通用部署规范：`docs/06-spec/09-deploy.md`
+- 项目部署 Runbook：`docs/06-spec/16-deployment-runbook.md`
+- migoo 组件手册：`docs/06-spec/11-migoo-framework.md`
 
-## 9. 代码规范与质量保障
-
-* **Git 分支**：主干 `master`，功能分支 `feature/*`，发布分支 `release/*`。
-* **提交规范**：Conventional Commits (`feat:`, `fix:`, `docs:`, `refactor:` 等)。
-* **前端检查**：ESLint + Prettier，Husky + lint-staged 提交前检查。
-* **后端检查**：Checkstyle + SpotBugs。
-* **测试**：前端 Vitest + Vue Test Utils，后端 JUnit 5 + Mockito。CI 流水线运行全部测试。
-* **API 契约**：后端通过 SpringDoc 自动生成 OpenAPI 文档，前端开发时参照文档定义类型。
-
-***
+---
 
 **文档结束**
