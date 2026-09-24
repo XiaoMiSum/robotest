@@ -4,6 +4,7 @@ import io.github.xiaomisum.robotest.model.dto.request.workspace.ProjectArchiveRe
 import io.github.xiaomisum.robotest.model.dto.request.workspace.ProjectCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.workspace.ProjectUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.workspace.ProjectRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.workspace.ProjectStatusCountsDTO;
 import xyz.migoo.framework.common.pojo.PageResult;
 
 import java.util.UUID;
@@ -12,6 +13,8 @@ public interface ProjectService {
 
     PageResult<ProjectRespDTO> getProjectPage(UUID workspaceId, UUID userId, String keyword,
                                                String status, Integer pageNo, Integer pageSize);
+
+    ProjectStatusCountsDTO getProjectStatusCounts(UUID workspaceId, UUID userId, String keyword);
 
     ProjectRespDTO createProject(UUID userId, UUID workspaceId, ProjectCreateReqDTO reqDTO);
 

@@ -7,6 +7,7 @@ import io.github.xiaomisum.robotest.model.dto.request.workspace.ProjectArchiveRe
 import io.github.xiaomisum.robotest.model.dto.request.workspace.ProjectCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.workspace.ProjectUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.workspace.ProjectRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.workspace.ProjectStatusCountsDTO;
 import io.github.xiaomisum.robotest.model.entity.workspace.Project;
 import io.github.xiaomisum.robotest.model.entity.admin.SysUser;
 import io.github.xiaomisum.robotest.model.entity.workspace.WorkspaceUser;
@@ -41,18 +42,18 @@ public class ProjectServiceImpl implements ProjectService {
     @Override
     public PageResult<ProjectRespDTO> getProjectPage(UUID workspaceId, UUID userId, String keyword,
                                                      String status, Integer pageNo, Integer pageSize) {
+        WorkspaceUser currentUser = requireWorkspaceMember(workspaceId, userId);
+        String normalizedKeyword = StringUtils.hasText(keyword) ? keyword.trim() : null;
         PageResult<Project> page = projectMapper.findPage(
                 new PageParam() {{
                     setPageNo(pageNo);
                     setPageSize(pageSize);
-                }}, workspaceId, keyword, status);
+                }}, workspaceId, normalizedKeyword, status);
 
-        WorkspaceUser currentUser = workspaceUserMapper.findByWorkspaceIdAndUserId(workspaceId, userId);
-
+        String defaultProjectIdStr = currentUser.getDefaultProjectId() != null
+                ? currentUser.getDefaultProjectId().toString() : null;
         List<ProjectRespDTO> records = page.getList().stream()
                 .map(p -> {
-                    String defaultProjectIdStr = currentUser != null && currentUser.getDefaultProjectId() != null
-                            ? currentUser.getDefaultProjectId().toString() : null;
                     ProjectRespDTO dto = ProjectConvertMapper.INSTANCE.toRespDTO(p, defaultProjectIdStr);
                     SysUser creator = userMapper.selectById(p.getCreatedBy());
                     dto.setCreatedBy(ProjectConvertMapper.INSTANCE.toCreatorInfo(
@@ -63,6 +64,19 @@ public class ProjectServiceImpl implements ProjectService {
                 .collect(Collectors.toList());
 
         return new PageResult<>(records, page.getTotal());
+    }
+
+    @Override
+    public ProjectStatusCountsDTO getProjectStatusCounts(UUID workspaceId, UUID userId, String keyword) {
+        requireWorkspaceMember(workspaceId, userId);
+        String normalizedKeyword = StringUtils.hasText(keyword) ? keyword.trim() : null;
+        ProjectStatusCountsDTO counts = projectMapper.countStatusByWorkspaceId(workspaceId, normalizedKeyword);
+        if (counts == null) {
+            counts = new ProjectStatusCountsDTO();
+        }
+        counts.setActive(counts.getActive() == null ? 0L : counts.getActive());
+        counts.setArchived(counts.getArchived() == null ? 0L : counts.getArchived());
+        return counts;
     }
 
     @Override
@@ -199,5 +213,13 @@ public class ProjectServiceImpl implements ProjectService {
 
         projectMapper.deleteById(projectId);
         workspaceUserMapper.clearDefaultProjectId(workspaceId, projectId);
+    }
+
+    private WorkspaceUser requireWorkspaceMember(UUID workspaceId, UUID userId) {
+        WorkspaceUser workspaceUser = workspaceUserMapper.findByWorkspaceIdAndUserId(workspaceId, userId);
+        if (workspaceUser == null) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.NO_PERMISSION);
+        }
+        return workspaceUser;
     }
 }
