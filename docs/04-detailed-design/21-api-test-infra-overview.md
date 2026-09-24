@@ -262,6 +262,18 @@
 - 分页请求：`?pageNo=1&pageSize=20`；分页响应 `{ list: [], total: N }`。
 - 所有接口的错误响应遵循统一格式：`{ "code": 1000017001, "msg": "执行引擎繁忙", "data": null }`。
 
+### 2.3.1 接口测试域上下文边界
+
+接口测试域按资源类型执行以下边界：
+
+| 场景 | 上下文入口 | 允许的路径/请求体 ID | 约束 |
+| --- | --- | --- | --- |
+| 项目级接口、场景、Mock、环境、定时任务、报告 | `X-Active-Workspace` + `X-Active-Project` | `interfaceId`、`sceneId`、`environmentId`、`taskId`、`reportId` 等资源 ID | 服务端以 Header 归属为权威，资源 ID 不得跨项目 |
+| 公共导入和调试资源 | 按接口定义使用项目 Header | 被导入或调试的资源自身 ID | 不能以请求体中的 `workspaceId/projectId` 替代活动上下文 |
+| 公开分享访问 | 无活动上下文 Header | 报告 ID 和分享 token | 通过分享 token 校验报告范围，不建立用户活动上下文 |
+
+项目级接口的上下文规则在本域统一；任何专用切换/导入例外必须在对应分册明确，不得由前端绕过。
+
 
 ### 2.4 数据清理策略
 

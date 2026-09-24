@@ -106,6 +106,19 @@
 - 分页：`pageNo`、`pageSize` → `{ list: [], total: number }`
 - 通用响应：`{ "code": 200, "msg": "success", "data": {} }`
 
+### 2.2.1 工作空间域上下文边界
+
+工作空间域的活动上下文和目标资源分开处理：
+
+| 场景 | 上下文入口 | 目标/资源 ID | 说明 |
+| --- | --- | --- | --- |
+| 当前空间详情、更新、成员和项目列表 | `X-Active-Workspace` | 资源自身的 `userId`、`projectId`、邀请 `id` 等可出现在路径或请求体 | Header 是当前空间的唯一授权依据；资源 ID 必须验证属于该空间 |
+| 切换最近活跃空间 | `PUT /api/workspaces/active` 的 `X-Active-Workspace` | 目标空间 ID 仍通过 Header 传递 | 请求体为空；切换成功后前端再更新本地活动状态 |
+| 设置个人默认项目 | `X-Active-Workspace` | 请求体允许 `projectId` | 这是“目标项目偏好”而非活动项目上下文；服务端必须验证项目属于当前空间且为 active |
+| 公开邀请加入 | 无活动空间 Header | `token` | Token 绑定目标空间；响应中的 `activeWorkspace` 仅为结果数据，不作为后续请求的授权依据 |
+
+路由参数 `:workspaceId` 只用于页面导航或明确的空间资源定位；后端工作空间操作仍按上表校验活动 Header 和资源归属。
+
 
 ### 2.3 权限矩阵
 

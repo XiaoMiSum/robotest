@@ -185,6 +185,10 @@ CREATE INDEX idx_ws_workspace_created_by ON ws_workspace (created_by);
 - 通用响应：`{ "code": 200, "msg": "success", "data": {} }`；响应沿用平台通用 `Result<T>`，除特别说明（展示完整报文）外，接口响应示例仅展示 `data` 字段内容。
 - 数据概览接口与用户/空间列表一致，**不设独立权限点**（进入 `/admin` 即可见菜单，路由守卫 `requiresAdmin` 把关）。
 
+### 2.5.1 系统管理域上下文边界
+
+系统管理域不读取 `X-Active-Workspace` 或 `X-Active-Project`。管理端路径中的用户、空间、角色 ID，以及角色授权请求体中的 `workspaceIds`，都是被管理的资源或目标资源 ID，不是当前活动上下文；服务端必须按系统权限和资源归属校验，不能将其当作调用者的活动空间。
+
 
 ### 2.6 权限校验中间件
 

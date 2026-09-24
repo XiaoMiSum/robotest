@@ -32,10 +32,9 @@
 
 ### 2.2 上下文规则
 
-- 当前活动 workspace 只能通过 `X-Active-Workspace` 传递。
-- 当前活动 project 只能通过 `X-Active-Project` 传递。
-- 活动上下文 ID 不得出现在 URL 或请求体中。
-- URL 中的 `{id}` 只有在表示被操作资源本身时才允许，例如 `/api/admin/users/{id}`。
+- 当前活动 workspace 和 project 的通用传递入口分别是 `X-Active-Workspace` 和 `X-Active-Project`。
+- 具体业务是否允许在专用路由或请求体中携带目标上下文 ID，由对应业务详细设计明确；本文不授予业务例外。
+- URL 中的 `{id}` 只有在表示被操作资源本身时才属于通用资源 ID，例如 `/api/admin/users/{id}`。
 - 服务端必须校验请求头中的上下文与当前用户的权限关系，不能信任前端已校验的假设。
 - 缺少或非法上下文返回统一业务错误，不降级为全局数据查询。
 
@@ -200,7 +199,7 @@ docs/06-spec/15-realtime-protocol.md
 - [ ] 响应使用 `Result<T>`
 - [ ] 分页使用 `pageNo/pageSize` 和 `list/total`
 - [ ] 错误码为 10 位且已登记
-- [ ] 活动上下文只通过请求头传递
+- [ ] 上下文边界符合业务详细设计且服务端完成归属校验
 - [ ] OpenAPI、前端类型和接口测试已同步
 - [ ] WebSocket 协议、鉴权和权限已同步
 - [ ] 详细设计和安全影响已评估
