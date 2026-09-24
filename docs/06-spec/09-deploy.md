@@ -1,128 +1,227 @@
-# 工程规范 — 构建与部署
+# 软件测试平台——构建与部署规范
 
 **文档版本**：V1.0
-**日期**：2026-07-06
+**日期**：2026-09-24
 **状态**：已发布
 
 ---
 
-## 1. 构建流程
+## 1. 适用范围
 
-### 前端构建
+本文定义本地构建、环境配置、分离部署、合并部署和发布检查。具体质量门禁由 `07-quality.md` 定义，具体 CI 编排不得在本文重复维护另一套规则。
+
+## 2. 当前工具和端口
+
+| 项目 | 当前事实来源 |
+| --- | --- |
+| 前端包管理器 | `web/package.json`、`web/pnpm-lock.yaml` |
+| 后端构建 | `server/pom.xml` |
+| 前端开发端口 | `5173`，见 `web/vite.config.ts` |
+| 后端默认端口 | `58080`，见 `application.yaml` |
+| API 代理 | `/api`、`/ws`，见 `web/vite.config.ts` |
+| 数据库 | PostgreSQL 14+ 为优先正式方案 |
+| 一键开发 | `scripts/dev.sh` |
+
+文档、脚本和配置中的端口必须一致。修改端口时必须同步前端代理、启动脚本、部署配置和接口文档。
+
+## 3. 本地开发
+
+```bash
+# 安装前端依赖并启动
+cd web
+pnpm install --frozen-lockfile
+pnpm run dev
+
+# 启动后端
+cd ../server
+mvn spring-boot:run -Pdev
+
+# 或使用一键脚本
+bash scripts/dev.sh
+```
+
+`dev` profile 是当前本地开发入口。生产配置不得使用本地默认凭据。
+
+## 4. 构建
+
+### 4.1 前端
 
 ```bash
 cd web
-pnpm ci                 # 锁定版本安装pnpm run lint           # 代码检pnpm run typecheck      # 类型pnpm run test:unit      # 单pnpm
-pnpm run build          # 构建产物 → web/dist/
+pnpm install --frozen-lockfile
+pnpm run lint
+pnpm run typecheck
+pnpm run test:unit
+pnpm run build
 ```
 
-### 后端构建
+产物：
+
+```text
+web/dist/
+```
+
+### 4.2 后端
 
 ```bash
 cd server
-mvn clean verify -Pdev  # 包含 spotbugs + test
-mvn package -Pprod      # 生产构建
+mvn clean verify
+mvn package -Pprod
 ```
 
-### 合并部署构建
+产物：
+
+```text
+server/target/robotest-server.jar
+```
+
+`mvn verify` 是否包含 Checkstyle、SpotBugs、JaCoCo 等插件，以 `server/pom.xml` 的实际配置为准；未配置的插件不得在本文中宣称已经执行。
+
+### 4.3 合并部署
+
+项目脚本：
 
 ```bash
-cd web && pnpm run build
-cp -r web/dist/* server/src/main/resources/static/
-cd server && mvn package -Pmerged
+bash scripts/deploy-merged.sh
 ```
 
----
+该脚本会：
 
-## 2. 环境配置管理
+1. 构建前端；
+2. 清理 `server/src/main/resources/static/`；
+3. 复制 `web/dist/`；
+4. 校验 `static/index.html`；
+5. 调用后端构建脚本。
 
-| 环境   | 配置源                                        | 数据库         | Redis       |
-| ---- | ------------------------------------------ | ----------- | ----------- |
-| dev  | `.env.development` + `application-dev.yml` | 本地 MySQL    | 本地 Redis    |
-| test | `.env.test` + `application-test.yml`       | 测试服 MySQL   | 测试服 Redis   |
-| prod | `.env.production` + `application-prod.yml` | 生产 MySQL 主从 | 生产 Redis 集群 |
+当前 Maven `pom.xml` 只声明了 `dev` 和 `prod` profile。合并脚本使用的 `merged` profile 必须先在构建配置中实现并验证；在实现前不得将该流程标记为可发布能力。
 
-**敏感信息管理**：
+## 5. 环境配置
 
-- 密码、密钥、Token 等敏感信息不提交到代码仓库。
-- 开发环境使用 `.env.local`（已加入 `.gitignore`）。
-- 生产环境通过环境变量或密钥管理服务注入。
+| 环境 | 前端配置 | 后端配置 | 数据库 |
+| --- | --- | --- | --- |
+| dev | `web/.env.development` | `application.yaml` + 环境变量 | 本地 PostgreSQL |
+| test | 测试环境变量 | 测试环境变量 | 测试 PostgreSQL |
+| prod | `web/.env.production` | 生产环境变量 | 生产 PostgreSQL |
 
-**前端 `.env` 文件规范**：
+当前仓库实际存在的前端环境文件为：
 
+```text
+web/.env.development
+web/.env.production
 ```
-# .env.development
-VITE_API_BASE_URL=/api
-VITE_WS_BASE_URL=ws://localhost:8080/ws
+
+测试和生产配置优先通过环境变量或密钥管理服务注入，不提交真实密钥、密码或 Token。
+
+### 5.1 必要环境变量
+
+```text
+PORT
+DATASOURCE_URL
+DATASOURCE_USERNAME
+DATASOURCE_PASSWORD
+REDIS_HOST
+REDIS_PORT
+REDIS_PASSWORD
+JWT_SECRET_KEY
+PASSWORD_SECRET
+AI_SECRET_KEY
+ENV_SECRET_KEY
 ```
 
----
+生产环境缺少关键密钥时必须启动失败，不能回退到仓库中的默认值。开发环境默认值也不能用于生产。
 
-## 3. 部署方案
+## 6. 部署方案
 
-| 方案   | 适用场景              | 架构           |
-| ---- | ----------------- | ------------ |
-| 分离部署 | 大规模团队，前端需要 CDN 加速 | Nginx + 后端集群 |
-| 合并部署 | 中小团队，快速交付         | 单 jar（含前端资源） |
+| 方案 | 产物 | 适用场景 |
+| --- | --- | --- |
+| 分离部署 | `dist-deploy/web/` + `robotest-server.jar` | CDN、前后端独立扩缩容 |
+| 合并部署 | 含 `static/` 的 jar | 中小规模、单进程交付 |
 
-分离部署 Nginx 配置示例：
+### 6.1 分离部署
+
+```bash
+bash scripts/deploy-separate.sh
+```
+
+发布流水线不得使用 `--skip-checks` 或 `--skip-tests`。这些参数只允许用于本地临时构建，不能生成可发布制品。
+
+Nginx 至少需要代理 `/api/` 和 `/ws/`，并保留 WebSocket Upgrade、连接超时和请求体限制。SSE 路径还必须关闭代理缓冲：
 
 ```nginx
 location /api/ {
-    proxy_pass http://backend:8080;
+    proxy_pass http://backend:58080;
+    proxy_buffering off;
+    proxy_read_timeout 3600s;
+    client_max_body_size 10m;
 }
+
 location /ws/ {
-    proxy_pass http://backend:8080;
+    proxy_pass http://backend:58080;
     proxy_http_version 1.1;
     proxy_set_header Upgrade $http_upgrade;
     proxy_set_header Connection "upgrade";
 }
-location / {
-    root /var/www/html;
-    try_files $uri $uri/ /index.html;
-}
 ```
 
-合并部署 Spring Boot 静态资源配置：
+生产 TLS、来源白名单、真实 IP、安全响应头和 token 参数脱敏由部署环境配置。
 
-```java
-@Configuration
-public class WebMvcConfig implements WebMvcConfigurer {
-    @Override
-    public void addResourceHandlers(ResourceHandlerRegistry registry) {
-        registry.addResourceHandler("/**")
-                .addResourceLocations("classpath:/static/");
-    }
+### 6.2 合并部署
 
-    @Override
-    public void addViewControllers(ViewControllerRegistry registry) {
-        registry.addViewController("/{path:^(?!api|ws).*}")
-                .setViewName("forward:/index.html");
-    }
-}
+合并部署前必须确认：
+
+- `static/index.html` 存在；
+- 静态资源没有旧版本残留；
+- 后端 profile 已实现；
+- SPA 路由可以回退到 `index.html`；
+- `/api`、`/ws` 不会被静态资源处理器拦截。
+
+## 7. 数据库发布顺序
+
+1. 备份数据库并记录当前版本。
+2. 执行向前兼容迁移。
+3. 部署应用。
+4. 执行健康检查和核心接口验证。
+5. 观察日志、数据库负载和错误率。
+6. 必要时按预案回滚应用和迁移。
+
+数据库迁移规范见 `06-database.md`。不得直接对已迁移环境重复执行全量 `schema.sql`。
+
+## 8. CI 编排
+
+CI 至少按以下顺序执行：
+
+```text
+Checkout
+→ 前端安装
+→ 前端 lint/typecheck/test/build
+→ 后端 verify
+→ OpenAPI 契约检查
+→ 敏感信息和依赖扫描
+→ 构建制品
+→ 测试环境部署
+→ 发布后验证
 ```
 
----
+覆盖率、静态分析和安全扫描是否阻断，以 `07-quality.md` 和实际 CI 配置为准。
 
-## 4. CI 流水线
+## 9. 发布后检查
 
-```
-触发: Push / PR → develop / main
+- [ ] 应用健康检查通过
+- [ ] 登录、刷新 Token 和退出正常
+- [ ] workspace/project 上下文隔离正常
+- [ ] 管理端越权请求被拒绝
+- [ ] 关键 API 响应使用 `Result`
+- [ ] 分页使用 `pageNo/pageSize` 和 `list`
+- [ ] WebSocket 连接和 Yjs 同步正常
+- [ ] 日志中没有密码、Token 或 SQL 敏感参数
+- [ ] 数据库迁移和备份状态正常
 
-步骤:
-  1. Checkout
-  2. 前端: pnpm ci → lint → typecheck → test → build
-  3. 后端: mvn verify → package
-  4. 镜像构建 & 推送（可选）
-  5. 部署至 test 环境（可选）
-  6. 通知结果
+## 10. 参考
 
-门禁:
-  - lint error → 失败
-  - typecheck error → 失败
-  - test 失败 → 失败
-  - coverage < 70% → 不稳定
-```
+- 质量门禁：`docs/06-spec/07-quality.md`
+- 安全：`docs/06-spec/10-security.md`
+- 数据库迁移：`docs/06-spec/06-database.md`
+- 实际脚本：`scripts/`
 
 ---
 
