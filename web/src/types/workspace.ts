@@ -41,8 +41,11 @@ export interface Project {
   createdAt: string
 }
 
-/** 邀请链接状态 */
+/** 邀请链接落库状态 */
 export type InvitationStatus = 'active' | 'revoked'
+
+/** 邀请链接运行时有效状态 */
+export type InvitationEffectiveStatus = 'active' | 'exhausted' | 'expired' | 'revoked'
 
 /** 邀请链接（创建接口返回，含敏感 token，仅创建后立即展示） */
 export interface Invitation {
@@ -55,14 +58,21 @@ export interface Invitation {
   createdAt: string
 }
 
-/** 邀请链接列表项（列表接口不下发 token，避免敏感凭据随列表泄露） */
+/** 邀请链接列表项（完整 token 仅在创建或明确复制时获取） */
 export interface InvitationListItem {
   id: string
+  tokenPreview: string
+  effectiveStatus: InvitationEffectiveStatus
   expiresAt: string | null
   maxUses: number | null
   useCount: number
   status: InvitationStatus
   createdAt: string
+}
+
+/** 按需获取的邀请复制凭据 */
+export interface InvitationCopyLink {
+  token: string
 }
 
 /** 邀请令牌验证响应 */

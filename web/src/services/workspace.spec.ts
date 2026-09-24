@@ -16,11 +16,17 @@ vi.mock('@/services', () => ({
   del: mocks.del,
 }))
 
-import { fetchMyWorkspaces, setActiveWorkspacePreference } from './workspace'
+import {
+  fetchInvitationCopyLink,
+  fetchMembers,
+  fetchMyWorkspaces,
+  setActiveWorkspacePreference,
+} from './workspace'
 
 beforeEach(() => {
   vi.clearAllMocks()
   mocks.get.mockResolvedValue({ list: [], total: 0, counts: { all: 0, managed: 0, archived: 0 } })
+  mocks.post.mockResolvedValue({ token: 'invite-token' })
   mocks.put.mockResolvedValue(undefined)
 })
 
@@ -34,6 +40,23 @@ describe('workspace service', () => {
       pageNo: 2,
       pageSize: 24,
     })
+  })
+
+  it('成员列表请求携带关键词、角色和分页参数', () => {
+    void fetchMembers({ keyword: '张', workspaceRole: 'role-admin', pageNo: 2, pageSize: 20 })
+
+    expect(mocks.get).toHaveBeenCalledWith('/workspace/members', {
+      keyword: '张',
+      workspaceRole: 'role-admin',
+      pageNo: 2,
+      pageSize: 20,
+    })
+  })
+
+  it('邀请链接通过专用 POST 接口按需获取', () => {
+    void fetchInvitationCopyLink('invitation-1')
+
+    expect(mocks.post).toHaveBeenCalledWith('/workspace/invitations/invitation-1/copy-link')
   })
 
   it('设置活跃空间使用空请求体和目标空间请求头', () => {

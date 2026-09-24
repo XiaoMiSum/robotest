@@ -72,7 +72,8 @@ function makeWorkspace(overrides?: Partial<AdminWorkspace>): AdminWorkspace {
 function makeMember(overrides?: Partial<WorkspaceMember>): WorkspaceMember {
   return {
     userId: 'u-1',
-    username: '张三',
+    username: 'zhangsan',
+    name: '张三',
     email: 'zhang@test.com',
     workspaceRole: 'role-1',
     joinedAt: '2025-01-01T00:00:00',
