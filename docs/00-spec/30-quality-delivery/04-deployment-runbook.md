@@ -10,7 +10,7 @@
 
 本文是 RoboTest 当前仓库的部署操作手册，记录实际命令、端口、脚本、配置入口和已知限制。
 
-通用部署要求见 `09-deploy.md`。当本文与脚本或配置不一致时，以实际代码和配置为当前事实，并按规范冲突流程登记差异。
+通用部署要求见 `docs/00-spec/30-quality-delivery/03-deploy.md`。当本文与脚本或配置不一致时，以实际代码和配置为当前事实，并按规范冲突流程登记差异。
 
 ## 2. 当前环境基线
 
@@ -329,11 +329,11 @@ bash scripts/validate.sh --all
 
 ## 14. 参考
 
-- 通用部署规范：`docs/00-spec/09-deploy.md`
-- 质量门禁：`docs/00-spec/07-quality.md`
-- 安全：`docs/00-spec/10-security.md`
-- 数据库：`docs/00-spec/06-database.md`
-- 通用实时协议：`docs/00-spec/15-realtime-protocol.md`
+- 通用部署规范：`docs/00-spec/30-quality-delivery/03-deploy.md`
+- 质量门禁：`docs/00-spec/30-quality-delivery/01-quality.md`
+- 安全：`docs/00-spec/40-security/01-security.md`
+- 数据库：`docs/00-spec/20-contracts/02-database.md`
+- 通用实时协议：`docs/00-spec/20-contracts/03-realtime-protocol.md`
 - 项目脚本：`scripts/`
 
 ---

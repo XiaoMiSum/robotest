@@ -62,7 +62,7 @@
 - 组件测试必须覆盖加载、空数据、错误、权限不足和提交中状态。
 - API service 测试必须断言 `Result` 解包、业务错误和 HTTP 错误。
 - 时间处理测试必须覆盖 UTC、带时区、无时区和非法输入。
-- 滚动和响应式行为按 `13-scroll-container.md` 进行浏览器验收。
+- 滚动和响应式行为按 `docs/00-spec/50-ui/01-scroll-container.md` 进行浏览器验收。
 
 示例：
 
@@ -148,10 +148,10 @@ bash scripts/validate.sh --all
 
 ## 11. 参考
 
-- API 契约：`docs/00-spec/05-api.md`
-- 安全基线：`docs/00-spec/10-security.md`
-- 构建与 CI：`docs/00-spec/09-deploy.md`
-- AI 任务流程：`docs/00-spec/12-task-template.md`
+- API 契约：`docs/00-spec/20-contracts/01-api.md`
+- 安全基线：`docs/00-spec/40-security/01-security.md`
+- 构建与 CI：`docs/00-spec/30-quality-delivery/03-deploy.md`
+- AI 任务流程：`docs/00-spec/00-governance/02-task-template.md`
 
 ---
 

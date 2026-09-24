@@ -20,9 +20,9 @@
 
 ### 1.3 与其他规范的关系
 
-- 前端分层、TypeScript、路由和请求基础见 `docs/00-spec/03-frontend.md`。
-- 通用视觉、状态、响应式和可访问性见 `docs/00-spec/18-frontend-design.md`。
-- 滚动区域和滚动拥有者见 `docs/00-spec/13-scroll-container.md`。
+- 前端分层、TypeScript、路由和请求基础见 `docs/00-spec/10-engineering/01-frontend.md`。
+- 通用视觉、状态、响应式和可访问性见 `docs/00-spec/50-ui/02-frontend-design.md`。
+- 滚动区域和滚动拥有者见 `docs/00-spec/50-ui/01-scroll-container.md`。
 - 页面具体业务目标、文案、字段和交互流程由需求、设计和交互文档定义。
 - 组件库和样式工具由项目依赖决定，本规范不新增或替代组件库。
 
@@ -360,11 +360,11 @@ components/
 
 ## 10. 参考
 
-- 前端工程基础：`docs/00-spec/03-frontend.md`
-- 前端通用设计：`docs/00-spec/18-frontend-design.md`
-- 滚动容器专项：`docs/00-spec/13-scroll-container.md`
-- 前端质量门禁：`docs/00-spec/07-quality.md`
-- API 契约：`docs/00-spec/05-api.md`
+- 前端工程基础：`docs/00-spec/10-engineering/01-frontend.md`
+- 前端通用设计：`docs/00-spec/50-ui/02-frontend-design.md`
+- 滚动容器专项：`docs/00-spec/50-ui/01-scroll-container.md`
+- 前端质量门禁：`docs/00-spec/30-quality-delivery/01-quality.md`
+- API 契约：`docs/00-spec/20-contracts/01-api.md`
 
 ---
 

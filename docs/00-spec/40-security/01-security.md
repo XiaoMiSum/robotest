@@ -11,8 +11,8 @@
 本规范定义平台身份认证、授权、租户隔离、密钥、输入安全、实时通信和审计要求。
 
 - 认证和授权必须在服务端执行，前端路由守卫不能作为安全边界。
-- 当前实现与本规范不一致时，按 `02-overview.md` 的冲突流程暂停并由用户确认。
-- 框架具体实现引用 `11-migoo-framework.md`，公共 API 契约引用 `05-api.md`。
+- 当前实现与本规范不一致时，按 `docs/00-spec/00-governance/01-overview.md` 的冲突流程暂停并由用户确认。
+- 框架具体实现引用 `docs/00-spec/10-engineering/03-migoo-framework.md`，公共 API 契约引用 `docs/00-spec/20-contracts/01-api.md`。
 
 ## 2. 认证
 
@@ -136,7 +136,7 @@ ENV_SECRET_KEY
 - 通用 JSON 帧和二进制帧必须分别定义大小、类型、频率和权限。
 - 写操作必须先鉴权、再广播或持久化；不能先广播后再拒绝。
 - 错误帧返回稳定错误码，不把数据库异常原文直接发送给客户端。
-- 消息大小、频率、顺序、重连和版本兼容规则见 `15-realtime-protocol.md`。
+- 消息大小、频率、顺序、重连和版本兼容规则见 `docs/00-spec/20-contracts/03-realtime-protocol.md`。
 
 ## 8. 审计和日志
 
@@ -190,11 +190,11 @@ changes
 
 ## 10. 参考
 
-- API：`docs/00-spec/05-api.md`
-- 通用实时协议：`docs/00-spec/15-realtime-protocol.md`
-- migoo 安全能力：`docs/00-spec/11-migoo-framework.md`
-- 质量门禁：`docs/00-spec/07-quality.md`
-- 部署密钥：`docs/00-spec/09-deploy.md`、`docs/00-spec/16-deployment-runbook.md`
+- API：`docs/00-spec/20-contracts/01-api.md`
+- 通用实时协议：`docs/00-spec/20-contracts/03-realtime-protocol.md`
+- migoo 安全能力：`docs/00-spec/10-engineering/03-migoo-framework.md`
+- 质量门禁：`docs/00-spec/30-quality-delivery/01-quality.md`
+- 部署密钥：`docs/00-spec/30-quality-delivery/03-deploy.md`、`docs/00-spec/30-quality-delivery/04-deployment-runbook.md`
 
 ---
 

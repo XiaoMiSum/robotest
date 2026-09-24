@@ -65,9 +65,9 @@ robotest/
 | UI | Element Plus | 以依赖锁定版本为准 |
 | 状态管理 | Pinia | 以依赖锁定版本为准 |
 | HTTP | Axios | 统一请求拦截器和响应解包 |
-| 实时通信 | WebSocket；协作场景可采用 Yjs | 通用协议见 `docs/00-spec/15-realtime-protocol.md` |
+| 实时通信 | WebSocket；协作场景可采用 Yjs | 通用协议见 `docs/00-spec/20-contracts/03-realtime-protocol.md` |
 | 后端运行时 | Java 21 + Spring Boot 4.x | 版本由 Maven BOM 和 `server/pom.xml` 管理 |
-| 后端框架 | migoo `1.3.18` | 组件手册见 `docs/00-spec/11-migoo-framework.md` |
+| 后端框架 | migoo `1.3.18` | 组件手册见 `docs/00-spec/10-engineering/03-migoo-framework.md` |
 | 数据访问 | MyBatis-Plus + migoo MyBatis Starter | 复杂查询按后端规范封装 |
 | 认证授权 | Spring Security + migoo Security Starter | 服务端执行最终授权 |
 | 数据库 | PostgreSQL 14+ | 优先正式方案，MySQL 仅保留兼容说明 |
@@ -82,7 +82,7 @@ robotest/
 - 前端开发端口：`5173`。
 - 后端默认端口：`58080`。
 - 前端 `/api` 和 `/ws` 代理到后端运行端口。
-- 实际启动命令和环境变量参考 `docs/00-spec/16-deployment-runbook.md`。
+- 实际启动命令和环境变量参考 `docs/00-spec/30-quality-delivery/04-deployment-runbook.md`。
 - 端口、代理和后端配置必须保持一致。
 
 ### 4.2 前后端边界
@@ -99,13 +99,13 @@ robotest/
 通用要求见：
 
 ```text
-docs/00-spec/09-deploy.md
+docs/00-spec/30-quality-delivery/03-deploy.md
 ```
 
 当前项目的实际命令、端口、脚本、环境变量和发布步骤见：
 
 ```text
-docs/00-spec/16-deployment-runbook.md
+docs/00-spec/30-quality-delivery/04-deployment-runbook.md
 ```
 
 支持两种部署形态：
@@ -122,7 +122,7 @@ docs/00-spec/16-deployment-runbook.md
 平台使用 WebSocket 作为实时通信传输层。通用连接、房间/主题、消息信封、错误、生命周期和安全要求见：
 
 ```text
-docs/00-spec/15-realtime-protocol.md
+docs/00-spec/20-contracts/03-realtime-protocol.md
 ```
 
 协作算法、业务事件、Payload、持久化和冲突处理由对应业务详细设计定义，不在架构文档中重复规定。
@@ -141,7 +141,7 @@ docs/00-spec/15-realtime-protocol.md
 
 ## 8. 质量保障
 
-质量门禁由 `docs/00-spec/07-quality.md` 统一定义，部署流程由 `docs/00-spec/09-deploy.md` 和 Runbook 维护。
+质量门禁由 `docs/00-spec/30-quality-delivery/01-quality.md` 统一定义，部署流程由 `docs/00-spec/30-quality-delivery/03-deploy.md` 和 Runbook 维护。
 
 当前质量基线包括：
 
@@ -162,19 +162,19 @@ docs/00-spec/15-realtime-protocol.md
 - 发布分支：`release/*`。
 - 紧急修复分支：`hotfix/*`。
 
-详细协作规则见 `docs/00-spec/08-workflow.md`。
+详细协作规则见 `docs/00-spec/30-quality-delivery/02-workflow.md`。
 
 ## 10. 参考
 
-- 工程规范索引：`docs/00-spec/01-readme.md`
-- 规范总览：`docs/00-spec/02-overview.md`
-- 前端规范：`docs/00-spec/03-frontend.md`
-- 后端规范：`docs/00-spec/04-backend.md`
-- API 契约：`docs/00-spec/05-api.md`
-- 通用实时协议：`docs/00-spec/15-realtime-protocol.md`
-- 通用部署规范：`docs/00-spec/09-deploy.md`
-- 项目部署 Runbook：`docs/00-spec/16-deployment-runbook.md`
-- migoo 组件手册：`docs/00-spec/11-migoo-framework.md`
+- 工程规范索引：`docs/00-spec/00-readme.md`
+- 规范总览：`docs/00-spec/00-governance/01-overview.md`
+- 前端规范：`docs/00-spec/10-engineering/01-frontend.md`
+- 后端规范：`docs/00-spec/10-engineering/02-backend.md`
+- API 契约：`docs/00-spec/20-contracts/01-api.md`
+- 通用实时协议：`docs/00-spec/20-contracts/03-realtime-protocol.md`
+- 通用部署规范：`docs/00-spec/30-quality-delivery/03-deploy.md`
+- 项目部署 Runbook：`docs/00-spec/30-quality-delivery/04-deployment-runbook.md`
+- migoo 组件手册：`docs/00-spec/10-engineering/03-migoo-framework.md`
 
 ---
 

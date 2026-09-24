@@ -47,7 +47,7 @@ is_deleted  boolean     NOT NULL DEFAULT false
 ### 3.1 主键与 UUID
 
 - UUID 使用 migoo 框架默认生成策略，项目代码不自行规定 UUID v4 或 v7。
-- Java Entity 统一按 `11-migoo-framework.md` 的基类约定继承。
+- Java Entity 统一按 `docs/00-spec/10-engineering/03-migoo-framework.md` 的基类约定继承。
 - 前端只接收和传递 UUID 字符串，不自行生成数据库主键。
 - 如需改变 UUID 策略，必须先更新框架兼容性文档和数据库迁移方案。
 
@@ -146,9 +146,9 @@ MySQL 内容仅作为迁移和兼容参考：
 
 ## 9. 参考
 
-- API 分页和上下文：`docs/00-spec/05-api.md`
-- MyBatis-Plus 和框架主键：`docs/00-spec/11-migoo-framework.md`
-- 部分更新和查询封装：`docs/00-spec/04-backend.md`
+- API 分页和上下文：`docs/00-spec/20-contracts/01-api.md`
+- MyBatis-Plus 和框架主键：`docs/00-spec/10-engineering/03-migoo-framework.md`
+- 部分更新和查询封装：`docs/00-spec/10-engineering/02-backend.md`
 
 ---
 

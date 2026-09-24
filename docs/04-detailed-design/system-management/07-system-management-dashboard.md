@@ -75,7 +75,7 @@ public interface DashboardStatsService {
    - `WorkspaceMapper`：`Map<String, Long> countGroupByStatus()`；
    - `ProjectMapper`：`long countAll()`、`long countCreatedSince(LocalDateTime since)`；
    - `AuditLogMapper`：`long countLoginsBetween(LocalDateTime begin, LocalDateTime end)`、`List<Map<String,Object>> countDistinctLoginsByDay(LocalDateTime begin)`（按 `TO_CHAR(created_at,'YYYY-MM-DD')` 分组，模式沿用既有 `aggregateByDay`）。
-2. Mapper 统计方法以 `default` 方法封装 Wrapper/`@Select`，Service 不直接构造 Wrapper（`docs/00-spec/04-backend.md` §9）。
+2. Mapper 统计方法以 `default` 方法封装 Wrapper/`@Select`，Service 不直接构造 Wrapper（`docs/00-spec/10-engineering/02-backend.md` §9）。
 3. `activeUsersDaily` 组装：生成 `today-13 … today` 的 14 个日期，以查询结果填充、缺日补 0，保证恒 14 项、日期升序。
 4. 只读接口，无事务注解；任何单表查询异常向上抛出，由全局异常处理器统一返回。
 

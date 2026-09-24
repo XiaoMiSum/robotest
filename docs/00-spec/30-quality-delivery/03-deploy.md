@@ -12,7 +12,7 @@
 
 具体项目的实际命令、端口、环境文件、脚本和发布步骤不在本文维护，统一参考项目部署 Runbook。
 
-质量门禁见 `07-quality.md`，安全基线见 `10-security.md`，数据库迁移原则见 `06-database.md`。
+质量门禁见 `docs/00-spec/30-quality-delivery/01-quality.md`，安全基线见 `docs/00-spec/40-security/01-security.md`，数据库迁移原则见 `docs/00-spec/20-contracts/02-database.md`。
 
 ## 2. 构建原则
 
@@ -39,7 +39,7 @@
 → 制品校验
 ```
 
-质量门禁的实际阈值和工具以 `07-quality.md` 及 CI 配置为准。
+质量门禁的实际阈值和工具以 `docs/00-spec/30-quality-delivery/01-quality.md` 及 CI 配置为准。
 
 ### 2.3 制品要求
 
@@ -167,14 +167,14 @@ JWT/认证密钥
 
 ## 9. CI 边界
 
-CI 的质量门禁由 `07-quality.md` 定义，发布编排由项目 Runbook 维护。两者不得各自维护一套不同的 lint、测试、覆盖率或安全扫描规则。
+CI 的质量门禁由 `docs/00-spec/30-quality-delivery/01-quality.md` 定义，发布编排由项目 Runbook 维护。两者不得各自维护一套不同的 lint、测试、覆盖率或安全扫描规则。
 
 ## 10. 参考
 
-- 质量门禁：`docs/00-spec/07-quality.md`
-- 安全基线：`docs/00-spec/10-security.md`
-- 数据库迁移：`docs/00-spec/06-database.md`
-- 项目部署 Runbook：`docs/00-spec/16-deployment-runbook.md`
+- 质量门禁：`docs/00-spec/30-quality-delivery/01-quality.md`
+- 安全基线：`docs/00-spec/40-security/01-security.md`
+- 数据库迁移：`docs/00-spec/20-contracts/02-database.md`
+- 项目部署 Runbook：`docs/00-spec/30-quality-delivery/04-deployment-runbook.md`
 
 ---
 

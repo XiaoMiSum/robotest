@@ -38,8 +38,8 @@ Controller → Service → Mapper / 外部适配器
 
 框架响应、异常和分页的唯一契约分别见：
 
-- `docs/00-spec/05-api.md`
-- `docs/00-spec/11-migoo-framework.md`
+- `docs/00-spec/20-contracts/01-api.md`
+- `docs/00-spec/10-engineering/03-migoo-framework.md`
 
 ## 3. 各层职责
 
@@ -176,7 +176,7 @@ public interface UserConvertMapper {
 - 错误码使用 10 位数字并集中登记。
 - 响应字段为 `code`、`msg`、`data`。
 
-完整定义见 `05-api.md` 和 `11-migoo-framework.md`。
+完整定义见 `docs/00-spec/20-contracts/01-api.md` 和 `docs/00-spec/10-engineering/03-migoo-framework.md`。
 
 ## 7. 事务、并发和幂等
 
@@ -273,7 +273,7 @@ Service 负责业务判断，Mapper 负责可复用的数据访问意图。
 - [ ] Controller 无业务逻辑
 - [ ] Service 使用统一异常和权限 Guard
 - [ ] Mapper 封装 Wrapper 和复杂查询
-- [ ] 响应、分页和错误码符合 `05-api.md`
+- [ ] 响应、分页和错误码符合 `docs/00-spec/20-contracts/01-api.md`
 - [ ] Entity 使用框架基类和默认 UUID 策略
 - [ ] MapStruct 转换器位于 `model/convert/`
 - [ ] C11 部分更新和显式置空有测试
@@ -281,10 +281,10 @@ Service 负责业务判断，Mapper 负责可复用的数据访问意图。
 
 ## 11. 参考
 
-- API 契约：`docs/00-spec/05-api.md`
-- 数据库：`docs/00-spec/06-database.md`
-- migoo 框架：`docs/00-spec/11-migoo-framework.md`
-- 安全：`docs/00-spec/10-security.md`
+- API 契约：`docs/00-spec/20-contracts/01-api.md`
+- 数据库：`docs/00-spec/20-contracts/02-database.md`
+- migoo 框架：`docs/00-spec/10-engineering/03-migoo-framework.md`
+- 安全：`docs/00-spec/40-security/01-security.md`
 
 ---
 

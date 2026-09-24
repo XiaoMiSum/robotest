@@ -20,9 +20,9 @@
 
 ### 1.3 与其他规范的关系
 
-- 组件分层、依赖方向和 TypeScript 约束见 `docs/00-spec/03-frontend.md`。
-- 页面拆分、状态归属和小组件开发见 `docs/00-spec/19-page-development.md`。
-- 滚动容器和滚动条行为见 `docs/00-spec/13-scroll-container.md`。
+- 组件分层、依赖方向和 TypeScript 约束见 `docs/00-spec/10-engineering/01-frontend.md`。
+- 页面拆分、状态归属和小组件开发见 `docs/00-spec/50-ui/03-page-development.md`。
+- 滚动容器和滚动条行为见 `docs/00-spec/50-ui/01-scroll-container.md`。
 - 业务页面结构、文案和交互流程由对应的需求、设计和交互文档定义。
 - 设计令牌的具体值由设计系统事实源提供，本规范只规定令牌的类别和使用方式。
 
@@ -95,7 +95,7 @@
 - 同一层级的区域应保持对齐方式和间距节奏一致。
 - 横向布局应明确最小宽度、换行和伸缩规则；纵向布局应明确内容增长、收缩和滚动边界。
 - 不得使用大量无意义嵌套容器弥补布局问题；容器数量应服务于语义和布局职责。
-- 页面内容超出视口时，应由 `docs/00-spec/13-scroll-container.md` 规定的唯一滚动拥有者负责滚动。
+- 页面内容超出视口时，应由 `docs/00-spec/50-ui/01-scroll-container.md` 规定的唯一滚动拥有者负责滚动。
 
 结构示意：
 
@@ -292,10 +292,10 @@
 
 ## 8. 参考
 
-- 前端工程基础：`docs/00-spec/03-frontend.md`
-- 页面与组件开发：`docs/00-spec/19-page-development.md`
-- 滚动容器专项：`docs/00-spec/13-scroll-container.md`
-- 前端质量门禁：`docs/00-spec/07-quality.md`
+- 前端工程基础：`docs/00-spec/10-engineering/01-frontend.md`
+- 页面与组件开发：`docs/00-spec/50-ui/03-page-development.md`
+- 滚动容器专项：`docs/00-spec/50-ui/01-scroll-container.md`
+- 前端质量门禁：`docs/00-spec/30-quality-delivery/01-quality.md`
 
 ---
 
