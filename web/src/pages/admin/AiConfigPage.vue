@@ -212,7 +212,7 @@ onMounted(async () => {
 
 .ai-config-page__tabs {
   :deep(.el-tabs__header) {
-    margin-bottom: var(--block-gap) !important;
+    margin-bottom: var(--block-gap);
   }
 
   /* 条目两侧内缩 10px（对齐 demo .ai-tabs），底线仍通栏 */
