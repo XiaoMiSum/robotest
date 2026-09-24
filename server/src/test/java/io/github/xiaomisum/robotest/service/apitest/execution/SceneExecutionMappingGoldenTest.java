@@ -16,6 +16,8 @@ import io.github.xiaomisum.ryze.testelement.TestSuiteResult;
 import io.github.xiaomisum.ryze.testelement.sampler.DefaultSampleResult;
 import io.github.xiaomisum.ryze.testelement.sampler.SampleResult;
 import org.apache.hc.core5.http.message.BasicHeader;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import xyz.migoo.framework.common.util.JsonUtils;
 
@@ -28,6 +30,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TimeZone;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -49,6 +52,19 @@ class SceneExecutionMappingGoldenTest {
     private static final LocalDateTime T0 = LocalDateTime.of(2026, 9, 10, 10, 0);
     private static final LocalDateTime T1 = LocalDateTime.of(2026, 9, 10, 10, 0, 1);
     private static final int MAX_CHARS = new ApiTestProperties().getDebug().getMaxResponseBodyChars();
+    private static TimeZone defaultTz;
+
+    // toUtcIso 按系统时区换算，不固定时区则黄金文件绑定生成机器，跨机器必挂
+    @BeforeAll
+    static void pinTimeZone() {
+        defaultTz = TimeZone.getDefault();
+        TimeZone.setDefault(TimeZone.getTimeZone("Asia/Shanghai"));
+    }
+
+    @AfterAll
+    static void restoreTimeZone() {
+        TimeZone.setDefault(defaultTz);
+    }
 
     @Test
     void successSceneDatasetGolden() {
