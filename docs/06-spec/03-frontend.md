@@ -281,6 +281,7 @@ export function createUser(data: CreateUserDto): Promise<UserInfo> {
 - 禁止使用 `!important`。
 - 颜色、字体、间距使用 CSS 变量或 SCSS 变量，禁止硬编码。
 - BEM 命名：`.block__element--modifier`。
+- 页面分区滚动、滚动条视觉隐藏和 Element Plus 表格内部滚动遵循 `docs/06-spec/13-scroll-container.md`。
 
 ---
 

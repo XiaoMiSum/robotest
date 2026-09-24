@@ -37,6 +37,7 @@
 | 安全规范        | `docs/06-spec/10-security.md` | 认证 + 数据安全 + 防攻击 + 日志审计          |
 | migoo 框架集成规范 | `docs/06-spec/11-migoo-framework.md` | Starter 清单 + 响应/实体/分页/转换约定 |
 | 任务执行模板      | `docs/06-spec/12-task-template.md` | AI 任务八步流程（理解→评估→探查→方案→编码→验证→自检→交付） |
+| 前端滚动容器规范   | `docs/06-spec/13-scroll-container.md` | 内部滚动、滚动条视觉隐藏、表格滚动与响应式约束 |
 
 ---
 
@@ -109,7 +110,7 @@ robotest/
     │   ├── 01-readme.md       # 规范索引
     │   ├── 02-overview.md / 03-frontend.md / 04-backend.md / 05-api.md
     │   ├── 06-database.md / 07-quality.md / 08-workflow.md / 09-deploy.md
-    │   └── 10-security.md / 11-migoo-framework.md / 12-task-template.md
+    │   └── 10-security.md / 11-migoo-framework.md / 12-task-template.md / 13-scroll-container.md
     ├── 01-requirements/ 02-high-level-design/ 03-architecture/ 04-detailed-design/ 05-interaction-design/
     │                                                 # 业务设计文档（各含 01-readme 索引）
     └── 07-archive/            # 归档基线（只读）

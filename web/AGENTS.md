@@ -37,7 +37,7 @@ pnpm run lint && pnpm run typecheck && pnpm run test:unit -- --coverage
 - `composables/`：可复用组合式逻辑；组件本地 composable 封装状态与 services 调用
 - 脑图：自研 SVG/Canvas + Yjs CRDT 协同（详见 `docs/06-spec/05-api.md#4`）
 
-> 详细分层职责参见 `docs/06-spec/03-frontend.md`。
+> 详细分层职责参见 `docs/06-spec/03-frontend.md`；页面分区滚动与滚动条视觉隐藏参见 `docs/06-spec/13-scroll-container.md`。
 
 ## 核心约定
 
