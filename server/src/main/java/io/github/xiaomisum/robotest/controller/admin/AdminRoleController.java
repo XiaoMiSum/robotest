@@ -14,6 +14,8 @@ import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import xyz.migoo.framework.common.pojo.PageParam;
+import xyz.migoo.framework.common.pojo.PageResult;
 import xyz.migoo.framework.common.pojo.Result;
 
 import java.util.List;
@@ -60,8 +62,9 @@ public class AdminRoleController {
 
     @GetMapping("/{id}/workspace-users")
     @PreAuthorize("hasAuthority('role:view')")
-    public Result<List<RoleWorkspaceUserRespDTO>> getRoleWorkspaceUsers(@PathVariable UUID id) {
-        return Result.ok(roleService.getRoleWorkspaceUsers(id));
+    public Result<PageResult<RoleWorkspaceUserRespDTO>> getRoleWorkspaceUsers(
+            @PathVariable UUID id, @Valid PageParam pageParam) {
+        return Result.ok(roleService.getRoleWorkspaceUsers(id, pageParam));
     }
 
     @PostMapping("/{id}/users")

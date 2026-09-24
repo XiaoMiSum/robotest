@@ -20,11 +20,12 @@ const {
   wsRemoveTarget,
   wsRemoveSelected,
   isWorkspaceRole,
-  load,
   handleAddUsers,
   handleRemove,
   handleRemoveWorkspace,
   handleWsRemoveConfirm,
+  handlePageChange,
+  handlePageSizeChange,
 } = useRoleUsers(
   () => props.roleId,
   () => props.roleType,
@@ -36,7 +37,15 @@ const {
     <div class="role-users__body">
       <div class="role-users__scroll">
         <!-- 系统角色用户列表 -->
-        <el-table v-if="!isWorkspaceRole()" v-loading="loading" :data="users" row-key="id" border class="role-users__table">
+        <el-table
+          v-if="!isWorkspaceRole()"
+          v-loading="loading"
+          :data="users"
+          row-key="id"
+          border
+          height="100%"
+          class="role-users__table"
+        >
           <el-table-column prop="username" label="用户名" min-width="140" />
           <el-table-column prop="name" label="姓名" min-width="120" />
           <el-table-column prop="email" label="邮箱" min-width="200" show-overflow-tooltip />
@@ -63,7 +72,15 @@ const {
         </el-table>
 
         <!-- 空间角色用户列表 -->
-        <el-table v-else v-loading="loading" :data="workspaceUsers" row-key="userId" border class="role-users__table">
+        <el-table
+          v-else
+          v-loading="loading"
+          :data="workspaceUsers"
+          row-key="userId"
+          border
+          height="100%"
+          class="role-users__table"
+        >
           <el-table-column prop="username" label="用户名" min-width="140" />
           <el-table-column prop="name" label="姓名" min-width="120" />
           <el-table-column label="归属空间" min-width="200">
@@ -97,15 +114,15 @@ const {
       </div>
 
       <!-- 分页钉在 pane 底，滚动只作用于表体，避免长列表把分页顶出可视区 -->
-      <div v-if="!isWorkspaceRole()" class="role-users__pager">
+      <div class="role-users__pager">
         <el-pagination
           v-model:current-page="query.pageNo"
           v-model:page-size="query.pageSize"
           :total="total"
           :page-sizes="[20, 50, 100]"
           layout="total, sizes, prev, pager, next"
-          @current-change="load"
-          @size-change="load"
+          @current-change="handlePageChange"
+          @size-change="handlePageSizeChange"
         />
       </div>
     </div>
@@ -148,6 +165,8 @@ const {
   flex-direction: column;
   height: 100%;
   min-height: 0;
+  box-sizing: border-box;
+  padding: 12px 24px 16px;
 }
 
 .role-users__body {
@@ -161,15 +180,14 @@ const {
 .role-users__scroll {
   flex: 1;
   min-height: 0;
-  overflow-y: auto;
-  scrollbar-width: thin;
+  overflow: hidden;
 }
 
 .role-users__pager {
   flex-shrink: 0;
   display: flex;
   justify-content: flex-end;
-  padding: 14px 24px;
+  padding: 12px 0 0;
   border-top: 1px solid var(--color-neutral-100);
 }
 

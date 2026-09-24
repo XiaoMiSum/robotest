@@ -55,7 +55,7 @@ const spanMethod = ({ row, columnIndex }: { row: PermissionTableRow; columnIndex
 <template>
   <div class="perm-pane">
     <div v-loading="loading" class="perm-pane__body">
-      <el-table :data="rows" :span-method="spanMethod" border class="perm-table">
+      <el-table :data="rows" :span-method="spanMethod" border height="100%" class="perm-table">
         <el-table-column prop="topModule" label="一级模块" width="110" />
         <el-table-column prop="module" label="二级模块" width="130" />
         <el-table-column>
@@ -110,9 +110,8 @@ const spanMethod = ({ row, columnIndex }: { row: PermissionTableRow; columnIndex
 .perm-pane__body {
   flex: 1;
   min-height: 0;
-  overflow-y: auto;
-  /* Firefox 对齐全局 6px webkit 细滚动条规范 */
-  scrollbar-width: thin;
+  overflow: hidden;
+  box-sizing: border-box;
   padding: 12px 24px 16px;
 }
 

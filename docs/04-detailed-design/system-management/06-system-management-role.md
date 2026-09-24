@@ -76,18 +76,21 @@
 ### 1.6 获取角色关联用户
 
 - 系统角色：**复用用户分页接口** `GET /api/admin/users?roleId=:roleId`（可叠加 `keyword`、`status`、`pageNo`、`pageSize` 参数），响应为用户分页结构；按角色过滤时，每条记录的 `grantedAt` 取 `sys_user_role.updated_at`，未按角色过滤时为 `null`。
-- 工作空间角色：`GET /api/admin/roles/:id/workspace-users`，响应为按用户聚合的关联清单；`grantedAt` 取该用户各归属空间关联记录 `workspace_user.updated_at` 的最近值：
+- 工作空间角色：`GET /api/admin/roles/:id/workspace-users?pageNo=1&pageSize=20`，按用户聚合后返回分页结构；`grantedAt` 取该用户各归属空间关联记录 `workspace_user.updated_at` 的最近值：
 
   ```json
-  [
-    {
-      "userId": "uuid",
-      "username": "zhangsan",
-      "name": "张三",
-      "workspaces": [{ "workspaceId": "uuid", "workspaceName": "电商平台" }],
-      "grantedAt": "2026-05-20T08:30:00Z"
-    }
-  ]
+  {
+    "list": [
+      {
+        "userId": "uuid",
+        "username": "zhangsan",
+        "name": "张三",
+        "workspaces": [{ "workspaceId": "uuid", "workspaceName": "电商平台" }],
+        "grantedAt": "2026-05-20T08:30:00Z"
+      }
+    ],
+    "total": 1
+  }
   ```
 
 - **权限**：`role:view`
@@ -220,7 +223,7 @@
 
 ### 2.5 关联用户管理
 
-- 切换到“关联用户”Tab，系统角色调用 `GET /api/admin/users?roleId=:roleId` 分页加载关联用户列表；工作空间角色调用 `GET /api/admin/roles/:id/workspace-users` 聚合加载（见 1.6）。列表展示授权时间：系统角色取角色关联更新时间，工作空间角色取多空间关联记录中的最近更新时间。
+- 切换到“关联用户”Tab，系统角色调用 `GET /api/admin/users?roleId=:roleId` 分页加载关联用户列表；工作空间角色调用 `GET /api/admin/roles/:id/workspace-users?pageNo=&pageSize=` 聚合分页（见 1.6）。列表展示授权时间：系统角色取角色关联更新时间，工作空间角色取多空间关联记录中的最近更新时间。
 - 点击[添加用户]弹出搜索弹窗，支持多选和远程搜索活跃用户，系统角色提交后调用 `POST /api/admin/roles/:id/users` 批量插入 sys_user_role；工作空间角色调用 `POST /api/admin/roles/:id/workspace-users`（同时携带 `workspaceIds`）。
 - 每行用户有[移除]按钮，点击二次确认后系统角色调用 `DELETE /api/admin/roles/:id/users/:userId`，工作空间角色按空间行调用 `DELETE /api/admin/roles/:id/users/:userId/workspace/:workspaceId`。
 - 操作完成后刷新列表。
@@ -250,12 +253,12 @@ RoleManagementPage
 
 ### 2.7 PermissionTable组件
 
-使用 el-table 渲染权限点，列为“操作对象”和“权限点”。权限点列中每个权限渲染为 el-checkbox。系统预置角色的已有权限复选框添加 disabled 属性。
+使用 el-table 渲染权限点，列为“一级模块”“二级模块”和“权限点”。权限点列中每个权限渲染为 el-checkbox。系统预置角色的已有权限复选框添加 disabled 属性。表头固定，权限点较多时仅表格内容区内部滚动，不滚动外层面板。
 
 
 ### 2.8 RoleUsersTable组件
 
-系统角色表格展示关联用户（用户名、姓名、邮箱、状态、授权时间、操作）；工作空间角色表格展示用户名、姓名、归属空间、授权时间、操作。顶部[添加用户]按钮，每行[移除]按钮。
+系统角色表格展示关联用户（用户名、姓名、邮箱、状态、授权时间、操作）；工作空间角色表格展示用户名、姓名、归属空间、授权时间、操作。两类表格均采用服务端分页，表头固定、内容区内部滚动，分页条固定在表格底部。顶部[添加用户]按钮，每行[移除]按钮。
 
 
 ## 3. 关键组件交互
@@ -274,10 +277,12 @@ RoleManagementPage
 - **勾选状态**：根据角色已有权限 code 列表初始化复选框状态。用户勾选/取消时更新本地快照。
 - **撤销修改**：点击[撤销修改]按钮，恢复到上次保存时的权限快照。
 - **保存权限**：点击[保存权限]按钮，收集所有选中 code，调用更新角色权限接口。成功后更新本地快照，Toast提示。
+- **滚动区域**：表头固定，权限点内容在 el-table 内部滚动，外层 TabPane 不产生纵向滚动条。
 
 ### 3.3 关联用户组件（RoleUsersTable）
 
-- **数据源**：系统角色走 `GET /api/admin/users?roleId=:roleId` 分页加载；工作空间角色走 `GET /api/admin/roles/:id/workspace-users`（见 1.6）。授权时间按接口返回的 `grantedAt` 展示。
+- **数据源**：系统角色走 `GET /api/admin/users?roleId=:roleId` 分页加载；工作空间角色走 `GET /api/admin/roles/:id/workspace-users?pageNo=&pageSize=` 分页加载（见 1.6）。授权时间按接口返回的 `grantedAt` 展示。
+- **分页**：两类角色默认每页 20 条，支持切换 20 / 50 / 100 条；切换角色时回到第 1 页。
 - **添加用户**：点击[添加用户]弹出搜索弹窗，支持多选和远程搜索活跃用户，提交后调用对应批量添加接口（见 1.7、1.11）。
 - **移除用户**：每行[移除]按钮，二次确认后调用移除接口（见 1.8、1.12），刷新列表。
 

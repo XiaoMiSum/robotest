@@ -7,6 +7,7 @@ import io.github.xiaomisum.robotest.model.dto.request.admin.RolePermissionsUpdat
 import io.github.xiaomisum.robotest.model.dto.request.admin.RoleUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.admin.PermissionTableRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.admin.RoleSimpleRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.admin.RoleWorkspaceUserRespDTO;
 import io.github.xiaomisum.robotest.model.entity.admin.SysPermission;
 import io.github.xiaomisum.robotest.model.entity.admin.SysRole;
 import io.github.xiaomisum.robotest.model.entity.admin.SysUser;
@@ -27,6 +28,8 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import xyz.migoo.framework.common.exception.ServiceException;
+import xyz.migoo.framework.common.pojo.PageParam;
+import xyz.migoo.framework.common.pojo.PageResult;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -150,7 +153,8 @@ class RoleServiceImplTest {
         user.setId(userId);
         user.setUsername("tester");
         user.setName("测试员");
-        when(userMapper.listByIds(any())).thenReturn(List.of(user));
+        when(userMapper.findPage(isNull(), isNull(), eq(List.of(userId)), eq(1), eq(20)))
+                .thenReturn(new PageResult<>(List.of(user), 1L));
 
         Workspace wsEntity1 = new Workspace();
         wsEntity1.setId(ws1);
@@ -160,11 +164,73 @@ class RoleServiceImplTest {
         wsEntity2.setName("空间二");
         when(workspaceMapper.listByIds(any())).thenReturn(List.of(wsEntity1, wsEntity2));
 
-        var result = roleService.getRoleWorkspaceUsers(roleId);
+        PageParam pageParam = new PageParam();
+        pageParam.setPageNo(1);
+        pageParam.setPageSize(20);
+        var result = roleService.getRoleWorkspaceUsers(roleId, pageParam);
 
-        assertEquals(1, result.size());
-        assertEquals(2, result.get(0).getWorkspaces().size());
-        assertEquals(later, result.get(0).getGrantedAt());
+        assertEquals(1L, result.getTotal());
+        assertEquals(1, result.getList().size());
+        assertEquals(2, result.getList().get(0).getWorkspaces().size());
+        assertEquals(later, result.getList().get(0).getGrantedAt());
+    }
+
+    @Test
+    void getRoleWorkspaceUsers_empty_returnsEmptyPage() {
+        SysRole role = new SysRole();
+        role.setId(roleId);
+        when(roleMapper.selectById(roleId)).thenReturn(role);
+        doReturn(List.of()).when(workspaceUserMapper)
+                .selectList(any(SFunction.class), eq(roleId));
+
+        PageParam pageParam = new PageParam();
+        PageResult<RoleWorkspaceUserRespDTO> result = roleService.getRoleWorkspaceUsers(roleId, pageParam);
+
+        assertEquals(0L, result.getTotal());
+        assertTrue(result.getList().isEmpty());
+        verify(userMapper, never()).findPage(any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void getRoleWorkspaceUsers_secondPage_aggregatesOnlyPageUsers() {
+        SysRole role = new SysRole();
+        role.setId(roleId);
+        when(roleMapper.selectById(roleId)).thenReturn(role);
+
+        UUID secondUserId = UUID.fromString("00000000-0000-0000-0000-000000000022");
+        UUID workspaceId = UUID.fromString("00000000-0000-0000-0000-000000000011");
+        LocalDateTime grantedAt = LocalDateTime.of(2026, 3, 1, 10, 0);
+        WorkspaceUser firstMembership = new WorkspaceUser();
+        firstMembership.setUserId(userId);
+        firstMembership.setWorkspaceId(workspaceId);
+        WorkspaceUser secondMembership = new WorkspaceUser();
+        secondMembership.setUserId(secondUserId);
+        secondMembership.setWorkspaceId(workspaceId);
+        secondMembership.setUpdatedAt(grantedAt);
+        doReturn(List.of(firstMembership, secondMembership)).when(workspaceUserMapper)
+                .selectList(any(SFunction.class), eq(roleId));
+
+        SysUser secondUser = new SysUser();
+        secondUser.setId(secondUserId);
+        secondUser.setUsername("second");
+        secondUser.setName("第二页用户");
+        when(userMapper.findPage(isNull(), isNull(), eq(List.of(userId, secondUserId)), eq(2), eq(1)))
+                .thenReturn(new PageResult<>(List.of(secondUser), 2L));
+
+        Workspace workspace = new Workspace();
+        workspace.setId(workspaceId);
+        workspace.setName("空间一");
+        when(workspaceMapper.listByIds(List.of(workspaceId))).thenReturn(List.of(workspace));
+
+        PageParam pageParam = new PageParam();
+        pageParam.setPageNo(2);
+        pageParam.setPageSize(1);
+        PageResult<RoleWorkspaceUserRespDTO> result = roleService.getRoleWorkspaceUsers(roleId, pageParam);
+
+        assertEquals(2L, result.getTotal());
+        assertEquals(1, result.getList().size());
+        assertEquals(secondUserId, result.getList().get(0).getUserId());
+        assertEquals(grantedAt, result.getList().get(0).getGrantedAt());
     }
 
     @Test
