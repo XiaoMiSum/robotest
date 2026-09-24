@@ -22,7 +22,11 @@ public class WebMvcConfig implements WebMvcConfigurer {
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(contextHeaderInterceptor)
-                .addPathPatterns("/api/workspace/**", "/api/project/**", "/api/auth/permissions")
+                .addPathPatterns(
+                        "/api/workspaces/active",
+                        "/api/workspace/**",
+                        "/api/project/**",
+                        "/api/auth/permissions")
                 .excludePathPatterns(
                         "/api/admin/**",
                         "/api/auth/login",
@@ -36,7 +40,10 @@ public class WebMvcConfig implements WebMvcConfigurer {
                         "/debug/**"
                 );
         registry.addInterceptor(workspaceRoleInterceptor)
-                .addPathPatterns("/api/workspace/**", "/api/project/**", "/api/auth/permissions")
+                .addPathPatterns(
+                        "/api/workspace/**",
+                        "/api/project/**",
+                        "/api/auth/permissions")
                 .excludePathPatterns(
                         "/api/admin/**",
                         "/api/auth/login",

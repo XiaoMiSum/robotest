@@ -24,4 +24,5 @@ public class WorkspaceUser extends BaseUuidDO<WorkspaceUser> {
     @TableField(typeHandler = UUIDTypeHandler.class)
     private UUID defaultProjectId;
     private LocalDateTime joinedAt;
+    private LocalDateTime lastAccessedAt;
 }

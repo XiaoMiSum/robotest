@@ -12,10 +12,13 @@ public class WorkspaceMyRespDTO {
     private String name;
     private String description;
     private String workspaceRole;
+    private String workspaceRoleName;
     private UUID defaultProjectId;
     private String defaultProjectName;
     private Long memberCount;
     private Long projectCount;
+    private Long testCaseCount;
     private String status;
     private LocalDateTime createdAt;
+    private LocalDateTime lastAccessedAt;
 }

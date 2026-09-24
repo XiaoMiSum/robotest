@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -23,8 +24,8 @@ import static org.mockito.Mockito.when;
 /**
  * C4 上下文头唯一解析点特征测试（02 §4 步骤 1、§5 验收：上下文解析覆盖全部入口 Controller）。
  *
- * <p>冻结行为：业务路径（/api/workspace/**、/api/project/**）缺失/非法上下文头即抛 4xx 业务异常；
- * 豁免路径与匿名请求不拦截；合法头注入 LoginUser.activeWorkspaceId/activeProjectId。</p>
+ * <p>冻结行为：业务路径（/api/workspaces/active、/api/workspace/**、/api/project/**）缺失/非法上下文头即抛 4xx 业务异常；
+ * /api/workspaces 列表路径不强制空间头；豁免路径与匿名请求不拦截；合法头注入 LoginUser.activeWorkspaceId/activeProjectId。</p>
  */
 class ContextHeaderInterceptorTest {
 
@@ -120,6 +121,88 @@ class ContextHeaderInterceptorTest {
         stubPath("/api/project/bugs");
         when(request.getHeader("X-Active-Workspace")).thenReturn("not-a-uuid");
         when(request.getHeader("X-Active-Project")).thenReturn(UUID.randomUUID().toString());
+
+        ServiceException e = seeResultThrow();
+        assertEquals(1000002009, e.getCode());
+    }
+
+    // ========== 我的空间路径 ==========
+
+    @Test
+    void workspaceSelectionPath_withoutHeader_allowed() {
+        stubPath("/api/workspaces");
+        when(request.getHeader("X-Active-Workspace")).thenReturn(null);
+
+        boolean proceed = interceptor.preHandle(request, response, new Object());
+
+        assertTrue(proceed);
+        assertNull(loginUser.getActiveWorkspaceId());
+    }
+
+    @Test
+    void workspaceSelectionPath_withHeader_isOptionalButParsed() {
+        stubPath("/api/workspaces");
+        UUID wsId = UUID.randomUUID();
+        when(request.getHeader("X-Active-Workspace")).thenReturn(wsId.toString());
+
+        boolean proceed = interceptor.preHandle(request, response, new Object());
+
+        assertTrue(proceed);
+        assertEquals(wsId, loginUser.getActiveWorkspaceId());
+    }
+
+    @Test
+    void activeWorkspacePath_missingWorkspaceHeader_rejects() {
+        stubPath("/api/workspaces/active");
+        when(request.getHeader("X-Active-Workspace")).thenReturn(null);
+
+        ServiceException e = seeResultThrow();
+        assertEquals(1000002008, e.getCode());
+    }
+
+    @Test
+    void activeWorkspacePath_parsesWorkspaceHeader() {
+        stubPath("/api/workspaces/active");
+        UUID wsId = UUID.randomUUID();
+        when(request.getHeader("X-Active-Workspace")).thenReturn(wsId.toString());
+
+        boolean proceed = interceptor.preHandle(request, response, new Object());
+
+        assertTrue(proceed);
+        assertEquals(wsId, loginUser.getActiveWorkspaceId());
+    }
+
+    @Test
+    void activeWorkspacePath_doesNotRequireProjectHeader() {
+        stubPath("/api/workspaces/active");
+        UUID wsId = UUID.randomUUID();
+        when(request.getHeader("X-Active-Workspace")).thenReturn(wsId.toString());
+        when(request.getHeader("X-Active-Project")).thenReturn(null);
+
+        boolean proceed = interceptor.preHandle(request, response, new Object());
+
+        assertTrue(proceed);
+        assertEquals(wsId, loginUser.getActiveWorkspaceId());
+        assertNull(loginUser.getActiveProjectId());
+    }
+
+    @Test
+    void activeWorkspacePath_ignoresProjectHeader() {
+        stubPath("/api/workspaces/active");
+        UUID wsId = UUID.randomUUID();
+        when(request.getHeader("X-Active-Workspace")).thenReturn(wsId.toString());
+        when(request.getHeader("X-Active-Project")).thenReturn("not-a-uuid");
+
+        boolean proceed = interceptor.preHandle(request, response, new Object());
+
+        assertTrue(proceed);
+        assertEquals(wsId, loginUser.getActiveWorkspaceId());
+    }
+
+    @Test
+    void activeWorkspacePath_invalidWorkspaceHeader_rejects() {
+        stubPath("/api/workspaces/active");
+        when(request.getHeader("X-Active-Workspace")).thenReturn("not-a-uuid");
 
         ServiceException e = seeResultThrow();
         assertEquals(1000002009, e.getCode());
