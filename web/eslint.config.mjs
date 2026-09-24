@@ -3,6 +3,8 @@ import pluginVue from 'eslint-plugin-vue'
 import globals from 'globals'
 import tseslint from 'typescript-eslint'
 import prettier from 'eslint-config-prettier'
+import noRestrictedLayerImports from './eslint-rules/no-restricted-layer-imports.mjs'
+import { layerImportBaseline } from './eslint-rules/layer-import-baseline.mjs'
 
 export default tseslint.config(
   js.configs.recommended,
@@ -33,99 +35,36 @@ export default tseslint.config(
       'vue/no-mutating-props': ['error', { shallowOnly: true }],
     },
   },
-  // 层级门禁：依赖方向 pages → components → composables → services/stores，详见 docs/00-spec/10-engineering/01-frontend.md 3.4
   {
-    files: ['src/components/**/*.{vue,ts}'],
+    files: ['**/*.{ts,tsx,vue}'],
     rules: {
-      'no-restricted-imports': [
+      '@typescript-eslint/no-explicit-any': 'error',
+      '@typescript-eslint/ban-ts-comment': [
         'error',
         {
-          patterns: [
-            {
-              group: ['@/services', '@/services/*', '@/services/**'],
-              message: '组件不直接 import services：API 调用下沉到组件本地 composable（docs/00-spec/10-engineering/01-frontend.md 3.4）',
-            },
-            {
-              group: ['@/pages', '@/pages/*', '@/pages/**'],
-              message: '组件不得依赖 pages（docs/00-spec/10-engineering/01-frontend.md 3.4）',
-            },
-          ],
+          'ts-expect-error': 'allow-with-description',
+          'ts-ignore': true,
+          'ts-nocheck': true,
         },
       ],
     },
   },
+  // 自定义规则同时解析别名和相对路径；基线仅按“文件 + 导入源”精确放行并设置失效日期
   {
-    files: ['src/composables/**/*.ts'],
-    rules: {
-      'no-restricted-imports': [
-        'error',
-        {
-          patterns: [
-            {
-              group: ['@/pages', '@/pages/*', '@/pages/**'],
-              message: 'composables 不得依赖 pages（docs/00-spec/10-engineering/01-frontend.md 3.4）',
-            },
-          ],
+    files: ['src/**/*.{ts,tsx,vue}'],
+    plugins: {
+      architecture: {
+        rules: {
+          'no-restricted-layer-imports': noRestrictedLayerImports,
         },
-      ],
+      },
+    },
+    rules: {
+      'architecture/no-restricted-layer-imports': ['error', { baseline: layerImportBaseline }],
     },
   },
   {
-    files: ['src/services/**/*.ts'],
-    rules: {
-      'no-restricted-imports': [
-        'error',
-        {
-          patterns: [
-            {
-              group: [
-                '@/components',
-                '@/components/*',
-                '@/components/**',
-                '@/pages',
-                '@/pages/*',
-                '@/pages/**',
-                '@/composables',
-                '@/composables/*',
-                '@/composables/**',
-                '@/stores',
-                '@/stores/*',
-                '@/stores/**',
-              ],
-              message: 'services 不得依赖上层模块（docs/00-spec/10-engineering/01-frontend.md 3.4）',
-            },
-          ],
-        },
-      ],
-    },
-  },
-  {
-    files: ['src/stores/**/*.ts'],
-    rules: {
-      'no-restricted-imports': [
-        'error',
-        {
-          patterns: [
-            {
-              group: [
-                '@/components',
-                '@/components/*',
-                '@/components/**',
-                '@/pages',
-                '@/pages/*',
-                '@/pages/**',
-                '@/composables',
-                '@/composables/*',
-                '@/composables/**',
-              ],
-              message: 'stores 不得依赖 components/pages/composables（docs/00-spec/10-engineering/01-frontend.md 3.4）',
-            },
-          ],
-        },
-      ],
-    },
-  },
-  {
-    ignores: ['dist', 'node_modules', '*.d.ts'],
+    // 这两个声明文件由 Vite 插件生成且会被重写；其余 .d.ts 继续纳入 C1 检查
+    ignores: ['dist/**', 'node_modules/**', 'src/auto-imports.d.ts', 'src/components.d.ts'],
   },
 )
