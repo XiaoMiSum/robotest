@@ -1,4 +1,4 @@
-# 软件测试平台——后端工程规范
+# 后端工程规范
 
 **文档版本**：V1.0
 **日期**：2026-09-24
@@ -57,13 +57,13 @@ Controller 只负责：
 @RestController
 @RequestMapping("/api/resources")
 @RequiredArgsConstructor
-public class AdminUserController {
-    private final AdminUserService adminUserService;
+public class ResourceController {
+    private final ResourceService resourceService;
 
     @GetMapping
-    public Result<PageResult<UserRespDTO>> list(
-            @Valid UserQueryReqDTO query) {
-        return Result.ok(adminUserService.list(query));
+    public Result<PageResult<ResourceRespDTO>> list(
+            @Valid ResourceQueryReqDTO query) {
+        return Result.ok(resourceService.list(query));
     }
 }
 ```
@@ -86,7 +86,7 @@ Service 负责：
 - Entity 到响应 DTO 的组装；
 - 领域异常的触发。
 
-Service 必须使用统一资源 Guard 校验资源归属和租户边界，不能只依赖前端路由或上下文 Header 的存在。
+Service 必须使用统一资源 Guard 校验资源归属和租户边界，不能只依赖前端路由或客户端声明。
 
 ### 3.3 Mapper
 
@@ -104,13 +104,13 @@ Mapper 负责：
 
 | 要素 | 规范 | 示例 |
 | --- | --- | --- |
-| Controller | `XxxController` | `AdminUserController` |
-| Service | `XxxService` | `AdminUserService` |
-| Service 实现 | `XxxServiceImpl` | `AdminUserServiceImpl` |
-| Mapper | `XxxMapper` | `SysUserMapper` |
-| Entity | 与表或领域资源对应 | `SysUser` |
+| Controller | `XxxController` | `ResourceController` |
+| Service | `XxxService` | `ResourceService` |
+| Service 实现 | `XxxServiceImpl` | `ResourceServiceImpl` |
+| Mapper | `XxxMapper` | `ResourceMapper` |
+| Entity | 与表或领域资源对应 | `Resource` |
 | 请求 DTO | `XxxCreateReqDTO`、`XxxUpdateReqDTO`、`XxxQueryReqDTO` | `UserCreateReqDTO` |
-| 响应 DTO | `XxxRespDTO`、`XxxDetailRespDTO` | `UserRespDTO` |
+| 响应 DTO | `XxxRespDTO`、`XxxDetailRespDTO` | `ResourceRespDTO` |
 | 错误码 | `ErrorCodeConstants` | `USER_NOT_FOUND` |
 | 配置 | `XxxConfig` | `SecurityConfig` |
 | 转换器 | `XxxConvertMapper` | `UserConvertMapper` |
@@ -123,7 +123,7 @@ Entity 使用 MyBatis-Plus 注解和 migoo 基类：
 
 ```java
 @TableName("sys_user")
-public class SysUser extends BaseUuidDO<SysUser> {
+public class Resource extends BaseUuidDO<Resource> {
     private String username;
     private String passwordHash;
 }
@@ -146,7 +146,7 @@ public class SysUser extends BaseUuidDO<SysUser> {
 转换器统一放在：
 
 ```text
-server/src/main/java/io/github/xiaomisum/robotest/model/convert/
+<backend-source-root>/model/convert/
 ```
 
 规则：
@@ -160,7 +160,7 @@ server/src/main/java/io/github/xiaomisum/robotest/model/convert/
 ```java
 @Mapper(componentModel = "spring")
 public interface UserConvertMapper {
-    UserRespDTO toRespDTO(SysUser entity);
+    ResourceRespDTO toRespDTO(Resource entity);
 }
 ```
 
@@ -168,7 +168,7 @@ public interface UserConvertMapper {
 
 ## 6. 响应、异常与分页
 
-本项目不再维护第二套 `ApiResponse`、`PageResult` 或全局异常处理器。
+工程不再维护第二套 `ApiResponse`、`PageResult` 或全局异常处理器。
 
 - Controller 返回 `Result<T>`。
 - 业务异常使用 `ServiceExceptionUtil.get(ErrorCodeConstants.X)`。
@@ -206,17 +206,17 @@ public interface UserConvertMapper {
 查询结果只用于存在性、权限和状态校验，不得直接作为 `updateById` 载体：
 
 ```java
-SysUser existing = sysUserMapper.selectById(id);
+Resource existing = resourceMapper.selectById(id);
 if (existing == null) {
     throw ServiceExceptionUtil.get(ErrorCodeConstants.USER_NOT_FOUND);
 }
 
-SysUser update = new SysUser();
+Resource update = new Resource();
 update.setId(id);
 if (StringUtils.hasText(reqDTO.getName())) {
     update.setName(reqDTO.getName());
 }
-sysUserMapper.updateById(update);
+resourceMapper.updateById(update);
 ```
 
 ### 8.2 显式置空
