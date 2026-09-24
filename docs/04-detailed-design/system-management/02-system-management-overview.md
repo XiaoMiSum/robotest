@@ -181,8 +181,8 @@ CREATE INDEX idx_ws_workspace_created_by ON ws_workspace (created_by);
 - 基础路径：`/api/admin`（管理端）、`/api/auth`（认证）；仅需 `Authorization` 请求头（系统管理域无上下文头，C4）。
 - 认证：`Authorization: Bearer <token>`
 - 命名风格：camelCase
-- 分页：`page`、`pageSize` → `{ records: [], total: number }`
-- 通用响应：`{ "code": 200, "message": "success", "data": {} }`；响应沿用平台通用 `Result<T>`，除特别说明（展示完整报文）外，接口响应示例仅展示 `data` 字段内容。
+- 分页：`pageNo`、`pageSize` → `{ list: [], total: number }`
+- 通用响应：`{ "code": 200, "msg": "success", "data": {} }`；响应沿用平台通用 `Result<T>`，除特别说明（展示完整报文）外，接口响应示例仅展示 `data` 字段内容。
 - 数据概览接口与用户/空间列表一致，**不设独立权限点**（进入 `/admin` 即可见菜单，路由守卫 `requiresAdmin` 把关）。
 
 

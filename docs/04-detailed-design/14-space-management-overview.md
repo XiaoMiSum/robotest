@@ -103,8 +103,8 @@
 ### 2.2 通用约定
 
 - 命名风格：camelCase
-- 分页：`page`、`pageSize` → `{ records: [], total: number }`
-- 通用响应：`{ "code": 200, "message": "success", "data": {} }`
+- 分页：`pageNo`、`pageSize` → `{ list: [], total: number }`
+- 通用响应：`{ "code": 200, "msg": "success", "data": {} }`
 
 
 ### 2.3 权限矩阵

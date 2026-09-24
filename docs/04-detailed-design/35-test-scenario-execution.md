@@ -115,13 +115,13 @@
 
 ### 2.1 查询执行历史
 
-- **路径**：`GET /api/project/scenes/:sceneId/executions?page=1&pageSize=20`
+- **路径**：`GET /api/project/scenes/:sceneId/executions?pageNo=1&pageSize=20`
 - **数据来源**：`api_execution_record`（见《API 测试基础设施详细设计说明书》2.1.3）。
 - **响应**：
 
 ```json
 {
-  "records": [
+  "list": [
     {
       "id": "018f...",
       "status": "success",
@@ -138,13 +138,13 @@
 
 ### 2.2 查询变更历史
 
-- **路径**：`GET /api/project/scenes/:sceneId/change-history?page=1&pageSize=20`
+- **路径**：`GET /api/project/scenes/:sceneId/change-history?pageNo=1&pageSize=20`
 - **数据来源**：`api_change_history`（见《API 测试基础设施详细设计说明书》2.1.2，只读追溯，不提供编辑/删除）。
 - **响应**：
 
 ```json
 {
-  "records": [
+  "list": [
     {
       "id": "018f...",
       "version": 3,

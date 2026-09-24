@@ -24,7 +24,7 @@
   
   ```json
   {
-  "records": [
+  "list": [
     {
       "id": 1,
       "name": "电商平台测试",
@@ -75,13 +75,13 @@
 
 - **路径**：`GET /api/admin/workspaces/:id/members`
 
-- **请求参数**：`page`、`pageSize`
+- **请求参数**：`pageNo`、`pageSize`
 
 - **响应**：
   
   ```json
   {
-  "records": [
+  "list": [
     {
       "userId": 1,
       "username": "zhangsan",
