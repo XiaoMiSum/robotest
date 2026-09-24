@@ -41,7 +41,7 @@
 | 编号 | 规则摘要 | 主规范 | 检查方式 |
 | --- | --- | --- | --- |
 | C1 | 前端禁止 `any`，优先使用 `unknown`、类型守卫或明确类型 | `03-frontend.md` | ESLint、TypeScript、代码审查 |
-| C2 | Controller 只负责路由、参数校验和响应包装，不承载业务逻辑 | `04-backend.md` | ArchUnit、代码审查 |
+| C2 | Controller 只负责路由、参数校验和响应包装，不承载业务逻辑 | `04-backend.md` | 代码审查、依赖检查 |
 | C3 | 业务异常统一通过 migoo 的 `ErrorCode` 与 `ServiceExceptionUtil` 抛出 | `11-migoo-framework.md` | 编译、单元测试、代码审查 |
 | C4 | 活动 workspace/project 上下文只通过请求头传递 | `05-api.md` | 请求检查、代码审查 |
 | C5 | 业务表具备 `id`、`created_at`、`updated_at`、`is_deleted`，禁止物理外键 | `06-database.md` | DDL 检查、数据库审查 |
@@ -61,7 +61,7 @@
 | --- | --- | --- |
 | 治理 | `01-readme.md`、`02-overview.md` | 索引、规则登记、冲突处理 |
 | 端级工程 | `03-frontend.md`、`04-backend.md` | 前端和后端实现边界 |
-| 跨端契约 | `05-api.md` | HTTP、响应、分页、错误码、实时协议 |
+| 跨端契约 | `05-api.md`、`15-realtime-protocol.md` | HTTP、响应、分页、错误码、通用实时协议 |
 | 数据 | `06-database.md` | PostgreSQL 主规范、MySQL 兼容说明、迁移和索引 |
 | 质量与交付 | `07-quality.md`、`08-workflow.md`、`09-deploy.md` | 测试门禁、Git/PR、构建部署 |
 | 安全与框架 | `10-security.md`、`11-migoo-framework.md` | 安全基线、框架兼容性和差异 |

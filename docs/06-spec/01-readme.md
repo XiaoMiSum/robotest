@@ -18,7 +18,8 @@
 4. `07-quality.md` / `08-workflow.md` / `09-deploy.md`：确认质量、协作和交付门禁。
 5. `10-security.md` / `11-migoo-framework.md`：确认安全基线和框架约束。
 6. `12-task-template.md` / `13-scroll-container.md`：按任务或专项需要查阅。
-7. `14-improvement-backlog.md`：查看尚未执行的规范、代码、配置和交付任务。
+7. `15-realtime-protocol.md`：查看通用 WebSocket 实时通信协议。
+8. `14-improvement-backlog.md`：查看尚未执行的规范、代码、配置和交付任务。
 
 ## 3. 文档清单
 
@@ -37,6 +38,7 @@
 | [12-task-template](12-task-template.md) | 流程模板 | AI / 开发任务 | V1.0 | 2026-09-24 | 已发布 |
 | [13-scroll-container](13-scroll-container.md) | 专项规范 | 前端滚动容器 | V1.0 | 2026-09-24 | 已发布 |
 | [14-improvement-backlog](14-improvement-backlog.md) | 待办清单 | 未执行的规范、代码、配置和交付任务 | V1.0 | 2026-09-24 | 起草中 |
+| [15-realtime-protocol](15-realtime-protocol.md) | 实时协议 | 通用 WebSocket API | V1.0 | 2026-09-24 | 已发布 |
 
 ## 4. 当前统一决策
 
@@ -53,6 +55,11 @@
 | MapStruct | 转换器统一放在 `model/convert/` | `04-backend.md` / `11-migoo-framework.md` |
 | 上下文 | `X-Active-Workspace` / `X-Active-Project` 仅通过请求头传递 | `05-api.md` / `10-security.md` |
 | 规范冲突 | 当前实现与目标规范冲突时暂停，由用户确认后再修改 | `02-overview.md` |
+| Git 分支 | 保留 `master`，以 `develop` 管理日常集成 | `08-workflow.md` |
+| WebSocket | 使用短时、一次性连接 Ticket；实时协议独立成文 | `15-realtime-protocol.md` |
+| MapStruct 实例化 | 使用 Spring Bean 注入，不使用静态 `INSTANCE` | `04-backend.md` / `11-migoo-framework.md` |
+| Wrapper 边界 | Service 允许简单动态条件，复杂/复用查询下沉 Mapper | `04-backend.md` |
+| 静态分析 | 当前不引入 SpotBugs、ArchUnit、JaCoCo | `07-quality.md` |
 
 ## 5. 文档权威边界
 

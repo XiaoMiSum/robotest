@@ -8,29 +8,29 @@
 
 ## 1. 分支模型
 
-> 本节描述目标分支策略。若当前仓库仍使用 `master` 或其他分支名称，必须先由用户确认迁移方案，不能直接重命名或改变远端保护规则。
+> 当前项目保留 `master` 作为生产主分支，不在本阶段迁移为 `main`。日常集成和功能分支按以下模型管理。
 
 ```text
-main       ←──────────────────────────────
-             ↑ PR
-develop     ←──────────────┬──────────────
-             ↑ PR          ↑ PR
-feature/*   fix/*          release/*
-hotfix/* ────────────────────┘
+master      ←──────────────────────────────
+               ↑ PR
+develop      ←──────────────┬──────────────
+               ↑ PR          ↑ PR
+feature/*    fix/*          release/*
+hotfix/* ─────────────────────┘
 ```
 
 | 分支 | 用途 | 来源 | 目标 |
 | --- | --- | --- | --- |
-| `main` | 生产就绪版本 | `develop` 或 hotfix | 发布 |
-| `develop` | 日常集成 | `main` | `feature/*` / `fix/*` |
+| `master` | 生产就绪版本 | `develop` 或 hotfix | 发布 |
+| `develop` | 日常集成 | `master` | `feature/*` / `fix/*` |
 | `feature/*` | 新功能 | `develop` | `develop` |
 | `fix/*` | 常规缺陷 | `develop` | `develop` |
-| `release/*` | 发布准备 | `develop` | `main`、`develop` |
-| `hotfix/*` | 生产紧急修复 | `main` | `main`、`develop` |
+| `release/*` | 发布准备 | `develop` | `master`、`develop` |
+| `hotfix/*` | 生产紧急修复 | `master` | `master`、`develop` |
 
-- 禁止直接向 `main` 和 `develop` 推送代码。
+- 禁止直接向 `master` 和 `develop` 推送代码。
 - 所有合并通过 PR 完成。
-- `main` 和 `develop` 必须配置分支保护和必需检查。
+- `master` 和 `develop` 必须配置分支保护和必需检查。
 - 发布和 hotfix 必须同步回 `develop`，避免修复丢失。
 
 ## 2. 提交规范

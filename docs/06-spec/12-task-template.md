@@ -183,7 +183,7 @@ bash scripts/validate.sh --all
 - [ ] 关键 API 手工验证
 - [ ] 登录和 Token 流程验证
 - [ ] workspace/project 越权验证
-- [ ] WebSocket/Yjs 关键流程验证
+- [ ] WebSocket 实时消息关键流程验证
 - [ ] 数据库迁移和回滚验证
 - [ ] 部署后健康检查（如适用）
 
