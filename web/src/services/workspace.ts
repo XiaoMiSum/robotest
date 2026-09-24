@@ -9,7 +9,8 @@ import type {
   MemberAddResult,
   PageResult,
   Project,
-  ProjectStatus,
+  ProjectListQuery,
+  ProjectStatusCounts,
   WorkspaceContext,
   WorkspaceItem,
   WorkspaceListQuery,
@@ -120,13 +121,14 @@ export function joinByInvitation(data: {
 
 // ==================== 项目管理（/api/workspace/projects） ====================
 
-export function fetchProjects(params: {
-  keyword?: string
-  status?: ProjectStatus | ''
-  pageNo?: number
-  pageSize?: number
-}): Promise<PageResult<Project>> {
+export function fetchProjects(params: ProjectListQuery = {}): Promise<PageResult<Project>> {
   return get('/workspace/projects', { ...params })
+}
+
+export function fetchProjectStatusCounts(
+  params: Pick<ProjectListQuery, 'keyword'> = {},
+): Promise<ProjectStatusCounts> {
+  return get('/workspace/projects/counts', { ...params })
 }
 
 export function createProject(data: {

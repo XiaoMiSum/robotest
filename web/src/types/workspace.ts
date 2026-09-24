@@ -19,16 +19,30 @@ export interface WorkspaceListQuery {
   pageSize?: number
 }
 
+/** 项目状态数量 */
+export interface ProjectStatusCounts {
+  active: number
+  archived: number
+}
+
+/** 项目列表查询参数 */
+export interface ProjectListQuery {
+  keyword?: string
+  status?: ProjectStatus
+  pageNo?: number
+  pageSize?: number
+}
+
 /** 项目（列表项 / 详情） */
 export interface Project {
   id: string
   name: string
-  description: string
+  description: string | null
   status: ProjectStatus
   isDefault: boolean
   startTime: string | null
   endTime: string | null
-  createdBy: { id: string; name: string }
+  createdBy: { id: string; name: string } | null
   createdAt: string
 }
 

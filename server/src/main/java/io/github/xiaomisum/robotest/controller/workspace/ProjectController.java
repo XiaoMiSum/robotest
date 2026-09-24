@@ -5,6 +5,7 @@ import io.github.xiaomisum.robotest.model.dto.request.workspace.ProjectArchiveRe
 import io.github.xiaomisum.robotest.model.dto.request.workspace.ProjectCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.workspace.ProjectUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.workspace.ProjectRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.workspace.ProjectStatusCountsDTO;
 import io.github.xiaomisum.robotest.service.project.ProjectService;
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
@@ -33,6 +34,14 @@ public class ProjectController {
         PageResult<ProjectRespDTO> result = projectService.getProjectPage(
                 loginUser.getActiveWorkspaceId(), loginUser.getId(), keyword, status, pageNo, pageSize);
         return Result.ok(result);
+    }
+
+    @GetMapping("/counts")
+    public Result<ProjectStatusCountsDTO> getProjectStatusCounts(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @RequestParam(required = false) String keyword) {
+        return Result.ok(projectService.getProjectStatusCounts(
+                loginUser.getActiveWorkspaceId(), loginUser.getId(), keyword));
     }
 
     @PostMapping
