@@ -17,15 +17,13 @@ import {
   createInvitation,
   fetchInvitationCopyLink,
   fetchInvitations,
+  fetchMemberCandidates,
   fetchMembers,
+  fetchWorkspaceRoles,
   removeMember,
   revokeInvitation,
   updateMemberRole,
 } from '@/services/workspace'
-import {
-  fetchRoleList as fetchAdminRoleList,
-  fetchSimpleUserList as fetchAdminUserList,
-} from '@/services/admin'
 import type { InvitationListItem, UserSimple, WorkspaceMember } from '@/types'
 import { WORKSPACE_ROLE, workspaceRoleLabel } from '@/utils/workspaceRole'
 import {
@@ -50,7 +48,7 @@ const roleOptions = ref<{ value: string; label: string }[]>([])
 
 async function loadRoleOptions() {
   try {
-    const list = await fetchAdminRoleList('workspace')
+    const list = await fetchWorkspaceRoles()
     roleOptions.value = list
       .filter((role) => !role.isGroup)
       .map((role) => ({ value: role.id, label: role.name }))
@@ -218,7 +216,7 @@ function searchUsers(keyword: string): void {
   userSearchTimer = setTimeout(async () => {
     userSearchTimer = null
     try {
-      const users = await fetchAdminUserList(normalizedKeyword)
+      const users = await fetchMemberCandidates(normalizedKeyword)
       if (requestId === userSearchRequestId) {
         userOptions.value = users
       }

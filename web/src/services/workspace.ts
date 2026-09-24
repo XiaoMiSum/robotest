@@ -11,6 +11,8 @@ import type {
   Project,
   ProjectListQuery,
   ProjectStatusCounts,
+  RoleTreeNode,
+  UserSimple,
   WorkspaceContext,
   WorkspaceItem,
   WorkspaceListQuery,
@@ -60,6 +62,15 @@ export function fetchMembers(params: {
   pageSize?: number
 }): Promise<PageResult<WorkspaceMember>> {
   return get('/workspace/members', { ...params })
+}
+
+// 空间角色选项走工作空间侧接口，成员页不再依赖管理端 API（SEC-002）
+export function fetchWorkspaceRoles(): Promise<RoleTreeNode[]> {
+  return get('/workspace/roles')
+}
+
+export function fetchMemberCandidates(keyword: string): Promise<UserSimple[]> {
+  return get('/workspace/members/candidates', { keyword })
 }
 
 export function addMembers(
