@@ -93,7 +93,7 @@ MapStruct 不属于 migoo Starter 的通用 API。项目统一要求：
 
 Security 组件提供 JWT、用户加载、Token 校验和角色权限等框架能力。项目负责认证模式、用户加载适配、密钥和有效期配置、项目错误码、资源级 Guard 以及登录和权限审计。
 
-框架认证成功不等于业务授权成功。管理端、workspace、project 和 WebSocket 资源必须在服务端重新校验角色、成员关系和资源归属。通用边界见 `10-security.md`。
+框架认证成功不等于业务授权成功。管理域、业务域和实时资源必须在服务端重新校验角色、成员关系和资源归属。通用边界见 `10-security.md`。
 
 ### 4.6 WebSocket
 
