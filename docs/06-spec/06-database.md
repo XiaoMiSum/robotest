@@ -1,93 +1,154 @@
-# 工程规范 — 数据库
+# 软件测试平台——数据库规范
 
 **文档版本**：V1.1
-**日期**：2026-07-31
+**日期**：2026-09-24
 **状态**：已发布
 
 ---
 
-## 1. 命名规范
+## 1. 支持范围与优先级
 
-| 要素   | 规范             | 示例                                |
-| ---- | -------------- | --------------------------------- |
-| 数据库名 | `swt_platform` | `swt_platform_dev`                |
-| 表名   | `{域前缀}_{业务名}`，snake_case，单数 | `ws_workspace`、`test_case_module` |
-| 字段名  | snake_case     | `workspace_id`                    |
-| 主键   | `id`           | `id binary(16) PK`（UUID v7，应用层生成） |
-| 关联字段（逻辑外键） | `{表名}_id`      | `project_id`                      |
-| 索引   | `idx_{表名}_{字段}`  | `idx_ws_project_workspace_id`     |
-| 唯一约束 | `uk_{表名}_{字段}`   | `uk_ws_workspace_name`            |
+PostgreSQL 14+ 是当前优先正式数据库。MySQL 仅保留兼容说明和迁移参考，不得在未验证的情况下将 MySQL 特性写成项目通用要求。
 
-**表名域前缀**：所有表必须带业务域前缀，按业务域归位，禁止裸表名：
+| 能力 | PostgreSQL | MySQL |
+| --- | --- | --- |
+| 支持级别 | 正式支持 | 兼容参考，需单独验证 |
+| 主键 | `uuid`，由框架默认策略生成 | `binary(16)` 或兼容映射，需单独设计 |
+| 逻辑删除 | `boolean` | `tinyint(1)` |
+| JSON | `jsonb` | `json` |
+| 向量检索 | `pgvector` | 需采用其他方案 |
+| 时间字段 | 优先 `timestamptz` | 按 MySQL 时区策略设计 |
 
-| 业务域     | 前缀           | 示例表                                              |
-| --------- | ------------- | ------------------------------------------------- |
-| 系统管理     | `sys_`        | `sys_user`、`sys_role`、`sys_audit_log`            |
-| 工作空间/项目 | `ws_`         | `ws_workspace`、`ws_user`、`ws_invitation`、`ws_project` |
-| 功能测试-用例 | `test_case_`  | `test_case_module`、`test_case_node`               |
-| 功能测试-计划 | `test_plan_`  | `test_plan`、`test_plan_node_snapshot`             |
-| 功能测试-评审 | `test_review_`| `test_review`、`test_review_record`                |
-| 缺陷管理     | `bug_`        | `bug`、`bug_log`、`bug_attachment`（域根表 `bug` 保留领域词） |
-| 需求池      | `requirement_`| `requirement_pool_item`、`requirement_document_rel`|
-| AI 能力     | `ai_`         | `ai_config`、`ai_case_embedding`、`ai_bug_embedding` |
+## 2. 命名规范
 
-> 例外：缺陷域根表 `bug` 允许保留单数领域词（子表仍用 `bug_` 前缀）；其余任何表不得以裸业务词命名。
+| 要素 | 规范 | 示例 |
+| --- | --- | --- |
+| 数据库名 | 使用环境配置的数据库名 | `robotest` |
+| 表名 | `{域前缀}_{业务名}`，`snake_case` | `ws_project` |
+| 字段名 | `snake_case` | `workspace_id` |
+| 主键 | `id` | `id uuid` |
+| 关联字段 | `{资源名}_id` | `project_id` |
+| 普通索引 | 推荐 `idx_{表名}_{字段}` | `idx_ws_project_workspace_id` |
+| 唯一索引 | 推荐 `uk_{表名}_{字段}` | `uk_ws_project_workspace_name` |
 
----
+新建表必须使用业务域前缀。计划、评审、缺陷等已有领域根表可以保留历史名称，但新增表不得继续扩大例外。接口测试数据统一使用 `api_` 前缀。
 
-## 2. 表设计规范
+## 3. 表设计规范
 
-**强制约定**：
+每张业务表必须包含：
 
-- 每张表必须包含 `id`（PK, UUID v7）、`created_at`、`updated_at`、`is_deleted`（tinyint, default 0）四个字段。
-- 逻辑删除统一使用 `is_deleted`（tinyint, default 0），物理删除需在详细设计中明确说明。
-- 字符集：`utf8mb4`，排序规则：`utf8mb4_unicode_ci`。
-- **禁止使用外键**：任何表不得定义 `FOREIGN KEY` 物理约束；表间关联一律通过关联字段（`{表名}_id`）表达，引用完整性由应用层（Service 层）保证，级联删除/更新由业务代码显式处理。
-- 主键统一使用 UUID v7（`binary(16)` 存储），应用层生成，不依赖数据库自增。
-  - MySQL：`INSERT INTO t (id, ...) VALUES (UUID_TO_BIN(UUID()), ...)`；查询 `BIN_TO_UUID(id)`。
-  - PostgreSQL：`id` 列类型为 `uuid`，应用层直接传入 UUID 字符串。
-  - Java 依赖：`com.fasterxml.uuid:java-uuid-generator`（JUG），使用 `UUIDGenerator.generateTimeBasedEpoch()`。
-  - TypeScript 依赖：`uuid` v9+，使用 `import { v7 as uuidv7 } from 'uuid'`。
-- JSON 字段使用 `json` 类型（MySQL 5.7+ / 8.0+）。
-- 语义向量字段使用 pgvector 的 `vector(n)` 类型（仅 PostgreSQL，需启用扩展 `CREATE EXTENSION vector`，随迁移脚本执行）；向量表与业务表一对一独立建表（如 `ai_bug_embedding`、`ai_case_embedding`），不在业务表上直接加向量列。
+```sql
+id          uuid        PRIMARY KEY,
+created_at  timestamptz NOT NULL,
+updated_at  timestamptz NOT NULL,
+is_deleted  boolean     NOT NULL DEFAULT false
+```
 
-**字段类型选择**：
+### 3.1 主键与 UUID
 
-| 类型           | 使用场景  | 示例                                 |
-| ------------ | ----- | ---------------------------------- |
-| `binary(16)` | 主键    | `id`                               |
-| `varchar(n)` | 短文本   | `name varchar(100)`                |
-| `text`       | 长文本   | `description text`                 |
-| `json`       | 结构化数据 | `steps json`                       |
-| `enum(...)`  | 有限状态  | `status enum('active','disabled')` |
-| `datetime`   | 时间戳   | `created_at datetime`              |
-| `tinyint(1)` | 布尔值   | `is_deleted tinyint(1)`            |
-| `vector(n)`  | 语义向量（pgvector） | `embedding vector(1536)`  |
+- UUID 使用 migoo 框架默认生成策略，项目代码不自行规定 UUID v4 或 v7。
+- Java Entity 统一按 `11-migoo-framework.md` 的基类约定继承。
+- 前端只接收和传递 UUID 字符串，不自行生成数据库主键。
+- 如需改变 UUID 策略，必须先更新框架兼容性文档和数据库迁移方案。
 
----
+### 3.2 逻辑删除
 
-## 3. 索引规范
+- 逻辑删除统一使用 `is_deleted`。
+- 查询默认排除已删除数据，具体过滤由 MyBatis-Plus 逻辑删除配置和 Mapper 共同保证。
+- 唯一约束需要结合 `is_deleted` 设计，避免历史数据阻塞重新创建。
+- 物理删除只能在明确的运维或隐私清理流程中执行，并记录原因。
 
-- 主键默认索引。
-- 所有关联字段（逻辑外键）必须建索引。
-- 频繁查询条件字段建索引。
-- 联合索引将区分度高的字段放在左侧。
-- 避免过多索引（单表不超过 5 个）。
-- 向量列使用 HNSW 索引，距离算子统一余弦：`USING hnsw (embedding vector_cosine_ops)`；向量索引不计入上述单表 5 个的常规索引上限。
-- 向量相似度查询必须先按业务归属字段（如 `project_id`）过滤再做近邻检索，防止跨项目数据泄漏。
+### 3.3 关联与外键
 
----
+- 禁止定义物理 `FOREIGN KEY`。
+- 关联字段必须能追溯到目标资源和所属 workspace/project。
+- 关联完整性、级联更新和级联删除由 Service 层显式处理。
+- 跨租户查询必须显式带上下文条件，禁止依赖前端过滤。
 
-## 4. 字段映射规则
+### 3.4 PostgreSQL 类型
 
-| 数据库             | Java           | TypeScript     |
-| --------------- | -------------- | -------------- |
-| `id`            | `UUID`         | `string`（UUID） |
-| `workspace_id`  | `workspaceId`  | `workspaceId`  |
-| `created_at`    | `createdAt`    | `createdAt`    |
-| `updated_at`    | `updatedAt`    | `updatedAt`    |
-| `is_deleted`    | `isDeleted`    | `isDeleted`    |
-| `password_hash` | `passwordHash` | 不暴露给前端         |
+| 场景 | 类型 | 说明 |
+| --- | --- | --- |
+| 主键/关联 ID | `uuid` | 使用框架默认生成策略 |
+| 短文本 | `varchar(n)` | 必须设置合理长度 |
+| 长文本 | `text` | 不用于无条件排序 |
+| 结构化数据 | `jsonb` | 需要查询的字段应评估索引 |
+| 布尔值 | `boolean` | 禁止使用魔法字符串 |
+| 时间 | `timestamptz` | 统一时区语义 |
+| 向量 | `vector(n)` | 仅在启用 pgvector 时使用 |
+
+## 4. 索引规范
+
+- 主键索引由主键约束自动提供。
+- 关联字段和高频过滤字段必须建立索引。
+- 联合索引将区分度高、选择性强的字段放在左侧。
+- 索引数量不是越多越好；单表新增索引原则上不超过 5 个。
+- 低选择性状态字段、已有复合索引覆盖字段和经评估的低频关联字段可以申请例外。
+- 向量索引使用 HNSW 或经评审的等价方案；向量检索必须先按 `project_id` 等业务归属过滤。
+
+### 4.1 索引例外记录
+
+索引例外必须记录：
+
+| 项目 | 内容 |
+| --- | --- |
+| 查询场景 | 查询条件、排序和调用频率 |
+| 数据规模 | 当前和预期数据量 |
+| 现有索引 | 已覆盖该场景的索引 |
+| 评估结论 | 是否接受全表扫描或低效查询 |
+| 审批人 | 数据库负责人或 Tech Lead |
+| 失效时间 | 例外复核日期 |
+
+## 5. 迁移规范
+
+数据库变更必须提供版本化迁移脚本，不能只修改全量 `schema.sql`。
+
+每个迁移至少包含：
+
+1. 变更目的和影响范围。
+2. 正向 DDL 和数据回填脚本。
+3. 回滚或恢复方案。
+4. 兼容窗口和部署顺序。
+5. 大表锁影响评估。
+6. 索引、逻辑删除和租户隔离检查。
+
+### 5.1 当前仓库迁移状态
+
+当前仓库以 `server/src/main/resources/db/schema.sql` 作为初始化基线，尚未建立完整的版本化迁移目录和回滚脚本。引入 Flyway 或 Liquibase 前，必须先确定基线版本、已有环境升级路径和 CI 迁移测试；在此之前不得将全量 `schema.sql` 宣称为生产迁移方案。
+
+## 6. 向量与 AI 数据
+
+- 向量字段使用独立向量表，或在有明确查询收益时设计专用列。
+- 向量表必须包含 `project_id` 等租户边界。
+- 向量相似度查询必须先过滤业务归属，再执行近邻检索。
+- 向量维度、距离算子和索引参数必须版本化记录。
+- 不得在未启用 pgvector 的环境中宣称向量能力可用。
+
+## 7. MySQL 兼容说明
+
+MySQL 内容仅作为迁移和兼容参考：
+
+- `binary(16)` 与 PostgreSQL `uuid` 的映射必须经过驱动和 ORM 验证。
+- `tinyint(1)` 与 PostgreSQL `boolean` 的映射必须明确。
+- JSON、向量、局部索引和迁移语法不得直接假设兼容。
+- 任何 MySQL 支持计划都必须补充独立 CI、环境和回滚方案。
+
+## 8. 审查清单
+
+- [ ] 表名和字段名符合域前缀及 snake_case 规范
+- [ ] 包含 `id`、`created_at`、`updated_at`、`is_deleted`
+- [ ] 未定义物理外键
+- [ ] UUID 使用框架默认策略
+- [ ] PostgreSQL 类型和时区语义明确
+- [ ] 关联字段和查询字段索引合理
+- [ ] 有迁移、回滚和兼容说明
+- [ ] workspace/project 数据隔离条件明确
+
+## 9. 参考
+
+- API 分页和上下文：`docs/06-spec/05-api.md`
+- MyBatis-Plus 和框架主键：`docs/06-spec/11-migoo-framework.md`
+- 部分更新和查询封装：`docs/06-spec/04-backend.md`
 
 ---
 

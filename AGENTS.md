@@ -10,14 +10,15 @@
 ## 1. 项目定位
 
 **软件测试平台** — 前后端分离单体仓库（`web/` + `server/`）。  
-五大业务域：**系统管理**（用户/空间/角色）、**空间管理**（成员/项目）、**功能测试**（用例/评审/计划）、**接口测试**（暂不提供）、**缺陷管理**。
+五大业务域：**系统管理**（用户/空间/角色）、**空间管理**（成员/项目）、**功能测试**（用例/评审/计划）、**接口测试**（接口、环境、场景、Mock、报告、执行）、**缺陷管理**。
 
 ---
 
 ## 2. 技术栈
 
-- **前端**：Vue 3.5 + TypeScript 6.x（strict）+ Vite 8 + Element Plus + Pinia
+- **前端**：Vue 3.5 + TypeScript（版本以 `web/package.json` 和锁文件为准）+ Vite + Element Plus + Pinia
 - **后端**：Spring Boot 4.x + Java 21 + MyBatis-Plus + Spring Security
+- **数据库**：PostgreSQL 14+ 为优先正式方案，MySQL 仅保留兼容说明
 - **协作**：Yjs CRDT（WebSocket 实时协同）
 
 ---
@@ -30,7 +31,7 @@
 # 前端（端口 5173）
 cd web && pnpm install && pnpm run dev
 
-# 后端（端口 8080，dev profile）
+# 后端（端口 58080，dev profile）
 cd server && mvn spring-boot:run -Pdev
 
 # 一键启动（同时前后端）
@@ -54,18 +55,18 @@ bash scripts/deploy-merged.sh
 
 | 端   | 命令                                                                          |
 | --- | --------------------------------------------------------------------------- |
-| 前端  | `pnpm run lint && pnpm run typecheck && pnpm run test:unit -- --coverage`   |
-| 后端  | `mvn test`                                                              |
-| 全量  | `pnpm run lint && pnpm run typecheck && pnpm run test:unit`<br>`mvn verify` |
+| 前端  | `cd web && pnpm run lint && pnpm run typecheck && pnpm run test:unit -- --coverage`   |
+| 后端  | `cd server && mvn verify`                                                              |
+| 全量  | `bash scripts/validate.sh --all` |
 
 **提交前逐项核对：**
 
 - [ ] lint / typecheck / test 全部通过
 - [ ] 覆盖率达标（C8）
 - [ ] 无 `any`（C1）、无业务逻辑在 Controller（C2）
-- [ ] 所有异常使用 `BusinessException`（C3）
+- [ ] 所有异常使用 `ServiceExceptionUtil.get(ErrorCode)`，错误码为 10 位（C3）
 - [ ] 上下文头未出现在 URL 中（C4）
-- [ ] 若涉及数据库，包含迁移说明并确认无物理外键（C5）
+- [ ] 若涉及数据库，包含迁移说明，UUID 使用框架默认策略且无物理外键（C5）
 - [ ] 若涉及数据库，索引符合规范（C9）
 - [ ] 注释只写 why（C6）
 - [ ] 提交信息符合格式（C7）
@@ -78,15 +79,16 @@ bash scripts/deploy-merged.sh
 
 | 编号  | 规则                                                    | 检查方式      |
 | --- | ----------------------------------------------------- | --------- |
+| C3  | 业务异常统一通过 migoo `ServiceExceptionUtil.get(ErrorCode)` 抛出，使用 10 位错误码 | 代码审查      |
 | C4  | 上下文标识（如 workspaceId）**禁止**出现在 URL 或请求体中，仅通过请求头传递      | 代码审查      |
-| C5  | 数据库每表必须有 `id`（自增或雪花）、`created_at`、`updated_at`、`is_deleted`（逻辑删除），禁止物理外键 | 数据库审查     |
+| C5  | 数据库每表必须有 `id`、`created_at`、`updated_at`、`is_deleted`（逻辑删除），UUID 使用框架默认策略，禁止物理外键 | 数据库审查     |
 | C7  | Git 提交格式：`<emoji> <type>(<scope>): <description>`（emoji 对照见 `docs/06-spec/08-workflow.md`），一个提交只做一件事   | 审查 squash |
-| C9  | 索引规范：关联字段（逻辑外键）与高频查询条件字段必须建索引，联合索引将区分度高的字段放左侧，单表索引不超过 5 个 | 数据库审查     |
+| C9  | 索引规范：关联字段（逻辑外键）与高频查询条件字段必须建索引，联合索引将区分度高的字段放左侧，单表索引原则上不超过 5 个 | 数据库审查     |
 | C10 | 后端优先使用 migoo 框架提供的基础功能（验证注解、工具类等），禁止重复造轮子       | 代码审查      |
 | C11 | 后端数据更新只更新实际传入字段（部分更新），禁止整行查询结果作 `updateById` 载体   | 代码审查      |
 
 > 端专属约定（C1 前端类型安全、C2 Controller 职责、C3 异常规范、C6 注释规范、C8 覆盖率）及编码示例见各端 `AGENTS.md`；C10 / C11 为后端专属，落地口径见 `server/AGENTS.md`。
-> 详细规范索引：`docs/06-spec/02-overview.md`、`docs/06-spec/04-backend.md`、`docs/06-spec/03-frontend.md`、`docs/06-spec/05-api.md`、`docs/06-spec/10-security.md`、`docs/06-spec/06-database.md`、`docs/06-spec/09-deploy.md`、`docs/06-spec/07-quality.md`、`docs/06-spec/08-workflow.md`、`docs/06-spec/13-scroll-container.md`。
+> 详细规范索引：`docs/06-spec/02-overview.md`、`docs/06-spec/03-frontend.md`、`docs/06-spec/04-backend.md`、`docs/06-spec/05-api.md`、`docs/06-spec/06-database.md`、`docs/06-spec/07-quality.md`、`docs/06-spec/08-workflow.md`、`docs/06-spec/09-deploy.md`、`docs/06-spec/10-security.md`、`docs/06-spec/11-migoo-framework.md`、`docs/06-spec/12-task-template.md`、`docs/06-spec/13-scroll-container.md`。
 
 ---
 
@@ -154,9 +156,9 @@ bash scripts/deploy-merged.sh
 ### 自检清单（C1–C11）
 - [ ] C1 无 `any`（前端）
 - [ ] C2 无业务逻辑在 Controller
-- [ ] C3 异常使用 BusinessException
+- [ ] C3 异常使用 `ServiceExceptionUtil.get(ErrorCode)`，错误码为 10 位
 - [ ] C4 上下文头传递，不出现在 URL
-- [ ] C5 数据库迁移说明，无物理外键
+- [ ] C5 数据库迁移说明，UUID 使用框架默认策略，无物理外键
 - [ ] C6 注释只写 why
 - [ ] C7 提交格式 `<emoji> <type>(<scope>): <description>`
 - [ ] C8 覆盖率达标
