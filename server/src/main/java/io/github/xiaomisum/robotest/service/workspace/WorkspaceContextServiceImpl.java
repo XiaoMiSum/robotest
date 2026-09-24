@@ -5,9 +5,11 @@ import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.model.dto.request.workspace.WorkspaceDefaultProjectReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.workspace.WorkspaceUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.workspace.WorkspaceContextRespDTO;
+import io.github.xiaomisum.robotest.model.entity.admin.SysUser;
 import io.github.xiaomisum.robotest.model.entity.workspace.Project;
 import io.github.xiaomisum.robotest.model.entity.workspace.Workspace;
 import io.github.xiaomisum.robotest.model.entity.workspace.WorkspaceUser;
+import io.github.xiaomisum.robotest.repository.admin.SysUserMapper;
 import io.github.xiaomisum.robotest.repository.workspace.ProjectMapper;
 import io.github.xiaomisum.robotest.repository.workspace.WorkspaceMapper;
 import io.github.xiaomisum.robotest.repository.workspace.WorkspaceUserMapper;
@@ -23,6 +25,8 @@ public class WorkspaceContextServiceImpl implements WorkspaceContextService {
 
     @Resource
     private WorkspaceMapper workspaceMapper;
+    @Resource
+    private SysUserMapper userMapper;
     @Resource
     private WorkspaceUserMapper workspaceUserMapper;
     @Resource
@@ -110,6 +114,7 @@ public class WorkspaceContextServiceImpl implements WorkspaceContextService {
         dto.setName(workspace.getName());
         dto.setDescription(workspace.getDescription());
         dto.setStatus(workspace.getStatus());
+        dto.setCreatedByName(resolveCreatedByName(workspace));
         dto.setCreatedAt(workspace.getCreatedAt());
         dto.setWorkspaceRole(workspaceUser.getWorkspaceRole().toString());
         dto.setDefaultProjectId(workspaceUser.getDefaultProjectId());
@@ -128,5 +133,17 @@ public class WorkspaceContextServiceImpl implements WorkspaceContextService {
         }
 
         return dto;
+    }
+
+    private String resolveCreatedByName(Workspace workspace) {
+        if (workspace.getCreatedBy() == null) {
+            return null;
+        }
+        SysUser creator = userMapper.selectById(workspace.getCreatedBy());
+        if (creator == null) {
+            return null;
+        }
+        return creator.getName() != null && !creator.getName().isBlank()
+                ? creator.getName() : creator.getUsername();
     }
 }
