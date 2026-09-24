@@ -177,7 +177,7 @@ changes
 
 以下项目需要在代码/配置层单独整改，完成前不得对外宣称已满足：
 
-- [ ] 生产配置移除可预测默认密钥，并实现 fail-fast
+- [x] 生产配置移除可预测默认密钥，并实现 fail-fast
 - [ ] 管理端 API 增加服务端角色/权限校验
 - [ ] workspace/project 上下文校验改为 fail-closed
 - [ ] WebSocket 可写帧转发前校验编辑权限

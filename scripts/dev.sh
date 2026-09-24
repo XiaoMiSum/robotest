@@ -30,8 +30,8 @@ echo "========================================"
 
 # ─── 后端（后台） ────────────────────────────────────────────────
 echo ""
-echo "=== 启动后端 (8080, dev profile) ==="
-(cd "$ROOT_DIR/server" && mvn spring-boot:run -Pdev) &
+echo "=== 启动后端 (58080, dev profile) ==="
+(cd "$ROOT_DIR/server" && SPRING_PROFILES_ACTIVE=dev mvn spring-boot:run -Pdev) &
 BACKEND_PID=$!
 echo -e "${GREEN}后端已后台启动 (PID $BACKEND_PID)${NC}"
 
