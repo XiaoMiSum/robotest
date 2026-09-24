@@ -7,6 +7,54 @@ import type {
   AiSettingSchemaItem,
 } from '@/types'
 
+export interface AiChatModelValidationState {
+  name: string
+  provider: string
+  baseUrl: string
+  model: string
+  apiKey: string
+  apiKeyConfigured: boolean
+}
+
+export interface AiEmbeddingValidationState {
+  provider: string
+  baseUrl: string
+  model: string
+  dimension: number | null
+  apiKey: string
+  apiKeyConfigured: boolean
+}
+
+function isBlankText(value: string): boolean {
+  return !value.trim()
+}
+
+export function validateChatModelForm(
+  form: AiChatModelValidationState,
+  mode: 'create' | 'edit',
+): string | null {
+  if (isBlankText(form.name)) return '请输入显示名'
+  if (isBlankText(form.provider)) return '请选择供应商'
+  if (isBlankText(form.baseUrl)) return '请输入服务地址'
+  if (isBlankText(form.model)) return '请输入模型名'
+  if ((mode === 'create' || !form.apiKeyConfigured) && isBlankText(form.apiKey)) {
+    return '请输入 API 密钥'
+  }
+  return null
+}
+
+export function validateEmbeddingForm(form: AiEmbeddingValidationState): string | null {
+  if (isBlankText(form.provider)) return '请选择供应商'
+  if (isBlankText(form.model)) return '请输入模型名'
+  if (isBlankText(form.baseUrl)) return '请输入服务地址'
+  if (form.dimension === null) return '请输入向量维度'
+  if (!Number.isInteger(form.dimension) || form.dimension < 1 || form.dimension > 2000) {
+    return '向量维度必须在 1-2000 之间'
+  }
+  if (!form.apiKeyConfigured && isBlankText(form.apiKey)) return '请输入 API 密钥'
+  return null
+}
+
 /**
  * AI 配置页供应商切换与 extraParams 合并的纯逻辑（抽离以便单测，见 5.3）。
  */
