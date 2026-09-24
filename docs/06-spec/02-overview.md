@@ -1,7 +1,7 @@
-# 工程规范 — 总览
+# 软件测试平台——工程规范总览
 
 **文档版本**：V1.0
-**日期**：2026-07-06
+**日期**：2026-09-24
 **状态**：已发布
 
 ---
@@ -10,222 +10,102 @@
 
 ### 1.1 编写目的
 
-定义软件测试平台的工程实施规范，覆盖项目结构、开发流程、编码风格、质量保障、构建部署等全链路工程实践，确保团队协作一致性、代码可维护性和交付质量。
+本文件定义 RoboTest 工程规范的治理规则、权威边界、规则登记册和冲突处理方式。具体实现要求分别由前端、后端、API、数据库、质量、发布和安全规范维护。
 
 ### 1.2 适用范围
 
-适用于所有参与本平台开发的工程师（前端、后端、全栈），是代码审查和 CI 门禁的判定依据。
+本规范适用于 `web/`、`server/`、`scripts/`、数据库脚本、CI 配置以及 AI 辅助开发任务。具体端专属实现以 `web/AGENTS.md` 和 `server/AGENTS.md` 为补充。
 
-### 1.3 规范优先级
+### 1.3 规范语言
 
-1. **IDE / 构建工具报错** > 代码审查意见
-2. 自动化规则（ESLint / Checkstyle） > 本文档约定
-3. 本文档约定 > 个人习惯
-4. 如有冲突，以 Tech Lead 裁定为准
+- **必须 / MUST**：违反即不得合并或发布。
+- **应该 / SHOULD**：原则上必须遵守；偏离时必须记录理由。
+- **可以 / MAY**：按场景选择，不作为默认门禁。
+- 示例代码仅在标注“可执行示例”时要求编译或运行；否则必须明确标注为伪代码。
 
-### 1.4 文档索引
+### 1.4 权威性与事实源
 
-| 文档          | 位置                      | 说明                              |
-| ----------- | ----------------------- | ------------------------------- |
-| 前端工程规范      | `docs/06-spec/03-frontend.md` | Vue3 + TS + 组件 + 路由 + 状态管理 + 样式 |
-| 后端工程规范      | `docs/06-spec/04-backend.md`  | 分层架构 + DTO/Entity + 异常 + 响应格式   |
-| API 设计规范    | `docs/06-spec/05-api.md`      | URL + 方法 + 分页 + 错误码 + WebSocket |
-| 数据库规范       | `docs/06-spec/06-database.md` | 命名 + 表设计 + 索引 + 字段映射            |
-| 质量保障规范      | `docs/06-spec/07-quality.md`  | 代码检查 + 测试策略 + 质量红线              |
-| Git 与开发流程规范 | `docs/06-spec/08-workflow.md` | 分支模型 + 提交规范 + PR 规范             |
-| 构建与部署规范     | `docs/06-spec/09-deploy.md`   | 构建流程 + 环境配置 + 部署 + CI           |
-| 安全规范        | `docs/06-spec/10-security.md` | 认证 + 数据安全 + 防攻击 + 日志审计          |
-| migoo 框架集成规范 | `docs/06-spec/11-migoo-framework.md` | Starter 清单 + 响应/实体/分页/转换约定 |
-| 任务执行模板      | `docs/06-spec/12-task-template.md` | AI 任务八步流程（理解→评估→探查→方案→编码→验证→自检→交付） |
-| 前端滚动容器规范   | `docs/06-spec/13-scroll-container.md` | 内部滚动、滚动条视觉隐藏、表格滚动与响应式约束 |
+规范描述目标约束，代码和配置描述当前实现事实。两者冲突时不得静默覆盖：
 
----
+1. 先记录差异、影响范围和可选方案。
+2. 判断是否改变业务语义或公共契约。
+3. 暂停后续实现，提交用户确认。
+4. 用户确认后，先更新对应设计/规范文档，再修改代码或配置。
 
-## 2. 项目结构
+同一主题只能有一个主规范定义。其他文档使用链接引用，不复制契约。
 
-### 2.1 仓库目录结构
+## 2. 规则登记册
 
-```
-robotest/
-├── .gitignore
-├── AGENTS.md                  # AI 辅助开发约定（总则）
-│
-├── web/                       # 前端 SPA (Vue3 + Element Plus)
-│   ├── package.json
-│   ├── pnpm-workspace.yaml
-│   ├── vite.config.ts
-│   ├── tsconfig.json / tsconfig.app.json / tsconfig.node.json
-│   ├── index.html
-│   ├── eslint.config.mjs      # ESLint flat config（含 no-restricted-imports 分层门禁）
-│   ├── .prettierrc
-│   ├── .env.development
-│   ├── .env.production
-│   └── src/
-│       ├── main.ts
-│       ├── App.vue
-│       ├── router/            # index.ts（懒加载 + meta 守卫 admin/business）
-│       ├── layouts/           # AdminLayout / BusinessLayout
-│       ├── pages/             # admin/ auth/ workspace/ project/
-│       ├── components/        # common/ admin/ assistant/ project/{api-testing,functional-testing,bug}
-│       ├── stores/            # auth.ts / nav.ts / ai.ts / apiTestingUi.ts / assistantContext.ts
-│       ├── composables/       # admin/ ai/ assistant/ auth/ project/
-│       ├── services/          # index.ts / admin.ts / workspace.ts / project.ts / ai.ts + project/
-│       ├── types/             # index.ts / admin.ts / workspace.ts / ai.ts / common.ts + project/
-│       ├── minder/            # 自研脑图组件（SVG/Canvas + Yjs，ai/ 智能编辑）
-│       ├── utils/             # format.ts
-│       └── assets/styles/     # variables.scss / global.scss
-│
-├── server/                    # 后端服务 (Spring Boot)
-│   ├── pom.xml
-│   └── src/
-│       ├── main/java/io/github/xiaomisum/robotest/
-│       │   ├── RobotestServer.java
-│       │   ├── controller/    # admin/ apitest/ project/ workspace/
-│       │   ├── service/       # admin/ ai/ apitest/ domain/ project/ websocket/ workspace/（接口+实现同包）
-│       │   ├── repository/    # JPA / MyBatis-Plus 数据访问
-│       │   ├── model/
-│       │   │   ├── entity/            # 数据库映射（继承 BaseUuidDO）
-│       │   │   └── dto/request|response/  # 按域分子目录
-│       │   └── framework/     # 基础框架层（与业务无关）
-│       │       ├── audit/ config/ convert/ interceptor/ security/
-│       │       ├── common/    # Constants / ErrorCodeConstants
-│       │       ├── mock/      # Mock 服务
-│       │       ├── task/      # 定时任务
-│       │       └── util/
-│       ├── main/resources/    # application.yaml / db/ i18n/ ai/ logback-spring.xml
-│       └── test/
-│
-├── scripts/                   # 构建与部署脚本
-│   ├── build-frontend.sh
-│   ├── build-backend.sh
-│   ├── dev.sh
-│   ├── deploy-separate.sh
-│   ├── deploy-merged.sh
-│   ├── validate.sh            # 提交前质量验证（提交格式 + lint + typecheck + test）
-│   └── nginx.conf.example
-│
-└── docs/
-    ├── AGENTS.md              # 文档管理约定
-    ├── 06-spec/               # ← 工程规范（持续更新，不参与版本管理）
-    │   ├── 01-readme.md       # 规范索引
-    │   ├── 02-overview.md / 03-frontend.md / 04-backend.md / 05-api.md
-    │   ├── 06-database.md / 07-quality.md / 08-workflow.md / 09-deploy.md
-    │   └── 10-security.md / 11-migoo-framework.md / 12-task-template.md / 13-scroll-container.md
-    ├── 01-requirements/ 02-high-level-design/ 03-architecture/ 04-detailed-design/ 05-interaction-design/
-    │                                                 # 业务设计文档（各含 01-readme 索引）
-    └── 07-archive/            # 归档基线（只读）
-```
+以下编号是全局兼容编号。新增领域规则应使用领域前缀，例如 `API-`、`DB-`、`SEC-`、`UI-`。
 
-**核心原则**：
+| 编号 | 规则摘要 | 主规范 | 检查方式 |
+| --- | --- | --- | --- |
+| C1 | 前端禁止 `any`，优先使用 `unknown`、类型守卫或明确类型 | `03-frontend.md` | ESLint、TypeScript、代码审查 |
+| C2 | Controller 只负责路由、参数校验和响应包装，不承载业务逻辑 | `04-backend.md` | ArchUnit、代码审查 |
+| C3 | 业务异常统一通过 migoo 的 `ErrorCode` 与 `ServiceExceptionUtil` 抛出 | `11-migoo-framework.md` | 编译、单元测试、代码审查 |
+| C4 | 活动 workspace/project 上下文只通过请求头传递 | `05-api.md` | 请求检查、代码审查 |
+| C5 | 业务表具备 `id`、`created_at`、`updated_at`、`is_deleted`，禁止物理外键 | `06-database.md` | DDL 检查、数据库审查 |
+| C6 | 注释只解释为什么，不复述代码行为 | `02-overview.md` | 代码审查 |
+| C7 | 提交遵循 `<emoji> <type>(<scope>): <description>`，提交保持原子性 | `08-workflow.md` | 提交检查、PR 审查 |
+| C8 | 核心代码覆盖率目标不低于 70%，具体阻断范围由质量门禁配置 | `07-quality.md` | 覆盖率报告、CI |
+| C9 | 关联字段和高频查询字段建立合理索引，单表索引数量受控 | `06-database.md` | DDL 检查、性能审查 |
+| C10 | 后端优先复用 migoo 已提供的响应、异常、校验和数据访问能力 | `11-migoo-framework.md` | 依赖检查、代码审查 |
+| C11 | 更新只写入调用方实际提交的字段，禁止整行查询结果直接作为更新载体 | `04-backend.md` | 单元测试、代码审查 |
+| UI-SC-01～09 | 滚动容器和滚动条专项规则 | `13-scroll-container.md` | 浏览器验收、代码审查 |
 
-- 前端 `web/`、后端 `server/` 为两个独立项目，各自拥有 `package.json` / `pom.xml`，根目录不设 workspace。
-- 跨端操作（构建、部署、一键启动）统一放在 `scripts/` 下。
-- `docs/` 存放所有设计文档，与代码仓库同步。
+规则登记册只保存摘要和链接；正例、反例、例外和完整说明以主规范为准。
 
-### 2.2 文件命名规范
+## 3. 文档分类与职责
 
-| 范畴            | 规范                     | 示例                           |
-| ------------- | ---------------------- | ---------------------------- |
-| Vue 组件        | PascalCase，多词组合        | `UserList.vue`               |
-| TypeScript 文件 | camelCase              | `useAuth.ts`                 |
-| 页面目录          | kebab-case，与路由 path 一致 | `pages/admin/users/`         |
-| 后端 Java 类     | PascalCase             | `UserController.java`        |
-| 后端 Java 包     | 全小写                    | `io.github.xiaomisum.robotest.service.admin` |
-| 后端资源文件        | kebab-case             | `application-dev.yml`        |
-| 数据库表          | snake_case             | `test_case_module`           |
-| 脚本文件          | kebab-case             | `build-frontend.sh`          |
+| 类别 | 文档 | 权威范围 |
+| --- | --- | --- |
+| 治理 | `01-readme.md`、`02-overview.md` | 索引、规则登记、冲突处理 |
+| 端级工程 | `03-frontend.md`、`04-backend.md` | 前端和后端实现边界 |
+| 跨端契约 | `05-api.md` | HTTP、响应、分页、错误码、实时协议 |
+| 数据 | `06-database.md` | PostgreSQL 主规范、MySQL 兼容说明、迁移和索引 |
+| 质量与交付 | `07-quality.md`、`08-workflow.md`、`09-deploy.md` | 测试门禁、Git/PR、构建部署 |
+| 安全与框架 | `10-security.md`、`11-migoo-framework.md` | 安全基线、框架兼容性和差异 |
+| 模板与专项 | `12-task-template.md`、`13-scroll-container.md` | AI 任务流程、滚动 UI 专项 |
 
-### 2.3 目录职责边界
+## 4. 技术事实来源
 
-| 目录             | 职责                  | 禁止行为         |
-| -------------- | ------------------- | ------------ |
-| `pages/`       | 页面级组件，布局+数据编排       | 不可包含通用 UI 逻辑 |
-| `components/`  | 通用 UI 组件，纯展示 + emit | 不可直接调 API    |
-| `composables/` | 组合式逻辑复用             | 不可包含 UI 渲染   |
-| `services/`    | API 请求封装            | 不可处理 UI 状态   |
-| `stores/`      | 全局状态管理              | 不可直接发请求      |
-| `types/`       | 类型定义                | 不可包含运行时逻辑    |
-| `utils/`       | 纯函数工具               | 不可有副作用       |
-| `config/`      | 配置类                 | 不可包含业务逻辑     |
-| `controller/`  | 路由 + 参数校验           | 不可包含业务逻辑     |
-| `service/`     | 业务逻辑编排              | 不可直接操作数据库    |
-| `repository/`  | 数据访问                | 不可包含业务判断     |
-| `entity/`      | 数据库映射               | 不可包含业务方法     |
-| `dto/`         | 数据传输                | 不可包含业务方法     |
+工程规范不重复维护易漂移的依赖版本和命令：
 
----
+- 前端版本：以 `web/package.json`、`web/pnpm-lock.yaml` 为准。
+- 后端版本和依赖：以 `server/pom.xml` 及 Maven BOM 为准。
+- 本地命令：以 `web/package.json` 和 `scripts/*.sh` 为准。
+- 端口和环境变量：以 `server/src/main/resources/application.yaml`、`web/vite.config.ts` 和环境文件为准。
+- 数据库结构：以 `server/src/main/resources/db/` 和版本化迁移脚本为准。
+- API 契约：以 `05-api.md`、SpringDoc 生成的 OpenAPI 和前端生成类型为准。
 
-## 3. 文档规范
+## 5. 变更与例外
 
-### 3.1 文档类型与维护
+任何规范变更必须说明：
 
-| 文档      | 维护者       | 同步策略         |
-| ------- | --------- | ------------ |
-| 需求规格说明书 | PM / 业务分析 | 需求变更时更新      |
-| 概要设计说明书 | 架构师       | 架构调整时更新      |
-| 详细设计说明书 | 开发工程师     | 接口/数据结构变更时同步 |
-| 页面交互设计  | 前端 / UX   | UI 变更时同步     |
-| 工程规范（`docs/06-spec/`） | Tech Lead | 定期评审更新       |
+1. 变更原因和影响范围。
+2. 是否改变 API、数据库、权限或部署行为。
+3. 迁移方式、回滚方式和验证方式。
+4. 需要同步的代码、配置、AGENTS 和设计文档。
 
-文档格式：Markdown，存放在 `docs/` 目录，与代码仓库同步管理。
+例外必须记录批准人、原因、失效日期和替代控制措施。临时例外不得演变为无期限的默认实现。
 
-### 3.2 API 文档
+## 6. 术语
 
-- 后端使用 **SpringDoc (OpenAPI 3)** 自动生成，无需手动维护独立的 API 文档。
-- Controller 类和方法添加 `@Operation`、`@Schema` 注解以提供描述信息。
-- 前后端通过 OpenAPI JSON 契约对齐类型定义。
+| 术语 | 定义 |
+| --- | --- |
+| 主规范 | 某一主题唯一负责定义要求的文档 |
+| 当前实现 | 代码、配置、锁文件和数据库脚本反映的事实 |
+| 目标规范 | 经用户确认后必须实现的工程要求 |
+| 活动上下文 | 当前请求所属的 workspace 或 project，由请求头传递 |
+| 资源 ID | URL 路径中用于定位资源的 ID，不等同于活动上下文 |
+| 规则登记册 | 规则编号、摘要、主规范和检查方式的索引 |
 
-### 3.3 代码注释
+## 7. 参考
 
-- **不要求**每个方法都有注释，但核心业务逻辑、复杂算法、非常规处理的代码必须有注释说明「为什么」。
-- 禁止逐行写废话注释（`// 设置用户名`）。
-- API 接口的注释通过 SpringDoc 注解提供，不在代码中写 JavaDoc 重复描述。
-
----
-
-## 4. 附录
-
-### 4.1 工具链版本锁定
-
-```
-Node.js >= 20 LTS
-pnpm >= 8
-Java >= 21 (Temurin / OpenJDK)
-Maven >= 3.9
-MySQL >= 8.0
-Redis >= 7
-```
-
-### 4.2 常用命令速查
-
-```bash
-# 本地开发
-cd web && pnpm run dev          # 前端 (端口 5173)
-cd server && mvn spring-boot:run -Pdev  # 后端 (端口 8080)
-bash scripts/dev.sh            # 一键启动
-
-# 构建
-cd web && pnpm run build
-cd server && mvn package -Pprod
-
-# 代码检查
-cd web && pnpm run lint && pnpm run typecheck
-cd server && mvn verify
-
-# 测试
-cd web && pnpm run test:unit -- --coverage
-cd server && mvn test
-```
-
-### 4.3 参考文档
-
-- [MiGoo Spring Boot 框架文档](https://xiaomisum.github.io/springboot-migoo-framework/)
-- 《软件测试平台需求规格说明书》
-- 《软件测试平台概要设计说明书》
-- 《软件测试平台项目仓库框架与技术架构设计》
-- 《软件测试平台系统管理模块详细设计说明书》
-- 《软件测试平台空间管理业务模块详细设计说明书》
-- 《软件测试平台项目模块详细设计说明书》
+- 目录索引：`docs/06-spec/01-readme.md`
+- 文档管理约定：`docs/AGENTS.md`
+- 前端约定：`web/AGENTS.md`
+- 后端约定：`server/AGENTS.md`
 
 ---
 

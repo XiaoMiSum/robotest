@@ -1,502 +1,274 @@
-# 工程规范 — 后端
+# 软件测试平台——后端工程规范
 
 **文档版本**：V1.0
-**日期**：2026-07-29
+**日期**：2026-09-24
 **状态**：已发布
 
 ---
 
-## 1. 技术栈锁定
+## 1. 技术栈与版本来源
 
-| 技术                         | 版本     | 说明                                 |
-| -------------------------- | ------ | ---------------------------------- |
-| Java                       | 21     | LTS 版本                             |
-| migoo-springboot-framework | 1.3.18 | 最新版本                               |
-| Spring Boot                | 4.x    | 由migoo-springboot-framework提供      |
-| MyBatis-Plus               | 最新     | 复杂查询，由migoo-springboot-framework提供 |
-| Spring Security            | 最新     | 认证授权，由migoo-springboot-framework提供 |
-| SpringDoc                  | 最新     | OpenAPI 文档                         |
-| MySQL                      | 8.0+   | 关系型数据库                             |
-| Redis                      | 7+     | 缓存与消息订阅                            |
-| JUnit 5                    | 最新     | 单元测试                               |
-| Mockito                    | 最新     | 测试 Mock                            |
-| Checkstyle                 | 最新     | 代码风格检查                             |
-| SpotBugs                   | 最新     | Bug 模式检查                           |
-| Maven                      | 3.9+   | 构建工具                               |
+| 能力 | 技术 | 版本来源 |
+| --- | --- | --- |
+| 运行时 | Java 21 | `server/pom.xml` |
+| 框架 | migoo 1.3.18 / Spring Boot 4.x | Maven BOM、`server/pom.xml` |
+| 数据访问 | MyBatis-Plus / `migoo-spring-boot-starter-mybatis` | Maven BOM、`server/pom.xml` |
+| 安全 | Spring Security / migoo security starter | Maven BOM、`server/pom.xml` |
+| API 文档 | SpringDoc | `server/pom.xml` |
+| 数据库 | PostgreSQL 14+ | `server/src/main/resources/db/`、运行配置 |
+| 测试 | JUnit 5、Spring Boot Test、Mockito | `server/pom.xml` |
 
----
+本文不维护“最新”版本。依赖升级必须同步 Maven BOM、配置、测试和 OpenAPI 契约。
 
 ## 2. 分层架构
 
-```
-Controller → Service(接口) → ServiceImpl(实现) → Repository
-    │             │                 │                │
- DTO 校验     业务逻辑编排         事务管理         数据访问
- 参数转换      权限校验            领域逻辑         SQL/JPQL
- 路由映射      跨服务调用
+```text
+Controller → Service → Mapper / 外部适配器
+     │           │             │
+路由/校验    业务编排/事务    数据访问/查询封装
 ```
 
-**依赖方向**（严格单向）：
+依赖方向必须单向：
 
-```
-Controller → Service(接口) → ServiceImpl → Repository → Entity
-       ↓                      ↓
-    DTO / VO              Entity / DTO
-```
+- Controller 不直接依赖 Mapper。
+- Service 不直接操作 HTTP、Vue 或 UI 状态。
+- Mapper 只负责数据访问和查询条件封装，不负责权限或业务状态判断。
+- Entity 不包含跨 Service 的业务方法。
+- DTO 不暴露 Entity 的可变内部结构。
 
----
+框架响应、异常和分页的唯一契约分别见：
+
+- `docs/06-spec/05-api.md`
+- `docs/06-spec/11-migoo-framework.md`
 
 ## 3. 各层职责
 
 ### 3.1 Controller
 
+Controller 只负责：
+
+- 路由和方法映射；
+- DTO 绑定和 `@Valid` 校验；
+- 读取认证用户和活动上下文；
+- 调用 Service；
+- 使用 `Result<T>` 包装返回值。
+
 ```java
 @RestController
 @RequestMapping("/api/admin/users")
 @RequiredArgsConstructor
-public class UserController {
-    private final UserService userService;
+public class AdminUserController {
+    private final AdminUserService adminUserService;
 
     @GetMapping
-    public ApiResponse<PageResult<UserVO>> list(UserQueryDTO query) {
-        return ApiResponse.success(userService.list(query));
-    }
-
-    @PostMapping
-    public ApiResponse<UserVO> create(@Valid @RequestBody UserCreateDTO dto) {
-        return ApiResponse.success(userService.create(dto));
+    public Result<PageResult<UserRespDTO>> list(
+            @Valid UserQueryReqDTO query) {
+        return Result.ok(adminUserService.list(query));
     }
 }
 ```
 
-- 路径：`/api/{模块}/{资源}`
-- 参数校验使用 `@Valid` + DTO 注解
-- 返回 `ApiResponse<T>`，异常由全局处理器统一处理
-- **禁止**在 Controller 中写业务逻辑
+禁止在 Controller 中：
+
+- 直接调用 Mapper；
+- 判断角色、状态或业务流转；
+- 组装复杂聚合 DTO；
+- 手动拼接 SQL 或错误消息。
 
 ### 3.2 Service
 
-```java
-public interface UserService {
-    PageResult<UserVO> list(UserQueryDTO query);
-    UserVO create(UserCreateDTO dto);
-    UserVO update(Long id, UserUpdateDTO dto);
-    void delete(Long id);
-}
-```
+Service 负责：
 
-- 接口定义业务契约
-- 实现类标注 `@Transactional`
-- 多个 Repository 写操作使用事务
-- 权限校验在 Service 层完成
+- 业务规则和状态流转；
+- 权限和资源归属校验；
+- 事务边界；
+- 多个 Mapper 的协调；
+- Entity 到响应 DTO 的组装；
+- 领域异常的触发。
 
-### 3.3 Repository
+Service 必须使用统一资源 Guard 校验 workspace/project 归属，不能只依赖前端路由或上下文 Header 的存在。
 
-```java
-// MyBatis-Plus 复杂查询
-public interface UserMapper extends BaseMapperX<User> {
-    Page<UserVO> queryPage(Page<User> page, @Param("query") UserQueryDTO query);
-}
-```
+### 3.3 Mapper
 
-- 复杂统计、多表关联使用 MyBatis-Plus
-- **禁止**在 Repository 层写业务判断
+Mapper 负责：
 
----
+- 单表和关联数据访问；
+- 复杂查询 SQL；
+- 动态查询条件封装；
+- 分页、批量和更新操作；
+- 返回影响行数，供并发和幂等判断使用。
+
+复杂查询和 Wrapper 构造必须封装在 Mapper 的 `default` 方法或专用查询对象中。Service 不得直接构造 `LambdaQueryWrapperX` / `LambdaUpdateWrapperX`。现有代码中的偏离项必须通过迁移任务收敛，不能以“当前已存在”为理由继续扩散。
 
 ## 4. 命名规范
 
-| 要素           | 规范                             | 示例                  |
-| ------------ | ------------------------------ | ------------------- |
-| Controller   | `XxxController`                | `UserController`    |
-| Service 接口   | `XxxService`                   | `UserService`       |
-| Service 实现   | `XxxServiceImpl`               | `UserServiceImpl`   |
-| Repository   | `XxxRepository` / `XxxMapper`  | `UserRepository`    |
-| Entity       | `Xxx`（与表名对应）                   | `User`              |
-| DTO Request  | `XxxCreateDTO` / `XxxQueryDTO` | `UserCreateDTO`     |
-| DTO Response | `XxxVO` / `XxxDTO`             | `UserVO`            |
-| 异常类          | `XxxException`                 | `BusinessException` |
-| 配置类          | `XxxConfig`                    | `SecurityConfig`    |
-| 工具类          | `XxxUtils`                     | `TreeUtils`         |
+| 要素 | 规范 | 示例 |
+| --- | --- | --- |
+| Controller | `XxxController` | `AdminUserController` |
+| Service | `XxxService` | `AdminUserService` |
+| Service 实现 | `XxxServiceImpl` | `AdminUserServiceImpl` |
+| Mapper | `XxxMapper` | `SysUserMapper` |
+| Entity | 与表或领域资源对应 | `SysUser` |
+| 请求 DTO | `XxxCreateReqDTO`、`XxxUpdateReqDTO`、`XxxQueryReqDTO` | `UserCreateReqDTO` |
+| 响应 DTO | `XxxRespDTO`、`XxxDetailRespDTO` | `UserRespDTO` |
+| 错误码 | `ErrorCodeConstants` | `USER_NOT_FOUND` |
+| 配置 | `XxxConfig` | `SecurityConfig` |
+| 转换器 | `XxxConvertMapper` | `UserConvertMapper` |
 
----
+## 5. DTO、Entity 与转换
 
-## 5. DTO / Entity 规范
+### 5.1 Entity
 
-### Entity
+Entity 使用 MyBatis-Plus 注解和 migoo 基类：
 
 ```java
-@Table(name = "user")
-@Data
-public class User {
-    private Long id;
-
+@TableName("sys_user")
+public class SysUser extends BaseUuidDO<SysUser> {
     private String username;
-
     private String passwordHash;
-
-    private UserStatus status;
 }
 ```
 
-### Request DTO
+- 统一使用框架默认 UUID 策略。
+- 不手动声明 `id`、`createdAt`、`updatedAt` 和 `isDeleted`。
+- Entity 不返回给 Controller。
+- Entity 不添加权限判断、状态流转或远程调用。
+
+### 5.2 DTO
+
+- 请求 DTO 只声明接口输入，不复用 Entity。
+- 响应 DTO 只声明允许暴露的字段。
+- 密码、Token、密钥、加密字段和内部审计字段禁止进入响应。
+- 列表 DTO 和详情 DTO 可以拆分，避免无意义地暴露内部关联对象。
+
+### 5.3 MapStruct
+
+转换器统一放在：
+
+```text
+server/src/main/java/io/github/xiaomisum/robotest/model/convert/
+```
+
+规则：
+
+- 纯字段一对一映射使用 MapStruct。
+- 聚合、统计、树结构、动态权限和需要额外查询的字段由 Service 组装。
+- 转换器不得查询数据库或判断业务权限。
+- 不得混用静态 `INSTANCE`、Spring 注入和手工 setter 拷贝。
+- 新代码遵循项目最终选定的一种实例化方式；现有代码迁移需单独记录。
+
+## 6. 响应、异常与分页
+
+本项目不再维护第二套 `ApiResponse`、`PageResult` 或全局异常处理器。
+
+- Controller 返回 `Result<T>`。
+- 业务异常使用 `ServiceExceptionUtil.get(ErrorCodeConstants.X)`。
+- 分页使用 `pageNo/pageSize`，返回 `PageResult<T>.list/total`。
+- 错误码使用 10 位数字并集中登记。
+- 响应字段为 `code`、`msg`、`data`。
+
+完整定义见 `05-api.md` 和 `11-migoo-framework.md`。
+
+## 7. 事务、并发和幂等
+
+### 7.1 事务
+
+- 事务边界放在 Service 公共业务方法。
+- 多个写操作需要原子性时使用 `@Transactional`。
+- 异步任务、消息处理和 WebSocket 持久化必须明确事务边界。
+- 事务中禁止执行不可控的远程调用或长时间阻塞操作。
+
+### 7.2 并发
+
+- 可并发修改的资源使用版本号、更新时间或条件更新。
+- 更新影响行数为 `0` 时必须按冲突、未找到或幂等成功处理，不能静默忽略。
+- 批量操作必须定义部分失败策略。
+
+### 7.3 幂等
+
+创建、状态流转、导入、异步执行和 WebSocket 文本操作必须说明幂等键或重复请求行为。
+
+## 8. 数据更新规范（C11）
+
+核心原则：只更新调用方实际提交的字段。
+
+### 8.1 常规部分更新
+
+查询结果只用于存在性、权限和状态校验，不得直接作为 `updateById` 载体：
 
 ```java
-@Data
-public class UserCreateDTO {
-    @NotBlank
-    @Size(min = 3, max = 30)
-    @Pattern(regexp = "^[a-zA-Z0-9_-]+$")
-    private String username;
-
-    @NotBlank
-    @Email
-    private String email;
-
-    @NotBlank
-    @Size(min = 8, max = 64)
-    private String password;
-
-    @NotEmpty
-    private List<Long> roleIds;
-}
-```
-
-### Response VO
-
-```java
-@Data
-public class UserVO {
-    private Long id;
-    private String username;
-    private String email;
-    private String status;
-    private List<RoleVO> roles;
-    private List<WorkspaceBriefVO> workspaces;
-    private LocalDateTime createdAt;
-}
-```
-
-**命名转换**：Jackson 自动转换 `SNAKE_CASE` ↔ camelCase。
-
-### 5.3 对象转换（MapStruct）
-
-**核心原则：所有 Entity → DTO / Response 的转换必须使用 MapStruct Converter，禁止在 Service 中手动 `new DTO()` + setter 逐字段拷贝。**
-
-#### 存放位置
-
-转换器定义在 `framework/convert/` 包下，按业务模块命名：
-
-```
-framework/convert/
-  ├── UserConvertMapper.java         # 用户模块
-  ├── RoleConvertMapper.java         # 角色模块
-  ├── BugConvertMapper.java          # 缺陷模块
-  └── WorkspaceMemberConvertMapper.java
-```
-
-Entity 按业务域分入子包：
-
-```
-model/entity/
-  ├── admin/          SysUser, SysRole, SysUserRole, SysPermission, AuditLog
-  ├── workspace/      Workspace, WorkspaceUser, WorkspaceInvitation, Project
-  ├── tcase/          TestCaseModule, TestCaseNode, TestCaseDocumentLayout
-  ├── plan/           TestPlan, TestPlanModuleSnapshot, TestPlanNodeSnapshot, TestPlanExecutionRecord
-  ├── review/         TestReview, TestReviewModuleSnapshot, TestReviewNodeSnapshot, TestReviewRecord
-  └── bug/            Bug, BugAttachment, BugLog
-```
-
-#### 基本模式
-
-```java
-@Mapper
-public interface UserConvertMapper {
-
-    UserConvertMapper INSTANCE = Mappers.getMapper(UserConvertMapper.class);
-
-    @Mapping(target = "roles", ignore = true)
-    UserRespDTO toRespDTO(SysUser user);
-
-    default UserInfo toUserInfo(SysUser user) {
-        if (user == null) return null;
-        UserInfo info = new UserInfo();
-        info.setId(user.getId());
-        info.setName(user.getUsername());
-        return info;
-    }
-}
-```
-
-- 接口标注 `@Mapper`，`INSTANCE` 通过 `Mappers.getMapper()` 获取
-- 源-目标字段名一致时自动映射，不一致时用 `@Mapping` 显式声明
-- `@Mapping(target = "xxx", ignore = true)` 跳过需服务层手工赋值的字段（如 UserInfo 需查 SysUser 表）
-- 复杂逻辑（如组合多个源、构造嵌套对象）用 `default` 方法实现
-- 字段名、类型均一致时无需任何注解
-
-#### 使用示例
-
-```java
-// ✅ 正确：Service 中使用 Converter
-BugListRespDTO dto = BugConvertMapper.INSTANCE.toListRespDTO(bug);
-dto.setReporter(BugConvertMapper.INSTANCE.toUserInfo(userMapper.selectById(bug.getReporterId())));
-```
-
-```java
-// ❌ 错误：在 Service 中手写逐字段拷贝
-BugListRespDTO dto = new BugListRespDTO();
-dto.setId(bug.getId());
-dto.setTitle(bug.getTitle());
-dto.setSeverity(bug.getSeverity());
-// ... 十几行重复字段拷贝
-```
-
-#### 双向转换
-
-- **Entity → Response DTO**：使用 MapStruct Converter
-- **Request DTO → Entity**：MapStruct 处理纯字段映射，业务/上下文字段在 Service 中手工赋值
-- **List 批量转换**：`recentLogs.stream().map(BugConvertMapper.INSTANCE::toLogRespDTO).collect(...)`
-
-DTO→Entity 的 `toEntity()` 方法定义在 Converter 中，配合 `@Mapping(target = "...", ignore = true)` 跳过主键、审计、状态等由 Service 赋值的字段：
-
-```java
-@Mapper
-public interface TestPlanConvertMapper {
-    TestPlanConvertMapper INSTANCE = Mappers.getMapper(TestPlanConvertMapper.class);
-
-    @Mapping(target = "id", ignore = true)
-    @Mapping(target = "projectId", ignore = true)
-    @Mapping(target = "status", ignore = true)
-    @Mapping(target = "createdAt", ignore = true)
-    @Mapping(target = "updatedAt", ignore = true)
-    @Mapping(target = "isDeleted", ignore = true)
-    TestPlan toEntity(TestPlanCreateReqDTO dto);
-}
-```
-
-Service 中使用：
-
-```java
-// ✅ 正确：Converter 处理纯字段映射，业务字段在 Service 中赋值
-TestPlan plan = TestPlanConvertMapper.INSTANCE.toEntity(reqDTO);
-plan.setProjectId(projectId);
-plan.setStatus(Constants.Status.NEW);
-testPlanMapper.insert(plan);
-```
-
-```java
-// ❌ 错误：在 Service 中手动 new Entity() + setter 逐字段拷贝
-TestPlan plan = new TestPlan();
-plan.setProjectId(projectId);
-plan.setName(reqDTO.getName());
-plan.setDescription(reqDTO.getDescription());
-// ... 十几行重复字段拷贝
-plan.setStatus(Constants.Status.NEW);
-testPlanMapper.insert(plan);
-```
-
----
-
-## 6. API 响应格式
-
-### 统一响应体
-
-```java
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
-public class ApiResponse<T> {
-    private int code;
-    private String message;
-    private T data;
-    private long timestamp;
-
-    public static <T> ApiResponse<T> success(T data) {
-        return new ApiResponse<>(200, "success", data, System.currentTimeMillis());
-    }
-
-    public static <T> ApiResponse<T> error(int code, String message) {
-        return new ApiResponse<>(code, message, null, System.currentTimeMillis());
-    }
-}
-```
-
-### 分页响应
-
-```java
-@Data
-public class PageResult<T> {
-    private List<T> records;
-    private long total;
-}
-```
-
----
-
-## 7. 异常处理
-
-### 全局异常处理器
-
-```java
-@RestControllerAdvice
-public class GlobalExceptionHandler {
-
-    @ExceptionHandler(BusinessException.class)
-    public ApiResponse<Void> handleBusiness(BusinessException e) {
-        return ApiResponse.error(e.getCode(), e.getMessage());
-    }
-
-    @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ApiResponse<Void> handleValidation(MethodArgumentNotValidException e) {
-        return ApiResponse.error(1001, "参数校验失败");
-    }
-
-    @ExceptionHandler(Exception.class)
-    public ApiResponse<Void> handleUnknown(Exception e) {
-        log.error("Unhandled exception", e);
-        return ApiResponse.error(5000, "服务器内部错误");
-    }
-}
-```
-
-### 业务异常
-
-```java
-public class BusinessException extends RuntimeException {
-    private final int code;
-    public BusinessException(int code, String message) { ... }
-}
-
-// 使用方式
-if (userRepository.existsByUsername(dto.getUsername())) {
-    throw new BusinessException(1002, "用户名已存在");
-}
-```
-
----
-
-## 8. 数据更新规范
-
-**核心原则：更新数据时，只更新前端（调用方）实际传入的字段。**
-
-`selectById` 等查询仅用于校验（存在性、权限、状态），**禁止**将整行查询结果作为 `updateById` 的更新载体——那会生成全列 UPDATE，把未传字段用查询时刻的旧值重写，造成并发丢失更新。
-
-### 8.1 常规部分更新（模式 A）
-
-更新载体为新建实体，只携带 `id` + 本次传入的字段（MyBatis-Plus 默认 NOT_NULL 字段策略会自动忽略 null 字段）：
-
-```java
-// ✅ 正确：查询仅做校验，载体只携带变更字段
-SysUser user = userMapper.selectById(id);
-if (user == null) {
+SysUser existing = sysUserMapper.selectById(id);
+if (existing == null) {
     throw ServiceExceptionUtil.get(ErrorCodeConstants.USER_NOT_FOUND);
 }
+
 SysUser update = new SysUser();
 update.setId(id);
 if (StringUtils.hasText(reqDTO.getName())) {
     update.setName(reqDTO.getName());
 }
-userMapper.updateById(update);
+sysUserMapper.updateById(update);
 ```
 
-```java
-// ❌ 错误：整行查询结果作载体，全列 UPDATE 覆盖并发变更
-SysUser user = userMapper.selectById(id);
-user.setName(reqDTO.getName());
-userMapper.updateById(user);
-```
+### 8.2 显式置空
 
-### 8.2 需要显式置 null 的更新（模式 B）
+需要将字段设置为 `NULL` 时，使用 `LambdaUpdateWrapperX` 显式 `.set(field, null)`，不能依赖 `updateById` 的非空字段策略。
 
-`updateById` 的 NOT_NULL 策略会静默忽略 null 字段，需要清空列时必须使用 `LambdaUpdateWrapperX` 显式 `.set(..., null)`：
+### 8.3 测试要求
 
-```java
-// ✅ 正确：显式置 null 走 wrapper
-bugMapper.update(null, new LambdaUpdateWrapperX<Bug>()
-        .eq(Bug::getId, bugId)
-        .set(Bug::getStatus, Constants.BugStatus.ACTIVE)
-        .set(Bug::getResolution, null)
-        .set(Bug::getResolvedBy, null));
-```
-
-### 8.3 单元测试要求
-
-- 模式 A：用 `ArgumentCaptor` 捕获 `updateById` 载体，断言只携带预期字段；同时 `verify(mapper, never())` 验证未发生意外更新
-- 模式 B：先通过 `TableInfoHelper.initTableInfo` 注册实体列信息，再捕获 wrapper，断言 `getSqlSet()` 包含目标列（含置 null 列）、`getParamNameValuePairs()` 包含目标值
-
----
+- 使用 `ArgumentCaptor` 验证更新载荷。
+- 验证未提交字段没有被覆盖。
+- 验证显式置空和乐观锁影响行数。
+- 验证权限失败、并发冲突和重复请求。
 
 ## 9. 查询封装规范
 
-**核心原则：`LambdaQueryWrapperX` / `LambdaUpdateWrapperX` 必须在 Mapper 的 `default` 方法中封装，禁止在 Service 中直接构造 Wrapper。**
-
-### 9.1 做法
-
-在 Mapper 接口中定义 `default` 方法，将 Wrapper 构造和 MyBatis-Plus 调用统一封装：
+### 9.1 Mapper 意图方法
 
 ```java
 public interface BugMapper extends BaseMapperX<Bug> {
-
     default PageResult<Bug> findPage(PageParam pageParam, UUID projectId,
-                                      String status, String severity) {
-        LambdaQueryWrapperX<Bug> wrapper = new LambdaQueryWrapperX<Bug>()
-                .eq(Bug::getProjectId, projectId);
-        if (StringUtils.hasText(status)) {
-            wrapper.eq(Bug::getStatus, status);
-        }
-        if (StringUtils.hasText(severity)) {
-            wrapper.eq(Bug::getSeverity, severity);
-        }
-        wrapper.orderByDesc(Bug::getCreatedAt);
-        return this.selectPage(pageParam, wrapper);
-    }
-
-    default int resolveById(UUID id, UUID userId, String resolution, UUID duplicateOfBugId) {
-        return this.update(null, new LambdaUpdateWrapperX<Bug>()
-                .eq(Bug::getId, id)
-                .set(Bug::getStatus, Constants.BugStatus.RESOLVED)
-                .set(Bug::getResolvedBy, userId)
-                .set(Bug::getResolution, resolution)
-                .set(Bug::getDuplicateOfBugId, duplicateOfBugId));
+                                      String status) {
+        return selectPage(pageParam, new LambdaQueryWrapperX<Bug>()
+                .eq(Bug::getProjectId, projectId)
+                .eqIfPresent(Bug::getStatus, status)
+                .orderByDesc(Bug::getCreatedAt));
     }
 }
 ```
 
-### 9.2 使用
+Service 负责业务判断，Mapper 负责查询意图和数据访问。
 
-Service 中调用 Mapper 封装方法，不再出现任何 Wrapper：
+### 9.2 命名
 
-```java
-// ✅ 正确：Service 委托给 Mapper.default 方法
-PageResult<Bug> page = bugMapper.findPage(pageParam, projectId, status, severity);
-bugMapper.resolveById(id, userId, resolution, duplicateOfBugId);
-```
+| 操作 | 命名 |
+| --- | --- |
+| 分页 | `findPage` |
+| 列表 | `findBy{Field}` / `listBy{Field}` |
+| 计数 | `count{Condition}` |
+| 单条 | `findBy{Field}` |
+| 状态更新 | `{action}ById` |
+| 删除 | `deleteBy{Condition}` |
 
-```java
-// ❌ 错误：Service 中直接构造 Wrapper
-LambdaQueryWrapperX<Bug> wrapper = new LambdaQueryWrapperX<>()
-        .eq(Bug::getProjectId, projectId);
-if (...) { wrapper.eq(...); }
-bugMapper.selectPage(pageParam, wrapper);
-```
+更新和删除方法优先返回 `int`。
 
-### 9.3 命名约定
+## 10. 审查清单
 
-| 操作 | 命名模式 | 示例 |
-|------|----------|------|
-| 分页查询 | `findPage` / `find{PageName}Page` | `findPage(PageParam, UUID, ...)` |
-| 列表查询 | `findBy{字段}` / `listBy{字段}` | `findByProjectId(UUID)` / `listByDocumentId(UUID)` |
-| 计数 | `count{条件}` | `countOpenBugs(UUID projectId)` |
-| 单条查询 | `findBy{字段}` | `findByNameAndParent(UUID projectId, UUID parentId, String name)` |
-| 更新（Wrapper） | `{操作}By{条件}` | `resolveById(UUID, UUID, String, UUID)` / `reopenById(UUID, int)` / `updateSortOrder(UUID, int)` |
-| 删除（Wrapper） | `deleteBy{条件}` | `deleteByUserIdAndRoleId(UUID, UUID)` |
+- [ ] Controller 无业务逻辑
+- [ ] Service 使用统一异常和权限 Guard
+- [ ] Mapper 封装 Wrapper 和复杂查询
+- [ ] 响应、分页和错误码符合 `05-api.md`
+- [ ] Entity 使用框架基类和默认 UUID 策略
+- [ ] MapStruct 转换器位于 `model/convert/`
+- [ ] C11 部分更新和显式置空有测试
+- [ ] 事务、并发和幂等策略明确
 
-### 9.4 注意事项
+## 11. 参考
 
-- `default` 方法中通过 `this` 调用 Mapper 自身的方法（`selectPage`、`selectList`、`selectCount`、`update`、`delete` 等）
-- 含 `null` parentId 的场景用 `isNull()` 而非 `eq(null)`：`wrapper.isNull(Entity::getParentId)`
-- 更新操作返回 `int`（影响行数），与 MyBatis-Plus 原生返回类型一致
-- Service 仍负责业务校验、组装 DTO、事务管理——只将 Wrapper 构造下沉到 Mapper
+- API 契约：`docs/06-spec/05-api.md`
+- 数据库：`docs/06-spec/06-database.md`
+- migoo 框架：`docs/06-spec/11-migoo-framework.md`
+- 安全：`docs/06-spec/10-security.md`
 
 ---
 

@@ -14,7 +14,7 @@
 ## 环境命令
 
 ```bash
-# 开发（端口 8080，dev profile）
+# 开发（端口 58080，dev profile）
 mvn spring-boot:run -Pdev
 
 # 构建 → target/*.jar（prod profile）
@@ -31,13 +31,13 @@ mvn test
 - `controller/{admin,apitest,project,workspace}/`：仅路由 + 参数校验（`@Valid`），无业务逻辑
 - `service/{admin,ai,apitest,domain,project,websocket,workspace}/`：接口 + 实现同包，按业务域分组
 - `service/websocket/`：业务 WebSocket 处理（DocumentHandler、DocumentPersistenceHandler）
-- `repository/`：JPA / MyBatis-Plus 数据访问
+- `repository/`：MyBatis-Plus Mapper 数据访问
 - `model/entity/` ↔ `model/dto/request|response/`
+- `model/convert/`：MapStruct 对象转换
 - `framework/`：基础框架层（与业务无关）
   - `audit/`：审计注解 + AOP 切面
   - `common/`：`Constants` / `ErrorCodeConstants`
   - `config/`：Spring MVC 配置
-  - `convert/`：MapStruct 对象转换
   - `interceptor/`：工作空间角色权限拦截器
   - `security/`：JWT 双令牌 + RBAC（LoginUser、UserDetailsBridgeImpl）
   - `websocket/`：已移除（房间管理由框架 `migoo-spring-boot-starter-websocket` 原生支持）
@@ -53,8 +53,8 @@ mvn test
 | --- | ----------------------------------------------------- | --------- |
 | C10 | 优先使用 migoo 框架提供的基础功能（验证注解、工具类等），禁止重复造轮子（后端）     | 代码审查      |
 | C2  | Controller 不允许包含业务逻辑，只能路由+校验                        | 代码审查      |
-| C3  | 所有业务异常必须抛出 `BusinessException(code, msg)`，不抛原始异常      | 代码审查      |
-| C5  | 数据库每表必须有 `id`（自增或雪花）、`created_at`、`updated_at`、`is_deleted`（逻辑删除），禁止物理外键 | 数据库审查     |
+| C3  | 业务异常统一通过 migoo `ServiceExceptionUtil.get(ErrorCode)` 抛出，使用 10 位错误码 | 代码审查      |
+| C5  | 数据库每表必须有 `id`、`created_at`、`updated_at`、`is_deleted`（逻辑删除），UUID 使用框架默认策略，禁止物理外键 | 数据库审查     |
 | C8  | 单测覆盖率 ≥ 70%                                            | CI        |
 | C11 | 更新数据只更新调用方实际传入的字段：查询仅做校验，禁止整行查询结果作 `updateById` 载体；显式置 null 用 `LambdaUpdateWrapperX` | 代码审查      |
 
@@ -64,7 +64,7 @@ mvn test
 
 - 只修改 `server/` 目录下的文件，不碰 `web/` 代码
 - Controller 仅负责路由与参数校验，业务逻辑在 Service 层（C2）
-- 上下文标识（如 workspaceId）仅通过请求头 `X-Active-Workspace` 传递（C4），不出现在 URL 或请求体中
+- 上下文标识（如 workspaceId/projectId）仅通过请求头 `X-Active-Workspace` / `X-Active-Project` 传递（C4），不出现在活动上下文 URL 或请求体中；资源自身 ID 按 API 规范处理
 - 避免新增外部依赖，确有必要时需经团队讨论
 
 ## 框架集成（migoo-spring-boot-starter v1.3.18）
@@ -124,27 +124,24 @@ userMapper.updateById(user);
 // 请求 DTO 继承 PageParam（pageNo/pageSize）
 // Service 返回 PageResult<T>（list/total）
 PageResult<SysUser> page = userMapper.selectPage(
-    new PageParam() {{ setPageNo(1); setPageSize(10); }}, wrapper);
+    new PageParam() {{ setPageNo(1); setPageSize(20); }}, wrapper);
 ```
 
 ### 对象转换（MapStruct）
 
 ```java
-// 定义 Mapper 接口
-@Mapper(componentModel = "spring")
+// 转换器统一放在 model/convert/
+@Mapper
 public interface UserConvertMapper {
     UserConvertMapper INSTANCE = Mappers.getMapper(UserConvertMapper.class);
 
-    UserVO toVO(SysUser entity);
-    List<UserVO> toVOList(List<SysUser> entities);
+    UserRespDTO toRespDTO(SysUser entity);
+    List<UserRespDTO> toRespDTOList(List<SysUser> entities);
     SysUser toEntity(UserCreateReqDTO dto);
 }
 
 // Service 中使用
-UserVO vo = UserConvertMapper.INSTANCE.toVO(user);
-// 或注入使用（推荐）
-@Resource
-private UserConvertMapper userConvertMapper;
+UserRespDTO dto = UserConvertMapper.INSTANCE.toRespDTO(user);
 ```
 
 ### 工具类速查

@@ -1,599 +1,268 @@
-# migoo 框架集成规范
+# 软件测试平台——migoo 框架集成规范
 
 **文档版本**：V1.0
-**日期**：2026-07-21
+**日期**：2026-09-24
 **状态**：已发布
 
 ---
 
-> 本项目基于 **migoo-spring-boot-starter**（v1.3.18）构建，BOM 通过 `migoo-framework-dependencies` 统一管理版本。  
-> 框架文档：https://xiaomisum.github.io/springboot-migoo-framework/  
-> 版本发布：https://github.com/xiaomisum/migoo-framework/releases
+## 1. 适用范围
 
----
+本规范记录项目对 `migoo-spring-boot-starter` 的项目级约束。框架的通用 API 目录以官方文档和当前锁定版本为准，本文件不复制完整框架手册。
 
-## 1. Starter 清单
+| 项目 | 约定 |
+| --- | --- |
+| 框架 | `migoo-spring-boot-starter` |
+| 版本 | `1.3.18`，由 Maven BOM 管理 |
+| Java | 21 |
+| 数据访问 | `migoo-spring-boot-starter-mybatis` |
+| 认证 | `migoo-spring-boot-starter-security` |
+| WebSocket | `migoo-spring-boot-starter-websocket` |
+| Redis | 用于缓存、会话和分布式 WebSocket；是否启用以配置为准 |
 
-| Starter | 用途 | 关键类 |
-|---------|------|--------|
-| `migoo-spring-boot-starter-common` | 统一响应体、分页模型、异常体系、校验注解、工具类 | `Result`、`ErrorCode`、`ServiceExceptionUtil`、`PageParam`、`PageResult`、`JsonUtils`、`BeanUtils`、`CollectionUtils` |
-| `migoo-spring-boot-starter-web` | Web MVC 增强、XSS 过滤、全局异常处理、API 错误日志 | `ApiErrorLogFrameworkService` |
-| `migoo-spring-boot-starter-security` | JWT 双令牌认证 + RBAC 授权 | `AuthUserDetails`、`UserDetailsBridge`、`AuthUserDetailsFetcher`、`JwtTokenProvider` |
-| `migoo-spring-boot-starter-mybatis` | MyBatis-Plus 增强、UUID 主键、自动填充、加密存储 | `BaseUuidDO`、`BaseMapperX`、`LambdaQueryWrapperX`、`EncryptTypeHandler` |
-| `migoo-spring-boot-starter-websocket` | WebSocket 连接管理、Token 认证、会话管理、分布式广播 | `MiGooWebSocketHandler`、`WebSocketSessionManager`、`WebSocketAuthInterceptor` |
-| `migoo-spring-boot-starter-redis` | Redis 自动配置（分布式 WebSocket 依赖） | 声明但未直接使用 |
+版本升级必须同时检查响应、异常、分页、主键、WebSocket 和安全配置，不允许只修改依赖版本。
 
----
-
-## 2. 统一响应（common）
+## 2. 统一响应和错误
 
 ### 2.1 Result
 
-Controller 统一返回 `Result<T>`，框架自动包装响应结构。
-
-| 方法 | 说明 |
-|------|------|
-| `Result.ok()` | 成功（无数据） |
-| `Result.ok(data)` | 成功（带数据） |
-| `Result.error(ErrorCode)` | 错误响应（自动映射 HTTP 状态码） |
+Controller 统一返回 `Result<T>`：
 
 ```java
-// 成功
-return Result.ok(userVO);
+return Result.ok(data);
+return Result.ok();
+return Result.error(ErrorCodeConstants.SOME_ERROR);
+```
 
-// 分页
-return Result.ok(userMapper.selectPage(reqParam));
+响应字段由 `05-api.md` 定义：
 
-// 错误
-return Result.error(ErrorCodeConstants.USER_NOT_FOUND);
+```text
+Result<T> = { code: number, msg: string, data: T }
 ```
 
 ### 2.2 ErrorCode
 
-错误码定义，10 位数字，分四段 `类型(1) / 系统(3) / 模块(3) / 错误编号(3)`。
+错误码使用 10 位数字，并由项目统一登记：
 
 ```java
-// 定义
-public static final ErrorCode USER_NOT_FOUND = ErrorCode.of(1000003001, "用户不存在");
-
-// 预置错误码（GlobalErrorCodeConstants）
-// SUCCESS=200, BAD_REQUEST=400, UNAUTHORIZED=401, FORBIDDEN=403, NOT_FOUND=404, INTERNAL_SERVER_ERROR=500
+public static final ErrorCode USER_NOT_FOUND =
+        ErrorCode.of(1000003001, "用户不存在");
 ```
 
----
+不得在业务代码中临时创建同义错误码，也不得使用 `int` 自定义一套平行错误码体系。
 
-## 3. 异常处理（common）
+### 2.3 业务异常
 
-### 3.1 抛出业务异常
-
-使用 `ServiceExceptionUtil.get(ErrorCode)` 抛出 `BusinessException`，框架全局异常处理器自动捕获并返回 `Result` 响应。
+业务异常统一通过框架工具抛出：
 
 ```java
-// 基础用法
-SysUser user = userMapper.selectById(userId);
 if (user == null) {
     throw ServiceExceptionUtil.get(ErrorCodeConstants.USER_NOT_FOUND);
 }
-
-// 带参数（{0} 占位符替换）
-throw ServiceExceptionUtil.get(ErrorCodeConstants.USER_NOT_FOUND, userId);
 ```
 
-### 3.2 自定义参数校验注解
-
-配合 `@Valid` 在 Controller 自动校验。
-
-| 注解 | 说明 |
-|------|------|
-| `@Mobile` | 手机号（11 位，1 开头） |
-| `@Email` | 邮箱 |
-| `@Password` | 密码（8-32 位，含字母+数字+特殊字符） |
-| `@InEnum` | 枚举值校验 |
+需要参数替换时使用框架占位符：
 
 ```java
-public class UserCreateReqBody {
-    @Mobile
-    private String mobile;
-
-    @Email
-    private String email;
-
-    @Password
-    private String password;
-
-    @InEnum(UserStatusEnum.class)
-    private Integer status;
-}
+throw ServiceExceptionUtil.get(ErrorCodeConstants.SOME_ERROR, argument);
 ```
 
----
+框架运行时异常类型以当前 `1.3.18` 版本为准，项目文档统一称为“业务异常”，不再要求自行构造 `BusinessException(int, String)`。
 
-## 4. 分页（common）
+## 3. 分页
 
-### 4.1 PageParam
+### 3.1 PageParam
 
-分页请求参数基类，字段 `pageNo`（默认 1）和 `pageSize`（默认 10，最大 100）。
+项目接口统一使用 `PageParam` 的 `pageNo/pageSize`：
 
 ```java
-// 方式一：匿名子类
-new PageParam() {{ setPageNo(pageNo); setPageSize(pageSize); }}
-
-// 方式二：请求 DTO 继承
 public class UserPageReqParam extends PageParam {
     private String name;
     private Integer status;
 }
 ```
 
-### 4.2 PageResult
+项目层接口默认使用：
 
-分页响应封装，字段 `list`（数据列表）和 `total`（总条数）。
+| 参数 | 默认值 | 最大值 |
+| --- | --- | --- |
+| `pageNo` | `1` | — |
+| `pageSize` | `20` | `100` |
 
-```java
-PageResult<SysUser> page = userMapper.selectPage(reqParam, wrapper);
-// page.getList()  -> 数据列表
-// page.getTotal() -> 总条数
+如果框架版本默认值不同，必须在项目适配层统一覆盖，不能让不同 Controller 产生不同默认值。
+
+### 3.2 PageResult
+
+统一使用：
+
+```text
+PageResult<T> = { list: T[], total: number }
 ```
 
----
+```java
+PageResult<SysUser> page = userMapper.selectPage(pageParam, wrapper);
+```
 
-## 5. 数据层（mybatis）
+禁止在项目 DTO 中另行定义 `records`、`items` 等平行分页字段。
 
-### 5.1 实体基类
+## 4. MyBatis-Plus 数据层
 
-| 基类 | 主键类型 | 说明 |
-|------|---------|------|
-| `BaseUuidDO<T>` | `UUID` | 项目统一使用，自动生成有序 UUID |
-| `BaseAutoIncDO<ID, T>` | `Long` | 自增主键（本项目未使用） |
+### 4.1 Entity 基类
 
-`BaseDO` 提供字段：`createdAt`、`updatedAt`、`isDeleted`（逻辑删除），由 `DefaultFieldHandler` 自动填充。
+业务 Entity 统一继承框架的 UUID 基类：
 
 ```java
-// ✅ 正确：项目统一继承 BaseUuidDO
 @TableName("sys_user")
 public class SysUser extends BaseUuidDO<SysUser> {
     private String username;
-    // 无需声明 id / createdAt / updatedAt / isDeleted
-}
-
-// ❌ 错误：不要手动声明 @TableId 或 id 字段
-public class SysUser extends BaseDO {
-    @TableId(type = IdType.ASSIGN_UUID)
-    private UUID id;
 }
 ```
 
-### 5.2 Mapper 基类
+- UUID 使用框架默认生成策略。
+- 不在项目中强制 UUID v7。
+- `createdAt`、`updatedAt`、`isDeleted` 由基类和字段处理器统一管理。
+- 禁止在 Entity 中加入业务方法或跨层查询逻辑。
 
-所有 Mapper 继承 `BaseMapperX<T>`，扩展 MyBatis-Plus 原生方法。
+### 4.2 Mapper 基类
 
-| 方法 | 说明 |
-|------|------|
-| `selectOne(SFunction, value)` | 单字段精确查询 |
-| `selectList(SFunction, value)` | 单字段列表查询 |
-| `selectCount(SFunction, value)` | 单字段计数 |
-| `selectPage(PageParam, Wrapper)` | 分页查询 |
-| `insertBatch(list)` | 批量插入 |
-| `updateBatch(list)` | 批量更新 |
+所有 Mapper 继承 `BaseMapperX<T>`：
 
 ```java
 @Mapper
 public interface SysUserMapper extends BaseMapperX<SysUser> {
-    // 单字段查询（框架内置）
-    SysUser user = userMapper.selectOne(SysUser::getUsername, username);
-
-    // 计数
-    long count = userMapper.selectCount(SysUser::getStatus, 1);
-
-    // 自定义分页
-    default PageResult<SysUser> selectPage(UserPageReqParam reqParam) {
-        return selectPage(reqParam, new LambdaQueryWrapperX<SysUser>()
-                .likeIfPresent(SysUser::getName, reqParam.getName())
-                .eqIfPresent(SysUser::getStatus, reqParam.getStatus()));
-    }
 }
 ```
 
-### 5.3 LambdaQueryWrapperX
+框架提供的基础查询、批量操作和分页能力优先复用，具体方法签名以 1.3.18 实际 API 为准。
 
-扩展 MyBatis-Plus `LambdaQueryWrapper`，新增 `xxxIfPresent` 方法，`null` 值自动跳过条件。
+### 4.3 Lambda Wrapper
+
+条件构造使用 `LambdaQueryWrapperX` / `LambdaUpdateWrapperX`：
 
 ```java
-new LambdaQueryWrapperX<SysUser>()
-    .eqIfPresent(SysUser::getStatus, status)       // status 为 null 时跳过
-    .likeIfPresent(SysUser::getName, name)          // name 为 null 时跳过
-    .betweenIfPresent(SysUser::getCreatedAt, start, end) // 边界为 null 时退化
-    .orderByDesc(SysUser::getId);
+LambdaQueryWrapperX<SysUser> wrapper = new LambdaQueryWrapperX<SysUser>()
+        .eqIfPresent(SysUser::getStatus, status)
+        .likeIfPresent(SysUser::getName, name);
 ```
 
-### 5.4 加密字段存储
+`xxxIfPresent` 只表示跳过 `null` 条件；业务默认值、空字符串语义和权限条件仍由 Service 明确决定。
 
-使用 `@TableField(typeHandler = EncryptTypeHandler.class)` 注解，存取时自动 AES 加解密。
+### 4.4 加密和 JSON 字段
+
+敏感字段和结构化字段使用框架提供的 TypeHandler。密码必须使用项目配置的 PasswordEncoder，不得用字段加密替代密码哈希。
+
+- 加密密钥通过环境变量或密钥管理服务注入。
+- 禁止将密钥写入代码、文档或默认配置。
+- TypeHandler 的字段类型、加密算法和密钥轮换方式必须与安全规范一致。
+
+## 5. MapStruct 转换器
+
+### 5.1 存放位置
+
+所有 Entity、DTO、VO 之间的 MapStruct 转换器统一放在：
+
+```text
+server/src/main/java/io/github/xiaomisum/robotest/model/convert/
+```
+
+按业务域命名：
+
+```text
+UserConvertMapper.java
+RoleConvertMapper.java
+BugConvertMapper.java
+WorkspaceConvertMapper.java
+```
+
+现有位于其他目录的转换器应通过独立迁移任务迁移；本规范不授权在同一次改动中无计划地移动大量文件。
+
+### 5.2 使用原则
 
 ```java
-@TableName("sys_user")
-public class SysUser extends BaseUuidDO<SysUser> {
-    @TableField(typeHandler = EncryptTypeHandler.class)
-    private String mobile; // 存储时 AES 加密，读取时自动解密
+@Mapper
+public interface UserConvertMapper {
+    UserRespDTO toRespDTO(SysUser entity);
 }
 ```
 
-加密密钥配置：`mybatis-plus.encryptor.password` 或 JVM 参数 `-Dmybatis-plus.encryptor.password=xxx`。
+- 纯字段映射使用 MapStruct。
+- 业务字段、权限字段、审计字段和需要额外查询的关联对象由 Service 补充。
+- 不得在 Service 中为纯字段逐项 setter 拷贝。
+- 转换器实现类不得包含业务判断、数据库查询或权限逻辑。
+- 不得混用静态 `INSTANCE`、Spring 注入和手工拷贝三种方式；项目迁移时统一选择并记录。
 
-### 5.5 JSON 字段存储
-
-| TypeHandler | 存储格式 | 适用类型 |
-|-------------|---------|---------|
-| `JsonLongSetTypeHandler` | JSON 数组 | `Set<Long>` |
-| `StringListTypeHandler` | 逗号分隔 | `List<String>` |
-
-```java
-@TableName("sys_role")
-public class SysRole extends BaseUuidDO<SysRole> {
-    @TableField(typeHandler = JsonLongSetTypeHandler.class)
-    private Set<Long> permissionIds;
-}
-```
-
-### 5.6 自动注册组件
-
-框架自动注册，无需手动配置：
-
-| 组件 | 说明 |
-|------|------|
-| `@MapperScan` | 扫描 `xyz.migoo.framework.**` 下的 Mapper |
-| `PaginationInnerInterceptor` | 分页插件 |
-| `UTCLocalDateTimeHandler` | 全局 LocalDateTime UTC 时区处理 |
-| `DefaultFieldHandler` | 自动填充 createdAt / updatedAt / isDeleted |
-
-### 5.7 配置
-
-```yaml
-mybatis-plus:
-  global-config:
-    db-config:
-      id-type: assign_uuid           # UUID 主键自动生成
-      logic-delete-field: isDeleted
-      logic-delete-value: true
-      logic-not-delete-value: false
-```
-
----
-
-## 6. 认证授权（security）
+## 6. 认证与授权
 
 ### 6.1 LoginUser
 
-继承 `AuthUserDetails<LoginUser, String>`，提供 `id`/`username`/`password`/`name`/`enabled`。
-
-```java
-public class LoginUser extends AuthUserDetails<LoginUser, String> {
-    private String name;
-    private List<GrantedAuthority> workspaceAuthorities; // 工作空间级权限
-}
-```
+项目 `LoginUser` 继承框架的 `AuthUserDetails`，并提供项目所需的工作空间权限字段。
 
 ### 6.2 UserDetailsBridge
 
-实现 `UserDetailsBridge` 接口，提供 `loadUserByUsername` 和 `loadUserById`。
+项目实现 `UserDetailsBridge`，统一提供用户名和用户 ID 的加载逻辑。业务 Controller 不自行解析 Token。
 
-```java
-@Component
-public class UserDetailsBridgeImpl implements UserDetailsBridge<LoginUser> {
-    @Override
-    public LoginUser loadUserByUsername(String username) {
-        SysUser user = userMapper.selectByUsername(username);
-        return user == null ? null : toLoginUser(user);
-    }
-}
-```
+### 6.3 请求上下文
 
-### 6.3 AuthUserDetailsFetcher
+- HTTP 上下文 Header 由 `05-api.md` 定义。
+- workspace 角色通过项目的 `WorkspaceRoleInterceptor` 注入权限。
+- `X-User-Id` 等框架 Header 只有在可信网关覆盖并且外部请求无法伪造时才可使用。
+- 资源级权限必须在 Service 或专用 Guard 中再次校验。
 
-注入用于认证和 Token 刷新。
+## 7. WebSocket
 
-```java
-@Resource
-private AuthUserDetailsFetcher<LoginUser> authUserDetailsFetcher;
-
-// 登录
-LoginResult<LoginUser> result = authUserDetailsFetcher.authenticate(username, password);
-
-// 刷新 Token
-LoginResult<LoginUser> result = authUserDetailsFetcher.refreshToken(refreshToken);
-```
-
-### 6.4 JwtTokenProvider
-
-仅在特殊场景（如邀请链接加入）手动创建 Token。
-
-```java
-@Resource
-private JwtTokenProvider jwtTokenProvider;
-
-String accessToken = jwtTokenProvider.createAccessToken(loginUser);
-String refreshToken = jwtTokenProvider.createRefreshToken(loginUser);
-```
-
-### 6.5 配置
-
-```yaml
-migoo:
-  security:
-    mode: jwt
-    jwt:
-      secret-key: ${JWT_SECRET_KEY}
-      access-token-expire-timespan: 24     # 小时
-      refresh-token-expire-timespan: 168   # 小时
-      header-name: Authorization
-      user-id-header: X-User-Id
-      permit-all-urls: /api/auth/login, /api/auth/refresh, /api/invitations/public/**
-```
-
----
-
-## 7. Web 层（web）
-
-### 7.1 XSS 过滤
-
-默认开启（`migoo.xss.enable: true`），无需额外配置。
-
-### 7.2 API 错误日志
-
-实现 `ApiErrorLogFrameworkService` 接口（当前为空实现占位）。
-
-```java
-@Component
-public class ApiErrorLogFrameworkServiceImpl implements ApiErrorLogFrameworkService {
-    @Override
-    public void createApiErrorLog(ApiErrorLog apiErrorLog) {
-        // 可接入日志系统或告警
-    }
-}
-```
-
----
-
-## 8. WebSocket（websocket）
-
-### 8.1 依赖
-
-```xml
-<dependency>
-    <groupId>xyz.migoo.springboot</groupId>
-    <artifactId>migoo-spring-boot-starter-websocket</artifactId>
-</dependency>
-```
-
-### 8.2 配置
+### 7.1 连接配置
 
 ```yaml
 migoo:
   websocket:
-    enabled: true                      # 是否启用，默认 true
-    distributed: false                 # 是否启用分布式模式，默认 false
-    endpoint: /ws                      # WebSocket 端点路径，默认 /ws
-    allowed-origins: "*"               # 允许的来源，默认 *
-    token-header: Authorization        # Token Header 名称
-    token-prefix: "Bearer "            # Token 前缀
-    max-session-timeout: 1800000       # 最大会话超时（毫秒），默认 30 分钟
+    enabled: true
+    distributed: true
+    endpoints:
+      - /ws/documents/*
+    token-header: Authorization
+    token-prefix: "Bearer "
 ```
 
-### 8.3 核心组件
+生产环境必须配置允许的 Origin，不得依赖 `*`。浏览器 WebSocket 查询参数 Token 的例外和安全要求见 `05-api.md`、`10-security.md`。
 
-| 组件 | 说明 |
-|------|------|
-| `WebSocketSessionManager` | 会话管理器接口，提供 `sendToUser`、`broadcast`、`getOnlineUserCount` |
-| `LocalWebSocketSessionManager` | 单机会话管理器（默认） |
-| `DistributedWebSocketSessionManager` | 分布式会话管理器（Redis Pub/Sub） |
-| `MiGooWebSocketHandler` | 消息处理器基类，提供 `getUserId`、`getUserDetails`、`sendMessage` |
-| `WebSocketAuthInterceptor` | Token 认证拦截器，复用 `AuthUserDetailsFetcher.verifyToken()` |
+### 7.2 Handler 约束
 
-### 8.4 实现业务 Handler
+- Handler 只处理连接生命周期、帧转发和消息分发。
+- 文档成员权限在加入房间时校验。
+- 写入操作在持久化前再次校验权限，防止连接期间权限被撤销。
+- Yjs 二进制帧不由业务 Handler 解析。
+- JSON 业务操作必须进行大小、类型和权限校验。
 
-继承 `MiGooWebSocketHandler`，重写 `handleTextMessage`：
+## 8. 工具类
 
-```java
-@Component
-public class DocumentWebSocketHandler extends MiGooWebSocketHandler {
+| 工具 | 用途 |
+| --- | --- |
+| `JsonUtils` | JSON 序列化和反序列化 |
+| `CollectionUtils` | 集合转换、过滤和分组 |
+| `LocalDateTimeUtils` | 项目统一时间处理 |
+| `ServiceExceptionUtil` | 统一抛出业务异常 |
+| `PageParam` / `PageResult` | 统一分页输入和输出 |
 
-    public DocumentWebSocketHandler(WebSocketSessionManager sessionManager) {
-        super(sessionManager);
-    }
+工具类使用前必须确认当前框架版本的实际 API，禁止凭记忆复制其他版本示例。
 
-    @Override
-    protected void handleTextMessage(WebSocketSession session, TextMessage message) {
-        String userId = getUserId(session);
-        AuthUserDetails<?, ?> user = getUserDetails(session);
+## 9. 框架变更检查清单
 
-        // 处理消息
-        sendMessage(session, "收到: " + message.getPayload());
-    }
+- [ ] Maven BOM 和实际依赖版本已核对
+- [ ] `Result`、`ErrorCode`、`PageParam`、`PageResult` 示例可编译
+- [ ] `BaseUuidDO` 和 UUID 策略与数据库规范一致
+- [ ] MapStruct 转换器位于 `model/convert/`
+- [ ] 认证、上下文和 WebSocket 配置已核对
+- [ ] Redis/distributed 配置与实际部署模式一致
+- [ ] 官方文档、版本变更记录和项目代码已同步
 
-    @Override
-    public void afterConnectionEstablished(WebSocketSession session) {
-        super.afterConnectionEstablished(session);
-        broadcast("用户 " + getUserId(session) + " 已上线");
-    }
-}
-```
+## 10. 参考
 
-### 8.5 Token 认证
-
-WebSocket 握手时通过 `token` 查询参数或 `Authorization` Header 验证 JWT：
-
-```javascript
-// 客户端连接
-const socket = new WebSocket('ws://localhost:8080/ws/documents/{docId}?token=jwt-token');
-```
-
-框架自动调用 `AuthUserDetailsFetcher.verifyToken()` 验证，将用户信息存入 session attributes：
-
-```java
-// 从 session 获取用户信息
-AuthUserDetails<?, ?> user = (AuthUserDetails<?, ?>) session.getAttributes().get("USER_DETAILS");
-String userId = (String) session.getAttributes().get("USER_ID");
-```
-
-### 8.6 会话管理
-
-```java
-@Resource
-private WebSocketSessionManager sessionManager;
-
-// 发送消息给指定用户
-sessionManager.sendToUser(userId, message);
-
-// 广播给所有在线用户
-sessionManager.broadcast("系统通知");
-
-// 获取在线用户数
-int count = sessionManager.getOnlineUserCount();
-```
+- HTTP 契约：`docs/06-spec/05-api.md`
+- 后端分层和 C11：`docs/06-spec/04-backend.md`
+- 数据库：`docs/06-spec/06-database.md`
+- 安全：`docs/06-spec/10-security.md`
+- 官方文档：<https://xiaomisum.github.io/springboot-migoo-framework/>
 
 ---
 
-## 9. 对象转换（MapStruct）
-
-项目使用 MapStruct 作为 Entity ↔ DTO/VO 的转换工具，替代手动 setter 和 `BeanUtils.toBean`。
-
-### 9.1 依赖
-
-```xml
-<dependency>
-    <groupId>org.mapstruct</groupId>
-    <artifactId>mapstruct</artifactId>
-</dependency>
-<dependency>
-    <groupId>org.mapstruct</groupId>
-    <artifactId>mapstruct-processor</artifactId>
-    <scope>provided</scope>
-</dependency>
-```
-
-### 9.2 定义转换接口
-
-```java
-@Mapper(componentModel = "spring")
-public interface UserConvertMapper {
-    UserConvertMapper INSTANCE = Mappers.getMapper(UserConvertMapper.class);
-
-    // Entity → VO
-    UserVO toVO(SysUser entity);
-    List<UserVO> toVOList(List<SysUser> entities);
-
-    // DTO → Entity
-    SysUser toEntity(UserCreateReqDTO dto);
-}
-```
-
-### 9.3 使用方式
-
-```java
-// 方式一：静态调用
-UserVO vo = UserConvertMapper.INSTANCE.toVO(user);
-
-// 方式二：注入使用（推荐，便于单元测试 mock）
-@Resource
-private UserConvertMapper userConvertMapper;
-
-UserVO vo = userConvertMapper.toVO(user);
-```
-
-### 9.4 字段映射规则
-
-MapStruct 自动按名称匹配同名字段，以下场景需要手动映射：
-
-| 场景 | 处理方式 |
-|------|---------|
-| 字段名不同 | `@Mapping(source = "username", target = "name")` |
-| 忽略字段 | `@Mapping(target = "password", ignore = true)` |
-| UUID → String | `@Mapping(source = "id", target = "id", qualifiedByName = "uuidToString")` |
-| 嵌套对象 | `@Mapping(source = "creator", target = "creatorInfo")` |
-
-```java
-@Mapper(componentModel = "spring")
-public interface UserConvertMapper {
-
-    @Named("uuidToString")
-    default String uuidToString(UUID id) {
-        return id == null ? null : id.toString();
-    }
-
-    @Mapping(source = "username", target = "name")
-    @Mapping(target = "password", ignore = true)
-    UserVO toVO(SysUser entity);
-}
-```
-
-### 9.5 命名约定
-
-| 接口 | 位置 | 命名 |
-|------|------|------|
-| Entity → VO | `service/convert/` | `{Entity}ConvertMapper` |
-| DTO → Entity | `service/convert/` | `{Entity}ConvertMapper`（同一接口） |
-
----
-
-## 10. 工具类速查（common）
-
-### 10.1 JsonUtils — JSON 序列化
-
-```java
-// 对象 → JSON
-String json = JsonUtils.toJsonString(object);
-
-// JSON → 对象
-UserVO user = JsonUtils.parseObject(json, UserVO.class);
-
-// JSON → 列表
-List<UserVO> list = JsonUtils.parseArray(json, UserVO.class);
-
-// JSON → 泛型（复杂类型）
-List<String> perms = JsonUtils.parseObject(json, new TypeReference<List<String>>() {});
-```
-
-### 10.2 CollectionUtils — 集合操作
-
-```java
-// 类型转换
-List<UserVO> voList = CollectionUtils.convertList(doList, BeanUtils::toBean);
-
-// 按 ID 映射
-Map<Long, UserDO> map = CollectionUtils.convertMap(list, UserDO::getId);
-
-// 过滤
-List<UserDO> filtered = CollectionUtils.filterList(list, u -> u.getStatus() == 1);
-```
-
-### 10.3 LocalDateTimeUtils — 日期时间
-
-```java
-// 获取今天
-LocalDateTime today = LocalDateTimeUtils.getToday();
-
-// 区间判断
-boolean between = LocalDateTimeUtils.isBetween(time, start, end);
-
-// 日期差
-long days = LocalDateTimeUtils.between(start, end);
-```
-
-### 10.4 RSA — 加解密签名
-
-```java
-// 签名
-String sign = RSA.sign(content, privateKey);
-
-// 验签
-boolean ok = RSA.verify(content, sign, publicKey);
-```
-
-### 10.5 加密存储
-
-```java
-// 加密
-String encrypted = EncryptTypeHandler.encrypt("敏感数据");
-
-// 解密（框架自动处理，无需手动调用）
-```
+**文档结束**
