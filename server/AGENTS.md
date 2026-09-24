@@ -130,18 +130,19 @@ PageResult<SysUser> page = userMapper.selectPage(
 ### 对象转换（MapStruct）
 
 ```java
-// 转换器统一放在 model/convert/
-@Mapper
+// 转换器统一放在 model/convert/，使用 Spring Bean 注入
+@Mapper(componentModel = "spring")
 public interface UserConvertMapper {
-    UserConvertMapper INSTANCE = Mappers.getMapper(UserConvertMapper.class);
-
     UserRespDTO toRespDTO(SysUser entity);
     List<UserRespDTO> toRespDTOList(List<SysUser> entities);
     SysUser toEntity(UserCreateReqDTO dto);
 }
 
-// Service 中使用
-UserRespDTO dto = UserConvertMapper.INSTANCE.toRespDTO(user);
+// Service 中注入后使用
+@Resource
+private UserConvertMapper userConvertMapper;
+
+UserRespDTO dto = userConvertMapper.toRespDTO(user);
 ```
 
 ### 工具类速查
