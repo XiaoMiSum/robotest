@@ -238,7 +238,7 @@ public class WebMvcConfig implements WebMvcConfigurer {
 
 ## 9. 代码规范与质量保障
 
-* **Git 分支**：主干 `main`，功能分支 `feature/*`，发布分支 `release/*`。
+* **Git 分支**：主干 `master`，功能分支 `feature/*`，发布分支 `release/*`。
 * **提交规范**：Conventional Commits (`feat:`, `fix:`, `docs:`, `refactor:` 等)。
 * **前端检查**：ESLint + Prettier，Husky + lint-staged 提交前检查。
 * **后端检查**：Checkstyle + SpotBugs。
