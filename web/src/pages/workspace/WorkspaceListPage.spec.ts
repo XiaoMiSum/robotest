@@ -17,6 +17,12 @@ describe('WorkspaceListPage demo strings', () => {
     expect(pageSource).toContain(':page-sizes="[12, 24, 48]"')
   })
 
+  it('状态过滤条件位于搜索输入框之前', () => {
+    expect(pageSource.indexOf('workspace-list-page__segment')).toBeLessThan(
+      pageSource.indexOf('workspace-list-page__search"'),
+    )
+  })
+
   it('创建入口由 workspace:create 权限控制', () => {
     expect(composableSource).toContain("hasPermission('workspace:create')")
     expect(pageSource).toContain('v-if="canCreate"')
