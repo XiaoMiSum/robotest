@@ -2,9 +2,14 @@ package io.github.xiaomisum.robotest.service.project;
 
 import io.github.xiaomisum.robotest.model.dto.response.workspace.ProjectDashboardRespDTO;
 import io.github.xiaomisum.robotest.model.entity.admin.SysUser;
+import io.github.xiaomisum.robotest.model.entity.workspace.Project;
 import io.github.xiaomisum.robotest.model.entity.bug.Bug;
 import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseDocument;
+import io.github.xiaomisum.robotest.framework.security.ProjectAccessGuard;
 import io.github.xiaomisum.robotest.repository.admin.SysUserMapper;
+import io.github.xiaomisum.robotest.repository.workspace.ProjectMapper;
+import io.github.xiaomisum.robotest.service.admin.PermissionFacade;
+import io.github.xiaomisum.robotest.service.admin.PermissionScope;
 import io.github.xiaomisum.robotest.repository.bug.BugMapper;
 import io.github.xiaomisum.robotest.repository.plan.TestPlanMapper;
 import io.github.xiaomisum.robotest.repository.review.TestReviewMapper;
@@ -19,6 +24,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -40,15 +46,35 @@ class ProjectDashboardServiceImplTest {
     private BugMapper bugMapper;
     @Mock
     private SysUserMapper userMapper;
+    @Mock
+    private ProjectMapper projectMapper;
+    @Mock
+    private ProjectAccessGuard projectAccessGuard;
+    @Mock
+    private ProjectActivityService projectActivityService;
+    @Mock
+    private PermissionFacade permissionFacade;
 
     @InjectMocks
     private ProjectDashboardServiceImpl dashboardService;
 
     private UUID projectId;
+    private UUID workspaceId;
+    private UUID userId;
 
     @BeforeEach
     void setUp() {
         projectId = UUID.fromString("00000000-0000-0000-0000-000000000001");
+        workspaceId = UUID.fromString("00000000-0000-0000-0000-000000000002");
+        userId = UUID.fromString("00000000-0000-0000-0000-000000000003");
+        Project project = new Project();
+        project.setId(projectId);
+        project.setName("Test Project");
+        project.setStatus("active");
+        when(projectMapper.selectById(projectId)).thenReturn(project);
+        when(projectActivityService.listRecent(projectId, 8)).thenReturn(Collections.emptyList());
+        when(permissionFacade.permissionsOf(userId, PermissionScope.WORKSPACE, workspaceId))
+                .thenReturn(Set.of("project:view"));
     }
 
     @Test
@@ -72,9 +98,12 @@ class ProjectDashboardServiceImplTest {
         when(bugMapper.findRecentBugs(projectId, 5))
                 .thenReturn(Collections.emptyList());
 
-        ProjectDashboardRespDTO result = dashboardService.getDashboard(projectId);
+        ProjectDashboardRespDTO result = dashboardService.getDashboard(projectId, workspaceId, userId);
 
         assertNotNull(result);
+        assertEquals("Test Project", result.getProjectName());
+        assertEquals("active", result.getProjectStatus());
+        assertNotNull(result.getRecentActivities());
         assertEquals(5L, result.getCaseCount());
         assertEquals(2L, result.getActiveReviewCount());
         assertEquals(3L, result.getActivePlanCount());
@@ -101,7 +130,7 @@ class ProjectDashboardServiceImplTest {
         when(bugMapper.findRecentBugs(projectId, 5))
                 .thenReturn(Collections.emptyList());
 
-        ProjectDashboardRespDTO result = dashboardService.getDashboard(projectId);
+        ProjectDashboardRespDTO result = dashboardService.getDashboard(projectId, workspaceId, userId);
 
         assertNotNull(result);
         assertEquals(0L, result.getCaseCount());
@@ -142,7 +171,7 @@ class ProjectDashboardServiceImplTest {
         when(userMapper.listByIds(anyList()))
                 .thenReturn(List.of(assignee));
 
-        ProjectDashboardRespDTO result = dashboardService.getDashboard(projectId);
+        ProjectDashboardRespDTO result = dashboardService.getDashboard(projectId, workspaceId, userId);
 
         assertNotNull(result.getRecentBugs());
         assertEquals(1, result.getRecentBugs().size());
@@ -176,7 +205,7 @@ class ProjectDashboardServiceImplTest {
         when(bugMapper.findRecentBugs(projectId, 5))
                 .thenReturn(List.of(bug));
 
-        ProjectDashboardRespDTO result = dashboardService.getDashboard(projectId);
+        ProjectDashboardRespDTO result = dashboardService.getDashboard(projectId, workspaceId, userId);
 
         assertNotNull(result.getRecentBugs());
         assertEquals(1, result.getRecentBugs().size());

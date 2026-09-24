@@ -13,6 +13,7 @@ import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseNode;
 import io.github.xiaomisum.robotest.repository.tcase.ProjectModuleMapper;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseDocumentMapper;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseNodeMapper;
+import io.github.xiaomisum.robotest.service.project.ProjectActivityService;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -34,6 +35,8 @@ public class TestCaseDocumentServiceImpl implements TestCaseDocumentService {
     private TestCaseNodeMapper testCaseNodeMapper;
     @Resource
     private ProjectAccessGuard projectAccessGuard;
+    @Resource
+    private ProjectActivityService projectActivityService;
 
     @Override
     public List<TestCaseDocumentRespDTO> getTestCaseList(UUID projectId, UUID userId, UUID moduleId) {
@@ -87,6 +90,8 @@ public class TestCaseDocumentServiceImpl implements TestCaseDocumentService {
         rootNode.setSortOrder(0);
         rootNode.setVersion(1);
         testCaseNodeMapper.insert(rootNode);
+        projectActivityService.record(projectId, userId, "TEST_CASE_DOCUMENT", document.getId(),
+                document.getName(), "CASE_CREATED", "创建用例「" + document.getName() + "」");
 
         return TestCaseDocumentConvertMapper.INSTANCE.toRespDTO(document);
     }
@@ -125,6 +130,11 @@ public class TestCaseDocumentServiceImpl implements TestCaseDocumentService {
             layoutUpdate.setLayout(reqDTO.getLayout());
             testCaseDocumentMapper.updateById(layoutUpdate);
         }
+        if (reqDTO.getName() != null || moved) {
+            String resourceName = reqDTO.getName() == null ? document.getName() : reqDTO.getName();
+            projectActivityService.record(document.getProjectId(), userId, "TEST_CASE_DOCUMENT", documentId,
+                    resourceName, "CASE_UPDATED", "更新用例「" + resourceName + "」");
+        }
         return TestCaseDocumentConvertMapper.INSTANCE.toRespDTO(document);
     }
 
@@ -141,6 +151,8 @@ public class TestCaseDocumentServiceImpl implements TestCaseDocumentService {
         testCaseNodeMapper.deleteByDocumentId(documentId);
         // 删除文档
         testCaseDocumentMapper.deleteById(documentId);
+        projectActivityService.record(document.getProjectId(), userId, "TEST_CASE_DOCUMENT", documentId,
+                document.getName(), "CASE_DELETED", "删除用例「" + document.getName() + "」");
     }
 
     /**

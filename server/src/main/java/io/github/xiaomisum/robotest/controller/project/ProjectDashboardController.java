@@ -5,6 +5,7 @@ import io.github.xiaomisum.robotest.model.dto.response.workspace.ProjectDashboar
 import io.github.xiaomisum.robotest.service.project.ProjectDashboardService;
 import jakarta.annotation.Resource;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import xyz.migoo.framework.common.pojo.Result;
 
@@ -18,8 +19,12 @@ public class ProjectDashboardController {
     private ProjectDashboardService projectDashboardService;
 
     @GetMapping
+    @PreAuthorize("hasAuthority('project:view')")
     public Result<ProjectDashboardRespDTO> getDashboard(
             @AuthenticationPrincipal LoginUser loginUser) {
-        return Result.ok(projectDashboardService.getDashboard(loginUser.getActiveProjectId()));
+        return Result.ok(projectDashboardService.getDashboard(
+                loginUser.getActiveProjectId(),
+                loginUser.getActiveWorkspaceId(),
+                loginUser.getId()));
     }
 }

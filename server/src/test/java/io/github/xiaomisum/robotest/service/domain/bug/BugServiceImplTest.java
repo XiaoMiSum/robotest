@@ -2,6 +2,8 @@ package io.github.xiaomisum.robotest.service.domain.bug;
 
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.security.ProjectAccessGuard;
+import io.github.xiaomisum.robotest.framework.convert.BugConvertMapper;
+import io.github.xiaomisum.robotest.framework.convert.BugConvertMapperImpl;
 import io.github.xiaomisum.robotest.model.dto.request.bug.BugCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.bug.BugStatusChangeReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.bug.BugUpdateReqDTO;
@@ -17,6 +19,7 @@ import io.github.xiaomisum.robotest.repository.workspace.ProjectMapper;
 import io.github.xiaomisum.robotest.repository.admin.SysUserMapper;
 import io.github.xiaomisum.robotest.repository.tcase.ProjectModuleMapper;
 import io.github.xiaomisum.robotest.repository.workspace.WorkspaceUserMapper;
+import io.github.xiaomisum.robotest.service.project.ProjectActivityService;
 import org.springframework.context.ApplicationEventPublisher;
 import org.mockito.ArgumentCaptor;
 import org.junit.jupiter.api.BeforeEach;
@@ -61,6 +64,10 @@ class BugServiceImplTest {
 
     @Mock
     private BugStatusChangeService bugStatusChangeService;
+    @Mock
+    private ProjectActivityService projectActivityService;
+    @Spy
+    private BugConvertMapper bugConvertMapper = new BugConvertMapperImpl();
 
     @InjectMocks
     private BugServiceImpl bugService;

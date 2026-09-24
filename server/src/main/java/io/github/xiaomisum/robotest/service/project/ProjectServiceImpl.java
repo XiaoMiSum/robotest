@@ -38,6 +38,8 @@ public class ProjectServiceImpl implements ProjectService {
     private WorkspaceUserMapper workspaceUserMapper;
     @Resource
     private TestPlanMapper testPlanMapper;
+    @Resource
+    private ProjectActivityService projectActivityService;
 
     @Override
     public PageResult<ProjectRespDTO> getProjectPage(UUID workspaceId, UUID userId, String keyword,
@@ -101,6 +103,8 @@ public class ProjectServiceImpl implements ProjectService {
         project.setStatus(Constants.Status.ACTIVE);
         project.setCreatedBy(userId.toString());
         projectMapper.insert(project);
+        projectActivityService.record(project.getId(), userId, "PROJECT", project.getId(),
+                project.getName(), "PROJECT_CREATED", "创建项目「" + project.getName() + "」");
 
         ProjectRespDTO dto = ProjectConvertMapper.INSTANCE.toRespDTO(project, null);
         SysUser creator = userMapper.selectById(project.getCreatedBy());
@@ -157,6 +161,8 @@ public class ProjectServiceImpl implements ProjectService {
             project.setEndTime(reqDTO.getEndTime());
         }
         projectMapper.updateById(update);
+        projectActivityService.record(projectId, userId, "PROJECT", projectId,
+                project.getName(), "PROJECT_UPDATED", "更新项目「" + project.getName() + "」");
 
         ProjectRespDTO dto = ProjectConvertMapper.INSTANCE.toRespDTO(project, null);
         SysUser creator = userMapper.selectById(project.getCreatedBy());
@@ -196,6 +202,9 @@ public class ProjectServiceImpl implements ProjectService {
         if (reqDTO.getArchived()) {
             workspaceUserMapper.clearDefaultProjectId(workspaceId, projectId);
         }
+        projectActivityService.record(projectId, userId, "PROJECT", projectId,
+                project.getName(), reqDTO.getArchived() ? "PROJECT_ARCHIVED" : "PROJECT_UNARCHIVED",
+                (reqDTO.getArchived() ? "归档项目「" : "启封项目「") + project.getName() + "」");
     }
 
     @Override
@@ -213,6 +222,8 @@ public class ProjectServiceImpl implements ProjectService {
 
         projectMapper.deleteById(projectId);
         workspaceUserMapper.clearDefaultProjectId(workspaceId, projectId);
+        projectActivityService.record(projectId, userId, "PROJECT", projectId,
+                project.getName(), "PROJECT_DELETED", "删除项目「" + project.getName() + "」");
     }
 
     private WorkspaceUser requireWorkspaceMember(UUID workspaceId, UUID userId) {

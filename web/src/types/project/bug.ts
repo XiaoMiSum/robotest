@@ -1,3 +1,5 @@
+import type { ProjectActivity } from './activity'
+
 /** 缺陷严重等级 */
 export type BugSeverity = 'fatal' | 'serious' | 'general' | 'minor'
 
@@ -21,13 +23,7 @@ export type BugType =
 
 /** 缺陷解决方案 */
 export type BugResolution =
-  | 'fixed'
-  | 'by_design'
-  | 'duplicate'
-  | 'external'
-  | 'cannot_reproduce'
-  | 'deferred'
-  | 'wont_fix'
+  'fixed' | 'by_design' | 'duplicate' | 'external' | 'cannot_reproduce' | 'deferred' | 'wont_fix'
 
 /** 缺陷列表项 */
 export interface BugListItem {
@@ -126,10 +122,15 @@ export interface BugStatistics {
 
 /** 项目工作台数据 */
 export interface ProjectDashboard {
+  projectName: string
+  projectStatus: string
+  startTime: string | null
+  endTime: string | null
   caseCount: number
   activeReviewCount: number
   activePlanCount: number
   openBugCount: number
+  recentActivities: ProjectActivity[]
   recentReviews: DashboardRecentItem[]
   recentPlans: DashboardRecentItem[]
   recentBugs: DashboardRecentBug[]
