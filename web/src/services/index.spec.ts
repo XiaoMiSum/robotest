@@ -1,11 +1,6 @@
 import axios, { type AxiosResponse, type InternalAxiosRequestConfig } from 'axios'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import api, {
-  clearTokens,
-  getAccessToken,
-  getRefreshToken,
-  setTokens,
-} from './index'
+import api, { clearTokens, getAccessToken, getRefreshToken, setTokens } from './index'
 
 // 运行环境为 node，无浏览器全局对象；以下仅内存实现，驱动拦截器所需的 sessionStorage/localStorage/window
 class MemoryStorage {
@@ -110,9 +105,7 @@ describe('services/index.ts 401 刷新流程', () => {
 
   it('刷新失败后会话失效，后续 401 直接失败且不再请求后端（杜绝死循环）', async () => {
     setTokens('old-access', 'old-refresh')
-    const refreshSpy = vi
-      .spyOn(axios, 'post')
-      .mockRejectedValueOnce(new Error('refresh failed'))
+    const refreshSpy = vi.spyOn(axios, 'post').mockRejectedValueOnce(new Error('refresh failed'))
 
     const calls: string[] = []
     withAdapter((config) => {
@@ -184,23 +177,111 @@ describe('services/index.ts 401 刷新流程', () => {
   })
 })
 
-describe('services/index.ts 空间上下文请求头', () => {
-  it('空间选择列表不携带当前空间上下文', async () => {
-    let received: string | undefined
+describe('services/index.ts 请求上下文头', () => {
+  it('空间选择列表不携带当前空间或项目上下文', async () => {
+    localStorageMock.setItem('robotest_active_project', 'project-old')
+    let receivedWorkspace: string | undefined
+    let receivedProject: string | undefined
     withAdapter((config) => {
-      received = config.headers['X-Active-Workspace'] as string | undefined
+      receivedWorkspace = config.headers['X-Active-Workspace'] as string | undefined
+      receivedProject = config.headers['X-Active-Project'] as string | undefined
       return okResponse(config, { code: 200, data: null })
     })
 
     await api.get('/workspaces')
 
-    expect(received).toBeUndefined()
+    expect(receivedWorkspace).toBeUndefined()
+    expect(receivedProject).toBeUndefined()
   })
 
-  it('显式目标空间头不会被已保存的当前空间覆盖', async () => {
-    let received: string | undefined
+  it('管理域、公共域和全局 AI 状态请求不注入旧上下文', async () => {
+    localStorageMock.setItem('robotest_active_project', 'project-old')
+    const received: Array<{ workspace?: string; project?: string }> = []
     withAdapter((config) => {
-      received = config.headers['X-Active-Workspace'] as string | undefined
+      received.push({
+        workspace: config.headers['X-Active-Workspace'] as string | undefined,
+        project: config.headers['X-Active-Project'] as string | undefined,
+      })
+      return okResponse(config, { code: 200, data: null })
+    })
+
+    await api.get('/admin/dashboard/stats')
+    await api.get('/public/api-reports/report-1')
+    await api.get('/workspace/ai/status')
+
+    expect(received).toEqual([
+      { workspace: undefined, project: undefined },
+      { workspace: undefined, project: undefined },
+      { workspace: undefined, project: undefined },
+    ])
+  })
+
+  it('工作空间级请求只注入空间头，项目级请求同时注入两个头', async () => {
+    localStorageMock.setItem('robotest_active_project', 'project-1')
+    const received: Array<{ workspace?: string; project?: string }> = []
+    withAdapter((config) => {
+      received.push({
+        workspace: config.headers['X-Active-Workspace'] as string | undefined,
+        project: config.headers['X-Active-Project'] as string | undefined,
+      })
+      return okResponse(config, { code: 200, data: null })
+    })
+
+    await api.get('/workspace/members')
+    await api.get('/project/bugs')
+
+    expect(received).toEqual([
+      { workspace: 'ws-1', project: undefined },
+      { workspace: 'ws-1', project: 'project-1' },
+    ])
+  })
+
+  it('显式空间和项目请求头分别优先于已保存上下文', async () => {
+    localStorageMock.setItem('robotest_active_project', 'project-old')
+    let receivedWorkspace: string | undefined
+    let receivedProject: string | undefined
+    withAdapter((config) => {
+      receivedWorkspace = config.headers['X-Active-Workspace'] as string | undefined
+      receivedProject = config.headers['X-Active-Project'] as string | undefined
+      return okResponse(config, { code: 200, data: null })
+    })
+
+    await api.get('/project/bugs', {
+      headers: {
+        'X-Active-Workspace': 'workspace-target',
+        'X-Active-Project': 'project-target',
+      },
+    })
+
+    expect(receivedWorkspace).toBe('workspace-target')
+    expect(receivedProject).toBe('project-target')
+  })
+
+  it('显式切换空间时不把旧项目带入项目级请求', async () => {
+    localStorageMock.setItem('robotest_active_project', 'project-old')
+    let receivedWorkspace: string | undefined
+    let receivedProject: string | undefined
+    withAdapter((config) => {
+      receivedWorkspace = config.headers['X-Active-Workspace'] as string | undefined
+      receivedProject = config.headers['X-Active-Project'] as string | undefined
+      return okResponse(config, { code: 200, data: null })
+    })
+
+    await api.get('/project/bugs', {
+      headers: { 'X-Active-Workspace': 'workspace-target' },
+    })
+
+    expect(receivedWorkspace).toBe('workspace-target')
+    expect(receivedProject).toBeUndefined()
+  })
+
+  it('切换空间偏好接口保留显式目标空间且不携带旧项目', async () => {
+    localStorageMock.setItem('robotest_active_project', 'project-old')
+    let receivedWorkspace: string | undefined
+    let receivedProject: string | undefined
+    withAdapter((config) => {
+      receivedWorkspace = config.headers['X-Active-Workspace'] as string | undefined
+      receivedProject = config.headers['X-Active-Project'] as string | undefined
       return okResponse(config, { code: 200, data: null })
     })
 
@@ -208,6 +289,23 @@ describe('services/index.ts 空间上下文请求头', () => {
       headers: { 'X-Active-Workspace': 'workspace-target' },
     })
 
-    expect(received).toBe('workspace-target')
+    expect(receivedWorkspace).toBe('workspace-target')
+    expect(receivedProject).toBeUndefined()
+  })
+
+  it('权限请求按空间契约注入空间头但不注入项目头', async () => {
+    localStorageMock.setItem('robotest_active_project', 'project-old')
+    let receivedWorkspace: string | undefined
+    let receivedProject: string | undefined
+    withAdapter((config) => {
+      receivedWorkspace = config.headers['X-Active-Workspace'] as string | undefined
+      receivedProject = config.headers['X-Active-Project'] as string | undefined
+      return okResponse(config, { code: 200, data: null })
+    })
+
+    await api.post('/auth/permissions')
+
+    expect(receivedWorkspace).toBe('ws-1')
+    expect(receivedProject).toBeUndefined()
   })
 })

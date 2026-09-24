@@ -6,11 +6,28 @@ describe('useAiStream 非事件流响应处理', () => {
     vi.unstubAllGlobals()
   })
 
-  function stubEnv(response: Partial<Response>): void {
-    // node 环境无 sessionStorage/localStorage；SSE 建立前的头部注入按无登录态处理即可
-    vi.stubGlobal('sessionStorage', { getItem: () => null })
-    vi.stubGlobal('localStorage', { getItem: () => null })
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response))
+  function stubEnv(
+    response: Partial<Response>,
+    values: {
+      accessToken?: string | null
+      workspaceId?: string | null
+      projectId?: string | null
+    } = {},
+  ): ReturnType<typeof vi.fn> {
+    const fetchMock = vi.fn().mockResolvedValue(response)
+    vi.stubGlobal('sessionStorage', {
+      getItem: (key: string) =>
+        key === 'robotest_access_token' ? (values.accessToken ?? null) : null,
+    })
+    vi.stubGlobal('localStorage', {
+      getItem: (key: string) => {
+        if (key === 'robotest_active_workspace') return values.workspaceId ?? null
+        if (key === 'robotest_active_project') return values.projectId ?? null
+        return null
+      },
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    return fetchMock
   }
 
   it('SSE 建立前的业务异常（HTTP 200 + Result JSON）解出 msg 抛给 onError', async () => {
@@ -37,6 +54,86 @@ describe('useAiStream 非事件流响应处理', () => {
       useAiStream({ url: '/project/ai/cases/generate', onEvent: () => {}, onError: resolve })
     })
     expect(error.message).toBe('AI 请求失败')
+  })
+
+  it('项目级 SSE 复用 Axios 的活动上下文适配器', async () => {
+    const fetchMock = stubEnv(
+      {
+        ok: true,
+        body: {} as Response['body'],
+        headers: new Headers({ 'content-type': 'application/json' }),
+        json: () => Promise.resolve({ msg: 'stop' }),
+      },
+      { accessToken: 'access-1', workspaceId: 'workspace-1', projectId: 'project-1' },
+    )
+
+    await new Promise<void>((resolve) => {
+      useAiStream({
+        url: '/project/ai/cases/generate',
+        onEvent: () => {},
+        onError: () => resolve(),
+      })
+    })
+
+    const init = fetchMock.mock.calls[0]?.[1] as RequestInit | undefined
+    const headers = new Headers(init?.headers)
+    expect(headers.get('Authorization')).toBe('Bearer access-1')
+    expect(headers.get('X-Active-Workspace')).toBe('workspace-1')
+    expect(headers.get('X-Active-Project')).toBe('project-1')
+  })
+
+  it('上下文无关 SSE 不注入旧上下文', async () => {
+    const fetchMock = stubEnv(
+      {
+        ok: true,
+        body: {} as Response['body'],
+        headers: new Headers({ 'content-type': 'application/json' }),
+        json: () => Promise.resolve({ msg: 'stop' }),
+      },
+      { workspaceId: 'workspace-1', projectId: 'project-1' },
+    )
+
+    await new Promise<void>((resolve) => {
+      useAiStream({
+        url: '/workspace/ai/status',
+        onEvent: () => {},
+        onError: () => resolve(),
+      })
+    })
+
+    const init = fetchMock.mock.calls[0]?.[1] as RequestInit | undefined
+    const headers = new Headers(init?.headers)
+    expect(headers.get('X-Active-Workspace')).toBeNull()
+    expect(headers.get('X-Active-Project')).toBeNull()
+  })
+
+  it('SSE 显式上下文头优先于已保存上下文', async () => {
+    const fetchMock = stubEnv(
+      {
+        ok: true,
+        body: {} as Response['body'],
+        headers: new Headers({ 'content-type': 'application/json' }),
+        json: () => Promise.resolve({ msg: 'stop' }),
+      },
+      { workspaceId: 'workspace-old', projectId: 'project-old' },
+    )
+
+    await new Promise<void>((resolve) => {
+      useAiStream({
+        url: '/project/ai/cases/generate',
+        headers: {
+          'X-Active-Workspace': 'workspace-explicit',
+          'X-Active-Project': 'project-explicit',
+        },
+        onEvent: () => {},
+        onError: () => resolve(),
+      })
+    })
+
+    const init = fetchMock.mock.calls[0]?.[1] as RequestInit | undefined
+    const headers = new Headers(init?.headers)
+    expect(headers.get('X-Active-Workspace')).toBe('workspace-explicit')
+    expect(headers.get('X-Active-Project')).toBe('project-explicit')
   })
 })
 

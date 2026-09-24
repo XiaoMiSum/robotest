@@ -302,8 +302,8 @@ router.beforeEach(async (to, _from, next) => {
     return
   }
 
-  // Protected routes: require token
-  if (!token) {
+  // Protected routes: only routes that explicitly declare requiresAuth need a token
+  if (to.meta.requiresAuth && !token) {
     next({ path: '/login', query: { redirect: to.fullPath } })
     return
   }

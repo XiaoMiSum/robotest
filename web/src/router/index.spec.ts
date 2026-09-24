@@ -82,6 +82,11 @@ describe('路由 meta 契约', () => {
     await router.push({ name: 'Workspaces' })
     expect(document.title).toBe('我的空间 - RoboTest')
   })
+
+  it('受保护布局的子路由继承 requiresAuth，公开路由不声明该契约', () => {
+    expect(router.resolve('/workspaces').meta.requiresAuth).toBe(true)
+    expect(router.resolve('/login').meta.requiresAuth).toBeUndefined()
+  })
 })
 
 describe('导航守卫', () => {
@@ -89,6 +94,20 @@ describe('导航守卫', () => {
     await router.push('/workspaces')
     expect(router.currentRoute.value.path).toBe('/login')
     expect(router.currentRoute.value.query.redirect).toBe('/workspaces')
+  })
+
+  it('未声明 requiresAuth 的非公开路由不会被隐式拦截', async () => {
+    const removeRoute = router.addRoute({
+      path: '/contract-open',
+      component: stubComponent,
+    })
+    try {
+      await router.push('/contract-open')
+      expect(router.currentRoute.value.path).toBe('/contract-open')
+    } finally {
+      removeRoute()
+      await router.replace('/init')
+    }
   })
 
   it('已登录访问公开页 → 重定向首页', async () => {
