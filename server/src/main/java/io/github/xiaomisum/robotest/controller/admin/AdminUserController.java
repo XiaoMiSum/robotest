@@ -26,6 +26,8 @@ public class AdminUserController {
     private UserService userService;
 
     @GetMapping
+    // role:view 覆盖角色页“用户”页签的角色用户列表查询
+    @PreAuthorize("hasAnyAuthority('user:view', 'role:view')")
     public Result<PageResult<UserRespDTO>> getUserPage(
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) String status,
@@ -36,6 +38,8 @@ public class AdminUserController {
     }
 
     @GetMapping("/simple")
+    // 用户选择器服务于用户页、角色用户、管理端空间详情与创建空间弹窗，按各入口权限取并集
+    @PreAuthorize("hasAnyAuthority('user:view', 'workspace:create', 'workspace:manage-members', 'role:view')")
     public Result<List<UserSimpleRespDTO>> getUserSimpleList(
             @RequestParam(required = false) String keyword) {
         return Result.ok(userService.getUserSimpleList(keyword));

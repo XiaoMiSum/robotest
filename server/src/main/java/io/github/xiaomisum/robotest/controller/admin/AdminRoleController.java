@@ -29,6 +29,8 @@ public class AdminRoleController {
     private RoleService roleService;
 
     @GetMapping
+    // 空间侧角色选项已迁至 /api/workspace/roles；管理端保留给角色管理与管理端空间详情
+    @PreAuthorize("hasAnyAuthority('role:view', 'workspace:view', 'workspace:manage-members')")
     public Result<List<RoleSimpleRespDTO>> getRoleList(
             @RequestParam(required = false) String type) {
         return Result.ok(roleService.getRoleList(type));
