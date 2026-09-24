@@ -16,7 +16,7 @@
 | 清空会话 | `DELETE /api/workspace/ai/conversations` | 清空当前用户当前空间全部会话 |
 | 消息历史 | `GET /api/workspace/ai/conversations/:id/messages` | 按时间升序全量返回（role=tool 的消息前端渲染为工具调用卡片） |
 
-**会话列表分页规则**：不设总量上限，游标分页滚动获取——参数 `cursor`（不透明游标，可空表示首页）+ `size`（默认 20，上限 50）；排序与游标锚点为 `(last_active_at DESC, id DESC)`（id 决胜，UUID v7 时序性保证稳定），实现为键集查询 `WHERE (last_active_at, id) < (:cursorTime, :cursorId)`，命中既有索引 `idx_conv_user_ws`（2.1.1）。`nextCursor` 为空表示无更多。选择键集而非页码/偏移：排序键 `last_active_at` 随会话活跃动态前移，偏移分页在滚动加载过程中会产生重复与漏项；键集分页仅可能漏掉「加载期间被顶到列表头部的旧会话」，该场景由前端本地置顶补偿（见 5.2），无一致性问题。
+**会话列表分页规则**：不设总量上限，游标分页滚动获取——参数 `cursor`（不透明游标，可空表示首页）+ `size`（默认 20，上限 50）；排序与游标锚点为 `(last_active_at DESC, id DESC)`（`id` 仅作为稳定的决胜键，不依赖 UUID 版本或时序性），实现为键集查询 `WHERE (last_active_at, id) < (:cursorTime, :cursorId)`，命中既有索引 `idx_conv_user_ws`（2.1.1）。`nextCursor` 为空表示无更多。选择键集而非页码/偏移：排序键 `last_active_at` 随会话活跃动态前移，偏移分页在滚动加载过程中会产生重复与漏项；键集分页仅可能漏掉「加载期间被顶到列表头部的旧会话」，该场景由前端本地置顶补偿（见 5.2），无一致性问题。
 
 会话归属校验：非本人会话，或会话 `workspace_id` 与 `X-Active-Workspace` 不一致时，一律按会话不存在处理，返回 1000003005（AI_CONVERSATION_NOT_FOUND，资源不存在段，不暴露存在性）。
 
