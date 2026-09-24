@@ -7,7 +7,6 @@ import UserPickerDialog from '@/components/admin/UserPickerDialog.vue'
 const props = defineProps<{
   roleId: string
   roleType: string
-  roleName: string
 }>()
 
 const {
@@ -34,15 +33,6 @@ const {
 
 <template>
   <div class="role-users">
-    <div class="role-users__toolbar">
-      <span class="role-card__subtitle">
-        {{ roleName }} · {{ isWorkspaceRole() ? workspaceUsers.length : total }} 人
-      </span>
-      <el-button size="small" @click="pickerVisible = true">
-        <el-icon><Plus /></el-icon>添加用户
-      </el-button>
-    </div>
-
     <div class="role-users__body">
       <div class="role-users__scroll">
         <!-- 系统角色用户列表 -->
@@ -60,7 +50,12 @@ const {
           <el-table-column label="创建时间" width="170">
             <template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template>
           </el-table-column>
-          <el-table-column label="操作" width="90" fixed="right">
+          <el-table-column width="130" fixed="right">
+            <template #header>
+              <el-button type="primary" @click="pickerVisible = true">
+                <el-icon><Plus /></el-icon>添加用户
+              </el-button>
+            </template>
             <template #default="{ row }">
               <el-button link type="danger" @click="handleRemove(row as AdminUser)">移除</el-button>
             </template>
@@ -83,7 +78,12 @@ const {
               </el-tag>
             </template>
           </el-table-column>
-          <el-table-column label="操作" width="90" fixed="right">
+          <el-table-column width="130" fixed="right">
+            <template #header>
+              <el-button type="primary" @click="pickerVisible = true">
+                <el-icon><Plus /></el-icon>添加用户
+              </el-button>
+            </template>
             <template #default="{ row }">
               <el-button link type="danger" @click="handleRemoveWorkspace(row as RoleWorkspaceUser)">
                 移除
@@ -145,16 +145,6 @@ const {
   flex-direction: column;
   height: 100%;
   min-height: 0;
-}
-
-.role-users__toolbar {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-md);
-  padding: 12px 24px;
-  border-bottom: 1px solid var(--color-neutral-100);
 }
 
 .role-users__body {
