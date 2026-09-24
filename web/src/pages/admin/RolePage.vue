@@ -67,7 +67,7 @@ function handleCleared() {
 </template>
 
 <style scoped lang="scss">
-/* 整页锁定在 AdminLayout 内容卡视口内：左右两栏等高占满，溢出走栏内细滚动条 */
+/* 整页锁定在 AdminLayout 内容卡视口内：左右两栏等高占满，溢出收进各子区域 */
 .role-page {
   display: flex;
   flex-direction: column;
