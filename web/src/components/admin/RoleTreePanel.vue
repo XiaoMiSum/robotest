@@ -115,6 +115,15 @@ defineExpose({ reload: load })
 <style scoped lang="scss">
 .role-tree {
   padding: var(--space-xs);
+  overflow-y: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+
+  &::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+    display: none;
+  }
 
   :deep(.el-tree) {
     --el-tree-node-content-height: 44px;
