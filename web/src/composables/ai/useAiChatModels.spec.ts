@@ -15,6 +15,7 @@ const mocks = vi.hoisted(() => {
     setDefault: vi.fn(() => Promise.resolve()),
     setEnabled: vi.fn(() => Promise.resolve()),
     test: vi.fn(() => Promise.resolve({ ok: true, latencyMs: 12, detail: 'ok' })),
+    ElMessage: { success: vi.fn(), error: vi.fn(), warning: vi.fn() },
   }
 })
 
@@ -28,9 +29,8 @@ vi.mock('@/services/admin', () => ({
   testAiConnectivity: mocks.test,
 }))
 
-// ElMessage/ElMessageBox 在 jsdom 下为空壳即可，确认/提示分支不实际弹出
 vi.mock('element-plus', () => ({
-  ElMessage: { success: () => {}, error: () => {}, warning: () => {} },
+  ElMessage: mocks.ElMessage,
   ElMessageBox: {
     confirm: vi.fn(() => Promise.resolve('confirm')),
   },
@@ -55,6 +55,16 @@ function model(over: Partial<AiChatModel> = {}): AiChatModel {
   }
 }
 
+function deferred<T>() {
+  let resolve!: (value: T) => void
+  let reject!: (reason?: unknown) => void
+  const promise = new Promise<T>((promiseResolve, promiseReject) => {
+    resolve = promiseResolve
+    reject = promiseReject
+  })
+  return { promise, resolve, reject }
+}
+
 describe('useAiChatModels 模型编辑流', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -71,6 +81,39 @@ describe('useAiChatModels 模型编辑流', () => {
     }
     return { ...useAiChatModels(deps), saving }
   }
+
+  it('刷新失败时优先展示后端 Error.message，并恢复 loading', async () => {
+    mocks.fetch.mockRejectedValueOnce(new Error('模型列表接口失败'))
+    const s = setup()
+    await s.refresh()
+    expect(s.loading.value).toBe(false)
+    expect(s.error.value).toBe('模型列表接口失败')
+    expect(mocks.ElMessage.error).toHaveBeenCalledWith('模型列表接口失败')
+  })
+
+  it('刷新失败非 Error 时使用场景兜底文案', async () => {
+    mocks.fetch.mockRejectedValueOnce('network')
+    const s = setup()
+    await s.refresh()
+    expect(s.error.value).toBe('加载对话模型列表失败')
+    expect(mocks.ElMessage.error).toHaveBeenCalledWith('加载对话模型列表失败')
+  })
+
+  it('忽略晚到的旧刷新响应，不覆盖当前列表或提示', async () => {
+    const first = deferred<AiChatModel[]>()
+    const second = deferred<AiChatModel[]>()
+    mocks.fetch.mockReturnValueOnce(first.promise).mockReturnValueOnce(second.promise)
+    const s = setup()
+    const firstLoad = s.refresh()
+    const secondLoad = s.refresh()
+    second.resolve([model({ id: 'new', name: '新模型' })])
+    await secondLoad
+    first.resolve([model({ id: 'old', name: '旧模型' })])
+    await firstLoad
+    expect(s.chatModels.value[0]?.id).toBe('new')
+    expect(s.loading.value).toBe(false)
+    expect(mocks.ElMessage.error).not.toHaveBeenCalled()
+  })
 
   it('openCreate 复位表单并打开弹窗', () => {
     const s = setup()

@@ -1,4 +1,4 @@
-import { ref, watch, computed } from 'vue'
+import { getCurrentInstance, onBeforeUnmount, ref, watch, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import type { ApiSceneStepItem, ApiSceneStepVariableItem, ApiSceneStepSaveReq } from '@/types'
 import type { ApiInterfaceItem } from '@/types'
@@ -49,6 +49,8 @@ export function useStepEditorDrawer(
 
   const stepVariables = ref<ApiSceneStepVariableItem[]>([])
   const variablesLoading = ref(false)
+  const variablesError = ref<string | null>(null)
+  let variablesRequestId = 0
 
   const executionConfig = ref(createExecutionConfig())
 
@@ -58,9 +60,23 @@ export function useStepEditorDrawer(
   const interfaceOptions = ref<ApiInterfaceItem[]>([])
   const interfaceSearch = ref('')
   const interfaceLoading = ref(false)
+  const interfaceError = ref<string | null>(null)
+  let interfaceRequestId = 0
+
+  function errorMessage(error: unknown, fallback: string): string {
+    return error instanceof Error && error.message ? error.message : fallback
+  }
 
   watch(visible, async (v) => {
-    if (!v) return
+    if (!v) {
+      variablesRequestId += 1
+      interfaceRequestId += 1
+      variablesLoading.value = false
+      interfaceLoading.value = false
+      return
+    }
+    variablesError.value = null
+    interfaceError.value = null
     activeTab.value = 'basic'
     if (props.step) {
       formName.value = props.step.name
@@ -98,33 +114,86 @@ export function useStepEditorDrawer(
     }
   })
 
-  async function loadStepVariables() {
-    if (!props.sceneId || !props.step) return
-    variablesLoading.value = true
-    try {
-      stepVariables.value = await fetchStepVariables(props.sceneId, props.step.id)
-    } catch {
-      stepVariables.value = []
-    } finally {
+  if (getCurrentInstance()) {
+    onBeforeUnmount(() => {
+      variablesRequestId += 1
+      interfaceRequestId += 1
       variablesLoading.value = false
+      interfaceLoading.value = false
+    })
+  }
+
+  async function loadStepVariables(): Promise<void> {
+    const sceneId = props.sceneId
+    const stepId = props.step?.id
+    if (!sceneId || !stepId) {
+      variablesRequestId += 1
+      variablesLoading.value = false
+      return
+    }
+    const requestId = ++variablesRequestId
+    variablesLoading.value = true
+    variablesError.value = null
+    try {
+      const result = await fetchStepVariables(sceneId, stepId)
+      if (
+        requestId !== variablesRequestId
+        || props.sceneId !== sceneId
+        || props.step?.id !== stepId
+      ) return
+      stepVariables.value = result
+    } catch (err) {
+      if (requestId !== variablesRequestId) return
+      const message = errorMessage(err, '加载步骤变量失败')
+      variablesError.value = message
+      ElMessage.error(message)
+    } finally {
+      if (requestId === variablesRequestId) {
+        variablesLoading.value = false
+      }
     }
   }
 
-  async function loadInterfaces() {
+  function retryStepVariables(): Promise<void> {
+    return loadStepVariables()
+  }
+
+  async function loadInterfaces(): Promise<void> {
+    const requestId = ++interfaceRequestId
+    const search = interfaceSearch.value.trim()
     interfaceLoading.value = true
+    interfaceError.value = null
     try {
-      const resp = await fetchInterfacePage({ pageNo: 1, pageSize: 50, search: interfaceSearch.value || undefined })
+      const resp = await fetchInterfacePage({ pageNo: 1, pageSize: 50, search: search || undefined })
+      if (requestId !== interfaceRequestId) return
       interfaceOptions.value = resp.list
-    } catch {
+    } catch (err) {
+      if (requestId !== interfaceRequestId) return
+      const message = errorMessage(err, '加载接口候选列表失败')
       interfaceOptions.value = []
+      interfaceError.value = message
+      ElMessage.error(message)
     } finally {
-      interfaceLoading.value = false
+      if (requestId === interfaceRequestId) {
+        interfaceLoading.value = false
+      }
     }
+  }
+
+  function retryInterfaces(): Promise<void> {
+    return loadInterfaces()
   }
 
   function handleCreateModeChange(mode: 'manual' | 'quick') {
     createMode.value = mode
-    if (mode === 'quick' && interfaceOptions.value.length === 0) void loadInterfaces()
+    if (mode !== 'quick') {
+      interfaceRequestId += 1
+      interfaceLoading.value = false
+      return
+    }
+    if (interfaceOptions.value.length === 0 || interfaceError.value) {
+      void loadInterfaces()
+    }
   }
 
   function addStepVariable() { stepVariables.value.push(createStepVariable()) }
@@ -265,6 +334,7 @@ export function useStepEditorDrawer(
     extractors,
     stepVariables,
     variablesLoading,
+    variablesError,
     executionConfig,
     createMode,
     quickInterfaceId,
@@ -272,9 +342,12 @@ export function useStepEditorDrawer(
     interfaceOptions,
     interfaceSearch,
     interfaceLoading,
+    interfaceError,
     saving,
     handleCreateModeChange,
     loadInterfaces,
+    retryStepVariables,
+    retryInterfaces,
     addStepVariable,
     removeStepVariable,
     addValidator,

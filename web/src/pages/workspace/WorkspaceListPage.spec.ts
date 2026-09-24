@@ -27,4 +27,12 @@ describe('WorkspaceListPage demo strings', () => {
     expect(composableSource).toContain("hasPermission('workspace:create')")
     expect(pageSource).toContain('v-if="canCreate"')
   })
+
+  it('列表失败由责任层提示后端消息并保留重试入口', () => {
+    expect(composableSource).toContain('ElMessage.error(message)')
+    expect(composableSource).toContain("errorMessage(loadError, '加载工作空间列表失败')")
+    expect(composableSource).toContain('requestSequence')
+    expect(pageSource).toContain('@click="retry"')
+    expect(pageSource).toContain('v-if="error')
+  })
 })

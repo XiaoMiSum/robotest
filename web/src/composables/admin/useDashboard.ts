@@ -1,4 +1,4 @@
-import { computed, onMounted, ref } from 'vue'
+import { computed, getCurrentInstance, onBeforeUnmount, onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { fetchDashboardStats, fetchWorkspaces } from '@/services/admin'
 import type { AdminWorkspace, DailyActiveUsers, DashboardStats, DashboardUsersStats } from '@/types'
@@ -83,6 +83,10 @@ function round2(value: number): number {
   return Math.round(value * 100) / 100
 }
 
+function errorMessage(error: unknown, fallback: string): string {
+  return error instanceof Error && error.message ? error.message : fallback
+}
+
 /** 后端 date 为 YYYY-MM-DD 纯日期串，直接截取 MM-dd（不走 Date 解析，避免时区偏移出错） */
 function axisLabel(date: string): string {
   return date.length === 10 ? date.slice(5) : date
@@ -140,10 +144,13 @@ export function buildDonutSegments(users: DashboardUsersStats): DonutSegment[] {
 
 export function useDashboard() {
   const loading = ref(false)
+  const dashboardError = ref<string | null>(null)
+  const workspaceError = ref<string | null>(null)
   const stats = ref<DashboardStats | null>(null)
   const workspaceList = ref<AdminWorkspace[]>([])
   const workspaceTotal = ref(0)
   const workspacePage = ref(1)
+  let requestSequence = 0
 
   const workspacePages = computed(() =>
     Math.ceil(workspaceTotal.value / DASHBOARD_WORKSPACE_PAGE_SIZE),
@@ -207,48 +214,77 @@ export function useDashboard() {
   const donutSegments = computed(() => buildDonutSegments(stats.value?.users ?? EMPTY_USERS))
   const donutTotal = computed(() => stats.value?.users.total ?? 0)
 
-  async function loadAll() {
+  async function loadAll(): Promise<void> {
+    const sequence = ++requestSequence
     loading.value = true
+    dashboardError.value = null
+    workspaceError.value = null
     try {
-      // 两块数据独立容错：一块失败只 Toast 对应区块，已成功的区块保留展示（交互设计 3.7）
+      // 两块数据独立容错：一块失败只提示对应区块，已成功的区块保留展示（交互设计 3.7）
       const [statsRes, wsRes] = await Promise.allSettled([
-        fetchDashboardStats(),
-        fetchWorkspaces({
+        Promise.resolve().then(() => fetchDashboardStats()),
+        Promise.resolve().then(() => fetchWorkspaces({
           pageNo: workspacePage.value,
           pageSize: DASHBOARD_WORKSPACE_PAGE_SIZE,
-        }),
+        })),
       ])
+      if (sequence !== requestSequence) return
+      const notifiedMessages = new Set<string>()
       if (statsRes.status === 'fulfilled') {
         stats.value = statsRes.value
       } else {
-        ElMessage.error('加载数据概览失败')
+        const message = errorMessage(statsRes.reason, '加载数据概览失败')
+        dashboardError.value = message
+        if (!notifiedMessages.has(message)) {
+          notifiedMessages.add(message)
+          ElMessage.error(message)
+        }
       }
       if (wsRes.status === 'fulfilled') {
         workspaceList.value = wsRes.value.list
         workspaceTotal.value = wsRes.value.total
       } else {
-        ElMessage.error('加载最近空间失败')
+        const message = errorMessage(wsRes.reason, '加载最近空间失败')
+        workspaceError.value = message
+        if (!notifiedMessages.has(message)) {
+          notifiedMessages.add(message)
+          ElMessage.error(message)
+        }
       }
     } finally {
-      loading.value = false
+      if (sequence === requestSequence) {
+        loading.value = false
+      }
     }
   }
 
   /** 刷新：统计与空间表格一并重拉，表格回到第 1 页（交互设计 3.6） */
-  function refresh() {
+  function refresh(): Promise<void> {
     workspacePage.value = 1
-    loadAll()
+    return loadAll()
   }
 
-  function gotoWorkspacePage(page: number) {
+  function gotoWorkspacePage(page: number): Promise<void> {
     workspacePage.value = page
-    loadAll()
+    return loadAll()
   }
 
-  onMounted(loadAll)
+  function retry(): Promise<void> {
+    return loadAll()
+  }
+
+  onMounted(() => void loadAll())
+  if (getCurrentInstance()) {
+    onBeforeUnmount(() => {
+      requestSequence += 1
+      loading.value = false
+    })
+  }
 
   return {
     loading,
+    dashboardError,
+    workspaceError,
     stats,
     subtitle,
     kpiCards,
@@ -262,5 +298,6 @@ export function useDashboard() {
     loadAll,
     refresh,
     gotoWorkspacePage,
+    retry,
   }
 }

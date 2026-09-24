@@ -66,6 +66,16 @@ function makeWorkspace(overrides?: Partial<AdminWorkspace>): AdminWorkspace {
   }
 }
 
+function deferred<T>() {
+  let resolve!: (value: T) => void
+  let reject!: (reason?: unknown) => void
+  const promise = new Promise<T>((promiseResolve, promiseReject) => {
+    resolve = promiseResolve
+    reject = promiseReject
+  })
+  return { promise, resolve, reject }
+}
+
 describe('useDashboard 状态加载', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -124,7 +134,7 @@ describe('useDashboard 状态加载', () => {
     await vi.dynamicImportSettled()
 
     expect(d.stats.value).toBeNull()
-    expect(mocks.ElMessage.error).toHaveBeenCalledWith('加载数据概览失败')
+    expect(mocks.ElMessage.error).toHaveBeenCalledWith('boom')
     expect(d.workspaceList.value).toHaveLength(1)
     expect(d.loading.value).toBe(false)
   })
@@ -136,8 +146,42 @@ describe('useDashboard 状态加载', () => {
     await vi.dynamicImportSettled()
 
     expect(d.stats.value).not.toBeNull()
-    expect(mocks.ElMessage.error).toHaveBeenCalledWith('加载最近空间失败')
+    expect(mocks.ElMessage.error).toHaveBeenCalledWith('boom')
     expect(d.workspaceList.value).toHaveLength(0)
+  })
+
+  it('非 Error 异常使用对应场景兜底文案', async () => {
+    mocks.fetchDashboardStats.mockRejectedValue('stats network')
+    mocks.fetchWorkspaces.mockRejectedValue('workspace network')
+    useDashboard()
+    await vi.dynamicImportSettled()
+    expect(mocks.ElMessage.error).toHaveBeenCalledWith('加载数据概览失败')
+    expect(mocks.ElMessage.error).toHaveBeenCalledWith('加载最近空间失败')
+  })
+
+  it('忽略晚到的旧请求结果和错误', async () => {
+    const firstStats = deferred<DashboardStats>()
+    const firstWorkspaces = deferred<{ list: AdminWorkspace[]; total: number }>()
+    const secondStats = deferred<DashboardStats>()
+    const secondWorkspaces = deferred<{ list: AdminWorkspace[]; total: number }>()
+    mocks.fetchDashboardStats
+      .mockReturnValueOnce(firstStats.promise)
+      .mockReturnValueOnce(secondStats.promise)
+    mocks.fetchWorkspaces
+      .mockReturnValueOnce(firstWorkspaces.promise)
+      .mockReturnValueOnce(secondWorkspaces.promise)
+    const d = useDashboard()
+    const secondLoad = d.loadAll()
+    secondStats.resolve(makeStats({ users: { total: 2, weekNew: 0, enabled: 2, disabled: 0, locked: 0 } }))
+    secondWorkspaces.resolve({ list: [makeWorkspace({ id: 'new' })], total: 1 })
+    await secondLoad
+    firstStats.reject(new Error('旧统计失败'))
+    firstWorkspaces.reject(new Error('旧空间失败'))
+    await vi.dynamicImportSettled()
+    expect(d.stats.value?.users.total).toBe(2)
+    expect(d.workspaceList.value[0]?.id).toBe('new')
+    expect(d.loading.value).toBe(false)
+    expect(mocks.ElMessage.error).not.toHaveBeenCalled()
   })
 
   it('切页按目标页拉取；刷新回第 1 页', async () => {

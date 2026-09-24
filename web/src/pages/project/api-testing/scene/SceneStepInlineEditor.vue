@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { onBeforeUnmount, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Delete } from '@element-plus/icons-vue'
 import type { ApiComponentListItem, ApiComponentType, ApiSceneStepItem } from '@/types'
@@ -33,32 +33,64 @@ const datasourceOptions = ref<{ value: string; label: string }[]>([])
 // HTTP 引用配置下拉：从当前环境获取可选 HTTP 配置（值存 ref_name），有默认则预选
 const httpConfigOptions = ref<{ value: string; label: string; isDefault: boolean }[]>([])
 const httpRefName = ref('')
+const environmentLoading = ref(false)
+const environmentError = ref<string | null>(null)
+let environmentRequestId = 0
+
+function environmentErrorMessage(error: unknown, fallback: string): string {
+  return error instanceof Error && error.message ? error.message : fallback
+}
+
+async function loadEnvironmentOptions(envId: string | null | undefined): Promise<void> {
+  const requestId = ++environmentRequestId
+  environmentError.value = null
+  if (!envId) {
+    datasourceOptions.value = []
+    httpConfigOptions.value = []
+    environmentLoading.value = false
+    return
+  }
+  environmentLoading.value = true
+  try {
+    const detail = await fetchEnvironmentDetail(envId)
+    if (requestId !== environmentRequestId) return
+    datasourceOptions.value = detail.dataSources
+      .filter((ds) => ds.refName)
+      .map((ds) => ({ value: String(ds.refName), label: `${ds.name}（${ds.refName}）` }))
+    httpConfigOptions.value = detail.httpConfigs
+      .filter((hc) => hc.refName)
+      .map((hc) => ({ value: String(hc.refName), label: `${hc.name}（${hc.refName}）`, isDefault: !!hc.isDefault }))
+    // 引用配置预选：步骤未引用时（新步骤或未设置），有默认配置选默认，否则选第一个
+    if (!httpRefName.value) {
+      const def = httpConfigOptions.value.find((o) => o.isDefault) ?? httpConfigOptions.value[0]
+      if (def) httpRefName.value = def.value
+    }
+    // 数据源预选：步骤未选择时（新步骤或未设置）选第一个；JDBC 数据源无默认标记
+    if (!jdbcDatasource.value && datasourceOptions.value.length) {
+      jdbcDatasource.value = datasourceOptions.value[0].value
+    }
+  } catch (error) {
+    if (requestId !== environmentRequestId) return
+    const message = environmentErrorMessage(error, '加载环境配置失败')
+    datasourceOptions.value = []
+    httpConfigOptions.value = []
+    environmentError.value = message
+    ElMessage.error(message)
+  } finally {
+    if (requestId === environmentRequestId) {
+      environmentLoading.value = false
+    }
+  }
+}
+
+function retryEnvironmentOptions(): void {
+  void loadEnvironmentOptions(props.environmentId)
+}
 
 watch(
   () => props.environmentId,
-  async (envId) => {
-    if (!envId) { datasourceOptions.value = []; httpConfigOptions.value = []; return }
-    try {
-      const detail = await fetchEnvironmentDetail(envId)
-      datasourceOptions.value = detail.dataSources
-        .filter((ds) => ds.refName)
-        .map((ds) => ({ value: String(ds.refName), label: `${ds.name}（${ds.refName}）` }))
-      httpConfigOptions.value = detail.httpConfigs
-        .filter((hc) => hc.refName)
-        .map((hc) => ({ value: String(hc.refName), label: `${hc.name}（${hc.refName}）`, isDefault: !!hc.isDefault }))
-      // 引用配置预选：步骤未引用时（新步骤或未设置），有默认配置选默认，否则选第一个
-      if (!httpRefName.value) {
-        const def = httpConfigOptions.value.find((o) => o.isDefault) ?? httpConfigOptions.value[0]
-        if (def) httpRefName.value = def.value
-      }
-      // 数据源预选：步骤未选择时（新步骤或未设置）选第一个；JDBC 数据源无默认标记
-      if (!jdbcDatasource.value && datasourceOptions.value.length) {
-        jdbcDatasource.value = datasourceOptions.value[0].value
-      }
-    } catch {
-      datasourceOptions.value = []
-      httpConfigOptions.value = []
-    }
+  (envId) => {
+    void loadEnvironmentOptions(envId)
   },
   { immediate: true },
 )
@@ -136,11 +168,19 @@ const STEP_ASSET_NAME: Record<StepAssetKind, string> = {
 const assetPickerVisible = ref(false)
 const assetPickerLoading = ref(false)
 const assetPickerItems = ref<ApiComponentListItem[]>([])
+const assetPickerError = ref<string | null>(null)
 const assetPickerKeyword = ref('')
 const assetPickerKind = ref<StepAssetKind>('validator')
+let assetPickerRequestId = 0
+
+function errorMessage(error: unknown, fallback: string): string {
+  return error instanceof Error && error.message ? error.message : fallback
+}
 
 async function loadAssetPicker(): Promise<void> {
+  const requestId = ++assetPickerRequestId
   assetPickerLoading.value = true
+  assetPickerError.value = null
   try {
     const result = await fetchComponents({
       type: STEP_ASSET_TYPE[assetPickerKind.value],
@@ -149,13 +189,36 @@ async function loadAssetPicker(): Promise<void> {
       pageSize: 100,
       keyword: assetPickerKeyword.value.trim() || undefined,
     })
+    if (requestId !== assetPickerRequestId) return
     assetPickerItems.value = result.list
-  } catch {
-    ElMessage.error('公共组件加载失败')
+  } catch (err) {
+    if (requestId !== assetPickerRequestId) return
+    const message = errorMessage(err, '公共组件加载失败')
+    assetPickerItems.value = []
+    assetPickerError.value = message
+    ElMessage.error(message)
   } finally {
-    assetPickerLoading.value = false
+    if (requestId === assetPickerRequestId) {
+      assetPickerLoading.value = false
+    }
   }
 }
+
+function retryAssetPicker(): void {
+  void loadAssetPicker()
+}
+
+onBeforeUnmount(() => {
+  assetPickerRequestId += 1
+  assetPickerLoading.value = false
+})
+
+watch(assetPickerVisible, (visible) => {
+  if (!visible) {
+    assetPickerRequestId += 1
+    assetPickerLoading.value = false
+  }
+})
 
 function openAssetPicker(kind: StepAssetKind) {
   assetPickerKind.value = kind
@@ -212,7 +275,7 @@ watch(
 
 <template>
   <div class="step-inline" data-test="step-inline-editor">
-    <header class="step-inline__head">
+    <header v-loading="environmentLoading" class="step-inline__head">
       <el-input v-model="formName" placeholder="步骤名称" class="step-inline__name" data-test="step-name" />
       <el-switch v-model="formEnabled" active-text="启用" />
       <el-divider direction="vertical" />
@@ -240,6 +303,10 @@ watch(
         <el-option v-for="opt in datasourceOptions" :key="opt.value" :value="opt.value" :label="opt.label" />
       </el-select>
     </header>
+    <div v-if="environmentError" class="step-inline__environment-error" role="alert">
+      <span>{{ environmentError }}</span>
+      <el-button link type="primary" @click="retryEnvironmentOptions">重试</el-button>
+    </div>
 
     <div class="step-inline__body">
       <template v-if="formStepType === 'http'">
@@ -313,10 +380,11 @@ watch(
     v-model="assetPickerVisible"
     :loading="assetPickerLoading"
     :items="assetPickerItems"
+    :error="assetPickerError"
     :keyword="assetPickerKeyword"
     :title="STEP_ASSET_TITLE[assetPickerKind]"
     @update:keyword="assetPickerKeyword = $event"
-    @search="loadAssetPicker"
+    @search="retryAssetPicker"
     @confirm="handleAssetPicked"
   />
 </template>
@@ -339,6 +407,17 @@ watch(
     padding: var(--space-md) var(--space-lg);
     border-bottom: 1px solid var(--color-neutral-100);
     background: var(--color-neutral-50);
+  }
+
+  &__environment-error {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-sm);
+    padding: var(--space-xs) var(--space-lg);
+    color: var(--color-danger-strong);
+    background: var(--color-danger-light);
+    border-bottom: 1px solid var(--color-danger-border);
   }
 
   &__name {

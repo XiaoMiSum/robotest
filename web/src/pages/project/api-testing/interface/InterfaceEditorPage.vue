@@ -18,9 +18,13 @@ const emit = defineEmits<{
 const {
   form,
   loading,
+  detailError,
   saving,
   activeTab,
+  moduleLoading,
+  moduleError,
   moduleOptions,
+  retryModules,
   handlePathBlur,
   addValidator,
   addExtractor,
@@ -34,8 +38,10 @@ const {
   assetPickerKeyword,
   assetPickerKind,
   openAssetPicker,
-  loadAssetPicker,
+  assetPickerError,
+  retryAssetPicker,
   handleAssetPicked,
+  retryDetail,
   save,
   containerRef,
   requestHeight,
@@ -57,6 +63,10 @@ onBeforeUnmount(unmount)
 <template>
   <div v-loading="loading" class="interface-editor">
     <el-card shadow="never" class="interface-editor__card">
+      <div v-if="detailError" class="interface-editor__load-error" role="alert">
+        <span>{{ detailError }}</span>
+        <el-button link type="primary" @click="retryDetail">重试</el-button>
+      </div>
       <div class="interface-editor__request-line">
         <el-select v-model="form.protocol" style="width: 96px" data-test="editor-protocol-select">
           <el-option v-for="opt in PROTOCOL_OPTIONS" :key="opt.value" :value="opt.value" :label="opt.label" />
@@ -96,8 +106,13 @@ onBeforeUnmount(unmount)
                   placeholder="选择所属模块"
                   clearable
                   style="width: 100%"
+                  :loading="moduleLoading"
                   data-test="editor-module-cascader"
                 />
+              </div>
+              <div v-if="moduleError" class="interface-editor__load-error" role="alert">
+                <span>{{ moduleError }}</span>
+                <el-button link type="primary" @click="retryModules">重试</el-button>
               </div>
               <div class="interface-editor__field-row interface-editor__field-row--top">
                 <span class="interface-editor__field-label">描述</span>
@@ -164,13 +179,14 @@ onBeforeUnmount(unmount)
       v-model="assetPickerVisible"
       :loading="assetPickerLoading"
       :items="assetPickerItems"
+      :error="assetPickerError"
       :keyword="assetPickerKeyword"
       :title="ASSET_TITLE[assetPickerKind]"
       tip="仅展示启用的组件资产；引入为复制，得到独立副本，与源资产无关联。"
       empty-text="暂无可用组件"
       search-placeholder="搜索组件名称..."
       @update:keyword="assetPickerKeyword = $event"
-      @search="loadAssetPicker"
+      @search="retryAssetPicker"
       @confirm="handleAssetPicked"
     />
   </div>
@@ -182,6 +198,16 @@ onBeforeUnmount(unmount)
   flex-direction: column;
   gap: var(--space-md);
   height: 100%;
+}
+
+.interface-editor__load-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  margin: var(--space-sm) 0;
+  color: var(--color-danger);
+  font-size: var(--font-size-sm);
 }
 
 .interface-editor__request-line {

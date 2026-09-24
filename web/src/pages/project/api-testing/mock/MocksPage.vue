@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { onBeforeUnmount, ref, onMounted, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { ApiMockItem } from '@/types'
 import {
@@ -21,6 +21,7 @@ const props = defineProps<{
 }>()
 
 const loading = ref(false)
+const error = ref<string | null>(null)
 const list = ref<ApiMockItem[]>([])
 const total = ref(0)
 const pageNo = ref(1)
@@ -45,8 +46,16 @@ const debugMockId = ref<string | null>(null)
 const addressVisible = ref(false)
 const addressData = ref<{ mockUrl: string; method: string; name: string; headers?: Record<string, unknown> } | null>(null)
 
-async function loadList() {
+let listRequestId = 0
+
+function errorMessage(err: unknown, fallback: string): string {
+  return err instanceof Error && err.message ? err.message : fallback
+}
+
+async function loadList(): Promise<void> {
+  const requestId = ++listRequestId
   loading.value = true
+  error.value = null
   try {
     const result = await fetchMockPage({
       pageNo: pageNo.value,
@@ -55,43 +64,62 @@ async function loadList() {
       search: search.value || undefined,
       enabled: enabledFilter.value,
     })
+    if (requestId !== listRequestId) return
     list.value = result.list
     total.value = result.total
+  } catch (err) {
+    if (requestId !== listRequestId) return
+    const message = errorMessage(err, '加载 Mock 列表失败')
+    error.value = message
+    ElMessage.error(message)
   } finally {
-    loading.value = false
+    if (requestId === listRequestId) {
+      loading.value = false
+    }
   }
 }
 
-onMounted(loadList)
+function retry(): void {
+  void loadList()
+}
+
+onMounted(() => {
+  void loadList()
+})
+
+onBeforeUnmount(() => {
+  listRequestId += 1
+  loading.value = false
+})
 
 watch(() => props.interfaceId, () => {
   pageNo.value = 1
-  loadList()
+  void loadList()
 })
 
-function handleSearch() {
-  search.value = searchDraft.value
+function handleSearch(): void {
+  search.value = searchDraft.value.trim()
   pageNo.value = 1
-  loadList()
+  void loadList()
 }
 
-function handleReset() {
+function handleReset(): void {
   searchDraft.value = ''
   search.value = ''
   enabledFilter.value = undefined
   pageNo.value = 1
-  loadList()
+  void loadList()
 }
 
-function handlePageChange(newPage: number) {
+function handlePageChange(newPage: number): void {
   pageNo.value = newPage
-  loadList()
+  void loadList()
 }
 
-function handleSizeChange(newSize: number) {
+function handleSizeChange(newSize: number): void {
   pageSize.value = newSize
   pageNo.value = 1
-  loadList()
+  void loadList()
 }
 
 async function handleToggle(row: ApiMockItem, enabled: boolean) {
@@ -197,6 +225,7 @@ function formatHitTime(val: string | null): string {
               clearable
               placeholder="状态"
               style="width: 120px"
+              @change="handleSearch"
             >
               <el-option label="已启用" :value="true" />
               <el-option label="已停用" :value="false" />
@@ -219,7 +248,13 @@ function formatHitTime(val: string | null): string {
         </div>
       </template>
 
+      <div v-if="error" class="mocks-page__error" role="alert">
+        <span>{{ error }}</span>
+        <el-button link type="primary" @click="retry">重试</el-button>
+      </div>
+
       <el-table
+        v-if="!error || list.length"
         :data="list"
         row-key="id"
         class="mocks-page__table"
@@ -270,7 +305,7 @@ function formatHitTime(val: string | null): string {
         </el-table-column>
       </el-table>
 
-      <div class="mocks-page__pagination">
+      <div v-if="!error || list.length" class="mocks-page__pagination">
         <el-pagination
           v-model:current-page="pageNo"
           v-model:page-size="pageSize"
@@ -327,6 +362,16 @@ function formatHitTime(val: string | null): string {
   display: flex;
   align-items: center;
   gap: var(--space-sm);
+}
+
+.mocks-page__error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  margin-bottom: var(--space-sm);
+  color: var(--color-danger);
+  font-size: var(--font-size-sm);
 }
 
 .mocks-page__table {
