@@ -55,7 +55,7 @@
 | 数据库 | PostgreSQL 14+ 为优先正式方案，MySQL 仅保留兼容说明 | `06-database.md` |
 | UUID | 使用框架默认生成策略，不在项目规范中强制 UUID v7 | `06-database.md` / `11-migoo-framework.md` |
 | MapStruct | 转换器统一放在 `model/convert/` | `04-backend.md` / `11-migoo-framework.md` |
-| 上下文 | Header 是通用传递入口；具体业务路由/请求体边界由详细设计定义 | `10-security.md` / 各业务详细设计 |
+| 上下文 | 作用域的传递方式和业务例外由详细设计定义 | `10-security.md` / 各业务详细设计 |
 | 规范冲突 | 当前实现与目标规范冲突时暂停，由用户确认后再修改 | `02-overview.md` |
 | Git 分支 | 保留 `master`，以 `develop` 管理日常集成 | `08-workflow.md` |
 | WebSocket | 使用短时、一次性连接 Ticket；实时协议独立成文 | `15-realtime-protocol.md` |

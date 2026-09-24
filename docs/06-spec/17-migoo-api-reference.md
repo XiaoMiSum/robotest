@@ -130,7 +130,7 @@ MapStruct 不是 migoo Starter 的通用 API，项目约定如下：
 | --- | --- | --- |
 | JWT | 框架 Token Provider / Security 配置 | 项目定义密钥、有效期、请求头和错误码 |
 | 用户加载 | UserDetails / 用户桥接适配 | 从项目用户服务加载，不把外部 Header 当可信身份 |
-| 角色权限 | Security 角色/权限能力 | 资源级 Guard 再次校验 workspace/project 权限 |
+| 角色权限 | Security 角色/权限能力 | 资源级 Guard 再次校验作用域权限 |
 | Token 刷新 | 框架刷新能力 | 按 `10-security.md` 和系统管理详细设计执行 |
 | 审计 | 项目 AOP/审计服务 | 记录操作者、资源、结果和脱敏变更 |
 

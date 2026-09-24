@@ -8,7 +8,7 @@
 
 ## 1. 适用范围与权威性
 
-本规范定义 HTTP API、响应体、分页、错误码、上下文请求头和实时通信的项目级契约。
+本规范定义 HTTP API、响应体、分页、错误码、作用域传递和实时通信的项目级契约。
 
 - HTTP 响应、分页和错误码以本文为唯一事实源。
 - migoo 框架的类名和配置细节引用 `11-migoo-framework.md`。
@@ -19,32 +19,29 @@
 
 ### 2.1 基础路径
 
-| 能力 | 基础路径 | 典型请求头 |
+| 能力 | 基础路径 | 认证/上下文 |
 | --- | --- | --- |
 | 认证 | `/api/auth` | `Authorization` |
-| 系统管理 | `/api/admin` | `Authorization` |
-| 我的空间 | `/api/workspaces` | `Authorization` |
-| 空间上下文 | `/api/workspace` | `Authorization`、`X-Active-Workspace` |
-| 项目上下文 | `/api/project` | `Authorization`、`X-Active-Workspace`、`X-Active-Project` |
-| 公共接口 | `/api/public`、`/api/workspace/invitations` | 按接口定义 |
+| 管理域 | `/api/{management}` | `Authorization` |
+| 资源域 | `/api/{scope}` | `Authorization` + 详细设计定义的上下文 Header |
+| 公共域 | `/api/public` | 按接口定义 |
 
 实际新增资源前应先检查相邻 Controller，禁止仅为方便而新增平行基础路径。
 
 ### 2.2 上下文规则
 
-- 当前活动 workspace 和 project 的通用传递入口分别是 `X-Active-Workspace` 和 `X-Active-Project`。
-- 具体业务是否允许在专用路由或请求体中携带目标上下文 ID，由对应业务详细设计明确；本文不授予业务例外。
+- 当前活动作用域通过详细设计约定的上下文 Header 传递；本文不固定 Header 名称。
+- 具体业务是否允许在专用路由或请求体中携带目标作用域 ID，由对应业务详细设计明确；本文不授予业务例外。
 - URL 中的 `{id}` 只有在表示被操作资源本身时才属于通用资源 ID，例如 `/api/resources/{id}`。
-- 服务端必须校验请求头中的上下文与当前用户的权限关系，不能信任前端已校验的假设。
-- 缺少或非法上下文返回统一业务错误，不降级为全局数据查询。
+- 服务端必须校验作用域与当前用户的权限关系，不能信任前端已校验的假设。
+- 缺少或非法作用域返回统一业务错误，不降级为全局数据查询。
 
 示例：
 
 ```http
 GET /api/resources?pageNo=1&pageSize=20
 Authorization: Bearer <access-token>
-X-Active-Workspace: <workspace-uuid>
-X-Active-Project: <project-uuid>
+<context-header>: <scope-id>
 ```
 
 ## 3. HTTP 方法
@@ -53,7 +50,7 @@ X-Active-Project: <project-uuid>
 | --- | --- | --- |
 | `GET` | 查询资源、列表和统计 | 不得产生业务写入 |
 | `POST` | 创建资源或执行明确动作 | 动作接口需定义幂等策略 |
-| `PUT` | 更新资源的约定字段集合 | 项目现有接口可采用部分字段更新，但必须在 OpenAPI 中明确 |
+| `PUT` | 更新资源的约定字段集合 | 当前接口可采用部分字段更新，但必须在 OpenAPI 中明确 |
 | `PATCH` | 局部状态或局部字段更新 | 必须定义可更新字段 |
 | `DELETE` | 删除或逻辑删除资源 | 默认使用逻辑删除 |
 

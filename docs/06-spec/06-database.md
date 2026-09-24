@@ -28,19 +28,19 @@ PostgreSQL 14+ 是当前优先正式数据库。MySQL 仅保留兼容说明和�
 | 字段名 | `snake_case` | `resource_scope_id` |
 | 主键 | `id` | `id uuid` |
 | 关联字段 | `{资源名}_id` | `resource_id` |
-| 普通索引 | 推荐 `idx_{表名}_{字段}` | `idx_ws_project_workspace_id` |
-| 唯一索引 | 推荐 `uk_{表名}_{字段}` | `uk_ws_project_workspace_name` |
+| 普通索引 | 推荐 `idx_{表名}_{字段}` | `idx_resource_table_scope_id` |
+| 唯一索引 | 推荐 `uk_{表名}_{字段}` | `uk_resource_table_scope_name` |
 
 新建表使用项目登记的业务域前缀；已有领域根表可以保留历史名称，但新增表不得继续扩大例外。具体前缀由对应数据模型或详细设计登记，不在本通用规范中写死。
 
 ## 3. 表设计规范
 
-每张业务表必须包含以下公共字段；时间列的具体类型由 DEC-005 和对应数据模型确定，示例中的 `<time-type>` 不是可直接执行的类型名：
+每张业务表必须包含以下公共字段；时间列的具体类型由 DEC-005 和对应数据模型确定，示例中的 `timestamp_type` 是占位符，不是可直接执行的类型名：
 
 ```sql
 id          uuid        PRIMARY KEY,
-created_at  <time-type> NOT NULL,
-updated_at  <time-type> NOT NULL,
+created_at  timestamp_type NOT NULL,
+updated_at  timestamp_type NOT NULL,
 is_deleted  boolean     NOT NULL DEFAULT false
 ```
 
@@ -74,7 +74,7 @@ is_deleted  boolean     NOT NULL DEFAULT false
 | 长文本 | `text` | 不用于无条件排序 |
 | 结构化数据 | `jsonb` | 需要查询的字段应评估索引 |
 | 布尔值 | `boolean` | 禁止使用魔法字符串 |
-| 时间 | `<time-type>` | 按 DEC-005 和数据模型确定 |
+| 时间 | `timestamp_type` | 按 DEC-005 和数据模型确定 |
 | 向量 | `vector(n)` | 仅在启用 pgvector 时使用 |
 
 ## 4. 索引规范

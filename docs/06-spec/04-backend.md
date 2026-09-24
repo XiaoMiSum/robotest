@@ -55,7 +55,7 @@ Controller 只负责：
 
 ```java
 @RestController
-@RequestMapping("/api/admin/users")
+@RequestMapping("/api/resources")
 @RequiredArgsConstructor
 public class AdminUserController {
     private final AdminUserService adminUserService;
