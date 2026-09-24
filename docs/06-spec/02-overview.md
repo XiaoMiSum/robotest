@@ -66,6 +66,7 @@
 | 质量与交付 | `07-quality.md`、`08-workflow.md`、`09-deploy.md` | 测试门禁、Git/PR、构建部署 |
 | 安全与框架 | `10-security.md`、`11-migoo-framework.md` | 安全基线、框架兼容性和差异 |
 | 模板与专项 | `12-task-template.md`、`13-scroll-container.md` | AI 任务流程、滚动 UI 专项 |
+| 待办治理 | `14-improvement-backlog.md` | 未执行任务、依赖、优先级和验收标准 |
 
 ## 4. 技术事实来源
 
