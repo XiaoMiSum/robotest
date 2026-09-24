@@ -73,19 +73,51 @@ onMounted(load)
 
 <template>
   <div v-loading="loading" class="ws-info">
+    <header class="ws-info__head">
+      <h1 class="ws-info__title">空间信息</h1>
+      <p class="ws-info__subtitle">空间基础资料与运行统计</p>
+    </header>
+
+    <section class="ws-info__kpi-grid" aria-label="工作空间统计">
+      <article class="ws-info__kpi-card">
+        <div class="ws-info__kpi-label">
+          <el-icon><User /></el-icon>
+          <span>成员</span>
+        </div>
+        <div class="ws-info__kpi-value">
+          {{ detail?.memberCount ?? 0 }}<span class="ws-info__kpi-unit">人</span>
+        </div>
+      </article>
+      <article class="ws-info__kpi-card">
+        <div class="ws-info__kpi-label">
+          <el-icon><Folder /></el-icon>
+          <span>项目</span>
+        </div>
+        <div class="ws-info__kpi-value">
+          {{ detail?.projectCount ?? 0 }}<span class="ws-info__kpi-unit">个</span>
+        </div>
+      </article>
+    </section>
 
     <el-card shadow="never" class="ws-info__card">
-      <template #header><span class="ws-info__section">基本信息</span></template>
+      <template #header>
+        <h2 class="ws-info__section">基础信息</h2>
+      </template>
       <el-form
         ref="formRef"
         :model="form"
         :rules="rules"
-        label-width="80px"
+        label-position="top"
         class="ws-info__form"
       >
-        <el-form-item label="名称" prop="name">
-          <el-input v-model="form.name" :disabled="!canEdit" maxlength="50" show-word-limit />
-        </el-form-item>
+        <div class="ws-info__form-grid">
+          <el-form-item label="名称" prop="name">
+            <el-input v-model="form.name" :disabled="!canEdit" maxlength="50" show-word-limit />
+          </el-form-item>
+          <el-form-item label="空间 ID">
+            <el-input :model-value="detail?.id ?? '—'" disabled class="ws-info__id" />
+          </el-form-item>
+        </div>
         <el-form-item label="描述">
           <el-input
             v-model="form.description"
@@ -96,70 +128,165 @@ onMounted(load)
             show-word-limit
           />
         </el-form-item>
-        <el-form-item label="统计">
-          <div class="ws-info__stats">
-            <div class="ws-info__stat-badge ws-info__stat-badge--primary">
-              <el-icon><User /></el-icon>
-              成员 {{ detail?.memberCount ?? 0 }}
-            </div>
-            <div class="ws-info__stat-badge ws-info__stat-badge--blue">
-              <el-icon><Folder /></el-icon>
-              项目 {{ detail?.projectCount ?? 0 }}
-            </div>
-          </div>
-        </el-form-item>
-        <el-form-item label="创建时间">
-          <span class="ws-info__meta">{{ formatDateTime(detail?.createdAt) }}</span>
-        </el-form-item>
-        <el-form-item v-if="canEdit">
-          <el-button type="primary" :loading="saving" @click="handleSave">保存修改</el-button>
-        </el-form-item>
       </el-form>
+
+      <div class="ws-info__meta">
+        <span class="ws-info__meta-label">创建时间</span>
+        <span class="ws-info__meta-value">{{ formatDateTime(detail?.createdAt) }}</span>
+      </div>
+
+      <div v-if="canEdit" class="ws-info__actions">
+        <el-button type="primary" :loading="saving" @click="handleSave">保存修改</el-button>
+      </div>
     </el-card>
   </div>
 </template>
 
 <style scoped lang="scss">
-.ws-info__card {
-  max-width: 720px;
+.ws-info {
+  min-width: 0;
 }
 
-.ws-info__section {
-  font-weight: 600;
+.ws-info__head {
+  margin-bottom: var(--block-gap);
+}
+
+.ws-info__title {
+  margin: 0;
+  color: var(--color-neutral-900);
+  font-size: var(--font-size-2xl);
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.ws-info__subtitle {
+  margin: var(--space-xs) 0 0;
+  color: var(--color-neutral-500);
   font-size: var(--font-size-sm);
 }
 
-.ws-info__form {
-  max-width: 560px;
+.ws-info__kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-lg);
+  margin-bottom: var(--block-gap);
 }
 
-.ws-info__stats {
+.ws-info__kpi-card {
+  min-height: 128px;
+  padding: 20px var(--card-pad);
+  border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-lg);
+  background: var(--color-neutral-0);
+  box-shadow: var(--shadow-card);
+}
+
+.ws-info__kpi-label {
   display: flex;
-  gap: var(--space-md);
+  align-items: center;
+  gap: var(--space-sm);
+  color: var(--color-neutral-500);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+
+  .el-icon {
+    color: var(--color-neutral-400);
+    font-size: 15px;
+  }
 }
 
-.ws-info__stat-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-xs);
-  padding: var(--space-xs) var(--space-md);
-  border-radius: var(--radius-full);
-  font-size: var(--font-size-xs);
+.ws-info__kpi-value {
+  margin-top: 10px;
+  color: var(--color-neutral-900);
+  font-size: 30px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+.ws-info__kpi-unit {
+  margin-left: 3px;
+  color: var(--color-neutral-500);
+  font-size: var(--font-size-base);
   font-weight: 500;
 }
 
-.ws-info__stat-badge--primary {
-  background: var(--color-primary-50);
-  color: var(--color-primary-700);
+.ws-info__card {
+  overflow: hidden;
+  border-radius: var(--radius-lg);
 }
 
-.ws-info__stat-badge--blue {
-  background: var(--color-primary-50);
-  color: var(--color-primary-700);
+.ws-info__card :deep(.el-card__header) {
+  padding: var(--space-lg) var(--card-pad);
+}
+
+.ws-info__card :deep(.el-card__body) {
+  padding: var(--card-pad);
+}
+
+.ws-info__section {
+  margin: 0;
+  color: var(--color-neutral-900);
+  font-size: var(--font-size-base);
+  font-weight: 600;
+}
+
+.ws-info__form :deep(.el-form-item__label) {
+  margin-bottom: 6px;
+  color: var(--color-neutral-500);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.ws-info__form :deep(.el-form-item) {
+  margin-bottom: 20px;
+}
+
+.ws-info__form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 var(--space-xl);
+}
+
+.ws-info__id :deep(.el-input__inner) {
+  font-family: var(--font-mono);
+  color: var(--color-neutral-500);
 }
 
 .ws-info__meta {
-  font-size: var(--font-size-xs);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  padding-top: var(--space-xs);
+}
+
+.ws-info__meta-label {
   color: var(--color-neutral-500);
+  font-size: var(--font-size-sm);
+}
+
+.ws-info__meta-value {
+  color: var(--color-neutral-900);
+  font-size: var(--font-size-base);
+  font-variant-numeric: tabular-nums;
+}
+
+.ws-info__actions {
+  display: flex;
+  justify-content: flex-end;
+  margin: var(--card-pad) calc(-1 * var(--card-pad)) calc(-1 * var(--card-pad));
+  padding: 14px var(--card-pad);
+  border-top: 1px solid var(--color-neutral-100);
+}
+
+@media (max-width: 768px) {
+  .ws-info__kpi-grid,
+  .ws-info__form-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 </style>
