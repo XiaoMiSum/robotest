@@ -103,7 +103,7 @@
 
 ### 1.4 页面级滚动与布局验收
 
-本页采用“左右分栏 + 右侧标签页 + 表格内部滚动”的布局。通用规则遵循 `docs/00-spec/13-scroll-container.md` 的 UI-SC-01～UI-SC-09，本节只定义角色管理页的页面行为。
+本页采用“左右分栏 + 右侧标签页 + 表格内部滚动”的布局。通用规则遵循 `docs/00-spec/50-ui/01-scroll-container.md` 的 UI-SC-01～UI-SC-09，本节只定义角色管理页的页面行为。
 
 ```text
 AdminLayout 内容区

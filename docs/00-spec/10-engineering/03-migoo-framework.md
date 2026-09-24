@@ -10,7 +10,7 @@
 
 本文定义采用 `migoo-spring-boot-starter` 时的组件选择、版本管理、框架适配边界和升级验证要求。
 
-本文只规定如何选择、配置、验证和约束框架能力，不复制完整的组件 API 手册。API 速查见 [`17-migoo-api-reference.md`](17-migoo-api-reference.md)；官方 API、配置项和示例以官方文档及当前锁定版本为准。
+本文只规定如何选择、配置、验证和约束框架能力，不复制完整的组件 API 手册。API 速查见 [`04-migoo-api-reference.md`](04-migoo-api-reference.md)；官方 API、配置项和示例以官方文档及当前锁定版本为准。
 
 业务模型、业务事件、业务权限和持久化规则由对应的详细设计文档定义。
 
@@ -56,7 +56,7 @@
 
 适配要求：
 
-- 响应字段和 HTTP 状态遵循 `05-api.md`；
+- 响应字段和 HTTP 状态遵循 `docs/00-spec/20-contracts/01-api.md`；
 - 错误码统一登记在 `ErrorCodeConstants`，使用 10 位编号；
 - 业务异常统一通过 `ServiceExceptionUtil.get(ErrorCodeConstants.X)` 抛出；
 - 分页统一使用 `pageNo/pageSize`，对外使用 `list/total`；
@@ -75,7 +75,7 @@ Web 组件负责全局异常、响应处理、TraceId、请求上下文、i18n�
 适配要求：
 
 - `BaseUuidDO` 的 UUID 策略由框架默认实现决定，不在通用规范中强制 UUID v4/v7；
-- `LambdaQueryWrapperX` 和 `LambdaUpdateWrapperX` 按 `04-backend.md` 的 C11 规则使用；
+- `LambdaQueryWrapperX` 和 `LambdaUpdateWrapperX` 按 `docs/00-spec/10-engineering/02-backend.md` 的 C11 规则使用；
 - 查询结果只用于校验，不作为整行 `updateById` 载体；
 - TypeHandler 的类型、方言、密钥、迁移和日志脱敏必须经过验证；
 - Entity 不承载跨层业务方法。
@@ -93,7 +93,7 @@ MapStruct 不属于 migoo Starter 的通用 API。统一要求：
 
 Security 组件提供 JWT、用户加载、Token 校验和角色权限等框架能力。接入方负责认证模式、用户加载适配、密钥和有效期配置、业务错误码、资源级 Guard 以及登录和权限审计。
 
-框架认证成功不等于业务授权成功。管理域、业务域和实时资源必须在服务端重新校验角色、成员关系和资源归属。通用边界见 `10-security.md`。
+框架认证成功不等于业务授权成功。管理域、业务域和实时资源必须在服务端重新校验角色、成员关系和资源归属。通用边界见 `docs/00-spec/40-security/01-security.md`。
 
 ### 4.6 WebSocket
 
@@ -106,7 +106,7 @@ WebSocket 组件提供连接管理、Token 认证、会话、房间和分布式�
 - 生产使用短时一次性 Ticket、Origin 白名单和日志脱敏；
 - 分布式模式明确 Redis 依赖、顺序和故障降级。
 
-通用协议见 `15-realtime-protocol.md`，接入设计见 `docs/04-detailed-design/78-realtime-websocket.md`；业务事件不在本文定义。
+通用协议见 `docs/00-spec/20-contracts/03-realtime-protocol.md`，接入设计见 `docs/04-detailed-design/78-realtime-websocket.md`；业务事件不在本文定义。
 
 ### 4.7 Redis
 
@@ -142,12 +142,12 @@ Redis 能力用于缓存、限流、会话、短期 Ticket 和分布式协作。
 
 ## 7. 参考
 
-- API 速查：[`17-migoo-api-reference.md`](17-migoo-api-reference.md)
-- HTTP 契约：`docs/00-spec/05-api.md`
-- 通用实时协议：`docs/00-spec/15-realtime-protocol.md`
-- 后端分层：`docs/00-spec/04-backend.md`
-- 数据库：`docs/00-spec/06-database.md`
-- 安全：`docs/00-spec/10-security.md`
+- API 速查：[`04-migoo-api-reference.md`](04-migoo-api-reference.md)
+- HTTP 契约：`docs/00-spec/20-contracts/01-api.md`
+- 通用实时协议：`docs/00-spec/20-contracts/03-realtime-protocol.md`
+- 后端分层：`docs/00-spec/10-engineering/02-backend.md`
+- 数据库：`docs/00-spec/20-contracts/02-database.md`
+- 安全：`docs/00-spec/40-security/01-security.md`
 - 官方总览：<https://xiaomisum.github.io/springboot-migoo-framework/>
 - 官方发布说明：<https://github.com/XiaoMiSum/springboot-migoo-framework/releases>
 

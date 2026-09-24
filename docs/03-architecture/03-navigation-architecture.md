@@ -137,7 +137,7 @@ flowchart TD
 | 页面命令式上报模式 | 页面挂载时调用导航 store 设置当前模式 | ❌ 出现"路由已跳转、模式未更新"的中间态，登录页等场景需打补丁纠正残留模式，双真相源导致状态漂移（历史问题） |
 | **路由元数据声明（采用）** | 路由注册时一并声明 `mode` 与 `menu`，导航层从当前路由派生 | ✅ 单一真相源：菜单、模式、访问控制同源；新增页面一处声明即同时生效于地址栏、标签标题与菜单 |
 
-结论：采用**路由元数据声明 + 导航层派生**。该结论与 `docs/00-spec/03-frontend.md` 的前端分层约束（路由 → 页面 → 组件）一致；字段级定义见 `web/src/router/index.ts` 类型声明，派生实现见 `web/src/stores/nav.ts`，壳层渲染见 `web/src/layouts/AdminLayout.vue` 与 `web/src/layouts/BusinessLayout.vue`。
+结论：采用**路由元数据声明 + 导航层派生**。该结论与 `docs/00-spec/10-engineering/01-frontend.md` 的前端分层约束（路由 → 页面 → 组件）一致；字段级定义见 `web/src/router/index.ts` 类型声明，派生实现见 `web/src/stores/nav.ts`，壳层渲染见 `web/src/layouts/AdminLayout.vue` 与 `web/src/layouts/BusinessLayout.vue`。
 
 ***
 
@@ -174,4 +174,4 @@ flowchart TD
 * 全局导航交互：`docs/05-interaction-design/02-global-navigation.md`
 * 管理端布局交互：`docs/05-interaction-design/system-management/02-system-management-ui-overview.md` §2
 * 视觉壳层形态：`docs/05-interaction-design/03-visual-design.md` §6.1
-* 前端工程规范：`docs/00-spec/03-frontend.md`
+* 前端工程规范：`docs/00-spec/10-engineering/01-frontend.md`

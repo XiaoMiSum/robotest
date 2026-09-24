@@ -43,9 +43,9 @@ mvn test
   - `websocket/`：已移除（房间管理由框架 `migoo-spring-boot-starter-websocket` 原生支持）
 
 **核心子系统**：认证授权 → 上下文（workspace）隔离 → 评审/计划快照 → WebSocket 协作  
-（详见 `docs/00-spec/10-security.md`、`docs/00-spec/05-api.md`、`docs/03-architecture/`、`docs/04-detailed-design/`）
+（详见 `docs/00-spec/40-security/01-security.md`、`docs/00-spec/20-contracts/01-api.md`、`docs/03-architecture/`、`docs/04-detailed-design/`）
 
-> 详细分层职责参见 `docs/00-spec/04-backend.md`。
+> 详细分层职责参见 `docs/00-spec/10-engineering/02-backend.md`。
 
 ## 核心约定
 
@@ -69,7 +69,7 @@ mvn test
 
 ## 框架集成（migoo-spring-boot-starter v1.3.18）
 
-> 完整规范见 `docs/00-spec/11-migoo-framework.md`，框架文档：https://xiaomisum.github.io/springboot-migoo-framework/
+> 完整规范见 `docs/00-spec/10-engineering/03-migoo-framework.md`，框架文档：https://xiaomisum.github.io/springboot-migoo-framework/
 
 ### 响应与异常
 
@@ -98,7 +98,7 @@ new LambdaQueryWrapperX<SysUser>()
 
 ### 数据更新（部分更新原则，C11）
 
-> 完整规范见 `docs/00-spec/04-backend.md` 第 8 节。查询仅用于校验，更新载体只携带 `id` + 本次变更字段。
+> 完整规范见 `docs/00-spec/10-engineering/02-backend.md` 第 8 节。查询仅用于校验，更新载体只携带 `id` + 本次变更字段。
 
 ```java
 // ✅ 部分更新：新建载体，NOT_NULL 策略自动忽略未设置字段

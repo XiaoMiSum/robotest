@@ -155,7 +155,7 @@ PR 标题和 Commit Message 是两个不同字段，不得混用。
 - C1 / C4 / C5 / C11 等适用规则检查（C4 按业务详细设计执行）；
 - 依赖漏洞和敏感信息扫描。
 
-`07-quality.md` 负责定义门禁内容，本文只负责流程和合并策略。
+`docs/00-spec/30-quality-delivery/01-quality.md` 负责定义门禁内容，本文只负责流程和合并策略。
 
 ## 5. 发布和回滚
 
@@ -181,9 +181,9 @@ PR 标题和 Commit Message 是两个不同字段，不得混用。
 
 ## 8. 参考
 
-- 质量门禁：`docs/00-spec/07-quality.md`
-- 构建部署：`docs/00-spec/09-deploy.md`
-- AI 任务流程：`docs/00-spec/12-task-template.md`
+- 质量门禁：`docs/00-spec/30-quality-delivery/01-quality.md`
+- 构建部署：`docs/00-spec/30-quality-delivery/03-deploy.md`
+- AI 任务流程：`docs/00-spec/00-governance/02-task-template.md`
 - 文档约定：`docs/AGENTS.md`
 
 ---
