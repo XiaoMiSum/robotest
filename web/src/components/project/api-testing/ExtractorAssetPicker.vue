@@ -19,7 +19,14 @@
         </template>
       </el-input>
     </div>
+    <el-alert v-if="error" type="error" :title="error" show-icon :closable="false">
+      <template #default>
+        <el-button link type="primary" @click="emit('search')">重试</el-button>
+      </template>
+    </el-alert>
     <el-table
+      v-if="!error || items.length"
+      v-loading="loading"
       :data="items"
       size="small"
       class="extractor-picker__table"
@@ -60,6 +67,7 @@ const props = withDefaults(
     modelValue: boolean
     loading: boolean
     items: ApiComponentListItem[]
+    error?: string | null
     keyword: string
     title?: string
     tip?: string
@@ -68,6 +76,7 @@ const props = withDefaults(
   }>(),
   {
     title: '从公共组件获取提取器',
+    error: null,
     tip: '仅展示启用的提取器资产；引入为复制，得到独立副本，与源资产无关联。',
     emptyText: '暂无可用提取器',
     searchPlaceholder: '搜索提取器名称...',
@@ -131,5 +140,9 @@ const SCOPE_LABELS: Record<ApiComponentScope, string> = {
 
 .extractor-picker__table {
   width: 100%;
+}
+
+.extractor-picker__search + .el-alert {
+  margin-bottom: var(--space-sm);
 }
 </style>

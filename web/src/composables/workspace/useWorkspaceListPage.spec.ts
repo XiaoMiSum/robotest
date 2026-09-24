@@ -172,6 +172,32 @@ describe('useWorkspaceListPage', () => {
     expect(sut.workspaces.value[0]?.id).toBe('new')
   })
 
+  it('忽略晚到的旧列表错误，不覆盖当前结果或重复提示', async () => {
+    const first = deferred<WorkspaceListResult>()
+    const second = deferred<WorkspaceListResult>()
+    mocks.fetchMyWorkspaces.mockReturnValueOnce(first.promise).mockReturnValueOnce(second.promise)
+    const sut = useWorkspaceListPage({ autoLoad: false })
+    const firstLoad = sut.loadWorkspaces()
+    sut.keyword.value = '新空间'
+    const secondLoad = sut.handleSearch()
+    second.resolve(result({ list: [makeWorkspace({ id: 'new', name: '新空间' })] }))
+    await secondLoad
+    first.reject(new Error('旧请求失败'))
+    await firstLoad
+    expect(sut.workspaces.value[0]?.id).toBe('new')
+    expect(sut.error.value).toBeNull()
+    expect(mocks.ElMessage.error).not.toHaveBeenCalled()
+  })
+
+  it('列表失败时优先展示后端 Error.message 并结束 loading', async () => {
+    mocks.fetchMyWorkspaces.mockRejectedValue(new Error('空间接口失败'))
+    const sut = useWorkspaceListPage({ autoLoad: false })
+    await sut.loadWorkspaces()
+    expect(sut.error.value).toBe('空间接口失败')
+    expect(sut.loading.value).toBe(false)
+    expect(mocks.ElMessage.error).toHaveBeenCalledWith('空间接口失败')
+  })
+
   it('偏好接口失败时不更新本地空间也不导航', async () => {
     mocks.setActiveWorkspacePreference.mockRejectedValue(new Error('偏好保存失败'))
     const sut = useWorkspaceListPage({ autoLoad: false })

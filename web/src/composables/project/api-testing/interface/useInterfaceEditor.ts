@@ -44,6 +44,10 @@ const ASSET_NAME: Record<AssetKind, string> = {
 
 // ==================== Helpers ====================
 
+function errorMessage(error: unknown, fallback: string): string {
+  return error instanceof Error && error.message ? error.message : fallback
+}
+
 function splitQueryFromPath(raw: string): { path: string; query: ApiDebugKeyValue[] } {
   const qIndex = raw.indexOf('?')
   if (qIndex < 0) return { path: raw, query: [] }
@@ -69,9 +73,13 @@ export interface UseInterfaceEditorOptions {
 export interface UseInterfaceEditorReturn {
   form: Ref<InterfaceEditorForm>
   loading: Ref<boolean>
+  detailError: Ref<string | null>
   saving: Ref<boolean>
   activeTab: Ref<string>
+  moduleLoading: Ref<boolean>
+  moduleError: Ref<string | null>
   moduleOptions: Ref<CascaderOption[]>
+  retryModules: () => Promise<void>
   handlePathBlur: () => void
   addValidator: () => void
   addExtractor: () => void
@@ -82,11 +90,14 @@ export interface UseInterfaceEditorReturn {
   assetPickerVisible: Ref<boolean>
   assetPickerLoading: Ref<boolean>
   assetPickerItems: Ref<ApiComponentListItem[]>
+  assetPickerError: Ref<string | null>
   assetPickerKeyword: Ref<string>
   assetPickerKind: Ref<AssetKind>
   openAssetPicker: (kind: AssetKind) => void
   loadAssetPicker: () => Promise<void>
+  retryAssetPicker: () => Promise<void>
   handleAssetPicked: (rows: ApiComponentListItem[]) => void
+  retryDetail: () => Promise<void>
   save: () => Promise<void>
   containerRef: Ref<HTMLElement | undefined>
   requestHeight: Ref<number>
@@ -110,21 +121,43 @@ export function useInterfaceEditor(
   const detail = ref<ApiInterfaceDetail | null>(null)
   const form = ref<InterfaceEditorForm>(createEditorForm())
   const loading = ref(false)
+  const detailError = ref<string | null>(null)
   const saving = ref(false)
   const activeTab = ref(isNew.value ? 'headers' : 'basic')
+  let detailRequestId = 0
 
   // ==================== Module tree ====================
   const moduleTree = ref<ProjectModule[]>([])
+  const moduleLoading = ref(false)
+  const moduleError = ref<string | null>(null)
+  let moduleRequestId = 0
   const moduleOptions = computed<CascaderOption[]>(() =>
     toSelectableModuleOptions(moduleTree.value) as CascaderOption[],
   )
 
-  async function loadModules() {
+  async function loadModules(): Promise<void> {
+    const sequence = ++moduleRequestId
+    moduleLoading.value = true
+    moduleError.value = null
     try {
-      moduleTree.value = await fetchProjectModuleTree('interface')
-    } catch {
+      const result = await fetchProjectModuleTree('interface')
+      if (sequence !== moduleRequestId) return
+      moduleTree.value = result
+    } catch (err) {
+      if (sequence !== moduleRequestId) return
+      const message = errorMessage(err, '加载接口模块失败')
       moduleTree.value = []
+      moduleError.value = message
+      ElMessage.error(message)
+    } finally {
+      if (sequence === moduleRequestId) {
+        moduleLoading.value = false
+      }
     }
+  }
+
+  function retryModules(): Promise<void> {
+    return loadModules()
   }
 
   // ==================== Path ====================
@@ -177,11 +210,15 @@ export function useInterfaceEditor(
   const assetPickerVisible = ref(false)
   const assetPickerLoading = ref(false)
   const assetPickerItems = ref<ApiComponentListItem[]>([])
+  const assetPickerError = ref<string | null>(null)
   const assetPickerKeyword = ref('')
   const assetPickerKind = ref<AssetKind>('validator')
+  let assetRequestId = 0
 
   async function loadAssetPicker(): Promise<void> {
+    const sequence = ++assetRequestId
     assetPickerLoading.value = true
+    assetPickerError.value = null
     try {
       const result = await fetchComponents({
         type: ASSET_TYPE[assetPickerKind.value],
@@ -190,12 +227,23 @@ export function useInterfaceEditor(
         pageSize: 100,
         keyword: assetPickerKeyword.value.trim() || undefined,
       })
+      if (sequence !== assetRequestId) return
       assetPickerItems.value = result.list
-    } catch {
-      ElMessage.error('公共组件加载失败')
+    } catch (err) {
+      if (sequence !== assetRequestId) return
+      const message = errorMessage(err, '公共组件加载失败')
+      assetPickerItems.value = []
+      assetPickerError.value = message
+      ElMessage.error(message)
     } finally {
-      assetPickerLoading.value = false
+      if (sequence === assetRequestId) {
+        assetPickerLoading.value = false
+      }
     }
+  }
+
+  function retryAssetPicker(): Promise<void> {
+    return loadAssetPicker()
   }
 
   function openAssetPicker(kind: AssetKind) {
@@ -217,24 +265,39 @@ export function useInterfaceEditor(
   }
 
   // ==================== Load / Save ====================
-  async function loadDetail() {
+  async function loadDetail(): Promise<void> {
+    const sequence = ++detailRequestId
     if (isNew.value) {
+      detailError.value = null
+      loading.value = false
       form.value = createEditorForm()
       form.value.moduleId = options.moduleId ?? null
       markSaved()
       return
     }
     loading.value = true
+    detailError.value = null
     try {
-      detail.value = await fetchInterfaceDetail(interfaceId.value)
-      form.value = createEditorForm(detail.value)
+      const result = await fetchInterfaceDetail(interfaceId.value)
+      if (sequence !== detailRequestId) return
+      detail.value = result
+      form.value = createEditorForm(result)
       markSaved()
       emit('title-update', form.value.name.trim() || '')
-    } catch (error) {
-      ElMessage.error(error instanceof Error ? error.message : '接口详情加载失败')
+    } catch (err) {
+      if (sequence !== detailRequestId) return
+      const message = errorMessage(err, '接口详情加载失败')
+      detailError.value = message
+      ElMessage.error(message)
     } finally {
-      loading.value = false
+      if (sequence === detailRequestId) {
+        loading.value = false
+      }
     }
+  }
+
+  function retryDetail(): Promise<void> {
+    return loadDetail()
   }
 
   async function handleSaveConflict(err: unknown) {
@@ -329,6 +392,12 @@ export function useInterfaceEditor(
   }
 
   function unmount() {
+    detailRequestId += 1
+    moduleRequestId += 1
+    assetRequestId += 1
+    loading.value = false
+    moduleLoading.value = false
+    assetPickerLoading.value = false
     window.removeEventListener('keydown', handleCtrlS)
     document.removeEventListener('mousemove', onDividerMouseMove)
     document.removeEventListener('mouseup', onDividerMouseUp)
@@ -347,9 +416,13 @@ export function useInterfaceEditor(
   return {
     form,
     loading,
+    detailError,
     saving,
     activeTab,
+    moduleLoading,
+    moduleError,
     moduleOptions,
+    retryModules,
     handlePathBlur,
     addValidator,
     addExtractor,
@@ -360,11 +433,14 @@ export function useInterfaceEditor(
     assetPickerVisible,
     assetPickerLoading,
     assetPickerItems,
+    assetPickerError,
     assetPickerKeyword,
     assetPickerKind,
     openAssetPicker,
     loadAssetPicker,
+    retryAssetPicker,
     handleAssetPicked,
+    retryDetail,
     save,
     containerRef,
     requestHeight,

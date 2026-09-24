@@ -18,7 +18,7 @@ const mocks = vi.hoisted(() => ({
   createInterface: vi.fn<() => Promise<string>>(),
   fetchInterfaceDetail: vi.fn<() => Promise<never>>(),
   updateInterface: vi.fn<() => Promise<boolean>>(),
-  fetchProjectModuleTree: vi.fn<() => Promise<never>>(),
+  fetchProjectModuleTree: vi.fn<() => Promise<unknown>>(),
   fetchComponents: vi.fn<() => Promise<{ list: ApiComponentListItem[]; total: number }>>(),
   validatorFromComponent: vi.fn(),
   extractorFromComponent: vi.fn(),
@@ -70,6 +70,7 @@ function makeEmit() {
 describe('useInterfaceEditor', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mocks.fetchProjectModuleTree.mockResolvedValue([])
   })
 
   afterEach(() => {
@@ -296,7 +297,7 @@ describe('useInterfaceEditor', () => {
       mocks.fetchComponents.mockRejectedValue(new Error('network'))
       const { sut } = makeSut()
       await sut.loadAssetPicker()
-      expect(mocks.ElMessage.error).toHaveBeenCalledWith('公共组件加载失败')
+      expect(mocks.ElMessage.error).toHaveBeenCalledWith('network')
       expect(sut.assetPickerLoading.value).toBe(false)
     })
 
@@ -433,6 +434,15 @@ describe('useInterfaceEditor', () => {
     it('moduleOptions starts empty', () => {
       const { sut } = makeSut()
       expect(sut.moduleOptions.value).toEqual([])
+    })
+
+    it('模块树失败时透传后端消息并提供重试状态', async () => {
+      mocks.fetchProjectModuleTree.mockRejectedValueOnce(new Error('模块接口失败'))
+      const { sut } = makeSut()
+      await sut.retryModules()
+      expect(sut.moduleError.value).toBe('模块接口失败')
+      expect(sut.moduleLoading.value).toBe(false)
+      expect(mocks.ElMessage.error).toHaveBeenCalledWith('模块接口失败')
     })
   })
 

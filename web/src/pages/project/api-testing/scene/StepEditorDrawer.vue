@@ -27,6 +27,7 @@ const {
   extractors,
   stepVariables,
   variablesLoading,
+  variablesError,
   executionConfig,
   createMode,
   quickInterfaceId,
@@ -34,9 +35,12 @@ const {
   interfaceOptions,
   interfaceSearch,
   interfaceLoading,
+  interfaceError,
   saving,
   handleCreateModeChange,
   loadInterfaces,
+  retryStepVariables,
+  retryInterfaces,
   addStepVariable,
   removeStepVariable,
   addValidator,
@@ -133,6 +137,10 @@ const {
 
         <el-tab-pane v-if="step && !draftMode" label="变量" name="variables">
           <div v-loading="variablesLoading" class="step-editor__list-section">
+            <div v-if="variablesError" class="step-editor__load-error" role="alert">
+              <span>{{ variablesError }}</span>
+              <el-button link type="primary" @click="retryStepVariables">重试</el-button>
+            </div>
             <table v-if="stepVariables.length" class="step-editor__kv-table">
               <thead>
                 <tr><th>变量名</th><th>值</th><th>来源</th><th>描述</th><th style="width:40px"></th></tr>
@@ -147,7 +155,7 @@ const {
                 </tr>
               </tbody>
             </table>
-            <div v-else class="step-editor__empty-text">暂无变量</div>
+            <div v-else-if="!variablesError" class="step-editor__empty-text">暂无变量</div>
             <el-button size="small" @click="addStepVariable">+ 添加变量</el-button>
           </div>
         </el-tab-pane>
@@ -169,7 +177,7 @@ const {
             v-model="quickInterfaceId"
             filterable
             remote
-            :remote-method="(q: string) => { interfaceSearch = q; loadInterfaces() }"
+            :remote-method="(q: string) => { interfaceSearch = q; void loadInterfaces() }"
             :loading="interfaceLoading"
             placeholder="搜索接口名称"
             style="width: 100%"
@@ -181,6 +189,10 @@ const {
               :label="`${item.method} ${item.path} - ${item.name}`"
             />
           </el-select>
+          <div v-if="interfaceError" class="step-editor__load-error" role="alert">
+            <span>{{ interfaceError }}</span>
+            <el-button link type="primary" @click="retryInterfaces">重试</el-button>
+          </div>
         </el-form-item>
         <el-form-item label="同步模式">
           <el-radio-group v-model="quickMode">
@@ -245,6 +257,15 @@ const {
 
 .step-editor__field--source {
   flex: 0 0 240px;
+}
+
+.step-editor__load-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  color: var(--color-danger);
+  font-size: var(--font-size-xs);
 }
 
 .step-editor__empty-text {

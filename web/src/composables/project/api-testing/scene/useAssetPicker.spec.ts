@@ -40,6 +40,16 @@ function makeItem(id: string, overrides?: Partial<ApiComponentListItem>): ApiCom
   }
 }
 
+function deferred<T>() {
+  let resolve!: (value: T) => void
+  let reject!: (reason?: unknown) => void
+  const promise = new Promise<T>((promiseResolve, promiseReject) => {
+    resolve = promiseResolve
+    reject = promiseReject
+  })
+  return { promise, resolve, reject }
+}
+
 describe('useAssetPicker', () => {
   let editProcessors: Ref<SceneProcessorElement[]>
 
@@ -108,21 +118,33 @@ describe('useAssetPicker', () => {
       const { loadAssetPicker, assetPickerKind } = useAssetPicker(editProcessors)
       assetPickerKind.value = 'pre'
       await loadAssetPicker()
-      expect(mocks.fetchComponents).toHaveBeenCalledWith({ type: 'preprocessor', pageNo: 1, pageSize: 200 })
+      expect(mocks.fetchComponents).toHaveBeenCalledWith({ type: 'preprocessor', pageNo: 1, pageSize: 200, keyword: undefined })
     })
 
     it('使用 postprocessor 类型调用 fetchComponents', async () => {
       const { loadAssetPicker, assetPickerKind } = useAssetPicker(editProcessors)
       assetPickerKind.value = 'post'
       await loadAssetPicker()
-      expect(mocks.fetchComponents).toHaveBeenCalledWith({ type: 'postprocessor', pageNo: 1, pageSize: 200 })
+      expect(mocks.fetchComponents).toHaveBeenCalledWith({ type: 'postprocessor', pageNo: 1, pageSize: 200, keyword: undefined })
     })
 
     it('使用 extractor 类型调用 fetchComponents', async () => {
       const { loadAssetPicker, assetPickerKind } = useAssetPicker(editProcessors)
       assetPickerKind.value = 'extractor'
       await loadAssetPicker()
-      expect(mocks.fetchComponents).toHaveBeenCalledWith({ type: 'extractor', pageNo: 1, pageSize: 200 })
+      expect(mocks.fetchComponents).toHaveBeenCalledWith({ type: 'extractor', pageNo: 1, pageSize: 200, keyword: undefined })
+    })
+
+    it('将搜索关键词传给组件列表请求', async () => {
+      const { loadAssetPicker, assetPickerKeyword } = useAssetPicker(editProcessors)
+      assetPickerKeyword.value = '登录'
+      await loadAssetPicker()
+      expect(mocks.fetchComponents).toHaveBeenCalledWith({
+        type: 'preprocessor',
+        pageNo: 1,
+        pageSize: 200,
+        keyword: '登录',
+      })
     })
 
     it('成功时将结果写入 assetPickerItems', async () => {
@@ -133,12 +155,30 @@ describe('useAssetPicker', () => {
       expect(assetPickerItems.value).toEqual(items)
     })
 
-    it('异常时静默处理，loading 仍被重置', async () => {
-      mocks.fetchComponents.mockRejectedValue(new Error('network'))
-      const { loadAssetPicker, assetPickerLoading, assetPickerItems } = useAssetPicker(editProcessors)
+    it('忽略晚到的旧请求错误，不覆盖当前组件列表', async () => {
+      const first = deferred<{ list: ApiComponentListItem[] }>()
+      const second = deferred<{ list: ApiComponentListItem[] }>()
+      mocks.fetchComponents.mockReturnValueOnce(first.promise).mockReturnValueOnce(second.promise)
+      const sut = useAssetPicker(editProcessors)
+      const firstLoad = sut.loadAssetPicker()
+      const secondLoad = sut.loadAssetPicker()
+      second.resolve({ list: [makeItem('new')] })
+      await secondLoad
+      first.reject(new Error('旧请求失败'))
+      await firstLoad
+      expect(sut.assetPickerItems.value[0]?.id).toBe('new')
+      expect(sut.assetPickerError.value).toBeNull()
+      expect(mocks.ElMessage.error).not.toHaveBeenCalled()
+    })
+
+    it('异常时透传后端消息、保留错误态并重置 loading', async () => {
+      mocks.fetchComponents.mockRejectedValue(new Error('组件接口失败'))
+      const { loadAssetPicker, assetPickerLoading, assetPickerItems, assetPickerError } = useAssetPicker(editProcessors)
       await loadAssetPicker()
       expect(assetPickerLoading.value).toBe(false)
       expect(assetPickerItems.value).toEqual([])
+      expect(assetPickerError.value).toBe('组件接口失败')
+      expect(mocks.ElMessage.error).toHaveBeenCalledWith('组件接口失败')
     })
   })
 

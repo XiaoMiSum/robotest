@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { onBeforeUnmount, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import type { ApiInterfaceDetail, ApiInterfaceItem, ApiSceneStepItem } from '@/types'
 import { fetchInterfacePage, fetchInterfaceDetail } from '@/services/project/api-testing/interface'
@@ -17,26 +17,54 @@ watch(visible, (v) => emit('update:modelValue', v))
 const interfaceOptions = ref<ApiInterfaceItem[]>([])
 const interfaceSearch = ref('')
 const interfaceLoading = ref(false)
+const interfaceError = ref<string | null>(null)
 const selectedId = ref('')
 const importing = ref(false)
+let interfaceRequestId = 0
 
-async function loadInterfaces() {
+function errorMessage(error: unknown, fallback: string): string {
+  return error instanceof Error && error.message ? error.message : fallback
+}
+
+async function loadInterfaces(): Promise<void> {
+  const requestId = ++interfaceRequestId
   interfaceLoading.value = true
+  interfaceError.value = null
   try {
     const resp = await fetchInterfacePage({ pageNo: 1, pageSize: 50, search: interfaceSearch.value || undefined })
+    if (requestId !== interfaceRequestId) return
     interfaceOptions.value = resp.list
-  } catch {
+  } catch (err) {
+    if (requestId !== interfaceRequestId) return
+    const message = errorMessage(err, '加载接口候选列表失败')
     interfaceOptions.value = []
+    interfaceError.value = message
+    ElMessage.error(message)
   } finally {
-    interfaceLoading.value = false
+    if (requestId === interfaceRequestId) {
+      interfaceLoading.value = false
+    }
   }
 }
 
+function retry(): void {
+  void loadInterfaces()
+}
+
 watch(visible, async (v) => {
-  if (!v) return
+  if (!v) {
+    interfaceRequestId += 1
+    interfaceLoading.value = false
+    return
+  }
   selectedId.value = ''
   interfaceSearch.value = ''
+  interfaceError.value = null
   await loadInterfaces()
+})
+
+onBeforeUnmount(() => {
+  interfaceRequestId += 1
 })
 
 function newStepId(): string {
@@ -112,7 +140,7 @@ async function handleImport() {
           v-model="selectedId"
           filterable
           remote
-          :remote-method="(q: string) => { interfaceSearch = q; loadInterfaces() }"
+          :remote-method="(q: string) => { interfaceSearch = q; void loadInterfaces() }"
           :loading="interfaceLoading"
           placeholder="搜索接口名称"
           style="width: 100%"
@@ -125,6 +153,11 @@ async function handleImport() {
           />
         </el-select>
       </el-form-item>
+      <el-alert v-if="interfaceError" type="error" :title="interfaceError" show-icon :closable="false">
+        <template #default>
+          <el-button link type="primary" @click="retry">重试</el-button>
+        </template>
+      </el-alert>
     </el-form>
     <template #footer>
       <el-button @click="visible = false">取消</el-button>

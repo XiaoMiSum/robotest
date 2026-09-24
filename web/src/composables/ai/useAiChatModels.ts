@@ -1,4 +1,4 @@
-import { computed, reactive, ref } from 'vue'
+import { computed, getCurrentInstance, onBeforeUnmount, reactive, ref } from 'vue'
 import type { Ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
@@ -31,6 +31,9 @@ export function useAiChatModels(deps: {
   saving: { saving: Ref<boolean> }
 }) {
   const chatModels = ref<AiChatModel[]>([])
+  const loading = ref(false)
+  const error = ref<string | null>(null)
+  let requestSequence = 0
   const modelDialogVisible = ref(false)
   const modelDialogMode = ref<'create' | 'edit'>('create')
   const editingModelId = ref<string | null>(null)
@@ -54,8 +57,41 @@ export function useAiChatModels(deps: {
   const modelModelHints = computed(() => resolveModelHints(deps.presetOf(modelForm.provider), 'chat'))
   const enabledCount = computed(() => chatModels.value.filter((m) => m.enabled).length)
 
-  async function refresh() {
-    chatModels.value = await fetchAiChatModels()
+  function errorMessage(err: unknown, fallback: string): string {
+    return err instanceof Error && err.message ? err.message : fallback
+  }
+
+  async function refresh(): Promise<boolean> {
+    const sequence = ++requestSequence
+    loading.value = true
+    error.value = null
+    try {
+      const result = await fetchAiChatModels()
+      if (sequence !== requestSequence) return false
+      chatModels.value = result
+      return true
+    } catch (err) {
+      if (sequence !== requestSequence) return false
+      const message = errorMessage(err, '加载对话模型列表失败')
+      error.value = message
+      ElMessage.error(message)
+      return false
+    } finally {
+      if (sequence === requestSequence) {
+        loading.value = false
+      }
+    }
+  }
+
+  function retry(): Promise<boolean> {
+    return refresh()
+  }
+
+  if (getCurrentInstance()) {
+    onBeforeUnmount(() => {
+      requestSequence += 1
+      loading.value = false
+    })
   }
 
   function openCreateModel() {
@@ -255,6 +291,8 @@ export function useAiChatModels(deps: {
 
   return {
     chatModels,
+    loading,
+    error,
     enabledCount,
     modelDialogVisible,
     modelDialogMode,
@@ -265,6 +303,7 @@ export function useAiChatModels(deps: {
     modelUniqueParams,
     modelModelHints,
     refresh,
+    retry,
     openCreateModel,
     openEditModel,
     handleModelProviderChange,

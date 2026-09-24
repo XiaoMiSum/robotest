@@ -257,14 +257,16 @@ describe('useStepEditorDrawer', () => {
       expect(s.variablesLoading.value).toBe(false)
     })
 
-    it('加载失败时 stepVariables 为空', async () => {
-      mocks.fetchStepVariables.mockRejectedValue(new Error('fail'))
+    it('加载失败时透传后端消息并保留错误态', async () => {
+      mocks.fetchStepVariables.mockRejectedValue(new Error('变量接口失败'))
       const step = makeStep()
       const s = create({ step })
       s.visible.value = true
       await vi.waitFor(() => expect(mocks.fetchStepVariables).toHaveBeenCalled())
       await vi.waitFor(() => expect(s.variablesLoading.value).toBe(false))
       expect(s.stepVariables.value).toEqual([])
+      expect(s.variablesError.value).toBe('变量接口失败')
+      expect(mocks.ElMessage.error).toHaveBeenCalledWith('变量接口失败')
     })
 
     it('无 sceneId 时不调用', async () => {
@@ -296,12 +298,14 @@ describe('useStepEditorDrawer', () => {
       expect(mocks.fetchInterfacePage).toHaveBeenCalledWith({ pageNo: 1, pageSize: 50, search: '测试' })
     })
 
-    it('加载失败时接口列表为空', async () => {
-      mocks.fetchInterfacePage.mockRejectedValue(new Error('fail'))
+    it('加载失败时透传后端消息并保留错误态', async () => {
+      mocks.fetchInterfacePage.mockRejectedValue(new Error('接口列表失败'))
       const s = create()
       await s.loadInterfaces()
       expect(s.interfaceOptions.value).toEqual([])
       expect(s.interfaceLoading.value).toBe(false)
+      expect(s.interfaceError.value).toBe('接口列表失败')
+      expect(mocks.ElMessage.error).toHaveBeenCalledWith('接口列表失败')
     })
   })
 
