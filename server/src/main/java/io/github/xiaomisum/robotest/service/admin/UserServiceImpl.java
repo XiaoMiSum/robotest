@@ -29,6 +29,7 @@ import xyz.migoo.framework.common.pojo.PageResult;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -56,19 +57,32 @@ public class UserServiceImpl implements UserService {
     @Override
     public PageResult<UserRespDTO> getUserPage(String keyword, String status, UUID roleId,
                                                Integer pageNo, Integer pageSize) {
-        List<UUID> filteredUserIds = null;
+        List<UUID> filteredUserIds;
+        Map<UUID, SysUserRole> roleByUserId;
         if (roleId != null) {
             List<SysUserRole> userRoles = userRoleMapper.listByRoleId(roleId);
-            filteredUserIds = userRoles.stream().map(SysUserRole::getUserId).collect(Collectors.toList());
-            if (filteredUserIds.isEmpty()) {
+            if (userRoles.isEmpty()) {
                 return new PageResult<>(List.of(), 0L);
             }
+            filteredUserIds = userRoles.stream().map(SysUserRole::getUserId).collect(Collectors.toList());
+            roleByUserId = userRoles.stream()
+                    .collect(Collectors.toMap(SysUserRole::getUserId, r -> r, (a, b) -> a));
+        } else {
+            filteredUserIds = null;
+            roleByUserId = Map.of();
         }
 
         PageResult<SysUser> userPage = userMapper.findPage(keyword, status, filteredUserIds, pageNo, pageSize);
 
         List<UserRespDTO> records = userPage.getList().stream()
-                .map(this::convertToUserRespDTO)
+                .map(user -> {
+                    UserRespDTO dto = convertToUserRespDTO(user);
+                    SysUserRole role = roleByUserId.get(user.getId());
+                    if (role != null) {
+                        dto.setGrantedAt(role.getUpdatedAt());
+                    }
+                    return dto;
+                })
                 .collect(Collectors.toList());
 
         return new PageResult<>(records, userPage.getTotal());

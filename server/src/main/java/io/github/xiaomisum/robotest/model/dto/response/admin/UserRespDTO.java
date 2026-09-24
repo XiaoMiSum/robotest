@@ -19,6 +19,8 @@ public class UserRespDTO {
     private List<WorkspaceSimple> workspaces;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    /** 授权时间：仅按角色过滤查询时回填 sys_user_role.updated_at，其余场景为 null */
+    private LocalDateTime grantedAt;
 
     @Data
     public static class RoleSimple {

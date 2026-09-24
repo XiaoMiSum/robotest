@@ -9,6 +9,7 @@ import io.github.xiaomisum.robotest.model.dto.response.admin.PermissionTableResp
 import io.github.xiaomisum.robotest.model.dto.response.admin.RoleSimpleRespDTO;
 import io.github.xiaomisum.robotest.model.entity.admin.SysPermission;
 import io.github.xiaomisum.robotest.model.entity.admin.SysRole;
+import io.github.xiaomisum.robotest.model.entity.admin.SysUser;
 import io.github.xiaomisum.robotest.model.entity.admin.SysUserRole;
 import io.github.xiaomisum.robotest.model.entity.workspace.Workspace;
 import io.github.xiaomisum.robotest.model.entity.workspace.WorkspaceUser;
@@ -27,6 +28,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import xyz.migoo.framework.common.exception.ServiceException;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -120,6 +122,49 @@ class RoleServiceImplTest {
 
         assertEquals(roleId, dto.getId());
         assertEquals(2, dto.getUserCount());
+    }
+
+    @Test
+    void getRoleWorkspaceUsers_grantedAtTakesLatestUpdatedAt() {
+        SysRole role = new SysRole();
+        role.setId(roleId);
+        when(roleMapper.selectById(roleId)).thenReturn(role);
+
+        UUID ws1 = UUID.fromString("00000000-0000-0000-0000-000000000011");
+        UUID ws2 = UUID.fromString("00000000-0000-0000-0000-000000000012");
+        LocalDateTime earlier = LocalDateTime.of(2026, 1, 1, 10, 0);
+        LocalDateTime later = LocalDateTime.of(2026, 3, 1, 10, 0);
+
+        WorkspaceUser wu1 = new WorkspaceUser();
+        wu1.setUserId(userId);
+        wu1.setWorkspaceId(ws1);
+        wu1.setUpdatedAt(earlier);
+        WorkspaceUser wu2 = new WorkspaceUser();
+        wu2.setUserId(userId);
+        wu2.setWorkspaceId(ws2);
+        wu2.setUpdatedAt(later);
+        doReturn(List.of(wu1, wu2)).when(workspaceUserMapper)
+                .selectList(any(SFunction.class), eq(roleId));
+
+        SysUser user = new SysUser();
+        user.setId(userId);
+        user.setUsername("tester");
+        user.setName("测试员");
+        when(userMapper.listByIds(any())).thenReturn(List.of(user));
+
+        Workspace wsEntity1 = new Workspace();
+        wsEntity1.setId(ws1);
+        wsEntity1.setName("空间一");
+        Workspace wsEntity2 = new Workspace();
+        wsEntity2.setId(ws2);
+        wsEntity2.setName("空间二");
+        when(workspaceMapper.listByIds(any())).thenReturn(List.of(wsEntity1, wsEntity2));
+
+        var result = roleService.getRoleWorkspaceUsers(roleId);
+
+        assertEquals(1, result.size());
+        assertEquals(2, result.get(0).getWorkspaces().size());
+        assertEquals(later, result.get(0).getGrantedAt());
     }
 
     @Test

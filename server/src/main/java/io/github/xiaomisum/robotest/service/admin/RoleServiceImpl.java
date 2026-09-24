@@ -179,6 +179,11 @@ public class RoleServiceImpl implements RoleService {
                 info.setWorkspaceName(workspaceNameMap.get(wu.getWorkspaceId()));
                 return info;
             }).collect(Collectors.toList()));
+            // 同一用户可能分布在多个空间，授权时间取最近一次关联更新
+            dto.setGrantedAt(wuList.stream()
+                    .map(WorkspaceUser::getUpdatedAt)
+                    .max(Comparator.naturalOrder())
+                    .orElse(null));
             return dto;
         }).collect(Collectors.toList());
     }

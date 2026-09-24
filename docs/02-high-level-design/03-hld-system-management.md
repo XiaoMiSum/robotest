@@ -11,7 +11,7 @@
 #### 1.1 角色分类
 
 * **系统角色**：由系统管理员在管理端创建和管理，用于控制管理端（`/api/admin`）功能权限。系统预置"系统管理员"角色，拥有全部管理权限且不可删除。系统角色仅分配管理端权限。存储于 `sys_role` 表，`type='system'`。
-* **工作空间角色**：存储于 `sys_role` 表，`type='workspace'`。预置 `workspace_admin`（空间管理员）和 `workspace_member`（普通成员）两条记录，不可删除、不可由管理员创建。工作空间角色通过 `workspace_user.workspace_role`（UUID）关联到用户-工作空间对，由 `WorkspaceRoleInterceptor` 在请求进入时加载到 `LoginUser.authorities` 中。
+* **工作空间角色**：存储于 `sys_role` 表，`type='workspace'`。预置 `workspace_admin`（空间管理员）和 `workspace_member`（普通成员）两条不可删除记录，同时允许管理员创建其他工作空间角色。工作空间角色通过 `workspace_user.workspace_role`（UUID）关联到用户-工作空间对，由 `WorkspaceRoleInterceptor` 在请求进入时加载到 `LoginUser.authorities` 中。
 * 业务用户的最终权限 = 系统角色权限 ∪ 工作空间角色权限。
 
 #### 1.2 多角色支持
@@ -22,7 +22,7 @@
 
 #### 1.3 工作空间内角色
 
-* 工作空间角色统一存储于 `sys_role` 表，`type='workspace'`，预置 `workspace_admin`（空间管理员）和 `workspace_member`（普通成员）两条记录，不可删除、不可由管理员创建。
+* 工作空间角色统一存储于 `sys_role` 表，`type='workspace'`。预置 `workspace_admin`（空间管理员）和 `workspace_member`（普通成员）两条记录不可删除，同时允许管理员创建其他工作空间角色。
 * 用户-工作空间关联表 `workspace_user.workspace_role` 存储角色 ID（UUID），引用 `sys_role.id`，默认值为预置的 `workspace_member` 角色 ID。
 * 系统管理员在全局工作空间管理界面添加成员时，可勾选设为空间管理员；后续空间管理员也可在"工作空间成员管理"中提升或降级成员。
 * 空间管理员拥有该工作空间内更高的业务权限（具体权限在业务模块详细设计中定义）。
