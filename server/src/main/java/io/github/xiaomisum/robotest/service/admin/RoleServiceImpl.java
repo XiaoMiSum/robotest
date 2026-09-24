@@ -26,6 +26,8 @@ import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
+import xyz.migoo.framework.common.pojo.PageParam;
+import xyz.migoo.framework.common.pojo.PageResult;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -33,6 +35,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -137,7 +140,7 @@ public class RoleServiceImpl implements RoleService {
     }
 
     @Override
-    public List<RoleWorkspaceUserRespDTO> getRoleWorkspaceUsers(UUID roleId) {
+    public PageResult<RoleWorkspaceUserRespDTO> getRoleWorkspaceUsers(UUID roleId, PageParam pageParam) {
         SysRole role = roleMapper.selectById(roleId);
         if (role == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.ROLE_NOT_FOUND);
@@ -145,47 +148,56 @@ public class RoleServiceImpl implements RoleService {
 
         List<WorkspaceUser> workspaceUsers = workspaceUserMapper.selectList(WorkspaceUser::getWorkspaceRole, roleId);
         if (workspaceUsers.isEmpty()) {
-            return List.of();
+            return new PageResult<>(List.of(), 0L);
         }
 
-        Map<UUID, List<WorkspaceUser>> grouped = workspaceUsers.stream()
+        List<UUID> userIds = workspaceUsers.stream()
+                .map(WorkspaceUser::getUserId)
+                .distinct()
+                .toList();
+        PageResult<SysUser> userPage = userMapper.findPage(
+                null, null, userIds, pageParam.getPageNo(), pageParam.getPageSize());
+        List<SysUser> pageUsers = userPage.getList();
+        if (pageUsers.isEmpty()) {
+            return new PageResult<>(List.of(), userPage.getTotal());
+        }
+
+        Set<UUID> pageUserIds = pageUsers.stream().map(SysUser::getId).collect(Collectors.toSet());
+        List<WorkspaceUser> pageWorkspaceUsers = workspaceUsers.stream()
+                .filter(workspaceUser -> pageUserIds.contains(workspaceUser.getUserId()))
+                .toList();
+        Map<UUID, List<WorkspaceUser>> grouped = pageWorkspaceUsers.stream()
                 .collect(Collectors.groupingBy(WorkspaceUser::getUserId));
 
-        List<UUID> userIds = new ArrayList<>(grouped.keySet());
-        List<SysUser> users = userMapper.listByIds(userIds);
-        Map<UUID, SysUser> userMap = users.stream()
-                .collect(Collectors.toMap(SysUser::getId, u -> u));
-
-        List<UUID> workspaceIds = workspaceUsers.stream()
+        List<UUID> workspaceIds = pageWorkspaceUsers.stream()
                 .map(WorkspaceUser::getWorkspaceId)
                 .distinct()
-                .collect(Collectors.toList());
-        List<Workspace> workspaces = workspaceMapper.listByIds(workspaceIds);
-        Map<UUID, String> workspaceNameMap = workspaces.stream()
-                .collect(Collectors.toMap(Workspace::getId, Workspace::getName));
+                .toList();
+        Map<UUID, String> workspaceNameMap = workspaceIds.isEmpty()
+                ? Map.of()
+                : workspaceMapper.listByIds(workspaceIds).stream()
+                        .collect(Collectors.toMap(Workspace::getId, Workspace::getName));
 
-        return grouped.entrySet().stream().map(entry -> {
-            UUID userId = entry.getKey();
-            List<WorkspaceUser> wuList = entry.getValue();
-            SysUser user = userMap.get(userId);
-
+        List<RoleWorkspaceUserRespDTO> records = pageUsers.stream().map(user -> {
+            List<WorkspaceUser> userWorkspaces = grouped.getOrDefault(user.getId(), List.of());
             RoleWorkspaceUserRespDTO dto = new RoleWorkspaceUserRespDTO();
-            dto.setUserId(userId);
-            dto.setUsername(user != null ? user.getUsername() : null);
-            dto.setName(user != null ? user.getName() : null);
-            dto.setWorkspaces(wuList.stream().map(wu -> {
+            dto.setUserId(user.getId());
+            dto.setUsername(user.getUsername());
+            dto.setName(user.getName());
+            dto.setWorkspaces(userWorkspaces.stream().map(workspaceUser -> {
                 RoleWorkspaceUserRespDTO.WorkspaceInfo info = new RoleWorkspaceUserRespDTO.WorkspaceInfo();
-                info.setWorkspaceId(wu.getWorkspaceId());
-                info.setWorkspaceName(workspaceNameMap.get(wu.getWorkspaceId()));
+                info.setWorkspaceId(workspaceUser.getWorkspaceId());
+                info.setWorkspaceName(workspaceNameMap.get(workspaceUser.getWorkspaceId()));
                 return info;
-            }).collect(Collectors.toList()));
-            // 同一用户可能分布在多个空间，授权时间取最近一次关联更新
-            dto.setGrantedAt(wuList.stream()
+            }).toList());
+            dto.setGrantedAt(userWorkspaces.stream()
                     .map(WorkspaceUser::getUpdatedAt)
                     .max(Comparator.naturalOrder())
                     .orElse(null));
             return dto;
-        }).collect(Collectors.toList());
+        }).toList();
+
+        return new PageResult<>(records, userPage.getTotal());
     }
 
     @Override

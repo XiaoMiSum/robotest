@@ -184,8 +184,12 @@ export function removeRoleUser(id: string, userId: string): Promise<void> {
   return del(`/admin/roles/${id}/users/${userId}`)
 }
 
-export function fetchRoleWorkspaceUsers(id: string): Promise<RoleWorkspaceUser[]> {
-  return get(`/admin/roles/${id}/workspace-users`)
+export function fetchRoleWorkspaceUsers(
+  id: string,
+  pageNo: number,
+  pageSize: number,
+): Promise<PageResult<RoleWorkspaceUser>> {
+  return get(`/admin/roles/${id}/workspace-users`, { pageNo, pageSize })
 }
 
 export function removeWorkspaceRoleUser(roleId: string, userId: string, workspaceId: string): Promise<void> {

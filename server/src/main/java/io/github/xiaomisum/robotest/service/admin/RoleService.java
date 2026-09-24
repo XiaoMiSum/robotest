@@ -7,6 +7,8 @@ import io.github.xiaomisum.robotest.model.dto.response.admin.PermissionTableResp
 import io.github.xiaomisum.robotest.model.dto.response.admin.RoleRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.admin.RoleSimpleRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.admin.RoleWorkspaceUserRespDTO;
+import xyz.migoo.framework.common.pojo.PageParam;
+import xyz.migoo.framework.common.pojo.PageResult;
 
 import java.util.List;
 import java.util.UUID;
@@ -23,7 +25,7 @@ public interface RoleService {
 
     RoleRespDTO getRoleDetail(UUID id);
 
-    List<RoleWorkspaceUserRespDTO> getRoleWorkspaceUsers(UUID roleId);
+    PageResult<RoleWorkspaceUserRespDTO> getRoleWorkspaceUsers(UUID roleId, PageParam pageParam);
 
     void addRoleUsers(UUID id, List<UUID> userIds);
 
