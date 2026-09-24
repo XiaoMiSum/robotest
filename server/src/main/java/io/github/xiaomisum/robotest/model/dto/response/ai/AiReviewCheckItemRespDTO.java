@@ -7,7 +7,7 @@ import lombok.Data;
  * 评审一键检查单条建议（result.items 元素，2.2.1）
  */
 @Data
-public class AiReviewCheckItemDTO {
+public class AiReviewCheckItemRespDTO {
 
     @NotBlank(message = "snapshotNodeId 不能为空")
     private String snapshotNodeId;

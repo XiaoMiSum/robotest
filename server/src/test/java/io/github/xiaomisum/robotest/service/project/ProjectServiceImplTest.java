@@ -2,7 +2,7 @@ package io.github.xiaomisum.robotest.service.project;
 
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
-import io.github.xiaomisum.robotest.model.dto.response.workspace.ProjectStatusCountsDTO;
+import io.github.xiaomisum.robotest.model.dto.response.workspace.ProjectStatusCountsRespDTO;
 import io.github.xiaomisum.robotest.model.entity.workspace.WorkspaceUser;
 import io.github.xiaomisum.robotest.repository.admin.SysUserMapper;
 import io.github.xiaomisum.robotest.repository.plan.TestPlanMapper;
@@ -44,14 +44,14 @@ class ProjectServiceImplTest {
         workspaceUser.setWorkspaceId(workspaceId);
         workspaceUser.setUserId(userId);
         workspaceUser.setWorkspaceRole(Constants.WorkspaceRole.ADMIN_ID);
-        ProjectStatusCountsDTO counts = new ProjectStatusCountsDTO();
+        ProjectStatusCountsRespDTO counts = new ProjectStatusCountsRespDTO();
         counts.setActive(5L);
         counts.setArchived(null);
 
         when(workspaceUserMapper.findByWorkspaceIdAndUserId(workspaceId, userId)).thenReturn(workspaceUser);
         when(projectMapper.countStatusByWorkspaceId(workspaceId, "质量")).thenReturn(counts);
 
-        ProjectStatusCountsDTO result = projectService.getProjectStatusCounts(workspaceId, userId, "  质量  ");
+        ProjectStatusCountsRespDTO result = projectService.getProjectStatusCounts(workspaceId, userId, "  质量  ");
 
         assertEquals(5L, result.getActive());
         assertEquals(0L, result.getArchived());

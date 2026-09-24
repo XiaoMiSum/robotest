@@ -6,7 +6,7 @@ import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.model.dto.request.ai.AiCaseGenerateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.ai.AiStepCompleteReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.ai.AiTextImportReqDTO;
-import io.github.xiaomisum.robotest.model.dto.response.ai.AiNodeTreeDTO;
+import io.github.xiaomisum.robotest.model.dto.response.ai.AiNodeTreeRespDTO;
 import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseDocument;
 import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseNode;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseDocumentMapper;
@@ -136,11 +136,11 @@ public class AiCaseGenerationServiceImpl implements AiCaseGenerationService {
      */
     private Function<String, Object> treeAssembler(boolean allowEmpty, List<String> contextWarnings) {
         return fullContent -> {
-            AiNodeTreeDTO.Payload payload = outputValidator.parseAndValidate(
-                    fullContent, AiNodeTreeDTO.Payload.class, null);
+            AiNodeTreeRespDTO.Payload payload = outputValidator.parseAndValidate(
+                    fullContent, AiNodeTreeRespDTO.Payload.class, null);
             List<String> warnings = new ArrayList<>(contextWarnings);
             warnings.addAll(AiNodeTreeAsserts.normalizeAndAssertTree(payload.getNodes(), allowEmpty));
-            List<AiNodeTreeDTO> nodes = payload.getNodes() != null ? payload.getNodes() : List.of();
+            List<AiNodeTreeRespDTO> nodes = payload.getNodes() != null ? payload.getNodes() : List.of();
             if (allowEmpty && nodes.isEmpty()) {
                 warnings.add("未能解析出用例结构，请调整文本格式");
             }
@@ -151,11 +151,11 @@ public class AiCaseGenerationServiceImpl implements AiCaseGenerationService {
     /** 补全步骤 done 帧组装：precondition/step/expected 扁平数组断言，空数组表示无需补全 */
     private Function<String, Object> flatStepsAssembler(List<String> contextWarnings) {
         return fullContent -> {
-            AiNodeTreeDTO.Payload payload = outputValidator.parseAndValidate(
-                    fullContent, AiNodeTreeDTO.Payload.class, null);
+            AiNodeTreeRespDTO.Payload payload = outputValidator.parseAndValidate(
+                    fullContent, AiNodeTreeRespDTO.Payload.class, null);
             List<String> warnings = new ArrayList<>(contextWarnings);
             warnings.addAll(AiNodeTreeAsserts.normalizeAndAssertFlatSteps(payload.getNodes()));
-            List<AiNodeTreeDTO> nodes = payload.getNodes() != null ? payload.getNodes() : List.of();
+            List<AiNodeTreeRespDTO> nodes = payload.getNodes() != null ? payload.getNodes() : List.of();
             return Map.of("nodes", nodes, "warnings", warnings);
         };
     }

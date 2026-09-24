@@ -4,7 +4,7 @@ import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.framework.convert.BugConvertMapper;
 import io.github.xiaomisum.robotest.framework.security.ProjectAccessGuard;
-import io.github.xiaomisum.robotest.model.dto.response.bug.BugAttachmentDownloadDTO;
+import io.github.xiaomisum.robotest.model.dto.response.bug.BugAttachmentDownloadRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.bug.BugAttachmentRespDTO;
 import io.github.xiaomisum.robotest.model.entity.bug.Bug;
 import io.github.xiaomisum.robotest.model.entity.bug.BugAttachment;
@@ -99,7 +99,7 @@ public class BugAttachmentServiceImpl implements BugAttachmentService {
     }
 
     @Override
-    public BugAttachmentDownloadDTO downloadAttachment(UUID attachmentId, UUID userId) {
+    public BugAttachmentDownloadRespDTO downloadAttachment(UUID attachmentId, UUID userId) {
         BugAttachment attachment = bugAttachmentMapper.selectById(attachmentId);
         if (attachment == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.BUG_ATTACHMENT_NOT_FOUND);
@@ -111,7 +111,7 @@ public class BugAttachmentServiceImpl implements BugAttachmentService {
         projectAccessGuard.requireProjectMember(bug.getProjectId(), userId);
 
         Path path = Paths.get(uploadDir).resolve(attachment.getStoragePath());
-        BugAttachmentDownloadDTO dto = new BugAttachmentDownloadDTO();
+        BugAttachmentDownloadRespDTO dto = new BugAttachmentDownloadRespDTO();
         dto.setFileName(attachment.getFileName());
         dto.setContentType(StringUtils.hasText(attachment.getContentType())
                 ? attachment.getContentType() : "application/octet-stream");
