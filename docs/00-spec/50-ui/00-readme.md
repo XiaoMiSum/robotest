@@ -17,12 +17,14 @@
 | [01-frontend-design](01-frontend-design.md) | 视觉层级、设计令牌、状态和可访问性 | 已发布 |
 | [02-page-development](02-page-development.md) | 大页面、小组件、状态归属和数据流 | 已发布 |
 | [03-scroll-container](03-scroll-container.md) | 滚动容器、滚动拥有者和滚动条 | 已发布 |
+| [04-style-exceptions](04-style-exceptions.md) | UI-DS-09 组件覆盖例外登记与扫描基线 | 起草中 |
 
 ## 3. 阅读顺序
 
 1. 先阅读 `01-frontend-design.md`，确认通用视觉、状态和可访问性要求；
 2. 新页面和页面重构阅读 `02-page-development.md`；
-3. 涉及固定区域、长列表或表格时阅读 `03-scroll-container.md`。
+3. 涉及固定区域、长列表或表格时阅读 `03-scroll-container.md`；
+4. 代码审查涉及组件样式覆盖时核对 `04-style-exceptions.md` 登记与基线。
 
 ## 4. 维护规则
 
