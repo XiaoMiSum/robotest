@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, type ComponentPublicInstance } from 'vue'
 import { useWorkspaceDetail } from '@/composables/admin/useWorkspaceDetail'
-import { WORKSPACE_ROLE, workspaceRoleLabel } from '@/services/admin'
+import { WORKSPACE_ROLE, workspaceRoleLabel } from '@/utils/workspaceRole'
 import type { WorkspaceMember } from '@/types'
 import { formatDateTime } from '@/utils/format'
 

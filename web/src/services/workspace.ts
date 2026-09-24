@@ -10,21 +10,21 @@ import type {
   Project,
   ProjectStatus,
   WorkspaceContext,
-  WorkspaceItem,
+  WorkspaceListQuery,
+  WorkspaceListResult,
   WorkspaceMember,
 } from '@/types'
 
 // ==================== 我的空间（/api/workspaces，无需 X-Active-Workspace） ====================
 
-export function fetchMyWorkspaces(params: {
-  pageNo?: number
-  pageSize?: number
-}): Promise<PageResult<WorkspaceItem>> {
+export function fetchMyWorkspaces(params: WorkspaceListQuery = {}): Promise<WorkspaceListResult> {
   return get('/workspaces', { ...params })
 }
 
 export function setActiveWorkspacePreference(workspaceId: string): Promise<void> {
-  return put('/workspaces/active', { workspaceId })
+  return put<void>('/workspaces/active', undefined, {
+    headers: { 'X-Active-Workspace': workspaceId },
+  })
 }
 
 // ==================== 空间上下文（/api/workspace，自动注入 X-Active-Workspace） ====================

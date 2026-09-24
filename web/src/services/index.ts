@@ -36,9 +36,13 @@ api.interceptors.request.use((config) => {
     config.headers.Authorization = `Bearer ${token}`
   }
 
-  // Inject workspace context header if stored
+  // Inject workspace context header if stored. Selection requests must stay context-free, and an explicit target
+  // header must win over the stored context when switching workspaces.
   const workspaceId = localStorage.getItem('robotest_active_workspace')
-  if (workspaceId) {
+  const isWorkspaceSelection =
+    config.url === '/workspaces' && (config.method ?? 'get').toLowerCase() === 'get'
+  const hasExplicitWorkspaceHeader = Boolean(config.headers?.['X-Active-Workspace'])
+  if (workspaceId && !isWorkspaceSelection && !hasExplicitWorkspaceHeader) {
     config.headers['X-Active-Workspace'] = workspaceId
   }
 

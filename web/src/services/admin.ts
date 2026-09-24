@@ -29,19 +29,6 @@ import type {
   WorkspaceMember,
 } from '@/types'
 
-/** 预置工作空间角色 ID（与后端 Constants.WorkspaceRole / V5 迁移脚本保持一致） */
-export const WORKSPACE_ROLE = {
-  ADMIN: 'c0000000-0000-0000-0000-000000000001',
-  MEMBER: 'c0000000-0000-0000-0000-000000000002',
-} as const
-
-/** 将工作空间角色 UUID 映射为可读名称 */
-export function workspaceRoleLabel(roleId: string): string {
-  if (roleId === WORKSPACE_ROLE.ADMIN) return '管理员'
-  if (roleId === WORKSPACE_ROLE.MEMBER) return '成员'
-  return '未知'
-}
-
 // ==================== 用户管理 ====================
 
 export function fetchUsers(params: UserQueryParams): Promise<PageResult<AdminUser>> {

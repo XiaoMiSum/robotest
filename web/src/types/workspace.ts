@@ -1,5 +1,32 @@
+import type { WorkspaceItem } from './common'
+
 /** 项目状态 */
 export type ProjectStatus = 'active' | 'archived'
+
+/** 我的空间范围 */
+export type WorkspaceScope = 'all' | 'managed' | 'archived'
+
+/** 我的空间分段计数 */
+export interface WorkspaceScopeCounts {
+  all: number
+  managed: number
+  archived: number
+}
+
+/** 我的空间分页响应 */
+export interface WorkspaceListResult {
+  list: WorkspaceItem[]
+  total: number
+  counts: WorkspaceScopeCounts
+}
+
+/** 我的空间查询参数 */
+export interface WorkspaceListQuery {
+  keyword?: string
+  scope?: WorkspaceScope
+  pageNo?: number
+  pageSize?: number
+}
 
 /** 项目（列表项 / 详情） */
 export interface Project {
