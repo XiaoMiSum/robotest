@@ -106,7 +106,7 @@
 
 - **路径**：`POST /api/project/scheduled-tasks/:id/execute-now`
 - **说明**：手动触发一次执行，不受 Cron 调度影响。立即执行与 Cron 触发一致，聚合生成**套件报告**（`source = schedule`、`report_type = suite`），保证所产报告保留在报告列表（区别于场景页 [运行] 的 `source = scene` 场景报告）。调度页展示的 `triggerType` 仍为 manual，场景执行记录语义不变。
-- **校验**：若上一次执行未结束（`lastExecutionStatus = running`），返回错误码 7603（`API_SCHEDULED_TASK_RUNNING`）。
+- **校验**：若上一次执行未结束（`lastExecutionStatus = running`），返回错误码 1000017504（`API_SCHEDULED_TASK_RUNNING`）。
 - **响应**：
 
 ```json

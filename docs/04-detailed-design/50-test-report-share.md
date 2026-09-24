@@ -23,7 +23,7 @@
 ### 1.2 分享访问校验
 
 1. 通过 `share_token` 查询报告（`idx_report_share_token` 唯一索引）。
-2. 校验 `share_expires_at > now`，未匹配/已过期统一返回错误码 7009（`API_SHARE_EXPIRED`）。
+2. 校验 `share_expires_at > now`，未匹配/已过期统一返回错误码 1000017312（`API_SHARE_EXPIRED`）。
 3. 校验报告未被删除。
 4. 返回报告内容（场景报告返回场景数据集；套件报告返回套件数据集，不含 Ryze 快照）。
 
