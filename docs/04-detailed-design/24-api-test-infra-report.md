@@ -10,14 +10,14 @@
 
 ### 1.1 查询报告列表
 
-- **路径**：`GET /api/project/reports?page=1&pageSize=20&status=success`
+- **路径**：`GET /api/project/reports?pageNo=1&pageSize=20&status=success`
 - **筛选参数**：`status`（可选）、`reportType`（可选，scene / suite）、`sceneId`（可选，仅筛场景报告）、`keyword`（可选，报告名称/套件内场景名模糊搜索）、`startDate` / `endDate`（可选）。
 - **列表范围**：只返回 `source IN ('schedule')` 的报告。场景页 [运行] 直接产生的报告（`source = 'scene'`、`report_type = 'scene'`）不进列表，但可在对应场景的执行记录中通过弹窗查看（见《测试报告详细设计说明书》4.6）；定时任务（含调度页"立即执行"）聚合生成套件报告，正常展示。
 - **响应**：
 
 ```json
 {
-  "records": [
+  "list": [
     {
       "id": "018f...",
       "reportType": "suite",

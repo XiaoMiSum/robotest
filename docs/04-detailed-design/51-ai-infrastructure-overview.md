@@ -39,7 +39,7 @@
 
 ### 2.1 数据库表设计
 
-数据库为 PostgreSQL，字段 snake_case，接口 JSON 使用 camelCase。全部新表遵循平台规范：`id`（UUID v7，应用层生成）、`created_at`、`updated_at`、`is_deleted`，禁止物理外键（C5）；索引遵循 C9。
+数据库为 PostgreSQL，字段 snake_case，接口 JSON 使用 camelCase。全部新表遵循平台规范：`id`（框架默认 UUID 策略）、`created_at`、`updated_at`、`is_deleted`，禁止物理外键（C5）；索引遵循 C9。
 
 #### 2.1.1 AI 配置表（ai_config）
 
@@ -274,7 +274,7 @@
 - 管理端：`/api/admin/ai/**`，头 `Authorization`；仅系统管理员（沿用既有管理端鉴权）。
 - 工作空间级：`/api/workspace/ai/**`，头 `Authorization` + `X-Active-Workspace`。
 - 项目级：`/api/project/ai/**`，头 `Authorization` + `X-Active-Workspace` + `X-Active-Project`。
-- 通用响应：`{ "code": 200, "message": "success", "data": {} }`；命名 camelCase。下文各接口的响应示例**仅展示 `data` 字段内容**，省略外层 `code` / `message` 包裹（SSE 帧格式除外）。
+- 通用响应：`{ "code": 200, "msg": "success", "data": {} }`；命名 camelCase。下文各接口的响应示例**仅展示 `data` 字段内容**，省略外层 `code` / `msg` 包裹（SSE 帧格式除外）。
 - 密钥字段**永不回传明文**：响应仅含 `configured`（布尔）与 `keySuffix`（末 4 位）。
 - **对话模型选择**：交互式功能（用例生成、步骤补全、评审摘要、助手对话、DSL 翻译）的请求体支持可选字段 `modelId`（对话模型标识，见 2.1.5），缺省或失效时后端回退系统默认模型（解析规则见 4.11）；后台异步任务与建议类接口不接受该字段。
 
@@ -315,7 +315,7 @@ data: {"code": 6002, "message": "AI 调用失败"}
 | 6010 | 语义检索能力降级中（关键词模式结果，提示性语义，随正常数据返回） | 200（业务结果，非异常） |
 | 6011 | 助手写操作确认令牌不存在或已失效（超时/已消费/空间上下文不一致，见《全局智能助手详细设计说明书》3.3） | 409 |
 | 6012 | 目标对象状态不允许该 AI 操作（评审状态不符、计划未关联快照、项目无可分析缺陷等，语义见《AI 评审与测试计划辅助详细设计说明书》2.7 与《缺陷智能分析与向量检索详细设计说明书》3.3.1） | 409 |
-除 6007 / 6010（随 HTTP 200 正常响应返回的业务结果，不经异常链路）外，其余均经 `BusinessException` 抛出（C3），message 使用 i18n 资源。
+除 6007 / 6010（随 HTTP 200 正常响应返回的业务结果，不经异常链路）外，其余均通过 `ServiceExceptionUtil.get(ErrorCodeConstants.X)` 抛出（C3），错误消息使用 i18n 资源。
 
 ---
 

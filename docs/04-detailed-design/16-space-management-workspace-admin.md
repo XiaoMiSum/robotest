@@ -62,13 +62,13 @@
 
 - **路径**：`GET /api/workspace/members`
 
-- **请求参数**：`keyword`（可选）、`page`、`pageSize`
+- **请求参数**：`keyword`（可选）、`pageNo`、`pageSize`
 
 - **响应**：
   
   ```json
   {
-  "records": [
+  "list": [
     {
       "userId": 1,
       "username": "zhangsan",
@@ -153,13 +153,13 @@
 
 - **路径**：`GET /api/workspace/projects`
 
-- **请求参数**：`keyword`、`status`、`page`、`pageSize`
+- **请求参数**：`keyword`、`status`、`pageNo`、`pageSize`
 
 - **响应**：
   
   ```json
   {
-  "records": [
+  "list": [
     {
       "id": 1,
       "name": "用户中心改版",

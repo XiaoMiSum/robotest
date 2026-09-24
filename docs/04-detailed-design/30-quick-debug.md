@@ -116,7 +116,7 @@
 
 #### 3.1.4 查询调试记录列表
 
-- **路径**：`GET /api/project/debug-records?page=1&pageSize=20`
+- **路径**：`GET /api/project/debug-records?pageNo=1&pageSize=20`
 - **说明**：仅返回当前用户的调试记录。
 - **响应**：详见《API 测试基础设施详细设计说明书》3.3.1。
 
@@ -157,7 +157,7 @@
   "response": {
     "statusCode": 200,
     "headers": { "Content-Type": "application/json" },
-    "body": { "code": 200, "message": "success", "data": { "token": "..." } },
+    "body": { "code": 200, "msg": "success", "data": { "token": "..." } },
     "elapsed": 125,
     "size": 2300
   },

@@ -11,7 +11,7 @@
 ### 1.1 获取计划列表
 
 - **路径**：`GET /api/project/plans`
-- **参数**：`status`（可选）、`keyword`（可选，名称模糊匹配）、`page`、`pageSize`
+- **参数**：`status`（可选）、`keyword`（可选，名称模糊匹配）、`pageNo`、`pageSize`
 - **响应**：列表项在计划基本信息外附带进度字段 `totalAssociated`/`passed`/`progressPercent`/`passRate`，口径与 3.4.1 一致（progressPercent 以“已执行（非 untested）”计）。
 
 ### 1.2 创建计划

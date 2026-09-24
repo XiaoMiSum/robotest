@@ -38,7 +38,7 @@
 
 ### 2.1 数据库表设计
 
-数据库为 PostgreSQL，字段 snake_case，接口 JSON 使用 camelCase。全部新表遵循平台规范：`id`（UUID v7，应用层生成）、`created_at`、`updated_at`、`is_deleted`，禁止物理外键（C5）；索引遵循 C9。
+数据库为 PostgreSQL，字段 snake_case，接口 JSON 使用 camelCase。全部新表遵循平台规范：`id`（框架默认 UUID 策略）、`created_at`、`updated_at`、`is_deleted`，禁止物理外键（C5）；索引遵循 C9。
 
 表名域前缀统一使用 `api_`（接口测试业务域），公共组件使用 `api_component`。
 
@@ -254,9 +254,9 @@
 ### 2.3 通用约定
 
 - 项目级：`/api/project/**`，头 `Authorization` + `X-Active-Workspace` + `X-Active-Project`。
-- 通用响应：`{ "code": 200, "message": "success", "data": {} }`；命名 camelCase。下文各接口的响应示例**仅展示 `data` 字段内容**，省略外层 `code` / `message` 包裹。
-- 分页请求：`?page=1&pageSize=20`；分页响应 `{ records: [], total: N }`。
-- 所有接口的错误响应遵循统一格式：`{ "code": 7001, "message": "执行引擎繁忙" }`。
+- 通用响应：`{ "code": 200, "msg": "success", "data": {} }`；命名 camelCase。下文各接口的响应示例**仅展示 `data` 字段内容**，省略外层 `code` / `msg` 包裹。
+- 分页请求：`?pageNo=1&pageSize=20`；分页响应 `{ list: [], total: N }`。
+- 所有接口的错误响应遵循统一格式：`{ "code": 1000017001, "msg": "执行引擎繁忙" }`。
 
 
 ### 2.4 数据清理策略

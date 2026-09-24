@@ -10,12 +10,12 @@
 
 ### 1.1 查询调试记录列表
 
-- **路径**：`GET /api/project/debug-records?page=1&pageSize=20`
+- **路径**：`GET /api/project/debug-records?pageNo=1&pageSize=20`
 - **响应**：
 
 ```json
 {
-  "records": [
+  "list": [
     {
       "id": "018f...",
       "name": "登录接口调试",

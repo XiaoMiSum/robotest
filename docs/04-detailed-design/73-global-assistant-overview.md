@@ -30,7 +30,7 @@
 
 ### 2.1 数据库表设计
 
-全部新表遵循平台规范：`id`（UUID v7，应用层生成）、`created_at`、`updated_at`、`is_deleted`，禁止物理外键（C5）；索引遵循 C9。
+全部新表遵循平台规范：`id`（框架默认 UUID 策略）、`created_at`、`updated_at`、`is_deleted`，禁止物理外键（C5）；索引遵循 C9。
 
 #### 2.1.1 助手会话表（ai_conversation）
 
