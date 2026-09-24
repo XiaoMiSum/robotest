@@ -2,6 +2,7 @@ import { get, post, put, del } from '@/services'
 import type {
   Invitation,
   InvitationCheckEmailResult,
+  InvitationCopyLink,
   InvitationJoinResult,
   InvitationListItem,
   InvitationVerifyResult,
@@ -48,6 +49,7 @@ export function setDefaultProject(projectId: string | null): Promise<WorkspaceCo
 
 export function fetchMembers(params: {
   keyword?: string
+  workspaceRole?: string
   pageNo?: number
   pageSize?: number
 }): Promise<PageResult<WorkspaceMember>> {
@@ -82,6 +84,10 @@ export function fetchInvitations(params: {
   pageSize?: number
 }): Promise<PageResult<InvitationListItem>> {
   return get('/workspace/invitations', { ...params })
+}
+
+export function fetchInvitationCopyLink(id: string): Promise<InvitationCopyLink> {
+  return post(`/workspace/invitations/${id}/copy-link`)
 }
 
 export function revokeInvitation(id: string): Promise<void> {
