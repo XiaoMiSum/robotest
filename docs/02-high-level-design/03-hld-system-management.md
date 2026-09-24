@@ -44,7 +44,7 @@
 * 登录响应包含用户信息及是否拥有工作空间（`hasWorkspace`），前端据此决定登录后跳转目标：有工作空间→工作空间列表，无工作空间+系统权限→系统管理数据概览，无工作空间+无系统权限→工作空间列表。
 * 网关中间件验证 Token，提取用户 ID、所有角色及合并后的权限列表。
 * 管理端请求：仅需验证用户拥有至少一个系统角色，通过后即可访问。
-* 业务端请求：必须携带 `X-Active-Workspace`，中间件校验用户是否属于该工作空间；项目内操作另需 `X-Active-Project`。`WorkspaceRoleInterceptor` 读取工作空间角色并注入权限码到 `LoginUser.authorities`，供后续授权判断使用。
+* 业务端上下文请求：除“我的空间”列表与创建入口外，必须携带 `X-Active-Workspace`，中间件校验用户是否属于该工作空间；设置最近活跃空间时也通过该请求头提交目标空间，项目内操作另需 `X-Active-Project`。`WorkspaceRoleInterceptor` 读取工作空间角色并注入权限码到 `LoginUser.authorities`，供后续授权判断使用。
 * 角色或权限变更后，工作空间权限通过拦截器实时注入，无需重新登录。
 * 前端通过 `POST /api/auth/permissions` 获取当前用户的合并权限码列表，用于菜单和按钮的显隐控制。
 

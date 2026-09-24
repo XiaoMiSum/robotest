@@ -74,9 +74,10 @@
 | workspace_role     | binary(16)             | NOT NULL                             | 工作空间内角色（引用 sys_role.id，type='workspace'） |
 | default_project_id | binary(16)             | NULL                                 | 个人默认项目  |
 | joined_at          | datetime               | NOT NULL, DEFAULT CURRENT_TIMESTAMP  | 加入时间    |
+| last_accessed_at   | datetime               | NULL                                 | 当前用户最近一次成功进入该空间的时间；未进入过为空 |
 | is_deleted         | tinyint(1)             | NOT NULL, DEFAULT 0                  | 是否删除    |
 
-**索引**：`uk_user_workspace` UNIQUE (user_id, workspace_id), `idx_workspace_id` (workspace_id), `idx_default_project_id` (default_project_id)
+**索引**：`uk_user_workspace` UNIQUE (user_id, workspace_id), `idx_workspace_id` (workspace_id), `idx_ws_role` (workspace_id, workspace_role), `idx_default_project_id` (default_project_id), `idx_user_last_accessed` (user_id, last_accessed_at DESC) WHERE is_deleted=false；单表索引共 5 个，符合 C9。
 
 #### 2.1.4 项目表（project）
 
@@ -152,7 +153,7 @@
 
 | 路由                        | 页面      | 说明              |
 | ------------------------- | ------- | --------------- |
-| `/workspaces`             | 我的空间页面  | 展示用户所有工作空间，支持分页 |
+| `/workspaces`             | 我的空间页面  | 展示用户所有工作空间，支持检索、范围筛选与分页 |
 | `/workspace/:workspaceId` | 工作空间详情页 | 查看/编辑空间信息       |
 | `/workspace/members`      | 成员管理页   | 成员列表 + 邀请链接管理   |
 | `/workspace/projects`     | 项目列表页   | 项目列表、引导、选择功能    |
@@ -170,7 +171,7 @@
 
 ### 2.7 核心组件
 
-- **WorkspaceListPage**：卡片列表展示用户所有工作空间，分页显示。每张卡片显示名称、描述、角色标签、成员数、项目数（真实统计）、默认项目名称（未设置默认项目时显示空）。点击[进入工作空间]触发切换流程（纯前端操作：更新 activeWorkspaceId → 跳转项目列表页）。
+- **WorkspaceListPage**：以卡片网格展示用户归属的工作空间，支持名称模糊检索、“全部 / 我管理的 / 已归档”分段筛选、分页及最近访问排序。每张卡片显示名称、描述、真实角色名称、成员数、项目数、用例数（均为真实统计）和归档状态；已归档卡片只读。具备 `workspace:create` 权限时，页头与网格末尾提供创建入口。点击活跃卡片触发切换流程（更新 activeWorkspaceId → 有默认项目时进入项目仪表盘，否则进入项目列表页）。
 
 - **WorkspaceDetailPage**：通过路由参数 `:workspaceId` 获取空间ID，展示该空间信息。管理员可编辑名称和描述并保存。注意：此页面**不提供**默认项目设置功能。
 
