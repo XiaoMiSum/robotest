@@ -35,7 +35,7 @@
 
 ### 1.4 与现有规范的关系
 
-本规范补充 `docs/06-spec/03-frontend.md` 第 8 节的样式约定，并与 `docs/05-interaction-design/system-management/06-system-management-ui-role.md` 中“表头固定、内容区内部滚动、外层不产生纵向滚动条”的交互要求一致。若通用规则与页面实现发生冲突，先以本规范为布局约束，再由交互设计文档确认页面行为。
+本规范补充 `docs/06-spec/03-frontend.md` 第 8 节的样式约定；角色管理页的具体布局和滚动行为见 `docs/05-interaction-design/system-management/06-system-management-ui-role.md` 1.4。若通用规则与页面实现发生冲突，先以本规范为布局约束，再由交互设计文档确认页面行为。
 
 ### 1.5 规则登记
 
@@ -220,36 +220,7 @@
 
 ---
 
-## 4. 系统管理角色管理页参考实现
-
-以下内容是页面级验收案例，不是通用布局规则。页面具体行为仍以交互设计文档为准。
-
-角色管理页采用“左右分栏 + 右侧标签页 + 表格内部滚动”的结构：
-
-```text
-AdminLayout 内容区
-└── RolePage（桌面端固定高度）
-    ├── RoleTreePanel
-    │   └── 角色树：原生 overflow-y: auto，隐藏纵向滚动条
-    └── RoleDetail
-        ├── 权限点 Tab
-        │   └── PermissionTable：el-table 内部滚动，隐藏纵向滚动条
-        └── 关联用户 Tab
-            └── RoleUsersTable：el-table 内部滚动，分页固定底部
-```
-
-对应实现要求：
-
-1. `RolePage` 负责页面高度链路和左右栏等高，不新增外层滚动。
-2. `RoleTreePanel` 只负责角色树区域的原生纵向滚动和视觉隐藏。
-3. `PermissionTable`、`RoleUsersTable` 保留 `el-table` 的固定表头与内部滚动，不在外层增加第二层滚动。
-4. 关联用户分页继续固定在表格底部。
-5. 桌面端隐藏纵向滚动条；响应式布局恢复页面级滚动。
-6. 横向滚动条不隐藏，保证窄屏下仍可访问表格全部列。
-
----
-
-## 5. 审查清单
+## 4. 审查清单
 
 | 编号 | 检查项 | 通过标准 |
 | ---- | ---- | -------- |
