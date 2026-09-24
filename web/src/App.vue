@@ -7,6 +7,11 @@ import { RouterView } from 'vue-router'
 </template>
 
 <style>
+/*
+ * CODE-008 例外：文档级 reset、选区/焦点基线和 Vue 过渡类必须覆盖 Teleport 节点，
+ * 因此保留为应用入口的全局层；业务组件样式不得新增同层级全局覆盖。
+ * 规则来源：docs/00-spec/10-engineering/01-frontend.md §8。
+ */
 /* Reset */
 *,
 *::before,

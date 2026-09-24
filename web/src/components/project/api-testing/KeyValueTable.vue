@@ -180,11 +180,5 @@ watch(
     }
   }
 
-  &__empty {
-    color: var(--color-neutral-300);
-    font-size: 12px;
-    text-align: center;
-    padding: 20px 0 !important;
-  }
 }
 </style>

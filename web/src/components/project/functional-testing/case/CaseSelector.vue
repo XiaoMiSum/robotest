@@ -361,6 +361,11 @@ onMounted(() => {
 // 弹窗根元素（.el-dialog）无组件 scopeId，scoped 选择器无法命中根元素；
 // class 经 fallthrough attrs 透传至根元素，故高度布局须用全局样式 + class 锚点（同 AiPreviewDialog）。
 <style lang="scss">
+/*
+ * CODE-008 例外：Element Plus Dialog 默认 Teleport 到 body，根节点不会带组件 scopeId；
+ * 规则限定在 .case-selector-dialog，避免把弹窗布局扩散到其他弹窗。
+ * 规则来源：docs/00-spec/10-engineering/01-frontend.md §8。
+ */
 .case-selector-dialog {
   position: relative;
   height: 80vh;

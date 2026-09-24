@@ -448,7 +448,7 @@ $priorities: p0, p1, p2, p3;
   cursor: pointer;
 }
 
-.priority-recommend-btn { color: var(--color-primary-600) !important; }
+.priority-recommend-btn { color: var(--color-primary-600); }
 
 .menu-chip {
   display: inline-flex;

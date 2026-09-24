@@ -267,8 +267,8 @@ const {
 }
 
 .bug-create__form :deep(.el-input-group--append .el-input__wrapper) {
-  border-top-right-radius: 0 !important;
-  border-bottom-right-radius: 0 !important;
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
 }
 
 .bug-create__form :deep(.el-input-group__append) {
