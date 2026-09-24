@@ -100,7 +100,7 @@ services          → types / utils / request infrastructure
 <script setup lang="ts">
 import type { User } from '@/types'
 import { computed, ref } from 'vue'
-import { useUserList } from '@/composables/admin/useUserList'
+import { useUserList } from '@/composables/useUserList'
 
 const props = defineProps<{ user: User }>()
 const emit = defineEmits<{ delete: [id: string] }>()
@@ -137,7 +137,7 @@ const displayName = computed(() => props.user.name)
 | 要素 | 规范 | 示例 |
 | --- | --- | --- |
 | 组件文件 | PascalCase，多词 | `UserList.vue` |
-| 页面目录 | kebab-case | `pages/admin/users/` |
+| 页面目录 | kebab-case | `pages/<feature>/` |
 | Props | camelCase | `userName` |
 | Emit | kebab-case | `@update-user` |
 | CSS class | BEM | `.user-card__title` |
@@ -145,42 +145,50 @@ const displayName = computed(() => props.user.name)
 
 ## 5. 路由规范
 
-路由集中维护在 `src/router/index.ts`，页面组件使用懒加载。当前路由元信息以以下字段为主：
+路由规范只规定前端导航的职责和边界，不规定具体文件路径、路由字段名称、页面目录或业务 URL。项目可以在不改变以下原则的前提下选择路由库和配置结构。
 
-```ts
-interface RouteMeta {
-  public?: boolean
-  requiresAuth?: boolean
-  requiresAdmin?: boolean
-  title?: string
-  mode?: 'admin' | 'workspace' | 'project' | 'none'
-  menu?: {
-    label: string
-    icon: string
-    order: number
-    section?: string
-    permission?: string
-    permissionAny?: string[]
-  }
-}
-```
+### 5.1 路由声明
 
-路由守卫至少覆盖：
+- 路由声明集中管理，页面组件按需加载；
+- 每条路由应能声明访问所需的认证、授权、资源和展示信息；
+- 路由元数据应使用稳定、可扩展的类型，并由类型检查覆盖；
+- 路由路径和参数命名应保持语义清晰，不把敏感凭证放入 URL；
+- 路由声明不得替代后端权限和资源归属校验。
 
-1. 未登录访问受保护路由；
-2. 已登录但无管理端权限访问 `/admin/*`；
-3. 缺少 workspace 或 project 时阻止进入对应业务页面。
+### 5.2 导航守卫
 
-`workspaceRequired`、`projectRequired` 或细粒度角色字段只有在路由实现和测试同步后才能新增。前端路由守卫只负责用户体验，不能替代后端授权；后端必须独立执行 C2、C3、C4 和资源级权限校验。
+路由守卫至少覆盖以下通用场景：
+
+1. 未认证访问受保护页面；
+2. 已认证但缺少必要权限；
+3. 所需资源或作用域尚未加载、已失效或无权限；
+4. 路由参数非法、资源不存在或加载失败；
+5. 页面离开时存在未保存状态、需要确认或需要清理缓存。
+
+守卫只负责导航体验、重定向和状态清理；后端必须独立执行 C2、C3、C4 和资源级权限校验。
+
+### 5.3 参数和状态
+
+- 路由参数只用于定位页面所需的资源，不直接作为授权依据；
+- 参数进入页面或请求层前必须完成格式和语义校验；
+- 作用域切换、用户退出或权限失效时，必须清理依赖旧作用域的页面状态和缓存；
+- 页面不得通过路由参数绕过统一请求层或直接拼接敏感凭证。
+
+### 5.4 加载和错误
+
+- 路由级加载失败必须提供可恢复的错误状态；
+- 重定向必须避免形成循环，并保留安全的返回目标；
+- 懒加载、预取和缓存策略不得绕过认证和资源授权；
+- 路由相关请求必须使用统一取消、重试和错误处理机制。
 
 ## 6. Pinia 规范
 
 - 使用 Composition API 写法。
-- 当前 `auth` Store 持有用户、workspace 和 project 活动上下文；不得再创建第二套上下文 Store。
+- 当前 `auth` Store 持有用户和活动作用域信息；不得再创建第二套作用域 Store。
 - Store 名称表达业务域，不使用 `common`、`state` 等宽泛名称。
 - 只持久化必要的会话和上下文信息。
 - Token 使用统一认证服务管理，禁止在多个 Store 各自实现存储逻辑。
-- 切换 workspace/project 时必须清理依赖旧上下文的页面状态。
+- 切换作用域时必须清理依赖旧上下文的页面状态。
 
 ## 7. API 请求层
 
@@ -204,7 +212,7 @@ export interface PageResult<T> {
 - 分页参数使用 `pageNo/pageSize`。
 - 分页数据读取 `list/total`。
 - 认证失败和业务错误统一处理。
-- Token、workspace 和 project 通过统一拦截器注入。
+- Token 和作用域信息通过统一拦截器注入。
 
 ### 7.2 请求边界
 
