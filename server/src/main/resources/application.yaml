@@ -4,6 +4,8 @@ server:
 spring:
   application:
     name: robotest-server
+  profiles:
+    default: dev
   lifecycle:
     timeout-per-shutdown-phase: 60s
   threads:
@@ -13,7 +15,7 @@ spring:
     basename: i18n/messages
     encoding: UTF-8
   config:
-    import: optional:classpath:.env[.properties]
+    import: optional:file:.env[.properties],optional:classpath:.env[.properties]
   jackson:
     serialization:
       fail-on-empty-beans: false
