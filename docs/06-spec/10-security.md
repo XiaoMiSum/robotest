@@ -52,7 +52,7 @@ Ticket 必须绑定用户、连接范围和有效期，并在使用后失效。�
 
 ### 3.2 Workspace 和 Project
 
-- `X-Active-Workspace` 和 `X-Active-Project` 只能表示当前活动上下文。
+- `X-Active-Workspace` 和 `X-Active-Project` 表示当前活动上下文；业务路由或请求体是否允许携带目标上下文 ID，由对应业务详细设计定义。
 - 拦截器必须验证用户是 workspace 成员、project 属于该 workspace，且角色真实存在。
 - 找不到成员、角色或归属关系时必须 fail-closed，返回无权限或上下文非法。
 - 业务 Service 必须使用统一 Guard 校验资源级权限；不能假设拦截器已经自动追加所有查询条件。
