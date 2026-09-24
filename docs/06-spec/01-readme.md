@@ -34,7 +34,7 @@
 | [08-workflow](08-workflow.md) | 研发流程 | Git / PR / 发布 | V1.0 | 2026-09-24 | 已发布 |
 | [09-deploy](09-deploy.md) | 部署规范 | 通用构建、环境、发布和回滚要求 | V1.0 | 2026-09-24 | 已发布 |
 | [10-security](10-security.md) | 安全基线 | 认证 / 授权 / 数据安全 | V1.0 | 2026-09-24 | 已发布 |
-| [11-migoo-framework](11-migoo-framework.md) | 集成参考 | migoo 框架 | V1.0 | 2026-09-24 | 已发布 |
+| [11-migoo-framework](11-migoo-framework.md) | 集成参考 | migoo 组件与官方使用手册 | V1.0 | 2026-09-24 | 已发布 |
 | [12-task-template](12-task-template.md) | 流程模板 | AI / 开发任务 | V1.0 | 2026-09-24 | 已发布 |
 | [13-scroll-container](13-scroll-container.md) | 专项规范 | 前端滚动容器 | V1.0 | 2026-09-24 | 已发布 |
 | [14-improvement-backlog](14-improvement-backlog.md) | 待办清单 | 未执行的规范、代码、配置和交付任务 | V1.0 | 2026-09-24 | 起草中 |
