@@ -3,8 +3,8 @@ package io.github.xiaomisum.robotest.service.ai.review;
 
 import io.github.xiaomisum.robotest.framework.common.AiFunctionType;
 import io.github.xiaomisum.robotest.framework.common.Constants;
-import io.github.xiaomisum.robotest.model.dto.response.ai.AiReviewCheckBatchDTO;
-import io.github.xiaomisum.robotest.model.dto.response.ai.AiReviewCheckItemDTO;
+import io.github.xiaomisum.robotest.model.dto.response.ai.AiReviewCheckBatchRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.ai.AiReviewCheckItemRespDTO;
 import io.github.xiaomisum.robotest.model.entity.ai.AiAnalysisTask;
 import io.github.xiaomisum.robotest.model.entity.review.TestReviewModuleSnapshot;
 import io.github.xiaomisum.robotest.model.entity.review.TestReviewNodeSnapshot;
@@ -84,8 +84,8 @@ class AiReviewCheckTaskHandlerTest {
         return m;
     }
 
-    private AiReviewCheckItemDTO item(String snapshotNodeId, String dimension) {
-        AiReviewCheckItemDTO item = new AiReviewCheckItemDTO();
+    private AiReviewCheckItemRespDTO item(String snapshotNodeId, String dimension) {
+        AiReviewCheckItemRespDTO item = new AiReviewCheckItemRespDTO();
         item.setSnapshotNodeId(snapshotNodeId);
         item.setDimension(dimension);
         item.setSuggestion("建议文案");
@@ -104,11 +104,11 @@ class AiReviewCheckTaskHandlerTest {
         when(reviewModuleSnapshotMapper.listByReviewId(REVIEW_ID)).thenReturn(List.of(docSnapshot()));
         when(aiTaskMapper.updateProgressIfRunning(any(), anyInt(), any())).thenReturn(1);
 
-        AiReviewCheckBatchDTO out = new AiReviewCheckBatchDTO();
+        AiReviewCheckBatchRespDTO out = new AiReviewCheckBatchRespDTO();
         out.setItems(List.of(item(caseA.toString(), "missing_precondition"),
                 item(UUID.randomUUID().toString(), "vague_step")));
         when(aiGatewayService.completeStructured(any(), eq(AiFunctionType.REVIEW_CHECK), any(), any(), any(),
-                eq(AiReviewCheckBatchDTO.class), any())).thenReturn(out);
+                eq(AiReviewCheckBatchRespDTO.class), any())).thenReturn(out);
 
         Map<String, Object> result = handler.execute(task);
 
@@ -117,7 +117,7 @@ class AiReviewCheckTaskHandlerTest {
         assertEquals(0, result.get("skippedBatches"));
         List<?> items = (List<?>) result.get("items");
         assertEquals(1, items.size());
-        assertEquals(caseA.toString(), ((AiReviewCheckItemDTO) items.get(0)).getSnapshotNodeId());
+        assertEquals(caseA.toString(), ((AiReviewCheckItemRespDTO) items.get(0)).getSnapshotNodeId());
         // 每批完成累计写入进度（首批边界写 0%）
         verify(aiTaskMapper).updateProgressIfRunning(eq(task.getId()), eq(0), any());
     }
@@ -150,7 +150,7 @@ class AiReviewCheckTaskHandlerTest {
         when(reviewModuleSnapshotMapper.listByReviewId(REVIEW_ID)).thenReturn(List.of(docSnapshot()));
         when(aiTaskMapper.updateProgressIfRunning(any(), anyInt(), any())).thenReturn(1);
         // 第 1 批（30 个）两次尝试均失败（重试 1 次）、第 2 批（1 个）成功
-        AiReviewCheckBatchDTO out = new AiReviewCheckBatchDTO();
+        AiReviewCheckBatchRespDTO out = new AiReviewCheckBatchRespDTO();
         out.setItems(List.of(item(nodes.get(30).getId().toString(), "missing_expected")));
         when(aiGatewayService.completeStructured(any(), any(), any(), any(), any(), any(), any()))
                 .thenThrow(new RuntimeException("mock llm fail"))
@@ -187,13 +187,13 @@ class AiReviewCheckTaskHandlerTest {
                 node(caseA, "登录成功", Constants.NodeType.CASE, null, 1)));
         when(reviewModuleSnapshotMapper.listByReviewId(REVIEW_ID)).thenReturn(List.of(docSnapshot()));
         when(aiTaskMapper.updateProgressIfRunning(any(), anyInt(), any())).thenReturn(1);
-        ArgumentCaptor<Consumer<AiReviewCheckBatchDTO>> assertionCaptor = ArgumentCaptor.forClass(Consumer.class);
+        ArgumentCaptor<Consumer<AiReviewCheckBatchRespDTO>> assertionCaptor = ArgumentCaptor.forClass(Consumer.class);
         when(aiGatewayService.completeStructured(any(), eq(AiFunctionType.REVIEW_CHECK), any(), any(), any(),
-                eq(AiReviewCheckBatchDTO.class), assertionCaptor.capture())).thenReturn(new AiReviewCheckBatchDTO());
+                eq(AiReviewCheckBatchRespDTO.class), assertionCaptor.capture())).thenReturn(new AiReviewCheckBatchRespDTO());
 
         handler.execute(task);
-        Consumer<AiReviewCheckBatchDTO> assertion = assertionCaptor.getValue();
-        AiReviewCheckBatchDTO bad = new AiReviewCheckBatchDTO();
+        Consumer<AiReviewCheckBatchRespDTO> assertion = assertionCaptor.getValue();
+        AiReviewCheckBatchRespDTO bad = new AiReviewCheckBatchRespDTO();
         bad.setItems(List.of(item(caseA.toString(), "invalid_dimension")));
         assertThrows(AiOutputValidator.OutputValidationException.class, () -> assertion.accept(bad));
     }
@@ -208,7 +208,7 @@ class AiReviewCheckTaskHandlerTest {
         when(aiTaskMapper.updateProgressIfRunning(any(), anyInt(), any())).thenReturn(1);
         ArgumentCaptor<String> dataCaptor = ArgumentCaptor.forClass(String.class);
         when(aiGatewayService.completeStructured(any(), eq(AiFunctionType.REVIEW_CHECK), any(),
-                dataCaptor.capture(), any(), eq(AiReviewCheckBatchDTO.class), any())).thenReturn(new AiReviewCheckBatchDTO());
+                dataCaptor.capture(), any(), eq(AiReviewCheckBatchRespDTO.class), any())).thenReturn(new AiReviewCheckBatchRespDTO());
 
         handler.execute(task);
 

@@ -1,6 +1,6 @@
 package io.github.xiaomisum.robotest.repository.workspace;
 
-import io.github.xiaomisum.robotest.model.dto.response.workspace.ProjectStatusCountsDTO;
+import io.github.xiaomisum.robotest.model.dto.response.workspace.ProjectStatusCountsRespDTO;
 import io.github.xiaomisum.robotest.model.entity.workspace.Project;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Result;
@@ -64,7 +64,7 @@ public interface ProjectMapper extends BaseMapperX<Project> {
                     @Result(column = "active", property = "active"),
                     @Result(column = "archived", property = "archived")
             })
-    ProjectStatusCountsDTO countStatusByWorkspaceId(@Param("workspaceId") UUID workspaceId,
+    ProjectStatusCountsRespDTO countStatusByWorkspaceId(@Param("workspaceId") UUID workspaceId,
                                                       @Param("keyword") String keyword);
 
     default PageResult<Project> findPage(PageParam pageParam, UUID workspaceId,

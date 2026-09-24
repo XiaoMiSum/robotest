@@ -7,7 +7,7 @@ import io.github.xiaomisum.robotest.model.dto.request.workspace.ProjectArchiveRe
 import io.github.xiaomisum.robotest.model.dto.request.workspace.ProjectCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.workspace.ProjectUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.workspace.ProjectRespDTO;
-import io.github.xiaomisum.robotest.model.dto.response.workspace.ProjectStatusCountsDTO;
+import io.github.xiaomisum.robotest.model.dto.response.workspace.ProjectStatusCountsRespDTO;
 import io.github.xiaomisum.robotest.model.entity.workspace.Project;
 import io.github.xiaomisum.robotest.model.entity.admin.SysUser;
 import io.github.xiaomisum.robotest.model.entity.workspace.WorkspaceUser;
@@ -67,12 +67,12 @@ public class ProjectServiceImpl implements ProjectService {
     }
 
     @Override
-    public ProjectStatusCountsDTO getProjectStatusCounts(UUID workspaceId, UUID userId, String keyword) {
+    public ProjectStatusCountsRespDTO getProjectStatusCounts(UUID workspaceId, UUID userId, String keyword) {
         requireWorkspaceMember(workspaceId, userId);
         String normalizedKeyword = StringUtils.hasText(keyword) ? keyword.trim() : null;
-        ProjectStatusCountsDTO counts = projectMapper.countStatusByWorkspaceId(workspaceId, normalizedKeyword);
+        ProjectStatusCountsRespDTO counts = projectMapper.countStatusByWorkspaceId(workspaceId, normalizedKeyword);
         if (counts == null) {
-            counts = new ProjectStatusCountsDTO();
+            counts = new ProjectStatusCountsRespDTO();
         }
         counts.setActive(counts.getActive() == null ? 0L : counts.getActive());
         counts.setArchived(counts.getArchived() == null ? 0L : counts.getArchived());

@@ -4,7 +4,7 @@ import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.model.dto.request.workspace.MyWorkspaceQueryReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.workspace.WorkspaceMyRespDTO;
-import io.github.xiaomisum.robotest.model.dto.response.workspace.WorkspaceMyScopeCountsDTO;
+import io.github.xiaomisum.robotest.model.dto.response.workspace.WorkspaceMyScopeCountsRespDTO;
 import io.github.xiaomisum.robotest.model.entity.admin.SysUser;
 import io.github.xiaomisum.robotest.model.entity.workspace.Workspace;
 import io.github.xiaomisum.robotest.model.entity.workspace.WorkspaceUser;
@@ -57,7 +57,7 @@ public class MyWorkspaceServiceImpl implements MyWorkspaceService {
     }
 
     @Override
-    public WorkspaceMyScopeCountsDTO getMyWorkspaceCounts(UUID userId, String keyword) {
+    public WorkspaceMyScopeCountsRespDTO getMyWorkspaceCounts(UUID userId, String keyword) {
         String normalizedKeyword = normalizeKeyword(keyword);
         return normalizeCounts(myWorkspaceQueryMapper.countScopes(
                 userId, normalizedKeyword, Constants.WorkspaceRole.ADMIN_ID));
@@ -138,9 +138,9 @@ public class MyWorkspaceServiceImpl implements MyWorkspaceService {
         return pageSize;
     }
 
-    private WorkspaceMyScopeCountsDTO normalizeCounts(WorkspaceMyScopeCountsDTO counts) {
+    private WorkspaceMyScopeCountsRespDTO normalizeCounts(WorkspaceMyScopeCountsRespDTO counts) {
         if (counts == null) {
-            counts = new WorkspaceMyScopeCountsDTO();
+            counts = new WorkspaceMyScopeCountsRespDTO();
         }
         counts.setAll(counts.getAll() == null ? 0L : counts.getAll());
         counts.setManaged(counts.getManaged() == null ? 0L : counts.getManaged());

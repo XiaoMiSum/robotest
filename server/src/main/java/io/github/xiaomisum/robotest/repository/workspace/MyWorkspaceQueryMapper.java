@@ -1,7 +1,7 @@
 package io.github.xiaomisum.robotest.repository.workspace;
 
 import io.github.xiaomisum.robotest.model.dto.response.workspace.WorkspaceMyRespDTO;
-import io.github.xiaomisum.robotest.model.dto.response.workspace.WorkspaceMyScopeCountsDTO;
+import io.github.xiaomisum.robotest.model.dto.response.workspace.WorkspaceMyScopeCountsRespDTO;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Result;
@@ -190,7 +190,7 @@ public interface MyWorkspaceQueryMapper {
                     @Result(column = "managed_count", property = "managed"),
                     @Result(column = "archived_count", property = "archived")
             })
-    WorkspaceMyScopeCountsDTO countScopes(@Param("userId") UUID userId,
+    WorkspaceMyScopeCountsRespDTO countScopes(@Param("userId") UUID userId,
                                           @Param("keyword") String keyword,
                                           @Param("adminRoleId") UUID adminRoleId);
 }

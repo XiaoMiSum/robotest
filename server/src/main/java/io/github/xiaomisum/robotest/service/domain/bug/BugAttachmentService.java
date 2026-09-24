@@ -1,6 +1,6 @@
 package io.github.xiaomisum.robotest.service.domain.bug;
 
-import io.github.xiaomisum.robotest.model.dto.response.bug.BugAttachmentDownloadDTO;
+import io.github.xiaomisum.robotest.model.dto.response.bug.BugAttachmentDownloadRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.bug.BugAttachmentRespDTO;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -35,7 +35,7 @@ public interface BugAttachmentService {
      * @param userId       当前用户 ID（用于项目归属校验）
      * @return 文件名、类型与内容
      */
-    BugAttachmentDownloadDTO downloadAttachment(UUID attachmentId, UUID userId);
+    BugAttachmentDownloadRespDTO downloadAttachment(UUID attachmentId, UUID userId);
 
     /**
      * 删除附件（逻辑删除，缺陷已关闭时拒绝）

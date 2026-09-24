@@ -2,7 +2,7 @@ package io.github.xiaomisum.robotest.service.workspace;
 
 import io.github.xiaomisum.robotest.model.dto.request.workspace.MyWorkspaceQueryReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.workspace.WorkspaceMyRespDTO;
-import io.github.xiaomisum.robotest.model.dto.response.workspace.WorkspaceMyScopeCountsDTO;
+import io.github.xiaomisum.robotest.model.dto.response.workspace.WorkspaceMyScopeCountsRespDTO;
 import xyz.migoo.framework.common.pojo.PageResult;
 
 import java.util.UUID;
@@ -11,7 +11,7 @@ public interface MyWorkspaceService {
 
     PageResult<WorkspaceMyRespDTO> getMyWorkspaces(UUID userId, MyWorkspaceQueryReqDTO query);
 
-    WorkspaceMyScopeCountsDTO getMyWorkspaceCounts(UUID userId, String keyword);
+    WorkspaceMyScopeCountsRespDTO getMyWorkspaceCounts(UUID userId, String keyword);
 
     default PageResult<WorkspaceMyRespDTO> getMyWorkspacePage(UUID userId, MyWorkspaceQueryReqDTO query) {
         return getMyWorkspaces(userId, query);
