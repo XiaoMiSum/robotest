@@ -3,6 +3,10 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { createRole, deleteRole, fetchRoleList, updateRole } from '@/services/admin'
 import type { RoleTreeNode, RoleType } from '@/types'
 
+export function isRoleActionVisible(node: RoleTreeNode, currentId: string): boolean {
+  return node.isGroup === true || node.id === currentId
+}
+
 export function useRoleTree(onSelect: (node: { id: string; isSystem: boolean; type: string; name: string }) => void, onCleared: () => void) {
   const treeData = ref<RoleTreeNode[]>([])
   const loading = ref(false)
@@ -46,8 +50,8 @@ export function useRoleTree(onSelect: (node: { id: string; isSystem: boolean; ty
   }
 
   function handleNodeClick(node: RoleTreeNode) {
-    if (node.isGroup) return
     currentId.value = node.id
+    if (node.isGroup) return
     onSelect({ id: node.id, isSystem: node.isSystem ?? false, type: node.type, name: node.name })
   }
 

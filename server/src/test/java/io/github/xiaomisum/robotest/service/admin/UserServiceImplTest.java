@@ -27,6 +27,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import xyz.migoo.framework.common.exception.ServiceException;
 import xyz.migoo.framework.common.pojo.PageResult;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -87,6 +88,7 @@ class UserServiceImplTest {
         assertEquals(1L, result.getTotal());
         assertEquals("tester", result.getList().get(0).getUsername());
         assertEquals("active", result.getList().get(0).getStatus());
+        assertNull(result.getList().get(0).getGrantedAt());
     }
 
     @Test
@@ -94,6 +96,8 @@ class UserServiceImplTest {
         SysUserRole role = new SysUserRole();
         role.setUserId(userId);
         role.setRoleId(UUID.fromString("00000000-0000-0000-0000-000000000003"));
+        LocalDateTime grantedAt = LocalDateTime.of(2026, 5, 20, 8, 30);
+        role.setUpdatedAt(grantedAt);
         when(userRoleMapper.listByRoleId(role.getRoleId())).thenReturn(List.of(role));
         stubEmptyAggregations();
         when(userMapper.findPage(isNull(), isNull(), eq(List.of(userId)), eq(1), eq(20)))
@@ -103,6 +107,7 @@ class UserServiceImplTest {
 
         assertEquals(1L, result.getTotal());
         assertEquals(userId, result.getList().get(0).getId());
+        assertEquals(grantedAt, result.getList().get(0).getGrantedAt());
         verify(userMapper).findPage(isNull(), isNull(), eq(List.of(userId)), eq(1), eq(20));
     }
 
