@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { InvitationEffectiveStatus, InvitationListItem } from '@/types'
 import {
+  buildInvitationShareText,
   canCopyInvitation,
   canExpireInvitation,
   invitationStatusMeta,
@@ -20,6 +21,26 @@ function invitation(effectiveStatus: InvitationEffectiveStatus): InvitationListI
 }
 
 describe('workspace invitation presentation', () => {
+  it('生成包含工作空间、链接和加入说明的复制文本', () => {
+    expect(
+      buildInvitationShareText('https://example.com/join?token=abc', '质量中台'),
+    ).toBe(
+      [
+        '【RoboTest 工作空间邀请】',
+        '工作空间：质量中台',
+        '邀请链接：https://example.com/join?token=abc',
+        '说明：打开链接后按页面提示完成身份验证并加入工作空间。',
+      ].join('\n'),
+    )
+  })
+
+  it('工作空间缺失时使用兜底文案，达上限时追加提醒', () => {
+    const text = buildInvitationShareText('https://example.com/join?token=abc', '  ', true)
+
+    expect(text).toContain('工作空间：当前工作空间')
+    expect(text).toContain('说明：该邀请已达使用上限，加入前请先确认剩余名额。')
+  })
+
   it('有效和已达上限状态允许复制及失效', () => {
     expect(canCopyInvitation(invitation('active'))).toBe(true)
     expect(canCopyInvitation(invitation('exhausted'))).toBe(true)
