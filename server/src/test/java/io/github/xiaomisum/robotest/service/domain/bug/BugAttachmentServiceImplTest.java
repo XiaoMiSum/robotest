@@ -2,7 +2,7 @@ package io.github.xiaomisum.robotest.service.domain.bug;
 
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.security.ProjectAccessGuard;
-import io.github.xiaomisum.robotest.model.dto.response.bug.BugAttachmentDownloadDTO;
+import io.github.xiaomisum.robotest.model.dto.response.bug.BugAttachmentDownloadRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.bug.BugAttachmentRespDTO;
 import io.github.xiaomisum.robotest.model.entity.bug.Bug;
 import io.github.xiaomisum.robotest.model.entity.bug.BugAttachment;
@@ -197,7 +197,7 @@ class BugAttachmentServiceImplTest {
         when(bugAttachmentMapper.selectById(attachmentId)).thenReturn(attachment);
         when(bugMapper.selectById(bugId)).thenReturn(openBug());
 
-        BugAttachmentDownloadDTO dto = bugAttachmentService.downloadAttachment(attachmentId, userId);
+        BugAttachmentDownloadRespDTO dto = bugAttachmentService.downloadAttachment(attachmentId, userId);
 
         assertEquals("原始名.txt", dto.getFileName());
         // contentType 为空时回退为通用二进制类型

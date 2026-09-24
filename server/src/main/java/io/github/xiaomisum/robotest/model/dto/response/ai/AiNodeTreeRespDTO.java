@@ -18,7 +18,7 @@ import java.util.List;
  * </p>
  */
 @Data
-public class AiNodeTreeDTO {
+public class AiNodeTreeRespDTO {
 
     @NotBlank(message = "节点类型不能为空")
     private String type;
@@ -30,13 +30,13 @@ public class AiNodeTreeDTO {
     private String priority;
 
     @Valid
-    private List<AiNodeTreeDTO> children;
+    private List<AiNodeTreeRespDTO> children;
 
     /** done 帧载荷：{ nodes, warnings } */
     @Data
     public static class Payload {
 
         @Valid
-        private List<AiNodeTreeDTO> nodes;
+        private List<AiNodeTreeRespDTO> nodes;
     }
 }

@@ -6,7 +6,7 @@ import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.model.dto.request.ai.AiCaseGenerateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.ai.AiStepCompleteReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.ai.AiTextImportReqDTO;
-import io.github.xiaomisum.robotest.model.dto.response.ai.AiNodeTreeDTO;
+import io.github.xiaomisum.robotest.model.dto.response.ai.AiNodeTreeRespDTO;
 import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseDocument;
 import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseNode;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseDocumentMapper;
@@ -175,13 +175,13 @@ class AiCaseGenerationServiceImplTest {
                 when(aiGatewayService.stream(any(), any(), any(), any(), any(), any(),
                                 doneAssemblerCaptor.capture())).thenReturn(new SseEmitter());
 
-                AiNodeTreeDTO caseNode = new AiNodeTreeDTO();
+                AiNodeTreeRespDTO caseNode = new AiNodeTreeRespDTO();
                 caseNode.setType(Constants.NodeType.CASE);
                 caseNode.setTitle("超".repeat(250));
                 caseNode.setPriority("P1");
-                AiNodeTreeDTO.Payload payload = new AiNodeTreeDTO.Payload();
+                AiNodeTreeRespDTO.Payload payload = new AiNodeTreeRespDTO.Payload();
                 payload.setNodes(List.of(caseNode));
-                when(outputValidator.parseAndValidate(eq("raw"), eq(AiNodeTreeDTO.Payload.class), any()))
+                when(outputValidator.parseAndValidate(eq("raw"), eq(AiNodeTreeRespDTO.Payload.class), any()))
                                 .thenReturn(payload);
 
                 service.generateCaseTree(USER_ID, WORKSPACE_ID, PROJECT_ID, req());
@@ -192,7 +192,7 @@ class AiCaseGenerationServiceImplTest {
                 assertEquals(payload.getNodes(), map.get("nodes"));
                 // 截断规整计入 warnings，不触发校验失败
                 assertEquals(1, ((List<?>) map.get("warnings")).size());
-                verify(outputValidator).parseAndValidate(eq("raw"), eq(AiNodeTreeDTO.Payload.class), any());
+                verify(outputValidator).parseAndValidate(eq("raw"), eq(AiNodeTreeRespDTO.Payload.class), any());
         }
 
         // ==================== US-AI-002 补全步骤 ====================
@@ -259,9 +259,9 @@ class AiCaseGenerationServiceImplTest {
                 when(testCaseNodeMapper.listByDocumentId(DOC_ID)).thenReturn(List.of(target));
                 when(aiGatewayService.stream(any(), any(), any(), any(), any(), any(),
                                 doneAssemblerCaptor.capture())).thenReturn(new SseEmitter());
-                AiNodeTreeDTO.Payload payload = new AiNodeTreeDTO.Payload();
+                AiNodeTreeRespDTO.Payload payload = new AiNodeTreeRespDTO.Payload();
                 payload.setNodes(List.of());
-                when(outputValidator.parseAndValidate(eq("raw"), eq(AiNodeTreeDTO.Payload.class), any()))
+                when(outputValidator.parseAndValidate(eq("raw"), eq(AiNodeTreeRespDTO.Payload.class), any()))
                                 .thenReturn(payload);
 
                 service.completeSteps(USER_ID, WORKSPACE_ID, PROJECT_ID, completeReq());
@@ -302,9 +302,9 @@ class AiCaseGenerationServiceImplTest {
                 when(aiConfigService.getIntSetting("importTextMaxLength")).thenReturn(20000);
                 when(aiGatewayService.stream(any(), eq(AiFunctionType.TEXT_IMPORT), any(), any(), any(), any(),
                                 doneAssemblerCaptor.capture())).thenReturn(new SseEmitter());
-                AiNodeTreeDTO.Payload payload = new AiNodeTreeDTO.Payload();
+                AiNodeTreeRespDTO.Payload payload = new AiNodeTreeRespDTO.Payload();
                 payload.setNodes(List.of());
-                when(outputValidator.parseAndValidate(eq("raw"), eq(AiNodeTreeDTO.Payload.class), any()))
+                when(outputValidator.parseAndValidate(eq("raw"), eq(AiNodeTreeRespDTO.Payload.class), any()))
                                 .thenReturn(payload);
 
                 service.importText(USER_ID, WORKSPACE_ID, PROJECT_ID, importReq("无法解析的闲聊文本"));
@@ -334,12 +334,12 @@ class AiCaseGenerationServiceImplTest {
                                 .thenReturn(List.of(node(TARGET_ID, null, "根", 0)));
         }
 
-        private AiNodeTreeDTO.Payload validPayload() {
-                AiNodeTreeDTO caseNode = new AiNodeTreeDTO();
+        private AiNodeTreeRespDTO.Payload validPayload() {
+                AiNodeTreeRespDTO caseNode = new AiNodeTreeRespDTO();
                 caseNode.setType(Constants.NodeType.CASE);
                 caseNode.setTitle("校验用例");
                 caseNode.setPriority("P1");
-                AiNodeTreeDTO.Payload payload = new AiNodeTreeDTO.Payload();
+                AiNodeTreeRespDTO.Payload payload = new AiNodeTreeRespDTO.Payload();
                 payload.setNodes(List.of(caseNode));
                 return payload;
         }
@@ -408,7 +408,7 @@ class AiCaseGenerationServiceImplTest {
                 dto.setRequirementIds(List.of(reqA, reqB));
                 when(aiGatewayService.stream(any(), any(), any(), businessDataCaptor.capture(), any(), any(),
                                 doneAssemblerCaptor.capture())).thenReturn(new SseEmitter());
-                when(outputValidator.parseAndValidate(eq("raw"), eq(AiNodeTreeDTO.Payload.class), any()))
+                when(outputValidator.parseAndValidate(eq("raw"), eq(AiNodeTreeRespDTO.Payload.class), any()))
                                 .thenReturn(validPayload());
 
                 service.generateCaseTree(USER_ID, WORKSPACE_ID, PROJECT_ID, dto);

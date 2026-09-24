@@ -1,7 +1,7 @@
 package io.github.xiaomisum.robotest.service.ai.support;
 
 import io.github.xiaomisum.robotest.framework.common.Constants;
-import io.github.xiaomisum.robotest.model.dto.response.ai.AiNodeTreeDTO;
+import io.github.xiaomisum.robotest.model.dto.response.ai.AiNodeTreeRespDTO;
 import io.github.xiaomisum.robotest.service.ai.support.AiOutputValidator.OutputValidationException;
 
 import java.util.ArrayList;
@@ -39,14 +39,14 @@ public final class AiNodeTreeAsserts {
     /**
      * 完整树模式（生成子树）：规整 + 结构断言，返回 warnings；违规抛 OutputValidationException
      */
-    public static List<String> normalizeAndAssertTree(List<AiNodeTreeDTO> nodes) {
+    public static List<String> normalizeAndAssertTree(List<AiNodeTreeRespDTO> nodes) {
         return normalizeAndAssertTree(nodes, false);
     }
 
     /**
      * 完整树模式，可放行空树（文本导入场景：无法解析出结构时返回空 nodes + warning 而非失败，设计 4.5）
      */
-    public static List<String> normalizeAndAssertTree(List<AiNodeTreeDTO> nodes, boolean allowEmpty) {
+    public static List<String> normalizeAndAssertTree(List<AiNodeTreeRespDTO> nodes, boolean allowEmpty) {
         List<String> warnings = normalize(nodes);
         if (nodes == null || nodes.isEmpty()) {
             if (allowEmpty) {
@@ -58,7 +58,7 @@ public final class AiNodeTreeAsserts {
             throw new OutputValidationException("单次生成节点总数不得超过 " + MAX_NODE_COUNT);
         }
         // 顶层节点挂载于目标节点下，允许 case / normal（用例明细三件套必须挂在 case 下）
-        for (AiNodeTreeDTO node : nodes) {
+        for (AiNodeTreeRespDTO node : nodes) {
             assertNode(node, null, 1);
         }
         return warnings;
@@ -68,7 +68,7 @@ public final class AiNodeTreeAsserts {
      * 步骤补全模式（2.2 补全场景约束）：仅允许 precondition / step / expected 的扁平数组，无子节点、无 priority；
      * 空数组放行（既有内容已完整、无需补全属正常结果），返回 warnings
      */
-    public static List<String> normalizeAndAssertFlatSteps(List<AiNodeTreeDTO> nodes) {
+    public static List<String> normalizeAndAssertFlatSteps(List<AiNodeTreeRespDTO> nodes) {
         List<String> warnings = normalize(nodes);
         if (nodes == null || nodes.isEmpty()) {
             return warnings;
@@ -76,7 +76,7 @@ public final class AiNodeTreeAsserts {
         if (nodes.size() > MAX_NODE_COUNT) {
             throw new OutputValidationException("单次生成节点总数不得超过 " + MAX_NODE_COUNT);
         }
-        for (AiNodeTreeDTO node : nodes) {
+        for (AiNodeTreeRespDTO node : nodes) {
             String type = node.getType();
             if (!Constants.NodeType.PRECONDITION.equals(type)
                     && !Constants.NodeType.STEP.equals(type)
@@ -94,7 +94,7 @@ public final class AiNodeTreeAsserts {
     }
 
     /** 递归校验类型枚举、priority 归属、父子合法性与深度 */
-    private static void assertNode(AiNodeTreeDTO node, String parentType, int depth) {
+    private static void assertNode(AiNodeTreeRespDTO node, String parentType, int depth) {
         if (depth > MAX_DEPTH) {
             throw new OutputValidationException("树深度不得超过 " + MAX_DEPTH);
         }
@@ -120,32 +120,32 @@ public final class AiNodeTreeAsserts {
                 }
             }
             case Constants.NodeType.CASE -> {
-                for (AiNodeTreeDTO child : node.getChildren()) {
+                for (AiNodeTreeRespDTO child : node.getChildren()) {
                     if (!CASE_CHILD_TYPES.contains(child.getType())) {
                         throw new OutputValidationException("case 的子节点只允许 precondition/step/expected");
                     }
                 }
             }
             default -> {
-                for (AiNodeTreeDTO child : node.getChildren()) {
+                for (AiNodeTreeRespDTO child : node.getChildren()) {
                     if (!NORMAL_CHILD_TYPES.contains(child.getType())) {
                         throw new OutputValidationException("normal 的子节点只允许 normal/case");
                     }
                 }
             }
         }
-        for (AiNodeTreeDTO child : node.getChildren()) {
+        for (AiNodeTreeRespDTO child : node.getChildren()) {
             assertNode(child, type, depth + 1);
         }
     }
 
     /** 宽容规整：children 为 null 归一为空列表；title 超长截断并产出 warning */
-    private static List<String> normalize(List<AiNodeTreeDTO> nodes) {
+    private static List<String> normalize(List<AiNodeTreeRespDTO> nodes) {
         List<String> warnings = new ArrayList<>();
         if (nodes == null) {
             return warnings;
         }
-        for (AiNodeTreeDTO node : nodes) {
+        for (AiNodeTreeRespDTO node : nodes) {
             if (node.getChildren() == null) {
                 node.setChildren(List.of());
             }
@@ -159,9 +159,9 @@ public final class AiNodeTreeAsserts {
         return warnings;
     }
 
-    private static int countNodes(List<AiNodeTreeDTO> nodes) {
+    private static int countNodes(List<AiNodeTreeRespDTO> nodes) {
         int count = 0;
-        for (AiNodeTreeDTO node : nodes) {
+        for (AiNodeTreeRespDTO node : nodes) {
             count += 1 + countNodes(node.getChildren());
         }
         return count;

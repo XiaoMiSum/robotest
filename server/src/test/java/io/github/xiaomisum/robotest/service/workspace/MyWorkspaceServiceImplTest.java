@@ -4,7 +4,7 @@ import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.model.dto.request.workspace.MyWorkspaceQueryReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.workspace.WorkspaceMyRespDTO;
-import io.github.xiaomisum.robotest.model.dto.response.workspace.WorkspaceMyScopeCountsDTO;
+import io.github.xiaomisum.robotest.model.dto.response.workspace.WorkspaceMyScopeCountsRespDTO;
 import io.github.xiaomisum.robotest.model.entity.admin.SysUser;
 import io.github.xiaomisum.robotest.model.entity.workspace.Workspace;
 import io.github.xiaomisum.robotest.model.entity.workspace.WorkspaceUser;
@@ -102,7 +102,7 @@ class MyWorkspaceServiceImplTest {
         query.setKeyword("旧空间");
         query.setScope("archived");
 
-        WorkspaceMyScopeCountsDTO counts = new WorkspaceMyScopeCountsDTO();
+        WorkspaceMyScopeCountsRespDTO counts = new WorkspaceMyScopeCountsRespDTO();
         counts.setAll(3L);
         counts.setManaged(1L);
         counts.setArchived(2L);
@@ -114,7 +114,7 @@ class MyWorkspaceServiceImplTest {
                 Constants.WorkspaceRole.ADMIN_ID)).thenReturn(counts);
 
         PageResult<WorkspaceMyRespDTO> result = myWorkspaceService.getMyWorkspaces(userId, query);
-        WorkspaceMyScopeCountsDTO countsResult = myWorkspaceService.getMyWorkspaceCounts(userId, "旧空间");
+        WorkspaceMyScopeCountsRespDTO countsResult = myWorkspaceService.getMyWorkspaceCounts(userId, "旧空间");
 
         assertTrue(result.getList().isEmpty());
         assertEquals(2L, result.getTotal());

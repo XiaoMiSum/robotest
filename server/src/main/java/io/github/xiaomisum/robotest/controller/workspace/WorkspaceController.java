@@ -3,7 +3,7 @@ package io.github.xiaomisum.robotest.controller.workspace;
 import io.github.xiaomisum.robotest.framework.security.LoginUser;
 import io.github.xiaomisum.robotest.model.dto.request.workspace.MyWorkspaceQueryReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.workspace.WorkspaceMyRespDTO;
-import io.github.xiaomisum.robotest.model.dto.response.workspace.WorkspaceMyScopeCountsDTO;
+import io.github.xiaomisum.robotest.model.dto.response.workspace.WorkspaceMyScopeCountsRespDTO;
 import io.github.xiaomisum.robotest.service.workspace.MyWorkspaceService;
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
@@ -27,7 +27,7 @@ public class WorkspaceController {
     }
 
     @GetMapping("/counts")
-    public Result<WorkspaceMyScopeCountsDTO> getMyWorkspaceCounts(
+    public Result<WorkspaceMyScopeCountsRespDTO> getMyWorkspaceCounts(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestParam(required = false) String keyword) {
         return Result.ok(myWorkspaceService.getMyWorkspaceCounts(loginUser.getId(), keyword));

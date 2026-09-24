@@ -5,7 +5,7 @@ import io.github.xiaomisum.robotest.model.dto.request.bug.BugAssignReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.bug.BugCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.bug.BugStatusChangeReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.bug.BugUpdateReqDTO;
-import io.github.xiaomisum.robotest.model.dto.response.bug.BugAttachmentDownloadDTO;
+import io.github.xiaomisum.robotest.model.dto.response.bug.BugAttachmentDownloadRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.bug.BugAttachmentRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.bug.BugDetailRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.bug.BugListRespDTO;
@@ -139,7 +139,7 @@ public class BugController {
     public ResponseEntity<byte[]> downloadAttachment(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID attachmentId) {
-        BugAttachmentDownloadDTO dto = bugAttachmentService.downloadAttachment(attachmentId, loginUser.getId());
+        BugAttachmentDownloadRespDTO dto = bugAttachmentService.downloadAttachment(attachmentId, loginUser.getId());
         return ResponseEntity.ok()
                 .contentType(MediaType.parseMediaType(dto.getContentType()))
                 .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment()

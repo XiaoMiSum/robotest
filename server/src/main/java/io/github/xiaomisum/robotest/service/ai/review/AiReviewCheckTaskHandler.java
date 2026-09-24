@@ -2,8 +2,8 @@ package io.github.xiaomisum.robotest.service.ai.review;
 
 import io.github.xiaomisum.robotest.framework.common.AiFunctionType;
 import io.github.xiaomisum.robotest.framework.common.Constants;
-import io.github.xiaomisum.robotest.model.dto.response.ai.AiReviewCheckBatchDTO;
-import io.github.xiaomisum.robotest.model.dto.response.ai.AiReviewCheckItemDTO;
+import io.github.xiaomisum.robotest.model.dto.response.ai.AiReviewCheckBatchRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.ai.AiReviewCheckItemRespDTO;
 import io.github.xiaomisum.robotest.model.entity.ai.AiAnalysisTask;
 import io.github.xiaomisum.robotest.model.entity.review.TestReviewModuleSnapshot;
 import io.github.xiaomisum.robotest.model.entity.review.TestReviewNodeSnapshot;
@@ -86,7 +86,7 @@ public class AiReviewCheckTaskHandler implements AiTaskHandler {
         int total = cases.size();
         List<List<CaseContext>> batches = splitBatches(cases);
 
-        List<AiReviewCheckItemDTO> items = new ArrayList<>();
+        List<AiReviewCheckItemRespDTO> items = new ArrayList<>();
         int skippedBatches = 0;
         int processed = 0;
         for (List<CaseContext> batch : batches) {
@@ -108,15 +108,15 @@ public class AiReviewCheckTaskHandler implements AiTaskHandler {
     }
 
     /** 单批 LLM 调用（含幻觉过滤），失败按重试次数重试后向上抛（由调用方跳过该批计数） */
-    private List<AiReviewCheckItemDTO> invokeBatch(AiAnalysisTask task, List<CaseContext> batch) {
+    private List<AiReviewCheckItemRespDTO> invokeBatch(AiAnalysisTask task, List<CaseContext> batch) {
         AiCallContext context = new AiCallContext(task.getCreatedBy(), task.getWorkspaceId(), task.getProjectId());
         String businessData = buildBatchData(batch);
         RuntimeException lastError = null;
         for (int attempt = 0; attempt <= BATCH_RETRY_TIMES; attempt++) {
             try {
-                AiReviewCheckBatchDTO out = aiGatewayService.completeStructured(context, AiFunctionType.REVIEW_CHECK,
+                AiReviewCheckBatchRespDTO out = aiGatewayService.completeStructured(context, AiFunctionType.REVIEW_CHECK,
                         TASK_INSTRUCTION, businessData, ChatCallOptions.json(),
-                        AiReviewCheckBatchDTO.class, this::assertBatch);
+                        AiReviewCheckBatchRespDTO.class, this::assertBatch);
                 return filterHallucinations(out, batch);
             } catch (RuntimeException e) {
                 lastError = e;
@@ -126,7 +126,7 @@ public class AiReviewCheckTaskHandler implements AiTaskHandler {
     }
 
     /** 幻觉过滤：snapshotNodeId 必须命中本批输入用例，非法/未命中剔除（4.1） */
-    private List<AiReviewCheckItemDTO> filterHallucinations(AiReviewCheckBatchDTO out, List<CaseContext> batch) {
+    private List<AiReviewCheckItemRespDTO> filterHallucinations(AiReviewCheckBatchRespDTO out, List<CaseContext> batch) {
         Set<UUID> validIds = batch.stream().map(c -> c.node().getId()).collect(Collectors.toSet());
         if (out.getItems() == null) {
             return List.of();
@@ -145,11 +145,11 @@ public class AiReviewCheckTaskHandler implements AiTaskHandler {
     }
 
     /** 输出结构断言：维度枚举白名单 + 关键字段非空（schema 约束与提示词一致，2.2.1） */
-    private void assertBatch(AiReviewCheckBatchDTO out) {
+    private void assertBatch(AiReviewCheckBatchRespDTO out) {
         if (out.getItems() == null) {
             throw new AiOutputValidator.OutputValidationException("items 不能为空");
         }
-        for (AiReviewCheckItemDTO item : out.getItems()) {
+        for (AiReviewCheckItemRespDTO item : out.getItems()) {
             if (!DIMENSIONS.contains(item.getDimension())) {
                 throw new AiOutputValidator.OutputValidationException("dimension 取值非法：" + item.getDimension());
             }
@@ -333,7 +333,7 @@ public class AiReviewCheckTaskHandler implements AiTaskHandler {
     }
 
     private Map<String, Object> buildResult(int checkedCaseCount, int totalCaseCount, int skippedBatches,
-            List<AiReviewCheckItemDTO> items) {
+            List<AiReviewCheckItemRespDTO> items) {
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("checkedCaseCount", checkedCaseCount);
         result.put("totalCaseCount", totalCaseCount);

@@ -5,7 +5,7 @@ import io.github.xiaomisum.robotest.model.dto.request.workspace.ProjectArchiveRe
 import io.github.xiaomisum.robotest.model.dto.request.workspace.ProjectCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.workspace.ProjectUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.workspace.ProjectRespDTO;
-import io.github.xiaomisum.robotest.model.dto.response.workspace.ProjectStatusCountsDTO;
+import io.github.xiaomisum.robotest.model.dto.response.workspace.ProjectStatusCountsRespDTO;
 import io.github.xiaomisum.robotest.service.project.ProjectService;
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
@@ -37,7 +37,7 @@ public class ProjectController {
     }
 
     @GetMapping("/counts")
-    public Result<ProjectStatusCountsDTO> getProjectStatusCounts(
+    public Result<ProjectStatusCountsRespDTO> getProjectStatusCounts(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestParam(required = false) String keyword) {
         return Result.ok(projectService.getProjectStatusCounts(

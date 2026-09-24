@@ -3,7 +3,7 @@ package io.github.xiaomisum.robotest.model.dto.response.bug;
 import lombok.Data;
 
 @Data
-public class BugAttachmentDownloadDTO {
+public class BugAttachmentDownloadRespDTO {
 
     private String fileName;
     private String contentType;
