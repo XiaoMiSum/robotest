@@ -52,9 +52,9 @@
 - **请求体**：`{ "roleInstruction": "…", "formatEditable": false, "formatConstraint": null }`
 - **校验**：
   - `roleInstruction` 必填，长度 ≤ 8000；
-  - `formatConstraint` 仅当 `formatEditable = true` 时接受修改；`formatEditable = false` 时提交了与生效值不同的 `formatConstraint` 返回 6009；
+  - `formatConstraint` 仅当 `formatEditable = true` 时接受修改；`formatEditable = false` 时提交了与生效值不同的 `formatConstraint` 返回 1000013009；
   - `formatEditable` 从 false → true 属于高级开关开启，单独记审计。
-- **处理**：模板记录由初始化种子全量落库且始终存在（恢复默认仅重置内容不删除），故仅更新，无插入分支；未命中视为配置缺失返回 6013；变更写 sys_audit_log。`formatEditable` 仅接受 false → true（开启即标记已自定义），保存时未开启开关则保持数据库原值，不允许通过保存置回 false（回默认只能走恢复默认）。
+- **处理**：模板记录由初始化种子全量落库且始终存在（恢复默认仅重置内容不删除），故仅更新，无插入分支；未命中视为配置缺失返回 1000013013；变更写 sys_audit_log。`formatEditable` 仅接受 false → true（开启即标记已自定义），保存时未开启开关则保持数据库原值，不允许通过保存置回 false（回默认只能走恢复默认）。
 
 ### 1.4 恢复默认
 

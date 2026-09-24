@@ -75,7 +75,7 @@
   - 名称必填，长度不超过 200；
   - 路径必填且以 `/` 开头，长度不超过 500；
   - 状态码为合法 HTTP 状态码（100–599）；
-  - 同项目下同路径同方法已启用 Mock 时返回错误码 7302（`API_MOCK_ADDR_CONFLICT`）；
+  - 同项目下同路径同方法已启用 Mock 时返回错误码 1000017202（`API_MOCK_ADDR_CONFLICT`）；
   - `priority` 缺省时取同路径同方法组内最大值 + 1。
 
 ### 1.4 从接口定义创建 Mock
@@ -89,13 +89,13 @@
 
 - **路径**：`PUT /api/project/mocks/:id`
 - **请求体**：同 1.2。
-- **校验**：同 1.3 创建校验规则；Mock 不存在时返回错误码 7301（`API_MOCK_NOT_FOUND`）。
+- **校验**：同 1.3 创建校验规则；Mock 不存在时返回错误码 1000017201（`API_MOCK_NOT_FOUND`）。
 
 ### 1.6 启停 Mock
 
 - **路径**：`PATCH /api/project/mocks/:id/toggle`
 - **请求体**：`{ "enabled": false }`
-- **说明**：即时生效，不重启服务；Mock 不存在时返回错误码 7301（`API_MOCK_NOT_FOUND`）。
+- **说明**：即时生效，不重启服务；Mock 不存在时返回错误码 1000017201（`API_MOCK_NOT_FOUND`）。
 
 ### 1.7 删除 Mock
 

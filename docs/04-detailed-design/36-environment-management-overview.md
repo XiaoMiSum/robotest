@@ -118,13 +118,13 @@
 ### 2.2 错误码补充
 
 | 错误码 | 常量名 | 说明 |
-| ------ | ------ | ---- |
-| 7401 | API_ENV_NAME_EXISTS | 环境名称重复 |
-| 7402 | API_ENV_REFERENCED | 环境被场景引用无法删除 |
-| 7403 | API_DATASOURCE_CONN_FAILED | 数据源连接测试失败 |
-| 7404 | API_ENV_TASK_BOUND | 环境被定时任务绑定无法删除 |
-| 7405 | API_ENV_NOT_FOUND | 环境不存在或已删除 |
-| 7410 | API_ENV_VARIABLE_EXISTS | 变量名重复 |
+| --- | --- | --- |
+| 1000017401 | API_ENV_NAME_EXISTS | 环境名称重复 |
+| 1000017402 | API_ENV_REFERENCED | 环境被场景引用无法删除 |
+| 1000017403 | API_DATASOURCE_CONN_FAILED | 数据源连接测试失败 |
+| 1000017404 | API_ENV_TASK_BOUND | 环境被定时任务绑定无法删除 |
+| 1000017405 | API_ENV_NOT_FOUND | 环境不存在或不属于当前项目 |
+| 1000017410 | API_ENV_VARIABLE_EXISTS | 变量名重复 |
 
 ---
 

@@ -137,17 +137,17 @@
 
 ### 2.2 错误码补充
 
-接口管理模块复用《API 测试基础设施详细设计说明书》2.2 定义的错误码号段（7001–7099），本模块使用以下错误码：
+接口管理模块使用《API 测试基础设施详细设计说明书》2.2 中已登记的十位错误码，本模块使用以下错误码：
 
 | 错误码 | 常量名 | 说明 |
-| ------ | ------ | ---- |
-| 7101 | API_INTERFACE_NOT_FOUND | 接口定义不存在 |
-| 7102 | API_INTERFACE_NAME_EXISTS | 接口定义名称重复 |
-| 7103 | API_INTERFACE_REFERENCED | 接口定义被引用无法删除 |
-| 7105 | API_INTERFACE_VERSION_CONFLICT | 接口已被他人修改（版本冲突，乐观锁） |
-| 7010 | API_IMPORT_FORMAT_UNSUPPORTED | 导入格式不支持 |
-| 7011 | API_IMPORT_PARSE_FAILED | 导入内容解析失败 |
-| 7012 | API_IMPORT_URL_UNREACHABLE | URL 导入目标不可达 |
+| --- | --- | --- |
+| 1000017101 | API_INTERFACE_NOT_FOUND | 接口定义不存在 |
+| 1000017102 | API_INTERFACE_NAME_EXISTS | 接口定义名称重复 |
+| 1000017103 | API_INTERFACE_REFERENCED | 接口定义被引用无法删除 |
+| 1000017105 | API_INTERFACE_VERSION_CONFLICT | 接口已被他人修改（版本冲突，乐观锁） |
+| 1000017010 | API_IMPORT_FORMAT_UNSUPPORTED | 导入格式不支持 |
+| 1000017011 | API_IMPORT_PARSE_FAILED | 导入内容解析失败 |
+| 1000017012 | API_IMPORT_URL_UNREACHABLE | URL 导入目标不可达 |
 
 ---
 
@@ -161,7 +161,7 @@ Swagger URL 导入的 SSRF 防护采用**配置文件可切换的两级策略**�
 1. **协议白名单**：仅允许 `http` / `https` 协议。
 2. **内网地址黑名单**：禁止本地回环、A/B/C 类私网地址、链路本地地址（含云元数据服务地址）与 IPv6 本地回环。
 3. **DNS 解析后校验**：解析域名后检查 IP 是否在黑名单范围内，防止 DNS 重绑定攻击。
-4. **超时控制**：拉取超时 10 秒，超时返回错误码 7012。
+4. **超时控制**：拉取超时 10 秒，超时返回错误码 1000017012。
 
 **`intranet` 策略（内网测试环境适用）**：
 
@@ -174,9 +174,9 @@ Swagger URL 导入的 SSRF 防护采用**配置文件可切换的两级策略**�
    - 完全匹配 `{contextPath}/v2/api-docs`、`{contextPath}/v3/api-docs`；
    - 完全匹配 `{contextPath}/swagger.json`、`{contextPath}/openapi.json`、`{contextPath}/swagger.yaml`、`{contextPath}/openapi.yaml`；
    - 以 `.json` / `.yaml` / `.yml` 结尾的任意路径（通用 OpenAPI 文件）。
-   - 其余路径一律拒绝（错误码 7012）。
+   - 其余路径一律拒绝（错误码 1000017012）。
 5. **DNS 解析后复核**：解析域名后逐 IP 复核第 3 条高危地址，防止 DNS 重绑定指向云元数据服务。
-6. **超时控制**：同 `strict`，10 秒超时返回 7012。
+6. **超时控制**：同 `strict`，10 秒超时返回 1000017012。
 
 > **安全权衡**：`intranet` 策略放宽了目标地址范围以满足内网测试场景，但通过「路径白名单 + 云元数据/组播恒禁用」将访问面收敛到 Swagger 文档本身，避免将服务端变成内网任意资产扫描器。公网 / 云上部署应保持默认 `strict` 策略，除非确认全部被测环境仅存在于内网。
 
@@ -187,7 +187,7 @@ Swagger URL 导入的 SSRF 防护采用**配置文件可切换的两级策略**�
 - **解析依赖**：引入 `io.swagger.parser.v3:swagger-parser`（Apache-2.0）解析 OpenAPI 2.0/3.0 的 JSON/YAML（含 `$ref`）；cURL 由前端 `curlParser` 解析（复用快速调试），后端不引入 cURL 解析依赖。
 - **编辑器裁剪**：请求体对齐快速调试，仅 `none / x-www-form-urlencoded / raw`（raw 带 subtype + 深色编辑器）；接口级 `验证器、提取器` 在编辑器渲染（复用场景步骤的共享面板 `ValidatorsExtractorsPanes`），**本期仅定义存储与回显**，不带入请求执行链路（执行消费留待测试场景模块）。
 - **DB 迁移**：`api_interface` 表新增 `validators / extractors` 两列（JSONB NOT NULL DEFAULT '[]'）为纯增量列，需按 §5 迁移说明提供 `ALTER TABLE ... ADD COLUMN` 并评估索引（两列不作查询过滤条件，无需新增索引，避免超 C9 单表索引上限）。
-- **乐观锁口径**：版本冲突以业务错误码 7105 表达（框架统一 Result 封装），前端按错误码识别提示刷新。
+- **乐观锁口径**：版本冲突以业务错误码 1000017105 表达（框架统一 Result 封装），前端按错误码识别提示刷新。
 
 ---
 

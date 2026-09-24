@@ -18,7 +18,7 @@
 
 **会话列表分页规则**：不设总量上限，游标分页滚动获取——参数 `cursor`（不透明游标，可空表示首页）+ `size`（默认 20，上限 50）；排序与游标锚点为 `(last_active_at DESC, id DESC)`（id 决胜，UUID v7 时序性保证稳定），实现为键集查询 `WHERE (last_active_at, id) < (:cursorTime, :cursorId)`，命中既有索引 `idx_conv_user_ws`（2.1.1）。`nextCursor` 为空表示无更多。选择键集而非页码/偏移：排序键 `last_active_at` 随会话活跃动态前移，偏移分页在滚动加载过程中会产生重复与漏项；键集分页仅可能漏掉「加载期间被顶到列表头部的旧会话」，该场景由前端本地置顶补偿（见 5.2），无一致性问题。
 
-会话归属校验：非本人会话，或会话 `workspace_id` 与 `X-Active-Workspace` 不一致时，一律按会话不存在处理，返回 3001（资源不存在段，不暴露存在性）。
+会话归属校验：非本人会话，或会话 `workspace_id` 与 `X-Active-Workspace` 不一致时，一律按会话不存在处理，返回 1000003005（AI_CONVERSATION_NOT_FOUND，资源不存在段，不暴露存在性）。
 
 
 ## 2. 发送消息（SSE）
@@ -49,7 +49,7 @@
 | confirm_required | `{"confirmToken": "…", "toolName": "create_bug", "preview": {…}, "expiresAt": "…"}` | 写操作确认请求，**本轮 SSE 随即以 done 结束** |
 | minder_commands | `{"commands": […], "documentId": "…"}` | 对话式编辑翻译结果（DSL），交前端预览执行 |
 | done | `{"messageId": "…"}` | 本轮回复完成 |
-| error | `{"code": 6002, "message": "…"}` | 失败 |
+| error | `{"code": 1000013002, "message": "…"}` | 失败 |
 
 > 扩展事件类型遵循基础设施 1 的自定义帧约定：`useAiStream()` 对未识别事件原样透传，由 `useAssistantStream.ts` 负责解析（见 5.1）。
 

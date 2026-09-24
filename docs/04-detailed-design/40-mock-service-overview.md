@@ -92,8 +92,8 @@ Mock 归属接口管理模块，支持从接口定义创建（继承路径与方
 
 | 错误码 | 常量名 | 说明 |
 | ------ | ------ | ---- |
-| 7301 | API_MOCK_NOT_FOUND | Mock 定义不存在 |
-| 7302 | API_MOCK_ADDR_CONFLICT | Mock 地址冲突（同路径同方法已启用） |
+| 1000017201 | API_MOCK_NOT_FOUND | Mock 定义不存在 |
+| 1000017202 | API_MOCK_ADDR_CONFLICT | Mock 地址冲突（同路径同方法已启用） |
 
 ---
 

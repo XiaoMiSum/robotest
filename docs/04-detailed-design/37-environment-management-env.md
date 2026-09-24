@@ -81,7 +81,7 @@
 ### 1.5 删除环境
 
 - **路径**：`DELETE /api/project/environments/:id`
-- **校验**：若环境被场景引用，返回错误码 7402（`API_ENV_REFERENCED`）；若环境被定时任务绑定，返回错误码 7404（`API_ENV_TASK_BOUND`），需先在定时任务中解除绑定。
+- **校验**：若环境被场景引用，返回错误码 1000017402（`API_ENV_REFERENCED`）；若环境被定时任务绑定，返回错误码 1000017404（`API_ENV_TASK_BOUND`），需先在定时任务中解除绑定。
 
 ### 1.6 设置默认环境
 
@@ -91,7 +91,7 @@
 ### 1.7 测试数据源连接
 
 - **路径**：`POST /api/project/environments/:id/data-sources/test`
-- **说明**：连接测试改为请求体传入**完整数据源配置**进行测试（免保存）：请求体传 `name`、`refName`、`driver`、`url`、`connectionProperties`、`maxPoolSize`、`isDefault`，按表单当前值试连，新建中或已修改未保存的数据源亦可直接验证。尝试建立 JDBC 连接，成功返回连接信息，失败返回错误码 7403（`API_DATASOURCE_CONN_FAILED`）并附带详细错误。
+- **说明**：连接测试改为请求体传入**完整数据源配置**进行测试（免保存）：请求体传 `name`、`refName`、`driver`、`url`、`connectionProperties`、`maxPoolSize`、`isDefault`，按表单当前值试连，新建中或已修改未保存的数据源亦可直接验证。尝试建立 JDBC 连接，成功返回连接信息，失败返回错误码 1000017403（`API_DATASOURCE_CONN_FAILED`）并附带详细错误。
 - **判定口径**：URL 以 `redis://` 或 `rediss://` 开头的数据源不走 JDBC、不校验驱动：按 RESP 协议建立连接后发送 `PING` 验证连通性（复用框架内置 Redis 客户端），成功时通过 `INFO server` 提取 `redis_version` 填入 `databaseVersion`。JDBC 数据源仅放行服务端内置驱动，其余拒绝测试。
 - **请求体**：
 
@@ -216,7 +216,7 @@ Redis 数据源成功响应示例：
 
 ## 3. 环境删除保护
 
-- 删除环境前校验场景引用（错误码 7402）与定时任务绑定（错误码 7404），被引用或绑定时禁止删除，需先解除引用/绑定。
+- 删除环境前校验场景引用（错误码 1000017402）与定时任务绑定（错误码 1000017404），被引用或绑定时禁止删除，需先解除引用/绑定。
 
 ---
 

@@ -42,7 +42,7 @@
 | 已启用，最近一次 `embedding_rebuild` 任务为 `failed` / `cancelled`（向量数据不完整） | true | degraded |
 | 已启用，Embedding 组配置完整、无进行中重建任务且最近一次重建非 `failed` / `cancelled` | true | available |
 
-- 语义检索类接口（查重、聚类、语义匹配）在 `degraded`/`unavailable` 状态下自动切换关键词模式，响应中附 `"semanticDegraded": true`（业务码 6010 语义，随正常数据返回），前端明示降级；
+- 语义检索类接口（查重、聚类、语义匹配）在 `degraded`/`unavailable` 状态下自动切换关键词模式，响应中附 `"semanticDegraded": true`（业务码 1000013010 语义，随正常数据返回），前端明示降级；
 - 保存配置时若 Embedding 模型或维度变更：自动创建 `embedding_rebuild` 任务（type=embedding_rebuild，target 为空，逐项目分批重建），任务完成前维持 `degraded`。重建任务 `failed` / `cancelled`（含 AI 总开关关闭的联动取消，见 4.6）时向量数据不完整，维持 `degraded` 直至管理员经 3.3.5 重试成功。重建任务的执行逻辑（列定义变更、分批向量化）见《缺陷智能分析与向量检索详细设计说明书》。
 
 
