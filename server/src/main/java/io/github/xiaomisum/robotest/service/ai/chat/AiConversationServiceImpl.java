@@ -97,12 +97,16 @@ public class AiConversationServiceImpl implements AiConversationService {
         // 自动更名：首条用户消息取前 30 字（详细设计 3.1）
         if (NEW_CONVERSATION_TITLE.equals(conversation.getTitle()) && content != null) {
             String title = content.length() > 30 ? content.substring(0, 30) : content;
-            conversation.setTitle(title);
-            conversationMapper.updateById(conversation);
+            AiConversation titleUpdate = new AiConversation();
+            titleUpdate.setId(conversationId);
+            titleUpdate.setTitle(title);
+            conversationMapper.updateById(titleUpdate);
         }
         // 触碰 lastActiveAt
-        conversation.setLastActiveAt(LocalDateTime.now());
-        conversationMapper.updateById(conversation);
+        AiConversation lastActiveUpdate = new AiConversation();
+        lastActiveUpdate.setId(conversationId);
+        lastActiveUpdate.setLastActiveAt(LocalDateTime.now());
+        conversationMapper.updateById(lastActiveUpdate);
         // 落库用户消息
         AiMessage message = new AiMessage();
         message.setConversationId(conversationId);
@@ -119,8 +123,10 @@ public class AiConversationServiceImpl implements AiConversationService {
         if (conversation == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_CONVERSATION_NOT_FOUND);
         }
-        conversation.setLastActiveAt(LocalDateTime.now());
-        conversationMapper.updateById(conversation);
+        AiConversation lastActiveUpdate = new AiConversation();
+        lastActiveUpdate.setId(conversationId);
+        lastActiveUpdate.setLastActiveAt(LocalDateTime.now());
+        conversationMapper.updateById(lastActiveUpdate);
         AiMessage message = new AiMessage();
         message.setConversationId(conversationId);
         message.setRole(AiMessage.ROLE_ASSISTANT);
@@ -148,8 +154,10 @@ public class AiConversationServiceImpl implements AiConversationService {
         if (conversation == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_CONVERSATION_NOT_FOUND);
         }
-        conversation.setLastActiveAt(LocalDateTime.now());
-        conversationMapper.updateById(conversation);
+        AiConversation lastActiveUpdate = new AiConversation();
+        lastActiveUpdate.setId(conversationId);
+        lastActiveUpdate.setLastActiveAt(LocalDateTime.now());
+        conversationMapper.updateById(lastActiveUpdate);
         AiMessage message = new AiMessage();
         message.setConversationId(conversationId);
         message.setRole(AiMessage.ROLE_TOOL);
