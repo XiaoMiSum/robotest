@@ -194,7 +194,7 @@ changes
 - 通用实时协议：`docs/06-spec/15-realtime-protocol.md`
 - migoo 安全能力：`docs/06-spec/11-migoo-framework.md`
 - 质量门禁：`docs/06-spec/07-quality.md`
-- 部署密钥：`docs/06-spec/09-deploy.md`
+- 部署密钥：`docs/06-spec/09-deploy.md`、`docs/06-spec/16-deployment-runbook.md`
 
 ---
 

@@ -88,7 +88,7 @@ bash scripts/deploy-merged.sh
 | C11 | 后端数据更新只更新实际传入字段（部分更新），禁止整行查询结果作 `updateById` 载体   | 代码审查      |
 
 > 端专属约定（C1 前端类型安全、C2 Controller 职责、C3 异常规范、C6 注释规范、C8 覆盖率）及编码示例见各端 `AGENTS.md`；C10 / C11 为后端专属，落地口径见 `server/AGENTS.md`。
-> 详细规范索引：`docs/06-spec/02-overview.md`、`docs/06-spec/03-frontend.md`、`docs/06-spec/04-backend.md`、`docs/06-spec/05-api.md`、`docs/06-spec/06-database.md`、`docs/06-spec/07-quality.md`、`docs/06-spec/08-workflow.md`、`docs/06-spec/09-deploy.md`、`docs/06-spec/10-security.md`、`docs/06-spec/11-migoo-framework.md`、`docs/06-spec/12-task-template.md`、`docs/06-spec/13-scroll-container.md`、`docs/06-spec/14-improvement-backlog.md`、`docs/06-spec/15-realtime-protocol.md`。
+> 详细规范索引：`docs/06-spec/02-overview.md`、`docs/06-spec/03-frontend.md`、`docs/06-spec/04-backend.md`、`docs/06-spec/05-api.md`、`docs/06-spec/06-database.md`、`docs/06-spec/07-quality.md`、`docs/06-spec/08-workflow.md`、`docs/06-spec/09-deploy.md`、`docs/06-spec/10-security.md`、`docs/06-spec/11-migoo-framework.md`、`docs/06-spec/12-task-template.md`、`docs/06-spec/13-scroll-container.md`、`docs/06-spec/14-improvement-backlog.md`、`docs/06-spec/15-realtime-protocol.md`、`docs/06-spec/16-deployment-runbook.md`。
 
 ---
 
@@ -133,7 +133,7 @@ bash scripts/deploy-merged.sh
 6. **验证**  
    - 运行对应端的 lint、类型检查、单元测试（参见第 3 节命令）。  
    - 确保覆盖率满足要求（C8）。  
-   - 手动测试关键路径（使用 `curl` 或前端界面，参考 `docs/06-spec/09-deploy.md` 中的示例）。
+   - 手动测试关键路径（使用 `curl` 或前端界面，参考 `docs/06-spec/16-deployment-runbook.md`）。
 
 7. **自检**  
    - 逐条核对核心约定（C1–C11），确认未引入违规。  
