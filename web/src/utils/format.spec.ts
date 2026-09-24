@@ -1,9 +1,10 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import {
   formatDate,
   formatDateTime,
   parseDateTime,
   formatLocalDateTime,
+  formatRelativeTime,
   formatShortDateTime,
   formatShortId,
   truncateText,
@@ -120,6 +121,72 @@ describe('formatShortId ID 缩略', () => {
     expect(formatShortId(null)).toBe('-')
     expect(formatShortId(undefined)).toBe('-')
     expect(formatShortId('')).toBe('-')
+  })
+})
+
+describe('formatRelativeTime 相对时间', () => {
+  const now = new Date('2026-09-24T12:00:00Z')
+
+  it('一分钟内输出刚刚', () => {
+    expect(formatRelativeTime('2026-09-24T11:59:30Z', now)).toBe('刚刚')
+  })
+
+  it('一小时内输出分钟前', () => {
+    expect(formatRelativeTime('2026-09-24T11:30:00Z', now)).toBe('30 分钟前')
+  })
+
+  it('一天内输出小时前', () => {
+    expect(formatRelativeTime('2026-09-24T04:00:00Z', now)).toBe('8 小时前')
+  })
+
+  it('七天内输出天前', () => {
+    expect(formatRelativeTime('2026-09-22T12:00:00Z', now)).toBe('2 天前')
+  })
+
+  it('超过七天回落绝对时间', () => {
+    expect(formatRelativeTime('2026-09-01T12:00:00Z', now)).toBe(formatDateTime('2026-09-01T12:00:00Z'))
+  })
+
+  it('未来时间回落绝对时间，避免误导性文案', () => {
+    expect(formatRelativeTime('2026-09-24T13:00:00Z', now)).toBe(formatDateTime('2026-09-24T13:00:00Z'))
+  })
+
+  it('无时区输入按 UTC 解析后同样分档', () => {
+    expect(formatRelativeTime('2026-09-24 11:30:00', now)).toBe('30 分钟前')
+  })
+
+  it('空值与非法值返回占位符', () => {
+    expect(formatRelativeTime(null, now)).toBe('-')
+    expect(formatRelativeTime(undefined, now)).toBe('-')
+    expect(formatRelativeTime('not-a-date', now)).toBe('-')
+  })
+})
+
+describe('浏览器时区变化', () => {
+  it('同一 UTC 输入在不同时区输出对应本地时间', () => {
+    try {
+      vi.stubEnv('TZ', 'Asia/Shanghai')
+      expect(formatDateTime('2026-09-24T12:00:00Z')).toBe('2026-09-24 20:00')
+
+      vi.stubEnv('TZ', 'America/New_York')
+      expect(formatDateTime('2026-09-24T12:00:00Z')).toBe('2026-09-24 08:00')
+    } finally {
+      vi.unstubAllEnvs()
+    }
+  })
+
+  it('相对时间分档不受时区影响', () => {
+    try {
+      const now = new Date('2026-09-24T12:00:00Z')
+      vi.stubEnv('TZ', 'Asia/Shanghai')
+      const shanghai = formatRelativeTime('2026-09-24T04:00:00Z', now)
+      vi.stubEnv('TZ', 'America/New_York')
+      const newYork = formatRelativeTime('2026-09-24T04:00:00Z', now)
+      expect(shanghai).toBe('8 小时前')
+      expect(newYork).toBe('8 小时前')
+    } finally {
+      vi.unstubAllEnvs()
+    }
   })
 })
 
