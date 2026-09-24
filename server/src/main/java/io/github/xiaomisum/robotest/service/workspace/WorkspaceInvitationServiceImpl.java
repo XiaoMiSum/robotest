@@ -7,6 +7,7 @@ import io.github.xiaomisum.robotest.framework.security.LoginUser;
 import io.github.xiaomisum.robotest.model.dto.request.workspace.InvitationCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.workspace.InvitationJoinReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.workspace.InvitationCheckEmailRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.workspace.InvitationCopyLinkRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.workspace.InvitationJoinRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.workspace.InvitationListRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.workspace.InvitationRespDTO;
@@ -40,6 +41,11 @@ import java.util.stream.Collectors;
 
 @Service
 public class WorkspaceInvitationServiceImpl implements WorkspaceInvitationService {
+
+    private static final String EFFECTIVE_STATUS_ACTIVE = "active";
+    private static final String EFFECTIVE_STATUS_EXHAUSTED = "exhausted";
+    private static final String EFFECTIVE_STATUS_EXPIRED = "expired";
+    private static final String EFFECTIVE_STATUS_REVOKED = "revoked";
 
     @Resource
     private WorkspaceInvitationMapper invitationMapper;
@@ -85,11 +91,33 @@ public class WorkspaceInvitationServiceImpl implements WorkspaceInvitationServic
                     setPageSize(pageSize);
                 }}, workspaceId);
 
-        List<InvitationListRespDTO> records = page.getList().stream()
-                .map(WorkspaceInvitationConvertMapper.INSTANCE::toListRespDTO)
-                .collect(Collectors.toList());
+        LocalDateTime now = LocalDateTime.now();
+        List<InvitationListRespDTO> records = page.getList().stream().map(invitation -> {
+            InvitationListRespDTO dto = WorkspaceInvitationConvertMapper.INSTANCE.toListRespDTO(invitation);
+            dto.setTokenPreview(maskToken(invitation.getToken()));
+            dto.setEffectiveStatus(resolveEffectiveStatus(invitationStateMachine.decision(invitation, now)));
+            return dto;
+        }).collect(Collectors.toList());
 
         return new PageResult<>(records, page.getTotal());
+    }
+
+    @Override
+    public InvitationCopyLinkRespDTO getInvitationCopyLink(UUID userId, UUID workspaceId, UUID invitationId) {
+        checkAdminPermission(userId, workspaceId);
+        WorkspaceInvitation invitation = getOwnedInvitation(workspaceId, invitationId);
+
+        InvitationRejectReason reason = invitationStateMachine.decision(invitation, LocalDateTime.now()).reason();
+        if (reason == InvitationRejectReason.REVOKED) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.INVITATION_REVOKED);
+        }
+        if (reason == InvitationRejectReason.EXPIRED) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.INVITATION_EXPIRED);
+        }
+        if (reason == InvitationRejectReason.INVALID) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.INVITATION_INVALID);
+        }
+        return new InvitationCopyLinkRespDTO(invitation.getToken());
     }
 
     @Override
@@ -97,10 +125,7 @@ public class WorkspaceInvitationServiceImpl implements WorkspaceInvitationServic
     public void revokeInvitation(UUID userId, UUID workspaceId, UUID invitationId) {
         checkAdminPermission(userId, workspaceId);
 
-        WorkspaceInvitation invitation = invitationMapper.selectById(invitationId);
-        if (invitation == null || !invitation.getWorkspaceId().equals(workspaceId)) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.INVITATION_INVALID);
-        }
+        WorkspaceInvitation invitation = getOwnedInvitation(workspaceId, invitationId);
 
         WorkspaceInvitation update = new WorkspaceInvitation();
         update.setId(invitation.getId());
@@ -175,6 +200,32 @@ public class WorkspaceInvitationServiceImpl implements WorkspaceInvitationServic
                         .build())
                 .isNewUser(isNewUser)
                 .build();
+    }
+
+    private WorkspaceInvitation getOwnedInvitation(UUID workspaceId, UUID invitationId) {
+        WorkspaceInvitation invitation = invitationMapper.selectById(invitationId);
+        if (invitation == null || !invitation.getWorkspaceId().equals(workspaceId)) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.INVITATION_INVALID);
+        }
+        return invitation;
+    }
+
+    private String maskToken(String token) {
+        if (token == null || token.length() <= 8) {
+            return token;
+        }
+        return token.substring(0, 4) + "…" + token.substring(token.length() - 4);
+    }
+
+    private String resolveEffectiveStatus(InvitationDecision decision) {
+        if (decision.joinable()) {
+            return EFFECTIVE_STATUS_ACTIVE;
+        }
+        return switch (decision.reason()) {
+            case USE_EXHAUSTED -> EFFECTIVE_STATUS_EXHAUSTED;
+            case EXPIRED -> EFFECTIVE_STATUS_EXPIRED;
+            case REVOKED, INVALID -> EFFECTIVE_STATUS_REVOKED;
+        };
     }
 
     private void checkAdminPermission(UUID userId, UUID workspaceId) {

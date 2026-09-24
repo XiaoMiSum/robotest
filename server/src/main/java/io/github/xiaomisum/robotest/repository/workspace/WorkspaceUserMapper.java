@@ -92,12 +92,17 @@ public interface WorkspaceUserMapper extends BaseMapperX<WorkspaceUser> {
     }
 
     default PageResult<WorkspaceUser> findPageByWorkspaceIdAndUserIds(PageParam pageParam, UUID workspaceId,
-                                                                       List<UUID> userIds) {
+                                                                       List<UUID> userIds, UUID workspaceRole) {
         LambdaQueryWrapperX<WorkspaceUser> wrapper = new LambdaQueryWrapperX<WorkspaceUser>()
                 .eq(WorkspaceUser::getWorkspaceId, workspaceId);
         if (userIds != null && !userIds.isEmpty()) {
             wrapper.in(WorkspaceUser::getUserId, userIds);
         }
+        if (workspaceRole != null) {
+            wrapper.eq(WorkspaceUser::getWorkspaceRole, workspaceRole);
+        }
+        wrapper.orderByDesc(WorkspaceUser::getJoinedAt)
+                .orderByDesc(WorkspaceUser::getId);
         return selectPage(pageParam, wrapper);
     }
 }

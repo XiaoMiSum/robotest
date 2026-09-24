@@ -3,6 +3,7 @@ package io.github.xiaomisum.robotest.service.workspace;
 import io.github.xiaomisum.robotest.model.dto.request.workspace.InvitationCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.workspace.InvitationJoinReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.workspace.InvitationCheckEmailRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.workspace.InvitationCopyLinkRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.workspace.InvitationJoinRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.workspace.InvitationListRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.workspace.InvitationRespDTO;
@@ -16,6 +17,8 @@ public interface WorkspaceInvitationService {
     InvitationRespDTO createInvitation(UUID userId, UUID workspaceId, InvitationCreateReqDTO reqDTO);
 
     PageResult<InvitationListRespDTO> getInvitationPage(UUID userId, UUID workspaceId, Integer pageNo, Integer pageSize);
+
+    InvitationCopyLinkRespDTO getInvitationCopyLink(UUID userId, UUID workspaceId, UUID invitationId);
 
     void revokeInvitation(UUID userId, UUID workspaceId, UUID invitationId);
 

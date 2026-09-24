@@ -34,7 +34,7 @@ public class WorkspaceMemberServiceImpl implements WorkspaceMemberService {
 
     @Override
     public PageResult<WorkspaceMemberRespDTO> getMemberPage(UUID userId, UUID workspaceId, String keyword,
-                                                             Integer pageNo, Integer pageSize) {
+                                                             UUID workspaceRole, Integer pageNo, Integer pageSize) {
         WorkspaceUser currentUser = workspaceUserMapper.findByWorkspaceIdAndUserId(workspaceId, userId);
         if (currentUser == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.NO_PERMISSION);
@@ -53,7 +53,7 @@ public class WorkspaceMemberServiceImpl implements WorkspaceMemberService {
                 new PageParam() {{
                     setPageNo(pageNo);
                     setPageSize(pageSize);
-                }}, workspaceId, matchedUserIds);
+                }}, workspaceId, matchedUserIds, workspaceRole);
 
         if (page.getList().isEmpty()) {
             return new PageResult<>(List.of(), 0L);

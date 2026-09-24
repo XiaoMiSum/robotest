@@ -3,6 +3,7 @@ package io.github.xiaomisum.robotest.controller.workspace;
 import io.github.xiaomisum.robotest.framework.security.LoginUser;
 import io.github.xiaomisum.robotest.model.dto.request.workspace.InvitationCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.workspace.InvitationJoinReqDTO;
+import io.github.xiaomisum.robotest.model.dto.response.workspace.InvitationCopyLinkRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.workspace.InvitationJoinRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.workspace.InvitationListRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.workspace.InvitationRespDTO;
@@ -40,6 +41,15 @@ public class WorkspaceInvitationController {
             @RequestParam(defaultValue = "20") Integer pageSize) {
         PageResult<InvitationListRespDTO> result = invitationService.getInvitationPage(
                 loginUser.getId(), loginUser.getActiveWorkspaceId(), pageNo, pageSize);
+        return Result.ok(result);
+    }
+
+    @PostMapping("/{id}/copy-link")
+    public Result<InvitationCopyLinkRespDTO> getInvitationCopyLink(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @PathVariable UUID id) {
+        InvitationCopyLinkRespDTO result = invitationService.getInvitationCopyLink(
+                loginUser.getId(), loginUser.getActiveWorkspaceId(), id);
         return Result.ok(result);
     }
 
