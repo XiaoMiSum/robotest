@@ -196,23 +196,27 @@ CREATE INDEX idx_ws_workspace_created_by ON ws_workspace (created_by);
 - 从 JWT 提取 userId 和所有角色，查询合并后的权限 code 列表。
 - 判断当前请求所需的权限 code 是否在列表中。所需权限 code 由路径和方法映射确定。
 
-权限 code 与路径映射：
+权限 code 与路径映射（GET 接口为任一即可的并集，与代码 `@PreAuthorize` 一致）：
 
 | 路径                                  | 方法     | 所需权限 code                |
 | ----------------------------------- | ------ | ------------------------ |
-| /api/admin/users                    | GET    | user:view                |
+| /api/admin/users                    | GET    | user:view 或 role:view            |
+| /api/admin/users/simple             | GET    | user:view 或 workspace:create 或 workspace:manage-members 或 role:view |
 | /api/admin/users                    | POST   | user:create              |
 | /api/admin/users/:id                | PUT    | user:edit                |
 | /api/admin/users/:id/status         | PATCH  | user:disable             |
 | /api/admin/users/:id/reset-password | POST   | user:reset-password      |
-| /api/admin/workspaces               | GET    | workspace:view           |
+| /api/admin/workspaces               | GET    | workspace:view 或 user:view 或 role:view |
 | /api/admin/workspaces               | POST   | workspace:create         |
 | /api/admin/workspaces/:id           | DELETE | workspace:delete         |
 | /api/admin/workspaces/:id/members   | POST   | workspace:manage-members |
-| /api/admin/roles/tree               | GET    | role:view                |
+| /api/admin/roles                    | GET    | role:view 或 workspace:view 或 workspace:manage-members |
 | /api/admin/roles                    | POST   | role:create              |
 | /api/admin/roles/:id                | PUT    | role:edit                |
 | /api/admin/roles/:id                | DELETE | role:delete              |
+| /api/admin/dashboard/stats          | GET    | user:view 或 workspace:view 或 role:view |
+
+> 说明：历史表格中的 `/api/admin/roles/tree` 已废弃，实际路径为 `/api/admin/roles`（可选 `type` 参数）；仅工作空间角色的用户在 `/api/admin` 路径下无系统权限码，全部 GET 接口亦拒绝访问（SEC-002）。
 
 
 ### 2.7 路由规划
