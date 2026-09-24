@@ -51,9 +51,9 @@
 | C9 | 关联字段和高频查询字段建立合理索引，单表索引数量受控 | `docs/00-spec/20-contracts/02-database.md` | DDL 检查、性能审查 |
 | C10 | 后端优先复用 migoo 已提供的响应、异常、校验和数据访问能力 | `docs/00-spec/10-engineering/03-migoo-framework.md` | 依赖检查、代码审查 |
 | C11 | 更新只写入调用方实际提交的字段，禁止整行查询结果直接作为更新载体 | `docs/00-spec/10-engineering/02-backend.md` | 单元测试、代码审查 |
-| UI-SC-01～09 | 滚动容器和滚动条专项规则 | `docs/00-spec/50-ui/01-scroll-container.md` | 浏览器验收、代码审查 |
-| UI-DS-01～08 | 前端视觉、布局、状态、响应式和可访问性规则 | `docs/00-spec/50-ui/02-frontend-design.md` | 设计验收、浏览器验收、代码审查 |
-| UI-PAGE-01～10 | 页面拆分、组件边界、状态归属和数据流规则 | `docs/00-spec/50-ui/03-page-development.md` | 代码审查、组件测试、页面验收 |
+| UI-SC-01～09 | 滚动容器和滚动条专项规则 | `docs/00-spec/50-ui/03-scroll-container.md` | 浏览器验收、代码审查 |
+| UI-DS-01～08 | 前端视觉、布局、状态、响应式和可访问性规则 | `docs/00-spec/50-ui/01-frontend-design.md` | 设计验收、浏览器验收、代码审查 |
+| UI-PAGE-01～11 | 页面拆分、组件边界、状态归属、数据流和列表错误可见性规则 | `docs/00-spec/50-ui/02-page-development.md` | 代码审查、组件测试、页面验收 |
 
 规则登记册只保存摘要和链接；正例、反例、例外和完整说明以主规范为准。
 
@@ -66,7 +66,7 @@
 | `20-contracts/` | `01-api.md`、`02-database.md`、`03-realtime-protocol.md` | HTTP、数据和实时通信契约 |
 | `30-quality-delivery/` | `01-quality.md`、`02-workflow.md`、`03-deploy.md`、`04-deployment-runbook.md` | 质量、协作、构建、部署和项目操作 |
 | `40-security/` | `01-security.md` | 认证、授权、隔离、密钥和审计 |
-| `50-ui/` | `01-scroll-container.md`、`02-frontend-design.md`、`03-page-development.md` | 滚动、视觉设计、页面开发和组件边界 |
+| `50-ui/` | `01-frontend-design.md`、`02-page-development.md`、`03-scroll-container.md` | 视觉设计、页面开发和专项组件边界 |
 
 ## 4. 技术事实来源
 
