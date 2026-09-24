@@ -30,7 +30,7 @@
 3. `20-contracts/01-api.md` / `02-database.md` / `03-realtime-protocol.md`：确认跨端契约。
 4. `30-quality-delivery/01-quality.md` / `02-workflow.md` / `03-deploy.md` / `04-deployment-runbook.md`：确认质量、协作和交付要求。
 5. `40-security/01-security.md`：确认安全基线。
-6. `50-ui/01-frontend-design.md` / `02-page-development.md` / `03-scroll-container.md`：确认 UI 设计、页面开发和专项组件规则。
+6. `50-ui/01-frontend-design.md` / `02-page-development.md` / `03-scroll-container.md` / `04-style-exceptions.md`：确认 UI 设计、页面开发、专项组件规则和样式例外登记。
 7. `00-governance/02-task-template.md`：执行任务时使用流程模板。
 8. `00-governance/03-improvement-backlog.md`：查看未完成工作和验收状态。
 
@@ -83,6 +83,7 @@
 | [50-ui/01-frontend-design](50-ui/01-frontend-design.md) | 视觉层级、设计令牌、状态和可访问性 | 已发布 |
 | [50-ui/02-page-development](50-ui/02-page-development.md) | 大页面、小组件、状态归属和数据流 | 已发布 |
 | [50-ui/03-scroll-container](50-ui/03-scroll-container.md) | 滚动容器、滚动拥有者和滚动条 | 已发布 |
+| [50-ui/04-style-exceptions](50-ui/04-style-exceptions.md) | UI-DS-09 组件覆盖例外登记与扫描基线 | 起草中 |
 
 ## 5. 当前统一决策
 
