@@ -81,7 +81,7 @@ DEC-004（C4 路由/请求体边界）和 DEC-005（时间模型）仍待用户�
 | --- | --- | --- | --- | --- | --- |
 | DOC-001 | P0 | 同步 `docs/03-architecture/` 的端口、版本和部署描述 | DEC-001 | 不再出现与当前配置冲突的 8080、Vite 8、旧 profile 描述 | 已完成 |
 | DOC-002 | P0 | 同步 `docs/04-detailed-design/` 的响应体和分页 | DEC-002、DEC-003 | 详细设计统一使用 `Result`、`msg`、`pageNo/pageSize`、`list/total` | 已完成 |
-| DOC-003 | P0 | 清理详细设计中的 UUID v7 强制描述 | DEC-005 | 持久化主键统一引用框架默认策略；脑图本地节点 ID 另行说明 | 进行中 |
+| DOC-003 | P0 | 清理详细设计中的 UUID v7 强制描述 | DEC-005 | 持久化主键统一引用框架默认策略；脑图本地节点 ID 另行说明 | 已完成 |
 | DOC-004 | P0 | 同步详细设计中的异常和错误码 | DEC-002 | 统一使用 `ServiceExceptionUtil`、10 位错误码和 `ErrorCodeConstants` | 已完成 |
 | DOC-005 | P0 | 同步通用 WebSocket 详细设计 | DEC-007 | 明确连接、房间/主题、通用帧、错误、生命周期和鉴权流程；业务事件由详细设计定义 | 待实施 |
 | DOC-006 | P0 | 审查 C4 上下文相关路由、请求体和详细设计 | DEC-004 | 每个上下文 ID 都有明确的 Header、资源 ID 或例外结论 | 待实施 |
