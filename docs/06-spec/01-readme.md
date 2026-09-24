@@ -1,4 +1,4 @@
-# 软件测试平台——工程规范索引
+# 工程规范索引
 
 **文档版本**：V1.0
 **日期**：2026-09-24
@@ -8,7 +8,7 @@
 
 ## 1. 用途
 
-本目录是 RoboTest 工程规范的唯一索引。规范正文分散在前端、后端、API、数据库、质量、发布和安全文档中，本文件只维护目录、阅读顺序和权威边界，不重复定义具体规则。
+本目录是工程规范的唯一索引。规范正文分散在前端、后端、API、数据库、质量、发布和安全文档中，本文件只维护目录、阅读顺序和权威边界，不重复定义具体规则。
 
 ## 2. 阅读顺序
 
@@ -39,7 +39,7 @@
 | [13-scroll-container](13-scroll-container.md) | 专项规范 | 前端滚动容器 | V1.0 | 2026-09-24 | 已发布 |
 | [14-improvement-backlog](14-improvement-backlog.md) | 待办清单 | 未执行的规范、代码、配置和交付任务 | V1.0 | 2026-09-24 | 起草中 |
 | [15-realtime-protocol](15-realtime-protocol.md) | 实时协议 | 通用 WebSocket API | V1.0 | 2026-09-24 | 已发布 |
-| [16-deployment-runbook](16-deployment-runbook.md) | 部署 Runbook | 当前项目实际部署步骤 | V1.0 | 2026-09-24 | 已发布 |
+| [16-deployment-runbook](16-deployment-runbook.md) | 部署 Runbook | 具体项目实际部署步骤 | V1.0 | 2026-09-24 | 已发布 |
 | [17-migoo-api-reference](17-migoo-api-reference.md) | API 速查 | migoo 组件 API 和项目适配摘要 | V1.0 | 2026-09-24 | 已发布 |
 
 ## 4. 当前统一决策
@@ -55,7 +55,7 @@
 | 数据库 | PostgreSQL 14+ 为优先正式方案，MySQL 仅保留兼容说明 | `06-database.md` |
 | UUID | 使用框架默认生成策略，不在项目规范中强制 UUID v7 | `06-database.md` / `11-migoo-framework.md` |
 | MapStruct | 转换器统一放在 `model/convert/` | `04-backend.md` / `11-migoo-framework.md` |
-| 上下文 | 作用域的传递方式和业务例外由详细设计定义 | `10-security.md` / 各业务详细设计 |
+| 上下文 | 作用域和资源归属必须可验证，客户端声明不能作为授权依据 | `10-security.md` / `05-api.md` |
 | 规范冲突 | 当前实现与目标规范冲突时暂停，由用户确认后再修改 | `02-overview.md` |
 | Git 分支 | 保留 `master`，以 `develop` 管理日常集成 | `08-workflow.md` |
 | WebSocket | 使用短时、一次性连接 Ticket；实时协议独立成文 | `15-realtime-protocol.md` |

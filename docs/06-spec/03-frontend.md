@@ -1,4 +1,4 @@
-# 软件测试平台——前端工程规范
+# 前端工程规范
 
 **文档版本**：V1.0
 **日期**：2026-09-24
@@ -10,14 +10,14 @@
 
 | 能力 | 技术 | 版本来源 |
 | --- | --- | --- |
-| 框架 | Vue 3.5 + Composition API | `web/package.json`、锁文件 |
-| 语言 | TypeScript strict | `web/tsconfig*.json`、锁文件 |
-| 构建 | Vite | `web/package.json`、锁文件 |
-| UI | Element Plus | `web/package.json`、锁文件 |
-| 状态 | Pinia | `web/package.json`、锁文件 |
-| 请求 | Axios | `web/package.json`、锁文件 |
-| 测试 | Vitest、Vue Test Utils | `web/package.json`、覆盖率配置 |
-| 契约 | OpenAPI Typescript | `web/package.json`、OpenAPI 基线 |
+| 框架 | Vue 3.5 + Composition API | 依赖清单、锁文件 |
+| 语言 | TypeScript strict | TypeScript 配置、锁文件 |
+| 构建 | Vite | 依赖清单、锁文件 |
+| UI | Element Plus | 依赖清单、锁文件 |
+| 状态 | Pinia | 依赖清单、锁文件 |
+| 请求 | Axios | 依赖清单、锁文件 |
+| 测试 | Vitest、Vue Test Utils | 依赖清单、覆盖率配置 |
+| 契约 | OpenAPI Typescript | 依赖清单、OpenAPI 基线 |
 
 本文不重复维护“最新”版本。升级依赖时必须同步锁文件、类型检查、测试和 OpenAPI 生成结果。
 
@@ -30,7 +30,7 @@
 - 不确定类型使用 `unknown`，再通过类型守卫或经过验证的断言缩小范围。
 - 禁止用 `@ts-ignore` 隐藏错误；必须使用 `@ts-expect-error` 并说明原因。
 - 跨端接口类型优先从 OpenAPI 生成类型中复用。
-- 全局共享类型放在 `src/types/`，组件私有类型可以留在组件或相邻 composable。
+- 全局共享类型放在约定的共享类型目录，组件私有类型可以留在组件或相邻 composable。
 
 ```ts
 const response: unknown = await request.get('/users')
@@ -85,7 +85,7 @@ services          → types / utils / request infrastructure
 
 - Services 只负责 HTTP 请求和响应解包。
 - 不得依赖 components、pages、composables 或 stores。
-- 统一使用 `src/services/index.ts` 提供的请求实例和错误处理。
+- 统一使用请求基础设施提供的请求实例和错误处理。
 - 不在 service 中维护 loading、弹窗或路由状态。
 
 上述边界的目标检查由 `web/eslint.config.mjs` 的 `no-restricted-imports` 和代码审查共同维护；当前 ESLint 规则只覆盖部分别名和目录，新增规则或迁移前必须补充对应门禁。
@@ -145,7 +145,7 @@ const displayName = computed(() => props.user.name)
 
 ## 5. 路由规范
 
-路由规范只规定前端导航的职责和边界，不规定具体文件路径、路由字段名称、页面目录或业务 URL。项目可以在不改变以下原则的前提下选择路由库和配置结构。
+路由声明、导航守卫、参数校验、状态清理和错误处理应保持职责清晰；具体实现可以采用不同的路由库和配置结构，但不得绕过认证、授权和资源校验。
 
 ### 5.1 路由声明
 
@@ -217,13 +217,13 @@ export interface PageResult<T> {
 ### 7.2 请求边界
 
 - 不在组件中直接创建 Axios 实例。
-- 不在 service 中处理 ElMessage、路由跳转等 UI 行为。
+- 不在 service 中处理 UI 消息、路由跳转等表现层行为。
 - 上传、下载、SSE 和 WebSocket 使用各自明确的请求适配器。
 - 生成类型与手写类型发生冲突时，先检查 OpenAPI 基线，不直接强行断言。
 
 ## 8. 样式与设计系统
 
-- 使用 SCSS 和项目 CSS 变量。
+- 使用 SCSS 和工程 CSS 变量。
 - 组件样式默认使用 `<style scoped lang="scss">`。
 - 颜色、字体、间距和层级使用设计令牌，禁止随意硬编码。
 - 目标规范禁止使用 `!important`；现有第三方覆盖或历史代码需要例外时，必须限定作用域并登记原因，不得新增全局覆盖。
@@ -234,7 +234,7 @@ export interface PageResult<T> {
 
 当前跨端时间契约由 `05-api.md` 定义。前端展示必须：
 
-- 完整时间使用 `utils/format.ts` 的 `formatDateTime`。
+- 完整时间使用统一的时间格式化工具。
 - 纯日期字段按日历日期展示，不做时区转换。
 - 禁止直接 `new Date(后端无时区字符串)`。
 - 禁止直接插值显示后端时间戳。
