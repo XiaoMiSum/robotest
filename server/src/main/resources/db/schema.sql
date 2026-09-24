@@ -131,6 +131,7 @@ CREATE TABLE ws_user (
                          workspace_role    UUID      NOT NULL DEFAULT 'c0000000-0000-0000-0000-000000000002',
                          default_project_id UUID,
                          joined_at         TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                         last_accessed_at  TIMESTAMP NULL,
                          is_deleted        BOOLEAN   NOT NULL DEFAULT FALSE,
                          created_at        TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                          updated_at        TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -140,6 +141,7 @@ CREATE UNIQUE INDEX uk_ws_user_user_workspace ON ws_user (user_id, workspace_id)
 CREATE INDEX idx_ws_user_workspace_id ON ws_user (workspace_id);
 CREATE INDEX idx_ws_user_ws_role ON ws_user (workspace_id, workspace_role);
 CREATE INDEX idx_ws_user_default_project_id ON ws_user (default_project_id);
+CREATE INDEX idx_ws_user_user_last_accessed ON ws_user (user_id, last_accessed_at DESC) WHERE is_deleted = FALSE;
 
 -- 邀请链接表
 CREATE TABLE ws_invitation (
@@ -200,6 +202,7 @@ CREATE TABLE test_case_node (
 
 CREATE INDEX idx_test_case_node_document_id ON test_case_node (document_id);
 CREATE INDEX idx_test_case_node_parent_id ON test_case_node (parent_id);
+CREATE INDEX idx_test_case_node_document_type ON test_case_node (document_id, type) WHERE is_deleted = FALSE;
 
 -- ============================================================
 -- 4. 功能测试 — 测试计划
@@ -1511,6 +1514,7 @@ COMMENT ON COLUMN ws_user.workspace_id IS '工作空间 ID，关联 ws_workspace
 COMMENT ON COLUMN ws_user.workspace_role IS '空间角色 ID，关联 sys_role.id（预置角色 UUID）';
 COMMENT ON COLUMN ws_user.default_project_id IS '空间内默认项目 ID，关联 ws_project.id';
 COMMENT ON COLUMN ws_user.joined_at IS '加入时间';
+COMMENT ON COLUMN ws_user.last_accessed_at IS '最近一次成功进入工作空间的时间，NULL=未进入过';
 
 COMMENT ON TABLE ws_invitation IS '邀请链接表';
 COMMENT ON COLUMN ws_invitation.id IS '邀请唯一标识';

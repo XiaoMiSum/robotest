@@ -1,27 +1,38 @@
 package io.github.xiaomisum.robotest.service.workspace;
 
+import io.github.xiaomisum.robotest.framework.common.Constants;
+import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
+import io.github.xiaomisum.robotest.model.dto.request.workspace.MyWorkspaceQueryReqDTO;
+import io.github.xiaomisum.robotest.model.dto.response.workspace.WorkspaceMyPageRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.workspace.WorkspaceMyRespDTO;
-import io.github.xiaomisum.robotest.model.entity.workspace.Project;
+import io.github.xiaomisum.robotest.model.dto.response.workspace.WorkspaceMyScopeCountsDTO;
+import io.github.xiaomisum.robotest.model.entity.admin.SysUser;
 import io.github.xiaomisum.robotest.model.entity.workspace.Workspace;
 import io.github.xiaomisum.robotest.model.entity.workspace.WorkspaceUser;
 import io.github.xiaomisum.robotest.repository.admin.SysUserMapper;
-import io.github.xiaomisum.robotest.repository.workspace.ProjectMapper;
+import io.github.xiaomisum.robotest.repository.workspace.MyWorkspaceQueryMapper;
 import io.github.xiaomisum.robotest.repository.workspace.WorkspaceMapper;
 import io.github.xiaomisum.robotest.repository.workspace.WorkspaceUserMapper;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import xyz.migoo.framework.common.pojo.PageParam;
-import xyz.migoo.framework.common.pojo.PageResult;
+import xyz.migoo.framework.common.exception.ServiceException;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doReturn;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -34,46 +45,237 @@ class MyWorkspaceServiceImplTest {
     @Mock
     private WorkspaceUserMapper workspaceUserMapper;
     @Mock
-    private ProjectMapper projectMapper;
+    private MyWorkspaceQueryMapper myWorkspaceQueryMapper;
 
     @InjectMocks
     private MyWorkspaceServiceImpl myWorkspaceService;
 
     @Test
-    void getMyWorkspacePage_countsProjects() {
+    void getMyWorkspaces_appliesFiltersAndReturnsRoleAndCaseStats() {
         UUID userId = UUID.fromString("00000000-0000-0000-0000-000000000002");
         UUID workspaceId = UUID.fromString("00000000-0000-0000-0000-000000000001");
         UUID defaultProjectId = UUID.fromString("00000000-0000-0000-0000-000000000003");
+        MyWorkspaceQueryReqDTO query = new MyWorkspaceQueryReqDTO();
+        query.setKeyword("  质量  ");
+        query.setScope("managed");
+        query.setPageNo(2);
+        query.setPageSize(12);
 
-        WorkspaceUser wu = new WorkspaceUser();
-        wu.setUserId(userId);
-        wu.setWorkspaceId(workspaceId);
-        wu.setWorkspaceRole(UUID.fromString("00000000-0000-0000-0000-000000000009"));
-        wu.setDefaultProjectId(defaultProjectId);
+        WorkspaceMyRespDTO row = new WorkspaceMyRespDTO();
+        row.setId(workspaceId);
+        row.setName("质量中台");
+        row.setWorkspaceRole(Constants.WorkspaceRole.ADMIN_ID.toString());
+        row.setWorkspaceRoleName("管理员");
+        row.setDefaultProjectId(defaultProjectId);
+        row.setDefaultProjectName("默认项目");
+        row.setMemberCount(4L);
+        row.setProjectCount(6L);
+        row.setTestCaseCount(1024L);
+        row.setStatus(Constants.Status.ACTIVE);
+        row.setCreatedAt(LocalDateTime.of(2026, 9, 18, 2, 24));
+        row.setLastAccessedAt(LocalDateTime.of(2026, 9, 23, 8, 30));
 
+        WorkspaceMyScopeCountsDTO counts = new WorkspaceMyScopeCountsDTO();
+        counts.setAll(6L);
+        counts.setManaged(2L);
+        counts.setArchived(1L);
+        when(myWorkspaceQueryMapper.selectPage(userId, "质量", "managed",
+                Constants.WorkspaceRole.ADMIN_ID, 12L, 12)).thenReturn(List.of(row));
+        when(myWorkspaceQueryMapper.count(userId, "质量", "managed",
+                Constants.WorkspaceRole.ADMIN_ID)).thenReturn(1L);
+        when(myWorkspaceQueryMapper.countScopes(userId, "质量",
+                Constants.WorkspaceRole.ADMIN_ID)).thenReturn(counts);
+
+        WorkspaceMyPageRespDTO result = myWorkspaceService.getMyWorkspaces(userId, query);
+
+        assertEquals(1L, result.getTotal());
+        assertEquals(1, result.getList().size());
+        assertEquals("管理员", result.getList().get(0).getWorkspaceRoleName());
+        assertEquals(4L, result.getList().get(0).getMemberCount());
+        assertEquals(6L, result.getList().get(0).getProjectCount());
+        assertEquals(1024L, result.getList().get(0).getTestCaseCount());
+        assertEquals("默认项目", result.getList().get(0).getDefaultProjectName());
+        assertEquals(6L, result.getCounts().getAll());
+        assertEquals(2L, result.getCounts().getManaged());
+        assertEquals(1L, result.getCounts().getArchived());
+        verify(myWorkspaceQueryMapper).selectPage(userId, "质量", "managed",
+                Constants.WorkspaceRole.ADMIN_ID, 12L, 12);
+        verify(myWorkspaceQueryMapper).count(userId, "质量", "managed",
+                Constants.WorkspaceRole.ADMIN_ID);
+        verify(myWorkspaceQueryMapper).countScopes(userId, "质量",
+                Constants.WorkspaceRole.ADMIN_ID);
+    }
+
+    @Test
+    void getMyWorkspaces_archivedScopeStillReturnsKeywordAwareCounts() {
+        UUID userId = UUID.randomUUID();
+        MyWorkspaceQueryReqDTO query = new MyWorkspaceQueryReqDTO();
+        query.setKeyword("旧空间");
+        query.setScope("archived");
+
+        WorkspaceMyScopeCountsDTO counts = new WorkspaceMyScopeCountsDTO();
+        counts.setAll(3L);
+        counts.setManaged(1L);
+        counts.setArchived(2L);
+        when(myWorkspaceQueryMapper.selectPage(userId, "旧空间", "archived",
+                Constants.WorkspaceRole.ADMIN_ID, 0L, 12)).thenReturn(List.of());
+        when(myWorkspaceQueryMapper.count(userId, "旧空间", "archived",
+                Constants.WorkspaceRole.ADMIN_ID)).thenReturn(2L);
+        when(myWorkspaceQueryMapper.countScopes(userId, "旧空间",
+                Constants.WorkspaceRole.ADMIN_ID)).thenReturn(counts);
+
+        WorkspaceMyPageRespDTO result = myWorkspaceService.getMyWorkspaces(userId, query);
+
+        assertTrue(result.getList().isEmpty());
+        assertEquals(2L, result.getTotal());
+        assertEquals(3L, result.getCounts().getAll());
+        verify(myWorkspaceQueryMapper).countScopes(userId, "旧空间",
+                Constants.WorkspaceRole.ADMIN_ID);
+    }
+
+    @Test
+    void getMyWorkspaces_allScopeUsesAllMemberships() {
+        UUID userId = UUID.randomUUID();
+        MyWorkspaceQueryReqDTO query = new MyWorkspaceQueryReqDTO();
+
+        WorkspaceMyScopeCountsDTO counts = new WorkspaceMyScopeCountsDTO();
+        counts.setAll(2L);
+        counts.setManaged(1L);
+        counts.setArchived(1L);
+        when(myWorkspaceQueryMapper.selectPage(userId, null, "all",
+                Constants.WorkspaceRole.ADMIN_ID, 0L, 12)).thenReturn(List.of());
+        when(myWorkspaceQueryMapper.count(userId, null, "all",
+                Constants.WorkspaceRole.ADMIN_ID)).thenReturn(2L);
+        when(myWorkspaceQueryMapper.countScopes(userId, null,
+                Constants.WorkspaceRole.ADMIN_ID)).thenReturn(counts);
+
+        WorkspaceMyPageRespDTO result = myWorkspaceService.getMyWorkspaces(userId, query);
+
+        assertEquals(2L, result.getTotal());
+        assertEquals(1L, result.getCounts().getManaged());
+        assertEquals(1L, result.getCounts().getArchived());
+        verify(myWorkspaceQueryMapper).count(userId, null, "all",
+                Constants.WorkspaceRole.ADMIN_ID);
+    }
+
+    @Test
+    void getMyWorkspaces_invalidScope_throwsValidationError() {
+        MyWorkspaceQueryReqDTO query = new MyWorkspaceQueryReqDTO();
+        query.setScope("unknown");
+
+        ServiceException exception = assertThrows(ServiceException.class,
+                () -> myWorkspaceService.getMyWorkspaces(UUID.randomUUID(), query));
+
+        assertEquals(ErrorCodeConstants.VALIDATION_FAILED.code(), exception.getCode());
+    }
+
+    @Test
+    void getMyWorkspaces_invalidPaging_throwsBeforeQuery() {
+        MyWorkspaceQueryReqDTO query = new MyWorkspaceQueryReqDTO();
+        query.setPageNo(0);
+
+        ServiceException exception = assertThrows(ServiceException.class,
+                () -> myWorkspaceService.getMyWorkspaces(UUID.randomUUID(), query));
+
+        assertEquals(ErrorCodeConstants.VALIDATION_FAILED.code(), exception.getCode());
+        verifyNoInteractions(myWorkspaceQueryMapper);
+    }
+
+    @Test
+    void setActiveWorkspace_missingContextHeader_throwsBeforeQueries() {
+        ServiceException exception = assertThrows(ServiceException.class,
+                () -> myWorkspaceService.setActiveWorkspace(UUID.randomUUID(), null));
+
+        assertEquals(ErrorCodeConstants.CONTEXT_HEADER_MISSING.code(), exception.getCode());
+        verifyNoInteractions(userMapper, workspaceMapper, workspaceUserMapper);
+    }
+
+    @Test
+    void setActiveWorkspace_updatesBothRowsWithPartialPayloads() {
+        UUID userId = UUID.randomUUID();
+        UUID workspaceId = UUID.randomUUID();
+        UUID membershipId = UUID.randomUUID();
+        LocalDateTime previousAccess = LocalDateTime.now().minusDays(1);
+
+        SysUser user = new SysUser();
+        user.setId(userId);
+        user.setLastActiveWorkspaceId(workspaceId.toString());
         Workspace workspace = new Workspace();
         workspace.setId(workspaceId);
-        workspace.setName("WS 1");
-        workspace.setStatus("active");
+        workspace.setStatus(Constants.Status.ACTIVE);
+        WorkspaceUser membership = new WorkspaceUser();
+        membership.setId(membershipId);
+        membership.setUserId(userId);
+        membership.setWorkspaceId(workspaceId);
+        membership.setLastAccessedAt(previousAccess);
 
-        Project defaultProject = new Project();
-        defaultProject.setId(defaultProjectId);
-        defaultProject.setName("Default Project");
+        when(userMapper.selectById(userId)).thenReturn(user);
+        when(workspaceMapper.selectById(workspaceId)).thenReturn(workspace);
+        when(workspaceUserMapper.findByWorkspaceIdAndUserId(workspaceId, userId)).thenReturn(membership);
 
-        doReturn(new PageResult<>(List.of(wu), 1L))
-                .when(workspaceUserMapper).findPageByUserId(any(PageParam.class), any(UUID.class));
-        when(workspaceMapper.listByIds(List.of(workspaceId))).thenReturn(List.of(workspace));
-        when(workspaceUserMapper.countByWorkspaceId(workspaceId)).thenReturn(4L);
-        when(projectMapper.countByWorkspaceId(workspaceId)).thenReturn(6L);
-        when(projectMapper.listByIds(List.of(defaultProjectId))).thenReturn(List.of(defaultProject));
+        myWorkspaceService.setActiveWorkspace(userId, workspaceId);
 
-        PageResult<WorkspaceMyRespDTO> result = myWorkspaceService.getMyWorkspacePage(userId, 1, 12);
+        ArgumentCaptor<SysUser> userUpdateCaptor = ArgumentCaptor.forClass(SysUser.class);
+        ArgumentCaptor<WorkspaceUser> membershipUpdateCaptor = ArgumentCaptor.forClass(WorkspaceUser.class);
+        verify(userMapper).updateById(userUpdateCaptor.capture());
+        verify(workspaceUserMapper).updateById(membershipUpdateCaptor.capture());
 
-        assertEquals(1, result.getList().size());
-        assertEquals(4L, result.getList().get(0).getMemberCount());
-        // projectCount 曾被硬编码为 0，须来自 project 表真实统计
-        assertEquals(6L, result.getList().get(0).getProjectCount());
-        // defaultProjectName 曾缺失填充
-        assertEquals("Default Project", result.getList().get(0).getDefaultProjectName());
+        SysUser userUpdate = userUpdateCaptor.getValue();
+        assertEquals(userId, userUpdate.getId());
+        assertEquals(workspaceId.toString(), userUpdate.getLastActiveWorkspaceId());
+        assertNull(userUpdate.getUsername());
+        assertNull(userUpdate.getName());
+
+        WorkspaceUser membershipUpdate = membershipUpdateCaptor.getValue();
+        assertEquals(membershipId, membershipUpdate.getId());
+        assertNotNull(membershipUpdate.getLastAccessedAt());
+        assertTrue(membershipUpdate.getLastAccessedAt().isAfter(previousAccess));
+        assertNull(membershipUpdate.getUserId());
+        assertNull(membershipUpdate.getWorkspaceId());
+        assertNull(membershipUpdate.getWorkspaceRole());
+    }
+
+    @Test
+    void setActiveWorkspace_nonMember_rejectsWithoutUpdates() {
+        UUID userId = UUID.randomUUID();
+        UUID workspaceId = UUID.randomUUID();
+        SysUser user = new SysUser();
+        user.setId(userId);
+        Workspace workspace = new Workspace();
+        workspace.setId(workspaceId);
+        workspace.setStatus(Constants.Status.ACTIVE);
+        when(userMapper.selectById(userId)).thenReturn(user);
+        when(workspaceMapper.selectById(workspaceId)).thenReturn(workspace);
+        when(workspaceUserMapper.findByWorkspaceIdAndUserId(workspaceId, userId)).thenReturn(null);
+
+        ServiceException exception = assertThrows(ServiceException.class,
+                () -> myWorkspaceService.setActiveWorkspace(userId, workspaceId));
+
+        assertEquals(ErrorCodeConstants.NO_PERMISSION.code(), exception.getCode());
+        verify(userMapper, never()).updateById(org.mockito.ArgumentMatchers.any(SysUser.class));
+        verify(workspaceUserMapper, never()).updateById(org.mockito.ArgumentMatchers.any(WorkspaceUser.class));
+    }
+
+    @Test
+    void setActiveWorkspace_dissolvedWorkspace_rejectsWithoutUpdates() {
+        UUID userId = UUID.randomUUID();
+        UUID workspaceId = UUID.randomUUID();
+        SysUser user = new SysUser();
+        user.setId(userId);
+        Workspace workspace = new Workspace();
+        workspace.setId(workspaceId);
+        workspace.setStatus(Constants.Status.DISSOLVED);
+        WorkspaceUser membership = new WorkspaceUser();
+        membership.setId(UUID.randomUUID());
+        when(userMapper.selectById(userId)).thenReturn(user);
+        when(workspaceMapper.selectById(workspaceId)).thenReturn(workspace);
+        when(workspaceUserMapper.findByWorkspaceIdAndUserId(workspaceId, userId)).thenReturn(membership);
+
+        ServiceException exception = assertThrows(ServiceException.class,
+                () -> myWorkspaceService.setActiveWorkspace(userId, workspaceId));
+
+        assertEquals(ErrorCodeConstants.WORKSPACE_DISSOLVED.code(), exception.getCode());
+        verify(userMapper, never()).updateById(org.mockito.ArgumentMatchers.any(SysUser.class));
+        verify(workspaceUserMapper, never()).updateById(org.mockito.ArgumentMatchers.any(WorkspaceUser.class));
     }
 }

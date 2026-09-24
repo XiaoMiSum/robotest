@@ -24,6 +24,7 @@ import java.util.UUID;
  * 使 Controller 不再直接 {@code @RequestHeader} 读取上下文头。</p>
  *
  * <p>严格拒绝（用户确认）：业务路径缺少必要上下文头或头格式非法即抛 4xx 业务异常。
+ * {@code /api/workspaces/active} 使用请求头选择目标空间；{@code /api/workspaces} 仅用于列表选择，头可选。
  * 豁免路径（不强制头）：{@code /api/auth/permissions}（可选头，无空间时返回系统权限）、
  * 邀请公开接口（verify/check-email/join）、{@code /api/workspace/ai/status}（全局开关，
  * AI 基础设施详细设计 3.2.1 不依赖工作空间上下文）。匿名请求（无 LoginUser）不拦截。</p>
@@ -35,6 +36,7 @@ public class ContextHeaderInterceptor implements HandlerInterceptor {
 
     private static final String HEADER_WORKSPACE = "X-Active-Workspace";
     private static final String HEADER_PROJECT = "X-Active-Project";
+    private static final String ACTIVE_WORKSPACE_PATH = "/api/workspaces/active";
 
     @Override
     public boolean preHandle(@Nonnull HttpServletRequest request, @Nonnull HttpServletResponse response,
@@ -44,16 +46,20 @@ public class ContextHeaderInterceptor implements HandlerInterceptor {
             return true;
         }
 
+        String path = request.getRequestURI();
         UUID workspaceId = parseHeader(request.getHeader(HEADER_WORKSPACE), HEADER_WORKSPACE, request);
-        UUID projectId = parseHeader(request.getHeader(HEADER_PROJECT), HEADER_PROJECT, request);
+        UUID projectId = path.equals(ACTIVE_WORKSPACE_PATH)
+                ? null
+                : parseHeader(request.getHeader(HEADER_PROJECT), HEADER_PROJECT, request);
         loginUser.setActiveWorkspaceId(workspaceId);
         loginUser.setActiveProjectId(projectId);
 
-        String path = request.getRequestURI();
         if (isExempt(path)) {
             return true;
         }
-        if (path.startsWith("/api/project/")) {
+        if (path.equals(ACTIVE_WORKSPACE_PATH)) {
+            require(workspaceId, HEADER_WORKSPACE);
+        } else if (path.startsWith("/api/project/")) {
             require(workspaceId, HEADER_WORKSPACE);
             require(projectId, HEADER_PROJECT);
         } else if (path.startsWith("/api/workspace/")) {
