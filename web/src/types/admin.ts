@@ -128,6 +128,7 @@ export interface DashboardStats {
 export interface WorkspaceMember {
   userId: string
   username: string
+  name: string
   email: string
   avatarUrl?: string
   workspaceRole: string
