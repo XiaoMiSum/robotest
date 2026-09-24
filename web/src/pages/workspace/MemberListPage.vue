@@ -438,21 +438,29 @@ onBeforeUnmount(() => {
         <p class="member-page__subtitle">管理空间成员与角色，通过邀请链接扩招</p>
       </div>
       <div class="member-page__head-actions">
+        <el-button v-if="canManageMember" type="primary" @click="openAddDialog">
+          <el-icon><Plus /></el-icon>邀请成员
+        </el-button>
+        <el-button v-if="canManageInvitation" @click="openCreateDialog">
+          <el-icon><Plus /></el-icon>生成链接
+        </el-button>
         <el-button
           v-if="canManageInvitation"
+          link
           :loading="invitationsLoading || copyingLatestInvitation"
           @click="handleCopyLatestInvitation"
         >
           <el-icon><Link /></el-icon>复制邀请链接
         </el-button>
-        <el-button v-if="canManageMember" type="primary" @click="openAddDialog">
-          <el-icon><Plus /></el-icon>邀请成员
-        </el-button>
       </div>
     </header>
 
-    <el-card shadow="never" class="member-page__card">
-      <el-tabs v-model="activeTab" class="member-page__tabs" @tab-change="handleTabChange">
+    <el-tabs
+      v-model="activeTab"
+      type="border-card"
+      class="member-page__tabs"
+      @tab-change="handleTabChange"
+    >
         <el-tab-pane label="成员列表" name="members">
           <section class="member-page__panel">
             <header class="member-page__panel-head">
@@ -587,9 +595,6 @@ onBeforeUnmount(() => {
                 <h2 class="member-page__panel-title">邀请链接</h2>
                 <span class="member-page__panel-description">通过链接加入的成员按默认角色进入</span>
               </div>
-              <el-button type="primary" @click="openCreateDialog">
-                <el-icon><Plus /></el-icon>生成链接
-              </el-button>
             </header>
 
             <el-table
@@ -674,8 +679,7 @@ onBeforeUnmount(() => {
             </footer>
           </section>
         </el-tab-pane>
-      </el-tabs>
-    </el-card>
+    </el-tabs>
 
     <el-dialog v-model="addDialogVisible" title="邀请成员" width="520px">
       <p class="member-page__dialog-tip">新成员将使用空间成员角色加入。</p>
@@ -784,36 +788,16 @@ onBeforeUnmount(() => {
   gap: var(--space-sm);
 }
 
-.member-page__card {
-  overflow: hidden;
-  border-radius: var(--radius-lg);
-}
-
-.member-page__card :deep(.el-card__body) {
-  padding: 0;
+.member-page__tabs {
+  min-width: 0;
 }
 
 .member-page__tabs :deep(.el-tabs__header) {
-  margin: 0;
-  padding: 0 var(--card-pad);
-  border-bottom: 1px solid var(--color-neutral-200);
+  margin-bottom: 0;
 }
 
-.member-page__tabs :deep(.el-tabs__nav-wrap::after) {
-  display: none;
-}
-
-.member-page__tabs :deep(.el-tabs__item) {
-  height: 52px;
-  padding: 0 var(--space-md);
-  color: var(--color-neutral-500);
-  font-size: var(--font-size-sm);
-  font-weight: 500;
-}
-
-.member-page__tabs :deep(.el-tabs__item.is-active) {
-  color: var(--color-primary-600);
-  font-weight: 600;
+.member-page__tabs :deep(.el-tabs__content) {
+  padding: 0;
 }
 
 .member-page__panel {

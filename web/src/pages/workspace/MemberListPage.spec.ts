@@ -25,6 +25,18 @@ describe('MemberListPage demo structure', () => {
     expect(pageSource).toContain('formatDateTime(row.expiresAt)')
   })
 
+  it('使用 border-card 标签页并将生成链接操作放在页头', () => {
+    expect(pageSource).toContain('type="border-card"')
+    expect(pageSource).toContain('class="member-page__tabs"')
+    expect(pageSource).toContain('.member-page__tabs :deep(.el-tabs__content)')
+    expect(pageSource).toContain('生成链接')
+    expect(pageSource).toContain('member-page__head-actions')
+    expect(pageSource).toContain('<el-button v-if="canManageMember" type="primary" @click="openAddDialog">')
+    expect(pageSource).toContain('<el-button v-if="canManageInvitation" @click="openCreateDialog">')
+    expect(pageSource).toContain('link\n          :loading="invitationsLoading || copyingLatestInvitation"')
+    expect(pageSource).not.toContain('<el-card shadow="never" class="member-page__card"')
+  })
+
   it('邀请链接使用脱敏预览和按需复制接口', () => {
     expect(pageSource).toContain('row.tokenPreview')
     expect(pageSource).toContain('fetchInvitationCopyLink')

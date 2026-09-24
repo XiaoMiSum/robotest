@@ -72,7 +72,7 @@ describe('useProjectListPage', () => {
       keyword: '核心',
       status: 'archived',
       pageNo: 1,
-      pageSize: 12,
+      pageSize: 20,
     })
     expect(mocks.fetchProjectStatusCounts).toHaveBeenCalledWith({ keyword: '核心' })
     expect(sut.projects.value[0]?.name).toBe('核心功能测试')
@@ -94,6 +94,32 @@ describe('useProjectListPage', () => {
     } finally {
       vi.useRealTimers()
     }
+  })
+
+  it('滚动加载下一页并追加项目', async () => {
+    const firstPage = Array.from({ length: 20 }, (_, index) =>
+      project({ id: `project-${index + 1}`, name: `项目${index + 1}` }),
+    )
+    mocks.fetchProjects.mockResolvedValueOnce(page({ list: firstPage, total: 21 }))
+    mocks.fetchProjects.mockResolvedValueOnce(
+      page({ list: [project({ id: 'project-21', name: '项目21' })], total: 21 }),
+    )
+    const sut = useProjectListPage({ autoLoad: false })
+
+    await sut.loadProjects()
+    expect(sut.hasMore.value).toBe(true)
+
+    await sut.loadMoreProjects()
+
+    expect(mocks.fetchProjects).toHaveBeenLastCalledWith({
+      keyword: undefined,
+      status: 'active',
+      pageNo: 2,
+      pageSize: 20,
+    })
+    expect(sut.projects.value).toHaveLength(21)
+    expect(sut.projects.value[20]?.name).toBe('项目21')
+    expect(sut.hasMore.value).toBe(false)
   })
 
   it('忽略晚到的旧列表响应', async () => {
