@@ -18,6 +18,7 @@ import {
   resolveDefaultBaseUrl,
   resolveModelHints,
   resolveUniqueParams,
+  validateChatModelForm,
 } from '@/composables/admin/aiConfigForm'
 
 /**
@@ -120,6 +121,11 @@ export function useAiChatModels(deps: {
   }
 
   async function handleModelSave() {
+    const validationError = validateChatModelForm(modelForm, modelDialogMode.value)
+    if (validationError) {
+      ElMessage.error(validationError)
+      return
+    }
     let payload: AiChatModelSavePayload
     try {
       payload = buildModelPayload()
@@ -146,6 +152,11 @@ export function useAiChatModels(deps: {
   }
 
   async function handleModelDialogTest() {
+    const validationError = validateChatModelForm(modelForm, modelDialogMode.value)
+    if (validationError) {
+      ElMessage.error(validationError)
+      return
+    }
     testing.modelDialog = true
     try {
       const custom = deps.parsing.parseJsonObject(modelForm.customParams, '对话高级参数')

@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
+import type { FormInstance, FormRules } from 'element-plus'
 import type { AiProviderPreset, AiProviderUniqueParam, AiTask } from '@/types'
 
 export interface AiEmbeddingFormState {
@@ -34,6 +35,49 @@ const emit = defineEmits<{
   (e: 'open-rebuild'): void
   (e: 'retry-rebuild'): void
 }>()
+
+const formRef = ref<FormInstance>()
+
+function validateApiKey(
+  _rule: unknown,
+  value: unknown,
+  callback: (error?: Error) => void,
+): void {
+  if (!model.value.apiKeyConfigured && (typeof value !== 'string' || !value.trim())) {
+    callback(new Error('请输入 API 密钥'))
+    return
+  }
+  callback()
+}
+
+const rules: FormRules = {
+  provider: [{ required: true, message: '请选择供应商', trigger: [] }],
+  model: [{ required: true, whitespace: true, message: '请输入模型名', trigger: [] }],
+  baseUrl: [{ required: true, whitespace: true, message: '请输入服务地址', trigger: [] }],
+  dimension: [
+    { required: true, message: '请输入向量维度', trigger: [] },
+    { type: 'number', min: 1, max: 2000, message: '向量维度必须在 1-2000 之间', trigger: [] },
+  ],
+  apiKey: [{ validator: validateApiKey, trigger: [] }],
+}
+
+async function validateForm(): Promise<boolean> {
+  if (!formRef.value) return false
+  try {
+    await formRef.value.validate()
+    return true
+  } catch {
+    return false
+  }
+}
+
+async function handleSave(): Promise<void> {
+  if (await validateForm()) emit('save')
+}
+
+async function handleTest(): Promise<void> {
+  if (await validateForm()) emit('test')
+}
 
 // 卡头摘要仅在已配置时展示，未配置不拼残缺串
 const headSummary = computed(() => {
@@ -119,24 +163,31 @@ const semanticState = computed(() => {
         </span>
       </div>
     </template>
-    <div class="ai-embedding__body">
-      <el-form-item label="供应商">
+    <el-form
+      ref="formRef"
+      :model="model"
+      :rules="rules"
+      label-position="top"
+      class="ai-embedding__body"
+      @submit.prevent
+    >
+      <el-form-item label="供应商" prop="provider">
         <el-select v-model="model.provider" class="ai-embedding__control">
           <el-option v-for="p in providers" :key="p.key" :label="p.name" :value="p.key" />
         </el-select>
       </el-form-item>
-      <el-form-item label="模型名">
+      <el-form-item label="模型名" prop="model">
         <el-select v-model="model.model" class="ai-embedding__control" filterable allow-create default-first-option>
           <el-option v-for="m in modelHints" :key="m" :label="m" :value="m" />
         </el-select>
       </el-form-item>
-      <el-form-item label="服务地址">
+      <el-form-item label="服务地址" prop="baseUrl">
         <el-input v-model="model.baseUrl" class="ai-embedding__control" />
       </el-form-item>
-      <el-form-item label="向量维度">
+      <el-form-item label="向量维度" prop="dimension">
         <el-input-number v-model="model.dimension" :min="1" :max="2000" class="ai-embedding__control" />
       </el-form-item>
-      <el-form-item label="API 密钥" class="ai-embedding__full">
+      <el-form-item label="API 密钥" prop="apiKey" class="ai-embedding__full">
         <el-input
           v-model="model.apiKey"
           type="password"
@@ -159,12 +210,12 @@ const semanticState = computed(() => {
         </el-collapse-item>
       </el-collapse>
       <div class="ai-embedding__actions ai-embedding__full">
-        <el-button :loading="testing" @click="emit('test')">
+        <el-button :loading="testing" @click="handleTest">
           <el-icon><Connection /></el-icon>连通性测试
         </el-button>
-        <el-button type="primary" :loading="saving" @click="emit('save')">保存</el-button>
+        <el-button type="primary" :loading="saving" @click="handleSave">保存</el-button>
       </div>
-    </div>
+    </el-form>
 
     <el-dialog v-model="rebuildDialog" title="向量重建任务详情" width="520px">
       <template v-if="rebuildTask">
