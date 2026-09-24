@@ -1,12 +1,16 @@
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
-import { createWorkspace, fetchSimpleUserList, fetchWorkspaces } from '@/services/admin'
-import type { AdminWorkspace, UserSimple } from '@/types'
+import { ElMessage } from 'element-plus'
+import { fetchWorkspaces } from '@/services/admin'
+import { useAuthStore } from '@/stores/auth'
+import WorkspaceCreateDialog from '@/components/workspace/WorkspaceCreateDialog.vue'
+import type { AdminWorkspace } from '@/types'
 import { formatDateTime } from '@/utils/format'
 
 const router = useRouter()
+const authStore = useAuthStore()
+const canCreate = computed(() => authStore.hasPermission('workspace:create'))
 
 // 后端状态仅 active/dissolved 两态，且无按状态计数接口，故 segment 不展示计数
 const STATUS_OPTIONS = [
@@ -79,70 +83,15 @@ function handleRowClick(row: AdminWorkspace) {
 }
 
 const createDialogVisible = ref(false)
-const createFormRef = ref<FormInstance>()
-const createSubmitting = ref(false)
-const createForm = reactive({
-  name: '',
-  description: '',
-  adminUserId: '',
-})
-const createRules: FormRules = {
-  name: [
-    { required: true, message: '请输入工作空间名称', trigger: 'blur' },
-    { min: 2, max: 50, message: '名称长度需在 2-50 字符之间', trigger: 'blur' },
-  ],
-  adminUserId: [{ required: true, message: '请选择空间管理员', trigger: 'change' }],
-}
 
-const adminSearching = ref(false)
-const adminOptions = ref<UserSimple[]>([])
-
-// 只搜活跃用户（/users/simple 数据源），避免选中停用账户提交后被后端拒绝
-async function searchAdmin(keyword: string) {
-  if (!keyword) {
-    adminOptions.value = []
-    return
-  }
-  adminSearching.value = true
-  try {
-    adminOptions.value = await fetchSimpleUserList(keyword)
-  } catch {
-    adminOptions.value = []
-  } finally {
-    adminSearching.value = false
-  }
-}
-
-function openCreateDialog() {
-  createForm.name = ''
-  createForm.description = ''
-  createForm.adminUserId = ''
-  adminOptions.value = []
+function openCreateDialog(): void {
+  if (!canCreate.value) return
   createDialogVisible.value = true
 }
 
-async function submitCreate() {
-  if (!createFormRef.value) return
-  try {
-    await createFormRef.value.validate()
-  } catch {
-    return
-  }
-  createSubmitting.value = true
-  try {
-    const id = await createWorkspace({
-      name: createForm.name.trim(),
-      description: createForm.description.trim() || undefined,
-      adminUserId: createForm.adminUserId,
-    })
-    ElMessage.success('工作空间已创建')
-    createDialogVisible.value = false
-    goDetail(id)
-  } catch (err) {
-    ElMessage.error(err instanceof Error ? err.message : '创建工作空间失败')
-  } finally {
-    createSubmitting.value = false
-  }
+function handleCreated(id: string): void {
+  createDialogVisible.value = false
+  goDetail(id)
 }
 
 onMounted(loadWorkspaces)
@@ -155,7 +104,7 @@ onMounted(loadWorkspaces)
         <h1 class="workspace-list__title">空间管理</h1>
         <p class="workspace-list__desc">平台内全部工作空间及其规模</p>
       </div>
-      <el-button type="primary" @click="openCreateDialog">
+      <el-button v-if="canCreate" type="primary" @click="openCreateDialog">
         <el-icon><Plus /></el-icon>新建空间
       </el-button>
     </div>
@@ -252,47 +201,11 @@ onMounted(loadWorkspaces)
       </div>
     </section>
 
-    <el-dialog v-model="createDialogVisible" title="新建工作空间" width="480px">
-      <el-form ref="createFormRef" :model="createForm" :rules="createRules" label-width="80px">
-        <el-form-item label="名称" prop="name">
-          <el-input
-            v-model="createForm.name"
-            placeholder="请输入工作空间名称"
-            maxlength="50"
-            show-word-limit
-          />
-        </el-form-item>
-        <el-form-item label="管理员" prop="adminUserId">
-          <el-select
-            v-model="createForm.adminUserId"
-            filterable
-            remote
-            reserve-keyword
-            clearable
-            placeholder="输入姓名搜索（仅活跃用户）"
-            :remote-method="searchAdmin"
-            :loading="adminSearching"
-            style="width: 100%"
-          >
-            <el-option v-for="u in adminOptions" :key="u.id" :label="u.name" :value="u.id" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="描述" prop="description">
-          <el-input
-            v-model="createForm.description"
-            type="textarea"
-            :rows="3"
-            placeholder="请输入工作空间描述（可选）"
-            maxlength="200"
-            show-word-limit
-          />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="createDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="createSubmitting" @click="submitCreate">确定</el-button>
-      </template>
-    </el-dialog>
+    <WorkspaceCreateDialog
+      v-if="canCreate"
+      v-model="createDialogVisible"
+      @created="handleCreated"
+    />
   </div>
 </template>
 
