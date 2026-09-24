@@ -28,7 +28,7 @@
 - 《软件测试平台概要设计说明书》
 - 《系统管理模块页面交互设计》（`docs/05-interaction-design/01-readme.md`）
 - 《审计查询详细设计说明书》（`docs/04-detailed-design/20-audit-query.md`）
-- `docs/06-spec/05-api.md`（URL/方法/分页规范）、`docs/06-spec/04-backend.md`（分层、Mapper 封装、部分更新）、`docs/06-spec/06-database.md`（DDL/索引规范）、`docs/06-spec/03-frontend.md`
+- `docs/00-spec/05-api.md`（URL/方法/分页规范）、`docs/00-spec/04-backend.md`（分层、Mapper 封装、部分更新）、`docs/00-spec/06-database.md`（DDL/索引规范）、`docs/00-spec/03-frontend.md`
 - 示例页面 `web/demos/admin/dashboard.html`
 
 ---
@@ -267,7 +267,7 @@ AdminLayout
 
 ### 2.9 数据绑定与格式化
 
-- 时间一律走 `utils/format.ts`：`formatDateTime(generatedAt)`、`formatDateTime(createdAt)`、图表轴标签用 `MM-dd`（由 `date` 字符串截取或 `formatShortDateTime` 派生），后端 UTC+0 → 本地时区（`docs/06-spec/03-frontend.md` §8）。
+- 时间一律走 `utils/format.ts`：`formatDateTime(generatedAt)`、`formatDateTime(createdAt)`、图表轴标签用 `MM-dd`（由 `date` 字符串截取或 `formatShortDateTime` 派生），后端 UTC+0 → 本地时区（`docs/00-spec/03-frontend.md` §8）。
 - 图表颜色使用既有设计令牌（`variables.scss`）：折线 `--color-primary-500`（#409eff）、面积 `rgba(51,112,255,.08)`、环图三段 `--color-success` / `--color-info` / `--color-danger`，不在组件内硬编码新色值。
 
 

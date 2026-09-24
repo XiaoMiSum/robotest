@@ -148,10 +148,10 @@ bash scripts/validate.sh --all
 
 ## 11. 参考
 
-- API 契约：`docs/06-spec/05-api.md`
-- 安全基线：`docs/06-spec/10-security.md`
-- 构建与 CI：`docs/06-spec/09-deploy.md`
-- AI 任务流程：`docs/06-spec/12-task-template.md`
+- API 契约：`docs/00-spec/05-api.md`
+- 安全基线：`docs/00-spec/10-security.md`
+- 构建与 CI：`docs/00-spec/09-deploy.md`
+- AI 任务流程：`docs/00-spec/12-task-template.md`
 
 ---
 

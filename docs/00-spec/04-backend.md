@@ -38,8 +38,8 @@ Controller → Service → Mapper / 外部适配器
 
 框架响应、异常和分页的唯一契约分别见：
 
-- `docs/06-spec/05-api.md`
-- `docs/06-spec/11-migoo-framework.md`
+- `docs/00-spec/05-api.md`
+- `docs/00-spec/11-migoo-framework.md`
 
 ## 3. 各层职责
 
@@ -281,10 +281,10 @@ Service 负责业务判断，Mapper 负责可复用的数据访问意图。
 
 ## 11. 参考
 
-- API 契约：`docs/06-spec/05-api.md`
-- 数据库：`docs/06-spec/06-database.md`
-- migoo 框架：`docs/06-spec/11-migoo-framework.md`
-- 安全：`docs/06-spec/10-security.md`
+- API 契约：`docs/00-spec/05-api.md`
+- 数据库：`docs/00-spec/06-database.md`
+- migoo 框架：`docs/00-spec/11-migoo-framework.md`
+- 安全：`docs/00-spec/10-security.md`
 
 ---
 

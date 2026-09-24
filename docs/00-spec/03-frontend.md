@@ -274,11 +274,11 @@ export interface PageResult<T> {
 
 ## 13. 参考
 
-- API 契约：`docs/06-spec/05-api.md`
-- 质量门禁：`docs/06-spec/07-quality.md`
-- 通用设计：`docs/06-spec/18-frontend-design.md`
-- 页面开发：`docs/06-spec/19-page-development.md`
-- 滚动专项：`docs/06-spec/13-scroll-container.md`
+- API 契约：`docs/00-spec/05-api.md`
+- 质量门禁：`docs/00-spec/07-quality.md`
+- 通用设计：`docs/00-spec/18-frontend-design.md`
+- 页面开发：`docs/00-spec/19-page-development.md`
+- 滚动专项：`docs/00-spec/13-scroll-container.md`
 - 前端约定：`web/AGENTS.md`
 
 ---

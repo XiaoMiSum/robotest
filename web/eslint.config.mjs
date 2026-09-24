@@ -33,7 +33,7 @@ export default tseslint.config(
       'vue/no-mutating-props': ['error', { shallowOnly: true }],
     },
   },
-  // 层级门禁：依赖方向 pages → components → composables → services/stores，详见 docs/06-spec/03-frontend.md 3.4
+  // 层级门禁：依赖方向 pages → components → composables → services/stores，详见 docs/00-spec/03-frontend.md 3.4
   {
     files: ['src/components/**/*.{vue,ts}'],
     rules: {
@@ -43,11 +43,11 @@ export default tseslint.config(
           patterns: [
             {
               group: ['@/services', '@/services/*', '@/services/**'],
-              message: '组件不直接 import services：API 调用下沉到组件本地 composable（docs/06-spec/03-frontend.md 3.4）',
+              message: '组件不直接 import services：API 调用下沉到组件本地 composable（docs/00-spec/03-frontend.md 3.4）',
             },
             {
               group: ['@/pages', '@/pages/*', '@/pages/**'],
-              message: '组件不得依赖 pages（docs/06-spec/03-frontend.md 3.4）',
+              message: '组件不得依赖 pages（docs/00-spec/03-frontend.md 3.4）',
             },
           ],
         },
@@ -63,7 +63,7 @@ export default tseslint.config(
           patterns: [
             {
               group: ['@/pages', '@/pages/*', '@/pages/**'],
-              message: 'composables 不得依赖 pages（docs/06-spec/03-frontend.md 3.4）',
+              message: 'composables 不得依赖 pages（docs/00-spec/03-frontend.md 3.4）',
             },
           ],
         },
@@ -92,7 +92,7 @@ export default tseslint.config(
                 '@/stores/*',
                 '@/stores/**',
               ],
-              message: 'services 不得依赖上层模块（docs/06-spec/03-frontend.md 3.4）',
+              message: 'services 不得依赖上层模块（docs/00-spec/03-frontend.md 3.4）',
             },
           ],
         },
@@ -118,7 +118,7 @@ export default tseslint.config(
                 '@/composables/*',
                 '@/composables/**',
               ],
-              message: 'stores 不得依赖 components/pages/composables（docs/06-spec/03-frontend.md 3.4）',
+              message: 'stores 不得依赖 components/pages/composables（docs/00-spec/03-frontend.md 3.4）',
             },
           ],
         },

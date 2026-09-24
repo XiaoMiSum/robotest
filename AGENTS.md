@@ -1,7 +1,7 @@
 # AGENTS.md — AI 辅助开发约定（总则）
 
 > 本文件为 AI 编程助手（及人类开发者）的快速参考指南。  
-> 详细规范请查阅 `docs/06-spec/` 目录下的对应文档。  
+> 详细规范请查阅 `docs/00-spec/` 目录下的对应文档。
 > 端专属约定见 `web/AGENTS.md` 与 `server/AGENTS.md`。  
 > 文档管理与版本规范见 `docs/AGENTS.md`（文档专用 AGENT）。
 
@@ -82,13 +82,13 @@ bash scripts/deploy-merged.sh
 | C3  | 业务异常统一通过 migoo `ServiceExceptionUtil.get(ErrorCode)` 抛出，使用 10 位错误码 | 代码审查      |
 | C4  | 上下文标识（如 workspaceId）**禁止**出现在 URL 或请求体中，仅通过请求头传递      | 代码审查      |
 | C5  | 数据库每表必须有 `id`、`created_at`、`updated_at`、`is_deleted`（逻辑删除），UUID 使用框架默认策略，禁止物理外键 | 数据库审查     |
-| C7  | Git 提交格式：`<emoji> <type>(<scope>): <description>`（emoji 对照见 `docs/06-spec/08-workflow.md`），一个提交只做一件事   | 审查 squash |
+| C7  | Git 提交格式：`<emoji> <type>(<scope>): <description>`（emoji 对照见 `docs/00-spec/08-workflow.md`），一个提交只做一件事   | 审查 squash |
 | C9  | 索引规范：关联字段（逻辑外键）与高频查询条件字段必须建索引，联合索引将区分度高的字段放左侧，单表索引原则上不超过 5 个 | 数据库审查     |
 | C10 | 后端优先使用 migoo 框架提供的基础功能（验证注解、工具类等），禁止重复造轮子       | 代码审查      |
 | C11 | 后端数据更新只更新实际传入字段（部分更新），禁止整行查询结果作 `updateById` 载体   | 代码审查      |
 
 > 端专属约定（C1 前端类型安全、C2 Controller 职责、C3 异常规范、C6 注释规范、C8 覆盖率）及编码示例见各端 `AGENTS.md`；C10 / C11 为后端专属，落地口径见 `server/AGENTS.md`。
-> 详细规范索引：`docs/06-spec/02-overview.md`、`docs/06-spec/03-frontend.md`、`docs/06-spec/04-backend.md`、`docs/06-spec/05-api.md`、`docs/06-spec/06-database.md`、`docs/06-spec/07-quality.md`、`docs/06-spec/08-workflow.md`、`docs/06-spec/09-deploy.md`、`docs/06-spec/10-security.md`、`docs/06-spec/11-migoo-framework.md`、`docs/06-spec/12-task-template.md`、`docs/06-spec/13-scroll-container.md`、`docs/06-spec/14-improvement-backlog.md`、`docs/06-spec/15-realtime-protocol.md`、`docs/06-spec/16-deployment-runbook.md`。
+> 详细规范索引：`docs/00-spec/02-overview.md`、`docs/00-spec/03-frontend.md`、`docs/00-spec/04-backend.md`、`docs/00-spec/05-api.md`、`docs/00-spec/06-database.md`、`docs/00-spec/07-quality.md`、`docs/00-spec/08-workflow.md`、`docs/00-spec/09-deploy.md`、`docs/00-spec/10-security.md`、`docs/00-spec/11-migoo-framework.md`、`docs/00-spec/12-task-template.md`、`docs/00-spec/13-scroll-container.md`、`docs/00-spec/14-improvement-backlog.md`、`docs/00-spec/15-realtime-protocol.md`、`docs/00-spec/16-deployment-runbook.md`。
 
 ---
 
@@ -106,7 +106,7 @@ bash scripts/deploy-merged.sh
 ### 6.1 执行步骤
 
 1. **理解**  
-   - 阅读相关 `docs/06-spec/` 规范（优先），再阅读 `docs/01-requirements/`、`docs/02-high-level-design/`、`docs/03-architecture/`、`docs/04-detailed-design/`、`docs/05-interaction-design/` 中对应的业务文档。  
+   - 阅读相关 `docs/00-spec/` 规范（优先），再阅读 `docs/01-requirements/`、`docs/02-high-level-design/`、`docs/03-architecture/`、`docs/04-detailed-design/`、`docs/05-interaction-design/` 中对应的业务文档。
    - 确认需求涉及的前端/后端范围、数据模型、API 变更。
 
 2. **一致性评估** ← **文档闸门，不符必须先由用户确认**  
@@ -133,7 +133,7 @@ bash scripts/deploy-merged.sh
 6. **验证**  
    - 运行对应端的 lint、类型检查、单元测试（参见第 3 节命令）。  
    - 确保覆盖率满足要求（C8）。  
-   - 手动测试关键路径（使用 `curl` 或前端界面，参考 `docs/06-spec/16-deployment-runbook.md`）。
+   - 手动测试关键路径（使用 `curl` 或前端界面，参考 `docs/00-spec/16-deployment-runbook.md`）。
 
 7. **自检**  
    - 逐条核对核心约定（C1–C11），确认未引入违规。  
@@ -177,7 +177,7 @@ bash scripts/deploy-merged.sh
 
 ### 6.3 工具与脚本
 
-- 任务执行模板：`docs/06-spec/12-task-template.md` — 编码前必须按模板填写理解、一致性评估、探查、方案
+- 任务执行模板：`docs/00-spec/12-task-template.md` — 编码前必须按模板填写理解、一致性评估、探查、方案
 - 质量验证脚本：`bash scripts/validate.sh` — 提交前运行，检查提交格式、lint、typecheck、test
   - `bash scripts/validate.sh --frontend` 仅检查前端
   - `bash scripts/validate.sh --backend` 仅检查后端
@@ -202,7 +202,7 @@ bash scripts/deploy-merged.sh
 
 当信息冲突时，以更高优先级为准：
 
-1. **`docs/06-spec/*.md`** — 工程规范（最高，不可违背）  
+1. **`docs/00-spec/*.md`** — 工程规范（最高，不可违背）
 2. **`docs/03-architecture/*.md`** — 架构设计与技术选型依据  
 3. **`docs/04-detailed-design/*.md`** + **`docs/02-high-level-design/*.md`** — 业务逻辑与数据流依据  
 4. **`docs/01-requirements/*.md`** — 功能性需求来源  
@@ -217,7 +217,7 @@ bash scripts/deploy-merged.sh
 
 - 所有 API 变更应先后端后前端，通过 OpenAPI 文档同步（`springdoc-openapi`）。  
 - 跨端消息格式（WebSocket）需前后端共同确认 handler 匹配。  
-- 若遇不确定性，优先查阅 `docs/06-spec/` 或向用户提问，不要臆断。  
+- 若遇不确定性，优先查阅 `docs/00-spec/` 或向用户提问，不要臆断。
 - 分支策略：`master` ← `develop` ← `feature/*` / `fix/*` / `hotfix/*` / `release/*`，所有合并走 PR。
 
 ---

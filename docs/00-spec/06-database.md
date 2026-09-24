@@ -146,9 +146,9 @@ MySQL 内容仅作为迁移和兼容参考：
 
 ## 9. 参考
 
-- API 分页和上下文：`docs/06-spec/05-api.md`
-- MyBatis-Plus 和框架主键：`docs/06-spec/11-migoo-framework.md`
-- 部分更新和查询封装：`docs/06-spec/04-backend.md`
+- API 分页和上下文：`docs/00-spec/05-api.md`
+- MyBatis-Plus 和框架主键：`docs/00-spec/11-migoo-framework.md`
+- 部分更新和查询封装：`docs/00-spec/04-backend.md`
 
 ---
 
