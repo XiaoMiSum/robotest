@@ -8,7 +8,7 @@ import {
   removeRoleUser,
   removeWorkspaceRoleUser,
 } from '@/services/admin'
-import type { AdminUser, RoleWorkspaceUser } from '@/types'
+import type { AdminUser, PageResult, RoleWorkspaceUser } from '@/types'
 
 export function useRoleUsers(getRoleId: () => string, getRoleType: () => string) {
   const loading = ref(false)
@@ -25,26 +25,50 @@ export function useRoleUsers(getRoleId: () => string, getRoleType: () => string)
 
   const isWorkspaceRole = () => getRoleType() === 'workspace'
 
+  type RoleUserPage = PageResult<AdminUser> | PageResult<RoleWorkspaceUser>
+
+  async function fetchRoleUserPage(): Promise<RoleUserPage> {
+    if (isWorkspaceRole()) {
+      return fetchRoleWorkspaceUsers(getRoleId(), query.pageNo, query.pageSize)
+    }
+    return fetchUsers({
+      roleId: getRoleId(),
+      pageNo: query.pageNo,
+      pageSize: query.pageSize,
+    })
+  }
+
   async function load() {
     if (!getRoleId()) return
     loading.value = true
     try {
-      if (isWorkspaceRole()) {
-        workspaceUsers.value = await fetchRoleWorkspaceUsers(getRoleId())
-      } else {
-        const page = await fetchUsers({
-          roleId: getRoleId(),
-          pageNo: query.pageNo,
-          pageSize: query.pageSize,
-        })
-        users.value = page.list
-        total.value = page.total
+      let page = await fetchRoleUserPage()
+      if (page.list.length === 0 && query.pageNo > 1) {
+        query.pageNo = page.total > 0 ? Math.max(1, Math.ceil(page.total / query.pageSize)) : 1
+        page = await fetchRoleUserPage()
       }
+      if (isWorkspaceRole()) {
+        workspaceUsers.value = page.list as RoleWorkspaceUser[]
+      } else {
+        users.value = page.list as AdminUser[]
+      }
+      total.value = page.total
     } catch (err) {
       ElMessage.error(err instanceof Error ? err.message : '加载关联用户失败')
     } finally {
       loading.value = false
     }
+  }
+
+  function handlePageChange(pageNo: number) {
+    query.pageNo = pageNo
+    void load()
+  }
+
+  function handlePageSizeChange(pageSize: number) {
+    query.pageSize = pageSize
+    query.pageNo = 1
+    void load()
   }
 
   async function handleAddUsers(userIds: string[], workspaceIds?: string[]) {
@@ -61,7 +85,7 @@ export function useRoleUsers(getRoleId: () => string, getRoleType: () => string)
       ElMessage.success('已添加用户')
       pickerVisible.value = false
       query.pageNo = 1
-      load()
+      await load()
     } catch (err) {
       ElMessage.error(err instanceof Error ? err.message : '添加用户失败')
     }
@@ -78,7 +102,7 @@ export function useRoleUsers(getRoleId: () => string, getRoleType: () => string)
     try {
       await removeRoleUser(getRoleId(), user.id)
       ElMessage.success('已移除')
-      load()
+      await load()
     } catch (err) {
       ElMessage.error(err instanceof Error ? err.message : '移除失败')
     }
@@ -100,7 +124,7 @@ export function useRoleUsers(getRoleId: () => string, getRoleType: () => string)
       try {
         await removeWorkspaceRoleUser(getRoleId(), user.userId, ws.workspaceId)
         ElMessage.success('已移除')
-        load()
+        await load()
       } catch (err) {
         ElMessage.error(err instanceof Error ? err.message : '移除失败')
       }
@@ -125,17 +149,20 @@ export function useRoleUsers(getRoleId: () => string, getRoleType: () => string)
       )
       ElMessage.success('已移除')
       wsRemoveVisible.value = false
-      load()
+      await load()
     } catch (err) {
       ElMessage.error(err instanceof Error ? err.message : '移除失败')
     }
   }
 
   watch(
-    () => getRoleId(),
+    () => [getRoleId(), getRoleType()],
     () => {
       query.pageNo = 1
-      load()
+      users.value = []
+      workspaceUsers.value = []
+      total.value = 0
+      void load()
     },
     { immediate: true },
   )
@@ -152,6 +179,8 @@ export function useRoleUsers(getRoleId: () => string, getRoleType: () => string)
     wsRemoveSelected,
     isWorkspaceRole,
     load,
+    handlePageChange,
+    handlePageSizeChange,
     handleAddUsers,
     handleRemove,
     handleRemoveWorkspace,
