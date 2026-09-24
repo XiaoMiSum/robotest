@@ -537,7 +537,7 @@ const {
   &__empty-row {
     text-align: center;
     color: var(--color-neutral-300);
-    padding: 24px 0 !important;
+    padding: 24px 0;
     font-size: 13px;
   }
 }

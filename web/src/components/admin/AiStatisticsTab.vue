@@ -180,7 +180,7 @@ const failRateText = computed(() => {
 
 .ai-statistics-tab
   :deep(.el-table--striped .el-table__body tr.el-table__row--striped td.el-table__cell) {
-  background: var(--color-neutral-25) !important;
+  background: var(--color-neutral-25);
 }
 
 .ai-statistics-tab :deep(.el-table td.el-table__cell .cell) {

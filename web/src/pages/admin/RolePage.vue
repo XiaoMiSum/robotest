@@ -151,9 +151,13 @@ function handleCleared() {
 }
 </style>
 
-<style>
-/* 卡片壳由页面与子组件共用；scoped 样式无法命中子组件子树，故此全局定义（.role-card 命名空间限定作用域） */
-.role-card {
+<style scoped lang="scss">
+/*
+ * CODE-008：RoleTreePanel 的子树由子组件持有，父组件需用 :deep() 命中共享卡片壳；
+ * 这样共享规则仍限制在角色管理页，不需要全局选择器。
+ * 规则来源：docs/00-spec/10-engineering/01-frontend.md §8。
+ */
+:deep(.role-card) {
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -163,7 +167,7 @@ function handleCleared() {
   box-shadow: var(--shadow-card);
 }
 
-.role-card__head {
+:deep(.role-card__head) {
   flex-shrink: 0;
   display: flex;
   align-items: center;
@@ -173,7 +177,7 @@ function handleCleared() {
   border-bottom: 1px solid var(--color-neutral-100);
 }
 
-.role-card__title {
+:deep(.role-card__title) {
   margin: 0;
   display: flex;
   align-items: baseline;
@@ -184,13 +188,13 @@ function handleCleared() {
   color: var(--color-neutral-900);
 }
 
-.role-card__subtitle {
+:deep(.role-card__subtitle) {
   font-size: var(--font-size-xs);
   font-weight: 400;
   color: var(--color-neutral-500);
 }
 
-.role-card__body {
+:deep(.role-card__body) {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
