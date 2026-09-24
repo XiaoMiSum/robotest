@@ -20,13 +20,14 @@ import {
   createInvitation,
   fetchInvitationCopyLink,
   fetchMembers,
+  fetchMyWorkspaceCounts,
   fetchMyWorkspaces,
   setActiveWorkspacePreference,
 } from './workspace'
 
 beforeEach(() => {
   vi.clearAllMocks()
-  mocks.get.mockResolvedValue({ list: [], total: 0, counts: { all: 0, managed: 0, archived: 0 } })
+  mocks.get.mockResolvedValue({ list: [], total: 0 })
   mocks.post.mockResolvedValue({ token: 'invite-token' })
   mocks.put.mockResolvedValue(undefined)
 })
@@ -41,6 +42,15 @@ describe('workspace service', () => {
       pageNo: 2,
       pageSize: 24,
     })
+  })
+
+  it('空间数量通过独立接口请求', () => {
+    mocks.get.mockResolvedValueOnce({ list: [], total: 0 })
+    mocks.get.mockResolvedValueOnce({ all: 6, managed: 2, archived: 1 })
+
+    void fetchMyWorkspaceCounts({ keyword: '质量' })
+
+    expect(mocks.get).toHaveBeenCalledWith('/workspaces/counts', { keyword: '质量' })
   })
 
   it('成员列表请求携带关键词、角色和分页参数', () => {
