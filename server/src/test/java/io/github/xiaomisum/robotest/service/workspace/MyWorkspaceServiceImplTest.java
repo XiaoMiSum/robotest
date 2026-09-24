@@ -3,7 +3,6 @@ package io.github.xiaomisum.robotest.service.workspace;
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.model.dto.request.workspace.MyWorkspaceQueryReqDTO;
-import io.github.xiaomisum.robotest.model.dto.response.workspace.WorkspaceMyPageRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.workspace.WorkspaceMyRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.workspace.WorkspaceMyScopeCountsDTO;
 import io.github.xiaomisum.robotest.model.entity.admin.SysUser;
@@ -20,6 +19,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import xyz.migoo.framework.common.exception.ServiceException;
+import xyz.migoo.framework.common.pojo.PageResult;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -75,18 +75,12 @@ class MyWorkspaceServiceImplTest {
         row.setCreatedAt(LocalDateTime.of(2026, 9, 18, 2, 24));
         row.setLastAccessedAt(LocalDateTime.of(2026, 9, 23, 8, 30));
 
-        WorkspaceMyScopeCountsDTO counts = new WorkspaceMyScopeCountsDTO();
-        counts.setAll(6L);
-        counts.setManaged(2L);
-        counts.setArchived(1L);
         when(myWorkspaceQueryMapper.selectPage(userId, "质量", "managed",
                 Constants.WorkspaceRole.ADMIN_ID, 12L, 12)).thenReturn(List.of(row));
         when(myWorkspaceQueryMapper.count(userId, "质量", "managed",
                 Constants.WorkspaceRole.ADMIN_ID)).thenReturn(1L);
-        when(myWorkspaceQueryMapper.countScopes(userId, "质量",
-                Constants.WorkspaceRole.ADMIN_ID)).thenReturn(counts);
 
-        WorkspaceMyPageRespDTO result = myWorkspaceService.getMyWorkspaces(userId, query);
+        PageResult<WorkspaceMyRespDTO> result = myWorkspaceService.getMyWorkspaces(userId, query);
 
         assertEquals(1L, result.getTotal());
         assertEquals(1, result.getList().size());
@@ -95,19 +89,14 @@ class MyWorkspaceServiceImplTest {
         assertEquals(6L, result.getList().get(0).getProjectCount());
         assertEquals(1024L, result.getList().get(0).getTestCaseCount());
         assertEquals("默认项目", result.getList().get(0).getDefaultProjectName());
-        assertEquals(6L, result.getCounts().getAll());
-        assertEquals(2L, result.getCounts().getManaged());
-        assertEquals(1L, result.getCounts().getArchived());
         verify(myWorkspaceQueryMapper).selectPage(userId, "质量", "managed",
                 Constants.WorkspaceRole.ADMIN_ID, 12L, 12);
         verify(myWorkspaceQueryMapper).count(userId, "质量", "managed",
                 Constants.WorkspaceRole.ADMIN_ID);
-        verify(myWorkspaceQueryMapper).countScopes(userId, "质量",
-                Constants.WorkspaceRole.ADMIN_ID);
     }
 
     @Test
-    void getMyWorkspaces_archivedScopeStillReturnsKeywordAwareCounts() {
+    void getMyWorkspaces_archivedScopeReturnsPageAndCountsAreLoadedSeparately() {
         UUID userId = UUID.randomUUID();
         MyWorkspaceQueryReqDTO query = new MyWorkspaceQueryReqDTO();
         query.setKeyword("旧空间");
@@ -124,11 +113,14 @@ class MyWorkspaceServiceImplTest {
         when(myWorkspaceQueryMapper.countScopes(userId, "旧空间",
                 Constants.WorkspaceRole.ADMIN_ID)).thenReturn(counts);
 
-        WorkspaceMyPageRespDTO result = myWorkspaceService.getMyWorkspaces(userId, query);
+        PageResult<WorkspaceMyRespDTO> result = myWorkspaceService.getMyWorkspaces(userId, query);
+        WorkspaceMyScopeCountsDTO countsResult = myWorkspaceService.getMyWorkspaceCounts(userId, "旧空间");
 
         assertTrue(result.getList().isEmpty());
         assertEquals(2L, result.getTotal());
-        assertEquals(3L, result.getCounts().getAll());
+        assertEquals(3L, countsResult.getAll());
+        assertEquals(1L, countsResult.getManaged());
+        assertEquals(2L, countsResult.getArchived());
         verify(myWorkspaceQueryMapper).countScopes(userId, "旧空间",
                 Constants.WorkspaceRole.ADMIN_ID);
     }
@@ -138,22 +130,14 @@ class MyWorkspaceServiceImplTest {
         UUID userId = UUID.randomUUID();
         MyWorkspaceQueryReqDTO query = new MyWorkspaceQueryReqDTO();
 
-        WorkspaceMyScopeCountsDTO counts = new WorkspaceMyScopeCountsDTO();
-        counts.setAll(2L);
-        counts.setManaged(1L);
-        counts.setArchived(1L);
         when(myWorkspaceQueryMapper.selectPage(userId, null, "all",
                 Constants.WorkspaceRole.ADMIN_ID, 0L, 12)).thenReturn(List.of());
         when(myWorkspaceQueryMapper.count(userId, null, "all",
                 Constants.WorkspaceRole.ADMIN_ID)).thenReturn(2L);
-        when(myWorkspaceQueryMapper.countScopes(userId, null,
-                Constants.WorkspaceRole.ADMIN_ID)).thenReturn(counts);
 
-        WorkspaceMyPageRespDTO result = myWorkspaceService.getMyWorkspaces(userId, query);
+        PageResult<WorkspaceMyRespDTO> result = myWorkspaceService.getMyWorkspaces(userId, query);
 
         assertEquals(2L, result.getTotal());
-        assertEquals(1L, result.getCounts().getManaged());
-        assertEquals(1L, result.getCounts().getArchived());
         verify(myWorkspaceQueryMapper).count(userId, null, "all",
                 Constants.WorkspaceRole.ADMIN_ID);
     }

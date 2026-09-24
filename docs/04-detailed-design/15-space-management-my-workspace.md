@@ -58,7 +58,7 @@ CREATE INDEX idx_test_case_node_document_type
   - `all`：当前用户全部未删除成员关系，包含 `active` 与 `dissolved` 工作空间。
   - `managed`：`workspaceRole = 预置管理员角色ID` 且工作空间状态为 `active`。
   - `archived`：工作空间状态为 `dissolved`。
-- **计数规则**：`counts` 忽略当前选中的 `scope`，但应用当前 `keyword`，分别返回全部、我管理的、已归档的真实总数；`total` 为当前 `keyword + scope` 组合后的总数。
+- **计数规则**：数量统计由独立的 `GET /api/workspaces/counts` 接口提供，忽略当前选中的 `scope`，但应用当前 `keyword`，分别返回全部、我管理的、已归档的真实总数；列表接口的 `total` 为当前 `keyword + scope` 组合后的总数。
 - **排序规则**：`lastAccessedAt DESC NULLS LAST → joinedAt DESC → createdAt DESC → id ASC`，保证最近访问优先及分页稳定。
 - **响应**：
 
@@ -81,12 +81,7 @@ CREATE INDEX idx_test_case_node_document_type
         "lastAccessedAt": "2026-09-23T08:30:00"
       }
     ],
-    "total": 6,
-    "counts": {
-      "all": 6,
-      "managed": 2,
-      "archived": 1
-    }
+    "total": 6
   }
   ```
 
@@ -97,7 +92,29 @@ CREATE INDEX idx_test_case_node_document_type
   - 所有自定义 SQL 显式过滤 `is_deleted`。
   - 非法 `scope` 返回参数校验错误 `1000001001`。
 
-### 2.2 设置最近活跃工作空间
+### 2.2 获取我的空间数量统计
+
+- **路径**：`GET /api/workspaces/counts`
+- **上下文**：该接口用于选择空间，不携带 `X-Active-Workspace`；认证通过 `Authorization: Bearer <token>` 头传递。
+- **请求参数**：
+
+| 参数 | 类型 | 必填 | 说明 |
+| ---- | ---- | ---- | ---- |
+| keyword | string | 否 | 与列表接口一致的工作空间名称包含匹配条件 |
+
+- **响应**：
+
+  ```json
+  {
+    "all": 6,
+    "managed": 2,
+    "archived": 1
+  }
+  ```
+
+- **规则**：统计当前用户全部未删除成员关系，忽略当前列表 `scope`；`all` 包含活跃与已归档空间，`managed` 为当前用户担任管理员的活跃空间，`archived` 为已归档空间。
+
+### 2.3 设置最近活跃工作空间
 
 - **路径**：`PUT /api/workspaces/active`
 - **请求头**：
@@ -111,7 +128,7 @@ CREATE INDEX idx_test_case_node_document_type
   3. 在同一事务内以部分更新方式写入 `sys_user.last_active_workspace_id` 与对应 `ws_user.last_accessed_at`（C11）。
   4. 重复进入同一空间时刷新最近访问时间。
 
-### 2.3 创建工作空间
+### 2.4 创建工作空间
 
 “我的空间”页不新增创建接口，复用系统管理接口：
 

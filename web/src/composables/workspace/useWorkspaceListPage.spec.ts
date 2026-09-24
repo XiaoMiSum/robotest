@@ -1,9 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { nextTick } from 'vue'
-import type { WorkspaceItem, WorkspaceListResult } from '@/types'
+import type { PageResult, WorkspaceItem, WorkspaceScopeCounts } from '@/types'
 
 const mocks = vi.hoisted(() => ({
   fetchMyWorkspaces: vi.fn(),
+  fetchMyWorkspaceCounts: vi.fn(),
   setActiveWorkspacePreference: vi.fn(),
   ElMessage: { error: vi.fn() },
   authState: {
@@ -19,6 +20,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('@/services/workspace', () => ({
   fetchMyWorkspaces: mocks.fetchMyWorkspaces,
+  fetchMyWorkspaceCounts: mocks.fetchMyWorkspaceCounts,
   setActiveWorkspacePreference: mocks.setActiveWorkspacePreference,
 }))
 
@@ -35,6 +37,8 @@ vi.mock('element-plus', () => ({
 }))
 
 import { useWorkspaceListPage } from './useWorkspaceListPage'
+
+type WorkspaceListResult = PageResult<WorkspaceItem>
 
 interface Deferred<T> {
   promise: Promise<T>
@@ -75,7 +79,15 @@ function result(overrides: Partial<WorkspaceListResult> = {}): WorkspaceListResu
   return {
     list: [makeWorkspace()],
     total: 1,
-    counts: { all: 6, managed: 2, archived: 1 },
+    ...overrides,
+  }
+}
+
+function counts(overrides: Partial<WorkspaceScopeCounts> = {}): WorkspaceScopeCounts {
+  return {
+    all: 6,
+    managed: 2,
+    archived: 1,
     ...overrides,
   }
 }
@@ -91,6 +103,7 @@ beforeEach(() => {
   )
   mocks.router.push.mockResolvedValue(undefined)
   mocks.fetchMyWorkspaces.mockResolvedValue(result())
+  mocks.fetchMyWorkspaceCounts.mockResolvedValue(counts())
   mocks.setActiveWorkspacePreference.mockResolvedValue(undefined)
 })
 
@@ -108,6 +121,7 @@ describe('useWorkspaceListPage', () => {
       pageNo: 1,
       pageSize: 12,
     })
+    expect(mocks.fetchMyWorkspaceCounts).toHaveBeenCalledWith({ keyword: '质量' })
     expect(sut.workspaces.value[0]?.name).toBe('质量中台')
     expect(sut.total.value).toBe(1)
     expect(sut.counts.value).toEqual({ all: 6, managed: 2, archived: 1 })

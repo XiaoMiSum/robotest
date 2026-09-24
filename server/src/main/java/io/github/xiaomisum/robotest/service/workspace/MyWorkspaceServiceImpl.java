@@ -3,7 +3,6 @@ package io.github.xiaomisum.robotest.service.workspace;
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.model.dto.request.workspace.MyWorkspaceQueryReqDTO;
-import io.github.xiaomisum.robotest.model.dto.response.workspace.WorkspaceMyPageRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.workspace.WorkspaceMyRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.workspace.WorkspaceMyScopeCountsDTO;
 import io.github.xiaomisum.robotest.model.entity.admin.SysUser;
@@ -18,6 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
+import xyz.migoo.framework.common.pojo.PageResult;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -42,7 +42,7 @@ public class MyWorkspaceServiceImpl implements MyWorkspaceService {
     private MyWorkspaceQueryMapper myWorkspaceQueryMapper;
 
     @Override
-    public WorkspaceMyPageRespDTO getMyWorkspaces(UUID userId, MyWorkspaceQueryReqDTO query) {
+    public PageResult<WorkspaceMyRespDTO> getMyWorkspaces(UUID userId, MyWorkspaceQueryReqDTO query) {
         MyWorkspaceQueryReqDTO request = query == null ? new MyWorkspaceQueryReqDTO() : query;
         String keyword = normalizeKeyword(request.getKeyword());
         String scope = normalizeScope(request.getScope());
@@ -53,14 +53,14 @@ public class MyWorkspaceServiceImpl implements MyWorkspaceService {
         List<WorkspaceMyRespDTO> list = myWorkspaceQueryMapper.selectPage(
                 userId, keyword, scope, Constants.WorkspaceRole.ADMIN_ID, offset, pageSize);
         long total = myWorkspaceQueryMapper.count(userId, keyword, scope, Constants.WorkspaceRole.ADMIN_ID);
-        WorkspaceMyScopeCountsDTO counts = myWorkspaceQueryMapper.countScopes(
-                userId, keyword, Constants.WorkspaceRole.ADMIN_ID);
+        return new PageResult<>(list == null ? List.of() : list, total);
+    }
 
-        WorkspaceMyPageRespDTO result = new WorkspaceMyPageRespDTO();
-        result.setList(list == null ? List.of() : list);
-        result.setTotal(total);
-        result.setCounts(normalizeCounts(counts));
-        return result;
+    @Override
+    public WorkspaceMyScopeCountsDTO getMyWorkspaceCounts(UUID userId, String keyword) {
+        String normalizedKeyword = normalizeKeyword(keyword);
+        return normalizeCounts(myWorkspaceQueryMapper.countScopes(
+                userId, normalizedKeyword, Constants.WorkspaceRole.ADMIN_ID));
     }
 
     @Override
