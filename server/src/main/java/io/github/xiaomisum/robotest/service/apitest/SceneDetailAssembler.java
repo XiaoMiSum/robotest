@@ -10,7 +10,6 @@ import io.github.xiaomisum.robotest.repository.apitest.ApiSceneFollowMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiSceneMapper;
 import xyz.migoo.framework.common.pojo.PageParam;
 import xyz.migoo.framework.common.pojo.PageResult;
-import xyz.migoo.framework.mybatis.core.LambdaQueryWrapperX;
 
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -69,10 +68,7 @@ public final class SceneDetailAssembler {
     /** 列表页最近执行徽标：一次取回页内场景的执行记录，内存中按场景保留最新一条 */
     public static Map<UUID, ApiExecutionRecord> latestExecutions(ApiExecutionRecordMapper executionRecordMapper,
             List<UUID> sceneIds) {
-        List<ApiExecutionRecord> records = executionRecordMapper.selectList(
-                new LambdaQueryWrapperX<ApiExecutionRecord>()
-                        .in(ApiExecutionRecord::getSceneId, sceneIds)
-                        .orderByDesc(ApiExecutionRecord::getExecutedAt));
+        List<ApiExecutionRecord> records = executionRecordMapper.listLatestBySceneIds(sceneIds);
         Map<UUID, ApiExecutionRecord> latest = new LinkedHashMap<>();
         for (ApiExecutionRecord record : records) {
             latest.putIfAbsent(record.getSceneId(), record);

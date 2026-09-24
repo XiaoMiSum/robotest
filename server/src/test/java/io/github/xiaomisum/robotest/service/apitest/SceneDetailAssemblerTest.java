@@ -15,7 +15,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import xyz.migoo.framework.common.pojo.PageParam;
 import xyz.migoo.framework.common.pojo.PageResult;
-import xyz.migoo.framework.mybatis.core.LambdaQueryWrapperX;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -82,12 +81,12 @@ class SceneDetailAssemblerTest {
         when(sceneMapper.selectBatchIds(anyList())).thenReturn(List.of(scene));
         when(sceneFollowMapper.selectFollowedSceneIdsByUserId(userId))
                 .thenReturn(List.of(sceneId));
-        when(executionRecordMapper.selectList(any(LambdaQueryWrapperX.class)))
-                .thenReturn(List.of(new ApiExecutionRecord() {{
-                    setSceneId(sceneId);
-                    setStatus("success");
-                    setExecutedAt(LocalDateTime.now());
-                }}));
+        ApiExecutionRecord execution = new ApiExecutionRecord();
+        execution.setSceneId(sceneId);
+        execution.setStatus("success");
+        execution.setExecutedAt(LocalDateTime.now());
+        when(executionRecordMapper.listLatestBySceneIds(anyList()))
+                .thenReturn(List.of(execution));
 
         PageResult<ApiScenePageItemRespDTO> result = SceneDetailAssembler.fetchPage(
                 sceneMapper, sceneFollowMapper, executionRecordMapper,
@@ -114,7 +113,7 @@ class SceneDetailAssemblerTest {
         when(sceneMapper.selectPage(any(), any(), any(), any(), any(), any(PageParam.class)))
                 .thenReturn(new PageResult<>(List.of(scene), 1L));
         when(sceneFollowMapper.selectFollowedSceneIdsByUserId(userId)).thenReturn(List.of());
-        when(executionRecordMapper.selectList(any(LambdaQueryWrapperX.class))).thenReturn(List.of());
+        when(executionRecordMapper.listLatestBySceneIds(anyList())).thenReturn(List.of());
 
         PageResult<ApiScenePageItemRespDTO> result = SceneDetailAssembler.fetchPage(
                 sceneMapper, sceneFollowMapper, executionRecordMapper,

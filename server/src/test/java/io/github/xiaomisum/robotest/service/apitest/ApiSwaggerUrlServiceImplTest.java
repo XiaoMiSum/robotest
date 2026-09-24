@@ -114,8 +114,9 @@ class ApiSwaggerUrlServiceImplTest {
 
         service.update(WORKSPACE_ID, PROJECT_ID, USER_ID, CONFIG_ID, req());
 
-        // C9 部分更新：仅写名称/URL/格式三列，载体为 wrapper 而非整行
-        verify(swaggerUrlMapper).update(any(), any());
+        // C9 部分更新：仅写名称/URL/格式三列，载体为 Mapper 封装
+        verify(swaggerUrlMapper).updateFieldsById(CONFIG_ID, "生产 Swagger",
+                "https://petstore.example.com/v2/swagger.json", "openapi");
     }
 
     @Test
