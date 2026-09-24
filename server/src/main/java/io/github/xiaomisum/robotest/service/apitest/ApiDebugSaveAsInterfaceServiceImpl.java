@@ -14,7 +14,6 @@ import io.github.xiaomisum.robotest.repository.apitest.ApiInterfaceMapper;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
-import xyz.migoo.framework.mybatis.core.LambdaQueryWrapperX;
 
 import java.net.URI;
 import java.util.ArrayList;
@@ -94,7 +93,7 @@ public class ApiDebugSaveAsInterfaceServiceImpl implements ApiDebugSaveAsInterfa
                                       Map<String, Object> request) {
         String baseUrl = resolveBaseUrl(record.getProjectId(), record.getEnvironmentId());
         if (request == null || request.isEmpty()) {
-            applySnapshot(target, record);
+            applySnapshot(target, record, baseUrl);
             return;
         }
         String method = Objects.toString(request.get("method"), record.getMethod());
@@ -112,8 +111,7 @@ public class ApiDebugSaveAsInterfaceServiceImpl implements ApiDebugSaveAsInterfa
         target.setAuth(auth);
     }
 
-    private void applySnapshot(ApiInterfaceCreateReqDTO target, ApiDebugRecord record) {
-        String baseUrl = resolveBaseUrl(record.getProjectId(), record.getEnvironmentId());
+    private void applySnapshot(ApiInterfaceCreateReqDTO target, ApiDebugRecord record, String baseUrl) {
         target.setProtocol("http");
         target.setMethod(record.getMethod());
         target.setPath(extractPath(record.getUrl(), baseUrl));
@@ -125,10 +123,7 @@ public class ApiDebugSaveAsInterfaceServiceImpl implements ApiDebugSaveAsInterfa
     private String resolveBaseUrl(UUID projectId, UUID environmentId) {
         ApiEnvironment env = environmentId != null
                 ? environmentMapper.selectById(environmentId)
-                : environmentMapper.selectList(new LambdaQueryWrapperX<ApiEnvironment>()
-                        .eq(ApiEnvironment::getProjectId, projectId)
-                        .eq(ApiEnvironment::getIsDefault, true))
-                .stream().findFirst().orElse(null);
+                : environmentMapper.findDefaultByProjectId(projectId);
         if (env == null || !env.getProjectId().equals(projectId)) {
             return "";
         }

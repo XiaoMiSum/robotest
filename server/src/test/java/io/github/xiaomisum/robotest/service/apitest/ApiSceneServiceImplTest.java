@@ -35,6 +35,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -161,7 +162,8 @@ class ApiSceneServiceImplTest {
         ApiSceneUpdateReqDTO reqDTO = new ApiSceneUpdateReqDTO();
         reqDTO.setName("新名字");
         reqDTO.setChangeVersion(2);
-        when(sceneMapper.update(any(), any())).thenReturn(0);
+        when(sceneMapper.updateByIdAndChangeVersion(any(UUID.class), any(Integer.class), any(ApiScene.class)))
+                .thenReturn(0);
 
         ServiceException ex = assertThrows(ServiceException.class,
                 () -> service.update(WORKSPACE_ID, PROJECT_ID, USER_ID, SCENE_ID, reqDTO));
@@ -174,11 +176,15 @@ class ApiSceneServiceImplTest {
         ApiSceneUpdateReqDTO reqDTO = new ApiSceneUpdateReqDTO();
         reqDTO.setName("新名字");
         reqDTO.setChangeVersion(3);
-        when(sceneMapper.update(any(), any())).thenReturn(1);
+        when(sceneMapper.updateByIdAndChangeVersion(any(UUID.class), any(Integer.class), any(ApiScene.class)))
+                .thenReturn(1);
         when(changeHistoryMapper.selectMaxVersion(org.mockito.ArgumentMatchers.anyString(),
                 org.mockito.ArgumentMatchers.any())).thenReturn(1);
 
         service.update(WORKSPACE_ID, PROJECT_ID, USER_ID, SCENE_ID, reqDTO);
+        ArgumentCaptor<ApiScene> carrierCaptor = ArgumentCaptor.forClass(ApiScene.class);
+        verify(sceneMapper).updateByIdAndChangeVersion(eq(SCENE_ID), eq(3), carrierCaptor.capture());
+        assertEquals(4, carrierCaptor.getValue().getChangeVersion());
         verify(changeHistoryMapper).insert(any(ApiChangeHistory.class));
     }
 
@@ -207,7 +213,8 @@ class ApiSceneServiceImplTest {
         reqDTO.setName("新名字");
         reqDTO.setChangeVersion(3);
         reqDTO.setSteps(List.of(existing, fresh));
-        when(sceneMapper.update(any(), any())).thenReturn(1);
+        when(sceneMapper.updateByIdAndChangeVersion(any(UUID.class), any(Integer.class), any(ApiScene.class)))
+                .thenReturn(1);
         when(changeHistoryMapper.selectMaxVersion(org.mockito.ArgumentMatchers.anyString(),
                 org.mockito.ArgumentMatchers.any())).thenReturn(0);
 
@@ -233,7 +240,8 @@ class ApiSceneServiceImplTest {
         reqDTO.setName("新名字");
         reqDTO.setChangeVersion(3);
         reqDTO.setSteps(List.of(invalid));
-        when(sceneMapper.update(any(), any())).thenReturn(1);
+        when(sceneMapper.updateByIdAndChangeVersion(any(UUID.class), any(Integer.class), any(ApiScene.class)))
+                .thenReturn(1);
 
         assertThrows(ServiceException.class,
                 () -> service.update(WORKSPACE_ID, PROJECT_ID, USER_ID, SCENE_ID, reqDTO));

@@ -29,8 +29,6 @@ import org.springframework.stereotype.Service;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
 import xyz.migoo.framework.common.pojo.PageParam;
 import xyz.migoo.framework.common.pojo.PageResult;
-import xyz.migoo.framework.mybatis.core.LambdaQueryWrapperX;
-import xyz.migoo.framework.mybatis.core.LambdaUpdateWrapperX;
 
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -93,11 +91,7 @@ private static final String TYPE_TEST_PLAN = "scene_execute";
     public PageResult<ApiSchedulePageItemRespDTO> page(UUID workspaceId, UUID projectId, UUID userId,
             String taskType, PageParam pageParam) {
         projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
-        PageResult<ApiScheduledTask> pageResult = taskMapper.selectPage(pageParam,
-                new LambdaQueryWrapperX<ApiScheduledTask>()
-                        .eq(ApiScheduledTask::getProjectId, projectId)
-                        .eqIfPresent(ApiScheduledTask::getTaskType, taskType)
-                        .orderByDesc(ApiScheduledTask::getCreatedAt));
+        PageResult<ApiScheduledTask> pageResult = taskMapper.selectPageByProject(pageParam, projectId, taskType);
         List<UUID> envIds = pageResult.getList().stream()
                 .map(ApiScheduledTask::getEnvironmentId)
                 .filter(Objects::nonNull)
@@ -185,19 +179,17 @@ private static final String TYPE_TEST_PLAN = "scene_execute";
         boolean sync = TYPE_SYNC.equals(reqDTO.getTaskType());
         boolean testPlan = TYPE_TEST_PLAN.equals(reqDTO.getTaskType());
         // 显式列更新：类型切换时用不到的字段必须清空，updateById 会静默忽略 null（C9）
-        taskMapper.update(null, new LambdaUpdateWrapperX<ApiScheduledTask>()
-                .eq(ApiScheduledTask::getId, id)
-                .set(ApiScheduledTask::getTaskType, reqDTO.getTaskType())
-                .set(ApiScheduledTask::getName, reqDTO.getName().trim())
-                .set(ApiScheduledTask::getDescription, reqDTO.getDescription())
-                .set(ApiScheduledTask::getExecutionScope, testPlan ? reqDTO.getExecutionScope() : null)
-                .set(ApiScheduledTask::getModuleIds, testPlan && SCOPE_MODULES.equals(reqDTO.getExecutionScope())
-                        ? reqDTO.getModuleIds() : null)
-                .set(ApiScheduledTask::getSceneIds, testPlan && SCOPE_SCENES.equals(reqDTO.getExecutionScope())
-                        ? reqDTO.getSceneIds() : null)
-                .set(ApiScheduledTask::getOpenapiUrl, sync ? reqDTO.getOpenapiUrl().trim() : null)
-                .set(ApiScheduledTask::getEnvironmentId, testPlan ? reqDTO.getEnvironmentId() : null)
-                .set(ApiScheduledTask::getCronExpression, reqDTO.getCronExpression().trim()));
+        taskMapper.updateEditableFields(
+                id,
+                reqDTO.getTaskType(),
+                reqDTO.getName().trim(),
+                reqDTO.getDescription(),
+                testPlan ? reqDTO.getExecutionScope() : null,
+                testPlan && SCOPE_MODULES.equals(reqDTO.getExecutionScope()) ? reqDTO.getModuleIds() : null,
+                testPlan && SCOPE_SCENES.equals(reqDTO.getExecutionScope()) ? reqDTO.getSceneIds() : null,
+                sync ? reqDTO.getOpenapiUrl().trim() : null,
+                testPlan ? reqDTO.getEnvironmentId() : null,
+                reqDTO.getCronExpression().trim());
         // 启停状态由独立端点维护，编辑不隐式改变调度状态
         apiTestTaskScheduler.onTaskChanged(id);
     }
@@ -206,9 +198,7 @@ private static final String TYPE_TEST_PLAN = "scene_execute";
     public void toggle(UUID workspaceId, UUID projectId, UUID userId, UUID id, ApiScheduleToggleReqDTO reqDTO) {
         projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
         requireTask(projectId, id);
-        taskMapper.update(null, new LambdaUpdateWrapperX<ApiScheduledTask>()
-                .eq(ApiScheduledTask::getId, id)
-                .set(ApiScheduledTask::getEnabled, reqDTO.getEnabled()));
+        taskMapper.updateEnabled(id, reqDTO.getEnabled());
         apiTestTaskScheduler.onTaskChanged(id);
     }
 

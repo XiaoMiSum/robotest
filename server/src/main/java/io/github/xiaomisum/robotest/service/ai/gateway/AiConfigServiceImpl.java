@@ -28,9 +28,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import xyz.migoo.framework.common.exception.ServiceException;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
-import xyz.migoo.framework.mybatis.core.LambdaUpdateWrapperX;
 
-import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -345,18 +343,10 @@ public class AiConfigServiceImpl implements AiConfigService {
      * 单行表全列覆盖更新：清空 Embedding 组等置空场景 updateById 会忽略 null 字段，须显式 set
      */
     private void updateConfig(AiConfig existing, AiConfig config) {
-        aiConfigMapper.update(null, new LambdaUpdateWrapperX<AiConfig>()
-                .eq(AiConfig::getId, existing.getId())
-                .set(AiConfig::getEnabled, config.getEnabled())
-                .set(AiConfig::getEmbeddingProvider, config.getEmbeddingProvider())
-                .set(AiConfig::getEmbeddingBaseUrl, config.getEmbeddingBaseUrl())
-                .set(AiConfig::getEmbeddingModel, config.getEmbeddingModel())
-                .set(AiConfig::getEmbeddingDimension, config.getEmbeddingDimension())
-                .set(AiConfig::getEmbeddingApiKeyCipher, config.getEmbeddingApiKeyCipher())
-                .set(AiConfig::getEmbeddingKeySuffix, config.getEmbeddingKeySuffix())
-                .set(AiConfig::getEmbeddingExtraParams, toJson(config.getEmbeddingExtraParams()))
-                .set(AiConfig::getSettings, toJson(config.getSettings()))
-                .set(AiConfig::getUpdatedAt, LocalDateTime.now()));
+        aiConfigMapper.updateConfig(existing.getId(), config.getEnabled(), config.getEmbeddingProvider(),
+                config.getEmbeddingBaseUrl(), config.getEmbeddingModel(), config.getEmbeddingDimension(),
+                config.getEmbeddingApiKeyCipher(), config.getEmbeddingKeySuffix(),
+                toJson(config.getEmbeddingExtraParams()), toJson(config.getSettings()));
     }
 
     private String toJson(Map<String, Object> map) {

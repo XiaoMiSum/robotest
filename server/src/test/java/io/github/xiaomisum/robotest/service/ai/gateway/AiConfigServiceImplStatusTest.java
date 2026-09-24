@@ -2,6 +2,7 @@ package io.github.xiaomisum.robotest.service.ai.gateway;
 
 
 import io.github.xiaomisum.robotest.framework.common.Constants;
+import io.github.xiaomisum.robotest.model.dto.request.ai.AiConfigSaveReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiStatusRespDTO;
 import io.github.xiaomisum.robotest.model.entity.ai.AiAnalysisTask;
 import io.github.xiaomisum.robotest.model.entity.ai.AiConfig;
@@ -10,6 +11,7 @@ import io.github.xiaomisum.robotest.repository.ai.AiConfigMapper;
 import io.github.xiaomisum.robotest.service.ai.support.AiCryptoUtil;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.Test;
@@ -22,7 +24,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -148,5 +153,23 @@ class AiConfigServiceImplStatusTest {
         config.setSettings(Map.of("missingPoint.topK", 50));
         when(aiConfigMapper.findActive()).thenReturn(config);
         assertEquals(50, service.getIntSetting("missingPoint.topK"));
+    }
+
+    @Test
+    void saveConfig_existing_delegatesFixedUpdateToMapper() {
+        UUID configId = UUID.randomUUID();
+        AiConfig existing = new AiConfig();
+        existing.setId(configId);
+        existing.setEnabled(false);
+        existing.setSettings(Map.of());
+        when(aiConfigMapper.findActive()).thenReturn(existing, existing);
+        when(aiChatModelService.hasEnabledModel()).thenReturn(true);
+
+        AiConfigSaveReqDTO reqDTO = new AiConfigSaveReqDTO();
+        reqDTO.setEnabled(true);
+        service.saveConfig(reqDTO, UUID.randomUUID());
+
+        verify(aiConfigMapper).updateConfig(eq(configId), eq(true), any(), any(), any(), any(),
+                any(), any(), any(), any());
     }
 }

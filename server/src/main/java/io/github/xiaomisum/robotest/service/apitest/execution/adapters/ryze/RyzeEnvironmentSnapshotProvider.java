@@ -6,7 +6,6 @@ import io.github.xiaomisum.robotest.service.apitest.execution.ports.EnvSnapshot;
 import io.github.xiaomisum.robotest.service.apitest.execution.ports.EnvironmentSnapshotProvider;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Component;
-import xyz.migoo.framework.mybatis.core.LambdaQueryWrapperX;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -55,13 +54,7 @@ public class RyzeEnvironmentSnapshotProvider implements EnvironmentSnapshotProvi
     }
 
     private ApiEnvironment findDefaultEnvironment(UUID projectId) {
-        return environmentMapper.selectList(
-                        new LambdaQueryWrapperX<ApiEnvironment>()
-                                .eq(ApiEnvironment::getProjectId, projectId)
-                                .eq(ApiEnvironment::getIsDefault, true))
-                .stream()
-                .findFirst()
-                .orElse(null);
+        return environmentMapper.findDefaultByProjectId(projectId);
     }
 
     private List<Map<String, Object>> processorConfigs(List<Map<String, Object>> processors, String processorType) {
