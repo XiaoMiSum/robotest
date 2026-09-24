@@ -96,6 +96,9 @@ describe('useAiChatModels 模型编辑流', () => {
     const s = setup()
     s.openCreateModel()
     s.modelForm.name = 'DeepSeek'
+    s.modelForm.baseUrl = 'https://api.deepseek.com/v1'
+    s.modelForm.model = 'deepseek-chat'
+    s.modelForm.apiKey = 'sk-test'
     await s.handleModelSave()
     expect(mocks.create).toHaveBeenCalledTimes(1)
     expect(mocks.fetch).toHaveBeenCalled()
@@ -106,7 +109,20 @@ describe('useAiChatModels 模型编辑流', () => {
   it('handleModelSave 非法 JSON 阻止提交', async () => {
     const s = setup()
     s.openCreateModel()
+    s.modelForm.name = 'DeepSeek'
+    s.modelForm.baseUrl = 'https://api.deepseek.com/v1'
+    s.modelForm.model = 'deepseek-chat'
+    s.modelForm.apiKey = 'sk-test'
     s.modelForm.customParams = '{ bad'
+    await s.handleModelSave()
+    expect(mocks.create).not.toHaveBeenCalled()
+    expect(s.modelDialogVisible.value).toBe(true)
+  })
+
+  it('必填字段不完整时阻止对话模型保存', async () => {
+    const s = setup()
+    s.openCreateModel()
+    s.modelForm.name = 'DeepSeek'
     await s.handleModelSave()
     expect(mocks.create).not.toHaveBeenCalled()
     expect(s.modelDialogVisible.value).toBe(true)
@@ -146,6 +162,10 @@ describe('useAiChatModels 模型编辑流', () => {
   it('handleModelDialogTest 使用临时配置透传', async () => {
     const s = setup()
     s.openCreateModel()
+    s.modelForm.name = 'DeepSeek'
+    s.modelForm.baseUrl = 'https://api.deepseek.com/v1'
+    s.modelForm.model = 'deepseek-chat'
+    s.modelForm.apiKey = 'sk-test'
     await s.handleModelDialogTest()
     expect(mocks.test).toHaveBeenCalledWith(
       expect.objectContaining({ target: 'chat', chat: expect.any(Object) }),

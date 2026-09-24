@@ -142,7 +142,10 @@ describe('useAiConfigPage 配置编排', () => {
     const s = setup()
     await s.loadAll()
     s.form.embedding.provider = 'zhipu'
+    s.form.embedding.baseUrl = 'https://open.bigmodel.cn/api/paas/v4'
     s.form.embedding.model = 'embedding-3'
+    s.form.embedding.dimension = 128
+    s.form.embedding.apiKey = 'sk-test'
     mocks.save.mockResolvedValueOnce(
       mocks.build({
         embedding: {
@@ -164,11 +167,24 @@ describe('useAiConfigPage 配置编排', () => {
     const s = setup()
     await s.loadAll()
     s.form.embedding.provider = 'zhipu'
+    s.form.embedding.baseUrl = 'https://open.bigmodel.cn/api/paas/v4'
     s.form.embedding.model = 'embedding-3'
+    s.form.embedding.dimension = 128
+    s.form.embedding.apiKey = 'sk-test'
     await s.handleTestEmbedding()
     expect(mocks.test).toHaveBeenCalledWith(
       expect.objectContaining({ target: 'embedding', embedding: expect.objectContaining({ provider: 'zhipu' }) }),
     )
     expect(s.testing.embedding).toBe(false)
+  })
+
+  it('Embedding 核心字段不完整时阻止保存和测试', async () => {
+    const s = setup()
+    await s.loadAll()
+    s.form.embedding.provider = 'zhipu'
+    await s.handleSaveEmbedding()
+    await s.handleTestEmbedding()
+    expect(mocks.save).not.toHaveBeenCalled()
+    expect(mocks.test).not.toHaveBeenCalled()
   })
 })

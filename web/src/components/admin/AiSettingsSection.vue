@@ -154,7 +154,7 @@ function settingItemIsFull(item: AiSettingSchemaItem, index: number, total: numb
           </el-icon>
         </span>
       </div>
-      <div class="ai-settings-section__grid">
+      <el-form :model="form" label-position="top" class="ai-settings-section__grid">
         <el-form-item
           v-for="(item, index) in group.items"
           :key="item.key"
@@ -204,6 +204,11 @@ function settingItemIsFull(item: AiSettingSchemaItem, index: number, total: numb
               :max="item.max ?? undefined"
               :step="item.step ?? 1"
             />
+          </div>
+          <div class="ai-settings-section__meta">
+            <span class="ai-settings-section__hint"
+              >{{ item.description }}（默认 {{ item.defaultValue }}）</span
+            >
             <span v-if="settingModified(item, form)" class="ai-settings-section__modified">
               <el-tag size="small" type="warning" effect="light"
                 ><span class="ai-settings-section__dot" />已修改</el-tag
@@ -213,11 +218,8 @@ function settingItemIsFull(item: AiSettingSchemaItem, index: number, total: numb
               >
             </span>
           </div>
-          <span class="ai-settings-section__hint"
-            >{{ item.description }}（默认 {{ item.defaultValue }}）</span
-          >
         </el-form-item>
-      </div>
+      </el-form>
     </div>
 
     <div v-if="groups.length && !visibleGroups.length" class="ai-settings-section__empty">
@@ -432,6 +434,14 @@ function settingItemIsFull(item: AiSettingSchemaItem, index: number, total: numb
   width: 100%;
 }
 
+.ai-settings-section__meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  margin-top: var(--space-sm);
+}
+
 .ai-settings-section__weights {
   display: flex;
   align-items: center;
@@ -463,7 +473,7 @@ function settingItemIsFull(item: AiSettingSchemaItem, index: number, total: numb
 .ai-settings-section__modified {
   display: inline-flex;
   align-items: center;
-  margin-top: var(--space-sm);
+  flex-shrink: 0;
   gap: var(--space-sm);
 }
 

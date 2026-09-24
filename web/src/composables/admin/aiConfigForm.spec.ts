@@ -14,6 +14,8 @@ import {
   resolveUniqueParams,
   setByPath,
   settingsStats,
+  validateChatModelForm,
+  validateEmbeddingForm,
   validateSetting,
   weightsSum,
 } from './aiConfigForm'
@@ -114,6 +116,61 @@ describe('preset 解析辅助', () => {
     expect(resolveUniqueParams(zhipuPreset, 'chat')).toHaveLength(1)
     expect(resolveUniqueParams(zhipuPreset, 'embedding')).toEqual([])
     expect(resolveUniqueParams(undefined, 'chat')).toEqual([])
+  })
+})
+
+describe('模型表单必填校验', () => {
+  const chatForm = {
+    name: 'GPT-4o',
+    provider: 'openai',
+    baseUrl: 'https://api.openai.com/v1',
+    model: 'gpt-4o',
+    apiKey: 'sk-test',
+    apiKeyConfigured: false,
+  }
+
+  it('对话模型创建时缺少 API 密钥返回错误', () => {
+    expect(validateChatModelForm({ ...chatForm, apiKey: '' }, 'create')).toBe('请输入 API 密钥')
+  })
+
+  it('对话模型编辑已有密钥时允许留空', () => {
+    expect(
+      validateChatModelForm({ ...chatForm, apiKey: '', apiKeyConfigured: true }, 'edit'),
+    ).toBeNull()
+  })
+
+  it('对话模型缺少显示名返回首个错误', () => {
+    expect(validateChatModelForm({ ...chatForm, name: '' }, 'create')).toBe('请输入显示名')
+  })
+
+  const embeddingForm = {
+    provider: 'zhipu',
+    baseUrl: 'https://open.bigmodel.cn/api/paas/v4',
+    model: 'embedding-3',
+    dimension: 1024,
+    apiKey: 'sk-test',
+    apiKeyConfigured: false,
+  }
+
+  it('Embedding 全部核心字段为空仍返回必填错误', () => {
+    expect(
+      validateEmbeddingForm({
+        provider: '',
+        baseUrl: '',
+        model: '',
+        dimension: null,
+        apiKey: '',
+        apiKeyConfigured: false,
+      }),
+    ).toBe('请选择供应商')
+  })
+
+  it('Embedding 已有密钥时允许留空', () => {
+    expect(validateEmbeddingForm({ ...embeddingForm, apiKey: '', apiKeyConfigured: true })).toBeNull()
+  })
+
+  it('Embedding 向量维度越界返回错误', () => {
+    expect(validateEmbeddingForm({ ...embeddingForm, dimension: 2001 })).toContain('1-2000')
   })
 })
 

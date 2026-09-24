@@ -25,6 +25,7 @@ import {
   resolveModelHints,
   resolveUniqueParams,
   settingsStats,
+  validateEmbeddingForm,
 } from '@/composables/admin/aiConfigForm'
 import { extractUniqueValuesForScope } from '@/composables/admin/aiConfigForm'
 
@@ -253,6 +254,11 @@ export function useAiConfigPage() {
   // ==================== Embedding 保存/测试 ====================
 
   async function handleSaveEmbedding() {
+    const validationError = validateEmbeddingForm(form.embedding)
+    if (validationError) {
+      ElMessage.error(validationError)
+      return
+    }
     if (form.enabled && chatModelsEnabledCount.value === 0) {
       ElMessage.warning('开启 AI 前请先新建并启用至少一个对话模型')
       return
@@ -287,6 +293,11 @@ export function useAiConfigPage() {
   }
 
   async function handleTestEmbedding() {
+    const validationError = validateEmbeddingForm(form.embedding)
+    if (validationError) {
+      ElMessage.error(validationError)
+      return
+    }
     testing.embedding = true
     try {
       const result = await testAiConnectivity({

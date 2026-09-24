@@ -76,7 +76,7 @@ onMounted(async () => {
       @tab-change="cfg.handleTabChange"
     >
       <el-tab-pane label="AI 配置" name="config">
-        <el-form v-loading="cfg.loading.value" label-position="top">
+        <div v-loading="cfg.loading.value" class="ai-config-page__config">
           <div class="model-row">
             <AiChatModelTable
               :models="models.chatModels.value"
@@ -123,7 +123,7 @@ onMounted(async () => {
               {{ cfg.footerStatusText.value }}
             </span>
           </div>
-        </el-form>
+        </div>
       </el-tab-pane>
 
       <!-- 不用 lazy：tab 计数徽标依赖面板挂载回传数量，lazy 会使徽标首屏为 0 -->
