@@ -31,7 +31,7 @@ import {
   canExpireInvitation,
   invitationStatusMeta,
 } from '@/utils/workspaceInvitation'
-import { formatDateTime } from '@/utils/format'
+import { formatDateTime, formatLocalDateTime } from '@/utils/format'
 
 const SEARCH_DEBOUNCE_MS = 300
 
@@ -607,7 +607,7 @@ onBeforeUnmount(() => {
               <el-table-column label="过期时间" min-width="170">
                 <template #default="{ row }">
                   <span class="member-page__num">
-                    {{ row.expiresAt ? formatDateTime(row.expiresAt) : '永不过期' }}
+                    {{ row.expiresAt ? formatLocalDateTime(row.expiresAt) : '永不过期' }}
                   </span>
                 </template>
               </el-table-column>
@@ -699,6 +699,7 @@ onBeforeUnmount(() => {
           <el-date-picker
             v-model="createForm.expiresAt"
             type="datetime"
+            value-format="YYYY-MM-DDTHH:mm:ss"
             placeholder="留空表示永不过期"
             class="member-page__date-picker"
           />
