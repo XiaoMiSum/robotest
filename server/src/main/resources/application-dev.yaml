@@ -1,0 +1,38 @@
+# 本地开发配置覆盖
+# 仅用于本地开发；其中的值不得用于 test 或 prod。
+
+spring:
+  config:
+    activate:
+      on-profile: dev
+  datasource:
+    driver-class-name: ${DATABASE_DRIVER:org.postgresql.Driver}
+    url: ${DATASOURCE_URL:jdbc:postgresql://localhost:5432/robotest?stringtype=unspecified}
+    username: ${DATASOURCE_USERNAME:postgres}
+    password: ${DATASOURCE_PASSWORD:123456}
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      user: ${REDIS_USER:default}
+      password: ${REDIS_PASSWORD:}
+
+robotest:
+  debug: ${DEBUG_STATUS:false}
+  ai:
+    # 仅限本地开发的非生产示例值（Base64 编码 32 字节）
+    secret-key: ${AI_SECRET_KEY:4chJwgVabFLPyA0Mty7RDhu7lXR5Hik2QZ0FJjS3rtI=}
+  env:
+    # 仅限本地开发的非生产示例值（Base64 编码 32 字节）
+    secret-key: ${ENV_SECRET_KEY:4chJwgVabFLPyA0Mty7RDhu7lXR5Hik2QZ0FJjS3rtI=}
+  api-test:
+    import:
+      url-policy: ${IMPORT_URL_POLICY:intranet}
+  mock:
+    access-enabled: ${MOCK_ACCESS_ENABLED:true}
+
+migoo:
+  security:
+    password-secret: ${PASSWORD_SECRET:dev-only-password-secret-change-me}
+    jwt:
+      secret-key: ${JWT_SECRET_KEY:dev-only-jwt-secret-key-change-me-32bytes}

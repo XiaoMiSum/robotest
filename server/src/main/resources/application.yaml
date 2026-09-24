@@ -22,16 +22,16 @@ spring:
       max-file-size: 10MB
       max-request-size: 10MB
   datasource:
-    driver-class-name: org.postgresql.Driver
-    url: ${DATASOURCE_URL:jdbc:postgresql://localhost:5432/robotest?stringtype=unspecified}
-    username: ${DATASOURCE_USERNAME:postgres}
-    password: ${DATASOURCE_PASSWORD:123456}
+    driver-class-name: ${DATABASE_DRIVER:org.postgresql.Driver}
+    url: ${DATASOURCE_URL}
+    username: ${DATASOURCE_USERNAME}
+    password: ${DATASOURCE_PASSWORD}
   data:
     redis:
-      host: ${REDIS_HOST:localhost}
+      host: ${REDIS_HOST}
       port: ${REDIS_PORT:6379}
-      user: default
-      password: ${REDIS_PASSWORD:}
+      user: ${REDIS_USER:default}
+      password: ${REDIS_PASSWORD}
       database: 0
       lettuce:
         pool:
@@ -46,11 +46,11 @@ robotest:
   upload:
     dir: ${UPLOAD_DIR:./uploads/bug}
   ai:
-    # AI 服务密钥加密密钥（Base64 编码 32 字节），未配置时 AI 能力视为未启用
-    secret-key: ${AI_SECRET_KEY:4chJwgVabFLPyA0Mty7RDhu7lXR5Hik2QZ0FJjS3rtI=}
+    # AI 服务密钥加密密钥（Base64 编码 32 字节），生产环境必须显式配置
+    secret-key: ${AI_SECRET_KEY}
   env:
-    # 环境敏感变量加密密钥（Base64 编码 32 字节），与 AI 密钥独立，支持单独轮换
-    secret-key: ${ENV_SECRET_KEY:4chJwgVabFLPyA0Mty7RDhu7lXR5Hik2QZ0FJjS3rtI=}
+    # 环境敏感变量加密密钥（Base64 编码 32 字节），生产环境必须显式配置
+    secret-key: ${ENV_SECRET_KEY}
   api-test:
     import:
       # Swagger URL 拉取安全策略（接口管理详细设计 4.3）：strict（默认，公网/云上部署，禁内网地址）或 intranet（内网测试环境，放行内网地址但仅允许 swagger 文档路径）
@@ -96,12 +96,12 @@ migoo:
   security:
     mode: jwt
     jwt:
-      secret-key: ${JWT_SECRET_KEY:9aef92670f10242388d55d2ffc0eeb43}
+      secret-key: ${JWT_SECRET_KEY}
       access-token-expires: PT24H
       refresh-token-expires: P7D
       header-name: Authorization
       refresh-header-name: X-Refresh-Token
-    password-secret: ${PASSWORD_SECRET:17c553e34228909b1f8cef6d1de0b53d}
+    password-secret: ${PASSWORD_SECRET}
     logout-url: /api/auth/logout
     permit-all-urls:
       - /api/auth/login

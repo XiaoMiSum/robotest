@@ -32,7 +32,7 @@
 cd web && pnpm install && pnpm run dev
 
 # 后端（端口 58080，dev profile）
-cd server && mvn spring-boot:run -Pdev
+cd server && SPRING_PROFILES_ACTIVE=dev mvn spring-boot:run -Pdev
 
 # 一键启动（同时前后端）
 bash scripts/dev.sh
