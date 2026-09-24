@@ -16,7 +16,7 @@
 2. `03-frontend.md` / `04-backend.md`：了解两端工程实现边界。
 3. `05-api.md` / `06-database.md`：确认跨端契约和持久化约束。
 4. `07-quality.md` / `08-workflow.md` / `09-deploy.md` / `16-deployment-runbook.md`：确认质量、协作和交付要求。
-5. `10-security.md` / `11-migoo-framework.md`：确认安全基线和框架约束。
+5. `10-security.md` / `11-migoo-framework.md` / `17-migoo-api-reference.md`：确认安全基线、框架策略和 API 速查。
 6. `12-task-template.md` / `13-scroll-container.md`：按任务或专项需要查阅。
 7. `15-realtime-protocol.md`：查看通用 WebSocket 实时通信协议。
 8. `14-improvement-backlog.md`：查看尚未执行的规范、代码、配置和交付任务。
@@ -34,12 +34,13 @@
 | [08-workflow](08-workflow.md) | 研发流程 | Git / PR / 发布 | V1.0 | 2026-09-24 | 已发布 |
 | [09-deploy](09-deploy.md) | 部署规范 | 通用构建、环境、发布和回滚要求 | V1.0 | 2026-09-24 | 已发布 |
 | [10-security](10-security.md) | 安全基线 | 认证 / 授权 / 数据安全 | V1.0 | 2026-09-24 | 已发布 |
-| [11-migoo-framework](11-migoo-framework.md) | 集成参考 | migoo 组件与官方使用手册 | V1.0 | 2026-09-24 | 已发布 |
+| [11-migoo-framework](11-migoo-framework.md) | 集成策略 | migoo 组件选择、项目边界和官方手册入口 | V1.1 | 2026-09-24 | 已发布 |
 | [12-task-template](12-task-template.md) | 流程模板 | AI / 开发任务 | V1.0 | 2026-09-24 | 已发布 |
 | [13-scroll-container](13-scroll-container.md) | 专项规范 | 前端滚动容器 | V1.0 | 2026-09-24 | 已发布 |
 | [14-improvement-backlog](14-improvement-backlog.md) | 待办清单 | 未执行的规范、代码、配置和交付任务 | V1.0 | 2026-09-24 | 起草中 |
 | [15-realtime-protocol](15-realtime-protocol.md) | 实时协议 | 通用 WebSocket API | V1.0 | 2026-09-24 | 已发布 |
 | [16-deployment-runbook](16-deployment-runbook.md) | 部署 Runbook | 当前项目实际部署步骤 | V1.0 | 2026-09-24 | 已发布 |
+| [17-migoo-api-reference](17-migoo-api-reference.md) | API 速查 | migoo 组件 API 和项目适配摘要 | V1.0 | 2026-09-24 | 已发布 |
 
 ## 4. 当前统一决策
 
