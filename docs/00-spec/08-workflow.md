@@ -181,9 +181,9 @@ PR 标题和 Commit Message 是两个不同字段，不得混用。
 
 ## 8. 参考
 
-- 质量门禁：`docs/06-spec/07-quality.md`
-- 构建部署：`docs/06-spec/09-deploy.md`
-- AI 任务流程：`docs/06-spec/12-task-template.md`
+- 质量门禁：`docs/00-spec/07-quality.md`
+- 构建部署：`docs/00-spec/09-deploy.md`
+- AI 任务流程：`docs/00-spec/12-task-template.md`
 - 文档约定：`docs/AGENTS.md`
 
 ---

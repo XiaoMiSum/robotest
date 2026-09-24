@@ -171,10 +171,10 @@ CI 的质量门禁由 `07-quality.md` 定义，发布编排由项目 Runbook 维
 
 ## 10. 参考
 
-- 质量门禁：`docs/06-spec/07-quality.md`
-- 安全基线：`docs/06-spec/10-security.md`
-- 数据库迁移：`docs/06-spec/06-database.md`
-- 项目部署 Runbook：`docs/06-spec/16-deployment-runbook.md`
+- 质量门禁：`docs/00-spec/07-quality.md`
+- 安全基线：`docs/00-spec/10-security.md`
+- 数据库迁移：`docs/00-spec/06-database.md`
+- 项目部署 Runbook：`docs/00-spec/16-deployment-runbook.md`
 
 ---
 

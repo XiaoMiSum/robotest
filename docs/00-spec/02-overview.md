@@ -106,7 +106,7 @@
 
 ## 7. 参考
 
-- 目录索引：`docs/06-spec/01-readme.md`
+- 目录索引：`docs/00-spec/01-readme.md`
 - 文档管理约定：`docs/AGENTS.md`
 - 前端约定：`web/AGENTS.md`
 - 后端约定：`server/AGENTS.md`

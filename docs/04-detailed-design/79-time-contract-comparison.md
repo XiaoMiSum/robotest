@@ -237,11 +237,11 @@
 
 ## 8. 参考
 
-- 数据库规范：`docs/06-spec/06-database.md`
-- API 规范：`docs/06-spec/05-api.md`
-- 前端时间处理：`docs/06-spec/03-frontend.md`
+- 数据库规范：`docs/00-spec/06-database.md`
+- API 规范：`docs/00-spec/05-api.md`
+- 前端时间处理：`docs/00-spec/03-frontend.md`
 - 详细设计索引：`docs/04-detailed-design/01-readme.md`
-- 待办决策：`docs/06-spec/14-improvement-backlog.md`
+- 待办决策：`docs/00-spec/14-improvement-backlog.md`
 
 ---
 

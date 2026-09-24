@@ -27,8 +27,8 @@
 
 - 《接口测试需求规格说明书》（`docs/01-requirements/01-readme.md`，3.8–3.12）
 - 《概要设计说明书》（`docs/02-high-level-design/02-high-level-design.md`，4.1–2.4）
-- 《工程规范 — API 设计》（`docs/06-spec/05-api.md`）
-- 《工程规范 — 数据库》（`docs/06-spec/06-database.md`）
+- 《工程规范 — API 设计》（`docs/00-spec/05-api.md`）
+- 《工程规范 — 数据库》（`docs/00-spec/06-database.md`）
 - Ryze 多协议测试框架文档（`https://xiaomisum.github.io/ryze/`）
 
 ---

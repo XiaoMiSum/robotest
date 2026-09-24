@@ -143,11 +143,11 @@ Redis 能力用于缓存、限流、会话、短期 Ticket 和分布式协作。
 ## 7. 参考
 
 - API 速查：[`17-migoo-api-reference.md`](17-migoo-api-reference.md)
-- HTTP 契约：`docs/06-spec/05-api.md`
-- 通用实时协议：`docs/06-spec/15-realtime-protocol.md`
-- 后端分层：`docs/06-spec/04-backend.md`
-- 数据库：`docs/06-spec/06-database.md`
-- 安全：`docs/06-spec/10-security.md`
+- HTTP 契约：`docs/00-spec/05-api.md`
+- 通用实时协议：`docs/00-spec/15-realtime-protocol.md`
+- 后端分层：`docs/00-spec/04-backend.md`
+- 数据库：`docs/00-spec/06-database.md`
+- 安全：`docs/00-spec/10-security.md`
 - 官方总览：<https://xiaomisum.github.io/springboot-migoo-framework/>
 - 官方发布说明：<https://github.com/XiaoMiSum/springboot-migoo-framework/releases>
 

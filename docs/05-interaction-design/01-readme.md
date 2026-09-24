@@ -68,4 +68,4 @@
 > 阅读顺序建议：接口管理 → 快速调试 → 测试场景 → 环境管理 → 定时任务 → Mock服务 → 全局资产 → 测试报告 → 项目设置。导航框架与色彩体系见《全局导航与菜单交互系统设计》（项目设置框架见其 3.5）《视觉设计》。
 > 阅读顺序建议：先读《AI基础设施与管理端页面交互设计》（第 2 章为 AI 通用交互规范，其余 4 份均引用）。导航框架与色彩体系见《全局导航与菜单交互系统设计》《视觉设计》。
 >
-> 接口交互示例遵循 `docs/06-spec/05-api.md`：分页使用 `pageNo/pageSize` 和 `list/total`，错误码以 10 位 `ErrorCodeConstants` 为准；实时连接遵循 `docs/04-detailed-design/78-realtime-websocket.md` 和 `docs/06-spec/15-realtime-protocol.md`。
+> 接口交互示例遵循 `docs/00-spec/05-api.md`：分页使用 `pageNo/pageSize` 和 `list/total`，错误码以 10 位 `ErrorCodeConstants` 为准；实时连接遵循 `docs/04-detailed-design/78-realtime-websocket.md` 和 `docs/00-spec/15-realtime-protocol.md`。
