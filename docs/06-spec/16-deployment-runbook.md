@@ -140,21 +140,57 @@ bash scripts/deploy-merged.sh
 
 ## 7. 环境变量
 
-当前关键变量包括：
+### 7.1 本地后端环境文件
+
+后端本地环境文件为：
 
 ```text
+server/.env
+```
+
+- 文件采用 Java Properties 格式，只使用 `KEY=value`，不写 `export`。
+- `server/.env` 已被 Git 忽略，只能保存本机凭据和本地密钥，不得提交。
+- `server/.env.example` 是可提交模板，变量清单以模板为准。
+- Spring Boot 启动时优先加载工作目录下的 `.env`；从 `server/` 启动可直接读取该文件。
+- AI、ENV、JWT、PASSWORD 必须使用不同密钥域；本地值也不得复用于测试或生产环境。
+
+本地启动继续显式指定 profile：
+
+```bash
+cd server
+SPRING_PROFILES_ACTIVE=dev mvn spring-boot:run -Pdev
+```
+
+### 7.2 关键变量
+
+```text
+SPRING_PROFILES_ACTIVE
 PORT
+DATABASE_DRIVER
 DATASOURCE_URL
 DATASOURCE_USERNAME
 DATASOURCE_PASSWORD
 REDIS_HOST
 REDIS_PORT
+REDIS_USER
 REDIS_PASSWORD
-JWT_SECRET_KEY
-PASSWORD_SECRET
+UPLOAD_DIR
 AI_SECRET_KEY
 ENV_SECRET_KEY
+IMPORT_URL_POLICY
+MOCK_ACCESS_ENABLED
+MOCK_PORT
+MOCK_BASE_URL
+MOCK_PATH_QPS
+SCHEDULER_POOL_SIZE
+TASK_EXECUTION_TIMEOUT_MINUTES
+TASK_POLL_INTERVAL_MS
+DEBUG_STATUS
+JWT_SECRET_KEY
+PASSWORD_SECRET
 ```
+
+### 7.3 测试与生产环境
 
 生产环境必须设置：
 
@@ -172,7 +208,7 @@ web/.env.development
 web/.env.production
 ```
 
-test/prod 的后端配置优先通过部署环境变量或密钥管理服务注入，不依赖仓库中新增未验证的 profile 文件。
+test/prod 的后端配置优先通过部署环境变量或密钥管理服务注入，不依赖本地 `.env` 或仓库中新增未验证的 profile 文件。
 
 ## 8. Nginx 参考配置
 
