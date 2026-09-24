@@ -59,7 +59,7 @@ const {
     data-test="step-editor-drawer"
   >
     <div v-if="!step" class="step-editor__mode-switch">
-      <el-radio-group :model-value="createMode" @update:model-value="(v) => handleCreateModeChange(v as 'manual' | 'quick')">
+      <el-radio-group :model-value="createMode" @update:model-value="(v: unknown) => handleCreateModeChange(v as 'manual' | 'quick')">
         <el-radio-button value="manual">手动创建</el-radio-button>
         <el-radio-button value="quick">通过接口快速创建</el-radio-button>
       </el-radio-group>
