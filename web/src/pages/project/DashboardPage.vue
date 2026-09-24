@@ -36,7 +36,7 @@ const statCards = [
     key: 'reviews',
     label: '进行中评审',
     icon: 'Checked',
-    to: '/workspace/projects/reviews',
+    to: '/workspace/projects/functional-testing?tab=reviews',
     colorClass: 'stat-card--warning',
     valueKey: 'activeReviewCount' as const,
   },
@@ -44,7 +44,7 @@ const statCards = [
     key: 'plans',
     label: '进行中计划',
     icon: 'Calendar',
-    to: '/workspace/projects/plans',
+    to: '/workspace/projects/functional-testing?tab=plans',
     colorClass: 'stat-card--warning',
     valueKey: 'activePlanCount' as const,
   },
@@ -71,7 +71,7 @@ const quickEntries = [
     label: '新建测试计划',
     description: '安排测试执行任务',
     icon: 'Calendar',
-    to: '/workspace/projects/plans',
+    to: '/workspace/projects/functional-testing?tab=plans',
   },
   {
     key: 'bugs',
@@ -145,42 +145,62 @@ function openActivity(activity: ProjectActivity) {
       </div>
     </header>
 
-    <section class="dashboard__quick" aria-labelledby="quick-entry-title">
-      <div class="section-heading">
-        <h2 id="quick-entry-title" class="section-heading__title">快捷入口</h2>
-        <span class="section-heading__hint">快速进入常用功能</span>
-      </div>
-      <div class="quick-grid">
-        <button
-          v-for="entry in quickEntries"
-          :key="entry.key"
-          type="button"
-          class="quick-card"
-          @click="router.push(entry.to)"
-        >
-          <span class="quick-card__icon">
-            <el-icon :size="18"><component :is="entry.icon" /></el-icon>
-          </span>
-          <span class="quick-card__content">
-            <span class="quick-card__title">{{ entry.label }}</span>
-            <span class="quick-card__description">{{ entry.description }}</span>
-          </span>
-          <el-icon class="quick-card__arrow"><ArrowRight /></el-icon>
-        </button>
-      </div>
-    </section>
+    <el-row :gutter="16" class="dashboard__overview">
+      <el-col :xs="24" :md="12">
+        <el-card shadow="never" class="overview-card quick-overview">
+          <template #header>
+            <div class="panel__header">
+              <span id="quick-entry-title" class="panel__title">快捷入口</span>
+              <span class="panel__hint">快速进入常用功能</span>
+            </div>
+          </template>
+          <div class="quick-grid">
+            <button
+              v-for="entry in quickEntries"
+              :key="entry.key"
+              type="button"
+              class="quick-card"
+              @click="router.push(entry.to)"
+            >
+              <span class="quick-card__icon">
+                <el-icon :size="18"><component :is="entry.icon" /></el-icon>
+              </span>
+              <span class="quick-card__content">
+                <span class="quick-card__title">{{ entry.label }}</span>
+                <span class="quick-card__description">{{ entry.description }}</span>
+              </span>
+              <el-icon class="quick-card__arrow"><ArrowRight /></el-icon>
+            </button>
+          </div>
+        </el-card>
+      </el-col>
 
-    <el-row :gutter="16" class="dashboard__stats">
-      <el-col v-for="s in statCards" :key="s.key" :xs="12" :sm="6">
-        <div class="stat-card" :class="s.colorClass" @click="router.push(s.to)">
-          <div class="stat-card__icon">
-            <el-icon :size="20"><component :is="s.icon" /></el-icon>
+      <el-col :xs="24" :md="12">
+        <el-card shadow="never" class="overview-card stats-overview">
+          <template #header>
+            <div class="panel__header">
+              <span class="panel__title">项目统计</span>
+              <span class="panel__hint">当前项目数据概览</span>
+            </div>
+          </template>
+          <div class="stats-grid">
+            <div
+              v-for="s in statCards"
+              :key="s.key"
+              class="stat-card"
+              :class="s.colorClass"
+              @click="router.push(s.to)"
+            >
+              <div class="stat-card__icon">
+                <el-icon :size="20"><component :is="s.icon" /></el-icon>
+              </div>
+              <div class="stat-card__info">
+                <div class="stat-card__label">{{ s.label }}</div>
+                <div class="stat-card__value">{{ data?.[s.valueKey] ?? 0 }}</div>
+              </div>
+            </div>
           </div>
-          <div class="stat-card__info">
-            <div class="stat-card__label">{{ s.label }}</div>
-            <div class="stat-card__value">{{ data?.[s.valueKey] ?? 0 }}</div>
-          </div>
-        </div>
+        </el-card>
       </el-col>
     </el-row>
 
@@ -316,11 +336,27 @@ function openActivity(activity: ProjectActivity) {
   font-weight: 600;
 }
 
-.dashboard__quick {
+.dashboard__overview {
+  align-items: stretch;
   margin-bottom: var(--space-xl);
 }
 
-.section-heading,
+.dashboard__overview :deep(.el-col) {
+  display: flex;
+}
+
+.overview-card {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+}
+
+.overview-card :deep(.el-card__body) {
+  flex: 1;
+  padding: var(--space-lg);
+}
+
 .panel__header {
   display: flex;
   align-items: baseline;
@@ -328,11 +364,6 @@ function openActivity(activity: ProjectActivity) {
   gap: var(--space-md);
 }
 
-.section-heading {
-  margin-bottom: var(--space-md);
-}
-
-.section-heading__title,
 .panel__title {
   margin: 0;
   color: var(--color-neutral-800);
@@ -340,16 +371,17 @@ function openActivity(activity: ProjectActivity) {
   font-weight: 600;
 }
 
-.section-heading__hint,
 .panel__hint {
   color: var(--color-neutral-400);
   font-size: var(--font-size-xs);
 }
 
-.quick-grid {
+.quick-grid,
+.stats-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--space-md);
+  height: 100%;
 }
 
 .quick-card {
@@ -357,6 +389,8 @@ function openActivity(activity: ProjectActivity) {
   align-items: center;
   gap: var(--space-md);
   min-width: 0;
+  min-height: 92px;
+  height: 100%;
   padding: var(--space-md) var(--space-lg);
   border: 1px solid var(--color-neutral-200);
   border-radius: var(--radius-lg);
@@ -418,21 +452,18 @@ function openActivity(activity: ProjectActivity) {
   color: var(--color-neutral-400);
 }
 
-.dashboard__stats {
-  margin-bottom: var(--space-xl);
-}
-
 .stat-card {
   display: flex;
   align-items: center;
   gap: var(--space-lg);
-  padding: var(--space-lg) var(--space-xl);
+  min-height: 92px;
+  height: 100%;
+  padding: var(--space-md) var(--space-lg);
   background: var(--color-neutral-0);
   border-radius: var(--radius-lg);
   border: 1px solid var(--color-neutral-200);
   cursor: pointer;
   transition: all var(--transition-base);
-  margin-bottom: var(--space-md);
 }
 
 .stat-card:hover {
@@ -582,13 +613,15 @@ function openActivity(activity: ProjectActivity) {
 }
 
 @media (max-width: 960px) {
-  .quick-grid {
+  .quick-grid,
+  .stats-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
 @media (max-width: 640px) {
-  .quick-grid {
+  .quick-grid,
+  .stats-grid {
     grid-template-columns: 1fr;
   }
 

@@ -12,6 +12,12 @@ describe('项目工作台页面', () => {
     expect(pageSource).toContain('接口调试')
     expect(pageSource).toContain('最近动态')
     expect(pageSource).toContain('activityTarget(activity)')
+    expect(pageSource).toContain('/workspace/projects/functional-testing?tab=reviews')
+    expect(pageSource).toContain('/workspace/projects/functional-testing?tab=plans')
+    expect(pageSource).toContain('dashboard__overview')
+    expect(pageSource).toContain('quick-grid')
+    expect(pageSource).toContain('stats-grid')
+    expect(pageSource).toContain('overview-card')
   })
 
   it('使用统一时间格式化工具展示项目周期和动态时间', () => {
