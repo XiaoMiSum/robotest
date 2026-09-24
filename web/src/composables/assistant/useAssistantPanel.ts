@@ -58,6 +58,8 @@ export function useAssistantPanel(options: UseAssistantPanelOptions) {
   }
 
   function nowIso(): string {
+    // 本地乐观消息先于后端落库展示，需与后端 date-time 契约一致输出带 Z 的 UTC，
+    // 否则同一列表内本地与服务端时间会混用两种时区表达
     return new Date().toISOString()
   }
 

@@ -63,6 +63,35 @@ export function formatShortDateTime(value?: string | null): string {
   return `${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`
 }
 
+/** 仅保留数值部分，供相对时间复用 */
+function diffParts(ms: number): { days: number; hours: number; minutes: number } {
+  return {
+    days: Math.floor(ms / 86_400_000),
+    hours: Math.floor(ms / 3_600_000),
+    minutes: Math.floor(ms / 60_000),
+  }
+}
+
+/**
+ * 相对时间展示：同一入口按与当前时刻的差值分档，禁止页面自行拼接。
+ * 超过 7 天或时间在未来（时钟偏移/脏数据）时回落绝对时间，避免产生误导性"前"文案。
+ */
+export function formatRelativeTime(
+  value?: string | null,
+  now: Date = new Date(),
+): string {
+  if (!value) return '-'
+  const date = parseUtc(value)
+  if (Number.isNaN(date.getTime())) return '-'
+  const diff = now.getTime() - date.getTime()
+  if (diff < 0 || diff >= 7 * 86_400_000) return formatDateTime(value)
+  if (diff < 60_000) return '刚刚'
+  const { days, hours, minutes } = diffParts(diff)
+  if (hours < 1) return `${minutes} 分钟前`
+  if (days < 1) return `${hours} 小时前`
+  return `${days} 天前`
+}
+
 /** ID 缩略展示：前 4 + `...` + 后 4，长度不足 8 时原样返回 */
 export function formatShortId(value?: string | null): string {
   if (!value) return '-'
