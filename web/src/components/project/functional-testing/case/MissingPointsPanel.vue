@@ -120,7 +120,7 @@ const {
           <el-checkbox
             :model-value="allChecked"
             :indeterminate="checkedIndexes.size > 0 && !allChecked"
-            @update:model-value="(v) => toggleAll(v === true)"
+            @update:model-value="(v: unknown) => toggleAll(v === true)"
           >全选</el-checkbox>
           <span class="mp-result-count">共 {{ result.points.length }} 条，已选 {{ checkedIndexes.size }} 条</span>
         </div>
@@ -129,7 +129,7 @@ const {
           <div v-for="(point, index) in result.points" :key="index" class="mp-item">
             <el-checkbox
               :model-value="checkedIndexes.has(index)"
-              @update:model-value="(v) => toggleItem(index, v === true)"
+              @update:model-value="(v: unknown) => toggleItem(index, v === true)"
             />
             <div class="mp-item__body">
               <div class="mp-item__title">{{ point.title }}</div>

@@ -118,7 +118,7 @@ const emptyDesc = props.type === 'pre' ? '暂无前置处理器' : '暂无后置
             <el-radio-group
               :model-value="String(processors[selectedIdx]?.testclass ?? '')"
               size="small"
-              @update:model-value="(v) => emit('setTestclass', selectedIdx!, String(v))"
+              @update:model-value="(v: unknown) => emit('setTestclass', selectedIdx!, String(v))"
             >
               <el-radio-button value="http">HTTP</el-radio-button>
               <el-radio-button value="jdbc">JDBC</el-radio-button>
@@ -129,7 +129,7 @@ const emptyDesc = props.type === 'pre' ? '暂无前置处理器' : '暂无后置
               placeholder="选择环境 HTTP 配置"
               filterable
               class="scene-editor__proc-inline-ref"
-              @update:model-value="(v) => { if (selectedIdx !== null) { processors[selectedIdx].config = { ...(processors[selectedIdx].config as Record<string, unknown> || {}), ref: String(v) } } }"
+              @update:model-value="(v: unknown) => { if (selectedIdx !== null) { processors[selectedIdx].config = { ...(processors[selectedIdx].config as Record<string, unknown> || {}), ref: String(v) } } }"
             >
               <el-option v-for="opt in httpRefSelectOptions" :key="opt.value" :value="opt.value" :label="opt.label" />
             </el-select>
@@ -139,7 +139,7 @@ const emptyDesc = props.type === 'pre' ? '暂无前置处理器' : '暂无后置
               placeholder="选择环境数据源"
               filterable
               class="scene-editor__proc-inline-ref"
-              @update:model-value="(v) => { if (selectedIdx !== null) { processors[selectedIdx].config = { ...(processors[selectedIdx].config as Record<string, unknown> || {}), datasource: String(v) } } }"
+              @update:model-value="(v: unknown) => { if (selectedIdx !== null) { processors[selectedIdx].config = { ...(processors[selectedIdx].config as Record<string, unknown> || {}), datasource: String(v) } } }"
             >
               <el-option v-for="opt in dsRefSelectOptions" :key="opt.value" :value="opt.value" :label="opt.label" />
             </el-select>
@@ -151,7 +151,7 @@ const emptyDesc = props.type === 'pre' ? '暂无前置处理器' : '暂无后置
               :ds-options="dsRefOptions"
               :show-type-select="false"
               :show-ref-select="false"
-              @update:model-value="(v) => emit('update', selectedIdx!, v)"
+              @update:model-value="(v: Record<string, unknown>) => emit('update', selectedIdx!, v)"
               @import-extractors="emit('openExtractorPicker')"
             />
           </div>
