@@ -75,7 +75,7 @@ mvn package -Pprod
 server/target/robotest-server.jar
 ```
 
-`mvn verify` 是否包含 Checkstyle、SpotBugs、JaCoCo 等插件，以 `server/pom.xml` 的实际配置为准；未配置的插件不得在本文中宣称已经执行。
+`mvn verify` 只执行当前 `server/pom.xml` 已配置的编译和测试生命周期；本项目不将 SpotBugs、ArchUnit 和 JaCoCo 作为当前强制门禁。依赖漏洞、Secret 和许可证扫描由 CI 任务单独执行。
 
 ### 4.3 合并部署
 
@@ -212,7 +212,7 @@ Checkout
 - [ ] 管理端越权请求被拒绝
 - [ ] 关键 API 响应使用 `Result`
 - [ ] 分页使用 `pageNo/pageSize` 和 `list`
-- [ ] WebSocket 连接和 Yjs 同步正常
+- [ ] WebSocket 连接和实时消息正常
 - [ ] 日志中没有密码、Token 或 SQL 敏感参数
 - [ ] 数据库迁移和备份状态正常
 

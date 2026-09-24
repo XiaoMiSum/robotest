@@ -98,7 +98,7 @@ Mapper 负责：
 - 分页、批量和更新操作；
 - 返回影响行数，供并发和幂等判断使用。
 
-复杂查询和 Wrapper 构造必须封装在 Mapper 的 `default` 方法或专用查询对象中。Service 不得直接构造 `LambdaQueryWrapperX` / `LambdaUpdateWrapperX`。现有代码中的偏离项必须通过迁移任务收敛，不能以“当前已存在”为理由继续扩散。
+复杂、复用性查询和统计 Wrapper 构造必须封装在 Mapper 的 `default` 方法或专用查询对象中。Service 可以组合简单的动态业务过滤条件，但不得把权限判断、状态流转或复杂 SQL 下放到 Wrapper。Controller 和组装器不得构造 Wrapper。
 
 ## 4. 命名规范
 
@@ -154,8 +154,17 @@ server/src/main/java/io/github/xiaomisum/robotest/model/convert/
 - 纯字段一对一映射使用 MapStruct。
 - 聚合、统计、树结构、动态权限和需要额外查询的字段由 Service 组装。
 - 转换器不得查询数据库或判断业务权限。
-- 不得混用静态 `INSTANCE`、Spring 注入和手工 setter 拷贝。
-- 新代码遵循项目最终选定的一种实例化方式；现有代码迁移需单独记录。
+- 项目统一使用 Spring Bean 注入，不使用静态 `INSTANCE`。
+- 转换器实现使用 `@Mapper(componentModel = "spring")`，由 Service 注入。
+
+```java
+@Mapper(componentModel = "spring")
+public interface UserConvertMapper {
+    UserRespDTO toRespDTO(SysUser entity);
+}
+```
+
+现有静态调用需要通过独立代码迁移任务改为统一方式。
 
 ## 6. 响应、异常与分页
 
@@ -223,7 +232,14 @@ sysUserMapper.updateById(update);
 
 ## 9. 查询封装规范
 
-### 9.1 Mapper 意图方法
+### 9.1 查询分层
+
+- Service 可以根据请求参数组合简单的动态过滤条件；
+- 复杂、复用性查询、统计查询和固定数据访问意图必须封装在 Mapper `default` 方法或专用 Query Object 中；
+- Controller、Assembler 和 DTO 不得构造 Wrapper；
+- 权限和业务状态判断始终在 Service 或 Guard 中完成。
+
+示例：
 
 ```java
 public interface BugMapper extends BaseMapperX<Bug> {
@@ -237,7 +253,7 @@ public interface BugMapper extends BaseMapperX<Bug> {
 }
 ```
 
-Service 负责业务判断，Mapper 负责查询意图和数据访问。
+Service 负责业务判断，Mapper 负责可复用的数据访问意图。
 
 ### 9.2 命名
 

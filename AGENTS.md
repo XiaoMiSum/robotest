@@ -88,7 +88,7 @@ bash scripts/deploy-merged.sh
 | C11 | 后端数据更新只更新实际传入字段（部分更新），禁止整行查询结果作 `updateById` 载体   | 代码审查      |
 
 > 端专属约定（C1 前端类型安全、C2 Controller 职责、C3 异常规范、C6 注释规范、C8 覆盖率）及编码示例见各端 `AGENTS.md`；C10 / C11 为后端专属，落地口径见 `server/AGENTS.md`。
-> 详细规范索引：`docs/06-spec/02-overview.md`、`docs/06-spec/03-frontend.md`、`docs/06-spec/04-backend.md`、`docs/06-spec/05-api.md`、`docs/06-spec/06-database.md`、`docs/06-spec/07-quality.md`、`docs/06-spec/08-workflow.md`、`docs/06-spec/09-deploy.md`、`docs/06-spec/10-security.md`、`docs/06-spec/11-migoo-framework.md`、`docs/06-spec/12-task-template.md`、`docs/06-spec/13-scroll-container.md`、`docs/06-spec/14-improvement-backlog.md`。
+> 详细规范索引：`docs/06-spec/02-overview.md`、`docs/06-spec/03-frontend.md`、`docs/06-spec/04-backend.md`、`docs/06-spec/05-api.md`、`docs/06-spec/06-database.md`、`docs/06-spec/07-quality.md`、`docs/06-spec/08-workflow.md`、`docs/06-spec/09-deploy.md`、`docs/06-spec/10-security.md`、`docs/06-spec/11-migoo-framework.md`、`docs/06-spec/12-task-template.md`、`docs/06-spec/13-scroll-container.md`、`docs/06-spec/14-improvement-backlog.md`、`docs/06-spec/15-realtime-protocol.md`。
 
 ---
 
@@ -218,6 +218,6 @@ bash scripts/deploy-merged.sh
 - 所有 API 变更应先后端后前端，通过 OpenAPI 文档同步（`springdoc-openapi`）。  
 - 跨端消息格式（WebSocket）需前后端共同确认 handler 匹配。  
 - 若遇不确定性，优先查阅 `docs/06-spec/` 或向用户提问，不要臆断。  
-- 分支策略：`main` ← `develop` ← `feature/*` / `fix/*` / `hotfix/*` / `release/*`，所有合并走 PR。
+- 分支策略：`master` ← `develop` ← `feature/*` / `fix/*` / `hotfix/*` / `release/*`，所有合并走 PR。
 
 ---

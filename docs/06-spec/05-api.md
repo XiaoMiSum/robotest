@@ -91,11 +91,13 @@ X-Active-Project: <project-uuid>
 
 ### 4.2 HTTP 状态与业务码
 
-- HTTP 状态码表达传输层和资源层语义。
-- `Result.code` 表达项目业务结果。
-- 认证失败、权限失败、业务校验失败和系统错误必须使用统一错误码注册表。
-- 不允许在不同 Controller 中自行定义同义错误码。
-- 当前项目中存在 HTTP 状态码与业务码并行的历史行为，新增或修改接口前必须明确选择并通过契约测试锁定。
+当前项目采用框架兼容模式：
+
+- `Result.code` 表达项目业务结果，成功为 `200`；
+- 失败使用 10 位业务错误码；
+- HTTP 状态码保留框架和传输层语义，不单独承担业务成功判断；
+- 当前历史接口可能返回 HTTP 200 + 业务失败码，前端必须同时兼容 HTTP 错误和业务错误；
+- 新增或修改接口必须通过契约测试锁定具体行为，不得在 Controller 中自行创造第三套映射。
 
 ## 5. 分页协议
 
@@ -110,7 +112,7 @@ GET /api/admin/users?pageNo=1&pageSize=20
 | `pageNo` | `number` | 从 `1` 开始 |
 | `pageSize` | `number` | 默认 `20`，最大 `100` |
 
-服务端必须校验页码和页大小，不能将未经校验的分页参数直接拼入 SQL。
+服务端必须校验页码和页大小，不能将未经校验的分页参数直接拼入 SQL。普通资源使用本页协议；游标分页接口必须单独使用 `cursor/size`，并返回 `items/nextCursor`，不得伪装成 `PageResult<T>`。
 
 ### 5.2 响应
 
@@ -177,67 +179,20 @@ ErrorCode.of(1000003001, "用户不存在");
 - API 变更必须同步更新 OpenAPI 基线、前端生成类型、接口测试和详细设计。
 - 提交前执行 `web` 的 `pnpm run contract:gen` 和契约一致性检查。
 
-## 9. WebSocket 与 Yjs
+## 9. WebSocket 与实时协议
 
-### 9.1 连接与鉴权
-
-连接路径：
+WebSocket 连接鉴权、通用帧格式、错误帧和连接生命周期统一引用：
 
 ```text
-/ws/documents/{docId}
+docs/06-spec/15-realtime-protocol.md
 ```
 
-浏览器 WebSocket 不能稳定设置自定义 `Authorization` Header，因此当前允许通过查询参数传递 Token：
+本文只约束实时接口与 HTTP API 的边界：
 
-```text
-/ws/documents/{docId}?token=<token>
-```
-
-这是对普通 HTTP Header 认证的明确例外，必须：
-
-- 只允许短时访问 Token，禁止在日志中记录完整 Token。
-- 服务端校验 Token 和用户对文档的访问权限。
-- 生产环境限制允许的 Origin，禁止默认使用 `*`。
-- 连接断开、权限撤销和 Token 失效后的行为必须可预期。
-
-### 9.2 帧类型
-
-| 帧类型 | 用途 | 服务端行为 |
-| --- | --- | --- |
-| Yjs 二进制帧 | Sync、Update、Awareness | 先校验可写权限，再按房间转发，不解析业务内容 |
-| JSON 文本帧 | 节点、布局等持久化操作 | 先校验权限，再广播并持久化 |
-| JSON 错误帧 | 持久化或权限失败 | 返回稳定错误码和可展示消息 |
-
-### 9.3 JSON 文本帧
-
-当前项目使用以下业务操作格式：
-
-```json
-{
-  "type": "add_node",
-  "payload": {
-    "data": {
-      "id": "node-uuid",
-      "parentId": null,
-      "title": "新节点",
-      "type": "normal",
-      "priority": null,
-      "aiGenerated": false,
-      "sortOrder": 0
-    }
-  }
-}
-```
-
-允许的文本操作至少包括：
-
-- `add_node`
-- `update_attrs`
-- `move_node`
-- `delete_node`
-- `update_layout`
-
-协议版本、幂等键、消息大小、错误码、重连和顺序策略必须在协议版本中明确。客户端不得通过文本帧绕过 Yjs 的实时同步和权限控制。
+- 实时协议必须使用 10 位业务错误码或已登记的协议错误码；
+- 连接和业务资源权限由实时协议和服务端 Guard 双重校验；
+- 实时协议不得重新定义 `Result`、分页或数据库主键规范；
+- 具体业务事件和 Payload 由对应详细设计定义。
 
 ## 10. API 变更检查清单
 
@@ -253,6 +208,7 @@ ErrorCode.of(1000003001, "用户不存在");
 ## 11. 参考
 
 - 框架响应、异常和分页实现：`docs/06-spec/11-migoo-framework.md`
+- 通用实时协议：`docs/06-spec/15-realtime-protocol.md`
 - 安全基线：`docs/06-spec/10-security.md`
 - 数据库和分页查询：`docs/06-spec/06-database.md`、`docs/06-spec/04-backend.md`
 

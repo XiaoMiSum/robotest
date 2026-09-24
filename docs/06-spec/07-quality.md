@@ -28,9 +28,11 @@
 | 前端测试 | Vitest | Blocking | `pnpm run test:unit` |
 | 后端编译 | Maven Compiler | Blocking | `mvn test` / `mvn verify` |
 | 后端测试 | JUnit 5 / Spring Boot Test | Blocking | `mvn test` |
-| 静态分析 | Checkstyle、SpotBugs、依赖漏洞扫描 | 目标门禁 | 未配置前不得宣称已执行 |
+| 依赖与安全扫描 | 依赖漏洞、Secret、许可证扫描 | 目标门禁 | 以实际 CI 配置为准 |
 
 `web/eslint.config.mjs` 中的层级门禁是前端架构检查的一部分，不能被普通代码审查替代。
+
+本项目当前不将 SpotBugs、ArchUnit 和 JaCoCo 作为强制门禁；相关代码通过编译、单元/集成测试、依赖扫描、契约检查和人工审查保障。若未来重新引入，必须单独记录原因、配置和验收标准。
 
 ## 3. 测试策略
 

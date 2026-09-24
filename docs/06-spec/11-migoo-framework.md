@@ -179,7 +179,7 @@ WorkspaceConvertMapper.java
 ### 5.2 使用原则
 
 ```java
-@Mapper
+@Mapper(componentModel = "spring")
 public interface UserConvertMapper {
     UserRespDTO toRespDTO(SysUser entity);
 }
@@ -189,7 +189,7 @@ public interface UserConvertMapper {
 - 业务字段、权限字段、审计字段和需要额外查询的关联对象由 Service 补充。
 - 不得在 Service 中为纯字段逐项 setter 拷贝。
 - 转换器实现类不得包含业务判断、数据库查询或权限逻辑。
-- 不得混用静态 `INSTANCE`、Spring 注入和手工拷贝三种方式；项目迁移时统一选择并记录。
+- 项目统一通过 Spring Bean 注入转换器，不使用静态 `INSTANCE`。现有代码迁移必须单独完成。
 
 ## 6. 认证与授权
 
@@ -218,20 +218,20 @@ migoo:
     enabled: true
     distributed: true
     endpoints:
-      - /ws/documents/*
+      - /ws/*
     token-header: Authorization
     token-prefix: "Bearer "
 ```
 
-生产环境必须配置允许的 Origin，不得依赖 `*`。浏览器 WebSocket 查询参数 Token 的例外和安全要求见 `05-api.md`、`10-security.md`。
+生产环境必须配置允许的 Origin，不得依赖 `*`。通用实时协议见 `15-realtime-protocol.md`，具体业务端点和事件由业务设计定义。
 
 ### 7.2 Handler 约束
 
 - Handler 只处理连接生命周期、帧转发和消息分发。
-- 文档成员权限在加入房间时校验。
-- 写入操作在持久化前再次校验权限，防止连接期间权限被撤销。
-- Yjs 二进制帧不由业务 Handler 解析。
-- JSON 业务操作必须进行大小、类型和权限校验。
+- 房间/主题权限在加入时校验。
+- 写入操作在广播或持久化前再次校验权限，防止连接期间权限被撤销。
+- 通用 Handler 不解析业务 Payload。
+- JSON 和二进制业务帧必须进行大小、类型和权限校验。
 
 ## 8. 工具类
 
