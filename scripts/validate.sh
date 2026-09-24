@@ -113,8 +113,13 @@ check_frontend() {
   echo ""
   echo "=== 前端验证 ==="
 
+  # 缺依赖必须返回非零（QA-004），跳过会让门禁形同虚设
   if [ ! -d "web/node_modules" ]; then
-    warn "web/node_modules 不存在，跳过前端验证"
+    fail "web/node_modules 不存在（缺少依赖），请先执行 pnpm install"
+    return
+  fi
+  if ! command -v pnpm >/dev/null 2>&1; then
+    fail "pnpm 未安装（缺少依赖）"
     return
   fi
 
@@ -149,6 +154,11 @@ check_backend() {
     warn "server/ 目录不存在，跳过后端验证"
     return
   fi
+  # 缺依赖必须返回非零（QA-004）
+  if ! command -v mvn >/dev/null 2>&1; then
+    fail "mvn 未安装（缺少依赖）"
+    return
+  fi
 
   echo "--- tests ---"
   if (cd server && mvn test -q 2>&1); then
@@ -161,7 +171,9 @@ check_backend() {
 # ─── 契约一致性检查（07 §4.1 / 08 §4.2：openapi-typescript 生成类型漂移校验） ─
 # 基线 web/openapi/contract.json 由后端运行期导出（pnpm contract:gen）。
 # 校验：用基线重新生成类型并与提交的 types/generated/contract.d.ts 比对，漂移即失败。
-# 当前为“可发现”模式：基线缺失时跳过（先报告，不阻断），接入后端后转阻断。
+# 当前为“可发现”模式：基线缺失时跳过（先报告，不阻断），接入后端后转阻断（QA-008）。
+# 校验依赖缺失、重新生成失败、类型漂移均按失败返回非零（QA-004）。
+# 本脚本只读校验，不修改任何源代码（lint 为 check-only，lint:fix 独立且不被本脚本调用）。
 check_contract() {
   echo ""
   echo "=== 前端契约一致性 ==="
@@ -169,22 +181,23 @@ check_contract() {
     warn "未找到基线 web/openapi/contract.json（后端未导出或未运行 pnpm contract:gen），跳过契约校验"
     return
   fi
+  # 校验依赖缺失按失败处理（QA-004）：跳过会让契约门禁形同虚设
   if [ ! -d "web/node_modules" ] || [ ! -d "web/node_modules/openapi-typescript" ]; then
-    warn "openapi-typescript 未安装，跳过契约校验"
+    fail "openapi-typescript 未安装（缺少依赖），请先执行 pnpm install"
     return
   fi
-  local TMP_GEN="$TMPDIR/contract.check.gen.d.ts"
+  local TMP_GEN="${TMPDIR:-/tmp}/contract.check.gen.d.ts"
+  # 重新生成失败属契约失败，必须返回非零（QA-004），不得静默跳过
   if (cd web && npx openapi-typescript "openapi/contract.json" -o "$TMP_GEN" 2>/dev/null); then
     if diff -q "web/src/types/generated/contract.d.ts" "$TMP_GEN" >/dev/null 2>&1; then
       pass "契约类型与基线一致"
-      rm -f "$TMP_GEN"
     else
       fail "契约漂移：src/types/generated/contract.d.ts 与 openapi/contract.json 不一致，请运行 pnpm contract:gen"
-      rm -f "$TMP_GEN"
     fi
   else
-    warn "契约类型重新生成失败，跳过校验"
+    fail "契约类型重新生成失败（契约校验失败），请检查 openapi/contract.json 与 openapi-typescript"
   fi
+  rm -f "$TMP_GEN"
 }
 
 # ─── Any 类型检查（前端） ──────────────────────────────────────────
