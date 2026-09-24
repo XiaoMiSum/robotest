@@ -1,6 +1,11 @@
 package io.github.xiaomisum.robotest.repository.workspace;
 
+import io.github.xiaomisum.robotest.model.dto.response.workspace.ProjectStatusCountsDTO;
 import io.github.xiaomisum.robotest.model.entity.workspace.Project;
+import org.apache.ibatis.annotations.Param;
+import org.apache.ibatis.annotations.Result;
+import org.apache.ibatis.annotations.Results;
+import org.apache.ibatis.annotations.Select;
 import xyz.migoo.framework.mybatis.core.BaseMapperX;
 import xyz.migoo.framework.mybatis.core.LambdaQueryWrapperX;
 
@@ -38,13 +43,41 @@ public interface ProjectMapper extends BaseMapperX<Project> {
         return selectList(new LambdaQueryWrapperX<Project>().eq(Project::getWorkspaceId, workspaceId));
     }
 
+    @Select("""
+            <script>
+            SELECT
+                COALESCE(SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END), 0) AS active,
+                COALESCE(SUM(CASE WHEN status = 'archived' THEN 1 ELSE 0 END), 0) AS archived
+            FROM ws_project
+            WHERE workspace_id = #{workspaceId}
+              AND is_deleted = FALSE
+            <if test="keyword != null and keyword != ''">
+              AND (
+                LOWER(COALESCE(name, '')) LIKE LOWER(CONCAT('%', #{keyword}, '%'))
+                OR LOWER(COALESCE(description, '')) LIKE LOWER(CONCAT('%', #{keyword}, '%'))
+              )
+            </if>
+            </script>
+            """)
+    @Results(id = "projectStatusCounts",
+            value = {
+                    @Result(column = "active", property = "active"),
+                    @Result(column = "archived", property = "archived")
+            })
+    ProjectStatusCountsDTO countStatusByWorkspaceId(@Param("workspaceId") UUID workspaceId,
+                                                      @Param("keyword") String keyword);
+
     default PageResult<Project> findPage(PageParam pageParam, UUID workspaceId,
                                           String keyword, String status) {
         return selectPage(pageParam, new LambdaQueryWrapperX<Project>()
                 .eq(Project::getWorkspaceId, workspaceId)
-                .likeIfPresent(Project::getName, keyword)
+                .and(keyword != null && !keyword.isBlank(), w -> w
+                        .like(Project::getName, keyword)
+                        .or()
+                        .like(Project::getDescription, keyword))
                 .eqIfPresent(Project::getStatus, status)
-                .orderByDesc(Project::getCreatedAt));
+                .orderByDesc(Project::getUpdatedAt)
+                .orderByDesc(Project::getId));
     }
 
     default Project findByName(UUID workspaceId, String name) {

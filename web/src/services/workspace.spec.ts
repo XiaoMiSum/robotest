@@ -22,6 +22,8 @@ import {
   fetchMembers,
   fetchMyWorkspaceCounts,
   fetchMyWorkspaces,
+  fetchProjectStatusCounts,
+  fetchProjects,
   setActiveWorkspacePreference,
 } from './workspace'
 
@@ -51,6 +53,19 @@ describe('workspace service', () => {
     void fetchMyWorkspaceCounts({ keyword: '质量' })
 
     expect(mocks.get).toHaveBeenCalledWith('/workspaces/counts', { keyword: '质量' })
+  })
+
+  it('项目列表使用标准分页接口，项目状态数量使用独立接口', () => {
+    void fetchProjects({ keyword: '核心', status: 'active', pageNo: 2, pageSize: 20 })
+    void fetchProjectStatusCounts({ keyword: '核心' })
+
+    expect(mocks.get).toHaveBeenNthCalledWith(1, '/workspace/projects', {
+      keyword: '核心',
+      status: 'active',
+      pageNo: 2,
+      pageSize: 20,
+    })
+    expect(mocks.get).toHaveBeenNthCalledWith(2, '/workspace/projects/counts', { keyword: '核心' })
   })
 
   it('成员列表请求携带关键词、角色和分页参数', () => {
