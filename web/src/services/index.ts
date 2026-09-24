@@ -11,6 +11,165 @@ const api = axios.create({
 const TOKEN_KEY = 'robotest_access_token'
 const REFRESH_KEY = 'robotest_refresh_token'
 
+export const ACTIVE_WORKSPACE_STORAGE_KEY = 'robotest_active_workspace'
+export const ACTIVE_PROJECT_STORAGE_KEY = 'robotest_active_project'
+
+export interface ActiveRequestContext {
+  workspaceId: string | null
+  projectId: string | null
+}
+
+export type RequestContextScope = 'none' | 'workspace' | 'project'
+
+export interface ContextHeaderOptions {
+  url?: string
+  method?: string
+  headers?: unknown
+}
+
+function normalizeContextId(value: string | null | undefined): string | null {
+  const normalized = value?.trim()
+  return normalized ? normalized : null
+}
+
+function readContextValue(key: string): string | null {
+  try {
+    if (typeof localStorage === 'undefined') return null
+    return normalizeContextId(localStorage.getItem(key))
+  } catch {
+    return null
+  }
+}
+
+function writeContextValue(key: string, value: string | null): void {
+  try {
+    if (typeof localStorage === 'undefined') return
+    const normalized = normalizeContextId(value)
+    if (normalized) {
+      localStorage.setItem(key, normalized)
+    } else {
+      localStorage.removeItem(key)
+    }
+  } catch {
+    // 存储不可用时不能让请求层因持久化失败而崩溃，调用方仍可保留内存状态
+  }
+}
+
+/** 读取活动上下文的唯一持久化快照，项目必须与工作空间同时存在。 */
+export function getActiveContext(): ActiveRequestContext {
+  const workspaceId = readContextValue(ACTIVE_WORKSPACE_STORAGE_KEY)
+  const projectId = workspaceId ? readContextValue(ACTIVE_PROJECT_STORAGE_KEY) : null
+  return { workspaceId, projectId }
+}
+
+export function setActiveWorkspaceId(workspaceId: string | null): void {
+  writeContextValue(ACTIVE_WORKSPACE_STORAGE_KEY, workspaceId)
+}
+
+export function setActiveProjectId(projectId: string | null): void {
+  writeContextValue(ACTIVE_PROJECT_STORAGE_KEY, projectId)
+}
+
+export function clearActiveContext(): void {
+  setActiveWorkspaceId(null)
+  setActiveProjectId(null)
+}
+
+function normalizeRequestPath(url: string | undefined): string {
+  const withoutQuery = (url ?? '').split(/[?#]/, 1)[0] ?? ''
+  const withoutOrigin = withoutQuery.replace(/^[a-z][a-z\d+.-]*:\/\/[^/]+/i, '')
+  const path = withoutOrigin === '/api' ? '/' : withoutOrigin.replace(/^\/api(?=\/|$)/, '')
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`
+  return normalizedPath.length > 1 ? normalizedPath.replace(/\/+$/, '') : normalizedPath
+}
+
+/** 依据接口域划分上下文，避免把活动空间/项目泄漏到公共或管理域请求。 */
+export function getRequestContextScope(url: string | undefined): RequestContextScope {
+  const path = normalizeRequestPath(url)
+  if (path === '/auth/permissions') return 'workspace'
+  if (
+    path === '/workspace/ai/status' ||
+    path === '/workspace/invitations/verify' ||
+    path === '/workspace/invitations/check-email' ||
+    path === '/workspace/invitations/join'
+  ) {
+    return 'none'
+  }
+  if (path === '/project' || path.startsWith('/project/')) return 'project'
+  if (path === '/workspace' || path.startsWith('/workspace/')) return 'workspace'
+  return 'none'
+}
+
+export function hasRequestHeader(headers: unknown, name: string): boolean {
+  if (headers === null || headers === undefined) return false
+  const normalizedName = name.toLowerCase()
+  if (typeof Headers !== 'undefined' && headers instanceof Headers) {
+    return headers.has(name)
+  }
+  if (Array.isArray(headers)) {
+    return headers.some(
+      (entry) =>
+        Array.isArray(entry) &&
+        typeof entry[0] === 'string' &&
+        entry[0].toLowerCase() === normalizedName,
+    )
+  }
+  if (typeof headers !== 'object') return false
+  return Object.keys(headers).some((key) => key.toLowerCase() === normalizedName)
+}
+
+function readRequestHeader(headers: unknown, name: string): string | null {
+  if (headers === null || headers === undefined) return null
+  if (typeof Headers !== 'undefined' && headers instanceof Headers) {
+    return headers.get(name)
+  }
+  if (Array.isArray(headers)) {
+    const entry = headers.find(
+      (item) =>
+        Array.isArray(item) &&
+        typeof item[0] === 'string' &&
+        item[0].toLowerCase() === name.toLowerCase(),
+    )
+    return Array.isArray(entry) && entry[1] != null ? String(entry[1]) : null
+  }
+  if (typeof headers !== 'object') return null
+  const getter = (headers as { get?: unknown }).get
+  if (typeof getter === 'function') {
+    const value = (getter as (headerName: string) => unknown).call(headers, name)
+    return value == null ? null : String(value)
+  }
+  const key = Object.keys(headers).find(
+    (headerName) => headerName.toLowerCase() === name.toLowerCase(),
+  )
+  if (!key) return null
+  const value = (headers as Record<string, unknown>)[key]
+  return value == null ? null : String(value)
+}
+
+/** Axios 与 SSE 共用的上下文头适配器；调用方已显式提供的头永远优先。 */
+export function getContextHeaders(options: ContextHeaderOptions = {}): Record<string, string> {
+  const scope = getRequestContextScope(options.url)
+  if (scope === 'none') return {}
+
+  const context = getActiveContext()
+  const headers: Record<string, string> = {}
+  const hasExplicitWorkspace = hasRequestHeader(options.headers, 'X-Active-Workspace')
+  if (context.workspaceId && !hasExplicitWorkspace) {
+    headers['X-Active-Workspace'] = context.workspaceId
+  }
+  const explicitWorkspace = readRequestHeader(options.headers, 'X-Active-Workspace')
+  const workspaceMatches = !hasExplicitWorkspace || explicitWorkspace === context.workspaceId
+  if (
+    scope === 'project' &&
+    context.projectId &&
+    workspaceMatches &&
+    !hasRequestHeader(options.headers, 'X-Active-Project')
+  ) {
+    headers['X-Active-Project'] = context.projectId
+  }
+  return headers
+}
+
 export function getAccessToken(): string | null {
   return sessionStorage.getItem(TOKEN_KEY)
 }
@@ -29,27 +188,17 @@ export function clearTokens(): void {
   sessionStorage.removeItem(REFRESH_KEY)
 }
 
-// --- Request interceptor: inject Authorization header ---
+// --- Request interceptor: inject Authorization and scoped context headers ---
 api.interceptors.request.use((config) => {
   const token = getAccessToken()
-  if (token) {
+  if (token && !hasRequestHeader(config.headers, 'Authorization')) {
     config.headers.Authorization = `Bearer ${token}`
   }
 
-  // Inject workspace context header if stored. Selection requests must stay context-free, and an explicit target
-  // header must win over the stored context when switching workspaces.
-  const workspaceId = localStorage.getItem('robotest_active_workspace')
-  const isWorkspaceSelection =
-    config.url === '/workspaces' && (config.method ?? 'get').toLowerCase() === 'get'
-  const hasExplicitWorkspaceHeader = Boolean(config.headers?.['X-Active-Workspace'])
-  if (workspaceId && !isWorkspaceSelection && !hasExplicitWorkspaceHeader) {
-    config.headers['X-Active-Workspace'] = workspaceId
-  }
-
-  // Inject project context header if stored
-  const projectId = localStorage.getItem('robotest_active_project')
-  if (projectId) {
-    config.headers['X-Active-Project'] = projectId
+  for (const [name, value] of Object.entries(
+    getContextHeaders({ url: config.url, method: config.method, headers: config.headers }),
+  )) {
+    config.headers[name] = value
   }
 
   return config
@@ -121,8 +270,7 @@ async function handleUnauthorized(
     pendingRequests.forEach(({ reject }) => reject(expiredError))
     pendingRequests = []
     clearTokens()
-    localStorage.removeItem('robotest_active_workspace')
-    localStorage.removeItem('robotest_active_project')
+    clearActiveContext()
     if (window.location.pathname !== '/login') {
       window.location.href = '/login'
     }
@@ -184,29 +332,17 @@ export function get<T>(url: string, params?: Record<string, unknown>): Promise<T
 }
 
 /** 通用 POST 请求 — 支持可选 config（timeout、signal、headers 等） */
-export function post<T>(
-  url: string,
-  data?: unknown,
-  config?: AxiosRequestConfig,
-): Promise<T> {
+export function post<T>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T> {
   return api.post(url, data, config) as unknown as Promise<T>
 }
 
 /** 通用 PUT 请求 — 支持可选 config */
-export function put<T>(
-  url: string,
-  data?: unknown,
-  config?: AxiosRequestConfig,
-): Promise<T> {
+export function put<T>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T> {
   return api.put(url, data, config) as unknown as Promise<T>
 }
 
 /** 通用 PATCH 请求 — 支持可选 config */
-export function patch<T>(
-  url: string,
-  data?: unknown,
-  config?: AxiosRequestConfig,
-): Promise<T> {
+export function patch<T>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T> {
   return api.patch(url, data, config) as unknown as Promise<T>
 }
 
