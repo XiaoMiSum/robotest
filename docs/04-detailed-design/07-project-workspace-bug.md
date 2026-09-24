@@ -25,6 +25,8 @@
 | resolvedBy | UUID   | 否   | 按解决人筛选                                |
 | closedBy   | UUID   | 否   | 按关闭人筛选                                |
 | keyword    | string | 否   | 关键词搜索：支持 UUID **前缀/后缀**匹配与标题 **包含** 匹配 |
+| pageNo     | number | 否   | 页码，从 1 开始，默认 1 |
+| pageSize   | number | 否   | 每页数量，默认 20，最大 100 |
 
 - **响应**：
   

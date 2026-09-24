@@ -12,6 +12,7 @@
 
 - **路径**：`GET /api/project/environments?keyword=xxx`
 - **参数**：`keyword` 环境名称模糊搜索（前端输入防抖 300ms 后触发请求）。
+- **分页约定**：该接口为有限配置项的非分页列表，响应 `data` 直接为环境数组，不使用 `PageResult.list/total`。
 - **响应**：
 
 ```json

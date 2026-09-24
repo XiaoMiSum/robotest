@@ -133,20 +133,25 @@ GET /api/project/testcases
 | 参数 | 类型 | 必填 | 说明 |
 | --- | --- | --- | --- |
 | moduleId | UUID | 否 | 按模块筛选（不传则返回当前项目全部用例） |
+| pageNo | number | 否 | 页码，从 1 开始，默认 1 |
+| pageSize | number | 否 | 每页数量，默认 20，最大 100 |
 
 **响应** `200 OK`：
 
 ```json
-[
-  {
-    "id": "uuid-tc",
-    "moduleId": "uuid-module",
-    "name": "登录流程用例",
-    "sortOrder": 0,
-    "nodeCount": 12,
-    "updatedAt": "2026-08-17T10:30:00Z"
-  }
-]
+{
+  "list": [
+    {
+      "id": "uuid-tc",
+      "moduleId": "uuid-module",
+      "name": "登录流程用例",
+      "sortOrder": 0,
+      "nodeCount": 12,
+      "updatedAt": "2026-08-17T10:30:00Z"
+    }
+  ],
+  "total": 1
+}
 ```
 
 #### 3.1.3 更新用例

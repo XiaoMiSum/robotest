@@ -182,16 +182,19 @@
 - **响应**：
 
 ```json
-[
-  {
-    "id": "018f...",
-    "changeVersion": 3,
-    "action": "update",
-    "summary": "修改请求路径与默认请求头",
-    "operatorId": "018c...",
-    "createdAt": "2026-08-17T10:30:00Z"
-  }
-]
+{
+  "list": [
+    {
+      "id": "018f...",
+      "changeVersion": 3,
+      "action": "update",
+      "summary": "修改请求路径与默认请求头",
+      "operatorId": "018c...",
+      "createdAt": "2026-08-17T10:30:00Z"
+    }
+  ],
+  "total": 1
+}
 ```
 
 

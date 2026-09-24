@@ -18,7 +18,7 @@
 | keyword     | string | 否   | 按用户名/邮箱模糊搜索       |
 | status      | string | 否   | active / disabled / locked（三态，见 2.2） |
 | roleId      | bigint | 否   | 筛选拥有该角色的用户        |
-| page        | int    | 否   | 页码，默认 1           |
+| pageNo      | int    | 否   | 页码，默认 1           |
 | pageSize    | int    | 否   | 每页数量，默认 20，最大 100 |
 
 - **响应数据**：
