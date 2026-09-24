@@ -26,10 +26,11 @@ public class WorkspaceMemberController {
     public Result<PageResult<WorkspaceMemberRespDTO>> getMembers(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) UUID workspaceRole,
             @RequestParam(defaultValue = "1") Integer pageNo,
             @RequestParam(defaultValue = "20") Integer pageSize) {
         PageResult<WorkspaceMemberRespDTO> result = workspaceMemberService.getMemberPage(
-                loginUser.getId(), loginUser.getActiveWorkspaceId(), keyword, pageNo, pageSize);
+                loginUser.getId(), loginUser.getActiveWorkspaceId(), keyword, workspaceRole, pageNo, pageSize);
         return Result.ok(result);
     }
 

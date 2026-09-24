@@ -3,6 +3,7 @@ package io.github.xiaomisum.robotest.service.workspace;
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.model.dto.request.workspace.WorkspaceMembersAddReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.workspace.WorkspaceMemberAddResultRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.workspace.WorkspaceMemberRespDTO;
 import io.github.xiaomisum.robotest.model.entity.admin.SysUser;
 import io.github.xiaomisum.robotest.model.entity.workspace.WorkspaceUser;
 import io.github.xiaomisum.robotest.repository.admin.SysUserMapper;
@@ -14,6 +15,8 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import xyz.migoo.framework.common.exception.ServiceException;
+import xyz.migoo.framework.common.pojo.PageParam;
+import xyz.migoo.framework.common.pojo.PageResult;
 
 import java.util.List;
 import java.util.UUID;
@@ -23,6 +26,8 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -58,6 +63,22 @@ class WorkspaceMemberServiceImplTest {
         wu.setWorkspaceId(workspaceId);
         wu.setWorkspaceRole(Constants.WorkspaceRole.MEMBER_ID);
         return wu;
+    }
+
+    // ========== getMemberPage ==========
+
+    @Test
+    void getMemberPage_appliesWorkspaceRoleFilter() {
+        when(workspaceUserMapper.findByWorkspaceIdAndUserId(workspaceId, adminId)).thenReturn(adminUser());
+        when(workspaceUserMapper.findPageByWorkspaceIdAndUserIds(
+                any(PageParam.class), eq(workspaceId), isNull(), eq(Constants.WorkspaceRole.ADMIN_ID)))
+                .thenReturn(new PageResult<>(List.of(), 0L));
+
+        PageResult<WorkspaceMemberRespDTO> result = memberService.getMemberPage(
+                adminId, workspaceId, null, Constants.WorkspaceRole.ADMIN_ID, 1, 20);
+
+        assertTrue(result.getList().isEmpty());
+        assertEquals(0L, result.getTotal());
     }
 
     // ========== addMembers ==========
