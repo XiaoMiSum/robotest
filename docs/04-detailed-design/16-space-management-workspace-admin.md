@@ -141,7 +141,24 @@
 
 - **路径**：`GET /api/workspace/invitations`
 - **权限**：空间管理员。
-- **响应**：分页返回邀请链接列表。
+- **请求参数**：`pageNo`（可选，默认 1）、`pageSize`（可选，默认 20，最大 100）。
+- **响应**：`data` 使用分页结构：
+  ```json
+  {
+    "list": [
+      {
+        "id": "uuid-invitation",
+        "status": "active",
+        "email": "tester@example.com",
+        "expiresAt": "2026-12-31T23:59:59Z",
+        "maxUses": 50,
+        "useCount": 0,
+        "createdAt": "2026-07-04T10:00:00Z"
+      }
+    ],
+    "total": 8
+  }
+  ```
 
 ### 1.10 撤销邀请链接
 

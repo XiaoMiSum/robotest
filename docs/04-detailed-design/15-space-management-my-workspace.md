@@ -52,7 +52,7 @@ CREATE INDEX idx_test_case_node_document_type
 | keyword  | string | 否   | 空     | 工作空间名称，不区分大小写的包含匹配 |
 | scope    | string | 否   | `all`  | `all`（全部）、`managed`（我管理的活跃空间）、`archived`（已归档空间） |
 | pageNo   | int    | 否   | 1      | 页码 |
-| pageSize | int    | 否   | 12     | 每页数量，最大 100 |
+| pageSize | int    | 否   | 20     | 每页数量，最大 100 |
 
 - **范围规则**：
   - `all`：当前用户全部未删除成员关系，包含 `active` 与 `dissolved` 工作空间。
