@@ -19,7 +19,7 @@
 | DEC-001 | 采用方案 B：保留 `master`，配置 develop/feature/fix/hotfix 保护规则，不改造远端分支 |
 | DEC-002 | 采用方案 A：保持当前 HTTP 状态与 `Result.code` 兼容模式 |
 | DEC-003 | 采用方案 A：普通分页统一 `pageNo/pageSize`，默认 1/20，最大 100；游标分页单独定义 |
-| DEC-005 | API `date-time` 字段统一输出带 `Z` 的 UTC；前端按浏览器时区展示；数据库存储类型迁移另行评估 |
+| DEC-005 | API `date-time` 字段统一输出带 `Z` 的 UTC；前端按浏览器时区展示；不存在数据库存储类型迁移，维持现有 `LocalDateTime` + `TIMESTAMP` 存储模型 |
 | DEC-006 | 采用方案 A：PostgreSQL 正式支持，MySQL 仅保留驱动/迁移兼容说明 |
 | DEC-007 | 采用方案 B：使用一次性、短时、单文档 WebSocket Ticket |
 | DEC-008 | 采用方案 B：MapStruct 统一使用 Spring Bean 注入 |
@@ -31,7 +31,7 @@
 | DOC-010 / GOV-006 | 实时协议从 `docs/00-spec/20-contracts/01-api.md` 拆出为 `docs/00-spec/20-contracts/03-realtime-protocol.md` |
 | GOV-007 | 工程规范按治理、工程、契约、质量交付、安全和 UI 分类整理，根目录保留总索引 |
 
-DEC-004 不再作为通用规范决策；上下文路由/请求体边界由各业务详细设计分别说明。DEC-005 的 API 时间格式已确定，数据库存储类型和历史数据迁移仍按 `docs/04-detailed-design/79-time-contract-comparison.md` 评估。
+DEC-004 不再作为通用规范决策；上下文路由/请求体边界由各业务详细设计分别说明。DEC-005 已全部定案：API 时间格式为带 `Z` 的 UTC，且不存在数据库存储类型迁移，维持现有存储模型；`docs/04-detailed-design/79-time-contract-comparison.md` 仅保留为方案比较参考。
 
 ## 2. 状态和优先级
 
@@ -69,7 +69,7 @@ DEC-004 不再作为通用规范决策；上下文路由/请求体边界由各�
 | DEC-002 | P0 | HTTP 状态码与业务码 | `Result.code` 与 HTTP 400/401/403/409/500 的映射规则 | 已确认：方案 A |
 | DEC-003 | P0 | 分页默认值和游标例外 | 是否统一 `pageNo=1`、`pageSize=20`、最大 100；AI 会话等游标分页如何定义 | 已确认：方案 A |
 | DEC-004 | P0 | 业务上下文边界 | 各业务详细设计分别明确活动上下文、目标资源 ID 和专用接口边界 | 业务设计约束 |
-| DEC-005 | P1 | 时间契约 | API `date-time` 字段统一带 `Z` 输出，前端按浏览器时区展示；数据库类型和历史数据迁移仍需评估 | 已确认 API 格式，存储迁移待实施 |
+| DEC-005 | P1 | 时间契约 | API `date-time` 字段统一带 `Z` 输出，前端按浏览器时区展示；数据库维持现有存储模型，无存储类型迁移 | 已确认：API 格式 + 无存储迁移 |
 | DEC-006 | P1 | MySQL 支持范围 | 仅保留驱动兼容，还是维护独立 MySQL DDL、CI 和发布环境 | 已确认：方案 A |
 | DEC-007 | P0 | WebSocket Token | 继续 URL Token，还是改用一次性、短时、单文档 ticket | 已确认：方案 B |
 | DEC-008 | P1 | MapStruct 实例化方式 | `Mappers.getMapper()` 静态调用和 Spring Bean 注入最终选择一种 | 已确认：方案 B |

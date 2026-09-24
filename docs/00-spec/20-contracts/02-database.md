@@ -17,7 +17,7 @@ PostgreSQL 14+ 是当前优先正式数据库。MySQL 仅保留兼容说明和�
 | 逻辑删除 | `boolean` | `tinyint(1)` |
 | JSON | `jsonb` | `json` |
 | 向量检索 | `pgvector` | 需采用其他方案 |
-| 时间字段 | 按 DEC-005 和数据模型确定 | 按数据库时区策略设计 |
+| 时间字段 | `timestamp`（无时区，UTC 语义约定） | 按数据库时区策略设计 |
 
 ## 2. 命名规范
 
@@ -35,12 +35,12 @@ PostgreSQL 14+ 是当前优先正式数据库。MySQL 仅保留兼容说明和�
 
 ## 3. 表设计规范
 
-每张业务表必须包含以下公共字段；时间列的具体类型由 DEC-005 和对应数据模型确定，示例中的 `timestamp_type` 是占位符，不是可直接执行的类型名：
+每张业务表必须包含以下公共字段；时间列统一使用无时区 `timestamp`（DEC-005 已定案：维持现有存储模型，不做类型迁移），应用层以 UTC 语义读写：
 
 ```sql
 id          uuid        PRIMARY KEY,
-created_at  timestamp_type NOT NULL,
-updated_at  timestamp_type NOT NULL,
+created_at  timestamp   NOT NULL,
+updated_at  timestamp   NOT NULL,
 is_deleted  boolean     NOT NULL DEFAULT false
 ```
 
@@ -74,7 +74,7 @@ is_deleted  boolean     NOT NULL DEFAULT false
 | 长文本 | `text` | 不用于无条件排序 |
 | 结构化数据 | `jsonb` | 需要查询的字段应评估索引 |
 | 布尔值 | `boolean` | 禁止使用魔法字符串 |
-| 时间 | `timestamp_type` | 存储类型按 DEC-005 和数据模型确定；API `date-time` 字段在序列化边界统一输出带 `Z` 的 UTC |
+| 时间 | `timestamp` | 无时区 `timestamp`，应用层按 UTC 语义读写（DEC-005 定案，无存储类型迁移）；API `date-time` 字段在序列化边界统一输出带 `Z` 的 UTC |
 | 向量 | `vector(n)` | 仅在启用 pgvector 时使用 |
 
 ## 4. 索引规范
