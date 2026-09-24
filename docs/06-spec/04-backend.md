@@ -86,7 +86,7 @@ Service 负责：
 - Entity 到响应 DTO 的组装；
 - 领域异常的触发。
 
-Service 必须使用统一资源 Guard 校验 workspace/project 归属，不能只依赖前端路由或上下文 Header 的存在。
+Service 必须使用统一资源 Guard 校验资源归属和租户边界，不能只依赖前端路由或上下文 Header 的存在。
 
 ### 3.3 Mapper
 
@@ -242,13 +242,13 @@ sysUserMapper.updateById(update);
 示例：
 
 ```java
-public interface BugMapper extends BaseMapperX<Bug> {
-    default PageResult<Bug> findPage(PageParam pageParam, UUID projectId,
-                                      String status) {
-        return selectPage(pageParam, new LambdaQueryWrapperX<Bug>()
-                .eq(Bug::getProjectId, projectId)
-                .eqIfPresent(Bug::getStatus, status)
-                .orderByDesc(Bug::getCreatedAt));
+public interface ResourceMapper extends BaseMapperX<Resource> {
+    default PageResult<Resource> findPage(PageParam pageParam, UUID resourceScopeId,
+                                           String status) {
+        return selectPage(pageParam, new LambdaQueryWrapperX<Resource>()
+                .eq(Resource::getScopeId, resourceScopeId)
+                .eqIfPresent(Resource::getStatus, status)
+                .orderByDesc(Resource::getCreatedAt));
     }
 }
 ```

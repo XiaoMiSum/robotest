@@ -17,30 +17,30 @@ PostgreSQL 14+ 是当前优先正式数据库。MySQL 仅保留兼容说明和�
 | 逻辑删除 | `boolean` | `tinyint(1)` |
 | JSON | `jsonb` | `json` |
 | 向量检索 | `pgvector` | 需采用其他方案 |
-| 时间字段 | 优先 `timestamptz` | 按 MySQL 时区策略设计 |
+| 时间字段 | 按 DEC-005 和数据模型确定 | 按数据库时区策略设计 |
 
 ## 2. 命名规范
 
 | 要素 | 规范 | 示例 |
 | --- | --- | --- |
 | 数据库名 | 使用环境配置的数据库名 | `robotest` |
-| 表名 | `{域前缀}_{业务名}`，`snake_case` | `ws_project` |
-| 字段名 | `snake_case` | `workspace_id` |
+| 表名 | `{域前缀}_{业务名}`，`snake_case` | `resource_table` |
+| 字段名 | `snake_case` | `resource_scope_id` |
 | 主键 | `id` | `id uuid` |
-| 关联字段 | `{资源名}_id` | `project_id` |
+| 关联字段 | `{资源名}_id` | `resource_id` |
 | 普通索引 | 推荐 `idx_{表名}_{字段}` | `idx_ws_project_workspace_id` |
 | 唯一索引 | 推荐 `uk_{表名}_{字段}` | `uk_ws_project_workspace_name` |
 
-新建表必须使用业务域前缀。计划、评审、缺陷等已有领域根表可以保留历史名称，但新增表不得继续扩大例外。接口测试数据统一使用 `api_` 前缀。
+新建表使用项目登记的业务域前缀；已有领域根表可以保留历史名称，但新增表不得继续扩大例外。具体前缀由对应数据模型或详细设计登记，不在本通用规范中写死。
 
 ## 3. 表设计规范
 
-每张业务表必须包含：
+每张业务表必须包含以下公共字段；时间列的具体类型由 DEC-005 和对应数据模型确定，示例中的 `<time-type>` 不是可直接执行的类型名：
 
 ```sql
 id          uuid        PRIMARY KEY,
-created_at  timestamptz NOT NULL,
-updated_at  timestamptz NOT NULL,
+created_at  <time-type> NOT NULL,
+updated_at  <time-type> NOT NULL,
 is_deleted  boolean     NOT NULL DEFAULT false
 ```
 
@@ -61,7 +61,7 @@ is_deleted  boolean     NOT NULL DEFAULT false
 ### 3.3 关联与外键
 
 - 禁止定义物理 `FOREIGN KEY`。
-- 关联字段必须能追溯到目标资源和所属 workspace/project。
+- 关联字段必须能追溯到目标资源和所属业务边界。
 - 关联完整性、级联更新和级联删除由 Service 层显式处理。
 - 跨租户查询必须显式带上下文条件，禁止依赖前端过滤。
 
@@ -74,7 +74,7 @@ is_deleted  boolean     NOT NULL DEFAULT false
 | 长文本 | `text` | 不用于无条件排序 |
 | 结构化数据 | `jsonb` | 需要查询的字段应评估索引 |
 | 布尔值 | `boolean` | 禁止使用魔法字符串 |
-| 时间 | `timestamptz` | 统一时区语义 |
+| 时间 | `<time-type>` | 按 DEC-005 和数据模型确定 |
 | 向量 | `vector(n)` | 仅在启用 pgvector 时使用 |
 
 ## 4. 索引规范
@@ -84,7 +84,7 @@ is_deleted  boolean     NOT NULL DEFAULT false
 - 联合索引将区分度高、选择性强的字段放在左侧。
 - 索引数量不是越多越好；单表新增索引原则上不超过 5 个。
 - 低选择性状态字段、已有复合索引覆盖字段和经评估的低频关联字段可以申请例外。
-- 向量索引使用 HNSW 或经评审的等价方案；向量检索必须先按 `project_id` 等业务归属过滤。
+- 向量索引使用 HNSW 或经评审的等价方案；向量检索必须先按业务归属字段过滤。
 
 ### 4.1 索引例外记录
 
@@ -119,7 +119,7 @@ is_deleted  boolean     NOT NULL DEFAULT false
 ## 6. 向量与 AI 数据
 
 - 向量字段使用独立向量表，或在有明确查询收益时设计专用列。
-- 向量表必须包含 `project_id` 等租户边界。
+- 向量表必须包含明确的业务归属边界字段。
 - 向量相似度查询必须先过滤业务归属，再执行近邻检索。
 - 向量维度、距离算子和索引参数必须版本化记录。
 - 不得在未启用 pgvector 的环境中宣称向量能力可用。
@@ -142,7 +142,7 @@ MySQL 内容仅作为迁移和兼容参考：
 - [ ] PostgreSQL 类型和时区语义明确
 - [ ] 关联字段和查询字段索引合理
 - [ ] 有迁移、回滚和兼容说明
-- [ ] workspace/project 数据隔离条件明确
+- [ ] 业务归属和租户隔离条件明确
 
 ## 9. 参考
 

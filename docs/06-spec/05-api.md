@@ -34,14 +34,14 @@
 
 - 当前活动 workspace 和 project 的通用传递入口分别是 `X-Active-Workspace` 和 `X-Active-Project`。
 - 具体业务是否允许在专用路由或请求体中携带目标上下文 ID，由对应业务详细设计明确；本文不授予业务例外。
-- URL 中的 `{id}` 只有在表示被操作资源本身时才属于通用资源 ID，例如 `/api/admin/users/{id}`。
+- URL 中的 `{id}` 只有在表示被操作资源本身时才属于通用资源 ID，例如 `/api/resources/{id}`。
 - 服务端必须校验请求头中的上下文与当前用户的权限关系，不能信任前端已校验的假设。
 - 缺少或非法上下文返回统一业务错误，不降级为全局数据查询。
 
 示例：
 
 ```http
-GET /api/project/bugs?pageNo=1&pageSize=20
+GET /api/resources?pageNo=1&pageSize=20
 Authorization: Bearer <access-token>
 X-Active-Workspace: <workspace-uuid>
 X-Active-Project: <project-uuid>
@@ -103,7 +103,7 @@ X-Active-Project: <project-uuid>
 ### 5.1 请求
 
 ```http
-GET /api/admin/users?pageNo=1&pageSize=20
+GET /api/resources?pageNo=1&pageSize=20
 ```
 
 | 参数 | 类型 | 规则 |
@@ -165,7 +165,7 @@ ErrorCode.of(1000003001, "用户不存在");
 ## 7. 请求校验与敏感字段
 
 - Controller 使用 DTO 和框架校验注解完成输入校验。
-- 请求体不得携带当前活动 workspace/project 上下文。
+- 活动上下文、目标资源 ID 和专用业务参数的放置方式由业务详细设计定义；服务端必须校验其归属和权限。
 - 密码、Token、密钥和加密字段禁止出现在响应 DTO 中。
 - 文件上传必须声明大小、扩展名、内容类型、存储位置和病毒扫描策略。
 - 导入外部 URL 的接口必须执行 SSRF 防护，详见 `10-security.md`。
