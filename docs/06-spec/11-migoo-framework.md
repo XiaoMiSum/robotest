@@ -8,7 +8,9 @@
 
 ## 1. 适用范围
 
-本规范记录项目对 `migoo-spring-boot-starter` 的项目级约束。框架的通用 API 目录以官方文档和当前锁定版本为准，本文件不复制完整框架手册。
+本文定义项目使用 `migoo-spring-boot-starter` 时的集成边界、组件选择原则、版本管理方式和项目级约束。
+
+本文不复制完整框架 API 手册。组件 API、配置项和示例以官方组件文档及当前锁定的框架版本为准；业务模型、业务事件和业务权限由对应的详细设计文档定义。
 
 | 项目 | 约定 |
 | --- | --- |
@@ -16,17 +18,37 @@
 | 版本 | `1.3.18`，由 Maven BOM 管理 |
 | Java | 21 |
 | 数据访问 | `migoo-spring-boot-starter-mybatis` |
+| Web | `migoo-spring-boot-starter-web` |
 | 认证 | `migoo-spring-boot-starter-security` |
 | WebSocket | `migoo-spring-boot-starter-websocket` |
-| Redis | 用于缓存、会话和分布式 WebSocket；是否启用以配置为准 |
+| Redis | 按需使用 Redis 能力 |
+| 消息队列 | 按需使用 MQ 能力 |
 
-版本升级必须同时检查响应、异常、分页、主键、WebSocket 和安全配置，不允许只修改依赖版本。
+框架版本升级必须同时验证响应、异常、分页、数据访问、认证、Web、实时通信、Redis 和消息队列能力，不允许只修改依赖版本。
 
-## 2. 统一响应和错误
+## 2. 官方组件使用手册
 
-### 2.1 Result
+以下 URL 来自 migoo 官方文档站。新增组件或升级版本时，应先核对对应页面和发布说明。
 
-Controller 统一返回 `Result<T>`：
+| 组件 | 官方使用手册 | 主要内容 |
+| --- | --- | --- |
+| 总览 | [MiGoo Spring Boot Framework](https://xiaomisum.github.io/springboot-migoo-framework/) | 框架简介、BOM、组件清单和快速开始 |
+| Common | [Common 文档](https://xiaomisum.github.io/springboot-migoo-framework/common.html) | `Result`、`ErrorCode`、异常、分页、校验和工具类 |
+| Web | [Web 文档](https://xiaomisum.github.io/springboot-migoo-framework/web.html) | 全局异常、响应封装、TraceId、i18n、CORS 和请求体缓存 |
+| Security | [Security 文档](https://xiaomisum.github.io/springboot-migoo-framework/security.html) | JWT、OAuth2、用户加载、Token 刷新和 TOTP |
+| WebSocket | [WebSocket 文档](https://xiaomisum.github.io/springboot-migoo-framework/websocket.html) | 连接管理、Token 认证、房间、会话和分布式模式 |
+| MyBatis | [MyBatis 文档](https://xiaomisum.github.io/springboot-migoo-framework/mybatis.html) | MyBatis-Plus 增强、实体基类、Mapper、Wrapper、分页和类型处理器 |
+| Redis | [Redis 文档](https://xiaomisum.github.io/springboot-migoo-framework/redis.html) | Redis 连接、`RedisKit`、Key 模板、过期策略和分布式模式 |
+| MQ | [MQ 文档](https://xiaomisum.github.io/springboot-migoo-framework/mq.html) | Stream、Pub/Sub、ACK、重试、死信和幂等消费 |
+| 发布说明 | [GitHub Releases](https://github.com/XiaoMiSum/springboot-migoo-framework/releases) | 版本变更、兼容性和迁移注意事项 |
+
+官方文档是组件 API 的参考来源；本文只规定项目如何选择、配置、验证和约束这些能力。
+
+## 3. Common：响应、错误和分页
+
+### 3.1 统一响应
+
+Controller 使用框架提供的 `Result<T>`：
 
 ```java
 return Result.ok(data);
@@ -34,234 +56,197 @@ return Result.ok();
 return Result.error(ErrorCodeConstants.SOME_ERROR);
 ```
 
-响应字段由 `05-api.md` 定义：
+项目 HTTP 响应契约由 `05-api.md` 统一定义，本文不另行定义字段名称。
 
-```text
-Result<T> = { code: number, msg: string, data: T }
-```
+### 3.2 错误码和业务异常
 
-### 2.2 ErrorCode
-
-错误码使用 10 位数字，并由项目统一登记：
+项目错误码统一登记，业务异常通过框架工具抛出：
 
 ```java
-public static final ErrorCode USER_NOT_FOUND =
-        ErrorCode.of(1000003001, "用户不存在");
+throw ServiceExceptionUtil.get(ErrorCodeConstants.SOME_ERROR);
 ```
 
-不得在业务代码中临时创建同义错误码，也不得使用 `int` 自定义一套平行错误码体系。
+要求：
 
-### 2.3 业务异常
+- 错误码使用项目统一的 10 位编号规则；
+- 同一语义不得创建多个错误码；
+- 错误消息不得包含 Token、密码、SQL 或内部堆栈；
+- 参数化错误消息使用框架支持的占位符机制；
+- 运行时异常类型以当前框架版本为准，不自行创建平行异常体系。
 
-业务异常统一通过框架工具抛出：
+### 3.3 分页
+
+项目分页使用 `PageParam` 和 `PageResult`：
 
 ```java
-if (user == null) {
-    throw ServiceExceptionUtil.get(ErrorCodeConstants.USER_NOT_FOUND);
-}
+PageResult<ResourceDTO> result = resourceMapper.selectPage(pageParam);
 ```
 
-需要参数替换时使用框架占位符：
+项目统一使用 `pageNo/pageSize`，响应字段由 `05-api.md` 定义。框架默认值与项目默认值不一致时，必须在项目适配层统一覆盖。
+
+## 4. Web：统一异常和请求处理
+
+Web 组件负责框架级 Web 能力，项目不重复实现同类全局基础设施：
+
+- 全局异常处理；
+- 统一响应处理；
+- TraceId 和请求上下文；
+- 国际化消息；
+- CORS 和请求体缓存。
+
+项目只补充：
+
+- API 业务错误码；
+- DTO 校验规则；
+- 安全响应头和环境策略；
+- 业务审计和日志脱敏；
+- SSE、文件和实时通信等特殊响应适配。
+
+生产环境不得依赖 Web 组件的宽松默认配置，尤其是 CORS、请求体缓存和敏感日志配置。
+
+## 5. MyBatis：数据访问
+
+### 5.1 Entity 和 Mapper
+
+项目数据访问遵循以下边界：
+
+- Entity 使用框架提供的基类获得公共字段和主键能力；
+- Mapper 继承 `BaseMapperX`；
+- 复杂查询和可复用查询封装在 Mapper；
+- 简单动态过滤可以由 Service 组合；
+- Entity 不承载跨层业务方法。
+
+示例只表达框架用法，不绑定具体业务表：
 
 ```java
-throw ServiceExceptionUtil.get(ErrorCodeConstants.SOME_ERROR, argument);
-```
-
-框架运行时异常类型以当前 `1.3.18` 版本为准，项目文档统一称为“业务异常”，不再要求自行构造 `BusinessException(int, String)`。
-
-## 3. 分页
-
-### 3.1 PageParam
-
-项目接口统一使用 `PageParam` 的 `pageNo/pageSize`：
-
-```java
-public class UserPageReqParam extends PageParam {
+@TableName("resource")
+public class Resource extends BaseUuidDO<Resource> {
     private String name;
-    private Integer status;
 }
-```
 
-项目层接口默认使用：
-
-| 参数 | 默认值 | 最大值 |
-| --- | --- | --- |
-| `pageNo` | `1` | — |
-| `pageSize` | `20` | `100` |
-
-如果框架版本默认值不同，必须在项目适配层统一覆盖，不能让不同 Controller 产生不同默认值。
-
-### 3.2 PageResult
-
-统一使用：
-
-```text
-PageResult<T> = { list: T[], total: number }
-```
-
-```java
-PageResult<SysUser> page = userMapper.selectPage(pageParam, wrapper);
-```
-
-禁止在项目 DTO 中另行定义 `records`、`items` 等平行分页字段。
-
-## 4. MyBatis-Plus 数据层
-
-### 4.1 Entity 基类
-
-业务 Entity 统一继承框架的 UUID 基类：
-
-```java
-@TableName("sys_user")
-public class SysUser extends BaseUuidDO<SysUser> {
-    private String username;
-}
-```
-
-- UUID 使用框架默认生成策略。
-- 不在项目中强制 UUID v7。
-- `createdAt`、`updatedAt`、`isDeleted` 由基类和字段处理器统一管理。
-- 禁止在 Entity 中加入业务方法或跨层查询逻辑。
-
-### 4.2 Mapper 基类
-
-所有 Mapper 继承 `BaseMapperX<T>`：
-
-```java
 @Mapper
-public interface SysUserMapper extends BaseMapperX<SysUser> {
+public interface ResourceMapper extends BaseMapperX<Resource> {
 }
 ```
 
-框架提供的基础查询、批量操作和分页能力优先复用，具体方法签名以 1.3.18 实际 API 为准。
+### 5.2 Wrapper、分页和类型处理器
 
-### 4.3 Lambda Wrapper
+按需使用：
 
-条件构造使用 `LambdaQueryWrapperX` / `LambdaUpdateWrapperX`：
+- `LambdaQueryWrapperX`；
+- `LambdaUpdateWrapperX`；
+- `PageParam` / `PageResult`；
+- 框架提供的加密、JSON 和列表 TypeHandler。
 
-```java
-LambdaQueryWrapperX<SysUser> wrapper = new LambdaQueryWrapperX<SysUser>()
-        .eqIfPresent(SysUser::getStatus, status)
-        .likeIfPresent(SysUser::getName, name);
-```
+使用 TypeHandler 前必须确认：
 
-`xxxIfPresent` 只表示跳过 `null` 条件；业务默认值、空字符串语义和权限条件仍由 Service 明确决定。
+- 字段类型和数据库方言匹配；
+- 密钥来源和轮换方式符合安全规范；
+- 历史数据读取和迁移策略明确；
+- 敏感字段不会被日志或 DTO 暴露。
 
-### 4.4 加密和 JSON 字段
+### 5.3 MapStruct
 
-敏感字段和结构化字段使用框架提供的 TypeHandler。密码必须使用项目配置的 PasswordEncoder，不得用字段加密替代密码哈希。
+MapStruct 不属于 migoo Starter 的通用 API。项目统一约定：
 
-- 加密密钥通过环境变量或密钥管理服务注入。
-- 禁止将密钥写入代码、文档或默认配置。
-- TypeHandler 的字段类型、加密算法和密钥轮换方式必须与安全规范一致。
+- 转换器放在项目约定的 `model/convert/`；
+- 使用 Spring Bean 注入；
+- 纯字段映射使用 MapStruct；
+- 业务判断、权限和额外查询留在 Service；
+- 不得混用静态 `INSTANCE`、Spring 注入和手工 setter 拷贝。
 
-## 5. MapStruct 转换器
+## 6. Security：认证和授权
 
-### 5.1 存放位置
+Security 组件提供 JWT、OAuth2、用户加载、Token 校验和 TOTP 等能力。项目负责：
 
-所有 Entity、DTO、VO 之间的 MapStruct 转换器统一放在：
+- 选择认证模式；
+- 实现框架要求的用户加载适配；
+- 定义项目错误码；
+- 配置 Token 生命周期和密钥；
+- 实施资源级授权；
+- 记录登录、权限和安全审计事件。
 
-```text
-server/src/main/java/io/github/xiaomisum/robotest/model/convert/
-```
+通用认证和授权边界见 `10-security.md`，前端 Token 使用见 `03-frontend.md`。
 
-按业务域命名：
+可信网关可以提供框架所需的用户 Header，但必须保证外部请求无法伪造该 Header。业务权限不能仅依赖框架登录状态，必须在服务端资源边界再次校验。
 
-```text
-UserConvertMapper.java
-RoleConvertMapper.java
-BugConvertMapper.java
-WorkspaceConvertMapper.java
-```
+## 7. WebSocket：框架能力接入
 
-现有位于其他目录的转换器应通过独立迁移任务迁移；本规范不授权在同一次改动中无计划地移动大量文件。
+WebSocket 组件提供连接管理、Token 认证、会话管理、房间和分布式广播能力。
 
-### 5.2 使用原则
+项目接入要求：
 
-```java
-@Mapper(componentModel = "spring")
-public interface UserConvertMapper {
-    UserRespDTO toRespDTO(SysUser entity);
-}
-```
+- 端点、Handler 和会话策略以当前运行配置为准；
+- 业务 Handler 只处理连接生命周期、帧转发和消息分发；
+- 房间/主题权限在加入时校验；
+- 写入操作在广播或持久化前再次校验；
+- JSON 和二进制消息分别定义大小、编码、频率和权限；
+- 生产环境配置 Origin 白名单；
+- 分布式模式必须明确 Redis 依赖和多实例行为。
 
-- 纯字段映射使用 MapStruct。
-- 业务字段、权限字段、审计字段和需要额外查询的关联对象由 Service 补充。
-- 不得在 Service 中为纯字段逐项 setter 拷贝。
-- 转换器实现类不得包含业务判断、数据库查询或权限逻辑。
-- 项目统一通过 Spring Bean 注入转换器，不使用静态 `INSTANCE`。现有代码迁移必须单独完成。
+通用实时协议见 `15-realtime-protocol.md`。具体业务事件、Payload、持久化和协作语义由对应详细设计定义，不在本文规定。
 
-## 6. 认证与授权
+## 8. Redis：缓存和分布式能力
 
-### 6.1 LoginUser
+Redis 组件提供连接配置、`RedisKit`、Key 模板、过期策略和分布式模式。
 
-项目 `LoginUser` 继承框架的 `AuthUserDetails`，并提供项目所需的工作空间权限字段。
+项目使用要求：
 
-### 6.2 UserDetailsBridge
+- Key 命名、TTL 和值类型集中定义；
+- 缓存、限流、会话和分布式广播明确用途；
+- 缓存失效和重建策略有文档；
+- 分布式锁必须设置唯一持有者标识和释放保护；
+- 敏感值不得以明文形式写入 Redis；
+- Redis 不可用时的降级和失败行为必须明确。
 
-项目实现 `UserDetailsBridge`，统一提供用户名和用户 ID 的加载逻辑。业务 Controller 不自行解析 Token。
+## 9. MQ：消息传递
 
-### 6.3 请求上下文
+MQ 组件提供 Stream 和 Pub/Sub 两种模式：
 
-- HTTP 上下文 Header 由 `05-api.md` 定义。
-- workspace 角色通过项目的 `WorkspaceRoleInterceptor` 注入权限。
-- `X-User-Id` 等框架 Header 只有在可信网关覆盖并且外部请求无法伪造时才可使用。
-- 资源级权限必须在 Service 或专用 Guard 中再次校验。
+- Stream 用于可靠投递、ACK、重试、死信和幂等消费；
+- Pub/Sub 用于广播，不提供可靠消费保证。
 
-## 7. WebSocket
+项目使用要求：
 
-### 7.1 连接配置
+- 消息模型和 Channel 命名集中管理；
+- 明确消息幂等键和重复消费策略；
+- 明确重试次数、死信和告警；
+- Listener 构造和配置遵循当前框架版本；
+- 不使用已废弃 API 绕过框架拦截器；
+- 消息生产失败和消费失败必须有可观测日志。
 
-```yaml
-migoo:
-  websocket:
-    enabled: true
-    distributed: true
-    endpoints:
-      - /ws/*
-    token-header: Authorization
-    token-prefix: "Bearer "
-```
+## 10. 组件选择和配置原则
 
-生产环境必须配置允许的 Origin，不得依赖 `*`。通用实时协议见 `15-realtime-protocol.md`，具体业务端点和事件由业务设计定义。
+- 只引入实际使用的 Starter；
+- 依赖版本由 Maven BOM 统一管理；
+- 生产配置不依赖开发默认值；
+- Redis、MQ、分布式 WebSocket 和 OAuth2 等能力按部署需求启用；
+- 组件配置必须与官方文档和当前运行配置一致；
+- 任何偏离官方默认值的配置都要记录原因、影响和回滚方式；
+- 框架升级必须执行编译、测试、配置启动和关键链路验证。
 
-### 7.2 Handler 约束
+## 11. 框架变更检查清单
 
-- Handler 只处理连接生命周期、帧转发和消息分发。
-- 房间/主题权限在加入时校验。
-- 写入操作在广播或持久化前再次校验权限，防止连接期间权限被撤销。
-- 通用 Handler 不解析业务 Payload。
-- JSON 和二进制业务帧必须进行大小、类型和权限校验。
+- [ ] BOM、Starter 和 Java 版本已核对
+- [ ] Common、Web、Security、MyBatis、Redis、MQ 和 WebSocket 文档已查阅
+- [ ] `Result`、错误码和分页契约与项目规范一致
+- [ ] Entity、Mapper、Wrapper 和 TypeHandler 用法已验证
+- [ ] 认证模式、密钥和资源授权已验证
+- [ ] Web CORS、TraceId、请求体和日志配置已验证
+- [ ] WebSocket 端点、Origin、Room 和分布式配置已验证
+- [ ] Redis Key、TTL、锁和降级策略已验证
+- [ ] MQ 消息、重试、死信和幂等策略已验证
+- [ ] 官方发布说明和项目变更记录已同步
 
-## 8. 工具类
-
-| 工具 | 用途 |
-| --- | --- |
-| `JsonUtils` | JSON 序列化和反序列化 |
-| `CollectionUtils` | 集合转换、过滤和分组 |
-| `LocalDateTimeUtils` | 项目统一时间处理 |
-| `ServiceExceptionUtil` | 统一抛出业务异常 |
-| `PageParam` / `PageResult` | 统一分页输入和输出 |
-
-工具类使用前必须确认当前框架版本的实际 API，禁止凭记忆复制其他版本示例。
-
-## 9. 框架变更检查清单
-
-- [ ] Maven BOM 和实际依赖版本已核对
-- [ ] `Result`、`ErrorCode`、`PageParam`、`PageResult` 示例可编译
-- [ ] `BaseUuidDO` 和 UUID 策略与数据库规范一致
-- [ ] MapStruct 转换器位于 `model/convert/`
-- [ ] 认证、上下文和 WebSocket 配置已核对
-- [ ] Redis/distributed 配置与实际部署模式一致
-- [ ] 官方文档、版本变更记录和项目代码已同步
-
-## 10. 参考
+## 12. 参考
 
 - HTTP 契约：`docs/06-spec/05-api.md`
-- 后端分层和 C11：`docs/06-spec/04-backend.md`
+- 通用实时协议：`docs/06-spec/15-realtime-protocol.md`
+- 后端分层：`docs/06-spec/04-backend.md`
 - 数据库：`docs/06-spec/06-database.md`
 - 安全：`docs/06-spec/10-security.md`
-- 官方文档：<https://xiaomisum.github.io/springboot-migoo-framework/>
+- 官方总览：<https://xiaomisum.github.io/springboot-migoo-framework/>
+- 官方发布说明：<https://github.com/XiaoMiSum/springboot-migoo-framework/releases>
 
 ---
 
