@@ -123,10 +123,12 @@
   
   ```json
   {
-  "expiresAt": "2026-12-31T23:59:59Z",
+  "expiresAt": "2026-12-31T23:59:59",
   "maxUses": 50
   }
   ```
+
+  > `expiresAt` 使用用户选择的业务本地时间，采用无时区的 ISO LocalDateTime 字符串（例如 `2026-12-31T23:59:59`）。前端不得将浏览器 `Date` 直接序列化为 UTC `Z` 字符串；服务端按收到的本地时间值保存和判断过期。
 
 - **处理**：生成唯一随机 token（64位字符），插入 workspace_invitation 表。
 
@@ -136,7 +138,7 @@
   {
   "id": 1,
   "token": "a1b2c3d4e5f6...",
-  "expiresAt": "2026-12-31T23:59:59Z",
+  "expiresAt": "2026-12-31T23:59:59",
   "maxUses": 50,
   "useCount": 0,
   "status": "active",
@@ -160,7 +162,7 @@
         "tokenPreview": "a1b2…ef01",
         "effectiveStatus": "active",
         "status": "active",
-        "expiresAt": "2026-12-31T23:59:59Z",
+        "expiresAt": "2026-12-31T23:59:59",
         "maxUses": 50,
         "useCount": 0,
         "createdAt": "2026-07-04T10:00:00Z"
