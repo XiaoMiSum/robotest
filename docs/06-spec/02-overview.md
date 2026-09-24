@@ -52,6 +52,8 @@
 | C10 | 后端优先复用 migoo 已提供的响应、异常、校验和数据访问能力 | `11-migoo-framework.md` | 依赖检查、代码审查 |
 | C11 | 更新只写入调用方实际提交的字段，禁止整行查询结果直接作为更新载体 | `04-backend.md` | 单元测试、代码审查 |
 | UI-SC-01～09 | 滚动容器和滚动条专项规则 | `13-scroll-container.md` | 浏览器验收、代码审查 |
+| UI-DS-01～08 | 前端视觉、布局、状态、响应式和可访问性规则 | `18-frontend-design.md` | 设计验收、浏览器验收、代码审查 |
+| UI-PAGE-01～10 | 页面拆分、组件边界、状态归属和数据流规则 | `19-page-development.md` | 代码审查、组件测试、页面验收 |
 
 规则登记册只保存摘要和链接；正例、反例、例外和完整说明以主规范为准。
 
@@ -61,6 +63,7 @@
 | --- | --- | --- |
 | 治理 | `01-readme.md`、`02-overview.md` | 索引、规则登记、冲突处理 |
 | 端级工程 | `03-frontend.md`、`04-backend.md` | 前端和后端实现边界 |
+| 前端体验与页面开发 | `18-frontend-design.md`、`19-page-development.md` | 通用视觉设计、页面拆分、组件边界和数据流 |
 | 跨端契约 | `05-api.md`、`15-realtime-protocol.md` | HTTP、响应、分页、错误码、通用实时协议 |
 | 数据 | `06-database.md` | PostgreSQL 主规范、MySQL 兼容说明、迁移和索引 |
 | 质量与交付 | `07-quality.md`、`08-workflow.md`、`09-deploy.md`、`16-deployment-runbook.md` | 质量门禁、Git/PR、通用部署规范和项目 Runbook |
