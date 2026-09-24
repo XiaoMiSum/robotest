@@ -329,11 +329,11 @@ bash scripts/validate.sh --all
 
 ## 14. 参考
 
-- 通用部署规范：`docs/06-spec/09-deploy.md`
-- 质量门禁：`docs/06-spec/07-quality.md`
-- 安全：`docs/06-spec/10-security.md`
-- 数据库：`docs/06-spec/06-database.md`
-- 通用实时协议：`docs/06-spec/15-realtime-protocol.md`
+- 通用部署规范：`docs/00-spec/09-deploy.md`
+- 质量门禁：`docs/00-spec/07-quality.md`
+- 安全：`docs/00-spec/10-security.md`
+- 数据库：`docs/00-spec/06-database.md`
+- 通用实时协议：`docs/00-spec/15-realtime-protocol.md`
 - 项目脚本：`scripts/`
 
 ---

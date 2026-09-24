@@ -181,7 +181,7 @@ ErrorCode.of(1000003001, "用户不存在");
 WebSocket 连接鉴权、通用帧格式、错误帧和连接生命周期统一引用：
 
 ```text
-docs/06-spec/15-realtime-protocol.md
+docs/00-spec/15-realtime-protocol.md
 ```
 
 本文只约束实时接口与 HTTP API 的边界：
@@ -204,10 +204,10 @@ docs/06-spec/15-realtime-protocol.md
 
 ## 11. 参考
 
-- 框架响应、异常和分页实现：`docs/06-spec/11-migoo-framework.md`
-- 通用实时协议：`docs/06-spec/15-realtime-protocol.md`
-- 安全基线：`docs/06-spec/10-security.md`
-- 数据库和分页查询：`docs/06-spec/06-database.md`、`docs/06-spec/04-backend.md`
+- 框架响应、异常和分页实现：`docs/00-spec/11-migoo-framework.md`
+- 通用实时协议：`docs/00-spec/15-realtime-protocol.md`
+- 安全基线：`docs/00-spec/10-security.md`
+- 数据库和分页查询：`docs/00-spec/06-database.md`、`docs/00-spec/04-backend.md`
 
 ---
 

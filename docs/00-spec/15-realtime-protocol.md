@@ -221,9 +221,9 @@ Ticket 必须：
 
 ## 11. 参考
 
-- HTTP API：`docs/06-spec/05-api.md`
-- 安全：`docs/06-spec/10-security.md`
-- migoo WebSocket 能力：`docs/06-spec/11-migoo-framework.md`
+- HTTP API：`docs/00-spec/05-api.md`
+- 安全：`docs/00-spec/10-security.md`
+- migoo WebSocket 能力：`docs/00-spec/11-migoo-framework.md`
 - 具体业务设计：对应业务的 `docs/04-detailed-design/` 文档
 
 ---

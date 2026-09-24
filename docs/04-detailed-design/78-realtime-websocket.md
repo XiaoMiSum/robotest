@@ -12,7 +12,7 @@
 
 本文档定义平台 WebSocket 传输层的项目级接入方式，覆盖连接建立、一次性 Ticket、房间管理、消息信封、错误处理、生命周期、可观测性和前后端协作边界。
 
-通用协议要求以 `docs/06-spec/15-realtime-protocol.md` 为唯一事实源；本文档只补充项目实现约束，不重新定义业务事件、Payload、协作算法或持久化语义。
+通用协议要求以 `docs/00-spec/15-realtime-protocol.md` 为唯一事实源；本文档只补充项目实现约束，不重新定义业务事件、Payload、协作算法或持久化语义。
 
 ### 1.2 适用范围
 
@@ -323,11 +323,11 @@ WebSocket 文本写入操作的数据库事务边界、异步落库、重试和�
 
 ### 6.4 参考
 
-- 通用实时协议：`docs/06-spec/15-realtime-protocol.md`
-- 安全规范：`docs/06-spec/10-security.md`
-- migoo WebSocket 能力：`docs/06-spec/11-migoo-framework.md`
+- 通用实时协议：`docs/00-spec/15-realtime-protocol.md`
+- 安全规范：`docs/00-spec/10-security.md`
+- migoo WebSocket 能力：`docs/00-spec/11-migoo-framework.md`
 - 业务协作设计：`docs/04-detailed-design/57-mindmap-component.md`
-- 部署 Runbook：`docs/06-spec/16-deployment-runbook.md`
+- 部署 Runbook：`docs/00-spec/16-deployment-runbook.md`
 
 ---
 

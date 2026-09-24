@@ -190,11 +190,11 @@ changes
 
 ## 10. 参考
 
-- API：`docs/06-spec/05-api.md`
-- 通用实时协议：`docs/06-spec/15-realtime-protocol.md`
-- migoo 安全能力：`docs/06-spec/11-migoo-framework.md`
-- 质量门禁：`docs/06-spec/07-quality.md`
-- 部署密钥：`docs/06-spec/09-deploy.md`、`docs/06-spec/16-deployment-runbook.md`
+- API：`docs/00-spec/05-api.md`
+- 通用实时协议：`docs/00-spec/15-realtime-protocol.md`
+- migoo 安全能力：`docs/00-spec/11-migoo-framework.md`
+- 质量门禁：`docs/00-spec/07-quality.md`
+- 部署密钥：`docs/00-spec/09-deploy.md`、`docs/00-spec/16-deployment-runbook.md`
 
 ---
 

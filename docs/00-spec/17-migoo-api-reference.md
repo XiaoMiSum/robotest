@@ -188,10 +188,10 @@ MapStruct 不是 migoo Starter 的通用 API，接入约定如下：
 - 框架集成策略：[`11-migoo-framework.md`](11-migoo-framework.md)
 - 官方总览：<https://xiaomisum.github.io/springboot-migoo-framework/>
 - 官方发布说明：<https://github.com/XiaoMiSum/springboot-migoo-framework/releases>
-- API 契约：`docs/06-spec/05-api.md`
-- 后端分层：`docs/06-spec/04-backend.md`
-- 安全规范：`docs/06-spec/10-security.md`
-- 实时协议：`docs/06-spec/15-realtime-protocol.md`
+- API 契约：`docs/00-spec/05-api.md`
+- 后端分层：`docs/00-spec/04-backend.md`
+- 安全规范：`docs/00-spec/10-security.md`
+- 实时协议：`docs/00-spec/15-realtime-protocol.md`
 
 ---
 

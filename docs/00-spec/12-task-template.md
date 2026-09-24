@@ -25,8 +25,8 @@
 
 必须阅读：
 
-- [ ] `docs/06-spec/01-readme.md`
-- [ ] `docs/06-spec/02-overview.md`
+- [ ] `docs/00-spec/01-readme.md`
+- [ ] `docs/00-spec/02-overview.md`
 - [ ] 与任务相关的端级规范
 - [ ] `docs/01-requirements/` 对应需求
 - [ ] `docs/02-high-level-design/` 对应概要设计

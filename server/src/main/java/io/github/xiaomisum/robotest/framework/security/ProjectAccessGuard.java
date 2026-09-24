@@ -13,7 +13,7 @@ import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
 import java.util.UUID;
 
 /**
- * 项目级授权守卫（docs/06-spec/10-security.md 第 14 行：项目内操作另需 X-Active-Project 头，验证项目归属）。
+ * 项目级授权守卫（docs/00-spec/10-security.md 第 14 行：项目内操作另需 X-Active-Project 头，验证项目归属）。
  *
  * <p>校验链路：projectId → ws_project.workspaceId → ws_user 是否存在该成员。
  * 任一环节缺失即视为无权限，判定口径与 DocumentPersistenceHandler.hasCaseEditPermission 一致。</p>
