@@ -1,18 +1,38 @@
+/** 将日期时间中的空格分隔统一为 ISO `T` 分隔，避免不同解析器产生差异。 */
+function normalizeDateTime(value: string): string {
+  return value.includes('T') || !value.includes(' ') ? value : value.replace(' ', 'T')
+}
+
 /**
- * 解析后端时间字符串为 Date。
+ * 解析后端 UTC 时间字符串为 Date。
  * 后端返回的是 UTC 时间但无时区标识（如 `2026-07-29T02:00:00`），
  * 直接 new Date() 会被 JS 误解析为本地时间，因此无时区标识时补 `Z` 按 UTC 解析。
  */
 function parseUtc(value: string): Date {
-  const timePart = value.indexOf('T') >= 0 ? value.slice(value.indexOf('T') + 1) : ''
+  const normalized = normalizeDateTime(value)
+  const timePart = normalized.indexOf('T') >= 0 ? normalized.slice(normalized.indexOf('T') + 1) : ''
   const hasZone = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(timePart)
-  return new Date(timePart && !hasZone ? `${value}Z` : value)
+  return new Date(timePart && !hasZone ? `${normalized}Z` : normalized)
+}
+
+/** 业务本地时间不能套用 UTC 解析，否则用户选择的时间会发生时区偏移。 */
+function parseLocalDateTime(value: string): Date {
+  return new Date(normalizeDateTime(value))
 }
 
 /** 将后端 UTC 时间字符串按本地时区格式化为 `YYYY-MM-DD HH:mm`，空值返回占位符 */
 export function formatDateTime(value?: string | null): string {
   if (!value) return '-'
   const date = parseUtc(value)
+  if (Number.isNaN(date.getTime())) return '-'
+  const pad = (n: number): string => String(n).padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`
+}
+
+/** 展示用户选择的业务本地时间；无时区字符串按本地钟面解释。 */
+export function formatLocalDateTime(value?: string | null): string {
+  if (!value) return '-'
+  const date = parseLocalDateTime(value)
   if (Number.isNaN(date.getTime())) return '-'
   const pad = (n: number): string => String(n).padStart(2, '0')
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`

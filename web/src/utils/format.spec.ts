@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { formatDate, formatDateTime, formatShortDateTime, formatShortId, truncateText } from './format'
+import {
+  formatDate,
+  formatDateTime,
+  formatLocalDateTime,
+  formatShortDateTime,
+  formatShortId,
+  truncateText,
+} from './format'
 
 const pad = (n: number): string => String(n).padStart(2, '0')
 
@@ -31,6 +38,27 @@ describe('formatDateTime UTC 转本地时区', () => {
     expect(formatDateTime(undefined)).toBe('-')
     expect(formatDateTime('')).toBe('-')
     expect(formatDateTime('not-a-date')).toBe('-')
+  })
+})
+
+describe('formatLocalDateTime 业务本地时间', () => {
+  it('无时区字符串按本地钟面展示，不做 UTC 转换', () => {
+    expect(formatLocalDateTime('2026-09-25T00:00:00')).toBe('2026-09-25 00:00')
+  })
+
+  it('带 Z 的历史值仍按真实时刻转换到本地时区', () => {
+    const value = '2026-09-24T16:00:00.000Z'
+    const date = new Date(value)
+    const expected = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`
+
+    expect(formatLocalDateTime(value)).toBe(expected)
+  })
+
+  it('空值与非法值返回占位符', () => {
+    expect(formatLocalDateTime(null)).toBe('-')
+    expect(formatLocalDateTime(undefined)).toBe('-')
+    expect(formatLocalDateTime('')).toBe('-')
+    expect(formatLocalDateTime('not-a-date')).toBe('-')
   })
 })
 
