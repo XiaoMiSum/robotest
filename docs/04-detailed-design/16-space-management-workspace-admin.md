@@ -76,6 +76,7 @@
     {
       "userId": 1,
       "username": "zhangsan",
+      "name": "张三",
       "email": "zhangsan@example.com",
       "avatarUrl": "...",
       "workspaceRole": "admin",
@@ -86,6 +87,7 @@
   }
   ```
 
+- `name` 为用户展示姓名，成员列表主标题优先使用该字段，缺失时回退 `username`。
 - 成员按 `joined_at DESC, id DESC` 稳定排序。
 - `workspaceRole` 为空时不附加角色条件；组合查询复用索引 `idx_ws_user_ws_role(workspace_id, workspace_role)`。
 
