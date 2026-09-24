@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { useRoleTree } from '@/composables/admin/useRoleTree'
+import { isRoleActionVisible, useRoleTree } from '@/composables/admin/useRoleTree'
 
 const emit = defineEmits<{
   select: [node: { id: string; isSystem: boolean; type: string; name: string }]
@@ -57,6 +57,7 @@ defineExpose({ reload: load })
             :class="{
               'role-tree__node--group': data.isGroup,
               'role-tree__node--custom': !data.isGroup && !data.isSystem,
+              'role-tree__node--selected': data.id === currentId,
             }"
           >
             <span class="role-tree__label">
@@ -74,7 +75,10 @@ defineExpose({ reload: load })
               <span v-if="!data.isGroup && data.userCount != null" class="role-tree__count">
                 {{ data.userCount }} 人
               </span>
-              <span class="role-tree__actions">
+              <span
+                class="role-tree__actions"
+                :class="{ 'role-tree__actions--visible': isRoleActionVisible(data, currentId) }"
+              >
                 <!-- 分组节点：新增该类型角色 -->
                 <el-button v-if="data.isGroup" link size="small" @click.stop="handleAdd(data)">
                   <el-icon><Plus /></el-icon>
@@ -201,13 +205,13 @@ defineExpose({ reload: load })
   }
 }
 
-/* 操作按钮跟随节点选中态（高亮哪行哪行出按钮），悬浮不再触发 */
-:deep(.el-tree-node.is-current) .role-tree__actions {
+/* 分组入口常驻，叶节点仅跟随组件选中态 */
+.role-tree__actions--visible {
   display: flex;
 }
 
 /* 自定义角色出按钮的行由按钮接替人数位置，人数让位避免两者同行挤压 */
-:deep(.el-tree-node.is-current) .role-tree__node--custom .role-tree__count {
+.role-tree__node--selected.role-tree__node--custom .role-tree__count {
   display: none;
 }
 </style>

@@ -36,7 +36,7 @@ const {
     <div class="role-users__body">
       <div class="role-users__scroll">
         <!-- 系统角色用户列表 -->
-        <el-table v-if="!isWorkspaceRole()" v-loading="loading" :data="users" row-key="id">
+        <el-table v-if="!isWorkspaceRole()" v-loading="loading" :data="users" row-key="id" border class="role-users__table">
           <el-table-column prop="username" label="用户名" min-width="140" />
           <el-table-column prop="name" label="姓名" min-width="120" />
           <el-table-column prop="email" label="邮箱" min-width="200" show-overflow-tooltip />
@@ -47,8 +47,8 @@ const {
               </el-tag>
             </template>
           </el-table-column>
-          <el-table-column label="创建时间" width="170">
-            <template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template>
+          <el-table-column label="授权时间" width="170">
+            <template #default="{ row }">{{ formatDateTime(row.grantedAt) }}</template>
           </el-table-column>
           <el-table-column width="130" fixed="right">
             <template #header>
@@ -63,7 +63,7 @@ const {
         </el-table>
 
         <!-- 空间角色用户列表 -->
-        <el-table v-else v-loading="loading" :data="workspaceUsers" row-key="userId">
+        <el-table v-else v-loading="loading" :data="workspaceUsers" row-key="userId" border class="role-users__table">
           <el-table-column prop="username" label="用户名" min-width="140" />
           <el-table-column prop="name" label="姓名" min-width="120" />
           <el-table-column label="归属空间" min-width="200">
@@ -77,6 +77,9 @@ const {
                 {{ ws.workspaceName }}
               </el-tag>
             </template>
+          </el-table-column>
+          <el-table-column label="授权时间" width="170">
+            <template #default="{ row }">{{ formatDateTime(row.grantedAt) }}</template>
           </el-table-column>
           <el-table-column width="130" fixed="right">
             <template #header>
@@ -168,6 +171,15 @@ const {
   justify-content: flex-end;
   padding: 14px 24px;
   border-top: 1px solid var(--color-neutral-100);
+}
+
+/* 与权限点表格保持一致：13px 字号 + 单元格垂直居中（配合 border 属性） */
+.role-users__table {
+  font-size: 13px;
+
+  :deep(td.el-table__cell) {
+    vertical-align: middle;
+  }
 }
 
 .role-users__ws-tag {

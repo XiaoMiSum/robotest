@@ -30,6 +30,8 @@ export interface AdminUser {
   workspaces: WorkspaceSimple[]
   createdAt: string
   updatedAt: string
+  /** 授权时间：按角色查询关联用户时回填 = sys_user_role.updated_at */
+  grantedAt?: string
 }
 
 /** 用户精简信息（用于下拉选择） */
@@ -173,6 +175,8 @@ export interface RoleWorkspaceUser {
     workspaceId: string
     workspaceName: string
   }[]
+  /** 授权时间：ws_user.updated_at，多空间聚合取最近一次 */
+  grantedAt?: string
 }
 
 /** 权限点 */
