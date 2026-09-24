@@ -19,6 +19,7 @@ import io.github.xiaomisum.robotest.repository.workspace.ProjectMapper;
 import io.github.xiaomisum.robotest.repository.admin.SysUserMapper;
 import io.github.xiaomisum.robotest.repository.tcase.ProjectModuleMapper;
 import io.github.xiaomisum.robotest.repository.workspace.WorkspaceUserMapper;
+import io.github.xiaomisum.robotest.service.project.ProjectActivityService;
 import jakarta.annotation.Resource;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
@@ -56,6 +57,8 @@ public class BugServiceImpl implements BugService {
     private ProjectAccessGuard projectAccessGuard;
     @Resource
     private BugStatusChangeService bugStatusChangeService;
+    @Resource
+    private ProjectActivityService projectActivityService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -74,6 +77,8 @@ public class BugServiceImpl implements BugService {
         bugMapper.insert(bug);
 
         writeBugLog(bug.getId(), userId, Constants.BugOperation.CREATE, "创建缺陷");
+        projectActivityService.record(projectId, userId, "BUG", bug.getId(),
+                bug.getTitle(), "BUG_CREATED", "提交缺陷「" + bug.getTitle() + "」");
         eventPublisher.publishEvent(new BugChangedEvent(bug.getId(), BugChangeOp.CREATED));
 
         return bug.getId().toString();
@@ -137,6 +142,9 @@ public class BugServiceImpl implements BugService {
         }
 
         writeBugLog(bugId, userId, Constants.BugOperation.UPDATE, "更新缺陷");
+        String resourceName = StringUtils.hasText(reqDTO.getTitle()) ? reqDTO.getTitle() : bug.getTitle();
+        projectActivityService.record(bug.getProjectId(), userId, "BUG", bugId,
+                resourceName, "BUG_UPDATED", "更新缺陷「" + resourceName + "」");
         if (StringUtils.hasText(reqDTO.getTitle()) || reqDTO.getReproSteps() != null) {
             eventPublisher.publishEvent(new BugChangedEvent(bugId, BugChangeOp.UPDATED));
         }
@@ -159,6 +167,8 @@ public class BugServiceImpl implements BugService {
         }
         projectAccessGuard.requireProjectMember(bug.getProjectId(), userId);
         bugStatusChangeService.changeBugStatus(bug, userId, reqDTO);
+        projectActivityService.record(bug.getProjectId(), userId, "BUG", bugId,
+                bug.getTitle(), "BUG_STATUS_CHANGED", "更新缺陷「" + bug.getTitle() + "」状态");
     }
 
     @Override
@@ -181,6 +191,8 @@ public class BugServiceImpl implements BugService {
         update.setConfirmed(true);
         bugMapper.updateById(update);
         writeBugLog(bugId, userId, Constants.BugOperation.CONFIRM, "确认缺陷");
+        projectActivityService.record(bug.getProjectId(), userId, "BUG", bugId,
+                bug.getTitle(), "BUG_CONFIRMED", "确认缺陷「" + bug.getTitle() + "」");
     }
 
     @Override
@@ -207,6 +219,8 @@ public class BugServiceImpl implements BugService {
         bugMapper.updateById(update);
         writeBugLog(bugId, userId, Constants.BugOperation.ASSIGN,
                 String.format("指派处理人为「%s」", assignee.getUsername()));
+        projectActivityService.record(bug.getProjectId(), userId, "BUG", bugId,
+                bug.getTitle(), "BUG_ASSIGNED", "指派缺陷「" + bug.getTitle() + "」处理人");
     }
 
     private void validateAssigneeInWorkspace(UUID projectId, UUID assigneeId) {

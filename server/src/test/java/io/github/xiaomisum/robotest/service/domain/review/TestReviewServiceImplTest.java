@@ -30,6 +30,7 @@ import io.github.xiaomisum.robotest.repository.tcase.TestCaseNodeMapper;
 import io.github.xiaomisum.robotest.repository.admin.SysUserMapper;
 import io.github.xiaomisum.robotest.repository.workspace.ProjectMapper;
 import io.github.xiaomisum.robotest.repository.workspace.WorkspaceUserMapper;
+import io.github.xiaomisum.robotest.service.project.ProjectActivityService;
 import io.github.xiaomisum.robotest.service.domain.review.ReviewLifecycleEvent;
 import io.github.xiaomisum.robotest.service.domain.review.ReviewSnapshotService;
 import io.github.xiaomisum.robotest.service.domain.review.ReviewSnapshotServiceImpl;
@@ -87,6 +88,8 @@ class TestReviewServiceImplTest {
         private WorkspaceUserMapper workspaceUserMapper;
         @Mock
         private ProjectAccessGuard projectAccessGuard;
+        @Mock
+        private ProjectActivityService projectActivityService;
 
         @Mock
         private ApplicationEventPublisher eventPublisher;

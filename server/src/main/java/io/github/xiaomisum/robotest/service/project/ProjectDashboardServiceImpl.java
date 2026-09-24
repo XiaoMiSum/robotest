@@ -1,8 +1,13 @@
 package io.github.xiaomisum.robotest.service.project;
 
+import io.github.xiaomisum.robotest.framework.security.ProjectAccessGuard;
+import io.github.xiaomisum.robotest.service.admin.PermissionFacade;
+import io.github.xiaomisum.robotest.service.admin.PermissionScope;
 import io.github.xiaomisum.robotest.framework.convert.ProjectDashboardConvertMapper;
+import io.github.xiaomisum.robotest.model.dto.response.workspace.ProjectActivityRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.workspace.ProjectDashboardRespDTO;
 import io.github.xiaomisum.robotest.model.entity.admin.SysUser;
+import io.github.xiaomisum.robotest.model.entity.workspace.Project;
 import io.github.xiaomisum.robotest.model.entity.bug.Bug;
 import io.github.xiaomisum.robotest.model.entity.plan.TestPlan;
 import io.github.xiaomisum.robotest.model.entity.review.TestReview;
@@ -41,10 +46,28 @@ public class ProjectDashboardServiceImpl implements ProjectDashboardService {
     private BugMapper bugMapper;
     @Resource
     private SysUserMapper userMapper;
+    @Resource
+    private ProjectMapper projectMapper;
+    @Resource
+    private ProjectAccessGuard projectAccessGuard;
+    @Resource
+    private ProjectActivityService projectActivityService;
+    @Resource
+    private PermissionFacade permissionFacade;
 
     @Override
-    public ProjectDashboardRespDTO getDashboard(UUID projectId) {
+    public ProjectDashboardRespDTO getDashboard(UUID projectId, UUID workspaceId, UUID userId) {
+        projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
+        Project project = projectMapper.selectById(projectId);
         ProjectDashboardRespDTO dto = new ProjectDashboardRespDTO();
+        dto.setProjectName(project.getName());
+        dto.setProjectStatus(project.getStatus());
+        dto.setStartTime(project.getStartTime());
+        dto.setEndTime(project.getEndTime());
+        Set<String> permissions = permissionFacade.permissionsOf(userId, PermissionScope.WORKSPACE, workspaceId);
+        dto.setRecentActivities(projectActivityService.listRecent(projectId, 8).stream()
+                .filter(activity -> canViewActivity(activity, permissions))
+                .toList());
 
         // Count case nodes belonging to this project's documents
         List<String> projectDocIds = testCaseDocumentMapper.listByProjectId(projectId)
@@ -94,5 +117,20 @@ public class ProjectDashboardServiceImpl implements ProjectDashboardService {
                 .collect(Collectors.toList()));
 
         return dto;
+    }
+
+    private boolean canViewActivity(ProjectActivityRespDTO activity, Set<String> permissions) {
+        if (permissions == null || permissions.isEmpty()) {
+            return false;
+        }
+        return switch (activity.getResourceType()) {
+            case "PROJECT" -> permissions.contains("project:view");
+            case "TEST_CASE_DOCUMENT", "TEST_CASE_NODE" -> permissions.contains("case:view");
+            case "TEST_REVIEW" -> permissions.contains("review:view");
+            case "TEST_PLAN" -> permissions.contains("plan:view");
+            case "BUG" -> permissions.contains("bug:view");
+            case "REQUIREMENT" -> permissions.contains("requirement:view");
+            default -> false;
+        };
     }
 }

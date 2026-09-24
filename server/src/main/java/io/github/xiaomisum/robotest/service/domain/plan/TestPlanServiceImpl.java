@@ -28,6 +28,7 @@ import io.github.xiaomisum.robotest.repository.plan.TestPlanExecutionRecordMappe
 import io.github.xiaomisum.robotest.repository.tcase.ProjectModuleMapper;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseDocumentMapper;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseNodeMapper;
+import io.github.xiaomisum.robotest.service.project.ProjectActivityService;
 import io.github.xiaomisum.robotest.repository.admin.SysUserMapper;
 import jakarta.annotation.Resource;
 import org.slf4j.Logger;
@@ -65,6 +66,8 @@ public class TestPlanServiceImpl implements TestPlanService {
     private SysUserMapper userMapper;
     @Resource
     private ProjectAccessGuard projectAccessGuard;
+    @Resource
+    private ProjectActivityService projectActivityService;
 
     @Override
     public PageResult<TestPlanListRespDTO> getPlanPage(UUID projectId, UUID userId, String status,
@@ -136,6 +139,8 @@ public class TestPlanServiceImpl implements TestPlanService {
         testPlanMapper.insert(plan);
 
         generateSnapshots(plan.getId(), reqDTO.getSelectedNodes());
+        projectActivityService.record(projectId, userId, "TEST_PLAN", plan.getId(),
+                plan.getName(), "PLAN_CREATED", "创建测试计划「" + plan.getName() + "」");
 
         return convertToDetailDTO(plan);
     }
@@ -291,6 +296,8 @@ public class TestPlanServiceImpl implements TestPlanService {
         }
 
         markSnapshotSynced(planId);
+        projectActivityService.record(plan.getProjectId(), userId, "TEST_PLAN", planId,
+                plan.getName(), "PLAN_CASES_UPDATED", "调整测试计划「" + plan.getName() + "」的用例");
     }
 
     // 快照结构调整后回写同步时间，供执行顺序推荐判断快照新鲜度；载体只携带该字段（C9）
@@ -424,11 +431,13 @@ public class TestPlanServiceImpl implements TestPlanService {
         planNodeSnapshotMapper.updateById(snapUpdate);
 
         // 需求：标记执行结果后待开始计划自动转入进行中（已取代单独的开始执行操作）
+        boolean started = false;
         if (Constants.Status.NEW.equals(plan.getStatus())) {
             TestPlan planUpdate = new TestPlan();
             planUpdate.setId(plan.getId());
             planUpdate.setStatus(Constants.Status.IN_PROGRESS);
             testPlanMapper.updateById(planUpdate);
+            started = true;
         }
 
         TestPlanExecutionRecord record = new TestPlanExecutionRecord();
@@ -439,6 +448,10 @@ public class TestPlanServiceImpl implements TestPlanService {
         record.setNote(reqDTO.getNote());
         record.setExecutedAt(LocalDateTime.now());
         planExecutionRecordMapper.insert(record);
+        if (started) {
+            projectActivityService.record(plan.getProjectId(), userId, "TEST_PLAN", planId,
+                    plan.getName(), "PLAN_STARTED", "开始执行测试计划「" + plan.getName() + "」");
+        }
     }
 
     @Override
@@ -602,6 +615,8 @@ public class TestPlanServiceImpl implements TestPlanService {
         update.setId(planId);
         update.setStatus(Constants.Status.COMPLETED);
         testPlanMapper.updateById(update);
+        projectActivityService.record(plan.getProjectId(), userId, "TEST_PLAN", planId,
+                plan.getName(), "PLAN_COMPLETED", "完成测试计划「" + plan.getName() + "」");
     }
 
     @Override
@@ -620,6 +635,8 @@ public class TestPlanServiceImpl implements TestPlanService {
         planNodeSnapshotMapper.deleteByPlanId(planId);
         planModuleSnapshotMapper.deleteByPlanId(planId);
         testPlanMapper.deleteById(planId);
+        projectActivityService.record(plan.getProjectId(), userId, "TEST_PLAN", planId,
+                plan.getName(), "PLAN_DELETED", "删除测试计划「" + plan.getName() + "」");
     }
 
     private void generateSnapshots(UUID planId, List<TestPlanCreateReqDTO.SelectedNode> selectedNodes) {

@@ -1,6 +1,8 @@
 package io.github.xiaomisum.robotest.service.domain.plan;
 
 import io.github.xiaomisum.robotest.framework.security.ProjectAccessGuard;
+import io.github.xiaomisum.robotest.framework.convert.TestPlanConvertMapper;
+import io.github.xiaomisum.robotest.framework.convert.TestPlanConvertMapperImpl;
 import io.github.xiaomisum.robotest.model.dto.request.plan.TestPlanCasesUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.plan.TestPlanCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.plan.TestPlanRecordReqDTO;
@@ -25,12 +27,14 @@ import io.github.xiaomisum.robotest.repository.tcase.ProjectModuleMapper;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseDocumentMapper;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseNodeMapper;
 import io.github.xiaomisum.robotest.repository.admin.SysUserMapper;
+import io.github.xiaomisum.robotest.service.project.ProjectActivityService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import xyz.migoo.framework.common.exception.ServiceException;
 import xyz.migoo.framework.common.pojo.PageParam;
@@ -70,6 +74,10 @@ class TestPlanServiceImplTest {
         private SysUserMapper userMapper;
         @Mock
         private ProjectAccessGuard projectAccessGuard;
+        @Mock
+        private ProjectActivityService projectActivityService;
+        @Spy
+        private TestPlanConvertMapper testPlanConvertMapper = new TestPlanConvertMapperImpl();
 
         @InjectMocks
         private TestPlanServiceImpl planService;
