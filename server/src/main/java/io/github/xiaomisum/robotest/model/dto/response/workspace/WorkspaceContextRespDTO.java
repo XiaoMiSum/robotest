@@ -17,5 +17,6 @@ public class WorkspaceContextRespDTO {
     private Long memberCount;
     private Long projectCount;
     private String status;
+    private String createdByName;
     private LocalDateTime createdAt;
 }

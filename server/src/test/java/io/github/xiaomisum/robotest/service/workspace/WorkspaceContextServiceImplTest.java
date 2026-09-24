@@ -4,9 +4,11 @@ import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.model.dto.request.workspace.WorkspaceDefaultProjectReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.workspace.WorkspaceUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.workspace.WorkspaceContextRespDTO;
+import io.github.xiaomisum.robotest.model.entity.admin.SysUser;
 import io.github.xiaomisum.robotest.model.entity.workspace.Project;
 import io.github.xiaomisum.robotest.model.entity.workspace.Workspace;
 import io.github.xiaomisum.robotest.model.entity.workspace.WorkspaceUser;
+import io.github.xiaomisum.robotest.repository.admin.SysUserMapper;
 import io.github.xiaomisum.robotest.repository.workspace.ProjectMapper;
 import io.github.xiaomisum.robotest.repository.workspace.WorkspaceMapper;
 import io.github.xiaomisum.robotest.repository.workspace.WorkspaceUserMapper;
@@ -33,6 +35,8 @@ class WorkspaceContextServiceImplTest {
     @Mock
     private WorkspaceMapper workspaceMapper;
     @Mock
+    private SysUserMapper userMapper;
+    @Mock
     private WorkspaceUserMapper workspaceUserMapper;
     @Mock
     private ProjectMapper projectMapper;
@@ -42,6 +46,7 @@ class WorkspaceContextServiceImplTest {
 
     private final UUID workspaceId = UUID.fromString("00000000-0000-0000-0000-0000000000aa");
     private final UUID userId = UUID.fromString("00000000-0000-0000-0000-0000000000bb");
+    private final UUID creatorId = UUID.fromString("00000000-0000-0000-0000-0000000000ee");
     private final UUID projectId = UUID.fromString("00000000-0000-0000-0000-0000000000cc");
     private final UUID workspaceUserId = UUID.fromString("00000000-0000-0000-0000-0000000000dd");
 
@@ -50,6 +55,7 @@ class WorkspaceContextServiceImplTest {
         ws.setId(workspaceId);
         ws.setName("QA 团队");
         ws.setStatus(Constants.Status.ACTIVE);
+        ws.setCreatedBy(creatorId);
         return ws;
     }
 
@@ -62,13 +68,22 @@ class WorkspaceContextServiceImplTest {
         return wu;
     }
 
+    private SysUser creator() {
+        SysUser creator = new SysUser();
+        creator.setId(creatorId);
+        creator.setUsername("qa-owner");
+        creator.setName("张明");
+        return creator;
+    }
+
     private void stubBase() {
         when(workspaceMapper.selectById(workspaceId)).thenReturn(workspace());
         when(workspaceUserMapper.findByWorkspaceIdAndUserId(workspaceId, userId)).thenReturn(adminUser());
     }
 
-    /** 仅成功路径需要成员/项目计数（buildContextRespDTO 内部查询） */
+    /** 仅成功构建响应时需要创建人和统计依赖 */
     private void stubCounts() {
+        when(userMapper.selectById(creatorId)).thenReturn(creator());
         when(workspaceUserMapper.countByWorkspaceId(workspaceId)).thenReturn(3L);
         when(projectMapper.countByWorkspaceId(workspaceId)).thenReturn(2L);
     }
@@ -86,8 +101,37 @@ class WorkspaceContextServiceImplTest {
         assertEquals("QA 团队", result.getName());
         assertEquals("active", result.getStatus());
         assertEquals(Constants.WorkspaceRole.ADMIN_ID.toString(), result.getWorkspaceRole());
+        assertEquals("张明", result.getCreatedByName());
         assertEquals(3L, result.getMemberCount());
         assertEquals(2L, result.getProjectCount());
+    }
+
+    @Test
+    void getWorkspaceContext_creatorNameMissing_fallsBackToUsername() {
+        stubBase();
+        when(workspaceUserMapper.countByWorkspaceId(workspaceId)).thenReturn(3L);
+        when(projectMapper.countByWorkspaceId(workspaceId)).thenReturn(2L);
+        SysUser creator = creator();
+        creator.setName(null);
+        when(userMapper.selectById(creatorId)).thenReturn(creator);
+
+        WorkspaceContextRespDTO result = contextService.getWorkspaceContext(userId, workspaceId);
+
+        assertEquals("qa-owner", result.getCreatedByName());
+    }
+
+    @Test
+    void getWorkspaceContext_legacyWorkspaceWithoutCreator_returnsNull() {
+        Workspace workspace = workspace();
+        workspace.setCreatedBy(null);
+        when(workspaceMapper.selectById(workspaceId)).thenReturn(workspace);
+        when(workspaceUserMapper.findByWorkspaceIdAndUserId(workspaceId, userId)).thenReturn(adminUser());
+        when(workspaceUserMapper.countByWorkspaceId(workspaceId)).thenReturn(3L);
+        when(projectMapper.countByWorkspaceId(workspaceId)).thenReturn(2L);
+
+        WorkspaceContextRespDTO result = contextService.getWorkspaceContext(userId, workspaceId);
+
+        assertNull(result.getCreatedByName());
     }
 
     @Test
