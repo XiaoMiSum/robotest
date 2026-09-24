@@ -78,6 +78,21 @@ function handleEnter(workspace: WorkspaceItem): void {
     <section class="workspace-list-page__toolbar-card" aria-label="工作空间筛选">
       <div class="workspace-list-page__toolbar">
         <div class="workspace-list-page__filters">
+          <div class="workspace-list-page__segment" role="group" aria-label="空间范围">
+            <button
+              v-for="option in scopeOptions"
+              :key="option.value"
+              type="button"
+              class="workspace-list-page__segment-button"
+              :class="{ 'workspace-list-page__segment-button--active': scope === option.value }"
+              :aria-pressed="scope === option.value"
+              :disabled="isInitialLoading"
+              @click="changeScope(option.value)"
+            >
+              {{ option.label }}（{{ counts[option.value] }}）
+            </button>
+          </div>
+
           <form class="workspace-list-page__search" role="search" @submit.prevent="handleSearch">
             <label class="workspace-list-page__visually-hidden" for="workspace-keyword"
               >搜索空间名称</label
@@ -101,21 +116,6 @@ function handleEnter(workspace: WorkspaceItem): void {
               @clear="handleClear"
             />
           </form>
-
-          <div class="workspace-list-page__segment" role="group" aria-label="空间范围">
-            <button
-              v-for="option in scopeOptions"
-              :key="option.value"
-              type="button"
-              class="workspace-list-page__segment-button"
-              :class="{ 'workspace-list-page__segment-button--active': scope === option.value }"
-              :aria-pressed="scope === option.value"
-              :disabled="isInitialLoading"
-              @click="changeScope(option.value)"
-            >
-              {{ option.label }}（{{ counts[option.value] }}）
-            </button>
-          </div>
         </div>
         <span class="workspace-list-page__sort-note">按最近访问排序</span>
       </div>
