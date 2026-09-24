@@ -190,7 +190,7 @@
     "token": "完整 token"
   }
   ```
-  前端根据 token 拼接 `${origin}/join?token=${token}` 后写入剪贴板。
+  前端根据 token 拼接 `${origin}/join?token=${token}`，并在复制文本中附带当前登录用户的 `username` 作为邀请人后写入剪贴板。
 
 ### 1.11 撤销邀请链接
 

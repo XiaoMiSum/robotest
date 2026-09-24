@@ -20,15 +20,16 @@ describe('MemberListPage demo structure', () => {
     expect(pageSource).toContain('生成链接')
   })
 
-  it('邀请过期时间按业务本地时间提交和展示', () => {
+  it('邀请过期时间按统一时间工具提交和展示', () => {
     expect(pageSource).toContain('value-format="YYYY-MM-DDTHH:mm:ss"')
-    expect(pageSource).toContain('formatLocalDateTime(row.expiresAt)')
+    expect(pageSource).toContain('formatDateTime(row.expiresAt)')
   })
 
   it('邀请链接使用脱敏预览和按需复制接口', () => {
     expect(pageSource).toContain('row.tokenPreview')
     expect(pageSource).toContain('fetchInvitationCopyLink')
     expect(pageSource).toContain('buildInvitationCopyText')
+    expect(pageSource).toContain('inviterUsername: authStore.user?.username')
     expect(pageSource).toContain('邀请链接及说明已复制')
     expect(pageSource).toContain('invitationStatusMeta')
     expect(pageSource).not.toContain('invitation.token }}')

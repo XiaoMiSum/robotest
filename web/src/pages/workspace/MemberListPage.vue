@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import {
+  type ComponentPublicInstance,
   computed,
   nextTick,
   onBeforeUnmount,
   onMounted,
   reactive,
   ref,
-  type ComponentPublicInstance,
 } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -22,7 +22,10 @@ import {
   revokeInvitation,
   updateMemberRole,
 } from '@/services/workspace'
-import { fetchRoleList as fetchAdminRoleList, fetchSimpleUserList as fetchAdminUserList } from '@/services/admin'
+import {
+  fetchRoleList as fetchAdminRoleList,
+  fetchSimpleUserList as fetchAdminUserList,
+} from '@/services/admin'
 import type { InvitationListItem, UserSimple, WorkspaceMember } from '@/types'
 import { WORKSPACE_ROLE, workspaceRoleLabel } from '@/utils/workspaceRole'
 import {
@@ -31,7 +34,7 @@ import {
   canExpireInvitation,
   invitationStatusMeta,
 } from '@/utils/workspaceInvitation'
-import { formatDateTime, formatLocalDateTime } from '@/utils/format'
+import { formatDateTime } from '@/utils/format'
 
 const SEARCH_DEBOUNCE_MS = 300
 
@@ -296,11 +299,11 @@ function getInviteUrl(token: string): string {
 }
 
 function buildInvitationCopyText(url: string, invitation?: InvitationListItem): string {
-  return buildInvitationShareText(
-    url,
-    authStore.activeWorkspace?.name,
-    invitation?.effectiveStatus === 'exhausted',
-  )
+  return buildInvitationShareText(url, {
+    workspaceName: authStore.activeWorkspace?.name,
+    inviterUsername: authStore.user?.username,
+    exhausted: invitation?.effectiveStatus === 'exhausted',
+  })
 }
 
 const copyingInvitationId = ref('')
@@ -525,7 +528,9 @@ onBeforeUnmount(() => {
                   <span
                     v-else
                     class="member-page__role-tag"
-                    :class="{ 'member-page__role-tag--admin': isWorkspaceAdminRole(row.workspaceRole) }"
+                    :class="{
+                      'member-page__role-tag--admin': isWorkspaceAdminRole(row.workspaceRole),
+                    }"
                   >
                     {{ resolveWorkspaceRoleLabel(row.workspaceRole) }}
                   </span>
@@ -601,13 +606,15 @@ onBeforeUnmount(() => {
               </el-table-column>
               <el-table-column label="使用次数" min-width="120">
                 <template #default="{ row }">
-                  <span class="member-page__num">{{ invitationUses(row as InvitationListItem) }}</span>
+                  <span class="member-page__num">{{
+                    invitationUses(row as InvitationListItem)
+                  }}</span>
                 </template>
               </el-table-column>
               <el-table-column label="过期时间" min-width="170">
                 <template #default="{ row }">
                   <span class="member-page__num">
-                    {{ row.expiresAt ? formatLocalDateTime(row.expiresAt) : '永不过期' }}
+                    {{ row.expiresAt ? formatDateTime(row.expiresAt) : '永不过期' }}
                   </span>
                 </template>
               </el-table-column>
@@ -731,7 +738,9 @@ onBeforeUnmount(() => {
       <p class="member-page__dialog-tip">请复制链接并发送给受邀成员：</p>
       <el-input :model-value="createdInviteLink" readonly>
         <template #append>
-          <el-button :icon="CopyDocument" @click="handleCopyLink(createdInviteLink)">复制</el-button>
+          <el-button :icon="CopyDocument" @click="handleCopyLink(createdInviteLink)"
+            >复制</el-button
+          >
         </template>
       </el-input>
       <template #footer>
@@ -1024,5 +1033,4 @@ onBeforeUnmount(() => {
     align-self: flex-end;
   }
 }
-
 </style>
