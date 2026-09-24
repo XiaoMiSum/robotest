@@ -55,14 +55,14 @@ const {
 } = useSceneProcessors(editor.detail, httpRefOptions, dsRefOptions, editor.sceneSection)
 
 const {
-  assetPickerVisible, assetPickerLoading, assetPickerItems,
+  assetPickerVisible, assetPickerLoading, assetPickerItems, assetPickerError,
   assetPickerKeyword, assetPickerKind, ASSET_TITLE,
-  loadAssetPicker, openAssetPicker, openExtractorPickerForProcessor, handleAssetPicked,
+  retryAssetPicker, openAssetPicker, openExtractorPickerForProcessor, handleAssetPicked,
 } = useAssetPicker(editProcessors)
 
 const {
   executionHistory, executionHistoryTotal, executionHistoryPage,
-  historyLoading, loadHistory,
+  historyLoading, historyError, loadHistory, retryHistory,
   reportDialogVisible, reportDetailId, handleViewReport,
 } = useSceneHistory(() => props.sceneId)
 
@@ -120,6 +120,7 @@ const {
       :execution-history-total="executionHistoryTotal"
       :execution-history-page="executionHistoryPage"
       :history-loading="historyLoading"
+      :history-error="historyError"
       @update:edit-name="editor.editName.value = $event"
       @update:edit-description="editor.editDescription.value = $event"
       @update:edit-module-id="editor.editModuleId.value = $event"
@@ -131,7 +132,7 @@ const {
       @delete="editor.handleDeleteScene"
       @run="handleRun"
       @view-report="handleViewReport"
-      @load-history="loadHistory"
+      @load-history="retryHistory"
     />
 
     <div v-if="editor.detail.value || editor.isCreateMode.value" class="scene-editor__body">
@@ -285,10 +286,11 @@ const {
       v-model="assetPickerVisible"
       :loading="assetPickerLoading"
       :items="assetPickerItems"
+      :error="assetPickerError"
       :keyword="assetPickerKeyword"
       :title="ASSET_TITLE[assetPickerKind]"
       @update:keyword="assetPickerKeyword = $event"
-      @search="loadAssetPicker"
+      @search="retryAssetPicker"
       @confirm="handleAssetPicked"
     />
 

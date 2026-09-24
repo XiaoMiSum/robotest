@@ -14,15 +14,23 @@ const emit = defineEmits<{ (e: 'restore', record: ApiDebugRecordItem): void }>()
 const PAGE_SIZE = 10
 
 const loading = ref(false)
+const error = ref<string | null>(null)
 const records = ref<ApiDebugRecordItem[]>([])
 const total = ref(0)
 const pageNo = ref(1)
 const keyword = ref('')
 
 let searchTimer: ReturnType<typeof setTimeout> | undefined
+let listRequestId = 0
+
+function errorMessage(err: unknown, fallback: string): string {
+  return err instanceof Error && err.message ? err.message : fallback
+}
+
 // 与环境列表一致：搜索防抖 300ms 走服务端过滤
 function handleSearchInput() {
   clearTimeout(searchTimer)
+  listRequestId += 1
   searchTimer = setTimeout(() => {
     pageNo.value = 1
     void loadList()
@@ -30,19 +38,35 @@ function handleSearchInput() {
 }
 
 onMounted(() => void loadList())
-onBeforeUnmount(() => clearTimeout(searchTimer))
+onBeforeUnmount(() => {
+  clearTimeout(searchTimer)
+  listRequestId += 1
+  loading.value = false
+})
 
-async function loadList() {
+async function loadList(): Promise<void> {
+  const requestId = ++listRequestId
   loading.value = true
+  error.value = null
   try {
     const page = await fetchDebugRecords(pageNo.value, PAGE_SIZE, keyword.value.trim() || undefined)
+    if (requestId !== listRequestId) return
     records.value = page.list
     total.value = page.total
-  } catch {
-    // 拦截器已统一提示错误信息
+  } catch (err) {
+    if (requestId !== listRequestId) return
+    const message = errorMessage(err, '加载调试记录失败')
+    error.value = message
+    ElMessage.error(message)
   } finally {
-    loading.value = false
+    if (requestId === listRequestId) {
+      loading.value = false
+    }
   }
+}
+
+function retry(): void {
+  void loadList()
 }
 
 function handlePageChange(page: number) {
@@ -95,8 +119,8 @@ async function handleDelete(record: ApiDebugRecordItem) {
     if (records.value.length === 1 && pageNo.value > 1) pageNo.value -= 1
     await loadList()
     ElMessage.success('已删除')
-  } catch {
-    // 拦截器已统一提示错误信息
+  } catch (err) {
+    ElMessage.error(errorMessage(err, '删除调试记录失败'))
   }
 }
 
@@ -116,8 +140,8 @@ async function commitRename(record: ApiDebugRecordItem) {
     await renameDebugRecord(record.id, name)
     record.name = name
     ElMessage.success('已重命名')
-  } catch {
-    // 拦截器已统一提示错误信息
+  } catch (err) {
+    ElMessage.error(errorMessage(err, '重命名调试记录失败'))
   }
 }
 
@@ -135,6 +159,7 @@ function handleRestore(record: ApiDebugRecordItem) {
         placeholder="搜索名称或 URL"
         class="history__search"
         @input="handleSearchInput"
+        @clear="handleSearchInput"
       >
         <template #prefix><el-icon><Search /></el-icon></template>
       </el-input>
@@ -142,6 +167,11 @@ function handleRestore(record: ApiDebugRecordItem) {
     </div>
 
     <div class="history__list">
+      <div v-if="error" class="history__error" role="alert">
+        <span>{{ error }}</span>
+        <el-button link type="primary" @click="retry">重试</el-button>
+      </div>
+
       <section v-for="group in groupedRecords" :key="group.label" class="history__group">
         <h4 class="history__group-title">{{ group.label }}</h4>
         <div v-for="record in group.items" :key="record.id" class="history__item">
@@ -183,7 +213,7 @@ function handleRestore(record: ApiDebugRecordItem) {
         </div>
       </section>
 
-      <div v-if="!loading && !records.length" class="history__empty">暂无调试记录</div>
+      <div v-if="!loading && !error && !records.length" class="history__empty">暂无调试记录</div>
     </div>
 
     <el-pagination
@@ -224,6 +254,16 @@ function handleRestore(record: ApiDebugRecordItem) {
     flex: 1;
     overflow-y: auto;
     min-height: 0;
+  }
+
+  &__error {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-md);
+    margin-bottom: var(--space-sm);
+    color: var(--color-danger);
+    font-size: var(--font-size-sm);
   }
 
   &__group-title {

@@ -77,8 +77,14 @@ onMounted(async () => {
     >
       <el-tab-pane label="AI 配置" name="config">
         <div v-loading="cfg.loading.value" class="ai-config-page__config">
+          <div v-if="models.error.value" class="ai-config-page__model-error" role="alert">
+            <span>{{ models.error.value }}</span>
+            <el-button link type="primary" @click="models.retry">重试</el-button>
+          </div>
           <div class="model-row">
             <AiChatModelTable
+              v-if="!models.error.value || models.chatModels.value.length"
+              v-loading="models.loading.value"
               :models="models.chatModels.value"
               :row-testing-id="models.rowTestingId.value"
               :provider-label="providerLabel"
@@ -184,6 +190,16 @@ onMounted(async () => {
 }
 
 /* 双卡并排等高（demo：460px 按表单展开态实测留余量），超出卡内滚动 */
+.ai-config-page__model-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  margin-bottom: var(--space-sm);
+  color: var(--color-danger);
+  font-size: var(--font-size-sm);
+}
+
 .model-row {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

@@ -7,6 +7,8 @@ const router = useRouter()
 
 const {
   loading,
+  dashboardError,
+  workspaceError,
   subtitle,
   kpiCards,
   lineChart,
@@ -18,6 +20,7 @@ const {
   workspacePages,
   refresh,
   gotoWorkspacePage,
+  retry,
 } = useDashboard()
 </script>
 
@@ -31,6 +34,11 @@ const {
       <el-button :loading="loading" @click="refresh">
         <el-icon><Refresh /></el-icon>刷新
       </el-button>
+    </div>
+
+    <div v-if="dashboardError" class="dashboard__error" role="alert">
+      <span>{{ dashboardError }}</span>
+      <el-button link type="primary" @click="retry">重试</el-button>
     </div>
 
     <div class="dashboard__kpis">
@@ -156,7 +164,16 @@ const {
           >查看全部 →</el-link
         >
       </header>
-      <el-table :data="workspaceList" row-key="id" empty-text="暂无工作空间">
+      <div v-if="workspaceError" class="dashboard__error" role="alert">
+        <span>{{ workspaceError }}</span>
+        <el-button link type="primary" @click="retry">重试</el-button>
+      </div>
+      <el-table
+        v-if="!workspaceError || workspaceList.length"
+        :data="workspaceList"
+        row-key="id"
+        empty-text="暂无工作空间"
+      >
         <el-table-column prop="name" label="空间名称" min-width="160" />
         <el-table-column label="创建人" width="120">
           <template #default="{ row }">{{ row.createdByName ?? '—' }}</template>
@@ -179,7 +196,7 @@ const {
           <template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template>
         </el-table-column>
       </el-table>
-      <footer class="dashboard__table-foot">
+      <footer v-if="!workspaceError || workspaceList.length" class="dashboard__table-foot">
         <span class="dashboard__total">共 {{ workspaceTotal }} 个空间</span>
         <el-pagination
           v-if="workspacePages > 1"
@@ -198,6 +215,16 @@ const {
 /* 面积填充为示例指定的低透明主色，非新增色值，故以局部变量收敛 */
 .dashboard {
   --dash-area-fill: rgba(51, 112, 255, 0.08);
+}
+
+.dashboard__error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  margin-bottom: var(--space-md);
+  color: var(--color-danger);
+  font-size: var(--font-size-sm);
 }
 
 .dashboard__head {

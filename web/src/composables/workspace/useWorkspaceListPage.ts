@@ -111,7 +111,9 @@ export function useWorkspaceListPage(options: WorkspaceListPageOptions = {}) {
       hasLoadedOnce.value = true
     } catch (loadError) {
       if (disposed || sequence !== requestSequence) return
-      error.value = errorMessage(loadError, '加载工作空间列表失败')
+      const message = errorMessage(loadError, '加载工作空间列表失败')
+      error.value = message
+      ElMessage.error(message)
     } finally {
       if (!disposed && sequence === requestSequence) {
         loading.value = false

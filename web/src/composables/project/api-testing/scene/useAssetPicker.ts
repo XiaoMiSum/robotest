@@ -1,4 +1,4 @@
-import { ref, type Ref } from 'vue'
+import { getCurrentInstance, onBeforeUnmount, ref, type Ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { fetchComponents } from '@/services/project/api-testing/component'
 import { extractorsFromComponents, processorFromComponent } from '@/composables/project/api-testing/processorFormModel'
@@ -33,16 +33,44 @@ export function useAssetPicker(editProcessors: Ref<SceneProcessorElement[]>) {
   const assetPickerVisible = ref(false)
   const assetPickerLoading = ref(false)
   const assetPickerItems = ref<ApiComponentListItem[]>([])
+  const assetPickerError = ref<string | null>(null)
   const assetPickerKeyword = ref('')
   const assetPickerKind = ref<AssetKind>('pre')
   const assetTargetIdx = ref<number | null>(null)
+  let requestSequence = 0
+
+  function errorMessage(error: unknown, fallback: string): string {
+    return error instanceof Error && error.message ? error.message : fallback
+  }
 
   async function loadAssetPicker(): Promise<void> {
+    const sequence = ++requestSequence
     assetPickerLoading.value = true
+    assetPickerError.value = null
     try {
-      const resp = await fetchComponents({ type: ASSET_TYPE[assetPickerKind.value], pageNo: 1, pageSize: 200 })
+      const resp = await fetchComponents({
+        type: ASSET_TYPE[assetPickerKind.value],
+        pageNo: 1,
+        pageSize: 200,
+        keyword: assetPickerKeyword.value.trim() || undefined,
+      })
+      if (sequence !== requestSequence) return
       assetPickerItems.value = resp.list
-    } catch { /* 静默 */ } finally { assetPickerLoading.value = false }
+    } catch (err) {
+      if (sequence !== requestSequence) return
+      const message = errorMessage(err, '公共组件加载失败')
+      assetPickerItems.value = []
+      assetPickerError.value = message
+      ElMessage.error(message)
+    } finally {
+      if (sequence === requestSequence) {
+        assetPickerLoading.value = false
+      }
+    }
+  }
+
+  function retryAssetPicker(): Promise<void> {
+    return loadAssetPicker()
   }
 
   function openAssetPicker(kind: AssetKind) {
@@ -59,6 +87,13 @@ export function useAssetPicker(editProcessors: Ref<SceneProcessorElement[]>) {
     assetTargetIdx.value = idx
     assetPickerVisible.value = true
     void loadAssetPicker()
+  }
+
+  if (getCurrentInstance()) {
+    onBeforeUnmount(() => {
+      requestSequence += 1
+      assetPickerLoading.value = false
+    })
   }
 
   function handleAssetPicked(rows: ApiComponentListItem[]) {
@@ -80,11 +115,13 @@ export function useAssetPicker(editProcessors: Ref<SceneProcessorElement[]>) {
     assetPickerVisible,
     assetPickerLoading,
     assetPickerItems,
+    assetPickerError,
     assetPickerKeyword,
     assetPickerKind,
     assetTargetIdx,
     ASSET_TITLE,
     loadAssetPicker,
+    retryAssetPicker,
     openAssetPicker,
     openExtractorPickerForProcessor,
     handleAssetPicked,

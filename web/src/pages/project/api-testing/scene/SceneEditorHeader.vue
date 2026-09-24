@@ -23,6 +23,7 @@ defineProps<{
   executionHistoryTotal: number
   executionHistoryPage: number
   historyLoading: boolean
+  historyError: string | null
 }>()
 
 const emit = defineEmits<{
@@ -118,12 +119,16 @@ const emit = defineEmits<{
         <div v-loading="historyLoading" class="scene-editor__history-panel">
           <div class="scene-editor__settings-section">
             <div class="scene-editor__settings-head">执行历史</div>
+            <div v-if="historyError" class="scene-editor__history-error" role="alert">
+              <span>{{ historyError }}</span>
+              <el-button link size="small" type="primary" @click="emit('load-history')">重试</el-button>
+            </div>
             <div v-for="h in executionHistory" :key="h.id" class="scene-editor__history-row">
               <span class="scene-editor__history-status" :class="`is-${h.status}`">{{ h.status }}</span>
               <span>{{ formatDateTime(h.executedAt) }}</span>
               <el-button v-if="h.reportId" link size="small" type="primary" @click="emit('view-report', h.reportId)">报告</el-button>
             </div>
-            <div v-if="!executionHistory.length" class="scene-editor__empty-text">暂无执行记录</div>
+            <div v-if="!executionHistory.length && !historyError" class="scene-editor__empty-text">暂无执行记录</div>
             <el-pagination
               v-if="executionHistoryTotal > 0"
               :current-page="executionHistoryPage"
@@ -168,3 +173,15 @@ const emit = defineEmits<{
     />
   </header>
 </template>
+
+<style scoped lang="scss">
+.scene-editor__history-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-sm);
+  color: var(--color-danger);
+  font-size: var(--font-size-xs);
+}
+</style>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 import type { ApiDebugSaveAsInterfaceReq, ApiInterfaceItem, DebugTab, ProjectModule } from '@/types'
@@ -29,6 +29,16 @@ const mode = ref<'create' | 'attach'>('create')
 const name = ref('')
 const modules = ref<ProjectModule[]>([])
 const moduleId = ref<string>('')
+const moduleLoading = ref(false)
+const moduleError = ref<string | null>(null)
+const interfaceLoading = ref(false)
+const interfaceError = ref<string | null>(null)
+let moduleRequestId = 0
+let interfaceRequestId = 0
+
+function errorMessage(error: unknown, fallback: string): string {
+  return error instanceof Error && error.message ? error.message : fallback
+}
 
 const createRules = computed<FormRules>(() => ({
   name: [{ required: true, message: '请输入接口名称', trigger: 'blur' }],
@@ -67,11 +77,24 @@ function indentLabel(option: ModuleOption): string {
   return `${'　'.repeat(option.depth)}${option.label}`
 }
 
-async function loadModules() {
+async function loadModules(): Promise<void> {
+  const requestId = ++moduleRequestId
+  moduleLoading.value = true
+  moduleError.value = null
   try {
-    modules.value = await fetchProjectModuleTree('interface')
-  } catch {
-    // 模块加载失败不阻塞保存
+    const result = await fetchProjectModuleTree('interface')
+    if (requestId !== moduleRequestId) return
+    modules.value = result
+  } catch (err) {
+    if (requestId !== moduleRequestId) return
+    const message = errorMessage(err, '加载接口模块失败')
+    modules.value = []
+    moduleError.value = message
+    ElMessage.error(message)
+  } finally {
+    if (requestId === moduleRequestId) {
+      moduleLoading.value = false
+    }
   }
 }
 
@@ -80,40 +103,67 @@ async function loadModules() {
 const interfaceList = ref<ApiInterfaceItem[]>([])
 const interfaceId = ref('')
 
-async function loadInterfaces() {
+async function loadInterfaces(): Promise<void> {
+  const requestId = ++interfaceRequestId
+  interfaceLoading.value = true
+  interfaceError.value = null
   try {
     const page = await fetchInterfacePage({
       pageNo: 1,
       pageSize: 50,
       moduleId: moduleId.value || undefined,
     })
+    if (requestId !== interfaceRequestId) return
     interfaceList.value = page.list
     if (!interfaceId.value && page.list.length) {
       interfaceId.value = page.list[0].id
     }
-  } catch {
-    // 接口列表加载失败时保存按钮由后端校验兜底
+  } catch (err) {
+    if (requestId !== interfaceRequestId) return
+    const message = errorMessage(err, '加载接口候选列表失败')
+    interfaceError.value = message
+    ElMessage.error(message)
+  } finally {
+    if (requestId === interfaceRequestId) {
+      interfaceLoading.value = false
+    }
   }
 }
 
 watch(
   () => props.visible,
   (visible) => {
-    if (!visible) return
+    if (!visible) {
+      moduleRequestId += 1
+      interfaceRequestId += 1
+      moduleLoading.value = false
+      interfaceLoading.value = false
+      return
+    }
     name.value = ''
     mode.value = 'create'
     moduleId.value = ''
     interfaceId.value = ''
+    modules.value = []
+    interfaceList.value = []
+    moduleError.value = null
+    interfaceError.value = null
     formRef.value?.resetFields()
-    loadModules()
+    void loadModules()
   },
   { immediate: true },
 )
 
 watch(mode, async (current) => {
   formRef.value?.clearValidate()
+  interfaceRequestId += 1
   if (current === 'attach') {
+    interfaceError.value = null
     await loadInterfaces()
+  } else {
+    interfaceLoading.value = false
+    interfaceError.value = null
+    interfaceList.value = []
   }
 })
 
@@ -122,6 +172,21 @@ watch(moduleId, async (current) => {
     interfaceId.value = ''
     await loadInterfaces()
   }
+})
+
+function retryModules(): void {
+  void loadModules()
+}
+
+function retryInterfaces(): void {
+  void loadInterfaces()
+}
+
+onBeforeUnmount(() => {
+  moduleRequestId += 1
+  interfaceRequestId += 1
+  moduleLoading.value = false
+  interfaceLoading.value = false
 })
 
 function interfaceLabel(item: ApiInterfaceItem): string {
@@ -164,8 +229,8 @@ async function handleSubmit() {
     ElMessage.success(mode.value === 'create' ? '已保存为接口定义' : '已更新接口定义')
     emit('update:visible', false)
     emit('saved', result.interfaceId)
-  } catch {
-    // 拦截器已统一提示错误信息
+  } catch (err) {
+    ElMessage.error(errorMessage(err, '保存接口定义失败'))
   } finally {
     saving.value = false
   }
@@ -192,7 +257,12 @@ async function handleSubmit() {
 
       <template v-if="mode === 'create'">
         <el-form-item label="所属模块" prop="moduleId">
-          <el-select v-model="moduleId" placeholder="请选择所属模块" class="save-dialog__full">
+          <el-select
+            v-model="moduleId"
+            placeholder="请选择所属模块"
+            class="save-dialog__full"
+            :loading="moduleLoading"
+          >
             <el-option
               v-for="opt in moduleOptions"
               :key="opt.id"
@@ -200,6 +270,10 @@ async function handleSubmit() {
               :value="opt.id"
             />
           </el-select>
+          <div v-if="moduleError" class="save-dialog__load-error" role="alert">
+            <span>{{ moduleError }}</span>
+            <el-button link type="primary" @click="retryModules">重试</el-button>
+          </div>
         </el-form-item>
       </template>
 
@@ -210,6 +284,7 @@ async function handleSubmit() {
             filterable
             placeholder="搜索并选择接口"
             class="save-dialog__full"
+            :loading="interfaceLoading"
           >
             <el-option
               v-for="item in interfaceList"
@@ -218,6 +293,10 @@ async function handleSubmit() {
               :value="item.id"
             />
           </el-select>
+          <div v-if="interfaceError" class="save-dialog__load-error" role="alert">
+            <span>{{ interfaceError }}</span>
+            <el-button link type="primary" @click="retryInterfaces">重试</el-button>
+          </div>
         </el-form-item>
       </template>
     </el-form>
@@ -235,6 +314,16 @@ async function handleSubmit() {
 .save-dialog {
   &__full {
     width: 100%;
+  }
+
+  &__load-error {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-sm);
+    margin-top: var(--space-xs);
+    color: var(--color-danger);
+    font-size: var(--font-size-xs);
   }
 
   &__tip {

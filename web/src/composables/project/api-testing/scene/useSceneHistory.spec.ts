@@ -4,11 +4,16 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const mocks = vi.hoisted(() => ({
   fetchExecutionHistory: vi.fn(),
   fetchChangeHistory: vi.fn(),
+  ElMessage: { error: vi.fn() },
 }))
 
 vi.mock('@/services/project/api-testing/scene', () => ({
   fetchExecutionHistory: mocks.fetchExecutionHistory,
   fetchChangeHistory: mocks.fetchChangeHistory,
+}))
+
+vi.mock('element-plus', () => ({
+  ElMessage: mocks.ElMessage,
 }))
 
 import { useSceneHistory } from './useSceneHistory'
@@ -37,8 +42,20 @@ function makeChangeItem(overrides?: Record<string, unknown>) {
   }
 }
 
+function deferred<T>() {
+  let resolve!: (value: T) => void
+  let reject!: (reason?: unknown) => void
+  const promise = new Promise<T>((promiseResolve, promiseReject) => {
+    resolve = promiseResolve
+    reject = promiseReject
+  })
+  return { promise, resolve, reject }
+}
+
 beforeEach(() => {
   vi.clearAllMocks()
+  mocks.fetchExecutionHistory.mockResolvedValue({ list: [], total: 0 })
+  mocks.fetchChangeHistory.mockResolvedValue({ list: [], total: 0 })
 })
 
 describe('useSceneHistory', () => {
@@ -132,21 +149,52 @@ describe('useSceneHistory', () => {
       expect(historyLoading.value).toBe(false)
     })
 
-    it('请求失败时静默处理，historyLoading 仍恢复为 false', async () => {
-      mocks.fetchExecutionHistory.mockRejectedValue(new Error('fail'))
-      mocks.fetchChangeHistory.mockRejectedValue(new Error('fail'))
-      const { loadHistory, historyLoading, executionHistory } = useSceneHistory(() => 'scene-1')
+    it('请求失败时透传后端消息并保留错误态', async () => {
+      mocks.fetchExecutionHistory.mockRejectedValue(new Error('执行历史接口失败'))
+      mocks.fetchChangeHistory.mockRejectedValue(new Error('变更历史接口失败'))
+      const { loadHistory, historyLoading, executionHistory, historyError } = useSceneHistory(() => 'scene-1')
       await loadHistory()
       expect(historyLoading.value).toBe(false)
       expect(executionHistory.value).toEqual([])
+      expect(historyError.value).toContain('执行历史接口失败')
+      expect(mocks.ElMessage.error).toHaveBeenCalledWith('执行历史接口失败')
+      expect(mocks.ElMessage.error).toHaveBeenCalledWith('变更历史接口失败')
     })
 
-    it('只有一侧失败时 historyLoading 仍恢复为 false', async () => {
-      mocks.fetchExecutionHistory.mockRejectedValue(new Error('fail'))
+    it('只有一侧失败时独立保留成功结果并提示失败请求', async () => {
+      mocks.fetchExecutionHistory.mockRejectedValue(new Error('执行历史接口失败'))
       mocks.fetchChangeHistory.mockResolvedValue({ list: [makeChangeItem()], total: 1 })
-      const { loadHistory, historyLoading } = useSceneHistory(() => 'scene-1')
+      const { loadHistory, historyLoading, changeHistory, executionHistoryError } = useSceneHistory(() => 'scene-1')
       await loadHistory()
       expect(historyLoading.value).toBe(false)
+      expect(changeHistory.value).toEqual([makeChangeItem()])
+      expect(executionHistoryError.value).toBe('执行历史接口失败')
+      expect(mocks.ElMessage.error).toHaveBeenCalledWith('执行历史接口失败')
+    })
+
+    it('忽略晚到的旧历史响应，避免覆盖当前结果或重复提示', async () => {
+      const firstExec = deferred<{ list: ReturnType<typeof makeExecItem>[]; total: number }>()
+      const firstChange = deferred<{ list: ReturnType<typeof makeChangeItem>[]; total: number }>()
+      const secondExec = deferred<{ list: ReturnType<typeof makeExecItem>[]; total: number }>()
+      const secondChange = deferred<{ list: ReturnType<typeof makeChangeItem>[]; total: number }>()
+      mocks.fetchExecutionHistory
+        .mockReturnValueOnce(firstExec.promise)
+        .mockReturnValueOnce(secondExec.promise)
+      mocks.fetchChangeHistory
+        .mockReturnValueOnce(firstChange.promise)
+        .mockReturnValueOnce(secondChange.promise)
+      const sut = useSceneHistory(() => 'scene-1')
+      const first = sut.loadHistory()
+      const second = sut.loadHistory()
+      secondExec.resolve({ list: [makeExecItem({ id: 'new-exec' })], total: 1 })
+      secondChange.resolve({ list: [makeChangeItem({ id: 'new-change' })], total: 1 })
+      await second
+      firstExec.resolve({ list: [makeExecItem({ id: 'old-exec' })], total: 1 })
+      firstChange.resolve({ list: [makeChangeItem({ id: 'old-change' })], total: 1 })
+      await first
+      expect(sut.executionHistory.value[0]?.id).toBe('new-exec')
+      expect(sut.changeHistory.value[0]?.id).toBe('new-change')
+      expect(mocks.ElMessage.error).not.toHaveBeenCalled()
     })
   })
 
