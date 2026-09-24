@@ -1,4 +1,4 @@
-import { getAccessToken } from '@/services'
+import { getAccessToken, getContextHeaders, hasRequestHeader } from '@/services'
 
 /** SSE 帧事件（统一帧格式 delta / done / error + 业务扩展事件，未识别事件原样透传） */
 export interface AiStreamEvent {
@@ -11,6 +11,8 @@ export interface UseAiStreamOptions {
   url: string
   method?: 'POST' | 'GET'
   body?: unknown
+  /** 显式请求头；活动上下文头由统一适配器补齐且不覆盖显式值 */
+  headers?: Record<string, string>
   /** 每个事件帧回调（delta/done/error 及业务扩展事件） */
   onEvent: (event: AiStreamEvent) => void
   /** 连接错误或非 2xx 响应 */
@@ -61,13 +63,18 @@ export function parseSseFrame(rawFrame: string): AiStreamEvent | null {
 export function useAiStream(options: UseAiStreamOptions): AiStreamController {
   const controller = new AbortController()
 
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(options.headers ?? {}),
+  }
   const token = getAccessToken()
-  if (token) headers.Authorization = `Bearer ${token}`
-  const workspaceId = localStorage.getItem('robotest_active_workspace')
-  if (workspaceId) headers['X-Active-Workspace'] = workspaceId
-  const projectId = localStorage.getItem('robotest_active_project')
-  if (projectId) headers['X-Active-Project'] = projectId
+  if (token && !hasRequestHeader(headers, 'Authorization')) {
+    headers.Authorization = `Bearer ${token}`
+  }
+  Object.assign(
+    headers,
+    getContextHeaders({ url: options.url, method: options.method ?? 'POST', headers }),
+  )
 
   void start()
 

@@ -1,10 +1,8 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import type { AiMinderCommand, AiPageContext } from '@/types'
+import { useAuthStore } from '@/stores/auth'
 import type { DslApplyResult, DslPlan, DslPlanResult } from '@/minder/ai/dslRunner'
-
-/** 与 stores/auth.ts PROJECT_KEY 同源：当前项目标识（X-Active-Project 请求头亦取自该键，见 services/index.ts） */
-const ACTIVE_PROJECT_KEY = 'robotest_active_project'
 
 /**
  * DSL 执行宿主（全局智能助手详细设计 4.3/5.1）：
@@ -26,6 +24,7 @@ export interface DslHost {
  * 非脑图页仅注入当前 projectId（若在项目内）。
  */
 export const useAssistantContextStore = defineStore('assistantContext', () => {
+  const authStore = useAuthStore()
   const documentId = ref<string | null>(null)
   const selectedNodeId = ref<string | null>(null)
   /** 脑图页注册的 DSL 执行宿主；非脑图页为空（收到 minder_commands 时按「已离开文档页」处理，5.2） */
@@ -59,13 +58,13 @@ export const useAssistantContextStore = defineStore('assistantContext', () => {
 
   /**
    * 组装发送消息的 pageContext：
-   * projectId 直接读 localStorage（与 X-Active-Project 请求头同源，保证后端校验一致）；
+   * projectId 读取 auth store 的活动项目，避免页面桥与请求头各自维护一份项目状态；
    * documentId/selectedNodeId 仅脑图页存在时注入，且 selectedNodeId 显式带 null
    * （system 提示据此消歧"当前用例"指代，见 4.4）。
    */
   function buildPageContext(): AiPageContext {
     const context: AiPageContext = {}
-    const projectId = localStorage.getItem(ACTIVE_PROJECT_KEY)
+    const projectId = authStore.activeProject
     if (projectId) context.projectId = projectId
     if (documentId.value) {
       context.documentId = documentId.value

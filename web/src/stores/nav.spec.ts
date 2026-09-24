@@ -39,6 +39,9 @@ vi.mock('@/stores/auth', () => ({
     get activeWorkspace() {
       return h.activeWorkspace
     },
+    get activeWorkspaceId() {
+      return h.activeWorkspace?.id ?? null
+    },
   }),
 }))
 
@@ -80,7 +83,12 @@ describe('dynamicMenuItems', () => {
     // 故意乱序注册，验证排序依赖 menu.order 而非注册顺序
     addRecord('/workspace/projects/api-testing', {
       mode: 'project',
-      menu: { label: '接口测试', icon: 'Connection', order: 30, permissionAny: ['api-env:view', 'api-debug:view'] },
+      menu: {
+        label: '接口测试',
+        icon: 'Connection',
+        order: 30,
+        permissionAny: ['api-env:view', 'api-debug:view'],
+      },
     })
     addRecord('/workspace/projects/bugs', {
       mode: 'project',
@@ -91,7 +99,10 @@ describe('dynamicMenuItems', () => {
       menu: { label: '功能测试', icon: 'Monitor', order: 10, permission: 'case:view' },
     })
     // 其他模式的菜单项不得串入
-    addRecord('/admin/users', { mode: 'admin', menu: { label: '用户管理', icon: 'User', order: 10 } })
+    addRecord('/admin/users', {
+      mode: 'admin',
+      menu: { label: '用户管理', icon: 'User', order: 10 },
+    })
     h.permissions = ['case:view', 'api-debug:view']
 
     const nav = useNavStore()
@@ -102,7 +113,12 @@ describe('dynamicMenuItems', () => {
     h.currentRouteMeta = { mode: 'project' }
     addRecord('/workspace/projects/api-testing', {
       mode: 'project',
-      menu: { label: '接口测试', icon: 'Connection', order: 30, permissionAny: ['api-env:view', 'api-debug:view'] },
+      menu: {
+        label: '接口测试',
+        icon: 'Connection',
+        order: 30,
+        permissionAny: ['api-env:view', 'api-debug:view'],
+      },
     })
 
     h.permissions = ['api-env:view']
@@ -152,18 +168,39 @@ describe('dynamicMenuItems', () => {
 
 describe('adminSidebarSections', () => {
   function addAdminRecords() {
-    addRecord('/admin/dashboard', { mode: 'admin', menu: { label: '数据概览', icon: 'Odometer', order: 1 } })
+    addRecord('/admin/dashboard', {
+      mode: 'admin',
+      menu: { label: '数据概览', icon: 'Odometer', order: 1 },
+    })
     addRecord('/admin/users', {
       mode: 'admin',
-      menu: { label: '用户管理', icon: 'User', order: 10, section: '组织与权限', permission: 'user:view' },
+      menu: {
+        label: '用户管理',
+        icon: 'User',
+        order: 10,
+        section: '组织与权限',
+        permission: 'user:view',
+      },
     })
     addRecord('/admin/roles', {
       mode: 'admin',
-      menu: { label: '角色管理', icon: 'Key', order: 20, section: '组织与权限', permission: 'role:view' },
+      menu: {
+        label: '角色管理',
+        icon: 'Key',
+        order: 20,
+        section: '组织与权限',
+        permission: 'role:view',
+      },
     })
     addRecord('/admin/ai-config', {
       mode: 'admin',
-      menu: { label: 'AI 配置', icon: 'MagicStick', order: 40, section: '平台配置', permission: 'ai:view' },
+      menu: {
+        label: 'AI 配置',
+        icon: 'MagicStick',
+        order: 40,
+        section: '平台配置',
+        permission: 'ai:view',
+      },
     })
   }
 
@@ -176,7 +213,10 @@ describe('adminSidebarSections', () => {
     expect(nav.adminSidebarSections[0]?.title).toBeUndefined()
     expect(nav.adminSidebarSections[0]?.items.map((item) => item.label)).toEqual(['数据概览'])
     expect(nav.adminSidebarSections[1]?.title).toBe('组织与权限')
-    expect(nav.adminSidebarSections[1]?.items.map((item) => item.label)).toEqual(['用户管理', '角色管理'])
+    expect(nav.adminSidebarSections[1]?.items.map((item) => item.label)).toEqual([
+      '用户管理',
+      '角色管理',
+    ])
     expect(nav.adminSidebarSections[2]?.title).toBe('平台配置')
     expect(nav.adminSidebarSections[2]?.items.map((item) => item.label)).toEqual(['AI 配置'])
   })
