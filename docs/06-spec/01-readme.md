@@ -17,7 +17,7 @@
 3. `05-api.md` / `06-database.md`：确认跨端契约和持久化约束。
 4. `07-quality.md` / `08-workflow.md` / `09-deploy.md` / `16-deployment-runbook.md`：确认质量、协作和交付要求。
 5. `10-security.md` / `11-migoo-framework.md` / `17-migoo-api-reference.md`：确认安全基线、框架策略和 API 速查。
-6. `12-task-template.md` / `13-scroll-container.md`：按任务或专项需要查阅。
+6. `12-task-template.md` / `13-scroll-container.md` / `18-frontend-design.md` / `19-page-development.md`：按任务或专项需要查阅。
 7. `15-realtime-protocol.md`：查看通用 WebSocket 实时通信协议。
 8. `14-improvement-backlog.md`：查看尚未执行的规范、代码、配置和交付任务。
 
@@ -41,6 +41,8 @@
 | [15-realtime-protocol](15-realtime-protocol.md) | 实时协议 | 通用 WebSocket API | V1.0 | 2026-09-24 | 已发布 |
 | [16-deployment-runbook](16-deployment-runbook.md) | 部署 Runbook | 具体项目实际部署步骤 | V1.0 | 2026-09-24 | 已发布 |
 | [17-migoo-api-reference](17-migoo-api-reference.md) | API 速查 | migoo 组件 API 和项目适配摘要 | V1.0 | 2026-09-24 | 已发布 |
+| [18-frontend-design](18-frontend-design.md) | 通用设计规范 | 前端视觉、布局、状态、响应式和可访问性 | V1.0 | 2026-09-24 | 已发布 |
+| [19-page-development](19-page-development.md) | 页面开发规范 | 大页面、小组件、状态归属和数据流 | V1.0 | 2026-09-24 | 已发布 |
 
 ## 4. 当前统一决策
 
