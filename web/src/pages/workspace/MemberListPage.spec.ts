@@ -23,6 +23,8 @@ describe('MemberListPage demo structure', () => {
   it('邀请链接使用脱敏预览和按需复制接口', () => {
     expect(pageSource).toContain('row.tokenPreview')
     expect(pageSource).toContain('fetchInvitationCopyLink')
+    expect(pageSource).toContain('buildInvitationCopyText')
+    expect(pageSource).toContain('邀请链接及说明已复制')
     expect(pageSource).toContain('invitationStatusMeta')
     expect(pageSource).not.toContain('invitation.token }}')
   })
