@@ -2,6 +2,8 @@ package io.github.xiaomisum.robotest.service.domain.bug;
 
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.security.ProjectAccessGuard;
+import io.github.xiaomisum.robotest.model.convert.BugConvertMapper;
+import io.github.xiaomisum.robotest.model.convert.BugConvertMapperImpl;
 import io.github.xiaomisum.robotest.model.dto.response.bug.BugDetailRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.bug.BugListRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.bug.BugLogRespDTO;
@@ -17,6 +19,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import xyz.migoo.framework.common.exception.ServiceException;
 import xyz.migoo.framework.common.pojo.PageResult;
@@ -43,6 +46,8 @@ class BugQueryServiceImplTest {
     private ProjectModuleMapper projectModuleMapper;
     @Mock
     private ProjectAccessGuard projectAccessGuard;
+    @Spy
+    private BugConvertMapper bugConvertMapper = new BugConvertMapperImpl();
 
     @InjectMocks
     private BugQueryServiceImpl bugQueryService;

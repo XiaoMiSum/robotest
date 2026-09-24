@@ -2,8 +2,8 @@ package io.github.xiaomisum.robotest.service.domain.bug;
 
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.security.ProjectAccessGuard;
-import io.github.xiaomisum.robotest.framework.convert.BugConvertMapper;
-import io.github.xiaomisum.robotest.framework.convert.BugConvertMapperImpl;
+import io.github.xiaomisum.robotest.model.convert.BugConvertMapper;
+import io.github.xiaomisum.robotest.model.convert.BugConvertMapperImpl;
 import io.github.xiaomisum.robotest.model.dto.request.bug.BugCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.bug.BugStatusChangeReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.bug.BugUpdateReqDTO;

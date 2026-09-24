@@ -1,5 +1,6 @@
 package io.github.xiaomisum.robotest.service.apitest;
 
+import io.github.xiaomisum.robotest.framework.time.UtcTime;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.framework.security.ProjectAccessGuard;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiPublicReportRespDTO;
@@ -116,7 +117,7 @@ public class ApiReportServiceImpl implements ApiReportService {
 
         return ApiReportShareRespDTO.builder()
                 .shareUrl(SHARE_URL_PREFIX + id + "?token=" + token)
-                .expiresAt(expiresAt)
+                .expiresAt(UtcTime.toUtcWallClock(expiresAt))
                 .shareBy(usernameOf(userId))
                 .build();
     }
@@ -124,7 +125,7 @@ public class ApiReportServiceImpl implements ApiReportService {
     /** 当前未过期分享记录（分享弹窗直接复用展示）；无分享/已过期返回 null */
     private ApiReportShareRespDTO shareOf(ApiReport report) {
         if (report.getShareToken() == null || report.getShareExpiresAt() == null
-                || !report.getShareExpiresAt().isAfter(LocalDateTime.now())) {
+                || !report.getShareExpiresAt().isAfter(UtcTime.utcNow())) {
             return null;
         }
         return ApiReportShareRespDTO.builder()
@@ -147,7 +148,7 @@ public class ApiReportServiceImpl implements ApiReportService {
         ApiReport report = token == null || token.isBlank() ? null : reportMapper.selectByIdAndToken(id, token);
         // 未分享（无 token 行）/过期统一 7009，不区分具体原因避免枚举探测
         if (report == null || report.getShareExpiresAt() == null
-                || !report.getShareExpiresAt().isAfter(LocalDateTime.now())) {
+                || !report.getShareExpiresAt().isAfter(UtcTime.utcNow())) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.API_SHARE_EXPIRED);
         }
         return ApiPublicReportRespDTO.builder()

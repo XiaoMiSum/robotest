@@ -1,5 +1,6 @@
 package io.github.xiaomisum.robotest.controller;
 
+import io.github.xiaomisum.robotest.framework.time.UtcTime;
 import io.github.xiaomisum.robotest.model.dto.response.HealthCheckRespDTO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -25,7 +26,7 @@ public class HealthCheckController {
     public Result<HealthCheckRespDTO> health() {
         HealthCheckRespDTO dto = new HealthCheckRespDTO();
         dto.setStatus("UP");
-        dto.setTimestamp(LocalDateTime.now());
+        dto.setTimestamp(UtcTime.utcNow());
         dto.setVersion("1.0.0");
         return Result.ok(dto);
     }

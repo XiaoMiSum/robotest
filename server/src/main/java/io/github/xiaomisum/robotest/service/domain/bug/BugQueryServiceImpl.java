@@ -1,7 +1,7 @@
 package io.github.xiaomisum.robotest.service.domain.bug;
 
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
-import io.github.xiaomisum.robotest.framework.convert.BugConvertMapper;
+import io.github.xiaomisum.robotest.model.convert.BugConvertMapper;
 import io.github.xiaomisum.robotest.framework.security.ProjectAccessGuard;
 import io.github.xiaomisum.robotest.model.dto.response.bug.BugDetailRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.bug.BugListRespDTO;
@@ -41,6 +41,8 @@ public class BugQueryServiceImpl implements BugQueryService {
     private ProjectModuleMapper projectModuleMapper;
     @Resource
     private ProjectAccessGuard projectAccessGuard;
+    @Resource
+    private BugConvertMapper bugConvertMapper;
 
     @Override
     public PageResult<BugListRespDTO> getBugPage(UUID projectId, UUID userId, String status, String severity,
@@ -64,19 +66,19 @@ public class BugQueryServiceImpl implements BugQueryService {
                         .collect(Collectors.toMap(SysUser::getId, u -> u));
 
         List<BugListRespDTO> dtos = page.getList().stream().map(bug -> {
-            BugListRespDTO dto = BugConvertMapper.INSTANCE.toListRespDTO(bug);
-            dto.setReporter(BugConvertMapper.INSTANCE.toUserInfo(userMap.get(bug.getReporterId())));
+            BugListRespDTO dto = bugConvertMapper.toListRespDTO(bug);
+            dto.setReporter(bugConvertMapper.toUserInfo(userMap.get(bug.getReporterId())));
             if (bug.getAssigneeId() != null) {
-                dto.setAssignee(BugConvertMapper.INSTANCE.toUserInfo(userMap.get(bug.getAssigneeId())));
+                dto.setAssignee(bugConvertMapper.toUserInfo(userMap.get(bug.getAssigneeId())));
             }
             if (bug.getResolvedBy() != null) {
-                dto.setResolvedBy(BugConvertMapper.INSTANCE.toUserInfo(userMap.get(bug.getResolvedBy())));
+                dto.setResolvedBy(bugConvertMapper.toUserInfo(userMap.get(bug.getResolvedBy())));
             }
             if (bug.getRejectedBy() != null) {
-                dto.setRejectedBy(BugConvertMapper.INSTANCE.toUserInfo(userMap.get(bug.getRejectedBy())));
+                dto.setRejectedBy(bugConvertMapper.toUserInfo(userMap.get(bug.getRejectedBy())));
             }
             if (bug.getClosedBy() != null) {
-                dto.setClosedBy(BugConvertMapper.INSTANCE.toUserInfo(userMap.get(bug.getClosedBy())));
+                dto.setClosedBy(bugConvertMapper.toUserInfo(userMap.get(bug.getClosedBy())));
             }
             return dto;
         }).collect(Collectors.toList());
@@ -92,7 +94,7 @@ public class BugQueryServiceImpl implements BugQueryService {
         }
         projectAccessGuard.requireProjectMember(bug.getProjectId(), userId);
 
-        BugDetailRespDTO dto = BugConvertMapper.INSTANCE.toDetailRespDTO(bug);
+        BugDetailRespDTO dto = bugConvertMapper.toDetailRespDTO(bug);
 
         if (bug.getModuleId() != null) {
             dto.setModuleId(bug.getModuleId());
@@ -101,16 +103,16 @@ public class BugQueryServiceImpl implements BugQueryService {
                 dto.setModuleName(module.getName());
             }
         }
-        dto.setResolvedBy(BugConvertMapper.INSTANCE.toDetailUserInfo(userMapper.selectById(bug.getResolvedBy())));
-        dto.setClosedBy(BugConvertMapper.INSTANCE.toDetailUserInfo(userMapper.selectById(bug.getClosedBy())));
-        dto.setReporter(BugConvertMapper.INSTANCE.toDetailUserInfo(userMapper.selectById(bug.getReporterId())));
+        dto.setResolvedBy(bugConvertMapper.toDetailUserInfo(userMapper.selectById(bug.getResolvedBy())));
+        dto.setClosedBy(bugConvertMapper.toDetailUserInfo(userMapper.selectById(bug.getClosedBy())));
+        dto.setReporter(bugConvertMapper.toDetailUserInfo(userMapper.selectById(bug.getReporterId())));
         if (bug.getAssigneeId() != null) {
-            dto.setAssignee(BugConvertMapper.INSTANCE.toDetailUserInfo(userMapper.selectById(bug.getAssigneeId())));
+            dto.setAssignee(bugConvertMapper.toDetailUserInfo(userMapper.selectById(bug.getAssigneeId())));
         }
 
         List<BugLog> recentLogs = bugLogMapper.findRecentLogs(bugId, 10);
         dto.setRecentLogs(recentLogs.stream().map(log -> {
-            BugLogRespDTO logDto = BugConvertMapper.INSTANCE.toLogRespDTO(log);
+            BugLogRespDTO logDto = bugConvertMapper.toLogRespDTO(log);
             SysUser operator = userMapper.selectById(log.getOperatorId());
             if (operator != null) {
                 logDto.setOperatorName(operator.getUsername());
@@ -132,7 +134,7 @@ public class BugQueryServiceImpl implements BugQueryService {
         List<BugLog> logs = bugLogMapper.findByBugId(bugId);
 
         return logs.stream().map(log -> {
-            BugLogRespDTO dto = BugConvertMapper.INSTANCE.toLogRespDTO(log);
+            BugLogRespDTO dto = bugConvertMapper.toLogRespDTO(log);
             SysUser operator = userMapper.selectById(log.getOperatorId());
             if (operator != null) {
                 dto.setOperatorName(operator.getUsername());

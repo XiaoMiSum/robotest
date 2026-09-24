@@ -64,8 +64,8 @@
   "accessToken": "eyJhbGciOi...",
   "refreshToken": "eyJhbGciOi...",
   "tokenType": "Bearer",
-  "accessExpiry": "2026-07-20T07:44:00",
-  "refreshExpiry": "2026-07-26T19:44:00",
+  "accessExpiry": "2026-07-20T07:44:00Z",
+  "refreshExpiry": "2026-07-26T19:44:00Z",
   "user": { "id": 5, "username": "newuser", "email": "newuser@example.com" },
   "activeWorkspace": { "id": 1, "name": "电商平台测试", "workspaceRole": "member" },
   "isNewUser": true

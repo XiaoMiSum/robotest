@@ -1,5 +1,6 @@
 package io.github.xiaomisum.robotest.service.apitest;
 
+import io.github.xiaomisum.robotest.framework.time.UtcTime;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.framework.security.LoginUser;
 import io.github.xiaomisum.robotest.framework.security.ProjectAccessGuard;
@@ -19,7 +20,6 @@ import xyz.migoo.framework.common.pojo.PageParam;
 import xyz.migoo.framework.common.pojo.PageResult;
 import xyz.migoo.framework.common.util.JsonUtils;
 
-import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -28,7 +28,6 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class CommonComponentServiceImpl implements CommonComponentService {
 
-    private static final DateTimeFormatter DATETIME = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
     private static final Set<String> TYPES = Set.of("preprocessor", "postprocessor", "validator", "extractor");
 
     private final CommonComponentMapper componentMapper;
@@ -233,7 +232,7 @@ public class CommonComponentServiceImpl implements CommonComponentService {
         item.setSortOrder(entity.getSortOrder());
         item.setConfig(entity.getConfig());
         item.setEnabled(entity.getEnabled());
-        item.setUpdatedAt(entity.getUpdatedAt() != null ? entity.getUpdatedAt().format(DATETIME) : null);
+        item.setUpdatedAt(UtcTime.toIso(entity.getUpdatedAt()));
         return item;
     }
 }

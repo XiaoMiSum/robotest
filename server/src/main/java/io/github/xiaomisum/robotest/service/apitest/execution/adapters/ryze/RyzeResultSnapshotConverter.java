@@ -1,5 +1,6 @@
 package io.github.xiaomisum.robotest.service.apitest.execution.adapters.ryze;
 
+import io.github.xiaomisum.robotest.framework.time.UtcTime;
 import io.github.xiaomisum.ryze.Result;
 import io.github.xiaomisum.ryze.protocol.http.RealHTTPRequest;
 import io.github.xiaomisum.ryze.protocol.http.RealHTTPResponse;
@@ -248,6 +249,6 @@ public final class RyzeResultSnapshotConverter {
     }
 
     private static String toIso(LocalDateTime value) {
-        return value == null ? null : value.toString();
+        return UtcTime.toIsoFromSystemLocal(value);
     }
 }

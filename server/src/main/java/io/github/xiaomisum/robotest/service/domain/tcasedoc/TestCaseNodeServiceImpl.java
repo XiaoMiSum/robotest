@@ -2,7 +2,7 @@ package io.github.xiaomisum.robotest.service.domain.tcasedoc;
 
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
-import io.github.xiaomisum.robotest.framework.convert.TestCaseNodeConvertMapper;
+import io.github.xiaomisum.robotest.model.convert.TestCaseNodeConvertMapper;
 import io.github.xiaomisum.robotest.framework.security.ProjectAccessGuard;
 import io.github.xiaomisum.robotest.model.dto.request.tcase.TestCaseNodeUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.tcase.TestCaseCaseListRespDTO;
@@ -33,6 +33,8 @@ public class TestCaseNodeServiceImpl implements TestCaseNodeService {
     private TestCaseDocumentMapper testCaseDocumentMapper;
     @Resource
     private ProjectAccessGuard projectAccessGuard;
+    @Resource
+    private TestCaseNodeConvertMapper testCaseNodeConvertMapper;
 
     @Override
     public TestCaseDocumentNodesRespDTO getDocumentNodes(UUID documentId, UUID userId) {
@@ -168,6 +170,6 @@ public class TestCaseNodeServiceImpl implements TestCaseNodeService {
     }
 
     private TestCaseNodeTreeRespDTO convertToNodeDTO(TestCaseNode node) {
-        return TestCaseNodeConvertMapper.INSTANCE.toTreeDTO(node);
+        return testCaseNodeConvertMapper.toTreeDTO(node);
     }
 }

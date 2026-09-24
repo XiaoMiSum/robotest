@@ -16,7 +16,7 @@
 
 ```json
 {
-  "generatedAt": "2026-09-23T01:00:00",
+  "generatedAt": "2026-09-23T01:00:00Z",
   "users": { "total": 128, "weekNew": 6, "enabled": 108, "disabled": 16, "locked": 4 },
   "workspaces": { "total": 16, "active": 14, "dissolved": 2 },
   "projects": { "total": 54, "weekNew": 3 },
@@ -44,7 +44,7 @@
 
 | 字段 | 口径 |
 | ---- | ---- |
-| `generatedAt` | 统计生成时间（服务端当前时间，平台约定 UTC+0 无时区标识） |
+| `generatedAt` | 统计生成时间（服务端按 UTC 输出，API 使用带 `Z` 的 ISO-8601） |
 | `users.total` | `sys_user` 未删除总数（全状态） |
 | `users.weekNew` | 近 7 日（`created_at >= now - 7d`）创建的用户数；KPI 文案「较上周 +N」 |
 | `users.enabled/disabled/locked` | 按 `status` 分组计数；三者之和 = `total` |

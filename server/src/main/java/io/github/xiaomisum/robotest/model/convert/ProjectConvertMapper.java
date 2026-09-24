@@ -1,18 +1,15 @@
-package io.github.xiaomisum.robotest.framework.convert;
+package io.github.xiaomisum.robotest.model.convert;
 
 import io.github.xiaomisum.robotest.model.dto.request.workspace.ProjectCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.workspace.ProjectRespDTO;
 import io.github.xiaomisum.robotest.model.entity.workspace.Project;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
-import org.mapstruct.factory.Mappers;
 
 import java.util.UUID;
 
-@Mapper
+@Mapper(componentModel = "spring")
 public interface ProjectConvertMapper {
-
-    ProjectConvertMapper INSTANCE = Mappers.getMapper(ProjectConvertMapper.class);
 
     @Mapping(target = "isDefault", expression = "java(project.getId().toString().equals(defaultProjectId))")
     @Mapping(target = "createdBy", ignore = true)

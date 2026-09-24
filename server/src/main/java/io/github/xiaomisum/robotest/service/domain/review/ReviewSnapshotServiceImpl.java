@@ -2,7 +2,7 @@ package io.github.xiaomisum.robotest.service.domain.review;
 
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
-import io.github.xiaomisum.robotest.framework.convert.TestReviewConvertMapper;
+import io.github.xiaomisum.robotest.model.convert.TestReviewConvertMapper;
 import io.github.xiaomisum.robotest.model.dto.request.review.TestReviewCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.plan.PlannedCasesRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.review.TestReviewSnapshotNodeRespDTO;
@@ -32,18 +32,21 @@ public class ReviewSnapshotServiceImpl implements ReviewSnapshotService {
     private final TestCaseDocumentMapper testCaseDocumentMapper;
     private final ProjectModuleMapper projectModuleMapper;
     private final TestCaseNodeMapper testCaseNodeMapper;
+    private final TestReviewConvertMapper testReviewConvertMapper;
 
     public ReviewSnapshotServiceImpl(
             TestReviewModuleSnapshotMapper reviewModuleSnapshotMapper,
             TestReviewNodeSnapshotMapper reviewNodeSnapshotMapper,
             TestCaseDocumentMapper testCaseDocumentMapper,
             ProjectModuleMapper projectModuleMapper,
-            TestCaseNodeMapper testCaseNodeMapper) {
+            TestCaseNodeMapper testCaseNodeMapper,
+            TestReviewConvertMapper testReviewConvertMapper) {
         this.reviewModuleSnapshotMapper = reviewModuleSnapshotMapper;
         this.reviewNodeSnapshotMapper = reviewNodeSnapshotMapper;
         this.testCaseDocumentMapper = testCaseDocumentMapper;
         this.projectModuleMapper = projectModuleMapper;
         this.testCaseNodeMapper = testCaseNodeMapper;
+        this.testReviewConvertMapper = testReviewConvertMapper;
     }
 
     @Override
@@ -539,6 +542,6 @@ public class ReviewSnapshotServiceImpl implements ReviewSnapshotService {
     }
 
     private TestReviewSnapshotNodeRespDTO toSnapshotNodeDTO(TestReviewNodeSnapshot snapshot) {
-        return TestReviewConvertMapper.INSTANCE.toSnapshotNodeDTO(snapshot);
+        return testReviewConvertMapper.toSnapshotNodeDTO(snapshot);
     }
 }

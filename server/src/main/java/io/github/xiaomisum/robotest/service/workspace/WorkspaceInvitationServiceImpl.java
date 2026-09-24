@@ -2,8 +2,9 @@ package io.github.xiaomisum.robotest.service.workspace;
 
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
-import io.github.xiaomisum.robotest.framework.convert.WorkspaceInvitationConvertMapper;
+import io.github.xiaomisum.robotest.model.convert.WorkspaceInvitationConvertMapper;
 import io.github.xiaomisum.robotest.framework.security.LoginUser;
+import io.github.xiaomisum.robotest.framework.time.UtcTime;
 import io.github.xiaomisum.robotest.model.dto.request.workspace.InvitationCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.workspace.InvitationJoinReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.workspace.InvitationCheckEmailRespDTO;
@@ -34,7 +35,6 @@ import xyz.migoo.framework.common.pojo.PageResult;
 import xyz.migoo.framework.security.core.authentication.JwtTokenProvider;
 
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -61,6 +61,8 @@ public class WorkspaceInvitationServiceImpl implements WorkspaceInvitationServic
     private JwtTokenProvider jwtTokenProvider;
     @Resource
     private InvitationStateMachine invitationStateMachine;
+    @Resource
+    private WorkspaceInvitationConvertMapper workspaceInvitationConvertMapper;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -91,9 +93,9 @@ public class WorkspaceInvitationServiceImpl implements WorkspaceInvitationServic
                     setPageSize(pageSize);
                 }}, workspaceId);
 
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = UtcTime.utcNow();
         List<InvitationListRespDTO> records = page.getList().stream().map(invitation -> {
-            InvitationListRespDTO dto = WorkspaceInvitationConvertMapper.INSTANCE.toListRespDTO(invitation);
+            InvitationListRespDTO dto = workspaceInvitationConvertMapper.toListRespDTO(invitation);
             dto.setTokenPreview(maskToken(invitation.getToken()));
             dto.setEffectiveStatus(resolveEffectiveStatus(invitationStateMachine.decision(invitation, now)));
             return dto;
@@ -107,7 +109,7 @@ public class WorkspaceInvitationServiceImpl implements WorkspaceInvitationServic
         checkAdminPermission(userId, workspaceId);
         WorkspaceInvitation invitation = getOwnedInvitation(workspaceId, invitationId);
 
-        InvitationRejectReason reason = invitationStateMachine.decision(invitation, LocalDateTime.now()).reason();
+        InvitationRejectReason reason = invitationStateMachine.decision(invitation, UtcTime.utcNow()).reason();
         if (reason == InvitationRejectReason.REVOKED) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.INVITATION_REVOKED);
         }
@@ -152,9 +154,7 @@ public class WorkspaceInvitationServiceImpl implements WorkspaceInvitationServic
 
         result.setValid(true);
         result.setWorkspaceName(workspace.getName());
-        result.setExpiresAt(invitation.getExpiresAt() != null
-                ? invitation.getExpiresAt().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)
-                : null);
+        result.setExpiresAt(UtcTime.toIso(invitation.getExpiresAt()));
         return result;
     }
 
@@ -236,13 +236,13 @@ public class WorkspaceInvitationServiceImpl implements WorkspaceInvitationServic
     }
 
     private boolean isValidInvitation(WorkspaceInvitation invitation) {
-        return invitationStateMachine.decision(invitation, LocalDateTime.now()).joinable();
+        return invitationStateMachine.decision(invitation, UtcTime.utcNow()).joinable();
     }
 
     private WorkspaceInvitation validateAndGetInvitation(String token) {
         WorkspaceInvitation invitation = invitationMapper.selectOne(WorkspaceInvitation::getToken, token);
 
-        InvitationDecision decision = invitationStateMachine.decision(invitation, LocalDateTime.now());
+        InvitationDecision decision = invitationStateMachine.decision(invitation, UtcTime.utcNow());
         if (!decision.joinable()) {
             throw ServiceExceptionUtil.get(rejectToError(decision.reason()));
         }
@@ -330,6 +330,9 @@ public class WorkspaceInvitationServiceImpl implements WorkspaceInvitationServic
     }
 
     private InvitationRespDTO convertToRespDTO(WorkspaceInvitation invitation) {
-        return WorkspaceInvitationConvertMapper.INSTANCE.toRespDTO(invitation);
+        InvitationRespDTO dto = workspaceInvitationConvertMapper.toRespDTO(invitation);
+        dto.setExpiresAt(UtcTime.toUtcWallClock(dto.getExpiresAt()));
+        dto.setCreatedAt(UtcTime.toUtcWallClock(dto.getCreatedAt()));
+        return dto;
     }
 }

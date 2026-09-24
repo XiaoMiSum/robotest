@@ -8,6 +8,7 @@ import io.github.xiaomisum.ryze.testelement.TestSuiteResult;
 import io.github.xiaomisum.ryze.testelement.sampler.DefaultSampleResult;
 import io.github.xiaomisum.ryze.testelement.sampler.SampleResult;
 import io.github.xiaomisum.ryze.protocol.http.RealHTTPResponse;
+import io.github.xiaomisum.robotest.framework.time.UtcTime;
 import io.github.xiaomisum.robotest.service.apitest.execution.adapters.ryze.RyzeResultSnapshotConverter;
 import org.apache.hc.core5.http.message.BasicHeader;
 import org.junit.jupiter.api.Test;
@@ -63,7 +64,8 @@ class RyzeResultSnapshotConverterTest {
         Map<String, Object> snapshot = RyzeResultSnapshotConverter.toSnapshot(top);
 
         assertEquals("passed", snapshot.get("status"));
-        assertEquals("2026-09-10T10:00", snapshot.get("startTime"));
+        assertEquals(UtcTime.toIsoFromSystemLocal(LocalDateTime.of(2026, 9, 10, 10, 0)),
+                snapshot.get("startTime"));
         assertEquals(1, ((List<?>) snapshot.get("children")).size());
 
         @SuppressWarnings("unchecked")

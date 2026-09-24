@@ -125,7 +125,6 @@
 - 部分历史架构/设计文档仍有旧端口、旧前端版本和旧部署命令；
 - 详细设计和交互设计的 API 契约已完成本轮同步，后续新增接口仍需按 `20-contracts/01-api.md` 校验；
 - 代码和配置中仍存在 SQL 参数日志、未接通的覆盖率/静态分析和其余安全整改项；
-- MapStruct 从历史目录迁移到 `model/convert/` 需要单独完成代码迁移和测试；
 - `merged` Maven profile、版本化数据库迁移和 CI 分支保护尚未建立。
 
 这些项目在完成前不得被描述为“已实现”或“已通过”。完整任务、优先级、依赖和验收标准见 [`00-governance/03-improvement-backlog.md`](00-governance/03-improvement-backlog.md)。

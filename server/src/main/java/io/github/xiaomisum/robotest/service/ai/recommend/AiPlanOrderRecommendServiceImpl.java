@@ -2,6 +2,7 @@ package io.github.xiaomisum.robotest.service.ai.recommend;
 
 import io.github.xiaomisum.robotest.framework.common.AiFunctionType;
 import io.github.xiaomisum.robotest.framework.common.Constants;
+import io.github.xiaomisum.robotest.framework.time.UtcTime;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.model.dto.request.ai.AiPlanOrderReasonReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiPlanOrderComputeRespDTO;
@@ -107,7 +108,7 @@ public class AiPlanOrderRecommendServiceImpl implements AiPlanOrderRecommendServ
         List<ScoredNode> scored = scoreNodes(planId, projectId, caseNodes, weights);
 
         AiPlanOrderRecommendRespDTO result = new AiPlanOrderRecommendRespDTO();
-        result.setPlanSyncedAt(plan.getSnapshotSyncedAt() == null ? null : plan.getSnapshotSyncedAt().toString());
+        result.setPlanSyncedAt(UtcTime.toIso(plan.getSnapshotSyncedAt()));
         result.setWeights(weights);
         result.setItems(scored.stream()
                 .map(this::toItem)

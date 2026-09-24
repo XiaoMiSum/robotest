@@ -1,4 +1,4 @@
-package io.github.xiaomisum.robotest.framework.convert;
+package io.github.xiaomisum.robotest.model.convert;
 
 import io.github.xiaomisum.robotest.model.dto.response.admin.UserRespDTO;
 import io.github.xiaomisum.robotest.model.entity.admin.SysRole;
@@ -8,15 +8,12 @@ import io.github.xiaomisum.robotest.model.entity.workspace.WorkspaceUser;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.Named;
-import org.mapstruct.factory.Mappers;
 
 import java.util.List;
 import java.util.UUID;
 
-@Mapper
+@Mapper(componentModel = "spring")
 public interface UserConvertMapper {
-
-    UserConvertMapper INSTANCE = Mappers.getMapper(UserConvertMapper.class);
 
     @Mapping(target = "roles", ignore = true)
     @Mapping(target = "workspaces", ignore = true)

@@ -2,7 +2,7 @@ package io.github.xiaomisum.robotest.service.domain.plan;
 
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
-import io.github.xiaomisum.robotest.framework.convert.TestPlanConvertMapper;
+import io.github.xiaomisum.robotest.model.convert.TestPlanConvertMapper;
 import io.github.xiaomisum.robotest.framework.security.ProjectAccessGuard;
 import io.github.xiaomisum.robotest.model.dto.request.plan.TestPlanCasesUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.plan.TestPlanCreateReqDTO;
@@ -66,6 +66,8 @@ public class TestPlanServiceImpl implements TestPlanService {
     private SysUserMapper userMapper;
     @Resource
     private ProjectAccessGuard projectAccessGuard;
+    @Resource
+    private TestPlanConvertMapper testPlanConvertMapper;
     @Resource
     private ProjectActivityService projectActivityService;
 
@@ -132,7 +134,7 @@ public class TestPlanServiceImpl implements TestPlanService {
     public TestPlanDetailRespDTO createPlan(UUID projectId, UUID userId,
             TestPlanCreateReqDTO reqDTO) {
         projectAccessGuard.requireProjectMember(projectId, userId);
-        TestPlan plan = TestPlanConvertMapper.INSTANCE.toEntity(reqDTO);
+        TestPlan plan = testPlanConvertMapper.toEntity(reqDTO);
         plan.setProjectId(projectId);
         plan.setStatus(Constants.Status.NEW);
         plan.setSnapshotSyncedAt(LocalDateTime.now());
@@ -803,7 +805,7 @@ public class TestPlanServiceImpl implements TestPlanService {
     }
 
     private TestPlanDetailRespDTO convertToDetailDTO(TestPlan plan) {
-        TestPlanDetailRespDTO dto = TestPlanConvertMapper.INSTANCE.toDetailDTO(plan);
+        TestPlanDetailRespDTO dto = testPlanConvertMapper.toDetailDTO(plan);
 
         if (plan.getExecutorId() != null) {
             SysUser executor = userMapper.selectById(plan.getExecutorId());
@@ -818,6 +820,6 @@ public class TestPlanServiceImpl implements TestPlanService {
     }
 
     private TestPlanSnapshotNodeRespDTO convertToSnapshotNodeDTO(TestPlanNodeSnapshot snapshot) {
-        return TestPlanConvertMapper.INSTANCE.toSnapshotNodeDTO(snapshot);
+        return testPlanConvertMapper.toSnapshotNodeDTO(snapshot);
     }
 }

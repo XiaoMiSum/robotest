@@ -2,7 +2,7 @@ package io.github.xiaomisum.robotest.service.project;
 
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
-import io.github.xiaomisum.robotest.framework.convert.ProjectConvertMapper;
+import io.github.xiaomisum.robotest.model.convert.ProjectConvertMapper;
 import io.github.xiaomisum.robotest.model.dto.request.workspace.ProjectArchiveReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.workspace.ProjectCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.workspace.ProjectUpdateReqDTO;
@@ -39,6 +39,8 @@ public class ProjectServiceImpl implements ProjectService {
     @Resource
     private TestPlanMapper testPlanMapper;
     @Resource
+    private ProjectConvertMapper projectConvertMapper;
+    @Resource
     private ProjectActivityService projectActivityService;
 
     @Override
@@ -56,9 +58,9 @@ public class ProjectServiceImpl implements ProjectService {
                 ? currentUser.getDefaultProjectId().toString() : null;
         List<ProjectRespDTO> records = page.getList().stream()
                 .map(p -> {
-                    ProjectRespDTO dto = ProjectConvertMapper.INSTANCE.toRespDTO(p, defaultProjectIdStr);
+                    ProjectRespDTO dto = projectConvertMapper.toRespDTO(p, defaultProjectIdStr);
                     SysUser creator = userMapper.selectById(p.getCreatedBy());
-                    dto.setCreatedBy(ProjectConvertMapper.INSTANCE.toCreatorInfo(
+                    dto.setCreatedBy(projectConvertMapper.toCreatorInfo(
                             creator != null ? creator.getId() : null,
                             creator != null ? creator.getUsername() : null));
                     return dto;
@@ -98,7 +100,7 @@ public class ProjectServiceImpl implements ProjectService {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.VALIDATION_FAILED);
         }
 
-        Project project = ProjectConvertMapper.INSTANCE.toEntity(reqDTO);
+        Project project = projectConvertMapper.toEntity(reqDTO);
         project.setWorkspaceId(workspaceId);
         project.setStatus(Constants.Status.ACTIVE);
         project.setCreatedBy(userId.toString());
@@ -106,9 +108,9 @@ public class ProjectServiceImpl implements ProjectService {
         projectActivityService.record(project.getId(), userId, "PROJECT", project.getId(),
                 project.getName(), "PROJECT_CREATED", "创建项目「" + project.getName() + "」");
 
-        ProjectRespDTO dto = ProjectConvertMapper.INSTANCE.toRespDTO(project, null);
+        ProjectRespDTO dto = projectConvertMapper.toRespDTO(project, null);
         SysUser creator = userMapper.selectById(project.getCreatedBy());
-        dto.setCreatedBy(ProjectConvertMapper.INSTANCE.toCreatorInfo(
+        dto.setCreatedBy(projectConvertMapper.toCreatorInfo(
                 creator != null ? creator.getId() : null,
                 creator != null ? creator.getUsername() : null));
         return dto;
@@ -164,9 +166,9 @@ public class ProjectServiceImpl implements ProjectService {
         projectActivityService.record(projectId, userId, "PROJECT", projectId,
                 project.getName(), "PROJECT_UPDATED", "更新项目「" + project.getName() + "」");
 
-        ProjectRespDTO dto = ProjectConvertMapper.INSTANCE.toRespDTO(project, null);
+        ProjectRespDTO dto = projectConvertMapper.toRespDTO(project, null);
         SysUser creator = userMapper.selectById(project.getCreatedBy());
-        dto.setCreatedBy(ProjectConvertMapper.INSTANCE.toCreatorInfo(
+        dto.setCreatedBy(projectConvertMapper.toCreatorInfo(
                 creator != null ? creator.getId() : null,
                 creator != null ? creator.getUsername() : null));
         return dto;
