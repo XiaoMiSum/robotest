@@ -77,7 +77,7 @@
 
 | 函数 | 说明 | 示例 |
 | ---- | ---- | ---- |
-| `${uuid()}` | 生成 UUID v7 | `${uuid()}` |
+| `${uuid()}` | 生成 UUID（具体版本由运行时实现决定） | `${uuid()}` |
 | `${timestamp()}` | 当前时间戳（毫秒） | `${timestamp()}` |
 | `${timestamp_s()}` | 当前时间戳（秒） | `${timestamp_s()}` |
 | `${date(format)}` | 当前日期（Java SimpleDateFormat） | `${date(yyyy-MM-dd)}` |
