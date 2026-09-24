@@ -26,6 +26,7 @@ import { fetchRoleList as fetchAdminRoleList, fetchSimpleUserList as fetchAdminU
 import type { InvitationListItem, UserSimple, WorkspaceMember } from '@/types'
 import { WORKSPACE_ROLE, workspaceRoleLabel } from '@/utils/workspaceRole'
 import {
+  buildInvitationShareText,
   canCopyInvitation,
   canExpireInvitation,
   invitationStatusMeta,
@@ -294,6 +295,14 @@ function getInviteUrl(token: string): string {
   return `${window.location.origin}/join?token=${encodeURIComponent(token)}`
 }
 
+function buildInvitationCopyText(url: string, invitation?: InvitationListItem): string {
+  return buildInvitationShareText(
+    url,
+    authStore.activeWorkspace?.name,
+    invitation?.effectiveStatus === 'exhausted',
+  )
+}
+
 const copyingInvitationId = ref('')
 const copyingLatestInvitation = ref(false)
 
@@ -303,8 +312,10 @@ async function copyInvitation(invitation: InvitationListItem): Promise<void> {
   try {
     const result = await fetchInvitationCopyLink(invitation.id)
     if (!navigator.clipboard) throw new Error('当前浏览器不支持自动复制')
-    await navigator.clipboard.writeText(getInviteUrl(result.token))
-    ElMessage.success('邀请链接已复制')
+    await navigator.clipboard.writeText(
+      buildInvitationCopyText(getInviteUrl(result.token), invitation),
+    )
+    ElMessage.success('邀请链接及说明已复制')
   } catch (err) {
     ElMessage.error(err instanceof Error ? err.message : '复制邀请链接失败')
   } finally {
@@ -386,8 +397,8 @@ async function submitCreateInvitation(): Promise<void> {
 async function handleCopyLink(url: string): Promise<void> {
   try {
     if (!navigator.clipboard) throw new Error('当前浏览器不支持自动复制')
-    await navigator.clipboard.writeText(url)
-    ElMessage.success('已复制')
+    await navigator.clipboard.writeText(buildInvitationCopyText(url))
+    ElMessage.success('邀请链接及说明已复制')
   } catch (err) {
     ElMessage.error(err instanceof Error ? err.message : '复制失败，请手动复制')
   }
