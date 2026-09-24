@@ -39,7 +39,7 @@
 
 测试场景通过 `api_scene.module_id` 字段引用项目级统一模块树（`project_module`），模块树的 DDL、索引与 CRUD 接口详见《项目模块详细设计说明书》（`docs/04-detailed-design/18-project-module.md` 2.1、3.1）。
 
-> 测试场景页面左侧模块树复用 `GET /api/project/modules` 接口，无需独立的模块表。模块名同级唯一校验（错误码 7051）由统一模块管理提供。
+> 测试场景页面左侧模块树复用 `GET /api/project/modules` 接口，无需独立的模块表。模块名同级唯一校验（错误码 `1000017052`，`PROJECT_MODULE_NAME_EXISTS`）由统一模块管理提供。
 
 #### 2.1.2 测试场景表（api_scene）
 
@@ -106,12 +106,13 @@
 ### 2.2 错误码补充
 
 | 错误码 | 常量名 | 说明 |
-| ------ | ------ | ---- |
-| 7201 | API_SCENE_NOT_FOUND | 场景不存在 |
-| 7202 | API_SCENE_STEP_NOT_FOUND | 场景步骤不存在 |
-| 7203 | API_SCENE_REFERENCED | 场景被定时任务引用无法删除 |
-| 7204 | API_LINK_SOURCE_MISSING | 链接引用源不存在 |
-| 7210 | API_SCENE_SETTING_INVALID | 场景基础信息校验失败（如优先级取值非法） |
+| --- | --- | --- |
+| 1000017301 | API_SCENE_NOT_FOUND | 场景不存在 |
+| 1000017302 | API_SCENE_REFERENCED | 场景被定时任务引用无法删除 |
+| 1000017304 | API_SCENE_SETTING_INVALID | 场景基础信息校验失败（如优先级取值非法） |
+| 1000017305 | API_SCENE_STEP_NOT_FOUND | 场景步骤不存在 |
+
+> 历史设计中的 `API_LINK_SOURCE_MISSING` 未在当前 `ErrorCodeConstants` 登记；链接源缺失按现有实现的快照降级/状态结果处理，不新增对外错误码。
 
 ---
 

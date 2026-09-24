@@ -98,19 +98,19 @@
 - **路径**：`POST /api/project/scenes`
 - **请求体**：同 1.2 响应结构（不含 id、steps 明细字段 id）。
 - **说明**：创建态页面即可预先编排步骤/变量/前置处理器/后置处理器，随场景在同一事务内一并落库（`variables`、`processors`、`steps` 均为可选，缺省为空）。`steps` 以数组传入，服务端按数组顺序自 `1` 起分配 `sort_order`，其余字段取值同 3.3.1 步骤保存。
-- **校验**：`priority` 可选，取值仅允许 `P0/P1/P2/P3`（字母大写）或空；非法返回 7210（`API_SCENE_SETTING_INVALID`）。`status` 可选，取值仅允许 `draft`（草稿）/ `published`（已发布），缺省 `draft`；非法返回 7210。`steps` 内每步 `step_type` 仅允许 `http`（与 3.3.1 一致）。新建场景前端缺省回填 `P2`。
+- **校验**：`priority` 可选，取值仅允许 `P0/P1/P2/P3`（字母大写）或空；非法返回 1000017304（`API_SCENE_SETTING_INVALID`）。`status` 可选，取值仅允许 `draft`（草稿）/ `published`（已发布），缺省 `draft`；非法返回 1000017304。`steps` 内每步 `step_type` 仅允许 `http`（与 3.3.1 一致）。新建场景前端缺省回填 `P2`。
 
 ### 1.4 更新场景
 
 - **路径**：`PUT /api/project/scenes/:id`
 - **请求体**：同 1.2 响应结构。
-- **乐观锁**：请求体需包含 `changeVersion`，服务端校验版本号一致性，冲突返回 409。
+- **乐观锁**：请求体需包含 `changeVersion`，服务端校验版本号一致性，冲突返回 HTTP 409，业务错误码 `1000017303`（`API_SCENE_VERSION_CONFLICT`）。
 - **说明**：`status` 随保存请求一并提交（「保存为草稿」写 `draft`、「发布」写 `published`），创建与编辑态均可自由二态切换。
 
 ### 1.5 删除场景
 
 - **路径**：`DELETE /api/project/scenes/:id`
-- **校验**：若场景被定时任务引用，返回错误码 7203（`API_SCENE_REFERENCED`）。
+- **校验**：若场景被定时任务引用，返回错误码 1000017302（`API_SCENE_REFERENCED`）。
 
 ### 1.6 复制场景
 
@@ -131,7 +131,7 @@
 ```
 
 - **说明**：将所选场景批量移动至目标模块；移动不改变场景内容，仅更新 `module_id`。目标模块由前端项目级模块树选择，须与场景同属当前项目。
-- **校验**：`ids` 非空；任一场景不存在或不属于当前项目则整体拒绝，返回 7201（`API_SCENE_NOT_FOUND`）。全量成功后 `updated_at` 刷新，返回 `true`。
+- **校验**：`ids` 非空；任一场景不存在或不属于当前项目则整体拒绝，返回 1000017301（`API_SCENE_NOT_FOUND`）。全量成功后 `updated_at` 刷新，返回 `true`。
 - **事务**：整体成功语义，任一失败整体回滚。
 
 ### 1.8 批量删除场景（列表勾选）

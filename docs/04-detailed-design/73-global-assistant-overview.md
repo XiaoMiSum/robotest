@@ -73,7 +73,7 @@ value: { userId, workspaceId, conversationId, assistantMessageId, toolCallId, to
 TTL:   assistantConfirmTimeoutSeconds（默认 300 秒）
 ```
 
-- 一次性消费：approve / cancel / 超时任一发生即删除；令牌不存在或已消费返回 6011（基础设施 3.6 增补）；
+- 一次性消费：approve / cancel / 超时任一发生即删除；令牌不存在或已消费返回 1000013011（基础设施 3.6 增补）；
 - `assistantMessageId` / `toolCallId` 标识令牌对应的 assistant 消息与工具调用，approve / cancel 落库 tool 消息时据此回填 `tool_call_id`，保证会话历史回填 LLM 时消息序列完整；
 - `workspaceId` 供确认时的空间上下文校验（见 3.3.1）。
 

@@ -101,14 +101,14 @@
 
 - **路径**：`PUT /api/project/interfaces/:id`
 - **请求体**：同 1.3，另携带 `changeVersion`（当前版本号）。
-- **校验**：`changeVersion` 与库中当前版本不一致时返回错误码 7105（`API_INTERFACE_VERSION_CONFLICT`），前端提示「接口已被他人修改，请刷新后重试」；保存成功后版本号递增，并写入一条变更历史记录（见 1.13）。
+- **校验**：`changeVersion` 与库中当前版本不一致时返回错误码 1000017105（`API_INTERFACE_VERSION_CONFLICT`），前端提示「接口已被他人修改，请刷新后重试」；保存成功后版本号递增，并写入一条变更历史记录（见 1.13）。
 
-> **乐观锁口径**：框架统一 Result 响应封装（业务错误码 ≠200），不使用 HTTP 状态码表达冲突；7105 由前端按错误码识别。
+> **乐观锁口径**：框架统一 Result 响应封装（业务错误码 ≠200），不使用 HTTP 状态码表达冲突；1000017105 由前端按错误码识别。
 
 ### 1.5 删除接口定义
 
 - **路径**：`DELETE /api/project/interfaces/:id`
-- **校验**：若接口被场景或 Mock 引用（`referenceCount > 0`），返回错误码 7103（`API_INTERFACE_REFERENCED`）。
+- **校验**：若接口被场景或 Mock 引用（`referenceCount > 0`），返回错误码 1000017103（`API_INTERFACE_REFERENCED`）。
 
 ### 1.6 复制接口定义
 
@@ -162,7 +162,7 @@
 }
 ```
 
-- **校验**：所选接口中存在被场景或 Mock 引用（`referenceCount > 0`）时整体拒绝，返回错误码 7103（`API_INTERFACE_REFERENCED`）并列出引用方清单。
+- **校验**：所选接口中存在被场景或 Mock 引用（`referenceCount > 0`）时整体拒绝，返回错误码 1000017103（`API_INTERFACE_REFERENCED`）并列出引用方清单。
 
 ### 1.11 启用/停用接口
 

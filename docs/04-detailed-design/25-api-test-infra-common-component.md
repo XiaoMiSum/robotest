@@ -118,7 +118,7 @@
 
 | 字段 | 类型 | 必填 | 说明 |
 | ---- | ---- | ---- | ---- |
-| 名称 | text | 是 | 同作用域同类型内唯一（7322） |
+| 名称 | text | 是 | 同作用域同类型内唯一（1000017322） |
 | 类型 | select | 是 | preprocessor / postprocessor / validator / extractor；编辑态置灰不可改 |
 | 作用域 | select | 是 | project / workspace / global；编辑态隐藏，仅新建时可选 |
 | 描述 | textarea | 否 | 组件用途说明 |

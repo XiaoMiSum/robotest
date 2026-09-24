@@ -128,7 +128,7 @@
 
 - `target`：`scene_processor`（场景级前置/后置处理器）/ `step_validator`（步骤级验证器）/ `step_extractor`（步骤级提取器）。
 - `stepId`：`step_validator` / `step_extractor` 时必填；`scene_processor` 时省略。
-- **说明**：引入为复制，产生独立副本，与源资产无关联；资产不存在或已停用返回 7014 / 7015。
+- **说明**：引入为复制，产生独立副本，与源资产无关联；资产不存在或已停用时按当前实现逐项返回导入结果，不新增独立的 `7014` / `7015` 对外错误码。
 - **响应**：`{ "imported": 2 }`
 
 ---

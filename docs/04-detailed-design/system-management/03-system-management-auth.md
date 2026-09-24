@@ -52,6 +52,7 @@
 ```json
 {
   "code": 200,
+  "msg": "success",
   "data": {
     "permissions": ["user:view", "case:create", ...]
   }

@@ -211,42 +211,46 @@
 
 ### 2.2 错误码定义
 
-接口测试业务域使用错误码号段 **7001–7799**，与既有号段不冲突：
-
-> 本表错误码为**文档简写**。接口实际返回平台统一十位全码（形如 `1000017009`），简写与全码的映射在 `server/src/main/java/io/github/xiaomisum/robotest/framework/common/ErrorCodeConstants.java` 各号段注释中逐一登记（如 7009 ≙ 1000017009）；前端与联调以实际响应 `code` 为准。
+接口测试业务域按资源使用 `ErrorCodeConstants` 中已登记的十位错误码，号段不连续；前端与联调以实际响应 `code` 为准。
 
 | 错误码 | 常量名 | 说明 |
-| ------ | ------ | ---- |
-| **7001** | API_EXECUTOR_BUSY | 执行引擎繁忙（超出并发数，任务排队超长） |
-| **7002** | API_EXEC_TIMEOUT | 执行超时 |
-| **7003** | API_FORMAT_CONVERT_FAILED | 格式转换失败（平台模型 → Ryze JSON） |
-| **7004** | API_EXEC_TASK_NOT_FOUND | 执行任务不存在 |
-| **7005** | API_EXEC_TASK_STATE_INVALID | 执行任务状态不允许当前操作 |
-| **7006** | API_ENV_NOT_FOUND | 环境不存在 |
-| **7007** | API_REPORT_NOT_FOUND | 报告不存在 |
-| **7009** | API_SHARE_EXPIRED | 分享链接无效或已过期 |
-| **7010** | API_IMPORT_FORMAT_UNSUPPORTED | 导入格式不支持 |
-| **7011** | API_IMPORT_PARSE_FAILED | 导入内容解析失败 |
-| **7012** | API_IMPORT_URL_UNREACHABLE | URL 导入目标不可达 |
-| **7013** | API_DEBUG_RECORD_NOT_FOUND | 调试记录不存在 |
-| **7321** | API_COMMON_COMPONENT_NOT_FOUND | 公共组件不存在或不属于当前可见范围 |
-| **7322** | API_COMMON_COMPONENT_NAME_EXISTS | 同作用域下已存在同名公共组件 |
-| **7016** | API_IMPORT_RECORD_NOT_FOUND | 导入记录不存在 |
-| **7101** | API_INTERFACE_NOT_FOUND | 接口定义不存在 |
-| **7102** | API_INTERFACE_NAME_EXISTS | 接口定义名称重复 |
-| **7103** | API_INTERFACE_REFERENCED | 接口定义被引用无法删除 |
-| **7201** | API_SCENE_NOT_FOUND | 场景不存在 |
-| **7202** | API_SCENE_STEP_NOT_FOUND | 场景步骤不存在 |
-| **7203** | API_SCENE_REFERENCED | 场景被定时任务引用无法删除 |
-| **7204** | API_LINK_SOURCE_MISSING | 链接引用源不存在 |
-| **7301** | API_MOCK_NOT_FOUND | Mock 定义不存在 |
-| **7302** | API_MOCK_ADDR_CONFLICT | Mock 地址冲突 |
-| **7401** | API_ENV_NAME_EXISTS | 环境名称重复 |
-| **7402** | API_ENV_REFERENCED | 环境被场景引用无法删除 |
-| **7403** | API_DATASOURCE_CONN_FAILED | 数据源连接测试失败 |
-| **7601** | API_SCHEDULED_TASK_NOT_FOUND | 定时任务不存在 |
-| **7602** | API_CRON_INVALID | Cron 表达式无效 |
-| **7603** | API_SCHEDULED_TASK_RUNNING | 任务上一次执行未结束 |
+| --- | --- | --- |
+| 1000017001 | API_EXECUTOR_BUSY | 执行引擎繁忙（超出并发数，任务排队超长） |
+| 1000017002 | API_EXEC_TIMEOUT | 执行超时 |
+| 1000017003 | API_FORMAT_CONVERT_FAILED | 格式转换失败（平台模型 → Ryze JSON） |
+| 1000017010 | API_IMPORT_FORMAT_UNSUPPORTED | 导入格式不支持 |
+| 1000017011 | API_IMPORT_PARSE_FAILED | 导入内容解析失败 |
+| 1000017012 | API_IMPORT_URL_UNREACHABLE | URL 导入目标不可达 |
+| 1000017013 | API_DEBUG_RECORD_NOT_FOUND | 调试记录不存在 |
+| 1000017101 | API_INTERFACE_NOT_FOUND | 接口定义不存在 |
+| 1000017102 | API_INTERFACE_NAME_EXISTS | 接口定义名称重复 |
+| 1000017103 | API_INTERFACE_REFERENCED | 接口定义被引用无法删除 |
+| 1000017105 | API_INTERFACE_VERSION_CONFLICT | 接口版本冲突 |
+| 1000017201 | API_MOCK_NOT_FOUND | Mock 定义不存在 |
+| 1000017202 | API_MOCK_ADDR_CONFLICT | Mock 地址冲突 |
+| 1000017301 | API_SCENE_NOT_FOUND | 场景不存在 |
+| 1000017302 | API_SCENE_REFERENCED | 场景被定时任务引用无法删除 |
+| 1000017303 | API_SCENE_VERSION_CONFLICT | 场景版本冲突 |
+| 1000017304 | API_SCENE_SETTING_INVALID | 场景设置项非法 |
+| 1000017305 | API_SCENE_STEP_NOT_FOUND | 场景步骤不存在 |
+| 1000017311 | API_REPORT_NOT_FOUND | 报告不存在 |
+| 1000017312 | API_SHARE_EXPIRED | 分享链接无效或已过期 |
+| 1000017321 | API_COMMON_COMPONENT_NOT_FOUND | 公共组件不存在或不属于当前可见范围 |
+| 1000017322 | API_COMMON_COMPONENT_NAME_EXISTS | 同作用域下已存在同名公共组件 |
+| 1000017331 | API_EXECUTION_RECORD_NOT_FOUND | 执行记录不存在 |
+| 1000017401 | API_ENV_NAME_EXISTS | 环境名称重复 |
+| 1000017402 | API_ENV_REFERENCED | 环境被场景引用无法删除 |
+| 1000017403 | API_DATASOURCE_CONN_FAILED | 数据源连接测试失败 |
+| 1000017404 | API_ENV_TASK_BOUND | 环境被定时任务绑定无法删除 |
+| 1000017405 | API_ENV_NOT_FOUND | 环境不存在或不属于当前项目 |
+| 1000017410 | API_ENV_VARIABLE_EXISTS | 环境变量已存在 |
+| 1000017501 | API_SCHEDULED_TASK_NOT_FOUND | 定时任务不存在 |
+| 1000017502 | API_SCHEDULED_TASK_CRON_INVALID | Cron 表达式无效 |
+| 1000017504 | API_SCHEDULED_TASK_RUNNING | 任务上一次执行未结束 |
+| 1000017601 | API_SWAGGER_URL_NOT_FOUND | Swagger URL 不存在或不属于当前项目 |
+| 1000017602 | API_SWAGGER_URL_TASK_BOUND | Swagger URL 被定时任务绑定无法删除 |
+
+> 历史设计中的 `API_EXEC_TASK_NOT_FOUND`、`API_EXEC_TASK_STATE_INVALID`、`API_IMPORT_RECORD_NOT_FOUND` 和 `API_LINK_SOURCE_MISSING` 当前未在 `ErrorCodeConstants` 登记；相关流程按现有实现返回业务结果或使用已登记的资源错误码，不将这些名称作为对外错误码。
 
 ---
 
@@ -256,7 +260,7 @@
 - 项目级：`/api/project/**`，头 `Authorization` + `X-Active-Workspace` + `X-Active-Project`。
 - 通用响应：`{ "code": 200, "msg": "success", "data": {} }`；命名 camelCase。下文各接口的响应示例**仅展示 `data` 字段内容**，省略外层 `code` / `msg` 包裹。
 - 分页请求：`?pageNo=1&pageSize=20`；分页响应 `{ list: [], total: N }`。
-- 所有接口的错误响应遵循统一格式：`{ "code": 1000017001, "msg": "执行引擎繁忙" }`。
+- 所有接口的错误响应遵循统一格式：`{ "code": 1000017001, "msg": "执行引擎繁忙", "data": null }`。
 
 
 ### 2.4 数据清理策略

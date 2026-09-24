@@ -161,7 +161,7 @@ PUT /api/admin/users/:id
 - `updateUserStatus` / `batchUpdateStatus`：先校验状态取值合法性（`status ∈ {active, disabled, locked}`，非法值返回错误码 `1000001010`，见 1.5 与 6. 错误码定义），其余沿用既有逻辑（存在性校验、仅更新 `status` 字段，载体为新建实体，C11）。
 - 不引入「不可操作自身」的限制，与既有禁用行为保持一致（管理员可禁用/锁定自身账户；后续如需收紧另行立项）。
 - 管理员将用户状态置为 disabled（或 locked）后，系统立即将该用户所有活跃 Token 加入 Redis 黑名单或递增 token 版本号。
-- 网关中间件验证 Token 时，检查用户状态及 token 版本，不匹配返回 401（错误码 2005）。
+- 网关中间件验证 Token 时，检查用户状态及 token 版本，不匹配返回 401（错误码 1000002005）。
 - 密码重置后同样触发 Token 失效。
 
 

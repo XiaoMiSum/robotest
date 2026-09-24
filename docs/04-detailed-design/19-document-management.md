@@ -115,7 +115,7 @@ POST /api/project/testcases
 
 **事务行为**：
 1. 校验 `moduleId` 指向同项目的已有模块
-2. 同模块下用例名称唯一（错误码 7055）
+2. 同模块下用例名称唯一（错误码 `1000017061`，`TEST_CASE_DOCUMENT_NAME_EXISTS`）
 3. 创建 `test_case_document` 记录
 4. 自动创建根 `test_case_node`（title = name，type = normal，version = 1）
 5. `layout` 初始值为 `{ "template": "right", "offsets": {} }`
@@ -190,11 +190,11 @@ DELETE /api/project/testcases/{id}
 
 ### 4.1 错误码
 
-| 错误码 | 含义 | 场景 |
-| --- | --- | --- |
-| 7055 | 用例名称重复 | 同模块下已存在同名用例 |
+| 错误码 | 常量名 | 含义 | 场景 |
+| --- | --- | --- | --- |
+| 1000017061 | TEST_CASE_DOCUMENT_NAME_EXISTS | 用例名称重复 | 同模块下已存在同名用例 |
 
-> 错误码号段 7051–7059 预留给模块与文档管理，号段分配见 `docs/04-detailed-design/18-project-module.md` 6.3。
+> 文档管理使用已登记的 `1000017061`；模块管理错误码及号段分配见 `docs/04-detailed-design/18-project-module.md` 6.3。
 
 ### 4.2 业务规则
 
