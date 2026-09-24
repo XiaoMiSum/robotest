@@ -251,7 +251,7 @@ const {
 
     :deep(.el-input__wrapper) {
       background: var(--method-color, #999);
-      box-shadow: none !important;
+      box-shadow: none;
       border-radius: 6px;
     }
 
@@ -263,7 +263,7 @@ const {
     }
 
     :deep(.el-select__caret) {
-      color: rgba(255, 255, 255, 0.8) !important;
+      color: rgba(255, 255, 255, 0.8);
     }
   }
 

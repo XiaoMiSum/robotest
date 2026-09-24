@@ -275,6 +275,11 @@ onBeforeUnmount(() => {
 // EP 手写 render 不注入 data-v，class 经 fallthrough attrs 透传至根元素。
 // 故根布局规则须放全局样式，用 class 锚点（参考 EP 官方 demo 的全局 dialog 样式写法）。
 <style lang="scss">
+/*
+ * CODE-008 例外：Element Plus Dialog 默认 Teleport 到 body，根节点不会带组件 scopeId；
+ * 规则限定在 .ai-preview-dialog，避免把预览弹窗布局扩散到其他弹窗。
+ * 规则来源：docs/00-spec/10-engineering/01-frontend.md §8。
+ */
 .ai-preview-dialog {
   position: relative;
   height: 80vh;

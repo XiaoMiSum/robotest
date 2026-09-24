@@ -197,8 +197,9 @@ onBeforeUnmount(() => {
 <style scoped lang="scss">
 @use '../minder/minder-base';
 
-/* 评论抽屉：body 撑满成 flex 列，列表滚动、输入区固定底部；
-   drawer 会 teleport 到 body，scoped :deep 命中不了，须用 :global */
+/* CODE-008 例外：评论抽屉 Teleport 到 body，scoped :deep 命中不了；
+   规则限定在 .comment-drawer，避免污染其他抽屉。
+   规则来源：docs/00-spec/10-engineering/01-frontend.md §8。 */
 :global(.comment-drawer .el-drawer__body) {
   display: flex;
   flex-direction: column;

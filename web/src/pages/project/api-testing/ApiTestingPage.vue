@@ -122,9 +122,6 @@ watch(
       <el-menu
         ref="menuRef"
         :default-active="activeMenu"
-        background-color="transparent"
-        text-color="var(--shell-text)"
-        active-text-color="var(--color-primary-500)"
         class="api-testing__sidebar-menu"
         @select="handleMenuSelect"
       >
@@ -203,6 +200,11 @@ watch(
 }
 
 .api-testing__sidebar-menu {
+  --el-menu-bg-color: transparent;
+  --el-menu-text-color: var(--shell-text);
+  --el-menu-hover-bg-color: var(--shell-item-hover);
+  --el-menu-hover-text-color: var(--shell-text-strong);
+  --el-menu-active-color: var(--color-primary-500);
   border-right: none;
   padding: 0;
 
@@ -213,17 +215,10 @@ watch(
     padding: 0 12px;
     border-radius: var(--radius-lg);
     font-size: 13px;
-    color: var(--shell-text);
     transition: all var(--transition-fast);
 
-    &:hover {
-      background: var(--shell-item-hover) !important;
-      color: var(--shell-text-strong) !important;
-    }
-
     &.is-active {
-      background: var(--shell-item-active) !important;
-      color: var(--color-primary-500) !important;
+      background: var(--shell-item-active);
       font-weight: 600;
     }
 
@@ -232,8 +227,7 @@ watch(
       cursor: not-allowed;
 
       &:hover {
-        background: transparent !important;
-        color: var(--shell-text) !important;
+        color: var(--shell-text);
       }
     }
 
