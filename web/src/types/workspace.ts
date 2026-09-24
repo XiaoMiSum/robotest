@@ -1,5 +1,3 @@
-import type { WorkspaceItem } from './common'
-
 /** 项目状态 */
 export type ProjectStatus = 'active' | 'archived'
 
@@ -11,13 +9,6 @@ export interface WorkspaceScopeCounts {
   all: number
   managed: number
   archived: number
-}
-
-/** 我的空间分页响应 */
-export interface WorkspaceListResult {
-  list: WorkspaceItem[]
-  total: number
-  counts: WorkspaceScopeCounts
 }
 
 /** 我的空间查询参数 */

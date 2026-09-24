@@ -11,15 +11,20 @@ import type {
   Project,
   ProjectStatus,
   WorkspaceContext,
+  WorkspaceItem,
   WorkspaceListQuery,
-  WorkspaceListResult,
   WorkspaceMember,
+  WorkspaceScopeCounts,
 } from '@/types'
 
 // ==================== 我的空间（/api/workspaces，无需 X-Active-Workspace） ====================
 
-export function fetchMyWorkspaces(params: WorkspaceListQuery = {}): Promise<WorkspaceListResult> {
+export function fetchMyWorkspaces(params: WorkspaceListQuery = {}): Promise<PageResult<WorkspaceItem>> {
   return get('/workspaces', { ...params })
+}
+
+export function fetchMyWorkspaceCounts(params: { keyword?: string } = {}): Promise<WorkspaceScopeCounts> {
+  return get('/workspaces/counts', { ...params })
 }
 
 export function setActiveWorkspacePreference(workspaceId: string): Promise<void> {

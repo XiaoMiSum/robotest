@@ -2,10 +2,9 @@ import { computed, getCurrentInstance, onBeforeUnmount, onMounted, ref, watch } 
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useAuthStore } from '@/stores/auth'
-import { fetchMyWorkspaces, setActiveWorkspacePreference } from '@/services/workspace'
+import { fetchMyWorkspaceCounts, fetchMyWorkspaces, setActiveWorkspacePreference } from '@/services/workspace'
 import type {
   WorkspaceItem,
-  WorkspaceListResult,
   WorkspaceScope,
   WorkspaceScopeCounts,
 } from '@/types'
@@ -26,11 +25,11 @@ function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error && error.message ? error.message : fallback
 }
 
-function normalizeCounts(result: WorkspaceListResult): WorkspaceScopeCounts {
+function normalizeCounts(result: WorkspaceScopeCounts): WorkspaceScopeCounts {
   return {
-    all: result.counts?.all ?? 0,
-    managed: result.counts?.managed ?? 0,
-    archived: result.counts?.archived ?? 0,
+    all: result.all ?? 0,
+    managed: result.managed ?? 0,
+    archived: result.archived ?? 0,
   }
 }
 
@@ -95,16 +94,20 @@ export function useWorkspaceListPage(options: WorkspaceListPageOptions = {}) {
     error.value = null
 
     try {
-      const result = await fetchMyWorkspaces({
-        keyword: keyword.value.trim() || undefined,
-        scope: scope.value,
-        pageNo: pageNo.value,
-        pageSize: pageSize.value,
-      })
+      const requestKeyword = keyword.value.trim() || undefined
+      const [page, countsResult] = await Promise.all([
+        fetchMyWorkspaces({
+          keyword: requestKeyword,
+          scope: scope.value,
+          pageNo: pageNo.value,
+          pageSize: pageSize.value,
+        }),
+        fetchMyWorkspaceCounts({ keyword: requestKeyword }),
+      ])
       if (disposed || sequence !== requestSequence) return
-      workspaces.value = result.list
-      total.value = result.total
-      counts.value = normalizeCounts(result)
+      workspaces.value = page.list
+      total.value = page.total
+      counts.value = normalizeCounts(countsResult)
       hasLoadedOnce.value = true
     } catch (loadError) {
       if (disposed || sequence !== requestSequence) return
