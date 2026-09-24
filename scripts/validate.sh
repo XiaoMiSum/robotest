@@ -108,6 +108,22 @@ check_commit_format() {
   fi
 }
 
+# ─── 文档检查（GOV-008：链接、元信息、规则编号） ────────────────
+# 校验范围见 scripts/check-docs.mjs 顶部注释；缺 node 按缺少依赖返回非零（QA-004）。
+check_docs() {
+  echo ""
+  echo "=== 文档检查 ==="
+  if ! command -v node >/dev/null 2>&1; then
+    fail "node 未安装（缺少依赖），无法执行文档检查"
+    return
+  fi
+  if node scripts/check-docs.mjs; then
+    pass "文档链接、元信息与规则编号检查通过"
+  else
+    fail "文档检查失败（断链、旧锚点、元信息缺失或未登记规则）"
+  fi
+}
+
 # ─── 前端验证 ──────────────────────────────────────────────────
 check_frontend() {
   echo ""
@@ -228,6 +244,7 @@ echo "  RoboTest 质量验证"
 echo "========================================"
 
 check_commit_format
+check_docs
 
 case "$MODE" in
   --frontend|-f)
