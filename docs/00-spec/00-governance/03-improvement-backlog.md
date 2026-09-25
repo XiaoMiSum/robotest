@@ -56,7 +56,7 @@ DEC-004 不再作为通用规范决策；上下文路由/请求体边界由各�
 | `docs/00-spec/` 规范收敛 | 已完成第一轮 | 19 篇规范正文已按统一决策重构或新增 |
 | 根目录及端级 AGENTS 同步 | 已完成第一轮 | 已同步核心契约和引用 |
 | 下游架构/详细设计同步 | 部分完成 | 架构文档和脑图业务边界已处理，其余详细设计见 `DOC-*` |
-| 代码和配置整改 | 基本完成 | CODE-* 全部关闭；SEC-001、SEC-002、SEC-003、SEC-004、SEC-006、SEC-008、SEC-009、SEC-010、SEC-013、SEC-014 已完成；SEC-005、SEC-007 已取消，其余见 `SEC-*` |
+| 代码和配置整改 | 基本完成 | CODE-* 全部关闭；SEC-001、SEC-002、SEC-003、SEC-004、SEC-006、SEC-008、SEC-009、SEC-010、SEC-011、SEC-013、SEC-014 已完成；SEC-005、SEC-007 已取消，其余见 `SEC-*` |
 | 质量门禁和 CI | 部分完成 | QA-004 已完成（validate.sh 退出码加固）；QA-003 已取消；其余见 `QA-*` |
 | 数据库和部署闭环 | 部分取消 | DB-001、OPS-006、OPS-007、OPS-009 已取消；其余见 `DB-*`、`OPS-*` |
 | Git 治理和结构拆分 | 基本完成 | GOV-002、GOV-003、GOV-005～GOV-008 已完成；GOV-001、GOV-004 已取消；其余见 `GOV-*` |
@@ -153,7 +153,7 @@ DEC-004 不再作为通用规范决策；上下文路由/请求体边界由各�
 | SEC-008 | P0 | 关闭生产 SQL 参数输出和过高日志级别 | — | 生产日志不输出敏感 SQL 参数 | 已完成：基座 `application.yaml` 移除 `StdOutImpl`，dev 显式保留、prod 显式 `NoLoggingImpl`；`logback-spring.xml` 按 profile 分级（prod root=INFO、非 prod DEBUG）；`ProductionLoggingConfigTest` 源码文本断言锁定配置 |
 | SEC-009 | P1 | 统一密码强度校验和 PasswordEncoder | — | 创建、重置、邀请和改密入口使用同一规则 | 已完成：后端 5 个密码入口统一 `@Size(8,64)`，`PasswordRuleUniformityTest` 运行时断言各入口接受 8/64、拒绝 7/65/空，且 `password_hash` 只经框架注入的 PasswordEncoder 写入（无自行实例化）；前端初始化页补 max 64、重置密码对话框补 8-64 校验并移除与 SRS 冲突的"至少三种"文案；强度规则文档冲突记 DEC-016 |
 | SEC-010 | P1 | 完善 SSRF、文件上传和导出安全 | — | URL、文件类型、大小、归属和内容扫描均有验证 | 已完成：URL——导入拉取补 strict 端口白名单（默认 80/443/8080/8443 可配）与非法端口拒绝，原协议/内网/DNS/重定向防护已具备；文件类型与内容扫描——新增 `AttachmentFileValidator`（扩展名白名单 + 文件头嗅探，错误码 1000012023/024）；大小——附件 10MB、环境导入补独立 10MB/空文件校验；归属——附件上传/下载/删除与环境导入导出均已 `requireProjectMember`；下载响应加 `X-Content-Type-Options: nosniff` 并兜底非法 contentType；设计文档 07/29/37 已同步细则 |
-| SEC-011 | P1 | 明确 CORS/CSRF 适用边界 | — | Header Bearer、Cookie 场景和公共接口策略有文档与测试 | 已确认：采用建议 |
+| SEC-011 | P1 | 明确 CORS/CSRF 适用边界 | — | Header Bearer、Cookie 场景和公共接口策略有文档与测试 | 已完成：安全规范 6.2 重写为定案边界（Bearer 场景默认不启用 CSRF、Cookie 场景先更新文档再编码、CORS 不开放且禁通配 Origin、公共接口限流/Origin/一次性 Token/审计口径），HLD 部署安全同步去除「防 CSRF」笼统表述，规范第 9 节修正两行（WS Origin 白名单标注已取消、一次性 Ticket 改记为落地项）；新增 `CsrfCorsBoundaryTest` 守卫测试（框架安全链关闭 CSRF、业务源码无 CORS 通配、无自定义安全链） |
 | SEC-012 | P1 | 实现角色变更后的 Token 撤销策略 | DEC-010 | 暂不纳入当前范围，后续安全评估时再处理 | 暂缓 |
 | SEC-013 | P1 | 审计查询参数和 WebSocket URL 中的敏感信息 | DEC-007 | 网关、访问日志和错误日志均脱敏 | 已完成：新增 `SensitiveDataMasker` 递归脱敏器（按键名掩码任意深度 Map/List、字符串内嵌 `password=` 类凭证、请求头），审计 `AuditLogAspect` 落库前递归脱敏（嵌套 DTO 不再整体序列化），Mock 访问日志脱敏敏感请求头，错误日志 `ApiErrorLogFrameworkServiceImpl` 输出前脱敏查询参数与请求体（非对象请求体整体掩码）；`nginx.conf.example` 增加 `map`/`log_format`，凭证类查询参数（token/ticket/password 等）以 `[redacted]` 替换不进网关访问日志 |
 | SEC-014 | P1 | AI 等路径资源与上下文项目绑定审计 | 各业务详细设计边界 | URL 路径中的资源 ID（计划、评审、任务等）读取前校验其归属活动项目/工作空间，越权有测试 | 已完成：计划、评审、缺陷（含附件）、用例文档与模块及 AI（评审摘要/检查/结论、任务取消与重试、执行顺序推荐）共 49 处路径资源读取/写入前校验归属 `X-Active-Project` 活动项目，跨项目一律按资源不存在处理（不泄露存在性）并保留工作空间成员校验；按模块拆分 5 个提交，各服务均补充跨项目越权单测 |
