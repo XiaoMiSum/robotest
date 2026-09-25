@@ -41,6 +41,7 @@ import xyz.migoo.framework.common.pojo.PageParam;
 import xyz.migoo.framework.common.pojo.PageResult;
 
 import io.github.xiaomisum.robotest.framework.common.Constants;
+import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.model.dto.response.plan.TestPlanProgressRespDTO;
 
 import java.time.LocalDateTime;
@@ -99,6 +100,7 @@ class TestPlanServiceImplTest {
         void getPlanPage_success() {
                 TestPlan plan = new TestPlan();
                 plan.setId(planId);
+                plan.setProjectId(projectId);
                 plan.setName("Plan 1");
                 plan.setStatus("new");
                 plan.setExecutorId(userId);
@@ -165,7 +167,7 @@ class TestPlanServiceImplTest {
                 when(testPlanMapper.selectById(planId)).thenReturn(plan);
                 when(userMapper.selectById(userId)).thenReturn(null);
 
-                TestPlanDetailRespDTO result = planService.getPlanDetail(planId, userId);
+                TestPlanDetailRespDTO result = planService.getPlanDetail(projectId, planId, userId);
 
                 assertNotNull(result);
                 assertEquals("Plan", result.getName());
@@ -177,7 +179,22 @@ class TestPlanServiceImplTest {
                 when(testPlanMapper.selectById(planId)).thenReturn(null);
 
                 assertThrows(ServiceException.class,
-                                () -> planService.getPlanDetail(planId, userId));
+                                () -> planService.getPlanDetail(projectId, planId, userId));
+                verify(projectAccessGuard, never()).requireProjectMember(any(), any());
+        }
+
+        @Test
+        void getPlanDetail_crossProject_throws() {
+                TestPlan plan = new TestPlan();
+                plan.setId(planId);
+                plan.setProjectId(UUID.randomUUID());
+                plan.setExecutorId(userId);
+                when(testPlanMapper.selectById(planId)).thenReturn(plan);
+
+                // 归属活动项目校验（SEC-014）：跨项目按不存在处理，不泄露计划存在性
+                ServiceException exception = assertThrows(ServiceException.class,
+                                () -> planService.getPlanDetail(projectId, planId, userId));
+                assertEquals(ErrorCodeConstants.TEST_PLAN_NOT_FOUND.code(), exception.getCode());
                 verify(projectAccessGuard, never()).requireProjectMember(any(), any());
         }
 
@@ -198,7 +215,7 @@ class TestPlanServiceImplTest {
                 when(planNodeSnapshotMapper.listByPlanIdAndDocumentId(planId, null))
                                 .thenReturn(List.of(snapshot));
 
-                List<TestPlanSnapshotNodeRespDTO> result = planService.getPlanSnapshotTree(planId, null, userId);
+                List<TestPlanSnapshotNodeRespDTO> result = planService.getPlanSnapshotTree(projectId, planId, null, userId);
 
                 assertNotNull(result);
                 assertFalse(result.isEmpty());
@@ -210,7 +227,7 @@ class TestPlanServiceImplTest {
                 when(testPlanMapper.selectById(planId)).thenReturn(null);
 
                 assertThrows(ServiceException.class,
-                                () -> planService.getPlanSnapshotTree(planId, null, userId));
+                                () -> planService.getPlanSnapshotTree(projectId, planId, null, userId));
                 verify(projectAccessGuard, never()).requireProjectMember(any(), any());
         }
 
@@ -218,6 +235,7 @@ class TestPlanServiceImplTest {
         void submitExecutionRecord_success() {
                 TestPlan plan = new TestPlan();
                 plan.setId(planId);
+                plan.setProjectId(projectId);
                 plan.setStatus("in_progress");
 
                 when(testPlanMapper.selectById(planId)).thenReturn(plan);
@@ -236,7 +254,7 @@ class TestPlanServiceImplTest {
                 reqDTO.setResult("pass");
                 reqDTO.setNote("Looks good");
 
-                planService.submitExecutionRecord(planId, userId, reqDTO);
+                planService.submitExecutionRecord(projectId, planId, userId, reqDTO);
 
                 // 更新载体仅携带 id + 本次标记字段，不再回写查询实体
                 ArgumentCaptor<TestPlanNodeSnapshot> captor = ArgumentCaptor.forClass(TestPlanNodeSnapshot.class);
@@ -250,6 +268,7 @@ class TestPlanServiceImplTest {
         void submitExecutionRecord_newPlan_setsInProgress() {
                 TestPlan plan = new TestPlan();
                 plan.setId(planId);
+                plan.setProjectId(projectId);
                 plan.setStatus(Constants.Status.NEW);
 
                 when(testPlanMapper.selectById(planId)).thenReturn(plan);
@@ -267,7 +286,7 @@ class TestPlanServiceImplTest {
                 reqDTO.setSnapshotNodeId(UUID.fromString("00000000-0000-0000-0000-000000000004"));
                 reqDTO.setResult("pass");
 
-                planService.submitExecutionRecord(planId, userId, reqDTO);
+                planService.submitExecutionRecord(projectId, planId, userId, reqDTO);
 
                 ArgumentCaptor<TestPlan> captor = ArgumentCaptor.forClass(TestPlan.class);
                 verify(testPlanMapper).updateById(captor.capture());
@@ -289,7 +308,7 @@ class TestPlanServiceImplTest {
                 reqDTO.setSelectedNodes(List.of(sn));
 
                 assertThrows(ServiceException.class,
-                                () -> planService.updatePlanCases(planId, userId, reqDTO));
+                                () -> planService.updatePlanCases(projectId, planId, userId, reqDTO));
                 verify(projectAccessGuard).requireProjectMember(projectId, userId);
         }
 
@@ -317,7 +336,7 @@ class TestPlanServiceImplTest {
                 when(planNodeSnapshotMapper.listAssociatedByPlanIdAndDocumentId(planId, snapA.getId()))
                                 .thenReturn(List.of(caseSnap));
 
-                List<PlannedCasesRespDTO> result = planService.getPlanPlannedCases(planId, userId);
+                List<PlannedCasesRespDTO> result = planService.getPlanPlannedCases(projectId, planId, userId);
 
                 assertEquals(1, result.size());
                 assertEquals(docA, result.get(0).getDocumentId());
@@ -329,6 +348,7 @@ class TestPlanServiceImplTest {
         void submitExecutionRecord_invalidResult_throws() {
                 TestPlan plan = new TestPlan();
                 plan.setId(planId);
+                plan.setProjectId(projectId);
                 plan.setStatus("in_progress");
 
                 when(testPlanMapper.selectById(planId)).thenReturn(plan);
@@ -347,13 +367,14 @@ class TestPlanServiceImplTest {
                 reqDTO.setResult("blocked");
 
                 assertThrows(ServiceException.class,
-                                () -> planService.submitExecutionRecord(planId, userId, reqDTO));
+                                () -> planService.submitExecutionRecord(projectId, planId, userId, reqDTO));
         }
 
         @Test
         void submitExecutionRecord_untested_resetsResult() {
                 TestPlan plan = new TestPlan();
                 plan.setId(planId);
+                plan.setProjectId(projectId);
                 plan.setStatus("in_progress");
 
                 when(testPlanMapper.selectById(planId)).thenReturn(plan);
@@ -372,7 +393,7 @@ class TestPlanServiceImplTest {
                 reqDTO.setSnapshotNodeId(UUID.fromString("00000000-0000-0000-0000-000000000004"));
                 reqDTO.setResult("untested");
 
-                planService.submitExecutionRecord(planId, userId, reqDTO);
+                planService.submitExecutionRecord(projectId, planId, userId, reqDTO);
 
                 ArgumentCaptor<TestPlanNodeSnapshot> captor = ArgumentCaptor.forClass(TestPlanNodeSnapshot.class);
                 verify(planNodeSnapshotMapper).updateById(captor.capture());
@@ -388,13 +409,14 @@ class TestPlanServiceImplTest {
                 reqDTO.setResult("pass");
 
                 assertThrows(ServiceException.class,
-                                () -> planService.submitExecutionRecord(planId, userId, reqDTO));
+                                () -> planService.submitExecutionRecord(projectId, planId, userId, reqDTO));
         }
 
         @Test
         void submitExecutionRecord_snapshotNotFound_throws() {
                 TestPlan plan = new TestPlan();
                 plan.setId(planId);
+                plan.setProjectId(projectId);
                 plan.setStatus("in_progress");
 
                 when(testPlanMapper.selectById(planId)).thenReturn(plan);
@@ -406,13 +428,14 @@ class TestPlanServiceImplTest {
                 reqDTO.setResult("pass");
 
                 assertThrows(ServiceException.class,
-                                () -> planService.submitExecutionRecord(planId, userId, reqDTO));
+                                () -> planService.submitExecutionRecord(projectId, planId, userId, reqDTO));
         }
 
         @Test
         void submitExecutionRecord_notAssociated_throws() {
                 TestPlan plan = new TestPlan();
                 plan.setId(planId);
+                plan.setProjectId(projectId);
                 plan.setStatus("in_progress");
 
                 when(testPlanMapper.selectById(planId)).thenReturn(plan);
@@ -431,13 +454,14 @@ class TestPlanServiceImplTest {
                 reqDTO.setResult("pass");
 
                 assertThrows(ServiceException.class,
-                                () -> planService.submitExecutionRecord(planId, userId, reqDTO));
+                                () -> planService.submitExecutionRecord(projectId, planId, userId, reqDTO));
         }
 
         @Test
         void submitExecutionRecord_notCaseType_throws() {
                 TestPlan plan = new TestPlan();
                 plan.setId(planId);
+                plan.setProjectId(projectId);
                 plan.setStatus("in_progress");
 
                 when(testPlanMapper.selectById(planId)).thenReturn(plan);
@@ -456,13 +480,14 @@ class TestPlanServiceImplTest {
                 reqDTO.setResult("pass");
 
                 assertThrows(ServiceException.class,
-                                () -> planService.submitExecutionRecord(planId, userId, reqDTO));
+                                () -> planService.submitExecutionRecord(projectId, planId, userId, reqDTO));
         }
 
         @Test
         void syncPlan_success() {
                 TestPlan plan = new TestPlan();
                 plan.setId(planId);
+                plan.setProjectId(projectId);
                 plan.setExecutorId(userId);
                 plan.setStatus("in_progress");
 
@@ -489,7 +514,7 @@ class TestPlanServiceImplTest {
                 when(testCaseNodeMapper.listByIds(anyCollection()))
                                 .thenReturn(List.of(currentNode));
 
-                planService.syncPlan(planId, userId);
+                planService.syncPlan(projectId, planId, userId);
 
                 ArgumentCaptor<TestPlanNodeSnapshot> nodeCaptor = ArgumentCaptor.forClass(TestPlanNodeSnapshot.class);
                 verify(planNodeSnapshotMapper).updateById(nodeCaptor.capture());
@@ -506,32 +531,35 @@ class TestPlanServiceImplTest {
         void syncPlan_notExecutor_throws() {
                 TestPlan plan = new TestPlan();
                 plan.setId(planId);
+                plan.setProjectId(projectId);
                 plan.setExecutorId(otherUserId);
                 plan.setStatus("in_progress");
 
                 when(testPlanMapper.selectById(planId)).thenReturn(plan);
 
                 assertThrows(ServiceException.class,
-                                () -> planService.syncPlan(planId, userId));
+                                () -> planService.syncPlan(projectId, planId, userId));
         }
 
         @Test
         void syncPlan_notInProgress_throws() {
                 TestPlan plan = new TestPlan();
                 plan.setId(planId);
+                plan.setProjectId(projectId);
                 plan.setExecutorId(userId);
                 plan.setStatus("completed");
 
                 when(testPlanMapper.selectById(planId)).thenReturn(plan);
 
                 assertThrows(ServiceException.class,
-                                () -> planService.syncPlan(planId, userId));
+                                () -> planService.syncPlan(projectId, planId, userId));
         }
 
         @Test
         void syncPlan_deletedOriginal_marksDeleted() {
                 TestPlan plan = new TestPlan();
                 plan.setId(planId);
+                plan.setProjectId(projectId);
                 plan.setExecutorId(userId);
                 plan.setStatus("in_progress");
 
@@ -547,7 +575,7 @@ class TestPlanServiceImplTest {
                 when(testCaseNodeMapper.listByIds(anyCollection()))
                                 .thenReturn(List.of());
 
-                planService.syncPlan(planId, userId);
+                planService.syncPlan(projectId, planId, userId);
 
                 ArgumentCaptor<TestPlanNodeSnapshot> delCaptor = ArgumentCaptor.forClass(TestPlanNodeSnapshot.class);
                 verify(planNodeSnapshotMapper).updateById(delCaptor.capture());
@@ -560,12 +588,13 @@ class TestPlanServiceImplTest {
         void completePlan_success() {
                 TestPlan plan = new TestPlan();
                 plan.setId(planId);
+                plan.setProjectId(projectId);
                 plan.setExecutorId(userId);
                 plan.setStatus(Constants.Status.IN_PROGRESS);
 
                 when(testPlanMapper.selectById(planId)).thenReturn(plan);
 
-                planService.completePlan(planId, userId);
+                planService.completePlan(projectId, planId, userId);
 
                 ArgumentCaptor<TestPlan> captor = ArgumentCaptor.forClass(TestPlan.class);
                 verify(testPlanMapper).updateById(captor.capture());
@@ -577,31 +606,33 @@ class TestPlanServiceImplTest {
                 when(testPlanMapper.selectById(planId)).thenReturn(null);
 
                 assertThrows(ServiceException.class,
-                                () -> planService.completePlan(planId, userId));
+                                () -> planService.completePlan(projectId, planId, userId));
         }
 
         @Test
         void completePlan_notExecutor_throws() {
                 TestPlan plan = new TestPlan();
                 plan.setId(planId);
+                plan.setProjectId(projectId);
                 plan.setExecutorId(otherUserId);
                 plan.setStatus(Constants.Status.IN_PROGRESS);
 
                 when(testPlanMapper.selectById(planId)).thenReturn(plan);
 
                 assertThrows(ServiceException.class,
-                                () -> planService.completePlan(planId, userId));
+                                () -> planService.completePlan(projectId, planId, userId));
         }
 
         @Test
         void deletePlan_success() {
                 TestPlan plan = new TestPlan();
                 plan.setId(planId);
+                plan.setProjectId(projectId);
                 plan.setExecutorId(userId);
 
                 when(testPlanMapper.selectById(planId)).thenReturn(plan);
 
-                planService.deletePlan(planId, userId);
+                planService.deletePlan(projectId, planId, userId);
 
                 verify(planExecutionRecordMapper).deleteByPlanId(planId);
                 verify(planNodeSnapshotMapper).deleteByPlanId(planId);
@@ -613,12 +644,13 @@ class TestPlanServiceImplTest {
         void deletePlan_notExecutor_throws() {
                 TestPlan plan = new TestPlan();
                 plan.setId(planId);
+                plan.setProjectId(projectId);
                 plan.setExecutorId(otherUserId);
 
                 when(testPlanMapper.selectById(planId)).thenReturn(plan);
 
                 assertThrows(ServiceException.class,
-                                () -> planService.deletePlan(planId, userId));
+                                () -> planService.deletePlan(projectId, planId, userId));
                 verify(testPlanMapper, never()).deleteById(any(UUID.class));
         }
 
@@ -627,7 +659,7 @@ class TestPlanServiceImplTest {
                 when(testPlanMapper.selectById(planId)).thenReturn(null);
 
                 assertThrows(ServiceException.class,
-                                () -> planService.deletePlan(planId, userId));
+                                () -> planService.deletePlan(projectId, planId, userId));
         }
 
         // ========== getPlanProgress ==========
@@ -649,7 +681,7 @@ class TestPlanServiceImplTest {
                 when(planNodeSnapshotMapper.listAssociatedByPlanId(planId, Constants.NodeType.CASE))
                                 .thenReturn(List.of(snap1, snap2, snap3));
 
-                TestPlanProgressRespDTO result = planService.getPlanProgress(planId, userId);
+                TestPlanProgressRespDTO result = planService.getPlanProgress(projectId, planId, userId);
 
                 assertEquals(3, result.getTotalAssociated());
                 assertEquals(1, result.getPassed());
@@ -663,7 +695,7 @@ class TestPlanServiceImplTest {
                 when(testPlanMapper.selectById(planId)).thenReturn(null);
 
                 assertThrows(ServiceException.class,
-                                () -> planService.getPlanProgress(planId, userId));
+                                () -> planService.getPlanProgress(projectId, planId, userId));
                 verify(projectAccessGuard, never()).requireProjectMember(any(), any());
         }
 
@@ -676,7 +708,7 @@ class TestPlanServiceImplTest {
                 when(planNodeSnapshotMapper.listAssociatedByPlanId(planId, Constants.NodeType.CASE))
                                 .thenReturn(new ArrayList<>());
 
-                TestPlanProgressRespDTO result = planService.getPlanProgress(planId, userId);
+                TestPlanProgressRespDTO result = planService.getPlanProgress(projectId, planId, userId);
 
                 assertEquals(0, result.getTotalAssociated());
                 assertEquals(0.0, result.getProgressPercent());
@@ -689,6 +721,7 @@ class TestPlanServiceImplTest {
         void syncPlan_syncsModuleName() {
                 TestPlan plan = new TestPlan();
                 plan.setId(planId);
+                plan.setProjectId(projectId);
                 plan.setExecutorId(userId);
                 plan.setStatus("in_progress");
 
@@ -714,7 +747,7 @@ class TestPlanServiceImplTest {
                 when(projectModuleMapper.selectById(UUID.fromString("00000000-0000-0000-0000-000000000010")))
                                 .thenReturn(originalModule);
 
-                planService.syncPlan(planId, userId);
+                planService.syncPlan(projectId, planId, userId);
 
                 ArgumentCaptor<TestPlanModuleSnapshot> moduleCaptor = ArgumentCaptor.forClass(TestPlanModuleSnapshot.class);
                 verify(planModuleSnapshotMapper).updateById(moduleCaptor.capture());
@@ -726,6 +759,7 @@ class TestPlanServiceImplTest {
         void syncPlan_deletesRemovedModule() {
                 TestPlan plan = new TestPlan();
                 plan.setId(planId);
+                plan.setProjectId(projectId);
                 plan.setExecutorId(userId);
                 plan.setStatus("in_progress");
 
@@ -743,7 +777,7 @@ class TestPlanServiceImplTest {
                 when(projectModuleMapper.selectById(UUID.fromString("00000000-0000-0000-0000-000000000010")))
                                 .thenReturn(null);
 
-                planService.syncPlan(planId, userId);
+                planService.syncPlan(projectId, planId, userId);
 
                 verify(planModuleSnapshotMapper).deleteById(moduleSnapId);
         }
@@ -752,6 +786,7 @@ class TestPlanServiceImplTest {
         void syncPlan_deletedModule_cascadesNodeDeletion() {
                 TestPlan plan = new TestPlan();
                 plan.setId(planId);
+                plan.setProjectId(projectId);
                 plan.setExecutorId(userId);
                 plan.setStatus("in_progress");
 
@@ -774,7 +809,7 @@ class TestPlanServiceImplTest {
                 when(projectModuleMapper.selectById(UUID.fromString("00000000-0000-0000-0000-000000000010")))
                                 .thenReturn(null);
 
-                planService.syncPlan(planId, userId);
+                planService.syncPlan(projectId, planId, userId);
 
                 verify(planModuleSnapshotMapper).deleteById(moduleSnapId);
                 verify(planNodeSnapshotMapper).deleteById(nodeSnapId);
