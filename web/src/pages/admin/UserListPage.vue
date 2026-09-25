@@ -142,6 +142,10 @@ async function submitResetPassword() {
     ElMessage.warning('请输入新密码')
     return
   }
+  if (resetPassword.value.length < 8 || resetPassword.value.length > 64) {
+    ElMessage.warning('密码长度为 8-64 个字符')
+    return
+  }
   resetSubmitting.value = true
   try {
     await resetUserPassword(resetTarget.value.id, resetPassword.value)
@@ -326,8 +330,7 @@ onMounted(() => {
 
     <el-dialog v-model="resetDialogVisible" title="重置密码" width="420px">
       <p class="user-list__reset-tip">
-        为用户「{{ resetTarget?.username }}」设置新密码（8-64
-        字符，需包含大小写字母、数字、特殊字符中至少三种）。
+        为用户「{{ resetTarget?.username }}」设置新密码（8-64 个字符）。
       </p>
       <el-input v-model="resetPassword" type="password" placeholder="请输入新密码" show-password />
       <template #footer>
