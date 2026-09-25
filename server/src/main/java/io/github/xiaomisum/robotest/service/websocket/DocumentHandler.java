@@ -1,5 +1,6 @@
 package io.github.xiaomisum.robotest.service.websocket;
 
+import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.security.ProjectAccessGuard;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NonNull;
@@ -8,6 +9,7 @@ import org.springframework.web.socket.BinaryMessage;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
+import xyz.migoo.framework.common.util.JsonUtils;
 import xyz.migoo.framework.websocket.core.MiGooWebSocketHandler;
 import xyz.migoo.framework.websocket.core.WebSocketSessionManager;
 
@@ -23,8 +25,10 @@ import java.util.UUID;
  * 本处理器负责：
  * <ul>
  *   <li>从连接 URI 路径中提取文档 ID，加入对应房间</li>
- *   <li>二进制帧（y-websocket 的 Yjs sync/awareness 协议）：转发给同房间其他用户</li>
- *   <li>文本帧（JSON 操作协议）：广播给同房间其他用户并委托 {@link DocumentPersistenceHandler} 持久化</li>
+ *   <li>二进制帧（y-websocket 的 Yjs sync/awareness 协议）：按帧头区分只读/可写，
+ *       可写帧（sync step2/update）广播前校验 case:edit，只读帧（step1 拉取、awareness）直接转发</li>
+ *   <li>文本帧（JSON 操作协议）：可写类型广播与持久化前校验 case:edit，
+ *       其余广播给同房间其他用户并委托 {@link DocumentPersistenceHandler} 持久化</li>
  * </ul>
  */
 @Slf4j
@@ -33,6 +37,12 @@ public class DocumentHandler extends MiGooWebSocketHandler {
 
     private static final String ATTR_DOC_ID = "docId";
     private static final String PREFIX = "/ws/documents/";
+
+    /** y-protocols 单字节 varint 帧头：消息类型（0=sync，1=awareness） */
+    private static final int YJS_MESSAGE_SYNC = 0;
+    private static final int YJS_MESSAGE_AWARENESS = 1;
+    /** sync 帧第二字节：0=step1（请求更新），1=step2 / 2=update（携带文档增量，可写） */
+    private static final int YJS_SYNC_STEP1 = 0;
 
     /**
      * 空 awareness 帧（messageAwareness + 长度 1 + 0 个状态变更）。
@@ -88,8 +98,9 @@ public class DocumentHandler extends MiGooWebSocketHandler {
     }
 
     /**
-     * y-websocket 客户端全部走二进制帧，服务端不解码 Yjs 内容：
-     * 冲突由客户端 CRDT 合并，纯转发即可让 SyncStep1/SyncStep2 在成员间收敛
+     * y-websocket 客户端全部走二进制帧，服务端不解码 Yjs 内容体，仅按帧头区分只读/可写：
+     * 可写帧（sync step2/update 携带文档增量、未知类型）广播前校验 case:edit，
+     * 只读帧（sync step1 拉取请求、awareness 在线状态）不修改文档、直接转发（78 号 4.2/6.1）。
      */
     @Override
     protected void handleBinaryMessage(WebSocketSession session, BinaryMessage message) {
@@ -100,13 +111,21 @@ public class DocumentHandler extends MiGooWebSocketHandler {
         }
 
         String userId = getUserId(session);
-        if (userId != null) {
-            sendBinaryToRoomExcept(docId, userId, message.getPayload().array());
+        byte[] payload = message.getPayload().array();
+        if (!isReadOnlyFrame(payload) && !hasEditPermission(docId, userId)) {
+            log.warn("[handleBinaryMessage][用户({}) 对文档({}) 无可写帧权限，丢弃]", userId, docId);
+            persistenceHandler.sendPermissionDenied(session);
+        } else if (userId != null) {
+            sendBinaryToRoomExcept(docId, userId, payload);
         }
         // 回帧保活，见 EMPTY_AWARENESS_FRAME 说明
         sendBinaryMessage(session, EMPTY_AWARENESS_FRAME);
     }
 
+    /**
+     * 可写文本帧在广播前校验编辑权限：不广播、不持久化，仅向发送者回错误帧（78 号 6.1）。
+     * 持久化侧仍独立复查，双层兜底；WS 长连接权限可被撤销，每帧重查不缓存。
+     */
     @Override
     protected void handleTextMessage(WebSocketSession session, TextMessage message) {
         String docId = (String) session.getAttributes().get(ATTR_DOC_ID);
@@ -115,18 +134,60 @@ public class DocumentHandler extends MiGooWebSocketHandler {
             return;
         }
 
-        // 广播给房间内其他用户（排除发送者）
         String userId = getUserId(session);
+        String payload = message.getPayload();
+        if (isWriteTextFrame(payload) && !hasEditPermission(docId, userId)) {
+            log.warn("[handleTextMessage][用户({}) 对文档({}) 无可写帧权限，拒绝广播与持久化]", userId, docId);
+            persistenceHandler.sendPermissionDenied(session);
+            return;
+        }
+
+        // 广播给房间内其他用户（排除发送者）
         if (userId != null) {
-            sendToRoomExcept(docId, userId, message.getPayload());
+            sendToRoomExcept(docId, userId, payload);
         }
 
         // 委托持久化
         try {
             UUID docIdUuid = UUID.fromString(docId);
-            persistenceHandler.persist(docIdUuid, message.getPayload(), session);
+            persistenceHandler.persist(docIdUuid, payload, session);
         } catch (Exception e) {
             log.error("[handleTextMessage][文档 {} 持久化失败: {}]", docId, e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 只读可转发二进制帧判定。未知类型、空帧、多字节 varint 一律返回 false
+     * 落入可写分支（fail-closed），只放行明确不修改文档的帧。
+     */
+    private static boolean isReadOnlyFrame(byte[] payload) {
+        if (payload.length == 0 || (payload[0] & 0x80) != 0) {
+            return false;
+        }
+        if ((payload[0] & 0x7F) == YJS_MESSAGE_AWARENESS) {
+            return true;
+        }
+        if ((payload[0] & 0x7F) != YJS_MESSAGE_SYNC || payload.length < 2 || (payload[1] & 0x80) != 0) {
+            return false;
+        }
+        return (payload[1] & 0x7F) == YJS_SYNC_STEP1;
+    }
+
+    /** 文本帧是否属可写类型；非法 JSON 无可写语义，交由持久化侧统一返回 PERSIST_FAILED（保持既有行为） */
+    private static boolean isWriteTextFrame(String payload) {
+        try {
+            return Constants.WebSocket.WRITE_MSG_TYPES.contains(
+                    JsonUtils.toJSON(payload).path("type").asString());
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private boolean hasEditPermission(String docId, String userId) {
+        try {
+            return projectAccessGuard.hasDocumentEditPermission(UUID.fromString(docId), userId);
+        } catch (IllegalArgumentException e) {
+            return false;
         }
     }
 

@@ -1,15 +1,9 @@
 package io.github.xiaomisum.robotest.service.websocket;
 
-import io.github.xiaomisum.robotest.model.entity.admin.SysRole;
-import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseDocument;
+import io.github.xiaomisum.robotest.framework.security.ProjectAccessGuard;
 import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseNode;
-import io.github.xiaomisum.robotest.model.entity.workspace.Project;
-import io.github.xiaomisum.robotest.model.entity.workspace.WorkspaceUser;
-import io.github.xiaomisum.robotest.repository.admin.SysRoleMapper;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseDocumentMapper;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseNodeMapper;
-import io.github.xiaomisum.robotest.repository.workspace.ProjectMapper;
-import io.github.xiaomisum.robotest.repository.workspace.WorkspaceUserMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -22,7 +16,6 @@ import org.springframework.web.socket.WebSocketMessage;
 import org.springframework.web.socket.WebSocketSession;
 
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -39,9 +32,6 @@ class DocumentPersistenceHandlerTest {
 
     private static final UUID DOC_ID = UUID.fromString("019fa33f-5a77-7d19-87f3-5e05f53ea6ae");
     private static final UUID USER_ID = UUID.fromString("019fa33f-0000-0000-0000-000000000001");
-    private static final UUID PROJECT_ID = UUID.fromString("019fa33f-0000-0000-0000-000000000002");
-    private static final UUID WORKSPACE_ID = UUID.fromString("019fa33f-0000-0000-0000-000000000003");
-    private static final UUID ROLE_ID = UUID.fromString("019fa33f-0000-0000-0000-000000000004");
 
     private static final String UPDATE_LAYOUT_MSG =
             "{\"type\":\"update_layout\",\"payload\":{\"template\":\"default\"}}";
@@ -55,11 +45,7 @@ class DocumentPersistenceHandlerTest {
     @Mock
     private TestCaseDocumentMapper testCaseDocumentMapper;
     @Mock
-    private ProjectMapper projectMapper;
-    @Mock
-    private WorkspaceUserMapper workspaceUserMapper;
-    @Mock
-    private SysRoleMapper sysRoleMapper;
+    private ProjectAccessGuard projectAccessGuard;
     @Mock
     private WebSocketSession session;
 
@@ -76,36 +62,14 @@ class DocumentPersistenceHandlerTest {
         lenient().when(session.getId()).thenReturn("session-1");
     }
 
-    private void stubDocument() {
-        TestCaseDocument document = new TestCaseDocument();
-        document.setId(DOC_ID);
-        document.setProjectId(PROJECT_ID);
-        when(testCaseDocumentMapper.selectById(DOC_ID)).thenReturn(document);
-
-        Project project = new Project();
-        project.setId(PROJECT_ID);
-        project.setWorkspaceId(WORKSPACE_ID);
-        when(projectMapper.selectById(PROJECT_ID)).thenReturn(project);
-    }
-
-    private void stubWorkspaceRole(boolean hasEditPermission) {
-        WorkspaceUser workspaceUser = new WorkspaceUser();
-        workspaceUser.setUserId(USER_ID);
-        workspaceUser.setWorkspaceId(WORKSPACE_ID);
-        workspaceUser.setWorkspaceRole(ROLE_ID);
-        when(workspaceUserMapper.findByWorkspaceIdAndUserId(WORKSPACE_ID, USER_ID)).thenReturn(workspaceUser);
-
-        SysRole role = new SysRole();
-        role.setId(ROLE_ID);
-        role.setPermissions(hasEditPermission ? List.of("case:view", "case:edit") : List.of("case:view"));
-        when(sysRoleMapper.selectById(ROLE_ID)).thenReturn(role);
+    private void stubEditPermission(boolean granted) {
+        when(projectAccessGuard.hasDocumentEditPermission(DOC_ID, USER_ID.toString())).thenReturn(granted);
     }
 
     @Test
     void persist_withEditPermission_persistsLayout() throws Exception {
         attributes.put("USER_ID", USER_ID.toString());
-        stubDocument();
-        stubWorkspaceRole(true);
+        stubEditPermission(true);
 
         handler.persist(DOC_ID, UPDATE_LAYOUT_MSG, session);
 
@@ -116,8 +80,7 @@ class DocumentPersistenceHandlerTest {
     @Test
     void persist_withEditPermission_addNode_insertsNode() throws Exception {
         attributes.put("USER_ID", USER_ID.toString());
-        stubDocument();
-        stubWorkspaceRole(true);
+        stubEditPermission(true);
 
         handler.persist(DOC_ID, ADD_NODE_MSG, session);
 
@@ -128,8 +91,7 @@ class DocumentPersistenceHandlerTest {
     @Test
     void persist_withoutEditPermission_sendsErrorAndSkipsAllWrites() throws Exception {
         attributes.put("USER_ID", USER_ID.toString());
-        stubDocument();
-        stubWorkspaceRole(false);
+        stubEditPermission(false);
 
         handler.persist(DOC_ID, ADD_NODE_MSG, session);
 
@@ -145,26 +107,13 @@ class DocumentPersistenceHandlerTest {
 
     @Test
     void persist_withoutUserIdInSession_sendsErrorAndSkipsWrites() throws Exception {
-        // session attributes lack USER_ID (normally always set at handshake; defensive fallback)
-
+        // session attributes lack USER_ID (normally always set at handshake; defensive fallback)；
+        // 守卫对 null userId 判无权限
         handler.persist(DOC_ID, UPDATE_LAYOUT_MSG, session);
 
         verify(testCaseDocumentMapper, never()).updateLayout(any(), any());
+        verify(projectAccessGuard).hasDocumentEditPermission(DOC_ID, null);
 
-        var captor = ArgumentCaptor.forClass(WebSocketMessage.class);
-        verify(session).sendMessage(captor.capture());
-        assertTrue(((TextMessage) captor.getValue()).getPayload().contains("PERMISSION_DENIED"));
-    }
-
-    @Test
-    void persist_userNotInWorkspace_sendsErrorAndSkipsWrites() throws Exception {
-        attributes.put("USER_ID", USER_ID.toString());
-        stubDocument();
-        when(workspaceUserMapper.findByWorkspaceIdAndUserId(WORKSPACE_ID, USER_ID)).thenReturn(null);
-
-        handler.persist(DOC_ID, UPDATE_LAYOUT_MSG, session);
-
-        verify(testCaseDocumentMapper, never()).updateLayout(any(), any());
         var captor = ArgumentCaptor.forClass(WebSocketMessage.class);
         verify(session).sendMessage(captor.capture());
         assertTrue(((TextMessage) captor.getValue()).getPayload().contains("PERMISSION_DENIED"));
