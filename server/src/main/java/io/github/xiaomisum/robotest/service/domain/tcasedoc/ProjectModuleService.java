@@ -13,7 +13,7 @@ public interface ProjectModuleService {
 
     ProjectModuleTreeRespDTO createModule(UUID projectId, UUID userId, ProjectModuleCreateReqDTO reqDTO);
 
-    ProjectModuleTreeRespDTO updateModule(UUID moduleId, UUID userId, ProjectModuleUpdateReqDTO reqDTO);
+    ProjectModuleTreeRespDTO updateModule(UUID projectId, UUID moduleId, UUID userId, ProjectModuleUpdateReqDTO reqDTO);
 
-    void deleteModule(UUID moduleId, UUID userId);
+    void deleteModule(UUID projectId, UUID moduleId, UUID userId);
 }

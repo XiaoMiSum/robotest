@@ -47,7 +47,7 @@ public class TestCaseDocumentController {
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id,
             @RequestBody @Valid TestCaseDocumentUpdateReqDTO reqDTO) {
-        return Result.ok(testCaseDocumentService.updateTestCase(id, loginUser.getId(), reqDTO));
+        return Result.ok(testCaseDocumentService.updateTestCase(loginUser.getActiveProjectId(), id, loginUser.getId(), reqDTO));
     }
 
     @DeleteMapping("/{id}")
@@ -55,7 +55,7 @@ public class TestCaseDocumentController {
     public Result<Void> deleteTestCase(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id) {
-        testCaseDocumentService.deleteTestCase(id, loginUser.getId());
+        testCaseDocumentService.deleteTestCase(loginUser.getActiveProjectId(), id, loginUser.getId());
         return Result.ok();
     }
 }

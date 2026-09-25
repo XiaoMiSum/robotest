@@ -88,9 +88,9 @@ public class ProjectModuleServiceImpl implements ProjectModuleService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public ProjectModuleTreeRespDTO updateModule(UUID moduleId, UUID userId, ProjectModuleUpdateReqDTO reqDTO) {
+    public ProjectModuleTreeRespDTO updateModule(UUID projectId, UUID moduleId, UUID userId, ProjectModuleUpdateReqDTO reqDTO) {
         ProjectModule module = projectModuleMapper.selectById(moduleId);
-        if (module == null) {
+        if (module == null || !module.getProjectId().equals(projectId)) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.PROJECT_MODULE_NOT_FOUND);
         }
         projectAccessGuard.requireProjectMember(module.getProjectId(), userId);
@@ -157,9 +157,9 @@ public class ProjectModuleServiceImpl implements ProjectModuleService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void deleteModule(UUID moduleId, UUID userId) {
+    public void deleteModule(UUID projectId, UUID moduleId, UUID userId) {
         ProjectModule module = projectModuleMapper.selectById(moduleId);
-        if (module == null) {
+        if (module == null || !module.getProjectId().equals(projectId)) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.PROJECT_MODULE_NOT_FOUND);
         }
         projectAccessGuard.requireProjectMember(module.getProjectId(), userId);
