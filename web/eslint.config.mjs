@@ -65,6 +65,6 @@ export default tseslint.config(
   },
   {
     // 这两个声明文件由 Vite 插件生成且会被重写；其余 .d.ts 继续纳入 C1 检查
-    ignores: ['dist/**', 'node_modules/**', 'src/auto-imports.d.ts', 'src/components.d.ts'],
+    ignores: ['dist/**', 'coverage/**', 'node_modules/**', 'src/auto-imports.d.ts', 'src/components.d.ts'],
   },
 )
