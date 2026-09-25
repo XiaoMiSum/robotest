@@ -53,6 +53,33 @@ robotest:
   env:
     # 环境敏感变量加密密钥（Base64 编码 32 字节），生产环境必须显式配置
     secret-key: ${ENV_SECRET_KEY}
+  security:
+    # 公共接口限流（安全规范 6.1）：键格式 {key-prefix}:{scope}:{identity}；
+    # 登录=失败计数（成功清理账号键），其余=尝试计数；Redis 连接走 spring.data.redis
+    rate-limit:
+      # 总开关（仅运维降级用）
+      enabled: true
+      # 限流键前缀
+      key-prefix: rl
+      # 登录：失败计数窗口（秒）/ 单 IP 阈值 / 单账号阈值
+      login-window-seconds: 300
+      login-ip-max-failures: 10
+      login-account-max-failures: 5
+      # 刷新令牌：尝试计数窗口（秒）/ 单 IP 阈值
+      refresh-window-seconds: 60
+      refresh-max-attempts: 30
+      # 邀请公开接口（verify/check-email/join 共用计数）
+      invite-window-seconds: 60
+      invite-max-attempts: 20
+      # 报告分享免登录查看
+      public-report-window-seconds: 60
+      public-report-max-attempts: 60
+      # 系统初始化 setup
+      init-setup-window-seconds: 600
+      init-setup-max-attempts: 5
+      # 密码设置类（自助改密/管理员重置）
+      password-window-seconds: 300
+      password-max-attempts: 10
   api-test:
     import:
       # Swagger URL 拉取安全策略（接口管理详细设计 4.3）：strict（默认，公网/云上部署，禁内网地址）或 intranet（内网测试环境，放行内网地址但仅允许 swagger 文档路径）

@@ -16,7 +16,7 @@ public class ErrorCodeConstants {
     public static final ErrorCode MUST_KEEP_ONE_WORKSPACE_ADMIN = ErrorCode.of(1000001009, "必须保留至少一个空间管理员");
     public static final ErrorCode USER_STATUS_INVALID = ErrorCode.of(1000001010, "用户状态不合法");
 
-    // ========== 权限校验 1,000,002,001-1,000,002,006 ==========
+    // ========== 权限校验 1,000,002,001-1,000,002,010 ==========
     public static final ErrorCode NO_PERMISSION = ErrorCode.of(1000002001, "无权限执行此操作");
     public static final ErrorCode CANNOT_OPERATE_SELF = ErrorCode.of(1000002002, "不可操作自身账户");
     public static final ErrorCode SYSTEM_ROLE_NOT_DELETABLE = ErrorCode.of(1000002003, "系统预置角色不可删除");
@@ -26,6 +26,8 @@ public class ErrorCodeConstants {
     public static final ErrorCode SYSTEM_ALREADY_INITIALIZED = ErrorCode.of(1000002007, "系统已初始化，请直接登录");
     public static final ErrorCode CONTEXT_HEADER_MISSING = ErrorCode.of(1000002008, "缺少上下文请求头，请刷新页面后重试");
     public static final ErrorCode CONTEXT_HEADER_INVALID = ErrorCode.of(1000002009, "上下文请求头格式非法");
+    // 统一提示，不区分触发的是 IP 键还是账号键，避免泄露账号是否存在
+    public static final ErrorCode ACCESS_RATE_LIMITED = ErrorCode.of(1000002010, "请求过于频繁，请稍后再试");
 
     // ========== 数据不存在 1,000,003,001-1,000,003,004 ==========
     public static final ErrorCode USER_NOT_FOUND = ErrorCode.of(1000003001, "用户不存在");
