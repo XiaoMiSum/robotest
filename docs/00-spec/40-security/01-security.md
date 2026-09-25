@@ -125,11 +125,12 @@ ENV_SECRET_KEY
 
 ### 6.2 CSRF 与 CORS
 
-当前认证主要使用 Bearer Header，不依赖浏览器自动携带的认证 Cookie，因此 CSRF 不应作为所有接口的默认开关。若未来引入 Cookie 会话，必须重新评估 CSRF 防护。
+适用边界已定案（backlog SEC-011）：**Bearer Header 场景默认不启用 CSRF；公共接口使用限流、Origin、一次性 Token 和审计；未来出现 Cookie 场景再启用 CSRF。**
 
-- CORS 必须使用明确 Origin 白名单。
-- 禁止生产使用 `*` Origin。
-- 公共邀请和 WebSocket 接口仍需限流、一次性 Token、Origin 校验和审计。
+- **CSRF**：认证仅依赖 `Authorization` Bearer Header，不依赖浏览器自动携带的认证 Cookie，因此全站默认不启用 CSRF——服务端安全链显式关闭（migoo 框架 `MiGooWebSecurityFilterChainConfiguration`），属决策而非疏漏；业务接口不得改用 Cookie 承载凭证。
+- **Cookie 场景**：若未来引入 Cookie 会话或双提交 Cookie，必须先更新本文，启用 CSRF 防护（同步令牌或双重提交）并重新评估 CORS 与同源约束，之后才可编码。
+- **CORS**：前端开发经 Vite 代理、生产为前后端同源部署，服务端不注册任何 CORS 配置，跨源响应默认不开放；确有跨源需求时必须使用明确 Origin 白名单，禁止生产使用 `*` Origin。
+- **公共接口**（登录、邀请、公开分享、WebSocket）：限流按 6.1 执行，Origin 约束按上述 CORS 白名单口径执行，一次性 Token 采用 DEC-007 方案 B（实现状态见第 9 节），并保留操作审计；WebSocket Origin 白名单已随 SEC-005 取消。
 
 ### 6.3 SSRF 和文件上传
 
@@ -201,8 +202,8 @@ changes
 - [ ] 审计覆盖敏感操作并递归脱敏
 - [x] 生产关闭 SQL 参数输出和过高日志级别
 - [x] 修复审计和日志中的敏感字段泄露
-- [ ] 配置 WebSocket Origin 白名单
-- [ ] 评估一次性 WebSocket ticket，缩短 URL Token 暴露窗口
+- ~~配置 WebSocket Origin 白名单~~（已取消：backlog SEC-005，2026-09-24 确认不需要）
+- [ ] 落地一次性 WebSocket Ticket（DEC-007 已定案方案 B：一次性、短时、单文档；当前仍为 URL Token，实现前 URL Token 继续在网关日志脱敏，见 SEC-013）
 
 ## 10. 参考
 
