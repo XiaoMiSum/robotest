@@ -52,7 +52,7 @@ public class TestPlanController {
     public Result<TestPlanDetailRespDTO> getPlanDetail(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id) {
-        return Result.ok(testPlanService.getPlanDetail(id, loginUser.getId()));
+        return Result.ok(testPlanService.getPlanDetail(loginUser.getActiveProjectId(), id, loginUser.getId()));
     }
 
     @GetMapping("/{id}/modules")
@@ -60,21 +60,21 @@ public class TestPlanController {
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id,
             @RequestParam(required = false) UUID documentId) {
-        return Result.ok(testPlanService.getPlanSnapshotTree(id, documentId, loginUser.getId()));
+        return Result.ok(testPlanService.getPlanSnapshotTree(loginUser.getActiveProjectId(), id, documentId, loginUser.getId()));
     }
 
     @GetMapping("/{id}/module-tree")
     public Result<List<SnapshotModuleTreeRespDTO>> getPlanModuleTree(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id) {
-        return Result.ok(testPlanService.getPlanModuleTree(id, loginUser.getId()));
+        return Result.ok(testPlanService.getPlanModuleTree(loginUser.getActiveProjectId(), id, loginUser.getId()));
     }
 
     @GetMapping("/{id}/cases")
     public Result<List<PlannedCasesRespDTO>> getPlanPlannedCases(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id) {
-        return Result.ok(testPlanService.getPlanPlannedCases(id, loginUser.getId()));
+        return Result.ok(testPlanService.getPlanPlannedCases(loginUser.getActiveProjectId(), id, loginUser.getId()));
     }
 
     @PutMapping("/{id}/cases")
@@ -82,7 +82,7 @@ public class TestPlanController {
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id,
             @RequestBody @Valid TestPlanCasesUpdateReqDTO reqDTO) {
-        testPlanService.updatePlanCases(id, loginUser.getId(), reqDTO);
+        testPlanService.updatePlanCases(loginUser.getActiveProjectId(), id, loginUser.getId(), reqDTO);
         return Result.ok();
     }
 
@@ -91,7 +91,7 @@ public class TestPlanController {
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id,
             @RequestBody @Valid TestPlanRecordReqDTO reqDTO) {
-        testPlanService.submitExecutionRecord(id, loginUser.getId(), reqDTO);
+        testPlanService.submitExecutionRecord(loginUser.getActiveProjectId(), id, loginUser.getId(), reqDTO);
         return Result.ok();
     }
 
@@ -99,7 +99,7 @@ public class TestPlanController {
     public Result<Void> syncPlan(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id) {
-        testPlanService.syncPlan(id, loginUser.getId());
+        testPlanService.syncPlan(loginUser.getActiveProjectId(), id, loginUser.getId());
         return Result.ok();
     }
 
@@ -107,14 +107,14 @@ public class TestPlanController {
     public Result<TestPlanProgressRespDTO> getPlanProgress(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id) {
-        return Result.ok(testPlanService.getPlanProgress(id, loginUser.getId()));
+        return Result.ok(testPlanService.getPlanProgress(loginUser.getActiveProjectId(), id, loginUser.getId()));
     }
 
     @PostMapping("/{id}/complete")
     public Result<Void> completePlan(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id) {
-        testPlanService.completePlan(id, loginUser.getId());
+        testPlanService.completePlan(loginUser.getActiveProjectId(), id, loginUser.getId());
         return Result.ok();
     }
 
@@ -122,7 +122,7 @@ public class TestPlanController {
     public Result<Void> deletePlan(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id) {
-        testPlanService.deletePlan(id, loginUser.getId());
+        testPlanService.deletePlan(loginUser.getActiveProjectId(), id, loginUser.getId());
         return Result.ok();
     }
 }
