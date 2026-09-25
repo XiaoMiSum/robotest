@@ -22,11 +22,12 @@ public interface BugQueryService {
     /**
      * 获取缺陷详情（含最近操作日志）
      *
+     * @param projectId 活动项目 ID（X-Active-Project 头，须与资源归属一致）
      * @param bugId  缺陷 ID
      * @param userId 当前用户 ID（用于项目归属校验）
      * @return 缺陷详情
      */
-    BugDetailRespDTO getBugDetail(UUID bugId, UUID userId);
+    BugDetailRespDTO getBugDetail(UUID projectId, UUID bugId, UUID userId);
 
-    List<BugLogRespDTO> getBugLogs(UUID bugId, UUID userId);
+    List<BugLogRespDTO> getBugLogs(UUID projectId, UUID bugId, UUID userId);
 }

@@ -1,6 +1,7 @@
 package io.github.xiaomisum.robotest.service.domain.bug;
 
 import io.github.xiaomisum.robotest.framework.common.Constants;
+import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.framework.security.ProjectAccessGuard;
 import io.github.xiaomisum.robotest.model.convert.BugConvertMapper;
 import io.github.xiaomisum.robotest.model.convert.BugConvertMapperImpl;
@@ -192,7 +193,7 @@ class BugServiceImplTest {
         reqDTO.setBugType(Constants.BugType.PERFORMANCE);
         reqDTO.setReproSteps("updated steps");
 
-        bugService.updateBug(bugId, userId, reqDTO);
+        bugService.updateBug(projectId, bugId, userId, reqDTO);
 
         ArgumentCaptor<Bug> captor = ArgumentCaptor.forClass(Bug.class);
         verify(bugMapper).updateById(captor.capture());
@@ -215,7 +216,24 @@ class BugServiceImplTest {
         reqDTO.setTitle("New Title");
 
         assertThrows(ServiceException.class,
-                () -> bugService.updateBug(bugId, userId, reqDTO));
+                () -> bugService.updateBug(projectId, bugId, userId, reqDTO));
+    }
+
+    @Test
+    void updateBug_crossProject_throws() {
+        Bug bug = new Bug();
+        bug.setId(bugId);
+        bug.setProjectId(UUID.randomUUID());
+        when(bugMapper.selectById(bugId)).thenReturn(bug);
+
+        BugUpdateReqDTO reqDTO = new BugUpdateReqDTO();
+        reqDTO.setTitle("New Title");
+
+        // 归属活动项目校验（SEC-014）：跨项目按不存在处理，不泄露缺陷存在性
+        ServiceException exception = assertThrows(ServiceException.class,
+                () -> bugService.updateBug(projectId, bugId, userId, reqDTO));
+        assertEquals(ErrorCodeConstants.BUG_NOT_FOUND.code(), exception.getCode());
+        verify(bugMapper, never()).updateById(any(Bug.class));
     }
 
     @Test
@@ -228,7 +246,7 @@ class BugServiceImplTest {
         reqDTO.setTitle("New Title");
 
         assertThrows(ServiceException.class,
-                () -> bugService.updateBug(bugId, userId, reqDTO));
+                () -> bugService.updateBug(projectId, bugId, userId, reqDTO));
         verify(bugMapper, never()).updateById(any(Bug.class));
         verify(bugMapper, never()).resolveById(any(), any(), any(), any(), any());
         verify(bugMapper, never()).reopenById(any(), anyInt(), any());
@@ -251,7 +269,7 @@ class BugServiceImplTest {
         reqDTO.setAssigneeId(assigneeId);
 
         assertThrows(ServiceException.class,
-                () -> bugService.updateBug(bugId, userId, reqDTO));
+                () -> bugService.updateBug(projectId, bugId, userId, reqDTO));
         verify(bugMapper, never()).updateById(any(Bug.class));
         verify(bugMapper, never()).resolveById(any(), any(), any(), any(), any());
         verify(bugMapper, never()).reopenById(any(), anyInt(), any());
@@ -268,7 +286,7 @@ class BugServiceImplTest {
         reqDTO.setRelatedCaseId(caseId.toString());
         reqDTO.setRelatedPlanId(planId.toString());
 
-        bugService.updateBug(bugId, userId, reqDTO);
+        bugService.updateBug(projectId, bugId, userId, reqDTO);
 
         ArgumentCaptor<Bug> captor = ArgumentCaptor.forClass(Bug.class);
         verify(bugMapper).updateById(captor.capture());
@@ -289,7 +307,7 @@ class BugServiceImplTest {
         reqDTO.setRelatedCaseId("");
         reqDTO.setRelatedPlanId("");
 
-        bugService.updateBug(bugId, userId, reqDTO);
+        bugService.updateBug(projectId, bugId, userId, reqDTO);
 
         ArgumentCaptor<Bug> captor = ArgumentCaptor.forClass(Bug.class);
         verify(bugMapper).updateById(captor.capture());
@@ -307,7 +325,7 @@ class BugServiceImplTest {
         BugUpdateReqDTO reqDTO = new BugUpdateReqDTO();
         reqDTO.setTitle("New Title");
 
-        bugService.updateBug(bugId, userId, reqDTO);
+        bugService.updateBug(projectId, bugId, userId, reqDTO);
 
         ArgumentCaptor<Bug> captor = ArgumentCaptor.forClass(Bug.class);
         verify(bugMapper).updateById(captor.capture());
@@ -325,7 +343,7 @@ class BugServiceImplTest {
         reqDTO.setRelatedCaseId("not-a-uuid");
 
         assertThrows(ServiceException.class,
-                () -> bugService.updateBug(bugId, userId, reqDTO));
+                () -> bugService.updateBug(projectId, bugId, userId, reqDTO));
         verify(bugMapper, never()).updateById(any(Bug.class));
     }
 
@@ -339,7 +357,7 @@ class BugServiceImplTest {
         BugStatusChangeReqDTO reqDTO = statusChangeReq(Constants.BugStatus.RESOLVED, "修复完成");
         reqDTO.setResolution(Constants.BugResolution.FIXED);
 
-        bugService.changeBugStatus(bugId, userId, reqDTO);
+        bugService.changeBugStatus(projectId, bugId, userId, reqDTO);
 
         verify(bugStatusChangeService).changeBugStatus(bug, userId, reqDTO);
     }
@@ -352,7 +370,7 @@ class BugServiceImplTest {
         reqDTO.setResolution(Constants.BugResolution.FIXED);
 
         assertThrows(ServiceException.class,
-                () -> bugService.changeBugStatus(bugId, userId, reqDTO));
+                () -> bugService.changeBugStatus(projectId, bugId, userId, reqDTO));
         verify(bugStatusChangeService, never()).changeBugStatus(any(), any(), any());
     }
 
@@ -368,7 +386,7 @@ class BugServiceImplTest {
             return 1;
         }).when(bugLogMapper).insert(any(BugLog.class));
 
-        bugService.confirmBug(bugId, userId);
+        bugService.confirmBug(projectId, bugId, userId);
 
         ArgumentCaptor<Bug> captor = ArgumentCaptor.forClass(Bug.class);
         verify(bugMapper).updateById(captor.capture());
@@ -383,7 +401,7 @@ class BugServiceImplTest {
         when(bugMapper.selectById(bugId)).thenReturn(bug);
 
         assertThrows(ServiceException.class,
-                () -> bugService.confirmBug(bugId, userId));
+                () -> bugService.confirmBug(projectId, bugId, userId));
         verify(bugMapper, never()).updateById(any(Bug.class));
         verify(bugMapper, never()).resolveById(any(), any(), any(), any(), any());
         verify(bugMapper, never()).reopenById(any(), anyInt(), any());
@@ -396,7 +414,7 @@ class BugServiceImplTest {
         when(bugMapper.selectById(bugId)).thenReturn(bug);
 
         assertThrows(ServiceException.class,
-                () -> bugService.confirmBug(bugId, userId));
+                () -> bugService.confirmBug(projectId, bugId, userId));
         verify(bugMapper, never()).updateById(any(Bug.class));
         verify(bugMapper, never()).resolveById(any(), any(), any(), any(), any());
         verify(bugMapper, never()).reopenById(any(), anyInt(), any());
@@ -407,7 +425,7 @@ class BugServiceImplTest {
         when(bugMapper.selectById(bugId)).thenReturn(null);
 
         assertThrows(ServiceException.class,
-                () -> bugService.confirmBug(bugId, userId));
+                () -> bugService.confirmBug(projectId, bugId, userId));
     }
 
     // ========== assignBug ==========
@@ -416,6 +434,7 @@ class BugServiceImplTest {
     void assignBug_success() {
         Bug bug = new Bug();
         bug.setId(bugId);
+        bug.setProjectId(projectId);
         bug.setReporterId(userId);
 
         when(bugMapper.selectById(bugId)).thenReturn(bug);
@@ -429,7 +448,7 @@ class BugServiceImplTest {
             return 1;
         }).when(bugLogMapper).insert(any(BugLog.class));
 
-        bugService.assignBug(bugId, userId, UUID.fromString("00000000-0000-0000-0000-000000000005"));
+        bugService.assignBug(projectId, bugId, userId, UUID.fromString("00000000-0000-0000-0000-000000000005"));
 
         verify(bugMapper).updateById(any(Bug.class));
         verify(bugLogMapper).insert(any(BugLog.class));
@@ -440,7 +459,7 @@ class BugServiceImplTest {
         when(bugMapper.selectById(bugId)).thenReturn(null);
 
         assertThrows(ServiceException.class,
-                () -> bugService.assignBug(bugId, userId, UUID.fromString("00000000-0000-0000-0000-000000000005")));
+                () -> bugService.assignBug(projectId, bugId, userId, UUID.fromString("00000000-0000-0000-0000-000000000005")));
     }
 
     @Test
@@ -451,7 +470,7 @@ class BugServiceImplTest {
         when(bugMapper.selectById(bugId)).thenReturn(bug);
 
         assertThrows(ServiceException.class,
-                () -> bugService.assignBug(bugId, userId, assigneeId));
+                () -> bugService.assignBug(projectId, bugId, userId, assigneeId));
         verify(bugMapper, never()).updateById(any(Bug.class));
         verify(bugMapper, never()).resolveById(any(), any(), any(), any(), any());
         verify(bugMapper, never()).reopenById(any(), anyInt(), any());
@@ -461,11 +480,12 @@ class BugServiceImplTest {
     void assignBug_assigneeNotFound_throws() {
         Bug bug = new Bug();
         bug.setId(bugId);
+        bug.setProjectId(projectId);
         when(bugMapper.selectById(bugId)).thenReturn(bug);
         when(userMapper.selectById(UUID.fromString("00000000-0000-0000-0000-000000000005"))).thenReturn(null);
 
         assertThrows(ServiceException.class,
-                () -> bugService.assignBug(bugId, userId, UUID.fromString("00000000-0000-0000-0000-000000000005")));
+                () -> bugService.assignBug(projectId, bugId, userId, UUID.fromString("00000000-0000-0000-0000-000000000005")));
     }
 
     @Test
@@ -489,7 +509,7 @@ class BugServiceImplTest {
                 UUID.fromString("00000000-0000-0000-0000-000000000009"), assigneeId)).thenReturn(null);
 
         assertThrows(ServiceException.class,
-                () -> bugService.assignBug(bugId, userId, assigneeId));
+                () -> bugService.assignBug(projectId, bugId, userId, assigneeId));
         verify(bugMapper, never()).updateById(any(Bug.class));
         verify(bugMapper, never()).resolveById(any(), any(), any(), any(), any());
         verify(bugMapper, never()).reopenById(any(), anyInt(), any());
@@ -519,7 +539,7 @@ class BugServiceImplTest {
             return 1;
         }).when(bugLogMapper).insert(any(BugLog.class));
 
-        bugService.assignBug(bugId, userId, assigneeId);
+        bugService.assignBug(projectId, bugId, userId, assigneeId);
 
         ArgumentCaptor<Bug> captor = ArgumentCaptor.forClass(Bug.class);
         verify(bugMapper).updateById(captor.capture());

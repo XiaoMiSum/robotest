@@ -88,9 +88,9 @@ public class BugServiceImpl implements BugService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void updateBug(UUID bugId, UUID userId, BugUpdateReqDTO reqDTO) {
+    public void updateBug(UUID projectId, UUID bugId, UUID userId, BugUpdateReqDTO reqDTO) {
         Bug bug = bugMapper.selectById(bugId);
-        if (bug == null) {
+        if (bug == null || !bug.getProjectId().equals(projectId)) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.BUG_NOT_FOUND);
         }
         projectAccessGuard.requireProjectMember(bug.getProjectId(), userId);
@@ -162,9 +162,9 @@ public class BugServiceImpl implements BugService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void changeBugStatus(UUID bugId, UUID userId, BugStatusChangeReqDTO reqDTO) {
+    public void changeBugStatus(UUID projectId, UUID bugId, UUID userId, BugStatusChangeReqDTO reqDTO) {
         Bug bug = bugMapper.selectById(bugId);
-        if (bug == null) {
+        if (bug == null || !bug.getProjectId().equals(projectId)) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.BUG_NOT_FOUND);
         }
         projectAccessGuard.requireProjectMember(bug.getProjectId(), userId);
@@ -175,9 +175,9 @@ public class BugServiceImpl implements BugService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void confirmBug(UUID bugId, UUID userId) {
+    public void confirmBug(UUID projectId, UUID bugId, UUID userId) {
         Bug bug = bugMapper.selectById(bugId);
-        if (bug == null) {
+        if (bug == null || !bug.getProjectId().equals(projectId)) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.BUG_NOT_FOUND);
         }
         projectAccessGuard.requireProjectMember(bug.getProjectId(), userId);
@@ -199,9 +199,9 @@ public class BugServiceImpl implements BugService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void assignBug(UUID bugId, UUID userId, UUID assigneeId) {
+    public void assignBug(UUID projectId, UUID bugId, UUID userId, UUID assigneeId) {
         Bug bug = bugMapper.selectById(bugId);
-        if (bug == null) {
+        if (bug == null || !bug.getProjectId().equals(projectId)) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.BUG_NOT_FOUND);
         }
         projectAccessGuard.requireProjectMember(bug.getProjectId(), userId);

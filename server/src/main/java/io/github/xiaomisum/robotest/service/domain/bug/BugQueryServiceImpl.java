@@ -87,9 +87,9 @@ public class BugQueryServiceImpl implements BugQueryService {
     }
 
     @Override
-    public BugDetailRespDTO getBugDetail(UUID bugId, UUID userId) {
+    public BugDetailRespDTO getBugDetail(UUID projectId, UUID bugId, UUID userId) {
         Bug bug = bugMapper.selectById(bugId);
-        if (bug == null) {
+        if (bug == null || !bug.getProjectId().equals(projectId)) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.BUG_NOT_FOUND);
         }
         projectAccessGuard.requireProjectMember(bug.getProjectId(), userId);
@@ -124,10 +124,10 @@ public class BugQueryServiceImpl implements BugQueryService {
     }
 
     @Override
-    public List<BugLogRespDTO> getBugLogs(UUID bugId, UUID userId) {
+    public List<BugLogRespDTO> getBugLogs(UUID projectId, UUID bugId, UUID userId) {
         // 先定位缺陷实体以取得 projectId，再做项目归属校验（getBugLogs 不能绕过授权直接读日志）
         Bug bug = bugMapper.selectById(bugId);
-        if (bug == null) {
+        if (bug == null || !bug.getProjectId().equals(projectId)) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.BUG_NOT_FOUND);
         }
         projectAccessGuard.requireProjectMember(bug.getProjectId(), userId);

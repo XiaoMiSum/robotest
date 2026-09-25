@@ -1,6 +1,7 @@
 package io.github.xiaomisum.robotest.service.domain.bug;
 
 import io.github.xiaomisum.robotest.framework.common.Constants;
+import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.framework.security.ProjectAccessGuard;
 import io.github.xiaomisum.robotest.model.convert.BugConvertMapper;
 import io.github.xiaomisum.robotest.model.convert.BugConvertMapperImpl;
@@ -196,7 +197,7 @@ class BugQueryServiceImplTest {
 
         when(bugLogMapper.findRecentLogs(bugId, 10)).thenReturn(Collections.emptyList());
 
-        BugDetailRespDTO result = bugQueryService.getBugDetail(bugId, userId);
+        BugDetailRespDTO result = bugQueryService.getBugDetail(projectId, bugId, userId);
 
         assertNotNull(result);
         assertEquals("Detail Bug", result.getTitle());
@@ -215,7 +216,20 @@ class BugQueryServiceImplTest {
         when(bugMapper.selectById(bugId)).thenReturn(null);
 
         assertThrows(ServiceException.class,
-                () -> bugQueryService.getBugDetail(bugId, userId));
+                () -> bugQueryService.getBugDetail(projectId, bugId, userId));
+    }
+
+    @Test
+    void getBugDetail_crossProject_throws() {
+        Bug bug = new Bug();
+        bug.setId(bugId);
+        bug.setProjectId(UUID.randomUUID());
+        when(bugMapper.selectById(bugId)).thenReturn(bug);
+
+        // 归属活动项目校验（SEC-014）：跨项目按不存在处理，不泄露缺陷存在性
+        ServiceException exception = assertThrows(ServiceException.class,
+                () -> bugQueryService.getBugDetail(projectId, bugId, userId));
+        assertEquals(ErrorCodeConstants.BUG_NOT_FOUND.code(), exception.getCode());
     }
 
     // ========== getBugLogs ==========
@@ -240,7 +254,7 @@ class BugQueryServiceImplTest {
         operator.setUsername("operator");
         when(userMapper.selectById(UUID.fromString("00000000-0000-0000-0000-000000000004"))).thenReturn(operator);
 
-        List<BugLogRespDTO> result = bugQueryService.getBugLogs(bugId, userId);
+        List<BugLogRespDTO> result = bugQueryService.getBugLogs(projectId, bugId, userId);
 
         assertNotNull(result);
         assertEquals(1, result.size());
@@ -253,7 +267,7 @@ class BugQueryServiceImplTest {
         when(bugMapper.selectById(bugId)).thenReturn(null);
 
         assertThrows(ServiceException.class,
-                () -> bugQueryService.getBugLogs(bugId, userId));
+                () -> bugQueryService.getBugLogs(projectId, bugId, userId));
         verify(projectAccessGuard, never()).requireProjectMember(any(), any());
     }
 }
