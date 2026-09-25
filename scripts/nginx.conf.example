@@ -1,10 +1,29 @@
 # scripts/nginx.conf.example — 分离部署（方案A）Nginx 配置示例
 # 前端静态资源部署至 /var/www/html（即 dist-deploy/web/ 的内容），
 # 后端服务地址通过 upstream 配置（示例为 backend:8080）。
+# 以下 map/log_format 位于 http 上下文（本文件需被 include 进 http{}）。
 
 upstream backend {
     server 127.0.0.1:8080;
 }
+
+# 访问日志脱敏（安全规范 2.2、实时协议详细设计 3.2）：
+# WS 握手等 URL 携带 ticket/token 查询参数，凭证类参数不得进入网关/代理访问日志。
+# 命中敏感名的查询串整体以 [redacted] 替换，其余查询参数照常保留。
+map $args $safe_args {
+    default                                                             $args;
+    "~*(^|&)[^=]*(access[_-]?token|token|ticket|password|passwd|secret|api[_-]?key|authorization|cookie|credential)="  "[redacted]";
+}
+
+map $safe_args $safe_request_uri {
+    default  "$uri?$safe_args";
+    ""       "$uri";
+}
+
+log_format masked '$remote_addr - $remote_user [$time_local] "$request_method $safe_request_uri $server_protocol" '
+                  '$status $body_bytes_sent "$http_referer" "$http_user_agent"';
+
+access_log /var/log/nginx/access.log masked;
 
 server {
     listen 80;
