@@ -1,20 +1,14 @@
 package io.github.xiaomisum.robotest.service.websocket;
 
 import io.github.xiaomisum.robotest.framework.common.Constants;
+import io.github.xiaomisum.robotest.framework.security.ProjectAccessGuard;
 import io.github.xiaomisum.robotest.model.dto.request.tcase.DocumentAddNodeReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.tcase.DocumentDeleteNodeReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.tcase.DocumentMoveNodeReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.tcase.DocumentUpdateAttrsReqDTO;
-import io.github.xiaomisum.robotest.model.entity.admin.SysRole;
-import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseDocument;
 import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseNode;
-import io.github.xiaomisum.robotest.model.entity.workspace.Project;
-import io.github.xiaomisum.robotest.model.entity.workspace.WorkspaceUser;
-import io.github.xiaomisum.robotest.repository.admin.SysRoleMapper;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseDocumentMapper;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseNodeMapper;
-import io.github.xiaomisum.robotest.repository.workspace.ProjectMapper;
-import io.github.xiaomisum.robotest.repository.workspace.WorkspaceUserMapper;
 import jakarta.annotation.Resource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,12 +40,6 @@ public class DocumentPersistenceHandler {
      */
     private static final String ATTR_USER_ID = "USER_ID";
 
-    /**
-     * 文档编辑权限码（sys_permission.code = 'case:edit'，见 v1.sql）。
-     * 仅具有该权限的工作空间成员可对文档执行布局/节点增删改移持久化。
-     */
-    private static final String PERMISSION_CASE_EDIT = "case:edit";
-
     private static final String ERROR_CODE_PERMISSION_DENIED = "PERMISSION_DENIED";
 
     @Resource
@@ -59,11 +47,7 @@ public class DocumentPersistenceHandler {
     @Resource
     private TestCaseDocumentMapper testCaseDocumentMapper;
     @Resource
-    private ProjectMapper projectMapper;
-    @Resource
-    private WorkspaceUserMapper workspaceUserMapper;
-    @Resource
-    private SysRoleMapper sysRoleMapper;
+    private ProjectAccessGuard projectAccessGuard;
 
     @Async
     @Transactional(rollbackFor = Exception.class)
@@ -74,11 +58,11 @@ public class DocumentPersistenceHandler {
             JsonNode payload = root.path("payload");
 
             // 后端兜底（US-AI-013 3.5.3）：仅具有编辑权限的用户可编辑。
-            // WS 是长连接，权限可能在连接期间被撤销，故每次写操作前都重查一次角色权限。
+            // WS 是长连接，权限可能在连接期间被撤销，故每次写操作前都重查一次（委托统一守卫）。
             String userId = session != null ? (String) session.getAttributes().get(ATTR_USER_ID) : null;
-            if (!hasCaseEditPermission(docId, userId)) {
+            if (!projectAccessGuard.hasDocumentEditPermission(docId, userId)) {
                 log.warn("[persist][用户({}) 对文档({}) 无 case:edit 权限，拒绝持久化]", userId, docId);
-                sendError(session, ERROR_CODE_PERMISSION_DENIED, "无文档编辑权限");
+                sendPermissionDenied(session);
                 return;
             }
 
@@ -119,41 +103,11 @@ public class DocumentPersistenceHandler {
     }
 
     /**
-     * 校验当前用户对目标文档是否具备编辑权限。
-     * <p>
-     * 链路为：test_case_document → ws_project.workspaceId → ws_user.workspaceRole → sys_role.permissions 含 case:edit。
-     * 任一环节缺失均视为无权限，与 WorkspaceRoleInterceptor 的判定口径一致。
+     * 向发送者回写权限拒绝帧。转发前校验失败（SEC-004）与持久化拒绝共用同一错误帧，
+     * 保证客户端对"被拒绝"的感知一致（错误码局部字符串、统一信封迁移见 78 号 DOC-005）。
      */
-    private boolean hasCaseEditPermission(UUID docId, String userId) {
-        if (docId == null || userId == null) {
-            return false;
-        }
-
-        TestCaseDocument document = testCaseDocumentMapper.selectById(docId);
-        if (document == null) {
-            return false;
-        }
-
-        Project project = projectMapper.selectById(document.getProjectId());
-        if (project == null) {
-            return false;
-        }
-
-        UUID userIdUuid;
-        try {
-            userIdUuid = UUID.fromString(userId);
-        } catch (IllegalArgumentException e) {
-            log.warn("[hasCaseEditPermission][非法 userId({})，拒绝持久化]", userId);
-            return false;
-        }
-
-        WorkspaceUser workspaceUser = workspaceUserMapper.findByWorkspaceIdAndUserId(project.getWorkspaceId(), userIdUuid);
-        if (workspaceUser == null || workspaceUser.getWorkspaceRole() == null) {
-            return false;
-        }
-
-        SysRole role = sysRoleMapper.selectById(workspaceUser.getWorkspaceRole());
-        return role != null && role.getPermissions() != null && role.getPermissions().contains(PERMISSION_CASE_EDIT);
+    public void sendPermissionDenied(WebSocketSession session) {
+        sendError(session, ERROR_CODE_PERMISSION_DENIED, "无文档编辑权限");
     }
 
     private void persistLayout(UUID docId, Map<String, Object> layout) {

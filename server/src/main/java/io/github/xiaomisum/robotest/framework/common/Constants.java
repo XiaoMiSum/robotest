@@ -1,5 +1,6 @@
 package io.github.xiaomisum.robotest.framework.common;
 
+import java.util.Set;
 import java.util.UUID;
 
 public final class Constants {
@@ -143,6 +144,13 @@ public final class Constants {
         String MSG_DELETE_NODE = "delete_node";
         String MSG_MOVE_NODE = "move_node";
         String MSG_TYPE_ERROR = "error";
+
+        /**
+         * 可写文本帧类型（安全规范 §4 / 实时协议 78 号 4.3）：转发与持久化前必须校验编辑权限。
+         * 与 DocumentPersistenceHandler.persist 的写分支一一对应，新增持久化类型时须同步登记。
+         */
+        Set<String> WRITE_MSG_TYPES = Set.of(MSG_UPDATE_LAYOUT, MSG_ADD_NODE, MSG_UPDATE_ATTRS,
+                MSG_DELETE_NODE, MSG_MOVE_NODE);
     }
 
     public interface Tree {
