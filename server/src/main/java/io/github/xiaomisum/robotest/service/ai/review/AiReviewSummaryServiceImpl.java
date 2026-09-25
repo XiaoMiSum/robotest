@@ -63,7 +63,7 @@ public class AiReviewSummaryServiceImpl implements AiReviewSummaryService {
     @Override
     public SseEmitter generateSummary(UUID userId, UUID workspaceId, UUID projectId, UUID reviewId,
             AiReviewSummaryReqDTO reqDTO) {
-        TestReview review = requireInitiator(reviewId, userId);
+        TestReview review = requireInitiator(projectId, reviewId, userId);
         // 仅「已完成」评审可生成摘要（3.2.1）
         if (!Constants.Status.COMPLETED.equals(review.getStatus())) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_TARGET_STATE_INVALID);
@@ -104,8 +104,8 @@ public class AiReviewSummaryServiceImpl implements AiReviewSummaryService {
     }
 
     @Override
-    public AiReviewSummaryRespDTO getSummary(UUID reviewId, UUID userId) {
-        requireInitiator(reviewId, userId);
+    public AiReviewSummaryRespDTO getSummary(UUID userId, UUID projectId, UUID reviewId) {
+        requireInitiator(projectId, reviewId, userId);
         AiAnalysisTask task = aiTaskMapper.findLatestSuccessByTypeAndTarget(
                 Constants.AiTaskType.REVIEW_SUMMARY, reviewId);
         if (task == null || task.getResult() == null) {
@@ -149,9 +149,10 @@ public class AiReviewSummaryServiceImpl implements AiReviewSummaryService {
         };
     }
 
-    private TestReview requireInitiator(UUID reviewId, UUID userId) {
+    private TestReview requireInitiator(UUID projectId, UUID reviewId, UUID userId) {
         TestReview review = testReviewMapper.selectById(reviewId);
-        if (review == null) {
+        // 归属活动项目校验（SEC-014）：跨项目按不存在处理，不泄露评审存在性
+        if (review == null || !review.getProjectId().equals(projectId)) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_REVIEW_NOT_FOUND);
         }
         if (!review.getInitiatorId().equals(userId)) {

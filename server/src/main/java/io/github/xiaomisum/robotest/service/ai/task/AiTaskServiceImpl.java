@@ -88,9 +88,13 @@ public class AiTaskServiceImpl implements AiTaskService {
     }
 
     @Override
-    public void cancelTask(UUID taskId, UUID userId) {
+    public void cancelTask(UUID taskId, UUID projectId, UUID userId) {
         AiAnalysisTask task = taskMapper.selectById(taskId);
-        if (task == null || !IN_PROGRESS_STATUSES.contains(task.getStatus())) {
+        // 归属活动项目校验（SEC-014）：跨项目按不存在处理，不泄露任务存在性
+        if (task == null || task.getProjectId() == null || !task.getProjectId().equals(projectId)) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_TASK_NOT_FOUND);
+        }
+        if (!IN_PROGRESS_STATUSES.contains(task.getStatus())) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_TASK_STATE_INVALID);
         }
         if (!task.getCreatedBy().equals(userId)) {
@@ -109,9 +113,13 @@ public class AiTaskServiceImpl implements AiTaskService {
     }
 
     @Override
-    public void retryTask(UUID taskId, UUID userId) {
+    public void retryTask(UUID taskId, UUID projectId, UUID userId) {
         AiAnalysisTask task = taskMapper.selectById(taskId);
-        if (task == null || !Constants.AiTaskStatus.FAILED.equals(task.getStatus())) {
+        // 归属活动项目校验（SEC-014）：跨项目按不存在处理，不泄露任务存在性
+        if (task == null || task.getProjectId() == null || !task.getProjectId().equals(projectId)) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_TASK_NOT_FOUND);
+        }
+        if (!Constants.AiTaskStatus.FAILED.equals(task.getStatus())) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_TASK_STATE_INVALID);
         }
         if (!task.getCreatedBy().equals(userId)) {

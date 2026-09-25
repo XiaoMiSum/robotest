@@ -110,6 +110,16 @@ class AiReviewConclusionServiceImplTest {
     }
 
     @Test
+    void crossProject_reviewNotFound_throws() {
+        TestReview foreign = review(Constants.Status.COMPLETED);
+        foreign.setProjectId(UUID.randomUUID());
+        when(testReviewMapper.selectById(REVIEW_ID)).thenReturn(foreign);
+        // 归属活动项目校验（SEC-014）：跨项目按不存在处理，不泄露评审存在性
+        assertThrows(ServiceException.class,
+                () -> service.generateConclusion(USER_ID, WORKSPACE_ID, PROJECT_ID, REVIEW_ID, req()));
+    }
+
+    @Test
     void notInitiator_throws() {
         TestReview review = review(Constants.Status.COMPLETED);
         review.setInitiatorId(UUID.randomUUID());

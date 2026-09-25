@@ -31,7 +31,7 @@ public class AiTaskController {
     public Result<Void> cancelTask(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id) {
-        aiTaskService.cancelTask(id, loginUser.getId());
+        aiTaskService.cancelTask(id, loginUser.getActiveProjectId(), loginUser.getId());
         return Result.ok();
     }
 
@@ -40,7 +40,7 @@ public class AiTaskController {
     public Result<Void> retryTask(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id) {
-        aiTaskService.retryTask(id, loginUser.getId());
+        aiTaskService.retryTask(id, loginUser.getActiveProjectId(), loginUser.getId());
         return Result.ok();
     }
 }

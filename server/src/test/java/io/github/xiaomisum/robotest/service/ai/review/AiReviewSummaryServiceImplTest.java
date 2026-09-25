@@ -123,6 +123,25 @@ class AiReviewSummaryServiceImplTest {
     }
 
     @Test
+    void crossProject_reviewNotFound_throws() {
+        TestReview foreign = review(Constants.Status.COMPLETED);
+        foreign.setProjectId(UUID.randomUUID());
+        when(testReviewMapper.selectById(REVIEW_ID)).thenReturn(foreign);
+        // 归属活动项目校验（SEC-014）：跨项目按不存在处理，不泄露评审存在性
+        assertThrows(ServiceException.class,
+                () -> service.generateSummary(USER_ID, WORKSPACE_ID, PROJECT_ID, REVIEW_ID, req()));
+    }
+
+    @Test
+    void getSummary_crossProject_throws() {
+        TestReview foreign = review(Constants.Status.COMPLETED);
+        foreign.setProjectId(UUID.randomUUID());
+        when(testReviewMapper.selectById(REVIEW_ID)).thenReturn(foreign);
+        assertThrows(ServiceException.class,
+                () -> service.getSummary(USER_ID, PROJECT_ID, REVIEW_ID));
+    }
+
+    @Test
     void notInitiator_throws() {
         TestReview review = review(Constants.Status.COMPLETED);
         review.setInitiatorId(UUID.randomUUID());
@@ -282,7 +301,7 @@ class AiReviewSummaryServiceImplTest {
         when(testReviewMapper.selectById(REVIEW_ID)).thenReturn(review(Constants.Status.COMPLETED));
         when(aiTaskMapper.findLatestSuccessByTypeAndTarget(Constants.AiTaskType.REVIEW_SUMMARY, REVIEW_ID))
                 .thenReturn(null);
-        assertNull(service.getSummary(REVIEW_ID, USER_ID));
+        assertNull(service.getSummary(USER_ID, PROJECT_ID, REVIEW_ID));
     }
 
     @Test
@@ -296,7 +315,7 @@ class AiReviewSummaryServiceImplTest {
         when(aiTaskMapper.findLatestSuccessByTypeAndTarget(Constants.AiTaskType.REVIEW_SUMMARY, REVIEW_ID))
                 .thenReturn(task);
 
-        AiReviewSummaryRespDTO result = service.getSummary(REVIEW_ID, USER_ID);
+        AiReviewSummaryRespDTO result = service.getSummary(USER_ID, PROJECT_ID, REVIEW_ID);
 
         assertEquals(updatedAt, result.getGeneratedAt());
     }

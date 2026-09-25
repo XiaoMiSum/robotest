@@ -49,7 +49,7 @@ public class AiReviewController {
     public Result<AiReviewSummaryRespDTO> getSummary(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id) {
-        return Result.ok(aiReviewSummaryService.getSummary(id, loginUser.getId()));
+        return Result.ok(aiReviewSummaryService.getSummary(loginUser.getId(), loginUser.getActiveProjectId(), id));
     }
 
     @PostMapping("/{id}/check")
