@@ -515,6 +515,24 @@ class ApiEnvironmentServiceImplTest {
                 () -> service.importEnvironment(PROJECT_ID, WORKSPACE_ID, USER_ID, multipartFile("{ not json"), false));
     }
 
+    @Test
+    void importEnvironment_oversizeFileThrowsValidation() {
+        MockMultipartFile file = new MockMultipartFile("file", "env.json",
+                org.springframework.http.MediaType.APPLICATION_JSON_VALUE, new byte[10 * 1024 * 1024 + 1]);
+
+        assertThrows(ServiceException.class,
+                () -> service.importEnvironment(PROJECT_ID, WORKSPACE_ID, USER_ID, file, false));
+    }
+
+    @Test
+    void importEnvironment_emptyFileThrowsValidation() {
+        MockMultipartFile file = new MockMultipartFile("file", "env.json",
+                org.springframework.http.MediaType.APPLICATION_JSON_VALUE, new byte[0]);
+
+        assertThrows(ServiceException.class,
+                () -> service.importEnvironment(PROJECT_ID, WORKSPACE_ID, USER_ID, file, false));
+    }
+
     private static MockMultipartFile multipartFile(String content) {
         return new MockMultipartFile("file", "env.json",
                 org.springframework.http.MediaType.APPLICATION_JSON_VALUE, content.getBytes());

@@ -181,6 +181,8 @@ public class ErrorCodeConstants {
     public static final ErrorCode BUG_RESOLVE_COMMENT_REQUIRED = ErrorCode.of(1000012020, "解决缺陷时必须填写备注说明");
     public static final ErrorCode BUG_REJECT_COMMENT_REQUIRED = ErrorCode.of(1000012021, "拒绝缺陷时必须填写说明");
     public static final ErrorCode BUG_RELATION_INVALID = ErrorCode.of(1000012022, "关联用例或计划标识不合法");
+    public static final ErrorCode BUG_ATTACHMENT_TYPE_NOT_ALLOWED = ErrorCode.of(1000012023, "不支持的附件类型");
+    public static final ErrorCode BUG_ATTACHMENT_CONTENT_MISMATCH = ErrorCode.of(1000012024, "附件内容与文件类型不符");
 
     // ========== AI 能力域 1,000,013,001-1,000,013,099（文档简写 60XX，6001 ≙ 1000013001）
     // ==========

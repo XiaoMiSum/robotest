@@ -10,7 +10,10 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -20,7 +23,7 @@ import static io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants.A
 
 /**
  * Swagger URL 拉取（接口管理详细设计 4.3 SSRF 防护）：
- * 协议白名单 → 按策略复核目标地址（strict 禁内网 / intranet 放行内网但限 swagger 文档路径）→ DNS 解析后复核 → 10s 超时
+ * 协议白名单 → 端口白名单 → 按策略复核目标地址（strict 禁内网 / intranet 放行内网但限 swagger 文档路径）→ DNS 解析后复核 → 10s 超时
  */
 @Component
 public class ImportSourceFetcher {
@@ -45,19 +48,52 @@ public class ImportSourceFetcher {
             "/openapi.json", "/openapi.yaml", "/openapi.yml", "/swagger-resources",
             "/swagger-ui.json", "/swagger-ui.html");
 
+    /** 默认端口白名单（安全规范 6.3 端口校验），可经 robotest.api-test.import.allowed-ports 覆盖 */
+    private static final Set<Integer> DEFAULT_ALLOWED_PORTS = Set.of(80, 443, 8080, 8443);
+
     public static final String MSG_INTRANET_HIGH_RISK_BLOCKED = "禁止访问链路本地、组播或保留地址";
 
     private final Policy policy;
 
+    private final Set<Integer> allowedPorts;
+
     /** Spring 注入：策略来自配置 robotest.api-test.import.url-policy（默认 strict） */
     @Autowired
-    public ImportSourceFetcher(@Value("${robotest.api-test.import.url-policy:strict}") String policy) {
-        this(Policy.of(policy));
+    public ImportSourceFetcher(
+            @Value("${robotest.api-test.import.url-policy:strict}") String policy,
+            @Value("${robotest.api-test.import.allowed-ports:80,443,8080,8443}") String allowedPorts) {
+        this(Policy.of(policy), parsePorts(allowedPorts));
     }
 
-    /** 单测直接指定策略构造（同包可见） */
+    /** 单测直接指定策略构造（同包可见），端口取默认白名单 */
     ImportSourceFetcher(Policy policy) {
+        this(policy, DEFAULT_ALLOWED_PORTS);
+    }
+
+    /** 单测直接指定策略与端口白名单（同包可见） */
+    ImportSourceFetcher(Policy policy, Set<Integer> allowedPorts) {
         this.policy = policy;
+        this.allowedPorts = allowedPorts;
+    }
+
+    /** 配置解析：非数字端口视为配置错误，启动即失败 */
+    private static Set<Integer> parsePorts(String raw) {
+        Set<Integer> ports = new LinkedHashSet<>();
+        for (String part : raw.split(",")) {
+            String trimmed = part.trim();
+            if (trimmed.isEmpty()) {
+                continue;
+            }
+            try {
+                ports.add(Integer.parseInt(trimmed));
+            } catch (NumberFormatException exception) {
+                throw new IllegalStateException("robotest.api-test.import.allowed-ports 含非法端口: " + trimmed, exception);
+            }
+        }
+        if (ports.isEmpty()) {
+            throw new IllegalStateException("robotest.api-test.import.allowed-ports 不能为空");
+        }
+        return Collections.unmodifiableSet(ports);
     }
 
     public String fetch(String url) {
@@ -98,6 +134,16 @@ public class ImportSourceFetcher {
         String host = uri.getHost();
         if (host == null) {
             throw ServiceExceptionUtil.get(API_IMPORT_URL_UNREACHABLE, "缺少主机名");
+        }
+        // 端口校验先于 DNS（安全规范 6.3）：两种策略都禁非法端口；strict 另加白名单，intranet 已由 swagger 路径限制兜底
+        int port = uri.getPort();
+        if (port != -1) {
+            if (port < 1 || port > 65535) {
+                throw ServiceExceptionUtil.get(API_IMPORT_URL_UNREACHABLE, "端口超出合法范围：" + port);
+            }
+            if (policy == Policy.STRICT && !allowedPorts.contains(port)) {
+                throw ServiceExceptionUtil.get(API_IMPORT_URL_UNREACHABLE, "非白名单端口：" + port);
+            }
         }
         InetAddress[] addresses;
         try {
