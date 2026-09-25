@@ -1,6 +1,7 @@
 package io.github.xiaomisum.robotest.framework.audit;
 
 import io.github.xiaomisum.robotest.framework.security.LoginUser;
+import io.github.xiaomisum.robotest.framework.security.SensitiveDataMasker;
 import io.github.xiaomisum.robotest.model.entity.admin.AuditLog;
 import io.github.xiaomisum.robotest.repository.admin.AuditLogMapper;
 import org.aspectj.lang.ProceedingJoinPoint;
@@ -18,6 +19,7 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionStatus;
 
 import java.lang.reflect.Method;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -94,6 +96,43 @@ class AuditLogAspectTest {
         assertFalse(changes.keySet().stream().anyMatch(k -> k.toLowerCase().contains("password")));
         // password 参数被脱敏剔除，只保留 id 与 age
         assertEquals(2, changes.size());
+    }
+
+    @Test
+    void around_masksNestedSensitiveFieldsInChanges() throws Throwable {
+        ProceedingJoinPoint jp = simpleJoinPoint();
+        Method method = AuditLogAspectTest.class.getDeclaredMethod("probeNested", UUID.class, Map.class);
+        doReturn(methodSignature(method)).when(jp).getSignature();
+        Map<String, Object> config = new java.util.LinkedHashMap<>();
+        config.put("name", "db");
+        config.put("password", "realpw");
+        Map<String, Object> header = new java.util.LinkedHashMap<>();
+        header.put("key", "Authorization");
+        header.put("value", "Bearer secret-jwt");
+        Map<String, Object> payload = new java.util.LinkedHashMap<>();
+        payload.put("config", config);
+        payload.put("headers", java.util.List.of(header));
+        when(jp.getArgs()).thenReturn(new Object[]{probeEntityId, payload});
+        when(jp.proceed()).thenReturn("ok");
+
+        aspect.around(jp);
+
+        verify(auditLogMapper).insert(auditLogCaptor.capture());
+        Map<String, Object> changes = auditLogCaptor.getValue().getChanges();
+        assertNotNull(changes);
+        // 嵌套 DTO/Map 中的敏感字段递归掩码，而非整体剔除（安全规范 8.3）
+        @SuppressWarnings("unchecked")
+        Map<String, Object> maskedPayload = (Map<String, Object>) changes.get("payload");
+        assertNotNull(maskedPayload);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> maskedConfig = (Map<String, Object>) maskedPayload.get("config");
+        assertEquals("db", maskedConfig.get("name"));
+        assertEquals(SensitiveDataMasker.MASK, maskedConfig.get("password"));
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> headers = (List<Map<String, Object>>) maskedPayload.get("headers");
+        assertEquals(SensitiveDataMasker.MASK, headers.get(0).get("value"));
+        assertEquals("Authorization", headers.get(0).get("key"));
+        assertFalse(changes.toString().contains("realpw"));
     }
 
     @Test
@@ -174,6 +213,10 @@ class AuditLogAspectTest {
 
     @AuditOperation(operation = "update", entityType = "User")
     private void probe(UUID id, String password, Integer age) {
+    }
+
+    @AuditOperation(operation = "update", entityType = "Env")
+    private void probeNested(UUID id, Map<String, Object> payload) {
     }
 
     @AuditOperation(operation = "delete", entityType = "Role", logParams = false)

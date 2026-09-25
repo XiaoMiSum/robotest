@@ -2,6 +2,7 @@ package io.github.xiaomisum.robotest.framework.mock;
 
 import tools.jackson.databind.JsonNode;
 import io.github.xiaomisum.robotest.framework.mock.MockDefinitionReader.MockDefinitionSnapshot;
+import io.github.xiaomisum.robotest.framework.security.SensitiveDataMasker;
 import io.github.xiaomisum.robotest.service.apitest.mock.MockMatchEngine;
 import io.github.xiaomisum.robotest.service.apitest.mock.MockRateLimiter;
 import io.github.xiaomisum.robotest.service.apitest.mock.MockResponseFactory;
@@ -170,7 +171,8 @@ public class MockAccessFilter implements Filter {
 
     private void logAccessAsync(MockDefinitionSnapshot hit, HttpServletRequest request, int status,
                                 String responseBody, int durationMs) {
-        Map<String, String> requestHeaders = extractHeaders(request);
+        // 访问日志落库前脱敏敏感请求头（安全规范 6.4：日志必须脱敏请求 Header）；匹配阶段仍用原始头
+        Map<String, String> requestHeaders = SensitiveDataMasker.sanitizeHeaders(extractHeaders(request));
         String requestBody = request instanceof CachedBodyRequest cached ? cached.bodyText() : null;
         String clientIp = resolveClientIp(request);
         reader.logAccessAsync(hit.id(), hit.projectId(), hit.method(), hit.path(),
