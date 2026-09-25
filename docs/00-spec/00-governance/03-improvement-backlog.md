@@ -81,6 +81,7 @@ DEC-004 不再作为通用规范决策；上下文路由/请求体边界由各�
 | DEC-014 | P0 | 时间存储口径不一致（DEC-005 实施遗留） | 框架 `UTCLocalDateTimeHandler` 存在但未注册，实际入库为本地墙钟：ApiReport 分享写入本地值却按 `utcNow` 比较（UTC+8 下过期晚 8 小时），`share()`（`toUtcWallClock`）与 `shareOf()`（直读）两条响应路径展示相差 8 小时；邀请响应 157 行 `toIso`（直挂 Z）与 334 行 `toUtcWallClock`（换算）口径不一。需确认统一为「注册 handler 存储 UTC」还是「本地存储 + 响应边界换算」，确认后同步全部写读比较点 | 待确认 |
 | DEC-015 | P1 | 限流 Redis 故障降级口径（SEC-006 实施决策） | 规范未规定 Redis 不可用时限流的行为；当前实现为**失败开放**（放行并记 WARN，与 AI 网关 `AiRateLimiter` 口径一致，避免缓存故障阻断登录与公开接口）。是否改为失败关闭（Redis 故障时拒绝登录/公开接口，更安全但扩大故障面） | 待确认 |
 | DEC-016 | P1 | 密码强度规则文档冲突（SEC-009 实施遗留） | `docs/04-detailed-design/system-management/03-system-management-auth.md` §2 密码策略仍写"包含大小写、数字、特殊字符中至少三种"，与同文件 §1.5"后端不做字符类型三选四强度校验，强度仅作前端提示"及 SRS 业务规则"密码仅需 8~64 字符长度，不再要求至少三种"矛盾；`docs/04-detailed-design/system-management/04-system-management-user.md` 创建流程也写"密码强度"。当前前后端实现与 §1.5/SRS 一致（仅 8-64 长度）。是否按仅长度口径修订两处详细设计，或恢复强度校验（需前后端改造且与 SRS 冲突） | 待确认 |
+| DEC-017 | P0 | CI workflow 落点（QA-002 实施前置） | QA-002 要求建立唯一 GitHub Actions workflow，唯一落点为 .github/workflows/ci.yml，超出本轮「只改 `docs/`、`web/`、`scripts/`、`server/`」目录白名单：是否放行新建 `.github/`。方案已就绪：push（master/develop）与 PR 双触发，统一执行 `bash scripts/validate.sh --all`，锁 Node 24 / pnpm 11.24.0 / JDK 21，`fetch-depth: 0` 保证提交格式检查可见完整历史 | 待确认 |
 
 ## 5. 文档同步任务
 
@@ -163,7 +164,7 @@ DEC-004 不再作为通用规范决策；上下文路由/请求体边界由各�
 | 编号 | 优先级 | 任务 | 依赖 | 完成标准 | 状态 |
 | --- | --- | --- | --- | --- | --- |
 | QA-001 | P1 | 固定 Node、pnpm、packageManager 和工具链矩阵 | — | 新环境可以按锁定版本复现安装 | 待实施 |
-| QA-002 | P0 | 建立唯一 CI workflow | — | PR 和主分支执行统一质量流程 | 待实施 |
+| QA-002 | P0 | 建立唯一 CI workflow | — | PR 和主分支执行统一质量流程 | 需确认（DEC-017：唯一落点 .github/workflows/ci.yml 超出本轮目录白名单，方案已就绪待放行） |
 | QA-003 | P0 | 配置分支保护和 required checks | DEC-001 | 未通过必需检查不能合并 | 已取消（2026-09-24 用户确认不需要，与 GOV-001 同批取消） |
 | QA-004 | P1 | 加固 `scripts/validate.sh` | — | 缺依赖、契约失败和测试失败返回非零；不再自动修改源代码 | 已完成（缺 node_modules/pnpm/mvn/openapi-typescript 与契约重生成失败均 fail 退出非零；基线缺失保持 warn 待 QA-008；脚本仅读校验不改源码） |
 | QA-005 | P0 | 配置前端覆盖率阈值和报告 | DEC-003 | 核心范围低于 70% 时失败，排除项有明确理由 | 待实施 |
