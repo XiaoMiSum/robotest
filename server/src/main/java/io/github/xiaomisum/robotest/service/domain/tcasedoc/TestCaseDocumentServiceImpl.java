@@ -100,9 +100,9 @@ public class TestCaseDocumentServiceImpl implements TestCaseDocumentService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public TestCaseDocumentRespDTO updateTestCase(UUID documentId, UUID userId, TestCaseDocumentUpdateReqDTO reqDTO) {
+    public TestCaseDocumentRespDTO updateTestCase(UUID projectId, UUID documentId, UUID userId, TestCaseDocumentUpdateReqDTO reqDTO) {
         TestCaseDocument document = testCaseDocumentMapper.selectById(documentId);
-        if (document == null) {
+        if (document == null || !document.getProjectId().equals(projectId)) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_CASE_DOCUMENT_NOT_FOUND);
         }
         projectAccessGuard.requireProjectMember(document.getProjectId(), userId);
@@ -142,9 +142,9 @@ public class TestCaseDocumentServiceImpl implements TestCaseDocumentService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void deleteTestCase(UUID documentId, UUID userId) {
+    public void deleteTestCase(UUID projectId, UUID documentId, UUID userId) {
         TestCaseDocument document = testCaseDocumentMapper.selectById(documentId);
-        if (document == null) {
+        if (document == null || !document.getProjectId().equals(projectId)) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_CASE_DOCUMENT_NOT_FOUND);
         }
         projectAccessGuard.requireProjectMember(document.getProjectId(), userId);

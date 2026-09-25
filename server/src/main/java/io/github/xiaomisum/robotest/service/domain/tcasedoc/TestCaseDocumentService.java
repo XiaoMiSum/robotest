@@ -13,7 +13,7 @@ public interface TestCaseDocumentService {
 
     TestCaseDocumentRespDTO createTestCase(UUID projectId, UUID userId, TestCaseDocumentCreateReqDTO reqDTO);
 
-    TestCaseDocumentRespDTO updateTestCase(UUID documentId, UUID userId, TestCaseDocumentUpdateReqDTO reqDTO);
+    TestCaseDocumentRespDTO updateTestCase(UUID projectId, UUID documentId, UUID userId, TestCaseDocumentUpdateReqDTO reqDTO);
 
-    void deleteTestCase(UUID documentId, UUID userId);
+    void deleteTestCase(UUID projectId, UUID documentId, UUID userId);
 }

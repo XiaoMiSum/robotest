@@ -37,9 +37,9 @@ public class TestCaseNodeServiceImpl implements TestCaseNodeService {
     private TestCaseNodeConvertMapper testCaseNodeConvertMapper;
 
     @Override
-    public TestCaseDocumentNodesRespDTO getDocumentNodes(UUID documentId, UUID userId) {
+    public TestCaseDocumentNodesRespDTO getDocumentNodes(UUID projectId, UUID documentId, UUID userId) {
         TestCaseDocument document = testCaseDocumentMapper.selectById(documentId);
-        if (document == null) {
+        if (document == null || !document.getProjectId().equals(projectId)) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_CASE_DOCUMENT_NOT_FOUND);
         }
         projectAccessGuard.requireProjectMember(document.getProjectId(), userId);
@@ -61,7 +61,7 @@ public class TestCaseNodeServiceImpl implements TestCaseNodeService {
     }
 
     @Override
-    public TestCaseNodeTreeRespDTO getCaseDetail(UUID caseId, UUID userId) {
+    public TestCaseNodeTreeRespDTO getCaseDetail(UUID projectId, UUID caseId, UUID userId) {
         TestCaseNode node = testCaseNodeMapper.selectById(caseId);
         if (node == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_CASE_NODE_NOT_FOUND);
@@ -69,6 +69,10 @@ public class TestCaseNodeServiceImpl implements TestCaseNodeService {
         TestCaseDocument document = testCaseDocumentMapper.selectById(node.getDocumentId());
         if (document == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_CASE_DOCUMENT_NOT_FOUND);
+        }
+        // 归属活动项目校验（SEC-014）：跨项目按用例节点不存在处理，不泄露用例存在性
+        if (!document.getProjectId().equals(projectId)) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_CASE_NODE_NOT_FOUND);
         }
         projectAccessGuard.requireProjectMember(document.getProjectId(), userId);
         // 悬停明细等场景需要完整用例结构：以该节点为根填充子孙（前置/步骤/预期）
@@ -127,7 +131,7 @@ public class TestCaseNodeServiceImpl implements TestCaseNodeService {
     }
 
     @Override
-    public void updateCaseNode(UUID caseId, UUID userId, TestCaseNodeUpdateReqDTO reqDTO) {
+    public void updateCaseNode(UUID projectId, UUID caseId, UUID userId, TestCaseNodeUpdateReqDTO reqDTO) {
         TestCaseNode node = testCaseNodeMapper.selectById(caseId);
         if (node == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_CASE_NODE_NOT_FOUND);
@@ -138,6 +142,10 @@ public class TestCaseNodeServiceImpl implements TestCaseNodeService {
         TestCaseDocument document = testCaseDocumentMapper.selectById(node.getDocumentId());
         if (document == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_CASE_DOCUMENT_NOT_FOUND);
+        }
+        // 归属活动项目校验（SEC-014）：跨项目按用例节点不存在处理，不泄露用例存在性
+        if (!document.getProjectId().equals(projectId)) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_CASE_NODE_NOT_FOUND);
         }
         projectAccessGuard.requireProjectMember(document.getProjectId(), userId);
         // 更新载体只携带前端传入的字段，避免全列覆盖导致并发丢失更新
