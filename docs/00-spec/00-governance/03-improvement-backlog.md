@@ -57,7 +57,7 @@ DEC-004 不再作为通用规范决策；上下文路由/请求体边界由各�
 | 根目录及端级 AGENTS 同步 | 已完成第一轮 | 已同步核心契约和引用 |
 | 下游架构/详细设计同步 | 部分完成 | 架构文档和脑图业务边界已处理，其余详细设计见 `DOC-*` |
 | 代码和配置整改 | 基本完成 | CODE-* 全部关闭；SEC-001、SEC-002、SEC-003、SEC-004、SEC-006、SEC-008、SEC-009、SEC-010、SEC-011、SEC-013、SEC-014 已完成；SEC-005、SEC-007 已取消，其余见 `SEC-*` |
-| 质量门禁和 CI | 部分完成 | QA-004 已完成（validate.sh 退出码加固）；QA-005 已完成（C8 前端覆盖率阈值）；QA-008 已完成（OpenAPI 契约基线转阻断）；QA-003 已取消；QA-002 需确认（DEC-017）；其余见 `QA-*` |
+| 质量门禁和 CI | 部分完成 | QA-001 已完成（工具链矩阵与锁定）；QA-004 已完成（validate.sh 退出码加固）；QA-005 已完成（C8 前端覆盖率阈值）；QA-008 已完成（OpenAPI 契约基线转阻断）；QA-003 已取消；QA-002 需确认（DEC-017）；其余见 `QA-*` |
 | 数据库和部署闭环 | 部分取消 | DB-001、OPS-006、OPS-007、OPS-009 已取消；其余见 `DB-*`、`OPS-*` |
 | Git 治理和结构拆分 | 基本完成 | GOV-002、GOV-003、GOV-005～GOV-008 已完成；GOV-001、GOV-004 已取消；其余见 `GOV-*` |
 
@@ -163,7 +163,7 @@ DEC-004 不再作为通用规范决策；上下文路由/请求体边界由各�
 
 | 编号 | 优先级 | 任务 | 依赖 | 完成标准 | 状态 |
 | --- | --- | --- | --- | --- | --- |
-| QA-001 | P1 | 固定 Node、pnpm、packageManager 和工具链矩阵 | — | 新环境可以按锁定版本复现安装 | 待实施 |
+| QA-001 | P1 | 固定 Node、pnpm、packageManager 和工具链矩阵 | — | 新环境可以按锁定版本复现安装 | 已完成：`web/.nvmrc` 锁 Node 24.13.0，`web/package.json` 增 `packageManager: pnpm@11.24.0` 与 `engines`（node >=24 <25、pnpm >=11 <12）；`validate.sh` 新增 `check_toolchain`（Node 主版本对 `.nvmrc`、pnpm 对 `packageManager` 精确比对，不一致阻断，接入 --frontend/--all，双向验证）；03-deploy §2.1 落地工具链矩阵（Node/pnpm/Java/Maven 3.9.9/PostgreSQL 及开发镜像记录），01-frontend §1 增运行时与包管理版本来源及 `nvm use` + `corepack enable` + `--frozen-lockfile` 复现步骤 |
 | QA-002 | P0 | 建立唯一 CI workflow | — | PR 和主分支执行统一质量流程 | 需确认（DEC-017：唯一落点 .github/workflows/ci.yml 超出本轮目录白名单，方案已就绪待放行） |
 | QA-003 | P0 | 配置分支保护和 required checks | DEC-001 | 未通过必需检查不能合并 | 已取消（2026-09-24 用户确认不需要，与 GOV-001 同批取消） |
 | QA-004 | P1 | 加固 `scripts/validate.sh` | — | 缺依赖、契约失败和测试失败返回非零；不再自动修改源代码 | 已完成（缺 node_modules/pnpm/mvn/openapi-typescript 与契约重生成失败均 fail 退出非零；基线缺失保持 warn 待 QA-008；脚本仅读校验不改源码） |
