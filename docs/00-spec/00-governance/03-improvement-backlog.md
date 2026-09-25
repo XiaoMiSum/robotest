@@ -57,7 +57,7 @@ DEC-004 不再作为通用规范决策；上下文路由/请求体边界由各�
 | 根目录及端级 AGENTS 同步 | 已完成第一轮 | 已同步核心契约和引用 |
 | 下游架构/详细设计同步 | 部分完成 | 架构文档和脑图业务边界已处理，其余详细设计见 `DOC-*` |
 | 代码和配置整改 | 基本完成 | CODE-* 全部关闭；SEC-001、SEC-002、SEC-003、SEC-004、SEC-006、SEC-008、SEC-009、SEC-010、SEC-011、SEC-013、SEC-014 已完成；SEC-005、SEC-007 已取消，其余见 `SEC-*` |
-| 质量门禁和 CI | 部分完成 | QA-004 已完成（validate.sh 退出码加固）；QA-005 已完成（C8 前端覆盖率阈值）；QA-003 已取消；QA-002 需确认（DEC-017）；其余见 `QA-*` |
+| 质量门禁和 CI | 部分完成 | QA-004 已完成（validate.sh 退出码加固）；QA-005 已完成（C8 前端覆盖率阈值）；QA-008 已完成（OpenAPI 契约基线转阻断）；QA-003 已取消；QA-002 需确认（DEC-017）；其余见 `QA-*` |
 | 数据库和部署闭环 | 部分取消 | DB-001、OPS-006、OPS-007、OPS-009 已取消；其余见 `DB-*`、`OPS-*` |
 | Git 治理和结构拆分 | 基本完成 | GOV-002、GOV-003、GOV-005～GOV-008 已完成；GOV-001、GOV-004 已取消；其余见 `GOV-*` |
 
@@ -170,7 +170,7 @@ DEC-004 不再作为通用规范决策；上下文路由/请求体边界由各�
 | QA-005 | P0 | 配置前端覆盖率阈值和报告 | DEC-003 | 核心范围低于 70% 时失败，排除项有明确理由 | 已完成：`web/vite.config.ts` 配置 v8 覆盖率——核心范围 `src/**`，排除 `src/main.ts`（应用引导入口，由 E2E 与发布验收覆盖）与 `src/types/**`（纯类型声明无运行时）及测试文件自身；lines/functions/branches/statements 阈值均为 70%，当前基线 75.63/89.60/85.89/75.63（正向通过、人为抬高至 99% 可复现失败，双向验证）；`test:unit` 内联 `--coverage` 使 `validate.sh` 统一执行；报告输出 `web/coverage`（text/html/clover/json）；01-quality §4 登记前端“已配置”与后端“未配置”口径；CI 产物归档随 QA-002（DEC-017） |
 | QA-006 | P1 | 配置后端覆盖率 | — | 后端覆盖率工具和报告策略重新评估 | 已取消：不引入 JaCoCo |
 | QA-007 | P1 | 接入 Checkstyle、SpotBugs 和 ArchUnit 或明确取消 | — | 移除 SpotBugs、ArchUnit、JaCoCo，不作为当前门禁 | 已确认：移除 |
-| QA-008 | P0 | 建立 OpenAPI 基线和前端生成类型 | — | 契约缺失、漂移或生成失败时阻断 | 待实施 |
+| QA-008 | P0 | 建立 OpenAPI 基线和前端生成类型 | — | 契约缺失、漂移或生成失败时阻断 | 已完成：后端运行期导出基线 `web/openapi/contract.json`（OpenAPI 3.1，196 paths / 432 schemas，`pnpm contract:gen` 需 `OPENAPI_URL` 指向运行中后端）并生成 `web/src/types/generated/contract.d.ts`（openapi-typescript 7.13）；`validate.sh` 契约检查由 warn 转阻断——基线缺失、依赖缺失、重新生成失败、类型漂移均非零退出（负向：移走基线 EXIT=1；正向：基线与类型一致 EXIT=0）；生成类型尚无 services 引用，消费随 API 代码演进 |
 | QA-009 | P1 | 增加 API 集成、关键组件和核心 E2E 测试 | — | 登录、权限、分页、协作和发布流程有自动化证据 | 待实施 |
 | QA-010 | P1 | 接入 Secret 和依赖漏洞扫描 | SEC-001 | 密钥和高危依赖阻断发布 | 待实施 |
 | QA-011 | P2 | 增加滚动、视觉回归和可访问性验收 | DOC-009 | UI-SC 规则有浏览器和自动化证据 | 待实施 |
