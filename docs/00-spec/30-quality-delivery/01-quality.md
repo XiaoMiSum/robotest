@@ -53,6 +53,8 @@
 - 核心模块覆盖率目标为 **不低于 70%（C8）**。
 - 覆盖率范围必须明确：全仓库、核心模块或变更模块。
 - 新增或修改的核心逻辑不得通过删除测试、排除目录或降低阈值绕过门禁。
+- 前端阈值已配置于 `web/vite.config.ts`：核心范围 `src/**`（排除 `src/main.ts` 应用引导入口——由 E2E 与发布验收覆盖；`src/types/**` 纯类型声明——无运行时代码；测试文件自身不计入），lines / functions / branches / statements 任一低于 70% 即失败；`pnpm run test:unit` 内联 `--coverage`，本地门禁与 CI（随 QA-002）执行同一阈值，报告输出至 `web/coverage`（text / html / clover / json，已 gitignore）。
+- 后端覆盖率**未配置**（QA-006 已决定不引入 JaCoCo，不作为门禁），对外报告必须标记“未配置”，不得写成“已通过”。
 - 当前如果尚未配置 Vitest/JUnit 覆盖率阈值，必须在报告中标记为“未配置”，不能写成“已通过”。
 - 覆盖率报告应随 CI 或验证产物保存。
 
