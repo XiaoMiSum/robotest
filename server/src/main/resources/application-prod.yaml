@@ -33,3 +33,8 @@ migoo:
     password-secret: ${PASSWORD_SECRET}
     jwt:
       secret-key: ${JWT_SECRET_KEY}
+
+# 生产禁止输出 SQL 及参数（安全规范 6.4）
+mybatis-plus:
+  configuration:
+    log-impl: org.apache.ibatis.logging.nologging.NoLoggingImpl

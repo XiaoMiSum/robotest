@@ -199,7 +199,7 @@ changes
 - [x] WebSocket 可写帧转发前校验编辑权限
 - [x] 登录及公共接口增加可验证限流
 - [ ] 审计覆盖敏感操作并递归脱敏
-- [ ] 生产关闭 SQL 参数输出和过高日志级别
+- [x] 生产关闭 SQL 参数输出和过高日志级别
 - [ ] 修复审计和日志中的敏感字段泄露
 - [ ] 配置 WebSocket Origin 白名单
 - [ ] 评估一次性 WebSocket ticket，缩短 URL Token 暴露窗口
