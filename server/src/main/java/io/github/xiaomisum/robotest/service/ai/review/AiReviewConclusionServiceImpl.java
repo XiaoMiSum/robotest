@@ -59,7 +59,7 @@ public class AiReviewConclusionServiceImpl implements AiReviewConclusionService 
     @Override
     public SseEmitter generateConclusion(UUID userId, UUID workspaceId, UUID projectId, UUID reviewId,
             AiReviewConclusionReqDTO reqDTO) {
-        TestReview review = requireInitiator(reviewId, userId);
+        TestReview review = requireInitiator(projectId, reviewId, userId);
         // 仅「已完成」评审可生成结论（评审进行中无终局判定）
         if (!Constants.Status.COMPLETED.equals(review.getStatus())) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_TARGET_STATE_INVALID);
@@ -102,7 +102,7 @@ public class AiReviewConclusionServiceImpl implements AiReviewConclusionService 
 
     @Override
     public AiTaskRespDTO getConclusion(UUID userId, UUID projectId, UUID reviewId) {
-        requireInitiator(reviewId, userId);
+        requireInitiator(projectId, reviewId, userId);
         return aiTaskService.getLatestTaskByTypeAndTarget(Constants.AiTaskType.REVIEW_CONCLUSION, reviewId, projectId);
     }
 
@@ -140,9 +140,10 @@ public class AiReviewConclusionServiceImpl implements AiReviewConclusionService 
         };
     }
 
-    private TestReview requireInitiator(UUID reviewId, UUID userId) {
+    private TestReview requireInitiator(UUID projectId, UUID reviewId, UUID userId) {
         TestReview review = testReviewMapper.selectById(reviewId);
-        if (review == null) {
+        // 归属活动项目校验（SEC-014）：跨项目按不存在处理，不泄露评审存在性
+        if (review == null || !review.getProjectId().equals(projectId)) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_REVIEW_NOT_FOUND);
         }
         if (!review.getInitiatorId().equals(userId)) {

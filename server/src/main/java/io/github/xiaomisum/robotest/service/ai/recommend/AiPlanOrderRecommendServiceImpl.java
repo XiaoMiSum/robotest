@@ -96,7 +96,7 @@ public class AiPlanOrderRecommendServiceImpl implements AiPlanOrderRecommendServ
 
     @Override
     public AiPlanOrderComputeRespDTO compute(UUID userId, UUID workspaceId, UUID projectId, UUID planId) {
-        TestPlan plan = requireExecutor(planId, userId);
+        TestPlan plan = requireExecutor(projectId, planId, userId);
         List<TestPlanNodeSnapshot> caseNodes = planNodeSnapshotMapper
                 .listAssociatedByPlanId(planId, Constants.NodeType.CASE);
         // 计划未关联快照（6012，3.4.1）
@@ -136,7 +136,7 @@ public class AiPlanOrderRecommendServiceImpl implements AiPlanOrderRecommendServ
 
     @Override
     public AiPlanOrderQueryRespDTO query(UUID userId, UUID workspaceId, UUID projectId, UUID planId) {
-        TestPlan plan = requireExecutor(planId, userId);
+        TestPlan plan = requireExecutor(projectId, planId, userId);
         AiPlanOrderQueryRespDTO resp = new AiPlanOrderQueryRespDTO();
         AiAnalysisTask task = aiTaskMapper.findLatestSuccessByTypeAndTarget(
                 Constants.AiTaskType.PLAN_ORDER_RECOMMEND, planId);
@@ -155,7 +155,7 @@ public class AiPlanOrderRecommendServiceImpl implements AiPlanOrderRecommendServ
     @Override
     public AiPlanOrderReasonRespDTO reason(UUID userId, UUID workspaceId, UUID projectId, UUID planId,
                                            AiPlanOrderReasonReqDTO reqDTO) {
-        requireExecutor(planId, userId);
+        requireExecutor(projectId, planId, userId);
         AiPlanOrderReasonRespDTO resp = new AiPlanOrderReasonRespDTO();
         AiAnalysisTask task = aiTaskMapper.findLatestSuccessByTypeAndTarget(
                 Constants.AiTaskType.PLAN_ORDER_RECOMMEND, planId);
@@ -382,9 +382,10 @@ public class AiPlanOrderRecommendServiceImpl implements AiPlanOrderRecommendServ
         }
     }
 
-    private TestPlan requireExecutor(UUID planId, UUID userId) {
+    private TestPlan requireExecutor(UUID projectId, UUID planId, UUID userId) {
         TestPlan plan = testPlanMapper.selectById(planId);
-        if (plan == null) {
+        // 归属活动项目校验（SEC-014）：跨项目按不存在处理，不泄露计划存在性
+        if (plan == null || !plan.getProjectId().equals(projectId)) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_PLAN_NOT_FOUND);
         }
         // 仅计划执行人（3.4.1 权限口径，附录 B）
