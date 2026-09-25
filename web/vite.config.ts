@@ -1,5 +1,5 @@
 import { fileURLToPath, URL } from 'node:url'
-import { defineConfig } from 'vite'
+import { defineConfig } from 'vitest/config'
 import vue from '@vitejs/plugin-vue'
 import AutoImport from 'unplugin-auto-import/vite'
 import Components from 'unplugin-vue-components/vite'
@@ -43,6 +43,27 @@ export default defineConfig({
         target: 'ws://localhost:58080',
         ws: true,
       },
+    },
+  },
+  test: {
+    // C8 覆盖率门禁（docs/00-spec/30-quality-delivery/01-quality.md §4）：
+    // 核心范围任一指标低于 70% 即失败。范围与排除项理由随阈值一并锁定，
+    // 扩大范围或新增排除须先更新规范 §4 再改此处，防止绕过门禁。
+    coverage: {
+      provider: 'v8',
+      // text 供控制台门禁判定，html 供人工查阅，clover/json 供 CI 产物归档
+      reporter: ['text', 'html', 'clover', 'json'],
+      reportsDirectory: 'coverage',
+      include: ['src/**'],
+      exclude: [
+        // 应用引导入口（创建 app 并挂载），无业务分支，由 E2E 与发布验收覆盖
+        'src/main.ts',
+        // 纯类型声明（无任何运行时导出），编译期即擦除
+        'src/types/**',
+        // 测试文件自身不计入覆盖率
+        '**/*.spec.ts',
+      ],
+      thresholds: { lines: 70, functions: 70, branches: 70, statements: 70 },
     },
   },
 })
