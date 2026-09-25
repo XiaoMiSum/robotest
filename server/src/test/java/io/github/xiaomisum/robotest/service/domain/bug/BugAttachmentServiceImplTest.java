@@ -1,6 +1,7 @@
 package io.github.xiaomisum.robotest.service.domain.bug;
 
 import io.github.xiaomisum.robotest.framework.common.Constants;
+import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.framework.security.ProjectAccessGuard;
 import io.github.xiaomisum.robotest.model.convert.BugConvertMapper;
 import io.github.xiaomisum.robotest.model.convert.BugConvertMapperImpl;
@@ -64,6 +65,7 @@ class BugAttachmentServiceImplTest {
     private UUID bugId;
     private UUID userId;
     private UUID attachmentId;
+    private UUID projectId;
 
     /** 真实 PNG 文件头 + 数据（安全规范 6.3：内容嗅探只认真实魔数） */
     private static final byte[] PNG_MAGIC_AND_DATA = {
@@ -74,13 +76,14 @@ class BugAttachmentServiceImplTest {
         bugId = UUID.fromString("00000000-0000-0000-0000-000000000001");
         userId = UUID.fromString("00000000-0000-0000-0000-000000000002");
         attachmentId = UUID.fromString("00000000-0000-0000-0000-000000000003");
+        projectId = UUID.fromString("00000000-0000-0000-0000-000000000009");
         ReflectionTestUtils.setField(bugAttachmentService, "uploadDir", tempDir.toString());
     }
 
     private Bug openBug() {
         Bug bug = new Bug();
         bug.setId(bugId);
-        bug.setProjectId(UUID.fromString("00000000-0000-0000-0000-000000000009"));
+        bug.setProjectId(projectId);
         bug.setStatus(Constants.BugStatus.ACTIVE);
         return bug;
     }
@@ -102,7 +105,7 @@ class BugAttachmentServiceImplTest {
         MockMultipartFile file = new MockMultipartFile(
                 "file", "截图.png", "image/png", PNG_MAGIC_AND_DATA);
 
-        BugAttachmentRespDTO dto = bugAttachmentService.uploadAttachment(bugId, userId, file);
+        BugAttachmentRespDTO dto = bugAttachmentService.uploadAttachment(projectId, bugId, userId, file);
 
         assertEquals(attachmentId, dto.getId());
         assertEquals("截图.png", dto.getFileName());
@@ -125,7 +128,7 @@ class BugAttachmentServiceImplTest {
         MockMultipartFile file = new MockMultipartFile("file", "a.txt", "text/plain", "x".getBytes());
 
         assertThrows(ServiceException.class,
-                () -> bugAttachmentService.uploadAttachment(bugId, userId, file));
+                () -> bugAttachmentService.uploadAttachment(projectId, bugId, userId, file));
         verify(bugAttachmentMapper, never()).insert(any(BugAttachment.class));
     }
 
@@ -137,7 +140,7 @@ class BugAttachmentServiceImplTest {
         MockMultipartFile file = new MockMultipartFile("file", "a.txt", "text/plain", "x".getBytes());
 
         assertThrows(ServiceException.class,
-                () -> bugAttachmentService.uploadAttachment(bugId, userId, file));
+                () -> bugAttachmentService.uploadAttachment(projectId, bugId, userId, file));
         verify(bugAttachmentMapper, never()).insert(any(BugAttachment.class));
     }
 
@@ -149,7 +152,7 @@ class BugAttachmentServiceImplTest {
         when(file.getSize()).thenReturn(11L * 1024 * 1024);
 
         assertThrows(ServiceException.class,
-                () -> bugAttachmentService.uploadAttachment(bugId, userId, file));
+                () -> bugAttachmentService.uploadAttachment(projectId, bugId, userId, file));
         verify(bugAttachmentMapper, never()).insert(any(BugAttachment.class));
     }
 
@@ -159,7 +162,7 @@ class BugAttachmentServiceImplTest {
         MockMultipartFile file = new MockMultipartFile("file", "a.txt", "text/plain", new byte[0]);
 
         assertThrows(ServiceException.class,
-                () -> bugAttachmentService.uploadAttachment(bugId, userId, file));
+                () -> bugAttachmentService.uploadAttachment(projectId, bugId, userId, file));
         verify(bugAttachmentMapper, never()).insert(any(BugAttachment.class));
     }
 
@@ -170,7 +173,7 @@ class BugAttachmentServiceImplTest {
                 "<html><script>alert(1)</script></html>".getBytes(StandardCharsets.UTF_8));
 
         ServiceException exception = assertThrows(ServiceException.class,
-                () -> bugAttachmentService.uploadAttachment(bugId, userId, file));
+                () -> bugAttachmentService.uploadAttachment(projectId, bugId, userId, file));
         assertTrue(exception.getMessage().contains("不支持的附件类型"));
         verify(bugAttachmentMapper, never()).insert(any(BugAttachment.class));
     }
@@ -182,7 +185,7 @@ class BugAttachmentServiceImplTest {
                 "not-a-real-png".getBytes(StandardCharsets.UTF_8));
 
         ServiceException exception = assertThrows(ServiceException.class,
-                () -> bugAttachmentService.uploadAttachment(bugId, userId, file));
+                () -> bugAttachmentService.uploadAttachment(projectId, bugId, userId, file));
         assertTrue(exception.getMessage().contains("附件内容与文件类型不符"));
         verify(bugAttachmentMapper, never()).insert(any(BugAttachment.class));
     }
@@ -206,7 +209,7 @@ class BugAttachmentServiceImplTest {
         uploader.setUsername("tester");
         when(userMapper.selectById(userId)).thenReturn(uploader);
 
-        List<BugAttachmentRespDTO> result = bugAttachmentService.getAttachments(bugId, userId);
+        List<BugAttachmentRespDTO> result = bugAttachmentService.getAttachments(projectId, bugId, userId);
 
         assertEquals(1, result.size());
         assertEquals("log.txt", result.get(0).getFileName());
@@ -230,7 +233,7 @@ class BugAttachmentServiceImplTest {
         when(bugAttachmentMapper.selectById(attachmentId)).thenReturn(attachment);
         when(bugMapper.selectById(bugId)).thenReturn(openBug());
 
-        BugAttachmentDownloadRespDTO dto = bugAttachmentService.downloadAttachment(attachmentId, userId);
+        BugAttachmentDownloadRespDTO dto = bugAttachmentService.downloadAttachment(projectId, attachmentId, userId);
 
         assertEquals("原始名.txt", dto.getFileName());
         // contentType 为空时回退为通用二进制类型
@@ -245,7 +248,23 @@ class BugAttachmentServiceImplTest {
         when(bugAttachmentMapper.selectById(attachmentId)).thenReturn(null);
 
         assertThrows(ServiceException.class,
-                () -> bugAttachmentService.downloadAttachment(attachmentId, userId));
+                () -> bugAttachmentService.downloadAttachment(projectId, attachmentId, userId));
+    }
+
+    @Test
+    void downloadAttachment_crossProject_throws() {
+        BugAttachment attachment = new BugAttachment();
+        attachment.setId(attachmentId);
+        attachment.setBugId(bugId);
+        when(bugAttachmentMapper.selectById(attachmentId)).thenReturn(attachment);
+        Bug bug = openBug();
+        bug.setProjectId(UUID.randomUUID());
+        when(bugMapper.selectById(bugId)).thenReturn(bug);
+
+        // 归属活动项目校验（SEC-014）：跨项目按不存在处理，不泄露缺陷存在性
+        ServiceException exception = assertThrows(ServiceException.class,
+                () -> bugAttachmentService.downloadAttachment(projectId, attachmentId, userId));
+        assertEquals(ErrorCodeConstants.BUG_NOT_FOUND.code(), exception.getCode());
     }
 
     @Test
@@ -259,7 +278,7 @@ class BugAttachmentServiceImplTest {
         when(bugMapper.selectById(bugId)).thenReturn(openBug());
 
         assertThrows(ServiceException.class,
-                () -> bugAttachmentService.downloadAttachment(attachmentId, userId));
+                () -> bugAttachmentService.downloadAttachment(projectId, attachmentId, userId));
     }
 
     // ========== deleteAttachment ==========
@@ -277,7 +296,7 @@ class BugAttachmentServiceImplTest {
             return 1;
         }).when(bugLogMapper).insert(any(BugLog.class));
 
-        bugAttachmentService.deleteAttachment(attachmentId, userId);
+        bugAttachmentService.deleteAttachment(projectId, attachmentId, userId);
 
         verify(bugAttachmentMapper).deleteById(attachmentId);
         ArgumentCaptor<BugLog> logCaptor = ArgumentCaptor.forClass(BugLog.class);
@@ -290,7 +309,7 @@ class BugAttachmentServiceImplTest {
         when(bugAttachmentMapper.selectById(attachmentId)).thenReturn(null);
 
         assertThrows(ServiceException.class,
-                () -> bugAttachmentService.deleteAttachment(attachmentId, userId));
+                () -> bugAttachmentService.deleteAttachment(projectId, attachmentId, userId));
         verify(bugAttachmentMapper, never()).deleteById(any(UUID.class));
     }
 
@@ -305,7 +324,7 @@ class BugAttachmentServiceImplTest {
         when(bugMapper.selectById(bugId)).thenReturn(bug);
 
         assertThrows(ServiceException.class,
-                () -> bugAttachmentService.deleteAttachment(attachmentId, userId));
+                () -> bugAttachmentService.deleteAttachment(projectId, attachmentId, userId));
         verify(bugAttachmentMapper, never()).deleteById(any(UUID.class));
     }
 }

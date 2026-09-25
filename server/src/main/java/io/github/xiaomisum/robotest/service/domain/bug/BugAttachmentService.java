@@ -12,36 +12,40 @@ public interface BugAttachmentService {
     /**
      * 上传缺陷附件（缺陷已关闭时拒绝）
      *
+     * @param projectId 活动项目 ID（X-Active-Project 头，须与资源归属一致）
      * @param bugId  缺陷 ID
      * @param userId 上传用户 ID
      * @param file   上传文件
      * @return 附件信息
      */
-    BugAttachmentRespDTO uploadAttachment(UUID bugId, UUID userId, MultipartFile file);
+    BugAttachmentRespDTO uploadAttachment(UUID projectId, UUID bugId, UUID userId, MultipartFile file);
 
     /**
      * 获取缺陷附件列表
      *
+     * @param projectId 活动项目 ID（X-Active-Project 头，须与资源归属一致）
      * @param bugId  缺陷 ID
      * @param userId 当前用户 ID（用于项目归属校验）
      * @return 按上传时间倒序的附件列表
      */
-    List<BugAttachmentRespDTO> getAttachments(UUID bugId, UUID userId);
+    List<BugAttachmentRespDTO> getAttachments(UUID projectId, UUID bugId, UUID userId);
 
     /**
      * 下载附件内容
      *
+     * @param projectId 活动项目 ID（X-Active-Project 头，须与资源归属一致）
      * @param attachmentId 附件 ID
      * @param userId       当前用户 ID（用于项目归属校验）
      * @return 文件名、类型与内容
      */
-    BugAttachmentDownloadRespDTO downloadAttachment(UUID attachmentId, UUID userId);
+    BugAttachmentDownloadRespDTO downloadAttachment(UUID projectId, UUID attachmentId, UUID userId);
 
     /**
      * 删除附件（逻辑删除，缺陷已关闭时拒绝）
      *
+     * @param projectId 活动项目 ID（X-Active-Project 头，须与资源归属一致）
      * @param attachmentId 附件 ID
      * @param userId       操作用户 ID
      */
-    void deleteAttachment(UUID attachmentId, UUID userId);
+    void deleteAttachment(UUID projectId, UUID attachmentId, UUID userId);
 }

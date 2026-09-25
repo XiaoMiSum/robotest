@@ -74,7 +74,7 @@ public class BugController {
     public Result<BugDetailRespDTO> getBugDetail(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id) {
-        return Result.ok(bugQueryService.getBugDetail(id, loginUser.getId()));
+        return Result.ok(bugQueryService.getBugDetail(loginUser.getActiveProjectId(), id, loginUser.getId()));
     }
 
     @PutMapping("/{id}")
@@ -82,7 +82,7 @@ public class BugController {
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id,
             @RequestBody @Valid BugUpdateReqDTO reqDTO) {
-        bugService.updateBug(id, loginUser.getId(), reqDTO);
+        bugService.updateBug(loginUser.getActiveProjectId(), id, loginUser.getId(), reqDTO);
         return Result.ok();
     }
 
@@ -90,7 +90,7 @@ public class BugController {
     public Result<List<BugLogRespDTO>> getBugLogs(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id) {
-        return Result.ok(bugQueryService.getBugLogs(id, loginUser.getId()));
+        return Result.ok(bugQueryService.getBugLogs(loginUser.getActiveProjectId(), id, loginUser.getId()));
     }
 
     @PatchMapping("/{id}/status")
@@ -98,7 +98,7 @@ public class BugController {
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id,
             @RequestBody @Valid BugStatusChangeReqDTO reqDTO) {
-        bugService.changeBugStatus(id, loginUser.getId(), reqDTO);
+        bugService.changeBugStatus(loginUser.getActiveProjectId(), id, loginUser.getId(), reqDTO);
         return Result.ok();
     }
 
@@ -106,7 +106,7 @@ public class BugController {
     public Result<Void> confirmBug(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id) {
-        bugService.confirmBug(id, loginUser.getId());
+        bugService.confirmBug(loginUser.getActiveProjectId(), id, loginUser.getId());
         return Result.ok();
     }
 
@@ -115,7 +115,7 @@ public class BugController {
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id,
             @RequestBody @Valid BugAssignReqDTO reqDTO) {
-        bugService.assignBug(id, loginUser.getId(),
+        bugService.assignBug(loginUser.getActiveProjectId(), id, loginUser.getId(),
                 reqDTO.getAssigneeId());
         return Result.ok();
     }
@@ -126,21 +126,21 @@ public class BugController {
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id,
             @RequestParam("file") MultipartFile file) {
-        return Result.ok(bugAttachmentService.uploadAttachment(id, loginUser.getId(), file));
+        return Result.ok(bugAttachmentService.uploadAttachment(loginUser.getActiveProjectId(), id, loginUser.getId(), file));
     }
 
     @GetMapping("/{id}/attachments")
     public Result<List<BugAttachmentRespDTO>> getAttachments(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id) {
-        return Result.ok(bugAttachmentService.getAttachments(id, loginUser.getId()));
+        return Result.ok(bugAttachmentService.getAttachments(loginUser.getActiveProjectId(), id, loginUser.getId()));
     }
 
     @GetMapping("/attachments/{attachmentId}/download")
     public ResponseEntity<byte[]> downloadAttachment(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID attachmentId) {
-        BugAttachmentDownloadRespDTO dto = bugAttachmentService.downloadAttachment(attachmentId, loginUser.getId());
+        BugAttachmentDownloadRespDTO dto = bugAttachmentService.downloadAttachment(loginUser.getActiveProjectId(), attachmentId, loginUser.getId());
         // 客户端声明的 contentType 不可信：解析失败回退二进制流，并禁止浏览器嗅探改写类型（安全规范 6.3）
         MediaType mediaType;
         try {
@@ -161,7 +161,7 @@ public class BugController {
     public Result<Void> deleteAttachment(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID attachmentId) {
-        bugAttachmentService.deleteAttachment(attachmentId, loginUser.getId());
+        bugAttachmentService.deleteAttachment(loginUser.getActiveProjectId(), attachmentId, loginUser.getId());
         return Result.ok();
     }
 }
