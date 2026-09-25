@@ -56,7 +56,7 @@ DEC-004 不再作为通用规范决策；上下文路由/请求体边界由各�
 | `docs/00-spec/` 规范收敛 | 已完成第一轮 | 19 篇规范正文已按统一决策重构或新增 |
 | 根目录及端级 AGENTS 同步 | 已完成第一轮 | 已同步核心契约和引用 |
 | 下游架构/详细设计同步 | 部分完成 | 架构文档和脑图业务边界已处理，其余详细设计见 `DOC-*` |
-| 代码和配置整改 | 基本完成 | CODE-* 全部关闭；SEC-001、SEC-002、SEC-003、SEC-004、SEC-006 已完成；SEC-005、SEC-007 已取消，其余见 `SEC-*` |
+| 代码和配置整改 | 基本完成 | CODE-* 全部关闭；SEC-001、SEC-002、SEC-003、SEC-004、SEC-006、SEC-008 已完成；SEC-005、SEC-007 已取消，其余见 `SEC-*` |
 | 质量门禁和 CI | 部分完成 | QA-004 已完成（validate.sh 退出码加固）；QA-003 已取消；其余见 `QA-*` |
 | 数据库和部署闭环 | 部分取消 | DB-001、OPS-006、OPS-007、OPS-009 已取消；其余见 `DB-*`、`OPS-*` |
 | Git 治理和结构拆分 | 基本完成 | GOV-002、GOV-003、GOV-005～GOV-008 已完成；GOV-001、GOV-004 已取消；其余见 `GOV-*` |
@@ -149,7 +149,7 @@ DEC-004 不再作为通用规范决策；上下文路由/请求体边界由各�
 | SEC-005 | P0 | 配置 WebSocket Origin 白名单 | DEC-007 | 生产不使用默认 `*`，握手来源可审计 | 已取消（2026-09-24 用户确认不需要） |
 | SEC-006 | P0 | 实现登录、邀请、刷新和公开接口限流 | — | 限流键、窗口、阈值和失败测试可验证 | 已完成：`AccessRateLimiter` Redis 固定窗口限流，键 `{prefix}:{scope}:{identity}`；登录=IP+账号失败计数（成功仅清理账号键），刷新/邀请/报告分享/初始化/密码设置=IP 尝试计数；键前缀、窗口、阈值经 `robotest.security.rate-limit` 可配，超限统一 1000002010；`AccessRateLimiterTest` 覆盖键格式、窗口/阈值、超限与 Redis 故障失败开放 |
 | SEC-007 | P0 | 补齐敏感操作审计和递归脱敏 | — | 密码、Token、API Key、嵌套 DTO 不进入审计 | 已取消（2026-09-24 用户确认不需要） |
-| SEC-008 | P0 | 关闭生产 SQL 参数输出和过高日志级别 | — | 生产日志不输出敏感 SQL 参数 | 待实施 |
+| SEC-008 | P0 | 关闭生产 SQL 参数输出和过高日志级别 | — | 生产日志不输出敏感 SQL 参数 | 已完成：基座 `application.yaml` 移除 `StdOutImpl`，dev 显式保留、prod 显式 `NoLoggingImpl`；`logback-spring.xml` 按 profile 分级（prod root=INFO、非 prod DEBUG）；`ProductionLoggingConfigTest` 源码文本断言锁定配置 |
 | SEC-009 | P1 | 统一密码强度校验和 PasswordEncoder | — | 创建、重置、邀请和改密入口使用同一规则 | 待实施 |
 | SEC-010 | P1 | 完善 SSRF、文件上传和导出安全 | — | URL、文件类型、大小、归属和内容扫描均有验证 | 待实施 |
 | SEC-011 | P1 | 明确 CORS/CSRF 适用边界 | — | Header Bearer、Cookie 场景和公共接口策略有文档与测试 | 已确认：采用建议 |

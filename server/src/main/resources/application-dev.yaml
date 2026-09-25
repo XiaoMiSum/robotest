@@ -36,3 +36,8 @@ migoo:
     password-secret: ${PASSWORD_SECRET:dev-only-password-secret-change-me}
     jwt:
       secret-key: ${JWT_SECRET_KEY:dev-only-jwt-secret-key-change-me-32bytes}
+
+# 本地开发保留 SQL 输出便于排查（安全规范 6.4：生产环境禁用）
+mybatis-plus:
+  configuration:
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
