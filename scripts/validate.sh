@@ -188,14 +188,13 @@ check_backend() {
 # ─── 契约一致性检查（07 §4.1 / 08 §4.2：openapi-typescript 生成类型漂移校验） ─
 # 基线 web/openapi/contract.json 由后端运行期导出（pnpm contract:gen）。
 # 校验：用基线重新生成类型并与提交的 types/generated/contract.d.ts 比对，漂移即失败。
-# 当前为“可发现”模式：基线缺失时跳过（先报告，不阻断），接入后端后转阻断（QA-008）。
-# 校验依赖缺失、重新生成失败、类型漂移均按失败返回非零（QA-004）。
+# 基线缺失、校验依赖缺失、重新生成失败、类型漂移均按失败返回非零（QA-008 转阻断）。
 # 本脚本只读校验，不修改任何源代码（lint 为 check-only，lint:fix 独立且不被本脚本调用）。
 check_contract() {
   echo ""
   echo "=== 前端契约一致性 ==="
   if [ ! -f "web/openapi/contract.json" ]; then
-    warn "未找到基线 web/openapi/contract.json（后端未导出或未运行 pnpm contract:gen），跳过契约校验"
+    fail "缺少 OpenAPI 基线 web/openapi/contract.json（QA-008 阻断），请运行后端后执行 pnpm contract:gen"
     return
   fi
   # 校验依赖缺失按失败处理（QA-004）：跳过会让契约门禁形同虚设
