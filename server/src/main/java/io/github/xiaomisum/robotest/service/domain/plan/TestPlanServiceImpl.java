@@ -147,23 +147,29 @@ public class TestPlanServiceImpl implements TestPlanService {
         return convertToDetailDTO(plan);
     }
 
-    @Override
-    public TestPlanDetailRespDTO getPlanDetail(UUID planId, UUID userId) {
+    /**
+     * 按路径 ID 载入计划（backlog SEC-014）：计划归属必须等于 X-Active-Project 活动项目，
+     * 跨项目按不存在处理，不泄露计划存在性；随后做工作空间成员校验。
+     */
+    private TestPlan requirePlan(UUID projectId, UUID planId, UUID userId) {
         TestPlan plan = testPlanMapper.selectById(planId);
-        if (plan == null) {
+        if (plan == null || !plan.getProjectId().equals(projectId)) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_PLAN_NOT_FOUND);
         }
         projectAccessGuard.requireProjectMember(plan.getProjectId(), userId);
+        return plan;
+    }
+
+    @Override
+    public TestPlanDetailRespDTO getPlanDetail(UUID projectId, UUID planId, UUID userId) {
+        TestPlan plan = requirePlan(projectId, planId, userId);
         return convertToDetailDTO(plan);
     }
 
     @Override
-    public List<TestPlanSnapshotNodeRespDTO> getPlanSnapshotTree(UUID planId, UUID documentId, UUID userId) {
-        TestPlan plan = testPlanMapper.selectById(planId);
-        if (plan == null) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_PLAN_NOT_FOUND);
-        }
-        projectAccessGuard.requireProjectMember(plan.getProjectId(), userId);
+    public List<TestPlanSnapshotNodeRespDTO> getPlanSnapshotTree(UUID projectId, UUID planId, UUID documentId,
+            UUID userId) {
+        TestPlan plan = requirePlan(projectId, planId, userId);
 
         List<TestPlanNodeSnapshot> allNodes = planNodeSnapshotMapper.listByPlanIdAndDocumentId(planId, documentId);
         List<TestPlanSnapshotNodeRespDTO> dtos = allNodes.stream()
@@ -174,12 +180,8 @@ public class TestPlanServiceImpl implements TestPlanService {
     }
 
     @Override
-    public List<SnapshotModuleTreeRespDTO> getPlanModuleTree(UUID planId, UUID userId) {
-        TestPlan plan = testPlanMapper.selectById(planId);
-        if (plan == null) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_PLAN_NOT_FOUND);
-        }
-        projectAccessGuard.requireProjectMember(plan.getProjectId(), userId);
+    public List<SnapshotModuleTreeRespDTO> getPlanModuleTree(UUID projectId, UUID planId, UUID userId) {
+        TestPlan plan = requirePlan(projectId, planId, userId);
 
         List<TestPlanModuleSnapshot> modules = planModuleSnapshotMapper.listSortedByPlanId(planId);
 
@@ -213,12 +215,8 @@ public class TestPlanServiceImpl implements TestPlanService {
     }
 
     @Override
-    public List<PlannedCasesRespDTO> getPlanPlannedCases(UUID planId, UUID userId) {
-        TestPlan plan = testPlanMapper.selectById(planId);
-        if (plan == null) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_PLAN_NOT_FOUND);
-        }
-        projectAccessGuard.requireProjectMember(plan.getProjectId(), userId);
+    public List<PlannedCasesRespDTO> getPlanPlannedCases(UUID projectId, UUID planId, UUID userId) {
+        TestPlan plan = requirePlan(projectId, planId, userId);
 
         List<PlannedCasesRespDTO> result = new ArrayList<>();
         for (TestPlanModuleSnapshot docSnap : selectDocumentSnapshots(planId)) {
@@ -240,12 +238,8 @@ public class TestPlanServiceImpl implements TestPlanService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void updatePlanCases(UUID planId, UUID userId, TestPlanCasesUpdateReqDTO reqDTO) {
-        TestPlan plan = testPlanMapper.selectById(planId);
-        if (plan == null) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_PLAN_NOT_FOUND);
-        }
-        projectAccessGuard.requireProjectMember(plan.getProjectId(), userId);
+    public void updatePlanCases(UUID projectId, UUID planId, UUID userId, TestPlanCasesUpdateReqDTO reqDTO) {
+        TestPlan plan = requirePlan(projectId, planId, userId);
         // 未结束（待开始/进行中）才允许调整规划
         if (!Constants.Status.NEW.equals(plan.getStatus())
                 && !Constants.Status.IN_PROGRESS.equals(plan.getStatus())) {
@@ -397,13 +391,9 @@ public class TestPlanServiceImpl implements TestPlanService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void submitExecutionRecord(UUID planId, UUID userId,
+    public void submitExecutionRecord(UUID projectId, UUID planId, UUID userId,
             TestPlanRecordReqDTO reqDTO) {
-        TestPlan plan = testPlanMapper.selectById(planId);
-        if (plan == null) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_PLAN_NOT_FOUND);
-        }
-        projectAccessGuard.requireProjectMember(plan.getProjectId(), userId);
+        TestPlan plan = requirePlan(projectId, planId, userId);
 
         TestPlanNodeSnapshot snapshotNode = planNodeSnapshotMapper.selectById(
                 reqDTO.getSnapshotNodeId());
@@ -458,12 +448,8 @@ public class TestPlanServiceImpl implements TestPlanService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void syncPlan(UUID planId, UUID userId) {
-        TestPlan plan = testPlanMapper.selectById(planId);
-        if (plan == null) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_PLAN_NOT_FOUND);
-        }
-        projectAccessGuard.requireProjectMember(plan.getProjectId(), userId);
+    public void syncPlan(UUID projectId, UUID planId, UUID userId) {
+        TestPlan plan = requirePlan(projectId, planId, userId);
         if (!userId.equals(plan.getExecutorId())) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.NO_PERMISSION);
         }
@@ -562,12 +548,8 @@ public class TestPlanServiceImpl implements TestPlanService {
     }
 
     @Override
-    public TestPlanProgressRespDTO getPlanProgress(UUID planId, UUID userId) {
-        TestPlan plan = testPlanMapper.selectById(planId);
-        if (plan == null) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_PLAN_NOT_FOUND);
-        }
-        projectAccessGuard.requireProjectMember(plan.getProjectId(), userId);
+    public TestPlanProgressRespDTO getPlanProgress(UUID projectId, UUID planId, UUID userId) {
+        TestPlan plan = requirePlan(projectId, planId, userId);
 
         List<TestPlanNodeSnapshot> snapshots = planNodeSnapshotMapper.listAssociatedByPlanId(planId, Constants.NodeType.CASE);
 
@@ -604,12 +586,8 @@ public class TestPlanServiceImpl implements TestPlanService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void completePlan(UUID planId, UUID userId) {
-        TestPlan plan = testPlanMapper.selectById(planId);
-        if (plan == null) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_PLAN_NOT_FOUND);
-        }
-        projectAccessGuard.requireProjectMember(plan.getProjectId(), userId);
+    public void completePlan(UUID projectId, UUID planId, UUID userId) {
+        TestPlan plan = requirePlan(projectId, planId, userId);
         if (!userId.equals(plan.getExecutorId())) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.NO_PERMISSION);
         }
@@ -623,12 +601,8 @@ public class TestPlanServiceImpl implements TestPlanService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void deletePlan(UUID planId, UUID userId) {
-        TestPlan plan = testPlanMapper.selectById(planId);
-        if (plan == null) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_PLAN_NOT_FOUND);
-        }
-        projectAccessGuard.requireProjectMember(plan.getProjectId(), userId);
+    public void deletePlan(UUID projectId, UUID planId, UUID userId) {
+        TestPlan plan = requirePlan(projectId, planId, userId);
         if (!userId.equals(plan.getExecutorId())) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.NO_PERMISSION);
         }
