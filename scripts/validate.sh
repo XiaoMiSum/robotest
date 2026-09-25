@@ -153,11 +153,12 @@ check_frontend() {
     fail "typecheck 失败"
   fi
 
-  echo "--- unit tests ---"
+  echo "--- unit tests + coverage (C8) ---"
+  # test:unit 已内联 --coverage，低于 70% 阈值即失败（QA-005）
   if (cd web && pnpm run test:unit 2>&1); then
-    pass "单元测试通过"
+    pass "单元测试与覆盖率通过（C8 ≥ 70%）"
   else
-    fail "单元测试失败"
+    fail "单元测试或覆盖率阈值失败（C8）"
   fi
 }
 
