@@ -1,8 +1,10 @@
 package io.github.xiaomisum.robotest.controller;
 
+import io.github.xiaomisum.robotest.framework.ratelimit.AccessRateLimiter;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiPublicReportRespDTO;
 import io.github.xiaomisum.robotest.service.apitest.ApiReportService;
 import jakarta.annotation.Resource;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -22,11 +24,15 @@ public class ApiReportPublicController {
 
     @Resource
     private ApiReportService reportService;
+    @Resource
+    private AccessRateLimiter accessRateLimiter;
 
     @GetMapping("/{id}")
     public Result<ApiPublicReportRespDTO> access(
             @PathVariable UUID id,
-            @RequestParam("token") String token) {
+            @RequestParam("token") String token,
+            HttpServletRequest request) {
+        accessRateLimiter.checkPublicReport(request);
         return Result.ok(reportService.publicAccess(id, token));
     }
 

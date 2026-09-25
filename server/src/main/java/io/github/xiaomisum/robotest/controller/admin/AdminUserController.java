@@ -1,5 +1,6 @@
 package io.github.xiaomisum.robotest.controller.admin;
 
+import io.github.xiaomisum.robotest.framework.ratelimit.AccessRateLimiter;
 import io.github.xiaomisum.robotest.model.dto.request.admin.UserBatchStatusReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.admin.UserCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.admin.UserPasswordResetReqDTO;
@@ -9,6 +10,7 @@ import io.github.xiaomisum.robotest.model.dto.response.admin.UserRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.admin.UserSimpleRespDTO;
 import io.github.xiaomisum.robotest.service.admin.UserService;
 import jakarta.annotation.Resource;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -24,6 +26,8 @@ public class AdminUserController {
 
     @Resource
     private UserService userService;
+    @Resource
+    private AccessRateLimiter accessRateLimiter;
 
     @GetMapping
     // role:view 覆盖角色页“用户”页签的角色用户列表查询
@@ -81,7 +85,9 @@ public class AdminUserController {
     @PostMapping("/{id}/reset-password")
     @PreAuthorize("hasAuthority('user:reset-password')")
     public Result<Void> resetPassword(@PathVariable UUID id,
-                                       @RequestBody @Valid UserPasswordResetReqDTO reqDTO) {
+                                       @RequestBody @Valid UserPasswordResetReqDTO reqDTO,
+                                       HttpServletRequest request) {
+        accessRateLimiter.checkPassword(request);
         userService.resetPassword(id, reqDTO.getNewPassword());
         return Result.ok();
     }
