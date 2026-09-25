@@ -108,4 +108,34 @@ class ImportSourceFetcherTest {
     }
 
     // endregion
+
+    // region 端口校验（安全规范 6.3）
+
+    @Test
+    void strictRejectsPortOutsideAllowlist() {
+        ServiceException exception = assertThrows(ServiceException.class,
+                () -> strict.fetch("http://93.184.216.34:22/openapi.json"));
+        assertThat(exception.getMessage()).contains("非白名单端口");
+    }
+
+    @Test
+    void strictAllowsWhitelistedPortOnPublicAddress() {
+        assertThatCode(() -> strict.guard(java.net.URI.create("http://93.184.216.34:8080/openapi.json")))
+                .doesNotThrowAnyException();
+    }
+
+    @Test
+    void intranetAllowsArbitraryValidPortWithinSwaggerPath() {
+        assertThatCode(() -> intranet.guard(java.net.URI.create("http://10.1.2.3:9500/v3/api-docs")))
+                .doesNotThrowAnyException();
+    }
+
+    @Test
+    void rejectsPortOutsideValidRange() {
+        ServiceException exception = assertThrows(ServiceException.class,
+                () -> intranet.fetch("http://10.1.2.3:99999/v3/api-docs"));
+        assertThat(exception.getMessage()).contains("端口超出合法范围");
+    }
+
+    // endregion
 }

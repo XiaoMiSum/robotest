@@ -65,6 +65,10 @@ class BugAttachmentServiceImplTest {
     private UUID userId;
     private UUID attachmentId;
 
+    /** 真实 PNG 文件头 + 数据（安全规范 6.3：内容嗅探只认真实魔数） */
+    private static final byte[] PNG_MAGIC_AND_DATA = {
+            (byte) 0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A, 1, 2, 3};
+
     @BeforeEach
     void setUp() {
         bugId = UUID.fromString("00000000-0000-0000-0000-000000000001");
@@ -96,13 +100,13 @@ class BugAttachmentServiceImplTest {
         }).when(bugLogMapper).insert(any(BugLog.class));
 
         MockMultipartFile file = new MockMultipartFile(
-                "file", "截图.png", "image/png", "png-bytes".getBytes(StandardCharsets.UTF_8));
+                "file", "截图.png", "image/png", PNG_MAGIC_AND_DATA);
 
         BugAttachmentRespDTO dto = bugAttachmentService.uploadAttachment(bugId, userId, file);
 
         assertEquals(attachmentId, dto.getId());
         assertEquals("截图.png", dto.getFileName());
-        assertEquals((long) "png-bytes".getBytes(StandardCharsets.UTF_8).length, dto.getFileSize());
+        assertEquals((long) PNG_MAGIC_AND_DATA.length, dto.getFileSize());
 
         ArgumentCaptor<BugAttachment> captor = ArgumentCaptor.forClass(BugAttachment.class);
         verify(bugAttachmentMapper).insert(captor.capture());
@@ -156,6 +160,30 @@ class BugAttachmentServiceImplTest {
 
         assertThrows(ServiceException.class,
                 () -> bugAttachmentService.uploadAttachment(bugId, userId, file));
+        verify(bugAttachmentMapper, never()).insert(any(BugAttachment.class));
+    }
+
+    @Test
+    void uploadAttachment_rejectsDisallowedExtension() {
+        when(bugMapper.selectById(bugId)).thenReturn(openBug());
+        MockMultipartFile file = new MockMultipartFile("file", "evil.html", "text/html",
+                "<html><script>alert(1)</script></html>".getBytes(StandardCharsets.UTF_8));
+
+        ServiceException exception = assertThrows(ServiceException.class,
+                () -> bugAttachmentService.uploadAttachment(bugId, userId, file));
+        assertTrue(exception.getMessage().contains("不支持的附件类型"));
+        verify(bugAttachmentMapper, never()).insert(any(BugAttachment.class));
+    }
+
+    @Test
+    void uploadAttachment_rejectsContentMismatch() {
+        when(bugMapper.selectById(bugId)).thenReturn(openBug());
+        MockMultipartFile file = new MockMultipartFile("file", "fake.png", "image/png",
+                "not-a-real-png".getBytes(StandardCharsets.UTF_8));
+
+        ServiceException exception = assertThrows(ServiceException.class,
+                () -> bugAttachmentService.uploadAttachment(bugId, userId, file));
+        assertTrue(exception.getMessage().contains("附件内容与文件类型不符"));
         verify(bugAttachmentMapper, never()).insert(any(BugAttachment.class));
     }
 
