@@ -17,7 +17,7 @@ const checking = ref(true)
 
 // 与提交校验同源的实时达标提示，帮助用户在输入过程中自查
 const hints = computed(() => [
-  { label: '至少 8 个字符', ok: form.password.length >= 8 },
+  { label: '8-64 个字符', ok: form.password.length >= 8 && form.password.length <= 64 },
   { label: '包含字母', ok: /[a-zA-Z]/.test(form.password) },
   { label: '包含数字与符号更安全', ok: /\d/.test(form.password) && /[^a-zA-Z0-9]/.test(form.password) },
 ])
@@ -42,8 +42,8 @@ async function handleSetup() {
     ElMessage.warning('请输入密码')
     return
   }
-  if (form.password.length < 8) {
-    ElMessage.warning('密码长度至少为 8 个字符')
+  if (form.password.length < 8 || form.password.length > 64) {
+    ElMessage.warning('密码长度为 8-64 个字符')
     return
   }
   if (form.password !== form.confirmPassword) {
@@ -93,7 +93,7 @@ async function handleSetup() {
           <el-input
             v-model="form.password"
             type="password"
-            placeholder="请输入密码（至少 8 位）"
+            placeholder="请输入密码（8-64 个字符）"
             size="large"
             prefix-icon="Lock"
             show-password
