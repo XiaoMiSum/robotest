@@ -24,6 +24,18 @@
 - 构建不得依赖未声明的本机工具、全局变量或手工文件。
 - 构建结果必须能够追溯到 commit、构建参数和依赖版本。
 
+当前工具链矩阵（QA-001；升级时必须同步锁定文件与本表）：
+
+| 工具 | 版本 | 锁定来源 |
+| --- | --- | --- |
+| Node | 24.13.0 | `web/.nvmrc` |
+| pnpm | 11.24.0 | `web/package.json` 的 `packageManager`、`engines` |
+| Java | 21 | `server/pom.xml` 的 `java.version` |
+| Maven | 3.9.9（宿主安装，项目无 wrapper） | 本表 |
+| PostgreSQL | 14+（开发容器当前为 18） | `server/src/main/resources/db/`、运行配置 |
+
+开发容器镜像（postgres、redis）当前未在仓库内固定 tag（无 compose 清单），按本表记录，待引入环境清单后再锁定。
+
 ### 2.2 构建阶段
 
 通用构建至少包括：
