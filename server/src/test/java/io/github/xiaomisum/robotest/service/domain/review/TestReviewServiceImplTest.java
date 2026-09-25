@@ -53,6 +53,7 @@ import xyz.migoo.framework.common.pojo.PageParam;
 import xyz.migoo.framework.common.pojo.PageResult;
 
 import io.github.xiaomisum.robotest.framework.common.Constants;
+import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.model.dto.response.review.TestReviewProgressRespDTO;
 
 import java.time.LocalDateTime;
@@ -131,6 +132,7 @@ class TestReviewServiceImplTest {
         void getReviewPage_success() {
                 TestReview review = new TestReview();
                 review.setId(reviewId);
+                review.setProjectId(projectId);
                 review.setTitle("Review 1");
                 review.setStatus("in_progress");
                 review.setInitiatorId(userId);
@@ -212,7 +214,7 @@ class TestReviewServiceImplTest {
                 when(testReviewMapper.selectById(reviewId)).thenReturn(review);
                 when(userMapper.selectById(userId)).thenReturn(null);
 
-                TestReviewDetailRespDTO result = reviewService.getReviewDetail(reviewId, userId);
+                TestReviewDetailRespDTO result = reviewService.getReviewDetail(projectId, reviewId, userId);
 
                 assertNotNull(result);
                 assertEquals("Review", result.getTitle());
@@ -224,7 +226,22 @@ class TestReviewServiceImplTest {
                 when(testReviewMapper.selectById(reviewId)).thenReturn(null);
 
                 assertThrows(ServiceException.class,
-                                () -> reviewService.getReviewDetail(reviewId, userId));
+                                () -> reviewService.getReviewDetail(projectId, reviewId, userId));
+                verify(projectAccessGuard, never()).requireProjectMember(any(), any());
+        }
+
+        @Test
+        void getReviewDetail_crossProject_throws() {
+                TestReview review = new TestReview();
+                review.setId(reviewId);
+                review.setProjectId(UUID.randomUUID());
+                review.setInitiatorId(userId);
+                when(testReviewMapper.selectById(reviewId)).thenReturn(review);
+
+                // 归属活动项目校验（SEC-014）：跨项目按不存在处理，不泄露评审存在性
+                ServiceException exception = assertThrows(ServiceException.class,
+                                () -> reviewService.getReviewDetail(projectId, reviewId, userId));
+                assertEquals(ErrorCodeConstants.TEST_REVIEW_NOT_FOUND.code(), exception.getCode());
                 verify(projectAccessGuard, never()).requireProjectMember(any(), any());
         }
 
@@ -245,7 +262,7 @@ class TestReviewServiceImplTest {
                 when(reviewNodeSnapshotMapper.listByReviewIdAndDocumentId(reviewId, null))
                                 .thenReturn(List.of(snapshot));
 
-                List<TestReviewSnapshotNodeRespDTO> result = reviewService.getReviewSnapshotTree(reviewId, null, userId);
+                List<TestReviewSnapshotNodeRespDTO> result = reviewService.getReviewSnapshotTree(projectId, reviewId, null, userId);
 
                 assertNotNull(result);
                 assertFalse(result.isEmpty());
@@ -257,7 +274,7 @@ class TestReviewServiceImplTest {
                 when(testReviewMapper.selectById(reviewId)).thenReturn(null);
 
                 assertThrows(ServiceException.class,
-                                () -> reviewService.getReviewSnapshotTree(reviewId, null, userId));
+                                () -> reviewService.getReviewSnapshotTree(projectId, reviewId, null, userId));
                 verify(projectAccessGuard, never()).requireProjectMember(any(), any());
         }
 
@@ -265,6 +282,7 @@ class TestReviewServiceImplTest {
         void submitReviewRecord_success() {
                 TestReview review = new TestReview();
                 review.setId(reviewId);
+                review.setProjectId(projectId);
                 review.setStatus("in_progress");
 
                 when(testReviewMapper.selectById(reviewId)).thenReturn(review);
@@ -282,7 +300,7 @@ class TestReviewServiceImplTest {
                 reqDTO.setOperationType("mark");
                 reqDTO.setMark("pass");
 
-                reviewService.submitReviewRecord(reviewId, userId, reqDTO);
+                reviewService.submitReviewRecord(projectId, reviewId, userId, reqDTO);
 
                 verify(reviewNodeSnapshotMapper).updateById(any(TestReviewNodeSnapshot.class));
                 verify(reviewRecordMapper).insert(any(TestReviewRecord.class));
@@ -292,6 +310,7 @@ class TestReviewServiceImplTest {
         void submitReviewRecord_markOnNewReview_setsInProgress() {
                 TestReview review = new TestReview();
                 review.setId(reviewId);
+                review.setProjectId(projectId);
                 review.setStatus(Constants.Status.NEW);
 
                 when(testReviewMapper.selectById(reviewId)).thenReturn(review);
@@ -309,7 +328,7 @@ class TestReviewServiceImplTest {
                 reqDTO.setOperationType("mark");
                 reqDTO.setMark("pass");
 
-                reviewService.submitReviewRecord(reviewId, userId, reqDTO);
+                reviewService.submitReviewRecord(projectId, reviewId, userId, reqDTO);
 
                 assertEquals(Constants.Status.IN_PROGRESS, review.getStatus());
                 // 状态流转通过仅携带 id + status 的载体落库
@@ -342,7 +361,7 @@ class TestReviewServiceImplTest {
                 when(reviewModuleSnapshotMapper.listByReviewId(reviewId))
                                 .thenReturn(List.of(dir, doc));
 
-                List<SnapshotModuleTreeRespDTO> tree = reviewService.getReviewModuleTree(reviewId, userId);
+                List<SnapshotModuleTreeRespDTO> tree = reviewService.getReviewModuleTree(projectId, reviewId, userId);
 
                 assertEquals(1, tree.size());
                 assertEquals("目录", tree.get(0).getName());
@@ -366,7 +385,7 @@ class TestReviewServiceImplTest {
                 reqDTO.setSelectedNodes(List.of(sn));
 
                 assertThrows(ServiceException.class,
-                                () -> reviewService.updateReviewCases(reviewId, userId, reqDTO));
+                                () -> reviewService.updateReviewCases(projectId, reviewId, userId, reqDTO));
                 verify(projectAccessGuard).requireProjectMember(projectId, userId);
         }
 
@@ -441,7 +460,7 @@ class TestReviewServiceImplTest {
                 sn.setCaseIds(List.of(caseC2));
                 reqDTO.setSelectedNodes(List.of(sn));
 
-                reviewService.updateReviewCases(reviewId, userId, reqDTO);
+                reviewService.updateReviewCases(projectId, reviewId, userId, reqDTO);
 
                 // docA 被移除：节点快照批删 + 文档快照删除
                 verify(reviewNodeSnapshotMapper).deleteByReviewIdAndDocumentId(reviewId, snapA.getId());
@@ -480,7 +499,7 @@ class TestReviewServiceImplTest {
                 when(reviewNodeSnapshotMapper.listAssociatedByReviewIdAndDocumentId(reviewId, snapA.getId()))
                                 .thenReturn(List.of(caseSnap));
 
-                List<PlannedCasesRespDTO> result = reviewService.getReviewPlannedCases(reviewId, userId);
+                List<PlannedCasesRespDTO> result = reviewService.getReviewPlannedCases(projectId, reviewId, userId);
 
                 assertEquals(1, result.size());
                 assertEquals(docA, result.get(0).getDocumentId());
@@ -493,7 +512,7 @@ class TestReviewServiceImplTest {
                 when(testReviewMapper.selectById(reviewId)).thenReturn(null);
 
                 assertThrows(ServiceException.class,
-                                () -> reviewService.getReviewModuleTree(reviewId, userId));
+                                () -> reviewService.getReviewModuleTree(projectId, reviewId, userId));
                 verify(projectAccessGuard, never()).requireProjectMember(any(), any());
         }
 
@@ -501,6 +520,7 @@ class TestReviewServiceImplTest {
         void submitReviewRecord_pendingMark_resetsViaUpdateWrapper() {
                 TestReview review = new TestReview();
                 review.setId(reviewId);
+                review.setProjectId(projectId);
                 review.setStatus("in_progress");
 
                 when(testReviewMapper.selectById(reviewId)).thenReturn(review);
@@ -519,7 +539,7 @@ class TestReviewServiceImplTest {
                 reqDTO.setOperationType("mark");
                 reqDTO.setMark("pending");
 
-                reviewService.submitReviewRecord(reviewId, userId, reqDTO);
+                reviewService.submitReviewRecord(projectId, reviewId, userId, reqDTO);
 
                 // 重置路径走显式置空的专用更新方法，不走 updateById（其会忽略 null 字段）
                 verify(reviewNodeSnapshotMapper, never()).updateById(any(TestReviewNodeSnapshot.class));
@@ -532,6 +552,7 @@ class TestReviewServiceImplTest {
         void submitReviewRecord_invalidMark_throws() {
                 TestReview review = new TestReview();
                 review.setId(reviewId);
+                review.setProjectId(projectId);
                 review.setStatus("in_progress");
 
                 when(testReviewMapper.selectById(reviewId)).thenReturn(review);
@@ -550,7 +571,7 @@ class TestReviewServiceImplTest {
                 reqDTO.setMark("invalid");
 
                 assertThrows(ServiceException.class,
-                                () -> reviewService.submitReviewRecord(reviewId, userId, reqDTO));
+                                () -> reviewService.submitReviewRecord(projectId, reviewId, userId, reqDTO));
         }
 
         @Test
@@ -562,13 +583,14 @@ class TestReviewServiceImplTest {
                 reqDTO.setOperationType("comment");
 
                 assertThrows(ServiceException.class,
-                                () -> reviewService.submitReviewRecord(reviewId, userId, reqDTO));
+                                () -> reviewService.submitReviewRecord(projectId, reviewId, userId, reqDTO));
         }
 
         @Test
         void submitReviewRecord_notInProgress_throws() {
                 TestReview review = new TestReview();
                 review.setId(reviewId);
+                review.setProjectId(projectId);
                 review.setStatus("completed");
 
                 when(testReviewMapper.selectById(reviewId)).thenReturn(review);
@@ -578,13 +600,14 @@ class TestReviewServiceImplTest {
                 reqDTO.setOperationType("comment");
 
                 assertThrows(ServiceException.class,
-                                () -> reviewService.submitReviewRecord(reviewId, userId, reqDTO));
+                                () -> reviewService.submitReviewRecord(projectId, reviewId, userId, reqDTO));
         }
 
         @Test
         void submitReviewRecord_snapshotNotFound_throws() {
                 TestReview review = new TestReview();
                 review.setId(reviewId);
+                review.setProjectId(projectId);
                 review.setStatus("in_progress");
 
                 when(testReviewMapper.selectById(reviewId)).thenReturn(review);
@@ -596,13 +619,14 @@ class TestReviewServiceImplTest {
                 reqDTO.setOperationType("comment");
 
                 assertThrows(ServiceException.class,
-                                () -> reviewService.submitReviewRecord(reviewId, userId, reqDTO));
+                                () -> reviewService.submitReviewRecord(projectId, reviewId, userId, reqDTO));
         }
 
         @Test
         void submitReviewRecord_markNonCaseNode_throws() {
                 TestReview review = new TestReview();
                 review.setId(reviewId);
+                review.setProjectId(projectId);
                 review.setStatus("in_progress");
 
                 when(testReviewMapper.selectById(reviewId)).thenReturn(review);
@@ -621,7 +645,7 @@ class TestReviewServiceImplTest {
                 reqDTO.setMark("pass");
 
                 assertThrows(ServiceException.class,
-                                () -> reviewService.submitReviewRecord(reviewId, userId, reqDTO));
+                                () -> reviewService.submitReviewRecord(projectId, reviewId, userId, reqDTO));
         }
 
         @Test
@@ -645,7 +669,7 @@ class TestReviewServiceImplTest {
                                 .thenReturn(List.of(record));
                 when(userMapper.selectById(userId)).thenReturn(null);
 
-                List<TestReviewRecordRespDTO> result = reviewService.getNodeReviewRecords(reviewId, snapNodeId, userId);
+                List<TestReviewRecordRespDTO> result = reviewService.getNodeReviewRecords(projectId, reviewId, snapNodeId, userId);
 
                 assertNotNull(result);
                 assertEquals(1, result.size());
@@ -657,12 +681,13 @@ class TestReviewServiceImplTest {
         void completeReview_success() {
                 TestReview review = new TestReview();
                 review.setId(reviewId);
+                review.setProjectId(projectId);
                 review.setInitiatorId(userId);
                 review.setStatus("in_progress");
 
                 when(testReviewMapper.selectById(reviewId)).thenReturn(review);
 
-                reviewService.completeReview(reviewId, userId);
+                reviewService.completeReview(projectId, reviewId, userId);
 
                 ArgumentCaptor<TestReview> captor = ArgumentCaptor.forClass(TestReview.class);
                 verify(testReviewMapper).updateById(captor.capture());
@@ -684,12 +709,13 @@ class TestReviewServiceImplTest {
         void completeReview_notInitiator_throws() {
                 TestReview review = new TestReview();
                 review.setId(reviewId);
+                review.setProjectId(projectId);
                 review.setInitiatorId(otherUserId);
 
                 when(testReviewMapper.selectById(reviewId)).thenReturn(review);
 
                 assertThrows(ServiceException.class,
-                                () -> reviewService.completeReview(reviewId, userId));
+                                () -> reviewService.completeReview(projectId, reviewId, userId));
         }
 
         @Test
@@ -697,18 +723,19 @@ class TestReviewServiceImplTest {
                 when(testReviewMapper.selectById(reviewId)).thenReturn(null);
 
                 assertThrows(ServiceException.class,
-                                () -> reviewService.completeReview(reviewId, userId));
+                                () -> reviewService.completeReview(projectId, reviewId, userId));
         }
 
         @Test
         void deleteReview_success() {
                 TestReview review = new TestReview();
                 review.setId(reviewId);
+                review.setProjectId(projectId);
                 review.setInitiatorId(userId);
 
                 when(testReviewMapper.selectById(reviewId)).thenReturn(review);
 
-                reviewService.deleteReview(reviewId, userId);
+                reviewService.deleteReview(projectId, reviewId, userId);
 
                 verify(reviewRecordMapper).deleteByReviewId(reviewId);
                 verify(reviewSnapshotService).deleteByReviewId(reviewId);
@@ -723,12 +750,13 @@ class TestReviewServiceImplTest {
         void deleteReview_notInitiator_throws() {
                 TestReview review = new TestReview();
                 review.setId(reviewId);
+                review.setProjectId(projectId);
                 review.setInitiatorId(otherUserId);
 
                 when(testReviewMapper.selectById(reviewId)).thenReturn(review);
 
                 assertThrows(ServiceException.class,
-                                () -> reviewService.deleteReview(reviewId, userId));
+                                () -> reviewService.deleteReview(projectId, reviewId, userId));
                 verify(testReviewMapper, never()).deleteById(any(UUID.class));
         }
 
@@ -737,13 +765,14 @@ class TestReviewServiceImplTest {
                 when(testReviewMapper.selectById(reviewId)).thenReturn(null);
 
                 assertThrows(ServiceException.class,
-                                () -> reviewService.deleteReview(reviewId, userId));
+                                () -> reviewService.deleteReview(projectId, reviewId, userId));
         }
 
         @Test
         void syncReview_success() {
                 TestReview review = new TestReview();
                 review.setId(reviewId);
+                review.setProjectId(projectId);
                 review.setInitiatorId(userId);
                 review.setStatus("in_progress");
 
@@ -773,7 +802,7 @@ class TestReviewServiceImplTest {
                 when(testCaseNodeMapper.listByIds(anyCollection()))
                                 .thenReturn(List.of(currentNode));
 
-                reviewService.syncReview(reviewId, userId);
+                reviewService.syncReview(projectId, reviewId, userId);
 
                 ArgumentCaptor<TestReviewNodeSnapshot> nodeCaptor = ArgumentCaptor.forClass(TestReviewNodeSnapshot.class);
                 verify(reviewNodeSnapshotMapper).updateById(nodeCaptor.capture());
@@ -785,32 +814,35 @@ class TestReviewServiceImplTest {
         void syncReview_notInitiator_throws() {
                 TestReview review = new TestReview();
                 review.setId(reviewId);
+                review.setProjectId(projectId);
                 review.setInitiatorId(otherUserId);
                 review.setStatus("in_progress");
 
                 when(testReviewMapper.selectById(reviewId)).thenReturn(review);
 
                 assertThrows(ServiceException.class,
-                                () -> reviewService.syncReview(reviewId, userId));
+                                () -> reviewService.syncReview(projectId, reviewId, userId));
         }
 
         @Test
         void syncReview_notInProgress_throws() {
                 TestReview review = new TestReview();
                 review.setId(reviewId);
+                review.setProjectId(projectId);
                 review.setInitiatorId(userId);
                 review.setStatus("completed");
 
                 when(testReviewMapper.selectById(reviewId)).thenReturn(review);
 
                 assertThrows(ServiceException.class,
-                                () -> reviewService.syncReview(reviewId, userId));
+                                () -> reviewService.syncReview(projectId, reviewId, userId));
         }
 
         @Test
         void syncReview_deletedOriginal_marksDeleted() {
                 TestReview review = new TestReview();
                 review.setId(reviewId);
+                review.setProjectId(projectId);
                 review.setInitiatorId(userId);
                 review.setStatus("in_progress");
 
@@ -829,7 +861,7 @@ class TestReviewServiceImplTest {
                 when(testCaseNodeMapper.listByIds(anyCollection()))
                                 .thenReturn(List.of());
 
-                reviewService.syncReview(reviewId, userId);
+                reviewService.syncReview(projectId, reviewId, userId);
 
                 ArgumentCaptor<TestReviewNodeSnapshot> delCaptor = ArgumentCaptor.forClass(TestReviewNodeSnapshot.class);
                 verify(reviewNodeSnapshotMapper).updateById(delCaptor.capture());
@@ -855,7 +887,7 @@ class TestReviewServiceImplTest {
                 when(reviewNodeSnapshotMapper.listAssociatedByReviewId(reviewId, Constants.NodeType.CASE))
                                 .thenReturn(List.of(snap1, snap2, snap3));
 
-                TestReviewProgressRespDTO result = reviewService.getReviewProgress(reviewId, userId);
+                TestReviewProgressRespDTO result = reviewService.getReviewProgress(projectId, reviewId, userId);
 
                 assertEquals(3, result.getTotalAssociated());
                 assertEquals(1, result.getPassed());
@@ -869,7 +901,7 @@ class TestReviewServiceImplTest {
                 when(testReviewMapper.selectById(reviewId)).thenReturn(null);
 
                 assertThrows(ServiceException.class,
-                                () -> reviewService.getReviewProgress(reviewId, userId));
+                                () -> reviewService.getReviewProgress(projectId, reviewId, userId));
                 verify(projectAccessGuard, never()).requireProjectMember(any(), any());
         }
 
@@ -882,7 +914,7 @@ class TestReviewServiceImplTest {
                 when(reviewNodeSnapshotMapper.listAssociatedByReviewId(reviewId, Constants.NodeType.CASE))
                                 .thenReturn(new ArrayList<>());
 
-                TestReviewProgressRespDTO result = reviewService.getReviewProgress(reviewId, userId);
+                TestReviewProgressRespDTO result = reviewService.getReviewProgress(projectId, reviewId, userId);
 
                 assertEquals(0, result.getTotalAssociated());
                 assertEquals(0.0, result.getProgressPercent());
@@ -895,6 +927,7 @@ class TestReviewServiceImplTest {
         void syncReview_syncsModuleName() {
                 TestReview review = new TestReview();
                 review.setId(reviewId);
+                review.setProjectId(projectId);
                 review.setInitiatorId(userId);
                 review.setStatus(Constants.Status.IN_PROGRESS);
 
@@ -920,7 +953,7 @@ class TestReviewServiceImplTest {
                 when(projectModuleMapper.selectById(UUID.fromString("00000000-0000-0000-0000-000000000010")))
                                 .thenReturn(originalModule);
 
-                reviewService.syncReview(reviewId, userId);
+                reviewService.syncReview(projectId, reviewId, userId);
 
                 ArgumentCaptor<TestReviewModuleSnapshot> moduleCaptor = ArgumentCaptor.forClass(TestReviewModuleSnapshot.class);
                 verify(reviewModuleSnapshotMapper).updateById(moduleCaptor.capture());
@@ -932,6 +965,7 @@ class TestReviewServiceImplTest {
         void syncReview_deletesRemovedModule() {
                 TestReview review = new TestReview();
                 review.setId(reviewId);
+                review.setProjectId(projectId);
                 review.setInitiatorId(userId);
                 review.setStatus(Constants.Status.IN_PROGRESS);
 
@@ -949,7 +983,7 @@ class TestReviewServiceImplTest {
                 when(projectModuleMapper.selectById(UUID.fromString("00000000-0000-0000-0000-000000000010")))
                                 .thenReturn(null);
 
-                reviewService.syncReview(reviewId, userId);
+                reviewService.syncReview(projectId, reviewId, userId);
 
                 verify(reviewModuleSnapshotMapper).deleteById(moduleSnapId);
         }
@@ -958,6 +992,7 @@ class TestReviewServiceImplTest {
         void syncReview_deletedModule_cascadesNodeDeletion() {
                 TestReview review = new TestReview();
                 review.setId(reviewId);
+                review.setProjectId(projectId);
                 review.setInitiatorId(userId);
                 review.setStatus(Constants.Status.IN_PROGRESS);
 
@@ -980,7 +1015,7 @@ class TestReviewServiceImplTest {
                 when(projectModuleMapper.selectById(UUID.fromString("00000000-0000-0000-0000-000000000010")))
                                 .thenReturn(null);
 
-                reviewService.syncReview(reviewId, userId);
+                reviewService.syncReview(projectId, reviewId, userId);
 
                 verify(reviewModuleSnapshotMapper).deleteById(moduleSnapId);
                 verify(reviewNodeSnapshotMapper).deleteById(nodeSnapId);
@@ -991,6 +1026,6 @@ class TestReviewServiceImplTest {
                 when(testReviewMapper.selectById(reviewId)).thenReturn(null);
 
                 assertThrows(ServiceException.class,
-                                () -> reviewService.syncReview(reviewId, userId));
+                                () -> reviewService.syncReview(projectId, reviewId, userId));
         }
 }
