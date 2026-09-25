@@ -2,6 +2,7 @@ package io.github.xiaomisum.robotest.framework.audit;
 
 import tools.jackson.databind.node.ObjectNode;
 import io.github.xiaomisum.robotest.model.entity.admin.AuditLog;
+import io.github.xiaomisum.robotest.framework.security.SensitiveDataMasker;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.ProceedingJoinPoint;
@@ -91,7 +92,8 @@ public class AuditLogAspect {
                         changesNode.set(name, JsonUtils.valueToTree(args[i]));
                     }
                 }
-                record.setChanges(JsonUtils.convert(changesNode, Map.class));
+                // 递归脱敏嵌套 DTO/Map/List 中的敏感字段（安全规范 8.3：字段白名单或递归脱敏）
+                record.setChanges(SensitiveDataMasker.sanitizeMap(JsonUtils.convert(changesNode, Map.class)));
             } else {
                 record.setChanges(Map.of());
             }
