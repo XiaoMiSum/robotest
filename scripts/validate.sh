@@ -124,6 +124,49 @@ check_docs() {
   fi
 }
 
+# ─── 工具链版本一致性（QA-001：按锁定版本复现安装） ───────────────
+# Node 主版本须与 web/.nvmrc 一致，pnpm 须与 package.json packageManager 精确一致；
+# 不一致即失败：新环境按锁定安装（nvm use / corepack enable），升级锁定须同步改文件。
+check_toolchain() {
+  echo ""
+  echo "=== 工具链版本 ==="
+  local nvmrc="web/.nvmrc" pkg="web/package.json"
+  local want_node want_pnpm got_node got_pnpm
+
+  if [ ! -f "$nvmrc" ] || [ ! -f "$pkg" ]; then
+    fail "缺少工具链锁定文件（$nvmrc、$pkg 之一）"
+    return
+  fi
+  want_node="$(tr -d '[:space:]' < "$nvmrc")"
+  want_pnpm="$(sed -n 's/.*"packageManager": *"pnpm@\([^"]*\)".*/\1/p' "$pkg")"
+  if [ -z "$want_node" ] || [ -z "$want_pnpm" ]; then
+    fail "锁定文件内容不完整（.nvmrc 或 packageManager 字段）"
+    return
+  fi
+
+  if ! command -v node >/dev/null 2>&1; then
+    fail "node 未安装（缺少依赖），无法按锁定版本校验"
+    return
+  fi
+  got_node="$(node --version | sed 's/^v//')"
+  if [ "${want_node%%.*}" != "${got_node%%.*}" ]; then
+    fail "Node 主版本不一致：锁定 ${want_node}（.nvmrc），当前 v${got_node}——执行 cd web && nvm use"
+  else
+    pass "Node 主版本一致（锁定 ${want_node}，当前 v${got_node}）"
+  fi
+
+  if ! command -v pnpm >/dev/null 2>&1; then
+    fail "pnpm 未安装（缺少依赖），无法按锁定版本校验"
+    return
+  fi
+  got_pnpm="$(pnpm --version)"
+  if [ "$want_pnpm" != "$got_pnpm" ]; then
+    fail "pnpm 版本不一致：锁定 ${want_pnpm}（packageManager），当前 ${got_pnpm}——corepack enable 或安装锁定版本"
+  else
+    pass "pnpm 版本与 packageManager 一致（${got_pnpm}）"
+  fi
+}
+
 # ─── 前端验证 ──────────────────────────────────────────────────
 check_frontend() {
   echo ""
@@ -248,6 +291,7 @@ check_docs
 
 case "$MODE" in
   --frontend|-f)
+    check_toolchain
     check_frontend
     check_any_usage
     check_contract
@@ -256,6 +300,7 @@ case "$MODE" in
     check_backend
     ;;
   --all|-a|"")
+    check_toolchain
     check_frontend
     check_any_usage
     check_contract
