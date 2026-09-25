@@ -55,8 +55,8 @@ public class BugAttachmentServiceImpl implements BugAttachmentService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public BugAttachmentRespDTO uploadAttachment(UUID bugId, UUID userId, MultipartFile file) {
-        Bug bug = validateBugOperable(bugId);
+    public BugAttachmentRespDTO uploadAttachment(UUID projectId, UUID bugId, UUID userId, MultipartFile file) {
+        Bug bug = validateBugOperable(projectId, bugId);
         projectAccessGuard.requireProjectMember(bug.getProjectId(), userId);
 
         if (file == null || file.isEmpty()) {
@@ -97,21 +97,21 @@ public class BugAttachmentServiceImpl implements BugAttachmentService {
     }
 
     @Override
-    public List<BugAttachmentRespDTO> getAttachments(UUID bugId, UUID userId) {
-        Bug bug = validateBugOperable(bugId);
+    public List<BugAttachmentRespDTO> getAttachments(UUID projectId, UUID bugId, UUID userId) {
+        Bug bug = validateBugOperable(projectId, bugId);
         projectAccessGuard.requireProjectMember(bug.getProjectId(), userId);
         List<BugAttachment> attachments = bugAttachmentMapper.listByBugId(bugId);
         return attachments.stream().map(this::toAttachmentRespDTO).collect(Collectors.toList());
     }
 
     @Override
-    public BugAttachmentDownloadRespDTO downloadAttachment(UUID attachmentId, UUID userId) {
+    public BugAttachmentDownloadRespDTO downloadAttachment(UUID projectId, UUID attachmentId, UUID userId) {
         BugAttachment attachment = bugAttachmentMapper.selectById(attachmentId);
         if (attachment == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.BUG_ATTACHMENT_NOT_FOUND);
         }
         Bug bug = bugMapper.selectById(attachment.getBugId());
-        if (bug == null) {
+        if (bug == null || !bug.getProjectId().equals(projectId)) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.BUG_NOT_FOUND);
         }
         projectAccessGuard.requireProjectMember(bug.getProjectId(), userId);
@@ -131,12 +131,12 @@ public class BugAttachmentServiceImpl implements BugAttachmentService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void deleteAttachment(UUID attachmentId, UUID userId) {
+    public void deleteAttachment(UUID projectId, UUID attachmentId, UUID userId) {
         BugAttachment attachment = bugAttachmentMapper.selectById(attachmentId);
         if (attachment == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.BUG_ATTACHMENT_NOT_FOUND);
         }
-        Bug bug = validateBugOperable(attachment.getBugId());
+        Bug bug = validateBugOperable(projectId, attachment.getBugId());
         projectAccessGuard.requireProjectMember(bug.getProjectId(), userId);
 
         // 逻辑删除记录，磁盘文件保留以便审计追溯
@@ -146,9 +146,9 @@ public class BugAttachmentServiceImpl implements BugAttachmentService {
                 String.format("删除附件「%s」", attachment.getFileName()));
     }
 
-    private Bug validateBugOperable(UUID bugId) {
+    private Bug validateBugOperable(UUID projectId, UUID bugId) {
         Bug bug = bugMapper.selectById(bugId);
-        if (bug == null) {
+        if (bug == null || !bug.getProjectId().equals(projectId)) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.BUG_NOT_FOUND);
         }
         if (BugStatus.CLOSED.getCode().equals(bug.getStatus())) {

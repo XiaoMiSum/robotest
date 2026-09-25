@@ -14,31 +14,34 @@ public interface BugService {
 
     String createBug(UUID projectId, UUID userId, BugCreateReqDTO reqDTO);
 
-    void updateBug(UUID bugId, UUID userId, BugUpdateReqDTO reqDTO);
+    void updateBug(UUID projectId, UUID bugId, UUID userId, BugUpdateReqDTO reqDTO);
 
     /**
      * 变更缺陷状态（四态状态机：active → resolved/rejected → closed，重开回 active，裁决见 BugWorkflow）
      *
+     * @param projectId 活动项目 ID（X-Active-Project 头，须与资源归属一致）
      * @param bugId  缺陷 ID
      * @param userId 操作用户 ID
      * @param reqDTO 目标状态、说明、解决方案及重复缺陷指向
      */
-    void changeBugStatus(UUID bugId, UUID userId, BugStatusChangeReqDTO reqDTO);
+    void changeBugStatus(UUID projectId, UUID bugId, UUID userId, BugStatusChangeReqDTO reqDTO);
 
     /**
      * 确认缺陷（仅激活状态且未确认时可执行）
      *
+     * @param projectId 活动项目 ID（X-Active-Project 头，须与资源归属一致）
      * @param bugId  缺陷 ID
      * @param userId 操作用户 ID
      */
-    void confirmBug(UUID bugId, UUID userId);
+    void confirmBug(UUID projectId, UUID bugId, UUID userId);
 
     /**
      * 指派缺陷处理人
      *
+     * @param projectId 活动项目 ID（X-Active-Project 头，须与资源归属一致）
      * @param bugId      缺陷 ID
      * @param userId     操作用户 ID
      * @param assigneeId 新处理人用户 ID
      */
-    void assignBug(UUID bugId, UUID userId, UUID assigneeId);
+    void assignBug(UUID projectId, UUID bugId, UUID userId, UUID assigneeId);
 }
