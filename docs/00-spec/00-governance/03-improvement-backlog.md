@@ -56,7 +56,7 @@ DEC-004 不再作为通用规范决策；上下文路由/请求体边界由各�
 | `docs/00-spec/` 规范收敛 | 已完成第一轮 | 19 篇规范正文已按统一决策重构或新增 |
 | 根目录及端级 AGENTS 同步 | 已完成第一轮 | 已同步核心契约和引用 |
 | 下游架构/详细设计同步 | 部分完成 | 架构文档和脑图业务边界已处理，其余详细设计见 `DOC-*` |
-| 代码和配置整改 | 基本完成 | CODE-* 全部关闭；SEC-001、SEC-002、SEC-003、SEC-004、SEC-006、SEC-008 已完成；SEC-005、SEC-007 已取消，其余见 `SEC-*` |
+| 代码和配置整改 | 基本完成 | CODE-* 全部关闭；SEC-001、SEC-002、SEC-003、SEC-004、SEC-006、SEC-008、SEC-009 已完成；SEC-005、SEC-007 已取消，其余见 `SEC-*` |
 | 质量门禁和 CI | 部分完成 | QA-004 已完成（validate.sh 退出码加固）；QA-003 已取消；其余见 `QA-*` |
 | 数据库和部署闭环 | 部分取消 | DB-001、OPS-006、OPS-007、OPS-009 已取消；其余见 `DB-*`、`OPS-*` |
 | Git 治理和结构拆分 | 基本完成 | GOV-002、GOV-003、GOV-005～GOV-008 已完成；GOV-001、GOV-004 已取消；其余见 `GOV-*` |
@@ -80,6 +80,7 @@ DEC-004 不再作为通用规范决策；上下文路由/请求体边界由各�
 | DEC-013 | P1 | `audit:view` 授予缺口 | 权限点存在但无任何预置角色授予，系统管理员无法读审计日志；改种子仅新装生效，存量库需手工 UPDATE（DB-001 已取消无迁移工具） | 待确认 |
 | DEC-014 | P0 | 时间存储口径不一致（DEC-005 实施遗留） | 框架 `UTCLocalDateTimeHandler` 存在但未注册，实际入库为本地墙钟：ApiReport 分享写入本地值却按 `utcNow` 比较（UTC+8 下过期晚 8 小时），`share()`（`toUtcWallClock`）与 `shareOf()`（直读）两条响应路径展示相差 8 小时；邀请响应 157 行 `toIso`（直挂 Z）与 334 行 `toUtcWallClock`（换算）口径不一。需确认统一为「注册 handler 存储 UTC」还是「本地存储 + 响应边界换算」，确认后同步全部写读比较点 | 待确认 |
 | DEC-015 | P1 | 限流 Redis 故障降级口径（SEC-006 实施决策） | 规范未规定 Redis 不可用时限流的行为；当前实现为**失败开放**（放行并记 WARN，与 AI 网关 `AiRateLimiter` 口径一致，避免缓存故障阻断登录与公开接口）。是否改为失败关闭（Redis 故障时拒绝登录/公开接口，更安全但扩大故障面） | 待确认 |
+| DEC-016 | P1 | 密码强度规则文档冲突（SEC-009 实施遗留） | `docs/04-detailed-design/system-management/03-system-management-auth.md` §2 密码策略仍写"包含大小写、数字、特殊字符中至少三种"，与同文件 §1.5"后端不做字符类型三选四强度校验，强度仅作前端提示"及 SRS 业务规则"密码仅需 8~64 字符长度，不再要求至少三种"矛盾；`docs/04-detailed-design/system-management/04-system-management-user.md` 创建流程也写"密码强度"。当前前后端实现与 §1.5/SRS 一致（仅 8-64 长度）。是否按仅长度口径修订两处详细设计，或恢复强度校验（需前后端改造且与 SRS 冲突） | 待确认 |
 
 ## 5. 文档同步任务
 
@@ -150,7 +151,7 @@ DEC-004 不再作为通用规范决策；上下文路由/请求体边界由各�
 | SEC-006 | P0 | 实现登录、邀请、刷新和公开接口限流 | — | 限流键、窗口、阈值和失败测试可验证 | 已完成：`AccessRateLimiter` Redis 固定窗口限流，键 `{prefix}:{scope}:{identity}`；登录=IP+账号失败计数（成功仅清理账号键），刷新/邀请/报告分享/初始化/密码设置=IP 尝试计数；键前缀、窗口、阈值经 `robotest.security.rate-limit` 可配，超限统一 1000002010；`AccessRateLimiterTest` 覆盖键格式、窗口/阈值、超限与 Redis 故障失败开放 |
 | SEC-007 | P0 | 补齐敏感操作审计和递归脱敏 | — | 密码、Token、API Key、嵌套 DTO 不进入审计 | 已取消（2026-09-24 用户确认不需要） |
 | SEC-008 | P0 | 关闭生产 SQL 参数输出和过高日志级别 | — | 生产日志不输出敏感 SQL 参数 | 已完成：基座 `application.yaml` 移除 `StdOutImpl`，dev 显式保留、prod 显式 `NoLoggingImpl`；`logback-spring.xml` 按 profile 分级（prod root=INFO、非 prod DEBUG）；`ProductionLoggingConfigTest` 源码文本断言锁定配置 |
-| SEC-009 | P1 | 统一密码强度校验和 PasswordEncoder | — | 创建、重置、邀请和改密入口使用同一规则 | 待实施 |
+| SEC-009 | P1 | 统一密码强度校验和 PasswordEncoder | — | 创建、重置、邀请和改密入口使用同一规则 | 已完成：后端 5 个密码入口统一 `@Size(8,64)`，`PasswordRuleUniformityTest` 运行时断言各入口接受 8/64、拒绝 7/65/空，且 `password_hash` 只经框架注入的 PasswordEncoder 写入（无自行实例化）；前端初始化页补 max 64、重置密码对话框补 8-64 校验并移除与 SRS 冲突的"至少三种"文案；强度规则文档冲突记 DEC-016 |
 | SEC-010 | P1 | 完善 SSRF、文件上传和导出安全 | — | URL、文件类型、大小、归属和内容扫描均有验证 | 待实施 |
 | SEC-011 | P1 | 明确 CORS/CSRF 适用边界 | — | Header Bearer、Cookie 场景和公共接口策略有文档与测试 | 已确认：采用建议 |
 | SEC-012 | P1 | 实现角色变更后的 Token 撤销策略 | DEC-010 | 暂不纳入当前范围，后续安全评估时再处理 | 暂缓 |
