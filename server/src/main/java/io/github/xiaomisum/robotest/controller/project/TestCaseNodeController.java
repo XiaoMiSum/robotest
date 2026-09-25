@@ -26,14 +26,14 @@ public class TestCaseNodeController {
     public Result<TestCaseDocumentNodesRespDTO> getDocumentNodes(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID docId) {
-        return Result.ok(testCaseNodeService.getDocumentNodes(docId, loginUser.getId()));
+        return Result.ok(testCaseNodeService.getDocumentNodes(loginUser.getActiveProjectId(), docId, loginUser.getId()));
     }
 
     @GetMapping("/cases/{caseId}")
     public Result<TestCaseNodeTreeRespDTO> getCaseDetail(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID caseId) {
-        return Result.ok(testCaseNodeService.getCaseDetail(caseId, loginUser.getId()));
+        return Result.ok(testCaseNodeService.getCaseDetail(loginUser.getActiveProjectId(), caseId, loginUser.getId()));
     }
 
     @GetMapping("/cases")
@@ -51,7 +51,7 @@ public class TestCaseNodeController {
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID caseId,
             @RequestBody @Valid TestCaseNodeUpdateReqDTO reqDTO) {
-        testCaseNodeService.updateCaseNode(caseId, loginUser.getId(), reqDTO);
+        testCaseNodeService.updateCaseNode(loginUser.getActiveProjectId(), caseId, loginUser.getId(), reqDTO);
         return Result.ok();
     }
 }

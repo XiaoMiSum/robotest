@@ -47,7 +47,7 @@ public class ProjectModuleController {
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id,
             @RequestBody @Valid ProjectModuleUpdateReqDTO reqDTO) {
-        return Result.ok(projectModuleService.updateModule(id, loginUser.getId(), reqDTO));
+        return Result.ok(projectModuleService.updateModule(loginUser.getActiveProjectId(), id, loginUser.getId(), reqDTO));
     }
 
     @DeleteMapping("/{id}")
@@ -55,7 +55,7 @@ public class ProjectModuleController {
     public Result<Void> deleteModule(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id) {
-        projectModuleService.deleteModule(id, loginUser.getId());
+        projectModuleService.deleteModule(loginUser.getActiveProjectId(), id, loginUser.getId());
         return Result.ok();
     }
 }

@@ -10,9 +10,9 @@ import java.util.UUID;
 
 public interface TestCaseNodeService {
 
-    TestCaseDocumentNodesRespDTO getDocumentNodes(UUID documentId, UUID userId);
+    TestCaseDocumentNodesRespDTO getDocumentNodes(UUID projectId, UUID documentId, UUID userId);
 
-    TestCaseNodeTreeRespDTO getCaseDetail(UUID caseId, UUID userId);
+    TestCaseNodeTreeRespDTO getCaseDetail(UUID projectId, UUID caseId, UUID userId);
 
     /**
      * 查询项目下的用例列表（支持按标题关键词、优先级过滤）
@@ -31,9 +31,10 @@ public interface TestCaseNodeService {
     /**
      * 更新用例节点属性（标题、优先级）
      *
+     * @param projectId 活动项目 ID（X-Active-Project 头，须与资源归属一致）
      * @param caseId 用例节点 ID
      * @param userId 当前用户 ID（用于项目归属校验）
      * @param reqDTO 更新内容
      */
-    void updateCaseNode(UUID caseId, UUID userId, TestCaseNodeUpdateReqDTO reqDTO);
+    void updateCaseNode(UUID projectId, UUID caseId, UUID userId, TestCaseNodeUpdateReqDTO reqDTO);
 }
