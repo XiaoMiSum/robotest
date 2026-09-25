@@ -23,9 +23,9 @@ public interface AiTaskService {
     AiTaskRespDTO getTask(UUID taskId, UUID projectId);
 
     /**
-     * 取消：仅 pending/running 且仅发起人可操作，其余 6006
+     * 取消：归属项目须与 X-Active-Project 一致（跨项目按不存在处理），仅 pending/running 且仅发起人可操作，其余 6006
      */
-    void cancelTask(UUID taskId, UUID userId);
+    void cancelTask(UUID taskId, UUID projectId, UUID userId);
 
     /**
      * 业务模块查询最近一次指定类型任务（3.1.2 等）：归属项目不一致或无记录返回 null
@@ -33,9 +33,9 @@ public interface AiTaskService {
     AiTaskRespDTO getLatestTaskByTypeAndTarget(String type, UUID targetId, UUID projectId);
 
     /**
-     * 重试：仅 failed 且仅发起人；同 type+target 已有进行中任务返回 6005
+     * 重试：归属项目须与 X-Active-Project 一致（跨项目按不存在处理），仅 failed 且仅发起人；同 type+target 已有进行中任务返回 6005
      */
-    void retryTask(UUID taskId, UUID userId);
+    void retryTask(UUID taskId, UUID projectId, UUID userId);
 
     /**
      * 业务状态变更联动取消（如评审离开「评审中」取消 review_check）

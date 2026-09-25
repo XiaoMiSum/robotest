@@ -100,21 +100,31 @@ class AiTaskServiceImplTest {
     void cancelTask_notInProgressThrows() {
         when(taskMapper.selectById(taskId)).thenReturn(task(Constants.AiTaskStatus.SUCCESS, userId));
         // 仅 pending/running 可取消，success 返回 6006
-        assertThrows(ServiceException.class, () -> taskService.cancelTask(taskId, userId));
+        assertThrows(ServiceException.class, () -> taskService.cancelTask(taskId, projectId, userId));
     }
 
     @Test
     void cancelTask_notInitiatorThrows() {
         when(taskMapper.selectById(taskId)).thenReturn(task(Constants.AiTaskStatus.RUNNING, userId));
         UUID other = UUID.fromString("00000000-0000-0000-0000-0000000000e9");
-        assertThrows(ServiceException.class, () -> taskService.cancelTask(taskId, other));
+        assertThrows(ServiceException.class, () -> taskService.cancelTask(taskId, projectId, other));
+    }
+
+    @Test
+    void cancelTask_crossProjectThrowsNotFound() {
+        AiAnalysisTask task = task(Constants.AiTaskStatus.RUNNING, userId);
+        task.setProjectId(UUID.fromString("00000000-0000-0000-0000-0000000000ff"));
+        when(taskMapper.selectById(taskId)).thenReturn(task);
+        // 归属活动项目校验（SEC-014）：跨项目按不存在处理，不泄露任务存在性
+        assertThrows(ServiceException.class, () -> taskService.cancelTask(taskId, projectId, userId));
+        verify(taskMapper, never()).markCancelledById(taskId);
     }
 
     @Test
     void cancelTask_success() {
         when(taskMapper.selectById(taskId)).thenReturn(task(Constants.AiTaskStatus.RUNNING, userId));
         when(taskMapper.markCancelledById(taskId)).thenReturn(1);
-        taskService.cancelTask(taskId, userId);
+        taskService.cancelTask(taskId, projectId, userId);
         verify(taskMapper).markCancelledById(taskId);
     }
 
@@ -122,7 +132,7 @@ class AiTaskServiceImplTest {
     void retryTask_notFailedThrows() {
         when(taskMapper.selectById(taskId)).thenReturn(task(Constants.AiTaskStatus.RUNNING, userId));
         // 仅 failed 可重试
-        assertThrows(ServiceException.class, () -> taskService.retryTask(taskId, userId));
+        assertThrows(ServiceException.class, () -> taskService.retryTask(taskId, projectId, userId));
     }
 
     @Test
@@ -131,15 +141,25 @@ class AiTaskServiceImplTest {
         when(taskMapper.findInProgressByTypeAndTarget(any(), any()))
                 .thenReturn(List.of(new AiAnalysisTask()));
         // 同 type+target 已有进行中任务返回 6005
-        assertThrows(ServiceException.class, () -> taskService.retryTask(taskId, userId));
+        assertThrows(ServiceException.class, () -> taskService.retryTask(taskId, projectId, userId));
         verify(aiTaskExecutor, never()).execute(any());
+    }
+
+    @Test
+    void retryTask_crossProjectThrowsNotFound() {
+        AiAnalysisTask task = task(Constants.AiTaskStatus.FAILED, userId);
+        task.setProjectId(UUID.fromString("00000000-0000-0000-0000-0000000000ff"));
+        when(taskMapper.selectById(taskId)).thenReturn(task);
+        // 归属活动项目校验（SEC-014）：跨项目按不存在处理，不泄露任务存在性
+        assertThrows(ServiceException.class, () -> taskService.retryTask(taskId, projectId, userId));
+        verify(taskMapper, never()).resetToPending(taskId);
     }
 
     @Test
     void retryTask_success() {
         when(taskMapper.selectById(taskId)).thenReturn(task(Constants.AiTaskStatus.FAILED, userId));
         when(taskMapper.findInProgressByTypeAndTarget(any(), any())).thenReturn(List.of());
-        taskService.retryTask(taskId, userId);
+        taskService.retryTask(taskId, projectId, userId);
         verify(taskMapper).resetToPending(taskId);
         verify(aiTaskExecutor, times(1)).execute(any());
     }

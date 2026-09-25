@@ -24,7 +24,7 @@ public class AiReviewCheckServiceImpl implements AiReviewCheckService {
 
     @Override
     public AiReviewCheckStartRespDTO startCheck(UUID userId, UUID workspaceId, UUID projectId, UUID reviewId) {
-        TestReview review = requireInitiator(reviewId, userId);
+        TestReview review = requireInitiator(projectId, reviewId, userId);
         // 待评审 / 评审中均可发起；评审已完成（completed）后仅保留历史结果查看，不可再发起
         boolean runnable = Constants.Status.NEW.equals(review.getStatus())
                 || Constants.Status.IN_PROGRESS.equals(review.getStatus());
@@ -40,13 +40,14 @@ public class AiReviewCheckServiceImpl implements AiReviewCheckService {
 
     @Override
     public AiTaskRespDTO getCheckResult(UUID userId, UUID projectId, UUID reviewId) {
-        requireInitiator(reviewId, userId);
+        requireInitiator(projectId, reviewId, userId);
         return aiTaskService.getLatestTaskByTypeAndTarget(Constants.AiTaskType.REVIEW_CHECK, reviewId, projectId);
     }
 
-    private TestReview requireInitiator(UUID reviewId, UUID userId) {
+    private TestReview requireInitiator(UUID projectId, UUID reviewId, UUID userId) {
         TestReview review = testReviewMapper.selectById(reviewId);
-        if (review == null) {
+        // 归属活动项目校验（SEC-014）：跨项目按不存在处理，不泄露评审存在性
+        if (review == null || !review.getProjectId().equals(projectId)) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_REVIEW_NOT_FOUND);
         }
         if (!review.getInitiatorId().equals(userId)) {

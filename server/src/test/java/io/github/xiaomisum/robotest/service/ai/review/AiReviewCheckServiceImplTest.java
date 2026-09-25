@@ -57,6 +57,16 @@ class AiReviewCheckServiceImplTest {
     }
 
     @Test
+    void startCheck_crossProject_throws() {
+        TestReview foreign = review(Constants.Status.NEW);
+        foreign.setProjectId(UUID.randomUUID());
+        when(testReviewMapper.selectById(REVIEW_ID)).thenReturn(foreign);
+        // 归属活动项目校验（SEC-014）：跨项目按不存在处理，不泄露评审存在性
+        assertThrows(ServiceException.class,
+                () -> service.startCheck(USER_ID, WORKSPACE_ID, PROJECT_ID, REVIEW_ID));
+    }
+
+    @Test
     void startCheck_notInitiator_throws() {
         TestReview review = review(Constants.Status.IN_PROGRESS);
         review.setInitiatorId(UUID.randomUUID());

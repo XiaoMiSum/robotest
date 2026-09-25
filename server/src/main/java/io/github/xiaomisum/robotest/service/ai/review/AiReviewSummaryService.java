@@ -20,6 +20,7 @@ public interface AiReviewSummaryService {
 
     /**
      * 查询最近一次成功摘要（3.2.2），无则返回 null。
+     * 项目级接口：归属项目须与 X-Active-Project 一致，跨项目按评审不存在处理。
      */
-    AiReviewSummaryRespDTO getSummary(UUID reviewId, UUID userId);
+    AiReviewSummaryRespDTO getSummary(UUID userId, UUID projectId, UUID reviewId);
 }
