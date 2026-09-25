@@ -84,6 +84,8 @@ robotest:
     import:
       # Swagger URL 拉取安全策略（接口管理详细设计 4.3）：strict（默认，公网/云上部署，禁内网地址）或 intranet（内网测试环境，放行内网地址但仅允许 swagger 文档路径）
       url-policy: ${IMPORT_URL_POLICY:intranet}
+      # strict 策略的显式端口白名单（安全规范 6.3 端口校验）；intranet 策略放行合法端口但仅限 swagger 文档路径
+      allowed-ports: ${IMPORT_ALLOWED_PORTS:80,443,8080,8443}
     mock:
       # Mock 免登录访问总开关（Mock服务详细设计 6.1），关闭后仅保留管理端 CRUD
       access-enabled: ${MOCK_ACCESS_ENABLED:true}

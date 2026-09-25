@@ -40,6 +40,9 @@ public class ApiEnvironmentServiceImpl implements ApiEnvironmentService {
 
     private static final String SCOPE_PROJECT = "project";
 
+    /** 导入文件上限，独立于 spring.servlet.multipart 配置（安全规范 6.3 大小校验） */
+    private static final long MAX_IMPORT_FILE_SIZE = 10L * 1024 * 1024;
+
     @Resource
     private ApiEnvironmentMapper environmentMapper;
     @Resource
@@ -218,6 +221,9 @@ public class ApiEnvironmentServiceImpl implements ApiEnvironmentService {
     public ApiEnvImportResultRespDTO importEnvironment(UUID projectId, UUID workspaceId, UUID userId,
             MultipartFile file, boolean overwrite) {
         projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
+        if (file == null || file.isEmpty() || file.getSize() > MAX_IMPORT_FILE_SIZE) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.VALIDATION_FAILED);
+        }
         ApiEnvironmentDetailRespDTO payload = EnvironmentEffectiveSnapshot.parseImportPayload(file);
         if (payload.getName() == null || payload.getName().isBlank()) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.VALIDATION_FAILED);

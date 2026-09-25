@@ -122,7 +122,7 @@
 
 - **路径**：`POST /api/project/bugs/:id/attachments`
 - **请求**：multipart/form-data，字段名 `file`，单文件上限 10MB。
-- **处理**：缺陷已关闭时拒绝上传；文件落盘后写入 bug_attachment 与 bug_log。
+- **处理**：缺陷已关闭时拒绝上传；扩展名白名单（图片、办公文档、文本、压缩包，排除 html/svg/js/可执行体等）并按文件头内容校验与类型一致，不接受仅按扩展名判断（安全规范 6.3）；文件落盘后写入 bug_attachment 与 bug_log。
 - **响应**：附件信息 `{ "id", "fileName", "fileSize", "contentType", "uploader", "createdAt" }`。
 
 ### 1.10 附件列表
@@ -133,7 +133,7 @@
 ### 1.11 下载附件
 
 - **路径**：`GET /api/project/bugs/attachments/:attachmentId/download`
-- **响应**：文件流，`Content-Disposition` 携带原始文件名。
+- **响应**：文件流，`Content-Disposition` 携带原始文件名，`X-Content-Type-Options: nosniff` 禁止类型嗅探；`contentType` 解析失败时回退 `application/octet-stream`。
 
 ### 1.12 删除附件
 

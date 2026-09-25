@@ -18,6 +18,7 @@ import jakarta.validation.Valid;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.InvalidMediaTypeException;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -140,8 +141,16 @@ public class BugController {
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID attachmentId) {
         BugAttachmentDownloadRespDTO dto = bugAttachmentService.downloadAttachment(attachmentId, loginUser.getId());
+        // 客户端声明的 contentType 不可信：解析失败回退二进制流，并禁止浏览器嗅探改写类型（安全规范 6.3）
+        MediaType mediaType;
+        try {
+            mediaType = MediaType.parseMediaType(dto.getContentType());
+        } catch (InvalidMediaTypeException exception) {
+            mediaType = MediaType.APPLICATION_OCTET_STREAM;
+        }
         return ResponseEntity.ok()
-                .contentType(MediaType.parseMediaType(dto.getContentType()))
+                .contentType(mediaType)
+                .header("X-Content-Type-Options", "nosniff")
                 .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment()
                         .filename(dto.getFileName(), java.nio.charset.StandardCharsets.UTF_8)
                         .build().toString())

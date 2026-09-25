@@ -164,7 +164,7 @@ Redis 数据源成功响应示例：
 - **路径**：`POST /api/project/environments/import`
 - **Content-Type**：`multipart/form-data`
 - **请求参数**：`file`（环境配置 JSON 文件）、`overwrite`（重名处理：`true` 覆盖 / `false` 跳过）。
-- **说明**：导入环境配置 JSON 文件；重名环境按 `overwrite` 开关处理：开启时覆盖，关闭时跳过（不新增）。文件中的 `dataSources` 段被忽略（见 1.9 导出规则），环境导入后需重新配置数据源。变量值与 HTTP 配置、处理器一并导入。
+- **说明**：导入环境配置 JSON 文件，空文件与超过 10MB 的文件拒绝（大小限制独立于容器 multipart 配置）；重名环境按 `overwrite` 开关处理：开启时覆盖，关闭时跳过（不新增）。文件中的 `dataSources` 段被忽略（见 1.9 导出规则），环境导入后需重新配置数据源。变量值与 HTTP 配置、处理器一并导入。
 - **响应**：
 
 ```json

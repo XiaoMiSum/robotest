@@ -3,6 +3,7 @@ package io.github.xiaomisum.robotest.service.domain.bug;
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.model.convert.BugConvertMapper;
+import io.github.xiaomisum.robotest.framework.security.AttachmentFileValidator;
 import io.github.xiaomisum.robotest.framework.security.ProjectAccessGuard;
 import io.github.xiaomisum.robotest.model.dto.response.bug.BugAttachmentDownloadRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.bug.BugAttachmentRespDTO;
@@ -22,6 +23,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -68,6 +70,8 @@ public class BugAttachmentServiceImpl implements BugAttachmentService {
                 ? file.getOriginalFilename() : "unnamed";
         // 落盘文件名使用随机 UUID，避免原始文件名注入路径
         String ext = extractExtension(originalName);
+        // 安全规范 6.3：扩展名白名单 + 文件头内容嗅探，不接受仅按扩展名判断类型
+        AttachmentFileValidator.validate(ext, readHead(file));
         String relativePath = bug.getId() + "/" + UUID.randomUUID() + ext;
         Path target = Paths.get(uploadDir).resolve(relativePath);
         try {
@@ -160,6 +164,15 @@ public class BugAttachmentServiceImpl implements BugAttachmentService {
             return "";
         }
         return fileName.substring(dotIndex);
+    }
+
+    /** 读取文件头用于内容嗅探；transferTo 前的流式读取不影响后续落盘 */
+    private byte[] readHead(MultipartFile file) {
+        try (InputStream in = file.getInputStream()) {
+            return in.readNBytes(512);
+        } catch (IOException e) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.BUG_ATTACHMENT_STORE_FAILED);
+        }
     }
 
     private BugAttachmentRespDTO toAttachmentRespDTO(BugAttachment attachment) {
