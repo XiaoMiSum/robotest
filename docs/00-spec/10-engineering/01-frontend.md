@@ -10,6 +10,8 @@
 
 | 能力 | 技术 | 版本来源 |
 | --- | --- | --- |
+| 运行时 | Node 24 LTS | `web/.nvmrc` |
+| 包管理 | pnpm 11（corepack） | `package.json` 的 `packageManager` 与 `engines` |
 | 框架 | Vue 3.5 + Composition API | 依赖清单、锁文件 |
 | 语言 | TypeScript strict | TypeScript 配置、锁文件 |
 | 构建 | Vite | 依赖清单、锁文件 |
@@ -20,6 +22,17 @@
 | 契约 | OpenAPI Typescript | 依赖清单、OpenAPI 基线 |
 
 本文不重复维护“最新”版本。升级依赖时必须同步锁文件、类型检查、测试和 OpenAPI 生成结果。
+
+新环境按锁定版本复现安装（QA-001）：
+
+```bash
+cd web
+nvm use                    # 读取 web/.nvmrc 锁定 Node 版本
+corepack enable            # 按 packageManager 字段提供锁定 pnpm
+pnpm install --frozen-lockfile
+```
+
+Node 主版本或 pnpm 版本与锁定不一致时 `scripts/validate.sh` 会失败；升级工具链必须同步更新 `.nvmrc`、`packageManager`、`engines` 与 `docs/00-spec/30-quality-delivery/03-deploy.md` 的工具链矩阵。
 
 ## 2. TypeScript 规范
 
