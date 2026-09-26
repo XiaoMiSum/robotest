@@ -185,7 +185,7 @@ export function useDashboard() {
         icon: 'OfficeBuilding',
         value: ws?.total ?? 0,
         unit: '个',
-        foot: [{ text: `活跃 ${ws?.active ?? 0} · 已解散 ${ws?.dissolved ?? 0}` }],
+        foot: [{ text: `活跃 ${ws?.active ?? 0} · 归档 ${ws?.dissolved ?? 0}` }],
       },
       {
         key: 'projects',

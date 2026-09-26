@@ -189,7 +189,7 @@ const {
             <span
               class="dot"
               :class="row.status === 'active' ? 'dot--success' : 'dot--neutral'"
-            />{{ row.status === 'active' ? '活跃' : '已解散' }}
+            />{{ row.status === 'active' ? '活跃' : '归档' }}
           </template>
         </el-table-column>
         <el-table-column label="创建时间" width="160">
