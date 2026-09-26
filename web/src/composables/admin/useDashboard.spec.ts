@@ -106,7 +106,7 @@ describe('useDashboard 状态加载', () => {
       { text: '+6', delta: true },
       { text: ' · 启用 108' },
     ])
-    expect(d.kpiCards.value[1].foot).toEqual([{ text: '活跃 14 · 已解散 2' }])
+    expect(d.kpiCards.value[1].foot).toEqual([{ text: '活跃 14 · 归档 2' }])
     expect(d.kpiCards.value[2].foot).toEqual([
       { text: '近 7 日新增 ' },
       { text: '+3', delta: true },
