@@ -4,7 +4,8 @@
 | ---- | ---- | ---- | ---- |
 | [02-srs-overview](02-srs-overview.md)（总览分册） | V1.0 | 2026-09-23 | 起草中 |
 | [system-management](system-management/01-readme.md)（模块：系统管理） | V1.0 | 2026-09-23 | 起草中 |
-| [04-srs-business-features](04-srs-business-features.md)（分册：业务功能模块） | V1.0 | 2026-09-23 | 起草中 |
+| [04-srs-business-features](04-srs-business-features.md)（分册：业务功能模块） | V1.0 | 2026-09-26 | 起草中 |
+| [space-management](space-management/01-readme.md)（模块：空间管理） | V1.0 | 2026-09-26 | 起草中 |
 | [05-srs-ai-infrastructure](05-srs-ai-infrastructure.md)（分册：AI 基础设施） | V1.0 | 2026-09-23 | 起草中 |
 | [06-srs-intelligent-case](06-srs-intelligent-case.md)（分册：智能测试用例生成） | V1.0 | 2026-09-23 | 起草中 |
 | [07-srs-ai-review](07-srs-ai-review.md)（分册：AI 辅助评审与覆盖度分析） | V1.0 | 2026-09-23 | 起草中 |
