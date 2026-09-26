@@ -24,7 +24,7 @@
 | [06 角色管理](06-srs-system-management-role.md) | 角色管理页 | 角色定义、权限点与关联用户 |
 | [07 审计查询](07-srs-system-management-audit.md) | 审计查询页 | 页面尚未实现，先行需求 |
 | [08 系统初始化](08-srs-system-management-init.md) | 系统初始化页 | 登录域引导页，未登录可达 |
-| AI 配置 | AI 配置页 | AI 配置与调用统计，需求见总览分册 [`../05-srs-ai-infrastructure.md`](../05-srs-ai-infrastructure.md) |
+| [09 AI 配置](09-srs-system-management-aiconfig.md) | AI 配置页 | 页级需求；模型与智能体的能力级需求见总览分册 [`../05-srs-ai-infrastructure.md`](../05-srs-ai-infrastructure.md) |
 
 **业务规则**：
 
