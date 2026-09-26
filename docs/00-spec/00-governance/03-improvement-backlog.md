@@ -57,7 +57,7 @@ DEC-004 不再作为通用规范决策；上下文路由/请求体边界由各�
 | 根目录及端级 AGENTS 同步 | 已完成第一轮 | 已同步核心契约和引用 |
 | 下游架构/详细设计同步 | 部分完成 | 架构文档和脑图业务边界已处理，其余详细设计见 `DOC-*` |
 | 代码和配置整改 | 基本完成 | CODE-* 全部关闭；SEC-001、SEC-002、SEC-003、SEC-004、SEC-006、SEC-008、SEC-009、SEC-010、SEC-011、SEC-013、SEC-014 已完成；SEC-005、SEC-007 已取消，其余见 `SEC-*` |
-| 质量门禁和 CI | 部分完成 | QA-001 已完成（工具链矩阵与锁定）；QA-004 已完成（validate.sh 退出码加固）；QA-005 已完成（C8 前端覆盖率阈值）；QA-008 已完成（OpenAPI 契约基线转阻断）；QA-003 已取消；QA-002 需确认（DEC-017）；其余见 `QA-*` |
+| 质量门禁和 CI | 部分完成 | QA-001 已完成（工具链矩阵与锁定）；QA-004 已完成（validate.sh 退出码加固）；QA-005 已完成（C8 前端覆盖率阈值）；QA-008 已完成（OpenAPI 契约基线转阻断）；QA-009 部分完成（API 集成与 LoginPage 组件测试，核心 E2E 待 DEC-018）；QA-003 已取消；QA-002 需确认（DEC-017）；其余见 `QA-*` |
 | 数据库和部署闭环 | 部分取消 | DB-001、OPS-006、OPS-007、OPS-009 已取消；其余见 `DB-*`、`OPS-*` |
 | Git 治理和结构拆分 | 基本完成 | GOV-002、GOV-003、GOV-005～GOV-008 已完成；GOV-001、GOV-004 已取消；其余见 `GOV-*` |
 
@@ -82,6 +82,7 @@ DEC-004 不再作为通用规范决策；上下文路由/请求体边界由各�
 | DEC-015 | P1 | 限流 Redis 故障降级口径（SEC-006 实施决策） | 规范未规定 Redis 不可用时限流的行为；当前实现为**失败开放**（放行并记 WARN，与 AI 网关 `AiRateLimiter` 口径一致，避免缓存故障阻断登录与公开接口）。是否改为失败关闭（Redis 故障时拒绝登录/公开接口，更安全但扩大故障面） | 待确认 |
 | DEC-016 | P1 | 密码强度规则文档冲突（SEC-009 实施遗留） | `docs/04-detailed-design/system-management/03-system-management-auth.md` §2 密码策略仍写"包含大小写、数字、特殊字符中至少三种"，与同文件 §1.5"后端不做字符类型三选四强度校验，强度仅作前端提示"及 SRS 业务规则"密码仅需 8~64 字符长度，不再要求至少三种"矛盾；`docs/04-detailed-design/system-management/04-system-management-user.md` 创建流程也写"密码强度"。当前前后端实现与 §1.5/SRS 一致（仅 8-64 长度）。是否按仅长度口径修订两处详细设计，或恢复强度校验（需前后端改造且与 SRS 冲突） | 待确认 |
 | DEC-017 | P0 | CI workflow 落点（QA-002 实施前置） | QA-002 要求建立唯一 GitHub Actions workflow，唯一落点为 .github/workflows/ci.yml，超出本轮「只改 `docs/`、`web/`、`scripts/`、`server/`」目录白名单：是否放行新建 `.github/`。方案已就绪：push（master/develop）与 PR 双触发，统一执行 `bash scripts/validate.sh --all`，锁 Node 24 / pnpm 11.24.0 / JDK 21，`fetch-depth: 0` 保证提交格式检查可见完整历史 | 待确认 |
+| DEC-018 | P1 | 核心 E2E 测试工具选型（QA-009 收尾前置） | 01-quality §3 要求 E2E 工具显式选定并锁定（Playwright/Cypress 等不可并列为强制工具）；Playwright/Cypress 属新增外部依赖，按 AGENTS 依赖管控需团队讨论，且需明确执行环境（本地全栈或随 DEC-017 的 CI 服务容器）。建议 Playwright（现代、自带等待与多浏览器），确认选型后补 01-quality §3 工具锁定说明并实施登录/协作核心用例 | 待确认 |
 
 ## 5. 文档同步任务
 
@@ -171,7 +172,7 @@ DEC-004 不再作为通用规范决策；上下文路由/请求体边界由各�
 | QA-006 | P1 | 配置后端覆盖率 | — | 后端覆盖率工具和报告策略重新评估 | 已取消：不引入 JaCoCo |
 | QA-007 | P1 | 接入 Checkstyle、SpotBugs 和 ArchUnit 或明确取消 | — | 移除 SpotBugs、ArchUnit、JaCoCo，不作为当前门禁 | 已确认：移除 |
 | QA-008 | P0 | 建立 OpenAPI 基线和前端生成类型 | — | 契约缺失、漂移或生成失败时阻断 | 已完成：后端运行期导出基线 `web/openapi/contract.json`（OpenAPI 3.1，196 paths / 432 schemas，`pnpm contract:gen` 需 `OPENAPI_URL` 指向运行中后端）并生成 `web/src/types/generated/contract.d.ts`（openapi-typescript 7.13）；`validate.sh` 契约检查由 warn 转阻断——基线缺失、依赖缺失、重新生成失败、类型漂移均非零退出（负向：移走基线 EXIT=1；正向：基线与类型一致 EXIT=0）；生成类型尚无 services 引用，消费随 API 代码演进 |
-| QA-009 | P1 | 增加 API 集成、关键组件和核心 E2E 测试 | — | 登录、权限、分页、协作和发布流程有自动化证据 | 待实施 |
+| QA-009 | P1 | 增加 API 集成、关键组件和核心 E2E 测试 | — | 登录、权限、分页、协作和发布流程有自动化证据 | 部分完成：API 集成 7 例已落地（`AuthControllerApiTest` 登录/刷新信封与错误码、`AuditLogControllerApiTest` 分页契约，standalone MockMvc，不依赖 DB/Redis）+ 关键组件 `LoginPage` 登录流程 5 例（校验/成功跳转/权限分流/失败提示/未初始化重定向）；权限（路由守卫 7 例、ContextHeader/WorkspaceRole 拦截器、越权 Service）、协作（Yjs 同步、WS DocumentHandler）、发布（场景发布 useScenePageActions）为既有单测证据；核心 E2E 待工具选型确认（DEC-018） |
 | QA-010 | P1 | 接入 Secret 和依赖漏洞扫描 | SEC-001 | 密钥和高危依赖阻断发布 | 待实施 |
 | QA-011 | P2 | 增加滚动、视觉回归和可访问性验收 | DOC-009 | UI-SC 规则有浏览器和自动化证据 | 待实施 |
 | QA-012 | P1 | 增加数据库迁移验证 | DB-001 | 空库初始化和旧库升级均通过 | 待实施 |
