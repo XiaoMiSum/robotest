@@ -46,6 +46,13 @@ export default defineConfig({
     },
   },
   test: {
+    server: {
+      deps: {
+        // element-plus 经 unplugin-vue-components 注入组件与样式导入；测试环境 css 关闭，
+        // 但外部化交由 Node ESM 加载会因 .css 扩展名直接失败，必须走 vite 管线
+        inline: ['element-plus'],
+      },
+    },
     // C8 覆盖率门禁（docs/00-spec/30-quality-delivery/01-quality.md §4）：
     // 核心范围任一指标低于 70% 即失败。范围与排除项理由随阈值一并锁定，
     // 扩大范围或新增排除须先更新规范 §4 再改此处，防止绕过门禁。
