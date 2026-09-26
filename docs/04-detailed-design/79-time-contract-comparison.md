@@ -246,7 +246,6 @@ DEC-005 已全部定案（2026-09-24）：**不存在数据库存储类型迁移
 - API 规范：`docs/00-spec/20-contracts/01-api.md`
 - 前端时间处理：`docs/00-spec/10-engineering/01-frontend.md`
 - 详细设计索引：`docs/04-detailed-design/01-readme.md`
-- 待办决策：`docs/00-spec/00-governance/03-improvement-backlog.md`
 
 ---
 
