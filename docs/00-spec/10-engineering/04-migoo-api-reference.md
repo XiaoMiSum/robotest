@@ -148,7 +148,7 @@ MapStruct 不是 migoo Starter 的通用 API，接入约定如下：
 | Token 认证 | 框架握手拦截能力 | 迁移期可兼容旧 Token，目标使用一次性 Ticket |
 | 分布式模式 | 框架 Redis 分布式能力 | 明确 Redis 依赖、顺序、故障降级和日志脱敏 |
 
-通用消息信封、错误码、生命周期和安全要求见 `docs/00-spec/20-contracts/03-realtime-protocol.md`；接入 Ticket、Origin、前端适配器和实现差距见 `docs/04-detailed-design/78-realtime-websocket.md`。业务事件不得在本文档中定义。
+通用消息信封、错误码、生命周期和安全要求见 `docs/00-spec/20-contracts/03-realtime-protocol.md`。业务事件不得在本文档中定义。
 
 ## 9. Redis API 摘要
 
