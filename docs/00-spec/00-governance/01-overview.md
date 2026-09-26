@@ -61,7 +61,7 @@
 
 | 分类目录 | 文档 | 权威范围 |
 | --- | --- | --- |
-| `00-governance/` | `01-overview.md`、`02-task-template.md`、`03-improvement-backlog.md` | 规则登记、任务流程、冲突处理和待办 |
+| `00-governance/` | `01-overview.md`、`02-task-template.md` | 规则登记、任务流程和冲突处理 |
 | `10-engineering/` | `01-frontend.md`、`02-backend.md`、`03-migoo-framework.md`、`04-migoo-api-reference.md` | 前端、后端和框架工程边界 |
 | `20-contracts/` | `01-api.md`、`02-database.md`、`03-realtime-protocol.md` | HTTP、数据和实时通信契约 |
 | `30-quality-delivery/` | `01-quality.md`、`02-workflow.md`、`03-deploy.md`、`04-deployment-runbook.md` | 质量、协作、构建、部署和项目操作 |
