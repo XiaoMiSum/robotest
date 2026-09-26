@@ -106,7 +106,7 @@ WebSocket 组件提供连接管理、Token 认证、会话、房间和分布式�
 - 生产使用短时一次性 Ticket、Origin 白名单和日志脱敏；
 - 分布式模式明确 Redis 依赖、顺序和故障降级。
 
-通用协议见 `docs/00-spec/20-contracts/03-realtime-protocol.md`，接入设计见 `docs/04-detailed-design/78-realtime-websocket.md`；业务事件不在本文定义。
+通用协议见 `docs/00-spec/20-contracts/03-realtime-protocol.md`；业务事件不在本文定义。
 
 ### 4.7 Redis
 
