@@ -1574,7 +1574,7 @@ COMMENT ON COLUMN test_plan.id IS '计划唯一标识';
 COMMENT ON COLUMN test_plan.project_id IS '所属项目 ID，关联 ws_project.id';
 COMMENT ON COLUMN test_plan.name IS '计划名称';
 COMMENT ON COLUMN test_plan.description IS '计划描述';
-COMMENT ON COLUMN test_plan.status IS '计划状态：new=新建, in_progress=进行中, completed=已完成, closed=已关闭';
+COMMENT ON COLUMN test_plan.status IS '计划状态：new=新建, in_progress=进行中, completed=已完成, blocked=已阻塞, closed=已关闭';
 COMMENT ON COLUMN test_plan.executor_id IS '执行人 ID，关联 sys_user.id';
 COMMENT ON COLUMN test_plan.start_time IS '计划开始时间';
 COMMENT ON COLUMN test_plan.end_time IS '计划结束时间';

@@ -662,6 +662,195 @@ class TestPlanServiceImplTest {
                                 () -> planService.deletePlan(projectId, planId, userId));
         }
 
+        // ========== blockPlan / resumePlan ==========
+
+        @Test
+        void blockPlan_success() {
+                TestPlan plan = new TestPlan();
+                plan.setId(planId);
+                plan.setProjectId(projectId);
+                plan.setExecutorId(userId);
+                plan.setStatus(Constants.Status.IN_PROGRESS);
+                plan.setName("回归计划");
+
+                when(testPlanMapper.selectById(planId)).thenReturn(plan);
+
+                planService.blockPlan(projectId, planId, userId);
+
+                ArgumentCaptor<TestPlan> captor = ArgumentCaptor.forClass(TestPlan.class);
+                verify(testPlanMapper).updateById(captor.capture());
+                assertEquals(planId, captor.getValue().getId());
+                assertEquals(Constants.Status.BLOCKED, captor.getValue().getStatus());
+                verify(projectActivityService).record(eq(projectId), eq(userId), eq("TEST_PLAN"),
+                                eq(planId), eq("回归计划"), eq("PLAN_BLOCKED"), anyString());
+        }
+
+        @Test
+        void blockPlan_newPlan_success() {
+                TestPlan plan = new TestPlan();
+                plan.setId(planId);
+                plan.setProjectId(projectId);
+                plan.setExecutorId(userId);
+                plan.setStatus(Constants.Status.NEW);
+
+                when(testPlanMapper.selectById(planId)).thenReturn(plan);
+
+                planService.blockPlan(projectId, planId, userId);
+
+                ArgumentCaptor<TestPlan> captor = ArgumentCaptor.forClass(TestPlan.class);
+                verify(testPlanMapper).updateById(captor.capture());
+                assertEquals(Constants.Status.BLOCKED, captor.getValue().getStatus());
+        }
+
+        @Test
+        void blockPlan_notExecutor_throws() {
+                TestPlan plan = new TestPlan();
+                plan.setId(planId);
+                plan.setProjectId(projectId);
+                plan.setExecutorId(otherUserId);
+                plan.setStatus(Constants.Status.IN_PROGRESS);
+
+                when(testPlanMapper.selectById(planId)).thenReturn(plan);
+
+                assertThrows(ServiceException.class,
+                                () -> planService.blockPlan(projectId, planId, userId));
+                verify(testPlanMapper, never()).updateById(any(TestPlan.class));
+        }
+
+        @Test
+        void blockPlan_completed_throws() {
+                TestPlan plan = new TestPlan();
+                plan.setId(planId);
+                plan.setProjectId(projectId);
+                plan.setExecutorId(userId);
+                plan.setStatus(Constants.Status.COMPLETED);
+
+                when(testPlanMapper.selectById(planId)).thenReturn(plan);
+
+                ServiceException exception = assertThrows(ServiceException.class,
+                                () -> planService.blockPlan(projectId, planId, userId));
+                assertEquals(ErrorCodeConstants.PLAN_ONLY_ACTIVE_CAN_BLOCK.code(), exception.getCode());
+        }
+
+        @Test
+        void resumePlan_success() {
+                TestPlan plan = new TestPlan();
+                plan.setId(planId);
+                plan.setProjectId(projectId);
+                plan.setExecutorId(userId);
+                plan.setStatus(Constants.Status.BLOCKED);
+                plan.setName("回归计划");
+
+                when(testPlanMapper.selectById(planId)).thenReturn(plan);
+
+                planService.resumePlan(projectId, planId, userId);
+
+                ArgumentCaptor<TestPlan> captor = ArgumentCaptor.forClass(TestPlan.class);
+                verify(testPlanMapper).updateById(captor.capture());
+                assertEquals(planId, captor.getValue().getId());
+                assertEquals(Constants.Status.IN_PROGRESS, captor.getValue().getStatus());
+                verify(projectActivityService).record(eq(projectId), eq(userId), eq("TEST_PLAN"),
+                                eq(planId), eq("回归计划"), eq("PLAN_RESUMED"), anyString());
+        }
+
+        @Test
+        void resumePlan_notBlocked_throws() {
+                TestPlan plan = new TestPlan();
+                plan.setId(planId);
+                plan.setProjectId(projectId);
+                plan.setExecutorId(userId);
+                plan.setStatus(Constants.Status.IN_PROGRESS);
+
+                when(testPlanMapper.selectById(planId)).thenReturn(plan);
+
+                ServiceException exception = assertThrows(ServiceException.class,
+                                () -> planService.resumePlan(projectId, planId, userId));
+                assertEquals(ErrorCodeConstants.PLAN_ONLY_BLOCKED_CAN_RESUME.code(), exception.getCode());
+                verify(testPlanMapper, never()).updateById(any(TestPlan.class));
+        }
+
+        @Test
+        void resumePlan_notExecutor_throws() {
+                TestPlan plan = new TestPlan();
+                plan.setId(planId);
+                plan.setProjectId(projectId);
+                plan.setExecutorId(otherUserId);
+                plan.setStatus(Constants.Status.BLOCKED);
+
+                when(testPlanMapper.selectById(planId)).thenReturn(plan);
+
+                assertThrows(ServiceException.class,
+                                () -> planService.resumePlan(projectId, planId, userId));
+        }
+
+        @Test
+        void completePlan_blocked_throws() {
+                TestPlan plan = new TestPlan();
+                plan.setId(planId);
+                plan.setProjectId(projectId);
+                plan.setExecutorId(userId);
+                plan.setStatus(Constants.Status.BLOCKED);
+
+                when(testPlanMapper.selectById(planId)).thenReturn(plan);
+
+                ServiceException exception = assertThrows(ServiceException.class,
+                                () -> planService.completePlan(projectId, planId, userId));
+                assertEquals(ErrorCodeConstants.PLAN_IS_BLOCKED.code(), exception.getCode());
+                verify(testPlanMapper, never()).updateById(any(TestPlan.class));
+        }
+
+        @Test
+        void syncPlan_blocked_throws() {
+                TestPlan plan = new TestPlan();
+                plan.setId(planId);
+                plan.setProjectId(projectId);
+                plan.setExecutorId(userId);
+                plan.setStatus(Constants.Status.BLOCKED);
+
+                when(testPlanMapper.selectById(planId)).thenReturn(plan);
+
+                ServiceException exception = assertThrows(ServiceException.class,
+                                () -> planService.syncPlan(projectId, planId, userId));
+                assertEquals(ErrorCodeConstants.PLAN_IS_BLOCKED.code(), exception.getCode());
+                verify(planNodeSnapshotMapper, never()).listByPlanId(any());
+        }
+
+        @Test
+        void updatePlanCases_blocked_throws() {
+                TestPlan plan = new TestPlan();
+                plan.setId(planId);
+                plan.setProjectId(projectId);
+                plan.setExecutorId(userId);
+                plan.setStatus(Constants.Status.BLOCKED);
+
+                when(testPlanMapper.selectById(planId)).thenReturn(plan);
+
+                ServiceException exception = assertThrows(ServiceException.class,
+                                () -> planService.updatePlanCases(projectId, planId, userId,
+                                                new TestPlanCasesUpdateReqDTO()));
+                assertEquals(ErrorCodeConstants.PLAN_IS_BLOCKED.code(), exception.getCode());
+        }
+
+        @Test
+        void submitExecutionRecord_blocked_throws() {
+                TestPlan plan = new TestPlan();
+                plan.setId(planId);
+                plan.setProjectId(projectId);
+                plan.setExecutorId(userId);
+                plan.setStatus(Constants.Status.BLOCKED);
+
+                when(testPlanMapper.selectById(planId)).thenReturn(plan);
+
+                TestPlanRecordReqDTO reqDTO = new TestPlanRecordReqDTO();
+                reqDTO.setSnapshotNodeId(UUID.fromString("00000000-0000-0000-0000-000000000004"));
+                reqDTO.setResult("pass");
+
+                ServiceException exception = assertThrows(ServiceException.class,
+                                () -> planService.submitExecutionRecord(projectId, planId, userId, reqDTO));
+                assertEquals(ErrorCodeConstants.PLAN_IS_BLOCKED.code(), exception.getCode());
+                verify(planExecutionRecordMapper, never()).insert(any(TestPlanExecutionRecord.class));
+        }
+
         // ========== getPlanProgress ==========
 
         @Test

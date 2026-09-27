@@ -32,9 +32,10 @@ public class QueryPlansTool extends AbstractQueryTool {
                 TOOL_NAME,
                 "查询当前工作空间内的测试计划列表。可按计划状态过滤；支持统计各计划用例执行情况。",
                 ToolSchema.object(List.of(
-                        ToolSchema.string("status", "计划状态：new(未开始)/in_progress(进行中)/completed(已完成)/closed(已关闭)，可空",
+                        ToolSchema.string("status", "计划状态：new(未开始)/in_progress(执行中)/completed(已完成)/blocked(已阻塞)/closed(已关闭)，可空",
                                 List.of(Constants.Status.NEW, Constants.Status.IN_PROGRESS,
-                                        Constants.Status.COMPLETED, Constants.Status.CLOSED)),
+                                        Constants.Status.COMPLETED, Constants.Status.BLOCKED,
+                                        Constants.Status.CLOSED)),
                         ToolSchema.string("keyword", "计划名称关键词，可空")),
                         List.of()),
                 true, null);

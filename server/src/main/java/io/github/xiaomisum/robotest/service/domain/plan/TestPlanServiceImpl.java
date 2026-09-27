@@ -160,6 +160,20 @@ public class TestPlanServiceImpl implements TestPlanService {
         return plan;
     }
 
+    // 阻塞是执行期暂停态，先于「未结束」判断给出更精确的语义错误（1000011025 而非 1000011027）
+    private void requireNotBlocked(TestPlan plan) {
+        if (Constants.Status.BLOCKED.equals(plan.getStatus())) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.PLAN_IS_BLOCKED);
+        }
+    }
+
+    // 阻塞/恢复与完成、删除同口径，仅计划负责人可操作
+    private void requireExecutor(TestPlan plan, UUID userId) {
+        if (!userId.equals(plan.getExecutorId())) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.NO_PERMISSION);
+        }
+    }
+
     @Override
     public TestPlanDetailRespDTO getPlanDetail(UUID projectId, UUID planId, UUID userId) {
         TestPlan plan = requirePlan(projectId, planId, userId);
@@ -240,6 +254,7 @@ public class TestPlanServiceImpl implements TestPlanService {
     @Transactional(rollbackFor = Exception.class)
     public void updatePlanCases(UUID projectId, UUID planId, UUID userId, TestPlanCasesUpdateReqDTO reqDTO) {
         TestPlan plan = requirePlan(projectId, planId, userId);
+        requireNotBlocked(plan);
         // 未结束（待开始/进行中）才允许调整规划
         if (!Constants.Status.NEW.equals(plan.getStatus())
                 && !Constants.Status.IN_PROGRESS.equals(plan.getStatus())) {
@@ -394,6 +409,7 @@ public class TestPlanServiceImpl implements TestPlanService {
     public void submitExecutionRecord(UUID projectId, UUID planId, UUID userId,
             TestPlanRecordReqDTO reqDTO) {
         TestPlan plan = requirePlan(projectId, planId, userId);
+        requireNotBlocked(plan);
 
         TestPlanNodeSnapshot snapshotNode = planNodeSnapshotMapper.selectById(
                 reqDTO.getSnapshotNodeId());
@@ -450,9 +466,8 @@ public class TestPlanServiceImpl implements TestPlanService {
     @Transactional(rollbackFor = Exception.class)
     public void syncPlan(UUID projectId, UUID planId, UUID userId) {
         TestPlan plan = requirePlan(projectId, planId, userId);
-        if (!userId.equals(plan.getExecutorId())) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.NO_PERMISSION);
-        }
+        requireExecutor(plan, userId);
+        requireNotBlocked(plan);
         // 已结束的计划快照已定格，不再允许同步；待开始/进行中均允许
         if (!Constants.Status.NEW.equals(plan.getStatus())
                 && !Constants.Status.IN_PROGRESS.equals(plan.getStatus())) {
@@ -588,15 +603,49 @@ public class TestPlanServiceImpl implements TestPlanService {
     @Transactional(rollbackFor = Exception.class)
     public void completePlan(UUID projectId, UUID planId, UUID userId) {
         TestPlan plan = requirePlan(projectId, planId, userId);
-        if (!userId.equals(plan.getExecutorId())) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.NO_PERMISSION);
-        }
+        requireExecutor(plan, userId);
+        requireNotBlocked(plan);
         TestPlan update = new TestPlan();
         update.setId(planId);
         update.setStatus(Constants.Status.COMPLETED);
         testPlanMapper.updateById(update);
         projectActivityService.record(plan.getProjectId(), userId, "TEST_PLAN", planId,
                 plan.getName(), "PLAN_COMPLETED", "完成测试计划「" + plan.getName() + "」");
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void blockPlan(UUID projectId, UUID planId, UUID userId) {
+        TestPlan plan = requirePlan(projectId, planId, userId);
+        requireExecutor(plan, userId);
+        if (!Constants.Status.NEW.equals(plan.getStatus())
+                && !Constants.Status.IN_PROGRESS.equals(plan.getStatus())) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.PLAN_ONLY_ACTIVE_CAN_BLOCK);
+        }
+        // 部分更新：更新载体只携带本次变更字段（C11）
+        TestPlan update = new TestPlan();
+        update.setId(planId);
+        update.setStatus(Constants.Status.BLOCKED);
+        testPlanMapper.updateById(update);
+        projectActivityService.record(plan.getProjectId(), userId, "TEST_PLAN", planId,
+                plan.getName(), "PLAN_BLOCKED", "阻塞测试计划「" + plan.getName() + "」");
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void resumePlan(UUID projectId, UUID planId, UUID userId) {
+        TestPlan plan = requirePlan(projectId, planId, userId);
+        requireExecutor(plan, userId);
+        if (!Constants.Status.BLOCKED.equals(plan.getStatus())) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.PLAN_ONLY_BLOCKED_CAN_RESUME);
+        }
+        // 恢复回执行中而非新建：阻塞只是暂停，已产生的进度保留
+        TestPlan update = new TestPlan();
+        update.setId(planId);
+        update.setStatus(Constants.Status.IN_PROGRESS);
+        testPlanMapper.updateById(update);
+        projectActivityService.record(plan.getProjectId(), userId, "TEST_PLAN", planId,
+                plan.getName(), "PLAN_RESUMED", "恢复测试计划「" + plan.getName() + "」");
     }
 
     @Override
