@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>接口测试 · 函数管理 · RoboTest</title>
+<link rel="stylesheet" href="../assets/tokens.css">
+<link rel="stylesheet" href="../assets/base.css">
+<style>
+  .fn-page { display: flex; flex-direction: column; gap: var(--space-md); height: 100%; }
+  .fn-body { flex: 1; display: flex; gap: var(--space-lg); min-height: 0; }
+
+  /* 左：函数列表 */
+  .fn-list { width: 340px; flex-shrink: 0; overflow-y: auto; background: #fff; border: 1px solid var(--n-100); border-radius: var(--radius-lg); padding: var(--space-sm); display: flex; flex-direction: column; gap: var(--space-sm); }
+  .fn-search { display: flex; align-items: center; gap: var(--space-sm); }
+  .fn-search .input-wrap { flex: 1; }
+
+  .radio-seg { display: inline-flex; gap: 2px; background: var(--n-50); border: 1px solid var(--n-100); border-radius: var(--radius-md); padding: 2px; width: 100%; }
+  .radio-seg button { flex: 1; height: 26px; border: none; background: none; border-radius: var(--radius-sm); font-size: var(--font-size-xs); color: var(--n-500); cursor: pointer; }
+  .radio-seg button.is-active { background: var(--brand-500); color: #fff; font-weight: 500; }
+
+  .fn-items { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+  .fn-item { border: 1px solid transparent; border-radius: var(--radius-md); padding: var(--space-sm) var(--space-md); cursor: pointer; }
+  .fn-item:hover { background: var(--n-50); }
+  .fn-item.is-active { border-color: #b3d8ff; background: rgba(59,130,246,.06); }
+  .fn-item.is-disabled { opacity: .55; }
+  .fn-item__main { display: flex; align-items: center; gap: var(--space-sm); }
+  .fn-item__name { font-size: var(--font-size-sm); font-weight: 500; font-family: monospace; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .fn-item__meta { margin-top: 2px; font-size: var(--font-size-xs); color: var(--n-400); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .fn-item__acts { margin-top: 4px; font-size: var(--font-size-xs); }
+  .fn-item__acts .op-link + .op-link { margin-left: 8px; }
+
+  /* 右：详情 */
+  .fn-detail { flex: 1; min-width: 0; overflow-y: auto; background: #fff; border: 1px solid var(--n-100); border-radius: var(--radius-lg); padding: var(--space-lg); }
+  .fn-detail__header { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-lg); }
+  .fn-detail__name { margin: 0; font-size: var(--font-size-md); font-family: monospace; }
+  .fn-detail__header-actions { display: flex; align-items: center; gap: var(--space-sm); }
+
+  .fn-detail__section + .fn-detail__section { margin-top: var(--space-md); padding-top: var(--space-md); border-top: 1px solid var(--n-100); }
+  .fn-detail__label { display: block; font-size: var(--font-size-xs); font-weight: 600; color: var(--n-400); margin-bottom: 6px; text-transform: uppercase; letter-spacing: .05em; }
+  .fn-detail__text { margin: 0; font-size: var(--font-size-sm); color: var(--n-600); }
+  .fn-detail__code { display: inline-block; background: var(--n-50); border: 1px solid var(--n-100); padding: 5px 9px; border-radius: var(--radius-sm); font-family: monospace; font-size: 13px; color: var(--brand-600, #337ecc); word-break: break-all; }
+
+  .fn-params { display: flex; flex-direction: column; gap: 6px; }
+  .fn-param { display: flex; align-items: center; gap: var(--space-sm); }
+  .fn-param__desc { color: var(--n-500); font-size: var(--font-size-sm); }
+
+  .code-view { width: 100%; min-height: 160px; border: 1px solid var(--n-100); border-radius: var(--radius-md); background: #1e1e1e; color: #d4d4d4; font-family: var(--font-mono); font-size: var(--font-size-xs); line-height: 1.6; padding: 10px 12px; resize: vertical; }
+</style>
+</head>
+<body data-shell="business" data-mode="project" data-active="api" data-workspace="质量中台" data-project="电商核心系统">
+
+<main class="content content--flush">
+  <div class="split">
+    <aside class="split__side">
+      <div class="menu-item side__item"><span data-icon="terminal"></span><span>快速调试</span></div>
+      <div class="menu-item side__item"><span data-icon="link"></span><span>接口管理</span></div>
+      <div class="menu-item side__item"><span data-icon="cpu"></span><span>Mock 服务</span></div>
+      <div class="menu-item side__item"><span data-icon="operation"></span><span>测试场景</span></div>
+      <div class="menu-item side__item"><span data-icon="data-chart"></span><span>测试报告</span></div>
+      <div class="menu-item side__item"><span data-icon="timer"></span><span>定时任务</span></div>
+      <div class="side__group-title">项目设置</div>
+      <div class="menu-item side__item"><span data-icon="compass"></span><span>环境管理</span></div>
+      <div class="menu-item side__item menu-item--active"><span data-icon="layers"></span><span>函数管理</span></div>
+      <div class="menu-item side__item"><span data-icon="box"></span><span>公共组件</span></div>
+    </aside>
+
+    <div class="split__main">
+      <div class="fn-page">
+        <div class="fn-body">
+          <!-- 左：函数列表 -->
+          <aside class="fn-list">
+            <div class="fn-search">
+              <div class="input-wrap"><span data-icon="search"></span><input class="input" placeholder="搜索函数名称..."></div>
+              <button class="btn btn--primary btn--sm"><span data-icon="plus"></span>新增</button>
+            </div>
+
+            <span class="radio-seg">
+              <button class="is-active" data-fntab="all">全部</button>
+              <button data-fntab="builtin">内置函数</button>
+              <button data-fntab="custom">自定义函数</button>
+            </span>
+
+            <ul class="fn-items" data-fnlist="builtin">
+              <li class="fn-item is-active" data-fn="uuid" data-scope="builtin">
+                <div class="fn-item__main">
+                  <span class="fn-item__name">uuid</span>
+                  <span class="tag tag--outline">内置</span>
+                </div>
+                <div class="fn-item__meta">生成 UUID</div>
+              </li>
+              <li class="fn-item" data-fn="random" data-scope="builtin">
+                <div class="fn-item__main">
+                  <span class="fn-item__name">random</span>
+                  <span class="tag tag--outline">内置</span>
+                </div>
+                <div class="fn-item__meta">随机数</div>
+              </li>
+              <li class="fn-item" data-fn="concat" data-scope="builtin">
+                <div class="fn-item__main">
+                  <span class="fn-item__name">concat</span>
+                  <span class="tag tag--outline">内置</span>
+                </div>
+                <div class="fn-item__meta">拼接</div>
+              </li>
+            </ul>
+
+            <ul class="fn-items" data-fnlist="custom">
+              <li class="fn-item" data-fn="signParams" data-scope="custom">
+                <div class="fn-item__main">
+                  <span class="fn-item__name">signParams</span>
+                  <span class="tag tag--success">自定义</span>
+                  <span class="tag tag--outline">项目</span>
+                </div>
+                <div class="fn-item__meta">按业务规则生成签名参数</div>
+                <div class="fn-item__acts"><span class="op-link">禁用</span><span class="op-link op-link--danger">删除</span></div>
+              </li>
+              <li class="fn-item" data-fn="genOrderNo" data-scope="custom">
+                <div class="fn-item__main">
+                  <span class="fn-item__name">genOrderNo</span>
+                  <span class="tag tag--success">自定义</span>
+                  <span class="tag tag--outline">空间</span>
+                </div>
+                <div class="fn-item__meta">生成雪花订单号</div>
+                <div class="fn-item__acts"><span class="op-link">禁用</span><span class="op-link op-link--danger">删除</span></div>
+              </li>
+              <li class="fn-item is-disabled" data-fn="legacyFmt" data-scope="custom">
+                <div class="fn-item__main">
+                  <span class="fn-item__name">legacyFmt</span>
+                  <span class="tag tag--success">自定义</span>
+                  <span class="tag tag--outline">项目</span>
+                </div>
+                <div class="fn-item__meta">旧版报文格式化（已停用）</div>
+                <div class="fn-item__acts"><span class="op-link">启用</span><span class="op-link op-link--danger">删除</span></div>
+              </li>
+            </ul>
+          </aside>
+
+          <!-- 右：函数详情 -->
+          <section class="fn-detail" data-fndetail="builtin">
+            <div class="fn-detail__header">
+              <h4 class="fn-detail__name">uuid</h4>
+              <div class="fn-detail__header-actions">
+                <span class="tag tag--outline">内置</span>
+              </div>
+            </div>
+
+            <div class="fn-detail__section">
+              <label class="fn-detail__label">签名</label>
+              <code class="fn-detail__code">${uuid()}</code>
+            </div>
+
+            <div class="fn-detail__section">
+              <label class="fn-detail__label">描述</label>
+              <p class="fn-detail__text">生成 UUID，常用于构造唯一业务单号与追踪标识</p>
+            </div>
+
+            <div class="fn-detail__section">
+              <label class="fn-detail__label">参数</label>
+              <div class="fn-params">
+                <div class="fn-param">
+                  <code class="fn-detail__code">type</code>
+                  <span class="tag tag--warning">必填</span>
+                  <span class="fn-param__desc">UUID 版本，如 v4</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="fn-detail__section">
+              <label class="fn-detail__label">示例</label>
+              <code class="fn-detail__code">${uuid('v4')}</code>
+            </div>
+          </section>
+
+          <section class="fn-detail" data-fndetail="custom" hidden>
+            <div class="fn-detail__header">
+              <h4 class="fn-detail__name">signParams</h4>
+              <div class="fn-detail__header-actions">
+                <span class="tag tag--success">已启用</span>
+                <span class="tag tag--outline">项目</span>
+                <button class="btn btn--default btn--sm">编辑</button>
+              </div>
+            </div>
+
+            <div class="fn-detail__section">
+              <label class="fn-detail__label">签名</label>
+              <code class="fn-detail__code">${signParams(appKey, timestamp)}</code>
+            </div>
+
+            <div class="fn-detail__section">
+              <label class="fn-detail__label">描述</label>
+              <p class="fn-detail__text">按业务规则生成签名参数</p>
+            </div>
+
+            <div class="fn-detail__section">
+              <label class="fn-detail__label">参数</label>
+              <div class="fn-params">
+                <div class="fn-param">
+                  <code class="fn-detail__code">appKey</code>
+                  <span class="tag tag--warning">必填</span>
+                  <span class="fn-param__desc">appKey:应用标识</span>
+                </div>
+                <div class="fn-param">
+                  <code class="fn-detail__code">timestamp</code>
+                  <span class="tag tag--warning">必填</span>
+                  <span class="fn-param__desc">timestamp:时间戳</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="fn-detail__section">
+              <label class="fn-detail__label">示例</label>
+              <code class="fn-detail__code">${signParams(appKey, timestamp)}</code>
+            </div>
+
+            <div class="fn-detail__section">
+              <label class="fn-detail__label">Groovy 脚本</label>
+              <textarea class="code-view" readonly spellcheck="false">// args 数组承接调用参数，返回值即求值结果
+def appKey = args[0]
+def ts = args[1]
+return "${appKey}|${ts}".encodeAsMD5()</textarea>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script src="../assets/icons.js"></script>
+<script src="../assets/shell.js"></script>
+<script>
+  // 左侧 tab：全部 / 内置 / 自定义
+  document.querySelectorAll('[data-fntab]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      document.querySelectorAll('[data-fntab]').forEach(function (b) { b.classList.remove('is-active'); });
+      btn.classList.add('is-active');
+      var key = btn.getAttribute('data-fntab');
+      document.querySelectorAll('[data-fnlist]').forEach(function (list) {
+        list.hidden = key !== 'all' && list.getAttribute('data-fnlist') !== key;
+      });
+    });
+  });
+
+  // 点击函数项切换右侧详情（内置 / 自定义 两套面板）
+  document.querySelectorAll('[data-fn]').forEach(function (item) {
+    item.addEventListener('click', function () {
+      document.querySelectorAll('[data-fn]').forEach(function (i) { i.classList.remove('is-active'); });
+      item.classList.add('is-active');
+      var kind = item.getAttribute('data-scope');
+      document.querySelectorAll('[data-fndetail]').forEach(function (d) {
+        d.hidden = d.getAttribute('data-fndetail') !== kind;
+      });
+    });
+  });
+</script>
+</body>
+</html>
