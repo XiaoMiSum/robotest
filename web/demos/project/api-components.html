@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>接口测试 · 公共组件 · RoboTest</title>
+<link rel="stylesheet" href="../assets/tokens.css">
+<link rel="stylesheet" href="../assets/base.css">
+<style>
+  .list-page { display: flex; flex-direction: column; gap: var(--space-md); height: 100%; }
+  .filter-card { padding: 14px 20px; }
+  .filter-row { display: flex; align-items: center; gap: var(--space-sm); flex-wrap: wrap; }
+  .filter-row .spacer { flex: 1; }
+  .selected-hint { font-size: var(--font-size-sm); color: var(--n-500); }
+  .table-card { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+
+  .switch { position: relative; width: 34px; height: 19px; border-radius: 10px; background: var(--n-200); border: none; cursor: pointer; padding: 0; transition: background .15s; vertical-align: middle; }
+  .switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 15px; height: 15px; border-radius: 50%; background: #fff; transition: left .15s; }
+  .switch.is-on { background: var(--brand-500); }
+  .switch.is-on::after { left: 17px; }
+
+  .pager { display: flex; align-items: center; justify-content: flex-end; gap: 6px; padding: 14px 20px; border-top: 1px solid var(--n-100); }
+  .pager__total { margin-right: auto; font-size: var(--font-size-sm); color: var(--n-500); }
+  .pager__sizes { display: inline-flex; gap: 4px; align-items: center; margin-right: 12px; font-size: var(--font-size-sm); color: var(--n-500); }
+  .size-btn { min-width: 32px; height: 28px; border: 1px solid var(--n-200); background: #fff; border-radius: var(--radius-sm); font-size: var(--font-size-xs); color: var(--n-600); cursor: pointer; }
+  .size-btn.is-active { border-color: var(--brand-500); color: var(--brand-500); }
+</style>
+</head>
+<body data-shell="business" data-mode="project" data-active="api" data-workspace="质量中台" data-project="电商核心系统">
+
+<main class="content content--flush">
+  <div class="split">
+    <aside class="split__side">
+      <div class="menu-item side__item"><span data-icon="terminal"></span><span>快速调试</span></div>
+      <div class="menu-item side__item"><span data-icon="link"></span><span>接口管理</span></div>
+      <div class="menu-item side__item"><span data-icon="cpu"></span><span>Mock 服务</span></div>
+      <div class="menu-item side__item"><span data-icon="operation"></span><span>测试场景</span></div>
+      <div class="menu-item side__item"><span data-icon="data-chart"></span><span>测试报告</span></div>
+      <div class="menu-item side__item"><span data-icon="timer"></span><span>定时任务</span></div>
+      <div class="side__group-title">项目设置</div>
+      <div class="menu-item side__item"><span data-icon="compass"></span><span>环境管理</span></div>
+      <div class="menu-item side__item"><span data-icon="layers"></span><span>函数管理</span></div>
+      <div class="menu-item side__item menu-item--active"><span data-icon="box"></span><span>公共组件</span></div>
+    </aside>
+
+    <div class="split__main">
+      <div class="list-page">
+        <!-- 筛选 / 批量操作 -->
+        <div class="card filter-card">
+          <div class="filter-row">
+            <select class="select" style="width:140px"><option>组件类型</option><option>前置处理器</option><option>后置处理器</option><option>验证器</option><option>提取器</option></select>
+            <select class="select" style="width:120px"><option>作用域</option><option>公共</option><option>空间</option><option>项目</option></select>
+            <select class="select" style="width:110px"><option>状态</option><option>已启用</option><option>已停用</option></select>
+            <div class="input-wrap" style="width:220px"><span data-icon="search"></span><input class="input" placeholder="搜索组件名称..."></div>
+            <div class="spacer"></div>
+            <span class="selected-hint">已选 2 项</span>
+            <button class="btn btn--default btn--sm">批量启用</button>
+            <button class="btn btn--default btn--sm">批量停用</button>
+            <button class="btn btn--danger btn--sm">批量删除</button>
+            <button class="btn btn--primary btn--sm"><span data-icon="plus"></span>新建组件</button>
+          </div>
+        </div>
+
+        <!-- 组件表格 -->
+        <div class="card table-card">
+          <div class="table-wrap" style="flex:1">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th style="width:40px"></th>
+                  <th>名称</th>
+                  <th style="width:120px">类型</th>
+                  <th style="width:100px">作用域</th>
+                  <th style="width:80px">启用</th>
+                  <th style="width:170px">更新时间</th>
+                  <th style="width:200px">操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><span class="checkbox checkbox--on"></span></td>
+                  <td class="cell-main">Token 预置</td>
+                  <td style="text-align:center">前置处理器</td>
+                  <td style="text-align:center"><span class="tag tag--outline">公共</span></td>
+                  <td style="text-align:center"><button class="switch is-on"></button></td>
+                  <td class="num">2026-09-20 11:08</td>
+                  <td style="text-align:center"><span class="op-link">编辑</span><span class="op-link">复制</span><span class="op-link op-link--danger">删除</span></td>
+                </tr>
+                <tr>
+                  <td><span class="checkbox checkbox--on"></span></td>
+                  <td class="cell-main">登录态校验</td>
+                  <td style="text-align:center">验证器</td>
+                  <td style="text-align:center"><span class="tag tag--success">空间</span></td>
+                  <td style="text-align:center"><button class="switch is-on"></button></td>
+                  <td class="num">2026-09-19 16:42</td>
+                  <td style="text-align:center"><span class="op-link">编辑</span><span class="op-link">复制</span><span class="op-link op-link--danger">删除</span></td>
+                </tr>
+                <tr>
+                  <td><span class="checkbox"></span></td>
+                  <td class="cell-main">分页游标提取</td>
+                  <td style="text-align:center">提取器</td>
+                  <td style="text-align:center"><span class="tag tag--info">项目</span></td>
+                  <td style="text-align:center"><button class="switch is-on"></button></td>
+                  <td class="num">2026-09-18 09:15</td>
+                  <td style="text-align:center"><span class="op-link">编辑</span><span class="op-link">复制</span><span class="op-link op-link--danger">删除</span></td>
+                </tr>
+                <tr>
+                  <td><span class="checkbox"></span></td>
+                  <td class="cell-main">清理测试数据</td>
+                  <td style="text-align:center">后置处理器</td>
+                  <td style="text-align:center"><span class="tag tag--outline">公共</span></td>
+                  <td style="text-align:center"><button class="switch"></button></td>
+                  <td class="num">2026-09-15 14:30</td>
+                  <td style="text-align:center"><span class="op-link">编辑</span><span class="op-link">复制</span><span class="op-link op-link--danger">删除</span></td>
+                </tr>
+                <tr>
+                  <td><span class="checkbox"></span></td>
+                  <td class="cell-main">统一错误码断言</td>
+                  <td style="text-align:center">验证器</td>
+                  <td style="text-align:center"><span class="tag tag--info">项目</span></td>
+                  <td style="text-align:center"><button class="switch is-on"></button></td>
+                  <td class="num">2026-09-12 10:03</td>
+                  <td style="text-align:center"><span class="op-link">编辑</span><span class="op-link">复制</span><span class="op-link op-link--danger">删除</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="pager">
+            <span class="pager__total">共 17 个组件</span>
+            <span class="pager__sizes">
+              <button class="size-btn">10</button>
+              <button class="size-btn is-active">20</button>
+              <button class="size-btn">50</button>
+              <button class="size-btn">100</button>
+            </span>
+            <button class="page-btn" disabled>‹</button>
+            <button class="page-btn page-btn--active">1</button>
+            <button class="page-btn">2</button>
+            <button class="page-btn">›</button>
+            <span style="font-size:var(--font-size-sm);color:var(--n-500);margin-left:8px">跳至 1 页</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script src="../assets/icons.js"></script>
+<script src="../assets/shell.js"></script>
+<script>
+  document.querySelectorAll('.switch').forEach(function (sw) {
+    sw.addEventListener('click', function () { sw.classList.toggle('is-on'); });
+  });
+</script>
+</body>
+</html>
