@@ -26,6 +26,7 @@ class ReviewWorkflowImplTest {
         assertTransition(ReviewStatus.NEW, ReviewEvent.UPDATE_CASES, ReviewStatus.NEW);
         assertTransition(ReviewStatus.NEW, ReviewEvent.SYNC, ReviewStatus.NEW);
         assertTransition(ReviewStatus.NEW, ReviewEvent.COMPLETE, ReviewStatus.COMPLETED);
+        assertTransition(ReviewStatus.NEW, ReviewEvent.REJECT, ReviewStatus.REJECTED);
         assertTransition(ReviewStatus.NEW, ReviewEvent.DELETE, ReviewStatus.NEW);
     }
 
@@ -35,7 +36,39 @@ class ReviewWorkflowImplTest {
         assertTransition(ReviewStatus.IN_PROGRESS, ReviewEvent.UPDATE_CASES, ReviewStatus.IN_PROGRESS);
         assertTransition(ReviewStatus.IN_PROGRESS, ReviewEvent.SYNC, ReviewStatus.IN_PROGRESS);
         assertTransition(ReviewStatus.IN_PROGRESS, ReviewEvent.COMPLETE, ReviewStatus.COMPLETED);
+        assertTransition(ReviewStatus.IN_PROGRESS, ReviewEvent.REJECT, ReviewStatus.REJECTED);
         assertTransition(ReviewStatus.IN_PROGRESS, ReviewEvent.DELETE, ReviewStatus.IN_PROGRESS);
+    }
+
+    @Test
+    void activeState_reopenIllegal() {
+        assertReopenIllegal(ReviewStatus.NEW);
+        assertReopenIllegal(ReviewStatus.IN_PROGRESS);
+    }
+
+    @Test
+    void rejectedState_reopenBackToInProgressAndDeleteAllowed() {
+        assertEquals(ReviewStatus.IN_PROGRESS, workflow.transition(review(ReviewStatus.REJECTED), ReviewEvent.REOPEN));
+        assertEquals(ReviewStatus.REJECTED, workflow.transition(review(ReviewStatus.REJECTED), ReviewEvent.DELETE));
+        assertTrue(workflow.can(review(ReviewStatus.REJECTED), ReviewEvent.REOPEN));
+        assertTrue(workflow.can(review(ReviewStatus.REJECTED), ReviewEvent.DELETE));
+    }
+
+    @Test
+    void rejectedState_illegalTransitionsThrow() {
+        ReviewEvent[] illegal = {ReviewEvent.SUBMIT_RECORD, ReviewEvent.UPDATE_CASES,
+                ReviewEvent.SYNC, ReviewEvent.COMPLETE, ReviewEvent.REJECT};
+        for (ReviewEvent event : illegal) {
+            assertFalse(workflow.can(review(ReviewStatus.REJECTED), event));
+            assertThrows(ServiceException.class, () -> workflow.transition(review(ReviewStatus.REJECTED), event));
+            assertThrows(ServiceException.class, () -> workflow.assertTransition(review(ReviewStatus.REJECTED), event));
+        }
+    }
+
+    @Test
+    void completedState_rejectIllegal() {
+        assertThrows(ServiceException.class,
+                () -> workflow.assertTransition(review(ReviewStatus.COMPLETED), ReviewEvent.REJECT));
     }
 
     @Test
@@ -66,6 +99,12 @@ class ReviewWorkflowImplTest {
         assertThrows(ServiceException.class,
                 () -> workflow.assertTransition(review(ReviewStatus.COMPLETED), ReviewEvent.SYNC));
         assertDoesNotThrow(() -> workflow.assertTransition(review(ReviewStatus.NEW), ReviewEvent.SYNC));
+    }
+
+    private void assertReopenIllegal(ReviewStatus from) {
+        assertFalse(workflow.can(review(from), ReviewEvent.REOPEN));
+        assertThrows(ServiceException.class, () -> workflow.transition(review(from), ReviewEvent.REOPEN));
+        assertThrows(ServiceException.class, () -> workflow.assertTransition(review(from), ReviewEvent.REOPEN));
     }
 
     private void assertTransition(ReviewStatus from, ReviewEvent event, ReviewStatus to) {
