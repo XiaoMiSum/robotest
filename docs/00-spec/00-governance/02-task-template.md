@@ -174,6 +174,12 @@ mvn verify
 ### 7.3 统一检查
 
 ```bash
+# 按端（对应 agent 只运行本端脚本）
+bash scripts/validate-docs.sh    # 文档变更
+bash scripts/validate-web.sh     # 前端变更
+bash scripts/validate-backend.sh # 后端变更
+
+# 全量（合并 / 发版前）
 bash scripts/validate.sh --all
 ```
 
