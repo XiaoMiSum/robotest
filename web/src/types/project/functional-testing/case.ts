@@ -1,10 +1,17 @@
 import type { CaseNodeType } from '../shared'
 
-/** 评审状态 */
-export type ReviewStatus = 'new' | 'in_progress' | 'completed'
+/** 评审状态（new 待评审 / in_progress 进行中 / completed 已通过 / rejected 已驳回） */
+export type ReviewStatus = 'new' | 'in_progress' | 'completed' | 'rejected'
 
 /** 评审标记 */
 export type ReviewMark = 'pass' | 'fail'
+
+/** 评审参与者（列表头像堆展示用） */
+export interface ReviewParticipant {
+  id: string
+  name: string
+  avatarUrl: string | null
+}
 
 /** 测试评审列表项 */
 export interface TestReviewListItem {
@@ -13,8 +20,11 @@ export interface TestReviewListItem {
   status: ReviewStatus
   initiator: { id: string; name: string }
   participantCount: number
+  participants: ReviewParticipant[]
   createdAt: string
   totalAssociated: number
+  /** 已评审数（总数 − 待评审数），进度列展示 n/total */
+  reviewed: number
   passed: number
   progressPercent: number
   passRate: number

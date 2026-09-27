@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { fetchDashboard } from '@/services/project'
 import type { ProjectActivity, ProjectDashboard } from '@/types'
+import { reviewStatusMeta } from '@/components/project/functional-testing/review/reviewListPresentation'
 import { formatDate, formatDateTime } from '@/utils/format'
 
 const router = useRouter()
@@ -265,12 +266,12 @@ function openActivity(activity: ProjectActivity) {
               <span class="panel__item-name">{{ item.title }}</span>
               <span class="panel__item-meta">
                 <el-tag
-                  :type="item.status === 'completed' ? 'success' : 'warning'"
+                  :type="reviewStatusMeta(item.status).tagType"
                   size="small"
                   effect="light"
                   round
                 >
-                  {{ item.status === 'completed' ? '已完成' : '评审中' }}
+                  {{ reviewStatusMeta(item.status).label }}
                 </el-tag>
                 <span class="panel__item-date">{{ formatDateTime(item.createdAt) }}</span>
               </span>

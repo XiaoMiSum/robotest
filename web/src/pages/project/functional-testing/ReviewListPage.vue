@@ -1,12 +1,21 @@
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
-import { completeReview, createReview, deleteReview, fetchReviews } from '@/services/project'
+import { createReview, deleteReview, fetchReviews, reopenReview } from '@/services/project'
 import { fetchMembers } from '@/services/workspace'
 import type { ReviewStatus, TestReviewListItem, WorkspaceMember } from '@/types'
 import { formatDateTime } from '@/utils/format'
 import CaseSelector from '@/components/project/functional-testing/case/CaseSelector.vue'
+import {
+  REVIEW_STATUS_META,
+  reviewAvatars,
+  reviewListAction,
+  reviewPassRate,
+  reviewProgressStatus,
+  reviewProgressText,
+  reviewStatusMeta,
+} from '@/components/project/functional-testing/review/reviewListPresentation'
 
 const router = useRouter()
 const loading = ref(false)
@@ -14,8 +23,44 @@ const reviews = ref<TestReviewListItem[]>([])
 const total = ref(0)
 const query = reactive({ status: '' as ReviewStatus | '', keyword: '', pageNo: 1, pageSize: 20 })
 
-const statusLabel: Record<string, string> = { new: '待评审', in_progress: '评审中', completed: '已完成' }
-const statusType: Record<string, 'info' | 'warning' | 'success'> = { new: 'info', in_progress: 'warning', completed: 'success' }
+// 发起人在头像堆中置顶并高亮，通过组件 CSS 变量定制，避免重写 el-avatar 内部结构
+const brandAvatarStyle: Record<string, string> = {
+  '--el-avatar-background-color': 'var(--color-primary-500)',
+  '--el-avatar-color': 'var(--color-neutral-0)',
+}
+
+const statusOptions = (Object.keys(REVIEW_STATUS_META) as ReviewStatus[]).map((value) => ({
+  value,
+  label: REVIEW_STATUS_META[value].label,
+}))
+
+// 展示口径在行级预计算，模板内不再散落条件分支
+interface ReviewRowView {
+  review: TestReviewListItem
+  meta: ReturnType<typeof reviewStatusMeta>
+  action: ReturnType<typeof reviewListAction>
+  passRate: ReturnType<typeof reviewPassRate>
+  progressText: string
+  progressStatus: ReturnType<typeof reviewProgressStatus>
+  avatars: ReturnType<typeof reviewAvatars>
+}
+
+const rows = computed<ReviewRowView[]>(() =>
+  reviews.value.map((review) => ({
+    review,
+    meta: reviewStatusMeta(review.status),
+    action: reviewListAction(review.status),
+    passRate: reviewPassRate(review.status, review.passRate),
+    progressText: reviewProgressText(review.reviewed, review.totalAssociated),
+    progressStatus: reviewProgressStatus(review.status),
+    avatars: reviewAvatars(review),
+  })),
+)
+
+// 视图模型无原始 id 字段，行 key 由内层评审对象提供
+function rowKeyId(row: ReviewRowView): string {
+  return row.review.id
+}
 
 async function loadReviews() {
   loading.value = true
@@ -49,16 +94,20 @@ function handleReset() {
 
 onMounted(loadReviews)
 
-async function handleComplete(row: TestReviewListItem) {
+function openReview(id: string) {
+  router.push(`/workspace/projects/reviews/${id}`)
+}
+
+async function handleReopen(row: TestReviewListItem) {
   try {
-    await ElMessageBox.confirm(`确定完成评审「${row.title}」？`, '完成评审', { type: 'warning' })
+    await ElMessageBox.confirm(`确定重新发起评审「${row.title}」？既有标记将保留，参与者可继续评审。`, '重新发起评审', { type: 'warning' })
   } catch { return }
   try {
-    await completeReview(row.id)
-    ElMessage.success('评审已完成')
+    await reopenReview(row.id)
+    ElMessage.success('评审已重新发起')
     loadReviews()
   } catch (err) {
-    ElMessage.error(err instanceof Error ? err.message : '完成评审失败')
+    ElMessage.error(err instanceof Error ? err.message : '重新发起失败')
   }
 }
 
@@ -141,83 +190,126 @@ async function submitCreate() {
 </script>
 
 <template>
-  <div class="review-list">
+  <main class="review-list-page">
+    <header class="page-head">
+      <div>
+        <h1 class="page-head__title">测试评审</h1>
+        <p class="page-head__desc">用例评审与评审结论跟踪</p>
+      </div>
+      <div class="page-head__actions">
+        <el-button type="primary" @click="openCreateDialog">
+          <el-icon><Plus /></el-icon>发起评审
+        </el-button>
+      </div>
+    </header>
 
     <el-card v-loading="loading" shadow="never">
-      <template #header>
-        <div class="review-list__header">
-          <el-input
-            v-model="query.keyword"
-            placeholder="搜索标题"
-            clearable
-            style="width: 200px"
-            @keyup.enter="handleSearch"
-          />
-          <el-select v-model="query.status" placeholder="状态" clearable style="width: 140px">
-            <el-option v-for="(label, key) in statusLabel" :key="key" :label="label" :value="key" />
-          </el-select>
-          <el-button type="primary" @click="handleSearch">
-            <el-icon><Search /></el-icon>查询
-          </el-button>
-          <el-button @click="handleReset">重置</el-button>
-          <div class="review-list__header-spacer" />
-          <el-button type="primary" @click="openCreateDialog">
-            <el-icon><Plus /></el-icon>发起评审
-          </el-button>
-        </div>
-      </template>
-      <el-table :data="reviews" row-key="id">
-        <el-table-column label="标题" min-width="200">
+      <div class="review-list__toolbar">
+        <el-input
+          v-model="query.keyword"
+          placeholder="评审标题"
+          clearable
+          style="width: 200px"
+          @keyup.enter="handleSearch"
+          @clear="handleSearch"
+        />
+        <el-select v-model="query.status" placeholder="全部状态" clearable style="width: 130px">
+          <el-option v-for="option in statusOptions" :key="option.value" :label="option.label" :value="option.value" />
+        </el-select>
+        <el-button type="primary" @click="handleSearch">
+          <el-icon><Search /></el-icon>查询
+        </el-button>
+        <el-button @click="handleReset">重置</el-button>
+        <span class="review-list__count">共 {{ total }} 场评审</span>
+      </div>
+
+      <el-table :data="rows" :row-key="rowKeyId" empty-text="暂无评审">
+        <el-table-column label="标题" min-width="220">
           <template #default="{ row }">
-            <el-link type="primary" underline="never" @click="router.push(`/workspace/projects/reviews/${row.id}`)">{{ row.title }}</el-link>
+            <div class="review-list__cell">
+              <el-link type="primary" underline="never" @click="openReview(row.review.id)">
+                {{ row.review.title }}
+              </el-link>
+              <span class="review-list__cell-sub">关联用例 {{ row.review.totalAssociated }} 条</span>
+            </div>
           </template>
         </el-table-column>
-        <el-table-column label="发起人" width="120">
-          <template #default="{ row }">{{ row.initiator.name }}</template>
+        <el-table-column label="发起人" width="100">
+          <template #default="{ row }">{{ row.review.initiator.name }}</template>
         </el-table-column>
-        <el-table-column label="状态" width="100">
+        <el-table-column label="状态" width="96">
           <template #default="{ row }">
-            <el-tag :type="statusType[row.status] ?? 'info'" size="small" effect="light" round>
-              {{ statusLabel[row.status] ?? row.status }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column label="进度" width="140">
-          <template #default="{ row }">
-            <el-progress :percentage="row.progressPercent" :stroke-width="6" />
-          </template>
-        </el-table-column>
-        <el-table-column label="通过率" width="100">
-          <template #default="{ row }">
-            <span :class="row.passRate === 100 ? 'review-list__rate--full' : 'review-list__rate--partial'">
-              {{ row.passRate }}%
+            <span class="review-list__status" :class="`review-list__status--${row.meta.modifier}`">
+              <span class="review-list__status-dot" />
+              {{ row.meta.label }}
             </span>
           </template>
         </el-table-column>
-        <el-table-column label="参与者" width="80">
-          <template #default="{ row }">{{ row.participantCount }} 人</template>
+        <el-table-column label="进度" min-width="170">
+          <template #default="{ row }">
+            <div class="review-list__progress">
+              <el-progress
+                class="review-list__progress-bar"
+                :percentage="row.review.progressPercent"
+                :stroke-width="6"
+                :status="row.progressStatus"
+                :format="() => row.progressText"
+              />
+            </div>
+          </template>
+        </el-table-column>
+        <el-table-column label="通过率" width="92" align="right">
+          <template #default="{ row }">
+            <span class="review-list__rate" :class="`review-list__rate--${row.passRate.tone}`">
+              {{ row.passRate.text }}
+            </span>
+          </template>
+        </el-table-column>
+        <el-table-column label="参与者" width="124">
+          <template #default="{ row }">
+            <span v-if="!row.avatars.visible.length" class="review-list__muted">—</span>
+            <span v-else class="review-list__avatars">
+              <el-avatar
+                v-for="avatar in row.avatars.visible"
+                :key="avatar.key"
+                :size="24"
+                :src="avatar.avatarUrl ?? undefined"
+                :style="avatar.brand ? brandAvatarStyle : undefined"
+              >{{ avatar.label }}</el-avatar>
+              <span v-if="row.avatars.overflow" class="review-list__avatar-more">
+                +{{ row.avatars.overflow }}
+              </span>
+            </span>
+          </template>
         </el-table-column>
         <el-table-column label="创建时间" width="160">
-          <template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template>
+          <template #default="{ row }">{{ formatDateTime(row.review.createdAt) }}</template>
         </el-table-column>
-        <el-table-column label="操作" width="200" fixed="right">
+        <el-table-column label="操作" width="176" fixed="right">
           <template #default="{ row }">
-            <el-button link type="primary" @click="router.push(`/workspace/projects/reviews/${row.id}`)">
-              {{ row.status === 'completed' ? '查看详情' : '进入评审' }}
+            <el-button link type="primary" @click="openReview(row.review.id)">
+              {{ row.action === 'enter' ? '进入' : '查看' }}
             </el-button>
-            <el-button v-if="row.status !== 'completed'" link type="success" @click="handleComplete(row as TestReviewListItem)">
-              完成
+            <el-button
+              v-if="row.review.status === 'rejected'"
+              link
+              type="primary"
+              @click="handleReopen(row.review)"
+            >
+              重新发起
             </el-button>
-            <el-button link type="danger" @click="handleDelete(row as TestReviewListItem)">删除</el-button>
+            <el-button link type="danger" @click="handleDelete(row.review)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>
+
       <div class="review-list__pager">
+        <span class="review-list__pager-total">共 {{ total }} 场 · 每页 {{ query.pageSize }} 条</span>
         <el-pagination
           v-model:current-page="query.pageNo"
           :total="total"
           :page-size="query.pageSize"
-          layout="total, prev, pager, next"
+          layout="prev, pager, next"
           @current-change="loadReviews"
         />
       </div>
@@ -250,34 +342,159 @@ async function submitCreate() {
     </el-dialog>
 
     <CaseSelector v-model="caseSelectorVisible" @confirm="handleCaseSelected" />
-  </div>
+  </main>
 </template>
 
 <style scoped lang="scss">
-.review-list__header {
+.page-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-lg);
+  margin-bottom: var(--block-gap);
+}
+
+.page-head__title {
+  margin: 0;
+  color: var(--color-neutral-900);
+  font-size: var(--font-size-2xl);
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.page-head__desc {
+  margin: 4px 0 0;
+  color: var(--color-neutral-500);
+  font-size: var(--font-size-sm);
+}
+
+.review-list__toolbar {
   display: flex;
   align-items: center;
   gap: var(--space-md);
+  padding-bottom: var(--space-md);
 }
 
-.review-list__header-spacer {
+.review-list__count {
+  margin-left: auto;
+  color: var(--color-neutral-500);
+  font-size: var(--font-size-sm);
+  white-space: nowrap;
+}
+
+.review-list__cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.review-list__cell-sub {
+  color: var(--color-neutral-400);
+  font-size: var(--font-size-2xs);
+}
+
+.review-list__status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  color: var(--color-neutral-600);
+  font-size: var(--font-size-sm);
+  white-space: nowrap;
+}
+
+.review-list__status-dot {
+  width: 6px;
+  height: 6px;
+  flex: 0 0 6px;
+  border-radius: var(--radius-full);
+  background: var(--color-neutral-400);
+}
+
+.review-list__status--running {
+  color: var(--color-warning);
+
+  .review-list__status-dot {
+    background: var(--color-warning);
+    box-shadow: 0 0 0 3px rgb(230 162 60 / 18%);
+  }
+}
+
+.review-list__status--success {
+  color: var(--color-success);
+
+  .review-list__status-dot {
+    background: var(--color-success);
+  }
+}
+
+.review-list__status--danger {
+  color: var(--color-danger);
+
+  .review-list__status-dot {
+    background: var(--color-danger);
+  }
+}
+
+.review-list__progress {
+  display: flex;
+  align-items: center;
+}
+
+.review-list__progress-bar {
   flex: 1;
+  min-width: 0;
+}
+
+.review-list__rate {
+  font-size: var(--font-size-sm);
+}
+
+.review-list__rate--muted {
+  color: var(--color-neutral-400);
+}
+
+.review-list__rate--success {
+  color: var(--color-success);
+  font-weight: 600;
+}
+
+.review-list__rate--danger {
+  color: var(--color-danger);
+}
+
+.review-list__muted {
+  color: var(--color-neutral-400);
+}
+
+.review-list__avatars {
+  display: inline-flex;
+  align-items: center;
+
+  :deep(.el-avatar + .el-avatar) {
+    margin-left: -6px;
+    box-shadow: 0 0 0 2px var(--color-neutral-0);
+  }
+}
+
+.review-list__avatar-more {
+  margin-left: 4px;
+  color: var(--color-neutral-500);
+  font-size: var(--font-size-2xs);
 }
 
 .review-list__pager {
   display: flex;
-  justify-content: flex-end;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
   margin-top: var(--space-lg);
   padding-top: var(--space-lg);
   border-top: 1px solid var(--color-neutral-100);
 }
 
-.review-list__rate--full {
-  color: var(--color-success);
-}
-
-.review-list__rate--partial {
-  color: var(--color-danger);
+.review-list__pager-total {
+  color: var(--color-neutral-500);
+  font-size: var(--font-size-sm);
 }
 
 .review-list__case-count {
