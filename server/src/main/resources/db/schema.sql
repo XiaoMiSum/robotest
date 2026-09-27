@@ -1621,7 +1621,7 @@ COMMENT ON COLUMN test_review.title IS '评审标题';
 COMMENT ON COLUMN test_review.description IS '评审描述';
 COMMENT ON COLUMN test_review.initiator_id IS '发起人 ID，关联 sys_user.id';
 COMMENT ON COLUMN test_review.participant_ids IS '参与者 ID 列表（JSON 数组）';
-COMMENT ON COLUMN test_review.status IS '评审状态：new=待评审, in_progress=评审中, completed=已完成';
+COMMENT ON COLUMN test_review.status IS '评审状态：new=待评审, in_progress=进行中, completed=已通过, rejected=已驳回';
 
 COMMENT ON TABLE test_review_module_snapshot IS '评审模块快照表（创建评审时固化模块结构）';
 COMMENT ON COLUMN test_review_module_snapshot.id IS '快照唯一标识';

@@ -32,8 +32,9 @@ public class QueryReviewsTool extends AbstractQueryTool {
                 TOOL_NAME,
                 "查询当前工作空间内的测试评审列表。可按评审状态过滤；支持统计各评审的用例通过情况。",
                 ToolSchema.object(List.of(
-                        ToolSchema.string("status", "评审状态：new(进行中)/completed(已完成)，可空",
-                                List.of(Constants.Status.NEW, Constants.Status.COMPLETED)),
+                        ToolSchema.string("status", "评审状态：new(待评审)/in_progress(进行中)/completed(已通过)/rejected(已驳回)，可空",
+                                List.of(Constants.Status.NEW, Constants.Status.IN_PROGRESS,
+                                        Constants.Status.COMPLETED, Constants.Status.REJECTED)),
                         ToolSchema.string("keyword", "评审标题关键词，可空")),
                         List.of()),
                 true, null);

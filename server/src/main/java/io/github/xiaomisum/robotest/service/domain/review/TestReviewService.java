@@ -64,6 +64,24 @@ public interface TestReviewService {
     void completeReview(UUID projectId, UUID reviewId, UUID userId);
 
     /**
+     * 驳回评审：仅发起人，活跃态（new/in_progress）→ rejected 终态，联动取消进行中的 AI 检查任务
+     *
+     * @param projectId 活动项目 ID（X-Active-Project 头，须与评审归属一致）
+     * @param reviewId 评审 ID
+     * @param userId   操作人 ID（须为发起人）
+     */
+    void rejectReview(UUID projectId, UUID reviewId, UUID userId);
+
+    /**
+     * 重新发起评审：仅发起人，rejected → in_progress，快照与标记保留
+     *
+     * @param projectId 活动项目 ID（X-Active-Project 头，须与评审归属一致）
+     * @param reviewId 评审 ID
+     * @param userId   操作人 ID（须为发起人）
+     */
+    void reopenReview(UUID projectId, UUID reviewId, UUID userId);
+
+    /**
      * 删除评审及其快照、评审记录（仅发起人）
      *
      * @param projectId 活动项目 ID（X-Active-Project 头，须与评审归属一致）

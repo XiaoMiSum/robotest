@@ -69,6 +69,8 @@ public class ErrorCodeConstants {
     public static final ErrorCode ONLY_CASE_NODE_CAN_MARK_REVIEW = ErrorCode.of(1000011015, "只有用例节点可标记评审结果");
     public static final ErrorCode ONLY_ASSOCIATED_CASE_CAN_MARK_PLAN = ErrorCode.of(1000011016, "只有关联的用例节点可标记执行结果");
     public static final ErrorCode ROOT_NODE_NOT_EXECUTABLE = ErrorCode.of(1000011017, "默认根节点不可执行");
+    public static final ErrorCode REVIEW_ONLY_ACTIVE_CAN_REJECT = ErrorCode.of(1000011018, "仅待评审或进行中的评审可驳回");
+    public static final ErrorCode REVIEW_ONLY_REJECTED_CAN_REOPEN = ErrorCode.of(1000011019, "仅已驳回的评审可重新发起");
     public static final ErrorCode TEST_CASE_DOCUMENT_NOT_FOUND = ErrorCode.of(1000011021, "文档不存在");
     public static final ErrorCode TEST_CASE_NODE_NOT_FOUND = ErrorCode.of(1000011022, "用例节点不存在");
     public static final ErrorCode BUG_NOT_FOUND = ErrorCode.of(1000011023, "缺陷不存在");
