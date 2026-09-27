@@ -11,7 +11,7 @@
 - **绘图**：Mermaid（流程图/时序图/类图）
 - **目录**：按业务域分 `00-spec/`、`01-requirements/`、`02-high-level-design/`、`03-architecture/`、`04-detailed-design/`、`05-interaction-design/`
 - **版本管理**：工作目录原位迭代，历史版本经 Git 回溯
-- **校验**：`node scripts/check-docs.mjs`（断链、行内路径、元信息、规则编号）
+- **校验**：`bash scripts/validate-docs.sh`（C7 提交格式 + `scripts/check-docs.mjs`：断链、行内路径、元信息、规则编号）
 
 ## 文档架构
 
@@ -148,7 +148,7 @@ git show <rev>:docs/01-requirements/02-srs-overview.md        # 某个版本的�
    - 文末建 `## 修改记录` 并写入初始行（索引文件例外）；
    - 交叉引用只用相对路径反引号标注；上层文档不引用下层文档（工程规范与需求不引用详细设计、交互设计）。
 4. **登记索引**（D3）：在所在目录索引新增清单行；新建模块子目录时同步外层索引；`00-spec/` 新增规范还需同步分类 `00-readme.md` 与相关 `AGENTS.md` 引用。
-5. **校验**：`node scripts/check-docs.mjs` 必须 exit 0（涉及前后端联动时加跑 `bash scripts/validate.sh`）。
+5. **校验**：`bash scripts/validate-docs.sh` 必须 exit 0（本端专属，不运行其他端脚本）。
 6. **提交**：按 C7 格式提交本文件及其索引登记。
 
 ### 二、修改文档（同一版本内原位迭代）
@@ -189,11 +189,11 @@ git show <rev>:docs/01-requirements/02-srs-overview.md        # 某个版本的�
 
 ## 验证
 
-提交前必须运行文档检查，任一失败先修复再提交：
+提交前必须运行本端验证脚本，任一失败先修复再提交：
 
 ```bash
-node scripts/check-docs.mjs   # 文档专项
-bash scripts/validate.sh      # 全量（含文档检查与前后端质量门禁）
+bash scripts/validate-docs.sh   # 本端（C7 提交格式 + 文档专项检查）
+bash scripts/validate.sh --all  # 全量编排（人工 / CI，含前后端质量门禁）
 ```
 
 `check-docs.mjs` 执行四类检查：
