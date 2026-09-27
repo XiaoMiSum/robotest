@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>接口测试 · 新建定时任务 · RoboTest</title>
+<link rel="stylesheet" href="../assets/tokens.css">
+<link rel="stylesheet" href="../assets/base.css">
+<style>
+  .list-page { display: flex; flex-direction: column; gap: var(--space-md); height: 100%; }
+  .filter-card { padding: 14px 20px; }
+  [hidden] { display: none !important; }
+
+  /* 表单 */
+  .fform { display: flex; flex-direction: column; gap: 16px; }
+  .frow { display: flex; gap: 12px; }
+  .frow__label { width: 100px; flex-shrink: 0; text-align: right; padding-top: 7px; font-size: var(--font-size-sm); color: var(--n-600); }
+  .frow__label .req { color: var(--st-danger); margin-right: 2px; }
+  .frow__control { flex: 1; min-width: 0; }
+  .frow__hint { font-size: var(--font-size-xs); color: var(--n-400); margin-top: 4px; }
+  .frow__error { font-size: var(--font-size-xs); color: var(--st-danger); margin-top: 4px; }
+  .frow__inline { display: flex; align-items: center; gap: var(--space-xs); flex-wrap: wrap; }
+
+  .fdiv { display: flex; align-items: center; gap: 12px; color: var(--n-400); font-size: var(--font-size-xs); }
+  .fdiv::before, .fdiv::after { content: ""; flex: 1; height: 1px; background: var(--n-100); }
+
+  .radio-seg { display: inline-flex; gap: 2px; background: var(--n-50); border: 1px solid var(--n-100); border-radius: var(--radius-md); padding: 2px; }
+  .radio-seg button { height: 26px; padding: 0 14px; border: none; background: none; border-radius: var(--radius-sm); font-size: var(--font-size-xs); color: var(--n-500); cursor: pointer; }
+  .radio-seg button.is-active { background: var(--brand-500); color: #fff; font-weight: 500; }
+
+  .radio-line { display: inline-flex; align-items: center; gap: 6px; font-size: var(--font-size-sm); color: var(--n-700); cursor: pointer; }
+  .radio-dot { width: 14px; height: 14px; border-radius: 50%; border: 1px solid var(--n-300); background: #fff; display: inline-flex; align-items: center; justify-content: center; }
+  .radio-line.is-active .radio-dot { border-color: var(--brand-500); }
+  .radio-line.is-active .radio-dot::after { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--brand-500); }
+
+  .scene-tags { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+
+  .cron-row { display: flex; gap: var(--space-xs); align-items: center; width: 100%; }
+  .cron-row .input { flex: 1; font-family: var(--font-mono); }
+  .cron-result { display: flex; align-items: center; gap: var(--space-xs); margin-top: 6px; }
+  .cron-desc { font-size: var(--font-size-sm); color: var(--n-600); }
+  .cron-preview { font-size: var(--font-size-xs); color: var(--n-500); margin-top: 4px; }
+  .cron-builder { display: flex; gap: var(--space-xs); align-items: center; margin-top: 8px; }
+  .cron-builder .input { width: 80px; text-align: center; font-family: var(--font-mono); }
+
+  .dialog { width: 720px; }
+  .dialog .dialog__body { padding: 20px 24px; }
+</style>
+</head>
+<body data-shell="business" data-mode="project" data-active="api" data-workspace="质量中台" data-project="电商核心系统">
+
+<main class="content content--flush">
+  <div class="split">
+    <aside class="split__side">
+      <div class="menu-item side__item"><span data-icon="terminal"></span><span>快速调试</span></div>
+      <div class="menu-item side__item"><span data-icon="link"></span><span>接口管理</span></div>
+      <div class="menu-item side__item"><span data-icon="cpu"></span><span>Mock 服务</span></div>
+      <div class="menu-item side__item"><span data-icon="operation"></span><span>测试场景</span></div>
+      <div class="menu-item side__item"><span data-icon="data-chart"></span><span>测试报告</span></div>
+      <div class="menu-item side__item menu-item--active"><span data-icon="timer"></span><span>定时任务</span></div>
+      <div class="side__group-title">项目设置</div>
+      <div class="menu-item side__item"><span data-icon="compass"></span><span>环境管理</span></div>
+      <div class="menu-item side__item"><span data-icon="layers"></span><span>函数管理</span></div>
+      <div class="menu-item side__item"><span data-icon="box"></span><span>公共组件</span></div>
+    </aside>
+
+    <!-- 背景：简化的任务列表 -->
+    <div class="split__main">
+      <div class="list-page">
+        <div class="card filter-card">
+          <div class="filter-row">
+            <select class="select" style="width:140px"><option>全部类型</option></select>
+            <div style="flex:1"></div>
+            <button class="btn btn--primary btn--sm"><span data-icon="plus"></span>新建任务</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="table-wrap">
+            <table class="table">
+              <thead>
+                <tr><th>任务名称</th><th style="width:100px">类型</th><th>执行范围</th><th style="width:130px">调度</th><th style="width:80px">状态</th></tr>
+              </thead>
+              <tbody>
+                <tr><td class="cell-main">支付回归夜跑</td><td>测试计划</td><td>全部场景</td><td class="num">0 2 * * *</td><td style="text-align:center"><span class="tag tag--success">启用</span></td></tr>
+                <tr><td class="cell-main">核心链路冒烟</td><td>测试计划</td><td>指定模块×3</td><td class="num">0 * * * *</td><td style="text-align:center"><span class="tag tag--success">启用</span></td></tr>
+                <tr><td class="cell-main">Swagger 文档同步</td><td>接口同步</td><td>—</td><td class="num">0 2 * * 1</td><td style="text-align:center"><span class="tag tag--success">启用</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- 新建定时任务弹窗 -->
+<div class="dialog-mask">
+  <div class="dialog">
+    <div class="dialog__header">
+      <span class="dialog__title">新建定时任务</span>
+      <a class="dialog__close" href="api-schedules.html" title="关闭"><span data-icon="x"></span></a>
+    </div>
+    <div class="dialog__body">
+      <div class="fform">
+        <div class="frow">
+          <label class="frow__label"><span class="req">*</span>任务名称</label>
+          <div class="frow__control">
+            <input class="input" style="width:100%" placeholder="请输入任务名称" maxlength="200">
+          </div>
+        </div>
+
+        <div class="frow">
+          <label class="frow__label">任务描述</label>
+          <div class="frow__control">
+            <textarea class="textarea" style="width:100%" rows="2" placeholder="可选，任务描述" maxlength="500"></textarea>
+          </div>
+        </div>
+
+        <div class="frow">
+          <label class="frow__label"><span class="req">*</span>任务类型</label>
+          <div class="frow__control frow__inline">
+            <span class="radio-line is-active"><span class="radio-dot"></span>测试计划</span>
+            <span class="radio-line"><span class="radio-dot"></span>接口同步</span>
+          </div>
+        </div>
+
+        <div class="frow">
+          <label class="frow__label"><span class="req">*</span>执行方式</label>
+          <div class="frow__control">
+            <div class="frow__inline" id="scope-group">
+              <span class="radio-line" data-scope="all"><span class="radio-dot"></span>全部</span>
+              <span class="radio-line" data-scope="modules"><span class="radio-dot"></span>指定模块</span>
+              <span class="radio-line is-active" data-scope="scenes"><span class="radio-dot"></span>指定场景</span>
+            </div>
+
+            <div class="frow__inline" style="margin-top:10px" id="scope-scenes">
+              <button class="btn btn--link btn--sm">选择场景</button>
+              <span class="scene-tags">
+                <span class="tag tag--outline">下单成功主链路 ×</span>
+                <span class="tag tag--outline">支付回调重放 ×</span>
+              </span>
+            </div>
+
+            <div class="frow__inline" style="margin-top:10px" id="scope-modules" hidden>
+              <select class="select" style="width:100%"><option>选择执行模块（勾选父模块将包含其全部子模块）</option></select>
+            </div>
+          </div>
+        </div>
+
+        <div class="frow">
+          <label class="frow__label"><span class="req">*</span>目标环境</label>
+          <div class="frow__control">
+            <select class="select" style="width:100%"><option>请选择目标环境</option><option>测试环境</option><option>预发环境</option></select>
+            <div class="frow__hint">测试计划任务需指定目标环境</div>
+          </div>
+        </div>
+
+        <div class="fdiv">调度配置</div>
+
+        <div class="frow">
+          <label class="frow__label">预设表达式</label>
+          <div class="frow__control">
+            <select class="select" style="width:260px">
+              <option>选择预设</option>
+              <option>每小时 (0 * * * *)</option>
+              <option>每天凌晨 2:00 (0 2 * * *)</option>
+              <option>每周一 2:00 (0 2 * * 1)</option>
+              <option>每月 1 号 2:00 (0 2 1 * *)</option>
+              <option>工作日 2:00 (0 2 * * 1-5)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="frow">
+          <label class="frow__label"><span class="req">*</span>Cron 表达式</label>
+          <div class="frow__control">
+            <div class="cron-row">
+              <input class="input" value="0 2 * * *" placeholder="0 2 * * *" maxlength="50">
+              <button class="btn btn--default btn--sm">校验</button>
+              <button class="btn btn--default btn--sm" id="btn-builder">构建器</button>
+            </div>
+            <div class="cron-result">
+              <span class="tag tag--success">合法</span>
+              <span class="cron-desc">每天 02:00:00 执行</span>
+            </div>
+            <div class="cron-preview">下次执行：2026-09-23 02:00 · 2026-09-24 02:00 · 2026-09-25 02:00</div>
+
+            <div class="cron-builder" id="cron-builder">
+              <input class="input" value="0" placeholder="分钟">
+              <input class="input" value="2" placeholder="小时">
+              <input class="input" value="*" placeholder="日">
+              <input class="input" value="*" placeholder="月">
+              <input class="input" value="*" placeholder="星期">
+              <button class="btn btn--primary btn--sm">应用</button>
+            </div>
+            <div class="frow__hint">五段：分钟(0-59) 小时(0-23) 日(1-31) 月(1-12) 星期(0-7)</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="dialog__footer">
+      <a class="btn btn--default btn--sm" href="api-schedules.html">取消</a>
+      <button class="btn btn--primary btn--sm">保存</button>
+    </div>
+  </div>
+</div>
+
+<script src="../assets/icons.js"></script>
+<script src="../assets/shell.js"></script>
+<script>
+  // 执行方式切换：指定模块 / 指定场景 二选一展示
+  document.querySelectorAll('#scope-group .radio-line').forEach(function (r) {
+    r.addEventListener('click', function () {
+      document.querySelectorAll('#scope-group .radio-line').forEach(function (x) { x.classList.remove('is-active'); });
+      r.classList.add('is-active');
+      var scope = r.getAttribute('data-scope');
+      document.getElementById('scope-scenes').hidden = scope !== 'scenes';
+      document.getElementById('scope-modules').hidden = scope !== 'modules';
+    });
+  });
+
+  // Cron 构建器显隐
+  var builder = document.getElementById('cron-builder');
+  document.getElementById('btn-builder').addEventListener('click', function () {
+    builder.hidden = !builder.hidden;
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>接口测试 · 报告详情 · RoboTest</title>
+<link rel="stylesheet" href="../assets/tokens.css">
+<link rel="stylesheet" href="../assets/base.css">
+<style>
+  .rd { background: var(--n-50); border-radius: 16px; padding: 20px 24px; height: 100%; overflow-y: auto; }
+
+  /* Hero */
+  .rr-hero { background: linear-gradient(135deg, #e8f7ee 0%, #cdeedd 100%); border: 1px solid rgba(19,161,76,.10); border-radius: 16px; padding: 24px 26px; color: var(--st-success-strong); box-shadow: 0 10px 30px -14px rgba(19,161,76,.35); margin-bottom: 18px; }
+  .rr-hero__top { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+  .rr-hero__title { margin: 0; font-size: 21px; font-weight: 650; letter-spacing: .3px; }
+  .rr-hero__actions { margin-left: auto; display: flex; gap: 10px; }
+  .rr-pill { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 999px; font-size: 12.5px; font-weight: 600; white-space: nowrap; }
+  .rr-pill--ok { background: #fff; color: var(--st-success-strong); box-shadow: 0 1px 3px rgba(19,161,76,.12); }
+  .rr-pill--on-dark { background: rgba(19,161,76,.10); color: var(--st-success-strong); }
+  .rr-hero__meta { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 8px 22px; font-size: 12.8px; color: rgba(19,161,76,.72); }
+  .rr-hero__meta b { font-weight: 600; color: var(--st-success-strong); }
+  .rr-mono { font-family: var(--font-mono); }
+  .btn-hero { background: rgba(255,255,255,.85); border: 1px solid rgba(19,161,76,.18); color: var(--st-success-strong); }
+  .btn-hero:hover { background: #fff; border-color: rgba(19,161,76,.4); }
+
+  /* 统计卡 */
+  .rr-card { background: #fff; border-radius: 14px; box-shadow: 0 1px 2px rgba(0,0,0,.05), 0 6px 20px -8px rgba(0,0,0,.12); margin-bottom: 18px; overflow: hidden; }
+  .rr-card--plain { padding: 18px 20px; }
+  .rr-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(132px, 1fr)); gap: 12px; }
+  .rr-stat { background: #fff; border: 1px solid var(--n-200); border-radius: 12px; padding: 14px 16px; position: relative; overflow: hidden; }
+  .rr-stat::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--n-200); }
+  .rr-stat--g::before { background: var(--st-success); }
+  .rr-stat--r::before { background: var(--st-danger); }
+  .rr-stat--b::before { background: var(--st-success-strong); }
+  .rr-stat--g .rr-stat__num { color: var(--st-success-strong); }
+  .rr-stat--r .rr-stat__num { color: var(--st-danger-strong); }
+  .rr-stat--b .rr-stat__num { color: var(--st-success-strong); }
+  .rr-stat__num { font-size: 24px; font-weight: 700; line-height: 1.2; letter-spacing: -.5px; color: var(--n-800); }
+  .rr-stat__lbl { font-size: 12.5px; color: var(--n-600); margin-top: 2px; }
+
+  /* 场景折叠卡 */
+  .rr-scene__head { padding: 18px 20px; display: flex; align-items: flex-start; gap: 12px; flex-wrap: wrap; background: linear-gradient(180deg, var(--n-50), #fff); border-bottom: 1px solid var(--n-200); cursor: pointer; user-select: none; }
+  .rr-scene__title { font-size: 16px; font-weight: 650; margin: 0; }
+  .rr-scene__meta { font-size: 12.2px; color: var(--n-600); margin-top: 4px; display: flex; flex-wrap: wrap; gap: 4px 16px; }
+  .rr-scene__mini { display: flex; gap: 8px; flex-wrap: wrap; margin-left: auto; }
+  .rr-mini { background: var(--n-50); border: 1px solid var(--n-200); border-radius: 9px; padding: 6px 12px; text-align: center; min-width: 66px; }
+  .rr-mini--g .rr-mini__n { color: var(--st-success-strong); }
+  .rr-mini--r .rr-mini__n { color: var(--st-danger-strong); }
+  .rr-mini__n { font-size: 16px; font-weight: 700; line-height: 1.3; }
+  .rr-mini__t { font-size: 11px; color: var(--n-500); }
+  .rr-badge { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600; padding: 2px 9px; border-radius: 999px; align-self: center; }
+  .rr-badge::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .rr-badge--ok { background: var(--st-success-light); color: var(--st-success-strong); }
+  .rr-badge--fail { background: var(--st-danger-light); color: var(--st-danger-strong); }
+  .rr-chev { appearance: none; border: 1px solid transparent; background: transparent; cursor: pointer; padding: 6px 8px; display: inline-flex; align-items: center; justify-content: center; color: var(--n-500); border-radius: 6px; align-self: center; }
+  .rr-chev:hover { background: var(--n-100); }
+  .rr-chev__i { display: inline-block; width: 8px; height: 8px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(45deg) translate(-2px,-2px); transition: transform .2s ease; }
+  .rr-chev--open .rr-chev__i { transform: rotate(-135deg) translate(-3px,3px); }
+  .rr-scene--failed .rr-scene__head { border-left: 3px solid var(--st-danger); }
+  .rr-scene__body { padding: 18px 20px 20px; }
+
+  /* 测试步骤 */
+  .rsc { border: 1px solid var(--n-200); border-radius: 10px; overflow: hidden; }
+  .rsc + .rsc { margin-top: 10px; }
+  .rsc__head { display: flex; align-items: center; gap: 8px; padding: 10px 12px; background: var(--n-50); }
+  .rsc__index { width: 18px; height: 18px; border-radius: 50%; background: var(--n-200); color: var(--n-600); font-size: 11px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; }
+  .rsc__name { font-size: var(--font-size-sm); font-weight: 600; color: var(--n-800); }
+  .rsc__spacer { flex: 1; }
+  .rsc__dur { font-family: var(--font-mono); font-size: var(--font-size-xs); color: var(--n-500); }
+  .rsc__body { padding: 10px 12px; border-top: 1px solid var(--n-100); display: flex; flex-direction: column; gap: 8px; }
+  .rsc__line { display: flex; align-items: center; gap: 8px; font-family: var(--font-mono); font-size: var(--font-size-xs); }
+  .rsc__line .chip { flex-shrink: 0; }
+  .rsc__url { color: var(--n-700); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .rsc__sub-label { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--n-400); font-weight: 600; margin: 0 0 4px; }
+  .rsc__kv { width: 100%; border-collapse: collapse; font-size: var(--font-size-xs); }
+  .rsc__kv th { text-align: left; padding: 3px 8px; color: var(--n-500); background: var(--n-50); border-bottom: 1px solid var(--n-100); font-weight: 600; }
+  .rsc__kv td { padding: 3px 8px; border-bottom: 1px solid var(--n-100); color: var(--n-700); font-family: var(--font-mono); }
+  .chip { display: inline-flex; align-items: center; padding: 0 7px; height: 18px; border-radius: var(--radius-sm); color: #fff; font-family: var(--font-mono); font-size: 11px; font-weight: 700; }
+  .chip--get { background: #61affe; } .chip--post { background: #49cc90; } .chip--put { background: #fca130; } .chip--delete { background: #f93e3e; }
+  .chip--status { background: var(--st-success); }
+  .assert-row { display: flex; align-items: center; gap: 8px; font-size: var(--font-size-xs); color: var(--n-600); padding: 4px 0; }
+  .assert-row b { font-family: var(--font-mono); color: var(--n-800); font-weight: 600; }
+
+  .rr-footer { font-size: 12.5px; color: var(--n-600); text-align: center; margin: 22px 0 0; }
+
+  /* 分享弹窗 */
+  [hidden] { display: none !important; }
+  .share-hint { font-size: var(--font-size-sm); color: var(--n-500); margin: 0 0 var(--space-sm); }
+  .share-url { display: flex; }
+  .share-url .input { flex: 1; border-top-right-radius: 0; border-bottom-right-radius: 0; }
+  .share-url .btn { border-top-left-radius: 0; border-bottom-left-radius: 0; }
+  .share-meta { font-size: var(--font-size-xs); color: var(--n-400); margin: var(--space-sm) 0 0; }
+  .share-actions { display: flex; justify-content: flex-end; gap: var(--space-xs); margin-top: var(--space-lg); }
+  .expiry-seg { display: inline-flex; gap: 2px; background: var(--n-50); border: 1px solid var(--n-100); border-radius: var(--radius-md); padding: 2px; }
+  .expiry-seg button { height: 26px; padding: 0 14px; border: none; background: none; border-radius: var(--radius-sm); font-size: var(--font-size-xs); color: var(--n-500); cursor: pointer; }
+  .expiry-seg button.is-active { background: var(--brand-500); color: #fff; font-weight: 500; }
+</style>
+</head>
+<body data-shell="business" data-mode="project" data-active="api" data-workspace="质量中台" data-project="电商核心系统">
+
+<main class="content content--flush">
+  <div class="split">
+    <aside class="split__side">
+      <div class="menu-item side__item"><span data-icon="terminal"></span><span>快速调试</span></div>
+      <div class="menu-item side__item"><span data-icon="link"></span><span>接口管理</span></div>
+      <div class="menu-item side__item"><span data-icon="cpu"></span><span>Mock 服务</span></div>
+      <div class="menu-item side__item"><span data-icon="operation"></span><span>测试场景</span></div>
+      <div class="menu-item side__item menu-item--active"><span data-icon="data-chart"></span><span>测试报告</span></div>
+      <div class="menu-item side__item"><span data-icon="timer"></span><span>定时任务</span></div>
+      <div class="side__group-title">项目设置</div>
+      <div class="menu-item side__item"><span data-icon="compass"></span><span>环境管理</span></div>
+      <div class="menu-item side__item"><span data-icon="layers"></span><span>函数管理</span></div>
+      <div class="menu-item side__item"><span data-icon="box"></span><span>公共组件</span></div>
+    </aside>
+
+    <div class="split__main">
+      <div class="rd">
+        <!-- Hero -->
+        <div class="rr-hero">
+          <div class="rr-hero__top">
+            <h1 class="rr-hero__title">支付回归夜跑-2026-09-22 03:00:04</h1>
+            <span class="rr-pill rr-pill--ok">✓ 执行成功</span>
+            <span class="rr-pill rr-pill--on-dark">平台内执行</span>
+            <div class="rr-hero__actions">
+              <button class="btn btn--sm btn-hero" id="btn-share">分享</button>
+              <button class="btn btn--sm btn-hero">关闭</button>
+            </div>
+          </div>
+          <div class="rr-hero__meta">
+            <span>环境：<b>测试环境</b></span>
+            <span>触发时间：<b>2026-09-22 03:00:04</b></span>
+            <span>总耗时：<b class="rr-mono">42.70 s</b></span>
+            <span>Task ID：<b class="rr-mono">T-20260922-03000042</b></span>
+          </div>
+        </div>
+
+        <!-- 套件统计 -->
+        <div class="rr-card rr-card--plain">
+          <div class="rr-stats">
+            <div class="rr-stat rr-stat--b"><div class="rr-stat__num">6</div><div class="rr-stat__lbl">场景总数</div></div>
+            <div class="rr-stat rr-stat--g"><div class="rr-stat__num">5</div><div class="rr-stat__lbl">通过场景</div></div>
+            <div class="rr-stat rr-stat--r"><div class="rr-stat__num">1</div><div class="rr-stat__lbl">失败场景</div></div>
+            <div class="rr-stat rr-stat--g"><div class="rr-stat__num">83.3%</div><div class="rr-stat__lbl">通过率</div></div>
+            <div class="rr-stat rr-stat--b"><div class="rr-stat__num">42.70 s</div><div class="rr-stat__lbl">总耗时</div></div>
+          </div>
+        </div>
+
+        <!-- 场景 1：失败 + 展开 -->
+        <section class="rr-card rr-scene rr-scene--failed" data-scene>
+          <div class="rr-scene__head">
+            <div>
+              <h2 class="rr-scene__title">支付回调重放</h2>
+              <div class="rr-scene__meta">
+                <span>场景 ID：<b class="rr-mono">SC-8f21c0</b></span>
+                <span>执行时间：2026-09-22 03:00:12</span>
+              </div>
+            </div>
+            <div class="rr-scene__mini">
+              <div class="rr-mini"><div class="rr-mini__n">4</div><div class="rr-mini__t">步骤</div></div>
+              <div class="rr-mini rr-mini--g"><div class="rr-mini__n">3</div><div class="rr-mini__t">通过</div></div>
+              <div class="rr-mini rr-mini--r"><div class="rr-mini__n">1</div><div class="rr-mini__t">失败</div></div>
+              <div class="rr-mini"><div class="rr-mini__n">6.42 s</div><div class="rr-mini__t">耗时</div></div>
+            </div>
+            <span class="rr-badge rr-badge--fail">失败</span>
+            <button class="rr-chev rr-chev--open" data-chev><span class="rr-chev__i"></span></button>
+          </div>
+          <div class="rr-scene__body" data-scene-body>
+            <div class="rsc">
+              <div class="rsc__head">
+                <span class="rsc__index">1</span>
+                <span class="rsc__name">查询支付单</span>
+                <span class="chip chip--post">POST</span>
+                <div class="rsc__spacer"></div>
+                <span class="rr-badge rr-badge--ok">通过</span>
+                <span class="rsc__dur">312 ms</span>
+              </div>
+              <div class="rsc__body">
+                <div class="rsc__line"><span class="chip chip--post">POST</span><span class="rsc__url">/api/pay/order/query</span></div>
+                <div class="rsc__line"><span class="chip chip--status">200</span><span class="rsc__url">OK · application/json · 428 B</span></div>
+                <div>
+                  <p class="rsc__sub-label">断言</p>
+                  <div class="assert-row"><span class="rr-badge rr-badge--ok">通过</span>状态码 <b>等于 200</b></div>
+                  <div class="assert-row"><span class="rr-badge rr-badge--ok">通过</span>JSON 字段 <b>$.data.status = PAID</b></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="rsc">
+              <div class="rsc__head">
+                <span class="rsc__index">2</span>
+                <span class="rsc__name">重放支付回调</span>
+                <span class="chip chip--post">POST</span>
+                <div class="rsc__spacer"></div>
+                <span class="rr-badge rr-badge--fail">失败</span>
+                <span class="rsc__dur">5 902 ms</span>
+              </div>
+              <div class="rsc__body">
+                <div class="rsc__line"><span class="chip chip--post">POST</span><span class="rsc__url">/api/pay/notify/replay</span></div>
+                <div class="rsc__line"><span class="chip" style="background:var(--st-danger)">500</span><span class="rsc__url">Internal Server Error · application/json · 176 B</span></div>
+                <div>
+                  <p class="rsc__sub-label">响应头</p>
+                  <table class="rsc__kv">
+                    <thead><tr><th>Content-Type</th><th>X-Trace-Id</th></tr></thead>
+                    <tbody><tr><td>application/json</td><td>9f3a-77c2-4e10</td></tr></tbody>
+                  </table>
+                </div>
+                <div>
+                  <p class="rsc__sub-label">断言</p>
+                  <div class="assert-row"><span class="rr-badge rr-badge--ok">通过</span>状态码 <b>等于 500</b>（预期允许失败分支）</div>
+                  <div class="assert-row"><span class="rr-badge rr-badge--fail">失败</span>JSON 字段 <b>$.code = NOTIFY_OK</b>，实际 <b>INTERNAL_ERROR</b></div>
+                </div>
+                <div>
+                  <p class="rsc__sub-label">提取变量</p>
+                  <div class="assert-row">notifyId ← <b>$.data.notifyId</b>（本次未提取到值）</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="rsc">
+              <div class="rsc__head">
+                <span class="rsc__index">3</span>
+                <span class="rsc__name">校验订单状态</span>
+                <span class="chip" style="background:var(--brand-500)">SELECT</span>
+                <div class="rsc__spacer"></div>
+                <span class="rr-badge rr-badge--ok">通过</span>
+                <span class="rsc__dur">41 ms</span>
+              </div>
+              <div class="rsc__body">
+                <div class="rsc__line"><span class="chip" style="background:var(--brand-500)">SELECT</span><span class="rsc__url">SELECT status FROM t_order WHERE id = ?</span></div>
+                <div>
+                  <p class="rsc__sub-label">断言</p>
+                  <div class="assert-row"><span class="rr-badge rr-badge--ok">通过</span>结果集 <b>1 行</b>，status <b>= PAID</b></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="rsc">
+              <div class="rsc__head">
+                <span class="rsc__index">4</span>
+                <span class="rsc__name">补偿对账查询</span>
+                <span class="chip chip--get">GET</span>
+                <div class="rsc__spacer"></div>
+                <span class="rr-badge rr-badge--ok">通过</span>
+                <span class="rsc__dur">167 ms</span>
+              </div>
+              <div class="rsc__body">
+                <div class="rsc__line"><span class="chip chip--get">GET</span><span class="rsc__url">/api/pay/reconcile?orderId=${orderId}</span></div>
+                <div class="rsc__line"><span class="chip chip--status">200</span><span class="rsc__url">OK · application/json · 233 B</span></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 场景 2：通过 + 折叠 -->
+        <section class="rr-card rr-scene" data-scene>
+          <div class="rr-scene__head">
+            <div>
+              <h2 class="rr-scene__title">下单成功主链路</h2>
+              <div class="rr-scene__meta">
+                <span>场景 ID：<b class="rr-mono">SC-11ab94</b></span>
+                <span>执行时间：2026-09-22 03:00:20</span>
+              </div>
+            </div>
+            <div class="rr-scene__mini">
+              <div class="rr-mini"><div class="rr-mini__n">4</div><div class="rr-mini__t">步骤</div></div>
+              <div class="rr-mini rr-mini--g"><div class="rr-mini__n">4</div><div class="rr-mini__t">通过</div></div>
+              <div class="rr-mini rr-mini--r"><div class="rr-mini__n">0</div><div class="rr-mini__t">失败</div></div>
+              <div class="rr-mini"><div class="rr-mini__n">3.20 s</div><div class="rr-mini__t">耗时</div></div>
+            </div>
+            <span class="rr-badge rr-badge--ok">通过</span>
+            <button class="rr-chev" data-chev><span class="rr-chev__i"></span></button>
+          </div>
+          <div class="rr-scene__body" data-scene-body hidden>
+            <div class="rsc">
+              <div class="rsc__head">
+                <span class="rsc__index">1</span>
+                <span class="rsc__name">创建订单</span>
+                <span class="chip chip--post">POST</span>
+                <div class="rsc__spacer"></div>
+                <span class="rr-badge rr-badge--ok">通过</span>
+                <span class="rsc__dur">486 ms</span>
+              </div>
+              <div class="rsc__body">
+                <div class="rsc__line"><span class="chip chip--post">POST</span><span class="rsc__url">/api/order/create</span></div>
+                <div class="rsc__line"><span class="chip chip--status">200</span><span class="rsc__url">OK · application/json · 512 B</span></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <p class="rr-footer">报告生成时间 2026-09-22 03:00:46 · 来源：平台内执行 · 环境：测试环境</p>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- 分享弹窗（两步式：选有效期 → 生成链接） -->
+<div class="dialog-mask" id="share-dialog" hidden>
+  <div class="dialog" style="width:480px">
+    <div class="dialog__header">
+      <span class="dialog__title">分享报告</span>
+      <button class="dialog__close" data-close>✕</button>
+    </div>
+    <div class="dialog__body">
+      <p class="share-hint">选择有效期后生成分享链接，有效期内可免登录访问</p>
+      <span class="expiry-seg">
+        <button>1 天</button>
+        <button class="is-active">7 天</button>
+        <button>30 天</button>
+        <button>90 天</button>
+      </span>
+      <p class="share-meta">生成后可复制「报告名称 + 链接 + 有效期 + 分享人」的分享文案</p>
+    </div>
+    <div class="dialog__footer">
+      <button class="btn btn--default btn--sm" data-close>取消</button>
+      <button class="btn btn--primary btn--sm">生成分享链接</button>
+    </div>
+  </div>
+</div>
+
+<script src="../assets/icons.js"></script>
+<script src="../assets/shell.js"></script>
+<script>
+  // 场景卡展开 / 折叠
+  document.querySelectorAll('[data-scene]').forEach(function (scene) {
+    var head = scene.querySelector('.rr-scene__head');
+    var body = scene.querySelector('[data-scene-body]');
+    var chev = scene.querySelector('[data-chev]');
+    head.addEventListener('click', function () {
+      var open = !body.hasAttribute('hidden');
+      if (open) { body.setAttribute('hidden', ''); chev.classList.remove('rr-chev--open'); }
+      else { body.removeAttribute('hidden'); chev.classList.add('rr-chev--open'); }
+    });
+  });
+
+  // 分享弹窗
+  var mask = document.getElementById('share-dialog');
+  document.getElementById('btn-share').addEventListener('click', function () { mask.removeAttribute('hidden'); });
+  mask.addEventListener('click', function (e) {
+    if (e.target === mask || e.target.hasAttribute('data-close')) mask.setAttribute('hidden', '');
+  });
+  document.querySelectorAll('.expiry-seg button').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      btn.parentElement.querySelectorAll('button').forEach(function (b) { b.classList.remove('is-active'); });
+      btn.classList.add('is-active');
+    });
+  });
+</script>
+</body>
+</html>
