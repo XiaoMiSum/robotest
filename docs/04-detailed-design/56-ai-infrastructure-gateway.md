@@ -19,7 +19,7 @@
 | OpenAiCompatProvider | OpenAI 兼容协议 HTTP 客户端（Spring `RestClient`：同步调用直接绑定响应体；流式调用经 `exchange` 直读响应字节流逐行解析 SSE，阻塞读取由虚拟线程承载——平台已全局启用虚拟线程），唯一 Provider 实现 |
 | AiRateLimiter | Redis 滑动窗口限流 |
 | AiAuditRecorder | 审计日志异步写入 |
-| AiTaskService | 异步任务生命周期管理（创建/执行/取消/重试/孤儿回收）；对业务 Service 暴露 `cancelByTypeAndTarget(type, targetId)` 供状态变更联动取消（4.6，如评审离开「评审中」时取消 review_check） |
+| AiTaskService | 异步任务生命周期管理（创建/执行/取消/重试/孤儿回收）；对业务 Service 暴露 `cancelByTypeAndTarget(type, targetId)` 供状态变更联动取消（4.6，如评审离开「进行中」时取消 review_check） |
 | AiOutputValidator | JSON 宽容提取 + Schema 校验 + 带错重试编排 |
 
 ```mermaid
