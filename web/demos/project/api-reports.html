@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>接口测试 · 测试报告 · RoboTest</title>
+<link rel="stylesheet" href="../assets/tokens.css">
+<link rel="stylesheet" href="../assets/base.css">
+<style>
+  .list-page { display: flex; flex-direction: column; gap: var(--space-md); height: 100%; }
+  .filter-card { padding: 14px 20px; }
+  .filter-row { display: flex; align-items: center; gap: var(--space-sm); flex-wrap: wrap; }
+  .filter-row .spacer { flex: 1; }
+  .selected-hint { font-size: var(--font-size-sm); color: var(--n-500); }
+  .date-range { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 10px; border: 1px solid var(--n-200); border-radius: var(--radius-md); color: var(--n-500); font-size: var(--font-size-sm); background: #fff; }
+  .date-range svg { width: 14px; height: 14px; color: var(--n-400); }
+  .table-card { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+  .pager { display: flex; align-items: center; justify-content: flex-end; gap: 6px; padding: 14px 20px; border-top: 1px solid var(--n-100); }
+  .pager__total { margin-right: auto; font-size: var(--font-size-sm); color: var(--n-500); }
+  .rate-bad { color: var(--st-danger); font-weight: 600; }
+</style>
+</head>
+<body data-shell="business" data-mode="project" data-active="api" data-workspace="质量中台" data-project="电商核心系统">
+
+<main class="content content--flush">
+  <div class="split">
+    <aside class="split__side">
+      <div class="menu-item side__item"><span data-icon="terminal"></span><span>快速调试</span></div>
+      <div class="menu-item side__item"><span data-icon="link"></span><span>接口管理</span></div>
+      <div class="menu-item side__item"><span data-icon="cpu"></span><span>Mock 服务</span></div>
+      <div class="menu-item side__item"><span data-icon="operation"></span><span>测试场景</span></div>
+      <div class="menu-item side__item menu-item--active"><span data-icon="data-chart"></span><span>测试报告</span></div>
+      <div class="menu-item side__item"><span data-icon="timer"></span><span>定时任务</span></div>
+      <div class="side__group-title">项目设置</div>
+      <div class="menu-item side__item"><span data-icon="compass"></span><span>环境管理</span></div>
+      <div class="menu-item side__item"><span data-icon="layers"></span><span>函数管理</span></div>
+      <div class="menu-item side__item"><span data-icon="box"></span><span>公共组件</span></div>
+    </aside>
+
+    <div class="split__main">
+      <div class="list-page">
+        <!-- 筛选条 -->
+        <div class="card filter-card">
+          <div class="filter-row">
+            <select class="select" style="width:140px"><option>全部状态</option><option>通过</option><option>失败</option><option>部分通过</option></select>
+            <select class="select" style="width:160px"><option>全部执行方式</option><option>平台内执行</option></select>
+            <select class="select" style="width:180px"><option>全部场景</option><option>下单成功主链路</option><option>支付回调重放</option><option>用户注册登录</option></select>
+            <span class="date-range"><span data-icon="calendar"></span>开始日期 至 结束日期</span>
+            <div class="input-wrap" style="width:240px"><span data-icon="search"></span><input class="input" placeholder="搜索报告名称或场景名称"></div>
+            <div class="spacer"></div>
+            <span class="selected-hint">已选 2 项</span>
+            <button class="btn btn--danger btn--sm">批量删除</button>
+          </div>
+        </div>
+
+        <!-- 报告表格 -->
+        <div class="card table-card">
+          <div class="table-wrap" style="flex:1">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th style="width:40px"></th>
+                  <th>报告名称</th>
+                  <th style="width:90px">类型</th>
+                  <th style="width:110px">状态</th>
+                  <th style="width:90px">通过率</th>
+                  <th style="width:90px">耗时</th>
+                  <th style="width:170px">创建时间</th>
+                  <th style="width:120px">操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><span class="checkbox checkbox--on"></span></td>
+                  <td><a class="text-brand" href="api-report-detail.html" style="font-weight:500">下单成功主链路-2026-09-22 14:05:12</a></td>
+                  <td style="text-align:center"><span class="tag">场景报告</span></td>
+                  <td style="text-align:center"><span class="tag tag--success">通过</span></td>
+                  <td class="num" style="text-align:center">100.0%</td>
+                  <td class="num" style="text-align:center">3.2s</td>
+                  <td class="num">2026-09-22 14:05</td>
+                  <td><span class="op-link">查看</span><span class="op-link op-link--danger">删除</span></td>
+                </tr>
+                <tr>
+                  <td><span class="checkbox checkbox--on"></span></td>
+                  <td><a class="text-brand" href="api-report-detail.html" style="font-weight:500">支付回归夜跑-2026-09-22 03:00:04</a></td>
+                  <td style="text-align:center"><span class="tag tag--neutral">套件报告</span></td>
+                  <td style="text-align:center"><span class="tag tag--danger">失败</span></td>
+                  <td class="num rate-bad" style="text-align:center">83.3%</td>
+                  <td class="num" style="text-align:center">42.7s</td>
+                  <td class="num">2026-09-22 03:00</td>
+                  <td><span class="op-link">查看</span><span class="op-link op-link--danger">删除</span></td>
+                </tr>
+                <tr>
+                  <td><span class="checkbox"></span></td>
+                  <td><a class="text-brand" href="api-report-detail.html" style="font-weight:500">库存不足回滚-2026-09-21 17:12:44</a></td>
+                  <td style="text-align:center"><span class="tag">场景报告</span></td>
+                  <td style="text-align:center"><span class="tag tag--warning">部分通过</span></td>
+                  <td class="num" style="text-align:center">75.0%</td>
+                  <td class="num" style="text-align:center">5.8s</td>
+                  <td class="num">2026-09-21 17:12</td>
+                  <td><span class="op-link">查看</span><span class="op-link op-link--danger">删除</span></td>
+                </tr>
+                <tr>
+                  <td><span class="checkbox"></span></td>
+                  <td><a class="text-brand" href="api-report-detail.html" style="font-weight:500">用户注册登录-2026-09-21 20:00:31</a></td>
+                  <td style="text-align:center"><span class="tag">场景报告</span></td>
+                  <td style="text-align:center"><span class="tag tag--success">通过</span></td>
+                  <td class="num" style="text-align:center">100.0%</td>
+                  <td class="num" style="text-align:center">1.9s</td>
+                  <td class="num">2026-09-21 20:00</td>
+                  <td><span class="op-link">查看</span><span class="op-link op-link--danger">删除</span></td>
+                </tr>
+                <tr>
+                  <td><span class="checkbox"></span></td>
+                  <td><a class="text-brand" href="api-report-detail.html" style="font-weight:500">冒烟核心接口-2026-09-21 09:15:02</a></td>
+                  <td style="text-align:center"><span class="tag tag--neutral">套件报告</span></td>
+                  <td style="text-align:center"><span class="tag tag--success">通过</span></td>
+                  <td class="num" style="text-align:center">96.4%</td>
+                  <td class="num" style="text-align:center">1m 12s</td>
+                  <td class="num">2026-09-21 09:15</td>
+                  <td><span class="op-link">查看</span><span class="op-link op-link--danger">删除</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="pager">
+            <span class="pager__total">共 46 份报告</span>
+            <button class="page-btn" disabled>‹</button>
+            <button class="page-btn page-btn--active">1</button>
+            <button class="page-btn">2</button>
+            <button class="page-btn">3</button>
+            <button class="page-btn">›</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script src="../assets/icons.js"></script>
+<script src="../assets/shell.js"></script>
+</body>
+</html>
