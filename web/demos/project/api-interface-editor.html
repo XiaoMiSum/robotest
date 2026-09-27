@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>接口测试 · 接口编辑器 · RoboTest</title>
+<link rel="stylesheet" href="../assets/tokens.css">
+<link rel="stylesheet" href="../assets/base.css">
+<style>
+  .editor { display: flex; flex-direction: column; gap: var(--space-md); height: 100%; }
+  .editor__card { flex: 1; display: flex; flex-direction: column; min-height: 640px; padding: var(--space-md); }
+
+  /* 请求行：协议 / 方法 / 路径 / 名称 / 保存 */
+  .reqline { display: flex; align-items: center; gap: var(--space-sm); }
+  .reqline .select--proto { width: 96px; }
+  .reqline .select--method { width: 130px; font-family: var(--font-mono); font-weight: 700; }
+  .reqline .input--path { flex: 1; font-family: var(--font-mono); }
+  .reqline .input--name { width: 240px; }
+
+  /* 上下分栏：请求配置（左 Tab） + 响应示例（右） */
+  .split-v { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+  .req-area { height: 56%; min-height: 0; overflow: auto; }
+  .req-div { height: 6px; display: flex; align-items: center; justify-content: center; cursor: row-resize; flex-shrink: 0; }
+  .req-div i { width: 75%; height: 2px; border-radius: 1px; background: var(--n-200); display: block; }
+  .req-div:hover i { background: var(--brand-400); }
+  .resp-area { flex: 1; min-height: 0; display: flex; flex-direction: column; border-top: 1px solid var(--n-100); }
+
+  .etabs { display: flex; align-items: center; gap: 2px; border-bottom: 1px solid var(--n-200); flex-wrap: wrap; }
+  .etab {
+    padding: 10px 14px; font-size: var(--font-size-sm); color: var(--n-500);
+    background: none; border: none; border-bottom: 2px solid transparent; cursor: pointer; white-space: nowrap;
+  }
+  .etab:hover { color: var(--n-800); }
+  .etab.is-active { color: var(--n-900); font-weight: 600; border-bottom-color: var(--brand-500); }
+  .etab .badge {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 16px; height: 16px; margin-left: 5px; padding: 0 5px; border-radius: 8px;
+    background: var(--brand-50); color: var(--brand-500); font-size: 11px; line-height: 1;
+  }
+  .epanel { padding-top: var(--space-sm); }
+
+  .frow { display: flex; align-items: center; gap: var(--space-md); }
+  .frow--top { align-items: flex-start; }
+  .frow + .frow { margin-top: var(--space-md); }
+  .flabel { width: 80px; flex-shrink: 0; color: var(--n-600); font-size: var(--font-size-sm); line-height: 32px; }
+
+  .kv { width: 100%; border-collapse: collapse; }
+  .kv th { text-align: left; font-size: 11px; color: var(--n-500); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; padding: 6px 8px; border-bottom: 1px solid var(--n-200); }
+  .kv td { padding: 6px 8px; border-bottom: 1px solid var(--n-100); }
+  .kv .kv__add { color: var(--brand-500); font-size: var(--font-size-xs); cursor: pointer; padding: 8px; display: inline-block; }
+
+  /* Body 分段 */
+  .bodytypes { display: inline-flex; gap: 2px; background: var(--n-50); border-radius: 6px; padding: 2px; }
+  .bodytype { height: 28px; padding: 0 12px; border: none; background: none; border-radius: 4px; font-size: var(--font-size-xs); color: var(--n-500); cursor: pointer; }
+  .bodytype.is-active { background: var(--brand-500); color: #fff; font-weight: 500; }
+  .bodytypes-right { display: inline-flex; align-items: center; gap: 6px; margin-left: 10px; }
+  .bodytypes-right .select { width: 118px; height: 28px; font-size: var(--font-size-xs); }
+  .code-editor {
+    margin-top: 10px; width: 100%; min-height: 132px; resize: vertical;
+    padding: 12px; font-family: var(--font-mono); font-size: var(--font-size-xs); line-height: 1.6;
+    color: #d4d4d4; background: #1e1e1e; border: 1px solid #333; border-radius: 6px; outline: none;
+  }
+
+  /* 验证器 / 提取器卡片行 */
+  .pane-actions { display: flex; gap: var(--space-md); margin-bottom: var(--space-sm); }
+  .pane-card { border: 1px solid var(--n-200); border-radius: var(--radius-md); padding: 10px 12px; margin-bottom: var(--space-sm); background: var(--n-0); }
+  .pane-card__row { display: flex; align-items: center; gap: var(--space-sm); flex-wrap: wrap; }
+  .pane-card__row .select { width: 132px; height: 28px; font-size: var(--font-size-xs); }
+  .pane-card__row .input { flex: 1; min-width: 160px; height: 28px; font-size: var(--font-size-xs); }
+
+  /* 响应示例面板 */
+  .resp-toolbar { display: flex; align-items: center; gap: var(--space-md); padding: 8px 12px; border-bottom: 1px solid var(--n-100); }
+  .resp-title { font-size: var(--font-size-sm); font-weight: 600; color: var(--n-800); }
+  .resp-modes { display: flex; gap: 2px; }
+  .respmode { padding: 4px 10px; font-size: var(--font-size-xs); border: none; background: none; border-radius: 4px; color: var(--n-500); cursor: pointer; }
+  .respmode.is-active { background: var(--n-100); color: var(--n-800); font-weight: 500; }
+  .icon-btn-sm { width: 26px; height: 26px; border: none; background: none; border-radius: 4px; color: var(--n-400); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
+  .icon-btn-sm:hover { color: var(--n-700); background: var(--n-100); }
+  .icon-btn-sm svg { width: 14px; height: 14px; }
+  .resp-body { flex: 1; min-height: 0; padding: 10px 12px; }
+  .resp-editor {
+    width: 100%; min-height: 150px; resize: vertical; padding: 10px;
+    font-family: var(--font-mono); font-size: var(--font-size-xs); line-height: 1.6;
+    color: var(--n-800); background: var(--n-50); border: 1px solid var(--n-200); border-radius: var(--radius-md); outline: none;
+  }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body data-shell="business" data-mode="project" data-active="api" data-workspace="质量中台" data-project="电商核心系统">
+
+<main class="content content--flush">
+  <div class="split">
+    <aside class="split__side">
+      <div class="menu-item side__item"><span data-icon="terminal"></span><span>快速调试</span></div>
+      <div class="menu-item side__item menu-item--active"><span data-icon="link"></span><span>接口管理</span></div>
+      <div class="menu-item side__item"><span data-icon="cpu"></span><span>Mock 服务</span></div>
+      <div class="menu-item side__item"><span data-icon="operation"></span><span>测试场景</span></div>
+      <div class="menu-item side__item"><span data-icon="data-chart"></span><span>测试报告</span></div>
+      <div class="menu-item side__item"><span data-icon="timer"></span><span>定时任务</span></div>
+      <div class="side__group-title">项目设置</div>
+      <div class="menu-item side__item"><span data-icon="compass"></span><span>环境管理</span></div>
+      <div class="menu-item side__item"><span data-icon="layers"></span><span>函数管理</span></div>
+      <div class="menu-item side__item"><span data-icon="box"></span><span>公共组件</span></div>
+    </aside>
+
+    <div class="split__main">
+      <div class="editor">
+        <div class="card editor__card">
+
+          <!-- 请求行 -->
+          <div class="reqline">
+            <select class="select select--proto"><option>HTTP</option><option>HTTPS</option></select>
+            <select class="select select--method" style="color:#49cc90"><option>POST</option><option>GET</option><option>PUT</option><option>PATCH</option><option>DELETE</option></select>
+            <input class="input input--path" value="/api/v1/orders">
+            <input class="input input--name" value="创建订单">
+            <button class="btn btn--primary">保存</button>
+          </div>
+
+          <div class="split-v">
+            <!-- 请求配置 -->
+            <div class="req-area">
+              <div class="etabs">
+                <button class="etab is-active" data-e="basic">基本信息</button>
+                <button class="etab" data-e="headers">请求头<span class="badge">3</span></button>
+                <button class="etab" data-e="query">Query 参数<span class="badge">2</span></button>
+                <button class="etab" data-e="body">请求体<span class="badge">1</span></button>
+                <button class="etab" data-e="auth">认证</button>
+                <button class="etab" data-e="validators">验证器<span class="badge">2</span></button>
+                <button class="etab" data-e="extractors">提取器<span class="badge">1</span></button>
+              </div>
+
+              <!-- 基本信息 -->
+              <div class="epanel" data-epanel="basic">
+                <div class="frow">
+                  <span class="flabel">所属模块</span>
+                  <select class="select" style="flex:1"><option>订单 / 交易下单</option><option>订单</option><option>支付</option><option>商品</option></select>
+                </div>
+                <div class="frow frow--top">
+                  <span class="flabel">描述</span>
+                  <textarea class="textarea" style="flex:1">创建订单并锁定库存，需携带幂等键防止重复提交；成功返回 orderId 与过期时间。</textarea>
+                </div>
+              </div>
+
+              <!-- 请求头 -->
+              <div class="epanel" data-epanel="headers" hidden>
+                <table class="kv">
+                  <thead><tr><th style="width:34px">启用</th><th>Header</th><th>值</th><th style="width:40px"></th></tr></thead>
+                  <tbody>
+                    <tr><td><span class="checkbox checkbox--on"></span></td><td><input class="input" value="Content-Type" style="height:28px"></td><td><input class="input" value="application/json" style="height:28px"></td><td><span class="op-link op-link--danger">删</span></td></tr>
+                    <tr><td><span class="checkbox checkbox--on"></span></td><td><input class="input" value="X-Idempotency-Key" style="height:28px"></td><td><input class="input" value="${UUID}" style="height:28px"></td><td><span class="op-link op-link--danger">删</span></td></tr>
+                    <tr><td><span class="checkbox"></span></td><td><input class="input" value="X-Channel" style="height:28px"></td><td><input class="input" value="app" style="height:28px"></td><td><span class="op-link op-link--danger">删</span></td></tr>
+                  </tbody>
+                </table>
+                <span class="kv__add">+ 添加请求头</span>
+              </div>
+
+              <!-- Query 参数 -->
+              <div class="epanel" data-epanel="query" hidden>
+                <table class="kv">
+                  <thead><tr><th style="width:34px">启用</th><th>参数名</th><th>值</th><th style="width:40px"></th></tr></thead>
+                  <tbody>
+                    <tr><td><span class="checkbox checkbox--on"></span></td><td><input class="input" value="channel" style="height:28px"></td><td><input class="input" value="app" style="height:28px"></td><td><span class="op-link op-link--danger">删</span></td></tr>
+                    <tr><td><span class="checkbox checkbox--on"></span></td><td><input class="input" value="withStock" style="height:28px"></td><td><input class="input" value="true" style="height:28px"></td><td><span class="op-link op-link--danger">删</span></td></tr>
+                  </tbody>
+                </table>
+                <span class="kv__add">+ 添加参数</span>
+              </div>
+
+              <!-- 请求体 -->
+              <div class="epanel" data-epanel="body" hidden>
+                <div>
+                  <span class="bodytypes">
+                    <button class="bodytype">none</button>
+                    <button class="bodytype">x-www-form-urlencoded</button>
+                    <button class="bodytype is-active">raw</button>
+                  </span>
+                  <span class="bodytypes-right">
+                    <select class="select"><option>Json</option><option>Text</option><option>Xml</option><option>Html</option><option>JavaScript</option></select>
+                    <button class="icon-btn-sm" title="格式化（修正 JSON 缩进）"><span data-icon="sparkle"></span></button>
+                  </span>
+                </div>
+                <textarea class="code-editor" spellcheck="false">{
+  "channel": "app",
+  "items": [{ "sku": "SKU-10021", "quantity": 2 }],
+  "addressId": "addr_30219"
+}</textarea>
+              </div>
+
+              <!-- 认证 -->
+              <div class="epanel" data-epanel="auth" hidden>
+                <div style="max-width:420px">
+                  <div class="field">
+                    <label class="field__label">认证方式</label>
+                    <select class="select"><option>Bearer Token</option><option>No Auth</option><option>API Key</option><option>Basic Auth</option><option disabled>Digest Auth</option></select>
+                  </div>
+                  <div class="field">
+                    <label class="field__label">Token</label>
+                    <input class="input" type="password" value="eyJhbGciOiJIUzI1NiJ9">
+                    <p class="field__hint">提交时换算为 Authorization: Bearer 头；手工同名头优先</p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 验证器 -->
+              <div class="epanel" data-epanel="validators" hidden>
+                <div class="pane-actions">
+                  <span class="op-link">+ 添加验证器</span>
+                  <span class="op-link">从公共组件获取</span>
+                </div>
+                <div class="pane-card">
+                  <div class="pane-card__row">
+                    <span class="switch switch--on"></span>
+                    <select class="select"><option>响应 Body</option><option>响应头</option><option>状态码</option></select>
+                    <select class="select"><option>等于</option><option>包含</option><option>不为空</option></select>
+                    <input class="input" value="$.code">
+                    <input class="input" value="0">
+                    <span class="op-link op-link--danger">删除</span>
+                  </div>
+                </div>
+                <div class="pane-card">
+                  <div class="pane-card__row">
+                    <span class="switch switch--on"></span>
+                    <select class="select"><option>状态码</option><option>响应 Body</option></select>
+                    <select class="select"><option>等于</option><option>大于</option></select>
+                    <input class="input" value="">
+                    <input class="input" value="200">
+                    <span class="op-link op-link--danger">删除</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 提取器 -->
+              <div class="epanel" data-epanel="extractors" hidden>
+                <div class="pane-actions">
+                  <span class="op-link">+ 添加提取器</span>
+                  <span class="op-link">从公共组件获取</span>
+                </div>
+                <div class="pane-card">
+                  <div class="pane-card__row">
+                    <span class="switch switch--on"></span>
+                    <select class="select"><option>响应 Body</option><option>响应头</option></select>
+                    <input class="input" value="$.data.orderId">
+                    <input class="input" value="orderId">
+                    <span class="op-link op-link--danger">删除</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="req-div"><i></i></div>
+
+            <!-- 响应示例 -->
+            <div class="resp-area">
+              <div class="resp-toolbar">
+                <span class="resp-title">响应示例</span>
+                <div class="resp-modes">
+                  <button class="respmode is-active">Body</button>
+                  <button class="respmode">Headers</button>
+                </div>
+                <button class="icon-btn-sm" title="格式化（修正 JSON 缩进）"><span data-icon="sparkle"></span></button>
+                <button class="icon-btn-sm" title="复制"><span data-icon="copy"></span></button>
+              </div>
+              <div class="resp-body">
+                <textarea class="resp-editor" spellcheck="false">{
+  "code": 0,
+  "message": "ok",
+  "data": {
+    "orderId": "ord_88213",
+    "status": "CREATED",
+    "amount": 299.00,
+    "expireAt": "2026-09-23T10:15:00Z"
+  }
+}</textarea>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script src="../assets/icons.js"></script>
+<script src="../assets/shell.js"></script>
+<script>
+  // 请求配置七页签切换（对应实现的 el-tabs：basic / headers / query / body / auth / validators / extractors）
+  document.querySelectorAll('.etab').forEach(function (tab) {
+    tab.addEventListener('click', function () {
+      var key = tab.getAttribute('data-e');
+      document.querySelectorAll('.etab').forEach(function (t) { t.classList.toggle('is-active', t === tab); });
+      document.querySelectorAll('[data-epanel]').forEach(function (p) {
+        p.hidden = p.getAttribute('data-epanel') !== key;
+      });
+    });
+  });
+  // 响应示例 Body / Headers 切换
+  document.querySelectorAll('.respmode').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      btn.parentElement.querySelectorAll('.is-active').forEach(function (s) { s.classList.remove('is-active'); });
+      btn.classList.add('is-active');
+    });
+  });
+</script>
+</body>
+</html>
