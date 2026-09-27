@@ -118,6 +118,22 @@ public class TestPlanController {
         return Result.ok();
     }
 
+    @PostMapping("/{id}/block")
+    public Result<Void> blockPlan(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @PathVariable UUID id) {
+        testPlanService.blockPlan(loginUser.getActiveProjectId(), id, loginUser.getId());
+        return Result.ok();
+    }
+
+    @PostMapping("/{id}/resume")
+    public Result<Void> resumePlan(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @PathVariable UUID id) {
+        testPlanService.resumePlan(loginUser.getActiveProjectId(), id, loginUser.getId());
+        return Result.ok();
+    }
+
     @DeleteMapping("/{id}")
     public Result<Void> deletePlan(
             @AuthenticationPrincipal LoginUser loginUser,

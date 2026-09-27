@@ -20,6 +20,8 @@ public final class Constants {
         String IN_PROGRESS = "in_progress";
         String CLOSED = "closed";
         String COMPLETED = "completed";
+        /** 计划阻塞态（V1.2）：暂停执行，仅可由负责人恢复为 in_progress */
+        String BLOCKED = "blocked";
         String REJECTED = "rejected";
         String UNTESTED = "untested";
         String ASSIGNED = "assigned";
