@@ -53,10 +53,11 @@ bash scripts/deploy-merged.sh
 
 ### 验证与质量门禁
 
-| 端   | 命令                                                                          |
-| --- | --------------------------------------------------------------------------- |
-| 前端  | `cd web && pnpm run lint && pnpm run typecheck && pnpm run test:unit -- --coverage`   |
-| 后端  | `cd server && mvn verify`                                                              |
+| 端   | 命令                          |
+| --- | ----------------------------- |
+| 文档  | `bash scripts/validate-docs.sh` |
+| 前端  | `bash scripts/validate-web.sh`  |
+| 后端  | `bash scripts/validate-backend.sh` |
 | 全量  | `bash scripts/validate.sh --all` |
 
 **提交前逐项核对：**
@@ -178,10 +179,11 @@ bash scripts/deploy-merged.sh
 ### 6.3 工具与脚本
 
 - 任务执行模板：`docs/00-spec/00-governance/02-task-template.md` — 编码前必须按模板填写理解、一致性评估、探查、方案
-- 质量验证脚本：`bash scripts/validate.sh` — 提交前运行，检查提交格式、文档链接/元信息/规则编号（`scripts/check-docs.mjs`）、lint、typecheck、test
-  - `bash scripts/validate.sh --frontend` 仅检查前端
-  - `bash scripts/validate.sh --backend` 仅检查后端
-  - `bash scripts/validate.sh --all` 全量检查（默认）
+- 质量验证脚本按端拆分，各端 agent 提交前**只运行本端脚本**：
+  - 文档：`bash scripts/validate-docs.sh` — C7 提交格式 + 文档检查（`scripts/check-docs.mjs`）
+  - 前端：`bash scripts/validate-web.sh` — C7 + 工具链版本 + lint + typecheck + 测试/覆盖率（C8）+ any 检查（C1）+ 契约一致性
+  - 后端：`bash scripts/validate-backend.sh` — C7 + `mvn test`
+  - 全量编排（人工 / CI）：`bash scripts/validate.sh --all`，亦可 `--docs` / `--frontend` / `--backend` 转发单端
 
 ### 6.4 禁止行为
 
@@ -194,7 +196,7 @@ bash scripts/deploy-merged.sh
 - ❌ 验证失败后不修复直接交付
 - ❌ 一个提交混合多个不相关变更
 - ❌ 不提交就声称完成
-- ❌ 不运行 `scripts/validate.sh` 就提交
+- ❌ 不运行本端验证脚本（`scripts/validate-docs.sh` / `scripts/validate-web.sh` / `scripts/validate-backend.sh`）就提交
 
 ---
 

@@ -20,7 +20,10 @@ SPRING_PROFILES_ACTIVE=dev mvn spring-boot:run -Pdev
 # 构建 → target/*.jar（prod profile）
 mvn package -Pprod
 
-# 质量门禁
+# 质量门禁（提交前运行整段脚本）
+bash scripts/validate-backend.sh
+
+# 等价手动执行
 mvn test
 ```
 
