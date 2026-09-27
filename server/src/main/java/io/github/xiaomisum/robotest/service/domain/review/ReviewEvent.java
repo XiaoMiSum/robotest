@@ -26,6 +26,16 @@ public enum ReviewEvent {
     COMPLETE,
 
     /**
+     * 驳回评审（活跃态 → REJECTED 终态）
+     */
+    REJECT,
+
+    /**
+     * 重新发起（REJECTED → IN_PROGRESS，仅已驳回合法）
+     */
+    REOPEN,
+
+    /**
      * 软删评审（无状态变化，仅合法性许可）
      */
     DELETE

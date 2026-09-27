@@ -81,6 +81,18 @@ public class TestReviewServiceImpl implements TestReviewService {
                 : reviewSnapshotService.listAssociatedByReviewIds(reviewIds, Constants.NodeType.CASE)
                         .stream().collect(Collectors.groupingBy(TestReviewNodeSnapshot::getReviewId));
 
+        // 参与者名单：本页参与者去重后一次性查用户，避免逐行 N+1
+        List<UUID> participantIds = page.getList().stream()
+                .map(TestReview::getParticipantIds)
+                .filter(Objects::nonNull)
+                .flatMap(List::stream)
+                .distinct()
+                .toList();
+        Map<UUID, SysUser> participantUsers = participantIds.isEmpty()
+                ? Map.of()
+                : userMapper.selectBatchIds(participantIds).stream()
+                        .collect(Collectors.toMap(SysUser::getId, user -> user, (a, b) -> a));
+
         List<TestReviewListRespDTO> dtos = page.getList().stream().map(review -> {
             TestReviewListRespDTO dto = new TestReviewListRespDTO();
             dto.setId(review.getId());
@@ -96,10 +108,22 @@ public class TestReviewServiceImpl implements TestReviewService {
                 dto.setInitiator(info);
             }
 
-            List<UUID> participantIds = review.getParticipantIds() != null
+            List<UUID> rowParticipantIds = review.getParticipantIds() != null
                     ? review.getParticipantIds()
                     : new ArrayList<>();
-            dto.setParticipantCount(participantIds.size());
+            dto.setParticipantCount(rowParticipantIds.size());
+            dto.setParticipants(rowParticipantIds.stream()
+                    .map(participantUsers::get)
+                    .filter(Objects::nonNull)
+                    .map(user -> {
+                        TestReviewListRespDTO.ParticipantInfo info =
+                                new TestReviewListRespDTO.ParticipantInfo();
+                        info.setId(user.getId());
+                        info.setName(user.getUsername());
+                        info.setAvatarUrl(user.getAvatarUrl());
+                        return info;
+                    })
+                    .toList());
 
             List<TestReviewNodeSnapshot> snapshots = snapshotsByReview.getOrDefault(
                     review.getId(), List.of());
@@ -109,6 +133,7 @@ public class TestReviewServiceImpl implements TestReviewService {
                     .filter(s -> s.getLastMark() == null || s.getLastMark().isBlank()).count();
             long total = snapshots.size();
             dto.setTotalAssociated(total);
+            dto.setReviewed(total - pending);
             dto.setPassed(passed);
             dto.setProgressPercent(total > 0
                     ? Math.round((total - pending) * 10000.0 / total) / 100.0
@@ -305,6 +330,49 @@ public class TestReviewServiceImpl implements TestReviewService {
                 conclusion.verdict().getCode(), conclusion.reason()));
         projectActivityService.record(review.getProjectId(), userId, "TEST_REVIEW", reviewId,
                 review.getTitle(), "REVIEW_COMPLETED", "完成评审「" + review.getTitle() + "」");
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void rejectReview(UUID projectId, UUID reviewId, UUID userId) {
+        TestReview review = requireReview(projectId, reviewId, userId);
+        if (!review.getInitiatorId().equals(userId)) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.REVIEW_NOT_INITIATOR);
+        }
+        // 终态（已通过/已驳回）先行给出语义化错误，避免落到状态机的通用拦截
+        ReviewStatus status = ReviewStatus.fromCode(review.getStatus());
+        if (status != null && (status == ReviewStatus.COMPLETED || status == ReviewStatus.REJECTED)) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.REVIEW_ONLY_ACTIVE_CAN_REJECT);
+        }
+        reviewWorkflow.assertTransition(review, ReviewEvent.REJECT);
+        TestReview update = new TestReview();
+        update.setId(review.getId());
+        update.setStatus(ReviewStatus.REJECTED.getCode());
+        testReviewMapper.updateById(update);
+        // 驳回同样离开 in_progress：发布生命周期事件（AI 域消费者在事务提交后取消 review_check 任务）
+        eventPublisher.publishEvent(new ReviewLifecycleEvent(reviewId));
+        projectActivityService.record(review.getProjectId(), userId, "TEST_REVIEW", reviewId,
+                review.getTitle(), "REVIEW_REJECTED", "驳回评审「" + review.getTitle() + "」");
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void reopenReview(UUID projectId, UUID reviewId, UUID userId) {
+        TestReview review = requireReview(projectId, reviewId, userId);
+        if (!review.getInitiatorId().equals(userId)) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.REVIEW_NOT_INITIATOR);
+        }
+        // 重新发起仅对已驳回合法；活跃态/已通过给出语义化错误
+        if (ReviewStatus.fromCode(review.getStatus()) != ReviewStatus.REJECTED) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.REVIEW_ONLY_REJECTED_CAN_REOPEN);
+        }
+        reviewWorkflow.assertTransition(review, ReviewEvent.REOPEN);
+        TestReview update = new TestReview();
+        update.setId(review.getId());
+        update.setStatus(ReviewStatus.IN_PROGRESS.getCode());
+        testReviewMapper.updateById(update);
+        projectActivityService.record(review.getProjectId(), userId, "TEST_REVIEW", reviewId,
+                review.getTitle(), "REVIEW_REOPENED", "重新发起评审「" + review.getTitle() + "」");
     }
 
     @Override

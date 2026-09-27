@@ -147,6 +147,15 @@ class TestReviewServiceImplTest {
                 initiator.setUsername("reviewer");
                 when(userMapper.selectById(userId)).thenReturn(initiator);
 
+                SysUser p1 = new SysUser();
+                p1.setId(review.getParticipantIds().get(0));
+                p1.setUsername("member_a");
+                p1.setAvatarUrl("https://cdn.example.com/a.png");
+                SysUser p2 = new SysUser();
+                p2.setId(review.getParticipantIds().get(1));
+                p2.setUsername("member_b");
+                when(userMapper.selectBatchIds(review.getParticipantIds())).thenReturn(List.of(p1, p2));
+
                 PageResult<TestReviewListRespDTO> result = reviewService.getReviewPage(
                                 projectId, userId, null, null, 1, 10);
 
@@ -154,6 +163,16 @@ class TestReviewServiceImplTest {
                 assertEquals(1, result.getList().size());
                 assertEquals("Review 1", result.getList().get(0).getTitle());
                 assertEquals(2, result.getList().get(0).getParticipantCount());
+                // 参与者名单批量回填（头像堆），保持 participantIds 顺序
+                assertNotNull(result.getList().get(0).getParticipants());
+                assertEquals(2, result.getList().get(0).getParticipants().size());
+                assertEquals("member_a", result.getList().get(0).getParticipants().get(0).getName());
+                assertEquals("https://cdn.example.com/a.png",
+                                result.getList().get(0).getParticipants().get(0).getAvatarUrl());
+                assertEquals("member_b", result.getList().get(0).getParticipants().get(1).getName());
+                // 无快照时进度按 0 计，已评审数 = 总数 − 待评审数
+                assertEquals(0L, result.getList().get(0).getReviewed());
+                assertEquals(0L, result.getList().get(0).getTotalAssociated());
                 verify(projectAccessGuard).requireProjectMember(projectId, userId);
         }
 
@@ -724,6 +743,117 @@ class TestReviewServiceImplTest {
 
                 assertThrows(ServiceException.class,
                                 () -> reviewService.completeReview(projectId, reviewId, userId));
+        }
+
+        @Test
+        void rejectReview_success() {
+                TestReview review = activeReview();
+
+                reviewService.rejectReview(projectId, reviewId, userId);
+
+                ArgumentCaptor<TestReview> captor = ArgumentCaptor.forClass(TestReview.class);
+                verify(testReviewMapper).updateById(captor.capture());
+                assertEquals("rejected", captor.getValue().getStatus());
+                // 驳回离开活跃态：发布生命周期事件取消 review_check，但不产生评审结论
+                ArgumentCaptor<Object> eventCaptor = ArgumentCaptor.forClass(Object.class);
+                verify(eventPublisher).publishEvent(eventCaptor.capture());
+                assertTrue(eventCaptor.getValue() instanceof ReviewLifecycleEvent);
+                verify(projectActivityService).record(eq(projectId), eq(userId), eq("TEST_REVIEW"),
+                                eq(reviewId), eq("驳回用例评审"), eq("REVIEW_REJECTED"), anyString());
+        }
+
+        @Test
+        void rejectReview_completed_throws() {
+                TestReview review = activeReview();
+                review.setStatus("completed");
+
+                assertThrows(ServiceException.class,
+                                () -> reviewService.rejectReview(projectId, reviewId, userId));
+                verify(testReviewMapper, never()).updateById(any(TestReview.class));
+        }
+
+        @Test
+        void rejectReview_rejected_throws() {
+                TestReview review = activeReview();
+                review.setStatus("rejected");
+
+                assertThrows(ServiceException.class,
+                                () -> reviewService.rejectReview(projectId, reviewId, userId));
+                verify(testReviewMapper, never()).updateById(any(TestReview.class));
+        }
+
+        @Test
+        void rejectReview_notInitiator_throws() {
+                TestReview review = activeReview();
+                review.setInitiatorId(otherUserId);
+
+                assertThrows(ServiceException.class,
+                                () -> reviewService.rejectReview(projectId, reviewId, userId));
+                verify(testReviewMapper, never()).updateById(any(TestReview.class));
+        }
+
+        @Test
+        void rejectReview_notFound_throws() {
+                when(testReviewMapper.selectById(reviewId)).thenReturn(null);
+
+                assertThrows(ServiceException.class,
+                                () -> reviewService.rejectReview(projectId, reviewId, userId));
+        }
+
+        @Test
+        void reopenReview_success() {
+                TestReview review = activeReview();
+                review.setStatus("rejected");
+
+                reviewService.reopenReview(projectId, reviewId, userId);
+
+                ArgumentCaptor<TestReview> captor = ArgumentCaptor.forClass(TestReview.class);
+                verify(testReviewMapper).updateById(captor.capture());
+                assertEquals("in_progress", captor.getValue().getStatus());
+                // 重新发起回到进行中：不触发取消钩子，标记与快照保留
+                verify(eventPublisher, never()).publishEvent(any(Object.class));
+                verify(projectActivityService).record(eq(projectId), eq(userId), eq("TEST_REVIEW"),
+                                eq(reviewId), eq("驳回用例评审"), eq("REVIEW_REOPENED"), anyString());
+        }
+
+        @Test
+        void reopenReview_notRejected_throws() {
+                TestReview review = activeReview();
+                review.setStatus("in_progress");
+
+                assertThrows(ServiceException.class,
+                                () -> reviewService.reopenReview(projectId, reviewId, userId));
+                verify(testReviewMapper, never()).updateById(any(TestReview.class));
+        }
+
+        @Test
+        void reopenReview_notInitiator_throws() {
+                TestReview review = activeReview();
+                review.setStatus("rejected");
+                review.setInitiatorId(otherUserId);
+
+                assertThrows(ServiceException.class,
+                                () -> reviewService.reopenReview(projectId, reviewId, userId));
+                verify(testReviewMapper, never()).updateById(any(TestReview.class));
+        }
+
+        @Test
+        void reopenReview_notFound_throws() {
+                when(testReviewMapper.selectById(reviewId)).thenReturn(null);
+
+                assertThrows(ServiceException.class,
+                                () -> reviewService.reopenReview(projectId, reviewId, userId));
+        }
+
+        private TestReview activeReview() {
+                TestReview review = new TestReview();
+                review.setId(reviewId);
+                review.setProjectId(projectId);
+                review.setInitiatorId(userId);
+                review.setStatus("in_progress");
+                review.setTitle("驳回用例评审");
+                when(testReviewMapper.selectById(reviewId)).thenReturn(review);
+                return review;
         }
 
         @Test

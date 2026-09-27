@@ -7,7 +7,8 @@ public enum ReviewStatus {
 
     NEW("new"),
     IN_PROGRESS("in_progress"),
-    COMPLETED("completed");
+    COMPLETED("completed"),
+    REJECTED("rejected");
 
     private final String code;
 

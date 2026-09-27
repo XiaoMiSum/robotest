@@ -11,7 +11,7 @@ public interface ReviewState {
     ReviewStatus code();
 
     /**
-     * 状态出发的事件迁移，非法事件返回当前 code（非法跃迁仅 COMPLETED 存在，由 workflow 统一拦截）
+     * 状态出发的事件迁移，非法事件返回当前 code（非法跃迁仅终态 COMPLETED/REJECTED 与活跃态 REOPEN 存在，由 workflow 统一拦截）
      */
     ReviewStatus transition(ReviewEvent event);
 }

@@ -112,6 +112,22 @@ public class TestReviewController {
         return Result.ok();
     }
 
+    @PostMapping("/{id}/reject")
+    public Result<Void> rejectReview(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @PathVariable UUID id) {
+        testReviewService.rejectReview(loginUser.getActiveProjectId(), id, loginUser.getId());
+        return Result.ok();
+    }
+
+    @PostMapping("/{id}/reopen")
+    public Result<Void> reopenReview(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @PathVariable UUID id) {
+        testReviewService.reopenReview(loginUser.getActiveProjectId(), id, loginUser.getId());
+        return Result.ok();
+    }
+
     @DeleteMapping("/{id}")
     public Result<Void> deleteReview(
             @AuthenticationPrincipal LoginUser loginUser,

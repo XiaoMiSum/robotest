@@ -20,6 +20,7 @@ public final class Constants {
         String IN_PROGRESS = "in_progress";
         String CLOSED = "closed";
         String COMPLETED = "completed";
+        String REJECTED = "rejected";
         String UNTESTED = "untested";
         String ASSIGNED = "assigned";
         String FIXING = "fixing";
