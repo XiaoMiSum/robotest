@@ -9,10 +9,16 @@ import {
   getReviewModuleTree,
   getReviewPlannedCases,
   getReviewProgress,
+  rejectReview,
+  reopenReview,
   syncReview,
   updateReviewCases,
 } from '@/services/project'
 import type { PlannedCases, SnapshotModule, TestReviewDetail, TestReviewProgress } from '@/types'
+import {
+  isActiveReview,
+  reviewStatusMeta,
+} from '@/components/project/functional-testing/review/reviewListPresentation'
 import ReviewMindMap from '@/components/project/functional-testing/review/ReviewMindMap.vue'
 import SnapshotModuleTree from '@/components/project/functional-testing/review/SnapshotModuleTree.vue'
 import CaseSelector from '@/components/project/functional-testing/case/CaseSelector.vue'
@@ -65,14 +71,12 @@ const conclusionVisible = ref(false)
 // AI 评审结论：随完成事件自动生成，此处可手动/重新生成（06 §5.2）；入口条件与摘要一致
 const canShowConclusion = computed(() => canShowSummary.value)
 
-// AI 一键检查：仅评审发起人 + AI 启用可见；待评审/评审中可发起，已完成只读查看历史结果（交互设计 2.2）
+// AI 一键检查：仅评审发起人 + AI 启用可见；活跃态可发起，终态只读查看历史结果（交互设计 2.2）
 const canShowCheck = computed(
   () => aiStore.aiEnabled && detail.value?.initiator.id === authStore.user?.id,
 )
-// 已完成评审不可再发起检查（后端 6012 兜底），面板仅以只读展示历史结果
-const canRunCheck = computed(
-  () => detail.value?.status === 'new' || detail.value?.status === 'in_progress',
-)
+// 终态（已通过/已驳回）不可再发起检查（后端 6012 兜底），面板仅以只读展示历史结果
+const canRunCheck = computed(() => isActiveReview(detail.value?.status ?? ''))
 const checkVisible = ref(false)
 const checkPanelRef = ref<InstanceType<typeof ReviewAiCheckPanel>>()
 
@@ -130,6 +134,38 @@ async function handleComplete() {
     load()
   } catch (err) {
     ElMessage.error(err instanceof Error ? err.message : '操作失败')
+  }
+}
+
+// 驳回评审：仅发起人 + 活跃态（后端 1000011018 兜底），驳回后快照冻结、AI 检查任务联动终止
+async function handleReject() {
+  try {
+    await ElMessageBox.confirm(
+      '确定驳回该评审吗？驳回后将不可再标记或调整用例，可通过「重新发起」恢复评审。',
+      '驳回评审',
+      { type: 'warning' },
+    )
+  } catch { return }
+  try {
+    await rejectReview(reviewId)
+    ElMessage.success('评审已驳回')
+    load()
+  } catch (err) {
+    ElMessage.error(err instanceof Error ? err.message : '驳回评审失败')
+  }
+}
+
+// 重新发起：仅发起人 + 已驳回（后端 1000011019 兜底），既有标记保留
+async function handleReopen() {
+  try {
+    await ElMessageBox.confirm('确定重新发起该评审吗？参与者可继续评审。', '重新发起评审', { type: 'warning' })
+  } catch { return }
+  try {
+    await reopenReview(reviewId)
+    ElMessage.success('评审已重新发起')
+    load()
+  } catch (err) {
+    ElMessage.error(err instanceof Error ? err.message : '重新发起失败')
   }
 }
 
@@ -228,8 +264,10 @@ async function refreshProgress() {
   }
 }
 
-const statusLabel: Record<string, string> = { new: '待评审', in_progress: '评审中', completed: '已完成' }
-const statusType: Record<string, 'info' | 'warning' | 'success'> = { new: 'info', in_progress: 'warning', completed: 'success' }
+// 状态展示口径与列表页共用（交互设计 07 §1.1）
+const statusMeta = computed(() =>
+  reviewStatusMeta(detail.value?.status ?? ''),
+)
 
 onMounted(load)
 </script>
@@ -240,8 +278,8 @@ onMounted(load)
       <template #content>
         <div class="review-detail__header">
           <span class="review-detail__title">{{ detail?.title ?? '评审详情' }}</span>
-          <el-tag v-if="detail" :type="statusType[detail.status] ?? 'info'" size="small" effect="light" round>
-            {{ statusLabel[detail.status] ?? detail.status }}
+          <el-tag v-if="detail" :type="statusMeta.tagType" size="small" effect="light" round>
+            {{ statusMeta.label }}
           </el-tag>
         </div>
       </template>
@@ -256,7 +294,8 @@ onMounted(load)
               <span class="review-detail__stat">共 {{ progress.totalAssociated }}</span>
             </div>
           </div>
-          <div v-if="detail && detail.status !== 'completed'" class="review-detail__actions">
+          <!-- 活跃态操作组：调整/同步/驳回/完成，终态收起（交互设计 07 §1.2） -->
+          <div v-if="detail && isActiveReview(detail.status)" class="review-detail__actions">
             <el-button v-if="aiStore.aiEnabled" size="small" plain @click="openRecommend">
               <el-icon><MagicStick /></el-icon>AI 推荐用例
             </el-button>
@@ -266,6 +305,9 @@ onMounted(load)
             <el-button size="small" plain @click="handleSync">
               <el-icon><Refresh /></el-icon>同步用例
             </el-button>
+            <el-button size="small" type="danger" plain @click="handleReject">
+              <el-icon><CircleClose /></el-icon>驳回
+            </el-button>
             <el-tooltip :disabled="canComplete" content="全部用例评审通过后才能完成评审" placement="bottom">
               <span>
                 <el-button size="small" type="primary" :disabled="!canComplete" @click="handleComplete">
@@ -274,19 +316,28 @@ onMounted(load)
               </span>
             </el-tooltip>
           </div>
-          <!-- AI 一键检查：仅发起人可见；待评审/评审中可发起，已完成只读查看历史结果 -->
+          <!-- 已驳回：仅发起人可见，重新发起后回到进行中 -->
+          <div
+            v-else-if="detail && detail.status === 'rejected' && detail.initiator.id === authStore.user?.id"
+            class="review-detail__actions"
+          >
+            <el-button size="small" type="primary" @click="handleReopen">
+              <el-icon><RefreshLeft /></el-icon>重新发起
+            </el-button>
+          </div>
+          <!-- AI 一键检查：仅发起人可见；活跃态可发起，终态只读查看历史结果 -->
           <div v-if="canShowCheck" class="review-detail__actions">
             <el-button size="small" plain @click="openCheck">
               <el-icon><MagicStick /></el-icon>AI 一键检查
             </el-button>
           </div>
-          <!-- AI 生成摘要：评审已完成后展示，与上方进行中操作组互斥（仅发起人可见） -->
+          <!-- AI 生成摘要：评审已通过（completed）后展示，与活跃态操作组互斥（仅发起人可见） -->
           <div v-if="canShowSummary" class="review-detail__actions">
             <el-button size="small" type="primary" plain @click="summaryVisible = true">
               <el-icon><MagicStick /></el-icon>AI 生成摘要
             </el-button>
           </div>
-          <!-- AI 评审结论：评审已完成后展示（自动结论随完成事件落库，此处可手动触发/重新生成） -->
+          <!-- AI 评审结论：评审已通过后展示（自动结论随完成事件落库，此处可手动触发/重新生成） -->
           <div v-if="canShowConclusion" class="review-detail__actions">
             <el-button size="small" plain @click="conclusionVisible = true">
               <el-icon><MagicStick /></el-icon>AI 评审结论
@@ -330,7 +381,7 @@ onMounted(load)
           ref="mindMapRef"
           :review-id="reviewId"
           :document-id="selectedDocId"
-          :removable="detail?.status !== 'completed'"
+          :removable="isActiveReview(detail?.status ?? '')"
           @marked="refreshProgress"
           @removed="handleCasesRemoved"
         />
