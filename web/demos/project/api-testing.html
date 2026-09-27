@@ -6,6 +6,64 @@
 <title>接口测试 · 接口管理 · RoboTest</title>
 <link rel="stylesheet" href="../assets/tokens.css">
 <link rel="stylesheet" href="../assets/base.css">
+<style>
+  /* 编辑器 Tab 工作区（InterfaceWorkspace：卡片式 tab + 右上列表操作） */
+  .ws { display: flex; flex-direction: column; gap: var(--space-md); }
+  .ws-tabs { position: relative; display: flex; align-items: center; gap: 4px; padding-right: 200px; }
+  .ws-tab {
+    display: inline-flex; align-items: center; gap: 6px;
+    height: 32px; padding: 0 12px;
+    border: 1px solid var(--n-200); border-radius: var(--radius-md);
+    background: var(--n-0); color: var(--n-600);
+    font-size: var(--font-size-sm); cursor: pointer; white-space: nowrap;
+  }
+  .ws-tab:hover { border-color: var(--brand-300); color: var(--brand-600); }
+  .ws-tab.is-active {
+    background: var(--brand-50); border-color: var(--brand-200);
+    color: var(--brand-700); font-weight: 600;
+  }
+  /* 未保存修改：tab 标签前的蓝点（is-dirty::before 口径） */
+  .ws-tab.is-dirty::before {
+    content: ''; width: 6px; height: 6px; border-radius: 50%;
+    background: var(--brand-500);
+  }
+  .ws-tab__close { color: var(--n-400); font-size: 14px; line-height: 1; }
+  .ws-tab__close:hover { color: var(--n-700); }
+  .ws-tabbar__actions { position: absolute; top: 0; right: 0; height: 32px; display: flex; align-items: center; gap: var(--space-sm); }
+
+  .ws-filter { padding: 0; }
+  .ws-filter .toolbar { border-bottom: none; padding: 12px 16px; }
+
+  .ws-body { display: flex; gap: var(--space-lg); align-items: stretch; min-height: 520px; }
+  .ws-tree { width: 280px; flex-shrink: 0; display: flex; flex-direction: column; }
+  .ws-table { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+
+  /* 模块树（ProjectModuleTree） */
+  .mt-toolbar {
+    display: flex; align-items: center; gap: var(--space-xs);
+    padding: 8px; background: var(--n-50); border-bottom: 1px solid var(--n-100);
+  }
+  .mt-toolbar .input-wrap { flex: 1; min-width: 0; }
+  .mt-toolbar .input { height: 28px; font-size: var(--font-size-sm); }
+  .mt-list { list-style: none; margin: 0; padding: 6px; flex: 1; overflow-y: auto; }
+  .mt-node {
+    display: flex; align-items: center; gap: 6px;
+    height: 30px; padding: 0 8px; border-radius: var(--radius-md);
+    font-size: var(--font-size-sm); color: var(--n-700); cursor: pointer;
+  }
+  .mt-node:hover { background: var(--n-50); }
+  .mt-node--active { background: var(--brand-50); color: var(--brand-700); font-weight: 600; }
+  .mt-node svg { width: 14px; height: 14px; flex-shrink: 0; }
+  .mt-node .folder-ic { color: var(--st-warning); }
+  .mt-node .doc-ic { color: var(--n-400); }
+  .mt-node--active .doc-ic { color: var(--brand-500); }
+  .mt-node__name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  .star { color: var(--n-300); cursor: pointer; display: inline-flex; }
+  .star svg { width: 15px; height: 15px; }
+  .star.is-active { color: var(--st-warning); }
+  .star.is-active svg { fill: currentColor; }
+</style>
 </head>
 <body data-shell="business" data-mode="project" data-active="api" data-workspace="质量中台" data-project="电商核心系统">
 
@@ -25,108 +83,159 @@
     </aside>
 
     <div class="split__main">
-      <div class="page-head">
-        <div>
-          <h1 class="page-head__title">接口管理</h1>
-          <p class="page-head__desc">共 142 个接口 · 6 个模块 · 最近同步 2026-09-22 10:15</p>
-        </div>
-        <div class="page-head__actions">
-          <button class="btn btn--default"><span data-icon="upload"></span>导入</button>
-          <button class="btn btn--default"><span data-icon="download"></span>导出</button>
-          <button class="btn btn--primary"><span data-icon="plus"></span>新建接口</button>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="toolbar">
-          <div class="toolbar__filters">
-            <div class="input-wrap"><span data-icon="search"></span><input class="input" placeholder="接口名称 / 路径"></div>
-            <select class="select" style="width:126px"><option>全部类型</option><option>GET</option><option>POST</option><option>PUT</option><option>DELETE</option></select>
-            <select class="select" style="width:130px"><option>全部模块</option><option>订单</option><option>商品</option><option>用户</option></select>
-            <select class="select" style="width:120px"><option>全部状态</option><option>已启用</option><option>已停用</option></select>
+      <div class="ws">
+        <!-- 编辑器 Tab 条：全部接口（固定）+ 打开的编辑 Tab（脏态蓝点 / 可关闭），右上为列表数据操作 -->
+        <div class="ws-tabs">
+          <div class="ws-tab is-active"><span>全部接口</span></div>
+          <div class="ws-tab is-dirty"><span>创建订单</span><span class="ws-tab__close">×</span></div>
+          <div class="ws-tab"><span>查询订单详情</span><span class="ws-tab__close">×</span></div>
+          <div class="ws-tabbar__actions">
+            <button class="btn btn--default"><span data-icon="upload"></span>导入</button>
+            <button class="btn btn--primary"><span data-icon="plus"></span>新建接口</button>
           </div>
-          <div class="toolbar__count">按更新时间排序</div>
         </div>
 
-        <div class="table-wrap">
-          <table class="table table--clickable">
-            <thead>
-              <tr><th>名称</th><th>类型</th><th>路径</th><th>模块</th><th>状态</th><th>更新人</th><th>更新时间</th><th>操作</th></tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td class="cell-main">创建订单<span class="cell-sub">含幂等键校验</span></td>
-                <td><span class="chip">POST</span></td>
-                <td class="mono">/api/v1/orders</td>
-                <td><span class="chip">订单</span></td>
-                <td><span class="status status--success"><span class="dot"></span>已启用</span></td>
-                <td>张明</td>
-                <td class="num">2026-09-22 10:15</td>
-                <td><span class="op-link">调试</span><span class="op-link">编辑</span></td>
-              </tr>
-              <tr>
-                <td class="cell-main">查询订单详情</td>
-                <td><span class="chip">GET</span></td>
-                <td class="mono">/api/v1/orders/{id}</td>
-                <td><span class="chip">订单</span></td>
-                <td><span class="status status--success"><span class="dot"></span>已启用</span></td>
-                <td>张明</td>
-                <td class="num">2026-09-21 17:40</td>
-                <td><span class="op-link">调试</span><span class="op-link">编辑</span></td>
-              </tr>
-              <tr>
-                <td class="cell-main">取消订单</td>
-                <td><span class="chip">PUT</span></td>
-                <td class="mono">/api/v1/orders/{id}/cancel</td>
-                <td><span class="chip">订单</span></td>
-                <td><span class="status status--success"><span class="dot"></span>已启用</span></td>
-                <td>李华</td>
-                <td class="num">2026-09-21 14:22</td>
-                <td><span class="op-link">调试</span><span class="op-link">编辑</span></td>
-              </tr>
-              <tr>
-                <td class="cell-main">支付回调（重放测试中）<span class="cell-sub">关联 BUG-208</span></td>
-                <td><span class="chip">POST</span></td>
-                <td class="mono">/api/v1/payments/callback</td>
-                <td><span class="chip">支付</span></td>
-                <td><span class="status status--warning"><span class="dot"></span>调试中</span></td>
-                <td>王芳</td>
-                <td class="num">2026-09-22 14:03</td>
-                <td><span class="op-link">调试</span><span class="op-link">编辑</span></td>
-              </tr>
-              <tr>
-                <td class="cell-main">商品库存扣减</td>
-                <td><span class="chip">POST</span></td>
-                <td class="mono">/api/v1/stock/deduct</td>
-                <td><span class="chip">库存</span></td>
-                <td><span class="status status--success"><span class="dot"></span>已启用</span></td>
-                <td>周敏</td>
-                <td class="num">2026-09-20 11:08</td>
-                <td><span class="op-link">调试</span><span class="op-link">编辑</span></td>
-              </tr>
-              <tr>
-                <td class="cell-main">删除收货地址（废弃）</td>
-                <td><span class="chip">DELETE</span></td>
-                <td class="mono">/api/v1/addresses/{id}</td>
-                <td><span class="chip">用户</span></td>
-                <td><span class="status status--neutral"><span class="dot"></span>已停用</span></td>
-                <td>陈强</td>
-                <td class="num">2026-09-15 09:55</td>
-                <td><span class="op-link">调试</span><span class="op-link">编辑</span></td>
-              </tr>
-            </tbody>
-          </table>
+        <!-- 筛选工具条 -->
+        <div class="card ws-filter">
+          <div class="toolbar">
+            <div class="toolbar__filters">
+              <div class="segment">
+                <span class="segment__item segment__item--active">全部</span>
+                <span class="segment__item">我关注的</span>
+                <span class="segment__item">我创建的</span>
+              </div>
+              <div class="input-wrap"><span data-icon="search"></span><input class="input" placeholder="搜索名称 / 路径"></div>
+              <select class="select" style="width:120px"><option>状态</option><option>启用</option><option>停用</option></select>
+              <button class="btn btn--primary btn--sm"><span data-icon="search"></span>查询</button>
+              <button class="btn btn--default btn--sm">重置</button>
+            </div>
+            <div class="toolbar__filters">
+              <span class="toolbar__count">已选 2 项</span>
+              <button class="btn btn--default btn--sm">批量移动</button>
+              <button class="btn btn--danger btn--sm">批量删除</button>
+            </div>
+          </div>
         </div>
 
-        <div class="pagination">
-          <span class="pagination__total">共 142 个接口 · 每页 20 条</span>
-          <button class="page-btn" disabled>‹</button>
-          <button class="page-btn page-btn--active">1</button>
-          <button class="page-btn">2</button>
-          <button class="page-btn">3</button>
-          <button class="page-btn">…</button>
-          <button class="page-btn">8</button>
-          <button class="page-btn">›</button>
+        <div class="ws-body">
+          <!-- 左：模块树 -->
+          <div class="card ws-tree">
+            <div class="mt-toolbar">
+              <div class="input-wrap"><span data-icon="search"></span><input class="input" placeholder="搜索目录 / 文档"></div>
+              <button class="btn btn--primary btn--sm"><span data-icon="plus"></span>新建</button>
+            </div>
+            <ul class="mt-list">
+              <li class="mt-node"><span class="folder-ic" data-icon="folder"></span><span class="mt-node__name">订单</span></li>
+              <li class="mt-node mt-node--active" style="padding-left:22px"><span class="doc-ic" data-icon="document"></span><span class="mt-node__name">创建订单</span></li>
+              <li class="mt-node" style="padding-left:22px"><span class="doc-ic" data-icon="document"></span><span class="mt-node__name">查询订单详情</span></li>
+              <li class="mt-node" style="padding-left:22px"><span class="doc-ic" data-icon="document"></span><span class="mt-node__name">取消订单</span></li>
+              <li class="mt-node"><span class="folder-ic" data-icon="folder"></span><span class="mt-node__name">支付</span></li>
+              <li class="mt-node"><span class="folder-ic" data-icon="folder"></span><span class="mt-node__name">商品</span></li>
+              <li class="mt-node" style="padding-left:22px"><span class="doc-ic" data-icon="document"></span><span class="mt-node__name">商品详情</span></li>
+              <li class="mt-node"><span class="folder-ic" data-icon="folder"></span><span class="mt-node__name">库存</span></li>
+              <li class="mt-node"><span class="folder-ic" data-icon="folder"></span><span class="mt-node__name">用户</span></li>
+            </ul>
+          </div>
+
+          <!-- 右：接口表格 -->
+          <div class="card ws-table">
+            <div class="table-wrap" style="flex:1">
+              <table class="table table--clickable">
+                <thead>
+                  <tr>
+                    <th style="width:34px"></th><th style="width:34px"></th>
+                    <th>名称</th><th style="width:78px">方法</th><th>路径</th>
+                    <th style="width:110px">模块</th><th style="width:80px">状态</th>
+                    <th style="width:60px">引用</th><th style="width:150px">更新时间</th><th style="width:170px">操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><span class="checkbox checkbox--on"></span></td>
+                    <td><span class="star is-active" data-icon="star"></span></td>
+                    <td class="cell-main"><span class="text-brand">创建订单</span><span class="cell-sub">含幂等键校验</span></td>
+                    <td><span class="chip">POST</span></td>
+                    <td class="mono">/api/v1/orders</td>
+                    <td>订单</td>
+                    <td><span class="switch switch--on"></span></td>
+                    <td class="num">6</td>
+                    <td class="num">2026-09-22 10:15</td>
+                    <td><span class="op-link">调试</span><span class="op-link">编辑</span><span class="op-link">更多</span></td>
+                  </tr>
+                  <tr>
+                    <td><span class="checkbox checkbox--on"></span></td>
+                    <td><span class="star" data-icon="star"></span></td>
+                    <td class="cell-main"><span class="text-brand">查询订单详情</span></td>
+                    <td><span class="chip">GET</span></td>
+                    <td class="mono">/api/v1/orders/{id}</td>
+                    <td>订单</td>
+                    <td><span class="switch switch--on"></span></td>
+                    <td class="num">4</td>
+                    <td class="num">2026-09-21 17:40</td>
+                    <td><span class="op-link">调试</span><span class="op-link">编辑</span><span class="op-link">更多</span></td>
+                  </tr>
+                  <tr>
+                    <td><span class="checkbox"></span></td>
+                    <td><span class="star" data-icon="star"></span></td>
+                    <td class="cell-main"><span class="text-brand">取消订单</span></td>
+                    <td><span class="chip">PUT</span></td>
+                    <td class="mono">/api/v1/orders/{id}/cancel</td>
+                    <td>订单</td>
+                    <td><span class="switch switch--on"></span></td>
+                    <td class="num">2</td>
+                    <td class="num">2026-09-21 14:22</td>
+                    <td><span class="op-link">调试</span><span class="op-link">编辑</span><span class="op-link">更多</span></td>
+                  </tr>
+                  <tr>
+                    <td><span class="checkbox"></span></td>
+                    <td><span class="star" data-icon="star"></span></td>
+                    <td class="cell-main"><span class="text-brand">支付回调</span><span class="cell-sub">关联 BUG-208</span></td>
+                    <td><span class="chip">POST</span></td>
+                    <td class="mono">/api/v1/payments/callback</td>
+                    <td>支付</td>
+                    <td><span class="switch switch--on"></span></td>
+                    <td class="num">1</td>
+                    <td class="num">2026-09-22 14:03</td>
+                    <td><span class="op-link">调试</span><span class="op-link">编辑</span><span class="op-link">更多</span></td>
+                  </tr>
+                  <tr>
+                    <td><span class="checkbox"></span></td>
+                    <td><span class="star" data-icon="star"></span></td>
+                    <td class="cell-main"><span class="text-brand">商品库存扣减</span></td>
+                    <td><span class="chip">POST</span></td>
+                    <td class="mono">/api/v1/stock/deduct</td>
+                    <td>库存</td>
+                    <td><span class="switch switch--on"></span></td>
+                    <td class="num">3</td>
+                    <td class="num">2026-09-20 11:08</td>
+                    <td><span class="op-link">调试</span><span class="op-link">编辑</span><span class="op-link">更多</span></td>
+                  </tr>
+                  <tr>
+                    <td><span class="checkbox"></span></td>
+                    <td><span class="star" data-icon="star"></span></td>
+                    <td class="cell-main"><span class="text-brand">删除收货地址</span></td>
+                    <td><span class="chip">DELETE</span></td>
+                    <td class="mono">/api/v1/addresses/{id}</td>
+                    <td>用户</td>
+                    <td><span class="switch"></span></td>
+                    <td class="num">0</td>
+                    <td class="num">2026-09-15 09:55</td>
+                    <td><span class="op-link">调试</span><span class="op-link">编辑</span><span class="op-link">更多</span></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="pagination">
+              <span class="pagination__total">共 142 个接口 · 每页 20 条</span>
+              <button class="page-btn" disabled>‹</button>
+              <button class="page-btn page-btn--active">1</button>
+              <button class="page-btn">2</button>
+              <button class="page-btn">3</button>
+              <button class="page-btn">…</button>
+              <button class="page-btn">8</button>
+              <button class="page-btn">›</button>
+            </div>
+          </div>
         </div>
       </div>
     </div>

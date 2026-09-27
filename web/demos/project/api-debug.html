@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>接口测试 · 快速调试 · RoboTest</title>
+<link rel="stylesheet" href="../assets/tokens.css">
+<link rel="stylesheet" href="../assets/base.css">
+<style>
+  .debug { display: flex; flex-direction: column; height: 100%; }
+  .debug__card { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+
+  /* 多标签条（DebugPage 头部：标签 + 导入 cURL / 历史记录） */
+  .tabbar { display: flex; align-items: center; gap: var(--space-xs); padding: 4px 6px 10px; }
+  .tabbar__tabs { display: flex; align-items: center; gap: 2px; flex: 1; min-width: 0; overflow-x: auto; }
+  .tabbar__tabs::-webkit-scrollbar { display: none; }
+  .dtab {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 5px 8px; border-bottom: 2px solid transparent;
+    font-size: var(--font-size-xs); color: var(--n-500); cursor: pointer; white-space: nowrap;
+  }
+  .dtab:hover { color: var(--brand-500); }
+  .dtab.is-active { color: var(--brand-500); font-weight: 600; border-bottom-color: var(--brand-500); }
+  .dtab__method {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 30px; padding: 1px 5px; border-radius: 3px;
+    color: #fff; font-family: var(--font-mono); font-size: 9px; font-weight: 700; letter-spacing: .5px;
+  }
+  .m-get { background: #61affe; } .m-post { background: #49cc90; } .m-put { background: #fca130; }
+  .tabbar__add { color: var(--n-400); font-size: 15px; padding: 0 4px; }
+  .tabbar__right { display: flex; align-items: center; gap: var(--space-xs); flex-shrink: 0; }
+
+  /* 上下分栏：请求面板 + 拖拽分割线 + 响应面板 */
+  .debug__body { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+  .debug__req { height: 52%; min-height: 0; overflow: auto; border-top: 1px solid var(--n-100); }
+  .debug__divider { height: 6px; display: flex; align-items: center; justify-content: center; cursor: row-resize; flex-shrink: 0; }
+  .debug__divider i { display: block; width: 75%; height: 2px; border-radius: 1px; background: var(--n-200); }
+  .debug__divider:hover i { background: var(--brand-400); }
+  .debug__resp { flex: 1; min-height: 0; overflow: auto; display: flex; flex-direction: column; }
+
+  /* URL 栏 */
+  .urlbar { display: flex; align-items: center; gap: 8px; padding: 12px 12px 4px; }
+  .method-pick {
+    width: 110px; height: 32px; border: none; border-radius: 6px;
+    background: #49cc90; color: #fff; font-family: var(--font-mono);
+    font-size: var(--font-size-xs); font-weight: 700; letter-spacing: .5px;
+    padding: 0 10px; appearance: none; cursor: pointer;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='rgba(255,255,255,.85)' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='M6 9.5l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 8px center; background-size: 13px;
+    padding-right: 26px;
+  }
+  .url-input {
+    flex: 1; height: 32px; padding: 0 11px;
+    border: 1px solid var(--n-300); border-radius: 6px; background: var(--n-0);
+    font-family: var(--font-mono); font-size: var(--font-size-sm); color: var(--n-900); outline: none;
+  }
+  .url-input:focus { border-color: var(--brand-500); box-shadow: 0 0 0 3px rgba(64,158,255,.14); }
+
+  /* 请求参数 Tabs + 环境选择 */
+  .reqtabs { display: flex; align-items: center; border-bottom: 1px solid var(--n-100); padding: 0 12px; }
+  .reqtab {
+    padding: 9px 14px; font-size: var(--font-size-xs); font-weight: 500; color: var(--n-500);
+    background: none; border: none; border-bottom: 2px solid transparent; cursor: pointer; white-space: nowrap;
+  }
+  .reqtab:hover { color: var(--n-700); }
+  .reqtab.is-active { color: var(--brand-500); border-bottom-color: var(--brand-500); }
+  .reqtab .count {
+    margin-left: 5px; font-size: 10px; padding: 0 5px; border-radius: 8px;
+    background: var(--n-100); color: var(--n-500); line-height: 16px;
+  }
+  .reqtab.is-active .count { background: var(--brand-50); color: var(--brand-500); }
+  .reqtabs__spacer { flex: 1; }
+  .env-pick { display: flex; align-items: center; gap: 6px; color: var(--n-400); font-size: 12px; }
+  .env-pick .select { width: 200px; height: 28px; border: none; padding-left: 4px; font-size: var(--font-size-xs); }
+
+  .reqpanel { padding: 12px; }
+
+  /* 键值表（KeyValueTable） */
+  .kv { width: 100%; border-collapse: collapse; }
+  .kv th {
+    text-align: left; font-size: 11px; color: var(--n-500); font-weight: 600;
+    text-transform: uppercase; letter-spacing: .04em; padding: 6px 8px; border-bottom: 1px solid var(--n-200);
+  }
+  .kv td { padding: 6px 8px; border-bottom: 1px solid var(--n-100); }
+  .kv .kv__add { color: var(--brand-500); font-size: var(--font-size-xs); cursor: pointer; padding: 8px; display: inline-block; }
+
+  /* Body 类型分段 + 深色编辑器 */
+  .bodytypes { display: inline-flex; gap: 2px; background: var(--n-50); border-radius: 6px; padding: 2px; }
+  .bodytype { height: 28px; padding: 0 12px; border: none; background: none; border-radius: 4px; font-size: var(--font-size-xs); color: var(--n-500); cursor: pointer; }
+  .bodytype.is-active { background: var(--brand-500); color: #fff; font-weight: 500; }
+  .bodytypes-right { display: inline-flex; align-items: center; gap: 6px; margin-left: 10px; }
+  .bodytypes-right .select { width: 118px; height: 28px; font-size: var(--font-size-xs); }
+  .code-editor {
+    margin-top: 10px; width: 100%; min-height: 150px; resize: vertical;
+    padding: 12px; font-family: var(--font-mono); font-size: var(--font-size-xs); line-height: 1.6;
+    color: #d4d4d4; background: #1e1e1e; border: 1px solid #333; border-radius: 6px; outline: none;
+  }
+  .code-editor:focus { border-color: var(--brand-500); }
+
+  /* Auth 表单 */
+  .authform { max-width: 420px; }
+  .authform .field__hint { color: var(--n-400); }
+
+  /* 响应面板 */
+  .resp-status {
+    display: flex; align-items: center; gap: 16px;
+    padding: 8px 12px; background: var(--n-50); border-bottom: 1px solid var(--n-100);
+  }
+  .resp-code { padding: 2px 10px; border-radius: 4px; font-family: var(--font-mono); font-size: 13px; font-weight: 700; }
+  .resp-meta { display: flex; align-items: center; gap: 5px; }
+  .resp-meta b { font-size: 11px; color: var(--n-400); font-weight: 500; text-transform: uppercase; }
+  .resp-meta span { font-family: var(--font-mono); font-size: var(--font-size-xs); color: var(--n-700); }
+  .resptabs { display: flex; align-items: center; justify-content: space-between; padding: 0 12px; border-bottom: 1px solid var(--n-100); }
+  .resptabs__group { display: flex; }
+  .resptab { padding: 8px 14px; font-size: var(--font-size-xs); font-weight: 500; color: var(--n-500); background: none; border: none; border-bottom: 2px solid transparent; cursor: pointer; }
+  .resptab.is-active { color: var(--brand-500); border-bottom-color: var(--brand-500); }
+  .icon-btn-sm { width: 26px; height: 26px; border: none; background: none; border-radius: 4px; color: var(--n-400); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
+  .icon-btn-sm:hover { color: var(--n-700); background: var(--n-100); }
+  .icon-btn-sm svg { width: 14px; height: 14px; }
+  .respmodes { display: flex; align-items: center; justify-content: space-between; padding: 5px 12px; border-bottom: 1px solid var(--n-100); }
+  .respmodes__group { display: flex; gap: 2px; }
+  .respmode { padding: 4px 10px; border: none; background: none; border-radius: 4px; font-size: var(--font-size-xs); color: var(--n-500); cursor: pointer; }
+  .respmode.is-active { background: var(--n-100); color: var(--n-800); font-weight: 500; }
+  .respmodes__right { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--n-400); text-transform: uppercase; }
+  .respmodes__right .select { width: 108px; height: 26px; font-size: var(--font-size-xs); text-transform: none; }
+
+  .json-view { padding: 10px 12px; background: #1e1e1e; min-height: 100%; font-family: var(--font-mono); font-size: var(--font-size-xs); line-height: 1.65; color: #d4d4d4; }
+  .j-row { white-space: pre; }
+  .j-key { color: #9cdcfe; }
+  .j-str { color: #ce9178; }
+  .j-num { color: #b5cea8; }
+  .j-bool { color: #569cd6; }
+  .j-null { color: #569cd6; }
+  .j-punc { color: #d4d4d4; }
+  .j-caret { color: #d4d4d4; cursor: pointer; }
+
+  [hidden] { display: none !important; }
+  .curl-tip { margin: 0 0 var(--space-sm); font-size: var(--font-size-xs); color: var(--n-500); }
+  .curl-textarea { width: 100%; min-height: 140px; font-family: var(--font-mono); font-size: var(--font-size-xs); }
+</style>
+</head>
+<body data-shell="business" data-mode="project" data-active="api" data-workspace="质量中台" data-project="电商核心系统">
+
+<main class="content content--flush">
+  <div class="split">
+    <aside class="split__side">
+      <div class="menu-item side__item menu-item--active"><span data-icon="terminal"></span><span>快速调试</span></div>
+      <div class="menu-item side__item"><span data-icon="link"></span><span>接口管理</span></div>
+      <div class="menu-item side__item"><span data-icon="cpu"></span><span>Mock 服务</span></div>
+      <div class="menu-item side__item"><span data-icon="operation"></span><span>测试场景</span></div>
+      <div class="menu-item side__item"><span data-icon="data-chart"></span><span>测试报告</span></div>
+      <div class="menu-item side__item"><span data-icon="timer"></span><span>定时任务</span></div>
+      <div class="side__group-title">项目设置</div>
+      <div class="menu-item side__item"><span data-icon="compass"></span><span>环境管理</span></div>
+      <div class="menu-item side__item"><span data-icon="layers"></span><span>函数管理</span></div>
+      <div class="menu-item side__item"><span data-icon="box"></span><span>公共组件</span></div>
+    </aside>
+
+    <div class="split__main">
+      <div class="debug">
+        <div class="debug__card">
+          <!-- 标签条：多标签 + 导入 cURL + 历史记录 -->
+          <div class="tabbar">
+            <div class="tabbar__tabs">
+              <div class="dtab is-active"><span class="dtab__method m-post">POST</span><span>创建订单</span></div>
+              <div class="dtab"><span class="dtab__method m-get">GET</span><span>查询订单详情</span></div>
+              <div class="dtab"><span class="dtab__method m-put">PUT</span><span>取消订单</span></div>
+              <span class="tabbar__add" data-icon="plus"></span>
+            </div>
+            <div class="tabbar__right">
+              <div class="dtab js-open-curl"><span data-icon="download"></span><span>导入 cURL</span></div>
+              <div class="dtab"><span data-icon="clock-circle"></span><span>历史记录</span></div>
+            </div>
+          </div>
+
+          <div class="debug__body">
+            <!-- ============ 请求面板 ============ -->
+            <div class="debug__req">
+              <div class="urlbar">
+                <select class="method-pick"><option>POST</option><option>GET</option><option>PUT</option><option>PATCH</option><option>DELETE</option></select>
+                <input class="url-input" value="${BASE_URL}/api/v1/orders">
+                <button class="btn btn--primary" style="height:32px;font-weight:600"><span data-icon="arrow-right"></span>发送</button>
+                <button class="btn btn--default" style="height:32px"><span data-icon="plus"></span>保存</button>
+              </div>
+
+              <div class="reqtabs">
+                <button class="reqtab" data-req="params">Params<span class="count">2</span></button>
+                <button class="reqtab is-active" data-req="body">Body</button>
+                <button class="reqtab" data-req="headers">Headers<span class="count">3</span></button>
+                <button class="reqtab" data-req="auth">Auth</button>
+                <div class="reqtabs__spacer"></div>
+                <div class="env-pick">
+                  <select class="select"><option>测试环境（默认）</option><option>预发环境</option><option>生产环境</option></select>
+                  <span data-icon="info-filled" title="相对路径拼接所选环境 baseUrl；${变量} 取自该环境变量"></span>
+                </div>
+              </div>
+
+              <div class="reqpanel">
+                <!-- Params -->
+                <div data-panel="params" hidden>
+                  <table class="kv">
+                    <thead><tr><th style="width:34px">启用</th><th>参数名</th><th>值</th><th>说明</th><th style="width:40px"></th></tr></thead>
+                    <tbody>
+                      <tr>
+                        <td><span class="checkbox checkbox--on"></span></td>
+                        <td><input class="input" value="channel" style="height:28px"></td>
+                        <td><input class="input" value="app" style="height:28px"></td>
+                        <td><input class="input" placeholder="描述（可选）" style="height:28px"></td>
+                        <td><span class="op-link op-link--danger">删</span></td>
+                      </tr>
+                      <tr>
+                        <td><span class="checkbox checkbox--on"></span></td>
+                        <td><input class="input" value="traceId" style="height:28px"></td>
+                        <td><input class="input" value="${UUID}" style="height:28px"></td>
+                        <td><input class="input" placeholder="描述（可选）" style="height:28px"></td>
+                        <td><span class="op-link op-link--danger">删</span></td>
+                      </tr>
+                    </tbody>
+                  </table>
+                  <span class="kv__add">+ 添加参数</span>
+                </div>
+
+                <!-- Body -->
+                <div data-panel="body">
+                  <div>
+                    <span class="bodytypes">
+                      <button class="bodytype">none</button>
+                      <button class="bodytype">x-www-form-urlencoded</button>
+                      <button class="bodytype is-active">raw</button>
+                    </span>
+                    <span class="bodytypes-right">
+                      <select class="select"><option>Json</option><option>Text</option><option>Xml</option><option>Html</option><option>JavaScript</option></select>
+                      <button class="icon-btn-sm" title="格式化（修正 JSON 缩进）"><span data-icon="sparkle"></span></button>
+                    </span>
+                  </div>
+                  <textarea class="code-editor" spellcheck="false">{
+  "channel": "app",
+  "items": [
+    { "sku": "SKU-10021", "quantity": 2 },
+    { "sku": "SKU-10088", "quantity": 1 }
+  ],
+  "addressId": "addr_30219"
+}</textarea>
+                </div>
+
+                <!-- Headers -->
+                <div data-panel="headers" hidden>
+                  <table class="kv">
+                    <thead><tr><th style="width:34px">启用</th><th>Header 名</th><th>值</th><th>说明</th><th style="width:40px"></th></tr></thead>
+                    <tbody>
+                      <tr>
+                        <td><span class="checkbox checkbox--on"></span></td>
+                        <td><input class="input" value="Content-Type" style="height:28px"></td>
+                        <td><input class="input" value="application/json" style="height:28px"></td>
+                        <td><input class="input" placeholder="描述（可选）" style="height:28px"></td>
+                        <td><span class="op-link op-link--danger">删</span></td>
+                      </tr>
+                      <tr>
+                        <td><span class="checkbox checkbox--on"></span></td>
+                        <td><input class="input" value="Authorization" style="height:28px"></td>
+                        <td><input class="input" value="Bearer ${TOKEN}" style="height:28px"></td>
+                        <td><input class="input" placeholder="描述（可选）" style="height:28px"></td>
+                        <td><span class="op-link op-link--danger">删</span></td>
+                      </tr>
+                      <tr>
+                        <td><span class="checkbox"></span></td>
+                        <td><input class="input" value="X-Trace-Id" style="height:28px"></td>
+                        <td><input class="input" value="${traceId}" style="height:28px"></td>
+                        <td><input class="input" placeholder="描述（可选）" style="height:28px"></td>
+                        <td><span class="op-link op-link--danger">删</span></td>
+                      </tr>
+                    </tbody>
+                  </table>
+                  <span class="kv__add">+ 添加请求头</span>
+                  <p class="field__hint">常用建议：Accept / Authorization / Content-Type / Cookie / User-Agent / Origin</p>
+                </div>
+
+                <!-- Auth -->
+                <div data-panel="auth" hidden>
+                  <div class="authform">
+                    <div class="field">
+                      <label class="field__label">认证方式</label>
+                      <select class="select"><option>Bearer Token</option><option>No Auth</option><option>API Key</option><option>Basic Auth</option><option disabled>Digest Auth</option></select>
+                    </div>
+                    <div class="field">
+                      <label class="field__label">Token</label>
+                      <input class="input" type="password" value="eyJhbGciOiJIUzI1NiJ9">
+                      <p class="field__hint">提交时换算为 Authorization: Bearer 头；手工同名头优先</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="debug__divider"><i></i></div>
+
+            <!-- ============ 响应面板 ============ -->
+            <div class="debug__resp">
+              <div class="resp-status">
+                <span class="resp-code" style="color:var(--st-success-strong);background:var(--st-success-light)">200</span>
+                <span class="resp-meta"><b>Time</b><span>342 ms</span></span>
+                <span class="resp-meta"><b>Size</b><span>1.4 KB</span></span>
+              </div>
+
+              <div class="resptabs">
+                <div class="resptabs__group">
+                  <button class="resptab is-active">Body</button>
+                  <button class="resptab">Headers (8)</button>
+                  <button class="resptab">Cookies (1)</button>
+                </div>
+                <div style="display:flex;align-items:center;gap:4px">
+                  <button class="icon-btn-sm" title="搜索响应体 (Ctrl+F)"><span data-icon="search"></span></button>
+                  <button class="icon-btn-sm" title="复制响应体"><span data-icon="copy"></span></button>
+                </div>
+              </div>
+
+              <div class="respmodes">
+                <div class="respmodes__group">
+                  <button class="respmode is-active">Pretty</button>
+                  <button class="respmode">Raw</button>
+                  <button class="respmode">Preview</button>
+                </div>
+                <div class="respmodes__right">
+                  <span>类型</span>
+                  <select class="select"><option>json</option><option>text</option><option>xml</option><option>html</option><option>javascript</option></select>
+                </div>
+              </div>
+
+              <div class="json-view">
+                <div class="j-row"><span class="j-punc">{</span></div>
+                <div class="j-row">  <span class="j-key">"code"</span><span class="j-punc">: </span><span class="j-num">0</span><span class="j-punc">,</span></div>
+                <div class="j-row">  <span class="j-key">"message"</span><span class="j-punc">: </span><span class="j-str">"ok"</span><span class="j-punc">,</span></div>
+                <div class="j-row">  <span class="j-key">"data"</span><span class="j-punc">: {</span></div>
+                <div class="j-row">    <span class="j-key">"orderId"</span><span class="j-punc">: </span><span class="j-str">"ord_88213"</span><span class="j-punc">,</span></div>
+                <div class="j-row">    <span class="j-key">"status"</span><span class="j-punc">: </span><span class="j-str">"CREATED"</span><span class="j-punc">,</span></div>
+                <div class="j-row">    <span class="j-key">"amount"</span><span class="j-punc">: </span><span class="j-num">299.00</span><span class="j-punc">,</span></div>
+                <div class="j-row">    <span class="j-key">"paid"</span><span class="j-punc">: </span><span class="j-bool">false</span><span class="j-punc">,</span></div>
+                <div class="j-row">    <span class="j-key">"expireAt"</span><span class="j-punc">: </span><span class="j-null">null</span></div>
+                <div class="j-row">  <span class="j-punc">},</span></div>
+                <div class="j-row">  <span class="j-key">"traceId"</span><span class="j-punc">: </span><span class="j-str">"a1f0-77c2-9de1"</span></div>
+                <div class="j-row"><span class="j-punc">}</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- 导入 cURL（仅解析不执行） -->
+<div class="dialog-mask" id="curlDialog" hidden>
+  <div class="dialog" role="dialog" aria-modal="true" aria-label="导入 cURL">
+    <div class="dialog__header">
+      <span class="dialog__title">导入 cURL</span>
+      <span class="dialog__close js-close-curl" role="button" tabindex="0" aria-label="关闭" data-icon="x"></span>
+    </div>
+    <div class="dialog__body">
+      <p class="curl-tip">粘贴 Chrome / Charles / Fiddler 导出的 cURL 命令，仅解析不执行</p>
+      <textarea class="textarea curl-textarea" placeholder="curl -X POST https://example.com/api -H 'Content-Type: application/json' -d '{...}'"></textarea>
+    </div>
+    <div class="dialog__footer">
+      <button type="button" class="btn btn--default js-close-curl">取消</button>
+      <button type="button" class="btn btn--primary">解析并回填</button>
+    </div>
+  </div>
+</div>
+
+<script src="../assets/icons.js"></script>
+<script src="../assets/shell.js"></script>
+<script>
+  // 请求参数四页签切换（对应实现的 Params / Body / Headers / Auth）
+  document.querySelectorAll('.reqtab').forEach(function (tab) {
+    tab.addEventListener('click', function () {
+      var key = tab.getAttribute('data-req');
+      document.querySelectorAll('.reqtab').forEach(function (t) { t.classList.toggle('is-active', t === tab); });
+      document.querySelectorAll('[data-panel]').forEach(function (p) {
+        p.hidden = p.getAttribute('data-panel') !== key;
+      });
+    });
+  });
+
+  // 响应 Body 视图（Pretty / Raw / Preview）与请求标签的静态演示
+  document.querySelectorAll('.respmode, .resptab').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      btn.parentElement.querySelectorAll('.is-active').forEach(function (s) { s.classList.remove('is-active'); });
+      btn.classList.add('is-active');
+    });
+  });
+
+  // 导入 cURL 弹窗
+  var curlDialog = document.getElementById('curlDialog');
+  document.querySelectorAll('.js-open-curl').forEach(function (el) {
+    el.addEventListener('click', function () { curlDialog.hidden = false; });
+  });
+  document.querySelectorAll('.js-close-curl').forEach(function (el) {
+    el.addEventListener('click', function () { curlDialog.hidden = true; });
+  });
+</script>
+</body>
+</html>
