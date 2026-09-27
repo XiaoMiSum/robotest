@@ -32,7 +32,7 @@ corepack enable            # 按 packageManager 字段提供锁定 pnpm
 pnpm install --frozen-lockfile
 ```
 
-Node 主版本或 pnpm 版本与锁定不一致时 `scripts/validate.sh` 会失败；升级工具链必须同步更新 `.nvmrc`、`packageManager`、`engines` 与 `docs/00-spec/30-quality-delivery/03-deploy.md` 的工具链矩阵。
+Node 主版本或 pnpm 版本与锁定不一致时 `scripts/validate-web.sh` 会失败；升级工具链必须同步更新 `.nvmrc`、`packageManager`、`engines` 与 `docs/00-spec/30-quality-delivery/03-deploy.md` 的工具链矩阵。
 
 ## 2. TypeScript 规范
 
