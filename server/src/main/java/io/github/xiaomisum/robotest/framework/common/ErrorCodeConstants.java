@@ -71,9 +71,12 @@ public class ErrorCodeConstants {
     public static final ErrorCode ROOT_NODE_NOT_EXECUTABLE = ErrorCode.of(1000011017, "默认根节点不可执行");
     public static final ErrorCode REVIEW_ONLY_ACTIVE_CAN_REJECT = ErrorCode.of(1000011018, "仅待评审或进行中的评审可驳回");
     public static final ErrorCode REVIEW_ONLY_REJECTED_CAN_REOPEN = ErrorCode.of(1000011019, "仅已驳回的评审可重新发起");
+    public static final ErrorCode PLAN_ONLY_ACTIVE_CAN_BLOCK = ErrorCode.of(1000011020, "仅未开始或进行中的计划可阻塞");
     public static final ErrorCode TEST_CASE_DOCUMENT_NOT_FOUND = ErrorCode.of(1000011021, "文档不存在");
     public static final ErrorCode TEST_CASE_NODE_NOT_FOUND = ErrorCode.of(1000011022, "用例节点不存在");
     public static final ErrorCode BUG_NOT_FOUND = ErrorCode.of(1000011023, "缺陷不存在");
+    public static final ErrorCode PLAN_ONLY_BLOCKED_CAN_RESUME = ErrorCode.of(1000011024, "仅已阻塞的计划可恢复");
+    public static final ErrorCode PLAN_IS_BLOCKED = ErrorCode.of(1000011025, "计划已阻塞，请先恢复后再操作");
     public static final ErrorCode TEST_REVIEW_FINISHED = ErrorCode.of(1000011026, "评审已完成，无法执行该操作");
     public static final ErrorCode TEST_PLAN_FINISHED = ErrorCode.of(1000011027, "计划已结束，无法执行该操作");
     public static final ErrorCode REQUIREMENT_NOT_FOUND = ErrorCode.of(1000011028, "需求条目不存在或不属于当前项目");

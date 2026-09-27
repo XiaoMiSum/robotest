@@ -80,6 +80,24 @@ public interface TestPlanService {
     void completePlan(UUID projectId, UUID planId, UUID userId);
 
     /**
+     * 阻塞计划（仅负责人）：未开始/进行中的计划暂停执行，期间不可标记、调整、同步与完成
+     *
+     * @param projectId 活动项目 ID（X-Active-Project 头，须与计划归属一致）
+     * @param planId 计划 ID
+     * @param userId 操作人 ID
+     */
+    void blockPlan(UUID projectId, UUID planId, UUID userId);
+
+    /**
+     * 恢复计划（仅负责人）：已阻塞计划回到执行中
+     *
+     * @param projectId 活动项目 ID（X-Active-Project 头，须与计划归属一致）
+     * @param planId 计划 ID
+     * @param userId 操作人 ID
+     */
+    void resumePlan(UUID projectId, UUID planId, UUID userId);
+
+    /**
      * 删除计划及其快照、执行记录（仅负责人）
      *
      * @param projectId 活动项目 ID（X-Active-Project 头，须与计划归属一致）
