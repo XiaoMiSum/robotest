@@ -1,6 +1,13 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { usePlanDetail } from '@/composables/project/functional-testing/plan/usePlanDetail'
+import {
+  canBlockPlan,
+  canResumePlan,
+  planStatusMeta,
+  planStatusLabel,
+} from '@/components/project/functional-testing/plan/planListPresentation'
 import { MagicStick } from '@element-plus/icons-vue'
 
 const route = useRoute()
@@ -22,6 +29,8 @@ const {
   canShowOrder,
   canAdjustCases,
   handleComplete,
+  handleBlock,
+  handleResume,
   handleSync,
   openCaseSelector,
   handleCasesConfirm,
@@ -32,10 +41,14 @@ const {
   handleOrderLocate,
   handleOrderResult,
   handleOrderSelect,
-  statusLabel,
   router,
   aiStore,
 } = usePlanDetail({ planId })
+
+// 状态文案与阻塞/恢复入口显隐均取自展示口径模块；按钮是否真可用由后端校验负责人权限
+const statusText = computed(() => planStatusLabel(detail.value?.status ?? ''))
+const canBlock = computed(() => canBlockPlan(detail.value?.status ?? ''))
+const canResume = computed(() => canResumePlan(detail.value?.status ?? ''))
 </script>
 
 <template>
@@ -47,9 +60,13 @@ const {
       <template #content>
         <div class="plan-detail__header">
           <span class="plan-detail__title">{{ detail?.name ?? '计划详情' }}</span>
-          <el-tag v-if="detail" size="small" effect="light" round>{{
-            statusLabel[detail.status]
-          }}</el-tag>
+          <el-tag
+            v-if="detail"
+            :type="planStatusMeta(detail.status).tagType"
+            size="small"
+            effect="light"
+            round
+          >{{ statusText }}</el-tag>
         </div>
       </template>
       <template #extra>
@@ -88,6 +105,22 @@ const {
             </el-button>
             <el-button v-if="canAdjustCases" size="small" plain @click="handleSync">
               <el-icon><Refresh /></el-icon>同步用例
+            </el-button>
+            <el-button
+              v-if="canBlock"
+              size="small"
+              plain
+              @click="handleBlock"
+            >
+              <el-icon><VideoPause /></el-icon>阻塞
+            </el-button>
+            <el-button
+              v-if="canResume"
+              size="small"
+              plain
+              @click="handleResume"
+            >
+              <el-icon><VideoPlay /></el-icon>恢复
             </el-button>
             <el-button
               v-if="detail.status === 'new' || detail.status === 'in_progress'"

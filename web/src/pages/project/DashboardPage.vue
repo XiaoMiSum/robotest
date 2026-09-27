@@ -5,6 +5,7 @@ import { ElMessage } from 'element-plus'
 import { fetchDashboard } from '@/services/project'
 import type { ProjectActivity, ProjectDashboard } from '@/types'
 import { reviewStatusMeta } from '@/components/project/functional-testing/review/reviewListPresentation'
+import { planStatusMeta } from '@/components/project/functional-testing/plan/planListPresentation'
 import { formatDate, formatDateTime } from '@/utils/format'
 
 const router = useRouter()
@@ -293,7 +294,12 @@ function openActivity(activity: ProjectActivity) {
             >
               <span class="panel__item-name">{{ item.title }}</span>
               <span class="panel__item-meta">
-                <el-tag size="small" effect="light" round>{{ item.status }}</el-tag>
+                <el-tag
+                  :type="planStatusMeta(item.status).tagType"
+                  size="small"
+                  effect="light"
+                  round
+                >{{ planStatusMeta(item.status).label }}</el-tag>
                 <span class="panel__item-date">{{ formatDateTime(item.createdAt) }}</span>
               </span>
             </li>
