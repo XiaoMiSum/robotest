@@ -120,11 +120,16 @@ cd server
 mvn test
 mvn verify
 
-# 统一脚本
+# 统一编排（全量）
 bash scripts/validate.sh --all
+
+# 按端（各端 agent 提交前只运行本端）
+bash scripts/validate-docs.sh
+bash scripts/validate-web.sh
+bash scripts/validate-backend.sh
 ```
 
-脚本当前实际行为以 `scripts/validate.sh` 为准。若脚本尚未覆盖覆盖率、静态分析或安全扫描，应补充实现或降低文档中的门禁表述。
+脚本当前实际行为以各端 `scripts/validate-*.sh` 与编排器 `scripts/validate.sh` 为准。若脚本尚未覆盖覆盖率、静态分析或安全扫描，应补充实现或降低文档中的门禁表述。
 
 ## 9. 质量红线
 
