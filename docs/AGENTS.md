@@ -33,7 +33,7 @@ docs/
 └── AGENTS.md                ← 本文档
 ```
 
-> `01-requirements/`、`04-detailed-design/`、`05-interaction-design/` 下另设 `system-management/` 等模块子目录；每个目录（含模块子目录）以自己的索引文件作为入口：`00-spec` 用 `00-readme.md`，其余目录用 `01-readme.md`。
+> `01-requirements/`、`04-detailed-design/`、`05-interaction-design/` 下另设模块子目录；`01-requirements/` 下的模块目录带业务编号（如 `01-system-management/`、`02-space-management/`）；每个目录（含模块子目录）以自己的索引文件作为入口：`00-spec` 用 `00-readme.md`，其余目录用 `01-readme.md`。
 
 ## 核心约定
 
