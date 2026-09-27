@@ -76,6 +76,16 @@ export function completeReview(id: string): Promise<void> {
   return post(`/project/reviews/${id}/complete`)
 }
 
+/** 驳回评审：仅发起人，活跃态 → 已驳回（后端 1000011018 兜底） */
+export function rejectReview(id: string): Promise<void> {
+  return post(`/project/reviews/${id}/reject`)
+}
+
+/** 重新发起：仅发起人，已驳回 → 进行中（后端 1000011019 兜底） */
+export function reopenReview(id: string): Promise<void> {
+  return post(`/project/reviews/${id}/reopen`)
+}
+
 export function deleteReview(id: string): Promise<void> {
   return del(`/project/reviews/${id}`)
 }
