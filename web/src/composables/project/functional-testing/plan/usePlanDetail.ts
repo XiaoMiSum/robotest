@@ -2,12 +2,14 @@ import { computed, nextTick, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
+  blockPlan,
   completePlan,
   getCaseDetail,
   getPlanDetail,
   getPlanModuleTree,
   getPlanPlannedCases,
   getPlanProgress,
+  resumePlan,
   syncPlan,
   updatePlanCases,
 } from '@/services/project'
@@ -34,15 +36,6 @@ function firstDocument(nodes: SnapshotModule[]): SnapshotModule | null {
 
 function findDoc(nodes: SnapshotModule[], id: string): boolean {
   return nodes.some((n) => n.id === id || findDoc(n.children ?? [], id))
-}
-
-// ==================== Constants ====================
-
-const statusLabel: Record<string, string> = {
-  new: '待开始',
-  in_progress: '进行中',
-  completed: '已完成',
-  closed: '已关闭',
 }
 
 // ==================== Types ====================
@@ -129,6 +122,42 @@ export function usePlanDetail(options: UsePlanDetailOptions) {
     try {
       await completePlan(planId)
       ElMessage.success('计划已完成')
+      load()
+    } catch (err) {
+      ElMessage.error(err instanceof Error ? err.message : '操作失败')
+    }
+  }
+
+  async function handleBlock() {
+    try {
+      await ElMessageBox.confirm(
+        '确定阻塞该计划吗？阻塞期间不可标记执行结果、调整用例、同步与完成。',
+        '阻塞计划',
+        { type: 'warning' },
+      )
+    } catch {
+      return
+    }
+    try {
+      await blockPlan(planId)
+      ElMessage.success('计划已阻塞')
+      load()
+    } catch (err) {
+      ElMessage.error(err instanceof Error ? err.message : '操作失败')
+    }
+  }
+
+  async function handleResume() {
+    try {
+      await ElMessageBox.confirm('确定恢复该计划吗？恢复后回到执行中。', '恢复计划', {
+        type: 'warning',
+      })
+    } catch {
+      return
+    }
+    try {
+      await resumePlan(planId)
+      ElMessage.success('计划已恢复')
       load()
     } catch (err) {
       ElMessage.error(err instanceof Error ? err.message : '操作失败')
@@ -280,6 +309,8 @@ export function usePlanDetail(options: UsePlanDetailOptions) {
     // Methods
     load,
     handleComplete,
+    handleBlock,
+    handleResume,
     handleSync,
     openCaseSelector,
     handleCasesConfirm,
@@ -290,8 +321,6 @@ export function usePlanDetail(options: UsePlanDetailOptions) {
     handleOrderLocate,
     handleOrderResult,
     handleOrderSelect,
-    // Constants
-    statusLabel,
     // Router
     router,
     // Stores

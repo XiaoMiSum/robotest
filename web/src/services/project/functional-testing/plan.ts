@@ -72,6 +72,16 @@ export function completePlan(id: string): Promise<void> {
   return post(`/project/plans/${id}/complete`)
 }
 
+/** 阻塞：未开始/进行中 → 已阻塞（仅负责人，后端 1000011020/1000011025 兜底） */
+export function blockPlan(id: string): Promise<void> {
+  return post(`/project/plans/${id}/block`)
+}
+
+/** 恢复：已阻塞 → 执行中（仅负责人，后端 1000011024 兜底） */
+export function resumePlan(id: string): Promise<void> {
+  return post(`/project/plans/${id}/resume`)
+}
+
 export function deletePlan(id: string): Promise<void> {
   return del(`/project/plans/${id}`)
 }

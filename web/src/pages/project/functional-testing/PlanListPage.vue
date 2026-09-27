@@ -1,12 +1,33 @@
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
-import { completePlan, createPlan, deletePlan, fetchPlans } from '@/services/project'
+import {
+  completePlan,
+  createPlan,
+  deletePlan,
+  fetchPlans,
+  resumePlan,
+} from '@/services/project'
 import { fetchMembers } from '@/services/workspace'
 import type { PlanStatus, TestPlanListItem, WorkspaceMember } from '@/types'
-import { formatDateTime, formatDate } from '@/utils/format'
+import { formatDateTime } from '@/utils/format'
 import CaseSelector from '@/components/project/functional-testing/case/CaseSelector.vue'
+import {
+  PLAN_STATUS_META,
+  isActivePlan,
+  planCountText,
+  planEnvironment,
+  planListAction,
+  planNameSub,
+  planPagerTotalText,
+  planPassRate,
+  planProgressStatus,
+  planProgressText,
+  planStatusMeta,
+  planTimeRange,
+  canResumePlan,
+} from '@/components/project/functional-testing/plan/planListPresentation'
 
 const router = useRouter()
 const loading = ref(false)
@@ -14,8 +35,40 @@ const plans = ref<TestPlanListItem[]>([])
 const total = ref(0)
 const query = reactive({ status: '' as PlanStatus | '', keyword: '', pageNo: 1, pageSize: 20 })
 
-const statusLabel: Record<string, string> = { new: '待开始', in_progress: '进行中', completed: '已完成', closed: '已关闭' }
-const statusType: Record<string, 'info' | 'warning' | 'success' | 'danger'> = { new: 'info', in_progress: 'warning', completed: 'success', closed: 'danger' }
+const statusOptions = (Object.keys(PLAN_STATUS_META) as PlanStatus[]).map((value) => ({
+  value,
+  label: PLAN_STATUS_META[value].label,
+}))
+
+// 展示口径在行级预计算，模板内不再散落条件分支
+interface PlanRowView {
+  plan: TestPlanListItem
+  meta: ReturnType<typeof planStatusMeta>
+  action: ReturnType<typeof planListAction>
+  passRate: ReturnType<typeof planPassRate>
+  progressStatus: ReturnType<typeof planProgressStatus>
+  timeText: string
+  environment: string
+  nameSub: string
+}
+
+const rows = computed<PlanRowView[]>(() =>
+  plans.value.map((plan) => ({
+    plan,
+    meta: planStatusMeta(plan.status),
+    action: planListAction(plan.status),
+    passRate: planPassRate(plan.status, plan.passRate),
+    progressStatus: planProgressStatus(plan.status),
+    timeText: planTimeRange(plan.startTime, plan.endTime),
+    environment: planEnvironment(plan.environment),
+    nameSub: planNameSub(plan.totalAssociated),
+  })),
+)
+
+// 视图模型无原始 id 字段，行 key 由内层计划对象提供
+function rowKeyId(row: PlanRowView): string {
+  return row.plan.id
+}
 
 async function loadPlans() {
   loading.value = true
@@ -47,13 +100,6 @@ function handleReset() {
   loadPlans()
 }
 
-function timeRange(plan: TestPlanListItem): string {
-  const s = plan.startTime ? formatDate(plan.startTime) : ''
-  const e = plan.endTime ? formatDate(plan.endTime) : ''
-  if (!s && !e) return '-'
-  return `${s || '?'} ~ ${e || '?'}`
-}
-
 onMounted(loadPlans)
 
 async function handleComplete(row: TestPlanListItem) {
@@ -66,6 +112,19 @@ async function handleComplete(row: TestPlanListItem) {
     loadPlans()
   } catch (err) {
     ElMessage.error(err instanceof Error ? err.message : '完成计划失败')
+  }
+}
+
+async function handleResume(row: TestPlanListItem) {
+  try {
+    await ElMessageBox.confirm(`确定恢复计划「${row.name}」？恢复后回到执行中。`, '恢复计划', { type: 'warning' })
+  } catch { return }
+  try {
+    await resumePlan(row.id)
+    ElMessage.success('计划已恢复')
+    loadPlans()
+  } catch (err) {
+    ElMessage.error(err instanceof Error ? err.message : '恢复计划失败')
   }
 }
 
@@ -153,94 +212,129 @@ async function submitCreate() {
 </script>
 
 <template>
-  <div class="plan-list">
+  <main class="plan-list-page">
+    <header class="page-head">
+      <div>
+        <h1 class="page-head__title">测试计划</h1>
+        <p class="page-head__desc">计划维度组织用例执行与通过率统计</p>
+      </div>
+      <div class="page-head__actions">
+        <el-button type="primary" @click="openCreateDialog">
+          <el-icon><Plus /></el-icon>新建计划
+        </el-button>
+      </div>
+    </header>
+
     <el-card v-loading="loading" shadow="never">
-      <template #header>
-        <div class="plan-list__header">
-          <el-input
-            v-model="query.keyword"
-            placeholder="搜索名称"
-            clearable
-            style="width: 200px"
-            @keyup.enter="handleSearch"
-          />
-          <el-select v-model="query.status" placeholder="状态" clearable style="width: 140px">
-            <el-option v-for="(label, key) in statusLabel" :key="key" :label="label" :value="key" />
-          </el-select>
-          <el-button type="primary" @click="handleSearch">
-            <el-icon><Search /></el-icon>查询
-          </el-button>
-          <el-button @click="handleReset">重置</el-button>
-          <div class="plan-list__header-spacer" />
-          <el-button type="primary" @click="openCreateDialog">
-            <el-icon><Plus /></el-icon>创建计划
-          </el-button>
-        </div>
-      </template>
-      <el-table :data="plans" row-key="id">
-        <el-table-column label="名称" min-width="180">
+      <div class="plan-list__toolbar">
+        <el-input
+          v-model="query.keyword"
+          placeholder="计划名称"
+          clearable
+          style="width: 200px"
+          @keyup.enter="handleSearch"
+          @clear="handleSearch"
+        />
+        <el-select v-model="query.status" placeholder="全部状态" clearable style="width: 130px">
+          <el-option v-for="option in statusOptions" :key="option.value" :label="option.label" :value="option.value" />
+        </el-select>
+        <el-button type="primary" @click="handleSearch">
+          <el-icon><Search /></el-icon>查询
+        </el-button>
+        <el-button @click="handleReset">重置</el-button>
+        <span class="plan-list__count">{{ planCountText(total) }}</span>
+      </div>
+
+      <el-table :data="rows" :row-key="rowKeyId" empty-text="暂无计划">
+        <el-table-column label="名称" min-width="220">
           <template #default="{ row }">
-            <el-link type="primary" underline="never" @click="router.push(`/workspace/projects/plans/${row.id}`)">{{ row.name }}</el-link>
+            <div class="plan-list__cell">
+              <el-link type="primary" underline="never" @click="router.push(`/workspace/projects/plans/${row.plan.id}`)">
+                {{ row.plan.name }}
+              </el-link>
+              <span class="plan-list__cell-sub">{{ row.nameSub }}</span>
+            </div>
           </template>
         </el-table-column>
         <el-table-column label="负责人" width="100">
-          <template #default="{ row }">{{ row.executor?.name ?? '-' }}</template>
+          <template #default="{ row }">{{ row.plan.executor?.name ?? '—' }}</template>
         </el-table-column>
-        <el-table-column label="起止时间" width="200">
-          <template #default="{ row }">{{ timeRange(row as TestPlanListItem) }}</template>
+        <el-table-column label="起止时间" width="176">
+          <template #default="{ row }">{{ row.timeText }}</template>
         </el-table-column>
-        <el-table-column label="环境" width="120">
-          <template #default="{ row }">{{ row.environment || '-' }}</template>
-        </el-table-column>
-        <el-table-column label="状态" width="100">
+        <el-table-column label="环境" width="116">
           <template #default="{ row }">
-            <el-tag :type="statusType[row.status] ?? 'info'" size="small" effect="light" round>{{ statusLabel[row.status] }}</el-tag>
+            <span v-if="row.environment === '—'" class="plan-list__muted">—</span>
+            <span v-else class="plan-list__chip">{{ row.environment }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="进度" width="140">
+        <el-table-column label="状态" width="96">
           <template #default="{ row }">
-            <el-progress :percentage="row.progressPercent" :stroke-width="6" />
+            <span class="plan-list__status" :class="`plan-list__status--${row.meta.modifier}`">
+              <span class="plan-list__status-dot" />
+              {{ row.meta.label }}
+            </span>
           </template>
         </el-table-column>
-        <el-table-column label="通过率" width="100">
+        <el-table-column label="进度" min-width="170">
           <template #default="{ row }">
-            <span :class="row.passRate === 100 ? 'plan-list__rate--full' : 'plan-list__rate--partial'">
-              {{ row.passRate }}%
+            <el-progress
+              :percentage="row.plan.progressPercent"
+              :stroke-width="6"
+              :status="row.progressStatus"
+              :format="planProgressText"
+            />
+          </template>
+        </el-table-column>
+        <el-table-column label="通过率" width="92" align="right">
+          <template #default="{ row }">
+            <span class="plan-list__rate" :class="`plan-list__rate--${row.passRate.tone}`">
+              {{ row.passRate.text }}
             </span>
           </template>
         </el-table-column>
         <el-table-column label="创建时间" width="160">
-          <template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template>
+          <template #default="{ row }">{{ formatDateTime(row.plan.createdAt) }}</template>
         </el-table-column>
         <el-table-column label="操作" width="200" fixed="right">
           <template #default="{ row }">
-            <el-button link type="primary" @click="router.push(`/workspace/projects/plans/${row.id}`)">
-              {{ row.status === 'in_progress' ? '进入执行' : '查看详情' }}
+            <el-button link type="primary" @click="router.push(`/workspace/projects/plans/${row.plan.id}`)">
+              {{ row.action === 'enter' ? '进入执行' : '查看详情' }}
             </el-button>
             <el-button
-              v-if="row.status === 'new' || row.status === 'in_progress'"
+              v-if="isActivePlan(row.plan.status)"
               link
               type="success"
-              @click="handleComplete(row as TestPlanListItem)"
+              @click="handleComplete(row.plan)"
             >
               完成
             </el-button>
-            <el-button link type="danger" @click="handleDelete(row as TestPlanListItem)">删除</el-button>
+            <el-button
+              v-if="canResumePlan(row.plan.status)"
+              link
+              type="primary"
+              @click="handleResume(row.plan)"
+            >
+              恢复
+            </el-button>
+            <el-button link type="danger" @click="handleDelete(row.plan)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>
+
       <div class="plan-list__pager">
+        <span class="plan-list__pager-total">{{ planPagerTotalText(total, query.pageSize) }}</span>
         <el-pagination
           v-model:current-page="query.pageNo"
           :total="total"
           :page-size="query.pageSize"
-          layout="total, prev, pager, next"
+          layout="prev, pager, next"
           @current-change="loadPlans"
         />
       </div>
     </el-card>
 
-    <el-dialog v-model="createDialogVisible" title="创建计划" width="600px">
+    <el-dialog v-model="createDialogVisible" title="新建计划" width="600px">
       <el-form ref="createFormRef" :model="createForm" :rules="createRules" label-width="80px">
         <el-form-item label="名称" prop="name">
           <el-input v-model="createForm.name" placeholder="请输入计划名称" maxlength="100" show-word-limit />
@@ -276,34 +370,140 @@ async function submitCreate() {
     </el-dialog>
 
     <CaseSelector v-model="caseSelectorVisible" @confirm="handleCaseSelected" />
-  </div>
+  </main>
 </template>
 
 <style scoped lang="scss">
-.plan-list__header {
+.page-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-lg);
+  margin-bottom: var(--block-gap);
+}
+
+.page-head__title {
+  margin: 0;
+  color: var(--color-neutral-900);
+  font-size: var(--font-size-2xl);
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.page-head__desc {
+  margin: 4px 0 0;
+  color: var(--color-neutral-500);
+  font-size: var(--font-size-sm);
+}
+
+.plan-list__toolbar {
   display: flex;
   align-items: center;
   gap: var(--space-md);
+  padding-bottom: var(--space-md);
 }
 
-.plan-list__header-spacer {
-  flex: 1;
+.plan-list__count {
+  margin-left: auto;
+  color: var(--color-neutral-500);
+  font-size: var(--font-size-sm);
+  white-space: nowrap;
+}
+
+.plan-list__cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.plan-list__cell-sub {
+  color: var(--color-neutral-400);
+  font-size: var(--font-size-2xs);
+}
+
+.plan-list__status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  color: var(--color-neutral-600);
+  font-size: var(--font-size-sm);
+  white-space: nowrap;
+}
+
+.plan-list__status-dot {
+  width: 6px;
+  height: 6px;
+  flex: 0 0 6px;
+  border-radius: var(--radius-full);
+  background: var(--color-neutral-400);
+}
+
+.plan-list__status--running {
+  color: var(--color-warning);
+
+  .plan-list__status-dot {
+    background: var(--color-warning);
+    box-shadow: 0 0 0 3px rgb(230 162 60 / 18%);
+  }
+}
+
+.plan-list__status--success {
+  color: var(--color-success);
+
+  .plan-list__status-dot {
+    background: var(--color-success);
+  }
+}
+
+.plan-list__status--blocked {
+  color: var(--color-blocked);
+
+  .plan-list__status-dot {
+    background: var(--color-blocked);
+  }
+}
+
+.plan-list__chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px var(--space-sm);
+  border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-full);
+  background: var(--color-neutral-50);
+  color: var(--color-neutral-600);
+  font-size: var(--font-size-2xs);
+}
+
+.plan-list__rate {
+  font-size: var(--font-size-sm);
+}
+
+.plan-list__rate--muted {
+  color: var(--color-neutral-400);
+}
+
+.plan-list__rate--success {
+  color: var(--color-success);
+  font-weight: 600;
+}
+
+.plan-list__muted {
+  color: var(--color-neutral-400);
 }
 
 .plan-list__pager {
   display: flex;
-  justify-content: flex-end;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
   margin-top: var(--space-lg);
   padding-top: var(--space-lg);
   border-top: 1px solid var(--color-neutral-100);
 }
 
-.plan-list__rate--full {
-  color: var(--color-success);
-}
-
-.plan-list__rate--partial {
-  color: var(--color-danger);
+.plan-list__pager-total {
+  color: var(--color-neutral-500);
+  font-size: var(--font-size-sm);
 }
 
 /* 用于创建对话框，非布局样式 */

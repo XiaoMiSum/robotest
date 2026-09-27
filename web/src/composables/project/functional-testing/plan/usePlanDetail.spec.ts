@@ -14,6 +14,8 @@ const mocks = vi.hoisted(() => ({
   getPlanPlannedCases: vi.fn<() => Promise<PlannedCases[]>>(),
   updatePlanCases: vi.fn<() => Promise<void>>(),
   completePlan: vi.fn<() => Promise<void>>(),
+  blockPlan: vi.fn<() => Promise<void>>(),
+  resumePlan: vi.fn<() => Promise<void>>(),
   syncPlan: vi.fn<() => Promise<void>>(),
   getCaseDetail: vi.fn<(id: string) => Promise<{ id: string; documentId?: string | null }>>(),
   useRouter: vi.fn(),
@@ -47,6 +49,8 @@ vi.mock('@/services/project', () => ({
   getPlanPlannedCases: mocks.getPlanPlannedCases,
   updatePlanCases: mocks.updatePlanCases,
   completePlan: mocks.completePlan,
+  blockPlan: mocks.blockPlan,
+  resumePlan: mocks.resumePlan,
   syncPlan: mocks.syncPlan,
   getCaseDetail: mocks.getCaseDetail,
 }))
@@ -162,12 +166,30 @@ describe('usePlanDetail', () => {
       expect(s.recommendExcludeIds.value).toEqual([])
     })
 
-    it('statusLabel 常量包含四种状态', () => {
+    it('handleBlock 确认后调用 blockPlan 并重新加载', async () => {
+      setupMocks({ plan: makePlan({ status: 'in_progress' }) })
       const s = init()
-      expect(s.statusLabel.new).toBe('待开始')
-      expect(s.statusLabel.in_progress).toBe('进行中')
-      expect(s.statusLabel.completed).toBe('已完成')
-      expect(s.statusLabel.closed).toBe('已关闭')
+      await vi.dynamicImportSettled()
+      await s.handleBlock()
+      expect(mocks.blockPlan).toHaveBeenCalledWith('plan-1')
+      expect(mocks.getPlanDetail).toHaveBeenCalledTimes(2)
+    })
+
+    it('handleResume 确认后调用 resumePlan', async () => {
+      setupMocks({ plan: makePlan({ status: 'blocked' }) })
+      const s = init()
+      await vi.dynamicImportSettled()
+      await s.handleResume()
+      expect(mocks.resumePlan).toHaveBeenCalledWith('plan-1')
+    })
+
+    it('handleBlock 取消确认时不调用接口', async () => {
+      setupMocks({ plan: makePlan({ status: 'in_progress' }) })
+      const s = init()
+      await vi.dynamicImportSettled()
+      mocks.ElMessageBox.confirm.mockRejectedValueOnce(new Error('cancel'))
+      await s.handleBlock()
+      expect(mocks.blockPlan).not.toHaveBeenCalled()
     })
 
     it('loading 最终为 false', async () => {
