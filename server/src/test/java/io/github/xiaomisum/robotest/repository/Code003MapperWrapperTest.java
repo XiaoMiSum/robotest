@@ -62,7 +62,8 @@ class Code003MapperWrapperTest {
     void environmentDefaultLookupBuildsProjectScopedQuery() {
         ApiEnvironmentMapper mapper = mock(ApiEnvironmentMapper.class, CALLS_REAL_METHODS);
         ApiEnvironment expected = new ApiEnvironment();
-        when(mapper.selectOne(any(LambdaQueryWrapperX.class))).thenReturn(expected);
+        // MP 3.5.17 的 selectOne 是 default 方法且需真实 mapper 代理，CALLS_REAL_METHODS 下 when() 会执行到真实实现
+        doReturn(expected).when(mapper).selectOne(any(LambdaQueryWrapperX.class));
         clearInvocations(mapper);
 
         assertSame(expected, mapper.findDefaultByProjectId(ID));
