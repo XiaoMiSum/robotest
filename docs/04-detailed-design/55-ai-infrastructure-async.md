@@ -69,6 +69,6 @@ stateDiagram-v2
 - **执行**：独立线程池 `aiTaskExecutor`（核心 2、最大 4、有界队列 20，拒绝时任务保持 pending 等待下轮拾取）；创建/重试时即时尝试提交线程池，另有 **pending 拾取定时任务**（每 30 秒）扫描未被抢占的 `pending` 记录重新提交，兜底队列拒绝与实例重启丢失的内存队列；任务方法内部分批调用 LLM，每批结束更新 `progress` 并检查 `status` 是否已被置 `cancelled`（协作式取消，取消只在批次边界生效）；
 - **多实例防重**：任务启动时以 `UPDATE … SET status='running', executor_instance=:me WHERE id=:id AND status='pending'` 抢占（乐观更新，影响行数为 0 即放弃）；`executor_instance` 取「主机名:端口:启动UUID」；
 - **孤儿回收**：定时任务（每 5 分钟）将 `running` 且 `updated_at` 超过 10 分钟未推进的任务置 `failed`（error_message = "执行实例失联"），覆盖实例宕机场景——任务执行中每批次必须触发 `updated_at` 更新；
-- **联动取消**：AI 总开关关闭 → 全部 `pending/running` 置 `cancelled`；评审离开「评审中」状态 → 该评审的进行中 `review_check` 任务置 `cancelled`（由评审状态变更事务后置钩子触发，见评审辅助文档）。
+- **联动取消**：AI 总开关关闭 → 全部 `pending/running` 置 `cancelled`；评审离开「进行中」状态（完成 / 驳回 / 删除）→ 该评审的进行中 `review_check` 任务置 `cancelled`（由评审状态变更事务后置钩子触发，见评审辅助文档）。
 
 

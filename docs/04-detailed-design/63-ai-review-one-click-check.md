@@ -12,7 +12,7 @@
 
 - **路径**：`POST /api/project/ai/reviews/:id/check`
 - **响应**：`{ "taskId": "0198…" }`
-- **校验**：仅评审发起人（1000002001）；评审状态为 `new` / `in_progress`，已完成 `completed` 不可发起（1000013012）；同评审无进行中检查任务（1000013005）。
+- **校验**：仅评审发起人（1000002001）；评审状态为 `new` / `in_progress`，终态（`completed` 已通过 / `rejected` 已驳回）不可发起（1000013012）；同评审无进行中检查任务（1000013005）。
 
 ### 1.2 查询检查结果
 
@@ -37,7 +37,7 @@ flowchart TD
 
 - 批输入为用例节点及其 precondition/step/expected 子节点标题 + 同批相似标题分组（供优先级冲突判断）；`priority_conflict` 维度只在同批内比较（跨批冲突不检测，属已知精度取舍）；
 - 单批 LLM 失败重试 1 次，仍失败跳过该批并在 result 记录 `skippedBatches`，不整体失败；全部批次跳过才置 failed；
-- **联动取消**：评审离开 `in_progress` 的全部路径均须在事务提交后调用 `AiTaskService.cancelByTypeAndTarget(review_check, reviewId)`（基础设施 4.6 协作式取消）。现行评审状态机为 `new / in_progress / completed`，出口共两条：① 完成评审（`completeReview` 方法，覆盖 `new / in_progress → completed`）；② 删除评审（既有 `deleteReview` 方法，实体级出口）。检查可在 `new` 状态发起，故进行中任务无论起步于 `new` 还是 `in_progress`，评审完成或删除时均被该钩子终止。SRS 3.5.1「完成或结束」在现行模型中即上述两条；后续若评审新增其他终态，须同步挂接本钩子；
+- **联动取消**：评审离开 `in_progress` 的全部路径均须在事务提交后调用 `AiTaskService.cancelByTypeAndTarget(review_check, reviewId)`（基础设施 4.6 协作式取消）。现行评审状态机为 `new / in_progress / completed / rejected`，其中终态出口共三条：① 完成评审（`completeReview` 方法，覆盖 `new / in_progress → completed`）；② 驳回评审（`rejectReview` 方法，覆盖 `new / in_progress → rejected`）；③ 删除评审（既有 `deleteReview` 方法，实体级出口）。检查可在 `new` 状态发起，故进行中任务无论起步于 `new` 还是 `in_progress`，评审完成、驳回或删除时均被该钩子终止。重新发起（`reopenReview` 方法，`rejected → in_progress`）为进入方向，不触发本钩子；后续若评审新增其他终态，须同步挂接本钩子；
 - 前端结果面板按 dimension 过滤，点击建议项经 `jumping.ts` 定位并高亮对应快照节点。
 
 
