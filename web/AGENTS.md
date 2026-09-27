@@ -21,7 +21,10 @@ pnpm install && pnpm run dev
 # 构建 → dist/
 pnpm run build
 
-# 质量门禁
+# 质量门禁（提交前运行整段脚本）
+bash scripts/validate-web.sh
+
+# 等价手动执行
 pnpm run lint && pnpm run typecheck && pnpm run test:unit -- --coverage
 ```
 
@@ -45,7 +48,7 @@ pnpm run lint && pnpm run typecheck && pnpm run test:unit -- --coverage
 | --- | ----------------------------------------------------- | --------- |
 | C1  | 禁止 `any`，必须使用 `unknown` + 类型断言或类型守卫                 | ESLint、TypeScript、代码审查     |
 | C6  | 注释只写 **why**，不写 **what**；无意义的冗余注释禁止添加               | 代码审查      |
-| C8  | 关键模块覆盖（覆盖率 ≥ 70%）                                    | validate.sh（CI 随 QA-002） |
+| C8  | 关键模块覆盖（覆盖率 ≥ 70%）                                    | validate-web.sh（CI 随 QA-002） |
 
 ### 编码示例
 
