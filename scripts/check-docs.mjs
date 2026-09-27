@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // scripts/check-docs.mjs — 文档链接、元信息与规则编号检查（GOV-008，依赖 DOC-008）
-// 由 scripts/validate.sh 调用，CI 接入同一入口后即可发现断链、旧锚点与未登记规则。
+// 由 scripts/validate-docs.sh 调用，validate.sh --all 编排同一入口后即可发现断链、旧锚点与未登记规则。
 //
 // 限制（避免误报，按设计跳过）：
 //   1. 外链（http/https/mailto 等）不联网校验，仅校验本地相对链接与锚点；
