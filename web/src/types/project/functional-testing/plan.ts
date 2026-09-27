@@ -1,7 +1,7 @@
 import type { CaseNodeType } from '../shared'
 
-/** 计划状态 */
-export type PlanStatus = 'new' | 'in_progress' | 'completed' | 'closed'
+/** 计划状态（blocked 为阻塞态，仅负责人可恢复为 in_progress） */
+export type PlanStatus = 'new' | 'in_progress' | 'completed' | 'blocked' | 'closed'
 
 /** 测试计划列表项 */
 export interface TestPlanListItem {
