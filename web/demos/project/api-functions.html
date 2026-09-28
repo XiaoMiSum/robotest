@@ -70,6 +70,22 @@
   .fn-empty { text-align: center; padding: var(--space-lg) var(--space-sm); color: var(--n-500); font-size: var(--font-size-sm); }
   .fn-empty p { margin: 0 0 var(--space-sm); }
 
+  /* 参数配置（docs23 §1.3）：行编辑表格 + 表单下方实时序列化预览 */
+  .param-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+  .param-table th { padding: 6px 8px; font-size: var(--font-size-2xs); font-weight: 600; color: var(--n-400); text-align: left; text-transform: uppercase; letter-spacing: .05em; border-bottom: 1px solid var(--n-100); }
+  .param-table td { padding: 5px 8px; border-bottom: 1px solid var(--n-100); vertical-align: middle; }
+  .param-table th:nth-child(1), .param-table td:nth-child(1) { width: 26%; }
+  .param-table th:nth-child(2), .param-table td:nth-child(2) { width: 56px; text-align: center; }
+  .param-table th:nth-child(4), .param-table td:nth-child(4) { width: 104px; text-align: right; white-space: nowrap; }
+  .param-table td .input { height: 28px; font-size: var(--font-size-sm); }
+  .param-table .cell-check { margin: 0; }
+  .param-table__empty td { padding: 12px 8px; color: var(--n-400); font-size: var(--font-size-sm); text-align: left; }
+  .param-table__ops .op-link { margin-right: 8px; }
+  .param-table__ops .op-link:last-child { margin-right: 0; }
+  .param-add { margin-top: 8px; }
+  .param-preview { margin-top: 8px; font-size: var(--font-size-xs); color: var(--n-500); word-break: break-all; }
+  .param-preview code { font-family: var(--font-mono); color: var(--brand-600); }
+
 </style>
 </head>
 <body data-shell="business" data-mode="project" data-active="api" data-workspace="质量中台" data-project="电商核心系统">
@@ -280,16 +296,25 @@
                   <option value="global">公共</option>
                 </select>
               </div>
+            </div>
 
-              <div class="field">
-                <label class="field__label" for="fn-desc">描述</label>
-                <textarea class="textarea" style="width:100%" rows="2" id="fn-desc" maxlength="500"></textarea>
-              </div>
+            <div class="field">
+              <label class="field__label" for="fn-desc">描述</label>
+              <textarea class="textarea" style="width:100%" rows="2" id="fn-desc" maxlength="500"></textarea>
+            </div>
 
-              <div class="field">
-                <label class="field__label" for="fn-params">参数说明</label>
-                <input class="input" style="width:100%" id="fn-params" maxlength="500" placeholder="如：id:用户ID, name:名称">
-              </div>
+            <!-- 参数配置（docs23 §1.3）：表格逐行编辑，保存时序列化为 paramsDesc -->
+            <div class="field">
+              <label class="field__label">参数配置</label>
+              <table class="param-table">
+                <thead>
+                  <tr><th>参数名</th><th>必填</th><th>描述</th><th>操作</th></tr>
+                </thead>
+                <tbody id="fn-param-rows"></tbody>
+              </table>
+              <div class="param-add"><button class="btn btn--default btn--sm" id="fn-param-add" type="button">＋ 添加参数</button></div>
+              <div class="param-preview">保存为参数说明：<code id="fn-params-preview">（无参数）</code></div>
+              <div class="field__error" id="fn-params-err" hidden></div>
             </div>
 
             <div class="field">
@@ -364,7 +389,7 @@
       desc: '按业务规则生成签名参数',
       scope: 'project',
       enabled: true,
-      paramsDesc: 'appKey:应用标识, timestamp:时间戳',
+      paramsDesc: 'appKey:应用标识, timestamp:时间戳, signType?:签名算法，默认 md5',
       script: "// args 数组承接调用参数，返回值即求值结果\ndef appKey = args[0]\ndef ts = args[1]\nreturn \"${appKey}|${ts}\".encodeAsMD5()",
     },
     genOrderNo: {
@@ -383,14 +408,41 @@
     },
   };
 
-  // 按实现口径从参数说明解析参数（逗号分隔，段内 name:描述，参数一律必填）
+  // 按 docs23 §1.3 口径解析参数说明（逗号分隔，段内 name:描述，name? 为可选参数）
   function parseParams(desc) {
     if (!desc) return [];
     return desc.split(',').map(function (seg) {
       var s = seg.trim();
       if (!s) return null;
-      return { n: s.split(':')[0].trim(), d: s };
+      var colon = s.indexOf(':');
+      var raw = colon === -1 ? s : s.slice(0, colon).trim();
+      var optional = raw.charAt(raw.length - 1) === '?';
+      var n = optional ? raw.slice(0, -1) : raw;
+      if (!n) return null;
+      return { n: n, req: !optional, d: colon === -1 ? '' : s.slice(colon + 1).trim() };
     }).filter(Boolean);
+  }
+
+  // 按行序序列化：必填 name:描述，可选 name?:描述，参数间 ", " 分隔
+  function serializeParams(rows) {
+    return rows.filter(function (r) { return (r.n || '').trim(); }).map(function (r) {
+      return r.n.trim() + (r.req ? '' : '?') + ':' + (r.d || '').trim();
+    }).join(', ');
+  }
+
+  var PARAM_ERR_TEXT = '参数名与描述不支持英文逗号，参数名另不支持冒号与问号';
+
+  function validateParamRows(rows) {
+    var seen = {};
+    for (var i = 0; i < rows.length; i++) {
+      var name = (rows[i].n || '').trim();
+      if (!name) return '请输入参数名';
+      if (/[,:?]/.test(name)) return PARAM_ERR_TEXT;
+      if (/,/.test(rows[i].d || '')) return PARAM_ERR_TEXT;
+      if (seen[name]) return '参数「' + name + '」重复';
+      seen[name] = true;
+    }
+    return '';
   }
 
   function signature(name, params) {
@@ -401,7 +453,9 @@
   function paramRow(p) {
     var row = document.createElement('div');
     row.className = 'fn-param';
-    row.innerHTML = '<code class="fn-detail__code"></code><span class="tag tag--warning">必填</span><span class="fn-param__desc"></span>';
+    row.innerHTML = '<code class="fn-detail__code"></code>' +
+      (p.req === false ? '' : '<span class="tag tag--warning">必填</span>') +
+      '<span class="fn-param__desc"></span>';
     row.querySelector('code').textContent = p.n;
     row.querySelector('.fn-param__desc').textContent = p.d;
     return row;
@@ -559,17 +613,76 @@
   var nameErr = document.getElementById('fn-name-err');
   var scopeSelect = document.getElementById('fn-scope');
   var descInput = document.getElementById('fn-desc');
-  var paramsInput = document.getElementById('fn-params');
+  var paramRowsBody = document.getElementById('fn-param-rows');
+  var paramPreview = document.getElementById('fn-params-preview');
+  var paramErr = document.getElementById('fn-params-err');
   var scriptInput = document.getElementById('fn-script');
   var scriptErr = document.getElementById('fn-script-err');
   var saveBtn = document.getElementById('fn-save');
+  var paramRows = []; // 行编辑模型，保存时序列化为 paramsDesc
 
   function clearErrors() {
     nameErr.hidden = true;
     scriptErr.hidden = true;
+    paramErr.hidden = true;
     nameInput.classList.remove('input--error');
     scriptInput.classList.remove('input--error');
   }
+
+  function refreshParamPreview() {
+    paramPreview.textContent = serializeParams(paramRows) || '（无参数）';
+    paramErr.hidden = true;
+  }
+
+  function renderParamRows() {
+    paramRowsBody.textContent = '';
+    if (!paramRows.length) {
+      var empty = document.createElement('tr');
+      empty.className = 'param-table__empty';
+      empty.innerHTML = '<td colspan="4">暂无参数，点击「添加参数」新增</td>';
+      paramRowsBody.appendChild(empty);
+      refreshParamPreview();
+      return;
+    }
+    paramRows.forEach(function (row, i) {
+      var tr = document.createElement('tr');
+      tr.innerHTML =
+        '<td><input class="input param-name" maxlength="50" placeholder="参数名"></td>' +
+        '<td><input type="checkbox" class="cell-check param-req" title="必填"></td>' +
+        '<td><input class="input param-desc" maxlength="200" placeholder="描述（可选）"></td>' +
+        '<td class="param-table__ops"><span class="op-link param-up" title="上移">↑</span><span class="op-link param-down" title="下移">↓</span><span class="op-link op-link--danger param-del">删除</span></td>';
+      var nameCell = tr.querySelector('.param-name');
+      nameCell.value = row.n;
+      nameCell.addEventListener('input', function () { row.n = nameCell.value; refreshParamPreview(); });
+      var reqCell = tr.querySelector('.param-req');
+      reqCell.checked = row.req;
+      reqCell.addEventListener('change', function () { row.req = reqCell.checked; refreshParamPreview(); });
+      var descCell = tr.querySelector('.param-desc');
+      descCell.value = row.d;
+      descCell.addEventListener('input', function () { row.d = descCell.value; refreshParamPreview(); });
+      tr.querySelector('.param-up').addEventListener('click', function () { moveParamRow(i, -1); });
+      tr.querySelector('.param-down').addEventListener('click', function () { moveParamRow(i, 1); });
+      tr.querySelector('.param-del').addEventListener('click', function () { paramRows.splice(i, 1); renderParamRows(); });
+      paramRowsBody.appendChild(tr);
+    });
+    refreshParamPreview();
+  }
+
+  function moveParamRow(i, step) {
+    var j = i + step;
+    if (j < 0 || j >= paramRows.length) return;
+    var tmp = paramRows[i];
+    paramRows[i] = paramRows[j];
+    paramRows[j] = tmp;
+    renderParamRows();
+  }
+
+  document.getElementById('fn-param-add').addEventListener('click', function () {
+    paramRows.push({ n: '', req: true, d: '' });
+    renderParamRows();
+    var inputs = paramRowsBody.querySelectorAll('.param-name');
+    if (inputs.length) inputs[inputs.length - 1].focus();
+  });
 
   function openForm(key) {
     editingKey = key || null;
@@ -579,7 +692,8 @@
     nameInput.value = key || '';
     scopeSelect.value = fn ? fn.scope : 'project';
     descInput.value = fn ? fn.desc : '';
-    paramsInput.value = fn ? fn.paramsDesc : '';
+    paramRows = parseParams(fn ? fn.paramsDesc : '');
+    renderParamRows();
     scriptInput.value = fn ? fn.script : '';
     showPanel('form');
   }
@@ -623,11 +737,19 @@
     }
     nameErr.textContent = '请输入函数名称';
 
+    var paramsErrText = validateParamRows(paramRows);
+    if (paramsErrText) {
+      paramErr.textContent = paramsErrText;
+      paramErr.hidden = false;
+      rt.toast(paramsErrText, { type: 'warning' });
+      return;
+    }
+
     var payload = {
       desc: descInput.value.trim(),
       scope: scopeSelect.value,
       enabled: editingKey ? CUSTOM[editingKey].enabled : true,
-      paramsDesc: paramsInput.value.trim(),
+      paramsDesc: serializeParams(paramRows),
       script: script,
     };
     var isCreate = !editingKey;
