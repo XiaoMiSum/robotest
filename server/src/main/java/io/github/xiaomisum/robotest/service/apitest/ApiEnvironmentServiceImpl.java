@@ -1,6 +1,6 @@
 package io.github.xiaomisum.robotest.service.apitest;
 
-import io.github.xiaomisum.robotest.framework.audit.AuditOperation;
+import xyz.migoo.framework.security.core.annotation.AuditLog;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.framework.security.ProjectAccessGuard;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiDataSourceTestReqDTO;
@@ -66,7 +66,7 @@ public class ApiEnvironmentServiceImpl implements ApiEnvironmentService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    @AuditOperation(operation = "CREATE", entityType = "ApiEnvironment")
+    @AuditLog(action = "CREATE:ApiEnvironment")
     public ApiEnvironmentIdRespDTO createEnvironment(UUID projectId, UUID workspaceId, UUID userId,
             ApiEnvironmentSaveReqDTO reqDTO) {
         projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
@@ -94,7 +94,7 @@ public class ApiEnvironmentServiceImpl implements ApiEnvironmentService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    @AuditOperation(operation = "UPDATE", entityType = "ApiEnvironment")
+    @AuditLog(action = "UPDATE:ApiEnvironment")
     public void updateEnvironment(UUID projectId, UUID workspaceId, UUID userId, UUID id,
             ApiEnvironmentSaveReqDTO reqDTO) {
         projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
@@ -122,7 +122,7 @@ public class ApiEnvironmentServiceImpl implements ApiEnvironmentService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    @AuditOperation(operation = "DELETE", entityType = "ApiEnvironment")
+    @AuditLog(action = "DELETE:ApiEnvironment")
     public void deleteEnvironment(UUID projectId, UUID workspaceId, UUID userId, UUID id) {
         projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
         requireEnv(projectId, id);
@@ -150,7 +150,7 @@ public class ApiEnvironmentServiceImpl implements ApiEnvironmentService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    @AuditOperation(operation = "CREATE", entityType = "ApiEnvironment")
+    @AuditLog(action = "CREATE:ApiEnvironment")
     public ApiEnvironmentIdRespDTO copyEnvironment(UUID projectId, UUID workspaceId, UUID userId, UUID id,
             ApiEnvironmentCopyReqDTO reqDTO) {
         projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
@@ -217,7 +217,7 @@ public class ApiEnvironmentServiceImpl implements ApiEnvironmentService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    @AuditOperation(operation = "CREATE", entityType = "ApiEnvironment")
+    @AuditLog(action = "CREATE:ApiEnvironment")
     public ApiEnvImportResultRespDTO importEnvironment(UUID projectId, UUID workspaceId, UUID userId,
             MultipartFile file, boolean overwrite) {
         projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);

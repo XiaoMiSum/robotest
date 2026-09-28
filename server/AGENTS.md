@@ -38,7 +38,7 @@ mvn test
 - `model/entity/` ↔ `model/dto/request|response/`
 - `model/convert/`：MapStruct 对象转换
 - `framework/`：基础框架层（与业务无关）
-  - `audit/`：审计注解 + AOP 切面
+  - `audit/`：框架 `@AuditLog` 事件监听落库 + 审计写入与客户端 IP 解析
   - `common/`：`Constants` / `ErrorCodeConstants`
   - `config/`：Spring MVC 配置
   - `interceptor/`：工作空间角色权限拦截器
