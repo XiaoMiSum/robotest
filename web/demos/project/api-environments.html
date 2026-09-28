@@ -111,9 +111,8 @@
   .proc-meta__item--wide { grid-column: 1 / -1; }
   .proc-meta__k { display: block; margin-bottom: 3px; font-size: var(--font-size-xs); color: var(--n-400); }
   .proc-meta__v { font-size: var(--font-size-sm); color: var(--n-700); word-break: break-all; }
-  .proc-form__head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm); margin-bottom: var(--space-md); }
-  .proc-form__title { font-size: var(--font-size-sm); font-weight: 600; color: var(--n-700); }
-  .proc-form__actions { display: flex; gap: var(--space-sm); }
+  /* 表单（编辑/新增）展开期间该行操作常显为 [取消]/[保存]（docs34 §1.3） */
+  .proc-item.is-editing .proc-item__ops { opacity: 1; pointer-events: auto; }
   .proc-form__label { display: block; margin: var(--space-md) 0 var(--space-sm); font-size: var(--font-size-xs); font-weight: 600; color: var(--n-400); text-transform: uppercase; letter-spacing: .05em; }
   .radio-seg { display: inline-flex; gap: 2px; background: var(--n-50); border: 1px solid var(--n-100); border-radius: var(--radius-md); padding: 2px; }
   .radio-seg button { border: none; background: none; height: 26px; padding: 0 12px; font-size: var(--font-size-xs); color: var(--n-500); border-radius: calc(var(--radius-md) - 2px); cursor: pointer; }
@@ -606,27 +605,34 @@
   var PROC_DATA = {
     pre: [
       {
-        name: 'Token 预置', type: '提取器', desc: '从环境变量获取 Token 并注入请求头', updated: '2026-09-20 11:08',
-        cfg: { proc: 'http', method: 'GET', path: '/api/auth/token', headers: [['Authorization', 'Bearer ${TOKEN}']], query: [],
-          body: { kind: 'none', sub: 'json', text: '', rows: [] },
+        name: 'Token 预置（HTTP 示例）', type: '前置处理器', desc: '从环境变量读取 Token 并注入请求头 Authorization', updated: '2026-09-27 10:35',
+        cfg: { proc: 'http', method: 'POST', path: '/api/auth/token',
+          headers: [['Authorization', 'Bearer ${TOKEN}'], ['X-Client', 'robo-test']],
+          query: [['grant_type', 'client_credentials'], ['expires_in', '3600']],
+          body: { kind: 'urlencoded', sub: 'json', text: '', rows: [['client_id', '${CLIENT_ID}'], ['client_secret', '${CLIENT_SECRET}']] },
           ext: [{ source: 'JSON 字段', expr: '$.data.token', name: 'TOKEN', desc: '访问令牌' }] }
       },
       {
-        name: '登录态校验', type: '验证器', desc: '校验登录态，失效时中断后续步骤', updated: '2026-09-19 16:42',
-        cfg: { proc: 'http', method: 'POST', path: '/api/auth/check', headers: [], query: [['strict', '1']],
-          body: { kind: 'none', sub: 'json', text: '', rows: [] }, ext: [] }
+        name: '库存预检查（JDBC 示例）', type: '验证器', desc: '执行前校验下单商品的可用库存是否充足', updated: '2026-09-26 15:12',
+        cfg: { proc: 'jdbc', sql: 'SELECT stock FROM t_sku WHERE sku_id = ? AND is_deleted = 0',
+          args: ['${skuId}', '${warehouseId}'],
+          ext: [{ source: 'JSON 字段', expr: '$.rows[0].stock', name: 'STOCK', desc: '可用库存' }] }
       }
     ],
     post: [
       {
-        name: '统一错误码断言', type: '验证器', desc: '全局校验响应不含系统级错误码', updated: '2026-09-18 09:15',
-        cfg: { proc: 'http', method: 'GET', path: '/api/health', headers: [], query: [],
-          body: { kind: 'none', sub: 'json', text: '', rows: [] }, ext: [] }
+        name: '响应耗时上报（HTTP 示例）', type: '后置处理器', desc: '执行结束将路径与耗时以 JSON 上报到监控服务', updated: '2026-09-25 21:47',
+        cfg: { proc: 'http', method: 'POST', path: '/api/monitor/report',
+          headers: [['Content-Type', 'application/json'], ['X-Trace-Id', '${traceId}']],
+          query: [['source', 'api-test']],
+          body: { kind: 'raw', sub: 'json', text: '{\n  "path": "${path}",\n  "costMs": ${costMs}\n}', rows: [] },
+          ext: [{ source: 'JSON 字段', expr: '$.code', name: 'REPORT_CODE', desc: '上报结果码' }] }
       },
       {
-        name: '清理测试数据', type: '后置处理器', desc: '执行结束按订单号清理造数记录', updated: '2026-09-17 20:03',
-        cfg: { proc: 'jdbc', sql: 'DELETE FROM t_order WHERE order_no = ?', args: ['${orderNo}'],
-          ext: [{ source: 'JSON 字段', expr: '$.affected', name: 'CLEANED', desc: '清理行数' }] }
+        name: '测试数据清理（JDBC 示例）', type: '后置处理器', desc: '执行结束按订单号清理造数订单与关联明细', updated: '2026-09-24 09:20',
+        cfg: { proc: 'jdbc', sql: 'DELETE FROM t_order WHERE order_no = ? AND is_test = 1',
+          args: ['${orderNo}', '${createTime}'],
+          ext: [{ source: 'JSON 字段', expr: '$.affected', name: 'CLEANED_ROWS', desc: '清理行数' }] }
       }
     ]
   };
@@ -677,6 +683,7 @@
     var body = item.querySelector('.proc-body');
     if (body) body.remove();
     item.classList.remove('is-open');
+    item.classList.remove('is-editing');
     var row = item.querySelector('.proc-item__row');
     if (row) row.setAttribute('aria-expanded', 'false');
     procOpen = null;
@@ -697,16 +704,28 @@
     row.appendChild(procEl('span', 'proc-item__name', procRowName(d)));
     row.appendChild(procEl('span', 'proc-item__desc', d.desc || '暂无说明'));
     var ops = procEl('span', 'proc-item__ops');
-    [['up', '上移'], ['down', '下移'], ['edit', '编辑'], ['copy', '复制']].forEach(function (pair) {
-      var op = procEl('span', 'op-link', pair[1]);
-      op.setAttribute('data-proc-act', pair[0]);
-      ops.appendChild(op);
-    });
-    var del = procEl('span', 'op-link op-link--danger', '删除');
-    del.setAttribute('data-proc-act', 'del');
-    del.setAttribute('data-ux-undo', '.proc-item');
-    del.setAttribute('data-ux-undo-name', procRowName(d));
-    ops.appendChild(del);
+    if (item.querySelector('form.proc-form')) {
+      // 表单（编辑/新增）展开期间：悬浮操作替换为常显 [取消]/[保存]
+      var cancel = procEl('button', 'btn btn--default btn--sm', '取消');
+      cancel.type = 'button';
+      cancel.setAttribute('data-proc-cancel', '');
+      var ok = procEl('button', 'btn btn--primary btn--sm', '保存');
+      ok.type = 'button';
+      ok.setAttribute('data-proc-ok', '');
+      ops.appendChild(cancel);
+      ops.appendChild(ok);
+    } else {
+      [['up', '上移'], ['down', '下移'], ['edit', '编辑'], ['copy', '复制']].forEach(function (pair) {
+        var op = procEl('span', 'op-link', pair[1]);
+        op.setAttribute('data-proc-act', pair[0]);
+        ops.appendChild(op);
+      });
+      var del = procEl('span', 'op-link op-link--danger', '删除');
+      del.setAttribute('data-proc-act', 'del');
+      del.setAttribute('data-ux-undo', '.proc-item');
+      del.setAttribute('data-ux-undo-name', procRowName(d));
+      ops.appendChild(del);
+    }
     row.appendChild(ops);
     item.insertBefore(row, item.firstChild);
     if (rt) rt.bind(item);
@@ -797,7 +816,7 @@
     procOpen = { item: item, mode: 'detail' };
   }
 
-  function procFormHtml(mode) {
+  function procFormHtml() {
     var typeOpts = PROC_TYPES.map(function (t) { return '<option>' + t + '</option>'; }).join('');
     var methodOpts = PROC_METHODS.map(function (m) {
       return '<option' + (m === 'GET' ? ' selected' : '') + '>' + m + '</option>';
@@ -808,13 +827,6 @@
         '<tbody data-f="' + f + '"></tbody></table>';
     };
     return [
-      '<div class="proc-form__head">',
-      '  <strong class="proc-form__title">' + (mode === 'new' ? '添加处理器' : '编辑处理器') + '</strong>',
-      '  <span class="proc-form__actions">',
-      '    <button type="button" class="btn btn--default btn--sm" data-proc-cancel>取消</button>',
-      '    <button type="button" class="btn btn--primary btn--sm" data-proc-ok>保存</button>',
-      '  </span>',
-      '</div>',
       '<div class="form-grid">',
       '  <div class="field"><label class="field__label">名称<span class="req">*</span></label>',
       '    <input class="input" data-f="name" maxlength="100" placeholder="如：Token 预置">',
@@ -1078,8 +1090,8 @@
     d.desc = scope.querySelector('[data-f="desc"]').value.trim();
     d.cfg = procReadCfg(scope);
     d.updated = procNow();
+    procCloseOpen(); // 先移除表单，重建行时恢复悬浮操作
     procBuildRow(item);
-    procCloseOpen();
     procShowDetail(item);
     if (envDirty) envDirty.style.display = '';
     syncEnvBadges();
@@ -1091,15 +1103,15 @@
     if (mode === 'new') {
       item.remove();
       syncEnvBadges();
+      return;
     }
+    procBuildRow(item); // 还原为悬浮操作
   }
 
-  function procBindForm(item, mode, scope) {
+  function procBindForm(scope) {
     scope.addEventListener('click', function (e) {
       var t = e.target;
       if (!t.closest) return;
-      if (t.closest('[data-proc-cancel]')) { procCancel(item, mode); return; }
-      if (t.closest('[data-proc-ok]')) { procSave(item, mode, scope); return; }
       var seg = t.closest('[data-procseg] button');
       if (seg) { procSetProc(scope, seg.getAttribute('data-proc')); return; }
       var tab = t.closest('[data-reqtab]');
@@ -1158,14 +1170,15 @@
 
   function procShowForm(item, mode) {
     var body = procEl('div', 'proc-body');
-    body.innerHTML = '<form class="proc-form" novalidate>' + procFormHtml(mode) + '</form>';
+    body.innerHTML = '<form class="proc-form" novalidate>' + procFormHtml() + '</form>';
     var scope = body.querySelector('form');
     procFillForm(scope, item._proc);
-    procBindForm(item, mode, scope);
+    procBindForm(scope);
     item.appendChild(body);
     item.classList.add('is-open');
-    item.querySelector('.proc-item__row').setAttribute('aria-expanded', 'true');
+    item.classList.add('is-editing');
     procOpen = { item: item, mode: mode };
+    procBuildRow(item); // 表单态：行内操作渲染为常显 [取消]/[保存]
     scope.querySelector('[data-f="name"]').focus();
   }
 
@@ -1209,6 +1222,16 @@
       var act = e.target.closest ? e.target.closest('[data-proc-act]') : null;
       var item = e.target.closest ? e.target.closest('.proc-item') : null;
       if (!item) return;
+      // 表单态行内 [保存]/[取消]（docs34 §1.3）
+      if (e.target.closest('[data-proc-ok]') && procOpen && procOpen.item === item) {
+        var form = item.querySelector('form.proc-form');
+        if (form) procSave(item, procOpen.mode, form);
+        return;
+      }
+      if (e.target.closest('[data-proc-cancel]') && procOpen && procOpen.item === item) {
+        procCancel(item, procOpen.mode);
+        return;
+      }
       if (act) { procHandleAct(key, item, act); return; }
       if (!e.target.closest('.proc-item__row')) return;
       // 表单展开中点击自身行不切换，避免误丢编辑
