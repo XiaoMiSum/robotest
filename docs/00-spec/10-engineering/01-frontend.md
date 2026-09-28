@@ -1,7 +1,7 @@
 # 前端工程规范
 
-**文档版本**：V1.0
-**日期**：2026-09-24
+**文档版本**：V1.1
+**日期**：2026-09-28
 **状态**：已发布
 
 ---
@@ -10,8 +10,8 @@
 
 | 能力 | 技术 | 版本来源 |
 | --- | --- | --- |
-| 运行时 | Node 24 LTS | `web/.nvmrc` |
-| 包管理 | pnpm 11（corepack） | `package.json` 的 `packageManager` 与 `engines` |
+| 运行时 | Node 24 LTS | `docs/00-spec/30-quality-delivery/03-deploy.md` 工具链矩阵 |
+| 包管理 | pnpm 11 | `docs/00-spec/30-quality-delivery/03-deploy.md` 工具链矩阵 |
 | 框架 | Vue 3.5 + Composition API | 依赖清单、锁文件 |
 | 语言 | TypeScript strict | TypeScript 配置、锁文件 |
 | 构建 | Vite | 依赖清单、锁文件 |
@@ -23,16 +23,14 @@
 
 本文不重复维护“最新”版本。升级依赖时必须同步锁文件、类型检查、测试和 OpenAPI 生成结果。
 
-新环境按锁定版本复现安装（QA-001）：
+新环境安装：
 
 ```bash
 cd web
-nvm use                    # 读取 web/.nvmrc 锁定 Node 版本
-corepack enable            # 按 packageManager 字段提供锁定 pnpm
 pnpm install --frozen-lockfile
 ```
 
-Node 主版本或 pnpm 版本与锁定不一致时 `scripts/validate-web.sh` 会失败；升级工具链必须同步更新 `.nvmrc`、`packageManager`、`engines` 与 `docs/00-spec/30-quality-delivery/03-deploy.md` 的工具链矩阵。
+工具链版本不锁定，也不由 `scripts/validate-web.sh` 校验；Node 与 pnpm 的当前版本只记录在 `docs/00-spec/30-quality-delivery/03-deploy.md` 的工具链矩阵中，升级工具链时同步更新该矩阵与本文第 1 节表格。
 
 ## 2. TypeScript 规范
 
@@ -295,6 +293,13 @@ export interface PageResult<T> {
 - 页面开发：`docs/00-spec/50-ui/02-page-development.md`
 - 滚动专项：`docs/00-spec/50-ui/03-scroll-container.md`
 - 前端约定：`web/AGENTS.md`
+
+## 修改记录
+
+| 版本 | 日期 | 说明 |
+| --- | --- | --- |
+| V1.0 | 2026-09-24 | 建立本文 |
+| V1.1 | 2026-09-28 | 前端工具链不再锁定与校验：版本来源改为工具链矩阵，新环境安装去掉按锁定文件复现的步骤，验证脚本不再校验 Node 与 pnpm 版本 |
 
 ---
 
