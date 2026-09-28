@@ -47,16 +47,17 @@
   .epanel { display: none; }
   .epanel.is-active { display: block; padding-top: var(--space-md); }
 
-  /* 配置区（HTTP / 数据源同构）：左小列表 + 右内联表单（docs34 1.3） */
+  /* 配置区（HTTP / 数据源同构）：左右各一张白底描边卡片，靠并列盒子区分列表与表单（docs34 1.3） */
   .cfg-split { display: flex; gap: var(--space-lg); align-items: flex-start; }
-  .cfg-panel { width: 216px; flex-shrink: 0; background: var(--n-50); border: 1px solid var(--n-100); border-radius: var(--radius-md); padding: 6px; }
+  .cfg-panel { width: 216px; flex-shrink: 0; background: #fff; border: 1px solid var(--n-100); border-radius: var(--radius-md); padding: 6px; }
   .cfg-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
   .cfg-list li { padding: 7px 10px; border: 1px solid transparent; border-radius: var(--radius-md); font-size: var(--font-size-sm); color: var(--n-600); cursor: pointer; }
-  .cfg-list li:hover { background: #fff; border-color: var(--n-200); }
-  .cfg-list li.is-active { background: #fff; border-color: var(--brand-300); color: var(--brand-600); font-weight: 600; box-shadow: 0 1px 2px rgba(0,0,0,.04); }
+  .cfg-list li:hover { background: var(--n-50); }
+  .cfg-list li.is-active { background: var(--brand-50); border-color: var(--brand-300); color: var(--brand-600); font-weight: 600; }
   .cfg-list .cfg-add { color: var(--brand-500); cursor: pointer; }
   .cfg-list .cfg-add:hover { color: var(--brand-600); }
-  .cfg-form { flex: 1; min-width: 0; }
+  /* 窄窗口下详情列不足时保持卡片完整可读，溢出由详情列横向滚动承载（存量行为） */
+  .cfg-form { flex: 1 1 auto; min-width: 340px; background: #fff; border: 1px solid var(--n-100); border-radius: var(--radius-md); padding: var(--space-md); }
 
   /* 详情面板较宽：字段控件限宽，避免输入框被拉满 */
   .field > .input, .field > .select, .field > .textarea { max-width: 420px; }
