@@ -82,6 +82,10 @@
   .cp-badge { display: inline-block; min-width: 16px; height: 16px; line-height: 16px; padding: 0 4px; border-radius: 8px; background: var(--brand-500); color: #fff; font-size: 10px; font-style: normal; text-align: center; margin-left: 4px; }
   .cp-badge:empty { display: none; }
   .cp-body-bar { display: flex; align-items: center; gap: var(--space-sm); flex-wrap: wrap; margin-bottom: var(--space-sm); }
+  /* 请求体类型按钮组：宽度随选项自适应、按内容撑开按钮，与右侧 raw 子类型/格式化同排（对齐实现侧 req-panel__body-types）；空间不足时换行而非溢出 */
+  .cp-body-bar .radio-seg { width: auto; max-width: 100%; flex: none; flex-wrap: wrap; }
+  .cp-body-bar .radio-seg button { flex: none; height: 28px; padding: 0 12px; font-size: var(--font-size-xs); transition: color .15s, background .15s; }
+  .cp-body-bar .radio-seg button:hover:not(.is-active) { color: var(--n-700); }
   .cp-body-hint { padding: var(--space-lg); text-align: center; color: var(--n-400); font-size: var(--font-size-sm); }
   .cell-check { width: 14px; height: 14px; accent-color: var(--brand-500); }
   .pane-actions { display: flex; justify-content: flex-end; gap: var(--space-md); margin-bottom: var(--space-sm); }
