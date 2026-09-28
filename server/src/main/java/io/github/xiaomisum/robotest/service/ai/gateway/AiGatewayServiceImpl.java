@@ -42,8 +42,9 @@ public class AiGatewayServiceImpl implements AiGatewayService {
     private OpenAiCompatProvider provider;
     @Resource
     private PromptAssembler promptAssembler;
+    // 字段名须与 @Component 默认 bean 名一致：@Resource 先按名查找，写成 rateLimiter 会命中框架同名 bean（DefaultRateLimiter）
     @Resource
-    private AiRateLimiter rateLimiter;
+    private AiRateLimiter aiRateLimiter;
     @Resource
     private AiAuditRecorder auditRecorder;
     @Resource
@@ -275,7 +276,7 @@ public class AiGatewayServiceImpl implements AiGatewayService {
 
     private void checkRateLimit(AiCallContext context, AiFunctionType functionType, String modelName) {
         try {
-            rateLimiter.checkAndRecord(context.userId(), functionType);
+            aiRateLimiter.checkAndRecord(context.userId(), functionType);
         } catch (ServiceException e) {
             // 被限流的请求写审计但不计入窗口
             auditRecorder.record(context, functionType, modelName, 0, null, null,

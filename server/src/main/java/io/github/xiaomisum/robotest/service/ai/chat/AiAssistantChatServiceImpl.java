@@ -70,8 +70,9 @@ public class AiAssistantChatServiceImpl implements AiAssistantChatService {
     private AiChatModelService aiChatModelService;
     @Resource
     private AiConfigService aiConfigService;
+    // 字段名须与 @Component 默认 bean 名一致：@Resource 先按名查找，写成 rateLimiter 会命中框架同名 bean（DefaultRateLimiter）
     @Resource
-    private AiRateLimiter rateLimiter;
+    private AiRateLimiter aiRateLimiter;
     @Resource
     private AiAuditRecorder auditRecorder;
     @Resource
@@ -101,7 +102,7 @@ public class AiAssistantChatServiceImpl implements AiAssistantChatService {
             try { parsedModelId = UUID.fromString(reqDTO.getModelId()); } catch (IllegalArgumentException ignored) { }
         }
         AiCallContext callContext = new AiCallContext(userId, workspaceId, null, parsedModelId);
-        rateLimiter.checkAndRecord(userId, AiFunctionType.ASSISTANT_CHAT);
+        aiRateLimiter.checkAndRecord(userId, AiFunctionType.ASSISTANT_CHAT);
 
         // 4. 构建上下文 + 启动 SSE 流
         AiSseSupport.Channel channel = sseSupport.open();
