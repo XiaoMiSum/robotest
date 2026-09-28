@@ -9,6 +9,7 @@ import org.springframework.boot.web.server.WebServerFactoryCustomizer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.Ordered;
+import xyz.migoo.framework.web.core.ratelimit.RateLimiter;
 
 /**
  * Mock 免登录访问装配（Mock服务详细设计 6.1）。
@@ -22,8 +23,9 @@ public class MockAccessConfiguration {
 
     @Bean
     public MockAccessFilter mockAccessFilter(MockDefinitionReader reader,
-                                             MockAccessProperties properties) {
-        return new MockAccessFilter(reader, properties);
+                                             MockAccessProperties properties,
+                                             RateLimiter rateLimiter) {
+        return new MockAccessFilter(reader, properties, rateLimiter);
     }
 
     @Bean

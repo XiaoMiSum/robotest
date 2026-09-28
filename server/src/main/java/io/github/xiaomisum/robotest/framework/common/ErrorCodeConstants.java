@@ -26,7 +26,8 @@ public class ErrorCodeConstants {
     public static final ErrorCode SYSTEM_ALREADY_INITIALIZED = ErrorCode.of(1000002007, "系统已初始化，请直接登录");
     public static final ErrorCode CONTEXT_HEADER_MISSING = ErrorCode.of(1000002008, "缺少上下文请求头，请刷新页面后重试");
     public static final ErrorCode CONTEXT_HEADER_INVALID = ErrorCode.of(1000002009, "上下文请求头格式非法");
-    // 统一提示，不区分触发的是 IP 键还是账号键，避免泄露账号是否存在
+    // 已废弃：限流统一由 migoo 框架限流承担，超限返回框架全局错误码 429（禁止新代码引用）
+    @Deprecated
     public static final ErrorCode ACCESS_RATE_LIMITED = ErrorCode.of(1000002010, "请求过于频繁，请稍后再试");
 
     // ========== 数据不存在 1,000,003,001-1,000,003,004 ==========
@@ -194,6 +195,8 @@ public class ErrorCodeConstants {
     public static final ErrorCode AI_NOT_ENABLED = ErrorCode.of(1000013001, "AI 功能未启用或配置缺失");
     public static final ErrorCode AI_CALL_FAILED = ErrorCode.of(1000013002, "AI 调用失败");
     public static final ErrorCode AI_OUTPUT_SCHEMA_INVALID = ErrorCode.of(1000013003, "AI 输出结构化校验失败");
+    // 已废弃：AI 限流改由框架 RateLimiter 承担，超限返回框架全局错误码 429（禁止新代码引用）
+    @Deprecated
     public static final ErrorCode AI_RATE_LIMITED = ErrorCode.of(1000013004, "AI 调用频率超限");
     public static final ErrorCode AI_TASK_DUPLICATE = ErrorCode.of(1000013005, "已存在进行中的同类任务");
     public static final ErrorCode AI_TASK_STATE_INVALID = ErrorCode.of(1000013006, "任务不存在或当前状态不允许该操作");

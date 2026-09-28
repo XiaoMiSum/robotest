@@ -1,6 +1,5 @@
 package io.github.xiaomisum.robotest.controller;
 
-import io.github.xiaomisum.robotest.framework.ratelimit.AccessRateLimiter;
 import io.github.xiaomisum.robotest.framework.security.LoginUser;
 import io.github.xiaomisum.robotest.model.dto.request.admin.LoginReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.admin.PasswordChangeReqDTO;
@@ -14,6 +13,7 @@ import org.springframework.web.bind.annotation.*;
 import xyz.migoo.framework.common.pojo.Result;
 import xyz.migoo.framework.security.core.authentication.AuthUserDetailsFetcher;
 import xyz.migoo.framework.security.core.authentication.AuthUserDetailsFetcher.LoginResult;
+import xyz.migoo.framework.web.core.annotation.RateLimit;
 
 import java.util.List;
 
@@ -27,30 +27,25 @@ public class AuthController {
     private UserService userService;
     @Resource
     private LoginAuditService loginAuditService;
-    @Resource
-    private AccessRateLimiter accessRateLimiter;
 
+    // 账号维度的失败计数由框架登录失败锁定承担（安全规范 6.1）
+    @RateLimit(limit = 10, window = 300)
     @PostMapping("/login")
     public Result<LoginResult<LoginUser>> login(@RequestBody @Valid LoginReqDTO reqDTO,
                                                 HttpServletRequest request) {
-        // IP+账号失败计数限流：失败入账、成功清理账号键（安全规范 6.1）
-        LoginResult<LoginUser> loginResult = accessRateLimiter.login(
-                reqDTO.getIdentifier(), request,
-                () -> authUserDetailsFetcher.authenticate(
-                        reqDTO.getIdentifier(), reqDTO.getPassword()));
+        LoginResult<LoginUser> loginResult = authUserDetailsFetcher.authenticate(
+                reqDTO.getIdentifier(), reqDTO.getPassword());
         // 记录登录 IP 供数据概览活跃统计与审计查询消费；写入失败不影响登录
         loginAuditService.recordLogin(loginResult.getUser().getId(),
                 loginResult.getUser().getUsername(), request);
         return Result.ok(loginResult);
     }
 
+    @RateLimit(limit = 30, window = 60)
     @PostMapping("/refresh")
     public Result<LoginResult<LoginUser>> refresh(
-            @RequestHeader("X-Refresh-Token") String refreshToken,
-            HttpServletRequest request) {
-        accessRateLimiter.checkRefresh(request);
-        LoginResult<LoginUser> loginResult = authUserDetailsFetcher.refreshToken(refreshToken);
-        return Result.ok(loginResult);
+            @RequestHeader("X-Refresh-Token") String refreshToken) {
+        return Result.ok(authUserDetailsFetcher.refreshToken(refreshToken));
     }
 
     @PostMapping("/permissions")
@@ -59,11 +54,10 @@ public class AuthController {
         return Result.ok(loginUser.getPermissionCodes());
     }
 
+    @RateLimit(limit = 10, window = 300)
     @PostMapping("/change-password")
     public Result<Void> changePassword(@AuthenticationPrincipal LoginUser loginUser,
-                                       @RequestBody @Valid PasswordChangeReqDTO reqDTO,
-                                       HttpServletRequest request) {
-        accessRateLimiter.checkPassword(request);
+                                       @RequestBody @Valid PasswordChangeReqDTO reqDTO) {
         userService.changePassword(loginUser.getId(), reqDTO.getOldPassword(), reqDTO.getNewPassword());
         return Result.ok();
     }
