@@ -54,6 +54,33 @@ public class AuthController {
         return Result.ok(loginUser.getPermissionCodes());
     }
 
+    /**
+     * 退出登录（认证详细设计 5.1）：分别撤销本次会话的 access 与 refresh Token。
+     * 框架 LogoutFilter 只处理 {@code migoo.security.logout-url}（/logout）且仅撤销 access，
+     * 业务登出必须撤销双 Token，故由本接口承载。
+     */
+    @PostMapping("/logout")
+    public Result<Void> logout(@RequestHeader(value = "Authorization", required = false) String authorization,
+                               @RequestHeader(value = "X-Refresh-Token", required = false) String refreshToken) {
+        revokeToken(bearerToken(authorization));
+        revokeToken(refreshToken);
+        return Result.ok();
+    }
+
+    private String bearerToken(String authorization) {
+        if (authorization == null) {
+            return null;
+        }
+        int index = authorization.indexOf("Bearer ");
+        return index < 0 ? null : authorization.substring(index + 7).trim();
+    }
+
+    private void revokeToken(String token) {
+        if (token != null && !token.isBlank()) {
+            authUserDetailsFetcher.revokeToken(token);
+        }
+    }
+
     @RateLimit(limit = 10, window = 300)
     @PostMapping("/change-password")
     public Result<Void> changePassword(@AuthenticationPrincipal LoginUser loginUser,

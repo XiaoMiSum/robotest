@@ -2,6 +2,7 @@ package io.github.xiaomisum.robotest.service.admin;
 
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
+import io.github.xiaomisum.robotest.framework.security.LoginUser;
 import io.github.xiaomisum.robotest.model.convert.UserConvertMapper;
 import io.github.xiaomisum.robotest.model.dto.request.admin.UserBatchStatusReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.admin.UserCreateReqDTO;
@@ -25,6 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
 import xyz.migoo.framework.common.pojo.PageResult;
+import xyz.migoo.framework.security.core.authentication.AuthUserDetailsFetcher;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -55,6 +57,8 @@ public class UserServiceImpl implements UserService {
     private PasswordEncoder passwordEncoder;
     @Resource
     private UserConvertMapper userConvertMapper;
+    @Resource
+    private AuthUserDetailsFetcher<LoginUser> authUserDetailsFetcher;
 
     @Override
     public PageResult<UserRespDTO> getUserPage(String keyword, String status, UUID roleId,
@@ -194,6 +198,7 @@ public class UserServiceImpl implements UserService {
         update.setStatus(status);
         userMapper.updateById(update);
         user.setStatus(status);
+        revokeIfDeactivated(status, id);
         return convertToUserRespDTO(user);
     }
 
@@ -208,7 +213,15 @@ public class UserServiceImpl implements UserService {
                 update.setId(userId);
                 update.setStatus(reqDTO.getStatus());
                 userMapper.updateById(update);
+                revokeIfDeactivated(reqDTO.getStatus(), userId);
             }
+        }
+    }
+
+    /** 禁用/锁定后存量会话立即失效（安全规范 2.3）；启用不撤销，避免误伤正常会话 */
+    private void revokeIfDeactivated(String status, UUID userId) {
+        if (!Constants.Status.ACTIVE.equals(status)) {
+            authUserDetailsFetcher.revokeUserTokens(userId.toString());
         }
     }
 
@@ -222,6 +235,8 @@ public class UserServiceImpl implements UserService {
         update.setId(id);
         update.setPasswordHash(passwordEncoder.encode(newPassword));
         userMapper.updateById(update);
+        // 密码重置后该账号存量 Token 全部失效（安全规范 2.3）
+        authUserDetailsFetcher.revokeUserTokens(id.toString());
     }
 
     @Override
@@ -237,6 +252,8 @@ public class UserServiceImpl implements UserService {
         update.setId(userId);
         update.setPasswordHash(passwordEncoder.encode(newPassword));
         userMapper.updateById(update);
+        // 自助改密后旧 Token 失效，重新登录签发的新 Token 不受影响（安全规范 2.3）
+        authUserDetailsFetcher.revokeUserTokens(userId.toString());
     }
 
     @Override

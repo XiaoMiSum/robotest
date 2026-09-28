@@ -1,6 +1,7 @@
 package io.github.xiaomisum.robotest.service.admin;
 
 import io.github.xiaomisum.robotest.framework.common.Constants;
+import io.github.xiaomisum.robotest.framework.security.LoginUser;
 import io.github.xiaomisum.robotest.model.convert.UserConvertMapper;
 import io.github.xiaomisum.robotest.model.convert.UserConvertMapperImpl;
 import io.github.xiaomisum.robotest.model.dto.request.admin.UserBatchStatusReqDTO;
@@ -29,6 +30,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import xyz.migoo.framework.common.exception.ServiceException;
 import xyz.migoo.framework.common.pojo.PageResult;
+import xyz.migoo.framework.security.core.authentication.AuthUserDetailsFetcher;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -53,6 +55,8 @@ class UserServiceImplTest {
     private WorkspaceUserMapper workspaceUserMapper;
     @Mock
     private PasswordEncoder passwordEncoder;
+    @Mock
+    private AuthUserDetailsFetcher<LoginUser> authUserDetailsFetcher;
     @Spy
     private UserConvertMapper userConvertMapper = new UserConvertMapperImpl();
 
@@ -347,6 +351,20 @@ class UserServiceImplTest {
         verify(userMapper).updateById(captor.capture());
         assertEquals(userId, captor.getValue().getId());
         assertEquals(Constants.Status.DISABLED, captor.getValue().getStatus());
+        // 禁用后存量 Token 立即撤销
+        verify(authUserDetailsFetcher).revokeUserTokens(userId.toString());
+    }
+
+    @Test
+    void updateUserStatus_active_doesNotRevokeTokens() {
+        when(userMapper.selectById(userId)).thenReturn(user);
+        stubEmptyAggregations();
+
+        userService.updateUserStatus(userId, Constants.Status.ACTIVE);
+
+        verify(userMapper).updateById(any(SysUser.class));
+        // 启用不撤销，避免误伤正常会话
+        verify(authUserDetailsFetcher, never()).revokeUserTokens(any());
     }
 
     @Test
@@ -368,6 +386,7 @@ class UserServiceImplTest {
         ArgumentCaptor<SysUser> captor = ArgumentCaptor.forClass(SysUser.class);
         verify(userMapper).updateById(captor.capture());
         assertEquals(Constants.Status.LOCKED, captor.getValue().getStatus());
+        verify(authUserDetailsFetcher).revokeUserTokens(userId.toString());
     }
 
     @Test
@@ -407,6 +426,9 @@ class UserServiceImplTest {
         verify(userMapper, times(1)).updateById(captor.capture());
         assertEquals(userId, captor.getValue().getId());
         assertEquals(Constants.Status.DISABLED, captor.getValue().getStatus());
+        // 只对真实存在且被禁用的用户撤销，缺失用户跳过
+        verify(authUserDetailsFetcher).revokeUserTokens(userId.toString());
+        verify(authUserDetailsFetcher, never()).revokeUserTokens(missingId.toString());
     }
 
     // ========== resetPassword ==========
@@ -424,6 +446,8 @@ class UserServiceImplTest {
         assertEquals("new-encoded-hash", captor.getValue().getPasswordHash());
         // C9 部分更新：其他字段不回写
         assertNull(captor.getValue().getUsername());
+        // 重置密码后存量 Token 全部失效
+        verify(authUserDetailsFetcher).revokeUserTokens(userId.toString());
     }
 
     @Test
@@ -432,6 +456,7 @@ class UserServiceImplTest {
 
         assertThrows(ServiceException.class, () -> userService.resetPassword(userId, "NewPass123!"));
         verify(userMapper, never()).updateById(any(SysUser.class));
+        verify(authUserDetailsFetcher, never()).revokeUserTokens(any());
     }
 
     // ========== changePassword ==========
@@ -449,6 +474,8 @@ class UserServiceImplTest {
         verify(userMapper).updateById(captor.capture());
         assertEquals(userId, captor.getValue().getId());
         assertEquals("new-hash", captor.getValue().getPasswordHash());
+        // 改密后旧 Token 失效
+        verify(authUserDetailsFetcher).revokeUserTokens(userId.toString());
     }
 
     @Test
@@ -459,6 +486,7 @@ class UserServiceImplTest {
         assertThrows(ServiceException.class,
                 () -> userService.changePassword(userId, "WrongOld!", "NewPass456!"));
         verify(userMapper, never()).updateById(any(SysUser.class));
+        verify(authUserDetailsFetcher, never()).revokeUserTokens(any());
     }
 
     @Test
@@ -468,5 +496,6 @@ class UserServiceImplTest {
         assertThrows(ServiceException.class,
                 () -> userService.changePassword(userId, "OldPass123!", "NewPass456!"));
         verify(userMapper, never()).updateById(any(SysUser.class));
+        verify(authUserDetailsFetcher, never()).revokeUserTokens(any());
     }
 }
