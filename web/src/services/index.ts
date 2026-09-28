@@ -298,7 +298,7 @@ api.interceptors.response.use(
     if (result.code === 401 && !config._retry) {
       return handleUnauthorized(config) as unknown as never
     }
-    // Non-200 business error: reject with the message; 附加 code 供调用方识别具体业务错误（如 6004 限流）
+    // Non-200 business error: reject with the message; 附加 code 供调用方识别具体业务错误（如 429 限流）
     const error = new Error(result.msg || '请求失败') as Error & { code?: number }
     error.code = result.code
     return Promise.reject(error)
