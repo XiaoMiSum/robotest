@@ -33,20 +33,29 @@
   .fn-item__acts { margin-top: 4px; font-size: var(--font-size-xs); }
   .fn-item__acts .op-link + .op-link { margin-left: 8px; }
 
-  /* 右：详情 */
-  .fn-detail { flex: 1; min-width: 0; overflow-y: auto; background: #fff; border: 1px solid var(--n-100); border-radius: var(--radius-lg); padding: var(--space-lg); }
-  .fn-detail__header { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-lg); }
-  .fn-detail__name { margin: 0; font-size: var(--font-size-md); font-family: monospace; }
-  .fn-detail__header-actions { display: flex; align-items: center; gap: var(--space-sm); }
+  /* 右：详情（头部吸顶，分区标签左置两栏对齐） */
+  .fn-detail { flex: 1; min-width: 0; overflow-y: auto; background: #fff; border: 1px solid var(--n-100); border-radius: var(--radius-lg); padding: 0 var(--space-lg) var(--space-lg); }
+  .fn-detail__header { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm); margin: 0 calc(0px - var(--space-lg)) var(--space-lg); padding: var(--space-md) var(--space-lg); background: #fff; border-bottom: 1px solid var(--n-100); }
+  .fn-detail__name { margin: 0; font-size: var(--font-size-lg); font-family: var(--font-mono); color: var(--n-800); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .fn-detail__header-actions { display: flex; align-items: center; gap: var(--space-sm); flex-shrink: 0; }
 
+  .fn-detail__section { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: var(--space-sm) var(--space-md); align-items: start; }
   .fn-detail__section + .fn-detail__section { margin-top: var(--space-md); padding-top: var(--space-md); border-top: 1px solid var(--n-100); }
-  .fn-detail__label { display: block; font-size: var(--font-size-xs); font-weight: 600; color: var(--n-400); margin-bottom: 6px; text-transform: uppercase; letter-spacing: .05em; }
+  .fn-detail__label { display: block; margin: 0; padding-top: 7px; font-size: var(--font-size-xs); font-weight: 600; color: var(--n-400); text-transform: uppercase; letter-spacing: .05em; }
   .fn-detail__text { margin: 0; font-size: var(--font-size-sm); color: var(--n-600); }
-  .fn-detail__code { display: inline-block; background: var(--n-50); border: 1px solid var(--n-100); padding: 5px 9px; border-radius: var(--radius-sm); font-family: monospace; font-size: 13px; color: var(--brand-600, #337ecc); word-break: break-all; }
+  .fn-detail__code { display: inline-block; background: var(--n-50); border: 1px solid var(--n-100); padding: 5px 9px; border-radius: var(--radius-sm); font-family: var(--font-mono); font-size: 13px; color: var(--brand-600); word-break: break-all; }
+  .fn-detail__code--block { display: block; width: 100%; padding: 9px 12px; border-left: 3px solid var(--brand-500); border-radius: var(--radius-md); }
 
   .fn-params { display: flex; flex-direction: column; gap: 6px; }
-  .fn-param { display: flex; align-items: center; gap: var(--space-sm); }
-  .fn-param__desc { color: var(--n-500); font-size: var(--font-size-sm); }
+  .fn-params > .fn-detail__text { color: var(--n-400); }
+  .fn-param { display: flex; align-items: center; gap: var(--space-sm); padding: 7px 10px; background: var(--n-50); border: 1px solid var(--n-100); border-radius: var(--radius-md); }
+  .fn-param .fn-detail__code { flex-shrink: 0; background: #fff; }
+  .fn-param__desc { flex: 1; min-width: 0; color: var(--n-500); font-size: var(--font-size-sm); }
+
+  /* Groovy 脚本：编辑器容器（标题条 + 代码区） */
+  .code-block { border: 1px solid var(--n-100); border-radius: var(--radius-md); overflow: hidden; }
+  .code-block__bar { display: flex; align-items: center; gap: 6px; padding: 6px 10px; background: #2d2d2d; color: #9aa0a6; font-family: var(--font-mono); font-size: var(--font-size-2xs); letter-spacing: .08em; text-transform: uppercase; }
+  .code-block .code-view { min-height: 160px; border: none; border-radius: 0; }
 
   .code-view { width: 100%; min-height: 160px; border: 1px solid var(--n-100); border-radius: var(--radius-md); background: #1e1e1e; color: #d4d4d4; font-family: var(--font-mono); font-size: var(--font-size-xs); line-height: 1.6; padding: 10px 12px; resize: vertical; }
 
@@ -177,7 +186,7 @@
 
             <div class="fn-detail__section">
               <label class="fn-detail__label">签名</label>
-              <code class="fn-detail__code" id="bi-sign">${uuid()}</code>
+              <code class="fn-detail__code fn-detail__code--block" id="bi-sign">${uuid()}</code>
             </div>
 
             <div class="fn-detail__section">
@@ -192,7 +201,7 @@
 
             <div class="fn-detail__section">
               <label class="fn-detail__label">示例</label>
-              <code class="fn-detail__code" id="bi-example">${uuid()}</code>
+              <code class="fn-detail__code fn-detail__code--block" id="bi-example">${uuid()}</code>
             </div>
           </section>
 
@@ -208,7 +217,7 @@
 
             <div class="fn-detail__section">
               <label class="fn-detail__label">签名</label>
-              <code class="fn-detail__code" id="cu-sign">${signParams(appKey, timestamp)}</code>
+              <code class="fn-detail__code fn-detail__code--block" id="cu-sign">${signParams(appKey, timestamp)}</code>
             </div>
 
             <div class="fn-detail__section">
@@ -223,12 +232,15 @@
 
             <div class="fn-detail__section">
               <label class="fn-detail__label">示例</label>
-              <code class="fn-detail__code" id="cu-example">${signParams(appKey, timestamp)}</code>
+              <code class="fn-detail__code fn-detail__code--block" id="cu-example">${signParams(appKey, timestamp)}</code>
             </div>
 
             <div class="fn-detail__section">
               <label class="fn-detail__label">Groovy 脚本</label>
-              <textarea class="code-view" id="cu-script" readonly spellcheck="false"></textarea>
+              <div class="code-block">
+                <div class="code-block__bar"><span data-icon="terminal"></span>Groovy</div>
+                <textarea class="code-view" id="cu-script" readonly spellcheck="false"></textarea>
+              </div>
             </div>
           </section>
 
@@ -270,7 +282,10 @@
 
             <div class="field">
               <label class="field__label" for="fn-script">Groovy 脚本<span class="req">*</span></label>
-              <textarea class="code-view" style="min-height:180px" id="fn-script" spellcheck="false" placeholder="// args 数组承接调用参数，返回值即求值结果&#10;return args[0]"></textarea>
+              <div class="code-block">
+                <div class="code-block__bar"><span data-icon="terminal"></span>Groovy</div>
+                <textarea class="code-view" style="min-height:180px" id="fn-script" spellcheck="false" placeholder="// args 数组承接调用参数，返回值即求值结果&#10;return args[0]"></textarea>
+              </div>
               <div class="field__error" id="fn-script-err" hidden>请输入 Groovy 脚本</div>
             </div>
 
