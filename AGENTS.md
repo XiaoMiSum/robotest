@@ -181,7 +181,7 @@ bash scripts/deploy-merged.sh
 - 任务执行模板：`docs/00-spec/00-governance/02-task-template.md` — 编码前必须按模板填写理解、一致性评估、探查、方案
 - 质量验证脚本按端拆分，各端 agent 提交前**只运行本端脚本**：
   - 文档：`bash scripts/validate-docs.sh` — C7 提交格式 + 文档检查（`scripts/check-docs.mjs`）
-  - 前端：`bash scripts/validate-web.sh` — C7 + 工具链版本 + lint + typecheck + 测试/覆盖率（C8）+ any 检查（C1）+ 契约一致性
+  - 前端：`bash scripts/validate-web.sh` — C7 + lint + typecheck + 测试/覆盖率（C8）+ any 检查（C1）+ 契约一致性
   - 后端：`bash scripts/validate-backend.sh` — C7 + `mvn test`
   - 全量编排（人工 / CI）：`bash scripts/validate.sh --all`，亦可 `--docs` / `--frontend` / `--backend` 转发单端
 

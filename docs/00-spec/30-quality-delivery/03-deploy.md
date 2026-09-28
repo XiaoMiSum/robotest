@@ -1,7 +1,7 @@
 # 构建与部署规范
 
-**文档版本**：V1.0
-**日期**：2026-09-24
+**文档版本**：V1.1
+**日期**：2026-09-28
 **状态**：已发布
 
 ---
@@ -24,12 +24,12 @@
 - 构建不得依赖未声明的本机工具、全局变量或手工文件。
 - 构建结果必须能够追溯到 commit、构建参数和依赖版本。
 
-当前工具链矩阵（QA-001；升级时必须同步锁定文件与本表）：
+当前工具链矩阵（QA-001；依赖仍由锁文件固定，前端工具链版本只记录、不锁定，验证脚本不校验；升级时同步更新本表）：
 
-| 工具 | 版本 | 锁定来源 |
+| 工具 | 版本 | 版本来源 |
 | --- | --- | --- |
-| Node | 24.13.0 | `web/.nvmrc` |
-| pnpm | 11.24.0 | `web/package.json` 的 `packageManager`、`engines` |
+| Node | 24.13.0 | 本表（前端不锁定 Node 版本） |
+| pnpm | 11.24.0 | 本表（前端不锁定 pnpm 版本） |
 | Java | 21 | `server/pom.xml` 的 `java.version` |
 | Maven | 3.9.9（宿主安装，项目无 wrapper） | 本表 |
 | PostgreSQL | 14+（开发容器当前为 18） | `server/src/main/resources/db/`、运行配置 |
@@ -187,6 +187,13 @@ CI 的质量门禁由 `docs/00-spec/30-quality-delivery/01-quality.md` 定义，
 - 安全基线：`docs/00-spec/40-security/01-security.md`
 - 数据库迁移：`docs/00-spec/20-contracts/02-database.md`
 - 项目部署 Runbook：`docs/00-spec/30-quality-delivery/04-deployment-runbook.md`
+
+## 修改记录
+
+| 版本 | 日期 | 说明 |
+| --- | --- | --- |
+| V1.0 | 2026-09-24 | 建立本文 |
+| V1.1 | 2026-09-28 | 工具链矩阵由「锁定来源」改为「版本来源」：前端 Node 与 pnpm 版本只记录不锁定，不再指向已移除的锁定文件 |
 
 ---
 
