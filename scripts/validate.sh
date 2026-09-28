@@ -2,7 +2,7 @@
 # scripts/validate.sh — 质量验证全量编排器（供人工 / CI 全量门禁）
 # 各端 AGENT 提交前只运行对应端脚本，不运行本文件：
 #   文档端: bash scripts/validate-docs.sh    （C7 提交格式 + 文档检查）
-#   前端  : bash scripts/validate-web.sh     （C7 + 工具链 + lint + typecheck + 测试/覆盖率 + any + 契约）
+#   前端  : bash scripts/validate-web.sh     （C7 + lint + typecheck + 测试/覆盖率 + any + 契约）
 #   后端  : bash scripts/validate-backend.sh （C7 + mvn test）
 # 用法: bash scripts/validate.sh [--docs|--frontend|--backend|--all]
 # 默认: --all（C7 由本编排器统一检查一次，子脚本经 VALIDATE_SKIP_COMMIT_CHECK 跳过）
