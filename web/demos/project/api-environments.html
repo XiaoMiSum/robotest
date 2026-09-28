@@ -139,7 +139,6 @@
                   <div class="env-item__main">
                     <span class="env-item__name">测试环境</span>
                     <span class="tag tag--warning">默认</span>
-                    <span class="tag tag--outline">项目</span>
                   </div>
                   <div class="env-item__meta">2 HTTP · 4 变量 · 1 数据源 · 2 处理器</div>
                   <div class="env-item__acts">
@@ -154,7 +153,6 @@
                   <div class="env-item__main">
                     <span class="env-item__name">预发环境</span>
                     <span class="env-item__set-default" data-act="setdefault">设为默认</span>
-                    <span class="tag tag--outline">项目</span>
                   </div>
                   <div class="env-item__meta">1 HTTP · 2 变量 · 0 数据源 · 1 处理器</div>
                   <div class="env-item__acts">
@@ -621,10 +619,9 @@
     li.removeAttribute('data-default');
     li.querySelector('.env-item__name').textContent = name;
     li.querySelector('.env-item__meta').textContent = '0 HTTP · 0 变量 · 0 数据源 · 0 处理器';
-    // 由其他环境克隆时会带上「默认」标记与作用域标签，这里重置为普通环境
+    // 由默认环境克隆时会带上「默认」标记，这里重置为普通环境
     var defTag = li.querySelector('.env-item__main .tag--warning');
     if (defTag) defTag.remove();
-    li.querySelectorAll('.tag--outline').forEach(function (t) { t.remove(); });
     var setLink = li.querySelector('.env-item__set-default');
     if (!setLink) {
       setLink = document.createElement('span');
