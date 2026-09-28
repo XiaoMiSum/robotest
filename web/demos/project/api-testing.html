@@ -8,28 +8,10 @@
 <link rel="stylesheet" href="../assets/base.css">
 <link rel="stylesheet" href="../assets/ux.css">
 <style>
-  /* 编辑器 Tab 工作区（InterfaceWorkspace：卡片式 tab + 右上列表操作） */
+  /* 工作区：页签条 + 列表 / 编辑器两个 pane（页签样式见 base.css「工作区多页签」） */
   .ws { display: flex; flex-direction: column; gap: var(--space-md); }
-  .ws-tabs { position: relative; display: flex; align-items: center; gap: 4px; }
-  .ws-tab {
-    display: inline-flex; align-items: center; gap: 6px;
-    height: 32px; padding: 0 12px;
-    border: 1px solid var(--n-200); border-radius: var(--radius-md);
-    background: var(--n-0); color: var(--n-600);
-    font-size: var(--font-size-sm); cursor: pointer; white-space: nowrap;
-  }
-  .ws-tab:hover { border-color: var(--brand-300); color: var(--brand-600); }
-  .ws-tab.is-active {
-    background: var(--brand-50); border-color: var(--brand-200);
-    color: var(--brand-700); font-weight: 600;
-  }
-  /* 未保存修改：tab 标签前的蓝点（is-dirty::before 口径） */
-  .ws-tab.is-dirty::before {
-    content: ''; width: 6px; height: 6px; border-radius: 50%;
-    background: var(--brand-500);
-  }
-  .ws-tab__close { color: var(--n-400); font-size: 14px; line-height: 1; }
-  .ws-tab__close:hover { color: var(--n-700); }
+  .ws-pane { display: flex; flex-direction: column; gap: var(--space-md); }
+  [hidden] { display: none !important; }
 
   .ws-filter { padding: 0; }
   /* 筛选条是独立卡片，不与表格相邻：只去掉工具条底边线，内边距沿用统一口径 */
@@ -64,6 +46,79 @@
   .star svg { width: 15px; height: 15px; }
   .star.is-active { color: var(--st-warning); }
   .star.is-active svg { fill: currentColor; }
+
+
+  .editor__card { display: flex; flex-direction: column; min-height: 640px; padding: var(--space-md); }
+
+  /* 请求行：协议 / 方法 / 路径 / 名称 / 保存 */
+  .reqline { display: flex; align-items: center; gap: var(--space-sm); }
+  .reqline .select--proto { width: 96px; }
+  .reqline .select--method { width: 130px; font-family: var(--font-mono); font-weight: 700; }
+  .reqline .input--path { flex: 1; font-family: var(--font-mono); }
+  .reqline .input--name { width: 240px; }
+
+  /* 上下分栏：请求配置（左 Tab） + 响应示例（右） */
+  .split-v { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+  .req-area { height: 56%; min-height: 0; overflow: auto; }
+  .req-div { height: 6px; display: flex; align-items: center; justify-content: center; cursor: row-resize; flex-shrink: 0; }
+  .req-div i { width: 75%; height: 2px; border-radius: 1px; background: var(--n-200); display: block; }
+  .req-div:hover i { background: var(--brand-400); }
+  .resp-area { flex: 1; min-height: 0; display: flex; flex-direction: column; border-top: 1px solid var(--n-100); }
+
+  .etabs { display: flex; align-items: center; gap: 2px; border-bottom: 1px solid var(--n-200); flex-wrap: wrap; }
+  .etab {
+    padding: 10px 14px; font-size: var(--font-size-sm); color: var(--n-500);
+    background: none; border: none; border-bottom: 2px solid transparent; cursor: pointer; white-space: nowrap;
+  }
+  .etab:hover { color: var(--n-800); }
+  .etab.is-active { color: var(--n-900); font-weight: 600; border-bottom-color: var(--brand-500); }
+  .etab .badge {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 16px; height: 16px; margin-left: 5px; padding: 0 5px; border-radius: 8px;
+    background: var(--brand-50); color: var(--brand-500); font-size: 11px; line-height: 1;
+  }
+  .epanel { padding-top: var(--space-sm); }
+
+  .kv { width: 100%; border-collapse: collapse; }
+  .kv th { text-align: left; font-size: 11px; color: var(--n-500); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; padding: 6px 8px; border-bottom: 1px solid var(--n-200); }
+  .kv td { padding: 6px 8px; border-bottom: 1px solid var(--n-100); }
+  .kv .kv__add { color: var(--brand-500); font-size: var(--font-size-xs); cursor: pointer; padding: 8px; display: inline-block; }
+
+  /* Body 分段 */
+  .bodytypes { display: inline-flex; gap: 2px; background: var(--n-50); border-radius: 6px; padding: 2px; }
+  .bodytype { height: 28px; padding: 0 12px; border: none; background: none; border-radius: 4px; font-size: var(--font-size-xs); color: var(--n-500); cursor: pointer; }
+  .bodytype.is-active { background: var(--brand-500); color: #fff; font-weight: 500; }
+  .bodytypes-right { display: inline-flex; align-items: center; gap: 6px; margin-left: 10px; }
+  .bodytypes-right .select { width: 118px; height: 28px; font-size: var(--font-size-xs); }
+  .code-editor {
+    margin-top: 10px; width: 100%; min-height: 132px; resize: vertical;
+    padding: 12px; font-family: var(--font-mono); font-size: var(--font-size-xs); line-height: 1.6;
+    color: #d4d4d4; background: #1e1e1e; border: 1px solid #333; border-radius: 6px; outline: none;
+  }
+
+  /* 验证器 / 提取器卡片行 */
+  .pane-actions { display: flex; gap: var(--space-md); margin-bottom: var(--space-sm); }
+  .pane-card { border: 1px solid var(--n-200); border-radius: var(--radius-md); padding: 10px 12px; margin-bottom: var(--space-sm); background: var(--n-0); }
+  .pane-card__row { display: flex; align-items: center; gap: var(--space-sm); flex-wrap: wrap; }
+  .pane-card__row .select { width: 132px; height: 28px; font-size: var(--font-size-xs); }
+  .pane-card__row .input { flex: 1; min-width: 160px; height: 28px; font-size: var(--font-size-xs); }
+
+  /* 响应示例面板 */
+  .resp-toolbar { display: flex; align-items: center; gap: var(--space-md); padding: 8px 12px; border-bottom: 1px solid var(--n-100); }
+  .resp-title { font-size: var(--font-size-sm); font-weight: 600; color: var(--n-800); }
+  .resp-modes { display: flex; gap: 2px; }
+  .respmode { padding: 4px 10px; font-size: var(--font-size-xs); border: none; background: none; border-radius: 4px; color: var(--n-500); cursor: pointer; }
+  .respmode.is-active { background: var(--n-100); color: var(--n-800); font-weight: 500; }
+  .icon-btn-sm { width: 26px; height: 26px; border: none; background: none; border-radius: 4px; color: var(--n-400); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
+  .icon-btn-sm:hover { color: var(--n-700); background: var(--n-100); }
+  .icon-btn-sm svg { width: 14px; height: 14px; }
+  .resp-body { flex: 1; min-height: 0; padding: 10px 12px; }
+  .resp-editor {
+    width: 100%; min-height: 150px; resize: vertical; padding: 10px;
+    font-family: var(--font-mono); font-size: var(--font-size-xs); line-height: 1.6;
+    color: var(--n-800); background: var(--n-50); border: 1px solid var(--n-200); border-radius: var(--radius-md); outline: none;
+  }
+  [hidden] { display: none !important; }
 </style>
 </head>
 <body data-shell="business" data-mode="project" data-active="api" data-workspace="质量中台" data-project="电商核心系统">
@@ -89,158 +144,347 @@
           <h1 class="page-head__title">接口管理</h1>
         </div>
         <div class="page-head__actions">
-          <button class="btn btn--default"><span data-icon="upload"></span>导入</button>
-          <button class="btn btn--primary"><span data-icon="plus"></span>新建接口</button>
+          <button class="btn btn--default" id="btn-import-interface"><span data-icon="upload"></span>导入</button>
+          <button class="btn btn--primary" id="btn-new-interface"><span data-icon="plus"></span>新建接口</button>
         </div>
       </div>
 
       <div class="ws">
-        <!-- 编辑器 Tab 条：全部接口（固定）+ 打开的编辑 Tab（脏态蓝点 / 可关闭） -->
+        <!-- 编辑器 Tab 条：全部接口（固定）+ 打开的编辑 Tab（脏态蓝点 / 可关闭），docs26 1.1 -->
         <div class="ws-tabs">
-          <div class="ws-tab is-active"><span>全部接口</span></div>
-          <div class="ws-tab is-dirty"><span>创建订单</span><span class="ws-tab__close">×</span></div>
-          <div class="ws-tab"><span>查询订单详情</span><span class="ws-tab__close">×</span></div>
+          <div class="ws-tab is-active" data-pane="list"><span>全部接口</span></div>
+          <div class="ws-tab is-dirty" data-name="创建订单" data-method="POST" data-path="/api/v1/orders"><span>创建订单</span><span class="ws-tab__close" data-close>×</span></div>
+          <div class="ws-tab" data-name="查询订单详情" data-method="GET" data-path="/api/v1/orders/{orderId}"><span>查询订单详情</span><span class="ws-tab__close" data-close>×</span></div>
         </div>
 
-        <!-- 筛选工具条 -->
-        <div class="card ws-filter">
-          <div class="toolbar">
-            <div class="toolbar__filters" data-ux-filters="interfaces">
-              <div class="segment">
-                <span class="segment__item segment__item--active">全部</span>
-                <span class="segment__item">我关注的</span>
-                <span class="segment__item">我创建的</span>
+        <div class="ws-pane" data-pane="list">
+          <!-- 筛选工具条 -->
+          <div class="card ws-filter">
+            <div class="toolbar">
+              <div class="toolbar__filters" data-ux-filters="interfaces">
+                <div class="segment">
+                  <span class="segment__item segment__item--active">全部</span>
+                  <span class="segment__item">我关注的</span>
+                  <span class="segment__item">我创建的</span>
+                </div>
+                <div class="input-wrap"><span data-icon="search"></span><input class="input" placeholder="搜索名称 / 路径"></div>
+                <select class="select" style="width:120px"><option>状态</option><option>启用</option><option>停用</option></select>
+                <span class="ux-restore" data-ux-restore-for="interfaces" hidden>
+                  <span data-icon="check"></span>已恢复上次筛选
+                  <button class="ux-restore__clear" data-ux-restore-clear>清除</button>
+                </span>
               </div>
-              <div class="input-wrap"><span data-icon="search"></span><input class="input" placeholder="搜索名称 / 路径"></div>
-              <select class="select" style="width:120px"><option>状态</option><option>启用</option><option>停用</option></select>
-              <span class="ux-restore" data-ux-restore-for="interfaces" hidden>
-                <span data-icon="check"></span>已恢复上次筛选
-                <button class="ux-restore__clear" data-ux-restore-clear>清除</button>
-              </span>
+              <div class="toolbar__filters">
+                <span class="toolbar__count muted">勾选行后，底部会出现批量操作条</span>
+              </div>
             </div>
-            <div class="toolbar__filters">
-              <span class="toolbar__count muted">勾选行后，底部会出现批量操作条</span>
+          </div>
+
+          <div class="ws-body">
+            <!-- 左：模块树 -->
+            <div class="card ws-tree">
+              <div class="mt-toolbar">
+                <div class="input-wrap"><span data-icon="search"></span><input class="input" placeholder="搜索目录 / 文档"></div>
+                <button class="btn btn--primary btn--sm"><span data-icon="plus"></span>新建</button>
+              </div>
+              <ul class="mt-list">
+                <li class="mt-node"><span class="folder-ic" data-icon="folder"></span><span class="mt-node__name">订单</span></li>
+                <li class="mt-node mt-node--active" style="padding-left:22px"><span class="doc-ic" data-icon="document"></span><span class="mt-node__name">创建订单</span></li>
+                <li class="mt-node" style="padding-left:22px"><span class="doc-ic" data-icon="document"></span><span class="mt-node__name">查询订单详情</span></li>
+                <li class="mt-node" style="padding-left:22px"><span class="doc-ic" data-icon="document"></span><span class="mt-node__name">取消订单</span></li>
+                <li class="mt-node"><span class="folder-ic" data-icon="folder"></span><span class="mt-node__name">支付</span></li>
+                <li class="mt-node"><span class="folder-ic" data-icon="folder"></span><span class="mt-node__name">商品</span></li>
+                <li class="mt-node" style="padding-left:22px"><span class="doc-ic" data-icon="document"></span><span class="mt-node__name">商品详情</span></li>
+                <li class="mt-node"><span class="folder-ic" data-icon="folder"></span><span class="mt-node__name">库存</span></li>
+                <li class="mt-node"><span class="folder-ic" data-icon="folder"></span><span class="mt-node__name">用户</span></li>
+              </ul>
+            </div>
+
+            <!-- 右：接口表格 -->
+            <div class="card ws-table">
+              <div class="table-wrap" style="flex:1" data-ux-batchbar="#batchbar-interfaces">
+                <table class="table table--clickable">
+                  <thead>
+                    <tr>
+                      <th style="width:34px"></th><th style="width:34px"></th>
+                      <th>名称</th><th style="width:78px">方法</th><th>路径</th>
+                      <th style="width:110px">模块</th><th style="width:80px">状态</th>
+                      <th style="width:60px">引用</th><th style="width:150px">更新时间</th><th style="width:170px">操作</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><span class="checkbox checkbox--on"></span></td>
+                      <td><span class="star is-active" data-icon="star"></span></td>
+                      <td class="cell-main"><span class="text-brand">创建订单</span><span class="cell-sub">含幂等键校验</span></td>
+                      <td><span class="chip">POST</span></td>
+                      <td class="mono">/api/v1/orders</td>
+                      <td>订单</td>
+                      <td><span class="switch switch--on"></span></td>
+                      <td class="num">6</td>
+                      <td class="num">2026-09-22 10:15</td>
+                      <td><span class="op-link" data-ux-feedback="已在「快速调试」中打开该接口" data-ux-feedback-type="success">调试</span><span class="op-link">编辑</span><span class="op-link" data-ux-feedback="更多操作：复制 / 移动 / 停用 / 删除">更多</span></td>
+                    </tr>
+                    <tr>
+                      <td><span class="checkbox checkbox--on"></span></td>
+                      <td><span class="star" data-icon="star"></span></td>
+                      <td class="cell-main"><span class="text-brand">查询订单详情</span></td>
+                      <td><span class="chip">GET</span></td>
+                      <td class="mono">/api/v1/orders/{id}</td>
+                      <td>订单</td>
+                      <td><span class="switch switch--on"></span></td>
+                      <td class="num">4</td>
+                      <td class="num">2026-09-21 17:40</td>
+                      <td><span class="op-link" data-ux-feedback="已在「快速调试」中打开该接口" data-ux-feedback-type="success">调试</span><span class="op-link">编辑</span><span class="op-link" data-ux-feedback="更多操作：复制 / 移动 / 停用 / 删除">更多</span></td>
+                    </tr>
+                    <tr>
+                      <td><span class="checkbox"></span></td>
+                      <td><span class="star" data-icon="star"></span></td>
+                      <td class="cell-main"><span class="text-brand">取消订单</span></td>
+                      <td><span class="chip">PUT</span></td>
+                      <td class="mono">/api/v1/orders/{id}/cancel</td>
+                      <td>订单</td>
+                      <td><span class="switch switch--on"></span></td>
+                      <td class="num">2</td>
+                      <td class="num">2026-09-21 14:22</td>
+                      <td><span class="op-link" data-ux-feedback="已在「快速调试」中打开该接口" data-ux-feedback-type="success">调试</span><span class="op-link">编辑</span><span class="op-link" data-ux-feedback="更多操作：复制 / 移动 / 停用 / 删除">更多</span></td>
+                    </tr>
+                    <tr>
+                      <td><span class="checkbox"></span></td>
+                      <td><span class="star" data-icon="star"></span></td>
+                      <td class="cell-main"><span class="text-brand">支付回调</span><span class="cell-sub">关联 BUG-208</span></td>
+                      <td><span class="chip">POST</span></td>
+                      <td class="mono">/api/v1/payments/callback</td>
+                      <td>支付</td>
+                      <td><span class="switch switch--on"></span></td>
+                      <td class="num">1</td>
+                      <td class="num">2026-09-22 14:03</td>
+                      <td><span class="op-link" data-ux-feedback="已在「快速调试」中打开该接口" data-ux-feedback-type="success">调试</span><span class="op-link">编辑</span><span class="op-link" data-ux-feedback="更多操作：复制 / 移动 / 停用 / 删除">更多</span></td>
+                    </tr>
+                    <tr>
+                      <td><span class="checkbox"></span></td>
+                      <td><span class="star" data-icon="star"></span></td>
+                      <td class="cell-main"><span class="text-brand">商品库存扣减</span></td>
+                      <td><span class="chip">POST</span></td>
+                      <td class="mono">/api/v1/stock/deduct</td>
+                      <td>库存</td>
+                      <td><span class="switch switch--on"></span></td>
+                      <td class="num">3</td>
+                      <td class="num">2026-09-20 11:08</td>
+                      <td><span class="op-link" data-ux-feedback="已在「快速调试」中打开该接口" data-ux-feedback-type="success">调试</span><span class="op-link">编辑</span><span class="op-link" data-ux-feedback="更多操作：复制 / 移动 / 停用 / 删除">更多</span></td>
+                    </tr>
+                    <tr>
+                      <td><span class="checkbox"></span></td>
+                      <td><span class="star" data-icon="star"></span></td>
+                      <td class="cell-main"><span class="text-brand">删除收货地址</span></td>
+                      <td><span class="chip">DELETE</span></td>
+                      <td class="mono">/api/v1/addresses/{id}</td>
+                      <td>用户</td>
+                      <td><span class="switch"></span></td>
+                      <td class="num">0</td>
+                      <td class="num">2026-09-15 09:55</td>
+                      <td><span class="op-link" data-ux-feedback="已在「快速调试」中打开该接口" data-ux-feedback-type="success">调试</span><span class="op-link">编辑</span><span class="op-link" data-ux-feedback="更多操作：复制 / 移动 / 停用 / 删除">更多</span></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <div class="pagination" data-ux-pageable>
+                <span class="pagination__total">共 142 个接口 · 每页 20 条</span>
+                <button class="page-btn" disabled>‹</button>
+                <button class="page-btn page-btn--active">1</button>
+                <button class="page-btn">2</button>
+                <button class="page-btn">3</button>
+                <button class="page-btn">…</button>
+                <button class="page-btn">8</button>
+                <button class="page-btn">›</button>
+              </div>
             </div>
           </div>
         </div>
 
-        <div class="ws-body">
-          <!-- 左：模块树 -->
-          <div class="card ws-tree">
-            <div class="mt-toolbar">
-              <div class="input-wrap"><span data-icon="search"></span><input class="input" placeholder="搜索目录 / 文档"></div>
-              <button class="btn btn--primary btn--sm"><span data-icon="plus"></span>新建</button>
-            </div>
-            <ul class="mt-list">
-              <li class="mt-node"><span class="folder-ic" data-icon="folder"></span><span class="mt-node__name">订单</span></li>
-              <li class="mt-node mt-node--active" style="padding-left:22px"><span class="doc-ic" data-icon="document"></span><span class="mt-node__name">创建订单</span></li>
-              <li class="mt-node" style="padding-left:22px"><span class="doc-ic" data-icon="document"></span><span class="mt-node__name">查询订单详情</span></li>
-              <li class="mt-node" style="padding-left:22px"><span class="doc-ic" data-icon="document"></span><span class="mt-node__name">取消订单</span></li>
-              <li class="mt-node"><span class="folder-ic" data-icon="folder"></span><span class="mt-node__name">支付</span></li>
-              <li class="mt-node"><span class="folder-ic" data-icon="folder"></span><span class="mt-node__name">商品</span></li>
-              <li class="mt-node" style="padding-left:22px"><span class="doc-ic" data-icon="document"></span><span class="mt-node__name">商品详情</span></li>
-              <li class="mt-node"><span class="folder-ic" data-icon="folder"></span><span class="mt-node__name">库存</span></li>
-              <li class="mt-node"><span class="folder-ic" data-icon="folder"></span><span class="mt-node__name">用户</span></li>
-            </ul>
-          </div>
+        <div class="ws-pane" data-pane="edit" hidden>
+          <div class="card editor__card">
 
-          <!-- 右：接口表格 -->
-          <div class="card ws-table">
-            <div class="table-wrap" style="flex:1" data-ux-batchbar="#batchbar-interfaces">
-              <table class="table table--clickable">
-                <thead>
-                  <tr>
-                    <th style="width:34px"></th><th style="width:34px"></th>
-                    <th>名称</th><th style="width:78px">方法</th><th>路径</th>
-                    <th style="width:110px">模块</th><th style="width:80px">状态</th>
-                    <th style="width:60px">引用</th><th style="width:150px">更新时间</th><th style="width:170px">操作</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td><span class="checkbox checkbox--on"></span></td>
-                    <td><span class="star is-active" data-icon="star"></span></td>
-                    <td class="cell-main"><span class="text-brand">创建订单</span><span class="cell-sub">含幂等键校验</span></td>
-                    <td><span class="chip">POST</span></td>
-                    <td class="mono">/api/v1/orders</td>
-                    <td>订单</td>
-                    <td><span class="switch switch--on"></span></td>
-                    <td class="num">6</td>
-                    <td class="num">2026-09-22 10:15</td>
-                    <td><span class="op-link" data-ux-feedback="已在「快速调试」中打开该接口" data-ux-feedback-type="success">调试</span><span class="op-link">编辑</span><span class="op-link" data-ux-feedback="更多操作：复制 / 移动 / 停用 / 删除">更多</span></td>
-                  </tr>
-                  <tr>
-                    <td><span class="checkbox checkbox--on"></span></td>
-                    <td><span class="star" data-icon="star"></span></td>
-                    <td class="cell-main"><span class="text-brand">查询订单详情</span></td>
-                    <td><span class="chip">GET</span></td>
-                    <td class="mono">/api/v1/orders/{id}</td>
-                    <td>订单</td>
-                    <td><span class="switch switch--on"></span></td>
-                    <td class="num">4</td>
-                    <td class="num">2026-09-21 17:40</td>
-                    <td><span class="op-link" data-ux-feedback="已在「快速调试」中打开该接口" data-ux-feedback-type="success">调试</span><span class="op-link">编辑</span><span class="op-link" data-ux-feedback="更多操作：复制 / 移动 / 停用 / 删除">更多</span></td>
-                  </tr>
-                  <tr>
-                    <td><span class="checkbox"></span></td>
-                    <td><span class="star" data-icon="star"></span></td>
-                    <td class="cell-main"><span class="text-brand">取消订单</span></td>
-                    <td><span class="chip">PUT</span></td>
-                    <td class="mono">/api/v1/orders/{id}/cancel</td>
-                    <td>订单</td>
-                    <td><span class="switch switch--on"></span></td>
-                    <td class="num">2</td>
-                    <td class="num">2026-09-21 14:22</td>
-                    <td><span class="op-link" data-ux-feedback="已在「快速调试」中打开该接口" data-ux-feedback-type="success">调试</span><span class="op-link">编辑</span><span class="op-link" data-ux-feedback="更多操作：复制 / 移动 / 停用 / 删除">更多</span></td>
-                  </tr>
-                  <tr>
-                    <td><span class="checkbox"></span></td>
-                    <td><span class="star" data-icon="star"></span></td>
-                    <td class="cell-main"><span class="text-brand">支付回调</span><span class="cell-sub">关联 BUG-208</span></td>
-                    <td><span class="chip">POST</span></td>
-                    <td class="mono">/api/v1/payments/callback</td>
-                    <td>支付</td>
-                    <td><span class="switch switch--on"></span></td>
-                    <td class="num">1</td>
-                    <td class="num">2026-09-22 14:03</td>
-                    <td><span class="op-link" data-ux-feedback="已在「快速调试」中打开该接口" data-ux-feedback-type="success">调试</span><span class="op-link">编辑</span><span class="op-link" data-ux-feedback="更多操作：复制 / 移动 / 停用 / 删除">更多</span></td>
-                  </tr>
-                  <tr>
-                    <td><span class="checkbox"></span></td>
-                    <td><span class="star" data-icon="star"></span></td>
-                    <td class="cell-main"><span class="text-brand">商品库存扣减</span></td>
-                    <td><span class="chip">POST</span></td>
-                    <td class="mono">/api/v1/stock/deduct</td>
-                    <td>库存</td>
-                    <td><span class="switch switch--on"></span></td>
-                    <td class="num">3</td>
-                    <td class="num">2026-09-20 11:08</td>
-                    <td><span class="op-link" data-ux-feedback="已在「快速调试」中打开该接口" data-ux-feedback-type="success">调试</span><span class="op-link">编辑</span><span class="op-link" data-ux-feedback="更多操作：复制 / 移动 / 停用 / 删除">更多</span></td>
-                  </tr>
-                  <tr>
-                    <td><span class="checkbox"></span></td>
-                    <td><span class="star" data-icon="star"></span></td>
-                    <td class="cell-main"><span class="text-brand">删除收货地址</span></td>
-                    <td><span class="chip">DELETE</span></td>
-                    <td class="mono">/api/v1/addresses/{id}</td>
-                    <td>用户</td>
-                    <td><span class="switch"></span></td>
-                    <td class="num">0</td>
-                    <td class="num">2026-09-15 09:55</td>
-                    <td><span class="op-link" data-ux-feedback="已在「快速调试」中打开该接口" data-ux-feedback-type="success">调试</span><span class="op-link">编辑</span><span class="op-link" data-ux-feedback="更多操作：复制 / 移动 / 停用 / 删除">更多</span></td>
-                  </tr>
-                </tbody>
-              </table>
+            <!-- 请求行 -->
+            <div class="reqline">
+              <select class="select select--proto"><option>HTTP</option><option>HTTPS</option></select>
+              <select class="select select--method" style="color:#49cc90"><option>POST</option><option>GET</option><option>PUT</option><option>PATCH</option><option>DELETE</option></select>
+              <input class="input input--path" value="/api/v1/orders">
+              <input class="input input--name" value="创建订单">
+              <span class="tag tag--warning" id="dirty-flag" hidden>未保存</span>
+              <button class="btn btn--primary" data-ux-save data-ux-key="mod+s">保存<span class="kbd">⌘S</span></button>
             </div>
-            <div class="pagination" data-ux-pageable>
-              <span class="pagination__total">共 142 个接口 · 每页 20 条</span>
-              <button class="page-btn" disabled>‹</button>
-              <button class="page-btn page-btn--active">1</button>
-              <button class="page-btn">2</button>
-              <button class="page-btn">3</button>
-              <button class="page-btn">…</button>
-              <button class="page-btn">8</button>
-              <button class="page-btn">›</button>
+
+            <div class="split-v">
+              <!-- 请求配置 -->
+              <div class="req-area">
+                <div class="etabs">
+                  <button class="etab is-active" data-e="basic">基本信息</button>
+                  <button class="etab" data-e="headers">请求头<span class="badge">3</span></button>
+                  <button class="etab" data-e="query">Query 参数<span class="badge">2</span></button>
+                  <button class="etab" data-e="body">请求体<span class="badge">1</span></button>
+                  <button class="etab" data-e="auth">认证</button>
+                  <button class="etab" data-e="validators">验证器<span class="badge">2</span></button>
+                  <button class="etab" data-e="extractors">提取器<span class="badge">1</span></button>
+                </div>
+
+                <!-- 基本信息 -->
+                <div class="epanel" data-epanel="basic">
+                  <div class="field">
+                    <label class="field__label">所属模块</label>
+                    <select class="select" style="width:100%"><option>订单 / 交易下单</option><option>订单</option><option>支付</option><option>商品</option></select>
+                  </div>
+                  <div class="field" style="margin-bottom:0">
+                    <label class="field__label">描述</label>
+                    <textarea class="textarea" style="width:100%">创建订单并锁定库存，需携带幂等键防止重复提交；成功返回 orderId 与过期时间。</textarea>
+                  </div>
+                </div>
+
+                <!-- 请求头 -->
+                <div class="epanel" data-epanel="headers" hidden>
+                  <table class="kv">
+                    <thead><tr><th style="width:34px">启用</th><th>Header</th><th>值</th><th style="width:40px"></th></tr></thead>
+                    <tbody data-kvbody="headers">
+                      <tr><td><span class="checkbox checkbox--on"></span></td><td><input class="input" value="Content-Type" style="height:28px"></td><td><input class="input" value="application/json" style="height:28px"></td><td><span class="op-link op-link--danger" data-ux-undo="tr">删</span></td></tr>
+                      <tr><td><span class="checkbox checkbox--on"></span></td><td><input class="input" value="X-Idempotency-Key" style="height:28px"></td><td><input class="input" value="${UUID}" style="height:28px"></td><td><span class="op-link op-link--danger" data-ux-undo="tr">删</span></td></tr>
+                      <tr><td><span class="checkbox"></span></td><td><input class="input" value="X-Channel" style="height:28px"></td><td><input class="input" value="app" style="height:28px"></td><td><span class="op-link op-link--danger" data-ux-undo="tr">删</span></td></tr>
+                    </tbody>
+                  </table>
+                  <span class="kv__add" data-addrow="headers">+ 添加请求头</span>
+                </div>
+
+                <!-- Query 参数 -->
+                <div class="epanel" data-epanel="query" hidden>
+                  <table class="kv">
+                    <thead><tr><th style="width:34px">启用</th><th>参数名</th><th>值</th><th style="width:40px"></th></tr></thead>
+                    <tbody data-kvbody="query">
+                      <tr><td><span class="checkbox checkbox--on"></span></td><td><input class="input" value="channel" style="height:28px"></td><td><input class="input" value="app" style="height:28px"></td><td><span class="op-link op-link--danger" data-ux-undo="tr">删</span></td></tr>
+                      <tr><td><span class="checkbox checkbox--on"></span></td><td><input class="input" value="withStock" style="height:28px"></td><td><input class="input" value="true" style="height:28px"></td><td><span class="op-link op-link--danger" data-ux-undo="tr">删</span></td></tr>
+                    </tbody>
+                  </table>
+                  <span class="kv__add" data-addrow="query">+ 添加参数</span>
+                </div>
+
+                <!-- 请求体（bodyType：none / urlencoded / raw，对应 InterfaceEditorBody） -->
+                <div class="epanel" data-epanel="body" hidden>
+                  <div>
+                    <span class="bodytypes" id="bodytypes">
+                      <button class="bodytype" data-bt="none">none</button>
+                      <button class="bodytype" data-bt="urlencoded">x-www-form-urlencoded</button>
+                      <button class="bodytype is-active" data-bt="raw">raw</button>
+                    </span>
+                    <span class="bodytypes-right" id="raw-controls">
+                      <select class="select" id="raw-subtype"><option>Json</option><option>Text</option><option>Xml</option><option>Html</option><option>JavaScript</option></select>
+                      <button class="icon-btn-sm" title="格式化（修正 JSON 缩进）" data-ux-feedback="已格式化，修正 JSON 缩进" data-ux-feedback-type="success"><span data-icon="sparkle"></span></button>
+                    </span>
+                  </div>
+                  <p class="field__hint" id="body-none-hint" hidden>该请求不携带请求体。</p>
+                  <div id="body-urlencoded" hidden>
+                    <table class="kv">
+                      <thead><tr><th style="width:34px">启用</th><th>参数名</th><th>值</th><th style="width:40px"></th></tr></thead>
+                      <tbody data-kvbody="urlencoded">
+                        <tr><td><span class="checkbox checkbox--on"></span></td><td><input class="input" value="grant_type" style="height:28px"></td><td><input class="input" value="client_credentials" style="height:28px"></td><td><span class="op-link op-link--danger" data-ux-undo="tr">删</span></td></tr>
+                      </tbody>
+                    </table>
+                    <span class="kv__add" data-addrow="urlencoded">+ 添加参数</span>
+                  </div>
+                  <textarea class="code-editor" id="body-raw" spellcheck="false">{
+            "channel": "app",
+            "items": [{ "sku": "SKU-10021", "quantity": 2 }],
+            "addressId": "addr_30219"
+          }</textarea>
+                </div>
+
+                <!-- 认证 -->
+                <div class="epanel" data-epanel="auth" hidden>
+                  <div style="max-width:420px">
+                    <div class="field">
+                      <label class="field__label">认证方式</label>
+                      <select class="select"><option>Bearer Token</option><option>No Auth</option><option>API Key</option><option>Basic Auth</option><option disabled>Digest Auth</option></select>
+                    </div>
+                    <div class="field">
+                      <label class="field__label">Token</label>
+                      <input class="input" type="password" value="eyJhbGciOiJIUzI1NiJ9">
+                      <p class="field__hint">提交时换算为 Authorization: Bearer 头；手工同名头优先</p>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 验证器 -->
+                <div class="epanel" data-epanel="validators" hidden>
+                  <div class="pane-actions">
+                    <span class="op-link" data-addcard="validators">+ 添加验证器</span>
+                    <span class="op-link" data-ux-feedback="从公共组件引入为复制，得到独立副本，与源资产无关联">从公共组件获取</span>
+                  </div>
+                  <div class="pane-card">
+                    <div class="pane-card__row">
+                      <span class="switch switch--on"></span>
+                      <select class="select"><option>响应 Body</option><option>响应头</option><option>状态码</option></select>
+                      <select class="select"><option>等于</option><option>包含</option><option>不为空</option></select>
+                      <input class="input" value="$.code">
+                      <input class="input" value="0">
+                      <span class="op-link op-link--danger" data-ux-undo=".pane-card">删除</span>
+                    </div>
+                  </div>
+                  <div class="pane-card">
+                    <div class="pane-card__row">
+                      <span class="switch switch--on"></span>
+                      <select class="select"><option>状态码</option><option>响应 Body</option></select>
+                      <select class="select"><option>等于</option><option>大于</option></select>
+                      <input class="input" value="">
+                      <input class="input" value="200">
+                      <span class="op-link op-link--danger" data-ux-undo=".pane-card">删除</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 提取器 -->
+                <div class="epanel" data-epanel="extractors" hidden>
+                  <div class="pane-actions">
+                    <span class="op-link" data-addcard="extractors">+ 添加提取器</span>
+                    <span class="op-link" data-ux-feedback="从公共组件引入为复制，得到独立副本，与源资产无关联">从公共组件获取</span>
+                  </div>
+                  <div class="pane-card">
+                    <div class="pane-card__row">
+                      <span class="switch switch--on"></span>
+                      <select class="select"><option>响应 Body</option><option>响应头</option></select>
+                      <input class="input" value="$.data.orderId">
+                      <input class="input" value="orderId">
+                      <span class="op-link op-link--danger" data-ux-undo=".pane-card">删除</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="req-div"><i></i></div>
+
+              <!-- 响应示例 -->
+              <div class="resp-area">
+                <div class="resp-toolbar">
+                  <span class="resp-title">响应示例</span>
+                  <div class="resp-modes">
+                    <button class="respmode is-active" data-rmode="body">Body</button>
+                    <button class="respmode" data-rmode="headers">Headers</button>
+                  </div>
+                  <button class="icon-btn-sm" title="格式化（修正 JSON 缩进）" data-ux-feedback="已格式化，修正 JSON 缩进" data-ux-feedback-type="success"><span data-icon="sparkle"></span></button>
+                  <button class="icon-btn-sm" title="复制" data-ux-feedback="已复制" data-ux-feedback-type="success"><span data-icon="copy"></span></button>
+                </div>
+                <div class="resp-body">
+                  <textarea class="resp-editor" id="resp-body-text" spellcheck="false">{
+            "code": 0,
+            "message": "ok",
+            "data": {
+            "orderId": "ord_88213",
+            "status": "CREATED",
+            "amount": 299.00,
+            "expireAt": "2026-09-23T10:15:00Z"
+            }
+          }</textarea>
+                  <textarea class="resp-editor" id="resp-headers-text" spellcheck="false" hidden>Content-Type: application/json
+            X-Trace-Id: 9f3a-77c2-4e10
+          X-Response-Time: 86ms</textarea>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -262,5 +506,216 @@
 <script src="../assets/icons.js"></script>
 <script src="../assets/shell.js"></script>
 <script src="../assets/ux.js"></script>
+<script>
+var rt = window.RTUX;
+
+  // 请求配置七页签切换（对应实现的 el-tabs：basic / headers / query / body / auth / validators / extractors）
+  document.querySelectorAll('.etab').forEach(function (tab) {
+    tab.addEventListener('click', function () {
+      var key = tab.getAttribute('data-e');
+      document.querySelectorAll('.etab').forEach(function (t) { t.classList.toggle('is-active', t === tab); });
+      document.querySelectorAll('[data-epanel]').forEach(function (p) {
+        p.hidden = p.getAttribute('data-epanel') !== key;
+      });
+    });
+  });
+
+  // 响应示例 Body / Headers 切换
+  document.querySelectorAll('.respmode').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      btn.parentElement.querySelectorAll('.is-active').forEach(function (s) { s.classList.remove('is-active'); });
+      btn.classList.add('is-active');
+      var mode = btn.getAttribute('data-rmode');
+      document.getElementById('resp-body-text').hidden = mode !== 'body';
+      document.getElementById('resp-headers-text').hidden = mode !== 'headers';
+    });
+  });
+
+  /* ---------------- 脏态：编辑后标记，保存后清除 ---------------- */
+  var dirtyFlag = document.getElementById('dirty-flag');
+  var editorCard = document.querySelector('.editor__card');
+  function markDirty() { dirtyFlag.hidden = false; }
+  editorCard.addEventListener('input', markDirty);
+  editorCard.addEventListener('change', markDirty);
+  editorCard.addEventListener('click', function (e) {
+    if (e.target.closest('[data-ux-save]')) dirtyFlag.hidden = true;
+  });
+
+  /* ---------------- 页签角标与行 / 卡片数量保持一致 ---------------- */
+  var BADGE_KEYS = ['headers', 'query', 'validators', 'extractors'];
+  function syncBadges() {
+    BADGE_KEYS.forEach(function (key) {
+      var badge = document.querySelector('.etab[data-e="' + key + '"] .badge');
+      var panel = document.querySelector('[data-epanel="' + key + '"]');
+      if (!badge || !panel) return;
+      var nodes = (key === 'validators' || key === 'extractors')
+        ? panel.querySelectorAll('.pane-card')
+        : panel.querySelectorAll('tbody tr');
+      var n = 0;
+      nodes.forEach(function (node) {
+        if (node.style.display !== 'none') n += 1;
+      });
+      badge.textContent = n;
+    });
+  }
+
+  // 新增行（请求头 / Query / urlencoded）
+  document.querySelectorAll('[data-addrow]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var tbody = document.querySelector('[data-kvbody="' + btn.getAttribute('data-addrow') + '"]');
+      if (!tbody || !tbody.lastElementChild) return;
+      var row = tbody.lastElementChild.cloneNode(true);
+      row.style.display = '';
+      var inputs = row.querySelectorAll('input');
+      inputs.forEach(function (input, i) { input.value = ''; input.placeholder = i === 0 ? '名称' : '值'; });
+      tbody.appendChild(row);
+      if (rt.bind) rt.bind(row);
+      syncBadges();
+      markDirty();
+      rt.toast('已添加一行', {});
+    });
+  });
+
+  // 新增卡片（验证器 / 提取器）
+  document.querySelectorAll('[data-addcard]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var panel = document.querySelector('[data-epanel="' + btn.getAttribute('data-addcard') + '"]');
+      var last = panel.querySelector('.pane-card:last-of-type');
+      if (!last) return;
+      var card = last.cloneNode(true);
+      card.style.display = '';
+      card.querySelectorAll('input').forEach(function (input) { input.value = ''; });
+      panel.appendChild(card);
+      if (rt.bind) rt.bind(card);
+      syncBadges();
+      markDirty();
+      rt.toast('已添加一项', {});
+    });
+  });
+
+  // 行 / 卡片删除与撤销后同步角标
+  document.addEventListener('ux:remove', function () { syncBadges(); markDirty(); });
+  document.addEventListener('ux:restore', function () { syncBadges(); });
+
+  /* ---------------- 请求体类型（none / urlencoded / raw） ---------------- */
+  document.querySelectorAll('#bodytypes .bodytype').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      document.querySelectorAll('#bodytypes .bodytype').forEach(function (b) { b.classList.remove('is-active'); });
+      btn.classList.add('is-active');
+      var type = btn.getAttribute('data-bt');
+      document.getElementById('body-none-hint').hidden = type !== 'none';
+      document.getElementById('body-urlencoded').hidden = type !== 'urlencoded';
+      document.getElementById('body-raw').hidden = type !== 'raw';
+      document.getElementById('raw-controls').hidden = type !== 'raw';
+      markDirty();
+    });
+  });
+
+  syncBadges();
+</script>
+<script>
+  /* ---------------- 多 Tab：列表 Tab 固定，编辑 Tab 内联打开编辑器 ---------------- */
+  (function () {
+    var tabsBar = document.querySelector('.ws-tabs');
+    var listPane = document.querySelector('.ws-pane[data-pane="list"]');
+    var editorPane = document.querySelector('.ws-pane[data-pane="edit"]');
+    var methodSel = editorPane.querySelector('.select--method');
+    var pathInput = editorPane.querySelector('.input--path');
+    var nameInput = editorPane.querySelector('.input--name');
+    var dirtyFlag = document.getElementById('dirty-flag');
+
+    function activeTab() { return tabsBar.querySelector('.ws-tab.is-active'); }
+
+    function activate(tab) {
+      tabsBar.querySelectorAll('.ws-tab').forEach(function (t) { t.classList.toggle('is-active', t === tab); });
+      var isList = tab.getAttribute('data-pane') === 'list';
+      listPane.hidden = !isList;
+      editorPane.hidden = isList;
+      if (isList) return;
+      // 请求行跟随激活 Tab（同一编辑器面板承载多个接口定义）
+      var method = tab.getAttribute('data-method') || 'GET';
+      methodSel.value = method;
+      // 方法文字按方法着色（与方法徽标同一色板）
+      methodSel.style.color = { GET: '#61affe', POST: '#49cc90', PUT: '#fca130', PATCH: '#fca130', DELETE: '#f56c6c' }[method] || '';
+      pathInput.value = tab.getAttribute('data-path') || '';
+      nameInput.value = tab.getAttribute('data-name') || '新接口';
+      dirtyFlag.hidden = !tab.classList.contains('is-dirty');
+    }
+
+    // 打开编辑 Tab；同名接口复用已打开的 Tab（openEdit 的去重口径）
+    function openTab(name, method, path, dirty) {
+      var found = null;
+      tabsBar.querySelectorAll('.ws-tab[data-name]').forEach(function (t) {
+        if (t.getAttribute('data-name') === name) found = t;
+      });
+      if (!found) {
+        found = document.createElement('div');
+        found.className = 'ws-tab' + (dirty ? ' is-dirty' : '');
+        found.setAttribute('data-name', name);
+        found.setAttribute('data-method', method || 'GET');
+        found.setAttribute('data-path', path || '');
+        found.innerHTML = '<span></span><span class="ws-tab__close" data-close>×</span>';
+        found.firstElementChild.textContent = name;
+        tabsBar.appendChild(found);
+      }
+      activate(found);
+    }
+
+    tabsBar.addEventListener('click', function (e) {
+      var tab = e.target.closest('.ws-tab');
+      if (!tab) return;
+      if (e.target.closest('[data-close]')) {
+        if (tab.classList.contains('is-dirty') && !window.confirm('该接口有未保存的修改，确定关闭？')) return;
+        var wasActive = tab.classList.contains('is-active');
+        tab.parentNode.removeChild(tab);
+        if (wasActive) activate(tabsBar.querySelector('.ws-tab'));
+        return;
+      }
+      activate(tab);
+    });
+
+    // 行内 [编辑]：按接口名打开编辑 Tab
+    listPane.querySelectorAll('tbody tr').forEach(function (tr) {
+      var edit = null;
+      tr.querySelectorAll('.op-link').forEach(function (l) { if (l.textContent.trim() === '编辑') edit = l; });
+      if (!edit) return;
+      edit.addEventListener('click', function () {
+        var nameEl = tr.querySelector('.cell-main .text-brand');
+        var methodEl = tr.querySelector('.chip');
+        var pathEl = tr.querySelector('.mono');
+        openTab(
+          nameEl ? nameEl.textContent.trim() : '接口',
+          methodEl ? methodEl.textContent.trim() : 'GET',
+          pathEl ? pathEl.textContent.trim() : '',
+          false
+        );
+      });
+    });
+
+    // 头部 [+ 新建接口]：新建态 Tab（未保存蓝点）
+    document.getElementById('btn-new-interface').addEventListener('click', function () {
+      openTab('新接口', 'GET', '', true);
+    });
+    // 头部 [导入]：先切回列表 Tab，再走导入弹窗（演示稿仅体现切回）
+    document.getElementById('btn-import-interface').addEventListener('click', function () {
+      activate(tabsBar.querySelector('.ws-tab[data-pane="list"]'));
+    });
+
+    // 编辑器内容变更 → 当前编辑 Tab 标脏；保存 → 清除
+    function markActiveDirty() {
+      var t = activeTab();
+      if (t && t.getAttribute('data-pane') !== 'list') t.classList.add('is-dirty');
+    }
+    editorPane.addEventListener('input', markActiveDirty);
+    editorPane.addEventListener('change', markActiveDirty);
+    editorPane.addEventListener('click', function (e) {
+      if (e.target.closest('[data-ux-save]')) {
+        var t = activeTab();
+        if (t) t.classList.remove('is-dirty');
+        if (dirtyFlag) dirtyFlag.hidden = true;
+      }
+    });
+  })();
+</script>
 </body>
 </html>
