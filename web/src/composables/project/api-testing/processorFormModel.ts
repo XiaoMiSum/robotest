@@ -286,26 +286,24 @@ export function extractorsFromComponents(items: ApiComponentListItem[]): Process
   return items.map((item) => toExtractorRow(parseComponentConfig(item.config)))
 }
 
-/** 验证器资产 → 接口验证器元素（复制引入，独立副本；字段与 ValidatorForm 读取一致） */
+/** 验证器资产 → 接口验证器元素（复制引入，独立副本）：字段与默认值必须对齐后端 SceneRyzeConverter 读取的 condition/target 值域，否则断言条件会被静默回退为 equals 或抛“不支持的验证目标” */
 export function validatorFromComponent(item: ApiComponentListItem): Record<string, unknown> {
   const cfg = parseComponentConfig(item.config)
   return {
-    target: pickString(cfg.target, 'status'),
+    target: pickString(cfg.target, 'status_code'),
     expression: pickString(cfg.expression),
-    operator: pickString(cfg.operator, 'eq'),
+    condition: pickString(cfg.condition, 'equals'),
     expected: pickString(cfg.expected),
-    description: pickString(cfg.description),
   }
 }
 
-/** 提取器资产 → 接口提取器元素（复制引入，独立副本；字段与 ExtractorForm 读取一致） */
+/** 提取器资产 → 接口提取器元素（复制引入，独立副本）：source 默认值须落在后端 Ryze 转换支持的提取来源内 */
 export function extractorFromComponent(item: ApiComponentListItem): Record<string, unknown> {
   const cfg = parseComponentConfig(item.config)
   return {
-    source: pickString(cfg.source, 'body'),
+    source: pickString(cfg.source, 'json_field'),
     expression: pickString(cfg.expression),
     variableName: pickString(cfg.variableName),
-    description: pickString(cfg.description),
   }
 }
 
