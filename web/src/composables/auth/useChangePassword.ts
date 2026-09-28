@@ -39,7 +39,7 @@ export function useChangePassword(visible: Ref<boolean>) {
       await changePassword(oldPassword.value, newPassword.value)
       visible.value = false
       ElMessage.success('密码已修改，请重新登录')
-      authStore.logout()
+      await authStore.logout()
       router.push('/login')
     } catch (err) {
       ElMessage.error(err instanceof Error ? err.message : '修改密码失败')
