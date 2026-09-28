@@ -13,7 +13,10 @@
   .fn-body { flex: 1; display: flex; gap: var(--space-lg); min-height: 0; }
 
   /* 左：函数列表 */
-  .fn-list { width: 340px; flex-shrink: 0; overflow-y: auto; background: #fff; border: 1px solid var(--n-100); border-radius: var(--radius-lg); padding: var(--space-sm); display: flex; flex-direction: column; gap: var(--space-sm); }
+  .fn-list { width: 340px; flex-shrink: 0; overflow: hidden; background: #fff; border: 1px solid var(--n-100); border-radius: var(--radius-lg); padding: var(--space-sm); display: flex; flex-direction: column; gap: var(--space-sm); }
+  .fn-list__head { display: flex; align-items: center; gap: var(--space-sm); flex-shrink: 0; }
+  .fn-list__head .input-wrap { flex: 1; min-width: 0; }
+  .fn-list__body { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: var(--space-sm); }
 
   .radio-seg { display: inline-flex; gap: 2px; background: var(--n-50); border: 1px solid var(--n-100); border-radius: var(--radius-md); padding: 2px; width: 100%; }
   .radio-seg button { flex: 1; height: 26px; border: none; background: none; border-radius: var(--radius-sm); font-size: var(--font-size-xs); color: var(--n-500); cursor: pointer; }
@@ -76,88 +79,90 @@
           <h1 class="page-head__title">函数管理</h1>
           <p class="page-head__desc">项目内可复用的自定义函数，内置函数由平台统一提供</p>
         </div>
-        <div class="page-head__actions">
-          <div class="input-wrap" style="width:240px"><span data-icon="search"></span><input class="input" id="fn-search" placeholder="搜索函数名称..."></div>
-          <button class="btn btn--primary" id="fn-add"><span data-icon="plus"></span>新增</button>
-        </div>
       </div>
 
       <div class="fn-page">
         <div class="fn-body">
-          <!-- 左：函数列表 -->
+          <!-- 左：函数列表（docs23 §1.1：搜索与 [新增] 位于列表首行） -->
           <aside class="fn-list">
+            <div class="fn-list__head">
+              <div class="input-wrap"><span data-icon="search"></span><input class="input" id="fn-search" placeholder="搜索函数名称..."></div>
+              <button class="btn btn--primary" id="fn-add"><span data-icon="plus"></span>新增</button>
+            </div>
+            <div class="fn-list__body">
 
-            <span class="radio-seg">
-              <button class="is-active" data-fntab="all">全部</button>
-              <button data-fntab="builtin">内置函数</button>
-              <button data-fntab="custom">自定义函数</button>
-            </span>
+              <span class="radio-seg">
+                <button class="is-active" data-fntab="all">全部</button>
+                <button data-fntab="builtin">内置函数</button>
+                <button data-fntab="custom">自定义函数</button>
+              </span>
 
-            <!-- 内置函数元数据与 ApiBuiltinFunctionRegistry 保持一致 -->
-            <ul class="fn-items" data-fnlist="builtin">
-              <li class="fn-item is-active" data-fn="uuid" data-scope="builtin">
-                <div class="fn-item__main">
-                  <span class="fn-item__name">uuid</span>
-                  <span class="tag tag--outline">内置</span>
-                </div>
-                <div class="fn-item__meta">生成随机 UUID（去连字符）</div>
-              </li>
-              <li class="fn-item" data-fn="random" data-scope="builtin">
-                <div class="fn-item__main">
-                  <span class="fn-item__name">random</span>
-                  <span class="tag tag--outline">内置</span>
-                </div>
-                <div class="fn-item__meta">生成指定区间的随机整数</div>
-              </li>
-              <li class="fn-item" data-fn="timestamp" data-scope="builtin">
-                <div class="fn-item__main">
-                  <span class="fn-item__name">timestamp</span>
-                  <span class="tag tag--outline">内置</span>
-                </div>
-                <div class="fn-item__meta">当前时间戳，默认毫秒；可指定秒或日期格式</div>
-              </li>
-              <li class="fn-item" data-fn="json_read" data-scope="builtin">
-                <div class="fn-item__main">
-                  <span class="fn-item__name">json_read</span>
-                  <span class="tag tag--outline">内置</span>
-                </div>
-                <div class="fn-item__meta">从 JSON 文本中按 JsonPath 提取值</div>
-              </li>
-            </ul>
+              <!-- 内置函数元数据与 ApiBuiltinFunctionRegistry 保持一致 -->
+              <ul class="fn-items" data-fnlist="builtin">
+                <li class="fn-item is-active" data-fn="uuid" data-scope="builtin">
+                  <div class="fn-item__main">
+                    <span class="fn-item__name">uuid</span>
+                    <span class="tag tag--outline">内置</span>
+                  </div>
+                  <div class="fn-item__meta">生成随机 UUID（去连字符）</div>
+                </li>
+                <li class="fn-item" data-fn="random" data-scope="builtin">
+                  <div class="fn-item__main">
+                    <span class="fn-item__name">random</span>
+                    <span class="tag tag--outline">内置</span>
+                  </div>
+                  <div class="fn-item__meta">生成指定区间的随机整数</div>
+                </li>
+                <li class="fn-item" data-fn="timestamp" data-scope="builtin">
+                  <div class="fn-item__main">
+                    <span class="fn-item__name">timestamp</span>
+                    <span class="tag tag--outline">内置</span>
+                  </div>
+                  <div class="fn-item__meta">当前时间戳，默认毫秒；可指定秒或日期格式</div>
+                </li>
+                <li class="fn-item" data-fn="json_read" data-scope="builtin">
+                  <div class="fn-item__main">
+                    <span class="fn-item__name">json_read</span>
+                    <span class="tag tag--outline">内置</span>
+                  </div>
+                  <div class="fn-item__meta">从 JSON 文本中按 JsonPath 提取值</div>
+                </li>
+              </ul>
 
-            <ul class="fn-items" data-fnlist="custom">
-              <li class="fn-item" data-fn="signParams" data-scope="custom">
-                <div class="fn-item__main">
-                  <span class="fn-item__name">signParams</span>
-                  <span class="tag tag--success">自定义</span>
-                  <span class="tag tag--outline">项目</span>
-                </div>
-                <div class="fn-item__meta">按业务规则生成签名参数</div>
-                <div class="fn-item__acts"><span class="op-link" data-act="toggle">禁用</span><span class="op-link op-link--danger" data-ux-undo=".fn-item">删除</span></div>
-              </li>
-              <li class="fn-item" data-fn="genOrderNo" data-scope="custom">
-                <div class="fn-item__main">
-                  <span class="fn-item__name">genOrderNo</span>
-                  <span class="tag tag--success">自定义</span>
-                  <span class="tag tag--outline">空间</span>
-                </div>
-                <div class="fn-item__meta">生成雪花订单号</div>
-                <div class="fn-item__acts"><span class="op-link" data-act="toggle">禁用</span><span class="op-link op-link--danger" data-ux-undo=".fn-item">删除</span></div>
-              </li>
-              <li class="fn-item is-disabled" data-fn="legacyFmt" data-scope="custom">
-                <div class="fn-item__main">
-                  <span class="fn-item__name">legacyFmt</span>
-                  <span class="tag tag--success">自定义</span>
-                  <span class="tag tag--outline">项目</span>
-                </div>
-                <div class="fn-item__meta">旧版报文格式化（已停用）</div>
-                <div class="fn-item__acts"><span class="op-link" data-act="toggle">启用</span><span class="op-link op-link--danger" data-ux-undo=".fn-item">删除</span></div>
-              </li>
-            </ul>
+              <ul class="fn-items" data-fnlist="custom">
+                <li class="fn-item" data-fn="signParams" data-scope="custom">
+                  <div class="fn-item__main">
+                    <span class="fn-item__name">signParams</span>
+                    <span class="tag tag--success">自定义</span>
+                    <span class="tag tag--outline">项目</span>
+                  </div>
+                  <div class="fn-item__meta">按业务规则生成签名参数</div>
+                  <div class="fn-item__acts"><span class="op-link" data-act="toggle">禁用</span><span class="op-link op-link--danger" data-ux-undo=".fn-item">删除</span></div>
+                </li>
+                <li class="fn-item" data-fn="genOrderNo" data-scope="custom">
+                  <div class="fn-item__main">
+                    <span class="fn-item__name">genOrderNo</span>
+                    <span class="tag tag--success">自定义</span>
+                    <span class="tag tag--outline">空间</span>
+                  </div>
+                  <div class="fn-item__meta">生成雪花订单号</div>
+                  <div class="fn-item__acts"><span class="op-link" data-act="toggle">禁用</span><span class="op-link op-link--danger" data-ux-undo=".fn-item">删除</span></div>
+                </li>
+                <li class="fn-item is-disabled" data-fn="legacyFmt" data-scope="custom">
+                  <div class="fn-item__main">
+                    <span class="fn-item__name">legacyFmt</span>
+                    <span class="tag tag--success">自定义</span>
+                    <span class="tag tag--outline">项目</span>
+                  </div>
+                  <div class="fn-item__meta">旧版报文格式化（已停用）</div>
+                  <div class="fn-item__acts"><span class="op-link" data-act="toggle">启用</span><span class="op-link op-link--danger" data-ux-undo=".fn-item">删除</span></div>
+                </li>
+              </ul>
 
-            <div class="fn-empty" id="fn-empty" hidden>
-              <p id="fn-empty-text">无匹配函数</p>
-              <button class="btn btn--default btn--sm" id="fn-clear-search">清除搜索</button>
+              <div class="fn-empty" id="fn-empty" hidden>
+                <p id="fn-empty-text">无匹配函数</p>
+                <button class="btn btn--default btn--sm" id="fn-clear-search">清除搜索</button>
+              </div>
             </div>
           </aside>
 

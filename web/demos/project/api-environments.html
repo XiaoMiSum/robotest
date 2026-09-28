@@ -12,7 +12,10 @@
   .env-body { flex: 1; display: flex; gap: var(--space-lg); min-height: 0; }
 
   /* 左：环境列表 */
-  .env-list { width: 300px; flex-shrink: 0; overflow-y: auto; background: #fff; border: 1px solid var(--n-100); border-radius: var(--radius-lg); padding: var(--space-sm); display: flex; flex-direction: column; gap: var(--space-sm); }
+  .env-list { width: 300px; flex-shrink: 0; overflow: hidden; background: #fff; border: 1px solid var(--n-100); border-radius: var(--radius-lg); padding: var(--space-sm); display: flex; flex-direction: column; gap: var(--space-sm); }
+  .env-list__head { display: flex; align-items: center; gap: var(--space-sm); flex-shrink: 0; }
+  .env-list__head .input-wrap { flex: 1; min-width: 0; }
+  .env-list__body { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: var(--space-sm); }
   .split-btn { display: inline-flex; }
   .split-btn .btn:first-child { border-top-right-radius: 0; border-bottom-right-radius: 0; }
   .split-btn .btn:last-child { border-top-left-radius: 0; border-bottom-left-radius: 0; padding-left: 8px; padding-right: 8px; }
@@ -107,69 +110,71 @@
           <h1 class="page-head__title">环境管理</h1>
           <p class="page-head__desc">场景与接口执行的环境配置，含 HTTP 配置、变量、数据源与处理器</p>
         </div>
-        <div class="page-head__actions">
-          <div class="input-wrap" style="width:240px"><span data-icon="search"></span><input class="input" id="env-search" placeholder="搜索环境名称..."></div>
-          <span class="split-btn">
-            <button class="btn btn--primary" id="env-create"><span data-icon="plus"></span>新建</button>
-            <button class="btn btn--primary" data-ux-feedback="导入环境：支持覆盖同名环境；导出当前环境：下载为 JSON">▾</button>
-          </span>
-        </div>
       </div>
 
       <div class="env-page">
         <div class="env-body">
-          <!-- 左：环境列表 -->
+          <!-- 左：环境列表（docs34 §1.1：搜索与 [新建▾] 位于列表首行） -->
           <aside class="env-list">
-            <ul class="env-items" id="env-items">
-              <li class="env-item is-active" data-env="测试环境" data-default="1" data-bound="1">
-                <div class="env-item__main">
-                  <span class="env-item__name">测试环境</span>
-                  <span class="tag tag--warning">默认</span>
-                  <span class="tag tag--outline">项目</span>
-                </div>
-                <div class="env-item__meta">2 HTTP · 4 变量 · 1 数据源 · 2 处理器</div>
-                <div class="env-item__acts">
-                  <span class="op-link op-link--muted">上移</span>
-                  <span class="op-link" data-act="down">下移</span>
-                  <span class="op-link" data-act="edit">编辑</span>
-                  <span class="op-link" data-act="copy">复制</span>
-                  <span class="op-link op-link--danger" data-act="delete">删除</span>
-                </div>
-              </li>
-              <li class="env-item" data-env="预发环境">
-                <div class="env-item__main">
-                  <span class="env-item__name">预发环境</span>
-                  <span class="env-item__set-default" data-act="setdefault">设为默认</span>
-                  <span class="tag tag--outline">项目</span>
-                </div>
-                <div class="env-item__meta">1 HTTP · 2 变量 · 0 数据源 · 1 处理器</div>
-                <div class="env-item__acts">
-                  <span class="op-link" data-act="up">上移</span>
-                  <span class="op-link" data-act="down">下移</span>
-                  <span class="op-link" data-act="edit">编辑</span>
-                  <span class="op-link" data-act="copy">复制</span>
-                  <span class="op-link op-link--danger" data-act="delete" data-ux-undo=".env-item">删除</span>
-                </div>
-              </li>
-              <li class="env-item" data-env="生产环境">
-                <div class="env-item__main">
-                  <span class="env-item__name">生产环境</span>
-                  <span class="env-item__set-default" data-act="setdefault">设为默认</span>
-                </div>
-                <div class="env-item__meta">1 HTTP · 1 变量 · 1 数据源 · 0 处理器</div>
-                <div class="env-item__acts">
-                  <span class="op-link" data-act="up">上移</span>
-                  <span class="op-link op-link--muted" data-act="down">下移</span>
-                  <span class="op-link" data-act="edit">编辑</span>
-                  <span class="op-link" data-act="copy">复制</span>
-                  <span class="op-link op-link--danger" data-act="delete" data-ux-undo=".env-item">删除</span>
-                </div>
-              </li>
-            </ul>
+            <div class="env-list__head">
+              <div class="input-wrap"><span data-icon="search"></span><input class="input" id="env-search" placeholder="搜索环境名称..."></div>
+              <span class="split-btn">
+                <button class="btn btn--primary" id="env-create"><span data-icon="plus"></span>新建</button>
+                <button class="btn btn--primary" data-ux-feedback="导入环境：支持覆盖同名环境；导出当前环境：下载为 JSON">▾</button>
+              </span>
+            </div>
+            <div class="env-list__body">
+              <ul class="env-items" id="env-items">
+                <li class="env-item is-active" data-env="测试环境" data-default="1" data-bound="1">
+                  <div class="env-item__main">
+                    <span class="env-item__name">测试环境</span>
+                    <span class="tag tag--warning">默认</span>
+                    <span class="tag tag--outline">项目</span>
+                  </div>
+                  <div class="env-item__meta">2 HTTP · 4 变量 · 1 数据源 · 2 处理器</div>
+                  <div class="env-item__acts">
+                    <span class="op-link op-link--muted">上移</span>
+                    <span class="op-link" data-act="down">下移</span>
+                    <span class="op-link" data-act="edit">编辑</span>
+                    <span class="op-link" data-act="copy">复制</span>
+                    <span class="op-link op-link--danger" data-act="delete">删除</span>
+                  </div>
+                </li>
+                <li class="env-item" data-env="预发环境">
+                  <div class="env-item__main">
+                    <span class="env-item__name">预发环境</span>
+                    <span class="env-item__set-default" data-act="setdefault">设为默认</span>
+                    <span class="tag tag--outline">项目</span>
+                  </div>
+                  <div class="env-item__meta">1 HTTP · 2 变量 · 0 数据源 · 1 处理器</div>
+                  <div class="env-item__acts">
+                    <span class="op-link" data-act="up">上移</span>
+                    <span class="op-link" data-act="down">下移</span>
+                    <span class="op-link" data-act="edit">编辑</span>
+                    <span class="op-link" data-act="copy">复制</span>
+                    <span class="op-link op-link--danger" data-act="delete" data-ux-undo=".env-item">删除</span>
+                  </div>
+                </li>
+                <li class="env-item" data-env="生产环境">
+                  <div class="env-item__main">
+                    <span class="env-item__name">生产环境</span>
+                    <span class="env-item__set-default" data-act="setdefault">设为默认</span>
+                  </div>
+                  <div class="env-item__meta">1 HTTP · 1 变量 · 1 数据源 · 0 处理器</div>
+                  <div class="env-item__acts">
+                    <span class="op-link" data-act="up">上移</span>
+                    <span class="op-link op-link--muted" data-act="down">下移</span>
+                    <span class="op-link" data-act="edit">编辑</span>
+                    <span class="op-link" data-act="copy">复制</span>
+                    <span class="op-link op-link--danger" data-act="delete" data-ux-undo=".env-item">删除</span>
+                  </div>
+                </li>
+              </ul>
 
-            <div class="env-empty" id="env-empty" hidden>
-              <p id="env-empty-text">无匹配环境</p>
-              <button class="btn btn--default btn--sm" id="env-clear-search">清除搜索</button>
+              <div class="env-empty" id="env-empty" hidden>
+                <p id="env-empty-text">无匹配环境</p>
+                <button class="btn btn--default btn--sm" id="env-clear-search">清除搜索</button>
+              </div>
             </div>
           </aside>
 
