@@ -6,8 +6,9 @@
 <title>接口测试 · 场景编辑器 · RoboTest</title>
 <link rel="stylesheet" href="../assets/tokens.css">
 <link rel="stylesheet" href="../assets/base.css">
+<link rel="stylesheet" href="../assets/ux.css">
 <style>
-  .scene-ed { display: flex; flex-direction: column; gap: var(--space-md); height: 100%; }
+  .scene-ed { display: flex; flex-direction: column; gap: var(--space-md); }
 
   /* 顶部导航：名称 / 模块 / 状态 / 优先级 …… 操作按钮 */
   .ed-nav { display: flex; align-items: center; gap: var(--space-sm); padding: 10px 16px; flex-wrap: wrap; }
@@ -62,7 +63,70 @@
   .step-card__acts span { cursor: pointer; }
   .step-card__acts span:hover { color: var(--brand-500); }
   .step-card__body { margin-top: 5px; font-size: var(--font-size-xs); color: var(--n-500); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  /* hover 时放开裁剪，避免变量溯源浮层被省略号容器裁掉 */
+  .step-card:hover .step-card__body { overflow: visible; }
   .step-card.is-off { opacity: .55; }
+
+  /* 变量溯源：引用处高亮 + hover 来源浮层（点击跳到来源步骤） */
+  .var-ref {
+    position: relative;
+    color: var(--brand-600, #337ecc);
+    background: var(--brand-50);
+    border-bottom: 1px dashed var(--brand-400, #79bbff);
+    padding: 0 2px;
+    border-radius: 3px 3px 0 0;
+    cursor: help;
+  }
+  .var-ref:hover { background: var(--brand-100, #ecf5ff); }
+  .var-tip {
+    position: absolute;
+    left: 0;
+    bottom: calc(100% + 6px);
+    z-index: 20;
+    display: none;
+    width: max-content;
+    max-width: 260px;
+    padding: 6px 10px;
+    border-radius: var(--radius-md);
+    background: rgba(32, 35, 41, .95);
+    color: #fff;
+    font-size: var(--font-size-xs);
+    font-weight: 400;
+    line-height: 1.5;
+    white-space: normal;
+    box-shadow: 0 8px 20px -8px rgba(0, 0, 0, .4);
+    cursor: pointer;
+  }
+  .var-tip b { color: #7cc0ff; }
+  .var-tip::after {
+    content: '';
+    position: absolute;
+    left: 12px;
+    top: 100%;
+    border: 5px solid transparent;
+    border-top-color: rgba(32, 35, 41, .95);
+  }
+  .var-ref:hover .var-tip { display: block; }
+
+  /* 行内调试结果：跑完直接显示在步骤卡下方，不弹窗 */
+  .step-run {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 6px;
+    padding: 6px 8px;
+    border-radius: var(--radius-sm);
+    font-size: var(--font-size-xs);
+    animation: ux-toast-in .16s ease-out;
+  }
+  .step-run--pass { background: var(--st-success-light); color: var(--st-success-strong); }
+  .step-run--fail { background: var(--st-danger-light); color: var(--st-danger-strong); }
+  .step-run--running { background: var(--n-50); color: var(--n-600); }
+  .step-run__mono { font-family: var(--font-mono); }
+  .step-run__more { margin-left: auto; color: inherit; opacity: .75; text-decoration: underline; cursor: pointer; }
+  .step-run__more:hover { opacity: 1; }
+  .step-card__acts .run-btn { color: var(--brand-500); }
 
   .switch { position: relative; width: 32px; height: 18px; border-radius: 9px; background: var(--n-200); border: none; cursor: pointer; flex-shrink: 0; padding: 0; transition: background .15s; }
   .switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: #fff; transition: left .15s; }
@@ -123,286 +187,307 @@
 </head>
 <body data-shell="business" data-mode="project" data-active="api" data-workspace="质量中台" data-project="电商核心系统">
 
-<main class="content content--flush">
-  <div class="split">
-    <aside class="split__side">
-      <div class="menu-item side__item"><span data-icon="terminal"></span><span>快速调试</span></div>
-      <div class="menu-item side__item"><span data-icon="link"></span><span>接口管理</span></div>
-      <div class="menu-item side__item"><span data-icon="cpu"></span><span>Mock 服务</span></div>
-      <div class="menu-item side__item menu-item--active"><span data-icon="operation"></span><span>测试场景</span></div>
-      <div class="menu-item side__item"><span data-icon="data-chart"></span><span>测试报告</span></div>
-      <div class="menu-item side__item"><span data-icon="timer"></span><span>定时任务</span></div>
-      <div class="side__group-title">项目设置</div>
-      <div class="menu-item side__item"><span data-icon="compass"></span><span>环境管理</span></div>
-      <div class="menu-item side__item"><span data-icon="layers"></span><span>函数管理</span></div>
-      <div class="menu-item side__item"><span data-icon="box"></span><span>公共组件</span></div>
-    </aside>
+<main class="content">
 
-    <div class="split__main">
-      <div class="scene-ed">
-        <!-- 顶部：场景元信息 + 操作 -->
-        <div class="card ed-nav">
-          <span class="ed-nav__req">*</span>
-          <input class="input" value="下单成功主链路" placeholder="场景名称">
-          <span class="ed-nav__req">*</span>
-          <select class="select"><option>下单主流程</option><option>支付回归</option><option>用户中心</option></select>
-          <span class="ed-status ed-status--on">已发布</span>
-          <button class="ed-prio" style="background:var(--priority-p1)">P1</button>
-          <button class="ed-icon-link" title="场景描述"><span data-icon="document"></span></button>
-          <button class="ed-icon-link" data-panel="history-pop">执行历史</button>
-          <div class="ed-nav__spacer"></div>
-          <select class="select" style="width:170px"><option>默认环境</option><option>测试环境</option><option>预发环境</option></select>
-          <button class="btn btn--primary btn--sm">▶ 运行场景</button>
-          <button class="btn btn--default btn--sm">保存为草稿</button>
-          <button class="btn btn--primary btn--sm">发布</button>
-          <button class="btn btn--danger btn--sm">删除</button>
+  <div class="breadcrumb">
+    <a href="api-scenes.html">测试场景</a>
+    <span data-icon="chevron-right"></span>
+    <span>下单成功主链路</span>
+  </div>
+
+  <div class="page-head">
+    <div>
+      <h1 class="page-head__title">下单成功主链路</h1>
+      <p class="page-head__desc">下单主流程 · 已发布</p>
+    </div>
+    <div class="page-head__actions">
+      <button class="btn btn--primary" id="btn-run-scene" data-ux-key="mod+enter">▶ 运行场景</button>
+      <button class="btn btn--default" data-ux-save data-ux-key="mod+s">保存为草稿<span class="kbd">⌘S</span></button>
+      <button class="btn btn--primary" data-ux-feedback="发布成功，场景已是最新版本" data-ux-feedback-type="success">发布</button>
+      <button class="btn btn--danger" data-ux-undo=".scene-ed" data-ux-undo-name="下单成功主链路">删除</button>
+    </div>
+  </div>
+
+  <div class="scene-ed">
+    <!-- 场景元信息：名称 / 模块 / 状态 / 优先级 …… 运行环境 -->
+    <div class="card ed-nav">
+      <span class="ed-nav__req">*</span>
+      <input class="input" value="下单成功主链路" placeholder="场景名称">
+      <span class="ed-nav__req">*</span>
+      <select class="select"><option>下单主流程</option><option>支付回归</option><option>用户中心</option></select>
+      <span class="ed-status ed-status--on">已发布</span>
+      <button class="ed-prio" style="background:var(--priority-p1)">P1</button>
+      <button class="ed-icon-link" title="场景描述"><span data-icon="document"></span></button>
+      <button class="ed-icon-link" data-panel="history-pop">执行历史</button>
+      <div class="ed-nav__spacer"></div>
+      <select class="select" style="width:170px"><option>默认环境</option><option>测试环境</option><option>预发环境</option></select>
+    </div>
+
+    <div class="card ed-body">
+      <!-- 分区 tabs -->
+      <div class="ed-tabs">
+        <button class="ed-tab is-active" data-edtab="steps">步骤</button>
+        <button class="ed-tab" data-edtab="variables">场景变量</button>
+        <button class="ed-tab" data-edtab="pre">前置处理器</button>
+        <button class="ed-tab" data-edtab="post">后置处理器</button>
+        <div class="ed-tabs__spacer"></div>
+        <div class="ed-tabs__extra">
+          <button class="ed-extra"><span data-icon="sparkle"></span>函数助手</button>
+          <button class="ed-extra"><span data-icon="list"></span>变量助手</button>
         </div>
+      </div>
 
-        <div class="card ed-body">
-          <!-- 分区 tabs -->
-          <div class="ed-tabs">
-            <button class="ed-tab is-active" data-edtab="steps">步骤</button>
-            <button class="ed-tab" data-edtab="variables">场景变量</button>
-            <button class="ed-tab" data-edtab="pre">前置处理器</button>
-            <button class="ed-tab" data-edtab="post">后置处理器</button>
-            <div class="ed-tabs__spacer"></div>
-            <div class="ed-tabs__extra">
-              <button class="ed-extra"><span data-icon="sparkle"></span>函数助手</button>
-              <button class="ed-extra"><span data-icon="list"></span>变量助手</button>
+      <!-- 步骤 -->
+      <div class="ed-panel is-active" data-edpanel="steps">
+        <div class="steps-split">
+          <div class="steps-left">
+            <div class="steps-bar">
+              <span class="steps-bar__count">4 个步骤</span>
+              <div class="steps-bar__spacer"></div>
+              <button class="btn btn--link btn--sm">从接口添加</button>
+              <button class="btn btn--link btn--sm">+ 添加步骤</button>
             </div>
-          </div>
-
-          <!-- 步骤 -->
-          <div class="ed-panel is-active" data-edpanel="steps">
-            <div class="steps-split">
-              <div class="steps-left">
-                <div class="steps-bar">
-                  <span class="steps-bar__count">4 个步骤</span>
-                  <div class="steps-bar__spacer"></div>
-                  <button class="btn btn--link btn--sm">从接口添加</button>
-                  <button class="btn btn--link btn--sm">+ 添加步骤</button>
+            <div class="steps-list">
+              <div class="step-card is-selected" data-step data-step-idx="1">
+                <div class="step-card__head">
+                  <span class="step-card__grip" data-icon="list"></span>
+                  <span class="step-card__idx">1</span>
+                  <span class="step-type">HTTP</span>
+                  <span class="method-tag mt-post">POST</span>
+                  <span class="step-src">创建订单</span>
+                  <div class="step-card__spacer"></div>
+                  <button class="switch is-on" title="启用"></button>
+                  <span class="step-card__acts"><span class="run-btn" data-run>▶ 试运行</span><span>操作 ▾</span></span>
                 </div>
-                <div class="steps-list">
-                  <div class="step-card is-selected" data-step>
-                    <div class="step-card__head">
-                      <span class="step-card__grip" data-icon="list"></span>
-                      <span class="step-card__idx">1</span>
-                      <span class="step-type">HTTP</span>
-                      <span class="method-tag mt-post">POST</span>
-                      <span class="step-src">创建订单</span>
-                      <div class="step-card__spacer"></div>
-                      <button class="switch is-on" title="启用"></button>
-                      <span class="step-card__acts"><span>操作 ▾</span></span>
-                    </div>
-                    <div class="step-card__body">POST /api/order/create</div>
-                  </div>
-
-                  <div class="step-card" data-step>
-                    <div class="step-card__head">
-                      <span class="step-card__grip" data-icon="list"></span>
-                      <span class="step-card__idx">2</span>
-                      <span class="step-type">HTTP</span>
-                      <span class="method-tag mt-get">GET</span>
-                      <div class="step-card__spacer"></div>
-                      <button class="switch is-on" title="启用"></button>
-                      <span class="step-card__acts"><span>操作 ▾</span></span>
-                    </div>
-                    <div class="step-card__body">GET /api/order/${orderId}</div>
-                  </div>
-
-                  <div class="step-card" data-step>
-                    <div class="step-card__head">
-                      <span class="step-card__grip" data-icon="list"></span>
-                      <span class="step-card__idx">3</span>
-                      <span class="step-type">JDBC</span>
-                      <span class="method-tag" style="background:var(--brand-500)">SELECT</span>
-                      <div class="step-card__spacer"></div>
-                      <button class="switch is-on" title="启用"></button>
-                      <span class="step-card__acts"><span>操作 ▾</span></span>
-                    </div>
-                    <div class="step-card__body">SELECT status FROM t_order WHERE id = ?</div>
-                  </div>
-
-                  <div class="step-card is-off" data-step>
-                    <div class="step-card__head">
-                      <span class="step-card__grip" data-icon="list"></span>
-                      <span class="step-card__idx">4</span>
-                      <span class="step-type">HTTP</span>
-                      <span class="method-tag mt-put">PUT</span>
-                      <div class="step-card__spacer"></div>
-                      <button class="switch" title="已停用"></button>
-                      <span class="step-card__acts"><span>操作 ▾</span></span>
-                    </div>
-                    <div class="step-card__body">PUT /api/order/cancel</div>
-                  </div>
+                <div class="step-card__body">POST /api/order/create</div>
+                <!-- 行内调试结果：本步跑完直接显示在卡片下方（不弹窗） -->
+                <div class="step-run step-run--pass" data-run-result hidden>
+                  <span>✓ 通过</span><span class="step-run__mono">200</span><span class="step-run__mono">312 ms</span><span>断言 2/2</span>
+                  <span class="step-run__more" data-ux-feedback="响应摘要：$.code=0 · orderId=ord_88213">查看响应</span>
                 </div>
               </div>
 
-              <div class="steps-divider"><i></i></div>
+              <div class="step-card" data-step data-step-idx="2">
+                <div class="step-card__head">
+                  <span class="step-card__grip" data-icon="list"></span>
+                  <span class="step-card__idx">2</span>
+                  <span class="step-type">HTTP</span>
+                  <span class="method-tag mt-get">GET</span>
+                  <div class="step-card__spacer"></div>
+                  <button class="switch is-on" title="启用"></button>
+                  <span class="step-card__acts"><span class="run-btn" data-run>▶ 试运行</span><span>操作 ▾</span></span>
+                </div>
+                <div class="step-card__body">GET /api/order/<span class="var-ref" data-var-src="1">${orderId}<span class="var-tip">来自 <b>步骤 1</b> · 提取器 orderId<br>表达式 $.data.orderId<br>点击跳到来源步骤</span></span></div>
+                <div class="step-run step-run--pass" data-run-result hidden>
+                  <span>✓ 通过</span><span class="step-run__mono">200</span><span class="step-run__mono">96 ms</span><span>断言 2/2</span>
+                  <span class="step-run__more" data-ux-feedback="响应摘要：status=PAID · amount=299.00">查看响应</span>
+                </div>
+              </div>
 
-              <!-- 右：步骤内联编辑 -->
-              <div class="steps-right">
-                <div class="inline">
-                  <div class="inline__head">
-                    <input class="input" value="创建订单" placeholder="步骤名称">
-                    <span style="font-size:var(--font-size-xs);color:var(--n-500)">启用</span>
-                    <button class="switch is-on"></button>
-                    <span class="inline__sep"></span>
-                    <span class="radio-seg">
-                      <button class="is-active">HTTP 请求</button>
-                      <button>JDBC 请求</button>
-                    </span>
-                    <select class="select inline__ref"><option>选择环境 HTTP 配置</option><option>默认 HTTP</option></select>
-                  </div>
+              <div class="step-card" data-step data-step-idx="3">
+                <div class="step-card__head">
+                  <span class="step-card__grip" data-icon="list"></span>
+                  <span class="step-card__idx">3</span>
+                  <span class="step-type">JDBC</span>
+                  <span class="method-tag" style="background:var(--brand-500)">SELECT</span>
+                  <div class="step-card__spacer"></div>
+                  <button class="switch is-on" title="启用"></button>
+                  <span class="step-card__acts"><span class="run-btn" data-run>▶ 试运行</span><span>操作 ▾</span></span>
+                </div>
+                <div class="step-card__body">SELECT status FROM t_order WHERE id = ?</div>
+                <!-- 失败示例：断言不通过时行内给出期望 vs 实际 -->
+                <div class="step-run step-run--fail" data-run-result hidden>
+                  <span>✗ 断言失败</span><span>结果集 <b class="step-run__mono">0 行</b>，期望 <b class="step-run__mono">1 行</b></span>
+                  <span class="step-run__more" data-ux-feedback="SQL：SELECT status FROM t_order WHERE id = 'ord_88213'">查看 SQL</span>
+                </div>
+              </div>
 
-                  <div class="req-line">
-                    <select class="select"><option>POST</option><option>GET</option><option>PUT</option><option>DELETE</option></select>
-                    <input class="input" value="/api/order/create">
-                  </div>
+              <div class="step-card is-off" data-step data-step-idx="4">
+                <div class="step-card__head">
+                  <span class="step-card__grip" data-icon="list"></span>
+                  <span class="step-card__idx">4</span>
+                  <span class="step-type">HTTP</span>
+                  <span class="method-tag mt-put">PUT</span>
+                  <div class="step-card__spacer"></div>
+                  <button class="switch" title="已停用"></button>
+                  <span class="step-card__acts"><span class="run-btn" data-run>▶ 试运行</span><span>操作 ▾</span></span>
+                </div>
+                <div class="step-card__body">PUT /api/order/cancel</div>
+                <div class="step-run step-run--pass" data-run-result hidden>
+                  <span>✓ 通过</span><span class="step-run__mono">200</span><span class="step-run__mono">143 ms</span><span>断言 1/1</span>
+                </div>
+              </div>
+            </div>
+          </div>
 
-                  <div>
-                    <div class="etabs">
-                      <button class="etab" data-etab="headers">请求头<span class="count">2</span></button>
-                      <button class="etab" data-etab="query">Query 参数<span class="count">1</span></button>
-                      <button class="etab is-active" data-etab="body">请求体<span class="count">3</span></button>
-                      <button class="etab" data-etab="validators">验证器<span class="count">2</span></button>
-                      <button class="etab" data-etab="extractors">提取器<span class="count">1</span></button>
-                    </div>
+          <div class="steps-divider"><i></i></div>
 
-                    <div class="epanel" data-epanel="headers">
-                      <table class="kv">
-                        <thead><tr><th style="width:34px"></th><th>Header</th><th>值</th><th style="width:44px"></th></tr></thead>
-                        <tbody>
-                          <tr><td><span class="checkbox checkbox--on"></span></td><td><input class="cell-input" value="Content-Type"></td><td><input class="cell-input" value="application/json"></td><td><span class="op-link op-link--danger">删除</span></td></tr>
-                          <tr><td><span class="checkbox checkbox--on"></span></td><td><input class="cell-input" value="X-Trace-Id"></td><td><input class="cell-input" value="${traceId}"></td><td><span class="op-link op-link--danger">删除</span></td></tr>
-                        </tbody>
-                      </table>
-                      <span class="kv__add">+ 添加请求头</span>
-                    </div>
+          <!-- 右：步骤内联编辑 -->
+          <div class="steps-right">
+            <div class="inline">
+              <div class="inline__head">
+                <input class="input" value="创建订单" placeholder="步骤名称">
+                <span style="font-size:var(--font-size-xs);color:var(--n-500)">启用</span>
+                <button class="switch is-on"></button>
+                <span class="inline__sep"></span>
+                <span class="radio-seg">
+                  <button class="is-active">HTTP 请求</button>
+                  <button>JDBC 请求</button>
+                </span>
+                <select class="select inline__ref"><option>选择环境 HTTP 配置</option><option>默认 HTTP</option></select>
+              </div>
 
-                    <div class="epanel" data-epanel="query">
-                      <table class="kv">
-                        <thead><tr><th style="width:34px"></th><th>参数名</th><th>值</th><th style="width:44px"></th></tr></thead>
-                        <tbody>
-                          <tr><td><span class="checkbox checkbox--on"></span></td><td><input class="cell-input" value="channel"></td><td><input class="cell-input" value="app"></td><td><span class="op-link op-link--danger">删除</span></td></tr>
-                        </tbody>
-                      </table>
-                      <span class="kv__add">+ 添加参数</span>
-                    </div>
+              <div class="req-line">
+                <select class="select"><option>POST</option><option>GET</option><option>PUT</option><option>DELETE</option></select>
+                <input class="input" value="/api/order/create">
+              </div>
 
-                    <div class="epanel is-active" data-epanel="body">
-                      <span class="bodytypes">
-                        <button class="bodytype">none</button>
-                        <button class="bodytype">x-www-form-urlencoded</button>
-                        <button class="bodytype is-active">raw</button>
-                      </span>
-                      <span class="bodytypes">
-                        <button class="bodytype is-active">Json</button>
-                        <button class="bodytype">Text</button>
-                        <button class="bodytype">Xml</button>
-                      </span>
-                      <textarea class="code-editor" spellcheck="false">{
+              <div>
+                <div class="etabs">
+                  <button class="etab" data-etab="headers">请求头<span class="count">2</span></button>
+                  <button class="etab" data-etab="query">Query 参数<span class="count">1</span></button>
+                  <button class="etab is-active" data-etab="body">请求体<span class="count">3</span></button>
+                  <button class="etab" data-etab="validators">验证器<span class="count">2</span></button>
+                  <button class="etab" data-etab="extractors">提取器<span class="count">1</span></button>
+                </div>
+
+                <div class="epanel" data-epanel="headers">
+                  <table class="kv">
+                    <thead><tr><th style="width:34px"></th><th>Header</th><th>值</th><th style="width:44px"></th></tr></thead>
+                    <tbody>
+                      <tr><td><span class="checkbox checkbox--on"></span></td><td><input class="cell-input" value="Content-Type"></td><td><input class="cell-input" value="application/json"></td><td><span class="op-link op-link--danger">删除</span></td></tr>
+                      <tr><td><span class="checkbox checkbox--on"></span></td><td><input class="cell-input" value="X-Trace-Id"></td><td><input class="cell-input" value="${traceId}"></td><td><span class="op-link op-link--danger">删除</span></td></tr>
+                    </tbody>
+                  </table>
+                  <span class="kv__add">+ 添加请求头</span>
+                </div>
+
+                <div class="epanel" data-epanel="query">
+                  <table class="kv">
+                    <thead><tr><th style="width:34px"></th><th>参数名</th><th>值</th><th style="width:44px"></th></tr></thead>
+                    <tbody>
+                      <tr><td><span class="checkbox checkbox--on"></span></td><td><input class="cell-input" value="channel"></td><td><input class="cell-input" value="app"></td><td><span class="op-link op-link--danger">删除</span></td></tr>
+                    </tbody>
+                  </table>
+                  <span class="kv__add">+ 添加参数</span>
+                </div>
+
+                <div class="epanel is-active" data-epanel="body">
+                  <span class="bodytypes">
+                    <button class="bodytype">none</button>
+                    <button class="bodytype">x-www-form-urlencoded</button>
+                    <button class="bodytype is-active">raw</button>
+                  </span>
+                  <span class="bodytypes">
+                    <button class="bodytype is-active">Json</button>
+                    <button class="bodytype">Text</button>
+                    <button class="bodytype">Xml</button>
+                  </span>
+                  <textarea class="code-editor" spellcheck="false">{
   "skuId": "${skuId}",
   "quantity": 1,
   "channel": "app"
 }</textarea>
-                    </div>
+                </div>
 
-                    <div class="epanel" data-epanel="validators">
-                      <table class="kv">
-                        <thead><tr><th style="width:120px">提取来源</th><th style="width:130px">断言方式</th><th>期望值</th><th style="width:44px"></th></tr></thead>
-                        <tbody>
-                          <tr><td><select class="cell-input"><option>状态码</option></select></td><td><select class="cell-input"><option>等于</option></select></td><td><input class="cell-input" value="200"></td><td><span class="op-link op-link--danger">删除</span></td></tr>
-                          <tr><td><select class="cell-input"><option>JSON 字段</option></select></td><td><select class="cell-input"><option>等于</option></select></td><td><input class="cell-input" value="$.code: SUCCESS"></td><td><span class="op-link op-link--danger">删除</span></td></tr>
-                        </tbody>
-                      </table>
-                      <span class="kv__add">+ 添加验证器</span><span class="kv__add">导入验证器</span>
-                    </div>
+                <div class="epanel" data-epanel="validators">
+                  <table class="kv">
+                    <thead><tr><th style="width:120px">提取来源</th><th style="width:130px">断言方式</th><th>期望值</th><th style="width:44px"></th></tr></thead>
+                    <tbody>
+                      <tr><td><select class="cell-input"><option>状态码</option></select></td><td><select class="cell-input"><option>等于</option></select></td><td><input class="cell-input" value="200"></td><td><span class="op-link op-link--danger">删除</span></td></tr>
+                      <tr><td><select class="cell-input"><option>JSON 字段</option></select></td><td><select class="cell-input"><option>等于</option></select></td><td><input class="cell-input" value="$.code: SUCCESS"></td><td><span class="op-link op-link--danger">删除</span></td></tr>
+                    </tbody>
+                  </table>
+                  <span class="kv__add">+ 添加验证器</span><span class="kv__add">导入验证器</span>
+                </div>
 
-                    <div class="epanel" data-epanel="extractors">
-                      <table class="kv">
-                        <thead><tr><th style="width:120px">提取来源</th><th style="width:130px">变量名</th><th>表达式</th><th style="width:44px"></th></tr></thead>
-                        <tbody>
-                          <tr><td><select class="cell-input"><option>JSON 字段</option></select></td><td><input class="cell-input" value="orderId"></td><td><input class="cell-input" value="$.data.orderId"></td><td><span class="op-link op-link--danger">删除</span></td></tr>
-                        </tbody>
-                      </table>
-                      <span class="kv__add">+ 添加提取器</span><span class="kv__add">导入提取器</span>
-                    </div>
-                  </div>
+                <div class="epanel" data-epanel="extractors">
+                  <table class="kv">
+                    <thead><tr><th style="width:120px">提取来源</th><th style="width:130px">变量名</th><th>表达式</th><th style="width:44px"></th></tr></thead>
+                    <tbody>
+                      <tr><td><select class="cell-input"><option>JSON 字段</option></select></td><td><input class="cell-input" value="orderId"></td><td><input class="cell-input" value="$.data.orderId"></td><td><span class="op-link op-link--danger">删除</span></td></tr>
+                    </tbody>
+                  </table>
+                  <span class="kv__add">+ 添加提取器</span><span class="kv__add">导入提取器</span>
                 </div>
               </div>
             </div>
           </div>
-
-          <!-- 场景变量 -->
-          <div class="ed-panel" data-edpanel="variables">
-            <div class="pane-pad">
-              <div class="pane-head">
-                <span class="pane-head__title">场景变量</span>
-                <div class="pane-head__spacer"></div>
-              </div>
-              <table class="kv">
-                <thead><tr><th>变量名</th><th>值</th><th>说明</th><th style="width:60px">操作</th></tr></thead>
-                <tbody>
-                  <tr><td><input class="cell-input" value="skuId"></td><td><input class="cell-input" value="SKU10086"></td><td><input class="cell-input" value="下单商品"></td><td><span class="op-link op-link--danger">删除</span></td></tr>
-                  <tr><td><input class="cell-input" value="traceId"></td><td><input class="cell-input" value="${uuid()}"></td><td><input class="cell-input" placeholder="说明（可选）"></td><td><span class="op-link op-link--danger">删除</span></td></tr>
-                </tbody>
-              </table>
-              <span class="kv__add">+ 添加变量</span>
-            </div>
-          </div>
-
-          <!-- 前置处理器 -->
-          <div class="ed-panel" data-edpanel="pre">
-            <div class="pane-pad">
-              <div class="pane-head">
-                <span class="pane-head__title">前置处理器</span>
-                <div class="pane-head__spacer"></div>
-                <button class="btn btn--default btn--sm">+ 添加处理器</button>
-              </div>
-              <div class="pane-empty">暂无前置处理器，点击右上角添加</div>
-            </div>
-          </div>
-
-          <!-- 后置处理器 -->
-          <div class="ed-panel" data-edpanel="post">
-            <div class="pane-pad">
-              <div class="pane-head">
-                <span class="pane-head__title">后置处理器</span>
-                <div class="pane-head__spacer"></div>
-                <button class="btn btn--default btn--sm">+ 添加处理器</button>
-              </div>
-              <table class="kv">
-                <thead><tr><th style="width:44px">#</th><th style="width:150px">类型</th><th>说明</th><th style="width:120px">关联</th><th style="width:120px">操作</th></tr></thead>
-                <tbody>
-                  <tr>
-                    <td class="num">1</td>
-                    <td><span class="tag">提取器</span></td>
-                    <td>从创建订单响应中提取 orderId</td>
-                    <td>步骤 1</td>
-                    <td><span class="op-link">上移</span><span class="op-link">下移</span><span class="op-link op-link--danger">删除</span></td>
-                  </tr>
-                  <tr>
-                    <td class="num">2</td>
-                    <td><span class="tag">验证器</span></td>
-                    <td>校验订单状态为 PAID</td>
-                    <td>步骤 3</td>
-                    <td><span class="op-link">上移</span><span class="op-link">下移</span><span class="op-link op-link--danger">删除</span></td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
         </div>
-
-        <div class="ed-footer">自动保存已开启</div>
       </div>
+
+      <!-- 场景变量 -->
+      <div class="ed-panel" data-edpanel="variables">
+        <div class="pane-pad">
+          <div class="pane-head">
+            <span class="pane-head__title">场景变量</span>
+            <div class="pane-head__spacer"></div>
+          </div>
+          <table class="kv">
+            <thead><tr><th>变量名</th><th>值</th><th>说明</th><th style="width:60px">操作</th></tr></thead>
+            <tbody>
+              <tr><td><input class="cell-input" value="skuId"></td><td><input class="cell-input" value="SKU10086"></td><td><input class="cell-input" value="下单商品"></td><td><span class="op-link op-link--danger">删除</span></td></tr>
+              <tr><td><input class="cell-input" value="traceId"></td><td><input class="cell-input" value="${uuid()}"></td><td><input class="cell-input" placeholder="说明（可选）"></td><td><span class="op-link op-link--danger">删除</span></td></tr>
+            </tbody>
+          </table>
+          <span class="kv__add">+ 添加变量</span>
+        </div>
+      </div>
+
+      <!-- 前置处理器 -->
+      <div class="ed-panel" data-edpanel="pre">
+        <div class="pane-pad">
+          <div class="pane-head">
+            <span class="pane-head__title">前置处理器</span>
+            <div class="pane-head__spacer"></div>
+            <button class="btn btn--default btn--sm">+ 添加处理器</button>
+          </div>
+          <div class="pane-empty">暂无前置处理器，点击右上角添加</div>
+        </div>
+      </div>
+
+      <!-- 后置处理器 -->
+      <div class="ed-panel" data-edpanel="post">
+        <div class="pane-pad">
+          <div class="pane-head">
+            <span class="pane-head__title">后置处理器</span>
+            <div class="pane-head__spacer"></div>
+            <button class="btn btn--default btn--sm">+ 添加处理器</button>
+          </div>
+          <table class="kv">
+            <thead><tr><th style="width:44px">#</th><th style="width:150px">类型</th><th>说明</th><th style="width:120px">关联</th><th style="width:120px">操作</th></tr></thead>
+            <tbody>
+              <tr>
+                <td class="num">1</td>
+                <td><span class="tag">提取器</span></td>
+                <td>从创建订单响应中提取 orderId</td>
+                <td>步骤 1</td>
+                <td><span class="op-link">上移</span><span class="op-link">下移</span><span class="op-link op-link--danger">删除</span></td>
+              </tr>
+              <tr>
+                <td class="num">2</td>
+                <td><span class="tag">验证器</span></td>
+                <td>校验订单状态为 PAID</td>
+                <td>步骤 3</td>
+                <td><span class="op-link">上移</span><span class="op-link">下移</span><span class="op-link op-link--danger">删除</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="ed-footer">
+      自动保存已开启
+      <span class="inline__sep"></span>
+      快捷键：<span class="kbd">⌘S</span> 保存草稿 · <span class="kbd">⌘↵</span> 运行场景 · <span class="kbd">↑</span><span class="kbd">↓</span> 切换步骤
     </div>
   </div>
 </main>
 
 <script src="../assets/icons.js"></script>
 <script src="../assets/shell.js"></script>
+<script src="../assets/ux.js"></script>
 <script>
   // 分区 tab / 步骤内层 tab / 请求配置 tab 的静态切换
   document.querySelectorAll('[data-edtab]').forEach(function (btn) {
@@ -453,6 +538,56 @@
       e.stopPropagation();
       sw.classList.toggle('is-on');
       sw.closest('[data-step]') && sw.closest('[data-step]').classList.toggle('is-off', !sw.classList.contains('is-on'));
+    });
+  });
+
+  // 单步试运行：结果内联显示在步骤卡下方（不弹窗）
+  function runStep(card) {
+    var result = card.querySelector('[data-run-result]');
+    if (!result) return;
+    var running = card.querySelector('.step-run--running');
+    if (!running) {
+      running = document.createElement('div');
+      running.className = 'step-run step-run--running';
+      running.innerHTML = '<span>运行中…</span>';
+      card.appendChild(running);
+    }
+    running.hidden = false;
+    result.hidden = true;
+    window.setTimeout(function () {
+      running.hidden = true;
+      result.hidden = false;
+    }, 500);
+  }
+
+  document.querySelectorAll('[data-run]').forEach(function (btn) {
+    btn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      runStep(btn.closest('[data-step]'));
+    });
+  });
+
+  // 运行整场景：依次点亮每个启用步骤的行内结果
+  document.getElementById('btn-run-scene').addEventListener('click', function () {
+    var steps = document.querySelectorAll('[data-step]:not(.is-off)');
+    steps.forEach(function (card, i) {
+      window.setTimeout(function () { runStep(card); }, i * 260);
+    });
+    window.setTimeout(function () {
+      window.RTUX.toast('场景运行完成：3 通过 · 1 失败', { type: 'warning' });
+    }, steps.length * 260 + 520);
+  });
+
+  // 变量溯源：点击引用处跳到来源步骤
+  document.querySelectorAll('.var-ref').forEach(function (ref) {
+    ref.addEventListener('click', function (e) {
+      e.stopPropagation();
+      var src = document.querySelector('[data-step-idx="' + ref.getAttribute('data-var-src') + '"]');
+      if (!src) return;
+      document.querySelectorAll('[data-step]').forEach(function (c) { c.classList.remove('is-selected'); });
+      src.classList.add('is-selected');
+      src.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      window.RTUX.toast('已定位到来源：步骤 ' + ref.getAttribute('data-var-src'), { type: 'success' });
     });
   });
 </script>

@@ -6,11 +6,8 @@
 <title>接口测试 · 测试场景 · RoboTest</title>
 <link rel="stylesheet" href="../assets/tokens.css">
 <link rel="stylesheet" href="../assets/base.css">
+<link rel="stylesheet" href="../assets/ux.css">
 <style>
-  .list-page { display: flex; flex-direction: column; gap: var(--space-md); height: 100%; }
-  .filter-card { padding: 14px 20px; }
-  .filter-row { display: flex; align-items: center; gap: var(--space-md); flex-wrap: wrap; }
-  .filter-row .spacer { flex: 1; }
   .selected-hint { font-size: var(--font-size-sm); color: var(--n-500); }
 
   .body-row { display: flex; gap: var(--space-lg); align-items: stretch; min-height: 500px; flex: 1; }
@@ -51,8 +48,6 @@
   .publish--draft { background: var(--n-100); color: var(--n-600); }
   .publish--on { background: var(--st-success-light); color: var(--st-success-strong); }
 
-  .pager { display: flex; align-items: center; justify-content: flex-end; gap: 6px; padding: 14px 20px; border-top: 1px solid var(--n-100); }
-  .pager__total { margin-right: auto; font-size: var(--font-size-sm); color: var(--n-500); }
   .more-caret { margin-left: 10px; color: var(--brand-500); font-size: var(--font-size-xs); cursor: pointer; }
 </style>
 </head>
@@ -74,147 +69,166 @@
     </aside>
 
     <div class="split__main">
-      <div class="list-page">
-        <!-- 筛选条 -->
-        <div class="card filter-card">
-          <div class="filter-row">
-            <div class="segment">
-              <span class="segment__item segment__item--active">全部</span>
-              <span class="segment__item">我关注的</span>
-              <span class="segment__item">我创建的</span>
-            </div>
-            <div class="input-wrap"><span data-icon="search"></span><input class="input" placeholder="搜索场景名称"></div>
-            <select class="select" style="width:130px"><option>执行状态</option><option>执行成功</option><option>执行失败</option><option>未执行</option></select>
-            <select class="select" style="width:130px"><option>发布状态</option><option>草稿</option><option>已发布</option></select>
-            <button class="btn btn--primary btn--sm"><span data-icon="search"></span>查询</button>
-            <button class="btn btn--default btn--sm">重置</button>
-            <div class="spacer"></div>
-            <span class="selected-hint">已选 2 项</span>
-            <button class="btn btn--default btn--sm">批量移动</button>
-            <button class="btn btn--danger btn--sm">批量删除</button>
+      <div class="page-head">
+        <div>
+          <h1 class="page-head__title">测试场景</h1>
+        </div>
+        <div class="page-head__actions">
+          <button class="btn btn--primary"><span data-icon="plus"></span>新建场景</button>
+        </div>
+      </div>
+
+      <div class="body-row">
+        <!-- 左：模块树 -->
+        <div class="card tree-card">
+          <div class="mt-toolbar">
+            <div class="input-wrap"><span data-icon="search"></span><input class="input" placeholder="搜索目录 / 文档"></div>
+            <button class="btn btn--primary btn--sm"><span data-icon="plus"></span>新建</button>
           </div>
+          <ul class="mt-list">
+            <li class="mt-node"><span class="folder-ic" data-icon="folder"></span>下单主流程</li>
+            <li class="mt-node mt-node--active" style="padding-left:22px"><span class="doc-ic" data-icon="document"></span>下单成功主链路</li>
+            <li class="mt-node" style="padding-left:22px"><span class="doc-ic" data-icon="document"></span>库存不足回滚</li>
+            <li class="mt-node"><span class="folder-ic" data-icon="folder"></span>支付回归</li>
+            <li class="mt-node" style="padding-left:22px"><span class="doc-ic" data-icon="document"></span>支付回调重放</li>
+            <li class="mt-node"><span class="folder-ic" data-icon="folder"></span>用户中心</li>
+            <li class="mt-node"><span class="folder-ic" data-icon="folder"></span>冒烟集合</li>
+          </ul>
         </div>
 
-        <div class="body-row">
-          <!-- 左：模块树 -->
-          <div class="card tree-card">
-            <div class="mt-toolbar">
-              <div class="input-wrap"><span data-icon="search"></span><input class="input" placeholder="搜索目录 / 文档"></div>
-              <button class="btn btn--primary btn--sm"><span data-icon="plus"></span>新建</button>
+        <!-- 右：场景表格（筛选工具条与表格同属一张卡） -->
+        <div class="card table-card">
+          <div class="toolbar">
+            <div class="toolbar__filters" data-ux-filters="scenes">
+              <div class="segment">
+                <span class="segment__item segment__item--active">全部</span>
+                <span class="segment__item">我关注的</span>
+                <span class="segment__item">我创建的</span>
+              </div>
+              <div class="input-wrap"><span data-icon="search"></span><input class="input" placeholder="搜索场景名称"></div>
+              <select class="select" style="width:130px"><option>执行状态</option><option>执行成功</option><option>执行失败</option><option>未执行</option></select>
+              <select class="select" style="width:130px"><option>发布状态</option><option>草稿</option><option>已发布</option></select>
+              <button class="btn btn--primary btn--sm" data-ux-filter-apply><span data-icon="search"></span>查询</button>
+              <button class="btn btn--default btn--sm">重置</button>
+              <span class="ux-restore" data-ux-restore-for="scenes" hidden>
+                <span data-icon="check"></span>已恢复上次筛选
+                <button class="ux-restore__clear" data-ux-restore-clear>清除</button>
+              </span>
             </div>
-            <ul class="mt-list">
-              <li class="mt-node"><span class="folder-ic" data-icon="folder"></span>下单主流程</li>
-              <li class="mt-node mt-node--active" style="padding-left:22px"><span class="doc-ic" data-icon="document"></span>下单成功主链路</li>
-              <li class="mt-node" style="padding-left:22px"><span class="doc-ic" data-icon="document"></span>库存不足回滚</li>
-              <li class="mt-node"><span class="folder-ic" data-icon="folder"></span>支付回归</li>
-              <li class="mt-node" style="padding-left:22px"><span class="doc-ic" data-icon="document"></span>支付回调重放</li>
-              <li class="mt-node"><span class="folder-ic" data-icon="folder"></span>用户中心</li>
-              <li class="mt-node"><span class="folder-ic" data-icon="folder"></span>冒烟集合</li>
-            </ul>
+            <div class="toolbar__count">共 28 个场景</div>
           </div>
 
-          <!-- 右：场景表格 -->
-          <div class="card table-card">
-            <div class="table-wrap" style="flex:1">
-              <table class="table">
-                <thead>
-                  <tr>
-                    <th style="width:34px"></th><th style="width:34px"></th>
-                    <th>场景名称</th>
-                    <th style="width:120px">所属模块</th>
-                    <th style="width:72px">优先级</th>
-                    <th style="width:68px">步骤数</th>
-                    <th style="width:84px">状态</th>
-                    <th style="width:92px">最近执行</th>
-                    <th style="width:150px">最近执行时间</th>
-                    <th style="width:150px">更新时间</th>
-                    <th style="width:150px">操作</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td><span class="checkbox checkbox--on"></span></td>
-                    <td><span class="star is-active" data-icon="star"></span></td>
-                    <td class="cell-main"><span class="text-brand">下单成功主链路</span></td>
-                    <td>下单主流程</td>
-                    <td style="text-align:center"><span class="prio-badge prio-p0">P0</span></td>
-                    <td class="num" style="text-align:center">8</td>
-                    <td style="text-align:center"><span class="publish publish--on">已发布</span></td>
-                    <td><span class="tag tag--success">成功</span></td>
-                    <td class="num">2026-09-22 14:05</td>
-                    <td class="num">2026-09-22 09:31</td>
-                    <td><span class="op-link">编辑</span><span class="more-caret">更多 ▾</span></td>
-                  </tr>
-                  <tr>
-                    <td><span class="checkbox checkbox--on"></span></td>
-                    <td><span class="star" data-icon="star"></span></td>
-                    <td class="cell-main"><span class="text-brand">库存不足回滚</span></td>
-                    <td>下单主流程</td>
-                    <td style="text-align:center"><span class="prio-badge prio-p1">P1</span></td>
-                    <td class="num" style="text-align:center">5</td>
-                    <td style="text-align:center"><span class="publish publish--on">已发布</span></td>
-                    <td><span class="tag tag--danger">失败</span></td>
-                    <td class="num">2026-09-22 14:05</td>
-                    <td class="num">2026-09-21 17:12</td>
-                    <td><span class="op-link">编辑</span><span class="more-caret">更多 ▾</span></td>
-                  </tr>
-                  <tr>
-                    <td><span class="checkbox"></span></td>
-                    <td><span class="star is-active" data-icon="star"></span></td>
-                    <td class="cell-main"><span class="text-brand">支付回调重放</span></td>
-                    <td>支付回归</td>
-                    <td style="text-align:center"><span class="prio-badge prio-p1">P1</span></td>
-                    <td class="num" style="text-align:center">6</td>
-                    <td style="text-align:center"><span class="publish publish--draft">草稿</span></td>
-                    <td><span class="tag tag--neutral">未执行</span></td>
-                    <td class="num" style="color:var(--n-400)">—</td>
-                    <td class="num">2026-09-22 11:47</td>
-                    <td><span class="op-link">编辑</span><span class="more-caret">更多 ▾</span></td>
-                  </tr>
-                  <tr>
-                    <td><span class="checkbox"></span></td>
-                    <td><span class="star" data-icon="star"></span></td>
-                    <td class="cell-main"><span class="text-brand">用户注册登录</span></td>
-                    <td>用户中心</td>
-                    <td style="text-align:center"><span class="prio-badge prio-p2">P2</span></td>
-                    <td class="num" style="text-align:center">4</td>
-                    <td style="text-align:center"><span class="publish publish--on">已发布</span></td>
-                    <td><span class="tag tag--success">成功</span></td>
-                    <td class="num">2026-09-21 20:00</td>
-                    <td class="num">2026-09-19 15:22</td>
-                    <td><span class="op-link">编辑</span><span class="more-caret">更多 ▾</span></td>
-                  </tr>
-                  <tr>
-                    <td><span class="checkbox"></span></td>
-                    <td><span class="star" data-icon="star"></span></td>
-                    <td class="cell-main"><span class="text-brand">冒烟 · 核心接口</span></td>
-                    <td>冒烟集合</td>
-                    <td style="text-align:center"><span class="prio-badge prio-p3">P3</span></td>
-                    <td class="num" style="text-align:center">12</td>
-                    <td style="text-align:center"><span class="publish publish--draft">草稿</span></td>
-                    <td><span class="tag tag--warning">执行中</span></td>
-                    <td class="num">2026-09-22 15:10</td>
-                    <td class="num">2026-09-20 10:03</td>
-                    <td><span class="op-link">编辑</span><span class="more-caret">更多 ▾</span></td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-            <div class="pager">
-              <span class="pager__total">共 28 个场景 · 每页 20 条</span>
-              <button class="page-btn" disabled>‹</button>
-              <button class="page-btn page-btn--active">1</button>
-              <button class="page-btn">2</button>
-              <button class="page-btn">›</button>
-            </div>
+          <div class="table-wrap" data-ux-batchbar="#batchbar-scenes">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th style="width:34px"></th><th style="width:34px"></th>
+                  <th>场景名称</th>
+                  <th style="width:120px">所属模块</th>
+                  <th style="width:72px">优先级</th>
+                  <th style="width:68px">步骤数</th>
+                  <th style="width:84px">状态</th>
+                  <th style="width:92px">最近执行</th>
+                  <th style="width:150px">最近执行时间</th>
+                  <th style="width:150px">更新时间</th>
+                  <th style="width:150px">操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><span class="checkbox checkbox--on"></span></td>
+                  <td><span class="star is-active" data-icon="star"></span></td>
+                  <td class="cell-main"><span class="text-brand">下单成功主链路</span></td>
+                  <td>下单主流程</td>
+                  <td style="text-align:center"><span class="prio-badge prio-p0">P0</span></td>
+                  <td class="num" style="text-align:center">8</td>
+                  <td style="text-align:center"><span class="publish publish--on">已发布</span></td>
+                  <td><span class="tag tag--success">成功</span></td>
+                  <td class="num">2026-09-22 14:05</td>
+                  <td class="num">2026-09-22 09:31</td>
+                  <td><span class="op-link">编辑</span><span class="more-caret" data-ux-feedback="更多操作：复制 / 移动 / 删除 / 查看历史">更多 ▾</span></td>
+                </tr>
+                <tr>
+                  <td><span class="checkbox checkbox--on"></span></td>
+                  <td><span class="star" data-icon="star"></span></td>
+                  <td class="cell-main"><span class="text-brand">库存不足回滚</span></td>
+                  <td>下单主流程</td>
+                  <td style="text-align:center"><span class="prio-badge prio-p1">P1</span></td>
+                  <td class="num" style="text-align:center">5</td>
+                  <td style="text-align:center"><span class="publish publish--on">已发布</span></td>
+                  <td><span class="tag tag--danger">失败</span></td>
+                  <td class="num">2026-09-22 14:05</td>
+                  <td class="num">2026-09-21 17:12</td>
+                  <td><span class="op-link">编辑</span><span class="more-caret" data-ux-feedback="更多操作：复制 / 移动 / 删除 / 查看历史">更多 ▾</span></td>
+                </tr>
+                <tr>
+                  <td><span class="checkbox"></span></td>
+                  <td><span class="star is-active" data-icon="star"></span></td>
+                  <td class="cell-main"><span class="text-brand">支付回调重放</span></td>
+                  <td>支付回归</td>
+                  <td style="text-align:center"><span class="prio-badge prio-p1">P1</span></td>
+                  <td class="num" style="text-align:center">6</td>
+                  <td style="text-align:center"><span class="publish publish--draft">草稿</span></td>
+                  <td><span class="tag tag--neutral">未执行</span></td>
+                  <td class="num" style="color:var(--n-400)">—</td>
+                  <td class="num">2026-09-22 11:47</td>
+                  <td><span class="op-link">编辑</span><span class="more-caret" data-ux-feedback="更多操作：复制 / 移动 / 删除 / 查看历史">更多 ▾</span></td>
+                </tr>
+                <tr>
+                  <td><span class="checkbox"></span></td>
+                  <td><span class="star" data-icon="star"></span></td>
+                  <td class="cell-main"><span class="text-brand">用户注册登录</span></td>
+                  <td>用户中心</td>
+                  <td style="text-align:center"><span class="prio-badge prio-p2">P2</span></td>
+                  <td class="num" style="text-align:center">4</td>
+                  <td style="text-align:center"><span class="publish publish--on">已发布</span></td>
+                  <td><span class="tag tag--success">成功</span></td>
+                  <td class="num">2026-09-21 20:00</td>
+                  <td class="num">2026-09-19 15:22</td>
+                  <td><span class="op-link">编辑</span><span class="more-caret" data-ux-feedback="更多操作：复制 / 移动 / 删除 / 查看历史">更多 ▾</span></td>
+                </tr>
+                <tr>
+                  <td><span class="checkbox"></span></td>
+                  <td><span class="star" data-icon="star"></span></td>
+                  <td class="cell-main"><span class="text-brand">冒烟 · 核心接口</span></td>
+                  <td>冒烟集合</td>
+                  <td style="text-align:center"><span class="prio-badge prio-p3">P3</span></td>
+                  <td class="num" style="text-align:center">12</td>
+                  <td style="text-align:center"><span class="publish publish--draft">草稿</span></td>
+                  <td><span class="tag tag--warning">执行中</span></td>
+                  <td class="num">2026-09-22 15:10</td>
+                  <td class="num">2026-09-20 10:03</td>
+                  <td><span class="op-link">编辑</span><span class="more-caret" data-ux-feedback="更多操作：复制 / 移动 / 删除 / 查看历史">更多 ▾</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="pagination" data-ux-pageable>
+            <span class="pagination__total">共 28 个场景 · 每页 20 条</span>
+            <button class="page-btn" disabled>‹</button>
+            <button class="page-btn page-btn--active">1</button>
+            <button class="page-btn">2</button>
+            <button class="page-btn">›</button>
           </div>
         </div>
       </div>
     </div>
   </div>
+  </div>
 </main>
+
+<!-- 底部批量操作条：勾选 ≥1 行时浮出 -->
+<div class="ux-batchbar" id="batchbar-scenes" hidden>
+  <span class="ux-batchbar__count">已选 <b data-ux-batch-count>0</b> 项</span>
+  <span class="ux-batchbar__sep"></span>
+  <button class="btn btn--default btn--sm" data-ux-batch-action="已批量移动到「冒烟集合」">批量移动</button>
+  <button class="btn btn--danger btn--sm" data-ux-batch-delete>批量删除</button>
+  <span class="ux-batchbar__sep"></span>
+  <button class="btn btn--text btn--sm" data-ux-batch-clear>清空</button>
+</div>
 
 <script src="../assets/icons.js"></script>
 <script src="../assets/shell.js"></script>
+<script src="../assets/ux.js"></script>
 </body>
 </html>

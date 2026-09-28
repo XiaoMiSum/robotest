@@ -6,20 +6,12 @@
 <title>接口测试 · 新建定时任务 · RoboTest</title>
 <link rel="stylesheet" href="../assets/tokens.css">
 <link rel="stylesheet" href="../assets/base.css">
+<link rel="stylesheet" href="../assets/ux.css">
 <style>
-  .list-page { display: flex; flex-direction: column; gap: var(--space-md); height: 100%; }
-  .filter-card { padding: 14px 20px; }
   [hidden] { display: none !important; }
 
-  /* 表单 */
-  .fform { display: flex; flex-direction: column; gap: 16px; }
-  .frow { display: flex; gap: 12px; }
-  .frow__label { width: 100px; flex-shrink: 0; text-align: right; padding-top: 7px; font-size: var(--font-size-sm); color: var(--n-600); }
-  .frow__label .req { color: var(--st-danger); margin-right: 2px; }
-  .frow__control { flex: 1; min-width: 0; }
-  .frow__hint { font-size: var(--font-size-xs); color: var(--n-400); margin-top: 4px; }
-  .frow__error { font-size: var(--font-size-xs); color: var(--st-danger); margin-top: 4px; }
-  .frow__inline { display: flex; align-items: center; gap: var(--space-xs); flex-wrap: wrap; }
+  /* 字段内的横排选项（任务类型 / 执行方式 / 已选场景） */
+  .opt-row { display: flex; align-items: center; gap: var(--space-md); flex-wrap: wrap; }
 
   .fdiv { display: flex; align-items: center; gap: 12px; color: var(--n-400); font-size: var(--font-size-xs); }
   .fdiv::before, .fdiv::after { content: ""; flex: 1; height: 1px; background: var(--n-100); }
@@ -64,29 +56,42 @@
       <div class="menu-item side__item"><span data-icon="box"></span><span>公共组件</span></div>
     </aside>
 
-    <!-- 背景：简化的任务列表 -->
+    <!-- 背景：任务列表（与 api-schedules 同构，仅作弹窗背景） -->
     <div class="split__main">
-      <div class="list-page">
-        <div class="card filter-card">
-          <div class="filter-row">
-            <select class="select" style="width:140px"><option>全部类型</option></select>
-            <div style="flex:1"></div>
-            <button class="btn btn--primary btn--sm"><span data-icon="plus"></span>新建任务</button>
-          </div>
+      <div class="page-head">
+        <div>
+          <h1 class="page-head__title">定时任务</h1>
+          <p class="page-head__desc">测试计划（场景批量执行）与接口同步的统一周期调度</p>
         </div>
-        <div class="card">
-          <div class="table-wrap">
-            <table class="table">
-              <thead>
-                <tr><th>任务名称</th><th style="width:100px">类型</th><th>执行范围</th><th style="width:130px">调度</th><th style="width:80px">状态</th></tr>
-              </thead>
-              <tbody>
-                <tr><td class="cell-main">支付回归夜跑</td><td>测试计划</td><td>全部场景</td><td class="num">0 2 * * *</td><td style="text-align:center"><span class="tag tag--success">启用</span></td></tr>
-                <tr><td class="cell-main">核心链路冒烟</td><td>测试计划</td><td>指定模块×3</td><td class="num">0 * * * *</td><td style="text-align:center"><span class="tag tag--success">启用</span></td></tr>
-                <tr><td class="cell-main">Swagger 文档同步</td><td>接口同步</td><td>—</td><td class="num">0 2 * * 1</td><td style="text-align:center"><span class="tag tag--success">启用</span></td></tr>
-              </tbody>
-            </table>
+        <div class="page-head__actions">
+          <button class="btn btn--primary"><span data-icon="plus"></span>新建任务</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="toolbar">
+          <div class="toolbar__filters">
+            <select class="select" style="width:140px"><option>全部类型</option><option>测试计划</option><option>接口同步</option></select>
           </div>
+          <div class="toolbar__count">共 3 个任务</div>
+        </div>
+        <div class="table-wrap">
+          <table class="table">
+            <thead>
+              <tr><th>任务名称</th><th style="width:100px">类型</th><th>执行范围</th><th style="width:130px">调度</th><th style="width:80px">状态</th></tr>
+            </thead>
+            <tbody>
+              <tr><td class="cell-main">支付回归夜跑</td><td>测试计划</td><td>全部场景</td><td class="num">0 2 * * *</td><td style="text-align:center"><span class="tag tag--success">启用</span></td></tr>
+              <tr><td class="cell-main">核心链路冒烟</td><td>测试计划</td><td>指定模块×3</td><td class="num">0 * * * *</td><td style="text-align:center"><span class="tag tag--success">启用</span></td></tr>
+              <tr><td class="cell-main">Swagger 文档同步</td><td>接口同步</td><td>—</td><td class="num">0 2 * * 1</td><td style="text-align:center"><span class="tag tag--success">启用</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="pagination">
+          <span class="pagination__total">共 3 个任务 · 每页 20 条</span>
+          <button class="page-btn" disabled>‹</button>
+          <button class="page-btn page-btn--active">1</button>
+          <button class="page-btn">›</button>
         </div>
       </div>
     </div>
@@ -101,113 +106,122 @@
       <a class="dialog__close" href="api-schedules.html" title="关闭"><span data-icon="x"></span></a>
     </div>
     <div class="dialog__body">
-      <div class="fform">
-        <div class="frow">
-          <label class="frow__label"><span class="req">*</span>任务名称</label>
-          <div class="frow__control">
-            <input class="input" style="width:100%" placeholder="请输入任务名称" maxlength="200">
+      <div class="field">
+        <label class="field__label">任务名称<span class="req">*</span></label>
+        <input class="input" id="task-name" style="width:100%" placeholder="请输入任务名称" maxlength="200">
+      </div>
+
+      <div class="field">
+        <label class="field__label">任务描述</label>
+        <textarea class="textarea" style="width:100%" rows="2" placeholder="可选，任务描述" maxlength="500"></textarea>
+      </div>
+
+      <div class="form-grid">
+        <div class="field">
+          <label class="field__label">任务类型<span class="req">*</span></label>
+          <div class="opt-row" id="tasktype-group">
+            <span class="radio-line is-active" data-tasktype="scene_execute"><span class="radio-dot"></span>测试计划</span>
+            <span class="radio-line" data-tasktype="import_swagger"><span class="radio-dot"></span>接口同步</span>
           </div>
         </div>
 
-        <div class="frow">
-          <label class="frow__label">任务描述</label>
-          <div class="frow__control">
-            <textarea class="textarea" style="width:100%" rows="2" placeholder="可选，任务描述" maxlength="500"></textarea>
-          </div>
+        <div class="field" id="row-env">
+          <label class="field__label">目标环境<span class="req">*</span></label>
+          <select class="select" style="width:100%" id="env-select"><option value="">请选择目标环境</option><option value="测试环境">测试环境</option><option value="预发环境">预发环境</option></select>
+          <div class="field__hint">测试计划任务需指定目标环境</div>
         </div>
 
-        <div class="frow">
-          <label class="frow__label"><span class="req">*</span>任务类型</label>
-          <div class="frow__control frow__inline">
-            <span class="radio-line is-active"><span class="radio-dot"></span>测试计划</span>
-            <span class="radio-line"><span class="radio-dot"></span>接口同步</span>
-          </div>
+        <div class="field" id="row-openapi" hidden>
+          <label class="field__label">接口文档 URL<span class="req">*</span></label>
+          <input class="input" style="width:100%" id="openapi-url" placeholder="https://example.com/v3/api-docs" maxlength="2000">
+          <div class="field__hint">接口同步任务按该文档地址定时拉取最新定义</div>
+        </div>
+      </div>
+
+      <div class="field" id="row-scope">
+        <label class="field__label">执行方式<span class="req">*</span></label>
+        <div class="opt-row" id="scope-group">
+          <span class="radio-line" data-scope="all"><span class="radio-dot"></span>全部</span>
+          <span class="radio-line" data-scope="modules"><span class="radio-dot"></span>指定模块</span>
+          <span class="radio-line is-active" data-scope="scenes"><span class="radio-dot"></span>指定场景</span>
         </div>
 
-        <div class="frow">
-          <label class="frow__label"><span class="req">*</span>执行方式</label>
-          <div class="frow__control">
-            <div class="frow__inline" id="scope-group">
-              <span class="radio-line" data-scope="all"><span class="radio-dot"></span>全部</span>
-              <span class="radio-line" data-scope="modules"><span class="radio-dot"></span>指定模块</span>
-              <span class="radio-line is-active" data-scope="scenes"><span class="radio-dot"></span>指定场景</span>
-            </div>
-
-            <div class="frow__inline" style="margin-top:10px" id="scope-scenes">
-              <button class="btn btn--link btn--sm">选择场景</button>
-              <span class="scene-tags">
-                <span class="tag tag--outline">下单成功主链路 ×</span>
-                <span class="tag tag--outline">支付回调重放 ×</span>
-              </span>
-            </div>
-
-            <div class="frow__inline" style="margin-top:10px" id="scope-modules" hidden>
-              <select class="select" style="width:100%"><option>选择执行模块（勾选父模块将包含其全部子模块）</option></select>
-            </div>
-          </div>
+        <div class="opt-row mt-sm" id="scope-scenes">
+          <button class="btn btn--link btn--sm" data-ux-feedback="选择场景：支持关键字搜索与多选，确认后回填场景标签">选择场景</button>
+          <span class="scene-tags" id="scene-tags">
+            <span class="tag tag--outline">下单成功主链路 ×</span>
+            <span class="tag tag--outline">支付回调重放 ×</span>
+          </span>
         </div>
 
-        <div class="frow">
-          <label class="frow__label"><span class="req">*</span>目标环境</label>
-          <div class="frow__control">
-            <select class="select" style="width:100%"><option>请选择目标环境</option><option>测试环境</option><option>预发环境</option></select>
-            <div class="frow__hint">测试计划任务需指定目标环境</div>
-          </div>
+        <div class="opt-row mt-sm" id="scope-modules" hidden>
+          <select class="select" style="width:100%" id="module-select"><option value="">选择执行模块（勾选父模块将包含其全部子模块）</option><option value="订单">订单</option><option value="支付">支付</option></select>
         </div>
+      </div>
 
-        <div class="fdiv">调度配置</div>
+      <div class="fdiv">调度配置</div>
 
-        <div class="frow">
-          <label class="frow__label">预设表达式</label>
-          <div class="frow__control">
-            <select class="select" style="width:260px">
-              <option>选择预设</option>
-              <option>每小时 (0 * * * *)</option>
-              <option>每天凌晨 2:00 (0 2 * * *)</option>
-              <option>每周一 2:00 (0 2 * * 1)</option>
-              <option>每月 1 号 2:00 (0 2 1 * *)</option>
-              <option>工作日 2:00 (0 2 * * 1-5)</option>
-            </select>
-          </div>
+      <div class="field">
+        <label class="field__label">预设表达式</label>
+        <select class="select" style="width:260px" id="preset-select">
+          <option value="">选择预设</option>
+          <option value="0 * * * *">每小时 (0 * * * *)</option>
+          <option value="0 2 * * *">每天凌晨 2:00 (0 2 * * *)</option>
+          <option value="0 2 * * 1">每周一 2:00 (0 2 * * 1)</option>
+          <option value="0 2 1 * *">每月 1 号 2:00 (0 2 1 * *)</option>
+          <option value="0 2 * * 1-5">工作日 2:00 (0 2 * * 1-5)</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label class="field__label">Cron 表达式<span class="req">*</span></label>
+        <div class="cron-row">
+          <input class="input" id="cron-input" value="0 2 * * *" placeholder="0 2 * * *" maxlength="50">
+          <button class="btn btn--default btn--sm" id="btn-check">校验</button>
+          <button class="btn btn--default btn--sm" id="btn-builder">构建器</button>
         </div>
-
-        <div class="frow">
-          <label class="frow__label"><span class="req">*</span>Cron 表达式</label>
-          <div class="frow__control">
-            <div class="cron-row">
-              <input class="input" value="0 2 * * *" placeholder="0 2 * * *" maxlength="50">
-              <button class="btn btn--default btn--sm">校验</button>
-              <button class="btn btn--default btn--sm" id="btn-builder">构建器</button>
-            </div>
-            <div class="cron-result">
-              <span class="tag tag--success">合法</span>
-              <span class="cron-desc">每天 02:00:00 执行</span>
-            </div>
-            <div class="cron-preview">下次执行：2026-09-23 02:00 · 2026-09-24 02:00 · 2026-09-25 02:00</div>
-
-            <div class="cron-builder" id="cron-builder">
-              <input class="input" value="0" placeholder="分钟">
-              <input class="input" value="2" placeholder="小时">
-              <input class="input" value="*" placeholder="日">
-              <input class="input" value="*" placeholder="月">
-              <input class="input" value="*" placeholder="星期">
-              <button class="btn btn--primary btn--sm">应用</button>
-            </div>
-            <div class="frow__hint">五段：分钟(0-59) 小时(0-23) 日(1-31) 月(1-12) 星期(0-7)</div>
-          </div>
+        <div class="cron-result" id="cron-result">
+          <span class="tag tag--success" id="cron-tag">合法</span>
+          <span class="cron-desc" id="cron-desc">每天 02:00:00 执行</span>
         </div>
+        <div class="cron-preview" id="cron-preview">下次执行：2026-09-23 02:00 · 2026-09-24 02:00 · 2026-09-25 02:00</div>
+
+        <div class="cron-builder" id="cron-builder">
+          <input class="input" id="b-minute" value="0" placeholder="分钟">
+          <input class="input" id="b-hour" value="2" placeholder="小时">
+          <input class="input" id="b-day" value="*" placeholder="日">
+          <input class="input" id="b-month" value="*" placeholder="月">
+          <input class="input" id="b-weekday" value="*" placeholder="星期">
+          <button class="btn btn--primary btn--sm" id="btn-apply">应用</button>
+        </div>
+        <div class="field__hint">五段：分钟(0-59) 小时(0-23) 日(1-31) 月(1-12) 星期(0-7)</div>
       </div>
     </div>
     <div class="dialog__footer">
       <a class="btn btn--default btn--sm" href="api-schedules.html">取消</a>
-      <button class="btn btn--primary btn--sm">保存</button>
+      <button class="btn btn--primary btn--sm" id="btn-save">保存</button>
     </div>
   </div>
 </div>
 
 <script src="../assets/icons.js"></script>
 <script src="../assets/shell.js"></script>
+<script src="../assets/ux.js"></script>
 <script>
+  // 任务类型切换：接口同步只保留接口文档 URL，测试计划保留执行方式与目标环境
+  var taskType = 'scene_execute';
+  document.querySelectorAll('#tasktype-group .radio-line').forEach(function (r) {
+    r.addEventListener('click', function () {
+      document.querySelectorAll('#tasktype-group .radio-line').forEach(function (x) { x.classList.remove('is-active'); });
+      r.classList.add('is-active');
+      taskType = r.getAttribute('data-tasktype');
+      var isTestPlan = taskType === 'scene_execute';
+      document.getElementById('row-scope').hidden = !isTestPlan;
+      document.getElementById('row-env').hidden = !isTestPlan;
+      document.getElementById('row-openapi').hidden = isTestPlan;
+    });
+  });
+
   // 执行方式切换：指定模块 / 指定场景 二选一展示
   document.querySelectorAll('#scope-group .radio-line').forEach(function (r) {
     r.addEventListener('click', function () {
@@ -223,6 +237,190 @@
   var builder = document.getElementById('cron-builder');
   document.getElementById('btn-builder').addEventListener('click', function () {
     builder.hidden = !builder.hidden;
+  });
+
+  // Cron 实时校验 + 可读描述 + 下次执行预览（输入即更新，无需点「校验」）
+  var cronInput = document.getElementById('cron-input');
+  var cronTag = document.getElementById('cron-tag');
+  var cronDesc = document.getElementById('cron-desc');
+  var cronPreview = document.getElementById('cron-preview');
+  var RANGES = [[0, 59], [0, 23], [1, 31], [1, 12], [0, 7]];
+
+  function parseField(text, min, max) {
+    if (text === '*') return { ok: true, values: null };
+    var out = [];
+    var ok = text.split(',').every(function (part) {
+      var m = part.match(/^(\d+)(?:-(\d+))?$/);
+      if (!m) return false;
+      var from = parseInt(m[1], 10);
+      var to = m[2] ? parseInt(m[2], 10) : from;
+      if (from < min || to > max || from > to) return false;
+      for (var v = from; v <= to; v++) out.push(v);
+      return true;
+    });
+    return { ok: ok && out.length > 0, values: out.length ? out : null };
+  }
+
+  function pad(n) { return n < 10 ? '0' + n : '' + n; }
+
+  function describe(f) {
+    var min = f[0], hr = f[1], dom = f[2], mon = f[3], dow = f[4];
+    var time = (hr ? hr.map(function (h) { return pad(h); }).join(',') : '每小时') + ':' + (min ? min.map(function (m) { return pad(m); }).join(',') : '00');
+    if (!hr && !dom && !mon && !dow) return '每分钟执行';
+    if (hr && !dom && !mon && !dow) return hr.length === 1 && min && min.length === 1 ? '每天 ' + time + ':00 执行' : '每天 ' + time + ' 执行';
+    if (dow && !dom) {
+      var names = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+      var label = dow.length === 5 && dow.join() === '1,2,3,4,5' ? '周一至周五' : dow.map(function (d) { return names[d] || d; }).join('、');
+      return '每' + label + ' ' + time + ' 执行';
+    }
+    if (dom && !dow) return '每月 ' + dom.join('、') + ' 日 ' + time + ' 执行';
+    return '按 ' + cronInput.value + ' 调度';
+  }
+
+  function nextRuns(f, count) {
+    var results = [];
+    var base = new Date();
+    base.setSeconds(0, 0);
+    for (var d = 0; d < 400 && results.length < count; d++) {
+      var day = new Date(base.getTime() + d * 86400000);
+      if (f[3] && f[3].indexOf(day.getMonth() + 1) < 0) continue;
+      var domHit = f[2] && f[2].indexOf(day.getDate()) >= 0;
+      var dowHit = f[4] && f[4].indexOf(day.getDay()) >= 0;
+      // cron 语义：日与星期同时受限取“或”，否则取“与”
+      if (f[2] && f[4] ? !(domHit || dowHit) : (f[2] && !domHit) || (f[4] && !dowHit)) continue;
+      for (var h = 0; h < 24 && results.length < count; h++) {
+        if (f[1] && f[1].indexOf(h) < 0) continue;
+        for (var mi = 0; mi < 60 && results.length < count; mi++) {
+          if (f[0] && f[0].indexOf(mi) < 0) continue;
+          var t = new Date(day.getFullYear(), day.getMonth(), day.getDate(), h, mi, 0, 0);
+          if (t.getTime() <= base.getTime()) continue;
+          results.push(t);
+        }
+      }
+    }
+    return results;
+  }
+
+  function validateCron(announce) {
+    var raw = cronInput.value.trim();
+    var parts = raw.split(/\s+/);
+    if (parts.length !== 5) return fail(announce ? '表达式需为 5 段：分 时 日 月 周' : '表达式需为 5 段');
+    var fields = [];
+    for (var i = 0; i < 5; i++) {
+      var parsed = parseField(parts[i], RANGES[i][0], RANGES[i][1]);
+      if (!parsed.ok) return fail('第 ' + (i + 1) + ' 段「' + parts[i] + '」超出取值范围 ' + RANGES[i][0] + '-' + RANGES[i][1]);
+      fields.push(parsed.values);
+    }
+    cronTag.className = 'tag tag--success';
+    cronTag.textContent = '合法';
+    cronDesc.textContent = describe(fields);
+    cronDesc.style.color = '';
+    var runs = nextRuns(fields, 3);
+    cronPreview.textContent = runs.length
+      ? '下次执行：' + runs.map(function (t) {
+          return t.getFullYear() + '-' + pad(t.getMonth() + 1) + '-' + pad(t.getDate()) + ' ' + pad(t.getHours()) + ':' + pad(t.getMinutes());
+        }).join(' · ')
+      : '该表达式在未来一年内不会触发';
+    cronInput.classList.remove('input--error');
+    if (announce) window.RTUX.toast('表达式合法：' + cronDesc.textContent, { type: 'success' });
+    return true;
+  }
+
+  function fail(msg) {
+    cronTag.className = 'tag tag--danger';
+    cronTag.textContent = '不合法';
+    cronDesc.textContent = msg;
+    cronDesc.style.color = 'var(--st-danger)';
+    cronPreview.textContent = '修正后将展示未来 3 次执行时间';
+    cronInput.classList.add('input--error');
+    return false;
+  }
+
+  cronInput.addEventListener('input', function () { validateCron(false); });
+  document.getElementById('btn-check').addEventListener('click', function () { validateCron(true); });
+  validateCron(false);
+
+  // 预设表达式：回填 Cron 输入并按后端校验口径重新校验（handlePresetSelect）
+  document.getElementById('preset-select').addEventListener('change', function (e) {
+    var expr = e.target.value;
+    if (!expr) return;
+    cronInput.value = expr;
+    validateCron(false);
+    window.RTUX.toast('已应用预设表达式：' + expr, { type: 'success' });
+  });
+
+  // 构建器：拼接五段表达式回填后收起（applyCronBuilder）
+  document.getElementById('btn-apply').addEventListener('click', function () {
+    var fields = ['b-minute', 'b-hour', 'b-day', 'b-month', 'b-weekday'].map(function (id) {
+      return document.getElementById(id).value.trim() || '*';
+    });
+    cronInput.value = fields.join(' ');
+    validateCron(false);
+    builder.hidden = true;
+    window.RTUX.toast('已按构建器生成表达式：' + cronInput.value, { type: 'success' });
+  });
+
+  // 保存校验：与 useScheduleForm.handleSave 的提示口径一致
+  document.getElementById('btn-save').addEventListener('click', function () {
+    var btn = this;
+    if (btn.classList.contains('is-saving')) return;
+    var name = document.getElementById('task-name');
+    if (!name.value.trim()) {
+      name.classList.add('input--error');
+      name.focus();
+      window.RTUX.toast('请输入任务名称', { type: 'warning' });
+      return;
+    }
+    name.classList.remove('input--error');
+
+    if (!cronInput.value.trim()) {
+      cronInput.classList.add('input--error');
+      cronInput.focus();
+      window.RTUX.toast('请输入 Cron 表达式', { type: 'warning' });
+      return;
+    }
+    if (!validateCron(false)) {
+      cronInput.focus();
+      window.RTUX.toast('Cron 表达式不合法：' + cronDesc.textContent, { type: 'danger' });
+      return;
+    }
+
+    if (taskType === 'scene_execute') {
+      var env = document.getElementById('env-select');
+      if (!env.value) {
+        env.focus();
+        window.RTUX.toast('测试计划任务需选择目标环境', { type: 'warning' });
+        return;
+      }
+      var scope = document.querySelector('#scope-group .radio-line.is-active');
+      var scopeKey = scope ? scope.getAttribute('data-scope') : 'scenes';
+      if (scopeKey === 'modules' && !document.getElementById('module-select').value) {
+        window.RTUX.toast('请选择执行模块', { type: 'warning' });
+        return;
+      }
+      if (scopeKey === 'scenes' && !document.getElementById('scene-tags').children.length) {
+        window.RTUX.toast('请选择执行场景', { type: 'warning' });
+        return;
+      }
+    } else {
+      var url = document.getElementById('openapi-url');
+      if (!url.value.trim()) {
+        url.classList.add('input--error');
+        url.focus();
+        window.RTUX.toast('接口同步任务需填写接口文档 URL', { type: 'warning' });
+        return;
+      }
+      url.classList.remove('input--error');
+    }
+
+    btn.classList.add('is-saving');
+    btn.textContent = '保存中…';
+    window.setTimeout(function () {
+      btn.classList.remove('is-saving');
+      btn.innerHTML = '<span class="btn__state">已保存 ✓</span>';
+      window.RTUX.toast('已创建', { type: 'success' });
+      window.setTimeout(function () { btn.textContent = '保存'; }, 1800);
+    }, 600);
   });
 </script>
 </body>
