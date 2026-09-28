@@ -287,16 +287,12 @@
                       <select class="select" style="width:100%"><option>PostgreSQL</option><option>MySQL</option></select>
                     </div>
                     <div class="field">
-                      <label class="field__label">连接池上限</label>
-                      <input class="input" style="width:140px" value="5">
-                    </div>
-                    <div class="field">
-                      <label class="field__label">URL<span class="req">*</span></label>
-                      <input class="input" style="width:100%" value="jdbc:postgresql://db.test.example.com:5432/order">
-                    </div>
-                    <div class="field">
                       <label class="field__label">设为默认</label>
                       <button class="switch is-on"></button>
+                    </div>
+                    <div class="field" style="grid-column:1 / -1">
+                      <label class="field__label" for="ds-url">URL<span class="req">*</span></label>
+                      <textarea class="textarea" id="ds-url" style="width:100%" rows="2" spellcheck="false">jdbc:postgresql://db.test.example.com:5432/order</textarea>
                     </div>
                   </div>
                   <div class="form-actions" data-testconn="ds">
