@@ -124,25 +124,23 @@ describe('processorFormModel', () => {
     it('copies a validator component config into an interface validator element', () => {
       const item = extractorComponent({
         type: 'validator',
-        config: '{"target":"body","expression":"$.code","operator":"eq","expected":"200","description":"断言业务码"}',
+        config: '{"target":"json_field","expression":"$.code","condition":"not_equals","expected":"200"}',
       })
       expect(validatorFromComponent(item)).toEqual({
-        target: 'body',
+        target: 'json_field',
         expression: '$.code',
-        operator: 'eq',
+        condition: 'not_equals',
         expected: '200',
-        description: '断言业务码',
       })
     })
 
-    it('falls back to defaults for missing or broken config', () => {
+    it('falls back to the Ryze-supported defaults for missing or broken config', () => {
       const item = extractorComponent({ type: 'validator', config: null })
       expect(validatorFromComponent(item)).toEqual({
-        target: 'status',
+        target: 'status_code',
         expression: '',
-        operator: 'eq',
+        condition: 'equals',
         expected: '',
-        description: '',
       })
     })
   })
@@ -150,23 +148,21 @@ describe('processorFormModel', () => {
   describe('extractorFromComponent', () => {
     it('copies an extractor component config into an interface extractor element', () => {
       const item = extractorComponent({
-        config: '{"source":"header","expression":"X-Token","variableName":"token","description":"取 Token 头"}',
+        config: '{"source":"response_header","expression":"X-Token","variableName":"token","description":"取 Token 头"}',
       })
       expect(extractorFromComponent(item)).toEqual({
-        source: 'header',
+        source: 'response_header',
         expression: 'X-Token',
         variableName: 'token',
-        description: '取 Token 头',
       })
     })
 
-    it('falls back to defaults for missing or broken config', () => {
+    it('falls back to the Ryze-supported default source for missing or broken config', () => {
       const item = extractorComponent({ id: 'comp-2', config: 'not-json' })
       expect(extractorFromComponent(item)).toEqual({
-        source: 'body',
+        source: 'json_field',
         expression: '',
         variableName: '',
-        description: '',
       })
     })
   })
