@@ -563,7 +563,14 @@
 
     var box = byId('cp-cfg');
     box.textContent = '';
+    /* 表单参数与 raw 请求体并存时，详情按请求体类型只展示对应的一份 */
+    var bt = String(cfgVal(cp, '请求体类型') || '');
+    var legacyBody = cfgVal(cp, '请求体');
+    var showForm = bt.indexOf('urlencoded') >= 0 || (bt === '' && Array.isArray(legacyBody));
+    var showRaw = bt.indexOf('raw') === 0 || (bt === '' && typeof legacyBody === 'string' && legacyBody !== '');
     cp.cfg.forEach(function (row) {
+      if (row[0] === '表单参数' && !showForm) return;
+      if (row[0] === '请求体' && !showRaw) return;
       var wide = row[2] === 'code' || row[2] === 'kv';
       var item = el('div', 'cp-meta__item' + (wide ? ' cp-meta__item--wide' : ''));
       var k = el('span', 'cp-meta__k');
@@ -878,7 +885,7 @@
     byId('f-method').value = cp ? String(cfgVal(cp, '请求方法') || 'POST') : 'POST';
     byId('f-path').value = cp ? String(cfgVal(cp, '路径') || '') : '';
 
-    /* 请求体三态：无类型行时按是否有内容回退为 raw（存量数据口径） */
+    /* 请求体三态：无类型行时按内容形态回退（存量单份数据口径） */
     var kind = 'none', sub = 'json';
     if (cp && isProc) {
       var bt = String(cfgVal(cp, '请求体类型') || '');
@@ -886,11 +893,18 @@
       else if (bt.indexOf('raw') === 0) {
         kind = 'raw';
         sub = bt.indexOf('·') >= 0 ? bt.split('·')[1].trim() : 'json';
-      } else if (bt === '' && cfgVal(cp, '请求体')) kind = 'raw';
+      } else if (bt === '') {
+        var legacy = cfgVal(cp, '请求体');
+        if (Array.isArray(legacy)) kind = 'urlencoded';
+        else if (legacy) kind = 'raw';
+      }
     }
-    var bv = kind === 'urlencoded' && cp ? cfgVal(cp, '请求体') : [];
-    fillKv(byId('f-urlencoded'), (bv && bv.length) ? bv : []);
-    byId('f-body').value = (kind === 'raw' && cp) ? String(cfgVal(cp, '请求体') || '') : '';
+    /* 表单参数与 raw 请求体并存回填，kind 只决定显示哪个面板 */
+    var fv = cp ? cfgVal(cp, '表单参数') : [];
+    if (cp && (!fv || !fv.length) && Array.isArray(cfgVal(cp, '请求体'))) fv = cfgVal(cp, '请求体');
+    fillKv(byId('f-urlencoded'), Array.isArray(fv) ? fv : []);
+    var rawText = cp ? cfgVal(cp, '请求体') : '';
+    byId('f-body').value = typeof rawText === 'string' ? rawText : '';
     setBody(kind, sub);
 
     byId('f-sql').value = cp && proc === 'jdbc' ? String(cfgVal(cp, 'SQL 语句') || '') : '';
@@ -991,8 +1005,10 @@
     rows.push(['请求头', readKv(byId('f-headers')), 'kv']);
     rows.push(['请求体类型', bodyKind === 'raw' ? 'raw · ' + rawSubtype
       : (bodyKind === 'urlencoded' ? 'x-www-form-urlencoded' : 'none')]);
-    if (bodyKind === 'urlencoded') rows.push(['请求体', readKv(byId('f-urlencoded')), 'kv']);
-    else if (bodyKind === 'raw') rows.push(['请求体', byId('f-body').value, 'code']);
+    /* 表单参数与 raw 请求体并存写入，展示由请求体类型决定（对齐 SceneBodyEditState） */
+    var formRows = readKv(byId('f-urlencoded'));
+    if (formRows.length) rows.push(['表单参数', formRows, 'kv']);
+    if (byId('f-body').value.trim()) rows.push(['请求体', byId('f-body').value, 'code']);
     return rows;
   }
 
