@@ -2,10 +2,14 @@ import { describe, expect, it } from 'vitest'
 import type { ApiBuiltinFunctionGroup, ApiCustomFunctionListItem } from '@/types'
 import {
   buildEvaluateExpression,
+  buildFunctionSignature,
   filterFunctions,
   formatScopeLabel,
+  parseParamsDesc,
   resolveFunctionError,
+  serializeParamsDesc,
   unifyFunctionList,
+  validateParamRows,
 } from './functionModel'
 
 function builtinGroup(name: string, fns: { name: string; description: string }[]): ApiBuiltinFunctionGroup {
@@ -147,5 +151,140 @@ describe('unifyFunctionList', () => {
 
   it('空列表返回空数组', () => {
     expect(unifyFunctionList([], [])).toEqual([])
+  })
+
+  it('可选参数不标记必填', () => {
+    const custom: ApiCustomFunctionListItem[] = [
+      customItem('sign', '签名', 'appKey:应用标识, signType?:签名算法，默认 md5'),
+    ]
+    const result = unifyFunctionList([], custom)
+    expect(result[0].signature).toBe('${sign(appKey, signType)}')
+    expect(result[0].params).toEqual([
+      { name: 'appKey', required: true, description: '应用标识' },
+      { name: 'signType', required: false, description: '签名算法，默认 md5' },
+    ])
+    expect(result[0].example).toBe('${sign(appKey, signType)}')
+  })
+})
+
+describe('parseParamsDesc', () => {
+  it('空值返回空数组', () => {
+    expect(parseParamsDesc(null)).toEqual([])
+    expect(parseParamsDesc(undefined)).toEqual([])
+    expect(parseParamsDesc('')).toEqual([])
+    expect(parseParamsDesc('  ')).toEqual([])
+  })
+
+  it('解析必填参数并只取冒号后文本为描述', () => {
+    expect(parseParamsDesc('a:描述1, b:描述2')).toEqual([
+      { name: 'a', required: true, description: '描述1' },
+      { name: 'b', required: true, description: '描述2' },
+    ])
+  })
+
+  it('问号后缀解析为可选参数', () => {
+    expect(parseParamsDesc('signType?:签名算法，默认 md5')).toEqual([
+      { name: 'signType', required: false, description: '签名算法，默认 md5' },
+    ])
+  })
+
+  it('描述可包含冒号，取首个冒号后全部文本', () => {
+    expect(parseParamsDesc('fmt:格式:HH:mm')).toEqual([
+      { name: 'fmt', required: true, description: '格式:HH:mm' },
+    ])
+  })
+
+  it('无冒号段仅作参数名，描述为空', () => {
+    expect(parseParamsDesc('abc')).toEqual([{ name: 'abc', required: true, description: '' }])
+  })
+
+  it('跳过空段与无名段', () => {
+    expect(parseParamsDesc('a:1, , :描述')).toEqual([{ name: 'a', required: true, description: '1' }])
+  })
+})
+
+describe('serializeParamsDesc', () => {
+  it('按行序序列化，可选参数带问号', () => {
+    const rows = [
+      { name: 'appKey', required: true, description: '应用标识' },
+      { name: 'signType', required: false, description: '签名算法' },
+    ]
+    expect(serializeParamsDesc(rows)).toBe('appKey:应用标识, signType?:签名算法')
+  })
+
+  it('空列表返回空字符串', () => {
+    expect(serializeParamsDesc([])).toBe('')
+  })
+
+  it('忽略无名行并 trim 内容', () => {
+    const rows = [
+      { name: ' ', required: true, description: 'x' },
+      { name: ' a ', required: true, description: ' 描述 ' },
+    ]
+    expect(serializeParamsDesc(rows)).toBe('a:描述')
+  })
+
+  it('与 parseParamsDesc 往返一致', () => {
+    const source = 'appKey:应用标识, signType?:签名算法，默认 md5'
+    expect(serializeParamsDesc(parseParamsDesc(source))).toBe(source)
+  })
+})
+
+describe('validateParamRows', () => {
+  it('空列表无错误', () => {
+    expect(validateParamRows([])).toEqual([])
+  })
+
+  it('合法参数无错误', () => {
+    const rows = [
+      { name: 'a', required: true, description: '描述' },
+      { name: 'b', required: false, description: '' },
+    ]
+    expect(validateParamRows(rows)).toEqual([])
+  })
+
+  it('参数名为空返回行号与提示', () => {
+    expect(validateParamRows([{ name: '  ', required: true, description: '' }])).toEqual([
+      { index: 0, message: '请输入参数名' },
+    ])
+  })
+
+  it.each([
+    ['a,b', ''],
+    ['a:b', ''],
+    ['a?b', ''],
+  ])('参数名含禁用字符 %s 时返回统一提示', (name, description) => {
+    const errors = validateParamRows([{ name, required: true, description }])
+    expect(errors[0].message).toBe('参数名与描述不支持英文逗号，参数名另不支持冒号与问号')
+  })
+
+  it('描述含英文逗号时返回统一提示', () => {
+    const errors = validateParamRows([{ name: 'a', required: true, description: 'x,y' }])
+    expect(errors[0].index).toBe(0)
+    expect(errors[0].message).toBe('参数名与描述不支持英文逗号，参数名另不支持冒号与问号')
+  })
+
+  it('参数名重复时返回提示', () => {
+    const rows = [
+      { name: 'a', required: true, description: '' },
+      { name: ' a ', required: true, description: '' },
+    ]
+    expect(validateParamRows(rows)).toEqual([{ index: 1, message: '参数「a」重复' }])
+  })
+})
+
+describe('buildFunctionSignature', () => {
+  it('无参数生成空括号', () => {
+    expect(buildFunctionSignature('fn1', [])).toBe('${fn1()}')
+  })
+
+  it('按行序拼接参数名', () => {
+    expect(buildFunctionSignature('sign', [{ name: 'appKey' }, { name: 'ts' }])).toBe(
+      '${sign(appKey, ts)}',
+    )
+  })
+
+  it('跳过空白参数名', () => {
+    expect(buildFunctionSignature('fn1', [{ name: 'a' }, { name: '  ' }])).toBe('${fn1(a)}')
   })
 })
