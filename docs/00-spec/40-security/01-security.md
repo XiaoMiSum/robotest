@@ -48,7 +48,7 @@ Ticket 必须绑定用户、连接范围和有效期，并在使用后失效。�
 
 - 退出登录必须在服务端撤销当前会话的 Access Token 与 Refresh Token，撤销后两者的后续校验均返回 401；
 - 账号禁用/锁定、密码重置（自助或管理员）必须撤销该用户已签发的全部 Token，已登录会话即时失效；撤销按 Token 签发时间生效，用户重新登录后不受影响；
-- 撤销经 migoo 框架 `UserDetailsBridge` 撤销钩子实现，存储走框架 `StateStore`（Redis）：单 Token 黑名单 `security:token:blacklist:{token}`、用户级签发截止 `security:user:revoked-before:{userId}`（值为撤销时刻，签发时间早于该值的 Token 一律拒绝），TTL 统一 7 天（不短于 Refresh Token 上限有效期）；
+- 撤销经 migoo 框架 `UserDetailsBridge` 撤销钩子实现，存储走框架 `StateStore`（Redis）：单 Token 黑名单 `security:token:blacklist:{token}`（TTL 7 天，不短于 Refresh Token 上限有效期）、用户级签发截止 `security:user:revoked-before:{userId}`（值为撤销时刻，签发时间早于该值的 Token 一律拒绝；TTL 30 天，远长于 Token 最长有效期，键自然过期即可清理）；
 - 撤销在每次请求的 Token 校验阶段生效，与 JWT 无状态校验互补；框架可观测信号（`TokenRevokedEvent`、`migoo.security.token.revoked` 指标）默认接入；
 - Redis 不可用时撤销检查按失败开放放行（经 6.1 同一失败开放口径），写入失败仅记 WARN。
 
@@ -232,6 +232,7 @@ changes
 | 版本 | 日期 | 说明 |
 | --- | --- | --- |
 | V1.0 | 2026-09-28 | 新增 2.3 Token 撤销；6.1 限流实施口径改为 migoo 框架 `@RateLimit` + 登录失败锁定，超限错误码改用框架 429/423；3.3 与 2.3 撤销口径对齐；登记 Token 撤销整改项 |
+| V1.0 | 2026-09-28 | 2.3 撤销键 TTL 按实现口径分列：黑名单 7 天、签发截止 30 天 |
 
 ---
 
