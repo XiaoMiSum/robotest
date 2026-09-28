@@ -173,7 +173,9 @@ InitPage 展示密码设置表单
 | 语义 | 键 | 值 | TTL | 使用点 |
 | --- | --- | --- | --- | --- |
 | 单 token 黑名单 | `security:token:blacklist:{token}` | `1` | 7 天 | 登出 `clean(token)` |
-| 签发截止 | `security:user:revoked-before:{userId}` | 撤销时刻（epoch 秒） | 不设置 | 踢人 `revokeByUserId(userId)` |
+| 签发截止 | `security:user:revoked-before:{userId}` | 撤销时刻（epoch 秒） | 30 天 | 踢人 `revokeByUserId(userId)` |
+
+> 黑名单 TTL 取 7 天（不短于 Refresh Token 上限有效期），签发截止 TTL 取 30 天（远长于 Token 最长有效期）：两者键到期自然清理，无需额外回收任务。
 
 校验规则（`isTokenRevoked`）：命中字面黑名单，或 token 的 `iat` 早于该用户的签发截止时刻，即视为已撤销；`isUserRevoked` 恒返回 `false`，避免封死重新登录。
 
@@ -194,6 +196,7 @@ InitPage 展示密码设置表单
 | --- | --- | --- |
 | V1.0 | 2026-09-23 | 初版起草 |
 | V1.0 | 2026-09-28 | 限流口径改为框架 `@RateLimit` / 登录失败锁定（429 / 423）；改密改为服务端签发截止撤销；新增 §5 登出与 Token 撤销 |
+| V1.0 | 2026-09-28 | §5.2 签发截止键 TTL 按实现口径改为 30 天，并补充两类撤销键的过期清理说明 |
 
 ---
 
