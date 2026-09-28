@@ -43,20 +43,15 @@ vi.mock('@/services/project/api-testing/function', () => ({
   deleteCustomFunction: mocks.deleteCustomFunction,
 }))
 
-vi.mock('@/composables/project/api-testing/function/functionModel', () => ({
-  filterFunctions: mocks.filterFunctions,
-  resolveFunctionError: mocks.resolveFunctionError,
-  SCOPE_OPTIONS: [
-    { value: 'project', label: '项目' },
-    { value: 'workspace', label: '空间' },
-    { value: 'global', label: '公共' },
-  ],
-  FUNCTION_TAB_OPTIONS: [
-    { value: 'all', label: '全部' },
-    { value: 'builtin', label: '内置函数' },
-    { value: 'custom', label: '自定义函数' },
-  ],
-}))
+vi.mock('@/composables/project/api-testing/function/functionModel', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('@/composables/project/api-testing/function/functionModel')>()
+  return {
+    ...actual,
+    filterFunctions: mocks.filterFunctions,
+    resolveFunctionError: mocks.resolveFunctionError,
+  }
+})
 
 import { useFunctionalTesting } from './useFunctionalTesting'
 
@@ -186,9 +181,15 @@ describe('useFunctionalTesting', () => {
       expect(form.id).toBe('')
       expect(form.name).toBe('')
       expect(form.description).toBe('')
-      expect(form.paramsDesc).toBe('')
+      expect(form.params).toEqual([])
       expect(form.script).toBe('')
       expect(form.scope).toBe('project')
+    })
+
+    it('formErrors 与 paramErrors 初始为空', () => {
+      const { formErrors, paramErrors } = useFunctionalTesting()
+      expect(formErrors.value).toEqual({ name: '', script: '' })
+      expect(paramErrors.value).toEqual({})
     })
 
     it('menuItems 包含预期项', () => {
@@ -550,14 +551,14 @@ describe('useFunctionalTesting', () => {
       form.id = 'old-id'
       form.name = 'old-name'
       form.description = 'old-desc'
-      form.paramsDesc = 'old-params'
+      form.params = [{ name: 'p', required: true, description: '参数' }]
       form.script = 'old-script'
       form.scope = 'workspace'
       resetForm()
       expect(form.id).toBe('')
       expect(form.name).toBe('')
       expect(form.description).toBe('')
-      expect(form.paramsDesc).toBe('')
+      expect(form.params).toEqual([])
       expect(form.script).toBe('')
       expect(form.scope).toBe('project')
     })
@@ -598,10 +599,27 @@ describe('useFunctionalTesting', () => {
       expect(form.id).toBe('1')
       expect(form.name).toBe('fn1')
       expect(form.description).toBe('desc')
-      expect(form.paramsDesc).toBe('p:参数')
+      expect(form.params).toEqual([{ name: 'p', required: true, description: '参数' }])
       expect(form.script).toBe('return 1')
       expect(form.scope).toBe('workspace')
       expect(panelMode.value).toBe('edit')
+    })
+
+    it('解析可选参数并清空行内错误', async () => {
+      const detail = makeDetail('1', 'fn1', { paramsDesc: 'a:描述, b?:可选' })
+      mocks.fetchCustomFunctionDetail.mockResolvedValue(detail)
+      const { selectItem, startEdit, form, formErrors, paramErrors } = useFunctionalTesting()
+      selectItem('custom', 'fn1', '1')
+      await nextTick()
+      formErrors.value = { name: 'x', script: 'y' }
+      paramErrors.value = { 0: 'e' }
+      startEdit()
+      expect(form.params).toEqual([
+        { name: 'a', required: true, description: '描述' },
+        { name: 'b', required: false, description: '可选' },
+      ])
+      expect(formErrors.value).toEqual({ name: '', script: '' })
+      expect(paramErrors.value).toEqual({})
     })
   })
 
@@ -665,6 +683,78 @@ describe('useFunctionalTesting', () => {
       form.name = 'fn1'
       form.script = 'return 1'
       expect(validateForm()).toBe(true)
+    })
+
+    it('名称或脚本校验失败时写入行内错误', () => {
+      const { form, validateForm, formErrors } = useFunctionalTesting()
+      expect(validateForm()).toBe(false)
+      expect(formErrors.value.name).toBe('请输入函数名称')
+      form.name = 'fn1'
+      expect(validateForm()).toBe(false)
+      expect(formErrors.value.script).toBe('请输入 Groovy 脚本')
+      expect(formErrors.value.name).toBe('')
+    })
+
+    it('参数行非法时返回 false 并写入行级错误', () => {
+      const { form, validateForm, paramErrors } = useFunctionalTesting()
+      form.name = 'fn1'
+      form.script = 'return 1'
+      form.params = [
+        { name: 'ok', required: true, description: '' },
+        { name: 'bad,name', required: true, description: '' },
+      ]
+      expect(validateForm()).toBe(false)
+      expect(paramErrors.value[1]).toBe('参数名与描述不支持英文逗号，参数名另不支持冒号与问号')
+      expect(mocks.ElMessage.warning).toHaveBeenCalledWith(
+        '参数名与描述不支持英文逗号，参数名另不支持冒号与问号',
+      )
+    })
+  })
+
+  describe('参数行编辑', () => {
+    it('addParamRow 追加必填默认行并清空行级错误', () => {
+      const { form, addParamRow, paramErrors } = useFunctionalTesting()
+      paramErrors.value = { 0: 'e' }
+      addParamRow()
+      expect(form.params).toEqual([{ name: '', required: true, description: '' }])
+      expect(paramErrors.value).toEqual({})
+    })
+
+    it('removeParamRow 移除指定行', () => {
+      const { form, removeParamRow } = useFunctionalTesting()
+      form.params = [
+        { name: 'a', required: true, description: '' },
+        { name: 'b', required: true, description: '' },
+      ]
+      removeParamRow(0)
+      expect(form.params.map((p) => p.name)).toEqual(['b'])
+    })
+
+    it('moveParamRow 交换相邻行序', () => {
+      const { form, moveParamRow } = useFunctionalTesting()
+      form.params = [
+        { name: 'a', required: true, description: '' },
+        { name: 'b', required: true, description: '' },
+      ]
+      moveParamRow(0, 1)
+      expect(form.params.map((p) => p.name)).toEqual(['b', 'a'])
+      moveParamRow(1, -1)
+      expect(form.params.map((p) => p.name)).toEqual(['a', 'b'])
+    })
+
+    it('moveParamRow 越界时不处理', () => {
+      const { form, moveParamRow } = useFunctionalTesting()
+      form.params = [{ name: 'a', required: true, description: '' }]
+      moveParamRow(0, -1)
+      moveParamRow(0, 1)
+      expect(form.params.map((p) => p.name)).toEqual(['a'])
+    })
+
+    it('serializedParams 实时反映序列化结果', () => {
+      const { form, serializedParams } = useFunctionalTesting()
+      expect(serializedParams.value).toBe('')
+      form.params = [{ name: 'a', required: false, description: '描述' }]
+      expect(serializedParams.value).toBe('a?:描述')
     })
   })
 
@@ -770,16 +860,32 @@ describe('useFunctionalTesting', () => {
       )
     })
 
-    it('paramsDesc 为空时不传该字段', async () => {
+    it('参数行为空时不传 paramsDesc', async () => {
       mocks.createCustomFunction.mockResolvedValue({ id: 'new-id' })
       const { startCreate, form, submitForm } = useFunctionalTesting()
       startCreate()
       form.name = 'newFn'
       form.script = 'return 1'
-      form.paramsDesc = ''
+      form.params = []
       await submitForm()
       expect(mocks.createCustomFunction).toHaveBeenCalledWith(
         expect.objectContaining({ paramsDesc: undefined }),
+      )
+    })
+
+    it('参数行按行序序列化为 paramsDesc 提交', async () => {
+      mocks.createCustomFunction.mockResolvedValue({ id: 'new-id' })
+      const { startCreate, form, submitForm } = useFunctionalTesting()
+      startCreate()
+      form.name = 'newFn'
+      form.script = 'return 1'
+      form.params = [
+        { name: 'appKey', required: true, description: '应用标识' },
+        { name: 'signType', required: false, description: '签名算法' },
+      ]
+      await submitForm()
+      expect(mocks.createCustomFunction).toHaveBeenCalledWith(
+        expect.objectContaining({ paramsDesc: 'appKey:应用标识, signType?:签名算法' }),
       )
     })
 
@@ -813,13 +919,21 @@ describe('useFunctionalTesting', () => {
       expect(mocks.ElMessage.success).toHaveBeenCalledWith('已启用')
     })
 
-    it('禁用时显示禁用消息', async () => {
+    it('禁用时显示停用消息', async () => {
       mocks.toggleCustomFunction.mockResolvedValue(true)
       const item = { type: 'custom' as const, name: 'fn1', description: '', id: '1', enabled: true }
       const { handleToggle } = useFunctionalTesting()
       await handleToggle(item)
       expect(mocks.toggleCustomFunction).toHaveBeenCalledWith('1', false)
-      expect(mocks.ElMessage.success).toHaveBeenCalledWith('已禁用')
+      expect(mocks.ElMessage.success).toHaveBeenCalledWith('已停用')
+    })
+
+    it('详情头部勾选可直接传 { id, enabled } 形参', async () => {
+      mocks.toggleCustomFunction.mockResolvedValue(true)
+      const { handleToggle } = useFunctionalTesting()
+      await handleToggle({ id: '1', enabled: false })
+      expect(mocks.toggleCustomFunction).toHaveBeenCalledWith('1', true)
+      expect(mocks.ElMessage.success).toHaveBeenCalledWith('已启用')
     })
 
     it('toggle 成功后刷新 customList', async () => {
