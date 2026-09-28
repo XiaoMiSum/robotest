@@ -4,10 +4,12 @@ import { createPinia, setActivePinia } from 'pinia'
 
 const mocks = vi.hoisted(() => ({
   fetchPermissions: vi.fn<() => Promise<string[]>>(),
+  revokeSession: vi.fn<(access: string | null, refresh: string | null) => Promise<void>>(),
 }))
 
 vi.mock('@/services/auth', () => ({
   fetchPermissions: mocks.fetchPermissions,
+  revokeSession: mocks.revokeSession,
 }))
 
 import { useAuthStore } from './auth'
@@ -17,6 +19,7 @@ beforeEach(() => {
   sessionStorage.clear()
   vi.clearAllMocks()
   mocks.fetchPermissions.mockResolvedValue([])
+  mocks.revokeSession.mockResolvedValue(undefined)
   setActivePinia(createPinia())
 })
 
@@ -73,7 +76,7 @@ describe('auth store 活动上下文', () => {
     expect(localStorage.getItem('robotest_active_project')).toBeNull()
   })
 
-  it('退出登录时清理空间、项目和会话状态', () => {
+  it('退出登录时先撤销服务端令牌再清理状态', async () => {
     const auth = useAuthStore()
     auth.setLogin(
       'access-1',
@@ -91,13 +94,38 @@ describe('auth store 活动上下文', () => {
     )
     auth.setActiveProject('project-1', '项目一')
 
-    auth.logout()
+    await auth.logout()
 
+    expect(mocks.revokeSession).toHaveBeenCalledWith('access-1', 'refresh-1')
     expect(auth.user).toBeNull()
     expect(auth.activeWorkspace).toBeNull()
     expect(auth.activeProject).toBeNull()
     expect(localStorage.getItem('robotest_active_workspace')).toBeNull()
     expect(localStorage.getItem('robotest_active_project')).toBeNull()
+    expect(sessionStorage.getItem('robotest_access_token')).toBeNull()
+  })
+
+  it('服务端撤销失败时仍清理本地会话', async () => {
+    const auth = useAuthStore()
+    auth.setLogin(
+      'access-1',
+      'refresh-1',
+      {
+        id: 'user-1',
+        username: 'tester',
+        email: 'tester@example.com',
+        status: 'active',
+        roles: [],
+        permissions: [],
+        hasWorkspace: true,
+      },
+      { id: 'workspace-1', name: '空间一', workspaceRole: 'member' },
+    )
+    mocks.revokeSession.mockRejectedValue(new Error('network down'))
+
+    await auth.logout()
+
+    expect(auth.user).toBeNull()
     expect(sessionStorage.getItem('robotest_access_token')).toBeNull()
   })
 })
