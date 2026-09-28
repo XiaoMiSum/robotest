@@ -19,7 +19,7 @@
 | 能力 | 约定 |
 | --- | --- |
 | 框架 | `migoo-spring-boot-starter` |
-| 版本 | `1.3.18`，由 Maven BOM 管理 |
+| 版本 | `1.4.0`，由 Maven BOM 管理 |
 | Java | 21 |
 | 数据访问 | `migoo-spring-boot-starter-mybatis` |
 | Web | `migoo-spring-boot-starter-web` |
@@ -66,6 +66,13 @@
 
 Web 组件负责全局异常、响应处理、TraceId、请求上下文、i18n、CORS 和请求体缓存等框架级能力。本文只补充业务错误码、DTO 校验、安全响应头、审计脱敏和 SSE/文件/实时通信等特殊响应适配。
 
+限流属于 Web 组件能力，统一使用框架实现，工程不自建限流器：
+
+- 单接口限流用 `migoo.web.ratelimit.annotation.RateLimit`（按 IP 或用户名计数，`limit` + `window`），超限抛框架全局错误码 429；
+- 服务级自定义 Key 限流用 `RateLimiter.tryAcquire(key, limit, window)`，窗口为固定窗口；
+- 计数状态统一走 `StateStore`（默认 `RedisStateStore`），应用可注入自定义 Bean 覆盖默认实现；
+- 工程自定义 `StateStore` 必须为失败开放（异常时放行并记录 WARN），口径见 `docs/00-spec/40-security/01-security.md`。
+
 生产环境不得依赖宽松默认配置，尤其是 CORS、请求体缓存和敏感日志配置。
 
 ### 4.3 MyBatis
@@ -92,6 +99,13 @@ MapStruct 不属于 migoo Starter 的通用 API。统一要求：
 ### 4.5 Security
 
 Security 组件提供 JWT、用户加载、Token 校验和角色权限等框架能力。接入方负责认证模式、用户加载适配、密钥和有效期配置、业务错误码、资源级 Guard 以及登录和权限审计。
+
+1.4.0 起，以下能力统一由框架提供，工程不再自建平行实现：
+
+- **登录失败锁定**：`migoo.security.login-lock.*`，连续失败达阈值后按框架全局错误码 423（`ACCOUNT_LOCKED`）拒绝登录，成功登录后重置；认证接口的调用频次由 Web 层 `@RateLimit` 控制；
+- **审计日志**：用 `@AuditLog` 标注 Controller 方法，框架发布 `AuditLogEvent`（成功与失败均发布），工程监听事件并写入自有 `sys_audit_log` 表；
+- **Token 撤销**：接入方在 `UserDetailsBridge` 实现 `clean` / `revokeByUserId` / `isTokenRevoked` / `isUserRevoked`，状态走 `StateStore`，用于登出与踢人；撤销语义见 `docs/00-spec/40-security/01-security.md`；
+- **登出**：由框架 `LogoutFilter` 承载（`migoo.security.logout-url`，仅撤销 Authorization 中的 access token），业务登出逻辑由应用在登出接口内自行完成。
 
 框架认证成功不等于业务授权成功。管理域、业务域和实时资源必须在服务端重新校验角色、成员关系和资源归属。通用边界见 `docs/00-spec/40-security/01-security.md`。
 
@@ -134,6 +148,7 @@ Redis 能力用于缓存、限流、会话、短期 Ticket 和分布式协作。
 - [ ] Entity、Mapper、Wrapper 和 TypeHandler 用法已验证
 - [ ] MapStruct 路径、Spring Bean 注入和转换测试已验证
 - [ ] 认证模式、密钥和资源授权已验证
+- [ ] 限流、登录失败锁定、审计日志和 Token 撤销已按框架能力验证
 - [ ] Web CORS、TraceId、请求体和日志配置已验证
 - [ ] WebSocket 端点、Ticket、Origin、Room 和分布式配置已验证
 - [ ] Redis Key、TTL、锁和降级策略已验证
@@ -150,6 +165,15 @@ Redis 能力用于缓存、限流、会话、短期 Ticket 和分布式协作。
 - 安全：`docs/00-spec/40-security/01-security.md`
 - 官方总览：<https://xiaomisum.github.io/springboot-migoo-framework/>
 - 官方发布说明：<https://github.com/XiaoMiSum/springboot-migoo-framework/releases>
+
+---
+
+## 8. 修改记录
+
+| 版本 | 日期 | 说明 |
+| --- | --- | --- |
+| V1.1 | 2026-09-24 | 初版发布 |
+| V1.1 | 2026-09-28 | 框架版本升级至 1.4.0；补充 `@RateLimit` / `StateStore` 限流、登录失败锁定、`@AuditLog`、Token 撤销与登出等框架能力的适配边界 |
 
 ---
 

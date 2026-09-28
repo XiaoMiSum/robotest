@@ -8,7 +8,7 @@
 
 ## 1. 认证接口
 
-> **接口限流（安全规范 6.1）**：登录按 IP + 账号失败计数（成功仅清理账号键），初始化 setup、刷新与改密/管理员重置按 IP 尝试计数；超限统一返回 1000002010，键/窗口/阈值及默认值见《安全规范》6.1 实施口径（`robotest.security.rate-limit` 可配）。
+> **接口限流（安全规范 6.1）**：认证与公开接口统一使用框架 `@RateLimit`（按 IP 计数）与框架登录失败锁定；超限返回框架全局错误码 **429**，账号连续登录失败达阈值返回框架全局错误码 **423**（`ACCOUNT_LOCKED`）。各接口的 limit/window 及账号锁定口径见《安全规范》6.1 实施口径。
 
 ### 1.1 登录
 
@@ -106,7 +106,7 @@
 - **请求体**：`{ "oldPassword": "xxx", "newPassword": "xxx" }`
 - **校验**：新密码长度 8-64 字符（后端不做字符类型三选四强度校验，强度仅作前端提示）；原密码不匹配返回错误码 1000001007（“原密码错误”）。
 - **处理**：取当前登录用户，校验原密码后重新加密存储 password_hash。
-- **说明**：JWT 无状态模式下旧 token 在有效期内仍可用，由前端在修改成功后强制退出并跳转登录页兜底；如需服务端强制失效需引入 token 黑名单。
+- **说明**：改密成功后调用 `UserDetailsBridge.revokeByUserId(userId)` 写入**签发截止**（见 §5），使该用户此前签发的 access/refresh token 全部失效；重新登录签发的新 token 不受影响。前端改密成功后仍强制跳转登录页。
 
 
 ## 2. 密码策略
@@ -153,6 +153,47 @@ InitPage 展示密码设置表单
 ## 4. 登录审计写入
 
 见 `docs/04-detailed-design/20-audit-query.md` §4.3（AuditLogWriter 共享写入、`ClientIpResolver`、`operation='LOGIN'` 记录结构）。数据概览仅消费其 `LOGIN` 记录做 3.6 口径统计。
+
+## 5. 登出与 Token 撤销
+
+### 5.1 登出
+
+- **路径**：`POST /api/auth/logout`（无需业务鉴权，匿名可访问）
+- **请求头**：`Authorization: Bearer <accessToken>`，可选 `X-Refresh-Token: <refreshToken>`
+- **处理**：分别对 access token 与 refresh token 调用 `UserDetailsBridge.clean(token)` 写入黑名单后返回成功。
+- **说明**：
+  - 框架 `LogoutFilter` 仅撤销 Authorization 中的 access token，**不承载**本接口，`migoo.security.logout-url` 配置为 `/logout`（框架默认路径）；
+  - 黑名单写入失败不阻断登出返回（框架 `StateStore` 失败开放），仅记录 WARN；
+  - 前端 `authStore.logout()` 先调用本接口（best-effort），再清理本地状态并跳转登录页。
+
+### 5.2 撤销模型
+
+撤销通过 `UserDetailsBridge` 钩子走框架 `StateStore`（Redis），两类键：
+
+| 语义 | 键 | 值 | TTL | 使用点 |
+| --- | --- | --- | --- | --- |
+| 单 token 黑名单 | `security:token:blacklist:{token}` | `1` | 7 天 | 登出 `clean(token)` |
+| 签发截止 | `security:user:revoked-before:{userId}` | 撤销时刻（epoch 秒） | 不设置 | 踢人 `revokeByUserId(userId)` |
+
+校验规则（`isTokenRevoked`）：命中字面黑名单，或 token 的 `iat` 早于该用户的签发截止时刻，即视为已撤销；`isUserRevoked` 恒返回 `false`，避免封死重新登录。
+
+### 5.3 触发点
+
+| 触发点 | 动作 | 效果 |
+| --- | --- | --- |
+| 登出 | `clean(access)` + `clean(refresh)` | 仅本次会话的两个 token 失效 |
+| 管理员禁用 / 锁定用户、批量状态变更 | `revokeByUserId(userId)` | 该用户全部存量 token 失效，且无法重新登录（状态仍禁用） |
+| 管理员重置密码、自助改密 | `revokeByUserId(userId)` | 存量 token 失效，重新登录后新 token 生效 |
+| 用户启用 | 不清理键 | 旧的签发截止早已早于新签发时间，自然失效 |
+
+---
+
+## 修改记录
+
+| 版本 | 日期 | 说明 |
+| --- | --- | --- |
+| V1.0 | 2026-09-23 | 初版起草 |
+| V1.0 | 2026-09-28 | 限流口径改为框架 `@RateLimit` / 登录失败锁定（429 / 423）；改密改为服务端签发截止撤销；新增 §5 登出与 Token 撤销 |
 
 ---
 
