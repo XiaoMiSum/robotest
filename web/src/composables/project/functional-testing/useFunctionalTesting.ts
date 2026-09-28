@@ -19,10 +19,15 @@ import {
   deleteCustomFunction,
 } from '@/services/project/api-testing/function'
 import {
+  buildFunctionSignature,
   filterFunctions,
+  parseParamsDesc,
   resolveFunctionError,
   SCOPE_OPTIONS,
+  serializeParamsDesc,
   FUNCTION_TAB_OPTIONS,
+  validateParamRows,
+  type FunctionParamRow,
   type FunctionTab,
 } from '@/composables/project/api-testing/function/functionModel'
 
@@ -181,24 +186,11 @@ export function useFunctionalTesting() {
   const customDetail = ref<ApiCustomFunctionDetail | null>(null)
   const detailLoading = ref(false)
 
-  const customParams = computed(() => {
-    const desc = customDetail.value?.paramsDesc
-    if (!desc) return []
-    return desc.split(',').map((p) => {
-      const seg = p.trim()
-      return {
-        name: seg.split(':')[0]?.trim() ?? '',
-        required: true,
-        description: seg,
-      }
-    })
-  })
+  const customParams = computed(() => parseParamsDesc(customDetail.value?.paramsDesc))
 
-  const customSignature = computed(() => {
-    const name = customDetail.value?.name ?? ''
-    const args = customParams.value.map((p) => p.name).join(', ')
-    return `\${${name}${args ? `(${args})` : '()'}}`
-  })
+  const customSignature = computed(() =>
+    buildFunctionSignature(customDetail.value?.name ?? '', customParams.value),
+  )
 
   watch(selectedCustomId, async (id) => {
     if (!id || selectedType.value !== 'custom') {
@@ -222,19 +214,50 @@ export function useFunctionalTesting() {
     id: '',
     name: '',
     description: '',
-    paramsDesc: '',
+    params: [] as FunctionParamRow[],
     script: '',
     scope: 'project' as ApiFunctionScope,
   })
   const saving = ref(false)
 
+  // 行内错误（docs23 §1.3：参数校验红字提示），与 ElMessage 告警并行
+  const formErrors = ref({ name: '', script: '' })
+  const paramErrors = ref<Record<number, string>>({})
+
+  function clearFormErrors(): void {
+    formErrors.value = { name: '', script: '' }
+    paramErrors.value = {}
+  }
+
+  /** 参数说明序列化结果实时预览（docs23 §1.3） */
+  const serializedParams = computed(() => serializeParamsDesc(form.params))
+
+  function addParamRow(): void {
+    form.params.push({ name: '', required: true, description: '' })
+    paramErrors.value = {}
+  }
+
+  function removeParamRow(index: number): void {
+    form.params.splice(index, 1)
+    paramErrors.value = {}
+  }
+
+  function moveParamRow(index: number, step: -1 | 1): void {
+    const target = index + step
+    if (target < 0 || target >= form.params.length) return
+    const rows = form.params
+    ;[rows[index], rows[target]] = [rows[target], rows[index]]
+    paramErrors.value = {}
+  }
+
   function resetForm(): void {
     form.id = ''
     form.name = ''
     form.description = ''
-    form.paramsDesc = ''
+    form.params = []
     form.script = ''
     form.scope = 'project'
+    clearFormErrors()
   }
 
   function startCreate(): void {
@@ -251,14 +274,16 @@ export function useFunctionalTesting() {
     form.id = customDetail.value.id
     form.name = customDetail.value.name
     form.description = customDetail.value.description ?? ''
-    form.paramsDesc = customDetail.value.paramsDesc ?? ''
+    form.params = parseParamsDesc(customDetail.value.paramsDesc)
     form.script = customDetail.value.script
     form.scope = customDetail.value.scope
+    clearFormErrors()
     panelMode.value = 'edit'
   }
 
   function cancelEdit(): void {
     panelMode.value = 'view'
+    clearFormErrors()
     if (selectedCustomId.value === '') {
       selectedType.value = null
       selectedName.value = ''
@@ -266,12 +291,21 @@ export function useFunctionalTesting() {
   }
 
   function validateForm(): boolean {
+    clearFormErrors()
     if (!form.name.trim()) {
+      formErrors.value.name = '请输入函数名称'
       ElMessage.warning('请填写函数名称')
       return false
     }
     if (!form.script.trim()) {
+      formErrors.value.script = '请输入 Groovy 脚本'
       ElMessage.warning('请填写 Groovy 脚本')
+      return false
+    }
+    const errors = validateParamRows(form.params)
+    if (errors.length > 0) {
+      paramErrors.value = Object.fromEntries(errors.map((e) => [e.index, e.message]))
+      ElMessage.warning(errors[0].message)
       return false
     }
     return true
@@ -284,7 +318,7 @@ export function useFunctionalTesting() {
       const payload = {
         name: form.name.trim(),
         description: form.description.trim() || undefined,
-        paramsDesc: form.paramsDesc.trim() || undefined,
+        paramsDesc: serializedParams.value || undefined,
         script: form.script.trim(),
         scope: form.scope,
       }
@@ -316,11 +350,12 @@ export function useFunctionalTesting() {
     void handleToggle(item)
   }
 
-  async function handleToggle(item: DisplayListItem): Promise<void> {
+  // 入参只依赖 id/enabled，列表项与详情（勾选即时启停）均可直接传入
+  async function handleToggle(item: { id?: string; enabled?: boolean }): Promise<void> {
     if (!item.id) return
     try {
       await toggleCustomFunction(item.id, !item.enabled)
-      ElMessage.success(item.enabled ? '已禁用' : '已启用')
+      ElMessage.success(item.enabled ? '已停用' : '已启用')
       await loadCustomList()
       if (selectedCustomId.value === item.id && customDetail.value) {
         customDetail.value.enabled = !item.enabled
@@ -393,6 +428,12 @@ export function useFunctionalTesting() {
     customSignature,
     panelMode,
     form,
+    formErrors,
+    paramErrors,
+    serializedParams,
+    addParamRow,
+    removeParamRow,
+    moveParamRow,
     saving,
     resetForm,
     startCreate,
