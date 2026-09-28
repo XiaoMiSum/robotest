@@ -240,14 +240,12 @@
       });
     }
 
+    // 列表页无「查询/重置」按钮：筛选变更即生效，故改选项/回车失焦后即存
+    form.querySelectorAll('input, select').forEach(function (f) {
+      f.addEventListener('change', function () { store.set(key, serialize()); });
+    });
     // 离开列表（进详情）前保存，返回时恢复
     window.addEventListener('pagehide', function () { store.set(key, serialize()); });
-    form.querySelectorAll('[data-ux-filter-apply]').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        store.set(key, serialize());
-        toast('已应用筛选并记住当前页', {});
-      });
-    });
   }
 
   /* ---------------- 内联错误条 + 重试 ---------------- */
