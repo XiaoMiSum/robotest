@@ -168,7 +168,8 @@ public class AccessRateLimiter {
 
     private Long incr(String key, long windowSeconds) {
         try {
-            return redisTemplate.execute(INCR_SCRIPT_OBJ, List.of(key), windowSeconds);
+            // StringRedisTemplate 脚本参数统一走 StringRedisSerializer，传 Long 会强转失败
+            return redisTemplate.execute(INCR_SCRIPT_OBJ, List.of(key), String.valueOf(windowSeconds));
         } catch (DataAccessException e) {
             log.warn("[rate-limit] 计数失败，按失败开放处理 key={} err={}", key, e.getMessage());
             return null;
