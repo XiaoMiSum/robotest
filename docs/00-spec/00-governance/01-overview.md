@@ -42,7 +42,7 @@
 | --- | --- | --- | --- |
 | C1 | 前端禁止 `any`，优先使用 `unknown`、类型守卫或明确类型 | `docs/00-spec/10-engineering/01-frontend.md` | ESLint、TypeScript、代码审查 |
 | C2 | Controller 只负责路由、参数校验和响应包装，不承载业务逻辑 | `docs/00-spec/10-engineering/02-backend.md` | 代码审查、依赖检查 |
-| C3 | 业务异常统一通过 migoo 的 `ErrorCode` 与 `ServiceExceptionUtil` 抛出 | `docs/00-spec/10-engineering/03-migoo-framework.md` | 编译、单元测试、代码审查 |
+| C3 | 业务异常统一通过 migoo 的 `ErrorCode` 与 `ServiceExceptionUtil` 抛出；框架全局错误码 0–999 除外 | `docs/00-spec/10-engineering/03-migoo-framework.md` | 编译、单元测试、代码审查 |
 | C4 | 上下文和资源归属必须可验证，服务端不得信任客户端声明 | `docs/00-spec/20-contracts/01-api.md` / `docs/00-spec/40-security/01-security.md` | 请求检查、代码审查 |
 | C5 | 业务表具备 `id`、`created_at`、`updated_at`、`is_deleted`，禁止物理外键 | `docs/00-spec/20-contracts/02-database.md` | DDL 检查、数据库审查 |
 | C6 | 注释只解释为什么，不复述代码行为 | `docs/00-spec/00-governance/01-overview.md` | 代码审查 |
@@ -107,6 +107,15 @@
 - 文档管理约定：`docs/AGENTS.md`
 - 前端约定：`web/AGENTS.md`
 - 后端约定：`server/AGENTS.md`
+
+---
+
+## 修改记录
+
+| 版本 | 日期 | 说明 |
+| --- | --- | --- |
+| V1.0 | 2026-09-24 | 初版发布 |
+| V1.0 | 2026-09-28 | C3 补充框架全局错误码 0–999 例外 |
 
 ---
 

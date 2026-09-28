@@ -67,7 +67,7 @@ robotest/
 | HTTP | Axios | 统一请求拦截器和响应解包 |
 | 实时通信 | WebSocket；协作场景可采用 Yjs | 通用协议见 `docs/00-spec/20-contracts/03-realtime-protocol.md` |
 | 后端运行时 | Java 21 + Spring Boot 4.x | 版本由 Maven BOM 和 `server/pom.xml` 管理 |
-| 后端框架 | migoo `1.3.18` | 组件手册见 `docs/00-spec/10-engineering/03-migoo-framework.md` |
+| 后端框架 | migoo `1.4.0` | 组件手册见 `docs/00-spec/10-engineering/03-migoo-framework.md` |
 | 数据访问 | MyBatis-Plus + migoo MyBatis Starter | 复杂查询按后端规范封装 |
 | 认证授权 | Spring Security + migoo Security Starter | 服务端执行最终授权 |
 | 数据库 | PostgreSQL 14+ | 优先正式方案，MySQL 仅保留兼容说明 |
@@ -175,6 +175,15 @@ docs/00-spec/20-contracts/03-realtime-protocol.md
 - 通用部署规范：`docs/00-spec/30-quality-delivery/03-deploy.md`
 - 项目部署 Runbook：`docs/00-spec/30-quality-delivery/04-deployment-runbook.md`
 - migoo 组件手册：`docs/00-spec/10-engineering/03-migoo-framework.md`
+
+---
+
+## 修改记录
+
+| 版本 | 日期 | 说明 |
+| --- | --- | --- |
+| V1.1 | 2026-09-24 | 初版发布 |
+| V1.1 | 2026-09-28 | 框架版本同步至 migoo 1.4.0 |
 
 ---
 

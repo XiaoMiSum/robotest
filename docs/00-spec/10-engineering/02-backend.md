@@ -11,7 +11,7 @@
 | 能力 | 技术 | 版本来源 |
 | --- | --- | --- |
 | 运行时 | Java 21 | `server/pom.xml` |
-| 框架 | migoo 1.3.18 / Spring Boot 4.x | Maven BOM、`server/pom.xml` |
+| 框架 | migoo 1.4.0 / Spring Boot 4.x | Maven BOM、`server/pom.xml` |
 | 数据访问 | MyBatis-Plus / `migoo-spring-boot-starter-mybatis` | Maven BOM、`server/pom.xml` |
 | 安全 | Spring Security / migoo security starter | Maven BOM、`server/pom.xml` |
 | API 文档 | SpringDoc | `server/pom.xml` |
@@ -285,6 +285,15 @@ Service 负责业务判断，Mapper 负责可复用的数据访问意图。
 - 数据库：`docs/00-spec/20-contracts/02-database.md`
 - migoo 框架：`docs/00-spec/10-engineering/03-migoo-framework.md`
 - 安全：`docs/00-spec/40-security/01-security.md`
+
+---
+
+## 修改记录
+
+| 版本 | 日期 | 说明 |
+| --- | --- | --- |
+| V1.0 | 2026-09-24 | 初版发布 |
+| V1.0 | 2026-09-28 | 框架版本同步至 migoo 1.4.0 |
 
 ---
 

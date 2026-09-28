@@ -44,6 +44,14 @@ Ticket 必须绑定用户、连接范围和有效期，并在使用后失效。�
 - 校验连接和订阅权限；
 - 对可写消息执行独立的业务权限校验。
 
+### 2.3 Token 撤销（登出与踢出）
+
+- 退出登录必须在服务端撤销当前会话的 Access Token 与 Refresh Token，撤销后两者的后续校验均返回 401；
+- 账号禁用/锁定、密码重置（自助或管理员）必须撤销该用户已签发的全部 Token，已登录会话即时失效；撤销按 Token 签发时间生效，用户重新登录后不受影响；
+- 撤销经 migoo 框架 `UserDetailsBridge` 撤销钩子实现，存储走框架 `StateStore`（Redis）：单 Token 黑名单 `security:token:blacklist:{token}`、用户级签发截止 `security:user:revoked-before:{userId}`（值为撤销时刻，签发时间早于该值的 Token 一律拒绝），TTL 统一 7 天（不短于 Refresh Token 上限有效期）；
+- 撤销在每次请求的 Token 校验阶段生效，与 JWT 无状态校验互补；框架可观测信号（`TokenRevokedEvent`、`migoo.security.token.revoked` 指标）默认接入；
+- Redis 不可用时撤销检查按失败开放放行（经 6.1 同一失败开放口径），写入失败仅记 WARN。
+
 ## 3. 授权和作用域隔离
 
 ### 3.1 管理域
@@ -60,7 +68,7 @@ Ticket 必须绑定用户、连接范围和有效期，并在使用后失效。�
 
 ### 3.3 角色变更
 
-当前阶段不新增角色变更后的全量 Token 立即撤销机制；权限按框架现有的重新加载行为处理。密码重置、账号禁用等安全事件如果需要立即失效，另开安全任务评估 Token version、黑名单或等效机制。
+当前阶段不新增角色变更后的全量 Token 立即撤销机制；权限按框架现有的重新加载行为处理。密码重置、账号禁用等安全事件的即时失效按 2.3 的签发截止机制执行。
 
 ## 4. 密钥和配置
 
@@ -105,23 +113,28 @@ ENV_SECRET_KEY
 - 失败计数和成功后的清理规则必须明确；
 - 代理来源 IP 只能信任受控网关写入的 Header；
 - 失败响应不得泄露账号是否存在；
-- 限流键、窗口、阈值和 Redis 实现必须可配置。
+- 限流窗口与阈值必须显式声明且集中可审计；计数存储、开关与降级行为必须可配置。
 
-**实施口径（可验证）**：`AccessRateLimiter`（Redis 固定窗口：INCR + 首帧 EXPIRE 原子执行），配置项 `robotest.security.rate-limit.*`，限流键格式 `{key-prefix}:{scope}:{identity}`：
+**实施口径（可验证）**：统一使用 migoo 框架（v1.4.0）限流能力，不再保留自定义限流实现：
 
-| 场景 | scope | identity | 计数模式 | 默认窗口 / 阈值 |
+- **IP 维度（尝试计数）**：各接口在 Controller 方法标注框架 `@RateLimit(type = IP, limit, window)`，由 `RateLimitAspect` 经 `RateLimiter` → `StateStore`（Redis，多实例共享）按固定窗口计数，统计键 `类名#方法名:客户端IP`；窗口/阈值在注解上声明，总开关 `migoo.web.rate-limit.enabled` 可配置；客户端 IP 经框架 `ServletUtils.getClientIP()` 解析（X-Forwarded-For 首段 → X-Real-IP → 来源地址，其可信性依赖受控网关覆盖写入转发头）；
+- **账号维度（登录失败计数）**：框架「登录失败锁定」`migoo.security.login-lock.*`（默认启用：连续失败 5 次锁定 10 分钟、滑动窗口 15 分钟内 5 次锁定、递增时长策略并行生效取最严；`failure-window` 空闲 30 分钟清零，认证成功清零连续计数），按账号标识计数，登录前拦截已锁定账号；
+
+各场景默认窗口 / 阈值（计数均按端点独立）：
+
+| 场景 | scope | 维度 | 计数模式 | 默认窗口 / 阈值 |
 | --- | --- | --- | --- | --- |
-| 登录 | `login:ip`、`login:acct` | 客户端 IP、账号（trim + 小写归一） | 失败计数；成功仅清理账号键 | 300 秒：IP 10 次、账号 5 次 |
-| 刷新令牌 | `refresh` | 客户端 IP | 尝试计数 | 60 秒 / 30 次 |
-| 邀请公开接口（verify、check-email、join 共用计数） | `invite` | 客户端 IP | 尝试计数 | 60 秒 / 20 次 |
-| 报告分享免登录查看 | `public-report` | 客户端 IP | 尝试计数 | 60 秒 / 60 次 |
-| 系统初始化 setup | `init-setup` | 客户端 IP | 尝试计数 | 600 秒 / 5 次 |
-| 密码设置（自助改密、管理员重置） | `password` | 客户端 IP | 尝试计数 | 300 秒 / 10 次 |
+| 登录 | `IP 维度` + `账号维度` | 客户端 IP、账号标识 | IP 尝试计数；账号失败锁定 | 300 秒 10 次；账号连续失败 5 次锁 10 分钟 |
+| 刷新令牌 | `IP 维度` | 客户端 IP | 尝试计数 | 60 秒 / 30 次 |
+| 邀请公开接口（verify、check-email、join 各端点独立计数） | `IP 维度` | 客户端 IP | 尝试计数 | 60 秒 / 20 次 |
+| 报告分享免登录查看 | `IP 维度` | 客户端 IP | 尝试计数 | 60 秒 / 60 次 |
+| 系统初始化 setup | `IP 维度` | 客户端 IP | 尝试计数 | 600 秒 / 5 次 |
+| 密码设置（自助改密、管理员重置，各端点独立计数） | `IP 维度` | 客户端 IP | 尝试计数 | 300 秒 / 10 次 |
 
-- 超限统一返回 1000002010「请求过于频繁，请稍后再试」，不区分触发键，不泄露账号是否存在；认证失败（含账号不存在）对两键同样入账，避免枚举差异；
-- 成功登录仅清理账号键，IP 键保留至窗口过期，防止持有有效凭据者借成功登录重置 IP 攻击计数；
-- 客户端 IP 复用 `ClientIpResolver`（X-Forwarded-For 首段 → X-Real-IP → 来源地址），其可信性依赖受控网关覆盖写入转发头；
-- Redis 不可用时失败开放（放行并记 WARN，与 AI 网关限流口径一致），避免缓存故障阻断认证链路；是否改为失败关闭见待确认 DEC-015。
+- 超限统一返回框架全局错误码 429（`TOO_MANY_REQUESTS`，i18n 消息 `common.too.many.requests`），登录账号维度锁定命中返回 423（`ACCOUNT_LOCKED`）；不区分触发键，不泄露账号是否存在；认证失败（含账号不存在）计入账号失败锁定，避免枚举差异；
+- 成功登录清零账号连续失败计数，IP 维度为固定窗口尝试计数、窗口内不清理；
+- 客户端 IP 解析结果的可信性依赖受控网关覆盖写入转发头；
+- 计数与锁定状态经框架 `StateStore`（Redis）存储，应用注册失败开放装饰器：Redis 不可用时放行并记 WARN（限流、登录失败锁定与 Token 撤销检查同一口径），避免缓存故障阻断认证链路；是否改为失败关闭见待确认 DEC-015。
 
 ### 6.2 CSRF 与 CORS
 
@@ -199,6 +212,7 @@ changes
 - [x] 作用域上下文校验改为 fail-closed
 - [x] WebSocket 可写帧转发前校验编辑权限
 - [x] 登录及公共接口增加可验证限流
+- [ ] 退出登录与账号禁用/密码重置的服务端 Token 撤销（见 2.3）
 - [ ] 审计覆盖敏感操作并递归脱敏
 - [x] 生产关闭 SQL 参数输出和过高日志级别
 - [x] 修复审计和日志中的敏感字段泄露
@@ -212,6 +226,12 @@ changes
 - migoo 安全能力：`docs/00-spec/10-engineering/03-migoo-framework.md`
 - 质量门禁：`docs/00-spec/30-quality-delivery/01-quality.md`
 - 部署密钥：`docs/00-spec/30-quality-delivery/03-deploy.md`、`docs/00-spec/30-quality-delivery/04-deployment-runbook.md`
+
+## 修改记录
+
+| 版本 | 日期 | 说明 |
+| --- | --- | --- |
+| V1.0 | 2026-09-28 | 新增 2.3 Token 撤销；6.1 限流实施口径改为 migoo 框架 `@RateLimit` + 登录失败锁定，超限错误码改用框架 429/423；3.3 与 2.3 撤销口径对齐；登记 Token 撤销整改项 |
 
 ---
 

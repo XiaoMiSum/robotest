@@ -56,7 +56,7 @@ mvn test
 | --- | ----------------------------------------------------- | --------- |
 | C10 | 优先使用 migoo 框架提供的基础功能（验证注解、工具类等），禁止重复造轮子（后端）     | 代码审查      |
 | C2  | Controller 不允许包含业务逻辑，只能路由+校验                        | 代码审查      |
-| C3  | 业务异常统一通过 migoo `ServiceExceptionUtil.get(ErrorCode)` 抛出，使用 10 位错误码 | 代码审查      |
+| C3  | 业务异常统一通过 migoo `ServiceExceptionUtil.get(ErrorCode)` 抛出，使用 10 位错误码；框架全局错误码 0–999（401 / 403 / 423 / 429 / 500 等）除外 | 代码审查      |
 | C5  | 数据库每表必须有 `id`、`created_at`、`updated_at`、`is_deleted`（逻辑删除），UUID 使用框架默认策略，禁止物理外键 | 数据库审查     |
 | C8  | 单测覆盖率 ≥ 70%                                            | CI        |
 | C11 | 更新数据只更新调用方实际传入的字段：查询仅做校验，禁止整行查询结果作 `updateById` 载体；显式置 null 用 `LambdaUpdateWrapperX` | 代码审查      |
@@ -70,7 +70,7 @@ mvn test
 - 上下文标识（如 workspaceId/projectId）仅通过请求头 `X-Active-Workspace` / `X-Active-Project` 传递（C4），不出现在活动上下文 URL 或请求体中；资源自身 ID 按 API 规范处理
 - 避免新增外部依赖，确有必要时需经团队讨论
 
-## 框架集成（migoo-spring-boot-starter v1.3.18）
+## 框架集成（migoo-spring-boot-starter v1.4.0）
 
 > 完整规范见 `docs/00-spec/10-engineering/03-migoo-framework.md`，框架文档：https://xiaomisum.github.io/springboot-migoo-framework/
 
@@ -164,3 +164,12 @@ UserRespDTO dto = userConvertMapper.toRespDTO(user);
 | `@Email` | 邮箱格式校验 | `@Email private String email;` |
 | `@Mobile` | 手机号格式校验 | `@Mobile private String phone;` |
 | `@InEnum` | 枚举值范围校验 | `@InEnum(StatusEnum.class) private Integer status;` |
+
+---
+
+## 修改记录
+
+| 版本 | 日期 | 说明 |
+| --- | --- | --- |
+| — | 2026-09-24 | 初版发布 |
+| — | 2026-09-28 | 框架版本同步至 v1.4.0；C3 补充框架全局错误码 0–999 例外 |
