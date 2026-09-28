@@ -4,7 +4,6 @@ import tools.jackson.databind.JsonNode;
 import io.github.xiaomisum.robotest.framework.mock.MockDefinitionReader.MockDefinitionSnapshot;
 import io.github.xiaomisum.robotest.framework.security.SensitiveDataMasker;
 import io.github.xiaomisum.robotest.service.apitest.mock.MockMatchEngine;
-import io.github.xiaomisum.robotest.service.apitest.mock.MockRateLimiter;
 import io.github.xiaomisum.robotest.service.apitest.mock.MockResponseFactory;
 import jakarta.servlet.Filter;
 import jakarta.servlet.FilterChain;
@@ -18,10 +17,12 @@ import jakarta.servlet.http.HttpServletRequestWrapper;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.MediaType;
 import xyz.migoo.framework.common.util.JsonUtils;
+import xyz.migoo.framework.web.core.ratelimit.RateLimiter;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.HashMap;
@@ -41,12 +42,13 @@ public class MockAccessFilter implements Filter {
 
     private final MockDefinitionReader reader;
     private final MockAccessProperties properties;
-    private final MockRateLimiter rateLimiter;
+    private final RateLimiter rateLimiter;
 
-    public MockAccessFilter(MockDefinitionReader reader, MockAccessProperties properties) {
+    public MockAccessFilter(MockDefinitionReader reader, MockAccessProperties properties,
+                            RateLimiter rateLimiter) {
         this.reader = reader;
         this.properties = properties;
-        this.rateLimiter = new MockRateLimiter(properties.getPathQps());
+        this.rateLimiter = rateLimiter;
     }
 
     @Override
@@ -66,6 +68,15 @@ public class MockAccessFilter implements Filter {
         } catch (Exception e) {
             chain.doFilter(request, response);
         }
+    }
+
+    /** 单路径 QPS 限流（Mock服务详细设计 3.3.1）：固定窗口 1 秒，qps <= 0 关闭 */
+    private boolean allowRateLimit(String path) {
+        int qps = properties.getPathQps();
+        if (qps <= 0) {
+            return true;
+        }
+        return rateLimiter.tryAcquire("mock:" + path, qps, Duration.ofSeconds(1));
     }
 
     private boolean excluded(HttpServletRequest request, String path) {
@@ -112,7 +123,7 @@ public class MockAccessFilter implements Filter {
         }
 
         HttpServletRequest servletRequest = cachedBodyRequest != null ? cachedBodyRequest : request;
-        if (!rateLimiter.allow(hit.path())) {
+        if (!allowRateLimit(path)) {
             writeSimple(response, 429, MediaType.TEXT_PLAIN_VALUE, "mock rate limit exceeded");
             logAccessAsync(hit, servletRequest, 429, "rate limit exceeded", 0);
             return;

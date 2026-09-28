@@ -279,7 +279,7 @@ public class AiGatewayServiceImpl implements AiGatewayService {
         } catch (ServiceException e) {
             // 被限流的请求写审计但不计入窗口
             auditRecorder.record(context, functionType, modelName, 0, null, null,
-                    Constants.AiInvocationStatus.RATE_LIMITED, "6004");
+                    Constants.AiInvocationStatus.RATE_LIMITED, "429");
             throw e;
         }
     }
