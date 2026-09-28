@@ -1,6 +1,5 @@
 package io.github.xiaomisum.robotest.controller;
 
-import io.github.xiaomisum.robotest.framework.ratelimit.AccessRateLimiter;
 import io.github.xiaomisum.robotest.framework.security.LoginUser;
 import io.github.xiaomisum.robotest.service.admin.UserService;
 import io.github.xiaomisum.robotest.service.admin.audit.LoginAuditService;
@@ -13,15 +12,12 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import xyz.migoo.framework.apilog.core.ApiErrorLogFrameworkService;
 import xyz.migoo.framework.common.exception.GlobalErrorCodeConstants;
 import xyz.migoo.framework.security.core.authentication.AuthUserDetailsFetcher;
-import xyz.migoo.framework.web.config.ExceptionHandlingConfiguration;
 import xyz.migoo.framework.web.core.handler.GlobalExceptionHandler;
 import xyz.migoo.framework.web.i18n.I18NMessage;
 
 import java.util.UUID;
-import java.util.function.Supplier;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -36,15 +32,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  *
  * <p>独立 MockMvc 装配真实 Controller 与 migoo 全局异常 advice：错误信封遵循
  * DEC-002 方案 A（HTTP 200 兼容模式，错误由 {@code Result.code} 表达）。
- * 认证、限流、审计为 Mockito 边界，不依赖数据库与 Redis；未登录 401 由安全过滤链
- * 及拦截器/守卫测试覆盖，不在此层重复。
+ * 认证与审计为 Mockito 边界，不依赖数据库与 Redis；接口限流由框架 @RateLimit 切面承担
+ * （无状态依赖，在切面层单独验证），未登录 401 由安全过滤链及拦截器/守卫测试覆盖。
  */
 class AuthControllerApiTest {
 
     private MockMvc mockMvc;
 
     private AuthUserDetailsFetcher<LoginUser> authUserDetailsFetcher;
-    private AccessRateLimiter accessRateLimiter;
     private LoginAuditService loginAuditService;
     private UserService userService;
 
@@ -52,18 +47,16 @@ class AuthControllerApiTest {
     @SuppressWarnings("unchecked")
     void setUp() {
         authUserDetailsFetcher = mock(AuthUserDetailsFetcher.class);
-        accessRateLimiter = mock(AccessRateLimiter.class);
         loginAuditService = mock(LoginAuditService.class);
         userService = mock(UserService.class);
 
         AuthController controller = new AuthController();
         ReflectionTestUtils.setField(controller, "authUserDetailsFetcher", authUserDetailsFetcher);
-        ReflectionTestUtils.setField(controller, "accessRateLimiter", accessRateLimiter);
         ReflectionTestUtils.setField(controller, "loginAuditService", loginAuditService);
         ReflectionTestUtils.setField(controller, "userService", userService);
 
-        // migoo 1.3.18 发布包实际签名为 (String, ApiErrorLogFrameworkService, I18NMessage)
-        GlobalExceptionHandler advice = new ExceptionHandlingConfiguration().globalExceptionHandler(
+        // migoo 1.4.0：错误信封由 GlobalExceptionHandler 构造（应用名、错误日志扩展点、i18n）
+        GlobalExceptionHandler advice = new GlobalExceptionHandler(
                 "robotest",
                 mock(ApiErrorLogFrameworkService.class),
                 new I18NMessage(new StaticMessageSource()));
@@ -85,9 +78,6 @@ class AuthControllerApiTest {
 
     @Test
     void login_success_returnsEnvelopeAndAudits() throws Exception {
-        // 限流器直通执行认证 Supplier，保证 HTTP 层真正驱动 fetcher（与生产链路一致）
-        when(accessRateLimiter.login(anyString(), any(), any())).thenAnswer(invocation ->
-                ((Supplier<AuthUserDetailsFetcher.LoginResult<LoginUser>>) invocation.getArgument(2)).get());
         when(authUserDetailsFetcher.authenticate("admin", "secret#123")).thenReturn(loginFixture());
 
         mockMvc.perform(post("/api/auth/login")
@@ -100,7 +90,6 @@ class AuthControllerApiTest {
                 .andExpect(jsonPath("$.data.user.username").value("admin"));
 
         verify(authUserDetailsFetcher).authenticate("admin", "secret#123");
-        verify(accessRateLimiter).login(eq("admin"), any(), any());
         verify(loginAuditService).recordLogin(any(UUID.class), eq("admin"), any());
     }
 
@@ -149,7 +138,6 @@ class AuthControllerApiTest {
                 .andExpect(jsonPath("$.data.accessToken").value("access-token"))
                 .andExpect(jsonPath("$.data.refreshToken").value("refresh-token"));
 
-        verify(accessRateLimiter).checkRefresh(any());
         verify(authUserDetailsFetcher).refreshToken("old-refresh");
     }
 

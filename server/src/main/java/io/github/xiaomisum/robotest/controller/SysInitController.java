@@ -1,13 +1,12 @@
 package io.github.xiaomisum.robotest.controller;
 
-import io.github.xiaomisum.robotest.framework.ratelimit.AccessRateLimiter;
 import io.github.xiaomisum.robotest.model.dto.request.admin.InitSetupReqDTO;
 import io.github.xiaomisum.robotest.service.admin.SysInitService;
 import jakarta.annotation.Resource;
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 import xyz.migoo.framework.common.pojo.Result;
+import xyz.migoo.framework.web.core.annotation.RateLimit;
 
 @RestController
 @RequestMapping("/api/auth/init")
@@ -15,8 +14,6 @@ public class SysInitController {
 
     @Resource
     private SysInitService sysInitService;
-    @Resource
-    private AccessRateLimiter accessRateLimiter;
 
     /**
      * 检查系统是否已初始化（是否有 admin 账号）
@@ -29,10 +26,9 @@ public class SysInitController {
     /**
      * 初始化系统：创建 admin 账号（仅首次安装时调用）
      */
+    @RateLimit(limit = 5, window = 600)
     @PostMapping("/setup")
-    public Result<Void> setup(@RequestBody @Valid InitSetupReqDTO reqDTO,
-                              HttpServletRequest request) {
-        accessRateLimiter.checkInitSetup(request);
+    public Result<Void> setup(@RequestBody @Valid InitSetupReqDTO reqDTO) {
         sysInitService.setup(reqDTO);
         return Result.ok();
     }
