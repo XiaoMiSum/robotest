@@ -5,13 +5,13 @@
 (function () {
   var store = {
     get: function (key) {
-      try { return window.sessionStorage.getItem(key); } catch (e) { return null; }
+      try { return window.sessionStorage.getItem(key); } catch { return null; }
     },
     set: function (key, val) {
-      try { window.sessionStorage.setItem(key, val); } catch (e) { /* 隐私模式下静默降级 */ }
+      try { window.sessionStorage.setItem(key, val); } catch { /* 隐私模式下静默降级 */ }
     },
     remove: function (key) {
-      try { window.sessionStorage.removeItem(key); } catch (e) { /* 同上 */ }
+      try { window.sessionStorage.removeItem(key); } catch { /* 同上 */ }
     },
   };
 
@@ -210,7 +210,7 @@
 
     function applySaved(saved) {
       var data;
-      try { data = JSON.parse(saved); } catch (e) { return false; }
+      try { data = JSON.parse(saved); } catch { return false; }
       var fields = form.querySelectorAll('input, select');
       var changed = false;
       (data.f || []).forEach(function (rec) {
