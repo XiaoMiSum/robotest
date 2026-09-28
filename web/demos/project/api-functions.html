@@ -32,11 +32,18 @@
   .fn-item__meta { margin-top: 2px; font-size: var(--font-size-xs); color: var(--n-400); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .fn-item__acts { margin-top: 4px; font-size: var(--font-size-xs); }
   .fn-item__acts .op-link + .op-link { margin-left: 8px; }
+  .fn-item__state { flex-shrink: 0; }
+
+  /* 启停勾选：口径同公共组件示例（详情头部勾选即时启停，同步列表状态标签与灰化） */
+  .cell-check { width: 14px; height: 14px; accent-color: var(--brand-500); }
+  .fn-enable { display: inline-flex; align-items: center; gap: 5px; flex-shrink: 0; font-size: var(--font-size-sm); color: var(--n-600); cursor: pointer; user-select: none; }
+  .fn-enable input { margin: 0; }
 
   /* 右：详情（头部吸顶，分区标签左置两栏对齐） */
   .fn-detail { flex: 1; min-width: 0; overflow-y: auto; background: #fff; border: 1px solid var(--n-100); border-radius: var(--radius-lg); padding: 0 var(--space-lg) var(--space-lg); }
-  .fn-detail__header { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm); margin: 0 calc(0px - var(--space-lg)) var(--space-lg); padding: var(--space-md) var(--space-lg); background: #fff; border-bottom: 1px solid var(--n-100); }
+  .fn-detail__header { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--space-sm); margin: 0 calc(0px - var(--space-lg)) var(--space-lg); padding: var(--space-md) var(--space-lg); background: #fff; border-bottom: 1px solid var(--n-100); }
   .fn-detail__name { margin: 0; font-size: var(--font-size-lg); font-family: var(--font-mono); color: var(--n-800); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .fn-detail__id { display: flex; align-items: center; gap: var(--space-sm); flex: 1 1 auto; min-width: 0; }
   .fn-detail__header-actions { display: flex; align-items: center; gap: var(--space-sm); flex-shrink: 0; }
 
   .fn-detail__section { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: var(--space-sm) var(--space-md); align-items: start; }
@@ -143,28 +150,31 @@
                   <div class="fn-item__main">
                     <span class="fn-item__name">signParams</span>
                     <span class="tag tag--success">自定义</span>
-                    <span class="tag tag--outline">项目</span>
+                    <span class="tag tag--outline fn-item__scope">项目</span>
+                    <span class="tag tag--success fn-item__state">已启用</span>
                   </div>
                   <div class="fn-item__meta">按业务规则生成签名参数</div>
-                  <div class="fn-item__acts"><span class="op-link" data-act="toggle">禁用</span><span class="op-link op-link--danger" data-ux-undo=".fn-item">删除</span></div>
+                  <div class="fn-item__acts"><span class="op-link op-link--danger" data-ux-undo=".fn-item">删除</span></div>
                 </li>
                 <li class="fn-item" data-fn="genOrderNo" data-scope="custom">
                   <div class="fn-item__main">
                     <span class="fn-item__name">genOrderNo</span>
                     <span class="tag tag--success">自定义</span>
-                    <span class="tag tag--outline">空间</span>
+                    <span class="tag tag--outline fn-item__scope">空间</span>
+                    <span class="tag tag--success fn-item__state">已启用</span>
                   </div>
                   <div class="fn-item__meta">生成雪花订单号</div>
-                  <div class="fn-item__acts"><span class="op-link" data-act="toggle">禁用</span><span class="op-link op-link--danger" data-ux-undo=".fn-item">删除</span></div>
+                  <div class="fn-item__acts"><span class="op-link op-link--danger" data-ux-undo=".fn-item">删除</span></div>
                 </li>
                 <li class="fn-item is-disabled" data-fn="legacyFmt" data-scope="custom">
                   <div class="fn-item__main">
                     <span class="fn-item__name">legacyFmt</span>
                     <span class="tag tag--success">自定义</span>
-                    <span class="tag tag--outline">项目</span>
+                    <span class="tag tag--outline fn-item__scope">项目</span>
+                    <span class="tag tag--outline fn-item__state">已停用</span>
                   </div>
                   <div class="fn-item__meta">旧版报文格式化（已停用）</div>
-                  <div class="fn-item__acts"><span class="op-link" data-act="toggle">启用</span><span class="op-link op-link--danger" data-ux-undo=".fn-item">删除</span></div>
+                  <div class="fn-item__acts"><span class="op-link op-link--danger" data-ux-undo=".fn-item">删除</span></div>
                 </li>
               </ul>
 
@@ -207,9 +217,11 @@
 
           <section class="fn-detail" data-fndetail="custom" hidden>
             <div class="fn-detail__header">
-              <h4 class="fn-detail__name" id="cu-name">signParams</h4>
+              <div class="fn-detail__id">
+                <h4 class="fn-detail__name" id="cu-name">signParams</h4>
+                <label class="fn-enable"><input type="checkbox" class="cell-check" id="cu-enable"><span>启用</span></label>
+              </div>
               <div class="fn-detail__header-actions">
-                <span class="tag tag--success" id="cu-status">已启用</span>
                 <span class="tag tag--outline" id="cu-scope">项目</span>
                 <button class="btn btn--default btn--sm" id="fn-edit">编辑</button>
               </div>
@@ -440,9 +452,7 @@
     if (!fn) return;
     var params = parseParams(fn.paramsDesc);
     document.getElementById('cu-name').textContent = key;
-    var status = document.getElementById('cu-status');
-    status.textContent = fn.enabled ? '已启用' : '已禁用';
-    status.className = fn.enabled ? 'tag tag--success' : 'tag tag--outline';
+    document.getElementById('cu-enable').checked = !!fn.enabled;
     document.getElementById('cu-scope').textContent = SCOPE_LABELS[fn.scope];
     document.getElementById('cu-sign').textContent = signature(key, params);
     document.getElementById('cu-desc').textContent = fn.desc || '—';
@@ -475,7 +485,7 @@
 
   document.querySelectorAll('[data-fn]').forEach(function (item) {
     item.addEventListener('click', function (e) {
-      // 行内操作（启用/禁用、删除）不触发详情选中
+      // 行内操作（删除）不触发详情选中
       if (e.target.closest('[data-act], [data-ux-undo]')) return;
       selectItem(item);
     });
@@ -517,22 +527,16 @@
     searchInput.focus();
   });
 
-  // 启用 / 禁用（toggleCustomFunction）
-  document.querySelectorAll('[data-fnlist="custom"]').forEach(function (list) {
-    list.addEventListener('click', function (e) {
-      var toggle = e.target.closest('[data-act="toggle"]');
-      if (!toggle) return;
-      e.stopPropagation();
-      var item = toggle.closest('.fn-item');
-      var key = item.getAttribute('data-fn');
-      var fn = CUSTOM[key];
-      if (!fn) return;
-      fn.enabled = !fn.enabled;
-      item.classList.toggle('is-disabled', !fn.enabled);
-      toggle.textContent = fn.enabled ? '禁用' : '启用';
-      if (currentItem() === item) renderCustom(key);
-      rt.toast(fn.enabled ? '已启用' : '已禁用', { type: fn.enabled ? 'success' : 'warning' });
-    });
+  // 启用 / 禁用（toggleCustomFunction）：详情头部勾选即时生效，同步列表状态标签与灰化
+  document.getElementById('cu-enable').addEventListener('change', function () {
+    var item = currentItem();
+    if (!item || item.getAttribute('data-scope') !== 'custom') return;
+    var key = item.getAttribute('data-fn');
+    var fn = CUSTOM[key];
+    if (!fn) return;
+    fn.enabled = this.checked;
+    updateListItem(key, fn);
+    rt.toast(fn.enabled ? '已启用' : '已停用', { type: fn.enabled ? 'success' : 'warning' });
   });
 
   // 删除 / 撤销：刷新列表可见性，并与实现一致地清空右侧详情（撤销后若仍选中则恢复）
@@ -656,6 +660,14 @@
     }, 600);
   });
 
+  // 状态标签与灰化同口径同步：启用=已启用（成功色），禁用=已停用（描边）并整行降透明
+  function applyListState(li, fn) {
+    li.classList.toggle('is-disabled', !fn.enabled);
+    var state = li.querySelector('.fn-item__state');
+    state.textContent = fn.enabled ? '已启用' : '已停用';
+    state.className = 'tag fn-item__state ' + (fn.enabled ? 'tag--success' : 'tag--outline');
+  }
+
   function buildListItem(key, fn) {
     var li = document.createElement('li');
     li.className = 'fn-item' + (fn.enabled ? '' : ' is-disabled');
@@ -665,14 +677,15 @@
       '<div class="fn-item__main">' +
         '<span class="fn-item__name"></span>' +
         '<span class="tag tag--success">自定义</span>' +
-        '<span class="tag tag--outline"></span>' +
+        '<span class="tag tag--outline fn-item__scope"></span>' +
+        '<span class="tag fn-item__state"></span>' +
       '</div>' +
       '<div class="fn-item__meta"></div>' +
-      '<div class="fn-item__acts"><span class="op-link" data-act="toggle"></span><span class="op-link op-link--danger" data-ux-undo=".fn-item">删除</span></div>';
+      '<div class="fn-item__acts"><span class="op-link op-link--danger" data-ux-undo=".fn-item">删除</span></div>';
     li.querySelector('.fn-item__name').textContent = key;
-    li.querySelector('.tag--outline').textContent = SCOPE_LABELS[fn.scope];
+    li.querySelector('.fn-item__scope').textContent = SCOPE_LABELS[fn.scope];
     li.querySelector('.fn-item__meta').textContent = fn.desc || '';
-    li.querySelector('[data-act="toggle"]').textContent = fn.enabled ? '禁用' : '启用';
+    applyListState(li, fn);
     li.addEventListener('click', function (e) {
       if (e.target.closest('[data-act], [data-ux-undo]')) return;
       selectItem(li);
@@ -700,10 +713,9 @@
   function updateListItem(key, fn) {
     var li = document.querySelector('[data-fn="' + key + '"]');
     if (!li) return;
-    li.classList.toggle('is-disabled', !fn.enabled);
-    li.querySelector('.tag--outline').textContent = SCOPE_LABELS[fn.scope];
+    li.querySelector('.fn-item__scope').textContent = SCOPE_LABELS[fn.scope];
     li.querySelector('.fn-item__meta').textContent = fn.desc || '';
-    li.querySelector('[data-act="toggle"]').textContent = fn.enabled ? '禁用' : '启用';
+    applyListState(li, fn);
     refreshList();
   }
 
