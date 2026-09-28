@@ -6,10 +6,11 @@
 <title>接口测试 · 接口管理 · RoboTest</title>
 <link rel="stylesheet" href="../assets/tokens.css">
 <link rel="stylesheet" href="../assets/base.css">
+<link rel="stylesheet" href="../assets/ux.css">
 <style>
   /* 编辑器 Tab 工作区（InterfaceWorkspace：卡片式 tab + 右上列表操作） */
   .ws { display: flex; flex-direction: column; gap: var(--space-md); }
-  .ws-tabs { position: relative; display: flex; align-items: center; gap: 4px; padding-right: 200px; }
+  .ws-tabs { position: relative; display: flex; align-items: center; gap: 4px; }
   .ws-tab {
     display: inline-flex; align-items: center; gap: 6px;
     height: 32px; padding: 0 12px;
@@ -29,10 +30,10 @@
   }
   .ws-tab__close { color: var(--n-400); font-size: 14px; line-height: 1; }
   .ws-tab__close:hover { color: var(--n-700); }
-  .ws-tabbar__actions { position: absolute; top: 0; right: 0; height: 32px; display: flex; align-items: center; gap: var(--space-sm); }
 
   .ws-filter { padding: 0; }
-  .ws-filter .toolbar { border-bottom: none; padding: 12px 16px; }
+  /* 筛选条是独立卡片，不与表格相邻：只去掉工具条底边线，内边距沿用统一口径 */
+  .ws-filter .toolbar { border-bottom: none; }
 
   .ws-body { display: flex; gap: var(--space-lg); align-items: stretch; min-height: 520px; }
   .ws-tree { width: 280px; flex-shrink: 0; display: flex; flex-direction: column; }
@@ -83,22 +84,28 @@
     </aside>
 
     <div class="split__main">
+      <div class="page-head">
+        <div>
+          <h1 class="page-head__title">接口管理</h1>
+        </div>
+        <div class="page-head__actions">
+          <button class="btn btn--default"><span data-icon="upload"></span>导入</button>
+          <button class="btn btn--primary"><span data-icon="plus"></span>新建接口</button>
+        </div>
+      </div>
+
       <div class="ws">
-        <!-- 编辑器 Tab 条：全部接口（固定）+ 打开的编辑 Tab（脏态蓝点 / 可关闭），右上为列表数据操作 -->
+        <!-- 编辑器 Tab 条：全部接口（固定）+ 打开的编辑 Tab（脏态蓝点 / 可关闭） -->
         <div class="ws-tabs">
           <div class="ws-tab is-active"><span>全部接口</span></div>
           <div class="ws-tab is-dirty"><span>创建订单</span><span class="ws-tab__close">×</span></div>
           <div class="ws-tab"><span>查询订单详情</span><span class="ws-tab__close">×</span></div>
-          <div class="ws-tabbar__actions">
-            <button class="btn btn--default"><span data-icon="upload"></span>导入</button>
-            <button class="btn btn--primary"><span data-icon="plus"></span>新建接口</button>
-          </div>
         </div>
 
         <!-- 筛选工具条 -->
         <div class="card ws-filter">
           <div class="toolbar">
-            <div class="toolbar__filters">
+            <div class="toolbar__filters" data-ux-filters="interfaces">
               <div class="segment">
                 <span class="segment__item segment__item--active">全部</span>
                 <span class="segment__item">我关注的</span>
@@ -106,13 +113,15 @@
               </div>
               <div class="input-wrap"><span data-icon="search"></span><input class="input" placeholder="搜索名称 / 路径"></div>
               <select class="select" style="width:120px"><option>状态</option><option>启用</option><option>停用</option></select>
-              <button class="btn btn--primary btn--sm"><span data-icon="search"></span>查询</button>
+              <button class="btn btn--primary btn--sm" data-ux-filter-apply><span data-icon="search"></span>查询</button>
               <button class="btn btn--default btn--sm">重置</button>
+              <span class="ux-restore" data-ux-restore-for="interfaces" hidden>
+                <span data-icon="check"></span>已恢复上次筛选
+                <button class="ux-restore__clear" data-ux-restore-clear>清除</button>
+              </span>
             </div>
             <div class="toolbar__filters">
-              <span class="toolbar__count">已选 2 项</span>
-              <button class="btn btn--default btn--sm">批量移动</button>
-              <button class="btn btn--danger btn--sm">批量删除</button>
+              <span class="toolbar__count muted">勾选行后，底部会出现批量操作条</span>
             </div>
           </div>
         </div>
@@ -139,7 +148,7 @@
 
           <!-- 右：接口表格 -->
           <div class="card ws-table">
-            <div class="table-wrap" style="flex:1">
+            <div class="table-wrap" style="flex:1" data-ux-batchbar="#batchbar-interfaces">
               <table class="table table--clickable">
                 <thead>
                   <tr>
@@ -160,7 +169,7 @@
                     <td><span class="switch switch--on"></span></td>
                     <td class="num">6</td>
                     <td class="num">2026-09-22 10:15</td>
-                    <td><span class="op-link">调试</span><span class="op-link">编辑</span><span class="op-link">更多</span></td>
+                    <td><span class="op-link" data-ux-feedback="已在「快速调试」中打开该接口" data-ux-feedback-type="success">调试</span><span class="op-link">编辑</span><span class="op-link" data-ux-feedback="更多操作：复制 / 移动 / 停用 / 删除">更多</span></td>
                   </tr>
                   <tr>
                     <td><span class="checkbox checkbox--on"></span></td>
@@ -172,7 +181,7 @@
                     <td><span class="switch switch--on"></span></td>
                     <td class="num">4</td>
                     <td class="num">2026-09-21 17:40</td>
-                    <td><span class="op-link">调试</span><span class="op-link">编辑</span><span class="op-link">更多</span></td>
+                    <td><span class="op-link" data-ux-feedback="已在「快速调试」中打开该接口" data-ux-feedback-type="success">调试</span><span class="op-link">编辑</span><span class="op-link" data-ux-feedback="更多操作：复制 / 移动 / 停用 / 删除">更多</span></td>
                   </tr>
                   <tr>
                     <td><span class="checkbox"></span></td>
@@ -184,7 +193,7 @@
                     <td><span class="switch switch--on"></span></td>
                     <td class="num">2</td>
                     <td class="num">2026-09-21 14:22</td>
-                    <td><span class="op-link">调试</span><span class="op-link">编辑</span><span class="op-link">更多</span></td>
+                    <td><span class="op-link" data-ux-feedback="已在「快速调试」中打开该接口" data-ux-feedback-type="success">调试</span><span class="op-link">编辑</span><span class="op-link" data-ux-feedback="更多操作：复制 / 移动 / 停用 / 删除">更多</span></td>
                   </tr>
                   <tr>
                     <td><span class="checkbox"></span></td>
@@ -196,7 +205,7 @@
                     <td><span class="switch switch--on"></span></td>
                     <td class="num">1</td>
                     <td class="num">2026-09-22 14:03</td>
-                    <td><span class="op-link">调试</span><span class="op-link">编辑</span><span class="op-link">更多</span></td>
+                    <td><span class="op-link" data-ux-feedback="已在「快速调试」中打开该接口" data-ux-feedback-type="success">调试</span><span class="op-link">编辑</span><span class="op-link" data-ux-feedback="更多操作：复制 / 移动 / 停用 / 删除">更多</span></td>
                   </tr>
                   <tr>
                     <td><span class="checkbox"></span></td>
@@ -208,7 +217,7 @@
                     <td><span class="switch switch--on"></span></td>
                     <td class="num">3</td>
                     <td class="num">2026-09-20 11:08</td>
-                    <td><span class="op-link">调试</span><span class="op-link">编辑</span><span class="op-link">更多</span></td>
+                    <td><span class="op-link" data-ux-feedback="已在「快速调试」中打开该接口" data-ux-feedback-type="success">调试</span><span class="op-link">编辑</span><span class="op-link" data-ux-feedback="更多操作：复制 / 移动 / 停用 / 删除">更多</span></td>
                   </tr>
                   <tr>
                     <td><span class="checkbox"></span></td>
@@ -220,12 +229,12 @@
                     <td><span class="switch"></span></td>
                     <td class="num">0</td>
                     <td class="num">2026-09-15 09:55</td>
-                    <td><span class="op-link">调试</span><span class="op-link">编辑</span><span class="op-link">更多</span></td>
+                    <td><span class="op-link" data-ux-feedback="已在「快速调试」中打开该接口" data-ux-feedback-type="success">调试</span><span class="op-link">编辑</span><span class="op-link" data-ux-feedback="更多操作：复制 / 移动 / 停用 / 删除">更多</span></td>
                   </tr>
                 </tbody>
               </table>
             </div>
-            <div class="pagination">
+            <div class="pagination" data-ux-pageable>
               <span class="pagination__total">共 142 个接口 · 每页 20 条</span>
               <button class="page-btn" disabled>‹</button>
               <button class="page-btn page-btn--active">1</button>
@@ -242,7 +251,18 @@
   </div>
 </main>
 
+<!-- 底部批量操作条：勾选 ≥1 行时浮出 -->
+<div class="ux-batchbar" id="batchbar-interfaces" hidden>
+  <span class="ux-batchbar__count">已选 <b data-ux-batch-count>0</b> 项</span>
+  <span class="ux-batchbar__sep"></span>
+  <button class="btn btn--default btn--sm" data-ux-batch-action="已批量移动到「支付」">批量移动</button>
+  <button class="btn btn--danger btn--sm" data-ux-batch-delete>批量删除</button>
+  <span class="ux-batchbar__sep"></span>
+  <button class="btn btn--text btn--sm" data-ux-batch-clear>清空</button>
+</div>
+
 <script src="../assets/icons.js"></script>
 <script src="../assets/shell.js"></script>
+<script src="../assets/ux.js"></script>
 </body>
 </html>

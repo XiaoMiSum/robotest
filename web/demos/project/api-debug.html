@@ -6,6 +6,7 @@
 <title>接口测试 · 快速调试 · RoboTest</title>
 <link rel="stylesheet" href="../assets/tokens.css">
 <link rel="stylesheet" href="../assets/base.css">
+<link rel="stylesheet" href="../assets/ux.css">
 <style>
   .debug { display: flex; flex-direction: column; height: 100%; }
   .debug__card { display: flex; flex-direction: column; flex: 1; min-height: 0; }
@@ -110,6 +111,10 @@
   .resp-meta { display: flex; align-items: center; gap: 5px; }
   .resp-meta b { font-size: 11px; color: var(--n-400); font-weight: 500; text-transform: uppercase; }
   .resp-meta span { font-family: var(--font-mono); font-size: var(--font-size-xs); color: var(--n-700); }
+  .delta { font-family: var(--font-mono); font-size: var(--font-size-xs); padding: 1px 6px; border-radius: 999px; }
+  .delta--up { background: var(--st-danger-light); color: var(--st-danger-strong); }
+  .delta--down { background: var(--st-success-light); color: var(--st-success-strong); }
+  .send-hint { display: flex; align-items: center; gap: 6px; padding: 0 12px 8px; font-size: var(--font-size-xs); color: var(--n-400); }
   .resptabs { display: flex; align-items: center; justify-content: space-between; padding: 0 12px; border-bottom: 1px solid var(--n-100); }
   .resptabs__group { display: flex; }
   .resptab { padding: 8px 14px; font-size: var(--font-size-xs); font-weight: 500; color: var(--n-500); background: none; border: none; border-bottom: 2px solid transparent; cursor: pointer; }
@@ -125,7 +130,8 @@
   .respmodes__right .select { width: 108px; height: 26px; font-size: var(--font-size-xs); text-transform: none; }
 
   .json-view { padding: 10px 12px; background: #1e1e1e; min-height: 100%; font-family: var(--font-mono); font-size: var(--font-size-xs); line-height: 1.65; color: #d4d4d4; }
-  .j-row { white-space: pre; }
+  .j-row { white-space: pre; cursor: pointer; border-radius: 3px; }
+  .j-row:hover { background: rgba(255, 255, 255, .06); }
   .j-key { color: #9cdcfe; }
   .j-str { color: #ce9178; }
   .j-num { color: #b5cea8; }
@@ -179,9 +185,10 @@
               <div class="urlbar">
                 <select class="method-pick"><option>POST</option><option>GET</option><option>PUT</option><option>PATCH</option><option>DELETE</option></select>
                 <input class="url-input" value="${BASE_URL}/api/v1/orders">
-                <button class="btn btn--primary" style="height:32px;font-weight:600"><span data-icon="arrow-right"></span>发送</button>
+                <button class="btn btn--primary" id="btn-send" data-ux-key="mod+enter" style="height:32px;font-weight:600"><span data-icon="arrow-right"></span>发送<span class="kbd">⌘↵</span></button>
                 <button class="btn btn--default" style="height:32px"><span data-icon="plus"></span>保存</button>
               </div>
+              <div class="send-hint">快捷键 <span class="kbd">⌘↵</span>（Windows 为 Ctrl+Enter）发送请求 · 点击响应 JSON 行可复制其路径</div>
 
               <div class="reqtabs">
                 <button class="reqtab" data-req="params">Params<span class="count">2</span></button>
@@ -298,7 +305,7 @@
             <div class="debug__resp">
               <div class="resp-status">
                 <span class="resp-code" style="color:var(--st-success-strong);background:var(--st-success-light)">200</span>
-                <span class="resp-meta"><b>Time</b><span>342 ms</span></span>
+                <span class="resp-meta"><b>Time</b><span id="resp-time">342 ms</span><span class="delta delta--down" id="resp-delta" title="与上一次发送对比">↓ 38 ms</span></span>
                 <span class="resp-meta"><b>Size</b><span>1.4 KB</span></span>
               </div>
 
@@ -326,7 +333,7 @@
                 </div>
               </div>
 
-              <div class="json-view">
+              <div class="json-view" id="json-view">
                 <div class="j-row"><span class="j-punc">{</span></div>
                 <div class="j-row">  <span class="j-key">"code"</span><span class="j-punc">: </span><span class="j-num">0</span><span class="j-punc">,</span></div>
                 <div class="j-row">  <span class="j-key">"message"</span><span class="j-punc">: </span><span class="j-str">"ok"</span><span class="j-punc">,</span></div>
@@ -368,6 +375,7 @@
 
 <script src="../assets/icons.js"></script>
 <script src="../assets/shell.js"></script>
+<script src="../assets/ux.js"></script>
 <script>
   // 请求参数四页签切换（对应实现的 Params / Body / Headers / Auth）
   document.querySelectorAll('.reqtab').forEach(function (tab) {
@@ -385,6 +393,44 @@
     btn.addEventListener('click', function () {
       btn.parentElement.querySelectorAll('.is-active').forEach(function (s) { s.classList.remove('is-active'); });
       btn.classList.add('is-active');
+    });
+  });
+
+  // 发送（含 ⌘↵）：按钮态反馈 + 耗时与上次对比的 delta
+  var lastTime = 342;
+  function send() {
+    var btn = document.getElementById('btn-send');
+    if (btn.disabled) return;
+    btn.disabled = true;
+    var original = btn.innerHTML;
+    btn.textContent = '发送中…';
+    window.setTimeout(function () {
+      var next = 260 + Math.floor(Math.random() * 160);
+      var diff = next - lastTime;
+      lastTime = next;
+      document.getElementById('resp-time').textContent = next + ' ms';
+      var delta = document.getElementById('resp-delta');
+      delta.textContent = (diff > 0 ? '↑ ' : '↓ ') + Math.abs(diff) + ' ms';
+      delta.className = 'delta ' + (diff > 0 ? 'delta--up' : 'delta--down');
+      delta.title = '与上一次发送（' + (diff > 0 ? '变慢' : '变快') + '）对比';
+      btn.innerHTML = original;
+      btn.disabled = false;
+      window.RTUX.toast('响应 200 · ' + next + ' ms', { type: 'success' });
+    }, 500);
+  }
+  document.getElementById('btn-send').addEventListener('click', send);
+
+  // 点击 JSON 行复制其路径（如 $.data.orderId）
+  document.querySelectorAll('#json-view .j-row').forEach(function (row, idx) {
+    row.addEventListener('click', function () {
+      var key = row.querySelector('.j-key');
+      if (!key) { window.RTUX.toast('该行无路径可复制'); return; }
+      var path = key.textContent.replace(/"/g, '');
+      // 依据缩进推导层级：缩进 4 空格视为 data 子级
+      var indent = (row.textContent.match(/^ */) || [''])[0].length;
+      var full = indent >= 4 ? '$.data.' + path : '$.' + path;
+      if (navigator.clipboard) navigator.clipboard.writeText(full).catch(function () {});
+      window.RTUX.toast('已复制路径 ' + full, { type: 'success' });
     });
   });
 

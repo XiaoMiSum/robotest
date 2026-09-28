@@ -1,0 +1,138 @@
+/* 交互优化提案的跨页共用样式（toast / 批量条 / 筛选恢复 / 内联错误 / 快捷键徽标） */
+
+[hidden] { display: none !important; }
+
+/* ---------- Toast ---------- */
+.ux-toasts {
+  position: fixed;
+  top: 76px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 90;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+  pointer-events: none;
+}
+.ux-toast {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 220px;
+  max-width: 520px;
+  padding: 9px 14px;
+  border-radius: var(--radius-md);
+  background: rgba(32, 35, 41, .94);
+  color: #fff;
+  font-size: var(--font-size-sm);
+  box-shadow: 0 8px 24px -8px rgba(0, 0, 0, .35);
+  pointer-events: auto;
+  animation: ux-toast-in .18s ease-out;
+}
+.ux-toast--success .ux-toast__dot { background: var(--st-success); }
+.ux-toast--danger .ux-toast__dot { background: var(--st-danger); }
+.ux-toast--warning .ux-toast__dot { background: var(--st-warning); }
+.ux-toast__dot { width: 7px; height: 7px; border-radius: 50%; background: var(--brand-500); flex-shrink: 0; }
+.ux-toast__msg { flex: 1; min-width: 0; }
+.ux-toast__action {
+  border: none;
+  background: none;
+  padding: 0;
+  color: #7cc0ff;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.ux-toast__action:hover { text-decoration: underline; }
+.ux-toast__count { font-size: var(--font-size-xs); color: rgba(255, 255, 255, .55); font-variant-numeric: tabular-nums; }
+.ux-toast.is-leaving { animation: ux-toast-out .18s ease-in forwards; }
+@keyframes ux-toast-in { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
+@keyframes ux-toast-out { to { opacity: 0; transform: translateY(-8px); } }
+
+/* ---------- 底部批量操作条 ---------- */
+.ux-batchbar {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  z-index: 80;
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: 10px 16px;
+  border-radius: 999px;
+  background: rgba(32, 35, 41, .96);
+  color: #fff;
+  font-size: var(--font-size-sm);
+  box-shadow: 0 12px 32px -10px rgba(0, 0, 0, .45);
+  animation: ux-toast-in .16s ease-out;
+}
+.ux-batchbar[hidden] { display: none !important; }
+.ux-batchbar__count b { color: #7cc0ff; font-weight: 700; }
+.ux-batchbar .btn { height: 28px; }
+.ux-batchbar .btn--default { background: rgba(255, 255, 255, .12); border-color: rgba(255, 255, 255, .22); color: #fff; }
+.ux-batchbar .btn--default:hover { background: rgba(255, 255, 255, .2); border-color: rgba(255, 255, 255, .4); }
+.ux-batchbar .btn--danger { background: var(--st-danger); border-color: var(--st-danger); }
+.ux-batchbar .btn--text { color: rgba(255, 255, 255, .65); }
+.ux-batchbar .btn--text:hover { color: #fff; }
+.ux-batchbar__sep { width: 1px; height: 18px; background: rgba(255, 255, 255, .2); }
+
+/* ---------- 恢复筛选提示 ---------- */
+.ux-restore {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 24px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: var(--st-success-light);
+  color: var(--st-success-strong);
+  font-size: var(--font-size-xs);
+  white-space: nowrap;
+}
+.ux-restore svg { width: 12px; height: 12px; }
+.ux-restore__clear { border: none; background: none; padding: 0; color: inherit; opacity: .7; cursor: pointer; font-size: var(--font-size-xs); }
+.ux-restore__clear:hover { opacity: 1; text-decoration: underline; }
+
+/* ---------- 内联错误条（保留旧数据 + 重试） ---------- */
+.ux-errorbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 14px;
+  border: 1px solid rgba(214, 69, 69, .35);
+  border-radius: var(--radius-md);
+  background: var(--st-danger-light);
+  color: var(--st-danger-strong);
+  font-size: var(--font-size-sm);
+}
+.ux-errorbar[hidden] { display: none !important; }
+.ux-errorbar__spacer { flex: 1; }
+.ux-errorbar .btn { height: 26px; }
+
+/* ---------- 快捷键徽标 ---------- */
+.kbd {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  height: 18px;
+  padding: 0 5px;
+  border: 1px solid var(--n-200);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  background: var(--n-50);
+  color: var(--n-500);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  line-height: 1;
+  white-space: nowrap;
+}
+.btn .kbd { margin-left: 6px; background: rgba(255, 255, 255, .18); border-color: rgba(255, 255, 255, .35); color: inherit; opacity: .85; }
+.btn--default .kbd, .btn--text .kbd { background: var(--n-50); border-color: var(--n-200); color: var(--n-500); }
+
+/* ---------- 操作反馈：保存态按钮 ---------- */
+.btn.is-saving { pointer-events: none; opacity: .75; }
+.btn__state { display: inline-flex; align-items: center; gap: 4px; }
+.btn__state svg { width: 13px; height: 13px; }
