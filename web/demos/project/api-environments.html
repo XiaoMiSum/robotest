@@ -86,6 +86,61 @@
   .kv .cell-input:hover { border-color: var(--n-200); background: #fff; }
   .kv .cell-input:focus { outline: none; border-color: var(--brand-500); background: #fff; }
 
+  /* 处理器平铺展开式（docs34 §1.3）：行悬浮操作，行下展开只读明细或编辑表单，样式对齐公共组件 cp-* */
+  .proc-list { display: flex; flex-direction: column; gap: 6px; }
+  .proc-item { border: 1px solid var(--n-100); border-radius: var(--radius-md); background: #fff; }
+  .proc-item.is-open { border-color: var(--n-200); }
+  .proc-item__row { position: relative; display: flex; align-items: center; gap: var(--space-sm); padding: 9px var(--space-md); border-radius: var(--radius-md); cursor: pointer; }
+  .proc-item__row:hover, .proc-item__row:focus-within, .proc-item.is-open > .proc-item__row { background: var(--n-50); }
+  .proc-item__row:focus-visible { outline: 2px solid var(--brand-500); outline-offset: -2px; }
+  .proc-item__num { flex: none; width: 18px; color: var(--n-400); font-size: var(--font-size-xs); }
+  .proc-item__row .tag { flex: none; }
+  .proc-item__name { flex: 1; min-width: 0; font-size: var(--font-size-sm); font-weight: 500; color: var(--n-800); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .proc-item__desc { flex: 0 1 44%; min-width: 0; color: var(--n-500); font-size: var(--font-size-xs); text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* 行内操作悬浮展示：浮层覆盖右侧，避免窄面板下挤压名称与说明 */
+  .proc-item__ops { position: absolute; right: var(--space-md); top: 50%; transform: translateY(-50%); display: flex; gap: 10px; padding-left: var(--space-lg); background: var(--n-50); opacity: 0; pointer-events: none; transition: opacity var(--transition-fast); }
+  .proc-item__row:hover .proc-item__ops, .proc-item__row:focus-within .proc-item__ops { opacity: 1; pointer-events: auto; }
+  .proc-item__ops .op-link { font-size: var(--font-size-xs); }
+  .proc-body { border-top: 1px solid var(--n-100); padding: var(--space-md); }
+  .proc-detail__head { display: flex; align-items: center; gap: var(--space-sm); margin-bottom: var(--space-md); }
+  .proc-detail__name { margin: 0; font-size: var(--font-size-lg); color: var(--n-800); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .proc-section { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: var(--space-sm) var(--space-md); align-items: start; }
+  .proc-section + .proc-section { margin-top: var(--space-md); padding-top: var(--space-md); border-top: 1px solid var(--n-100); }
+  .proc-section__label { display: block; margin: 0; padding-top: 7px; font-size: var(--font-size-xs); font-weight: 600; color: var(--n-400); text-transform: uppercase; letter-spacing: .05em; }
+  .proc-meta { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: var(--space-sm) var(--space-md); }
+  .proc-meta__item--wide { grid-column: 1 / -1; }
+  .proc-meta__k { display: block; margin-bottom: 3px; font-size: var(--font-size-xs); color: var(--n-400); }
+  .proc-meta__v { font-size: var(--font-size-sm); color: var(--n-700); word-break: break-all; }
+  .proc-form__head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm); margin-bottom: var(--space-md); }
+  .proc-form__title { font-size: var(--font-size-sm); font-weight: 600; color: var(--n-700); }
+  .proc-form__actions { display: flex; gap: var(--space-sm); }
+  .proc-form__label { display: block; margin: var(--space-md) 0 var(--space-sm); font-size: var(--font-size-xs); font-weight: 600; color: var(--n-400); text-transform: uppercase; letter-spacing: .05em; }
+  .radio-seg { display: inline-flex; gap: 2px; background: var(--n-50); border: 1px solid var(--n-100); border-radius: var(--radius-md); padding: 2px; }
+  .radio-seg button { border: none; background: none; height: 26px; padding: 0 12px; font-size: var(--font-size-xs); color: var(--n-500); border-radius: calc(var(--radius-md) - 2px); cursor: pointer; }
+  .radio-seg button.is-active { background: #fff; color: var(--brand-600); font-weight: 600; box-shadow: 0 1px 2px rgba(0, 0, 0, .06); }
+  .proc-seg { display: flex; align-items: center; gap: var(--space-md); margin-bottom: var(--space-md); }
+  .proc-req-line { display: flex; gap: var(--space-sm); }
+  .proc-req-line .select { width: 120px; flex: none; }
+  .proc-req-line .input { flex: 1; }
+  .proc-tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--n-200); margin-bottom: var(--space-md); }
+  .proc-tabs button { border: none; background: none; padding: 8px 10px; font-size: var(--font-size-sm); color: var(--n-500); cursor: pointer; border-bottom: 2px solid transparent; }
+  .proc-tabs button:hover { color: var(--n-700); }
+  .proc-tabs button.is-active { color: var(--brand-600); border-bottom-color: var(--brand-500); font-weight: 600; }
+  .proc-badge { display: inline-block; min-width: 16px; height: 16px; line-height: 16px; padding: 0 4px; border-radius: 8px; background: var(--brand-500); color: #fff; font-size: 10px; font-style: normal; text-align: center; margin-left: 4px; }
+  .proc-badge:empty { display: none; }
+  .pane-actions { display: flex; justify-content: flex-end; gap: var(--space-md); margin-bottom: var(--space-sm); }
+  .proc-body-bar { display: flex; align-items: center; gap: var(--space-sm); flex-wrap: wrap; margin-bottom: var(--space-sm); }
+  .proc-body-bar .radio-seg { flex: none; flex-wrap: wrap; }
+  .proc-body-hint { padding: var(--space-lg); text-align: center; color: var(--n-400); font-size: var(--font-size-sm); }
+  .proc-code { width: 100%; min-height: 72px; border: 1px solid var(--n-100); border-radius: var(--radius-md); background: #1e1e1e; color: #d4d4d4; font-family: var(--font-mono); font-size: var(--font-size-xs); line-height: 1.6; padding: 10px 12px; resize: vertical; }
+  .proc-ext { display: flex; flex-direction: column; gap: var(--space-sm); }
+  .proc-ext__card { display: flex; align-items: center; gap: var(--space-sm); border: 1px solid var(--n-200); border-radius: var(--radius-md); padding: var(--space-sm); }
+  .proc-ext__card .select { width: 132px; flex: none; }
+  .proc-ext__card .input { flex: 1; min-width: 0; }
+  .proc-args { display: flex; flex-direction: column; gap: 6px; }
+  .proc-arg { display: flex; align-items: center; gap: var(--space-sm); }
+  .proc-arg .input { flex: 1; }
+
   .pane-head { display: flex; align-items: center; justify-content: flex-end; gap: var(--space-sm); margin-bottom: var(--space-md); padding-bottom: var(--space-sm); border-bottom: 1px solid var(--n-100); }
   .pane-empty { padding: 36px 0; text-align: center; color: var(--n-400); font-size: var(--font-size-sm); }
 
@@ -303,42 +358,24 @@
               </div>
             </div>
 
-            <!-- 前置处理器 -->
+            <!-- 前置处理器（平铺展开式，docs34 §1.3） -->
             <div class="epanel" data-epanel="pre">
               <div class="pane-head">
-                <button class="btn btn--link btn--sm" data-addrow="pre">＋ 添加处理器</button>
+                <button class="btn btn--link btn--sm" data-addproc="pre">＋ 添加处理器</button>
                 <button class="btn btn--link btn--sm" data-ux-feedback="从公共组件引入为复制，得到独立副本，与源资产无关联">从公共组件引入</button>
               </div>
-              <table class="kv">
-                <thead><tr><th style="width:44px">#</th><th style="width:150px">类型</th><th>说明</th><th style="width:150px">操作</th></tr></thead>
-                <tbody data-kvbody="pre">
-                  <tr>
-                    <td class="num">1</td>
-                    <td><span class="tag">提取器</span></td>
-                    <td>获取全局 token 供后续步骤引用</td>
-                    <td><span class="op-link">上移</span><span class="op-link">下移</span><span class="op-link">复制</span><span class="op-link op-link--danger" data-ux-undo="tr">删除</span></td>
-                  </tr>
-                </tbody>
-              </table>
+              <div class="proc-list" data-proclist="pre"></div>
+              <div class="pane-empty" data-procempty="pre" hidden>暂无前置处理器，点击 [＋ 添加处理器] 新增</div>
             </div>
 
-            <!-- 后置处理器 -->
+            <!-- 后置处理器（平铺展开式，docs34 §1.3） -->
             <div class="epanel" data-epanel="post">
               <div class="pane-head">
-                <button class="btn btn--link btn--sm" data-addrow="post">＋ 添加处理器</button>
+                <button class="btn btn--link btn--sm" data-addproc="post">＋ 添加处理器</button>
                 <button class="btn btn--link btn--sm" data-ux-feedback="从公共组件引入为复制，得到独立副本，与源资产无关联">从公共组件引入</button>
               </div>
-              <table class="kv">
-                <thead><tr><th style="width:44px">#</th><th style="width:150px">类型</th><th>说明</th><th style="width:150px">操作</th></tr></thead>
-                <tbody data-kvbody="post">
-                  <tr>
-                    <td class="num">1</td>
-                    <td><span class="tag">验证器</span></td>
-                    <td>全局校验响应不含系统级错误码</td>
-                    <td><span class="op-link">上移</span><span class="op-link">下移</span><span class="op-link">复制</span><span class="op-link op-link--danger" data-ux-undo="tr">删除</span></td>
-                  </tr>
-                </tbody>
-              </table>
+              <div class="proc-list" data-proclist="post"></div>
+              <div class="pane-empty" data-procempty="post" hidden>暂无后置处理器，点击 [＋ 添加处理器] 新增</div>
             </div>
           </section>
         </div>
@@ -519,24 +556,16 @@
       http: envVisibleCount('[data-epanel="http"] .cfg-list li:not(.cfg-add)'),
       vars: envVisibleCount('[data-kvbody="vars"] tr'),
       ds: envVisibleCount('[data-epanel="ds"] .cfg-list li:not(.cfg-add)'),
-      pre: envVisibleCount('[data-kvbody="pre"] tr'),
-      post: envVisibleCount('[data-kvbody="post"] tr'),
+      pre: envVisibleCount('[data-proclist="pre"] > .proc-item'),
+      post: envVisibleCount('[data-proclist="post"] > .proc-item'),
     };
     var labels = { http: 'HTTP', vars: '变量', ds: '数据源', pre: '前置处理器', post: '后置处理器' };
     Object.keys(counts).forEach(function (key) {
       var tab = document.querySelector('.etab[data-badge="' + key + '"]');
       if (tab) tab.innerHTML = labels[key] + '<span class="etab__count">' + counts[key] + '</span>';
     });
-    // 处理器序号跟随增删重排
-    ['pre', 'post'].forEach(function (key) {
-      var rows = document.querySelectorAll('[data-kvbody="' + key + '"] tr');
-      var no = 0;
-      rows.forEach(function (row) {
-        if (row.style.display === 'none') return;
-        no += 1;
-        row.querySelector('.num').textContent = no;
-      });
-    });
+    // 处理器序号与上移/下移边界跟随增删重排
+    procRenumber();
     refreshMoveStates();
   }
 
@@ -564,6 +593,654 @@
       if (rt.bind) rt.bind(row);
       syncEnvBadges();
       rt.toast(key === 'vars' ? '已添加一行变量' : '已添加一个处理器', {});
+    });
+  });
+
+  /* ---------------- 处理器平铺展开式（docs34 §1.3）：行下只读明细 / 行内编辑表单 ---------------- */
+  var PROC_TYPES = ['前置处理器', '后置处理器', '验证器', '提取器'];
+  var PROC_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS'];
+  var PROC_EXT_SOURCES = ['JSON 字段', 'XPath', '正则捕获', '两个标记之间', '完整响应体', 'Groovy 脚本'];
+  // 仅一处展开（明细或表单）；mode 取 detail | edit | new
+  var procOpen = null;
+
+  var PROC_DATA = {
+    pre: [
+      {
+        name: 'Token 预置', type: '提取器', desc: '从环境变量获取 Token 并注入请求头', updated: '2026-09-20 11:08',
+        cfg: { proc: 'http', method: 'GET', path: '/api/auth/token', headers: [['Authorization', 'Bearer ${TOKEN}']], query: [],
+          body: { kind: 'none', sub: 'json', text: '', rows: [] },
+          ext: [{ source: 'JSON 字段', expr: '$.data.token', name: 'TOKEN', desc: '访问令牌' }] }
+      },
+      {
+        name: '登录态校验', type: '验证器', desc: '校验登录态，失效时中断后续步骤', updated: '2026-09-19 16:42',
+        cfg: { proc: 'http', method: 'POST', path: '/api/auth/check', headers: [], query: [['strict', '1']],
+          body: { kind: 'none', sub: 'json', text: '', rows: [] }, ext: [] }
+      }
+    ],
+    post: [
+      {
+        name: '统一错误码断言', type: '验证器', desc: '全局校验响应不含系统级错误码', updated: '2026-09-18 09:15',
+        cfg: { proc: 'http', method: 'GET', path: '/api/health', headers: [], query: [],
+          body: { kind: 'none', sub: 'json', text: '', rows: [] }, ext: [] }
+      },
+      {
+        name: '清理测试数据', type: '后置处理器', desc: '执行结束按订单号清理造数记录', updated: '2026-09-17 20:03',
+        cfg: { proc: 'jdbc', sql: 'DELETE FROM t_order WHERE order_no = ?', args: ['${orderNo}'],
+          ext: [{ source: 'JSON 字段', expr: '$.affected', name: 'CLEANED', desc: '清理行数' }] }
+      }
+    ]
+  };
+
+  function procNow() {
+    var p = function (n) { return n < 10 ? '0' + n : String(n); };
+    var d = new Date();
+    return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
+  }
+
+  function procEl(tag, cls, text) {
+    var node = document.createElement(tag);
+    if (cls) node.className = cls;
+    if (text != null) node.textContent = text;
+    return node;
+  }
+
+  function procList(key) { return document.querySelector('[data-proclist="' + key + '"]'); }
+
+  function procItems(key) {
+    var list = procList(key);
+    if (!list) return [];
+    return Array.prototype.slice.call(list.children).filter(function (node) {
+      return node.classList.contains('proc-item') && node.style.display !== 'none';
+    });
+  }
+
+  // 序号、首末项移动边界与空态提示随增删/移动刷新
+  function procRenumber() {
+    ['pre', 'post'].forEach(function (key) {
+      var visible = procItems(key);
+      visible.forEach(function (item, index) {
+        item.querySelector('.proc-item__num').textContent = String(index + 1);
+        var ops = item.querySelectorAll('.proc-item__ops .op-link');
+        if (ops.length >= 2) {
+          ops[0].classList.toggle('op-link--muted', index === 0);
+          ops[1].classList.toggle('op-link--muted', index === visible.length - 1);
+        }
+      });
+      var empty = document.querySelector('[data-procempty="' + key + '"]');
+      if (empty) empty.hidden = visible.length > 0;
+    });
+  }
+
+  function procCloseOpen() {
+    if (!procOpen) return;
+    var item = procOpen.item;
+    var body = item.querySelector('.proc-body');
+    if (body) body.remove();
+    item.classList.remove('is-open');
+    var row = item.querySelector('.proc-item__row');
+    if (row) row.setAttribute('aria-expanded', 'false');
+    procOpen = null;
+  }
+
+  function procRowName(d) { return d.name || '未命名处理器'; }
+
+  function procBuildRow(item) {
+    var d = item._proc;
+    var old = item.querySelector('.proc-item__row');
+    if (old) old.remove();
+    var row = procEl('div', 'proc-item__row');
+    row.tabIndex = 0;
+    row.setAttribute('role', 'button');
+    row.setAttribute('aria-expanded', procOpen && procOpen.item === item ? 'true' : 'false');
+    row.appendChild(procEl('span', 'proc-item__num'));
+    row.appendChild(procEl('span', 'tag', d.type));
+    row.appendChild(procEl('span', 'proc-item__name', procRowName(d)));
+    row.appendChild(procEl('span', 'proc-item__desc', d.desc || '暂无说明'));
+    var ops = procEl('span', 'proc-item__ops');
+    [['up', '上移'], ['down', '下移'], ['edit', '编辑'], ['copy', '复制']].forEach(function (pair) {
+      var op = procEl('span', 'op-link', pair[1]);
+      op.setAttribute('data-proc-act', pair[0]);
+      ops.appendChild(op);
+    });
+    var del = procEl('span', 'op-link op-link--danger', '删除');
+    del.setAttribute('data-proc-act', 'del');
+    del.setAttribute('data-ux-undo', '.proc-item');
+    del.setAttribute('data-ux-undo-name', procRowName(d));
+    ops.appendChild(del);
+    row.appendChild(ops);
+    item.insertBefore(row, item.firstChild);
+    if (rt) rt.bind(item);
+  }
+
+  function procBuildItem(key, data) {
+    var item = procEl('div', 'proc-item');
+    item.setAttribute('data-key', key);
+    item._proc = data;
+    procBuildRow(item);
+    return item;
+  }
+
+  function procMetaItem(k, v, wide) {
+    var item = procEl('div', 'proc-meta__item' + (wide ? ' proc-meta__item--wide' : ''));
+    item.appendChild(procEl('span', 'proc-meta__k', k));
+    item.appendChild(procEl('span', 'proc-meta__v', v));
+    return item;
+  }
+
+  function procSection(label, content) {
+    var sec = procEl('div', 'proc-section');
+    sec.appendChild(procEl('label', 'proc-section__label', label));
+    sec.appendChild(content);
+    return sec;
+  }
+
+  function procFilled(rows) {
+    return (rows || []).filter(function (r) { return String(r[0] || '').trim(); });
+  }
+
+  function procCfgRows(d) {
+    var c = d.cfg;
+    if (c.proc === 'jdbc') {
+      return [['执行方式', 'JDBC', false], ['SQL', c.sql || '—', true],
+        ['参数', (c.args || []).length ? c.args.join('，') : '无', false],
+        ['提取器', ((c.ext || []).length) + ' 项', false]];
+    }
+    var bodyText = c.body.kind === 'urlencoded' ? procFilled(c.body.rows).length + ' 项'
+      : c.body.kind === 'raw' ? 'raw · ' + c.body.sub : '无';
+    return [
+      ['执行方式', 'HTTP', false],
+      ['方法', c.method, false],
+      ['路径', c.path || '—', false],
+      ['请求头', procFilled(c.headers).length + ' 项', false],
+      ['Query 参数', procFilled(c.query).length + ' 项', false],
+      ['请求体', bodyText, false],
+      ['提取器', ((c.ext || []).length) + ' 项', false]
+    ];
+  }
+
+  function procExtTable(rows) {
+    var table = procEl('table', 'table');
+    table.innerHTML = '<thead><tr><th>来源</th><th>表达式</th><th style="width:130px">目标变量名</th><th>描述</th></tr></thead>';
+    var tb = procEl('tbody');
+    rows.forEach(function (r) {
+      var tr = procEl('tr');
+      [r.source, r.expr, r.name, r.desc || '—'].forEach(function (v) { tr.appendChild(procEl('td', null, v)); });
+      tb.appendChild(tr);
+    });
+    table.appendChild(tb);
+    return table;
+  }
+
+  // 只读明细：名称与类型标签 + 基本信息 + 配置摘要 + 提取器表格（不含启用/状态）
+  function procShowDetail(item) {
+    var d = item._proc;
+    var body = procEl('div', 'proc-body');
+    var head = procEl('div', 'proc-detail__head');
+    head.appendChild(procEl('span', 'proc-detail__name', procRowName(d)));
+    head.appendChild(procEl('span', 'tag', d.type));
+    body.appendChild(head);
+
+    var info = procEl('div', 'proc-meta');
+    info.appendChild(procMetaItem('更新时间', d.updated, false));
+    info.appendChild(procMetaItem('描述', d.desc || '—', true));
+    body.appendChild(procSection('基本信息', info));
+
+    var cfg = procEl('div', 'proc-meta');
+    procCfgRows(d).forEach(function (row) { cfg.appendChild(procMetaItem(row[0], row[1], row[2])); });
+    body.appendChild(procSection('配置', cfg));
+
+    if ((d.cfg.ext || []).length) body.appendChild(procSection('提取器', procExtTable(d.cfg.ext)));
+
+    item.appendChild(body);
+    item.classList.add('is-open');
+    item.querySelector('.proc-item__row').setAttribute('aria-expanded', 'true');
+    procOpen = { item: item, mode: 'detail' };
+  }
+
+  function procFormHtml(mode) {
+    var typeOpts = PROC_TYPES.map(function (t) { return '<option>' + t + '</option>'; }).join('');
+    var methodOpts = PROC_METHODS.map(function (m) {
+      return '<option' + (m === 'GET' ? ' selected' : '') + '>' + m + '</option>';
+    }).join('');
+    var kvTables = function (f, h1, h2, addLabel) {
+      return '<div class="pane-actions"><button type="button" class="btn btn--link btn--sm" data-addkv="' + f + '">' + addLabel + '</button></div>' +
+        '<table class="kv"><thead><tr><th>' + h1 + '</th><th>' + h2 + '</th><th style="width:52px"></th></tr></thead>' +
+        '<tbody data-f="' + f + '"></tbody></table>';
+    };
+    return [
+      '<div class="proc-form__head">',
+      '  <strong class="proc-form__title">' + (mode === 'new' ? '添加处理器' : '编辑处理器') + '</strong>',
+      '  <span class="proc-form__actions">',
+      '    <button type="button" class="btn btn--default btn--sm" data-proc-cancel>取消</button>',
+      '    <button type="button" class="btn btn--primary btn--sm" data-proc-ok>保存</button>',
+      '  </span>',
+      '</div>',
+      '<div class="form-grid">',
+      '  <div class="field"><label class="field__label">名称<span class="req">*</span></label>',
+      '    <input class="input" data-f="name" maxlength="100" placeholder="如：Token 预置">',
+      '    <div class="field__error" data-f="name-err" hidden>请输入处理器名称</div></div>',
+      '  <div class="field"><label class="field__label">类型<span class="req">*</span></label>',
+      '    <select class="select" data-f="type">' + typeOpts + '</select></div>',
+      '  <div class="field" style="grid-column:1 / -1"><label class="field__label">描述</label>',
+      '    <textarea class="textarea" rows="2" maxlength="500" data-f="desc" placeholder="处理器用途说明"></textarea></div>',
+      '</div>',
+      '<span class="proc-form__label">配置（随类型切换）</span>',
+      '<div class="proc-seg"><span class="radio-seg" data-procseg>',
+      '  <button type="button" data-proc="http">HTTP</button>',
+      '  <button type="button" data-proc="jdbc">JDBC</button>',
+      '</span></div>',
+      '<div data-sub="http">',
+      '  <div class="proc-req-line">',
+      '    <select class="select" data-f="method" aria-label="请求方法">' + methodOpts + '</select>',
+      '    <input class="input" data-f="path" placeholder="/api/endpoint（支持 ${变量} 引用）">',
+      '  </div>',
+      '  <span class="proc-tabs" data-reqtabs>',
+      '    <button type="button" class="is-active" data-reqtab="headers">请求头<i class="proc-badge" data-badge="headers"></i></button>',
+      '    <button type="button" data-reqtab="query">Query 参数<i class="proc-badge" data-badge="query"></i></button>',
+      '    <button type="button" data-reqtab="body">请求体<i class="proc-badge" data-badge="body"></i></button>',
+      '    <button type="button" data-reqtab="ext">提取器<i class="proc-badge" data-badge="ext"></i></button>',
+      '  </span>',
+      '  <div data-reqpane="headers">' + kvTables('headers', 'Header', 'Value', '＋ 添加请求头') + '</div>',
+      '  <div data-reqpane="query" hidden>' + kvTables('query', '参数名', 'Value', '＋ 添加 Query') + '</div>',
+      '  <div data-reqpane="body" hidden>',
+      '    <div class="proc-body-bar"><span class="radio-seg" data-bodyseg>',
+      '      <button type="button" class="is-active" data-body="none">none</button>',
+      '      <button type="button" data-body="urlencoded">x-www-form-urlencoded</button>',
+      '      <button type="button" data-body="raw">raw</button>',
+      '    </span>',
+      '    <select class="select" data-f="rawsub" hidden style="width:130px" aria-label="raw 子类型">',
+      '      <option>text</option><option selected>json</option><option>xml</option><option>html</option><option>javascript</option>',
+      '    </select></div>',
+      '    <p data-bodypane="none" class="proc-body-hint">该处理器不携带请求体。</p>',
+      '    <div data-bodypane="urlencoded" hidden>' + kvTables('urlencoded', 'Key', 'Value', '＋ 添加参数') + '</div>',
+      '    <div data-bodypane="raw" hidden><textarea class="proc-code" data-f="rawtext" rows="6" spellcheck="false" placeholder="原始文本（支持变量引用）"></textarea></div>',
+      '  </div>',
+      '  <div data-reqpane="ext" hidden>',
+      '    <div class="pane-actions"><button type="button" class="btn btn--link btn--sm" data-addext="http">＋ 添加提取器</button></div>',
+      '    <div class="proc-ext" data-f="ext"></div>',
+      '  </div>',
+      '</div>',
+      '<div data-sub="jdbc" hidden>',
+      '  <span class="proc-tabs" data-jdbctabs>',
+      '    <button type="button" class="is-active" data-jdbctab="sql">SQL</button>',
+      '    <button type="button" data-jdbctab="ext">提取器<i class="proc-badge" data-badge="jdbcext"></i></button>',
+      '  </span>',
+      '  <div data-jdbcpane="sql">',
+      '    <textarea class="proc-code" data-f="sql" rows="4" spellcheck="false" placeholder="SELECT * FROM table WHERE id = ?"></textarea>',
+      '    <div class="pane-actions" style="margin-top:var(--space-sm)"><button type="button" class="btn btn--link btn--sm" data-addarg>＋ 添加参数</button></div>',
+      '    <div class="proc-args" data-f="args"></div>',
+      '  </div>',
+      '  <div data-jdbcpane="ext" hidden>',
+      '    <div class="pane-actions"><button type="button" class="btn btn--link btn--sm" data-addext="jdbc">＋ 添加提取器</button></div>',
+      '    <div class="proc-ext" data-f="ext-jdbc"></div>',
+      '  </div>',
+      '</div>'
+    ].join('');
+  }
+
+  function procKvRow(tb, k, v) {
+    var tr = document.createElement('tr');
+    tr.innerHTML = '<td><input class="cell-input" data-kv="k"></td>' +
+      '<td><input class="cell-input" data-kv="v"></td>' +
+      '<td><span class="op-link op-link--danger" data-rmrow>删除</span></td>';
+    tr.querySelector('[data-kv="k"]').value = k || '';
+    tr.querySelector('[data-kv="v"]').value = v || '';
+    tb.appendChild(tr);
+  }
+
+  function procExtCard(r) {
+    var card = procEl('div', 'proc-ext__card');
+    var sel = procEl('select', 'select');
+    PROC_EXT_SOURCES.forEach(function (s) {
+      var op = document.createElement('option');
+      op.textContent = s;
+      if (r && r.source === s) op.selected = true;
+      sel.appendChild(op);
+    });
+    card.appendChild(sel);
+    [['expr', '表达式，如 $.data.token'], ['name', '目标变量名'], ['desc', '描述']].forEach(function (p) {
+      var input = procEl('input', 'input');
+      input.setAttribute('data-e', p[0]);
+      input.placeholder = p[1];
+      input.value = r ? (r[p[0]] || '') : '';
+      card.appendChild(input);
+    });
+    var rm = procEl('span', 'op-link op-link--danger', '删除');
+    rm.setAttribute('data-rmext', '');
+    card.appendChild(rm);
+    return card;
+  }
+
+  function procArgRow(v) {
+    var row = procEl('div', 'proc-arg');
+    var input = procEl('input', 'input');
+    input.placeholder = '参数值，如 ${orderNo}';
+    input.value = v || '';
+    row.appendChild(input);
+    var rm = procEl('span', 'op-link op-link--danger', '删除');
+    rm.setAttribute('data-rmarg', '');
+    row.appendChild(rm);
+    return row;
+  }
+
+  function procKvCount(tb) {
+    if (!tb) return 0;
+    var n = 0;
+    tb.querySelectorAll('tr').forEach(function (tr) {
+      if (tr.querySelector('[data-kv="k"]').value.trim()) n += 1;
+    });
+    return n;
+  }
+
+  function procExtCount(list) {
+    if (!list) return 0;
+    var n = 0;
+    list.querySelectorAll('.proc-ext__card').forEach(function (card) {
+      if (card.querySelector('[data-e="expr"]').value.trim() || card.querySelector('[data-e="name"]').value.trim()) n += 1;
+    });
+    return n;
+  }
+
+  function procUpdateBadges(scope) {
+    var set = function (n, key) {
+      var badge = scope.querySelector('.proc-badge[data-badge="' + key + '"]');
+      if (badge) badge.textContent = n ? String(n) : '';
+    };
+    set(procKvCount(scope.querySelector('[data-f="headers"]')), 'headers');
+    set(procKvCount(scope.querySelector('[data-f="query"]')), 'query');
+    var bodyBtn = scope.querySelector('[data-bodyseg] button.is-active');
+    var kind = bodyBtn ? bodyBtn.getAttribute('data-body') : 'none';
+    var bodyCount = 0;
+    if (kind === 'urlencoded') bodyCount = procKvCount(scope.querySelector('[data-f="urlencoded"]'));
+    else if (kind === 'raw') {
+      var raw = scope.querySelector('[data-f="rawtext"]');
+      bodyCount = raw && raw.value.trim() ? 1 : 0;
+    }
+    set(bodyCount, 'body');
+    set(procExtCount(scope.querySelector('[data-f="ext"]')), 'ext');
+    set(procExtCount(scope.querySelector('[data-f="ext-jdbc"]')), 'jdbcext');
+  }
+
+  function procSetProc(scope, kind) {
+    scope.querySelectorAll('[data-procseg] button').forEach(function (b) {
+      b.classList.toggle('is-active', b.getAttribute('data-proc') === kind);
+    });
+    scope.querySelectorAll('[data-sub]').forEach(function (s) { s.hidden = s.getAttribute('data-sub') !== kind; });
+  }
+
+  function procSetBody(scope, kind) {
+    scope.querySelectorAll('[data-bodyseg] button').forEach(function (b) {
+      b.classList.toggle('is-active', b.getAttribute('data-body') === kind);
+    });
+    scope.querySelectorAll('[data-bodypane]').forEach(function (p) { p.hidden = p.getAttribute('data-bodypane') !== kind; });
+    scope.querySelector('[data-f="rawsub"]').hidden = kind !== 'raw';
+    procUpdateBadges(scope);
+  }
+
+  function procFillForm(scope, d) {
+    scope.querySelector('[data-f="name"]').value = d.name || '';
+    scope.querySelector('[data-f="type"]').value = d.type;
+    scope.querySelector('[data-f="desc"]').value = d.desc || '';
+    procSetProc(scope, d.cfg.proc);
+    if (d.cfg.proc === 'jdbc') {
+      scope.querySelector('[data-f="sql"]').value = d.cfg.sql || '';
+      (d.cfg.args || []).forEach(function (a) { scope.querySelector('[data-f="args"]').appendChild(procArgRow(a)); });
+      (d.cfg.ext || []).forEach(function (r) { scope.querySelector('[data-f="ext-jdbc"]').appendChild(procExtCard(r)); });
+      procUpdateBadges(scope);
+      return;
+    }
+    var c = d.cfg;
+    scope.querySelector('[data-f="method"]').value = c.method || 'GET';
+    scope.querySelector('[data-f="path"]').value = c.path || '';
+    (c.headers || []).forEach(function (p) { procKvRow(scope.querySelector('[data-f="headers"]'), p[0], p[1]); });
+    (c.query || []).forEach(function (p) { procKvRow(scope.querySelector('[data-f="query"]'), p[0], p[1]); });
+    var kind = c.body.kind || 'none';
+    procSetBody(scope, kind);
+    scope.querySelector('[data-f="rawsub"]').value = c.body.sub || 'json';
+    scope.querySelector('[data-f="rawtext"]').value = c.body.text || '';
+    (c.body.rows || []).forEach(function (p) { procKvRow(scope.querySelector('[data-f="urlencoded"]'), p[0], p[1]); });
+    (c.ext || []).forEach(function (r) { scope.querySelector('[data-f="ext"]').appendChild(procExtCard(r)); });
+    procUpdateBadges(scope);
+  }
+
+  function procReadKv(scope, f) {
+    var tb = scope.querySelector('[data-f="' + f + '"]');
+    var out = [];
+    if (!tb) return out;
+    tb.querySelectorAll('tr').forEach(function (tr) {
+      var k = tr.querySelector('[data-kv="k"]').value.trim();
+      var v = tr.querySelector('[data-kv="v"]').value;
+      if (k) out.push([k, v]);
+    });
+    return out;
+  }
+
+  function procReadExt(scope, f) {
+    var list = scope.querySelector('[data-f="' + f + '"]');
+    var out = [];
+    if (!list) return out;
+    list.querySelectorAll('.proc-ext__card').forEach(function (card) {
+      var rec = {
+        source: card.querySelector('select').value,
+        expr: card.querySelector('[data-e="expr"]').value.trim(),
+        name: card.querySelector('[data-e="name"]').value.trim(),
+        desc: card.querySelector('[data-e="desc"]').value.trim()
+      };
+      if (rec.expr || rec.name) out.push(rec);
+    });
+    return out;
+  }
+
+  function procReadCfg(scope) {
+    var active = scope.querySelector('[data-procseg] button.is-active');
+    if (active && active.getAttribute('data-proc') === 'jdbc') {
+      var args = [];
+      scope.querySelectorAll('[data-f="args"] .proc-arg input').forEach(function (i) {
+        if (i.value.trim()) args.push(i.value.trim());
+      });
+      return { proc: 'jdbc', sql: scope.querySelector('[data-f="sql"]').value, args: args, ext: procReadExt(scope, 'ext-jdbc') };
+    }
+    var bodyBtn = scope.querySelector('[data-bodyseg] button.is-active');
+    var kind = bodyBtn ? bodyBtn.getAttribute('data-body') : 'none';
+    return {
+      proc: 'http',
+      method: scope.querySelector('[data-f="method"]').value,
+      path: scope.querySelector('[data-f="path"]').value.trim(),
+      headers: procReadKv(scope, 'headers'),
+      query: procReadKv(scope, 'query'),
+      body: {
+        kind: kind,
+        sub: scope.querySelector('[data-f="rawsub"]').value,
+        text: scope.querySelector('[data-f="rawtext"]').value,
+        rows: kind === 'urlencoded' ? procReadKv(scope, 'urlencoded') : []
+      },
+      ext: procReadExt(scope, 'ext')
+    };
+  }
+
+  // 保存后回写该行并展开只读明细；取消则还原（新增态取消即移除）
+  function procSave(item, mode, scope) {
+    var nameInput = scope.querySelector('[data-f="name"]');
+    var err = scope.querySelector('[data-f="name-err"]');
+    var name = nameInput.value.trim();
+    if (!name) {
+      err.hidden = false;
+      nameInput.classList.add('input--error');
+      nameInput.focus();
+      rt.toast('请输入处理器名称', { type: 'warning' });
+      return;
+    }
+    err.hidden = true;
+    nameInput.classList.remove('input--error');
+    var d = item._proc;
+    d.name = name;
+    d.type = scope.querySelector('[data-f="type"]').value;
+    d.desc = scope.querySelector('[data-f="desc"]').value.trim();
+    d.cfg = procReadCfg(scope);
+    d.updated = procNow();
+    procBuildRow(item);
+    procCloseOpen();
+    procShowDetail(item);
+    if (envDirty) envDirty.style.display = '';
+    syncEnvBadges();
+    rt.toast(mode === 'new' ? '处理器已添加' : '处理器已保存', { type: 'success' });
+  }
+
+  function procCancel(item, mode) {
+    procCloseOpen();
+    if (mode === 'new') {
+      item.remove();
+      syncEnvBadges();
+    }
+  }
+
+  function procBindForm(item, mode, scope) {
+    scope.addEventListener('click', function (e) {
+      var t = e.target;
+      if (!t.closest) return;
+      if (t.closest('[data-proc-cancel]')) { procCancel(item, mode); return; }
+      if (t.closest('[data-proc-ok]')) { procSave(item, mode, scope); return; }
+      var seg = t.closest('[data-procseg] button');
+      if (seg) { procSetProc(scope, seg.getAttribute('data-proc')); return; }
+      var tab = t.closest('[data-reqtab]');
+      if (tab) {
+        scope.querySelectorAll('[data-reqtab]').forEach(function (b) { b.classList.toggle('is-active', b === tab); });
+        var key = tab.getAttribute('data-reqtab');
+        scope.querySelectorAll('[data-reqpane]').forEach(function (p) { p.hidden = p.getAttribute('data-reqpane') !== key; });
+        return;
+      }
+      var jtab = t.closest('[data-jdbctab]');
+      if (jtab) {
+        scope.querySelectorAll('[data-jdbctab]').forEach(function (b) { b.classList.toggle('is-active', b === jtab); });
+        var jkey = jtab.getAttribute('data-jdbctab');
+        scope.querySelectorAll('[data-jdbcpane]').forEach(function (p) { p.hidden = p.getAttribute('data-jdbcpane') !== jkey; });
+        return;
+      }
+      var bodyBtn = t.closest('[data-body]');
+      if (bodyBtn) { procSetBody(scope, bodyBtn.getAttribute('data-body')); return; }
+      var addKv = t.closest('[data-addkv]');
+      if (addKv) { procKvRow(scope.querySelector('[data-f="' + addKv.getAttribute('data-addkv') + '"]'), '', ''); procUpdateBadges(scope); return; }
+      if (t.closest('[data-rmrow]')) {
+        var tr = t.closest('tr');
+        if (tr) tr.remove();
+        procUpdateBadges(scope);
+        if (envDirty) envDirty.style.display = '';
+        return;
+      }
+      var addExt = t.closest('[data-addext]');
+      if (addExt) {
+        var f = addExt.getAttribute('data-addext') === 'jdbc' ? 'ext-jdbc' : 'ext';
+        scope.querySelector('[data-f="' + f + '"]').appendChild(procExtCard(null));
+        procUpdateBadges(scope);
+        if (envDirty) envDirty.style.display = '';
+        return;
+      }
+      if (t.closest('[data-rmext]')) {
+        var card = t.closest('.proc-ext__card');
+        if (card) card.remove();
+        procUpdateBadges(scope);
+        if (envDirty) envDirty.style.display = '';
+        return;
+      }
+      if (t.closest('[data-addarg]')) {
+        scope.querySelector('[data-f="args"]').appendChild(procArgRow(''));
+        if (envDirty) envDirty.style.display = '';
+        return;
+      }
+      if (t.closest('[data-rmarg]')) {
+        var arg = t.closest('.proc-arg');
+        if (arg) arg.remove();
+        if (envDirty) envDirty.style.display = '';
+      }
+    });
+    scope.addEventListener('input', function () { procUpdateBadges(scope); });
+  }
+
+  function procShowForm(item, mode) {
+    var body = procEl('div', 'proc-body');
+    body.innerHTML = '<form class="proc-form" novalidate>' + procFormHtml(mode) + '</form>';
+    var scope = body.querySelector('form');
+    procFillForm(scope, item._proc);
+    procBindForm(item, mode, scope);
+    item.appendChild(body);
+    item.classList.add('is-open');
+    item.querySelector('.proc-item__row').setAttribute('aria-expanded', 'true');
+    procOpen = { item: item, mode: mode };
+    scope.querySelector('[data-f="name"]').focus();
+  }
+
+  function procHandleAct(key, item, actEl) {
+    var act = actEl.getAttribute('data-proc-act');
+    if (act === 'up' || act === 'down') {
+      var sibling = act === 'up' ? item.previousElementSibling : item.nextElementSibling;
+      if (!sibling || !sibling.classList.contains('proc-item') || sibling.style.display === 'none') return;
+      if (act === 'up') item.parentNode.insertBefore(item, sibling);
+      else item.parentNode.insertBefore(sibling, item);
+      syncEnvBadges();
+      return;
+    }
+    if (act === 'edit') { procCloseOpen(); procShowForm(item, 'edit'); return; }
+    if (act === 'copy') {
+      var copy = JSON.parse(JSON.stringify(item._proc));
+      copy.name = procRowName(item._proc) + '（副本）';
+      copy.updated = procNow();
+      var node = procBuildItem(key, copy);
+      item.after(node);
+      syncEnvBadges();
+      rt.toast('已复制「' + copy.name + '」', { type: 'success' });
+    }
+    // 删除由 data-ux-undo 处理（bindUndo）
+  }
+
+  function procBlank(key) {
+    return {
+      name: '', type: key === 'pre' ? '前置处理器' : '后置处理器', desc: '', updated: procNow(),
+      cfg: { proc: 'http', method: 'GET', path: '', headers: [], query: [],
+        body: { kind: 'none', sub: 'json', text: '', rows: [] }, ext: [] }
+    };
+  }
+
+  ['pre', 'post'].forEach(function (key) {
+    var list = procList(key);
+    if (!list) return;
+    PROC_DATA[key].forEach(function (d) { list.appendChild(procBuildItem(key, d)); });
+
+    list.addEventListener('click', function (e) {
+      var act = e.target.closest ? e.target.closest('[data-proc-act]') : null;
+      var item = e.target.closest ? e.target.closest('.proc-item') : null;
+      if (!item) return;
+      if (act) { procHandleAct(key, item, act); return; }
+      if (!e.target.closest('.proc-item__row')) return;
+      // 表单展开中点击自身行不切换，避免误丢编辑
+      if (procOpen && procOpen.item === item && procOpen.mode !== 'detail') return;
+      if (procOpen && procOpen.item === item) { procCloseOpen(); return; }
+      procCloseOpen();
+      procShowDetail(item);
+    });
+    list.addEventListener('keydown', function (e) {
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      var row = e.target.closest ? e.target.closest('.proc-item__row') : null;
+      if (!row || e.target !== row) return;
+      e.preventDefault();
+      row.click();
+    });
+    list.addEventListener('ux:remove', function () {
+      if (procOpen && procOpen.item.style.display === 'none') procCloseOpen();
+      syncEnvBadges();
+    });
+    list.addEventListener('ux:restore', function () { syncEnvBadges(); });
+  });
+
+  // [＋ 添加处理器]：列表末尾展开新增表单，同一时刻仅一处展开
+  document.querySelectorAll('[data-addproc]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var key = btn.getAttribute('data-addproc');
+      procCloseOpen();
+      var item = procBuildItem(key, procBlank(key));
+      procList(key).appendChild(item);
+      syncEnvBadges();
+      procShowForm(item, 'new');
+      if (item.scrollIntoView) item.scrollIntoView({ block: 'nearest' });
     });
   });
 
@@ -765,7 +1442,7 @@
     });
   });
   envDetail.addEventListener('click', function (e) {
-    if (e.target.closest && e.target.closest('.switch, [data-addrow], [data-ux-undo]')) envDirty.style.display = '';
+    if (e.target.closest && e.target.closest('.switch, [data-addrow], [data-ux-undo], [data-addproc], [data-proc-act], [data-procseg], [data-body], [data-addkv], [data-rmrow], [data-addext], [data-rmext], [data-addarg], [data-rmarg]')) envDirty.style.display = '';
   });
 
   envSaveBtn.addEventListener('click', function () {
