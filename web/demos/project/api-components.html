@@ -38,6 +38,8 @@
   .cp-item__main { display: flex; align-items: center; gap: 6px; }
   .cp-item__name { flex: 1; min-width: 0; font-size: var(--font-size-sm); font-weight: 500; color: var(--n-800); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .cp-item__meta { margin-top: 2px; font-size: var(--font-size-xs); color: var(--n-400); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* 名称过长时让位给作用域与状态标签，状态随启停即时刷新 */
+  .cp-item__main .tag { flex: none; }
   .cp-empty { text-align: center; padding: var(--space-lg) var(--space-sm); color: var(--n-500); font-size: var(--font-size-sm); }
   .cp-empty p { margin: 0 0 var(--space-sm); }
 
@@ -120,30 +122,30 @@
 
               <ul class="cp-items" id="cp-items">
                 <li class="cp-item is-active" data-cp="token">
-                  <div class="cp-item__main"><span class="cp-item__name">Token 预置</span><span class="tag tag--outline">公共</span></div>
+                  <div class="cp-item__main"><span class="cp-item__name">Token 预置</span><span class="tag tag--outline cp-item__scope">公共</span><span class="tag tag--success cp-item__state">已启用</span></div>
                   <div class="cp-item__meta">前置处理器 · 从环境变量获取 Token 并注入请求头</div>
                 </li>
                 <li class="cp-item" data-cp="login">
-                  <div class="cp-item__main"><span class="cp-item__name">登录态校验</span><span class="tag tag--success">空间</span></div>
+                  <div class="cp-item__main"><span class="cp-item__name">登录态校验</span><span class="tag tag--success cp-item__scope">空间</span><span class="tag tag--success cp-item__state">已启用</span></div>
                   <div class="cp-item__meta">验证器 · 校验登录态，失效时中断后续步骤</div>
                 </li>
                 <li class="cp-item" data-cp="cursor">
-                  <div class="cp-item__main"><span class="cp-item__name">分页游标提取</span><span class="tag tag--info">项目</span></div>
+                  <div class="cp-item__main"><span class="cp-item__name">分页游标提取</span><span class="tag tag--info cp-item__scope">项目</span><span class="tag tag--success cp-item__state">已启用</span></div>
                   <div class="cp-item__meta">提取器 · 提取下一页游标供循环步骤使用</div>
                 </li>
                 <li class="cp-item is-disabled" data-cp="cleanup">
-                  <div class="cp-item__main"><span class="cp-item__name">清理测试数据</span><span class="tag tag--outline">公共</span></div>
+                  <div class="cp-item__main"><span class="cp-item__name">清理测试数据</span><span class="tag tag--outline cp-item__scope">公共</span><span class="tag tag--outline cp-item__state">已停用</span></div>
                   <div class="cp-item__meta">后置处理器 · 执行结束按订单号清理造数记录</div>
                 </li>
                 <li class="cp-item" data-cp="errcode">
-                  <div class="cp-item__main"><span class="cp-item__name">统一错误码断言</span><span class="tag tag--info">项目</span></div>
+                  <div class="cp-item__main"><span class="cp-item__name">统一错误码断言</span><span class="tag tag--info cp-item__scope">项目</span><span class="tag tag--success cp-item__state">已启用</span></div>
                   <div class="cp-item__meta">验证器 · 响应体需包含标准错误码字段</div>
                 </li>
               </ul>
 
               <div class="cp-empty" id="cp-empty" hidden>
-                <p id="cp-empty-text">无匹配组件</p>
-                <button class="btn btn--default btn--sm" id="cp-clear-search">清除搜索</button>
+                <p id="cp-empty-text">无匹配结果</p>
+                <button class="btn btn--default btn--sm" id="cp-clear-search">清除筛选</button>
               </div>
             </div>
           </aside>
@@ -611,8 +613,9 @@
       if (show) visible++;
     });
     byId('cp-empty').hidden = visible > 0;
-    byId('cp-empty-text').textContent = kw ? '无匹配组件' : '该类型下暂无组件';
-    byId('cp-clear-search').hidden = !kw;
+    // 与实现一致：有筛选（关键词或类型页签）→ 无匹配结果，否则 → 暂无公共组件
+    byId('cp-empty-text').textContent = (kw || activeTab !== 'all') ? '无匹配结果' : '暂无公共组件';
+    byId('cp-clear-search').hidden = !(kw || activeTab !== 'all');
   }
 
   function renderItem(cp) {
@@ -620,9 +623,12 @@
     if (!li) return;
     li.querySelector('.cp-item__name').textContent = cp.name;
     li.querySelector('.cp-item__meta').textContent = TYPE_LABELS[cp.type] + ' · ' + (cp.desc || '—');
-    var scopeTag = li.querySelector('.tag');
-    scopeTag.className = SCOPE_TAGS[cp.scope];
+    var scopeTag = li.querySelector('.cp-item__scope');
+    scopeTag.className = 'cp-item__scope ' + SCOPE_TAGS[cp.scope];
     scopeTag.textContent = SCOPE_LABELS[cp.scope];
+    var stateTag = li.querySelector('.cp-item__state');
+    stateTag.className = 'cp-item__state ' + (cp.enabled ? 'tag tag--success' : 'tag tag--outline');
+    stateTag.textContent = cp.enabled ? '已启用' : '已停用';
     li.classList.toggle('is-disabled', !cp.enabled);
   }
 
@@ -791,6 +797,10 @@
   byId('cp-search').addEventListener('input', filterList);
   byId('cp-clear-search').addEventListener('click', function () {
     byId('cp-search').value = '';
+    activeTab = 'all';
+    document.querySelector('[data-cptabs]').querySelectorAll('button').forEach(function (b) {
+      b.classList.toggle('is-active', b.getAttribute('data-cptab') === 'all');
+    });
     filterList();
     byId('cp-search').focus();
   });
@@ -814,7 +824,7 @@
     CP.push(copy);
     var li = el('li', 'cp-item is-disabled');
     li.setAttribute('data-cp', copy.id);
-    li.innerHTML = '<div class="cp-item__main"><span class="cp-item__name"></span><span class="tag tag--outline"></span></div><div class="cp-item__meta"></div>';
+    li.innerHTML = '<div class="cp-item__main"><span class="cp-item__name"></span><span class="tag tag--outline cp-item__scope"></span><span class="tag tag--outline cp-item__state"></span></div><div class="cp-item__meta"></div>';
     byId('cp-items').appendChild(li);
     renderItem(copy);
     rt.toast('已复制', { type: 'success' });
@@ -946,7 +956,7 @@
       CP.push(payload);
       var li = el('li', 'cp-item');
       li.setAttribute('data-cp', payload.id);
-      li.innerHTML = '<div class="cp-item__main"><span class="cp-item__name"></span><span class="tag tag--outline"></span></div><div class="cp-item__meta"></div>';
+      li.innerHTML = '<div class="cp-item__main"><span class="cp-item__name"></span><span class="tag tag--outline cp-item__scope"></span><span class="tag tag--outline cp-item__state"></span></div><div class="cp-item__meta"></div>';
       byId('cp-items').appendChild(li);
       renderItem(payload);
       rt.toast('已创建', { type: 'success' });
