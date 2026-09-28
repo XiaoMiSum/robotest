@@ -87,16 +87,12 @@
   .kv .cell-input:focus { outline: none; border-color: var(--brand-500); background: #fff; }
 
   .pane-head { display: flex; align-items: center; gap: var(--space-sm); margin-bottom: var(--space-md); padding-bottom: var(--space-sm); border-bottom: 1px solid var(--n-100); }
-  .pane-head__title { display: inline-flex; align-items: center; gap: 8px; font-size: var(--font-size-base); font-weight: 600; color: var(--n-800); }
-  .pane-head__title::before { content: ""; width: 3px; height: 13px; border-radius: 2px; background: var(--brand-500); }
-  .pane-head__spacer { flex: 1; }
   .pane-empty { padding: 36px 0; text-align: center; color: var(--n-400); font-size: var(--font-size-sm); }
 
   .env-empty { text-align: center; padding: var(--space-lg) var(--space-sm); color: var(--n-500); font-size: var(--font-size-sm); }
   .env-empty p { margin: 0 0 var(--space-sm); }
   .env-item.is-hidden { display: none; }
 
-  .env-footer { font-size: var(--font-size-xs); color: var(--n-400); }
   [hidden] { display: none !important; }
 </style>
 </head>
@@ -121,7 +117,7 @@
       <div class="page-head">
         <div>
           <h1 class="page-head__title">环境管理</h1>
-          <p class="page-head__desc">场景与接口执行的环境配置，含 HTTP 配置、变量、数据源与处理器</p>
+          <p class="page-head__desc">场景与接口执行的环境配置，含 HTTP 配置、变量、数据源与处理器；场景执行未指定环境时，自动使用列表中标记「默认」的环境</p>
         </div>
       </div>
 
@@ -214,10 +210,6 @@
 
             <!-- HTTP -->
             <div class="epanel is-active" data-epanel="http">
-              <div class="pane-head">
-                <span class="pane-head__title">HTTP 配置</span>
-                <div class="pane-head__spacer"></div>
-              </div>
               <div class="cfg-split">
                 <div class="cfg-panel">
                   <ul class="cfg-list">
@@ -257,10 +249,6 @@
 
             <!-- 变量 -->
             <div class="epanel" data-epanel="vars">
-              <div class="pane-head">
-                <span class="pane-head__title">环境变量</span>
-                <div class="pane-head__spacer"></div>
-              </div>
               <table class="kv">
                 <thead><tr><th style="width:34px"></th><th>变量名</th><th>值</th><th>说明</th><th style="width:60px">操作</th></tr></thead>
                 <tbody data-kvbody="vars">
@@ -275,15 +263,11 @@
 
             <!-- 数据源 -->
             <div class="epanel" data-epanel="ds">
-              <div class="pane-head">
-                <span class="pane-head__title">数据源</span>
-                <div class="pane-head__spacer"></div>
-                <button class="btn btn--link btn--sm">＋ 新增数据源</button>
-              </div>
               <div class="cfg-split">
                 <div class="cfg-panel">
                   <ul class="cfg-list">
                     <li class="is-active">订单库</li>
+                    <li class="cfg-add">＋ 新增数据源</li>
                   </ul>
                 </div>
                 <div class="cfg-form">
@@ -326,8 +310,6 @@
             <!-- 前置处理器 -->
             <div class="epanel" data-epanel="pre">
               <div class="pane-head">
-                <span class="pane-head__title">前置处理器</span>
-                <div class="pane-head__spacer"></div>
                 <button class="btn btn--link btn--sm" data-addrow="pre">＋ 添加处理器</button>
                 <button class="btn btn--link btn--sm" data-ux-feedback="从公共组件引入为复制，得到独立副本，与源资产无关联">从公共组件引入</button>
               </div>
@@ -347,8 +329,6 @@
             <!-- 后置处理器 -->
             <div class="epanel" data-epanel="post">
               <div class="pane-head">
-                <span class="pane-head__title">后置处理器</span>
-                <div class="pane-head__spacer"></div>
                 <button class="btn btn--link btn--sm" data-addrow="post">＋ 添加处理器</button>
                 <button class="btn btn--link btn--sm" data-ux-feedback="从公共组件引入为复制，得到独立副本，与源资产无关联">从公共组件引入</button>
               </div>
@@ -366,8 +346,6 @@
             </div>
           </section>
         </div>
-
-        <footer class="env-footer">默认环境说明：场景执行未指定环境时使用默认环境</footer>
       </div>
     </div>
   </div>
