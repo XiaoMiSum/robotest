@@ -1066,10 +1066,10 @@
     var copy = JSON.parse(JSON.stringify(src));
     copy.id = 'cp' + (++seq);
     copy.name = src.name + ' (副本)';
-    copy.enabled = false;
+    copy.enabled = true;
     copy.updated = TODAY;
     CP.push(copy);
-    var li = el('li', 'cp-item is-disabled');
+    var li = el('li', 'cp-item');
     li.setAttribute('data-cp', copy.id);
     li.innerHTML = '<div class="cp-item__main"><span class="cp-item__name"></span><span class="tag tag--outline cp-item__scope"></span><span class="tag tag--outline cp-item__state"></span></div><div class="cp-item__meta"></div>';
     byId('cp-items').appendChild(li);
