@@ -32,29 +32,36 @@
   .env-item__acts { margin-top: 4px; display: flex; flex-wrap: wrap; gap: 2px 6px; opacity: 0; font-size: var(--font-size-xs); }
   .env-item:hover .env-item__acts { opacity: 1; }
 
-  /* 右：详情 */
-  .env-detail { flex: 1; min-width: 0; overflow-y: auto; background: #fff; border: 1px solid var(--n-100); border-radius: var(--radius-lg); padding: var(--space-lg); }
-  .env-detail__head { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-md); }
-  .env-detail__name { font-size: var(--font-size-md); font-weight: 600; color: var(--n-800); }
-  .etabs { display: flex; align-items: center; border-bottom: 1px solid var(--n-100); margin-bottom: var(--space-md); }
-  .etab { padding: 8px 16px; font-size: var(--font-size-sm); font-weight: 500; color: var(--n-500); background: none; border: none; border-bottom: 2px solid transparent; cursor: pointer; }
-  .etab:hover { color: var(--n-700); }
-  .etab.is-active { color: var(--brand-500); border-bottom-color: var(--brand-500); }
+  /* 右：详情（头部与页签吸顶，滚动时上下文不丢失） */
+  .env-detail { flex: 1; min-width: 0; overflow-y: auto; background: #fff; border: 1px solid var(--n-100); border-radius: var(--radius-lg); padding: 0 var(--space-lg) var(--space-lg); }
+  .env-detail__top { position: sticky; top: 0; z-index: 2; margin: 0 calc(0px - var(--space-lg)); padding: var(--space-md) var(--space-lg) 0; background: #fff; border-bottom: 1px solid var(--n-100); }
+  .env-detail__head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm); margin-bottom: var(--space-md); }
+  .env-detail__id { display: flex; align-items: center; gap: var(--space-sm); min-width: 0; }
+  .env-detail__name { font-size: var(--font-size-lg); font-weight: 600; color: var(--n-800); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .etabs { display: flex; align-items: center; gap: 2px; }
+  .etab { display: inline-flex; align-items: center; gap: 6px; padding: 9px 14px; margin-bottom: -1px; font-size: var(--font-size-sm); font-weight: 500; color: var(--n-500); background: none; border: none; border-bottom: 2px solid transparent; border-radius: var(--radius-md) var(--radius-md) 0 0; cursor: pointer; white-space: nowrap; transition: color var(--transition-fast), background var(--transition-fast); }
+  .etab:hover { color: var(--n-700); background: var(--n-50); }
+  .etab.is-active { color: var(--brand-500); font-weight: 600; background: none; border-bottom-color: var(--brand-500); }
+  .etab__count { display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--n-100); color: var(--n-500); font-size: var(--font-size-2xs); font-weight: 600; }
+  .etab.is-active .etab__count { background: var(--brand-50); color: var(--brand-500); }
   .epanel { display: none; }
-  .epanel.is-active { display: block; }
+  .epanel.is-active { display: block; padding-top: var(--space-md); }
 
-  /* HTTP 配置：左小列表 + 右表单 */
-  .cfg-split { display: flex; gap: var(--space-lg); }
-  .cfg-list { width: 200px; flex-shrink: 0; list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
-  .cfg-list li { padding: 7px 10px; border-radius: var(--radius-md); font-size: var(--font-size-sm); color: var(--n-600); cursor: pointer; }
-  .cfg-list li:hover { background: var(--n-50); }
-  .cfg-list li.is-active { background: rgba(59,130,246,.06); color: var(--brand-700); font-weight: 600; }
+  /* 配置区（HTTP / 数据源同构）：左小列表 + 右内联表单（docs34 1.3） */
+  .cfg-split { display: flex; gap: var(--space-lg); align-items: flex-start; }
+  .cfg-panel { width: 216px; flex-shrink: 0; background: var(--n-50); border: 1px solid var(--n-100); border-radius: var(--radius-md); padding: 6px; }
+  .cfg-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+  .cfg-list li { padding: 7px 10px; border: 1px solid transparent; border-radius: var(--radius-md); font-size: var(--font-size-sm); color: var(--n-600); cursor: pointer; }
+  .cfg-list li:hover { background: #fff; border-color: var(--n-200); }
+  .cfg-list li.is-active { background: #fff; border-color: var(--brand-300); color: var(--brand-600); font-weight: 600; box-shadow: 0 1px 2px rgba(0,0,0,.04); }
   .cfg-list .cfg-add { color: var(--brand-500); cursor: pointer; }
+  .cfg-list .cfg-add:hover { color: var(--brand-600); }
   .cfg-form { flex: 1; min-width: 0; }
 
   /* 详情面板较宽：字段控件限宽，避免输入框被拉满 */
   .field > .input, .field > .select, .field > .textarea { max-width: 420px; }
-  .form-actions { display: flex; align-items: center; gap: var(--space-sm); padding-top: var(--space-sm); border-top: 1px solid var(--n-100); }
+  .form-actions { display: flex; align-items: center; gap: var(--space-sm); margin-top: var(--space-md); padding-top: var(--space-sm); border-top: 1px solid var(--n-100); }
+  .form-actions > :last-child { margin-left: auto; }
   /* 测试连接：结果内联显示在按钮旁，失败可重试 */
   .conn-result { display: inline-flex; align-items: center; gap: 6px; font-size: var(--font-size-sm); }
   .conn-result--ok { color: var(--st-success-strong); }
@@ -67,15 +74,21 @@
   .switch.is-on::after { left: 17px; }
 
   .kv { width: 100%; border-collapse: collapse; }
-  .kv th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--n-400); font-weight: 600; padding: 4px 8px; border-bottom: 1px solid var(--n-100); }
-  .kv td { padding: 6px 8px; border-bottom: 1px solid var(--n-100); }
-  .kv .kv__add { color: var(--brand-500); font-size: var(--font-size-xs); cursor: pointer; padding: 8px; display: inline-block; }
+  .kv th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--n-400); font-weight: 600; padding: 6px 8px; background: var(--n-50); border-bottom: 1px solid var(--n-100); }
+  .kv th:first-child { border-top-left-radius: var(--radius-sm); }
+  .kv th:last-child { border-top-right-radius: var(--radius-sm); }
+  .kv td { padding: 6px 8px; border-bottom: 1px solid var(--n-100); vertical-align: middle; }
+  .kv tbody tr:hover { background: var(--n-50); }
+  .kv tbody tr:hover .cell-input { border-color: var(--n-200); background: #fff; }
+  .kv__add { display: block; margin-top: var(--space-sm); padding: 7px; text-align: center; border: 1px dashed var(--n-200); border-radius: var(--radius-md); color: var(--brand-500); font-size: var(--font-size-xs); cursor: pointer; }
+  .kv__add:hover { border-color: var(--brand-300); background: var(--brand-50); }
   .kv .cell-input { width: 100%; height: 28px; border: 1px solid transparent; border-radius: var(--radius-sm); padding: 0 8px; font-size: var(--font-size-xs); background: none; }
   .kv .cell-input:hover { border-color: var(--n-200); background: #fff; }
   .kv .cell-input:focus { outline: none; border-color: var(--brand-500); background: #fff; }
 
-  .pane-head { display: flex; align-items: center; gap: var(--space-sm); margin-bottom: 10px; }
-  .pane-head__title { font-size: var(--font-size-sm); font-weight: 600; color: var(--n-700); }
+  .pane-head { display: flex; align-items: center; gap: var(--space-sm); margin-bottom: var(--space-md); padding-bottom: var(--space-sm); border-bottom: 1px solid var(--n-100); }
+  .pane-head__title { display: inline-flex; align-items: center; gap: 8px; font-size: var(--font-size-base); font-weight: 600; color: var(--n-800); }
+  .pane-head__title::before { content: ""; width: 3px; height: 13px; border-radius: 2px; background: var(--brand-500); }
   .pane-head__spacer { flex: 1; }
   .pane-empty { padding: 36px 0; text-align: center; color: var(--n-400); font-size: var(--font-size-sm); }
 
@@ -180,44 +193,58 @@
 
           <!-- 右：环境详情 -->
           <section class="env-detail">
-            <div class="env-detail__head">
-              <span class="env-detail__name">测试环境</span>
-              <button class="btn btn--primary btn--sm" data-ux-save>保存全部</button>
-            </div>
+            <div class="env-detail__top">
+              <div class="env-detail__head">
+                <div class="env-detail__id">
+                  <span class="env-detail__name">测试环境</span>
+                  <span class="tag tag--warning">默认</span>
+                  <span class="tag tag--outline">项目</span>
+                </div>
+                <button class="btn btn--primary btn--sm" data-ux-save>保存全部</button>
+              </div>
 
-            <div class="etabs">
-              <button class="etab is-active" data-etab="http" data-badge="http">HTTP (2)</button>
-              <button class="etab" data-etab="vars" data-badge="vars">变量 (4)</button>
-              <button class="etab" data-etab="ds">数据源 (1)</button>
-              <button class="etab" data-etab="pre" data-badge="pre">前置处理器 (1)</button>
-              <button class="etab" data-etab="post" data-badge="post">后置处理器 (1)</button>
+              <div class="etabs">
+                <button class="etab is-active" data-etab="http" data-badge="http">HTTP <span class="etab__count">2</span></button>
+                <button class="etab" data-etab="vars" data-badge="vars">变量 <span class="etab__count">4</span></button>
+                <button class="etab" data-etab="ds" data-badge="ds">数据源 <span class="etab__count">1</span></button>
+                <button class="etab" data-etab="pre" data-badge="pre">前置处理器 <span class="etab__count">1</span></button>
+                <button class="etab" data-etab="post" data-badge="post">后置处理器 <span class="etab__count">1</span></button>
+              </div>
             </div>
 
             <!-- HTTP -->
             <div class="epanel is-active" data-epanel="http">
+              <div class="pane-head">
+                <span class="pane-head__title">HTTP 配置</span>
+                <div class="pane-head__spacer"></div>
+              </div>
               <div class="cfg-split">
-                <ul class="cfg-list">
-                  <li class="is-active">默认 HTTP</li>
-                  <li>网关 HTTP</li>
-                  <li class="cfg-add">＋ 新增配置</li>
-                </ul>
+                <div class="cfg-panel">
+                  <ul class="cfg-list">
+                    <li class="is-active">默认 HTTP</li>
+                    <li>网关 HTTP</li>
+                    <li class="cfg-add">＋ 新增配置</li>
+                  </ul>
+                </div>
                 <div class="cfg-form">
-                  <div class="field">
-                    <label class="field__label">名称<span class="req">*</span></label>
-                    <input class="input" style="width:100%" value="默认 HTTP">
-                  </div>
-                  <div class="field">
-                    <label class="field__label">引用名<span class="req">*</span></label>
-                    <input class="input" style="width:100%" value="default">
-                    <div class="field__hint">场景中通过该名引用此配置</div>
-                  </div>
-                  <div class="field">
-                    <label class="field__label">Base URL<span class="req">*</span></label>
-                    <input class="input" style="width:100%" value="https://api-test.example.com">
-                  </div>
-                  <div class="field">
-                    <label class="field__label">设为默认</label>
-                    <button class="switch is-on"></button>
+                  <div class="form-grid">
+                    <div class="field">
+                      <label class="field__label">名称<span class="req">*</span></label>
+                      <input class="input" style="width:100%" value="默认 HTTP">
+                    </div>
+                    <div class="field">
+                      <label class="field__label">引用名<span class="req">*</span></label>
+                      <input class="input" style="width:100%" value="default">
+                      <div class="field__hint">场景中通过该名引用此配置</div>
+                    </div>
+                    <div class="field">
+                      <label class="field__label">Base URL<span class="req">*</span></label>
+                      <input class="input" style="width:100%" value="https://api-test.example.com">
+                    </div>
+                    <div class="field">
+                      <label class="field__label">设为默认</label>
+                      <button class="switch is-on"></button>
+                    </div>
                   </div>
                   <div class="form-actions" data-testconn="http">
                     <button class="btn btn--default btn--sm">测试连接</button>
@@ -253,35 +280,46 @@
                 <div class="pane-head__spacer"></div>
                 <button class="btn btn--link btn--sm">＋ 新增数据源</button>
               </div>
-              <div class="field">
-                <label class="field__label">名称<span class="req">*</span></label>
-                <input class="input" style="width:100%" value="订单库">
-              </div>
-              <div class="field">
-                <label class="field__label">引用名<span class="req">*</span></label>
-                <input class="input" style="width:100%" value="orderDb">
-                <div class="field__hint">场景中通过该名引用此数据源</div>
-              </div>
-              <div class="field">
-                <label class="field__label">驱动<span class="req">*</span></label>
-                <select class="select" style="width:100%"><option>PostgreSQL</option><option>MySQL</option></select>
-              </div>
-              <div class="field">
-                <label class="field__label">URL<span class="req">*</span></label>
-                <input class="input" style="width:100%" value="jdbc:postgresql://db.test.example.com:5432/order">
-              </div>
-              <div class="field">
-                <label class="field__label">连接池上限</label>
-                <input class="input" style="width:140px" value="5">
-              </div>
-              <div class="field">
-                <label class="field__label">设为默认</label>
-                <button class="switch is-on"></button>
-              </div>
-              <div class="form-actions" data-testconn="ds">
-                <button class="btn btn--default btn--sm">测试连接</button>
-                <span class="conn-result" hidden></span>
-                <button class="btn btn--danger btn--sm">删除</button>
+              <div class="cfg-split">
+                <div class="cfg-panel">
+                  <ul class="cfg-list">
+                    <li class="is-active">订单库</li>
+                  </ul>
+                </div>
+                <div class="cfg-form">
+                  <div class="form-grid">
+                    <div class="field">
+                      <label class="field__label">名称<span class="req">*</span></label>
+                      <input class="input" style="width:100%" value="订单库">
+                    </div>
+                    <div class="field">
+                      <label class="field__label">引用名<span class="req">*</span></label>
+                      <input class="input" style="width:100%" value="orderDb">
+                      <div class="field__hint">场景中通过该名引用此数据源</div>
+                    </div>
+                    <div class="field">
+                      <label class="field__label">驱动<span class="req">*</span></label>
+                      <select class="select" style="width:100%"><option>PostgreSQL</option><option>MySQL</option></select>
+                    </div>
+                    <div class="field">
+                      <label class="field__label">连接池上限</label>
+                      <input class="input" style="width:140px" value="5">
+                    </div>
+                    <div class="field">
+                      <label class="field__label">URL<span class="req">*</span></label>
+                      <input class="input" style="width:100%" value="jdbc:postgresql://db.test.example.com:5432/order">
+                    </div>
+                    <div class="field">
+                      <label class="field__label">设为默认</label>
+                      <button class="switch is-on"></button>
+                    </div>
+                  </div>
+                  <div class="form-actions" data-testconn="ds">
+                    <button class="btn btn--default btn--sm">测试连接</button>
+                    <span class="conn-result" hidden></span>
+                    <button class="btn btn--danger btn--sm">删除</button>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -504,15 +542,16 @@
   /* ---------------- 页签计数与行数保持一致 ---------------- */
   function syncEnvBadges() {
     var counts = {
-      http: envVisibleCount('.cfg-list li:not(.cfg-add)'),
+      http: envVisibleCount('[data-epanel="http"] .cfg-list li:not(.cfg-add)'),
       vars: envVisibleCount('[data-kvbody="vars"] tr'),
+      ds: envVisibleCount('[data-epanel="ds"] .cfg-list li:not(.cfg-add)'),
       pre: envVisibleCount('[data-kvbody="pre"] tr'),
       post: envVisibleCount('[data-kvbody="post"] tr'),
     };
-    var labels = { http: 'HTTP', vars: '变量', pre: '前置处理器', post: '后置处理器' };
+    var labels = { http: 'HTTP', vars: '变量', ds: '数据源', pre: '前置处理器', post: '后置处理器' };
     Object.keys(counts).forEach(function (key) {
       var tab = document.querySelector('.etab[data-badge="' + key + '"]');
-      if (tab) tab.textContent = labels[key] + ' (' + counts[key] + ')';
+      if (tab) tab.innerHTML = labels[key] + '<span class="etab__count">' + counts[key] + '</span>';
     });
     // 处理器序号跟随增删重排
     ['pre', 'post'].forEach(function (key) {
@@ -699,11 +738,15 @@
   syncEnvBadges();
   refreshEnvList();
 
-  document.querySelectorAll('.cfg-list li').forEach(function (li) {
-    if (li.classList.contains('cfg-add')) return;
-    li.addEventListener('click', function () {
-      document.querySelectorAll('.cfg-list li').forEach(function (x) { x.classList.remove('is-active'); });
-      li.classList.add('is-active');
+  // 配置列表切换：HTTP 与数据源各自独立，互不清除对方选中态
+  document.querySelectorAll('[data-epanel]').forEach(function (panel) {
+    var items = panel.querySelectorAll('.cfg-list li');
+    items.forEach(function (li) {
+      if (li.classList.contains('cfg-add')) return;
+      li.addEventListener('click', function () {
+        items.forEach(function (x) { x.classList.remove('is-active'); });
+        li.classList.add('is-active');
+      });
     });
   });
 
