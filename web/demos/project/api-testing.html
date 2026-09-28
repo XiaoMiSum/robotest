@@ -626,11 +626,27 @@ var rt = window.RTUX;
 
     function activeTab() { return tabsBar.querySelector('.ws-tab.is-active'); }
 
+    // 头部动作区随激活 Tab 换级：编辑态把列表级 [导入][新建接口] 降为文字按钮，
+    // 主视觉权重让给编辑器自身的 [保存]，避免两组按钮同为一级时的语义竞争（方案 A2）
+    var headActions = [
+      { id: 'btn-import-interface', rest: 'btn--default', demote: 'btn--text' },
+      { id: 'btn-new-interface', rest: 'btn--primary', demote: 'btn--text' }
+    ];
+    function setHeadScope(isEdit) {
+      headActions.forEach(function (a) {
+        var el = document.getElementById(a.id);
+        if (!el) return;
+        el.classList.toggle(a.rest, !isEdit);
+        el.classList.toggle(a.demote, isEdit);
+      });
+    }
+
     function activate(tab) {
       tabsBar.querySelectorAll('.ws-tab').forEach(function (t) { t.classList.toggle('is-active', t === tab); });
       var isList = tab.getAttribute('data-pane') === 'list';
       listPane.hidden = !isList;
       editorPane.hidden = isList;
+      setHeadScope(!isList);
       if (isList) return;
       // 请求行跟随激活 Tab（同一编辑器面板承载多个接口定义）
       var method = tab.getAttribute('data-method') || 'GET';
