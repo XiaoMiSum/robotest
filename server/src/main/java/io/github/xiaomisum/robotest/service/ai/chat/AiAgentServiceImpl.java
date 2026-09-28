@@ -1,6 +1,6 @@
 package io.github.xiaomisum.robotest.service.ai.chat;
 
-import io.github.xiaomisum.robotest.framework.audit.AuditOperation;
+import xyz.migoo.framework.security.core.annotation.AuditLog;
 import io.github.xiaomisum.robotest.framework.common.AiFunctionType;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.model.dto.request.ai.AiAgentSaveReqDTO;
@@ -83,7 +83,7 @@ public class AiAgentServiceImpl implements AiAgentService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    @AuditOperation(operation = "UPDATE", entityType = "AiPromptTemplate", logParams = false)
+    @AuditLog(action = "UPDATE:AiPromptTemplate", recordParams = false)
     public void saveAgent(String functionType, AiAgentSaveReqDTO reqDTO, UUID userId) {
         AiFunctionType type = requireTemplateFunction(functionType);
         AiPromptTemplate custom = aiPromptTemplateMapper.findByFunctionType(type.getCode());
@@ -116,7 +116,7 @@ public class AiAgentServiceImpl implements AiAgentService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    @AuditOperation(operation = "UPDATE", entityType = "AiPromptTemplate", logParams = false)
+    @AuditLog(action = "UPDATE:AiPromptTemplate", recordParams = false)
     public void restoreDefault(String functionType, UUID userId) {
         AiFunctionType type = requireTemplateFunction(functionType);
         PromptDefaults.DefaultTemplate defaults = promptDefaults.get(type.getCode());

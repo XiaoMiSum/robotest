@@ -10,7 +10,7 @@ import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionTemplate;
 
 /**
- * 审计写入器：切面注解路径与登录显式写入路径共用。
+ * 审计写入器：审计事件监听器与登录显式写入路径共用。
  * <p>审计是旁路能力，写入失败只丢弃记录本身，绝不影响触发它的业务流程。</p>
  */
 @Slf4j

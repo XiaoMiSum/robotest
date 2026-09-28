@@ -1,6 +1,6 @@
 package io.github.xiaomisum.robotest.service.ai.gateway;
 
-import io.github.xiaomisum.robotest.framework.audit.AuditOperation;
+import xyz.migoo.framework.security.core.annotation.AuditLog;
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.model.dto.request.ai.AiConfigSaveReqDTO;
@@ -71,7 +71,7 @@ public class AiConfigServiceImpl implements AiConfigService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    @AuditOperation(operation = "UPDATE", entityType = "AiConfig", logParams = false)
+    @AuditLog(action = "UPDATE:AiConfig", recordParams = false)
     public AiConfigRespDTO saveConfig(AiConfigSaveReqDTO reqDTO, UUID operatorId) {
         byte[] secretKey = AiCryptoUtil.parseKey(secretKeyBase64);
         if (secretKey == null) {
