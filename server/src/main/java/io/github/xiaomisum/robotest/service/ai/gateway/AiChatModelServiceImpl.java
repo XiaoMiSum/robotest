@@ -1,6 +1,6 @@
 package io.github.xiaomisum.robotest.service.ai.gateway;
 
-import io.github.xiaomisum.robotest.framework.audit.AuditOperation;
+import xyz.migoo.framework.security.core.annotation.AuditLog;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.model.dto.request.ai.AiChatModelSaveReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.ai.AiConfigTestReqDTO;
@@ -49,7 +49,7 @@ public class AiChatModelServiceImpl implements AiChatModelService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    @AuditOperation(operation = "CREATE", entityType = "AiChatModel", logParams = false)
+    @AuditLog(action = "CREATE:AiChatModel", recordParams = false)
     public AiChatModelRespDTO create(AiChatModelSaveReqDTO reqDTO, UUID operatorId) {
         byte[] secretKey = requireSecretKey();
         validateProviderAndName(reqDTO, null);
@@ -79,7 +79,7 @@ public class AiChatModelServiceImpl implements AiChatModelService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    @AuditOperation(operation = "UPDATE", entityType = "AiChatModel", logParams = false)
+    @AuditLog(action = "UPDATE:AiChatModel", recordParams = false)
     public AiChatModelRespDTO update(UUID id, AiChatModelSaveReqDTO reqDTO, UUID operatorId) {
         byte[] secretKey = requireSecretKey();
         AiChatModel existing = aiChatModelMapper.findByIdActive(id);
@@ -107,7 +107,7 @@ public class AiChatModelServiceImpl implements AiChatModelService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    @AuditOperation(operation = "DELETE", entityType = "AiChatModel", logParams = false)
+    @AuditLog(action = "DELETE:AiChatModel", recordParams = false)
     public void delete(UUID id, UUID operatorId) {
         AiChatModel existing = aiChatModelMapper.findByIdActive(id);
         if (existing == null) {
@@ -123,7 +123,7 @@ public class AiChatModelServiceImpl implements AiChatModelService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    @AuditOperation(operation = "UPDATE", entityType = "AiChatModel", logParams = false)
+    @AuditLog(action = "UPDATE:AiChatModel", recordParams = false)
     public void setDefault(UUID id, UUID operatorId) {
         AiChatModel existing = aiChatModelMapper.findByIdActive(id);
         if (existing == null || !Boolean.TRUE.equals(existing.getEnabled())) {
@@ -141,7 +141,7 @@ public class AiChatModelServiceImpl implements AiChatModelService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    @AuditOperation(operation = "UPDATE", entityType = "AiChatModel", logParams = false)
+    @AuditLog(action = "UPDATE:AiChatModel", recordParams = false)
     public void setEnabled(UUID id, boolean enabled, UUID operatorId) {
         AiChatModel existing = aiChatModelMapper.findByIdActive(id);
         if (existing == null) {
