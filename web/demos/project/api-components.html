@@ -49,6 +49,9 @@
   .cp-detail__id { display: flex; align-items: center; gap: var(--space-sm); min-width: 0; }
   .cp-detail__name { margin: 0; font-size: var(--font-size-lg); color: var(--n-800); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .cp-detail__header-actions { display: flex; align-items: center; gap: var(--space-sm); flex-shrink: 0; }
+  /* 启用勾选：头部内联启停入口，勾选=启用、取消=禁用 */
+  .cp-enable { display: inline-flex; align-items: center; gap: 5px; flex-shrink: 0; font-size: var(--font-size-sm); color: var(--n-600); cursor: pointer; user-select: none; }
+  .cp-enable input { margin: 0; }
 
   .cp-detail__section { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: var(--space-sm) var(--space-md); align-items: start; }
   .cp-detail__section + .cp-detail__section { margin-top: var(--space-md); padding-top: var(--space-md); border-top: 1px solid var(--n-100); }
@@ -182,7 +185,7 @@
                 <span class="cp-detail__name" id="cp-name">Token 预置</span>
                 <span class="tag tag--outline" id="cp-type">前置处理器</span>
                 <span class="tag tag--info" id="cp-scope">公共</span>
-                <span class="tag tag--success" id="cp-state">已启用</span>
+                <label class="cp-enable"><input type="checkbox" class="cell-check" id="cp-enable"><span>启用</span></label>
               </div>
               <div class="cp-detail__header-actions">
                 <button class="btn btn--default btn--sm" id="cp-edit">编辑</button>
@@ -197,10 +200,6 @@
                 <div class="cp-meta__item">
                   <span class="cp-meta__k">更新时间</span>
                   <span class="cp-meta__v num" id="cp-updated">2026-09-20 11:08</span>
-                </div>
-                <div class="cp-meta__item">
-                  <span class="cp-meta__k">启用</span>
-                  <button class="switch is-on" id="cp-switch" aria-label="启用"></button>
                 </div>
                 <div class="cp-meta__item cp-meta__item--wide">
                   <span class="cp-meta__k">描述</span>
@@ -262,10 +261,6 @@
                   <option value="global">公共</option>
                 </select>
                 <div class="field__hint">编辑态不可修改作用域</div>
-              </div>
-              <div class="field">
-                <span class="field__label">启用</span>
-                <button class="switch is-on" id="cp-f-switch" aria-label="启用"></button>
               </div>
               <div class="field" style="grid-column:1 / -1">
                 <label class="field__label" for="cp-f-desc">描述</label>
@@ -577,12 +572,9 @@
     var scopeTag = byId('cp-scope');
     scopeTag.className = SCOPE_TAGS[cp.scope];
     scopeTag.textContent = SCOPE_LABELS[cp.scope];
-    var state = byId('cp-state');
-    state.textContent = cp.enabled ? '已启用' : '已停用';
-    state.className = cp.enabled ? 'tag tag--success' : 'tag tag--outline';
     byId('cp-updated').textContent = cp.updated;
     byId('cp-desc').textContent = cp.desc || '—';
-    byId('cp-switch').classList.toggle('is-on', cp.enabled);
+    byId('cp-enable').checked = !!cp.enabled;
 
     var box = byId('cp-cfg');
     box.textContent = '';
@@ -975,7 +967,6 @@
     byId('cp-f-type').value = cp ? cp.type : 'preprocessor';
     byId('cp-f-scope').value = cp ? cp.scope : 'project';
     byId('cp-f-desc').value = cp ? (cp.desc || '') : '';
-    byId('cp-f-switch').classList.toggle('is-on', cp ? cp.enabled : true);
     byId('cp-f-scope-field').hidden = mode === 'edit';
     byId('cp-f-type').disabled = mode === 'edit';
     byId('cp-f-type-hint').hidden = mode !== 'edit';
@@ -1118,19 +1109,12 @@
     });
   });
 
-  /* 启停开关：行内即时切换（handleToggle 无二次确认） */
-  byId('cp-switch').addEventListener('click', function () {
+  /* 启停勾选：勾选设为启用、取消勾选设为禁用，即时同步左栏状态标签与降透明度 */
+  byId('cp-enable').addEventListener('change', function () {
     var cp = findCp(activeId);
     if (!cp) return;
-    cp.enabled = !cp.enabled;
-    byId('cp-switch').classList.toggle('is-on', cp.enabled);
-    var state = byId('cp-state');
-    state.textContent = cp.enabled ? '已启用' : '已停用';
-    state.className = cp.enabled ? 'tag tag--success' : 'tag tag--outline';
+    cp.enabled = this.checked;
     renderItem(cp);
-  });
-  byId('cp-f-switch').addEventListener('click', function () {
-    byId('cp-f-switch').classList.toggle('is-on');
   });
 
   byId('cp-f-type').addEventListener('change', applyType);
@@ -1279,7 +1263,8 @@
       type: byId('cp-f-type').value,
       scope: byId('cp-f-scope').value,
       desc: byId('cp-f-desc').value.trim(),
-      enabled: byId('cp-f-switch').classList.contains('is-on'),
+      /* 编辑面板不提供启停：新建默认启用，编辑保留原启用状态 */
+      enabled: editingId ? !!findCp(editingId).enabled : true,
       updated: TODAY,
       cfg: buildCfg(),
       extractors: JSON.parse(JSON.stringify(extRows))
