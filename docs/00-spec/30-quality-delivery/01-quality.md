@@ -129,7 +129,16 @@ bash scripts/validate-web.sh
 bash scripts/validate-backend.sh
 ```
 
-脚本当前实际行为以各端 `scripts/validate-*.sh` 与编排器 `scripts/validate.sh` 为准。若脚本尚未覆盖覆盖率、静态分析或安全扫描，应补充实现或降低文档中的门禁表述。
+Windows 无 bash 时改用等价命令（同一实现 `scripts/validate.mjs`）：
+
+```powershell
+node scripts/validate.mjs --all
+node scripts/validate.mjs --docs
+node scripts/validate.mjs --frontend
+node scripts/validate.mjs --backend
+```
+
+脚本实际行为以 `scripts/validate.mjs` 为准，`scripts/validate-*.sh` 与编排器 `scripts/validate.sh` 是其 POSIX 薄封装，两端命令行为一致。若脚本尚未覆盖覆盖率、静态分析或安全扫描，应补充实现或降低文档中的门禁表述。
 
 ## 9. 质量红线
 
@@ -159,6 +168,13 @@ bash scripts/validate-backend.sh
 - 安全基线：`docs/00-spec/40-security/01-security.md`
 - 构建与 CI：`docs/00-spec/30-quality-delivery/03-deploy.md`
 - AI 任务流程：`docs/00-spec/00-governance/02-task-template.md`
+
+## 修改记录
+
+| 版本 | 日期 | 说明 |
+| --- | --- | --- |
+| V1.0 | 2026-09-24 | 建立本文 |
+| V1.0 | 2026-09-28 | 本地验证命令补充 Windows 调用方式，声明 `scripts/validate.mjs` 为实现事实源 |
 
 ---
 

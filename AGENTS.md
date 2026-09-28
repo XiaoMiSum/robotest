@@ -53,12 +53,14 @@ bash scripts/deploy-merged.sh
 
 ### 验证与质量门禁
 
-| 端   | 命令                          |
-| --- | ----------------------------- |
-| 文档  | `bash scripts/validate-docs.sh` |
-| 前端  | `bash scripts/validate-web.sh`  |
-| 后端  | `bash scripts/validate-backend.sh` |
-| 全量  | `bash scripts/validate.sh --all` |
+| 端   | 命令（POSIX） | 命令（Windows，无 bash） |
+| --- | ----------------------------- | ----------------------------- |
+| 文档  | `bash scripts/validate-docs.sh` | `node scripts/validate.mjs --docs` |
+| 前端  | `bash scripts/validate-web.sh`  | `node scripts/validate.mjs --frontend` |
+| 后端  | `bash scripts/validate-backend.sh` | `node scripts/validate.mjs --backend` |
+| 全量  | `bash scripts/validate.sh --all` | `node scripts/validate.mjs --all` |
+
+> 实现为 `scripts/validate.mjs`（Node 单一实现，跨平台），`scripts/validate-*.sh` 为 POSIX 薄封装，两端命令行为一致。
 
 **提交前逐项核对：**
 
@@ -179,11 +181,12 @@ bash scripts/deploy-merged.sh
 ### 6.3 工具与脚本
 
 - 任务执行模板：`docs/00-spec/00-governance/02-task-template.md` — 编码前必须按模板填写理解、一致性评估、探查、方案
-- 质量验证脚本按端拆分，各端 agent 提交前**只运行本端脚本**：
+- 质量验证脚本按端拆分，各端 agent 提交前**只运行本端脚本**（Windows 无 bash 时用等价的 `node scripts/validate.mjs <参数>`）：
   - 文档：`bash scripts/validate-docs.sh` — C7 提交格式 + 文档检查（`scripts/check-docs.mjs`）
   - 前端：`bash scripts/validate-web.sh` — C7 + lint + typecheck + 测试/覆盖率（C8）+ any 检查（C1）+ 契约一致性
   - 后端：`bash scripts/validate-backend.sh` — C7 + `mvn test`
   - 全量编排（人工 / CI）：`bash scripts/validate.sh --all`，亦可 `--docs` / `--frontend` / `--backend` 转发单端
+  - 实现：`scripts/validate.mjs`（Node 单一实现），`validate-*.sh` 为其 POSIX 薄封装
 
 ### 6.4 禁止行为
 
