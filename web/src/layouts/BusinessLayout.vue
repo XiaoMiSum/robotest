@@ -79,8 +79,8 @@ function goSystemAdmin() {
   router.push({ name: 'AdminDashboard' })
 }
 
-function handleLogout() {
-  authStore.logout()
+async function handleLogout() {
+  await authStore.logout()
   router.push({ name: 'Login' })
 }
 

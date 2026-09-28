@@ -3,13 +3,14 @@ import { ref, computed } from 'vue'
 import type { LoginUser, ActiveWorkspace } from '@/types'
 import {
   getAccessToken,
+  getRefreshToken,
   setTokens,
   clearTokens,
   getActiveContext,
   setActiveWorkspaceId,
   setActiveProjectId,
 } from '@/services'
-import { fetchPermissions } from '@/services/auth'
+import { fetchPermissions, revokeSession } from '@/services/auth'
 
 const USER_KEY = 'robotest_user'
 const WORKSPACE_NAME_KEY = 'robotest_active_workspace_name'
@@ -154,7 +155,17 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  function logout() {
+  /** 退出登录：先撤销服务端令牌（best-effort），再清理本地会话状态 */
+  async function logout(): Promise<void> {
+    const accessToken = getAccessToken()
+    const refreshToken = getRefreshToken()
+    if (accessToken || refreshToken) {
+      try {
+        await revokeSession(accessToken, refreshToken)
+      } catch {
+        // 离线 / 超时按失败开放处理：本地会话照常清理，不被服务端故障卡住
+      }
+    }
     user.value = null
     activeWorkspace.value = null
     activeProject.value = null
