@@ -28,7 +28,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
- * API 集成测试（QA-009）：登录与刷新链路的 HTTP 契约。
+ * API 集成测试（QA-009）：登录、刷新与登出链路的 HTTP 契约。
  *
  * <p>独立 MockMvc 装配真实 Controller 与 migoo 全局异常 advice：错误信封遵循
  * DEC-002 方案 A（HTTP 200 兼容模式，错误由 {@code Result.code} 表达）。
@@ -139,6 +139,27 @@ class AuthControllerApiTest {
                 .andExpect(jsonPath("$.data.refreshToken").value("refresh-token"));
 
         verify(authUserDetailsFetcher).refreshToken("old-refresh");
+    }
+
+    @Test
+    void logout_revokesAccessAndRefreshTokens() throws Exception {
+        mockMvc.perform(post("/api/auth/logout")
+                        .header("Authorization", "Bearer access-token")
+                        .header("X-Refresh-Token", "refresh-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(GlobalErrorCodeConstants.SUCCESS.code()));
+
+        verify(authUserDetailsFetcher).revokeToken("access-token");
+        verify(authUserDetailsFetcher).revokeToken("refresh-token");
+    }
+
+    @Test
+    void logout_withoutTokens_succeedsWithoutRevoking() throws Exception {
+        mockMvc.perform(post("/api/auth/logout"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(GlobalErrorCodeConstants.SUCCESS.code()));
+
+        verify(authUserDetailsFetcher, never()).revokeToken(any());
     }
 
     private void verifyNoAudit() {
