@@ -36,6 +36,7 @@
   .env-detail { flex: 1; min-width: 0; overflow-y: auto; background: #fff; border: 1px solid var(--n-100); border-radius: var(--radius-lg); padding: 0 var(--space-lg) var(--space-lg); }
   .env-detail__top { position: sticky; top: 0; z-index: 2; margin: 0 calc(0px - var(--space-lg)); padding: var(--space-md) var(--space-lg) 0; background: #fff; border-bottom: 1px solid var(--n-100); }
   .env-detail__head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm); margin-bottom: var(--space-md); }
+  .env-detail__head-actions { display: flex; align-items: center; gap: var(--space-sm); flex-shrink: 0; }
   .env-detail__id { display: flex; align-items: center; gap: var(--space-sm); min-width: 0; }
   .env-detail__name { font-size: var(--font-size-lg); font-weight: 600; color: var(--n-800); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .etabs { display: flex; align-items: center; gap: 2px; }
@@ -75,14 +76,12 @@
   .switch.is-on::after { left: 17px; }
 
   .kv { width: 100%; border-collapse: collapse; }
-  .kv th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--n-400); font-weight: 600; padding: 6px 8px; background: var(--n-50); border-bottom: 1px solid var(--n-100); }
+  .kv th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--n-400); font-weight: 600; padding: 6px 8px; border-bottom: 1px solid var(--n-100); }
   .kv th:first-child { border-top-left-radius: var(--radius-sm); }
   .kv th:last-child { border-top-right-radius: var(--radius-sm); }
   .kv td { padding: 6px 8px; border-bottom: 1px solid var(--n-100); vertical-align: middle; }
   .kv tbody tr:hover { background: var(--n-50); }
   .kv tbody tr:hover .cell-input { border-color: var(--n-200); background: #fff; }
-  .kv__add { display: block; margin-top: var(--space-sm); padding: 7px; text-align: center; border: 1px dashed var(--n-200); border-radius: var(--radius-md); color: var(--brand-500); font-size: var(--font-size-xs); cursor: pointer; }
-  .kv__add:hover { border-color: var(--brand-300); background: var(--brand-50); }
   .kv .cell-input { width: 100%; height: 28px; border: 1px solid transparent; border-radius: var(--radius-sm); padding: 0 8px; font-size: var(--font-size-xs); background: none; }
   .kv .cell-input:hover { border-color: var(--n-200); background: #fff; }
   .kv .cell-input:focus { outline: none; border-color: var(--brand-500); background: #fff; }
@@ -195,7 +194,10 @@
                   <span class="tag tag--warning">默认</span>
                   <span class="tag tag--outline">项目</span>
                 </div>
-                <button class="btn btn--primary btn--sm" data-ux-save>保存全部</button>
+                <div class="env-detail__head-actions">
+                  <span class="tag tag--warning" id="env-dirty" style="display:none">未保存</span>
+                  <button class="btn btn--primary btn--sm" id="env-save">保存全部</button>
+                </div>
               </div>
 
               <div class="etabs">
@@ -249,7 +251,7 @@
             <!-- 变量 -->
             <div class="epanel" data-epanel="vars">
               <table class="kv">
-                <thead><tr><th style="width:34px"></th><th>变量名</th><th>值</th><th>说明</th><th style="width:60px">操作</th></tr></thead>
+                <thead><tr><th style="width:34px"></th><th>变量名</th><th>值</th><th>说明</th><th style="width:80px"><button type="button" class="btn btn--link btn--sm" data-addrow="vars">＋ 新增</button></th></tr></thead>
                 <tbody data-kvbody="vars">
                   <tr><td><span class="checkbox checkbox--on"></span></td><td><input class="cell-input" value="appKey"></td><td><input class="cell-input" value="ec-2026"></td><td><input class="cell-input" value="业务方密钥"></td><td><span class="op-link op-link--danger" data-ux-undo="tr">删除</span></td></tr>
                   <tr><td><span class="checkbox checkbox--on"></span></td><td><input class="cell-input" value="signSalt"></td><td><input class="cell-input" value="${md5(appKey)}"></td><td><input class="cell-input" placeholder="说明（可选）"></td><td><span class="op-link op-link--danger" data-ux-undo="tr">删除</span></td></tr>
@@ -257,7 +259,6 @@
                   <tr><td><span class="checkbox"></span></td><td><input class="cell-input" value="mockHost"></td><td><input class="cell-input" value="https://mock.example.com"></td><td><input class="cell-input" placeholder="说明（可选）"></td><td><span class="op-link op-link--danger" data-ux-undo="tr">删除</span></td></tr>
                 </tbody>
               </table>
-              <span class="kv__add" data-addrow="vars">+ 添加变量</span>
             </div>
 
             <!-- 数据源 -->
@@ -750,6 +751,34 @@
         }
       }, 700);
     });
+  });
+
+  /* ---------------- 头部未保存标记与【保存全部】（docs34 1.6） ---------------- */
+  var envDetail = document.querySelector('.env-detail');
+  var envDirty = document.getElementById('env-dirty');
+  var envSaveBtn = document.getElementById('env-save');
+
+  // 变更来源：五个标签页的值编辑，以及开关切换、行新增/删除
+  ['input', 'change'].forEach(function (type) {
+    envDetail.addEventListener(type, function (e) {
+      if (e.target.closest && e.target.closest('[data-epanel]')) envDirty.style.display = '';
+    });
+  });
+  envDetail.addEventListener('click', function (e) {
+    if (e.target.closest && e.target.closest('.switch, [data-addrow], [data-ux-undo]')) envDirty.style.display = '';
+  });
+
+  envSaveBtn.addEventListener('click', function () {
+    if (envSaveBtn.classList.contains('is-saving')) return;
+    envSaveBtn.classList.add('is-saving');
+    envSaveBtn.textContent = '保存中…';
+    window.setTimeout(function () {
+      envSaveBtn.classList.remove('is-saving');
+      envSaveBtn.innerHTML = '<span class="btn__state">已保存 ✓</span>';
+      envDirty.style.display = 'none';
+      rt.toast('已保存', { type: 'success' });
+      window.setTimeout(function () { envSaveBtn.textContent = '保存全部'; }, 1800);
+    }, 600);
   });
 </script>
 </body>
