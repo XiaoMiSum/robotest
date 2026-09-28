@@ -158,6 +158,10 @@
                   <div class="cp-item__main"><span class="cp-item__name">清理测试数据</span><span class="tag tag--outline cp-item__scope">公共</span><span class="tag tag--outline cp-item__state">已停用</span></div>
                   <div class="cp-item__meta">后置处理器 · 执行结束按订单号清理造数记录</div>
                 </li>
+                <li class="cp-item" data-cp="report">
+                  <div class="cp-item__main"><span class="cp-item__name">上报执行结果</span><span class="tag tag--info cp-item__scope">项目</span><span class="tag tag--success cp-item__state">已启用</span></div>
+                  <div class="cp-item__meta">后置处理器 · 执行结束将结果按表单上报到报表服务</div>
+                </li>
                 <li class="cp-item" data-cp="errcode">
                   <div class="cp-item__main"><span class="cp-item__name">统一错误码断言</span><span class="tag tag--info cp-item__scope">项目</span><span class="tag tag--success cp-item__state">已启用</span></div>
                   <div class="cp-item__meta">验证器 · 响应体需包含标准错误码字段</div>
@@ -477,8 +481,10 @@
         ['环境 HTTP 配置', 'default（测试环境 · 默认 HTTP）'],
         ['请求方法', 'POST'],
         ['路径', '/oauth/token'],
+        ['Query 参数', [['client', 'web'], ['trace_id', '${traceId}']], 'kv'],
         ['请求头', [['Content-Type', 'application/json']], 'kv'],
         ['请求体类型', 'raw · json'],
+        ['表单参数', [['grant_type', 'password'], ['scope', 'api']], 'kv'],
         ['请求体', '{\n  "username": "${username}",\n  "password": "${password}"\n}', 'code']
       ],
       extractors: [{ on: true, source: 'JSON 字段', expr: '$.data.token', name: 'token', desc: '登录令牌' }]
@@ -514,6 +520,23 @@
         ['数据源', 'order_db（测试环境）'],
         ['SQL 语句', 'DELETE FROM t_order_test\nWHERE biz_no = ${orderNo}', 'code'],
         ['参数', '${orderNo}']
+      ],
+      extractors: []
+    },
+    {
+      /* urlencoded 分支样例：表单参数与 raw 请求体并存，详情按类型只展示表单参数 */
+      id: 'report', name: '上报执行结果', type: 'postprocessor', proc: 'http', scope: 'project', enabled: true, updated: '2026-09-22 15:40',
+      desc: '执行结束将结果按表单上报到报表服务',
+      cfg: [
+        ['处理器类型', 'HTTP'],
+        ['环境 HTTP 配置', 'api_http（测试环境）'],
+        ['请求方法', 'POST'],
+        ['路径', '/report/result'],
+        ['Query 参数', [['trace_id', '${traceId}']], 'kv'],
+        ['请求头', [['Content-Type', 'application/x-www-form-urlencoded']], 'kv'],
+        ['请求体类型', 'x-www-form-urlencoded'],
+        ['表单参数', [['status', 'success'], ['duration', '${cost}']], 'kv'],
+        ['请求体', 'status=success&duration=${cost}', 'code']
       ],
       extractors: []
     },
