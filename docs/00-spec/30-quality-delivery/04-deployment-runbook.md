@@ -24,7 +24,7 @@
 | 后端构建 | Maven | `server/pom.xml` |
 | 正式数据库 | PostgreSQL 14+ | `server/src/main/resources/db/schema.sql` |
 | Redis | Redis 7+ | `server/pom.xml`、运行配置 |
-| 后端框架 | migoo `1.3.18` | `server/pom.xml` |
+| 后端框架 | migoo `1.4.0` | `server/pom.xml` |
 
 `PORT` 可以覆盖后端端口，但本地默认值为 `58080`。修改端口时必须同步 Vite 代理、启动脚本、Nginx 和环境配置。
 
@@ -335,6 +335,15 @@ bash scripts/validate.sh --all
 - 数据库：`docs/00-spec/20-contracts/02-database.md`
 - 通用实时协议：`docs/00-spec/20-contracts/03-realtime-protocol.md`
 - 项目脚本：`scripts/`
+
+---
+
+## 修改记录
+
+| 版本 | 日期 | 说明 |
+| --- | --- | --- |
+| V1.0 | 2026-09-24 | 初版发布 |
+| V1.0 | 2026-09-28 | 框架版本同步至 migoo 1.4.0 |
 
 ---
 

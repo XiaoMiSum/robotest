@@ -93,7 +93,7 @@ API 变更必须验证：
 
 - `Result.code/msg/data`；
 - `pageNo/pageSize` 和 `list/total`；
-- 10 位错误码；
+- 10 位错误码（框架全局错误码 0–999，如 401 / 403 / 423 / 429 / 500，除外）；
 - 认证、匿名接口和作用域上下文；
 - OpenAPI 与前端生成类型；
 - SSE、文件和 WebSocket 的特殊响应。
@@ -159,6 +159,15 @@ bash scripts/validate-backend.sh
 - 安全基线：`docs/00-spec/40-security/01-security.md`
 - 构建与 CI：`docs/00-spec/30-quality-delivery/03-deploy.md`
 - AI 任务流程：`docs/00-spec/00-governance/02-task-template.md`
+
+---
+
+## 修改记录
+
+| 版本 | 日期 | 说明 |
+| --- | --- | --- |
+| V1.0 | 2026-09-24 | 初版发布 |
+| V1.0 | 2026-09-28 | C3 补充框架全局错误码 0–999 例外 |
 
 ---
 

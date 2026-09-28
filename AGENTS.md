@@ -80,7 +80,7 @@ bash scripts/deploy-merged.sh
 
 | 编号  | 规则                                                    | 检查方式      |
 | --- | ----------------------------------------------------- | --------- |
-| C3  | 业务异常统一通过 migoo `ServiceExceptionUtil.get(ErrorCode)` 抛出，使用 10 位错误码 | 代码审查      |
+| C3  | 业务异常统一通过 migoo `ServiceExceptionUtil.get(ErrorCode)` 抛出，使用 10 位错误码；框架全局错误码 0–999（401 / 403 / 423 / 429 / 500 等）除外      | 代码审查      |
 | C4  | 上下文标识（如 workspaceId）**禁止**出现在 URL 或请求体中，仅通过请求头传递      | 代码审查      |
 | C5  | 数据库每表必须有 `id`、`created_at`、`updated_at`、`is_deleted`（逻辑删除），UUID 使用框架默认策略，禁止物理外键 | 数据库审查     |
 | C7  | Git 提交格式：`<emoji> <type>(<scope>): <description>`（emoji 对照见 `docs/00-spec/30-quality-delivery/02-workflow.md`），一个提交只做一件事   | 审查 squash |

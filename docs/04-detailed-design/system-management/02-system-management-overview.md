@@ -313,7 +313,7 @@ AdminLayout
 ## 4. 安全设计
 
 - 管理端所有接口要求 Token 中包含系统角色。
-- 任何角色变更、密码重置、禁用/锁定操作都强制相关用户 Token 失效（Redis 黑名单或 token 版本号递增）。
+- 密码重置、禁用/锁定操作强制相关用户 Token 失效（框架 `StateStore` **签发截止**撤销，见 `docs/00-spec/40-security/01-security.md` 2.3；重新登录签发的新 Token 不受影响）；角色变更不触发 Token 撤销，按《安全规范》3.3 由权限重新加载处理。
 - 所有写操作（创建、更新、删除）记录操作日志（操作人、时间、IP、操作对象、变更内容）。
 - 敏感操作（重置密码、归档/重新启用工作空间、删除角色）额外记录详细日志。
 - 登录成功写入审计日志（含登录 IP），写入设计见 `docs/04-detailed-design/20-audit-query.md`，本模块仅消费其记录做数据概览统计（见 2.4、3.6、4.10）。
@@ -410,3 +410,10 @@ CREATE INDEX idx_ws_workspace_created_by ON ws_workspace (created_by);
 | 工作空间管理 | `05-system-management-workspace.md` | 3.4 工作空间管理接口、4.9 空间创建人写入与回填 |
 | 角色与权限管理 | `06-system-management-role.md` | 3.5 角色与权限管理接口、4.3 角色管理流程、5.2.2 角色管理页、5.2.3 PermissionTable组件、5.2.4 RoleUsersTable组件、5.4 关键组件交互 |
 | 数据概览 | `07-system-management-dashboard.md` | 3.6 数据概览统计、4.8 DashboardStatsService 端口、5.5 数据概览与状态扩展的文件分层、5.7 图表计算（composable 纯函数） |
+
+## 修改记录
+
+| 版本 | 日期 | 说明 |
+| --- | --- | --- |
+| V1.0 | 2026-09-26 | 初版起草 |
+| V1.0 | 2026-09-28 | Token 失效机制明确为框架 StateStore 签发截止撤销 |

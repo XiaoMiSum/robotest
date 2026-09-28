@@ -17,7 +17,7 @@
 | AiChatModelService | 对话模型多行配置管理（增删改查/设默认/启停，见 3.3.7）、按 `modelId` 解析运行期模型配置与默认回退（9）、清单缓存（内存缓存 + 变更失效） |
 | PromptAssembler | 模板加载（DB 记录优先 → 代码默认兜底）与消息组装、上下文定界 |
 | OpenAiCompatProvider | OpenAI 兼容协议 HTTP 客户端（Spring `RestClient`：同步调用直接绑定响应体；流式调用经 `exchange` 直读响应字节流逐行解析 SSE，阻塞读取由虚拟线程承载——平台已全局启用虚拟线程），唯一 Provider 实现 |
-| AiRateLimiter | Redis 滑动窗口限流 |
+| AiRateLimiter | 委托框架 `RateLimiter` 的用户 × 类别限流 |
 | AiAuditRecorder | 审计日志异步写入 |
 | AiTaskService | 异步任务生命周期管理（创建/执行/取消/重试/孤儿回收）；对业务 Service 暴露 `cancelByTypeAndTarget(type, targetId)` 供状态变更联动取消（4.6，如评审离开「进行中」时取消 review_check） |
 | AiOutputValidator | JSON 宽容提取 + Schema 校验 + 带错重试编排 |
@@ -113,14 +113,11 @@ flowchart TD
 
 ## 6. 限流
 
-- **算法**：Redis ZSET 滑动窗口。key `ai:rl:{userId}:{category}`，member 为调用时间戳（毫秒+随机后缀），窗口 1 小时：
-  1. `ZREMRANGEBYSCORE key 0 (now-3600000)`；
-  2. `ZCARD key` ≥ 阈值 → 拒绝（1000013004）；
-  3. `ZADD key now member` + `EXPIRE key 3600`。
-  三步以 Lua 脚本原子执行；
-- **类别与阈值**：类别映射见 2.3，阈值取 `ai_config.settings` 的 `rateLimit.*`（缺省用默认值）；
+- **实现**：委托框架 `RateLimiter.tryAcquire(key, limit, window)`，固定窗口基于 `StateStore`（Redis）计数；key `ai:{userId}:{category}`；
+- **类别与阈值**：类别映射见 2.3，阈值取 `ai_config.settings` 的 `rateLimit.*`（缺省用默认值），窗口 1 小时；
+- **超限**：抛框架全局错误码 **429**（`TOO_MANY_REQUESTS`）；
 - **计数口径**：限流检查发生在 LLM 调用前，通过即计数；被限流的请求写审计（status = rate_limited）但不计入窗口；`embedding_index`（系统内部写入）不限流；
-- Redis 不可用时限流**失败开放**（放行并记录 WARN），不阻断 AI 功能。
+- Redis 不可用时限流**失败开放**（放行并记录 WARN），由工程注册的 `StateStore` 失败开放装饰器保证，不阻断 AI 功能。
 
 
 ## 7. 调用审计
@@ -158,3 +155,10 @@ flowchart TD
 ---
 
 
+
+## 修改记录
+
+| 版本 | 日期 | 说明 |
+| --- | --- | --- |
+| V1.0 | 2026-09-23 | 初版起草 |
+| V1.0 | 2026-09-28 | 限流改为框架 RateLimiter 固定窗口，超限错误码改为框架全局 429 |

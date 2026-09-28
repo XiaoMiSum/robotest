@@ -122,7 +122,7 @@
 - **路径**：`POST /api/admin/users/:id/reset-password`
 - **请求体**：`{ "newPassword": "NewPass@123" }`
 - **校验**：新密码仅需 8~64 字符长度。
-- **处理**：更新密码哈希，强制该用户所有 Token 失效。
+- **处理**：更新密码哈希，调用 `revokeByUserId(userId)` 写入签发截止，强制该用户所有 Token 失效。
 - **响应**：操作成功提示，不返回密码。
 
 
@@ -160,8 +160,15 @@ PUT /api/admin/users/:id
 
 - `updateUserStatus` / `batchUpdateStatus`：先校验状态取值合法性（`status ∈ {active, disabled, locked}`，非法值返回错误码 `1000001010`，见 1.5 与 6. 错误码定义），其余沿用既有逻辑（存在性校验、仅更新 `status` 字段，载体为新建实体，C11）。
 - 不引入「不可操作自身」的限制，与既有禁用行为保持一致（管理员可禁用/锁定自身账户；后续如需收紧另行立项）。
-- 管理员将用户状态置为 disabled（或 locked）后，系统立即将该用户所有活跃 Token 加入 Redis 黑名单或递增 token 版本号。
-- 网关中间件验证 Token 时，检查用户状态及 token 版本，不匹配返回 401（错误码 1000002005）。
-- 密码重置后同样触发 Token 失效。
+- 管理员将用户状态置为 disabled（或 locked）后，系统立即调用 `revokeByUserId(userId)` 写入**签发截止**（框架 `StateStore`），该用户此前签发的 access/refresh Token 全部失效。
+- 框架认证时经 `UserDetailsBridge.isTokenRevoked(token)` 校验（黑名单或签发截止），命中返回 401（错误码 1000002005）；账号仍处于 disabled/locked 时重新登录同样被拒。
+- 密码重置后同样触发签发截止撤销（见《认证》5.3 触发点）。
 
 
+
+## 修改记录
+
+| 版本 | 日期 | 说明 |
+| --- | --- | --- |
+| V1.0 | 2026-09-26 | 初版起草 |
+| V1.0 | 2026-09-28 | 状态变更、批量状态与密码重置的 Token 失效改为签发截止撤销 |
