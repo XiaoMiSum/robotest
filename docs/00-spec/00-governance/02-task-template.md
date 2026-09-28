@@ -183,6 +183,15 @@ bash scripts/validate-backend.sh # 后端变更
 bash scripts/validate.sh --all
 ```
 
+Windows 无 bash 时改用等价命令（同一实现 `scripts/validate.mjs`）：
+
+```powershell
+node scripts/validate.mjs --docs      # 文档变更
+node scripts/validate.mjs --frontend  # 前端变更
+node scripts/validate.mjs --backend   # 后端变更
+node scripts/validate.mjs --all       # 全量
+```
+
 ### 7.4 手工和契约验证
 
 - [ ] OpenAPI 已重新生成或确认无变化
@@ -238,6 +247,13 @@ bash scripts/validate.sh --all
 - 已知限制：
 - 后续任务：
 - 文档同步情况：
+
+## 修改记录
+
+| 版本 | 日期 | 说明 |
+| --- | --- | --- |
+| V1.0 | 2026-09-24 | 建立本文 |
+| V1.0 | 2026-09-28 | 统一检查补充 Windows 验证命令 |
 
 ---
 

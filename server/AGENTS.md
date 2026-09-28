@@ -22,6 +22,8 @@ mvn package -Pprod
 
 # 质量门禁（提交前运行整段脚本）
 bash scripts/validate-backend.sh
+# Windows 无 bash 时
+node scripts/validate.mjs --backend
 
 # 等价手动执行
 mvn test

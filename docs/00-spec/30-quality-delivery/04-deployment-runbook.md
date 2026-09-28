@@ -277,6 +277,8 @@ cd ../..
 bash scripts/validate.sh --all
 ```
 
+Windows 无 bash 时改用等价命令：`node scripts/validate.mjs --all`。
+
 发布前人工确认：
 
 - [ ] 后端端口和前端代理一致；
@@ -335,6 +337,13 @@ bash scripts/validate.sh --all
 - 数据库：`docs/00-spec/20-contracts/02-database.md`
 - 通用实时协议：`docs/00-spec/20-contracts/03-realtime-protocol.md`
 - 项目脚本：`scripts/`
+
+## 修改记录
+
+| 版本 | 日期 | 说明 |
+| --- | --- | --- |
+| V1.0 | 2026-09-24 | 建立本文 |
+| V1.0 | 2026-09-28 | 发布前检查补充 Windows 验证命令 |
 
 ---
 

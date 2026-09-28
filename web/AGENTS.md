@@ -23,6 +23,8 @@ pnpm run build
 
 # 质量门禁（提交前运行整段脚本）
 bash scripts/validate-web.sh
+# Windows 无 bash 时
+node scripts/validate.mjs --frontend
 
 # 等价手动执行
 pnpm run lint && pnpm run typecheck && pnpm run test:unit -- --coverage
