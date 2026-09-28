@@ -35,12 +35,12 @@ describe('useAiStream 非事件流响应处理', () => {
       ok: true,
       body: {} as Response['body'],
       headers: new Headers({ 'content-type': 'application/json' }),
-      json: () => Promise.resolve({ code: 1000013004, msg: 'AI 调用频率超限' }),
+      json: () => Promise.resolve({ code: 429, msg: '请求过于频繁，请稍后再试' }),
     })
     const error = await new Promise<Error>((resolve) => {
       useAiStream({ url: '/project/ai/cases/generate', onEvent: () => {}, onError: resolve })
     })
-    expect(error.message).toBe('AI 调用频率超限')
+    expect(error.message).toBe('请求过于频繁，请稍后再试')
   })
 
   it('非 JSON 的异常响应回退通用文案', async () => {
