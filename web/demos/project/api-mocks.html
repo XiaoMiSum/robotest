@@ -6,11 +6,8 @@
 <title>接口测试 · Mock 服务 · RoboTest</title>
 <link rel="stylesheet" href="../assets/tokens.css">
 <link rel="stylesheet" href="../assets/base.css">
+<link rel="stylesheet" href="../assets/ux.css">
 <style>
-  .list-page { display: flex; flex-direction: column; gap: var(--space-md); }
-  .list-page .card__header { padding: 14px 20px; }
-  .pager { display: flex; align-items: center; justify-content: flex-end; gap: 6px; padding: 14px 20px; border-top: 1px solid var(--n-100); }
-  .pager__total { margin-right: auto; font-size: var(--font-size-sm); color: var(--n-500); }
   .selected-hint { font-size: var(--font-size-sm); color: var(--n-500); }
   .more-caret { margin-left: 10px; color: var(--brand-500); font-size: var(--font-size-xs); cursor: pointer; }
 </style>
@@ -33,120 +30,136 @@
     </aside>
 
     <div class="split__main">
-      <div class="list-page">
-        <div class="card">
-          <div class="card__header">
-            <div class="toolbar" style="border:none;padding:0">
-              <div class="toolbar__filters">
-                <div class="input-wrap"><span data-icon="search"></span><input class="input" placeholder="请输入名称或路径"></div>
-                <select class="select" style="width:120px"><option>状态</option><option>已启用</option><option>已停用</option></select>
-                <button class="btn btn--primary btn--sm"><span data-icon="search"></span>查询</button>
-                <button class="btn btn--default btn--sm">重置</button>
-              </div>
-              <div class="toolbar__filters">
-                <span class="selected-hint">已选 2 项</span>
-                <button class="btn btn--default btn--sm">批量启用 (2)</button>
-                <button class="btn btn--default btn--sm">批量停用 (2)</button>
-                <button class="btn btn--primary"><span data-icon="plus"></span>新建 Mock</button>
-              </div>
-            </div>
-          </div>
+      <div class="page-head">
+        <div>
+          <h1 class="page-head__title">Mock 服务</h1>
+        </div>
+        <div class="page-head__actions">
+          <button class="btn btn--primary"><span data-icon="plus"></span>新建 Mock</button>
+        </div>
+      </div>
 
-          <div class="table-wrap">
-            <table class="table">
-              <thead>
-                <tr>
-                  <th style="width:34px"></th>
-                  <th>名称</th>
-                  <th style="width:78px">方法</th>
-                  <th>路径</th>
-                  <th style="width:74px">状态码</th>
-                  <th style="width:64px">优先级</th>
-                  <th style="width:74px">启停</th>
-                  <th style="width:84px">命中次数</th>
-                  <th style="width:150px">最后命中</th>
-                  <th style="width:250px">操作</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td><span class="checkbox checkbox--on"></span></td>
-                  <td class="cell-main">下单成功（默认兜底）<span class="cell-sub">优先级最高，命中即返回</span></td>
-                  <td><span class="chip">POST</span></td>
-                  <td class="mono">/api/v1/orders</td>
-                  <td class="num">200</td>
-                  <td class="num">10</td>
-                  <td style="text-align:center"><span class="switch switch--on"></span></td>
-                  <td class="num">1,284</td>
-                  <td class="num">2026-09-22 13:41</td>
-                  <td><span class="op-link">编辑</span><span class="op-link">调试</span><span class="op-link">地址</span><span class="op-link">复制</span><span class="more-caret">更多 ▾</span></td>
-                </tr>
-                <tr>
-                  <td><span class="checkbox checkbox--on"></span></td>
-                  <td class="cell-main">库存不足</td>
-                  <td><span class="chip">POST</span></td>
-                  <td class="mono">/api/v1/stock/deduct</td>
-                  <td class="num">409</td>
-                  <td class="num">8</td>
-                  <td style="text-align:center"><span class="switch switch--on"></span></td>
-                  <td class="num">326</td>
-                  <td class="num">2026-09-22 11:07</td>
-                  <td><span class="op-link">编辑</span><span class="op-link">调试</span><span class="op-link">地址</span><span class="op-link">复制</span><span class="more-caret">更多 ▾</span></td>
-                </tr>
-                <tr>
-                  <td><span class="checkbox"></span></td>
-                  <td class="cell-main">查询订单详情 · 空数据</td>
-                  <td><span class="chip">GET</span></td>
-                  <td class="mono">/api/v1/orders/{id}</td>
-                  <td class="num">200</td>
-                  <td class="num">5</td>
-                  <td style="text-align:center"><span class="switch switch--on"></span></td>
-                  <td class="num">942</td>
-                  <td class="num">2026-09-21 18:22</td>
-                  <td><span class="op-link">编辑</span><span class="op-link">调试</span><span class="op-link">地址</span><span class="op-link">复制</span><span class="more-caret">更多 ▾</span></td>
-                </tr>
-                <tr>
-                  <td><span class="checkbox"></span></td>
-                  <td class="cell-main">支付回调 · 延迟 3s</td>
-                  <td><span class="chip">POST</span></td>
-                  <td class="mono">/api/v1/payments/callback</td>
-                  <td class="num">200</td>
-                  <td class="num">3</td>
-                  <td style="text-align:center"><span class="switch"></span></td>
-                  <td class="num">57</td>
-                  <td class="num">2026-09-19 16:05</td>
-                  <td><span class="op-link">编辑</span><span class="op-link">调试</span><span class="op-link">地址</span><span class="op-link">复制</span><span class="more-caret">更多 ▾</span></td>
-                </tr>
-                <tr>
-                  <td><span class="checkbox"></span></td>
-                  <td class="cell-main">用户中心 · 500 异常</td>
-                  <td><span class="chip">GET</span></td>
-                  <td class="mono">/api/v1/users/{id}</td>
-                  <td class="num">500</td>
-                  <td class="num">1</td>
-                  <td style="text-align:center"><span class="switch switch--on"></span></td>
-                  <td class="num">18</td>
-                  <td class="num">2026-09-18 09:48</td>
-                  <td><span class="op-link">编辑</span><span class="op-link">调试</span><span class="op-link">地址</span><span class="op-link">复制</span><span class="more-caret">更多 ▾</span></td>
-                </tr>
-              </tbody>
-            </table>
+      <div class="card">
+        <div class="toolbar">
+          <div class="toolbar__filters" data-ux-filters="mocks">
+            <div class="input-wrap"><span data-icon="search"></span><input class="input" placeholder="请输入名称或路径"></div>
+            <select class="select" style="width:120px"><option>状态</option><option>已启用</option><option>已停用</option></select>
+            <button class="btn btn--primary btn--sm" data-ux-filter-apply><span data-icon="search"></span>查询</button>
+            <button class="btn btn--default btn--sm">重置</button>
+            <span class="ux-restore" data-ux-restore-for="mocks" hidden>
+              <span data-icon="check"></span>已恢复上次筛选
+              <button class="ux-restore__clear" data-ux-restore-clear>清除</button>
+            </span>
           </div>
+          <div class="toolbar__count">共 36 条</div>
+        </div>
 
-          <div class="pager">
-            <span class="pager__total">共 36 条 · 每页 20 条</span>
-            <button class="page-btn" disabled>‹</button>
-            <button class="page-btn page-btn--active">1</button>
-            <button class="page-btn">2</button>
-            <button class="page-btn">›</button>
-          </div>
+        <div class="table-wrap" data-ux-batchbar="#batchbar-mocks">
+          <table class="table">
+            <thead>
+              <tr>
+                <th style="width:34px"></th>
+                <th>名称</th>
+                <th style="width:78px">方法</th>
+                <th>路径</th>
+                <th style="width:74px">状态码</th>
+                <th style="width:64px">优先级</th>
+                <th style="width:74px">启停</th>
+                <th style="width:84px">命中次数</th>
+                <th style="width:150px">最后命中</th>
+                <th style="width:250px">操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><span class="checkbox checkbox--on"></span></td>
+                <td class="cell-main">下单成功（默认兜底）<span class="cell-sub">优先级最高，命中即返回</span></td>
+                <td><span class="chip">POST</span></td>
+                <td class="mono">/api/v1/orders</td>
+                <td class="num">200</td>
+                <td class="num">10</td>
+                <td style="text-align:center"><span class="switch switch--on"></span></td>
+                <td class="num">1,284</td>
+                <td class="num">2026-09-22 13:41</td>
+                <td><span class="op-link">编辑</span><span class="op-link">调试</span><span class="op-link" data-ux-feedback="Mock 地址已复制：http://mock.example.com/api/v1/orders" data-ux-feedback-type="success">地址</span><span class="op-link" data-ux-feedback="已复制该 Mock 规则" data-ux-feedback-type="success">复制</span><span class="more-caret" data-ux-feedback="更多操作：启用 / 停用 / 删除">更多 ▾</span></td>
+              </tr>
+              <tr>
+                <td><span class="checkbox checkbox--on"></span></td>
+                <td class="cell-main">库存不足</td>
+                <td><span class="chip">POST</span></td>
+                <td class="mono">/api/v1/stock/deduct</td>
+                <td class="num">409</td>
+                <td class="num">8</td>
+                <td style="text-align:center"><span class="switch switch--on"></span></td>
+                <td class="num">326</td>
+                <td class="num">2026-09-22 11:07</td>
+                <td><span class="op-link">编辑</span><span class="op-link">调试</span><span class="op-link" data-ux-feedback="Mock 地址已复制：http://mock.example.com/api/v1/orders" data-ux-feedback-type="success">地址</span><span class="op-link" data-ux-feedback="已复制该 Mock 规则" data-ux-feedback-type="success">复制</span><span class="more-caret" data-ux-feedback="更多操作：启用 / 停用 / 删除">更多 ▾</span></td>
+              </tr>
+              <tr>
+                <td><span class="checkbox"></span></td>
+                <td class="cell-main">查询订单详情 · 空数据</td>
+                <td><span class="chip">GET</span></td>
+                <td class="mono">/api/v1/orders/{id}</td>
+                <td class="num">200</td>
+                <td class="num">5</td>
+                <td style="text-align:center"><span class="switch switch--on"></span></td>
+                <td class="num">942</td>
+                <td class="num">2026-09-21 18:22</td>
+                <td><span class="op-link">编辑</span><span class="op-link">调试</span><span class="op-link" data-ux-feedback="Mock 地址已复制：http://mock.example.com/api/v1/orders" data-ux-feedback-type="success">地址</span><span class="op-link" data-ux-feedback="已复制该 Mock 规则" data-ux-feedback-type="success">复制</span><span class="more-caret" data-ux-feedback="更多操作：启用 / 停用 / 删除">更多 ▾</span></td>
+              </tr>
+              <tr>
+                <td><span class="checkbox"></span></td>
+                <td class="cell-main">支付回调 · 延迟 3s</td>
+                <td><span class="chip">POST</span></td>
+                <td class="mono">/api/v1/payments/callback</td>
+                <td class="num">200</td>
+                <td class="num">3</td>
+                <td style="text-align:center"><span class="switch"></span></td>
+                <td class="num">57</td>
+                <td class="num">2026-09-19 16:05</td>
+                <td><span class="op-link">编辑</span><span class="op-link">调试</span><span class="op-link" data-ux-feedback="Mock 地址已复制：http://mock.example.com/api/v1/orders" data-ux-feedback-type="success">地址</span><span class="op-link" data-ux-feedback="已复制该 Mock 规则" data-ux-feedback-type="success">复制</span><span class="more-caret" data-ux-feedback="更多操作：启用 / 停用 / 删除">更多 ▾</span></td>
+              </tr>
+              <tr>
+                <td><span class="checkbox"></span></td>
+                <td class="cell-main">用户中心 · 500 异常</td>
+                <td><span class="chip">GET</span></td>
+                <td class="mono">/api/v1/users/{id}</td>
+                <td class="num">500</td>
+                <td class="num">1</td>
+                <td style="text-align:center"><span class="switch switch--on"></span></td>
+                <td class="num">18</td>
+                <td class="num">2026-09-18 09:48</td>
+                <td><span class="op-link">编辑</span><span class="op-link">调试</span><span class="op-link" data-ux-feedback="Mock 地址已复制：http://mock.example.com/api/v1/orders" data-ux-feedback-type="success">地址</span><span class="op-link" data-ux-feedback="已复制该 Mock 规则" data-ux-feedback-type="success">复制</span><span class="more-caret" data-ux-feedback="更多操作：启用 / 停用 / 删除">更多 ▾</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="pagination" data-ux-pageable>
+          <span class="pagination__total">共 36 条 · 每页 20 条</span>
+          <button class="page-btn" disabled>‹</button>
+          <button class="page-btn page-btn--active">1</button>
+          <button class="page-btn">2</button>
+          <button class="page-btn">›</button>
         </div>
       </div>
     </div>
   </div>
 </main>
 
+<!-- 底部批量操作条：勾选 ≥1 行时浮出 -->
+<div class="ux-batchbar" id="batchbar-mocks" hidden>
+  <span class="ux-batchbar__count">已选 <b data-ux-batch-count>0</b> 项</span>
+  <span class="ux-batchbar__sep"></span>
+  <button class="btn btn--default btn--sm" data-ux-batch-action="已批量启用">批量启用</button>
+  <button class="btn btn--default btn--sm" data-ux-batch-action="已批量停用">批量停用</button>
+  <button class="btn btn--danger btn--sm" data-ux-batch-delete>批量删除</button>
+  <span class="ux-batchbar__sep"></span>
+  <button class="btn btn--text btn--sm" data-ux-batch-clear>清空</button>
+</div>
+
 <script src="../assets/icons.js"></script>
 <script src="../assets/shell.js"></script>
+<script src="../assets/ux.js"></script>
 </body>
 </html>

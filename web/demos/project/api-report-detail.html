@@ -6,9 +6,8 @@
 <title>接口测试 · 报告详情 · RoboTest</title>
 <link rel="stylesheet" href="../assets/tokens.css">
 <link rel="stylesheet" href="../assets/base.css">
+<link rel="stylesheet" href="../assets/ux.css">
 <style>
-  .rd { background: var(--n-50); border-radius: 16px; padding: 20px 24px; height: 100%; overflow-y: auto; }
-
   /* Hero */
   .rr-hero { background: linear-gradient(135deg, #e8f7ee 0%, #cdeedd 100%); border: 1px solid rgba(19,161,76,.10); border-radius: 16px; padding: 24px 26px; color: var(--st-success-strong); box-shadow: 0 10px 30px -14px rgba(19,161,76,.35); margin-bottom: 18px; }
   .rr-hero__top { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
@@ -98,228 +97,232 @@
 </head>
 <body data-shell="business" data-mode="project" data-active="api" data-workspace="质量中台" data-project="电商核心系统">
 
-<main class="content content--flush">
-  <div class="split">
-    <aside class="split__side">
-      <div class="menu-item side__item"><span data-icon="terminal"></span><span>快速调试</span></div>
-      <div class="menu-item side__item"><span data-icon="link"></span><span>接口管理</span></div>
-      <div class="menu-item side__item"><span data-icon="cpu"></span><span>Mock 服务</span></div>
-      <div class="menu-item side__item"><span data-icon="operation"></span><span>测试场景</span></div>
-      <div class="menu-item side__item menu-item--active"><span data-icon="data-chart"></span><span>测试报告</span></div>
-      <div class="menu-item side__item"><span data-icon="timer"></span><span>定时任务</span></div>
-      <div class="side__group-title">项目设置</div>
-      <div class="menu-item side__item"><span data-icon="compass"></span><span>环境管理</span></div>
-      <div class="menu-item side__item"><span data-icon="layers"></span><span>函数管理</span></div>
-      <div class="menu-item side__item"><span data-icon="box"></span><span>公共组件</span></div>
-    </aside>
+<main class="content">
 
-    <div class="split__main">
-      <div class="rd">
-        <!-- Hero -->
-        <div class="rr-hero">
-          <div class="rr-hero__top">
-            <h1 class="rr-hero__title">支付回归夜跑-2026-09-22 03:00:04</h1>
-            <span class="rr-pill rr-pill--ok">✓ 执行成功</span>
-            <span class="rr-pill rr-pill--on-dark">平台内执行</span>
-            <div class="rr-hero__actions">
-              <button class="btn btn--sm btn-hero" id="btn-share">分享</button>
-              <button class="btn btn--sm btn-hero">关闭</button>
-            </div>
-          </div>
-          <div class="rr-hero__meta">
-            <span>环境：<b>测试环境</b></span>
-            <span>触发时间：<b>2026-09-22 03:00:04</b></span>
-            <span>总耗时：<b class="rr-mono">42.70 s</b></span>
-            <span>Task ID：<b class="rr-mono">T-20260922-03000042</b></span>
-          </div>
-        </div>
+  <div class="breadcrumb">
+    <a href="api-reports.html">测试报告</a>
+    <span data-icon="chevron-right"></span>
+    <span>支付回归夜跑-2026-09-22 03:00:04</span>
+  </div>
 
-        <!-- 套件统计 -->
-        <div class="rr-card rr-card--plain">
-          <div class="rr-stats">
-            <div class="rr-stat rr-stat--b"><div class="rr-stat__num">6</div><div class="rr-stat__lbl">场景总数</div></div>
-            <div class="rr-stat rr-stat--g"><div class="rr-stat__num">5</div><div class="rr-stat__lbl">通过场景</div></div>
-            <div class="rr-stat rr-stat--r"><div class="rr-stat__num">1</div><div class="rr-stat__lbl">失败场景</div></div>
-            <div class="rr-stat rr-stat--g"><div class="rr-stat__num">83.3%</div><div class="rr-stat__lbl">通过率</div></div>
-            <div class="rr-stat rr-stat--b"><div class="rr-stat__num">42.70 s</div><div class="rr-stat__lbl">总耗时</div></div>
-          </div>
-        </div>
-
-        <!-- 场景 1：失败 + 展开 -->
-        <section class="rr-card rr-scene rr-scene--failed" data-scene>
-          <div class="rr-scene__head">
-            <div>
-              <h2 class="rr-scene__title">支付回调重放</h2>
-              <div class="rr-scene__meta">
-                <span>场景 ID：<b class="rr-mono">SC-8f21c0</b></span>
-                <span>执行时间：2026-09-22 03:00:12</span>
-              </div>
-            </div>
-            <div class="rr-scene__mini">
-              <div class="rr-mini"><div class="rr-mini__n">4</div><div class="rr-mini__t">步骤</div></div>
-              <div class="rr-mini rr-mini--g"><div class="rr-mini__n">3</div><div class="rr-mini__t">通过</div></div>
-              <div class="rr-mini rr-mini--r"><div class="rr-mini__n">1</div><div class="rr-mini__t">失败</div></div>
-              <div class="rr-mini"><div class="rr-mini__n">6.42 s</div><div class="rr-mini__t">耗时</div></div>
-            </div>
-            <span class="rr-badge rr-badge--fail">失败</span>
-            <button class="rr-chev rr-chev--open" data-chev><span class="rr-chev__i"></span></button>
-          </div>
-          <div class="rr-scene__body" data-scene-body>
-            <div class="rsc">
-              <div class="rsc__head">
-                <span class="rsc__index">1</span>
-                <span class="rsc__name">查询支付单</span>
-                <span class="chip chip--post">POST</span>
-                <div class="rsc__spacer"></div>
-                <span class="rr-badge rr-badge--ok">通过</span>
-                <span class="rsc__dur">312 ms</span>
-              </div>
-              <div class="rsc__body">
-                <div class="rsc__line"><span class="chip chip--post">POST</span><span class="rsc__url">/api/pay/order/query</span></div>
-                <div class="rsc__line"><span class="chip chip--status">200</span><span class="rsc__url">OK · application/json · 428 B</span></div>
-                <div>
-                  <p class="rsc__sub-label">断言</p>
-                  <div class="assert-row"><span class="rr-badge rr-badge--ok">通过</span>状态码 <b>等于 200</b></div>
-                  <div class="assert-row"><span class="rr-badge rr-badge--ok">通过</span>JSON 字段 <b>$.data.status = PAID</b></div>
-                </div>
-              </div>
-            </div>
-
-            <div class="rsc">
-              <div class="rsc__head">
-                <span class="rsc__index">2</span>
-                <span class="rsc__name">重放支付回调</span>
-                <span class="chip chip--post">POST</span>
-                <div class="rsc__spacer"></div>
-                <span class="rr-badge rr-badge--fail">失败</span>
-                <span class="rsc__dur">5 902 ms</span>
-              </div>
-              <div class="rsc__body">
-                <div class="rsc__line"><span class="chip chip--post">POST</span><span class="rsc__url">/api/pay/notify/replay</span></div>
-                <div class="rsc__line"><span class="chip" style="background:var(--st-danger)">500</span><span class="rsc__url">Internal Server Error · application/json · 176 B</span></div>
-                <div>
-                  <p class="rsc__sub-label">响应头</p>
-                  <table class="rsc__kv">
-                    <thead><tr><th>Content-Type</th><th>X-Trace-Id</th></tr></thead>
-                    <tbody><tr><td>application/json</td><td>9f3a-77c2-4e10</td></tr></tbody>
-                  </table>
-                </div>
-                <div>
-                  <p class="rsc__sub-label">断言</p>
-                  <div class="assert-row"><span class="rr-badge rr-badge--ok">通过</span>状态码 <b>等于 500</b>（预期允许失败分支）</div>
-                  <div class="assert-row"><span class="rr-badge rr-badge--fail">失败</span>JSON 字段 <b>$.code = NOTIFY_OK</b>，实际 <b>INTERNAL_ERROR</b></div>
-                </div>
-                <div>
-                  <p class="rsc__sub-label">提取变量</p>
-                  <div class="assert-row">notifyId ← <b>$.data.notifyId</b>（本次未提取到值）</div>
-                </div>
-              </div>
-            </div>
-
-            <div class="rsc">
-              <div class="rsc__head">
-                <span class="rsc__index">3</span>
-                <span class="rsc__name">校验订单状态</span>
-                <span class="chip" style="background:var(--brand-500)">SELECT</span>
-                <div class="rsc__spacer"></div>
-                <span class="rr-badge rr-badge--ok">通过</span>
-                <span class="rsc__dur">41 ms</span>
-              </div>
-              <div class="rsc__body">
-                <div class="rsc__line"><span class="chip" style="background:var(--brand-500)">SELECT</span><span class="rsc__url">SELECT status FROM t_order WHERE id = ?</span></div>
-                <div>
-                  <p class="rsc__sub-label">断言</p>
-                  <div class="assert-row"><span class="rr-badge rr-badge--ok">通过</span>结果集 <b>1 行</b>，status <b>= PAID</b></div>
-                </div>
-              </div>
-            </div>
-
-            <div class="rsc">
-              <div class="rsc__head">
-                <span class="rsc__index">4</span>
-                <span class="rsc__name">补偿对账查询</span>
-                <span class="chip chip--get">GET</span>
-                <div class="rsc__spacer"></div>
-                <span class="rr-badge rr-badge--ok">通过</span>
-                <span class="rsc__dur">167 ms</span>
-              </div>
-              <div class="rsc__body">
-                <div class="rsc__line"><span class="chip chip--get">GET</span><span class="rsc__url">/api/pay/reconcile?orderId=${orderId}</span></div>
-                <div class="rsc__line"><span class="chip chip--status">200</span><span class="rsc__url">OK · application/json · 233 B</span></div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <!-- 场景 2：通过 + 折叠 -->
-        <section class="rr-card rr-scene" data-scene>
-          <div class="rr-scene__head">
-            <div>
-              <h2 class="rr-scene__title">下单成功主链路</h2>
-              <div class="rr-scene__meta">
-                <span>场景 ID：<b class="rr-mono">SC-11ab94</b></span>
-                <span>执行时间：2026-09-22 03:00:20</span>
-              </div>
-            </div>
-            <div class="rr-scene__mini">
-              <div class="rr-mini"><div class="rr-mini__n">4</div><div class="rr-mini__t">步骤</div></div>
-              <div class="rr-mini rr-mini--g"><div class="rr-mini__n">4</div><div class="rr-mini__t">通过</div></div>
-              <div class="rr-mini rr-mini--r"><div class="rr-mini__n">0</div><div class="rr-mini__t">失败</div></div>
-              <div class="rr-mini"><div class="rr-mini__n">3.20 s</div><div class="rr-mini__t">耗时</div></div>
-            </div>
-            <span class="rr-badge rr-badge--ok">通过</span>
-            <button class="rr-chev" data-chev><span class="rr-chev__i"></span></button>
-          </div>
-          <div class="rr-scene__body" data-scene-body hidden>
-            <div class="rsc">
-              <div class="rsc__head">
-                <span class="rsc__index">1</span>
-                <span class="rsc__name">创建订单</span>
-                <span class="chip chip--post">POST</span>
-                <div class="rsc__spacer"></div>
-                <span class="rr-badge rr-badge--ok">通过</span>
-                <span class="rsc__dur">486 ms</span>
-              </div>
-              <div class="rsc__body">
-                <div class="rsc__line"><span class="chip chip--post">POST</span><span class="rsc__url">/api/order/create</span></div>
-                <div class="rsc__line"><span class="chip chip--status">200</span><span class="rsc__url">OK · application/json · 512 B</span></div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <p class="rr-footer">报告生成时间 2026-09-22 03:00:46 · 来源：平台内执行 · 环境：测试环境</p>
+  <!-- Hero -->
+  <div class="rr-hero">
+    <div class="rr-hero__top">
+      <h1 class="rr-hero__title">支付回归夜跑-2026-09-22 03:00:04</h1>
+      <span class="rr-pill rr-pill--ok">✓ 执行成功</span>
+      <span class="rr-pill rr-pill--on-dark">平台内执行</span>
+      <div class="rr-hero__actions">
+        <button class="btn btn--sm btn-hero" id="btn-share">分享</button>
+        <a class="btn btn--sm btn-hero" href="api-reports.html">关闭</a>
       </div>
     </div>
+    <div class="rr-hero__meta">
+      <span>环境：<b>测试环境</b></span>
+      <span>触发时间：<b>2026-09-22 03:00:04</b></span>
+      <span>总耗时：<b class="rr-mono">42.70 s</b></span>
+      <span>Task ID：<b class="rr-mono">T-20260922-03000042</b></span>
+    </div>
   </div>
+
+  <!-- 套件统计 -->
+  <div class="rr-card rr-card--plain">
+    <div class="rr-stats">
+      <div class="rr-stat rr-stat--b"><div class="rr-stat__num">6</div><div class="rr-stat__lbl">场景总数</div></div>
+      <div class="rr-stat rr-stat--g"><div class="rr-stat__num">5</div><div class="rr-stat__lbl">通过场景</div></div>
+      <div class="rr-stat rr-stat--r"><div class="rr-stat__num">1</div><div class="rr-stat__lbl">失败场景</div></div>
+      <div class="rr-stat rr-stat--g"><div class="rr-stat__num">83.3%</div><div class="rr-stat__lbl">通过率</div></div>
+      <div class="rr-stat rr-stat--b"><div class="rr-stat__num">42.70 s</div><div class="rr-stat__lbl">总耗时</div></div>
+    </div>
+  </div>
+
+  <!-- 场景 1：失败 + 展开 -->
+  <section class="rr-card rr-scene rr-scene--failed" data-scene>
+    <div class="rr-scene__head">
+      <div>
+        <h2 class="rr-scene__title">支付回调重放</h2>
+        <div class="rr-scene__meta">
+          <span>场景 ID：<b class="rr-mono">SC-8f21c0</b></span>
+          <span>执行时间：2026-09-22 03:00:12</span>
+        </div>
+      </div>
+      <div class="rr-scene__mini">
+        <div class="rr-mini"><div class="rr-mini__n">4</div><div class="rr-mini__t">步骤</div></div>
+        <div class="rr-mini rr-mini--g"><div class="rr-mini__n">3</div><div class="rr-mini__t">通过</div></div>
+        <div class="rr-mini rr-mini--r"><div class="rr-mini__n">1</div><div class="rr-mini__t">失败</div></div>
+        <div class="rr-mini"><div class="rr-mini__n">6.42 s</div><div class="rr-mini__t">耗时</div></div>
+      </div>
+      <span class="rr-badge rr-badge--fail">失败</span>
+      <button class="rr-chev rr-chev--open" data-chev><span class="rr-chev__i"></span></button>
+    </div>
+    <div class="rr-scene__body" data-scene-body>
+      <div class="rsc">
+        <div class="rsc__head">
+          <span class="rsc__index">1</span>
+          <span class="rsc__name">查询支付单</span>
+          <span class="chip chip--post">POST</span>
+          <div class="rsc__spacer"></div>
+          <span class="rr-badge rr-badge--ok">通过</span>
+          <span class="rsc__dur">312 ms</span>
+        </div>
+        <div class="rsc__body">
+          <div class="rsc__line"><span class="chip chip--post">POST</span><span class="rsc__url">/api/pay/order/query</span></div>
+          <div class="rsc__line"><span class="chip chip--status">200</span><span class="rsc__url">OK · application/json · 428 B</span></div>
+          <div>
+            <p class="rsc__sub-label">断言</p>
+            <div class="assert-row"><span class="rr-badge rr-badge--ok">通过</span>状态码 <b>等于 200</b></div>
+            <div class="assert-row"><span class="rr-badge rr-badge--ok">通过</span>JSON 字段 <b>$.data.status = PAID</b></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="rsc">
+        <div class="rsc__head">
+          <span class="rsc__index">2</span>
+          <span class="rsc__name">重放支付回调</span>
+          <span class="chip chip--post">POST</span>
+          <div class="rsc__spacer"></div>
+          <span class="rr-badge rr-badge--fail">失败</span>
+          <span class="rsc__dur">5 902 ms</span>
+        </div>
+        <div class="rsc__body">
+          <div class="rsc__line"><span class="chip chip--post">POST</span><span class="rsc__url">/api/pay/notify/replay</span></div>
+          <div class="rsc__line"><span class="chip" style="background:var(--st-danger)">500</span><span class="rsc__url">Internal Server Error · application/json · 176 B</span></div>
+          <div>
+            <p class="rsc__sub-label">响应头</p>
+            <table class="rsc__kv">
+              <thead><tr><th>Content-Type</th><th>X-Trace-Id</th></tr></thead>
+              <tbody><tr><td>application/json</td><td>9f3a-77c2-4e10</td></tr></tbody>
+            </table>
+          </div>
+          <div>
+            <p class="rsc__sub-label">断言</p>
+            <div class="assert-row"><span class="rr-badge rr-badge--ok">通过</span>状态码 <b>等于 500</b>（预期允许失败分支）</div>
+            <div class="assert-row"><span class="rr-badge rr-badge--fail">失败</span>JSON 字段 <b>$.code = NOTIFY_OK</b>，实际 <b>INTERNAL_ERROR</b></div>
+          </div>
+          <div>
+            <p class="rsc__sub-label">提取变量</p>
+            <div class="assert-row">notifyId ← <b>$.data.notifyId</b>（本次未提取到值）</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="rsc">
+        <div class="rsc__head">
+          <span class="rsc__index">3</span>
+          <span class="rsc__name">校验订单状态</span>
+          <span class="chip" style="background:var(--brand-500)">SELECT</span>
+          <div class="rsc__spacer"></div>
+          <span class="rr-badge rr-badge--ok">通过</span>
+          <span class="rsc__dur">41 ms</span>
+        </div>
+        <div class="rsc__body">
+          <div class="rsc__line"><span class="chip" style="background:var(--brand-500)">SELECT</span><span class="rsc__url">SELECT status FROM t_order WHERE id = ?</span></div>
+          <div>
+            <p class="rsc__sub-label">断言</p>
+            <div class="assert-row"><span class="rr-badge rr-badge--ok">通过</span>结果集 <b>1 行</b>，status <b>= PAID</b></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="rsc">
+        <div class="rsc__head">
+          <span class="rsc__index">4</span>
+          <span class="rsc__name">补偿对账查询</span>
+          <span class="chip chip--get">GET</span>
+          <div class="rsc__spacer"></div>
+          <span class="rr-badge rr-badge--ok">通过</span>
+          <span class="rsc__dur">167 ms</span>
+        </div>
+        <div class="rsc__body">
+          <div class="rsc__line"><span class="chip chip--get">GET</span><span class="rsc__url">/api/pay/reconcile?orderId=${orderId}</span></div>
+          <div class="rsc__line"><span class="chip chip--status">200</span><span class="rsc__url">OK · application/json · 233 B</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 场景 2：通过 + 折叠 -->
+  <section class="rr-card rr-scene" data-scene>
+    <div class="rr-scene__head">
+      <div>
+        <h2 class="rr-scene__title">下单成功主链路</h2>
+        <div class="rr-scene__meta">
+          <span>场景 ID：<b class="rr-mono">SC-11ab94</b></span>
+          <span>执行时间：2026-09-22 03:00:20</span>
+        </div>
+      </div>
+      <div class="rr-scene__mini">
+        <div class="rr-mini"><div class="rr-mini__n">4</div><div class="rr-mini__t">步骤</div></div>
+        <div class="rr-mini rr-mini--g"><div class="rr-mini__n">4</div><div class="rr-mini__t">通过</div></div>
+        <div class="rr-mini rr-mini--r"><div class="rr-mini__n">0</div><div class="rr-mini__t">失败</div></div>
+        <div class="rr-mini"><div class="rr-mini__n">3.20 s</div><div class="rr-mini__t">耗时</div></div>
+      </div>
+      <span class="rr-badge rr-badge--ok">通过</span>
+      <button class="rr-chev" data-chev><span class="rr-chev__i"></span></button>
+    </div>
+    <div class="rr-scene__body" data-scene-body hidden>
+      <div class="rsc">
+        <div class="rsc__head">
+          <span class="rsc__index">1</span>
+          <span class="rsc__name">创建订单</span>
+          <span class="chip chip--post">POST</span>
+          <div class="rsc__spacer"></div>
+          <span class="rr-badge rr-badge--ok">通过</span>
+          <span class="rsc__dur">486 ms</span>
+        </div>
+        <div class="rsc__body">
+          <div class="rsc__line"><span class="chip chip--post">POST</span><span class="rsc__url">/api/order/create</span></div>
+          <div class="rsc__line"><span class="chip chip--status">200</span><span class="rsc__url">OK · application/json · 512 B</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <p class="rr-footer">报告生成时间 2026-09-22 03:00:46 · 来源：平台内执行 · 环境：测试环境</p>
 </main>
 
-<!-- 分享弹窗（两步式：选有效期 → 生成链接） -->
+<!-- 分享弹窗（两步式：选有效期 → 生成链接；已有分享直接展示记录，对应 ReportDetailPage 的 create / record 视图） -->
 <div class="dialog-mask" id="share-dialog" hidden>
   <div class="dialog" style="width:480px">
     <div class="dialog__header">
       <span class="dialog__title">分享报告</span>
       <button class="dialog__close" data-close>✕</button>
     </div>
-    <div class="dialog__body">
-      <p class="share-hint">选择有效期后生成分享链接，有效期内可免登录访问</p>
-      <span class="expiry-seg">
-        <button>1 天</button>
-        <button class="is-active">7 天</button>
-        <button>30 天</button>
-        <button>90 天</button>
+
+    <div class="dialog__body" data-share-view="create">
+      <p class="share-hint" id="share-hint">选择有效期后生成分享链接，有效期内可免登录访问</p>
+      <span class="expiry-seg" id="expiry-seg">
+        <button data-days="1">1 天</button>
+        <button class="is-active" data-days="7">7 天</button>
+        <button data-days="30">30 天</button>
+        <button data-days="90">90 天</button>
       </span>
-      <p class="share-meta">生成后可复制「报告名称 + 链接 + 有效期 + 分享人」的分享文案</p>
+      <p class="share-meta">生成后可在记录视图复制「报告名称 + 链接 + 有效期 + 分享人」的分享文案</p>
     </div>
-    <div class="dialog__footer">
+
+    <div class="dialog__body" data-share-view="record" hidden>
+      <div class="share-url">
+        <input class="input" id="share-url" readonly value="">
+        <button class="btn btn--default btn--sm" id="btn-copy-share">复制</button>
+      </div>
+      <p class="share-meta" id="share-expires">有效期至：—</p>
+      <p class="share-meta" id="share-by">分享人：—</p>
+      <p class="share-meta">复制将带上报告名称、链接、有效期与分享人，可直接粘贴到聊天工具</p>
+    </div>
+
+    <div class="dialog__footer" data-share-view="create">
       <button class="btn btn--default btn--sm" data-close>取消</button>
-      <button class="btn btn--primary btn--sm">生成分享链接</button>
+      <button class="btn btn--primary btn--sm" id="btn-generate">生成分享链接</button>
+    </div>
+    <div class="dialog__footer" data-share-view="record" hidden>
+      <button class="btn btn--default btn--sm" id="btn-regenerate">重新生成</button>
     </div>
   </div>
 </div>
 
 <script src="../assets/icons.js"></script>
 <script src="../assets/shell.js"></script>
+<script src="../assets/ux.js"></script>
 <script>
   // 场景卡展开 / 折叠
   document.querySelectorAll('[data-scene]').forEach(function (scene) {
@@ -333,18 +336,112 @@
     });
   });
 
-  // 分享弹窗
+  /* ---------------- 分享（两步式） ---------------- */
+  var REPORT_NAME = '支付回归夜跑-2026-09-22 03:00:04';
+  var SHARE_BY = '李晓明';
   var mask = document.getElementById('share-dialog');
-  document.getElementById('btn-share').addEventListener('click', function () { mask.removeAttribute('hidden'); });
+  var genBtn = document.getElementById('btn-generate');
+  var shareRecord = null; // { url, expiresAt, shareBy }
+  var expiryDays = 7;
+
+  function pad(n) { return n < 10 ? '0' + n : '' + n; }
+  function fmtDateTime(d) {
+    return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + ' ' +
+      pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
+  }
+
+  function setShareView(view) {
+    document.querySelectorAll('[data-share-view]').forEach(function (el) {
+      el.hidden = el.getAttribute('data-share-view') !== view;
+    });
+  }
+
+  function fillRecord() {
+    document.getElementById('share-url').value = shareRecord.url;
+    document.getElementById('share-expires').textContent = '有效期至：' + fmtDateTime(shareRecord.expiresAt);
+    document.getElementById('share-by').textContent = '分享人：' + shareRecord.shareBy;
+  }
+
+  function shareText() {
+    return [
+      '【测试报告分享】',
+      '报告名称：' + REPORT_NAME,
+      '分享链接：' + (shareRecord ? shareRecord.url : ''),
+      '有效期至：' + (shareRecord ? fmtDateTime(shareRecord.expiresAt) : '-'),
+      '分享人：' + (shareRecord ? shareRecord.shareBy : '-'),
+    ].join('\n');
+  }
+
+  function copyText(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      return navigator.clipboard.writeText(text);
+    }
+    return new Promise(function (resolve, reject) {
+      var ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      var ok = false;
+      try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+      ta.remove();
+      if (ok) resolve(); else reject(new Error('copy failed'));
+    });
+  }
+
+  function copyShare() {
+    copyText(shareText()).then(function () {
+      window.RTUX.toast('已复制分享链接', { type: 'success' });
+    }).catch(function () {
+      window.RTUX.toast('复制失败，请手动复制', { type: 'danger' });
+    });
+  }
+
+  document.getElementById('btn-share').addEventListener('click', function () {
+    document.getElementById('share-hint').textContent = shareRecord
+      ? '选择有效期后生成分享链接，有效期内可免登录访问（将覆盖当前分享）'
+      : '选择有效期后生成分享链接，有效期内可免登录访问';
+    if (shareRecord) fillRecord();
+    setShareView(shareRecord ? 'record' : 'create');
+    mask.removeAttribute('hidden');
+  });
+
   mask.addEventListener('click', function (e) {
     if (e.target === mask || e.target.hasAttribute('data-close')) mask.setAttribute('hidden', '');
   });
-  document.querySelectorAll('.expiry-seg button').forEach(function (btn) {
+
+  document.querySelectorAll('#expiry-seg button').forEach(function (btn) {
     btn.addEventListener('click', function () {
-      btn.parentElement.querySelectorAll('button').forEach(function (b) { b.classList.remove('is-active'); });
+      document.querySelectorAll('#expiry-seg button').forEach(function (b) { b.classList.remove('is-active'); });
       btn.classList.add('is-active');
+      expiryDays = parseInt(btn.getAttribute('data-days'), 10);
     });
   });
+
+  genBtn.addEventListener('click', function () {
+    if (genBtn.disabled) return;
+    genBtn.disabled = true;
+    genBtn.textContent = '生成中…';
+    window.setTimeout(function () {
+      var token = Math.random().toString(16).slice(2, 10);
+      shareRecord = {
+        url: 'https://demo.robotest.io/s/rpt-' + token,
+        expiresAt: new Date(Date.now() + expiryDays * 86400000),
+        shareBy: SHARE_BY,
+      };
+      genBtn.disabled = false;
+      genBtn.textContent = '生成分享链接';
+      fillRecord();
+      setShareView('record');
+      window.RTUX.toast('分享链接已生成，' + expiryDays + ' 天内有效', { type: 'success' });
+    }, 600);
+  });
+
+  document.getElementById('btn-regenerate').addEventListener('click', function () {
+    setShareView('create');
+  });
+  document.getElementById('btn-copy-share').addEventListener('click', copyShare);
 </script>
 </body>
 </html>
