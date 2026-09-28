@@ -815,11 +815,21 @@
     var edStatus = editorPane.querySelector('.ed-status');
     var edPrio = editorPane.querySelector('.ed-prio');
 
+    // 头部动作区随激活 Tab 换级：编排态把列表级 [新建场景] 降为文字按钮，
+    // 主视觉权重让给编辑器操作条的 [运行场景][保存为草稿][发布]（方案 A2）
+    function setHeadScope(isEdit) {
+      var el = document.getElementById('btn-new-scene');
+      if (!el) return;
+      el.classList.toggle('btn--primary', !isEdit);
+      el.classList.toggle('btn--text', isEdit);
+    }
+
     function activate(tab) {
       tabsBar.querySelectorAll('.ws-tab').forEach(function (t) { t.classList.toggle('is-active', t === tab); });
       var isList = tab.getAttribute('data-pane') === 'list';
       listPane.hidden = !isList;
       editorPane.hidden = isList;
+      setHeadScope(!isList);
       if (isList) return;
       var isNew = tab.getAttribute('data-new') === '1';
       nameInput.value = isNew ? '' : (tab.getAttribute('data-name') || '');
