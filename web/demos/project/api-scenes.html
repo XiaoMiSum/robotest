@@ -9,6 +9,8 @@
 <link rel="stylesheet" href="../assets/ux.css">
 <style>
   [hidden] { display: none !important; }
+  /* split__main 为块级容器（无 gap）：页签条自行补下间距，与接口管理 .ws 的 gap 观感一致 */
+  .split__main > .ws-tabs { margin-bottom: var(--space-md); }
   .selected-hint { font-size: var(--font-size-sm); color: var(--n-500); }
 
   .body-row { display: flex; gap: var(--space-lg); align-items: stretch; min-height: 500px; flex: 1; }
@@ -258,9 +260,11 @@
         </div>
       </div>
 
-      <!-- 编辑器 Tab 条：全部场景（固定）+ 打开的编排 Tab（可关闭） -->
+      <!-- 编辑器 Tab 条：全部场景（固定）+ 已打开的编排 Tab（可关闭） -->
       <div class="ws-tabs">
         <div class="ws-tab is-active" data-pane="list"><span>全部场景</span></div>
+        <div class="ws-tab" data-name="下单成功主链路"><span>下单成功主链路</span><span class="ws-tab__close" data-close>×</span></div>
+        <div class="ws-tab" data-name="支付回调重放"><span>支付回调重放</span><span class="ws-tab__close" data-close>×</span></div>
       </div>
 
       <div class="ws-pane" data-pane="list">
