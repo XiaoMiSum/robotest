@@ -326,7 +326,8 @@
   window.RTUX = { toast: toast, store: store, isMac: isMac, bind: init };
 
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
+    // 直接把 init 当监听器会把 Event 当根节点，静态 data-ux-* 钩子全部绑不上
+    document.addEventListener('DOMContentLoaded', function () { init(); });
   } else {
     init();
   }
