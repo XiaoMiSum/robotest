@@ -61,18 +61,18 @@ class AccessRateLimiterTest {
     void checkAttempt_underLimit_passes_andUsesConfiguredKeyWindow() {
         // 限流键 = {prefix}:{scope}:{identity}；窗口作为脚本参数传入
         when(redisTemplate.execute(eq(AccessRateLimiter.INCR_SCRIPT_OBJ),
-                eq(List.of("rl:refresh:203.0.113.9")), eq(60L))).thenReturn(30L);
+                eq(List.of("rl:refresh:203.0.113.9")), eq("60"))).thenReturn(30L);
 
         assertDoesNotThrow(() -> limiter.checkRefresh(requestBehindProxy("203.0.113.9, 10.1.1.1")));
 
         verify(redisTemplate).execute(eq(AccessRateLimiter.INCR_SCRIPT_OBJ),
-                eq(List.of("rl:refresh:203.0.113.9")), eq(60L));
+                eq(List.of("rl:refresh:203.0.113.9")), eq("60"));
     }
 
     @Test
     void checkAttempt_countOverLimit_throwsAccessRateLimited() {
         when(redisTemplate.execute(eq(AccessRateLimiter.INCR_SCRIPT_OBJ),
-                anyList(), eq(60L))).thenReturn(6L);
+                anyList(), eq("60"))).thenReturn(6L);
 
         ServiceException ex = assertThrows(ServiceException.class,
                 () -> limiter.checkAttempt("refresh", "10.0.0.9", 5, 60));
@@ -82,7 +82,7 @@ class AccessRateLimiterTest {
 
     @Test
     void checkAttempt_redisFailure_failsOpen() {
-        when(redisTemplate.execute(any(RedisScript.class), anyList(), eq(60L)))
+        when(redisTemplate.execute(any(RedisScript.class), anyList(), eq("60")))
                 .thenThrow(new DataAccessResourceFailureException("redis down"));
 
         assertDoesNotThrow(() -> limiter.checkAttempt("refresh", "10.0.0.9", 1, 60));
@@ -101,12 +101,12 @@ class AccessRateLimiterTest {
     void checkAttempt_customKeyPrefix_propagatesToKey() {
         properties.setKeyPrefix("myrate");
         when(redisTemplate.execute(eq(AccessRateLimiter.INCR_SCRIPT_OBJ),
-                eq(List.of("myrate:invite:10.0.0.9")), eq(60L))).thenReturn(1L);
+                eq(List.of("myrate:invite:10.0.0.9")), eq("60"))).thenReturn(1L);
 
         assertDoesNotThrow(() -> limiter.checkInvitation(request()));
 
         verify(redisTemplate).execute(eq(AccessRateLimiter.INCR_SCRIPT_OBJ),
-                eq(List.of("myrate:invite:10.0.0.9")), eq(60L));
+                eq(List.of("myrate:invite:10.0.0.9")), eq("60"));
     }
 
     // ========== 登录：失败计数 + 成功清理 ==========
@@ -166,7 +166,7 @@ class AccessRateLimiterTest {
     void login_authFailure_recordsIpAndAccountFailures_andRethrows() {
         stubLoginCounts(null, null);
         when(redisTemplate.execute(eq(AccessRateLimiter.INCR_SCRIPT_OBJ),
-                anyList(), eq(300L))).thenReturn(1L);
+                anyList(), eq("300"))).thenReturn(1L);
 
         RuntimeException failure = new RuntimeException("bad credentials");
         RuntimeException ex = assertThrows(RuntimeException.class,
@@ -177,16 +177,16 @@ class AccessRateLimiterTest {
         assertSame(failure, ex, "认证异常必须原样抛出，不改写响应");
         // 双键入账：IP 键 + 账号键，窗口为 loginWindowSeconds
         verify(redisTemplate).execute(eq(AccessRateLimiter.INCR_SCRIPT_OBJ),
-                eq(List.of("rl:login:ip:10.0.0.9")), eq(300L));
+                eq(List.of("rl:login:ip:10.0.0.9")), eq("300"));
         verify(redisTemplate).execute(eq(AccessRateLimiter.INCR_SCRIPT_OBJ),
-                eq(List.of("rl:login:acct:bob")), eq(300L));
+                eq(List.of("rl:login:acct:bob")), eq("300"));
         verify(redisTemplate, never()).delete(anyString());
     }
 
     @Test
     void login_recordFailureRedisDown_failsOpenAndStillRethrowsOriginal() {
         stubLoginCounts(null, null);
-        when(redisTemplate.execute(any(RedisScript.class), anyList(), eq(300L)))
+        when(redisTemplate.execute(any(RedisScript.class), anyList(), eq("300")))
                 .thenThrow(new DataAccessResourceFailureException("redis down"));
 
         RuntimeException failure = new RuntimeException("bad credentials");
@@ -229,12 +229,12 @@ class AccessRateLimiterTest {
     @Test
     void checkPublicReport_usesConfiguredWindow() {
         when(redisTemplate.execute(eq(AccessRateLimiter.INCR_SCRIPT_OBJ),
-                eq(List.of("rl:public-report:10.0.0.9")), eq(60L))).thenReturn(1L);
+                eq(List.of("rl:public-report:10.0.0.9")), eq("60"))).thenReturn(1L);
 
         assertDoesNotThrow(() -> limiter.checkPublicReport(request()));
 
         verify(redisTemplate).execute(eq(AccessRateLimiter.INCR_SCRIPT_OBJ),
-                eq(List.of("rl:public-report:10.0.0.9")), eq(60L));
+                eq(List.of("rl:public-report:10.0.0.9")), eq("60"));
     }
 
     @Test
@@ -246,8 +246,8 @@ class AccessRateLimiterTest {
         assertDoesNotThrow(() -> limiter.checkPassword(request()));
 
         verify(redisTemplate).execute(eq(AccessRateLimiter.INCR_SCRIPT_OBJ),
-                eq(List.of("rl:init-setup:10.0.0.9")), eq(600L));
+                eq(List.of("rl:init-setup:10.0.0.9")), eq("600"));
         verify(redisTemplate).execute(eq(AccessRateLimiter.INCR_SCRIPT_OBJ),
-                eq(List.of("rl:password:10.0.0.9")), eq(300L));
+                eq(List.of("rl:password:10.0.0.9")), eq("300"));
     }
 }
