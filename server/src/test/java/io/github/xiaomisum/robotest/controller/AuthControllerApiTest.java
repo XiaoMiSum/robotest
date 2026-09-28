@@ -6,7 +6,6 @@ import io.github.xiaomisum.robotest.service.admin.UserService;
 import io.github.xiaomisum.robotest.service.admin.audit.LoginAuditService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.support.DefaultListableBeanFactory;
 import org.springframework.context.support.StaticMessageSource;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
@@ -63,14 +62,11 @@ class AuthControllerApiTest {
         ReflectionTestUtils.setField(controller, "loginAuditService", loginAuditService);
         ReflectionTestUtils.setField(controller, "userService", userService);
 
-        // 框架 1.3.18 起 globalExceptionHandler 改为 (String, ObjectProvider, I18NMessage, ApplicationEventPublisher)
-        DefaultListableBeanFactory beanFactory = new DefaultListableBeanFactory();
-        beanFactory.registerSingleton("apiErrorLogFrameworkService", mock(ApiErrorLogFrameworkService.class));
+        // migoo 1.3.18 发布包实际签名为 (String, ApiErrorLogFrameworkService, I18NMessage)
         GlobalExceptionHandler advice = new ExceptionHandlingConfiguration().globalExceptionHandler(
                 "robotest",
-                beanFactory.getBeanProvider(ApiErrorLogFrameworkService.class),
-                new I18NMessage(new StaticMessageSource()),
-                event -> { });
+                mock(ApiErrorLogFrameworkService.class),
+                new I18NMessage(new StaticMessageSource()));
 
         mockMvc = MockMvcBuilders.standaloneSetup(controller)
                 .setControllerAdvice(advice)
