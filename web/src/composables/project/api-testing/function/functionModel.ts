@@ -93,6 +93,76 @@ export const FUNCTION_TAB_OPTIONS: { value: FunctionTab; label: string }[] = [
   { value: 'custom', label: '自定义函数' },
 ]
 
+// ==================== 函数参数（paramsDesc 序列化口径，docs/05-interaction-design/23-project-settings-ui-function.md 1.3） ====================
+
+export interface FunctionParamRow {
+  name: string
+  required: boolean
+  description: string
+}
+
+/** 解析参数说明：逗号分隔，段内 `name:描述`，`name?` 为可选参数，描述取首个冒号后文本 */
+export function parseParamsDesc(desc: string | null | undefined): FunctionParamRow[] {
+  if (!desc) return []
+  return desc
+    .split(',')
+    .map((seg) => seg.trim())
+    .filter(Boolean)
+    .map((seg) => {
+      const colon = seg.indexOf(':')
+      const raw = colon === -1 ? seg : seg.slice(0, colon).trim()
+      const required = !raw.endsWith('?')
+      return {
+        name: (required ? raw : raw.slice(0, -1)).trim(),
+        required,
+        description: colon === -1 ? '' : seg.slice(colon + 1).trim(),
+      }
+    })
+    .filter((row) => row.name !== '')
+}
+
+/** 按行序序列化参数说明：必填 `name:描述`、可选 `name?:描述`，参数间 `, ` 分隔 */
+export function serializeParamsDesc(rows: FunctionParamRow[]): string {
+  return rows
+    .filter((row) => row.name.trim() !== '')
+    .map((row) => `${row.name.trim()}${row.required ? '' : '?'}:${row.description.trim()}`)
+    .join(', ')
+}
+
+export interface ParamRowError {
+  index: number
+  message: string
+}
+
+/** 参数行校验：名称必填且函数内唯一，名称禁 `,` `:` `?`，描述禁 `,` */
+export function validateParamRows(rows: FunctionParamRow[]): ParamRowError[] {
+  const errors: ParamRowError[] = []
+  const seen = new Set<string>()
+  rows.forEach((row, index) => {
+    const name = row.name.trim()
+    if (name === '') {
+      errors.push({ index, message: '请输入参数名' })
+      return
+    }
+    if (/[,:?]/.test(name) || /,/.test(row.description)) {
+      errors.push({ index, message: '参数名与描述不支持英文逗号，参数名另不支持冒号与问号' })
+      return
+    }
+    if (seen.has(name)) {
+      errors.push({ index, message: `参数「${name}」重复` })
+      return
+    }
+    seen.add(name)
+  })
+  return errors
+}
+
+/** 按行序拼接参数名生成调用签名：`${函数名(参数1, 参数2)}` */
+export function buildFunctionSignature(name: string, params: { name: string }[]): string {
+  const args = params.map((p) => p.name.trim()).filter(Boolean).join(', ')
+  return `\${${name}(${args})}`
+}
+
 // ==================== 函数助手：统一函数项（供下拉选择） ====================
 
 export interface UnifiedFunctionItem {
@@ -124,20 +194,14 @@ export function unifyFunctionList(
     }
   }
   for (const fn of customList) {
-    const params = fn.paramsDesc
-      ? fn.paramsDesc.split(',').map((p) => ({
-          name: p.trim().split(':')[0]?.trim() ?? '',
-          required: true,
-          description: p.trim(),
-        }))
-      : []
-    const args = params.map((p) => p.name).join(', ')
+    const params = parseParamsDesc(fn.paramsDesc)
+    const signature = buildFunctionSignature(fn.name, params)
     items.push({
       name: fn.name,
       description: fn.description ?? '',
-      signature: `\${${fn.name}${args ? `(${args})` : '()'}}`,
+      signature,
       params,
-      example: `\${${fn.name}${args ? `(${args})` : '()'}}`,
+      example: signature,
       type: 'custom',
       scope: fn.scope,
     })
