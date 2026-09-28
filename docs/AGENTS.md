@@ -11,7 +11,7 @@
 - **绘图**：Mermaid（流程图/时序图/类图）
 - **目录**：按业务域分 `00-spec/`、`01-requirements/`、`02-high-level-design/`、`03-architecture/`、`04-detailed-design/`、`05-interaction-design/`
 - **版本管理**：工作目录原位迭代，历史版本经 Git 回溯
-- **校验**：`bash scripts/validate-docs.sh`（C7 提交格式 + `scripts/check-docs.mjs`：断链、行内路径、元信息、规则编号）
+- **校验**：`bash scripts/validate-docs.sh`，Windows 无 bash 时用 `node scripts/validate.mjs --docs`（C7 提交格式 + `scripts/check-docs.mjs`：断链、行内路径、元信息、规则编号）
 
 ## 文档架构
 
@@ -194,6 +194,13 @@ git show <rev>:docs/01-requirements/02-srs-overview.md        # 某个版本的�
 ```bash
 bash scripts/validate-docs.sh   # 本端（C7 提交格式 + 文档专项检查）
 bash scripts/validate.sh --all  # 全量编排（人工 / CI，含前后端质量门禁）
+```
+
+Windows 无 bash 时改用等价命令（同一实现 `scripts/validate.mjs`）：
+
+```powershell
+node scripts/validate.mjs --docs
+node scripts/validate.mjs --all
 ```
 
 `check-docs.mjs` 执行四类检查：
