@@ -1211,6 +1211,77 @@ a:hover {
   font-weight: 500;
 }
 
+/* ==================== 工作区多页签（卡片式） ====================
+   接口管理 / 测试场景 / 快速调试共用：列表 Tab（固定）+ 编辑 / 调试 Tab（可关闭、未保存蓝点） */
+.ws-tabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.ws-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--n-200);
+  border-radius: var(--radius-md);
+  background: var(--n-0);
+  color: var(--n-600);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color var(--transition-fast), color var(--transition-fast);
+}
+
+.ws-tab:hover {
+  border-color: var(--brand-300);
+  color: var(--brand-600);
+}
+
+.ws-tab.is-active {
+  background: var(--brand-50);
+  border-color: var(--brand-200);
+  color: var(--brand-700);
+  font-weight: 600;
+}
+
+/* 未保存修改：标签前的蓝点（is-dirty::before 口径） */
+.ws-tab.is-dirty::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--brand-500);
+}
+
+.ws-tab__close {
+  color: var(--n-400);
+  font-size: 14px;
+  line-height: 1;
+  padding: 0 3px;
+  border-radius: 50%;
+}
+
+.ws-tab__close:hover {
+  color: var(--n-700);
+  background: var(--n-100);
+}
+
+/* 方法徽标（快速调试标签） */
+.ws-tab__method {
+  min-width: 34px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  color: #fff;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  text-align: center;
+}
+
 /* 分段控件（活跃/已归档 等） */
 .segment {
   display: inline-flex;
