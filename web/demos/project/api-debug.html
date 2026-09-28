@@ -11,24 +11,13 @@
   .debug { display: flex; flex-direction: column; height: 100%; }
   .debug__card { display: flex; flex-direction: column; flex: 1; min-height: 0; }
 
-  /* 多标签条（DebugPage 头部：标签 + 导入 cURL / 历史记录） */
-  .tabbar { display: flex; align-items: center; gap: var(--space-xs); padding: 4px 6px 10px; }
-  .tabbar__tabs { display: flex; align-items: center; gap: 2px; flex: 1; min-width: 0; overflow-x: auto; }
+  /* 多标签条（DebugPage 头部：标签 + 导入 cURL / 历史记录，卡片式页签见 base.css「工作区多页签」） */
+  .tabbar { display: flex; align-items: center; gap: var(--space-xs); padding: var(--space-sm) 6px; }
+  .tabbar__tabs { display: flex; align-items: center; gap: var(--space-xs); flex: 1; min-width: 0; overflow-x: auto; }
   .tabbar__tabs::-webkit-scrollbar { display: none; }
-  .dtab {
-    display: inline-flex; align-items: center; gap: 6px;
-    padding: 5px 8px; border-bottom: 2px solid transparent;
-    font-size: var(--font-size-xs); color: var(--n-500); cursor: pointer; white-space: nowrap;
-  }
-  .dtab:hover { color: var(--brand-500); }
-  .dtab.is-active { color: var(--brand-500); font-weight: 600; border-bottom-color: var(--brand-500); }
-  .dtab__method {
-    display: inline-flex; align-items: center; justify-content: center;
-    min-width: 30px; padding: 1px 5px; border-radius: 3px;
-    color: #fff; font-family: var(--font-mono); font-size: 9px; font-weight: 700; letter-spacing: .5px;
-  }
   .m-get { background: #61affe; } .m-post { background: #49cc90; } .m-put { background: #fca130; }
-  .tabbar__add { color: var(--n-400); font-size: 15px; padding: 0 4px; }
+  .tabbar__add { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border: 1px dashed var(--n-200); border-radius: var(--radius-md); color: var(--n-400); font-size: 15px; cursor: pointer; flex-shrink: 0; }
+  .tabbar__add:hover { color: var(--brand-500); border-color: var(--brand-300); }
   .tabbar__right { display: flex; align-items: center; gap: var(--space-xs); flex-shrink: 0; }
 
   /* 上下分栏：请求面板 + 拖拽分割线 + 响应面板 */
@@ -165,17 +154,17 @@
     <div class="split__main">
       <div class="debug">
         <div class="debug__card">
-          <!-- 标签条：多标签 + 导入 cURL + 历史记录 -->
+          <!-- 标签条：多标签 + 导入 cURL + 历史记录（与接口管理 / 测试场景同款卡片式页签） -->
           <div class="tabbar">
             <div class="tabbar__tabs">
-              <div class="dtab is-active"><span class="dtab__method m-post">POST</span><span>创建订单</span></div>
-              <div class="dtab"><span class="dtab__method m-get">GET</span><span>查询订单详情</span></div>
-              <div class="dtab"><span class="dtab__method m-put">PUT</span><span>取消订单</span></div>
-              <span class="tabbar__add" data-icon="plus"></span>
+              <div class="ws-tab is-active" data-method="POST" data-path="${BASE_URL}/api/v1/orders"><span class="ws-tab__method m-post">POST</span><span>创建订单</span><span class="ws-tab__close" data-close>×</span></div>
+              <div class="ws-tab" data-method="GET" data-path="${BASE_URL}/api/v1/orders/{orderId}"><span class="ws-tab__method m-get">GET</span><span>查询订单详情</span><span class="ws-tab__close" data-close>×</span></div>
+              <div class="ws-tab" data-method="PUT" data-path="${BASE_URL}/api/v1/orders/{orderId}/cancel"><span class="ws-tab__method m-put">PUT</span><span>取消订单</span><span class="ws-tab__close" data-close>×</span></div>
+              <span class="tabbar__add" data-icon="plus" title="新建标签"></span>
             </div>
             <div class="tabbar__right">
-              <div class="dtab js-open-curl"><span data-icon="download"></span><span>导入 cURL</span></div>
-              <div class="dtab"><span data-icon="clock-circle"></span><span>历史记录</span></div>
+              <div class="ws-tab js-open-curl"><span data-icon="download"></span><span>导入 cURL</span></div>
+              <div class="ws-tab"><span data-icon="clock-circle"></span><span>历史记录</span></div>
             </div>
           </div>
 
@@ -441,6 +430,57 @@
   });
   document.querySelectorAll('.js-close-curl').forEach(function (el) {
     el.addEventListener('click', function () { curlDialog.hidden = true; });
+  });
+
+  /* ---------------- 标签条：切换 / 关闭 / 新建（docs28 标签页管理表） ---------------- */
+  var tabsWrap = document.querySelector('.tabbar__tabs');
+  var tabAdd = document.querySelector('.tabbar__add');
+
+  function activateDebugTab(tab) {
+    tabsWrap.querySelectorAll('.ws-tab').forEach(function (t) { t.classList.toggle('is-active', t === tab); });
+    var method = tab.getAttribute('data-method');
+    if (method === null) return;
+    // 各标签独立维护请求状态：切标签即切换方法与 URL
+    document.querySelector('.method-pick').value = method;
+    document.querySelector('.url-input').value = tab.getAttribute('data-path') || '';
+  }
+
+  function createDebugTab(name) {
+    var tab = document.createElement('div');
+    tab.className = 'ws-tab';
+    tab.setAttribute('data-method', 'GET');
+    tab.setAttribute('data-path', '');
+    tab.innerHTML = '<span></span><span class="ws-tab__close" data-close>×</span>';
+    tab.firstElementChild.textContent = name;
+    tabsWrap.insertBefore(tab, tabAdd);
+    return tab;
+  }
+
+  tabsWrap.addEventListener('click', function (e) {
+    var tab = e.target.closest('.ws-tab');
+    if (!tab) return;
+    if (e.target.closest('[data-close]')) {
+      var prev = tab.previousElementSibling;
+      var next = tab.nextElementSibling;
+      var wasActive = tab.classList.contains('is-active');
+      tab.parentNode.removeChild(tab);
+      var remain = tabsWrap.querySelectorAll('.ws-tab');
+      // 最后一个标签关闭后自动创建空白标签
+      if (!remain.length) { activateDebugTab(createDebugTab('新建请求')); return; }
+      if (wasActive) {
+        var target = next && next.classList.contains('ws-tab') ? next
+          : (prev && prev.classList.contains('ws-tab') ? prev : remain[0]);
+        activateDebugTab(target);
+      }
+      return;
+    }
+    activateDebugTab(tab);
+  });
+
+  tabAdd.addEventListener('click', function () {
+    // 同时最多 10 个标签
+    if (tabsWrap.querySelectorAll('.ws-tab').length >= 10) { RTUX.toast('最多 10 个标签'); return; }
+    activateDebugTab(createDebugTab('新建请求'));
   });
 </script>
 </body>
