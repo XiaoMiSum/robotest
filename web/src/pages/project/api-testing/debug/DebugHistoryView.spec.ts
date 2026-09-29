@@ -27,10 +27,13 @@ describe('DebugHistoryView 列表与行操作错误边界', () => {
     expect(pageSource).toContain('>删除</el-button>')
   })
 
-  it('方法、状态码与时间列固定列宽，缺值行保留占位保证对齐', () => {
+  it('方法、状态码、时间与耗时列固定列宽，缺值行保留占位保证对齐', () => {
     expect(pageSource).toContain('responseCodeClass')
     expect(pageSource).toContain('width: 56px')
     expect(pageSource).toContain('width: 40px')
-    expect(pageSource).toContain('width: 150px')
+    expect(pageSource).toContain('history__item-time')
+    expect(pageSource).toContain('width: 100px')
+    expect(pageSource).toContain('history__item-cost')
+    expect(pageSource).toContain('width: 64px')
   })
 })
