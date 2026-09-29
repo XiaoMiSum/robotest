@@ -3,7 +3,6 @@ package io.github.xiaomisum.robotest.service.apitest;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.framework.security.ProjectAccessGuard;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiDataSourceTestReqDTO;
-import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiEnvironmentCopyReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiEnvironmentSaveReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiEnvironmentSortReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiEnvironmentVariableCreateReqDTO;
@@ -313,30 +312,6 @@ class ApiEnvironmentServiceImplTest {
         assertTrue(pwd.getHasValue());
         assertEquals("https://staging.example.com", detail.getVariables().stream()
                 .filter(v -> "BASE_URL".equals(v.getName())).findFirst().orElseThrow().getValue());
-    }
-
-    @Test
-    void copyEnvironment_copiesVariablesWithValuesNoDataSources() {
-        List<Map<String, Object>> variables = new ArrayList<>();
-        variables.add(variableRow("TOKEN", "abc123"));
-        variables.add(variableRow("BASE_URL", "https://x"));
-        List<Map<String, Object>> dataSources = new ArrayList<>();
-        dataSources.add(dataSourceRow());
-        stubExistingEnv(variables, dataSources);
-        when(environmentMapper.listByProject(PROJECT_ID, null)).thenReturn(List.of());
-        when(environmentMapper.existsByProjectIdAndName(PROJECT_ID, "预发环境（副本）", null)).thenReturn(false);
-
-        ApiEnvironmentCopyReqDTO req = new ApiEnvironmentCopyReqDTO();
-        req.setName("预发环境（副本）");
-        service.copyEnvironment(PROJECT_ID, WORKSPACE_ID, USER_ID, ENV_ID, req);
-
-        // 数据源不复制（详细设计 3.1.11）
-        ApiEnvironment copy = capturedInsert();
-        assertTrue(copy.getDataSources().isEmpty());
-        // 变量随副本写入主表 JSONB 且保留取值
-        assertEquals(2, copy.getVariables().size());
-        assertEquals("abc123", copy.getVariables().stream()
-                .filter(v -> "TOKEN".equals(v.get("name"))).findFirst().orElseThrow().get("value"));
     }
 
     private static Map<String, Object> variableRow(String name, String value) {

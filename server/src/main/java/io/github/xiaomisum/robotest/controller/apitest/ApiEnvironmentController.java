@@ -2,7 +2,6 @@ package io.github.xiaomisum.robotest.controller.apitest;
 
 import io.github.xiaomisum.robotest.framework.security.LoginUser;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiDataSourceTestReqDTO;
-import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiEnvironmentCopyReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiEnvironmentSaveReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiEnvironmentSortReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiHttpConfigTestReqDTO;
@@ -101,15 +100,6 @@ public class ApiEnvironmentController {
             @RequestBody @Valid ApiEnvironmentSortReqDTO reqDTO) {
         apiEnvironmentService.sortEnvironment(loginUser.getActiveProjectId(), loginUser.getActiveWorkspaceId(), loginUser.getId(), id, reqDTO);
         return Result.ok(true);
-    }
-
-    @PostMapping("/{id}/copy")
-    @PreAuthorize("hasAuthority('api-env:edit')")
-    public Result<ApiEnvironmentIdRespDTO> copy(
-            @AuthenticationPrincipal LoginUser loginUser,
-            @PathVariable UUID id,
-            @RequestBody @Valid ApiEnvironmentCopyReqDTO reqDTO) {
-        return Result.ok(apiEnvironmentService.copyEnvironment(loginUser.getActiveProjectId(), loginUser.getActiveWorkspaceId(), loginUser.getId(), id, reqDTO));
     }
 
     // ========== 连接测试（3.1.7 / 3.1.8，请求体传配置不落库） ==========

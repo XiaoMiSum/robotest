@@ -1,7 +1,6 @@
 package io.github.xiaomisum.robotest.service.apitest;
 
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiDataSourceTestReqDTO;
-import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiEnvironmentCopyReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiEnvironmentSaveReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiEnvironmentSortReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiHttpConfigTestReqDTO;
@@ -41,10 +40,6 @@ public interface ApiEnvironmentService {
     void deleteEnvironment(UUID projectId, UUID workspaceId, UUID userId, UUID id);
 
     ApiEnvironmentSetDefaultRespDTO setDefaultEnvironment(UUID projectId, UUID workspaceId, UUID userId, UUID id);
-
-    /** 复制环境：含 HTTP 配置、变量与处理器；敏感变量值与数据源不复制（详细设计 3.1.11） */
-    ApiEnvironmentIdRespDTO copyEnvironment(UUID projectId, UUID workspaceId, UUID userId, UUID id,
-            ApiEnvironmentCopyReqDTO reqDTO);
 
     void sortEnvironment(UUID projectId, UUID workspaceId, UUID userId, UUID id, ApiEnvironmentSortReqDTO reqDTO);
 

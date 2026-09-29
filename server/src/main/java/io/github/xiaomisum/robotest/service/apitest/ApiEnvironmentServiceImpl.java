@@ -4,7 +4,6 @@ import xyz.migoo.framework.security.core.annotation.AuditLog;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.framework.security.ProjectAccessGuard;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiDataSourceTestReqDTO;
-import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiEnvironmentCopyReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiEnvironmentSaveReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiEnvironmentSortReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiHttpConfigTestReqDTO;
@@ -146,32 +145,6 @@ public class ApiEnvironmentServiceImpl implements ApiEnvironmentService {
         update.setIsDefault(true);
         environmentMapper.updateById(update);
         return new ApiEnvironmentSetDefaultRespDTO(true);
-    }
-
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    @AuditLog(action = "CREATE:ApiEnvironment")
-    public ApiEnvironmentIdRespDTO copyEnvironment(UUID projectId, UUID workspaceId, UUID userId, UUID id,
-            ApiEnvironmentCopyReqDTO reqDTO) {
-        projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
-        ApiEnvironment source = requireEnv(projectId, id);
-        if (environmentMapper.existsByProjectIdAndName(projectId, reqDTO.getName(), null)) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.API_ENV_NAME_EXISTS);
-        }
-        ApiEnvironmentDetailRespDTO detail = EnvironmentEffectiveSnapshot.assembleDetail(source);
-        ApiEnvironment copy = new ApiEnvironment();
-        copy.setId(UUID.randomUUID());
-        copy.setProjectId(projectId);
-        copy.setName(reqDTO.getName());
-        copy.setDescription(source.getDescription());
-        copy.setScope(SCOPE_PROJECT);
-        // 副本始终不抢占默认标记，避免复制操作改变执行默认行为
-        copy.setIsDefault(false);
-        copy.setSortOrder(nextSortOrder(projectId));
-
-        EnvironmentEffectiveSnapshot.applyAggregate(copy, EnvironmentEffectiveSnapshot.fromDetail(detail));
-        environmentMapper.insert(copy);
-        return new ApiEnvironmentIdRespDTO(copy.getId().toString());
     }
 
     @Override
