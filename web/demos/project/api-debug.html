@@ -41,11 +41,14 @@
   .history__group-title { margin: var(--space-sm) 0; font-size: var(--font-size-xs); font-weight: 600; color: var(--n-400); }
   .history__item { display: flex; align-items: center; gap: var(--space-sm); padding: 6px var(--space-sm); border-radius: var(--radius-sm); }
   .history__item:hover { background: var(--n-50); }
+  /* 信息列固定列宽：行数据长短不一时方法/状态码/时间与操作列保持对齐（与实现同步） */
+  .history__item .ws-tab__method { width: 56px; }
+  .history__rename { flex: 1; min-width: 0; font-size: var(--font-size-xs); }
   .history__item-main { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 0; border: none; background: transparent; cursor: pointer; text-align: left; font: inherit; }
   .history__item-name { font-size: var(--font-size-xs); color: var(--n-700); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .history__item-url { font-size: var(--font-size-xs); color: var(--n-400); font-family: var(--font-mono); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .history__item-meta { font-size: var(--font-size-xs); color: var(--n-400); white-space: nowrap; }
-  .history__code { padding: 1px 6px; border-radius: 3px; font-family: var(--font-mono); font-size: var(--font-size-xs); font-weight: 600; }
+  .history__item-meta { width: 150px; font-size: var(--font-size-xs); color: var(--n-400); white-space: nowrap; }
+  .history__code { width: 40px; text-align: center; padding: 1px 6px; border-radius: 3px; font-family: var(--font-mono); font-size: var(--font-size-xs); font-weight: 600; }
   .history__code--ok { color: var(--st-success-strong); background: var(--st-success-light); }
   .history__code--fail { color: var(--st-danger-strong); background: var(--st-danger-light); }
   .history__empty { margin-top: 80px; text-align: center; color: var(--n-300); font-size: var(--font-size-sm); }
@@ -602,12 +605,38 @@
           + '</button>'
           + '<span class="history__item-meta">' + r.at + ' · ' + r.ms + 'ms</span>'
           + '<span class="op-link" data-restore>恢复</span>'
+          + '<span class="op-link" data-rename>重命名</span>'
           + '<span class="op-link op-link--danger" data-del>删除</span>'
           + '</div>';
       });
       html += '</section>';
     });
     historyList.innerHTML = html;
+  }
+
+  // 行内重命名（docs28 1.7）：输入框替换主名列，回车或失焦提交，Enter 后的 blur 不重复提交
+  function startInlineRename(id, item) {
+    var rec = historyRecords.filter(function (r) { return r.id === id; })[0];
+    var main = item.querySelector('.history__item-main');
+    if (!rec || !main) return;
+    var input = document.createElement('input');
+    input.className = 'input history__rename';
+    input.value = rec.name;
+    main.replaceWith(input);
+    var done = false;
+    function commit() {
+      if (done) return;
+      done = true;
+      var name = input.value.trim();
+      if (name && name !== rec.name) {
+        rec.name = name;
+        RTUX.toast('已重命名', { type: 'success' });
+      }
+      renderHistory();
+    }
+    input.addEventListener('keydown', function (e2) { if (e2.key === 'Enter') commit(); });
+    input.addEventListener('blur', commit);
+    input.focus();
   }
 
   // 恢复请求：新建标签回填该记录的方法与 URL，并切回调试视图（docs28 1.7）
@@ -632,6 +661,10 @@
       historyRecords = historyRecords.filter(function (r) { return r.id !== id; });
       renderHistory();
       RTUX.toast('已删除');
+      return;
+    }
+    if (e.target.closest('[data-rename]')) {
+      startInlineRename(id, item);
       return;
     }
     if (e.target.closest('[data-restore]')) restoreHistoryRecord(id);
