@@ -66,4 +66,32 @@ describe('KeyValueTable', () => {
       expect(entries).toHaveLength(0)
     })
   })
+
+  describe('emptyText 空态占位', () => {
+    it('空表渲染占位行并横跨表头全部列', () => {
+      const wrapper = mountTable([], { headerAdd: true, emptyText: '暂无变量，点击表头 [＋ 新增]' })
+      const cell = wrapper.find('.kv-table__empty td')
+      expect(cell.exists()).toBe(true)
+      expect(cell.text()).toBe('暂无变量，点击表头 [＋ 新增]')
+      expect(cell.attributes('colspan')).toBe(String(wrapper.findAll('thead th').length))
+    })
+
+    it('含描述列与启用列时 colspan 随表头列数变化', () => {
+      const wrapper = mountTable([], {
+        headerAdd: true, emptyText: '暂无变量', showDescription: true, showEnabled: true,
+      })
+      expect(wrapper.findAll('thead th')).toHaveLength(5)
+      expect(wrapper.find('.kv-table__empty td').attributes('colspan')).toBe('5')
+    })
+
+    it('有数据时不渲染占位行', () => {
+      const wrapper = mountTable([makeRow({ key: 'BASE_URL' })], { headerAdd: true, emptyText: '暂无变量' })
+      expect(wrapper.find('.kv-table__empty').exists()).toBe(false)
+    })
+
+    it('未传空态文案时不渲染占位行', () => {
+      const wrapper = mountTable([], { headerAdd: true })
+      expect(wrapper.find('.kv-table__empty').exists()).toBe(false)
+    })
+  })
 })
