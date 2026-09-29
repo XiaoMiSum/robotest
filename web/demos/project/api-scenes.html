@@ -236,12 +236,13 @@
   .arg-row { display: flex; align-items: center; gap: var(--space-sm); }
   .arg-row .input { flex: 1; height: 28px; }
 
-  /* 处理器提取器行：与公共组件处理器配置同构 */
+  /* 处理器提取器行：行即容器，不套卡片外框；操作入口靠右 */
   .pane-actions { display: flex; justify-content: flex-end; gap: var(--space-md); margin-bottom: var(--space-sm); }
-  .pane-list { display: flex; flex-direction: column; gap: var(--space-sm); }
-  .pane-card { display: flex; align-items: center; gap: var(--space-sm); border: 1px solid var(--n-200); border-radius: var(--radius-md); padding: var(--space-sm) var(--space-md); }
-  .pane-card .select { width: 148px; flex: none; }
-  .pane-card .input { flex: 1; min-width: 0; height: 28px; font-size: var(--font-size-xs); }
+  .pane-list { display: flex; flex-direction: column; }
+  .pane-row { display: flex; align-items: center; gap: var(--space-sm); padding: 8px 0; border-bottom: 1px solid var(--n-100); }
+  .pane-row:last-child { border-bottom: none; }
+  .pane-row .select { width: 148px; flex: none; height: 28px; font-size: var(--font-size-xs); }
+  .pane-row .input { flex: 1; min-width: 0; height: 28px; font-size: var(--font-size-xs); }
 
   /* 变量 / 处理器面板 */
   .pane-pad { padding: 14px; overflow-y: auto; }
@@ -774,7 +775,7 @@
                             <button class="btn btn--link btn--sm" data-ux-feedback="从公共组件引入为复制，得到独立副本，与源资产无关联">从公共组件获取</button>
                           </div>
                           <div class="pane-list">
-                            <div class="pane-card">
+                            <div class="pane-row">
                               <button class="switch is-on" title="启用"></button>
                               <select class="select"><option>JSON 字段</option><option>响应头</option><option>正则匹配</option><option>完整响应体</option></select>
                               <input class="input" value="$.data.token" placeholder="表达式">
@@ -811,7 +812,7 @@
                             <button class="btn btn--link btn--sm" data-ux-feedback="从公共组件引入为复制，得到独立副本，与源资产无关联">从公共组件获取</button>
                           </div>
                           <div class="pane-list">
-                            <div class="pane-card">
+                            <div class="pane-row">
                               <button class="switch is-on" title="启用"></button>
                               <select class="select"><option>JSON 字段</option><option>响应头</option><option>正则匹配</option><option>完整响应体</option></select>
                               <input class="input" value="$.stock" placeholder="表达式">
@@ -947,7 +948,7 @@
                             <button class="btn btn--link btn--sm" data-ux-feedback="从公共组件引入为复制，得到独立副本，与源资产无关联">从公共组件获取</button>
                           </div>
                           <div class="pane-list">
-                            <div class="pane-card">
+                            <div class="pane-row">
                               <button class="switch is-on" title="启用"></button>
                               <select class="select"><option>JSON 字段</option><option>响应头</option><option>正则匹配</option><option>完整响应体</option></select>
                               <input class="input" value="$.data.taskId" placeholder="表达式">
@@ -1227,7 +1228,7 @@
     var pane = root.querySelector('[data-epanel="extractors"]');
     var count = root.querySelector('[data-etab="extractors"] .count');
     if (!pane || !count) return;
-    var n = pane.querySelectorAll('.pane-card').length;
+    var n = pane.querySelectorAll('.pane-row').length;
     count.textContent = n;
     count.hidden = n === 0;
   }
@@ -1245,7 +1246,7 @@
         card.querySelectorAll('input').forEach(function (i) { i.value = ''; });
       } else {
         card = document.createElement('div');
-        card.className = 'pane-card';
+        card.className = 'pane-row';
         card.innerHTML = EXT_CARD_HTML;
       }
       list.appendChild(card);
@@ -1256,7 +1257,7 @@
     }
     var delExt = e.target.closest('[data-delext]');
     if (delExt) {
-      var cardEl = delExt.closest('.pane-card');
+      var cardEl = delExt.closest('.pane-row');
       var root = delExt.closest('[data-etabs-root]');
       if (cardEl) cardEl.remove();
       if (root) syncExtCount(root);
