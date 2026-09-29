@@ -102,10 +102,9 @@
     color: #d4d4d4; background: #1e1e1e; border: 1px solid #333; border-radius: 6px; outline: none;
   }
 
-  /* 验证器 / 提取器行：行即容器，不再套卡片外框；操作入口靠右 */
+  /* 验证器 / 提取器行：行即容器，不套外框、行间不画分割线；操作入口靠右 */
   .pane-actions { display: flex; justify-content: flex-end; gap: var(--space-md); margin-bottom: var(--space-sm); }
-  .pane-row { display: flex; align-items: center; gap: var(--space-sm); flex-wrap: wrap; padding: 8px 0; border-bottom: 1px solid var(--n-100); }
-  .pane-row:last-child { border-bottom: none; }
+  .pane-row { display: flex; align-items: center; gap: var(--space-sm); flex-wrap: wrap; padding: 8px 0; }
   .pane-row .select { width: 132px; height: 28px; font-size: var(--font-size-xs); }
   .pane-row .input { flex: 1; min-width: 160px; height: 28px; font-size: var(--font-size-xs); }
 

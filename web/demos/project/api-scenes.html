@@ -217,6 +217,9 @@
   .kv .cell-input { width: 100%; height: 28px; border: 1px solid transparent; border-radius: var(--radius-sm); padding: 0 8px; font-size: var(--font-size-xs); background: none; }
   .kv .cell-input:hover { border-color: var(--n-200); background: #fff; }
   .kv .cell-input:focus { outline: none; border-color: var(--brand-500); background: #fff; }
+  /* 步骤的验证器 / 提取器配置：与处理器提取器行同口径，行间不画分割线 */
+  [data-epanel="validators"] .kv td,
+  [data-epanel="extractors"] .kv td { border-bottom: none; }
 
   .bodytypes { display: inline-flex; gap: 2px; background: var(--n-50); border: 1px solid var(--n-100); border-radius: 6px; padding: 2px; margin-bottom: 8px; }
   .bodytype { height: 26px; padding: 0 12px; border: none; background: none; border-radius: 4px; font-size: var(--font-size-xs); color: var(--n-500); cursor: pointer; }
@@ -236,11 +239,10 @@
   .arg-row { display: flex; align-items: center; gap: var(--space-sm); }
   .arg-row .input { flex: 1; height: 28px; }
 
-  /* 处理器提取器行：行即容器，不套卡片外框；操作入口靠右 */
+  /* 处理器提取器行：行即容器，不套外框、行间不画分割线；操作入口靠右 */
   .pane-actions { display: flex; justify-content: flex-end; gap: var(--space-md); margin-bottom: var(--space-sm); }
   .pane-list { display: flex; flex-direction: column; }
-  .pane-row { display: flex; align-items: center; gap: var(--space-sm); padding: 8px 0; border-bottom: 1px solid var(--n-100); }
-  .pane-row:last-child { border-bottom: none; }
+  .pane-row { display: flex; align-items: center; gap: var(--space-sm); padding: 8px 0; }
   .pane-row .select { width: 148px; flex: none; height: 28px; font-size: var(--font-size-xs); }
   .pane-row .input { flex: 1; min-width: 0; height: 28px; font-size: var(--font-size-xs); }
 
