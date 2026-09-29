@@ -474,11 +474,6 @@ watch([list, listLoading, loadingMore, loadingPrev], async () => {
   word-break: break-all;
 }
 
-/* 提取器只读表格：表头沿用全局表格变量，仅去掉行间重边框 */
-:deep(.cp-ext-table) {
-  --el-table-border-color: var(--color-neutral-100);
-}
-
 /* 编辑面板表单 */
 :deep(.cp-form__grid) {
   display: grid;
