@@ -6,6 +6,8 @@ import type { DsForm, HttpConfigForm } from './useEnvironmentConfig'
 const mocks = vi.hoisted(() => ({
   fetchEnvironmentDetail: vi.fn<(id: string) => Promise<ApiEnvironmentDetail>>(),
   updateEnvironment: vi.fn<(id: string, data: unknown) => Promise<boolean>>(),
+  createEnvironment: vi.fn<(data: unknown) => Promise<{ id: string }>>(),
+  emptyEnvironmentDetail: vi.fn<(sortOrder: number) => ApiEnvironmentDetail>(),
   resolveEnvironmentError: vi.fn<(err: unknown) => string>(),
   validateVariableRow: vi.fn<(row: { name: string; value: string }, others: Set<string>) => string | null>(),
   ElMessage: { success: vi.fn(), error: vi.fn(), warning: vi.fn() },
@@ -20,10 +22,12 @@ vi.mock('element-plus', () => ({ ElMessage: mocks.ElMessage }))
 vi.mock('@/services/project/api-testing/environment', () => ({
   fetchEnvironmentDetail: mocks.fetchEnvironmentDetail,
   updateEnvironment: mocks.updateEnvironment,
+  createEnvironment: mocks.createEnvironment,
 }))
 vi.mock('@/composables/project/api-testing/environment/environmentsModel', () => ({
   resolveEnvironmentError: mocks.resolveEnvironmentError,
   validateVariableRow: mocks.validateVariableRow,
+  emptyEnvironmentDetail: mocks.emptyEnvironmentDetail,
 }))
 vi.mock('@/services/project/api-testing/component', () => ({ fetchComponents: mocks.fetchComponents }))
 vi.mock('@/composables/project/api-testing/processorFormModel', () => ({
@@ -136,6 +140,7 @@ describe('useEnvironmentDetailState', () => {
     vi.clearAllMocks()
     mocks.resolveEnvironmentError.mockReturnValue('操作失败')
     mocks.validateVariableRow.mockReturnValue(null)
+    mocks.emptyEnvironmentDetail.mockReturnValue(makeDetail({ id: '', name: '' }))
     mocks.isRecord.mockImplementation((v) => v !== null && typeof v === 'object' && !Array.isArray(v))
   })
 
@@ -183,6 +188,88 @@ describe('useEnvironmentDetailState', () => {
     it('procAssetPickerVisible 初始为 false', () => {
       const { procAssetPickerVisible } = useEnvironmentDetailState({ environmentId: 'env-1', canEdit: true }, vi.fn())
       expect(procAssetPickerVisible.value).toBe(false)
+    })
+  })
+
+  describe('新建态（mode=create）', () => {
+    it('createMode 为 true 且禁用连接测试', () => {
+      const state = useEnvironmentDetailState({ canEdit: true, mode: 'create' }, vi.fn())
+      expect(state.createMode.value).toBe(true)
+      expect(state.canTestConnections.value).toBe(false)
+    })
+
+    it('详情态允许连接测试', () => {
+      const state = useEnvironmentDetailState({ environmentId: 'env-1', canEdit: true }, vi.fn())
+      expect(state.createMode.value).toBe(false)
+      expect(state.canTestConnections.value).toBe(true)
+    })
+
+    it('load 以 seed 预填且不请求详情', async () => {
+      const state = useEnvironmentDetailState(
+        { canEdit: true, mode: 'create', seed: makeDetail({ id: '', name: '生产（副本）' }) },
+        vi.fn(),
+      )
+      await state.load()
+      expect(mocks.fetchEnvironmentDetail).not.toHaveBeenCalled()
+      expect(state.loadError.value).toBe(false)
+      expect(state.detail.value?.name).toBe('生产（副本）')
+    })
+
+    it('无 seed 时以空壳环境预填', async () => {
+      const state = useEnvironmentDetailState({ canEdit: true, mode: 'create' }, vi.fn())
+      await state.load()
+      expect(mocks.emptyEnvironmentDetail).toHaveBeenCalledWith(0)
+      expect(state.detail.value?.name).toBe('')
+    })
+
+    it('saveAll 走创建接口并 emit created', async () => {
+      mocks.createEnvironment.mockResolvedValue({ id: 'new-id' })
+      const emit = vi.fn()
+      const state = useEnvironmentDetailState(
+        { canEdit: true, mode: 'create', seed: makeDetail({ id: '', name: '新环境' }) },
+        emit,
+      )
+      await state.load()
+      await state.saveAll()
+      expect(mocks.createEnvironment).toHaveBeenCalledWith(expect.objectContaining({ name: '新环境' }))
+      expect(mocks.updateEnvironment).not.toHaveBeenCalled()
+      expect(emit).toHaveBeenCalledWith('created', 'new-id')
+      expect(mocks.ElMessage.success).toHaveBeenCalledWith('环境已创建')
+    })
+
+    it('名称为空时提示且不调用创建接口', async () => {
+      const state = useEnvironmentDetailState(
+        { canEdit: true, mode: 'create', seed: makeDetail({ id: '', name: '   ' }) },
+        vi.fn(),
+      )
+      await state.load()
+      await state.saveAll()
+      expect(mocks.ElMessage.warning).toHaveBeenCalledWith('环境名称不能为空')
+      expect(mocks.createEnvironment).not.toHaveBeenCalled()
+    })
+
+    it('无编辑权限时 saveAll 不调用创建接口', async () => {
+      const state = useEnvironmentDetailState(
+        { canEdit: false, mode: 'create', seed: makeDetail({ id: '', name: '新环境' }) },
+        vi.fn(),
+      )
+      await state.load()
+      await state.saveAll()
+      expect(mocks.createEnvironment).not.toHaveBeenCalled()
+    })
+
+    it('dirty 变化时 emit dirty-change', async () => {
+      const emit = vi.fn()
+      const state = useEnvironmentDetailState(
+        { canEdit: true, mode: 'create', seed: makeDetail({ id: '', name: '新环境' }) },
+        emit,
+      )
+      await state.load()
+      expect(emit).toHaveBeenCalledWith('dirty-change', false)
+      const detail = state.detail.value
+      if (detail) detail.name = '改名'
+      await nextTick()
+      expect(emit).toHaveBeenCalledWith('dirty-change', true)
     })
   })
 

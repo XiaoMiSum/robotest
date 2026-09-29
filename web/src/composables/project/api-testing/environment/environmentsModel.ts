@@ -185,6 +185,50 @@ export function buildSavePayload(
   }
 }
 
+// ==================== 新建态 seed ====================
+
+/** 新建态空壳：一条待填写的 HTTP 配置，其余子资源为空（新建入口，交互设计 34 §1.4） */
+export function emptyEnvironmentDetail(sortOrder: number): ApiEnvironmentDetail {
+  return {
+    id: '',
+    name: '',
+    description: '',
+    scope: 'project',
+    isDefault: false,
+    sortOrder,
+    httpConfigs: [createEmptyHttpConfig(1)],
+    variables: [],
+    dataSources: [],
+    processors: [],
+  }
+}
+
+/** 复制预填 seed：源详情整体成为待创建副本，改名、不抢占默认标记并排到列表末尾 */
+export function seedFromDetail(
+  source: ApiEnvironmentDetail,
+  name: string,
+  sortOrder: number,
+): ApiEnvironmentDetail {
+  return {
+    ...source,
+    id: '',
+    name,
+    isDefault: false,
+    sortOrder,
+    httpConfigs: source.httpConfigs.map((config) => ({
+      ...config,
+      headers: normalizeHeaders(config.headers),
+    })),
+    variables: source.variables.map((row) => ({ ...row })),
+    dataSources: source.dataSources.map((row) => ({ ...row })),
+    // 处理器 config 会被表单原地改写，深一层拷贝避免污染源详情
+    processors: source.processors.map((row) => ({
+      ...row,
+      config: row.config ? { ...row.config } : row.config,
+    })),
+  }
+}
+
 export function createEmptyHttpConfig(index: number): ApiHttpConfigPayload & { id?: string; headers: ApiHeaderItem[] } {
   return {
     name: `配置 ${index}`,

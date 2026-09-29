@@ -38,6 +38,9 @@
   .env-detail__head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm); margin-bottom: var(--space-md); }
   .env-detail__head-actions { display: flex; align-items: center; gap: var(--space-sm); flex-shrink: 0; }
   .env-detail__id { display: flex; align-items: center; gap: var(--space-sm); min-width: 0; }
+  .env-detail__create { display: flex; align-items: center; gap: var(--space-sm); flex: 1; min-width: 0; }
+  .env-detail__create-name { width: 220px; flex-shrink: 0; }
+  .env-detail__create-desc { flex: 1; min-width: 0; }
   .env-detail__name { font-size: var(--font-size-lg); font-weight: 600; color: var(--n-800); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .etabs { display: flex; align-items: center; gap: 2px; }
   .etab { display: inline-flex; align-items: center; gap: 6px; padding: 9px 14px; margin-bottom: -1px; font-size: var(--font-size-sm); font-weight: 500; color: var(--n-500); background: none; border: none; border-bottom: 2px solid transparent; border-radius: var(--radius-md) var(--radius-md) 0 0; cursor: pointer; white-space: nowrap; transition: color var(--transition-fast), background var(--transition-fast); }
@@ -243,14 +246,23 @@
           <section class="env-detail">
             <div class="env-detail__top">
               <div class="env-detail__head">
-                <div class="env-detail__id">
+                <div class="env-detail__id" id="env-detail-id">
                   <span class="env-detail__name">测试环境</span>
                   <span class="tag tag--warning">默认</span>
                   <span class="tag tag--outline">项目</span>
                 </div>
+                <!-- 新建态（新建 / 复制共用，docs34 §1.4） -->
+                <div class="env-detail__create" id="env-create-head" hidden>
+                  <input class="input env-detail__create-name" id="env-create-name" maxlength="100" placeholder="环境名称（必填）">
+                  <input class="input env-detail__create-desc" id="env-create-desc" maxlength="500" placeholder="描述（可选）">
+                  <button class="switch" id="env-create-default" type="button" aria-label="设为默认"></button>
+                  <span class="field__hint">设为默认</span>
+                </div>
                 <div class="env-detail__head-actions">
                   <span class="tag tag--warning" id="env-dirty" style="display:none">未保存</span>
+                  <button class="btn btn--default btn--sm" id="env-cancel" hidden>取消</button>
                   <button class="btn btn--primary btn--sm" id="env-save">保存全部</button>
+                  <button class="btn btn--primary btn--sm" id="env-create-ok" hidden>创建</button>
                 </div>
               </div>
 
@@ -296,6 +308,7 @@
                   <div class="form-actions" data-testconn="http">
                     <button class="btn btn--default btn--sm">测试连接</button>
                     <span class="conn-result" hidden></span>
+                    <span class="field__hint" data-conn-hint hidden>创建环境后可测试连接</span>
                     <button class="btn btn--danger btn--sm">删除</button>
                   </div>
                 </div>
@@ -351,6 +364,7 @@
                   <div class="form-actions" data-testconn="ds">
                     <button class="btn btn--default btn--sm">测试连接</button>
                     <span class="conn-result" hidden></span>
+                    <span class="field__hint" data-conn-hint hidden>创建环境后可测试连接</span>
                     <button class="btn btn--danger btn--sm">删除</button>
                   </div>
                 </div>
@@ -383,32 +397,31 @@
   </div>
 </main>
 
-<!-- 新建 / 编辑 / 复制环境（对应 EnvironmentPage 的三个对话框，字段口径一致） -->
+<!-- 编辑环境（新建 / 复制由右侧面板新建态承载，docs34 §1.4） -->
 <div class="dialog-mask" id="env-dialog" hidden>
   <div class="dialog" style="width:440px">
     <div class="dialog__header">
-      <span class="dialog__title" id="env-dialog-title">新建环境</span>
+      <span class="dialog__title" id="env-dialog-title">编辑环境</span>
       <button class="dialog__close" data-env-close>✕</button>
     </div>
     <div class="dialog__body">
       <div class="field">
-        <label class="field__label" id="env-dialog-label" for="env-dialog-name">名称<span class="req">*</span></label>
+        <label class="field__label" for="env-dialog-name">名称<span class="req">*</span></label>
         <input class="input" style="width:100%" id="env-dialog-name" maxlength="100" placeholder="如：测试环境">
         <div class="field__error" id="env-dialog-err" hidden></div>
       </div>
-      <div class="field" id="env-dialog-desc-row">
+      <div class="field">
         <label class="field__label" for="env-dialog-desc">描述</label>
         <textarea class="textarea" style="width:100%" rows="2" id="env-dialog-desc" maxlength="500" placeholder="可选，环境描述"></textarea>
       </div>
-      <div class="field" id="env-dialog-default-row">
+      <div class="field">
         <label class="field__label">设为默认</label>
         <button class="switch" id="env-dialog-default" type="button"></button>
       </div>
-      <div class="field__hint" id="env-dialog-tip" hidden>复制内容含 HTTP 配置、变量（含取值）与处理器；数据源不复制，需重新填写</div>
     </div>
     <div class="dialog__footer">
       <button class="btn btn--default btn--sm" data-env-close>取消</button>
-      <button class="btn btn--primary btn--sm" id="env-dialog-ok">创建</button>
+      <button class="btn btn--primary btn--sm" id="env-dialog-ok">确定</button>
     </div>
   </div>
 </div>
@@ -506,10 +519,11 @@
         rt.toast('已设为默认', { type: 'success' });
         return;
       }
-      if (key === 'copy') { openEnvDialog('copy', item); return; }
-      if (key === 'edit') { openEnvDialog('edit', item); return; }
+      if (key === 'copy') { startEnvCopy(item); return; }
+      if (key === 'edit') { if (leaveEnvCreate()) openEnvDialog(item); return; }
       return;
     }
+    if (!leaveEnvCreate()) return;
     selectEnv(item);
   });
 
@@ -1267,51 +1281,104 @@
     });
   });
 
-  /* ---------------- 新建 / 编辑 / 复制环境 ---------------- */
+  /* ---------------- 新建态面板（新建 / 复制共用，docs34 §1.4） ---------------- */
+  var envCreateMode = false;
+  var envCreateDirty = false;
+  var envDetailId = document.getElementById('env-detail-id');
+  var envCreateHead = document.getElementById('env-create-head');
+  var envCreateName = document.getElementById('env-create-name');
+  var envCreateDesc = document.getElementById('env-create-desc');
+  var envCreateDefault = document.getElementById('env-create-default');
+  var envCancelBtn = document.getElementById('env-cancel');
+  var envCreateOkBtn = document.getElementById('env-create-ok');
+  // 复制时源环境的子资源计数随副本展示，新建则为零
+  var envCreateMeta = '';
+
+  // 环境尚无 ID，连接测试无从试连，只能创建后再验证
+  function setEnvConnTest(enabled) {
+    document.querySelectorAll('[data-testconn] .btn--default').forEach(function (btn) { btn.disabled = !enabled; });
+    document.querySelectorAll('[data-conn-hint]').forEach(function (hint) { hint.hidden = enabled; });
+  }
+
+  function enterEnvCreate(name, meta) {
+    envCreateMode = true;
+    envCreateDirty = false;
+    envCreateMeta = meta || '';
+    envCreateName.value = name;
+    envCreateName.classList.remove('input--error');
+    envCreateDesc.value = '';
+    envCreateDefault.classList.remove('is-on');
+    envDetailId.hidden = true;
+    envCreateHead.hidden = false;
+    document.getElementById('env-save').hidden = true;
+    envCancelBtn.hidden = false;
+    envCreateOkBtn.hidden = false;
+    envDirty.style.display = 'none';
+    setEnvConnTest(false);
+    envCreateName.focus();
+  }
+
+  function exitEnvCreate() {
+    envCreateMode = false;
+    envCreateDirty = false;
+    envDetailId.hidden = false;
+    envCreateHead.hidden = true;
+    document.getElementById('env-save').hidden = false;
+    envCancelBtn.hidden = true;
+    envCreateOkBtn.hidden = true;
+    setEnvConnTest(true);
+  }
+
+  /** 离开新建态：有改动先确认放弃，避免已填内容被静默丢弃 */
+  function leaveEnvCreate() {
+    if (!envCreateMode) return true;
+    if (envCreateDirty && !window.confirm('新建内容尚未创建，确认放弃？')) return false;
+    exitEnvCreate();
+    return true;
+  }
+
+  function startEnvCreate() {
+    if (!leaveEnvCreate()) return;
+    enterEnvCreate('');
+  }
+
+  /** 复制：源环境整体预填为待创建副本，与新建同排到列表末尾 */
+  function startEnvCopy(item) {
+    if (!leaveEnvCreate()) return;
+    var meta = item.querySelector('.env-item__meta');
+    enterEnvCreate(item.getAttribute('data-env') + '（副本）', meta ? meta.textContent : '');
+  }
+
+  ['input', 'change'].forEach(function (type) {
+    envCreateHead.addEventListener(type, function () { envCreateDirty = true; });
+  });
+  envCreateDefault.addEventListener('click', function () { envCreateDirty = true; });
+  envCancelBtn.addEventListener('click', leaveEnvCreate);
+  document.getElementById('env-create').addEventListener('click', startEnvCreate);
+
+  /* ---------------- 编辑环境（单弹窗；新建 / 复制由面板新建态承载） ---------------- */
   var envDialog = document.getElementById('env-dialog');
   var envNameInput = document.getElementById('env-dialog-name');
   var envErr = document.getElementById('env-dialog-err');
   var envOkBtn = document.getElementById('env-dialog-ok');
-  var envDialogMode = 'create';
   var envDialogTarget = null;
 
-  function openEnvDialog(mode, item) {
-    envDialogMode = mode;
-    envDialogTarget = item || null;
+  function openEnvDialog(item) {
+    envDialogTarget = item;
     envErr.hidden = true;
     envNameInput.classList.remove('input--error');
-
-    var isCopy = mode === 'copy';
-    document.getElementById('env-dialog-title').textContent =
-      mode === 'create' ? '新建环境' : mode === 'edit' ? '编辑环境' : '复制环境';
-    document.getElementById('env-dialog-label').innerHTML =
-      (isCopy ? '副本名称' : '名称') + '<span class="req">*</span>';
-    document.getElementById('env-dialog-desc-row').hidden = isCopy;
-    document.getElementById('env-dialog-default-row').hidden = isCopy;
-    document.getElementById('env-dialog-tip').hidden = !isCopy;
-    envOkBtn.textContent = mode === 'create' ? '创建' : mode === 'edit' ? '确定' : '复制';
-
-    if (mode === 'edit' && item) {
-      envNameInput.value = item.getAttribute('data-env');
-      document.getElementById('env-dialog-desc').value = '';
-      document.getElementById('env-dialog-default').classList.toggle('is-on', item.hasAttribute('data-default'));
-    } else if (isCopy && item) {
-      envNameInput.value = item.getAttribute('data-env') + ' 副本';
-    } else {
-      envNameInput.value = '';
-      document.getElementById('env-dialog-desc').value = '';
-      document.getElementById('env-dialog-default').classList.remove('is-on');
-    }
+    envNameInput.value = item.getAttribute('data-env');
+    document.getElementById('env-dialog-desc').value = '';
+    document.getElementById('env-dialog-default').classList.toggle('is-on', item.hasAttribute('data-default'));
     envDialog.removeAttribute('hidden');
     envNameInput.focus();
   }
 
-  document.getElementById('env-create').addEventListener('click', function () { openEnvDialog('create', null); });
   envDialog.addEventListener('click', function (e) {
     if (e.target === envDialog || e.target.hasAttribute('data-env-close')) envDialog.setAttribute('hidden', '');
   });
 
-  function buildEnvItem(name) {
+  function buildEnvItem(name, meta) {
     var tpl = document.querySelector('.env-item[data-env="预发环境"]') || envListItems()[0];
     var li = tpl.cloneNode(true);
     li.classList.remove('is-active', 'is-hidden');
@@ -1319,7 +1386,7 @@
     li.setAttribute('data-env', name);
     li.removeAttribute('data-default');
     li.querySelector('.env-item__name').textContent = name;
-    li.querySelector('.env-item__meta').textContent = '0 HTTP · 0 变量 · 0 数据源 · 0 处理器';
+    li.querySelector('.env-item__meta').textContent = meta || '0 HTTP · 0 变量 · 0 数据源 · 0 处理器';
     // 由默认环境克隆时会带上「默认」标记，这里重置为普通环境
     var defTag = li.querySelector('.env-item__main .tag--warning');
     if (defTag) defTag.remove();
@@ -1370,8 +1437,7 @@
       rt.toast('请填写环境名称', { type: 'warning' });
       return;
     }
-    if (envNames().indexOf(name) >= 0 && !(envDialogMode === 'edit' && envDialogTarget
-        && envDialogTarget.getAttribute('data-env') === name)) {
+    if (envNames().indexOf(name) >= 0 && envDialogTarget.getAttribute('data-env') !== name) {
       envErr.hidden = false;
       envErr.textContent = '环境名称重复';
       envNameInput.classList.add('input--error');
@@ -1380,7 +1446,6 @@
       return;
     }
 
-    var mode = envDialogMode;
     var target = envDialogTarget;
     var makeDefault = document.getElementById('env-dialog-default').classList.contains('is-on');
     envOkBtn.classList.add('is-saving');
@@ -1388,21 +1453,49 @@
 
     window.setTimeout(function () {
       envOkBtn.classList.remove('is-saving');
-      if (mode === 'edit' && target) {
-        target.setAttribute('data-env', name);
-        target.querySelector('.env-item__name').textContent = name;
-        if (makeDefault) applyDefault(target);
-        rt.toast('已保存', { type: 'success' });
-      } else {
-        var li = buildEnvItem(name);
-        if (target) target.after(li);
-        else envItems.appendChild(li);
-        if (makeDefault) applyDefault(li);
-        selectEnv(li);
-        rt.toast(mode === 'copy' ? '复制成功' : '环境已创建', { type: 'success' });
-      }
-      envOkBtn.textContent = mode === 'create' ? '创建' : mode === 'edit' ? '确定' : '复制';
+      target.setAttribute('data-env', name);
+      target.querySelector('.env-item__name').textContent = name;
+      if (makeDefault) applyDefault(target);
+      rt.toast('已保存', { type: 'success' });
+      envOkBtn.textContent = '确定';
       envDialog.setAttribute('hidden', '');
+      refreshEnvList();
+      syncEnvBadges();
+    }, 500);
+  });
+
+  // 新建态【创建】：与详情态保存共用落库口径，副本排到列表末尾
+  envCreateOkBtn.addEventListener('click', function () {
+    if (envCreateOkBtn.classList.contains('is-saving')) return;
+    var name = envCreateName.value.trim();
+    if (!name) {
+      envCreateName.classList.add('input--error');
+      envCreateName.focus();
+      rt.toast('请填写环境名称', { type: 'warning' });
+      return;
+    }
+    if (envNames().indexOf(name) >= 0) {
+      envCreateName.classList.add('input--error');
+      envCreateName.focus();
+      rt.toast('环境名称重复', { type: 'danger' });
+      return;
+    }
+    envCreateName.classList.remove('input--error');
+
+    var makeDefault = envCreateDefault.classList.contains('is-on');
+    var meta = envCreateMeta;
+    envCreateOkBtn.classList.add('is-saving');
+    envCreateOkBtn.textContent = '提交中…';
+
+    window.setTimeout(function () {
+      envCreateOkBtn.classList.remove('is-saving');
+      envCreateOkBtn.textContent = '创建';
+      var li = buildEnvItem(name, meta);
+      envItems.appendChild(li);
+      if (makeDefault) applyDefault(li);
+      selectEnv(li);
+      exitEnvCreate();
+      rt.toast('环境已创建', { type: 'success' });
       refreshEnvList();
       syncEnvBadges();
     }, 500);
@@ -1458,13 +1551,15 @@
   var envDirty = document.getElementById('env-dirty');
   var envSaveBtn = document.getElementById('env-save');
 
-  // 变更来源：五个标签页的值编辑，以及开关切换、行新增/删除
+  // 变更来源：五个标签页的值编辑，以及开关切换、行新增/删除（新建态由面板自身标记）
   ['input', 'change'].forEach(function (type) {
     envDetail.addEventListener(type, function (e) {
+      if (envCreateMode) return;
       if (e.target.closest && e.target.closest('[data-epanel]')) envDirty.style.display = '';
     });
   });
   envDetail.addEventListener('click', function (e) {
+    if (envCreateMode) return;
     if (e.target.closest && e.target.closest('.switch, [data-addrow], [data-ux-undo], [data-addproc], [data-proc-act], [data-procseg], [data-body], [data-addkv], [data-rmrow], [data-addext], [data-rmext], [data-addarg], [data-rmarg]')) envDirty.style.display = '';
   });
 
