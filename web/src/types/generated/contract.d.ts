@@ -1204,22 +1204,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/project/interfaces/{id}/copy": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["copy"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/project/interfaces/import/url": {
         parameters: {
             query?: never;
@@ -1412,22 +1396,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/project/components/{id}/copy": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["copy_2"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/project/bugs": {
         parameters: {
             query?: never;
@@ -1518,22 +1486,6 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["createStep"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/project/api-scenes/{id}/steps/{stepId}/copy": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["copyStep"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4304,18 +4256,6 @@ export interface components {
             data?: components["schemas"]["CommonComponentIdRespDTO"];
             msg?: string;
         };
-        CommonComponentCopyRespDTO: {
-            id?: string;
-            type?: string;
-            name?: string;
-            sourceAssetId?: string;
-        };
-        ResultCommonComponentCopyRespDTO: {
-            /** Format: int32 */
-            code?: number;
-            data?: components["schemas"]["CommonComponentCopyRespDTO"];
-            msg?: string;
-        };
         BugCreateReqDTO: {
             title: string;
             severity: string;
@@ -4425,9 +4365,6 @@ export interface components {
             code?: number;
             data?: components["schemas"]["ApiExecutionStartRespDTO"];
             msg?: string;
-        };
-        ApiSceneStepCopyReqDTO: {
-            name?: string;
         };
         ApiSceneStepQuickCreateReqDTO: {
             /** Format: uuid */
@@ -9548,34 +9485,6 @@ export interface operations {
             };
         };
     };
-    copy: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: {
-            content: {
-                "application/json": {
-                    [key: string]: string;
-                };
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultMapStringUUID"];
-                };
-            };
-        };
-    };
     importUrl: {
         parameters: {
             query?: never;
@@ -9951,28 +9860,6 @@ export interface operations {
             };
         };
     };
-    copy_2: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultCommonComponentCopyRespDTO"];
-                };
-            };
-        };
-    };
     getBugPage: {
         parameters: {
             query?: {
@@ -10219,33 +10106,6 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["ApiSceneStepSaveReqDTO"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultMapStringString"];
-                };
-            };
-        };
-    };
-    copyStep: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-                stepId: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ApiSceneStepCopyReqDTO"];
             };
         };
         responses: {
