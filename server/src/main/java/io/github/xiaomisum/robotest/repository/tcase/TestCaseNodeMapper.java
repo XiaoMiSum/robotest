@@ -66,7 +66,7 @@ public interface TestCaseNodeMapper extends BaseMapperX<TestCaseNode> {
                 .eq(TestCaseNode::getDocumentId, documentId));
     }
 
-    default long countCaseNodesByDocumentIds(List<String> documentIds) {
+    default long countCaseNodesByDocumentIds(Collection<UUID> documentIds) {
         return selectCount(new LambdaQueryWrapperX<TestCaseNode>()
                 .in(TestCaseNode::getDocumentId, documentIds)
                 .eq(TestCaseNode::getType, Constants.NodeType.CASE));
@@ -82,7 +82,7 @@ public interface TestCaseNodeMapper extends BaseMapperX<TestCaseNode> {
                 .last("LIMIT " + limit));
     }
 
-    default PageResult<TestCaseNode> findCasePage(PageParam pageParam, List<String> documentIds, String keyword, String priority) {
+    default PageResult<TestCaseNode> findCasePage(PageParam pageParam, Collection<UUID> documentIds, String keyword, String priority) {
         var wrapper = new LambdaQueryWrapperX<TestCaseNode>()
                 .in(TestCaseNode::getDocumentId, documentIds)
                 .eq(TestCaseNode::getType, Constants.NodeType.CASE)
