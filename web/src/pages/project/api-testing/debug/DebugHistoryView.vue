@@ -8,6 +8,7 @@ import {
   renameDebugRecord,
 } from '@/services/project/api-testing/debug'
 import { formatDateTime, parseDateTime } from '@/utils/format'
+import { methodBadgeColor } from '@/composables/project/api-testing/debug/useDebugPage'
 
 const emit = defineEmits<{ (e: 'restore', record: ApiDebugRecordItem): void }>()
 
@@ -101,12 +102,6 @@ const groupedRecords = computed<RecordGroup[]>(() => {
 
 // ==================== 行操作 ====================
 
-const STATUS_TAG_TYPES: Record<string, string> = {
-  success: 'success',
-  failed: 'warning',
-  error: 'danger',
-}
-
 async function handleDelete(record: ApiDebugRecordItem) {
   try {
     await ElMessageBox.confirm(`确定删除调试记录「${record.name ?? record.url ?? ''}」？`, '删除记录', { type: 'warning' })
@@ -148,6 +143,17 @@ async function commitRename(record: ApiDebugRecordItem) {
 function handleRestore(record: ApiDebugRecordItem) {
   emit('restore', record)
 }
+
+function responseCodeClass(record: ApiDebugRecordItem): string {
+  if (record.responseStatus == null) return ''
+  return record.responseStatus < 400 ? 'history__code--ok' : 'history__code--fail'
+}
+
+// 示例时间列为 MM-DD HH:mm：年份已由「今天/昨天/更早」分组隐含（交互设计 1.7）
+function formatMetaTime(value: string): string {
+  const text = formatDateTime(value)
+  return text.length > 5 ? text.slice(5) : text
+}
 </script>
 
 <template>
@@ -175,15 +181,20 @@ function handleRestore(record: ApiDebugRecordItem) {
       <section v-for="group in groupedRecords" :key="group.label" class="history__group">
         <h4 class="history__group-title">{{ group.label }}</h4>
         <div v-for="record in group.items" :key="record.id" class="history__item">
-          <el-tag :type="(STATUS_TAG_TYPES[record.status] ?? 'info') as never" effect="plain">
+          <!-- 实底方法徽标与状态码色块对齐示例（交互设计 1.7） -->
+          <span class="history__method" :style="{ background: methodBadgeColor(record.method) }">
             {{ record.method }}
-          </el-tag>
-          <el-tag v-if="record.responseStatus" effect="plain">{{ record.responseStatus }}</el-tag>
+          </span>
+          <!-- 无响应状态时渲染空列，保证状态码之后的各列不因缺值错位 -->
+          <span class="history__code" :class="responseCodeClass(record)">
+            {{ record.responseStatus ?? '' }}
+          </span>
 
           <template v-if="renamingId === record.id">
             <el-input
               v-model="renamingName"
               autofocus
+              class="history__rename"
               @keyup.enter="commitRename(record)"
               @blur="commitRename(record)"
             />
@@ -194,7 +205,7 @@ function handleRestore(record: ApiDebugRecordItem) {
           </button>
 
           <span class="history__item-meta">
-            {{ formatDateTime(record.executedAt) }}
+            {{ formatMetaTime(record.executedAt) }}
             <template v-if="record.durationMs != null"> · {{ record.durationMs }}ms</template>
           </span>
 
@@ -267,6 +278,44 @@ function handleRestore(record: ApiDebugRecordItem) {
     color: var(--color-neutral-400);
   }
 
+  // 实底方法徽标：与调试页签条徽标同款排版（交互稿方法色板）；固定列宽保证多行对齐
+  &__method {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 56px;
+    padding: 1px 5px;
+    border-radius: 3px;
+    color: var(--color-neutral-0);
+    font-size: 10px;
+    font-weight: 700;
+    font-family: var(--font-mono);
+    letter-spacing: 0.5px;
+    flex-shrink: 0;
+  }
+
+  // 状态码列固定 40px：无响应状态的空值行同样占位，避免后续列错位
+  &__code {
+    width: 40px;
+    text-align: center;
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-family: var(--font-mono);
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    flex-shrink: 0;
+
+    &--ok {
+      color: var(--color-success-strong);
+      background: var(--color-success-light);
+    }
+
+    &--fail {
+      color: var(--color-danger-strong);
+      background: var(--color-danger-light);
+    }
+  }
+
   &__item {
     display: flex;
     align-items: center;
@@ -312,7 +361,16 @@ function handleRestore(record: ApiDebugRecordItem) {
     font-family: ui-monospace, monospace;
   }
 
+  // 重命名输入态占满主名列，编辑中其余列保持对齐
+  &__rename {
+    flex: 1;
+    min-width: 0;
+  }
+
+  // 时间列固定宽度：耗时位数不一时操作链接仍与上一行对齐
   &__item-meta {
+    width: 150px;
+    flex-shrink: 0;
     font-size: var(--font-size-xs);
     color: var(--color-neutral-400);
     white-space: nowrap;
