@@ -28,6 +28,11 @@ const METHOD_COLORS: Record<string, string> = {
   CONNECT: '#e8d44d',
 }
 
+/** 实底方法徽标色（页签条与历史记录条目共用同一色板，对齐示例） */
+export function methodBadgeColor(method: string): string {
+  return METHOD_COLORS[method.toUpperCase()] ?? '#999'
+}
+
 function normalizeBodyType(type?: string): 'none' | 'json' | 'form' | 'raw' | 'binary' {
   if (type === 'json' || type === 'form' || type === 'raw' || type === 'binary') return type
   return 'none'
@@ -242,7 +247,7 @@ export function useDebugPage(emit: (e: 'view-interface', interfaceId: string) =>
   }
 
   function methodColor(method: string): string {
-    return METHOD_COLORS[method.toUpperCase()] ?? '#999'
+    return methodBadgeColor(method)
   }
 
   function handleAuxClick(e: MouseEvent, tab: DebugTab) {
