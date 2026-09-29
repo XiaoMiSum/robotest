@@ -15,10 +15,10 @@ const {
   testingHttpId, runHttpTest, httpConnResult,
   activeDsId, activeDs, orderedDsForms, selectDs, selectedDsDriverOption, handleDsDriverChange,
   addDataSource, removeDataSource, testingDsId, runDsTest, dsConnResult,
-  activeProcId, selectedProcessor, preProcCount, postProcCount,
-  procList, selectProcessor, addProcessor, removeProcessor,
-  moveProcessor, copyProcessor, procTestclass, procHttpRefOptions, procDsRefOptions,
-  procHttpRef, procDsRef, procTags, procDisplayName,
+  procExpandedId, procDraft, procDraftMode, preProcCount, postProcCount,
+  procList, removeProcessor, moveProcessor, copyProcessor,
+  toggleProcDetail, startProcEdit, startProcAdd, cancelProcDraft, commitProcDraft,
+  procTags, procDisplayName, procDetail,
   variableCount, load, saveAll,
   extractorPickerVisible, extractorPickerLoading, extractorPickerItems, extractorPickerKeyword,
   openExtractorPicker, handleExtractorPicked, loadExtractorAssets,
@@ -234,24 +234,23 @@ const tabs = computed(() => [
       <div v-show="activeTab === 'preprocessors'" class="epanel">
         <EnvironmentProcessorPane
           processor-type="preprocessor"
-          title="前置处理器"
-          empty-description="暂无前置处理器"
+          empty-description="暂无前置处理器，点击 [＋ 添加处理器] 新增"
           :count="preProcCount"
           :can-edit="canEdit"
           :processors="procList('preprocessor')"
-          :active-proc-id="activeProcId"
-          :selected-processor="selectedProcessor"
-          :proc-testclass="procTestclass"
-          :proc-http-ref="procHttpRef"
-          :proc-ds-ref="procDsRef"
-          :proc-http-ref-options="procHttpRefOptions"
-          :proc-ds-ref-options="procDsRefOptions"
+          :draft="procDraft"
+          :draft-mode="procDraftMode"
+          :expanded-id="procExpandedId"
           :config-forms="configForms"
           :ds-forms="dsForms"
           :proc-tags="procTags"
           :proc-display-name="procDisplayName"
-          @select="selectProcessor"
-          @add="addProcessor('preprocessor')"
+          :proc-detail="procDetail"
+          @toggle-detail="toggleProcDetail"
+          @add="startProcAdd('preprocessor')"
+          @edit="startProcEdit"
+          @cancel="cancelProcDraft"
+          @save="commitProcDraft"
           @remove="removeProcessor"
           @move="(i, d) => moveProcessor('preprocessor', i, d)"
           @copy="copyProcessor"
@@ -264,24 +263,23 @@ const tabs = computed(() => [
       <div v-show="activeTab === 'postprocessors'" class="epanel">
         <EnvironmentProcessorPane
           processor-type="postprocessor"
-          title="后置处理器"
-          empty-description="暂无后置处理器"
+          empty-description="暂无后置处理器，点击 [＋ 添加处理器] 新增"
           :count="postProcCount"
           :can-edit="canEdit"
           :processors="procList('postprocessor')"
-          :active-proc-id="activeProcId"
-          :selected-processor="selectedProcessor"
-          :proc-testclass="procTestclass"
-          :proc-http-ref="procHttpRef"
-          :proc-ds-ref="procDsRef"
-          :proc-http-ref-options="procHttpRefOptions"
-          :proc-ds-ref-options="procDsRefOptions"
+          :draft="procDraft"
+          :draft-mode="procDraftMode"
+          :expanded-id="procExpandedId"
           :config-forms="configForms"
           :ds-forms="dsForms"
           :proc-tags="procTags"
           :proc-display-name="procDisplayName"
-          @select="selectProcessor"
-          @add="addProcessor('postprocessor')"
+          :proc-detail="procDetail"
+          @toggle-detail="toggleProcDetail"
+          @add="startProcAdd('postprocessor')"
+          @edit="startProcEdit"
+          @cancel="cancelProcDraft"
+          @save="commitProcDraft"
           @remove="removeProcessor"
           @move="(i, d) => moveProcessor('postprocessor', i, d)"
           @copy="copyProcessor"

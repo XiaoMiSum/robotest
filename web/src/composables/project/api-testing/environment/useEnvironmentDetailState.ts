@@ -77,10 +77,10 @@ export function useEnvironmentDetailState(
   } = useEnvironmentDatasource(dsForms, nextLocalId)
 
   const {
-    activeProcId, selectedProcessor, preProcCount, postProcCount,
-    procList, procElement, selectProcessor, addProcessor, removeProcessor,
-    moveProcessor, copyProcessor, procTestclass, procHttpRefOptions, procDsRefOptions,
-    procHttpRef, procDsRef, procTags, procDisplayName, applyDefaultProcRef,
+    activeProcId, procExpandedId, procDraft, procDraftMode, selectedProcessor,
+    preProcCount, postProcCount, procList, procElement, removeProcessor,
+    moveProcessor, copyProcessor, toggleProcDetail, startProcEdit, startProcAdd,
+    cancelProcDraft, commitProcDraft, procTags, procDisplayName, procDetail, applyDefaultProcRef,
   } = useEnvironmentProcessors(processorRows, orderedConfigForms, orderedDsForms, nextLocalId, nextProcSortOrder)
 
   const variableCount = computed(() => variableRows.value.filter((row) => row.key.trim()).length)
@@ -94,9 +94,27 @@ export function useEnvironmentDetailState(
     applyDefaultProcRef(processor)
   })
 
+  // 类型切换在 ProcessorForm 内部完成，只能观察结果补默认引用（docs34 §1.3）
+  watch(
+    () => {
+      const processor = selectedProcessor.value
+      if (!processor) return ''
+      const klass = procElement(processor).testclass
+      return klass === 'http' || klass === 'jdbc' ? klass : ''
+    },
+    () => applyDefaultProcRef(selectedProcessor.value),
+  )
+
   watch(activeTab, (tab) => {
-    if (tab !== 'preprocessors' && tab !== 'postprocessors') { activeProcId.value = ''; return }
+    // 展开明细与草稿表单不跨页签残留，切走即收起（docs34 §1.3 同一时刻仅一处展开）
+    procExpandedId.value = ''
+    if (tab !== 'preprocessors' && tab !== 'postprocessors') {
+      cancelProcDraft()
+      activeProcId.value = ''
+      return
+    }
     const type = tab === 'preprocessors' ? 'preprocessor' : 'postprocessor'
+    if (procDraft.value && procDraft.value.processorType !== type) cancelProcDraft()
     if (!procList(type).some((p) => p.id === activeProcId.value)) {
       activeProcId.value = procList(type)[0]?.id ?? ''
     }
@@ -301,10 +319,10 @@ export function useEnvironmentDetailState(
     loading, loadError, detail, saving, dirty, configForms, dsForms, variableRows, processorRows, activeTab,
     activeConfigId, activeConfig, orderedConfigForms, selectConfig, addHttpConfig, removeHttpConfig, testingHttpId, runHttpTest, httpConnResult,
     activeDsId, activeDs, orderedDsForms, selectDs, selectedDsDriverOption, handleDsDriverChange, addDataSource, removeDataSource, testingDsId, runDsTest, dsConnResult,
-    activeProcId, selectedProcessor, preProcCount, postProcCount,
-    procList, procElement, selectProcessor, addProcessor, removeProcessor,
-    moveProcessor, copyProcessor, procTestclass, procHttpRefOptions, procDsRefOptions,
-    procHttpRef, procDsRef, procTags, procDisplayName,
+    activeProcId, procExpandedId, procDraft, procDraftMode, preProcCount, postProcCount,
+    procList, procElement, removeProcessor,
+    moveProcessor, copyProcessor, toggleProcDetail, startProcEdit, startProcAdd,
+    cancelProcDraft, commitProcDraft, procTags, procDisplayName, procDetail,
     variableCount, load, saveAll,
     extractorPickerVisible, extractorPickerLoading, extractorPickerItems, extractorPickerKeyword,
     openExtractorPicker, handleExtractorPicked, loadExtractorAssets,
