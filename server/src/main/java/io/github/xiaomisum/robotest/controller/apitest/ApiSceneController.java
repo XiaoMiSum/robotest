@@ -4,8 +4,6 @@ import io.github.xiaomisum.robotest.framework.security.LoginUser;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneBatchDeleteReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneBatchMoveReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneCreateReqDTO;
-
-import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneStepCopyReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneStepQuickCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneStepReorderReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneStepSaveReqDTO;
@@ -142,17 +140,6 @@ public class ApiSceneController {
             @PathVariable UUID stepId) {
         sceneService.deleteStep(loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId(), loginUser.getId(), id, stepId);
         return Result.ok(true);
-    }
-
-    @PostMapping("/api/project/api-scenes/{id}/steps/{stepId}/copy")
-    @PreAuthorize("hasAuthority('api-scene:edit')")
-    public Result<Map<String, String>> copyStep(
-            @AuthenticationPrincipal LoginUser loginUser,
-            @PathVariable UUID id,
-            @PathVariable UUID stepId,
-            @RequestBody @Valid ApiSceneStepCopyReqDTO reqDTO) {
-        return Result.ok(Map.of("id", sceneService.copyStep(loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId(),
-                loginUser.getId(), id, stepId, reqDTO).toString()));
     }
 
     // ========== 步骤级变量 ==========

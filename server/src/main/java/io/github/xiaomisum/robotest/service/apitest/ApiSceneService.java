@@ -3,7 +3,6 @@ package io.github.xiaomisum.robotest.service.apitest;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneBatchDeleteReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneBatchMoveReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneCreateReqDTO;
-import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneStepCopyReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneStepQuickCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneStepReorderReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneStepSaveReqDTO;
@@ -65,9 +64,6 @@ public interface ApiSceneService {
 
     void reorderSteps(UUID workspaceId, UUID projectId, UUID userId, UUID sceneId,
             ApiSceneStepReorderReqDTO reqDTO);
-
-    UUID copyStep(UUID workspaceId, UUID projectId, UUID userId, UUID sceneId, UUID stepId,
-            ApiSceneStepCopyReqDTO reqDTO);
 
     // ========== 步骤级变量 ==========
 

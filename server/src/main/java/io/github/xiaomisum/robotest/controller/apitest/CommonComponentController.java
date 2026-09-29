@@ -3,7 +3,6 @@ package io.github.xiaomisum.robotest.controller.apitest;
 import io.github.xiaomisum.robotest.framework.security.LoginUser;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.CommonComponentBatchReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.CommonComponentSaveReqDTO;
-import io.github.xiaomisum.robotest.model.dto.response.apitest.CommonComponentCopyRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.CommonComponentIdRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.CommonComponentListItemRespDTO;
 import io.github.xiaomisum.robotest.service.apitest.CommonComponentService;
@@ -90,14 +89,6 @@ public class CommonComponentController {
             @PathVariable UUID id) {
         commonComponentService.delete(loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId(), loginUser.getId(), id);
         return Result.ok(true);
-    }
-
-    @PostMapping("/{id}/copy")
-    @PreAuthorize("hasAuthority('api-component:view')")
-    public Result<CommonComponentCopyRespDTO> copy(
-            @AuthenticationPrincipal LoginUser loginUser,
-            @PathVariable UUID id) {
-        return Result.ok(commonComponentService.copy(loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId(), loginUser.getId(), id));
     }
 
     @PatchMapping("/batch/toggle")

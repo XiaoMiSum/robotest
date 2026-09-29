@@ -146,28 +146,6 @@ public final class SceneStepEditor {
         return reordered;
     }
 
-    /** 步骤复制：深度拷贝请求配置与处理器/校验器/提取器，条目 id 全部重新生成 */
-    public static Map<String, Object> copyStep(Map<String, Object> origin, String name,
-            List<Map<String, Object>> existingSteps) {
-        Map<String, Object> copied = new LinkedHashMap<>(origin);
-        copied.put("id", UUID.randomUUID());
-        copied.put("name", name);
-        copied.put("sourceType", "copy");
-        copied.put("requestConfig", SceneStepUtil.deepCopyMap(SceneStepUtil.getMap(origin, "requestConfig")));
-        copied.put("processors", SceneStepUtil.copyListWithFreshIds(SceneStepUtil.getList(origin, "processors")));
-        copied.put("validators", SceneStepUtil.copyListWithFreshIds(SceneStepUtil.getList(origin, "validators")));
-        copied.put("extractors", SceneStepUtil.copyListWithFreshIds(SceneStepUtil.getList(origin, "extractors")));
-        List<Map<String, Object>> copiedVariables = new ArrayList<>();
-        for (Map<String, Object> v : SceneStepUtil.getList(origin, "variables")) {
-            Map<String, Object> cv = new LinkedHashMap<>(v);
-            cv.put("id", UUID.randomUUID());
-            copiedVariables.add(cv);
-        }
-        copied.put("variables", copiedVariables);
-        copied.put("sortOrder", SceneStepUtil.maxSortOrder(existingSteps) + 1);
-        return copied;
-    }
-
     /** 从接口定义快速生成步骤（测试场景详细设计 3.2.1），link/copy 由 mode 决定 sourceType */
     public static Map<String, Object> newStepFromInterface(ApiInterface apiInterface, String mode, int sortOrder) {
         Map<String, Object> requestConfig = new LinkedHashMap<>();

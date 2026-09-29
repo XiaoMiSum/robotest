@@ -158,39 +158,6 @@ public class ApiInterfaceServiceImpl implements ApiInterfaceService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public UUID copy(UUID projectId, UUID userId, UUID id, String copyName) {
-        projectAccessGuard.requireProjectMember(projectId, userId);
-        ApiInterface source = requireInterface(projectId, id);
-        String name = copyName == null || copyName.isBlank() ? source.getName() + "（副本）" : copyName;
-        assertNameAvailable(projectId, source.getModuleId(), name, null);
-        ApiInterface copy = new ApiInterface();
-        copy.setProjectId(projectId);
-        copy.setModuleId(source.getModuleId());
-        copy.setName(name);
-        copy.setProtocol(source.getProtocol());
-        copy.setMethod(source.getMethod());
-        copy.setPath(source.getPath());
-        copy.setDescription(source.getDescription());
-        copy.setHeaders(cloneList(source.getHeaders()));
-        copy.setBodyType(source.getBodyType());
-        copy.setBody(cloneMap(source.getBody()));
-        copy.setQueryParams(cloneList(source.getQueryParams()));
-        copy.setRestParams(cloneList(source.getRestParams()));
-        copy.setAuth(cloneMap(source.getAuth()));
-        copy.setStatus("enabled");
-        copy.setResponseExample(cloneMap(source.getResponseExample()));
-        copy.setValidators(cloneList(source.getValidators()));
-        copy.setExtractors(cloneList(source.getExtractors()));
-        copy.setCreatedBy(userId);
-        copy.setChangeVersion(1);
-        copy.setReferenceCount(0);
-        interfaceMapper.insert(copy);
-        writeChangeLog(copy.getId(), 1, "copy", "复制自接口 " + source.getName(), userId);
-        return copy.getId();
-    }
-
-    @Override
-    @Transactional(rollbackFor = Exception.class)
     public void batchMove(UUID projectId, UUID userId, ApiInterfaceBatchMoveReqDTO reqDTO) {
         projectAccessGuard.requireProjectMember(projectId, userId);
         for (UUID id : reqDTO.getIds()) {
@@ -349,13 +316,5 @@ public class ApiInterfaceServiceImpl implements ApiInterfaceService {
         if (!Objects.equals(current.getMethod(), reqDTO.getMethod())) changes.add("方法");
         if (!Objects.equals(current.getDescription(), reqDTO.getDescription())) changes.add("描述");
         return changes.isEmpty() ? "更新请求参数" : "修改 " + String.join("、", changes);
-    }
-
-    private List<Map<String, Object>> cloneList(List<Map<String, Object>> source) {
-        return source == null ? null : List.copyOf(source);
-    }
-
-    private Map<String, Object> cloneMap(Map<String, Object> source) {
-        return source == null ? null : Map.copyOf(source);
     }
 }

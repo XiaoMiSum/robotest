@@ -6,7 +6,6 @@ import io.github.xiaomisum.robotest.framework.security.ProjectAccessGuard;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneBatchDeleteReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneBatchMoveReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneCreateReqDTO;
-import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneStepCopyReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneStepQuickCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneStepReorderReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneStepSaveReqDTO;
@@ -204,22 +203,6 @@ public class ApiSceneServiceImpl implements ApiSceneService {
         ApiScene scene = requireScene(projectId, sceneId);
         List<Map<String, Object>> existing = scene.getSteps() == null ? List.of() : scene.getSteps();
         persistSteps(sceneId, SceneStepEditor.reorder(existing, reqDTO.getStepIds()));
-    }
-
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    public UUID copyStep(UUID workspaceId, UUID projectId, UUID userId, UUID sceneId, UUID stepId,
-            ApiSceneStepCopyReqDTO reqDTO) {
-        projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
-        ApiScene scene = requireScene(projectId, sceneId);
-        Map<String, Object> origin = SceneStepUtil.requireStep(scene.getSteps(), stepId);
-        String name = reqDTO != null && reqDTO.getName() != null && !reqDTO.getName().isBlank()
-                ? reqDTO.getName() : SceneStepUtil.getString(origin, "name", "步骤") + "（副本）";
-        Map<String, Object> copied = SceneStepEditor.copyStep(origin, name, scene.getSteps());
-        UUID copiedId = SceneStepUtil.getUUID(copied, "id");
-        scene.getSteps().add(copied);
-        persistSteps(sceneId, scene.getSteps());
-        return copiedId;
     }
 
     // ========== 步骤级变量 ==========
