@@ -206,52 +206,6 @@ function openActivity(activity: ProjectActivity) {
       </el-col>
     </el-row>
 
-    <el-card
-      shadow="never"
-      class="panel dashboard__activity"
-      aria-labelledby="recent-activity-title"
-    >
-      <template #header>
-        <div class="panel__header">
-          <span id="recent-activity-title" class="panel__title">最近动态</span>
-          <span class="panel__hint">记录项目关键操作</span>
-        </div>
-      </template>
-      <el-empty
-        v-if="!data?.recentActivities?.length"
-        description="暂无项目动态"
-        :image-size="60"
-      />
-      <el-timeline v-else class="activity-timeline">
-        <el-timeline-item
-          v-for="activity in data.recentActivities"
-          :key="activity.id"
-          :timestamp="formatDateTime(activity.occurredAt)"
-          placement="top"
-        >
-          <div class="activity-item">
-            <div class="activity-item__content">
-              <div class="activity-item__summary">{{ activity.summary }}</div>
-              <div class="activity-item__meta">
-                <span>{{ activity.actorName }}</span>
-                <span class="activity-item__separator">·</span>
-                <span>{{ activity.resourceName }}</span>
-              </div>
-            </div>
-            <el-button
-              v-if="activityTarget(activity)"
-              link
-              type="primary"
-              size="small"
-              @click="openActivity(activity)"
-            >
-              查看
-            </el-button>
-          </div>
-        </el-timeline-item>
-      </el-timeline>
-    </el-card>
-
     <el-row :gutter="16" class="dashboard__panels">
       <el-col :xs="24" :md="12">
         <el-card shadow="never" class="panel">
@@ -307,6 +261,52 @@ function openActivity(activity: ProjectActivity) {
         </el-card>
       </el-col>
     </el-row>
+
+    <el-card
+      shadow="never"
+      class="panel dashboard__activity"
+      aria-labelledby="recent-activity-title"
+    >
+      <template #header>
+        <div class="panel__header">
+          <span id="recent-activity-title" class="panel__title">最近动态</span>
+          <span class="panel__hint">记录项目关键操作</span>
+        </div>
+      </template>
+      <el-empty
+        v-if="!data?.recentActivities?.length"
+        description="暂无项目动态"
+        :image-size="60"
+      />
+      <el-timeline v-else class="activity-timeline">
+        <el-timeline-item
+          v-for="activity in data.recentActivities"
+          :key="activity.id"
+          :timestamp="formatDateTime(activity.occurredAt)"
+          placement="top"
+        >
+          <div class="activity-item">
+            <div class="activity-item__content">
+              <div class="activity-item__summary">{{ activity.summary }}</div>
+              <div class="activity-item__meta">
+                <span>{{ activity.actorName }}</span>
+                <span class="activity-item__separator">·</span>
+                <span>{{ activity.resourceName }}</span>
+              </div>
+            </div>
+            <el-button
+              v-if="activityTarget(activity)"
+              link
+              type="primary"
+              size="small"
+              @click="openActivity(activity)"
+            >
+              查看
+            </el-button>
+          </div>
+        </el-timeline-item>
+      </el-timeline>
+    </el-card>
   </div>
 </template>
 
@@ -569,6 +569,19 @@ function openActivity(activity: ProjectActivity) {
 
 .dashboard__panels {
   margin-bottom: var(--space-xl);
+}
+
+// 最近评审/最近计划采用固定高度，与左侧卡片对齐；条目过多时在卡片内滚动，不撑高页面布局
+.dashboard__panels .panel {
+  display: flex;
+  flex-direction: column;
+  height: 320px;
+}
+
+.dashboard__panels .panel :deep(.el-card__body) {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .panel__list {
