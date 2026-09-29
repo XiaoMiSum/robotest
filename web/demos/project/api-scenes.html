@@ -560,22 +560,11 @@
 
                     <div data-etabs-root>
                       <div class="etabs">
-                        <button class="etab" data-etab="headers">请求头<span class="count">2</span></button>
                         <button class="etab" data-etab="query">Query 参数<span class="count">1</span></button>
                         <button class="etab is-active" data-etab="body">请求体<span class="count">3</span></button>
+                        <button class="etab" data-etab="headers">请求头<span class="count">2</span></button>
                         <button class="etab" data-etab="validators">验证器<span class="count">2</span></button>
                         <button class="etab" data-etab="extractors">提取器<span class="count">1</span></button>
-                      </div>
-
-                      <div class="epanel" data-epanel="headers">
-                        <table class="kv">
-                          <thead><tr><th style="width:34px"></th><th>Header</th><th>值</th><th style="width:44px"></th></tr></thead>
-                          <tbody>
-                            <tr><td><span class="checkbox checkbox--on"></span></td><td><input class="cell-input" value="Content-Type"></td><td><input class="cell-input" value="application/json"></td><td><span class="op-link op-link--danger">删除</span></td></tr>
-                            <tr><td><span class="checkbox checkbox--on"></span></td><td><input class="cell-input" value="X-Trace-Id"></td><td><input class="cell-input" value="${traceId}"></td><td><span class="op-link op-link--danger">删除</span></td></tr>
-                          </tbody>
-                        </table>
-                        <span class="kv__add">+ 添加请求头</span>
                       </div>
 
                       <div class="epanel" data-epanel="query">
@@ -604,6 +593,17 @@
   "quantity": 1,
   "channel": "app"
 }</textarea>
+                      </div>
+
+                      <div class="epanel" data-epanel="headers">
+                        <table class="kv">
+                          <thead><tr><th style="width:34px"></th><th>Header</th><th>值</th><th style="width:44px"></th></tr></thead>
+                          <tbody>
+                            <tr><td><span class="checkbox checkbox--on"></span></td><td><input class="cell-input" value="Content-Type"></td><td><input class="cell-input" value="application/json"></td><td><span class="op-link op-link--danger">删除</span></td></tr>
+                            <tr><td><span class="checkbox checkbox--on"></span></td><td><input class="cell-input" value="X-Trace-Id"></td><td><input class="cell-input" value="${traceId}"></td><td><span class="op-link op-link--danger">删除</span></td></tr>
+                          </tbody>
+                        </table>
+                        <span class="kv__add">+ 添加请求头</span>
                       </div>
 
                       <div class="epanel" data-epanel="validators">
@@ -720,21 +720,10 @@
 
                       <div data-etabs-root>
                         <div class="etabs">
-                          <button class="etab" data-etab="headers">请求头<span class="count">2</span></button>
                           <button class="etab" data-etab="query">Query 参数<span class="count">1</span></button>
                           <button class="etab is-active" data-etab="body">请求体</button>
+                          <button class="etab" data-etab="headers">请求头<span class="count">2</span></button>
                           <button class="etab" data-etab="extractors">提取器<span class="count">1</span></button>
-                        </div>
-
-                        <div class="epanel" data-epanel="headers">
-                          <table class="kv">
-                            <thead><tr><th style="width:34px"></th><th>Header</th><th>值</th><th style="width:44px"></th></tr></thead>
-                            <tbody>
-                              <tr><td><span class="checkbox checkbox--on"></span></td><td><input class="cell-input" value="Content-Type"></td><td><input class="cell-input" value="application/json"></td><td><span class="op-link op-link--danger">删除</span></td></tr>
-                              <tr><td><span class="checkbox checkbox--on"></span></td><td><input class="cell-input" value="X-Trace-Id"></td><td><input class="cell-input" value="${traceId}"></td><td><span class="op-link op-link--danger">删除</span></td></tr>
-                            </tbody>
-                          </table>
-                          <span class="kv__add">+ 添加请求头</span>
                         </div>
 
                         <div class="epanel" data-epanel="query">
@@ -762,6 +751,17 @@
   "username": "${username}",
   "password": "${password}"
 }</textarea>
+                        </div>
+
+                        <div class="epanel" data-epanel="headers">
+                          <table class="kv">
+                            <thead><tr><th style="width:34px"></th><th>Header</th><th>值</th><th style="width:44px"></th></tr></thead>
+                            <tbody>
+                              <tr><td><span class="checkbox checkbox--on"></span></td><td><input class="cell-input" value="Content-Type"></td><td><input class="cell-input" value="application/json"></td><td><span class="op-link op-link--danger">删除</span></td></tr>
+                              <tr><td><span class="checkbox checkbox--on"></span></td><td><input class="cell-input" value="X-Trace-Id"></td><td><input class="cell-input" value="${traceId}"></td><td><span class="op-link op-link--danger">删除</span></td></tr>
+                            </tbody>
+                          </table>
+                          <span class="kv__add">+ 添加请求头</span>
                         </div>
 
                         <div class="epanel" data-epanel="extractors">
@@ -894,20 +894,10 @@
 
                       <div data-etabs-root>
                         <div class="etabs">
-                          <button class="etab" data-etab="headers">请求头<span class="count">1</span></button>
                           <button class="etab" data-etab="query">Query 参数<span class="count">1</span></button>
                           <button class="etab is-active" data-etab="body">请求体</button>
+                          <button class="etab" data-etab="headers">请求头<span class="count">1</span></button>
                           <button class="etab" data-etab="extractors">提取器<span class="count">1</span></button>
-                        </div>
-
-                        <div class="epanel" data-epanel="headers">
-                          <table class="kv">
-                            <thead><tr><th style="width:34px"></th><th>Header</th><th>值</th><th style="width:44px"></th></tr></thead>
-                            <tbody>
-                              <tr><td><span class="checkbox checkbox--on"></span></td><td><input class="cell-input" value="Content-Type"></td><td><input class="cell-input" value="application/json"></td><td><span class="op-link op-link--danger">删除</span></td></tr>
-                            </tbody>
-                          </table>
-                          <span class="kv__add">+ 添加请求头</span>
                         </div>
 
                         <div class="epanel" data-epanel="query">
@@ -935,6 +925,16 @@
   "status": "success",
   "duration": "${cost}"
 }</textarea>
+                        </div>
+
+                        <div class="epanel" data-epanel="headers">
+                          <table class="kv">
+                            <thead><tr><th style="width:34px"></th><th>Header</th><th>值</th><th style="width:44px"></th></tr></thead>
+                            <tbody>
+                              <tr><td><span class="checkbox checkbox--on"></span></td><td><input class="cell-input" value="Content-Type"></td><td><input class="cell-input" value="application/json"></td><td><span class="op-link op-link--danger">删除</span></td></tr>
+                            </tbody>
+                          </table>
+                          <span class="kv__add">+ 添加请求头</span>
                         </div>
 
                         <div class="epanel" data-epanel="extractors">
