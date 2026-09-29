@@ -94,7 +94,7 @@ const {
           </el-button>
 
           <div class="debug-tabbar__right">
-            <el-button link size="small" @click="curlVisible = true">
+            <el-button link type="primary" size="small" @click="curlVisible = true">
               <el-icon><Download /></el-icon>
               <span>导入 cURL</span>
             </el-button>
