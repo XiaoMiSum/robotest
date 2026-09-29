@@ -11,34 +11,63 @@
   .debug { display: flex; flex-direction: column; height: 100%; }
   .debug__card { display: flex; flex-direction: column; flex: 1; min-height: 0; }
 
-  /* 多标签条（DebugPage 头部：标签 + 导入 cURL / 历史记录，卡片式页签见 base.css「工作区多页签」） */
-  .tabbar { display: flex; align-items: center; gap: var(--space-xs); padding: var(--space-sm) 6px; }
-  .tabbar__tabs { display: flex; align-items: center; gap: var(--space-xs); flex: 1; min-width: 0; overflow-x: auto; }
+  /* 多标签条（DebugPage 头部）：页签样式复用 base.css「工作区多页签」.ws-tab（下划线式），
+     此处只做条形布局；横向滚动仅作用于页签区，新建与导入 cURL 固定在条右侧不随内容滚动 */
+  .tabbar { display: flex; align-items: center; gap: var(--space-xs); padding: 4px 6px 0; border-bottom: 1px solid var(--n-200); }
+  /* 页签区可横向滚动但不定宽：不足时收缩为内容宽，超出时压缩；历史记录与新建固定跟随其后 */
+  .tabbar__tabs { display: flex; align-items: center; gap: 2px; min-width: 0; overflow-x: auto; }
   .tabbar__tabs::-webkit-scrollbar { display: none; }
-  .m-get { background: #61affe; } .m-post { background: #49cc90; } .m-put { background: #fca130; }
-  .tabbar__add { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border: 1px dashed var(--n-200); border-radius: var(--radius-md); color: var(--n-400); font-size: 15px; cursor: pointer; flex-shrink: 0; }
+  .tabbar__fixed { flex-shrink: 0; }
+  .tabbar__add { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border: 1px dashed var(--n-200); border-radius: var(--radius-md); color: var(--n-400); cursor: pointer; flex-shrink: 0; }
+  .tabbar__add svg { width: 14px; height: 14px; }
   .tabbar__add:hover { color: var(--brand-500); border-color: var(--brand-300); }
-  .tabbar__right { display: flex; align-items: center; gap: var(--space-xs); flex-shrink: 0; }
+  .tabbar__right { display: flex; align-items: center; gap: var(--space-xs); flex-shrink: 0; margin-left: auto; padding-left: var(--space-xs); }
 
   /* 上下分栏：请求面板 + 拖拽分割线 + 响应面板 */
   .debug__body { flex: 1; display: flex; flex-direction: column; min-height: 0; }
-  .debug__req { height: 52%; min-height: 0; overflow: auto; border-top: 1px solid var(--n-100); }
+  .debug__req { height: 52%; min-height: 0; overflow: auto; }
   .debug__divider { height: 6px; display: flex; align-items: center; justify-content: center; cursor: row-resize; flex-shrink: 0; }
   .debug__divider i { display: block; width: 75%; height: 2px; border-radius: 1px; background: var(--n-200); }
   .debug__divider:hover i { background: var(--brand-400); }
   .debug__resp { flex: 1; min-height: 0; overflow: auto; display: flex; flex-direction: column; }
 
+  /* 历史记录视图（全宽，结构对齐 DebugHistoryView）：搜索 + 时间分组列表 */
+  .debug__history { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: var(--space-md); padding: var(--space-md) var(--space-sm); overflow: auto; }
+  .history__toolbar { display: flex; align-items: center; gap: var(--space-md); }
+  .history__search { width: 260px; }
+  .history__total { font-size: var(--font-size-xs); color: var(--n-400); }
+  .history__list { flex: 1; min-height: 0; overflow-y: auto; }
+  .history__group-title { margin: var(--space-sm) 0; font-size: var(--font-size-xs); font-weight: 600; color: var(--n-400); }
+  .history__item { display: flex; align-items: center; gap: var(--space-sm); padding: 6px var(--space-sm); border-radius: var(--radius-sm); }
+  .history__item:hover { background: var(--n-50); }
+  .history__item-main { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 0; border: none; background: transparent; cursor: pointer; text-align: left; font: inherit; }
+  .history__item-name { font-size: var(--font-size-xs); color: var(--n-700); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .history__item-url { font-size: var(--font-size-xs); color: var(--n-400); font-family: var(--font-mono); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .history__item-meta { font-size: var(--font-size-xs); color: var(--n-400); white-space: nowrap; }
+  .history__code { padding: 1px 6px; border-radius: 3px; font-family: var(--font-mono); font-size: var(--font-size-xs); font-weight: 600; }
+  .history__code--ok { color: var(--st-success-strong); background: var(--st-success-light); }
+  .history__code--fail { color: var(--st-danger-strong); background: var(--st-danger-light); }
+  .history__empty { margin-top: 80px; text-align: center; color: var(--n-300); font-size: var(--font-size-sm); }
+
   /* URL 栏 */
   .urlbar { display: flex; align-items: center; gap: 8px; padding: 12px 12px 4px; }
+  /* 方法下拉：带边框，不铺整块底色，仅文字随所选方法变色（浅色底上取同色系深色，保证可读性），箭头固定中性灰 */
   .method-pick {
-    width: 110px; height: 32px; border: none; border-radius: 6px;
-    background: #49cc90; color: #fff; font-family: var(--font-mono);
+    width: 110px; height: 32px;
+    border: 1px solid var(--n-300); border-radius: 6px;
+    background: transparent; color: var(--n-600);
+    font-family: var(--font-mono);
     font-size: var(--font-size-xs); font-weight: 700; letter-spacing: .5px;
-    padding: 0 10px; appearance: none; cursor: pointer;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='rgba(255,255,255,.85)' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='M6 9.5l6 6 6-6'/%3E%3C/svg%3E");
+    padding: 0 26px 0 10px; appearance: none; cursor: pointer;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23909399' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='M6 9.5l6 6 6-6'/%3E%3C/svg%3E");
     background-repeat: no-repeat; background-position: right 8px center; background-size: 13px;
-    padding-right: 26px;
   }
+  .method-pick:focus { border-color: var(--brand-500); box-shadow: 0 0 0 3px rgba(64,158,255,.14); outline: none; }
+  .method-pick[data-m="GET"] { color: #1e6fd9; }
+  .method-pick[data-m="POST"] { color: #12915f; }
+  .method-pick[data-m="PUT"] { color: #b26a05; }
+  .method-pick[data-m="PATCH"] { color: #6f42c1; }
+  .method-pick[data-m="DELETE"] { color: #d9363e; }
   .url-input {
     flex: 1; height: 32px; padding: 0 11px;
     border: 1px solid var(--n-300); border-radius: 6px; background: var(--n-0);
@@ -61,7 +90,12 @@
   .reqtab.is-active .count { background: var(--brand-50); color: var(--brand-500); }
   .reqtabs__spacer { flex: 1; }
   .env-pick { display: flex; align-items: center; gap: 6px; color: var(--n-400); font-size: 12px; }
-  .env-pick .select { width: 200px; height: 28px; border: none; padding-left: 4px; font-size: var(--font-size-xs); }
+  .env-pick .select { width: 200px; height: 28px; border: none; padding-left: 4px; font-size: var(--font-size-xs); transition: color var(--transition-fast); }
+  /* 无边框下拉的悬浮反馈：文字与箭头一并切换为主色调 */
+  .env-pick .select:hover {
+    color: var(--brand-500);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23409eff' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9.5l6 6 6-6'/%3E%3C/svg%3E");
+  }
 
   .reqpanel { padding: 12px; }
 
@@ -154,17 +188,17 @@
     <div class="split__main">
       <div class="debug">
         <div class="debug__card">
-          <!-- 标签条：多标签 + 导入 cURL + 历史记录（与接口管理 / 测试场景同款卡片式页签） -->
+          <!-- 标签条：下划线式页签（请求会话）+ 固定「历史记录」+ 新建，三者依次跟随；导入 cURL 靠右 -->
           <div class="tabbar">
             <div class="tabbar__tabs">
-              <div class="ws-tab is-active" data-method="POST" data-path="${BASE_URL}/api/v1/orders"><span class="ws-tab__method m-post">POST</span><span>创建订单</span><span class="ws-tab__close" data-close>×</span></div>
-              <div class="ws-tab" data-method="GET" data-path="${BASE_URL}/api/v1/orders/{orderId}"><span class="ws-tab__method m-get">GET</span><span>查询订单详情</span><span class="ws-tab__close" data-close>×</span></div>
+              <div class="ws-tab" data-method="POST" data-path="${BASE_URL}/api/v1/orders"><span class="ws-tab__method m-post">POST</span><span>创建订单</span><span class="ws-tab__close" data-close>×</span></div>
+              <div class="ws-tab is-active" data-method="GET" data-path="${BASE_URL}/api/v1/orders/{orderId}"><span class="ws-tab__method m-get">GET</span><span>查询订单详情</span><span class="ws-tab__close" data-close>×</span></div>
               <div class="ws-tab" data-method="PUT" data-path="${BASE_URL}/api/v1/orders/{orderId}/cancel"><span class="ws-tab__method m-put">PUT</span><span>取消订单</span><span class="ws-tab__close" data-close>×</span></div>
-              <span class="tabbar__add" data-icon="plus" title="新建标签"></span>
             </div>
+            <div class="ws-tab tabbar__fixed" data-fixed><span data-icon="clock-circle"></span><span>历史记录</span></div>
+            <span class="tabbar__add" data-icon="plus" title="新建标签"></span>
             <div class="tabbar__right">
-              <div class="ws-tab js-open-curl"><span data-icon="download"></span><span>导入 cURL</span></div>
-              <div class="ws-tab"><span data-icon="clock-circle"></span><span>历史记录</span></div>
+              <button type="button" class="btn btn--default js-open-curl" style="height:28px;font-size:var(--font-size-xs)"><span data-icon="download"></span>导入 cURL</button>
             </div>
           </div>
 
@@ -172,8 +206,8 @@
             <!-- ============ 请求面板 ============ -->
             <div class="debug__req">
               <div class="urlbar">
-                <select class="method-pick"><option>POST</option><option>GET</option><option>PUT</option><option>PATCH</option><option>DELETE</option></select>
-                <input class="url-input" value="${BASE_URL}/api/v1/orders">
+                <select class="method-pick" data-m="GET"><option>GET</option><option>POST</option><option>PUT</option><option>PATCH</option><option>DELETE</option></select>
+                <input class="url-input" value="${BASE_URL}/api/v1/orders/{orderId}">
                 <button class="btn btn--primary" id="btn-send" data-ux-key="mod+enter" style="height:32px;font-weight:600"><span data-icon="arrow-right"></span>发送<span class="kbd">⌘↵</span></button>
                 <button class="btn btn--default" style="height:32px"><span data-icon="plus"></span>保存</button>
               </div>
@@ -337,6 +371,15 @@
                 <div class="j-row"><span class="j-punc">}</span></div>
               </div>
             </div>
+
+            <!-- 历史记录视图：点击「历史记录」页签切换为全宽列表（交互设计 1.7） -->
+            <div class="debug__history" id="debug-history" hidden>
+              <div class="history__toolbar">
+                <input class="input history__search" id="history-search" placeholder="搜索名称或 URL">
+                <span class="history__total" id="history-total"></span>
+              </div>
+              <div class="history__list" id="history-list"></div>
+            </div>
           </div>
         </div>
       </div>
@@ -433,30 +476,65 @@
   });
 
   /* ---------------- 标签条：切换 / 关闭 / 新建（docs28 标签页管理表） ---------------- */
+  var tabBar = document.querySelector('.tabbar');
   var tabsWrap = document.querySelector('.tabbar__tabs');
   var tabAdd = document.querySelector('.tabbar__add');
+  // 固定标签（历史记录）不带 data-method，既不计入会话标签也不切换请求状态
+  function sessionTabs() { return tabBar.querySelectorAll('.ws-tab[data-method]'); }
+
+  // 方法下拉的文字色由 data-m 驱动（见 .method-pick[data-m] 规则）
+  function setMethod(method) {
+    var pick = document.querySelector('.method-pick');
+    pick.value = method;
+    pick.setAttribute('data-m', method);
+  }
+
+  // 方法回显到当前标签头：徽标文案与配色随方法同步（见 .m-* 规则）
+  var METHOD_BADGE = { GET: 'm-get', POST: 'm-post', PUT: 'm-put', PATCH: 'm-patch', DELETE: 'm-delete' };
+  function echoMethodToTab(method) {
+    var tab = tabBar.querySelector('.ws-tab.is-active[data-method]');
+    if (!tab) return; // 固定「历史记录」无请求状态
+    tab.setAttribute('data-method', method);
+    var badge = tab.querySelector('.ws-tab__method');
+    if (badge) {
+      badge.textContent = method;
+      badge.className = 'ws-tab__method ' + (METHOD_BADGE[method] || '');
+    }
+  }
+
+  document.querySelector('.method-pick').addEventListener('change', function () {
+    this.setAttribute('data-m', this.value);
+    echoMethodToTab(this.value);
+  });
 
   function activateDebugTab(tab) {
-    tabsWrap.querySelectorAll('.ws-tab').forEach(function (t) { t.classList.toggle('is-active', t === tab); });
+    tabBar.querySelectorAll('.ws-tab').forEach(function (t) { t.classList.toggle('is-active', t === tab); });
     var method = tab.getAttribute('data-method');
-    if (method === null) return;
+    if (method === null) {
+      // 固定「历史记录」无请求状态：主内容区切到全宽历史视图（docs28 1.7）
+      setHistoryView(true);
+      return;
+    }
+    setHistoryView(false);
     // 各标签独立维护请求状态：切标签即切换方法与 URL
-    document.querySelector('.method-pick').value = method;
+    setMethod(method);
     document.querySelector('.url-input').value = tab.getAttribute('data-path') || '';
   }
 
   function createDebugTab(name) {
     var tab = document.createElement('div');
     tab.className = 'ws-tab';
-    tab.setAttribute('data-method', 'GET');
+    tab.setAttribute('data-method', 'GET'); // 新标签默认 GET
     tab.setAttribute('data-path', '');
-    tab.innerHTML = '<span></span><span class="ws-tab__close" data-close>×</span>';
-    tab.firstElementChild.textContent = name;
-    tabsWrap.insertBefore(tab, tabAdd);
+    tab.innerHTML = '<span class="ws-tab__method m-get">GET</span><span></span><span class="ws-tab__close" data-close>×</span>';
+    tab.children[1].textContent = name;
+    // 新标签追加到页签区末尾，即固定「历史记录」与新建按钮之前
+    tabsWrap.appendChild(tab);
     return tab;
   }
 
-  tabsWrap.addEventListener('click', function (e) {
+  // 委托到整条标签条：会话页签可滚动区与固定「历史记录」都在其内
+  tabBar.addEventListener('click', function (e) {
     var tab = e.target.closest('.ws-tab');
     if (!tab) return;
     if (e.target.closest('[data-close]')) {
@@ -464,12 +542,11 @@
       var next = tab.nextElementSibling;
       var wasActive = tab.classList.contains('is-active');
       tab.parentNode.removeChild(tab);
-      var remain = tabsWrap.querySelectorAll('.ws-tab');
-      // 最后一个标签关闭后自动创建空白标签
-      if (!remain.length) { activateDebugTab(createDebugTab('新建请求')); return; }
+      // 最后一个会话标签关闭后自动创建空白标签（固定标签不计入）
+      if (!sessionTabs().length) { activateDebugTab(createDebugTab('新建请求')); return; }
       if (wasActive) {
-        var target = next && next.classList.contains('ws-tab') ? next
-          : (prev && prev.classList.contains('ws-tab') ? prev : remain[0]);
+        var target = next && next.hasAttribute('data-method') ? next
+          : (prev && prev.hasAttribute('data-method') ? prev : sessionTabs()[0]);
         activateDebugTab(target);
       }
       return;
@@ -479,9 +556,89 @@
 
   tabAdd.addEventListener('click', function () {
     // 同时最多 10 个标签
-    if (tabsWrap.querySelectorAll('.ws-tab').length >= 10) { RTUX.toast('最多 10 个标签'); return; }
+    if (sessionTabs().length >= 10) { RTUX.toast('最多 10 个标签'); return; }
     activateDebugTab(createDebugTab('新建请求'));
   });
+
+  /* ---------------- 历史记录视图（docs28 1.7：搜索 + 时间分组 + 恢复 / 删除） ---------------- */
+  var historyView = document.getElementById('debug-history');
+  var historyList = document.getElementById('history-list');
+  var historyTotal = document.getElementById('history-total');
+  // 演示数据：真实实现由 DebugHistoryView 走 fetchDebugRecords 加载
+  var historyRecords = [
+    { id: 'r1', group: '今天', method: 'POST', code: 200, name: '创建订单', url: '${BASE_URL}/api/v1/orders', at: '09-29 10:30', ms: 342 },
+    { id: 'r2', group: '今天', method: 'GET', code: 200, name: '查询订单详情', url: '${BASE_URL}/api/v1/orders/ord_88213', at: '09-29 10:12', ms: 118 },
+    { id: 'r3', group: '今天', method: 'GET', code: 404, name: '查询订单详情', url: '${BASE_URL}/api/v1/orders/ord_00001', at: '09-29 09:51', ms: 96 },
+    { id: 'r4', group: '昨天', method: 'PUT', code: 200, name: '取消订单', url: '${BASE_URL}/api/v1/orders/ord_88213/cancel', at: '09-28 18:45', ms: 205 },
+    { id: 'r5', group: '昨天', method: 'DELETE', code: 500, name: '删除购物车项', url: '${BASE_URL}/api/v1/cart/items/9912', at: '09-28 15:20', ms: 2031 },
+    { id: 'r6', group: '更早', method: 'POST', code: 201, name: '用户登录', url: '${BASE_URL}/api/v1/auth/login', at: '09-26 11:08', ms: 268 }
+  ];
+
+  function setHistoryView(show) {
+    document.querySelector('.debug__body').hidden = show;
+    historyView.hidden = !show;
+  }
+
+  function renderHistory() {
+    var kw = document.getElementById('history-search').value.trim().toLowerCase();
+    var rows = historyRecords.filter(function (r) {
+      return !kw || (r.name + ' ' + r.url + ' ' + r.method).toLowerCase().indexOf(kw) >= 0;
+    });
+    historyTotal.textContent = '共 ' + rows.length + ' 条';
+    if (!rows.length) { historyList.innerHTML = '<div class="history__empty">暂无调试记录</div>'; return; }
+    var html = '';
+    ['今天', '昨天', '更早'].forEach(function (group) {
+      var items = rows.filter(function (r) { return r.group === group; });
+      if (!items.length) return;
+      html += '<section class="history__group"><h4 class="history__group-title">' + group + '</h4>';
+      items.forEach(function (r) {
+        html += '<div class="history__item" data-id="' + r.id + '">'
+          + '<span class="ws-tab__method ' + (METHOD_BADGE[r.method] || '') + '">' + r.method + '</span>'
+          + '<span class="history__code ' + (r.code < 400 ? 'history__code--ok' : 'history__code--fail') + '">' + r.code + '</span>'
+          + '<button type="button" class="history__item-main" data-restore>'
+          + '<span class="history__item-name">' + r.name + '</span>'
+          + '<span class="history__item-url">' + r.url + '</span>'
+          + '</button>'
+          + '<span class="history__item-meta">' + r.at + ' · ' + r.ms + 'ms</span>'
+          + '<span class="op-link" data-restore>恢复</span>'
+          + '<span class="op-link op-link--danger" data-del>删除</span>'
+          + '</div>';
+      });
+      html += '</section>';
+    });
+    historyList.innerHTML = html;
+  }
+
+  // 恢复请求：新建标签回填该记录的方法与 URL，并切回调试视图（docs28 1.7）
+  function restoreHistoryRecord(id) {
+    var rec = historyRecords.filter(function (r) { return r.id === id; })[0];
+    if (!rec) return;
+    var tab = createDebugTab(rec.name);
+    tab.setAttribute('data-method', rec.method);
+    tab.setAttribute('data-path', rec.url);
+    var badge = tab.querySelector('.ws-tab__method');
+    badge.textContent = rec.method;
+    badge.className = 'ws-tab__method ' + (METHOD_BADGE[rec.method] || '');
+    activateDebugTab(tab);
+    RTUX.toast('已恢复到新标签', { type: 'success' });
+  }
+
+  historyList.addEventListener('click', function (e) {
+    var item = e.target.closest('.history__item');
+    if (!item) return;
+    var id = item.getAttribute('data-id');
+    if (e.target.closest('[data-del]')) {
+      historyRecords = historyRecords.filter(function (r) { return r.id !== id; });
+      renderHistory();
+      RTUX.toast('已删除');
+      return;
+    }
+    if (e.target.closest('[data-restore]')) restoreHistoryRecord(id);
+  });
+
+  document.getElementById('history-search').addEventListener('input', renderHistory);
+
+  renderHistory();
 </script>
 </body>
 </html>
