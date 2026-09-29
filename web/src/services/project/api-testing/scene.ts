@@ -10,7 +10,6 @@ import type {
   ApiSceneExecuteReq,
   ApiScenePageItem,
   ApiSceneQuickCreateResp,
-  ApiSceneStepCopyReq,
   ApiSceneStepDebugReq,
   ApiSceneStepDebugResp,
   ApiSceneStepReorderReq,
@@ -65,10 +64,6 @@ export function deleteSceneStep(sceneId: string, stepId: string): Promise<boolea
 
 export function reorderSceneSteps(sceneId: string, req: ApiSceneStepReorderReq): Promise<boolean> {
   return put(`/project/api-scenes/${sceneId}/steps/reorder`, req)
-}
-
-export function copySceneStep(sceneId: string, stepId: string, req?: ApiSceneStepCopyReq): Promise<string> {
-  return post(`/project/api-scenes/${sceneId}/steps/${stepId}/copy`, req).then((resp) => (resp as { id: string }).id)
 }
 
 // ==================== 步骤级变量（3.4） ====================
