@@ -76,11 +76,12 @@ function clearParamErrors(): void {
         </div>
 
         <div class="fn-list__body">
-          <el-radio-group v-model="activeTab" class="fn-list__tabs">
-            <el-radio-button v-for="tab in FUNCTION_TAB_OPTIONS" :key="tab.value" :value="tab.value">
-              {{ tab.label }}
-            </el-radio-button>
-          </el-radio-group>
+          <el-segmented
+            v-model="activeTab"
+            :options="FUNCTION_TAB_OPTIONS"
+            size="small"
+            class="fn-list__tabs"
+          />
 
           <div v-if="loadError" class="fn-empty">
             <p>函数列表加载失败</p>
@@ -445,19 +446,8 @@ function clearParamErrors(): void {
 }
 
 .fn-list__tabs {
-  display: flex;
   width: 100%;
   flex-shrink: 0;
-
-  :deep(.el-radio-button) {
-    flex: 1;
-
-    .el-radio-button__inner {
-      width: 100%;
-      padding: 7px 0;
-      font-size: var(--font-size-xs);
-    }
-  }
 }
 
 .fn-skeleton {
