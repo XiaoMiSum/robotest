@@ -249,21 +249,28 @@ const {
   &__method {
     width: 110px;
 
-    :deep(.el-input__wrapper) {
-      background: var(--method-color, #999);
-      box-shadow: none;
+    // 文字随方法变色：浅色描边底上取同色系深色保证可读性（交互稿 .method-pick）
+    :deep(.el-select__wrapper) {
+      min-height: 32px;
+      padding: 4px 10px;
       border-radius: 6px;
-    }
-
-    :deep(.el-input__inner) {
-      color: #fff;
-      font-weight: 700;
+      background: transparent;
+      box-shadow: 0 0 0 1px var(--color-neutral-300) inset;
+      color: var(--method-color, var(--color-neutral-600));
       font-family: ui-monospace, SFMono-Regular, monospace;
+      font-size: 12px;
+      font-weight: 700;
       letter-spacing: 0.5px;
     }
 
+    :deep(.el-select__wrapper.is-focused) {
+      box-shadow:
+        0 0 0 1px var(--color-primary-500) inset,
+        0 0 0 3px var(--color-primary-50);
+    }
+
     :deep(.el-select__caret) {
-      color: rgba(255, 255, 255, 0.8);
+      color: var(--color-neutral-400);
     }
   }
 

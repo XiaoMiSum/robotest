@@ -305,54 +305,44 @@ describe('useDebugRequestPanel', () => {
   })
 
   describe('methodColor', () => {
-    it('GET 返回 #61affe', () => {
+    it('GET 返回 #1e6fd9', () => {
       const { result } = init(makeTab({ method: 'GET' }))
-      expect(result.methodColor.value).toBe('#61affe')
+      expect(result.methodColor.value).toBe('#1e6fd9')
     })
 
-    it('POST 返回 #49cc90', () => {
+    it('POST 返回 #12915f', () => {
       const { result } = init(makeTab({ method: 'POST' }))
-      expect(result.methodColor.value).toBe('#49cc90')
+      expect(result.methodColor.value).toBe('#12915f')
     })
 
-    it('PUT 返回 #fca130', () => {
+    it('PUT 返回 #b26a05', () => {
       const { result } = init(makeTab({ method: 'PUT' }))
-      expect(result.methodColor.value).toBe('#fca130')
+      expect(result.methodColor.value).toBe('#b26a05')
     })
 
-    it('PATCH 返回 #50e3c2', () => {
+    it('PATCH 返回 #6f42c1', () => {
       const { result } = init(makeTab({ method: 'PATCH' }))
-      expect(result.methodColor.value).toBe('#50e3c2')
+      expect(result.methodColor.value).toBe('#6f42c1')
     })
 
-    it('DELETE 返回 #f93e3e', () => {
+    it('DELETE 返回 #d9363e', () => {
       const { result } = init(makeTab({ method: 'DELETE' }))
-      expect(result.methodColor.value).toBe('#f93e3e')
+      expect(result.methodColor.value).toBe('#d9363e')
     })
 
-    it('OPTIONS 返回 #0d5aa7', () => {
-      const { result } = init(makeTab({ method: 'OPTIONS' }))
-      expect(result.methodColor.value).toBe('#0d5aa7')
+    it.each(['OPTIONS', 'HEAD', 'CONNECT'])('%s 未定义文字色时回退中性字色', (method) => {
+      const { result } = init(makeTab({ method }))
+      expect(result.methodColor.value).toBe('var(--color-neutral-600)')
     })
 
-    it('HEAD 返回 #9012fe', () => {
-      const { result } = init(makeTab({ method: 'HEAD' }))
-      expect(result.methodColor.value).toBe('#9012fe')
-    })
-
-    it('CONNECT 返回 #e8d44d', () => {
-      const { result } = init(makeTab({ method: 'CONNECT' }))
-      expect(result.methodColor.value).toBe('#e8d44d')
-    })
-
-    it('未知方法返回 #999', () => {
+    it('未知方法回退中性字色', () => {
       const { result } = init(makeTab({ method: 'CUSTOM' }))
-      expect(result.methodColor.value).toBe('#999')
+      expect(result.methodColor.value).toBe('var(--color-neutral-600)')
     })
 
     it('小写 method 正确匹配', () => {
       const { result } = init(makeTab({ method: 'get' }))
-      expect(result.methodColor.value).toBe('#61affe')
+      expect(result.methodColor.value).toBe('#1e6fd9')
     })
   })
 
