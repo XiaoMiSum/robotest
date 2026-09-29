@@ -1,6 +1,6 @@
-import { ref, computed } from 'vue'
+import { ref, computed, nextTick } from 'vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { ApiEnvironmentDetail, ApiComponentListItem } from '@/types'
+import type { ApiEnvironmentDetail, ApiComponentListItem, ApiProcessor } from '@/types'
 
 const mocks = vi.hoisted(() => ({
   fetchEnvironmentDetail: vi.fn<(id: string) => Promise<ApiEnvironmentDetail>>(),
@@ -41,16 +41,26 @@ const mockHandleDsDriverChange = vi.fn()
 const mockAddDataSource = vi.fn()
 const mockRemoveDataSource = vi.fn()
 const mockRunDsTest = vi.fn()
-const mockSelectProcessor = vi.fn()
-const mockAddProcessor = vi.fn()
 const mockRemoveProcessor = vi.fn()
 const mockMoveProcessor = vi.fn()
 const mockCopyProcessor = vi.fn()
 const mockApplyDefaultProcRef = vi.fn()
+const mockToggleProcDetail = vi.fn()
+const mockStartProcEdit = vi.fn()
+const mockStartProcAdd = vi.fn()
+const mockCancelProcDraft = vi.fn()
+const mockCommitProcDraft = vi.fn()
 const mockProcList = vi.fn(() => [])
-const mockProcElement = vi.fn(() => ({}))
+const mockProcElement = vi.fn((processor?: { config?: unknown } | null) => {
+  const config = processor?.config
+  return config !== null && typeof config === 'object' && !Array.isArray(config)
+    ? config as Record<string, unknown>
+    : {}
+})
 const mockProcTags = vi.fn(() => [])
 const mockProcDisplayName = vi.fn(() => '')
+const mockProcDetail = vi.fn(() => ({ config: [], extractors: [] }))
+const mockSelectedProcessor = ref<ApiProcessor | null>(null)
 
 vi.mock('./useEnvironmentConfig', () => ({
   useEnvironmentHttpConfig: () => ({
@@ -80,23 +90,25 @@ vi.mock('./useEnvironmentConfig', () => ({
 vi.mock('./useEnvironmentProcessors', () => ({
   useEnvironmentProcessors: () => ({
     activeProcId: ref(''),
-    selectedProcessor: computed(() => null),
+    procExpandedId: ref(''),
+    procDraft: ref(null),
+    procDraftMode: ref('none'),
+    selectedProcessor: computed(() => mockSelectedProcessor.value),
     preProcCount: computed(() => 0),
     postProcCount: computed(() => 0),
     procList: mockProcList,
     procElement: mockProcElement,
-    selectProcessor: mockSelectProcessor,
-    addProcessor: mockAddProcessor,
     removeProcessor: mockRemoveProcessor,
     moveProcessor: mockMoveProcessor,
     copyProcessor: mockCopyProcessor,
-    procTestclass: ref(''),
-    procHttpRefOptions: computed(() => []),
-    procDsRefOptions: computed(() => []),
-    procHttpRef: ref(''),
-    procDsRef: ref(''),
+    toggleProcDetail: mockToggleProcDetail,
+    startProcEdit: mockStartProcEdit,
+    startProcAdd: mockStartProcAdd,
+    cancelProcDraft: mockCancelProcDraft,
+    commitProcDraft: mockCommitProcDraft,
     procTags: mockProcTags,
     procDisplayName: mockProcDisplayName,
+    procDetail: mockProcDetail,
     applyDefaultProcRef: mockApplyDefaultProcRef,
   }),
 }))
@@ -112,7 +124,10 @@ function makeDetail(overrides?: Partial<ApiEnvironmentDetail>): ApiEnvironmentDe
 }
 
 describe('useEnvironmentDetailState', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
+    // 先复位共享选中态并冲刷残留 watcher 的回调，再清计数，避免跨用例污染
+    mockSelectedProcessor.value = null
+    await nextTick()
     vi.clearAllMocks()
     mocks.resolveEnvironmentError.mockReturnValue('操作失败')
     mocks.validateVariableRow.mockReturnValue(null)
@@ -380,6 +395,56 @@ describe('useEnvironmentDetailState', () => {
       await state.load()
       state.activeTab.value = 'datasources'
       expect(state.activeProcId.value).toBe('')
+    })
+    it('切离处理器页签时收起草稿与展开明细', async () => {
+      mocks.fetchEnvironmentDetail.mockResolvedValue(makeDetail())
+      const state = useEnvironmentDetailState({ environmentId: 'env-1', canEdit: true }, vi.fn())
+      await state.load()
+      state.procExpandedId.value = 'p1'
+      state.activeTab.value = 'variables'
+      await nextTick()
+      expect(state.procExpandedId.value).toBe('')
+      expect(mockCancelProcDraft).toHaveBeenCalled()
+    })
+    it('切到同类型处理器页签时保留草稿', async () => {
+      mocks.fetchEnvironmentDetail.mockResolvedValue(makeDetail())
+      const state = useEnvironmentDetailState({ environmentId: 'env-1', canEdit: true }, vi.fn())
+      await state.load()
+      state.procDraft.value = { id: 'p1', processorType: 'preprocessor', name: '预置', enabled: true }
+      state.activeTab.value = 'preprocessors'
+      await nextTick()
+      expect(mockCancelProcDraft).not.toHaveBeenCalled()
+    })
+    it('切到异类型处理器页签时取消草稿', async () => {
+      mocks.fetchEnvironmentDetail.mockResolvedValue(makeDetail())
+      const state = useEnvironmentDetailState({ environmentId: 'env-1', canEdit: true }, vi.fn())
+      await state.load()
+      state.procDraft.value = { id: '', processorType: 'preprocessor', name: '', enabled: true }
+      state.activeTab.value = 'postprocessors'
+      await nextTick()
+      expect(mockCancelProcDraft).toHaveBeenCalled()
+    })
+  })
+
+  describe('处理器默认引用', () => {
+    it('选中处理器 testclass 变化时补默认引用', async () => {
+      useEnvironmentDetailState({ environmentId: 'env-1', canEdit: true }, vi.fn())
+      mockSelectedProcessor.value = {
+        id: 'p1', processorType: 'preprocessor', name: '预置', enabled: true,
+        config: { testclass: 'http', config: {} },
+      }
+      const selected = mockSelectedProcessor.value
+      if (!selected) throw new Error('选中处理器未生效')
+      await nextTick()
+      mockApplyDefaultProcRef.mockClear()
+      selected.config = { testclass: 'jdbc', config: {} }
+      await nextTick()
+      expect(mockApplyDefaultProcRef).toHaveBeenCalledWith(selected)
+    })
+    it('无选中处理器时不补默认引用', async () => {
+      useEnvironmentDetailState({ environmentId: 'env-1', canEdit: true }, vi.fn())
+      await nextTick()
+      expect(mockApplyDefaultProcRef).not.toHaveBeenCalled()
     })
   })
 
@@ -893,17 +958,6 @@ describe('useEnvironmentDetailState', () => {
       const ds = { id: '1' } as Parameters<typeof mockRunDsTest>[0]
       await state.runDsTest(ds, 'env-1')
       expect(mockRunDsTest).toHaveBeenCalledWith(ds, 'env-1')
-    })
-    it('selectProcessor 透传', () => {
-      const state = useEnvironmentDetailState({ environmentId: 'env-1', canEdit: true }, vi.fn())
-      const proc = { id: 'p1' } as Parameters<typeof mockSelectProcessor>[0]
-      state.selectProcessor(proc)
-      expect(mockSelectProcessor).toHaveBeenCalledWith(proc)
-    })
-    it('addProcessor 透传', () => {
-      const state = useEnvironmentDetailState({ environmentId: 'env-1', canEdit: true }, vi.fn())
-      state.addProcessor('preprocessor')
-      expect(mockAddProcessor).toHaveBeenCalledWith('preprocessor')
     })
     it('removeProcessor 透传', () => {
       const state = useEnvironmentDetailState({ environmentId: 'env-1', canEdit: true }, vi.fn())
