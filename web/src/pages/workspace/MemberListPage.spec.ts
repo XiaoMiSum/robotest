@@ -25,15 +25,22 @@ describe('MemberListPage demo structure', () => {
     expect(pageSource).toContain('formatDateTime(row.expiresAt)')
   })
 
-  it('使用 border-card 标签页并将生成链接操作放在页头', () => {
-    expect(pageSource).toContain('type="border-card"')
+  it('使用下划线式标签页并将生成链接操作放在页头', () => {
+    expect(pageSource).not.toContain('type="border-card"')
     expect(pageSource).toContain('class="member-page__tabs"')
-    expect(pageSource).toContain('.member-page__tabs :deep(.el-tabs__content)')
+    expect(pageSource).toContain('<template #label>')
+    expect(pageSource).toContain('member-page__tab-count')
+    expect(pageSource).toContain('.member-page__tabs :deep(.el-tabs__nav-wrap::after)')
+    expect(pageSource).toContain('member-page-pane-in')
+    expect(pageSource).toContain('prefers-reduced-motion')
+    expect(pageSource).toContain('.member-page__tabs :deep(.el-tabs__item)')
+    expect(pageSource).toContain('.member-page__tabs :deep(.el-tabs__active-bar)')
+    expect(pageSource).toContain('transform: scaleX(1)')
     expect(pageSource).toContain('生成链接')
     expect(pageSource).toContain('member-page__head-actions')
     expect(pageSource).toContain('<el-button v-if="canManageMember" type="primary" @click="openAddDialog">')
     expect(pageSource).toContain('<el-button v-if="canManageInvitation" @click="openCreateDialog">')
-    expect(pageSource).toContain('link\n          :loading="invitationsLoading || copyingLatestInvitation"')
+    expect(pageSource).toMatch(/link\s+:loading="invitationsLoading \|\| copyingLatestInvitation"/)
     expect(pageSource).not.toContain('<el-card shadow="never" class="member-page__card"')
   })
 
