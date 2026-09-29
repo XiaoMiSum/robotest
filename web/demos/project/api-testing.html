@@ -320,9 +320,9 @@
               <div class="req-area">
                 <div class="etabs">
                   <button class="etab is-active" data-e="basic">基本信息</button>
-                  <button class="etab" data-e="headers">请求头<span class="badge">3</span></button>
                   <button class="etab" data-e="query">Query 参数<span class="badge">2</span></button>
                   <button class="etab" data-e="body">请求体<span class="badge">1</span></button>
+                  <button class="etab" data-e="headers">请求头<span class="badge">3</span></button>
                   <button class="etab" data-e="auth">认证</button>
                   <button class="etab" data-e="validators">验证器<span class="badge">2</span></button>
                   <button class="etab" data-e="extractors">提取器<span class="badge">1</span></button>
@@ -338,19 +338,6 @@
                     <label class="field__label">描述</label>
                     <textarea class="textarea" style="width:100%">创建订单并锁定库存，需携带幂等键防止重复提交；成功返回 orderId 与过期时间。</textarea>
                   </div>
-                </div>
-
-                <!-- 请求头 -->
-                <div class="epanel" data-epanel="headers" hidden>
-                  <table class="kv">
-                    <thead><tr><th style="width:34px">启用</th><th>Header</th><th>值</th><th style="width:40px"></th></tr></thead>
-                    <tbody data-kvbody="headers">
-                      <tr><td><span class="checkbox checkbox--on"></span></td><td><input class="input" value="Content-Type" style="height:28px"></td><td><input class="input" value="application/json" style="height:28px"></td><td><span class="op-link op-link--danger" data-ux-undo="tr">删</span></td></tr>
-                      <tr><td><span class="checkbox checkbox--on"></span></td><td><input class="input" value="X-Idempotency-Key" style="height:28px"></td><td><input class="input" value="${UUID}" style="height:28px"></td><td><span class="op-link op-link--danger" data-ux-undo="tr">删</span></td></tr>
-                      <tr><td><span class="checkbox"></span></td><td><input class="input" value="X-Channel" style="height:28px"></td><td><input class="input" value="app" style="height:28px"></td><td><span class="op-link op-link--danger" data-ux-undo="tr">删</span></td></tr>
-                    </tbody>
-                  </table>
-                  <span class="kv__add" data-addrow="headers">+ 添加请求头</span>
                 </div>
 
                 <!-- Query 参数 -->
@@ -393,6 +380,19 @@
             "items": [{ "sku": "SKU-10021", "quantity": 2 }],
             "addressId": "addr_30219"
           }</textarea>
+                </div>
+
+                <!-- 请求头 -->
+                <div class="epanel" data-epanel="headers" hidden>
+                  <table class="kv">
+                    <thead><tr><th style="width:34px">启用</th><th>Header</th><th>值</th><th style="width:40px"></th></tr></thead>
+                    <tbody data-kvbody="headers">
+                      <tr><td><span class="checkbox checkbox--on"></span></td><td><input class="input" value="Content-Type" style="height:28px"></td><td><input class="input" value="application/json" style="height:28px"></td><td><span class="op-link op-link--danger" data-ux-undo="tr">删</span></td></tr>
+                      <tr><td><span class="checkbox checkbox--on"></span></td><td><input class="input" value="X-Idempotency-Key" style="height:28px"></td><td><input class="input" value="${UUID}" style="height:28px"></td><td><span class="op-link op-link--danger" data-ux-undo="tr">删</span></td></tr>
+                      <tr><td><span class="checkbox"></span></td><td><input class="input" value="X-Channel" style="height:28px"></td><td><input class="input" value="app" style="height:28px"></td><td><span class="op-link op-link--danger" data-ux-undo="tr">删</span></td></tr>
+                    </tbody>
+                  </table>
+                  <span class="kv__add" data-addrow="headers">+ 添加请求头</span>
                 </div>
 
                 <!-- 认证 -->
