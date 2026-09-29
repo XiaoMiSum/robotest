@@ -7,48 +7,75 @@
 <link rel="stylesheet" href="../assets/tokens.css">
 <link rel="stylesheet" href="../assets/base.css">
 <style>
-  /* 页面结构对齐 TestCasePage：项目模块树(280) + 文档编辑卡（文档头 + 用例脑图） */
-  .ft-workspace { display: flex; gap: 16px; align-items: stretch; }
-  .ft-tree { width: 280px; flex-shrink: 0; }
-  .ft-doc { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  /* 主卡只裁剪不滚动：滚动拥有者唯一为树体与画布，工具条常驻不随内容滚走（UI-SC-01/02/06） */
+  .split__main { display: flex; flex-direction: column; overflow: hidden; }
+  .ft-workspace { display: flex; gap: var(--space-lg); align-items: stretch; flex: 1; min-height: 0; }
+  .ft-tree { width: 280px; flex-shrink: 0; display: flex; flex-direction: column; }
+  .ft-doc { flex: 1; min-width: 0; display: flex; flex-direction: column; min-height: 0; }
 
-  .doc-head {
-    display: flex; align-items: center; gap: 8px;
-    padding: 9px 14px; font-size: 13px; font-weight: 500; color: var(--n-700);
-    border-bottom: 1px solid var(--n-200);
+  /* 目录树头部：搜索 + 新建（无底色，仅与树体的分隔线） */
+  .mt-toolbar {
+    display: flex; align-items: center; gap: var(--space-xs);
+    padding: 8px; border-bottom: 1px solid var(--n-100);
   }
+  .mt-toolbar .input-wrap { flex: 1; min-width: 0; }
+  .mt-toolbar .input { height: 28px; font-size: var(--font-size-sm); }
+  .ft-tree__body { flex: 1; min-height: 0; overflow-y: auto; padding: 4px 8px 10px; }
 
-  /* 脑图工具条（对齐 CaseMindMap 顶栏） */
+  /* 层级缩进按 --depth 计算，支持无限层级模块树 */
+  .tree__item { padding-left: calc(12px + var(--depth, 0) * 18px); min-width: 0; }
+  .tree__twisty {
+    width: 14px; flex-shrink: 0;
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .tree__twisty svg { width: 12px; height: 12px; }
+  .tree__name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* 脑图工具条（顶部常驻）：单行左对齐、竖分隔线分组、弹性占位把命令组推至右端（沿用示例页原排版） */
   .mm-bar {
     display: flex; align-items: center; gap: 4px; flex-wrap: wrap;
     padding: 7px 12px; border-bottom: 1px solid var(--n-200);
+    flex-shrink: 0;
   }
+  /* 命令组整体右靠：自动外边距吸收所在行的剩余空间，整组换行也不会被孤立拆散 */
+  .mm-group { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+  .mm-group--end { margin-left: auto; }
   .mm-tool {
-    display: inline-flex; align-items: center; gap: 5px;
-    height: 26px; padding: 0 9px; border-radius: var(--radius-md);
-    font-size: 12.5px; color: var(--n-600); background: transparent;
+    display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+    height: 26px; padding: 0 8px; border: none; border-radius: var(--radius-md);
+    background: transparent; font: inherit; font-size: 12.5px;
+    color: var(--n-600); cursor: pointer;
   }
   .mm-tool:hover { background: var(--n-100); color: var(--n-900); }
-  .mm-sep { width: 1px; height: 15px; background: var(--n-200); margin: 0 5px; }
-  .mm-spacer { flex: 1; }
-  .type-btn {
-    display: inline-flex; align-items: center; gap: 5px;
-    height: 26px; padding: 0 9px; border-radius: var(--radius-md);
-    font-size: 12.5px; color: var(--n-600);
-  }
-  .type-btn:hover { background: var(--n-100); }
+  /* 图标库 svg 无固有尺寸，不给尺寸会渲染为 0×0 而不可见 */
+  .mm-tool [data-icon] svg { width: 14px; height: 14px; }
+  .mm-tool--flip { transform: scaleX(-1); }
+  .mm-tool--danger:hover { color: var(--st-danger); }
+  .mm-tool--ai, .mm-tool--ai:hover { color: var(--ai-badge); }
+  .mm-tool--recommend, .mm-tool--recommend:hover { color: var(--brand-600); }
+  .mm-caret { display: inline-flex; }
+  .mm-tool .mm-caret svg { width: 10px; height: 10px; }
+  .mm-sep { width: 1px; height: 15px; background: var(--n-200); margin: 0 5px; flex-shrink: 0; }
   .type-btn.is-selected { background: var(--brand-50); color: var(--brand-600); font-weight: 500; }
+  .type-btn.is-selected:hover { background: var(--brand-100); color: var(--brand-700); }
+  .priority-btn, .priority-btn:hover { color: var(--prio-color); }
+  .priority-btn.is-selected, .priority-btn.is-selected:hover { background: var(--prio-color); color: var(--n-0); }
+  .priority-btn--p0 { --prio-color: var(--priority-p0); }
+  .priority-btn--p1 { --prio-color: var(--priority-p1); }
+  .priority-btn--p2 { --prio-color: var(--priority-p2); }
+  .priority-btn--p3 { --prio-color: var(--priority-p3); }
   .tdot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
-  .tdot--case { background: #a464ff; }
-  .tdot--precondition { background: #409eff; }
-  .tdot--step { background: #67c23a; }
-  .tdot--expected { background: #e6a23c; }
+  .tdot--case { background: var(--node-case); }
+  .tdot--precondition { background: var(--node-precondition); }
+  .tdot--step { background: var(--node-step); }
+  .tdot--expected { background: var(--node-expected); }
 
-  /* 脑图画布：静态树形示意（dot grid 底 + 节点 + 折线） */
+  /* 脑图画布：静态树形示意（dot grid 底 + 节点 + 折线）；点阵随内容滚动，避免节点与网格错位 */
   .mm {
-    flex: 1; min-height: 440px; padding: 26px 30px; overflow: auto;
+    flex: 1; min-height: 0; padding: 26px 30px; overflow: auto;
     background-image: radial-gradient(var(--n-200) 1px, transparent 1px);
     background-size: 18px 18px;
+    background-attachment: local;
   }
   .mm ul { list-style: none; margin: 0; padding: 0; }
   .mm ul ul { margin-top: 4px; margin-left: 10px; padding-left: 20px; border-left: 1.5px solid var(--n-300); }
@@ -59,6 +86,7 @@
     background: var(--n-0); border: 1px solid var(--n-200); border-radius: var(--radius-lg);
     padding: 4px 12px; font-size: 13px; color: var(--n-800); box-shadow: var(--shadow-card);
   }
+  .mm-node [data-icon] svg { width: 14px; height: 14px; }
   .mm ul ul > li > .mm-node::before {
     content: ''; position: absolute; left: -21px; top: 50%;
     width: 15px; border-top: 1.5px solid var(--n-300);
@@ -67,7 +95,9 @@
   .mm-node--sel { border-color: var(--brand-500); box-shadow: 0 0 0 3px var(--brand-50); }
   .mm-type { font-size: 11px; color: var(--n-500); }
 
-  .tree-search { padding: 8px 10px 4px; }
+  .mm:focus-visible, .mm-tool:focus-visible, .tree__item:focus-visible {
+    outline: 2px solid var(--brand-500); outline-offset: 2px;
+  }
 </style>
 </head>
 <body data-shell="business" data-mode="project" data-active="ft" data-workspace="质量中台" data-project="电商核心系统">
@@ -86,79 +116,83 @@
 
         <!-- 项目模块树（目录 + 用例文档，点文档打开编辑） -->
         <div class="card ft-tree">
-          <div class="card__header" style="padding:10px 12px">
-            <h3 class="card__title" style="font-size:13px">模块</h3>
-            <span class="op-link" style="margin-right:0" title="新建目录 / 文档">+ 新建</span>
+          <div class="mt-toolbar">
+            <div class="input-wrap"><span data-icon="search" aria-hidden="true"></span><input class="input" placeholder="筛选目录 / 文档" aria-label="筛选目录 / 文档"></div>
+            <button class="btn btn--primary btn--sm" type="button"><span data-icon="plus" aria-hidden="true"></span>新建</button>
           </div>
-          <div class="tree-search">
-            <div class="input-wrap"><span data-icon="search"></span><input class="input" placeholder="筛选目录 / 文档"></div>
-          </div>
-          <div class="card__body" style="padding:4px 8px 10px">
-            <div class="tree">
-              <div class="tree__item"><span data-icon="folder"></span>下单流程</div>
-              <div class="tree__item tree__indent tree__item--active" style="padding-left:44px"><span data-icon="document"></span>优惠券叠加规则</div>
-              <div class="tree__item" style="padding-left:44px"><span data-icon="document"></span>库存拦截用例</div>
-              <div class="tree__item" style="padding-left:44px"><span data-icon="document"></span>地址簿用例</div>
-              <div class="tree__item"><span data-icon="folder"></span>支付中心</div>
-              <div class="tree__item" style="padding-left:44px"><span data-icon="document"></span>支付回调幂等</div>
-              <div class="tree__item" style="padding-left:44px"><span data-icon="document"></span>退款链路</div>
-              <div class="tree__item"><span data-icon="folder"></span>履约配送</div>
-              <div class="tree__item" style="padding-left:44px"><span data-icon="document"></span>发货时效</div>
-              <div class="tree__item"><span data-icon="tag"></span>冒烟用例集</div>
+          <div class="card__body ft-tree__body">
+            <div class="tree" role="tree" aria-label="用例模块树">
+              <div class="tree__item" role="treeitem" aria-expanded="true" style="--depth:0"><span class="tree__twisty" data-icon="chevron-down" aria-hidden="true"></span><span data-icon="folder" aria-hidden="true"></span><span class="tree__name">下单流程</span></div>
+              <div class="tree__item tree__item--active" role="treeitem" aria-selected="true" style="--depth:1"><span class="tree__twisty" aria-hidden="true"></span><span data-icon="document" aria-hidden="true"></span><span class="tree__name">优惠券叠加规则</span></div>
+              <div class="tree__item" role="treeitem" style="--depth:1"><span class="tree__twisty" aria-hidden="true"></span><span data-icon="document" aria-hidden="true"></span><span class="tree__name">库存拦截用例</span></div>
+              <div class="tree__item" role="treeitem" style="--depth:1"><span class="tree__twisty" aria-hidden="true"></span><span data-icon="document" aria-hidden="true"></span><span class="tree__name">地址簿用例</span></div>
+              <div class="tree__item" role="treeitem" aria-expanded="true" style="--depth:0"><span class="tree__twisty" data-icon="chevron-down" aria-hidden="true"></span><span data-icon="folder" aria-hidden="true"></span><span class="tree__name">支付中心</span></div>
+              <div class="tree__item" role="treeitem" style="--depth:1"><span class="tree__twisty" aria-hidden="true"></span><span data-icon="document" aria-hidden="true"></span><span class="tree__name">支付回调幂等</span></div>
+              <div class="tree__item" role="treeitem" style="--depth:1"><span class="tree__twisty" aria-hidden="true"></span><span data-icon="document" aria-hidden="true"></span><span class="tree__name">退款链路</span></div>
+              <div class="tree__item" role="treeitem" aria-expanded="true" style="--depth:0"><span class="tree__twisty" data-icon="chevron-down" aria-hidden="true"></span><span data-icon="folder" aria-hidden="true"></span><span class="tree__name">履约配送</span></div>
+              <div class="tree__item" role="treeitem" style="--depth:1"><span class="tree__twisty" aria-hidden="true"></span><span data-icon="document" aria-hidden="true"></span><span class="tree__name">发货时效</span></div>
+              <div class="tree__item" role="treeitem" style="--depth:0"><span class="tree__twisty" aria-hidden="true"></span><span data-icon="tag" aria-hidden="true"></span><span class="tree__name">冒烟用例集</span></div>
             </div>
           </div>
         </div>
 
-        <!-- 文档编辑卡：文档头 + 用例脑图 -->
+        <!-- 文档编辑卡：顶部工具条（常驻） + 用例脑图 -->
         <div class="card ft-doc">
-          <div class="doc-head"><span data-icon="document"></span>优惠券叠加规则</div>
-
-          <div class="mm-bar">
-            <button class="mm-tool" title="撤销 (Ctrl+Z)">↶</button>
-            <button class="mm-tool" title="重做 (Ctrl+Y)">↷</button>
-            <span class="mm-sep"></span>
-            <button class="mm-tool"><span data-icon="plus"></span>下级</button>
-            <button class="mm-tool"><span data-icon="plus"></span>同级</button>
-            <button class="mm-tool"><span data-icon="edit"></span>编辑</button>
-            <button class="mm-tool"><span data-icon="trash"></span>删除</button>
-            <span class="mm-sep"></span>
-            <button class="mm-tool"><span data-icon="grid"></span>恢复排版</button>
-            <span class="mm-sep"></span>
-            <span class="text-xs muted" style="margin-right:2px">类型</span>
-            <button class="type-btn is-selected"><i class="tdot tdot--case"></i>用例</button>
-            <button class="type-btn"><i class="tdot tdot--precondition"></i>前置</button>
-            <button class="type-btn"><i class="tdot tdot--step"></i>步骤</button>
-            <button class="type-btn"><i class="tdot tdot--expected"></i>预期</button>
-            <span class="mm-spacer"></span>
-            <button class="mm-tool"><span data-icon="link"></span>关联需求</button>
-            <button class="mm-tool" style="color:var(--brand-600)"><span data-icon="sparkle"></span>AI 生成用例</button>
-            <button class="mm-tool" style="color:var(--brand-600)"><span data-icon="sparkle"></span>遗漏测试点</button>
+          <div class="mm-bar" role="toolbar" aria-label="脑图工具条">
+            <button class="mm-tool" type="button" title="撤销 (Ctrl+Z)" aria-label="撤销"><span class="mm-tool--flip" data-icon="refresh" aria-hidden="true"></span></button>
+            <button class="mm-tool" type="button" title="重做 (Ctrl+Y)" aria-label="重做"><span data-icon="refresh" aria-hidden="true"></span></button>
+            <span class="mm-sep" aria-hidden="true"></span>
+            <button class="mm-tool" type="button" title="添加子节点 (Tab)"><span data-icon="plus" aria-hidden="true"></span>下级</button>
+            <button class="mm-tool" type="button" title="添加兄弟节点 (Enter)"><span data-icon="plus" aria-hidden="true"></span>同级</button>
+            <button class="mm-tool" type="button" title="编辑内容 (双击节点/F2)" aria-label="编辑"><span data-icon="edit" aria-hidden="true"></span></button>
+            <button class="mm-tool mm-tool--danger" type="button" title="删除 (Delete)" aria-label="删除"><span data-icon="trash" aria-hidden="true"></span></button>
+            <span class="mm-sep" aria-hidden="true"></span>
+            <button class="mm-tool" type="button" title="切换排版模板"><span data-icon="grid" aria-hidden="true"></span>右侧分布<span class="mm-caret" data-icon="chevron-down" aria-hidden="true"></span></button>
+            <button class="mm-tool" type="button" title="清除手动拖拽的节点偏移，恢复自动排版" aria-label="恢复排版"><span data-icon="sparkle" aria-hidden="true"></span></button>
+            <span class="mm-sep" aria-hidden="true"></span>
+            <button class="mm-tool type-btn is-selected" type="button" aria-pressed="true"><i class="tdot tdot--case" aria-hidden="true"></i>用例</button>
+            <button class="mm-tool type-btn" type="button" aria-pressed="false"><i class="tdot tdot--precondition" aria-hidden="true"></i>前置</button>
+            <button class="mm-tool type-btn" type="button" aria-pressed="false"><i class="tdot tdot--step" aria-hidden="true"></i>步骤</button>
+            <button class="mm-tool type-btn" type="button" aria-pressed="false"><i class="tdot tdot--expected" aria-hidden="true"></i>预期</button>
+            <button class="mm-tool" type="button" title="取消标记，恢复普通节点" aria-label="清除标记"><span data-icon="x-circle" aria-hidden="true"></span></button>
+            <span class="mm-sep" aria-hidden="true"></span>
+            <button class="mm-tool mm-tool--recommend" type="button" title="AI 推荐优先级，点击采纳">✨ 推荐 P1</button>
+            <button class="mm-tool priority-btn priority-btn--p0 is-selected" type="button" aria-pressed="true">P0</button>
+            <button class="mm-tool priority-btn priority-btn--p1" type="button" aria-pressed="false">P1</button>
+            <button class="mm-tool priority-btn priority-btn--p2" type="button" aria-pressed="false">P2</button>
+            <button class="mm-tool priority-btn priority-btn--p3" type="button" aria-pressed="false">P3</button>
+            <div class="mm-group mm-group--end">
+              <button class="mm-tool" type="button"><span data-icon="link" aria-hidden="true"></span>关联需求</button>
+              <span class="mm-sep" aria-hidden="true"></span>
+              <button class="mm-tool mm-tool--ai" type="button"><span data-icon="sparkle" aria-hidden="true"></span>AI 生成用例</button>
+              <button class="mm-tool mm-tool--ai" type="button"><span data-icon="sparkle" aria-hidden="true"></span>遗漏测试点</button>
+            </div>
           </div>
 
-          <div class="mm">
-            <ul>
-              <li><span class="mm-node mm-node--root"><span data-icon="document"></span>优惠券叠加规则</span>
-                <ul>
-                  <li><span class="mm-node mm-node--sel"><i class="tdot tdot--case"></i>下单页优惠券叠加校验<span class="prio prio--p0">P0</span></span>
-                    <ul>
-                      <li><span class="mm-node"><i class="tdot tdot--precondition"></i><span class="mm-type">前置</span>已登录并持有可用优惠券</span></li>
-                      <li><span class="mm-node"><i class="tdot tdot--step"></i><span class="mm-type">步骤</span>提交含两张券的订单</span></li>
-                      <li><span class="mm-node"><i class="tdot tdot--expected"></i><span class="mm-type">预期</span>优惠金额为各券之和</span></li>
+          <div class="mm" tabindex="0" aria-label="用例脑图画布">
+            <ul role="tree" aria-label="用例节点">
+              <li role="treeitem" aria-expanded="true"><span class="mm-node mm-node--root"><span data-icon="document" aria-hidden="true"></span>优惠券叠加规则</span>
+                <ul role="group">
+                  <li role="treeitem" aria-selected="true" aria-expanded="true"><span class="mm-node mm-node--sel"><i class="tdot tdot--case" aria-hidden="true"></i>下单页优惠券叠加校验<span class="prio prio--p0">P0</span></span>
+                    <ul role="group">
+                      <li role="treeitem"><span class="mm-node"><i class="tdot tdot--precondition" aria-hidden="true"></i><span class="mm-type">前置</span>已登录并持有可用优惠券</span></li>
+                      <li role="treeitem"><span class="mm-node"><i class="tdot tdot--step" aria-hidden="true"></i><span class="mm-type">步骤</span>提交含两张券的订单</span></li>
+                      <li role="treeitem"><span class="mm-node"><i class="tdot tdot--expected" aria-hidden="true"></i><span class="mm-type">预期</span>优惠金额为各券之和</span></li>
                     </ul>
                   </li>
-                  <li><span class="mm-node"><i class="tdot tdot--case"></i>库存不足时下单拦截<span class="prio prio--p1">P1</span></span>
-                    <ul>
-                      <li><span class="mm-node"><i class="tdot tdot--precondition"></i><span class="mm-type">前置</span>目标商品库存为 0</span></li>
-                      <li><span class="mm-node"><i class="tdot tdot--expected"></i><span class="mm-type">预期</span>提示库存不足并阻止下单</span></li>
+                  <li role="treeitem" aria-expanded="true"><span class="mm-node"><i class="tdot tdot--case" aria-hidden="true"></i>库存不足时下单拦截<span class="prio prio--p1">P1</span></span>
+                    <ul role="group">
+                      <li role="treeitem"><span class="mm-node"><i class="tdot tdot--precondition" aria-hidden="true"></i><span class="mm-type">前置</span>目标商品库存为 0</span></li>
+                      <li role="treeitem"><span class="mm-node"><i class="tdot tdot--expected" aria-hidden="true"></i><span class="mm-type">预期</span>提示库存不足并阻止下单</span></li>
                     </ul>
                   </li>
-                  <li><span class="mm-node"><i class="tdot tdot--case"></i>多优惠券互斥规则<span class="prio prio--p0">P0</span></span>
-                    <ul>
-                      <li><span class="mm-node"><i class="tdot tdot--step"></i><span class="mm-type">步骤</span>勾选互斥的两张券</span></li>
-                      <li><span class="mm-node"><i class="tdot tdot--expected"></i><span class="mm-type">预期</span>提示互斥，仅可使用一张</span></li>
+                  <li role="treeitem" aria-expanded="true"><span class="mm-node"><i class="tdot tdot--case" aria-hidden="true"></i>多优惠券互斥规则<span class="prio prio--p0">P0</span></span>
+                    <ul role="group">
+                      <li role="treeitem"><span class="mm-node"><i class="tdot tdot--step" aria-hidden="true"></i><span class="mm-type">步骤</span>勾选互斥的两张券</span></li>
+                      <li role="treeitem"><span class="mm-node"><i class="tdot tdot--expected" aria-hidden="true"></i><span class="mm-type">预期</span>提示互斥，仅可使用一张</span></li>
                     </ul>
                   </li>
-                  <li><span class="mm-node"><i class="tdot tdot--case"></i>历史订单导出上限<span class="prio prio--p2">P2</span></span></li>
+                  <li role="treeitem"><span class="mm-node"><i class="tdot tdot--case" aria-hidden="true"></i>历史订单导出上限<span class="prio prio--p2">P2</span></span></li>
                 </ul>
               </li>
             </ul>
