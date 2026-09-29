@@ -79,7 +79,7 @@ const failRateText = computed(() => {
           </div>
         </div>
       </div>
-      <el-card shadow="never">
+      <el-card shadow="never" class="ai-statistics-tab__table-card">
         <el-table :data="statistics.items" stripe>
           <el-table-column prop="key" label="维度" />
           <el-table-column prop="calls" label="调用次数" width="120" align="right" />
@@ -95,6 +95,11 @@ const failRateText = computed(() => {
 <style scoped lang="scss">
 .ai-statistics-tab {
   padding-top: var(--space-sm);
+}
+
+/* UI-SC-10：body 内边距归零，表格贴合卡片边缘 */
+.ai-statistics-tab__table-card {
+  --el-card-padding: 0;
 }
 
 .ai-statistics-tab__bar {

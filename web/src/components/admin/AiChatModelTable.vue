@@ -127,6 +127,11 @@ function setDefaultTitle(row: unknown): string | undefined {
 </template>
 
 <style scoped lang="scss">
+/* UI-SC-10：body 内边距归零，表格贴合卡片边缘（header 仍按默认留白） */
+.ai-model-table {
+  --el-card-padding: 0;
+}
+
 .ai-model-table__header {
   display: flex;
   align-items: center;
