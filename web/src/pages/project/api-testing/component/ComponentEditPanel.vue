@@ -5,7 +5,7 @@ import {
   COMPONENT_TYPE_OPTIONS,
   type ComponentFormData,
 } from '@/composables/project/api-testing/component/componentModel'
-import ProcessorForm from '@/components/project/api-testing/ProcessorForm.vue'
+import ProcessorConfigEditor from '@/components/project/api-testing/ProcessorConfigEditor.vue'
 import ValidatorForm from '@/components/project/api-testing/ValidatorForm.vue'
 import ExtractorForm from '@/components/project/api-testing/ExtractorForm.vue'
 
@@ -76,7 +76,7 @@ const emit = defineEmits<{
 
     <span class="cp-form__label">配置（随类型切换）</span>
 
-    <ProcessorForm
+    <ProcessorConfigEditor
       v-if="form.type === 'preprocessor' || form.type === 'postprocessor'"
       v-model="form.config"
       :http-options="httpOptions"
