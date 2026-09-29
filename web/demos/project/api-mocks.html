@@ -10,6 +10,30 @@
 <style>
   .selected-hint { font-size: var(--font-size-sm); color: var(--n-500); }
   .more-caret { margin-left: 10px; color: var(--brand-500); font-size: var(--font-size-xs); cursor: pointer; }
+
+  /* .dialog-mask 固定 display:flex，作者样式强于 UA [hidden]，须显式补显隐契约 */
+  [hidden] { display: none !important; }
+
+  /* 新建面板：对应 MockEditorDrawer（宽 640px） */
+  .dialog { width: 640px; }
+  .dialog .dialog__body { padding: 20px 24px; }
+  .dialog .field { margin-bottom: 16px; }
+
+  /* 分区标题：对应抽屉内左对齐分隔线 */
+  .mock-sect { display: flex; align-items: center; gap: 10px; margin: 4px 0 14px; font-size: var(--font-size-sm); font-weight: 600; color: var(--n-700); }
+  .mock-sect::after { content: ""; flex: 1; height: 1px; background: var(--n-100); }
+
+  .mock-row { display: flex; gap: 12px; align-items: flex-start; }
+  .mock-row .field { flex: 1; min-width: 0; }
+  .mock-row .mock-row__item--wide { flex: 2; }
+
+  .mock-kv { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+  .mock-kv .input { flex: 1; min-width: 0; }
+  .mock-kv__type { width: 132px; flex: none; }
+  .mock-kv__del { flex: none; color: var(--st-danger); }
+  .mock-kv__del:hover:not(:disabled) { color: #fff; background: var(--st-danger); }
+
+  .mock-body { min-height: 150px; font-family: var(--font-mono); font-size: var(--font-size-xs); }
 </style>
 </head>
 <body data-shell="business" data-mode="project" data-active="api" data-workspace="质量中台" data-project="电商核心系统">
@@ -35,7 +59,7 @@
           <h1 class="page-head__title">Mock 服务</h1>
         </div>
         <div class="page-head__actions">
-          <button class="btn btn--primary"><span data-icon="plus"></span>新建 Mock</button>
+          <button class="btn btn--primary" type="button" id="mk-open"><span data-icon="plus"></span>新建 Mock</button>
         </div>
       </div>
 
@@ -156,8 +180,363 @@
   <button class="btn btn--text btn--sm" data-ux-batch-clear>清空</button>
 </div>
 
+<!-- 新建 Mock 面板：对应 MockEditorDrawer 的「基本信息 / 匹配条件 / 响应定义」三段结构 -->
+<div class="dialog-mask" id="mock-editor" role="dialog" aria-modal="true" aria-labelledby="mk-title" hidden>
+  <div class="dialog">
+    <div class="dialog__header">
+      <span class="dialog__title" id="mk-title">新建 Mock</span>
+      <span class="dialog__close" id="mk-close" role="button" tabindex="0" title="关闭"><span data-icon="x"></span></span>
+    </div>
+
+    <div class="dialog__body">
+      <div class="mock-sect">基本信息</div>
+
+      <div class="field">
+        <label class="field__label" for="mk-name">Mock 名称<span class="req">*</span></label>
+        <input class="input" id="mk-name" maxlength="200" placeholder="如：登录成功 Mock">
+        <div class="field__error" id="mk-name-err" hidden>请输入 Mock 名称</div>
+      </div>
+
+      <div class="field">
+        <label class="field__label" for="mk-desc">描述</label>
+        <textarea class="textarea" id="mk-desc" rows="2" maxlength="500" placeholder="可选，Mock 用途说明"></textarea>
+      </div>
+
+      <div class="mock-row">
+        <div class="field">
+          <label class="field__label" for="mk-method">请求方法</label>
+          <select class="select" id="mk-method">
+            <option>GET</option><option>POST</option><option>PUT</option><option>PATCH</option>
+            <option>DELETE</option><option>HEAD</option><option>OPTIONS</option>
+          </select>
+        </div>
+        <div class="field mock-row__item--wide">
+          <label class="field__label" for="mk-path">请求路径<span class="req">*</span></label>
+          <input class="input mono" id="mk-path" maxlength="500" value="/" placeholder="/api/users">
+          <div class="field__error" id="mk-path-err" hidden>请输入请求路径</div>
+        </div>
+      </div>
+
+      <div class="mock-sect">匹配条件</div>
+
+      <div id="mk-rules">
+        <div class="mock-kv">
+          <select class="select mock-kv__type" data-rule-type aria-label="匹配类型">
+            <option value="header">请求头</option><option value="param">Query 参数</option><option value="body">请求体 (JSONPath)</option>
+          </select>
+          <input class="input" data-rule-name value="" placeholder="名称 / JSONPath" maxlength="200">
+          <input class="input" data-rule-value value="" placeholder="值 / 正则" maxlength="500">
+          <button type="button" class="btn btn--text btn--sm mock-kv__del" data-del aria-label="删除该行" disabled><span data-icon="trash"></span></button>
+        </div>
+      </div>
+      <button class="btn btn--link btn--sm" type="button" id="mk-rule-add"><span data-icon="plus"></span>添加匹配条件</button>
+
+      <div class="mock-sect">响应定义</div>
+
+      <div class="mock-row">
+        <div class="field">
+          <label class="field__label" for="mk-status">状态码<span class="req">*</span></label>
+          <input class="input num" type="number" id="mk-status" value="200" min="100" max="599">
+          <div class="field__error" id="mk-status-err" hidden>状态码需为 100-599 的 HTTP 状态码</div>
+        </div>
+        <div class="field">
+          <label class="field__label" for="mk-bodytype">响应体类型</label>
+          <select class="select" id="mk-bodytype">
+            <option value="json">JSON</option><option value="text">Text</option>
+            <option value="xml">XML</option><option value="binary">Binary</option>
+          </select>
+        </div>
+        <div class="field">
+          <label class="field__label" for="mk-delay">延迟 (ms)</label>
+          <input class="input num" type="number" id="mk-delay" value="0" min="0" max="60000">
+        </div>
+      </div>
+
+      <div class="field">
+        <span class="field__label">响应头</span>
+        <div id="mk-headers">
+          <div class="mock-kv">
+            <input class="input" data-head-key value="Content-Type" placeholder="Key" maxlength="200">
+            <input class="input" data-head-value value="application/json" placeholder="Value" maxlength="500">
+            <button type="button" class="btn btn--text btn--sm mock-kv__del" data-del aria-label="删除该行" disabled><span data-icon="trash"></span></button>
+          </div>
+        </div>
+        <button class="btn btn--link btn--sm" type="button" id="mk-head-add"><span data-icon="plus"></span>添加响应头</button>
+      </div>
+
+      <div class="field">
+        <label class="field__label" for="mk-body">响应体</label>
+        <textarea class="textarea mock-body" id="mk-body" rows="8" maxlength="10000" placeholder='{"code": 200, "data": {"token": "mock-${uuid()}"}}'></textarea>
+      </div>
+    </div>
+
+    <div class="dialog__footer">
+      <button class="btn btn--default" type="button" id="mk-cancel">取消</button>
+      <button class="btn btn--primary" type="button" id="mk-save">保存</button>
+    </div>
+  </div>
+</div>
+
 <script src="../assets/icons.js"></script>
 <script src="../assets/shell.js"></script>
 <script src="../assets/ux.js"></script>
+<script>
+  /* ---------------- 新建 Mock 面板（对应 MockEditorDrawer 的表单与保存口径） ---------------- */
+  var RULE_TYPES = [
+    ['header', '请求头'],
+    ['param', 'Query 参数'],
+    ['body', '请求体 (JSONPath)']
+  ];
+
+  var editor = document.getElementById('mock-editor');
+  var ruleBox = document.getElementById('mk-rules');
+  var headBox = document.getElementById('mk-headers');
+  var saveBtn = document.getElementById('mk-save');
+  var nameInput = document.getElementById('mk-name');
+  var pathInput = document.getElementById('mk-path');
+  var statusInput = document.getElementById('mk-status');
+  var delayInput = document.getElementById('mk-delay');
+
+  function esc(s) {
+    return String(s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function optionsHtml(list, selected) {
+    return list.map(function (item) {
+      var value = item[0];
+      return '<option value="' + esc(value) + '"' + (value === selected ? ' selected' : '') + '>' + esc(item[1]) + '</option>';
+    }).join('');
+  }
+
+  function hydrateIcons(scope) {
+    if (window.RTIcons) window.RTIcons.hydrate(scope);
+  }
+
+  /* 匹配条件 / 响应头共用键值行模板，行的增删由容器事件委托，避免逐行绑定 */
+  function ruleRowHtml() {
+    return '<div class="mock-kv">' +
+      '<select class="select mock-kv__type" data-rule-type aria-label="匹配类型">' + optionsHtml(RULE_TYPES, 'header') + '</select>' +
+      '<input class="input" data-rule-name value="" placeholder="名称 / JSONPath" maxlength="200">' +
+      '<input class="input" data-rule-value value="" placeholder="值 / 正则" maxlength="500">' +
+      '<button type="button" class="btn btn--text btn--sm mock-kv__del" data-del aria-label="删除该行"><span data-icon="trash"></span></button>' +
+      '</div>';
+  }
+
+  function headRowHtml(key, value) {
+    return '<div class="mock-kv">' +
+      '<input class="input" data-head-key value="' + esc(key) + '" placeholder="Key" maxlength="200">' +
+      '<input class="input" data-head-value value="' + esc(value) + '" placeholder="Value" maxlength="500">' +
+      '<button type="button" class="btn btn--text btn--sm mock-kv__del" data-del aria-label="删除该行"><span data-icon="trash"></span></button>' +
+      '</div>';
+  }
+
+  function syncDeleteState(box) {
+    var rows = box.querySelectorAll('.mock-kv');
+    Array.prototype.forEach.call(rows, function (row) {
+      var del = row.querySelector('[data-del]');
+      if (del) del.disabled = rows.length <= 1;
+    });
+  }
+
+  function bindKvBox(box) {
+    box.addEventListener('click', function (e) {
+      var del = e.target && e.target.closest ? e.target.closest('[data-del]') : null;
+      if (!del || del.disabled) return;
+      del.closest('.mock-kv').remove();
+      syncDeleteState(box);
+    });
+  }
+
+  function resetForm() {
+    nameInput.value = '';
+    document.getElementById('mk-desc').value = '';
+    document.getElementById('mk-method').value = 'GET';
+    pathInput.value = '/';
+    document.getElementById('mk-status').value = '200';
+    document.getElementById('mk-bodytype').value = 'json';
+    delayInput.value = '0';
+    document.getElementById('mk-body').value = '';
+    ruleBox.innerHTML = ruleRowHtml();
+    headBox.innerHTML = headRowHtml('Content-Type', 'application/json');
+    hydrateIcons(editor);
+    syncDeleteState(ruleBox);
+    syncDeleteState(headBox);
+    clearError(nameInput, 'mk-name-err');
+    clearError(pathInput, 'mk-path-err');
+    clearError(statusInput, 'mk-status-err');
+    delayInput.classList.remove('input--error');
+  }
+
+  function openEditor() {
+    resetForm();
+    editor.hidden = false;
+    nameInput.focus();
+  }
+
+  function closeEditor() {
+    editor.hidden = true;
+  }
+
+  function clearError(input, errId) {
+    input.classList.remove('input--error');
+    var err = document.getElementById(errId);
+    if (err) err.hidden = true;
+  }
+
+  function showError(input, errId, msg) {
+    input.classList.add('input--error');
+    var err = document.getElementById(errId);
+    if (err) {
+      err.textContent = msg;
+      err.hidden = false;
+    }
+    input.focus();
+    window.RTUX.toast(msg, { type: 'warning' });
+    return false;
+  }
+
+  /* 新建规则按组内最大优先级 +1 自动分配，新行排到列表首行 */
+  function nextPriority() {
+    var max = 0;
+    Array.prototype.forEach.call(document.querySelectorAll('.table tbody tr td:nth-child(6)'), function (td) {
+      var v = parseInt(td.textContent, 10);
+      if (!isNaN(v) && v > max) max = v;
+    });
+    return max + 1;
+  }
+
+  function readCount(el) {
+    var m = el.textContent.match(/共\s*([\d,]+)\s*条/);
+    return m ? Number(m[1].replace(/,/g, '')) : null;
+  }
+
+  function bumpCount(delta) {
+    [document.querySelector('.toolbar__count'), document.querySelector('.pagination__total')].forEach(function (el) {
+      if (!el) return;
+      var n = readCount(el);
+      if (n === null) return;
+      var next = n + delta;
+      el.textContent = el.textContent.replace(/共\s*[\d,]+\s*条/, '共 ' + next.toLocaleString('en-US') + ' 条');
+    });
+  }
+
+  /* ux.js 在首次绑定时一次性收集勾选框，动态行需自行同步批量条计数 */
+  function bindRowCheckbox(box) {
+    var bar = document.getElementById('batchbar-mocks');
+    var countEl = bar.querySelector('[data-ux-batch-count]');
+    box.addEventListener('click', function () {
+      box.classList.toggle('checkbox--on');
+      var n = document.querySelectorAll('.table-wrap .checkbox--on').length;
+      if (countEl) countEl.textContent = n;
+      bar.hidden = n === 0;
+    });
+  }
+
+  function rowHtml(d) {
+    var ops = '<span class="op-link">编辑</span>' +
+      '<span class="op-link">调试</span>' +
+      '<span class="op-link" data-ux-feedback="Mock 地址已复制：http://mock.example.com' + esc(d.path) + '" data-ux-feedback-type="success">地址</span>' +
+      '<span class="op-link" data-ux-feedback="已复制该 Mock 规则" data-ux-feedback-type="success">复制</span>' +
+      '<span class="more-caret" data-ux-feedback="更多操作：启用 / 停用 / 删除">更多 ▾</span>';
+    return '<tr>' +
+      '<td><span class="checkbox"></span></td>' +
+      '<td class="cell-main">' + esc(d.name) + (d.description ? '<span class="cell-sub">' + esc(d.description) + '</span>' : '') + '</td>' +
+      '<td><span class="chip">' + esc(d.method) + '</span></td>' +
+      '<td class="mono">' + esc(d.path) + '</td>' +
+      '<td class="num">' + d.status + '</td>' +
+      '<td class="num">' + d.priority + '</td>' +
+      '<td style="text-align:center"><span class="switch' + (d.enabled ? ' switch--on' : '') + '"></span></td>' +
+      '<td class="num">0</td>' +
+      '<td class="num">-</td>' +
+      '<td>' + ops + '</td>' +
+      '</tr>';
+  }
+
+  function insertRow(d) {
+    var tbody = document.querySelector('.table tbody');
+    tbody.insertAdjacentHTML('afterbegin', rowHtml(d));
+    bumpCount(1);
+    bindRowCheckbox(tbody.querySelector('tr .checkbox'));
+    // 动态行的 feedback 与图标需补绑（RTUX / RTIcons 幂等，重复调用安全）
+    window.RTUX.bind(document);
+    hydrateIcons(document);
+  }
+
+  document.getElementById('mk-open').addEventListener('click', openEditor);
+  document.getElementById('mk-close').addEventListener('click', closeEditor);
+  document.getElementById('mk-cancel').addEventListener('click', closeEditor);
+
+  // Esc 收起（弹窗不支持点击遮罩关闭，与抽屉 close-on-click-modal=false 一致）
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && !editor.hidden) closeEditor();
+  });
+
+  document.getElementById('mk-rule-add').addEventListener('click', function () {
+    ruleBox.insertAdjacentHTML('beforeend', ruleRowHtml());
+    hydrateIcons(ruleBox);
+    syncDeleteState(ruleBox);
+  });
+
+  document.getElementById('mk-head-add').addEventListener('click', function () {
+    headBox.insertAdjacentHTML('beforeend', headRowHtml('', ''));
+    hydrateIcons(headBox);
+    syncDeleteState(headBox);
+  });
+
+  bindKvBox(ruleBox);
+  bindKvBox(headBox);
+  syncDeleteState(ruleBox);
+  syncDeleteState(headBox);
+
+  // 校验失败红字在下一次输入时即时消除，与抽屉内逐项修正的节奏一致
+  [[nameInput, 'mk-name-err'], [pathInput, 'mk-path-err'], [statusInput, 'mk-status-err']].forEach(function (pair) {
+    pair[0].addEventListener('input', function () { clearError(pair[0], pair[1]); });
+  });
+
+  saveBtn.addEventListener('click', function () {
+    if (saveBtn.classList.contains('is-saving')) return;
+
+    var name = nameInput.value.trim();
+    if (!name) return showError(nameInput, 'mk-name-err', '请输入 Mock 名称');
+
+    var path = pathInput.value.trim();
+    if (!path) return showError(pathInput, 'mk-path-err', '请输入请求路径');
+    if (path.charAt(0) !== '/') return showError(pathInput, 'mk-path-err', '请求路径需以 / 开头');
+
+    var status = parseInt(statusInput.value, 10);
+    if (isNaN(status) || status < 100 || status > 599) {
+      return showError(statusInput, 'mk-status-err', '状态码需为 100-599 的 HTTP 状态码');
+    }
+
+    // 越界值按输入框 min/max 钳制，口径同 el-input-number
+    var delay = parseInt(delayInput.value, 10);
+    if (isNaN(delay) || delay < 0) delay = 0;
+    if (delay > 60000) delay = 60000;
+    delayInput.value = delay;
+
+    saveBtn.classList.add('is-saving');
+    saveBtn.textContent = '保存中…';
+    window.setTimeout(function () {
+      insertRow({
+        name: name,
+        description: document.getElementById('mk-desc').value.trim(),
+        method: document.getElementById('mk-method').value,
+        path: path,
+        status: status,
+        // 新建默认启用；编辑态沿用记录原值，抽屉不再提供启停开关
+        enabled: true,
+        priority: nextPriority()
+      });
+      saveBtn.classList.remove('is-saving');
+      saveBtn.textContent = '保存';
+      closeEditor();
+      window.RTUX.toast('已创建', { type: 'success' });
+    }, 600);
+  });
+</script>
 </body>
 </html>
