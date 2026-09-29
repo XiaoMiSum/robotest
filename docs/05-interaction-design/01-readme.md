@@ -40,7 +40,7 @@
 | [41-report-ui-list](41-report-ui-list.md)（分册：报告列表页） | V1.0 | 2026-09-23 | 起草中 |
 | [42-report-ui-detail](42-report-ui-detail.md)（分册：报告详情页） | V1.0 | 2026-09-23 | 起草中 |
 | [43-report-ui-share](43-report-ui-share.md)（分册：分享访问页） | V1.0 | 2026-09-23 | 起草中 |
-| [44-global-asset-ui](44-global-asset-ui.md)全局资产交互设计 | V1.0 | 2026-09-23 | 起草中 |
+| [44-global-asset-ui](44-global-asset-ui.md)公共组件交互设计 | V1.0 | 2026-09-23 | 起草中 |
 | [45-ai-infra-ui-overview](45-ai-infra-ui-overview.md)（总览分册） | V1.0 | 2026-09-23 | 起草中 |
 | [46-ai-infra-ui-config](46-ai-infra-ui-config.md)（分册：AI 配置页） | V1.0 | 2026-09-23 | 起草中 |
 | [47-ai-infra-ui-agent](47-ai-infra-ui-agent.md)（分册：智能体标签页） | V1.0 | 2026-09-23 | 起草中 |
@@ -65,7 +65,7 @@
 | [66-assistant-ui-quick-action](66-assistant-ui-quick-action.md)（分册：快捷操作执行） | V1.0 | 2026-09-23 | 起草中 |
 | [67-assistant-ui-mindmap-guide](67-assistant-ui-mindmap-guide.md)（分册：脑图编辑与使用指引） | V1.0 | 2026-09-23 | 起草中 |
 
-> 阅读顺序建议：接口管理 → 快速调试 → 测试场景 → 环境管理 → 定时任务 → Mock服务 → 全局资产 → 测试报告 → 项目设置。导航框架与色彩体系见《全局导航与菜单交互系统设计》（项目设置框架见其 3.5）《视觉设计》。
+> 阅读顺序建议：接口管理 → 快速调试 → 测试场景 → 环境管理 → 定时任务 → Mock服务 → 公共组件 → 测试报告 → 项目设置。导航框架与色彩体系见《全局导航与菜单交互系统设计》（项目设置框架见其 3.5）《视觉设计》。
 > 阅读顺序建议：先读《AI基础设施与管理端页面交互设计》（第 2 章为 AI 通用交互规范，其余 4 份均引用）。导航框架与色彩体系见《全局导航与菜单交互系统设计》《视觉设计》。
 >
 > 接口交互示例遵循 `docs/00-spec/20-contracts/01-api.md`：分页使用 `pageNo/pageSize` 和 `list/total`，错误码以 10 位 `ErrorCodeConstants` 为准；实时连接遵循 `docs/04-detailed-design/78-realtime-websocket.md` 和 `docs/00-spec/20-contracts/03-realtime-protocol.md`。

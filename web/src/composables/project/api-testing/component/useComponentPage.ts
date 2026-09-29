@@ -1,4 +1,4 @@
-import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type {
   ApiComponentListItem,
@@ -36,11 +36,30 @@ import {
   type ProcessorExtractor,
 } from '@/composables/project/api-testing/processorFormModel'
 
-/** 交互设计已移除分页，一次拉满当前筛选下的全部组件（超出即列表截断，量级远低于该阈值） */
-const LIST_PAGE_SIZE = 1000
+/** 交互设计：每页 20 条服务端分页，滚动加载上下页，窗口最多保留 5 页（`docs/05-interaction-design/44-global-asset-ui.md` 2.1） */
+const PAGE_SIZE = 20
+const MAX_WINDOW_PAGES = 5
 const SEARCH_DEBOUNCE_MS = 300
 
-export function useComponentPage() {
+/** 窗口内的单页切片：items 为去重后保留的条目，rawLen 为服务端原样条数（判定是否还有下一页） */
+interface ComponentPageSlice {
+  no: number
+  items: ApiComponentListItem[]
+  rawLen: number
+}
+
+/** 前插 / 丢首部会移动视口内容，由页面在变更落 DOM 前后捕获与回放 scrollTop 补偿 */
+export interface ComponentPageScrollHooks {
+  beforeShift(): void
+  afterShift(): void
+}
+
+export interface UseComponentPageOptions {
+  scroll?: ComponentPageScrollHooks
+}
+
+export function useComponentPage(options: UseComponentPageOptions = {}) {
+  const scroll = options.scroll
   const authStore = useAuthStore()
   const canEdit = computed(() =>
     authStore.hasPermission('api-component:edit')
@@ -52,13 +71,34 @@ export function useComponentPage() {
 
   const listLoading = ref(false)
   const loadError = ref(false)
-  const list = ref<ApiComponentListItem[]>([])
+  /** 窗口内的页切片（firstPage…lastPage 连续），list 为切片按序摊平 */
+  const pages = ref<ComponentPageSlice[]>([])
+  const total = ref(0)
+  const loadingMore = ref(false)
+  const loadingPrev = ref(false)
+  /** 滚动加载失败的行内错误：保留已加载数据并提供行内重试 */
+  const moreError = ref(false)
+  const prevError = ref(false)
   const keyword = ref('')
   const filterType = ref<ComponentTab>('all')
   const selectedId = ref<string | null>(null)
   const panelMode = ref<ComponentPanelMode>('view')
+  /** 选中项被滑出窗口后维持右栏详情的缓存 */
+  const selectedCache = ref<ApiComponentListItem | null>(null)
   /** 删除后按原位置回选下一项；null 表示按默认策略（首项）回选 */
   let pendingSelectIndex: number | null = null
+  /** 递增以丢弃过期请求：筛选重置会使在途滚动加载失效 */
+  let requestSequence = 0
+
+  const list = computed(() => pages.value.flatMap((slice) => slice.items))
+  const firstPage = computed(() => pages.value[0]?.no ?? 1)
+  const lastPage = computed(() => pages.value[pages.value.length - 1]?.no ?? 1)
+  /** 末页取满整页才可能存在下一页，避免服务端条数漂移导致空转 */
+  const hasMoreDown = computed(() => {
+    const last = pages.value[pages.value.length - 1]
+    return !!last && last.rawLen >= PAGE_SIZE && last.no * PAGE_SIZE < total.value
+  })
+  const hasMoreUp = computed(() => pages.value.length > 0 && firstPage.value > 1)
 
   function restoreSelection(): void {
     if (pendingSelectIndex !== null) {
@@ -67,28 +107,138 @@ export function useComponentPage() {
       selectedId.value = index >= 0 ? list.value[index]?.id ?? null : null
       return
     }
-    if (selectedId.value && list.value.some((item) => item.id === selectedId.value)) return
+    // 选中项不在当前窗口（筛选变化或页被丢弃）时保留 id，右栏由缓存继续展示
+    if (selectedId.value && (list.value.some((item) => item.id === selectedId.value)
+      || selectedCache.value?.id === selectedId.value)) return
     selectedId.value = list.value[0]?.id ?? null
   }
 
+  function fetchPage(pageNo: number) {
+    return fetchComponents({
+      pageNo,
+      pageSize: PAGE_SIZE,
+      type: filterType.value === 'all' ? undefined : filterType.value,
+      keyword: keyword.value.trim() || undefined,
+    })
+  }
+
   async function loadList(): Promise<void> {
+    const seq = ++requestSequence
     listLoading.value = true
     loadError.value = false
+    moreError.value = false
+    prevError.value = false
+    loadingMore.value = false
+    loadingPrev.value = false
     try {
-      const result = await fetchComponents({
-        pageNo: 1,
-        pageSize: LIST_PAGE_SIZE,
-        type: filterType.value === 'all' ? undefined : filterType.value,
-        keyword: keyword.value.trim() || undefined,
-      })
-      list.value = result.list
+      const result = await fetchPage(1)
+      if (seq !== requestSequence) return
+      pages.value = [{ no: 1, items: result.list, rawLen: result.list.length }]
+      total.value = result.total
       restoreSelection()
     } catch (err) {
+      if (seq !== requestSequence) return
       loadError.value = true
       ElMessage.error(resolveComponentError(err))
     } finally {
-      listLoading.value = false
+      if (seq === requestSequence) listLoading.value = false
     }
+  }
+
+  async function trimTop(): Promise<void> {
+    while (pages.value.length > MAX_WINDOW_PAGES) {
+      scroll?.beforeShift()
+      pages.value = pages.value.slice(1)
+      await nextTick()
+      scroll?.afterShift()
+    }
+  }
+
+  /** 滚动至底部附近：加载下一页追加，超出窗口丢弃最前页 */
+  async function loadMore(): Promise<void> {
+    if (listLoading.value || loadingMore.value || loadingPrev.value || !hasMoreDown.value) return
+    const seq = requestSequence
+    const targetNo = lastPage.value + 1
+    loadingMore.value = true
+    moreError.value = false
+    try {
+      const result = await fetchPage(targetNo)
+      if (seq !== requestSequence) return
+      const known = new Set(list.value.map((item) => item.id))
+      const items = result.list.filter((item) => !known.has(item.id))
+      pages.value = [...pages.value, { no: targetNo, items, rawLen: result.list.length }]
+      total.value = result.total
+      // 先让追加落 DOM，再捕获基线丢首部，保证补偿量只含被丢弃的条目
+      await nextTick()
+      await trimTop()
+    } catch (err) {
+      if (seq !== requestSequence) return
+      moreError.value = true
+      ElMessage.error(resolveComponentError(err))
+    } finally {
+      if (seq === requestSequence) loadingMore.value = false
+    }
+  }
+
+  /** 滚动至顶部附近：加载上一页前插，超出窗口丢弃最远端（末页位于视口下方，无需补偿） */
+  async function loadPrev(): Promise<void> {
+    if (listLoading.value || loadingMore.value || loadingPrev.value || !hasMoreUp.value) return
+    const seq = requestSequence
+    const targetNo = firstPage.value - 1
+    loadingPrev.value = true
+    prevError.value = false
+    try {
+      const result = await fetchPage(targetNo)
+      if (seq !== requestSequence) return
+      const known = new Set(list.value.map((item) => item.id))
+      const items = result.list.filter((item) => !known.has(item.id))
+      scroll?.beforeShift()
+      pages.value = [{ no: targetNo, items, rawLen: result.list.length }, ...pages.value]
+      await nextTick()
+      scroll?.afterShift()
+      if (pages.value.length > MAX_WINDOW_PAGES) pages.value = pages.value.slice(0, MAX_WINDOW_PAGES)
+      total.value = result.total
+    } catch (err) {
+      if (seq !== requestSequence) return
+      prevError.value = true
+      ElMessage.error(resolveComponentError(err))
+    } finally {
+      if (seq === requestSequence) loadingPrev.value = false
+    }
+  }
+
+  /** 变更操作后按当前窗口范围顺序重取：保持滚动位置与右栏选中，按 id 去重防御排序漂移 */
+  async function reloadWindow(): Promise<void> {
+    const seq = ++requestSequence
+    loadingMore.value = false
+    loadingPrev.value = false
+    const wanted = pages.value.map((slice) => slice.no)
+    const merged: ComponentPageSlice[] = []
+    try {
+      for (const no of wanted) {
+        const result = await fetchPage(no)
+        if (seq !== requestSequence) return
+        const items: ApiComponentListItem[] = []
+        for (const item of result.list) {
+          if (merged.some((slice) => slice.items.some((existed) => existed.id === item.id))) continue
+          items.push(item)
+        }
+        merged.push({ no, items, rawLen: result.list.length })
+        total.value = result.total
+      }
+      pages.value = merged
+      restoreSelection()
+    } catch (err) {
+      // 刷新失败保留旧列表仅提示：旧数据仍可操作，避免整列表塌陷为空态
+      ElMessage.error(resolveComponentError(err))
+    }
+  }
+
+  /** 选中项不在当前窗口时就地补丁缓存；在窗口内则由列表数据自动刷新，无需补丁 */
+  function refreshCache(id: string, patch: Partial<ApiComponentListItem>): void {
+    if (selectedCache.value?.id !== id) return
+    if (list.value.some((item) => item.id === id)) return
+    selectedCache.value = { ...selectedCache.value, ...patch }
   }
 
   let searchTimer: ReturnType<typeof setTimeout> | undefined
@@ -114,7 +264,18 @@ export function useComponentPage() {
 
   const hasFilter = computed(() => keyword.value.trim() !== '' || filterType.value !== 'all')
 
-  const selectedItem = computed(() => list.value.find((item) => item.id === selectedId.value) ?? null)
+  /** 列表命中优先（实时同步服务端状态），否则回落到选中时缓存的详情 */
+  const selectedItem = computed(() => {
+    const id = selectedId.value
+    if (!id) return null
+    const inList = list.value.find((item) => item.id === id)
+    if (inList) return inList
+    return selectedCache.value?.id === id ? selectedCache.value : null
+  })
+
+  watch(selectedItem, (item) => {
+    if (item) selectedCache.value = item
+  })
 
   function selectComponent(id: string): void {
     selectedId.value = id
@@ -208,15 +369,22 @@ export function useComponentPage() {
         config: Object.keys(config).length > 0 ? config : undefined,
       }
       if (editingId.value) {
-        await updateComponent(editingId.value, payload)
+        const id = editingId.value
+        await updateComponent(id, payload)
         ElMessage.success('已更新')
-        await loadList()
-        selectedId.value = editingId.value
+        await reloadWindow()
+        selectedId.value = id
+        refreshCache(id, {
+          name: payload.name,
+          description: payload.description ?? null,
+          sortOrder: payload.sortOrder ?? 0,
+          config: payload.config ? JSON.stringify(payload.config) : null,
+        })
       } else {
         payload.scope = form.scope
         const resp = await createComponent(payload)
         ElMessage.success('已创建')
-        await loadList()
+        await reloadWindow()
         selectedId.value = resp.id
       }
       panelMode.value = 'view'
@@ -235,7 +403,8 @@ export function useComponentPage() {
     if (!item) return
     try {
       await toggleComponent(item.id, enabled)
-      await loadList()
+      await reloadWindow()
+      refreshCache(item.id, { enabled })
     } catch (err) {
       ElMessage.error(resolveComponentError(err))
     }
@@ -258,7 +427,7 @@ export function useComponentPage() {
       selectedId.value = null
       panelMode.value = 'view'
       ElMessage.success('已删除')
-      await loadList()
+      await reloadWindow()
     } catch (err) {
       pendingSelectIndex = null
       ElMessage.error(resolveComponentError(err))
@@ -270,7 +439,7 @@ export function useComponentPage() {
     try {
       const resp = await copyComponent(row.id)
       ElMessage.success('已复制')
-      await loadList()
+      await reloadWindow()
       if (resp.id && list.value.some((item) => item.id === resp.id)) {
         selectedId.value = resp.id
         panelMode.value = 'view'
@@ -329,6 +498,13 @@ export function useComponentPage() {
     listLoading,
     loadError,
     list,
+    total,
+    loadingMore,
+    loadingPrev,
+    moreError,
+    prevError,
+    hasMoreDown,
+    hasMoreUp,
     keyword,
     filterType,
     hasFilter,
@@ -345,6 +521,8 @@ export function useComponentPage() {
     extractorPickerItems,
     extractorPickerKeyword,
     loadList,
+    loadMore,
+    loadPrev,
     handleSearchInput,
     handleTabChange,
     clearFilters,

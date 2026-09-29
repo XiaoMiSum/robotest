@@ -34,7 +34,7 @@
 │  ───────────────────────────────
 │  项目设置（平台级 · 按业务域过滤）
 │   ├ 环境管理           /workspace/projects/settings/environments
-│   └ 全局资产           /workspace/projects/settings/assets
+│   └ 公共组件           /workspace/projects/settings/assets
 └──────────────────────────────────┘
 ```
 
@@ -73,3 +73,11 @@
 | 报告列表页 | `41-report-ui-list.md` | 2.1 报告列表页 |
 | 报告详情页 | `42-report-ui-detail.md` | 2.2 报告详情页 |
 | 分享访问页 | `43-report-ui-share.md` | 2.3 分享访问页 |
+
+---
+
+## 修改记录
+
+| 版本 | 日期 | 说明 |
+| ---- | ---- | ---- |
+| V1.0 | 2026-09-29 | 术语统一：「全局资产」更名为「公共组件」 |

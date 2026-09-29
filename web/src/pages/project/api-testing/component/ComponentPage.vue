@@ -1,15 +1,27 @@
 <script setup lang="ts">
+import { nextTick, ref, watch } from 'vue'
 import { useComponentPage } from '@/composables/project/api-testing/component/useComponentPage'
 import type { ComponentTab } from '@/composables/project/api-testing/component/componentModel'
 import ComponentDetailPanel from './ComponentDetailPanel.vue'
 import ComponentEditPanel from './ComponentEditPanel.vue'
 import ExtractorAssetPicker from '@/components/project/api-testing/ExtractorAssetPicker.vue'
 
+/** 触发上一页 / 下一页加载的滚动边距（对齐项目列表页的预取量） */
+const SCROLL_THRESHOLD = 240
+
+const itemsEl = ref<HTMLElement | null>(null)
+/** 位移补偿基线：窗口前插或丢首部前的 scrollHeight */
+let shiftBaseline = 0
+
 const {
   canEdit,
   listLoading,
   loadError,
   list,
+  loadingMore,
+  loadingPrev,
+  moreError,
+  prevError,
   keyword,
   filterType,
   hasFilter,
@@ -26,6 +38,8 @@ const {
   extractorPickerItems,
   extractorPickerKeyword,
   loadList,
+  loadMore,
+  loadPrev,
   handleSearchInput,
   handleTabChange,
   clearFilters,
@@ -44,7 +58,38 @@ const {
   SCOPE_TAG_TYPE,
   componentTypeLabel,
   componentScopeLabel,
-} = useComponentPage()
+} = useComponentPage({
+  // 骨架与加载提示渲染在滚动容器外，补偿窗口内 scrollHeight 差值只含条目变化
+  scroll: {
+    beforeShift: () => {
+      shiftBaseline = itemsEl.value?.scrollHeight ?? 0
+    },
+    afterShift: () => {
+      const el = itemsEl.value
+      if (!el) return
+      el.scrollTop += el.scrollHeight - shiftBaseline
+    },
+  },
+})
+
+function handleListScroll(): void {
+  const el = itemsEl.value
+  if (!el) return
+  // 失败态交给行内 [重试] 恢复，避免「仍贴近边界 → 自动重试 → 再失败」的循环
+  const canPrev = !prevError.value
+  const canMore = !moreError.value
+  const distanceBottom = el.scrollHeight - el.scrollTop - el.clientHeight
+  // 内容未撑满视口时只补下一页，避免上下两个方向同时发起请求
+  if (canPrev && el.scrollHeight > el.clientHeight && el.scrollTop < SCROLL_THRESHOLD) void loadPrev()
+  if (canMore && distanceBottom < SCROLL_THRESHOLD) void loadMore()
+}
+
+watch([list, listLoading, loadingMore, loadingPrev], async () => {
+  if (loadError.value) return
+  // 首屏与每次窗口变更后按需续加载，撑满视口或到达窗口边界为止
+  await nextTick()
+  handleListScroll()
+})
 </script>
 
 <template>
@@ -87,24 +132,42 @@ const {
           <el-button v-if="hasFilter" size="small" @click="clearFilters">清除筛选</el-button>
         </div>
 
-        <ul v-else class="cp-items">
-          <li
-            v-for="item in list"
-            :key="item.id"
-            class="cp-item"
-            :class="{ 'is-active': item.id === selectedId, 'is-disabled': !item.enabled }"
-            @click="selectComponent(item.id)"
-          >
-            <div class="cp-item__main">
-              <span class="cp-item__name">{{ item.name }}</span>
-              <el-tag size="small" :type="SCOPE_TAG_TYPE[item.scope]">{{ componentScopeLabel(item.scope) }}</el-tag>
-              <el-tag size="small" :type="item.enabled ? 'success' : 'info'" :effect="item.enabled ? 'light' : 'plain'">
-                {{ item.enabled ? '已启用' : '已停用' }}
-              </el-tag>
-            </div>
-            <div class="cp-item__meta">{{ componentTypeLabel(item.type) }} · {{ item.description || '—' }}</div>
-          </li>
-        </ul>
+        <template v-else>
+          <div class="cp-list__state">
+            <template v-if="loadingPrev">加载中…</template>
+            <template v-else-if="prevError">
+              <span>加载上一页失败</span>
+              <el-button size="small" @click="loadPrev">重试</el-button>
+            </template>
+          </div>
+
+          <ul ref="itemsEl" class="cp-items" @scroll.passive="handleListScroll">
+            <li
+              v-for="item in list"
+              :key="item.id"
+              class="cp-item"
+              :class="{ 'is-active': item.id === selectedId, 'is-disabled': !item.enabled }"
+              @click="selectComponent(item.id)"
+            >
+              <div class="cp-item__main">
+                <span class="cp-item__name">{{ item.name }}</span>
+                <el-tag size="small" :type="SCOPE_TAG_TYPE[item.scope]">{{ componentScopeLabel(item.scope) }}</el-tag>
+                <el-tag size="small" :type="item.enabled ? 'success' : 'info'" :effect="item.enabled ? 'light' : 'plain'">
+                  {{ item.enabled ? '已启用' : '已停用' }}
+                </el-tag>
+              </div>
+              <div class="cp-item__meta">{{ componentTypeLabel(item.type) }} · {{ item.description || '—' }}</div>
+            </li>
+          </ul>
+
+          <div class="cp-list__state">
+            <template v-if="loadingMore">加载中…</template>
+            <template v-else-if="moreError">
+              <span>加载下一页失败</span>
+              <el-button size="small" @click="loadMore">重试</el-button>
+            </template>
+          </div>
+        </template>
       </aside>
 
       <!-- 右：查看 / 新建编辑 / 未选中三态 -->
@@ -201,6 +264,18 @@ const {
 
 .cp-list__skeleton {
   padding: var(--space-sm);
+}
+
+/* 首尾加载提示固定占位，出现与消失不改变列表可视区高度（避免滚动跳动） */
+.cp-list__state {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+  min-height: 24px;
+  font-size: var(--font-size-xs);
+  color: var(--color-neutral-400);
 }
 
 .cp-items {
