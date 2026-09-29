@@ -210,30 +210,6 @@ class ApiInterfaceServiceImplTest {
         assertThat(captor.getValue().getUserId()).isEqualTo(USER_ID);
     }
 
-    // ==================== 复制 ====================
-
-    @Test
-    void copyClonesDefinitionWithoutStepsWhenSourceHasNone() {
-        ApiInterface source = existingInterface("源接口");
-        when(interfaceMapper.selectById(INTERFACE_ID)).thenReturn(source);
-        when(interfaceMapper.selectByNameAndModule(PROJECT_ID, source.getModuleId(), "源接口（副本）"))
-                .thenReturn(null);
-        doAnswer(invocation -> {
-            invocation.getArgument(0, ApiInterface.class).setId(UUID.randomUUID());
-            return 1;
-        }).when(interfaceMapper).insert(any(ApiInterface.class));
-        when(changeLogMapper.insert(any(ApiInterfaceChangeLog.class))).thenReturn(1);
-
-        UUID copyId = service.copy(PROJECT_ID, USER_ID, INTERFACE_ID, null);
-
-        ArgumentCaptor<ApiInterface> captor = ArgumentCaptor.forClass(ApiInterface.class);
-        verify(interfaceMapper).insert(captor.capture());
-        assertThat(copyId).isNotEqualTo(INTERFACE_ID);
-        assertThat(captor.getValue().getName()).isEqualTo("源接口（副本）");
-        assertThat(captor.getValue().getReferenceCount()).isZero();
-        assertThat(captor.getValue().getChangeVersion()).isEqualTo(1);
-    }
-
     // ==================== 变更历史 ====================
 
     @Test

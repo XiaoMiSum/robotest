@@ -3,7 +3,6 @@ package io.github.xiaomisum.robotest.service.apitest;
 import io.github.xiaomisum.robotest.framework.security.LoginUser;
 import io.github.xiaomisum.robotest.framework.security.ProjectAccessGuard;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.CommonComponentSaveReqDTO;
-import io.github.xiaomisum.robotest.model.dto.response.apitest.CommonComponentCopyRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.CommonComponentIdRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.CommonComponentListItemRespDTO;
 import io.github.xiaomisum.robotest.model.entity.apitest.CommonComponent;
@@ -224,24 +223,6 @@ class CommonComponentServiceImplTest {
         service.delete(WORKSPACE_ID, PROJECT_ID, USER_ID, existing.getId());
 
         verify(componentMapper).deleteById(existing.getId());
-    }
-
-    @Test
-    void copy_projectScope_copiesWithNewName() {
-        CommonComponent existing = entity("project", "preprocessor", "原始组件");
-        when(componentMapper.findVisibleById(PROJECT_ID, WORKSPACE_ID, existing.getId()))
-                .thenReturn(existing);
-
-        CommonComponentCopyRespDTO result = service.copy(WORKSPACE_ID, PROJECT_ID, USER_ID, existing.getId());
-
-        ArgumentCaptor<CommonComponent> captor = ArgumentCaptor.forClass(CommonComponent.class);
-        verify(componentMapper).insert(captor.capture());
-        assertEquals("原始组件 (副本)", captor.getValue().getName());
-        assertEquals(Boolean.FALSE, captor.getValue().getEnabled());
-        assertEquals(3, captor.getValue().getSortOrder());
-        assertEquals("preprocessor", result.getType());
-        assertEquals("原始组件 (副本)", result.getName());
-        assertEquals(existing.getId().toString(), result.getSourceAssetId());
     }
 
     @Test

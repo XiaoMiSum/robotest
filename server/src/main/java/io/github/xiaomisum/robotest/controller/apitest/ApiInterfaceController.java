@@ -96,16 +96,6 @@ public class ApiInterfaceController {
         return Result.ok(true);
     }
 
-    @PostMapping("/api/project/interfaces/{id}/copy")
-    @PreAuthorize("hasAuthority('api-interface:edit')")
-    public Result<Map<String, UUID>> copy(
-            @AuthenticationPrincipal LoginUser loginUser,
-            @PathVariable UUID id,
-            @RequestBody(required = false) Map<String, String> body) {
-        return Result.ok(Map.of("id", interfaceService.copy(loginUser.getActiveProjectId(), loginUser.getId(), id,
-                body == null ? null : body.get("name"))));
-    }
-
     @PutMapping("/api/project/interfaces/batch/move")
     @PreAuthorize("hasAuthority('api-interface:edit')")
     public Result<Boolean> batchMove(
