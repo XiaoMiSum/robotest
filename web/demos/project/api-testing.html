@@ -139,22 +139,17 @@
     </aside>
 
     <div class="split__main">
-      <div class="page-head">
-        <div>
-          <h1 class="page-head__title">接口管理</h1>
-        </div>
-        <div class="page-head__actions">
-          <button class="btn btn--default" id="btn-import-interface"><span data-icon="upload"></span>导入</button>
-          <button class="btn btn--primary" id="btn-new-interface"><span data-icon="plus"></span>新建接口</button>
-        </div>
-      </div>
-
       <div class="ws">
-        <!-- 编辑器 Tab 条：全部接口（固定）+ 打开的编辑 Tab（脏态蓝点 / 可关闭），docs26 1.1 -->
+        <!-- 编辑器 Tab 条即页面首行（页面不设标题行）：全部接口（固定）+ 打开的编辑 Tab（脏态蓝点 / 可关闭），
+             页签末尾紧跟虚线 [+]（无文字），最右端为 [导入] 主色链接按钮，docs25 1.1 / docs26 1.1 -->
         <div class="ws-tabs">
           <div class="ws-tab is-active" data-pane="list"><span>全部接口</span></div>
-          <div class="ws-tab is-dirty" data-name="创建订单" data-method="POST" data-path="/api/v1/orders"><span>创建订单</span><span class="ws-tab__close" data-close>×</span></div>
-          <div class="ws-tab" data-name="查询订单详情" data-method="GET" data-path="/api/v1/orders/{orderId}"><span>查询订单详情</span><span class="ws-tab__close" data-close>×</span></div>
+          <div class="ws-tab is-dirty" data-name="创建订单" data-method="POST" data-path="/api/v1/orders"><span class="ws-tab__method m-post">POST</span><span>创建订单</span><span class="ws-tab__close" data-close>×</span></div>
+          <div class="ws-tab" data-name="查询订单详情" data-method="GET" data-path="/api/v1/orders/{orderId}"><span class="ws-tab__method m-get">GET</span><span>查询订单详情</span><span class="ws-tab__close" data-close>×</span></div>
+          <button type="button" class="ws-tabs__add" id="btn-new-interface" data-icon="plus" title="新建接口" aria-label="新建接口"></button>
+          <div class="ws-tabs__actions">
+            <button class="btn btn--link btn--sm" id="btn-import-interface"><span data-icon="upload"></span>导入</button>
+          </div>
         </div>
 
         <div class="ws-pane" data-pane="list">
@@ -621,27 +616,13 @@ var rt = window.RTUX;
 
     function activeTab() { return tabsBar.querySelector('.ws-tab.is-active'); }
 
-    // 头部动作区随激活 Tab 换级：编辑态把列表级 [导入][新建接口] 降为文字按钮，
-    // 主视觉权重让给编辑器自身的 [保存]，避免两组按钮同为一级时的语义竞争（方案 A2）
-    var headActions = [
-      { id: 'btn-import-interface', rest: 'btn--default', demote: 'btn--text' },
-      { id: 'btn-new-interface', rest: 'btn--primary', demote: 'btn--text' }
-    ];
-    function setHeadScope(isEdit) {
-      headActions.forEach(function (a) {
-        var el = document.getElementById(a.id);
-        if (!el) return;
-        el.classList.toggle(a.rest, !isEdit);
-        el.classList.toggle(a.demote, isEdit);
-      });
-    }
-
+    // 页面级动作 [导入] 恒为链接按钮、[+] 新建入口紧跟页签末尾，均不随激活 Tab 换级，
+    // 主视觉权重自然留给编辑器自身的 [保存]
     function activate(tab) {
       tabsBar.querySelectorAll('.ws-tab').forEach(function (t) { t.classList.toggle('is-active', t === tab); });
       var isList = tab.getAttribute('data-pane') === 'list';
       listPane.hidden = !isList;
       editorPane.hidden = isList;
-      setHeadScope(!isList);
       if (isList) return;
       // 请求行跟随激活 Tab（同一编辑器面板承载多个接口定义）
       var method = tab.getAttribute('data-method') || 'GET';
@@ -660,14 +641,16 @@ var rt = window.RTUX;
         if (t.getAttribute('data-name') === name) found = t;
       });
       if (!found) {
+        var m = (method || 'GET').toLowerCase();
         found = document.createElement('div');
         found.className = 'ws-tab' + (dirty ? ' is-dirty' : '');
         found.setAttribute('data-name', name);
         found.setAttribute('data-method', method || 'GET');
         found.setAttribute('data-path', path || '');
-        found.innerHTML = '<span></span><span class="ws-tab__close" data-close>×</span>';
-        found.firstElementChild.textContent = name;
-        tabsBar.appendChild(found);
+        found.innerHTML = '<span class="ws-tab__method m-' + m + '">' + (method || 'GET') + '</span><span></span><span class="ws-tab__close" data-close>×</span>';
+        found.children[1].textContent = name;
+        // 插到末尾 [+] 之前，保证新建入口紧跟最后一个页签，[导入] 恒在页签条最右
+        tabsBar.insertBefore(found, tabsBar.querySelector('.ws-tabs__add'));
       }
       activate(found);
     }
@@ -703,11 +686,11 @@ var rt = window.RTUX;
       });
     });
 
-    // 头部 [+ 新建接口]：新建态 Tab（未保存蓝点）
+    // 页签末尾 [+]：新建态 Tab（未保存蓝点）
     document.getElementById('btn-new-interface').addEventListener('click', function () {
       openTab('新接口', 'GET', '', true);
     });
-    // 头部 [导入]：先切回列表 Tab，再走导入弹窗（演示稿仅体现切回）
+    // 页签条最右 [导入]：先切回列表 Tab，再走导入弹窗（演示稿仅体现切回）
     document.getElementById('btn-import-interface').addEventListener('click', function () {
       activate(tabsBar.querySelector('.ws-tab[data-pane="list"]'));
     });

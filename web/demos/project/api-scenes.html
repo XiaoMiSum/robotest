@@ -273,14 +273,12 @@
 
     <div class="split__main">
       <!-- 编辑器 Tab 条即页面首行（页面不设标题行）：全部场景（固定）+ 已打开的编排 Tab（可关闭），
-           右端固定 [+ 新建场景]，docs31 1.1 -->
+           页签末尾紧跟虚线 [+]（无文字），docs31 1.1 -->
       <div class="ws-tabs">
         <div class="ws-tab is-active" data-pane="list"><span>全部场景</span></div>
         <div class="ws-tab" data-name="下单成功主链路"><span>下单成功主链路</span><span class="ws-tab__close" data-close>×</span></div>
         <div class="ws-tab" data-name="支付回调重放"><span>支付回调重放</span><span class="ws-tab__close" data-close>×</span></div>
-        <div class="ws-tabs__actions">
-          <button class="btn btn--default btn--sm" id="btn-new-scene"><span data-icon="plus"></span>新建场景</button>
-        </div>
+        <button type="button" class="ws-tabs__add" id="btn-new-scene" data-icon="plus" title="新建场景" aria-label="新建场景"></button>
       </div>
 
       <div class="ws-pane" data-pane="list">
@@ -1338,7 +1336,7 @@
     var edStatus = editorPane.querySelector('.ed-status');
     var edPrio = editorPane.querySelector('.ed-prio');
 
-    // 页面级动作（[+ 新建场景]）固定在页签条右端且恒为次级样式，
+    // 页面级动作：[+] 新建入口紧跟页签末尾且恒为弱样式，
     // 无需随激活 Tab 换级，主视觉权重自然留给编排页操作条的 [运行场景][保存为草稿][发布]
     function activate(tab) {
       tabsBar.querySelectorAll('.ws-tab').forEach(function (t) { t.classList.toggle('is-active', t === tab); });
@@ -1366,8 +1364,8 @@
         if (isNew) found.setAttribute('data-new', '1');
         found.innerHTML = '<span></span><span class="ws-tab__close" data-close>×</span>';
         found.firstElementChild.textContent = name;
-        // 插到右端动作区之前，保证动作恒在页签条最右
-        tabsBar.insertBefore(found, tabsBar.querySelector('.ws-tabs__actions'));
+        // 插到末尾 [+] 之前，保证新建入口紧跟最后一个页签
+        tabsBar.insertBefore(found, tabsBar.querySelector('.ws-tabs__add'));
       }
       activate(found);
     }
@@ -1395,7 +1393,7 @@
       });
     });
 
-    // 页签条右端 [+ 新建场景]：新建态 Tab（无发布状态 / 优先级）
+    // 页签末尾 [+]：新建态 Tab（无发布状态 / 优先级）
     document.getElementById('btn-new-scene').addEventListener('click', function () {
       openTab('新场景', true);
     });
