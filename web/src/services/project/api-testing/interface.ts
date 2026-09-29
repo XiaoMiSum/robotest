@@ -36,13 +36,6 @@ export function deleteInterface(id: string): Promise<boolean> {
   return del(`/project/interfaces/${id}`)
 }
 
-/** 复制接口：copyName 缺省时服务端追加「（副本）」后缀 */
-export function copyInterface(id: string, copyName?: string): Promise<string> {
-  return post(`/project/interfaces/${id}/copy`, copyName ? { name: copyName } : undefined).then(
-    (resp) => (resp as { id: string }).id,
-  )
-}
-
 export function batchMoveInterfaces(ids: string[], moduleId: string): Promise<boolean> {
   return put('/project/interfaces/batch/move', { ids, moduleId })
 }

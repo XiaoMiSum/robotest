@@ -8,7 +8,7 @@ import InterfaceEditorBody from './InterfaceEditorBody.vue'
 import InterfaceEditorResponse from './InterfaceEditorResponse.vue'
 import { useInterfaceEditor } from '@/composables/project/api-testing/interface/useInterfaceEditor'
 
-const props = defineProps<{ interfaceId?: string; createMode?: boolean; moduleId?: string }>()
+const props = defineProps<{ interfaceId?: string; createMode?: boolean; moduleId?: string; copyFromId?: string }>()
 const emit = defineEmits<{
   (e: 'back'): void
   (e: 'title-update', name: string): void

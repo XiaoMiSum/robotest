@@ -7,7 +7,6 @@ import { fetchProjectModuleTree } from '@/services/project'
 import {
   batchDeleteInterfaces,
   batchMoveInterfaces,
-  copyInterface,
   deleteInterface,
   fetchInterfacePage,
   followInterface,
@@ -31,6 +30,7 @@ const uiStore = useApiTestingUiStore()
 const emit = defineEmits<{
   (e: 'create', moduleId?: string): void
   (e: 'edit', interfaceId: string): void
+  (e: 'copy', interfaceId: string): void
 }>()
 
 // ==================== 模块树 ====================
@@ -156,15 +156,9 @@ async function handleStatusChange(item: ApiInterfaceItem, next: ApiInterfaceStat
   }
 }
 
-async function handleCopy(item: ApiInterfaceItem) {
-  try {
-    const newId = await copyInterface(item.id)
-    ElMessage.success('已复制，正在打开副本')
-    await loadPage()
-    emit('edit', newId)
-  } catch (error) {
-    ElMessage.error(error instanceof Error ? error.message : '复制失败')
-  }
+/** 复制：交由工作区打开新建态编辑器并回填源接口数据，保存时才落库 */
+function handleCopy(item: ApiInterfaceItem) {
+  emit('copy', item.id)
 }
 
 async function handleDelete(item: ApiInterfaceItem) {
