@@ -136,7 +136,8 @@
   .proc-body-hint { padding: var(--space-lg); text-align: center; color: var(--n-400); font-size: var(--font-size-sm); }
   .proc-code { width: 100%; min-height: 72px; border: 1px solid var(--n-100); border-radius: var(--radius-md); background: #1e1e1e; color: #d4d4d4; font-family: var(--font-mono); font-size: var(--font-size-xs); line-height: 1.6; padding: 10px 12px; resize: vertical; }
   .proc-ext { display: flex; flex-direction: column; gap: var(--space-sm); }
-  .proc-ext__card { display: flex; align-items: center; gap: var(--space-sm); border: 1px solid var(--n-200); border-radius: var(--radius-md); padding: var(--space-sm); }
+  /* 提取器配置行：行即容器，不套外框、行间不画分割线 */
+  .proc-ext__card { display: flex; align-items: center; gap: var(--space-sm); }
   .proc-ext__card .select { width: 132px; flex: none; }
   .proc-ext__card .input { flex: 1; min-width: 0; }
   .proc-args { display: flex; flex-direction: column; gap: 6px; }
