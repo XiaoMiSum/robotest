@@ -5,10 +5,11 @@ import { formatDateTime } from '@/utils/format'
 import {
   SCOPE_TAG_TYPE,
   buildComponentConfigRows,
-  buildComponentExtractorRows,
   componentScopeLabel,
   componentTypeLabel,
 } from '@/composables/project/api-testing/component/componentModel'
+import { parseComponentConfig } from '@/composables/project/api-testing/processorFormModel'
+import ProcessorConfigDetail from '@/components/project/api-testing/ProcessorConfigDetail.vue'
 
 const props = defineProps<{
   item: ApiComponentListItem
@@ -23,8 +24,9 @@ const emit = defineEmits<{
 }>()
 
 const isProcessor = computed(() => props.item.type === 'preprocessor' || props.item.type === 'postprocessor')
+// 处理器配置与提取器由共享明细组件渲染，验证器/提取器仍走行摘要
 const configRows = computed(() => buildComponentConfigRows(props.item.type, props.item.config))
-const extractorRows = computed(() => buildComponentExtractorRows(props.item.type, props.item.config))
+const processorElement = computed(() => parseComponentConfig(props.item.config))
 const updatedAt = computed(() => formatDateTime(props.item.updatedAt))
 const description = computed(() => props.item.description || '—')
 
@@ -64,7 +66,8 @@ function onToggle(value: string | number | boolean) {
 
   <div class="cp-detail__section">
     <label class="cp-detail__label">配置</label>
-    <div class="cp-meta">
+    <ProcessorConfigDetail v-if="isProcessor" :element="processorElement" />
+    <div v-else class="cp-meta">
       <div
         v-for="row in configRows"
         :key="row.label"
@@ -82,15 +85,5 @@ function onToggle(value: string | number | boolean) {
         <span v-else class="cp-meta__v">{{ row.value }}</span>
       </div>
     </div>
-  </div>
-
-  <div v-if="isProcessor" class="cp-detail__section">
-    <label class="cp-detail__label">提取器</label>
-    <el-table :data="extractorRows" size="small" class="cp-ext-table" empty-text="—">
-      <el-table-column label="来源" prop="source" min-width="120" />
-      <el-table-column label="表达式" prop="expression" min-width="180" show-overflow-tooltip />
-      <el-table-column label="目标变量名" prop="variableName" width="150" show-overflow-tooltip />
-      <el-table-column label="描述" prop="description" min-width="140" show-overflow-tooltip />
-    </el-table>
   </div>
 </template>

@@ -83,6 +83,16 @@ export function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value)
 }
 
+/** 处理器卡片标签：类型 + 摘要（环境、场景列表行共用同一口径） */
+export function processorTags(element: Record<string, unknown> | null | undefined): { text: string; type: TagType }[] {
+  const tags: { text: string; type: TagType }[] = []
+  const klass = typeof element?.testclass === 'string' ? element.testclass : ''
+  if (klass === 'http' || klass === 'jdbc') tags.push({ text: klass.toUpperCase(), type: 'info' })
+  const summary = processorSummaryTag(element)
+  if (summary) tags.push(summary)
+  return tags
+}
+
 function pickString(value: unknown, fallback = ''): string {
   return typeof value === 'string' ? value : fallback
 }
@@ -307,7 +317,7 @@ export function extractorFromComponent(item: ApiComponentListItem): Record<strin
   }
 }
 
-/** 前置/后置处理器资产 → 接口处理器元素（复制引入，独立副本；元素结构同 ProcessorForm 读取的 Ryze 元素） */
+/** 前置/后置处理器资产 → 接口处理器元素（复制引入，独立副本；元素结构同 ProcessorConfigEditor 读取的 Ryze 元素） */
 export function processorFromComponent(item: ApiComponentListItem, type: 'pre' | 'post'): Record<string, unknown> {
   const cfg = parseComponentConfig(item.config)
   return {

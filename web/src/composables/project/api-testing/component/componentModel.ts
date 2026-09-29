@@ -4,12 +4,9 @@ import {
   VALIDATOR_CONDITIONS,
   VALIDATOR_TARGETS,
 } from '@/composables/project/api-testing/scene/scenesModel'
-import {
-  isRecord,
-  parseComponentConfig,
-  parseHttpProcessorForm,
-  parseJdbcProcessorForm,
-} from '@/composables/project/api-testing/processorFormModel'
+import { parseComponentConfig } from '@/composables/project/api-testing/processorFormModel'
+import { buildProcessorDetailRows } from '@/composables/project/api-testing/processorDetailModel'
+import type { ProcessorConfigRow } from '@/composables/project/api-testing/processorDetailModel'
 
 // ==================== 常量 ====================
 
@@ -90,96 +87,15 @@ export function componentScopeLabel(scope: ApiComponentScope): string {
 
 // ==================== 查看态配置摘要 ====================
 
-/** 配置行呈现形态：纯文本 / 代码块 / 键值对列表 */
-export type ComponentConfigRowKind = 'text' | 'code' | 'kv'
-
-export interface ComponentKvPair {
-  key: string
-  value: string
-}
-
-export interface ComponentConfigRow {
-  label: string
-  kind: ComponentConfigRowKind
-  /** text / code 行展示值，kv 行恒为空串 */
-  value: string
-  /** kv 行键值对，其余形态恒为空数组 */
-  pairs: ComponentKvPair[]
-}
-
-/** 提取器只读表格行（来源已映射为展示文案） */
-export interface ComponentExtractorRow {
-  source: string
-  expression: string
-  variableName: string
-  description: string
-}
-
-/** 请求体类型展示文案：与请求配置编辑器的三态 + raw 子类型推断口径一致 */
-const BODY_KIND_LABELS: Record<string, string> = {
-  none: 'none',
-  form: 'x-www-form-urlencoded',
-  json: 'raw · json',
-  raw: 'raw · text',
-}
-
-function textRow(label: string, value: string): ComponentConfigRow {
+function textRow(label: string, value: string): ProcessorConfigRow {
   return { label, kind: 'text', value, pairs: [] }
-}
-
-function codeRow(label: string, value: string): ComponentConfigRow {
-  return { label, kind: 'code', value, pairs: [] }
-}
-
-function kvRow(label: string, pairs: ComponentKvPair[]): ComponentConfigRow {
-  return { label, kind: 'kv', value: '', pairs }
-}
-
-function rowsToPairs(rows: { key: string; value: string }[]): ComponentKvPair[] {
-  return rows
-    .filter((row) => row.key.trim())
-    .map((row) => ({ key: row.key.trim(), value: row.value }))
 }
 
 function optionLabel(options: { value: string; label: string }[], value: string, fallback: string): string {
   return options.find((o) => o.value === value)?.label ?? fallback
 }
 
-/** 处理器 config → 只读配置行（复用表单解析口径，保证详情与编辑器同源） */
-function buildProcessorRows(element: Record<string, unknown>): ComponentConfigRow[] {
-  const inner = isRecord(element.config) ? element.config : {}
-  if (element.testclass === 'jdbc') {
-    const form = parseJdbcProcessorForm({ testclass: 'jdbc', config: inner })
-    const rows = [
-      textRow('处理器类型', 'JDBC'),
-      textRow('数据源', form.ref || '—'),
-      codeRow('SQL 语句', form.sql || '—'),
-    ]
-    if (form.args.length > 0) rows.push(textRow('参数', form.args.join(', ')))
-    return rows
-  }
-  const form = parseHttpProcessorForm({ testclass: 'http', config: inner })
-  const query = rowsToPairs(form.queryRows)
-  const headers = rowsToPairs(form.headerRows)
-  const rows = [
-    textRow('处理器类型', 'HTTP'),
-    textRow('环境 HTTP 配置', form.ref || '—'),
-    textRow('请求方法', form.method || '—'),
-    textRow('路径', form.path || '—'),
-  ]
-  if (query.length > 0) rows.push(kvRow('Query 参数', query))
-  if (headers.length > 0) rows.push(kvRow('请求头', headers))
-  rows.push(textRow('请求体类型', BODY_KIND_LABELS[form.bodyKind] ?? 'none'))
-  if (form.bodyKind === 'form') {
-    const formRows = rowsToPairs(form.formRows)
-    if (formRows.length > 0) rows.push(kvRow('表单参数', formRows))
-  } else if (form.bodyText.trim()) {
-    rows.push(codeRow('请求体', form.bodyText))
-  }
-  return rows
-}
-
-function buildValidatorRows(config: Record<string, unknown>): ComponentConfigRow[] {
+function buildValidatorRows(config: Record<string, unknown>): ProcessorConfigRow[] {
   const pick = (key: string): string => (typeof config[key] === 'string' ? (config[key] as string) : '')
   const target = pick('target') || 'status_code'
   const condition = pick('condition') || 'equals'
@@ -194,7 +110,7 @@ function buildValidatorRows(config: Record<string, unknown>): ComponentConfigRow
   return rows
 }
 
-function buildExtractorAssetRows(config: Record<string, unknown>): ComponentConfigRow[] {
+function buildExtractorAssetRows(config: Record<string, unknown>): ProcessorConfigRow[] {
   const pick = (key: string): string => (typeof config[key] === 'string' ? (config[key] as string) : '')
   const source = pick('source') || 'json_field'
   const rows = [
@@ -207,31 +123,13 @@ function buildExtractorAssetRows(config: Record<string, unknown>): ComponentConf
   return rows
 }
 
-/** 组件 config（JSON 字符串）→ 查看态「配置」区展示行 */
-export function buildComponentConfigRows(type: ApiComponentType, config: string | null): ComponentConfigRow[] {
+/** 组件 config（JSON 字符串）→ 查看态「配置」区展示行（处理器分支委托共享模型，保证与环境/场景同源） */
+export function buildComponentConfigRows(type: ApiComponentType, config: string | null): ProcessorConfigRow[] {
   const parsed = parseComponentConfig(config)
   if (type === 'validator') return buildValidatorRows(parsed)
   if (type === 'extractor') return buildExtractorAssetRows(parsed)
-  return buildProcessorRows({
+  return buildProcessorDetailRows({
     testclass: parsed.testclass,
     config: parsed.config,
-  })
-}
-
-/** 处理器组件内嵌提取器 → 只读表格行（非处理器类型无提取器子表） */
-export function buildComponentExtractorRows(type: ApiComponentType, config: string | null): ComponentExtractorRow[] {
-  if (type !== 'preprocessor' && type !== 'postprocessor') return []
-  const parsed = parseComponentConfig(config)
-  const raw: unknown = parsed.extractors
-  if (!Array.isArray(raw)) return []
-  return raw.map((item) => {
-    const row = isRecord(item) ? item : {}
-    const source = typeof row.source === 'string' ? row.source : ''
-    return {
-      source: source ? optionLabel(EXTRACTOR_SOURCES, source, source) : '—',
-      expression: typeof row.expression === 'string' && row.expression ? row.expression : '—',
-      variableName: typeof row.variableName === 'string' && row.variableName ? row.variableName : '—',
-      description: typeof row.description === 'string' && row.description ? row.description : '—',
-    }
   })
 }
