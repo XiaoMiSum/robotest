@@ -226,6 +226,8 @@ const {
   &__history {
     flex: 1;
     min-height: 0;
+    // 视图内边距对齐示例的 .debug__history（space-md × space-sm）
+    padding: var(--space-md) var(--space-sm);
   }
 
   &__curl-tip {
