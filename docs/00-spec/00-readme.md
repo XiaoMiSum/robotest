@@ -80,7 +80,7 @@
 | --------------------------------------------------------- | ----------------------------------- | ------ |
 | [50-ui/01-frontend-design](50-ui/01-frontend-design.md)   | 视觉层级、设计令牌、状态和可访问性  | 已发布 |
 | [50-ui/02-page-development](50-ui/02-page-development.md) | 大页面、小组件、状态归属和数据流    | 已发布 |
-| [50-ui/03-scroll-container](50-ui/03-scroll-container.md) | 滚动容器、滚动拥有者和滚动条        | 已发布 |
+| [50-ui/03-scroll-container](50-ui/03-scroll-container.md) | 滚动容器、滚动拥有者、滚动条和表格容器间距        | 已发布 |
 | [50-ui/04-style-exceptions](50-ui/04-style-exceptions.md) | UI-DS-09 组件覆盖例外登记与扫描基线 | 起草中 |
 
 ## 5. 当前统一决策

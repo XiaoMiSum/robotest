@@ -16,7 +16,7 @@
 | --- | --- | --- |
 | [01-frontend-design](01-frontend-design.md) | 视觉层级、设计令牌、状态和可访问性 | 已发布 |
 | [02-page-development](02-page-development.md) | 大页面、小组件、状态归属和数据流 | 已发布 |
-| [03-scroll-container](03-scroll-container.md) | 滚动容器、滚动拥有者和滚动条 | 已发布 |
+| [03-scroll-container](03-scroll-container.md) | 滚动容器、滚动拥有者、滚动条和表格容器间距 | 已发布 |
 | [04-style-exceptions](04-style-exceptions.md) | UI-DS-09 组件覆盖例外登记与扫描基线 | 起草中 |
 
 ## 3. 阅读顺序
