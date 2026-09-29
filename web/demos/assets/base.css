@@ -1298,8 +1298,8 @@ a:hover {
 .m-get { background: #61affe; }
 .m-post { background: #49cc90; }
 .m-put { background: #fca130; }
-.m-patch { background: #6f42c1; }
-.m-delete { background: #d9363e; }
+.m-patch { background: #50e3c2; }
+.m-delete { background: #f93e3e; }
 
 /* 页签条右端动作区：列表级动作（导入 / 新建）随页签条常驻，弱样式避免与编辑器 [保存] 争主色 */
 .ws-tabs__actions {
