@@ -176,7 +176,11 @@
   @keyframes ai-indeterminate { from { left: 0; } to { left: 62%; } }
   .ai-model { width: auto; min-width: 150px; height: 30px; padding: 0 8px; font-size: var(--font-size-sm); }
   .ai-output { display: flex; flex-direction: column; gap: 8px; }
-  .ai-footer { display: flex; justify-content: flex-end; }
+  /* 遗漏分析抽屉：抽屉整体不滚动，结果列表 flex 占满余量、超长时仅其内部滚动 */
+  #mpDrawer .ai-drawer__body { overflow: hidden; }
+  #mpInputs { display: flex; flex-direction: column; gap: 14px; }
+  #mpResult { flex: 1; min-height: 0; }
+  #mpList { flex: 1; min-height: 0; overflow-y: auto; }
 
   /* 遗漏分析结果清单 */
   .ai-result-head { display: flex; align-items: center; justify-content: space-between; font-size: var(--font-size-sm); color: var(--n-600); }
@@ -428,45 +432,52 @@
     <button class="ai-icon-btn" type="button" id="mpClose" aria-label="关闭面板" title="关闭"><span data-icon="x" aria-hidden="true"></span></button>
   </header>
   <div class="ai-drawer__body">
-    <div class="ai-field">
-      <label class="ai-label" for="mpKwInput">关键词</label>
-      <div class="ai-tags" id="mpKwTags"></div>
-      <input class="input" id="mpKwInput" placeholder="输入关键词，回车确认" aria-label="关键词">
-    </div>
+    <!-- 输入组折叠开关：首次分析完成后出现，仅收纳关键词/需求文本/需求池三组输入 -->
+    <button class="btn btn--link btn--sm" type="button" id="mpInputsToggle" hidden>展开输入 ▾</button>
 
-    <div class="ai-field">
-      <label class="ai-label" for="mpText">需求文本</label>
-      <textarea class="input textarea" id="mpText" placeholder="粘贴需求描述文本（可空；填写时后端先抽取关键词再分析）"></textarea>
-    </div>
+    <div id="mpInputs">
+      <div class="ai-field">
+        <label class="ai-label" for="mpKwInput">关键词</label>
+        <div class="ai-tags" id="mpKwTags"></div>
+        <input class="input" id="mpKwInput" placeholder="输入关键词，回车确认" aria-label="关键词">
+      </div>
 
-    <div class="ai-field">
-      <div class="ai-field__head">
-        <span class="ai-label">需求池</span>
-        <button class="btn btn--text btn--sm" type="button" id="mpReqAdd"><span data-icon="plus" aria-hidden="true"></span>选择需求</button>
+      <div class="ai-field">
+        <label class="ai-label" for="mpText">需求文本</label>
+        <textarea class="input textarea" id="mpText" placeholder="粘贴需求描述文本（可空；填写时后端先抽取关键词再分析）"></textarea>
       </div>
-      <div class="ai-tags" id="mpReqTags">
-        <span class="tag tag--outline">满减券叠加规则<button class="ai-tag-x" type="button" aria-label="移除需求条目">×</button></span>
+
+      <div class="ai-field">
+        <div class="ai-field__head">
+          <span class="ai-label">需求池</span>
+          <button class="btn btn--text btn--sm" type="button" id="mpReqAdd"><span data-icon="plus" aria-hidden="true"></span>选择需求</button>
+        </div>
+        <div class="ai-tags" id="mpReqTags">
+          <span class="tag tag--outline">满减券叠加规则<button class="ai-tag-x" type="button" aria-label="移除需求条目">×</button></span>
+        </div>
+        <span class="ai-hint" id="mpReqHint" hidden>未选择需求条目，将仅依据输入文本分析</span>
       </div>
-      <span class="ai-hint" id="mpReqHint" hidden>未选择需求条目，将仅依据输入文本分析</span>
     </div>
 
     <div class="ai-actions">
+      <!-- 分析中进度条居最左占满左侧余量；完成态同排替换为重新分析（链接）+ 转用例生成（主按钮） -->
       <div class="ai-progress" id="mpProgress" hidden><div class="ai-progress__track"><div class="ai-progress__bar"></div></div></div>
+      <select class="select ai-model" id="mpModel" aria-label="对话模型">
+        <option>DeepSeek-V3（默认）</option>
+        <option>Qwen3-32B</option>
+      </select>
       <button class="btn btn--default btn--sm" type="button" id="mpCancel" hidden>取消</button>
       <button class="btn btn--primary btn--sm" type="button" id="mpStart"><span class="ai-spin" aria-hidden="true"></span><span id="mpStartText">开始分析</span></button>
+      <button class="btn btn--primary btn--sm" type="button" id="mpTransfer" hidden disabled>转用例生成（0）</button>
     </div>
 
     <div class="ai-output" id="mpResult" hidden>
       <div class="alert alert--warning"><span data-icon="alert-triangle" aria-hidden="true"></span><span>当前为关键词匹配结果</span></div>
       <div class="ai-result-head">
         <label class="ai-check"><input type="checkbox" id="mpAll">全选</label>
-        <span id="mpCount">共 4 条，已选 4 条</span>
+        <span id="mpCount">共 10 条，已选 10 条</span>
       </div>
       <div class="ai-list" id="mpList"></div>
-    </div>
-
-    <div class="ai-footer" id="mpFooter" hidden>
-      <button class="btn btn--primary btn--sm" type="button" id="mpTransfer" disabled>转用例生成（0）</button>
     </div>
   </div>
 </aside>
@@ -601,6 +612,36 @@
         title: '未覆盖：跨店券与店铺券叠加',
         desc: '跨店券与店铺券同时可用时的优惠计算顺序未覆盖。',
         module: '下单流程 / 优惠券', related: []
+      },
+      {
+        title: '未覆盖：优惠券与积分抵扣叠加顺序',
+        desc: '优惠券与积分同时抵扣时的金额计算顺序与舍入规则缺失。',
+        module: '下单流程 / 优惠叠加', related: ['下单页优惠券叠加校验']
+      },
+      {
+        title: '未覆盖：券库存售罄并发抢券',
+        desc: '高并发领取时券库存超发与售罄提示未覆盖。',
+        module: '营销中心 / 发券', related: []
+      },
+      {
+        title: '未覆盖：退款后优惠券返还',
+        desc: '整单退款与部分退款场景下券是否返还、返还张数未覆盖。',
+        module: '售后流程 / 退款', related: ['多优惠券互斥规则']
+      },
+      {
+        title: '未覆盖：券使用门槛金额临界值',
+        desc: '满减券门槛金额恰等于订单金额时的可用性判断缺失。',
+        module: '下单流程 / 优惠券', related: []
+      },
+      {
+        title: '未覆盖：活动停用后已领券拦截',
+        desc: '管理员中途停用优惠活动后，已领券用户下单的拦截提示未覆盖。',
+        module: '营销中心 / 活动管理', related: []
+      },
+      {
+        title: '未覆盖：券码重复核销',
+        desc: '同一券码并发核销时的幂等校验与重复使用提示缺失。',
+        module: '支付中心 / 优惠券', related: ['下单页优惠券叠加校验']
       }
     ]
 
@@ -612,8 +653,8 @@
     var S = {
       mode: 'generate', aiPhase: 'idle', aiTimer: 0, aiRan: false,
       slowDemo: true, slowTimer: 0,
-      mpPhase: 'idle', mpTimer: 0, mpDone: false,
-      kw: ['优惠券', '叠加'], mpChecked: [true, true, true, true],
+      mpPhase: 'idle', mpTimer: 0, mpDone: false, mpInputsOpen: true,
+      kw: ['优惠券', '叠加'], mpChecked: MP_POINTS.map(function () { return true }),
       pvNodes: [], pvChecked: []
     }
 
@@ -831,18 +872,23 @@
 
     function renderMp() {
       var analyzing = S.mpPhase === 'analyzing'
+      var done = S.mpPhase === 'done'
       $('mpProgress').hidden = !analyzing
       $('mpCancel').hidden = !analyzing
-      // 主按钮持续可见：分析中转 loading（转圈+禁用），无输入时禁用（对照 el-button :loading/:disabled）
+      // 主按钮持续可见：分析中转 loading（转圈+禁用），无输入时禁用；有结果后降为链接样式（对照真实面板 link 按钮）
       $('mpStart').disabled = analyzing || !mpHasInput()
-      $('mpStart').classList.toggle('is-loading', analyzing)
+      $('mpStart').className = 'btn btn--sm ' + (S.mpDone ? 'btn--link' : 'btn--primary') + (analyzing ? ' is-loading' : '')
       $('mpStartText').textContent = S.mpDone ? '重新分析' : '开始分析'
-      $('mpResult').hidden = S.mpPhase !== 'done'
-      $('mpFooter').hidden = S.mpPhase !== 'done'
+      // 完成态输入组折叠，开关随结果出现；手动展开状态在重新分析期间保持
+      $('mpInputsToggle').hidden = !S.mpDone
+      $('mpInputsToggle').textContent = S.mpInputsOpen ? '收起输入 ▴' : '展开输入 ▾'
+      $('mpInputs').hidden = S.mpDone && !S.mpInputsOpen
+      $('mpResult').hidden = !done
+      $('mpTransfer').hidden = !done
       $('mpKwInput').disabled = analyzing
       $('mpText').disabled = analyzing
       $('mpReqAdd').disabled = analyzing
-      if (S.mpPhase === 'done') renderMpCount()
+      if (done) renderMpCount()
     }
 
     function renderMpList() {
@@ -875,6 +921,8 @@
       S.mpTimer = window.setTimeout(function () {
         S.mpPhase = 'done'
         S.mpDone = true
+        // 每次分析完成自动折叠输入组，展开状态由用户手动控制（交互设计 56 §1.2）
+        S.mpInputsOpen = false
         renderMp()
       }, 1600)
     }
@@ -951,6 +999,10 @@
     $('mpText').addEventListener('input', renderMp)
     $('mpStart').addEventListener('click', startMp)
     $('mpCancel').addEventListener('click', cancelMp)
+    $('mpInputsToggle').addEventListener('click', function () {
+      S.mpInputsOpen = !S.mpInputsOpen
+      renderMp()
+    })
     $('mpTransfer').addEventListener('click', transferMp)
     $('mpList').addEventListener('change', function (e) {
       var cb = e.target.closest('input[data-mpi]')
