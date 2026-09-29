@@ -180,7 +180,8 @@ body[data-robotest-theme] {
   }
 
   .el-card__body {
-    padding: 20px;
+    /* 由卡片根节点经组件 CSS 变量覆盖，支持 UI-SC-10 零间距卡片 */
+    padding: var(--el-card-padding, 20px);
   }
 
   /* 表格（视觉设计 §8.3：表头 #F5F7FA · 行悬停 #FAFAFA · 斑马 #F0F2F5 · 边框 #E4E7ED） */
