@@ -106,7 +106,7 @@ function handleOpenCaseSelector() {
             <el-empty v-else description="暂无重现步骤" :image-size="48" />
           </el-card>
 
-          <el-card shadow="never">
+          <el-card shadow="never" class="bug-detail__attach-card">
             <template #header>
               <div class="bug-detail__card-header">
                 <span class="bug-detail__section">附件</span>
@@ -308,6 +308,11 @@ function handleOpenCaseSelector() {
   display: flex;
   align-items: center;
   justify-content: space-between;
+}
+
+/* UI-SC-10：附件表贴合卡片边缘，header 仍按默认留白 */
+.bug-detail__attach-card {
+  --el-card-padding: 0;
 }
 
 .bug-detail__timeline {
