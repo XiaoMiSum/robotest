@@ -27,6 +27,7 @@ import xyz.migoo.framework.mybatis.core.LambdaQueryWrapperX;
 import xyz.migoo.framework.mybatis.core.LambdaUpdateWrapperX;
 import xyz.migoo.framework.mybatis.core.handler.UUIDTypeHandler;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -192,6 +193,25 @@ class Code003MapperWrapperTest {
         verify(mapper).updateById(captor.capture());
         assertEquals(ID, captor.getValue().getId());
         assertEquals(layout, captor.getValue().getLayout());
+    }
+
+    @Test
+    void scheduledTaskJsonListColumnsBoundAsSerializedString() {
+        ApiScheduledTaskMapper mapper = mock(ApiScheduledTaskMapper.class, CALLS_REAL_METHODS);
+        when(mapper.update(isNull(), any(LambdaUpdateWrapperX.class))).thenReturn(1);
+        clearInvocations(mapper);
+
+        UUID sceneId = UUID.randomUUID();
+        assertEquals(1, mapper.updateEditableFields(ID, "scene_execute", "name", null,
+                "scenes", null, List.of(sceneId), null, null, "0 * * * *"));
+
+        ArgumentCaptor<Wrapper<ApiScheduledTask>> captor = wrapperCaptor();
+        verify(mapper).update(isNull(), captor.capture());
+        Collection<Object> values = ((LambdaUpdateWrapperX<?>) captor.getValue()).getParamNameValuePairs().values();
+        assertTrue(values.stream().anyMatch(v -> v instanceof String json && json.contains(sceneId.toString())),
+                "JSON 列须以序列化字符串绑定");
+        assertTrue(values.stream().noneMatch(v -> v instanceof List), "JSON 列禁止原始 List 直绑 pgjdbc");
+        assertTrue(values.stream().noneMatch("{}"::equals), "null 入参不得被 JsonUtils 序列化成 {}");
     }
 
     private static void initTableInfo(MybatisConfiguration configuration, Class<?> entityClass) {

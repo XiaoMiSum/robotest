@@ -4,6 +4,7 @@ import io.github.xiaomisum.robotest.model.entity.apitest.ApiScheduledTask;
 import org.apache.ibatis.annotations.Mapper;
 import xyz.migoo.framework.common.pojo.PageParam;
 import xyz.migoo.framework.common.pojo.PageResult;
+import xyz.migoo.framework.common.util.JsonUtils;
 import xyz.migoo.framework.mybatis.core.BaseMapperX;
 import xyz.migoo.framework.mybatis.core.LambdaQueryWrapperX;
 import xyz.migoo.framework.mybatis.core.LambdaUpdateWrapperX;
@@ -50,8 +51,8 @@ public interface ApiScheduledTaskMapper extends BaseMapperX<ApiScheduledTask> {
                 .set(ApiScheduledTask::getName, name)
                 .set(ApiScheduledTask::getDescription, description)
                 .set(ApiScheduledTask::getExecutionScope, executionScope)
-                .set(ApiScheduledTask::getModuleIds, moduleIds)
-                .set(ApiScheduledTask::getSceneIds, sceneIds)
+                .set(ApiScheduledTask::getModuleIds, toJsonOrNull(moduleIds))
+                .set(ApiScheduledTask::getSceneIds, toJsonOrNull(sceneIds))
                 .set(ApiScheduledTask::getOpenapiUrl, openapiUrl)
                 .set(ApiScheduledTask::getEnvironmentId, environmentId)
                 .set(ApiScheduledTask::getCronExpression, cronExpression));
@@ -61,5 +62,14 @@ public interface ApiScheduledTaskMapper extends BaseMapperX<ApiScheduledTask> {
         return update(null, new LambdaUpdateWrapperX<ApiScheduledTask>()
                 .eq(ApiScheduledTask::getId, id)
                 .set(ApiScheduledTask::getEnabled, enabled));
+    }
+
+    /**
+     * JSON 列经 wrapper.set 写入时没有 typeHandler 参与，List 原样交给 pgjdbc 会抛
+     * "Can't infer the SQL type"，须传序列化后的字符串；null 必须保持 null 以显式清空列，
+     * 不能用 JsonUtils.toJsonString（其 null 入参返回 "{}"）。
+     */
+    private static String toJsonOrNull(List<UUID> ids) {
+        return ids == null ? null : JsonUtils.toJsonString(ids);
     }
 }
