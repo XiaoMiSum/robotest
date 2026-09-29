@@ -147,6 +147,7 @@ const tabs = computed(() => [
           :show-enabled="false"
           :disabled="!canEdit"
           header-add
+          :empty-text="canEdit ? '暂无变量，点击表头 [＋ 新增]' : '暂无变量'"
         />
         <p class="env-detail__syntax-tip">
           引用语法：<code>${变量名}</code>，如 <code>${BASE_URL}</code>

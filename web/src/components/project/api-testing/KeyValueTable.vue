@@ -16,9 +16,14 @@ const props = defineProps<{
   showEnabled?: boolean
   /** 表头显示 [＋ 新增] 并关闭末行自动补行（环境变量编辑器由按钮显式建行，见 docs35） */
   headerAdd?: boolean
+  /** 空表占位文案，缺省不渲染占位行（docs35 §1.4 空态） */
+  emptyText?: string
 }>()
 
 const withEnabled = computed(() => props.showEnabled !== false)
+
+/** 占位行须横跨与表头一致的列数，否则 fixed 布局下会被当成普通数据行列宽错位 */
+const columnCount = computed(() => 2 + (props.showDescription ? 1 : 0) + (withEnabled.value ? 1 : 0) + 1)
 
 const emit = defineEmits<{ (e: 'change'): void }>()
 
@@ -92,6 +97,9 @@ watch(
         </tr>
       </thead>
       <tbody>
+        <tr v-if="props.emptyText && entries.length === 0" class="kv-table__empty">
+          <td :colspan="columnCount">{{ props.emptyText }}</td>
+        </tr>
         <tr v-for="(entry, index) in entries" :key="index" class="kv-table__row">
           <td>
             <el-select
@@ -138,6 +146,8 @@ watch(
 .kv-table {
   table {
     width: 100%;
+    // 列宽只由表头决定：空表与有数据时列宽一致，避免新增一行后整表列宽重排
+    table-layout: fixed;
     border-collapse: collapse;
   }
 
@@ -171,9 +181,17 @@ watch(
     vertical-align: middle;
 
     &--add {
-      width: auto;
+      // fixed 布局下未指定宽度的列会均分剩余空间，操作列固定宽度才能稳定容纳按钮
+      width: 96px;
       text-align: right;
     }
+  }
+
+  &__empty td {
+    padding: 20px 8px;
+    text-align: center;
+    color: var(--color-neutral-400);
+    font-size: 13px;
   }
 
   &__row {
