@@ -4,7 +4,7 @@ import type { ApiDebugKeyValue } from '@/types'
 
 const entries = defineModel<ApiDebugKeyValue[]>('entries', { required: true })
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   placeholderKey?: string
   /** 渲染描述列（Postman 风格 Params/Headers），提交执行时剥离 */
   showDescription?: boolean
@@ -12,18 +12,24 @@ const props = defineProps<{
   suggestions?: readonly string[]
   /** 只读态：禁止增删改，供无编辑权限场景展示 */
   disabled?: boolean
-  /** 隐藏启用勾选列：条目无启用语义时（如环境/场景变量）避免误导，缺省展示 */
+  /** 启用勾选列缺省展示（Vue 对未传布尔 prop 解析为 false，故须用 withDefaults 兜底）；
+      条目无启用语义时（如环境/场景变量）传 false 隐藏以免误导 */
   showEnabled?: boolean
   /** 表头显示 [＋ 新增] 并关闭末行自动补行（环境变量编辑器由按钮显式建行，见 docs35） */
   headerAdd?: boolean
   /** 空表占位文案，缺省不渲染占位行（docs35 §1.4 空态） */
   emptyText?: string
-}>()
-
-const withEnabled = computed(() => props.showEnabled !== false)
+}>(), {
+  // showEnabled 缺省展示：Vue 会把未传的布尔 prop 解析成 false，只能在此显式兜底；
+  // 其余可选 prop 无默认语义，显式置 undefined 以满足 prop 必须声明默认值的规则
+  showEnabled: true,
+  placeholderKey: undefined,
+  suggestions: undefined,
+  emptyText: undefined,
+})
 
 /** 占位行须横跨与表头一致的列数，否则 fixed 布局下会被当成普通数据行列宽错位 */
-const columnCount = computed(() => 2 + (props.showDescription ? 1 : 0) + (withEnabled.value ? 1 : 0) + 1)
+const columnCount = computed(() => 2 + (props.showDescription ? 1 : 0) + (props.showEnabled ? 1 : 0) + 1)
 
 const emit = defineEmits<{ (e: 'change'): void }>()
 
@@ -90,7 +96,7 @@ watch(
           <th>{{ placeholderKey ?? 'Key' }}</th>
           <th>Value</th>
           <th v-if="props.showDescription">Description</th>
-          <th v-if="withEnabled" class="kv-table__col-enable" />
+          <th v-if="props.showEnabled" class="kv-table__col-enable" />
           <th class="kv-table__col-op" :class="{ 'kv-table__col-op--add': props.headerAdd }">
             <el-button v-if="props.headerAdd && !props.disabled" link type="primary" @click="addRow">＋ 新增</el-button>
           </th>
@@ -128,7 +134,7 @@ watch(
           <td v-if="props.showDescription">
             <el-input v-model="entry.description" placeholder="Description" :disabled="props.disabled" @input="notify()" />
           </td>
-          <td v-if="withEnabled" class="kv-table__col-enable">
+          <td v-if="props.showEnabled" class="kv-table__col-enable">
             <el-checkbox v-model="entry.enabled" :disabled="props.disabled" @change="notify()" />
           </td>
           <td class="kv-table__col-op">
