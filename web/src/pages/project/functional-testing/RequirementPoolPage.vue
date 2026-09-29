@@ -215,7 +215,7 @@ onMounted(load)
       </div>
     </header>
 
-    <el-card v-loading="loading" shadow="never">
+    <el-card v-loading="loading" shadow="never" class="requirement-pool__card">
       <div class="requirement-pool__toolbar">
         <el-radio-group v-model="segment" @change="search">
           <el-radio-button
@@ -362,11 +362,17 @@ onMounted(load)
   font-size: var(--font-size-sm);
 }
 
+.requirement-pool__card {
+  /* UI-SC-10：body 内边距归零，留白由工具栏/分页条承担 */
+  --el-card-padding: 0;
+}
+
 .requirement-pool__toolbar {
   display: flex;
   align-items: center;
   gap: var(--space-md);
-  padding-bottom: var(--space-md);
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--color-neutral-100);
 }
 
 .requirement-pool__toolbar-end {
@@ -438,8 +444,7 @@ onMounted(load)
   align-items: center;
   justify-content: space-between;
   gap: var(--space-md);
-  margin-top: var(--space-lg);
-  padding-top: var(--space-lg);
+  padding: 14px 20px;
   border-top: 1px solid var(--color-neutral-100);
 }
 

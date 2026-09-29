@@ -203,7 +203,7 @@ async function submitCreate() {
       </div>
     </header>
 
-    <el-card v-loading="loading" shadow="never">
+    <el-card v-loading="loading" shadow="never" class="review-list__card">
       <div class="review-list__toolbar">
         <el-input
           v-model="query.keyword"
@@ -368,11 +368,17 @@ async function submitCreate() {
   font-size: var(--font-size-sm);
 }
 
+.review-list__card {
+  /* UI-SC-10：body 内边距归零，留白由工具栏/分页条承担 */
+  --el-card-padding: 0;
+}
+
 .review-list__toolbar {
   display: flex;
   align-items: center;
   gap: var(--space-md);
-  padding-bottom: var(--space-md);
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--color-neutral-100);
 }
 
 .review-list__count {
@@ -487,8 +493,7 @@ async function submitCreate() {
   align-items: center;
   justify-content: space-between;
   gap: var(--space-md);
-  margin-top: var(--space-lg);
-  padding-top: var(--space-lg);
+  padding: 14px 20px;
   border-top: 1px solid var(--color-neutral-100);
 }
 
