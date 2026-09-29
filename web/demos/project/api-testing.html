@@ -54,6 +54,12 @@
   .reqline { display: flex; align-items: center; gap: var(--space-sm); }
   .reqline .select--proto { width: 96px; }
   .reqline .select--method { width: 130px; font-family: var(--font-mono); font-weight: 700; }
+  /* 方法下拉的文字色由 data-m 驱动（对齐快速调试 .method-pick，比徽标底色更深以保证浅色背景可读） */
+  .reqline .select--method[data-m="GET"] { color: #1e6fd9; }
+  .reqline .select--method[data-m="POST"] { color: #12915f; }
+  .reqline .select--method[data-m="PUT"] { color: #b26a05; }
+  .reqline .select--method[data-m="PATCH"] { color: #6f42c1; }
+  .reqline .select--method[data-m="DELETE"] { color: #d9363e; }
   .reqline .input--path { flex: 1; font-family: var(--font-mono); }
   .reqline .input--name { width: 240px; }
 
@@ -303,7 +309,7 @@
             <!-- 请求行 -->
             <div class="reqline">
               <select class="select select--proto"><option>HTTP</option><option>HTTPS</option></select>
-              <select class="select select--method" style="color:#49cc90"><option>POST</option><option>GET</option><option>PUT</option><option>PATCH</option><option>DELETE</option></select>
+              <select class="select select--method" data-m="POST"><option>POST</option><option>GET</option><option>PUT</option><option>PATCH</option><option>DELETE</option></select>
               <input class="input input--path" value="/api/v1/orders">
               <input class="input input--name" value="创建订单">
               <span class="tag tag--warning" id="dirty-flag" hidden>未保存</span>
@@ -627,12 +633,28 @@ var rt = window.RTUX;
       // 请求行跟随激活 Tab（同一编辑器面板承载多个接口定义）
       var method = tab.getAttribute('data-method') || 'GET';
       methodSel.value = method;
-      // 方法文字按方法着色（与方法徽标同一色板）
-      methodSel.style.color = { GET: '#61affe', POST: '#49cc90', PUT: '#fca130', PATCH: '#fca130', DELETE: '#f56c6c' }[method] || '';
+      // 方法文字按方法着色（data-m 驱动，见 .select--method[data-m] 规则）
+      methodSel.setAttribute('data-m', method);
       pathInput.value = tab.getAttribute('data-path') || '';
       nameInput.value = tab.getAttribute('data-name') || '新接口';
       dirtyFlag.hidden = !tab.classList.contains('is-dirty');
     }
+
+    // 方法下拉变更：与快速调试 .method-pick 同口径——文字色由 data-m 驱动，
+    // 并把方法回显到激活编辑页签（data-method + 徽标文案/配色），切页签时不丢失
+    var METHOD_BADGE = { GET: 'm-get', POST: 'm-post', PUT: 'm-put', PATCH: 'm-patch', DELETE: 'm-delete' };
+    methodSel.addEventListener('change', function () {
+      var method = this.value;
+      this.setAttribute('data-m', method);
+      var tab = activeTab();
+      if (!tab || tab.getAttribute('data-pane') === 'list') return; // 列表 Tab 无请求状态
+      tab.setAttribute('data-method', method);
+      var badge = tab.querySelector('.ws-tab__method');
+      if (badge) {
+        badge.textContent = method;
+        badge.className = 'ws-tab__method ' + (METHOD_BADGE[method] || '');
+      }
+    });
 
     // 打开编辑 Tab；同名接口复用已打开的 Tab（openEdit 的去重口径）
     function openTab(name, method, path, dirty) {
