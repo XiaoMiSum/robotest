@@ -1,7 +1,11 @@
 <script setup lang="ts">
 import type { InvitationListItem } from '@/types'
 import { formatDateTime } from '@/utils/format'
-import { canCopyInvitation, canExpireInvitation, invitationStatusMeta } from '@/utils/workspaceInvitation'
+import {
+  canCopyInvitation,
+  canExpireInvitation,
+  invitationStatusMeta,
+} from '@/utils/workspaceInvitation'
 
 defineProps<{
   invitations: InvitationListItem[]
@@ -52,21 +56,21 @@ function handlePageChange(pageNo: number): void {
             <span class="invitation-list-card__token">join/{{ row.tokenPreview || '—' }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="使用次数" min-width="120">
+        <el-table-column label="使用次数" min-width="100">
           <template #default="{ row }">
             <span class="invitation-list-card__num">{{
               invitationUses(row as InvitationListItem)
             }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="过期时间" min-width="170">
+        <el-table-column label="过期时间" min-width="150">
           <template #default="{ row }">
             <span class="invitation-list-card__num">
               {{ row.expiresAt ? formatDateTime(row.expiresAt) : '永不过期' }}
             </span>
           </template>
         </el-table-column>
-        <el-table-column label="状态" width="120">
+        <el-table-column label="状态" width="80">
           <template #default="{ row }">
             <span
               class="invitation-list-card__status"
@@ -77,12 +81,12 @@ function handlePageChange(pageNo: number): void {
             </span>
           </template>
         </el-table-column>
-        <el-table-column label="创建时间" min-width="170">
+        <el-table-column label="创建时间" min-width="150">
           <template #default="{ row }">
             <span class="invitation-list-card__num">{{ formatDateTime(row.createdAt) }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="170" fixed="right">
+        <el-table-column label="操作" width="150" fixed="right">
           <template #default="{ row }">
             <div class="invitation-list-card__row-actions">
               <el-button

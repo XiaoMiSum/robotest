@@ -89,6 +89,6 @@ describe('MemberListPage demo structure', () => {
     expect(memberPanelSource).toContain('height="100%"')
     expect(invitationPanelSource).toContain('height="100%"')
     // 状态列定宽，不再随剩余空间被拉伸
-    expect(invitationPanelSource).toContain('label="状态" width="120"')
+    expect(invitationPanelSource).toContain('label="状态" width="80"')
   })
 })
