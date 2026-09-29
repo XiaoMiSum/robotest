@@ -90,7 +90,8 @@
   .cell-check { width: 14px; height: 14px; accent-color: var(--brand-500); }
   .pane-actions { display: flex; justify-content: flex-end; gap: var(--space-md); margin-bottom: var(--space-sm); }
   .pane-list { display: flex; flex-direction: column; gap: var(--space-sm); }
-  .pane-card { display: flex; align-items: center; gap: var(--space-sm); border: 1px solid var(--n-200); border-radius: var(--radius-md); padding: var(--space-sm) var(--space-md); }
+  /* 提取器配置行：行即容器，不套外框、行间不画分割线 */
+  .pane-card { display: flex; align-items: center; gap: var(--space-sm); }
   .pane-card .select { width: 148px; flex: none; }
   .pane-card .input { flex: 1; min-width: 0; }
   .arg-list { display: flex; flex-direction: column; gap: 6px; }
