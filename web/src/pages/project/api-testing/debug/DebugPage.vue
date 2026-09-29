@@ -44,84 +44,80 @@ const {
 
 <template>
   <div ref="containerRef" class="debug-page">
-    <el-card shadow="never" class="debug-page__card">
-      <template #header>
-        <div class="debug-page__tabbar">
-          <div class="debug-page__tabs">
-            <div
-              v-for="tab in tabs"
-              :key="tab.id"
-              class="debug-tab"
-              :class="{ 'is-active': !showHistory && tab.id === activeTabId }"
-              @click="switchTab(tab.id)"
-              @dblclick="startRename(tab)"
-              @auxclick="handleAuxClick($event, tab)"
-            >
-              <span v-if="renamingId !== tab.id" class="debug-tab__method" :style="{ background: methodColor(tab.method) }">
-                {{ tab.method }}
-              </span>
-              <span v-if="renamingId !== tab.id" class="debug-tab__label">
-                {{ tabTitle(tab) }}
-              </span>
-              <el-input
-                v-else
-                v-model="renamingValue"
-                autofocus
-                class="debug-tab__rename"
-                @keyup.enter="commitRename(tab)"
-                @blur="commitRename(tab)"
-              />
-              <el-button
-                v-if="renamingId !== tab.id"
-                class="debug-tab__close"
-                link
-                aria-label="关闭标签"
-                @click.stop="closeTab(tab)"
-              >
-                <el-icon><Close /></el-icon>
-              </el-button>
-            </div>
-          </div>
-
-          <!-- 历史记录为页面级固定页签：位于会话页签之后、新建之前（交互设计 1.7），不可关闭 -->
-          <div class="debug-tab" :class="{ 'is-active': showHistory }" @click="switchTab(HISTORY_TAB_ID)">
-            <el-icon><Clock /></el-icon>
-            <span>历史记录</span>
-          </div>
-
-          <el-button link class="debug-tabbar__add" :disabled="!canAddTab" @click="addTab">
-            <el-icon><Plus /></el-icon>
-          </el-button>
-
-          <div class="debug-tabbar__right">
-            <el-button link type="primary" size="small" @click="curlVisible = true">
-              <el-icon><Download /></el-icon>
-              <span>导入 cURL</span>
-            </el-button>
-          </div>
-        </div>
-      </template>
-
-      <template v-if="!showHistory && activeTab">
-        <div class="debug-page__body" :style="{ '--req-h': requestHeight + '%' }">
-          <DebugRequestPanel
-            v-model:tab="activeTab"
-            v-model:environment-id="debugEnvironmentId"
-            class="debug-page__request"
-            :executing="executing"
-            :can-save="canSave"
-            @execute="handleExecute($event)"
-            @save="handleSave"
+    <div class="debug-page__tabbar">
+      <div class="debug-page__tabs">
+        <div
+          v-for="tab in tabs"
+          :key="tab.id"
+          class="debug-tab"
+          :class="{ 'is-active': !showHistory && tab.id === activeTabId }"
+          @click="switchTab(tab.id)"
+          @dblclick="startRename(tab)"
+          @auxclick="handleAuxClick($event, tab)"
+        >
+          <span v-if="renamingId !== tab.id" class="debug-tab__method" :style="{ background: methodColor(tab.method) }">
+            {{ tab.method }}
+          </span>
+          <span v-if="renamingId !== tab.id" class="debug-tab__label">
+            {{ tabTitle(tab) }}
+          </span>
+          <el-input
+            v-else
+            v-model="renamingValue"
+            autofocus
+            class="debug-tab__rename"
+            @keyup.enter="commitRename(tab)"
+            @blur="commitRename(tab)"
           />
-          <div class="debug-page__divider" @mousedown="onDividerMouseDown">
-            <div class="debug-page__divider-line" />
-          </div>
-          <DebugResponseViewer class="debug-page__response" :response="activeTab.response" />
+          <el-button
+            v-if="renamingId !== tab.id"
+            class="debug-tab__close"
+            link
+            aria-label="关闭标签"
+            @click.stop="closeTab(tab)"
+          >
+            <el-icon><Close /></el-icon>
+          </el-button>
         </div>
-      </template>
+      </div>
 
-      <DebugHistoryView v-else class="debug-page__history" @restore="handleRestoreRecord" />
-    </el-card>
+      <!-- 历史记录为页面级固定页签：位于会话页签之后、新建之前（交互设计 1.7），不可关闭 -->
+      <div class="debug-tab" :class="{ 'is-active': showHistory }" @click="switchTab(HISTORY_TAB_ID)">
+        <el-icon><Clock /></el-icon>
+        <span>历史记录</span>
+      </div>
+
+      <el-button link class="debug-tabbar__add" :disabled="!canAddTab" @click="addTab">
+        <el-icon><Plus /></el-icon>
+      </el-button>
+
+      <div class="debug-tabbar__right">
+        <el-button link type="primary" size="small" @click="curlVisible = true">
+          <el-icon><Download /></el-icon>
+          <span>导入 cURL</span>
+        </el-button>
+      </div>
+    </div>
+
+    <template v-if="!showHistory && activeTab">
+      <div class="debug-page__body" :style="{ '--req-h': requestHeight + '%' }">
+        <DebugRequestPanel
+          v-model:tab="activeTab"
+          v-model:environment-id="debugEnvironmentId"
+          class="debug-page__request"
+          :executing="executing"
+          :can-save="canSave"
+          @execute="handleExecute($event)"
+          @save="handleSave"
+        />
+        <div class="debug-page__divider" @mousedown="onDividerMouseDown">
+          <div class="debug-page__divider-line" />
+        </div>
+        <DebugResponseViewer class="debug-page__response" :response="activeTab.response" />
+      </div>
+    </template>
+
+    <DebugHistoryView v-else class="debug-page__history" @restore="handleRestoreRecord" />
 
     <el-dialog v-model="curlVisible" title="导入 cURL" width="560">
       <p class="debug-page__curl-tip">粘贴 Chrome / Charles / Fiddler 导出的 cURL 命令，仅解析不执行</p>
@@ -155,27 +151,9 @@ const {
   display: flex;
   flex-direction: column;
   height: 100%;
-
-  &__card {
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    border-radius: var(--radius-lg);
-
-    :deep(.el-card__header) {
-      padding: 0;
-      border-bottom: none;
-    }
-
-    :deep(.el-card__body) {
-      flex: 1;
-      min-height: 0;
-      padding: 0;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-    }
-  }
+  // 主内容白卡直接承载页签条与内容区（对齐示例的透明容器，无内层卡片边框）
+  min-height: 0;
+  overflow: hidden;
 
   // 条底边线是下划线式页签的公共基线，激活下划线（.debug-tab.is-active::after）压线绘制
   &__tabbar {
