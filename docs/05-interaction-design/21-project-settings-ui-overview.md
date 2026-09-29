@@ -6,7 +6,7 @@
 
 ---
 
-> 本文档为接口测试域交互设计分册：平台级「项目设置」框架规则的前端交互设计。环境管理、全局资产、函数管理的页面交互见各自分册；导航框架见 `docs/05-interaction-design/02-global-navigation.md` 3.5，色彩体系见 `docs/05-interaction-design/03-visual-design.md`。
+> 本文档为接口测试域交互设计分册：平台级「项目设置」框架规则的前端交互设计。环境管理、公共组件、函数管理的页面交互见各自分册；导航框架见 `docs/05-interaction-design/02-global-navigation.md` 3.5，色彩体系见 `docs/05-interaction-design/03-visual-design.md`。
 
 ---
 
@@ -18,7 +18,7 @@
 
 1. **项目设置框架交互**——平台级统一入口在各业务域侧边栏的呈现规则、域归属过滤、权限控制。
 
-环境管理、全局资产、函数管理的页面交互分别见 `docs/05-interaction-design/01-readme.md`、`docs/05-interaction-design/44-global-asset-ui.md` 自身分册，本文档不重复描述。
+环境管理、公共组件、函数管理的页面交互分别见 `docs/05-interaction-design/01-readme.md`、`docs/05-interaction-design/44-global-asset-ui.md` 自身分册，本文档不重复描述。
 
 ### 1.2 菜单与路由
 
@@ -28,7 +28,7 @@
 | ---- | ---- | ---- | ---- |
 | 环境管理 | `/workspace/projects/settings/environments` | 项目模式 | 项目成员查看/使用；项目维护者维护 |
 | 函数管理 | `/workspace/projects/settings/functions` | 项目模式 | 项目成员查看；项目维护者维护 |
-| 全局资产 | `/workspace/projects/settings/assets` | 项目模式 | 项目成员查看/复制引入；项目维护者维护 |
+| 公共组件 | `/workspace/projects/settings/assets` | 项目模式 | 项目成员查看/复制引入；项目维护者维护 |
 
 > 上表路由为前端路由示意，与后端 API 路径相互独立。路由前缀 `/workspace/projects/settings/*` 为平台级统一约定，跨业务域一致。
 
@@ -59,3 +59,11 @@
 | 总览 | `21-project-settings-ui-overview.md` | 前言、1. 概述、4. 通用交互模式 |
 | 设置框架 | `22-project-settings-ui-framework.md` | 2. 项目设置框架交互 |
 | 函数管理页 | `23-project-settings-ui-function.md` | 3. 函数管理页 |
+
+---
+
+## 修改记录
+
+| 版本 | 日期 | 说明 |
+| ---- | ---- | ---- |
+| V1.0 | 2026-09-29 | 术语统一：「全局资产」更名为「公共组件」 |

@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { nextTick } from 'vue'
 
 const mocks = vi.hoisted(() => ({
   useAuthStore: vi.fn(),
@@ -102,6 +103,22 @@ function item(id: string, over: Record<string, unknown> = {}): ApiComponentListI
 
 const okList = (list: ApiComponentListItem[]) => ({ list, total: list.length })
 
+/** 构造整页数据：条目 id 从 start 起连续，便于校验追加与窗口丢页 */
+function pageOf(start: number, count: number, total: number) {
+  return {
+    list: Array.from({ length: count }, (_, index) => item(`c${start + index}`)),
+    total,
+  }
+}
+
+/** 按 pageNo 返回连续整页（每页 20 条） */
+function pagedMock(total: number): void {
+  mocks.fetchComponents.mockImplementation((params?: { pageNo?: number }) => {
+    const pageNo = params?.pageNo ?? 1
+    return Promise.resolve(pageOf((pageNo - 1) * 20 + 1, 20, total))
+  })
+}
+
 beforeEach(() => {
   vi.clearAllMocks()
   mockHasPermission([])
@@ -172,13 +189,13 @@ describe('useComponentPage', () => {
   })
 
   describe('loadList', () => {
-    it('按 pageSize=1000 全量拉取并默认选中首项', async () => {
+    it('按 pageSize=20 拉取第 1 页并默认选中首项', async () => {
       mocks.fetchComponents.mockResolvedValue(okList([item('a'), item('b')]))
       const s = useComponentPage()
 
       await s.loadList()
 
-      expect(mocks.fetchComponents).toHaveBeenCalledWith({ pageNo: 1, pageSize: 1000, type: undefined, keyword: undefined })
+      expect(mocks.fetchComponents).toHaveBeenCalledWith({ pageNo: 1, pageSize: 20, type: undefined, keyword: undefined })
       expect(s.list.value).toHaveLength(2)
       expect(s.selectedId.value).toBe('a')
       expect(s.listLoading.value).toBe(false)
@@ -193,7 +210,7 @@ describe('useComponentPage', () => {
 
       expect(mocks.fetchComponents).toHaveBeenCalledWith({
         pageNo: 1,
-        pageSize: 1000,
+        pageSize: 20,
         type: 'validator',
         keyword: 'code',
       })
@@ -210,20 +227,24 @@ describe('useComponentPage', () => {
       expect(s.listLoading.value).toBe(false)
     })
 
-    it('已选项仍在列表时保持选中，否则回落首项', async () => {
+    it('已选项仍在列表时保持选中，否则由缓存维持右栏详情', async () => {
       mocks.fetchComponents.mockResolvedValue(okList([item('a'), item('b')]))
       const s = useComponentPage()
       await s.loadList()
       expect(s.selectedId.value).toBe('a')
 
       s.selectComponent('b')
+      await nextTick()
       mocks.fetchComponents.mockResolvedValue(okList([item('b'), item('c')]))
       await s.loadList()
       expect(s.selectedId.value).toBe('b')
 
+      // 选中项滑出窗口：保留 id，右栏继续展示缓存详情，不回落到首项
       mocks.fetchComponents.mockResolvedValue(okList([item('c')]))
       await s.loadList()
-      expect(s.selectedId.value).toBe('c')
+      expect(s.selectedId.value).toBe('b')
+      expect(s.selectedItem.value?.id).toBe('b')
+      expect(s.selectedItem.value?.name).toBe('组件-b')
     })
   })
 
@@ -514,6 +535,142 @@ describe('useComponentPage', () => {
 
       expect(s.form.config).toBe(before)
       expect(mocks.ElMessage.success).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('滚动加载（窗口分页）', () => {
+    it('首屏不足整页时 hasMoreDown 为 false，loadMore 不发请求', async () => {
+      mocks.fetchComponents.mockResolvedValueOnce({ list: [item('a')], total: 1 })
+      const s = useComponentPage()
+      await s.loadList()
+
+      await s.loadMore()
+
+      expect(mocks.fetchComponents).toHaveBeenCalledTimes(1)
+      expect(s.hasMoreDown.value).toBe(false)
+      expect(s.hasMoreUp.value).toBe(false)
+    })
+
+    it('loadMore 拉取下一页并按 id 去重追加', async () => {
+      mocks.fetchComponents
+        .mockResolvedValueOnce(pageOf(1, 20, 40))
+        .mockResolvedValueOnce({ list: [item('c1'), ...pageOf(21, 19, 40).list], total: 40 })
+      const s = useComponentPage()
+      await s.loadList()
+      expect(s.hasMoreDown.value).toBe(true)
+
+      await s.loadMore()
+
+      expect(mocks.fetchComponents).toHaveBeenLastCalledWith({
+        pageNo: 2,
+        pageSize: 20,
+        type: undefined,
+        keyword: undefined,
+      })
+      expect(s.list.value).toHaveLength(39)
+      expect(s.hasMoreDown.value).toBe(false)
+      expect(s.loadingMore.value).toBe(false)
+    })
+
+    it('窗口超过 5 页丢弃首部并回放滚动补偿，之后可再加载上一页', async () => {
+      const scroll = { beforeShift: vi.fn(), afterShift: vi.fn() }
+      pagedMock(200)
+      const s = useComponentPage({ scroll })
+      await s.loadList()
+      for (let index = 0; index < 5; index++) await s.loadMore()
+
+      expect(s.list.value).toHaveLength(100)
+      expect(s.list.value[0]?.id).toBe('c21')
+      expect(scroll.beforeShift).toHaveBeenCalledTimes(1)
+      expect(scroll.afterShift).toHaveBeenCalledTimes(1)
+      expect(s.hasMoreUp.value).toBe(true)
+
+      await s.loadPrev()
+
+      expect(mocks.fetchComponents).toHaveBeenLastCalledWith(expect.objectContaining({ pageNo: 1 }))
+      expect(s.hasMoreUp.value).toBe(false)
+      expect(s.list.value).toHaveLength(100)
+      expect(s.list.value[0]?.id).toBe('c1')
+      expect(s.loadingPrev.value).toBe(false)
+    })
+
+    it('已在第一页时 loadPrev 不发请求', async () => {
+      mocks.fetchComponents.mockResolvedValueOnce({ list: [item('a')], total: 1 })
+      const s = useComponentPage()
+      await s.loadList()
+
+      await s.loadPrev()
+
+      expect(mocks.fetchComponents).toHaveBeenCalledTimes(1)
+      expect(s.hasMoreUp.value).toBe(false)
+    })
+
+    it('下一页加载失败保留已加载数据并给出可重试的行内错误', async () => {
+      mocks.fetchComponents
+        .mockResolvedValueOnce(pageOf(1, 20, 40))
+        .mockRejectedValueOnce(new Error('boom'))
+      const s = useComponentPage()
+      await s.loadList()
+
+      await s.loadMore()
+
+      expect(s.moreError.value).toBe(true)
+      expect(s.list.value).toHaveLength(20)
+      expect(s.loadingMore.value).toBe(false)
+      expect(mocks.ElMessage.error).toHaveBeenCalledWith('操作失败')
+    })
+
+    it('上一页加载失败置 prevError 并统一提示', async () => {
+      pagedMock(200)
+      const s = useComponentPage()
+      await s.loadList()
+      for (let index = 0; index < 5; index++) await s.loadMore()
+      mocks.fetchComponents.mockRejectedValueOnce(new Error('boom'))
+
+      await s.loadPrev()
+
+      expect(s.prevError.value).toBe(true)
+      expect(s.loadingPrev.value).toBe(false)
+      expect(mocks.ElMessage.error).toHaveBeenCalledWith('操作失败')
+    })
+
+    it('筛选重置后丢弃在途滚动加载的过期响应', async () => {
+      let resolveMore: ((value: { list: ApiComponentListItem[]; total: number }) => void) | undefined
+      mocks.fetchComponents
+        .mockResolvedValueOnce(pageOf(1, 20, 40))
+        .mockImplementationOnce(() => new Promise((resolve) => {
+          resolveMore = resolve
+        }))
+      const s = useComponentPage()
+      await s.loadList()
+      const pending = s.loadMore()
+
+      mocks.fetchComponents.mockResolvedValueOnce({ list: [item('x')], total: 1 })
+      await s.loadList()
+      resolveMore?.({ list: pageOf(21, 20, 40).list, total: 40 })
+      await pending
+      await nextTick()
+
+      expect(s.list.value).toHaveLength(1)
+      expect(s.list.value[0]?.id).toBe('x')
+      expect(s.loadingMore.value).toBe(false)
+    })
+
+    it('变更操作后按当前窗口范围顺序重取并保持选中', async () => {
+      pagedMock(200)
+      mocks.toggleComponent.mockResolvedValue(true)
+      const s = useComponentPage()
+      await s.loadList()
+      await s.loadMore()
+      expect(s.list.value).toHaveLength(40)
+      const callsBefore = mocks.fetchComponents.mock.calls.length
+
+      await s.handleEnableToggle(false)
+
+      expect(mocks.fetchComponents.mock.calls.length - callsBefore).toBe(2)
+      expect(s.list.value).toHaveLength(40)
+      expect(s.selectedId.value).toBe('c1')
+      expect(s.loadingMore.value).toBe(false)
     })
   })
 })
