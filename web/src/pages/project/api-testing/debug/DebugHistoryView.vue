@@ -12,14 +12,19 @@ import { methodBadgeColor } from '@/composables/project/api-testing/debug/useDeb
 
 const emit = defineEmits<{ (e: 'restore', record: ApiDebugRecordItem): void }>()
 
-const PAGE_SIZE = 10
+// 交互设计 1.7：滚动到底自动加载，无分页器；每页 100 条（API 契约 pageSize 上限 100）
+const PAGE_SIZE = 100
 
 const loading = ref(false)
 const error = ref<string | null>(null)
 const records = ref<ApiDebugRecordItem[]>([])
 const total = ref(0)
-const pageNo = ref(1)
+const loadedPage = ref(1)
+const pendingPage = ref(1)
 const keyword = ref('')
+const listRef = ref<HTMLElement | null>(null)
+
+const hasMore = computed(() => records.value.length < total.value)
 
 let searchTimer: ReturnType<typeof setTimeout> | undefined
 let listRequestId = 0
@@ -33,27 +38,35 @@ function handleSearchInput() {
   clearTimeout(searchTimer)
   listRequestId += 1
   searchTimer = setTimeout(() => {
-    pageNo.value = 1
-    void loadList()
+    void fetchPage(1)
   }, 300)
 }
 
-onMounted(() => void loadList())
+onMounted(() => void fetchPage(1))
 onBeforeUnmount(() => {
   clearTimeout(searchTimer)
   listRequestId += 1
   loading.value = false
 })
 
-async function loadList(): Promise<void> {
+async function fetchPage(page: number): Promise<void> {
   const requestId = ++listRequestId
+  pendingPage.value = page
   loading.value = true
   error.value = null
   try {
-    const page = await fetchDebugRecords(pageNo.value, PAGE_SIZE, keyword.value.trim() || undefined)
+    const data = await fetchDebugRecords(page, PAGE_SIZE, keyword.value.trim() || undefined)
     if (requestId !== listRequestId) return
-    records.value = page.list
-    total.value = page.total
+    // 翻页期间新记录插入会使服务端偏移量后移，合并按 id 去重防止重复条目
+    const merged = page === 1 ? data.list : [...records.value, ...data.list]
+    const seen = new Set<string>()
+    records.value = merged.filter((item) => {
+      if (seen.has(item.id)) return false
+      seen.add(item.id)
+      return true
+    })
+    total.value = data.total
+    loadedPage.value = page
   } catch (err) {
     if (requestId !== listRequestId) return
     const message = errorMessage(err, '加载调试记录失败')
@@ -66,13 +79,17 @@ async function loadList(): Promise<void> {
   }
 }
 
+// 仅重试失败的那一页：追加加载失败时保留已加载内容，从断点续传
 function retry(): void {
-  void loadList()
+  void fetchPage(pendingPage.value)
 }
 
-function handlePageChange(page: number) {
-  pageNo.value = page
-  void loadList()
+function handleListScroll(): void {
+  const el = listRef.value
+  if (!el || loading.value || error.value || !hasMore.value) return
+  if (el.scrollTop + el.clientHeight >= el.scrollHeight - 48) {
+    void fetchPage(loadedPage.value + 1)
+  }
 }
 
 // ==================== 时间分组（今天 / 昨天 / 更早，交互设计 3.1） ====================
@@ -110,9 +127,8 @@ async function handleDelete(record: ApiDebugRecordItem) {
   }
   try {
     await deleteDebugRecord(record.id)
-    // 末页删空时回退一页，避免停留在空页
-    if (records.value.length === 1 && pageNo.value > 1) pageNo.value -= 1
-    await loadList()
+    // 滚动加载没有可回退的页码，删除后从头刷新已加载内容
+    await fetchPage(1)
     ElMessage.success('已删除')
   } catch (err) {
     ElMessage.error(errorMessage(err, '删除调试记录失败'))
@@ -157,7 +173,8 @@ function formatMetaTime(value: string): string {
 </script>
 
 <template>
-  <div v-loading="loading" class="history">
+  <!-- 首屏加载走整屏遮罩；已有时改用列表尾部提示，避免追加加载时遮罩阻断滚动 -->
+  <div v-loading="loading && !records.length" class="history">
     <div class="history__toolbar">
       <el-input
         v-model="keyword"
@@ -172,7 +189,7 @@ function formatMetaTime(value: string): string {
       <span class="history__total">共 {{ total }} 条</span>
     </div>
 
-    <div class="history__list">
+    <div ref="listRef" class="history__list" @scroll="handleListScroll">
       <div v-if="error" class="history__error" role="alert">
         <span>{{ error }}</span>
         <el-button link type="primary" @click="retry">重试</el-button>
@@ -219,17 +236,8 @@ function formatMetaTime(value: string): string {
       </section>
 
       <div v-if="!loading && !error && !records.length" class="history__empty">暂无调试记录</div>
+      <div v-if="loading && records.length" class="history__loading">加载中…</div>
     </div>
-
-    <el-pagination
-      v-if="total > PAGE_SIZE"
-      v-model:current-page="pageNo"
-      layout="prev, pager, next"
-      :page-size="PAGE_SIZE"
-      :total="total"
-      class="history__pager"
-      @current-change="handlePageChange"
-    />
   </div>
 </template>
 
@@ -383,8 +391,11 @@ function formatMetaTime(value: string): string {
     font-size: var(--font-size-sm);
   }
 
-  &__pager {
-    justify-content: center;
+  &__loading {
+    padding: var(--space-sm) 0;
+    text-align: center;
+    color: var(--color-neutral-400);
+    font-size: var(--font-size-xs);
   }
 }
 </style>
