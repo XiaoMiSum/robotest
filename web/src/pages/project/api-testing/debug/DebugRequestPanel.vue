@@ -240,6 +240,7 @@ const {
     display: flex;
     gap: 8px;
     align-items: center;
+    padding: 12px 12px 4px;
   }
 
   &__method-wrap {
@@ -322,13 +323,23 @@ const {
     width: 200px;
 
     :deep(.el-select__wrapper) {
+      min-height: 28px;
       border: none;
       box-shadow: none;
       padding-left: 4px;
+      font-size: 12px;
+      color: var(--color-neutral-400);
 
+      .el-select__selected-item,
+      .el-select__placeholder {
+        color: inherit;
+      }
+
+      // 无边框下拉的悬浮反馈：文字与箭头一并切换为主色（交互稿 .env-pick .select:hover）
       &:hover {
         .el-select__selected-item,
-        .el-select__placeholder {
+        .el-select__placeholder,
+        .el-select__caret {
           color: var(--color-primary-500);
         }
       }
@@ -336,7 +347,7 @@ const {
   }
 
   &__hint {
-    color: var(--color-neutral-300);
+    color: var(--color-neutral-400);
     cursor: help;
   }
 
@@ -344,6 +355,7 @@ const {
   &__tabs {
     display: flex;
     gap: 0;
+    padding: 0 12px;
     border-bottom: 1px solid var(--color-neutral-100);
   }
 
@@ -351,7 +363,7 @@ const {
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    padding: 10px 14px;
+    padding: 9px 14px;
     font-size: 12px;
     font-weight: 500;
     color: var(--color-neutral-500);
@@ -392,7 +404,7 @@ const {
   &__content {
     flex: 1;
     overflow: auto;
-    padding: 10px;
+    padding: 12px;
     min-height: 0;
   }
 
