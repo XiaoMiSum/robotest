@@ -6,7 +6,6 @@ import type {
   ApiComponentScope,
   ApiComponentType,
   ApiIdResp,
-  ApiComponentCopyResp,
   PageResult,
 } from '@/types'
 
@@ -44,11 +43,6 @@ export function toggleComponent(id: string, enabled: boolean): Promise<boolean> 
 /** 删除公共组件 */
 export function deleteComponent(id: string): Promise<boolean> {
   return del(`/project/components/${id}`)
-}
-
-/** 复制公共组件 */
-export function copyComponent(id: string): Promise<ApiComponentCopyResp> {
-  return post(`/project/components/${id}/copy`)
 }
 
 /** 批量启停 */

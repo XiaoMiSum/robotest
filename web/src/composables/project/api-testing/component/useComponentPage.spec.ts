@@ -6,7 +6,6 @@ const mocks = vi.hoisted(() => ({
   fetchComponents: vi.fn(),
   fetchEnvironments: vi.fn(),
   fetchEnvironmentDetail: vi.fn(),
-  copyComponent: vi.fn(),
   createComponent: vi.fn(),
   deleteComponent: vi.fn(),
   toggleComponent: vi.fn(),
@@ -32,7 +31,6 @@ vi.mock('@/stores/auth', () => ({
 }))
 
 vi.mock('@/services/project/api-testing/component', () => ({
-  copyComponent: mocks.copyComponent,
   createComponent: mocks.createComponent,
   deleteComponent: mocks.deleteComponent,
   fetchComponents: mocks.fetchComponents,
@@ -457,39 +455,53 @@ describe('useComponentPage', () => {
       expect(s.panelMode.value).toBe('view')
     })
 
-    it('复制成功后选中副本', async () => {
-      mocks.copyComponent.mockResolvedValue({ id: 'copy1' })
-      mocks.fetchComponents.mockResolvedValue(okList([item('a'), item('copy1')]))
+    it('复制：回填源组件到新建面板并追加副本后缀', () => {
       const s = useComponentPage()
-      await s.loadList()
 
-      await s.handleCopy(s.list.value[0])
+      s.startCopy(item('a', {
+        name: 'Token 预置',
+        type: 'validator',
+        scope: 'workspace',
+        description: '登录前置',
+        sortOrder: 3,
+      }))
 
-      expect(mocks.copyComponent).toHaveBeenCalledWith('a')
-      expect(mocks.ElMessage.success).toHaveBeenCalledWith('已复制')
-      expect(s.selectedId.value).toBe('copy1')
+      expect(s.panelMode.value).toBe('create')
+      expect(s.editingId.value).toBeNull()
+      expect(s.form.name).toBe('Token 预置 (副本)')
+      expect(s.form.type).toBe('validator')
+      expect(s.form.scope).toBe('workspace')
+      expect(s.form.description).toBe('登录前置')
+      expect(s.form.sortOrder).toBe(3)
+      expect(mocks.parseComponentConfig).toHaveBeenCalledWith('{"testclass":"http"}')
+      expect(s.form.config).toEqual({ testclass: 'http', config: {} })
+      expect(mocks.fetchEnvironments).toHaveBeenCalled()
     })
 
-    it('副本不在当前筛选结果时保持原选中', async () => {
-      mocks.copyComponent.mockResolvedValue({ id: 'copy1' })
-      mocks.fetchComponents.mockResolvedValue(okList([item('a')]))
+    it('复制无目标时不切换面板', () => {
       const s = useComponentPage()
-      await s.loadList()
 
-      await s.handleCopy(s.list.value[0])
+      s.startCopy(null)
 
-      expect(s.selectedId.value).toBe('a')
+      expect(s.panelMode.value).toBe('view')
+      expect(s.editingId.value).toBeNull()
     })
 
-    it('复制失败时提示', async () => {
-      mocks.fetchComponents.mockResolvedValue(okList([item('a')]))
-      mocks.copyComponent.mockRejectedValue(new Error('x'))
+    it('复制后保存走创建接口并携带副本名称', async () => {
+      mocks.createComponent.mockResolvedValue({ id: 'new1' })
+      mocks.fetchComponents.mockResolvedValue(okList([item('new1')]))
       const s = useComponentPage()
-      await s.loadList()
+      s.startCopy(item('a', { name: 'Token 预置' }))
 
-      await s.handleCopy(s.list.value[0])
+      await s.handleSave()
 
-      expect(mocks.ElMessage.error).toHaveBeenCalledWith('操作失败')
+      expect(mocks.updateComponent).not.toHaveBeenCalled()
+      expect(mocks.createComponent).toHaveBeenCalledWith(expect.objectContaining({
+        name: 'Token 预置 (副本)',
+        scope: 'project',
+      }))
+      expect(s.selectedId.value).toBe('new1')
+      expect(s.panelMode.value).toBe('view')
     })
   })
 

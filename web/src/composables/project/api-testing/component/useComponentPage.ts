@@ -8,7 +8,6 @@ import type {
 } from '@/types'
 import { useAuthStore } from '@/stores/auth'
 import {
-  copyComponent,
   createComponent,
   deleteComponent,
   fetchComponents,
@@ -295,11 +294,12 @@ export function useComponentPage(options: UseComponentPageOptions = {}) {
     config: {},
   })
 
+  // flush:sync —— 保证「复制」等程序化赋值先设类型再设配置时不被异步回调覆盖
   watch(() => form.type, () => {
     if (!editingId.value) {
       form.config = form.type === 'preprocessor' || form.type === 'postprocessor' ? createProcessorComponentConfig() : {}
     }
-  })
+  }, { flush: 'sync' })
 
   const httpRefOptions = ref<ApiHttpConfig[]>([])
   const dsRefOptions = ref<ApiDataSource[]>([])
@@ -346,6 +346,20 @@ export function useComponentPage(options: UseComponentPageOptions = {}) {
     form.config = parseComponentConfig(item.config)
     void loadProcessorRefOptions()
     panelMode.value = 'edit'
+  }
+
+  /** 复制：以源组件配置回填新建面板（editingId 置空使保存走创建接口），名称追加「 (副本)」 */
+  function startCopy(item: ApiComponentListItem | null): void {
+    if (!item) return
+    editingId.value = null
+    form.type = item.type
+    form.name = `${item.name} (副本)`
+    form.description = item.description ?? ''
+    form.scope = item.scope
+    form.sortOrder = typeof item.sortOrder === 'number' ? item.sortOrder : 0
+    form.config = parseComponentConfig(item.config)
+    void loadProcessorRefOptions()
+    panelMode.value = 'create'
   }
 
   /** 取消回到查看态：保留当前选中项，未选中时右栏落回空态 */
@@ -434,21 +448,6 @@ export function useComponentPage(options: UseComponentPageOptions = {}) {
     }
   }
 
-  async function handleCopy(row: ApiComponentListItem | null): Promise<void> {
-    if (!row) return
-    try {
-      const resp = await copyComponent(row.id)
-      ElMessage.success('已复制')
-      await reloadWindow()
-      if (resp.id && list.value.some((item) => item.id === resp.id)) {
-        selectedId.value = resp.id
-        panelMode.value = 'view'
-      }
-    } catch (err) {
-      ElMessage.error(resolveComponentError(err))
-    }
-  }
-
   // ==================== 提取器引入 ====================
 
   const extractorPickerVisible = ref(false)
@@ -533,7 +532,7 @@ export function useComponentPage(options: UseComponentPageOptions = {}) {
     handleSave,
     handleEnableToggle,
     handleDelete,
-    handleCopy,
+    startCopy,
     openExtractorPicker,
     handleExtractorPicked,
     loadExtractorAssets,

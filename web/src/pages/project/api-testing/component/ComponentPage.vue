@@ -46,11 +46,11 @@ const {
   selectComponent,
   startCreate,
   startEdit,
+  startCopy,
   cancelEdit,
   handleSave,
   handleEnableToggle,
   handleDelete,
-  handleCopy,
   openExtractorPicker,
   handleExtractorPicked,
   loadExtractorAssets,
@@ -174,7 +174,7 @@ watch([list, listLoading, loadingMore, loadingPrev], async () => {
           :item="selectedItem"
           :can-edit="canEdit"
           @edit="startEdit()"
-          @copy="handleCopy(selectedItem)"
+          @copy="startCopy(selectedItem)"
           @delete="handleDelete(selectedItem)"
           @toggle="handleEnableToggle"
         />
