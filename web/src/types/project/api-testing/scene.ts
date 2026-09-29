@@ -260,11 +260,3 @@ export interface ApiSceneAssetsImportResp {
 export interface ApiSceneBatchDeleteReq {
   ids: string[]
 }
-
-/** 公共组件复制响应 */
-export interface ApiComponentCopyResp {
-  id: string
-  type: string
-  name: string
-  sourceAssetId: string
-}
