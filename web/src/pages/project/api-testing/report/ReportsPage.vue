@@ -173,7 +173,7 @@ onMounted(async () => {
 
 <template>
   <div class="reports-page">
-    <el-card v-loading="loading" shadow="never">
+    <el-card v-loading="loading" shadow="never" class="reports-page__card">
       <template #header>
         <div class="reports-page__toolbar">
           <el-select v-model="statusFilter" style="width: 140px" @change="handleFilter">
@@ -284,6 +284,11 @@ onMounted(async () => {
   height: 100%;
 }
 
+/* UI-SC-10：body 内边距归零，header 仍按默认留白 */
+.reports-page__card {
+  --el-card-padding: 0;
+}
+
 .reports-page__toolbar {
   display: flex;
   align-items: center;
@@ -302,7 +307,8 @@ onMounted(async () => {
 
 .reports-page__pagination {
   justify-content: flex-end;
-  margin-top: var(--space-md);
+  padding: 14px 20px;
+  border-top: 1px solid var(--color-neutral-100);
 }
 
 .text-red-500 {

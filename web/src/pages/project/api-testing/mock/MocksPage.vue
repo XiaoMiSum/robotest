@@ -205,7 +205,7 @@ function formatHitTime(val: string | null): string {
 
 <template>
   <div class="mocks-page">
-    <el-card v-loading="loading" shadow="never">
+    <el-card v-loading="loading" shadow="never" class="mocks-page__card">
       <template #header>
         <div class="mocks-page__toolbar">
           <div class="mocks-page__toolbar-left">
@@ -345,6 +345,11 @@ function formatHitTime(val: string | null): string {
   height: 100%;
 }
 
+/* UI-SC-10：body 内边距归零，header 仍按默认留白 */
+.mocks-page__card {
+  --el-card-padding: 0;
+}
+
 .mocks-page__toolbar {
   display: flex;
   align-items: center;
@@ -369,7 +374,7 @@ function formatHitTime(val: string | null): string {
   align-items: center;
   justify-content: space-between;
   gap: var(--space-md);
-  margin-bottom: var(--space-sm);
+  padding: var(--space-md) 20px;
   color: var(--color-danger);
   font-size: var(--font-size-sm);
 }
@@ -387,7 +392,8 @@ function formatHitTime(val: string | null): string {
 .mocks-page__pagination {
   display: flex;
   justify-content: flex-end;
-  padding-top: var(--space-md);
   flex-shrink: 0;
+  padding: 14px 20px;
+  border-top: 1px solid var(--color-neutral-100);
 }
 </style>
