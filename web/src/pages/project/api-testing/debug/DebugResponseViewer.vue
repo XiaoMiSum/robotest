@@ -252,7 +252,7 @@ const {
     display: flex;
     align-items: center;
     gap: 16px;
-    padding: 8px 10px;
+    padding: 8px 12px;
     border-bottom: 1px solid var(--color-neutral-100);
     background: var(--color-neutral-50);
     flex-shrink: 0;
@@ -303,7 +303,7 @@ const {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0 10px;
+    padding: 0 12px;
     border-bottom: 1px solid var(--color-neutral-100);
     flex-shrink: 0;
   }
@@ -380,7 +380,7 @@ const {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 4px 10px;
+    padding: 5px 12px;
     border-bottom: 1px solid var(--color-neutral-100);
     flex-shrink: 0;
   }
@@ -437,7 +437,7 @@ const {
   // ==================== Body ====================
   &__body {
     margin: 0;
-    padding: 12px 10px;
+    padding: 10px 12px;
     font-family: ui-monospace, SFMono-Regular, monospace;
     font-size: 12px;
     line-height: 1.6;
@@ -450,7 +450,8 @@ const {
 
   &__tree {
     min-height: 100%;
-    padding: 8px 10px;
+    // 行自带 4px 横向内边距，与各页签 12px 基线对齐
+    padding: 10px 8px;
     background: #1e1e1e;
   }
 
