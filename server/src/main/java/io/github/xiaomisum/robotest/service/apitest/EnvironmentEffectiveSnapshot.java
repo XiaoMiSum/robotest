@@ -194,7 +194,7 @@ public final class EnvironmentEffectiveSnapshot {
         return aggregate;
     }
 
-    /** 复制/导入：从环境详情反向构建归一化聚合；敏感值已在详情层掩码化，此处还原为「未配置」 */
+    /** 导入：从环境详情反向构建归一化聚合；敏感值已在详情层掩码化，此处还原为「未配置」 */
     public static NormalizedAggregate fromDetail(ApiEnvironmentDetailRespDTO detail) {
         ApiEnvironmentSaveReqDTO reqDTO = new ApiEnvironmentSaveReqDTO();
         reqDTO.setHttpConfigs((detail.getHttpConfigs() != null ? detail.getHttpConfigs() : List.<ApiEnvironmentDetailRespDTO.HttpConfig>of())
