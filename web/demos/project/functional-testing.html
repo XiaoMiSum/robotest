@@ -210,13 +210,27 @@
     z-index: 260;
     width: 340px;
     max-height: 60vh;
-    overflow-y: auto;
-    padding: 14px 16px;
+    overflow: hidden;
     background: var(--n-0);
     border: 1px solid var(--n-200);
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow-lg);
   }
+  .req-pop__close {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    z-index: 1;
+    display: flex;
+    padding: 3px;
+    color: var(--n-400);
+    cursor: pointer;
+    border-radius: var(--radius-sm);
+  }
+  .req-pop__close:hover { color: var(--n-700); background: var(--n-50); }
+  .req-pop__close svg { width: 15px; height: 15px; }
+  /* 关闭按钮常驻壳体右上角，仅正文层滚动，右上留白避免正文钻到按钮下 */
+  .req-pop__body { max-height: 60vh; overflow-y: auto; padding: 14px 34px 14px 16px; }
   .req-pop h1, .req-pop h2, .req-pop h3 { margin: 0 0 8px; color: var(--n-900); font-weight: 600; }
   .req-pop h1 { font-size: 16px; }
   .req-pop h2 { font-size: 15px; }
@@ -534,8 +548,11 @@
   </div>
 </div>
 
-<!-- 条目明细气泡：贴「明细」按钮定位，仅渲染 Markdown 正文 -->
-<div class="req-pop" id="reqPop" data-req="" hidden></div>
+<!-- 条目明细气泡：贴「明细」按钮定位，仅渲染 Markdown 正文；[×] 常驻右上角、正文独立滚动 -->
+<div class="req-pop" id="reqPop" data-req="" hidden>
+  <button class="req-pop__close" type="button" id="reqPopClose" aria-label="关闭明细"><span data-icon="x" aria-hidden="true"></span></button>
+  <div class="req-pop__body" id="reqPopBody"></div>
+</div>
 
 <!-- 生成/补全结果预览弹窗：居中模态，置顶于抽屉之上，抽屉保留在下层 -->
 <div class="dialog-mask ai-preview-mask" id="pvMask" hidden>
@@ -1189,7 +1206,7 @@
       if (!pop.hidden && pop.getAttribute('data-req') === id) { closeReqPop(); return }
       var r = reqById(id)
       if (!r) return
-      pop.innerHTML = renderMd(r.content)
+      $('reqPopBody').innerHTML = renderMd(r.content)
       pop.setAttribute('data-req', id)
       pop.hidden = false
       // 贴锚点展开，下方越界时翻转到上方，视口边缘钳制（同右键菜单的处理思路）
@@ -1275,6 +1292,7 @@
     })
     $('reqCancel').addEventListener('click', closeReqSel)
     $('reqSelClose').addEventListener('click', closeReqSel)
+    $('reqPopClose').addEventListener('click', closeReqPop)
     reqMask.addEventListener('click', function (e) {
       if (e.target === reqMask) closeReqSel()
     })
