@@ -47,7 +47,8 @@
   .history__item-main { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 0; border: none; background: transparent; cursor: pointer; text-align: left; font: inherit; }
   .history__item-name { font-size: var(--font-size-xs); color: var(--n-700); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .history__item-url { font-size: var(--font-size-xs); color: var(--n-400); font-family: var(--font-mono); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .history__item-meta { width: 150px; font-size: var(--font-size-xs); color: var(--n-400); white-space: nowrap; }
+  .history__item-time { width: 100px; font-size: var(--font-size-xs); color: var(--n-400); white-space: nowrap; }
+  .history__item-cost { width: 64px; text-align: right; font-size: var(--font-size-xs); color: var(--n-400); white-space: nowrap; }
   .history__code { width: 40px; text-align: center; padding: 1px 6px; border-radius: 3px; font-family: var(--font-mono); font-size: var(--font-size-xs); font-weight: 600; }
   .history__code--ok { color: var(--st-success-strong); background: var(--st-success-light); }
   .history__code--fail { color: var(--st-danger-strong); background: var(--st-danger-light); }
@@ -603,7 +604,8 @@
           + '<span class="history__item-name">' + r.name + '</span>'
           + '<span class="history__item-url">' + r.url + '</span>'
           + '</button>'
-          + '<span class="history__item-meta">' + r.at + ' · ' + r.ms + 'ms</span>'
+          + '<span class="history__item-time">' + r.at + '</span>'
+          + '<span class="history__item-cost">' + r.ms + 'ms</span>'
           + '<span class="op-link" data-restore>恢复</span>'
           + '<span class="op-link" data-rename>重命名</span>'
           + '<span class="op-link op-link--danger" data-del>删除</span>'
