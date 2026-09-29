@@ -57,7 +57,8 @@ export function useDebugRequestPanel(
     }
   })
 
-  const activeParamTab = ref<ParamTab>('params')
+  // 缺省激活 Body，与交互稿 demo 打开态一致
+  const activeParamTab = ref<ParamTab>('body')
 
   function pickBodyType(type: ApiDebugBodyKind) {
     const t = tab()
