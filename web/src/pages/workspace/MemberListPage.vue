@@ -453,13 +453,17 @@ onBeforeUnmount(() => {
       </div>
     </header>
 
-    <el-tabs
-      v-model="activeTab"
-      type="border-card"
-      class="member-page__tabs"
-      @tab-change="handleTabChange"
-    >
-        <el-tab-pane label="成员列表" name="members">
+    <el-tabs v-model="activeTab" class="member-page__tabs" @tab-change="handleTabChange">
+        <el-tab-pane name="members">
+          <template #label>
+            成员列表
+            <span
+              class="member-page__tab-count"
+              :class="{ 'member-page__tab-count--active': activeTab === 'members' }"
+            >
+              {{ memberTotal }}
+            </span>
+          </template>
           <section class="member-page__panel">
             <header class="member-page__panel-head">
               <div class="member-page__title-group">
@@ -586,7 +590,16 @@ onBeforeUnmount(() => {
           </section>
         </el-tab-pane>
 
-        <el-tab-pane v-if="canManageInvitation" label="邀请链接" name="invitations">
+        <el-tab-pane v-if="canManageInvitation" name="invitations">
+          <template #label>
+            邀请链接
+            <span
+              class="member-page__tab-count"
+              :class="{ 'member-page__tab-count--active': activeTab === 'invitations' }"
+            >
+              {{ invitationTotal }}
+            </span>
+          </template>
           <section class="member-page__panel">
             <header class="member-page__panel-head">
               <div class="member-page__title-group member-page__title-group--wrap">
@@ -790,16 +803,113 @@ onBeforeUnmount(() => {
   min-width: 0;
 }
 
+/* 页签左右留 card-pad 与面板内容对齐；自绘底边线并隐藏 EP 默认线，避免两条线叠成分隔线 */
 .member-page__tabs :deep(.el-tabs__header) {
   margin-bottom: 0;
+  padding: 0 var(--card-pad);
+  border-bottom: 1px solid var(--color-neutral-100);
 }
 
-.member-page__tabs :deep(.el-tabs__content) {
-  padding: 0;
+.member-page__tabs :deep(.el-tabs__nav-wrap::after) {
+  display: none;
+}
+
+/* EP 默认页签为 40px 定高、hover 直接变主色、活动条整项宽度平移，与灰底表头和
+   1px 分割线的紧凑版式冲突；改为紧凑项 + 灰底 hover + 自绘内缩下划线（对齐 AiConfigPage 范式） */
+.member-page__tabs :deep(.el-tabs__item) {
+  position: relative;
+  height: auto;
+  padding: 10px 14px 12px;
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  color: var(--color-neutral-600);
+  line-height: 1.5;
+
+  &:hover:not(.is-active) {
+    background: var(--color-neutral-50);
+    color: var(--color-neutral-900);
+  }
+
+  &.is-active {
+    color: var(--color-primary-500);
+  }
+
+  /* 下划线左右内缩并以 scale 过渡，激活态外溢 1px 与面板分割线相接 */
+  &::after {
+    content: '';
+    position: absolute;
+    right: 12px;
+    bottom: -1px;
+    left: 12px;
+    height: 2px;
+    border-radius: 1px;
+    background: var(--color-primary-500);
+    transform: scaleX(0);
+    transition: transform var(--transition-base);
+  }
+
+  &.is-active::after {
+    transform: scaleX(1);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    &::after {
+      transition: none;
+    }
+  }
+}
+
+/* 活动条与自绘下划线会叠成双线，隐藏 */
+.member-page__tabs :deep(.el-tabs__active-bar) {
+  display: none;
+}
+
+.member-page__tab-count {
+  display: inline-flex;
+  min-width: 20px;
+  height: 18px;
+  align-items: center;
+  justify-content: center;
+  margin-left: 6px;
+  padding: 0 6px;
+  border-radius: var(--radius-xl);
+  background: var(--color-neutral-100);
+  color: var(--color-neutral-600);
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  transition:
+    background-color var(--transition-fast),
+    color var(--transition-fast);
+}
+
+.member-page__tab-count--active {
+  background: var(--color-primary-50);
+  color: var(--color-primary-700);
 }
 
 .member-page__panel {
   min-width: 0;
+  /* 面板靠 el-tab-pane 的 display 切换重新触发，提供页签切换反馈 */
+  animation: member-page-pane-in var(--transition-base) both;
+}
+
+@keyframes member-page-pane-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .member-page__panel {
+    animation: none;
+  }
 }
 
 .member-page__panel-head {
@@ -808,7 +918,9 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: space-between;
   gap: var(--space-lg);
-  padding: var(--space-md) var(--card-pad);
+  /* 对齐 demo .card__header：工具栏与表格之间补一条分割线，承接页签条的分割线节奏 */
+  padding: var(--space-lg) var(--card-pad);
+  border-bottom: 1px solid var(--color-neutral-100);
 }
 
 .member-page__title-group {
@@ -850,6 +962,9 @@ onBeforeUnmount(() => {
 
 .member-page__table {
   width: 100%;
+  /* EP 单元格自带 12px 水平内边距，表格根再内缩 12px 后首列文字落在 24px，
+     与页签、面板头、分页共用同一左基线 */
+  padding: 0 var(--space-md);
 }
 
 .member-page__table :deep(.el-table__header th.el-table__cell) {
