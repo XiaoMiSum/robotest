@@ -32,7 +32,7 @@ const {
   procExpandedId, procDraft, procDraftMode, preProcCount, postProcCount,
   procList, removeProcessor, moveProcessor, copyProcessor,
   toggleProcDetail, startProcEdit, startProcAdd, cancelProcDraft, commitProcDraft,
-  procTags, procDisplayName, procDetail,
+  procTags, procDisplayName,
   variableCount, load, saveAll,
   extractorPickerVisible, extractorPickerLoading, extractorPickerItems, extractorPickerKeyword,
   openExtractorPicker, handleExtractorPicked, loadExtractorAssets,
@@ -308,7 +308,6 @@ const tabs = computed(() => [
           :ds-forms="dsForms"
           :proc-tags="procTags"
           :proc-display-name="procDisplayName"
-          :proc-detail="procDetail"
           @toggle-detail="toggleProcDetail"
           @add="startProcAdd('preprocessor')"
           @edit="startProcEdit"
@@ -337,7 +336,6 @@ const tabs = computed(() => [
           :ds-forms="dsForms"
           :proc-tags="procTags"
           :proc-display-name="procDisplayName"
-          :proc-detail="procDetail"
           @toggle-detail="toggleProcDetail"
           @add="startProcAdd('postprocessor')"
           @edit="startProcEdit"

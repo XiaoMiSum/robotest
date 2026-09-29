@@ -1,29 +1,17 @@
 import { ref, computed, type Ref } from 'vue'
 import { ElMessage } from 'element-plus'
-import { defaultProcessorConfig, processorSummaryTag, isRecord } from '@/composables/project/api-testing/processorFormModel'
-import type { ProcessorExtractor } from '@/composables/project/api-testing/processorFormModel'
+import { defaultProcessorConfig, processorTags, isRecord } from '@/composables/project/api-testing/processorFormModel'
 import type { ApiProcessor, ApiProcessorType } from '@/types'
-
-export type EnvConfigForm = { id: string; refName?: string; isDefault?: boolean }
-export type EnvDsForm = { id: string; refName?: string; isDefault?: boolean }
-
-/** 只读明细的配置摘要一条；wide 为跨列长文本（如 SQL），见 docs34 §1.3 与 44 §2.2 */
-export interface ProcDetailRow { label: string; value: string; wide?: boolean }
-
-/** 只读明细：配置摘要 + 提取器表格（基本信息无数据源不展示） */
-export interface ProcDetail { config: ProcDetailRow[]; extractors: ProcessorExtractor[] }
 
 /** add 为列表末尾新增表单、edit 为行下编辑表单；两者均不落列表直至保存（docs34 §1.3） */
 export type ProcDraftMode = 'none' | 'add' | 'edit'
 
 /**
  * 环境处理器管理（从 EnvironmentDetailPanel 提取）。
- * 依赖 configForms / dsForms 的 orderedForms 用于补默认引用。
+ * 默认引用补选与类型切换后的引用补选由 ProcessorConfigEditor 统一完成。
  */
 export function useEnvironmentProcessors(
   processorRows: Ref<ApiProcessor[]>,
-  orderedConfigForms: Ref<EnvConfigForm[]>,
-  orderedDsForms: Ref<EnvDsForm[]>,
   localId: () => string,
   nextSortOrder: () => number,
 ) {
@@ -173,102 +161,12 @@ export function useEnvironmentProcessors(
     return JSON.parse(JSON.stringify(source)) as Record<string, unknown>
   }
 
-  function applyDefaultProcRef(processor: ApiProcessor | null) {
-    if (!processor) return
-    const el = procElement(processor)
-    const cfg = isRecord(el.config) ? el.config : {}
-    if (el.testclass === 'http' && typeof cfg.ref !== 'string') {
-      const def = orderedConfigForms.value.find((f) => f.isDefault)
-      if (def?.refName) processor.config = { ...el, config: { ...cfg, ref: def.refName } }
-      return
-    }
-    if (el.testclass === 'jdbc' && typeof cfg.datasource !== 'string') {
-      const def = orderedDsForms.value.find((f) => f.isDefault)
-      if (def?.refName) processor.config = { ...el, config: { ...cfg, datasource: def.refName } }
-    }
-  }
-
   function procTags(processor: ApiProcessor): { text: string; type: 'success' | 'primary' | 'warning' | 'info' | 'danger' }[] {
-    const el = procElement(processor)
-    const tags: { text: string; type: 'success' | 'primary' | 'warning' | 'info' | 'danger' }[] = []
-    const klass = typeof el.testclass === 'string' ? el.testclass : ''
-    if (klass === 'http' || klass === 'jdbc') tags.push({ text: klass.toUpperCase(), type: 'info' })
-    const summary = processorSummaryTag(el)
-    if (summary) tags.push(summary)
-    return tags
+    return processorTags(procElement(processor))
   }
 
   function procDisplayName(processor: ApiProcessor, index: number): string {
     return processor.name.trim() ? processor.name : `处理器 ${index + 1}`
-  }
-
-  function pickExtractors(element: Record<string, unknown>): ProcessorExtractor[] {
-    const raw = element.extractors
-    if (!Array.isArray(raw)) return []
-    return (raw as unknown[])
-      .filter(isRecord)
-      .map((item) => ({
-        enabled: item.enabled !== false,
-        source: typeof item.source === 'string' ? item.source : '',
-        expression: typeof item.expression === 'string' ? item.expression : '',
-        variableName: typeof item.variableName === 'string' ? item.variableName : '',
-        // 空描述补占位，避免只读表格空列被误读为缺数据
-        description: typeof item.description === 'string' && item.description ? item.description : '—',
-      }))
-  }
-
-  function countFields(value: unknown): number {
-    return isRecord(value) ? Object.keys(value).length : 0
-  }
-
-  function bodySummary(cfg: Record<string, unknown>): string {
-    const formCount = countFields(cfg.data)
-    if (formCount > 0) return `${formCount} 项`
-    const body = cfg.body
-    if (body === undefined || body === null || body === '') return '无'
-    if (isRecord(body) || Array.isArray(body)) return 'JSON'
-    if (typeof body === 'string') {
-      const trimmed = body.trim()
-      return trimmed.startsWith('{') || trimmed.startsWith('[') ? 'JSON' : 'raw'
-    }
-    return '无'
-  }
-
-  function procDetail(processor: ApiProcessor): ProcDetail {
-    const element = procElement(processor)
-    const cfg = isRecord(element.config) ? element.config : {}
-    const extractors = pickExtractors(element)
-    if (element.testclass === 'jdbc') {
-      const sql = typeof cfg.sql === 'string' ? cfg.sql.trim() : ''
-      const rawArgs = Array.isArray(cfg.args) ? cfg.args : []
-      const args = rawArgs.filter((item): item is string => typeof item === 'string')
-      return {
-        config: [
-          { label: '执行方式', value: 'JDBC' },
-          { label: 'SQL', value: sql || '—', wide: true },
-          { label: '参数', value: args.length ? args.join('，') : '无' },
-          { label: '提取器', value: `${extractors.length} 项` },
-        ],
-        extractors,
-      }
-    }
-    if (element.testclass !== 'http') {
-      return { config: [{ label: '执行方式', value: '未配置' }], extractors }
-    }
-    const method = typeof cfg.method === 'string' && cfg.method.trim() ? cfg.method.toUpperCase() : 'GET'
-    const path = typeof cfg.path === 'string' ? cfg.path.trim() : ''
-    return {
-      config: [
-        { label: '执行方式', value: 'HTTP' },
-        { label: '方法', value: method },
-        { label: '路径', value: path || '—' },
-        { label: '请求头', value: `${countFields(cfg.headers)} 项` },
-        { label: 'Query 参数', value: `${countFields(cfg.query)} 项` },
-        { label: '请求体', value: bodySummary(cfg) },
-        { label: '提取器', value: `${extractors.length} 项` },
-      ],
-      extractors,
-    }
   }
 
   return {
@@ -293,7 +191,5 @@ export function useEnvironmentProcessors(
     commitProcDraft,
     procTags,
     procDisplayName,
-    procDetail,
-    applyDefaultProcRef,
   }
 }
