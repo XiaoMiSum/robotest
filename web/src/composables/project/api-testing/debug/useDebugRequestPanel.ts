@@ -30,15 +30,13 @@ const COMMON_HEADERS = [
   'Origin',
 ] as const
 
-const METHOD_COLORS: Record<string, string> = {
-  GET: '#61affe',
-  POST: '#49cc90',
-  PUT: '#fca130',
-  PATCH: '#50e3c2',
-  DELETE: '#f93e3e',
-  OPTIONS: '#0d5aa7',
-  HEAD: '#9012fe',
-  CONNECT: '#e8d44d',
+// 方法下拉文字色：浅色底上取同色系深色保证可读性，与徽标色板分属两套（交互稿 .method-pick）
+const METHOD_TEXT_COLORS: Record<string, string> = {
+  GET: '#1e6fd9',
+  POST: '#12915f',
+  PUT: '#b26a05',
+  PATCH: '#6f42c1',
+  DELETE: '#d9363e',
 }
 
 export function useDebugRequestPanel(
@@ -101,7 +99,9 @@ export function useDebugRequestPanel(
     }
   }
 
-  const methodColor = computed(() => METHOD_COLORS[tab().method.toUpperCase()] ?? '#999')
+  const methodColor = computed(
+    () => METHOD_TEXT_COLORS[tab().method.toUpperCase()] ?? 'var(--color-neutral-600)',
+  )
 
   return {
     environments,
