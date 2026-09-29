@@ -77,10 +77,10 @@ describe('useInterfaceEditor', () => {
     vi.restoreAllMocks()
   })
 
-  function makeSut(opts?: { createMode?: boolean; interfaceId?: string; moduleId?: string }) {
+  function makeSut(opts?: { createMode?: boolean; interfaceId?: string; moduleId?: string; copyFromId?: string }) {
     const emit = makeEmit()
     const sut = useInterfaceEditor(
-      { createMode: opts?.createMode ?? true, interfaceId: opts?.interfaceId, moduleId: opts?.moduleId },
+      { createMode: opts?.createMode ?? true, interfaceId: opts?.interfaceId, moduleId: opts?.moduleId, copyFromId: opts?.copyFromId },
       emit as Parameters<typeof useInterfaceEditor>[1],
     )
     return { sut, emit }
@@ -493,6 +493,38 @@ describe('useInterfaceEditor', () => {
       sut.mount()
       await nextTick()
       expect(sut.form.value.moduleId).toBe('mod-1')
+      vi.unstubAllGlobals()
+    })
+
+    it('copy mode loads source and prefills with copy suffix', async () => {
+      mocks.fetchInterfaceDetail.mockResolvedValue({
+        name: '用户登录',
+        method: 'POST',
+        path: '/api/login',
+        moduleId: 'mod-9',
+        changeVersion: 3,
+      } as never)
+      vi.stubGlobal('window', { addEventListener: vi.fn(), removeEventListener: vi.fn() })
+      const { sut } = makeSut({ createMode: true, copyFromId: 'src-1' })
+      sut.mount()
+      await vi.waitFor(() => { expect(sut.loading.value).toBe(false) })
+      expect(mocks.fetchInterfaceDetail).toHaveBeenCalledWith('src-1')
+      expect(sut.form.value.name).toBe('用户登录（副本）')
+      expect(sut.form.value.method).toBe('POST')
+      expect(sut.form.value.path).toBe('/api/login')
+      expect(sut.form.value.moduleId).toBe('mod-9')
+      vi.unstubAllGlobals()
+    })
+
+    it('copy mode load failure falls back to blank form and shows error', async () => {
+      mocks.fetchInterfaceDetail.mockRejectedValue(new Error('src gone'))
+      vi.stubGlobal('window', { addEventListener: vi.fn(), removeEventListener: vi.fn() })
+      const { sut } = makeSut({ createMode: true, copyFromId: 'src-1' })
+      sut.mount()
+      await vi.waitFor(() => { expect(sut.loading.value).toBe(false) })
+      expect(sut.detailError.value).toBe('src gone')
+      expect(sut.form.value.name).toBe('')
+      expect(mocks.ElMessage.error).toHaveBeenCalledWith('src gone')
       vi.unstubAllGlobals()
     })
   })

@@ -68,6 +68,8 @@ export interface UseInterfaceEditorOptions {
   interfaceId?: string
   createMode?: boolean
   moduleId?: string
+  /** 复制来源接口：新建态下按其定义回填表单，保存仍走创建接口 */
+  copyFromId?: string
 }
 
 export interface UseInterfaceEditorReturn {
@@ -269,7 +271,27 @@ export function useInterfaceEditor(
     const sequence = ++detailRequestId
     if (isNew.value) {
       detailError.value = null
-      loading.value = false
+      if (options.copyFromId) {
+        loading.value = true
+        try {
+          const source = await fetchInterfaceDetail(options.copyFromId)
+          if (sequence !== detailRequestId) return
+          form.value = createEditorForm(source)
+          form.value.name = `${source.name}（副本）`
+          markSaved()
+        } catch (err) {
+          if (sequence !== detailRequestId) return
+          // 预填失败时回退为空白新建态，保留错误区供重试
+          form.value = createEditorForm()
+          form.value.moduleId = options.moduleId ?? null
+          const message = errorMessage(err, '源接口加载失败')
+          detailError.value = message
+          ElMessage.error(message)
+        } finally {
+          if (sequence === detailRequestId) loading.value = false
+        }
+        return
+      }
       form.value = createEditorForm()
       form.value.moduleId = options.moduleId ?? null
       markSaved()
