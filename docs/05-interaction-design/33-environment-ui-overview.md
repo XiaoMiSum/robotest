@@ -36,7 +36,7 @@
 │  ═════════════════════════════
 │  项目设置（平台级 · 按业务域过滤）
 │   ├ 环境管理           /workspace/projects/settings/environments ← 本文档第 2、3 章
-│   └ 全局资产           /workspace/projects/settings/assets
+│   └ 公共组件           /workspace/projects/settings/assets
 └──────────────────────────────────┘
 ```
 
@@ -72,3 +72,11 @@
 | 总览 | `33-environment-ui-overview.md` | 前言、1. 概述、4. 通用交互模式 |
 | 环境管理页 | `34-environment-ui-page.md` | 2. 环境管理页 |
 | 环境变量编辑器 | `35-environment-ui-variable-editor.md` | 3. 环境变量编辑器 |
+
+---
+
+## 修改记录
+
+| 版本 | 日期 | 说明 |
+| ---- | ---- | ---- |
+| V1.0 | 2026-09-29 | 术语统一：「全局资产」更名为「公共组件」 |

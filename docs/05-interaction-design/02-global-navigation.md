@@ -105,7 +105,7 @@
 | 权限 | 查看为项目成员；维护（增删改）为项目维护者 |
 | 分组呈现 | 分组标题「项目设置」固定位于侧边栏末尾，以分隔线与业务功能区分隔 |
 
-接口测试域在项目设置下展示配置项：环境管理（`/workspace/projects/settings/environments`）、全局资产（`/workspace/projects/settings/assets`）。框架规则见《项目设置交互设计》（`docs/05-interaction-design/01-readme.md`）；环境管理、全局资产的页面交互见各自分册。
+接口测试域在项目设置下展示配置项：环境管理（`/workspace/projects/settings/environments`）、公共组件（`/workspace/projects/settings/assets`）。框架规则见《项目设置交互设计》（`docs/05-interaction-design/01-readme.md`）；环境管理、公共组件的页面交互见各自分册。
 
 ---
 
@@ -298,3 +298,4 @@
 | --- | --- | --- |
 | V1.0 | 2026-09-23 | 初版 |
 | V1.0 | 2026-09-28 | 退出登录调用服务端登出接口撤销 token；改密后由服务端撤销 token |
+| V1.0 | 2026-09-29 | 术语统一：「全局资产」更名为「公共组件」 |
