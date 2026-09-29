@@ -11,6 +11,7 @@ interface EditorTab {
   createMode: boolean
   interfaceId?: string
   moduleId?: string
+  copyFromId?: string
   name: string
   dirty: boolean
 }
@@ -48,6 +49,14 @@ function openCreate(moduleId?: string) {
   void router.replace({ query: { tab: 'interfaces', action: 'create', ...(moduleId ? { moduleId } : {}) } })
 }
 
+/** 复制：打开新建态编辑器并回填源接口定义，保存走创建接口 */
+function openCopyFrom(id: string) {
+  const key = `create-${Date.now()}`
+  tabs.value.push({ key, createMode: true, copyFromId: id, name: '新接口', dirty: false })
+  active.value = key
+  void router.replace({ query: { tab: 'interfaces', action: 'create', copyFrom: id } })
+}
+
 async function closeByName(name: string | number) {
   const key = String(name)
   const tab = tabs.value.find((t) => t.key === key)
@@ -75,6 +84,10 @@ function handleCreate(moduleId?: string) {
 
 function handleEdit(id: string) {
   openEdit(id)
+}
+
+function handleCopy(id: string) {
+  openCopyFrom(id)
 }
 
 // 头部「新建/导入」作用于列表数据：确保切回列表 Tab 后，经 ref 委托给列表页（复用其当前模块上下文）
@@ -116,11 +129,13 @@ function handleDirty(key: string, dirty: boolean) {
   if (tab) tab.dirty = dirty
 }
 
-// 刷新 / 直链恢复：与既有 query 约定一致（?tab=interfaces&interfaceId= / &action=create）
+// 刷新 / 直链恢复：与既有 query 约定一致（?tab=interfaces&interfaceId= / &action=create[&copyFrom=]）
 function restoreFromQuery() {
   const q = route.query
   if (typeof q.interfaceId === 'string') {
     openEdit(q.interfaceId)
+  } else if (q.action === 'create' && typeof q.copyFrom === 'string') {
+    openCopyFrom(q.copyFrom)
   } else if (q.action === 'create') {
     openCreate((q.moduleId as string) ?? undefined)
   }
@@ -158,6 +173,7 @@ watch(
             ref="listRef"
             @create="handleCreate"
             @edit="handleEdit"
+            @copy="handleCopy"
           />
         </KeepAlive>
       </el-tab-pane>
@@ -183,6 +199,7 @@ watch(
             :interface-id="tab.createMode ? undefined : tab.interfaceId"
             :create-mode="tab.createMode"
             :module-id="tab.moduleId"
+            :copy-from-id="tab.copyFromId"
             @back="handleEditorBack(tab)"
             @title-update="(n: string) => handleTitle(tab.key, n)"
             @dirty-change="(d: boolean) => handleDirty(tab.key, d)"
