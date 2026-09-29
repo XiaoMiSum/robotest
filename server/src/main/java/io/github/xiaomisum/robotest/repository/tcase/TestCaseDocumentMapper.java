@@ -124,10 +124,16 @@ public interface TestCaseDocumentMapper extends BaseMapperX<TestCaseDocument> {
                 .set(TestCaseDocument::getSortOrder, sortOrder));
     }
 
+    /**
+     * wrapper.set 不携带字段上声明的 typeHandler，原始 Map 会被 pgjdbc 当 hstore 绑定而报
+     * "No hstore extension installed"；故走实体载体，由 Jackson3TypeHandler 序列化写入 JSONB，
+     * 同时依赖 NOT_NULL 策略跳过 null 载荷（畸形帧不覆盖已存布局）。
+     */
     default void updateLayout(UUID id, java.util.Map<String, Object> layout) {
-        update(null, new LambdaUpdateWrapperX<TestCaseDocument>()
-                .eq(TestCaseDocument::getId, id)
-                .set(TestCaseDocument::getLayout, layout));
+        TestCaseDocument update = new TestCaseDocument();
+        update.setId(id);
+        update.setLayout(layout);
+        updateById(update);
     }
 
     @SuppressWarnings("unchecked")

@@ -9,12 +9,14 @@ import io.github.xiaomisum.robotest.model.entity.apitest.ApiExecutionRecord;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiScene;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiScheduledTask;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiSwaggerUrl;
+import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseDocument;
 import io.github.xiaomisum.robotest.repository.ai.AiConfigMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiEnvironmentMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiExecutionRecordMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiScheduledTaskMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiSceneMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiSwaggerUrlMapper;
+import io.github.xiaomisum.robotest.repository.tcase.TestCaseDocumentMapper;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -26,6 +28,7 @@ import xyz.migoo.framework.mybatis.core.LambdaUpdateWrapperX;
 import xyz.migoo.framework.mybatis.core.handler.UUIDTypeHandler;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -174,6 +177,21 @@ class Code003MapperWrapperTest {
         assertTrue(updateSql.contains("openapi_url"));
         String enabledSql = ((LambdaUpdateWrapperX<?>) updateCaptor.getAllValues().get(1)).getSqlSet();
         assertTrue(enabledSql.contains("enabled"));
+    }
+
+    @Test
+    void documentLayoutUpdateWritesThroughEntityCarrier() {
+        TestCaseDocumentMapper mapper = mock(TestCaseDocumentMapper.class, CALLS_REAL_METHODS);
+        doReturn(1).when(mapper).updateById(any(TestCaseDocument.class));
+        clearInvocations(mapper);
+
+        Map<String, Object> layout = Map.of("template", "right", "offsets", Map.of());
+        mapper.updateLayout(ID, layout);
+
+        ArgumentCaptor<TestCaseDocument> captor = ArgumentCaptor.forClass(TestCaseDocument.class);
+        verify(mapper).updateById(captor.capture());
+        assertEquals(ID, captor.getValue().getId());
+        assertEquals(layout, captor.getValue().getLayout());
     }
 
     private static void initTableInfo(MybatisConfiguration configuration, Class<?> entityClass) {
