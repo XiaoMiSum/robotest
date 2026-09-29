@@ -31,17 +31,23 @@
   .tree__twisty svg { width: 12px; height: 12px; }
   .tree__name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-  /* 脑图工具条（顶部常驻）：单行左对齐、竖分隔线分组、弹性占位把命令组推至右端（沿用示例页原排版） */
+  /* 脑图工具条（顶部常驻）：单行不换行、左对齐、竖分隔线分组，命令组贴行末右侧；
+     按钮总量宽于容器时不换行（否则命令组被挤到第二行），改为工具条自身横向滚动 */
   .mm-bar {
-    display: flex; align-items: center; gap: 4px; flex-wrap: wrap;
+    display: flex; align-items: center; gap: 4px; flex-wrap: nowrap;
     padding: 7px 12px; border-bottom: 1px solid var(--n-200);
     flex-shrink: 0;
+    overflow-x: auto; scrollbar-width: thin;
   }
-  /* 命令组整体右靠：自动外边距吸收所在行的剩余空间，整组换行也不会被孤立拆散 */
+  .mm-bar::-webkit-scrollbar { height: 4px; }
+  .mm-bar::-webkit-scrollbar-thumb { background: var(--n-300); border-radius: 2px; }
+  .mm-bar::-webkit-scrollbar-track { background: transparent; }
+  /* 命令组整体右靠：有余量时贴行末右侧，超宽时紧随核心组同排滚动 */
   .mm-group { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
   .mm-group--end { margin-left: auto; }
   .mm-tool {
     display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+    flex-shrink: 0;
     height: 26px; padding: 0 8px; border: none; border-radius: var(--radius-md);
     background: transparent; font: inherit; font-size: 12.5px;
     color: var(--n-600); cursor: pointer;
@@ -147,7 +153,7 @@
             <button class="mm-tool" type="button" title="编辑内容 (双击节点/F2)" aria-label="编辑"><span data-icon="edit" aria-hidden="true"></span></button>
             <button class="mm-tool mm-tool--danger" type="button" title="删除 (Delete)" aria-label="删除"><span data-icon="trash" aria-hidden="true"></span></button>
             <span class="mm-sep" aria-hidden="true"></span>
-            <button class="mm-tool" type="button" title="切换排版模板"><span data-icon="grid" aria-hidden="true"></span>右侧分布<span class="mm-caret" data-icon="chevron-down" aria-hidden="true"></span></button>
+            <button class="mm-tool" type="button" title="排版模板：右侧分布" aria-label="排版模板：右侧分布"><span data-icon="grid" aria-hidden="true"></span><span class="mm-caret" data-icon="chevron-down" aria-hidden="true"></span></button>
             <button class="mm-tool" type="button" title="清除手动拖拽的节点偏移，恢复自动排版" aria-label="恢复排版"><span data-icon="sparkle" aria-hidden="true"></span></button>
             <span class="mm-sep" aria-hidden="true"></span>
             <button class="mm-tool type-btn is-selected" type="button" aria-pressed="true"><i class="tdot tdot--case" aria-hidden="true"></i>用例</button>
