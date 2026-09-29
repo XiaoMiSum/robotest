@@ -81,25 +81,23 @@ const {
                 <el-icon><Close /></el-icon>
               </el-button>
             </div>
-
-            <el-button link class="debug-tabbar__add" :disabled="!canAddTab" @click="addTab">
-              <el-icon><Plus /></el-icon>
-            </el-button>
           </div>
 
+          <!-- 历史记录为页面级固定页签：位于会话页签之后、新建之前（交互设计 1.7），不可关闭 -->
+          <div class="debug-tab" :class="{ 'is-active': showHistory }" @click="switchTab(HISTORY_TAB_ID)">
+            <el-icon><Clock /></el-icon>
+            <span>历史记录</span>
+          </div>
+
+          <el-button link class="debug-tabbar__add" :disabled="!canAddTab" @click="addTab">
+            <el-icon><Plus /></el-icon>
+          </el-button>
+
           <div class="debug-tabbar__right">
-            <div class="debug-tab debug-tab--history" @click="curlVisible = true">
+            <el-button link size="small" @click="curlVisible = true">
               <el-icon><Download /></el-icon>
               <span>导入 cURL</span>
-            </div>
-            <div
-              class="debug-tab debug-tab--history"
-              :class="{ 'is-active': showHistory }"
-              @click="switchTab(HISTORY_TAB_ID)"
-            >
-              <el-icon><Clock /></el-icon>
-              <span>历史记录</span>
-            </div>
+            </el-button>
           </div>
         </div>
       </template>
@@ -179,19 +177,21 @@ const {
     }
   }
 
+  // 条底边线是下划线式页签的公共基线，激活下划线（.debug-tab.is-active::after）压线绘制
   &__tabbar {
     display: flex;
     align-items: center;
     gap: var(--space-xs);
-    padding: 2px 4px;
-    min-height: 32px;
+    padding: 4px 6px 0;
+    border-bottom: 1px solid var(--color-neutral-200);
   }
 
+  // 页签区不定宽：页签少时收缩为内容宽（历史记录、新建紧随其后），超宽时压缩并横向滚动
   &__tabs {
     display: flex;
     align-items: center;
     gap: 2px;
-    flex: 1;
+    flex: 0 1 auto;
     min-width: 0;
     overflow-x: auto;
 
@@ -227,7 +227,7 @@ const {
 
     &:hover .debug-page__divider-line,
     &:active .debug-page__divider-line {
-      background: var(--color-primary-300);
+      background: var(--color-primary-400);
     }
   }
 
@@ -258,56 +258,55 @@ const {
 }
 
 .debug-tab {
+  position: relative;
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 8px;
-  border-bottom: 2px solid transparent;
-  cursor: pointer;
+  height: 36px;
+  padding: 0 12px;
   max-width: 200px;
-  font-size: 12px;
+  flex-shrink: 0;
   color: var(--color-neutral-500);
-  transition: color 0.15s, border-color 0.15s;
+  font-size: var(--font-size-sm);
+  cursor: pointer;
   white-space: nowrap;
   user-select: none;
+  transition: color var(--transition-fast);
 
   &:hover {
-    color: var(--color-primary-500);
+    color: var(--color-neutral-800);
   }
 
   &.is-active {
-    color: var(--color-primary-500);
-    font-weight: 500;
-    border-bottom-color: var(--color-primary-500);
+    color: var(--color-primary-600);
+    font-weight: 600;
   }
 
-  &--history {
-    color: var(--color-neutral-500);
-
-    &:hover {
-      color: var(--color-primary-500);
-    }
-
-    &.is-active {
-      color: var(--color-primary-500);
-      font-weight: 500;
-      border-bottom-color: var(--color-primary-500);
-    }
+  // 激活下划线压在标签条底边线上，所有页签共用一条基线
+  &.is-active::after {
+    content: '';
+    position: absolute;
+    left: 6px;
+    right: 6px;
+    bottom: -1px;
+    height: 2px;
+    border-radius: 1px;
+    background: var(--color-primary-500);
   }
 
   &__method {
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    min-width: 34px;
+    padding: 1px 5px;
     border-radius: 3px;
-    color: #fff;
+    color: var(--color-neutral-0);
     font-size: 10px;
     font-weight: 700;
-    font-family: ui-monospace, SFMono-Regular, monospace;
+    font-family: var(--font-mono);
     letter-spacing: 0.5px;
-    padding: 1px 5px;
     flex-shrink: 0;
-    min-width: 30px;
   }
 
   &__label {
@@ -319,21 +318,19 @@ const {
     gap: 4px;
   }
 
-  &__close {
-    opacity: 0;
-    font-size: 12px;
+  // el-button link 的文字色与 hover 背景由 EP 类控制，需借父级选择器提升优先级覆盖
+  .debug-tab__close {
+    color: var(--color-neutral-400);
+    font-size: 14px;
     flex-shrink: 0;
     height: auto;
-    padding: 0 2px;
-    transition: opacity 0.15s;
-
-    &:hover {
-      color: var(--color-danger);
-    }
+    padding: 0 3px;
   }
 
-  &:hover &__close {
-    opacity: 0.6;
+  .debug-tab__close:not(:disabled):hover {
+    color: var(--color-neutral-700);
+    background: var(--color-neutral-100);
+    border-radius: 50%;
   }
 
   &__rename {
@@ -361,9 +358,7 @@ const {
   align-items: center;
   gap: var(--space-xs);
   flex-shrink: 0;
-}
-
-.mr-1 {
-  margin-right: 4px;
+  margin-left: auto;
+  padding-left: var(--space-xs);
 }
 </style>
