@@ -46,9 +46,12 @@
   }
   .mm-tool {
     display: inline-flex; align-items: center; gap: 5px;
-    height: 26px; padding: 0 9px; border-radius: var(--radius-md);
-    font-size: 12.5px; color: var(--n-600); background: transparent;
+    height: 26px; padding: 0 9px; border: none; border-radius: var(--radius-md);
+    background: transparent; font: inherit; font-size: 12.5px;
+    color: var(--n-600); cursor: pointer;
   }
+  /* 图标库 svg 无固有尺寸，不给尺寸会渲染为 0×0 而不可见 */
+  .mm-tool [data-icon] svg { width: 14px; height: 14px; }
   .mm-tool:hover { background: var(--n-100); color: var(--n-900); }
   .mm-sep { width: 1px; height: 15px; background: var(--n-200); margin: 0 5px; }
   .mm-spacer { flex: 1; }
