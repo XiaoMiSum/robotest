@@ -398,22 +398,22 @@
             <button class="mm-tool" type="button" title="排版模板：右侧分布" aria-label="排版模板：右侧分布"><span data-icon="grid" aria-hidden="true"></span><span class="mm-caret" data-icon="chevron-down" aria-hidden="true"></span></button>
             <button class="mm-tool" type="button" title="清除手动拖拽的节点偏移，恢复自动排版" aria-label="恢复排版"><span data-icon="sparkle" aria-hidden="true"></span></button>
             <span class="mm-sep" aria-hidden="true"></span>
-            <button class="mm-tool type-btn is-selected" type="button" aria-pressed="true"><i class="tdot tdot--case" aria-hidden="true"></i>用例</button>
-            <button class="mm-tool type-btn" type="button" aria-pressed="false"><i class="tdot tdot--precondition" aria-hidden="true"></i>前置</button>
-            <button class="mm-tool type-btn" type="button" aria-pressed="false"><i class="tdot tdot--step" aria-hidden="true"></i>步骤</button>
-            <button class="mm-tool type-btn" type="button" aria-pressed="false"><i class="tdot tdot--expected" aria-hidden="true"></i>预期</button>
+            <button class="mm-tool type-btn is-selected" type="button" title="标记为用例" aria-pressed="true"><i class="tdot tdot--case" aria-hidden="true"></i>用例</button>
+            <button class="mm-tool type-btn" type="button" title="标记为前置" aria-pressed="false"><i class="tdot tdot--precondition" aria-hidden="true"></i>前置</button>
+            <button class="mm-tool type-btn" type="button" title="标记为步骤" aria-pressed="false"><i class="tdot tdot--step" aria-hidden="true"></i>步骤</button>
+            <button class="mm-tool type-btn" type="button" title="标记为预期" aria-pressed="false"><i class="tdot tdot--expected" aria-hidden="true"></i>预期</button>
             <button class="mm-tool" type="button" title="取消标记，恢复普通节点" aria-label="清除标记"><span data-icon="x-circle" aria-hidden="true"></span></button>
             <span class="mm-sep" aria-hidden="true"></span>
             <button class="mm-tool mm-tool--recommend" type="button" title="AI 推荐优先级，点击采纳">✨ 推荐 P1</button>
-            <button class="mm-tool priority-btn priority-btn--p0 is-selected" type="button" aria-pressed="true">P0</button>
-            <button class="mm-tool priority-btn priority-btn--p1" type="button" aria-pressed="false">P1</button>
-            <button class="mm-tool priority-btn priority-btn--p2" type="button" aria-pressed="false">P2</button>
-            <button class="mm-tool priority-btn priority-btn--p3" type="button" aria-pressed="false">P3</button>
+            <button class="mm-tool priority-btn priority-btn--p0 is-selected" type="button" title="标记优先级 P0" aria-pressed="true">P0</button>
+            <button class="mm-tool priority-btn priority-btn--p1" type="button" title="标记优先级 P1" aria-pressed="false">P1</button>
+            <button class="mm-tool priority-btn priority-btn--p2" type="button" title="标记优先级 P2" aria-pressed="false">P2</button>
+            <button class="mm-tool priority-btn priority-btn--p3" type="button" title="标记优先级 P3" aria-pressed="false">P3</button>
             <div class="mm-group mm-group--end">
-              <button class="mm-tool" type="button" id="reqLinkBtn"><span data-icon="link" aria-hidden="true"></span>关联需求</button>
+              <button class="mm-tool" type="button" id="reqLinkBtn" title="关联需求" aria-label="关联需求"><span data-icon="link" aria-hidden="true"></span></button>
               <span class="mm-sep" aria-hidden="true"></span>
-              <button class="mm-tool mm-tool--ai" type="button"><span data-icon="sparkle" aria-hidden="true"></span>AI 生成用例</button>
-              <button class="mm-tool mm-tool--ai" type="button"><span data-icon="sparkle" aria-hidden="true"></span>遗漏测试点</button>
+              <button class="mm-tool mm-tool--ai" type="button" title="AI 生成用例" aria-label="AI 生成用例"><span data-icon="sparkle" aria-hidden="true"></span></button>
+              <button class="mm-tool mm-tool--ai" type="button" title="AI查漏" aria-label="AI查漏"><span data-icon="search" aria-hidden="true"></span></button>
             </div>
           </div>
 
@@ -1372,9 +1372,9 @@
 
     /* ---------------- 事件绑定 ---------------- */
     document.querySelectorAll('.mm-bar .mm-tool--ai').forEach(function (btn) {
-      var label = btn.textContent || ''
-      if (label.indexOf('AI 生成') >= 0) btn.addEventListener('click', function () { openAi('generate') })
-      else if (label.indexOf('遗漏') >= 0) btn.addEventListener('click', openMp)
+      // 图标化后按钮无可见文案，入口按悬浮提示分派（06 §3 顶部工具条）
+      if (btn.title.indexOf('AI 生成') >= 0) btn.addEventListener('click', function () { openAi('generate') })
+      else if (btn.title.indexOf('AI查漏') >= 0) btn.addEventListener('click', openMp)
     })
 
     $('aiClose').addEventListener('click', closeAi)
