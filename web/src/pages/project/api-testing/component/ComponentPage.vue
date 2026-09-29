@@ -109,16 +109,13 @@ watch([list, listLoading, loadingMore, loadingPrev], async () => {
           </el-button>
         </div>
 
-        <el-radio-group
+        <el-segmented
           :model-value="filterType"
+          :options="COMPONENT_TAB_OPTIONS"
           size="small"
           class="cp-list__tabs"
           @update:model-value="handleTabChange($event as ComponentTab)"
-        >
-          <el-radio-button v-for="tab in COMPONENT_TAB_OPTIONS" :key="tab.value" :value="tab.value">
-            {{ tab.label }}
-          </el-radio-button>
-        </el-radio-group>
+        />
 
         <div v-if="loadError" class="cp-empty">
           <p>组件列表加载失败</p>
@@ -260,6 +257,7 @@ watch([list, listLoading, loadingMore, loadingPrev], async () => {
 
 .cp-list__tabs {
   flex-shrink: 0;
+  width: 100%;
 }
 
 .cp-list__skeleton {

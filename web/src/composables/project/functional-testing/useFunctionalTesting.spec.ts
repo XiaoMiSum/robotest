@@ -360,6 +360,49 @@ describe('useFunctionalTesting', () => {
       await loadAll()
       expect(loadError.value).toBe(true)
     })
+
+    it('列表非空时默认选中第一条', async () => {
+      const groups = [builtinGroup('G', [
+        { name: 'f1', description: 'd1' },
+        { name: 'f2', description: 'd2' },
+      ])]
+      mocks.fetchBuiltinCatalog.mockResolvedValue(groups)
+      const { loadAll, selectedType, selectedName, selectedCustomId } = useFunctionalTesting()
+
+      await loadAll()
+
+      expect(selectedType.value).toBe('builtin')
+      expect(selectedName.value).toBe('f1')
+      expect(selectedCustomId.value).toBe('')
+    })
+
+    it('已有选中项时加载完成不覆盖', async () => {
+      const groups = [builtinGroup('G', [
+        { name: 'f1', description: 'd1' },
+        { name: 'f2', description: 'd2' },
+      ])]
+      mocks.fetchBuiltinCatalog.mockResolvedValue(groups)
+      const { loadAll, selectItem, selectedType, selectedName } = useFunctionalTesting()
+      selectItem('builtin', 'f2')
+
+      await loadAll()
+
+      expect(selectedType.value).toBe('builtin')
+      expect(selectedName.value).toBe('f2')
+    })
+
+    it('内置为空时默认选中首条自定义函数并带上 id', async () => {
+      mocks.fetchCustomFunctions.mockResolvedValue([makeItem('id-1', 'c1')])
+      mocks.fetchCustomFunctionDetail.mockResolvedValue(makeDetail('id-1', 'c1'))
+      const { loadAll, selectedType, selectedName, selectedCustomId } = useFunctionalTesting()
+
+      await loadAll()
+      await nextTick()
+
+      expect(selectedType.value).toBe('custom')
+      expect(selectedName.value).toBe('c1')
+      expect(selectedCustomId.value).toBe('id-1')
+    })
   })
 
   describe('filtered', () => {

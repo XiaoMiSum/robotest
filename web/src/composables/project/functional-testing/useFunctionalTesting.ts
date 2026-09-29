@@ -160,6 +160,11 @@ export function useFunctionalTesting() {
     loadError.value = false
     try {
       await Promise.all([loadBuiltin(), loadCustomList()])
+      // 进入页面即选中首条，右栏直接展示详情而不是「选择函数查看详情」占位
+      if (selectedType.value === null && displayItems.value.length > 0) {
+        const first = displayItems.value[0]
+        selectItem(first.type, first.name, first.id)
+      }
     } finally {
       listLoading.value = false
     }
