@@ -1,6 +1,7 @@
 import { ref, computed, nextTick } from 'vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ApiEnvironmentDetail, ApiComponentListItem, ApiProcessor } from '@/types'
+import type { DsForm, HttpConfigForm } from './useEnvironmentConfig'
 
 const mocks = vi.hoisted(() => ({
   fetchEnvironmentDetail: vi.fn<(id: string) => Promise<ApiEnvironmentDetail>>(),
@@ -61,12 +62,14 @@ const mockProcTags = vi.fn(() => [])
 const mockProcDisplayName = vi.fn(() => '')
 const mockProcDetail = vi.fn(() => ({ config: [], extractors: [] }))
 const mockSelectedProcessor = ref<ApiProcessor | null>(null)
+const mockOrderedConfigForms = ref<HttpConfigForm[]>([])
+const mockOrderedDsForms = ref<DsForm[]>([])
 
 vi.mock('./useEnvironmentConfig', () => ({
   useEnvironmentHttpConfig: () => ({
     activeConfigId: ref(''),
     activeConfig: computed(() => undefined),
-    orderedConfigForms: computed(() => []),
+    orderedConfigForms: computed(() => mockOrderedConfigForms.value),
     selectConfig: mockSelectConfig,
     addHttpConfig: mockAddHttpConfig,
     removeHttpConfig: mockRemoveHttpConfig,
@@ -76,7 +79,7 @@ vi.mock('./useEnvironmentConfig', () => ({
   useEnvironmentDatasource: () => ({
     activeDsId: ref(''),
     activeDs: computed(() => undefined),
-    orderedDsForms: computed(() => []),
+    orderedDsForms: computed(() => mockOrderedDsForms.value),
     selectDs: mockSelectDs,
     selectedDsDriverOption: computed(() => undefined),
     handleDsDriverChange: mockHandleDsDriverChange,
@@ -127,6 +130,8 @@ describe('useEnvironmentDetailState', () => {
   beforeEach(async () => {
     // 先复位共享选中态并冲刷残留 watcher 的回调，再清计数，避免跨用例污染
     mockSelectedProcessor.value = null
+    mockOrderedConfigForms.value = []
+    mockOrderedDsForms.value = []
     await nextTick()
     vi.clearAllMocks()
     mocks.resolveEnvironmentError.mockReturnValue('操作失败')
@@ -228,6 +233,28 @@ describe('useEnvironmentDetailState', () => {
       await state.load()
       expect(state.dsForms.value).toHaveLength(1)
       expect(state.dsForms.value[0].name).toBe('ds1')
+    })
+    it('载入后默认选中 HTTP 与数据源列表首项', async () => {
+      mockOrderedConfigForms.value = [
+        { id: 'cfg-1', name: '默认配置', headers: [] },
+        { id: 'cfg-2', name: '备用配置', headers: [] },
+      ]
+      mockOrderedDsForms.value = [
+        { id: 'ds-1', name: '主库' },
+        { id: 'ds-2', name: '订单库' },
+      ]
+      mocks.fetchEnvironmentDetail.mockResolvedValue(makeDetail())
+      const state = useEnvironmentDetailState({ environmentId: 'env-1', canEdit: true }, vi.fn())
+      await state.load()
+      expect(state.activeConfigId.value).toBe('cfg-1')
+      expect(state.activeDsId.value).toBe('ds-1')
+    })
+    it('列表为空时选中态保持为空', async () => {
+      mocks.fetchEnvironmentDetail.mockResolvedValue(makeDetail())
+      const state = useEnvironmentDetailState({ environmentId: 'env-1', canEdit: true }, vi.fn())
+      await state.load()
+      expect(state.activeConfigId.value).toBe('')
+      expect(state.activeDsId.value).toBe('')
     })
     it('hydrate variableRows 并按 key 排序', async () => {
       mocks.fetchEnvironmentDetail.mockResolvedValue(makeDetail({

@@ -76,6 +76,13 @@ export function useEnvironmentDetailState(
     addDataSource, removeDataSource, testingDsId, runDsTest, dsConnResult,
   } = useEnvironmentDatasource(dsForms, nextLocalId)
 
+  // 详情面板是「左侧列表 + 右侧内联表单」，载入后须选中首项（ordered 已把默认项置顶），
+  // 否则首次进入 HTTP / 数据源页签时右侧表单空置
+  function selectFirstOfEach() {
+    activeConfigId.value = orderedConfigForms.value[0]?.id ?? ''
+    activeDsId.value = orderedDsForms.value[0]?.id ?? ''
+  }
+
   const {
     activeProcId, procExpandedId, procDraft, procDraftMode, selectedProcessor,
     preProcCount, postProcCount, procList, procElement, removeProcessor,
@@ -125,6 +132,7 @@ export function useEnvironmentDetailState(
     loadError.value = false
     try {
       hydrate(await fetchEnvironmentDetail(props.environmentId))
+      selectFirstOfEach()
     } catch (err) {
       loadError.value = true
       ElMessage.error(resolveEnvironmentError(err))
