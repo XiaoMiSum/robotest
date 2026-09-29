@@ -1301,7 +1301,7 @@ a:hover {
 .m-patch { background: #50e3c2; }
 .m-delete { background: #f93e3e; }
 
-/* 页签条右端动作区：列表级动作（导入 / 新建）随页签条常驻，弱样式避免与编辑器 [保存] 争主色 */
+/* 页签条右端动作区：仅承载页面级次级动作（如 [导入]），恒在最右；新建入口为页签末尾的 [+] 图标 */
 .ws-tabs__actions {
   display: flex;
   align-items: center;
@@ -1309,6 +1309,33 @@ a:hover {
   margin-left: auto;
   flex-shrink: 0;
   padding-left: var(--space-xs);
+}
+
+/* 新建入口：紧跟最后一个页签的虚线 + 图标，无文字，避免与页签文字混排时抢注意力 */
+.ws-tabs__add {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  margin-left: var(--space-xs);
+  padding: 0;
+  background: transparent;
+  border: 1px dashed var(--n-200);
+  border-radius: var(--radius-md);
+  color: var(--n-400);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.ws-tabs__add svg {
+  width: 14px;
+  height: 14px;
+}
+
+.ws-tabs__add:hover {
+  color: var(--brand-500);
+  border-color: var(--brand-300);
 }
 
 /* 分段控件（活跃/已归档 等） */
