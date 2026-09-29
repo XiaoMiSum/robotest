@@ -5,7 +5,6 @@ import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.framework.security.LoginUser;
 import io.github.xiaomisum.robotest.framework.security.ProjectAccessGuard;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.CommonComponentSaveReqDTO;
-import io.github.xiaomisum.robotest.model.dto.response.apitest.CommonComponentCopyRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.CommonComponentIdRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.CommonComponentListItemRespDTO;
 import io.github.xiaomisum.robotest.model.entity.apitest.CommonComponent;
@@ -152,33 +151,6 @@ public class CommonComponentServiceImpl implements CommonComponentService {
         projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
         PageResult<CommonComponent> page = componentMapper.selectPageVisible(projectId, workspaceId, type, enabled, scope, keyword, pageParam);
         return new PageResult<>(page.getList().stream().map(this::toListItem).toList(), page.getTotal());
-    }
-
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    public CommonComponentCopyRespDTO copy(UUID workspaceId, UUID projectId, UUID userId, UUID id) {
-        projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
-        CommonComponent existing = requireVisible(workspaceId, projectId, id);
-        requireScopeEditPermission(existing.getScope());
-
-        CommonComponent copy = new CommonComponent();
-        copy.setWorkspaceId(existing.getWorkspaceId());
-        copy.setProjectId(existing.getProjectId());
-        copy.setScope(existing.getScope());
-        copy.setType(existing.getType());
-        copy.setName(existing.getName() + " (副本)");
-        copy.setDescription(existing.getDescription());
-        copy.setSortOrder(existing.getSortOrder());
-        copy.setEnabled(false);
-        copy.setConfig(existing.getConfig());
-        copy.setUpdatedBy(userId);
-        componentMapper.insert(copy);
-        return new CommonComponentCopyRespDTO(
-                copy.getId().toString(),
-                copy.getType(),
-                copy.getName(),
-                existing.getId().toString()
-        );
     }
 
     private CommonComponent requireVisible(UUID workspaceId, UUID projectId, UUID id) {

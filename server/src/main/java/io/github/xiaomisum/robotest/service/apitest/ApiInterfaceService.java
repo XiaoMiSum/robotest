@@ -30,8 +30,6 @@ public interface ApiInterfaceService {
 
     void delete(UUID projectId, UUID userId, UUID id);
 
-    UUID copy(UUID projectId, UUID userId, UUID id, String copyName);
-
     void batchMove(UUID projectId, UUID userId, ApiInterfaceBatchMoveReqDTO reqDTO);
 
     void batchDelete(UUID projectId, UUID userId, ApiInterfaceBatchDeleteReqDTO reqDTO);
