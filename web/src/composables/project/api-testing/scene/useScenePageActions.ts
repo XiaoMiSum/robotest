@@ -32,7 +32,6 @@ export interface UseScenePageActionsOptions {
   stepsDraftSteps: Ref<ApiSceneStepItem[]>
   stepsHandleInterfaceSelected: (step: ApiSceneStepItem, isCreateMode: boolean) => void
   stepsHandleDeleteStep: (step: ApiSceneStepItem) => Promise<void>
-  stepsHandleCopyStep: (step: ApiSceneStepItem) => Promise<void>
   editVariables: Ref<{ key: string; value: string; description: string; enabled: boolean }[]>
   editProcessors: Ref<SceneProcessorElement[]>
   sceneVariablePayload: () => ApiSceneVariableItem[]
@@ -62,11 +61,6 @@ export function useScenePageActions(o: UseScenePageActionsOptions) {
     if (o.sceneId) await o.editorLoadDetail()
   }
 
-  async function handleCopyStep(step: ApiSceneStepItem) {
-    await o.stepsHandleCopyStep(step)
-    if (o.sceneId) await o.editorLoadDetail()
-  }
-
   function handleHistoryPageChange(page: number) {
     o.executionHistoryPage.value = page
     o.loadHistory()
@@ -88,7 +82,6 @@ export function useScenePageActions(o: UseScenePageActionsOptions) {
     prefillFromCopy,
     handleInterfaceSelected,
     handleDeleteStep,
-    handleCopyStep,
     handleHistoryPageChange,
   }
 }

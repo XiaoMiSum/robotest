@@ -73,7 +73,7 @@ const {
 
 const {
   handleSave, handleRun,
-  handleInterfaceSelected, handleDeleteStep, handleCopyStep,
+  handleInterfaceSelected, handleDeleteStep,
   handleHistoryPageChange,
 } = useScenePageActions({
   sceneId: props.sceneId,
@@ -89,7 +89,6 @@ const {
   stepsDraftSteps: steps.draftSteps,
   stepsHandleInterfaceSelected: steps.handleInterfaceSelected,
   stepsHandleDeleteStep: steps.handleDeleteStep,
-  stepsHandleCopyStep: steps.handleCopyStep,
   editVariables,
   editProcessors,
   sceneVariablePayload,
@@ -161,7 +160,7 @@ const {
                   @delete="(s) => editor.isCreateMode.value ? steps.handleDraftDeleteStep(s) : handleDeleteStep(s)"
                   @toggle="(s) => editor.isCreateMode.value ? steps.handleDraftToggleStep(s) : steps.handleToggleStep(s)"
                   @reorder="(s) => editor.isCreateMode.value ? steps.handleDraftReorderSteps(s) : steps.handleReorderSteps(s)"
-                  @copy="(s) => editor.isCreateMode.value ? steps.handleDraftCopyStep(s) : handleCopyStep(s)"
+                  @copy="(s) => editor.isCreateMode.value ? steps.handleDraftCopyStep(s) : steps.handleCopyStep(s)"
                   @debug="(s) => editor.isCreateMode.value ? handleDraftDebugDisabled(s) : handleDebugStep(s)"
                   @insert-before="steps.handleAddStep"
                 />
