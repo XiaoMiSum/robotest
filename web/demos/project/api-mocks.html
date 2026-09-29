@@ -180,7 +180,7 @@
   <button class="btn btn--text btn--sm" data-ux-batch-clear>清空</button>
 </div>
 
-<!-- 新建 Mock 面板：对应 MockEditorDrawer 的「基本信息 / 匹配条件 / 响应定义」三段结构 -->
+<!-- 新建 Mock 面板：对应 MockEditorDrawer，首段为基本字段，其后为「匹配条件 / 响应定义」分区 -->
 <div class="dialog-mask" id="mock-editor" role="dialog" aria-modal="true" aria-labelledby="mk-title" hidden>
   <div class="dialog">
     <div class="dialog__header">
@@ -189,8 +189,6 @@
     </div>
 
     <div class="dialog__body">
-      <div class="mock-sect">基本信息</div>
-
       <div class="field">
         <label class="field__label" for="mk-name">Mock 名称<span class="req">*</span></label>
         <input class="input" id="mk-name" maxlength="200" placeholder="如：登录成功 Mock">
