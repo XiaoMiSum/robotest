@@ -221,9 +221,10 @@ function formatMetaTime(value: string): string {
             <span class="history__item-url">{{ record.url }}</span>
           </button>
 
-          <span class="history__item-meta">
-            {{ formatMetaTime(record.executedAt) }}
-            <template v-if="record.durationMs != null"> · {{ record.durationMs }}ms</template>
+          <!-- 时间与耗时分列展示；耗时缺值时保留空列占位，保证操作列对齐 -->
+          <span class="history__item-time">{{ formatMetaTime(record.executedAt) }}</span>
+          <span class="history__item-cost">
+            {{ record.durationMs != null ? `${record.durationMs}ms` : '' }}
           </span>
 
           <el-tooltip content="恢复到新标签" placement="top">
@@ -375,10 +376,19 @@ function formatMetaTime(value: string): string {
     min-width: 0;
   }
 
-  // 时间列固定宽度：耗时位数不一时操作链接仍与上一行对齐
-  &__item-meta {
-    width: 150px;
+  // 时间与耗时各自固定列宽，耗时右对齐使数字末位对齐（交互设计 1.7 信息列）
+  &__item-time {
+    width: 100px;
     flex-shrink: 0;
+    font-size: var(--font-size-xs);
+    color: var(--color-neutral-400);
+    white-space: nowrap;
+  }
+
+  &__item-cost {
+    width: 64px;
+    flex-shrink: 0;
+    text-align: right;
     font-size: var(--font-size-xs);
     color: var(--color-neutral-400);
     white-space: nowrap;
