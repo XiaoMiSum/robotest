@@ -201,15 +201,9 @@ function handleRestore(record: ApiDebugRecordItem) {
           <el-tooltip content="恢复到新标签" placement="top">
             <el-button link type="primary" @click="handleRestore(record)">恢复</el-button>
           </el-tooltip>
-          <el-dropdown trigger="click">
-            <el-button link><el-icon><MoreFilled /></el-icon></el-button>
-            <template #dropdown>
-              <el-dropdown-menu>
-                <el-dropdown-item @click="startRename(record)">重命名</el-dropdown-item>
-                <el-dropdown-item divided @click="handleDelete(record)">删除记录</el-dropdown-item>
-              </el-dropdown-menu>
-            </template>
-          </el-dropdown>
+          <!-- 行内操作平铺（交互设计 1.7），不收纳进下拉菜单 -->
+          <el-button link type="primary" @click="startRename(record)">重命名</el-button>
+          <el-button link type="danger" @click="handleDelete(record)">删除</el-button>
         </div>
       </section>
 
