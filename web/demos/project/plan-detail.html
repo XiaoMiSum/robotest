@@ -13,12 +13,6 @@
     background: var(--n-0); border: 1px solid var(--n-200); border-radius: var(--radius-lg);
     padding: 12px 16px; margin-bottom: 16px;
   }
-  .detail-back {
-    display: inline-flex; align-items: center; justify-content: center;
-    width: 28px; height: 28px; border-radius: var(--radius-md);
-    color: var(--n-500); text-decoration: none; font-size: 16px;
-  }
-  .detail-back:hover { background: var(--n-100); color: var(--n-900); }
   .detail-title { margin: 0; font-size: 17px; font-weight: 700; color: var(--n-900); white-space: nowrap; }
   .detail-extra { display: flex; align-items: center; gap: 20px; }
   .detail-progress { display: flex; align-items: center; gap: 12px; }
@@ -94,14 +88,17 @@
 
 <main class="content">
 
-  <!-- 页头条：返回 + 标题/状态 + 进度统计 + 操作组 -->
+  <div class="breadcrumb">
+    <a href="plans.html">测试计划</a>
+    <span data-icon="chevron-right"></span>
+    <span>V1.4.2 回归测试</span>
+  </div>
+
+  <!-- 页头条：标题/状态 + 进度统计 + 操作组 -->
   <div class="detail-head">
     <div class="flex-center flex-gap-sm">
-      <a class="detail-back" href="plans.html" title="返回计划列表">←</a>
-      <div class="flex-center flex-gap-sm">
-        <h1 class="detail-title">V1.4.2 回归测试</h1>
-        <span class="status status--running"><span class="dot"></span>进行中</span>
-      </div>
+      <h1 class="detail-title">V1.4.2 回归测试</h1>
+      <span class="status status--running"><span class="dot"></span>进行中</span>
     </div>
     <div class="detail-extra">
       <div class="detail-progress">
