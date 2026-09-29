@@ -1348,22 +1348,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/project/environments/{id}/copy": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["copy_1"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/project/environments/import": {
         parameters: {
             query?: never;
@@ -4226,9 +4210,6 @@ export interface components {
             code?: number;
             data?: components["schemas"]["ApiDataSourceTestRespDTO"];
             msg?: string;
-        };
-        ApiEnvironmentCopyReqDTO: {
-            name: string;
         };
         ApiEnvImportResultRespDTO: {
             /** Format: int64 */
@@ -9837,32 +9818,6 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ResultApiDataSourceTestRespDTO"];
-                };
-            };
-        };
-    };
-    copy_1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ApiEnvironmentCopyReqDTO"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultApiEnvironmentIdRespDTO"];
                 };
             };
         };

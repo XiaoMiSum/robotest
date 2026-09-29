@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useEnvironmentPage } from '@/composables/project/api-testing/environment/useEnvironmentPage'
 import type { ApiEnvironmentListItem } from '@/types'
@@ -13,20 +13,18 @@ const {
   keyword,
   sortedList,
   loadList,
-  selectEnvironment,
   canMove,
   handleMoveItem,
   handleExport,
   handleSearchInput,
-  createDialogVisible,
-  createForm,
-  creating,
-  openCreateDialog,
-  submitCreate,
-  copyDialogVisible,
-  copyForm,
-  openCopyDialog,
-  submitCopy,
+  createMode,
+  createSeed,
+  createDirty,
+  startCreate,
+  startCopy,
+  exitCreate,
+  handleCreated,
+  handleSelect,
   editDialogVisible,
   editForm,
   editing,
@@ -44,99 +42,22 @@ const {
   handleSetDefault,
 } = useEnvironmentPage()
 
-// 新建/编辑/复制共用一个弹窗：composable 仍按模式各自持有表单与提交逻辑，这里只聚合表现层
-type EnvDialogMode = 'create' | 'edit' | 'copy'
-
-const dialogMode = ref<EnvDialogMode>('create')
+// 编辑弹窗仅校验名称，其余字段与面板一致（新建 / 复制均由面板新建态承载）
 const nameError = ref('')
-const copySubmitting = ref(false)
 
-const dialogVisible = computed({
-  get: () => createDialogVisible.value || editDialogVisible.value || copyDialogVisible.value,
-  set: (visible: boolean) => {
-    if (visible) return
-    createDialogVisible.value = false
-    editDialogVisible.value = false
-    copyDialogVisible.value = false
-    nameError.value = ''
-  },
-})
-
-const isCopyMode = computed(() => dialogMode.value === 'copy')
-const dialogTitle = computed(
-  () => ({ create: '新建环境', edit: '编辑环境', copy: '复制环境' })[dialogMode.value],
-)
-const dialogOkText = computed(() => ({ create: '创建', edit: '确定', copy: '复制' })[dialogMode.value])
-
-const dialogName = computed({
-  get: () =>
-    dialogMode.value === 'create' ? createForm.name : dialogMode.value === 'edit' ? editForm.name : copyForm.name,
-  set: (value: string) => {
-    if (dialogMode.value === 'create') createForm.name = value
-    else if (dialogMode.value === 'edit') editForm.name = value
-    else copyForm.name = value
-  },
-})
-
-const dialogDescription = computed({
-  get: () => (dialogMode.value === 'edit' ? editForm.description : createForm.description),
-  set: (value: string) => {
-    if (dialogMode.value === 'edit') editForm.description = value
-    else createForm.description = value
-  },
-})
-
-const dialogIsDefault = computed({
-  get: () => (dialogMode.value === 'edit' ? editForm.isDefault : createForm.isDefault),
-  set: (value: boolean) => {
-    if (dialogMode.value === 'edit') editForm.isDefault = value
-    else createForm.isDefault = value
-  },
-})
-
-const dialogSubmitting = computed(() => {
-  if (dialogMode.value === 'create') return creating.value
-  if (dialogMode.value === 'edit') return editing.value
-  return copySubmitting.value
-})
-
-function openDialog(mode: EnvDialogMode, item?: ApiEnvironmentListItem) {
-  dialogMode.value = mode
+function openEdit(item: ApiEnvironmentListItem) {
   nameError.value = ''
-  if (mode === 'create') {
-    openCreateDialog()
-    return
-  }
-  if (!item) return
-  if (mode === 'edit') openEditDialog(item)
-  else openCopyDialog(item)
+  void openEditDialog(item)
 }
 
-function handleDialogNameInput() {
-  nameError.value = ''
-}
-
-async function submitDialog() {
-  if (!dialogName.value.trim()) {
+async function submitEditDialog() {
+  if (!editForm.name.trim()) {
     nameError.value = '请填写环境名称'
     ElMessage.warning('请填写环境名称')
     return
   }
   nameError.value = ''
-  if (dialogMode.value === 'create') {
-    await submitCreate()
-    return
-  }
-  if (dialogMode.value === 'edit') {
-    await submitEdit()
-    return
-  }
-  copySubmitting.value = true
-  try {
-    await submitCopy()
-  } finally {
-    copySubmitting.value = false
-  }
+  await submitEdit()
 }
 </script>
 
@@ -166,7 +87,7 @@ async function submitDialog() {
               <el-icon><Search /></el-icon>
             </template>
           </el-input>
-          <el-dropdown type="primary" split-button trigger="click" class="env-list__create" @click="openDialog('create')">
+          <el-dropdown type="primary" split-button trigger="click" class="env-list__create" @click="startCreate">
             <el-icon><Plus /></el-icon>新建
             <template #dropdown>
               <el-dropdown-menu>
@@ -196,7 +117,7 @@ async function submitDialog() {
               :key="item.id"
               class="env-item"
               :class="{ 'is-active': item.id === selectedId }"
-              @click="selectEnvironment(item.id)"
+              @click="handleSelect(item.id)"
             >
               <div class="env-item__main">
                 <span class="env-item__name">{{ item.name }}</span>
@@ -222,8 +143,8 @@ async function submitDialog() {
                 <el-button link size="small" :disabled="!canMove(item, 1)" @click.stop="handleMoveItem(item, 1)">
                   下移
                 </el-button>
-                <el-button link size="small" @click.stop="openDialog('edit', item)">编辑</el-button>
-                <el-button link size="small" @click.stop="openDialog('copy', item)">复制</el-button>
+                <el-button link size="small" @click.stop="openEdit(item)">编辑</el-button>
+                <el-button link size="small" @click.stop="startCopy(item)">复制</el-button>
                 <el-button link size="small" type="danger" @click.stop="handleDelete(item)">删除</el-button>
               </div>
             </li>
@@ -231,10 +152,20 @@ async function submitDialog() {
         </div>
       </aside>
 
-      <!-- 右：环境详情 -->
+      <!-- 右：新建态（新建 / 复制预填）优先，其后为选中环境详情 -->
       <section class="env-page__detail">
         <EnvironmentDetailPanel
-          v-if="selectedId"
+          v-if="createMode && createSeed"
+          key="create"
+          mode="create"
+          :seed="createSeed"
+          :can-edit="canEdit"
+          @created="handleCreated"
+          @cancelled="exitCreate"
+          @dirty-change="createDirty = $event"
+        />
+        <EnvironmentDetailPanel
+          v-else-if="selectedId"
           :key="selectedId"
           :environment-id="selectedId"
           :can-edit="canEdit"
@@ -246,38 +177,33 @@ async function submitDialog() {
       </section>
     </div>
 
-    <!-- 新建 / 编辑 / 复制环境（单弹窗按模式切换标题、字段与主按钮） -->
-    <el-dialog v-model="dialogVisible" :title="dialogTitle" width="440px">
+    <!-- 编辑环境（新建 / 复制由右侧面板新建态承载） -->
+    <el-dialog v-model="editDialogVisible" title="编辑环境" width="440px">
       <el-form label-width="90px">
-        <el-form-item :label="isCopyMode ? '副本名称' : '名称'" :error="nameError" required>
+        <el-form-item label="名称" :error="nameError" required>
           <el-input
-            v-model="dialogName"
+            v-model="editForm.name"
             maxlength="100"
-            :placeholder="isCopyMode ? undefined : '如：测试环境'"
-            @input="handleDialogNameInput"
+            placeholder="如：测试环境"
+            @input="nameError = ''"
           />
         </el-form-item>
-        <template v-if="!isCopyMode">
-          <el-form-item label="描述">
-            <el-input
-              v-model="dialogDescription"
-              type="textarea"
-              :rows="2"
-              maxlength="500"
-              placeholder="可选，环境描述"
-            />
-          </el-form-item>
-          <el-form-item label="设为默认">
-            <el-switch v-model="dialogIsDefault" />
-          </el-form-item>
-        </template>
-        <p v-else class="env-page__dialog-tip">
-          复制内容含 HTTP 配置、变量（含取值）与处理器；数据源不复制，需重新填写
-        </p>
+        <el-form-item label="描述">
+          <el-input
+            v-model="editForm.description"
+            type="textarea"
+            :rows="2"
+            maxlength="500"
+            placeholder="可选，环境描述"
+          />
+        </el-form-item>
+        <el-form-item label="设为默认">
+          <el-switch v-model="editForm.isDefault" />
+        </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="dialogSubmitting" @click="submitDialog">{{ dialogOkText }}</el-button>
+        <el-button @click="editDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="editing" @click="submitEditDialog">确定</el-button>
       </template>
     </el-dialog>
 
@@ -479,12 +405,6 @@ async function submitDialog() {
   &--wide {
     padding-top: var(--space-xxl, 64px);
   }
-}
-
-.env-page__dialog-tip {
-  margin: 0;
-  font-size: var(--font-size-xs);
-  color: var(--color-neutral-400);
 }
 
 .env-page__import-overwrite {
