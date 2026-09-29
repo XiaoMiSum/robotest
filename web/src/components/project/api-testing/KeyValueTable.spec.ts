@@ -28,7 +28,8 @@ describe('KeyValueTable', () => {
     it('末行填入后自动追加新空行', async () => {
       const entries: ApiDebugKeyValue[] = [makeRow()]
       const wrapper = mountTable(entries)
-      await wrapper.find('tbody input').setValue('timeout')
+      // 首列为启用勾选，Key 输入框位于第二列
+      await wrapper.find('tbody .kv-table__row td:nth-child(2) input').setValue('timeout')
       expect(entries).toHaveLength(2)
       expect(entries[1].key).toBe('')
     })
@@ -55,7 +56,7 @@ describe('KeyValueTable', () => {
     it('输入时不再自动追加空行', async () => {
       const entries: ApiDebugKeyValue[] = [makeRow()]
       const wrapper = mountTable(entries, { headerAdd: true })
-      await wrapper.find('tbody input').setValue('timeout')
+      await wrapper.find('tbody .kv-table__row td:nth-child(2) input').setValue('timeout')
       expect(entries).toHaveLength(1)
       expect(entries[0].key).toBe('timeout')
     })
@@ -113,6 +114,28 @@ describe('KeyValueTable', () => {
       const wrapper = mountTable(entries, { showEnabled: true })
       await wrapper.find('tbody input[type="checkbox"]').setValue(false)
       expect(entries[0].enabled).toBe(false)
+    })
+  })
+
+  describe('列序与表头', () => {
+    it('启用列位于首列且无表头文字，值/说明为中文表头', () => {
+      const wrapper = mountTable([makeRow({ key: 'X-Token' })], { showDescription: true })
+      const heads = wrapper.findAll('thead th')
+      expect(heads[0].classes()).toContain('kv-table__col-enable')
+      expect(heads[0].text()).toBe('')
+      expect(heads[1].text()).toBe('Key')
+      expect(heads[2].text()).toBe('值')
+      expect(heads[3].text()).toBe('说明')
+      expect(heads[4].classes()).toContain('kv-table__col-op')
+      // 数据行勾选框与表头对齐，同在首列
+      expect(wrapper.find('tbody tr td').classes()).toContain('kv-table__col-enable')
+    })
+
+    it('showEnabled=false 时首列为 Key 列', () => {
+      const wrapper = mountTable([makeRow({ key: 'BASE_URL' })], { showEnabled: false })
+      const heads = wrapper.findAll('thead th')
+      expect(heads[0].classes()).not.toContain('kv-table__col-enable')
+      expect(heads[0].text()).toBe('Key')
     })
   })
 })
