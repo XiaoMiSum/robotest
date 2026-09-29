@@ -26,7 +26,7 @@
 │  [Params] [Body] [Headers] [Auth]   [环境 ▾]   │  [Body] [Headers] [Cookies] │
 │  ┌────────────────────────────┐ │  │  [Pretty|Raw|Preview] ▾JSON │ │
 │  │ 请求头（键值对编辑器）       │ │  │  {  data: {  token: ✓    │ │
-│  │ 启用│名称│值│描述│操作      │ │  │    "code": 200,           │ │
+│  │    │名称│值│描述│操作      │ │  │    "code": 200,           │ │
 │  │ [✓]│Content-Type│…││删除   │ │  │    "data": {              │ │
 │  │                          │ │  │      "token": "xxx"       │ │
 │  │ 认证：[No Auth ▾]          │ │  │    }         （折叠+高亮）  │ │
@@ -61,8 +61,9 @@
 | ---- | ---- | ---- |
 | 选择方法 | 方法下拉 | GET/POST/PUT/PATCH/DELETE/OPTIONS/HEAD/CONNECT |
 | 输入 URL | URL 输入框 | 支持完整 URL（含域名）或相对路径（使用环境默认 base_url 拼接）；输入 `$` 或 `${` 弹出变量自动补全；执行时对无 http/https 前缀且非 `/` 开头的 URL 自动补充 `http://` |
+| 快捷键提示行 | URL 栏下方常驻提示 | 展示「快捷键 ⌘↵（Windows 为 Ctrl+Enter）发送请求」，与实际发送热键一致 |
 | 保存 | URL 栏 [保存] | 打开「保存为接口定义」弹窗（见 1.6）；未执行（无调试记录）或本地执行结果时按钮置灰并提示「请先发送请求」 |
-| 参数页签 | 切换 [Params]/[Body]/[Headers]/[Auth] | 各页签独立编辑，切换保留已填内容；键值对编辑器默认一行空行，行内容输入后自动追加新空行；[Auth] 提供 Bearer Token / API Key 扩展 |
+| 参数页签 | 切换 [Params]/[Body]/[Headers]/[Auth] | 缺省激活 [Body]；各页签独立编辑，切换保留已填内容；键值对编辑器默认一行空行，行内容输入后自动追加新空行，启用勾选列置于首列且不设表头文字；[Auth] 提供 Bearer Token / API Key 扩展 |
 | 环境选择 | 参数页签行最右侧 | 环境下拉（相对路径拼接环境 base_url）+ 提示图标；缺省预选默认环境 |
 | 请求体类型 | [Body] 页签 | 类型行：none / x-www-form-urlencoded / raw；x-www-form-urlencoded 为键值对编辑器；选择 raw 时类型行右侧同一行展示子类型选择器（Text/JSON/XML/HTML/JavaScript，缺省选中 JSON），选择 JSON/XML/HTML/JavaScript 子类型时自动注入对应 Content-Type 头（用户已手工设置时不覆盖）；切换类型保留各类型已填内容 |
 | 认证配置 | [Auth] 页签 | 类型下拉置顶：No Auth / Bearer Token / API Key / Basic Auth / Digest Auth（Digest 暂不可用置灰）。Bearer Token 填 token；API Key 填 Key 名与值；Basic 填用户名/密码；密码、Token 类输入脱敏展示 |
@@ -189,5 +190,12 @@ flowchart LR
 | 错误态 | 执行失败：响应区展示失败原因（超时/连接失败/4xx/5xx）+ 状态码与耗时；解析失败：弹窗内原因 + [重试]；并发队列满：弹窗提示 |
 
 ---
+
+## 修改记录
+
+| 版本 | 日期 | 说明 |
+| ---- | ---- | ---- |
+| V1.0 | 2026-09-23 | 初始创建 |
+| V1.0 | 2026-09-29 | 补充 URL 栏下发送快捷键提示行；明确键值表启用勾选列置于首列且不设表头文字、参数页签缺省激活 Body |
 
 
