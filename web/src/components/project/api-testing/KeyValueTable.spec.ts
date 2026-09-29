@@ -94,4 +94,25 @@ describe('KeyValueTable', () => {
       expect(wrapper.find('.kv-table__empty').exists()).toBe(false)
     })
   })
+
+  describe('启用勾选列', () => {
+    it('未传 showEnabled 时仍渲染启用列', () => {
+      const wrapper = mountTable([makeRow({ key: 'X-Token' })], { showDescription: true })
+      expect(wrapper.find('thead .kv-table__col-enable').exists()).toBe(true)
+      expect(wrapper.find('tbody .kv-table__col-enable').exists()).toBe(true)
+    })
+
+    it('showEnabled=false 时隐藏启用列', () => {
+      const wrapper = mountTable([makeRow({ key: 'BASE_URL' })], { showDescription: true, showEnabled: false })
+      expect(wrapper.find('thead .kv-table__col-enable').exists()).toBe(false)
+      expect(wrapper.find('tbody .kv-table__col-enable').exists()).toBe(false)
+    })
+
+    it('勾选变更回写行数据', async () => {
+      const entries: ApiDebugKeyValue[] = [makeRow({ key: 'X-Token', enabled: true })]
+      const wrapper = mountTable(entries, { showEnabled: true })
+      await wrapper.find('tbody input[type="checkbox"]').setValue(false)
+      expect(entries[0].enabled).toBe(false)
+    })
+  })
 })
