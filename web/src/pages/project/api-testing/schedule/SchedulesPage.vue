@@ -63,7 +63,7 @@ const {
 
 <template>
   <div class="schedules-page">
-    <el-card v-loading="loading" shadow="never">
+    <el-card v-loading="loading" shadow="never" class="schedules-page__card">
       <template #header>
         <div class="schedules-page__toolbar">
           <el-select v-model="typeFilter" placeholder="全部类型" clearable style="width: 140px">
@@ -333,6 +333,11 @@ const {
   height: 100%;
 }
 
+/* UI-SC-10：body 内边距归零，header 仍按默认留白 */
+.schedules-page__card {
+  --el-card-padding: 0;
+}
+
 .schedules-page__toolbar {
   display: flex;
   align-items: center;
@@ -345,7 +350,8 @@ const {
 
 .schedules-page__pagination {
   justify-content: flex-end;
-  margin-top: var(--space-md);
+  padding: 14px 20px;
+  border-top: 1px solid var(--color-neutral-100);
 }
 
 .schedules-page__exec-time {

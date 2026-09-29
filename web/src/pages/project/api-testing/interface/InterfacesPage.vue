@@ -435,6 +435,8 @@ defineExpose({ openCreate, openImport })
   display: flex;
   flex-direction: column;
   min-height: 0;
+  /* UI-SC-10：body 内边距归零，留白由分页条承担 */
+  --el-card-padding: 0;
 
   :deep(.el-card__body) {
     flex: 1;
@@ -455,7 +457,8 @@ defineExpose({ openCreate, openImport })
 
 .interfaces-page__pagination {
   justify-content: flex-end;
-  margin-top: var(--space-md);
+  padding: 14px 20px;
+  border-top: 1px solid var(--color-neutral-100);
 }
 
 </style>
