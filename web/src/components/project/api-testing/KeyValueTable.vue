@@ -93,10 +93,11 @@ watch(
     <table>
       <thead>
         <tr>
-          <th>{{ placeholderKey ?? 'Key' }}</th>
-          <th>Value</th>
-          <th v-if="props.showDescription">Description</th>
+          <!-- 勾选列不设表头文字（交互稿键值表：首列勾选，无表头名） -->
           <th v-if="props.showEnabled" class="kv-table__col-enable" />
+          <th>{{ placeholderKey ?? 'Key' }}</th>
+          <th>值</th>
+          <th v-if="props.showDescription">说明</th>
           <th class="kv-table__col-op" :class="{ 'kv-table__col-op--add': props.headerAdd }">
             <el-button v-if="props.headerAdd && !props.disabled" link type="primary" @click="addRow">＋ 新增</el-button>
           </th>
@@ -107,6 +108,9 @@ watch(
           <td :colspan="columnCount">{{ props.emptyText }}</td>
         </tr>
         <tr v-for="(entry, index) in entries" :key="index" class="kv-table__row">
+          <td v-if="props.showEnabled" class="kv-table__col-enable">
+            <el-checkbox v-model="entry.enabled" :disabled="props.disabled" @change="notify()" />
+          </td>
           <td>
             <el-select
               v-if="props.suggestions"
@@ -129,13 +133,10 @@ watch(
             />
           </td>
           <td>
-            <el-input v-model="entry.value" placeholder="Value" :disabled="props.disabled" @input="notify()" />
+            <el-input v-model="entry.value" placeholder="值" :disabled="props.disabled" @input="notify()" />
           </td>
           <td v-if="props.showDescription">
-            <el-input v-model="entry.description" placeholder="Description" :disabled="props.disabled" @input="notify()" />
-          </td>
-          <td v-if="props.showEnabled" class="kv-table__col-enable">
-            <el-checkbox v-model="entry.enabled" :disabled="props.disabled" @change="notify()" />
+            <el-input v-model="entry.description" placeholder="描述（可选）" :disabled="props.disabled" @input="notify()" />
           </td>
           <td class="kv-table__col-op">
             <el-button v-if="!props.disabled" link type="danger" @click="removeRow(index)">
@@ -172,7 +173,7 @@ watch(
   }
 
   &__col-enable {
-    width: 30px;
+    width: 34px;
     text-align: center;
     vertical-align: middle;
 
