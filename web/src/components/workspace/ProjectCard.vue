@@ -85,17 +85,17 @@ function handleCardKeydown(event: KeyboardEvent): void {
 
     <div class="project-card__actions" @click.stop>
       <template v-if="!archived">
-        <el-button link type="primary" @click="emit('enter')">进入</el-button>
         <el-button v-if="!project.isDefault" link type="primary" @click="emit('setDefault')">
           设为默认
         </el-button>
-        <el-button v-if="canEdit" link @click="emit('edit')">编辑</el-button>
         <el-button v-if="isAdmin" link type="warning" @click="emit('archive')">归档</el-button>
+        <el-button v-if="canEdit" link @click="emit('edit')">编辑</el-button>
+        <el-button link type="primary" @click="emit('enter')">进入</el-button>
       </template>
       <template v-else>
+        <span class="project-card__readonly">只读</span>
         <el-button v-if="isAdmin" link @click="emit('unarchive')">启封</el-button>
         <el-button v-if="isAdmin" link type="danger" @click="emit('delete')">删除</el-button>
-        <span class="project-card__readonly">只读</span>
       </template>
     </div>
   </article>
@@ -246,10 +246,16 @@ function handleCardKeydown(event: KeyboardEvent): void {
 }
 
 .project-card__actions {
+  justify-content: flex-end;
   flex-wrap: wrap;
   gap: 2px;
   margin-top: auto;
   padding-top: var(--space-sm);
   border-top: 1px solid var(--color-neutral-100);
+}
+
+// 已归档时「只读」标签靠左，操作按钮仍靠右
+.project-card__actions .project-card__readonly {
+  margin-right: auto;
 }
 </style>
