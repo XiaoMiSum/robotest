@@ -146,7 +146,7 @@ const {
 
     <BugClusterPanel v-if="aiEnabled" v-model="clusterVisible" />
 
-    <el-card v-if="viewMode === 'list'" v-loading="loading" shadow="never">
+    <el-card v-if="viewMode === 'list'" v-loading="loading" shadow="never" class="bug-page__list-card">
       <el-table :data="bugs" row-key="id">
         <el-table-column label="ID" width="110">
           <template #default="{ row }">{{ formatShortId(row.id) }}</template>
@@ -352,6 +352,11 @@ const {
   justify-content: flex-end;
 }
 
+.bug-page__list-card {
+  /* UI-SC-10：body 内边距归零，留白由分页条承担 */
+  --el-card-padding: 0;
+}
+
 .bug-page__confirmed-tag {
   margin-left: 4px;
 }
@@ -368,8 +373,7 @@ const {
 .bug-page__pager {
   display: flex;
   justify-content: flex-end;
-  margin-top: var(--space-lg);
-  padding-top: var(--space-lg);
+  padding: 14px 20px;
   border-top: 1px solid var(--color-neutral-100);
 }
 
