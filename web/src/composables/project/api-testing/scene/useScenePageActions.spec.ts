@@ -53,7 +53,6 @@ function makeOptions(overrides?: Partial<UseScenePageActionsOptions>): UseSceneP
     stepsDraftSteps: ref([]),
     stepsHandleInterfaceSelected: vi.fn(),
     stepsHandleDeleteStep: vi.fn().mockResolvedValue(undefined),
-    stepsHandleCopyStep: vi.fn().mockResolvedValue(undefined),
     editVariables: ref([]),
     editProcessors: ref([]),
     sceneVariablePayload: vi.fn().mockReturnValue([]),
@@ -181,25 +180,6 @@ describe('useScenePageActions', () => {
       const o = makeOptions({ sceneId: '' })
       const { handleDeleteStep } = useScenePageActions(o)
       await handleDeleteStep(makeStep())
-      expect(o.editorLoadDetail).not.toHaveBeenCalled()
-    })
-  })
-
-  describe('handleCopyStep', () => {
-    it('calls stepsHandleCopyStep then editorLoadDetail when sceneId exists', async () => {
-      const o = makeOptions({ sceneId: 'scene-1' })
-      const { handleCopyStep } = useScenePageActions(o)
-      const step = makeStep()
-      await handleCopyStep(step)
-      expect(o.stepsHandleCopyStep).toHaveBeenCalledWith(step)
-      expect(o.editorLoadDetail).toHaveBeenCalled()
-    })
-
-    it('skips editorLoadDetail when sceneId is absent', async () => {
-      const o = makeOptions()
-      const { handleCopyStep } = useScenePageActions(o)
-      await handleCopyStep(makeStep())
-      expect(o.stepsHandleCopyStep).toHaveBeenCalled()
       expect(o.editorLoadDetail).not.toHaveBeenCalled()
     })
   })

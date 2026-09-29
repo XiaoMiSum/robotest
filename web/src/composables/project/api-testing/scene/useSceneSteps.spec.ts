@@ -6,7 +6,6 @@ const mocks = vi.hoisted(() => ({
   deleteSceneStep: vi.fn<() => Promise<void>>(),
   reorderSceneSteps: vi.fn<() => Promise<void>>(),
   updateSceneStep: vi.fn<() => Promise<void>>(),
-  copySceneStep: vi.fn<() => Promise<void>>(),
   sortedSteps: vi.fn<(steps: ApiSceneStepItem[]) => ApiSceneStepItem[]>(),
   emptyStepDraft: vi.fn<() => { name: string; stepType: string; requestConfig: Record<string, unknown> }>(),
   ElMessage: { success: vi.fn(), error: vi.fn(), warning: vi.fn() },
@@ -22,7 +21,6 @@ vi.mock('@/services/project/api-testing/scene', () => ({
   deleteSceneStep: mocks.deleteSceneStep,
   reorderSceneSteps: mocks.reorderSceneSteps,
   updateSceneStep: mocks.updateSceneStep,
-  copySceneStep: mocks.copySceneStep,
 }))
 
 vi.mock('@/composables/project/api-testing/scene/scenesModel', () => ({
@@ -83,7 +81,6 @@ describe('useSceneSteps', () => {
     mocks.deleteSceneStep.mockResolvedValue(undefined)
     mocks.reorderSceneSteps.mockResolvedValue(undefined)
     mocks.updateSceneStep.mockResolvedValue(undefined)
-    mocks.copySceneStep.mockResolvedValue(undefined)
   })
 
   describe('初始状态', () => {
@@ -516,37 +513,47 @@ describe('useSceneSteps', () => {
   })
 
   describe('handleCopyStep', () => {
-    it('sceneId 缺失时不执行', async () => {
-      const { handleCopyStep } = useSceneSteps(createOptions())
-      await handleCopyStep(makeStep('s1'))
-      expect(mocks.copySceneStep).not.toHaveBeenCalled()
+    it('在源步骤之后插入本地副本并选中', () => {
+      const s1 = makeStep('s1', { name: '源步骤' })
+      const s2 = makeStep('s2', { sortOrder: 2 })
+      const detail = ref(makeDetail([s1, s2]))
+      const opts = createOptions({ detail })
+      const { handleCopyStep, selectedStep } = useSceneSteps(opts)
+
+      handleCopyStep(s1)
+
+      const steps = detail.value?.steps ?? []
+      expect(steps).toHaveLength(3)
+      expect(steps[1].name).toBe('源步骤')
+      expect(steps[1].id).toMatch(/^new-/)
+      expect(steps[1].id).not.toBe('s1')
+      expect(steps[1].sourceType).toBe('copy')
+      expect(steps.map((s) => s.sortOrder)).toEqual([1, 2, 3])
+      expect(selectedStep.value).toBe(steps[1])
+      expect(opts.bumpAutosave).toHaveBeenCalled()
     })
 
-    it('调用 API 复制步骤', async () => {
-      const { handleCopyStep } = useSceneSteps(
-        createOptions({ sceneId: 'scene-1' }),
-      )
-      await handleCopyStep(makeStep('s1'))
-      expect(mocks.copySceneStep).toHaveBeenCalledWith('scene-1', 's1')
-      expect(mocks.ElMessage.success).toHaveBeenCalledWith('已复制步骤')
+    it('副本为深拷贝，改动副本不影响源步骤', () => {
+      const s1 = makeStep('s1', {
+        requestConfig: { method: 'GET', url: '/api/source', headers: [], params: [], body: { type: 'none', content: null } },
+      })
+      const detail = ref(makeDetail([s1]))
+      const { handleCopyStep, selectedStep } = useSceneSteps(createOptions({ detail }))
+
+      handleCopyStep(s1)
+      const copy = selectedStep.value
+      if (copy?.requestConfig) (copy.requestConfig as Record<string, unknown>).url = '/api/changed'
+
+      expect(s1.requestConfig.url).toBe('/api/source')
+      expect(copy?.id).not.toBe('s1')
     })
 
-    it('API 失败时显示错误消息', async () => {
-      mocks.copySceneStep.mockRejectedValue(new Error('复制失败'))
-      const { handleCopyStep } = useSceneSteps(
-        createOptions({ sceneId: 'scene-1' }),
-      )
-      await handleCopyStep(makeStep('s1'))
-      expect(mocks.ElMessage.error).toHaveBeenCalledWith('复制失败')
-    })
+    it('detail 为空时不执行', () => {
+      const { handleCopyStep, selectedStep } = useSceneSteps(createOptions({ detail: ref(null) }))
 
-    it('API 抛出非 Error 对象时显示通用错误', async () => {
-      mocks.copySceneStep.mockRejectedValue(null)
-      const { handleCopyStep } = useSceneSteps(
-        createOptions({ sceneId: 'scene-1' }),
-      )
-      await handleCopyStep(makeStep('s1'))
-      expect(mocks.ElMessage.error).toHaveBeenCalledWith('复制失败')
+      handleCopyStep(makeStep('s1'))
+
+      expect(selectedStep.value).toBeNull()
     })
   })
 
@@ -662,12 +669,13 @@ describe('useSceneSteps', () => {
       expect(draftSteps.value[0].stepType).toBe('http')
     })
 
-    it('复制步骤生成新 id', () => {
+    it('复制步骤生成 new- 临时 id 并标记为复制来源', () => {
       const step = makeStep('d1')
       const { handleDraftCopyStep, draftSteps } = useSceneSteps(createOptions())
       handleDraftCopyStep(step)
-      expect(draftSteps.value[0].id).toMatch(/^draft-/)
+      expect(draftSteps.value[0].id).toMatch(/^new-/)
       expect(draftSteps.value[0].id).not.toBe('d1')
+      expect(draftSteps.value[0].sourceType).toBe('copy')
     })
 
     it('复制步骤的 sortOrder 递增', () => {
@@ -685,6 +693,15 @@ describe('useSceneSteps', () => {
       handleDraftCopyStep(step)
       handleDraftCopyStep(step)
       expect(draftSteps.value[0].id).not.toBe(draftSteps.value[1].id)
+    })
+
+    it('选中副本并联动自动保存标识', () => {
+      const step = makeStep('d1')
+      const opts = createOptions()
+      const { handleDraftCopyStep, draftSteps, selectedStep } = useSceneSteps(opts)
+      handleDraftCopyStep(step)
+      expect(selectedStep.value).toBe(draftSteps.value[0])
+      expect(opts.bumpAutosave).toHaveBeenCalled()
     })
   })
 

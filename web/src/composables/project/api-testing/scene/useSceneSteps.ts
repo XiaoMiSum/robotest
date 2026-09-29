@@ -5,7 +5,6 @@ import {
   deleteSceneStep,
   reorderSceneSteps,
   updateSceneStep,
-  copySceneStep,
 } from '@/services/project/api-testing/scene'
 import { sortedSteps, emptyStepDraft } from '@/composables/project/api-testing/scene/scenesModel'
 
@@ -134,15 +133,24 @@ export function useSceneSteps(options: UseSceneStepsOptions) {
     }
   }
 
-  async function handleCopyStep(step: ApiSceneStepItem) {
-    if (!sceneId) return
-    try {
-      await copySceneStep(sceneId, step.id)
-      ElMessage.success('已复制步骤')
-      // loadDetail will be called by parent
-    } catch (error) {
-      ElMessage.error(error instanceof Error ? error.message : '复制失败')
-    }
+  /** 复制步骤：深拷贝为独立副本（重新生成 id、sourceType=copy，与源无关联），
+      插入源步骤之后并重排序号，返回副本供选中回填内联表单 */
+  function copyStepInto(list: ApiSceneStepItem[], step: ApiSceneStepItem): ApiSceneStepItem {
+    const copy = JSON.parse(JSON.stringify(step)) as ApiSceneStepItem
+    copy.id = `new-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+    copy.sourceType = 'copy'
+    const index = list.findIndex((s) => s.id === step.id)
+    list.splice(index >= 0 ? index + 1 : list.length, 0, copy)
+    list.forEach((s, i) => { s.sortOrder = i + 1 })
+    return copy
+  }
+
+  /** 编辑态：本地插入副本并选中，随场景保存整体落库 */
+  function handleCopyStep(step: ApiSceneStepItem) {
+    const list = detail.value?.steps
+    if (!list) return
+    selectedStep.value = copyStepInto(list, step)
+    bumpAutosave()
   }
 
   // ==================== 创建态草稿步骤 ====================
@@ -171,11 +179,8 @@ export function useSceneSteps(options: UseSceneStepsOptions) {
   }
 
   function handleDraftCopyStep(step: ApiSceneStepItem) {
-    draftSteps.value.push({
-      ...step,
-      id: `draft-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      sortOrder: draftSteps.value.length + 1,
-    })
+    selectedStep.value = copyStepInto(draftSteps.value, step)
+    bumpAutosave()
   }
 
   // ==================== 计算属性 ====================

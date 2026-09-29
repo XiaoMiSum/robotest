@@ -118,11 +118,6 @@ export interface ApiSceneStepReorderReq {
   stepIds: string[]
 }
 
-/** 步骤复制请求（3.10） */
-export interface ApiSceneStepCopyReq {
-  name?: string
-}
-
 /** 步骤变量批量更新请求（3.4.2） */
 export interface ApiSceneStepVariableBatchReq {
   variables: { name: string; value?: string; description?: string }[]
