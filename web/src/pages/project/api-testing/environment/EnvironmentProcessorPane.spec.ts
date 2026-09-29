@@ -5,7 +5,7 @@ import { mount, type VueWrapper } from '@vue/test-utils'
 import ElementPlus from 'element-plus'
 import EnvironmentProcessorPane from './EnvironmentProcessorPane.vue'
 import type { ApiProcessor, ApiProcessorType } from '@/types'
-import type { ProcDetail, ProcDraftMode } from '@/composables/project/api-testing/environment/useEnvironmentProcessors'
+import type { ProcDraftMode } from '@/composables/project/api-testing/environment/useEnvironmentProcessors'
 
 // jsdom 未实现 ResizeObserver，el-table 的尺寸监听依赖它
 if (typeof ResizeObserver === 'undefined') {
@@ -45,7 +45,6 @@ const defaultProps = {
   procTags: (): { text: string; type: 'info' }[] => [],
   procDisplayName: (processor: ApiProcessor, index: number): string =>
     processor.name ? processor.name : `处理器 ${index + 1}`,
-  procDetail: (): ProcDetail => ({ config: [{ label: '执行方式', value: 'HTTP' }], extractors: [] }),
 }
 
 function mountPane(props: Record<string, unknown> = {}): VueWrapper {
@@ -201,8 +200,8 @@ describe('EnvironmentProcessorPane', () => {
     it('展开行渲染配置摘要', () => {
       const wrapper = mountPane({ processors: [makeProcessor('p1')], expandedId: 'p1' })
       const body = wrapper.find('.env-proc-pane__body')
-      expect(body.find('.env-proc-pane__meta-k').text()).toBe('执行方式')
-      expect(body.find('.env-proc-pane__meta-v').text()).toBe('HTTP')
+      expect(body.find('.processor-detail__k').text()).toBe('处理器类型')
+      expect(body.find('.processor-detail__v').text()).toBe('HTTP')
       expect(wrapper.find('.env-proc-pane__item').classes()).toContain('is-open')
     })
 
@@ -214,14 +213,18 @@ describe('EnvironmentProcessorPane', () => {
 
     it('提取器非空时渲染只读表格', async () => {
       const wrapper = mountPane({
-        processors: [makeProcessor('p1')],
+        processors: [
+          makeProcessor('p1', {
+            config: {
+              testclass: 'http',
+              config: {},
+              extractors: [
+                { enabled: true, source: 'resp', expression: '$.token', variableName: 'token', description: '—' },
+              ],
+            },
+          }),
+        ],
         expandedId: 'p1',
-        procDetail: (): ProcDetail => ({
-          config: [],
-          extractors: [
-            { enabled: true, source: 'resp', expression: '$.token', variableName: 'token', description: '—' },
-          ],
-        }),
       })
       // el-table 的列宽计算有 50ms 防抖，列上屏需等待其完成
       await delay(ERROR_SHOW_DELAY)

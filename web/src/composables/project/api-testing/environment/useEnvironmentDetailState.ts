@@ -106,8 +106,8 @@ export function useEnvironmentDetailState(props: EnvironmentDetailProps, emit: E
     activeProcId, procExpandedId, procDraft, procDraftMode, selectedProcessor,
     preProcCount, postProcCount, procList, procElement, removeProcessor,
     moveProcessor, copyProcessor, toggleProcDetail, startProcEdit, startProcAdd,
-    cancelProcDraft, commitProcDraft, procTags, procDisplayName, procDetail, applyDefaultProcRef,
-  } = useEnvironmentProcessors(processorRows, orderedConfigForms, orderedDsForms, nextLocalId, nextProcSortOrder)
+    cancelProcDraft, commitProcDraft, procTags, procDisplayName,
+  } = useEnvironmentProcessors(processorRows, nextLocalId, nextProcSortOrder)
 
   const variableCount = computed(() => variableRows.value.filter((row) => row.key.trim()).length)
 
@@ -118,21 +118,6 @@ export function useEnvironmentDetailState(props: EnvironmentDetailProps, emit: E
 
   // 页面据此决定离开新建态前是否需要先确认放弃（交互设计 34 §1.6）
   watch(dirty, (value) => emit('dirty-change', value), { immediate: true })
-
-  watch([selectedProcessor, orderedConfigForms, orderedDsForms], ([processor]) => {
-    applyDefaultProcRef(processor)
-  })
-
-  // 类型切换在 ProcessorForm 内部完成，只能观察结果补默认引用（docs34 §1.3）
-  watch(
-    () => {
-      const processor = selectedProcessor.value
-      if (!processor) return ''
-      const klass = procElement(processor).testclass
-      return klass === 'http' || klass === 'jdbc' ? klass : ''
-    },
-    () => applyDefaultProcRef(selectedProcessor.value),
-  )
 
   watch(activeTab, (tab) => {
     // 展开明细与草稿表单不跨页签残留，切走即收起（docs34 §1.3 同一时刻仅一处展开）
@@ -369,7 +354,7 @@ export function useEnvironmentDetailState(props: EnvironmentDetailProps, emit: E
     activeProcId, procExpandedId, procDraft, procDraftMode, preProcCount, postProcCount,
     procList, procElement, removeProcessor,
     moveProcessor, copyProcessor, toggleProcDetail, startProcEdit, startProcAdd,
-    cancelProcDraft, commitProcDraft, procTags, procDisplayName, procDetail,
+    cancelProcDraft, commitProcDraft, procTags, procDisplayName,
     variableCount, load, saveAll,
     extractorPickerVisible, extractorPickerLoading, extractorPickerItems, extractorPickerKeyword,
     openExtractorPicker, handleExtractorPicked, loadExtractorAssets,

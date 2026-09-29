@@ -2,8 +2,10 @@
 import { computed, ref, watch } from 'vue'
 import type { ApiProcessor, ApiProcessorType } from '@/types'
 import type { HttpConfigForm, DsForm } from '@/composables/project/api-testing/environment/useEnvironmentConfig'
-import type { ProcDetail, ProcDraftMode } from '@/composables/project/api-testing/environment/useEnvironmentProcessors'
-import ProcessorForm from '@/components/project/api-testing/ProcessorForm.vue'
+import type { ProcDraftMode } from '@/composables/project/api-testing/environment/useEnvironmentProcessors'
+import { isRecord } from '@/composables/project/api-testing/processorFormModel'
+import ProcessorConfigEditor from '@/components/project/api-testing/ProcessorConfigEditor.vue'
+import ProcessorConfigDetail from '@/components/project/api-testing/ProcessorConfigDetail.vue'
 
 // 行数据：列表行与末尾新增草稿行同构渲染，避免表单/明细模板重复
 interface PaneRow { key: string; processor: ApiProcessor; number: number }
@@ -21,7 +23,6 @@ const props = defineProps<{
   dsForms: DsForm[]
   procTags: (processor: ApiProcessor) => { text: string; type: 'success' | 'primary' | 'warning' | 'info' | 'danger' }[]
   procDisplayName: (processor: ApiProcessor, index: number) => string
-  procDetail: (processor: ApiProcessor) => ProcDetail
 }>()
 
 const emit = defineEmits<{
@@ -68,10 +69,14 @@ function isExpandedRow(row: PaneRow): boolean {
   return !!row.processor.id && props.expandedId === row.processor.id
 }
 
-const expandedDetail = computed<ProcDetail | null>(() => {
-  const processor = props.processors.find((item) => item.id === props.expandedId)
-  return processor ? props.procDetail(processor) : null
-})
+const expandedProcessor = computed<ApiProcessor | null>(() =>
+  props.processors.find((item) => item.id === props.expandedId) ?? null,
+)
+
+/** 处理器元素（testclass/config/extractors），config 非对象时按空元素处理 */
+function elementOf(processor: ApiProcessor): Record<string, unknown> {
+  return isRecord(processor.config) ? processor.config : {}
+}
 
 const draftName = computed({
   get: () => props.draft?.name ?? '',
@@ -159,7 +164,7 @@ watch(() => props.draft?.name, () => { nameError.value = '' })
             </el-form-item>
           </el-form>
           <span class="env-proc-pane__form-label">配置（随类型切换）</span>
-          <ProcessorForm
+          <ProcessorConfigEditor
             :model-value="draftConfig"
             :http-options="configForms"
             :ds-options="dsForms"
@@ -171,7 +176,7 @@ watch(() => props.draft?.name, () => { nameError.value = '' })
         </div>
 
         <!-- 只读明细：结构与公共组件明细一致（44 §2.2），基本信息无数据不展示 -->
-        <div v-else-if="isExpandedRow(row) && expandedDetail" class="env-proc-pane__body">
+        <div v-else-if="isExpandedRow(row) && expandedProcessor" class="env-proc-pane__body">
           <div class="env-proc-pane__detail-head">
             <span class="env-proc-pane__detail-name">{{ procDisplayName(row.processor, row.number - 1) }}</span>
             <el-tag v-for="tag in procTags(row.processor)" :key="tag.text" size="small" :type="tag.type">{{ tag.text }}</el-tag>
@@ -179,27 +184,7 @@ watch(() => props.draft?.name, () => { nameError.value = '' })
 
           <div class="env-proc-pane__section">
             <span class="env-proc-pane__section-label">配置</span>
-            <div class="env-proc-pane__meta">
-              <div
-                v-for="item in expandedDetail.config"
-                :key="item.label"
-                class="env-proc-pane__meta-item"
-                :class="{ 'is-wide': item.wide }"
-              >
-                <span class="env-proc-pane__meta-k">{{ item.label }}</span>
-                <span class="env-proc-pane__meta-v">{{ item.value }}</span>
-              </div>
-            </div>
-          </div>
-
-          <div v-if="expandedDetail.extractors.length" class="env-proc-pane__section">
-            <span class="env-proc-pane__section-label">提取器</span>
-            <el-table :data="expandedDetail.extractors" size="small">
-              <el-table-column label="来源" prop="source" min-width="110" />
-              <el-table-column label="表达式" prop="expression" min-width="180" show-overflow-tooltip />
-              <el-table-column label="目标变量名" prop="variableName" min-width="130" />
-              <el-table-column label="描述" prop="description" min-width="120" show-overflow-tooltip />
-            </el-table>
+            <ProcessorConfigDetail :element="elementOf(row.processor)" />
           </div>
         </div>
       </div>
@@ -348,29 +333,6 @@ watch(() => props.draft?.name, () => { nameError.value = '' })
   color: var(--color-neutral-400);
   text-transform: uppercase;
   letter-spacing: 0.05em;
-}
-
-.env-proc-pane__meta {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
-  gap: var(--space-sm) var(--space-md);
-
-  .is-wide {
-    grid-column: 1 / -1;
-  }
-}
-
-.env-proc-pane__meta-k {
-  display: block;
-  margin-bottom: 3px;
-  font-size: var(--font-size-xs);
-  color: var(--color-neutral-400);
-}
-
-.env-proc-pane__meta-v {
-  font-size: var(--font-size-sm);
-  color: var(--color-neutral-700);
-  word-break: break-all;
 }
 
 .env-proc-pane__name-item {

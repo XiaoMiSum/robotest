@@ -47,12 +47,11 @@ const { httpRefOptions, dsRefOptions } = useEnvironmentRefOptions(editor.editEnv
 
 const {
   editProcessors, selectedProcessorIdx,
-  httpRefSelectOptions, dsRefSelectOptions, procHttpRef, procDsRef,
   procTags, procDisplayName, processorIndexes,
   addProcessor, removeProcessor, updateProcessor, selectProcessor,
-  setProcessorType, moveProcessor,
+  moveProcessor,
   procDrag, procOnDragStart, procOnDragOver, procOnDrop, copyProcessor,
-} = useSceneProcessors(editor.detail, httpRefOptions, dsRefOptions, editor.sceneSection)
+} = useSceneProcessors(editor.detail, editor.sceneSection)
 
 const {
   assetPickerVisible, assetPickerLoading, assetPickerItems, assetPickerError,
@@ -213,17 +212,12 @@ const {
               :drag="procDrag"
               :http-ref-options="httpRefOptions"
               :ds-ref-options="dsRefOptions"
-              :http-ref-select-options="httpRefSelectOptions"
-              :ds-ref-select-options="dsRefSelectOptions"
-              :proc-http-ref="procHttpRef"
-              :proc-ds-ref="procDsRef"
               @select="selectProcessor"
               @add="addProcessor('pre')"
               @remove="(p) => removeProcessor('pre', p)"
               @move="(p, d) => moveProcessor('pre', p, d)"
               @copy="copyProcessor"
               @update="(i, v) => updateProcessor(i, v)"
-              @set-testclass="(i, v) => setProcessorType(i, v)"
               @open-asset-picker="openAssetPicker('pre')"
               @open-extractor-picker="openExtractorPickerForProcessor(selectedProcessorIdx!)"
               @drag-start="(f: number, e: DragEvent) => procOnDragStart('pre', f, e)"
@@ -244,17 +238,12 @@ const {
               :drag="procDrag"
               :http-ref-options="httpRefOptions"
               :ds-ref-options="dsRefOptions"
-              :http-ref-select-options="httpRefSelectOptions"
-              :ds-ref-select-options="dsRefSelectOptions"
-              :proc-http-ref="procHttpRef"
-              :proc-ds-ref="procDsRef"
               @select="selectProcessor"
               @add="addProcessor('post')"
               @remove="(p) => removeProcessor('post', p)"
               @move="(p, d) => moveProcessor('post', p, d)"
               @copy="copyProcessor"
               @update="(i, v) => updateProcessor(i, v)"
-              @set-testclass="(i, v) => setProcessorType(i, v)"
               @open-asset-picker="openAssetPicker('post')"
               @open-extractor-picker="openExtractorPickerForProcessor(selectedProcessorIdx!)"
               @drag-start="(f: number, e: DragEvent) => procOnDragStart('post', f, e)"

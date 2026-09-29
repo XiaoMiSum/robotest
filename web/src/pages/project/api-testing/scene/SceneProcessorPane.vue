@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Rank, Plus } from '@element-plus/icons-vue'
 import type { ApiHttpConfig, ApiDataSource } from '@/types'
-import ProcessorForm from '@/components/project/api-testing/ProcessorForm.vue'
+import ProcessorConfigEditor from '@/components/project/api-testing/ProcessorConfigEditor.vue'
 import type { SceneProcessorElement } from '@/composables/project/api-testing/scene/useSceneProcessors'
 import type { useEditorSplit } from '@/composables/project/api-testing/scene/useEditorSplit'
 
@@ -16,10 +16,6 @@ const props = defineProps<{
   drag: { type: 'pre' | 'post'; flat: number } | null
   httpRefOptions: ApiHttpConfig[]
   dsRefOptions: ApiDataSource[]
-  httpRefSelectOptions: { value: string; label: string }[]
-  dsRefSelectOptions: { value: string; label: string }[]
-  procHttpRef: string
-  procDsRef: string
 }>()
 
 const emit = defineEmits<{
@@ -29,7 +25,6 @@ const emit = defineEmits<{
   move: [position: number, dir: -1 | 1]
   copy: [idx: number]
   update: [idx: number, value: Record<string, unknown>]
-  setTestclass: [idx: number, value: string]
   openAssetPicker: []
   openExtractorPicker: []
   onDragStart: [flat: number, e: DragEvent]
@@ -110,51 +105,21 @@ const emptyDesc = props.type === 'pre' ? '暂无前置处理器' : '暂无后置
 
     <div class="scene-editor__proc-right">
       <template v-if="selectedIdx !== null">
+        <!-- 名称/启用与类型切换同排：类型、引用与配置体由共享组件承载 -->
         <div class="scene-editor__proc-inline">
-          <header class="scene-editor__proc-inline-head">
-            <el-input v-model="processors[selectedIdx].name" placeholder="处理器名称" class="scene-editor__proc-inline-name" />
-            <el-switch v-model="processors[selectedIdx].enabled" active-text="启用" />
-            <el-divider direction="vertical" />
-            <el-radio-group
-              :model-value="String(processors[selectedIdx]?.testclass ?? '')"
-              size="small"
-              @update:model-value="(v: unknown) => emit('setTestclass', selectedIdx!, String(v))"
-            >
-              <el-radio-button value="http">HTTP</el-radio-button>
-              <el-radio-button value="jdbc">JDBC</el-radio-button>
-            </el-radio-group>
-            <el-select
-              v-if="String(processors[selectedIdx]?.testclass ?? '') === 'http'"
-              :model-value="procHttpRef"
-              placeholder="选择环境 HTTP 配置"
-              filterable
-              class="scene-editor__proc-inline-ref"
-              @update:model-value="(v: unknown) => { if (selectedIdx !== null) { processors[selectedIdx].config = { ...(processors[selectedIdx].config as Record<string, unknown> || {}), ref: String(v) } } }"
-            >
-              <el-option v-for="opt in httpRefSelectOptions" :key="opt.value" :value="opt.value" :label="opt.label" />
-            </el-select>
-            <el-select
-              v-else-if="String(processors[selectedIdx]?.testclass ?? '') === 'jdbc'"
-              :model-value="procDsRef"
-              placeholder="选择环境数据源"
-              filterable
-              class="scene-editor__proc-inline-ref"
-              @update:model-value="(v: unknown) => { if (selectedIdx !== null) { processors[selectedIdx].config = { ...(processors[selectedIdx].config as Record<string, unknown> || {}), datasource: String(v) } } }"
-            >
-              <el-option v-for="opt in dsRefSelectOptions" :key="opt.value" :value="opt.value" :label="opt.label" />
-            </el-select>
-          </header>
-          <div class="scene-editor__proc-inline-body">
-            <ProcessorForm
-              :model-value="processors[selectedIdx]"
-              :http-options="httpRefOptions"
-              :ds-options="dsRefOptions"
-              :show-type-select="false"
-              :show-ref-select="false"
-              @update:model-value="(v: Record<string, unknown>) => emit('update', selectedIdx!, v)"
-              @import-extractors="emit('openExtractorPicker')"
-            />
-          </div>
+          <ProcessorConfigEditor
+            :model-value="processors[selectedIdx]"
+            :http-options="httpRefOptions"
+            :ds-options="dsRefOptions"
+            @update:model-value="(v: Record<string, unknown>) => emit('update', selectedIdx!, v)"
+            @import-extractors="emit('openExtractorPicker')"
+          >
+            <template #header>
+              <el-input v-model="processors[selectedIdx].name" placeholder="处理器名称" class="scene-editor__proc-inline-name" />
+              <el-switch v-model="processors[selectedIdx].enabled" active-text="启用" />
+              <el-divider direction="vertical" />
+            </template>
+          </ProcessorConfigEditor>
         </div>
       </template>
       <div v-else class="scene-editor__right-empty">
