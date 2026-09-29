@@ -294,13 +294,13 @@
                 </div>
 
                 <span class="cp-tabs" data-reqtabs>
-                  <button data-reqtab="query">Query 参数<i class="cp-badge" id="bd-query"></i></button>
+                  <button data-reqtab="query" class="is-active">Query 参数<i class="cp-badge" id="bd-query"></i></button>
                   <button data-reqtab="body">请求体<i class="cp-badge" id="bd-body"></i></button>
-                  <button class="is-active" data-reqtab="headers">请求头<i class="cp-badge" id="bd-headers"></i></button>
+                  <button data-reqtab="headers">请求头<i class="cp-badge" id="bd-headers"></i></button>
                   <button data-reqtab="ext">提取器<i class="cp-badge" id="bd-ext"></i></button>
                 </span>
 
-                <div data-reqpane="query" hidden>
+                <div data-reqpane="query">
                   <table class="table">
                     <thead><tr><th style="width:36px"></th><th style="width:38%">参数名</th><th>Value</th><th style="width:56px"></th></tr></thead>
                     <tbody id="f-query" data-kp="参数名" data-vp="Value"></tbody>
@@ -332,7 +332,7 @@
                   </div>
                 </div>
 
-                <div data-reqpane="headers">
+                <div data-reqpane="headers" hidden>
                   <table class="table">
                     <thead><tr><th style="width:36px"></th><th style="width:38%">Header</th><th>Value</th><th style="width:56px"></th></tr></thead>
                     <tbody id="f-headers" data-kp="Header" data-vp="Value"></tbody>
