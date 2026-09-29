@@ -49,7 +49,6 @@ const mockRunDsTest = vi.fn()
 const mockRemoveProcessor = vi.fn()
 const mockMoveProcessor = vi.fn()
 const mockCopyProcessor = vi.fn()
-const mockApplyDefaultProcRef = vi.fn()
 const mockToggleProcDetail = vi.fn()
 const mockStartProcEdit = vi.fn()
 const mockStartProcAdd = vi.fn()
@@ -64,7 +63,6 @@ const mockProcElement = vi.fn((processor?: { config?: unknown } | null) => {
 })
 const mockProcTags = vi.fn(() => [])
 const mockProcDisplayName = vi.fn(() => '')
-const mockProcDetail = vi.fn(() => ({ config: [], extractors: [] }))
 const mockSelectedProcessor = ref<ApiProcessor | null>(null)
 const mockOrderedConfigForms = ref<HttpConfigForm[]>([])
 const mockOrderedDsForms = ref<DsForm[]>([])
@@ -115,8 +113,6 @@ vi.mock('./useEnvironmentProcessors', () => ({
     commitProcDraft: mockCommitProcDraft,
     procTags: mockProcTags,
     procDisplayName: mockProcDisplayName,
-    procDetail: mockProcDetail,
-    applyDefaultProcRef: mockApplyDefaultProcRef,
   }),
 }))
 
@@ -537,28 +533,6 @@ describe('useEnvironmentDetailState', () => {
       state.activeTab.value = 'postprocessors'
       await nextTick()
       expect(mockCancelProcDraft).toHaveBeenCalled()
-    })
-  })
-
-  describe('处理器默认引用', () => {
-    it('选中处理器 testclass 变化时补默认引用', async () => {
-      useEnvironmentDetailState({ environmentId: 'env-1', canEdit: true }, vi.fn())
-      mockSelectedProcessor.value = {
-        id: 'p1', processorType: 'preprocessor', name: '预置', enabled: true,
-        config: { testclass: 'http', config: {} },
-      }
-      const selected = mockSelectedProcessor.value
-      if (!selected) throw new Error('选中处理器未生效')
-      await nextTick()
-      mockApplyDefaultProcRef.mockClear()
-      selected.config = { testclass: 'jdbc', config: {} }
-      await nextTick()
-      expect(mockApplyDefaultProcRef).toHaveBeenCalledWith(selected)
-    })
-    it('无选中处理器时不补默认引用', async () => {
-      useEnvironmentDetailState({ environmentId: 'env-1', canEdit: true }, vi.fn())
-      await nextTick()
-      expect(mockApplyDefaultProcRef).not.toHaveBeenCalled()
     })
   })
 

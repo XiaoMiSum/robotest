@@ -4,7 +4,7 @@ import type { ApiProcessor } from '@/types'
 
 const mocks = vi.hoisted(() => ({
   defaultProcessorConfig: vi.fn<() => Record<string, unknown>>(() => ({ enabled: true, sortOrder: 0 })),
-  processorSummaryTag: vi.fn<() => { text: string; type: 'success' | 'primary' | 'warning' | 'info' | 'danger' } | null>(),
+  processorTags: vi.fn<(element: Record<string, unknown>) => { text: string; type: 'success' | 'primary' | 'warning' | 'info' | 'danger' }[]>(),
   isRecord: vi.fn<(value: unknown) => boolean>(),
   ElMessage: { success: vi.fn(), error: vi.fn(), warning: vi.fn() },
 }))
@@ -13,15 +13,11 @@ vi.mock('element-plus', () => ({ ElMessage: mocks.ElMessage }))
 
 vi.mock('@/composables/project/api-testing/processorFormModel', () => ({
   defaultProcessorConfig: mocks.defaultProcessorConfig,
-  processorSummaryTag: mocks.processorSummaryTag,
+  processorTags: mocks.processorTags,
   isRecord: mocks.isRecord,
 }))
 
-import {
-  useEnvironmentProcessors,
-  type EnvConfigForm,
-  type EnvDsForm,
-} from './useEnvironmentProcessors'
+import { useEnvironmentProcessors } from './useEnvironmentProcessors'
 
 function makeProcessor(id: string, overrides?: Partial<ApiProcessor>): ApiProcessor {
   return {
@@ -35,18 +31,8 @@ function makeProcessor(id: string, overrides?: Partial<ApiProcessor>): ApiProces
   }
 }
 
-function makeConfigForm(id: string, overrides?: Partial<EnvConfigForm>): EnvConfigForm {
-  return { id, refName: `cfg_${id}`, isDefault: false, ...overrides }
-}
-
-function makeDsForm(id: string, overrides?: Partial<EnvDsForm>): EnvDsForm {
-  return { id, refName: `ds_${id}`, isDefault: false, ...overrides }
-}
-
 describe('useEnvironmentProcessors', () => {
   let processorRows: Ref<ApiProcessor[]>
-  let orderedConfigForms: Ref<EnvConfigForm[]>
-  let orderedDsForms: Ref<EnvDsForm[]>
   let idCounter: number
   let sortCounter: number
   let localIdFn: ReturnType<typeof vi.fn<() => string>>
@@ -57,12 +43,10 @@ describe('useEnvironmentProcessors', () => {
     idCounter = 300
     sortCounter = 1
     processorRows = shallowRef<ApiProcessor[]>([])
-    orderedConfigForms = ref<EnvConfigForm[]>([])
-    orderedDsForms = ref<EnvDsForm[]>([])
     localIdFn = vi.fn(() => `local-${idCounter++}`)
     nextSortOrderFn = vi.fn(() => sortCounter++)
     mocks.defaultProcessorConfig.mockReturnValue({ enabled: true, sortOrder: 0 })
-    mocks.processorSummaryTag.mockReturnValue(null)
+    mocks.processorTags.mockReturnValue([])
     mocks.isRecord.mockImplementation(
       (v) => v !== null && typeof v === 'object' && !Array.isArray(v),
     )
@@ -71,28 +55,28 @@ describe('useEnvironmentProcessors', () => {
   describe('初始状态', () => {
     it('activeProcId 初始为空字符串', () => {
       const { activeProcId } = useEnvironmentProcessors(
-        processorRows, orderedConfigForms, orderedDsForms, localIdFn, nextSortOrderFn,
+        processorRows, localIdFn, nextSortOrderFn,
       )
       expect(activeProcId.value).toBe('')
     })
 
     it('selectedProcessor 初始为 null', () => {
       const { selectedProcessor } = useEnvironmentProcessors(
-        processorRows, orderedConfigForms, orderedDsForms, localIdFn, nextSortOrderFn,
+        processorRows, localIdFn, nextSortOrderFn,
       )
       expect(selectedProcessor.value).toBeNull()
     })
 
     it('preProcCount 初始为 0', () => {
       const { preProcCount } = useEnvironmentProcessors(
-        processorRows, orderedConfigForms, orderedDsForms, localIdFn, nextSortOrderFn,
+        processorRows, localIdFn, nextSortOrderFn,
       )
       expect(preProcCount.value).toBe(0)
     })
 
     it('postProcCount 初始为 0', () => {
       const { postProcCount } = useEnvironmentProcessors(
-        processorRows, orderedConfigForms, orderedDsForms, localIdFn, nextSortOrderFn,
+        processorRows, localIdFn, nextSortOrderFn,
       )
       expect(postProcCount.value).toBe(0)
     })
@@ -106,7 +90,7 @@ describe('useEnvironmentProcessors', () => {
         makeProcessor('3', { processorType: 'preprocessor' }),
       ]
       const { procList } = useEnvironmentProcessors(
-        processorRows, orderedConfigForms, orderedDsForms, localIdFn, nextSortOrderFn,
+        processorRows, localIdFn, nextSortOrderFn,
       )
       expect(procList('preprocessor')).toHaveLength(2)
       expect(procList('postprocessor')).toHaveLength(1)
@@ -114,7 +98,7 @@ describe('useEnvironmentProcessors', () => {
 
     it('空列表返回空数组', () => {
       const { procList } = useEnvironmentProcessors(
-        processorRows, orderedConfigForms, orderedDsForms, localIdFn, nextSortOrderFn,
+        processorRows, localIdFn, nextSortOrderFn,
       )
       expect(procList('preprocessor')).toEqual([])
       expect(procList('postprocessor')).toEqual([])
@@ -129,7 +113,7 @@ describe('useEnvironmentProcessors', () => {
         makeProcessor('3', { processorType: 'postprocessor' }),
       ]
       const { preProcCount, postProcCount } = useEnvironmentProcessors(
-        processorRows, orderedConfigForms, orderedDsForms, localIdFn, nextSortOrderFn,
+        processorRows, localIdFn, nextSortOrderFn,
       )
       expect(preProcCount.value).toBe(2)
       expect(postProcCount.value).toBe(1)
@@ -141,7 +125,7 @@ describe('useEnvironmentProcessors', () => {
       const proc = makeProcessor('p1')
       processorRows.value = [proc]
       const { selectProcessor, selectedProcessor } = useEnvironmentProcessors(
-        processorRows, orderedConfigForms, orderedDsForms, localIdFn, nextSortOrderFn,
+        processorRows, localIdFn, nextSortOrderFn,
       )
       selectProcessor(proc)
       expect(selectedProcessor.value).toBe(proc)
@@ -150,7 +134,7 @@ describe('useEnvironmentProcessors', () => {
     it('id 不匹配时返回 null', () => {
       processorRows.value = [makeProcessor('p1')]
       const { activeProcId, selectedProcessor } = useEnvironmentProcessors(
-        processorRows, orderedConfigForms, orderedDsForms, localIdFn, nextSortOrderFn,
+        processorRows, localIdFn, nextSortOrderFn,
       )
       activeProcId.value = 'not-exist'
       expect(selectedProcessor.value).toBeNull()
@@ -162,7 +146,7 @@ describe('useEnvironmentProcessors', () => {
       const proc = makeProcessor('p1')
       processorRows.value = [proc]
       const { selectProcessor, activeProcId } = useEnvironmentProcessors(
-        processorRows, orderedConfigForms, orderedDsForms, localIdFn, nextSortOrderFn,
+        processorRows, localIdFn, nextSortOrderFn,
       )
       selectProcessor(proc)
       expect(activeProcId.value).toBe('p1')
@@ -172,7 +156,7 @@ describe('useEnvironmentProcessors', () => {
       const proc = makeProcessor(undefined as unknown as string)
       processorRows.value = [proc]
       const { selectProcessor, activeProcId } = useEnvironmentProcessors(
-        processorRows, orderedConfigForms, orderedDsForms, localIdFn, nextSortOrderFn,
+        processorRows, localIdFn, nextSortOrderFn,
       )
       selectProcessor(proc)
       expect(activeProcId.value).toBe('')
@@ -185,7 +169,7 @@ describe('useEnvironmentProcessors', () => {
       const proc = makeProcessor('p1', { config: el })
       mocks.isRecord.mockImplementation((v) => v !== null && typeof v === 'object' && !Array.isArray(v))
       const { procElement } = useEnvironmentProcessors(
-        processorRows, orderedConfigForms, orderedDsForms, localIdFn, nextSortOrderFn,
+        processorRows, localIdFn, nextSortOrderFn,
       )
       expect(procElement(proc)).toBe(el)
     })
@@ -194,7 +178,7 @@ describe('useEnvironmentProcessors', () => {
       const proc = makeProcessor('p1', { config: undefined })
       mocks.isRecord.mockReturnValue(false)
       const { procElement } = useEnvironmentProcessors(
-        processorRows, orderedConfigForms, orderedDsForms, localIdFn, nextSortOrderFn,
+        processorRows, localIdFn, nextSortOrderFn,
       )
       expect(procElement(proc)).toEqual({})
     })
@@ -203,7 +187,7 @@ describe('useEnvironmentProcessors', () => {
   describe('addProcessor', () => {
     it('推入新处理器并选中', () => {
       const { addProcessor, activeProcId } = useEnvironmentProcessors(
-        processorRows, orderedConfigForms, orderedDsForms, localIdFn, nextSortOrderFn,
+        processorRows, localIdFn, nextSortOrderFn,
       )
       addProcessor('preprocessor')
       expect(processorRows.value).toHaveLength(1)
@@ -214,7 +198,7 @@ describe('useEnvironmentProcessors', () => {
 
     it('新处理器类型正确', () => {
       const { addProcessor } = useEnvironmentProcessors(
-        processorRows, orderedConfigForms, orderedDsForms, localIdFn, nextSortOrderFn,
+        processorRows, localIdFn, nextSortOrderFn,
       )
       addProcessor('postprocessor')
       expect(processorRows.value[0].processorType).toBe('postprocessor')
@@ -222,7 +206,7 @@ describe('useEnvironmentProcessors', () => {
 
     it('新处理器启用且 sortOrder 由 nextSortOrder 提供', () => {
       const { addProcessor } = useEnvironmentProcessors(
-        processorRows, orderedConfigForms, orderedDsForms, localIdFn, nextSortOrderFn,
+        processorRows, localIdFn, nextSortOrderFn,
       )
       addProcessor('preprocessor')
       expect(processorRows.value[0].enabled).toBe(true)
@@ -231,7 +215,7 @@ describe('useEnvironmentProcessors', () => {
 
     it('多次添加递增 id', () => {
       const { addProcessor } = useEnvironmentProcessors(
-        processorRows, orderedConfigForms, orderedDsForms, localIdFn, nextSortOrderFn,
+        processorRows, localIdFn, nextSortOrderFn,
       )
       addProcessor('preprocessor')
       addProcessor('postprocessor')
@@ -247,7 +231,7 @@ describe('useEnvironmentProcessors', () => {
       const p2 = makeProcessor('p2')
       processorRows.value = [p1, p2]
       const { removeProcessor } = useEnvironmentProcessors(
-        processorRows, orderedConfigForms, orderedDsForms, localIdFn, nextSortOrderFn,
+        processorRows, localIdFn, nextSortOrderFn,
       )
       removeProcessor(p1)
       expect(processorRows.value).toHaveLength(1)
@@ -259,7 +243,7 @@ describe('useEnvironmentProcessors', () => {
       const p2 = makeProcessor('p2', { processorType: 'preprocessor' })
       processorRows.value = [p1, p2]
       const { selectProcessor, removeProcessor, activeProcId } = useEnvironmentProcessors(
-        processorRows, orderedConfigForms, orderedDsForms, localIdFn, nextSortOrderFn,
+        processorRows, localIdFn, nextSortOrderFn,
       )
       selectProcessor(p1)
       removeProcessor(p1)
@@ -270,7 +254,7 @@ describe('useEnvironmentProcessors', () => {
       const p1 = makeProcessor('p1', { processorType: 'preprocessor' })
       processorRows.value = [p1]
       const { selectProcessor, removeProcessor, activeProcId } = useEnvironmentProcessors(
-        processorRows, orderedConfigForms, orderedDsForms, localIdFn, nextSortOrderFn,
+        processorRows, localIdFn, nextSortOrderFn,
       )
       selectProcessor(p1)
       removeProcessor(p1)
@@ -282,7 +266,7 @@ describe('useEnvironmentProcessors', () => {
       const p2 = makeProcessor('p2')
       processorRows.value = [p1, p2]
       const { selectProcessor, removeProcessor, activeProcId } = useEnvironmentProcessors(
-        processorRows, orderedConfigForms, orderedDsForms, localIdFn, nextSortOrderFn,
+        processorRows, localIdFn, nextSortOrderFn,
       )
       selectProcessor(p2)
       removeProcessor(p1)
@@ -296,7 +280,7 @@ describe('useEnvironmentProcessors', () => {
       const p2 = makeProcessor('p2', { sortOrder: 2 })
       processorRows.value = [p1, p2]
       const { moveProcessor, activeProcId } = useEnvironmentProcessors(
-        processorRows, orderedConfigForms, orderedDsForms, localIdFn, nextSortOrderFn,
+        processorRows, localIdFn, nextSortOrderFn,
       )
       moveProcessor('preprocessor', 0, 1)
       expect(p1.sortOrder).toBe(2)
@@ -311,7 +295,7 @@ describe('useEnvironmentProcessors', () => {
       const p2 = makeProcessor('p2', { sortOrder: 2 })
       processorRows.value = [p1, p2]
       const { moveProcessor, activeProcId } = useEnvironmentProcessors(
-        processorRows, orderedConfigForms, orderedDsForms, localIdFn, nextSortOrderFn,
+        processorRows, localIdFn, nextSortOrderFn,
       )
       moveProcessor('preprocessor', 1, -1)
       expect(p1.sortOrder).toBe(2)
@@ -325,7 +309,7 @@ describe('useEnvironmentProcessors', () => {
       const p1 = makeProcessor('p1', { sortOrder: 1 })
       processorRows.value = [p1]
       const { moveProcessor } = useEnvironmentProcessors(
-        processorRows, orderedConfigForms, orderedDsForms, localIdFn, nextSortOrderFn,
+        processorRows, localIdFn, nextSortOrderFn,
       )
       moveProcessor('preprocessor', 0, 1)
       expect(p1.sortOrder).toBe(1)
@@ -336,7 +320,7 @@ describe('useEnvironmentProcessors', () => {
       const p1 = makeProcessor('p1')
       processorRows.value = [p1]
       const { moveProcessor } = useEnvironmentProcessors(
-        processorRows, orderedConfigForms, orderedDsForms, localIdFn, nextSortOrderFn,
+        processorRows, localIdFn, nextSortOrderFn,
       )
       moveProcessor('preprocessor', 5, 1)
       expect(processorRows.value).toHaveLength(1)
@@ -348,7 +332,7 @@ describe('useEnvironmentProcessors', () => {
       const pre2 = makeProcessor('pre2', { processorType: 'preprocessor', sortOrder: 2 })
       processorRows.value = [pre1, post1, pre2]
       const { moveProcessor } = useEnvironmentProcessors(
-        processorRows, orderedConfigForms, orderedDsForms, localIdFn, nextSortOrderFn,
+        processorRows, localIdFn, nextSortOrderFn,
       )
       moveProcessor('preprocessor', 0, 1)
       expect(pre1.sortOrder).toBe(2)
@@ -363,7 +347,7 @@ describe('useEnvironmentProcessors', () => {
       const p2 = makeProcessor('p2', { sortOrder: undefined })
       processorRows.value = [p1, p2]
       const { moveProcessor } = useEnvironmentProcessors(
-        processorRows, orderedConfigForms, orderedDsForms, localIdFn, nextSortOrderFn,
+        processorRows, localIdFn, nextSortOrderFn,
       )
       moveProcessor('preprocessor', 0, 1)
       expect(p1.sortOrder).toBe(0)
@@ -377,7 +361,7 @@ describe('useEnvironmentProcessors', () => {
       const proc = makeProcessor('p1', { config: el })
       processorRows.value = [proc]
       const { copyProcessor, activeProcId } = useEnvironmentProcessors(
-        processorRows, orderedConfigForms, orderedDsForms, localIdFn, nextSortOrderFn,
+        processorRows, localIdFn, nextSortOrderFn,
       )
       copyProcessor(proc)
       expect(processorRows.value).toHaveLength(2)
@@ -391,7 +375,7 @@ describe('useEnvironmentProcessors', () => {
       const proc = makeProcessor('p1', { config: el })
       processorRows.value = [proc]
       const { copyProcessor } = useEnvironmentProcessors(
-        processorRows, orderedConfigForms, orderedDsForms, localIdFn, nextSortOrderFn,
+        processorRows, localIdFn, nextSortOrderFn,
       )
       copyProcessor(proc)
       expect(processorRows.value[1].config).not.toBe(proc.config)
@@ -401,7 +385,7 @@ describe('useEnvironmentProcessors', () => {
       const proc = makeProcessor('p1')
       processorRows.value = []
       const { copyProcessor } = useEnvironmentProcessors(
-        processorRows, orderedConfigForms, orderedDsForms, localIdFn, nextSortOrderFn,
+        processorRows, localIdFn, nextSortOrderFn,
       )
       copyProcessor(proc)
       expect(processorRows.value).toHaveLength(0)
@@ -412,7 +396,7 @@ describe('useEnvironmentProcessors', () => {
       processorRows.value = [proc]
       mocks.isRecord.mockImplementation((v) => v !== null && typeof v === 'object' && !Array.isArray(v))
       const { copyProcessor } = useEnvironmentProcessors(
-        processorRows, orderedConfigForms, orderedDsForms, localIdFn, nextSortOrderFn,
+        processorRows, localIdFn, nextSortOrderFn,
       )
       copyProcessor(proc)
       expect(processorRows.value[1].processorType).toBe('postprocessor')
@@ -423,7 +407,7 @@ describe('useEnvironmentProcessors', () => {
   describe('平铺展开式草稿', () => {
     it('初始无展开明细与草稿', () => {
       const { procExpandedId, procDraft, procDraftMode } = useEnvironmentProcessors(
-        processorRows, orderedConfigForms, orderedDsForms, localIdFn, nextSortOrderFn,
+        processorRows, localIdFn, nextSortOrderFn,
       )
       expect(procExpandedId.value).toBe('')
       expect(procDraft.value).toBeNull()
@@ -434,7 +418,7 @@ describe('useEnvironmentProcessors', () => {
       const proc = makeProcessor('p1')
       processorRows.value = [proc]
       const { toggleProcDetail, procExpandedId } = useEnvironmentProcessors(
-        processorRows, orderedConfigForms, orderedDsForms, localIdFn, nextSortOrderFn,
+        processorRows, localIdFn, nextSortOrderFn,
       )
       toggleProcDetail(proc)
       expect(procExpandedId.value).toBe('p1')
@@ -447,7 +431,7 @@ describe('useEnvironmentProcessors', () => {
       const b = makeProcessor('p2')
       processorRows.value = [a, b]
       const { toggleProcDetail, procExpandedId } = useEnvironmentProcessors(
-        processorRows, orderedConfigForms, orderedDsForms, localIdFn, nextSortOrderFn,
+        processorRows, localIdFn, nextSortOrderFn,
       )
       toggleProcDetail(a)
       toggleProcDetail(b)
@@ -459,7 +443,7 @@ describe('useEnvironmentProcessors', () => {
       const proc = makeProcessor('p1', { name: '原处理器', config })
       processorRows.value = [proc]
       const { startProcEdit, procDraft, procDraftMode, procExpandedId } = useEnvironmentProcessors(
-        processorRows, orderedConfigForms, orderedDsForms, localIdFn, nextSortOrderFn,
+        processorRows, localIdFn, nextSortOrderFn,
       )
       startProcEdit(proc)
       expect(procDraftMode.value).toBe('edit')
@@ -475,7 +459,7 @@ describe('useEnvironmentProcessors', () => {
 
     it('startProcAdd 生成未命名草稿且不推入列表', () => {
       const { startProcAdd, procDraft, procDraftMode } = useEnvironmentProcessors(
-        processorRows, orderedConfigForms, orderedDsForms, localIdFn, nextSortOrderFn,
+        processorRows, localIdFn, nextSortOrderFn,
       )
       startProcAdd('postprocessor')
       expect(processorRows.value).toHaveLength(0)
@@ -490,7 +474,7 @@ describe('useEnvironmentProcessors', () => {
       const b = makeProcessor('p2')
       processorRows.value = [a, b]
       const { startProcEdit, toggleProcDetail, procDraft, procExpandedId } = useEnvironmentProcessors(
-        processorRows, orderedConfigForms, orderedDsForms, localIdFn, nextSortOrderFn,
+        processorRows, localIdFn, nextSortOrderFn,
       )
       startProcEdit(a)
       toggleProcDetail(a)
@@ -505,7 +489,7 @@ describe('useEnvironmentProcessors', () => {
       const proc = makeProcessor('p1')
       processorRows.value = [proc]
       const { startProcAdd, toggleProcDetail, procDraft, procExpandedId } = useEnvironmentProcessors(
-        processorRows, orderedConfigForms, orderedDsForms, localIdFn, nextSortOrderFn,
+        processorRows, localIdFn, nextSortOrderFn,
       )
       startProcAdd('preprocessor')
       toggleProcDetail(proc)
@@ -515,7 +499,7 @@ describe('useEnvironmentProcessors', () => {
 
     it('cancelProcDraft 丢弃草稿并回到 none', () => {
       const { startProcEdit, cancelProcDraft, procDraft, procDraftMode } = useEnvironmentProcessors(
-        processorRows, orderedConfigForms, orderedDsForms, localIdFn, nextSortOrderFn,
+        processorRows, localIdFn, nextSortOrderFn,
       )
       startProcEdit(makeProcessor('p1'))
       cancelProcDraft()
@@ -528,7 +512,7 @@ describe('useEnvironmentProcessors', () => {
       const b = makeProcessor('p2')
       processorRows.value = [a, b]
       const { startProcEdit, toggleProcDetail, removeProcessor, procDraft, procExpandedId } = useEnvironmentProcessors(
-        processorRows, orderedConfigForms, orderedDsForms, localIdFn, nextSortOrderFn,
+        processorRows, localIdFn, nextSortOrderFn,
       )
       toggleProcDetail(a)
       startProcEdit(b)
@@ -542,7 +526,7 @@ describe('useEnvironmentProcessors', () => {
 
     it('名称为空时拒绝保存并保留草稿', () => {
       const { startProcAdd, commitProcDraft, procDraft, procDraftMode } = useEnvironmentProcessors(
-        processorRows, orderedConfigForms, orderedDsForms, localIdFn, nextSortOrderFn,
+        processorRows, localIdFn, nextSortOrderFn,
       )
       startProcAdd('preprocessor')
       const draft = procDraft.value
@@ -556,7 +540,7 @@ describe('useEnvironmentProcessors', () => {
 
     it('无草稿时保存直接返回 false', () => {
       const { commitProcDraft } = useEnvironmentProcessors(
-        processorRows, orderedConfigForms, orderedDsForms, localIdFn, nextSortOrderFn,
+        processorRows, localIdFn, nextSortOrderFn,
       )
       expect(commitProcDraft()).toBe(false)
       expect(mocks.ElMessage.success).not.toHaveBeenCalled()
@@ -564,7 +548,7 @@ describe('useEnvironmentProcessors', () => {
 
     it('保存新增：推入列表并回写名称与配置', () => {
       const { startProcAdd, commitProcDraft, procDraft, procDraftMode, procExpandedId } = useEnvironmentProcessors(
-        processorRows, orderedConfigForms, orderedDsForms, localIdFn, nextSortOrderFn,
+        processorRows, localIdFn, nextSortOrderFn,
       )
       startProcAdd('preprocessor')
       const draft = procDraft.value
@@ -589,7 +573,7 @@ describe('useEnvironmentProcessors', () => {
       const proc = makeProcessor('p1', { name: '原处理器', config: { testclass: 'http' } })
       processorRows.value = [proc]
       const { startProcEdit, commitProcDraft, procDraft, procDraftMode, procExpandedId } = useEnvironmentProcessors(
-        processorRows, orderedConfigForms, orderedDsForms, localIdFn, nextSortOrderFn,
+        processorRows, localIdFn, nextSortOrderFn,
       )
       startProcEdit(proc)
       const draft = procDraft.value
@@ -610,7 +594,7 @@ describe('useEnvironmentProcessors', () => {
       const proc = makeProcessor('p1', { name: '原处理器' })
       processorRows.value = [proc]
       const { startProcEdit, cancelProcDraft, selectProcessor, selectedProcessor } = useEnvironmentProcessors(
-        processorRows, orderedConfigForms, orderedDsForms, localIdFn, nextSortOrderFn,
+        processorRows, localIdFn, nextSortOrderFn,
       )
       selectProcessor(proc)
       startProcEdit(proc)
@@ -621,150 +605,30 @@ describe('useEnvironmentProcessors', () => {
     })
   })
 
-  describe('procDetail', () => {
-    it('http 处理器输出方法路径与计数摘要', () => {
-      const proc = makeProcessor('p1', {
-        config: {
-          testclass: 'http',
-          config: {
-            method: 'post',
-            path: '/login',
-            headers: { a: '1' },
-            query: { b: '2' },
-            data: { c: '3', d: '4' },
-          },
-          extractors: [{ source: 'resp', expression: '$.token', variableName: 'token', description: '' }],
-        },
-      })
-      processorRows.value = [proc]
-      const { procDetail } = useEnvironmentProcessors(
-        processorRows, orderedConfigForms, orderedDsForms, localIdFn, nextSortOrderFn,
-      )
-      const detail = procDetail(proc)
-      expect(detail.config).toEqual([
-        { label: '执行方式', value: 'HTTP' },
-        { label: '方法', value: 'POST' },
-        { label: '路径', value: '/login' },
-        { label: '请求头', value: '1 项' },
-        { label: 'Query 参数', value: '1 项' },
-        { label: '请求体', value: '2 项' },
-        { label: '提取器', value: '1 项' },
-      ])
-      expect(detail.extractors).toEqual([
-        { enabled: true, source: 'resp', expression: '$.token', variableName: 'token', description: '—' },
-      ])
-    })
-
-    it('jdbc 处理器输出 SQL 与参数摘要', () => {
-      const proc = makeProcessor('p1', {
-        config: { testclass: 'jdbc', config: { sql: 'select * from t', args: ['1', '2'] } },
-      })
-      processorRows.value = [proc]
-      const { procDetail } = useEnvironmentProcessors(
-        processorRows, orderedConfigForms, orderedDsForms, localIdFn, nextSortOrderFn,
-      )
-      expect(procDetail(proc).config).toEqual([
-        { label: '执行方式', value: 'JDBC' },
-        { label: 'SQL', value: 'select * from t', wide: true },
-        { label: '参数', value: '1，2' },
-        { label: '提取器', value: '0 项' },
-      ])
-    })
-
-    it('raw 请求体输出原文形态，空路径与无参数占位', () => {
-      const proc = makeProcessor('p1', {
-        config: { testclass: 'http', config: { path: '', body: '{"a":1}' } },
-      })
-      processorRows.value = [proc]
-      const { procDetail } = useEnvironmentProcessors(
-        processorRows, orderedConfigForms, orderedDsForms, localIdFn, nextSortOrderFn,
-      )
-      const rows = procDetail(proc).config
-      expect(rows.find((r) => r.label === '路径')?.value).toBe('—')
-      expect(rows.find((r) => r.label === '请求体')?.value).toBe('JSON')
-      expect(rows.find((r) => r.label === '方法')?.value).toBe('GET')
-    })
-
-    it('testclass 缺失时输出未配置', () => {
-      const proc = makeProcessor('p1', { config: { config: {} } })
-      processorRows.value = [proc]
-      const { procDetail } = useEnvironmentProcessors(
-        processorRows, orderedConfigForms, orderedDsForms, localIdFn, nextSortOrderFn,
-      )
-      expect(procDetail(proc).config).toEqual([{ label: '执行方式', value: '未配置' }])
-      expect(procDetail(proc).extractors).toEqual([])
-    })
-
-    it('提取器非对象项被跳过', () => {
-      const proc = makeProcessor('p1', {
-        config: { testclass: 'jdbc', config: { sql: 'select 1' }, extractors: ['bad', { source: 'resp' }] },
-      })
-      processorRows.value = [proc]
-      const { procDetail } = useEnvironmentProcessors(
-        processorRows, orderedConfigForms, orderedDsForms, localIdFn, nextSortOrderFn,
-      )
-      const detail = procDetail(proc)
-      expect(detail.extractors).toHaveLength(1)
-      expect(detail.extractors[0].source).toBe('resp')
-      expect(detail.extractors[0].description).toBe('—')
-    })
-  })
-
   describe('procTags', () => {
-    it('http 处理器生成 HTTP 标签和摘要标签', () => {
+    it('委托共享标签模型并回传处理器元素', () => {
       const proc = makeProcessor('p1', { config: { testclass: 'http' } })
-      mocks.processorSummaryTag.mockReturnValue({ text: 'GET', type: 'success' })
-      const { procTags } = useEnvironmentProcessors(
-        processorRows, orderedConfigForms, orderedDsForms, localIdFn, nextSortOrderFn,
-      )
-      const tags = procTags(proc)
-      expect(tags).toEqual([
+      mocks.processorTags.mockReturnValue([
         { text: 'HTTP', type: 'info' },
         { text: 'GET', type: 'success' },
       ])
-    })
-
-    it('jdbc 处理器生成 JDBC 标签和摘要标签', () => {
-      const proc = makeProcessor('p1', { config: { testclass: 'jdbc' } })
-      mocks.processorSummaryTag.mockReturnValue({ text: 'SELECT', type: 'primary' })
       const { procTags } = useEnvironmentProcessors(
-        processorRows, orderedConfigForms, orderedDsForms, localIdFn, nextSortOrderFn,
+        processorRows, localIdFn, nextSortOrderFn,
       )
-      const tags = procTags(proc)
-      expect(tags).toEqual([
-        { text: 'JDBC', type: 'info' },
-        { text: 'SELECT', type: 'primary' },
+      expect(procTags(proc)).toEqual([
+        { text: 'HTTP', type: 'info' },
+        { text: 'GET', type: 'success' },
       ])
+      expect(mocks.processorTags).toHaveBeenCalledWith(proc.config)
     })
 
-    it('testclass 非 http/jdbc 时不生成类型标签', () => {
+    it('共享模型返回空数组时透传空数组', () => {
       const proc = makeProcessor('p1', { config: { testclass: '' } })
-      mocks.processorSummaryTag.mockReturnValue(null)
+      mocks.processorTags.mockReturnValue([])
       const { procTags } = useEnvironmentProcessors(
-        processorRows, orderedConfigForms, orderedDsForms, localIdFn, nextSortOrderFn,
+        processorRows, localIdFn, nextSortOrderFn,
       )
-      const tags = procTags(proc)
-      expect(tags).toEqual([])
-    })
-
-    it('摘要标签为 null 时不添加摘要标签', () => {
-      const proc = makeProcessor('p1', { config: { testclass: 'http' } })
-      mocks.processorSummaryTag.mockReturnValue(null)
-      const { procTags } = useEnvironmentProcessors(
-        processorRows, orderedConfigForms, orderedDsForms, localIdFn, nextSortOrderFn,
-      )
-      const tags = procTags(proc)
-      expect(tags).toEqual([{ text: 'HTTP', type: 'info' }])
-    })
-
-    it('testclass 非字符串时默认为空', () => {
-      const proc = makeProcessor('p1', { config: { testclass: 123 } })
-      mocks.processorSummaryTag.mockReturnValue(null)
-      const { procTags } = useEnvironmentProcessors(
-        processorRows, orderedConfigForms, orderedDsForms, localIdFn, nextSortOrderFn,
-      )
-      const tags = procTags(proc)
-      expect(tags).toEqual([])
+      expect(procTags(proc)).toEqual([])
     })
   })
 
@@ -772,7 +636,7 @@ describe('useEnvironmentProcessors', () => {
     it('有名称时返回名称', () => {
       const proc = makeProcessor('p1', { name: '我的处理器' })
       const { procDisplayName } = useEnvironmentProcessors(
-        processorRows, orderedConfigForms, orderedDsForms, localIdFn, nextSortOrderFn,
+        processorRows, localIdFn, nextSortOrderFn,
       )
       expect(procDisplayName(proc, 0)).toBe('我的处理器')
     })
@@ -780,7 +644,7 @@ describe('useEnvironmentProcessors', () => {
     it('名称为空白时返回默认名称', () => {
       const proc = makeProcessor('p1', { name: '   ' })
       const { procDisplayName } = useEnvironmentProcessors(
-        processorRows, orderedConfigForms, orderedDsForms, localIdFn, nextSortOrderFn,
+        processorRows, localIdFn, nextSortOrderFn,
       )
       expect(procDisplayName(proc, 0)).toBe('处理器 1')
     })
@@ -788,84 +652,10 @@ describe('useEnvironmentProcessors', () => {
     it('名称为空字符串时返回默认名称', () => {
       const proc = makeProcessor('p1', { name: '' })
       const { procDisplayName } = useEnvironmentProcessors(
-        processorRows, orderedConfigForms, orderedDsForms, localIdFn, nextSortOrderFn,
+        processorRows, localIdFn, nextSortOrderFn,
       )
       expect(procDisplayName(proc, 2)).toBe('处理器 3')
     })
   })
 
-  describe('applyDefaultProcRef', () => {
-    it('null 处理器时不操作', () => {
-      const { applyDefaultProcRef } = useEnvironmentProcessors(
-        processorRows, orderedConfigForms, orderedDsForms, localIdFn, nextSortOrderFn,
-      )
-      expect(() => applyDefaultProcRef(null)).not.toThrow()
-    })
-
-    it('http 处理器无 ref 时应用默认配置 ref', () => {
-      orderedConfigForms.value = [makeConfigForm('c1', { refName: 'default_cfg', isDefault: true })]
-      const proc = makeProcessor('p1', { config: { testclass: 'http', config: {} } })
-      mocks.isRecord.mockImplementation((v) => v !== null && typeof v === 'object' && !Array.isArray(v))
-      const { applyDefaultProcRef } = useEnvironmentProcessors(
-        processorRows, orderedConfigForms, orderedDsForms, localIdFn, nextSortOrderFn,
-      )
-      applyDefaultProcRef(proc)
-      expect(proc.config).toEqual({ testclass: 'http', config: { ref: 'default_cfg' } })
-    })
-
-    it('jdbc 处理器无 datasource 时应用默认数据源', () => {
-      orderedDsForms.value = [makeDsForm('d1', { refName: 'default_ds', isDefault: true })]
-      const proc = makeProcessor('p1', { config: { testclass: 'jdbc', config: {} } })
-      mocks.isRecord.mockImplementation((v) => v !== null && typeof v === 'object' && !Array.isArray(v))
-      const { applyDefaultProcRef } = useEnvironmentProcessors(
-        processorRows, orderedConfigForms, orderedDsForms, localIdFn, nextSortOrderFn,
-      )
-      applyDefaultProcRef(proc)
-      expect(proc.config).toEqual({ testclass: 'jdbc', config: { datasource: 'default_ds' } })
-    })
-
-    it('http 处理器已有 ref 时不覆盖', () => {
-      orderedConfigForms.value = [makeConfigForm('c1', { refName: 'default_cfg', isDefault: true })]
-      const proc = makeProcessor('p1', { config: { testclass: 'http', config: { ref: 'existing' } } })
-      mocks.isRecord.mockImplementation((v) => v !== null && typeof v === 'object' && !Array.isArray(v))
-      const { applyDefaultProcRef } = useEnvironmentProcessors(
-        processorRows, orderedConfigForms, orderedDsForms, localIdFn, nextSortOrderFn,
-      )
-      applyDefaultProcRef(proc)
-      expect(proc.config).toEqual({ testclass: 'http', config: { ref: 'existing' } })
-    })
-
-    it('jdbc 处理器已有 datasource 时不覆盖', () => {
-      orderedDsForms.value = [makeDsForm('d1', { refName: 'default_ds', isDefault: true })]
-      const proc = makeProcessor('p1', { config: { testclass: 'jdbc', config: { datasource: 'existing' } } })
-      mocks.isRecord.mockImplementation((v) => v !== null && typeof v === 'object' && !Array.isArray(v))
-      const { applyDefaultProcRef } = useEnvironmentProcessors(
-        processorRows, orderedConfigForms, orderedDsForms, localIdFn, nextSortOrderFn,
-      )
-      applyDefaultProcRef(proc)
-      expect(proc.config).toEqual({ testclass: 'jdbc', config: { datasource: 'existing' } })
-    })
-
-    it('无默认配置时不做操作', () => {
-      orderedConfigForms.value = [makeConfigForm('c1', { isDefault: false })]
-      const proc = makeProcessor('p1', { config: { testclass: 'http', config: {} } })
-      mocks.isRecord.mockImplementation((v) => v !== null && typeof v === 'object' && !Array.isArray(v))
-      const { applyDefaultProcRef } = useEnvironmentProcessors(
-        processorRows, orderedConfigForms, orderedDsForms, localIdFn, nextSortOrderFn,
-      )
-      applyDefaultProcRef(proc)
-      expect(proc.config).toEqual({ testclass: 'http', config: {} })
-    })
-
-    it('默认配置无 refName 时不应用', () => {
-      orderedConfigForms.value = [makeConfigForm('c1', { refName: undefined, isDefault: true })]
-      const proc = makeProcessor('p1', { config: { testclass: 'http', config: {} } })
-      mocks.isRecord.mockImplementation((v) => v !== null && typeof v === 'object' && !Array.isArray(v))
-      const { applyDefaultProcRef } = useEnvironmentProcessors(
-        processorRows, orderedConfigForms, orderedDsForms, localIdFn, nextSortOrderFn,
-      )
-      applyDefaultProcRef(proc)
-      expect(proc.config).toEqual({ testclass: 'http', config: {} })
-    })
-  })
 })

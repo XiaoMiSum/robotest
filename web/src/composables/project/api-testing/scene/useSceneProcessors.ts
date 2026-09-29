@@ -1,6 +1,6 @@
 import { ref, watch, computed, type Ref } from 'vue'
-import type { ApiSceneDetail, ApiHttpConfig, ApiDataSource } from '@/types'
-import { isRecord, processorSummaryTag } from '@/composables/project/api-testing/processorFormModel'
+import type { ApiSceneDetail } from '@/types'
+import { processorTags } from '@/composables/project/api-testing/processorFormModel'
 
 export type SceneProcessorElement = Record<string, unknown> & {
   name?: string
@@ -9,12 +9,10 @@ export type SceneProcessorElement = Record<string, unknown> & {
 
 /**
  * 场景处理器管理 + 拖拽排序（从 SceneEditorPage 提取）。
- * 依赖 detail、httpRefOptions、dsRefOptions、sceneSection。
+ * 依赖 detail、sceneSection；类型切换与引用选择由 ProcessorConfigEditor 承载。
  */
 export function useSceneProcessors(
   detail: Ref<ApiSceneDetail | null>,
-  httpRefOptions: Ref<ApiHttpConfig[]>,
-  dsRefOptions: Ref<ApiDataSource[]>,
   sceneSection: Ref<'steps' | 'variables' | 'pre' | 'post'>,
 ) {
   const editProcessors = ref<SceneProcessorElement[]>([] as SceneProcessorElement[])
@@ -56,53 +54,10 @@ export function useSceneProcessors(
     () => (selectedProcessorIdx.value === null ? null : (editProcessors.value[selectedProcessorIdx.value] ?? null)),
   )
 
-  const httpRefSelectOptions = computed(() =>
-    httpRefOptions.value.map((hc) => ({
-      value: String(hc.refName ?? ''),
-      label: hc.refName ? `${hc.name}（${hc.refName}）` : hc.name,
-    })),
-  )
-  const dsRefSelectOptions = computed(() =>
-    dsRefOptions.value.map((ds) => ({
-      value: String(ds.refName ?? ''),
-      label: ds.refName ? `${ds.name}（${ds.refName}）` : ds.name,
-    })),
-  )
-
-  const procHttpRef = computed({
-    get: () => {
-      const el = selectedProcessorEl.value
-      if (!el || el.testclass !== 'http' || !isRecord(el.config)) return ''
-      return typeof el.config.ref === 'string' ? el.config.ref : ''
-    },
-    set: (value: string) => {
-      const el = selectedProcessorEl.value
-      if (!el || el.testclass !== 'http') return
-      el.config = { ...(isRecord(el.config) ? el.config : {}), ref: value }
-    },
-  })
-
-  const procDsRef = computed({
-    get: () => {
-      const el = selectedProcessorEl.value
-      if (!el || el.testclass !== 'jdbc' || !isRecord(el.config)) return ''
-      return typeof el.config.datasource === 'string' ? el.config.datasource : ''
-    },
-    set: (value: string) => {
-      const el = selectedProcessorEl.value
-      if (!el || el.testclass !== 'jdbc') return
-      el.config = { ...(isRecord(el.config) ? el.config : {}), datasource: value }
-    },
-  })
-
   function procTags(idx: number): { text: string; type: 'success' | 'primary' | 'warning' | 'info' | 'danger' }[] {
     const el = editProcessors.value[idx] as SceneProcessorElement | undefined
-    const tags: { text: string; type: 'success' | 'primary' | 'warning' | 'info' | 'danger' }[] = []
-    const klass = typeof el?.testclass === 'string' ? el.testclass : ''
-    if (klass) tags.push({ text: klass.toUpperCase(), type: 'info' })
-    const summary = processorSummaryTag(el as Record<string, unknown> | null | undefined)
-    if (summary) tags.push(summary)
-    return tags
+    if (!el) return []
+    return processorTags(el)
   }
 
   function procDisplayName(idx: number): string {
@@ -122,12 +77,6 @@ export function useSceneProcessors(
       selectedProcessorIdx.value = list.length > 0 ? list[0] : null
     }
   })
-
-  function setProcessorType(idx: number, testclass: string) {
-    const el = editProcessors.value[idx] as SceneProcessorElement | undefined
-    if (!el) return
-    el.testclass = testclass
-  }
 
   function moveProcessor(type: 'pre' | 'post', position: number, dir: -1 | 1) {
     const list = processorIndexes(type)
@@ -178,10 +127,6 @@ export function useSceneProcessors(
     editProcessors,
     selectedProcessorIdx,
     selectedProcessorEl,
-    httpRefSelectOptions,
-    dsRefSelectOptions,
-    procHttpRef,
-    procDsRef,
     procTags,
     procDisplayName,
     processorIndexes,
@@ -189,7 +134,6 @@ export function useSceneProcessors(
     removeProcessor,
     updateProcessor,
     selectProcessor,
-    setProcessorType,
     moveProcessor,
     procDrag,
     procOnDragStart,

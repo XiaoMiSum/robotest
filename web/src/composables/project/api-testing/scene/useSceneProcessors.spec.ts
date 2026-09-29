@@ -1,16 +1,6 @@
 import { ref, nextTick } from 'vue'
-import { describe, expect, it, vi, beforeEach } from 'vitest'
-import type { ApiSceneDetail, ApiHttpConfig, ApiDataSource } from '@/types'
-
-const mocks = vi.hoisted(() => ({
-  isRecord: vi.fn<(value: unknown) => value is Record<string, unknown>>(),
-  processorSummaryTag: vi.fn<(element: Record<string, unknown> | null | undefined) => { text: string; type: string } | null>(),
-}))
-
-vi.mock('@/composables/project/api-testing/processorFormModel', () => ({
-  isRecord: mocks.isRecord,
-  processorSummaryTag: mocks.processorSummaryTag,
-}))
+import { describe, expect, it, vi } from 'vitest'
+import type { ApiSceneDetail } from '@/types'
 
 import { useSceneProcessors, type SceneProcessorElement } from './useSceneProcessors'
 
@@ -29,47 +19,33 @@ function makeDetail(processors: Record<string, unknown>[] = []): ApiSceneDetail 
   }
 }
 
-function makeHttpConfig(refName: string, name: string): ApiHttpConfig {
-  return { name, refName }
-}
-
-function makeDs(refName: string, name: string): ApiDataSource {
-  return { name, refName }
-}
-
 async function createWithProcessors(...processors: SceneProcessorElement[]) {
   const detail = ref<ApiSceneDetail | null>(null)
-  const result = useSceneProcessors(detail, ref([]), ref([]), ref('steps'))
+  const result = useSceneProcessors(detail, ref('steps'))
   detail.value = makeDetail(processors)
   await nextTick()
   return { detail, ...result }
 }
 
-beforeEach(() => {
-  vi.clearAllMocks()
-  mocks.isRecord.mockImplementation((v) => v !== null && typeof v === 'object' && !Array.isArray(v))
-  mocks.processorSummaryTag.mockReturnValue(null)
-})
-
 describe('useSceneProcessors', () => {
   describe('初始状态', () => {
     it('editProcessors 初始为空数组', () => {
-      const { editProcessors } = useSceneProcessors(ref(null), ref([]), ref([]), ref('steps'))
+      const { editProcessors } = useSceneProcessors(ref(null), ref('steps'))
       expect(editProcessors.value).toEqual([])
     })
 
     it('selectedProcessorIdx 初始为 null', () => {
-      const { selectedProcessorIdx } = useSceneProcessors(ref(null), ref([]), ref([]), ref('steps'))
+      const { selectedProcessorIdx } = useSceneProcessors(ref(null), ref('steps'))
       expect(selectedProcessorIdx.value).toBeNull()
     })
 
     it('procDrag 初始为 null', () => {
-      const { procDrag } = useSceneProcessors(ref(null), ref([]), ref([]), ref('steps'))
+      const { procDrag } = useSceneProcessors(ref(null), ref('steps'))
       expect(procDrag.value).toBeNull()
     })
 
     it('selectedProcessorEl 初始为 null', () => {
-      const { selectedProcessorEl } = useSceneProcessors(ref(null), ref([]), ref([]), ref('steps'))
+      const { selectedProcessorEl } = useSceneProcessors(ref(null), ref('steps'))
       expect(selectedProcessorEl.value).toBeNull()
     })
   })
@@ -77,7 +53,7 @@ describe('useSceneProcessors', () => {
   describe('detail watcher', () => {
     it('detail 变化时同步 editProcessors', async () => {
       const detail = ref<ApiSceneDetail | null>(null)
-      const { editProcessors } = useSceneProcessors(detail, ref([]), ref([]), ref('steps'))
+      const { editProcessors } = useSceneProcessors(detail, ref('steps'))
       detail.value = makeDetail([makeProcessor('pre'), makeProcessor('post')])
       await nextTick()
       expect(editProcessors.value).toHaveLength(2)
@@ -87,7 +63,7 @@ describe('useSceneProcessors', () => {
     it('processors 中的对象被浅拷贝而非引用', async () => {
       const original = makeProcessor('pre')
       const detail = ref<ApiSceneDetail | null>(null)
-      const { editProcessors } = useSceneProcessors(detail, ref([]), ref([]), ref('steps'))
+      const { editProcessors } = useSceneProcessors(detail, ref('steps'))
       detail.value = makeDetail([original])
       await nextTick()
       expect(editProcessors.value[0]).not.toBe(original)
@@ -95,7 +71,7 @@ describe('useSceneProcessors', () => {
 
     it('detail 为 null 时不修改 editProcessors', async () => {
       const detail = ref<ApiSceneDetail | null>(null)
-      const { editProcessors } = useSceneProcessors(detail, ref([]), ref([]), ref('steps'))
+      const { editProcessors } = useSceneProcessors(detail, ref('steps'))
       detail.value = null
       await nextTick()
       expect(editProcessors.value).toEqual([])
@@ -103,7 +79,7 @@ describe('useSceneProcessors', () => {
 
     it('选中索引超出新列表长度时重置为 null', async () => {
       const detail = ref<ApiSceneDetail | null>(null)
-      const { selectedProcessorIdx } = useSceneProcessors(detail, ref([]), ref([]), ref('steps'))
+      const { selectedProcessorIdx } = useSceneProcessors(detail, ref('steps'))
       detail.value = makeDetail([makeProcessor('pre'), makeProcessor('post')])
       await nextTick()
       selectedProcessorIdx.value = 1
@@ -114,7 +90,7 @@ describe('useSceneProcessors', () => {
 
     it('选中索引在新列表范围内时保持不变', async () => {
       const detail = ref<ApiSceneDetail | null>(null)
-      const { selectedProcessorIdx } = useSceneProcessors(detail, ref([]), ref([]), ref('steps'))
+      const { selectedProcessorIdx } = useSceneProcessors(detail, ref('steps'))
       detail.value = makeDetail([makeProcessor('pre'), makeProcessor('post')])
       await nextTick()
       selectedProcessorIdx.value = 0
@@ -127,7 +103,7 @@ describe('useSceneProcessors', () => {
   describe('processorIndexes', () => {
     it('返回指定类型处理器的扁平索引', async () => {
       const detail = ref<ApiSceneDetail | null>(null)
-      const { processorIndexes } = useSceneProcessors(detail, ref([]), ref([]), ref('steps'))
+      const { processorIndexes } = useSceneProcessors(detail, ref('steps'))
       detail.value = makeDetail([
         makeProcessor('pre'),
         makeProcessor('post'),
@@ -139,7 +115,7 @@ describe('useSceneProcessors', () => {
     })
 
     it('空列表返回空数组', () => {
-      const { processorIndexes } = useSceneProcessors(ref(null), ref([]), ref([]), ref('steps'))
+      const { processorIndexes } = useSceneProcessors(ref(null), ref('steps'))
       expect(processorIndexes('pre')).toEqual([])
       expect(processorIndexes('post')).toEqual([])
     })
@@ -247,200 +223,27 @@ describe('useSceneProcessors', () => {
     })
   })
 
-  describe('httpRefSelectOptions', () => {
-    it('映射 http 配置为下拉选项', () => {
-      const httpRefOptions = ref([makeHttpConfig('h1', '配置一'), makeHttpConfig('h2', '配置二')])
-      const { httpRefSelectOptions } = useSceneProcessors(ref(null), httpRefOptions, ref([]), ref('steps'))
-      expect(httpRefSelectOptions.value).toEqual([
-        { value: 'h1', label: '配置一（h1）' },
-        { value: 'h2', label: '配置二（h2）' },
-      ])
-    })
-
-    it('refName 为空时标签只显示 name', () => {
-      const httpRefOptions = ref([{ name: '仅名称' } as ApiHttpConfig])
-      const { httpRefSelectOptions } = useSceneProcessors(ref(null), httpRefOptions, ref([]), ref('steps'))
-      expect(httpRefSelectOptions.value[0].label).toBe('仅名称')
-    })
-
-    it('空列表返回空数组', () => {
-      const { httpRefSelectOptions } = useSceneProcessors(ref(null), ref([]), ref([]), ref('steps'))
-      expect(httpRefSelectOptions.value).toEqual([])
-    })
-  })
-
-  describe('dsRefSelectOptions', () => {
-    it('映射数据源为下拉选项', () => {
-      const dsRefOptions = ref([makeDs('d1', 'MySQL'), makeDs('d2', 'PostgreSQL')])
-      const { dsRefSelectOptions } = useSceneProcessors(ref(null), ref([]), dsRefOptions, ref('steps'))
-      expect(dsRefSelectOptions.value).toEqual([
-        { value: 'd1', label: 'MySQL（d1）' },
-        { value: 'd2', label: 'PostgreSQL（d2）' },
-      ])
-    })
-
-    it('refName 为空时标签只显示 name', () => {
-      const dsRefOptions = ref([{ name: '无ref' } as ApiDataSource])
-      const { dsRefSelectOptions } = useSceneProcessors(ref(null), ref([]), dsRefOptions, ref('steps'))
-      expect(dsRefSelectOptions.value[0].label).toBe('无ref')
-    })
-  })
-
-  describe('procHttpRef', () => {
-    it('get: 返回当前选中 http 处理器的 ref', async () => {
-      const { procHttpRef, selectedProcessorIdx } = await createWithProcessors(
-        makeProcessor('pre', { testclass: 'http', config: { ref: 'h1' } }),
-      )
-      selectedProcessorIdx.value = 0
-      await nextTick()
-      expect(procHttpRef.value).toBe('h1')
-    })
-
-    it('get: 无选中元素时返回空字符串', () => {
-      const { procHttpRef } = useSceneProcessors(ref(null), ref([]), ref([]), ref('steps'))
-      expect(procHttpRef.value).toBe('')
-    })
-
-    it('get: 非 http 类型返回空字符串', async () => {
-      const { procHttpRef, selectedProcessorIdx } = await createWithProcessors(
-        makeProcessor('pre', { testclass: 'jdbc', config: { ref: 'h1' } }),
-      )
-      selectedProcessorIdx.value = 0
-      await nextTick()
-      expect(procHttpRef.value).toBe('')
-    })
-
-    it('get: config 非 record 时返回空字符串', async () => {
-      const { procHttpRef, selectedProcessorIdx } = await createWithProcessors(
-        makeProcessor('pre', { testclass: 'http', config: 'bad' }),
-      )
-      mocks.isRecord.mockReturnValue(false)
-      selectedProcessorIdx.value = 0
-      await nextTick()
-      expect(procHttpRef.value).toBe('')
-    })
-
-    it('get: ref 非 string 时返回空字符串', async () => {
-      const { procHttpRef, selectedProcessorIdx } = await createWithProcessors(
-        makeProcessor('pre', { testclass: 'http', config: { ref: 123 } }),
-      )
-      selectedProcessorIdx.value = 0
-      await nextTick()
-      expect(procHttpRef.value).toBe('')
-    })
-
-    it('set: 更新选中 http 处理器的 config.ref', async () => {
-      const { procHttpRef, selectedProcessorIdx, editProcessors } = await createWithProcessors(
-        makeProcessor('pre', { testclass: 'http', config: {} }),
-      )
-      selectedProcessorIdx.value = 0
-      await nextTick()
-      procHttpRef.value = 'h2'
-      expect(editProcessors.value[0].config).toEqual({ ref: 'h2' })
-    })
-
-    it('set: 无选中元素时不报错', async () => {
-      const { procHttpRef } = useSceneProcessors(ref(null), ref([]), ref([]), ref('steps'))
-      expect(() => { procHttpRef.value = 'h1' }).not.toThrow()
-    })
-
-    it('set: 非 http 类型不修改', async () => {
-      const { procHttpRef, selectedProcessorIdx, editProcessors } = await createWithProcessors(
-        makeProcessor('pre', { testclass: 'jdbc', config: {} }),
-      )
-      selectedProcessorIdx.value = 0
-      await nextTick()
-      procHttpRef.value = 'h2'
-      expect(editProcessors.value[0].config).toEqual({})
-    })
-
-    it('set: 合并已有 config', async () => {
-      const { procHttpRef, selectedProcessorIdx, editProcessors } = await createWithProcessors(
-        makeProcessor('pre', { testclass: 'http', config: { method: 'GET' } }),
-      )
-      selectedProcessorIdx.value = 0
-      await nextTick()
-      procHttpRef.value = 'h3'
-      expect(editProcessors.value[0].config).toEqual({ method: 'GET', ref: 'h3' })
-    })
-  })
-
-  describe('procDsRef', () => {
-    it('get: 返回当前选中 jdbc 处理器的 datasource', async () => {
-      const { procDsRef, selectedProcessorIdx } = await createWithProcessors(
-        makeProcessor('pre', { testclass: 'jdbc', config: { datasource: 'd1' } }),
-      )
-      selectedProcessorIdx.value = 0
-      await nextTick()
-      expect(procDsRef.value).toBe('d1')
-    })
-
-    it('get: 无选中元素时返回空字符串', () => {
-      const { procDsRef } = useSceneProcessors(ref(null), ref([]), ref([]), ref('steps'))
-      expect(procDsRef.value).toBe('')
-    })
-
-    it('get: 非 jdbc 类型返回空字符串', async () => {
-      const { procDsRef, selectedProcessorIdx } = await createWithProcessors(
-        makeProcessor('pre', { testclass: 'http', config: { datasource: 'd1' } }),
-      )
-      selectedProcessorIdx.value = 0
-      await nextTick()
-      expect(procDsRef.value).toBe('')
-    })
-
-    it('set: 更新选中 jdbc 处理器的 config.datasource', async () => {
-      const { procDsRef, selectedProcessorIdx, editProcessors } = await createWithProcessors(
-        makeProcessor('pre', { testclass: 'jdbc', config: {} }),
-      )
-      selectedProcessorIdx.value = 0
-      await nextTick()
-      procDsRef.value = 'd2'
-      expect(editProcessors.value[0].config).toEqual({ datasource: 'd2' })
-    })
-
-    it('set: 无选中元素时不报错', async () => {
-      const { procDsRef } = useSceneProcessors(ref(null), ref([]), ref([]), ref('steps'))
-      expect(() => { procDsRef.value = 'd1' }).not.toThrow()
-    })
-
-    it('set: 非 jdbc 类型不修改', async () => {
-      const { procDsRef, selectedProcessorIdx, editProcessors } = await createWithProcessors(
-        makeProcessor('pre', { testclass: 'http', config: {} }),
-      )
-      selectedProcessorIdx.value = 0
-      await nextTick()
-      procDsRef.value = 'd2'
-      expect(editProcessors.value[0].config).toEqual({})
-    })
-  })
-
   describe('procTags', () => {
-    it('包含 testclass 大写标签', async () => {
+    it('http 处理器输出类型标签与方法摘要标签', async () => {
       const { procTags } = await createWithProcessors(makeProcessor('pre', { testclass: 'http' }))
       const tags = procTags(0)
-      expect(tags.some((t) => t.text === 'HTTP' && t.type === 'info')).toBe(true)
+      expect(tags[0]).toEqual({ text: 'HTTP', type: 'info' })
+      expect(tags[1].text).toBe('GET')
     })
 
-    it('无 testclass 时不添加 class 标签', async () => {
+    it('jdbc 处理器输出类型标签与 SQL 摘要标签', async () => {
+      const { procTags } = await createWithProcessors(
+        makeProcessor('pre', { testclass: 'jdbc', config: { sql: 'select 1' } }),
+      )
+      expect(procTags(0)).toEqual([
+        { text: 'JDBC', type: 'info' },
+        { text: 'SELECT', type: 'primary' },
+      ])
+    })
+
+    it('testclass 非 http/jdbc 时只输出摘要或空数组', async () => {
       const { procTags } = await createWithProcessors(makeProcessor('pre', { testclass: '' }))
-      const tags = procTags(0)
-      expect(tags.some((t) => t.text === 'HTTP')).toBe(false)
-    })
-
-    it('processorSummaryTag 返回非 null 时添加摘要标签', async () => {
-      mocks.processorSummaryTag.mockReturnValue({ text: 'GET', type: 'success' })
-      const { procTags } = await createWithProcessors(makeProcessor('pre'))
-      const tags = procTags(0)
-      expect(tags).toHaveLength(2)
-      expect(tags[1]).toEqual({ text: 'GET', type: 'success' })
-    })
-
-    it('processorSummaryTag 返回 null 时不添加摘要标签', async () => {
-      mocks.processorSummaryTag.mockReturnValue(null)
-      const { procTags } = await createWithProcessors(makeProcessor('pre'))
-      const tags = procTags(0)
-      expect(tags).toHaveLength(1)
+      expect(procTags(0)).toEqual([])
     })
 
     it('索引越界返回空数组', async () => {
@@ -483,19 +286,6 @@ describe('useSceneProcessors', () => {
       )
       selectProcessor(1)
       expect(selectedProcessorIdx.value).toBe(1)
-    })
-  })
-
-  describe('setProcessorType', () => {
-    it('更新处理器的 testclass', async () => {
-      const { setProcessorType, editProcessors } = await createWithProcessors(makeProcessor('pre'))
-      setProcessorType(0, 'jdbc')
-      expect(editProcessors.value[0].testclass).toBe('jdbc')
-    })
-
-    it('索引越界时不报错', async () => {
-      const { setProcessorType } = await createWithProcessors()
-      expect(() => setProcessorType(5, 'http')).not.toThrow()
     })
   })
 
@@ -542,14 +332,14 @@ describe('useSceneProcessors', () => {
 
   describe('procOnDragStart', () => {
     it('设置 procDrag 状态', () => {
-      const { procOnDragStart, procDrag } = useSceneProcessors(ref(null), ref([]), ref([]), ref('steps'))
+      const { procOnDragStart, procDrag } = useSceneProcessors(ref(null), ref('steps'))
       const e = { dataTransfer: { effectAllowed: '' } } as unknown as DragEvent
       procOnDragStart('pre', 0, e)
       expect(procDrag.value).toEqual({ type: 'pre', flat: 0 })
     })
 
     it('设置 dataTransfer.effectAllowed', () => {
-      const { procOnDragStart } = useSceneProcessors(ref(null), ref([]), ref([]), ref('steps'))
+      const { procOnDragStart } = useSceneProcessors(ref(null), ref('steps'))
       const dataTransfer = { effectAllowed: '' }
       const e = { dataTransfer } as unknown as DragEvent
       procOnDragStart('post', 1, e)
@@ -557,7 +347,7 @@ describe('useSceneProcessors', () => {
     })
 
     it('无 dataTransfer 时不报错', () => {
-      const { procOnDragStart } = useSceneProcessors(ref(null), ref([]), ref([]), ref('steps'))
+      const { procOnDragStart } = useSceneProcessors(ref(null), ref('steps'))
       const e = {} as unknown as DragEvent
       expect(() => procOnDragStart('pre', 0, e)).not.toThrow()
     })
@@ -565,7 +355,7 @@ describe('useSceneProcessors', () => {
 
   describe('procOnDragOver', () => {
     it('阻止默认行为并设置 dropEffect', () => {
-      const { procOnDragOver } = useSceneProcessors(ref(null), ref([]), ref([]), ref('steps'))
+      const { procOnDragOver } = useSceneProcessors(ref(null), ref('steps'))
       const dataTransfer = { dropEffect: '' }
       const e = { preventDefault: vi.fn(), dataTransfer } as unknown as DragEvent
       procOnDragOver(e)
@@ -576,7 +366,7 @@ describe('useSceneProcessors', () => {
 
   describe('procOnDrop', () => {
     it('无拖拽状态时返回', () => {
-      const { procOnDrop } = useSceneProcessors(ref(null), ref([]), ref([]), ref('steps'))
+      const { procOnDrop } = useSceneProcessors(ref(null), ref('steps'))
       expect(() => procOnDrop('pre', 0)).not.toThrow()
     })
 
@@ -655,7 +445,7 @@ describe('useSceneProcessors', () => {
     it('切换到 pre 区域时自动选中第一个 pre 处理器', async () => {
       const sceneSection = ref<'steps' | 'variables' | 'pre' | 'post'>('steps')
       const detail = ref<ApiSceneDetail | null>(null)
-      const { selectedProcessorIdx } = useSceneProcessors(detail, ref([]), ref([]), sceneSection)
+      const { selectedProcessorIdx } = useSceneProcessors(detail, sceneSection)
       detail.value = makeDetail([makeProcessor('pre'), makeProcessor('post')])
       await nextTick()
       sceneSection.value = 'pre'
@@ -666,7 +456,7 @@ describe('useSceneProcessors', () => {
     it('切换到 post 区域时自动选中第一个 post 处理器', async () => {
       const sceneSection = ref<'steps' | 'variables' | 'pre' | 'post'>('steps')
       const detail = ref<ApiSceneDetail | null>(null)
-      const { selectedProcessorIdx } = useSceneProcessors(detail, ref([]), ref([]), sceneSection)
+      const { selectedProcessorIdx } = useSceneProcessors(detail, sceneSection)
       detail.value = makeDetail([makeProcessor('pre'), makeProcessor('post')])
       await nextTick()
       sceneSection.value = 'post'
@@ -677,7 +467,7 @@ describe('useSceneProcessors', () => {
     it('区域无处理器时 selectedProcessorIdx 为 null', async () => {
       const sceneSection = ref<'steps' | 'variables' | 'pre' | 'post'>('steps')
       const detail = ref<ApiSceneDetail | null>(null)
-      const { selectedProcessorIdx } = useSceneProcessors(detail, ref([]), ref([]), sceneSection)
+      const { selectedProcessorIdx } = useSceneProcessors(detail, sceneSection)
       detail.value = makeDetail([makeProcessor('pre')])
       await nextTick()
       sceneSection.value = 'post'
@@ -688,7 +478,7 @@ describe('useSceneProcessors', () => {
     it('切换到 steps/variables 时不改变 selectedProcessorIdx', async () => {
       const sceneSection = ref<'steps' | 'variables' | 'pre' | 'post'>('steps')
       const detail = ref<ApiSceneDetail | null>(null)
-      const { selectedProcessorIdx } = useSceneProcessors(detail, ref([]), ref([]), sceneSection)
+      const { selectedProcessorIdx } = useSceneProcessors(detail, sceneSection)
       detail.value = makeDetail([makeProcessor('pre')])
       await nextTick()
       selectedProcessorIdx.value = 0
@@ -700,7 +490,7 @@ describe('useSceneProcessors', () => {
     it('当前选中已在目标区域内时保持不变', async () => {
       const sceneSection = ref<'steps' | 'variables' | 'pre' | 'post'>('pre')
       const detail = ref<ApiSceneDetail | null>(null)
-      const { selectedProcessorIdx } = useSceneProcessors(detail, ref([]), ref([]), sceneSection)
+      const { selectedProcessorIdx } = useSceneProcessors(detail, sceneSection)
       detail.value = makeDetail([makeProcessor('pre'), makeProcessor('pre')])
       await nextTick()
       selectedProcessorIdx.value = 1
