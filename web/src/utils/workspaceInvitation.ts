@@ -27,6 +27,10 @@ export function buildInvitationShareText(url: string, options: InvitationShareOp
   ].join('\n')
 }
 
+export function buildInviteUrl(token: string): string {
+  return `${window.location.origin}/join?token=${encodeURIComponent(token)}`
+}
+
 export function canCopyInvitation(invitation: InvitationListItem): boolean {
   return invitation.effectiveStatus === 'active' || invitation.effectiveStatus === 'exhausted'
 }

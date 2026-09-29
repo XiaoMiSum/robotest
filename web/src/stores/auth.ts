@@ -55,11 +55,17 @@ export const useAuthStore = defineStore('auth', () => {
     localStorage.removeItem(PROJECT_NAME_KEY)
   }
   const permissions = ref<string[]>([])
+  // 已完成过至少一次远端拉取：区分「确定无权限」与「权限还没回来」
+  const permissionsLoaded = ref(false)
+  let permissionsPending: Promise<void> | null = null
 
   // 页面刷新时权限仅存于内存已丢失，只要用户已恢复即重新拉取；
   // 纯系统管理员无 activeWorkspace，不能以其为前置条件，否则刷新后权限为空、菜单消失
   if (user.value) {
     loadPermissions()
+  } else {
+    // 没有远端拉取可等，否则依赖方的等待会永远停在未就绪
+    permissionsLoaded.value = true
   }
 
   const isLoggedIn = computed(() => !!getAccessToken() && !!user.value)
@@ -87,13 +93,28 @@ export const useAuthStore = defineStore('auth', () => {
     return permissions.value.includes(code)
   }
 
-  async function loadPermissions(): Promise<void> {
-    try {
-      const list = await fetchPermissions()
-      permissions.value = list
-    } catch {
-      permissions.value = []
-    }
+  function loadPermissions(): Promise<void> {
+    // 并发调用复用同一次在途拉取，让 whenPermissionsReady 能真正等到结果
+    if (permissionsPending) return permissionsPending
+    // 新一轮拉取期间标记未就绪，调用方应等就绪后再判定权限
+    permissionsLoaded.value = false
+    const pending = fetchPermissions()
+      .then((list) => {
+        permissions.value = list
+      })
+      .catch(() => {
+        permissions.value = []
+      })
+      .finally(() => {
+        permissionsLoaded.value = true
+        permissionsPending = null
+      })
+    permissionsPending = pending
+    return pending
+  }
+
+  function whenPermissionsReady(): Promise<void> {
+    return permissionsPending ?? Promise.resolve()
   }
 
   function setLogin(
@@ -186,6 +207,7 @@ export const useAuthStore = defineStore('auth', () => {
     activeProject,
     activeProjectName,
     permissions,
+    permissionsLoaded,
     isLoggedIn,
     username,
     avatarUrl,
@@ -197,6 +219,7 @@ export const useAuthStore = defineStore('auth', () => {
     hasWorkspaceAccess,
     hasPermission,
     loadPermissions,
+    whenPermissionsReady,
     setLogin,
     setActiveWorkspace,
     setActiveProject,
