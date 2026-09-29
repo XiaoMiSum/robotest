@@ -272,20 +272,15 @@
     </aside>
 
     <div class="split__main">
-      <div class="page-head">
-        <div>
-          <h1 class="page-head__title">测试场景</h1>
-        </div>
-        <div class="page-head__actions">
-          <button class="btn btn--primary" id="btn-new-scene"><span data-icon="plus"></span>新建场景</button>
-        </div>
-      </div>
-
-      <!-- 编辑器 Tab 条：全部场景（固定）+ 已打开的编排 Tab（可关闭） -->
+      <!-- 编辑器 Tab 条即页面首行（页面不设标题行）：全部场景（固定）+ 已打开的编排 Tab（可关闭），
+           右端固定 [+ 新建场景]，docs31 1.1 -->
       <div class="ws-tabs">
         <div class="ws-tab is-active" data-pane="list"><span>全部场景</span></div>
         <div class="ws-tab" data-name="下单成功主链路"><span>下单成功主链路</span><span class="ws-tab__close" data-close>×</span></div>
         <div class="ws-tab" data-name="支付回调重放"><span>支付回调重放</span><span class="ws-tab__close" data-close>×</span></div>
+        <div class="ws-tabs__actions">
+          <button class="btn btn--default btn--sm" id="btn-new-scene"><span data-icon="plus"></span>新建场景</button>
+        </div>
       </div>
 
       <div class="ws-pane" data-pane="list">
@@ -776,7 +771,7 @@
                           </div>
                           <div class="pane-list">
                             <div class="pane-row">
-                              <button class="switch is-on" title="启用"></button>
+                              <span class="checkbox checkbox--on" title="启用"></span>
                               <select class="select"><option>JSON 字段</option><option>响应头</option><option>正则匹配</option><option>完整响应体</option></select>
                               <input class="input" value="$.data.token" placeholder="表达式">
                               <input class="input" value="token" placeholder="变量名">
@@ -813,7 +808,7 @@
                           </div>
                           <div class="pane-list">
                             <div class="pane-row">
-                              <button class="switch is-on" title="启用"></button>
+                              <span class="checkbox checkbox--on" title="启用"></span>
                               <select class="select"><option>JSON 字段</option><option>响应头</option><option>正则匹配</option><option>完整响应体</option></select>
                               <input class="input" value="$.stock" placeholder="表达式">
                               <input class="input" value="stock" placeholder="变量名">
@@ -949,7 +944,7 @@
                           </div>
                           <div class="pane-list">
                             <div class="pane-row">
-                              <button class="switch is-on" title="启用"></button>
+                              <span class="checkbox checkbox--on" title="启用"></span>
                               <select class="select"><option>JSON 字段</option><option>响应头</option><option>正则匹配</option><option>完整响应体</option></select>
                               <input class="input" value="$.data.taskId" placeholder="表达式">
                               <input class="input" value="taskId" placeholder="变量名">
@@ -1218,7 +1213,7 @@
 
   /* 处理器表单内：提取器行与 SQL 参数行的增删（保持所在页签的计数口径） */
   var EXT_CARD_HTML =
-    '<button class="switch is-on" title="启用"></button>' +
+    '<span class="checkbox checkbox--on" title="启用"></span>' +
     '<select class="select"><option>JSON 字段</option><option>响应头</option><option>正则匹配</option><option>完整响应体</option></select>' +
     '<input class="input" placeholder="表达式">' +
     '<input class="input" placeholder="变量名">' +
@@ -1235,6 +1230,9 @@
 
   document.addEventListener('click', function (e) {
     if (!e.target.closest) return;
+    // 提取器行的启用就地生效，不必经由右侧表单头的开关
+    var box = e.target.closest('[data-proc-form] .pane-row .checkbox');
+    if (box) { box.classList.toggle('checkbox--on'); return; }
     var addExt = e.target.closest('[data-addext]');
     if (addExt) {
       var pane = addExt.closest('[data-epanel]');
@@ -1250,7 +1248,6 @@
         card.innerHTML = EXT_CARD_HTML;
       }
       list.appendChild(card);
-      bindSwitch(card.querySelector('.switch'));
       syncExtCount(addExt.closest('[data-etabs-root]'));
       rt.toast('已添加一项', {});
       return;
@@ -1341,21 +1338,13 @@
     var edStatus = editorPane.querySelector('.ed-status');
     var edPrio = editorPane.querySelector('.ed-prio');
 
-    // 头部动作区随激活 Tab 换级：编排态把列表级 [新建场景] 降为文字按钮，
-    // 主视觉权重让给编辑器操作条的 [运行场景][保存为草稿][发布]（方案 A2）
-    function setHeadScope(isEdit) {
-      var el = document.getElementById('btn-new-scene');
-      if (!el) return;
-      el.classList.toggle('btn--primary', !isEdit);
-      el.classList.toggle('btn--text', isEdit);
-    }
-
+    // 页面级动作（[+ 新建场景]）固定在页签条右端且恒为次级样式，
+    // 无需随激活 Tab 换级，主视觉权重自然留给编排页操作条的 [运行场景][保存为草稿][发布]
     function activate(tab) {
       tabsBar.querySelectorAll('.ws-tab').forEach(function (t) { t.classList.toggle('is-active', t === tab); });
       var isList = tab.getAttribute('data-pane') === 'list';
       listPane.hidden = !isList;
       editorPane.hidden = isList;
-      setHeadScope(!isList);
       if (isList) return;
       var isNew = tab.getAttribute('data-new') === '1';
       nameInput.value = isNew ? '' : (tab.getAttribute('data-name') || '');
@@ -1377,7 +1366,8 @@
         if (isNew) found.setAttribute('data-new', '1');
         found.innerHTML = '<span></span><span class="ws-tab__close" data-close>×</span>';
         found.firstElementChild.textContent = name;
-        tabsBar.appendChild(found);
+        // 插到右端动作区之前，保证动作恒在页签条最右
+        tabsBar.insertBefore(found, tabsBar.querySelector('.ws-tabs__actions'));
       }
       activate(found);
     }
@@ -1405,7 +1395,7 @@
       });
     });
 
-    // 头部 [+ 新建场景]：新建态 Tab（无发布状态 / 优先级）
+    // 页签条右端 [+ 新建场景]：新建态 Tab（无发布状态 / 优先级）
     document.getElementById('btn-new-scene').addEventListener('click', function () {
       openTab('新场景', true);
     });
