@@ -96,12 +96,12 @@
     color: #d4d4d4; background: #1e1e1e; border: 1px solid #333; border-radius: 6px; outline: none;
   }
 
-  /* 验证器 / 提取器卡片行 */
-  .pane-actions { display: flex; gap: var(--space-md); margin-bottom: var(--space-sm); }
-  .pane-card { border: 1px solid var(--n-200); border-radius: var(--radius-md); padding: 10px 12px; margin-bottom: var(--space-sm); background: var(--n-0); }
-  .pane-card__row { display: flex; align-items: center; gap: var(--space-sm); flex-wrap: wrap; }
-  .pane-card__row .select { width: 132px; height: 28px; font-size: var(--font-size-xs); }
-  .pane-card__row .input { flex: 1; min-width: 160px; height: 28px; font-size: var(--font-size-xs); }
+  /* 验证器 / 提取器行：行即容器，不再套卡片外框；操作入口靠右 */
+  .pane-actions { display: flex; justify-content: flex-end; gap: var(--space-md); margin-bottom: var(--space-sm); }
+  .pane-row { display: flex; align-items: center; gap: var(--space-sm); flex-wrap: wrap; padding: 8px 0; border-bottom: 1px solid var(--n-100); }
+  .pane-row:last-child { border-bottom: none; }
+  .pane-row .select { width: 132px; height: 28px; font-size: var(--font-size-xs); }
+  .pane-row .input { flex: 1; min-width: 160px; height: 28px; font-size: var(--font-size-xs); }
 
   /* 响应示例面板 */
   .resp-toolbar { display: flex; align-items: center; gap: var(--space-md); padding: 8px 12px; border-bottom: 1px solid var(--n-100); }
@@ -416,25 +416,21 @@
                     <span class="op-link" data-addcard="validators">+ 添加验证器</span>
                     <span class="op-link" data-ux-feedback="从公共组件引入为复制，得到独立副本，与源资产无关联">从公共组件获取</span>
                   </div>
-                  <div class="pane-card">
-                    <div class="pane-card__row">
-                      <span class="switch switch--on"></span>
-                      <select class="select"><option>响应 Body</option><option>响应头</option><option>状态码</option></select>
-                      <select class="select"><option>等于</option><option>包含</option><option>不为空</option></select>
-                      <input class="input" value="$.code">
-                      <input class="input" value="0">
-                      <span class="op-link op-link--danger" data-ux-undo=".pane-card">删除</span>
-                    </div>
+                  <div class="pane-row">
+                    <span class="checkbox checkbox--on"></span>
+                    <select class="select"><option>响应 Body</option><option>响应头</option><option>状态码</option></select>
+                    <select class="select"><option>等于</option><option>包含</option><option>不为空</option></select>
+                    <input class="input" value="$.code">
+                    <input class="input" value="0">
+                    <span class="op-link op-link--danger" data-ux-undo=".pane-row">删除</span>
                   </div>
-                  <div class="pane-card">
-                    <div class="pane-card__row">
-                      <span class="switch switch--on"></span>
-                      <select class="select"><option>状态码</option><option>响应 Body</option></select>
-                      <select class="select"><option>等于</option><option>大于</option></select>
-                      <input class="input" value="">
-                      <input class="input" value="200">
-                      <span class="op-link op-link--danger" data-ux-undo=".pane-card">删除</span>
-                    </div>
+                  <div class="pane-row">
+                    <span class="checkbox checkbox--on"></span>
+                    <select class="select"><option>状态码</option><option>响应 Body</option></select>
+                    <select class="select"><option>等于</option><option>大于</option></select>
+                    <input class="input" value="">
+                    <input class="input" value="200">
+                    <span class="op-link op-link--danger" data-ux-undo=".pane-row">删除</span>
                   </div>
                 </div>
 
@@ -444,14 +440,12 @@
                     <span class="op-link" data-addcard="extractors">+ 添加提取器</span>
                     <span class="op-link" data-ux-feedback="从公共组件引入为复制，得到独立副本，与源资产无关联">从公共组件获取</span>
                   </div>
-                  <div class="pane-card">
-                    <div class="pane-card__row">
-                      <span class="switch switch--on"></span>
-                      <select class="select"><option>响应 Body</option><option>响应头</option></select>
-                      <input class="input" value="$.data.orderId">
-                      <input class="input" value="orderId">
-                      <span class="op-link op-link--danger" data-ux-undo=".pane-card">删除</span>
-                    </div>
+                  <div class="pane-row">
+                    <span class="checkbox checkbox--on"></span>
+                    <select class="select"><option>响应 Body</option><option>响应头</option></select>
+                    <input class="input" value="$.data.orderId">
+                    <input class="input" value="orderId">
+                    <span class="op-link op-link--danger" data-ux-undo=".pane-row">删除</span>
                   </div>
                 </div>
               </div>
@@ -541,7 +535,7 @@ var rt = window.RTUX;
     if (e.target.closest('[data-ux-save]')) dirtyFlag.hidden = true;
   });
 
-  /* ---------------- 页签角标与行 / 卡片数量保持一致 ---------------- */
+  /* ---------------- 页签角标与行数量保持一致 ---------------- */
   var BADGE_KEYS = ['headers', 'query', 'validators', 'extractors'];
   function syncBadges() {
     BADGE_KEYS.forEach(function (key) {
@@ -549,7 +543,7 @@ var rt = window.RTUX;
       var panel = document.querySelector('[data-epanel="' + key + '"]');
       if (!badge || !panel) return;
       var nodes = (key === 'validators' || key === 'extractors')
-        ? panel.querySelectorAll('.pane-card')
+        ? panel.querySelectorAll('.pane-row')
         : panel.querySelectorAll('tbody tr');
       var n = 0;
       nodes.forEach(function (node) {
@@ -576,24 +570,25 @@ var rt = window.RTUX;
     });
   });
 
-  // 新增卡片（验证器 / 提取器）
+  // 新增行（验证器 / 提取器）
   document.querySelectorAll('[data-addcard]').forEach(function (btn) {
     btn.addEventListener('click', function () {
       var panel = document.querySelector('[data-epanel="' + btn.getAttribute('data-addcard') + '"]');
-      var last = panel.querySelector('.pane-card:last-of-type');
+      var rows = panel.querySelectorAll('.pane-row');
+      var last = rows[rows.length - 1];
       if (!last) return;
-      var card = last.cloneNode(true);
-      card.style.display = '';
-      card.querySelectorAll('input').forEach(function (input) { input.value = ''; });
-      panel.appendChild(card);
-      if (rt.bind) rt.bind(card);
+      var row = last.cloneNode(true);
+      row.style.display = '';
+      row.querySelectorAll('input').forEach(function (input) { input.value = ''; });
+      panel.appendChild(row);
+      if (rt.bind) rt.bind(row);
       syncBadges();
       markDirty();
       rt.toast('已添加一项', {});
     });
   });
 
-  // 行 / 卡片删除与撤销后同步角标
+  // 行删除与撤销后同步角标
   document.addEventListener('ux:remove', function () { syncBadges(); markDirty(); });
   document.addEventListener('ux:restore', function () { syncBadges(); });
 
