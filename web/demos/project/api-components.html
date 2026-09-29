@@ -294,18 +294,11 @@
                 </div>
 
                 <span class="cp-tabs" data-reqtabs>
-                  <button class="is-active" data-reqtab="headers">请求头<i class="cp-badge" id="bd-headers"></i></button>
                   <button data-reqtab="query">Query 参数<i class="cp-badge" id="bd-query"></i></button>
                   <button data-reqtab="body">请求体<i class="cp-badge" id="bd-body"></i></button>
+                  <button class="is-active" data-reqtab="headers">请求头<i class="cp-badge" id="bd-headers"></i></button>
                   <button data-reqtab="ext">提取器<i class="cp-badge" id="bd-ext"></i></button>
                 </span>
-
-                <div data-reqpane="headers">
-                  <table class="table">
-                    <thead><tr><th style="width:36px"></th><th style="width:38%">Header</th><th>Value</th><th style="width:56px"></th></tr></thead>
-                    <tbody id="f-headers" data-kp="Header" data-vp="Value"></tbody>
-                  </table>
-                </div>
 
                 <div data-reqpane="query" hidden>
                   <table class="table">
@@ -337,6 +330,13 @@
                   <div data-bodypane="raw" hidden>
                     <textarea class="code-view" id="f-body" rows="8" spellcheck="false" placeholder="原始文本（支持变量引用）"></textarea>
                   </div>
+                </div>
+
+                <div data-reqpane="headers">
+                  <table class="table">
+                    <thead><tr><th style="width:36px"></th><th style="width:38%">Header</th><th>Value</th><th style="width:56px"></th></tr></thead>
+                    <tbody id="f-headers" data-kp="Header" data-vp="Value"></tbody>
+                  </table>
                 </div>
 
                 <div data-reqpane="ext" hidden>
