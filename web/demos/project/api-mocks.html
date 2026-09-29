@@ -16,7 +16,8 @@
 
   /* 新建面板：对应 MockEditorDrawer（宽 640px） */
   .dialog { width: 640px; }
-  .dialog .dialog__body { padding: 20px 24px; }
+  /* 长表单吃满可用高度、footer 留在滚动区外：base 的 60vh 滚动行程过碎 */
+  .dialog .dialog__body { padding: 20px 24px; max-height: calc(100vh - 220px); }
   .dialog .field { margin-bottom: 16px; }
 
   /* 分区标题：对应抽屉内左对齐分隔线 */
@@ -212,6 +213,8 @@
           <label class="field__label" for="mk-path">请求路径<span class="req">*</span></label>
           <input class="input mono" id="mk-path" maxlength="500" value="/" placeholder="/api/users">
           <div class="field__error" id="mk-path-err" hidden>请输入请求路径</div>
+          <!-- 与已有启用规则冲突就地提示，取代让用户隔遮罩比对背后列表 -->
+          <div class="field__error" id="mk-conflict" hidden></div>
         </div>
       </div>
 
@@ -294,6 +297,8 @@
   var pathInput = document.getElementById('mk-path');
   var statusInput = document.getElementById('mk-status');
   var delayInput = document.getElementById('mk-delay');
+  var methodInput = document.getElementById('mk-method');
+  var conflictEl = document.getElementById('mk-conflict');
 
   function esc(s) {
     return String(s)
@@ -367,6 +372,7 @@
     clearError(pathInput, 'mk-path-err');
     clearError(statusInput, 'mk-status-err');
     delayInput.classList.remove('input--error');
+    conflictEl.hidden = true;
   }
 
   function openEditor() {
@@ -395,6 +401,38 @@
     input.focus();
     window.RTUX.toast(msg, { type: 'warning' });
     return false;
+  }
+
+  function ruleName(tr) {
+    var cell = tr.querySelector('.cell-main');
+    if (!cell) return '';
+    var clone = cell.cloneNode(true);
+    Array.prototype.forEach.call(clone.querySelectorAll('.cell-sub'), function (sub) { sub.remove(); });
+    return clone.textContent.trim();
+  }
+
+  /* 后端按「方法 + 路径 + 已启用」拒绝重复规则（错误码 1000017202），这里提前就地告知撞了哪条 */
+  function findConflicts() {
+    var method = methodInput.value;
+    var path = pathInput.value.trim();
+    if (!path) return [];
+    var hits = [];
+    Array.prototype.forEach.call(document.querySelectorAll('.table tbody tr'), function (tr) {
+      if (tr.style.display === 'none') return;
+      var sw = tr.querySelector('.switch');
+      var m = tr.querySelector('td:nth-child(3) .chip');
+      var p = tr.querySelector('td:nth-child(4)');
+      if (!sw || !sw.classList.contains('switch--on') || !m || !p) return;
+      if (m.textContent.trim() === method && p.textContent.trim() === path) hits.push(ruleName(tr) || path);
+    });
+    return hits;
+  }
+
+  function syncConflict() {
+    var hits = findConflicts();
+    conflictEl.textContent = hits.length ? '该路径与方法已存在启用的 Mock：' + hits.join('、') : '';
+    conflictEl.hidden = !hits.length;
+    return hits;
   }
 
   /* 新建规则按组内最大优先级 +1 自动分配，新行排到列表首行 */
@@ -495,6 +533,10 @@
     pair[0].addEventListener('input', function () { clearError(pair[0], pair[1]); });
   });
 
+  // 路径 / 方法一变就复核冲突，提示随输入收敛，不必等保存才报错
+  pathInput.addEventListener('input', syncConflict);
+  methodInput.addEventListener('change', syncConflict);
+
   saveBtn.addEventListener('click', function () {
     if (saveBtn.classList.contains('is-saving')) return;
 
@@ -508,6 +550,13 @@
     var status = parseInt(statusInput.value, 10);
     if (isNaN(status) || status < 100 || status > 599) {
       return showError(statusInput, 'mk-status-err', '状态码需为 100-599 的 HTTP 状态码');
+    }
+
+    // 撞车由后端拒绝，这里按同一口径拦截，避免"填完才失败"
+    if (syncConflict().length) {
+      pathInput.focus();
+      window.RTUX.toast('该路径与方法已存在启用的 Mock，请调整路径', { type: 'danger' });
+      return false;
     }
 
     // 越界值按输入框 min/max 钳制，口径同 el-input-number
