@@ -284,6 +284,81 @@ describe('useEnvironmentDetailState', () => {
     })
   })
 
+  describe('dirty 未保存标记', () => {
+    it('detail 未加载时为 false', () => {
+      const { dirty } = useEnvironmentDetailState({ environmentId: 'env-1', canEdit: true }, vi.fn())
+      expect(dirty.value).toBe(false)
+    })
+
+    it('加载完成后为 false', async () => {
+      mocks.fetchEnvironmentDetail.mockResolvedValue(makeDetail({
+        httpConfigs: [{ name: 'cfg1', refName: 'ref1', baseUrl: 'http://a.com', headers: [], isDefault: false }],
+      }))
+      const state = useEnvironmentDetailState({ environmentId: 'env-1', canEdit: true }, vi.fn())
+      await state.load()
+      expect(state.dirty.value).toBe(false)
+    })
+
+    it('修改 HTTP 配置后为 true', async () => {
+      mocks.fetchEnvironmentDetail.mockResolvedValue(makeDetail({
+        httpConfigs: [{ name: 'cfg1', refName: 'ref1', baseUrl: 'http://a.com', headers: [], isDefault: false }],
+      }))
+      const state = useEnvironmentDetailState({ environmentId: 'env-1', canEdit: true }, vi.fn())
+      await state.load()
+      state.configForms.value[0].name = '改名'
+      expect(state.dirty.value).toBe(true)
+    })
+
+    it('修改数据源后为 true', async () => {
+      mocks.fetchEnvironmentDetail.mockResolvedValue(makeDetail({
+        dataSources: [{ name: 'ds1', refName: 'db1', driver: 'mysql', url: 'jdbc:mysql://localhost' }],
+      }))
+      const state = useEnvironmentDetailState({ environmentId: 'env-1', canEdit: true }, vi.fn())
+      await state.load()
+      state.dsForms.value[0].url = 'jdbc:mysql://other:3306/db'
+      expect(state.dirty.value).toBe(true)
+    })
+
+    it('新增变量行后为 true', async () => {
+      mocks.fetchEnvironmentDetail.mockResolvedValue(makeDetail())
+      const state = useEnvironmentDetailState({ environmentId: 'env-1', canEdit: true }, vi.fn())
+      await state.load()
+      state.variableRows.value.push({ id: 'v1', key: 'A', value: '1', description: '', enabled: true })
+      expect(state.dirty.value).toBe(true)
+    })
+
+    it('重命名处理器后为 true', async () => {
+      mocks.fetchEnvironmentDetail.mockResolvedValue(makeDetail({
+        processors: [{ id: 'p1', processorType: 'preprocessor', name: 'proc1', config: {}, enabled: true, sortOrder: 1 }],
+      }))
+      const state = useEnvironmentDetailState({ environmentId: 'env-1', canEdit: true }, vi.fn())
+      await state.load()
+      state.processorRows.value[0].name = 'proc2'
+      expect(state.dirty.value).toBe(true)
+    })
+
+    it('saveAll 成功后回到 false', async () => {
+      mocks.fetchEnvironmentDetail.mockResolvedValue(makeDetail())
+      mocks.updateEnvironment.mockResolvedValue(true)
+      const state = useEnvironmentDetailState({ environmentId: 'env-1', canEdit: true }, vi.fn())
+      await state.load()
+      state.variableRows.value.push({ id: 'v1', key: 'A', value: '1', description: '', enabled: true })
+      expect(state.dirty.value).toBe(true)
+      await state.saveAll()
+      expect(state.dirty.value).toBe(false)
+    })
+
+    it('重新 load 后回到 false', async () => {
+      mocks.fetchEnvironmentDetail.mockResolvedValue(makeDetail())
+      const state = useEnvironmentDetailState({ environmentId: 'env-1', canEdit: true }, vi.fn())
+      await state.load()
+      state.variableRows.value.push({ id: 'v1', key: 'A', value: '1', description: '', enabled: true })
+      expect(state.dirty.value).toBe(true)
+      await state.load()
+      expect(state.dirty.value).toBe(false)
+    })
+  })
+
   describe('activeTab watcher', () => {
     it('切换到 http 时 activeProcId 被清空', async () => {
       mocks.fetchEnvironmentDetail.mockResolvedValue(makeDetail())

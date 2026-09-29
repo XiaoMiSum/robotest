@@ -14,6 +14,8 @@ const props = defineProps<{
   disabled?: boolean
   /** 隐藏启用勾选列：条目无启用语义时（如环境/场景变量）避免误导，缺省展示 */
   showEnabled?: boolean
+  /** 表头显示 [＋ 新增] 并关闭末行自动补行（环境变量编辑器由按钮显式建行，见 docs35） */
+  headerAdd?: boolean
 }>()
 
 const withEnabled = computed(() => props.showEnabled !== false)
@@ -30,6 +32,7 @@ function rowFilled(row: ApiDebugKeyValue): boolean {
 
 /** 保证存在一行可编辑行：清掉多余尾部空行，末行非空时自动追加一行（与 Postman 一致） */
 function ensureTrailingRow() {
+  if (props.headerAdd) return
   const rows = entries.value
   while (rows.length > 1 && !rowFilled(rows[rows.length - 1])) {
     rows.pop()
@@ -51,8 +54,14 @@ function removeRow(index: number) {
   notify()
 }
 
+function addRow() {
+  if (props.disabled) return
+  entries.value.push(emptyRow())
+  emit('change')
+}
+
 onMounted(() => {
-  if (!props.disabled && !entries.value.length) {
+  if (!props.disabled && !props.headerAdd && !entries.value.length) {
     entries.value.push(emptyRow())
   }
 })
@@ -62,7 +71,7 @@ onMounted(() => {
 watch(
   () => entries.value,
   () => {
-    if (props.disabled) return
+    if (props.disabled || props.headerAdd) return
     ensureTrailingRow()
   },
 )
@@ -77,7 +86,9 @@ watch(
           <th>Value</th>
           <th v-if="props.showDescription">Description</th>
           <th v-if="withEnabled" class="kv-table__col-enable" />
-          <th class="kv-table__col-op" />
+          <th class="kv-table__col-op" :class="{ 'kv-table__col-op--add': props.headerAdd }">
+            <el-button v-if="props.headerAdd && !props.disabled" link type="primary" @click="addRow">＋ 新增</el-button>
+          </th>
         </tr>
       </thead>
       <tbody>
@@ -158,6 +169,11 @@ watch(
     width: 30px;
     text-align: center;
     vertical-align: middle;
+
+    &--add {
+      width: auto;
+      text-align: right;
+    }
   }
 
   &__row {

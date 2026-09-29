@@ -1,4 +1,4 @@
-import { ref, computed, type Ref } from 'vue'
+import { ref, computed, watch, type Ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { testHttpConfig, testDataSourceConfig } from '@/services/project/api-testing/environment'
 import { createEmptyHttpConfig, DRIVER_OPTIONS, resolveEnvironmentError } from '@/composables/project/api-testing/environment/environmentsModel'
@@ -11,6 +11,12 @@ export interface HttpConfigForm extends ApiHttpConfigPayload {
 
 export interface DsForm extends ApiDataSourcePayload {
   id: string
+}
+
+/** 连接测试内联结果：与 Toast 并存，便于对照表单持续展示（docs34 §1.5） */
+export interface ConnResult {
+  ok: boolean
+  text: string
 }
 
 function cloneHeaders(source: ApiHttpConfigPayload): ApiHeaderItem[] {
@@ -42,18 +48,31 @@ export function useEnvironmentHttpConfig(configForms: Ref<HttpConfigForm[]>, loc
   }
 
   const testingHttpId = ref('')
+  const httpConnResult = ref<ConnResult | null>(null)
+  // 切换配置即失去结果所对应的上下文，避免残留上一条的结论
+  watch(activeConfigId, () => { httpConnResult.value = null })
+
   async function runHttpTest(form: HttpConfigForm, environmentId?: string) {
     if (!environmentId) { ElMessage.warning('环境ID缺失'); return }
     if (!form.baseUrl?.trim()) { ElMessage.warning('请先填写 Base URL 再测试连接'); return }
     testingHttpId.value = form.id
+    httpConnResult.value = null
     try {
       const result = await testHttpConfig(environmentId, { baseUrl: form.baseUrl.trim(), refName: form.refName })
-      if (result.success) ElMessage.success(`连接成功：状态码 ${result.statusCode ?? '-'}，耗时 ${result.durationMs ?? '-'}ms`)
-      else ElMessage.error(result.message || '连接失败')
-    } catch (err) { ElMessage.error(resolveEnvironmentError(err)) } finally { testingHttpId.value = '' }
+      const text = result.success
+        ? `连接成功：状态码 ${result.statusCode ?? '-'}，耗时 ${result.durationMs ?? '-'}ms`
+        : result.message || '连接失败'
+      httpConnResult.value = { ok: result.success, text }
+      if (result.success) ElMessage.success(text)
+      else ElMessage.error(text)
+    } catch (err) {
+      const text = resolveEnvironmentError(err)
+      httpConnResult.value = { ok: false, text }
+      ElMessage.error(text)
+    } finally { testingHttpId.value = '' }
   }
 
-  return { activeConfigId, activeConfig, orderedConfigForms, selectConfig, addHttpConfig, removeHttpConfig, testingHttpId, runHttpTest }
+  return { activeConfigId, activeConfig, orderedConfigForms, selectConfig, addHttpConfig, removeHttpConfig, testingHttpId, runHttpTest, httpConnResult }
 }
 
 /**
@@ -86,16 +105,29 @@ export function useEnvironmentDatasource(dsForms: Ref<DsForm[]>, localId: () => 
   }
 
   const testingDsId = ref('')
+  const dsConnResult = ref<ConnResult | null>(null)
+  // 切换数据源即失去结果所对应的上下文，避免残留上一条的结论
+  watch(activeDsId, () => { dsConnResult.value = null })
+
   async function runDsTest(form: DsForm, environmentId?: string) {
     if (!environmentId) { ElMessage.warning('环境ID缺失'); return }
     if (!form.url?.trim()) { ElMessage.warning('请先填写 URL 再测试连接'); return }
     testingDsId.value = form.id
+    dsConnResult.value = null
     try {
       const result = await testDataSourceConfig(environmentId, { driver: form.driver, url: form.url.trim(), connectionProperties: form.connectionProperties })
-      if (result.success) ElMessage.success(`连接成功${result.databaseVersion ? `：${result.databaseVersion}` : ''}`)
-      else ElMessage.error(result.message || '连接失败')
-    } catch (err) { ElMessage.error(resolveEnvironmentError(err)) } finally { testingDsId.value = '' }
+      const text = result.success
+        ? `连接成功${result.databaseVersion ? `：${result.databaseVersion}` : ''}`
+        : result.message || '连接失败'
+      dsConnResult.value = { ok: result.success, text }
+      if (result.success) ElMessage.success(text)
+      else ElMessage.error(text)
+    } catch (err) {
+      const text = resolveEnvironmentError(err)
+      dsConnResult.value = { ok: false, text }
+      ElMessage.error(text)
+    } finally { testingDsId.value = '' }
   }
 
-  return { activeDsId, activeDs, orderedDsForms, selectDs, selectedDsDriverOption, handleDsDriverChange, addDataSource, removeDataSource, testingDsId, runDsTest }
+  return { activeDsId, activeDs, orderedDsForms, selectDs, selectedDsDriverOption, handleDsDriverChange, addDataSource, removeDataSource, testingDsId, runDsTest, dsConnResult }
 }

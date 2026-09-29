@@ -37,6 +37,8 @@ export function useEnvironmentDetailState(
   const variableRows = ref<VariableRow[]>([])
   const processorRows = ref<ApiProcessor[]>([])
   const activeTab = ref<'http' | 'variables' | 'datasources' | 'preprocessors' | 'postprocessors'>('http')
+  // 以聚合载荷快照判定未保存：五处编辑口径不一，逐字段比对易漏（docs34 §1.6）
+  const baselinePayload = ref('')
 
   let idSeq = 0
   function nextLocalId(): string { idSeq += 1; return `local-${idSeq}` }
@@ -62,10 +64,17 @@ export function useEnvironmentDetailState(
       id: nextLocalId(),
       config: isRecord(processor.config) ? processor.config : {},
     }))
+    baselinePayload.value = JSON.stringify(buildAggregatePayload())
   }
 
-  const { activeConfigId, activeConfig, orderedConfigForms, selectConfig, addHttpConfig, removeHttpConfig, testingHttpId, runHttpTest } = useEnvironmentHttpConfig(configForms, nextLocalId)
-  const { activeDsId, activeDs, orderedDsForms, selectDs, selectedDsDriverOption, handleDsDriverChange, addDataSource, removeDataSource, testingDsId, runDsTest } = useEnvironmentDatasource(dsForms, nextLocalId)
+  const {
+    activeConfigId, activeConfig, orderedConfigForms, selectConfig, addHttpConfig, removeHttpConfig,
+    testingHttpId, runHttpTest, httpConnResult,
+  } = useEnvironmentHttpConfig(configForms, nextLocalId)
+  const {
+    activeDsId, activeDs, orderedDsForms, selectDs, selectedDsDriverOption, handleDsDriverChange,
+    addDataSource, removeDataSource, testingDsId, runDsTest, dsConnResult,
+  } = useEnvironmentDatasource(dsForms, nextLocalId)
 
   const {
     activeProcId, selectedProcessor, preProcCount, postProcCount,
@@ -75,6 +84,11 @@ export function useEnvironmentDetailState(
   } = useEnvironmentProcessors(processorRows, orderedConfigForms, orderedDsForms, nextLocalId, nextProcSortOrder)
 
   const variableCount = computed(() => variableRows.value.filter((row) => row.key.trim()).length)
+
+  const dirty = computed(() => {
+    if (!detail.value) return false
+    return JSON.stringify(buildAggregatePayload()) !== baselinePayload.value
+  })
 
   watch([selectedProcessor, orderedConfigForms, orderedDsForms], ([processor]) => {
     applyDefaultProcRef(processor)
@@ -273,6 +287,7 @@ export function useEnvironmentDetailState(
     saving.value = true
     try {
       await updateEnvironment(props.environmentId, buildAggregatePayload())
+      baselinePayload.value = JSON.stringify(buildAggregatePayload())
       ElMessage.success('已保存')
       emit('changed')
     } catch (err) {
@@ -283,9 +298,9 @@ export function useEnvironmentDetailState(
   }
 
   return {
-    loading, loadError, detail, saving, configForms, dsForms, variableRows, processorRows, activeTab,
-    activeConfigId, activeConfig, orderedConfigForms, selectConfig, addHttpConfig, removeHttpConfig, testingHttpId, runHttpTest,
-    activeDsId, activeDs, orderedDsForms, selectDs, selectedDsDriverOption, handleDsDriverChange, addDataSource, removeDataSource, testingDsId, runDsTest,
+    loading, loadError, detail, saving, dirty, configForms, dsForms, variableRows, processorRows, activeTab,
+    activeConfigId, activeConfig, orderedConfigForms, selectConfig, addHttpConfig, removeHttpConfig, testingHttpId, runHttpTest, httpConnResult,
+    activeDsId, activeDs, orderedDsForms, selectDs, selectedDsDriverOption, handleDsDriverChange, addDataSource, removeDataSource, testingDsId, runDsTest, dsConnResult,
     activeProcId, selectedProcessor, preProcCount, postProcCount,
     procList, procElement, selectProcessor, addProcessor, removeProcessor,
     moveProcessor, copyProcessor, procTestclass, procHttpRefOptions, procDsRefOptions,
