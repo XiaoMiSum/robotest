@@ -129,3 +129,54 @@ describe('auth store 活动上下文', () => {
     expect(sessionStorage.getItem('robotest_access_token')).toBeNull()
   })
 })
+
+describe('auth store 权限就绪状态', () => {
+  it('没有远端拉取可等时立即就绪', async () => {
+    const auth = useAuthStore()
+
+    expect(auth.permissionsLoaded).toBe(true)
+    await expect(auth.whenPermissionsReady()).resolves.toBeUndefined()
+  })
+
+  it('whenPermissionsReady 等待在途拉取完成后回填权限', async () => {
+    let release!: (value: string[]) => void
+    mocks.fetchPermissions.mockReturnValue(
+      new Promise<string[]>((resolve) => {
+        release = resolve
+      }),
+    )
+    const auth = useAuthStore()
+
+    const loading = auth.loadPermissions()
+    const ready = auth.whenPermissionsReady()
+
+    expect(auth.permissionsLoaded).toBe(false)
+    release(['ws-invitation:manage'])
+    await Promise.all([loading, ready])
+
+    expect(auth.permissionsLoaded).toBe(true)
+    expect(auth.permissions).toEqual(['ws-invitation:manage'])
+    // 已完成过一次拉取后再次等待立即返回，不再阻塞调用方
+    await expect(auth.whenPermissionsReady()).resolves.toBeUndefined()
+  })
+
+  it('并发调用复用同一次在途拉取', async () => {
+    const auth = useAuthStore()
+
+    void auth.loadPermissions()
+    void auth.loadPermissions()
+    await auth.whenPermissionsReady()
+
+    expect(mocks.fetchPermissions).toHaveBeenCalledTimes(1)
+  })
+
+  it('权限拉取失败同样视为已就绪', async () => {
+    mocks.fetchPermissions.mockRejectedValue(new Error('network down'))
+    const auth = useAuthStore()
+
+    await auth.loadPermissions()
+
+    expect(auth.permissionsLoaded).toBe(true)
+    expect(auth.permissions).toEqual([])
+  })
+})

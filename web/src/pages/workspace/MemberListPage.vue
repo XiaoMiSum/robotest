@@ -1,430 +1,101 @@
 <script setup lang="ts">
-import {
-  type ComponentPublicInstance,
-  computed,
-  nextTick,
-  onBeforeUnmount,
-  onMounted,
-  reactive,
-  ref,
-} from 'vue'
-import { useRouter } from 'vue-router'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import { CopyDocument, Link, Plus, Search } from '@element-plus/icons-vue'
+import { computed, onBeforeUnmount, onMounted } from 'vue'
+import { Link, Plus } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/stores/auth'
-import {
-  addMembers,
-  createInvitation,
-  fetchInvitationCopyLink,
-  fetchInvitations,
-  fetchMemberCandidates,
-  fetchMembers,
-  fetchWorkspaceRoles,
-  removeMember,
-  revokeInvitation,
-  updateMemberRole,
-} from '@/services/workspace'
-import type { InvitationListItem, UserSimple, WorkspaceMember } from '@/types'
-import { WORKSPACE_ROLE, workspaceRoleLabel } from '@/utils/workspaceRole'
-import {
-  buildInvitationShareText,
-  canCopyInvitation,
-  canExpireInvitation,
-  invitationStatusMeta,
-} from '@/utils/workspaceInvitation'
-import { formatDateTime } from '@/utils/format'
+import MemberListPanel from '@/components/workspace/MemberListPanel.vue'
+import InvitationListPanel from '@/components/workspace/InvitationListPanel.vue'
+import MemberInviteDialog from '@/components/workspace/MemberInviteDialog.vue'
+import InvitationCreateDialog from '@/components/workspace/InvitationCreateDialog.vue'
+import InvitationLinkDialog from '@/components/workspace/InvitationLinkDialog.vue'
+import { useMemberList } from '@/composables/workspace/useMemberList'
+import { useInvitationList } from '@/composables/workspace/useInvitationList'
+import { useMemberInvite } from '@/composables/workspace/useMemberInvite'
+import { useInvitationCreate } from '@/composables/workspace/useInvitationCreate'
 
-const SEARCH_DEBOUNCE_MS = 300
-
-const router = useRouter()
 const authStore = useAuthStore()
-
 const canManageMember = computed(() => authStore.hasPermission('ws-member:manage'))
-const canManageInvitation = computed(() => authStore.hasPermission('ws-invitation:manage'))
-const currentUserId = computed(() => authStore.user?.id ?? '')
-const activeTab = ref('members')
 
-const roleOptions = ref<{ value: string; label: string }[]>([])
+const {
+  currentUserId,
+  roleOptions,
+  members,
+  membersLoading,
+  membersLoadError,
+  memberTotal,
+  memberQuery,
+  editingUserId,
+  loadRoleOptions,
+  loadMembers,
+  handleMemberSearchInput,
+  handleMemberSearchClear,
+  handleRoleFilterChange,
+  handleMemberPageChange,
+  startEditRole,
+  handleRoleVisibleChange,
+  submitRoleChange,
+  handleRemoveMember,
+  dispose: disposeMemberList,
+} = useMemberList()
 
-async function loadRoleOptions() {
-  try {
-    const list = await fetchWorkspaceRoles()
-    roleOptions.value = list
-      .filter((role) => !role.isGroup)
-      .map((role) => ({ value: role.id, label: role.name }))
-  } catch {
-    roleOptions.value = []
-  }
-}
+const {
+  canManageInvitation,
+  invitations,
+  invitationsLoading,
+  invitationsLoadError,
+  invitationTotal,
+  invQuery,
+  loadInvitations,
+  handleInvitationPageChange,
+  copyingInvitationId,
+  copyInvitation,
+  copyingLatestInvitation,
+  handleCopyLatestInvitation,
+  revokingInvitationId,
+  handleExpireInvitation,
+  dispose: disposeInvitationList,
+} = useInvitationList()
 
-function resolveWorkspaceRoleLabel(roleId: string): string {
-  const roleName = roleOptions.value.find((role) => role.value === roleId)?.label
-  return workspaceRoleLabel(roleId, roleName)
-}
-
-function isWorkspaceAdminRole(roleId: string): boolean {
-  return roleId === WORKSPACE_ROLE.ADMIN
-}
-
-const members = ref<WorkspaceMember[]>([])
-const membersLoading = ref(false)
-const memberTotal = ref(0)
-const memberQuery = reactive({ keyword: '', workspaceRole: '', pageNo: 1, pageSize: 20 })
-let memberSearchTimer: ReturnType<typeof setTimeout> | null = null
-let memberRequestId = 0
-
-function cancelMemberSearch(): void {
-  if (memberSearchTimer !== null) {
-    clearTimeout(memberSearchTimer)
-    memberSearchTimer = null
-  }
-}
-
-async function loadMembers(): Promise<void> {
-  const requestId = ++memberRequestId
-  membersLoading.value = true
-  try {
-    const page = await fetchMembers({
-      keyword: memberQuery.keyword.trim() || undefined,
-      workspaceRole: memberQuery.workspaceRole || undefined,
-      pageNo: memberQuery.pageNo,
-      pageSize: memberQuery.pageSize,
-    })
-    if (requestId !== memberRequestId) return
-    members.value = page.list
-    memberTotal.value = page.total
-  } catch (err) {
-    if (requestId !== memberRequestId) return
-    ElMessage.error(err instanceof Error ? err.message : '加载成员列表失败')
-  } finally {
-    if (requestId === memberRequestId) {
-      membersLoading.value = false
-    }
-  }
-}
-
-function handleMemberSearchInput(): void {
-  cancelMemberSearch()
-  memberQuery.pageNo = 1
-  memberSearchTimer = setTimeout(() => {
-    memberSearchTimer = null
-    void loadMembers()
-  }, SEARCH_DEBOUNCE_MS)
-}
-
-function handleMemberSearchClear(): void {
-  cancelMemberSearch()
-  memberQuery.pageNo = 1
+const {
+  addDialogVisible,
+  addSubmitting,
+  userSearchLoading,
+  userOptions,
+  selectedUserIds,
+  openAddDialog,
+  handleSelectedUsersChange,
+  searchUsers,
+  submitAddMembers,
+  dispose: disposeMemberInvite,
+} = useMemberInvite(() => {
   void loadMembers()
-}
+})
 
-function handleRoleFilterChange(): void {
-  cancelMemberSearch()
-  memberQuery.pageNo = 1
-  void loadMembers()
-}
-
-const editingUserId = ref('')
-const roleSelectRef = ref<ComponentPublicInstance>()
-
-async function startEditRole(userId: string): Promise<void> {
-  editingUserId.value = userId
-  await nextTick()
-  const select = roleSelectRef.value as unknown as { focus?: () => void } | undefined
-  select?.focus?.()
-}
-
-async function handleRoleChange(member: WorkspaceMember, nextRoleId: string): Promise<void> {
-  try {
-    await updateMemberRole(member.userId, nextRoleId)
-    member.workspaceRole = nextRoleId
-    ElMessage.success('角色已更新')
-  } catch (err) {
-    ElMessage.error(err instanceof Error ? err.message : '更新角色失败')
-    void loadMembers()
-  }
-}
-
-async function submitRoleChange(member: WorkspaceMember, nextRoleId: string): Promise<void> {
-  editingUserId.value = ''
-  await handleRoleChange(member, nextRoleId)
-}
-
-function handleRoleVisibleChange(visible: boolean): void {
-  if (!visible) editingUserId.value = ''
-}
-
-async function handleRemoveMember(member: WorkspaceMember): Promise<void> {
-  const isSelf = member.userId === currentUserId.value
-  const message = isSelf
-    ? '确定退出该工作空间？退出后将无法访问此空间的资源。'
-    : `确定要移除成员「${member.name || member.username}」吗？`
-  try {
-    await ElMessageBox.confirm(message, isSelf ? '退出工作空间' : '确认移除', {
-      type: 'warning',
-    })
-  } catch {
-    return
-  }
-
-  try {
-    await removeMember(member.userId)
-    ElMessage.success(isSelf ? '已退出工作空间' : '已移除')
-    if (isSelf) {
-      authStore.setActiveWorkspace(null)
-      await router.push('/workspaces')
-    } else {
-      void loadMembers()
-    }
-  } catch (err) {
-    ElMessage.error(err instanceof Error ? err.message : '移除失败')
-  }
-}
-
-const addDialogVisible = ref(false)
-const addSubmitting = ref(false)
-const userSearchLoading = ref(false)
-const userOptions = ref<UserSimple[]>([])
-const selectedUserIds = ref<string[]>([])
-let userSearchTimer: ReturnType<typeof setTimeout> | null = null
-let userSearchRequestId = 0
-
-function openAddDialog(): void {
-  selectedUserIds.value = []
-  userOptions.value = []
-  addDialogVisible.value = true
-}
-
-function cancelUserSearch(): void {
-  if (userSearchTimer !== null) {
-    clearTimeout(userSearchTimer)
-    userSearchTimer = null
-  }
-}
-
-function searchUsers(keyword: string): void {
-  cancelUserSearch()
-  const requestId = ++userSearchRequestId
-  const normalizedKeyword = keyword.trim()
-  if (!normalizedKeyword) {
-    userOptions.value = []
-    userSearchLoading.value = false
-    return
-  }
-
-  userSearchLoading.value = true
-  userSearchTimer = setTimeout(async () => {
-    userSearchTimer = null
-    try {
-      const users = await fetchMemberCandidates(normalizedKeyword)
-      if (requestId === userSearchRequestId) {
-        userOptions.value = users
-      }
-    } catch {
-      if (requestId === userSearchRequestId) {
-        userOptions.value = []
-      }
-    } finally {
-      if (requestId === userSearchRequestId) {
-        userSearchLoading.value = false
-      }
-    }
-  }, SEARCH_DEBOUNCE_MS)
-}
-
-async function submitAddMembers(): Promise<void> {
-  if (!selectedUserIds.value.length) {
-    ElMessage.warning('请至少选择一个用户')
-    return
-  }
-  addSubmitting.value = true
-  try {
-    const result = await addMembers(
-      selectedUserIds.value.map((id) => ({
-        userId: id,
-        workspaceRole: WORKSPACE_ROLE.MEMBER,
-      })),
-    )
-    const message = result.skippedUserIds.length
-      ? `成功添加 ${result.successCount} 人，${result.skippedUserIds.length} 人已在空间中跳过`
-      : `成功添加 ${result.successCount} 人`
-    ElMessage.success(message)
-    addDialogVisible.value = false
-    void loadMembers()
-  } catch (err) {
-    ElMessage.error(err instanceof Error ? err.message : '邀请成员失败')
-  } finally {
-    addSubmitting.value = false
-  }
-}
-
-const invitations = ref<InvitationListItem[]>([])
-const invitationsLoading = ref(false)
-const invitationsLoaded = ref(false)
-const invitationTotal = ref(0)
-const invQuery = reactive({ pageNo: 1, pageSize: 20 })
-let invitationRequestId = 0
-
-async function loadInvitations(): Promise<boolean> {
-  if (!canManageInvitation.value) return false
-  const requestId = ++invitationRequestId
-  invitationsLoading.value = true
-  try {
-    const page = await fetchInvitations({ pageNo: invQuery.pageNo, pageSize: invQuery.pageSize })
-    if (requestId !== invitationRequestId) return false
-    invitations.value = page.list
-    invitationTotal.value = page.total
-    invitationsLoaded.value = true
-    return true
-  } catch (err) {
-    if (requestId === invitationRequestId) {
-      ElMessage.error(err instanceof Error ? err.message : '加载邀请链接失败')
-    }
-    return false
-  } finally {
-    if (requestId === invitationRequestId) {
-      invitationsLoading.value = false
-    }
-  }
-}
-
-function invitationUses(invitation: InvitationListItem): string {
-  return `${invitation.useCount} / ${invitation.maxUses ?? '不限'}`
-}
-
-function getInviteUrl(token: string): string {
-  return `${window.location.origin}/join?token=${encodeURIComponent(token)}`
-}
-
-function buildInvitationCopyText(url: string, invitation?: InvitationListItem): string {
-  return buildInvitationShareText(url, {
-    workspaceName: authStore.activeWorkspace?.name,
-    inviterUsername: authStore.user?.username,
-    exhausted: invitation?.effectiveStatus === 'exhausted',
-  })
-}
-
-const copyingInvitationId = ref('')
-const copyingLatestInvitation = ref(false)
-
-async function copyInvitation(invitation: InvitationListItem): Promise<void> {
-  if (!canCopyInvitation(invitation) || copyingInvitationId.value) return
-  copyingInvitationId.value = invitation.id
-  try {
-    const result = await fetchInvitationCopyLink(invitation.id)
-    if (!navigator.clipboard) throw new Error('当前浏览器不支持自动复制')
-    await navigator.clipboard.writeText(
-      buildInvitationCopyText(getInviteUrl(result.token), invitation),
-    )
-    ElMessage.success('邀请链接及说明已复制')
-  } catch (err) {
-    ElMessage.error(err instanceof Error ? err.message : '复制邀请链接失败')
-  } finally {
-    copyingInvitationId.value = ''
-  }
-}
-
-async function handleCopyLatestInvitation(): Promise<void> {
-  if (copyingLatestInvitation.value) return
-  copyingLatestInvitation.value = true
-  try {
-    if (!invitationsLoaded.value && !(await loadInvitations())) return
-    const latest = invitations.value.find((invitation) => invitation.effectiveStatus === 'active')
-    if (!latest) {
-      ElMessage.warning('暂无可复制的有效邀请链接')
-      return
-    }
-    await copyInvitation(latest)
-  } finally {
-    copyingLatestInvitation.value = false
-  }
-}
-
-const revokingInvitationId = ref('')
-
-async function handleExpireInvitation(invitation: InvitationListItem): Promise<void> {
-  if (!canExpireInvitation(invitation) || revokingInvitationId.value) return
-  try {
-    await ElMessageBox.confirm('确定要使该邀请链接失效吗？失效后将不可再使用。', '确认失效', {
-      type: 'warning',
-    })
-  } catch {
-    return
-  }
-
-  revokingInvitationId.value = invitation.id
-  try {
-    await revokeInvitation(invitation.id)
-    ElMessage.success('邀请链接已失效')
-    void loadInvitations()
-  } catch (err) {
-    ElMessage.error(err instanceof Error ? err.message : '邀请链接失效失败')
-  } finally {
-    revokingInvitationId.value = ''
-  }
-}
-
-const createDialogVisible = ref(false)
-const createForm = reactive({ expiresAt: '' as string, maxUses: null as number | null })
-const createSubmitting = ref(false)
-const createdInviteLink = ref('')
-const linkDialogVisible = ref(false)
-
-function openCreateDialog(): void {
-  createForm.expiresAt = ''
-  createForm.maxUses = null
-  createDialogVisible.value = true
-}
-
-async function submitCreateInvitation(): Promise<void> {
-  createSubmitting.value = true
-  try {
-    const invitation = await createInvitation({
-      expiresAt: createForm.expiresAt || null,
-      maxUses: createForm.maxUses,
-    })
-    ElMessage.success('邀请链接已创建')
-    createDialogVisible.value = false
-    createdInviteLink.value = getInviteUrl(invitation.token)
-    linkDialogVisible.value = true
-    void loadInvitations()
-  } catch (err) {
-    ElMessage.error(err instanceof Error ? err.message : '创建邀请链接失败')
-  } finally {
-    createSubmitting.value = false
-  }
-}
-
-async function handleCopyLink(url: string): Promise<void> {
-  try {
-    if (!navigator.clipboard) throw new Error('当前浏览器不支持自动复制')
-    await navigator.clipboard.writeText(buildInvitationCopyText(url))
-    ElMessage.success('邀请链接及说明已复制')
-  } catch (err) {
-    ElMessage.error(err instanceof Error ? err.message : '复制失败，请手动复制')
-  }
-}
-
-function handleTabChange(tab: string | number): void {
-  if (tab === 'invitations' && canManageInvitation.value && !invitationsLoaded.value) {
-    void loadInvitations()
-  }
-}
+const {
+  createDialogVisible,
+  createForm,
+  createSubmitting,
+  createdInviteLink,
+  linkDialogVisible,
+  openCreateDialog,
+  setExpiresAt,
+  setMaxUses,
+  submitCreateInvitation,
+  handleCopyLink,
+} = useInvitationCreate(() => {
+  void loadInvitations()
+})
 
 onMounted(() => {
   void loadRoleOptions()
   void loadMembers()
-  if (canManageInvitation.value) {
-    void loadInvitations()
-  }
+  // 权限未就绪时由 composable 内部等待，避免刷新进入只拉到成员列表
+  void loadInvitations()
 })
 
 onBeforeUnmount(() => {
-  cancelMemberSearch()
-  cancelUserSearch()
-  memberRequestId += 1
-  userSearchRequestId += 1
-  invitationRequestId += 1
+  disposeMemberList()
+  disposeInvitationList()
+  disposeMemberInvite()
 })
 </script>
 
@@ -453,325 +124,90 @@ onBeforeUnmount(() => {
       </div>
     </header>
 
-    <el-tabs v-model="activeTab" class="member-page__tabs" @tab-change="handleTabChange">
-        <el-tab-pane name="members">
-          <template #label>
-            成员列表
-            <span
-              class="member-page__tab-count"
-              :class="{ 'member-page__tab-count--active': activeTab === 'members' }"
-            >
-              {{ memberTotal }}
-            </span>
-          </template>
-          <section class="member-page__panel">
-            <header class="member-page__panel-head">
-              <div class="member-page__title-group">
-                <h2 class="member-page__panel-title">成员列表</h2>
-                <span class="member-page__panel-count">{{ memberTotal }} 人</span>
-              </div>
-              <div class="member-page__filters">
-                <el-input
-                  v-model="memberQuery.keyword"
-                  class="member-page__search"
-                  placeholder="姓名 / 邮箱"
-                  clearable
-                  :prefix-icon="Search"
-                  @input="handleMemberSearchInput"
-                  @clear="handleMemberSearchClear"
-                />
-                <el-select
-                  v-model="memberQuery.workspaceRole"
-                  class="member-page__role-filter"
-                  placeholder="全部角色"
-                  clearable
-                  @change="handleRoleFilterChange"
-                >
-                  <el-option
-                    v-for="role in roleOptions"
-                    :key="role.value"
-                    :label="role.label"
-                    :value="role.value"
-                  />
-                </el-select>
-              </div>
-            </header>
+    <div class="member-page__split" :class="{ 'member-page__split--solo': !canManageInvitation }">
+      <MemberListPanel
+        :members="members"
+        :loading="membersLoading"
+        :load-error="membersLoadError"
+        :total="memberTotal"
+        :keyword="memberQuery.keyword"
+        :workspace-role="memberQuery.workspaceRole"
+        :page-no="memberQuery.pageNo"
+        :page-size="memberQuery.pageSize"
+        :role-options="roleOptions"
+        :can-manage-member="canManageMember"
+        :current-user-id="currentUserId"
+        :editing-user-id="editingUserId"
+        @search-input="handleMemberSearchInput"
+        @search-clear="handleMemberSearchClear"
+        @role-filter-change="handleRoleFilterChange"
+        @page-change="handleMemberPageChange"
+        @start-edit-role="startEditRole"
+        @role-change="submitRoleChange"
+        @role-visible-change="handleRoleVisibleChange"
+        @remove="handleRemoveMember"
+        @retry="loadMembers"
+      />
 
-            <el-table
-              v-loading="membersLoading"
-              class="member-page__table"
-              :data="members"
-              row-key="userId"
-              empty-text="暂无符合条件的成员"
-            >
-              <el-table-column label="用户" min-width="220">
-                <template #default="{ row }">
-                  <div class="member-page__user">
-                    <el-avatar :size="32" :src="row.avatarUrl || undefined">
-                      {{ (row.name || row.username).charAt(0).toUpperCase() }}
-                    </el-avatar>
-                    <div class="member-page__user-copy">
-                      <div class="member-page__user-name">{{ row.name || row.username }}</div>
-                      <div class="member-page__user-email">{{ row.email }}</div>
-                    </div>
-                  </div>
-                </template>
-              </el-table-column>
-              <el-table-column label="角色" min-width="150">
-                <template #default="{ row }">
-                  <el-select
-                    v-if="editingUserId === row.userId"
-                    ref="roleSelectRef"
-                    :model-value="row.workspaceRole"
-                    size="small"
-                    automatic-dropdown
-                    @change="(value: string) => submitRoleChange(row as WorkspaceMember, value)"
-                    @visible-change="handleRoleVisibleChange"
-                  >
-                    <el-option
-                      v-for="role in roleOptions"
-                      :key="role.value"
-                      :label="role.label"
-                      :value="role.value"
-                    />
-                  </el-select>
-                  <span
-                    v-else
-                    class="member-page__role-tag"
-                    :class="{
-                      'member-page__role-tag--admin': isWorkspaceAdminRole(row.workspaceRole),
-                    }"
-                  >
-                    {{ resolveWorkspaceRoleLabel(row.workspaceRole) }}
-                  </span>
-                </template>
-              </el-table-column>
-              <el-table-column label="加入时间" min-width="170">
-                <template #default="{ row }">
-                  <span class="member-page__num">{{ formatDateTime(row.joinedAt) }}</span>
-                </template>
-              </el-table-column>
-              <el-table-column label="操作" width="150" fixed="right">
-                <template #default="{ row }">
-                  <div class="member-page__row-actions">
-                    <el-button
-                      v-if="canManageMember"
-                      link
-                      type="primary"
-                      @click="startEditRole(row.userId)"
-                    >
-                      改角色
-                    </el-button>
-                    <el-button
-                      v-if="canManageMember || row.userId === currentUserId"
-                      link
-                      type="danger"
-                      @click="handleRemoveMember(row as WorkspaceMember)"
-                    >
-                      {{ row.userId === currentUserId ? '退出' : '移除' }}
-                    </el-button>
-                  </div>
-                </template>
-              </el-table-column>
-            </el-table>
+      <InvitationListPanel
+        v-if="canManageInvitation"
+        :invitations="invitations"
+        :loading="invitationsLoading"
+        :load-error="invitationsLoadError"
+        :total="invitationTotal"
+        :page-no="invQuery.pageNo"
+        :page-size="invQuery.pageSize"
+        :copying-id="copyingInvitationId"
+        :revoking-id="revokingInvitationId"
+        @page-change="handleInvitationPageChange"
+        @copy="copyInvitation"
+        @expire="handleExpireInvitation"
+        @retry="loadInvitations"
+      />
+    </div>
 
-            <footer class="member-page__pager">
-              <span>共 {{ memberTotal }} 人 · 每页 {{ memberQuery.pageSize }} 条</span>
-              <el-pagination
-                v-model:current-page="memberQuery.pageNo"
-                background
-                layout="prev, pager, next"
-                :page-size="memberQuery.pageSize"
-                :pager-count="5"
-                :total="memberTotal"
-                @current-change="loadMembers"
-              />
-            </footer>
-          </section>
-        </el-tab-pane>
+    <MemberInviteDialog
+      v-model="addDialogVisible"
+      :selected-user-ids="selectedUserIds"
+      :user-options="userOptions"
+      :searching="userSearchLoading"
+      :submitting="addSubmitting"
+      @update:selected-user-ids="handleSelectedUsersChange"
+      @search="searchUsers"
+      @submit="submitAddMembers"
+    />
 
-        <el-tab-pane v-if="canManageInvitation" name="invitations">
-          <template #label>
-            邀请链接
-            <span
-              class="member-page__tab-count"
-              :class="{ 'member-page__tab-count--active': activeTab === 'invitations' }"
-            >
-              {{ invitationTotal }}
-            </span>
-          </template>
-          <section class="member-page__panel">
-            <header class="member-page__panel-head">
-              <div class="member-page__title-group member-page__title-group--wrap">
-                <h2 class="member-page__panel-title">邀请链接</h2>
-                <span class="member-page__panel-description">通过链接加入的成员按默认角色进入</span>
-              </div>
-            </header>
+    <InvitationCreateDialog
+      v-model="createDialogVisible"
+      :expires-at="createForm.expiresAt"
+      :max-uses="createForm.maxUses"
+      :submitting="createSubmitting"
+      @update:expires-at="setExpiresAt"
+      @update:max-uses="setMaxUses"
+      @submit="submitCreateInvitation"
+    />
 
-            <el-table
-              v-loading="invitationsLoading"
-              class="member-page__table"
-              :data="invitations"
-              row-key="id"
-              empty-text="暂无邀请链接"
-            >
-              <el-table-column label="邀请链接" min-width="190">
-                <template #default="{ row }">
-                  <span class="member-page__token">join/{{ row.tokenPreview || '—' }}</span>
-                </template>
-              </el-table-column>
-              <el-table-column label="使用次数" min-width="120">
-                <template #default="{ row }">
-                  <span class="member-page__num">{{
-                    invitationUses(row as InvitationListItem)
-                  }}</span>
-                </template>
-              </el-table-column>
-              <el-table-column label="过期时间" min-width="170">
-                <template #default="{ row }">
-                  <span class="member-page__num">
-                    {{ row.expiresAt ? formatDateTime(row.expiresAt) : '永不过期' }}
-                  </span>
-                </template>
-              </el-table-column>
-              <el-table-column label="状态" min-width="120">
-                <template #default="{ row }">
-                  <span
-                    class="member-page__status"
-                    :class="`member-page__status--${invitationStatusMeta(row.effectiveStatus).tone}`"
-                  >
-                    <span class="member-page__status-dot" />
-                    {{ invitationStatusMeta(row.effectiveStatus).label }}
-                  </span>
-                </template>
-              </el-table-column>
-              <el-table-column label="创建时间" min-width="170">
-                <template #default="{ row }">
-                  <span class="member-page__num">{{ formatDateTime(row.createdAt) }}</span>
-                </template>
-              </el-table-column>
-              <el-table-column label="操作" width="130" fixed="right">
-                <template #default="{ row }">
-                  <div class="member-page__row-actions">
-                    <el-button
-                      link
-                      type="primary"
-                      :disabled="!canCopyInvitation(row as InvitationListItem)"
-                      :loading="copyingInvitationId === row.id"
-                      @click="copyInvitation(row as InvitationListItem)"
-                    >
-                      复制
-                    </el-button>
-                    <el-button
-                      v-if="canExpireInvitation(row as InvitationListItem)"
-                      link
-                      type="danger"
-                      :loading="revokingInvitationId === row.id"
-                      @click="handleExpireInvitation(row as InvitationListItem)"
-                    >
-                      失效
-                    </el-button>
-                  </div>
-                </template>
-              </el-table-column>
-            </el-table>
-
-            <footer class="member-page__pager">
-              <span>共 {{ invitationTotal }} 条 · 每页 {{ invQuery.pageSize }} 条</span>
-              <el-pagination
-                v-model:current-page="invQuery.pageNo"
-                background
-                layout="prev, pager, next"
-                :page-size="invQuery.pageSize"
-                :pager-count="5"
-                :total="invitationTotal"
-                @current-change="loadInvitations"
-              />
-            </footer>
-          </section>
-        </el-tab-pane>
-    </el-tabs>
-
-    <el-dialog v-model="addDialogVisible" title="邀请成员" width="520px">
-      <p class="member-page__dialog-tip">新成员将使用空间成员角色加入。</p>
-      <el-select
-        v-model="selectedUserIds"
-        class="member-page__user-select"
-        multiple
-        filterable
-        remote
-        reserve-keyword
-        placeholder="输入姓名、用户名或邮箱搜索"
-        :remote-method="searchUsers"
-        :loading="userSearchLoading"
-      >
-        <el-option v-for="user in userOptions" :key="user.id" :label="user.name" :value="user.id" />
-      </el-select>
-      <template #footer>
-        <el-button @click="addDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="addSubmitting" @click="submitAddMembers">
-          确认邀请
-        </el-button>
-      </template>
-    </el-dialog>
-
-    <el-dialog v-model="createDialogVisible" title="生成邀请链接" width="460px">
-      <el-form label-position="top">
-        <el-form-item label="过期时间">
-          <el-date-picker
-            v-model="createForm.expiresAt"
-            type="datetime"
-            value-format="YYYY-MM-DDTHH:mm:ss"
-            placeholder="留空表示永不过期"
-            class="member-page__date-picker"
-          />
-        </el-form-item>
-        <el-form-item label="最大使用次数">
-          <el-input-number
-            v-model="createForm.maxUses"
-            :min="1"
-            :max="10000"
-            placeholder="留空表示不限"
-            class="member-page__uses-input"
-          />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="createDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="createSubmitting" @click="submitCreateInvitation">
-          生成
-        </el-button>
-      </template>
-    </el-dialog>
-
-    <el-dialog
+    <InvitationLinkDialog
       v-model="linkDialogVisible"
-      title="邀请链接已创建"
-      width="540px"
-      :close-on-click-modal="false"
-    >
-      <p class="member-page__dialog-tip">请复制链接并发送给受邀成员：</p>
-      <el-input :model-value="createdInviteLink" readonly>
-        <template #append>
-          <el-button :icon="CopyDocument" @click="handleCopyLink(createdInviteLink)"
-            >复制</el-button
-          >
-        </template>
-      </el-input>
-      <template #footer>
-        <el-button type="primary" @click="linkDialogVisible = false">关闭</el-button>
-      </template>
-    </el-dialog>
+      :link="createdInviteLink"
+      @copy="handleCopyLink"
+    />
   </div>
 </template>
 
 <style scoped lang="scss">
+/* 高度链路：内容白卡 → 页面 → 双卡片 → 表体，滚动只发生在表体（UI-SC-01 / UI-SC-06） */
 .member-page {
+  display: flex;
   min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+  height: 100%;
 }
 
 .member-page__head {
   display: flex;
+  flex-shrink: 0;
   align-items: flex-start;
   justify-content: space-between;
   gap: var(--space-xl);
@@ -799,102 +235,25 @@ onBeforeUnmount(() => {
   gap: var(--space-sm);
 }
 
-.member-page__tabs {
-  min-width: 0;
+/* 两张卡片左右并排：等高拉伸，表头与表尾对齐同一水平线 */
+.member-page__split {
+  display: grid;
+  min-height: 0;
+  flex: 1;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--block-gap);
 }
 
-/* 页签左右留 card-pad 与面板内容对齐；自绘底边线并隐藏 EP 默认线，避免两条线叠成分隔线 */
-.member-page__tabs :deep(.el-tabs__header) {
-  margin-bottom: 0;
-  padding: 0 var(--card-pad);
-  border-bottom: 1px solid var(--color-neutral-100);
+/* 无邀请管理权限时只剩成员卡片，占满整行 */
+.member-page__split--solo {
+  grid-template-columns: minmax(0, 1fr);
 }
 
-.member-page__tabs :deep(.el-tabs__nav-wrap::after) {
-  display: none;
+.member-page__split > * {
+  animation: member-card-in var(--transition-base) both;
 }
 
-/* EP 默认页签为 40px 定高、hover 直接变主色、活动条整项宽度平移，与灰底表头和
-   1px 分割线的紧凑版式冲突；改为紧凑项 + 灰底 hover + 自绘内缩下划线（对齐 AiConfigPage 范式） */
-.member-page__tabs :deep(.el-tabs__item) {
-  position: relative;
-  height: auto;
-  padding: 10px 14px 12px;
-  border-radius: var(--radius-md) var(--radius-md) 0 0;
-  color: var(--color-neutral-600);
-  line-height: 1.5;
-
-  &:hover:not(.is-active) {
-    background: var(--color-neutral-50);
-    color: var(--color-neutral-900);
-  }
-
-  &.is-active {
-    color: var(--color-primary-500);
-  }
-
-  /* 下划线左右内缩并以 scale 过渡，激活态外溢 1px 与面板分割线相接 */
-  &::after {
-    content: '';
-    position: absolute;
-    right: 12px;
-    bottom: -1px;
-    left: 12px;
-    height: 2px;
-    border-radius: 1px;
-    background: var(--color-primary-500);
-    transform: scaleX(0);
-    transition: transform var(--transition-base);
-  }
-
-  &.is-active::after {
-    transform: scaleX(1);
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    &::after {
-      transition: none;
-    }
-  }
-}
-
-/* 活动条与自绘下划线会叠成双线，隐藏 */
-.member-page__tabs :deep(.el-tabs__active-bar) {
-  display: none;
-}
-
-.member-page__tab-count {
-  display: inline-flex;
-  min-width: 20px;
-  height: 18px;
-  align-items: center;
-  justify-content: center;
-  margin-left: 6px;
-  padding: 0 6px;
-  border-radius: var(--radius-xl);
-  background: var(--color-neutral-100);
-  color: var(--color-neutral-600);
-  font-size: var(--font-size-xs);
-  font-weight: 500;
-  font-variant-numeric: tabular-nums;
-  line-height: 1;
-  transition:
-    background-color var(--transition-fast),
-    color var(--transition-fast);
-}
-
-.member-page__tab-count--active {
-  background: var(--color-primary-50);
-  color: var(--color-primary-700);
-}
-
-.member-page__panel {
-  min-width: 0;
-  /* 面板靠 el-tab-pane 的 display 切换重新触发，提供页签切换反馈 */
-  animation: member-page-pane-in var(--transition-base) both;
-}
-
-@keyframes member-page-pane-in {
+@keyframes member-card-in {
   from {
     opacity: 0;
     transform: translateY(4px);
@@ -907,67 +266,13 @@ onBeforeUnmount(() => {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .member-page__panel {
+  .member-page__split > * {
     animation: none;
   }
 }
 
-.member-page__panel-head {
-  display: flex;
-  min-height: 64px;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-lg);
-  /* 对齐 demo .card__header：工具栏与表格之间补一条分割线，承接页签条的分割线节奏 */
-  padding: var(--space-lg) var(--card-pad);
-  border-bottom: 1px solid var(--color-neutral-100);
-}
-
-.member-page__title-group {
-  display: flex;
-  align-items: baseline;
-  gap: var(--space-sm);
-}
-
-.member-page__title-group--wrap {
-  flex-wrap: wrap;
-}
-
-.member-page__panel-title {
-  margin: 0;
-  color: var(--color-neutral-900);
-  font-size: var(--font-size-base);
-  font-weight: 600;
-}
-
-.member-page__panel-count,
-.member-page__panel-description {
-  color: var(--color-neutral-500);
-  font-size: var(--font-size-xs);
-}
-
-.member-page__filters {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-}
-
-.member-page__search {
-  width: 220px;
-}
-
-.member-page__role-filter {
-  width: 160px;
-}
-
-.member-page__table {
-  width: 100%;
-  /* EP 单元格自带 12px 水平内边距，表格根再内缩 12px 后首列文字落在 24px，
-     与页签、面板头、分页共用同一左基线 */
-  padding: 0 var(--space-md);
-}
-
-.member-page__table :deep(.el-table__header th.el-table__cell) {
+/* 两卡共用的表格视觉基线由分栏容器统一下发，避免在两个组件里重复登记同一组覆盖（EX-DS-001） */
+.member-page__split :deep(.el-table__header th.el-table__cell) {
   height: 44px;
   background: var(--color-neutral-50);
   color: var(--color-neutral-600);
@@ -975,159 +280,41 @@ onBeforeUnmount(() => {
   font-weight: 600;
 }
 
-.member-page__table :deep(.el-table__cell) {
-  padding: 11px 0;
+/* 表格与卡片容器贴合后，首列文字的 24px 左基线改由单元格留白承担（与卡片头、分页一致） */
+.member-page__split :deep(.el-table__cell) {
+  padding: 11px var(--space-md);
 }
 
-.member-page__user {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-}
-
-.member-page__user-copy {
-  min-width: 0;
-}
-
-.member-page__user-name {
-  overflow: hidden;
-  color: var(--color-neutral-900);
-  font-size: var(--font-size-sm);
-  font-weight: 500;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.member-page__user-email {
-  overflow: hidden;
-  margin-top: 2px;
-  color: var(--color-neutral-500);
-  font-size: var(--font-size-xs);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.member-page__role-tag {
-  display: inline-flex;
-  align-items: center;
-  min-height: 24px;
-  padding: 1px var(--space-sm);
-  border: 1px solid var(--color-neutral-300);
-  border-radius: var(--radius-sm);
-  background: var(--color-neutral-0);
-  color: var(--color-neutral-600);
-  font-size: var(--font-size-xs);
-  line-height: 1.4;
-}
-
-.member-page__role-tag--admin {
-  border-color: var(--color-primary-200);
-  background: var(--color-primary-50);
-  color: var(--color-primary-700);
-}
-
-.member-page__num {
-  color: var(--color-neutral-700);
-  font-size: var(--font-size-sm);
-  font-variant-numeric: tabular-nums;
-}
-
-.member-page__row-actions {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-}
-
-.member-page__pager {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-lg);
-  min-height: 60px;
-  padding: var(--space-md) var(--card-pad);
-  color: var(--color-neutral-500);
-  font-size: var(--font-size-xs);
-}
-
-.member-page__pager :deep(.el-pagination) {
+.member-page__split :deep(.el-pagination) {
   --el-pagination-button-bg-color: var(--color-neutral-0);
   --el-pagination-hover-color: var(--color-primary-600);
   flex-shrink: 0;
 }
 
-.member-page__token {
-  color: var(--color-neutral-700);
-  font-family: var(--font-mono);
-  font-size: var(--font-size-xs);
-}
-
-.member-page__status {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-xs);
-  color: var(--color-neutral-600);
-  font-size: var(--font-size-sm);
-  white-space: nowrap;
-}
-
-.member-page__status-dot {
-  width: 6px;
-  height: 6px;
-  flex: 0 0 6px;
-  border-radius: var(--radius-full);
-  background: var(--color-neutral-400);
-}
-
-.member-page__status--success .member-page__status-dot {
-  background: var(--color-success);
-}
-
-.member-page__status--danger .member-page__status-dot {
-  background: var(--color-danger);
-}
-
-.member-page__dialog-tip {
-  margin: 0 0 var(--space-md);
-  color: var(--color-neutral-600);
-  font-size: var(--font-size-sm);
-}
-
-.member-page__user-select,
-.member-page__date-picker,
-.member-page__uses-input {
-  width: 100%;
+@media (max-width: 640px) {
+  .member-page__split :deep(.el-pagination) {
+    align-self: flex-end;
+  }
 }
 
 @media (max-width: 900px) {
-  .member-page__head,
-  .member-page__panel-head {
+  /* 堆叠后高度不再固定，恢复页面级滚动（UI-SC-08） */
+  .member-page {
+    height: auto;
+  }
+
+  .member-page__split {
+    flex: none;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .member-page__head {
     align-items: stretch;
     flex-direction: column;
   }
 
   .member-page__head-actions {
     justify-content: flex-start;
-  }
-
-  .member-page__filters {
-    width: 100%;
-  }
-
-  .member-page__search,
-  .member-page__role-filter {
-    width: auto;
-    flex: 1 1 180px;
-  }
-}
-
-@media (max-width: 640px) {
-  .member-page__pager {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
-  .member-page__pager :deep(.el-pagination) {
-    align-self: flex-end;
   }
 }
 </style>
