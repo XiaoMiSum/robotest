@@ -53,7 +53,8 @@ const {
         @click="emit('execute', environmentId || undefined)"
       >
         <template v-if="!executing">
-          <el-icon class="req-panel__btn-icon"><Promotion /></el-icon>发送
+          <el-icon class="req-panel__btn-icon"><ArrowRight /></el-icon>发送
+          <span class="req-panel__kbd">⌘↵</span>
         </template>
       </el-button>
       <el-tooltip v-if="!canSave" content="请先发送请求获取调试记录" placement="bottom">
@@ -66,6 +67,12 @@ const {
       <el-button v-else class="req-panel__save" @click="emit('save')">
         <el-icon class="req-panel__btn-icon"><Plus /></el-icon>保存
       </el-button>
+    </div>
+
+    <div class="req-panel__hint-row">
+      快捷键
+      <span class="req-panel__kbd">⌘↵</span>
+      （Windows 为 Ctrl+Enter）发送请求
     </div>
 
     <!-- Param Tabs -->
@@ -305,6 +312,40 @@ const {
 
   &__btn-icon {
     margin-right: 4px;
+  }
+
+  &__hint-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 12px 8px;
+    font-size: 12px;
+    color: var(--color-neutral-400);
+  }
+
+  &__kbd {
+    display: inline-flex;
+    align-items: center;
+    height: 18px;
+    padding: 0 5px;
+    border: 1px solid var(--color-neutral-200);
+    border-bottom-width: 2px;
+    border-radius: 4px;
+    background: var(--color-neutral-50);
+    color: var(--color-neutral-500);
+    font-family: ui-monospace, SFMono-Regular, monospace;
+    font-size: 10px;
+    line-height: 1;
+    white-space: nowrap;
+
+    // 主色按钮上转为半透明白，避免徽标实底压过按钮底色（交互稿 .btn .kbd）
+    .req-panel__send & {
+      margin-left: 6px;
+      background: rgba(255, 255, 255, 0.18);
+      border-color: rgba(255, 255, 255, 0.35);
+      color: inherit;
+      opacity: 0.85;
+    }
   }
 
   // ==================== Environment (tabs 最右) ====================
