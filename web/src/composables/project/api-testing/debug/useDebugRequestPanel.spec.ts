@@ -124,9 +124,9 @@ describe('useDebugRequestPanel', () => {
   })
 
   describe('初始状态', () => {
-    it('activeParamTab 初始为 params', () => {
+    it('activeParamTab 初始为 body', () => {
       const { result } = init()
-      expect(result.activeParamTab.value).toBe('params')
+      expect(result.activeParamTab.value).toBe('body')
     })
 
     it('environments 初始为空数组', () => {
@@ -369,10 +369,10 @@ describe('useDebugRequestPanel', () => {
       expect(result.activeParamTab.value).toBe('headers')
     })
 
-    it('可切换到 body', () => {
+    it('可切换到 params', () => {
       const { result } = init()
-      result.activeParamTab.value = 'body'
-      expect(result.activeParamTab.value).toBe('body')
+      result.activeParamTab.value = 'params'
+      expect(result.activeParamTab.value).toBe('params')
     })
   })
 })
