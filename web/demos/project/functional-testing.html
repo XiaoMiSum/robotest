@@ -154,12 +154,8 @@
   .ai-textarea { min-height: 112px; }
   .alert > [data-icon] { display: inline-flex; flex-shrink: 0; }
 
-  /* 底部操作行：sticky 常驻抽屉底部、不随内容滚动（交互设计 45 §2.9）；
+  /* 操作行：位于输入/配置区正下方、右对齐随内容滚动（交互设计 45 §2.9）；
      调用中以 4px 纤细虚假进度条占满左侧余量，按钮随阶段切换 */
-  .ai-drawer__foot {
-    flex-shrink: 0; padding: 12px 20px;
-    border-top: 1px solid var(--n-100); background: var(--n-0);
-  }
   .ai-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
   .ai-actions .btn { height: 32px; }
   .ai-actions #aiStop { height: 26px; padding: 0 10px; font-size: var(--font-size-sm); }
@@ -494,19 +490,7 @@
       <span class="ai-count" id="aiCharCount" aria-hidden="true">0/20000</span>
     </div>
 
-    <!-- 慢响应提示：超时未见首帧时出现（真实阈值 10s，示例压缩时序），完成/停止后消失 -->
-    <div class="alert alert--info" id="aiSlow" hidden><span data-icon="clock-circle" aria-hidden="true"></span><span>模型响应较慢，可点击「停止」后重试</span></div>
-
-    <!-- 输出区：流式态空白，完成态以提示条呈现（截断警告按输入长度给出） -->
-    <div class="ai-output" id="aiOutput" hidden>
-      <div class="alert alert--warning" id="aiWarn" hidden><span data-icon="alert-triangle" aria-hidden="true"></span><span>上下文超出长度限制，已截断末尾内容，覆盖范围可能不完整</span></div>
-      <div class="alert alert--success"><span data-icon="check-circle" aria-hidden="true"></span><span id="aiDoneTip">生成完成，点击「查看预览」在脑图中核对并勾选取舍</span></div>
-      <ul class="ai-summary" id="aiSummary" hidden></ul>
-    </div>
-  </div>
-
-  <!-- 底部操作行：sticky 常驻，进度与阶段反馈居左，模型与主操作居右 -->
-  <footer class="ai-drawer__foot">
+    <!-- 操作行：位于需求输入区正下方（45 §2.9），进度与阶段反馈居左，模型与主操作居右 -->
     <div class="ai-actions">
       <div class="ai-progress" id="aiProgress" hidden><div class="ai-progress__track"><div class="ai-progress__bar"></div></div><span class="ai-stage" id="aiStage"></span></div>
       <select class="select ai-model" id="aiModel" aria-label="对话模型">
@@ -518,7 +502,17 @@
       <button class="btn btn--primary btn--sm" type="button" id="aiStart"><span data-icon="sparkle" aria-hidden="true"></span><span id="aiStartText">开始生成</span></button>
       <button class="btn btn--primary btn--sm" type="button" id="aiPreviewBtn" hidden><span data-icon="eye" aria-hidden="true"></span>查看预览</button>
     </div>
-  </footer>
+
+    <!-- 慢响应提示：超时未见首帧时出现（真实阈值 10s，示例压缩时序），完成/停止后消失 -->
+    <div class="alert alert--info" id="aiSlow" hidden><span data-icon="clock-circle" aria-hidden="true"></span><span>模型响应较慢，可点击「停止」后重试</span></div>
+
+    <!-- 输出区：流式态空白，完成态以提示条呈现（截断警告按输入长度给出） -->
+    <div class="ai-output" id="aiOutput" hidden>
+      <div class="alert alert--warning" id="aiWarn" hidden><span data-icon="alert-triangle" aria-hidden="true"></span><span>上下文超出长度限制，已截断末尾内容，覆盖范围可能不完整</span></div>
+      <div class="alert alert--success"><span data-icon="check-circle" aria-hidden="true"></span><span id="aiDoneTip">生成完成，点击「查看预览」在脑图中核对并勾选取舍</span></div>
+      <ul class="ai-summary" id="aiSummary" hidden></ul>
+    </div>
+  </div>
 </aside>
 
 <!-- 遗漏测试点分析抽屉 -->
@@ -564,18 +558,7 @@
       </div>
     </div>
 
-    <div class="ai-output" id="mpResult" hidden>
-      <div class="alert alert--warning"><span data-icon="alert-triangle" aria-hidden="true"></span><span>当前为关键词匹配结果</span></div>
-      <div class="ai-result-head">
-        <label class="ai-check"><input type="checkbox" id="mpAll">全选</label>
-        <span id="mpCount">共 10 条，已选 10 条</span>
-      </div>
-      <div class="ai-list" id="mpList"></div>
-    </div>
-  </div>
-
-  <!-- 底部操作行：sticky 常驻、位于结果列表下方；进度与阶段反馈居左，模型与主操作居右 -->
-  <footer class="ai-drawer__foot">
+    <!-- 操作行：位于输入组正下方、结果列表上方（45 §2.9 / 56 §1.1），进度与阶段反馈居左，模型与主操作居右 -->
     <div class="ai-actions">
       <div class="ai-progress" id="mpProgress" hidden><div class="ai-progress__track"><div class="ai-progress__bar"></div></div><span class="ai-stage" id="mpStage"></span></div>
       <select class="select ai-model" id="mpModel" aria-label="对话模型">
@@ -586,7 +569,16 @@
       <button class="btn btn--primary btn--sm" type="button" id="mpStart"><span class="ai-spin" aria-hidden="true"></span><span id="mpStartText">开始分析</span></button>
       <button class="btn btn--primary btn--sm" type="button" id="mpTransfer" hidden disabled>转用例生成（0）</button>
     </div>
-  </footer>
+
+    <div class="ai-output" id="mpResult" hidden>
+      <div class="alert alert--warning"><span data-icon="alert-triangle" aria-hidden="true"></span><span>当前为关键词匹配结果</span></div>
+      <div class="ai-result-head">
+        <label class="ai-check"><input type="checkbox" id="mpAll">全选</label>
+        <span id="mpCount">共 10 条，已选 10 条</span>
+      </div>
+      <div class="ai-list" id="mpList"></div>
+    </div>
+  </div>
 </aside>
 
 <!-- 需求条目选取器：工具条 [关联需求] 与两个 AI 抽屉的需求池共用（交互设计 52 §1.2） -->
@@ -894,7 +886,7 @@
       $('aiErr').hidden = !S.aiErrOn
     }
 
-    // 阶段文案 + 已耗时秒表：首秒「正在连接模型…」，其后「生成中… Ns」（45 §2.9 底部操作行）
+    // 阶段文案 + 已耗时秒表：首秒「正在连接模型…」，其后「生成中… Ns」（45 §2.9 操作行）
     function beginStage(timerKey, elId, label) {
       var el = $(elId)
       el.textContent = '正在连接模型…'
