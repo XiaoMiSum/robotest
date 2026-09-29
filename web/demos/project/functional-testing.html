@@ -175,8 +175,21 @@
   .btn.is-loading .ai-spin { display: inline-block; }
   .btn--primary .ai-spin { border-color: var(--n-0); border-top-color: transparent; }
   @keyframes ai-spin { to { transform: rotate(360deg); } }
-  .ai-progress { flex: 1; min-width: 60px; }
-  .ai-progress__track { position: relative; height: 4px; border-radius: 999px; background: var(--n-100); overflow: hidden; }
+  .ai-progress { flex: 1; min-width: 60px; display: flex; align-items: center; gap: 10px; }
+  .ai-progress__track { position: relative; flex: 1; height: 4px; border-radius: 999px; background: var(--n-100); overflow: hidden; }
+  /* 阶段文案与已耗时：进度条右侧随秒表刷新（45 §2.9） */
+  .ai-stage { flex-shrink: 0; font-size: var(--font-size-xs); color: var(--n-500); }
+  /* 会话恢复标识：重开抽屉时置顶提示，可一键回发起态（49 §1.2 / 56 §1.2） */
+  .ai-resume {
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 10px; border-radius: var(--radius-sm);
+    font-size: var(--font-size-sm); color: var(--n-700); background: var(--n-100);
+  }
+  .ai-resume [data-icon] { display: inline-flex; flex-shrink: 0; color: var(--n-400); }
+  .ai-resume [data-icon] svg { width: 14px; height: 14px; }
+  .ai-resume .btn { margin-left: auto; }
+  /* 完成态结果摘要清单：抽屉内速览用例标题，勾选取舍仍在预览弹窗（49 §1.2） */
+  .ai-summary { margin: 0; padding-left: 18px; font-size: var(--font-size-sm); color: var(--n-700); }
   .ai-progress__bar {
     position: absolute; top: 0; bottom: 0; width: 38%;
     border-radius: 999px; background: var(--brand-500);
@@ -438,6 +451,13 @@
     <button class="ai-icon-btn" type="button" id="aiClose" aria-label="关闭面板" title="关闭"><span data-icon="x" aria-hidden="true"></span></button>
   </header>
   <div class="ai-drawer__body">
+    <!-- 会话恢复标识：重开已有会话时置顶显示，[新会话] 一键回发起态（49 §1.2） -->
+    <div class="ai-resume" id="aiResume" hidden>
+      <span data-icon="info-filled" aria-hidden="true"></span>
+      <span>已恢复上次会话</span>
+      <button class="btn btn--text btn--sm" type="button" id="aiNewSession"><span data-icon="refresh" aria-hidden="true"></span>新会话</button>
+    </div>
+
     <div class="ai-field">
       <span class="ai-label">挂载目标</span>
       <span class="ai-path" id="aiPath">优惠券叠加规则（根节点）</span>
@@ -465,13 +485,14 @@
     <div class="ai-output" id="aiOutput" hidden>
       <div class="alert alert--warning" id="aiWarn" hidden><span data-icon="alert-triangle" aria-hidden="true"></span><span>上下文超出长度限制，已截断末尾内容，覆盖范围可能不完整</span></div>
       <div class="alert alert--success"><span data-icon="check-circle" aria-hidden="true"></span><span id="aiDoneTip">生成完成，点击「查看预览」在脑图中核对并勾选取舍</span></div>
+      <ul class="ai-summary" id="aiSummary" hidden></ul>
     </div>
   </div>
 
   <!-- 底部操作行：sticky 常驻，进度与阶段反馈居左，模型与主操作居右 -->
   <footer class="ai-drawer__foot">
     <div class="ai-actions">
-      <div class="ai-progress" id="aiProgress" hidden><div class="ai-progress__track"><div class="ai-progress__bar"></div></div></div>
+      <div class="ai-progress" id="aiProgress" hidden><div class="ai-progress__track"><div class="ai-progress__bar"></div></div><span class="ai-stage" id="aiStage"></span></div>
       <select class="select ai-model" id="aiModel" aria-label="对话模型">
         <option>DeepSeek-V3（默认）</option>
         <option>Qwen3-32B</option>
@@ -491,6 +512,12 @@
     <button class="ai-icon-btn" type="button" id="mpClose" aria-label="关闭面板" title="关闭"><span data-icon="x" aria-hidden="true"></span></button>
   </header>
   <div class="ai-drawer__body">
+    <!-- 会话恢复标识：重开已有分析结果时显示，重新发起以 [重新分析] 为准（56 §1.2） -->
+    <div class="ai-resume" id="mpResume" hidden>
+      <span data-icon="info-filled" aria-hidden="true"></span>
+      <span>已恢复上次会话，重新发起请点击下方「重新分析」</span>
+    </div>
+
     <!-- 输入组折叠开关：首次分析完成后出现，仅收纳关键词/需求文本/需求池三组输入 -->
     <button class="btn btn--link btn--sm" type="button" id="mpInputsToggle" hidden>展开输入 ▾</button>
 
@@ -529,7 +556,7 @@
   <!-- 底部操作行：sticky 常驻、位于结果列表下方；进度与阶段反馈居左，模型与主操作居右 -->
   <footer class="ai-drawer__foot">
     <div class="ai-actions">
-      <div class="ai-progress" id="mpProgress" hidden><div class="ai-progress__track"><div class="ai-progress__bar"></div></div></div>
+      <div class="ai-progress" id="mpProgress" hidden><div class="ai-progress__track"><div class="ai-progress__bar"></div></div><span class="ai-stage" id="mpStage"></span></div>
       <select class="select ai-model" id="mpModel" aria-label="对话模型">
         <option>DeepSeek-V3（默认）</option>
         <option>Qwen3-32B</option>
@@ -792,6 +819,8 @@
       $('aiDoneTip').textContent = cfg.tip
       $('aiStartText').textContent = S.aiRan ? cfg.retry : cfg.start
       $('aiRetryText').textContent = cfg.retry
+      // 重开已有会话才标恢复；转用例预填属新内容不标（49 §1.2）
+      $('aiResume').hidden = !(S.aiRan && typeof text !== 'string')
       if (typeof text === 'string') $('aiText').value = text
       aiMask.hidden = false
       aiDrawer.hidden = false
@@ -814,6 +843,7 @@
       $('aiRetry').hidden = S.aiPhase !== 'done'
       $('aiPreviewBtn').hidden = S.aiPhase !== 'done'
       $('aiOutput').hidden = S.aiPhase !== 'done'
+      $('aiSummary').hidden = !(S.aiPhase === 'done' && S.mode === 'generate')
       $('aiText').disabled = streaming
       // 流式期间需求选择入口与文本一并禁用（对照真实面板 :disabled="phase === 'streaming'"）
       $('aiReqAdd').disabled = streaming
@@ -832,6 +862,21 @@
       $('aiErr').hidden = !S.aiErrOn
     }
 
+    // 阶段文案 + 已耗时秒表：首秒「正在连接模型…」，其后「生成中… Ns」（45 §2.9 底部操作行）
+    function beginStage(timerKey, elId, label) {
+      var el = $(elId)
+      el.textContent = '正在连接模型…'
+      var t0 = Date.now()
+      S[timerKey] = window.setInterval(function () {
+        var s = Math.floor((Date.now() - t0) / 1000)
+        if (s >= 1) el.textContent = label + '… ' + s + 's'
+      }, 400)
+    }
+    function endStage(timerKey, elId) {
+      window.clearInterval(S[timerKey])
+      $(elId).textContent = ''
+    }
+
     function startAi() {
       // 输入校验与真实实现一致：generate 必填（文本或需求条目），complete 可空；校验失败不切阶段
       if (S.mode === 'generate' && !$('aiText').value.trim() && $('aiReqTags').children.length === 0) {
@@ -844,6 +889,7 @@
       S.aiRan = true
       S.aiPhase = 'streaming'
       renderAi()
+      beginStage('aiStageT', 'aiStage', S.mode === 'generate' ? '生成中' : '补全中')
       clearSlow()
       // 演示压缩时序：首次生成放慢以呈现慢响应提示（真实为首帧 10s 阈值）
       var slowAt = S.slowDemo ? 2500 : 10000
@@ -857,6 +903,7 @@
     }
 
     function finishAi() {
+      endStage('aiStageT', 'aiStage')
       // 空结果属正常返回：回到可重试态（示例映射：补全模式未补上下文且无缺口）
       if (S.mode === 'complete' && !$('aiText').value.trim()) {
         S.aiPhase = 'idle'
@@ -866,10 +913,15 @@
       }
       S.aiPhase = 'done'
       renderAi()
+      // 完成态内嵌结果摘要：抽屉内速览用例标题，勾选取舍仍在预览弹窗（49 §1.2）
+      if (S.mode === 'generate') {
+        $('aiSummary').innerHTML = GEN_NODES.map(function (n) { return '<li>' + escapeHtml(n.title) + '</li>' }).join('')
+      }
     }
 
     function stopAi() {
       window.clearTimeout(S.aiTimer)
+      endStage('aiStageT', 'aiStage')
       clearSlow()
       S.aiPhase = 'idle'
       renderAi()
@@ -977,6 +1029,8 @@
       }
       aiMask.hidden = false
       mpDrawer.hidden = false
+      // 有历史结果或分析仍在后台进行时标示会话恢复（56 §1.2）
+      $('mpResume').hidden = !(S.mpDone || S.mpPhase === 'analyzing')
       renderMp()
     }
 
@@ -1062,7 +1116,9 @@
     function startMp() {
       S.mpPhase = 'analyzing'
       renderMp()
+      beginStage('mpStageT', 'mpStage', '分析中')
       S.mpTimer = window.setTimeout(function () {
+        endStage('mpStageT', 'mpStage')
         S.mpPhase = 'done'
         S.mpDone = true
         // 每次分析完成自动折叠输入组，展开状态由用户手动控制（交互设计 56 §1.2）
@@ -1073,6 +1129,7 @@
 
     function cancelMp() {
       window.clearTimeout(S.mpTimer)
+      endStage('mpStageT', 'mpStage')
       // 已有结果时取消仅中止本次分析，保留上次会话（交互设计 56 §1.2）
       S.mpPhase = S.mpDone ? 'done' : 'idle'
       renderMp()
@@ -1085,7 +1142,8 @@
         picked.map(function (p) { return '- ' + p.title + '（建议归属：' + p.module + '）' }).join('\n')
       closeMp()
       openAi('generate', text)
-      toast('已带入 ' + picked.length + ' 条遗漏测试点并预填生成抽屉', 'success')
+      // 衔接提示：让用户确认勾选内容已进入生成抽屉（56 §1.2 转用例生成）
+      toast('已带入勾选内容（' + picked.length + ' 条），可直接开始生成', 'success')
     }
 
     /* ---------------- 画布右键菜单 ---------------- */
@@ -1275,6 +1333,23 @@
     $('aiStop').addEventListener('click', stopAi)
     // 输入即清除内联校验提示（P2 的字数计数也挂在此监听）
     $('aiText').addEventListener('input', syncAiErr)
+    // 新会话 = 回发起态：中断流式并清空输入、需求与结果（49 §1.2 [新会话]）
+    $('aiNewSession').addEventListener('click', function () {
+      window.clearTimeout(S.aiTimer)
+      clearSlow()
+      endStage('aiStageT', 'aiStage')
+      S.aiPhase = 'idle'
+      S.aiRan = false
+      S.aiErrOn = false
+      $('aiText').value = ''
+      S.aiReqs = []
+      renderReqTags('ai')
+      syncAiErr()
+      $('aiStartText').textContent = MODES[S.mode].start
+      renderAi()
+      $('aiResume').hidden = true
+      toast('已开启新会话')
+    })
     $('aiPreviewBtn').addEventListener('click', openPreview)
     $('aiReqAdd').addEventListener('click', function () { openReqSel('ai') })
     $('mpReqAdd').addEventListener('click', function () { openReqSel('mp') })
