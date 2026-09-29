@@ -72,8 +72,9 @@ public class ProjectDashboardServiceImpl implements ProjectDashboardService {
                 .toList());
 
         // Count case nodes belonging to this project's documents
-        List<String> projectDocIds = testCaseDocumentMapper.listByProjectId(projectId)
-                .stream().map(d -> d.getId().toString()).collect(Collectors.toList());
+        // document_id 列使用 UUIDTypeHandler，必须传 UUID 而非字符串（否则强转失败）
+        List<UUID> projectDocIds = testCaseDocumentMapper.listByProjectId(projectId)
+                .stream().map(TestCaseDocument::getId).collect(Collectors.toList());
 
         long caseCount = 0;
         if (!projectDocIds.isEmpty()) {

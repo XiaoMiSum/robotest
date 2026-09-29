@@ -92,9 +92,10 @@ public class TestCaseNodeServiceImpl implements TestCaseNodeService {
                                                            String priority, Integer pageNo, Integer pageSize) {
         projectAccessGuard.requireProjectMember(projectId, userId);
         // 查询项目下所有 document 的 ID
+        // document_id 列使用 UUIDTypeHandler，必须传 UUID 而非字符串（否则强转失败）
         List<TestCaseDocument> documents = testCaseDocumentMapper.listByProjectId(projectId);
-        List<String> documentIds = documents.stream()
-                .map(doc -> doc.getId().toString())
+        List<UUID> documentIds = documents.stream()
+                .map(TestCaseDocument::getId)
                 .collect(Collectors.toList());
 
         if (documentIds.isEmpty()) {
