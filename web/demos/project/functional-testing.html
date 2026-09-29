@@ -193,6 +193,42 @@
   .ai-item__desc { font-size: var(--font-size-xs); color: var(--n-600); line-height: 1.6; }
   .ai-item__tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
 
+  /* ===== 需求条目选取器：置于抽屉之上的模态，列表内部滚动，行内 [明细] 与勾选互不干扰（交互设计 52 §1.2） ===== */
+  .req-mask { z-index: 240; padding-top: 8vh; }
+  .req-sel__search { margin-bottom: 10px; }
+  .req-sel__list { min-height: 200px; max-height: 320px; overflow-y: auto; border: 1px solid var(--n-200); border-radius: var(--radius-md); }
+  .req-item { display: flex; align-items: center; gap: 8px; padding: 7px 10px; cursor: pointer; }
+  .req-item:hover { background: var(--n-50); }
+  .req-item__title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--font-size-sm); color: var(--n-700); }
+  .req-item__date { flex-shrink: 0; font-size: var(--font-size-xs); color: var(--n-500); }
+  .req-empty { padding: 34px 0; text-align: center; font-size: var(--font-size-sm); color: var(--n-400); }
+  .req-sel__count { flex: 1; text-align: right; font-size: var(--font-size-sm); color: var(--n-500); }
+
+  /* ===== 条目明细气泡：贴锚点定位、仅渲染 Markdown 正文（52 §1.2 查看明细） ===== */
+  .req-pop {
+    position: fixed;
+    z-index: 260;
+    width: 340px;
+    max-height: 60vh;
+    overflow-y: auto;
+    padding: 14px 16px;
+    background: var(--n-0);
+    border: 1px solid var(--n-200);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+  }
+  .req-pop h1, .req-pop h2, .req-pop h3 { margin: 0 0 8px; color: var(--n-900); font-weight: 600; }
+  .req-pop h1 { font-size: 16px; }
+  .req-pop h2 { font-size: 15px; }
+  .req-pop h3 { font-size: var(--font-size-sm); }
+  .req-pop p, .req-pop ul, .req-pop ol, .req-pop blockquote { margin: 0 0 8px; font-size: var(--font-size-sm); color: var(--n-600); line-height: 1.7; }
+  .req-pop ul, .req-pop ol { padding-left: 20px; }
+  .req-pop strong { color: var(--n-900); }
+  .req-pop code { padding: 1px 5px; border-radius: var(--radius-sm); background: var(--n-50); font-size: var(--font-size-xs); color: var(--brand-600); }
+  .req-pop pre { margin: 0 0 8px; padding: 9px 12px; background: var(--n-50); border-radius: var(--radius-md); overflow-x: auto; }
+  .req-pop pre code { padding: 0; background: none; color: var(--n-700); }
+  .req-pop blockquote { padding: 6px 12px; border-left: 3px solid var(--brand-500); background: var(--n-50); border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
+
   /* ===== 结果预览弹窗：居中模态 70%×80% 视口、置顶于抽屉之上（交互设计 49 §1.1） ===== */
   .ai-preview-mask { z-index: 220; padding-top: 8vh; }
   .ai-preview { display: flex; flex-direction: column; width: 70vw; height: 80vh; max-width: none; }
@@ -327,7 +363,7 @@
             <button class="mm-tool priority-btn priority-btn--p2" type="button" aria-pressed="false">P2</button>
             <button class="mm-tool priority-btn priority-btn--p3" type="button" aria-pressed="false">P3</button>
             <div class="mm-group mm-group--end">
-              <button class="mm-tool" type="button"><span data-icon="link" aria-hidden="true"></span>关联需求</button>
+              <button class="mm-tool" type="button" id="reqLinkBtn"><span data-icon="link" aria-hidden="true"></span>关联需求</button>
               <span class="mm-sep" aria-hidden="true"></span>
               <button class="mm-tool mm-tool--ai" type="button"><span data-icon="sparkle" aria-hidden="true"></span>AI 生成用例</button>
               <button class="mm-tool mm-tool--ai" type="button"><span data-icon="sparkle" aria-hidden="true"></span>遗漏测试点</button>
@@ -389,10 +425,7 @@
         <span class="ai-label">需求池</span>
         <button class="btn btn--text btn--sm" type="button" id="aiReqAdd"><span data-icon="plus" aria-hidden="true"></span>选择需求</button>
       </div>
-      <div class="ai-tags" id="aiReqTags">
-        <span class="tag tag--outline">满减券叠加规则<button class="ai-tag-x" type="button" aria-label="移除需求条目">×</button></span>
-        <span class="tag tag--outline">新客立减活动<button class="ai-tag-x" type="button" aria-label="移除需求条目">×</button></span>
-      </div>
+      <div class="ai-tags" id="aiReqTags"></div>
       <span class="ai-hint" id="aiReqHint" hidden>未选择需求条目，将仅依据输入文本生成</span>
     </div>
 
@@ -452,9 +485,7 @@
           <span class="ai-label">需求池</span>
           <button class="btn btn--text btn--sm" type="button" id="mpReqAdd"><span data-icon="plus" aria-hidden="true"></span>选择需求</button>
         </div>
-        <div class="ai-tags" id="mpReqTags">
-          <span class="tag tag--outline">满减券叠加规则<button class="ai-tag-x" type="button" aria-label="移除需求条目">×</button></span>
-        </div>
+        <div class="ai-tags" id="mpReqTags"></div>
         <span class="ai-hint" id="mpReqHint" hidden>未选择需求条目，将仅依据输入文本分析</span>
       </div>
     </div>
@@ -481,6 +512,30 @@
     </div>
   </div>
 </aside>
+
+<!-- 需求条目选取器：工具条 [关联需求] 与两个 AI 抽屉的需求池共用（交互设计 52 §1.2） -->
+<div class="dialog-mask req-mask" id="reqMask" hidden>
+  <div class="dialog" role="dialog" aria-labelledby="reqSelTitle">
+    <div class="dialog__header">
+      <span class="dialog__title" id="reqSelTitle">选择需求</span>
+      <button class="dialog__close" type="button" id="reqSelClose" aria-label="关闭"><span data-icon="x" aria-hidden="true"></span></button>
+    </div>
+    <div class="dialog__body">
+      <div class="req-sel__search">
+        <input class="input" id="reqFilter" placeholder="关键字过滤" aria-label="关键字过滤">
+      </div>
+      <div class="req-sel__list" id="reqList"></div>
+    </div>
+    <div class="dialog__footer">
+      <span class="req-sel__count" id="reqCount">已选 0 条</span>
+      <button class="btn btn--default" type="button" id="reqCancel">取消</button>
+      <button class="btn btn--primary" type="button" id="reqConfirm">确定</button>
+    </div>
+  </div>
+</div>
+
+<!-- 条目明细气泡：贴「明细」按钮定位，仅渲染 Markdown 正文 -->
+<div class="req-pop" id="reqPop" data-req="" hidden></div>
 
 <!-- 生成/补全结果预览弹窗：居中模态，置顶于抽屉之上，抽屉保留在下层 -->
 <div class="dialog-mask ai-preview-mask" id="pvMask" hidden>
@@ -645,23 +700,60 @@
       }
     ]
 
+    // 需求池示例数据：content 为 Markdown 正文，明细气泡按 52 §1.2 仅渲染正文（\n 写法避免反引号转义）
+    var REQ_POOL = [
+      {
+        id: 'r1', title: '满减券叠加规则', date: '07-30',
+        content: '## 满减券叠加规则\n\n同一订单最多叠加 **3 张**优惠券，且必须满足：\n\n1. 店铺券与平台券各最多 1 张；\n2. 跨店券不可与店铺券同时使用；\n3. 优惠金额按面额从大到小顺序分摊。\n\n> 临界规则：叠加优惠金额不得大于商品小计，超出部分自动失效。'
+      },
+      {
+        id: 'r2', title: '新客立减活动', date: '07-28',
+        content: '## 新客立减活动\n\n- 新注册用户首单立减 `5 元`；\n- 与满减券可叠加，但不与会员折扣叠加；\n- 活动时间：每月 1 日 00:00 至月末 23:59。\n\n**风控限制**：同一设备或 IP 仅可享受一次。'
+      },
+      {
+        id: 'r3', title: '优惠券过期与核销', date: '07-25',
+        content: '## 过期与核销\n\n过期券在提交订单时拦截并提示「该券已过期」。\n\n核销接口需保证幂等，同一券码重复提交时返回首次结果，不重复扣减：\n\n```\nPOST /coupon/redeem\n{ "status": "ok", "dedup": true }\n```\n\n- 券码核销后立即置为已使用；\n- 并发核销以数据库乐观锁为准。'
+      },
+      {
+        id: 'r4', title: '退款券返还规则', date: '07-22',
+        content: '## 退款与券返还\n\n- 整单退款：券在有效期内原样返还；\n- 部分退款：不返还券，仅退差价；\n- 已过期券不返还。\n\n返还张数以订单实际核销记录为准，*不支持*手工调整。'
+      },
+      {
+        id: 'r5', title: '会员等级折扣', date: '07-18',
+        content: '## 会员等级折扣\n\n- 黄金会员：95 折\n- 铂金会员：9 折\n- 钻石会员：85 折\n\n等级折扣与优惠券可叠加：先按会员等级计算折后价，再扣减优惠券。'
+      },
+      {
+        id: 'r6', title: '积分抵扣规则', date: '07-15',
+        content: '## 积分抵扣\n\n100 积分抵扣 1 元，单笔订单最多抵扣应付金额的 **20%**。\n\n- 积分与优惠券可以叠加使用；\n- 订单退款时积分原路返还。\n\n> 示例：订单应付 200 元时，最多使用 40 元积分抵扣。'
+      }
+    ]
+
     var aiMask = $('aiMask')
     var aiDrawer = $('aiDrawer')
     var mpDrawer = $('mpDrawer')
     var pvMask = $('pvMask')
+    var reqMask = $('reqMask')
     var ctx = $('ctxMenu')
     var S = {
       mode: 'generate', aiPhase: 'idle', aiTimer: 0, aiRan: false,
       slowDemo: true, slowTimer: 0,
       mpPhase: 'idle', mpTimer: 0, mpDone: false, mpInputsOpen: true,
       kw: ['优惠券', '叠加'], mpChecked: MP_POINTS.map(function () { return true }),
-      pvNodes: [], pvChecked: []
+      pvNodes: [], pvChecked: [],
+      // docReqs=文档关联；ai/mp 首开抽屉时从 docReqs 带入默认上下文，之后会话内独立改选（52 §1.3）
+      docReqs: ['r1', 'r2'], aiReqs: null, mpReqs: null,
+      reqFor: '', reqSel: []
     }
 
     /* ---------------- AI 生成 / 补全抽屉 ---------------- */
     function openAi(mode, text) {
       var cfg = MODES[mode]
       S.mode = mode
+      // 首次打开才带入文档关联条目作为默认上下文，会话内改选不被后续关联覆盖（52 §1.3）
+      if (!S.aiReqs) {
+        S.aiReqs = S.docReqs.slice()
+        renderReqTags('ai')
+      }
       $('aiTitleText').textContent = cfg.title
       $('aiPath').textContent = cfg.path
       $('aiText').placeholder = cfg.placeholder
@@ -834,6 +926,11 @@
 
     /* ---------------- 遗漏测试点分析抽屉 ---------------- */
     function openMp() {
+      // 同 openAi：首开带入文档关联条目作为默认上下文（52 §1.3）
+      if (!S.mpReqs) {
+        S.mpReqs = S.docReqs.slice()
+        renderReqTags('mp')
+      }
       aiMask.hidden = false
       mpDrawer.hidden = false
       renderMp()
@@ -953,6 +1050,163 @@
       ctx.style.top = top + 'px'
     }
 
+    /* ---------------- 需求条目选取器（交互设计 52 §1.2） ---------------- */
+    // 示例级 Markdown 渲染器：静态页零外部依赖（不引 CDN/第三方库），仅覆盖条目正文所需子集
+    function escapeHtml(s) {
+      return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    }
+    function mdInline(s) {
+      return s
+        .replace(/`([^`]+)`/g, '<code>$1</code>')
+        .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*([^*]+)\*/g, '<em>$1</em>')
+    }
+    function renderMd(src) {
+      var lines = escapeHtml(src).split('\n')
+      var html = ''
+      var i = 0
+      while (i < lines.length) {
+        var line = lines[i]
+        if (/^```/.test(line)) {
+          var buf = []
+          i++
+          while (i < lines.length && !/^```/.test(lines[i])) { buf.push(lines[i]); i++ }
+          i++
+          html += '<pre><code>' + buf.join('\n') + '</code></pre>'
+          continue
+        }
+        var m = line.match(/^(#{1,3}) (.+)$/)
+        if (m) {
+          html += '<h' + m[1].length + '>' + mdInline(m[2]) + '</h' + m[1].length + '>'
+          i++
+          continue
+        }
+        if (/^&gt; ?/.test(line)) {
+          var q = []
+          while (i < lines.length && /^&gt; ?/.test(lines[i])) {
+            q.push(lines[i].replace(/^&gt; ?/, ''))
+            i++
+          }
+          html += '<blockquote>' + mdInline(q.join(' ')) + '</blockquote>'
+          continue
+        }
+        if (/^- /.test(line)) {
+          var ul = []
+          while (i < lines.length && /^- /.test(lines[i])) {
+            ul.push('<li>' + mdInline(lines[i].slice(2)) + '</li>')
+            i++
+          }
+          html += '<ul>' + ul.join('') + '</ul>'
+          continue
+        }
+        if (/^\d+\. /.test(line)) {
+          var ol = []
+          while (i < lines.length && /^\d+\. /.test(lines[i])) {
+            ol.push('<li>' + mdInline(lines[i].replace(/^\d+\. /, '')) + '</li>')
+            i++
+          }
+          html += '<ol>' + ol.join('') + '</ol>'
+          continue
+        }
+        if (line === '') { i++; continue }
+        // 段落：连续非空且非块级起始的行合并为一段
+        var p = []
+        while (i < lines.length && lines[i] !== '' && !/^(#{1,3} |```|&gt; |- |\d+\. )/.test(lines[i])) {
+          p.push(lines[i])
+          i++
+        }
+        html += '<p>' + mdInline(p.join(' ')) + '</p>'
+      }
+      return html
+    }
+
+    function reqById(id) {
+      return REQ_POOL.filter(function (r) { return r.id === id })[0]
+    }
+
+    // 需求池标签统一由数据渲染：× 移除改写数组后重渲染，避免 DOM 直删与数据漂移
+    function renderReqTags(which) {
+      var box = $(which + 'ReqTags')
+      var ids = S[which + 'Reqs'] || []
+      box.innerHTML = ''
+      ids.forEach(function (id) {
+        var r = reqById(id)
+        if (!r) return
+        var tag = document.createElement('span')
+        tag.className = 'tag tag--outline'
+        tag.textContent = r.title
+        var x = document.createElement('button')
+        x.type = 'button'
+        x.className = 'ai-tag-x'
+        x.setAttribute('aria-label', '移除需求条目')
+        x.setAttribute('data-req', id)
+        x.textContent = '×'
+        tag.appendChild(x)
+        box.appendChild(tag)
+      })
+      $(which + 'ReqHint').hidden = ids.length > 0
+    }
+
+    function renderReqList() {
+      var kw = $('reqFilter').value.trim()
+      var items = REQ_POOL.filter(function (r) { return !kw || r.title.indexOf(kw) >= 0 })
+      var box = $('reqList')
+      if (!items.length) {
+        box.innerHTML = '<div class="req-empty">暂无需求</div>'
+      } else {
+        box.innerHTML = items.map(function (r) {
+          var on = S.reqSel.indexOf(r.id) >= 0
+          return '<label class="req-item">' +
+            '<input type="checkbox" data-req="' + r.id + '"' + (on ? ' checked' : '') + '>' +
+            '<span class="req-item__title">' + r.title + '</span>' +
+            '<span class="req-item__date">' + r.date + '</span>' +
+            '<button class="btn btn--text btn--sm" type="button" data-detail="' + r.id + '">明细</button>' +
+            '</label>'
+        }).join('')
+      }
+      $('reqCount').textContent = '已选 ' + S.reqSel.length + ' 条'
+    }
+
+    function openReqSel(from) {
+      S.reqFor = from
+      var current = from === 'doc' ? S.docReqs : S[from + 'Reqs']
+      S.reqSel = (current || []).slice()
+      $('reqFilter').value = ''
+      renderReqList()
+      closeReqPop()
+      reqMask.hidden = false
+      $('reqFilter').focus()
+    }
+
+    function closeReqSel() {
+      reqMask.hidden = true
+      closeReqPop()
+    }
+
+    function toggleReqPop(id, anchor) {
+      var pop = $('reqPop')
+      // 再次点击同一 [明细] 收起，点击另一条则切换内容
+      if (!pop.hidden && pop.getAttribute('data-req') === id) { closeReqPop(); return }
+      var r = reqById(id)
+      if (!r) return
+      pop.innerHTML = renderMd(r.content)
+      pop.setAttribute('data-req', id)
+      pop.hidden = false
+      // 贴锚点展开，下方越界时翻转到上方，视口边缘钳制（同右键菜单的处理思路）
+      var a = anchor.getBoundingClientRect()
+      var left = Math.min(a.left, window.innerWidth - pop.offsetWidth - 8)
+      var top = a.bottom + 6
+      if (top + pop.offsetHeight > window.innerHeight - 8) top = Math.max(8, a.top - pop.offsetHeight - 6)
+      pop.style.left = Math.max(8, left) + 'px'
+      pop.style.top = top + 'px'
+    }
+
+    function closeReqPop() {
+      var pop = $('reqPop')
+      pop.hidden = true
+      pop.removeAttribute('data-req')
+    }
+
     /* ---------------- 事件绑定 ---------------- */
     document.querySelectorAll('.mm-bar .mm-tool--ai').forEach(function (btn) {
       var label = btn.textContent || ''
@@ -972,18 +1226,63 @@
     $('aiRetry').addEventListener('click', startAi)
     $('aiStop').addEventListener('click', stopAi)
     $('aiPreviewBtn').addEventListener('click', openPreview)
-    $('aiReqAdd').addEventListener('click', function () { toast('示例：打开需求条目选取器') })
-    $('mpReqAdd').addEventListener('click', function () { toast('示例：打开需求条目选取器') })
+    $('aiReqAdd').addEventListener('click', function () { openReqSel('ai') })
+    $('mpReqAdd').addEventListener('click', function () { openReqSel('mp') })
+    $('reqLinkBtn').addEventListener('click', function () { openReqSel('doc') })
 
-    ;[['aiReqTags', 'aiReqHint'], ['mpReqTags', 'mpReqHint']].forEach(function (pair) {
-      var box = $(pair[0])
-      box.addEventListener('click', function (e) {
+    ;[['aiReqTags', 'ai'], ['mpReqTags', 'mp']].forEach(function (pair) {
+      $(pair[0]).addEventListener('click', function (e) {
         var x = e.target.closest('.ai-tag-x')
         if (!x) return
-        x.closest('.tag').remove()
-        $(pair[1]).hidden = box.children.length > 0
+        var which = pair[1]
+        var arr = S[which + 'Reqs']
+        var i = arr.indexOf(x.getAttribute('data-req'))
+        if (i >= 0) arr.splice(i, 1)
+        renderReqTags(which)
         renderMp()
       })
+    })
+
+    $('reqFilter').addEventListener('input', renderReqList)
+    $('reqList').addEventListener('change', function (e) {
+      var cb = e.target.closest('input[data-req]')
+      if (!cb) return
+      var id = cb.getAttribute('data-req')
+      var i = S.reqSel.indexOf(id)
+      if (cb.checked) { if (i < 0) S.reqSel.push(id) }
+      else if (i >= 0) S.reqSel.splice(i, 1)
+      $('reqCount').textContent = '已选 ' + S.reqSel.length + ' 条'
+    })
+    $('reqList').addEventListener('click', function (e) {
+      var b = e.target.closest('[data-detail]')
+      if (!b) return
+      // [明细] 位于 label 内，阻断放行会连带切换勾选（52 §1.2：不联动勾选）
+      e.preventDefault()
+      e.stopPropagation()
+      toggleReqPop(b.getAttribute('data-detail'), b)
+    })
+    $('reqConfirm').addEventListener('click', function () {
+      var from = S.reqFor
+      if (from === 'doc') {
+        S.docReqs = S.reqSel.slice()
+        toast('已关联 ' + S.docReqs.length + ' 条需求条目', 'success')
+      } else {
+        S[from + 'Reqs'] = S.reqSel.slice()
+        renderReqTags(from)
+        renderMp()
+      }
+      closeReqSel()
+    })
+    $('reqCancel').addEventListener('click', closeReqSel)
+    $('reqSelClose').addEventListener('click', closeReqSel)
+    reqMask.addEventListener('click', function (e) {
+      if (e.target === reqMask) closeReqSel()
+    })
+    // 点击气泡外空白收起明细（点在 [明细] 上由按钮自身切换，点遮罩由遮罩处理器关闭选取器）
+    document.addEventListener('click', function (e) {
+      if ($('reqPop').hidden) return
+      if (e.target.closest('#reqPop') || e.target.closest('[data-detail]')) return
+      closeReqPop()
     })
 
     $('mpKwInput').addEventListener('keydown', function (e) {
@@ -1078,6 +1377,9 @@
 
     document.addEventListener('keydown', function (e) {
       if (e.key !== 'Escape') return
+      // 由内向外逐层关闭：明细气泡 → 需求选取器 → 右键菜单/预览/抽屉
+      if (!$('reqPop').hidden) { closeReqPop(); return }
+      if (!reqMask.hidden) { closeReqSel(); return }
       if (!ctx.hidden) { ctx.hidden = true; return }
       if (!pvMask.hidden) { pvMask.hidden = true; return }
       if (!mpDrawer.hidden) { closeMp(); return }
