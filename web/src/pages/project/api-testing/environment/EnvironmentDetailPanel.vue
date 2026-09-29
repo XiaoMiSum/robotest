@@ -1,16 +1,30 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { ElMessageBox } from 'element-plus'
 import { useEnvironmentDetailState } from '@/composables/project/api-testing/environment/useEnvironmentDetailState'
 import KeyValueTable from '@/components/project/api-testing/KeyValueTable.vue'
 import ExtractorAssetPicker from '@/components/project/api-testing/ExtractorAssetPicker.vue'
 import EnvironmentProcessorPane from './EnvironmentProcessorPane.vue'
 import { DRIVER_OPTIONS } from '@/composables/project/api-testing/environment/environmentsModel'
+import type { ApiEnvironmentDetail } from '@/types'
 
-const props = defineProps<{ environmentId: string; canEdit: boolean }>()
-const emit = defineEmits<{ changed: [] }>()
+const props = defineProps<{
+  environmentId?: string
+  canEdit: boolean
+  /** create：新建态面板，由 seed 预填并走创建接口 */
+  mode?: 'detail' | 'create'
+  seed?: ApiEnvironmentDetail
+}>()
+const emit = defineEmits<{
+  changed: []
+  created: [id: string]
+  cancelled: []
+  'dirty-change': [value: boolean]
+}>()
 
 const {
-  loading, loadError, detail, saving, dirty, configForms, dsForms, variableRows, activeTab,
+  loading, loadError, detail, saving, dirty, createMode, canTestConnections,
+  configForms, dsForms, variableRows, activeTab,
   activeConfigId, activeConfig, orderedConfigForms, selectConfig, addHttpConfig, removeHttpConfig,
   testingHttpId, runHttpTest, httpConnResult,
   activeDsId, activeDs, orderedDsForms, selectDs, selectedDsDriverOption, handleDsDriverChange,
@@ -25,6 +39,22 @@ const {
   procAssetPickerVisible, procAssetPickerLoading, procAssetPickerItems, procAssetPickerKeyword,
   openProcessorAssetPicker, handleProcessorAssetPicked, loadProcAssets,
 } = useEnvironmentDetailState(props, emit)
+
+/** 放弃新建前确认，避免面板里已填配置被静默丢弃 */
+async function requestCancel() {
+  if (dirty.value) {
+    try {
+      await ElMessageBox.confirm('新建内容尚未创建，确认放弃？', '放弃新建', {
+        type: 'warning',
+        confirmButtonText: '放弃',
+        cancelButtonText: '继续编辑',
+      })
+    } catch {
+      return
+    }
+  }
+  emit('cancelled')
+}
 
 // 自定义页签：el-tabs 的头与内容无法拆进同一个吸顶容器（docs34 §1.1）
 const tabs = computed(() => [
@@ -44,16 +74,38 @@ const tabs = computed(() => [
     </div>
 
     <template v-else-if="detail">
-      <!-- 吸顶区：环境标识 + 未保存标记 + 保存全部，其下为计数页签 -->
+      <!-- 吸顶区：详情态为环境标识 + 未保存标记 + 保存全部；新建态为环境基础信息 + 取消/创建，其下为计数页签 -->
       <div class="env-detail__top">
         <div class="env-detail__head">
-          <div class="env-detail__id">
+          <div v-if="createMode" class="env-detail__create">
+            <el-input
+              v-model="detail.name"
+              class="env-detail__create-name"
+              maxlength="100"
+              placeholder="环境名称（必填）"
+            />
+            <el-input
+              v-model="detail.description"
+              class="env-detail__create-desc"
+              maxlength="500"
+              placeholder="描述（可选）"
+            />
+            <el-switch v-model="detail.isDefault" />
+            <span class="env-detail__hint">设为默认</span>
+          </div>
+          <div v-else class="env-detail__id">
             <span class="env-detail__name">{{ detail.name }}</span>
             <el-tag v-if="detail.isDefault" size="small" type="warning" effect="light">默认</el-tag>
           </div>
           <div class="env-detail__head-actions">
-            <el-tag v-if="dirty" size="small" type="warning" effect="light">未保存</el-tag>
-            <el-button v-if="canEdit" type="primary" size="small" :loading="saving" @click="saveAll">保存全部</el-button>
+            <template v-if="createMode">
+              <el-button size="small" @click="requestCancel">取消</el-button>
+              <el-button type="primary" size="small" :loading="saving" @click="saveAll">创建</el-button>
+            </template>
+            <template v-else>
+              <el-tag v-if="dirty" size="small" type="warning" effect="light">未保存</el-tag>
+              <el-button v-if="canEdit" type="primary" size="small" :loading="saving" @click="saveAll">保存全部</el-button>
+            </template>
           </div>
         </div>
 
@@ -114,9 +166,14 @@ const tabs = computed(() => [
             </div>
 
             <div class="env-detail__actions">
-              <el-button :loading="testingHttpId === activeConfig.id" @click="runHttpTest(activeConfig, props.environmentId)">
+              <el-button
+                :disabled="!canTestConnections"
+                :loading="testingHttpId === activeConfig.id"
+                @click="runHttpTest(activeConfig, props.environmentId)"
+              >
                 连接测试
               </el-button>
+              <span v-if="!canTestConnections" class="env-detail__hint">创建环境后可测试连接</span>
               <span
                 v-if="httpConnResult"
                 class="conn-result"
@@ -207,9 +264,14 @@ const tabs = computed(() => [
             </el-form>
 
             <div class="env-detail__actions">
-              <el-button :loading="testingDsId === activeDs.id" @click="runDsTest(activeDs, props.environmentId)">
+              <el-button
+                :disabled="!canTestConnections"
+                :loading="testingDsId === activeDs.id"
+                @click="runDsTest(activeDs, props.environmentId)"
+              >
                 连接测试
               </el-button>
+              <span v-if="!canTestConnections" class="env-detail__hint">创建环境后可测试连接</span>
               <span
                 v-if="dsConnResult"
                 class="conn-result"
@@ -354,6 +416,25 @@ const tabs = computed(() => [
   align-items: center;
   gap: var(--space-sm);
   min-width: 0;
+}
+
+/* 新建态：环境基础信息与右侧 [取消]/[创建] 同处吸顶区 */
+.env-detail__create {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex: 1;
+  min-width: 0;
+
+  .env-detail__create-name {
+    width: 220px;
+    flex-shrink: 0;
+  }
+
+  .env-detail__create-desc {
+    flex: 1;
+    min-width: 0;
+  }
 }
 
 .env-detail__name {

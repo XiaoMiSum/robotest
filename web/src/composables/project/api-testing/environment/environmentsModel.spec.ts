@@ -3,11 +3,13 @@ import {
   buildSavePayload,
   createEmptyHttpConfig,
   detailToForm,
+  emptyEnvironmentDetail,
   DRIVER_OPTIONS,
   formatImportResult,
   isValidVariableName,
   parseVariablesJson,
   resolveEnvironmentError,
+  seedFromDetail,
   sortEnvironments,
   toVariablePayloads,
   validateVariableRow,
@@ -31,6 +33,22 @@ function listItem(partial: Partial<ApiEnvironmentListItem>): ApiEnvironmentListI
 
 function variable(partial: Partial<ApiVariable>): ApiVariable {
   return { id: 'v1', name: 'K', value: 'V', hasValue: true, ...partial }
+}
+
+function makeDetail(partial: Partial<ApiEnvironmentDetail>): ApiEnvironmentDetail {
+  return {
+    id: 'env-1',
+    name: '环境',
+    description: '',
+    scope: 'project',
+    isDefault: false,
+    sortOrder: 0,
+    httpConfigs: [],
+    variables: [],
+    dataSources: [],
+    processors: [],
+    ...partial,
+  }
 }
 
 describe('environmentsModel', () => {
@@ -157,6 +175,55 @@ describe('environmentsModel', () => {
         '导入完成：新增 1 个、跳过 2 个',
       )
       expect(formatImportResult({ createdCount: 0, overwrittenCount: 0, skippedCount: 0 })).toBe('未发生任何变更')
+    })
+  })
+
+  describe('emptyEnvironmentDetail / seedFromDetail', () => {
+    it('空壳环境仅含一条待填写 HTTP 配置', () => {
+      const env = emptyEnvironmentDetail(7)
+      expect(env.id).toBe('')
+      expect(env.name).toBe('')
+      expect(env.isDefault).toBe(false)
+      expect(env.sortOrder).toBe(7)
+      expect(env.httpConfigs).toHaveLength(1)
+      expect(env.httpConfigs[0].baseUrl).toBe('')
+      expect(env.variables).toHaveLength(0)
+      expect(env.dataSources).toHaveLength(0)
+      expect(env.processors).toHaveLength(0)
+    })
+
+    it('副本改名、不抢占默认标记并排到指定序号', () => {
+      const source = makeDetail({ id: 'env-1', name: '生产', isDefault: true, sortOrder: 3 })
+      const seed = seedFromDetail(source, '生产（副本）', 9)
+      expect(seed.id).toBe('')
+      expect(seed.name).toBe('生产（副本）')
+      expect(seed.isDefault).toBe(false)
+      expect(seed.sortOrder).toBe(9)
+      // 源详情保持原样，后续复制仍以源环境为准
+      expect(source.name).toBe('生产')
+      expect(source.isDefault).toBe(true)
+    })
+
+    it('子资源深拷贝，改动副本不污染源详情', () => {
+      const source = makeDetail({
+        httpConfigs: [
+          { name: 'cfg', refName: 'r1', baseUrl: 'http://a', headers: [{ key: 'k', value: 'v', enabled: true }] },
+        ],
+        variables: [variable({ name: 'K', value: 'V' })],
+        dataSources: [{ name: 'ds', refName: 'd1', driver: 'mysql', url: 'jdbc:mysql://x' }],
+        processors: [
+          { id: 'p1', processorType: 'preprocessor', name: 'p', config: { url: 'http://src' }, sortOrder: 1, enabled: true },
+        ],
+      })
+      const seed = seedFromDetail(source, '副本', 1)
+      const seedConfig = seed.httpConfigs[0]
+      if (seedConfig.headers) seedConfig.headers[0].value = 'changed'
+      const seedProcessor = seed.processors[0]
+      if (seedProcessor.config) seedProcessor.config.url = 'changed'
+      expect(seed.variables).toHaveLength(1)
+      expect(seed.dataSources).toHaveLength(1)
+      expect(source.httpConfigs[0].headers?.[0].value).toBe('v')
+      expect(source.processors[0].config).toEqual({ url: 'http://src' })
     })
   })
 

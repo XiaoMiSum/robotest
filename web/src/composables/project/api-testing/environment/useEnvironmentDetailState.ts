@@ -7,8 +7,12 @@ import type {
   ApiProcessor,
   ApiProcessorType,
 } from '@/types'
-import { fetchEnvironmentDetail, updateEnvironment } from '@/services/project/api-testing/environment'
-import { resolveEnvironmentError, validateVariableRow } from '@/composables/project/api-testing/environment/environmentsModel'
+import { createEnvironment, fetchEnvironmentDetail, updateEnvironment } from '@/services/project/api-testing/environment'
+import {
+  emptyEnvironmentDetail,
+  resolveEnvironmentError,
+  validateVariableRow,
+} from '@/composables/project/api-testing/environment/environmentsModel'
 import { useEnvironmentHttpConfig, useEnvironmentDatasource } from './useEnvironmentConfig'
 import type { HttpConfigForm, DsForm } from './useEnvironmentConfig'
 import { useEnvironmentProcessors } from './useEnvironmentProcessors'
@@ -23,10 +27,25 @@ import { defaultProcessorConfig } from '@/composables/project/api-testing/proces
 
 export interface VariableRow { id: string; key: string; value: string; description: string; enabled: boolean }
 
-export function useEnvironmentDetailState(
-  props: { environmentId: string; canEdit: boolean },
-  emit: (event: 'changed') => void,
-) {
+export interface EnvironmentDetailProps {
+  /** 详情态必填；新建态无环境 ID */
+  environmentId?: string
+  canEdit: boolean
+  /** create：新建态面板，由 seed 预填且不发详情请求 */
+  mode?: 'detail' | 'create'
+  seed?: ApiEnvironmentDetail
+}
+
+export type EnvironmentDetailEmit = {
+  (event: 'changed'): void
+  (event: 'created', id: string): void
+  (event: 'dirty-change', value: boolean): void
+}
+
+export function useEnvironmentDetailState(props: EnvironmentDetailProps, emit: EnvironmentDetailEmit) {
+  const createMode = computed(() => (props.mode ?? 'detail') === 'create')
+  // 连接测试接口按环境 ID 试连，环境尚未创建时只能先创建再验证
+  const canTestConnections = computed(() => !createMode.value && Boolean(props.environmentId))
   const loading = ref(false)
   const loadError = ref(false)
   const detail = ref<ApiEnvironmentDetail | null>(null)
@@ -97,6 +116,9 @@ export function useEnvironmentDetailState(
     return JSON.stringify(buildAggregatePayload()) !== baselinePayload.value
   })
 
+  // 页面据此决定离开新建态前是否需要先确认放弃（交互设计 34 §1.6）
+  watch(dirty, (value) => emit('dirty-change', value), { immediate: true })
+
   watch([selectedProcessor, orderedConfigForms, orderedDsForms], ([processor]) => {
     applyDefaultProcRef(processor)
   })
@@ -128,10 +150,16 @@ export function useEnvironmentDetailState(
   })
 
   async function load() {
+    // 新建态以 seed 为初始表单，不发详情请求
+    if (createMode.value) {
+      hydrate(props.seed ?? emptyEnvironmentDetail(0))
+      selectFirstOfEach()
+      return
+    }
     loading.value = true
     loadError.value = false
     try {
-      hydrate(await fetchEnvironmentDetail(props.environmentId))
+      hydrate(await fetchEnvironmentDetail(props.environmentId ?? ''))
       selectFirstOfEach()
     } catch (err) {
       loadError.value = true
@@ -284,6 +312,7 @@ export function useEnvironmentDetailState(
       refName: ds.refName || undefined,
       driver: ds.driver,
       url: ds.url,
+      connectionProperties: ds.connectionProperties,
       isDefault: !!ds.isDefault,
       maxPoolSize: ds.maxPoolSize,
     }))
@@ -308,14 +337,23 @@ export function useEnvironmentDetailState(
 
   async function saveAll() {
     if (!props.canEdit) return
+    if (!createMode.value && !props.environmentId) return
     const error = validateAll()
     if (error) { ElMessage.warning(error); return }
     saving.value = true
     try {
-      await updateEnvironment(props.environmentId, buildAggregatePayload())
-      baselinePayload.value = JSON.stringify(buildAggregatePayload())
-      ElMessage.success('已保存')
-      emit('changed')
+      const payload = buildAggregatePayload()
+      if (createMode.value) {
+        // 新建与复制共用创建接口，副本不携带源环境 ID（详细设计 1.3）
+        const created = await createEnvironment(payload)
+        ElMessage.success('环境已创建')
+        emit('created', created.id)
+      } else if (props.environmentId) {
+        await updateEnvironment(props.environmentId, payload)
+        baselinePayload.value = JSON.stringify(payload)
+        ElMessage.success('已保存')
+        emit('changed')
+      }
     } catch (err) {
       ElMessage.error(resolveEnvironmentError(err))
     } finally {
@@ -324,7 +362,8 @@ export function useEnvironmentDetailState(
   }
 
   return {
-    loading, loadError, detail, saving, dirty, configForms, dsForms, variableRows, processorRows, activeTab,
+    loading, loadError, detail, saving, dirty, createMode, canTestConnections,
+    configForms, dsForms, variableRows, processorRows, activeTab,
     activeConfigId, activeConfig, orderedConfigForms, selectConfig, addHttpConfig, removeHttpConfig, testingHttpId, runHttpTest, httpConnResult,
     activeDsId, activeDs, orderedDsForms, selectDs, selectedDsDriverOption, handleDsDriverChange, addDataSource, removeDataSource, testingDsId, runDsTest, dsConnResult,
     activeProcId, procExpandedId, procDraft, procDraftMode, preProcCount, postProcCount,

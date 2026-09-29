@@ -9,10 +9,11 @@ const mocks = vi.hoisted(() => ({
   deleteEnvironment: vi.fn<() => Promise<boolean>>(),
   setDefaultEnvironment: vi.fn<() => Promise<{ success: boolean }>>(),
   sortEnvironment: vi.fn<() => Promise<boolean>>(),
-  copyEnvironment: vi.fn<() => Promise<{ id: string }>>(),
   downloadEnvironmentJson: vi.fn<() => Promise<void>>(),
   importEnvironment: vi.fn<() => Promise<ApiImportResult>>(),
   buildSavePayload: vi.fn(),
+  emptyEnvironmentDetail: vi.fn<(sortOrder: number) => ApiEnvironmentDetail>(),
+  seedFromDetail: vi.fn<(source: ApiEnvironmentDetail, name: string, sortOrder: number) => ApiEnvironmentDetail>(),
   formatImportResult: vi.fn<() => string>(),
   resolveEnvironmentError: vi.fn<(err: unknown) => string>(),
   sortEnvironments: vi.fn<(list: ApiEnvironmentListItem[]) => ApiEnvironmentListItem[]>(),
@@ -49,13 +50,14 @@ vi.mock('@/services/project/api-testing/environment', () => ({
   deleteEnvironment: mocks.deleteEnvironment,
   setDefaultEnvironment: mocks.setDefaultEnvironment,
   sortEnvironment: mocks.sortEnvironment,
-  copyEnvironment: mocks.copyEnvironment,
   downloadEnvironmentJson: mocks.downloadEnvironmentJson,
   importEnvironment: mocks.importEnvironment,
 }))
 
 vi.mock('@/composables/project/api-testing/environment/environmentsModel', () => ({
   buildSavePayload: mocks.buildSavePayload,
+  emptyEnvironmentDetail: mocks.emptyEnvironmentDetail,
+  seedFromDetail: mocks.seedFromDetail,
   formatImportResult: mocks.formatImportResult,
   resolveEnvironmentError: mocks.resolveEnvironmentError,
   sortEnvironments: mocks.sortEnvironments,
@@ -111,6 +113,9 @@ function setupMocks(options?: {
   mocks.sortEnvironments.mockImplementation(defaultSortImpl)
   mocks.resolveEnvironmentError.mockImplementation((err: unknown) => (err as Error)?.message ?? '操作失败')
   mocks.useAuthStore.mockReturnValue({ hasPermission: vi.fn().mockReturnValue(options?.hasPermission ?? true) })
+  // seed 构造交由 environmentsModel 实现，这里只回传可观测的占位对象
+  mocks.emptyEnvironmentDetail.mockImplementation((sortOrder: number) => makeDetail({ name: '', sortOrder }))
+  mocks.seedFromDetail.mockImplementation((source, name, sortOrder) => makeDetail({ ...source, name, sortOrder }))
 }
 
 async function initAndFlush(options?: Parameters<typeof setupMocks>[0]) {
@@ -149,14 +154,14 @@ describe('useEnvironmentPage', () => {
       expect(s.keyword.value).toBe('')
     })
 
-    it('createDialogVisible 初始为 false', async () => {
+    it('createMode 初始为 false', async () => {
       const s = await initAndFlush()
-      expect(s.createDialogVisible.value).toBe(false)
+      expect(s.createMode.value).toBe(false)
     })
 
-    it('copyDialogVisible 初始为 false', async () => {
+    it('createSeed 初始为 null', async () => {
       const s = await initAndFlush()
-      expect(s.copyDialogVisible.value).toBe(false)
+      expect(s.createSeed.value).toBeNull()
     })
 
     it('editDialogVisible 初始为 false', async () => {
@@ -184,11 +189,6 @@ describe('useEnvironmentPage', () => {
       expect(s.importOverwrite.value).toBe(false)
     })
 
-    it('creating 初始为 false', async () => {
-      const s = await initAndFlush()
-      expect(s.creating.value).toBe(false)
-    })
-
     it('editing 初始为 false', async () => {
       const s = await initAndFlush()
       expect(s.editing.value).toBe(false)
@@ -199,19 +199,9 @@ describe('useEnvironmentPage', () => {
       expect(s.importing.value).toBe(false)
     })
 
-    it('createForm 初始值正确', async () => {
+    it('createDirty 初始为 false', async () => {
       const s = await initAndFlush()
-      expect(s.createForm).toEqual({ name: '', description: '', isDefault: false })
-    })
-
-    it('copySourceName 初始为空字符串', async () => {
-      const s = await initAndFlush()
-      expect(s.copySourceName.value).toBe('')
-    })
-
-    it('copyForm 初始值正确', async () => {
-      const s = await initAndFlush()
-      expect(s.copyForm).toEqual({ name: '' })
+      expect(s.createDirty.value).toBe(false)
     })
 
     it('editTargetId 初始为空字符串', async () => {
@@ -418,120 +408,114 @@ describe('useEnvironmentPage', () => {
     })
   })
 
-  describe('openCreateDialog', () => {
-    it('有权限时打开对话框并重置表单', async () => {
-      const s = await initAndFlush({ hasPermission: true })
-      s.openCreateDialog()
-      expect(s.createDialogVisible.value).toBe(true)
-      expect(s.createForm.name).toBe('')
-      expect(s.createForm.description).toBe('')
-      expect(s.createForm.isDefault).toBe(false)
+  describe('startCreate', () => {
+    it('有权限时进入新建态，seed 为空壳且排到列表末尾', async () => {
+      const items = [makeItem({ id: 'env-1', sortOrder: 2 }), makeItem({ id: 'env-2', sortOrder: 5 })]
+      const s = await initAndFlush({ hasPermission: true, items })
+      await s.startCreate()
+      expect(mocks.emptyEnvironmentDetail).toHaveBeenCalledWith(6)
+      expect(s.createMode.value).toBe(true)
+      expect(s.createSeed.value?.name).toBe('')
+      expect(s.createDirty.value).toBe(false)
     })
 
-    it('无权限时显示警告并拒绝打开', async () => {
+    it('无权限时显示警告并保持未进入新建态', async () => {
       const s = await initAndFlush({ hasPermission: false })
-      s.openCreateDialog()
-      expect(s.createDialogVisible.value).toBe(false)
+      await s.startCreate()
+      expect(s.createMode.value).toBe(false)
+      expect(s.createSeed.value).toBeNull()
       expect(mocks.ElMessage.warning).toHaveBeenCalledWith('无环境编辑权限')
     })
   })
 
-  describe('submitCreate', () => {
-    it('名称为空时显示警告', async () => {
-      const s = await initAndFlush({ hasPermission: true })
-      s.createForm.name = '  '
-      await s.submitCreate()
-      expect(mocks.ElMessage.warning).toHaveBeenCalledWith('请填写环境名称')
-      expect(mocks.createEnvironment).not.toHaveBeenCalled()
+  describe('handleSelect / 离开新建态', () => {
+    it('无改动时直接退出新建态并选中目标环境', async () => {
+      const s = await initAndFlush({ hasPermission: true, items: [makeItem(), makeItem({ id: 'env-2' })] })
+      await s.startCreate()
+      await s.handleSelect('env-2')
+      expect(s.createMode.value).toBe(false)
+      expect(s.selectedId.value).toBe('env-2')
+      expect(mocks.ElMessageBox.confirm).not.toHaveBeenCalled()
     })
 
-    it('成功创建后关闭对话框、显示成功消息并刷新列表', async () => {
-      const s = await initAndFlush({ hasPermission: true })
-      mocks.createEnvironment.mockResolvedValue({ id: 'new-id' })
+    it('有改动且放弃确认取消时维持新建态与选中项', async () => {
+      const s = await initAndFlush({ hasPermission: true, items: [makeItem()] })
+      await s.startCreate()
+      s.createDirty.value = true
+      mocks.ElMessageBox.confirm.mockRejectedValue('cancel')
+      await s.handleSelect('env-1')
+      expect(s.createMode.value).toBe(true)
+      expect(s.selectedId.value).toBe('env-1')
+    })
+
+    it('有改动且确认放弃后退出新建态', async () => {
+      const s = await initAndFlush({ hasPermission: true, items: [makeItem()] })
+      await s.startCreate()
+      s.createDirty.value = true
+      mocks.ElMessageBox.confirm.mockResolvedValue()
+      await s.handleSelect('env-1')
+      expect(s.createMode.value).toBe(false)
+      expect(s.createSeed.value).toBeNull()
+      expect(s.selectedId.value).toBe('env-1')
+    })
+
+    it('不在新建态时直接选中', async () => {
+      const s = await initAndFlush({ items: [makeItem(), makeItem({ id: 'env-2' })] })
+      await s.handleSelect('env-2')
+      expect(s.selectedId.value).toBe('env-2')
+      expect(mocks.ElMessageBox.confirm).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('handleCreated', () => {
+    it('退出新建态、刷新列表并选中新环境', async () => {
+      const s = await initAndFlush({ hasPermission: true, items: [makeItem()] })
+      await s.startCreate()
       mocks.fetchEnvironments.mockResolvedValue([makeItem({ id: 'new-id' })])
-      s.createForm.name = '新环境'
-      s.createForm.description = '描述'
-      s.createForm.isDefault = true
-      await s.submitCreate()
-      expect(mocks.createEnvironment).toHaveBeenCalledWith({
-        name: '新环境',
-        description: '描述',
-        isDefault: true,
-      })
-      expect(s.createDialogVisible.value).toBe(false)
-      expect(mocks.ElMessage.success).toHaveBeenCalledWith('环境已创建')
+      await s.handleCreated('new-id')
+      expect(s.createMode.value).toBe(false)
+      expect(s.createSeed.value).toBeNull()
       expect(s.selectedId.value).toBe('new-id')
-    })
-
-    it('description 为空字符串时不传 description', async () => {
-      const s = await initAndFlush({ hasPermission: true })
-      mocks.createEnvironment.mockResolvedValue({ id: 'new-id' })
-      s.createForm.name = '新环境'
-      s.createForm.description = ''
-      await s.submitCreate()
-      expect(mocks.createEnvironment).toHaveBeenCalledWith({
-        name: '新环境',
-        description: undefined,
-        isDefault: false,
-      })
-    })
-
-    it('创建失败时显示错误', async () => {
-      const s = await initAndFlush({ hasPermission: true })
-      mocks.createEnvironment.mockRejectedValue(new Error('创建失败'))
-      s.createForm.name = '新环境'
-      await s.submitCreate()
-      expect(mocks.ElMessage.error).toHaveBeenCalledWith('创建失败')
-      expect(s.creating.value).toBe(false)
-    })
-
-    it('creating 在 finally 中恢复为 false', async () => {
-      const s = await initAndFlush({ hasPermission: true })
-      mocks.createEnvironment.mockRejectedValue(new Error('fail'))
-      s.createForm.name = '环境'
-      await s.submitCreate()
-      expect(s.creating.value).toBe(false)
+      expect(mocks.ElMessage.warning).not.toHaveBeenCalled()
     })
   })
 
-  describe('openCopyDialog', () => {
-    it('设置 sourceName 和默认副本名并打开对话框', async () => {
-      const s = await initAndFlush()
-      s.openCopyDialog(makeItem({ id: 'env-1', name: '生产' }))
-      expect(s.copySourceName.value).toBe('env-1')
-      expect(s.copyForm.name).toBe('生产（副本）')
-      expect(s.copyDialogVisible.value).toBe(true)
-    })
-  })
-
-  describe('submitCopy', () => {
-    it('名称为空时不调用 API', async () => {
-      const s = await initAndFlush()
-      s.copyForm.name = '  '
-      await s.submitCopy()
-      expect(mocks.copyEnvironment).not.toHaveBeenCalled()
+  describe('startCopy', () => {
+    it('取源环境详情并以「原名（副本）」预填新建态', async () => {
+      const s = await initAndFlush({ hasPermission: true, items: [makeItem({ id: 'env-1', name: '生产', sortOrder: 1 })] })
+      mocks.fetchEnvironmentDetail.mockResolvedValue(makeDetail({ id: 'env-1', name: '生产' }))
+      await s.startCopy(makeItem({ id: 'env-1', name: '生产' }))
+      expect(mocks.fetchEnvironmentDetail).toHaveBeenCalledWith('env-1')
+      expect(mocks.seedFromDetail).toHaveBeenCalledWith(expect.anything(), '生产（副本）', 2)
+      expect(s.createMode.value).toBe(true)
+      expect(s.createSeed.value?.name).toBe('生产（副本）')
     })
 
-    it('成功复制后关闭对话框、显示成功并刷新', async () => {
-      const s = await initAndFlush()
-      mocks.copyEnvironment.mockResolvedValue({ id: 'copied-id' })
-      mocks.fetchEnvironments.mockResolvedValue([makeItem({ id: 'copied-id' })])
-      s.copySourceName.value = 'env-1'
-      s.copyForm.name = '副本环境'
-      await s.submitCopy()
-      expect(mocks.copyEnvironment).toHaveBeenCalledWith('env-1', '副本环境')
-      expect(s.copyDialogVisible.value).toBe(false)
-      expect(mocks.ElMessage.success).toHaveBeenCalledWith('复制成功')
-      expect(s.selectedId.value).toBe('copied-id')
-    })
-
-    it('复制失败时显示错误', async () => {
-      const s = await initAndFlush()
-      mocks.copyEnvironment.mockRejectedValue(new Error('复制失败'))
-      s.copySourceName.value = 'env-1'
-      s.copyForm.name = '副本'
-      await s.submitCopy()
+    it('取详情失败时提示错误且不进入新建态', async () => {
+      const s = await initAndFlush({ hasPermission: true })
+      mocks.fetchEnvironmentDetail.mockRejectedValue(new Error('复制失败'))
+      await s.startCopy(makeItem())
+      expect(s.createMode.value).toBe(false)
       expect(mocks.ElMessage.error).toHaveBeenCalledWith('复制失败')
+    })
+
+    it('无权限时提示且不取源详情', async () => {
+      const s = await initAndFlush({ hasPermission: false })
+      await s.startCopy(makeItem())
+      expect(mocks.fetchEnvironmentDetail).not.toHaveBeenCalled()
+      expect(mocks.ElMessage.warning).toHaveBeenCalledWith('无环境编辑权限')
+    })
+
+    it('新建态有改动且放弃确认取消时不覆盖原 seed', async () => {
+      const s = await initAndFlush({ hasPermission: true, items: [makeItem()] })
+      await s.startCreate()
+      s.createDirty.value = true
+      mocks.ElMessageBox.confirm.mockRejectedValue('cancel')
+      mocks.fetchEnvironmentDetail.mockResolvedValue(makeDetail({ name: '源环境' }))
+      const seedBefore = s.createSeed.value
+      await s.startCopy(makeItem({ name: '生产' }))
+      expect(s.createSeed.value).toBe(seedBefore)
+      expect(s.createMode.value).toBe(true)
     })
   })
 
@@ -539,7 +523,7 @@ describe('useEnvironmentPage', () => {
     it('有权限时填充表单并打开', async () => {
       const s = await initAndFlush({ hasPermission: true })
       const item = makeItem({ id: 'env-2', name: '编辑环境', description: 'desc', isDefault: true })
-      s.openEditDialog(item)
+      await s.openEditDialog(item)
       expect(s.editTargetId.value).toBe('env-2')
       expect(s.editForm.name).toBe('编辑环境')
       expect(s.editForm.description).toBe('desc')
@@ -550,14 +534,14 @@ describe('useEnvironmentPage', () => {
 
     it('无权限时显示警告', async () => {
       const s = await initAndFlush({ hasPermission: false })
-      s.openEditDialog(makeItem())
+      await s.openEditDialog(makeItem())
       expect(s.editDialogVisible.value).toBe(false)
       expect(mocks.ElMessage.warning).toHaveBeenCalledWith('无环境编辑权限')
     })
 
     it('description 为空时填充空字符串', async () => {
       const s = await initAndFlush({ hasPermission: true })
-      s.openEditDialog(makeItem({ description: undefined }))
+      await s.openEditDialog(makeItem({ description: undefined }))
       expect(s.editForm.description).toBe('')
     })
   })

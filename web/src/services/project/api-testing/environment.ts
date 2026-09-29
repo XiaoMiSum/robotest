@@ -43,11 +43,6 @@ export function sortEnvironment(id: string, sortOrder: number): Promise<boolean>
   return patch(`/project/environments/${id}/sort`, { sortOrder })
 }
 
-/** 复制环境：HTTP 配置与变量随副本，敏感值与数据源不复制（详细设计 3.1.11） */
-export function copyEnvironment(id: string, name: string): Promise<ApiIdResp> {
-  return post(`/project/environments/${id}/copy`, { name })
-}
-
 // ---------- 连接测试（3.1.7 / 3.1.8，请求体传配置不落库） ----------
 
 export function testDataSourceConfig(

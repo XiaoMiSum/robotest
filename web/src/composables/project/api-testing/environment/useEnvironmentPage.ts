@@ -1,10 +1,8 @@
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox, type UploadUserFile } from 'element-plus'
-import type { ApiEnvironmentListItem, ApiImportResult } from '@/types'
+import type { ApiEnvironmentDetail, ApiEnvironmentListItem, ApiImportResult } from '@/types'
 import { useAuthStore } from '@/stores/auth'
 import {
-  copyEnvironment,
-  createEnvironment,
   deleteEnvironment,
   downloadEnvironmentJson,
   fetchEnvironmentDetail,
@@ -14,7 +12,14 @@ import {
   sortEnvironment,
   updateEnvironment,
 } from '@/services/project/api-testing/environment'
-import { buildSavePayload, formatImportResult, resolveEnvironmentError, sortEnvironments } from '@/composables/project/api-testing/environment/environmentsModel'
+import {
+  buildSavePayload,
+  emptyEnvironmentDetail,
+  formatImportResult,
+  resolveEnvironmentError,
+  seedFromDetail,
+  sortEnvironments,
+} from '@/composables/project/api-testing/environment/environmentsModel'
 
 export function useEnvironmentPage() {
   const authStore = useAuthStore()
@@ -87,69 +92,82 @@ export function useEnvironmentPage() {
     }
   }
 
-  // ==================== 新建 ====================
+  // ==================== 新建 / 复制（面板新建态，均走创建接口） ====================
 
-  const createDialogVisible = ref(false)
-  const createForm = reactive({ name: '', description: '', isDefault: false })
-  const creating = ref(false)
+  const createMode = ref(false)
+  const createSeed = ref<ApiEnvironmentDetail | null>(null)
+  const createDirty = ref(false)
 
-  function openCreateDialog() {
+  /** 新建与副本统一排到列表末尾（交互设计 34 §1.4） */
+  function nextSortOrder(): number {
+    return environments.value.reduce((max, item) => Math.max(max, item.sortOrder), 0) + 1
+  }
+
+  function exitCreate() {
+    createMode.value = false
+    createSeed.value = null
+    createDirty.value = false
+  }
+
+  /** 离开新建态前的放弃确认：有改动先问，确认后退出并放行后续动作 */
+  async function confirmLeaveCreate(): Promise<boolean> {
+    if (!createMode.value) return true
+    if (createDirty.value) {
+      try {
+        await ElMessageBox.confirm('新建内容尚未创建，确认放弃？', '放弃新建', {
+          type: 'warning',
+          confirmButtonText: '放弃',
+          cancelButtonText: '继续编辑',
+        })
+      } catch {
+        return false
+      }
+    }
+    exitCreate()
+    return true
+  }
+
+  function enterCreate(seed: ApiEnvironmentDetail) {
+    createSeed.value = seed
+    createDirty.value = false
+    createMode.value = true
+  }
+
+  async function startCreate() {
     if (!canEdit.value) {
       ElMessage.warning('无环境编辑权限')
       return
     }
-    createForm.name = ''
-    createForm.description = ''
-    createForm.isDefault = false
-    createDialogVisible.value = true
+    if (!(await confirmLeaveCreate())) return
+    enterCreate(emptyEnvironmentDetail(nextSortOrder()))
   }
 
-  async function submitCreate() {
-    if (!createForm.name.trim()) {
-      ElMessage.warning('请填写环境名称')
+  /** 复制：取源环境详情预填新建态面板，确认后由面板提交创建 */
+  async function startCopy(item: ApiEnvironmentListItem) {
+    if (!canEdit.value) {
+      ElMessage.warning('无环境编辑权限')
       return
     }
-    creating.value = true
+    let source: ApiEnvironmentDetail
     try {
-      const created = await createEnvironment({
-        name: createForm.name.trim(),
-        description: createForm.description.trim() || undefined,
-        isDefault: createForm.isDefault,
-      })
-      createDialogVisible.value = false
-      ElMessage.success('环境已创建')
-      await loadList()
-      selectEnvironment(created.id)
+      source = await fetchEnvironmentDetail(item.id)
     } catch (err) {
       ElMessage.error(resolveEnvironmentError(err))
-    } finally {
-      creating.value = false
+      return
     }
+    if (!(await confirmLeaveCreate())) return
+    enterCreate(seedFromDetail(source, `${item.name}（副本）`, nextSortOrder()))
   }
 
-  // ==================== 复制 ====================
-
-  const copyDialogVisible = ref(false)
-  const copySourceName = ref('')
-  const copyForm = reactive({ name: '' })
-
-  function openCopyDialog(item: ApiEnvironmentListItem) {
-    copySourceName.value = item.id
-    copyForm.name = `${item.name}（副本）`
-    copyDialogVisible.value = true
+  async function handleCreated(id: string) {
+    exitCreate()
+    await loadList()
+    selectEnvironment(id)
   }
 
-  async function submitCopy() {
-    if (!copyForm.name.trim()) return
-    try {
-      const copied = await copyEnvironment(copySourceName.value, copyForm.name.trim())
-      copyDialogVisible.value = false
-      ElMessage.success('复制成功')
-      await loadList()
-      selectEnvironment(copied.id)
-    } catch (err) {
-      ElMessage.error(resolveEnvironmentError(err))
-    }
+  async function handleSelect(id: string) {
+    if (!(await confirmLeaveCreate())) return
+    selectEnvironment(id)
   }
 
   // ==================== 编辑 ====================
@@ -159,11 +177,12 @@ export function useEnvironmentPage() {
   const editForm = reactive({ name: '', description: '', isDefault: false })
   const editing = ref(false)
 
-  function openEditDialog(item: ApiEnvironmentListItem) {
+  async function openEditDialog(item: ApiEnvironmentListItem) {
     if (!canEdit.value) {
       ElMessage.warning('无环境编辑权限')
       return
     }
+    if (!(await confirmLeaveCreate())) return
     selectEnvironment(item.id)
     editTargetId.value = item.id
     editForm.name = item.name
@@ -242,6 +261,7 @@ export function useEnvironmentPage() {
   }
 
   async function handleDelete(item: ApiEnvironmentListItem) {
+    if (!(await confirmLeaveCreate())) return
     try {
       await ElMessageBox.confirm(`删除后环境配置不可恢复，确认删除「${item.name}」？`, '删除环境', {
         type: 'warning',
@@ -296,16 +316,14 @@ export function useEnvironmentPage() {
     handleMoveItem,
     handleExport,
     handleSearchInput,
-    createDialogVisible,
-    createForm,
-    creating,
-    openCreateDialog,
-    submitCreate,
-    copyDialogVisible,
-    copySourceName,
-    copyForm,
-    openCopyDialog,
-    submitCopy,
+    createMode,
+    createSeed,
+    createDirty,
+    startCreate,
+    startCopy,
+    exitCreate,
+    handleCreated,
+    handleSelect,
     editDialogVisible,
     editTargetId,
     editForm,
