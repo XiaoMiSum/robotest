@@ -12,15 +12,16 @@
   .debug__card { display: flex; flex-direction: column; flex: 1; min-height: 0; }
 
   /* 多标签条（DebugPage 头部）：页签样式复用 base.css「工作区多页签」.ws-tab（下划线式），
-     此处只做条形布局；横向滚动仅作用于页签区，新建与导入 cURL 固定在条右侧不随内容滚动 */
+     此处只做条形布局；横向滚动仅作用于页签区，历史记录、新建与导入 cURL 固定不随内容滚动 */
   .tabbar { display: flex; align-items: center; gap: var(--space-xs); padding: 4px 6px 0; border-bottom: 1px solid var(--n-200); }
   /* 页签区可横向滚动但不定宽：不足时收缩为内容宽，超出时压缩；历史记录与新建固定跟随其后 */
   .tabbar__tabs { display: flex; align-items: center; gap: 2px; min-width: 0; overflow-x: auto; }
   .tabbar__tabs::-webkit-scrollbar { display: none; }
   .tabbar__fixed { flex-shrink: 0; }
-  .tabbar__add { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border: 1px dashed var(--n-200); border-radius: var(--radius-md); color: var(--n-400); cursor: pointer; flex-shrink: 0; }
+  /* 新建：链接式图标钮（对齐实现的 el-button link，不使用虚线方块） */
+  .tabbar__add { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; padding: 0; border: none; background: transparent; border-radius: var(--radius-md); color: var(--n-400); cursor: pointer; flex-shrink: 0; }
   .tabbar__add svg { width: 14px; height: 14px; }
-  .tabbar__add:hover { color: var(--brand-500); border-color: var(--brand-300); }
+  .tabbar__add:hover { color: var(--brand-500); }
   .tabbar__right { display: flex; align-items: center; gap: var(--space-xs); flex-shrink: 0; margin-left: auto; padding-left: var(--space-xs); }
 
   /* 上下分栏：请求面板 + 拖拽分割线 + 响应面板 */
