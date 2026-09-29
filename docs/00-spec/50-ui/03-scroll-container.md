@@ -39,7 +39,7 @@
 
 ### 1.5 规则登记
 
-本文件的规则已在 `docs/00-spec/00-governance/01-overview.md` 登记为 `UI-SC-01` 至 `UI-SC-09`。历史文档中的 `SC1` 至 `SC9` 仅作为兼容别名，不再作为新的全局规则编号。
+本文件的规则已在 `docs/00-spec/00-governance/01-overview.md` 登记为 `UI-SC-01` 至 `UI-SC-10`。历史文档中的 `SC1` 至 `SC9` 仅作为兼容别名，不再作为新的全局规则编号。
 
 ---
 
@@ -218,6 +218,63 @@
 
 仅为了隐藏滚动条或保持原生滚动能力，不得新增 JavaScript 滚轮监听、手写 `scrollTop` 同步或第三方滚动库。只有在存在业务级滚动同步、锚点定位或虚拟列表等明确需求时，才另行设计交互方案。
 
+### 3.10 UI-SC-10：表格与父容器左右间距为零
+
+表格作为卡片或容器的主内容时，必须左右贴合容器边缘，容器不保留 `padding` / `margin` 间距；内容对齐由单元格 `padding` 实现，不通过容器 `padding` 实现。
+
+**结构要求**：
+
+- **容器无内边距**：承载表格的卡片 body 内边距归零。Element Plus 卡片在卡片根节点下发组件 CSS 变量 `--el-card-padding: 0`，全局桥接层以 `var(--el-card-padding, 20px)` 形式提供 body 内边距，保证未声明该变量的卡片维持默认留白。**禁止**为零间距新增 `:deep(.el-card__body)` 等命中组件内部类的覆盖，此类覆盖受 UI-DS-09 与 `docs/00-spec/50-ui/04-style-exceptions.md` EX-DS-001 基线约束。
+- **固定控件独立留白**：工具栏与分页条各自持有独立 `padding`（`14px 20px`）并以 `1px` 分割线与表格分隔，继续满足 UI-SC-06 的固定控件职责；表格主体不承担容器留白。
+- **圆角裁剪**：圆角由容器的 `overflow: hidden` 裁剪，`el-card` 默认具备该能力，无需额外声明。禁止把表格所在 body 改写为 `overflow: hidden`——body 是这些页面的滚动拥有者，改写会裁掉不可访问内容，违反 UI-SC-03。
+
+**正例**：
+
+```vue
+<!-- 卡片类名下发组件 CSS 变量，body 内边距归零 -->
+<el-card v-loading="loading" shadow="never" class="plan-list__card">
+  <div class="plan-list__toolbar">
+    <!-- 筛选控件 -->
+  </div>
+  <el-table :data="rows" />
+  <div class="plan-list__pager">
+    <el-pagination layout="prev, pager, next" />
+  </div>
+</el-card>
+```
+
+```scss
+.plan-list__card {
+  /* 组件 CSS 变量：el-card body 内边距归零，表格左右贴合容器 */
+  --el-card-padding: 0;
+}
+
+.plan-list__toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--color-neutral-100);
+}
+
+.plan-list__pager {
+  display: flex;
+  justify-content: space-between;
+  padding: 14px 20px;
+  border-top: 1px solid var(--color-neutral-100);
+}
+```
+
+**反例**：
+
+```scss
+/* 新增组件内部类覆盖，突破 EX-DS-001 基线 */
+.plan-list__card :deep(.el-card__body) {
+  padding: 0;
+  overflow: hidden;
+}
+```
+
 ---
 
 ## 4. 审查清单
@@ -233,6 +290,16 @@
 | UI-SC-07 | 可发现性 | 长内容提供边界、焦点、悬停反馈或其他剩余提示。 |
 | UI-SC-08 | 响应式 | 移动端高度变化时恢复页面级滚动。 |
 | UI-SC-09 | 实现方式 | 未为隐藏滚动条引入 JavaScript 或新增依赖。 |
+| UI-SC-10 | 零间距 | 表格左右贴合容器边缘，容器 body 无内边距，工具栏与分页条独立 `padding` 并有分割线；未新增 `:deep(.el-*)` 覆盖。 |
+
+---
+
+## 修改记录
+
+| 版本 | 日期 | 说明 |
+| ---- | ---- | ---- |
+| V1.0 | 2026-09-24 | 建立本文 |
+| V1.0 | 2026-09-29 | 新增 3.10 UI-SC-10 表格与父容器左右间距为零 |
 
 ---
 
