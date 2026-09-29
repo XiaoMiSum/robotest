@@ -6,6 +6,7 @@
 <title>功能测试 · 测试用例 · RoboTest</title>
 <link rel="stylesheet" href="../assets/tokens.css">
 <link rel="stylesheet" href="../assets/base.css">
+<link rel="stylesheet" href="../assets/ux.css">
 <style>
   /* 主卡只裁剪不滚动：滚动拥有者唯一为树体与画布，工具条常驻不随内容滚走（UI-SC-01/02/06） */
   .split__main { display: flex; flex-direction: column; overflow: hidden; }
@@ -100,6 +101,160 @@
   .mm-node--root { background: var(--brand-50); border-color: var(--brand-200); color: var(--brand-600); font-weight: 600; }
   .mm-node--sel { border-color: var(--brand-500); box-shadow: 0 0 0 3px var(--brand-50); }
   .mm-type { font-size: 11px; color: var(--n-500); }
+  /* 节点 AI 标识：AI 生成/补全的节点带徽标，右键菜单可移除 */
+  .ai-flag {
+    display: inline-flex; align-items: center; height: 16px; padding: 0 5px;
+    border: 1px solid var(--ai-badge); border-radius: 999px;
+    font-size: var(--font-size-2xs); font-weight: 700; line-height: 1; color: var(--ai-badge);
+  }
+
+  /* ===== AI 功能面板（示例）：统一右侧抽屉 640px、透明遮罩不压暗画布（交互设计 45 §2.9） ===== */
+  [hidden] { display: none !important; }
+  .ai-mask { position: fixed; inset: 0; z-index: 200; background: transparent; }
+  .ai-drawer {
+    position: fixed; top: 0; right: 0; bottom: 0; z-index: 210;
+    display: flex; flex-direction: column;
+    width: 640px; max-width: 92vw;
+    background: var(--n-0); box-shadow: var(--shadow-lg);
+    animation: ai-slide-in 0.18s ease-out;
+  }
+  @keyframes ai-slide-in { from { transform: translateX(28px); opacity: 0.4; } to { transform: none; opacity: 1; } }
+  .ai-drawer__head {
+    display: flex; align-items: center; justify-content: space-between;
+    flex-shrink: 0; padding: 13px 20px; border-bottom: 1px solid var(--n-100);
+  }
+  .ai-drawer__title { display: inline-flex; align-items: center; gap: 7px; font-size: var(--font-size-lg); font-weight: 600; color: var(--n-900); }
+  .ai-drawer__title [data-icon] { display: inline-flex; }
+  .ai-drawer__title [data-icon] svg { width: 17px; height: 17px; color: var(--ai-badge); }
+  .ai-icon-btn {
+    display: inline-flex; padding: 5px; border: none; border-radius: var(--radius-sm);
+    background: none; color: var(--n-400); cursor: pointer;
+  }
+  .ai-icon-btn:hover { background: var(--n-100); color: var(--n-700); }
+  .ai-icon-btn svg { width: 16px; height: 16px; }
+  .ai-drawer__body {
+    flex: 1; min-height: 0; overflow-y: auto;
+    display: flex; flex-direction: column; gap: 14px;
+    padding: 16px 20px 22px;
+  }
+  .ai-field { display: flex; flex-direction: column; gap: 7px; }
+  .ai-field__head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .ai-label { font-size: var(--font-size-xs); color: var(--n-500); }
+  .ai-path {
+    align-self: flex-start; padding: 4px 9px;
+    font-size: var(--font-size-sm); color: var(--n-700);
+    background: var(--n-50); border: 1px solid var(--n-200); border-radius: var(--radius-sm);
+  }
+  .ai-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+  .ai-tag-x { padding: 0 0 0 3px; border: none; background: none; color: inherit; font-size: 13px; line-height: 1; cursor: pointer; opacity: 0.55; }
+  .ai-tag-x:hover { opacity: 1; }
+  .ai-hint { font-size: var(--font-size-xs); color: var(--n-500); }
+  .ai-textarea { min-height: 112px; }
+  .alert > [data-icon] { display: inline-flex; flex-shrink: 0; }
+
+  /* 操作行：右对齐；调用中以 4px 纤细虚假进度条占满左侧余量；
+     按钮尺寸随阶段切换——停止为小号次按钮，主操作为常规尺寸（对照真实面板） */
+  .ai-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
+  .ai-actions .btn { height: 32px; }
+  .ai-actions #aiStop { height: 26px; padding: 0 10px; font-size: var(--font-size-sm); }
+  /* 分析中主按钮的加载态：图标位换为转圈，按钮同时禁用（对照 el-button loading） */
+  .ai-spin {
+    display: none; width: 13px; height: 13px; flex-shrink: 0;
+    border: 2px solid var(--brand-200); border-top-color: var(--brand-500);
+    border-radius: 50%; animation: ai-spin 0.7s linear infinite;
+  }
+  .btn.is-loading .ai-spin { display: inline-block; }
+  .btn--primary .ai-spin { border-color: var(--n-0); border-top-color: transparent; }
+  @keyframes ai-spin { to { transform: rotate(360deg); } }
+  .ai-progress { flex: 1; min-width: 60px; }
+  .ai-progress__track { position: relative; height: 4px; border-radius: 999px; background: var(--n-100); overflow: hidden; }
+  .ai-progress__bar {
+    position: absolute; top: 0; bottom: 0; width: 38%;
+    border-radius: 999px; background: var(--brand-500);
+    animation: ai-indeterminate 1.1s ease-in-out infinite alternate;
+  }
+  @keyframes ai-indeterminate { from { left: 0; } to { left: 62%; } }
+  .ai-model { width: auto; min-width: 150px; height: 30px; padding: 0 8px; font-size: var(--font-size-sm); }
+  .ai-output { display: flex; flex-direction: column; gap: 8px; }
+  .ai-footer { display: flex; justify-content: flex-end; }
+
+  /* 遗漏分析结果清单 */
+  .ai-result-head { display: flex; align-items: center; justify-content: space-between; font-size: var(--font-size-sm); color: var(--n-600); }
+  .ai-check { display: inline-flex; align-items: center; gap: 7px; font-size: var(--font-size-sm); color: var(--n-700); cursor: pointer; }
+  .ai-check input { width: 14px; height: 14px; margin: 0; accent-color: var(--brand-500); cursor: pointer; }
+  .ai-list { display: flex; flex-direction: column; gap: 8px; }
+  .ai-item { align-items: flex-start; padding: 10px 12px; border: 1px solid var(--n-200); border-radius: var(--radius-lg); background: var(--n-0); }
+  .ai-item__body { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+  .ai-item__title { font-size: var(--font-size-sm); font-weight: 600; color: var(--n-800); }
+  .ai-item__desc { font-size: var(--font-size-xs); color: var(--n-600); line-height: 1.6; }
+  .ai-item__tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+
+  /* ===== 结果预览弹窗：居中模态 70%×80% 视口、置顶于抽屉之上（交互设计 49 §1.1） ===== */
+  .ai-preview-mask { z-index: 220; padding-top: 8vh; }
+  .ai-preview { display: flex; flex-direction: column; width: 70vw; height: 80vh; max-width: none; }
+  .pv-title-ic { display: inline-flex; margin-right: 6px; vertical-align: -3px; }
+  .pv-title-ic svg { width: 17px; height: 17px; color: var(--ai-badge); }
+  .ai-preview .dialog__body { flex: 1; max-height: none; display: flex; flex-direction: column; gap: 12px; }
+  .ai-preview .dialog__footer { align-items: center; justify-content: space-between; }
+  .pv-btns { display: flex; gap: 10px; }
+  .pv-count { font-size: var(--font-size-sm); color: var(--n-600); font-variant-numeric: tabular-nums; }
+  .pv-tree { flex: 1; min-height: 0; overflow: auto; padding: 14px 16px; border: 1px solid var(--n-200); border-radius: var(--radius-lg); background: var(--n-25); }
+  .pv-case + .pv-case { margin-top: 14px; }
+  .pv-case__row { gap: 8px; }
+  .pv-case__title { font-weight: 500; color: var(--n-800); }
+  .pv-kids { list-style: none; margin: 6px 0 0 9px; padding: 0 0 0 20px; border-left: 1.5px solid var(--n-300); }
+  .pv-kids li { position: relative; display: flex; align-items: center; gap: 7px; padding: 5px 0; font-size: var(--font-size-sm); color: var(--n-600); }
+  .pv-kids li::before { content: ''; position: absolute; left: -21px; top: 50%; width: 15px; border-top: 1.5px solid var(--n-300); }
+  .pv-case.is-locked .pv-case__row, .pv-case.is-locked .pv-kids { opacity: 0.45; }
+
+  /* ===== 画布右键菜单（含 AI 项：补全步骤 / 移除 AI 标识） ===== */
+  .ctx {
+    position: fixed; z-index: 230; width: 228px; padding: 6px;
+    background: var(--n-0); border: 1px solid var(--n-200); border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+  }
+  .ctx__item {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    width: 100%; padding: 7px 10px; border: none; border-radius: var(--radius-md);
+    background: none; font: inherit; font-size: var(--font-size-sm); color: var(--n-700);
+    text-align: left; cursor: pointer;
+  }
+  .ctx__item:hover { background: var(--n-50); color: var(--n-900); }
+  .ctx__item:disabled { color: var(--n-400); cursor: not-allowed; }
+  .ctx__item:disabled:hover { background: none; color: var(--n-400); }
+  .ctx__item--danger { color: var(--st-danger); }
+  .ctx__item--danger:hover { background: var(--st-danger-light); color: var(--st-danger-strong); }
+  .ctx__item--ai, .ctx__item--ai:hover { color: var(--ai-badge); }
+  .ctx__item--ai:hover { background: var(--n-50); }
+  .ctx__kbd { font-size: var(--font-size-xs); color: var(--n-400); }
+  .ctx__sep { height: 1px; margin: 5px 4px; background: var(--n-100); }
+  .ctx__row { display: flex; align-items: center; flex-wrap: wrap; gap: 5px; padding: 6px 10px; }
+  .ctx__row-label { width: 26px; flex-shrink: 0; font-size: var(--font-size-xs); color: var(--n-500); }
+  .ctx__chip {
+    display: inline-flex; align-items: center; gap: 4px;
+    height: 22px; padding: 0 8px;
+    border: 1px solid var(--n-200); border-radius: 999px; background: var(--n-0);
+    font: inherit; font-size: var(--font-size-xs); color: var(--n-600); cursor: pointer;
+  }
+  .ctx__chip:hover { border-color: var(--n-400); color: var(--n-800); }
+  .ctx__chip.is-selected { background: var(--brand-50); border-color: var(--brand-200); color: var(--brand-600); }
+  .ctx__chip [data-icon] { display: inline-flex; }
+  .ctx__chip [data-icon] svg { width: 12px; height: 12px; }
+  .ctx__chip--p0 { color: var(--priority-p0); }
+  .ctx__chip--p1 { color: var(--priority-p1); }
+  .ctx__chip--p2 { color: var(--priority-p2); }
+  .ctx__chip--p3 { color: var(--priority-p3); }
+  .ctx__chip--p0.is-selected { background: var(--st-danger-light); border-color: var(--st-danger-border); color: var(--st-danger-strong); }
+  .ctx__chip--p1.is-selected { background: var(--st-warning-light); border-color: var(--st-warning-border); color: var(--st-warning-strong); }
+  .ctx__chip--p2.is-selected { background: var(--brand-50); border-color: var(--brand-200); color: var(--brand-600); }
+  .ctx__chip--p3.is-selected { background: var(--st-neutral-light); border-color: var(--n-300); color: var(--n-700); }
+  .ctx__recommend {
+    display: flex; align-items: center; gap: 6px; width: 100%;
+    padding: 7px 10px; border: none; border-radius: var(--radius-md);
+    background: none; font: inherit; font-size: var(--font-size-sm);
+    color: var(--brand-600); cursor: pointer;
+  }
+  .ctx__recommend:hover { background: var(--brand-50); }
 
   .mm:focus-visible, .mm-tool:focus-visible, .tree__item:focus-visible {
     outline: 2px solid var(--brand-500); outline-offset: 2px;
@@ -179,7 +334,7 @@
             <ul role="tree" aria-label="用例节点">
               <li role="treeitem" aria-expanded="true"><span class="mm-node mm-node--root"><span data-icon="document" aria-hidden="true"></span>优惠券叠加规则</span>
                 <ul role="group">
-                  <li role="treeitem" aria-selected="true" aria-expanded="true"><span class="mm-node mm-node--sel"><i class="tdot tdot--case" aria-hidden="true"></i>下单页优惠券叠加校验<span class="prio prio--p0">P0</span></span>
+                  <li role="treeitem" aria-selected="true" aria-expanded="true"><span class="mm-node mm-node--sel"><i class="tdot tdot--case" aria-hidden="true"></i>下单页优惠券叠加校验<span class="prio prio--p0">P0</span><span class="ai-flag">AI</span></span>
                     <ul role="group">
                       <li role="treeitem"><span class="mm-node"><i class="tdot tdot--precondition" aria-hidden="true"></i><span class="mm-type">前置</span>已登录并持有可用优惠券</span></li>
                       <li role="treeitem"><span class="mm-node"><i class="tdot tdot--step" aria-hidden="true"></i><span class="mm-type">步骤</span>提交含两张券的订单</span></li>
@@ -210,7 +365,679 @@
   </div>
 </main>
 
+<!-- ===== AI 功能面板（示例）：统一右侧抽屉，规格见交互设计 45 §2.9 / 49 / 56 ===== -->
+<div class="ai-mask" id="aiMask" hidden></div>
+
+<!-- AI 生成用例 / AI 补全用例抽屉（共用一套面板，文案随模式切换） -->
+<aside class="ai-drawer" id="aiDrawer" role="dialog" aria-labelledby="aiTitleText" hidden>
+  <header class="ai-drawer__head">
+    <span class="ai-drawer__title"><span data-icon="sparkle" aria-hidden="true"></span><span id="aiTitleText">AI 生成用例</span></span>
+    <button class="ai-icon-btn" type="button" id="aiClose" aria-label="关闭面板" title="关闭"><span data-icon="x" aria-hidden="true"></span></button>
+  </header>
+  <div class="ai-drawer__body">
+    <div class="ai-field">
+      <span class="ai-label">挂载目标</span>
+      <span class="ai-path" id="aiPath">优惠券叠加规则（根节点）</span>
+    </div>
+
+    <div class="ai-field">
+      <div class="ai-field__head">
+        <span class="ai-label">需求池</span>
+        <button class="btn btn--text btn--sm" type="button" id="aiReqAdd"><span data-icon="plus" aria-hidden="true"></span>选择需求</button>
+      </div>
+      <div class="ai-tags" id="aiReqTags">
+        <span class="tag tag--outline">满减券叠加规则<button class="ai-tag-x" type="button" aria-label="移除需求条目">×</button></span>
+        <span class="tag tag--outline">新客立减活动<button class="ai-tag-x" type="button" aria-label="移除需求条目">×</button></span>
+      </div>
+      <span class="ai-hint" id="aiReqHint" hidden>未选择需求条目，将仅依据输入文本生成</span>
+    </div>
+
+    <div class="ai-field">
+      <label class="ai-label" for="aiText">需求输入</label>
+      <textarea class="input textarea ai-textarea" id="aiText" placeholder="输入需求描述或模块说明，AI 将生成包含前置条件、执行步骤、预期结果的用例子树"></textarea>
+    </div>
+
+    <!-- 操作行：右对齐；流式调用时进度条占满左侧余量，完成态操作与进度条同行 -->
+    <div class="ai-actions">
+      <div class="ai-progress" id="aiProgress" hidden><div class="ai-progress__track"><div class="ai-progress__bar"></div></div></div>
+      <select class="select ai-model" id="aiModel" aria-label="对话模型">
+        <option>DeepSeek-V3（默认）</option>
+        <option>Qwen3-32B</option>
+      </select>
+      <button class="btn btn--default btn--sm" type="button" id="aiStop" hidden>停止</button>
+      <button class="btn btn--default btn--sm" type="button" id="aiRetry" hidden><span data-icon="sparkle" aria-hidden="true"></span><span id="aiRetryText">重新生成</span></button>
+      <button class="btn btn--primary btn--sm" type="button" id="aiStart"><span data-icon="sparkle" aria-hidden="true"></span><span id="aiStartText">开始生成</span></button>
+      <button class="btn btn--primary btn--sm" type="button" id="aiPreviewBtn" hidden><span data-icon="eye" aria-hidden="true"></span>查看预览</button>
+    </div>
+
+    <!-- 慢响应提示：超时未见首帧时出现（真实阈值 10s，示例压缩时序），完成/停止后消失 -->
+    <div class="alert alert--info" id="aiSlow" hidden><span data-icon="clock-circle" aria-hidden="true"></span><span>模型响应较慢，可点击「停止」后重试</span></div>
+
+    <!-- 输出区：流式态空白，完成态以提示条呈现（截断警告按输入长度给出） -->
+    <div class="ai-output" id="aiOutput" hidden>
+      <div class="alert alert--warning" id="aiWarn" hidden><span data-icon="alert-triangle" aria-hidden="true"></span><span>上下文超出长度限制，已截断末尾内容，覆盖范围可能不完整</span></div>
+      <div class="alert alert--success"><span data-icon="check-circle" aria-hidden="true"></span><span id="aiDoneTip">生成完成，点击「查看预览」在脑图中核对并勾选取舍</span></div>
+    </div>
+  </div>
+</aside>
+
+<!-- 遗漏测试点分析抽屉 -->
+<aside class="ai-drawer" id="mpDrawer" role="dialog" aria-labelledby="mpTitle" hidden>
+  <header class="ai-drawer__head">
+    <span class="ai-drawer__title" id="mpTitle"><span data-icon="sparkle" aria-hidden="true"></span>遗漏测试点分析</span>
+    <button class="ai-icon-btn" type="button" id="mpClose" aria-label="关闭面板" title="关闭"><span data-icon="x" aria-hidden="true"></span></button>
+  </header>
+  <div class="ai-drawer__body">
+    <div class="ai-field">
+      <label class="ai-label" for="mpKwInput">关键词</label>
+      <div class="ai-tags" id="mpKwTags"></div>
+      <input class="input" id="mpKwInput" placeholder="输入关键词，回车确认" aria-label="关键词">
+    </div>
+
+    <div class="ai-field">
+      <label class="ai-label" for="mpText">需求文本</label>
+      <textarea class="input textarea" id="mpText" placeholder="粘贴需求描述文本（可空；填写时后端先抽取关键词再分析）"></textarea>
+    </div>
+
+    <div class="ai-field">
+      <div class="ai-field__head">
+        <span class="ai-label">需求池</span>
+        <button class="btn btn--text btn--sm" type="button" id="mpReqAdd"><span data-icon="plus" aria-hidden="true"></span>选择需求</button>
+      </div>
+      <div class="ai-tags" id="mpReqTags">
+        <span class="tag tag--outline">满减券叠加规则<button class="ai-tag-x" type="button" aria-label="移除需求条目">×</button></span>
+      </div>
+      <span class="ai-hint" id="mpReqHint" hidden>未选择需求条目，将仅依据输入文本分析</span>
+    </div>
+
+    <div class="ai-actions">
+      <div class="ai-progress" id="mpProgress" hidden><div class="ai-progress__track"><div class="ai-progress__bar"></div></div></div>
+      <button class="btn btn--default btn--sm" type="button" id="mpCancel" hidden>取消</button>
+      <button class="btn btn--primary btn--sm" type="button" id="mpStart"><span class="ai-spin" aria-hidden="true"></span><span id="mpStartText">开始分析</span></button>
+    </div>
+
+    <div class="ai-output" id="mpResult" hidden>
+      <div class="alert alert--warning"><span data-icon="alert-triangle" aria-hidden="true"></span><span>当前为关键词匹配结果</span></div>
+      <div class="ai-result-head">
+        <label class="ai-check"><input type="checkbox" id="mpAll">全选</label>
+        <span id="mpCount">共 4 条，已选 4 条</span>
+      </div>
+      <div class="ai-list" id="mpList"></div>
+    </div>
+
+    <div class="ai-footer" id="mpFooter" hidden>
+      <button class="btn btn--primary btn--sm" type="button" id="mpTransfer" disabled>转用例生成（0）</button>
+    </div>
+  </div>
+</aside>
+
+<!-- 生成/补全结果预览弹窗：居中模态，置顶于抽屉之上，抽屉保留在下层 -->
+<div class="dialog-mask ai-preview-mask" id="pvMask" hidden>
+  <div class="dialog ai-preview" role="dialog" aria-labelledby="pvTitleText">
+    <div class="dialog__header">
+      <span class="dialog__title"><span class="pv-title-ic" data-icon="sparkle" aria-hidden="true"></span><span id="pvTitleText">生成结果预览</span></span>
+      <button class="dialog__close" type="button" id="pvClose" aria-label="关闭"><span data-icon="x" aria-hidden="true"></span></button>
+    </div>
+    <div class="dialog__body">
+      <span class="ai-path" id="pvTarget">挂载目标：优惠券叠加规则（根节点）</span>
+      <div class="pv-tree" id="pvTree"></div>
+    </div>
+    <div class="dialog__footer">
+      <span class="pv-count" id="pvCount">已勾选 2/2 个用例</span>
+      <span class="pv-btns">
+        <button class="btn btn--default" type="button" id="pvCancel">关闭</button>
+        <button class="btn btn--primary" type="button" id="pvConfirm">确认挂载</button>
+      </span>
+    </div>
+  </div>
+</div>
+
+<!-- 画布右键菜单：结构对照真实 MinderContextMenu，含 AI 项 -->
+<div class="ctx" id="ctxMenu" role="menu" hidden>
+  <button class="ctx__item" type="button" data-cmd="新建下级节点"><span>新建下级节点</span><span class="ctx__kbd">Tab</span></button>
+  <button class="ctx__item" type="button" data-cmd="新建同级节点"><span>新建同级节点</span><span class="ctx__kbd">Enter</span></button>
+  <div class="ctx__sep"></div>
+  <button class="ctx__item" type="button" data-cmd="复制"><span>复制</span><span class="ctx__kbd">Ctrl+C</span></button>
+  <button class="ctx__item" type="button" data-cmd="剪切"><span>剪切</span><span class="ctx__kbd">Ctrl+X</span></button>
+  <button class="ctx__item" type="button" disabled><span>粘贴</span><span class="ctx__kbd">Ctrl+V</span></button>
+  <div class="ctx__sep"></div>
+  <div class="ctx__row" data-chiprow>
+    <span class="ctx__row-label">类型</span>
+    <button class="ctx__chip is-selected" type="button"><i class="tdot tdot--case" aria-hidden="true"></i>用例</button>
+    <button class="ctx__chip" type="button"><i class="tdot tdot--precondition" aria-hidden="true"></i>前置</button>
+    <button class="ctx__chip" type="button"><i class="tdot tdot--step" aria-hidden="true"></i>步骤</button>
+    <button class="ctx__chip" type="button"><i class="tdot tdot--expected" aria-hidden="true"></i>预期</button>
+    <button class="ctx__chip" type="button" data-cmd="清除标记" title="清除标记" aria-label="清除标记"><span data-icon="x-circle" aria-hidden="true"></span></button>
+  </div>
+  <button class="ctx__recommend" type="button" id="ctxRecommend">✨ 推荐 P1（点击采纳）</button>
+  <div class="ctx__row" data-chiprow>
+    <span class="ctx__row-label">等级</span>
+    <button class="ctx__chip ctx__chip--p0 is-selected" type="button">P0</button>
+    <button class="ctx__chip ctx__chip--p1" type="button">P1</button>
+    <button class="ctx__chip ctx__chip--p2" type="button">P2</button>
+    <button class="ctx__chip ctx__chip--p3" type="button">P3</button>
+  </div>
+  <div class="ctx__row" id="ctxAiRow">
+    <span class="ctx__row-label">AI</span>
+    <button class="ctx__chip" type="button" id="ctxRemoveAi">移除 AI 标识</button>
+  </div>
+  <div class="ctx__sep"></div>
+  <button class="ctx__item ctx__item--ai" type="button" id="ctxAiComplete"><span>✨ AI 补全步骤</span></button>
+  <div class="ctx__sep"></div>
+  <button class="ctx__item ctx__item--danger" type="button" data-cmd="删除节点"><span>删除节点</span><span class="ctx__kbd">Delete</span></button>
+</div>
+
 <script src="../assets/icons.js"></script>
 <script src="../assets/shell.js"></script>
+<script src="../assets/ux.js"></script>
+<script>
+  /* AI 功能面板示例：状态流转为本地模拟（无后端），文案与结构对照真实实现
+     AiGeneratePanel / MissingPointsPanel / AiPreviewDialog 与交互设计 45 §2.9、49、56。 */
+  (function () {
+    var $ = function (id) { return document.getElementById(id) }
+    var toast = function (msg, type) { if (window.RTUX) window.RTUX.toast(msg, { type: type || '' }) }
+
+    var TYPE_TEXT = { case: '用例', precondition: '前置', step: '步骤', expected: '预期' }
+    var MODES = {
+      generate: {
+        title: 'AI 生成用例',
+        placeholder: '输入需求描述或模块说明，AI 将生成包含前置条件、执行步骤、预期结果的用例子树',
+        start: '开始生成', retry: '重新生成',
+        tip: '生成完成，点击「查看预览」在脑图中核对并勾选取舍',
+        previewTitle: '生成结果预览', countLabel: '个用例', confirm: '确认挂载',
+        empty: 'AI 未生成任何用例，请补充需求描述后重试',
+        path: '优惠券叠加规则（根节点）'
+      },
+      complete: {
+        title: 'AI 补全用例',
+        placeholder: '可粘贴临时补充上下文（可留空，AI 将基于用例标题与文档上下文补全）',
+        start: '开始补全', retry: '重新补全',
+        tip: '补全完成，点击「查看预览」在脑图中核对并勾选取舍',
+        previewTitle: '补全结果预览', countLabel: '项', confirm: '确认追加',
+        empty: '既有前置/步骤/预期已完整，无需补全',
+        path: '下单页优惠券叠加校验'
+      }
+    }
+    // 预览树示例：generate 仅用例节点可勾选、内部结构随用例级联；complete 为补全项平铺
+    var GEN_NODES = [
+      {
+        title: '优惠券叠加自动拆单', type: 'case', prio: 'P0',
+        kids: [
+          { type: 'precondition', text: '已登录且持有多张可用券' },
+          { type: 'step', text: '购物车提交含 3 张可叠加券的订单' },
+          { type: 'expected', text: '按最优顺序叠加并拆分优惠明细' }
+        ]
+      },
+      {
+        title: '券与红包互斥校验', type: 'case', prio: 'P1',
+        kids: [
+          { type: 'step', text: '同时选择优惠券与红包' },
+          { type: 'expected', text: '提示互斥，仅保留一项优惠' }
+        ]
+      }
+    ]
+    var CMP_NODES = [
+      { title: '步骤：校验券适用商品范围', type: 'step' },
+      { title: '步骤：失效券置灰并拦截提交', type: 'step' },
+      { title: '预期：提示「该券不适用于当前商品」', type: 'expected' }
+    ]
+    var MP_POINTS = [
+      {
+        title: '未覆盖：优惠券过期后不可用',
+        desc: '当前用例未校验过期券在提交订单时的拦截与提示。',
+        module: '下单流程 / 优惠券', related: ['下单页优惠券叠加校验']
+      },
+      {
+        title: '未覆盖：叠加张数达到上限',
+        desc: '缺少单笔订单可叠加张数上限的边界校验用例。',
+        module: '下单流程 / 优惠券', related: ['多优惠券互斥规则']
+      },
+      {
+        title: '未覆盖：券核销后的状态回退',
+        desc: '支付失败回滚时券状态未恢复的场景缺失。',
+        module: '支付中心 / 优惠券', related: []
+      },
+      {
+        title: '未覆盖：跨店券与店铺券叠加',
+        desc: '跨店券与店铺券同时可用时的优惠计算顺序未覆盖。',
+        module: '下单流程 / 优惠券', related: []
+      }
+    ]
+
+    var aiMask = $('aiMask')
+    var aiDrawer = $('aiDrawer')
+    var mpDrawer = $('mpDrawer')
+    var pvMask = $('pvMask')
+    var ctx = $('ctxMenu')
+    var S = {
+      mode: 'generate', aiPhase: 'idle', aiTimer: 0, aiRan: false,
+      slowDemo: true, slowTimer: 0,
+      mpPhase: 'idle', mpTimer: 0, mpDone: false,
+      kw: ['优惠券', '叠加'], mpChecked: [true, true, true, true],
+      pvNodes: [], pvChecked: []
+    }
+
+    /* ---------------- AI 生成 / 补全抽屉 ---------------- */
+    function openAi(mode, text) {
+      var cfg = MODES[mode]
+      S.mode = mode
+      $('aiTitleText').textContent = cfg.title
+      $('aiPath').textContent = cfg.path
+      $('aiText').placeholder = cfg.placeholder
+      $('aiDoneTip').textContent = cfg.tip
+      $('aiStartText').textContent = S.aiRan ? cfg.retry : cfg.start
+      $('aiRetryText').textContent = cfg.retry
+      if (typeof text === 'string') $('aiText').value = text
+      aiMask.hidden = false
+      aiDrawer.hidden = false
+      renderAi()
+    }
+
+    function closeAi() {
+      aiMask.hidden = true
+      aiDrawer.hidden = true
+    }
+
+    function renderAi() {
+      var streaming = S.aiPhase === 'streaming'
+      $('aiProgress').hidden = !streaming
+      $('aiStop').hidden = !streaming
+      $('aiStart').hidden = S.aiPhase !== 'idle'
+      $('aiRetry').hidden = S.aiPhase !== 'done'
+      $('aiPreviewBtn').hidden = S.aiPhase !== 'done'
+      $('aiOutput').hidden = S.aiPhase !== 'done'
+      $('aiText').disabled = streaming
+      // 流式期间需求选择入口与文本一并禁用（对照真实面板 :disabled="phase === 'streaming'"）
+      $('aiReqAdd').disabled = streaming
+      // 截断警告只在输入较长时给出，避免示例误导为必现状态
+      $('aiWarn').hidden = !(S.aiPhase === 'done' && $('aiText').value.length > 60)
+    }
+
+    function clearSlow() {
+      window.clearTimeout(S.slowTimer)
+      $('aiSlow').hidden = true
+    }
+
+    function startAi() {
+      // 输入校验与真实实现一致：generate 必填（文本或需求条目），complete 可空；校验失败不切阶段
+      if (S.mode === 'generate' && !$('aiText').value.trim() && $('aiReqTags').children.length === 0) {
+        toast('请输入需求描述或选择需求条目', 'warning')
+        return
+      }
+      S.aiRan = true
+      S.aiPhase = 'streaming'
+      renderAi()
+      clearSlow()
+      // 演示压缩时序：首次生成放慢以呈现慢响应提示（真实为首帧 10s 阈值）
+      var slowAt = S.slowDemo ? 2500 : 10000
+      var duration = S.slowDemo ? 3500 : 1600
+      S.slowDemo = false
+      S.slowTimer = window.setTimeout(function () { $('aiSlow').hidden = false }, slowAt)
+      S.aiTimer = window.setTimeout(function () {
+        clearSlow()
+        finishAi()
+      }, duration)
+    }
+
+    function finishAi() {
+      // 空结果属正常返回：回到可重试态（示例映射：补全模式未补上下文且无缺口）
+      if (S.mode === 'complete' && !$('aiText').value.trim()) {
+        S.aiPhase = 'idle'
+        renderAi()
+        toast(MODES.complete.empty, 'warning')
+        return
+      }
+      S.aiPhase = 'done'
+      renderAi()
+    }
+
+    function stopAi() {
+      window.clearTimeout(S.aiTimer)
+      clearSlow()
+      S.aiPhase = 'idle'
+      renderAi()
+      toast('已停止，可修改输入后重新发起', 'warning')
+    }
+
+    /* ---------------- 结果预览弹窗 ---------------- */
+    function openPreview() {
+      S.pvNodes = S.mode === 'generate' ? GEN_NODES : CMP_NODES
+      S.pvChecked = S.pvNodes.map(function () { return true })
+      renderPv()
+      pvMask.hidden = false
+    }
+
+    function renderPv() {
+      var cfg = MODES[S.mode]
+      $('pvTitleText').textContent = cfg.previewTitle
+      $('pvTarget').textContent = '挂载目标：' + cfg.path
+      $('pvConfirm').textContent = cfg.confirm
+      $('pvTree').innerHTML = S.pvNodes.map(function (n, i) {
+        var badges = (n.prio ? '<span class="prio prio--' + n.prio.toLowerCase() + '">' + n.prio + '</span>' : '') +
+          '<span class="ai-flag">AI</span>'
+        var kids = n.kids && n.kids.length
+          ? '<ul class="pv-kids">' + n.kids.map(function (k) {
+              return '<li><i class="tdot tdot--' + k.type + '" aria-hidden="true"></i>' +
+                '<span class="mm-type">' + TYPE_TEXT[k.type] + '</span>' + k.text + '</li>'
+            }).join('') + '</ul>'
+          : ''
+        return '<div class="pv-case" data-i="' + i + '">' +
+          '<label class="pv-case__row ai-check"><input type="checkbox" data-pv="' + i + '"' +
+          (S.pvChecked[i] ? ' checked' : '') + '>' +
+          '<i class="tdot tdot--' + n.type + '" aria-hidden="true"></i>' +
+          '<span class="pv-case__title">' + n.title + '</span>' + badges + '</label>' + kids + '</div>'
+      }).join('')
+      updatePvCount()
+    }
+
+    function updatePvCount() {
+      var n = S.pvChecked.filter(Boolean).length
+      $('pvCount').textContent = '已勾选 ' + n + '/' + S.pvNodes.length + ' ' + MODES[S.mode].countLabel
+      $('pvConfirm').disabled = n === 0
+    }
+
+    function confirmPv() {
+      var picked = S.pvNodes.filter(function (_, i) { return S.pvChecked[i] })
+      pvMask.hidden = true
+      closeAi()
+      if (S.mode === 'generate') appendCases(picked)
+      else appendSteps(picked)
+      toast(S.mode === 'generate'
+        ? '已挂载 ' + picked.length + ' 个用例（Ctrl+Z 可撤销）'
+        : '已追加 ' + picked.length + ' 项补全内容', 'success')
+      S.aiPhase = 'idle'
+      S.aiRan = false
+      $('aiStartText').textContent = MODES[S.mode].start
+      renderAi()
+    }
+
+    function kidLis(kids) {
+      return kids.map(function (k) {
+        return '<li role="treeitem"><span class="mm-node"><i class="tdot tdot--' + k.type + '" aria-hidden="true"></i>' +
+          '<span class="mm-type">' + TYPE_TEXT[k.type] + '</span>' + k.text + '</span></li>'
+      }).join('')
+    }
+
+    function appendCases(picked) {
+      var rootUl = document.querySelector('.mm > ul')
+      picked.forEach(function (n) {
+        var li = document.createElement('li')
+        li.setAttribute('role', 'treeitem')
+        li.setAttribute('aria-expanded', 'true')
+        li.innerHTML = '<span class="mm-node"><i class="tdot tdot--case" aria-hidden="true"></i>' + n.title +
+          '<span class="prio prio--' + n.prio.toLowerCase() + '">' + n.prio + '</span><span class="ai-flag">AI</span></span>' +
+          (n.kids && n.kids.length ? '<ul role="group">' + kidLis(n.kids) + '</ul>' : '')
+        rootUl.appendChild(li)
+      })
+    }
+
+    function appendSteps(picked) {
+      var sel = document.querySelector('.mm-node--sel')
+      var li = sel && sel.closest('li')
+      if (!li) return
+      var ul = li.querySelector(':scope > ul')
+      if (!ul) {
+        ul = document.createElement('ul')
+        ul.setAttribute('role', 'group')
+        li.appendChild(ul)
+      }
+      picked.forEach(function (n) {
+        var item = document.createElement('li')
+        item.setAttribute('role', 'treeitem')
+        item.innerHTML = '<span class="mm-node"><i class="tdot tdot--' + n.type + '" aria-hidden="true"></i>' +
+          '<span class="mm-type">' + TYPE_TEXT[n.type] + '</span>' +
+          n.title.replace(/^[^：]*：/, '') + '<span class="ai-flag">AI</span></span>'
+        ul.appendChild(item)
+      })
+    }
+
+    /* ---------------- 遗漏测试点分析抽屉 ---------------- */
+    function openMp() {
+      aiMask.hidden = false
+      mpDrawer.hidden = false
+      renderMp()
+    }
+
+    function closeMp() {
+      aiMask.hidden = true
+      mpDrawer.hidden = true
+    }
+
+    function mpHasInput() {
+      return S.kw.length > 0 || $('mpText').value.trim() !== '' || $('mpReqTags').children.length > 0
+    }
+
+    function renderKw() {
+      var box = $('mpKwTags')
+      box.innerHTML = ''
+      S.kw.forEach(function (k, i) {
+        var tag = document.createElement('span')
+        tag.className = 'tag tag--outline'
+        tag.textContent = k
+        var x = document.createElement('button')
+        x.type = 'button'
+        x.className = 'ai-tag-x'
+        x.setAttribute('aria-label', '移除关键词')
+        x.textContent = '×'
+        x.addEventListener('click', function () {
+          S.kw.splice(i, 1)
+          renderKw()
+          renderMp()
+        })
+        tag.appendChild(x)
+        box.appendChild(tag)
+      })
+    }
+
+    function renderMp() {
+      var analyzing = S.mpPhase === 'analyzing'
+      $('mpProgress').hidden = !analyzing
+      $('mpCancel').hidden = !analyzing
+      // 主按钮持续可见：分析中转 loading（转圈+禁用），无输入时禁用（对照 el-button :loading/:disabled）
+      $('mpStart').disabled = analyzing || !mpHasInput()
+      $('mpStart').classList.toggle('is-loading', analyzing)
+      $('mpStartText').textContent = S.mpDone ? '重新分析' : '开始分析'
+      $('mpResult').hidden = S.mpPhase !== 'done'
+      $('mpFooter').hidden = S.mpPhase !== 'done'
+      $('mpKwInput').disabled = analyzing
+      $('mpText').disabled = analyzing
+      $('mpReqAdd').disabled = analyzing
+      if (S.mpPhase === 'done') renderMpCount()
+    }
+
+    function renderMpList() {
+      $('mpList').innerHTML = MP_POINTS.map(function (p, i) {
+        var related = p.related.length
+          ? '<span class="tag tag--outline">相关用例：' + p.related.join('、') + '</span>'
+          : ''
+        return '<label class="ai-item ai-check"><input type="checkbox" data-mpi="' + i + '"' +
+          (S.mpChecked[i] ? ' checked' : '') + '>' +
+          '<span class="ai-item__body">' +
+          '<span class="ai-item__title">' + p.title + '</span>' +
+          '<span class="ai-item__desc">' + p.desc + '</span>' +
+          '<span class="ai-item__tags"><span class="tag tag--outline">建议模块：' + p.module + '</span>' + related + '</span>' +
+          '</span></label>'
+      }).join('')
+    }
+
+    function renderMpCount() {
+      var n = S.mpChecked.filter(Boolean).length
+      $('mpCount').textContent = '共 ' + MP_POINTS.length + ' 条，已选 ' + n + ' 条'
+      $('mpAll').checked = n === MP_POINTS.length
+      $('mpAll').indeterminate = n > 0 && n < MP_POINTS.length
+      $('mpTransfer').textContent = '转用例生成（' + n + '）'
+      $('mpTransfer').disabled = n === 0
+    }
+
+    function startMp() {
+      S.mpPhase = 'analyzing'
+      renderMp()
+      S.mpTimer = window.setTimeout(function () {
+        S.mpPhase = 'done'
+        S.mpDone = true
+        renderMp()
+      }, 1600)
+    }
+
+    function cancelMp() {
+      window.clearTimeout(S.mpTimer)
+      // 已有结果时取消仅中止本次分析，保留上次会话（交互设计 56 §1.2）
+      S.mpPhase = S.mpDone ? 'done' : 'idle'
+      renderMp()
+      toast('已取消分析', 'warning')
+    }
+
+    function transferMp() {
+      var picked = MP_POINTS.filter(function (_, i) { return S.mpChecked[i] })
+      var text = '遗漏测试点转用例生成（来源：遗漏测试点分析）：\n' +
+        picked.map(function (p) { return '- ' + p.title + '（建议归属：' + p.module + '）' }).join('\n')
+      closeMp()
+      openAi('generate', text)
+      toast('已带入 ' + picked.length + ' 条遗漏测试点并预填生成抽屉', 'success')
+    }
+
+    /* ---------------- 画布右键菜单 ---------------- */
+    function showCtx(x, y) {
+      ctx.hidden = false
+      var left = Math.max(8, Math.min(x, window.innerWidth - ctx.offsetWidth - 8))
+      var top = Math.max(8, Math.min(y, window.innerHeight - ctx.offsetHeight - 8))
+      ctx.style.left = left + 'px'
+      ctx.style.top = top + 'px'
+    }
+
+    /* ---------------- 事件绑定 ---------------- */
+    document.querySelectorAll('.mm-bar .mm-tool--ai').forEach(function (btn) {
+      var label = btn.textContent || ''
+      if (label.indexOf('AI 生成') >= 0) btn.addEventListener('click', function () { openAi('generate') })
+      else if (label.indexOf('遗漏') >= 0) btn.addEventListener('click', openMp)
+    })
+
+    $('aiClose').addEventListener('click', closeAi)
+    $('mpClose').addEventListener('click', closeMp)
+    // 透明遮罩承接点击：关闭当前抽屉但不重置会话（重新打开恢复现场）
+    aiMask.addEventListener('click', function () {
+      if (mpDrawer.hidden) closeAi()
+      else closeMp()
+    })
+
+    $('aiStart').addEventListener('click', startAi)
+    $('aiRetry').addEventListener('click', startAi)
+    $('aiStop').addEventListener('click', stopAi)
+    $('aiPreviewBtn').addEventListener('click', openPreview)
+    $('aiReqAdd').addEventListener('click', function () { toast('示例：打开需求条目选取器') })
+    $('mpReqAdd').addEventListener('click', function () { toast('示例：打开需求条目选取器') })
+
+    ;[['aiReqTags', 'aiReqHint'], ['mpReqTags', 'mpReqHint']].forEach(function (pair) {
+      var box = $(pair[0])
+      box.addEventListener('click', function (e) {
+        var x = e.target.closest('.ai-tag-x')
+        if (!x) return
+        x.closest('.tag').remove()
+        $(pair[1]).hidden = box.children.length > 0
+        renderMp()
+      })
+    })
+
+    $('mpKwInput').addEventListener('keydown', function (e) {
+      if (e.key !== 'Enter') return
+      e.preventDefault()
+      var v = this.value.trim()
+      if (!v) return
+      if (S.kw.indexOf(v) < 0) S.kw.push(v)
+      this.value = ''
+      renderKw()
+      renderMp()
+    })
+    $('mpText').addEventListener('input', renderMp)
+    $('mpStart').addEventListener('click', startMp)
+    $('mpCancel').addEventListener('click', cancelMp)
+    $('mpTransfer').addEventListener('click', transferMp)
+    $('mpList').addEventListener('change', function (e) {
+      var cb = e.target.closest('input[data-mpi]')
+      if (!cb) return
+      S.mpChecked[Number(cb.getAttribute('data-mpi'))] = cb.checked
+      renderMpCount()
+    })
+    $('mpAll').addEventListener('change', function () {
+      S.mpChecked = S.mpChecked.map(function () { return $('mpAll').checked })
+      renderMpList()
+      renderMpCount()
+    })
+
+    $('pvTree').addEventListener('change', function (e) {
+      var cb = e.target.closest('input[data-pv]')
+      if (!cb) return
+      var i = Number(cb.getAttribute('data-pv'))
+      S.pvChecked[i] = cb.checked
+      // 用例取消勾选时其内部结构级联排除
+      cb.closest('.pv-case').classList.toggle('is-locked', !cb.checked)
+      updatePvCount()
+    })
+    $('pvCancel').addEventListener('click', function () { pvMask.hidden = true })
+    $('pvClose').addEventListener('click', function () { pvMask.hidden = true })
+    pvMask.addEventListener('click', function (e) {
+      if (e.target === pvMask) pvMask.hidden = true
+    })
+    $('pvConfirm').addEventListener('click', confirmPv)
+
+    var mm = document.querySelector('.mm')
+    mm.addEventListener('contextmenu', function (e) {
+      e.preventDefault()
+      showCtx(e.clientX, e.clientY)
+    })
+    document.addEventListener('click', function (e) {
+      if (!ctx.hidden && !ctx.contains(e.target)) ctx.hidden = true
+    })
+    // 菜单为视口固定定位，画布滚动后锚点失效，先收起
+    document.addEventListener('scroll', function () { ctx.hidden = true }, true)
+
+    ctx.querySelectorAll('[data-chiprow]').forEach(function (row) {
+      row.addEventListener('click', function (e) {
+        var chip = e.target.closest('.ctx__chip')
+        if (!chip) return
+        row.querySelectorAll('.ctx__chip').forEach(function (c) { c.classList.remove('is-selected') })
+        chip.classList.add('is-selected')
+      })
+    })
+    ctx.querySelectorAll('[data-cmd]').forEach(function (el) {
+      el.addEventListener('click', function () {
+        ctx.hidden = true
+        toast('示例：' + el.getAttribute('data-cmd'))
+      })
+    })
+    $('ctxRecommend').addEventListener('click', function () {
+      ctx.hidden = true
+      document.querySelectorAll('.ctx__row')[1].querySelectorAll('.ctx__chip').forEach(function (c) {
+        c.classList.toggle('is-selected', c.textContent === 'P1')
+      })
+      toast('已采纳 AI 推荐优先级 P1', 'success')
+    })
+    $('ctxRemoveAi').addEventListener('click', function () {
+      ctx.hidden = true
+      var flag = document.querySelector('.mm-node--sel .ai-flag')
+      if (flag) flag.remove()
+      $('ctxAiRow').hidden = true
+      toast('已移除 AI 标识', 'success')
+    })
+    $('ctxAiComplete').addEventListener('click', function () {
+      ctx.hidden = true
+      openAi('complete')
+    })
+
+    document.addEventListener('keydown', function (e) {
+      if (e.key !== 'Escape') return
+      if (!ctx.hidden) { ctx.hidden = true; return }
+      if (!pvMask.hidden) { pvMask.hidden = true; return }
+      if (!mpDrawer.hidden) { closeMp(); return }
+      if (!aiDrawer.hidden) closeAi()
+    })
+
+    renderKw()
+    renderMpList()
+    renderMpCount()
+    renderAi()
+    renderMp()
+  })()
+</script>
 </body>
 </html>
