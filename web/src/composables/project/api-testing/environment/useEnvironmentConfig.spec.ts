@@ -1,4 +1,4 @@
-import { ref, type Ref } from 'vue'
+import { nextTick, ref, type Ref } from 'vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ApiHeaderItem, ApiHttpConfigPayload } from '@/types'
 
@@ -322,6 +322,58 @@ describe('useEnvironmentHttpConfig', () => {
       })
     })
   })
+
+  describe('httpConnResult 内联结果', () => {
+    it('初始为 null', () => {
+      const { httpConnResult } = useEnvironmentHttpConfig(configForms, localIdFn)
+      expect(httpConnResult.value).toBeNull()
+    })
+
+    it('成功后内联展示成功文案', async () => {
+      mocks.testHttpConfig.mockResolvedValue({ success: true, statusCode: 200, durationMs: 80 })
+      const { runHttpTest, httpConnResult } = useEnvironmentHttpConfig(configForms, localIdFn)
+      await runHttpTest(makeHttpConfig('1', { baseUrl: 'http://example.com' }), 'env-1')
+      expect(httpConnResult.value).toEqual({ ok: true, text: '连接成功：状态码 200，耗时 80ms' })
+    })
+
+    it('失败后内联展示失败原因', async () => {
+      mocks.testHttpConfig.mockResolvedValue({ success: false, message: '连接超时' })
+      const { runHttpTest, httpConnResult } = useEnvironmentHttpConfig(configForms, localIdFn)
+      await runHttpTest(makeHttpConfig('1', { baseUrl: 'http://example.com' }), 'env-1')
+      expect(httpConnResult.value).toEqual({ ok: false, text: '连接超时' })
+    })
+
+    it('异常时内联展示解析后的错误', async () => {
+      mocks.testHttpConfig.mockRejectedValue(new Error('network'))
+      mocks.resolveEnvironmentError.mockReturnValue('网络异常')
+      const { runHttpTest, httpConnResult } = useEnvironmentHttpConfig(configForms, localIdFn)
+      await runHttpTest(makeHttpConfig('1', { baseUrl: 'http://example.com' }), 'env-1')
+      expect(httpConnResult.value).toEqual({ ok: false, text: '网络异常' })
+    })
+
+    it('切换配置时清空上一条结果', async () => {
+      mocks.testHttpConfig.mockResolvedValue({ success: true, statusCode: 200, durationMs: 10 })
+      configForms.value = [makeHttpConfig('1'), makeHttpConfig('2')]
+      const { selectConfig, runHttpTest, httpConnResult } = useEnvironmentHttpConfig(configForms, localIdFn)
+      await runHttpTest(configForms.value[0], 'env-1')
+      expect(httpConnResult.value).not.toBeNull()
+      selectConfig(configForms.value[1])
+      await nextTick()
+      expect(httpConnResult.value).toBeNull()
+    })
+
+    it('重试前清空旧结果', async () => {
+      mocks.testHttpConfig.mockResolvedValueOnce({ success: false, message: '超时' })
+      const { runHttpTest, httpConnResult } = useEnvironmentHttpConfig(configForms, localIdFn)
+      await runHttpTest(makeHttpConfig('1', { baseUrl: 'http://example.com' }), 'env-1')
+      expect(httpConnResult.value?.ok).toBe(false)
+      mocks.testHttpConfig.mockResolvedValueOnce({ success: true, statusCode: 200, durationMs: 5 })
+      const promise = runHttpTest(makeHttpConfig('1', { baseUrl: 'http://example.com' }), 'env-1')
+      expect(httpConnResult.value).toBeNull()
+      await promise
+      expect(httpConnResult.value?.ok).toBe(true)
+    })
+  })
 })
 
 describe('useEnvironmentDatasource', () => {
@@ -633,6 +685,46 @@ describe('useEnvironmentDatasource', () => {
         url: 'jdbc:mysql://localhost:3306/test',
         connectionProperties: props,
       })
+    })
+  })
+
+  describe('dsConnResult 内联结果', () => {
+    it('初始为 null', () => {
+      const { dsConnResult } = useEnvironmentDatasource(dsForms, localIdFn)
+      expect(dsConnResult.value).toBeNull()
+    })
+
+    it('成功后内联展示版本信息', async () => {
+      mocks.testDataSourceConfig.mockResolvedValue({ success: true, databaseVersion: '8.0.33' })
+      const { runDsTest, dsConnResult } = useEnvironmentDatasource(dsForms, localIdFn)
+      await runDsTest(makeDsForm('1'), 'env-1')
+      expect(dsConnResult.value).toEqual({ ok: true, text: '连接成功：8.0.33' })
+    })
+
+    it('失败后内联展示失败原因', async () => {
+      mocks.testDataSourceConfig.mockResolvedValue({ success: false, message: '认证失败' })
+      const { runDsTest, dsConnResult } = useEnvironmentDatasource(dsForms, localIdFn)
+      await runDsTest(makeDsForm('1'), 'env-1')
+      expect(dsConnResult.value).toEqual({ ok: false, text: '认证失败' })
+    })
+
+    it('异常时内联展示解析后的错误', async () => {
+      mocks.testDataSourceConfig.mockRejectedValue(new Error('timeout'))
+      mocks.resolveEnvironmentError.mockReturnValue('连接超时')
+      const { runDsTest, dsConnResult } = useEnvironmentDatasource(dsForms, localIdFn)
+      await runDsTest(makeDsForm('1'), 'env-1')
+      expect(dsConnResult.value).toEqual({ ok: false, text: '连接超时' })
+    })
+
+    it('切换数据源时清空上一条结果', async () => {
+      mocks.testDataSourceConfig.mockResolvedValue({ success: true })
+      dsForms.value = [makeDsForm('1'), makeDsForm('2')]
+      const { selectDs, runDsTest, dsConnResult } = useEnvironmentDatasource(dsForms, localIdFn)
+      await runDsTest(dsForms.value[0], 'env-1')
+      expect(dsConnResult.value).not.toBeNull()
+      selectDs(dsForms.value[1])
+      await nextTick()
+      expect(dsConnResult.value).toBeNull()
     })
   })
 })
