@@ -55,7 +55,7 @@ onMounted(async () => {
       <AiMasterSwitch
         v-model="cfg.form.enabled"
         :loading="cfg.loading.value"
-        @before-change="cfg.handleMasterBeforeChange"
+        :before-change="cfg.handleMasterBeforeChange"
       />
     </div>
 
