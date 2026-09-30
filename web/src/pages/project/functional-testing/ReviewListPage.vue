@@ -326,7 +326,7 @@ async function submitCreate() {
         </el-form-item>
         <el-form-item label="参与者">
           <el-select v-model="createForm.participantIds" multiple filterable placeholder="选择参与者" style="width: 100%">
-            <el-option v-for="m in memberOptions" :key="m.userId" :label="m.username" :value="m.userId" />
+            <el-option v-for="m in memberOptions" :key="m.userId" :label="m.name || m.username" :value="m.userId" />
           </el-select>
         </el-form-item>
         <el-form-item label="关联用例">

@@ -305,7 +305,7 @@ const {
       <el-form label-position="top" @submit.prevent>
         <el-form-item label="处理人" required>
           <el-select v-model="assigneeId" filterable placeholder="选择处理人" class="bug-page__assign-select">
-            <el-option v-for="m in memberOptions" :key="m.userId" :label="m.username" :value="m.userId" />
+            <el-option v-for="m in memberOptions" :key="m.userId" :label="m.name || m.username" :value="m.userId" />
           </el-select>
         </el-form-item>
       </el-form>

@@ -345,7 +345,7 @@ async function submitCreate() {
         </el-form-item>
         <el-form-item label="负责人">
           <el-select v-model="createForm.executorId" filterable clearable placeholder="选择负责人" style="width: 100%">
-            <el-option v-for="m in memberOptions" :key="m.userId" :label="m.username" :value="m.userId" />
+            <el-option v-for="m in memberOptions" :key="m.userId" :label="m.name || m.username" :value="m.userId" />
           </el-select>
         </el-form-item>
         <el-form-item label="开始时间">

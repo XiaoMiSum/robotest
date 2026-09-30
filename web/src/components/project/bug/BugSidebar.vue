@@ -131,7 +131,7 @@ const emit = defineEmits<{
         </el-form-item>
         <el-form-item label="指派给">
           <el-select v-if="!isClosed" v-model="form.assigneeId" filterable>
-            <el-option v-for="m in memberOptions" :key="m.userId" :label="m.username" :value="m.userId" />
+            <el-option v-for="m in memberOptions" :key="m.userId" :label="m.name || m.username" :value="m.userId" />
           </el-select>
           <span v-else class="bug-detail__text">{{ detail.assignee?.name ?? '-' }}</span>
         </el-form-item>
