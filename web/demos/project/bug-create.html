@@ -7,6 +7,26 @@
 <link rel="stylesheet" href="../assets/tokens.css">
 <link rel="stylesheet" href="../assets/base.css">
 <style>
+  .field__label-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+  .field__label-row .field__label { margin-bottom: 0; }
+  .field__count { font-size: var(--font-size-xs); color: var(--n-400); font-variant-numeric: tabular-nums; }
+
+  /* 标题输入：大号输入 + 右侧常驻「AI 建议」入口（实际页 #append 槽） */
+  .title-group { display: flex; align-items: stretch; }
+  .title-input { height: 40px; font-size: var(--font-size-lg); border-radius: var(--radius-md) 0 0 var(--radius-md); }
+  .title-group .input-append {
+    display: inline-flex; align-items: center; gap: 5px;
+    height: 40px; padding: 0 14px;
+    border: 1px solid var(--n-300); border-left: none;
+    border-radius: 0 var(--radius-md) var(--radius-md) 0;
+    background: var(--n-0);
+    font-family: inherit; font-size: var(--font-size-base); font-weight: 600;
+    color: var(--st-success); cursor: pointer;
+    transition: background var(--transition-fast), color var(--transition-fast);
+  }
+  .title-group .input-append svg { width: 15px; height: 15px; }
+  .title-group .input-append:hover { background: var(--st-success-light); color: var(--st-success-strong); }
+
   .upload {
     border: 1.5px dashed var(--n-300); border-radius: var(--radius-lg);
     padding: 26px; text-align: center; color: var(--n-500); font-size: 13px;
@@ -14,6 +34,18 @@
   }
   .upload:hover { border-color: var(--brand-400); color: var(--brand-600); }
   .upload svg { width: 22px; height: 22px; display: block; margin: 0 auto 8px; }
+  .upload em { font-style: normal; color: var(--brand-500); }
+  .upload:hover em { color: var(--brand-600); }
+
+  .form-footer {
+    position: sticky; bottom: 0; z-index: 10;
+    display: flex; justify-content: center; gap: var(--space-md);
+    margin-top: var(--block-gap);
+    padding: var(--space-md) 0;
+    background: transparent;
+    pointer-events: none;
+  }
+  .form-footer .btn { pointer-events: auto; box-shadow: var(--shadow-md); }
 </style>
 </head>
 <body data-shell="business" data-mode="project" data-active="bugs" data-workspace="质量中台" data-project="电商核心系统">
@@ -27,104 +59,147 @@
   </div>
 
   <div class="page-head">
-    <div>
-      <h1 class="page-head__title">提交缺陷</h1>
-      <p class="page-head__desc">完整的重现步骤有助于更快定位问题</p>
-    </div>
-    <div class="page-head__actions">
-      <a class="btn btn--text" href="bugs.html">取消</a>
-      <button class="btn btn--primary">提交缺陷</button>
-    </div>
+    <h1 class="page-head__title">提交缺陷</h1>
   </div>
 
-  <div class="card-grid" style="grid-template-columns: 1fr 300px; align-items:start">
-    <div class="card">
-      <div class="card__header"><h3 class="card__title">缺陷内容</h3></div>
-      <div class="card__body">
-        <div class="field">
-          <label class="field__label">标题<span class="req">*</span></label>
-          <input class="input" placeholder="一句话描述现象，如：支付回调重复入账" value="下单超时未释放库存，二次下单报缺货">
-        </div>
+  <div class="card-grid" style="grid-template-columns: minmax(0, 1fr) 320px; align-items:start">
+    <div>
+      <div class="card">
+        <div class="card__header"><h3 class="card__title">基本信息</h3></div>
+        <div class="card__body">
+          <div class="field">
+            <div class="field__label-row">
+              <label class="field__label" for="f-title">标题<span class="req">*</span></label>
+              <span class="field__count">17/300</span>
+            </div>
+            <div class="title-group">
+              <input class="input title-input" id="f-title" maxlength="300"
+                placeholder="用一句话描述缺陷现象"
+                value="下单超时未释放库存，二次下单报缺货">
+              <button class="input-append" type="button"><span data-icon="sparkle"></span>AI 建议</button>
+            </div>
+          </div>
 
-        <div class="form-grid form-grid--3">
-          <div class="field">
-            <label class="field__label">所属模块<span class="req">*</span></label>
-            <select class="select"><option>下单流程</option></select>
-          </div>
-          <div class="field">
-            <label class="field__label">严重等级<span class="req">*</span></label>
-            <select class="select"><option>致命</option></select>
-          </div>
-          <div class="field">
-            <label class="field__label">优先级<span class="req">*</span></label>
-            <select class="select"><option>P0</option></select>
-          </div>
-        </div>
-
-        <div class="field">
-          <label class="field__label">重现步骤<span class="req">*</span></label>
-          <textarea class="textarea" style="min-height:120px">1. 使用测试账号创建一笔待支付订单，库存锁定 1 件；
+          <div class="field" style="margin-bottom:0">
+            <label class="field__label" for="f-steps">重现步骤</label>
+            <textarea class="textarea" id="f-steps" style="min-height:140px"
+              placeholder="重现步骤（支持 Markdown，可选）">1. 使用测试账号创建一笔待支付订单，库存锁定 1 件；
 2. 不支付等待 30 分钟（超过超时阈值）；
 3. 回到商品页再次下单同 SKU；
 4. 预期：库存已释放，可正常下单；实际：提示「库存不足」。</textarea>
-          <div class="field__hint">支持 Markdown；每行一步，附上预期与实际</div>
-        </div>
-
-        <div class="form-grid">
-          <div class="field">
-            <label class="field__label">期望结果</label>
-            <textarea class="textarea" style="min-height:72px">超时后自动释放库存锁定，用户可立即重新下单。</textarea>
-          </div>
-          <div class="field">
-            <label class="field__label">实际结果</label>
-            <textarea class="textarea" style="min-height:72px">库存未释放，重复下单被拦截为缺货，需人工解锁。</textarea>
           </div>
         </div>
+      </div>
 
-        <div class="field" style="margin-bottom:0">
-          <label class="field__label">附件</label>
+      <div class="card">
+        <div class="card__header"><h3 class="card__title">附件</h3></div>
+        <div class="card__body">
           <div class="upload">
             <span data-icon="upload"></span>
-            点击或拖拽上传截图 / 日志，单文件不超过 20MB
+            将文件拖到此处，或<em>点击选择</em>
           </div>
+          <div class="field__hint">单个文件不超过 10MB，创建后自动上传</div>
         </div>
       </div>
     </div>
 
     <div>
       <div class="card">
-        <div class="card__header"><h3 class="card__title">关联关系</h3></div>
+        <div class="card__header"><h3 class="card__title">属性</h3></div>
         <div class="card__body">
           <div class="field">
-            <label class="field__label">关联用例</label>
-            <select class="select"><option>TC-1025 库存不足时下单拦截</option></select>
-            <div class="field__hint">从失败执行结果一键带入</div>
+            <label class="field__label" for="f-type">缺陷类型<span class="req">*</span></label>
+            <select class="select" id="f-type">
+              <option selected>代码错误</option>
+              <option>界面优化</option>
+              <option>设计缺陷</option>
+              <option>配置相关</option>
+              <option>安装部署</option>
+              <option>安全相关</option>
+              <option>性能问题</option>
+              <option>标准规范</option>
+              <option>其他</option>
+            </select>
           </div>
+
           <div class="field">
-            <label class="field__label">所属计划</label>
-            <select class="select"><option>V1.4.2 回归测试</option></select>
+            <label class="field__label" for="f-module">所属模块</label>
+            <select class="select" id="f-module">
+              <option value="" selected disabled>选择所属模块（可选）</option>
+              <option>下单流程</option>
+              <option>支付中心</option>
+              <option>履约配送</option>
+            </select>
           </div>
+
           <div class="field">
-            <label class="field__label">指派给</label>
-            <select class="select"><option>张明（下单流程 Owner）</option></select>
+            <label class="field__label" for="f-severity">严重等级<span class="req">*</span></label>
+            <select class="select" id="f-severity">
+              <option>致命</option>
+              <option>严重</option>
+              <option selected>一般</option>
+              <option>轻微</option>
+            </select>
           </div>
+
+          <div class="field">
+            <label class="field__label" for="f-priority">优先级<span class="req">*</span></label>
+            <select class="select" id="f-priority">
+              <option>高</option>
+              <option selected>中</option>
+              <option>低</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label class="field__label" for="f-due">截止日期</label>
+            <input class="input" id="f-due" type="date" placeholder="选择截止日期（可选）">
+          </div>
+
           <div class="field" style="margin-bottom:0">
-            <label class="field__label">发现版本</label>
-            <input class="input mono" value="v1.4.2-rc.3">
+            <label class="field__label" for="f-keywords">关键词</label>
+            <input class="input" id="f-keywords" maxlength="255" placeholder="多个关键词用空格分隔（可选）">
           </div>
         </div>
       </div>
 
-      <div class="alert alert--info block-gap">
-        <span data-icon="info-filled"></span>
-        <div>提交后将通知指派对象；若来自计划执行，会自动回链到执行记录。</div>
-      </div>
+      <div class="card">
+        <div class="card__header"><h3 class="card__title">指派与关联</h3></div>
+        <div class="card__body">
+          <div class="field">
+            <label class="field__label" for="f-assignee">指派给<span class="req">*</span></label>
+            <select class="select" id="f-assignee">
+              <option value="" disabled>选择处理人</option>
+              <option selected>张明（下单流程 Owner）</option>
+              <option>李华（支付中心 Owner）</option>
+              <option>周敏（营销优惠 Owner）</option>
+            </select>
+          </div>
 
-      <div class="btn-row block-gap" style="justify-content:flex-end">
-        <button class="btn btn--default">存为草稿</button>
-        <button class="btn btn--primary">提交缺陷</button>
+          <div class="field">
+            <label class="field__label">关联用例</label>
+            <div class="flex-center flex-gap-md">
+              <button class="btn btn--default" type="button">选择用例</button>
+              <span class="text-xs muted">已选 1 个用例</span>
+            </div>
+          </div>
+
+          <div class="field" style="margin-bottom:0">
+            <label class="field__label" for="f-plan">关联计划</label>
+            <select class="select" id="f-plan">
+              <option value="" disabled>选择计划（可选）</option>
+              <option selected>V1.4.2 回归测试</option>
+              <option>V1.4.3 迭代测试</option>
+            </select>
+          </div>
+        </div>
       </div>
     </div>
+  </div>
+
+  <div class="form-footer">
+    <a class="btn btn--default" href="bugs.html">取消</a>
+    <button class="btn btn--primary" type="button">提交缺陷</button>
   </div>
 
 </main>
