@@ -9,10 +9,7 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import xyz.migoo.framework.security.core.AuthUserDetails;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Stream;
 
 @Getter
@@ -20,6 +17,8 @@ import java.util.stream.Stream;
 public class LoginUser extends AuthUserDetails<LoginUser, UUID> {
 
     private String email;
+
+    private String avatarUrl;
 
     /**
      * 当前活跃工作空间（由 ContextHeaderInterceptor 从 X-Active-Workspace 解析注入）
@@ -39,6 +38,7 @@ public class LoginUser extends AuthUserDetails<LoginUser, UUID> {
     /**
      * 工作空间角色追加的权限（由 WorkspaceRoleInterceptor 注入），与系统权限合并后返回。
      */
+    @JsonIgnore
     private List<GrantedAuthority> workspaceAuthorities = new ArrayList<>();
 
     @Override
@@ -73,7 +73,7 @@ public class LoginUser extends AuthUserDetails<LoginUser, UUID> {
         var auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth != null) {
             var refreshed = new UsernamePasswordAuthenticationToken(
-                    auth.getPrincipal(), auth.getCredentials(), getAuthorities());
+                    Objects.requireNonNull(auth.getPrincipal()), auth.getCredentials(), getAuthorities());
             refreshed.setDetails(auth.getDetails());
             SecurityContextHolder.getContext().setAuthentication(refreshed);
         }
@@ -89,6 +89,7 @@ public class LoginUser extends AuthUserDetails<LoginUser, UUID> {
     public List<String> getPermissionCodes() {
         return getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)
+                .filter(Objects::nonNull)
                 .filter(auth -> !auth.startsWith("ROLE_"))
                 .distinct()
                 .toList();
