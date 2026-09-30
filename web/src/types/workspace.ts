@@ -97,7 +97,7 @@ export interface InvitationJoinResult {
   accessToken: string
   refreshToken: string
   tokenType: string
-  user: { id: string; username: string; email: string }
+  user: { id: string; username: string; email: string; name?: string; avatarUrl?: string }
   activeWorkspace: { id: string; name: string; workspaceRole: string }
   isNewUser: boolean
 }
