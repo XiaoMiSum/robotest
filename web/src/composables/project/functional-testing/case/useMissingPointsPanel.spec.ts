@@ -9,11 +9,22 @@ const mocks = vi.hoisted(() => ({
   collectDocumentOptions: vi.fn<() => { id: string; name: string; path: string }[]>(),
   pickPreselectDocument: vi.fn<() => string>(),
   useRouter: vi.fn(),
-  ElMessage: { success: vi.fn(), error: vi.fn(), warning: vi.fn() },
+  useAiStore: vi.fn(),
+  useStageTimer: vi.fn(),
+  effectiveModelId: vi.fn<() => string | undefined>(),
+  ElMessage: { success: vi.fn(), error: vi.fn(), warning: vi.fn(), info: vi.fn() },
 }))
 
 vi.mock('vue-router', () => ({
   useRouter: mocks.useRouter,
+}))
+
+vi.mock('@/stores/ai', () => ({
+  useAiStore: mocks.useAiStore,
+}))
+
+vi.mock('@/composables/ai/useStageTimer', () => ({
+  useStageTimer: mocks.useStageTimer,
 }))
 
 vi.mock('element-plus', () => ({
@@ -37,6 +48,16 @@ vi.mock('@/composables/project/functional-testing/case/missingPoints', () => ({
 
 import { nextTick, ref } from 'vue'
 import { useMissingPointsPanel } from './useMissingPointsPanel'
+
+type StageMock = {
+  active: { value: boolean }
+  connecting: { value: boolean }
+  seconds: { value: number }
+  start: ReturnType<typeof vi.fn>
+  stop: ReturnType<typeof vi.fn>
+  label: ReturnType<typeof vi.fn>
+}
+let stage: StageMock
 
 function makeResult(points: { title: string; description: string; suggestedModulePath: string | null; relatedCaseTitles: string[] }[] = []): AiMissingPointResult {
   return {
@@ -64,6 +85,17 @@ describe('useMissingPointsPanel', () => {
     vi.clearAllMocks()
     routerPush = vi.fn()
     mocks.useRouter.mockReturnValue({ push: routerPush })
+    mocks.effectiveModelId.mockReturnValue(undefined)
+    stage = {
+      active: ref(false),
+      connecting: ref(false),
+      seconds: ref(0),
+      start: vi.fn(),
+      stop: vi.fn(),
+      label: vi.fn(() => '分析中… 1s'),
+    }
+    mocks.useAiStore.mockReturnValue({ effectiveModelId: mocks.effectiveModelId })
+    mocks.useStageTimer.mockReturnValue(stage)
     setupMocks()
   })
 
@@ -621,6 +653,184 @@ describe('useMissingPointsPanel', () => {
       panel.keywords.value = ['kw1']
       panel.analyze()
       expect(controller.signal.aborted).toBe(false)
+    })
+  })
+
+  describe('会话保持与输入组折叠（56 §1.1/§1.2）', () => {
+    it('初始 hasSession / resumeVisible / inputsCollapsed 为 false', () => {
+      const { panel } = init()
+      expect(panel.hasSession.value).toBe(false)
+      expect(panel.resumeVisible.value).toBe(false)
+      expect(panel.inputsCollapsed.value).toBe(false)
+    })
+
+    it('首次打开无会话，不显示恢复标识', async () => {
+      const { visible, panel } = init()
+      visible.value = true
+      await vi.dynamicImportSettled()
+      expect(panel.resumeVisible.value).toBe(false)
+    })
+
+    it('发起分析后关闭再打开显示恢复标识', async () => {
+      const { visible, panel } = init()
+      panel.keywords.value = ['kw1']
+      await panel.analyze()
+      visible.value = false
+      await nextTick()
+      visible.value = true
+      await vi.dynamicImportSettled()
+      expect(panel.resumeVisible.value).toBe(true)
+    })
+
+    it('重新发起分析时隐藏恢复标识', async () => {
+      const { panel } = init()
+      panel.keywords.value = ['kw1']
+      await panel.analyze()
+      panel.resumeVisible.value = true
+      await panel.analyze()
+      expect(panel.resumeVisible.value).toBe(false)
+    })
+
+    it('分析完成后输入组自动折叠', async () => {
+      const { panel } = init()
+      panel.keywords.value = ['kw1']
+      await panel.analyze()
+      expect(panel.inputsCollapsed.value).toBe(true)
+    })
+
+    it('重新分析期间保持折叠状态，完成后再次折叠', async () => {
+      const { panel } = init()
+      panel.keywords.value = ['kw1']
+      await panel.analyze()
+      panel.toggleInputs()
+      expect(panel.inputsCollapsed.value).toBe(false)
+
+      let resolve!: (v: AiMissingPointResult) => void
+      mocks.analyzeMissingPoints.mockReturnValue({
+        controller: new AbortController(),
+        promise: new Promise<AiMissingPointResult>((r) => {
+          resolve = r
+        }),
+      })
+      void panel.analyze()
+      await nextTick()
+      expect(panel.inputsCollapsed.value).toBe(false)
+      resolve(makeResult())
+      await vi.dynamicImportSettled()
+      expect(panel.inputsCollapsed.value).toBe(true)
+    })
+
+    it('toggleInputs 在折叠与展开间切换', () => {
+      const { panel } = init()
+      panel.toggleInputs()
+      expect(panel.inputsCollapsed.value).toBe(true)
+      panel.toggleInputs()
+      expect(panel.inputsCollapsed.value).toBe(false)
+    })
+
+    it('会话内重复打开不重复装载文档关联', async () => {
+      const { visible } = init()
+      visible.value = true
+      await vi.dynamicImportSettled()
+      visible.value = false
+      await nextTick()
+      visible.value = true
+      await vi.dynamicImportSettled()
+      expect(mocks.getDocumentRequirements).toHaveBeenCalledTimes(1)
+    })
+
+    it('切换文档后重新打开重新带入文档关联', async () => {
+      const { docId, visible } = init()
+      visible.value = true
+      await vi.dynamicImportSettled()
+      docId.value = 'doc-2'
+      await nextTick()
+      visible.value = false
+      await nextTick()
+      visible.value = true
+      await vi.dynamicImportSettled()
+      expect(mocks.getDocumentRequirements).toHaveBeenCalledTimes(2)
+    })
+
+    it('docId 变化重置会话与折叠态', async () => {
+      const { docId, panel } = init()
+      panel.keywords.value = ['kw1']
+      await panel.analyze()
+      panel.resumeVisible.value = true
+      docId.value = 'doc-2'
+      await nextTick()
+      expect(panel.hasSession.value).toBe(false)
+      expect(panel.resumeVisible.value).toBe(false)
+      expect(panel.inputsCollapsed.value).toBe(false)
+    })
+  })
+
+  describe('阶段秒表与模型选择（56 §1.1/§1.2）', () => {
+    it('发起分析启动秒表、结束停止', async () => {
+      const { panel } = init()
+      panel.keywords.value = ['kw1']
+      await panel.analyze()
+      expect(stage.start).toHaveBeenCalledTimes(1)
+      expect(stage.stop).toHaveBeenCalledTimes(1)
+    })
+
+    it('取消分析中断请求并停止秒表', () => {
+      const controller = new AbortController()
+      mocks.analyzeMissingPoints.mockReturnValue({
+        controller,
+        promise: new Promise(() => {}),
+      })
+      const { panel } = init()
+      panel.keywords.value = ['kw1']
+      void panel.analyze()
+      panel.cancelAnalyze()
+      expect(controller.signal.aborted).toBe(true)
+      expect(stage.stop).toHaveBeenCalledTimes(1)
+    })
+
+    it('携带记忆的有效对话模型', async () => {
+      mocks.effectiveModelId.mockReturnValue('model-9')
+      const { panel } = init()
+      panel.keywords.value = ['kw1']
+      await panel.analyze()
+      expect(mocks.analyzeMissingPoints).toHaveBeenCalledWith({
+        keywords: ['kw1'],
+        modelId: 'model-9',
+      })
+    })
+
+    it('无记忆模型时 modelId 为空', async () => {
+      const { panel } = init()
+      panel.keywords.value = ['kw1']
+      await panel.analyze()
+      expect(mocks.analyzeMissingPoints).toHaveBeenCalledWith({
+        keywords: ['kw1'],
+        modelId: undefined,
+      })
+    })
+  })
+
+  describe('clearRequirements', () => {
+    it('清空已选需求 id 与标题', () => {
+      const { panel } = init()
+      panel.requirementIds.value = ['r1', 'r2']
+      panel.requirementTitles.value = [{ id: 'r1', title: 't1' }, { id: 'r2', title: 't2' }]
+      panel.clearRequirements()
+      expect(panel.requirementIds.value).toEqual([])
+      expect(panel.requirementTitles.value).toEqual([])
+    })
+  })
+
+  describe('转用例生成提示', () => {
+    it('跳转时提示已带入的勾选条数', () => {
+      const { panel } = init()
+      panel.result.value = makeResult()
+      panel.checkedIndexes.value = new Set([0])
+      panel.targetDocId.value = 'doc-target'
+      panel.toCaseGenerate()
+      expect(mocks.ElMessage.success).toHaveBeenCalledWith(
+        '已带入勾选内容（1 条），可直接开始生成',
+      )
     })
   })
 })
