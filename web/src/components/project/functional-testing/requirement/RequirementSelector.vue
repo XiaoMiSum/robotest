@@ -1,5 +1,8 @@
 <script setup lang="ts">
 import { useRequirementPicker } from '@/composables/project/functional-testing/requirement/useRequirementPicker'
+import { useRequirementDetail } from '@/composables/project/functional-testing/requirement/useRequirementDetail'
+import MarkdownView from '@/components/common/MarkdownView.vue'
+import { formatDate } from '@/utils/format'
 import { watch } from 'vue'
 import type { RequirementSummary } from '@/types'
 
@@ -45,11 +48,22 @@ function confirm(): void {
   visible.value = false
 }
 
+const {
+  detailId,
+  content: detailContent,
+  loading: detailLoading,
+  toggle: toggleDetail,
+  close: closeDetail,
+} = useRequirementDetail()
+
 // 每次打开同步外部已选并加载首页
 watch(
   visible,
   (open) => {
-    if (!open) return
+    if (!open) {
+      closeDetail()
+      return
+    }
     const map = new Map<string, string>()
     // 外部仅传 id，标题在列表加载后补全展示；此处先占位空串
     for (const id of props.selectedIds ?? []) map.set(id, '')
@@ -60,6 +74,9 @@ watch(
   },
   { immediate: true },
 )
+
+// 翻页或过滤后锚点所在行已换，气泡随之收起
+watch(items, () => closeDetail())
 </script>
 
 <template>
@@ -88,6 +105,42 @@ watch(
             @update:model-value="(v: unknown) => toggle(item.id, item.title, v === true)"
           />
           <span class="req-selector__title">{{ item.title }}</span>
+          <span class="req-selector__date">{{ formatDate(item.updatedAt) }}</span>
+          <!-- [明细] 位于 label 内：阻断冒泡避免 label 把点击转发给勾选框，气泡不联动勾选（52 §1.2） -->
+          <el-popover
+            :visible="detailId === item.id"
+            placement="left-start"
+            :width="340"
+            trigger="click"
+            popper-class="req-detail-pop"
+          >
+            <template #reference>
+              <el-button
+                link
+                size="small"
+                class="req-selector__detail"
+                data-req-detail="true"
+                @click.stop="toggleDetail(item.id)"
+              >
+                明细
+              </el-button>
+            </template>
+            <div class="req-detail">
+              <el-button
+                link
+                class="req-detail__close"
+                aria-label="关闭明细"
+                @click="closeDetail"
+              >
+                <el-icon><Close /></el-icon>
+              </el-button>
+              <div class="req-detail__body">
+                <span v-if="detailLoading" class="req-detail__hint">加载中…</span>
+                <MarkdownView v-else-if="detailContent" :content="detailContent" />
+                <span v-else class="req-detail__hint">正文为空</span>
+              </div>
+            </div>
+          </el-popover>
         </label>
       </div>
 
@@ -139,9 +192,46 @@ watch(
 }
 
 .req-selector__title {
+  flex: 1;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* 更新日期列：固定不参与标题省略，与筛选出的标题同行对齐（52 §1.2 选取器布局） */
+.req-selector__date {
+  flex-shrink: 0;
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+}
+
+.req-selector__detail {
+  flex-shrink: 0;
+}
+
+/* 明细气泡：[×] 常驻右上角，仅正文层滚动（52 §1.2） */
+.req-detail {
+  position: relative;
+}
+
+.req-detail__close {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 1;
+}
+
+.req-detail__body {
+  max-height: 60vh;
+  overflow-y: auto;
+  /* 右上留白避免正文钻到 [×] 下 */
+  padding: 14px 34px 14px 16px;
+}
+
+.req-detail__hint {
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
 }
 
 .req-selector__footer {
