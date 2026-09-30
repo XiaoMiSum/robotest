@@ -253,8 +253,9 @@ async function submitCreate() {
                 :percentage="row.review.progressPercent"
                 :stroke-width="6"
                 :status="row.progressStatus"
-                :format="() => row.progressText"
-              />
+              >
+                {{ row.progressText }}
+              </el-progress>
             </div>
           </template>
         </el-table-column>
@@ -392,6 +393,9 @@ async function submitCreate() {
   display: flex;
   flex-direction: column;
   gap: 2px;
+
+  /* el-link 默认 justify-content:center，被容器拉伸后主标题会居中，收缩至内容宽以与副行同左对齐 */
+  align-items: flex-start;
 }
 
 .review-list__cell-sub {

@@ -282,8 +282,9 @@ async function submitCreate() {
               :percentage="row.plan.progressPercent"
               :stroke-width="6"
               :status="row.progressStatus"
-              :format="planProgressText"
-            />
+            >
+              {{ planProgressText(row.plan.progressPercent) }}
+            </el-progress>
           </template>
         </el-table-column>
         <el-table-column label="通过率" width="92" align="right">
@@ -420,6 +421,9 @@ async function submitCreate() {
   display: flex;
   flex-direction: column;
   gap: 2px;
+
+  /* el-link 默认 justify-content:center，被容器拉伸后名称会居中，收缩至内容宽以与副行同左对齐 */
+  align-items: flex-start;
 }
 
 .plan-list__cell-sub {
