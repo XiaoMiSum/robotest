@@ -153,7 +153,7 @@ public class BugQueryServiceImpl implements BugQueryService {
         }
         BugDetailRespDTO.UserInfo info = new BugDetailRespDTO.UserInfo();
         info.setId(user.getId());
-        info.setName(user.getUsername());
+        info.setName(user.getName());
         return info;
     }
 }

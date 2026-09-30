@@ -111,6 +111,7 @@ class TestPlanServiceImplTest {
                 SysUser executor = new SysUser();
                 executor.setId(userId);
                 executor.setUsername("executor");
+                executor.setName("赵六");
                 when(userMapper.selectById(userId)).thenReturn(executor);
 
                 PageResult<TestPlanListRespDTO> result = planService.getPlanPage(
@@ -119,7 +120,7 @@ class TestPlanServiceImplTest {
                 assertNotNull(result);
                 assertEquals(1, result.getList().size());
                 assertEquals("Plan 1", result.getList().get(0).getName());
-                assertEquals("executor", result.getList().get(0).getExecutor().getName());
+                assertEquals("赵六", result.getList().get(0).getExecutor().getName());
                 verify(projectAccessGuard).requireProjectMember(projectId, userId);
         }
 
