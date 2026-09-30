@@ -101,10 +101,10 @@ export interface AiMissingPointReq {
 export function analyzeMissingPoints(
   data: AiMissingPointReq,
 ): { controller: AbortController; promise: Promise<AiMissingPointResult> } {
-  // 长调用：覆盖实例默认 15s 超时，放宽至 70s，并支持面板 [取消] 中止
+  // 长调用：后端结构化 LLM 调用含重试最长约 10min，前端放宽至 600s 并支持面板 [取消] 中止
   const controller = new AbortController()
   const promise = api.post('/project/ai/cases/missing-points', data, {
-    timeout: 70000,
+    timeout: 600000,
     signal: controller.signal,
   }) as unknown as Promise<AiMissingPointResult>
   return { controller, promise }
