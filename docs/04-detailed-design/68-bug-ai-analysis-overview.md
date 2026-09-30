@@ -68,7 +68,7 @@
 **索引**：`uk_ai_case_embedding_node_id` UNIQUE (node_id) WHERE is_deleted = false，`idx_ai_case_embedding_project_id` (project_id)，
 `idx_ai_case_embedding_hnsw` USING hnsw (embedding vector_cosine_ops)
 
-> 不冗余 `document_id`：现有消费方（遗漏分析、用例规划推荐）均为项目内过滤，无按文档过滤的检索；将来需要时可经 `test_case_node` JOIN 获取（文档删除时的向量批量清理同理），避免无消费方的冗余列与索引。
+> 不冗余 `document_id`：现有消费方（用例规划推荐）为项目内过滤，无按文档过滤的检索；将来需要时可经 `test_case_node` JOIN 获取（文档删除时的向量批量清理同理），避免无消费方的冗余列与索引。
 
 ### 2.2 向量维度与索引对象
 
@@ -166,7 +166,7 @@ flowchart LR
 
 - **数据库迁移**：`CREATE EXTENSION IF NOT EXISTS vector` + 2.1 两张向量表（默认 vector(1024)）DDL 写入 `v1.1.sql`（遵循基础设施文档第 6 章脚本版本化约定）；存量缺陷/用例向量经 `embedding_rebuild` 任务一次性回填；部署说明需注明 pgvector 版本要求（≥ 0.8，迭代索引扫描）；
 - **UPSERT 实现提示**：向量表唯一约束为部分索引（`WHERE is_deleted = false`），`INSERT … ON CONFLICT` 须显式携带 conflict target 的 WHERE 子句（如 `ON CONFLICT (bug_id) WHERE is_deleted = false`），MyBatis-Plus 无原生支持，需手写 SQL；
-- **实施梯队**：表单建议属梯队二；语义查重属梯队三（向量基建随之上线）；聚类分析属梯队四；用例向量的消费功能（遗漏分析语义版、用例规划推荐）属梯队三，见计划辅助文档；
+- **实施梯队**：表单建议属梯队二；语义查重属梯队三（向量基建随之上线）；聚类分析属梯队四；用例向量的消费功能（用例规划推荐）属梯队三，见计划辅助文档；
 - **依赖**：无新增依赖（pgvector 为数据库扩展；分布图自绘）。
 
 ---
@@ -189,3 +189,4 @@ flowchart LR
 | --- | --- | --- |
 | V1.0 | 2026-09-23 | 初版起草 |
 | V1.0 | 2026-09-30 | 功能名称统一改为「遗漏分析」 |
+| V1.0 | 2026-09-30 | CaseEmbedding 消费方移除遗漏分析（改为文档级全量获取，不再使用向量检索） |
