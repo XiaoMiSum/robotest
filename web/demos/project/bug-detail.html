@@ -69,8 +69,6 @@
               <li>第一次回调正常入账后，人为重放同一回调报文；</li>
               <li>账务流水出现两笔同渠道记录。</li>
             </ol>
-            <hr class="divider divider--dashed">
-            <div class="text-xs muted" id="view-meta">环境 staging · 渠道 mock-pay · 发现版本 <span class="mono">v1.4.2-rc.3</span></div>
           </div>
 
           <div class="edit-only">
@@ -81,26 +79,8 @@
 3. 账务流水出现两笔同渠道记录。</textarea>
               <div class="field__hint">支持 Markdown；每行一步</div>
             </div>
-            <div class="form-grid form-grid--3" style="margin-bottom:0">
-              <div class="field" style="margin-bottom:0">
-                <label class="field__label" for="f-env">环境</label>
-                <input class="input" id="f-env" value="staging">
-              </div>
-              <div class="field" style="margin-bottom:0">
-                <label class="field__label" for="f-channel">渠道</label>
-                <input class="input" id="f-channel" value="mock-pay">
-              </div>
-              <div class="field" style="margin-bottom:0">
-                <label class="field__label" for="f-version">发现版本</label>
-                <input class="input mono" id="f-version" value="v1.4.2-rc.3">
-              </div>
-            </div>
           </div>
         </div>
-      </div>
-
-      <!-- 附件 -->
-      <div class="card">
         <div class="table-wrap">
           <table class="table">
             <thead><tr><th>文件名</th><th>大小</th><th>上传者</th><th>上传时间</th><th><button class="btn btn--default btn--sm"><span data-icon="upload"></span>上传</button></th></tr></thead>
@@ -232,7 +212,7 @@
 
   var LABELS = {
     'f-title': '标题', 'f-steps': '重现步骤',
-    'f-env': '环境', 'f-channel': '渠道', 'f-version': '发现版本', 'f-sev': '严重等级',
+    'f-sev': '严重等级',
     'f-prio': '优先级', 'f-module': '所属模块', 'f-assignee': '指派给', 'f-due': '修复截止',
     'f-case': '关联用例', 'f-plan': '关联计划'
   };
@@ -363,9 +343,6 @@
     }
 
     document.getElementById('view-title').textContent = v['f-title'];
-    document.getElementById('view-meta').innerHTML =
-      '环境 ' + escapeHtml(v['f-env']) + ' · 渠道 ' + escapeHtml(v['f-channel']) +
-      ' · 发现版本 <span class="mono">' + escapeHtml(v['f-version']) + '</span>';
     document.getElementById('view-module').textContent = v['f-module'];
     document.getElementById('view-assignee').textContent = v['f-assignee'];
     document.getElementById('view-assignee-avatar').textContent = v['f-assignee'].charAt(0);
