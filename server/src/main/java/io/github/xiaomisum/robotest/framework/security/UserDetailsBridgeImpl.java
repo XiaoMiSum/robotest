@@ -86,7 +86,8 @@ public class UserDetailsBridgeImpl implements UserDetailsBridge {
         LoginUser loginUser = new LoginUser();
         loginUser.setId(user.getId());
         loginUser.setUsername(user.getUsername());
-        loginUser.setName(user.getUsername());
+        loginUser.setName(user.getName());
+        loginUser.setAvatarUrl(user.getAvatarUrl());
         loginUser.setEmail(user.getEmail());
         loginUser.setPassword(user.getPasswordHash());
         loginUser.setEnabled(Constants.Status.ACTIVE.equals(user.getStatus()));
