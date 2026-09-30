@@ -932,6 +932,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/project/reviews/{id}/reopen": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["reopenReview"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/project/reviews/{id}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["rejectReview"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/project/reviews/{id}/records": {
         parameters: {
             query?: never;
@@ -1060,6 +1092,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/project/plans/{id}/resume": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["resumePlan"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/project/plans/{id}/records": {
         parameters: {
             query?: never;
@@ -1086,6 +1134,22 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["completePlan"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/project/plans/{id}/block": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["blockPlan"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1838,6 +1902,22 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["getPermissions"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/logout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["logout"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3737,6 +3817,8 @@ export interface components {
             id?: string;
             username?: string;
             email?: string;
+            name?: string;
+            avatarUrl?: string;
         };
         InvitationCheckEmailReqDTO: {
             token: string;
@@ -4527,6 +4609,8 @@ export interface components {
             keywords?: string[];
             text?: string;
             requirementIds?: string[];
+            /** Format: uuid */
+            modelId?: string;
         };
         AiMissingPointRespDTO: {
             semanticDegraded?: boolean;
@@ -4606,9 +4690,6 @@ export interface components {
             data?: components["schemas"]["AiBugClusteringStartRespDTO"];
             msg?: string;
         };
-        GrantedAuthority: {
-            authority?: string;
-        };
         LoginResultLoginUser: {
             accessToken?: string;
             /** Format: date-time */
@@ -4631,17 +4712,17 @@ export interface components {
                 [key: string]: unknown;
             };
             email?: string;
+            avatarUrl?: string;
             /** Format: uuid */
             activeWorkspaceId?: string;
             /** Format: uuid */
             activeProjectId?: string;
             hasWorkspace?: boolean;
-            workspaceAuthorities?: components["schemas"]["GrantedAuthority"][];
-            permissionCodes?: string[];
             permissions?: string[];
-            accountNonExpired?: boolean;
+            permissionCodes?: string[];
             accountNonLocked?: boolean;
             credentialsNonExpired?: boolean;
+            accountNonExpired?: boolean;
         };
         ResultLoginResultLoginUser: {
             /** Format: int32 */
@@ -5065,6 +5146,12 @@ export interface components {
             /** Format: int64 */
             total?: number;
         };
+        ParticipantInfo: {
+            /** Format: uuid */
+            id?: string;
+            name?: string;
+            avatarUrl?: string;
+        };
         ResultPageResultTestReviewListRespDTO: {
             /** Format: int32 */
             code?: number;
@@ -5079,10 +5166,13 @@ export interface components {
             initiator?: components["schemas"]["InitiatorInfo"];
             /** Format: int32 */
             participantCount?: number;
+            participants?: components["schemas"]["ParticipantInfo"][];
             /** Format: date-time */
             createdAt?: string;
             /** Format: int64 */
             totalAssociated?: number;
+            /** Format: int64 */
+            reviewed?: number;
             /** Format: int64 */
             passed?: number;
             /** Format: double */
@@ -8929,6 +9019,50 @@ export interface operations {
             };
         };
     };
+    reopenReview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ResultVoid"];
+                };
+            };
+        };
+    };
+    rejectReview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ResultVoid"];
+                };
+            };
+        };
+    };
     submitReviewRecord: {
         parameters: {
             query?: never;
@@ -9171,6 +9305,28 @@ export interface operations {
             };
         };
     };
+    resumePlan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ResultVoid"];
+                };
+            };
+        };
+    };
     submitExecutionRecord: {
         parameters: {
             query?: never;
@@ -9198,6 +9354,28 @@ export interface operations {
         };
     };
     completePlan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ResultVoid"];
+                };
+            };
+        };
+    };
+    blockPlan: {
         parameters: {
             query?: never;
             header?: never;
@@ -10720,6 +10898,29 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ResultListString"];
+                };
+            };
+        };
+    };
+    logout: {
+        parameters: {
+            query?: never;
+            header?: {
+                Authorization?: string;
+                "X-Refresh-Token"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ResultVoid"];
                 };
             };
         };
