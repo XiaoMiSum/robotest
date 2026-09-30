@@ -61,7 +61,6 @@ let stage: StageMock
 
 function makeResult(points: { title: string; description: string; suggestedModulePath: string | null; relatedCaseTitles: string[] }[] = []): AiMissingPointResult {
   return {
-    semanticDegraded: false,
     points: points.length ? points : [{ title: '点1', description: 'desc1', suggestedModulePath: null, relatedCaseTitles: [] }],
   }
 }
@@ -107,11 +106,6 @@ describe('useMissingPointsPanel', () => {
   }
 
   describe('初始状态', () => {
-    it('keywords 为空数组', () => {
-      const { panel } = init()
-      expect(panel.keywords.value).toEqual([])
-    })
-
     it('text 为空字符串', () => {
       const { panel } = init()
       expect(panel.text.value).toBe('')
@@ -167,12 +161,6 @@ describe('useMissingPointsPanel', () => {
     it('全部为空时为 false', () => {
       const { panel } = init()
       expect(panel.hasAnyInput.value).toBe(false)
-    })
-
-    it('有 keywords 时为 true', () => {
-      const { panel } = init()
-      panel.keywords.value = ['kw1']
-      expect(panel.hasAnyInput.value).toBe(true)
     })
 
     it('text 非空时为 true', () => {
@@ -340,37 +328,39 @@ describe('useMissingPointsPanel', () => {
     it('无输入时显示警告', async () => {
       const { panel } = init()
       await panel.analyze()
-      expect(mocks.ElMessage.warning).toHaveBeenCalledWith('请至少输入关键词、需求文本或选择需求')
+      expect(mocks.ElMessage.warning).toHaveBeenCalledWith('请输入需求文本或选择需求')
       expect(mocks.analyzeMissingPoints).not.toHaveBeenCalled()
     })
 
-    it('有 keywords 时发起分析', async () => {
-      const { panel } = init()
-      panel.keywords.value = ['kw1']
-      await panel.analyze()
-      expect(mocks.analyzeMissingPoints).toHaveBeenCalledWith({ keywords: ['kw1'] })
-    })
-
-    it('有 text 时发起分析', async () => {
+    it('有 text 时发起分析并携带当前文档', async () => {
       const { panel } = init()
       panel.text.value = 'some text'
       await panel.analyze()
-      expect(mocks.analyzeMissingPoints).toHaveBeenCalledWith({ text: 'some text' })
+      expect(mocks.analyzeMissingPoints).toHaveBeenCalledWith({
+        documentIds: ['doc-1'],
+        text: 'some text',
+      })
     })
 
-    it('有 requirementIds 时发起分析', async () => {
+    it('有 requirementIds 时发起分析并携带当前文档', async () => {
       const { panel } = init()
       panel.requirementIds.value = ['r1']
       await panel.analyze()
-      expect(mocks.analyzeMissingPoints).toHaveBeenCalledWith({ requirementIds: ['r1'] })
+      expect(mocks.analyzeMissingPoints).toHaveBeenCalledWith({
+        documentIds: ['doc-1'],
+        requirementIds: ['r1'],
+      })
     })
 
     it('text trim 后为空时提交 undefined', async () => {
       const { panel } = init()
-      panel.keywords.value = ['kw1']
+      panel.requirementIds.value = ['r1']
       panel.text.value = '   '
       await panel.analyze()
-      expect(mocks.analyzeMissingPoints).toHaveBeenCalledWith({ keywords: ['kw1'] })
+      expect(mocks.analyzeMissingPoints).toHaveBeenCalledWith({
+        documentIds: ['doc-1'],
+        requirementIds: ['r1'],
+      })
     })
 
     it('成功时设置 result 并默认全选', async () => {
@@ -383,7 +373,7 @@ describe('useMissingPointsPanel', () => {
         promise: Promise.resolve(result),
       })
       const { panel } = init()
-      panel.keywords.value = ['kw1']
+      panel.text.value = '需求：验证码'
       await panel.analyze()
       expect(panel.result.value).toEqual(result)
       expect(panel.checkedIndexes.value).toEqual(new Set([0, 1]))
@@ -395,7 +385,7 @@ describe('useMissingPointsPanel', () => {
         promise: Promise.reject(new Error('分析失败')),
       })
       const { panel } = init()
-      panel.keywords.value = ['kw1']
+      panel.text.value = '需求：验证码'
       await panel.analyze()
       expect(mocks.ElMessage.error).toHaveBeenCalledWith('分析失败')
     })
@@ -406,7 +396,7 @@ describe('useMissingPointsPanel', () => {
         promise: Promise.reject('string err'),
       })
       const { panel } = init()
-      panel.keywords.value = ['kw1']
+      panel.text.value = '需求：验证码'
       await panel.analyze()
       expect(mocks.ElMessage.error).toHaveBeenCalledWith('分析失败')
     })
@@ -418,7 +408,7 @@ describe('useMissingPointsPanel', () => {
         promise: new Promise<AiMissingPointResult>((r) => { resolve = r }),
       })
       const { panel } = init()
-      panel.keywords.value = ['kw1']
+      panel.text.value = '需求：验证码'
       const p = panel.analyze()
       expect(panel.analyzing.value).toBe(true)
       resolve(makeResult())
@@ -432,7 +422,7 @@ describe('useMissingPointsPanel', () => {
         promise: Promise.reject(new Error('fail')),
       })
       const { panel } = init()
-      panel.keywords.value = ['kw1']
+      panel.text.value = '需求：验证码'
       await panel.analyze()
       expect(panel.analyzing.value).toBe(false)
     })
@@ -444,7 +434,7 @@ describe('useMissingPointsPanel', () => {
         promise: Promise.reject(Object.assign(new Error('aborted'), { name: 'AbortError' })),
       })
       const { panel } = init()
-      panel.keywords.value = ['kw1']
+      panel.text.value = '需求：验证码'
       controller.abort()
       await panel.analyze()
       expect(mocks.ElMessage.error).not.toHaveBeenCalled()
@@ -460,7 +450,7 @@ describe('useMissingPointsPanel', () => {
         promise: new Promise<AiMissingPointResult>((r) => { resolve = r }),
       })
       const { panel } = init()
-      panel.keywords.value = ['kw1']
+      panel.text.value = '需求：验证码'
       const p = panel.analyze()
       panel.cancelAnalyze()
       expect(panel.analyzing.value).toBe(false)
@@ -610,14 +600,12 @@ describe('useMissingPointsPanel', () => {
   describe('watch docId', () => {
     it('docId 变化时重置所有状态', async () => {
       const { docId, panel } = init()
-      panel.keywords.value = ['kw1']
       panel.text.value = 'text'
       panel.requirementIds.value = ['r1']
       panel.result.value = makeResult()
       panel.checkedIndexes.value = new Set([0])
       docId.value = 'doc-2'
       await nextTick()
-      expect(panel.keywords.value).toEqual([])
       expect(panel.text.value).toBe('')
       expect(panel.requirementIds.value).toEqual([])
       expect(panel.requirementTitles.value).toEqual([])
@@ -633,7 +621,7 @@ describe('useMissingPointsPanel', () => {
         promise: new Promise<AiMissingPointResult>((r) => { resolve = r }),
       })
       const { docId, panel } = init()
-      panel.keywords.value = ['kw1']
+      panel.text.value = '需求：验证码'
       panel.analyze()
       docId.value = 'doc-2'
       await nextTick()
@@ -650,7 +638,7 @@ describe('useMissingPointsPanel', () => {
         promise: new Promise(() => {}),
       })
       const { panel } = init()
-      panel.keywords.value = ['kw1']
+      panel.text.value = '需求：验证码'
       panel.analyze()
       expect(controller.signal.aborted).toBe(false)
     })
@@ -673,7 +661,7 @@ describe('useMissingPointsPanel', () => {
 
     it('发起分析后关闭再打开显示恢复标识', async () => {
       const { visible, panel } = init()
-      panel.keywords.value = ['kw1']
+      panel.text.value = '需求：验证码'
       await panel.analyze()
       visible.value = false
       await nextTick()
@@ -684,7 +672,7 @@ describe('useMissingPointsPanel', () => {
 
     it('重新发起分析时隐藏恢复标识', async () => {
       const { panel } = init()
-      panel.keywords.value = ['kw1']
+      panel.text.value = '需求：验证码'
       await panel.analyze()
       panel.resumeVisible.value = true
       await panel.analyze()
@@ -693,14 +681,14 @@ describe('useMissingPointsPanel', () => {
 
     it('分析完成后输入组自动折叠', async () => {
       const { panel } = init()
-      panel.keywords.value = ['kw1']
+      panel.text.value = '需求：验证码'
       await panel.analyze()
       expect(panel.inputsCollapsed.value).toBe(true)
     })
 
     it('重新分析期间保持折叠状态，完成后再次折叠', async () => {
       const { panel } = init()
-      panel.keywords.value = ['kw1']
+      panel.text.value = '需求：验证码'
       await panel.analyze()
       panel.toggleInputs()
       expect(panel.inputsCollapsed.value).toBe(false)
@@ -754,7 +742,7 @@ describe('useMissingPointsPanel', () => {
 
     it('docId 变化重置会话与折叠态', async () => {
       const { docId, panel } = init()
-      panel.keywords.value = ['kw1']
+      panel.text.value = '需求：验证码'
       await panel.analyze()
       panel.resumeVisible.value = true
       docId.value = 'doc-2'
@@ -768,7 +756,7 @@ describe('useMissingPointsPanel', () => {
   describe('阶段秒表与模型选择（56 §1.1/§1.2）', () => {
     it('发起分析启动秒表、结束停止', async () => {
       const { panel } = init()
-      panel.keywords.value = ['kw1']
+      panel.text.value = '需求：验证码'
       await panel.analyze()
       expect(stage.start).toHaveBeenCalledTimes(1)
       expect(stage.stop).toHaveBeenCalledTimes(1)
@@ -781,7 +769,7 @@ describe('useMissingPointsPanel', () => {
         promise: new Promise(() => {}),
       })
       const { panel } = init()
-      panel.keywords.value = ['kw1']
+      panel.text.value = '需求：验证码'
       void panel.analyze()
       panel.cancelAnalyze()
       expect(controller.signal.aborted).toBe(true)
@@ -791,20 +779,22 @@ describe('useMissingPointsPanel', () => {
     it('携带记忆的有效对话模型', async () => {
       mocks.effectiveModelId.mockReturnValue('model-9')
       const { panel } = init()
-      panel.keywords.value = ['kw1']
+      panel.text.value = '需求：验证码'
       await panel.analyze()
       expect(mocks.analyzeMissingPoints).toHaveBeenCalledWith({
-        keywords: ['kw1'],
+        documentIds: ['doc-1'],
+        text: '需求：验证码',
         modelId: 'model-9',
       })
     })
 
     it('无记忆模型时 modelId 为空', async () => {
       const { panel } = init()
-      panel.keywords.value = ['kw1']
+      panel.text.value = '需求：验证码'
       await panel.analyze()
       expect(mocks.analyzeMissingPoints).toHaveBeenCalledWith({
-        keywords: ['kw1'],
+        documentIds: ['doc-1'],
+        text: '需求：验证码',
         modelId: undefined,
       })
     })
