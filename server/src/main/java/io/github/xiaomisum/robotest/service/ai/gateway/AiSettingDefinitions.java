@@ -22,7 +22,7 @@ public class AiSettingDefinitions {
     /** planOrder.weights 三权重之和校验容差 */
     private static final double WEIGHT_SUM_TOLERANCE = 0.001;
     /** 全局助手可选写工具枚举（string[] 多选项） */
-    private static final List<String> WRITE_TOOL_OPTIONS = List.of("create_bug", "create_plan_draft");
+    private static final List<String> WRITE_TOOL_OPTIONS = List.of("create_bug", "create_plan_draft", "create_document", "create_module");
 
     /** 控件类型 */
     static final String TYPE_INT = "int";
@@ -61,7 +61,7 @@ public class AiSettingDefinitions {
         // 全局助手
         addInt("assistant", "全局助手", "assistantConfirmTimeoutSeconds", "写操作确认超时", "全局助手写操作确认令牌有效期（秒）", 300, 30.0, 3600.0);
         addStringArray("assistant", "全局助手", "assistantWriteToolWhitelist", "写工具白名单", "允许全局助手调用的写操作工具",
-                List.of("create_bug", "create_plan_draft"), WRITE_TOOL_OPTIONS);
+                List.of("create_bug", "create_plan_draft", "create_document", "create_module"), WRITE_TOOL_OPTIONS);
         // 数据保留
         addInt("retention", "数据保留", "logRetentionDays", "审计日志保留天数", "AI 调用审计日志保留期限（天）", 180, 30.0, 3650.0);
         addInt("retention", "数据保留", "conversationRetentionDays", "会话保留天数", "全局助手会话保留期限（天）", 180, 30.0, 3650.0);

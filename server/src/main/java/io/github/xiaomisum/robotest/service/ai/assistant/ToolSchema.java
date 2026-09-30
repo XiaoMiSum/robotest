@@ -47,6 +47,14 @@ public final class ToolSchema {
         return new Prop(name, schema);
     }
 
+    public static Prop array(String name, String description, Map<String, Object> itemSchema) {
+        Map<String, Object> schema = new LinkedHashMap<>();
+        schema.put("type", "array");
+        schema.put("description", description);
+        schema.put("items", itemSchema);
+        return new Prop(name, schema);
+    }
+
     public record Prop(String name, Map<String, Object> schema) {
     }
 }
