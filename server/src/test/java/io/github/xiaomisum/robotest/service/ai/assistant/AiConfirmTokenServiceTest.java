@@ -52,7 +52,7 @@ class AiConfirmTokenServiceTest {
         when(redisTemplate.opsForValue()).thenReturn(valueOps);
 
         String token = service.issue(userId, workspaceId, conversationId, assistantMessageId,
-                "call_1", "create_bug", Map.of("title", "缺陷"));
+                "call_1", "create_bug", Map.of("title", "缺陷"), Map.of("projectId", "test-project"));
 
         assertNotNull(token);
         ArgumentCaptor<String> keyCaptor = ArgumentCaptor.forClass(String.class);
@@ -62,6 +62,7 @@ class AiConfirmTokenServiceTest {
         assertTrue(valueCaptor.getValue().contains("create_bug"));
         assertTrue(valueCaptor.getValue().contains(userId.toString()));
         assertTrue(valueCaptor.getValue().contains(workspaceId.toString()));
+        assertTrue(valueCaptor.getValue().contains("test-project"));
     }
 
     @Test
@@ -70,7 +71,7 @@ class AiConfirmTokenServiceTest {
         when(redisTemplate.opsForValue()).thenReturn(valueOps);
 
         service.issue(userId, workspaceId, conversationId, assistantMessageId,
-                "call_1", "create_bug", Map.of());
+                "call_1", "create_bug", Map.of(), Map.of());
 
         verify(valueOps).set(startsWith("ai:confirm:"), anyString(), eq(300L), eq(TimeUnit.SECONDS));
     }
@@ -93,6 +94,7 @@ class AiConfirmTokenServiceTest {
         assertEquals("call_1", payload.toolCallId());
         assertEquals("create_bug", payload.toolName());
         assertEquals("缺陷", payload.arguments().get("title"));
+        assertEquals("test-project", payload.pageContext().get("projectId"));
         verify(valueOps).getAndDelete("ai:confirm:" + token);
     }
 
@@ -164,6 +166,7 @@ class AiConfirmTokenServiceTest {
         payload.put("toolCallId", callId);
         payload.put("toolName", toolName);
         payload.put("arguments", args);
+        payload.put("pageContext", Map.of("projectId", "test-project"));
         payload.put("createdAt", 12345L);
         return JsonUtils.toJsonString(payload);
     }

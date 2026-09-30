@@ -172,7 +172,7 @@ class AiAssistantChatServiceImplTest {
                 new AiToolDefinition("create_bug", "创建缺陷", ToolSchema.object(List.of(), List.of()),
                         false, null));
         when(toolRegistry.get("create_bug")).thenReturn(writeTool);
-        when(confirmTokenService.issue(any(), any(), any(), any(), any(), any(), any()))
+        when(confirmTokenService.issue(any(), any(), any(), any(), any(), any(), any(), any()))
                 .thenReturn("token-abc");
         when(aiConfigService.getIntSetting("assistantConfirmTimeoutSeconds")).thenReturn(300);
         doAnswer(inv -> {
@@ -186,7 +186,7 @@ class AiAssistantChatServiceImplTest {
 
         verify(confirmTokenService, timeout(3000)).issue(
                 eq(userId), eq(workspaceId), eq(conversationId), any(),
-                eq("call_2"), eq("create_bug"), any());
+                eq("call_2"), eq("create_bug"), any(), any());
         verify(aiToolExecutor, never()).execute(any(), any(), any());
         verify(writeToolExecutor, never()).execute(any(), any(), any());
         verify(provider, timeout(3000)).streamWithTools(any(), anyList(), any(), any(), any());
@@ -389,6 +389,6 @@ class AiAssistantChatServiceImplTest {
 
     private AiConfirmTokenService.ConfirmPayload payload(String toolCallId, String toolName) {
         return new AiConfirmTokenService.ConfirmPayload(
-                userId, workspaceId, conversationId, messageId, toolCallId, toolName, Map.of());
+                userId, workspaceId, conversationId, messageId, toolCallId, toolName, Map.of(), Map.of());
     }
 }
