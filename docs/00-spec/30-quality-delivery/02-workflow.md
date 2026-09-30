@@ -123,7 +123,7 @@ PR 标题和 Commit Message 是两个不同字段，不得混用。
 - [ ] typecheck
 - [ ] 单元测试
 - [ ] 契约检查
-- [ ] 手动测试
+- [ ] 用户人工验收
 - [ ] 构建/部署验证
 
 ## 风险与回滚
@@ -185,6 +185,15 @@ PR 标题和 Commit Message 是两个不同字段，不得混用。
 - 构建部署：`docs/00-spec/30-quality-delivery/03-deploy.md`
 - AI 任务流程：`docs/00-spec/00-governance/02-task-template.md`
 - 文档约定：`docs/AGENTS.md`
+
+---
+
+## 修改记录
+
+| 版本 | 日期 | 说明 |
+| --- | --- | --- |
+| V1.0 | 2026-09-24 | 建立本文 |
+| V1.0 | 2026-09-30 | PR 模板验证证据中的手动测试改为用户人工验收 |
 
 ---
 
