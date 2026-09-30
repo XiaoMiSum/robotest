@@ -201,6 +201,7 @@ bash scripts/deploy-merged.sh
 - ❌ 一个提交混合多个不相关变更
 - ❌ 不提交就声称完成
 - ❌ 不运行本端验证脚本（`scripts/validate-docs.sh` / `scripts/validate-web.sh` / `scripts/validate-backend.sh`）就提交
+- ❌ 非必要不打开浏览器
 
 ---
 
