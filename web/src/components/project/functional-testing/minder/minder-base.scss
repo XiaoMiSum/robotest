@@ -6,23 +6,18 @@
   position: relative;
 }
 
-/* 顶部胶囊工具栏：随容器流式置顶、水平居中、半透明磨砂；
-   absolute 悬浮时按钮增多会换行变高、挤压画布，
-   改为占位流式，任何宽度下都不重叠；内容超出可用宽度时单行横向滚动 */
+/* 顶部常驻工具条：单行左对齐、以分隔线与画布相接、不随画布滚动；
+   绝对悬浮的胶囊形态在按钮增多时会换行挤压画布，改为卡片顶栏流式占位；
+   按钮总量超出容器宽度时不换行（否则行末命令组被挤到第二行），
+   由工具条自身横向滚动承载 */
 .mindmap-toolbar {
   flex-shrink: 0;
   display: flex;
   align-items: center;
-  justify-content: safe center;
+  justify-content: flex-start;
   gap: var(--space-xs);
-  margin: var(--space-sm) auto;
-  padding: 4px 8px;
-  max-width: calc(100% - var(--space-xl));
-  background: rgba(255, 255, 255, 0.88);
-  backdrop-filter: blur(8px);
-  border: 1px solid var(--color-neutral-200);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-md);
+  padding: 7px 12px;
+  border-bottom: 1px solid var(--color-neutral-200);
   flex-wrap: nowrap;
   overflow-x: auto;
   scrollbar-width: thin;
@@ -43,11 +38,18 @@
 }
 
 /* 工具栏功能域分组：不用 el-button-group 是因为按钮需包 el-tooltip，
-   tooltip 包裹会破坏 button-group 的相邻边框合并 */
+   tooltip 包裹会破坏 button-group 的相邻边框合并；
+   分组不参与收缩，避免窄容器把按钮压扁 */
 .toolbar-group {
   display: flex;
   align-items: center;
   gap: 4px;
+  flex-shrink: 0;
+}
+
+/* 行末命令组：有余量时贴行末右侧，超宽时紧随核心组同排滚动 */
+.toolbar-group--end {
+  margin-left: auto;
 }
 
 .minder-canvas {
