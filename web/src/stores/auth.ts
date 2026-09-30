@@ -70,7 +70,11 @@ export const useAuthStore = defineStore('auth', () => {
 
   const isLoggedIn = computed(() => !!getAccessToken() && !!user.value)
   const username = computed(() => user.value?.username ?? '')
-  const avatarUrl = computed(() => user.value?.avatarUrl ?? '')
+  // 姓名缺失（如邀请加入仅回传账号）时回退用户名，避免展示名与头像字符为空
+  const displayName = computed(() => user.value?.name?.trim() || username.value.trim())
+  // 空串/纯空白视为无头像，交由各处渲染层回退文字头像
+  const avatarUrl = computed(() => user.value?.avatarUrl?.trim() || '')
+  const avatarChar = computed(() => displayName.value.charAt(0).toUpperCase() || '?')
   const activeWorkspaceId = computed(() => activeWorkspace.value?.id ?? null)
   const activeProjectId = computed(() => activeProject.value)
   const hasWorkspace = computed(() => user.value?.hasWorkspace ?? false)
@@ -210,7 +214,9 @@ export const useAuthStore = defineStore('auth', () => {
     permissionsLoaded,
     isLoggedIn,
     username,
+    displayName,
     avatarUrl,
+    avatarChar,
     activeWorkspaceId,
     activeProjectId,
     hasWorkspace,

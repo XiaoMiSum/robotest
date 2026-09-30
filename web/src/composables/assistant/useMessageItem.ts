@@ -47,10 +47,7 @@ export function useMessageItem(options: UseMessageItemOptions) {
   const safeContent = computed(() => filterAssistantLinks(message.content ?? '', linkPrefixes))
 
   const userAvatarUrl = computed(() => authStore.avatarUrl?.trim() || '')
-  const userAvatarChar = computed(() => {
-    const name = authStore.username.trim()
-    return name ? name.charAt(0).toUpperCase() : '?'
-  })
+  const userAvatarChar = computed(() => authStore.avatarChar || '?')
 
   const now = ref(Date.now())
   let countdownTimer: ReturnType<typeof setInterval> | null = null
