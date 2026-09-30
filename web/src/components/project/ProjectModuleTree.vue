@@ -157,13 +157,16 @@ defineExpose({ reload: load, getTree: () => treeData.value })
 <style scoped lang="scss">
 .module-tree {
   height: 100%;
+  flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
 
   :deep(.el-tree) {
     --el-tree-node-content-height: 32px;
     flex: 1;
-    padding: 2px;
+    min-height: 0;
+    padding: 4px 8px 10px;
     overflow: auto;
     background: transparent;
   }
@@ -193,9 +196,9 @@ defineExpose({ reload: load, getTree: () => treeData.value })
   display: flex;
   align-items: center;
   gap: var(--space-xs);
-  padding: 2px;
+  padding: 8px;
   border-bottom: 1px solid var(--color-neutral-100);
-  background: var(--color-neutral-50);
+  flex-shrink: 0;
 }
 
 .module-tree__search {
