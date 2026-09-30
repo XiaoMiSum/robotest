@@ -383,14 +383,16 @@ public class OpenAiCompatProvider {
     private JsonNode postOnce(String baseUrl, String path, String apiKey,
                               Map<String, Object> body, int readTimeoutMillis) {
         RestClient client = buildClient(baseUrl, readTimeoutMillis);
-        String response = client.post()
+        // 本地代理（oc/* 系列）对非流式请求以 application/octet-stream 响应，
+        // StringHttpMessageConverter 无法处理该 content-type；改用 byte[] 提取原始字节后手动解码
+        byte[] responseBytes = client.post()
                 .uri(path)
                 .header("Authorization", "Bearer " + apiKey)
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(JsonUtils.toJsonString(body))
                 .retrieve()
-                .body(String.class);
-        return JsonUtils.toJSON(response);
+                .body(byte[].class);
+        return JsonUtils.toJSON(new String(responseBytes, StandardCharsets.UTF_8));
     }
 
     private RestClient buildClient(String baseUrl, int readTimeoutMillis) {
