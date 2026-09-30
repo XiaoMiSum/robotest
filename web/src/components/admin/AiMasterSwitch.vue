@@ -1,11 +1,10 @@
 <script setup lang="ts">
 const enabled = defineModel<boolean>({ required: true })
+// before-change 走 prop 而非事件：Vue emit 不回传监听器返回值，
+// 经 emit 转发会让 ElSwitch 拿到 undefined 而校验失败
 defineProps<{
   loading: boolean
-}>()
-
-const emit = defineEmits<{
-  (e: 'before-change'): Promise<boolean>
+  beforeChange: () => Promise<boolean> | boolean
 }>()
 </script>
 
@@ -20,7 +19,7 @@ const emit = defineEmits<{
       <el-switch
         v-model="enabled"
         :loading="loading"
-        :before-change="() => emit('before-change')"
+        :before-change="beforeChange"
       />
     </span>
   </div>
