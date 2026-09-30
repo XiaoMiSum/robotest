@@ -154,13 +154,13 @@ onBeforeUnmount(() => {
   <div v-loading="loading" class="mindmap-container">
     <!-- 计划工具栏 -->
     <div class="mindmap-toolbar mindmap-toolbar--center">
-      <el-button-group size="small">
+      <el-button-group>
         <el-button :type="execResult==='pass'?'success':''" @click="markExecution('pass')">✅通过</el-button>
         <el-button :type="execResult==='fail'?'danger':''" @click="markExecution('fail')">❌失败</el-button>
         <el-button :class="execResult==='block'?'exec-block-active':''" @click="markExecution('block')">❓阻塞</el-button>
         <el-button :type="execResult==='untested'?'info':''" @click="markExecution('untested')">🔄待执行</el-button>
       </el-button-group>
-      <el-button v-if="removable" size="small" :disabled="!canRemove" @click="removeSelectedCase">🗑移除用例</el-button>
+      <el-button v-if="removable" :disabled="!canRemove" @click="removeSelectedCase">🗑移除用例</el-button>
     </div>
 
     <!-- 脑图画布 -->
