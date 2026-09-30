@@ -37,8 +37,10 @@ export const useAiStore = defineStore('ai', () => {
   }
 
   /**
-   * 交互式调用应携带的 modelId：记忆值仍在已启用清单中则用之；
-   * 失效（不存在/已停用/已删除）则清除记忆并返回 undefined（由后端回退系统默认）。
+   * 交互式调用应携带的生效模型 id（始终与选择器展示一致，见基础设施 4.11）：
+   * 记忆值仍在已启用清单中则用之；无记忆或失效（不存在/已停用/已删除）时清除记忆并回退
+   * 系统默认模型 id——否则选择器展示默认模型而请求携带空值，展示与实际调用不一致；
+   * 清单为空（AI 未启用）返回 undefined，由调用方交空值给后端兜底。
    */
   function effectiveModelId(): string | undefined {
     const remembered = selectedModelId.value
@@ -48,7 +50,7 @@ export const useAiStore = defineStore('ai', () => {
     if (remembered) {
       setSelectedModelId(null)
     }
-    return undefined
+    return chatModels.value.find((m) => m.isDefault)?.id
   }
 
   async function load(force = false): Promise<void> {
