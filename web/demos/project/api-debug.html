@@ -376,15 +376,15 @@
                 <div class="j-row"><span class="j-punc">}</span></div>
               </div>
             </div>
+          </div>
 
-            <!-- 历史记录视图：点击「历史记录」页签切换为全宽列表（交互设计 1.7） -->
-            <div class="debug__history" id="debug-history" hidden>
-              <div class="history__toolbar">
-                <input class="input history__search" id="history-search" placeholder="搜索名称或 URL">
-                <span class="history__total" id="history-total"></span>
-              </div>
-              <div class="history__list" id="history-list"></div>
+          <!-- 历史记录视图：与请求/响应区分层同级（交互设计 1.7），点击「历史记录」页签切换为全宽列表 -->
+          <div class="debug__history" id="debug-history" hidden>
+            <div class="history__toolbar">
+              <input class="input history__search" id="history-search" placeholder="搜索名称、URL 或日期">
+              <span class="history__total" id="history-total"></span>
             </div>
+            <div class="history__list" id="history-list"></div>
           </div>
         </div>
       </div>
@@ -569,14 +569,31 @@
   var historyView = document.getElementById('debug-history');
   var historyList = document.getElementById('history-list');
   var historyTotal = document.getElementById('history-total');
-  // 演示数据：真实实现由 DebugHistoryView 走 fetchDebugRecords 加载
+  // 演示数据：20 条，覆盖 11 个不同日期与全部 5 种请求方法；真实实现由 DebugHistoryView 走 fetchDebugRecords 加载
   var historyRecords = [
-    { id: 'r1', group: '今天', method: 'POST', code: 200, name: '创建订单', url: '${BASE_URL}/api/v1/orders', at: '09-29 10:30', ms: 342 },
-    { id: 'r2', group: '今天', method: 'GET', code: 200, name: '查询订单详情', url: '${BASE_URL}/api/v1/orders/ord_88213', at: '09-29 10:12', ms: 118 },
-    { id: 'r3', group: '今天', method: 'GET', code: 404, name: '查询订单详情', url: '${BASE_URL}/api/v1/orders/ord_00001', at: '09-29 09:51', ms: 96 },
-    { id: 'r4', group: '昨天', method: 'PUT', code: 200, name: '取消订单', url: '${BASE_URL}/api/v1/orders/ord_88213/cancel', at: '09-28 18:45', ms: 205 },
-    { id: 'r5', group: '昨天', method: 'DELETE', code: 500, name: '删除购物车项', url: '${BASE_URL}/api/v1/cart/items/9912', at: '09-28 15:20', ms: 2031 },
-    { id: 'r6', group: '更早', method: 'POST', code: 201, name: '用户登录', url: '${BASE_URL}/api/v1/auth/login', at: '09-26 11:08', ms: 268 }
+    // 今天（09-29）
+    { id: 'r01', group: '今天', method: 'POST', code: 200, name: '创建订单', url: '${BASE_URL}/api/v1/orders', at: '09-29 10:30', ms: 342 },
+    { id: 'r02', group: '今天', method: 'GET', code: 200, name: '查询订单详情', url: '${BASE_URL}/api/v1/orders/ord_88213', at: '09-29 10:12', ms: 118 },
+    { id: 'r03', group: '今天', method: 'GET', code: 404, name: '查询订单详情', url: '${BASE_URL}/api/v1/orders/ord_00001', at: '09-29 09:51', ms: 96 },
+    { id: 'r04', group: '今天', method: 'DELETE', code: 500, name: '删除购物车项', url: '${BASE_URL}/api/v1/cart/items/9912', at: '09-29 09:35', ms: 2031 },
+    { id: 'r05', group: '今天', method: 'PUT', code: 200, name: '更新用户资料', url: '${BASE_URL}/api/v1/users/u_3021', at: '09-29 08:58', ms: 154 },
+    // 昨天（09-28）
+    { id: 'r06', group: '昨天', method: 'PUT', code: 200, name: '取消订单', url: '${BASE_URL}/api/v1/orders/ord_88213/cancel', at: '09-28 18:45', ms: 205 },
+    { id: 'r07', group: '昨天', method: 'PATCH', code: 200, name: '更新订单备注', url: '${BASE_URL}/api/v1/orders/ord_77402', at: '09-28 16:22', ms: 132 },
+    { id: 'r08', group: '昨天', method: 'POST', code: 201, name: '用户登录', url: '${BASE_URL}/api/v1/auth/login', at: '09-28 15:07', ms: 268 },
+    { id: 'r09', group: '昨天', method: 'GET', code: 200, name: '订单列表分页', url: '${BASE_URL}/api/v1/orders?page=1', at: '09-28 11:36', ms: 224 },
+    // 更早（09-12 ~ 09-27，逐日错开）
+    { id: 'r10', group: '更早', method: 'GET', code: 200, name: '获取商品详情', url: '${BASE_URL}/api/v1/products/p_5581', at: '09-27 20:14', ms: 87 },
+    { id: 'r11', group: '更早', method: 'POST', code: 201, name: '创建退款单', url: '${BASE_URL}/api/v1/refunds', at: '09-27 17:03', ms: 415 },
+    { id: 'r12', group: '更早', method: 'PATCH', code: 200, name: '更新收货地址', url: '${BASE_URL}/api/v1/addresses/addr_2210', at: '09-26 19:40', ms: 121 },
+    { id: 'r13', group: '更早', method: 'DELETE', code: 204, name: '取消支付单', url: '${BASE_URL}/api/v1/payments/pay_71200', at: '09-26 14:12', ms: 176 },
+    { id: 'r14', group: '更早', method: 'GET', code: 200, name: '查询库存', url: '${BASE_URL}/api/v1/stocks/p_5581', at: '09-25 21:30', ms: 65 },
+    { id: 'r15', group: '更早', method: 'PUT', code: 200, name: '替换购物车商品', url: '${BASE_URL}/api/v1/cart', at: '09-24 16:55', ms: 289 },
+    { id: 'r16', group: '更早', method: 'GET', code: 200, name: '健康检查', url: '${BASE_URL}/api/v1/health', at: '09-23 09:02', ms: 12 },
+    { id: 'r17', group: '更早', method: 'POST', code: 200, name: '发送验证码', url: '${BASE_URL}/api/v1/sms/code', at: '09-22 20:18', ms: 96 },
+    { id: 'r18', group: '更早', method: 'GET', code: 200, name: '查询物流轨迹', url: '${BASE_URL}/api/v1/shipments/shp_90032', at: '09-19 13:47', ms: 342 },
+    { id: 'r19', group: '更早', method: 'PATCH', code: 200, name: '更新优惠券状态', url: '${BASE_URL}/api/v1/coupons/c_8801', at: '09-15 11:26', ms: 143 },
+    { id: 'r20', group: '更早', method: 'DELETE', code: 200, name: '清空回收站', url: '${BASE_URL}/api/v1/trash', at: '09-12 10:05', ms: 512 }
   ];
 
   function setHistoryView(show) {
@@ -587,7 +604,7 @@
   function renderHistory() {
     var kw = document.getElementById('history-search').value.trim().toLowerCase();
     var rows = historyRecords.filter(function (r) {
-      return !kw || (r.name + ' ' + r.url + ' ' + r.method).toLowerCase().indexOf(kw) >= 0;
+      return !kw || (r.name + ' ' + r.url + ' ' + r.method + ' ' + r.at).toLowerCase().indexOf(kw) >= 0;
     });
     historyTotal.textContent = '共 ' + rows.length + ' 条';
     if (!rows.length) { historyList.innerHTML = '<div class="history__empty">暂无调试记录</div>'; return; }
