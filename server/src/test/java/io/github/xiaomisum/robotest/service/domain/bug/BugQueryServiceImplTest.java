@@ -91,6 +91,7 @@ class BugQueryServiceImplTest {
         SysUser reporter = new SysUser();
         reporter.setId(UUID.fromString("00000000-0000-0000-0000-000000000004"));
         reporter.setUsername("reporter");
+        reporter.setName("张三");
         when(userMapper.listByIds(anyCollection())).thenReturn(List.of(reporter));
 
         PageResult<BugListRespDTO> result = bugQueryService.getBugPage(
@@ -102,7 +103,7 @@ class BugQueryServiceImplTest {
         assertEquals(1L, result.getTotal());
         assertEquals("Test Bug", result.getList().get(0).getTitle());
         assertEquals(Constants.BugType.CODE_ERROR, result.getList().get(0).getBugType());
-        assertEquals("reporter", result.getList().get(0).getReporter().getName());
+        assertEquals("张三", result.getList().get(0).getReporter().getName());
         verify(projectAccessGuard).requireProjectMember(projectId, userId);
     }
 
@@ -129,16 +130,18 @@ class BugQueryServiceImplTest {
         SysUser reporter = new SysUser();
         reporter.setId(reporterId);
         reporter.setUsername("reporter");
+        reporter.setName("张三");
         SysUser resolver = new SysUser();
         resolver.setId(resolverId);
         resolver.setUsername("resolver");
+        resolver.setName("李四");
         when(userMapper.listByIds(anyCollection())).thenReturn(List.of(reporter, resolver));
 
         PageResult<BugListRespDTO> result = bugQueryService.getBugPage(
                 projectId, userId, null, null, null, null, null, null, null, null, null, 1, 10);
 
         BugListRespDTO dto = result.getList().get(0);
-        assertEquals("resolver", dto.getResolvedBy().getName());
+        assertEquals("李四", dto.getResolvedBy().getName());
         assertEquals(Constants.BugResolution.FIXED, dto.getResolution());
         assertEquals(resolvedAt, dto.getResolvedAt());
         assertEquals(closedAt, dto.getClosedAt());
@@ -178,10 +181,12 @@ class BugQueryServiceImplTest {
         SysUser reporter = new SysUser();
         reporter.setId(UUID.fromString("00000000-0000-0000-0000-000000000004"));
         reporter.setUsername("reporter");
+        reporter.setName("张三");
 
         SysUser assignee = new SysUser();
         assignee.setId(UUID.fromString("00000000-0000-0000-0000-000000000005"));
         assignee.setUsername("assignee");
+        assignee.setName("王五");
 
         // resolvedBy/closedBy 为 null 时服务会以 null 入参查询，需用 Answer 兼容
         when(userMapper.selectById(any())).thenAnswer(inv -> {
@@ -206,8 +211,8 @@ class BugQueryServiceImplTest {
         assertEquals("steps", result.getReproSteps());
         assertEquals(Boolean.TRUE, result.getConfirmed());
         assertEquals(2, result.getReopenCount());
-        assertEquals("reporter", result.getReporter().getName());
-        assertEquals("assignee", result.getAssignee().getName());
+        assertEquals("张三", result.getReporter().getName());
+        assertEquals("王五", result.getAssignee().getName());
         assertNotNull(result.getRecentLogs());
     }
 

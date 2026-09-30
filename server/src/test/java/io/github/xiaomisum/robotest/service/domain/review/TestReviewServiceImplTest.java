@@ -150,10 +150,12 @@ class TestReviewServiceImplTest {
                 SysUser p1 = new SysUser();
                 p1.setId(review.getParticipantIds().get(0));
                 p1.setUsername("member_a");
+                p1.setName("李四");
                 p1.setAvatarUrl("https://cdn.example.com/a.png");
                 SysUser p2 = new SysUser();
                 p2.setId(review.getParticipantIds().get(1));
                 p2.setUsername("member_b");
+                p2.setName("王五");
                 when(userMapper.selectBatchIds(review.getParticipantIds())).thenReturn(List.of(p1, p2));
 
                 PageResult<TestReviewListRespDTO> result = reviewService.getReviewPage(
@@ -163,13 +165,13 @@ class TestReviewServiceImplTest {
                 assertEquals(1, result.getList().size());
                 assertEquals("Review 1", result.getList().get(0).getTitle());
                 assertEquals(2, result.getList().get(0).getParticipantCount());
-                // 参与者名单批量回填（头像堆），保持 participantIds 顺序
+                // 参与者名单回填展示姓名（头像堆取姓名首字），保持 participantIds 顺序
                 assertNotNull(result.getList().get(0).getParticipants());
                 assertEquals(2, result.getList().get(0).getParticipants().size());
-                assertEquals("member_a", result.getList().get(0).getParticipants().get(0).getName());
+                assertEquals("李四", result.getList().get(0).getParticipants().get(0).getName());
                 assertEquals("https://cdn.example.com/a.png",
                                 result.getList().get(0).getParticipants().get(0).getAvatarUrl());
-                assertEquals("member_b", result.getList().get(0).getParticipants().get(1).getName());
+                assertEquals("王五", result.getList().get(0).getParticipants().get(1).getName());
                 // 无快照时进度按 0 计，已评审数 = 总数 − 待评审数
                 assertEquals(0L, result.getList().get(0).getReviewed());
                 assertEquals(0L, result.getList().get(0).getTotalAssociated());

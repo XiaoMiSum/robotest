@@ -61,7 +61,7 @@ public interface BugConvertMapper {
         }
         BugListRespDTO.UserInfo info = new BugListRespDTO.UserInfo();
         info.setId(user.getId());
-        info.setName(user.getUsername());
+        info.setName(user.getName());
         return info;
     }
 
@@ -71,7 +71,7 @@ public interface BugConvertMapper {
         }
         BugDetailRespDTO.UserInfo info = new BugDetailRespDTO.UserInfo();
         info.setId(user.getId());
-        info.setName(user.getUsername());
+        info.setName(user.getName());
         return info;
     }
 
