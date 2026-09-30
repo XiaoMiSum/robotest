@@ -6,107 +6,610 @@
 <title>缺陷管理 · RoboTest</title>
 <link rel="stylesheet" href="../assets/tokens.css">
 <link rel="stylesheet" href="../assets/base.css">
+<style>
+  /* hidden 属性会被 display:flex 等规则覆盖，需强制生效 */
+  [hidden] { display: none !important; }
+
+  /* —— 筛选区 —— */
+  .bug-filters { padding: 14px 20px; }
+  .bug-filters__row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    flex-wrap: wrap;
+  }
+  .bug-filters__row .input-wrap .input { width: 280px; }
+
+  .segment__item {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .segment__item [data-icon] svg { width: 14px; height: 14px; }
+
+  .bug-adv-trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: var(--brand-500);
+    cursor: pointer;
+    font-size: var(--font-size-sm);
+    background: none;
+    border: none;
+    font-family: inherit;
+    padding: 0;
+  }
+  .bug-adv-trigger [data-icon] svg { width: 13px; height: 13px; }
+
+  .bug-adv-popover {
+    position: absolute;
+    margin-top: 8px;
+    width: 300px;
+    background: var(--n-0);
+    border: 1px solid var(--n-200);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    padding: 18px;
+    z-index: 50;
+  }
+  .bug-adv-popover .field { margin-bottom: 14px; }
+  .bug-adv-popover .field__label { margin-bottom: 6px; }
+  .bug-adv-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 4px;
+  }
+
+  /* —— 列表表格 —— */
+  .bug-table { min-width: 1700px; }
+  .bug-table td:last-child { white-space: nowrap; }
+  .bug-table .cell-main { color: var(--n-900); font-weight: 500; }
+  .bug-table .cell-main:hover { color: var(--brand-600); }
+
+  .more-trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+  }
+  .more-trigger [data-icon] svg { width: 12px; height: 12px; }
+
+  /* 更多下拉菜单 */
+  .more-dropdown {
+    position: fixed;
+    background: var(--n-0);
+    border: 1px solid var(--n-200);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-md);
+    padding: 4px 0;
+    z-index: 80;
+    min-width: 100px;
+  }
+  .more-dropdown__item {
+    padding: 7px 14px;
+    font-size: var(--font-size-sm);
+    color: var(--n-700);
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .more-dropdown__item:hover {
+    background: var(--n-50);
+    color: var(--n-900);
+  }
+
+  /* —— 分页每页条数 —— */
+  .page-size {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: var(--n-500);
+  }
+
+  /* —— 看板视图 —— */
+  .bug-board {
+    display: flex;
+    gap: var(--space-md);
+    min-height: 400px;
+  }
+  .bug-board__column {
+    flex: 1;
+    min-width: 220px;
+    background: var(--n-50);
+    border: 1px solid var(--n-200);
+    border-radius: var(--radius-lg);
+    display: flex;
+    flex-direction: column;
+  }
+  .bug-board__col-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-sm) var(--space-md);
+    border-bottom: 1px solid var(--n-200);
+  }
+  .bug-board__col-title {
+    font-weight: 600;
+    font-size: var(--font-size-xs);
+    color: var(--n-700);
+  }
+  .bug-board__col-count {
+    font-size: var(--font-size-2xs);
+    color: var(--n-500);
+    background: var(--n-200);
+    border-radius: 999px;
+    padding: 1px 6px;
+    font-weight: 500;
+  }
+  .bug-board__col-body {
+    flex: 1;
+    padding: var(--space-sm);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+    overflow-y: auto;
+  }
+  .bug-board__card {
+    display: block;
+    background: var(--n-0);
+    border: 1px solid var(--n-200);
+    border-radius: var(--radius-md);
+    padding: var(--space-sm) var(--space-md);
+    cursor: grab;
+    transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+    text-decoration: none;
+  }
+  .bug-board__card:hover {
+    box-shadow: var(--shadow-sm);
+    border-color: var(--brand-200);
+  }
+  .bug-board__card:active { cursor: grabbing; }
+  .bug-board__card-title {
+    font-size: var(--font-size-xs);
+    font-weight: 500;
+    color: var(--n-800);
+    margin-bottom: var(--space-xs);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .bug-board__card-meta {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+  }
+  .bug-board__card-assignee {
+    font-size: var(--font-size-2xs);
+    color: var(--n-500);
+  }
+
+  /* —— AI 分析抽屉 —— */
+  .ai-drawer-mask {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 15, 17, 0.3);
+    z-index: 150;
+  }
+  .ai-drawer {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 560px;
+    max-width: calc(100vw - 48px);
+    background: var(--n-0);
+    box-shadow: var(--shadow-lg);
+    z-index: 160;
+    display: flex;
+    flex-direction: column;
+  }
+  .ai-drawer__header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    padding: 18px 24px;
+    border-bottom: 1px solid var(--n-100);
+  }
+  .ai-drawer__title {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-weight: 600;
+    font-size: var(--font-size-base);
+    color: var(--brand-600);
+  }
+  .ai-drawer__title [data-icon] svg { width: 15px; height: 15px; }
+  .ai-drawer__generated {
+    font-size: var(--font-size-xs);
+    color: var(--n-400);
+  }
+  .ai-drawer__body {
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--space-lg);
+  }
+  .ai-drawer__summary {
+    font-size: var(--font-size-sm);
+    color: var(--n-600);
+    margin-bottom: var(--space-md);
+    padding: var(--space-sm) var(--space-md);
+    background: var(--n-50);
+    border-radius: var(--radius-md);
+  }
+  .ai-cluster__item {
+    border: 1px solid var(--n-200);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    margin-bottom: var(--space-md);
+  }
+  .ai-cluster__head {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-md);
+    padding: var(--space-md);
+    cursor: pointer;
+  }
+  .ai-cluster__head:hover { background: var(--n-50); }
+  .ai-cluster__index {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--brand-50);
+    color: var(--brand-600);
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+  }
+  .ai-cluster__main { flex: 1; min-width: 0; }
+  .ai-cluster__label {
+    font-size: var(--font-size-base);
+    font-weight: 600;
+    color: var(--n-800);
+    margin-bottom: 4px;
+  }
+  .ai-cluster__cause {
+    font-size: var(--font-size-sm);
+    color: var(--n-500);
+    line-height: 1.6;
+  }
+  .ai-cluster__side {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    flex-shrink: 0;
+  }
+  .ai-cluster__count {
+    font-size: var(--font-size-base);
+    font-weight: 600;
+    color: var(--n-700);
+  }
+  .ai-cluster__toggle { color: var(--n-400); font-size: var(--font-size-sm); }
+  .ai-cluster__body {
+    border-top: 1px solid var(--n-100);
+    padding: var(--space-md);
+    background: var(--n-50);
+  }
+  .ai-cluster__bug {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    padding: 6px var(--space-sm);
+    border-radius: var(--radius-sm);
+    font-size: var(--font-size-sm);
+    color: var(--n-700);
+    cursor: pointer;
+  }
+  .ai-cluster__bug:hover {
+    background: var(--n-100);
+    color: var(--brand-600);
+  }
+  .ai-cluster__sev-dot {
+    flex-shrink: 0;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+  }
+  .ai-cluster__sev-dot--fatal { background: var(--bug-fatal); }
+  .ai-cluster__sev-dot--serious { background: var(--bug-serious); }
+  .ai-cluster__sev-dot--general { background: var(--bug-general); }
+  .ai-cluster__sev-dot--minor { background: var(--bug-minor); }
+  .ai-cluster__bug-title {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .ai-cluster__bug-status {
+    flex-shrink: 0;
+    font-size: var(--font-size-xs);
+    color: var(--n-500);
+    background: var(--n-100);
+    border-radius: 999px;
+    padding: 1px 8px;
+  }
+  .ai-cluster__bug-id {
+    flex-shrink: 0;
+    font-size: var(--font-size-xs);
+    color: var(--n-400);
+    font-family: var(--font-mono);
+  }
+  .ai-cluster__view {
+    flex-shrink: 0;
+    font-size: var(--font-size-xs);
+    color: var(--brand-500);
+  }
+</style>
 </head>
 <body data-shell="business" data-mode="project" data-active="bugs" data-workspace="质量中台" data-project="电商核心系统">
 
 <main class="content">
 
-  <div class="page-head">
-    <div>
-      <h1 class="page-head__title">缺陷管理</h1>
-      <p class="page-head__desc">未关闭 18 · 致命 1 · 严重 4 · 平均修复时长 1.8 天</p>
-    </div>
-    <div class="page-head__actions">
-      <button class="btn btn--default"><span data-icon="download"></span>导出</button>
+  <!-- 筛选区 -->
+  <div class="card bug-filters" style="margin-bottom:var(--block-gap)">
+    <div class="bug-filters__row">
+      <div class="segment" id="quick-filter">
+        <span class="segment__item segment__item--active">全部</span>
+        <span class="segment__item">未修复的</span>
+        <span class="segment__item">由我创建</span>
+        <span class="segment__item">指派给我</span>
+        <span class="segment__item">由我修复</span>
+        <span class="segment__item">由我关闭</span>
+      </div>
+      <div class="input-wrap"><span data-icon="search"></span><input class="input" placeholder="搜索 ID（前缀/后缀）或标题"></div>
+      <button class="bug-adv-trigger" id="adv-trigger">
+        更多筛选<span data-icon="chevron-down"></span>
+      </button>
+      <div style="flex:1"></div>
+      <div class="segment" id="view-toggle">
+        <span class="segment__item segment__item--active" data-view="list"><span data-icon="list"></span>列表</span>
+        <span class="segment__item" data-view="board"><span data-icon="grid"></span>看板</span>
+      </div>
+      <button class="btn btn--default" id="ai-trigger"><span data-icon="sparkle"></span>AI 分析</button>
       <a class="btn btn--primary" href="bug-create.html"><span data-icon="plus"></span>提交缺陷</a>
+    </div>
+    <div class="bug-adv-popover" id="adv-popover" hidden>
+      <div class="field">
+        <label class="field__label">状态</label>
+        <select class="select"><option value="">全部</option><option>激活</option><option>已修复</option><option>已拒绝</option><option>已关闭</option></select>
+      </div>
+      <div class="field">
+        <label class="field__label">类型</label>
+        <select class="select"><option value="">全部</option><option>代码错误</option><option>界面优化</option><option>设计缺陷</option><option>配置相关</option><option>安装部署</option><option>安全相关</option><option>性能问题</option><option>标准规范</option><option>其他</option></select>
+      </div>
+      <div class="field">
+        <label class="field__label">严重等级</label>
+        <select class="select"><option value="">全部</option><option>致命</option><option>严重</option><option>一般</option><option>轻微</option></select>
+      </div>
+      <div class="field">
+        <label class="field__label">优先级</label>
+        <select class="select"><option value="">全部</option><option>高</option><option>中</option><option>低</option></select>
+      </div>
+      <div class="bug-adv-actions">
+        <button class="btn btn--primary btn--sm"><span data-icon="search"></span>查询</button>
+        <button class="btn btn--default btn--sm">重置</button>
+      </div>
     </div>
   </div>
 
-  <div class="card">
-    <div class="toolbar">
-      <div class="toolbar__filters">
-        <div class="input-wrap"><span data-icon="search"></span><input class="input" placeholder="编号 / 标题 / 创建人"></div>
-        <select class="select" style="width:126px"><option>全部状态</option><option>新建</option><option>修复中</option><option>待验证</option><option>已关闭</option></select>
-        <select class="select" style="width:126px"><option>全部等级</option><option>致命</option><option>严重</option><option>一般</option><option>轻微</option></select>
-        <select class="select" style="width:120px"><option>全部优先级</option><option>P0</option><option>P1</option><option>P2</option><option>P3</option></select>
-        <select class="select" style="width:140px"><option>全部模块</option><option>下单流程</option><option>支付中心</option><option>履约配送</option></select>
-        <button class="btn btn--default btn--sm"><span data-icon="filter"></span>筛选</button>
-      </div>
-      <div class="toolbar__count">共 82 个缺陷</div>
-    </div>
-
+  <!-- 列表视图 -->
+  <div class="card" id="list-view">
     <div class="table-wrap">
-      <table class="table table--clickable">
+      <table class="table bug-table">
         <thead>
-          <tr><th>编号 / 标题</th><th>状态</th><th>严重等级</th><th>优先级</th><th>所属模块</th><th>创建人</th><th>创建时间</th><th>操作</th></tr>
+          <tr>
+            <th style="width:110px">ID</th>
+            <th style="min-width:200px">标题</th>
+            <th style="width:100px">类型</th>
+            <th style="width:100px">严重等级</th>
+            <th style="width:80px">优先级</th>
+            <th style="width:130px">状态</th>
+            <th style="width:90px">创建人</th>
+            <th style="width:90px">处理人</th>
+            <th style="width:90px">解决人</th>
+            <th style="width:110px">解决时间</th>
+            <th style="width:100px">解决方案</th>
+            <th style="width:110px">关闭时间</th>
+            <th style="width:110px">创建时间</th>
+            <th style="width:210px">操作</th>
+          </tr>
         </thead>
         <tbody>
-          <tr>
-            <td><span class="mono text-xs muted">BUG-208</span><span class="cell-main" style="display:block">支付回调重复入账</span><span class="cell-sub">关联 TC-1026 · 指派 李华</span></td>
-            <td><span class="status status--warning"><span class="dot"></span>修复中</span></td>
-            <td><span class="tag tag--danger"><span class="dot"></span>严重</span></td>
-            <td><span class="prio prio--p0">P0</span></td>
-            <td><span class="chip">支付中心</span></td>
-            <td>王芳</td>
-            <td class="num">2026-09-22 13:58</td>
-            <td><span class="op-link">详情</span></td>
-          </tr>
-          <tr>
-            <td><span class="mono text-xs muted">BUG-207</span><span class="cell-main" style="display:block">下单超时未释放库存</span><span class="cell-sub">关联 TC-1025 · 指派 张明</span></td>
-            <td><span class="status status--neutral"><span class="dot"></span>新建</span></td>
-            <td><span class="tag tag--danger"><span class="dot"></span>致命</span></td>
-            <td><span class="prio prio--p0">P0</span></td>
-            <td><span class="chip">下单流程</span></td>
-            <td>李华</td>
-            <td class="num">2026-09-22 11:20</td>
-            <td><span class="op-link">详情</span></td>
-          </tr>
-          <tr>
-            <td><span class="mono text-xs muted">BUG-205</span><span class="cell-main" style="display:block">优惠券叠加计算少于预期</span><span class="cell-sub">关联 TC-1024 · 指派 周敏</span></td>
-            <td><span class="status status--warning"><span class="dot"></span>待验证</span></td>
-            <td><span class="tag tag--warning"><span class="dot"></span>一般</span></td>
-            <td><span class="prio prio--p1">P1</span></td>
-            <td><span class="chip">营销优惠</span></td>
-            <td>张明</td>
-            <td class="num">2026-09-21 16:44</td>
-            <td><span class="op-link">详情</span></td>
-          </tr>
-          <tr>
-            <td><span class="mono text-xs muted">BUG-203</span><span class="cell-main" style="display:block">订单列表分页跳转闪烁</span><span class="cell-sub">指派 陈强</span></td>
-            <td><span class="status status--success"><span class="dot"></span>已关闭</span></td>
-            <td><span class="tag tag--neutral"><span class="dot"></span>轻微</span></td>
-            <td><span class="prio prio--p3">P3</span></td>
-            <td><span class="chip">订单中心</span></td>
-            <td>周敏</td>
-            <td class="num">2026-09-19 10:12</td>
-            <td><span class="op-link">详情</span></td>
-          </tr>
-          <tr>
-            <td><span class="mono text-xs muted">BUG-201</span><span class="cell-main" style="display:block">配送时效计算跨时区错误</span><span class="cell-sub">关联 TC-1042 · 指派 李华</span></td>
-            <td><span class="status status--danger"><span class="dot"></span>重新打开</span></td>
+          <!-- 1. active, not confirmed -->
+          <tr data-status="active" data-confirmed="false">
+            <td><span class="mono text-sm muted">f3a2…e2f3</span></td>
+            <td><a href="bug-detail.html" class="cell-main">支付回调重复入账</a></td>
+            <td>代码错误</td>
             <td><span class="tag tag--warning"><span class="dot"></span>严重</span></td>
-            <td><span class="prio prio--p1">P1</span></td>
-            <td><span class="chip">履约配送</span></td>
+            <td><span class="tag tag--warning">高</span></td>
+            <td><span class="tag tag--info">激活</span></td>
             <td>王芳</td>
-            <td class="num">2026-09-17 14:06</td>
-            <td><span class="op-link">详情</span></td>
+            <td>李华</td>
+            <td class="muted">-</td>
+            <td class="num muted">-</td>
+            <td class="muted">-</td>
+            <td class="num muted">-</td>
+            <td class="num">09-22 13:58</td>
+            <td>
+              <a class="op-link" href="bug-detail.html">详情</a>
+              <span class="op-link" style="color:var(--st-success)">解决</span>
+              <span class="op-link" style="color:var(--st-warning)">拒绝</span>
+              <span class="op-link more-trigger">更多<span data-icon="chevron-down"></span></span>
+            </td>
           </tr>
-          <tr>
-            <td><span class="mono text-xs muted">BUG-198</span><span class="cell-main" style="display:block">支付失败提示文案歧义</span><span class="cell-sub">指派 王芳</span></td>
-            <td><span class="status status--success"><span class="dot"></span>已关闭</span></td>
-            <td><span class="tag tag--yellow"><span class="dot"></span>一般</span></td>
-            <td><span class="prio prio--p2">P2</span></td>
-            <td><span class="chip">支付中心</span></td>
+          <!-- 2. active, confirmed -->
+          <tr data-status="active" data-confirmed="true">
+            <td><span class="mono text-sm muted">a1b2…a6b7</span></td>
+            <td><a href="bug-detail.html" class="cell-main">下单超时未释放库存</a></td>
+            <td>代码错误</td>
+            <td><span class="tag tag--danger"><span class="dot"></span>致命</span></td>
+            <td><span class="tag tag--warning">高</span></td>
+            <td>
+              <span class="tag tag--info">激活</span>
+              <span class="tag tag--warning tag--sm" style="margin-left:4px">已确认</span>
+            </td>
+            <td>李华</td>
+            <td>张明</td>
+            <td class="muted">-</td>
+            <td class="num muted">-</td>
+            <td class="muted">-</td>
+            <td class="num muted">-</td>
+            <td class="num">09-22 11:20</td>
+            <td>
+              <a class="op-link" href="bug-detail.html">详情</a>
+              <span class="op-link" style="color:var(--st-success)">解决</span>
+              <span class="op-link" style="color:var(--st-warning)">拒绝</span>
+              <span class="op-link more-trigger">更多<span data-icon="chevron-down"></span></span>
+            </td>
+          </tr>
+          <!-- 3. resolved -->
+          <tr data-status="resolved" data-confirmed="false">
+            <td><span class="mono text-sm muted">c3d4…c8d9</span></td>
+            <td><a href="bug-detail.html" class="cell-main">优惠券叠加计算少于预期</a></td>
+            <td>设计缺陷</td>
+            <td><span class="tag tag--info"><span class="dot"></span>一般</span></td>
+            <td><span class="tag tag--info">中</span></td>
+            <td><span class="tag tag--success">已修复</span></td>
+            <td>张明</td>
+            <td>周敏</td>
+            <td>周敏</td>
+            <td class="num">09-21 18:30</td>
+            <td>已解决</td>
+            <td class="num muted">-</td>
+            <td class="num">09-21 16:44</td>
+            <td>
+              <a class="op-link" href="bug-detail.html">详情</a>
+              <span class="op-link op-link--muted">关闭</span>
+              <span class="op-link more-trigger">更多<span data-icon="chevron-down"></span></span>
+            </td>
+          </tr>
+          <!-- 4. closed -->
+          <tr data-status="closed" data-confirmed="false">
+            <td><span class="mono text-sm muted">e5f6…e0f1</span></td>
+            <td><a href="bug-detail.html" class="cell-main">订单列表分页跳转闪烁</a></td>
+            <td>界面优化</td>
+            <td><span class="tag tag--neutral"><span class="dot"></span>轻微</span></td>
+            <td><span class="tag tag--neutral">低</span></td>
+            <td><span class="tag tag--neutral">已关闭</span></td>
+            <td>周敏</td>
             <td>陈强</td>
-            <td class="num">2026-09-15 09:33</td>
-            <td><span class="op-link">详情</span></td>
+            <td>陈强</td>
+            <td class="num">09-19 11:20</td>
+            <td>已解决</td>
+            <td class="num">09-19 14:00</td>
+            <td class="num">09-19 10:12</td>
+            <td>
+              <a class="op-link" href="bug-detail.html">详情</a>
+              <span class="op-link op-link--danger">激活</span>
+              <span class="op-link more-trigger">更多<span data-icon="chevron-down"></span></span>
+            </td>
+          </tr>
+          <!-- 5. rejected -->
+          <tr data-status="rejected" data-confirmed="false">
+            <td><span class="mono text-sm muted">b7c8…f2a3</span></td>
+            <td><a href="bug-detail.html" class="cell-main">配送时效计算跨时区错误</a></td>
+            <td>代码错误</td>
+            <td><span class="tag tag--warning"><span class="dot"></span>严重</span></td>
+            <td><span class="tag tag--info">中</span></td>
+            <td><span class="tag tag--warning">已拒绝</span></td>
+            <td>王芳</td>
+            <td>李华</td>
+            <td>李华</td>
+            <td class="num">09-17 15:30</td>
+            <td>设计如此</td>
+            <td class="num muted">-</td>
+            <td class="num">09-17 14:06</td>
+            <td>
+              <a class="op-link" href="bug-detail.html">详情</a>
+              <span class="op-link op-link--muted">关闭</span>
+              <span class="op-link more-trigger">更多<span data-icon="chevron-down"></span></span>
+            </td>
+          </tr>
+          <!-- 6. closed -->
+          <tr data-status="closed" data-confirmed="false">
+            <td><span class="mono text-sm muted">d9e0…b4c5</span></td>
+            <td><a href="bug-detail.html" class="cell-main">支付失败提示文案歧义</a></td>
+            <td>界面优化</td>
+            <td><span class="tag tag--info"><span class="dot"></span>一般</span></td>
+            <td><span class="tag tag--neutral">低</span></td>
+            <td><span class="tag tag--neutral">已关闭</span></td>
+            <td>陈强</td>
+            <td>王芳</td>
+            <td>王芳</td>
+            <td class="num">09-15 10:00</td>
+            <td>已解决</td>
+            <td class="num">09-15 16:30</td>
+            <td class="num">09-15 09:33</td>
+            <td>
+              <a class="op-link" href="bug-detail.html">详情</a>
+              <span class="op-link op-link--danger">激活</span>
+              <span class="op-link more-trigger">更多<span data-icon="chevron-down"></span></span>
+            </td>
+          </tr>
+          <!-- 7. resolved, confirmed -->
+          <tr data-status="resolved" data-confirmed="true">
+            <td><span class="mono text-sm muted">a4b5…e8f9</span></td>
+            <td><a href="bug-detail.html" class="cell-main">用户权限校验绕过风险</a></td>
+            <td>安全相关</td>
+            <td><span class="tag tag--danger"><span class="dot"></span>致命</span></td>
+            <td><span class="tag tag--warning">高</span></td>
+            <td>
+              <span class="tag tag--success">已修复</span>
+              <span class="tag tag--warning tag--sm" style="margin-left:4px">已确认</span>
+            </td>
+            <td>李华</td>
+            <td>张明</td>
+            <td>张明</td>
+            <td class="num">09-14 09:15</td>
+            <td>已解决</td>
+            <td class="num muted">-</td>
+            <td class="num">09-13 17:50</td>
+            <td>
+              <a class="op-link" href="bug-detail.html">详情</a>
+              <span class="op-link op-link--muted">关闭</span>
+              <span class="op-link more-trigger">更多<span data-icon="chevron-down"></span></span>
+            </td>
+          </tr>
+          <!-- 8. active, not confirmed, no assignee -->
+          <tr data-status="active" data-confirmed="false">
+            <td><span class="mono text-sm muted">e8f9…c2d3</span></td>
+            <td><a href="bug-detail.html" class="cell-main">接口响应时间超阈值</a></td>
+            <td>性能问题</td>
+            <td><span class="tag tag--warning"><span class="dot"></span>严重</span></td>
+            <td><span class="tag tag--info">中</span></td>
+            <td><span class="tag tag--info">激活</span></td>
+            <td>周敏</td>
+            <td class="muted">-</td>
+            <td class="muted">-</td>
+            <td class="num muted">-</td>
+            <td class="muted">-</td>
+            <td class="num muted">-</td>
+            <td class="num">09-12 08:45</td>
+            <td>
+              <a class="op-link" href="bug-detail.html">详情</a>
+              <span class="op-link" style="color:var(--st-success)">解决</span>
+              <span class="op-link" style="color:var(--st-warning)">拒绝</span>
+              <span class="op-link more-trigger">更多<span data-icon="chevron-down"></span></span>
+            </td>
           </tr>
         </tbody>
       </table>
     </div>
-
     <div class="pagination">
-      <span class="pagination__total">共 82 条 · 每页 20 条</span>
+      <span class="pagination__total">共 82 条</span>
+      <span class="page-size">
+        每页
+        <select class="select" id="page-size" style="width:auto;height:28px;padding:0 8px">
+          <option value="20">20</option>
+          <option value="50">50</option>
+          <option value="100">100</option>
+          <option value="200">200</option>
+          <option value="500">500</option>
+        </select>
+        条
+      </span>
       <button class="page-btn" disabled>‹</button>
       <button class="page-btn page-btn--active">1</button>
       <button class="page-btn">2</button>
@@ -117,9 +620,322 @@
     </div>
   </div>
 
+  <!-- 看板视图 -->
+  <div class="bug-board" id="board-view" hidden>
+    <div class="bug-board__column">
+      <div class="bug-board__col-header">
+        <span class="bug-board__col-title">激活</span>
+        <span class="bug-board__col-count">3</span>
+      </div>
+      <div class="bug-board__col-body">
+        <a href="bug-detail.html" class="bug-board__card" draggable="true">
+          <div class="bug-board__card-title">支付回调重复入账</div>
+          <div class="bug-board__card-meta">
+            <span class="tag tag--warning tag--sm">严重</span>
+            <span class="bug-board__card-assignee">李华</span>
+          </div>
+        </a>
+        <a href="bug-detail.html" class="bug-board__card" draggable="true">
+          <div class="bug-board__card-title">下单超时未释放库存</div>
+          <div class="bug-board__card-meta">
+            <span class="tag tag--danger tag--sm">致命</span>
+            <span class="bug-board__card-assignee">张明</span>
+          </div>
+        </a>
+        <a href="bug-detail.html" class="bug-board__card" draggable="true">
+          <div class="bug-board__card-title">接口响应时间超阈值</div>
+          <div class="bug-board__card-meta">
+            <span class="tag tag--warning tag--sm">严重</span>
+          </div>
+        </a>
+      </div>
+    </div>
+    <div class="bug-board__column">
+      <div class="bug-board__col-header">
+        <span class="bug-board__col-title">已修复</span>
+        <span class="bug-board__col-count">2</span>
+      </div>
+      <div class="bug-board__col-body">
+        <a href="bug-detail.html" class="bug-board__card" draggable="true">
+          <div class="bug-board__card-title">优惠券叠加计算少于预期</div>
+          <div class="bug-board__card-meta">
+            <span class="tag tag--info tag--sm">一般</span>
+            <span class="bug-board__card-assignee">周敏</span>
+          </div>
+        </a>
+        <a href="bug-detail.html" class="bug-board__card" draggable="true">
+          <div class="bug-board__card-title">用户权限校验绕过风险</div>
+          <div class="bug-board__card-meta">
+            <span class="tag tag--danger tag--sm">致命</span>
+            <span class="bug-board__card-assignee">张明</span>
+          </div>
+        </a>
+      </div>
+    </div>
+    <div class="bug-board__column">
+      <div class="bug-board__col-header">
+        <span class="bug-board__col-title">已关闭</span>
+        <span class="bug-board__col-count">2</span>
+      </div>
+      <div class="bug-board__col-body">
+        <a href="bug-detail.html" class="bug-board__card" draggable="true">
+          <div class="bug-board__card-title">订单列表分页跳转闪烁</div>
+          <div class="bug-board__card-meta">
+            <span class="tag tag--neutral tag--sm">轻微</span>
+            <span class="bug-board__card-assignee">陈强</span>
+          </div>
+        </a>
+        <a href="bug-detail.html" class="bug-board__card" draggable="true">
+          <div class="bug-board__card-title">支付失败提示文案歧义</div>
+          <div class="bug-board__card-meta">
+            <span class="tag tag--info tag--sm">一般</span>
+            <span class="bug-board__card-assignee">王芳</span>
+          </div>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- 指派弹窗 -->
+  <div class="dialog-mask" id="assign-dialog" hidden>
+    <div class="dialog">
+      <div class="dialog__header">
+        <span class="dialog__title">指派处理人</span>
+        <span class="dialog__close" data-close="assign-dialog"><span data-icon="x"></span></span>
+      </div>
+      <div class="dialog__body">
+        <div class="field" style="margin-bottom:0">
+          <label class="field__label">处理人 <span class="req">*</span></label>
+          <select class="select"><option value="">选择处理人</option><option>李华</option><option>王芳</option><option>张明</option><option>周敏</option><option>陈强</option></select>
+        </div>
+      </div>
+      <div class="dialog__footer">
+        <button class="btn btn--default" data-close="assign-dialog">取消</button>
+        <button class="btn btn--primary">确定</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- AI 分析抽屉 -->
+  <div id="ai-drawer" hidden>
+    <div class="ai-drawer-mask" data-close="ai-drawer"></div>
+    <div class="ai-drawer">
+      <div class="ai-drawer__header">
+        <span class="ai-drawer__title"><span data-icon="sparkle"></span> AI 分析</span>
+        <span class="ai-drawer__generated">生成时间：2026-09-22 16:30</span>
+        <div style="margin-left:auto;display:flex;gap:var(--space-sm)">
+          <button class="btn btn--link btn--sm">刷新</button>
+          <button class="btn btn--link btn--sm" data-close="ai-drawer">关闭</button>
+        </div>
+      </div>
+      <div class="ai-drawer__body">
+        <div class="ai-drawer__summary">共 8 条缺陷 · 3 个聚类主题 · 1 条未聚类</div>
+
+        <div class="ai-cluster__item">
+          <div class="ai-cluster__head">
+            <span class="ai-cluster__index">1</span>
+            <div class="ai-cluster__main">
+              <div class="ai-cluster__label">支付链路幂等性缺失</div>
+              <div class="ai-cluster__cause">回调重放与超时重试路径缺少幂等键，导致重复入账与库存重复释放</div>
+            </div>
+            <div class="ai-cluster__side">
+              <span class="ai-cluster__count">3</span>
+              <span class="ai-cluster__toggle">▾</span>
+            </div>
+          </div>
+          <div class="ai-cluster__body">
+            <a href="bug-detail.html" class="ai-cluster__bug">
+              <span class="ai-cluster__sev-dot ai-cluster__sev-dot--serious"></span>
+              <span class="ai-cluster__bug-title">支付回调重复入账</span>
+              <span class="ai-cluster__bug-status">激活</span>
+              <span class="ai-cluster__bug-id">f3a2…e2f3</span>
+              <span class="ai-cluster__view">查看</span>
+            </a>
+            <a href="bug-detail.html" class="ai-cluster__bug">
+              <span class="ai-cluster__sev-dot ai-cluster__sev-dot--fatal"></span>
+              <span class="ai-cluster__bug-title">下单超时未释放库存</span>
+              <span class="ai-cluster__bug-status">激活</span>
+              <span class="ai-cluster__bug-id">a1b2…a6b7</span>
+              <span class="ai-cluster__view">查看</span>
+            </a>
+            <a href="bug-detail.html" class="ai-cluster__bug">
+              <span class="ai-cluster__sev-dot ai-cluster__sev-dot--info"></span>
+              <span class="ai-cluster__bug-title">支付失败提示文案歧义</span>
+              <span class="ai-cluster__bug-status">已关闭</span>
+              <span class="ai-cluster__bug-id">d9e0…b4c5</span>
+              <span class="ai-cluster__view">查看</span>
+            </a>
+          </div>
+        </div>
+
+        <div class="ai-cluster__item">
+          <div class="ai-cluster__head">
+            <span class="ai-cluster__index">2</span>
+            <div class="ai-cluster__main">
+              <div class="ai-cluster__label">界面渲染性能与闪烁</div>
+              <div class="ai-cluster__cause">分页与列表组件未做虚拟滚动或防抖，大数据量下出现闪烁与响应延迟</div>
+            </div>
+            <div class="ai-cluster__side">
+              <span class="ai-cluster__count">2</span>
+              <span class="ai-cluster__toggle">▸</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="ai-cluster__item">
+          <div class="ai-cluster__head">
+            <span class="ai-cluster__index">3</span>
+            <div class="ai-cluster__main">
+              <div class="ai-cluster__label">时间与时区计算错误</div>
+              <div class="ai-cluster__cause">配送与优惠活动涉及跨时区计算，未统一 UTC 中间层导致边界值偏移</div>
+            </div>
+            <div class="ai-cluster__side">
+              <span class="ai-cluster__count">2</span>
+              <span class="ai-cluster__toggle">▸</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 更多下拉菜单（浮动定位） -->
+  <div class="more-dropdown" id="more-dropdown" hidden></div>
+
 </main>
 
 <script src="../assets/icons.js"></script>
 <script src="../assets/shell.js"></script>
+<script>
+(function () {
+  var listView = document.getElementById('list-view');
+  var boardView = document.getElementById('board-view');
+  var advPopover = document.getElementById('adv-popover');
+  var advTrigger = document.getElementById('adv-trigger');
+  var moreDropdown = document.getElementById('more-dropdown');
+  var assignDialog = document.getElementById('assign-dialog');
+  var aiDrawer = document.getElementById('ai-drawer');
+
+  // 视图切换
+  document.getElementById('view-toggle').addEventListener('click', function (e) {
+    var item = e.target.closest('.segment__item');
+    if (!item) return;
+    var siblings = this.querySelectorAll('.segment__item');
+    siblings.forEach(function (s) { s.classList.remove('segment__item--active'); });
+    item.classList.add('segment__item--active');
+    var view = item.getAttribute('data-view');
+    listView.hidden = view !== 'list';
+    boardView.hidden = view !== 'board';
+  });
+
+  // 快捷筛选切换
+  document.getElementById('quick-filter').addEventListener('click', function (e) {
+    var item = e.target.closest('.segment__item');
+    if (!item) return;
+    var siblings = this.querySelectorAll('.segment__item');
+    siblings.forEach(function (s) { s.classList.remove('segment__item--active'); });
+    item.classList.add('segment__item--active');
+  });
+
+  // 高级筛选弹层
+  advTrigger.addEventListener('click', function (e) {
+    e.stopPropagation();
+    advPopover.hidden = !advPopover.hidden;
+  });
+  advPopover.addEventListener('click', function (e) { e.stopPropagation(); });
+  document.addEventListener('click', function () { advPopover.hidden = true; });
+
+  // 关闭弹窗/抽屉
+  document.addEventListener('click', function (e) {
+    var closer = e.target.closest('[data-close]');
+    if (closer) {
+      var id = closer.getAttribute('data-close');
+      document.getElementById(id).hidden = true;
+    }
+  });
+
+  // AI 分析抽屉
+  document.getElementById('ai-trigger').addEventListener('click', function () {
+    aiDrawer.hidden = false;
+  });
+
+  // 聚类展开/收起
+  document.querySelectorAll('.ai-cluster__head').forEach(function (head) {
+    head.addEventListener('click', function () {
+      var body = head.nextElementSibling;
+      var toggle = head.querySelector('.ai-cluster__toggle');
+      if (body && body.classList.contains('ai-cluster__body')) {
+        body.hidden = !body.hidden;
+        if (toggle) toggle.textContent = body.hidden ? '▸' : '▾';
+      }
+    });
+  });
+
+  // 更多下拉菜单
+  var moreItems = {
+    active_unconfirmed: [
+      { label: '确认', action: 'confirm' },
+      { label: '指派', action: 'assign' },
+      { label: '复制', action: 'copy' }
+    ],
+    active_confirmed: [
+      { label: '指派', action: 'assign' },
+      { label: '复制', action: 'copy' }
+    ],
+    resolved: [
+      { label: '激活', action: 'reopen' },
+      { label: '指派', action: 'assign' },
+      { label: '复制', action: 'copy' }
+    ],
+    rejected: [
+      { label: '激活', action: 'reopen' },
+      { label: '指派', action: 'assign' },
+      { label: '复制', action: 'copy' }
+    ],
+    closed: [
+      { label: '复制', action: 'copy' }
+    ]
+  };
+
+  function getMoreItems(status, confirmed) {
+    if (status === 'active') return confirmed ? moreItems.active_confirmed : moreItems.active_unconfirmed;
+    return moreItems[status] || moreItems.closed;
+  }
+
+  document.querySelectorAll('.more-trigger').forEach(function (trigger) {
+    trigger.addEventListener('click', function (e) {
+      e.stopPropagation();
+      e.preventDefault();
+      var row = trigger.closest('tr');
+      var status = row.getAttribute('data-status');
+      var confirmed = row.getAttribute('data-confirmed') === 'true';
+      var items = getMoreItems(status, confirmed);
+
+      var html = items.map(function (item) {
+        return '<div class="more-dropdown__item" data-action="' + item.action + '">' + item.label + '</div>';
+      }).join('');
+      moreDropdown.innerHTML = html;
+      moreDropdown.hidden = false;
+
+      var rect = trigger.getBoundingClientRect();
+      moreDropdown.style.top = (rect.bottom + 4) + 'px';
+      moreDropdown.style.left = rect.left + 'px';
+
+      moreDropdown.querySelectorAll('.more-dropdown__item').forEach(function (menuItem) {
+        menuItem.addEventListener('click', function () {
+          var action = this.getAttribute('data-action');
+          moreDropdown.hidden = true;
+          if (action === 'assign') {
+            assignDialog.hidden = false;
+          }
+        });
+      });
+    });
+  });
+
+  document.addEventListener('click', function () { moreDropdown.hidden = true; });
+  moreDropdown.addEventListener('click', function (e) { e.stopPropagation(); });
+})();
+</script>
 </body>
 </html>
