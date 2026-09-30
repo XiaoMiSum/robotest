@@ -42,7 +42,7 @@ import java.util.UUID;
  *   <li>需求输入归一：keywords / text / 需求条目合并为需求描述块（text 与条目内容超预算截断，同生成类裁剪规则）；</li>
  *   <li>关键词模式：text 场景由 LLM 先抽取 ≤10 个关键词（一次同步调用），否则直接用入参 keywords；</li>
  *   <li>候选检索：每词对项目内 case 节点标题 ILIKE 取前 30 条，去重并组装模块路径；</li>
- *   <li>LLM 比对（读超时功能级覆盖 60s）：输出遗漏点，结构断言 suggestedModulePath 必须来自候选模块路径；</li>
+ *   <li>LLM 比对（读超时功能级覆盖 300s）：输出遗漏点，结构断言 suggestedModulePath 必须来自候选模块路径；</li>
  *   <li>relatedCaseTitles 与候选清单比对过滤（防幻觉）。</li>
  * </ol>
  * 本梯队仅关键词模式，semanticDegraded 恒 true；语义升级（梯队三）按 semanticSearch 能力翻转。

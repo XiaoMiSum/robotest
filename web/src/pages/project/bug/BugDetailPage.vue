@@ -7,8 +7,10 @@ import BugSidebar from '@/components/project/bug/BugSidebar.vue'
 import CaseSelector from '@/components/project/functional-testing/case/CaseSelector.vue'
 import MarkdownEditor from '@/components/common/MarkdownEditor.vue'
 import MarkdownView from '@/components/common/MarkdownView.vue'
+import { useRoute } from 'vue-router'
 
-const props = defineProps<{ bugId: string }>()
+const route = useRoute()
+const bugId = route.params.bugId as string
 
 const {
   loading,
@@ -55,7 +57,7 @@ const {
   BUG_STATUS_TAG_TYPE,
   BUG_TYPE_LABEL,
   formatFileSize,
-} = useBugDetail({ bugId: props.bugId })
+} = useBugDetail({ bugId })
 
 function handleClearCase() {
   form.relatedCaseId = ''
@@ -197,7 +199,7 @@ function handleOpenCaseSelector() {
 
     <BugResolveDialog
       v-model="resolveDialogVisible"
-      :exclude-bug-id="props.bugId"
+      :exclude-bug-id="bugId"
       @confirm="handleResolve"
     />
 

@@ -243,8 +243,8 @@ class AiCasePlanRecommendServiceImplTest {
                 req("支持手机号验证码登录", null, null));
 
         assertNull(resp.getItems().get(0).getReason());
-        // 理由生成读超时功能级覆盖 60s（4.5 步骤 3）
-        assertEquals(60_000, optionsCaptor.getValue().readTimeoutMillis());
+        // 理由生成读超时功能级覆盖 300s（4.5 步骤 3）
+        assertEquals(300_000, optionsCaptor.getValue().readTimeoutMillis());
     }
 
     @Test
