@@ -29,6 +29,8 @@
 --
 -- 示例空间：ws_workspace「示例空间」+ sys_user「示例用户(demo)」+ ws_user 空间管理员，
 --           示例项目「Robotest 平台自测」归属该空间。demo 口令与 admin 相同（复用其 password_hash）。
+--           另含 10 名空间成员（7e57001f-…-0002~000b / 7e570020-…-0002~000b），
+--           workspace_role 取内置「成员」，用于成员列表/权限演示。
 --
 -- 依赖：本脚本写入 ws_project_activity，其 DDL 已包含在同目录 schema.sql 中
 -- ============================================================
@@ -123,6 +125,51 @@ VALUES
  'c0000000-0000-0000-0000-000000000001',
  '7e570001-0000-4000-8000-000000000001',
  now() - interval '30 days', now() - interval '1 day', false, now() - interval '30 days', now());
+
+-- ============================================================
+-- 0.2 示例空间成员（10 人，workspace_role = 内置「成员」）
+--     口令复用 demo 的 password_hash；邮箱/用户名唯一索引保证不与既有账号冲突
+-- ============================================================
+INSERT INTO sys_user (id, username, name, email, password_hash, avatar_url, status,
+                      last_active_workspace_id, is_deleted, created_at, updated_at)
+SELECT v.id::uuid, v.username, v.name, v.email,
+       '$2a$10$htqAJ566CXGXdQeQY./b4OwiDxFD.tNa/i2XQ9Dm7EA4V3Tg66KsO',
+       NULL, 'active', NULL, false, now() - interval '20 days', now()
+FROM (VALUES
+  ('7e57001f-0000-4000-8000-000000000002','chensiyuan',    '陈思远','chensiyuan@robotest.local'),
+  ('7e57001f-0000-4000-8000-000000000003','linjiayi',      '林嘉怡','linjiayi@robotest.local'),
+  ('7e57001f-0000-4000-8000-000000000004','wanghao',       '王浩',  'wanghao@robotest.local'),
+  ('7e57001f-0000-4000-8000-000000000005','zhaoyuxin',     '赵雨欣','zhaoyuxin@robotest.local'),
+  ('7e57001f-0000-4000-8000-000000000006','zhouzimo',      '周子墨','zhouzimo@robotest.local'),
+  ('7e57001f-0000-4000-8000-000000000007','sunwanting',    '孙婉婷','sunwanting@robotest.local'),
+  ('7e57001f-0000-4000-8000-000000000008','wujunlei',      '吴俊磊','wujunlei@robotest.local'),
+  ('7e57001f-0000-4000-8000-000000000009','zhengxinyao',   '郑欣瑶','zhengxinyao@robotest.local'),
+  ('7e57001f-0000-4000-8000-00000000000a','huangzhiqiang', '黄志强','huangzhiqiang@robotest.local'),
+  ('7e57001f-0000-4000-8000-00000000000b','hejing',        '何静',  'hejing@robotest.local')
+) AS v(id, username, name, email);
+
+INSERT INTO ws_user (id, user_id, workspace_id, workspace_role, default_project_id,
+                     joined_at, last_accessed_at, is_deleted, created_at, updated_at)
+SELECT ('7e570020-0000-4000-8000-' || substr(v.uid, 25))::uuid,
+       v.uid::uuid,
+       '7e57001e-0000-4000-8000-000000000001',
+       'c0000000-0000-0000-0000-000000000002',
+       NULL,
+       now() - interval '20 days' + (v.n || ' days')::interval,
+       now() - ((v.n + 1) * interval '1 hour'),
+       false, now() - interval '20 days', now()
+FROM (VALUES
+  ('7e57001f-0000-4000-8000-000000000002', 0),
+  ('7e57001f-0000-4000-8000-000000000003', 1),
+  ('7e57001f-0000-4000-8000-000000000004', 2),
+  ('7e57001f-0000-4000-8000-000000000005', 3),
+  ('7e57001f-0000-4000-8000-000000000006', 4),
+  ('7e57001f-0000-4000-8000-000000000007', 5),
+  ('7e57001f-0000-4000-8000-000000000008', 6),
+  ('7e57001f-0000-4000-8000-000000000009', 7),
+  ('7e57001f-0000-4000-8000-00000000000a', 8),
+  ('7e57001f-0000-4000-8000-00000000000b', 9)
+) AS v(uid, n);
 
 -- ============================================================
 -- 1. 项目本体（归属示例空间）
