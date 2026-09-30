@@ -159,7 +159,7 @@ const {
             <template #header><span class="bug-create__section">指派与关联</span></template>
             <el-form-item label="指派给" prop="assigneeId">
               <el-select v-model="form.assigneeId" filterable placeholder="选择处理人">
-                <el-option v-for="m in memberOptions" :key="m.userId" :label="m.username" :value="m.userId" />
+                <el-option v-for="m in memberOptions" :key="m.userId" :label="m.name || m.username" :value="m.userId" />
               </el-select>
             </el-form-item>
             <el-form-item label="关联用例">
