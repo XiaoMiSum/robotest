@@ -66,7 +66,7 @@
   "tokenType": "Bearer",
   "accessExpiry": "2026-07-20T07:44:00Z",
   "refreshExpiry": "2026-07-26T19:44:00Z",
-  "user": { "id": 5, "username": "newuser", "email": "newuser@example.com" },
+  "user": { "id": 5, "username": "newuser", "name": "张三", "email": "newuser@example.com", "avatarUrl": null },
   "activeWorkspace": { "id": 1, "name": "电商平台测试", "workspaceRole": "member" },
   "isNewUser": true
   }
@@ -113,5 +113,11 @@
 | 提交   | 点击[加入并登录] | 前端校验 → 调用 `POST /api/workspace/invitations/join` → 成功：存储Token，设置活跃空间，isNewUser=true时展示欢迎提示，跳转至项目列表页；失败：显示具体错误 |
 | 密码校验 | 实时        | 显示密码强度指示条（弱/中/强）                                                                                              |
 | 防重复  | 提交后       | 按钮置灰显示loading                                                                                                 |
+
+## 修改记录
+
+| 版本 | 日期 | 说明 |
+| --- | --- | --- |
+| V1.0 | 2026-09-30 | §1.2 加入响应 `user` 补充 `name`、`avatarUrl` 字段（展示名与头像兜底取值来源） |
 
 
