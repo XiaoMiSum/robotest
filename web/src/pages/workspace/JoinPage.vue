@@ -113,12 +113,12 @@ async function handleCreateJoin() {
   }
 }
 
-async function loginAndRedirect(accessToken: string, refreshToken: string, result: { user: { id: string; username: string; email: string }; activeWorkspace: { id: string; name: string; workspaceRole: string } }) {
+async function loginAndRedirect(accessToken: string, refreshToken: string, result: { user: { id: string; username: string; email: string; name?: string; avatarUrl?: string }; activeWorkspace: { id: string; name: string; workspaceRole: string } }) {
   // setLogin 内部已持久化令牌，此处不重复 setTokens
   authStore.setLogin(
     accessToken,
     refreshToken,
-    { id: result.user.id, username: result.user.username, email: result.user.email, status: 'active', roles: [], permissions: [], hasWorkspace: result.activeWorkspace != null },
+    { id: result.user.id, username: result.user.username, name: result.user.name, email: result.user.email, avatarUrl: result.user.avatarUrl, status: 'active', roles: [], permissions: [], hasWorkspace: result.activeWorkspace != null },
     { id: result.activeWorkspace.id, name: result.activeWorkspace.name, workspaceRole: result.activeWorkspace.workspaceRole },
   )
   await authStore.loadPermissions()
