@@ -27,10 +27,15 @@
   .rv-tree { width: 240px; flex-shrink: 0; }
   .rv-mind { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 
-  /* 脑图工具条（评审标记操作） */
+  /* 脑图工具条（评审标记操作）：按钮组水平居中，提示文案固定右侧不参与布局 */
   .mm-bar {
-    display: flex; align-items: center; gap: 4px; flex-wrap: wrap;
+    position: relative;
+    display: flex; align-items: center; justify-content: center; gap: 4px; flex-wrap: wrap;
     padding: 7px 12px; border-bottom: 1px solid var(--n-200);
+  }
+  .mm-hint {
+    position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+    white-space: nowrap;
   }
   .mm-tool {
     display: inline-flex; align-items: center; gap: 5px;
@@ -42,7 +47,8 @@
   .mm-tool [data-icon] svg { width: 14px; height: 14px; }
   .mm-tool:hover { background: var(--n-100); color: var(--n-900); }
   .mm-sep { width: 1px; height: 15px; background: var(--n-200); margin: 0 5px; }
-  .mm-spacer { flex: 1; }
+  /* 视口过窄时提示文案会与居中的按钮组重叠，直接隐藏 */
+  @media (max-width: 1100px) { .mm-hint { display: none; } }
 
   /* 脑图画布：快照树 + 评审标记徽标 */
   .mm {
@@ -144,8 +150,7 @@
         <span class="mm-sep"></span>
         <button class="mm-tool"><span data-icon="message"></span>评论</button>
         <button class="mm-tool"><span data-icon="trash"></span>移除用例</button>
-        <span class="mm-spacer"></span>
-        <span class="text-xs muted">选中用例节点后标记 · 快照只读</span>
+        <span class="text-xs muted mm-hint">选中用例节点后标记 · 快照只读</span>
       </div>
       <div class="mm">
         <ul>
