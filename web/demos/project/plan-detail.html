@@ -33,10 +33,15 @@
   .rv-tree { width: 240px; flex-shrink: 0; }
   .rv-mind { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 
-  /* 脑图工具条（执行标记操作） */
+  /* 脑图工具条（执行标记操作）：按钮组水平居中，提示文案固定右侧不参与布局 */
   .mm-bar {
-    display: flex; align-items: center; gap: 4px; flex-wrap: wrap;
+    position: relative;
+    display: flex; align-items: center; justify-content: center; gap: 4px; flex-wrap: wrap;
     padding: 7px 12px; border-bottom: 1px solid var(--n-200);
+  }
+  .mm-hint {
+    position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+    white-space: nowrap;
   }
   .mm-tool {
     display: inline-flex; align-items: center; gap: 5px;
@@ -48,7 +53,8 @@
   .mm-tool [data-icon] svg { width: 14px; height: 14px; }
   .mm-tool:hover { background: var(--n-100); color: var(--n-900); }
   .mm-sep { width: 1px; height: 15px; background: var(--n-200); margin: 0 5px; }
-  .mm-spacer { flex: 1; }
+  /* 视口过窄时提示文案会与居中的按钮组重叠，直接隐藏 */
+  @media (max-width: 1240px) { .mm-hint { display: none; } }
 
   /* 脑图画布：快照树 + 执行标记徽标 + 推荐序号 */
   .mm {
@@ -157,8 +163,7 @@
         <button class="mm-tool"><span data-icon="circle"></span>标记待执行</button>
         <span class="mm-sep"></span>
         <button class="mm-tool"><span data-icon="trash"></span>移除用例</button>
-        <span class="mm-spacer"></span>
-        <span class="text-xs muted">仅关联用例节点可标记 · ① 为执行顺序推荐序号</span>
+        <span class="text-xs muted mm-hint">仅关联用例节点可标记 · ① 为执行顺序推荐序号</span>
       </div>
       <div class="mm">
         <ul>
