@@ -453,6 +453,44 @@ describe('useDebugPage', () => {
       expect(s.executing.value).toBe(false)
     })
 
+    it('后端返回业务错误时回填错误结果并带上 code', async () => {
+      mocks.executeDebug.mockRejectedValue(
+        Object.assign(new Error('服务器内部错误'), { code: 500 }),
+      )
+      const s = init()
+      s.tabs.value[0].url = 'http://example.com'
+      await s.handleExecute()
+      expect(mocks.markExecuted).toHaveBeenCalledWith(s.tabs.value[0], {
+        debugRecordId: '',
+        status: 'error',
+        errorMessage: '500 服务器内部错误',
+      })
+    })
+
+    it('非 Error 抛出时回填兜底文案', async () => {
+      mocks.executeDebug.mockRejectedValue('boom')
+      const s = init()
+      s.tabs.value[0].url = 'http://example.com'
+      await s.handleExecute()
+      expect(mocks.markExecuted).toHaveBeenCalledWith(s.tabs.value[0], {
+        debugRecordId: '',
+        status: 'error',
+        errorMessage: '执行失败',
+      })
+    })
+
+    it('无 code 的 Error 直接展示其 message', async () => {
+      mocks.executeDebug.mockRejectedValue(new Error('Request timeout'))
+      const s = init()
+      s.tabs.value[0].url = 'http://example.com'
+      await s.handleExecute()
+      expect(mocks.markExecuted).toHaveBeenCalledWith(s.tabs.value[0], {
+        debugRecordId: '',
+        status: 'error',
+        errorMessage: 'Request timeout',
+      })
+    })
+
     it('传入 environmentId 时传递给 buildExecutePayload', async () => {
       mocks.executeDebug.mockResolvedValue({})
       const s = init()
@@ -558,10 +596,20 @@ describe('useDebugPage', () => {
       expect(s.showHistory.value).toBe(false)
     })
 
-    it('恢复失败时不抛出异常', async () => {
-      mocks.restoreDebugRecord.mockRejectedValue(new Error('fail'))
+    it('恢复失败时不抛出异常并提示后端消息', async () => {
+      mocks.restoreDebugRecord.mockRejectedValue(
+        Object.assign(new Error('服务器内部错误'), { code: 500 }),
+      )
       const s = init()
       await expect(s.handleRestoreRecord({ id: 'rec-1' } as ApiDebugRecordItem)).resolves.toBeUndefined()
+      expect(mocks.ElMessage.error).toHaveBeenCalledWith('500 服务器内部错误')
+    })
+
+    it('恢复抛出非 Error 时提示兜底文案', async () => {
+      mocks.restoreDebugRecord.mockRejectedValue('boom')
+      const s = init()
+      await s.handleRestoreRecord({ id: 'rec-1' } as ApiDebugRecordItem)
+      expect(mocks.ElMessage.error).toHaveBeenCalledWith('恢复调试记录失败')
     })
   })
 
