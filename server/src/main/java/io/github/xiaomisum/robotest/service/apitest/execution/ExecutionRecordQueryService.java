@@ -82,7 +82,7 @@ public class ExecutionRecordQueryService {
         }
         Map<UUID, String> names = new LinkedHashMap<>();
         for (SysUser user : userMapper.selectBatchIds(userIds)) {
-            names.put(user.getId(), user.getUsername());
+            names.put(user.getId(), user.getName());
         }
         return names;
     }

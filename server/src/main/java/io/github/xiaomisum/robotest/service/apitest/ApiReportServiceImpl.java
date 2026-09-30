@@ -140,7 +140,7 @@ public class ApiReportServiceImpl implements ApiReportService {
             return null;
         }
         List<SysUser> users = sysUserMapper.listByIds(List.of(userId));
-        return users.isEmpty() ? null : users.get(0).getUsername();
+        return users.isEmpty() ? null : users.get(0).getName();
     }
 
     @Override

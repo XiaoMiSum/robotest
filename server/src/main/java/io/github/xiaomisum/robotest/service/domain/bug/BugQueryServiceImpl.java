@@ -115,7 +115,7 @@ public class BugQueryServiceImpl implements BugQueryService {
             BugLogRespDTO logDto = bugConvertMapper.toLogRespDTO(log);
             SysUser operator = userMapper.selectById(log.getOperatorId());
             if (operator != null) {
-                logDto.setOperatorName(operator.getUsername());
+                logDto.setOperatorName(operator.getName());
             }
             return logDto;
         }).collect(Collectors.toList()));
@@ -137,7 +137,7 @@ public class BugQueryServiceImpl implements BugQueryService {
             BugLogRespDTO dto = bugConvertMapper.toLogRespDTO(log);
             SysUser operator = userMapper.selectById(log.getOperatorId());
             if (operator != null) {
-                dto.setOperatorName(operator.getUsername());
+                dto.setOperatorName(operator.getName());
             }
             return dto;
         }).collect(Collectors.toList());

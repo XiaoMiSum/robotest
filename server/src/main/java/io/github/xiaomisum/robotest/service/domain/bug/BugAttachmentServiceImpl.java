@@ -180,7 +180,7 @@ public class BugAttachmentServiceImpl implements BugAttachmentService {
         if (attachment.getUploaderId() != null) {
             SysUser uploader = userMapper.selectById(attachment.getUploaderId());
             if (uploader != null) {
-                dto.setUploaderName(uploader.getUsername());
+                dto.setUploaderName(uploader.getName());
             }
         }
         return dto;

@@ -302,7 +302,7 @@ public class TestReviewServiceImpl implements TestReviewService {
 
             SysUser reviewer = userMapper.selectById(record.getReviewerId());
             if (reviewer != null) {
-                dto.setReviewerName(reviewer.getUsername());
+                dto.setReviewerName(reviewer.getName());
             }
             return dto;
         }).collect(Collectors.toList());

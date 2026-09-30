@@ -57,6 +57,7 @@ class ApiReportServiceImplTest {
         SysUser user = new SysUser();
         user.setId(USER_ID);
         user.setUsername("tester");
+        user.setName("张三");
         when(sysUserMapper.listByIds(any())).thenReturn(List.of(user));
     }
 
@@ -92,7 +93,7 @@ class ApiReportServiceImplTest {
         assertTrue(resp.getShareUrl().split("token=")[1].matches("[0-9a-f]{32}"));
         assertNotNull(resp.getExpiresAt());
         // 分享者随分享记录返回，供复制文本展示
-        assertEquals("tester", resp.getShareBy());
+        assertEquals("张三", resp.getShareBy());
 
         ArgumentCaptor<ApiReport> captor = ArgumentCaptor.forClass(ApiReport.class);
         verify(reportMapper).updateById(captor.capture());
@@ -174,7 +175,7 @@ class ApiReportServiceImplTest {
 
         assertNotNull(resp.getShare());
         assertTrue(resp.getShare().getShareUrl().contains(reportShareToken()));
-        assertEquals("tester", resp.getShare().getShareBy());
+        assertEquals("张三", resp.getShare().getShareBy());
     }
 
     @Test

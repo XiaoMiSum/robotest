@@ -174,6 +174,7 @@ class ProjectDashboardServiceImplTest {
         SysUser assignee = new SysUser();
         assignee.setId(UUID.fromString("00000000-0000-0000-0000-000000000011"));
         assignee.setUsername("assignee");
+        assignee.setName("李四");
         when(userMapper.listByIds(anyList()))
                 .thenReturn(List.of(assignee));
 
@@ -182,7 +183,7 @@ class ProjectDashboardServiceImplTest {
         assertNotNull(result.getRecentBugs());
         assertEquals(1, result.getRecentBugs().size());
         assertEquals("Test Bug", result.getRecentBugs().get(0).getTitle());
-        assertEquals("assignee", result.getRecentBugs().get(0).getAssignee());
+        assertEquals("李四", result.getRecentBugs().get(0).getAssignee());
     }
 
     @Test
