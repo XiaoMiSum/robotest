@@ -61,7 +61,6 @@
     <div>
       <!-- 描述 -->
       <div class="card">
-        <div class="card__header"><h3 class="card__title">问题描述</h3></div>
         <div class="card__body text-sm" style="color:var(--n-700);line-height:1.9">
           <div class="view-only">
             <div class="strong mb-md">重现步骤</div>
@@ -70,16 +69,6 @@
               <li>第一次回调正常入账后，人为重放同一回调报文；</li>
               <li>账务流水出现两笔同渠道记录。</li>
             </ol>
-            <div class="form-grid mt-lg">
-              <div>
-                <div class="field__label text-success">期望结果</div>
-                <div class="text-sm muted" id="view-expect">回调具备幂等性，重放报文被去重拒绝。</div>
-              </div>
-              <div>
-                <div class="field__label text-danger">实际结果</div>
-                <div class="text-sm muted" id="view-actual">重复入账，余额与流水不一致。</div>
-              </div>
-            </div>
             <hr class="divider divider--dashed">
             <div class="text-xs muted" id="view-meta">环境 staging · 渠道 mock-pay · 发现版本 <span class="mono">v1.4.2-rc.3</span></div>
           </div>
@@ -91,16 +80,6 @@
 2. 第一次回调正常入账后，人为重放同一回调报文；
 3. 账务流水出现两笔同渠道记录。</textarea>
               <div class="field__hint">支持 Markdown；每行一步</div>
-            </div>
-            <div class="form-grid">
-              <div class="field">
-                <label class="field__label" for="f-expect">期望结果</label>
-                <textarea class="textarea" id="f-expect" style="min-height:72px">回调具备幂等性，重放报文被去重拒绝。</textarea>
-              </div>
-              <div class="field">
-                <label class="field__label" for="f-actual">实际结果</label>
-                <textarea class="textarea" id="f-actual" style="min-height:72px">重复入账，余额与流水不一致。</textarea>
-              </div>
             </div>
             <div class="form-grid form-grid--3" style="margin-bottom:0">
               <div class="field" style="margin-bottom:0">
@@ -122,13 +101,9 @@
 
       <!-- 附件 -->
       <div class="card">
-        <div class="card__header">
-          <h3 class="card__title">附件<span class="card__subtitle">2 个文件</span></h3>
-          <button class="btn btn--default btn--sm"><span data-icon="upload"></span>上传</button>
-        </div>
         <div class="table-wrap">
           <table class="table">
-            <thead><tr><th>文件名</th><th>大小</th><th>上传者</th><th>上传时间</th><th>操作</th></tr></thead>
+            <thead><tr><th>文件名</th><th>大小</th><th>上传者</th><th>上传时间</th><th><button class="btn btn--default btn--sm"><span data-icon="upload"></span>上传</button></th></tr></thead>
             <tbody>
               <tr>
                 <td class="flex-center flex-gap-sm"><span data-icon="document" style="width:15px;height:15px;color:var(--n-400)"></span><span class="mono text-sm">callback-replay.json</span></td>
@@ -176,7 +151,6 @@
     <!-- 侧栏属性 -->
     <div>
       <div class="card">
-        <div class="card__header"><h3 class="card__title">属性</h3></div>
         <div class="card__body" style="display:flex;flex-direction:column;gap:16px">
           <div class="desc-item"><div class="desc-item__label">状态</div><div class="desc-item__value"><span class="status status--warning"><span class="dot"></span>修复中</span></div></div>
           <div class="desc-item">
@@ -257,7 +231,7 @@
   };
 
   var LABELS = {
-    'f-title': '标题', 'f-steps': '重现步骤', 'f-expect': '期望结果', 'f-actual': '实际结果',
+    'f-title': '标题', 'f-steps': '重现步骤',
     'f-env': '环境', 'f-channel': '渠道', 'f-version': '发现版本', 'f-sev': '严重等级',
     'f-prio': '优先级', 'f-module': '所属模块', 'f-assignee': '指派给', 'f-due': '修复截止',
     'f-case': '关联用例', 'f-plan': '关联计划'
@@ -389,8 +363,6 @@
     }
 
     document.getElementById('view-title').textContent = v['f-title'];
-    document.getElementById('view-expect').textContent = v['f-expect'];
-    document.getElementById('view-actual').textContent = v['f-actual'];
     document.getElementById('view-meta').innerHTML =
       '环境 ' + escapeHtml(v['f-env']) + ' · 渠道 ' + escapeHtml(v['f-channel']) +
       ' · 发现版本 <span class="mono">' + escapeHtml(v['f-version']) + '</span>';
