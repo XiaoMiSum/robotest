@@ -153,7 +153,7 @@ onBeforeUnmount(() => {
 <template>
   <div v-loading="loading" class="mindmap-container">
     <!-- 计划工具栏 -->
-    <div class="mindmap-toolbar">
+    <div class="mindmap-toolbar mindmap-toolbar--center">
       <el-button-group size="small">
         <el-button :type="execResult==='pass'?'success':''" @click="markExecution('pass')">✅通过</el-button>
         <el-button :type="execResult==='fail'?'danger':''" @click="markExecution('fail')">❌失败</el-button>

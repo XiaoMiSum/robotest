@@ -121,7 +121,7 @@ onBeforeUnmount(() => {
 <template>
   <div v-loading="loading" class="mindmap-container">
     <!-- 评审工具栏 -->
-    <div class="mindmap-toolbar">
+    <div class="mindmap-toolbar mindmap-toolbar--center">
       <el-button-group size="small">
         <el-button :type="reviewResult==='pass'?'success':''" @click="markReview('pass')">✅通过</el-button>
         <el-button :type="reviewResult==='fail'?'danger':''" @click="markReview('fail')">❌不通过</el-button>
