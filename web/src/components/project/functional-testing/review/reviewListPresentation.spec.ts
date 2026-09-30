@@ -60,9 +60,10 @@ describe('状态驱动的入口', () => {
 })
 
 describe('reviewPassRate', () => {
-  it('未到终态展示占位符', () => {
+  it('待评审展示占位符，进行中常规展示百分比', () => {
     expect(reviewPassRate('new', 0)).toEqual({ text: '—', tone: 'muted' })
-    expect(reviewPassRate('in_progress', 60)).toEqual({ text: '—', tone: 'muted' })
+    expect(reviewPassRate('in_progress', 60)).toEqual({ text: '60%', tone: 'default' })
+    expect(reviewPassRate('in_progress', 94.64)).toEqual({ text: '94.6%', tone: 'default' })
   })
 
   it('已通过绿、已驳回红，百分比保留一位小数', () => {

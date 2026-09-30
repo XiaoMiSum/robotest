@@ -50,14 +50,15 @@ export function reviewListAction(status: string): 'enter' | 'view' {
 
 export interface ReviewPassRate {
   text: string
-  tone: 'success' | 'danger' | 'muted'
+  tone: 'default' | 'success' | 'danger' | 'muted'
 }
 
-/** 通过率展示：未到终态一律 —；已通过绿、已驳回红（演示稿 62.9% / 100% 口径） */
+/** 通过率展示：待评审无已评审数据为 —，进行中常规展示，已通过绿色加粗、已驳回红色 */
 export function reviewPassRate(status: string, passRate: number): ReviewPassRate {
+  if (status === 'new') return { text: '—', tone: 'muted' }
   if (status === 'completed') return { text: `${trimPercent(passRate)}`, tone: 'success' }
   if (status === 'rejected') return { text: `${trimPercent(passRate)}`, tone: 'danger' }
-  return { text: '—', tone: 'muted' }
+  return { text: `${trimPercent(passRate)}`, tone: 'default' }
 }
 
 /** 进度文案：已评审/关联总数（18/30） */
