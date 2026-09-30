@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { Codemirror } from 'vue-codemirror'
 import { java } from '@codemirror/lang-java'
-import { useFunctionalTesting } from '@/composables/project/functional-testing/useFunctionalTesting'
 import { formatScopeLabel } from '@/composables/project/api-testing/function/functionModel'
+import { useFunctionPage } from '@/composables/project/api-testing/function/useFunctionPage'
 
 const editorExtensions = [java()]
 
@@ -40,7 +40,7 @@ const {
   handleDeleteItem,
   FUNCTION_TAB_OPTIONS,
   SCOPE_OPTIONS,
-} = useFunctionalTesting()
+} = useFunctionPage()
 
 function clearParamErrors(): void {
   paramErrors.value = {}
