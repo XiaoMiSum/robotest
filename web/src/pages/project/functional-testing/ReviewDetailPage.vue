@@ -1,23 +1,11 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import {
-  completeReview,
-  getCaseDetail,
-  getReviewDetail,
-  getReviewModuleTree,
-  getReviewPlannedCases,
-  getReviewProgress,
-  rejectReview,
-  reopenReview,
-  syncReview,
-  updateReviewCases,
-} from '@/services/project'
-import type { PlannedCases, SnapshotModule, TestReviewDetail, TestReviewProgress } from '@/types'
+import { computed } from 'vue'
+import { useRoute } from 'vue-router'
+import { useReviewDetail } from '@/composables/project/functional-testing/review/useReviewDetail'
 import {
   isActiveReview,
   reviewStatusMeta,
+  reviewStatusLabel,
 } from '@/components/project/functional-testing/review/reviewListPresentation'
 import ReviewMindMap from '@/components/project/functional-testing/review/ReviewMindMap.vue'
 import SnapshotModuleTree from '@/components/project/functional-testing/review/SnapshotModuleTree.vue'
@@ -26,271 +14,84 @@ import CasePlanRecommendDialog from '@/components/project/functional-testing/rev
 import ReviewAiSummary from '@/components/project/functional-testing/review/ReviewAiSummary.vue'
 import ReviewAiCheckPanel from '@/components/project/functional-testing/review/ReviewAiCheckPanel.vue'
 import ReviewAiConclusionPanel from '@/components/project/functional-testing/review/ReviewAiConclusionPanel.vue'
-import { useAuthStore } from '@/stores/auth'
-import { useAiStore } from '@/stores/ai'
 
 const route = useRoute()
-const router = useRouter()
 const reviewId = route.params.reviewId as string
 
-const authStore = useAuthStore()
-const aiStore = useAiStore()
-
-const loading = ref(false)
-const detail = ref<TestReviewDetail | null>(null)
-const progress = ref<TestReviewProgress | null>(null)
-const mindMapRef = ref<InstanceType<typeof ReviewMindMap>>()
-const moduleTree = ref<SnapshotModule[]>([])
-const selectedDocId = ref('')
-
-// 多文档评审需逐文档切换脑图，默认选中快照树中首个文档
-function firstDocument(nodes: SnapshotModule[]): SnapshotModule | null {
-  for (const node of nodes) {
-    if (node.type === 'document') return node
-    const found = firstDocument(node.children ?? [])
-    if (found) return found
-  }
-  return null
-}
-
-// 全部用例评审通过（无待评审、无不通过）才允许完成评审
-const canComplete = computed(
-  () => !!progress.value && progress.value.pending === 0 && progress.value.failed === 0,
-)
-
-// AI 生成摘要入口：仅评审发起人 + AI 已启用 + 评审已完成（后端强校验兜底，交互设计第 3 章）
-const canShowSummary = computed(
-  () =>
-    aiStore.aiEnabled &&
-    detail.value?.status === 'completed' &&
-    detail.value?.initiator.id === authStore.user?.id,
-)
-const summaryVisible = ref(false)
-const conclusionVisible = ref(false)
-
-// AI 评审结论：随完成事件自动生成，此处可手动/重新生成（06 §5.2）；入口条件与摘要一致
-const canShowConclusion = computed(() => canShowSummary.value)
-
-// AI 一键检查：仅评审发起人 + AI 启用可见；活跃态可发起，终态只读查看历史结果（交互设计 2.2）
-const canShowCheck = computed(
-  () => aiStore.aiEnabled && detail.value?.initiator.id === authStore.user?.id,
-)
-// 终态（已通过/已驳回）不可再发起检查（后端 6012 兜底），面板仅以只读展示历史结果
-const canRunCheck = computed(() => isActiveReview(detail.value?.status ?? ''))
-const checkVisible = ref(false)
-const checkPanelRef = ref<InstanceType<typeof ReviewAiCheckPanel>>()
-
-// 入口点击：面板挂载后立即按最新任务状态发起或恢复轮询
-async function openCheck() {
-  checkVisible.value = true
-  await nextTick()
-  checkPanelRef.value?.start()
-}
-
-// 建议定位：检查覆盖全部文档，脑图仅展示当前文档，未命中时提示切换左侧文档
-function handleCheckLocate(snapshotNodeId: string) {
-  const located = mindMapRef.value?.locateNode(snapshotNodeId)
-  if (!located) ElMessage.info('该建议指向的用例不在当前文档，请切换左侧文档后重试')
-}
-
-async function load() {
-  loading.value = true
-  try {
-    const [d, p, tree] = await Promise.all([
-      getReviewDetail(reviewId),
-      getReviewProgress(reviewId),
-      getReviewModuleTree(reviewId),
-    ])
-    detail.value = d
-    progress.value = p
-    moduleTree.value = tree
-    // 同步后重载时若当前文档已被移除，回退到首个文档
-    if (!selectedDocId.value || !findDoc(tree, selectedDocId.value)) {
-      selectedDocId.value = firstDocument(tree)?.id ?? ''
-    }
-  } catch (err) {
-    ElMessage.error(err instanceof Error ? err.message : '加载评审详情失败')
-  } finally {
-    loading.value = false
-  }
-}
-
-function findDoc(nodes: SnapshotModule[], id: string): boolean {
-  return nodes.some((n) => n.id === id || findDoc(n.children ?? [], id))
-}
-
-async function handleComplete() {
-  // 按钮 disabled 已拦截，此处再兑底防止进度未加载时误触
-  if (!canComplete.value) {
-    ElMessage.warning('仍有待评审或不通过的用例，全部通过后才能完成评审')
-    return
-  }
-  try {
-    await ElMessageBox.confirm('确定完成该评审吗？完成后将不可再修改标记。', '完成评审', { type: 'warning' })
-  } catch { return }
-  try {
-    await completeReview(reviewId)
-    ElMessage.success('评审已完成')
-    load()
-  } catch (err) {
-    ElMessage.error(err instanceof Error ? err.message : '操作失败')
-  }
-}
-
-// 驳回评审：仅发起人 + 活跃态（后端 1000011018 兜底），驳回后快照冻结、AI 检查任务联动终止
-async function handleReject() {
-  try {
-    await ElMessageBox.confirm(
-      '确定驳回该评审吗？驳回后将不可再标记或调整用例，可通过「重新发起」恢复评审。',
-      '驳回评审',
-      { type: 'warning' },
-    )
-  } catch { return }
-  try {
-    await rejectReview(reviewId)
-    ElMessage.success('评审已驳回')
-    load()
-  } catch (err) {
-    ElMessage.error(err instanceof Error ? err.message : '驳回评审失败')
-  }
-}
-
-// 重新发起：仅发起人 + 已驳回（后端 1000011019 兜底），既有标记保留
-async function handleReopen() {
-  try {
-    await ElMessageBox.confirm('确定重新发起该评审吗？参与者可继续评审。', '重新发起评审', { type: 'warning' })
-  } catch { return }
-  try {
-    await reopenReview(reviewId)
-    ElMessage.success('评审已重新发起')
-    load()
-  } catch (err) {
-    ElMessage.error(err instanceof Error ? err.message : '重新发起失败')
-  }
-}
-
-async function handleSync() {
-  try {
-    await ElMessageBox.confirm('同步将更新快照节点属性，已有标记不受影响。确定同步？', '同步最新用例', { type: 'info' })
-  } catch { return }
-  try {
-    await syncReview(reviewId)
-    ElMessage.success('已同步')
-    load()
-    // 同步会更新快照节点，脑图需一并重载
-    mindMapRef.value?.reload()
-  } catch (err) {
-    ElMessage.error(err instanceof Error ? err.message : '同步失败')
-  }
-}
-
-// 调整规划用例：弹窗回显当前选择，确认后提交差量并整页重载
-const selectorVisible = ref(false)
-const plannedCases = ref<PlannedCases[]>([])
-
-async function openCaseSelector() {
-  try {
-    plannedCases.value = await getReviewPlannedCases(reviewId)
-    selectorVisible.value = true
-  } catch (err) {
-    ElMessage.error(err instanceof Error ? err.message : '加载规划用例失败')
-  }
-}
-
-async function handleCasesConfirm(selectedNodes: PlannedCases[]) {
-  try {
-    await updateReviewCases(reviewId, selectedNodes)
-    ElMessage.success('规划用例已更新')
-    await load()
-    mindMapRef.value?.reload()
-  } catch (err) {
-    ElMessage.error(err instanceof Error ? err.message : '更新规划用例失败')
-  }
-}
-
-// 脑图内移除用例成功后：脑图组件已自 reload，此处仅刷新进度/统计与左侧快照树
-async function handleCasesRemoved() {
-  await load()
-}
-
-// AI 用例规划推荐（US-AI-018，交互设计第 6 章）：勾选结果带入既有 CaseSelector 关联流程
-const recommendVisible = ref(false)
-const recommendExcludeIds = ref<string[]>([])
-
-// 打开弹窗前取当前已纳入用例节点 ID 集作为排除集（详细设计 4.5 步骤 2）
-async function openRecommend() {
-  try {
-    const existing = await getReviewPlannedCases(reviewId)
-    recommendExcludeIds.value = existing.flatMap((s) => s.caseIds)
-    recommendVisible.value = true
-  } catch (err) {
-    ElMessage.error(err instanceof Error ? err.message : '加载规划用例失败')
-  }
-}
-
-// 带入评审：勾选 caseNodeId 解析所属文档，与既有规划用例合并去重后预选进 CaseSelector
-async function handleBringIn(caseNodeIds: string[]) {
-  try {
-    const [existing, details] = await Promise.all([
-      getReviewPlannedCases(reviewId),
-      Promise.all(caseNodeIds.map((id) => getCaseDetail(id))),
-    ])
-    const merged = new Map<string, Set<string>>()
-    existing.forEach((s) => merged.set(s.documentId, new Set(s.caseIds)))
-    details.forEach((d) => {
-      if (!d.documentId) return
-      const set = merged.get(d.documentId) ?? new Set<string>()
-      set.add(d.id)
-      merged.set(d.documentId, set)
-    })
-    plannedCases.value = [...merged.entries()].map(([documentId, caseIds]) => ({
-      documentId,
-      caseIds: [...caseIds],
-    }))
-    selectorVisible.value = true
-  } catch (err) {
-    ElMessage.error(err instanceof Error ? err.message : '加载推荐用例失败')
-  }
-}
-
-// 标记后刷新进度与状态（首次标记会自动转入评审中），避免整页 load 触发脑图重载丢失选中态
-async function refreshProgress() {
-  try {
-    const [p, d] = await Promise.all([getReviewProgress(reviewId), getReviewDetail(reviewId)])
-    progress.value = p
-    detail.value = d
-  } catch {
-    // 标记本身已成功，进度刷新失败不打断操作，后续操作或刷新可恢复
-  }
-}
+const {
+  loading,
+  detail,
+  progress,
+  mindMapRef,
+  moduleTree,
+  selectedDocId,
+  summaryVisible,
+  conclusionVisible,
+  checkVisible,
+  checkPanelRef,
+  selectorVisible,
+  plannedCases,
+  recommendVisible,
+  recommendExcludeIds,
+  canComplete,
+  canShowSummary,
+  canShowConclusion,
+  canShowCheck,
+  canRunCheck,
+  handleComplete,
+  handleReject,
+  handleReopen,
+  handleSync,
+  openCaseSelector,
+  handleCasesConfirm,
+  handleCasesRemoved,
+  openRecommend,
+  handleBringIn,
+  refreshProgress,
+  openCheck,
+  handleCheckLocate,
+  router,
+  authStore,
+  aiStore,
+} = useReviewDetail({ reviewId })
 
 // 状态展示口径与列表页共用（交互设计 07 §1.1）
-const statusMeta = computed(() =>
-  reviewStatusMeta(detail.value?.status ?? ''),
-)
-
-onMounted(load)
+const statusMeta = computed(() => reviewStatusMeta(detail.value?.status ?? ''))
+const statusText = computed(() => reviewStatusLabel(detail.value?.status ?? ''))
 </script>
 
 <template>
   <div v-loading="loading" class="review-detail">
-    <el-page-header class="review-detail__page-header" @back="router.push('/workspace/projects/functional-testing?tab=reviews')">
+    <el-page-header
+      class="review-detail__page-header"
+      @back="router.push('/workspace/projects/functional-testing?tab=reviews')"
+    >
       <template #content>
         <div class="review-detail__header">
           <span class="review-detail__title">{{ detail?.title ?? '评审详情' }}</span>
           <el-tag v-if="detail" :type="statusMeta.tagType" size="small" effect="light" round>
-            {{ statusMeta.label }}
+            {{ statusText }}
           </el-tag>
         </div>
       </template>
       <template #extra>
         <div class="review-detail__extra">
           <div v-if="progress" class="review-detail__progress-row">
-            <el-progress class="review-detail__progress" :percentage="progress.progressPercent" :stroke-width="8" />
+            <el-progress
+              class="review-detail__progress"
+              :percentage="progress.progressPercent"
+              :stroke-width="8"
+            />
             <div class="review-detail__stats">
-              <span class="review-detail__stat review-detail__stat--pass">通过 {{ progress.passed }}</span>
-              <span class="review-detail__stat review-detail__stat--fail">不通过 {{ progress.failed }}</span>
-              <span class="review-detail__stat review-detail__stat--pending">待评审 {{ progress.pending }}</span>
+              <span class="review-detail__stat review-detail__stat--pass"
+                >通过 {{ progress.passed }}</span
+              >
+              <span class="review-detail__stat review-detail__stat--fail"
+                >不通过 {{ progress.failed }}</span
+              >
+              <span class="review-detail__stat review-detail__stat--pending"
+                >待评审 {{ progress.pending }}</span
+              >
               <span class="review-detail__stat">共 {{ progress.totalAssociated }}</span>
             </div>
           </div>
@@ -308,9 +109,18 @@ onMounted(load)
             <el-button size="small" type="danger" plain @click="handleReject">
               <el-icon><CircleClose /></el-icon>驳回
             </el-button>
-            <el-tooltip :disabled="canComplete" content="全部用例评审通过后才能完成评审" placement="bottom">
+            <el-tooltip
+              :disabled="canComplete"
+              content="全部用例评审通过后才能完成评审"
+              placement="bottom"
+            >
               <span>
-                <el-button size="small" type="primary" :disabled="!canComplete" @click="handleComplete">
+                <el-button
+                  size="small"
+                  type="primary"
+                  :disabled="!canComplete"
+                  @click="handleComplete"
+                >
                   <el-icon><CircleCheck /></el-icon>完成评审
                 </el-button>
               </span>
@@ -366,6 +176,12 @@ onMounted(load)
 
     <div class="review-detail__workspace">
       <el-card shadow="never" class="review-detail__tree-card">
+        <template #header>
+          <div class="review-detail__tree-header">
+            <span class="review-detail__tree-title">快照文档</span>
+            <span class="review-detail__tree-hint">只读</span>
+          </div>
+        </template>
         <SnapshotModuleTree
           :data="moduleTree"
           :current-doc-id="selectedDocId"
@@ -388,7 +204,11 @@ onMounted(load)
       </el-card>
     </div>
 
-    <CaseSelector v-model="selectorVisible" :initial-selected="plannedCases" @confirm="handleCasesConfirm" />
+    <CaseSelector
+      v-model="selectorVisible"
+      :initial-selected="plannedCases"
+      @confirm="handleCasesConfirm"
+    />
     <CasePlanRecommendDialog
       v-model="recommendVisible"
       :exclude-case-node-ids="recommendExcludeIds"
@@ -509,15 +329,41 @@ onMounted(load)
   gap: var(--space-lg);
 }
 
+// 快照文档卡片：header 固定 + body 弹性滚动，对齐示例页 rv-tree 结构
 .review-detail__tree-card {
   width: 240px;
   flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+
+  :deep(.el-card__header) {
+    flex-shrink: 0;
+    padding: var(--space-sm) var(--space-md);
+  }
 
   :deep(.el-card__body) {
+    flex: 1;
+    min-height: 0;
     padding: 0;
     overflow: auto;
-    height: 100%;
   }
+}
+
+.review-detail__tree-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.review-detail__tree-title {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-neutral-800);
+}
+
+.review-detail__tree-hint {
+  font-size: var(--font-size-xs);
+  color: var(--color-neutral-500);
 }
 
 .review-detail__placeholder {
