@@ -63,7 +63,7 @@ const statusText = computed(() => reviewStatusLabel(detail.value?.status ?? ''))
   <div v-loading="loading" class="review-detail">
     <div class="review-detail__breadcrumb">
       <router-link to="/workspace/projects/functional-testing?tab=reviews">测试评审</router-link>
-      <el-icon :size="12"><ArrowRight /></el-icon>
+      <el-icon :size="13"><ArrowRight /></el-icon>
       <span>{{ detail?.title ?? '评审详情' }}</span>
     </div>
 
@@ -225,27 +225,33 @@ const statusText = computed(() => reviewStatusLabel(detail.value?.status ?? ''))
   overflow: hidden;
 }
 
-// 面包屑对齐演示稿基准（xs 灰字、链接 hover 主色、分隔符浅灰）
 .review-detail__breadcrumb {
   display: flex;
   align-items: center;
   gap: 6px;
   margin-bottom: var(--space-sm);
-  font-size: var(--font-size-xs);
-  color: var(--color-neutral-500);
+  font-size: var(--font-size-sm);
+  color: var(--color-neutral-600);
   flex-shrink: 0;
 
+  // 回退入口沿用全站链接色：颜色本身就是「可点击」信号，与仅作定位的当前页项区分
   a {
-    color: var(--color-neutral-500);
+    color: var(--color-primary-500);
+    font-weight: 500;
     text-decoration: none;
   }
 
   a:hover {
-    color: var(--color-primary-500);
+    color: var(--color-primary-600);
   }
 
   .el-icon {
     color: var(--color-neutral-400);
+  }
+
+  // 当前页只加深不加粗：位置感交给深浅，强调由紧随其下的页面标题承担
+  > :last-child {
+    color: var(--color-neutral-900);
   }
 }
 
