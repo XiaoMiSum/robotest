@@ -207,13 +207,14 @@ class BugAttachmentServiceImplTest {
         SysUser uploader = new SysUser();
         uploader.setId(userId);
         uploader.setUsername("tester");
+        uploader.setName("钱七");
         when(userMapper.selectById(userId)).thenReturn(uploader);
 
         List<BugAttachmentRespDTO> result = bugAttachmentService.getAttachments(projectId, bugId, userId);
 
         assertEquals(1, result.size());
         assertEquals("log.txt", result.get(0).getFileName());
-        assertEquals("tester", result.get(0).getUploaderName());
+        assertEquals("钱七", result.get(0).getUploaderName());
         verify(projectAccessGuard).requireProjectMember(
                 UUID.fromString("00000000-0000-0000-0000-000000000009"), userId);
     }

@@ -220,7 +220,7 @@ public class BugServiceImpl implements BugService {
         update.setAssigneeId(assigneeId);
         bugMapper.updateById(update);
         writeBugLog(bugId, userId, Constants.BugOperation.ASSIGN,
-                String.format("指派处理人为「%s」", assignee.getUsername()));
+                String.format("指派处理人为「%s」", assignee.getName()));
         projectActivityService.record(bug.getProjectId(), userId, "BUG", bugId,
                 bug.getTitle(), "BUG_ASSIGNED", "指派缺陷「" + bug.getTitle() + "」处理人");
     }

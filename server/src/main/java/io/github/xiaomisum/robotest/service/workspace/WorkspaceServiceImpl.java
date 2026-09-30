@@ -210,6 +210,7 @@ public class WorkspaceServiceImpl implements WorkspaceService {
             WorkspaceMemberRespDTO dto = new WorkspaceMemberRespDTO();
             dto.setUserId(user.getId());
             dto.setUsername(user.getUsername());
+            dto.setName(user.getName());
             dto.setEmail(user.getEmail());
             dto.setAvatarUrl(user.getAvatarUrl());
             dto.setWorkspaceRole(wu.getWorkspaceRole());

@@ -257,13 +257,14 @@ class BugQueryServiceImplTest {
         SysUser operator = new SysUser();
         operator.setId(UUID.fromString("00000000-0000-0000-0000-000000000004"));
         operator.setUsername("operator");
+        operator.setName("赵六");
         when(userMapper.selectById(UUID.fromString("00000000-0000-0000-0000-000000000004"))).thenReturn(operator);
 
         List<BugLogRespDTO> result = bugQueryService.getBugLogs(projectId, bugId, userId);
 
         assertNotNull(result);
         assertEquals(1, result.size());
-        assertEquals("operator", result.get(0).getOperatorName());
+        assertEquals("赵六", result.get(0).getOperatorName());
         verify(projectAccessGuard).requireProjectMember(projectId, userId);
     }
 
