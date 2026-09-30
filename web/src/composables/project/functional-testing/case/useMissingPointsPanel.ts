@@ -1,6 +1,8 @@
 import { computed, onBeforeUnmount, ref, watch, type Ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import { useStageTimer } from '@/composables/ai/useStageTimer'
+import { useAiStore } from '@/stores/ai'
 import { analyzeMissingPoints, type AiMissingPointReq } from '@/services/ai'
 import { fetchProjectModuleTree, getDocumentRequirements } from '@/services/project'
 import type { AiMissingPoint, AiMissingPointResult, RequirementSummary } from '@/types'
@@ -13,12 +15,23 @@ import {
 
 export function useMissingPointsPanel(docId: () => string, visible: Ref<boolean>) {
   const router = useRouter()
+  const aiStore = useAiStore()
+  // 操作行阶段秒表与分析请求同起停，保证关闭重开后文案不残留
+  const stage = useStageTimer()
 
   const keywords = ref<string[]>([])
   const text = ref('')
   const requirementIds = ref<string[]>([])
   const requirementTitles = ref<RequirementSummary[]>([])
   const reqSelectorVisible = ref(false)
+
+  /** 本会话已发起过分析：重开抽屉时展示「已恢复上次会话」（交互设计 56 §1.2） */
+  const hasSession = ref(false)
+  const resumeVisible = ref(false)
+  /** 输入组折叠态：分析完成自动折叠，[展开输入]/[收起输入] 手动切换（交互设计 56 §1.1） */
+  const inputsCollapsed = ref(false)
+  /** 文档关联仅首开带入一次：会话内改选不被后续打开覆盖（交互设计 52 §1.3） */
+  const requirementsSeeded = ref(false)
 
   const analyzing = ref(false)
   const result = ref<AiMissingPointResult | null>(null)
@@ -64,6 +77,16 @@ export function useMissingPointsPanel(docId: () => string, visible: Ref<boolean>
     requirementTitles.value = requirementTitles.value.filter((r) => r.id !== id)
   }
 
+  function clearRequirements(): void {
+    requirementIds.value = []
+    requirementTitles.value = []
+  }
+
+  /** 输入组折叠开关：仅收纳三组输入，操作行与结果保留（交互设计 56 §1.1） */
+  function toggleInputs(): void {
+    inputsCollapsed.value = !inputsCollapsed.value
+  }
+
   async function loadDocumentRequirements(): Promise<void> {
     try {
       const list = await getDocumentRequirements(docId())
@@ -75,7 +98,13 @@ export function useMissingPointsPanel(docId: () => string, visible: Ref<boolean>
   }
 
   watch(visible, (open) => {
-    if (open) void loadDocumentRequirements()
+    if (!open) return
+    resumeVisible.value = hasSession.value
+    // 文档关联条目仅会话首开带入一次，之后的改选不被重新打开覆盖（交互设计 52 §1.3）
+    if (!requirementsSeeded.value) {
+      requirementsSeeded.value = true
+      void loadDocumentRequirements()
+    }
   })
 
   watch(docId, () => {
@@ -86,6 +115,10 @@ export function useMissingPointsPanel(docId: () => string, visible: Ref<boolean>
     requirementTitles.value = []
     result.value = null
     checkedIndexes.value = new Set()
+    hasSession.value = false
+    resumeVisible.value = false
+    inputsCollapsed.value = false
+    requirementsSeeded.value = false
   })
 
   function buildReq(): AiMissingPointReq | null {
@@ -97,27 +130,35 @@ export function useMissingPointsPanel(docId: () => string, visible: Ref<boolean>
       keywords: keywords.value.length ? keywords.value : undefined,
       text: text.value.trim() || undefined,
       requirementIds: requirementIds.value.length ? requirementIds.value : undefined,
+      modelId: aiStore.effectiveModelId() ?? undefined,
     }
     return req
   }
 
   async function analyze(): Promise<void> {
+    if (analyzing.value) return
     const req = buildReq()
     if (!req) return
     analyzing.value = true
+    hasSession.value = true
+    resumeVisible.value = false
     result.value = null
+    stage.start()
     const { controller: c, promise } = analyzeMissingPoints(req)
     controller = c
     try {
       const resp = await promise
       result.value = resp
       checkedIndexes.value = new Set(resp.points.map((_, index) => index))
+      // 完成后输入组自动折叠，把可视区让给结果列表（交互设计 56 §1.1）
+      inputsCollapsed.value = true
     } catch (err) {
-      if (controller?.signal.aborted) return
+      if (c.signal.aborted) return
       ElMessage.error(err instanceof Error ? err.message : '分析失败')
     } finally {
       analyzing.value = false
       controller = null
+      stage.stop()
     }
   }
 
@@ -125,11 +166,13 @@ export function useMissingPointsPanel(docId: () => string, visible: Ref<boolean>
     controller?.abort()
     controller = null
     analyzing.value = false
+    stage.stop()
   }
 
   const documentOptions = ref<MissingPointDocumentOption[]>([])
   const docSelectVisible = ref(false)
   const targetDocId = ref('')
+
 
   async function openTargetSelect(): Promise<void> {
     const points = checkedPoints.value
@@ -160,6 +203,8 @@ export function useMissingPointsPanel(docId: () => string, visible: Ref<boolean>
       name: 'FunctionalTesting',
       query: { tab: 'cases', documentId: targetDocId.value, aiGenerate: buildMissingPointText(points) },
     })
+    // 目标页 AI 抽屉随跳转打开，toast 语义为「内容已带入」，先于抽屉动画出现不影响理解
+    ElMessage.success(`已带入勾选内容（${points.length} 条），可直接开始生成`)
   }
 
   onBeforeUnmount(() => controller?.abort())
@@ -170,6 +215,10 @@ export function useMissingPointsPanel(docId: () => string, visible: Ref<boolean>
     requirementIds,
     requirementTitles,
     reqSelectorVisible,
+    stage,
+    hasSession,
+    resumeVisible,
+    inputsCollapsed,
     analyzing,
     result,
     checkedIndexes,
@@ -180,6 +229,8 @@ export function useMissingPointsPanel(docId: () => string, visible: Ref<boolean>
     toggleItem,
     handleRequirementConfirm,
     removeRequirement,
+    clearRequirements,
+    toggleInputs,
     analyze,
     cancelAnalyze,
     documentOptions,
