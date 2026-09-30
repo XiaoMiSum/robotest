@@ -136,7 +136,7 @@ bash scripts/deploy-merged.sh
 6. **验证**  
    - 运行对应端的 lint、类型检查、单元测试（参见第 3 节命令）。  
    - 确保覆盖率满足要求（C8）。  
-   - 手动测试关键路径（使用 `curl` 或前端界面，参考 `docs/00-spec/30-quality-delivery/04-deployment-runbook.md`）。
+   - 关键路径由**用户人工验收**：交付时说明已验证内容并主动**询问用户验收结果**，根据用户反馈修复后重新交付（参考 `docs/00-spec/30-quality-delivery/04-deployment-runbook.md`）。
 
 7. **自检**  
    - 逐条核对核心约定（C1–C11），确认未引入违规。  
@@ -173,6 +173,7 @@ bash scripts/deploy-merged.sh
 - [ ] lint 通过
 - [ ] typecheck 通过（前端）
 - [ ] 测试通过
+- [ ] 关键路径已由用户人工验收（记录验收结果）
 
 ### 提交记录
 - [commit hash] <commit message>
