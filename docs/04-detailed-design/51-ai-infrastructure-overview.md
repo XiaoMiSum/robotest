@@ -189,7 +189,7 @@
 | clustering.similarityThreshold | number | 0.82 | 缺陷聚类并簇相似度阈值 |
 | clustering.maxLabeledClusters | int | 30 | 聚类 LLM 归纳标签的簇数上限（按簇大小降序） |
 | requirementContentMaxLength | int | 20000 | 需求池条目内容长度上限（字符；需求池不受 AI 开关影响，但配置键随本键值集管理） |
-| missingPoint.topK | int | 100 | 遗漏测试点分析语义检索候选用例条数上限 |
+| missingPoint.topK | int | 100 | 遗漏分析语义检索候选用例条数上限 |
 | planRecommend.topK | int | 50 | 用例规划推荐语义检索条数上限 |
 | planRecommend.similarityThreshold | number | 0.7 | 用例规划推荐语义相似度阈值 |
 | planOrder.weights | object | {"w1":0.5,"w2":0.3,"w3":0.2} | 执行顺序推荐评分权重 |
@@ -227,7 +227,7 @@
 | bug_form_suggestion | 缺陷标题优化与等级建议 | 同步 | suggestion |
 | dsl_translation | 脑图指令翻译（DSL） | 同步 | suggestion |
 | plan_order_reason | 执行顺序推荐理由 | 同步 | suggestion |
-| missing_point_analysis | 遗漏测试点分析 | 同步 | retrieval |
+| missing_point_analysis | 遗漏分析 | 同步 | retrieval |
 | case_plan_recommendation | 用例规划推荐 | 同步 | retrieval |
 | bug_dedup | 缺陷语义查重（Embedding） | 同步 | retrieval |
 | review_check | 评审完整性检查 | 异步任务 | task |
@@ -386,3 +386,4 @@ data: {"code": 1000013002, "message": "AI 调用失败"}
 | --- | --- | --- |
 | V1.0 | 2026-09-23 | 初版起草 |
 | V1.0 | 2026-09-28 | 登记 1000013004 废弃（限流改用框架全局 429），限流实现口径同步为框架固定窗口 |
+| V1.0 | 2026-09-30 | 功能名称统一改为「遗漏分析」 |

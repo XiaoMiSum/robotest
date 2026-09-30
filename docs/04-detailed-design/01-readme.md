@@ -60,7 +60,7 @@
 | [62-ai-review-overview](62-ai-review-overview.md)（总览分册） | V1.0 | 2026-09-23 | 起草中 |
 | [63-ai-review-one-click-check](63-ai-review-one-click-check.md)（分册：评审一键检查） | V1.0 | 2026-09-23 | 起草中 |
 | [64-ai-review-summary](64-ai-review-summary.md)（分册：评审摘要） | V1.0 | 2026-09-23 | 起草中 |
-| [65-ai-review-missing-points](65-ai-review-missing-points.md)（分册：遗漏测试点分析） | V1.0 | 2026-09-23 | 起草中 |
+| [65-ai-review-missing-points](65-ai-review-missing-points.md)（分册：遗漏分析） | V1.0 | 2026-09-23 | 起草中 |
 | [66-ai-review-execution-order](66-ai-review-execution-order.md)（分册：执行顺序推荐） | V1.0 | 2026-09-23 | 起草中 |
 | [67-ai-review-case-plan](67-ai-review-case-plan.md)（分册：用例规划智能推荐） | V1.0 | 2026-09-23 | 起草中 |
 | [68-bug-ai-analysis-overview](68-bug-ai-analysis-overview.md)（总览分册） | V1.0 | 2026-09-23 | 起草中 |
