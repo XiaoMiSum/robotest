@@ -54,10 +54,11 @@ function makeMessage(overrides?: Partial<AssistantMessageItem>): AssistantMessag
   }
 }
 
-function setupStores(authOverrides?: { username?: string; avatarUrl?: string; permissions?: string[] }) {
+function setupStores(authOverrides?: { username?: string; avatarUrl?: string; avatarChar?: string; permissions?: string[] }) {
   const authStore = {
     username: authOverrides?.username ?? 'TestUser',
     avatarUrl: authOverrides?.avatarUrl ?? '',
+    avatarChar: authOverrides?.avatarChar ?? '',
     hasPermission: vi.fn<(code: string) => boolean>((code) => (authOverrides?.permissions ?? []).includes(code)),
   }
   const assistantContext = {
@@ -69,7 +70,7 @@ function setupStores(authOverrides?: { username?: string; avatarUrl?: string; pe
   return { authStore, assistantContext }
 }
 
-function init(opts?: { message?: AssistantMessageItem; onConfirm?: ReturnType<typeof vi.fn>; onCancel?: ReturnType<typeof vi.fn>; onConfirmDsl?: ReturnType<typeof vi.fn>; onCancelDsl?: ReturnType<typeof vi.fn>; authOverrides?: { username?: string; avatarUrl?: string; permissions?: string[] } }) {
+function init(opts?: { message?: AssistantMessageItem; onConfirm?: ReturnType<typeof vi.fn>; onCancel?: ReturnType<typeof vi.fn>; onConfirmDsl?: ReturnType<typeof vi.fn>; onCancelDsl?: ReturnType<typeof vi.fn>; authOverrides?: { username?: string; avatarUrl?: string; avatarChar?: string; permissions?: string[] } }) {
   const { authStore, assistantContext } = setupStores(opts?.authOverrides)
   const options: UseMessageItemOptions = {
     message: opts?.message ?? makeMessage(),
@@ -138,18 +139,13 @@ describe('useMessageItem', () => {
       expect(result.userAvatarUrl.value).toBe('')
     })
 
-    it('returns first char of username uppercased', () => {
-      const { result } = init({ authOverrides: { username: 'alice' } })
-      expect(result.userAvatarChar.value).toBe('A')
+    it('returns avatarChar from auth store', () => {
+      const { result } = init({ authOverrides: { avatarChar: '张' } })
+      expect(result.userAvatarChar.value).toBe('张')
     })
 
-    it('returns ? when username is empty', () => {
-      const { result } = init({ authOverrides: { username: '' } })
-      expect(result.userAvatarChar.value).toBe('?')
-    })
-
-    it('returns ? when username is whitespace', () => {
-      const { result } = init({ authOverrides: { username: '   ' } })
+    it('returns ? when store avatarChar is empty', () => {
+      const { result } = init({ authOverrides: { avatarChar: '' } })
       expect(result.userAvatarChar.value).toBe('?')
     })
   })

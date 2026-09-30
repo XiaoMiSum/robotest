@@ -180,3 +180,67 @@ describe('auth store 权限就绪状态', () => {
     expect(auth.permissions).toEqual([])
   })
 })
+
+describe('auth store 展示名与头像', () => {
+  function login(auth: ReturnType<typeof useAuthStore>, user: Record<string, unknown>) {
+    auth.setLogin('access-1', 'refresh-1', user as never, null)
+  }
+
+  it('有姓名时展示名与头像字符取姓名，头像地址去空白', () => {
+    const auth = useAuthStore()
+
+    login(auth, {
+      id: 'user-1',
+      username: 'tester',
+      name: ' 张三 ',
+      email: 'tester@example.com',
+      avatarUrl: ' https://img.test/a.png ',
+      status: 'active',
+      roles: [],
+      permissions: [],
+      hasWorkspace: false,
+    })
+
+    expect(auth.displayName).toBe('张三')
+    expect(auth.avatarChar).toBe('张')
+    expect(auth.avatarUrl).toBe('https://img.test/a.png')
+  })
+
+  it('姓名缺失时回退用户名作为展示名与头像字符', () => {
+    const auth = useAuthStore()
+
+    login(auth, {
+      id: 'user-1',
+      username: 'tester',
+      email: 'tester@example.com',
+      status: 'active',
+      roles: [],
+      permissions: [],
+      hasWorkspace: false,
+    })
+
+    expect(auth.displayName).toBe('tester')
+    expect(auth.avatarChar).toBe('T')
+    expect(auth.avatarUrl).toBe('')
+  })
+
+  it('姓名与用户名均为空白时展示名为空、头像字符为占位符', () => {
+    const auth = useAuthStore()
+
+    login(auth, {
+      id: 'user-1',
+      username: '   ',
+      name: '   ',
+      email: 'tester@example.com',
+      avatarUrl: '   ',
+      status: 'active',
+      roles: [],
+      permissions: [],
+      hasWorkspace: false,
+    })
+
+    expect(auth.displayName).toBe('')
+    expect(auth.avatarChar).toBe('?')
+    expect(auth.avatarUrl).toBe('')
+  })
+})
