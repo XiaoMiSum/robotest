@@ -414,26 +414,25 @@ a:hover {
   margin-bottom: 8px;
 }
 
-/* 上级项是唯一回退入口，需比次要文字更易辨认 */
+/* 回退入口沿用全站链接色：颜色本身就是「可点击」信号，与仅作定位的当前页项区分 */
 .breadcrumb a {
-  color: var(--n-600);
+  color: var(--brand-500);
   font-weight: 500;
 }
 
 .breadcrumb a:hover {
-  color: var(--brand-500);
+  color: var(--brand-600);
 }
 
 .breadcrumb svg {
   width: 13px;
   height: 13px;
-  color: var(--n-500);
+  color: var(--n-400);
 }
 
-/* 当前页项与可点击上级项拉开层级，避免整行被误认为都可点 */
+/* 当前页只加深不加粗：位置感交给深浅，强调由紧随其下的页面标题承担 */
 .breadcrumb > :last-child {
   color: var(--n-900);
-  font-weight: 600;
 }
 
 /* ==================== 卡片 ==================== */
