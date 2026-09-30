@@ -98,35 +98,36 @@ defineExpose({ openAiGenerateWithText: ai.openAiGenerateWithText })
     </div>
 
     <div class="mindmap-toolbar">
-      <div class="mindmap-toolbar__core">
-        <div class="toolbar-group">
-          <el-tooltip content="撤销 (Ctrl+Z)" placement="bottom">
-            <el-button size="small" text :disabled="!nodeOps.canUndo.value" @click="nodeOps.undo"><el-icon><RefreshLeft /></el-icon></el-button>
-          </el-tooltip>
-          <el-tooltip content="重做 (Ctrl+Y)" placement="bottom">
-            <el-button size="small" text :disabled="!nodeOps.canRedo.value" @click="nodeOps.redo"><el-icon><RefreshRight /></el-icon></el-button>
-          </el-tooltip>
-        </div>
-        <el-divider direction="vertical" />
-        <div class="toolbar-group">
-          <el-tooltip content="添加子节点 (Tab)" placement="bottom">
-            <el-button size="small" text @click="nodeOps.addChild"><el-icon><Plus /></el-icon><span>下级</span></el-button>
-          </el-tooltip>
-          <el-tooltip content="添加兄弟节点 (Enter)" placement="bottom">
-            <el-button size="small" text @click="nodeOps.addSibling"><el-icon><Plus /></el-icon><span>同级</span></el-button>
-          </el-tooltip>
-          <el-tooltip content="编辑内容 (双击节点/F2)" placement="bottom">
-            <el-button size="small" text @click="nodeOps.editSelectedText"><el-icon><EditPen /></el-icon></el-button>
-          </el-tooltip>
-          <el-tooltip content="删除 (Delete)" placement="bottom">
-            <el-button size="small" text class="toolbar-btn--danger" @click="nodeOps.deleteNode"><el-icon><Delete /></el-icon></el-button>
-          </el-tooltip>
-        </div>
-        <el-divider direction="vertical" />
-        <div class="toolbar-group">
+      <div class="toolbar-group">
+        <el-tooltip content="撤销 (Ctrl+Z)" placement="bottom">
+          <el-button size="small" text :disabled="!nodeOps.canUndo.value" @click="nodeOps.undo"><el-icon><RefreshLeft /></el-icon></el-button>
+        </el-tooltip>
+        <el-tooltip content="重做 (Ctrl+Y)" placement="bottom">
+          <el-button size="small" text :disabled="!nodeOps.canRedo.value" @click="nodeOps.redo"><el-icon><RefreshRight /></el-icon></el-button>
+        </el-tooltip>
+      </div>
+      <el-divider direction="vertical" />
+      <div class="toolbar-group">
+        <el-tooltip content="添加子节点 (Tab)" placement="bottom">
+          <el-button size="small" text @click="nodeOps.addChild"><el-icon><Plus /></el-icon><span>下级</span></el-button>
+        </el-tooltip>
+        <el-tooltip content="添加兄弟节点 (Enter)" placement="bottom">
+          <el-button size="small" text @click="nodeOps.addSibling"><el-icon><Plus /></el-icon><span>同级</span></el-button>
+        </el-tooltip>
+        <el-tooltip content="编辑内容 (双击节点/F2)" placement="bottom">
+          <el-button size="small" text @click="nodeOps.editSelectedText"><el-icon><EditPen /></el-icon></el-button>
+        </el-tooltip>
+        <el-tooltip content="删除 (Delete)" placement="bottom">
+          <el-button size="small" text class="toolbar-btn--danger" @click="nodeOps.deleteNode"><el-icon><Delete /></el-icon></el-button>
+        </el-tooltip>
+      </div>
+      <el-divider direction="vertical" />
+      <div class="toolbar-group">
+        <!-- 模板名不回显占宽，仅经悬浮提示给出（交互设计 06 §1.2） -->
+        <el-tooltip :content="`排版模板：${layout.currentTemplateLabel.value}`" placement="bottom">
           <el-dropdown size="small" @command="layout.switchTemplate">
             <el-button size="small" text>
-              <el-icon><Grid /></el-icon><span>{{ layout.currentTemplateLabel.value }}</span><el-icon class="toolbar-caret"><ArrowDown /></el-icon>
+              <el-icon><Grid /></el-icon><el-icon class="toolbar-caret"><ArrowDown /></el-icon>
             </el-button>
             <template #dropdown>
               <el-dropdown-menu>
@@ -141,55 +142,58 @@ defineExpose({ openAiGenerateWithText: ai.openAiGenerateWithText })
               </el-dropdown-menu>
             </template>
           </el-dropdown>
-          <el-tooltip content="清除手动拖拽的节点偏移，恢复自动排版" placement="bottom">
-            <el-button size="small" text @click="layout.tidyLayout"><el-icon><MagicStick /></el-icon></el-button>
-          </el-tooltip>
-        </div>
-        <el-divider direction="vertical" />
-        <div class="toolbar-group">
-          <el-button size="small" text :class="['type-btn', { 'is-selected': selectedType === 'case' }]" @click="nodeOps.markAs('case')"><span class="type-dot type-dot--case" /><span>用例</span></el-button>
-          <el-button size="small" text :class="['type-btn', { 'is-selected': selectedType === 'precondition' }]" @click="nodeOps.markAs('precondition')"><span class="type-dot type-dot--precondition" /><span>前置</span></el-button>
-          <el-button size="small" text :class="['type-btn', { 'is-selected': selectedType === 'step' }]" @click="nodeOps.markAs('step')"><span class="type-dot type-dot--step" /><span>步骤</span></el-button>
-          <el-button size="small" text :class="['type-btn', { 'is-selected': selectedType === 'expected' }]" @click="nodeOps.markAs('expected')"><span class="type-dot type-dot--expected" /><span>预期</span></el-button>
-          <el-tooltip content="取消标记，恢复普通节点" placement="bottom">
-            <el-button size="small" text @click="nodeOps.clearMark"><el-icon><CircleClose /></el-icon></el-button>
-          </el-tooltip>
-        </div>
-        <el-divider direction="vertical" />
-        <div class="toolbar-group">
-          <el-tooltip v-if="nodeOps.priorityRecommendation.value && selectedType === 'case'" content="AI 推荐优先级，点击采纳" placement="bottom">
-            <el-button size="small" text class="priority-recommend-btn" @click="nodeOps.applyPriorityRecommendation">
-              ✨ 推荐 {{ nodeOps.priorityRecommendation.value.priority }}
-            </el-button>
-          </el-tooltip>
-          <el-button
-            v-for="p in ['P0', 'P1', 'P2', 'P3']"
-            :key="p"
-            size="small"
-            text
-            :class="['priority-btn', `priority-btn--${p.toLowerCase()}`, { 'is-selected': nodeOps.selectedPriority.value === p }]"
-            @click="nodeOps.markPriority(p)"
-          >{{ p }}</el-button>
-        </div>
+        </el-tooltip>
+        <el-tooltip content="清除手动拖拽的节点偏移，恢复自动排版" placement="bottom">
+          <el-button size="small" text @click="layout.tidyLayout"><el-icon><MagicStick /></el-icon></el-button>
+        </el-tooltip>
+      </div>
+      <el-divider direction="vertical" />
+      <div class="toolbar-group">
+        <el-button size="small" text :class="['type-btn', { 'is-selected': selectedType === 'case' }]" @click="nodeOps.markAs('case')"><span class="type-dot type-dot--case" /><span>用例</span></el-button>
+        <el-button size="small" text :class="['type-btn', { 'is-selected': selectedType === 'precondition' }]" @click="nodeOps.markAs('precondition')"><span class="type-dot type-dot--precondition" /><span>前置</span></el-button>
+        <el-button size="small" text :class="['type-btn', { 'is-selected': selectedType === 'step' }]" @click="nodeOps.markAs('step')"><span class="type-dot type-dot--step" /><span>步骤</span></el-button>
+        <el-button size="small" text :class="['type-btn', { 'is-selected': selectedType === 'expected' }]" @click="nodeOps.markAs('expected')"><span class="type-dot type-dot--expected" /><span>预期</span></el-button>
+        <el-tooltip content="取消标记，恢复普通节点" placement="bottom">
+          <el-button size="small" text @click="nodeOps.clearMark"><el-icon><CircleClose /></el-icon></el-button>
+        </el-tooltip>
+      </div>
+      <el-divider direction="vertical" />
+      <div class="toolbar-group">
+        <el-tooltip v-if="nodeOps.priorityRecommendation.value && selectedType === 'case'" content="AI 推荐优先级，点击采纳" placement="bottom">
+          <el-button size="small" text class="priority-recommend-btn" @click="nodeOps.applyPriorityRecommendation">
+            ✨ 推荐 {{ nodeOps.priorityRecommendation.value.priority }}
+          </el-button>
+        </el-tooltip>
+        <el-button
+          v-for="p in ['P0', 'P1', 'P2', 'P3']"
+          :key="p"
+          size="small"
+          text
+          :class="['priority-btn', `priority-btn--${p.toLowerCase()}`, { 'is-selected': nodeOps.selectedPriority.value === p }]"
+          @click="nodeOps.markPriority(p)"
+        >{{ p }}</el-button>
       </div>
 
-      <div v-if="nodeOps.aiStore.aiEnabled || canManageRequirements" class="mindmap-toolbar__ai-cmd">
+      <!-- 命令组经弹性右靠居行末；三枚均为纯图标 + 悬浮提示（交互设计 48 §1.1），
+           aiEnabled=false 时整体隐藏，需求池入口不受 AI 开关控制 -->
+      <div
+        v-if="nodeOps.aiStore.aiEnabled || canManageRequirements"
+        class="toolbar-group toolbar-group--end"
+      >
         <template v-if="canManageRequirements">
-          <div class="toolbar-group">
-            <el-button size="small" text @click="ai.openRequirementSelector">
-              <el-icon><Link /></el-icon><span>关联需求</span>
-            </el-button>
-          </div>
+          <el-tooltip content="关联需求" placement="bottom">
+            <el-button size="small" text @click="ai.openRequirementSelector"><el-icon><Link /></el-icon></el-button>
+          </el-tooltip>
           <el-divider direction="vertical" />
         </template>
-        <div v-if="nodeOps.aiStore.aiEnabled" class="toolbar-group">
-          <el-button size="small" text class="ai-entry-btn" @click="ai.openAiPanel">
-            <el-icon><MagicStick /></el-icon><span>AI 生成用例</span>
-          </el-button>
-          <el-button size="small" text class="ai-entry-btn" @click="ai.missingPointsVisible.value = true">
-            <el-icon><MagicStick /></el-icon><span>遗漏测试点</span>
-          </el-button>
-        </div>
+        <template v-if="nodeOps.aiStore.aiEnabled">
+          <el-tooltip content="AI 生成用例" placement="bottom">
+            <el-button size="small" text class="ai-entry-btn" @click="ai.openAiPanel"><el-icon><MagicStick /></el-icon></el-button>
+          </el-tooltip>
+          <el-tooltip content="AI查漏" placement="bottom">
+            <el-button size="small" text class="ai-entry-btn" @click="ai.missingPointsVisible.value = true"><el-icon><Search /></el-icon></el-button>
+          </el-tooltip>
+        </template>
       </div>
     </div>
 
@@ -324,34 +328,8 @@ defineExpose({ openAiGenerateWithText: ai.openAiGenerateWithText })
   gap: 4px;
 }
 
-.mindmap-toolbar {
-  flex-direction: column;
-  align-items: stretch;
-  justify-content: flex-start;
-  gap: 2px;
-  overflow-x: hidden;
-}
-
-.mindmap-toolbar__core {
-  display: flex;
-  align-items: center;
-  justify-content: safe center;
-  gap: var(--space-xs);
-  width: 100%;
-  overflow-x: auto;
-  scrollbar-width: thin;
-
-  &::-webkit-scrollbar { height: 4px; }
-  &::-webkit-scrollbar-thumb { background: var(--color-neutral-300); border-radius: 2px; }
-  &::-webkit-scrollbar-track { background: transparent; }
-}
-
-.mindmap-toolbar__ai-cmd {
-  display: flex;
-  justify-content: flex-end;
-  width: 100%;
-}
-
+/* 工具条结构样式（单行、分组、命令组右靠）由 minder-base 承载；
+   此处仅保留本组件的按钮视觉覆盖 */
 .mindmap-toolbar :deep(.el-button) {
   padding-left: 8px;
   padding-right: 8px;

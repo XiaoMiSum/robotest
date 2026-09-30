@@ -11,12 +11,11 @@ const route = useRoute()
 const router = useRouter()
 
 const selectedDocId = ref('')
-const selectedDocName = ref('')
 const caseMindMapRef = ref<InstanceType<typeof CaseMindMap>>()
 
-function handleSelectDocument(docId: string, docName: string) {
+// 文档名不再由标题栏承载（交互设计 06 §1.2：编辑区取消文档标题栏），选中即定位文档
+function handleSelectDocument(docId: string) {
   selectedDocId.value = docId
-  selectedDocName.value = docName
 }
 
 function findDocument(nodes: ProjectModule[], id: string): ProjectModule | null {
@@ -36,7 +35,7 @@ async function consumeExternalJump(docId: string, aiText: string): Promise<void>
   if (docId && docId !== selectedDocId.value) {
     try {
       const doc = findDocument(await fetchProjectModuleTree('testcase'), docId)
-      if (doc) handleSelectDocument(doc.id, doc.name)
+      if (doc) handleSelectDocument(doc.id)
     } catch {
       // 文档不存在或加载失败时停留在空态
       return
@@ -79,13 +78,7 @@ defineExpose({ confirmLeave })
         <div v-if="!selectedDocId" class="test-case-page__placeholder">
           <el-empty description="请在左侧模块树中选择一个文档" />
         </div>
-        <template v-else>
-          <div class="test-case-page__doc-header">
-            <el-icon><Document /></el-icon>
-            <span>{{ selectedDocName }}</span>
-          </div>
-          <CaseMindMap ref="caseMindMapRef" :doc-id="selectedDocId" />
-        </template>
+        <CaseMindMap v-else ref="caseMindMapRef" :doc-id="selectedDocId" />
       </el-card>
     </div>
   </div>
@@ -107,10 +100,13 @@ defineExpose({ confirmLeave })
 .test-case-page__tree-card {
   width: 280px;
   flex-shrink: 0;
+  /* 滚动拥有者唯一为树体：搜索/新建工具条常驻不随内容滚走（docs/00-spec/50-ui/03-scroll-container.md） */
   :deep(.el-card__body) {
     padding: 0;
-    overflow: auto;
     height: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
   }
 }
 
@@ -124,18 +120,6 @@ defineExpose({ confirmLeave })
     height: 100%;
     overflow: hidden;
   }
-}
-
-.test-case-page__doc-header {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-  padding: var(--space-sm) var(--space-md);
-  font-size: var(--font-size-sm);
-  font-weight: 500;
-  color: var(--color-neutral-700);
-  border-bottom: 1px solid var(--color-neutral-200);
-  flex-shrink: 0;
 }
 
 .test-case-page__placeholder {
