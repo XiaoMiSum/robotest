@@ -384,15 +384,27 @@ public class OpenAiCompatProvider {
                               Map<String, Object> body, int readTimeoutMillis) {
         RestClient client = buildClient(baseUrl, readTimeoutMillis);
         // 本地代理（oc/* 系列）对非流式请求以 application/octet-stream 响应，
-        // StringHttpMessageConverter 无法处理该 content-type；改用 byte[] 提取原始字节后手动解码
-        byte[] responseBytes = client.post()
+        // .retrieve().body() 依赖 HttpMessageConverter 匹配 content-type，octet-stream 无适配转换器；
+        // 改用 .exchange() 直接读取 InputStream，绕过消息转换器（与 stream 方法同模式）
+        return client.post()
                 .uri(path)
                 .header("Authorization", "Bearer " + apiKey)
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(JsonUtils.toJsonString(body))
-                .retrieve()
-                .body(byte[].class);
-        return JsonUtils.toJSON(new String(responseBytes, StandardCharsets.UTF_8));
+                .exchange((request, response) -> {
+                    if (!response.getStatusCode().is2xxSuccessful()) {
+                        // 抛出 RestClientResponseException 以保留 postWithRetry 的状态码重试逻辑
+                        throw new RestClientResponseException(
+                                "AI upstream returned " + response.getStatusCode(),
+                                response.getStatusCode().value(),
+                                response.getStatusText(),
+                                response.getHeaders(),
+                                response.getBody().readAllBytes(),
+                                StandardCharsets.UTF_8);
+                    }
+                    String responseText = new String(response.getBody().readAllBytes(), StandardCharsets.UTF_8);
+                    return JsonUtils.toJSON(responseText);
+                });
     }
 
     private RestClient buildClient(String baseUrl, int readTimeoutMillis) {
