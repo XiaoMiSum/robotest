@@ -4606,14 +4606,13 @@ export interface components {
             msg?: string;
         };
         AiMissingPointReqDTO: {
-            keywords?: string[];
+            documentIds: string[];
             text?: string;
             requirementIds?: string[];
             /** Format: uuid */
             modelId?: string;
         };
         AiMissingPointRespDTO: {
-            semanticDegraded?: boolean;
             points?: components["schemas"]["Point"][];
         };
         Point: {
@@ -4718,11 +4717,11 @@ export interface components {
             /** Format: uuid */
             activeProjectId?: string;
             hasWorkspace?: boolean;
-            permissions?: string[];
             permissionCodes?: string[];
+            permissions?: string[];
+            accountNonExpired?: boolean;
             accountNonLocked?: boolean;
             credentialsNonExpired?: boolean;
-            accountNonExpired?: boolean;
         };
         ResultLoginResultLoginUser: {
             /** Format: int32 */
