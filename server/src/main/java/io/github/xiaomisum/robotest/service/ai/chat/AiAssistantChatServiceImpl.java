@@ -111,7 +111,7 @@ public class AiAssistantChatServiceImpl implements AiAssistantChatService {
 
         Thread.startVirtualThread(() -> {
             try {
-                List<ChatMessage> contextMessages = buildContextMessages(conversationId, reqDTO.getContent());
+                List<ChatMessage> contextMessages = buildContextMessages(conversationId, reqDTO.getContent(), reqDTO.getPageContext());
                 List<ToolDefinition> toolDefs = buildToolDefinitions(userId, workspaceId);
                 ChatCallOptions options = toolDefs.isEmpty()
                         ? ChatCallOptions.defaults()
@@ -183,7 +183,8 @@ public class AiAssistantChatServiceImpl implements AiAssistantChatService {
                             writeToolCall = tc;
                             confirmTokenForWrite = confirmTokenService.issue(
                                     userId, workspaceId, conversationId,
-                                    assistantMsgId, tc.id(), tc.name(), tc.arguments());
+                                    assistantMsgId, tc.id(), tc.name(), tc.arguments(),
+                                    reqDTO.getPageContext());
                             break;
                         }
                         // 只读工具 → 直接执行
@@ -264,7 +265,7 @@ public class AiAssistantChatServiceImpl implements AiAssistantChatService {
         AiConfirmTokenService.ConfirmPayload payload = confirmTokenService.requireValid(
                 confirmToken, userId, workspaceId);
         // 执行写工具
-        AiToolContext toolCtx = new AiToolContext(userId, workspaceId, null);
+        AiToolContext toolCtx = new AiToolContext(userId, workspaceId, payload.pageContext());
         String result = writeToolExecutor.execute(toolCtx, payload.toolName(), payload.arguments());
         // 落 tool 消息
         conversationService.appendToolMessage(payload.conversationId(), payload.toolCallId(), result);
@@ -281,7 +282,8 @@ public class AiAssistantChatServiceImpl implements AiAssistantChatService {
         Thread.startVirtualThread(() -> {
             try {
                 List<ChatMessage> contextMessages = buildContextMessagesFromHistory(
-                        payload.conversationId(), payload.assistantMessageId(), payload.toolCallId(), result);
+                        payload.conversationId(), payload.assistantMessageId(), payload.toolCallId(), result,
+                        payload.pageContext());
                 List<ToolDefinition> toolDefs = buildToolDefinitions(userId, workspaceId);
                 ChatCallOptions options = toolDefs.isEmpty()
                         ? ChatCallOptions.defaults()
@@ -332,10 +334,14 @@ public class AiAssistantChatServiceImpl implements AiAssistantChatService {
     // ======================== 内部方法 ========================
 
     /**
-     * 构建上下文消息：system + 最近 10 轮（user+assistant）+ tool 消息 + 悬空补偿
+     * 构建上下文消息：system + pageContext + 最近 10 轮（user+assistant）+ tool 消息 + 悬空补偿
      */
-    private List<ChatMessage> buildContextMessages(UUID conversationId, String userContent) {
+    private List<ChatMessage> buildContextMessages(UUID conversationId, String userContent,
+                                                   Map<String, Object> pageContext) {
         String systemPrompt = promptAssembler.loadSystemPrompt(AiFunctionType.ASSISTANT_CHAT);
+        if (pageContext != null && !pageContext.isEmpty()) {
+            systemPrompt += "\n\n当前页面上下文: " + JsonUtils.toJsonString(pageContext);
+        }
         List<ChatMessage> messages = new ArrayList<>();
         messages.add(ChatMessage.system(systemPrompt));
 
@@ -365,8 +371,9 @@ public class AiAssistantChatServiceImpl implements AiAssistantChatService {
     private List<ChatMessage> buildContextMessagesFromHistory(UUID conversationId,
                                                               UUID assistantMessageId,
                                                               String toolCallId,
-                                                              String toolResult) {
-        return buildContextMessages(conversationId, null);
+                                                              String toolResult,
+                                                              Map<String, Object> pageContext) {
+        return buildContextMessages(conversationId, null, pageContext);
     }
 
     /**

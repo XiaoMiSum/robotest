@@ -45,11 +45,13 @@ public class AiConfirmTokenService {
      * @param toolCallId          工具调用 ID（tool 消息 tool_call_id）
      * @param toolName            工具名
      * @param arguments           LLM 生成的参数
+     * @param pageContext         页面上下文（approve 时回传给写工具兜底）
      * @return 令牌 UUID 字符串
      */
     public String issue(UUID userId, UUID workspaceId, UUID conversationId,
                         UUID assistantMessageId, String toolCallId,
-                        String toolName, Map<String, Object> arguments) {
+                        String toolName, Map<String, Object> arguments,
+                        Map<String, Object> pageContext) {
         String token = UUID.randomUUID().toString();
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("userId", userId.toString());
@@ -59,6 +61,7 @@ public class AiConfirmTokenService {
         payload.put("toolCallId", toolCallId);
         payload.put("toolName", toolName);
         payload.put("arguments", arguments);
+        payload.put("pageContext", pageContext);
         payload.put("createdAt", Instant.now().toEpochMilli());
 
         int timeoutSeconds = aiConfigService.getIntSetting("assistantConfirmTimeoutSeconds");
@@ -95,7 +98,8 @@ public class AiConfirmTokenService {
                     UUID.fromString((String) map.get("assistantMessageId")),
                     (String) map.get("toolCallId"),
                     (String) map.get("toolName"),
-                    (Map<String, Object>) map.get("arguments")
+                    (Map<String, Object>) map.get("arguments"),
+                    (Map<String, Object>) map.get("pageContext")
             );
         } catch (Exception e) {
             log.warn("[AI] 令牌解析失败 token={}: {}", token, e.getMessage());
@@ -124,7 +128,8 @@ public class AiConfirmTokenService {
             UUID assistantMessageId,
             String toolCallId,
             String toolName,
-            Map<String, Object> arguments
+            Map<String, Object> arguments,
+            Map<String, Object> pageContext
     ) {
     }
 }
