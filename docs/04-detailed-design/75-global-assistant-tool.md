@@ -1,7 +1,7 @@
 # 软件测试平台——工具调用与写确认
 
 **文档版本**：V1.0
-**日期**：2026-09-23
+**日期**：2026-09-30
 **状态**：起草中
 
 ---
@@ -34,7 +34,7 @@ record ToolDefinition(
 )
 ```
 
-**首期工具清单**：
+**工具清单**：
 
 | 工具 | 读/写 | 参数（摘要） | 实现（复用既有 Service） |
 | ---- | ---- | ---- | ---- |
@@ -46,8 +46,10 @@ record ToolDefinition(
 | translate_minder_command | 只读 | instruction（需 pageContext.documentId） | DSL 翻译（同 dsl_translation 链路），结果经 minder_commands 帧交前端 |
 | create_bug | **写** | projectId / title / severity / priority / reproSteps? | 缺陷创建 Service |
 | create_plan_draft | **写** | projectId / name / description? | 计划创建 Service（status=new） |
+| create_document | **写** | projectId / moduleName? / documentName / caseNodes? | 用例文档创建 Service（创建文档+根节点，caseNodes 在根节点下批量创建用例节点，aiGenerated=true） |
+| create_module | **写** | projectId / parentModuleName? / moduleName | 模块创建 Service |
 
-- 写工具实际可用集 = 注册表 ∩ `assistantWriteToolWhitelist`（系统配置，默认即上表两项）；白名单外的写工具不进入 LLM 工具清单；
+- 写工具实际可用集 = 注册表 ∩ `assistantWriteToolWhitelist`（系统配置，默认即上表四项）；白名单外的写工具不进入 LLM 工具清单；
 - 跨项目查询：只读查询工具在空间内聚合时，逐项目按用户成员身份过滤（复用既有数据隔离查询），无权项目自然不可见；
 - 工具执行以当前 LoginUser 走 Service 层——权限校验、业务规则、审计与人工操作完全一致（AD-6）；权限不足时工具返回错误文本（"无权执行"），由 LLM 转述，不抛异常中断会话。
 
@@ -85,5 +87,12 @@ flowchart TD
 - **前端兜底**：消息 Markdown 渲染时链接白名单过滤——仅渲染站内相对路径（`/` 开头且匹配已注册路由前缀），外部 URL 一律降级为纯文本（概要 8 输出防护）。
 
 ---
+
+## 修改记录
+
+| 版本 | 日期 | 说明 |
+| ---- | ---- | ---- |
+| V1.0 | 2026-09-23 | 初始版本 |
+| V1.0 | 2026-09-30 | 工具清单新增 create_document、create_module 写工具 |
 
 

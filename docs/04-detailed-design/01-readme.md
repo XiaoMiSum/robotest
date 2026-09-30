@@ -70,8 +70,8 @@
 | [72-bug-ai-analysis-vector-rebuild](72-bug-ai-analysis-vector-rebuild.md)（分册：向量重建） | V1.0 | 2026-09-23 | 起草中 |
 | [73-global-assistant-overview](73-global-assistant-overview.md)（总览分册） | V1.0 | 2026-09-23 | 起草中 |
 | [74-global-assistant-session](74-global-assistant-session.md)（分册：会话与消息） | V1.0 | 2026-09-23 | 起草中 |
-| [75-global-assistant-tool](75-global-assistant-tool.md)（分册：工具调用与写确认） | V1.0 | 2026-09-23 | 起草中 |
-| [76-global-assistant-mindmap](76-global-assistant-mindmap.md)（分册：对话式脑图编辑） | V1.0 | 2026-09-23 | 起草中 |
+| [75-global-assistant-tool](75-global-assistant-tool.md)（分册：工具调用与写确认） | V1.0 | 2026-09-30 | 起草中 |
+| [76-global-assistant-mindmap](76-global-assistant-mindmap.md)（分册：对话式脑图编辑） | V1.0 | 2026-09-30 | 起草中 |
 | [77-global-assistant-knowledge-base](77-global-assistant-knowledge-base.md)（分册：使用指引知识库） | V1.0 | 2026-09-23 | 起草中 |
 | [78-realtime-websocket](78-realtime-websocket.md)（通用 WebSocket 传输层） | V1.0 | 2026-09-24 | 起草中 |
 | [79-time-contract-comparison](79-time-contract-comparison.md)（时间契约双方案比较） | V1.0 | 2026-09-24 | 起草中 |
