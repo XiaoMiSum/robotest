@@ -12,6 +12,7 @@ import io.github.xiaomisum.robotest.repository.tcase.ProjectModuleMapper;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseDocumentMapper;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseNodeMapper;
 import io.github.xiaomisum.robotest.service.ai.gateway.AiGatewayService;
+import io.github.xiaomisum.robotest.service.ai.model.AiModels.AiCallContext;
 import io.github.xiaomisum.robotest.service.ai.model.AiModels.ChatCallOptions;
 import io.github.xiaomisum.robotest.service.ai.support.AiKeywordExtractor;
 import io.github.xiaomisum.robotest.service.ai.support.AiOutputValidator;
@@ -170,6 +171,26 @@ class AiMissingPointServiceImplTest {
         String data = businessDataCaptor.getValue();
         assertTrue(data.contains("【需求关键词】登录"));
         assertTrue(data.contains("验证码登录成功｜模块：登录模块/验证码登录"));
+    }
+
+    @Test
+    void modelId_forwardedToCallContext() {
+        stubProjectModules();
+        when(testCaseNodeMapper.listCaseNodesByDocumentIdsAndKeyword(List.of(DOC_ID), "登录", 30))
+                .thenReturn(List.of(caseNode(UUID.randomUUID(), "验证码登录成功")));
+        when(aiGatewayService.completeStructured(any(), eq(AiFunctionType.MISSING_POINT_ANALYSIS), any(),
+                any(), any(), any(), any()))
+                .thenReturn(out("短信验证码超时后重新发送", "登录模块/验证码登录", List.of("验证码登录成功")));
+
+        UUID modelId = UUID.randomUUID();
+        AiMissingPointReqDTO dto = req("登录");
+        dto.setModelId(modelId);
+        service.analyze(USER_ID, WORKSPACE_ID, PROJECT_ID, dto);
+
+        ArgumentCaptor<AiCallContext> contextCaptor = ArgumentCaptor.forClass(AiCallContext.class);
+        verify(aiGatewayService).completeStructured(contextCaptor.capture(),
+                eq(AiFunctionType.MISSING_POINT_ANALYSIS), any(), any(), any(), any(), any());
+        assertEquals(modelId, contextCaptor.getValue().modelId());
     }
 
     @Test
