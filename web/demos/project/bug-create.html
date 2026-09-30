@@ -79,7 +79,7 @@
             </div>
           </div>
 
-          <div class="field" style="margin-bottom:0">
+          <div class="field">
             <label class="field__label" for="f-steps">重现步骤</label>
             <textarea class="textarea" id="f-steps" style="min-height:140px"
               placeholder="重现步骤（支持 Markdown，可选）">1. 使用测试账号创建一笔待支付订单，库存锁定 1 件；
@@ -87,16 +87,15 @@
 3. 回到商品页再次下单同 SKU；
 4. 预期：库存已释放，可正常下单；实际：提示「库存不足」。</textarea>
           </div>
-        </div>
-      </div>
 
-      <div class="card">
-        <div class="card__body">
-          <div class="upload">
-            <span data-icon="upload"></span>
-            将文件拖到此处，或<em>点击选择</em>
+          <div class="field" style="margin-bottom:0">
+            <label class="field__label">附件</label>
+            <div class="upload">
+              <span data-icon="upload"></span>
+              将文件拖到此处，或<em>点击选择</em>
+            </div>
+            <div class="field__hint">单个文件不超过 10MB，创建后自动上传</div>
           </div>
-          <div class="field__hint">单个文件不超过 10MB，创建后自动上传</div>
         </div>
       </div>
     </div>
