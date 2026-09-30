@@ -1,5 +1,4 @@
 import { computed, nextTick, onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   blockPlan,
@@ -63,7 +62,6 @@ interface PlanOrderRecommendRef {
 
 export function usePlanDetail(options: UsePlanDetailOptions) {
   const { planId } = options
-  const router = useRouter()
 
   const authStore = useAuthStore()
   const aiStore = useAiStore()
@@ -321,8 +319,6 @@ export function usePlanDetail(options: UsePlanDetailOptions) {
     handleOrderLocate,
     handleOrderResult,
     handleOrderSelect,
-    // Router
-    router,
     // Stores
     aiStore,
   }

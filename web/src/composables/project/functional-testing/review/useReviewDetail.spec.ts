@@ -17,7 +17,6 @@ const mocks = vi.hoisted(() => ({
   reopenReview: vi.fn<() => Promise<void>>(),
   syncReview: vi.fn<() => Promise<void>>(),
   getCaseDetail: vi.fn<(id: string) => Promise<{ id: string; documentId?: string | null }>>(),
-  useRouter: vi.fn(),
   ElMessage: { success: vi.fn(), error: vi.fn(), info: vi.fn(), warning: vi.fn() },
   ElMessageBox: { confirm: vi.fn<() => Promise<void>>() },
   useAuthStore: vi.fn(),
@@ -31,10 +30,6 @@ vi.mock('vue', async () => {
     onMounted: (cb: () => void) => { cb() },
   }
 })
-
-vi.mock('vue-router', () => ({
-  useRouter: mocks.useRouter,
-}))
 
 vi.mock('element-plus', () => ({
   ElMessage: mocks.ElMessage,
@@ -116,7 +111,6 @@ function setupMocks(overrides?: {
 describe('useReviewDetail', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mocks.useRouter.mockReturnValue({ push: vi.fn() })
   })
 
   function init() {

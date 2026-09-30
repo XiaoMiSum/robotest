@@ -1,5 +1,4 @@
 import { computed, nextTick, onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   completeReview,
@@ -53,7 +52,6 @@ interface ReviewAiCheckPanelRef {
 
 export function useReviewDetail(options: UseReviewDetailOptions) {
   const { reviewId } = options
-  const router = useRouter()
 
   const authStore = useAuthStore()
   const aiStore = useAiStore()
@@ -345,8 +343,6 @@ export function useReviewDetail(options: UseReviewDetailOptions) {
     refreshProgress,
     openCheck,
     handleCheckLocate,
-    // Router
-    router,
     // Stores
     authStore,
     aiStore,
