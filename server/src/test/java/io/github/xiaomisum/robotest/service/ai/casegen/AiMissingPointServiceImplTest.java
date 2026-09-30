@@ -164,8 +164,8 @@ class AiMissingPointServiceImplTest {
 
         assertTrue(resp.isSemanticDegraded());
         assertEquals("短信验证码超时后重新发送", resp.getPoints().get(0).getTitle());
-        // 比对读超时功能级覆盖 60s（4.3）
-        assertEquals(60_000, optionsCaptor.getValue().readTimeoutMillis());
+        // 比对读超时功能级覆盖 300s（4.3）
+        assertEquals(300_000, optionsCaptor.getValue().readTimeoutMillis());
         // 有入参关键词时不触发 LLM 抽取（抽取已下沉至 AiKeywordExtractor）
         verify(aiKeywordExtractor, never()).extract(any(), any(), any(), any(), any(), any());
         String data = businessDataCaptor.getValue();

@@ -99,17 +99,17 @@ public final class AiModels {
         }
 
         public static ChatCallOptions defaults() {
-            return new ChatCallOptions(null, null, false, null);
+            return new ChatCallOptions(null, null, false, 300_000);
         }
 
         public static ChatCallOptions json() {
-            // 结构化 LLM 调用输出较长，网关同步默认 15s 不足，统一 60s（与 AiConstants.LLM_TIMEOUT_MILLIS 同口径）
-            return new ChatCallOptions(null, null, true, 60_000);
+            // 结构化 LLM 调用输出较长，网关同步默认 15s 不足，统一 300s（与 AiConstants.LLM_TIMEOUT_MILLIS 同口径）
+            return new ChatCallOptions(null, null, true, 300_000);
         }
 
         /** 构造携带工具定义的选项 */
         public static ChatCallOptions withTools(List<ToolDefinition> tools) {
-            return new ChatCallOptions(null, null, false, null, tools);
+            return new ChatCallOptions(null, null, false, 300_000, tools);
         }
     }
 

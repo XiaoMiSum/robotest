@@ -48,7 +48,7 @@ import java.util.stream.Collectors;
  *       （K = planRecommend.topK 默认 50，阈值 = planRecommend.similarityThreshold 默认 0.7），
  *       matchType = semantic，score = 相似度；降级态改为 LLM 抽取关键词 + 标题 ILIKE（score = 0.6，仅展示排序用）；</li>
  *   <li>排除已纳入用例：过滤 excludeCaseNodeIds，截断 50 条按 score 降序；</li>
- *   <li>理由生成：一次 LLM 调用为全部结果批量生成一句话 reason（读超时功能级覆盖 60s），
+ *   <li>理由生成：一次 LLM 调用为全部结果批量生成一句话 reason（读超时功能级覆盖 300s），
  *       长度不匹配或生成失败时整体置空——理由缺失不影响清单可用。</li>
  * </ol>
  */
