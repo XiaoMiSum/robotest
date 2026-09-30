@@ -189,7 +189,6 @@
 | clustering.similarityThreshold | number | 0.82 | 缺陷聚类并簇相似度阈值 |
 | clustering.maxLabeledClusters | int | 30 | 聚类 LLM 归纳标签的簇数上限（按簇大小降序） |
 | requirementContentMaxLength | int | 20000 | 需求池条目内容长度上限（字符；需求池不受 AI 开关影响，但配置键随本键值集管理） |
-| missingPoint.topK | int | 100 | 遗漏分析语义检索候选用例条数上限 |
 | planRecommend.topK | int | 50 | 用例规划推荐语义检索条数上限 |
 | planRecommend.similarityThreshold | number | 0.7 | 用例规划推荐语义相似度阈值 |
 | planOrder.weights | object | {"w1":0.5,"w2":0.3,"w3":0.2} | 执行顺序推荐评分权重 |
@@ -207,7 +206,7 @@
 | 限流阈值 | rateLimit.*（5 键） | 数字输入（≥ 1） |
 | 语义查重 | dedup.topK / dedup.similarityThreshold | 数字输入（topK 1–50；阈值 0–1，步进 0.01） |
 | 聚类分析 | clustering.similarityThreshold / clustering.maxLabeledClusters | 数字输入（阈值 0–1；簇数 1–100） |
-| 检索与推荐 | missingPoint.topK / planRecommend.topK / planRecommend.similarityThreshold | 数字输入（同上口径） |
+| 检索与推荐 | planRecommend.topK / planRecommend.similarityThreshold | 数字输入（同上口径） |
 | 执行顺序推荐 | planOrder.weights | 三个数字输入（w1/w2/w3，各 0–1，保存校验三者之和 = 1，容差 0.001） |
 | 长度限制 | requirementContentMaxLength | 数字输入（1000–100000） |
 | 全局助手 | assistantConfirmTimeoutSeconds / assistantWriteToolWhitelist | 数字输入（30–3600）/ 多选框（选项为写工具枚举） |
@@ -387,3 +386,4 @@ data: {"code": 1000013002, "message": "AI 调用失败"}
 | V1.0 | 2026-09-23 | 初版起草 |
 | V1.0 | 2026-09-28 | 登记 1000013004 废弃（限流改用框架全局 429），限流实现口径同步为框架固定窗口 |
 | V1.0 | 2026-09-30 | 功能名称统一改为「遗漏分析」 |
+| V1.0 | 2026-09-30 | 移除 `missingPoint.topK` 配置键（遗漏分析不再使用语义检索） |
