@@ -1,7 +1,7 @@
 # 软件测试平台——对话式脑图编辑
 
 **文档版本**：V1.0
-**日期**：2026-09-23
+**日期**：2026-09-30
 **状态**：起草中
 
 ---
@@ -20,5 +20,24 @@
 - `stores/assistantContext.ts`：脑图编辑页 `onMounted/onUnmounted` 注册/注销当前 `{projectId, documentId, selectedNodeId}`，选中节点变化时更新；
 - 助手面板发送消息时读取该 store 注入 `pageContext`；非脑图页仅注入当前 projectId（若在项目内）；
 - system 提示中声明上下文含义（"用户当前正在编辑文档 X，选中节点 Y"），供 LLM 消歧（如"当前用例"指代）。
+
+
+## 3. AI 辅助文档创建
+
+- 触发条件：用户消息包含"新建/增加文档"意图且不在脑图编辑页（`pageContext.documentId` 为空），LLM 调用 `create_document` 写工具；若目标模块不存在，LLM 可先调用 `create_module` 创建模块；
+- `create_document` 工具参数：`projectId`（LLM 从 pageContext 获取）、`moduleName`（按名称在项目模块树中匹配，可选）、`documentName`（必填）、`caseNodes`（初始用例节点数组，每项含 `title` 与 `priority`，可选）；
+- 执行逻辑：复用 `TestCaseDocumentService.createTestCase` 创建文档与根节点；若 `caseNodes` 非空，在根节点下逐条插入 `TestCaseNode`（type=case, aiGenerated=true, version=1）；节点直接写入数据库，不经过 Yjs 通道——新文档无活跃 Yjs 会话，用户首次打开时前端从 REST API 加载完整节点树（见 `57-mindmap-component.md`），Yjs 连接建立后从画布状态初始化；
+- 工具结果返回 `{ documentId, documentName, routePath, createdNodes }`，LLM 据此生成回复并附带文档跳转链接；
+- 用户打开文档后，可继续通过对话式脑图编辑（`translate_minder_command`）补充步骤、前置条件等详细内容——`create_document` 的 `caseNodes` 仅支持标题与优先级，不承载步骤等嵌套结构；
+- 与 AD-3（AI 产出经前端编辑内核挂载）的关系：AD-3 约束的是**已打开文档的脑图节点编辑**，`create_document` 是**文档初始创建**，与 `TestCaseDocumentService.createTestCase` 本身的后端直写文档+根节点一致，不违反 AD-3。
+
+---
+
+## 修改记录
+
+| 版本 | 日期 | 说明 |
+| ---- | ---- | ---- |
+| V1.0 | 2026-09-23 | 初始版本 |
+| V1.0 | 2026-09-30 | 新增第 3 节「AI 辅助文档创建」 |
 
 

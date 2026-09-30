@@ -10,7 +10,7 @@
 | [06-srs-intelligent-case](06-srs-intelligent-case.md)（分册：智能测试用例生成） | V1.0 | 2026-09-23 | 起草中 |
 | [07-srs-ai-review](07-srs-ai-review.md)（分册：AI 辅助评审与覆盖度分析） | V1.0 | 2026-09-23 | 起草中 |
 | [08-srs-bug-ai-analysis](08-srs-bug-ai-analysis.md)（分册：缺陷智能分析与去重） | V1.0 | 2026-09-23 | 起草中 |
-| [09-srs-global-assistant](09-srs-global-assistant.md)（分册：全局智能助手） | V1.0 | 2026-09-23 | 起草中 |
+| [09-srs-global-assistant](09-srs-global-assistant.md)（分册：全局智能助手） | V1.0 | 2026-09-30 | 起草中 |
 | [10-srs-plan-risk](10-srs-plan-risk.md)（分册：测试计划与风险评估） | V1.0 | 2026-09-23 | 起草中 |
 | [11-api-srs-overview](11-api-srs-overview.md)（总览分册） | V1.0 | 2026-09-23 | 起草中 |
 | [12-api-srs-quick-debug](12-api-srs-quick-debug.md)（分册：快速调试） | V1.0 | 2026-09-23 | 起草中 |
