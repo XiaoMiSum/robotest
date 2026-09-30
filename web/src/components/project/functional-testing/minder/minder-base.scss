@@ -37,6 +37,14 @@
   }
 }
 
+/* 评审/计划详情工具条：按钮组水平居中（demo review-detail / plan-detail .mm-bar 基准）；
+   两处工具条只有单个按钮组、无行末命令组，超宽时改由换行承载，
+   避免居中与基础的横向滚动叠加时起始侧按钮被裁切且无法滚动到达 */
+.mindmap-toolbar--center {
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
 /* 工具栏功能域分组：不用 el-button-group 是因为按钮需包 el-tooltip，
    tooltip 包裹会破坏 button-group 的相邻边框合并；
    分组不参与收缩，避免窄容器把按钮压扁 */
