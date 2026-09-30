@@ -100,7 +100,7 @@ public class RequirementServiceImpl implements RequirementService {
         dto.setStatus(item.getStatus());
         dto.setCreatedBy(item.getCreatedBy());
         SysUser creator = userMapper.selectById(item.getCreatedBy());
-        dto.setCreatorName(creator != null ? creator.getUsername() : null);
+        dto.setCreatorName(creator != null ? creator.getName() : null);
         dto.setUpdatedBy(item.getUpdatedBy());
         dto.setCreatedAt(item.getCreatedAt());
         dto.setUpdatedAt(item.getUpdatedAt());

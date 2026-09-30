@@ -62,7 +62,7 @@ public class ProjectServiceImpl implements ProjectService {
                     SysUser creator = userMapper.selectById(p.getCreatedBy());
                     dto.setCreatedBy(projectConvertMapper.toCreatorInfo(
                             creator != null ? creator.getId() : null,
-                            creator != null ? creator.getUsername() : null));
+                            creator != null ? creator.getName() : null));
                     return dto;
                 })
                 .collect(Collectors.toList());
@@ -112,7 +112,7 @@ public class ProjectServiceImpl implements ProjectService {
         SysUser creator = userMapper.selectById(project.getCreatedBy());
         dto.setCreatedBy(projectConvertMapper.toCreatorInfo(
                 creator != null ? creator.getId() : null,
-                creator != null ? creator.getUsername() : null));
+                creator != null ? creator.getName() : null));
         return dto;
     }
 
@@ -170,7 +170,7 @@ public class ProjectServiceImpl implements ProjectService {
         SysUser creator = userMapper.selectById(project.getCreatedBy());
         dto.setCreatedBy(projectConvertMapper.toCreatorInfo(
                 creator != null ? creator.getId() : null,
-                creator != null ? creator.getUsername() : null));
+                creator != null ? creator.getName() : null));
         return dto;
     }
 

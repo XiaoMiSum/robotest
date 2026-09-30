@@ -486,4 +486,26 @@ class WorkspaceServiceImplTest {
         assertEquals(1L, result.getTotal());
         assertEquals(0, result.getList().size());
     }
+
+    @Test
+    void getWorkspaceMembers_fillsDisplayName() {
+        when(workspaceMapper.selectById(workspaceId)).thenReturn(workspace);
+        WorkspaceUser wu = new WorkspaceUser();
+        wu.setUserId(UUID.randomUUID());
+        wu.setWorkspaceRole(Constants.WorkspaceRole.MEMBER_ID);
+        PageResult<WorkspaceUser> page = new PageResult<>(List.of(wu), 1L);
+        doReturn(page).when(workspaceUserMapper).findPageByWorkspaceId(any(PageParam.class), eq(workspaceId));
+        SysUser user = new SysUser();
+        user.setId(wu.getUserId());
+        user.setUsername("tester");
+        user.setName("张三");
+        when(userMapper.selectById(wu.getUserId())).thenReturn(user);
+
+        PageResult<WorkspaceMemberRespDTO> result = workspaceService.getWorkspaceMembers(workspaceId, 1, 20);
+
+        assertEquals(1, result.getList().size());
+        WorkspaceMemberRespDTO dto = result.getList().get(0);
+        assertEquals("tester", dto.getUsername());
+        assertEquals("张三", dto.getName());
+    }
 }

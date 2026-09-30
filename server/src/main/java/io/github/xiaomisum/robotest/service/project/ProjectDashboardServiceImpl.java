@@ -99,7 +99,7 @@ public class ProjectDashboardServiceImpl implements ProjectDashboardService {
                 .collect(Collectors.toList());
         Map<UUID, String> nameMap = assigneeIds.isEmpty() ? Map.of() :
                 userMapper.listByIds(assigneeIds)
-                        .stream().collect(Collectors.toMap(SysUser::getId, SysUser::getUsername));
+                        .stream().collect(Collectors.toMap(SysUser::getId, SysUser::getName));
 
         dto.setRecentBugs(recentBugs.stream().map(b -> {
             ProjectDashboardRespDTO.RecentBugItem item = projectDashboardConvertMapper.toRecentBugItem(b);
