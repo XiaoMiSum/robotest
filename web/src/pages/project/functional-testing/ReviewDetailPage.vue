@@ -50,7 +50,6 @@ const {
   refreshProgress,
   openCheck,
   handleCheckLocate,
-  router,
   authStore,
   aiStore,
 } = useReviewDetail({ reviewId })
@@ -62,100 +61,99 @@ const statusText = computed(() => reviewStatusLabel(detail.value?.status ?? ''))
 
 <template>
   <div v-loading="loading" class="review-detail">
-    <el-page-header
-      class="review-detail__page-header"
-      @back="router.push('/workspace/projects/functional-testing?tab=reviews')"
-    >
-      <template #content>
-        <div class="review-detail__header">
-          <span class="review-detail__title">{{ detail?.title ?? '评审详情' }}</span>
-          <el-tag v-if="detail" :type="statusMeta.tagType" size="small" effect="light" round>
-            {{ statusText }}
-          </el-tag>
-        </div>
-      </template>
-      <template #extra>
-        <div class="review-detail__extra">
-          <div v-if="progress" class="review-detail__progress-row">
-            <el-progress
-              class="review-detail__progress"
-              :percentage="progress.progressPercent"
-              :stroke-width="8"
-            />
-            <div class="review-detail__stats">
-              <span class="review-detail__stat review-detail__stat--pass"
-                >通过 {{ progress.passed }}</span
-              >
-              <span class="review-detail__stat review-detail__stat--fail"
-                >不通过 {{ progress.failed }}</span
-              >
-              <span class="review-detail__stat review-detail__stat--pending"
-                >待评审 {{ progress.pending }}</span
-              >
-              <span class="review-detail__stat">共 {{ progress.totalAssociated }}</span>
-            </div>
-          </div>
-          <!-- 活跃态操作组：调整/同步/驳回/完成，终态收起（交互设计 07 §1.2） -->
-          <div v-if="detail && isActiveReview(detail.status)" class="review-detail__actions">
-            <el-button v-if="aiStore.aiEnabled" size="small" plain @click="openRecommend">
-              <el-icon><MagicStick /></el-icon>AI 推荐用例
-            </el-button>
-            <el-button size="small" plain @click="openCaseSelector">
-              <el-icon><EditPen /></el-icon>调整用例
-            </el-button>
-            <el-button size="small" plain @click="handleSync">
-              <el-icon><Refresh /></el-icon>同步用例
-            </el-button>
-            <el-button size="small" type="danger" plain @click="handleReject">
-              <el-icon><CircleClose /></el-icon>驳回
-            </el-button>
-            <el-tooltip
-              :disabled="canComplete"
-              content="全部用例评审通过后才能完成评审"
-              placement="bottom"
+    <div class="review-detail__breadcrumb">
+      <router-link to="/workspace/projects/functional-testing?tab=reviews">测试评审</router-link>
+      <el-icon :size="12"><ArrowRight /></el-icon>
+      <span>{{ detail?.title ?? '评审详情' }}</span>
+    </div>
+
+    <div class="review-detail__head">
+      <div class="review-detail__head-left">
+        <span class="review-detail__title">{{ detail?.title ?? '评审详情' }}</span>
+        <el-tag v-if="detail" :type="statusMeta.tagType" size="small" effect="light" round>
+          {{ statusText }}
+        </el-tag>
+      </div>
+      <div class="review-detail__extra">
+        <div v-if="progress" class="review-detail__progress-row">
+          <el-progress
+            class="review-detail__progress"
+            :percentage="progress.progressPercent"
+            :stroke-width="8"
+          />
+          <div class="review-detail__stats">
+            <span class="review-detail__stat review-detail__stat--pass"
+              >通过 {{ progress.passed }}</span
             >
-              <span>
-                <el-button
-                  size="small"
-                  type="primary"
-                  :disabled="!canComplete"
-                  @click="handleComplete"
-                >
-                  <el-icon><CircleCheck /></el-icon>完成评审
-                </el-button>
-              </span>
-            </el-tooltip>
-          </div>
-          <!-- 已驳回：仅发起人可见，重新发起后回到进行中 -->
-          <div
-            v-else-if="detail && detail.status === 'rejected' && detail.initiator.id === authStore.user?.id"
-            class="review-detail__actions"
-          >
-            <el-button size="small" type="primary" @click="handleReopen">
-              <el-icon><RefreshLeft /></el-icon>重新发起
-            </el-button>
-          </div>
-          <!-- AI 一键检查：仅发起人可见；活跃态可发起，终态只读查看历史结果 -->
-          <div v-if="canShowCheck" class="review-detail__actions">
-            <el-button size="small" plain @click="openCheck">
-              <el-icon><MagicStick /></el-icon>AI 一键检查
-            </el-button>
-          </div>
-          <!-- AI 生成摘要：评审已通过（completed）后展示，与活跃态操作组互斥（仅发起人可见） -->
-          <div v-if="canShowSummary" class="review-detail__actions">
-            <el-button size="small" type="primary" plain @click="summaryVisible = true">
-              <el-icon><MagicStick /></el-icon>AI 生成摘要
-            </el-button>
-          </div>
-          <!-- AI 评审结论：评审已通过后展示（自动结论随完成事件落库，此处可手动触发/重新生成） -->
-          <div v-if="canShowConclusion" class="review-detail__actions">
-            <el-button size="small" plain @click="conclusionVisible = true">
-              <el-icon><MagicStick /></el-icon>AI 评审结论
-            </el-button>
+            <span class="review-detail__stat review-detail__stat--fail"
+              >不通过 {{ progress.failed }}</span
+            >
+            <span class="review-detail__stat review-detail__stat--pending"
+              >待评审 {{ progress.pending }}</span
+            >
+            <span class="review-detail__stat">共 {{ progress.totalAssociated }}</span>
           </div>
         </div>
-      </template>
-    </el-page-header>
+        <!-- 活跃态操作组：调整/同步/驳回/完成，终态收起（交互设计 07 §1.2） -->
+        <div v-if="detail && isActiveReview(detail.status)" class="review-detail__actions">
+          <el-button v-if="aiStore.aiEnabled" size="small" plain @click="openRecommend">
+            <el-icon><MagicStick /></el-icon>AI 推荐用例
+          </el-button>
+          <el-button size="small" plain @click="openCaseSelector">
+            <el-icon><EditPen /></el-icon>调整用例
+          </el-button>
+          <el-button size="small" plain @click="handleSync">
+            <el-icon><Refresh /></el-icon>同步用例
+          </el-button>
+          <el-button size="small" type="danger" plain @click="handleReject">
+            <el-icon><CircleClose /></el-icon>驳回
+          </el-button>
+          <el-tooltip
+            :disabled="canComplete"
+            content="全部用例评审通过后才能完成评审"
+            placement="bottom"
+          >
+            <span>
+              <el-button
+                size="small"
+                type="primary"
+                :disabled="!canComplete"
+                @click="handleComplete"
+              >
+                <el-icon><CircleCheck /></el-icon>完成评审
+              </el-button>
+            </span>
+          </el-tooltip>
+        </div>
+        <!-- 已驳回：仅发起人可见，重新发起后回到进行中 -->
+        <div
+          v-else-if="detail && detail.status === 'rejected' && detail.initiator.id === authStore.user?.id"
+          class="review-detail__actions"
+        >
+          <el-button size="small" type="primary" @click="handleReopen">
+            <el-icon><RefreshLeft /></el-icon>重新发起
+          </el-button>
+        </div>
+        <!-- AI 一键检查：仅发起人可见；活跃态可发起，终态只读查看历史结果 -->
+        <div v-if="canShowCheck" class="review-detail__actions">
+          <el-button size="small" plain @click="openCheck">
+            <el-icon><MagicStick /></el-icon>AI 一键检查
+          </el-button>
+        </div>
+        <!-- AI 生成摘要：评审已通过（completed）后展示，与活跃态操作组互斥（仅发起人可见） -->
+        <div v-if="canShowSummary" class="review-detail__actions">
+          <el-button size="small" type="primary" plain @click="summaryVisible = true">
+            <el-icon><MagicStick /></el-icon>AI 生成摘要
+          </el-button>
+        </div>
+        <!-- AI 评审结论：评审已通过后展示（自动结论随完成事件落库，此处可手动触发/重新生成） -->
+        <div v-if="canShowConclusion" class="review-detail__actions">
+          <el-button size="small" plain @click="conclusionVisible = true">
+            <el-icon><MagicStick /></el-icon>AI 评审结论
+          </el-button>
+        </div>
+      </div>
+    </div>
 
     <ReviewAiSummary v-if="summaryVisible" v-model="summaryVisible" :review-id="reviewId" />
 
@@ -227,33 +225,50 @@ const statusText = computed(() => reviewStatusLabel(detail.value?.status ?? ''))
   overflow: hidden;
 }
 
-// 标题行用白底卡片化横条承载，与下方脑图卡片视觉统一
-.review-detail__page-header {
+// 面包屑对齐演示稿基准（xs 灰字、链接 hover 主色、分隔符浅灰）
+.review-detail__breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: var(--space-sm);
+  font-size: var(--font-size-xs);
+  color: var(--color-neutral-500);
   flex-shrink: 0;
+
+  a {
+    color: var(--color-neutral-500);
+    text-decoration: none;
+  }
+
+  a:hover {
+    color: var(--color-primary-500);
+  }
+
+  .el-icon {
+    color: var(--color-neutral-400);
+  }
+}
+
+// 标题行用白底卡片化横条承载，与下方脑图卡片视觉统一
+.review-detail__head {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-lg);
   padding: var(--space-sm) var(--space-md);
   background: var(--color-neutral-0);
   border: 1px solid var(--color-neutral-200);
   border-radius: var(--radius-lg);
-
-  // 左侧标题/元信息区可伸缩，窗口变窄时优先裁剪标题而非挤压右侧操作区
-  :deep(.el-page-header__left) {
-    flex: 1;
-    min-width: 0;
-    margin-right: var(--space-lg);
-  }
-
-  :deep(.el-page-header__content) {
-    flex: 1;
-    min-width: 0;
-    overflow: hidden;
-  }
 }
 
-.review-detail__header {
+// 左侧标题/元信息区可伸缩，窗口变窄时优先裁剪标题而非挤压右侧操作区
+.review-detail__head-left {
   display: flex;
   align-items: center;
   gap: var(--space-sm);
   min-width: 0;
+  flex: 1;
+  overflow: hidden;
 }
 
 .review-detail__title {
