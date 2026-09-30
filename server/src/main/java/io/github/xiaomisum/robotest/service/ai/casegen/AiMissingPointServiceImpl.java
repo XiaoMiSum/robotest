@@ -101,7 +101,7 @@ public class AiMissingPointServiceImpl implements AiMissingPointService {
                         KEYWORD_TASK_INSTRUCTION, "【需求描述】", requirementData);
         // 3. 候选检索 + 4. LLM 比对（4.3）
         ComparisonContext comparison = buildComparisonData(requirementData, retrieveCandidates(projectId, keywords));
-        AiCallContext context = new AiCallContext(userId, workspaceId, projectId);
+        AiCallContext context = new AiCallContext(userId, workspaceId, projectId, reqDTO.getModelId());
         MissingPointOut out = aiGatewayService.completeStructured(
                 context,
                 AiFunctionType.MISSING_POINT_ANALYSIS,

@@ -24,4 +24,7 @@ public class AiMissingPointReqDTO {
     /** 需求池条目（US-AI-004），可空；与 keywords/text 至少一项非空 */
     @Size(max = 100, message = "需求条目数量不能超过 100")
     private List<UUID> requirementIds;
+
+    /** 对话模型，可空；空则走系统默认（交互设计 56 §1.2 选择模型） */
+    private UUID modelId;
 }
