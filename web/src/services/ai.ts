@@ -93,6 +93,8 @@ export interface AiMissingPointReq {
   text?: string
   /** 需求池条目 ID 列表 */
   requirementIds?: string[]
+  /** 对话模型，可空；空则走系统默认（交互设计 56 §1.2 选择模型） */
+  modelId?: string
 }
 
 /** 发起遗漏测试点分析（3.3 同步长调用）：返回 AbortController 供 [取消] 中止请求 */
