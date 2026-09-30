@@ -71,9 +71,9 @@ function goMyWorkspaces() {
         <el-dropdown trigger="click" @command="handleUserCommand">
           <span class="admin-layout__user">
             <el-avatar :size="30" :src="authStore.avatarUrl || undefined">
-              {{ authStore.username?.charAt(0)?.toUpperCase() }}
+              {{ authStore.avatarChar }}
             </el-avatar>
-            <span class="admin-layout__username">{{ authStore.username }}</span>
+            <span class="admin-layout__username">{{ authStore.displayName }}</span>
             <el-icon class="admin-layout__user-arrow"><ArrowDown /></el-icon>
           </span>
           <template #dropdown>

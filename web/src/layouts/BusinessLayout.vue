@@ -166,9 +166,9 @@ function handleUserCommand(cmd: string) {
         <el-dropdown trigger="click" @command="handleUserCommand">
           <div class="top-nav__user">
             <el-avatar :size="30" :src="authStore.avatarUrl || undefined">
-              {{ authStore.username?.charAt(0)?.toUpperCase() }}
+              {{ authStore.avatarChar }}
             </el-avatar>
-            <span class="top-nav__username">{{ authStore.username }}</span>
+            <span class="top-nav__username">{{ authStore.displayName }}</span>
           </div>
           <template #dropdown>
             <el-dropdown-menu>

@@ -29,6 +29,7 @@ export interface LoginResult {
 export interface LoginUser {
   id: string
   username: string
+  name?: string
   email: string
   avatarUrl?: string
   status: string
