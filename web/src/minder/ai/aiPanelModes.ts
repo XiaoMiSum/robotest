@@ -33,6 +33,10 @@ export interface AiPanelModeConfig {
   countLabel: string
   /** 完成态输出区提示文字：进度条完成态不显示，以文字替代（交互设计 2.2） */
   doneTipMessage: string
+  /** 进行中文案：头部进行中徽标与操作行阶段秒表共用（交互设计 45 §2.9） */
+  inProgressLabel: string
+  /** 调用进行中关闭抽屉的后台继续提示（交互设计 45 §2.9 进行中关闭） */
+  runningCloseHint: string
   /** 生成结果为空时的提示文案 */
   emptyResultMessage: string
   buildBody(context: AiPanelBodyContext): Record<string, unknown>
@@ -50,6 +54,8 @@ export const AI_PANEL_MODES: Record<AiPanelMode, AiPanelModeConfig> = {
     previewTitle: '生成结果预览',
     countLabel: '个用例',
     doneTipMessage: '生成完成，点击「查看预览」在脑图中核对并勾选取舍',
+    inProgressLabel: '生成中',
+    runningCloseHint: '生成在后台继续，重新打开可查看结果',
     emptyResultMessage: 'AI 未生成任何用例，请补充需求描述后重试',
     buildBody: ({ docId, targetNodeId, text, modelId, requirementIds }) => ({
       documentId: docId,
@@ -70,6 +76,8 @@ export const AI_PANEL_MODES: Record<AiPanelMode, AiPanelModeConfig> = {
     previewTitle: '补全结果预览',
     countLabel: '项',
     doneTipMessage: '补全完成，点击「查看预览」在脑图中核对并勾选取舍',
+    inProgressLabel: '补全中',
+    runningCloseHint: '补全在后台继续，重新打开可查看结果',
     emptyResultMessage: '既有前置/步骤/预期已完整，无需补全',
     buildBody: ({ docId, targetNodeId, text, modelId, requirementIds }) => ({
       documentId: docId,
