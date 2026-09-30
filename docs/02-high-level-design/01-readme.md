@@ -6,7 +6,7 @@
 | [03-hld-system-management](03-hld-system-management.md)（分册：系统管理模块） | V1.0 | 2026-09-23 | 起草中 |
 | [04-hld-core-mechanisms](04-hld-core-mechanisms.md)（分册：业务功能核心机制） | V1.0 | 2026-09-23 | 起草中 |
 | [05-hld-ai-capabilities](05-hld-ai-capabilities.md)（分册：AI 能力域） | V1.0 | 2026-09-23 | 起草中 |
-| [06-hld-global-assistant](06-hld-global-assistant.md)（分册：全局智能助手） | V1.0 | 2026-09-23 | 起草中 |
+| [06-hld-global-assistant](06-hld-global-assistant.md)（分册：全局智能助手） | V1.0 | 2026-09-30 | 起草中 |
 | [07-hld-data-interface](07-hld-data-interface.md)（分册：数据与接口设计） | V1.0 | 2026-09-23 | 起草中 |
 | [08-hld-deployment-security](08-hld-deployment-security.md)（分册：部署、安全与设计约束） | V1.0 | 2026-09-23 | 起草中 |
 
