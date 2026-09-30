@@ -92,7 +92,7 @@ public class AiAssistantChatServiceImpl implements AiAssistantChatService {
     public SseEmitter sendMessage(UUID userId, UUID workspaceId, UUID conversationId,
                                   AiAssistantSendReqDTO reqDTO) {
         // 1. 校验会话归属
-        AiConversation conversation = requireOwned(userId, workspaceId, conversationId);
+        requireOwned(userId, workspaceId, conversationId);
         // 2. 落库用户消息 + 自动更名 + 触碰 lastActiveAt
         conversationService.appendUserMessage(conversationId, reqDTO.getContent());
         // 3. 限流检查（按 assistant_chat 记一次）
@@ -181,7 +181,6 @@ public class AiAssistantChatServiceImpl implements AiAssistantChatService {
                             // 写工具 → 生成确认令牌，中断本轮循环
                             writeToolEncountered = true;
                             writeToolCall = tc;
-                            AiToolContext toolCtx = new AiToolContext(userId, workspaceId, reqDTO.getPageContext());
                             confirmTokenForWrite = confirmTokenService.issue(
                                     userId, workspaceId, conversationId,
                                     assistantMsgId, tc.id(), tc.name(), tc.arguments());
@@ -413,7 +412,7 @@ public class AiAssistantChatServiceImpl implements AiAssistantChatService {
         List<String> writeWhitelist = aiConfigService.getMergedSettings()
                 .getOrDefault("assistantWriteToolWhitelist", List.of()) instanceof List<?> l
                 ? l.stream().filter(String.class::isInstance).map(String.class::cast).toList()
-                : List.of("create_bug", "create_plan_draft");
+                : List.of("create_bug", "create_plan_draft", "create_document", "create_module");
 
         List<ToolDefinition> defs = new ArrayList<>();
         for (AiTool tool : toolRegistry.all()) {
@@ -462,6 +461,8 @@ public class AiAssistantChatServiceImpl implements AiAssistantChatService {
             case "get_platform_guide" -> "查询平台使用指引";
             case "create_bug" -> "创建缺陷: " + args.getOrDefault("title", "");
             case "create_plan_draft" -> "创建计划草稿: " + args.getOrDefault("name", "");
+            case "create_document" -> "创建用例文档: " + args.getOrDefault("documentName", "");
+            case "create_module" -> "创建模块: " + args.getOrDefault("moduleName", "");
             case "translate_minder_command" -> "脑图指令翻译";
             default -> "执行 " + toolName;
         };
