@@ -37,29 +37,31 @@
   .upload em { font-style: normal; color: var(--brand-500); }
   .upload:hover em { color: var(--brand-600); }
 
-  .form-footer {
-    position: sticky; bottom: 0; z-index: 10;
-    display: flex; justify-content: center; gap: var(--space-md);
-    margin-top: var(--block-gap);
-    padding: var(--space-md) 0;
-    background: transparent;
-    pointer-events: none;
+  /* 顶栏：面包屑与提交操作同行，操作区复用 page-head__actions */
+  .page-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-md);
+    margin-bottom: var(--block-gap);
   }
-  .form-footer .btn { pointer-events: auto; box-shadow: var(--shadow-md); }
+  .page-topbar .breadcrumb { margin-bottom: 0; }
 </style>
 </head>
 <body data-shell="business" data-mode="project" data-active="bugs" data-workspace="质量中台" data-project="电商核心系统">
 
 <main class="content">
 
-  <div class="breadcrumb">
-    <a href="bugs.html">缺陷管理</a>
-    <span data-icon="chevron-right"></span>
-    <span>提交缺陷</span>
-  </div>
-
-  <div class="page-head">
-    <h1 class="page-head__title">提交缺陷</h1>
+  <div class="page-topbar">
+    <div class="breadcrumb">
+      <a href="bugs.html">缺陷管理</a>
+      <span data-icon="chevron-right"></span>
+      <span>提交缺陷</span>
+    </div>
+    <div class="page-head__actions">
+      <a class="btn btn--default" href="bugs.html">取消</a>
+      <button class="btn btn--primary" type="button">提交缺陷</button>
+    </div>
   </div>
 
   <div class="card-grid" style="grid-template-columns: minmax(0, 1fr) 320px; align-items:start">
@@ -194,11 +196,6 @@
         </div>
       </div>
     </div>
-  </div>
-
-  <div class="form-footer">
-    <a class="btn btn--default" href="bugs.html">取消</a>
-    <button class="btn btn--primary" type="button">提交缺陷</button>
   </div>
 
 </main>
