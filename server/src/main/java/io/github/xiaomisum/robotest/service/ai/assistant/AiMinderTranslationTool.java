@@ -74,7 +74,7 @@ public class AiMinderTranslationTool implements AiTool {
     public AiToolDefinition definition() {
         return new AiToolDefinition(
                 TOOL_NAME,
-                "将用户的自然语言编辑意图翻译为脑图 DSL 指令序列。当用户希望在脑图中新增、修改、移动、删除节点时调用此工具。",
+                "将用户的自然语言编辑意图翻译为脑图 DSL 指令序列。当用户在脑图编辑页希望新增、修改、移动节点时调用此工具（需要文档上下文 documentId）。若用户尚未打开文档或希望新建文档，请改用 create_document 工具。",
                 ToolSchema.object(List.of(
                         ToolSchema.string("instruction", "用户的自然语言编辑指令，必填")),
                         List.of("instruction")),
