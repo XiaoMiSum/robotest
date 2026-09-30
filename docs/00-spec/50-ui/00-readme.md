@@ -18,13 +18,15 @@
 | [02-page-development](02-page-development.md) | 大页面、小组件、状态归属和数据流 | 已发布 |
 | [03-scroll-container](03-scroll-container.md) | 滚动容器、滚动拥有者、滚动条和表格容器间距 | 已发布 |
 | [04-style-exceptions](04-style-exceptions.md) | UI-DS-09 组件覆盖例外登记与扫描基线 | 起草中 |
+| [05-breadcrumb](05-breadcrumb.md) | 详情页面包屑的结构、视觉基准与回退交互 | 起草中 |
 
 ## 3. 阅读顺序
 
 1. 先阅读 `01-frontend-design.md`，确认通用视觉、状态和可访问性要求；
 2. 新页面和页面重构阅读 `02-page-development.md`；
 3. 涉及固定区域、长列表或表格时阅读 `03-scroll-container.md`；
-4. 代码审查涉及组件样式覆盖时核对 `04-style-exceptions.md` 登记与基线。
+4. 详情、编辑类页面的页头导航阅读 `05-breadcrumb.md`；
+5. 代码审查涉及组件样式覆盖时核对 `04-style-exceptions.md` 登记与基线。
 
 ## 4. 维护规则
 
