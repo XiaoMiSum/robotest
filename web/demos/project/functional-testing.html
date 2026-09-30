@@ -197,8 +197,6 @@
   .ai-resume [data-icon] { display: inline-flex; flex-shrink: 0; color: var(--n-400); }
   .ai-resume [data-icon] svg { width: 14px; height: 14px; }
   .ai-resume .btn { margin-left: auto; }
-  /* 完成态结果摘要清单：抽屉内速览用例标题，勾选取舍仍在预览弹窗（49 §1.2） */
-  .ai-summary { margin: 0; padding-left: 18px; font-size: var(--font-size-sm); color: var(--n-700); }
   .ai-progress__bar {
     position: absolute; top: 0; bottom: 0; width: 38%;
     border-radius: 999px; background: var(--brand-500);
@@ -218,7 +216,7 @@
   .ai-check { display: inline-flex; align-items: center; gap: 7px; font-size: var(--font-size-sm); color: var(--n-700); cursor: pointer; }
   .ai-check input { width: 14px; height: 14px; margin: 0; accent-color: var(--brand-500); cursor: pointer; }
   .ai-list { display: flex; flex-direction: column; gap: 8px; }
-  .ai-item { align-items: flex-start; padding: 10px 12px; border: 1px solid var(--n-200); border-radius: var(--radius-lg); background: var(--n-0); }
+  .ai-item { display: flex; align-items: flex-start; padding: 10px 12px; border: 1px solid var(--n-200); border-radius: var(--radius-lg); background: var(--n-0); }
   .ai-item__body { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
   .ai-item__title { font-size: var(--font-size-sm); font-weight: 600; color: var(--n-800); }
   .ai-item__desc { font-size: var(--font-size-xs); color: var(--n-600); line-height: 1.6; }
@@ -512,7 +510,7 @@
     <div class="ai-output" id="aiOutput" hidden>
       <div class="alert alert--warning" id="aiWarn" hidden><span data-icon="alert-triangle" aria-hidden="true"></span><span>上下文超出长度限制，已截断末尾内容，覆盖范围可能不完整</span></div>
       <div class="alert alert--success"><span data-icon="check-circle" aria-hidden="true"></span><span id="aiDoneTip">生成完成，点击「查看预览」在脑图中核对并勾选取舍</span></div>
-      <ul class="ai-summary" id="aiSummary" hidden></ul>
+      <div class="ai-list" id="aiSummary" hidden></div>
     </div>
   </div>
 </aside>
@@ -944,9 +942,16 @@
       }
       S.aiPhase = 'done'
       renderAi()
-      // 完成态内嵌结果摘要：抽屉内速览用例标题，勾选取舍仍在预览弹窗（49 §1.2）
+      // 完成态结果卡片：标题 + 优先级标签 + 步骤摘要，只读无勾选框，勾选取舍仍在预览弹窗（49 §1.2）
       if (S.mode === 'generate') {
-        $('aiSummary').innerHTML = GEN_NODES.map(function (n) { return '<li>' + escapeHtml(n.title) + '</li>' }).join('')
+        $('aiSummary').innerHTML = GEN_NODES.map(function (n) {
+          var steps = n.kids.filter(function (k) { return k.type === 'step' }).map(function (k) { return k.text }).join('；')
+          return '<div class="ai-item"><div class="ai-item__body">' +
+            '<span class="ai-item__title">' + escapeHtml(n.title) + '</span>' +
+            '<span class="ai-item__tags"><span class="tag tag--outline">' + n.prio + '</span></span>' +
+            (steps ? '<span class="ai-item__desc">' + escapeHtml(steps) + '</span>' : '') +
+            '</div></div>'
+        }).join('')
       }
     }
 
