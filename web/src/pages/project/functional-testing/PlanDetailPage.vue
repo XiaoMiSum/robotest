@@ -41,7 +41,6 @@ const {
   handleOrderLocate,
   handleOrderResult,
   handleOrderSelect,
-  router,
   aiStore,
 } = usePlanDetail({ planId })
 
@@ -53,87 +52,87 @@ const canResume = computed(() => canResumePlan(detail.value?.status ?? ''))
 
 <template>
   <div v-loading="loading" class="plan-detail">
-    <el-page-header
-      class="plan-detail__page-header"
-      @back="router.push('/workspace/projects/functional-testing?tab=plans')"
-    >
-      <template #content>
-        <div class="plan-detail__header">
-          <span class="plan-detail__title">{{ detail?.name ?? '计划详情' }}</span>
-          <el-tag
-            v-if="detail"
-            :type="planStatusMeta(detail.status).tagType"
+    <div class="plan-detail__breadcrumb">
+      <router-link to="/workspace/projects/functional-testing?tab=plans">测试计划</router-link>
+      <el-icon :size="12"><ArrowRight /></el-icon>
+      <span>{{ detail?.name ?? '计划详情' }}</span>
+    </div>
+
+    <div class="plan-detail__head">
+      <div class="plan-detail__head-left">
+        <span class="plan-detail__title">{{ detail?.name ?? '计划详情' }}</span>
+        <el-tag
+          v-if="detail"
+          :type="planStatusMeta(detail.status).tagType"
+          size="small"
+          effect="light"
+          round
+        >{{ statusText }}</el-tag>
+      </div>
+      <div class="plan-detail__extra">
+        <div v-if="progress" class="plan-detail__progress-row">
+          <el-progress
+            class="plan-detail__progress"
+            :percentage="progress.progressPercent"
+            :stroke-width="8"
+          />
+          <div class="plan-detail__stats">
+            <span class="plan-detail__stat plan-detail__stat--pass"
+              >通过 {{ progress.passed }}</span
+            >
+            <span class="plan-detail__stat plan-detail__stat--fail"
+              >失败 {{ progress.failed }}</span
+            >
+            <span class="plan-detail__stat plan-detail__stat--blocked"
+              >阻塞 {{ progress.blocked }}</span
+            >
+            <span class="plan-detail__stat">待执行 {{ progress.untested }}</span
+            >
+            <span class="plan-detail__stat">共 {{ progress.totalAssociated }}</span>
+          </div>
+        </div>
+        <div v-if="detail" class="plan-detail__actions">
+          <el-button
+            v-if="aiStore.aiEnabled && canAdjustCases"
             size="small"
-            effect="light"
-            round
-          >{{ statusText }}</el-tag>
+            plain
+            @click="openRecommend"
+          >
+            <el-icon><MagicStick /></el-icon>AI 推荐用例
+          </el-button>
+          <el-button v-if="canAdjustCases" size="small" plain @click="openCaseSelector">
+            <el-icon><EditPen /></el-icon>调整用例
+          </el-button>
+          <el-button v-if="canAdjustCases" size="small" plain @click="handleSync">
+            <el-icon><Refresh /></el-icon>同步用例
+          </el-button>
+          <el-button
+            v-if="canBlock"
+            size="small"
+            plain
+            @click="handleBlock"
+          >
+            <el-icon><VideoPause /></el-icon>阻塞
+          </el-button>
+          <el-button
+            v-if="canResume"
+            size="small"
+            plain
+            @click="handleResume"
+          >
+            <el-icon><VideoPlay /></el-icon>恢复
+          </el-button>
+          <el-button
+            v-if="detail.status === 'new' || detail.status === 'in_progress'"
+            size="small"
+            type="primary"
+            @click="handleComplete"
+          >
+            <el-icon><CircleCheck /></el-icon>完成执行
+          </el-button>
         </div>
-      </template>
-      <template #extra>
-        <div class="plan-detail__extra">
-          <div v-if="progress" class="plan-detail__progress-row">
-            <el-progress
-              class="plan-detail__progress"
-              :percentage="progress.progressPercent"
-              :stroke-width="8"
-            />
-            <div class="plan-detail__stats">
-              <span class="plan-detail__stat plan-detail__stat--pass"
-                >通过 {{ progress.passed }}</span
-              >
-              <span class="plan-detail__stat plan-detail__stat--fail"
-                >失败 {{ progress.failed }}</span
-              >
-              <span class="plan-detail__stat plan-detail__stat--blocked"
-                >阻塞 {{ progress.blocked }}</span
-              >
-              <span class="plan-detail__stat">待执行 {{ progress.untested }}</span>
-              <span class="plan-detail__stat">共 {{ progress.totalAssociated }}</span>
-            </div>
-          </div>
-          <div v-if="detail" class="plan-detail__actions">
-            <el-button
-              v-if="aiStore.aiEnabled && canAdjustCases"
-              size="small"
-              plain
-              @click="openRecommend"
-            >
-              <el-icon><MagicStick /></el-icon>AI 推荐用例
-            </el-button>
-            <el-button v-if="canAdjustCases" size="small" plain @click="openCaseSelector">
-              <el-icon><EditPen /></el-icon>调整用例
-            </el-button>
-            <el-button v-if="canAdjustCases" size="small" plain @click="handleSync">
-              <el-icon><Refresh /></el-icon>同步用例
-            </el-button>
-            <el-button
-              v-if="canBlock"
-              size="small"
-              plain
-              @click="handleBlock"
-            >
-              <el-icon><VideoPause /></el-icon>阻塞
-            </el-button>
-            <el-button
-              v-if="canResume"
-              size="small"
-              plain
-              @click="handleResume"
-            >
-              <el-icon><VideoPlay /></el-icon>恢复
-            </el-button>
-            <el-button
-              v-if="detail.status === 'new' || detail.status === 'in_progress'"
-              size="small"
-              type="primary"
-              @click="handleComplete"
-            >
-              <el-icon><CircleCheck /></el-icon>完成执行
-            </el-button>
-          </div>
-        </div>
-      </template>
-    </el-page-header>
+      </div>
+    </div>
 
     <!-- 计划详情标签：执行记录（默认）与执行顺序推荐（交互设计 5.1）；推荐标签仅计划负责人/执行人可见 -->
     <!-- el-tabs 无 extra 插槽（Element Plus 已移除该插槽），计算按钮改由外层容器绝对定位于标签栏右侧同行（交互设计 5.1 布局） -->
@@ -210,33 +209,50 @@ const canResume = computed(() => canResumePlan(detail.value?.status ?? ''))
   overflow: hidden;
 }
 
-// 标题行用白底卡片化横条承载，与下方脑图卡片视觉统一
-.plan-detail__page-header {
+// 面包屑对齐演示稿基准（xs 灰字、链接 hover 主色、分隔符浅灰）
+.plan-detail__breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: var(--space-sm);
+  font-size: var(--font-size-xs);
+  color: var(--color-neutral-500);
   flex-shrink: 0;
+
+  a {
+    color: var(--color-neutral-500);
+    text-decoration: none;
+  }
+
+  a:hover {
+    color: var(--color-primary-500);
+  }
+
+  .el-icon {
+    color: var(--color-neutral-400);
+  }
+}
+
+// 标题行用白底卡片化横条承载，与下方脑图卡片视觉统一
+.plan-detail__head {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-lg);
   padding: var(--space-sm) var(--space-md);
   background: var(--color-neutral-0);
   border: 1px solid var(--color-neutral-200);
   border-radius: var(--radius-lg);
-
-  // 左侧标题/元信息区可伸缩，窗口变窄时优先裁剪标题而非挤压右侧操作区
-  :deep(.el-page-header__left) {
-    flex: 1;
-    min-width: 0;
-    margin-right: var(--space-lg);
-  }
-
-  :deep(.el-page-header__content) {
-    flex: 1;
-    min-width: 0;
-    overflow: hidden;
-  }
 }
 
-.plan-detail__header {
+// 左侧标题/元信息区可伸缩，窗口变窄时优先裁剪标题而非挤压右侧操作区
+.plan-detail__head-left {
   display: flex;
   align-items: center;
   gap: var(--space-sm);
   min-width: 0;
+  flex: 1;
+  overflow: hidden;
 }
 
 .plan-detail__title {
