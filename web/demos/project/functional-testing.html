@@ -517,11 +517,11 @@
   </div>
 </aside>
 
-<!-- 遗漏测试点分析抽屉 -->
+<!-- 遗漏分析抽屉 -->
 <aside class="ai-drawer" id="mpDrawer" role="dialog" aria-labelledby="mpTitle" hidden>
   <div class="ai-drawer__resize" id="mpResize" role="separator" aria-label="拖拽调整抽屉宽度" title="拖拽调整宽度"></div>
   <header class="ai-drawer__head">
-    <span class="ai-drawer__title" id="mpTitle"><span data-icon="sparkle" aria-hidden="true"></span>遗漏测试点分析<span class="ai-busy" id="mpBusy" hidden><span class="ai-spin" aria-hidden="true"></span>分析中</span></span>
+    <span class="ai-drawer__title" id="mpTitle"><span data-icon="sparkle" aria-hidden="true"></span>遗漏分析<span class="ai-busy" id="mpBusy" hidden><span class="ai-spin" aria-hidden="true"></span>分析中</span></span>
     <button class="ai-icon-btn" type="button" id="mpClose" aria-label="关闭面板" title="关闭"><span data-icon="x" aria-hidden="true"></span></button>
   </header>
   <div class="ai-drawer__body">
@@ -1051,7 +1051,7 @@
       })
     }
 
-    /* ---------------- 遗漏测试点分析抽屉 ---------------- */
+    /* ---------------- 遗漏分析抽屉 ---------------- */
     function openMp() {
       // 关闭时焦点归还的触发按钮（45 §2.9）
       if (document.activeElement && document.activeElement !== document.body && !mpDrawer.contains(document.activeElement)) {
@@ -1180,7 +1180,7 @@
 
     function transferMp() {
       var picked = MP_POINTS.filter(function (_, i) { return S.mpChecked[i] })
-      var text = '遗漏测试点转用例生成（来源：遗漏测试点分析）：\n' +
+      var text = '遗漏测试点转用例生成（来源：遗漏分析）：\n' +
         picked.map(function (p) { return '- ' + p.title + '（建议归属：' + p.module + '）' }).join('\n')
       // 转用后焦点随目标抽屉，不让 closeMp 归还遗漏入口（45 §2.9）
       S.skipRefocus = true
