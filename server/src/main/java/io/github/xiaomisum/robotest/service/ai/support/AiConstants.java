@@ -9,8 +9,8 @@ public final class AiConstants {
     private AiConstants() {
     }
 
-    /** LLM 调用读超时（ms）：候选集大/输出较长的调用，网关同步默认 15s 不足，功能级覆盖为 60s */
-    public static final int LLM_TIMEOUT_MILLIS = 60_000;
+    /** LLM 调用读超时（ms）：候选集大/输出较长的调用，网关同步默认 15s 不足，功能级覆盖为 300s */
+    public static final int LLM_TIMEOUT_MILLIS = 300_000;
 
     /** 单关键词候选上限（4.3/4.5 同口径：每词取前 30 条） */
     public static final int CANDIDATE_LIMIT_PER_KEYWORD = 30;

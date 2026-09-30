@@ -140,7 +140,7 @@ export function planRecommend(
 export function planOrderRecommend(
   planId: string,
 ): { controller: AbortController; promise: Promise<AiPlanOrderComputeResp> } {
-  // 与后端 LLM 60s 读超时保持同量级，前端放宽至 70s 并支持 [取消] 中止
+  // 长调用：前端单独放宽超时至 70s 并支持 [取消] 中止（后端读超时 300s，超长调用由前端先中断）
   const controller = new AbortController()
   const promise = api.post(`/project/ai/plans/${planId}/order-recommend`, null, {
     timeout: 70000,
