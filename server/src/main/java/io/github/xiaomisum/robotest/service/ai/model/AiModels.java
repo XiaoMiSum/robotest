@@ -103,7 +103,8 @@ public final class AiModels {
         }
 
         public static ChatCallOptions json() {
-            return new ChatCallOptions(null, null, true, null);
+            // 结构化 LLM 调用输出较长，网关同步默认 15s 不足，统一 60s（与 AiConstants.LLM_TIMEOUT_MILLIS 同口径）
+            return new ChatCallOptions(null, null, true, 60_000);
         }
 
         /** 构造携带工具定义的选项 */
