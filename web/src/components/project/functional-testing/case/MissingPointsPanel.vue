@@ -13,7 +13,7 @@ import { MagicStick, Close, InfoFilled, Plus } from '@element-plus/icons-vue'
 
 /**
  * 遗漏分析抽屉（US-AI-007，交互设计 56 §1.1/§1.2）：
- * 三组输入（关键词 / 需求文本 / 需求池）→ 同步长调用 → 结果清单逐条勾选 → 选目标文档转用例生成。
+ * 两组输入（需求文本 / 需求池）→ 同步长调用 → 结果清单逐条勾选 → 选目标文档转用例生成。
  * 会话随组件常驻：关闭仅隐藏，不中断请求、不丢结果；切换文档才重置。
  * 透明遮罩 + 自绘 fixed 容器，理由同 AI 生成抽屉（el-drawer 无法关闭 overlay 与 focus-trap）。
  */
@@ -21,7 +21,6 @@ const props = defineProps<{ docId: string }>()
 const visible = defineModel<boolean>({ required: true })
 
 const {
-  keywords,
   text,
   requirementIds,
   requirementTitles,
@@ -52,7 +51,7 @@ const {
 const { onResizeStart } = useDrawerResize()
 
 const drawerRef = ref<HTMLElement>()
-const keywordRef = ref<InstanceType<typeof import('element-plus')['ElSelect']>>()
+const textRef = ref<InstanceType<typeof import('element-plus')['ElInput']>>()
 const reqAddBtnRef = ref<InstanceType<typeof import('element-plus')['ElButton']>>()
 
 /** 关闭后焦点归还的触发按钮（交互设计 56 §1.2 焦点管理） */
@@ -79,9 +78,8 @@ function rememberTrigger(): void {
   }
 }
 
-function focusKeyword(): void {
-  const el = keywordRef.value?.$el as HTMLElement | undefined
-  el?.querySelector<HTMLInputElement>('input')?.focus()
+function focusText(): void {
+  textRef.value?.focus()
 }
 
 function handleClose(): void {
@@ -114,8 +112,8 @@ function handleGlobalKeydown(event: KeyboardEvent): void {
 watch(visible, (open) => {
   if (open) {
     rememberTrigger()
-    // 打开时焦点落在关键词输入；分析中输入禁用时不抢焦点（交互设计 56 §1.2）
-    if (!analyzing.value) void nextTick(focusKeyword)
+    // 打开时焦点落在需求文本；分析中输入禁用时不抢焦点（交互设计 56 §1.2）
+    if (!analyzing.value) void nextTick(focusText)
     window.addEventListener('keydown', handleGlobalKeydown, true)
   } else {
     window.removeEventListener('keydown', handleGlobalKeydown, true)
@@ -183,33 +181,17 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleGlobalKeydown,
 
         <div v-show="!inputsCollapsed" class="mp-inputs">
           <div class="mp-field">
-            <label class="mp-field__label" for="mpKeyword">关键词</label>
-            <el-select
-              id="mpKeyword"
-              ref="keywordRef"
-              v-model="keywords"
-              multiple
-              filterable
-              allow-create
-              default-first-option
-              :disabled="analyzing"
-              placeholder="输入关键词，回车确认"
-            >
-              <el-option v-for="k in keywords" :key="k" :label="k" :value="k" />
-            </el-select>
-          </div>
-
-          <div class="mp-field">
             <label class="mp-field__label" for="mpText">需求文本</label>
             <el-input
               id="mpText"
+              ref="textRef"
               v-model="text"
               type="textarea"
               :rows="5"
               maxlength="20000"
               show-word-limit
               :disabled="analyzing"
-              placeholder="粘贴需求描述文本（可空；填写时后端先抽取关键词再分析）"
+              placeholder="粘贴需求描述文本（与需求池至少填一项）"
             />
           </div>
 
@@ -299,15 +281,6 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleGlobalKeydown,
 
         <!-- 结果区独占余量、仅列表内部滚动，抽屉整体不滚动（56 §1.1） -->
         <template v-if="result">
-          <el-alert
-            v-if="result.semanticDegraded"
-            class="mp-shrink"
-            type="warning"
-            :closable="false"
-            show-icon
-            title="当前为关键词匹配结果"
-          />
-
           <div class="mp-result">
             <div class="mp-result-head">
               <el-checkbox
@@ -554,10 +527,6 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleGlobalKeydown,
   font-size: var(--font-size-xs);
   color: var(--el-text-color-secondary);
   font-variant-numeric: tabular-nums;
-}
-
-.mp-shrink {
-  flex-shrink: 0;
 }
 
 /* 结果区：吸收剩余高度，全选行常驻、仅清单滚动（56 §1.1） */

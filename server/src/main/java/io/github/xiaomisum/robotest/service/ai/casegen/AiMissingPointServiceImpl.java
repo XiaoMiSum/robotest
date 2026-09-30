@@ -14,7 +14,6 @@ import io.github.xiaomisum.robotest.service.ai.model.AiModels.AiCallContext;
 import io.github.xiaomisum.robotest.service.ai.model.AiModels.ChatCallOptions;
 import io.github.xiaomisum.robotest.service.ai.provider.PromptAssembler;
 import io.github.xiaomisum.robotest.service.ai.support.AiConstants;
-import io.github.xiaomisum.robotest.service.ai.support.AiKeywordExtractor;
 import io.github.xiaomisum.robotest.service.ai.support.AiModuleTreeSupport;
 import io.github.xiaomisum.robotest.service.ai.support.AiOutputValidator;
 import io.github.xiaomisum.robotest.service.ai.support.AiRequirementContextAssembler;
@@ -29,7 +28,6 @@ import org.springframework.util.StringUtils;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
 
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -37,15 +35,14 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * AI 遗漏测试点分析实现（详细设计 3.3 / 4.3，关键词版）：
+ * AI 遗漏测试点分析实现（详细设计 3.3 / 4.3，文档级全量候选）：
  * <ol>
- *   <li>需求输入归一：keywords / text / 需求条目合并为需求描述块（text 与条目内容超预算截断，同生成类裁剪规则）；</li>
- *   <li>关键词模式：text 场景由 LLM 先抽取 ≤10 个关键词（一次同步调用），否则直接用入参 keywords；</li>
- *   <li>候选检索：每词对项目内 case 节点标题 ILIKE 取前 30 条，去重并组装模块路径；</li>
+ *   <li>需求输入归一：text / 需求条目合并为需求描述块（超预算截断，同生成类裁剪规则）；</li>
+ *   <li>候选检索：按 documentIds 取所选文档下全部 case 节点，组装目录树 + 文档的模块路径；</li>
  *   <li>LLM 比对（读超时功能级覆盖 300s）：输出遗漏点，结构断言 suggestedModulePath 必须来自候选模块路径；</li>
  *   <li>relatedCaseTitles 与候选清单比对过滤（防幻觉）。</li>
  * </ol>
- * 本梯队仅关键词模式，semanticDegraded 恒 true；语义升级（梯队三）按 semanticSearch 能力翻转。
+ * 候选清单整体按 CANDIDATE_TOKEN_BUDGET 截断，超预算部分静默丢弃。
  */
 @Service
 public class AiMissingPointServiceImpl implements AiMissingPointService {
@@ -62,14 +59,8 @@ public class AiMissingPointServiceImpl implements AiMissingPointService {
             {"points": [{"title": "建议新增的用例标题", "description": "遗漏原因说明", "suggestedModulePath": "建议归属模块路径", "relatedCaseTitles": ["关联的候选用例标题"]}]}。\
             遗漏点应与候选用例互补：需求已覆盖的测试点不要重复输出。""";
 
-    private static final String KEYWORD_TASK_INSTRUCTION = """
-            请从给定需求文本中抽取用于在测试用例库中检索的 ≤10 个关键词。
-            关键词应为需求中出现过的核心业务词或短语，按重要程度取前 10，避免空泛词汇。""";
-
     @Resource
     private AiGatewayService aiGatewayService;
-    @Resource
-    private AiKeywordExtractor aiKeywordExtractor;
     @Resource
     private ProjectModuleMapper projectModuleMapper;
     @Resource
@@ -81,26 +72,20 @@ public class AiMissingPointServiceImpl implements AiMissingPointService {
 
     @Override
     public AiMissingPointRespDTO analyze(UUID userId, UUID workspaceId, UUID projectId, AiMissingPointReqDTO reqDTO) {
-        // 三种输入（keywords / text / requirementIds）至少一项非空（3.3）
-        boolean hasKeywords = reqDTO.getKeywords() != null && !reqDTO.getKeywords().isEmpty();
+        // documentIds 不可空（DTO @NotEmpty 已拦，此处防御）；text / requirementIds 至少一项非空（3.3）
+        boolean hasDocs = reqDTO.getDocumentIds() != null && !reqDTO.getDocumentIds().isEmpty();
         boolean hasText = StringUtils.hasText(reqDTO.getText());
         boolean hasItems = reqDTO.getRequirementIds() != null && !reqDTO.getRequirementIds().isEmpty();
-        if (!hasKeywords && !hasText && !hasItems) {
+        if (!hasDocs || (!hasText && !hasItems)) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.VALIDATION_FAILED);
         }
 
         // 1. 需求输入归一（4.3）
-        String prefixBlock = reqDTO.getKeywords() != null && !reqDTO.getKeywords().isEmpty()
-                ? "【需求关键词】" + String.join("、", reqDTO.getKeywords()) + "\n"
-                : null;
         String requirementData = requirementContextAssembler.assemble(projectId,
-                reqDTO.getRequirementIds(), reqDTO.getText(), prefixBlock).data();
-        // 2. 关键词：入参非空直接用；text/需求条目场景由 LLM 抽取（一次同步调用）
-        List<String> keywords = hasKeywords ? reqDTO.getKeywords()
-                : aiKeywordExtractor.extract(userId, workspaceId, projectId,
-                        KEYWORD_TASK_INSTRUCTION, "【需求描述】", requirementData);
-        // 3. 候选检索 + 4. LLM 比对（4.3）
-        ComparisonContext comparison = buildComparisonData(requirementData, retrieveCandidates(projectId, keywords));
+                reqDTO.getRequirementIds(), reqDTO.getText(), null).data();
+        // 2. 候选检索（文档级全量） + 3. LLM 比对（4.3）
+        ComparisonContext comparison = buildComparisonData(requirementData,
+                retrieveCandidates(projectId, reqDTO.getDocumentIds()));
         AiCallContext context = new AiCallContext(userId, workspaceId, projectId, reqDTO.getModelId());
         MissingPointOut out = aiGatewayService.completeStructured(
                 context,
@@ -110,41 +95,26 @@ public class AiMissingPointServiceImpl implements AiMissingPointService {
                 new ChatCallOptions(null, null, true, AiConstants.LLM_TIMEOUT_MILLIS),
                 MissingPointOut.class,
                 points -> assertModulePaths(points, comparison.modulePaths()));
-        // 5. relatedCaseTitles 幻觉过滤（4.3 步骤 4）
+        // 4. relatedCaseTitles 幻觉过滤（4.3 步骤 4）
         return response(out, comparison.titles());
     }
 
-    /** 候选检索：每词对项目内 case 节点标题 ILIKE 取前 30，跨词去重，附模块路径 */
-    private List<Candidate> retrieveCandidates(UUID projectId, List<String> keywords) {
-        List<String> effective = keywords.stream()
-                .filter(StringUtils::hasText)
-                .distinct()
-                .toList();
-        if (effective.isEmpty()) {
-            return List.of();
-        }
-        List<TestCaseDocument> documents = testCaseDocumentMapper.listByProjectId(projectId);
-        List<UUID> documentIds = documents.stream().map(TestCaseDocument::getId).toList();
-        if (documentIds.isEmpty()) {
+    /** 候选检索：按 documentIds 取全部 case 节点（无关键词、无限额），附目录树 + 文档的模块路径 */
+    private List<Candidate> retrieveCandidates(UUID projectId, List<UUID> documentIds) {
+        List<TestCaseDocument> documents = testCaseDocumentMapper.selectBatchIds(documentIds);
+        if (documents.isEmpty()) {
             return List.of();
         }
         List<ModuleTreeNode> allNodes = new ArrayList<>();
         projectModuleMapper.listByProjectId(projectId).forEach(m -> allNodes.add(ModuleTreeNode.fromProjectModule(m)));
         documents.forEach(d -> allNodes.add(ModuleTreeNode.fromTestCaseDocument(d)));
         Map<UUID, String> modulePathById = AiModuleTreeSupport.buildModulePaths(allNodes);
-        Map<UUID, Candidate> candidates = new LinkedHashMap<>();
-        for (String keyword : effective) {
-            List<TestCaseNode> nodes = testCaseNodeMapper.listCaseNodesByDocumentIdsAndKeyword(
-                    documentIds, keyword, AiConstants.CANDIDATE_LIMIT_PER_KEYWORD);
-            for (TestCaseNode node : nodes) {
-                if (candidates.containsKey(node.getId())) {
-                    continue;
-                }
-                candidates.put(node.getId(), new Candidate(node.getId(), node.getTitle(),
-                        modulePathById.getOrDefault(node.getDocumentId(), "")));
-            }
+        List<Candidate> candidates = new ArrayList<>();
+        for (TestCaseNode node : testCaseNodeMapper.listCaseNodesByDocumentIds(documentIds)) {
+            candidates.add(new Candidate(node.getId(), node.getTitle(),
+                    modulePathById.getOrDefault(node.getDocumentId(), "")));
         }
-        return new ArrayList<>(candidates.values());
+        return candidates;
     }
 
     /** 组装 LLM 比对输入：需求描述块 + 候选用例（标题 + 模块路径清单）；记录实际入参候选供断言与过滤 */
@@ -189,7 +159,6 @@ public class AiMissingPointServiceImpl implements AiMissingPointService {
     /** 响应组装 + relatedCaseTitles 幻觉过滤（仅保留候选清单中真实存在的标题，4.3 步骤 4） */
     private AiMissingPointRespDTO response(MissingPointOut out, Set<String> candidateTitles) {
         AiMissingPointRespDTO resp = new AiMissingPointRespDTO();
-        resp.setSemanticDegraded(true);
         List<AiMissingPointRespDTO.Point> points = new ArrayList<>();
         for (MissingPointOut.Point point : out.getPoints()) {
             AiMissingPointRespDTO.Point respPoint = new AiMissingPointRespDTO.Point();

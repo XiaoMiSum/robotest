@@ -297,8 +297,6 @@ export interface AiMissingPoint {
 
 /** AI 遗漏测试点分析响应（3.3，同步长调用） */
 export interface AiMissingPointResult {
-  /** 语义降级：true 时顶部提示「当前为关键词匹配结果」 */
-  semanticDegraded: boolean
   points: AiMissingPoint[]
 }
 

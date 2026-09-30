@@ -19,7 +19,6 @@ export function useMissingPointsPanel(docId: () => string, visible: Ref<boolean>
   // 操作行阶段秒表与分析请求同起停，保证关闭重开后文案不残留
   const stage = useStageTimer()
 
-  const keywords = ref<string[]>([])
   const text = ref('')
   const requirementIds = ref<string[]>([])
   const requirementTitles = ref<RequirementSummary[]>([])
@@ -39,9 +38,7 @@ export function useMissingPointsPanel(docId: () => string, visible: Ref<boolean>
 
   let controller: AbortController | null = null
 
-  const hasAnyInput = computed(
-    () => keywords.value.length > 0 || text.value.trim() !== '' || requirementIds.value.length > 0,
-  )
+  const hasAnyInput = computed(() => text.value.trim() !== '' || requirementIds.value.length > 0)
 
   const checkedPoints = computed<AiMissingPoint[]>(() =>
     (result.value?.points ?? []).filter((_, index) => checkedIndexes.value.has(index)),
@@ -82,7 +79,7 @@ export function useMissingPointsPanel(docId: () => string, visible: Ref<boolean>
     requirementTitles.value = []
   }
 
-  /** 输入组折叠开关：仅收纳三组输入，操作行与结果保留（交互设计 56 §1.1） */
+  /** 输入组折叠开关：仅收纳两组输入，操作行与结果保留（交互设计 56 §1.1） */
   function toggleInputs(): void {
     inputsCollapsed.value = !inputsCollapsed.value
   }
@@ -109,7 +106,6 @@ export function useMissingPointsPanel(docId: () => string, visible: Ref<boolean>
 
   watch(docId, () => {
     cancelAnalyze()
-    keywords.value = []
     text.value = ''
     requirementIds.value = []
     requirementTitles.value = []
@@ -123,11 +119,11 @@ export function useMissingPointsPanel(docId: () => string, visible: Ref<boolean>
 
   function buildReq(): AiMissingPointReq | null {
     if (!hasAnyInput.value) {
-      ElMessage.warning('请至少输入关键词、需求文本或选择需求')
+      ElMessage.warning('请输入需求文本或选择需求')
       return null
     }
     const req: AiMissingPointReq = {
-      keywords: keywords.value.length ? keywords.value : undefined,
+      documentIds: [docId()],
       text: text.value.trim() || undefined,
       requirementIds: requirementIds.value.length ? requirementIds.value : undefined,
       modelId: aiStore.effectiveModelId() ?? undefined,
@@ -210,7 +206,6 @@ export function useMissingPointsPanel(docId: () => string, visible: Ref<boolean>
   onBeforeUnmount(() => controller?.abort())
 
   return {
-    keywords,
     text,
     requirementIds,
     requirementTitles,

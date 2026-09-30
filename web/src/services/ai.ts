@@ -84,12 +84,12 @@ export function recommendPriority(title: string, ancestorTitles: string[]): Prom
   return post('/project/ai/cases/priority-recommend', { title, ancestorTitles })
 }
 
-// ==================== 遗漏测试点分析（项目级，US-AI-007） ====================
+// ==================== 遗漏测试点分析（文档级，US-AI-007） ====================
 
 export interface AiMissingPointReq {
-  /** 分析关键词（3.3）：直接标题检索；与 text/requirementIds 至少一项非空 */
-  keywords?: string[]
-  /** 需求文本：可空，后端先抽取关键词再检索 */
+  /** 文档 ID 列表（当前脑图文档），必填 */
+  documentIds: string[]
+  /** 需求文本，与 requirementIds 至少一项非空 */
   text?: string
   /** 需求池条目 ID 列表 */
   requirementIds?: string[]

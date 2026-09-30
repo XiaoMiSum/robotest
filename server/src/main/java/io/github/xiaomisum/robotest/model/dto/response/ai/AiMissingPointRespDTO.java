@@ -5,13 +5,10 @@ import lombok.Data;
 import java.util.List;
 
 /**
- * AI 遗漏测试点分析响应（3.3）：semanticDegraded 为 true 时前端顶部提示「当前为关键词匹配结果」。
+ * AI 遗漏测试点分析响应（3.3）。
  */
 @Data
 public class AiMissingPointRespDTO {
-
-    /** 是否降级为关键词匹配（关键词版恒 true；语义升级后按 semanticSearch 能力翻转） */
-    private boolean semanticDegraded;
 
     /** 遗漏测试点清单，最多 30 条 */
     private List<Point> points;

@@ -14,7 +14,6 @@ import io.github.xiaomisum.robotest.repository.tcase.TestCaseNodeMapper;
 import io.github.xiaomisum.robotest.service.ai.gateway.AiGatewayService;
 import io.github.xiaomisum.robotest.service.ai.model.AiModels.AiCallContext;
 import io.github.xiaomisum.robotest.service.ai.model.AiModels.ChatCallOptions;
-import io.github.xiaomisum.robotest.service.ai.support.AiKeywordExtractor;
 import io.github.xiaomisum.robotest.service.ai.support.AiOutputValidator;
 import io.github.xiaomisum.robotest.service.ai.support.AiRequirementContextAssembler;
 import java.util.function.Consumer;
@@ -36,6 +35,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -43,8 +43,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * 遗漏测试点分析服务单测（详细设计 3.3 / 4.3 关键词版）：
- * 三态输入校验、LLM 抽取关键词、候选检索、结构断言与幻觉过滤。
+ * 遗漏测试点分析服务单测（详细设计 3.3 / 4.3，文档级全量候选）：
+ * 输入校验、文档级候选全量检索、结构断言与幻觉过滤。
  */
 @ExtendWith(MockitoExtension.class)
 class AiMissingPointServiceImplTest {
@@ -65,8 +65,6 @@ class AiMissingPointServiceImplTest {
     private TestCaseNodeMapper testCaseNodeMapper;
     @Mock
     private AiRequirementContextAssembler requirementContextAssembler;
-    @Mock
-    private AiKeywordExtractor aiKeywordExtractor;
 
     @Captor
     private ArgumentCaptor<String> businessDataCaptor;
@@ -85,15 +83,18 @@ class AiMissingPointServiceImplTest {
                 .thenReturn(new AiRequirementContextAssembler.RequirementContext("", List.of()));
     }
 
-    private AiMissingPointReqDTO req(String keyword) {
+    /** 基础请求：documentIds 恒为当前文档 + 需求文本（text/requirementIds 至少一项非空） */
+    private AiMissingPointReqDTO req(String text) {
         AiMissingPointReqDTO dto = new AiMissingPointReqDTO();
-        dto.setKeywords(keyword == null ? null : List.of(keyword));
+        dto.setDocumentIds(List.of(DOC_ID));
+        dto.setText(text);
         return dto;
     }
 
-    private AiMissingPointReqDTO reqWithText(String text) {
+    private AiMissingPointReqDTO reqWithRequirementIds(List<UUID> requirementIds) {
         AiMissingPointReqDTO dto = new AiMissingPointReqDTO();
-        dto.setText(text);
+        dto.setDocumentIds(List.of(DOC_ID));
+        dto.setRequirementIds(requirementIds);
         return dto;
     }
 
@@ -137,9 +138,14 @@ class AiMissingPointServiceImplTest {
         return out;
     }
 
-    private void stubProjectModules() {
-        when(testCaseDocumentMapper.listByProjectId(PROJECT_ID)).thenReturn(List.of(document()));
+    private void stubDocumentModules() {
+        when(testCaseDocumentMapper.selectBatchIds(List.of(DOC_ID))).thenReturn(List.of(document()));
         when(projectModuleMapper.listByProjectId(PROJECT_ID)).thenReturn(List.of(directory()));
+    }
+
+    private void stubSingleCaseNode() {
+        when(testCaseNodeMapper.listCaseNodesByDocumentIds(List.of(DOC_ID)))
+                .thenReturn(List.of(caseNode(UUID.randomUUID(), "验证码登录成功")));
     }
 
     @Test
@@ -150,40 +156,54 @@ class AiMissingPointServiceImplTest {
     }
 
     @Test
-    void keywordsProvided_skipsExtraction_usesKeywordRetrieval() {
-        stubProjectModules();
-        when(requirementContextAssembler.assemble(eq(PROJECT_ID), any(), any(), any()))
-                .thenReturn(new AiRequirementContextAssembler.RequirementContext("【需求关键词】登录\n", List.of()));
-        when(testCaseNodeMapper.listCaseNodesByDocumentIdsAndKeyword(List.of(DOC_ID), "登录", 30))
-                .thenReturn(List.of(caseNode(UUID.randomUUID(), "验证码登录成功")));
+    void documentIdsMissing_throws() {
+        AiMissingPointReqDTO dto = new AiMissingPointReqDTO();
+        dto.setText("需求：验证码有效期 5 分钟");
+        assertThrows(ServiceException.class,
+                () -> service.analyze(USER_ID, WORKSPACE_ID, PROJECT_ID, dto));
+    }
+
+    @Test
+    void textAndRequirementIdsBothEmpty_throws() {
+        AiMissingPointReqDTO dto = new AiMissingPointReqDTO();
+        dto.setDocumentIds(List.of(DOC_ID));
+        assertThrows(ServiceException.class,
+                () -> service.analyze(USER_ID, WORKSPACE_ID, PROJECT_ID, dto));
+    }
+
+    @Test
+    void textOnly_retrievesAllDocumentCasesWithoutExtraction() {
+        stubDocumentModules();
+        stubSingleCaseNode();
         when(aiGatewayService.completeStructured(any(), eq(AiFunctionType.MISSING_POINT_ANALYSIS), any(),
                 businessDataCaptor.capture(), optionsCaptor.capture(), any(), any()))
                 .thenReturn(out("短信验证码超时后重新发送", "登录模块/验证码登录", List.of("验证码登录成功")));
 
-        AiMissingPointRespDTO resp = service.analyze(USER_ID, WORKSPACE_ID, PROJECT_ID, req("登录"));
+        AiMissingPointRespDTO resp = service.analyze(USER_ID, WORKSPACE_ID, PROJECT_ID,
+                req("需求：验证码有效期 5 分钟，过期可重新发送"));
 
-        assertTrue(resp.isSemanticDegraded());
+        assertEquals(1, resp.getPoints().size());
         assertEquals("短信验证码超时后重新发送", resp.getPoints().get(0).getTitle());
         // 比对读超时功能级覆盖 300s（4.3）
         assertEquals(300_000, optionsCaptor.getValue().readTimeoutMillis());
-        // 有入参关键词时不触发 LLM 抽取（抽取已下沉至 AiKeywordExtractor）
-        verify(aiKeywordExtractor, never()).extract(any(), any(), any(), any(), any(), any());
+        // 候选为文档级全量，单次检索、无关键词中间调用
+        verify(testCaseNodeMapper).listCaseNodesByDocumentIds(List.of(DOC_ID));
+        verify(aiGatewayService, times(1)).completeStructured(any(), eq(AiFunctionType.MISSING_POINT_ANALYSIS),
+                any(), any(), any(), any(), any());
         String data = businessDataCaptor.getValue();
-        assertTrue(data.contains("【需求关键词】登录"));
         assertTrue(data.contains("验证码登录成功｜模块：登录模块/验证码登录"));
     }
 
     @Test
     void modelId_forwardedToCallContext() {
-        stubProjectModules();
-        when(testCaseNodeMapper.listCaseNodesByDocumentIdsAndKeyword(List.of(DOC_ID), "登录", 30))
-                .thenReturn(List.of(caseNode(UUID.randomUUID(), "验证码登录成功")));
+        stubDocumentModules();
+        stubSingleCaseNode();
         when(aiGatewayService.completeStructured(any(), eq(AiFunctionType.MISSING_POINT_ANALYSIS), any(),
                 any(), any(), any(), any()))
                 .thenReturn(out("短信验证码超时后重新发送", "登录模块/验证码登录", List.of("验证码登录成功")));
 
         UUID modelId = UUID.randomUUID();
-        AiMissingPointReqDTO dto = req("登录");
+        AiMissingPointReqDTO dto = req("需求：验证码有效期 5 分钟");
         dto.setModelId(modelId);
         service.analyze(USER_ID, WORKSPACE_ID, PROJECT_ID, dto);
 
@@ -194,53 +214,28 @@ class AiMissingPointServiceImplTest {
     }
 
     @Test
-    void textOnly_extractsKeywordsOnceThenAnalyzes() {
-        stubProjectModules();
-        when(aiKeywordExtractor.extract(any(), any(), any(), any(), any(), any()))
-                .thenReturn(List.of("验证码"));
-        when(testCaseNodeMapper.listCaseNodesByDocumentIdsAndKeyword(List.of(DOC_ID), "验证码", 30))
-                .thenReturn(List.of(caseNode(UUID.randomUUID(), "验证码登录成功")));
-        when(aiGatewayService.completeStructured(any(), eq(AiFunctionType.MISSING_POINT_ANALYSIS), any(),
-                any(), any(), any(), any()))
-                .thenReturn(out("短信验证码超时后重新发送", "登录模块/验证码登录", List.of("验证码登录成功")));
-
-        AiMissingPointRespDTO resp = service.analyze(USER_ID, WORKSPACE_ID, PROJECT_ID,
-                reqWithText("需求：验证码有效期 5 分钟，过期可重新发送"));
-
-        assertEquals(1, resp.getPoints().size());
-        // 抽取一次同步调用（关键词抽取已下沉至 AiKeywordExtractor）+ 比对一次
-        verify(aiKeywordExtractor).extract(any(), any(), any(), any(), any(), any());
-        verify(aiGatewayService, times(1)).completeStructured(any(), eq(AiFunctionType.MISSING_POINT_ANALYSIS),
-                any(), any(), any(), any(), any());
-        // 抽取结果作为检索关键词
-        verify(testCaseNodeMapper).listCaseNodesByDocumentIdsAndKeyword(List.of(DOC_ID), "验证码", 30);
-    }
-
-    @Test
     void hallucinatedRelatedTitles_filteredOut() {
-        stubProjectModules();
-        when(testCaseNodeMapper.listCaseNodesByDocumentIdsAndKeyword(List.of(DOC_ID), "登录", 30))
-                .thenReturn(List.of(caseNode(UUID.randomUUID(), "验证码登录成功")));
+        stubDocumentModules();
+        stubSingleCaseNode();
         when(aiGatewayService.completeStructured(any(), eq(AiFunctionType.MISSING_POINT_ANALYSIS), any(),
                 any(), any(), any(), any()))
                 .thenReturn(out("短信验证码超时后重新发送", "登录模块/验证码登录",
                         List.of("验证码登录成功", "不存在的用例标题")));
 
-        AiMissingPointRespDTO resp = service.analyze(USER_ID, WORKSPACE_ID, PROJECT_ID, req("登录"));
+        AiMissingPointRespDTO resp = service.analyze(USER_ID, WORKSPACE_ID, PROJECT_ID, req("需求：验证码"));
 
         assertEquals(List.of("验证码登录成功"), resp.getPoints().get(0).getRelatedCaseTitles());
     }
 
     @Test
     void suggestedModulePathNotInCandidates_assertionRejects() {
-        stubProjectModules();
-        when(testCaseNodeMapper.listCaseNodesByDocumentIdsAndKeyword(List.of(DOC_ID), "登录", 30))
-                .thenReturn(List.of(caseNode(UUID.randomUUID(), "验证码登录成功")));
+        stubDocumentModules();
+        stubSingleCaseNode();
         when(aiGatewayService.completeStructured(any(), eq(AiFunctionType.MISSING_POINT_ANALYSIS), any(),
                 any(), any(), any(), assertionCaptor.capture()))
                 .thenReturn(out("短信验证码超时后重新发送", "登录模块/验证码登录", List.of("验证码登录成功")));
 
-        service.analyze(USER_ID, WORKSPACE_ID, PROJECT_ID, req("登录"));
+        service.analyze(USER_ID, WORKSPACE_ID, PROJECT_ID, req("需求：验证码"));
 
         // 直接驱动结构断言：非法模块路径应抛校验异常（网关据此带错重试，服务测试只验证断言行为）
         AiMissingPointServiceImpl.MissingPointOut invalid =
@@ -254,19 +249,16 @@ class AiMissingPointServiceImplTest {
     @Test
     void requirementItems_appendedToBlock() {
         UUID reqId = UUID.randomUUID();
-        when(requirementContextAssembler.assemble(eq(PROJECT_ID), eq(List.of(reqId)), any(), any()))
+        when(requirementContextAssembler.assemble(eq(PROJECT_ID), eq(List.of(reqId)), any(), isNull()))
                 .thenReturn(new AiRequirementContextAssembler.RequirementContext(
                         "【需求条目】登录需求\n用户可通过邮箱与密码登录\n", List.of()));
-        stubProjectModules();
-        when(testCaseNodeMapper.listCaseNodesByDocumentIdsAndKeyword(List.of(DOC_ID), "登录", 30))
-                .thenReturn(List.of(caseNode(UUID.randomUUID(), "验证码登录成功")));
+        stubDocumentModules();
+        stubSingleCaseNode();
         when(aiGatewayService.completeStructured(any(), eq(AiFunctionType.MISSING_POINT_ANALYSIS), any(),
                 businessDataCaptor.capture(), any(), any(), any()))
                 .thenReturn(out("短信验证码超时后重新发送", "登录模块/验证码登录", List.of()));
 
-        AiMissingPointReqDTO dto = req("登录");
-        dto.setRequirementIds(List.of(reqId));
-        service.analyze(USER_ID, WORKSPACE_ID, PROJECT_ID, dto);
+        service.analyze(USER_ID, WORKSPACE_ID, PROJECT_ID, reqWithRequirementIds(List.of(reqId)));
 
         String data = businessDataCaptor.getValue();
         assertTrue(data.contains("【需求条目】登录需求"));
@@ -275,24 +267,35 @@ class AiMissingPointServiceImplTest {
 
     @Test
     void candidateOverBudget_truncatesTrailingCandidates() {
-        when(testCaseDocumentMapper.listByProjectId(PROJECT_ID))
-                .thenReturn(List.of(document()));
+        when(testCaseDocumentMapper.selectBatchIds(List.of(DOC_ID))).thenReturn(List.of(document()));
         when(projectModuleMapper.listByProjectId(PROJECT_ID)).thenReturn(List.of());
         List<TestCaseNode> nodes = new java.util.ArrayList<>();
         for (int i = 1; i <= 30; i++) {
             nodes.add(caseNode(UUID.randomUUID(), i + "甲".repeat(280)));
         }
-        when(testCaseNodeMapper.listCaseNodesByDocumentIdsAndKeyword(List.of(DOC_ID), "登录", 30))
-                .thenReturn(nodes);
+        when(testCaseNodeMapper.listCaseNodesByDocumentIds(List.of(DOC_ID))).thenReturn(nodes);
         when(aiGatewayService.completeStructured(any(), eq(AiFunctionType.MISSING_POINT_ANALYSIS), any(),
                 businessDataCaptor.capture(), any(), any(), any()))
                 .thenReturn(out("短信验证码超时后重新发送", "验证码登录", List.of()));
 
-        service.analyze(USER_ID, WORKSPACE_ID, PROJECT_ID, req("登录"));
+        service.analyze(USER_ID, WORKSPACE_ID, PROJECT_ID, req("需求：验证码"));
 
         String data = businessDataCaptor.getValue();
         assertTrue(data.contains("1" + "甲".repeat(280)));
         // 候选清单超出预算时静默截断尾部，避免整体输入预算失守
         assertFalse(data.contains("30" + "甲".repeat(280)));
+    }
+
+    @Test
+    void unknownDocument_returnsEmptyCandidatesWithoutQuery() {
+        when(testCaseDocumentMapper.selectBatchIds(List.of(DOC_ID))).thenReturn(List.of());
+        when(aiGatewayService.completeStructured(any(), eq(AiFunctionType.MISSING_POINT_ANALYSIS), any(),
+                businessDataCaptor.capture(), any(), any(), any()))
+                .thenReturn(out("短信验证码超时后重新发送", "", List.of()));
+
+        service.analyze(USER_ID, WORKSPACE_ID, PROJECT_ID, req("需求：验证码"));
+
+        verify(testCaseNodeMapper, never()).listCaseNodesByDocumentIds(any());
+        assertTrue(businessDataCaptor.getValue().contains("【候选用例清单】"));
     }
 }
