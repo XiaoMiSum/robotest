@@ -225,9 +225,14 @@ onBeforeUnmount(() => {
     </div>
 
     <template #footer>
-      <span class="ai-preview-dialog__count">已勾选 {{ selectedCount }}/{{ totalCount }} {{ countLabel }}</span>
-      <el-button @click="handleClose">关闭</el-button>
-      <el-button type="primary" @click="handleConfirm">{{ confirmButtonText }}</el-button>
+      <!-- 左计数右按钮对齐验收基准（demo .ai-preview .dialog__footer space-between） -->
+      <div class="ai-preview-dialog__footer">
+        <span class="ai-preview-dialog__count">已勾选 {{ selectedCount }}/{{ totalCount }} {{ countLabel }}</span>
+        <span class="ai-preview-dialog__btns">
+          <el-button @click="handleClose">关闭</el-button>
+          <el-button type="primary" @click="handleConfirm">{{ confirmButtonText }}</el-button>
+        </span>
+      </div>
     </template>
   </el-dialog>
 </template>
@@ -264,10 +269,21 @@ onBeforeUnmount(() => {
   border-radius: 4px;
 }
 
+.ai-preview-dialog__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .ai-preview-dialog__count {
-  margin-right: auto;
   font-size: 12px;
   color: var(--el-text-color-secondary);
+}
+
+.ai-preview-dialog__btns {
+  display: inline-flex;
+  gap: 8px;
 }
 </style>
 
