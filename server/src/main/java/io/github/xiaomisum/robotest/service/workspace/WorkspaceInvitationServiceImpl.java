@@ -192,6 +192,8 @@ public class WorkspaceInvitationServiceImpl implements WorkspaceInvitationServic
                         .id(user.getId())
                         .username(user.getUsername())
                         .email(user.getEmail())
+                        .name(user.getName())
+                        .avatarUrl(user.getAvatarUrl())
                         .build())
                 .activeWorkspace(InvitationJoinRespDTO.ActiveWorkspaceInfo.builder()
                         .id(workspace.getId())

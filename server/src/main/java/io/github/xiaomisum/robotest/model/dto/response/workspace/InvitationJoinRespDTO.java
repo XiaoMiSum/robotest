@@ -28,6 +28,8 @@ public class InvitationJoinRespDTO {
         private UUID id;
         private String username;
         private String email;
+        private String name;
+        private String avatarUrl;
     }
 
     @Data
