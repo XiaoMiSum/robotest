@@ -104,7 +104,7 @@ public class TestReviewServiceImpl implements TestReviewService {
             if (initiator != null) {
                 TestReviewListRespDTO.InitiatorInfo info = new TestReviewListRespDTO.InitiatorInfo();
                 info.setId(initiator.getId());
-                info.setName(initiator.getUsername());
+                info.setName(initiator.getName());
                 dto.setInitiator(info);
             }
 
@@ -119,7 +119,7 @@ public class TestReviewServiceImpl implements TestReviewService {
                         TestReviewListRespDTO.ParticipantInfo info =
                                 new TestReviewListRespDTO.ParticipantInfo();
                         info.setId(user.getId());
-                        info.setName(user.getUsername());
+                        info.setName(user.getName());
                         info.setAvatarUrl(user.getAvatarUrl());
                         return info;
                     })
@@ -444,7 +444,7 @@ public class TestReviewServiceImpl implements TestReviewService {
         if (initiator != null) {
             TestReviewDetailRespDTO.InitiatorInfo info = new TestReviewDetailRespDTO.InitiatorInfo();
             info.setId(initiator.getId());
-            info.setName(initiator.getUsername());
+            info.setName(initiator.getName());
             dto.setInitiator(info);
         }
         return dto;

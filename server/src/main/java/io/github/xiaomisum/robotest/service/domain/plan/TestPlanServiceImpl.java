@@ -103,7 +103,7 @@ public class TestPlanServiceImpl implements TestPlanService {
                 if (executor != null) {
                     TestPlanListRespDTO.ExecutorInfo info = new TestPlanListRespDTO.ExecutorInfo();
                     info.setId(executor.getId());
-                    info.setName(executor.getUsername());
+                    info.setName(executor.getName());
                     dto.setExecutor(info);
                 }
             }
@@ -835,7 +835,7 @@ public class TestPlanServiceImpl implements TestPlanService {
             if (executor != null) {
                 TestPlanDetailRespDTO.ExecutorInfo info = new TestPlanDetailRespDTO.ExecutorInfo();
                 info.setId(executor.getId());
-                info.setName(executor.getUsername());
+                info.setName(executor.getName());
                 dto.setExecutor(info);
             }
         }
