@@ -50,6 +50,13 @@ function normalizeBodyContent(body?: { type?: string; content?: unknown } | null
   return body.content
 }
 
+/** 拦截器 reject 的错误转展示文案；业务错误附加 code（如「500 服务器内部错误」）便于定位 */
+function errorMessage(error: unknown, fallback: string): string {
+  if (!(error instanceof Error) || !error.message) return fallback
+  const { code } = error as { code?: unknown }
+  return typeof code === 'number' ? `${code} ${error.message}` : error.message
+}
+
 export function useDebugPage(emit: (e: 'view-interface', interfaceId: string) => void) {
   const tabs = ref<DebugTab[]>([createTab()])
   const activeTabId = ref(tabs.value[0].id)
@@ -130,8 +137,13 @@ export function useDebugPage(emit: (e: 'view-interface', interfaceId: string) =>
       const payload = buildExecutePayload(activeTab.value, environmentId || undefined)
       const resp = await executeDebug(payload)
       markExecuted(activeTab.value, resp)
-    } catch {
-      // 拦截器已统一提示错误信息
+    } catch (err) {
+      // 平台侧执行失败（后端 Result 错误）不能静默吞掉：回填错误结果，由响应区展示失败原因（交互 1.8 错误态）
+      markExecuted(activeTab.value, {
+        debugRecordId: '',
+        status: 'error',
+        errorMessage: errorMessage(err, '执行失败'),
+      })
     } finally {
       executing.value = false
     }
@@ -166,8 +178,9 @@ export function useDebugPage(emit: (e: 'view-interface', interfaceId: string) =>
       tabs.value.push(tab)
       switchTab(tab.id)
       showHistory.value = false
-    } catch {
-      // 拦截器已统一提示错误信息
+    } catch (err) {
+      // 恢复失败无响应区可承载，走统一消息提示（UI-PAGE-11）
+      ElMessage.error(errorMessage(err, '恢复调试记录失败'))
     }
   }
 

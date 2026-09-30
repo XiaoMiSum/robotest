@@ -69,9 +69,12 @@ const {
           <span class="resp-view__meta-label">Size</span>
           <span class="resp-view__meta-value">{{ formatSize(response.size) }}</span>
         </span>
-        <span v-if="response.errorMessage" class="resp-view__error" :title="response.errorMessage">
-          {{ response.errorMessage }}
-        </span>
+      </div>
+
+      <!-- 失败原因横幅：状态栏空间有限，这里完整展示后端错误信息（交互 1.8 错误态） -->
+      <div v-if="response.errorMessage" class="resp-view__error-banner" role="alert">
+        <el-icon class="resp-view__error-banner-icon"><WarningFilled /></el-icon>
+        <span class="resp-view__error-banner-text">{{ response.errorMessage }}</span>
       </div>
 
       <!-- Response Tabs -->
@@ -288,14 +291,27 @@ const {
     font-family: ui-monospace, SFMono-Regular, monospace;
   }
 
-  &__error {
-    margin-left: auto;
+  &__error-banner {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--color-danger-border);
+    background: var(--color-danger-light);
+    color: var(--color-danger-strong);
     font-size: 12px;
-    color: var(--color-danger);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    max-width: 300px;
+    flex-shrink: 0;
+  }
+
+  &__error-banner-icon {
+    flex-shrink: 0;
+    font-size: 14px;
+    margin-top: 1px;
+  }
+
+  &__error-banner-text {
+    min-width: 0;
+    word-break: break-all;
   }
 
   // ==================== Tabs ====================
