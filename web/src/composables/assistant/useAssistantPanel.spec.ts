@@ -95,7 +95,7 @@ function setupMocks(overrides?: {
     activeWorkspace: ws ? { id: ws, name: '测试空间' } : null,
     hasPermission: overrides?.hasPermission ?? (() => true),
   })
-  mocks.useAiStore.mockReturnValue({ selectedModelId: 'model-1' })
+  mocks.useAiStore.mockReturnValue({ effectiveModelId: vi.fn(() => 'model-1') })
   mocks.useAssistantContextStore.mockReturnValue({
     buildPageContext: vi.fn().mockReturnValue({ projectId: 'p1' }),
     dslHost: overrides?.dslHost ?? null,
@@ -294,6 +294,21 @@ describe('useAssistantPanel', () => {
         expect.objectContaining({
           url: '/workspace/ai/conversations/conv-1/messages',
           body: expect.objectContaining({ content: 'hello', modelId: 'model-1' }),
+        }),
+      )
+    })
+
+    it('effectiveModelId 无返回时 modelId 为空交后端回退默认', async () => {
+      setupMocks()
+      mocks.useAiStore.mockReturnValue({ effectiveModelId: vi.fn(() => undefined) })
+      mocks.createConversation.mockResolvedValue({ id: 'conv-1', title: '新会话', lastActiveAt: '' })
+      mocks.useAssistantStream.mockReturnValue({ cancel: vi.fn() })
+      const panel = useAssistantPanel(defaultOptions())
+      panel.input.value = 'hello'
+      await panel.handleSend()
+      expect(mocks.useAssistantStream).toHaveBeenCalledWith(
+        expect.objectContaining({
+          body: expect.objectContaining({ modelId: null }),
         }),
       )
     })

@@ -144,7 +144,7 @@ export function useAssistantPanel(options: UseAssistantPanelOptions) {
       body: {
         content,
         pageContext: assistantContext.buildPageContext(),
-        modelId: aiStore.selectedModelId,
+        modelId: aiStore.effectiveModelId() ?? null,
       },
       handlers: {
         onDelta: (text) => {
