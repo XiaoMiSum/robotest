@@ -72,16 +72,6 @@ public interface TestCaseNodeMapper extends BaseMapperX<TestCaseNode> {
                 .eq(TestCaseNode::getType, Constants.NodeType.CASE));
     }
 
-    /** 关键词候选检索（4.3）：标题 ILIKE 匹配、按排序取前 limit 条，供遗漏测试点分析使用 */
-    default List<TestCaseNode> listCaseNodesByDocumentIdsAndKeyword(List<UUID> documentIds, String keyword, int limit) {
-        return selectList(new LambdaQueryWrapperX<TestCaseNode>()
-                .in(TestCaseNode::getDocumentId, documentIds)
-                .eq(TestCaseNode::getType, Constants.NodeType.CASE)
-                .like(TestCaseNode::getTitle, keyword)
-                .orderByAsc(TestCaseNode::getSortOrder)
-                .last("LIMIT " + limit));
-    }
-
     default PageResult<TestCaseNode> findCasePage(PageParam pageParam, Collection<UUID> documentIds, String keyword, String priority) {
         var wrapper = new LambdaQueryWrapperX<TestCaseNode>()
                 .in(TestCaseNode::getDocumentId, documentIds)
@@ -90,21 +80,5 @@ public interface TestCaseNodeMapper extends BaseMapperX<TestCaseNode> {
                 .eqIfPresent(TestCaseNode::getPriority, priority)
                 .orderByAsc(TestCaseNode::getSortOrder);
         return selectPage(pageParam, wrapper);
-    }
-
-    /** 文档内 case 类型节点（向量重建/补偿扫描口径） */
-    default List<TestCaseNode> listCaseNodesByDocumentId(UUID documentId) {
-        return selectList(new LambdaQueryWrapperX<TestCaseNode>()
-                .eq(TestCaseNode::getDocumentId, documentId)
-                .eq(TestCaseNode::getType, Constants.NodeType.CASE)
-                .orderByAsc(TestCaseNode::getSortOrder));
-    }
-
-    /** 多文档下全部 case 类型节点（回归推荐模块命中口径） */
-    default List<TestCaseNode> listCaseNodesByDocumentIds(Collection<UUID> documentIds) {
-        return selectList(new LambdaQueryWrapperX<TestCaseNode>()
-                .in(TestCaseNode::getDocumentId, documentIds)
-                .eq(TestCaseNode::getType, Constants.NodeType.CASE)
-                .orderByAsc(TestCaseNode::getSortOrder));
     }
 }

@@ -19,9 +19,6 @@ spring:
 
 robotest:
   debug: ${DEBUG_STATUS:false}
-  ai:
-    # 仅限本地开发的非生产示例值（Base64 编码 32 字节）
-    secret-key: ${AI_SECRET_KEY:4chJwgVabFLPyA0Mty7RDhu7lXR5Hik2QZ0FJjS3rtI=}
   env:
     # 仅限本地开发的非生产示例值（Base64 编码 32 字节）
     secret-key: ${ENV_SECRET_KEY:4chJwgVabFLPyA0Mty7RDhu7lXR5Hik2QZ0FJjS3rtI=}

@@ -35,20 +35,20 @@ class AuditQueryServiceImplTest {
         log.setId(UUID.fromString("00000000-0000-0000-0000-000000000001"));
         log.setOperatorName("admin");
         log.setOperation("UPDATE");
-        log.setEntityType("AiConfig");
+        log.setEntityType("ApiEnvironment");
         log.setEntityId(UUID.fromString("00000000-0000-0000-0000-000000000002"));
         log.setChanges(Map.of("name", "x"));
         log.setCreatedAt(LocalDateTime.of(2026, 9, 13, 10, 0));
-        when(auditLogMapper.selectPageByCondition("admin", "AiConfig", null, null, null, 1, 20))
+        when(auditLogMapper.selectPageByCondition("admin", "ApiEnvironment", null, null, null, 1, 20))
                 .thenReturn(new PageResult<>(List.of(log), 12L));
 
-        PageResult<AuditLogRespDTO> result = service.page("admin", "AiConfig", null, null, null, 1, 20);
+        PageResult<AuditLogRespDTO> result = service.page("admin", "ApiEnvironment", null, null, null, 1, 20);
 
         assertEquals(12L, result.getTotal());
         assertEquals(1, result.getList().size());
         AuditLogRespDTO dto = result.getList().get(0);
         assertEquals(log.getId(), dto.getId());
-        assertEquals("AiConfig", dto.getEntityType());
+        assertEquals("ApiEnvironment", dto.getEntityType());
         assertEquals(log.getCreatedAt(), dto.getCreatedAt());
     }
 
@@ -84,10 +84,10 @@ class AuditQueryServiceImplTest {
         Map<String, Object> day2 = new HashMap<>();
         day2.put("key", "2026-09-12");
         day2.put("calls", 35L);
-        when(auditLogMapper.aggregateByDay("AiConfig", LocalDate.of(2026, 9, 10).atStartOfDay()))
+        when(auditLogMapper.aggregateByDay("ApiEnvironment", LocalDate.of(2026, 9, 10).atStartOfDay()))
                 .thenReturn(List.of(day1, day2));
 
-        Map<String, Long> result = service.aggregate("AiConfig", LocalDate.of(2026, 9, 10));
+        Map<String, Long> result = service.aggregate("ApiEnvironment", LocalDate.of(2026, 9, 10));
 
         assertEquals(List.of("2026-09-11", "2026-09-12"), List.copyOf(result.keySet()));
         assertEquals(20L, result.get("2026-09-11"));

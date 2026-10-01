@@ -3,19 +3,19 @@ package io.github.xiaomisum.robotest.repository;
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.conditions.Wrapper;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
-import io.github.xiaomisum.robotest.model.entity.ai.AiConfig;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiEnvironment;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiExecutionRecord;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiScene;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiScheduledTask;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiSwaggerUrl;
+import io.github.xiaomisum.robotest.model.entity.bug.Bug;
 import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseDocument;
-import io.github.xiaomisum.robotest.repository.ai.AiConfigMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiEnvironmentMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiExecutionRecordMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiScheduledTaskMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiSceneMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiSwaggerUrlMapper;
+import io.github.xiaomisum.robotest.repository.bug.BugMapper;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseDocumentMapper;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.junit.jupiter.api.BeforeAll;
@@ -56,7 +56,7 @@ class Code003MapperWrapperTest {
         configuration.getTypeHandlerRegistry().register(UUID.class, UUIDTypeHandler.class);
         initTableInfo(configuration, ApiEnvironment.class);
         initTableInfo(configuration, ApiExecutionRecord.class);
-        initTableInfo(configuration, AiConfig.class);
+        initTableInfo(configuration, Bug.class);
         initTableInfo(configuration, ApiScene.class);
         initTableInfo(configuration, ApiSwaggerUrl.class);
         initTableInfo(configuration, ApiScheduledTask.class);
@@ -96,18 +96,18 @@ class Code003MapperWrapperTest {
     }
 
     @Test
-    void aiConfigUpdateBuildsExplicitNullableColumnUpdate() {
-        AiConfigMapper mapper = mock(AiConfigMapper.class, CALLS_REAL_METHODS);
+    void bugReopenBuildsExplicitNullableColumnUpdate() {
+        BugMapper mapper = mock(BugMapper.class, CALLS_REAL_METHODS);
         when(mapper.update(isNull(), any(LambdaUpdateWrapperX.class))).thenReturn(1);
         clearInvocations(mapper);
 
-        assertEquals(1, mapper.updateConfig(ID, true, null, null, null, null, null, null, "{}", "{}"));
+        mapper.reopenById(ID, 1, null);
 
-        ArgumentCaptor<Wrapper<AiConfig>> captor = wrapperCaptor();
+        ArgumentCaptor<Wrapper<Bug>> captor = wrapperCaptor();
         verify(mapper).update(isNull(), captor.capture());
         String sql = ((LambdaUpdateWrapperX<?>) captor.getValue()).getSqlSet();
-        assertTrue(sql.contains("embedding_provider"));
-        assertTrue(sql.contains("settings"));
+        assertTrue(sql.contains("resolution"));
+        assertTrue(sql.contains("status"));
     }
 
     @Test

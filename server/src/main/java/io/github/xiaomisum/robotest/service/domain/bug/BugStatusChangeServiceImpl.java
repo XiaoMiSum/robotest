@@ -8,7 +8,6 @@ import io.github.xiaomisum.robotest.model.entity.bug.BugLog;
 import io.github.xiaomisum.robotest.repository.bug.BugLogMapper;
 import io.github.xiaomisum.robotest.repository.bug.BugMapper;
 import jakarta.annotation.Resource;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -33,8 +32,6 @@ public class BugStatusChangeServiceImpl implements BugStatusChangeService {
     private BugLogMapper bugLogMapper;
     @Resource
     private BugWorkflow bugWorkflow;
-    @Resource
-    private ApplicationEventPublisher eventPublisher;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -48,10 +45,6 @@ public class BugStatusChangeServiceImpl implements BugStatusChangeService {
             case REJECTED -> rejectBug(bug, userId, reqDTO.getComment());
             case CLOSED -> closeBug(bug, userId, reqDTO.getComment());
             case ACTIVE -> reopenBug(bug, userId, reqDTO.getComment());
-        }
-
-        if (target == BugStatus.CLOSED) {
-            eventPublisher.publishEvent(new BugChangedEvent(bug.getId(), BugChangeOp.CLOSED));
         }
     }
 

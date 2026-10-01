@@ -20,7 +20,6 @@ import io.github.xiaomisum.robotest.repository.requirement.RequirementPoolItemMa
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseDocumentMapper;
 import io.github.xiaomisum.robotest.repository.workspace.ProjectMapper;
 import io.github.xiaomisum.robotest.repository.workspace.WorkspaceUserMapper;
-import io.github.xiaomisum.robotest.service.ai.gateway.AiConfigService;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -53,8 +52,9 @@ public class RequirementServiceImpl implements RequirementService {
     private ProjectMapper projectMapper;
     @Resource
     private WorkspaceUserMapper workspaceUserMapper;
-    @Resource
-    private AiConfigService aiConfigService;
+
+    /** content 长度上限（字符数） */
+    private static final int CONTENT_MAX_LENGTH = 20000;
 
     @Override
     public PageResult<RequirementListRespDTO> getPage(UUID projectId, String keyword, String status, Integer pageNo,
@@ -279,28 +279,7 @@ public class RequirementServiceImpl implements RequirementService {
         }
     }
 
-    @Override
-    public List<RequirementPoolItem> requireByIds(UUID projectId, List<UUID> ids) {
-        if (ids == null || ids.isEmpty()) {
-            return List.of();
-        }
-        // 去重保序；selectBatchIds 自动过滤已逻辑删除条目
-        List<UUID> distinct = new ArrayList<>(new LinkedHashSet<>(ids));
-        List<RequirementPoolItem> items = requirementMapper.selectBatchIds(distinct);
-        // 缺失（含已删除）或跨项目的条目一律按不存在处理，防止越项目取内容
-        if (items.size() != distinct.size()
-                || items.stream().anyMatch(item -> !Objects.equals(item.getProjectId(), projectId))) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.REQUIREMENT_NOT_FOUND);
-        }
-        // 仅返回 active 条目：archived 不参与 AI 上下文组装（需求规格 3.2.4）
-        Map<UUID, RequirementPoolItem> byId = items.stream()
-                .collect(Collectors.toMap(RequirementPoolItem::getId, item -> item));
-        return distinct.stream().map(byId::get)
-                .filter(item -> Constants.Status.ACTIVE.equals(item.getStatus()))
-                .toList();
-    }
-
-    /** 文档必须存在且属于当前项目（与 AiCaseGenerationServiceImpl 同款判定） */
+    /** 文档必须存在且属于当前项目 */
     private void requireDocument(UUID documentId, UUID projectId) {
         TestCaseDocument document = testCaseDocumentMapper.selectById(documentId);
         if (document == null || !Objects.equals(document.getProjectId(), projectId)) {
@@ -308,10 +287,8 @@ public class RequirementServiceImpl implements RequirementService {
         }
     }
 
-    /** content 长度上限复用 AI 配置项（缺省回退内置默认，需求池不受 AI 开关影响） */
     private void validateContentLength(String content) {
-        int max = aiConfigService.getIntSetting("requirementContentMaxLength");
-        if (content != null && content.length() > max) {
+        if (content != null && content.length() > CONTENT_MAX_LENGTH) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.VALIDATION_FAILED);
         }
     }

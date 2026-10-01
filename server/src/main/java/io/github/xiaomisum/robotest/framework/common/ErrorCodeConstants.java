@@ -34,8 +34,6 @@ public class ErrorCodeConstants {
     public static final ErrorCode USER_NOT_FOUND = ErrorCode.of(1000003001, "用户不存在");
     public static final ErrorCode WORKSPACE_NOT_FOUND = ErrorCode.of(1000003002, "工作空间不存在");
     public static final ErrorCode ROLE_NOT_FOUND = ErrorCode.of(1000003003, "角色不存在");
-    public static final ErrorCode AI_TASK_NOT_FOUND = ErrorCode.of(1000003004, "任务不存在或不属于当前项目");
-    public static final ErrorCode AI_CONVERSATION_NOT_FOUND = ErrorCode.of(1000003005, "会话不存在");
 
     // ========== 冲突 1,000,004,001-1,000,004,002 ==========
     public static final ErrorCode WORKSPACE_HAS_PROJECTS = ErrorCode.of(1000004001, "工作空间下存在项目，无法解散");
@@ -189,22 +187,4 @@ public class ErrorCodeConstants {
     public static final ErrorCode BUG_RELATION_INVALID = ErrorCode.of(1000012022, "关联用例或计划标识不合法");
     public static final ErrorCode BUG_ATTACHMENT_TYPE_NOT_ALLOWED = ErrorCode.of(1000012023, "不支持的附件类型");
     public static final ErrorCode BUG_ATTACHMENT_CONTENT_MISMATCH = ErrorCode.of(1000012024, "附件内容与文件类型不符");
-
-    // ========== AI 能力域 1,000,013,001-1,000,013,099（文档简写 60XX，6001 ≙ 1000013001）
-    // ==========
-    public static final ErrorCode AI_NOT_ENABLED = ErrorCode.of(1000013001, "AI 功能未启用或配置缺失");
-    public static final ErrorCode AI_CALL_FAILED = ErrorCode.of(1000013002, "AI 调用失败");
-    public static final ErrorCode AI_OUTPUT_SCHEMA_INVALID = ErrorCode.of(1000013003, "AI 输出结构化校验失败");
-    // 已废弃：AI 限流改由框架 RateLimiter 承担，超限返回框架全局错误码 429（禁止新代码引用）
-    @Deprecated
-    public static final ErrorCode AI_RATE_LIMITED = ErrorCode.of(1000013004, "AI 调用频率超限");
-    public static final ErrorCode AI_TASK_DUPLICATE = ErrorCode.of(1000013005, "已存在进行中的同类任务");
-    public static final ErrorCode AI_TASK_STATE_INVALID = ErrorCode.of(1000013006, "任务不存在或当前状态不允许该操作");
-    public static final ErrorCode AI_CONNECTIVITY_TEST_FAILED = ErrorCode.of(1000013007, "连通性测试失败");
-    public static final ErrorCode AI_EMBEDDING_DIMENSION_INVALID = ErrorCode.of(1000013008, "Embedding 维度校验失败");
-    public static final ErrorCode AI_PROMPT_TEMPLATE_INVALID = ErrorCode.of(1000013009, "提示词模板校验失败");
-    public static final ErrorCode AI_SEMANTIC_DEGRADED = ErrorCode.of(1000013010, "语义检索能力降级中");
-    public static final ErrorCode AI_ASSISTANT_CONFIRM_TOKEN_INVALID = ErrorCode.of(1000013011, "写操作确认令牌不存在或已失效");
-    public static final ErrorCode AI_TARGET_STATE_INVALID = ErrorCode.of(1000013012, "目标对象状态不允许该 AI 操作");
-    public static final ErrorCode AI_PROMPT_TEMPLATE_NOT_FOUND = ErrorCode.of(1000013013, "提示词模板未配置，请检查初始化脚本或联系管理员恢复默认");
 }
