@@ -168,7 +168,7 @@ flowchart TD
 
 ## 8. 参考资料
 
-* 概要设计：`docs/02-high-level-design/03-hld-system-management.md` §3
+* 概要设计：`docs/02-high-level-design/01-system-management/02-hld-system-management.md` §3.3
 * 全局导航交互：`docs/05-interaction-design/02-global-navigation.md`
 * 管理端布局交互：`docs/05-interaction-design/01-system-management/02-system-management-ui-overview.md` §2
 * 视觉壳层形态：`docs/05-interaction-design/03-visual-design.md` §6.1
