@@ -8,6 +8,8 @@
 
 ## 1. 评审一键检查
 
+- **实例来源**：评审可由需求工作流「评审就绪」阶段的评审规划提案采纳创建并自动建立血缘（《需求工作流》5.2），或手动创建后经关联需求选取器建立血缘；检查作用于评审快照树，与需求工作流解耦。
+
 ### 1.1 发起检查
 
 - **路径**：`POST /api/project/ai/reviews/:id/check`
@@ -17,7 +19,7 @@
 ### 1.2 查询检查结果
 
 - **路径**：`GET /api/project/ai/reviews/:id/check-result`
-- **响应**：该评审最近一次 review_check 任务（含 status/progress/result，result 结构见 2.2.1）；无记录返回 `null`。
+- **响应**：该评审最近一次 review_check 任务（含 status/progress/result，result 结构见《AI 评审与测试计划辅助》2.2.1）；无记录返回 `null`。
 - **权限**：仅评审发起人可查看（与发起权限一致）。
 
 
