@@ -14,7 +14,7 @@
 
 ### 1.2 范围与对应需求
 
-对应需求模块 `docs/01-requirements/07-ai-capability/01-readme.md`（总册 `02-srs-ai-capability.md` 及生成链、智能助手、缺陷分析、辅助功能四个分册），覆盖 AI 配置与使用分析、知识与检索、追溯矩阵、任务与确认通用规则。测试评审 / 测试计划的快照机制沿用既有概要设计（`docs/02-high-level-design/04-hld-core-mechanisms.md`），向量检索遵循既有数据库约定（`docs/00-spec/20-contracts/02-database.md`）。
+对应需求模块 `docs/01-requirements/07-ai-capability/01-readme.md`（总册 `02-srs-ai-capability.md` 及生成链、智能助手、缺陷分析、辅助功能四个分册），覆盖 AI 配置与使用分析、知识与检索、追溯矩阵、任务与确认通用规则。测试评审 / 测试计划的快照机制沿用既有概要设计（`docs/02-high-level-design/03-function-testing/02-hld-function-testing.md` 第 3.3 节），向量检索遵循既有数据库约定（`docs/00-spec/20-contracts/02-database.md`）。
 
 ### 1.3 定义与缩写
 
@@ -198,7 +198,14 @@ erDiagram
 
 * **待确认态为全局约束**：AI 产出一律不直接生效，人工确认后才落库；人工判定优先于 AI。
 * **单一事实源**：任务、确认与审计机制全部在底座实现，能力域复用不重复实现；追溯边由矩阵服务唯一维护。
-* **快照语义沿用**：AI 圈选建议确认后走既有评审 / 计划创建流程，不改变快照机制（`docs/02-high-level-design/04-hld-core-mechanisms.md` 第 3 节）。
+* **快照语义沿用**：AI 圈选建议确认后走既有评审 / 计划创建流程，不改变快照机制（`docs/02-high-level-design/03-function-testing/02-hld-function-testing.md` 第 3.3 节）。
 * **供给不锁定**：不绑定具体模型供应商，配置决定供给。
 * **上下文不出 URL**：工作空间 / 项目上下文经请求头传递（C4）。
 * **数据约定**：实体须满足既有数据库通用约定（逻辑删除、无物理外键、索引规范，`docs/00-spec/20-contracts/02-database.md`），字段级设计留详细设计。
+
+## 修改记录
+
+| 版本 | 日期 | 说明 |
+| ---- | ---- | ---- |
+| V1.0 | 2026-10-01 | 初始版本 |
+| V1.0 | 2026-10-02 | 快照机制引用改指功能测试概要设计分册 |
