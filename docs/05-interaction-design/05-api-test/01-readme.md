@@ -23,4 +23,7 @@
 | [20-report-ui-detail](20-report-ui-detail.md)（分册：报告详情页）   | V1.0 | 2026-09-23 | 起草中 |
 | [21-report-ui-share](21-report-ui-share.md)（分册：分享访问页）   | V1.0 | 2026-09-23 | 起草中 |
 | [22-global-asset-ui](22-global-asset-ui.md)公共组件交互设计   | V1.0 | 2026-09-23 | 起草中 |
+| [23-project-settings-ui-overview](23-project-settings-ui-overview.md)（总览分册：项目设置）   | V1.0 | 2026-09-23 | 起草中 |
+| [24-project-settings-ui-framework](24-project-settings-ui-framework.md)（分册：设置框架）   | V1.0 | 2026-09-23 | 起草中 |
+| [25-project-settings-ui-function](25-project-settings-ui-function.md)（分册：函数管理页）   | V1.0 | 2026-09-23 | 起草中 |
 > 本目录为接口测试模块的交互设计分册；模块入口与阅读顺序见上级索引 `docs/05-interaction-design/01-readme.md`。

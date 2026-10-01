@@ -46,5 +46,11 @@
 | 智能测试用例生成 | `06-ai/05-ai-stories-case-generation.md` | 1. 智能测试用例生成 |
 | AI 辅助评审与覆盖度分析 | `06-ai/06-ai-stories-ai-review.md` | 1. AI 辅助评审与覆盖度分析 |
 | 缺陷智能分析与去重 | `04-bug/03-ai-stories-bug-analysis.md` | 1. 缺陷智能分析与去重 |
-| 全局智能助手 | `09-global-assistant/03-ai-stories-global-assistant.md` | 1. 全局智能助手（ChatBot） |
-| 测试计划与风险评估 | `08-plan-risk/03-ai-stories-plan-risk.md` | 1. 测试计划与风险评估 |
+| 全局智能助手 | `06-ai/10-ai-stories-global-assistant.md` | 1. 全局智能助手（ChatBot） |
+| 测试计划与风险评估 | `06-ai/08-ai-stories-plan-risk.md` | 1. 测试计划与风险评估 |
+
+## 修改记录
+
+| 版本 | 日期 | 说明 |
+| ---- | ---- | ---- |
+| V1.0 | 2026-10-01 | 分册-章节对照表同步目录结构调整：全局智能助手、测试计划与风险评估故事集归入 06-ai |

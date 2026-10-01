@@ -16,4 +16,9 @@
 | [13-ai-review-ui-missing](13-ai-review-ui-missing.md)（分册：覆盖确认与遗漏点处置）   | V1.0 | 2026-09-23 | 起草中 |
 | [14-ai-review-ui-order](14-ai-review-ui-order.md)（分册：执行顺序推荐）   | V1.0 | 2026-09-23 | 起草中 |
 | [15-ai-review-ui-plan](15-ai-review-ui-plan.md)（分册：用例规划智能推荐）   | V1.0 | 2026-09-23 | 起草中 |
+| [16-assistant-ui-overview](16-assistant-ui-overview.md)（总览分册：全局智能助手）   | V1.0 | 2026-09-23 | 起草中 |
+| [17-assistant-ui-panel](17-assistant-ui-panel.md)（分册：面板与会话）   | V1.0 | 2026-09-23 | 起草中 |
+| [18-assistant-ui-message](18-assistant-ui-message.md)（分册：消息交互）   | V1.0 | 2026-09-23 | 起草中 |
+| [19-assistant-ui-quick-action](19-assistant-ui-quick-action.md)（分册：快捷操作执行）   | V1.0 | 2026-09-23 | 起草中 |
+| [20-assistant-ui-mindmap-guide](20-assistant-ui-mindmap-guide.md)（分册：脑图编辑与使用指引）   | V1.0 | 2026-09-23 | 起草中 |
 > 本目录为 AI 能力模块的交互设计分册；模块入口与阅读顺序见上级索引 `docs/05-interaction-design/01-readme.md`。
