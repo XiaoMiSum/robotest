@@ -19,7 +19,16 @@
                      ├── TestReview ─── ReviewModuleSnapshot
                      │                  ReviewNodeSnapshot
                      │                  ReviewRecord
-                     └── Bug
+                     ├── Bug
+                     ├── ApiInterface ─── ApiInterfaceFollow
+                     │                    ApiInterfaceChangeLog
+                     │                    MockDefinition ─── MockAccessLog
+                     ├── ApiScene ─── ApiExecutionRecord ─── ApiReport
+                     │                 ApiChangeHistory
+                     ├── ApiEnvironment ─── ApiDatasource / ApiEnvironmentVariable / ApiProcessor
+                     ├── ApiScheduledTask ─── ApiScheduledTaskExecution
+                     ├── ApiComponent（公共组件）
+                     └── ApiDebugRecord / ApiImportRecord
 
 ### 1.2 核心数据对象概要
 
@@ -42,6 +51,21 @@
 | ReviewNodeSnapshot   | 评审-节点快照，冗余最后评审标记                    |
 | ReviewRecord         | 评审记录（标记/评论）                         |
 | Bug                  | 缺陷信息，状态流转                           |
+| ApiInterface         | 接口定义（协议、方法、路径、参数、响应示例），场景与 Mock 的资产底座 |
+| ApiInterfaceFollow   | 接口关注关系，支撑「我关注的」视图              |
+| ApiInterfaceChangeLog | 接口变更历史，含变更序号                      |
+| MockDefinition       | Mock 规则（匹配条件、响应定义、启停、命中统计）      |
+| MockAccessLog        | Mock 访问流水，支撑命中统计与审计                |
+| ApiScene             | 测试场景（名称、模块、优先级、参数与步骤树载体）        |
+| ApiEnvironment       | 环境（默认配置、数据源、全局变量、全局前后置处理器）      |
+| ApiComponent         | 公共组件资产（处理器 / 验证器 / 提取器）           |
+| ApiDebugRecord       | 服务端调试请求快照与执行结果                     |
+| ApiExecutionRecord   | 场景执行历史，与报告关联                       |
+| ApiReport            | 场景 / 套件报告结果快照，含分享令牌与有效期           |
+| ApiScheduledTask     | 定时任务（类型、Cron、启用状态、绑定对象）           |
+| ApiScheduledTaskExecution | 任务触发记录，关联套件报告或导入结果           |
+| ApiChangeHistory     | 接口与场景的变更历史（共享追溯载体）                |
+| ApiImportRecord      | 导入结果统计与失败明细                        |
 
 ### 1.3 数据隔离与生命周期
 
@@ -87,6 +111,7 @@
 * **测试评审**：发起、快照树、模块快照树、评审记录、同步、调整用例。
 * **测试计划**：创建、快照树、模块快照树、执行记录、同步、调整用例。
 * **缺陷管理**：CRUD、状态流转。
+* **接口测试**：调试执行与调试记录、接口定义与导入、Mock 规则与命中统计、测试场景与执行、执行状态、报告与分享、定时任务与执行记录、环境与数据源、公共组件；报告分享访问为免登录公开入口。概要设计见 `docs/02-high-level-design/05-api-testing/02-hld-api-overview.md` 第 5 节。
 
 详细端点定义参见《API 详细设计文档》。
 
@@ -96,3 +121,10 @@
 * 认证：连接时通过查询参数传递 Token。
 * 消息基于 JSON，支持节点增删改移、布局更新。
 * 广播至同一文档的在线用户。
+
+## 修改记录
+
+| 版本 | 日期 | 说明 |
+| ---- | ---- | ---- |
+| V1.0 | 2026-09-24 | 初始版本 |
+| V1.0 | 2026-10-01 | 数据对象与业务端接口概要补入接口测试模块 |
