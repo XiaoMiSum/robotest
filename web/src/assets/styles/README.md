@@ -16,7 +16,6 @@
 | `src/App.vue` | 文档级 reset、选区/焦点基线、Vue 过渡类 | 这些规则必须覆盖 Teleport 到 `body` 的节点，且属于应用入口基线 | 只能在此处维护入口级规则；新增规则须先更新本表和测试白名单 |
 | `src/assets/styles/variables.scss` | `body[data-robotest-theme]` 下的 Element Plus 设计令牌桥接 | Dialog、Dropdown、Tooltip 等组件库节点不在 `#app` 内；该层是统一设计令牌而非页面覆盖 | 只能使用普通层叠或 CSS 变量；禁止加入新的强制优先级声明 |
 | `src/components/project/functional-testing/case/CaseSelector.vue` | `.case-selector-dialog` | Element Plus Dialog 根节点 Teleport 到 `body`，不会带组件 scopeId | 选择器必须带该业务根类，不得改成裸 `.el-dialog` 覆盖 |
-| `src/components/project/functional-testing/minder/ai/AiPreviewDialog.vue` | `.ai-preview-dialog` | 同上，且预览弹窗需要独立的可伸缩 body 布局 | 选择器必须带该业务根类 |
 | `src/components/project/functional-testing/review/ReviewMindMap.vue` | `.comment-drawer .el-drawer__body` | Drawer Teleport 到 `body`，`scoped` 无法命中其子树 | 保留 `:global()` 仅限该抽屉类名和原因说明 |
 
 ## 变更约束

@@ -8,7 +8,6 @@ export function caseNodeToKm(node: TestCaseNode): Record<string, unknown> {
   return {
     data: {
       id: node.id, text: node.title, type: node.type, priority: node.priority,
-      aiGenerated: node.aiGenerated === true,
     },
     children: node.children.map(caseNodeToKm),
   }
@@ -21,7 +20,6 @@ export function reviewNodeToKm(node: TestReviewSnapshotNode): Record<string, unk
       isAssociated: node.isAssociated, lastMark: node.lastMark,
       reviewStatus: node.lastMark ? { result: node.lastMark } : null,
       relatedBugIds: [],
-      aiGenerated: node.aiGenerated === true,
     },
     children: node.children.map(reviewNodeToKm),
   }
@@ -34,7 +32,6 @@ export function planNodeToKm(node: TestPlanSnapshotNode): Record<string, unknown
       isAssociated: node.isAssociated, lastResult: node.lastResult,
       executionStatus: node.lastResult ? { result: node.lastResult } : null,
       relatedBugIds: [],
-      aiGenerated: node.aiGenerated === true,
     },
     children: node.children.map(planNodeToKm),
   }

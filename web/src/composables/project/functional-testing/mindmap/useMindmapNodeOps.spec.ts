@@ -1,10 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { MountTargetSource } from '@/minder/ai/aiMount'
 import type { Minder } from '@/minder/types'
 
 const mocks = vi.hoisted(() => ({
-  recommendPriority: vi.fn<(title: string, ancestorTitles: string[]) => Promise<{ priority: string | null; source: 'rule' | 'llm' }>>(),
-  useAiStore: vi.fn(),
   copySelected: vi.fn<(minder: Minder) => boolean>(),
   cutSelected: vi.fn<(minder: Minder) => 'ok' | 'no-node' | 'root'>(),
   pasteToSelected: vi.fn<(minder: Minder) => boolean>(),
@@ -12,13 +9,6 @@ const mocks = vi.hoisted(() => ({
   ElMessage: { success: vi.fn(), error: vi.fn(), warning: vi.fn() },
 }))
 
-vi.mock('@/services/ai', () => ({
-  recommendPriority: mocks.recommendPriority,
-}))
-
-vi.mock('@/stores/ai', () => ({
-  useAiStore: mocks.useAiStore,
-}))
 
 vi.mock('@/minder/clipboard', () => ({
   copySelected: mocks.copySelected,
@@ -33,28 +23,15 @@ vi.mock('element-plus', () => ({
 
 import { useMindmapNodeOps } from './useMindmapNodeOps'
 
-function buildNode(id: string, text: string, children: MountTargetSource[] = []): MountTargetSource {
-  return {
-    data: { id, text },
-    getChildren: () => children,
-  }
-}
 
 describe('useMindmapNodeOps', () => {
-  let root: MountTargetSource
-  let child1: MountTargetSource
-  let child2: MountTargetSource
   let minder: Minder
   let kmEditor: { minder: Minder; history: { undo: ReturnType<typeof vi.fn>; redo: ReturnType<typeof vi.fn>; hasUndo: ReturnType<typeof vi.fn>; hasRedo: ReturnType<typeof vi.fn> }; destroy: ReturnType<typeof vi.fn>; editText: ReturnType<typeof vi.fn> }
   let selectedData: Record<string, unknown> | null
 
   beforeEach(() => {
     vi.clearAllMocks()
-    child2 = buildNode('n3', 'Leaf')
-    child1 = buildNode('n2', 'Child', [child2])
-    root = buildNode('n1', 'Root', [child1])
     minder = {
-      getRoot: () => root,
       getSelectedNode: vi.fn(),
       select: vi.fn(),
       refresh: vi.fn(),
@@ -69,7 +46,6 @@ describe('useMindmapNodeOps', () => {
       editText: vi.fn(),
     }
     selectedData = null
-    mocks.useAiStore.mockReturnValue({ aiEnabled: false })
   })
 
   afterEach(() => {
@@ -95,11 +71,6 @@ describe('useMindmapNodeOps', () => {
       expect(sut.selectedPriority.value).toBe('')
     })
 
-    it('selectedAiGenerated 默认为 false', () => {
-      const sut = makeSut()
-      expect(sut.selectedAiGenerated.value).toBe(false)
-    })
-
     it('canUndo 默认为 false', () => {
       const sut = makeSut()
       expect(sut.canUndo.value).toBe(false)
@@ -110,10 +81,6 @@ describe('useMindmapNodeOps', () => {
       expect(sut.canRedo.value).toBe(false)
     })
 
-    it('priorityRecommendation 默认为 null', () => {
-      const sut = makeSut()
-      expect(sut.priorityRecommendation.value).toBeNull()
-    })
   })
 
   describe('exec', () => {
@@ -184,22 +151,6 @@ describe('useMindmapNodeOps', () => {
       expect(updateSelectedState).toHaveBeenCalled()
     })
 
-    it('标记为 case 且 aiEnabled 时触发优先级推荐', () => {
-      mocks.useAiStore.mockReturnValue({ aiEnabled: true })
-      mocks.recommendPriority.mockResolvedValue({ priority: 'P1', source: 'rule' })
-      const data: Record<string, unknown> = { id: 'n1', text: 'Test' }
-      const sut = makeSut({ getSelectedNodeData: () => data })
-      sut.markAs('case')
-      expect(mocks.recommendPriority).toHaveBeenCalledWith('Test', [])
-    })
-
-    it('标记为 case 但 aiDisabled 时不触发推荐', () => {
-      mocks.useAiStore.mockReturnValue({ aiEnabled: false })
-      const data: Record<string, unknown> = { id: 'n1', text: 'Test' }
-      const sut = makeSut({ getSelectedNodeData: () => data })
-      sut.markAs('case')
-      expect(mocks.recommendPriority).not.toHaveBeenCalled()
-    })
   })
 
   describe('markPriority', () => {
@@ -224,13 +175,6 @@ describe('useMindmapNodeOps', () => {
       expect(data.type).toBe('case')
     })
 
-    it('清空 pending 推荐', () => {
-      const data: Record<string, unknown> = { id: 'n1', text: 'Test' }
-      const sut = makeSut({ getSelectedNodeData: () => data })
-      sut.markPriority('P0')
-      expect(sut.priorityRecommendation.value).toBeNull()
-    })
-
     it('标记后调用 refresh 和 updateSelectedState', () => {
       const data: Record<string, unknown> = { id: 'n1', text: 'Test' }
       const updateSelectedState = vi.fn()
@@ -238,29 +182,6 @@ describe('useMindmapNodeOps', () => {
       sut.markPriority('P2')
       expect(minder.refresh).toHaveBeenCalled()
       expect(updateSelectedState).toHaveBeenCalled()
-    })
-  })
-
-  describe('applyPriorityRecommendation', () => {
-    it('无推荐时不调用 markPriority', () => {
-      const sut = makeSut()
-      sut.applyPriorityRecommendation()
-      expect(minder.refresh).not.toHaveBeenCalled()
-    })
-
-    it('推荐 priority 为 null 时不调用', () => {
-      const sut = makeSut()
-      sut.priorityRecommendation.value = { priority: null, source: 'rule' }
-      sut.applyPriorityRecommendation()
-      expect(minder.refresh).not.toHaveBeenCalled()
-    })
-
-    it('有推荐时调用 markPriority', () => {
-      const data: Record<string, unknown> = { id: 'n1', text: 'Test' }
-      const sut = makeSut({ getSelectedNodeData: () => data })
-      sut.priorityRecommendation.value = { priority: 'P0', source: 'llm' }
-      sut.applyPriorityRecommendation()
-      expect(data.priority).toBe('P0')
     })
   })
 
@@ -286,29 +207,6 @@ describe('useMindmapNodeOps', () => {
       sut.clearMark()
       expect(minder.refresh).toHaveBeenCalled()
       expect(updateSelectedState).toHaveBeenCalled()
-    })
-  })
-
-  describe('removeAiFlag', () => {
-    it('selectedData 为 null 时静默返回', () => {
-      const sut = makeSut({ getSelectedNodeData: () => null })
-      sut.removeAiFlag()
-      expect(minder.refresh).not.toHaveBeenCalled()
-    })
-
-    it('aiGenerated 非 true 时不操作', () => {
-      const data: Record<string, unknown> = { id: 'n1', text: 'Test', aiGenerated: false }
-      const sut = makeSut({ getSelectedNodeData: () => data })
-      sut.removeAiFlag()
-      expect(minder.refresh).not.toHaveBeenCalled()
-    })
-
-    it('aiGenerated 为 true 时置为 false', () => {
-      const data: Record<string, unknown> = { id: 'n1', text: 'Test', aiGenerated: true }
-      const sut = makeSut({ getSelectedNodeData: () => data })
-      sut.removeAiFlag()
-      expect(data.aiGenerated).toBe(false)
-      expect(minder.refresh).toHaveBeenCalled()
     })
   })
 
@@ -411,14 +309,6 @@ describe('useMindmapNodeOps', () => {
       const sut = makeSut()
       sut.onSelectionChange(null)
       expect(sut.selectedPriority.value).toBe('')
-      expect(sut.selectedAiGenerated.value).toBe(false)
-    })
-
-    it('提取 priority 和 aiGenerated', () => {
-      const sut = makeSut()
-      sut.onSelectionChange({ priority: 'P1', aiGenerated: true })
-      expect(sut.selectedPriority.value).toBe('P1')
-      expect(sut.selectedAiGenerated.value).toBe(true)
     })
 
     it('priority 不存在时置为空字符串', () => {
@@ -427,110 +317,6 @@ describe('useMindmapNodeOps', () => {
       expect(sut.selectedPriority.value).toBe('')
     })
 
-    it('递增 priorityRecSeq 并清空推荐', () => {
-      const sut = makeSut()
-      sut.priorityRecommendation.value = { priority: 'P0', source: 'llm' }
-      sut.onSelectionChange({ text: 'test' })
-      expect(sut.priorityRecommendation.value).toBeNull()
-    })
-  })
-
-  describe('triggerPriorityRecommend', () => {
-    it('root 为 null 时静默返回', () => {
-      const sut = makeSut({ getMinder: () => null })
-      sut.markAs('case')
-      expect(mocks.recommendPriority).not.toHaveBeenCalled()
-    })
-
-    it('data 为 null 时静默返回', () => {
-      const mocks2 = { ...mocks }
-      const sut = makeSut({ getSelectedNodeData: () => null })
-      sut.markAs('case')
-      expect(mocks2.recommendPriority).not.toHaveBeenCalled()
-    })
-
-    it('nodeId 为空时静默返回', () => {
-      const data: Record<string, unknown> = { id: '', text: 'Test' }
-      const sut = makeSut({ getSelectedNodeData: () => data })
-      sut.markAs('case')
-      expect(mocks.recommendPriority).not.toHaveBeenCalled()
-    })
-
-    it('title 为空白时静默返回', () => {
-      const data: Record<string, unknown> = { id: 'n1', text: '   ' }
-      const sut = makeSut({ getSelectedNodeData: () => data })
-      sut.markAs('case')
-      expect(mocks.recommendPriority).not.toHaveBeenCalled()
-    })
-
-    it('成功时更新 priorityRecommendation', async () => {
-      mocks.useAiStore.mockReturnValue({ aiEnabled: true })
-      mocks.recommendPriority.mockResolvedValue({ priority: 'P0', source: 'rule' })
-      const data: Record<string, unknown> = { id: 'n2', text: 'Child' }
-      const sut = makeSut({ getSelectedNodeData: () => data })
-      sut.markAs('case')
-      await vi.waitFor(() => {
-        expect(sut.priorityRecommendation.value).toEqual({ priority: 'P0', source: 'rule' })
-      })
-    })
-
-    it('推荐 priority 为 null 时不更新', async () => {
-      mocks.useAiStore.mockReturnValue({ aiEnabled: true })
-      mocks.recommendPriority.mockResolvedValue({ priority: null, source: 'llm' })
-      const data: Record<string, unknown> = { id: 'n2', text: 'Child' }
-      const sut = makeSut({ getSelectedNodeData: () => data })
-      sut.markAs('case')
-      await vi.waitFor(() => {
-        expect(mocks.recommendPriority).toHaveBeenCalled()
-      })
-      expect(sut.priorityRecommendation.value).toBeNull()
-    })
-
-    it('请求被新选择覆盖时不更新（seq 不匹配）', async () => {
-      vi.useFakeTimers()
-      mocks.useAiStore.mockReturnValue({ aiEnabled: true })
-      let resolveFirst: ((v: { priority: string | null; source: 'rule' | 'llm' }) => void) = () => {}
-      mocks.recommendPriority.mockImplementationOnce(() => new Promise((r) => { resolveFirst = r as (v: { priority: string | null; source: 'rule' | 'llm' }) => void }))
-      const data1: Record<string, unknown> = { id: 'n1', text: 'First' }
-      const sut = makeSut({ getSelectedNodeData: () => data1 })
-      sut.markAs('case')
-
-      sut.onSelectionChange({ text: 'Second' })
-
-      mocks.recommendPriority.mockResolvedValue({ priority: 'P2', source: 'rule' })
-      const data2: Record<string, unknown> = { id: 'n2', text: 'Second' }
-      selectedData = data2
-      sut.markAs('case')
-
-      resolveFirst({ priority: 'P1', source: 'llm' })
-      await vi.advanceTimersByTimeAsync(0)
-      expect(sut.priorityRecommendation.value).toEqual({ priority: 'P2', source: 'rule' })
-
-      vi.useRealTimers()
-    })
-
-    it('recommendPriority 失败时静默忽略', async () => {
-      mocks.useAiStore.mockReturnValue({ aiEnabled: true })
-      mocks.recommendPriority.mockRejectedValue(new Error('network'))
-      const data: Record<string, unknown> = { id: 'n2', text: 'Child' }
-      const sut = makeSut({ getSelectedNodeData: () => data })
-      sut.markAs('case')
-      await vi.waitFor(() => {
-        expect(mocks.recommendPriority).toHaveBeenCalled()
-      })
-      expect(sut.priorityRecommendation.value).toBeNull()
-    })
-
-    it('路径传递给 recommendPriority', async () => {
-      mocks.useAiStore.mockReturnValue({ aiEnabled: true })
-      mocks.recommendPriority.mockResolvedValue({ priority: 'P1', source: 'rule' })
-      const data: Record<string, unknown> = { id: 'n3', text: 'Leaf' }
-      const sut = makeSut({ getSelectedNodeData: () => data })
-      sut.markAs('case')
-      await vi.waitFor(() => {
-        expect(mocks.recommendPriority).toHaveBeenCalledWith('Leaf', ['Root', 'Child'])
-      })
-    })
   })
 
   describe('hasClipboard', () => {

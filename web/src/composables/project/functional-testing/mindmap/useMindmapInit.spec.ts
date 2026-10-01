@@ -6,8 +6,6 @@ const mocks = vi.hoisted(() => ({
   caseNodeToKm: vi.fn(() => ({ data: { id: 'root' }, children: [] })),
   loadMinderEngine: vi.fn().mockResolvedValue(undefined),
   KMEditor: vi.fn(),
-  buildDslPlan: vi.fn(() => ({ commands: [] })),
-  applyDslPlan: vi.fn(() => ({ ok: true })),
   ElMessage: { error: vi.fn() },
   _watchCb: null as ((...args: unknown[]) => void) | null,
   _watchSource: null as unknown,
@@ -46,11 +44,6 @@ vi.mock('@/minder/loader', () => ({
 
 vi.mock('@/minder/editor', () => ({
   KMEditor: mocks.KMEditor,
-}))
-
-vi.mock('@/minder/ai/dslRunner', () => ({
-  buildDslPlan: mocks.buildDslPlan,
-  applyDslPlan: mocks.applyDslPlan,
 }))
 
 vi.mock('@/minder/useContextMenu', () => {
@@ -107,14 +100,6 @@ function makeOptions(overrides?: Record<string, unknown>) {
       canUndo: ref(false),
       canRedo: ref(false),
     },
-    assistantContext: {
-      registerMindMap: vi.fn(),
-      unregisterMindMap: vi.fn(),
-      registerDslHost: vi.fn(),
-      unregisterDslHost: vi.fn(),
-    },
-    aiResetPanels: vi.fn(),
-    aiStopAiReadyPoll: vi.fn(),
     ...overrides,
   }
 }
@@ -189,13 +174,6 @@ describe('useMindmapInit', () => {
   })
 
   describe('onMounted', () => {
-    it('调用 assistantContext.registerMindMap', () => {
-      const opts = makeOptions()
-      useMindmapInit(opts)
-      mocks._onMountedCb!()
-      expect(opts.assistantContext.registerMindMap).toHaveBeenCalledWith('doc-1')
-    })
-
     it('触发 initMinder', async () => {
       const opts = makeOptions()
       useMindmapInit(opts)
@@ -286,15 +264,6 @@ describe('useMindmapInit', () => {
       })
     })
 
-    it('fetchDocumentNodes 成功后调用 assistantContext.registerDslHost', async () => {
-      const opts = makeOptions()
-      useMindmapInit(opts)
-      mocks._onMountedCb!()
-      await vi.waitFor(() => {
-        expect(opts.assistantContext.registerDslHost).toHaveBeenCalled()
-      })
-    })
-
     it('fetchDocumentNodes 成功后 minder.value 被赋值', async () => {
       const opts = makeOptions()
       useMindmapInit(opts)
@@ -375,27 +344,6 @@ describe('useMindmapInit', () => {
   })
 
   describe('onBeforeUnmount', () => {
-    it('调用 assistantContext.unregisterMindMap', () => {
-      const opts = makeOptions()
-      useMindmapInit(opts)
-      mocks._onBeforeUnmountCb!()
-      expect(opts.assistantContext.unregisterMindMap).toHaveBeenCalled()
-    })
-
-    it('调用 assistantContext.unregisterDslHost', () => {
-      const opts = makeOptions()
-      useMindmapInit(opts)
-      mocks._onBeforeUnmountCb!()
-      expect(opts.assistantContext.unregisterDslHost).toHaveBeenCalled()
-    })
-
-    it('调用 aiStopAiReadyPoll', () => {
-      const opts = makeOptions()
-      useMindmapInit(opts)
-      mocks._onBeforeUnmountCb!()
-      expect(opts.aiStopAiReadyPoll).toHaveBeenCalled()
-    })
-
     it('调用 invalidate', () => {
       const opts = makeOptions()
       useMindmapInit(opts)
@@ -426,20 +374,6 @@ describe('useMindmapInit', () => {
   })
 
   describe('watch docId', () => {
-    it('docId 变化时调用 aiResetPanels', () => {
-      const opts = makeOptions()
-      useMindmapInit(opts)
-      mocks._watchCb!('new-doc-id')
-      expect(opts.aiResetPanels).toHaveBeenCalled()
-    })
-
-    it('docId 变化时调用 assistantContext.registerMindMap', () => {
-      const opts = makeOptions()
-      useMindmapInit(opts)
-      mocks._watchCb!('new-doc-id')
-      expect(opts.assistantContext.registerMindMap).toHaveBeenCalledWith('new-doc-id')
-    })
-
     it('docId 变化时触发 initMinder', async () => {
       const opts = makeOptions()
       useMindmapInit(opts)

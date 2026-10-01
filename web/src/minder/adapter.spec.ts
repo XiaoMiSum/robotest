@@ -25,21 +25,16 @@ const caseTree: TestCaseNode = {
 }
 
 describe('caseNodeToKm', () => {
-  it('递归映射 id/text/type/priority/aiGenerated', () => {
+  it('递归映射 id/text/type/priority', () => {
     expect(caseNodeToKm(caseTree)).toEqual({
-      data: { id: 'n1', text: '登录成功', type: 'case', priority: 'P1', aiGenerated: false },
+      data: { id: 'n1', text: '登录成功', type: 'case', priority: 'P1' },
       children: [
         {
-          data: { id: 'n2', text: '输入账号密码', type: 'step', priority: null, aiGenerated: false },
+          data: { id: 'n2', text: '输入账号密码', type: 'step', priority: null },
           children: [],
         },
       ],
     })
-  })
-
-  it('aiGenerated=true 随节点数据映射（AI 徽标数据源）', () => {
-    const km = caseNodeToKm({ ...caseTree, aiGenerated: true, children: [] })
-    expect(km.data).toMatchObject({ aiGenerated: true })
   })
 })
 

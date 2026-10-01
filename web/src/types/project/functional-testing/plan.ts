@@ -48,7 +48,6 @@ export interface TestPlanSnapshotNode {
   lastExecutorId: string | null
   lastExecutedAt: string | null
   sortOrder: number
-  aiGenerated?: boolean
   children: TestPlanSnapshotNode[]
 }
 

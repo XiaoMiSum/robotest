@@ -54,7 +54,6 @@ export interface TestReviewSnapshotNode {
   lastReviewerId: string | null
   lastReviewedAt: string | null
   sortOrder: number
-  aiGenerated?: boolean
   children: TestReviewSnapshotNode[]
 }
 
