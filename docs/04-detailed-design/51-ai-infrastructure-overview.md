@@ -100,8 +100,8 @@
 | id | UUID | PK | 任务 ID |
 | workspace_id | UUID | NULL | 归属工作空间（`embedding_rebuild` 全局任务为空） |
 | project_id | UUID | NULL | 归属项目（`embedding_rebuild` 全局任务为空） |
-| type | VARCHAR(30) | NOT NULL | 任务类型：review_check / review_summary / bug_clustering / embedding_rebuild / plan_order_recommend |
-| target_id | UUID | NULL | 目标对象 ID（评审 ID 等；聚类/回填以项目为目标时为空） |
+| type | VARCHAR(30) | NOT NULL | 任务类型：review_check / review_summary / bug_clustering / embedding_rebuild / plan_order_recommend / case_generation / missing_point_analysis / review_planning / plan_planning |
+| target_id | UUID | NULL | 目标对象 ID（评审 ID、计划 ID、需求工作流条目 ID 等；聚类/回填以项目为目标时为空） |
 | status | VARCHAR(20) | NOT NULL DEFAULT 'pending' | pending / running / success / failed / cancelled |
 | progress | INT | NOT NULL DEFAULT 0 | 进度百分比（0–100） |
 | result | JSONB | NULL | 结果快照（结构由各任务类型在对应文档定义） |
@@ -121,6 +121,7 @@
 | type | 执行形态 | 生命周期 |
 | ---- | ---- | ---- |
 | review_check / bug_clustering | 执行器异步任务 | 走 4.6 完整生命周期（pending → running → success/failed/cancelled），可取消/重试 |
+| case_generation / missing_point_analysis / review_planning / plan_planning | 执行器异步任务（需求工作流阶段作业） | 同上；`target_id` = 需求条目 ID，发起与进行中去重（1000013005）见《智能用例生成与需求工作流》总览 2.3.3 与《需求工作流》4.1；同条目同类型仅保留最新一条（覆盖式新建） |
 | review_summary | SSE 流式生成 | **不经执行器抢占**；仅借本表持久化结果快照（建立即 running、`done` 帧前置 success），供事后查看与覆盖式重新生成，详见《AI 评审与测试计划辅助详细设计说明书》 |
 | plan_order_recommend | 同步确定性计算 | 创建即终态 success，本表仅存结果快照，无 running 过程 |
 | embedding_rebuild | 系统内部任务 | 由 Embedding 模型/维度变更触发（见 4.10）；其 LLM/Embedding 调用侧对应 2.3 功能类型枚举的 `embedding_index`（两者分属「任务类型」与「功能类型」两套枚举，指向同一后台向量重建活动），执行逻辑见《缺陷智能分析与向量检索详细设计说明书》 |
@@ -188,7 +189,8 @@
 | dedup.similarityThreshold | number | 0.75 | 缺陷查重相似度阈值 |
 | clustering.similarityThreshold | number | 0.82 | 缺陷聚类并簇相似度阈值 |
 | clustering.maxLabeledClusters | int | 30 | 聚类 LLM 归纳标签的簇数上限（按簇大小降序） |
-| requirementContentMaxLength | int | 20000 | 需求池条目内容长度上限（字符；需求池不受 AI 开关影响，但配置键随本键值集管理） |
+| requirementContentMaxLength | int | 20000 | 需求工作流条目内容长度上限（字符；需求工作流不受 AI 开关影响，但配置键随本键值集管理） |
+| workstream.autoRerunDebounceSeconds | int | 60 | 需求工作流「自动推进」开启后，条目内容变更自动重跑当前阶段作业的去抖窗口（秒；见《智能用例生成与需求工作流》2.3.3） |
 | planRecommend.topK | int | 50 | 用例规划推荐语义检索条数上限 |
 | planRecommend.similarityThreshold | number | 0.7 | 用例规划推荐语义相似度阈值 |
 | planOrder.weights | object | {"w1":0.5,"w2":0.3,"w3":0.2} | 执行顺序推荐评分权重 |
@@ -209,6 +211,7 @@
 | 检索与推荐 | planRecommend.topK / planRecommend.similarityThreshold | 数字输入（同上口径） |
 | 执行顺序推荐 | planOrder.weights | 三个数字输入（w1/w2/w3，各 0–1，保存校验三者之和 = 1，容差 0.001） |
 | 长度限制 | requirementContentMaxLength | 数字输入（1000–100000） |
+| 需求工作流 | workstream.autoRerunDebounceSeconds | 数字输入（5–3600） |
 | 全局助手 | assistantConfirmTimeoutSeconds / assistantWriteToolWhitelist | 数字输入（30–3600）/ 多选框（选项为写工具枚举） |
 | 数据保留 | logRetentionDays / conversationRetentionDays | 数字输入（30–3650） |
 
@@ -218,7 +221,7 @@
 
 | 枚举值 | 功能 | 调用形态 | 限流类别 |
 | ---- | ---- | ---- | ---- |
-| case_generation | 用例子树生成 | 流式 | generation |
+| case_generation | 用例设计阶段作业（用例子树生成） | 异步任务 | task |
 | step_completion | 用例步骤补全 | 流式 | generation |
 | review_summary | 评审摘要生成 | 流式 | generation |
 | assistant_chat | 全局助手对话 | 流式 | assistant |
@@ -226,14 +229,16 @@
 | bug_form_suggestion | 缺陷标题优化与等级建议 | 同步 | suggestion |
 | dsl_translation | 脑图指令翻译（DSL） | 同步 | suggestion |
 | plan_order_reason | 执行顺序推荐理由 | 同步 | suggestion |
-| missing_point_analysis | 遗漏分析 | 同步 | retrieval |
+| missing_point_analysis | 覆盖确认阶段作业（遗漏分析） | 异步任务 | task |
 | case_plan_recommendation | 用例规划推荐 | 同步 | retrieval |
+| review_planning | 评审规划提案（阶段作业） | 异步任务 | task |
+| plan_planning | 计划规划提案（阶段作业） | 异步任务 | task |
 | bug_dedup | 缺陷语义查重（Embedding） | 同步 | retrieval |
 | review_check | 评审完整性检查 | 异步任务 | task |
 | bug_clustering | 缺陷聚类归纳 | 异步任务 | task |
 | embedding_index | 向量写入/回填/重建（Embedding） | 系统内部 | 不限流 |
 
-> `bug_dedup` / `embedding_index` 仅调用 Embedding 接口，无提示词模板；智能体管理页只展示有模板位的功能类型。
+> `bug_dedup` / `embedding_index` 仅调用 Embedding 接口，无提示词模板；智能体管理页只展示有模板位的功能类型。case_generation / missing_point_analysis / review_planning / plan_planning 为需求工作流阶段作业：经异步任务执行器执行（限流类别 task、成本护栏走 `rateLimit.task`），不接受请求级 `modelId`（固定系统默认模型，见 2.6）。
 
 ### 2.4 数据生命周期
 
@@ -285,7 +290,7 @@
 - 项目级：`/api/project/ai/**`，头 `Authorization` + `X-Active-Workspace` + `X-Active-Project`。
 - 通用响应：`{ "code": 200, "msg": "success", "data": {} }`；命名 camelCase。下文各接口的响应示例**仅展示 `data` 字段内容**，省略外层 `code` / `msg` 包裹（SSE 帧格式除外）。
 - 密钥字段**永不回传明文**：响应仅含 `configured`（布尔）与 `keySuffix`（末 4 位）。
-- **对话模型选择**：交互式功能（用例生成、步骤补全、评审摘要、助手对话、DSL 翻译）的请求体支持可选字段 `modelId`（对话模型标识，见 2.1.5），缺省或失效时后端回退系统默认模型（解析规则见 4.11）；后台异步任务与建议类接口不接受该字段。
+- **对话模型选择**：交互式功能（步骤补全、评审摘要、助手对话、DSL 翻译）的请求体支持可选字段 `modelId`（对话模型标识，见 2.1.5），缺省或失效时后端回退系统默认模型（解析规则见 4.11）；后台异步任务（含需求工作流阶段作业）与建议类接口不接受该字段。
 
 **SSE 流式接口统一帧格式**（`Content-Type: text/event-stream`，各生成类接口共用）：
 
@@ -387,3 +392,4 @@ data: {"code": 1000013002, "message": "AI 调用失败"}
 | V1.0 | 2026-09-28 | 登记 1000013004 废弃（限流改用框架全局 429），限流实现口径同步为框架固定窗口 |
 | V1.0 | 2026-09-30 | 功能名称统一改为「遗漏分析」 |
 | V1.0 | 2026-09-30 | 移除 `missingPoint.topK` 配置键（遗漏分析不再使用语义检索） |
+| V1.0 | 2026-10-01 | 任务类型与 function_type 扩展需求工作流阶段作业（case_generation / missing_point_analysis / review_planning / plan_planning，异步任务形态），新增 `workstream.autoRerunDebounceSeconds` 配置键，modelId 适用范围移除用例生成 |
