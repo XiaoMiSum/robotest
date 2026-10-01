@@ -426,9 +426,9 @@ export interface AiRequirementSplitResult {
   warnings: string[]
 }
 
-// --- 缺陷 AI 能力（US-AI-008/009/010，详细设计 3.1–3.3） ---
+// --- 缺陷 AI 能力 ---
 
-/** 缺陷表单智能建议响应（3.1） */
+/** 缺陷表单智能建议响应 */
 export interface AiBugSuggestion {
   optimizedTitle: string
   severity: BugSeverity
@@ -436,30 +436,30 @@ export interface AiBugSuggestion {
   reason: string
 }
 
-/** 语义查重单条命中（3.2） */
+/** 语义查重单条命中 */
 export interface AiBugDedupItem {
   bugId: string
   title: string
   status: BugStatus
   assigneeName: string | null
-  /** 降级模式下为 null，前端据此不展示相似度徽标（3.2） */
+  /** 降级模式下为 null，前端据此不展示相似度徽标 */
   similarity: number | null
 }
 
-/** 语义查重响应（3.2） */
+/** 语义查重响应 */
 export interface AiBugDedupResult {
   semanticDegraded: boolean
   items: AiBugDedupItem[]
 }
 
-/** 聚类模块分布条目（2.3；moduleId 为 null 表示未指定模块） */
+/** 聚类模块分布条目（moduleId 为 null 表示未指定模块） */
 export interface AiBugClusterModule {
   moduleId: string | null
   moduleName: string
   count: number
 }
 
-/** 聚类单簇内缺陷（2.3，携带标题/严重度/状态供明细直接渲染，无需再查详情） */
+/** 聚类单簇内缺陷（携带标题/严重度/状态供明细直接渲染，无需再查详情） */
 export interface AiBugClusterBug {
   id: string
   title: string
@@ -467,7 +467,7 @@ export interface AiBugClusterBug {
   status: BugStatus
 }
 
-/** 聚类单簇（2.3；labeled=false 表示 LLM 归纳失败/超限，label 为占位「未命名主题 N」，前端需明示标签生成失败） */
+/** 聚类单簇（labeled=false 表示 LLM 归纳失败/超限，label 为占位「未命名主题 N」，前端需明示标签生成失败） */
 export interface AiBugCluster {
   label: string
   labeled: boolean
@@ -477,7 +477,7 @@ export interface AiBugCluster {
   moduleDist: AiBugClusterModule[]
 }
 
-/** 聚类结果快照（bug_clustering 任务 result，2.3；unclustered 仅含 ID 无标题，仅计数展示） */
+/** 聚类结果快照（bug_clustering 任务 result；unclustered 仅含 ID 无标题，仅计数展示） */
 export interface AiBugClusterSnapshot {
   generatedAt: string
   bugCount: number

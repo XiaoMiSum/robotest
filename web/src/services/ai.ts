@@ -171,9 +171,9 @@ export function planOrderReason(
   return { controller, promise }
 }
 
-// ==================== 缺陷 AI 能力（US-AI-008/009/010，详细设计 3.1–3.3） ====================
+// ==================== 缺陷 AI 能力 ====================
 
-/** 缺陷表单智能建议（3.1，同步） */
+/** 缺陷表单智能建议（同步） */
 export function suggestBugForm(data: {
   title: string
   reproSteps?: string
@@ -181,7 +181,7 @@ export function suggestBugForm(data: {
   return post('/project/ai/bugs/suggest', data)
 }
 
-/** 缺陷语义查重（3.2，同步检索；编辑既有缺陷时排除自身） */
+/** 缺陷语义查重（同步检索；编辑既有缺陷时排除自身） */
 export function dedupBugs(data: {
   title: string
   reproSteps?: string
@@ -190,7 +190,7 @@ export function dedupBugs(data: {
   return post('/project/ai/bugs/dedup', data)
 }
 
-/** 发起缺陷聚类分析（3.3.1）：返回异步任务 ID，前端 2s 轮询任务状态 */
+/** 发起缺陷聚类分析：返回异步任务 ID，前端 2s 轮询任务状态 */
 export interface AiBugClusteringStartResp {
   taskId: string
 }
@@ -199,7 +199,7 @@ export function startBugClustering(): Promise<AiBugClusteringStartResp> {
   return post<AiBugClusteringStartResp>('/project/ai/bugs/clustering')
 }
 
-/** 查询缺陷聚类最近一次任务（3.3.2，无记录返回 null；running/cancelled 亦含部分快照） */
+/** 查询缺陷聚类最近一次任务（无记录返回 null；running/cancelled 亦含部分快照） */
 export function fetchLatestBugClustering(): Promise<AiTask | null> {
   return get('/project/ai/bugs/clustering/latest')
 }
