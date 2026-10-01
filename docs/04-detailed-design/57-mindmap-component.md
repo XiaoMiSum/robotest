@@ -205,7 +205,7 @@ web/src/components/project/
 
 ## 5. 工具栏设计
 
-工具栏位于脑图画布顶部，水平居中，背景半透明磨砂，占位流式。编辑模式为两行：第一行核心编辑操作，第二行（右侧）AI 入口。各组件拥有独立的工具栏。
+工具栏位于脑图画布顶部，水平居中，背景半透明磨砂，占位流式。编辑模式为两行：第一行核心编辑操作，第二行（右侧）AI 入口（交互式 AI 功能；「AI 生成用例」不在脑图侧——用例生成的唯一入口是需求工作流的用例设计阶段推进，见《智能用例生成与需求工作流》2.7）。各组件拥有独立的工具栏。
 
 ### 5.1 编辑（CaseMindMap）
 
@@ -512,6 +512,15 @@ web/src/components/project/
 9. **原位编辑接入**：编辑内核创建 minder 时传 `enableKeyReceiver: false` 禁用 core 内置接收器，由 receiver.ts 的 contenteditable 元素统一接管键盘；命令执行后 `fire('receiverfocus')` 保证快捷键持续可用。
 10. **WebSocket 持久化**：后端接收到 Yjs 更新后，递归解析嵌套的文档 JSON 树，比对数据库现有节点，执行新增、更新、删除操作，并更新布局。布局（模板 + 节点偏移）由前端 diff 后经 `update_layout` 文本帧 `{ type, payload: { template, offsets } }` 整体 upsert 到 `test_case_document.layout` JSON 列。
 11. **Bug 链接跳转**：点击关联 Bug 标签时，以新窗口打开缺陷详情页，路径为 `/workspace/projects/bugs/:bugId`。
+
+---
+
+## 修改记录
+
+| 版本 | 日期 | 说明 |
+| --- | --- | --- |
+| V1.0 | 2026-09-23 | 初始版本 |
+| V1.0 | 2026-10-01 | 补建修改记录；工具栏说明明确「AI 生成用例」入口不在脑图侧（收敛至需求工作流） |
 
 ---
 
