@@ -166,12 +166,3 @@ UserRespDTO dto = userConvertMapper.toRespDTO(user);
 | `@Email` | 邮箱格式校验 | `@Email private String email;` |
 | `@Mobile` | 手机号格式校验 | `@Mobile private String phone;` |
 | `@InEnum` | 枚举值范围校验 | `@InEnum(StatusEnum.class) private Integer status;` |
-
----
-
-## 修改记录
-
-| 版本 | 日期 | 说明 |
-| --- | --- | --- |
-| — | 2026-09-24 | 初版发布 |
-| — | 2026-09-28 | 框架版本同步至 v1.4.0；C3 补充框架全局错误码 0–999 例外 |

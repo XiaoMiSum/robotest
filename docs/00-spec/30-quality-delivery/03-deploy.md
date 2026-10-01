@@ -188,13 +188,6 @@ CI 的质量门禁由 `docs/00-spec/30-quality-delivery/01-quality.md` 定义，
 - 数据库迁移：`docs/00-spec/20-contracts/02-database.md`
 - 项目部署 Runbook：`docs/00-spec/30-quality-delivery/04-deployment-runbook.md`
 
-## 修改记录
-
-| 版本 | 日期 | 说明 |
-| --- | --- | --- |
-| V1.0 | 2026-09-24 | 建立本文 |
-| V1.1 | 2026-09-28 | 工具链矩阵由「锁定来源」改为「版本来源」：前端 Node 与 pnpm 版本只记录不锁定，不再指向已移除的锁定文件 |
-
 ---
 
 **文档结束**

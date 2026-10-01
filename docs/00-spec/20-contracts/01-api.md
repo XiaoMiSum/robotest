@@ -219,12 +219,6 @@ docs/00-spec/20-contracts/03-realtime-protocol.md
 - 安全基线：`docs/00-spec/40-security/01-security.md`
 - 数据库和分页查询：`docs/00-spec/20-contracts/02-database.md`、`docs/00-spec/10-engineering/02-backend.md`
 
-## 修改记录
-
-| 版本 | 日期 | 说明 |
-| --- | --- | --- |
-| V1.0 | 2026-09-28 | 错误码登记框架全局错误码 0–999 与业务 10 位码双档口径；登记 1000002010、1000013004 废弃说明 |
-
 ---
 
 **文档结束**
