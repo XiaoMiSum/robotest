@@ -1,16 +1,13 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useAuthStore } from '@/stores/auth'
-import { useAssistantContextStore } from '@/stores/assistantContext'
 import { useMinderInstance } from '@/minder/useMinderInstance'
 import MinderContextMenu from '../minder/MinderContextMenu.vue'
 import MinderNavigator from '../minder/MinderNavigator.vue'
-import AiGeneratePanel from '../minder/ai/AiGeneratePanel.vue'
 import RequirementSelector from '../requirement/RequirementSelector.vue'
-import MissingPointsPanel from './MissingPointsPanel.vue'
 import { KMEditor } from '@/minder/editor'
 import { useMindmapPersistence } from '@/composables/project/functional-testing/mindmap/useMindmapPersistence'
-import { useMindmapAI } from '@/composables/project/functional-testing/mindmap/useMindmapAI'
+import { useMindmapRequirementLink } from '@/composables/project/functional-testing/mindmap/useMindmapRequirementLink'
 import { useMindmapLayout } from '@/composables/project/functional-testing/mindmap/useMindmapLayout'
 import { useMindmapNodeOps } from '@/composables/project/functional-testing/mindmap/useMindmapNodeOps'
 import { useMindmapYjs } from '@/composables/project/functional-testing/mindmap/useMindmapYjs'
@@ -19,7 +16,6 @@ import { useMindmapInit } from '@/composables/project/functional-testing/mindmap
 const props = defineProps<{ docId: string }>()
 
 const authStore = useAuthStore()
-const assistantContext = useAssistantContextStore()
 
 const canManageRequirements = computed(() => authStore.hasPermission('requirement:view'))
 
@@ -41,7 +37,6 @@ const {
 } = useMinderInstance({
   onSelectionChange(data) {
     nodeOps.onSelectionChange(data)
-    assistantContext.setSelectedNode(selectedNodeId.value || null)
   },
 })
 
@@ -49,7 +44,7 @@ const getMinderTyped = () => getMinder() as unknown as import('@/minder/types').
 
 const persistence = useMindmapPersistence(getMinderTyped)
 
-const ai = useMindmapAI(getMinderTyped, () => getSelectedNodeData(), () => props.docId)
+const reqLink = useMindmapRequirementLink(() => props.docId)
 
 const layout = useMindmapLayout((cmd, ...args) => {
   getMinder()?.execCommand?.(cmd, ...args)
@@ -83,12 +78,7 @@ const { menuVisible, menuPos, onContextMenu, closeContextMenu } = useMindmapInit
   yjs,
   layout,
   nodeOps,
-  assistantContext,
-  aiResetPanels: ai.resetPanels,
-  aiStopAiReadyPoll: ai.stopAiReadyPoll,
 })
-
-defineExpose({ openAiGenerateWithText: ai.openAiGenerateWithText })
 </script>
 
 <template>
@@ -159,11 +149,6 @@ defineExpose({ openAiGenerateWithText: ai.openAiGenerateWithText })
       </div>
       <el-divider direction="vertical" />
       <div class="toolbar-group">
-        <el-tooltip v-if="nodeOps.priorityRecommendation.value && selectedType === 'case'" content="AI 推荐优先级，点击采纳" placement="bottom">
-          <el-button text class="priority-recommend-btn" @click="nodeOps.applyPriorityRecommendation">
-            ✨ 推荐 {{ nodeOps.priorityRecommendation.value.priority }}
-          </el-button>
-        </el-tooltip>
         <el-button
           v-for="p in ['P0', 'P1', 'P2', 'P3']"
           :key="p"
@@ -173,26 +158,11 @@ defineExpose({ openAiGenerateWithText: ai.openAiGenerateWithText })
         >{{ p }}</el-button>
       </div>
 
-      <!-- 命令组经弹性右靠居行末；三枚均为纯图标 + 悬浮提示（交互设计 48 §1.1），
-           aiEnabled=false 时整体隐藏，需求池入口不受 AI 开关控制 -->
-      <div
-        v-if="nodeOps.aiStore.aiEnabled || canManageRequirements"
-        class="toolbar-group toolbar-group--end"
-      >
-        <template v-if="canManageRequirements">
-          <el-tooltip content="关联需求" placement="bottom">
-            <el-button text @click="ai.openRequirementSelector"><el-icon><Link /></el-icon></el-button>
-          </el-tooltip>
-          <el-divider direction="vertical" />
-        </template>
-        <template v-if="nodeOps.aiStore.aiEnabled">
-          <el-tooltip content="AI 生成用例" placement="bottom">
-            <el-button text class="ai-entry-btn" @click="ai.openAiPanel"><el-icon><MagicStick /></el-icon></el-button>
-          </el-tooltip>
-          <el-tooltip content="AI查漏" placement="bottom">
-            <el-button text class="ai-entry-btn" @click="ai.missingPointsVisible.value = true"><el-icon><Search /></el-icon></el-button>
-          </el-tooltip>
-        </template>
+      <!-- 命令组经弹性右靠居行末：单枚纯图标 + 悬浮提示（交互设计 48 §1.1） -->
+      <div v-if="canManageRequirements" class="toolbar-group toolbar-group--end">
+        <el-tooltip content="关联需求" placement="bottom">
+          <el-button text @click="reqLink.openRequirementSelector"><el-icon><Link /></el-icon></el-button>
+        </el-tooltip>
       </div>
     </div>
 
@@ -231,11 +201,6 @@ defineExpose({ openAiGenerateWithText: ai.openAiGenerateWithText })
         <span :class="['menu-chip', { 'is-selected': selectedType === 'expected' }]" @click="nodeOps.markAs('expected')"><span class="type-dot type-dot--expected" />预期</span>
         <span class="menu-chip" title="取消标记" @click="nodeOps.clearMark"><el-icon><CircleClose /></el-icon></span>
       </div>
-      <div
-        v-if="nodeOps.priorityRecommendation.value && selectedType === 'case'"
-        class="menu-priority-recommend"
-        @click="nodeOps.applyPriorityRecommendation"
-      >✨ 推荐 {{ nodeOps.priorityRecommendation.value.priority }}（点击采纳）</div>
       <div class="menu-chip-row">
         <span class="menu-chip-label">等级</span>
         <span
@@ -245,62 +210,16 @@ defineExpose({ openAiGenerateWithText: ai.openAiGenerateWithText })
           @click="nodeOps.markPriority(p)"
         >{{ p }}</span>
       </div>
-      <div v-if="nodeOps.selectedAiGenerated.value" class="menu-chip-row">
-        <span class="menu-chip-label">AI</span>
-        <span class="menu-chip" @click="nodeOps.removeAiFlag">移除 AI 标识</span>
-      </div>
-      <template v-if="nodeOps.aiStore.aiEnabled && selectedType === 'case'">
-        <div class="mindmap-context-menu__divider" />
-        <div class="mindmap-context-menu__item menu-action" @click="ai.openAiCompletePanel">
-          <span>✨ AI 补全步骤</span>
-        </div>
-      </template>
       <div class="mindmap-context-menu__divider" />
       <div class="mindmap-context-menu__item mindmap-context-menu__item--danger menu-action" @click="nodeOps.deleteNode"><span>删除节点</span><span class="menu-shortcut">Delete</span></div>
     </MinderContextMenu>
 
-    <AiGeneratePanel
-      v-model="ai.aiGenerateVisible.value"
-      mode="generate"
-      :doc-id="props.docId"
-      :target-node-id="ai.aiGenerateTargetNodeId.value"
-      :target-path="ai.aiGenerateTargetPath.value"
-      :get-doc-tree="ai.getLiveRoot"
-      :initial-text="ai.aiGenerateInitialText.value"
-      :reset-token="ai.aiGenerateSession.value"
-      @mount="ai.handleAiMount"
-    />
-
-    <AiGeneratePanel
-      v-model="ai.aiCompleteVisible.value"
-      mode="complete"
-      :doc-id="props.docId"
-      :target-node-id="ai.aiCompleteTargetNodeId.value"
-      :target-path="ai.aiCompleteTargetPath.value"
-      :get-doc-tree="ai.getLiveRoot"
-      :initial-text="ai.aiCompleteInitialText.value"
-      :reset-token="ai.aiCompleteSession.value"
-      @mount="ai.handleAiMount"
-    />
-
-    <el-dialog v-model="ai.aiReselectVisible.value" title="重新选择挂载位置" width="360px" append-to-body>
-      <el-tree
-        :data="ai.aiReselectTree.value"
-        node-key="id"
-        default-expand-all
-        :expand-on-click-node="false"
-        @node-click="ai.handleAiReselect"
-      />
-    </el-dialog>
-
     <RequirementSelector
-      v-if="ai.reqSelectorVisible.value"
-      v-model="ai.reqSelectorVisible.value"
-      :selected-ids="ai.associatedReqIds.value"
-      @confirm="ai.handleRequirementConfirm"
+      v-if="reqLink.reqSelectorVisible.value"
+      v-model="reqLink.reqSelectorVisible.value"
+      :selected-ids="reqLink.associatedReqIds.value"
+      @confirm="reqLink.handleRequirementConfirm"
     />
-
-    <MissingPointsPanel v-model="ai.missingPointsVisible.value" :doc-id="props.docId" />
   </div>
 </template>
 
@@ -376,11 +295,6 @@ $priorities: p0, p1, p2, p3;
 
 .toolbar-btn--danger { --el-button-hover-text-color: var(--color-danger); }
 
-.ai-entry-btn {
-  --el-button-text-color: var(--color-ai-badge);
-  --el-button-hover-text-color: var(--color-ai-badge);
-}
-
 .toolbar-caret { margin-left: 2px; font-size: 10px; }
 
 .menu-action {
@@ -414,18 +328,6 @@ $priorities: p0, p1, p2, p3;
     flex-shrink: 0;
   }
 }
-
-.menu-priority-recommend {
-  margin: 6px 12px 2px;
-  padding: 4px 10px;
-  border-radius: var(--radius-sm);
-  font-size: 12px;
-  color: var(--color-primary-600);
-  background: var(--color-primary-50);
-  cursor: pointer;
-}
-
-.priority-recommend-btn { color: var(--color-primary-600); }
 
 .menu-chip {
   display: inline-flex;

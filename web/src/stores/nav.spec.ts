@@ -192,24 +192,14 @@ describe('adminSidebarSections', () => {
         permission: 'role:view',
       },
     })
-    addRecord('/admin/ai-config', {
-      mode: 'admin',
-      menu: {
-        label: 'AI 配置',
-        icon: 'MagicStick',
-        order: 40,
-        section: '平台配置',
-        permission: 'ai:view',
-      },
-    })
   }
 
   it('无 section 的置顶项独立成组，同 section 连续归组', () => {
     addAdminRecords()
-    h.permissions = ['user:view', 'role:view', 'ai:view']
+    h.permissions = ['user:view', 'role:view']
 
     const nav = useNavStore()
-    expect(nav.adminSidebarSections).toHaveLength(3)
+    expect(nav.adminSidebarSections).toHaveLength(2)
     expect(nav.adminSidebarSections[0]?.title).toBeUndefined()
     expect(nav.adminSidebarSections[0]?.items.map((item) => item.label)).toEqual(['数据概览'])
     expect(nav.adminSidebarSections[1]?.title).toBe('组织与权限')
@@ -217,8 +207,6 @@ describe('adminSidebarSections', () => {
       '用户管理',
       '角色管理',
     ])
-    expect(nav.adminSidebarSections[2]?.title).toBe('平台配置')
-    expect(nav.adminSidebarSections[2]?.items.map((item) => item.label)).toEqual(['AI 配置'])
   })
 
   it('权限过滤后为空的分组整体不产生', () => {

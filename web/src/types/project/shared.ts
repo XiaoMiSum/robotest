@@ -53,8 +53,6 @@ export interface TestCaseNode {
   priority: string | null
   sortOrder: number
   version: number
-  /** AI 生成标识（挂载执行器写入，可手动移除，V1.1） */
-  aiGenerated?: boolean
   children: TestCaseNode[]
 }
 

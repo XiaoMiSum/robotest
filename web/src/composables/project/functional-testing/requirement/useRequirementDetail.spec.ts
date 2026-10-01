@@ -23,7 +23,6 @@ function makeDetail(content: string): RequirementDetail {
     updatedBy: 'u1',
     createdAt: '2026-07-30T00:00:00Z',
     updatedAt: '2026-07-30T00:00:00Z',
-    aiGenerated: false,
   }
 }
 

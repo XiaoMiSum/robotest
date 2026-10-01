@@ -94,24 +94,31 @@ describe('no-restricted-layer-imports', () => {
   })
 
   it('基线只放行精确的文件和导入源', () => {
-    const [entry] = layerImportBaseline
+    const entry = {
+      file: 'src/composables/fixture/useFixture.ts',
+      importSource: '@/components/fixture/Fixture.vue',
+      expiresOn: '2099-12-31',
+    }
     const baselineCode = `import '${entry.importSource}'`
 
     expect(architectureErrors(verify(baselineCode, entry.file))).toHaveLength(1)
-    expect(architectureErrors(verify(baselineCode, entry.file, layerImportBaseline))).toEqual([])
+    expect(architectureErrors(verify(baselineCode, entry.file, [entry]))).toEqual([])
     expect(
       architectureErrors(
-        verify("import '@/components/another/Unexpected'", entry.file, layerImportBaseline),
+        verify("import '@/components/another/Unexpected'", entry.file, [entry]),
       ),
     ).toHaveLength(1)
   })
 
   it('过期基线不再放行', () => {
-    const [entry] = layerImportBaseline
-    const expiredEntry = { ...entry, expiresOn: '2000-01-01' }
+    const entry = {
+      file: 'src/composables/fixture/useFixture.ts',
+      importSource: '@/components/fixture/Fixture.vue',
+      expiresOn: '2000-01-01',
+    }
 
     expect(
-      architectureErrors(verify(`import '${entry.importSource}'`, entry.file, [expiredEntry])),
+      architectureErrors(verify(`import '${entry.importSource}'`, entry.file, [entry])),
     ).toHaveLength(1)
   })
 })

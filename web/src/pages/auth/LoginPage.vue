@@ -14,9 +14,9 @@ const authStore = useAuthStore()
 const currentYear = new Date().getFullYear()
 
 const FEATURES = [
-  { title: 'AI 智能用例生成', desc: '需求一键转用例，脑图智能编辑' },
+  { title: '脑图式用例管理', desc: '结构化组织用例，编辑顺滑高效' },
   { title: '评审与计划协同', desc: '多人实时协作，评审进度一目了然' },
-  { title: '缺陷全生命周期管理', desc: '智能查重分析，流转状态清晰可控' },
+  { title: '缺陷全生命周期管理', desc: '流转状态清晰可控' },
 ]
 
 // 检查系统是否已初始化，未初始化则跳转到初始化页
@@ -82,7 +82,7 @@ async function handleLogin() {
         <span class="login-page__accent" />
         <h1 class="login-page__slogan">软件测试平台</h1>
         <p class="login-page__sub">
-          覆盖用例管理、测试评审、测试计划与缺陷跟踪全流程，AI 深度赋能测试提效。
+          覆盖用例管理、测试评审、测试计划与缺陷跟踪全流程，让测试协作更高效。
         </p>
         <ul class="login-page__features">
           <li v-for="item in FEATURES" :key="item.title" class="login-page__feature">

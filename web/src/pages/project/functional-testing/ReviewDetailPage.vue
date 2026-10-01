@@ -10,10 +10,6 @@ import {
 import ReviewMindMap from '@/components/project/functional-testing/review/ReviewMindMap.vue'
 import SnapshotModuleTree from '@/components/project/functional-testing/review/SnapshotModuleTree.vue'
 import CaseSelector from '@/components/project/functional-testing/case/CaseSelector.vue'
-import CasePlanRecommendDialog from '@/components/project/functional-testing/review/CasePlanRecommendDialog.vue'
-import ReviewAiSummary from '@/components/project/functional-testing/review/ReviewAiSummary.vue'
-import ReviewAiCheckPanel from '@/components/project/functional-testing/review/ReviewAiCheckPanel.vue'
-import ReviewAiConclusionPanel from '@/components/project/functional-testing/review/ReviewAiConclusionPanel.vue'
 
 const route = useRoute()
 const reviewId = route.params.reviewId as string
@@ -25,19 +21,9 @@ const {
   mindMapRef,
   moduleTree,
   selectedDocId,
-  summaryVisible,
-  conclusionVisible,
-  checkVisible,
-  checkPanelRef,
   selectorVisible,
   plannedCases,
-  recommendVisible,
-  recommendExcludeIds,
   canComplete,
-  canShowSummary,
-  canShowConclusion,
-  canShowCheck,
-  canRunCheck,
   handleComplete,
   handleReject,
   handleReopen,
@@ -45,13 +31,8 @@ const {
   openCaseSelector,
   handleCasesConfirm,
   handleCasesRemoved,
-  openRecommend,
-  handleBringIn,
   refreshProgress,
-  openCheck,
-  handleCheckLocate,
   authStore,
-  aiStore,
 } = useReviewDetail({ reviewId })
 
 // 状态展示口径与列表页共用（交互设计 07 §1.1）
@@ -96,9 +77,6 @@ const statusText = computed(() => reviewStatusLabel(detail.value?.status ?? ''))
         </div>
         <!-- 活跃态操作组：调整/同步/驳回/完成，终态收起（交互设计 07 §1.2） -->
         <div v-if="detail && isActiveReview(detail.status)" class="review-detail__actions">
-          <el-button v-if="aiStore.aiEnabled" size="small" plain @click="openRecommend">
-            <el-icon><MagicStick /></el-icon>AI 推荐用例
-          </el-button>
           <el-button size="small" plain @click="openCaseSelector">
             <el-icon><EditPen /></el-icon>调整用例
           </el-button>
@@ -134,43 +112,8 @@ const statusText = computed(() => reviewStatusLabel(detail.value?.status ?? ''))
             <el-icon><RefreshLeft /></el-icon>重新发起
           </el-button>
         </div>
-        <!-- AI 一键检查：仅发起人可见；活跃态可发起，终态只读查看历史结果 -->
-        <div v-if="canShowCheck" class="review-detail__actions">
-          <el-button size="small" plain @click="openCheck">
-            <el-icon><MagicStick /></el-icon>AI 一键检查
-          </el-button>
-        </div>
-        <!-- AI 生成摘要：评审已通过（completed）后展示，与活跃态操作组互斥（仅发起人可见） -->
-        <div v-if="canShowSummary" class="review-detail__actions">
-          <el-button size="small" type="primary" plain @click="summaryVisible = true">
-            <el-icon><MagicStick /></el-icon>AI 生成摘要
-          </el-button>
-        </div>
-        <!-- AI 评审结论：评审已通过后展示（自动结论随完成事件落库，此处可手动触发/重新生成） -->
-        <div v-if="canShowConclusion" class="review-detail__actions">
-          <el-button size="small" plain @click="conclusionVisible = true">
-            <el-icon><MagicStick /></el-icon>AI 评审结论
-          </el-button>
-        </div>
       </div>
     </div>
-
-    <ReviewAiSummary v-if="summaryVisible" v-model="summaryVisible" :review-id="reviewId" />
-
-    <ReviewAiConclusionPanel
-      v-if="conclusionVisible"
-      v-model="conclusionVisible"
-      :review-id="reviewId"
-    />
-
-    <ReviewAiCheckPanel
-      v-if="checkVisible"
-      ref="checkPanelRef"
-      v-model="checkVisible"
-      :review-id="reviewId"
-      :can-run="canRunCheck"
-      @locate="handleCheckLocate"
-    />
 
     <div class="review-detail__workspace">
       <el-card shadow="never" class="review-detail__tree-card">
@@ -206,12 +149,6 @@ const statusText = computed(() => reviewStatusLabel(detail.value?.status ?? ''))
       v-model="selectorVisible"
       :initial-selected="plannedCases"
       @confirm="handleCasesConfirm"
-    />
-    <CasePlanRecommendDialog
-      v-model="recommendVisible"
-      :exclude-case-node-ids="recommendExcludeIds"
-      target="review"
-      @bring-in="handleBringIn"
     />
   </div>
 </template>

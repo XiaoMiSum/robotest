@@ -22,7 +22,6 @@ export function usePlanMindmapOps({
   getPlanId,
   getDocumentId,
   getRemovable,
-  applyOrderBadges,
   onMarked,
   onRemoved,
 }: Pick<
@@ -43,7 +42,6 @@ export function usePlanMindmapOps({
   getPlanId: () => string
   getDocumentId: () => string | undefined
   getRemovable: () => boolean | undefined
-  applyOrderBadges: () => void
   onMarked: () => void
   onRemoved: () => void
 }) {
@@ -71,9 +69,6 @@ export function usePlanMindmapOps({
 
       // 禁用画布编辑以防止用户修改快照原始数据
       m.disable?.()
-
-      // 推荐序号徽标可能早于脑图初始化就绪，导入后统一回填一次
-      applyOrderBadges()
 
       m.on('selectionchange', updateSelectedState)
     } catch (err) {

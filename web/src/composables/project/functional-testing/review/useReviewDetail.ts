@@ -1,8 +1,7 @@
-import { computed, nextTick, onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   completeReview,
-  getCaseDetail,
   getReviewDetail,
   getReviewModuleTree,
   getReviewPlannedCases,
@@ -14,7 +13,6 @@ import {
 } from '@/services/project'
 import type { PlannedCases, SnapshotModule, TestReviewDetail, TestReviewProgress } from '@/types'
 import { useAuthStore } from '@/stores/auth'
-import { useAiStore } from '@/stores/ai'
 
 // ==================== Helpers ====================
 
@@ -41,11 +39,6 @@ export interface UseReviewDetailOptions {
 interface ReviewMindMapRef {
   openBug: (bugId: string) => void
   reload: () => Promise<void>
-  locateNode: (snapshotNodeId: string) => boolean
-}
-
-interface ReviewAiCheckPanelRef {
-  start: () => Promise<void>
 }
 
 // ==================== Composable ====================
@@ -54,7 +47,6 @@ export function useReviewDetail(options: UseReviewDetailOptions) {
   const { reviewId } = options
 
   const authStore = useAuthStore()
-  const aiStore = useAiStore()
 
   const loading = ref(false)
   const detail = ref<TestReviewDetail | null>(null)
@@ -69,48 +61,6 @@ export function useReviewDetail(options: UseReviewDetailOptions) {
   const canComplete = computed(
     () => !!progress.value && progress.value.pending === 0 && progress.value.failed === 0,
   )
-
-  // AI 生成摘要入口：仅评审发起人 + AI 已启用 + 评审已完成（后端强校验兜底，交互设计第 3 章）
-  const canShowSummary = computed(
-    () =>
-      aiStore.aiEnabled &&
-      detail.value?.status === 'completed' &&
-      detail.value?.initiator.id === authStore.user?.id,
-  )
-
-  // AI 评审结论：随完成事件自动生成，此处可手动/重新生成（06 §5.2）；入口条件与摘要一致
-  const canShowConclusion = computed(() => canShowSummary.value)
-
-  // AI 一键检查：仅评审发起人 + AI 启用可见；活跃态可发起，终态只读查看历史结果（交互设计 2.2）
-  const canShowCheck = computed(
-    () => aiStore.aiEnabled && detail.value?.initiator.id === authStore.user?.id,
-  )
-
-  // 终态（已通过/已驳回）不可再发起检查（后端 6012 兜底），面板仅以只读展示历史结果
-  // 活跃态口径与 reviewListPresentation.isActiveReview 一致，此处内联避免 composable 反向依赖 components 层
-  const canRunCheck = computed(() =>
-    detail.value?.status === 'new' || detail.value?.status === 'in_progress',
-  )
-
-  // ==================== AI 面板状态 ====================
-
-  const summaryVisible = ref(false)
-  const conclusionVisible = ref(false)
-  const checkVisible = ref(false)
-  const checkPanelRef = ref<ReviewAiCheckPanelRef>()
-
-  // 入口点击：面板挂载后立即按最新任务状态发起或恢复轮询
-  async function openCheck() {
-    checkVisible.value = true
-    await nextTick()
-    checkPanelRef.value?.start()
-  }
-
-  // 建议定位：检查覆盖全部文档，脑图仅展示当前文档，未命中时提示切换左侧文档
-  function handleCheckLocate(snapshotNodeId: string) {
-    const located = mindMapRef.value?.locateNode(snapshotNodeId)
-    if (!located) ElMessage.info('该建议指向的用例不在当前文档，请切换左侧文档后重试')
-  }
 
   // ==================== Load ====================
 
@@ -160,7 +110,7 @@ export function useReviewDetail(options: UseReviewDetailOptions) {
     }
   }
 
-  // 驳回评审：仅发起人 + 活跃态（后端 1000011018 兜底），驳回后快照冻结、AI 检查任务联动终止
+  // 驳回评审：仅发起人 + 活跃态（后端 1000011018 兜底），驳回后快照冻结
   async function handleReject() {
     try {
       await ElMessageBox.confirm(
@@ -249,47 +199,6 @@ export function useReviewDetail(options: UseReviewDetailOptions) {
     await load()
   }
 
-  // ==================== AI Recommend ====================
-
-  const recommendVisible = ref(false)
-  const recommendExcludeIds = ref<string[]>([])
-
-  // 打开弹窗前取当前已纳入用例节点 ID 集作为排除集（详细设计 4.5 步骤 2）
-  async function openRecommend() {
-    try {
-      const existing = await getReviewPlannedCases(reviewId)
-      recommendExcludeIds.value = existing.flatMap((s) => s.caseIds)
-      recommendVisible.value = true
-    } catch (err) {
-      ElMessage.error(err instanceof Error ? err.message : '加载规划用例失败')
-    }
-  }
-
-  // 带入评审：勾选 caseNodeId 解析所属文档，与既有规划用例合并去重后预选进 CaseSelector
-  async function handleBringIn(caseNodeIds: string[]) {
-    try {
-      const [existing, details] = await Promise.all([
-        getReviewPlannedCases(reviewId),
-        Promise.all(caseNodeIds.map((id) => getCaseDetail(id))),
-      ])
-      const merged = new Map<string, Set<string>>()
-      existing.forEach((s) => merged.set(s.documentId, new Set(s.caseIds)))
-      details.forEach((d) => {
-        if (!d.documentId) return
-        const set = merged.get(d.documentId) ?? new Set<string>()
-        set.add(d.id)
-        merged.set(d.documentId, set)
-      })
-      plannedCases.value = [...merged.entries()].map(([documentId, caseIds]) => ({
-        documentId,
-        caseIds: [...caseIds],
-      }))
-      selectorVisible.value = true
-    } catch (err) {
-      ElMessage.error(err instanceof Error ? err.message : '加载推荐用例失败')
-    }
-  }
-
   // ==================== Progress ====================
 
   // 标记后刷新进度与状态（首次标记会自动转入评审中），避免整页 load 触发脑图重载丢失选中态
@@ -315,20 +224,10 @@ export function useReviewDetail(options: UseReviewDetailOptions) {
     mindMapRef,
     moduleTree,
     selectedDocId,
-    summaryVisible,
-    conclusionVisible,
-    checkVisible,
-    checkPanelRef,
     selectorVisible,
     plannedCases,
-    recommendVisible,
-    recommendExcludeIds,
     // Computed
     canComplete,
-    canShowSummary,
-    canShowConclusion,
-    canShowCheck,
-    canRunCheck,
     // Methods
     load,
     handleComplete,
@@ -338,13 +237,8 @@ export function useReviewDetail(options: UseReviewDetailOptions) {
     openCaseSelector,
     handleCasesConfirm,
     handleCasesRemoved,
-    openRecommend,
-    handleBringIn,
     refreshProgress,
-    openCheck,
-    handleCheckLocate,
     // Stores
     authStore,
-    aiStore,
   }
 }

@@ -88,7 +88,6 @@ export function getRequestContextScope(url: string | undefined): RequestContextS
   const path = normalizeRequestPath(url)
   if (path === '/auth/permissions') return 'workspace'
   if (
-    path === '/workspace/ai/status' ||
     path === '/workspace/invitations/verify' ||
     path === '/workspace/invitations/check-email' ||
     path === '/workspace/invitations/join'

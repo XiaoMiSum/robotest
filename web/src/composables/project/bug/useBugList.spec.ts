@@ -100,7 +100,6 @@ describe('useBugList', () => {
       expect(s.bugs.value).toEqual([])
       expect(s.total.value).toBe(0)
       expect(s.viewMode.value).toBe('list')
-      expect(s.clusterVisible.value).toBe(false)
       expect(s.quickFilter.value).toBe('')
       expect(s.filtersExpanded.value).toBe(false)
       expect(s.advancedFilterCount.value).toBe(0)
