@@ -6,7 +6,7 @@
 
 ---
 
-> AI 通用交互规范见 `docs/05-interaction-design/01-readme.md` 第 2 章，本文档不再重复。  
+> AI 通用交互规范见 `docs/05-interaction-design/06-ai/02-ai-infra-ui-overview.md` 第 2 章，本文档不再重复。  
 > 覆盖用户故事：US-AI-008（标题优化与等级建议）、US-AI-009（语义查重）、US-AI-010（缺陷聚类分析）。
 
 ---
