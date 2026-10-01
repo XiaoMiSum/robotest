@@ -5,7 +5,7 @@
 **状态**：起草中
 
 > 本文档为接口测试域交互设计的组成部分：定时任务管理（测试计划（场景批量执行）与接口同步的统一 Cron 调度）的前端交互设计。
-> 导航框架与色彩体系见 `docs/05-interaction-design/99-common/02-global-navigation.md`、`docs/05-interaction-design/99-common/03-visual-design.md`。
+> 导航框架与色彩体系见 `docs/05-interaction-design/02-global-navigation.md`、`docs/05-interaction-design/03-visual-design.md`。
 
 ---
 
@@ -21,7 +21,7 @@
 
 ### 1.2 项目模式侧边栏
 
-本模块页面位于项目模式侧边栏「接口测试」分组下（项目模式导航框架见 `docs/05-interaction-design/99-common/02-global-navigation.md` 3.3，页面内部采用侧边栏布局组织子模块），「定时任务」为本文档范围：
+本模块页面位于项目模式侧边栏「接口测试」分组下（项目模式导航框架见 `docs/05-interaction-design/02-global-navigation.md` 3.3，页面内部采用侧边栏布局组织子模块），「定时任务」为本文档范围：
 
 ```
 ┌──────────────────────────────────┐
@@ -146,7 +146,7 @@ flowchart LR
 
 - **弹窗类型**（源文档 4.1）：表单弹窗（定时任务新建/编辑）、确认弹窗（删除任务、立即执行、启停任务）、抽屉（执行记录查看）；
 - **加载与错误状态**（源文档 4.2）：按钮 loading + 禁用、列表骨架屏、错误 Toast + 错误码、字段红字提示；
-- **状态徽标色彩**：统一使用 `docs/05-interaction-design/99-common/03-visual-design.md` 定义的语义色（成功绿、失败红、进行中蓝、已跳过灰）。
+- **状态徽标色彩**：统一使用 `docs/05-interaction-design/03-visual-design.md` 定义的语义色（成功绿、失败红、进行中蓝、已跳过灰）。
 
 ---
 

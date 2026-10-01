@@ -5,7 +5,7 @@
 **状态**：起草中
 
 > 本文档为接口测试域交互设计分册：公共组件管理（项目级可复用组件资产库）的前端交互设计。
-> 导航框架与色彩体系见 `docs/05-interaction-design/99-common/02-global-navigation.md`、`docs/05-interaction-design/99-common/03-visual-design.md`。
+> 导航框架与色彩体系见 `docs/05-interaction-design/02-global-navigation.md`、`docs/05-interaction-design/03-visual-design.md`。
 
 ---
 
@@ -162,7 +162,7 @@
 
 - **弹窗类型**：确认弹窗用于删除公共组件；新建/编辑使用右栏编辑面板（与环境管理页、函数管理页一致）；选择弹窗用于公共组件引入选择器；
 - **加载与错误状态**：列表与详情首次进入骨架屏；表单提交按钮 loading + 禁用；加载失败展示错误区 + [重试]；空态统一为插画 + 主文案 + 主操作按钮，筛选无结果时提供 [清除筛选]；
-- **状态徽标色彩**：统一使用 `docs/05-interaction-design/99-common/03-visual-design.md` 定义的语义色；
+- **状态徽标色彩**：统一使用 `docs/05-interaction-design/03-visual-design.md` 定义的语义色；
 - **响应式处理**：小屏幕下左栏列表收起、仅展示详情区，通过返回操作回到列表。
 
 ---

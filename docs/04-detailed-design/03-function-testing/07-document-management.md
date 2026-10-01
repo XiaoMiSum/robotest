@@ -12,7 +12,7 @@
 
 本文档定义用例管理（`test_case_document`）的详细设计。用例为脑图型用例文档，作为独立资产挂载在项目模块树（`project_module`）节点下，不存储在模块表中。本文档涵盖用例表结构、布局与节点存储、用例管理接口（创建、查询、更新、删除）及相关业务规则。
 
-> 项目模块树（`project_module`）本身的详细设计见 `docs/04-detailed-design/99-common/02-project-module.md`。
+> 项目模块树（`project_module`）本身的详细设计见 `docs/04-detailed-design/02-project-module.md`。
 
 ### 1.2 与基线的关系
 
@@ -20,7 +20,7 @@
 
 | 原设计 | 位置 | 替代方式 |
 | --- | --- | --- |
-| `test_case_module`（功能测试模块中的文档节点） | `docs/04-detailed-design/01-readme.md` 2.1.1 | type=document 的行迁移至 `test_case_document` 表；type=directory 的行迁移至 `project_module`，见 `docs/04-detailed-design/99-common/02-project-module.md` |
+| `test_case_module`（功能测试模块中的文档节点） | `docs/04-detailed-design/01-readme.md` 2.1.1 | type=document 的行迁移至 `test_case_document` 表；type=directory 的行迁移至 `project_module`，见 `docs/04-detailed-design/02-project-module.md` |
 
 ### 1.3 定义与缩写
 
@@ -29,7 +29,7 @@
 | 用例（Test Case） | 挂载在模块下的脑图型用例文档，节点存储在 `test_case_node`，布局存储在 `test_case_document.layout` |
 | 未分组 | 模块 ID 为 NULL 时的默认归类，适用于不属于任何模块的资产 |
 
-> 模块（Module）定义见 `docs/04-detailed-design/99-common/02-project-module.md` 1.3。
+> 模块（Module）定义见 `docs/04-detailed-design/02-project-module.md` 1.3。
 
 ---
 
@@ -39,7 +39,7 @@
 
 ### 2.1 用例表（test_case_document）
 
-用例为脑图型用例文档，挂载在模块树节点下。用例**不存储**在模块表中，而是独立建表通过 `module_id` 关联（`module_id` 引用 `project_module.id`，见 `docs/04-detailed-design/99-common/02-project-module.md` 2.1）。
+用例为脑图型用例文档，挂载在模块树节点下。用例**不存储**在模块表中，而是独立建表通过 `module_id` 关联（`module_id` 引用 `project_module.id`，见 `docs/04-detailed-design/02-project-module.md` 2.1）。
 
 | 字段 | 类型 | 约束 | 说明 |
 | ---- | ---- | ---- | ---- |
@@ -194,7 +194,7 @@ DELETE /api/project/testcases/{id}
 | --- | --- | --- | --- |
 | 1000017061 | TEST_CASE_DOCUMENT_NAME_EXISTS | 用例名称重复 | 同模块下已存在同名用例 |
 
-> 文档管理使用已登记的 `1000017061`；模块管理错误码及号段分配见 `docs/04-detailed-design/99-common/02-project-module.md` 6.3。
+> 文档管理使用已登记的 `1000017061`；模块管理错误码及号段分配见 `docs/04-detailed-design/02-project-module.md` 6.3。
 
 ### 4.2 业务规则
 
@@ -202,7 +202,7 @@ DELETE /api/project/testcases/{id}
 | --- | --- | --- |
 | BR-M04 | 创建用例自动创建根节点 | 沿用现有 `test_case_module` 的 `type=document` 行为 |
 
-> 模块相关业务规则（BR-M01~M03、M05、M06）见 `docs/04-detailed-design/99-common/02-project-module.md` 4.2。
+> 模块相关业务规则（BR-M01~M03、M05、M06）见 `docs/04-detailed-design/02-project-module.md` 4.2。
 
 ---
 
@@ -210,7 +210,7 @@ DELETE /api/project/testcases/{id}
 
 ### 5.1 数据迁移
 
-`test_case_document` 的迁移为整体迁移（Phase 1–4）的一部分，迁移计划、执行顺序与事务要求见 `docs/04-detailed-design/99-common/02-project-module.md` 6.1。本文档仅列出用例相关的 DDL 与迁移步骤。
+`test_case_document` 的迁移为整体迁移（Phase 1–4）的一部分，迁移计划、执行顺序与事务要求见 `docs/04-detailed-design/02-project-module.md` 6.1。本文档仅列出用例相关的 DDL 与迁移步骤。
 
 **Phase 1：创建新表**
 
@@ -246,7 +246,7 @@ FROM test_case_document_layout l
 WHERE l.document_id = d.id;
 ```
 
-> **Phase 2 迁移说明**：步骤 2 必须在 `project_module` 迁移（`docs/04-detailed-design/99-common/02-project-module.md` 6.1 Phase 2 步骤 1）之后执行，因为 `test_case_document.module_id` 需指向迁移后的 `project_module.id`（目录节点迁移时保留原 ID，故此处可直接使用原 `parent_id`）。`test_case_node` 表沿用现有数据，迁移后需将 `document_id` 更新为新的 `test_case_document.id`。
+> **Phase 2 迁移说明**：步骤 2 必须在 `project_module` 迁移（`docs/04-detailed-design/02-project-module.md` 6.1 Phase 2 步骤 1）之后执行，因为 `test_case_document.module_id` 需指向迁移后的 `project_module.id`（目录节点迁移时保留原 ID，故此处可直接使用原 `parent_id`）。`test_case_node` 表沿用现有数据，迁移后需将 `document_id` 更新为新的 `test_case_document.id`。
 
 **Phase 4（对应）：废弃旧表**
 
@@ -255,7 +255,7 @@ WHERE l.document_id = d.id;
 DROP TABLE test_case_document_layout;
 ```
 
-> 废弃 `test_case_document_layout` 前需确认布局数据已回填至 `test_case_document.layout`（见 2.1）。`test_case_module` 的废弃策略见 `docs/04-detailed-design/99-common/02-project-module.md` 6.1。
+> 废弃 `test_case_document_layout` 前需确认布局数据已回填至 `test_case_document.layout`（见 2.1）。`test_case_module` 的废弃策略见 `docs/04-detailed-design/02-project-module.md` 6.1。
 
 ### 5.2 迁移注意事项
 
@@ -264,7 +264,7 @@ DROP TABLE test_case_document_layout;
 3. **回滚方案**：保留旧表数据至确认新表稳定后再清理
 4. **索引**：新表索引命名遵循 `idx_{table}_{field}` 规范（C9）
 
-> 通用迁移注意事项（ID 映射、执行顺序、事务一致性）见 `docs/04-detailed-design/99-common/02-project-module.md` 6.2。
+> 通用迁移注意事项（ID 映射、执行顺序、事务一致性）见 `docs/04-detailed-design/02-project-module.md` 6.2。
 
 ---
 

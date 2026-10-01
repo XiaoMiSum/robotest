@@ -8,5 +8,5 @@
 | [05-system-management-ui-workspace](05-system-management-ui-workspace.md)（分册：工作空间管理） | V1.0 | 2026-09-23 | 起草中 |
 | [06-system-management-ui-role](06-system-management-ui-role.md)（分册：角色与权限管理） | V1.0 | 2026-09-23 | 起草中 |
 
-> 阅读顺序：先读总览分册（总体布局与通用交互规范），再按页面阅读各分册；全局导航见 `docs/05-interaction-design/99-common/02-global-navigation.md`，视觉规范见 `docs/05-interaction-design/99-common/03-visual-design.md`。
+> 阅读顺序：先读总览分册（总体布局与通用交互规范），再按页面阅读各分册；全局导航见 `docs/05-interaction-design/02-global-navigation.md`，视觉规范见 `docs/05-interaction-design/03-visual-design.md`。
 

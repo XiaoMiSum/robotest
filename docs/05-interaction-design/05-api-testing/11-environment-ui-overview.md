@@ -7,7 +7,7 @@
 ---
 
 > 本文档为接口测试域交互设计的第二部分：环境管理的前端交互设计。
-> 测试场景编排交互设计见 `docs/05-interaction-design/01-readme.md`；导航框架与色彩体系见 `docs/05-interaction-design/99-common/02-global-navigation.md`、`docs/05-interaction-design/99-common/03-visual-design.md`。
+> 测试场景编排交互设计见 `docs/05-interaction-design/01-readme.md`；导航框架与色彩体系见 `docs/05-interaction-design/02-global-navigation.md`、`docs/05-interaction-design/03-visual-design.md`。
 
 ---
 
@@ -21,7 +21,7 @@
 
 ### 1.2 侧边栏菜单与路由
 
-项目模式顶部菜单在既有「功能测试」「缺陷管理」之外**新增「接口测试」入口**（增量见 `docs/05-interaction-design/99-common/02-global-navigation.md` 3.3）。接口测试页面内部采用侧边栏组织子模块：
+项目模式顶部菜单在既有「功能测试」「缺陷管理」之外**新增「接口测试」入口**（增量见 `docs/05-interaction-design/02-global-navigation.md` 3.3）。接口测试页面内部采用侧边栏组织子模块：
 
 ```
 ┌──────────────────────────────────┐

@@ -7,7 +7,7 @@
 ---
 
 > 本文档为接口测试域交互设计分册：测试报告（列表、详情与分享）的前端交互设计。
-> 导航框架与色彩体系见 `docs/05-interaction-design/99-common/02-global-navigation.md`、`docs/05-interaction-design/99-common/03-visual-design.md`。
+> 导航框架与色彩体系见 `docs/05-interaction-design/02-global-navigation.md`、`docs/05-interaction-design/03-visual-design.md`。
 
 ---
 
@@ -58,7 +58,7 @@
 
 - **弹窗类型**：确认弹窗用于删除报告、批量删除、清空操作；分享弹窗用于报告分享链接生成与复制;
 - **加载与错误状态**：列表首次进入表格骨架屏，筛选/搜索时顶部细进度条；表单提交按钮 loading + 禁用；加载失败展示错误区 + [重试]；空态统一为插画 + 主文案 + 说明文案 + 主操作按钮，筛选无结果时提供 [清除筛选]；
-- **状态徽标色彩**：统一使用 `docs/05-interaction-design/99-common/03-visual-design.md` 定义的语义色（通过/成功绿、失败/危险红、部分通过/警告黄、跳过/未执行灰、进行中/待同步蓝）；
+- **状态徽标色彩**：统一使用 `docs/05-interaction-design/03-visual-design.md` 定义的语义色（通过/成功绿、失败/危险红、部分通过/警告黄、跳过/未执行灰、进行中/待同步蓝）；
 - **响应式处理**：报告详情执行概览统计卡在小屏幕下自适应换列；场景卡的 mini 统计在小屏幕下移至头部下方占满一行；表单抽屉在小屏幕下全屏展示。
 
 ---

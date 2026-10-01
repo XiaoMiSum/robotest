@@ -7,7 +7,7 @@
 ---
 
 > 本文档为接口测试域交互设计分册：Mock 服务管理（规则管理、调试）的前端交互设计。
-> 导航框架与色彩体系见 `docs/05-interaction-design/99-common/02-global-navigation.md`、`docs/05-interaction-design/99-common/03-visual-design.md`。
+> 导航框架与色彩体系见 `docs/05-interaction-design/02-global-navigation.md`、`docs/05-interaction-design/03-visual-design.md`。
 
 ---
 
@@ -59,7 +59,7 @@
 
 - **弹窗类型**：确认弹窗用于停用/删除 Mock、重置命中统计、批量启停、清空调试记录；表单抽屉用于 Mock 规则新建/编辑（720px）；
 - **加载与错误状态**：列表首次进入表格骨架屏，筛选/搜索时顶部细进度条；表单提交按钮 loading + 禁用；行内操作按钮 loading 防重复；加载失败展示错误区 + [重试]；空态统一为插画 + 主文案 + 说明文案 + 主操作按钮，筛选无结果时提供 [清除筛选]；
-- **状态徽标色彩**：统一使用 `docs/05-interaction-design/99-common/03-visual-design.md` 定义的语义色（通过/成功绿、失败/危险红、部分通过/警告黄、跳过/未执行灰、进行中/待同步蓝）；
+- **状态徽标色彩**：统一使用 `docs/05-interaction-design/03-visual-design.md` 定义的语义色（通过/成功绿、失败/危险红、部分通过/警告黄、跳过/未执行灰、进行中/待同步蓝）；
 - **响应式处理**：Mock 调试页左右分栏在小屏幕下改为上下堆叠；表单抽屉在小屏幕下全屏展示。
 
 ---

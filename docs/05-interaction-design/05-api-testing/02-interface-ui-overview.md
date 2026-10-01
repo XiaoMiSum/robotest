@@ -7,7 +7,7 @@
 ---
 
 > 本文档为接口测试域交互设计分册：接口管理、接口定义编辑的前端交互设计。（修订说明：第 3 章接口定义编辑器按 MeterSphere 参考重设计——多 Tab 并存、请求 Tab 带数量徽标、独立响应区，最终仅保留单条响应定义；请求体对齐快速调试编辑器，新增接口级验证器、提取器配置 Tab，移除编辑器 card 头部与状态开关。）
-> 导航框架与色彩体系见 `docs/05-interaction-design/99-common/02-global-navigation.md`、`docs/05-interaction-design/99-common/03-visual-design.md`。
+> 导航框架与色彩体系见 `docs/05-interaction-design/02-global-navigation.md`、`docs/05-interaction-design/03-visual-design.md`。
 > 快速调试与导入功能见 `docs/05-interaction-design/01-readme.md`。
 > 交互原型：`docs/05-interaction-design/接口编辑器原型.html`。
 
@@ -28,7 +28,7 @@
 
 ### 1.2 侧边栏菜单与路由
 
-项目模式顶部菜单在既有「功能测试」「缺陷管理」之外**新增「接口测试」入口**（增量见 `docs/05-interaction-design/99-common/02-global-navigation.md` 3.3）。接口测试页面内部采用侧边栏组织子模块：
+项目模式顶部菜单在既有「功能测试」「缺陷管理」之外**新增「接口测试」入口**（增量见 `docs/05-interaction-design/02-global-navigation.md` 3.3）。接口测试页面内部采用侧边栏组织子模块：
 
 ```
 ┌──────────────────────────────────┐
