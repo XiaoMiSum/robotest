@@ -18,7 +18,7 @@ export function useRequirementPicker() {
     try {
       const page = await fetchRequirements({
         keyword: keyword.value || undefined,
-        // 选取器仅展示 active 条目：已归档不参与 AI 消费与文档关联（需求规格 3.2.4）
+        // 选取器仅展示 active 条目：已归档不参与文档关联（需求规格 3.2.4）
         status: 'active',
         pageNo: pageNo.value,
         pageSize: pageSize.value,

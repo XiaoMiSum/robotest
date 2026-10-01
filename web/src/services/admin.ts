@@ -2,19 +2,6 @@ import { get, post, put, patch, del } from '@/services'
 import type {
   AdminUser,
   AdminWorkspace,
-  AiAgent,
-  AiAgentDetail,
-  AiAgentSavePayload,
-  AiChatModel,
-  AiChatModelSavePayload,
-  AiConfig,
-  AiConfigSavePayload,
-  AiConfigTestPayload,
-  AiConnectivityTestResult,
-  AiProviderPreset,
-  AiSettingSchemaGroup,
-  AiStatistics,
-  AiTask,
   DashboardStats,
   PageResult,
   PermissionTopModule,
@@ -187,83 +174,3 @@ export function fetchPermissionTable(roleType?: string): Promise<PermissionTopMo
   return get('/admin/roles/permissions/table', { roleType })
 }
 
-// ==================== AI 配置与智能体（管理端） ====================
-
-export function fetchAiConfig(): Promise<AiConfig | null> {
-  return get('/admin/ai/config')
-}
-
-export function saveAiConfig(data: AiConfigSavePayload): Promise<AiConfig> {
-  return put('/admin/ai/config', data)
-}
-
-export function testAiConnectivity(data: AiConfigTestPayload): Promise<AiConnectivityTestResult> {
-  // 连通性测试真实调用外部供应商，上游慢时 15s 全局超时会误报失败，单独放宽到 120s
-  return post('/admin/ai/config/test', data, { timeout: 120_000 })
-}
-
-export function fetchAiProviders(): Promise<AiProviderPreset[]> {
-  return get('/admin/ai/providers')
-}
-
-// ==================== 对话模型管理（3.3.7） ====================
-
-export function fetchAiChatModels(): Promise<AiChatModel[]> {
-  return get('/admin/ai/chat-models')
-}
-
-export function createAiChatModel(data: AiChatModelSavePayload): Promise<AiChatModel> {
-  return post('/admin/ai/chat-models', data)
-}
-
-export function updateAiChatModel(id: string, data: AiChatModelSavePayload): Promise<AiChatModel> {
-  return put(`/admin/ai/chat-models/${id}`, data)
-}
-
-export function deleteAiChatModel(id: string): Promise<void> {
-  return del(`/admin/ai/chat-models/${id}`)
-}
-
-export function setAiChatModelDefault(id: string): Promise<void> {
-  return put(`/admin/ai/chat-models/${id}/default`)
-}
-
-export function setAiChatModelEnabled(id: string, enabled: boolean): Promise<void> {
-  return put(`/admin/ai/chat-models/${id}/enabled`, { enabled })
-}
-
-export function fetchAiSettingsSchema(): Promise<AiSettingSchemaGroup[]> {
-  return get('/admin/ai/settings-schema')
-}
-
-export function fetchAiStatistics(params: {
-  startDate?: string
-  endDate?: string
-  groupBy?: string
-}): Promise<AiStatistics> {
-  return get('/admin/ai/statistics', { ...params })
-}
-
-export function fetchAiRebuildTask(): Promise<AiTask | null> {
-  return get('/admin/ai/rebuild-task')
-}
-
-export function retryAiRebuildTask(): Promise<void> {
-  return post('/admin/ai/rebuild-task/retry')
-}
-
-export function fetchAiAgents(): Promise<AiAgent[]> {
-  return get('/admin/ai/agents')
-}
-
-export function fetchAiAgentDetail(functionType: string): Promise<AiAgentDetail> {
-  return get(`/admin/ai/agents/${functionType}`)
-}
-
-export function saveAiAgent(functionType: string, data: AiAgentSavePayload): Promise<void> {
-  return put(`/admin/ai/agents/${functionType}`, data)
-}
-
-export function restoreAiAgentDefault(functionType: string): Promise<void> {
-  return del(`/admin/ai/agents/${functionType}`)
-}

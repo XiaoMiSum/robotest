@@ -194,7 +194,7 @@ describe('services/index.ts 请求上下文头', () => {
     expect(receivedProject).toBeUndefined()
   })
 
-  it('管理域、公共域和全局 AI 状态请求不注入旧上下文', async () => {
+  it('管理域和公共域请求不注入旧上下文', async () => {
     localStorageMock.setItem('robotest_active_project', 'project-old')
     const received: Array<{ workspace?: string; project?: string }> = []
     withAdapter((config) => {
@@ -207,10 +207,8 @@ describe('services/index.ts 请求上下文头', () => {
 
     await api.get('/admin/dashboard/stats')
     await api.get('/public/api-reports/report-1')
-    await api.get('/workspace/ai/status')
 
     expect(received).toEqual([
-      { workspace: undefined, project: undefined },
       { workspace: undefined, project: undefined },
       { workspace: undefined, project: undefined },
     ])

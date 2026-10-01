@@ -1,9 +1,8 @@
-import { computed, nextTick, onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   blockPlan,
   completePlan,
-  getCaseDetail,
   getPlanDetail,
   getPlanModuleTree,
   getPlanPlannedCases,
@@ -13,14 +12,11 @@ import {
   updatePlanCases,
 } from '@/services/project'
 import type {
-  AiPlanOrderRecommendItem,
   PlannedCases,
   SnapshotModule,
   TestPlanDetail,
   TestPlanProgress,
 } from '@/types'
-import { useAuthStore } from '@/stores/auth'
-import { useAiStore } from '@/stores/ai'
 
 // ==================== Helpers ====================
 
@@ -49,22 +45,10 @@ export interface UsePlanDetailOptions {
 interface PlanMindMapRef {
   openBug: (bugId: string) => void
   reload: () => Promise<void>
-  setOrderBadges: (items: AiPlanOrderRecommendItem[]) => void
-  locateNode: (snapshotNodeId: string) => boolean
-}
-interface PlanOrderRecommendRef {
-  compute: () => Promise<void>
-  load: () => Promise<void>
-  scrollToOrder: (order: number) => void
-  hasResult: boolean
-  computing: boolean
 }
 
 export function usePlanDetail(options: UsePlanDetailOptions) {
   const { planId } = options
-
-  const authStore = useAuthStore()
-  const aiStore = useAiStore()
 
   const loading = ref(false)
   const detail = ref<TestPlanDetail | null>(null)
@@ -72,13 +56,6 @@ export function usePlanDetail(options: UsePlanDetailOptions) {
   const mindMapRef = ref<PlanMindMapRef>()
   const moduleTree = ref<SnapshotModule[]>([])
   const selectedDocId = ref('')
-
-  const activeTab = ref<'records' | 'order'>('records')
-  const orderPanelRef = ref<PlanOrderRecommendRef>()
-
-  const canShowOrder = computed(
-    () => aiStore.aiEnabled && detail.value?.executor?.id === authStore.user?.id,
-  )
 
   const canAdjustCases = computed(
     () => detail.value?.status === 'new' || detail.value?.status === 'in_progress',
@@ -177,7 +154,6 @@ export function usePlanDetail(options: UsePlanDetailOptions) {
       ElMessage.success('已同步')
       load()
       mindMapRef.value?.reload()
-      orderPanelRef.value?.load()
     } catch (err) {
       ElMessage.error(err instanceof Error ? err.message : '同步失败')
     }
@@ -210,46 +186,6 @@ export function usePlanDetail(options: UsePlanDetailOptions) {
 
   async function handleCasesRemoved() {
     await load()
-    orderPanelRef.value?.load()
-  }
-
-  // ==================== AI Recommend ====================
-
-  const recommendVisible = ref(false)
-  const recommendExcludeIds = ref<string[]>([])
-
-  async function openRecommend() {
-    try {
-      const existing = await getPlanPlannedCases(planId)
-      recommendExcludeIds.value = existing.flatMap((s) => s.caseIds)
-      recommendVisible.value = true
-    } catch (err) {
-      ElMessage.error(err instanceof Error ? err.message : '加载规划用例失败')
-    }
-  }
-
-  async function handleBringIn(caseNodeIds: string[]) {
-    try {
-      const [existing, details] = await Promise.all([
-        getPlanPlannedCases(planId),
-        Promise.all(caseNodeIds.map((id) => getCaseDetail(id))),
-      ])
-      const merged = new Map<string, Set<string>>()
-      existing.forEach((s) => merged.set(s.documentId, new Set(s.caseIds)))
-      details.forEach((d) => {
-        if (!d.documentId) return
-        const set = merged.get(d.documentId) ?? new Set<string>()
-        set.add(d.id)
-        merged.set(d.documentId, set)
-      })
-      plannedCases.value = [...merged.entries()].map(([documentId, caseIds]) => ({
-        documentId,
-        caseIds: [...caseIds],
-      }))
-      selectorVisible.value = true
-    } catch (err) {
-      ElMessage.error(err instanceof Error ? err.message : '加载推荐用例失败')
-    }
   }
 
   // ==================== Progress ====================
@@ -264,25 +200,6 @@ export function usePlanDetail(options: UsePlanDetailOptions) {
     }
   }
 
-  // ==================== Order Recommend ====================
-
-  async function handleOrderLocate(snapshotNodeId: string) {
-    activeTab.value = 'records'
-    await nextTick()
-    const located = mindMapRef.value?.locateNode(snapshotNodeId)
-    if (!located) ElMessage.info('该建议指向的用例不在当前文档，请切换左侧文档后重试')
-  }
-
-  function handleOrderResult(items: AiPlanOrderRecommendItem[]) {
-    mindMapRef.value?.setOrderBadges(items)
-  }
-
-  async function handleOrderSelect(order: number) {
-    activeTab.value = 'order'
-    await nextTick()
-    orderPanelRef.value?.scrollToOrder(order)
-  }
-
   // ==================== Lifecycle ====================
 
   onMounted(load)
@@ -295,14 +212,9 @@ export function usePlanDetail(options: UsePlanDetailOptions) {
     mindMapRef,
     moduleTree,
     selectedDocId,
-    activeTab,
-    orderPanelRef,
     selectorVisible,
     plannedCases,
-    recommendVisible,
-    recommendExcludeIds,
     // Computed
-    canShowOrder,
     canAdjustCases,
     // Methods
     load,
@@ -313,13 +225,6 @@ export function usePlanDetail(options: UsePlanDetailOptions) {
     openCaseSelector,
     handleCasesConfirm,
     handleCasesRemoved,
-    openRecommend,
-    handleBringIn,
     refreshProgress,
-    handleOrderLocate,
-    handleOrderResult,
-    handleOrderSelect,
-    // Stores
-    aiStore,
   }
 }

@@ -7,8 +7,6 @@ const mocks = vi.hoisted(() => ({
   createBug: vi.fn(),
   getBugDetail: vi.fn(),
   uploadBugAttachment: vi.fn(),
-  changeBugStatus: vi.fn(),
-  useAiStore: vi.fn(),
   useRoute: vi.fn(),
   useRouter: vi.fn(),
   ElMessage: { success: vi.fn(), error: vi.fn(), warning: vi.fn() },
@@ -21,15 +19,10 @@ vi.mock('@/services/project', () => ({
   createBug: mocks.createBug,
   getBugDetail: mocks.getBugDetail,
   uploadBugAttachment: mocks.uploadBugAttachment,
-  changeBugStatus: mocks.changeBugStatus,
 }))
 
 vi.mock('@/services/workspace', () => ({
   fetchMembers: mocks.fetchMembers,
-}))
-
-vi.mock('@/stores/ai', () => ({
-  useAiStore: mocks.useAiStore,
 }))
 
 vi.mock('element-plus', () => ({
@@ -41,13 +34,7 @@ vi.mock('vue-router', () => ({
   useRouter: mocks.useRouter,
 }))
 
-vi.mock('@/components/project/bug/BugAiSuggest.vue', () => ({
-  default: { name: 'BugAiSuggest' },
-}))
-
 vi.mock('@/composables/project/bug/bugStatus', () => ({
-  BUG_STATUS_LABEL: { active: '激活', resolved: '已修复', rejected: '已拒绝', closed: '已关闭' },
-  BUG_STATUS_TAG_TYPE: { active: 'primary', resolved: 'success', rejected: 'warning', closed: 'info' },
   BUG_TYPE_LABEL: { code_error: '代码缺陷', function_error: '功能缺陷', performance: '性能问题', security: '安全问题' },
 }))
 
@@ -57,14 +44,12 @@ function setupDefaultMocks() {
   const push = vi.fn()
   mocks.useRoute.mockReturnValue({ query: {} })
   mocks.useRouter.mockReturnValue({ push })
-  mocks.useAiStore.mockReturnValue({ aiEnabled: true })
   mocks.fetchProjectModuleTree.mockResolvedValue([])
   mocks.fetchPlans.mockResolvedValue({ list: [] })
   mocks.fetchMembers.mockResolvedValue({ list: [] })
   mocks.createBug.mockResolvedValue('new-bug-id')
   mocks.getBugDetail.mockResolvedValue(null)
   mocks.uploadBugAttachment.mockResolvedValue({})
-  mocks.changeBugStatus.mockResolvedValue(undefined)
   return { push }
 }
 
@@ -93,26 +78,6 @@ describe('useBugCreate', () => {
     it('submitting is false', () => {
       const { submitting } = useBugCreate()
       expect(submitting.value).toBe(false)
-    })
-
-    it('dedupItems is empty', () => {
-      const { dedupItems } = useBugCreate()
-      expect(dedupItems.value).toEqual([])
-    })
-
-    it('dedupConfirmVisible is false', () => {
-      const { dedupConfirmVisible } = useBugCreate()
-      expect(dedupConfirmVisible.value).toBe(false)
-    })
-
-    it('dedupSubmitting is false', () => {
-      const { dedupSubmitting } = useBugCreate()
-      expect(dedupSubmitting.value).toBe(false)
-    })
-
-    it('dedupTargetId is empty string', () => {
-      const { dedupTargetId } = useBugCreate()
-      expect(dedupTargetId.value).toBe('')
     })
 
     it('moduleTree is empty initially', () => {
@@ -144,11 +109,6 @@ describe('useBugCreate', () => {
       const { attachmentFiles } = useBugCreate()
       expect(attachmentFiles.value).toEqual([])
     })
-
-    it('aiEnabled from store', () => {
-      const { aiEnabled } = useBugCreate()
-      expect(aiEnabled).toBe(true)
-    })
   })
 
   describe('rules', () => {
@@ -168,9 +128,9 @@ describe('useBugCreate', () => {
     })
   })
 
-  describe('severityLabel / priorityLabel / bugStatusLabels', () => {
+  describe('severityLabel / priorityLabel / bugTypeLabel', () => {
     it('returns correct labels', () => {
-      const { severityLabel, priorityLabel, BUG_STATUS_LABEL, BUG_STATUS_TAG_TYPE, BUG_TYPE_LABEL } = useBugCreate()
+      const { severityLabel, priorityLabel, BUG_TYPE_LABEL } = useBugCreate()
       expect(severityLabel.fatal).toBe('致命')
       expect(severityLabel.serious).toBe('严重')
       expect(severityLabel.general).toBe('一般')
@@ -178,29 +138,7 @@ describe('useBugCreate', () => {
       expect(priorityLabel.high).toBe('高')
       expect(priorityLabel.medium).toBe('中')
       expect(priorityLabel.low).toBe('低')
-      expect(BUG_STATUS_LABEL.active).toBe('激活')
-      expect(BUG_STATUS_TAG_TYPE.active).toBe('primary')
       expect(BUG_TYPE_LABEL.code_error).toBe('代码缺陷')
-    })
-  })
-
-  describe('applyTitle / applySeverity / applyPriority', () => {
-    it('applyTitle sets form.title', () => {
-      const { form, applyTitle } = useBugCreate()
-      applyTitle('新标题')
-      expect(form.title).toBe('新标题')
-    })
-
-    it('applySeverity sets form.severity', () => {
-      const { form, applySeverity } = useBugCreate()
-      applySeverity('fatal')
-      expect(form.severity).toBe('fatal')
-    })
-
-    it('applyPriority sets form.priority', () => {
-      const { form, applyPriority } = useBugCreate()
-      applyPriority('high')
-      expect(form.priority).toBe('high')
     })
   })
 
@@ -268,29 +206,6 @@ describe('useBugCreate', () => {
       handleAttachmentRemove(f1, [f2])
       expect(attachmentFiles.value).toHaveLength(1)
       expect(attachmentFiles.value[0].name).toBe('b.txt')
-    })
-  })
-
-  describe('handleSelectDuplicate', () => {
-    it('sets dedupTargetId from item', () => {
-      const { dedupTargetId, handleSelectDuplicate } = useBugCreate()
-      handleSelectDuplicate({ bugId: 'bug-123' } as never)
-      expect(dedupTargetId.value).toBe('bug-123')
-    })
-
-    it('clears dedupTargetId when null', () => {
-      const { dedupTargetId, handleSelectDuplicate } = useBugCreate()
-      dedupTargetId.value = 'bug-123'
-      handleSelectDuplicate(null)
-      expect(dedupTargetId.value).toBe('')
-    })
-  })
-
-  describe('handleAbandonSubmit', () => {
-    it('navigates to bugs list', () => {
-      const { handleAbandonSubmit } = useBugCreate()
-      handleAbandonSubmit()
-      expect(mocks.useRouter().push).toHaveBeenCalledWith('/workspace/projects/bugs')
     })
   })
 
@@ -451,23 +366,13 @@ describe('useBugCreate', () => {
       expect(mocks.createBug).not.toHaveBeenCalled()
     })
 
-    it('validates form and calls createBug when no dedup items', async () => {
+    it('validates form and calls createBug', async () => {
       const { formRef, handleSubmit } = useBugCreate()
       const validate = vi.fn().mockResolvedValue(true)
       formRef.value = { validate } as never
       await handleSubmit()
       expect(validate).toHaveBeenCalled()
       expect(mocks.createBug).toHaveBeenCalled()
-    })
-
-    it('shows dedup confirm when dedupItems exist', async () => {
-      const { formRef, dedupItems, dedupConfirmVisible, handleSubmit } = useBugCreate()
-      const validate = vi.fn().mockResolvedValue(true)
-      formRef.value = { validate } as never
-      dedupItems.value = [{ bugId: 'dup-1' } as never]
-      await handleSubmit()
-      expect(dedupConfirmVisible.value).toBe(true)
-      expect(mocks.createBug).not.toHaveBeenCalled()
     })
 
     it('does not call createBug when validation fails', async () => {
@@ -577,93 +482,6 @@ describe('useBugCreate', () => {
       formRef.value = { validate: vi.fn().mockResolvedValue(true) } as never
       await handleSubmit()
       expect(submitting.value).toBe(false)
-    })
-  })
-
-  describe('handleDedupAbandon', () => {
-    it('closes dedup modal and navigates away', () => {
-      const { dedupConfirmVisible, handleDedupAbandon } = useBugCreate()
-      dedupConfirmVisible.value = true
-      handleDedupAbandon()
-      expect(dedupConfirmVisible.value).toBe(false)
-      expect(mocks.useRouter().push).toHaveBeenCalledWith('/workspace/projects/bugs')
-    })
-
-    it('does nothing when dedupSubmitting is true', () => {
-      const { dedupConfirmVisible, dedupSubmitting, handleDedupAbandon } = useBugCreate()
-      dedupSubmitting.value = true
-      dedupConfirmVisible.value = true
-      handleDedupAbandon()
-      expect(dedupConfirmVisible.value).toBe(true)
-      expect(mocks.useRouter().push).not.toHaveBeenCalled()
-    })
-  })
-
-  describe('handleDedupContinue', () => {
-    it('calls createBug and resets dedupSubmitting', async () => {
-      const { dedupSubmitting, handleDedupContinue } = useBugCreate()
-      await handleDedupContinue()
-      expect(mocks.createBug).toHaveBeenCalled()
-      expect(dedupSubmitting.value).toBe(false)
-    })
-
-    it('does nothing when dedupSubmitting is already true', async () => {
-      const { dedupSubmitting, handleDedupContinue } = useBugCreate()
-      dedupSubmitting.value = true
-      await handleDedupContinue()
-      expect(mocks.createBug).not.toHaveBeenCalled()
-    })
-
-    it('resets dedupSubmitting on error', async () => {
-      mocks.createBug.mockRejectedValue(new Error('fail'))
-      const { dedupSubmitting, handleDedupContinue } = useBugCreate()
-      await handleDedupContinue()
-      expect(dedupSubmitting.value).toBe(false)
-    })
-  })
-
-  describe('handleDedupMarkDuplicate', () => {
-    it('shows warning when dedupTargetId is empty', async () => {
-      const { handleDedupMarkDuplicate } = useBugCreate()
-      await handleDedupMarkDuplicate()
-      expect(mocks.ElMessage.warning).toHaveBeenCalledWith('请选择要标记为重复所对应的原始缺陷')
-      expect(mocks.createBug).not.toHaveBeenCalled()
-    })
-
-    it('calls createBug with dedupTargetId and marks duplicate', async () => {
-      const { dedupTargetId, handleDedupMarkDuplicate } = useBugCreate()
-      dedupTargetId.value = 'target-bug'
-      await handleDedupMarkDuplicate()
-      expect(mocks.createBug).toHaveBeenCalled()
-      expect(mocks.changeBugStatus).toHaveBeenCalledWith('new-bug-id', {
-        status: 'resolved',
-        resolution: 'duplicate',
-        duplicateOfBugId: 'target-bug',
-        comment: '创建时标记为重复缺陷',
-      })
-    })
-
-    it('shows success message for duplicate', async () => {
-      const { dedupTargetId, handleDedupMarkDuplicate } = useBugCreate()
-      dedupTargetId.value = 'target-bug'
-      await handleDedupMarkDuplicate()
-      expect(mocks.ElMessage.success).toHaveBeenCalledWith('缺陷已提交并标记为重复')
-    })
-
-    it('does nothing when dedupSubmitting is already true', async () => {
-      const { dedupSubmitting, dedupTargetId, handleDedupMarkDuplicate } = useBugCreate()
-      dedupSubmitting.value = true
-      dedupTargetId.value = 'target-bug'
-      await handleDedupMarkDuplicate()
-      expect(mocks.createBug).not.toHaveBeenCalled()
-    })
-
-    it('resets dedupSubmitting on error', async () => {
-      mocks.createBug.mockRejectedValue(new Error('fail'))
-      const { dedupSubmitting, dedupTargetId, handleDedupMarkDuplicate } = useBugCreate()
-      dedupTargetId.value = 'target-bug'
-      await handleDedupMarkDuplicate()
-      expect(dedupSubmitting.value).toBe(false)
     })
   })
 })

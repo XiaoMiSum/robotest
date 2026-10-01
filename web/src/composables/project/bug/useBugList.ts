@@ -41,7 +41,6 @@ export function useBugList() {
   const bugs = ref<BugListItem[]>([])
   const total = ref(0)
   const viewMode = ref<'list' | 'board'>('list')
-  const clusterVisible = ref(false)
 
   const query = reactive({
     status: '' as BugStatus | '',
@@ -434,7 +433,6 @@ export function useBugList() {
     bugs,
     total,
     viewMode,
-    clusterVisible,
     query,
     quickFilter,
     quickFilterOptions,

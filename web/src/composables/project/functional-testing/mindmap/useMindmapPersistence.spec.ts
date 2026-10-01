@@ -97,7 +97,6 @@ describe('useMindmapPersistence', () => {
       title: 'Root',
       type: 'normal',
       priority: null,
-      aiGenerated: false,
       parentId: null,
       sortOrder: 0,
     })
@@ -105,7 +104,6 @@ describe('useMindmapPersistence', () => {
       title: 'Child',
       type: 'normal',
       priority: null,
-      aiGenerated: false,
       parentId: ID_A,
       sortOrder: 0,
     })
@@ -121,12 +119,11 @@ describe('useMindmapPersistence', () => {
     expect(uuidv7).toHaveBeenCalled()
   })
 
-  it('collectLiveNodes 采集 priority 和 aiGenerated', () => {
-    const root = makeNode(ID_A, 'Root', [], { priority: 'P1', aiGenerated: true })
+  it('collectLiveNodes 采集 priority', () => {
+    const root = makeNode(ID_A, 'Root', [], { priority: 'P1' })
     const { collectLiveNodes } = useMindmapPersistence(() => makeMinder(root))
     const nodes = collectLiveNodes()
     expect(nodes.get(ID_A)?.priority).toBe('P1')
-    expect(nodes.get(ID_A)?.aiGenerated).toBe(true)
   })
 
   it('collectLiveNodes 默认 type 为 normal', () => {
@@ -223,8 +220,7 @@ describe('useMindmapPersistence', () => {
             title: 'Root',
             type: 'normal',
             priority: null,
-            aiGenerated: false,
-            parentId: null,
+                  parentId: null,
             sortOrder: 0,
           },
         },
@@ -247,7 +243,7 @@ describe('useMindmapPersistence', () => {
       JSON.stringify({
         type: 'update_attrs',
         payload: {
-          data: { id: ID_A, title: 'Renamed', type: 'normal', priority: 'P2', aiGenerated: false },
+          data: { id: ID_A, title: 'Renamed', type: 'normal', priority: 'P2' },
         },
       }),
     )

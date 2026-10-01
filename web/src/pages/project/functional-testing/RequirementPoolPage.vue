@@ -13,7 +13,6 @@ import { useAuthStore } from '@/stores/auth'
 import { formatDateTime } from '@/utils/format'
 import type { RequirementPoolItem, RequirementStatus } from '@/types'
 import MarkdownEditor from '@/components/common/MarkdownEditor.vue'
-import RequirementSplitDialog from '@/components/project/functional-testing/requirement/RequirementSplitDialog.vue'
 import {
   REQUIREMENT_SEGMENT_OPTIONS,
   canEditRequirement,
@@ -35,7 +34,7 @@ const segment = ref<RequirementStatus>('active')
 const pageNo = ref(1)
 const pageSize = ref(20)
 
-// 展示口径（状态/来源副行/编辑门槛）下沉为视图模型，与详情、AI 入口共用同一份纯函数
+// 展示口径（状态/来源副行/编辑门槛）下沉为视图模型，与详情页共用同一份纯函数
 const rows = computed(() =>
   items.value.map((item) => ({
     item,
@@ -44,9 +43,6 @@ const rows = computed(() =>
     editable: canEditRequirement(item.status),
   })),
 )
-
-// AI 拆分对话框（US-AI-019，入口与编辑权限一致，交互设计 6.1.2）
-const splitDialogVisible = ref(false)
 
 async function load() {
   loading.value = true
@@ -181,8 +177,8 @@ async function handleArchive(row: RequirementPoolItem) {
   try {
     await ElMessageBox.confirm(
       archived
-        ? '归档后条目不可编辑，且不再被 AI 功能选用。确定归档？'
-        : '恢复为启用状态，重新参与 AI 选用。确定取消归档？',
+        ? '归档后条目不可编辑，且不再被测试文档关联。确定归档？'
+        : '恢复为启用状态，重新参与测试文档关联。确定取消归档？',
       archived ? '归档需求条目' : '取消归档',
       { type: 'warning' },
     )
@@ -241,26 +237,15 @@ onMounted(load)
         </el-button>
         <el-button @click="handleReset">重置</el-button>
         <div class="requirement-pool__toolbar-end">
-          <!-- AI 拆分入口：与编辑权限一致（交互设计 6.1.2） -->
-          <el-button v-if="canEdit" type="primary" plain @click="splitDialogVisible = true">
-            <el-icon><MagicStick /></el-icon>AI 拆分
-          </el-button>
           <span class="requirement-pool__sort">按更新时间排序</span>
         </div>
       </div>
 
       <el-table :data="rows">
-        <!-- AI 拆分入库条目标题前展示青色 AI 徽标（复用 mindmap AI_BADGE 色值，交互设计 6.1.2）；副行承载来源 -->
         <el-table-column label="标题" min-width="300">
           <template #default="{ row }">
             <div class="requirement-pool__cell">
               <span class="requirement-pool__cell-main">
-                <el-tag
-                  v-if="row.item.aiGenerated"
-                  size="small"
-                  class="requirement-pool__ai-badge"
-                  disable-transitions
-                >AI</el-tag>
                 <span>{{ row.item.title }}</span>
               </span>
               <el-link
@@ -334,8 +319,6 @@ onMounted(load)
       </template>
     </el-drawer>
 
-    <!-- AI 拆分入库成功后刷新列表（对话框内部负责入库与提示） -->
-    <RequirementSplitDialog v-model="splitDialogVisible" @imported="load" />
   </main>
 </template>
 
@@ -451,12 +434,5 @@ onMounted(load)
 .requirement-pool__pager-total {
   color: var(--color-neutral-500);
   font-size: var(--font-size-sm);
-}
-
-/* AI 拆分入库条目标识：青色 AI 徽标，与 mindmap badges 的 AI_BADGE 同源（视觉设计 --color-ai-badge） */
-.requirement-pool__ai-badge {
-  color: var(--color-ai-badge);
-  border-color: var(--color-ai-badge);
-  background-color: color-mix(in srgb, var(--color-ai-badge) 10%, transparent);
 }
 </style>

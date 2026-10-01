@@ -16,11 +16,9 @@ const mocks = vi.hoisted(() => ({
   rejectReview: vi.fn<() => Promise<void>>(),
   reopenReview: vi.fn<() => Promise<void>>(),
   syncReview: vi.fn<() => Promise<void>>(),
-  getCaseDetail: vi.fn<(id: string) => Promise<{ id: string; documentId?: string | null }>>(),
   ElMessage: { success: vi.fn(), error: vi.fn(), info: vi.fn(), warning: vi.fn() },
   ElMessageBox: { confirm: vi.fn<() => Promise<void>>() },
   useAuthStore: vi.fn(),
-  useAiStore: vi.fn(),
 }))
 
 vi.mock('vue', async () => {
@@ -46,15 +44,10 @@ vi.mock('@/services/project', () => ({
   rejectReview: mocks.rejectReview,
   reopenReview: mocks.reopenReview,
   syncReview: mocks.syncReview,
-  getCaseDetail: mocks.getCaseDetail,
 }))
 
 vi.mock('@/stores/auth', () => ({
   useAuthStore: mocks.useAuthStore,
-}))
-
-vi.mock('@/stores/ai', () => ({
-  useAiStore: mocks.useAiStore,
 }))
 
 import { useReviewDetail } from './useReviewDetail'
@@ -98,14 +91,12 @@ function setupMocks(overrides?: {
   tree?: SnapshotModule[]
   plannedCases?: PlannedCases[]
   userId?: string
-  aiEnabled?: boolean
 }) {
   mocks.getReviewDetail.mockResolvedValue(overrides?.review ?? makeReview())
   mocks.getReviewProgress.mockResolvedValue(overrides?.progress ?? makeProgress())
   mocks.getReviewModuleTree.mockResolvedValue(overrides?.tree ?? [])
   mocks.getReviewPlannedCases.mockResolvedValue(overrides?.plannedCases ?? [])
   mocks.useAuthStore.mockReturnValue({ user: { id: overrides?.userId ?? 'user-1' } })
-  mocks.useAiStore.mockReturnValue({ aiEnabled: overrides?.aiEnabled ?? false })
 }
 
 describe('useReviewDetail', () => {
@@ -134,21 +125,6 @@ describe('useReviewDetail', () => {
       expect(s.selectedDocId.value).toBe('')
     })
 
-    it('summaryVisible 初始为 false', () => {
-      const s = init()
-      expect(s.summaryVisible.value).toBe(false)
-    })
-
-    it('conclusionVisible 初始为 false', () => {
-      const s = init()
-      expect(s.conclusionVisible.value).toBe(false)
-    })
-
-    it('checkVisible 初始为 false', () => {
-      const s = init()
-      expect(s.checkVisible.value).toBe(false)
-    })
-
     it('selectorVisible 初始为 false', () => {
       const s = init()
       expect(s.selectorVisible.value).toBe(false)
@@ -157,16 +133,6 @@ describe('useReviewDetail', () => {
     it('plannedCases 初始为空数组', () => {
       const s = init()
       expect(s.plannedCases.value).toEqual([])
-    })
-
-    it('recommendVisible 初始为 false', () => {
-      const s = init()
-      expect(s.recommendVisible.value).toBe(false)
-    })
-
-    it('recommendExcludeIds 初始为空数组', () => {
-      const s = init()
-      expect(s.recommendExcludeIds.value).toEqual([])
     })
 
     it('loading 最终为 false', async () => {
@@ -205,114 +171,6 @@ describe('useReviewDetail', () => {
       const s = init()
       await vi.dynamicImportSettled()
       expect(s.canComplete.value).toBe(false)
-    })
-  })
-
-  describe('computed canShowSummary', () => {
-    it('aiEnabled 为 false 时返回 false', async () => {
-      setupMocks({ aiEnabled: false, review: makeReview({ status: 'completed' }) })
-      const s = init()
-      await vi.dynamicImportSettled()
-      expect(s.canShowSummary.value).toBe(false)
-    })
-
-    it('status 非 completed 时返回 false', async () => {
-      setupMocks({ aiEnabled: true, review: makeReview({ status: 'in_progress' }) })
-      const s = init()
-      await vi.dynamicImportSettled()
-      expect(s.canShowSummary.value).toBe(false)
-    })
-
-    it('initiator 与当前用户不同时返回 false', async () => {
-      setupMocks({
-        aiEnabled: true,
-        userId: 'user-1',
-        review: makeReview({ status: 'completed', initiator: { id: 'user-2', name: '其他' } }),
-      })
-      const s = init()
-      await vi.dynamicImportSettled()
-      expect(s.canShowSummary.value).toBe(false)
-    })
-
-    it('全部条件满足时返回 true', async () => {
-      setupMocks({
-        aiEnabled: true,
-        userId: 'user-1',
-        review: makeReview({ status: 'completed', initiator: { id: 'user-1', name: '发起人' } }),
-      })
-      const s = init()
-      await vi.dynamicImportSettled()
-      expect(s.canShowSummary.value).toBe(true)
-    })
-  })
-
-  describe('computed canShowConclusion', () => {
-    it('与 canShowSummary 一致', async () => {
-      setupMocks({
-        aiEnabled: true,
-        userId: 'user-1',
-        review: makeReview({ status: 'completed', initiator: { id: 'user-1', name: '发起人' } }),
-      })
-      const s = init()
-      await vi.dynamicImportSettled()
-      expect(s.canShowConclusion.value).toBe(s.canShowSummary.value)
-    })
-  })
-
-  describe('computed canShowCheck', () => {
-    it('aiEnabled 为 false 时返回 false', async () => {
-      setupMocks({ aiEnabled: false })
-      const s = init()
-      await vi.dynamicImportSettled()
-      expect(s.canShowCheck.value).toBe(false)
-    })
-
-    it('initiator 与当前用户不同时返回 false', async () => {
-      setupMocks({
-        aiEnabled: true,
-        userId: 'user-1',
-        review: makeReview({ initiator: { id: 'user-2', name: '其他' } }),
-      })
-      const s = init()
-      await vi.dynamicImportSettled()
-      expect(s.canShowCheck.value).toBe(false)
-    })
-
-    it('aiEnabled 为 true 且 initiator 为当前用户时返回 true', async () => {
-      setupMocks({ aiEnabled: true, userId: 'user-1' })
-      const s = init()
-      await vi.dynamicImportSettled()
-      expect(s.canShowCheck.value).toBe(true)
-    })
-  })
-
-  describe('computed canRunCheck', () => {
-    it('status 为 new 时返回 true', async () => {
-      setupMocks({ review: makeReview({ status: 'new' }) })
-      const s = init()
-      await vi.dynamicImportSettled()
-      expect(s.canRunCheck.value).toBe(true)
-    })
-
-    it('status 为 in_progress 时返回 true', async () => {
-      setupMocks({ review: makeReview({ status: 'in_progress' }) })
-      const s = init()
-      await vi.dynamicImportSettled()
-      expect(s.canRunCheck.value).toBe(true)
-    })
-
-    it('status 为 completed 时返回 false', async () => {
-      setupMocks({ review: makeReview({ status: 'completed' }) })
-      const s = init()
-      await vi.dynamicImportSettled()
-      expect(s.canRunCheck.value).toBe(false)
-    })
-
-    it('status 为 rejected 时返回 false', async () => {
-      setupMocks({ review: makeReview({ status: 'rejected' }) })
-      const s = init()
-      await vi.dynamicImportSettled()
-      expect(s.canRunCheck.value).toBe(false)
     })
   })
 
@@ -376,7 +234,6 @@ describe('useReviewDetail', () => {
       mocks.getReviewProgress.mockResolvedValue(makeProgress())
       mocks.getReviewModuleTree.mockResolvedValue([])
       mocks.useAuthStore.mockReturnValue({ user: { id: 'user-1' } })
-      mocks.useAiStore.mockReturnValue({ aiEnabled: false })
       const s = init()
       await vi.dynamicImportSettled()
       expect(mocks.ElMessage.error).toHaveBeenCalledWith('网络错误')
@@ -388,7 +245,6 @@ describe('useReviewDetail', () => {
       mocks.getReviewProgress.mockResolvedValue(makeProgress())
       mocks.getReviewModuleTree.mockResolvedValue([])
       mocks.useAuthStore.mockReturnValue({ user: { id: 'user-1' } })
-      mocks.useAiStore.mockReturnValue({ aiEnabled: false })
       init()
       await vi.dynamicImportSettled()
       expect(mocks.ElMessage.error).toHaveBeenCalledWith('加载评审详情失败')
@@ -399,7 +255,6 @@ describe('useReviewDetail', () => {
       mocks.getReviewProgress.mockResolvedValue(makeProgress())
       mocks.getReviewModuleTree.mockResolvedValue([])
       mocks.useAuthStore.mockReturnValue({ user: { id: 'user-1' } })
-      mocks.useAiStore.mockReturnValue({ aiEnabled: false })
       const s = init()
       await vi.dynamicImportSettled()
       expect(s.loading.value).toBe(false)
@@ -680,127 +535,6 @@ describe('useReviewDetail', () => {
     })
   })
 
-  describe('openRecommend', () => {
-    it('成功加载后设置 recommendExcludeIds 并显示推荐面板', async () => {
-      setupMocks({
-        plannedCases: [
-          { documentId: 'doc-1', caseIds: ['c1', 'c2'] },
-          { documentId: 'doc-2', caseIds: ['c3'] },
-        ],
-      })
-      const s = init()
-      await vi.dynamicImportSettled()
-      await s.openRecommend()
-      expect(s.recommendExcludeIds.value).toEqual(['c1', 'c2', 'c3'])
-      expect(s.recommendVisible.value).toBe(true)
-    })
-
-    it('加载失败时显示错误', async () => {
-      setupMocks()
-      mocks.getReviewPlannedCases.mockRejectedValue(new Error('加载失败'))
-      const s = init()
-      await vi.dynamicImportSettled()
-      await s.openRecommend()
-      expect(mocks.ElMessage.error).toHaveBeenCalledWith('加载失败')
-      expect(s.recommendVisible.value).toBe(false)
-    })
-
-    it('加载失败非 Error 异常显示通用消息', async () => {
-      setupMocks()
-      mocks.getReviewPlannedCases.mockRejectedValue(42)
-      const s = init()
-      await vi.dynamicImportSettled()
-      await s.openRecommend()
-      expect(mocks.ElMessage.error).toHaveBeenCalledWith('加载规划用例失败')
-    })
-
-    it('plannedCases 为空数组时 recommendExcludeIds 为空', async () => {
-      setupMocks()
-      const s = init()
-      await vi.dynamicImportSettled()
-      await s.openRecommend()
-      expect(s.recommendExcludeIds.value).toEqual([])
-    })
-  })
-
-  describe('handleBringIn', () => {
-    it('合并现有用例与推荐用例后显示选择器', async () => {
-      setupMocks({
-        plannedCases: [{ documentId: 'doc-1', caseIds: ['c1'] }],
-      })
-      mocks.getCaseDetail.mockImplementation(async (id: string) => ({
-        id,
-        documentId: 'doc-1',
-      }))
-      const s = init()
-      await vi.dynamicImportSettled()
-      await s.handleBringIn(['c2', 'c3'])
-      expect(s.plannedCases.value).toEqual([
-        { documentId: 'doc-1', caseIds: ['c1', 'c2', 'c3'] },
-      ])
-      expect(s.selectorVisible.value).toBe(true)
-    })
-
-    it('推荐用例属于不同文档时正确分组', async () => {
-      setupMocks()
-      mocks.getCaseDetail.mockImplementation(async (id: string) => ({
-        id,
-        documentId: id === 'c1' ? 'doc-1' : 'doc-2',
-      }))
-      const s = init()
-      await vi.dynamicImportSettled()
-      await s.handleBringIn(['c1', 'c2'])
-      expect(s.plannedCases.value).toHaveLength(2)
-    })
-
-    it('推荐用例 documentId 为 null 时跳过合并', async () => {
-      setupMocks()
-      mocks.getCaseDetail.mockImplementation(async (id: string) => ({
-        id,
-        documentId: null,
-      }))
-      const s = init()
-      await vi.dynamicImportSettled()
-      await s.handleBringIn(['c1'])
-      expect(s.plannedCases.value).toEqual([])
-      expect(s.selectorVisible.value).toBe(true)
-    })
-
-    it('加载失败时显示错误', async () => {
-      setupMocks()
-      mocks.getReviewPlannedCases.mockRejectedValue(new Error('加载失败'))
-      const s = init()
-      await vi.dynamicImportSettled()
-      await s.handleBringIn(['c1'])
-      expect(mocks.ElMessage.error).toHaveBeenCalledWith('加载失败')
-    })
-
-    it('加载失败非 Error 异常显示通用消息', async () => {
-      setupMocks()
-      mocks.getReviewPlannedCases.mockRejectedValue(42)
-      const s = init()
-      await vi.dynamicImportSettled()
-      await s.handleBringIn(['c1'])
-      expect(mocks.ElMessage.error).toHaveBeenCalledWith('加载推荐用例失败')
-    })
-
-    it('与现有用例去重（同一 documentId 下重复 caseId 不重复添加）', async () => {
-      setupMocks({
-        plannedCases: [{ documentId: 'doc-1', caseIds: ['c1'] }],
-      })
-      mocks.getCaseDetail.mockImplementation(async (id: string) => ({
-        id,
-        documentId: 'doc-1',
-      }))
-      const s = init()
-      await vi.dynamicImportSettled()
-      await s.handleBringIn(['c1'])
-      expect(s.plannedCases.value).toEqual([
-        { documentId: 'doc-1', caseIds: ['c1'] },
-      ])
-    })
-  })
-
   describe('refreshProgress', () => {
     it('成功刷新 progress 和 detail', async () => {
       setupMocks()
@@ -822,40 +556,6 @@ describe('useReviewDetail', () => {
       const s = init()
       await vi.dynamicImportSettled()
       await expect(s.refreshProgress()).resolves.toBeUndefined()
-    })
-  })
-
-  describe('handleCheckLocate', () => {
-    it('节点找到时不显示提示', async () => {
-      setupMocks()
-      const s = init()
-      await vi.dynamicImportSettled()
-      const mockLocate = vi.fn().mockReturnValue(true)
-      s.mindMapRef.value = { locateNode: mockLocate } as never
-      s.handleCheckLocate('snap-1')
-      expect(mocks.ElMessage.info).not.toHaveBeenCalled()
-    })
-
-    it('节点未找到时显示提示消息', async () => {
-      setupMocks()
-      const s = init()
-      await vi.dynamicImportSettled()
-      const mockLocate = vi.fn().mockReturnValue(false)
-      s.mindMapRef.value = { locateNode: mockLocate } as never
-      s.handleCheckLocate('snap-missing')
-      expect(mocks.ElMessage.info).toHaveBeenCalledWith(
-        '该建议指向的用例不在当前文档，请切换左侧文档后重试',
-      )
-    })
-
-    it('mindMapRef 为空时显示提示', async () => {
-      setupMocks()
-      const s = init()
-      await vi.dynamicImportSettled()
-      s.handleCheckLocate('snap-1')
-      expect(mocks.ElMessage.info).toHaveBeenCalledWith(
-        '该建议指向的用例不在当前文档，请切换左侧文档后重试',
-      )
     })
   })
 

@@ -1,31 +1,3 @@
-const exception = {
-  reason: '存量纯展示适配函数仍位于 components；本次先冻结既有边界，新增依赖继续阻断',
-  owner: 'frontend',
-  approvedBy: 'CODE-007 主会话任务负责人',
-  reviewedAt: '2026-09-24',
-  expiresOn: '2026-12-31',
-  remediation: '将展示适配函数下沉到 composables/types 或上移调用后删除此基线条目',
-}
-
-export const layerImportBaseline = [
-  {
-    file: 'src/composables/project/functional-testing/plan/usePlanOrderRecommend.ts',
-    importSource: '@/components/project/functional-testing/plan/planOrderRecommend',
-    ...exception,
-  },
-  {
-    file: 'src/composables/project/functional-testing/review/useReviewAiSummary.ts',
-    importSource: '@/components/project/functional-testing/review/reviewSummary',
-    ...exception,
-  },
-  {
-    file: 'src/composables/project/functional-testing/review/useReviewAiConclusion.ts',
-    importSource: '@/components/project/functional-testing/review/reviewSummary',
-    ...exception,
-  },
-  {
-    file: 'src/composables/project/functional-testing/review/useReviewAiConclusion.ts',
-    importSource: '@/components/project/functional-testing/review/conclusionPresentation',
-    ...exception,
-  },
-]
+// 存量层级越界豁免清单：随 AI 相关代码删除后已清零。
+// 新增豁免必须补齐范围、责任人、批准、失效日期与整改计划（CODE-007）
+export const layerImportBaseline = []

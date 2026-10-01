@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { typeBadge, priorityBadge, reviewMarkBadge, executionResultBadge, aiBadge, orderBadge, badgeWidth } from './badges'
+import { typeBadge, priorityBadge, reviewMarkBadge, executionResultBadge, badgeWidth } from './badges'
 
 describe('typeBadge', () => {
   it('四种业务类型映射到文案与颜色', () => {
@@ -55,36 +55,6 @@ describe('executionResultBadge', () => {
   it('未执行是默认态不显示徽标', () => {
     expect(executionResultBadge('untested')).toBeNull()
     expect(executionResultBadge(null)).toBeNull()
-  })
-})
-
-describe('aiBadge', () => {
-  it('aiGenerated 严格为 true 时渲染 AI 徽标', () => {
-    expect(aiBadge(true)).toEqual({ label: 'AI', color: '#13C2C2' })
-  })
-
-  it('false/缺省/非布尔真值不渲染（移除标识后即消失）', () => {
-    expect(aiBadge(false)).toBeNull()
-    expect(aiBadge(undefined)).toBeNull()
-    expect(aiBadge(null)).toBeNull()
-    expect(aiBadge('true')).toBeNull()
-    expect(aiBadge(1)).toBeNull()
-  })
-})
-
-describe('orderBadge 执行顺序推荐序号徽标', () => {
-  it('正整数 orderNo 渲染 #序号 亮橙徽标', () => {
-    expect(orderBadge(1)).toEqual({ label: '#1', color: '#FF6F00' })
-    expect(orderBadge(12)).toEqual({ label: '#12', color: '#FF6F00' })
-  })
-
-  it('非正整数/缺省不渲染（未进入推荐结果即无徽标）', () => {
-    expect(orderBadge(0)).toBeNull()
-    expect(orderBadge(-3)).toBeNull()
-    expect(orderBadge(1.5)).toBeNull()
-    expect(orderBadge(null)).toBeNull()
-    expect(orderBadge(undefined)).toBeNull()
-    expect(orderBadge('2')).toBeNull()
   })
 })
 

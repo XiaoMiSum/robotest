@@ -8,7 +8,6 @@ import {
   planStatusMeta,
   planStatusLabel,
 } from '@/components/project/functional-testing/plan/planListPresentation'
-import { MagicStick } from '@element-plus/icons-vue'
 
 const route = useRoute()
 const planId = route.params.planId as string
@@ -20,13 +19,8 @@ const {
   mindMapRef,
   moduleTree,
   selectedDocId,
-  activeTab,
-  orderPanelRef,
   selectorVisible,
   plannedCases,
-  recommendVisible,
-  recommendExcludeIds,
-  canShowOrder,
   canAdjustCases,
   handleComplete,
   handleBlock,
@@ -35,13 +29,7 @@ const {
   openCaseSelector,
   handleCasesConfirm,
   handleCasesRemoved,
-  openRecommend,
-  handleBringIn,
   refreshProgress,
-  handleOrderLocate,
-  handleOrderResult,
-  handleOrderSelect,
-  aiStore,
 } = usePlanDetail({ planId })
 
 // 状态文案与阻塞/恢复入口显隐均取自展示口径模块；按钮是否真可用由后端校验负责人权限
@@ -92,14 +80,6 @@ const canResume = computed(() => canResumePlan(detail.value?.status ?? ''))
           </div>
         </div>
         <div v-if="detail" class="plan-detail__actions">
-          <el-button
-            v-if="aiStore.aiEnabled && canAdjustCases"
-            size="small"
-            plain
-            @click="openRecommend"
-          >
-            <el-icon><MagicStick /></el-icon>AI 推荐用例
-          </el-button>
           <el-button v-if="canAdjustCases" size="small" plain @click="openCaseSelector">
             <el-icon><EditPen /></el-icon>调整用例
           </el-button>
@@ -134,68 +114,35 @@ const canResume = computed(() => canResumePlan(detail.value?.status ?? ''))
       </div>
     </div>
 
-    <!-- 计划详情标签：执行记录（默认）与执行顺序推荐（交互设计 5.1）；推荐标签仅计划负责人/执行人可见 -->
-    <!-- el-tabs 无 extra 插槽（Element Plus 已移除该插槽），计算按钮改由外层容器绝对定位于标签栏右侧同行（交互设计 5.1 布局） -->
-    <div class="plan-detail__tabs-wrap">
-      <el-tabs v-model="activeTab" class="plan-detail__tabs">
-        <el-tab-pane label="执行记录" name="records">
-          <div class="plan-detail__workspace">
-            <el-card shadow="never" class="plan-detail__tree-card">
-              <SnapshotModuleTree
-                :data="moduleTree"
-                :current-doc-id="selectedDocId"
-                @select-document="(id: string) => (selectedDocId = id)"
-              />
-            </el-card>
-            <el-card shadow="never" class="plan-detail__body">
-              <div v-if="!selectedDocId" class="plan-detail__placeholder">
-                <el-empty description="请在左侧选择一个文档" />
-              </div>
-              <PlanMindMap
-                v-else
-                ref="mindMapRef"
-                :plan-id="planId"
-                :document-id="selectedDocId"
-                :removable="canAdjustCases"
-                @marked="refreshProgress"
-                @order-select="handleOrderSelect"
-                @removed="handleCasesRemoved"
-              />
-            </el-card>
-          </div>
-        </el-tab-pane>
-        <el-tab-pane v-if="canShowOrder" label="执行顺序推荐✨" name="order">
-          <PlanOrderRecommend
-            ref="orderPanelRef"
-            :plan-id="planId"
-            @locate="handleOrderLocate"
-            @result="handleOrderResult"
-          />
-        </el-tab-pane>
-      </el-tabs>
-      <el-button
-        v-if="activeTab === 'order'"
-        class="plan-detail__order-btn"
-        size="small"
-        link
-        :loading="orderPanelRef?.computing"
-        @click="orderPanelRef?.compute()"
-      >
-        <el-icon><MagicStick /></el-icon>
-        {{ orderPanelRef?.hasResult ? '重新计算' : '开始计算' }}
-      </el-button>
+    <!-- 计划详情工作区（交互设计 5.1） -->
+    <div class="plan-detail__workspace">
+      <el-card shadow="never" class="plan-detail__tree-card">
+        <SnapshotModuleTree
+          :data="moduleTree"
+          :current-doc-id="selectedDocId"
+          @select-document="(id: string) => (selectedDocId = id)"
+        />
+      </el-card>
+      <el-card shadow="never" class="plan-detail__body">
+        <div v-if="!selectedDocId" class="plan-detail__placeholder">
+          <el-empty description="请在左侧选择一个文档" />
+        </div>
+        <PlanMindMap
+          v-else
+          ref="mindMapRef"
+          :plan-id="planId"
+          :document-id="selectedDocId"
+          :removable="canAdjustCases"
+          @marked="refreshProgress"
+          @removed="handleCasesRemoved"
+        />
+      </el-card>
     </div>
 
     <CaseSelector
       v-model="selectorVisible"
       :initial-selected="plannedCases"
       @confirm="handleCasesConfirm"
-    />
-    <CasePlanRecommendDialog
-      v-model="recommendVisible"
-      :exclude-case-node-ids="recommendExcludeIds"
-      target="plan"
-      @bring-in="handleBringIn"
     />
   </div>
 </template>
@@ -326,53 +273,10 @@ const canResume = computed(() => canResumePlan(detail.value?.status ?? ''))
   color: var(--color-blocked);
 }
 
-// 标签容器撑满剩余高度：header 固定、内容区弹性占满，脑图/推荐面板在其中整高布局
-.plan-detail__tabs-wrap {
-  position: relative;
+.plan-detail__workspace {
   margin-top: var(--space-lg);
   flex: 1;
   min-height: 0;
-  display: flex;
-  flex-direction: column;
-}
-
-.plan-detail__tabs {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-
-  :deep(.el-tabs__header) {
-    flex-shrink: 0;
-    margin-bottom: 0;
-  }
-
-  :deep(.el-tabs__content) {
-    flex: 1;
-    min-height: 0;
-  }
-
-  :deep(.el-tab-pane) {
-    height: 100%;
-  }
-}
-
-// 执行顺序计算按钮：绝对定位于标签栏右侧同行（标签高 40px、small 按钮高 24px，top 8px 垂直居中）
-// 采用 link 样式：与标签栏视觉层级保持一致，避免实心主色按钮在页头区喧宾夺主
-.plan-detail__order-btn {
-  position: absolute;
-  top: 8px;
-  right: 0;
-  z-index: 1;
-
-  // 图标与文字间距由按钮内部 gap 兜底，此处确保 loading 态下图标不额外占位
-  :deep(.el-icon) {
-    margin-right: 4px;
-  }
-}
-
-.plan-detail__workspace {
-  height: 100%;
   display: flex;
   gap: var(--space-lg);
 }

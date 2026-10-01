@@ -4,13 +4,10 @@ import { fetchDocumentNodes } from '@/services/project'
 import { caseNodeToKm } from '@/minder/adapter'
 import { loadMinderEngine } from '@/minder/loader'
 import { KMEditor } from '@/minder/editor'
-import { buildDslPlan, applyDslPlan } from '@/minder/ai/dslRunner'
 import {
   useContextMenu,
   type ContextMenuAnchorNode,
 } from '@/minder/useContextMenu'
-import type { MountTargetSource } from '@/minder/ai/aiMount'
-import type { DslHost } from '@/stores/assistantContext'
 import type { Minder } from '@/minder/types'
 
 interface KMEditorLike {
@@ -53,20 +50,11 @@ export function useMindmapInit(options: {
     canUndo: { value: boolean }
     canRedo: { value: boolean }
   }
-  assistantContext: {
-    registerMindMap(docId: string): void
-    unregisterMindMap(): void
-    registerDslHost(host: DslHost): void
-    unregisterDslHost(): void
-  }
-  aiResetPanels(): void
-  aiStopAiReadyPoll(): void
 }) {
   const {
     docId, containerRef, loading, selectedNodeId, beginInit, isStale,
     invalidate, getMinder, minder, updateSelectedState,
     destroyMinder, kmEditorRef, persistence, yjs, layout, nodeOps,
-    assistantContext, aiResetPanels, aiStopAiReadyPoll,
   } = options
 
   const {
@@ -118,13 +106,6 @@ export function useMindmapInit(options: {
       const m = instance as Record<string, (...args: unknown[]) => unknown>
       m.importJson(kmData)
 
-      assistantContext.registerDslHost({
-        documentId: docId(),
-        buildPlan: (commands, selectedNodeId) =>
-          buildDslPlan(editor.minder.getRoot() as MountTargetSource | null, commands, selectedNodeId),
-        apply: (plan) => applyDslPlan(editor.minder, plan),
-      })
-
       m.on('selectionchange', updateSelectedState)
       m.on('contentchange', () => {
         layout.updateTemplate(
@@ -149,21 +130,15 @@ export function useMindmapInit(options: {
     }
   }
 
-  watch(docId, (id) => {
-    aiResetPanels()
-    assistantContext.registerMindMap(id)
+  watch(docId, () => {
     void initMinder()
   })
 
   onMounted(() => {
-    assistantContext.registerMindMap(docId())
     void initMinder()
   })
 
   onBeforeUnmount(() => {
-    assistantContext.unregisterMindMap()
-    assistantContext.unregisterDslHost()
-    aiStopAiReadyPoll()
     invalidate()
     persistence.flushPersistenceNow()
     yjs.destroyYjs()

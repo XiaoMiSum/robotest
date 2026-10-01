@@ -7,8 +7,7 @@ import { watch } from 'vue'
 import type { RequirementSummary } from '@/types'
 
 /**
- * 需求选取器（US-AI-004 交互设计 6.2，可复用）：
- * 供「文档关联」「AI 生成/补全」「遗漏测试点分析」「回归子集推荐」入口调用。跨页多选以 selected Map 保序保留。
+ * 需求选取器（可复用）：供「文档关联」入口调用。跨页多选以 selected Map 保序保留。
  */
 const props = defineProps<{
   selectedIds?: string[]

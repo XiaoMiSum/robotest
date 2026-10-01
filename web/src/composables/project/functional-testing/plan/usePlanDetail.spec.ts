@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type {
-  AiPlanOrderRecommendItem,
   PlannedCases,
   SnapshotModule,
   TestPlanDetail,
@@ -17,11 +16,9 @@ const mocks = vi.hoisted(() => ({
   blockPlan: vi.fn<() => Promise<void>>(),
   resumePlan: vi.fn<() => Promise<void>>(),
   syncPlan: vi.fn<() => Promise<void>>(),
-  getCaseDetail: vi.fn<(id: string) => Promise<{ id: string; documentId?: string | null }>>(),
   ElMessage: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
   ElMessageBox: { confirm: vi.fn<() => Promise<void>>() },
   useAuthStore: vi.fn(),
-  useAiStore: vi.fn(),
 }))
 
 vi.mock('vue', async () => {
@@ -47,19 +44,13 @@ vi.mock('@/services/project', () => ({
   blockPlan: mocks.blockPlan,
   resumePlan: mocks.resumePlan,
   syncPlan: mocks.syncPlan,
-  getCaseDetail: mocks.getCaseDetail,
 }))
 
 vi.mock('@/stores/auth', () => ({
   useAuthStore: mocks.useAuthStore,
 }))
 
-vi.mock('@/stores/ai', () => ({
-  useAiStore: mocks.useAiStore,
-}))
-
 vi.mock('@/components/project/functional-testing/plan/PlanMindMap.vue', () => ({ default: {} }))
-vi.mock('@/components/project/functional-testing/plan/PlanOrderRecommend.vue', () => ({ default: {} }))
 
 import { usePlanDetail } from './usePlanDetail'
 
@@ -100,13 +91,11 @@ function setupMocks(overrides?: {
   tree?: SnapshotModule[]
   plannedCases?: PlannedCases[]
   userId?: string
-  aiEnabled?: boolean
 }) {
   mocks.getPlanDetail.mockResolvedValue(overrides?.plan ?? makePlan())
   mocks.getPlanProgress.mockResolvedValue(overrides?.progress ?? makeProgress())
   mocks.getPlanModuleTree.mockResolvedValue(overrides?.tree ?? [])
   mocks.useAuthStore.mockReturnValue({ user: { id: overrides?.userId ?? 'user-1' } })
-  mocks.useAiStore.mockReturnValue({ aiEnabled: overrides?.aiEnabled ?? false })
 }
 
 describe('usePlanDetail', () => {
@@ -135,11 +124,6 @@ describe('usePlanDetail', () => {
       expect(s.selectedDocId.value).toBe('')
     })
 
-    it('activeTab 初始为 records', () => {
-      const s = init()
-      expect(s.activeTab.value).toBe('records')
-    })
-
     it('selectorVisible 初始为 false', () => {
       const s = init()
       expect(s.selectorVisible.value).toBe(false)
@@ -148,16 +132,6 @@ describe('usePlanDetail', () => {
     it('plannedCases 初始为空数组', () => {
       const s = init()
       expect(s.plannedCases.value).toEqual([])
-    })
-
-    it('recommendVisible 初始为 false', () => {
-      const s = init()
-      expect(s.recommendVisible.value).toBe(false)
-    })
-
-    it('recommendExcludeIds 初始为空数组', () => {
-      const s = init()
-      expect(s.recommendExcludeIds.value).toEqual([])
     })
 
     it('handleBlock 确认后调用 blockPlan 并重新加载', async () => {
@@ -191,36 +165,6 @@ describe('usePlanDetail', () => {
       const s = init()
       await vi.dynamicImportSettled()
       expect(s.loading.value).toBe(false)
-    })
-  })
-
-  describe('computed canShowOrder', () => {
-    it('aiEnabled 为 false 时返回 false', async () => {
-      setupMocks({ aiEnabled: false })
-      const s = init()
-      await vi.dynamicImportSettled()
-      expect(s.canShowOrder.value).toBe(false)
-    })
-
-    it('aiEnabled 为 true 但 executor 与当前用户不同时返回 false', async () => {
-      setupMocks({ aiEnabled: true, userId: 'user-1', plan: makePlan({ executor: { id: 'user-2', name: '其他' } }) })
-      const s = init()
-      await vi.dynamicImportSettled()
-      expect(s.canShowOrder.value).toBe(false)
-    })
-
-    it('aiEnabled 为 true 且 executor 为当前用户时返回 true', async () => {
-      setupMocks({ aiEnabled: true, userId: 'user-1', plan: makePlan({ executor: { id: 'user-1', name: '执行者' } }) })
-      const s = init()
-      await vi.dynamicImportSettled()
-      expect(s.canShowOrder.value).toBe(true)
-    })
-
-    it('executor 为 null 时返回 false', async () => {
-      setupMocks({ aiEnabled: true, plan: makePlan({ executor: null }) })
-      const s = init()
-      await vi.dynamicImportSettled()
-      expect(s.canShowOrder.value).toBe(false)
     })
   })
 
@@ -314,7 +258,6 @@ describe('usePlanDetail', () => {
       mocks.getPlanProgress.mockResolvedValue(makeProgress())
       mocks.getPlanModuleTree.mockResolvedValue([])
       mocks.useAuthStore.mockReturnValue({ user: { id: 'user-1' } })
-      mocks.useAiStore.mockReturnValue({ aiEnabled: false })
       const s = init()
       await vi.dynamicImportSettled()
       expect(mocks.ElMessage.error).toHaveBeenCalledWith('网络错误')
@@ -326,7 +269,6 @@ describe('usePlanDetail', () => {
       mocks.getPlanProgress.mockResolvedValue(makeProgress())
       mocks.getPlanModuleTree.mockResolvedValue([])
       mocks.useAuthStore.mockReturnValue({ user: { id: 'user-1' } })
-      mocks.useAiStore.mockReturnValue({ aiEnabled: false })
       init()
       await vi.dynamicImportSettled()
       expect(mocks.ElMessage.error).toHaveBeenCalledWith('加载计划详情失败')
@@ -337,7 +279,6 @@ describe('usePlanDetail', () => {
       mocks.getPlanProgress.mockResolvedValue(makeProgress())
       mocks.getPlanModuleTree.mockResolvedValue([])
       mocks.useAuthStore.mockReturnValue({ user: { id: 'user-1' } })
-      mocks.useAiStore.mockReturnValue({ aiEnabled: false })
       const s = init()
       await vi.dynamicImportSettled()
       expect(s.loading.value).toBe(false)
@@ -439,17 +380,6 @@ describe('usePlanDetail', () => {
       expect(mockReload).toHaveBeenCalled()
     })
 
-    it('同步成功后调用 orderPanelRef.load', async () => {
-      mocks.ElMessageBox.confirm.mockResolvedValue(undefined)
-      mocks.syncPlan.mockResolvedValue()
-      setupMocks()
-      const s = init()
-      await vi.dynamicImportSettled()
-      const mockLoad = vi.fn()
-      s.orderPanelRef.value = { load: mockLoad } as never
-      await s.handleSync()
-      expect(mockLoad).toHaveBeenCalled()
-    })
   })
 
   describe('openCaseSelector', () => {
@@ -526,144 +456,6 @@ describe('usePlanDetail', () => {
     })
   })
 
-  describe('handleCasesRemoved', () => {
-    it('调用 load 并刷新 orderPanelRef', async () => {
-      setupMocks()
-      const s = init()
-      await vi.dynamicImportSettled()
-      const mockLoad = vi.fn()
-      s.orderPanelRef.value = { load: mockLoad } as never
-      await s.handleCasesRemoved()
-      expect(mockLoad).toHaveBeenCalled()
-      expect(s.loading.value).toBe(false)
-    })
-  })
-
-  describe('openRecommend', () => {
-    it('成功加载后设置 recommendExcludeIds 并显示推荐面板', async () => {
-      mocks.getPlanPlannedCases.mockResolvedValue([
-        { documentId: 'doc-1', caseIds: ['c1', 'c2'] },
-        { documentId: 'doc-2', caseIds: ['c3'] },
-      ])
-      setupMocks()
-      const s = init()
-      await vi.dynamicImportSettled()
-      await s.openRecommend()
-      expect(s.recommendExcludeIds.value).toEqual(['c1', 'c2', 'c3'])
-      expect(s.recommendVisible.value).toBe(true)
-    })
-
-    it('加载失败时显示错误', async () => {
-      mocks.getPlanPlannedCases.mockRejectedValue(new Error('加载失败'))
-      setupMocks()
-      const s = init()
-      await vi.dynamicImportSettled()
-      await s.openRecommend()
-      expect(mocks.ElMessage.error).toHaveBeenCalledWith('加载失败')
-      expect(s.recommendVisible.value).toBe(false)
-    })
-
-    it('加载失败非 Error 异常显示通用消息', async () => {
-      mocks.getPlanPlannedCases.mockRejectedValue(42)
-      setupMocks()
-      const s = init()
-      await vi.dynamicImportSettled()
-      await s.openRecommend()
-      expect(mocks.ElMessage.error).toHaveBeenCalledWith('加载规划用例失败')
-    })
-
-    it('plannedCases 为空数组时 recommendExcludeIds 为空', async () => {
-      mocks.getPlanPlannedCases.mockResolvedValue([])
-      setupMocks()
-      const s = init()
-      await vi.dynamicImportSettled()
-      await s.openRecommend()
-      expect(s.recommendExcludeIds.value).toEqual([])
-    })
-  })
-
-  describe('handleBringIn', () => {
-    it('合并现有用例与推荐用例后显示选择器', async () => {
-      mocks.getPlanPlannedCases.mockResolvedValue([
-        { documentId: 'doc-1', caseIds: ['c1'] },
-      ])
-      mocks.getCaseDetail.mockImplementation(async (id: string) => ({
-        id,
-        documentId: 'doc-1',
-      }))
-      setupMocks()
-      const s = init()
-      await vi.dynamicImportSettled()
-      await s.handleBringIn(['c2', 'c3'])
-      expect(s.plannedCases.value).toEqual([
-        { documentId: 'doc-1', caseIds: ['c1', 'c2', 'c3'] },
-      ])
-      expect(s.selectorVisible.value).toBe(true)
-    })
-
-    it('推荐用例属于不同文档时正确分组', async () => {
-      mocks.getPlanPlannedCases.mockResolvedValue([])
-      mocks.getCaseDetail.mockImplementation(async (id: string) => ({
-        id,
-        documentId: id === 'c1' ? 'doc-1' : 'doc-2',
-      }))
-      setupMocks()
-      const s = init()
-      await vi.dynamicImportSettled()
-      await s.handleBringIn(['c1', 'c2'])
-      expect(s.plannedCases.value).toHaveLength(2)
-    })
-
-    it('推荐用例 documentId 为 null 时跳过合并', async () => {
-      mocks.getPlanPlannedCases.mockResolvedValue([])
-      mocks.getCaseDetail.mockImplementation(async (id: string) => ({
-        id,
-        documentId: null,
-      }))
-      setupMocks()
-      const s = init()
-      await vi.dynamicImportSettled()
-      await s.handleBringIn(['c1'])
-      expect(s.plannedCases.value).toEqual([])
-      expect(s.selectorVisible.value).toBe(true)
-    })
-
-    it('加载失败时显示错误', async () => {
-      mocks.getPlanPlannedCases.mockRejectedValue(new Error('加载失败'))
-      setupMocks()
-      const s = init()
-      await vi.dynamicImportSettled()
-      await s.handleBringIn(['c1'])
-      expect(mocks.ElMessage.error).toHaveBeenCalledWith('加载失败')
-    })
-
-    it('加载失败非 Error 异常显示通用消息', async () => {
-      mocks.getPlanPlannedCases.mockRejectedValue(42)
-      setupMocks()
-      const s = init()
-      await vi.dynamicImportSettled()
-      await s.handleBringIn(['c1'])
-      expect(mocks.ElMessage.error).toHaveBeenCalledWith('加载推荐用例失败')
-    })
-
-    it('与现有用例去重（同一 documentId 下重复 caseId 不重复添加）', async () => {
-      mocks.getPlanPlannedCases.mockResolvedValue([
-        { documentId: 'doc-1', caseIds: ['c1'] },
-      ])
-      mocks.getCaseDetail.mockImplementation(async (id: string) => ({
-        id,
-        documentId: 'doc-1',
-      }))
-      setupMocks()
-      const s = init()
-      await vi.dynamicImportSettled()
-      await s.handleBringIn(['c1'])
-      expect(s.plannedCases.value).toEqual([
-        { documentId: 'doc-1', caseIds: ['c1'] },
-      ])
-    })
-  })
-
   describe('refreshProgress', () => {
     it('成功刷新 progress 和 detail', async () => {
       setupMocks()
@@ -685,65 +477,6 @@ describe('usePlanDetail', () => {
       const s = init()
       await vi.dynamicImportSettled()
       await expect(s.refreshProgress()).resolves.toBeUndefined()
-    })
-  })
-
-  describe('handleOrderLocate', () => {
-    it('切换到 records 标签并定位节点', async () => {
-      setupMocks()
-      const s = init()
-      await vi.dynamicImportSettled()
-      const mockLocate = vi.fn().mockReturnValue(true)
-      s.mindMapRef.value = { locateNode: mockLocate } as never
-      await s.handleOrderLocate('snap-1')
-      expect(s.activeTab.value).toBe('records')
-      expect(mockLocate).toHaveBeenCalledWith('snap-1')
-    })
-
-    it('节点未找到时显示提示消息', async () => {
-      setupMocks()
-      const s = init()
-      await vi.dynamicImportSettled()
-      const mockLocate = vi.fn().mockReturnValue(false)
-      s.mindMapRef.value = { locateNode: mockLocate } as never
-      await s.handleOrderLocate('snap-missing')
-      expect(mocks.ElMessage.info).toHaveBeenCalledWith('该建议指向的用例不在当前文档，请切换左侧文档后重试')
-    })
-
-    it('节点找到时不显示提示', async () => {
-      setupMocks()
-      const s = init()
-      await vi.dynamicImportSettled()
-      const mockLocate = vi.fn().mockReturnValue(true)
-      s.mindMapRef.value = { locateNode: mockLocate } as never
-      await s.handleOrderLocate('snap-1')
-      expect(mocks.ElMessage.info).not.toHaveBeenCalled()
-    })
-  })
-
-  describe('handleOrderResult', () => {
-    it('调用 mindMapRef.setOrderBadges', async () => {
-      setupMocks()
-      const s = init()
-      await vi.dynamicImportSettled()
-      const mockSetBadges = vi.fn()
-      s.mindMapRef.value = { setOrderBadges: mockSetBadges } as never
-      const items = [{ snapshotNodeId: 's1', order: 1 }] as AiPlanOrderRecommendItem[]
-      s.handleOrderResult(items)
-      expect(mockSetBadges).toHaveBeenCalledWith(items)
-    })
-  })
-
-  describe('handleOrderSelect', () => {
-    it('切换到 order 标签并滚动到指定位置', async () => {
-      setupMocks()
-      const s = init()
-      await vi.dynamicImportSettled()
-      const mockScrollToOrder = vi.fn()
-      s.orderPanelRef.value = { scrollToOrder: mockScrollToOrder } as never
-      await s.handleOrderSelect(3)
-      expect(s.activeTab.value).toBe('order')
-      expect(mockScrollToOrder).toHaveBeenCalledWith(3)
     })
   })
 

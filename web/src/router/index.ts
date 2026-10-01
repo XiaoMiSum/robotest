@@ -127,16 +127,6 @@ const routes: RouteRecordRaw[] = [
           menu: { label: '角色管理', icon: 'Key', order: 20, section: '组织与权限', permission: 'role:view' },
         },
       },
-      {
-        path: 'ai-config',
-        name: 'AdminAiConfig',
-        component: () => import('@/pages/admin/AiConfigPage.vue'),
-        meta: {
-          title: 'AI 配置',
-          mode: 'admin',
-          menu: { label: 'AI 配置', icon: 'MagicStick', order: 40, section: '平台配置', permission: 'ai:view' },
-        },
-      },
     ],
   },
   // === Business routes ===

@@ -1,11 +1,9 @@
 import { reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, type FormInstance, type FormRules, type UploadUserFile } from 'element-plus'
-import { changeBugStatus, createBug, fetchPlans, fetchProjectModuleTree, getBugDetail, uploadBugAttachment } from '@/services/project'
+import { createBug, fetchPlans, fetchProjectModuleTree, getBugDetail, uploadBugAttachment } from '@/services/project'
 import { fetchMembers } from '@/services/workspace'
-import { useAiStore } from '@/stores/ai'
 import type {
-  AiBugDedupItem,
   BugPriority,
   BugSeverity,
   BugType,
@@ -13,13 +11,8 @@ import type {
   TestPlanListItem,
   WorkspaceMember,
 } from '@/types'
-import { BUG_STATUS_LABEL, BUG_STATUS_TAG_TYPE, BUG_TYPE_LABEL } from '@/composables/project/bug/bugStatus'
+import { BUG_TYPE_LABEL } from '@/composables/project/bug/bugStatus'
 
-// 以 expose 契约替代组件类型导入，避免组合式函数反向依赖 components
-interface BugAiSuggestRef {
-  requestSuggestion: () => Promise<void>
-  loading: boolean
-}
 // ==================== Constants ====================
 
 const severityLabel: Record<BugSeverity, string> = { fatal: '致命', serious: '严重', general: '一般', minor: '轻微' }
@@ -31,27 +24,9 @@ const MAX_FILE_SIZE = 10 * 1024 * 1024
 export function useBugCreate() {
   const route = useRoute()
   const router = useRouter()
-  const aiStore = useAiStore()
 
-  const aiEnabled = aiStore.aiEnabled
   const formRef = ref<FormInstance>()
   const submitting = ref(false)
-  const aiSuggestRef = ref<BugAiSuggestRef>()
-
-  const dedupItems = ref<AiBugDedupItem[]>([])
-  const dedupConfirmVisible = ref(false)
-  const dedupSubmitting = ref(false)
-  const dedupTargetId = ref('')
-
-  function applyTitle(title: string): void {
-    form.title = title
-  }
-  function applySeverity(severity: BugSeverity): void {
-    form.severity = severity
-  }
-  function applyPriority(priority: BugPriority): void {
-    form.priority = priority
-  }
 
   const form = reactive({
     title: '',
@@ -148,15 +123,7 @@ export function useBugCreate() {
     attachmentFiles.value = files
   }
 
-  function handleSelectDuplicate(item: AiBugDedupItem | null): void {
-    dedupTargetId.value = item ? item.bugId : ''
-  }
-
-  function handleAbandonSubmit(): void {
-    router.push('/workspace/projects/bugs')
-  }
-
-  async function runCreate(duplicateOfBugId?: string): Promise<void> {
+  async function runCreate(): Promise<void> {
     submitting.value = true
     try {
       const bugId = await createBug({
@@ -177,15 +144,7 @@ export function useBugCreate() {
           await uploadBugAttachment(bugId, item.raw)
         }
       }
-      if (duplicateOfBugId) {
-        await changeBugStatus(bugId, {
-          status: 'resolved',
-          resolution: 'duplicate',
-          duplicateOfBugId,
-          comment: '创建时标记为重复缺陷',
-        })
-      }
-      ElMessage.success(duplicateOfBugId ? '缺陷已提交并标记为重复' : '缺陷已提交')
+      ElMessage.success('缺陷已提交')
       router.push('/workspace/projects/bugs')
     } catch (err) {
       ElMessage.error(err instanceof Error ? err.message : '提交失败')
@@ -201,55 +160,12 @@ export function useBugCreate() {
     } catch {
       return
     }
-    if (dedupItems.value.length > 0) {
-      dedupConfirmVisible.value = true
-      return
-    }
     await runCreate()
   }
 
-  function handleDedupAbandon(): void {
-    if (dedupSubmitting.value) return
-    dedupConfirmVisible.value = false
-    router.push('/workspace/projects/bugs')
-  }
-
-  async function handleDedupContinue(): Promise<void> {
-    if (dedupSubmitting.value) return
-    dedupSubmitting.value = true
-    try {
-      await runCreate()
-    } finally {
-      dedupSubmitting.value = false
-    }
-  }
-
-  async function handleDedupMarkDuplicate(): Promise<void> {
-    if (dedupSubmitting.value) return
-    if (!dedupTargetId.value) {
-      ElMessage.warning('请选择要标记为重复所对应的原始缺陷')
-      return
-    }
-    dedupSubmitting.value = true
-    try {
-      await runCreate(dedupTargetId.value)
-    } finally {
-      dedupSubmitting.value = false
-    }
-  }
-
   return {
-    aiEnabled,
     formRef,
     submitting,
-    aiSuggestRef,
-    dedupItems,
-    dedupConfirmVisible,
-    dedupSubmitting,
-    dedupTargetId,
-    applyTitle,
-    applySeverity,
-    applyPriority,
     form,
     moduleTree,
     caseSelectorVisible,
@@ -261,17 +177,10 @@ export function useBugCreate() {
     attachmentFiles,
     handleAttachmentChange,
     handleAttachmentRemove,
-    handleSelectDuplicate,
-    handleAbandonSubmit,
     handleSubmit,
-    handleDedupAbandon,
-    handleDedupContinue,
-    handleDedupMarkDuplicate,
     router,
     severityLabel,
     priorityLabel,
-    BUG_STATUS_LABEL,
-    BUG_STATUS_TAG_TYPE,
     BUG_TYPE_LABEL,
   }
 }

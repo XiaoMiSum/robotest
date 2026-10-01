@@ -10,7 +10,6 @@ export interface PersistSnap {
   title: string
   type: string
   priority: string | null
-  aiGenerated: boolean
   parentId: string | null
   sortOrder: number
 }
@@ -60,7 +59,6 @@ export function useMindmapPersistence(getMinder: () => MinderLike | null) {
         title: (data.text as string) ?? '',
         type: (data.type as string) || 'normal',
         priority: (data.priority as string) ?? null,
-        aiGenerated: data.aiGenerated === true,
         parentId,
         sortOrder,
       })
@@ -103,10 +101,9 @@ export function useMindmapPersistence(getMinder: () => MinderLike | null) {
         sendPersistOp(socket, 'add_node', { id, ...snap })
         continue
       }
-      if (prev.title !== snap.title || prev.type !== snap.type || prev.priority !== snap.priority
-        || prev.aiGenerated !== snap.aiGenerated) {
+      if (prev.title !== snap.title || prev.type !== snap.type || prev.priority !== snap.priority) {
         sendPersistOp(socket, 'update_attrs', {
-          id, title: snap.title, type: snap.type, priority: snap.priority, aiGenerated: snap.aiGenerated,
+          id, title: snap.title, type: snap.type, priority: snap.priority,
         })
       }
       if (prev.parentId !== snap.parentId || prev.sortOrder !== snap.sortOrder) {

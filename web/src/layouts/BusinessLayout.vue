@@ -1,29 +1,14 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useNavStore } from '@/stores/nav'
-import { useAiStore } from '@/stores/ai'
 import ChangePasswordDialog from '@/components/common/ChangePasswordDialog.vue'
-// 全局智能助手悬浮入口（详细设计 5.1）：仅业务布局挂载，管理端布局不挂载
-import AssistantFab from '@/components/assistant/AssistantFab.vue'
 
 const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
 const navStore = useNavStore()
-const aiStore = useAiStore()
-
-// AI 状态为全局能力（GET /workspace/ai/status 不依赖 X-Active-Workspace 头，见 AI 基础设施 3.2.1）：
-// 进入业务布局加载一次，切换工作空间后强制刷新；无工作空间（如 /workspaces 列表页）时不重置，
-// 保持全局开关状态以维持悬浮入口可见（交互设计 1.1）
-watch(
-  () => authStore.activeWorkspace?.id,
-  (workspaceId) => {
-    void aiStore.load(Boolean(workspaceId))
-  },
-  { immediate: true },
-)
 
 const activeDynamicMenu = computed(() => {
   const p = route.path
@@ -192,9 +177,6 @@ function handleUserCommand(cmd: string) {
     >
       <RouterView />
     </main>
-
-    <!-- 智能助手悬浮入口（交互设计 1.1：随全局 aiEnabled 显隐；无工作空间时仍显示，面板内引导选择空间） -->
-    <AssistantFab v-if="aiStore.aiEnabled" />
   </div>
 </template>
 

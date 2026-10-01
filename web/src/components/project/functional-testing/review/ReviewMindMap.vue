@@ -9,7 +9,7 @@ import { useReviewMindmapOps } from '@/composables/project/functional-testing/re
 import { computed, onMounted, onBeforeUnmount, ref, watch } from 'vue'
 import { formatDateTime } from '@/utils/format'
 // window.kity / window.kityminder 的类型声明在 minder/types.ts 中统一维护
-import type { Minder, MinderNode } from '@/minder/types'
+// window.kity / window.kityminder 的类型声明在 minder/types.ts 中统一维护
 import { useMinderInstance } from '@/minder/useMinderInstance'
 import { useContextMenu, type ContextMenuAnchorNode } from '@/minder/useContextMenu'
 import MinderContextMenu from '../minder/MinderContextMenu.vue'
@@ -93,21 +93,7 @@ function openBug(bugId: string) {
 }
 
 // reload 供详情页同步快照后刷新画布（reviewId 不变，watch 不会触发）
-// locateNode 供 AI 检查面板定位：当前文档含该快照节点则选中高亮，否则返回 false 由调用方提示
-function locateNode(snapshotNodeId: string): boolean {
-  const raw = getMinder()
-  if (!raw) return false
-  const m = raw as unknown as Minder
-  let found: MinderNode | null = null
-  m.getRoot().traverse((node) => {
-    if (!found && node.data.id === snapshotNodeId) found = node
-  })
-  if (!found) return false
-  m.select(found, true)
-  return true
-}
-
-defineExpose({ openBug, reload: initMinder, locateNode })
+defineExpose({ openBug, reload: initMinder })
 
 // ==================== 生命周期 ====================
 watch(() => [props.reviewId, props.documentId], initMinder)

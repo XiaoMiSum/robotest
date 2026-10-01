@@ -3,21 +3,14 @@ import type { CSSProperties } from 'vue'
 import { DynamicSizeList } from 'element-plus'
 import { formatShortDateTime, formatShortId, truncateText } from '@/utils/format'
 import type { BugListItem, BugResolution, BugStatus, BugType } from '@/types'
-import BugClusterPanel from '@/components/project/bug/BugClusterPanel.vue'
 import BugResolveDialog from '@/components/project/bug/BugResolveDialog.vue'
 import { useBugList } from '@/composables/project/bug/useBugList'
-import { useAiStore } from '@/stores/ai'
-import { computed } from 'vue'
-
-const aiStore = useAiStore()
-const aiEnabled = computed(() => aiStore.aiEnabled)
 
 const {
   loading,
   bugs,
   total,
   viewMode,
-  clusterVisible,
   query,
   quickFilter,
   quickFilterOptions,
@@ -131,11 +124,6 @@ const {
             <el-radio-button value="board">看板</el-radio-button>
           </el-radio-group>
         </el-form-item>
-        <el-form-item v-if="aiEnabled">
-          <el-button type="primary" plain @click="clusterVisible = true">
-            <el-icon><MagicStick /></el-icon>AI 分析
-          </el-button>
-        </el-form-item>
         <el-form-item>
           <el-button type="primary" @click="router.push('/workspace/projects/bugs/create')">
             <el-icon><Plus /></el-icon>提交缺陷
@@ -143,8 +131,6 @@ const {
         </el-form-item>
       </el-form>
     </el-card>
-
-    <BugClusterPanel v-if="aiEnabled" v-model="clusterVisible" />
 
     <el-card v-if="viewMode === 'list'" v-loading="loading" shadow="never" class="bug-page__list-card">
       <el-table :data="bugs" row-key="id">
