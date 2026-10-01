@@ -59,7 +59,7 @@
 
 #### 2.1.2 阶段事件（复用项目动态表 ws_project_activity）
 
-阶段操作（推进 / 跳过 / 回退）留痕，即阶段时间线的数据源；事件与项目动态共用同一张表（表定义见 `docs/04-detailed-design/03-function-test/03-project-workspace-workbench.md` 数据设计），以 `resource_type = 'requirement'` 写入资源事件：
+阶段操作（推进 / 跳过 / 回退）留痕，即阶段时间线的数据源；事件与项目动态共用同一张表（表定义见 `docs/04-detailed-design/03-function-testing/03-project-workspace-workbench.md` 数据设计），以 `resource_type = 'requirement'` 写入资源事件：
 
 | 阶段事件字段 | 落列 | 说明 |
 | ---- | ---- | ---- |

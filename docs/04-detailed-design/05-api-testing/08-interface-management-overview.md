@@ -19,7 +19,7 @@
 - **接口定义**：接口资产 CRUD、模块组织、请求参数模型、响应示例、引用关系；
 - **导入**：文件导入（Swagger/OpenAPI、Postman Collection、HAR、JMeter）、Swagger URL 导入。
 
-快速调试（单请求调试、cURL 命令解析、调试记录管理）详见《快速调试详细设计说明书》（`docs/04-detailed-design/05-api-test/11-quick-debug.md`）。
+快速调试（单请求调试、cURL 命令解析、调试记录管理）详见《快速调试详细设计说明书》（`docs/04-detailed-design/05-api-testing/11-quick-debug.md`）。
 
 所有接口测试接口的鉴权、上下文传递沿用平台既有约定（C4），详见《API 测试基础设施详细设计说明书》3.1。
 
@@ -28,7 +28,7 @@
 - 《接口测试需求规格说明书》（`docs/01-requirements/01-readme.md`，3.1–3.2）
 - 《概要设计说明书》（`docs/02-high-level-design/02-hld-overview.md`，3.1）
 - 《API 测试基础设施详细设计说明书》（`docs/04-detailed-design/01-readme.md`）
-- 《快速调试详细设计说明书》（`docs/04-detailed-design/05-api-test/11-quick-debug.md`）
+- 《快速调试详细设计说明书》（`docs/04-detailed-design/05-api-testing/11-quick-debug.md`）
 - Ryze 多协议测试框架文档（`https://xiaomisum.github.io/ryze/`）
 
 ---
