@@ -191,13 +191,3 @@
 | 缺陷管理模块 | `04-bug-management/02-srs-bug-management.md` | 3.2 业务功能模块（缺陷管理） |
 | 需求管理模块 | `06-requirement-management/02-srs-requirement-management.md` | 3.2 业务功能模块（需求管理） |
 | AI 能力模块 | `07-ai-capability/02-srs-ai-capability.md`（总册）及分册 `07-ai-capability/03-srs-ai-generation.md`、`07-ai-capability/04-srs-ai-assistant.md`、`07-ai-capability/05-srs-ai-defect-analysis.md`、`07-ai-capability/06-srs-ai-assisted-features.md` | 3.2 业务功能模块（AI 能力） |
-
----
-
-## 修改记录
-
-| 版本 | 日期 | 说明 |
-| ---- | ---- | ---- |
-| V1.0 | 2026-09-23 | 创建需求规格说明书总览 |
-| V1.0 | 2026-10-01 | 登记需求管理与 AI 能力两个新模块（范围、定义、数据实体、分册对照） |
-| V1.0 | 2026-10-01 | 需求模型定为单层需求条目，删除需求条款定义 |
