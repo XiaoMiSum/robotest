@@ -184,7 +184,7 @@ erDiagram
 
 * AI 能力引入外部依赖：生成模型端点与向量 API 端点，由系统管理端配置，可为云端 API 或私有化部署；平台自身不绑定具体供应商。
 * 向量存储依托数据库既有向量能力（`docs/00-spec/20-contracts/02-database.md`），不引入独立向量中间件的强制要求。
-* AI 任务的异步执行依托平台既有服务端能力，具体选型留架构与详细设计；前后端分离与合并打包两种部署方案（`docs/02-high-level-design/08-hld-deployment-security.md`）均适用，AI 模块不改变既有部署形态。
+* AI 任务的异步执行依托平台既有服务端能力，具体选型留架构与详细设计；前后端分离与合并打包两种部署方案（`docs/02-high-level-design/05-hld-deployment-security.md`）均适用，AI 模块不改变既有部署形态。
 
 ## 8. 安全设计
 
