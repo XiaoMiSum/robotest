@@ -14,7 +14,7 @@
 
 ### 1.2 范围与对应需求
 
-对应需求分册 `docs/01-requirements/04-bug-management/02-srs-bug-management.md`，覆盖缺陷列表与看板双视图、状态流转与处理操作、提交缺陷与缺陷详情。跨模块公共数据与接口约定见 `docs/02-high-level-design/07-hld-data-interface.md`，业务功能公共机制见 `docs/02-high-level-design/04-hld-core-mechanisms.md`，部署与安全约束见 `docs/02-high-level-design/08-hld-deployment-security.md`；AI 新增的缺陷分析行为（趋势度量、自动分类分诊、重复缺陷检测）属 AI 能力模块，见 `docs/02-high-level-design/07-ai-capability/02-hld-ai-capability.md`。
+对应需求分册 `docs/01-requirements/04-bug-management/02-srs-bug-management.md`，覆盖缺陷列表与看板双视图、状态流转与处理操作、提交缺陷与缺陷详情。跨模块公共数据与接口约定见 `docs/02-high-level-design/07-hld-data-interface.md`，部署与安全约束见 `docs/02-high-level-design/08-hld-deployment-security.md`；AI 新增的缺陷分析行为（趋势度量、自动分类分诊、重复缺陷检测）属 AI 能力模块，见 `docs/02-high-level-design/07-ai-capability/02-hld-ai-capability.md`。
 
 ### 1.3 定义与缩写
 
@@ -55,7 +55,7 @@
 * **功能测试模块**：缺陷可关联测试用例与进行中的测试计划，两侧以用例节点标识关联；缺陷生命周期归本模块，计划执行失败结果反向关联缺陷由功能测试模块发起，见 `docs/02-high-level-design/03-function-testing/02-hld-function-testing.md` 第 2.3 节。
 * **空间管理模块**：缺陷经所属项目归属到工作空间，数据隔离与活跃上下文机制沿用 `docs/02-high-level-design/02-space-management/02-hld-space-management.md` 第 3.1 节；处理人须为当前工作空间成员，成员关系由该模块维护。
 * **AI 能力模块**：趋势与质量度量、自动分类与分诊、重复缺陷检测由 AI 能力模块供给，本模块只提供缺陷数据与既有筛选入口；AI 建议一律待确认态，不自动改写已提交缺陷字段。
-* **公共机制分册**：数据隔离的通用口径见 `docs/02-high-level-design/04-hld-core-mechanisms.md` 第 1 节，本分册不重复描述。
+* **数据隔离**：通用口径见 `docs/02-high-level-design/07-hld-data-interface.md` 第 1.3 节，本分册不重复描述。
 
 ## 3. 核心机制设计
 
@@ -141,3 +141,4 @@ erDiagram
 | 版本 | 日期 | 说明 |
 | ---- | ---- | ---- |
 | V1.0 | 2026-10-01 | 初始版本 |
+| V1.0 | 2026-10-02 | 数据隔离口径引用改指数据与接口设计分册 |
