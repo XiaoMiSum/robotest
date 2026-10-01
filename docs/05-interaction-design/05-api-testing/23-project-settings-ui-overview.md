@@ -59,9 +59,3 @@
 | 总览 | `23-project-settings-ui-overview.md` | 前言、1. 概述、2. 通用交互模式 |
 | 设置框架 | `24-project-settings-ui-framework.md` | 1. 项目设置框架交互 |
 | 函数管理页 | `25-project-settings-ui-function.md` | 1. 函数管理页 |
-
-## 修改记录
-
-| 版本 | 日期 | 说明 |
-| ---- | ---- | ---- |
-| V1.0 | 2026-10-01 | 分册-章节对照表同步目录结构调整：分册并入 05-api-testing 并重排序号 |

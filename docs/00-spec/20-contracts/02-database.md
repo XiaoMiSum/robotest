@@ -150,13 +150,6 @@ MySQL 内容仅作为迁移和兼容参考：
 - MyBatis-Plus 和框架主键：`docs/00-spec/10-engineering/03-migoo-framework.md`
 - 部分更新和查询封装：`docs/00-spec/10-engineering/02-backend.md`
 
-## 修改记录
-
-| 版本 | 日期 | 说明 |
-| ---- | ---- | ---- |
-| V1.1 | 2026-07-14 | 初建 |
-| V1.1 | 2026-10-01 | 移除智能辅助能力相关内容与失效引用 |
-
 ---
 
 **文档结束**

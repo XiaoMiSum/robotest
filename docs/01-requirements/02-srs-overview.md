@@ -183,11 +183,3 @@
 | 业务功能模块 | `03-function-testing/02-srs-business-features.md` | 3.2 业务功能模块（功能测试） |
 | 空间管理模块 | `02-space-management/02-srs-space-management.md`（总览）及页面分册 `02-space-management/03-srs-space-management-my-workspace.md`、`02-space-management/04-srs-space-management-info.md`、`02-space-management/05-srs-space-management-member.md`、`02-space-management/06-srs-space-management-project.md`、`02-space-management/07-srs-space-management-invite-join.md` | 3.2 业务功能模块（空间管理） |
 | 缺陷管理模块 | `04-bug-management/02-srs-bug-management.md` | 3.2 业务功能模块（缺陷管理） |
-
-## 修改记录
-
-| 版本 | 日期 | 说明 |
-| ---- | ---- | ---- |
-| V1.0 | 2026-10-01 | 分册-章节对照表同步目录结构调整：全局智能助手、测试计划与风险评估分册归入 06-ai |
-| V1.0 | 2026-10-01 | 移除已下线的智能辅助能力域内容：范围五方向、术语、角色补充约定、实施分期、非功能与成本条目、数据实体、权限矩阵行、核心页面规划项、附录 D 及对照表 AI 分册行 |
-| V1.0 | 2026-10-01 | 分册-章节对照表登记缺陷管理模块分册 04-bug-management |
