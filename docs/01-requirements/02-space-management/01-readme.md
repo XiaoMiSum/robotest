@@ -10,3 +10,4 @@
 | [07-srs-space-management-invite-join](07-srs-space-management-invite-join.md)（分册：加入空间页） | V1.0 | 2026-09-26 | 起草中 |
 
 > 本目录为业务功能模块下空间管理的需求分册；前言、引言与公共约定见总览分册 `docs/01-requirements/02-srs-overview.md`，分册-章节对照表见总览分册文末。
+
