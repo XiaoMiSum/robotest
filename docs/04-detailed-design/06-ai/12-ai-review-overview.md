@@ -43,7 +43,7 @@
 
 （该枚举扩展同步回补至《AI 基础设施详细设计说明书》2.1.3，作业发起接口见《需求工作流》4.1。）
 
-2. `test_plan` 表增列 `snapshot_synced_at`（TIMESTAMP，NULL，默认空）：记录计划快照最近一次同步成功时间，由既有的计划同步接口（`POST /api/project/plans/:id/sync`）在同步事务内写入当前时间；创建计划关联快照时同样写入。该列仅服务于 4.4 失效判定，不建索引（仅按主键单行读取）。
+2. `test_plan` 表增列 `snapshot_synced_at`（TIMESTAMP，NULL，默认空）：记录计划快照最近一次同步成功时间，由既有的计划同步接口（`POST /api/project/plans/:id/sync`）在同步事务内写入当前时间；创建计划关联快照时同样写入。该列仅服务于执行顺序推荐的失效判定（见《执行顺序推荐》2），不建索引（仅按主键单行读取）。
 
 ### 2.2 任务结果结构定义（ai_analysis_task.result）
 
@@ -64,7 +64,7 @@
 }
 ```
 
-`dimension` ∈ `missing_precondition`（缺前置）/ `vague_step`（步骤笼统）/ `missing_expected`（缺预期）/ `priority_conflict`（相似用例优先级冲突）。`skippedBatches` 为重试后仍失败被跳过的批次数（见 4.1），前端非 0 时提示「部分用例未完成检查」。分批执行中**每批完成即累计写入** items 与 checkedCaseCount——任务被取消时已产出部分仍可查看（SRS 3.5.1；基础设施 3.5.2 已为 review_check 定义取消保留豁免）。
+`dimension` ∈ `missing_precondition`（缺前置）/ `vague_step`（步骤笼统）/ `missing_expected`（缺预期）/ `priority_conflict`（相似用例优先级冲突）。`skippedBatches` 为重试后仍失败被跳过的批次数（见《评审一键检查》2），前端非 0 时提示「部分用例未完成检查」。分批执行中**每批完成即累计写入** items 与 checkedCaseCount——任务被取消时已产出部分仍可查看（SRS 3.5.1；基础设施 3.5.2 已为 review_check 定义取消保留豁免）。
 
 #### 2.2.2 评审摘要（type=review_summary，target=评审 ID）
 
@@ -100,7 +100,7 @@ statistics 由 SQL 精确计算（不依赖 LLM）；重复生成覆盖本记录
 }
 ```
 
-`planSyncedAt` 记录计算时刻 `test_plan.snapshot_synced_at` 的值（2.1 增列），用于失效判定（见 4.4）；`reason` 按需生成后回填。
+`planSyncedAt` 记录计算时刻 `test_plan.snapshot_synced_at` 的值（2.1 增列），用于失效判定（见《执行顺序推荐》2）；`reason` 按需生成后回填。
 
 #### 2.2.4 评审规划（type=review_planning，target=需求条目 ID）
 
@@ -123,11 +123,6 @@ statistics 由 SQL 精确计算（不依赖 LLM）；重复生成覆盖本记录
 结构同 2.2.4（`proposal` 字段一致，语义为测试计划方案）。二者 success 后同事务物化为 `review_plan` / `plan_plan` 提案（payload 结构见总览 2.2.2）：单作业单提案、无指纹抑制；同 `(stage, kind)` 既有 pending / expired 提案置 `superseded`；提案的采纳（创建评审/计划实例 + 血缘）见《需求工作流》5.2。
 
 ---
-
-
-
-均为项目级接口。
-
 
 ### 2.3 错误码补充
 
