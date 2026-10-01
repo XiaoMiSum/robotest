@@ -239,7 +239,7 @@
 ├────────────┴─────────────────────────────────────────────────┤
 ```
 
-> 侧栏分组标题与菜单项按权限过滤；平台 Logo 位于顶栏，侧栏不承载 Logo（壳层形态见 `docs/05-interaction-design/99-common/03-visual-design.md` §6.1）。
+> 侧栏分组标题与菜单项按权限过滤；平台 Logo 位于顶栏，侧栏不承载 Logo（壳层形态见 `docs/05-interaction-design/03-visual-design.md` §6.1）。
 
 ### 7.2 工作空间模式
 

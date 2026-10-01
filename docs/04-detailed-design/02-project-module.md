@@ -10,7 +10,7 @@
 
 ### 1.1 编写目的
 
-本文档定义项目级统一模块树（`project_module`）的详细设计。统一模块树替代原有的三套独立模块表（功能测试 `test_case_module`、接口管理 `api_interface_module`、测试场景 `api_scenario_module`），实现一个项目一棵模块树、所有测试资产共享组织结构。用例作为独立资产挂载在模块树下，其数据表、接口与迁移设计见 `docs/04-detailed-design/99-common/03-document-management.md`。
+本文档定义项目级统一模块树（`project_module`）的详细设计。统一模块树替代原有的三套独立模块表（功能测试 `test_case_module`、接口管理 `api_interface_module`、测试场景 `api_scenario_module`），实现一个项目一棵模块树、所有测试资产共享组织结构。用例作为独立资产挂载在模块树下，其数据表、接口与迁移设计见 `docs/04-detailed-design/03-function-testing/07-document-management.md`。
 
 ### 1.2 与基线的关系
 
@@ -18,11 +18,11 @@
 
 | 原设计 | 位置 | 替代方式 |
 | --- | --- | --- |
-| `test_case_module`（功能测试模块） | `docs/04-detailed-design/01-readme.md` 2.1.1 | 目录节点（type=directory）迁移至 `project_module`；文档节点（type=document）迁移至 `test_case_document`，见 `docs/04-detailed-design/99-common/03-document-management.md` |
+| `test_case_module`（功能测试模块） | `docs/04-detailed-design/01-readme.md` 2.1.1 | 目录节点（type=directory）迁移至 `project_module`；文档节点（type=document）迁移至 `test_case_document`，见 `docs/04-detailed-design/03-function-testing/07-document-management.md` |
 | `api_interface_module`（接口模块） | `docs/04-detailed-design/01-readme.md` 2.1.1 | 废弃，引用 `project_module` |
 | `api_scenario_module`（场景模块） | `docs/04-detailed-design/01-readme.md` 2.1.1 | 废弃，引用 `project_module` |
 
-> 用例资产（`test_case_document`）的详细设计独立成文，见 `docs/04-detailed-design/99-common/03-document-management.md`。
+> 用例资产（`test_case_document`）的详细设计独立成文，见 `docs/04-detailed-design/03-function-testing/07-document-management.md`。
 
 ### 1.3 定义与缩写
 
@@ -68,7 +68,7 @@
 | `api_scene` | `module_id` → `project_module.id` | 测试场景归属模块 |
 | `bug` | `module_id` → `project_module.id` | 缺陷归属模块（沿用现有） |
 
-> 用例资产 `test_case_document.module_id` 同样引用 `project_module.id`，其表结构与接口设计见 `docs/04-detailed-design/99-common/03-document-management.md`。
+> 用例资产 `test_case_document.module_id` 同样引用 `project_module.id`，其表结构与接口设计见 `docs/04-detailed-design/03-function-testing/07-document-management.md`。
 
 ### 2.3 资产计数（按需统计）
 
@@ -237,7 +237,7 @@ DELETE /api/project/modules/{id}
 | 1000017054 | PROJECT_MODULE_MOVE_CYCLE | 移动产生循环 | 移动到自身或自身后代下 |
 | 1000017055 | PROJECT_MODULE_NOT_EMPTY | 模块非空 | 删除有子模块或用例的模块 |
 
-> 当前登记的模块错误码为 `1000017051–1000017055`；用例文档名称重复使用 `1000017061`，见 `docs/04-detailed-design/99-common/03-document-management.md` 4.1。其他业务域错误码以 `ErrorCodeConstants` 为准。
+> 当前登记的模块错误码为 `1000017051–1000017055`；用例文档名称重复使用 `1000017061`，见 `docs/04-detailed-design/03-function-testing/07-document-management.md` 4.1。其他业务域错误码以 `ErrorCodeConstants` 为准。
 
 ### 4.2 业务规则
 
@@ -249,13 +249,13 @@ DELETE /api/project/modules/{id}
 | BR-M05 | 模块移动后重写排序 | 目标层级的 `sort_order` 从 0 递增重写 |
 | BR-M06 | 未分组为隐式根 | `module_id = NULL` 表示资产不属于任何模块，无需显式创建"未分组"节点 |
 
-> BR-M04（创建用例自动创建根节点）归属于用例管理，见 `docs/04-detailed-design/99-common/03-document-management.md` 4.2。
+> BR-M04（创建用例自动创建根节点）归属于用例管理，见 `docs/04-detailed-design/03-function-testing/07-document-management.md` 4.2。
 
 ### 4.3 与现有功能测试模块的兼容
 
 现有 `test_case_module` 表包含 `type` 字段（directory/document），统一后：
 - `type=directory` 的行 → 迁移到 `project_module`（结构完全一致）
-- `type=document` 的行 → 迁移到 `test_case_document` 表（新增 `module_id` 字段指向原 `parent_id` 对应的 `project_module` 节点），详见 `docs/04-detailed-design/99-common/03-document-management.md`
+- `type=document` 的行 → 迁移到 `test_case_document` 表（新增 `module_id` 字段指向原 `parent_id` 对应的 `project_module` 节点），详见 `docs/04-detailed-design/03-function-testing/07-document-management.md`
 - `test_case_node.document_id` → 更新为新 `test_case_document.id`
 
 ---
@@ -300,7 +300,7 @@ DELETE /api/project/modules/{id}
 | 测试场景 | 展示全部模块，计数仅统计场景 | 展示当前模块下的场景列表 | + 新建场景 |
 
 > 三页面共享同一棵树，但右侧列表展示不同资产类型。选中模块时按 `module_id` 筛选对应资产表。
-> 功能测试页的"新建用例"入口归属于用例管理，其接口见 `docs/04-detailed-design/99-common/03-document-management.md` 3.1。
+> 功能测试页的"新建用例"入口归属于用例管理，其接口见 `docs/04-detailed-design/03-function-testing/07-document-management.md` 3.1。
 
 ### 5.3 计数徽标
 
@@ -336,7 +336,7 @@ CREATE INDEX idx_pmod_project ON project_module(project_id);
 CREATE INDEX idx_pmod_parent ON project_module(parent_id);
 ```
 
-> `test_case_document` 表及其索引的 DDL 见 `docs/04-detailed-design/99-common/03-document-management.md` 6.1。
+> `test_case_document` 表及其索引的 DDL 见 `docs/04-detailed-design/03-function-testing/07-document-management.md` 6.1。
 
 **Phase 2：数据迁移**
 
@@ -350,7 +350,7 @@ FROM test_case_module WHERE type = 'directory' AND is_deleted = 0;
 -- 4. api_scenario_module → project_module（同上）
 ```
 
-> 步骤 2（test_case_module type=document → test_case_document）及布局回填（步骤 2.1）见 `docs/04-detailed-design/99-common/03-document-management.md` 6.1。Phase 2 中步骤 3-4 需要 ID 映射表，因为 `api_interface.module_id` 和 `api_scene.module_id` 需要更新为新 ID。实际迁移脚本需在应用层执行，确保事务一致性。步骤 1 必须先于步骤 2 执行（`test_case_document.module_id` 引用迁移后的 `project_module.id`）。
+> 步骤 2（test_case_module type=document → test_case_document）及布局回填（步骤 2.1）见 `docs/04-detailed-design/03-function-testing/07-document-management.md` 6.1。Phase 2 中步骤 3-4 需要 ID 映射表，因为 `api_interface.module_id` 和 `api_scene.module_id` 需要更新为新 ID。实际迁移脚本需在应用层执行，确保事务一致性。步骤 1 必须先于步骤 2 执行（`test_case_document.module_id` 引用迁移后的 `project_module.id`）。
 
 **Phase 3：更新引用**
 
@@ -374,7 +374,7 @@ DROP TABLE api_scenario_module;
 -- test_case_module 保留只读或直接删除
 ```
 
-> `test_case_document_layout` 的废弃（布局数据回填至 `test_case_document.layout` 之后）见 `docs/04-detailed-design/99-common/03-document-management.md` 6.1。
+> `test_case_document_layout` 的废弃（布局数据回填至 `test_case_document.layout` 之后）见 `docs/04-detailed-design/03-function-testing/07-document-management.md` 6.1。
 
 ### 6.2 迁移注意事项
 

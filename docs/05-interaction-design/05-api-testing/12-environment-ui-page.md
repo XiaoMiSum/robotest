@@ -10,7 +10,7 @@
 
 **路由**：`/workspace/projects/settings/environments`
 
-> 环境管理归入侧边栏「项目设置」分组（平台级项目配置入口，见 `docs/05-interaction-design/99-common/02-global-navigation.md` 3.5）。
+> 环境管理归入侧边栏「项目设置」分组（平台级项目配置入口，见 `docs/05-interaction-design/02-global-navigation.md` 3.5）。
 
 ### 1.1 页面布局
 

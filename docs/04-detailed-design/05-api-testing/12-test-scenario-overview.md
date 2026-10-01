@@ -37,7 +37,7 @@
 
 #### 2.1.1 场景模块说明
 
-测试场景通过 `api_scene.module_id` 字段引用项目级统一模块树（`project_module`），模块树的 DDL、索引与 CRUD 接口详见《项目模块详细设计说明书》（`docs/04-detailed-design/99-common/02-project-module.md` 2.1、3.1）。
+测试场景通过 `api_scene.module_id` 字段引用项目级统一模块树（`project_module`），模块树的 DDL、索引与 CRUD 接口详见《项目模块详细设计说明书》（`docs/04-detailed-design/02-project-module.md` 2.1、3.1）。
 
 > 测试场景页面左侧模块树复用 `GET /api/project/modules` 接口，无需独立的模块表。模块名同级唯一校验（错误码 `1000017052`，`PROJECT_MODULE_NAME_EXISTS`）由统一模块管理提供。
 

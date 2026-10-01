@@ -40,7 +40,7 @@
 
 #### 2.1.1 接口模块说明
 
-接口定义通过 `api_interface.module_id` 字段引用项目级统一模块树（`project_module`），模块树的 DDL、索引与 CRUD 接口详见《项目模块详细设计说明书》（`docs/04-detailed-design/99-common/02-project-module.md` 2.1、3.1）。
+接口定义通过 `api_interface.module_id` 字段引用项目级统一模块树（`project_module`），模块树的 DDL、索引与 CRUD 接口详见《项目模块详细设计说明书》（`docs/04-detailed-design/02-project-module.md` 2.1、3.1）。
 
 > 接口管理页面左侧模块树复用 `GET /api/project/modules` 接口，无需独立的模块表。
 
