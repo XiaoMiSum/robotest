@@ -156,9 +156,9 @@
 
 | 分册 | 文件 | 覆盖章节 |
 |---|---|---|
-| 总览 | `02-workspace-ui-overview.md` | 前言、1. 总体布局、1.4 左侧菜单导航、4. 接口测试、8. 通用交互模式总结、3. 功能测试 |
-| 项目工作台与我的项目 | `03-workspace-ui-workbench.md` | 2. 项目工作台、7. 我的项目页面 |
-| 测试用例 | `04-workspace-ui-test-case.md` | 3.2 测试用例子模块 |
-| 测试评审 | `05-workspace-ui-test-review.md` | 3.3 测试评审子模块 |
-| 测试计划 | `06-workspace-ui-test-plan.md` | 3.4 测试计划子模块 |
-| 缺陷管理 | `../04-bug/02-workspace-ui-bug.md` | 5. 缺陷管理、6. 关联用例选择器 |
+| 总览 | `02-workspace-ui-overview.md` | 前言、1. 总体布局、1.4 左侧菜单导航、2. 接口测试、3. 通用交互模式总结 |
+| 项目工作台与我的项目 | `03-workspace-ui-workbench.md` | 1. 项目工作台、2. 我的项目页面 |
+| 测试用例 | `04-workspace-ui-test-case.md` | 1. 测试用例子模块 |
+| 测试评审 | `05-workspace-ui-test-review.md` | 1. 测试评审子模块 |
+| 测试计划 | `06-workspace-ui-test-plan.md` | 1. 测试计划子模块 |
+| 缺陷管理 | `../04-bug/02-workspace-ui-bug.md` | 1. 缺陷管理、2. 关联用例选择器 |
