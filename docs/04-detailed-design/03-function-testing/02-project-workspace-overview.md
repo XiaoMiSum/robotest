@@ -444,4 +444,4 @@
 | 测试用例管理 | `04-project-workspace-test-case.md` | 3.3 测试用例管理接口、4.1 文档创建与默认根节点、4.2 脑图实时协作、5.3.2 用例管理页 |
 | 测试评审管理 | `05-project-workspace-test-review.md` | 3.4 测试评审管理接口、4.3 快照生成与裁剪、5.3.3 评审列表页、5.3.4 评审详情页 |
 | 测试计划管理 | `06-project-workspace-test-plan.md` | 3.5 测试计划管理接口、4.5 同步最新用例、5.3.5 计划列表页、5.3.6 计划详情页 |
-| 缺陷管理 | `../04-bug/02-project-workspace-bug.md` | 3.6 缺陷管理接口、5.3.7 缺陷管理页 |
+| 缺陷管理 | `../04-bug-management/02-project-workspace-bug.md` | 3.6 缺陷管理接口、5.3.7 缺陷管理页 |

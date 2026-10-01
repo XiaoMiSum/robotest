@@ -161,4 +161,4 @@
 | 测试用例 | `04-workspace-ui-test-case.md` | 1. 测试用例子模块 |
 | 测试评审 | `05-workspace-ui-test-review.md` | 1. 测试评审子模块 |
 | 测试计划 | `06-workspace-ui-test-plan.md` | 1. 测试计划子模块 |
-| 缺陷管理 | `../04-bug/02-workspace-ui-bug.md` | 1. 缺陷管理、2. 关联用例选择器 |
+| 缺陷管理 | `../04-bug-management/02-workspace-ui-bug.md` | 1. 缺陷管理、2. 关联用例选择器 |
