@@ -98,7 +98,7 @@
 - 组间：`margin-top: var(--space-xl)`
 - 消息区水平内边距：`--space-lg`
 
-### 2.4 工具过程卡片（交互行为见 4.3）
+### 2.4 工具过程卡片（交互行为见 `docs/05-interaction-design/06-ai/18-assistant-ui-message.md` 1.3）
 
 - 底：`var(--color-neutral-50)`，圆角 `var(--radius-lg)`，边框 `1px solid var(--color-neutral-100)`
 - 状态图标：运行中为加载旋转动画（主色）；完成为 SVG ✓（`--color-success`）；失败为 SVG ✕（`--color-danger`）
