@@ -24,7 +24,7 @@
 ### 1.3 参考资料
 
 - 《接口测试需求规格说明书》（`docs/01-requirements/01-readme.md`，3.4、3.9–3.11）
-- 《概要设计说明书》（`docs/02-high-level-design/02-hld-overview.md` 3.1、`docs/02-high-level-design/03-hld-system-management.md` §2、`docs/02-high-level-design/04-hld-core-mechanisms.md` §1）
+- 《概要设计说明书》（`docs/02-high-level-design/02-hld-overview.md` 3.1、`docs/02-high-level-design/01-system-management/02-hld-system-management.md` §3.1、`docs/02-high-level-design/04-hld-core-mechanisms.md` §1）
 - 《API 测试基础设施详细设计说明书》（`docs/04-detailed-design/01-readme.md`）
 - Ryze 多协议测试框架文档（`https://xiaomisum.github.io/ryze/`）
 
