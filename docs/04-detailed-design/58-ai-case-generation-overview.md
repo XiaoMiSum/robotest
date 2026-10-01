@@ -392,8 +392,8 @@ interface MinderCommand {
 | `components/project/requirement/LineagePanel.vue` | 血缘视图：按 artifactType 分组（用例/评审/计划/缺陷/文档，含展示名与跳转），手动 [关联条目] 与 [解除关联]（仅 source = manual 可解除） |
 | `components/project/requirement/RequirementSplitDialog.vue` | AI 文档拆分对话框（US-AI-019）：文本域粘贴文档 → [AI 拆分]（SSE 消费 `useAiStream()`）→ 模块分组预览（逐条编辑/删除/勾选 + 全选）→ [批量入库] 调 59 批量接口，入库即 intake 阶段 |
 | `components/project/RequirementSelector.vue` | 条目选取器弹窗（多选 + 关键字过滤，**仅展示 active 条目**），供各 AI 入口与血缘手动关联复用 |
-| `components/project/minder/ai/AiGeneratePanel.vue` | 「AI 补全用例」抽屉（右侧滑出约 640px、透明遮罩不压暗画布，常驻挂载、关闭仅隐藏）：**仅保留补全（complete）模式**——生成（generate）模式随脑图工具栏入口下线（生成唯一入口 = 需求工作流 design 阶段推进，见 2.7）；右键 case 节点触发，目标节点变化（`resetToken` 自增）时重置 |
-| `components/project/minder/ai/aiPanelModes.ts` | 面板模式配置表：仅保留 complete 模式（标题/主按钮/确认按钮/placeholder/buildBody/SSE 路径等字段），generate 模式配置删除 |
+| `components/project/minder/ai/AiGeneratePanel.vue` | 「AI 补全用例」抽屉（右侧滑出约 640px、透明遮罩不压暗画布，常驻挂载、关闭仅隐藏）：提供补全（complete）模式，由右键 case 节点触发，目标节点变化（`resetToken` 自增）时重置 |
+| `components/project/minder/ai/aiPanelModes.ts` | 面板模式配置表：complete 模式的标题 / 主按钮 / 确认按钮 / placeholder / buildBody / SSE 路径等字段 |
 | `components/project/minder/ai/AiPreviewDialog.vue` | 独立预览弹窗（宽 70% × 高 80%（视口））：kityminder 只读实例渲染节点树快照，勾选框按来源区分（补全 = 全部节点逐项取舍；提案采纳 = 用例节点级联），底部「已勾选 N/M」[确认挂载] [关闭]；提案采纳与补全共用 |
 | `components/project/minder/ai/aiPreviewRender.ts` | 预览脑图渲染支撑：`AiPreviewNode[]` → kityminder `importJson` 结构转换；勾选框渲染器注册（仿 `badges.ts` 的 `defineBadgeRenderer`，读取节点 `data.aiSelected` 绘制 ☑/☐） |
 | `components/project/minder/ai/aiMount.ts` | 挂载执行器（见 60 第 3 节）：`buildPreviewTree` / `filterCheckedTree` 按勾选状态过滤，写入 `aiGenerated: true` |
@@ -406,7 +406,7 @@ interface MinderCommand {
 - **阶段看板**：需求工作流页以阶段为列展示条目卡片，角标显示待处置提案数，内容过期/提案 expired 时卡片显示 stale 提醒；列表视图保留（阶段列 + 归档筛选）；点卡片进入条目工作台；
 - **推进主按钮**：工作台阶段时间线的主 CTA 一个字——**推进**；证据未齐时按钮置灰并列出缺失清单（调 59 `GET /:id/stage-status`）；推进/跳过/回退成功后，阶段作业按 2.3.3 触发，作业卡即时出现（AI 不可用时仅提示"AI 不可用，作业未发起"，阶段操作照常成功）；
 - **提案队列**：作业进行中每 2 秒轮询任务状态（终态停止），成功后刷新提案列表；采纳弹窗确认后，case/structure 提案跳转目标文档脑图页执行挂载（见 60 第 2 节，挂载成功回执采纳）；review_plan/plan_plan 提案在弹窗内编辑并确认即由后端创建实例（不跳转）；
-- **脑图工具栏 AI 入口收敛**：工具栏不再提供「AI 生成用例」按钮（`stores/ai.ts` 的 `aiEnabled` 控制其余 AI 入口显隐的机制不变）；右键菜单保留 case 节点「AI 补全步骤」；补全/DSL 翻译为交互式功能，`AiGeneratePanel` 内嵌 `AiModelSelect`（基础设施 2.8），阶段作业为异步任务、固定系统默认模型，不展示选择器；
+- **脑图工具栏 AI 入口**：命令组为 [关联需求]（常规业务，不随 `aiEnabled` 显隐）；AI 入口为右键菜单 case 节点「AI 补全步骤」（随 `aiEnabled` 显隐）；补全/DSL 翻译为交互式功能，`AiGeneratePanel` 内嵌 `AiModelSelect`（基础设施 2.8），阶段作业为异步任务、固定系统默认模型，不展示选择器；
 - 全部 SSE 消费走基础设施的 `useAiStream()`（支持取消按钮、超 10 秒未见首帧提示可取消重试）；
 - 预览纯本地：预览弹窗内为 kityminder 只读实例渲染的本地快照，不落库、不产生撤销历史；确认挂载后才经编辑内核写入；预览勾选状态随弹窗销毁即丢弃；
 - DSL 执行预览用独立确认弹窗（命中数量醒目 + 清单折叠 + 「将跳过」清单及原因），确认后关闭并聚焦首个受影响节点；
@@ -421,7 +421,7 @@ interface MinderCommand {
 ### 3.1 前端单元测试
 
 - `dslRunner.ts`：selector 组合命中、空命中、标题引用解析（唯一命中/零命中/多义/`@selected` 替换/解析失败整批中止）、mark_type 非法变更跳过与优先级清除联动、move 非法移动与环检测跳过、add_child 多目标挂载与非法目标跳过、执行为单撤销组；
-- `aiPanelModes.ts`：complete 模式配置字段齐全，generate 模式已移除（构造未知模式在编译期暴露）；
+- `aiPanelModes.ts`：complete 模式配置字段齐全（构造未知模式在编译期暴露）；
 - `aiMount.ts`：勾选过滤规则（`aiSelected` 父子联动、提案采纳模式仅 case 子树默认勾选、补全模式 selectAll 全节点默认勾选且逐项取舍）、aiGenerated 写入、目标节点缺失分支；
 - `badges.ts`：AI 徽标注册与移除后消失；`clipboard` 断言 aiGenerated 随复制保留；
 - 阶段看板与工作台：看板角标与 stale 提醒计算、stage-status 缺失清单渲染与推进按钮置灰、提案队列分组与一键全收勾选态、gap 三选一交互分支、时间线事件渲染。
