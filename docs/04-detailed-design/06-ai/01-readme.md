@@ -18,4 +18,9 @@
 | [15-ai-review-missing-points](15-ai-review-missing-points.md)（分册：遗漏分析）   | V1.0 | 2026-09-23 | 起草中 |
 | [16-ai-review-execution-order](16-ai-review-execution-order.md)（分册：执行顺序推荐）   | V1.0 | 2026-09-23 | 起草中 |
 | [17-ai-review-case-plan](17-ai-review-case-plan.md)（分册：用例规划智能推荐）   | V1.0 | 2026-09-23 | 起草中 |
+| [18-global-assistant-overview](18-global-assistant-overview.md)（总览分册：全局智能助手）   | V1.0 | 2026-09-23 | 起草中 |
+| [19-global-assistant-session](19-global-assistant-session.md)（分册：会话与消息）   | V1.0 | 2026-09-23 | 起草中 |
+| [20-global-assistant-tool](20-global-assistant-tool.md)（分册：工具调用与写确认）   | V1.0 | 2026-09-30 | 起草中 |
+| [21-global-assistant-mindmap](21-global-assistant-mindmap.md)（分册：对话式脑图编辑）   | V1.0 | 2026-09-30 | 起草中 |
+| [22-global-assistant-knowledge-base](22-global-assistant-knowledge-base.md)（分册：使用指引知识库）   | V1.0 | 2026-09-23 | 起草中 |
 > 本目录为 AI 能力模块的详细设计分册；模块入口与阅读顺序见上级索引 `docs/04-detailed-design/01-readme.md`。

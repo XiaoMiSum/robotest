@@ -10,4 +10,5 @@
 | [07-api-srs-test-report](07-api-srs-test-report.md)（分册：接口测试报告）   | V1.0 | 2026-09-23 | 起草中 |
 | [08-api-srs-scheduled-task](08-api-srs-scheduled-task.md)（分册：定时任务）   | V1.0 | 2026-09-23 | 起草中 |
 | [09-api-srs-common](09-api-srs-common.md)（分册：公共需求）   | V1.0 | 2026-09-23 | 起草中 |
+| [10-api-srs-project-settings](10-api-srs-project-settings.md)（分册：项目设置）   | V1.0 | 2026-09-23 | 起草中 |
 > 本目录为接口测试模块的需求分册；模块入口与阅读顺序见上级索引 `docs/01-requirements/01-readme.md`，总览与分册-章节对照见 `docs/01-requirements/02-srs-overview.md`。

@@ -133,8 +133,14 @@ TTL:   assistantConfirmTimeoutSeconds（默认 300 秒）
 
 | 分册 | 文件 | 覆盖章节 |
 |---|---|---|
-| 总览 | `02-global-assistant-overview.md` | 前言、1. 引言、2. 数据设计、2.3 文件与组件、2.4 交互要点、2.5 单元测试点、6. 实施说明、3. 接口详细设计 |
-| 会话与消息 | `03-global-assistant-session.md` | 3.1 会话管理、3.2 发送消息 |
-| 工具调用与写确认 | `04-global-assistant-tool.md` | 3.3 写操作确认、4.1 工具注册表、4.2 Function Calling 执行循环、4.6 回复链接安全 |
-| 对话式脑图编辑 | `05-global-assistant-mindmap.md` | 4.3 对话式脑图编辑、4.4 页面上下文桥 |
-| 使用指引知识库 | `06-global-assistant-knowledge-base.md` | 4.5 平台使用指引知识库 |
+| 总览 | `18-global-assistant-overview.md` | 前言、1. 引言、2. 数据设计、2.3 文件与组件、2.4 交互要点、2.5 单元测试点、6. 实施说明、3. 接口详细设计 |
+| 会话与消息 | `19-global-assistant-session.md` | 3.1 会话管理、3.2 发送消息 |
+| 工具调用与写确认 | `20-global-assistant-tool.md` | 3.3 写操作确认、4.1 工具注册表、4.2 Function Calling 执行循环、4.6 回复链接安全 |
+| 对话式脑图编辑 | `21-global-assistant-mindmap.md` | 4.3 对话式脑图编辑、4.4 页面上下文桥 |
+| 使用指引知识库 | `22-global-assistant-knowledge-base.md` | 4.5 平台使用指引知识库 |
+
+## 修改记录
+
+| 版本 | 日期 | 说明 |
+| ---- | ---- | ---- |
+| V1.0 | 2026-10-01 | 分册-章节对照表同步目录结构调整：分册并入 06-ai 并重排序号 |
