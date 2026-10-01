@@ -8,7 +8,7 @@
 
 ## 1. AI 配置
 
-**功能描述**：管理端「平台配置」分组下的 AI 能力统一配置页，集中维护对话模型、Embedding 模型、系统配置项与智能体提示词模板，并呈现平台调用统计；能力级公共需求见总览分册 [`../13-ai-infrastructure/05-srs-ai-infrastructure.md`](../13-ai-infrastructure/05-srs-ai-infrastructure.md)，页面清单见[系统管理总览](02-srs-system-management.md)。  
+**功能描述**：管理端「平台配置」分组下的 AI 能力统一配置页，集中维护对话模型、Embedding 模型、系统配置项与智能体提示词模板，并呈现平台调用统计；能力级公共需求见总览分册 [`../06-ai/05-srs-ai-infrastructure.md`](../06-ai/05-srs-ai-infrastructure.md)，页面清单见[系统管理总览](02-srs-system-management.md)。  
 **功能点**：
 
 - 页面由页头、概览指标区与三个标签页（AI 配置、智能体、调用统计）构成，进入页面自动加载配置数据。
@@ -34,7 +34,7 @@
 
 **业务规则**：
 
-- 必填字段清单、密钥留空不修改、向量维度取值范围与配置项校验口径等能力级细则见 [`../13-ai-infrastructure/05-srs-ai-infrastructure.md`](../13-ai-infrastructure/05-srs-ai-infrastructure.md)。
+- 必填字段清单、密钥留空不修改、向量维度取值范围与配置项校验口径等能力级细则见 [`../06-ai/05-srs-ai-infrastructure.md`](../06-ai/05-srs-ai-infrastructure.md)。
 - 系统配置项修改后自动保存，页脚状态区依次呈现待保存、保存中、已自动保存与保存失败；存在校验错误期间不执行自动保存。
 - 设为默认、停用、删除与总开关关闭等影响面较大的操作均需二次确认；默认模型不可停用、不可删除等限制按能力级规则在页面上以按钮置灰与原因提示呈现。
 
@@ -50,7 +50,7 @@
 
 **业务规则**：
 
-- 模板分段规则、自定义与恢复默认的审计要求见 [`../13-ai-infrastructure/05-srs-ai-infrastructure.md`](../13-ai-infrastructure/05-srs-ai-infrastructure.md)。
+- 模板分段规则、自定义与恢复默认的审计要求见 [`../06-ai/05-srs-ai-infrastructure.md`](../06-ai/05-srs-ai-infrastructure.md)。
 - 恢复默认前需二次确认，恢复后卡片回到内置默认模板状态。
 - 「格式约束段编辑（高级）」开关默认关闭，关闭时输出格式约束段只读；开启时二次确认结构化校验失败风险，取消则回退为关闭；每次重新打开抽屉开关均回到关闭状态，开关未开启时保存不覆盖输出格式约束段。
 
