@@ -70,6 +70,6 @@
 
 | 分册 | 文件 | 覆盖章节 |
 |---|---|---|
-| 总览 | `14-mock-ui-overview.md` | 前言、1. 概述、4. 通用交互模式 |
-| Mock 规则管理页 | `15-mock-ui-rules.md` | 2. Mock 规则管理页 |
-| Mock 调试页 | `16-mock-ui-debug.md` | 3. Mock 调试页 |
+| 总览 | `14-mock-ui-overview.md` | 前言、1. 概述、2. 通用交互模式 |
+| Mock 规则管理页 | `15-mock-ui-rules.md` | 1. Mock 规则管理页 |
+| Mock 调试页 | `16-mock-ui-debug.md` | 1. Mock 调试页 |

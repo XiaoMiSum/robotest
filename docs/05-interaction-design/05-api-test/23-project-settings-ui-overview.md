@@ -56,9 +56,9 @@
 
 | 分册 | 文件 | 覆盖章节 |
 |---|---|---|
-| 总览 | `23-project-settings-ui-overview.md` | 前言、1. 概述、4. 通用交互模式 |
-| 设置框架 | `24-project-settings-ui-framework.md` | 2. 项目设置框架交互 |
-| 函数管理页 | `25-project-settings-ui-function.md` | 3. 函数管理页 |
+| 总览 | `23-project-settings-ui-overview.md` | 前言、1. 概述、2. 通用交互模式 |
+| 设置框架 | `24-project-settings-ui-framework.md` | 1. 项目设置框架交互 |
+| 函数管理页 | `25-project-settings-ui-function.md` | 1. 函数管理页 |
 
 ## 修改记录
 

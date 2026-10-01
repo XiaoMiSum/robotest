@@ -169,6 +169,6 @@ AdminLayout 左侧菜单在既有菜单项之后新增一项（沿用既有菜�
 
 | 分册 | 文件 | 覆盖章节 |
 |---|---|---|
-| 总览 | `02-ai-infra-ui-overview.md` | 前言、1. 概述、2. AI 通用交互规范、3. 管理端菜单增量、6. 通用交互模式总结 |
-| AI 配置页 | `03-ai-infra-ui-config.md` | 4. AI 配置页 |
-| 智能体标签页 | `04-ai-infra-ui-agent.md` | 5. 智能体标签页 |
+| 总览 | `02-ai-infra-ui-overview.md` | 前言、1. 概述、2. AI 通用交互规范、3. 管理端菜单增量、4. 通用交互模式总结 |
+| AI 配置页 | `03-ai-infra-ui-config.md` | 1. AI 配置页 |
+| 智能体标签页 | `04-ai-infra-ui-agent.md` | 1. 智能体标签页 |

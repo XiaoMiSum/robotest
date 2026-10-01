@@ -82,9 +82,9 @@
 
 | 分册 | 文件 | 覆盖章节 |
 |---|---|---|
-| 总览 | `02-space-ui-overview.md` | 前言、1. 总体布局、7. 通用交互模式总结 |
-| 我的空间页面 | `03-space-ui-my-workspace.md` | 2. 我的空间页面 |
-| 工作空间详情页 | `04-space-ui-workspace-detail.md` | 3. 工作空间详情页 |
-| 成员管理 | `05-space-ui-member.md` | 4. 工作空间成员管理 |
-| 项目管理 | `06-space-ui-project.md` | 5. 项目管理 |
-| 邀请加入页面 | `07-space-ui-invite-join.md` | 6. 邀请加入页面 |
+| 总览 | `02-space-ui-overview.md` | 前言、1. 总体布局、2. 通用交互模式总结 |
+| 我的空间页面 | `03-space-ui-my-workspace.md` | 1. 我的空间页面 |
+| 工作空间详情页 | `04-space-ui-workspace-detail.md` | 1. 空间信息页面 |
+| 成员管理 | `05-space-ui-member.md` | 1. 工作空间成员管理 |
+| 项目管理 | `06-space-ui-project.md` | 1. 项目列表页 |
+| 邀请加入页面 | `07-space-ui-invite-join.md` | 1. 邀请加入页面（公开） |

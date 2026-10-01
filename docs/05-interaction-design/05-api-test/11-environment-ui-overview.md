@@ -69,6 +69,6 @@
 
 | 分册 | 文件 | 覆盖章节 |
 |---|---|---|
-| 总览 | `11-environment-ui-overview.md` | 前言、1. 概述、4. 通用交互模式 |
-| 环境管理页 | `12-environment-ui-page.md` | 2. 环境管理页 |
-| 环境变量编辑器 | `13-environment-ui-variable-editor.md` | 3. 环境变量编辑器 |
+| 总览 | `11-environment-ui-overview.md` | 前言、1. 概述、2. 通用交互模式 |
+| 环境管理页 | `12-environment-ui-page.md` | 1. 环境管理页 |
+| 环境变量编辑器 | `13-environment-ui-variable-editor.md` | 1. 环境变量编辑器 |

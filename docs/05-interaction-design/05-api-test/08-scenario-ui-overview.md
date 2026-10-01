@@ -69,6 +69,6 @@
 
 | 分册 | 文件 | 覆盖章节 |
 |---|---|---|
-| 总览 | `08-scenario-ui-overview.md` | 前言、1. 概述、4. 通用交互模式 |
-| 场景管理列表页 | `09-scenario-ui-list.md` | 2. 场景管理列表页 |
-| 场景编排页 | `10-scenario-ui-orchestration.md` | 3. 场景编排页 |
+| 总览 | `08-scenario-ui-overview.md` | 前言、1. 概述、2. 通用交互模式 |
+| 场景管理列表页 | `09-scenario-ui-list.md` | 1. 场景管理列表页 |
+| 场景编排页 | `10-scenario-ui-orchestration.md` | 1. 场景编排页 |
