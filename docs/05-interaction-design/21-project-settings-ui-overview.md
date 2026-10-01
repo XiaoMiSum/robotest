@@ -59,11 +59,3 @@
 | 总览 | `21-project-settings-ui-overview.md` | 前言、1. 概述、4. 通用交互模式 |
 | 设置框架 | `22-project-settings-ui-framework.md` | 2. 项目设置框架交互 |
 | 函数管理页 | `23-project-settings-ui-function.md` | 3. 函数管理页 |
-
----
-
-## 修改记录
-
-| 版本 | 日期 | 说明 |
-| ---- | ---- | ---- |
-| V1.0 | 2026-09-29 | 术语统一：「全局资产」更名为「公共组件」 |

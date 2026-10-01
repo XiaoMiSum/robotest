@@ -227,13 +227,6 @@ changes
 - 质量门禁：`docs/00-spec/30-quality-delivery/01-quality.md`
 - 部署密钥：`docs/00-spec/30-quality-delivery/03-deploy.md`、`docs/00-spec/30-quality-delivery/04-deployment-runbook.md`
 
-## 修改记录
-
-| 版本 | 日期 | 说明 |
-| --- | --- | --- |
-| V1.0 | 2026-09-28 | 新增 2.3 Token 撤销；6.1 限流实施口径改为 migoo 框架 `@RateLimit` + 登录失败锁定，超限错误码改用框架 429/423；3.3 与 2.3 撤销口径对齐；登记 Token 撤销整改项 |
-| V1.0 | 2026-09-28 | 2.3 撤销键 TTL 按实现口径分列：黑名单 7 天、签发截止 30 天 |
-
 ---
 
 **文档结束**

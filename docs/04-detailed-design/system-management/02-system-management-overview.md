@@ -410,10 +410,3 @@ CREATE INDEX idx_ws_workspace_created_by ON ws_workspace (created_by);
 | 工作空间管理 | `05-system-management-workspace.md` | 3.4 工作空间管理接口、4.9 空间创建人写入与回填 |
 | 角色与权限管理 | `06-system-management-role.md` | 3.5 角色与权限管理接口、4.3 角色管理流程、5.2.2 角色管理页、5.2.3 PermissionTable组件、5.2.4 RoleUsersTable组件、5.4 关键组件交互 |
 | 数据概览 | `07-system-management-dashboard.md` | 3.6 数据概览统计、4.8 DashboardStatsService 端口、5.5 数据概览与状态扩展的文件分层、5.7 图表计算（composable 纯函数） |
-
-## 修改记录
-
-| 版本 | 日期 | 说明 |
-| --- | --- | --- |
-| V1.0 | 2026-09-26 | 初版起草 |
-| V1.0 | 2026-09-28 | Token 失效机制明确为框架 StateStore 签发截止撤销 |

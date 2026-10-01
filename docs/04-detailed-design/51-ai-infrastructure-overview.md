@@ -383,13 +383,3 @@ data: {"code": 1000013002, "message": "AI 调用失败"}
 | 智能体 | `54-ai-infrastructure-agent.md` | 3.4 智能体接口 |
 | 异步任务 | `55-ai-infrastructure-async.md` | 3.5 异步任务通用接口、4.6 异步任务生命周期 |
 | 网关与调用链路 | `56-ai-infrastructure-gateway.md` | 4.1 AI 网关总体结构、4.2 Provider 适配器、4.3 Prompt 组装与注入隔离、4.4 结构化输出防线、4.5 流式调用链路、4.7 限流、4.8 调用审计、4.9 密钥加密存储、4.11 对话模型解析与默认唯一性 |
-
-## 修改记录
-
-| 版本 | 日期 | 说明 |
-| --- | --- | --- |
-| V1.0 | 2026-09-23 | 初版起草 |
-| V1.0 | 2026-09-28 | 登记 1000013004 废弃（限流改用框架全局 429），限流实现口径同步为框架固定窗口 |
-| V1.0 | 2026-09-30 | 功能名称统一改为「遗漏分析」 |
-| V1.0 | 2026-09-30 | 移除 `missingPoint.topK` 配置键（遗漏分析不再使用语义检索） |
-| V1.0 | 2026-10-01 | 任务类型与 function_type 扩展需求工作流阶段作业（case_generation / missing_point_analysis / review_planning / plan_planning，异步任务形态），新增 `workstream.autoRerunDebounceSeconds` 配置键；modelId 适用范围为交互式功能，阶段作业固定系统默认模型 |
