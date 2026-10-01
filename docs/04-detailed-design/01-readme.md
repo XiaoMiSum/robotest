@@ -8,7 +8,6 @@
 | [04-bug](04-bug/01-readme.md)（模块：缺陷管理） | V1.0 | 2026-09-23 | 起草中 |
 | [05-api-test](05-api-test/01-readme.md)（模块：接口测试） | V1.0 | 2026-09-23 | 起草中 |
 | [06-ai](06-ai/01-readme.md)（模块：AI 能力） | V1.0 | 2026-09-23 | 起草中 |
-| [09-global-assistant](09-global-assistant/01-readme.md)（模块：全局智能助手） | V1.0 | 2026-09-30 | 起草中 |
 | [99-common](99-common/01-readme.md)（模块：公共与通用） | V1.0 | 2026-09-24 | 起草中 |
 
 > 接口示例统一遵循 `docs/00-spec/20-contracts/01-api.md`：响应使用 `Result`，字段为 `code`、`msg`、`data`；分页使用 `pageNo/pageSize` 和 `list/total`；错误码以 10 位 `ErrorCodeConstants` 为准。接口示例若仅展示 `data`，不重复展示外层响应。

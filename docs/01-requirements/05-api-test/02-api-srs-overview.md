@@ -217,5 +217,11 @@
 | 测试场景 | `06-api-srs-test-scenario.md` | 3.4 测试场景 |
 | 接口测试报告 | `07-api-srs-test-report.md` | 3.5 接口测试报告 |
 | 定时任务 | `08-api-srs-scheduled-task.md` | 3.6 定时任务 |
-| 项目设置 | `../07-project-settings/02-api-srs-project-settings.md` | 3.7 项目设置 |
+| 项目设置 | `10-api-srs-project-settings.md` | 3.7 项目设置 |
 | 公共需求 | `09-api-srs-common.md` | 3.8 请求参数与认证、3.9 前置与后置处理器、3.10 验证器、3.11 内置函数与变量引用、3.12 执行引擎 |
+
+## 修改记录
+
+| 版本 | 日期 | 说明 |
+| ---- | ---- | ---- |
+| V1.0 | 2026-10-01 | 分册-章节对照表同步目录结构调整：项目设置分册归入本模块 |
