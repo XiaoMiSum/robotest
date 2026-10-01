@@ -32,7 +32,7 @@ AI 入口落位于用例脑图编辑页（CaseMindMap），随 `aiEnabled` 显�
 ```
 
 - 工具栏为顶部**单行**流式胶囊：左侧为核心编辑操作（历史/节点结构/布局/类型标记/优先级），行末右侧命令组为 [关联需求]（纯图标 + 悬浮提示「关联需求」，常规业务、不随 `aiEnabled` 显隐）；工具条**所有按钮一律带悬浮提示**（图标型给出功能名与快捷键，文字型给出操作语义）；内容过宽时整行换行、不与画布重叠；
-- **用例生成与遗漏分析不设脑图入口**：生成唯一入口为需求工作流的用例设计阶段推进（含 [运行作业]），遗漏分析唯一入口为覆盖确认阶段作业，发起与处置均在条目工作台（`docs/05-interaction-design/52-ai-case-ui-pool.md` 1.3、`docs/05-interaction-design/49-ai-case-ui-generation.md`、`docs/05-interaction-design/56-ai-review-ui-missing.md`）；
+- **生成与分析的入口在需求工作流条目工作台**：用例生成由用例设计阶段推进（含 [运行作业]）发起，遗漏点分析由覆盖确认阶段作业发起，提案处置在工作台队列完成（`docs/05-interaction-design/52-ai-case-ui-pool.md` 1.3、`docs/05-interaction-design/49-ai-case-ui-generation.md`、`docs/05-interaction-design/56-ai-review-ui-missing.md`）；
 - 右键菜单仅在 **case 类型节点**上显示「AI 补全步骤」项（置于标记域之后的动作区），随 `aiEnabled` 显隐；
 - 需求工作流为项目工作区侧边菜单入口（1.2），**不受 AI 开关控制**（进入后 AI 相关的阶段作业与提案入口才随 `aiEnabled` 显隐）。
 

@@ -10,13 +10,13 @@
 
 ### 1.1 用例生成（阶段作业，无独立接口）
 
-用例生成不再是同步/SSE 接口，而是需求工作流 `design` 阶段的**阶段作业**（type = `case_generation`）：
+用例生成是需求工作流 `design` 阶段的**阶段作业**（type = `case_generation`，异步执行）：
 
 - **发起**：`POST /api/project/requirements/:id/stage-jobs`（见《需求工作流》4.1，含落位目标 `targetMode` / `documentId` 与 `extraText`）；阶段推进时按总览 2.3.3 尽力自动发起；
 - **进度/取消/重试**：复用异步任务通用接口（《AI 基础设施》55 /《需求工作流》4.3），前端经 `GET /api/project/requirements/:id/stage-jobs` 轮询（2 秒间隔，终态停止）；
 - **执行**：按 `targetMode` 组装上下文（见 5）调用 LLM，输出结构 = 2.2 断言 + `deltaType` / `modules` / `staleTitles` / `clarifies`（总览 2.2.2），网关侧结构校验与重试同《AI 基础设施》4.4；
 - **产出**：作业 success 后同事务物化为 structure / case / clarify 提案（重复抑制见总览 2.3.3 规则 5），**不直接写任何业务数据**；落库由提案采纳链路完成（见 2）；
-- 脑图工具栏的「AI 生成用例」按钮与 `AiGeneratePanel` 的 generate 模式**不再存在**（总览 2.6 / 2.7），`POST /api/project/ai/cases/generate` SSE 端点随之移除；
+- 作业的发起、进度与提案处置均在条目工作台（《需求工作流》4.1 / 5.2，交互总览 2.6 / 2.7）；
 - 生成期间目标文档可继续编辑（作业只读上下文，不锁定文档）。
 
 ### 1.2 补全步骤
