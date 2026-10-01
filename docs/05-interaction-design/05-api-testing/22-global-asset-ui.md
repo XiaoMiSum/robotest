@@ -97,7 +97,7 @@
 
 ### 2.2 详情与编辑
 
-新建与编辑在右侧详情区内切换为编辑面板完成（与环境管理页、函数管理页一致），字段与 `docs/04-detailed-design/05-api-test/06-api-test-infra-common-component.md` 第 3 节一致：
+新建与编辑在右侧详情区内切换为编辑面板完成（与环境管理页、函数管理页一致），字段与 `docs/04-detailed-design/05-api-testing/06-api-testing-infra-common-component.md` 第 3 节一致：
 
 ```
 ┌────────────────────────────────────────────────────┐

@@ -18,7 +18,7 @@
 
 1. **项目设置框架交互**——平台级统一入口在各业务域侧边栏的呈现规则、域归属过滤、权限控制。
 
-环境管理、公共组件、函数管理的页面交互分别见 `docs/05-interaction-design/01-readme.md`、`docs/05-interaction-design/05-api-test/22-global-asset-ui.md` 自身分册，本文档不重复描述。
+环境管理、公共组件、函数管理的页面交互分别见 `docs/05-interaction-design/01-readme.md`、`docs/05-interaction-design/05-api-testing/22-global-asset-ui.md` 自身分册，本文档不重复描述。
 
 ### 1.2 菜单与路由
 
@@ -64,4 +64,4 @@
 
 | 版本 | 日期 | 说明 |
 | ---- | ---- | ---- |
-| V1.0 | 2026-10-01 | 分册-章节对照表同步目录结构调整：分册并入 05-api-test 并重排序号 |
+| V1.0 | 2026-10-01 | 分册-章节对照表同步目录结构调整：分册并入 05-api-testing 并重排序号 |

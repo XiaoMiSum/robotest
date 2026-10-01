@@ -118,7 +118,7 @@ flowchart LR
 | 操作 | 触发方式 | 反馈 |
 | ---- | ---- | ---- |
 | 粘贴 cURL | 粘贴区粘贴命令 | 支持 Chrome/Charles/Fiddler 导出格式，同时兼容 Windows CMD 复制格式（`^` 续行符与 `^"` 转义引号，解析前自动归一化）；解析在浏览器本地完成，无后端接口 |
-| 解析并填充 | 点击 [解析并填充] | 解析 method/URL/headers/body 并回填当前激活标签的请求构造区（见 `docs/04-detailed-design/05-api-test/11-quick-debug.md` 4.2）；解析成功弹窗自动关闭并提示「已回填当前标签」，失败弹窗内提示原因 |
+| 解析并填充 | 点击 [解析并填充] | 解析 method/URL/headers/body 并回填当前激活标签的请求构造区（见 `docs/04-detailed-design/05-api-testing/11-quick-debug.md` 4.2）；解析成功弹窗自动关闭并提示「已回填当前标签」，失败弹窗内提示原因 |
 | 安全说明 | 弹窗底部提示 | 「仅解析请求描述，不执行 cURL 命令本身，不执行其中任何脚本或文件引用」（见需求 3.1） |
 
 ### 1.6 保存为接口定义

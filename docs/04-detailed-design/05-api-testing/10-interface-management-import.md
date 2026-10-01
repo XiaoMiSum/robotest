@@ -109,7 +109,7 @@
 
 ## 3. cURL 解析规则
 
-cURL 解析在**前端**完成（复用快速调试 `curlParser`，见 `docs/04-detailed-design/05-api-test/11-quick-debug.md` 4.2），支持**多条命令**批量解析。cURL 命令解析支持以下要素提取：
+cURL 解析在**前端**完成（复用快速调试 `curlParser`，见 `docs/04-detailed-design/05-api-testing/11-quick-debug.md` 4.2），支持**多条命令**批量解析。cURL 命令解析支持以下要素提取：
 
 | cURL 参数 | 平台映射 |
 | --------- | -------- |

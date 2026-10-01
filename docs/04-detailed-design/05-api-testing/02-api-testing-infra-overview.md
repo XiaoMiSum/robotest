@@ -341,9 +341,9 @@ api-test:
 
 | 分册 | 文件 | 覆盖章节 |
 |---|---|---|
-| 总览 | `02-api-test-infra-overview.md` | 前言、1. 引言、2. 数据设计、2.3 通用约定、2.4 数据清理策略、2.5 迁移脚本、2.6 Mock 服务端口 |
-| 执行引擎 | `03-api-test-infra-engine.md` | 3.2 执行引擎接口、4.1 执行引擎与格式转换、5.1 执行状态轮询、6.2 Ryze 依赖引入、6.3 执行引擎线程池配置 |
-| 调试记录 | `04-api-test-infra-debug-record.md` | 3.3 调试记录接口 |
-| 测试报告 | `05-api-test-infra-report.md` | 3.4 报告接口、5.2 报告详情渲染 |
-| 公共组件 | `06-api-test-infra-common-component.md` | 3.5 公共组件接口、3.6 公共组件复制、5.3 公共组件新建/编辑 |
-| 导入记录 | `07-api-test-infra-import-record.md` | 3.7 导入记录接口 |
+| 总览 | `02-api-testing-infra-overview.md` | 前言、1. 引言、2. 数据设计、2.3 通用约定、2.4 数据清理策略、2.5 迁移脚本、2.6 Mock 服务端口 |
+| 执行引擎 | `03-api-testing-infra-engine.md` | 3.2 执行引擎接口、4.1 执行引擎与格式转换、5.1 执行状态轮询、6.2 Ryze 依赖引入、6.3 执行引擎线程池配置 |
+| 调试记录 | `04-api-testing-infra-debug-record.md` | 3.3 调试记录接口 |
+| 测试报告 | `05-api-testing-infra-report.md` | 3.4 报告接口、5.2 报告详情渲染 |
+| 公共组件 | `06-api-testing-infra-common-component.md` | 3.5 公共组件接口、3.6 公共组件复制、5.3 公共组件新建/编辑 |
+| 导入记录 | `07-api-testing-infra-import-record.md` | 3.7 导入记录接口 |
