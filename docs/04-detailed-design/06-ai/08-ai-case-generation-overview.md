@@ -34,7 +34,7 @@
 
 新表遵循平台规范（同基础设施文档 2.1）：`id` 使用框架默认 UUID 策略、`created_at`、`updated_at`、`is_deleted`，禁止物理外键（C5）；索引遵循 C9。
 
-#### 2.1.1 需求工作流条目表（requirement_item）
+#### 2.1.1 需求工作流条目表（requirement）
 
 | 字段 | 类型 | 约束 | 说明 |
 | ---- | ---- | ---- | ---- |
@@ -44,6 +44,7 @@
 | content | TEXT | NOT NULL | 需求文本（Markdown，长度上限见 `requirementContentMaxLength` 配置键） |
 | source_url | VARCHAR(500) | NULL | 来源 URL（仅记录出处，平台不抓取） |
 | stage | VARCHAR(20) | NOT NULL DEFAULT 'intake' | 工作流阶段：intake（沉淀）/ design（用例设计）/ coverage（覆盖确认）/ review（评审就绪）/ execution（计划执行）/ verified（验收），取值见 2.3 |
+| stage_entered_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | 当前阶段进入时间（看板阶段停留与过期提醒直接可查，免联时间线） |
 | status | VARCHAR(20) | NOT NULL DEFAULT 'active' | 归档维：active / archived（与阶段正交） |
 | ai_generated | BOOLEAN | NOT NULL DEFAULT FALSE | AI 拆分产生的条目标识（仅用于展示徽标，不影响业务规则） |
 | created_by | UUID | NOT NULL | 创建人（编辑/删除/归档权限判定依据） |
@@ -52,32 +53,32 @@
 | created_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | 创建时间 |
 | updated_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | 更新时间 |
 
-**索引**：`idx_ri_project_stage` (project_id, stage)
+**索引**：`idx_requirement_project_stage` (project_id, stage)，`idx_requirement_list` (project_id, status, updated_at)
 
-> 基线表 `requirement_pool_item` 重命名为 `requirement_item` 并增列 `stage`（迁移见 4 实施说明）；原单列索引 `idx_rpi_project_id` (project_id) 由联合索引左前缀覆盖，迁移时删除重建。标题关键字检索用 `title ILIKE '%kw%'`（项目内条目量级小，不建全文索引）；条目不建向量索引（AD-5）。`ai_generated` 仅用于渲染，不作独立查询条件，不建索引。
+> 基线表 `requirement_pool_item` 原地重命名为 `requirement` 并增列 `stage` / `stage_entered_at`（迁移见 4 实施说明）；原单列索引 `idx_rpi_project_id` (project_id) 由 `idx_requirement_project_stage` 左前缀覆盖，迁移时删除重建，列表查询由 `idx_requirement_list` 承载（阶段看板与列表默认按更新时间倒序）。标题关键字检索用 `title ILIKE '%kw%'`（项目内条目量级小，不建全文索引）；条目不建向量索引（AD-5）。`ai_generated` 仅用于渲染，不作独立查询条件，不建索引。合计 2 个索引，符合 C9。
 
-#### 2.1.2 阶段事件表（requirement_stage_event）
+#### 2.1.2 阶段事件（复用项目动态表 ws_project_activity）
 
-阶段操作（推进 / 跳过 / 回退）留痕，即阶段时间线的数据源。
+阶段操作（推进 / 跳过 / 回退）留痕，即阶段时间线的数据源；事件与项目动态共用同一张表（表定义见 `docs/04-detailed-design/03-function-test/03-project-workspace-workbench.md` 数据设计），以 `resource_type = 'requirement'` 写入资源事件：
 
-| 字段 | 类型 | 约束 | 说明 |
-| ---- | ---- | ---- | ---- |
-| id | UUID | PK | 事件 ID |
-| requirement_id | UUID | NOT NULL | 所属条目 |
-| project_id | UUID | NOT NULL | 归属项目（隔离校验用） |
-| from_stage | VARCHAR(20) | NOT NULL | 变更前阶段 |
-| to_stage | VARCHAR(20) | NOT NULL | 变更后阶段 |
-| action | VARCHAR(20) | NOT NULL | 操作：advance（推进）/ skip（跳过）/ rollback（回退） |
-| reason | VARCHAR(500) | NULL | 跳过/回退原因（必填校验在应用层） |
-| evidence | JSONB | NULL | 推进时的出口证据快照（缺失项清单为空即满足；跳过记录豁免项） |
-| operated_by | UUID | NOT NULL | 操作人 |
-| is_deleted | BOOLEAN | NOT NULL DEFAULT FALSE | 是否删除 |
-| created_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | 创建时间 |
-| updated_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | 更新时间 |
+| 阶段事件字段 | 落列 | 说明 |
+| ---- | ---- | ---- |
+| 事件 ID | id | 主键（表既有列） |
+| 所属条目 | resource_id | 即 requirement_id（`resource_type = 'requirement'`） |
+| 条目标题 | resource_name | 写入时快照，时间线展示免回查 |
+| 归属项目 | project_id | 表既有列（隔离查询用） |
+| 操作人 | actor_id / actor_name | 表既有列 |
+| 操作 | action | advance（推进）/ skip（跳过）/ rollback（回退） |
+| 可读摘要 | summary | 表既有列，如「推进：design → coverage」 |
+| 发生时间 | occurred_at | 表既有列（时间线排序键） |
+| 变更前阶段 | payload.from_stage | 阶段语义见 2.3 状态机 |
+| 变更后阶段 | payload.to_stage | 同上 |
+| 原因 | payload.reason | 跳过/回退原因（必填校验在应用层） |
+| 出口证据快照 | payload.evidence | 推进时附缺失清单为空的证据快照；跳过附被豁免项清单 |
 
-**索引**：`idx_rse_requirement` (requirement_id, created_at)
+**本表变更**：`ADD COLUMN payload JSONB NOT NULL DEFAULT '{}'`（结构化事件负载，项目动态的既有消费方不受影响）。**索引**：`idx_project_activity_resource` (resource_type, resource_id, occurred_at DESC)，时间线按条目倒序读取；与既有动态流索引合计 2 个，符合 C9。
 
-> `from_stage` / `to_stage` 为值冗余（阶段语义由 2.3 状态机定义），便于时间线直接读取，不建额外索引。
+> `from_stage` / `to_stage` 冗余存于 payload（阶段语义由 2.3 定义），便于时间线直接读取，不建额外索引。项目动态的既有条目（用例文档、评审等资源事件）`payload` 取默认空对象。
 
 #### 2.1.3 提案表（requirement_proposal）
 
@@ -121,20 +122,18 @@
 
 **索引**：`uk_rl_req_artifact` UNIQUE (requirement_id, artifact_type, artifact_id) WHERE is_deleted = false，`idx_rl_artifact` (artifact_type, artifact_id)
 
-> 血缘仅记录关系不承载状态（SRS 1.6）；`idx_rl_artifact` 支撑反向追溯（对象详情查关联需求）与对象删除时的联动清理。基线表 `requirement_document_rel` 由本表承载（artifact_type = document、source = manual），迁移后删除（见 4 实施说明）。合计 2 个索引，符合 C9。
+> 血缘仅记录关系不承载状态（SRS 1.6）；`idx_rl_artifact` 支撑反向追溯（对象详情查关联需求）与对象删除时的联动清理。基线表 `requirement_document_rel` 原地泛化为本表——增列 `artifact_type` / `source`（存量关联即 document + manual 血缘）、`document_id` 重命名为 `artifact_id`、表与索引重命名，存量数据零搬迁（见 4 实施说明）。合计 2 个索引，符合 C9。
 
 #### 2.1.5 既有表变更
 
 | 表 | 变更 | 说明 |
 | ---- | ---- | ---- |
-| ai_analysis_task | `type` 枚举扩展 4 项：case_generation / missing_point_analysis / review_planning / plan_planning | 需求工作流阶段作业复用本表，`target_id` = 需求条目 ID；执行形态与登记同步回补《AI 基础设施详细设计说明书》2.1.3 |
+| ai_analysis_task | `type` 枚举扩展 4 项：case_generation / missing_point_analysis / review_planning / plan_planning；`ADD COLUMN stage VARCHAR(20)`、`ADD COLUMN trigger VARCHAR(20) NOT NULL DEFAULT 'manual'` | 需求工作流阶段作业复用本表，`target_id` = 需求条目 ID；`stage` 记录发起阶段，`trigger` 区分人工发起与「自动推进」去抖重跑；执行形态与登记同步回补《AI 基础设施详细设计说明书》2.1.3 |
 | ws_project | `ADD COLUMN requirement_auto_advance BOOLEAN NOT NULL DEFAULT FALSE` | 项目级「自动推进」开关（阶段驻留期间内容变更后自动重跑作业，见 2.3），默认关闭 |
-| requirement_document_rel | 数据迁入 requirement_lineage（artifact_type = document、source = manual）后 `DROP TABLE` | 关联语义并入血缘 |
-| test_case_node | `ADD COLUMN ai_generated BOOLEAN NOT NULL DEFAULT FALSE` | AI 生成标识（AI 标识是节点数据的一部分，随快照继承，SRS 3.4.1） |
-| test_review_node_snapshot | 同上 | 评审快照继承 |
-| test_plan_node_snapshot | 同上 | 计划快照继承 |
+| ws_project_activity | `ADD COLUMN payload JSONB NOT NULL DEFAULT '{}'`、`CREATE INDEX idx_project_activity_resource` (resource_type, resource_id, occurred_at DESC) | 阶段事件与项目动态共表，payload 承载结构化事件负载（2.1.2） |
+| requirement_document_rel | 原地泛化为 `requirement_lineage`：增列 `artifact_type` / `source`、`document_id` 重命名 `artifact_id`、表与索引重命名 | 关联语义并入血缘，存量数据零搬迁（2.1.4 / 4 实施说明） |
 
-AI 标识三列不新增索引（仅用于渲染，不作为独立查询条件）。快照创建逻辑（评审/计划的既有拷贝 SQL）同步增加该列的复制。
+`requirement` 与 test_case_node / test_review_node_snapshot / test_plan_node_snapshot 的 `ai_generated` 为基线既有列，仅用于渲染、不建索引；评审/计划的快照拷贝 SQL 包含该列。
 
 ### 2.2 结构化输出与提案 payload
 
@@ -271,7 +270,7 @@ stateDiagram-v2
 ```
 
 - **阶段操作三种**：`advance`（推进到下一阶段，须通过出口证据校验）、`skip`（跳过到下一阶段，免证据校验但 `reason` 必填）、`rollback`（回退到上一阶段，`reason` 必填）；均为单步操作，多步回退多次调用；**不提供任意阶段直设**；
-- 每次阶段操作写入一条 requirement_stage_event（2.1.2），推进时附出口证据快照；
+- 每次阶段操作写入一条阶段事件（`ws_project_activity`，`resource_type = 'requirement'`，见 2.1.2），推进时在 `payload.evidence` 附出口证据快照；
 - `verified` 为终态（advance 被拒），仍可 rollback 回 execution；`intake` 上 rollback 被拒；
 - 归档（archived）条目禁止一切阶段操作；AI 总开关关闭不影响阶段操作本身（仅作业不发起，见 2.3.3）。
 
@@ -445,11 +444,12 @@ interface MinderCommand {
 ## 4. 实施说明
 
 - **数据库迁移**：遵循脚本版本化约定（基础设施文档第 6 章），全部 DDL 写入 `server/src/main/resources/db/v1.1.sql`：
-  - `requirement_pool_item` **重命名**为 `requirement_item` 并增列 `stage`（默认 `'intake'`），删除原索引 `idx_rpi_project_id`、新建 `idx_ri_project_stage`；存量开发库执行 `ALTER TABLE … RENAME TO requirement_item` + `ALTER TABLE requirement_item ADD COLUMN stage VARCHAR(20) NOT NULL DEFAULT 'intake'` + 索引重建；
-  - 新表 requirement_stage_event / requirement_proposal / requirement_lineage（2.1.2–2.1.4）；
-  - requirement_document_rel：`INSERT INTO requirement_lineage（artifact_type='document'，source='manual'）` 迁移存量关联后 `DROP TABLE requirement_document_rel`；
-  - ws_project 增列 `requirement_auto_advance`（默认 false，存量行零影响）；
-  - AI 标识三条 `ALTER TABLE … ADD COLUMN ai_generated`（默认 false）；
+  - `requirement_pool_item` **原地重命名**为 `requirement`，增列 `stage`（默认 `'intake'`）与 `stage_entered_at`（存量行以 `updated_at` 回填），删除原索引 `idx_rpi_project_id`、新建 `idx_requirement_project_stage` 与 `idx_requirement_list`；
+  - 新表 requirement_proposal（2.1.3）——本次迁移的唯一新表；
+  - `requirement_document_rel` **原地泛化**为 `requirement_lineage`（迁移语句排在条目表重命名之后，`project_id` 回填依赖条目表）：`ADD COLUMN artifact_type VARCHAR(20) NOT NULL DEFAULT 'document'` + `ADD COLUMN source VARCHAR(20) NOT NULL DEFAULT 'manual'` + `ADD COLUMN project_id UUID`（由 `requirement` 回填后置 NOT NULL）+ `RENAME COLUMN document_id TO artifact_id` + `RENAME TO requirement_lineage`，删除旧索引 `uk_requirement_document_rel` / `idx_requirement_document_rel_requirement_id`、新建 `uk_rl_req_artifact`（部分唯一）与 `idx_rl_artifact`；
+  - `ws_project_activity` 增列 `payload JSONB NOT NULL DEFAULT '{}'`、新建 `idx_project_activity_resource` (resource_type, resource_id, occurred_at DESC)；
+  - `ai_analysis_task` 增列 `stage VARCHAR(20)` 与 `trigger VARCHAR(20) NOT NULL DEFAULT 'manual'`（`type` 枚举随代码登记，无 DDL）；
+  - `ws_project` 增列 `requirement_auto_advance`（默认 false，存量行零影响）；
   - `v1.sql`（V1.0 基线）内容保持不变；首次建库按 `v1.sql` → `v1.1.sql` 顺序执行后自动包含全部结构；
 - **错误码**：新增 1000011029–1000011032（阶段出口证据未满足 / 阶段状态非法 / 提案状态非法 / 血缘来源不允许），登记于 `ErrorCodeConstants` 并回补《项目工作区详细设计说明书》02 总览错误码表；1000011028（需求条目不存在）同步补登记；作业去重沿用 1000013005；
 - **配置键**：`workstream.autoRerunDebounceSeconds`（默认 60）随基础设施 2.2 键清单与 settings-schema 表单定义一同注册（分组「需求工作流」，数字输入 5–3600）；
