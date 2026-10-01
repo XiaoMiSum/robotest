@@ -136,7 +136,7 @@
 
 左侧菜单选中“测试计划”时展示。
 
-**页面布局**（验收基准 `web/demos/project/plans.html`，裁剪口径见交互设计 `docs/05-interaction-design/03-function-test/06-workspace-ui-test-plan.md` 1.1）：
+**页面布局**（验收基准 `web/demos/project/plans.html`，裁剪口径见交互设计 `docs/05-interaction-design/03-function-testing/06-workspace-ui-test-plan.md` 1.1）：
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
