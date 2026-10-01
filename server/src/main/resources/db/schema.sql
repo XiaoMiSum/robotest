@@ -5,12 +5,6 @@
 -- ============================================================
 
 -- ============================================================
--- 0. 扩展
--- ============================================================
-
-CREATE EXTENSION IF NOT EXISTS vector;
-
--- ============================================================
 -- 1. 系统管理
 -- ============================================================
 
@@ -458,171 +452,7 @@ CREATE TABLE bug_attachment (
 CREATE INDEX idx_bug_attachment_bug_id ON bug_attachment (bug_id);
 
 -- ============================================================
--- 7. AI 基础设施
--- ============================================================
-
--- AI 配置表（系统级单行）
-CREATE TABLE ai_config (
-                           id                       UUID          PRIMARY KEY,
-                           embedding_provider       VARCHAR(50)   NULL,
-                           embedding_base_url       VARCHAR(500)  NULL,
-                           embedding_api_key_cipher VARCHAR(1000) NULL,
-                           embedding_key_suffix     VARCHAR(4)    NULL,
-                           embedding_model          VARCHAR(100)  NULL,
-                           embedding_dimension      INT           NULL,
-                           embedding_extra_params   JSONB         NOT NULL DEFAULT '{}',
-                           enabled                  BOOLEAN       NOT NULL DEFAULT FALSE,
-                           settings                 JSONB         NOT NULL DEFAULT '{}',
-                           is_deleted               BOOLEAN       NOT NULL DEFAULT FALSE,
-                           created_at               TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                           updated_at               TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
-
--- AI 提示词模板表
-CREATE TABLE ai_prompt_template (
-                                    id                UUID        PRIMARY KEY,
-                                    function_type     VARCHAR(50) NOT NULL,
-                                    role_instruction  TEXT        NOT NULL,
-                                    format_constraint TEXT        NOT NULL,
-                                    format_editable   BOOLEAN     NOT NULL DEFAULT FALSE,
-                                    updated_by        UUID        NOT NULL,
-                                    is_deleted        BOOLEAN     NOT NULL DEFAULT FALSE,
-                                    created_at        TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                                    updated_at        TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE UNIQUE INDEX uk_prompt_function_type ON ai_prompt_template (function_type) WHERE is_deleted = false;
-
--- AI 异步任务表
-CREATE TABLE ai_analysis_task (
-                                  id                UUID         PRIMARY KEY,
-                                  workspace_id      UUID         NULL,
-                                  project_id        UUID         NULL,
-                                  type              VARCHAR(30)  NOT NULL,
-                                  target_id         UUID         NULL,
-                                  status            VARCHAR(20)  NOT NULL DEFAULT 'pending',
-                                  progress          INT          NOT NULL DEFAULT 0,
-                                  result            JSONB        NULL,
-                                  error_message     VARCHAR(500) NULL,
-                                  executor_instance VARCHAR(100) NULL,
-                                  created_by        UUID         NOT NULL,
-                                  is_deleted        BOOLEAN      NOT NULL DEFAULT FALSE,
-                                  created_at        TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                                  updated_at        TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE INDEX idx_task_project_id ON ai_analysis_task (project_id);
-CREATE INDEX idx_task_type_target ON ai_analysis_task (type, target_id);
-CREATE INDEX idx_task_status ON ai_analysis_task (status);
-
--- AI 调用审计表
-CREATE TABLE ai_invocation_log (
-                                   id                UUID         PRIMARY KEY,
-                                   user_id           UUID         NOT NULL,
-                                   workspace_id      UUID         NULL,
-                                   project_id        UUID         NULL,
-                                   function_type     VARCHAR(50)  NOT NULL,
-                                   model             VARCHAR(100) NULL,
-                                   duration_ms       INT          NULL,
-                                   prompt_tokens     INT          NULL,
-                                   completion_tokens INT          NULL,
-                                   status            VARCHAR(20)  NOT NULL,
-                                   error_code        VARCHAR(50)  NULL,
-                                   is_deleted        BOOLEAN      NOT NULL DEFAULT FALSE,
-                                   created_at        TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                                   updated_at        TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE INDEX idx_log_user_id ON ai_invocation_log (user_id);
-CREATE INDEX idx_log_workspace_created ON ai_invocation_log (workspace_id, created_at);
-CREATE INDEX idx_log_function_type ON ai_invocation_log (function_type);
-CREATE INDEX idx_log_created_at ON ai_invocation_log (created_at);
-
--- AI 对话模型配置表
-CREATE TABLE ai_chat_model (
-                               id             UUID          PRIMARY KEY,
-                               name           VARCHAR(50)   NOT NULL,
-                               provider       VARCHAR(50)   NOT NULL DEFAULT 'custom',
-                               base_url       VARCHAR(500)  NOT NULL,
-                               api_key_cipher VARCHAR(1000) NOT NULL,
-                               key_suffix     VARCHAR(4)    NULL,
-                               model          VARCHAR(100)  NOT NULL,
-                               extra_params   JSONB         NOT NULL DEFAULT '{}',
-                               enabled        BOOLEAN       NOT NULL DEFAULT TRUE,
-                               is_default     BOOLEAN       NOT NULL DEFAULT FALSE,
-                               updated_by     UUID          NOT NULL,
-                               is_deleted     BOOLEAN       NOT NULL DEFAULT FALSE,
-                               created_at     TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                               updated_at     TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE UNIQUE INDEX uk_chat_model_name ON ai_chat_model (name) WHERE is_deleted = false;
-
--- 缺陷向量表
-CREATE TABLE ai_bug_embedding (
-                                  id          UUID          PRIMARY KEY,
-                                  bug_id      UUID          NOT NULL,
-                                  project_id  UUID          NOT NULL,
-                                  embedding   vector(1024)  NOT NULL,
-                                  source_hash VARCHAR(64)   NOT NULL,
-                                  model       VARCHAR(100)  NOT NULL,
-                                  is_deleted  BOOLEAN       NOT NULL DEFAULT FALSE,
-                                  created_at  TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                                  updated_at  TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE UNIQUE INDEX uk_ai_bug_embedding_bug_id ON ai_bug_embedding (bug_id) WHERE is_deleted = false;
-CREATE INDEX idx_ai_bug_embedding_project_id ON ai_bug_embedding (project_id);
-CREATE INDEX idx_ai_bug_embedding_hnsw ON ai_bug_embedding USING hnsw (embedding vector_cosine_ops);
-
--- 用例向量表
-CREATE TABLE ai_case_embedding (
-                                   id          UUID          PRIMARY KEY,
-                                   node_id     UUID          NOT NULL,
-                                   project_id  UUID          NOT NULL,
-                                   embedding   vector(1024)  NOT NULL,
-                                   source_hash VARCHAR(64)   NOT NULL,
-                                   model       VARCHAR(100)  NOT NULL,
-                                   is_deleted  BOOLEAN       NOT NULL DEFAULT FALSE,
-                                   created_at  TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                                   updated_at  TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE UNIQUE INDEX uk_ai_case_embedding_node_id ON ai_case_embedding (node_id) WHERE is_deleted = false;
-CREATE INDEX idx_ai_case_embedding_project_id ON ai_case_embedding (project_id);
-CREATE INDEX idx_ai_case_embedding_hnsw ON ai_case_embedding USING hnsw (embedding vector_cosine_ops);
-
--- 助手会话表
-CREATE TABLE ai_conversation (
-                                 id             UUID          PRIMARY KEY,
-                                 user_id        UUID          NOT NULL,
-                                 workspace_id   UUID          NOT NULL,
-                                 title          VARCHAR(100)  NOT NULL,
-                                 last_active_at TIMESTAMP     NOT NULL,
-                                 is_deleted     BOOLEAN       NOT NULL DEFAULT FALSE,
-                                 created_at     TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                                 updated_at     TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE INDEX idx_conv_user_ws ON ai_conversation (user_id, workspace_id, last_active_at DESC);
-
--- 助手消息表
-CREATE TABLE ai_message (
-                            id              UUID         PRIMARY KEY,
-                            conversation_id UUID         NOT NULL,
-                            role            VARCHAR(10)  NOT NULL,
-                            content         TEXT         NULL,
-                            tool_calls      JSONB        NULL,
-                            tool_call_id    VARCHAR(64)  NULL,
-                            is_deleted      BOOLEAN      NOT NULL DEFAULT FALSE,
-                            created_at      TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                            updated_at      TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE INDEX idx_msg_conversation_id ON ai_message (conversation_id);
-
--- ============================================================
--- 8. 需求池
+-- 7. 需求池
 -- ============================================================
 
 CREATE TABLE requirement_pool_item (
@@ -655,7 +485,7 @@ CREATE UNIQUE INDEX uk_requirement_document_rel ON requirement_document_rel (doc
 CREATE INDEX idx_requirement_document_rel_requirement_id ON requirement_document_rel (requirement_id);
 
 -- ============================================================
--- 9. 项目模块与用例文档（V1.2 重构）
+-- 8. 项目模块与用例文档（V1.2 重构）
 -- ============================================================
 
 -- 项目模块表（纯目录树节点）
@@ -690,7 +520,7 @@ CREATE INDEX idx_tcd_project ON test_case_document(project_id);
 CREATE INDEX idx_tcd_module ON test_case_document(module_id);
 
 -- ============================================================
--- 10. 接口测试 — 环境管理
+-- 9. 接口测试 — 环境管理
 -- 环境聚合：HTTP 配置/变量/数据源/处理器均以 JSONB 存储在主表（替代原四张子表）
 -- ============================================================
 
@@ -714,7 +544,7 @@ CREATE TABLE api_environment (
 CREATE INDEX idx_env_project ON api_environment(project_id);
 
 -- ============================================================
--- 11. 接口测试 — 接口管理
+-- 10. 接口测试 — 接口管理
 -- ============================================================
 
 CREATE TABLE api_interface (
@@ -837,7 +667,7 @@ CREATE TABLE api_debug_record (
 CREATE INDEX idx_drec_project_user ON api_debug_record(project_id, user_id);
 
 -- ============================================================
--- 12. 接口测试 — Swagger URL 配置
+-- 11. 接口测试 — Swagger URL 配置
 -- ============================================================
 
 CREATE TABLE api_swagger_url (
@@ -856,7 +686,7 @@ CREATE TABLE api_swagger_url (
 CREATE INDEX idx_surl_project ON api_swagger_url(project_id);
 
 -- ============================================================
--- 13. 接口测试 — 定时任务
+-- 12. 接口测试 — 定时任务
 -- ============================================================
 
 CREATE TABLE api_scheduled_task (
@@ -905,7 +735,7 @@ CREATE INDEX idx_stexec_task ON api_scheduled_task_execution(task_id);
 CREATE INDEX idx_stexec_project_triggered ON api_scheduled_task_execution(project_id, triggered_at DESC);
 
 -- ============================================================
--- 14. 接口测试 — Mock 服务
+-- 13. 接口测试 — Mock 服务
 -- ============================================================
 
 CREATE TABLE api_mock_definition (
@@ -957,7 +787,7 @@ CREATE INDEX idx_api_mlog_mock ON api_mock_access_log(mock_id);
 CREATE INDEX idx_api_mlog_project_created ON api_mock_access_log(project_id, created_at DESC);
 
 -- ============================================================
--- 15. 接口测试 — 测试场景与执行
+-- 14. 接口测试 — 测试场景与执行
 -- ============================================================
 
 CREATE TABLE api_scene (
@@ -1060,7 +890,7 @@ CREATE TABLE api_change_history (
 CREATE INDEX idx_change_target ON api_change_history(target_type, target_id, version DESC);
 
 -- ============================================================
--- 16. 接口测试 — 公共组件
+-- 15. 接口测试 — 公共组件
 -- ============================================================
 
 CREATE TABLE api_component (
@@ -1087,7 +917,7 @@ CREATE UNIQUE INDEX uk_api_component_project ON api_component(project_id, type, 
 CREATE UNIQUE INDEX uk_api_component_workspace ON api_component(workspace_id, type, name) WHERE scope = 'workspace' AND is_deleted = FALSE;
 
 -- ============================================================
--- 17. 接口测试 — 函数表（内置 + 自定义）
+-- 16. 接口测试 — 函数表（内置 + 自定义）
 -- ============================================================
 
 CREATE TABLE api_function (
@@ -1112,11 +942,11 @@ CREATE INDEX idx_function_workspace ON api_function(workspace_id, name) WHERE sc
 CREATE UNIQUE INDEX uk_function_global ON api_function(name) WHERE scope = 'global' AND is_deleted = FALSE;
 
 -- ============================================================
--- 18. 种子数据（权限点、角色、提示词模板）
+-- 17. 种子数据（权限点、角色）
 -- ============================================================
 
 -- ------------------------------------------------------------
--- 18.1 权限点（系统管理模块）
+-- 17.1 权限点（系统管理模块）
 -- ------------------------------------------------------------
 INSERT INTO sys_permission (id, code, name, parent_code, module, top_module, scope, sort_order, created_at, updated_at, is_deleted) VALUES
 ('a0000000-0000-0000-0000-000000000001', 'user',                '用户管理',       NULL,  '用户管理',     '系统管理', 'global', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
@@ -1138,22 +968,14 @@ INSERT INTO sys_permission (id, code, name, parent_code, module, top_module, sco
 ('a0000000-0000-0000-0000-000000000017', 'role:delete',         '删除角色',       'role', '角色管理',     '系统管理', 'global', 4, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE);
 
 -- ------------------------------------------------------------
--- 18.2 权限点（AI 管理模块）
--- ------------------------------------------------------------
-INSERT INTO sys_permission (id, code, name, parent_code, module, top_module, scope, sort_order, created_at, updated_at, is_deleted) VALUES
-('a0000000-0000-0000-0000-000000000018', 'ai',      'AI 配置',            NULL, 'AI 管理', '系统管理', 'global', 4, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('a0000000-0000-0000-0000-000000000019', 'ai:view', '查看 AI 配置与智能体', 'ai', 'AI 管理', '系统管理', 'global', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('a0000000-0000-0000-0000-000000000020', 'ai:edit', '编辑 AI 配置与智能体', 'ai', 'AI 管理', '系统管理', 'global', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE);
-
--- ------------------------------------------------------------
--- 18.2.1 权限点（审计日志模块，全局系统管理，审计查询详细设计 2.1）
+-- 17.2 权限点（审计日志模块，全局系统管理，审计查询详细设计 2.1）
 -- ------------------------------------------------------------
 INSERT INTO sys_permission (id, code, name, parent_code, module, top_module, scope, sort_order, created_at, updated_at, is_deleted) VALUES
 ('a0000000-0000-0000-0000-000000000021', 'audit',      '审计日志',    NULL, '审计日志', '系统管理', 'global', 5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
 ('a0000000-0000-0000-0000-000000000022', 'audit:view', '查看审计日志', 'audit', '审计日志', '系统管理', 'global', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE);
 
 -- ------------------------------------------------------------
--- 18.3 权限点（业务模块 — 工作空间/项目/测试用例/评审/计划/缺陷）
+-- 17.3 权限点（业务模块 — 工作空间/项目/测试用例/评审/计划/缺陷）
 -- ------------------------------------------------------------
 INSERT INTO sys_permission (id, code, name, parent_code, module, top_module, scope, sort_order, created_at, updated_at, is_deleted) VALUES
 ('c0000000-0000-0000-0000-000000000001', 'ws-info',            '空间信息',     NULL,           '我的空间', '我的空间', 'workspace', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
@@ -1184,7 +1006,7 @@ INSERT INTO sys_permission (id, code, name, parent_code, module, top_module, sco
 ('c0000000-0000-0000-0000-000000000031', 'bug:view',           '查看缺陷',     'bug',          '缺陷',    '缺陷管理', 'workspace', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE);
 
 -- ------------------------------------------------------------
--- 18.4 权限点（需求池）
+-- 17.4 权限点（需求池）
 -- ------------------------------------------------------------
 INSERT INTO sys_permission (id, code, name, parent_code, module, top_module, scope, sort_order, created_at, updated_at, is_deleted) VALUES
 ('c0000000-0000-0000-0000-000000000034', 'requirement',      '需求池',   NULL,          '需求池', '功能测试', 'workspace', 8, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
@@ -1192,7 +1014,7 @@ INSERT INTO sys_permission (id, code, name, parent_code, module, top_module, sco
 ('c0000000-0000-0000-0000-000000000036', 'requirement:edit', '编辑需求池', 'requirement', '需求池', '功能测试', 'workspace', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE);
 
 -- ------------------------------------------------------------
--- 18.5 权限点（接口测试模块）
+-- 17.5 权限点（接口测试模块）
 -- ------------------------------------------------------------
 INSERT INTO sys_permission (id, code, name, parent_code, module, top_module, scope, sort_order, created_at, updated_at, is_deleted) VALUES
 -- 测试场景
@@ -1229,7 +1051,7 @@ INSERT INTO sys_permission (id, code, name, parent_code, module, top_module, sco
 ('c0000000-0000-0000-0000-000000000063', 'api-report:delete', '删除报告',    'api-report',    '接口测试·测试报告',  '接口测试', 'workspace', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE);
 
 -- ------------------------------------------------------------
--- 18.5.1 权限点（接口测试·环境管理 / 函数管理，项目设置分组）
+-- 17.5.1 权限点（接口测试·环境管理 / 函数管理，项目设置分组）
 -- ------------------------------------------------------------
 INSERT INTO sys_permission (id, code, name, parent_code, module, top_module, scope, sort_order, created_at, updated_at, is_deleted) VALUES
 ('c0000000-0000-0000-0000-000000000064', 'api-env',            '环境管理',       NULL,          '接口测试·环境管理', '接口测试', 'workspace', 15, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
@@ -1242,13 +1064,13 @@ INSERT INTO sys_permission (id, code, name, parent_code, module, top_module, sco
 ('c0000000-0000-0000-0000-000000000073', 'api-func:edit-global', '编辑全局函数', 'api-func',    '接口测试·函数管理', '接口测试', 'workspace', 4,  CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE);
 
 -- ------------------------------------------------------------
--- 18.6 预置角色（含全部版本权限合并）
+-- 17.6 预置角色（含全部版本权限合并）
 -- ------------------------------------------------------------
 INSERT INTO sys_role (id, name, description, type, is_system, permissions, created_at, updated_at, is_deleted) VALUES
--- 系统管理员：拥有系统管理 + AI 管理所有权限
+-- 系统管理员：拥有系统管理所有权限
 ('b0000000-0000-0000-0000-000000000001', '系统管理员',
  '拥有系统管理所有权限', 'system', TRUE,
- '["user","user:view","user:create","user:edit","user:disable","user:reset-password","workspace","workspace:view","workspace:create","workspace:edit","workspace:delete","workspace:manage-members","role","role:view","role:create","role:edit","role:delete","ai","ai:view","ai:edit"]',
+ '["user","user:view","user:create","user:edit","user:disable","user:reset-password","workspace","workspace:view","workspace:create","workspace:edit","workspace:delete","workspace:manage-members","role","role:view","role:create","role:edit","role:delete"]',
  CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
 -- 空间管理系统角色：拥有工作空间管理所有权限（跨空间管理）
 ('b0000000-0000-0000-0000-000000000002', '空间管理员',
@@ -1266,213 +1088,8 @@ INSERT INTO sys_role (id, name, description, type, is_system, permissions, creat
  '["ws-info:view","ws-member:view","ws-invitation:view","ws-invitation:manage","project:view","case:view","case:edit","review:view","review:create","review:edit","review:complete","plan:view","plan:create","plan:execute","plan:close","bug:view","requirement:view","requirement:edit","api-scene","api-scene:view","api-scene:edit","api-scene:import","api-scene:execute","api-interface","api-interface:view","api-interface:edit","api-component","api-component:view","api-component:edit","api-env","api-env:view","api-env:edit","api-func","api-func:view","api-func:edit","api-debug","api-debug:view","api-timer","api-timer:view","api-timer:edit","api-mock","api-mock:view","api-mock:edit","api-report","api-report:view"]',
  CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE);
 
--- ------------------------------------------------------------
--- 18.7 智能体提示词模板种子数据
--- ------------------------------------------------------------
-INSERT INTO ai_prompt_template (id, function_type, role_instruction, format_constraint, format_editable, updated_by, is_deleted, created_at, updated_at) VALUES
-('d0000000-0000-0000-0000-000000000001', 'case_generation', '你是一名资深软件测试工程师，擅长根据需求描述设计结构化的功能测试用例。请基于给定的需求内容，生成覆盖正常流程、异常分支与边界条件的测试用例子树。用例标题应简洁明确，前置条件、步骤与预期结果应具体可执行。', '输出必须为合法 JSON 对象，不得包含 JSON 之外的任何文字。JSON 结构必须严格遵循如下示例（字段名、类型、层级完全一致）：
-{
-  "nodes": [
-    {
-      "type": "case",
-      "title": "用例标题（一句话描述业务场景）",
-      "priority": "P1",
-      "children": [
-        {"type": "precondition", "title": "前置条件描述"},
-        {"type": "step", "title": "操作步骤描述"},
-        {"type": "expected", "title": "预期结果描述"}
-      ]
-    }
-  ]
-}
-
-字段约束：
-- 顶层必须是 nodes 数组，每个元素为一个用例节点
-- type 仅允许 case/precondition/step/expected
-- case 节点必须带 priority，仅允许 P0/P1/P2/P3
-- case 的直接子节点只能是 precondition/step/expected
-- title 必填，不超过 200 字符', FALSE, '00000000-0000-0000-0000-000000000000', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-('d0000000-0000-0000-0000-000000000002', 'step_completion', '你是一名资深软件测试工程师，擅长补全测试用例的执行步骤与预期结果。请基于给定的用例标题与已有子节点，补全缺失的前置条件、步骤或预期结果，内容应具体、可执行、与用例主题一致。', '输出必须为合法 JSON 对象，不得包含 JSON 之外的任何文字。JSON 结构必须严格遵循如下示例（字段名、类型、层级完全一致）：
-{
-  "nodes": [
-    {"type": "step", "title": "操作步骤描述"},
-    {"type": "expected", "title": "预期结果描述"}
-  ]
-}
-
-字段约束：
-- 顶层必须是 nodes 数组，元素仅允许 step/expected 类型
-- step/expected 节点不得有子节点，不得带 priority
-- 仅补全缺失部分，不重复输出已有内容
-- title 必填，不超过 200 字符', FALSE, '00000000-0000-0000-0000-000000000000', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-('d0000000-0000-0000-0000-000000000003', 'text_import', '你是一名软件测试文档解析助手，擅长将外部文本（需求文档、用例清单等）解析为结构化的测试用例树。请识别文本中的模块层级、用例标题及其前置条件、步骤、预期结果。', '输出必须为合法 JSON 对象，不得包含 JSON 之外的任何文字。JSON 结构必须严格遵循如下示例（字段名、类型、层级完全一致）：
-{
-  "nodes": [
-    {
-      "type": "normal",
-      "title": "模块分组标题",
-      "children": [
-        {
-          "type": "case",
-          "title": "用例标题",
-          "children": [
-            {"type": "precondition", "title": "前置条件描述"},
-            {"type": "step", "title": "操作步骤描述"},
-            {"type": "expected", "title": "预期结果描述"}
-          ]
-        }
-      ]
-    }
-  ]
-}
-
-字段约束：
-- 顶层必须是 nodes 数组
-- type 仅允许 normal/case/precondition/step/expected
-- normal 可嵌套 normal/case；case 的直接子节点只能是 precondition/step/expected
-- title 必填，不超过 200 字符
-- 无法识别为用例结构的内容归入 normal 节点，不得虚构原文没有的用例；完全无法解析出用例结构时输出空 nodes 数组', FALSE, '00000000-0000-0000-0000-000000000000', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-('d0000000-0000-0000-0000-000000000004', 'review_summary', '你是一名测试评审总结助手。请基于给定的评审统计数据与未通过用例采样，输出一份简明的评审总结，包含主要问题归纳、改进建议与风险提示三个章节，语言精炼、面向测试负责人。', '输出为 Markdown 文本，章节结构依次为：主要问题归纳、改进建议、风险提示。总篇幅控制在 2000 字以内，不输出统计数据原文，不虚构统计中不存在的数字。', FALSE, '00000000-0000-0000-0000-000000000000', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-('d0000000-0000-0000-0000-000000000005', 'assistant_chat', '你是软件测试平台的智能助手，帮助用户查询平台数据、解答测试相关问题，并可在用户确认后执行受支持的写操作。回答应简洁准确，不确定时明确说明，不编造平台数据。', '普通回答使用简体中文纯文本或轻量 Markdown；需要调用工具时严格按照工具调用协议输出，不得在工具调用外虚构工具结果。当问题超出平台使用指引与知识库范围（get_platform_guide 无命中）时，明确告知用户无法回答或超出使用指引范围，不得编造指引内容。', FALSE, '00000000-0000-0000-0000-000000000000', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-('d0000000-0000-0000-0000-000000000006', 'priority_recommendation', '你是一名测试用例优先级评估助手。请基于用例标题、所属模块与需求上下文，推荐用例优先级（P0-P3），并保持同类用例判定标准一致。', '输出必须为合法 JSON 对象，不得包含 JSON 之外的任何文字。JSON 结构必须严格遵循如下示例（字段名、类型、层级完全一致）：
-{
-  "priority": "P1"
-}
-
-字段约束：
-- 顶层必须为 JSON 对象，仅包含 priority 字段
-- priority 取值仅允许 P0/P1/P2/P3', FALSE, '00000000-0000-0000-0000-000000000000', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-('d0000000-0000-0000-0000-000000000007', 'bug_form_suggestion', '你是一名缺陷管理助手。请基于用户填写的缺陷描述，优化缺陷标题（简洁、含关键现象与场景），并建议严重等级与类型。', '输出必须为合法 JSON 对象，不得包含 JSON 之外的任何文字。JSON 结构必须严格遵循如下示例（字段名、类型、层级完全一致）：
-{
-  "optimizedTitle": "优化后的缺陷标题（简洁、含关键现象与场景）",
-  "severity": "serious",
-  "priority": "high",
-  "reason": "建议依据的一句话说明"
-}
-
-字段约束：
-- 顶层必须为 JSON 对象，仅包含 optimizedTitle/severity/priority/reason 四个字段
-- optimizedTitle 必填，不超过 100 字符
-- severity 仅允许 fatal/serious/general/minor
-- priority 仅允许 high/medium/low
-- reason 必填，一句话说明建议依据', FALSE, '00000000-0000-0000-0000-000000000000', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-('d0000000-0000-0000-0000-000000000008', 'dsl_translation', '你是一名脑图操作指令翻译助手。请将用户的自然语言编辑意图翻译为平台脑图 DSL 指令序列，仅使用受支持的指令集，不执行超出用户意图的操作。', '输出必须为合法 JSON 对象，不得包含 JSON 之外的任何文字。JSON 结构必须严格遵循如下示例（字段名、类型、层级完全一致）：
-{
-  "commands": [
-    {
-      "selector": {"types": ["case"], "keyword": "登录"},
-      "action": {"type": "mark_priority", "params": {"priority": "P1"}}
-    }
-  ],
-  "ambiguous": false,
-  "clarification": null
-}
-
-字段约束：
-- 顶层必须为 JSON 对象，仅包含 commands/ambiguous/clarification 字段
-- commands 数组按序执行，上限 10 条；翻译意图不明确时 ambiguous 置 true、clarification 说明原因、commands 为空数组
-- selector 各条件为 AND 关系，可选字段：types（节点类型）/priorities（仅对 case 生效）/keyword/subtreeRootTitle（限定子树范围）/aiGenerated
-- action.type 仅允许 mark_type/mark_priority/highlight/move/add_child
-- mark_type 的 params.nodeType 仅允许 normal/case/precondition/step/expected；mark_priority 的 params.priority 仅允许 P0/P1/P2/P3；move 的 params.targetParentTitle 必须为输入上下文中的节点标题或 @selected
-- 指令必须属于注册的 DSL 指令集，selector.subtreeRootTitle 与 move 目标引用的节点必须来自输入上下文', FALSE, '00000000-0000-0000-0000-000000000000', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-('d0000000-0000-0000-0000-000000000009', 'plan_order_reason', '你是一名测试计划执行顺序解释助手。请基于给定用例的评分因子（历史关联缺陷数、优先级权重、模块缺陷密度），用一句话说明推荐优先执行该用例的理由。', '输出为一句简体中文说明，不超过 120 字符，仅陈述因子事实与结论，不输出评分公式与原始数值以外的推断。', FALSE, '00000000-0000-0000-0000-000000000000', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-('d0000000-0000-0000-0000-000000000010', 'missing_point_analysis', '你是一名测试覆盖度分析助手。请对比需求描述与现有用例清单，找出需求已提及但用例未覆盖的测试点，说明遗漏原因并给出建议归属模块。', '输出必须为合法 JSON 对象，不得包含 JSON 之外的任何文字。JSON 结构必须严格遵循如下示例（字段名、类型、层级完全一致）：
-{
-  "points": [
-    {
-      "title": "建议新增的用例标题",
-      "description": "遗漏原因说明",
-      "suggestedModulePath": "建议归属模块路径",
-      "relatedCaseTitles": ["关联的候选用例标题"]
-    }
-  ]
-}
-
-字段约束：
-- 顶层必须为 JSON 对象，仅包含 points 数组字段
-- points 数组，遗漏点不超过 30 条
-- title 必填，不超过 200 字符
-- description 必填，说明遗漏原因
-- suggestedModulePath 必须为输入中出现过的模块路径或空字符串
-- relatedCaseTitles 只允许引用输入候选用例的标题，无关联时为空数组', FALSE, '00000000-0000-0000-0000-000000000000', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-('d0000000-0000-0000-0000-000000000011', 'keyword_extraction', '你是一名测试需求关键词抽取助手。请从给定需求文本中抽取用于检索测试用例库的关键词，关键词应为需求中出现过的核心业务词或短语，避免空泛词汇。', '输出必须为合法 JSON 对象，不得包含 JSON 之外的任何文字。JSON 结构必须严格遵循如下示例（字段名、类型、层级完全一致）：
-{
-  "keywords": ["登录", "验证码"]
-}
-
-字段约束：
-- 顶层必须为 JSON 对象，仅包含 keywords 数组字段
-- 关键词数量不超过 10 个，每个关键词不超过 20 字符
-- 必须为输入需求文本中出现过的词或短语', FALSE, '00000000-0000-0000-0000-000000000000', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-('d0000000-0000-0000-0000-000000000012', 'case_plan_recommendation', '你是一名测试用例规划推荐助手。请基于需求描述与候选用例清单，为每条推荐用例生成一句话理由，说明其应纳入当前评审或测试计划用例清单的原因。', '输出必须为合法 JSON 对象，不得包含 JSON 之外的任何文字。JSON 结构必须严格遵循如下示例（字段名、类型、层级完全一致）：
-{
-  "reasons": ["该用例覆盖登录失败主流程，应纳入本次评审或测试计划"]
-}
-
-字段约束：
-- 顶层必须为 JSON 对象，仅包含 reasons 数组字段
-- reasons 数组长度与输入用例标题清单一一对应、完全一致
-- 每条理由不超过 120 字符
-- 无法给出理由的用例可用空字符串占位', FALSE, '00000000-0000-0000-0000-000000000000', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-('d0000000-0000-0000-0000-000000000013', 'review_check', '你是一名测试用例评审检查助手。请检查给定批次用例的完整性：缺少前置条件、步骤描述笼统、缺少预期结果、相似用例优先级冲突，并给出具体改进建议。', '输出必须为合法 JSON 对象，不得包含 JSON 之外的任何文字。JSON 结构必须严格遵循如下示例（字段名、类型、层级完全一致）：
-{
-  "items": [
-    {
-      "snapshotNodeId": "本批输入中的用例快照节点 ID",
-      "dimension": "missing_precondition",
-      "suggestion": "具体改进建议"
-    }
-  ]
-}
-
-字段约束：
-- 顶层必须为 JSON 对象，仅包含 items 数组字段
-- items 数组，每处问题一条建议，无问题的用例不输出
-- snapshotNodeId 必须来自本批输入，不得虚构
-- dimension 仅允许 missing_precondition/vague_step/missing_expected/priority_conflict
-- suggestion 必填，给出具体改进建议', FALSE, '00000000-0000-0000-0000-000000000000', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-('d0000000-0000-0000-0000-000000000014', 'bug_clustering', '你是一名缺陷归纳分析助手。请为给定的缺陷簇归纳简短的主题标签，概括该簇缺陷的共性问题。', '输出必须为合法 JSON 对象，不得包含 JSON 之外的任何文字。JSON 结构必须严格遵循如下示例（字段名、类型、层级完全一致）：
-{
-  "label": "登录态失效问题",
-  "rootCause": "会话超时导致登录态失效，疑似为服务端会话校验过期"
-}
-
-字段约束：
-- 顶层必须为 JSON 对象，仅包含 label/rootCause 两个字段
-- label 必填，不超过 30 字符的主题名称
-- rootCause 必填，一句话根因推断；证据不足时使用「疑似」措辞', FALSE, '00000000-0000-0000-0000-000000000000', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-('d0000000-0000-0000-0000-000000000015', 'requirement_split', '你是一名测试需求拆分助手。请将整份需求文档按模块/功能拆分为细粒度需求条目：一个需求点 = 一个可测试功能行为（如「用户管理」拆为新增/编辑/删除/查询用户四条），模块仅作归属分组。条目内容需保留原始描述中的关键约束，不得虚构原文没有的功能。', '输出必须为合法 JSON 对象，不得包含 JSON 之外的任何文字。JSON 结构必须严格遵循如下示例（字段名、类型、层级完全一致）：
-{
-  "modules": [
-    {
-      "module": "模块名",
-      "items": [
-        {"title": "需求点标题", "content": "需求点内容（Markdown）"}
-      ]
-    }
-  ]
-}
-
-字段约束：
-- 顶层必须是 modules 数组，非空且不超过 50 个模块
-- module 必填，不超过 100 字符
-- 每模块 items 非空且不超过 50 条
-- title 必填，不超过 200 字符
-- content 必填，为 Markdown 格式的需求点描述', FALSE, '00000000-0000-0000-0000-000000000000', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-('d0000000-0000-0000-0000-000000000016', 'review_conclusion', '你是一名资深软件测试评审总结助手。请基于给定评审统计、不通过用例采样与结论判定，输出面向测试负责人的评审结论说明：一句话点明结论依据，并给出后续整改或补充评审的针对性建议。', '输出必须为合法 JSON 对象，不得包含 JSON 之外的任何文字。JSON 结构必须严格遵循如下示例（字段名、类型、层级完全一致）：
-{
-  "reason": "结论依据与后续建议的一段话（不超过 300 字）",
-  "keyFindings": ["关键发现，每条一句话（不超过 80 字）"]
-}
-
-字段约束：
-- 顶层必须为 JSON 对象，仅包含 reason/keyFindings 两个字段
-- reason 必填，需引用输入中的统计事实，不输出 input 中不存在的推断
-- keyFindings 数组不超过 30 条，条目必填且非空；无明显发现时输出空数组', FALSE, '00000000-0000-0000-0000-000000000000', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-ON CONFLICT (function_type) WHERE is_deleted = false DO NOTHING;
-
 -- ============================================================
--- 19. 表与列注释
+-- 18. 表与列注释
 -- ============================================================
 
 -- 系统管理
@@ -1711,97 +1328,6 @@ COMMENT ON COLUMN bug_attachment.storage_path IS '存储路径';
 COMMENT ON COLUMN bug_attachment.file_size IS '文件大小（字节）';
 COMMENT ON COLUMN bug_attachment.content_type IS 'MIME 类型';
 COMMENT ON COLUMN bug_attachment.uploader_id IS '上传人 ID';
-
--- AI 基础设施
-COMMENT ON TABLE ai_config IS 'AI 配置表（系统级单行：总开关、Embedding 配置）';
-COMMENT ON COLUMN ai_config.id IS '主键';
-COMMENT ON COLUMN ai_config.embedding_provider IS 'Embedding 供应商标识';
-COMMENT ON COLUMN ai_config.embedding_base_url IS 'Embedding 服务地址';
-COMMENT ON COLUMN ai_config.embedding_api_key_cipher IS 'Embedding 服务密钥（加密）';
-COMMENT ON COLUMN ai_config.embedding_key_suffix IS 'Embedding 密钥末 4 位（脱敏展示）';
-COMMENT ON COLUMN ai_config.embedding_model IS 'Embedding 模型名';
-COMMENT ON COLUMN ai_config.embedding_dimension IS '向量维度（1-2000）';
-COMMENT ON COLUMN ai_config.embedding_extra_params IS 'Embedding 请求附加参数';
-COMMENT ON COLUMN ai_config.enabled IS 'AI 能力总开关';
-COMMENT ON COLUMN ai_config.settings IS 'AI 系统配置项键值集';
-
-COMMENT ON TABLE ai_prompt_template IS '智能体提示词模板表（仅存自定义覆盖，恢复默认即逻辑删除）';
-COMMENT ON COLUMN ai_prompt_template.id IS '主键';
-COMMENT ON COLUMN ai_prompt_template.function_type IS '功能类型枚举，每功能至多一条有效记录';
-COMMENT ON COLUMN ai_prompt_template.role_instruction IS '角色指令段';
-COMMENT ON COLUMN ai_prompt_template.format_constraint IS '输出格式约束段';
-COMMENT ON COLUMN ai_prompt_template.format_editable IS '格式约束段编辑开关（默认关闭锁定）';
-COMMENT ON COLUMN ai_prompt_template.updated_by IS '最后更新人';
-
-COMMENT ON TABLE ai_analysis_task IS 'AI 异步任务表（任务状态机与结果快照）';
-COMMENT ON COLUMN ai_analysis_task.id IS '任务 ID';
-COMMENT ON COLUMN ai_analysis_task.workspace_id IS '归属工作空间';
-COMMENT ON COLUMN ai_analysis_task.project_id IS '归属项目';
-COMMENT ON COLUMN ai_analysis_task.type IS '任务类型';
-COMMENT ON COLUMN ai_analysis_task.target_id IS '目标对象 ID';
-COMMENT ON COLUMN ai_analysis_task.status IS '任务状态：pending/running/success/failed/cancelled';
-COMMENT ON COLUMN ai_analysis_task.progress IS '进度百分比（0-100）';
-COMMENT ON COLUMN ai_analysis_task.result IS '结果快照';
-COMMENT ON COLUMN ai_analysis_task.error_message IS '失败原因';
-COMMENT ON COLUMN ai_analysis_task.executor_instance IS '执行实例标识';
-COMMENT ON COLUMN ai_analysis_task.created_by IS '发起人';
-
-COMMENT ON TABLE ai_invocation_log IS 'AI 调用审计表（仅调用元数据，不存 Prompt 与生成内容）';
-COMMENT ON COLUMN ai_invocation_log.id IS '主键';
-COMMENT ON COLUMN ai_invocation_log.user_id IS '调用用户';
-COMMENT ON COLUMN ai_invocation_log.workspace_id IS '工作空间';
-COMMENT ON COLUMN ai_invocation_log.project_id IS '项目';
-COMMENT ON COLUMN ai_invocation_log.function_type IS '功能类型枚举';
-COMMENT ON COLUMN ai_invocation_log.model IS '实际调用的模型名';
-COMMENT ON COLUMN ai_invocation_log.duration_ms IS '端到端耗时（毫秒）';
-COMMENT ON COLUMN ai_invocation_log.prompt_tokens IS '输入 token';
-COMMENT ON COLUMN ai_invocation_log.completion_tokens IS '输出 token';
-COMMENT ON COLUMN ai_invocation_log.status IS '调用状态';
-COMMENT ON COLUMN ai_invocation_log.error_code IS '失败错误码';
-
-COMMENT ON TABLE ai_chat_model IS 'AI 对话模型配置表（多行：每行一个可用对话模型）';
-COMMENT ON COLUMN ai_chat_model.id IS '主键';
-COMMENT ON COLUMN ai_chat_model.name IS '显示名（全局唯一）';
-COMMENT ON COLUMN ai_chat_model.provider IS '供应商标识';
-COMMENT ON COLUMN ai_chat_model.base_url IS '服务地址';
-COMMENT ON COLUMN ai_chat_model.api_key_cipher IS '服务密钥（AES-256-GCM 加密）';
-COMMENT ON COLUMN ai_chat_model.key_suffix IS '密钥末 4 位（脱敏展示）';
-COMMENT ON COLUMN ai_chat_model.model IS '模型名';
-COMMENT ON COLUMN ai_chat_model.extra_params IS '请求附加参数';
-COMMENT ON COLUMN ai_chat_model.enabled IS '启用状态';
-COMMENT ON COLUMN ai_chat_model.is_default IS '是否系统默认模型（全系统唯一）';
-COMMENT ON COLUMN ai_chat_model.updated_by IS '最后更新人';
-
-COMMENT ON TABLE ai_bug_embedding IS '缺陷向量表（缺陷语义索引，1:1）';
-COMMENT ON COLUMN ai_bug_embedding.id IS '主键';
-COMMENT ON COLUMN ai_bug_embedding.bug_id IS '对应缺陷 ID';
-COMMENT ON COLUMN ai_bug_embedding.project_id IS '冗余项目归属';
-COMMENT ON COLUMN ai_bug_embedding.embedding IS '语义向量（默认 1024 维）';
-COMMENT ON COLUMN ai_bug_embedding.source_hash IS '源文本 SHA-256';
-COMMENT ON COLUMN ai_bug_embedding.model IS '生成向量的模型名';
-
-COMMENT ON TABLE ai_case_embedding IS '用例向量表（type=case 节点语义索引，1:1）';
-COMMENT ON COLUMN ai_case_embedding.id IS '主键';
-COMMENT ON COLUMN ai_case_embedding.node_id IS '对应用例节点 ID';
-COMMENT ON COLUMN ai_case_embedding.project_id IS '冗余项目归属';
-COMMENT ON COLUMN ai_case_embedding.embedding IS '语义向量';
-COMMENT ON COLUMN ai_case_embedding.source_hash IS '源文本 SHA-256';
-COMMENT ON COLUMN ai_case_embedding.model IS '生成向量的模型名';
-
-COMMENT ON TABLE ai_conversation IS '助手会话表（归属用户+工作空间，仅本人可见）';
-COMMENT ON COLUMN ai_conversation.id IS '会话 ID';
-COMMENT ON COLUMN ai_conversation.user_id IS '归属用户';
-COMMENT ON COLUMN ai_conversation.workspace_id IS '归属工作空间';
-COMMENT ON COLUMN ai_conversation.title IS '会话标题（首条用户消息前 30 字自动生成）';
-COMMENT ON COLUMN ai_conversation.last_active_at IS '最后活跃时间';
-
-COMMENT ON TABLE ai_message IS '助手消息表（对话内容，仅会话归属者可见）';
-COMMENT ON COLUMN ai_message.id IS '消息 ID';
-COMMENT ON COLUMN ai_message.conversation_id IS '所属会话';
-COMMENT ON COLUMN ai_message.role IS '消息角色：user/assistant/tool';
-COMMENT ON COLUMN ai_message.content IS '文本内容';
-COMMENT ON COLUMN ai_message.tool_calls IS 'assistant 消息发起的工具调用载荷';
-COMMENT ON COLUMN ai_message.tool_call_id IS 'tool 消息对应的调用 ID';
 
 -- 需求池
 COMMENT ON TABLE requirement_pool_item IS '需求池条目表（项目级轻量需求条目库）';

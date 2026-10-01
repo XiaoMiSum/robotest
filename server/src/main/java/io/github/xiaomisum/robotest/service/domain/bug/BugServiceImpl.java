@@ -21,7 +21,6 @@ import io.github.xiaomisum.robotest.repository.tcase.ProjectModuleMapper;
 import io.github.xiaomisum.robotest.repository.workspace.WorkspaceUserMapper;
 import io.github.xiaomisum.robotest.service.project.ProjectActivityService;
 import jakarta.annotation.Resource;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -52,8 +51,6 @@ public class BugServiceImpl implements BugService {
     @Resource
     private ProjectModuleMapper projectModuleMapper;
     @Resource
-    private ApplicationEventPublisher eventPublisher;
-    @Resource
     private ProjectAccessGuard projectAccessGuard;
     @Resource
     private BugStatusChangeService bugStatusChangeService;
@@ -81,7 +78,6 @@ public class BugServiceImpl implements BugService {
         writeBugLog(bug.getId(), userId, Constants.BugOperation.CREATE, "创建缺陷");
         projectActivityService.record(projectId, userId, "BUG", bug.getId(),
                 bug.getTitle(), "BUG_CREATED", "提交缺陷「" + bug.getTitle() + "」");
-        eventPublisher.publishEvent(new BugChangedEvent(bug.getId(), BugChangeOp.CREATED));
 
         return bug.getId().toString();
     }
@@ -147,9 +143,6 @@ public class BugServiceImpl implements BugService {
         String resourceName = StringUtils.hasText(reqDTO.getTitle()) ? reqDTO.getTitle() : bug.getTitle();
         projectActivityService.record(bug.getProjectId(), userId, "BUG", bugId,
                 resourceName, "BUG_UPDATED", "更新缺陷「" + resourceName + "」");
-        if (StringUtils.hasText(reqDTO.getTitle()) || reqDTO.getReproSteps() != null) {
-            eventPublisher.publishEvent(new BugChangedEvent(bugId, BugChangeOp.UPDATED));
-        }
     }
 
     private UUID parseRelationId(String value) {

@@ -27,7 +27,6 @@ import io.github.xiaomisum.robotest.repository.workspace.ProjectMapper;
 import io.github.xiaomisum.robotest.repository.workspace.WorkspaceUserMapper;
 import io.github.xiaomisum.robotest.service.project.ProjectActivityService;
 import jakarta.annotation.Resource;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
@@ -57,8 +56,6 @@ public class TestReviewServiceImpl implements TestReviewService {
     private ReviewWorkflow reviewWorkflow;
     @Resource
     private ReviewSnapshotService reviewSnapshotService;
-    @Resource
-    private ApplicationEventPublisher eventPublisher;
     @Resource
     private TestReviewConvertMapper testReviewConvertMapper;
     @Resource
@@ -321,13 +318,6 @@ public class TestReviewServiceImpl implements TestReviewService {
         update.setId(review.getId());
         update.setStatus(ReviewStatus.COMPLETED.getCode());
         testReviewMapper.updateById(update);
-        // 评审离开 in_progress：发布生命周期事件（AI 域消费者在事务提交后取消 review_check 任务）
-        eventPublisher.publishEvent(new ReviewLifecycleEvent(reviewId));
-        // 评审结论事件：verdict 由评审域按快照确定性判定，AI 域事务提交后生成 review 级结论（06 §5.2）
-        ReviewConclusionEvaluator.Conclusion conclusion = ReviewConclusionEvaluator.evaluate(
-                reviewSnapshotService.listAssociatedByReviewId(reviewId, Constants.NodeType.CASE));
-        eventPublisher.publishEvent(new ReviewConclusionEvent(reviewId,
-                conclusion.verdict().getCode(), conclusion.reason()));
         projectActivityService.record(review.getProjectId(), userId, "TEST_REVIEW", reviewId,
                 review.getTitle(), "REVIEW_COMPLETED", "完成评审「" + review.getTitle() + "」");
     }
@@ -349,8 +339,6 @@ public class TestReviewServiceImpl implements TestReviewService {
         update.setId(review.getId());
         update.setStatus(ReviewStatus.REJECTED.getCode());
         testReviewMapper.updateById(update);
-        // 驳回同样离开 in_progress：发布生命周期事件（AI 域消费者在事务提交后取消 review_check 任务）
-        eventPublisher.publishEvent(new ReviewLifecycleEvent(reviewId));
         projectActivityService.record(review.getProjectId(), userId, "TEST_REVIEW", reviewId,
                 review.getTitle(), "REVIEW_REJECTED", "驳回评审「" + review.getTitle() + "」");
     }
@@ -388,8 +376,6 @@ public class TestReviewServiceImpl implements TestReviewService {
         testReviewMapper.deleteById(reviewId);
         projectActivityService.record(review.getProjectId(), userId, "TEST_REVIEW", reviewId,
                 review.getTitle(), "REVIEW_DELETED", "删除评审「" + review.getTitle() + "」");
-        // 评审实体级出口同样发布生命周期事件（事务提交后取消 review_check 任务）
-        eventPublisher.publishEvent(new ReviewLifecycleEvent(reviewId));
     }
 
     @Override
