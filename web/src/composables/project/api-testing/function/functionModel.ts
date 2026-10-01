@@ -93,7 +93,7 @@ export const FUNCTION_TAB_OPTIONS: { value: FunctionTab; label: string }[] = [
   { value: 'custom', label: '自定义函数' },
 ]
 
-// ==================== 函数参数（paramsDesc 序列化口径，docs/05-interaction-design/23-project-settings-ui-function.md 1.3） ====================
+// ==================== 函数参数（paramsDesc 序列化口径，docs/05-interaction-design/12-project-settings/23-project-settings-ui-function.md 1.3） ====================
 
 export interface FunctionParamRow {
   name: string
