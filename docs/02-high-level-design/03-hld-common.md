@@ -18,8 +18,8 @@
 
 - 本文是登录 / 令牌刷新 / 限流机制的单一设计事实源，其余文档引用本文，不重复定义；
 - 系统初始化引导（登录的前置衔接）见 `docs/02-high-level-design/01-system-management/08-hld-system-management-init.md`；系统管理模块的认证与上下文描述（角色变更后的权限生效口径）见 `docs/02-high-level-design/01-system-management/02-hld-system-management.md` 第 3.1 节；
-- 认证接口清单与公共报文约定见 `docs/02-high-level-design/07-hld-data-interface.md` 第 2.2 节；
-- 部署与全局安全约束见 `docs/02-high-level-design/08-hld-deployment-security.md`；
+- 认证接口清单与公共报文约定见 `docs/02-high-level-design/04-hld-data-interface.md` 第 2.2 节；
+- 部署与全局安全约束见 `docs/02-high-level-design/05-hld-deployment-security.md`；
 - 限流阈值、令牌撤销等工程口径以 `docs/00-spec/40-security/01-security.md` 为唯一来源，本文只描述机制与职责，不重复罗列数值；
 - 限流、登录失败计数与令牌撤销优先复用 migoo 基础框架能力，工程不自建平行实现（C10）；组件选择、配置项与验证要求见 `docs/00-spec/10-engineering/03-migoo-framework.md`，本文只约定能力边界与职责划分。
 
@@ -149,7 +149,7 @@ erDiagram
 
 ## 5. 接口设计概要
 
-资源与职责划分（路径、方法与报文见 `docs/02-high-level-design/07-hld-data-interface.md` 第 2.2 节，字段级设计留详细设计）：
+资源与职责划分（路径、方法与报文见 `docs/02-high-level-design/04-hld-data-interface.md` 第 2.2 节，字段级设计留详细设计）：
 
 | 资源 | 职责 | 归属 |
 | ---- | ---- | ---- |

@@ -14,7 +14,7 @@
 
 ### 1.2 范围与对应需求
 
-对应需求分册 `docs/01-requirements/02-space-management/07-srs-space-management-invite-join.md`；邀请链接的生成与管理见 `docs/02-high-level-design/02-space-management/05-hld-space-management-member.md`；跨模块公共约定见 `docs/02-high-level-design/07-hld-data-interface.md`，安全约束见 `docs/02-high-level-design/08-hld-deployment-security.md`。
+对应需求分册 `docs/01-requirements/02-space-management/07-srs-space-management-invite-join.md`；邀请链接的生成与管理见 `docs/02-high-level-design/02-space-management/05-hld-space-management-member.md`；跨模块公共约定见 `docs/02-high-level-design/04-hld-data-interface.md`，安全约束见 `docs/02-high-level-design/05-hld-deployment-security.md`。
 
 ### 1.3 定义与缩写
 
@@ -115,7 +115,7 @@ erDiagram
 * 令牌校验、计数递增与成员关系建立在同一事务内完成，失败不留任何副作用。
 * 使用计数以服务端结果为准，不依赖前端提交次数，防止并发超限。
 * 新用户创建与成员关系建立一次提交完成，避免半完成状态。
-* 防暴力破解、限流与全链路 HTTPS 见 `docs/02-high-level-design/08-hld-deployment-security.md`。
+* 防暴力破解、限流与全链路 HTTPS 见 `docs/02-high-level-design/05-hld-deployment-security.md`。
 * 页面级交互与状态分支见 `docs/05-interaction-design/02-space-management/07-space-ui-invite-join.md`，详细设计见 `docs/04-detailed-design/02-space-management/05-space-management-invite-join.md`。
 
 ## 修改记录

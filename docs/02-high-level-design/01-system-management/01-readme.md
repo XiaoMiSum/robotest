@@ -10,4 +10,4 @@
 | [07-hld-system-management-audit](07-hld-system-management-audit.md)（分册：审计查询页，页面尚未实现） | V1.0 | 2026-10-01 | 起草中 |
 | [08-hld-system-management-init](08-hld-system-management-init.md)（分册：系统初始化页） | V1.0 | 2026-10-01 | 起草中 |
 
-> 本目录为系统管理模块的概要设计分册，分册划分与编号对应需求分册 `docs/01-requirements/01-system-management/`；模块入口与阅读顺序见上级索引 `docs/02-high-level-design/01-readme.md`，总览见 `docs/02-high-level-design/02-hld-overview.md`，跨模块公共数据与接口约定见 `docs/02-high-level-design/07-hld-data-interface.md`。
+> 本目录为系统管理模块的概要设计分册，分册划分与编号对应需求分册 `docs/01-requirements/01-system-management/`；模块入口与阅读顺序见上级索引 `docs/02-high-level-design/01-readme.md`，总览见 `docs/02-high-level-design/02-hld-overview.md`，跨模块公共数据与接口约定见 `docs/02-high-level-design/04-hld-data-interface.md`。

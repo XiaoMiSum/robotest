@@ -12,4 +12,4 @@
 | [09-hld-api-common](09-hld-api-common.md)（分册：公共机制） | V1.0 | 2026-10-01 | 起草中 |
 | [10-hld-api-project-settings](10-hld-api-project-settings.md)（分册：项目设置） | V1.0 | 2026-10-01 | 起草中 |
 
-> 本目录为接口测试模块的概要设计分册，分册划分与编号对应需求分册 `docs/01-requirements/05-api-testing/`；模块入口与阅读顺序见上级索引 `docs/02-high-level-design/01-readme.md`，总览见 `docs/02-high-level-design/02-hld-overview.md`，跨模块公共数据与接口约定见 `docs/02-high-level-design/07-hld-data-interface.md`，部署与安全约束见 `docs/02-high-level-design/08-hld-deployment-security.md`。
+> 本目录为接口测试模块的概要设计分册，分册划分与编号对应需求分册 `docs/01-requirements/05-api-testing/`；模块入口与阅读顺序见上级索引 `docs/02-high-level-design/01-readme.md`，总览见 `docs/02-high-level-design/02-hld-overview.md`，跨模块公共数据与接口约定见 `docs/02-high-level-design/04-hld-data-interface.md`，部署与安全约束见 `docs/02-high-level-design/05-hld-deployment-security.md`。

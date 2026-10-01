@@ -14,7 +14,7 @@
 
 ### 1.2 范围与对应需求
 
-对应需求分册 `docs/01-requirements/03-function-testing/02-srs-business-features.md` 第 1.1 节，覆盖测试用例管理（模块树、脑图实时协作编辑、关联与引用）、测试评审管理、测试计划管理；缺陷管理为独立模块，见 `docs/01-requirements/04-bug-management/01-readme.md`。跨模块公共数据与接口约定见 `docs/02-high-level-design/07-hld-data-interface.md`，部署与安全约束见 `docs/02-high-level-design/08-hld-deployment-security.md`。
+对应需求分册 `docs/01-requirements/03-function-testing/02-srs-business-features.md` 第 1.1 节，覆盖测试用例管理（模块树、脑图实时协作编辑、关联与引用）、测试评审管理、测试计划管理；缺陷管理为独立模块，见 `docs/01-requirements/04-bug-management/01-readme.md`。跨模块公共数据与接口约定见 `docs/02-high-level-design/04-hld-data-interface.md`，部署与安全约束见 `docs/02-high-level-design/05-hld-deployment-security.md`。
 
 ### 1.3 定义与缩写
 
@@ -69,7 +69,7 @@
 
 ### 3.2 脑图实时协作
 
-* 用户进入文档后建立 WebSocket 连接并加入该文档的协作房间（房间边界见 3.1），连接认证与端点约定见 `docs/02-high-level-design/07-hld-data-interface.md` 第 2.5 节。
+* 用户进入文档后建立 WebSocket 连接并加入该文档的协作房间（房间边界见 3.1），连接认证与端点约定见 `docs/02-high-level-design/04-hld-data-interface.md` 第 2.5 节。
 * 编辑操作以增量消息发送服务端，服务端校验权限与工作空间归属后持久化并广播给同一文档的在线用户。
 * 冲突处理采用乐观锁或 CRDT 算法保证最终一致性。
 
@@ -111,7 +111,7 @@
 
 ## 4. 数据设计
 
-实体与关系（实体级，与 `docs/02-high-level-design/07-hld-data-interface.md` 第 1 节保持一致；字段、DDL 与索引留详细设计 `docs/04-detailed-design/03-function-testing/02-project-workspace-overview.md`）：
+实体与关系（实体级，与 `docs/02-high-level-design/04-hld-data-interface.md` 第 1 节保持一致；字段、DDL 与索引留详细设计 `docs/04-detailed-design/03-function-testing/02-project-workspace-overview.md`）：
 
 ```mermaid
 erDiagram
@@ -144,7 +144,7 @@ erDiagram
 
 ## 5. 接口设计概要
 
-资源与职责划分（路径、方法与报文留详细设计；公共约定见 `docs/02-high-level-design/07-hld-data-interface.md`）：
+资源与职责划分（路径、方法与报文留详细设计；公共约定见 `docs/02-high-level-design/04-hld-data-interface.md`）：
 
 | 资源 | 职责 | 归属 |
 | ---- | ---- | ---- |
@@ -154,7 +154,7 @@ erDiagram
 | 测试评审 | 发起、列表关键字检索与状态筛选、详情关联节点树、标记与评论、评审记录、完成、驳回与重新发起、同步、调整规划用例 | 业务端（项目上下文） |
 | 测试计划 | 创建、列表关键字检索与状态筛选、详情关联节点树、执行标记、执行历史、阻塞、恢复、完成、关闭与删除、同步、调整规划用例 | 业务端（项目上下文） |
 
-上下文标识通过请求头传递，不出现在 URL 中；全部接口遵循既有认证与工作空间 / 项目上下文校验， WebSocket 协作消息遵循 `docs/02-high-level-design/07-hld-data-interface.md` 第 2.5 节约定。
+上下文标识通过请求头传递，不出现在 URL 中；全部接口遵循既有认证与工作空间 / 项目上下文校验， WebSocket 协作消息遵循 `docs/02-high-level-design/04-hld-data-interface.md` 第 2.5 节约定。
 
 ## 6. 设计约束与原则
 

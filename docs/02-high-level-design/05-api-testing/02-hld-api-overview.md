@@ -14,7 +14,7 @@
 
 ### 1.2 范围与对应需求
 
-对应需求分册 `docs/01-requirements/05-api-testing/02-api-srs-overview.md` 及其快速调试、接口管理、Mock 服务、测试场景、接口测试报告、定时任务、公共需求、项目设置八个分册（见 `docs/01-requirements/05-api-testing/01-readme.md`）；本分册为模块总览，子模块级设计分别见对应分册（见 2.1）。跨模块公共数据与接口约定见 `docs/02-high-level-design/07-hld-data-interface.md`，登录、令牌刷新与限流等公共认证机制见 `docs/02-high-level-design/03-hld-common.md`，部署与安全约束见 `docs/02-high-level-design/08-hld-deployment-security.md`。
+对应需求分册 `docs/01-requirements/05-api-testing/02-api-srs-overview.md` 及其快速调试、接口管理、Mock 服务、测试场景、接口测试报告、定时任务、公共需求、项目设置八个分册（见 `docs/01-requirements/05-api-testing/01-readme.md`）；本分册为模块总览，子模块级设计分别见对应分册（见 2.1）。跨模块公共数据与接口约定见 `docs/02-high-level-design/04-hld-data-interface.md`，登录、令牌刷新与限流等公共认证机制见 `docs/02-high-level-design/03-hld-common.md`，部署与安全约束见 `docs/02-high-level-design/05-hld-deployment-security.md`。
 
 ### 1.3 定义与缩写
 
@@ -89,7 +89,7 @@
 
 ## 4. 数据设计
 
-实体与关系（实体级，字段、DDL 与索引留详细设计 `docs/04-detailed-design/05-api-testing/02-api-testing-infra-overview.md`；与 `docs/02-high-level-design/07-hld-data-interface.md` 第 1 节保持一致）：
+实体与关系（实体级，字段、DDL 与索引留详细设计 `docs/04-detailed-design/05-api-testing/02-api-testing-infra-overview.md`；与 `docs/02-high-level-design/04-hld-data-interface.md` 第 1 节保持一致）：
 
 ```mermaid
 erDiagram
@@ -128,7 +128,7 @@ erDiagram
 
 ## 5. 接口设计概要
 
-资源与职责划分（路径、方法与报文留详细设计；公共约定见 `docs/02-high-level-design/07-hld-data-interface.md`）：
+资源与职责划分（路径、方法与报文留详细设计；公共约定见 `docs/02-high-level-design/04-hld-data-interface.md`）：
 
 | 资源 | 职责 | 归属 |
 | ---- | ---- | ---- |
