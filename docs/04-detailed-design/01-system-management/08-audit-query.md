@@ -27,7 +27,7 @@
 
 | 术语 | 定义 |
 | ---- | ---- |
-| entityType | 审计实体类型（如 Bug/TestPlan/AiConfig），取自 `@AuditLog(action = "<operation>:<entityType>")` 的后半段 |
+| entityType | 审计实体类型（如 Bug/TestPlan/User），取自 `@AuditLog(action = "<operation>:<entityType>")` 的后半段 |
 | AuditLogEvent | 框架在 `@AuditLog` 标注方法执行成功或失败后发布的事件，字段为 `operator`（`id(username)`）、`clientIp`、`path`（路由模板）、`action`、`success`、`errorMessage`、`params`（脱敏后的入参 JSON 数组，无入参时 `null`） |
 
 ---
@@ -89,9 +89,9 @@ INSERT INTO sys_permission (id, code, name, parent_code, module, scope, sort_ord
       "operatorId": "a0000000000000000000000001",
       "operatorName": "admin",
       "operation": "UPDATE",
-      "entityType": "AiConfig",
+      "entityType": "User",
       "entityId": "a0000000000000000000000002",
-      "changes": "{\"apiKey\":\"***\"}",
+      "changes": "{\"password\":\"***\"}",
       "requestIp": "10.0.0.1",
       "createdAt": "2026-09-13T10:00:00Z"
     }
@@ -158,7 +158,7 @@ public record AuditRecordedEvent(UUID auditLogId, String entityType,
 | 字段 | 来源 |
 | ---- | ---- |
 | `operation` | `action` 按 `:` 切分的前半段（如 `CREATE` / `UPDATE` / `DELETE`） |
-| `entity_type` | `action` 按 `:` 切分的后半段（如 `User` / `AiConfig`） |
+| `entity_type` | `action` 按 `:` 切分的后半段（如 `User` / `Project`） |
 | `operator_id` / `operator_name` | `operator` 形如 `id(username)`，解析出 UUID 与用户名；`anonymous` 不落库 |
 | `entity_id` | `params` JSON 数组中首个 UUID 形态元素（业务方法的 UUID 形参，与原切面「第一个 UUID 参数」一致）；无则为 `NULL` |
 | `changes` | `{"params": [...]}`（事件 `params` 的 JSON 数组）；`params` 为 `null` 时存 `{}`。参数名不保留，为已知行为变化 |
@@ -207,3 +207,10 @@ public class ClientIpResolver {
 - 本版本新增：`framework/audit/LoginAuditService`（recordLogin 组装与容错）、`AuditLogController/AuditQueryService/AuditLogMapper` 增加 `operation` 过滤参数。
 - `schema.sql` 追加 `audit:*` 权限种子（2.1），`sys_audit_log` 无 DDL 变更。
 - 前端管理端审计页属后续增量，本切片不涉及。
+
+## 修改记录
+
+| 版本 | 日期 | 说明 |
+| ---- | ---- | ---- |
+| V1.0 | 2026-09-13 | 初建 |
+| V1.0 | 2026-10-01 | 移除智能辅助能力相关内容与失效引用 |

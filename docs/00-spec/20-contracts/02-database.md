@@ -116,7 +116,7 @@ is_deleted  boolean     NOT NULL DEFAULT false
 
 当前仓库以初始化脚本作为基线，尚未建立完整的版本化迁移目录和回滚脚本。引入 Flyway 或 Liquibase 前，必须先确定基线版本、已有环境升级路径和 CI 迁移测试；在此之前不得将全量初始化脚本宣称为生产迁移方案。
 
-## 6. 向量与 AI 数据
+## 6. 向量数据
 
 - 向量字段使用独立向量表，或在有明确查询收益时设计专用列。
 - 向量表必须包含明确的业务归属边界字段。
@@ -149,6 +149,13 @@ MySQL 内容仅作为迁移和兼容参考：
 - API 分页和上下文：`docs/00-spec/20-contracts/01-api.md`
 - MyBatis-Plus 和框架主键：`docs/00-spec/10-engineering/03-migoo-framework.md`
 - 部分更新和查询封装：`docs/00-spec/10-engineering/02-backend.md`
+
+## 修改记录
+
+| 版本 | 日期 | 说明 |
+| ---- | ---- | ---- |
+| V1.1 | 2026-07-14 | 初建 |
+| V1.1 | 2026-10-01 | 移除智能辅助能力相关内容与失效引用 |
 
 ---
 

@@ -81,7 +81,6 @@ DATASOURCE_PASSWORD
 REDIS_PASSWORD
 JWT_SECRET_KEY
 PASSWORD_SECRET
-AI_SECRET_KEY
 ENV_SECRET_KEY
 ```
 
@@ -89,7 +88,7 @@ ENV_SECRET_KEY
 
 ### 4.2 密钥域和轮换
 
-- JWT、AI、环境变量加密和密码服务密钥必须使用不同密钥域。
+- JWT、环境变量加密和密码服务密钥必须使用不同密钥域。
 - 密钥轮换必须有版本、有效期、灰度和回滚方案。
 - 已进入代码、提交记录、日志或工单系统的密钥必须立即轮换。
 - 开发示例值不能用于测试和生产环境。
@@ -177,7 +176,7 @@ ENV_SECRET_KEY
 - 创建、修改、删除和状态流转；
 - 密码重置、账号禁用和角色变更；
 - 作用域成员、权限和资源归属变更；
-- 导入、导出、附件下载和 AI 写操作；
+- 导入、导出和附件下载；
 - 管理员访问和公共 Token 使用。
 
 ### 8.2 审计内容
@@ -226,6 +225,13 @@ changes
 - migoo 安全能力：`docs/00-spec/10-engineering/03-migoo-framework.md`
 - 质量门禁：`docs/00-spec/30-quality-delivery/01-quality.md`
 - 部署密钥：`docs/00-spec/30-quality-delivery/03-deploy.md`、`docs/00-spec/30-quality-delivery/04-deployment-runbook.md`
+
+## 修改记录
+
+| 版本 | 日期 | 说明 |
+| ---- | ---- | ---- |
+| V1.0 | 2026-07-14 | 初建 |
+| V1.0 | 2026-10-01 | 移除智能辅助能力相关内容与失效引用 |
 
 ---
 

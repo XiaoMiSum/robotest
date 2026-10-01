@@ -26,7 +26,7 @@
 ### 1.3 参考资料
 
 - 《接口测试需求规格说明书》（`docs/01-requirements/01-readme.md`，3.6）
-- 《概要设计说明书》（`docs/02-high-level-design/04-hld-core-mechanisms.md` §2、`docs/02-high-level-design/05-hld-ai-capabilities.md` §1）
+- 《概要设计说明书》（`docs/02-high-level-design/04-hld-core-mechanisms.md` §2）
 - 《API 测试基础设施详细设计说明书》（`docs/04-detailed-design/01-readme.md`）
 
 ---
@@ -105,3 +105,10 @@
 | 总览 | `25-scheduled-task-overview.md` | 前言、1. 引言、2. 数据设计 |
 | 任务管理 | `26-scheduled-task-management.md` | 3.1 定时任务管理、4.2 删除保护、5.1 定时任务管理页 |
 | 调度执行 | `27-scheduled-task-scheduler.md` | 4.1 定时调度器、4.3 测试计划任务执行、4.4 接口同步任务执行、6.1 调度器线程池 |
+
+## 修改记录
+
+| 版本 | 日期 | 说明 |
+| ---- | ---- | ---- |
+| V1.0 | 2026-09-23 | 初建 |
+| V1.0 | 2026-10-01 | 移除智能辅助能力相关内容与失效引用 |
