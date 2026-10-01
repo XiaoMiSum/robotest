@@ -20,14 +20,14 @@
 
 系统管理模块面向**拥有系统角色的用户**，提供用户管理、全局工作空间管理、系统角色与权限管理功能。模块独立于业务功能，通过 `/api/admin` 路径访问。
 
-本版本变更对应的交互设计见 `docs/05-interaction-design/01-readme.md`；登录审计写入与审计查询接口变更见 `docs/04-detailed-design/01-system-management/20-audit-query.md`。用户/空间/角色的既有接口与数据设计，除本文档明确标注「新增」「扩展」之处外均保持不变。
+本版本变更对应的交互设计见 `docs/05-interaction-design/01-readme.md`；登录审计写入与审计查询接口变更见 `docs/04-detailed-design/01-system-management/08-audit-query.md`。用户/空间/角色的既有接口与数据设计，除本文档明确标注「新增」「扩展」之处外均保持不变。
 
 ### 1.3 参考资料
 
 - 《软件测试平台需求规格说明书》
 - 《软件测试平台概要设计说明书》
 - 《系统管理模块页面交互设计》（`docs/05-interaction-design/01-readme.md`）
-- 《审计查询详细设计说明书》（`docs/04-detailed-design/01-system-management/20-audit-query.md`）
+- 《审计查询详细设计说明书》（`docs/04-detailed-design/01-system-management/08-audit-query.md`）
 - `docs/00-spec/20-contracts/01-api.md`（URL/方法/分页规范）、`docs/00-spec/10-engineering/02-backend.md`（分层、Mapper 封装、部分更新）、`docs/00-spec/20-contracts/02-database.md`（DDL/索引规范）、`docs/00-spec/10-engineering/01-frontend.md`
 - 示例页面 `web/demos/admin/dashboard.html`
 
@@ -316,7 +316,7 @@ AdminLayout
 - 密码重置、禁用/锁定操作强制相关用户 Token 失效（框架 `StateStore` **签发截止**撤销，见 `docs/00-spec/40-security/01-security.md` 2.3；重新登录签发的新 Token 不受影响）；角色变更不触发 Token 撤销，按《安全规范》3.3 由权限重新加载处理。
 - 所有写操作（创建、更新、删除）记录操作日志（操作人、时间、IP、操作对象、变更内容）。
 - 敏感操作（重置密码、归档/重新启用工作空间、删除角色）额外记录详细日志。
-- 登录成功写入审计日志（含登录 IP），写入设计见 `docs/04-detailed-design/01-system-management/20-audit-query.md`，本模块仅消费其记录做数据概览统计（见 2.4、3.6、4.10）。
+- 登录成功写入审计日志（含登录 IP），写入设计见 `docs/04-detailed-design/01-system-management/08-audit-query.md`，本模块仅消费其记录做数据概览统计（见 2.4、3.6、4.10）。
 
 ---
 

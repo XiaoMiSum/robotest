@@ -35,7 +35,7 @@ import {
   type ProcessorExtractor,
 } from '@/composables/project/api-testing/processorFormModel'
 
-/** 交互设计：每页 20 条服务端分页，滚动加载上下页，窗口最多保留 5 页（`docs/05-interaction-design/05-api-test/44-global-asset-ui.md` 2.1） */
+/** 交互设计：每页 20 条服务端分页，滚动加载上下页，窗口最多保留 5 页（`docs/05-interaction-design/05-api-test/22-global-asset-ui.md` 2.1） */
 const PAGE_SIZE = 20
 const MAX_WINDOW_PAGES = 5
 const SEARCH_DEBOUNCE_MS = 300

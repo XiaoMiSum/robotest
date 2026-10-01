@@ -153,7 +153,7 @@ InitPage 展示密码设置表单
 
 ## 4. 登录审计写入
 
-见 `docs/04-detailed-design/01-system-management/20-audit-query.md` §4.3（AuditLogWriter 共享写入、`ClientIpResolver`、`operation='LOGIN'` 记录结构）。数据概览仅消费其 `LOGIN` 记录做 3.6 口径统计。
+见 `docs/04-detailed-design/01-system-management/08-audit-query.md` §4.3（AuditLogWriter 共享写入、`ClientIpResolver`、`operation='LOGIN'` 记录结构）。数据概览仅消费其 `LOGIN` 记录做 3.6 口径统计。
 
 ## 5. 登出与 Token 撤销
 
