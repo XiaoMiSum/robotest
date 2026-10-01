@@ -392,4 +392,4 @@ data: {"code": 1000013002, "message": "AI 调用失败"}
 | V1.0 | 2026-09-28 | 登记 1000013004 废弃（限流改用框架全局 429），限流实现口径同步为框架固定窗口 |
 | V1.0 | 2026-09-30 | 功能名称统一改为「遗漏分析」 |
 | V1.0 | 2026-09-30 | 移除 `missingPoint.topK` 配置键（遗漏分析不再使用语义检索） |
-| V1.0 | 2026-10-01 | 任务类型与 function_type 扩展需求工作流阶段作业（case_generation / missing_point_analysis / review_planning / plan_planning，异步任务形态），新增 `workstream.autoRerunDebounceSeconds` 配置键，modelId 适用范围移除用例生成 |
+| V1.0 | 2026-10-01 | 任务类型与 function_type 扩展需求工作流阶段作业（case_generation / missing_point_analysis / review_planning / plan_planning，异步任务形态），新增 `workstream.autoRerunDebounceSeconds` 配置键；modelId 适用范围为交互式功能，阶段作业固定系统默认模型 |
