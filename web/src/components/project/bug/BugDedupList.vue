@@ -7,7 +7,7 @@ import { BUG_STATUS_LABEL, BUG_STATUS_TAG_TYPE, BUG_TYPE_LABEL } from '@/composa
 import MarkdownView from '@/components/common/MarkdownView.vue'
 
 /**
- * 疑似重复缺陷卡片列表（US-AI-009，交互设计 3.2）：
+ * 疑似重复缺陷卡片列表：
  * 纯展示组件——查重数据由父级（BugAiSuggest）注入，自身不发起请求；
  * 点击卡片打开缺陷详情抽屉（不离开表单）。无结果时不占位。
  */
