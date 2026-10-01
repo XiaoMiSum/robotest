@@ -49,7 +49,7 @@
 
 * 顶栏左侧：平台 Logo + 「系统管理」模式标签；平台标识位于顶栏而非侧栏。
 * 左侧侧栏：固定宽 180px，浅色悬浮卡片形态，含分组标题与垂直菜单，不承载 Logo。
-* 内容区：整幅悬浮白卡（与侧栏卡同描边、同圆角、同浮影），壳层形态细节见 `docs/05-interaction-design/03-visual-design.md` §6.1。
+* 内容区：整幅悬浮白卡（与侧栏卡同描边、同圆角、同浮影），壳层形态细节见 `docs/05-interaction-design/99-common/03-visual-design.md` §6.1。
 
 ***
 
@@ -171,7 +171,7 @@ flowchart TD
 ## 8. 参考资料
 
 * 概要设计：`docs/02-high-level-design/03-hld-system-management.md` §3
-* 全局导航交互：`docs/05-interaction-design/02-global-navigation.md`
-* 管理端布局交互：`docs/05-interaction-design/system-management/02-system-management-ui-overview.md` §2
-* 视觉壳层形态：`docs/05-interaction-design/03-visual-design.md` §6.1
+* 全局导航交互：`docs/05-interaction-design/99-common/02-global-navigation.md`
+* 管理端布局交互：`docs/05-interaction-design/01-system-management/02-system-management-ui-overview.md` §2
+* 视觉壳层形态：`docs/05-interaction-design/99-common/03-visual-design.md` §6.1
 * 前端工程规范：`docs/00-spec/10-engineering/01-frontend.md`

@@ -1076,7 +1076,7 @@ VALUES
 ('7e570014-0000-4000-8000-000000000011','7e570013-0000-4000-8000-000000000006','7e57001f-0000-4000-8000-000000000001','create','创建缺陷',false, now() - interval '2 days', now());
 
 -- ============================================================
--- 14. 需求池（active / archived 两态，见 docs/01-requirements/06-srs-intelligent-case.md）
+-- 14. 需求池（active / archived 两态，见 docs/01-requirements/14-ai-case-generation/06-srs-intelligent-case.md）
 -- ============================================================
 INSERT INTO requirement_pool_item
 (id, project_id, title, content, source_url, status, ai_generated, created_by, updated_by,
