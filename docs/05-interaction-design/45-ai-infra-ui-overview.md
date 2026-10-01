@@ -26,7 +26,7 @@ AI 智能辅助能力域的交互设计覆盖两部分：
 ### 2.1 AI 入口统一视觉标识
 
 - 所有 AI 功能入口（按钮、菜单项、输入区）统一附加 AI 标识：Element Plus `MagicStick` 图标 + 青色强调色（`--color-ai-badge`，见 `docs/05-interaction-design/03-visual-design.md` 第 7 节），用户可一眼识别该操作由 AI 驱动。
-- 工具条入口以**纯图标**呈现时（布局见 `docs/05-interaction-design/48-ai-case-ui-overview.md` 1.1）：脑图工具条命令组仅余常规业务的 [关联需求]（不属 AI 入口）；用例生成与遗漏分析不设脑图入口，其发起与处置位于需求工作流条目工作台的作业卡与提案队列（`docs/05-interaction-design/52-ai-case-ui-pool.md` 1.3），主操作统一 `MagicStick` 图标 + 强调色、悬浮提示给出功能名（「运行作业」「批量采纳」等）。右键菜单「AI 补全步骤」沿用 `MagicStick` + 强调色。
+- 工具条入口以**纯图标**呈现时（布局见 `docs/05-interaction-design/48-ai-case-ui-overview.md` 1.1）：脑图工具条命令组为常规业务的 [关联需求]（不属 AI 入口）；需求工作流条目工作台的作业卡与提案队列主操作（[运行作业] / [批量采纳] 等）统一 `MagicStick` 图标 + 强调色、悬浮提示给出功能名。右键菜单「AI 补全步骤」沿用 `MagicStick` + 强调色。
 - AI 生成的脑图节点持续显示「AI」徽标（复用既有节点徽标体系），落库、进入评审/计划快照后徽标持续可见。
 - AI 产出的建议类内容（推荐标签、建议卡片）均带「AI」角标，与人工内容明确区分。
 

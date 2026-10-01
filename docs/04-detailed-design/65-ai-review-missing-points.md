@@ -11,7 +11,7 @@
 - **定位**：需求工作流 `coverage`（覆盖确认）阶段的阶段作业，type = `missing_point_analysis`，异步执行（`ai_analysis_task` 执行形态，见基础设施 2.1.3）；产出为 gap（遗漏点）提案，处置完毕即满足该阶段出口证据之一（总览 2.3.2）。
 - **发起**：`POST /api/project/requirements/:id/stage-jobs`（《需求工作流》4.1；`extraText` 可选，附加需求文本仅本次作业使用）；阶段推进进入 coverage 时按总览 2.3.3 尽力自动发起；进度/取消/重试复用异步任务通用接口（55）。
 - **权限**：阶段操作权限 + 项目成员即可（SRS 3.5.3 无额外角色限定）；AI 未启用发起返回 1000013001。
-- **同步端点移除**：`POST /api/project/ai/cases/missing-points` 不再存在——分析入口唯一收敛到需求工作流工作台，脑图用例模块页的「遗漏分析」抽屉（MissingPointsPanel）随之下线，「转用例生成」改为遗漏点提案的 `to_case` 处置（《需求工作流》5.5）。
+- **分析入口与处置**：分析在条目工作台的覆盖确认阶段发起（《需求工作流》4.1），产出的遗漏点以 gap 提案在提案队列处置为「转为用例（`to_case`，发起用例设计作业）/ 标记不覆盖 / 忽略」（《需求工作流》5.5）。
 - **产出物化**：作业 success 后同事务将结果逐点物化为 gap 提案（`stage = coverage`，`task_id` 关联作业）：同 `(stage, kind)` 既有 pending / expired gap 提案置 `superseded`；与已 rejected / accepted 提案指纹（规范化 title 的 SHA-256）重复的点跳过产出（总览 2.3.3 规则 5 / 2.1.3）。
 
 ## 2. 作业执行
