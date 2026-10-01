@@ -173,10 +173,3 @@ flowchart TD
 * 管理端布局交互：`docs/05-interaction-design/01-system-management/02-system-management-ui-overview.md` §2
 * 视觉壳层形态：`docs/05-interaction-design/99-common/03-visual-design.md` §6.1
 * 前端工程规范：`docs/00-spec/10-engineering/01-frontend.md`
-
-## 修改记录
-
-| 版本 | 日期 | 说明 |
-| ---- | ---- | ---- |
-| V1.0 | 2026-09-23 | 初建 |
-| V1.0 | 2026-10-01 | 移除智能辅助能力相关内容与失效引用 |
