@@ -6,7 +6,7 @@
 
 ---
 
-> 本文档为接口测试域交互设计分册：平台级「项目设置」框架规则的前端交互设计。环境管理、公共组件、函数管理的页面交互见各自分册；导航框架见 `docs/05-interaction-design/99-common/02-global-navigation.md` 3.5，色彩体系见 `docs/05-interaction-design/99-common/03-visual-design.md`。
+> 本文档为接口测试域交互设计分册：平台级「项目设置」框架规则的前端交互设计。环境管理、公共组件、函数管理的页面交互见各自分册；导航框架见 `docs/05-interaction-design/02-global-navigation.md` 3.5，色彩体系见 `docs/05-interaction-design/03-visual-design.md`。
 
 ---
 

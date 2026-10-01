@@ -326,7 +326,7 @@ WebSocket 文本写入操作的数据库事务边界、异步落库、重试和�
 - 通用实时协议：`docs/00-spec/20-contracts/03-realtime-protocol.md`
 - 安全规范：`docs/00-spec/40-security/01-security.md`
 - migoo WebSocket 能力：`docs/00-spec/10-engineering/03-migoo-framework.md`
-- 业务协作设计：`docs/04-detailed-design/99-common/04-mindmap-component.md`
+- 业务协作设计：`docs/04-detailed-design/03-function-testing/08-mindmap-component.md`
 - 部署 Runbook：`docs/00-spec/30-quality-delivery/04-deployment-runbook.md`
 
 ---
