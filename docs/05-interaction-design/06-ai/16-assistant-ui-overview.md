@@ -6,7 +6,7 @@
 
 ---
 
-> AI 通用交互规范见 `docs/05-interaction-design/01-readme.md` 第 2 章，本文档不再重复。  
+> AI 通用交互规范见 `docs/05-interaction-design/06-ai/02-ai-infra-ui-overview.md` 第 2 章，本文档不再重复。  
 > 覆盖用户故事：US-AI-011（自然语言查询）、US-AI-012（快捷操作执行）、US-AI-013（对话式脑图编辑）、US-AI-014（平台使用指引）。
 
 ---
@@ -129,7 +129,7 @@
 - 自动增高：`autosize`（minRows 1 / maxRows 3），输入超出可视宽度自动换行并增高，达到 3 行上限后内部滚动（`overflow-y: auto`）
 - 聚焦：`box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12)` + 边框 `--color-primary-500`
 - 发送按钮：`--color-primary-500` 底白字，圆角 `var(--radius-md)`；hover `--color-primary-600`；禁用态 `--color-neutral-200`
-- 工具栏操作组（提示行 + 发送/停止）恒靠右（`margin-left: auto`）：单一可用模型时模型选择器不渲染（见 4.1），避免操作组落入左侧
+- 工具栏操作组（提示行 + 发送/停止）恒靠右（`margin-left: auto`），模型选择器不渲染（无可用模型，规则见 `docs/05-interaction-design/06-ai/02-ai-infra-ui-overview.md` 2.8）时操作组亦不落入左侧
 - 占位符：`--color-neutral-400`；提示行 11px `--color-neutral-400`
 
 ### 2.9 悬浮球（AssistantFab）

@@ -6,7 +6,7 @@
 
 ---
 
-> AI 通用交互规范见 `docs/05-interaction-design/01-readme.md` 第 2 章，本文档不再重复。  
+> AI 通用交互规范见 `docs/05-interaction-design/06-ai/02-ai-infra-ui-overview.md` 第 2 章，本文档不再重复。  
 > 覆盖用户故事：US-AI-005（AI 一键检查）、US-AI-006（评审摘要）、US-AI-007（覆盖确认作业与遗漏点处置）、US-AI-017（执行顺序推荐）、US-AI-018（用例规划智能推荐）、US-AI-022（评审规划提案，采纳创建评审实例）、US-AI-023（计划规划提案，采纳创建计划实例）。
 
 ---
@@ -33,7 +33,7 @@ AI 入口分布在三个既有页面，均随 `aiEnabled` 显隐：
 
 | 类型 | 使用场景 |
 | ---- | ---- |
-| 抽屉 | AI 检查（评审详情页）、用例规划智能推荐（统一规格见 `docs/05-interaction-design/01-readme.md` 2.9） |
+| 抽屉 | AI 检查（评审详情页）、用例规划智能推荐（统一规格见 `docs/05-interaction-design/06-ai/02-ai-infra-ui-overview.md` 2.9） |
 | 弹窗 | 取消任务确认、重新生成确认、阶段作业发起（附加文本）、遗漏点标记不覆盖（必填理由） |
 
 ### 2.2 加载状态
