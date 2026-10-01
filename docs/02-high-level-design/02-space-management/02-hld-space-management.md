@@ -14,7 +14,7 @@
 
 ### 1.2 范围与对应需求
 
-对应需求分册 `docs/01-requirements/02-space-management/02-srs-space-management.md` 及我的空间、空间信息、成员管理、项目列表、加入空间五个页面分册；本分册为模块总览，页面级子模块的设计分别见对应分册（见 2.1）。跨模块公共数据与接口约定见 `docs/02-high-level-design/07-hld-data-interface.md`，部署与安全约束见 `docs/02-high-level-design/08-hld-deployment-security.md`。
+对应需求分册 `docs/01-requirements/02-space-management/02-srs-space-management.md` 及我的空间、空间信息、成员管理、项目列表、加入空间五个页面分册；本分册为模块总览，页面级子模块的设计分别见对应分册（见 2.1）。跨模块公共数据与接口约定见 `docs/02-high-level-design/04-hld-data-interface.md`，部署与安全约束见 `docs/02-high-level-design/05-hld-deployment-security.md`。
 
 ### 1.3 定义与缩写
 
@@ -70,7 +70,7 @@
 
 ### 3.3 数据隔离
 
-* 业务数据经所属项目 → 工作空间间接隔离，查询层强制附加上下文条件，原则见 `docs/02-high-level-design/07-hld-data-interface.md` 第 1.3 节。
+* 业务数据经所属项目 → 工作空间间接隔离，查询层强制附加上下文条件，原则见 `docs/02-high-level-design/04-hld-data-interface.md` 第 1.3 节。
 * 管理端不注入工作空间上下文、按系统权限全局查询，例外口径见 `docs/02-high-level-design/01-system-management/02-hld-system-management.md` 第 3.4 节；本模块为业务端视角，两侧共用实体但权限判定来源不同。
 
 ### 3.4 公开邀请入口
@@ -105,7 +105,7 @@ erDiagram
 
 ## 5. 接口设计概要
 
-资源与职责划分（路径、方法与报文留详细设计；公共约定见 `docs/02-high-level-design/07-hld-data-interface.md`）：
+资源与职责划分（路径、方法与报文留详细设计；公共约定见 `docs/02-high-level-design/04-hld-data-interface.md`）：
 
 | 资源 | 职责 | 归属 |
 | ---- | ---- | ---- |

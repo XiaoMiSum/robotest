@@ -14,7 +14,7 @@
 
 ### 1.2 范围与对应需求
 
-对应需求分册 `docs/01-requirements/02-space-management/04-srs-space-management-info.md`；模块公共机制见 `docs/02-high-level-design/02-space-management/02-hld-space-management.md`；跨模块公共约定见 `docs/02-high-level-design/07-hld-data-interface.md`。
+对应需求分册 `docs/01-requirements/02-space-management/04-srs-space-management-info.md`；模块公共机制见 `docs/02-high-level-design/02-space-management/02-hld-space-management.md`；跨模块公共约定见 `docs/02-high-level-design/04-hld-data-interface.md`。
 
 ### 1.3 定义与缩写
 

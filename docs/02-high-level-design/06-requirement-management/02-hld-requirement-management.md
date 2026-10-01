@@ -14,7 +14,7 @@
 
 ### 1.2 范围与对应需求
 
-对应需求分册 `docs/01-requirements/06-requirement-management/02-srs-requirement-management.md`，覆盖需求模型与状态机、需求拆解、变更影响标记、追溯入口。需求拆解、影响分析与覆盖状态由 AI 能力模块供给，AI 底座机制见 `docs/02-high-level-design/07-ai-capability/02-hld-ai-capability.md`；跨模块公共数据与接口约定见 `docs/02-high-level-design/07-hld-data-interface.md`。
+对应需求分册 `docs/01-requirements/06-requirement-management/02-srs-requirement-management.md`，覆盖需求模型与状态机、需求拆解、变更影响标记、追溯入口。需求拆解、影响分析与覆盖状态由 AI 能力模块供给，AI 底座机制见 `docs/02-high-level-design/07-ai-capability/02-hld-ai-capability.md`；跨模块公共数据与接口约定见 `docs/02-high-level-design/04-hld-data-interface.md`。
 
 ### 1.3 定义与缩写
 
