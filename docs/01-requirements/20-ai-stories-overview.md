@@ -13,8 +13,8 @@
 | 分册 | 文件 | 覆盖章节 |
 |---|---|---|
 | 总览 | `20-ai-stories-overview.md` | 前言、6. 修订记录 |
-| 智能测试用例生成 | `14-ai-case-generation/21-ai-stories-case-generation.md` | 1. 智能测试用例生成 |
-| AI 辅助评审与覆盖度分析 | `15-ai-review/22-ai-stories-ai-review.md` | 2. AI 辅助评审与覆盖度分析 |
-| 缺陷智能分析与去重 | `16-bug-ai-analysis/23-ai-stories-bug-analysis.md` | 3. 缺陷智能分析与去重 |
-| 全局智能助手 | `18-global-assistant/24-ai-stories-global-assistant.md` | 4. 全局智能助手 |
-| 测试计划与风险评估 | `17-plan-risk/25-ai-stories-plan-risk.md` | 5. 测试计划与风险评估 |
+| 智能测试用例生成 | `06-ai/21-ai-stories-case-generation.md` | 1. 智能测试用例生成 |
+| AI 辅助评审与覆盖度分析 | `06-ai/22-ai-stories-ai-review.md` | 2. AI 辅助评审与覆盖度分析 |
+| 缺陷智能分析与去重 | `04-bug/23-ai-stories-bug-analysis.md` | 3. 缺陷智能分析与去重 |
+| 全局智能助手 | `09-global-assistant/24-ai-stories-global-assistant.md` | 4. 全局智能助手 |
+| 测试计划与风险评估 | `08-plan-risk/25-ai-stories-plan-risk.md` | 5. 测试计划与风险评估 |
