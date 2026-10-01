@@ -54,7 +54,7 @@
 | [56-ai-infrastructure-gateway](56-ai-infrastructure-gateway.md)（分册：网关与调用链路） | V1.0 | 2026-09-23 | 起草中 |
 | [57-mindmap-component](57-mindmap-component.md)脑图组件详细设计 | V1.0 | 2026-09-23 | 已发布 |
 | [58-ai-case-generation-overview](58-ai-case-generation-overview.md)（总览分册） | V1.0 | 2026-09-23 | 起草中 |
-| [59-ai-case-generation-pool](59-ai-case-generation-pool.md)（分册：轻量需求池） | V1.0 | 2026-09-23 | 起草中 |
+| [59-ai-case-generation-pool](59-ai-case-generation-pool.md)（分册：需求工作流） | V1.0 | 2026-09-23 | 起草中 |
 | [60-ai-case-generation-ai-gen](60-ai-case-generation-ai-gen.md)（分册：AI 生成用例） | V1.0 | 2026-09-23 | 起草中 |
 | [61-ai-case-generation-sync](61-ai-case-generation-sync.md)（分册：同步建议） | V1.0 | 2026-09-23 | 起草中 |
 | [62-ai-review-overview](62-ai-review-overview.md)（总览分册） | V1.0 | 2026-09-23 | 起草中 |
