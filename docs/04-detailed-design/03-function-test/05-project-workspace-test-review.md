@@ -42,7 +42,7 @@
 
 - **进度字段**：`totalAssociated` 为关联用例总数，`passed` 为通过数，`reviewed` 为已评审数（总数 − 待评审数，供列表进度列展示 `已评审/关联总数`）；`progressPercent` =（总数 − 待评审数）/ 总数，`passRate` = 通过数 / 总数，均为百分数保留两位。后端按本页评审 ID 批量查询关联用例快照聚合计算，避免逐行 N+1。
 - **参与者名单**：`participants` 按 `participant_ids` 去重后批量查询用户（保序，缺失用户跳过），返回头像堆展示所需的 `id`/`name`/`avatarUrl`；`participantCount` 仍为参与者数量。
-- **状态取值**：`new`（待评审）/ `in_progress`（进行中）/ `completed`（已通过）/ `rejected`（已驳回），展示文案映射见 `docs/05-interaction-design/03-function-test/07-workspace-ui-test-review.md` 1.1。
+- **状态取值**：`new`（待评审）/ `in_progress`（进行中）/ `completed`（已通过）/ `rejected`（已驳回），展示文案映射见 `docs/05-interaction-design/03-function-test/05-workspace-ui-test-review.md` 1.1。
 
 ### 1.2 创建评审
 
@@ -143,7 +143,7 @@
 
 - **路径**：`POST /api/project/reviews/:id/reject`
 - **权限**：仅发起人，状态为 new/in_progress；进入终态后返回错误码 1000011018（“仅待评审或进行中的评审可驳回”）。
-- **处理**：状态变更为 rejected（已驳回），快照冻结，标记/调整/同步/完成入口收敛；事务提交后发布评审生命周期事件，联动取消进行中的 AI 一键检查任务（终态钩子见 `docs/04-detailed-design/06-ai/63-ai-review-one-click-check.md`）；记录项目活动 `REVIEW_REJECTED`。
+- **处理**：状态变更为 rejected（已驳回），快照冻结，标记/调整/同步/完成入口收敛；事务提交后发布评审生命周期事件，联动取消进行中的 AI 一键检查任务（终态钩子见 `docs/04-detailed-design/06-ai/13-ai-review-one-click-check.md`）；记录项目活动 `REVIEW_REJECTED`。
 - **前端**：详情页页头 [驳回]（二次确认），仅发起人可见；列表页该行状态展示已驳回，操作为 [查看][重新发起]。
 
 ### 1.14 重新发起评审
@@ -162,7 +162,7 @@
 
 **路由**：`/workspace/projects/reviews`
 
-左侧菜单选中“测试评审”时展示。视觉与结构验收基准 `web/demos/project/reviews.html`，页面结构与列口径见 `docs/05-interaction-design/03-function-test/07-workspace-ui-test-review.md` 1.1。
+左侧菜单选中“测试评审”时展示。视觉与结构验收基准 `web/demos/project/reviews.html`，页面结构与列口径见 `docs/05-interaction-design/03-function-test/05-workspace-ui-test-review.md` 1.1。
 
 **页面布局**：
 

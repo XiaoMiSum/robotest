@@ -329,7 +329,7 @@
 | 项目列表筛选和分页 | 两个活动上下文 Header | 筛选条件中的资源 ID（如 `moduleId`） | 必须验证资源属于当前项目 |
 | 项目工作台和统计 | 两个活动上下文 Header | 无 | 缺少或非法上下文时拒绝请求 |
 
-工作空间切换和个人默认项目设置属于工作空间域，见 `../02-space-management/14-space-management-overview.md` 2.2.1；项目域接口不得自行在请求体中接收活动项目 ID。
+工作空间切换和个人默认项目设置属于工作空间域，见 `../02-space-management/02-space-management-overview.md` 2.2.1；项目域接口不得自行在请求体中接收活动项目 ID。
 
 
 ### 2.3 评审/执行记录与状态更新
@@ -444,4 +444,4 @@
 | 测试用例管理 | `04-project-workspace-test-case.md` | 3.3 测试用例管理接口、4.1 文档创建与默认根节点、4.2 脑图实时协作、5.3.2 用例管理页 |
 | 测试评审管理 | `05-project-workspace-test-review.md` | 3.4 测试评审管理接口、4.3 快照生成与裁剪、5.3.3 评审列表页、5.3.4 评审详情页 |
 | 测试计划管理 | `06-project-workspace-test-plan.md` | 3.5 测试计划管理接口、4.5 同步最新用例、5.3.5 计划列表页、5.3.6 计划详情页 |
-| 缺陷管理 | `../04-bug/07-project-workspace-bug.md` | 3.6 缺陷管理接口、5.3.7 缺陷管理页 |
+| 缺陷管理 | `../04-bug/02-project-workspace-bug.md` | 3.6 缺陷管理接口、5.3.7 缺陷管理页 |

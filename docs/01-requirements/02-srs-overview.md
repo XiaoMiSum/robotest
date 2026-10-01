@@ -303,11 +303,11 @@ AI 智能辅助能力域引入以下数据实体：
 |---|---|---|
 | 总览 | `02-srs-overview.md` | 前言、1. 引言、2. 总体描述、4. 非功能需求、5. 数据需求、6. 附录 |
 | 系统管理模块 | `01-system-management/02-srs-system-management.md`（总览）及页面分册 `01-system-management/03-srs-system-management-dashboard.md`、`01-system-management/04-srs-system-management-user.md`、`01-system-management/05-srs-system-management-workspace.md`、`01-system-management/06-srs-system-management-role.md`、`01-system-management/07-srs-system-management-audit.md`、`01-system-management/08-srs-system-management-init.md`、`01-system-management/09-srs-system-management-aiconfig.md` | 3.1 系统管理模块 |
-| 业务功能模块 | `03-function-test/04-srs-business-features.md` | 3.2 业务功能模块（功能测试） |
+| 业务功能模块 | `03-function-test/02-srs-business-features.md` | 3.2 业务功能模块（功能测试） |
 | 空间管理模块 | `02-space-management/02-srs-space-management.md`（总览）及页面分册 `02-space-management/03-srs-space-management-my-workspace.md`、`02-space-management/04-srs-space-management-info.md`、`02-space-management/05-srs-space-management-member.md`、`02-space-management/06-srs-space-management-project.md`、`02-space-management/07-srs-space-management-invite-join.md` | 3.2 业务功能模块（空间管理） |
-| AI 基础设施 | `06-ai/05-srs-ai-infrastructure.md` | 3.3 AI 基础设施 |
-| 智能测试用例生成 | `06-ai/06-srs-intelligent-case.md` | 3.4 智能测试用例生成 |
-| AI 辅助评审与覆盖度分析 | `06-ai/07-srs-ai-review.md` | 3.5 AI 辅助评审 |
-| 缺陷智能分析与去重 | `04-bug/08-srs-bug-ai-analysis.md` | 3.6 缺陷智能分析与去重 |
-| 全局智能助手 | `09-global-assistant/09-srs-global-assistant.md` | 3.7 全局智能助手 |
-| 测试计划与风险评估 | `08-plan-risk/10-srs-plan-risk.md` | 3.8 测试计划与风险评估 |
+| AI 基础设施 | `06-ai/02-srs-ai-infrastructure.md` | 3.3 AI 基础设施 |
+| 智能测试用例生成 | `06-ai/03-srs-intelligent-case.md` | 3.4 智能测试用例生成 |
+| AI 辅助评审与覆盖度分析 | `06-ai/04-srs-ai-review.md` | 3.5 AI 辅助评审 |
+| 缺陷智能分析与去重 | `04-bug/02-srs-bug-ai-analysis.md` | 3.6 缺陷智能分析与去重 |
+| 全局智能助手 | `09-global-assistant/02-srs-global-assistant.md` | 3.7 全局智能助手 |
+| 测试计划与风险评估 | `08-plan-risk/02-srs-plan-risk.md` | 3.8 测试计划与风险评估 |

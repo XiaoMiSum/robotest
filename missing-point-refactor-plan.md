@@ -1,7 +1,7 @@
 # 方案：遗漏分析改为文档级全量候选检索
 
 > 状态：**待用户确认**
-> 依据文档：`docs/04-detailed-design/06-ai/65-ai-review-missing-points.md`（已更新，提交 `af418253`）
+> 依据文档：`docs/04-detailed-design/06-ai/15-ai-review-missing-points.md`（已更新，提交 `af418253`）
 > 关联：AI 遗漏测试点分析（US-AI-007）从项目级关键词检索改为文档级全量获取
 
 ---
