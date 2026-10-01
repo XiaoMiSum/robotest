@@ -163,11 +163,11 @@
 
 | 分册 | 文件 | 覆盖章节 |
 |---|---|---|
-| 总览 | `16-assistant-ui-overview.md` | 前言、8. 通用交互模式总结、9. 视觉与状态规范 |
+| 总览 | `16-assistant-ui-overview.md` | 前言、1. 通用交互模式总结、2. 视觉与状态规范 |
 | 面板与会话 | `17-assistant-ui-panel.md` | 1. 总体布局、2. 悬浮按钮、3. 会话管理 |
-| 消息交互 | `18-assistant-ui-message.md` | 4. 消息交互 |
-| 快捷操作执行 | `19-assistant-ui-quick-action.md` | 5. 快捷操作执行 |
-| 脑图编辑与使用指引 | `20-assistant-ui-mindmap-guide.md` | 6. 对话式脑图编辑、7. 平台使用指引 |
+| 消息交互 | `18-assistant-ui-message.md` | 1. 消息交互 |
+| 快捷操作执行 | `19-assistant-ui-quick-action.md` | 1. 快捷操作执行 |
+| 脑图编辑与使用指引 | `20-assistant-ui-mindmap-guide.md` | 1. 对话式脑图编辑、2. 平台使用指引 |
 
 ## 修改记录
 

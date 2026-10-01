@@ -77,6 +77,6 @@
 
 | 分册 | 文件 | 覆盖章节 |
 |---|---|---|
-| 总览 | `02-interface-ui-overview.md` | 前言、1. 概述、4. 通用交互模式 |
-| 接口管理列表页 | `03-interface-ui-list.md` | 2. 接口管理列表页 |
-| 接口定义编辑器 | `04-interface-ui-editor.md` | 3. 接口定义编辑器 |
+| 总览 | `02-interface-ui-overview.md` | 前言、1. 概述、2. 通用交互模式 |
+| 接口管理列表页 | `03-interface-ui-list.md` | 1. 接口管理列表页 |
+| 接口定义编辑器 | `04-interface-ui-editor.md` | 1. 接口定义编辑器 |

@@ -69,7 +69,7 @@
 
 | 分册 | 文件 | 覆盖章节 |
 |---|---|---|
-| 总览 | `18-report-ui-overview.md` | 前言、1. 概述、3. 通用交互模式 |
-| 报告列表页 | `19-report-ui-list.md` | 2.1 报告列表页 |
-| 报告详情页 | `20-report-ui-detail.md` | 2.2 报告详情页 |
-| 分享访问页 | `21-report-ui-share.md` | 2.3 分享访问页 |
+| 总览 | `18-report-ui-overview.md` | 前言、1. 概述、2. 通用交互模式 |
+| 报告列表页 | `19-report-ui-list.md` | 1. 报告列表页 |
+| 报告详情页 | `20-report-ui-detail.md` | 1. 报告详情页 |
+| 分享访问页 | `21-report-ui-share.md` | 1. 分享访问页 |

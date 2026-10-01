@@ -79,7 +79,7 @@ AI 能力嵌入缺陷管理既有页面，均随 `aiEnabled` 显隐：
 
 | 分册 | 文件 | 覆盖章节 |
 |---|---|---|
-| 总览 | `03-bug-ai-ui-overview.md` | 前言、1. 总体布局、5. 通用交互模式总结 |
-| 标题优化与等级建议 | `04-bug-ai-ui-form-suggestion.md` | 2. 标题优化与等级建议 |
-| 语义查重 | `05-bug-ai-ui-dedup.md` | 3. 语义查重 |
-| 缺陷聚类分析 | `06-bug-ai-ui-clustering.md` | 4. 缺陷聚类分析 |
+| 总览 | `03-bug-ai-ui-overview.md` | 前言、1. 总体布局、2. 通用交互模式总结 |
+| 标题优化与等级建议 | `04-bug-ai-ui-form-suggestion.md` | 1. 标题优化与等级建议 |
+| 语义查重 | `05-bug-ai-ui-dedup.md` | 1. 语义查重 |
+| 缺陷聚类分析 | `06-bug-ai-ui-clustering.md` | 1. 缺陷聚类分析 |

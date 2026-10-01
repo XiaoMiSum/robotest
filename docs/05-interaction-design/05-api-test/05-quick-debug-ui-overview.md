@@ -75,6 +75,6 @@
 
 | 分册 | 文件 | 覆盖章节 |
 |---|---|---|
-| 总览 | `05-quick-debug-ui-overview.md` | 前言、1. 概述、4. 通用交互模式 |
-| 快速调试页 | `06-quick-debug-ui-page.md` | 2. 快速调试页 |
-| 导入功能 | `07-quick-debug-ui-import.md` | 3. 导入功能 |
+| 总览 | `05-quick-debug-ui-overview.md` | 前言、1. 概述、2. 通用交互模式 |
+| 快速调试页 | `06-quick-debug-ui-page.md` | 1. 快速调试页 |
+| 导入功能 | `07-quick-debug-ui-import.md` | 1. 导入功能 |
