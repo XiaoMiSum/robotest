@@ -35,7 +35,6 @@ public class WebMvcConfig implements WebMvcConfigurer {
                         "/api/workspace/invitations/verify",
                         "/api/workspace/invitations/check-email",
                         "/api/workspace/invitations/join",
-                        "/api/workspace/ai/status",
                         "/ws/**",
                         "/debug/**"
                 );
@@ -52,7 +51,6 @@ public class WebMvcConfig implements WebMvcConfigurer {
                         "/api/workspace/invitations/verify",
                         "/api/workspace/invitations/check-email",
                         "/api/workspace/invitations/join",
-                        "/api/workspace/ai/status",
                         "/ws/**",
                         "/debug/**"
                 );

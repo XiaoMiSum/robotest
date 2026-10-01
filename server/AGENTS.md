@@ -34,7 +34,7 @@ mvn test
 分层：**Controller → Service → Repository**
 
 - `controller/{admin,apitest,project,workspace}/`：仅路由 + 参数校验（`@Valid`），无业务逻辑
-- `service/{admin,ai,apitest,domain,project,websocket,workspace}/`：接口 + 实现同包，按业务域分组
+- `service/{admin,apitest,domain,project,websocket,workspace}/`：接口 + 实现同包，按业务域分组
 - `service/websocket/`：业务 WebSocket 处理（DocumentHandler、DocumentPersistenceHandler）
 - `repository/`：MyBatis-Plus Mapper 数据访问
 - `model/entity/` ↔ `model/dto/request|response/`

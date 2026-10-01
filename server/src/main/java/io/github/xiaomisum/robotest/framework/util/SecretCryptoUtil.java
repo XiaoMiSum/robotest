@@ -8,7 +8,7 @@ import java.security.SecureRandom;
 import java.util.Base64;
 
 /**
- * 业务敏感值加解密工具（AES-256-GCM），供 AI 密钥、环境敏感变量等多域共用。
+ * 业务敏感值加解密工具（AES-256-GCM），供环境敏感变量等多域共用。
  *
  * <p>存储格式：Base64(12字节IV || 密文 || 16字节Tag)，每次加密随机 IV；
  * 加密密钥来自各域配置的 Base64 编码 32 字节密钥。</p>

@@ -26,8 +26,7 @@ import java.util.UUID;
  * <p>严格拒绝（用户确认）：业务路径缺少必要上下文头或头格式非法即抛 4xx 业务异常。
  * {@code /api/workspaces/active} 使用请求头选择目标空间；{@code /api/workspaces} 仅用于列表选择，头可选。
  * 豁免路径（不强制头）：{@code /api/auth/permissions}（可选头，无空间时返回系统权限）、
- * 邀请公开接口（verify/check-email/join）、{@code /api/workspace/ai/status}（全局开关，
- * AI 基础设施详细设计 3.2.1 不依赖工作空间上下文）。匿名请求（无 LoginUser）不拦截。</p>
+ * 邀请公开接口（verify/check-email/join）。匿名请求（无 LoginUser）不拦截。</p>
  */
 @Component
 public class ContextHeaderInterceptor implements HandlerInterceptor {
@@ -88,7 +87,6 @@ public class ContextHeaderInterceptor implements HandlerInterceptor {
 
     private boolean isExempt(String path) {
         return path.equals("/api/auth/permissions")
-                || path.equals("/api/workspace/ai/status")
                 || path.equals("/api/workspace/invitations/verify")
                 || path.equals("/api/workspace/invitations/check-email")
                 || path.equals("/api/workspace/invitations/join");

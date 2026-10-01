@@ -222,16 +222,6 @@ class ContextHeaderInterceptorTest {
     }
 
     @Test
-    void aiStatusPath_withoutHeaders_allowed() {
-        stubPath("/api/workspace/ai/status");
-        when(request.getHeader("X-Active-Workspace")).thenReturn(null);
-
-        boolean proceed = interceptor.preHandle(request, response, new Object());
-
-        assertTrue(proceed);
-    }
-
-    @Test
     void invitationVerifyPath_withoutHeaders_allowed() {
         stubPath("/api/workspace/invitations/verify");
         when(request.getHeader("X-Active-Workspace")).thenReturn(null);

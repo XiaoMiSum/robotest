@@ -14,7 +14,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.context.ApplicationEventPublisher;
 import xyz.migoo.framework.common.exception.ServiceException;
 
 import java.time.LocalDateTime;
@@ -31,8 +30,6 @@ class BugStatusChangeServiceImplTest {
     private BugMapper bugMapper;
     @Mock
     private BugLogMapper bugLogMapper;
-    @Mock
-    private ApplicationEventPublisher eventPublisher;
 
     @Spy
     private BugWorkflow bugWorkflow = new BugWorkflowImpl();
@@ -220,10 +217,6 @@ class BugStatusChangeServiceImplTest {
         assertEquals(Constants.BugStatus.CLOSED, captor.getValue().getStatus());
         assertEquals(userId, captor.getValue().getClosedBy());
         assertNotNull(captor.getValue().getClosedAt());
-        ArgumentCaptor<BugChangedEvent> eventCaptor = ArgumentCaptor.forClass(BugChangedEvent.class);
-        verify(eventPublisher).publishEvent(eventCaptor.capture());
-        assertEquals(BugChangeOp.CLOSED, eventCaptor.getValue().op());
-        assertEquals(bugId, eventCaptor.getValue().bugId());
     }
 
     @Test

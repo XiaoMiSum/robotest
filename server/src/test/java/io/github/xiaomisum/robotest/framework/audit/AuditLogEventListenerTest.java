@@ -79,7 +79,7 @@ class AuditLogEventListenerTest {
 
     @Test
     void failedEvent_isNotPersisted() {
-        listener.onAuditLogEvent(event("DELETE:AiChatModel", false, "[\"" + ENTITY_ID + "\"]"));
+        listener.onAuditLogEvent(event("DELETE:ApiScene", false, "[\"" + ENTITY_ID + "\"]"));
 
         verifyNoInteractions(auditLogMapper, eventPublisher);
     }
@@ -102,7 +102,7 @@ class AuditLogEventListenerTest {
 
     @Test
     void blankParams_storesEmptyChangesAndNullEntityId() {
-        listener.onAuditLogEvent(event("UPDATE:AiConfig", true, null));
+        listener.onAuditLogEvent(event("UPDATE:ApiScene", true, null));
 
         verify(auditLogMapper).insert(recordCaptor.capture());
         AuditLog record = recordCaptor.getValue();

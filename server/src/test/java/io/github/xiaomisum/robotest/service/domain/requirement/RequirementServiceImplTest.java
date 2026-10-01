@@ -15,8 +15,6 @@ import io.github.xiaomisum.robotest.repository.requirement.RequirementPoolItemMa
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseDocumentMapper;
 import io.github.xiaomisum.robotest.repository.workspace.ProjectMapper;
 import io.github.xiaomisum.robotest.repository.workspace.WorkspaceUserMapper;
-import io.github.xiaomisum.robotest.service.ai.gateway.AiConfigService;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -31,7 +29,6 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
-import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -59,16 +56,9 @@ class RequirementServiceImplTest {
     private ProjectMapper projectMapper;
     @Mock
     private WorkspaceUserMapper workspaceUserMapper;
-    @Mock
-    private AiConfigService aiConfigService;
 
     @InjectMocks
     private RequirementServiceImpl service;
-
-    @BeforeEach
-    void setUp() {
-        lenient().when(aiConfigService.getIntSetting("requirementContentMaxLength")).thenReturn(20000);
-    }
 
     private RequirementPoolItem item(UUID projectId, UUID createdBy) {
         RequirementPoolItem item = new RequirementPoolItem();
@@ -100,9 +90,8 @@ class RequirementServiceImplTest {
 
     @Test
     void create_contentOverLimit_throwsValidationFailed() {
-        when(aiConfigService.getIntSetting("requirementContentMaxLength")).thenReturn(100);
         assertThrows(ServiceException.class,
-                () -> service.create(PROJECT_ID, CREATOR_ID, createReq("x".repeat(101))));
+                () -> service.create(PROJECT_ID, CREATOR_ID, createReq("x".repeat(20001))));
     }
 
     @Test
@@ -121,7 +110,7 @@ class RequirementServiceImplTest {
         org.junit.jupiter.api.Assertions.assertEquals(CREATOR_ID, saved.getUpdatedBy());
     }
 
-    // ==================== 批量创建（US-AI-019，3.1.7） ====================
+    // ==================== 批量创建（3.1.7） ====================
 
     private RequirementBatchCreateReqDTO batchReq(int itemCount, boolean aiGenerated) {
         RequirementBatchCreateReqDTO dto = new RequirementBatchCreateReqDTO();
@@ -139,9 +128,8 @@ class RequirementServiceImplTest {
 
     @Test
     void createBatch_contentOverLimit_throwsValidationFailed() {
-        when(aiConfigService.getIntSetting("requirementContentMaxLength")).thenReturn(100);
         RequirementBatchCreateReqDTO dto = batchReq(1, true);
-        dto.getItems().get(0).setContent("x".repeat(101));
+        dto.getItems().get(0).setContent("x".repeat(20001));
         assertThrows(ServiceException.class, () -> service.createBatch(PROJECT_ID, CREATOR_ID, dto));
         // 校验失败不得产生任何入库
         verify(requirementMapper, never()).insertBatch(anyList());
@@ -334,7 +322,7 @@ class RequirementServiceImplTest {
 
     @Test
     void getDocumentRequirements_filtersArchivedItems() {
-        // 归档条目不参与 AI 消费：关联记录保留，但摘要过滤不展示（需求规格 3.2.4）
+        // 归档条目不参与消费：关联记录保留，但摘要过滤不展示（需求规格 3.2.4）
         when(testCaseDocumentMapper.selectById(DOC_ID)).thenReturn(document(PROJECT_ID));
         UUID reqA = UUID.randomUUID();
         UUID reqB = UUID.randomUUID();
@@ -413,74 +401,5 @@ class RequirementServiceImplTest {
 
         verify(documentRequirementRelMapper).deleteByDocumentIdAndRequirementIds(any(), any());
         verify(documentRequirementRelMapper, never()).insert(any(DocumentRequirementRel.class));
-    }
-
-    // ==================== requireByIds（AI 上下文组装，3.2.1） ====================
-
-    @Test
-    void requireByIds_emptyOrNull_returnsEmptyWithoutQuery() {
-        org.junit.jupiter.api.Assertions.assertEquals(List.of(), service.requireByIds(PROJECT_ID, null));
-        org.junit.jupiter.api.Assertions.assertEquals(List.of(), service.requireByIds(PROJECT_ID, List.of()));
-        verify(requirementMapper, never()).selectBatchIds(any());
-    }
-
-    @Test
-    void requireByIds_missingItem_throwsNotFound() {
-        UUID reqA = UUID.randomUUID();
-        UUID reqB = UUID.randomUUID();
-        // selectBatchIds 自动过滤已删除条目：reqB 未返回视为缺失
-        RequirementPoolItem a = item(PROJECT_ID, CREATOR_ID);
-        a.setId(reqA);
-        when(requirementMapper.selectBatchIds(anyList())).thenReturn(List.of(a));
-        assertThrows(ServiceException.class,
-                () -> service.requireByIds(PROJECT_ID, List.of(reqA, reqB)));
-    }
-
-    @Test
-    void requireByIds_crossProject_throwsNotFound() {
-        UUID reqId = UUID.randomUUID();
-        RequirementPoolItem foreign = item(UUID.randomUUID(), CREATOR_ID);
-        foreign.setId(reqId);
-        when(requirementMapper.selectBatchIds(anyList())).thenReturn(List.of(foreign));
-        assertThrows(ServiceException.class, () -> service.requireByIds(PROJECT_ID, List.of(reqId)));
-    }
-
-    @Test
-    void requireByIds_preservesSelectionOrderAndDeduplicates() {
-        UUID first = UUID.randomUUID();
-        UUID second = UUID.randomUUID();
-        RequirementPoolItem a = item(PROJECT_ID, CREATOR_ID);
-        a.setId(first);
-        a.setTitle("条目A");
-        RequirementPoolItem b = item(PROJECT_ID, CREATOR_ID);
-        b.setId(second);
-        b.setTitle("条目B");
-        // 模拟按输入顺序去重后查询
-        when(requirementMapper.selectBatchIds(anyList())).thenReturn(List.of(b, a));
-
-        List<RequirementPoolItem> result = service.requireByIds(PROJECT_ID, List.of(first, second, first));
-
-        org.junit.jupiter.api.Assertions.assertEquals(List.of(first, second),
-                result.stream().map(RequirementPoolItem::getId).toList());
-    }
-
-    @Test
-    void requireByIds_filtersArchivedItems() {
-        // 归档条目不参与 AI 上下文组装，静默过滤（需求规格 3.2.4）
-        UUID active = UUID.randomUUID();
-        UUID archivedId = UUID.randomUUID();
-        RequirementPoolItem a = item(PROJECT_ID, CREATOR_ID);
-        a.setId(active);
-        a.setTitle("条目A");
-        RequirementPoolItem b = item(PROJECT_ID, CREATOR_ID);
-        b.setId(archivedId);
-        b.setTitle("已归档条目B");
-        b.setStatus(Constants.Status.ARCHIVED);
-        when(requirementMapper.selectBatchIds(anyList())).thenReturn(List.of(a, b));
-
-        List<RequirementPoolItem> result = service.requireByIds(PROJECT_ID, List.of(active, archivedId));
-
-        org.junit.jupiter.api.Assertions.assertEquals(List.of(active),
-                result.stream().map(RequirementPoolItem::getId).toList());
     }
 }
