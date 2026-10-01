@@ -152,7 +152,7 @@ server/.env
 - `server/.env` 已被 Git 忽略，只能保存本机凭据和本地密钥，不得提交。
 - `server/.env.example` 是可提交模板，变量清单以模板为准。
 - Spring Boot 启动时优先加载工作目录下的 `.env`；从 `server/` 启动可直接读取该文件。
-- AI、ENV、JWT、PASSWORD 必须使用不同密钥域；本地值也不得复用于测试或生产环境。
+- ENV、JWT、PASSWORD 必须使用不同密钥域；本地值也不得复用于测试或生产环境。
 
 本地启动继续显式指定 profile：
 
@@ -175,7 +175,6 @@ REDIS_PORT
 REDIS_USER
 REDIS_PASSWORD
 UPLOAD_DIR
-AI_SECRET_KEY
 ENV_SECRET_KEY
 IMPORT_URL_POLICY
 MOCK_ACCESS_ENABLED
@@ -337,6 +336,13 @@ Windows 无 bash 时改用等价命令：`node scripts/validate.mjs --all`。
 - 数据库：`docs/00-spec/20-contracts/02-database.md`
 - 通用实时协议：`docs/00-spec/20-contracts/03-realtime-protocol.md`
 - 项目脚本：`scripts/`
+
+## 修改记录
+
+| 版本 | 日期 | 说明 |
+| ---- | ---- | ---- |
+| V1.0 | 2026-09-24 | 初建 |
+| V1.0 | 2026-10-01 | 移除智能辅助能力相关内容与失效引用 |
 
 ---
 
