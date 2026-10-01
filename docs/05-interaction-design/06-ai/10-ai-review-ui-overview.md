@@ -7,7 +7,7 @@
 ---
 
 > AI 通用交互规范见 `docs/05-interaction-design/01-readme.md` 第 2 章，本文档不再重复。  
-> 覆盖用户故事：US-AI-005（AI 一键检查）、US-AI-006（评审摘要）、US-AI-007（覆盖确认作业与遗漏点处置）、US-AI-017（执行顺序推荐）、US-AI-018（用例规划智能推荐）。
+> 覆盖用户故事：US-AI-005（AI 一键检查）、US-AI-006（评审摘要）、US-AI-007（覆盖确认作业与遗漏点处置）、US-AI-017（执行顺序推荐）、US-AI-018（用例规划智能推荐）、US-AI-022（评审规划提案，采纳创建评审实例）、US-AI-023（计划规划提案，采纳创建计划实例）。
 
 ---
 
@@ -18,7 +18,7 @@ AI 入口分布在三个既有页面，均随 `aiEnabled` 显隐：
 | 页面 | 新增入口 | 可见角色 |
 | ---- | ---- | ---- |
 | 评审详情页（ReviewMindMap） | [✨AI 一键检查] 侧面板、[✨AI 生成摘要] | 仅评审发起人 |
-| 需求工作流条目工作台（覆盖确认阶段） | 阶段作业卡 [运行作业]、遗漏点提案三选一处置 | 作业随 `aiEnabled` 显隐；提案处置为全部业务用户（入口与交互见 `docs/05-interaction-design/06-ai/09-ai-case-ui-pool.md` 1.3、`docs/05-interaction-design/06-ai/13-ai-review-ui-missing.md`） |
+| 需求工作流条目工作台（覆盖确认 / 评审就绪 / 计划执行阶段） | 阶段作业卡 [运行作业]、遗漏点提案三选一处置 | 作业随 `aiEnabled` 显隐；遗漏点提案处置为全部业务用户（入口与交互见 `docs/05-interaction-design/06-ai/09-ai-case-ui-pool.md` 1.3、`docs/05-interaction-design/06-ai/13-ai-review-ui-missing.md`）；评审就绪/计划执行阶段作业卡产出的评审/计划方案提案经采纳创建实例并自动建立血缘（见 `docs/05-interaction-design/06-ai/09-ai-case-ui-pool.md` 1.3） |
 | 计划详情页（PlanMindMap） | [✨执行顺序推荐] 标签页 | 仅计划负责人 / 执行人 |
 | 评审详情页 / 计划详情页「调整用例」流程 | [✨AI 推荐用例] 抽屉入口 | 全部业务用户（属覆盖度分析，SRS 附录 B；最终带入关联仍受既有评审/计划编辑权限约束） |
 
@@ -56,9 +56,9 @@ AI 入口分布在三个既有页面，均随 `aiEnabled` 显隐：
 
 | 分册 | 文件 | 覆盖章节 |
 |---|---|---|
-| 总览 | `10-ai-review-ui-overview.md` | 前言、1. 总体布局、7. 通用交互模式总结 |
-| AI 一键检查 | `11-ai-review-ui-one-click.md` | 2. AI 一键检查 |
-| 评审摘要 | `12-ai-review-ui-summary.md` | 3. AI 生成评审摘要 |
-| 遗漏分析 | `13-ai-review-ui-missing.md` | 4. 覆盖确认作业与遗漏点处置 |
-| 执行顺序推荐 | `14-ai-review-ui-order.md` | 5. 执行顺序推荐 |
-| 用例规划智能推荐 | `15-ai-review-ui-plan.md` | 6. 用例规划智能推荐 |
+| 总览 | `10-ai-review-ui-overview.md` | 前言、1. 总体布局、2. 通用交互模式总结 |
+| AI 一键检查 | `11-ai-review-ui-one-click.md` | 1. AI 一键检查 |
+| 评审摘要 | `12-ai-review-ui-summary.md` | 1. AI 生成评审摘要 |
+| 遗漏分析 | `13-ai-review-ui-missing.md` | 1. 覆盖确认作业与遗漏点处置 |
+| 执行顺序推荐 | `14-ai-review-ui-order.md` | 1. 执行顺序推荐 |
+| 用例规划智能推荐 | `15-ai-review-ui-plan.md` | 1. 用例规划智能推荐 |
