@@ -1,7 +1,7 @@
 # 软件测试平台——需求规格说明书总览
 
 **文档版本**：V1.0  
-**日期**：2026-09-23  
+**日期**：2026-10-01  
 **状态**：起草中
 
 ---
@@ -22,6 +22,8 @@
 测试用例以 **模块树（目录/文档）** 组织，每个文档包含一个脑图形式的测试用例集合，支持多人实时协作编辑。  
 测试评审和测试计划基于用例的结构化快照进行，支持完整的历史回溯和多次执行/评审记录。
 
+业务需求以**需求条目**在平台内登记，需求条款是测试追溯链的起点，派生链与快照引用关系构成追溯矩阵；AI 能力作为平台级底座贯穿需求生成、智能助手、缺陷分析与辅助功能，详见 `docs/01-requirements/07-ai-capability/02-srs-ai-capability.md`。
+
 ### 1.3 定义与缩写
 
 | 术语         | 定义                                         |
@@ -36,6 +38,9 @@
 | 关联节点       | 用户在创建评审或计划时显式选择的用例节点                       |
 | 关联节点树      | 从快照中裁剪出的最小树形结构，包含所有关联节点、它们的祖先模块/文档节点以及后代节点 |
 | 同步         | 手动将评审或计划的快照更新为当前最新模块和用例内容的操作               |
+| 需求条目     | 项目内一条业务需求的登记单位，包含标题、描述与若干需求条款              |
+| 需求条款     | 需求条目下的最小拆分单位，是追溯矩阵的起点                          |
+| 追溯矩阵     | 记录需求条款到测试全链路派生与引用关系的矩阵，支持覆盖统计与双向回溯        |
 
 ---
 
@@ -111,6 +116,8 @@
 - **测试评审**：归属于项目，包含发起人、参与者列表，与快照关联。  
 - **评审快照**：评审创建时生成的模块和节点副本，与评审记录关联。  
 - **缺陷**：归属于项目，可关联原始用例和测试计划，具有状态流转和操作日志。
+- **需求条目与需求条款**：归属于项目，是追溯链的起点，条款具有独立状态与变更记录。
+- **AI 任务与追溯边**：AI 任务记录后台生成与批量分析的执行与产物；追溯边记录派生（需求条款 → 用例链路）与快照引用（用例 → 评审/计划）关系，是追溯矩阵的唯一事实源。
 
 ### 4.2 数据隔离与生命周期
 
@@ -183,3 +190,14 @@
 | 业务功能模块 | `03-function-testing/02-srs-business-features.md` | 3.2 业务功能模块（功能测试） |
 | 空间管理模块 | `02-space-management/02-srs-space-management.md`（总览）及页面分册 `02-space-management/03-srs-space-management-my-workspace.md`、`02-space-management/04-srs-space-management-info.md`、`02-space-management/05-srs-space-management-member.md`、`02-space-management/06-srs-space-management-project.md`、`02-space-management/07-srs-space-management-invite-join.md` | 3.2 业务功能模块（空间管理） |
 | 缺陷管理模块 | `04-bug-management/02-srs-bug-management.md` | 3.2 业务功能模块（缺陷管理） |
+| 需求管理模块 | `06-requirement-management/02-srs-requirement-management.md` | 3.2 业务功能模块（需求管理） |
+| AI 能力模块 | `07-ai-capability/02-srs-ai-capability.md`（总册）及分册 `07-ai-capability/03-srs-ai-generation.md`、`07-ai-capability/04-srs-ai-assistant.md`、`07-ai-capability/05-srs-ai-defect-analysis.md`、`07-ai-capability/06-srs-ai-assisted-features.md` | 3.2 业务功能模块（AI 能力） |
+
+---
+
+## 修改记录
+
+| 版本 | 日期 | 说明 |
+| ---- | ---- | ---- |
+| V1.0 | 2026-09-23 | 创建需求规格说明书总览 |
+| V1.0 | 2026-10-01 | 登记需求管理与 AI 能力两个新模块（范围、定义、数据实体、分册对照） |
