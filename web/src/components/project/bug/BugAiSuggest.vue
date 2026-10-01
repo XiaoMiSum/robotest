@@ -6,13 +6,13 @@ import BugDedupList from '@/components/project/bug/BugDedupList.vue'
 import type { AiBugDedupItem, BugPriority, BugSeverity } from '@/types'
 
 /**
- * 缺陷表单 AI 结果面板（US-AI-008 / US-AI-009，交互设计 1.1/2.1/3.1）：
+ * 缺陷表单 AI 结果面板：
  * 入口按钮由父组件置于标题输入框 #append，点击后并发发起建议与查重两个请求，
  * 结果合并展示于本面板（建议区 + 疑似重复缺陷区），各区域独立 loading；
- * 头部 [收起/展开] 仅折叠内容（结果保留、不重新请求，交互设计 2.1）；
- * 查重卡片 [忽略] 为本次结果内过滤，被忽略条目不参与提交确认（交互设计 3.3）；
+ * 头部 [收起/展开] 仅折叠内容（结果保留、不重新请求）；
+ * 查重卡片 [忽略] 为本次结果内过滤，被忽略条目不参与提交确认；
  * 仅回填表单待用户确认（一键替换标题 / 采纳等级），不产生任何自动提交；
- * 调用失败仅 Toast 轻提示，不影响表单任何操作；无任何结果时不占位（2.7 零影响原则）。
+ * 调用失败仅 Toast 轻提示，不影响表单任何操作；无任何结果时不占位。
  */
 const props = defineProps<{
   title: string
@@ -23,7 +23,7 @@ const emit = defineEmits<{
   applyTitle: [title: string]
   applySeverity: [severity: BugSeverity]
   applyPriority: [priority: BugPriority]
-  /** 过滤忽略后的查重命中列表上抛：创建页提交时据此决定是否弹确认层（US-AI-009） */
+  /** 过滤忽略后的查重命中列表上抛：创建页提交时据此决定是否弹确认层 */
   'dedup-change': [items: AiBugDedupItem[]]
   /** 卡片预选「原始缺陷」透传 */
   'select-duplicate': [item: AiBugDedupItem | null]

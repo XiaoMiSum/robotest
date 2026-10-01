@@ -6,7 +6,7 @@ import io.github.xiaomisum.robotest.model.dto.response.ai.AiTaskRespDTO;
 import java.util.UUID;
 
 /**
- * 缺陷聚类分析（US-AI-010，详细设计 3.3）：异步任务，结果快照结构见设计 2.3
+ * 缺陷聚类分析：异步任务，结果为聚类快照
  */
 public interface AiBugClusteringService {
 

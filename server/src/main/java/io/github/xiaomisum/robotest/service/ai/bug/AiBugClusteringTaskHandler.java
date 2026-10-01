@@ -40,10 +40,10 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
- * bug_clustering 任务处理器（US-AI-010，详细设计 4.3）：
+ * bug_clustering 任务处理器：
  * 取数（无向量现场补建）→ 贪心增量聚类（阈值 + 归一化中心，确定性）→
- * 前 maxLabeledClusters 簇 LLM 归纳（每簇一次、批间心跳 + 协作式取消）→ 落库 2.3 快照。
- * semanticSearch 非 available 时降级为关键词归纳（标题分词 + 重叠系数，详见 4.3 降级模式），
+ * 前 maxLabeledClusters 簇 LLM 归纳（每簇一次、批间心跳 + 协作式取消）→ 落库聚类快照。
+ * semanticSearch 非 available 时降级为关键词归纳（标题分词 + 重叠系数），
  * 快照结构与向量模式一致。只读洞察，不修改缺陷数据。
  */
 @Slf4j
