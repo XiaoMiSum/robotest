@@ -24,7 +24,7 @@
 ### 1.3 参考资料
 
 - 《接口测试需求规格说明书》（`docs/01-requirements/01-readme.md`，3.4、3.9–3.11）
-- 《概要设计说明书》（`docs/02-high-level-design/02-hld-overview.md` 3.1、`docs/02-high-level-design/01-system-management/02-hld-system-management.md` §3.1、`docs/02-high-level-design/04-hld-core-mechanisms.md` §1）
+- 《概要设计说明书》（`docs/02-high-level-design/02-hld-overview.md` 3.1、`docs/02-high-level-design/01-system-management/02-hld-system-management.md` §3.1、`docs/02-high-level-design/07-hld-data-interface.md` 1.3）
 - 《API 测试基础设施详细设计说明书》（`docs/04-detailed-design/01-readme.md`）
 - Ryze 多协议测试框架文档（`https://xiaomisum.github.io/ryze/`）
 
@@ -173,3 +173,10 @@
 | 步骤与验证器提取器 | `14-test-scenario-step.md` | 3.3 步骤管理、3.10 步骤复制、3.12 从公共组件引入、4.2 验证器配置模型、4.3 提取器配置模型、4.4 请求配置、5.1 场景编排器 |
 | 变量体系 | `15-test-scenario-variable.md` | 3.4 步骤级变量管理、3.5 场景变量管理、4.1 变量引用与内置函数、6.1 Ryze 变量映射 |
 | 执行与历史 | `16-test-scenario-execution.md` | 3.6 场景执行与单步骤调试、3.11 执行历史与变更历史 |
+
+## 修改记录
+
+| 版本 | 日期 | 说明 |
+| ---- | ---- | ---- |
+| V1.0 | 2026-09-23 | 初始版本 |
+| V1.0 | 2026-10-02 | 数据隔离参考改指数据与接口设计分册 |
