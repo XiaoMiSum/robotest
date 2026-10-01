@@ -226,13 +226,6 @@ changes
 - 质量门禁：`docs/00-spec/30-quality-delivery/01-quality.md`
 - 部署密钥：`docs/00-spec/30-quality-delivery/03-deploy.md`、`docs/00-spec/30-quality-delivery/04-deployment-runbook.md`
 
-## 修改记录
-
-| 版本 | 日期 | 说明 |
-| ---- | ---- | ---- |
-| V1.0 | 2026-07-14 | 初建 |
-| V1.0 | 2026-10-01 | 移除智能辅助能力相关内容与失效引用 |
-
 ---
 
 **文档结束**

@@ -337,13 +337,6 @@ Windows 无 bash 时改用等价命令：`node scripts/validate.mjs --all`。
 - 通用实时协议：`docs/00-spec/20-contracts/03-realtime-protocol.md`
 - 项目脚本：`scripts/`
 
-## 修改记录
-
-| 版本 | 日期 | 说明 |
-| ---- | ---- | ---- |
-| V1.0 | 2026-09-24 | 初建 |
-| V1.0 | 2026-10-01 | 移除智能辅助能力相关内容与失效引用 |
-
 ---
 
 **文档结束**
