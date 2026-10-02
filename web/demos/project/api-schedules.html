@@ -9,24 +9,60 @@
 <link rel="stylesheet" href="../assets/ux.css">
 <style>
   .exec-time { font-size: var(--font-size-xs); color: var(--n-400); margin-top: 2px; }
-  /* Cron 可读化：表达式下方给出中文描述 */
-  .cron-cell { display: flex; flex-direction: column; gap: 2px; }
-  .cron-expr { font-family: var(--font-mono); font-size: var(--font-size-xs); color: var(--n-700); }
-  .cron-desc { font-size: var(--font-size-xs); color: var(--n-500); }
-  /* 下次执行：相对倒计时（title 为精确时间） */
-  .next-run { font-size: var(--font-size-xs); color: var(--brand-600, #337ecc); font-weight: 600; white-space: nowrap; }
-  .next-run--off { color: var(--n-400); font-weight: 400; }
-  .next-exact { font-size: var(--font-size-xs); color: var(--n-400); margin-top: 2px; }
   .op-group { display: inline-flex; align-items: center; gap: 8px; }
   .more-caret { color: var(--n-500); font-size: var(--font-size-xs); cursor: pointer; }
   .more-caret:hover { color: var(--brand-500); }
+  /* 上一次执行未结束时的禁用态（对应实际页 el-button :disabled） */
+  .op-link--disabled { color: var(--n-300); cursor: not-allowed; }
+  .op-link--disabled:hover { color: var(--n-300); text-decoration: none; }
   .muted { color: var(--n-400); }
+
+  /* 空态：与实际页 el-empty 文案一致 */
+  .empty-row td { padding: 40px 16px; text-align: center; color: var(--n-400); }
 
   /* 开关 */
   .switch { position: relative; width: 34px; height: 19px; border-radius: 10px; background: var(--n-200); border: none; cursor: pointer; padding: 0; transition: background .15s; vertical-align: middle; }
   .switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 15px; height: 15px; border-radius: 50%; background: #fff; transition: left .15s; }
   .switch.is-on { background: var(--brand-500); }
   .switch.is-on::after { left: 17px; }
+
+  /* 「更多」浮动菜单（编辑 / 删除） */
+  .more-dropdown {
+    position: fixed;
+    z-index: 90;
+    min-width: 108px;
+    padding: 4px 0;
+    background: var(--n-0);
+    border: 1px solid var(--n-200);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-lg);
+  }
+  .more-dropdown__item { padding: 7px 14px; font-size: var(--font-size-sm); color: var(--n-700); cursor: pointer; white-space: nowrap; }
+  .more-dropdown__item:hover { background: var(--n-50); color: var(--n-900); }
+  .more-dropdown__item--danger { color: var(--st-danger); }
+  .more-dropdown__sep { margin: 4px 0; border-top: 1px solid var(--n-100); }
+
+  /* 执行记录抽屉：对照实际页 el-drawer（600px、右侧弹出） */
+  .exec-mask { position: fixed; inset: 0; background: rgba(15, 15, 17, 0.45); z-index: 200; }
+  .exec-drawer {
+    position: fixed; top: 0; right: 0; bottom: 0; z-index: 210;
+    width: 600px; max-width: 92vw;
+    display: flex; flex-direction: column;
+    background: var(--n-0); border-left: 1px solid var(--n-200); box-shadow: var(--shadow-lg);
+  }
+  .exec-drawer__head {
+    flex-shrink: 0; display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 16px; border-bottom: 1px solid var(--n-100);
+  }
+  .exec-drawer__title { font-size: var(--font-size-md, 15px); font-weight: 600; color: var(--n-900); }
+  .exec-drawer__close { display: flex; padding: 3px; border: none; background: none; color: var(--n-400); cursor: pointer; border-radius: var(--radius-sm); }
+  .exec-drawer__close:hover { color: var(--n-700); background: var(--n-50); }
+  .exec-drawer__close svg { width: 16px; height: 16px; }
+  .exec-drawer__body { flex: 1; overflow-y: auto; }
+  .exec-drawer__body .table th,
+  .exec-drawer__body .table td { padding: 9px 10px; }
+  .exec-drawer__empty { padding: 32px 16px; text-align: center; color: var(--n-400); font-size: var(--font-size-sm); }
+  .exec-drawer__pager { flex-shrink: 0; border-top: 1px solid var(--n-100); border-bottom: none; }
 </style>
 </head>
 <body data-shell="business" data-mode="project" data-active="api" data-workspace="质量中台" data-project="电商核心系统">
@@ -60,41 +96,34 @@
       <div class="card">
         <div class="toolbar">
           <div class="toolbar__filters">
-            <select class="select" style="width:140px"><option>全部类型</option><option>测试计划</option><option>接口同步</option></select>
+            <select class="select" id="type-filter" style="width:140px">
+              <option value="">全部类型</option>
+              <option value="scene_execute">测试计划</option>
+              <option value="import_swagger">接口同步</option>
+            </select>
           </div>
-          <div class="toolbar__count">共 5 个任务</div>
         </div>
 
         <div class="table-wrap">
           <table class="table">
             <thead>
               <tr>
-                <th>任务名称</th>
+                <th style="min-width:180px">任务名称</th>
                 <th style="width:100px">类型</th>
-                <th>执行范围</th>
-                <th style="width:150px">调度</th>
-                <th style="width:140px">下次执行</th>
+                <th style="min-width:160px">执行范围</th>
+                <th style="width:130px">调度</th>
                 <th style="width:80px">状态</th>
                 <th style="width:130px">上次执行</th>
                 <th style="width:220px">操作</th>
               </tr>
             </thead>
-            <tbody>
-              <tr>
+            <tbody id="schedule-tbody">
+              <tr data-type="scene_execute" data-name="支付回归夜跑">
                 <td class="cell-main">支付回归夜跑</td>
                 <td>测试计划</td>
                 <td>全部场景</td>
-                <td>
-                  <div class="cron-cell">
-                    <span class="cron-expr">0 2 * * *</span>
-                    <span class="cron-desc">每天 02:00 执行</span>
-                  </div>
-                </td>
-                <td>
-                  <div class="next-run" data-cron="0 2 * * *"></div>
-                  <div class="next-exact" data-cron-exact></div>
-                </td>
-                <td style="text-align:center"><button class="switch is-on"></button></td>
+                <td><span class="mono">0 2 * * *</span></td>
+                <td style="text-align:center"><button class="switch is-on" aria-label="启用/停用"></button></td>
                 <td>
                   <span class="tag tag--success">成功</span>
                   <div class="exec-time">09-22 03:00</div>
@@ -102,53 +131,35 @@
                 <td>
                   <span class="op-group">
                     <span class="op-link" data-run-now>立即执行</span>
-                    <span class="op-link op-link--muted" data-ux-feedback="执行记录：近 7 次成功 6 · 失败 1">执行记录</span>
-                    <span class="more-caret" data-ux-feedback="更多操作：编辑 / 复制 / 停用 / 删除">更多 ▾</span>
+                    <span class="op-link op-link--muted" data-exec-records>执行记录</span>
+                    <span class="more-caret" data-more>更多 ▾</span>
                   </span>
                 </td>
               </tr>
-              <tr>
+              <tr data-type="scene_execute" data-name="核心链路冒烟">
                 <td class="cell-main">核心链路冒烟</td>
                 <td>测试计划</td>
                 <td>指定模块×3</td>
-                <td>
-                  <div class="cron-cell">
-                    <span class="cron-expr">0 * * * *</span>
-                    <span class="cron-desc">每小时整点执行</span>
-                  </div>
-                </td>
-                <td>
-                  <div class="next-run" data-cron="0 * * * *"></div>
-                  <div class="next-exact" data-cron-exact></div>
-                </td>
-                <td style="text-align:center"><button class="switch is-on"></button></td>
+                <td><span class="mono">0 * * * *</span></td>
+                <td style="text-align:center"><button class="switch is-on" aria-label="启用/停用"></button></td>
                 <td>
                   <span class="tag tag--warning">执行中</span>
                   <div class="exec-time">09-22 15:00</div>
                 </td>
                 <td>
                   <span class="op-group">
-                    <span class="op-link" style="color:var(--n-300)" title="上次执行尚未结束，暂不可再次触发">立即执行</span>
-                    <span class="op-link op-link--muted" data-ux-feedback="执行记录：本次执行中，已耗时 2 分 14 秒">执行记录</span>
-                    <span class="more-caret" data-ux-feedback="更多操作：编辑 / 复制 / 停用 / 删除">更多 ▾</span>
+                    <span class="op-link op-link--disabled" data-run-now title="上一次执行未结束，暂不可再次触发">立即执行</span>
+                    <span class="op-link op-link--muted" data-exec-records>执行记录</span>
+                    <span class="more-caret" data-more>更多 ▾</span>
                   </span>
                 </td>
               </tr>
-              <tr>
+              <tr data-type="import_swagger" data-name="Swagger 文档同步">
                 <td class="cell-main">Swagger 文档同步</td>
                 <td>接口同步</td>
                 <td class="num" style="font-size:var(--font-size-xs)">https://example.com/v3/api-docs</td>
-                <td>
-                  <div class="cron-cell">
-                    <span class="cron-expr">0 2 * * 1</span>
-                    <span class="cron-desc">每周一 02:00 执行</span>
-                  </div>
-                </td>
-                <td>
-                  <div class="next-run" data-cron="0 2 * * 1"></div>
-                  <div class="next-exact" data-cron-exact></div>
-                </td>
-                <td style="text-align:center"><button class="switch is-on"></button></td>
+                <td><span class="mono">0 2 * * 1</span></td>
+                <td style="text-align:center"><button class="switch is-on" aria-label="启用/停用"></button></td>
                 <td>
                   <span class="tag tag--danger">失败</span>
                   <div class="exec-time">09-21 02:00</div>
@@ -156,52 +167,32 @@
                 <td>
                   <span class="op-group">
                     <span class="op-link" data-run-now>立即执行</span>
-                    <span class="op-link op-link--muted" data-ux-feedback="上次失败原因：连接 api-docs 超时（10s），可重试">执行记录</span>
-                    <span class="more-caret" data-ux-feedback="更多操作：编辑 / 复制 / 停用 / 删除">更多 ▾</span>
+                    <span class="op-link op-link--muted" data-exec-records>执行记录</span>
+                    <span class="more-caret" data-more>更多 ▾</span>
                   </span>
                 </td>
               </tr>
-              <tr>
+              <tr data-type="scene_execute" data-name="用户中心场景巡检">
                 <td class="cell-main">用户中心场景巡检</td>
                 <td>测试计划</td>
                 <td>指定场景×2</td>
-                <td>
-                  <div class="cron-cell">
-                    <span class="cron-expr">0 2 * * 1-5</span>
-                    <span class="cron-desc">周一至周五 02:00 执行</span>
-                  </div>
-                </td>
-                <td>
-                  <div class="next-run next-run--off" data-cron="0 2 * * 1-5" data-disabled>已停用</div>
-                  <div class="next-exact">启用后开始调度</div>
-                </td>
-                <td style="text-align:center"><button class="switch"></button></td>
-                <td>
-                  <span class="muted">-</span>
-                </td>
+                <td><span class="mono">0 2 * * 1-5</span></td>
+                <td style="text-align:center"><button class="switch" aria-label="启用/停用"></button></td>
+                <td><span class="muted">-</span></td>
                 <td>
                   <span class="op-group">
                     <span class="op-link" data-run-now>立即执行</span>
-                    <span class="op-link op-link--muted" data-ux-feedback="任务已停用，暂无执行记录">执行记录</span>
-                    <span class="more-caret" data-ux-feedback="更多操作：编辑 / 复制 / 启用 / 删除">更多 ▾</span>
+                    <span class="op-link op-link--muted" data-exec-records>执行记录</span>
+                    <span class="more-caret" data-more>更多 ▾</span>
                   </span>
                 </td>
               </tr>
-              <tr>
+              <tr data-type="scene_execute" data-name="月末全量回归">
                 <td class="cell-main">月末全量回归</td>
                 <td>测试计划</td>
                 <td>全部场景</td>
-                <td>
-                  <div class="cron-cell">
-                    <span class="cron-expr">0 2 1 * *</span>
-                    <span class="cron-desc">每月 1 日 02:00 执行</span>
-                  </div>
-                </td>
-                <td>
-                  <div class="next-run" data-cron="0 2 1 * *"></div>
-                  <div class="next-exact" data-cron-exact></div>
-                </td>
-                <td style="text-align:center"><button class="switch is-on"></button></td>
+                <td><span class="mono">0 2 1 * *</span></td>
+                <td style="text-align:center"><button class="switch is-on" aria-label="启用/停用"></button></td>
                 <td>
                   <span class="tag tag--neutral">已跳过</span>
                   <div class="exec-time">09-01 02:00</div>
@@ -209,16 +200,19 @@
                 <td>
                   <span class="op-group">
                     <span class="op-link" data-run-now>立即执行</span>
-                    <span class="op-link op-link--muted" data-ux-feedback="上次跳过原因：目标环境维护中">执行记录</span>
-                    <span class="more-caret" data-ux-feedback="更多操作：编辑 / 复制 / 停用 / 删除">更多 ▾</span>
+                    <span class="op-link op-link--muted" data-exec-records>执行记录</span>
+                    <span class="more-caret" data-more>更多 ▾</span>
                   </span>
                 </td>
+              </tr>
+              <tr class="empty-row" hidden>
+                <td colspan="7">暂无定时任务，点击右上角「新建任务」创建第一个任务</td>
               </tr>
             </tbody>
           </table>
         </div>
         <div class="pagination">
-          <span class="pagination__total">共 5 个任务 · 每页 20 条</span>
+          <span class="pagination__total">共 <span id="total-count">5</span> 条 · 每页 20 条</span>
           <button class="page-btn" disabled>‹</button>
           <button class="page-btn page-btn--active">1</button>
           <button class="page-btn">›</button>
@@ -228,117 +222,261 @@
   </div>
 </main>
 
+<!-- 执行记录抽屉：与实际页 el-drawer 的列口径一致 -->
+<div class="exec-mask" id="exec-mask" hidden></div>
+<aside class="exec-drawer" id="exec-drawer" aria-label="执行记录" hidden>
+  <div class="exec-drawer__head">
+    <span class="exec-drawer__title" id="exec-title">执行记录</span>
+    <button class="exec-drawer__close" type="button" id="exec-close" aria-label="关闭"><span data-icon="x"></span></button>
+  </div>
+  <div class="exec-drawer__body">
+    <table class="table">
+      <thead>
+        <tr>
+          <th style="width:150px">触发时间</th>
+          <th style="width:72px">触发方式</th>
+          <th style="width:76px">状态</th>
+          <th style="width:72px">耗时</th>
+          <th>失败原因</th>
+        </tr>
+      </thead>
+      <tbody id="exec-tbody"></tbody>
+    </table>
+  </div>
+  <div class="pagination exec-drawer__pager">
+    <span class="pagination__total">共 <span id="exec-total">0</span> 条 · 每页 10 条</span>
+    <button class="page-btn" disabled>‹</button>
+    <button class="page-btn page-btn--active">1</button>
+    <button class="page-btn" disabled>›</button>
+  </div>
+</aside>
+
+<!-- 通用确认框：立即执行 / 删除（对照实际页 ElMessageBox） -->
+<div class="dialog-mask" id="confirm-dialog" data-mask-close hidden>
+  <div class="dialog" style="width:420px">
+    <div class="dialog__header">
+      <span class="dialog__title" id="confirm-title">确认操作</span>
+      <span class="dialog__close" data-close="confirm-dialog" aria-label="关闭"><span data-icon="x"></span></span>
+    </div>
+    <div class="dialog__body"><p id="confirm-body" style="margin:0;color:var(--n-700)"></p></div>
+    <div class="dialog__footer">
+      <button class="btn btn--default" type="button" data-close="confirm-dialog">取消</button>
+      <button class="btn btn--primary" type="button" id="confirm-ok">确定</button>
+    </div>
+  </div>
+</div>
+
+<div class="more-dropdown" id="more-dropdown" hidden></div>
+
 <script src="../assets/icons.js"></script>
 <script src="../assets/shell.js"></script>
 <script src="../assets/ux.js"></script>
 <script>
-  document.querySelectorAll('.switch').forEach(function (sw) {
-    sw.addEventListener('click', function () {
-      sw.classList.toggle('is-on');
-      var next = sw.closest('tr') && sw.closest('tr').querySelector('[data-cron]');
-      if (next) {
-        var off = !sw.classList.contains('is-on');
-        next.classList.toggle('next-run--off', off);
-        var exact = next.parentElement.querySelector('[data-cron-exact]');
-        if (off) { next.setAttribute('data-disabled', ''); next.removeAttribute('data-cron-text'); }
-        else { next.removeAttribute('data-disabled'); }
-        next.textContent = off ? '已停用' : (next.getAttribute('data-cron-text') || '');
-        if (exact) exact.textContent = off ? '启用后开始调度' : (exact.getAttribute('data-exact-text') || '');
-        tick();
-      }
-    });
-  });
+  var byId = function (id) { return document.getElementById(id); };
+  var tbody = byId('schedule-tbody');
+  var emptyRow = tbody.querySelector('.empty-row');
+  var typeFilter = byId('type-filter');
+  var totalCount = byId('total-count');
 
-  // 立即执行：触发后给出可追踪的反馈
-  document.querySelectorAll('[data-run-now]').forEach(function (el) {
-    el.addEventListener('click', function () {
-      window.RTUX.toast('已触发执行，正在排队运行', {
-        type: 'success',
-        actionLabel: '查看执行记录',
-        onAction: function () { window.RTUX.toast('执行记录：本次执行 #20260922-16 已创建', {}); },
-      });
-    });
-  });
-
-  // Cron 下次执行计算（仅覆盖演示用的五段表达式：* / 数字 / 区间 / 逗号列表）
-  function parseField(text, min, max) {
-    if (text === '*') return null; // 表示不限制
-    var out = [];
-    text.split(',').forEach(function (part) {
-      var m = part.match(/^(\d+)(?:-(\d+))?$/);
-      if (!m) return;
-      var from = parseInt(m[1], 10);
-      var to = m[2] ? parseInt(m[2], 10) : from;
-      for (var v = from; v <= to; v++) if (v >= min && v <= max) out.push(v);
-    });
-    return out.length ? out : null;
+  function dataRows() {
+    return Array.prototype.slice.call(tbody.querySelectorAll('tr[data-type]'));
   }
 
-  function nextRun(expr) {
-    var f = expr.split(/\s+/);
-    if (f.length < 5) return null;
-    var minute = parseField(f[0], 0, 59);
-    var hour = parseField(f[1], 0, 23);
-    var dom = parseField(f[2], 1, 31);
-    var month = parseField(f[3], 1, 12);
-    var dow = parseField(f[4], 0, 7);
-    var base = new Date();
-    base.setSeconds(0, 0);
-    for (var d = 0; d < 400; d++) {
-      var day = new Date(base.getTime() + d * 86400000);
-      var dayOk =
-        (!month || month.indexOf(day.getMonth() + 1) >= 0) &&
-        // cron 语义：日与星期同时受限时取“或”，否则取“与”
-        (dom && dow
-          ? dom.indexOf(day.getDate()) >= 0 || dow.indexOf(day.getDay()) >= 0
-          : (!dom || dom.indexOf(day.getDate()) >= 0) && (!dow || dow.indexOf(day.getDay()) >= 0));
-      if (!dayOk) continue;
-      for (var h = 0; h < 24; h++) {
-        if (hour && hour.indexOf(h) < 0) continue;
-        for (var mi = 0; mi < 60; mi++) {
-          if (minute && minute.indexOf(mi) < 0) continue;
-          var t = new Date(day.getFullYear(), day.getMonth(), day.getDate(), h, mi, 0, 0);
-          if (t.getTime() <= base.getTime()) continue;
-          return t;
-        }
-      }
+  // 类型筛选对应实际页 watch(typeFilter) 后按 taskType 重新分页，此处为静态等价
+  function refreshList() {
+    var type = typeFilter.value;
+    var shown = 0;
+    dataRows().forEach(function (tr) {
+      var ok = !type || tr.getAttribute('data-type') === type;
+      tr.hidden = !ok;
+      if (ok) shown += 1;
+    });
+    emptyRow.hidden = shown > 0;
+    totalCount.textContent = String(shown);
+  }
+  typeFilter.addEventListener('change', refreshList);
+
+  /* ---------------- 启停开关 ---------------- */
+  tbody.addEventListener('click', function (e) {
+    var sw = e.target.closest('.switch');
+    if (!sw) return;
+    sw.classList.toggle('is-on');
+    window.RTUX.toast(sw.classList.contains('is-on') ? '已启用' : '已停用', { type: 'success' });
+  });
+
+  /* ---------------- 通用确认框 ---------------- */
+  var confirmDialog = byId('confirm-dialog');
+  var confirmOk = byId('confirm-ok');
+  var confirmAction = null;
+
+  function askConfirm(title, body, okLabel, danger, onOk) {
+    byId('confirm-title').textContent = title;
+    byId('confirm-body').textContent = body;
+    confirmOk.textContent = okLabel;
+    confirmOk.classList.toggle('btn--danger', !!danger);
+    confirmOk.classList.toggle('btn--primary', !danger);
+    confirmAction = onOk;
+    confirmDialog.hidden = false;
+  }
+
+  confirmOk.addEventListener('click', function () {
+    var action = confirmAction;
+    confirmAction = null;
+    confirmDialog.hidden = true;
+    if (action) action();
+  });
+
+  document.addEventListener('click', function (e) {
+    var closer = e.target.closest('[data-close]');
+    if (closer) byId(closer.getAttribute('data-close')).hidden = true;
+    // 「更多」是浮层，点击页面任意其它位置即收起
+    if (!e.target.closest('[data-more]') && !e.target.closest('#more-dropdown')) closeMore();
+  });
+  document.querySelectorAll('[data-mask-close]').forEach(function (mask) {
+    mask.addEventListener('click', function (e) {
+      if (e.target === mask) mask.hidden = true;
+    });
+  });
+
+  /* ---------------- 立即执行 ---------------- */
+  tbody.addEventListener('click', function (e) {
+    var btn = e.target.closest('[data-run-now]');
+    if (!btn) return;
+    var row = btn.closest('tr');
+    var name = row.getAttribute('data-name');
+    if (btn.classList.contains('op-link--disabled')) {
+      window.RTUX.toast('上一次执行未结束，请稍后再试', { type: 'warning' });
+      return;
     }
-    return null;
-  }
-
-  function pad(n) { return n < 10 ? '0' + n : '' + n; }
-
-  function fmtExact(t) {
-    return t.getFullYear() + '-' + pad(t.getMonth() + 1) + '-' + pad(t.getDate()) + ' ' + pad(t.getHours()) + ':' + pad(t.getMinutes());
-  }
-
-  function fmtRelative(t) {
-    var diff = t.getTime() - Date.now();
-    var mins = Math.max(1, Math.round(diff / 60000));
-    if (mins < 60) return mins + ' 分钟后';
-    var hours = Math.floor(mins / 60);
-    if (hours < 24) return hours + ' 小时' + (mins % 60 ? ' ' + (mins % 60) + ' 分钟' : '') + '后';
-    var days = Math.floor(hours / 24);
-    return days + ' 天后';
-  }
-
-  function tick() {
-    document.querySelectorAll('[data-cron]').forEach(function (el) {
-      if (el.hasAttribute('data-disabled')) return;
-      var t = nextRun(el.getAttribute('data-cron'));
-      if (!t) return;
-      el.textContent = fmtRelative(t);
-      el.title = '下次执行：' + fmtExact(t);
-      el.setAttribute('data-cron-text', el.textContent);
-      var exact = el.parentElement.querySelector('[data-cron-exact]');
-      if (exact) {
-        exact.textContent = fmtExact(t);
-        exact.setAttribute('data-exact-text', fmtExact(t));
-      }
+    askConfirm('立即执行', '立即执行定时任务「' + name + '」？', '确定', false, function () {
+      window.RTUX.toast('已触发执行', { type: 'success' });
     });
+  });
+
+  /* ---------------- 执行记录抽屉 ---------------- */
+  // 状态文案/配色口径同 schedulesModel 的 execStatusLabel / execStatusType
+  var EXEC_STATUS = {
+    success: ['成功', 'tag--success'],
+    failed: ['失败', 'tag--danger'],
+    running: ['执行中', 'tag--warning'],
+    skipped: ['已跳过', 'tag--neutral'],
+  };
+  var EXEC_RECORDS = {
+    '支付回归夜跑': [
+      ['2026-09-22 03:00:02', '定时', 'success', '248.6s', ''],
+      ['2026-09-21 03:00:01', '定时', 'success', '231.4s', ''],
+      ['2026-09-20 15:12:40', '手动', 'success', '196.2s', ''],
+      ['2026-09-20 03:00:03', '定时', 'failed', '42.7s', '登录接口 500：网关超时']
+    ],
+    '核心链路冒烟': [
+      ['2026-09-22 15:00:01', '定时', 'running', '', ''],
+      ['2026-09-22 14:00:01', '定时', 'success', '58.3s', ''],
+      ['2026-09-22 13:00:02', '定时', 'success', '61.0s', '']
+    ],
+    'Swagger 文档同步': [
+      ['2026-09-21 02:00:01', '定时', 'failed', '10.2s', '连接 api-docs 超时（10s）'],
+      ['2026-09-14 02:00:02', '定时', 'success', '3.4s', ''],
+      ['2026-09-13 10:22:15', '手动', 'success', '3.1s', '']
+    ],
+    '用户中心场景巡检': [],
+    '月末全量回归': [
+      ['2026-09-01 02:00:01', '定时', 'skipped', '', '目标环境维护中'],
+      ['2026-08-01 02:00:02', '定时', 'success', '512.8s', '']
+    ],
+  };
+
+  function renderExecutions(name) {
+    var list = EXEC_RECORDS[name] || [];
+    var body = byId('exec-tbody');
+    body.innerHTML = '';
+    if (!list.length) {
+      body.innerHTML = '<tr><td colspan="5" class="exec-drawer__empty">暂无执行记录</td></tr>';
+    } else {
+      list.forEach(function (rec) {
+        var st = EXEC_STATUS[rec[2]] || [rec[2], 'tag--neutral'];
+        var tr = document.createElement('tr');
+        tr.innerHTML =
+          '<td class="num" style="font-size:var(--font-size-xs)">' + rec[0] + '</td>' +
+          '<td>' + rec[1] + '</td>' +
+          '<td><span class="tag ' + st[1] + '">' + st[0] + '</span></td>' +
+          '<td class="num">' + (rec[3] || '-') + '</td>' +
+          '<td style="font-size:var(--font-size-xs)">' + (rec[4] || '-') + '</td>';
+        body.appendChild(tr);
+      });
+    }
+    byId('exec-total').textContent = String(list.length);
+    byId('exec-title').textContent = '执行记录 — ' + name;
+    byId('exec-drawer').hidden = false;
+    byId('exec-mask').hidden = false;
   }
-  tick();
-  window.setInterval(tick, 30000);
+
+  function closeExecDrawer() {
+    byId('exec-drawer').hidden = true;
+    byId('exec-mask').hidden = true;
+  }
+  byId('exec-mask').addEventListener('click', closeExecDrawer);
+  byId('exec-close').addEventListener('click', closeExecDrawer);
+
+  tbody.addEventListener('click', function (e) {
+    var btn = e.target.closest('[data-exec-records]');
+    if (!btn) return;
+    renderExecutions(btn.closest('tr').getAttribute('data-name'));
+  });
+
+  /* ---------------- 「更多」浮动菜单：编辑 / 删除 ---------------- */
+  var moreDrop = byId('more-dropdown');
+
+  function closeMore() { moreDrop.hidden = true; }
+
+  tbody.addEventListener('click', function (e) {
+    var trigger = e.target.closest('[data-more]');
+    if (!trigger) {
+      if (!e.target.closest('#more-dropdown')) closeMore();
+      return;
+    }
+    var row = trigger.closest('tr');
+    moreDrop.innerHTML =
+      '<div class="more-dropdown__item" data-more-act="edit">编辑</div>' +
+      '<div class="more-dropdown__sep"></div>' +
+      '<div class="more-dropdown__item more-dropdown__item--danger" data-more-act="delete">删除</div>';
+    var r = trigger.getBoundingClientRect();
+    moreDrop.hidden = false;
+    moreDrop.style.left = Math.max(8, Math.min(r.left, window.innerWidth - moreDrop.offsetWidth - 8)) + 'px';
+    moreDrop.style.top = r.bottom + 6 + 'px';
+    moreDrop.setAttribute('data-row-name', row.getAttribute('data-name'));
+  });
+
+  moreDrop.addEventListener('click', function (e) {
+    var item = e.target.closest('[data-more-act]');
+    if (!item) return;
+    var name = moreDrop.getAttribute('data-row-name');
+    closeMore();
+    if (item.getAttribute('data-more-act') === 'edit') {
+      window.location.href = 'api-schedule-form.html';
+      return;
+    }
+    askConfirm(
+      '删除定时任务',
+      '删除定时任务「' + name + '」？删除不影响已产生的执行记录与报告。',
+      '删除',
+      true,
+      function () {
+        var row = tbody.querySelector('tr[data-name="' + name + '"]');
+        if (row) row.remove();
+        refreshList();
+        window.RTUX.toast('已删除', { type: 'danger' });
+      }
+    );
+  });
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Escape') return;
+    closeMore();
+    confirmDialog.hidden = true;
+    closeExecDrawer();
+  });
+
+  refreshList();
 </script>
 </body>
 </html>
