@@ -6,6 +6,22 @@
 <title>新建用户 · 系统管理 · RoboTest</title>
 <link rel="stylesheet" href="../assets/tokens.css">
 <link rel="stylesheet" href="../assets/base.css">
+<style>
+  /* 弹层与状态行靠 hidden 属性开关，作者样式的 display:flex 会盖过 UA [hidden]，需强制生效 */
+  [hidden] { display: none !important; }
+
+  /* 密码强度条：与 PasswordStrengthBar 组件同款结构，仅在有输入时展示 */
+  .pwd-strength { display: flex; align-items: center; gap: 8px; margin-top: 6px; width: 100%; }
+  .pwd-strength__bar { flex: 1; display: flex; gap: 4px; }
+  .pwd-strength__segment { flex: 1; height: 4px; border-radius: 999px; background: var(--n-200); transition: background-color 0.3s ease; }
+  .pwd-strength__label { font-size: var(--font-size-2xs); font-weight: 500; white-space: nowrap; }
+
+  /* 编辑态密码行只有「修改密码」链接，撑出与输入框一致的行高 */
+  .pwd-link-row { display: flex; align-items: center; min-height: 32px; }
+
+  /* 系统角色竖排复选，仅角色名（角色描述无数据源） */
+  .role-opt { display: flex; align-items: center; gap: 8px; min-height: 32px; cursor: pointer; font-size: var(--font-size-base); color: var(--n-700); }
+</style>
 </head>
 <body data-shell="admin" data-active="users" data-mode="admin">
 
@@ -14,17 +30,17 @@
   <div class="breadcrumb">
     <a href="users.html">用户管理</a>
     <span data-icon="chevron-right"></span>
-    <span>新建用户</span>
+    <span id="crumb-current">新建用户</span>
   </div>
 
   <div class="page-head">
     <div>
-      <h1 class="page-head__title">新建用户</h1>
-      <p class="page-head__desc">创建平台账号并分配系统级角色</p>
+      <h1 class="page-head__title" id="page-title">新建用户</h1>
+      <p class="page-head__desc" id="page-desc">创建平台账号并分配系统级角色</p>
     </div>
     <div class="page-head__actions">
       <a class="btn btn--text" href="users.html">取消</a>
-      <button class="btn btn--primary">保存</button>
+      <button class="btn btn--primary" id="btn-save" type="button">保存</button>
     </div>
   </div>
 
@@ -33,33 +49,42 @@
       <div class="card__header"><h3 class="card__title">基本信息</h3></div>
       <div class="card__body">
         <div class="field">
-          <label class="field__label">用户名<span class="req">*</span></label>
-          <input class="input" placeholder="登录账号，字母数字组合" value="zhoumin">
-          <div class="field__hint">4–32 位，仅允许字母、数字与下划线</div>
+          <label class="field__label" for="f-username">用户名<span class="req">*</span></label>
+          <input class="input" id="f-username" placeholder="登录账号" value="sunhao">
+          <div class="field__hint">3-30 个字符，允许字母、数字、_、-</div>
+          <div class="field__error" id="f-username-error" hidden></div>
         </div>
         <div class="field">
-          <label class="field__label">昵称<span class="req">*</span></label>
-          <input class="input" placeholder="显示名称" value="周敏">
+          <label class="field__label" for="f-name">姓名<span class="req">*</span></label>
+          <input class="input" id="f-name" placeholder="请输入姓名" maxlength="50" value="孙浩">
+          <div class="field__error" id="f-name-error" hidden></div>
         </div>
         <div class="field">
-          <label class="field__label">邮箱<span class="req">*</span></label>
-          <input class="input" placeholder="用于登录与通知" value="zhoumin@robotest.cn">
+          <label class="field__label" for="f-email">邮箱<span class="req">*</span></label>
+          <input class="input" id="f-email" placeholder="请输入邮箱" value="sunhao@robotest.cn">
+          <div class="field__error" id="f-email-error" hidden></div>
         </div>
-        <div class="form-grid">
-          <div class="field">
-            <label class="field__label">初始密码<span class="req">*</span></label>
-            <input class="input" type="password" value="Passw0rd!">
+
+        <!-- 密码行两态互斥：新建态为密码框 + 强度条，编辑态（#edit）为修改密码入口 -->
+        <div class="field" id="row-pwd-create">
+          <label class="field__label" for="f-password">密码<span class="req">*</span></label>
+          <input class="input" id="f-password" type="password" placeholder="8-64 字符" value="Passw0rd!">
+          <div class="pwd-strength" id="strength-create">
+            <div class="pwd-strength__bar">
+              <span class="pwd-strength__segment"></span>
+              <span class="pwd-strength__segment"></span>
+              <span class="pwd-strength__segment"></span>
+              <span class="pwd-strength__segment"></span>
+            </div>
+            <span class="pwd-strength__label"></span>
           </div>
-          <div class="field">
-            <label class="field__label">确认密码<span class="req">*</span></label>
-            <input class="input" type="password" value="Passw0rd!">
-          </div>
+          <div class="field__error" id="f-password-error" hidden></div>
         </div>
-        <div class="field" style="margin-bottom:0">
-          <label class="field__label">状态</label>
-          <div class="flex-center flex-gap-lg">
-            <span class="flex-center flex-gap-sm text-sm"><span class="radio checkbox checkbox--on" style="border-radius:50%"></span>启用</span>
-            <span class="flex-center flex-gap-sm text-sm muted"><span class="checkbox" style="border-radius:50%"></span>停用</span>
+
+        <div class="field" id="row-pwd-edit" hidden>
+          <label class="field__label">密码</label>
+          <div class="pwd-link-row">
+            <button class="btn btn--link" id="btn-change-pwd" type="button">修改密码</button>
           </div>
         </div>
       </div>
@@ -70,55 +95,198 @@
         <h3 class="card__title">系统角色<span class="card__subtitle">决定全局管理权限</span></h3>
       </div>
       <div class="card__body">
-        <div class="field">
-          <div class="flex-center flex-gap-sm mb-lg" style="align-items:flex-start">
-            <span class="checkbox checkbox--on" style="margin-top:3px"></span>
-            <div>
-              <div class="text-sm strong">系统管理员</div>
-              <div class="text-xs muted">拥有全部系统管理权限，可管理用户、空间与全局配置</div>
-            </div>
-          </div>
-          <div class="flex-center flex-gap-sm mb-lg" style="align-items:flex-start">
-            <span class="checkbox" style="margin-top:3px"></span>
-            <div>
-              <div class="text-sm strong">空间管理员</div>
-              <div class="text-xs muted">可代管指定工作空间的成员与项目</div>
-            </div>
-          </div>
-          <div class="flex-center flex-gap-sm mb-lg" style="align-items:flex-start">
-            <span class="checkbox" style="margin-top:3px"></span>
-            <div>
-              <div class="text-sm strong">测试工程师</div>
-              <div class="text-xs muted">默认业务角色，可在加入的空间内执行测试工作</div>
-            </div>
-          </div>
-          <div class="flex-center flex-gap-sm" style="align-items:flex-start">
-            <span class="checkbox" style="margin-top:3px"></span>
-            <div>
-              <div class="text-sm strong">只读成员</div>
-              <div class="text-xs muted">仅可查看，不可编辑任何业务数据</div>
-            </div>
-          </div>
-        </div>
-
-        <hr class="divider divider--dashed">
-
-        <div class="alert alert--info">
-          <span data-icon="info-filled"></span>
-          <div>创建后系统将发送激活邮件，用户首次登录需修改初始密码。</div>
+        <div class="field" style="margin-bottom:0">
+          <label class="role-opt" data-role="sys"><span class="checkbox"></span><span>系统管理员</span></label>
+          <label class="role-opt" data-role="ws"><span class="checkbox"></span><span>空间管理员</span></label>
+          <label class="role-opt" data-role="qa"><span class="checkbox"></span><span>测试工程师</span></label>
+          <label class="role-opt" data-role="ro"><span class="checkbox"></span><span>只读成员</span></label>
         </div>
       </div>
     </div>
   </div>
 
-  <div class="btn-row block-gap" style="justify-content:flex-end">
-    <a class="btn btn--default" href="users.html">返回列表</a>
-    <button class="btn btn--primary">保存并创建</button>
-  </div>
-
 </main>
+
+<!-- 修改密码：仅编辑态可达，对应实际页 el-dialog -->
+<div class="dialog-mask" id="pwd-dialog" data-mask-close hidden>
+  <div class="dialog" style="width:420px">
+    <div class="dialog__header">
+      <span class="dialog__title">修改密码</span>
+      <button class="dialog__close" data-close="pwd-dialog" aria-label="关闭"><span data-icon="x"></span></button>
+    </div>
+    <div class="dialog__body">
+      <input class="input" id="pwd-input" type="password" placeholder="请输入新密码">
+      <div class="pwd-strength" id="strength-dialog">
+        <div class="pwd-strength__bar">
+          <span class="pwd-strength__segment"></span>
+          <span class="pwd-strength__segment"></span>
+          <span class="pwd-strength__segment"></span>
+          <span class="pwd-strength__segment"></span>
+        </div>
+        <span class="pwd-strength__label"></span>
+      </div>
+      <div class="field__error" id="pwd-error" hidden></div>
+    </div>
+    <div class="dialog__footer">
+      <button class="btn btn--default btn--sm" data-close="pwd-dialog">取消</button>
+      <button class="btn btn--primary btn--sm" id="pwd-ok" type="button">确定</button>
+    </div>
+  </div>
+</div>
 
 <script src="../assets/icons.js"></script>
 <script src="../assets/shell.js"></script>
+<script>
+(function () {
+  function byId(id) { return document.getElementById(id); }
+
+  /* ---------------- 密码强度条（同 PasswordStrengthBar 口径） ---------------- */
+  var STRENGTH_COLORS = ['var(--st-danger)', 'var(--st-warning)', 'var(--st-success-strong)', 'var(--st-success)'];
+  var STRENGTH_LABELS = ['弱', '较弱', '中', '强'];
+
+  function strengthOf(value) {
+    if (!value) return 0;
+    // 不足 8 位时按长度给基础强度，保证输入即有视觉反馈
+    if (value.length < 8) return Math.max(1, Math.floor(value.length / 2));
+    return [/[A-Z]/, /[a-z]/, /[0-9]/, /[^A-Za-z0-9]/].filter(function (re) { return re.test(value); }).length;
+  }
+
+  function renderStrength(input, wrap) {
+    var s = strengthOf(input.value);
+    wrap.hidden = s === 0;
+    if (!s) return;
+    var segments = wrap.querySelectorAll('.pwd-strength__segment');
+    segments.forEach(function (seg, i) {
+      seg.style.backgroundColor = i < s ? STRENGTH_COLORS[i] : '';
+    });
+    var label = wrap.querySelector('.pwd-strength__label');
+    label.textContent = STRENGTH_LABELS[s - 1];
+    label.style.color = STRENGTH_COLORS[s - 1];
+  }
+
+  /* ---------------- 新建 / 编辑两态（单页覆盖 /create 与 /:id 两条路由） ---------------- */
+  var ROLE_ON = { create: ['qa'], edit: ['ws', 'qa'] };
+
+  function applyMode() {
+    var edit = location.hash === '#edit';
+    var title = edit ? '编辑用户' : '新建用户';
+    byId('crumb-current').textContent = title;
+    byId('page-title').textContent = title;
+    byId('page-desc').textContent = edit ? '更新账号信息与系统角色分配' : '创建平台账号并分配系统级角色';
+    document.title = title + ' · 系统管理 · RoboTest';
+
+    var username = byId('f-username');
+    username.disabled = edit; // 编辑态用户名只读，与实际页 :disabled="isEdit" 一致
+    username.value = edit ? 'lihua' : 'sunhao';
+    byId('f-name').value = edit ? '李华' : '孙浩';
+    byId('f-email').value = edit ? 'lihua@robotest.cn' : 'sunhao@robotest.cn';
+
+    byId('row-pwd-create').hidden = edit;
+    byId('row-pwd-edit').hidden = !edit;
+
+    var on = ROLE_ON[edit ? 'edit' : 'create'];
+    document.querySelectorAll('[data-role]').forEach(function (row) {
+      row.querySelector('.checkbox').classList.toggle('checkbox--on', on.indexOf(row.getAttribute('data-role')) >= 0);
+    });
+
+    renderStrength(byId('f-password'), byId('strength-create'));
+  }
+  window.addEventListener('hashchange', applyMode);
+
+  /* ---------------- 校验（规则与 UserFormPage rules 同文案，失焦与保存时触发） ---------------- */
+  var RULES = {
+    'f-username': function (v) {
+      if (!v) return '请输入用户名';
+      if (v.length < 3 || v.length > 30) return '用户名长度为 3-30 个字符';
+      if (!/^[a-zA-Z0-9_-]+$/.test(v)) return '只能包含字母、数字、下划线、连字符';
+      return '';
+    },
+    'f-name': function (v) {
+      if (!v) return '请输入姓名';
+      if (v.length > 50) return '姓名长度不能超过 50 个字符';
+      return '';
+    },
+    'f-email': function (v) {
+      if (!v) return '请输入邮箱';
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) return '邮箱格式不正确';
+      return '';
+    },
+    'f-password': function (v) {
+      if (!v) return '请输入密码';
+      if (v.length < 8 || v.length > 64) return '密码长度为 8-64 个字符';
+      return '';
+    }
+  };
+
+  function validateField(id) {
+    // 编辑态密码行被隐藏，不参与校验
+    if (id === 'f-password' && byId('row-pwd-create').hidden) return true;
+    var input = byId(id);
+    var msg = RULES[id](input.value.trim());
+    byId(id + '-error').textContent = msg;
+    byId(id + '-error').hidden = !msg;
+    input.classList.toggle('input--error', !!msg);
+    return !msg;
+  }
+
+  Object.keys(RULES).forEach(function (id) {
+    byId(id).addEventListener('blur', function () { validateField(id); });
+  });
+
+  byId('btn-save').addEventListener('click', function () {
+    var results = Object.keys(RULES).map(validateField);
+    if (results.indexOf(false) >= 0) return;
+    location.href = 'users.html'; // 保存成功后跳转列表页
+  });
+
+  /* ---------------- 修改密码弹窗与角色勾选 ---------------- */
+  document.addEventListener('click', function (e) {
+    var target;
+
+    if ((target = e.target.closest('[data-close]'))) {
+      byId(target.getAttribute('data-close')).hidden = true;
+      return;
+    }
+
+    if ((target = e.target.closest('[data-role]'))) {
+      target.querySelector('.checkbox').classList.toggle('checkbox--on');
+      return;
+    }
+
+    if (e.target.closest('#btn-change-pwd')) {
+      byId('pwd-error').hidden = true;
+      renderStrength(byId('pwd-input'), byId('strength-dialog'));
+      byId('pwd-dialog').hidden = false;
+    }
+  });
+
+  byId('pwd-ok').addEventListener('click', function () {
+    var input = byId('pwd-input');
+    if (!input.value) {
+      byId('pwd-error').textContent = '请输入新密码';
+      byId('pwd-error').hidden = false;
+      return;
+    }
+    byId('pwd-dialog').hidden = true;
+    input.value = '';
+    renderStrength(input, byId('strength-dialog'));
+  });
+
+  document.querySelectorAll('[data-mask-close]').forEach(function (mask) {
+    mask.addEventListener('click', function (e) {
+      if (e.target === mask) mask.hidden = true;
+    });
+  });
+
+  byId('f-password').addEventListener('input', function () {
+    renderStrength(this, byId('strength-create'));
+  });
+  byId('pwd-input').addEventListener('input', function () {
+    renderStrength(this, byId('strength-dialog'));
+  });
+
+  applyMode();
+})();
+</script>
 </body>
 </html>
