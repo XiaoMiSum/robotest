@@ -10,22 +10,28 @@
 <style>
   [hidden] { display: none !important; }
 
-  /* 字段内的横排选项（任务类型 / 执行方式 / 已选场景） */
+  /* 字段内的横排选项（任务类型 / 执行方式） */
   .opt-row { display: flex; align-items: center; gap: var(--space-md); flex-wrap: wrap; }
 
   .fdiv { display: flex; align-items: center; gap: 12px; color: var(--n-400); font-size: var(--font-size-xs); }
   .fdiv::before, .fdiv::after { content: ""; flex: 1; height: 1px; background: var(--n-100); }
-
-  .radio-seg { display: inline-flex; gap: 2px; background: var(--n-50); border: 1px solid var(--n-100); border-radius: var(--radius-md); padding: 2px; }
-  .radio-seg button { height: 26px; padding: 0 14px; border: none; background: none; border-radius: var(--radius-sm); font-size: var(--font-size-xs); color: var(--n-500); cursor: pointer; }
-  .radio-seg button.is-active { background: var(--brand-500); color: #fff; font-weight: 500; }
 
   .radio-line { display: inline-flex; align-items: center; gap: 6px; font-size: var(--font-size-sm); color: var(--n-700); cursor: pointer; }
   .radio-dot { width: 14px; height: 14px; border-radius: 50%; border: 1px solid var(--n-300); background: #fff; display: inline-flex; align-items: center; justify-content: center; }
   .radio-line.is-active .radio-dot { border-color: var(--brand-500); }
   .radio-line.is-active .radio-dot::after { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--brand-500); }
 
+  .scene-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
   .scene-tags { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .tag-close { cursor: pointer; color: var(--n-400); }
+  .tag-close:hover { color: var(--n-700); }
+
+  /* 模块树（对照实际页 el-tree-select：多选 + 父模块包含子模块） */
+  .mod-tree { border: 1px solid var(--n-200); border-radius: var(--radius-md); padding: 6px 8px; width: 100%; max-height: 190px; overflow: auto; }
+  .mod-node { display: flex; align-items: center; gap: 8px; padding: 5px 6px; font-size: var(--font-size-sm); color: var(--n-700); cursor: pointer; border-radius: var(--radius-sm); }
+  .mod-node:hover { background: var(--n-50); }
+  .mod-node--child { padding-left: 26px; }
+  .mod-placeholder { color: var(--n-400); font-size: var(--font-size-sm); padding: 4px 6px; }
 
   .cron-row { display: flex; gap: var(--space-xs); align-items: center; width: 100%; }
   .cron-row .input { flex: 1; font-family: var(--font-mono); }
@@ -34,6 +40,9 @@
   .cron-preview { font-size: var(--font-size-xs); color: var(--n-500); margin-top: 4px; }
   .cron-builder { display: flex; gap: var(--space-xs); align-items: center; margin-top: 8px; }
   .cron-builder .input { width: 80px; text-align: center; font-family: var(--font-mono); }
+
+  .cell-edit { cursor: pointer; }
+  .cell-edit:hover { color: var(--brand-600); }
 
   .dialog { width: 720px; }
   .dialog .dialog__body { padding: 20px 24px; }
@@ -64,7 +73,7 @@
           <p class="page-head__desc">测试计划（场景批量执行）与接口同步的统一周期调度</p>
         </div>
         <div class="page-head__actions">
-          <button class="btn btn--primary"><span data-icon="plus"></span>新建任务</button>
+          <button class="btn btn--primary" id="btn-create"><span data-icon="plus"></span>新建任务</button>
         </div>
       </div>
 
@@ -81,9 +90,15 @@
               <tr><th>任务名称</th><th style="width:100px">类型</th><th>执行范围</th><th style="width:130px">调度</th><th style="width:80px">状态</th></tr>
             </thead>
             <tbody>
-              <tr><td class="cell-main">支付回归夜跑</td><td>测试计划</td><td>全部场景</td><td class="num">0 2 * * *</td><td style="text-align:center"><span class="tag tag--success">启用</span></td></tr>
-              <tr><td class="cell-main">核心链路冒烟</td><td>测试计划</td><td>指定模块×3</td><td class="num">0 * * * *</td><td style="text-align:center"><span class="tag tag--success">启用</span></td></tr>
-              <tr><td class="cell-main">Swagger 文档同步</td><td>接口同步</td><td>—</td><td class="num">0 2 * * 1</td><td style="text-align:center"><span class="tag tag--success">启用</span></td></tr>
+              <tr data-name="支付回归夜跑" data-desc="每晚全量回归支付链路，覆盖下单到退款全流程" data-type="scene_execute" data-scope="all" data-env="测试环境" data-cron="0 2 * * *">
+                <td class="cell-main cell-edit" data-edit title="点击编辑任务">支付回归夜跑</td><td>测试计划</td><td>全部场景</td><td class="num">0 2 * * *</td><td style="text-align:center"><span class="tag tag--success">启用</span></td>
+              </tr>
+              <tr data-name="核心链路冒烟" data-desc="每小时跑核心链路冒烟，快速发现主流程阻断" data-type="scene_execute" data-scope="modules" data-modules="订单创建,订单查询,订单取消" data-env="测试环境" data-cron="0 * * * *">
+                <td class="cell-main cell-edit" data-edit title="点击编辑任务">核心链路冒烟</td><td>测试计划</td><td>指定模块×3</td><td class="num">0 * * * *</td><td style="text-align:center"><span class="tag tag--success">启用</span></td>
+              </tr>
+              <tr data-name="Swagger 文档同步" data-desc="每周一同步网关最新接口定义" data-type="import_swagger" data-openapi="https://gateway.demo.cn/v3/api-docs" data-cron="0 2 * * 1">
+                <td class="cell-main cell-edit" data-edit title="点击编辑任务">Swagger 文档同步</td><td>接口同步</td><td>https://gateway.demo.cn/v3/api-docs</td><td class="num">0 2 * * 1</td><td style="text-align:center"><span class="tag tag--success">启用</span></td>
+              </tr>
             </tbody>
           </table>
         </div>
@@ -98,72 +113,83 @@
   </div>
 </main>
 
-<!-- 新建定时任务弹窗 -->
-<div class="dialog-mask">
+<!-- 新建/编辑定时任务弹窗（对照 SchedulesPage.vue 内 el-dialog：720px、destroy-on-close） -->
+<div class="dialog-mask" id="dlg-mask">
   <div class="dialog">
     <div class="dialog__header">
-      <span class="dialog__title">新建定时任务</span>
-      <a class="dialog__close" href="api-schedules.html" title="关闭"><span data-icon="x"></span></a>
+      <span class="dialog__title" id="dlg-title">新建定时任务</span>
+      <a class="dialog__close" href="#" id="dlg-close" title="关闭"><span data-icon="x"></span></a>
     </div>
     <div class="dialog__body">
       <div class="field">
         <label class="field__label">任务名称<span class="req">*</span></label>
         <input class="input" id="task-name" style="width:100%" placeholder="请输入任务名称" maxlength="200">
+        <div class="field__error" id="err-name" hidden>请输入任务名称</div>
       </div>
 
       <div class="field">
         <label class="field__label">任务描述</label>
-        <textarea class="textarea" style="width:100%" rows="2" placeholder="可选，任务描述" maxlength="500"></textarea>
+        <textarea class="textarea" style="width:100%" rows="2" placeholder="可选，任务描述" maxlength="500" id="task-desc"></textarea>
       </div>
 
-      <div class="form-grid">
-        <div class="field">
-          <label class="field__label">任务类型<span class="req">*</span></label>
-          <div class="opt-row" id="tasktype-group">
-            <span class="radio-line is-active" data-tasktype="scene_execute"><span class="radio-dot"></span>测试计划</span>
-            <span class="radio-line" data-tasktype="import_swagger"><span class="radio-dot"></span>接口同步</span>
-          </div>
-        </div>
-
-        <div class="field" id="row-env">
-          <label class="field__label">目标环境<span class="req">*</span></label>
-          <select class="select" style="width:100%" id="env-select"><option value="">请选择目标环境</option><option value="测试环境">测试环境</option><option value="预发环境">预发环境</option></select>
-          <div class="field__hint">测试计划任务需指定目标环境</div>
-        </div>
-
-        <div class="field" id="row-openapi" hidden>
-          <label class="field__label">接口文档 URL<span class="req">*</span></label>
-          <input class="input" style="width:100%" id="openapi-url" placeholder="https://example.com/v3/api-docs" maxlength="2000">
-          <div class="field__hint">接口同步任务按该文档地址定时拉取最新定义</div>
+      <div class="field">
+        <label class="field__label">任务类型<span class="req">*</span></label>
+        <div class="opt-row" id="tasktype-group">
+          <span class="radio-line is-active" data-tasktype="scene_execute"><span class="radio-dot"></span>测试计划</span>
+          <span class="radio-line" data-tasktype="import_swagger"><span class="radio-dot"></span>接口同步</span>
         </div>
       </div>
 
+      <!-- 测试计划任务：执行方式 → 圈选对象 → 目标环境（与实际表单 v-if 分支一致） -->
       <div class="field" id="row-scope">
         <label class="field__label">执行方式<span class="req">*</span></label>
         <div class="opt-row" id="scope-group">
-          <span class="radio-line" data-scope="all"><span class="radio-dot"></span>全部</span>
+          <span class="radio-line is-active" data-scope="all"><span class="radio-dot"></span>全部</span>
           <span class="radio-line" data-scope="modules"><span class="radio-dot"></span>指定模块</span>
-          <span class="radio-line is-active" data-scope="scenes"><span class="radio-dot"></span>指定场景</span>
+          <span class="radio-line" data-scope="scenes"><span class="radio-dot"></span>指定场景</span>
         </div>
 
-        <div class="opt-row mt-sm" id="scope-scenes">
-          <button class="btn btn--link btn--sm" data-ux-feedback="选择场景：支持关键字搜索与多选，确认后回填场景标签">选择场景</button>
-          <span class="scene-tags" id="scene-tags">
-            <span class="tag tag--outline">下单成功主链路 ×</span>
-            <span class="tag tag--outline">支付回调重放 ×</span>
-          </span>
+        <div class="mt-sm" id="scope-modules" hidden>
+          <label class="field__label">指定模块<span class="req">*</span></label>
+          <div class="mod-tree" id="mod-tree"></div>
+          <div class="field__error" id="err-modules" hidden>请选择执行模块</div>
         </div>
 
-        <div class="opt-row mt-sm" id="scope-modules" hidden>
-          <select class="select" style="width:100%" id="module-select"><option value="">选择执行模块（勾选父模块将包含其全部子模块）</option><option value="订单">订单</option><option value="支付">支付</option></select>
+        <div class="mt-sm" id="scope-scenes" hidden>
+          <label class="field__label">指定场景<span class="req">*</span></label>
+          <div class="scene-row">
+            <button class="btn btn--link btn--sm" id="btn-pick-scene">选择场景</button>
+            <span class="scene-tags" id="scene-tags"></span>
+            <button class="btn btn--link btn--sm" id="btn-scenes-more" hidden></button>
+          </div>
+          <div class="field__error" id="err-scenes" hidden>请选择执行场景</div>
         </div>
+      </div>
+
+      <div class="field" id="row-env">
+        <label class="field__label">目标环境<span class="req">*</span></label>
+        <select class="select" style="width:100%" id="env-select">
+          <option value="">请选择目标环境</option>
+          <option value="测试环境">测试环境</option>
+          <option value="预发环境">预发环境</option>
+        </select>
+        <div class="field__hint">测试计划任务需指定目标环境</div>
+        <div class="field__error" id="err-env" hidden>请选择目标环境</div>
+      </div>
+
+      <!-- 接口同步任务：仅保留接口文档 URL -->
+      <div class="field" id="row-openapi" hidden>
+        <label class="field__label">接口文档 URL<span class="req">*</span></label>
+        <input class="input" style="width:100%" id="openapi-url" placeholder="https://example.com/v3/api-docs" maxlength="2000">
+        <div class="field__hint">接口同步任务必填；保存时校验 URL 可达性与合法性</div>
+        <div class="field__error" id="err-openapi" hidden>请填写接口文档 URL</div>
       </div>
 
       <div class="fdiv">调度配置</div>
 
       <div class="field">
         <label class="field__label">预设表达式</label>
-        <select class="select" style="width:260px" id="preset-select">
+        <select class="select" style="width:200px" id="preset-select">
           <option value="">选择预设</option>
           <option value="0 * * * *">每小时 (0 * * * *)</option>
           <option value="0 2 * * *">每天凌晨 2:00 (0 2 * * *)</option>
@@ -176,17 +202,22 @@
       <div class="field">
         <label class="field__label">Cron 表达式<span class="req">*</span></label>
         <div class="cron-row">
-          <input class="input" id="cron-input" value="0 2 * * *" placeholder="0 2 * * *" maxlength="50">
+          <input class="input" id="cron-input" placeholder="0 2 * * *" maxlength="50">
           <button class="btn btn--default btn--sm" id="btn-check">校验</button>
           <button class="btn btn--default btn--sm" id="btn-builder">构建器</button>
         </div>
-        <div class="cron-result" id="cron-result">
+        <div class="field__error" id="err-cron" hidden>请输入 Cron 表达式</div>
+        <div class="cron-result" id="cron-result" hidden>
           <span class="tag tag--success" id="cron-tag">合法</span>
-          <span class="cron-desc" id="cron-desc">每天 02:00:00 执行</span>
+          <span class="cron-desc" id="cron-desc"></span>
         </div>
-        <div class="cron-preview" id="cron-preview">下次执行：2026-09-23 02:00 · 2026-09-24 02:00 · 2026-09-25 02:00</div>
+        <div class="cron-preview" id="cron-preview" hidden></div>
+      </div>
 
-        <div class="cron-builder" id="cron-builder">
+      <!-- 构建器默认收起，与实际 showCronBuilder 初始值一致 -->
+      <div class="field" id="cron-builder-field" hidden>
+        <label class="field__label">Cron 构建</label>
+        <div class="cron-builder">
           <input class="input" id="b-minute" value="0" placeholder="分钟">
           <input class="input" id="b-hour" value="2" placeholder="小时">
           <input class="input" id="b-day" value="*" placeholder="日">
@@ -198,7 +229,7 @@
       </div>
     </div>
     <div class="dialog__footer">
-      <a class="btn btn--default btn--sm" href="api-schedules.html">取消</a>
+      <button class="btn btn--default btn--sm" id="btn-cancel">取消</button>
       <button class="btn btn--primary btn--sm" id="btn-save">保存</button>
     </div>
   </div>
@@ -208,42 +239,184 @@
 <script src="../assets/shell.js"></script>
 <script src="../assets/ux.js"></script>
 <script>
-  // 任务类型切换：接口同步只保留接口文档 URL，测试计划保留执行方式与目标环境
+  var $ = function (id) { return document.getElementById(id); };
+  var mask = $('dlg-mask');
+  var editingRow = null;
+
+  /* ==================== 任务类型（scene_execute / import_swagger） ==================== */
   var taskType = 'scene_execute';
+  function applyTaskType(clearOpposite) {
+    var isPlan = taskType === 'scene_execute';
+    $('row-scope').hidden = !isPlan;
+    $('row-env').hidden = !isPlan;
+    $('row-openapi').hidden = isPlan;
+    // 实际 watch：切到接口同步清空环境/圈选，切回测试计划清空文档 URL
+    if (clearOpposite) {
+      if (!isPlan) {
+        $('env-select').value = '';
+        setErr('env', false);
+        var mods = $('mod-tree').querySelectorAll('.checkbox--on');
+        mods.forEach(function (c) { c.classList.remove('checkbox--on'); });
+        renderModules();
+      } else {
+        $('openapi-url').value = '';
+        setErr('openapi', false);
+      }
+    }
+  }
   document.querySelectorAll('#tasktype-group .radio-line').forEach(function (r) {
     r.addEventListener('click', function () {
       document.querySelectorAll('#tasktype-group .radio-line').forEach(function (x) { x.classList.remove('is-active'); });
       r.classList.add('is-active');
       taskType = r.getAttribute('data-tasktype');
-      var isTestPlan = taskType === 'scene_execute';
-      document.getElementById('row-scope').hidden = !isTestPlan;
-      document.getElementById('row-env').hidden = !isTestPlan;
-      document.getElementById('row-openapi').hidden = isTestPlan;
+      applyTaskType(true);
     });
   });
 
-  // 执行方式切换：指定模块 / 指定场景 二选一展示
+  /* ==================== 执行方式（全部 / 指定模块 / 指定场景） ==================== */
+  var scope = 'all';
+  function applyScope() {
+    $('scope-modules').hidden = scope !== 'modules';
+    $('scope-scenes').hidden = scope !== 'scenes';
+  }
   document.querySelectorAll('#scope-group .radio-line').forEach(function (r) {
     r.addEventListener('click', function () {
       document.querySelectorAll('#scope-group .radio-line').forEach(function (x) { x.classList.remove('is-active'); });
       r.classList.add('is-active');
-      var scope = r.getAttribute('data-scope');
-      document.getElementById('scope-scenes').hidden = scope !== 'scenes';
-      document.getElementById('scope-modules').hidden = scope !== 'modules';
+      scope = r.getAttribute('data-scope');
+      applyScope();
     });
   });
 
-  // Cron 构建器显隐
-  var builder = document.getElementById('cron-builder');
-  document.getElementById('btn-builder').addEventListener('click', function () {
-    builder.hidden = !builder.hidden;
+  /* ==================== 模块树（父模块勾选包含全部子模块） ==================== */
+  var MOD_TREE = {
+    '订单中心': ['订单创建', '订单查询', '订单取消'],
+    '支付中心': ['支付下单', '支付回调', '退款处理'],
+    '用户中心': ['用户登录', '注册认证'],
+  };
+
+  function renderModules() {
+    var tree = $('mod-tree');
+    var html = '';
+    Object.keys(MOD_TREE).forEach(function (parent) {
+      html += '<div class="mod-node" data-parent="' + parent + '"><span class="checkbox"></span><span>' + parent + '</span></div>';
+      MOD_TREE[parent].forEach(function (child) {
+        html += '<div class="mod-node mod-node--child" data-child="' + child + '" data-of="' + parent + '"><span class="checkbox"></span><span>' + child + '</span></div>';
+      });
+    });
+    tree.innerHTML = html;
+    var hasAny = tree.querySelector('.checkbox--on');
+    if (!hasAny) {
+      tree.insertAdjacentHTML('beforeend', '<div class="mod-placeholder">选择执行模块（勾选父模块将包含其全部子模块）</div>');
+    }
+    bindModuleNodes();
+  }
+
+  function syncParent(parent) {
+    var nodes = $('mod-tree').querySelectorAll('[data-of="' + parent + '"] .checkbox');
+    var allOn = nodes.length > 0;
+    nodes.forEach(function (c) { if (!c.classList.contains('checkbox--on')) allOn = false; });
+    var pNode = $('mod-tree').querySelector('[data-parent="' + parent + '"] .checkbox');
+    if (pNode) pNode.classList.toggle('checkbox--on', allOn);
+  }
+
+  function bindModuleNodes() {
+    $('mod-tree').querySelectorAll('.mod-node').forEach(function (node) {
+      node.addEventListener('click', function () {
+        var box = node.querySelector('.checkbox');
+        var on = !box.classList.contains('checkbox--on');
+        var parent = node.getAttribute('data-parent');
+        if (parent) {
+          // 勾选父模块等价于包含其全部子模块
+          node.querySelectorAll('.checkbox').forEach(function (c) { c.classList.toggle('checkbox--on', on); });
+          $('mod-tree').querySelectorAll('[data-of="' + parent + '"] .checkbox').forEach(function (c) { c.classList.toggle('checkbox--on', on); });
+        } else {
+          box.classList.toggle('checkbox--on', on);
+          syncParent(node.getAttribute('data-of'));
+        }
+        setErr('modules', false);
+        var ph = $('mod-tree').querySelector('.mod-placeholder');
+        if (ph) ph.hidden = !!$('mod-tree').querySelector('.checkbox--on');
+      });
+    });
+  }
+
+  function setModules(names) {
+    $('mod-tree').querySelectorAll('.checkbox').forEach(function (c) { c.classList.remove('checkbox--on'); });
+    names.forEach(function (n) {
+      if (MOD_TREE[n]) {
+        var pNode = $('mod-tree').querySelector('[data-parent="' + n + '"] .checkbox');
+        if (pNode) pNode.classList.add('checkbox--on');
+        $('mod-tree').querySelectorAll('[data-of="' + n + '"] .checkbox').forEach(function (c) { c.classList.add('checkbox--on'); });
+      } else {
+        var cNode = $('mod-tree').querySelector('[data-child="' + n + '"] .checkbox');
+        if (cNode) cNode.classList.add('checkbox--on');
+      }
+    });
+    Object.keys(MOD_TREE).forEach(syncParent);
+    var ph = $('mod-tree').querySelector('.mod-placeholder');
+    if (ph) ph.hidden = !!$('mod-tree').querySelector('.checkbox--on');
+  }
+
+  function pickedModules() {
+    return Array.prototype.map.call($('mod-tree').querySelectorAll('[data-child] .checkbox--on'), function (c) {
+      return c.parentNode.getAttribute('data-child');
+    });
+  }
+
+  /* ==================== 场景选择（最多展示 8 个标签，超出折叠） ==================== */
+  var MAX_TAGS = 8;
+  var SEED_SCENES = ['下单成功主链路', '支付回调重放', '库存扣减并发', '退款审批流转', '优惠券叠加核销',
+    '登录鉴权流程', '购物车结算', '订单超时关闭', '物流轨迹查询', '发票开具申请'];
+  var scenes = SEED_SCENES.slice();
+  var scenesExpanded = false;
+
+  function renderScenes() {
+    var visible = scenesExpanded ? scenes : scenes.slice(0, MAX_TAGS);
+    $('scene-tags').innerHTML = visible.map(function (name) {
+      return '<span class="tag tag--outline">' + name + '<span class="tag-close" data-remove="' + name + '" title="移除">×</span></span>';
+    }).join('');
+    $('btn-pick-scene').textContent = scenes.length ? '已选 ' + scenes.length + ' 个场景' : '选择场景';
+    var more = $('btn-scenes-more');
+    if (scenes.length > MAX_TAGS) {
+      more.hidden = false;
+      more.textContent = scenesExpanded ? '收起' : '+' + (scenes.length - MAX_TAGS);
+    } else {
+      more.hidden = true;
+    }
+    setErr('scenes', false);
+  }
+
+  $('scene-tags').addEventListener('click', function (e) {
+    var rm = e.target.closest('[data-remove]');
+    if (!rm) return;
+    var name = rm.getAttribute('data-remove');
+    scenes = scenes.filter(function (s) { return s !== name; });
+    if (scenes.length <= MAX_TAGS) scenesExpanded = false;
+    renderScenes();
   });
 
-  // Cron 实时校验 + 可读描述 + 下次执行预览（输入即更新，无需点「校验」）
-  var cronInput = document.getElementById('cron-input');
-  var cronTag = document.getElementById('cron-tag');
-  var cronDesc = document.getElementById('cron-desc');
-  var cronPreview = document.getElementById('cron-preview');
+  $('btn-scenes-more').addEventListener('click', function () {
+    scenesExpanded = !scenesExpanded;
+    renderScenes();
+  });
+
+  // 实际点击后打开 ScenePickerDialog，确认后回填；静态演示以 toast 说明并在空态时回填示例
+  $('btn-pick-scene').addEventListener('click', function () {
+    window.RTUX.toast('选择场景：支持关键字搜索与多选，确认后回填场景标签', {});
+    if (!scenes.length) {
+      scenes = SEED_SCENES.slice();
+      scenesExpanded = false;
+      renderScenes();
+    }
+  });
+
+  /* ==================== Cron 校验 / 预设 / 构建器 ==================== */
+  var cronInput = $('cron-input');
+  var cronResult = $('cron-result');
+  var cronTag = $('cron-tag');
+  var cronDesc = $('cron-desc');
+  var cronPreview = $('cron-preview');
   var RANGES = [[0, 59], [0, 23], [1, 31], [1, 12], [0, 7]];
 
   function parseField(text, min, max) {
@@ -301,127 +474,215 @@
     return results;
   }
 
-  function validateCron(announce) {
+  // 对照 handleValidateCron：仅在点「校验」/选预设/应用构建器时请求，失败态只展示「表达式不合法」
+  function validateCron() {
     var raw = cronInput.value.trim();
     var parts = raw.split(/\s+/);
-    if (parts.length !== 5) return fail(announce ? '表达式需为 5 段：分 时 日 月 周' : '表达式需为 5 段');
     var fields = [];
-    for (var i = 0; i < 5; i++) {
-      var parsed = parseField(parts[i], RANGES[i][0], RANGES[i][1]);
-      if (!parsed.ok) return fail('第 ' + (i + 1) + ' 段「' + parts[i] + '」超出取值范围 ' + RANGES[i][0] + '-' + RANGES[i][1]);
-      fields.push(parsed.values);
+    var valid = parts.length === 5;
+    if (valid) {
+      for (var i = 0; i < 5; i++) {
+        var parsed = parseField(parts[i], RANGES[i][0], RANGES[i][1]);
+        if (!parsed.ok) { valid = false; break; }
+        fields.push(parsed.values);
+      }
+    }
+    cronResult.hidden = false;
+    if (!valid) {
+      cronTag.className = 'tag tag--danger';
+      cronTag.textContent = '表达式不合法';
+      cronDesc.textContent = '';
+      cronPreview.hidden = true;
+      return false;
     }
     cronTag.className = 'tag tag--success';
     cronTag.textContent = '合法';
     cronDesc.textContent = describe(fields);
-    cronDesc.style.color = '';
     var runs = nextRuns(fields, 3);
-    cronPreview.textContent = runs.length
-      ? '下次执行：' + runs.map(function (t) {
-          return t.getFullYear() + '-' + pad(t.getMonth() + 1) + '-' + pad(t.getDate()) + ' ' + pad(t.getHours()) + ':' + pad(t.getMinutes());
-        }).join(' · ')
-      : '该表达式在未来一年内不会触发';
-    cronInput.classList.remove('input--error');
-    if (announce) window.RTUX.toast('表达式合法：' + cronDesc.textContent, { type: 'success' });
+    if (runs.length) {
+      cronPreview.hidden = false;
+      cronPreview.textContent = '下次执行：' + runs.map(function (t) {
+        return t.getFullYear() + '-' + pad(t.getMonth() + 1) + '-' + pad(t.getDate()) + ' ' + pad(t.getHours()) + ':' + pad(t.getMinutes());
+      }).join(' · ');
+    } else {
+      cronPreview.hidden = true;
+    }
     return true;
   }
 
-  function fail(msg) {
-    cronTag.className = 'tag tag--danger';
-    cronTag.textContent = '不合法';
-    cronDesc.textContent = msg;
-    cronDesc.style.color = 'var(--st-danger)';
-    cronPreview.textContent = '修正后将展示未来 3 次执行时间';
-    cronInput.classList.add('input--error');
-    return false;
-  }
+  $('btn-check').addEventListener('click', function () {
+    var btn = this;
+    if (btn.disabled) return;
+    if (!cronInput.value.trim()) {
+      window.RTUX.toast('请输入 Cron 表达式', { type: 'warning' });
+      return;
+    }
+    // 模拟 cronValidating 请求态
+    btn.disabled = true;
+    btn.textContent = '校验中…';
+    window.setTimeout(function () {
+      btn.disabled = false;
+      btn.textContent = '校验';
+      validateCron();
+    }, 400);
+  });
 
-  cronInput.addEventListener('input', function () { validateCron(false); });
-  document.getElementById('btn-check').addEventListener('click', function () { validateCron(true); });
-  validateCron(false);
-
-  // 预设表达式：回填 Cron 输入并按后端校验口径重新校验（handlePresetSelect）
   document.getElementById('preset-select').addEventListener('change', function (e) {
     var expr = e.target.value;
     if (!expr) return;
     cronInput.value = expr;
-    validateCron(false);
-    window.RTUX.toast('已应用预设表达式：' + expr, { type: 'success' });
+    setErr('cron', false);
+    validateCron();
   });
 
-  // 构建器：拼接五段表达式回填后收起（applyCronBuilder）
-  document.getElementById('btn-apply').addEventListener('click', function () {
+  $('btn-builder').addEventListener('click', function () {
+    var f = $('cron-builder-field');
+    f.hidden = !f.hidden;
+  });
+
+  $('btn-apply').addEventListener('click', function () {
     var fields = ['b-minute', 'b-hour', 'b-day', 'b-month', 'b-weekday'].map(function (id) {
-      return document.getElementById(id).value.trim() || '*';
+      return $(id).value.trim() || '*';
     });
     cronInput.value = fields.join(' ');
-    validateCron(false);
-    builder.hidden = true;
-    window.RTUX.toast('已按构建器生成表达式：' + cronInput.value, { type: 'success' });
+    setErr('cron', false);
+    validateCron();
+    $('cron-builder-field').hidden = true;
   });
 
-  // 保存校验：与 useScheduleForm.handleSave 的提示口径一致
-  document.getElementById('btn-save').addEventListener('click', function () {
+  cronInput.addEventListener('input', function () { setErr('cron', false); });
+
+  /* ==================== 表单校验与保存（对照 useScheduleForm.handleSave） ==================== */
+  function setErr(key, show) {
+    $('err-' + key).hidden = !show;
+  }
+
+  $('task-name').addEventListener('input', function () { setErr('name', false); });
+  $('env-select').addEventListener('change', function () { setErr('env', false); });
+  $('openapi-url').addEventListener('input', function () { setErr('openapi', false); });
+
+  function validateForm() {
+    var firstBad = null;
+    if (!$('task-name').value.trim()) { setErr('name', true); firstBad = firstBad || $('task-name'); }
+    if (taskType === 'scene_execute') {
+      if (scope === 'modules' && !pickedModules().length) { setErr('modules', true); firstBad = firstBad || $('mod-tree'); }
+      if (scope === 'scenes' && !scenes.length) { setErr('scenes', true); firstBad = firstBad || $('btn-pick-scene'); }
+      if (!$('env-select').value) { setErr('env', true); firstBad = firstBad || $('env-select'); }
+    } else if (!$('openapi-url').value.trim()) {
+      setErr('openapi', true);
+      firstBad = firstBad || $('openapi-url');
+    }
+    if (!cronInput.value.trim()) { setErr('cron', true); firstBad = firstBad || cronInput; }
+    if (firstBad) { firstBad.focus(); if (firstBad.scrollIntoView) firstBad.scrollIntoView({ block: 'nearest' }); }
+    return !firstBad;
+  }
+
+  $('btn-save').addEventListener('click', function () {
     var btn = this;
     if (btn.classList.contains('is-saving')) return;
-    var name = document.getElementById('task-name');
-    if (!name.value.trim()) {
-      name.classList.add('input--error');
-      name.focus();
-      window.RTUX.toast('请输入任务名称', { type: 'warning' });
+    if (!validateForm()) return;
+    // 本地校验代替后端 validateCron/createSchedule 的失败回执
+    if (!validateCron()) {
+      window.RTUX.toast('保存失败：Cron 表达式不合法', { type: 'danger' });
       return;
     }
-    name.classList.remove('input--error');
-
-    if (!cronInput.value.trim()) {
-      cronInput.classList.add('input--error');
-      cronInput.focus();
-      window.RTUX.toast('请输入 Cron 表达式', { type: 'warning' });
-      return;
-    }
-    if (!validateCron(false)) {
-      cronInput.focus();
-      window.RTUX.toast('Cron 表达式不合法：' + cronDesc.textContent, { type: 'danger' });
-      return;
-    }
-
-    if (taskType === 'scene_execute') {
-      var env = document.getElementById('env-select');
-      if (!env.value) {
-        env.focus();
-        window.RTUX.toast('测试计划任务需选择目标环境', { type: 'warning' });
-        return;
-      }
-      var scope = document.querySelector('#scope-group .radio-line.is-active');
-      var scopeKey = scope ? scope.getAttribute('data-scope') : 'scenes';
-      if (scopeKey === 'modules' && !document.getElementById('module-select').value) {
-        window.RTUX.toast('请选择执行模块', { type: 'warning' });
-        return;
-      }
-      if (scopeKey === 'scenes' && !document.getElementById('scene-tags').children.length) {
-        window.RTUX.toast('请选择执行场景', { type: 'warning' });
-        return;
-      }
-    } else {
-      var url = document.getElementById('openapi-url');
-      if (!url.value.trim()) {
-        url.classList.add('input--error');
-        url.focus();
-        window.RTUX.toast('接口同步任务需填写接口文档 URL', { type: 'warning' });
-        return;
-      }
-      url.classList.remove('input--error');
-    }
-
     btn.classList.add('is-saving');
     btn.textContent = '保存中…';
     window.setTimeout(function () {
       btn.classList.remove('is-saving');
-      btn.innerHTML = '<span class="btn__state">已保存 ✓</span>';
-      window.RTUX.toast('已创建', { type: 'success' });
-      window.setTimeout(function () { btn.textContent = '保存'; }, 1800);
+      btn.textContent = '保存';
+      mask.hidden = true;
+      window.RTUX.toast(editingRow ? '已更新' : '已创建', { type: 'success' });
     }, 600);
   });
+
+  /* ==================== 弹窗开关（对照 openCreate / openEdit / 取消） ==================== */
+  function showMask() {
+    mask.hidden = false;
+    mask.scrollTop = 0;
+  }
+
+  function clearErrors() {
+    ['name', 'modules', 'scenes', 'env', 'openapi', 'cron'].forEach(function (k) { setErr(k, false); });
+    cronResult.hidden = true;
+    cronPreview.hidden = true;
+  }
+
+  function setTaskTypeRadio(type) {
+    taskType = type;
+    document.querySelectorAll('#tasktype-group .radio-line').forEach(function (x) {
+      x.classList.toggle('is-active', x.getAttribute('data-tasktype') === type);
+    });
+  }
+
+  function setScopeRadio(next) {
+    scope = next;
+    document.querySelectorAll('#scope-group .radio-line').forEach(function (x) {
+      x.classList.toggle('is-active', x.getAttribute('data-scope') === next);
+    });
+  }
+
+  function openCreate() {
+    editingRow = null;
+    $('dlg-title').textContent = '新建定时任务';
+    $('task-name').value = '';
+    $('task-desc').value = '';
+    setTaskTypeRadio('scene_execute');
+    setScopeRadio('all');
+    setModules([]);
+    scenes = SEED_SCENES.slice();
+    scenesExpanded = false;
+    renderScenes();
+    $('env-select').value = '';
+    $('openapi-url').value = '';
+    cronInput.value = '';
+    $('preset-select').value = '';
+    $('cron-builder-field').hidden = true;
+    clearErrors();
+    applyTaskType(false);
+    applyScope();
+    showMask();
+  }
+
+  function openEdit(row) {
+    editingRow = row;
+    $('dlg-title').textContent = '编辑定时任务';
+    $('task-name').value = row.getAttribute('data-name') || '';
+    $('task-desc').value = row.getAttribute('data-desc') || '';
+    setTaskTypeRadio(row.getAttribute('data-type') || 'scene_execute');
+    setScopeRadio(row.getAttribute('data-scope') || 'all');
+    var mods = row.getAttribute('data-modules');
+    setModules(mods ? mods.split(',') : []);
+    $('env-select').value = row.getAttribute('data-env') || '';
+    $('openapi-url').value = row.getAttribute('data-openapi') || '';
+    cronInput.value = row.getAttribute('data-cron') || '';
+    $('preset-select').value = '';
+    $('cron-builder-field').hidden = true;
+    clearErrors();
+    applyTaskType(false);
+    applyScope();
+    showMask();
+  }
+
+  document.getElementById('btn-create').addEventListener('click', openCreate);
+
+  document.querySelector('tbody').addEventListener('click', function (e) {
+    var cell = e.target.closest('[data-edit]');
+    if (cell) openEdit(cell.closest('tr'));
+  });
+
+  function closeDialog(e) {
+    if (e) e.preventDefault();
+    mask.hidden = true;
+  }
+  $('dlg-close').addEventListener('click', closeDialog);
+  $('btn-cancel').addEventListener('click', closeDialog);
+
+  /* ==================== 初始化 ==================== */
+  renderModules();
+  renderScenes();
+  applyTaskType(false);
+  applyScope();
 </script>
 </body>
 </html>
