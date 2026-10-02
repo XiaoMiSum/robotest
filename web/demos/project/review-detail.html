@@ -6,7 +6,11 @@
 <title>评审详情 · 功能测试 · RoboTest</title>
 <link rel="stylesheet" href="../assets/tokens.css">
 <link rel="stylesheet" href="../assets/base.css">
+<link rel="stylesheet" href="../assets/ux.css">
 <style>
+  /* 弹层/抽屉靠 hidden 开关，会被类里的 display 覆盖，需强制生效 */
+  [hidden] { display: none !important; }
+
   /* 页面结构对齐 ReviewDetailPage：面包屑 + 页头条（标题状态 + 进度统计 + 操作）+ 快照树(240) + 评审脑图 */
   .detail-head {
     display: flex; align-items: center; justify-content: space-between; gap: 20px; flex-wrap: wrap;
@@ -27,6 +31,10 @@
   .rv-tree { width: 240px; flex-shrink: 0; }
   .rv-mind { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 
+  /* 目录行的展开箭头：折叠时旋转指向右 */
+  .tree__twisty { display: inline-flex; transition: transform .15s ease; }
+  .tree__item.is-collapsed .tree__twisty { transform: rotate(-90deg); }
+
   /* 脑图工具条（评审标记操作）：按钮组水平居中，提示文案固定右侧不参与布局 */
   .mm-bar {
     position: relative;
@@ -46,6 +54,11 @@
   /* 图标库 svg 无固有尺寸，不给尺寸会渲染为 0×0 而不可见 */
   .mm-tool [data-icon] svg { width: 14px; height: 14px; }
   .mm-tool:hover { background: var(--n-100); color: var(--n-900); }
+  .mm-tool:disabled { color: var(--n-300); cursor: not-allowed; background: transparent; }
+  /* 选中用例的当前标记在工具条上高亮，口径同 ReviewMindMap 的按钮 type */
+  .mm-tool.is-on[data-mark="pass"] { background: var(--st-success-light); color: var(--st-success-strong); }
+  .mm-tool.is-on[data-mark="fail"] { background: var(--st-danger-light); color: var(--st-danger-strong); }
+  .mm-tool.is-on[data-mark="pending"] { background: var(--n-100); color: var(--n-700); }
   .mm-sep { width: 1px; height: 15px; background: var(--n-200); margin: 0 5px; }
   /* 视口过窄时提示文案会与居中的按钮组重叠，直接隐藏 */
   @media (max-width: 1100px) { .mm-hint { display: none; } }
@@ -65,11 +78,13 @@
     background: var(--n-0); border: 1px solid var(--n-200); border-radius: var(--radius-lg);
     padding: 4px 12px; font-size: 13px; color: var(--n-800); box-shadow: var(--shadow-card);
   }
+  li[data-case] > .mm-node { cursor: pointer; }
   .mm ul ul > li > .mm-node::before {
     content: ''; position: absolute; left: -21px; top: 50%;
     width: 15px; border-top: 1.5px solid var(--n-300);
   }
   .mm-node--root { background: var(--brand-50); border-color: var(--brand-200); color: var(--brand-600); font-weight: 600; }
+  .mm-node--sel { border-color: var(--brand-500); box-shadow: 0 0 0 3px var(--brand-50); }
   .mm-type { font-size: 11px; color: var(--n-500); }
   .tdot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
   .tdot--case { background: #a464ff; }
@@ -80,6 +95,69 @@
   .mm-badge--pass { background: #f0f9eb; color: #67c23a; }
   .mm-badge--fail { background: #fef0f0; color: #f56c6c; }
   .mm-badge--pending { background: var(--n-100); color: var(--n-500); }
+
+  /* 画布右键菜单：结构对照真实 MinderContextMenu */
+  .ctx {
+    position: fixed; z-index: 230; width: 190px; padding: 6px;
+    background: var(--n-0); border: 1px solid var(--n-200); border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+  }
+  .ctx__sub { padding: 5px 10px 3px; font-size: var(--font-size-xs); color: var(--n-500); }
+  .ctx__item {
+    display: block; width: 100%; padding: 7px 10px; border: none; border-radius: var(--radius-md);
+    background: none; font: inherit; font-size: var(--font-size-sm); color: var(--n-700);
+    text-align: left; cursor: pointer;
+  }
+  .ctx__item:hover { background: var(--n-50); color: var(--n-900); }
+  .ctx__item--indent { padding-left: 22px; }
+  .ctx__item--danger { color: var(--st-danger); }
+  .ctx__item--danger:hover { background: var(--st-danger-light); color: var(--st-danger-strong); }
+  .ctx__sep { height: 1px; margin: 5px 4px; background: var(--n-100); }
+
+  /* 评审记录抽屉：对照 ReviewMindMap 的评论抽屉（标题/记录/输入三段） */
+  .rv-drawer {
+    position: fixed; top: 0; right: 0; bottom: 0; z-index: 240; width: 380px;
+    display: flex; flex-direction: column;
+    background: var(--n-0); border-left: 1px solid var(--n-200); box-shadow: var(--shadow-lg);
+  }
+  .rv-drawer__head {
+    flex-shrink: 0; display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 16px; border-bottom: 1px solid var(--n-100);
+  }
+  .rv-drawer__title { font-size: var(--font-size-md, 15px); font-weight: 600; color: var(--n-900); }
+  .rv-drawer__close { display: flex; padding: 3px; border: none; background: none; color: var(--n-400); cursor: pointer; border-radius: var(--radius-sm); }
+  .rv-drawer__close:hover { color: var(--n-700); background: var(--n-50); }
+  .rv-drawer__close svg { width: 16px; height: 16px; }
+  .rv-drawer__list { flex: 1; overflow-y: auto; padding: 8px 16px; }
+  .rv-drawer__foot { flex-shrink: 0; padding: 12px 16px 16px; border-top: 1px solid var(--n-100); }
+
+  .rc { display: flex; gap: 10px; padding: 10px 0; }
+  .rc + .rc { border-top: 1px solid var(--n-100); }
+  .rc__avatar {
+    flex-shrink: 0; width: 28px; height: 28px; border-radius: 50%;
+    background: var(--brand-50); color: var(--brand-500);
+    font-size: 13px; font-weight: 600; display: flex; align-items: center; justify-content: center;
+  }
+  .rc__main { flex: 1; min-width: 0; }
+  .rc__head { display: flex; align-items: center; gap: 8px; }
+  .rc__name { font-size: 13px; font-weight: 600; color: var(--n-900); }
+  .rc__body {
+    margin: 6px 0 0; padding: 8px 10px; font-size: 13px; line-height: 1.6;
+    color: var(--n-700); background: var(--n-50); border-radius: var(--radius-md); word-break: break-word;
+  }
+  .rc__time { margin-top: 4px; font-size: 11px; color: var(--n-400); }
+  .rc-empty { padding: 44px 0; text-align: center; font-size: 13px; color: var(--n-500); }
+
+  /* 调整用例（CaseSelector 简化稿）：按文档分组的用例勾选列表 */
+  .cs-list { max-height: 48vh; overflow-y: auto; border: 1px solid var(--n-200); border-radius: var(--radius-md); padding: 6px; }
+  .cs-group { padding: 8px 8px 2px; font-size: var(--font-size-xs); font-weight: 600; color: var(--n-500); }
+  .cs-item {
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 8px; border-radius: var(--radius-md);
+    font-size: var(--font-size-sm); color: var(--n-700); cursor: pointer;
+  }
+  .cs-item:hover { background: var(--n-50); }
+  .cs-item input { accent-color: var(--brand-500); }
 </style>
 </head>
 <body data-shell="business" data-mode="project" data-active="ft" data-workspace="质量中台" data-project="电商核心系统">
@@ -96,26 +174,31 @@
   <div class="detail-head">
     <div class="flex-center flex-gap-sm">
       <h1 class="detail-title">下单模块用例评审</h1>
-      <span class="status status--running"><span class="dot"></span>评审中</span>
+      <span class="status status--running" id="rvStatus"><span class="dot"></span>进行中</span>
     </div>
     <div class="detail-extra">
       <div class="detail-progress">
         <div class="progress">
-          <div class="progress__track"><div class="progress__fill progress__fill--warning" style="width:56%"></div></div>
-          <span class="progress__text">18/32</span>
+          <div class="progress__track"><div class="progress__fill progress__fill--warning" id="rvFill" style="width:56%"></div></div>
+          <span class="progress__text" id="rvProgressText">18/32</span>
         </div>
         <div class="detail-stats">
-          <span class="text-xs" style="color:var(--st-success)">通过 15</span>
-          <span class="text-xs" style="color:var(--st-danger)">不通过 3</span>
-          <span class="text-xs" style="color:var(--st-warning)">待评审 14</span>
-          <span class="text-xs muted">共 32</span>
+          <span class="text-xs" style="color:var(--st-success)">通过 <span id="rvPass">15</span></span>
+          <span class="text-xs" style="color:var(--st-danger)">不通过 <span id="rvFail">3</span></span>
+          <span class="text-xs" style="color:var(--st-warning)">待评审 <span id="rvPending">14</span></span>
+          <span class="text-xs muted">共 <span id="rvTotal">32</span></span>
         </div>
       </div>
-      <div class="detail-actions">
-        <button class="btn btn--default btn--sm"><span data-icon="edit"></span>调整用例</button>
-        <button class="btn btn--default btn--sm"><span data-icon="refresh"></span>同步用例</button>
-        <button class="btn btn--primary btn--sm" disabled title="全部用例评审通过后才能完成评审"><span data-icon="check"></span>完成评审</button>
-        <span class="mm-sep" style="height:20px"></span>
+      <!-- 活跃态操作组：调整/同步/驳回/完成，终态收起 -->
+      <div class="detail-actions" id="actActive">
+        <button class="btn btn--default btn--sm" type="button" id="btnAdjust"><span data-icon="edit"></span>调整用例</button>
+        <button class="btn btn--default btn--sm" type="button" id="btnSync"><span data-icon="refresh"></span>同步用例</button>
+        <button class="btn btn--danger btn--sm" type="button" id="btnReject"><span data-icon="x-circle"></span>驳回</button>
+        <button class="btn btn--primary btn--sm" type="button" id="btnComplete" disabled title="全部用例评审通过后才能完成评审"><span data-icon="check-circle"></span>完成评审</button>
+      </div>
+      <!-- 已驳回：仅发起人可见，演示账号即发起人 -->
+      <div class="detail-actions" id="actRejected" hidden>
+        <button class="btn btn--primary btn--sm" type="button" id="btnReopen"><span data-icon="refresh"></span>重新发起</button>
       </div>
     </div>
   </div>
@@ -128,46 +211,110 @@
         <span class="text-xs muted">只读</span>
       </div>
       <div class="card__body" style="padding:8px 10px">
-        <div class="tree">
-          <div class="tree__item"><span data-icon="folder"></span>下单模块</div>
-          <div class="tree__item tree__indent tree__item--active"><span data-icon="document"></span>下单主流程</div>
-          <div class="tree__item" style="padding-left:44px"><span data-icon="document"></span>优惠券规则</div>
-          <div class="tree__item"><span data-icon="folder"></span>支付模块</div>
-          <div class="tree__item" style="padding-left:44px"><span data-icon="document"></span>支付回调</div>
-          <div class="tree__item"><span data-icon="folder"></span>履约模块</div>
-          <div class="tree__item" style="padding-left:44px"><span data-icon="document"></span>发货时效</div>
+        <div class="tree" id="rvTree">
+          <div class="tree__item" data-type="directory" data-dir="m1"><span class="tree__twisty" data-icon="chevron-down"></span><span data-icon="folder"></span>下单模块</div>
+          <div class="tree__item tree__indent tree__item--active" data-type="document" data-doc="d1" data-dir="m1"><span data-icon="document"></span>下单主流程</div>
+          <div class="tree__item tree__indent" data-type="document" data-doc="d2" data-dir="m1"><span data-icon="document"></span>优惠券规则</div>
+          <div class="tree__item" data-type="directory" data-dir="m2"><span class="tree__twisty" data-icon="chevron-down"></span><span data-icon="folder"></span>支付模块</div>
+          <div class="tree__item tree__indent" data-type="document" data-doc="d3" data-dir="m2"><span data-icon="document"></span>支付回调</div>
+          <div class="tree__item" data-type="directory" data-dir="m3"><span class="tree__twisty" data-icon="chevron-down"></span><span data-icon="folder"></span>履约模块</div>
+          <div class="tree__item tree__indent" data-type="document" data-doc="d4" data-dir="m3"><span data-icon="document"></span>发货时效</div>
         </div>
       </div>
     </div>
 
     <div class="card rv-mind">
-      <div class="mm-bar">
-        <button class="mm-tool"><span data-icon="check"></span>标记通过</button>
-        <button class="mm-tool"><span data-icon="x"></span>标记不通过</button>
-        <button class="mm-tool"><span data-icon="refresh"></span>重置待评审</button>
+      <div class="mm-bar" role="toolbar" aria-label="评审标记工具条">
+        <button class="mm-tool" type="button" data-mark="pass" disabled><span data-icon="check"></span>通过</button>
+        <button class="mm-tool" type="button" data-mark="fail" disabled><span data-icon="x"></span>不通过</button>
+        <button class="mm-tool" type="button" data-mark="pending" disabled><span data-icon="circle"></span>待评审</button>
         <span class="mm-sep"></span>
-        <button class="mm-tool"><span data-icon="message"></span>评论</button>
-        <button class="mm-tool"><span data-icon="trash"></span>移除用例</button>
+        <button class="mm-tool" type="button" id="btnComment"><span data-icon="message"></span>评论</button>
+        <button class="mm-tool" type="button" id="btnRemove" hidden disabled><span data-icon="trash"></span>移除用例</button>
         <span class="text-xs muted mm-hint">选中用例节点后标记 · 快照只读</span>
       </div>
-      <div class="mm">
+
+      <div class="mm" data-doc="d1">
         <ul>
           <li><span class="mm-node mm-node--root"><span data-icon="document"></span>下单主流程（v1 快照）</span>
             <ul>
-              <li><span class="mm-node"><i class="tdot tdot--case"></i>下单页优惠券叠加校验<span class="mm-badge mm-badge--pass">通过</span></span>
+              <li data-case="d1c1" data-mark="pass"><span class="mm-node"><i class="tdot tdot--case"></i><span class="mm-name">下单页优惠券叠加校验</span><span class="mm-badge mm-badge--pass">通过</span></span>
                 <ul>
                   <li><span class="mm-node"><i class="tdot tdot--precondition"></i><span class="mm-type">前置</span>已登录并持有可用优惠券</span></li>
                   <li><span class="mm-node"><i class="tdot tdot--step"></i><span class="mm-type">步骤</span>提交含两张券的订单</span></li>
                   <li><span class="mm-node"><i class="tdot tdot--expected"></i><span class="mm-type">预期</span>优惠金额为各券之和</span></li>
                 </ul>
               </li>
-              <li><span class="mm-node"><i class="tdot tdot--case"></i>地址簿选择后金额重算<span class="mm-badge mm-badge--fail">不通过</span></span>
+              <li data-case="d1c2" data-mark="fail"><span class="mm-node"><i class="tdot tdot--case"></i><span class="mm-name">地址簿选择后金额重算</span><span class="mm-badge mm-badge--fail">不通过</span></span>
                 <ul>
                   <li><span class="mm-node"><i class="tdot tdot--expected"></i><span class="mm-type">预期</span>缺少跨省运费的预期结果</span></li>
                 </ul>
               </li>
-              <li><span class="mm-node"><i class="tdot tdot--case"></i>同收货人合并下单<span class="mm-badge mm-badge--pending">待评审</span></span></li>
-              <li><span class="mm-node"><i class="tdot tdot--case"></i>预售定金尾款计算<span class="mm-badge mm-badge--pending">待评审</span></span></li>
+              <li data-case="d1c3" data-mark=""><span class="mm-node"><i class="tdot tdot--case"></i><span class="mm-name">同收货人合并下单</span><span class="mm-badge mm-badge--pending">待评审</span></span></li>
+              <li data-case="d1c4" data-mark=""><span class="mm-node"><i class="tdot tdot--case"></i><span class="mm-name">预售定金尾款计算</span><span class="mm-badge mm-badge--pending">待评审</span></span></li>
+              <li data-case="d1c5" data-mark="pass"><span class="mm-node"><i class="tdot tdot--case"></i><span class="mm-name">库存不足时下单拦截</span><span class="mm-badge mm-badge--pass">通过</span></span></li>
+              <li data-case="d1c6" data-mark="pass"><span class="mm-node"><i class="tdot tdot--case"></i><span class="mm-name">多优惠券互斥规则</span><span class="mm-badge mm-badge--pass">通过</span></span></li>
+              <li data-case="d1c7" data-mark="pass"><span class="mm-node"><i class="tdot tdot--case"></i><span class="mm-name">未登录用户下单拦截</span><span class="mm-badge mm-badge--pass">通过</span></span></li>
+              <li data-case="d1c8" data-mark=""><span class="mm-node"><i class="tdot tdot--case"></i><span class="mm-name">下单接口超时重试</span><span class="mm-badge mm-badge--pending">待评审</span></span></li>
+              <li data-case="d1c9" data-mark=""><span class="mm-node"><i class="tdot tdot--case"></i><span class="mm-name">历史订单导出上限</span><span class="mm-badge mm-badge--pending">待评审</span></span></li>
+            </ul>
+          </li>
+        </ul>
+      </div>
+
+      <div class="mm" data-doc="d2" hidden>
+        <ul>
+          <li><span class="mm-node mm-node--root"><span data-icon="document"></span>优惠券规则（v1 快照）</span>
+            <ul>
+              <li data-case="d2c1" data-mark="pass"><span class="mm-node"><i class="tdot tdot--case"></i><span class="mm-name">满减券叠加规则</span><span class="mm-badge mm-badge--pass">通过</span></span></li>
+              <li data-case="d2c2" data-mark="pass"><span class="mm-node"><i class="tdot tdot--case"></i><span class="mm-name">优惠券过期拦截</span><span class="mm-badge mm-badge--pass">通过</span></span></li>
+              <li data-case="d2c3" data-mark="fail"><span class="mm-node"><i class="tdot tdot--case"></i><span class="mm-name">券码核销幂等</span><span class="mm-badge mm-badge--fail">不通过</span></span>
+                <ul>
+                  <li><span class="mm-node"><i class="tdot tdot--expected"></i><span class="mm-type">预期</span>同一券码重复提交不重复扣减</span></li>
+                </ul>
+              </li>
+              <li data-case="d2c4" data-mark=""><span class="mm-node"><i class="tdot tdot--case"></i><span class="mm-name">跨店券分摊计算</span><span class="mm-badge mm-badge--pending">待评审</span></span></li>
+              <li data-case="d2c5" data-mark=""><span class="mm-node"><i class="tdot tdot--case"></i><span class="mm-name">会员折扣与券叠加</span><span class="mm-badge mm-badge--pending">待评审</span></span></li>
+              <li data-case="d2c6" data-mark=""><span class="mm-node"><i class="tdot tdot--case"></i><span class="mm-name">积分抵扣上限</span><span class="mm-badge mm-badge--pending">待评审</span></span></li>
+              <li data-case="d2c7" data-mark="pass"><span class="mm-node"><i class="tdot tdot--case"></i><span class="mm-name">退款券返还</span><span class="mm-badge mm-badge--pass">通过</span></span></li>
+              <li data-case="d2c8" data-mark="pass"><span class="mm-node"><i class="tdot tdot--case"></i><span class="mm-name">券库存超卖回滚</span><span class="mm-badge mm-badge--pass">通过</span></span></li>
+            </ul>
+          </li>
+        </ul>
+      </div>
+
+      <div class="mm" data-doc="d3" hidden>
+        <ul>
+          <li><span class="mm-node mm-node--root"><span data-icon="document"></span>支付回调（v1 快照）</span>
+            <ul>
+              <li data-case="d3c1" data-mark="pass"><span class="mm-node"><i class="tdot tdot--case"></i><span class="mm-name">支付回调幂等校验</span><span class="mm-badge mm-badge--pass">通过</span></span></li>
+              <li data-case="d3c2" data-mark="fail"><span class="mm-node"><i class="tdot tdot--case"></i><span class="mm-name">回调报文重放拦截</span><span class="mm-badge mm-badge--fail">不通过</span></span>
+                <ul>
+                  <li><span class="mm-node"><i class="tdot tdot--expected"></i><span class="mm-type">预期</span>重放报文不重复入账</span></li>
+                </ul>
+              </li>
+              <li data-case="d3c3" data-mark="pass"><span class="mm-node"><i class="tdot tdot--case"></i><span class="mm-name">回调签名校验</span><span class="mm-badge mm-badge--pass">通过</span></span></li>
+              <li data-case="d3c4" data-mark=""><span class="mm-node"><i class="tdot tdot--case"></i><span class="mm-name">支付超时自动关单</span><span class="mm-badge mm-badge--pending">待评审</span></span></li>
+              <li data-case="d3c5" data-mark=""><span class="mm-node"><i class="tdot tdot--case"></i><span class="mm-name">分账结果通知</span><span class="mm-badge mm-badge--pending">待评审</span></span></li>
+              <li data-case="d3c6" data-mark="pass"><span class="mm-node"><i class="tdot tdot--case"></i><span class="mm-name">退款回调对账</span><span class="mm-badge mm-badge--pass">通过</span></span></li>
+              <li data-case="d3c7" data-mark=""><span class="mm-node"><i class="tdot tdot--case"></i><span class="mm-name">多渠道回调乱序处理</span><span class="mm-badge mm-badge--pending">待评审</span></span></li>
+              <li data-case="d3c8" data-mark="pass"><span class="mm-node"><i class="tdot tdot--case"></i><span class="mm-name">回调失败重试上限</span><span class="mm-badge mm-badge--pass">通过</span></span></li>
+            </ul>
+          </li>
+        </ul>
+      </div>
+
+      <div class="mm" data-doc="d4" hidden>
+        <ul>
+          <li><span class="mm-node mm-node--root"><span data-icon="document"></span>发货时效（v1 快照）</span>
+            <ul>
+              <li data-case="d4c1" data-mark="pass"><span class="mm-node"><i class="tdot tdot--case"></i><span class="mm-name">同城当日达时效</span><span class="mm-badge mm-badge--pass">通过</span></span></li>
+              <li data-case="d4c2" data-mark="pass"><span class="mm-node"><i class="tdot tdot--case"></i><span class="mm-name">偏远地区加时提示</span><span class="mm-badge mm-badge--pass">通过</span></span></li>
+              <li data-case="d4c3" data-mark=""><span class="mm-node"><i class="tdot tdot--case"></i><span class="mm-name">预售订单发货起算</span><span class="mm-badge mm-badge--pending">待评审</span></span></li>
+              <li data-case="d4c4" data-mark=""><span class="mm-node"><i class="tdot tdot--case"></i><span class="mm-name">分单发货时效合并</span><span class="mm-badge mm-badge--pending">待评审</span></span></li>
+              <li data-case="d4c5" data-mark=""><span class="mm-node"><i class="tdot tdot--case"></i><span class="mm-name">缺货自动拆单</span><span class="mm-badge mm-badge--pending">待评审</span></span></li>
+              <li data-case="d4c6" data-mark="pass"><span class="mm-node"><i class="tdot tdot--case"></i><span class="mm-name">物流停滞预警</span><span class="mm-badge mm-badge--pass">通过</span></span></li>
+              <li data-case="d4c7" data-mark=""><span class="mm-node"><i class="tdot tdot--case"></i><span class="mm-name">签收状态回传延迟</span><span class="mm-badge mm-badge--pending">待评审</span></span></li>
             </ul>
           </li>
         </ul>
@@ -177,7 +324,482 @@
 
 </main>
 
+<!-- 画布右键菜单：结构对照真实 MinderContextMenu -->
+<div class="ctx" id="rvCtx" role="menu" hidden>
+  <div class="ctx__sub">标记评审结果 ▸</div>
+  <button class="ctx__item ctx__item--indent" type="button" data-mark="pass">通过</button>
+  <button class="ctx__item ctx__item--indent" type="button" data-mark="fail">不通过</button>
+  <button class="ctx__item ctx__item--indent" type="button" data-mark="pending">待评审</button>
+  <div class="ctx__sep"></div>
+  <button class="ctx__item" type="button" id="ctxComment">添加评论</button>
+  <button class="ctx__item ctx__item--danger" type="button" id="ctxRemove">从评审中移除</button>
+</div>
+
+<!-- 评审记录抽屉：标记与评论记录，Enter 发送 -->
+<aside class="rv-drawer" id="rvDrawer" aria-label="评审记录" hidden>
+  <div class="rv-drawer__head">
+    <span class="rv-drawer__title">评审记录</span>
+    <button class="rv-drawer__close" type="button" id="drawerClose" aria-label="关闭"><span data-icon="x"></span></button>
+  </div>
+  <div class="rv-drawer__list" id="drawerList"></div>
+  <div class="rv-drawer__foot">
+    <textarea class="textarea" id="drawerInput" rows="2" maxlength="500" placeholder="输入评论，Enter 发送"></textarea>
+    <div class="flex-between mt-sm">
+      <span class="text-xs muted"><span id="drawerCount">0</span>/500</span>
+      <button class="btn btn--primary btn--sm" type="button" id="drawerSend" disabled>发送</button>
+    </div>
+  </div>
+</aside>
+
+<!-- 二次确认，文案同实际页 ElMessageBox -->
+<div class="dialog-mask" id="rvConfirm" data-mask-close hidden>
+  <div class="dialog" style="width:420px">
+    <div class="dialog__header">
+      <span class="dialog__title" id="rvConfirmTitle">完成评审</span>
+      <button class="dialog__close" type="button" data-close="rvConfirm" aria-label="关闭"><span data-icon="x"></span></button>
+    </div>
+    <div class="dialog__body"><p id="rvConfirmBody" style="margin:0;color:var(--n-600)"></p></div>
+    <div class="dialog__footer">
+      <button class="btn btn--default" type="button" data-close="rvConfirm">取消</button>
+      <button class="btn btn--primary" type="button" id="rvConfirmOk">确认</button>
+    </div>
+  </div>
+</div>
+
+<!-- 调整用例：字段与按钮口径同实际页 CaseSelector -->
+<div class="dialog-mask" id="rvCaseDialog" data-mask-close hidden>
+  <div class="dialog" style="width:640px">
+    <div class="dialog__header">
+      <span class="dialog__title">选择关联用例</span>
+      <button class="dialog__close" type="button" data-close="rvCaseDialog" aria-label="关闭"><span data-icon="x"></span></button>
+    </div>
+    <div class="dialog__body">
+      <div class="text-xs muted" style="margin-bottom:8px">勾选任意节点，其子孙用例将一并规划</div>
+      <div class="cs-list" id="csList"></div>
+    </div>
+    <div class="dialog__footer">
+      <span class="text-xs muted" id="csCount" style="margin-right:auto;align-self:center">已选 32 个用例</span>
+      <button class="btn btn--default" type="button" data-close="rvCaseDialog">取消</button>
+      <button class="btn btn--primary" type="button" id="csOk">确定关联 (32)</button>
+    </div>
+  </div>
+</div>
+
 <script src="../assets/icons.js"></script>
 <script src="../assets/shell.js"></script>
+<script src="../assets/ux.js"></script>
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var toast = function (msg, type) { if (window.RTUX) window.RTUX.toast(msg, { type: type || '' }); };
+  var forEach = function (list, fn) { Array.prototype.forEach.call(list, fn); };
+
+  // 演示账号即评审发起人，已驳回态可见「重新发起」
+  var USER = '张明';
+  var state = { status: 'in_progress', selected: null };
+
+  // 各用例节点的评审记录（key 为 data-case），空数组展示空态
+  var RECORDS = {
+    'd1c1': [{ name: '张明', op: 'mark', mark: 'pass', text: null, time: '2026-09-22 09:48' }],
+    'd1c2': [
+      { name: '张明', op: 'mark', mark: 'fail', text: null, time: '2026-09-22 10:12' },
+      { name: '李华', op: 'comment', mark: null, text: '缺少跨省运费的预期结果，已通知用例作者今天 18:00 前补充。', time: '2026-09-22 10:30' }
+    ]
+  };
+  var drawerFor = null;
+
+  function isActive() { return state.status === 'new' || state.status === 'in_progress'; }
+
+  function escapeHtml(text) {
+    return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  function nowText() {
+    var d = new Date();
+    var pad = function (n) { return (n < 10 ? '0' : '') + n; };
+    return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + ' ' +
+      pad(d.getHours()) + ':' + pad(d.getMinutes());
+  }
+
+  function caseName(li) { return li.querySelector('.mm-name').textContent; }
+
+  /* ---------------- 页头：状态 / 进度统计 / 提交校验 ---------------- */
+
+  var STATUS_META = {
+    in_progress: ['status--running', '进行中', 'progress__fill--warning'],
+    rejected: ['status--danger', '已驳回', 'progress__fill--danger'],
+    completed: ['status--success', '已通过', '']
+  };
+
+  function setStatus(status) {
+    state.status = status;
+    var meta = STATUS_META[status];
+    var chip = $('rvStatus');
+    chip.className = 'status ' + meta[0];
+    chip.innerHTML = '<span class="dot"></span>' + meta[1];
+    $('actActive').hidden = status !== 'in_progress';
+    $('actRejected').hidden = status !== 'rejected';
+    $('rvFill').className = 'progress__fill' + (meta[2] ? ' ' + meta[2] : '');
+    refreshToolbar();
+  }
+
+  // 统计口径与实际页 progress 一致：已评审 = 通过 + 不通过，待评审 = 关联总数 - 已评审
+  function refreshStats() {
+    var cases = document.querySelectorAll('.mm [data-case]');
+    var pass = 0, fail = 0;
+    forEach(cases, function (li) {
+      var mark = li.getAttribute('data-mark');
+      if (mark === 'pass') pass += 1;
+      else if (mark === 'fail') fail += 1;
+    });
+    var total = cases.length;
+    var pending = total - pass - fail;
+    var reviewed = pass + fail;
+    $('rvPass').textContent = String(pass);
+    $('rvFail').textContent = String(fail);
+    $('rvPending').textContent = String(pending);
+    $('rvTotal').textContent = String(total);
+    $('rvProgressText').textContent = reviewed + '/' + total;
+    $('rvFill').style.width = (total ? Math.round(reviewed / total * 100) : 0) + '%';
+    setCanComplete(pending === 0 && fail === 0);
+  }
+
+  // 待评审与不通过均为 0 才允许提交，否则置灰并给出 tooltip
+  function setCanComplete(can) {
+    var btn = $('btnComplete');
+    btn.disabled = !can;
+    if (can) btn.removeAttribute('title');
+    else btn.setAttribute('title', '全部用例评审通过后才能完成评审');
+  }
+
+  /* ---------------- 快照树：目录折叠 + 文档切换 ---------------- */
+
+  $('rvTree').addEventListener('click', function (e) {
+    var row = e.target.closest('.tree__item');
+    if (!row) return;
+    if (row.getAttribute('data-type') === 'directory') {
+      var collapsed = row.classList.toggle('is-collapsed');
+      forEach(document.querySelectorAll('.tree__item[data-dir="' + row.getAttribute('data-dir') + '"][data-type="document"]'), function (doc) {
+        doc.hidden = collapsed;
+      });
+      return;
+    }
+    var docId = row.getAttribute('data-doc');
+    if (!docId) return;
+    forEach(document.querySelectorAll('.tree__item[data-doc]'), function (doc) {
+      doc.classList.toggle('tree__item--active', doc === row);
+    });
+    // 单文档单画布：切换文档即重建画布选中态
+    forEach(document.querySelectorAll('.mm'), function (panel) {
+      panel.hidden = panel.getAttribute('data-doc') !== docId;
+    });
+    clearSelection();
+  });
+
+  /* ---------------- 脑图：选中与标记 ---------------- */
+
+  function refreshToolbar() {
+    var mark = state.selected ? (state.selected.getAttribute('data-mark') || 'pending') : null;
+    var active = isActive();
+    forEach(document.querySelectorAll('.mm-bar [data-mark]'), function (btn) {
+      var m = btn.getAttribute('data-mark');
+      btn.classList.toggle('is-on', !!mark && mark === m);
+      btn.disabled = !active || !state.selected;
+    });
+    $('btnRemove').hidden = !active;
+    $('btnRemove').disabled = !state.selected;
+    $('ctxRemove').hidden = !active;
+    forEach(document.querySelectorAll('#rvCtx [data-mark]'), function (btn) {
+      btn.disabled = !active;
+    });
+  }
+
+  function selectCase(li) {
+    if (state.selected && state.selected.querySelector('.mm-node')) {
+      state.selected.querySelector('.mm-node').classList.remove('mm-node--sel');
+    }
+    state.selected = li;
+    li.querySelector('.mm-node').classList.add('mm-node--sel');
+    refreshToolbar();
+  }
+
+  function clearSelection() {
+    if (state.selected) {
+      var node = state.selected.querySelector('.mm-node');
+      if (node) node.classList.remove('mm-node--sel');
+    }
+    state.selected = null;
+    refreshToolbar();
+  }
+
+  function applyMark(mark) {
+    if (!isActive() || !state.selected) return;
+    var li = state.selected;
+    var next = mark === 'pass' || mark === 'fail' ? mark : '';
+    li.setAttribute('data-mark', next);
+    var badge = li.querySelector('.mm-badge');
+    badge.className = 'mm-badge mm-badge--' + (next || 'pending');
+    badge.textContent = next === 'pass' ? '通过' : next === 'fail' ? '不通过' : '待评审';
+    pushRecord(li.getAttribute('data-case'), {
+      name: USER, op: 'mark', mark: next || 'pending', text: null, time: nowText()
+    });
+    refreshStats();
+    refreshToolbar();
+    if (drawerFor === li.getAttribute('data-case')) renderRecords();
+    toast(mark === 'pass' ? '已标记通过' : mark === 'fail' ? '已标记不通过' : '已重置为待评审', 'success');
+  }
+
+  forEach(document.querySelectorAll('.mm'), function (panel) {
+    panel.addEventListener('click', function (e) {
+      var node = e.target.closest('.mm-node');
+      if (!node || node.parentElement.getAttribute('data-case') === null) return;
+      selectCase(node.parentElement);
+    });
+    // 右键：光标下的用例节点先选中，再弹标记菜单
+    panel.addEventListener('contextmenu', function (e) {
+      var node = e.target.closest('.mm-node');
+      var li = node && node.parentElement.hasAttribute('data-case') ? node.parentElement : null;
+      if (li) selectCase(li);
+      if (!state.selected) return;
+      e.preventDefault();
+      showCtx(e.clientX, e.clientY);
+    });
+  });
+
+  forEach(document.querySelectorAll('.mm-bar [data-mark]'), function (btn) {
+    btn.addEventListener('click', function () { applyMark(btn.getAttribute('data-mark')); });
+  });
+
+  /* ---------------- 右键菜单 ---------------- */
+
+  var ctx = $('rvCtx');
+
+  function showCtx(x, y) {
+    ctx.hidden = false;
+    var left = Math.max(8, Math.min(x, window.innerWidth - ctx.offsetWidth - 8));
+    var top = Math.max(8, Math.min(y, window.innerHeight - ctx.offsetHeight - 8));
+    ctx.style.left = left + 'px';
+    ctx.style.top = top + 'px';
+  }
+
+  function hideCtx() { ctx.hidden = true; }
+
+  ctx.addEventListener('click', function (e) {
+    var markBtn = e.target.closest('[data-mark]');
+    if (markBtn) { applyMark(markBtn.getAttribute('data-mark')); hideCtx(); }
+  });
+  $('ctxComment').addEventListener('click', function () { hideCtx(); openDrawer(); });
+  $('ctxRemove').addEventListener('click', function () { hideCtx(); removeSelectedCase(); });
+  document.addEventListener('click', function (e) {
+    if (!ctx.hidden && !ctx.contains(e.target)) hideCtx();
+  });
+  document.addEventListener('scroll', hideCtx, true);
+
+  /* ---------------- 评审记录抽屉 ---------------- */
+
+  function pushRecord(caseId, rec) {
+    if (!RECORDS[caseId]) RECORDS[caseId] = [];
+    RECORDS[caseId].push(rec);
+  }
+
+  function recordHtml(rec) {
+    var tag = '';
+    if (rec.op === 'mark') {
+      var label = rec.mark === 'pass' ? '标记通过' : rec.mark === 'fail' ? '标记不通过' : '重置待评审';
+      var cls = rec.mark === 'pass' ? 'tag--success' : rec.mark === 'fail' ? 'tag--danger' : 'tag--neutral';
+      tag = '<span class="tag ' + cls + ' tag--sm">' + label + '</span>';
+    }
+    var body = rec.text ? '<p class="rc__body">' + escapeHtml(rec.text) + '</p>' : '';
+    return '<div class="rc"><div class="rc__avatar">' + escapeHtml(rec.name.charAt(0)) + '</div>' +
+      '<div class="rc__main"><div class="rc__head"><span class="rc__name">' + escapeHtml(rec.name) + '</span>' + tag + '</div>' +
+      body + '<div class="rc__time">' + rec.time + '</div></div></div>';
+  }
+
+  function renderRecords() {
+    var recs = drawerFor && RECORDS[drawerFor] ? RECORDS[drawerFor] : [];
+    var list = $('drawerList');
+    list.innerHTML = recs.length
+      ? recs.map(recordHtml).join('')
+      : '<div class="rc-empty">暂无评论或标记记录</div>';
+    list.scrollTop = list.scrollHeight;
+  }
+
+  function openDrawer() {
+    if (!state.selected) { toast('请先选中一个节点', 'warning'); return; }
+    drawerFor = state.selected.getAttribute('data-case');
+    renderRecords();
+    $('rvDrawer').hidden = false;
+  }
+
+  $('btnComment').addEventListener('click', openDrawer);
+  $('drawerClose').addEventListener('click', function () { $('rvDrawer').hidden = true; });
+
+  function sendComment() {
+    var input = $('drawerInput');
+    var text = input.value.trim();
+    if (!text || !drawerFor) return;
+    pushRecord(drawerFor, { name: USER, op: 'comment', mark: null, text: text, time: nowText() });
+    input.value = '';
+    $('drawerCount').textContent = '0';
+    $('drawerSend').disabled = true;
+    renderRecords();
+    toast('评论已发送', 'success');
+  }
+
+  $('drawerInput').addEventListener('input', function () {
+    $('drawerCount').textContent = String(this.value.length);
+    $('drawerSend').disabled = !this.value.trim();
+  });
+  $('drawerInput').addEventListener('keydown', function (e) {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    sendComment();
+  });
+  $('drawerSend').addEventListener('click', sendComment);
+
+  /* ---------------- 二次确认弹窗 ---------------- */
+
+  var confirmAction = null;
+
+  function askConfirm(title, body, okLabel, onOk) {
+    $('rvConfirmTitle').textContent = title;
+    $('rvConfirmBody').textContent = body;
+    $('rvConfirmOk').textContent = okLabel;
+    confirmAction = onOk;
+    $('rvConfirm').hidden = false;
+  }
+
+  $('rvConfirmOk').addEventListener('click', function () {
+    var action = confirmAction;
+    confirmAction = null;
+    $('rvConfirm').hidden = true;
+    if (action) action();
+  });
+
+  /* ---------------- 页头操作 ---------------- */
+
+  $('btnComplete').addEventListener('click', function () {
+    // 按钮 disabled 已拦截，此处兜底提示口径同实际页
+    var pending = Number($('rvPending').textContent);
+    var fail = Number($('rvFail').textContent);
+    if (pending !== 0 || fail !== 0) {
+      toast('仍有待评审或不通过的用例，全部通过后才能完成评审', 'warning');
+      return;
+    }
+    askConfirm('完成评审', '确定完成该评审吗？完成后将不可再修改标记。', '完成评审', function () {
+      setStatus('completed');
+      toast('评审已完成', 'success');
+    });
+  });
+
+  $('btnReject').addEventListener('click', function () {
+    askConfirm('驳回评审', '确定驳回该评审吗？驳回后将不可再标记或调整用例，可通过「重新发起」恢复评审。', '驳回', function () {
+      setStatus('rejected');
+      toast('评审已驳回', 'success');
+    });
+  });
+
+  $('btnReopen').addEventListener('click', function () {
+    askConfirm('重新发起评审', '确定重新发起该评审吗？参与者可继续评审。', '重新发起', function () {
+      setStatus('in_progress');
+      toast('评审已重新发起', 'success');
+    });
+  });
+
+  $('btnSync').addEventListener('click', function () {
+    askConfirm('同步最新用例', '同步将更新快照节点属性，已有标记不受影响。确定同步？', '同步', function () {
+      toast('已同步', 'success');
+    });
+  });
+
+  /* ---------------- 移除用例 ---------------- */
+
+  function removeSelectedCase() {
+    if (!isActive() || !state.selected) return;
+    var li = state.selected;
+    var name = caseName(li);
+    askConfirm('移除用例',
+      '确定从该评审中移除用例「' + name + '」吗？移除后该用例及其评审标记将不再展示，历史标记记录保留作审计。',
+      '移除', function () {
+        clearSelection();
+        li.remove();
+        refreshStats();
+        toast('已移除用例', 'success');
+      });
+  }
+
+  $('btnRemove').addEventListener('click', removeSelectedCase);
+
+  /* ---------------- 调整用例（CaseSelector 简化稿） ---------------- */
+
+  function renderPicker() {
+    var html = '';
+    forEach(document.querySelectorAll('.mm'), function (panel) {
+      var treeItem = document.querySelector('.tree__item[data-doc="' + panel.getAttribute('data-doc') + '"]');
+      html += '<div class="cs-group">' + escapeHtml(treeItem.textContent.trim()) + '</div>';
+      forEach(panel.querySelectorAll('[data-case]'), function (li) {
+        html += '<label class="cs-item"><input type="checkbox" data-case="' + li.getAttribute('data-case') + '" checked>' +
+          escapeHtml(caseName(li)) + '</label>';
+      });
+    });
+    $('csList').innerHTML = html;
+    updatePickerCount();
+  }
+
+  function updatePickerCount() {
+    var n = $('csList').querySelectorAll('input:checked').length;
+    $('csCount').textContent = '已选 ' + n + ' 个用例';
+    $('csOk').textContent = '确定关联 (' + n + ')';
+  }
+
+  $('csList').addEventListener('change', updatePickerCount);
+
+  $('btnAdjust').addEventListener('click', function () {
+    renderPicker();
+    $('rvCaseDialog').hidden = false;
+  });
+
+  $('csOk').addEventListener('click', function () {
+    var keep = {};
+    forEach($('csList').querySelectorAll('input:checked'), function (input) {
+      keep[input.getAttribute('data-case')] = true;
+    });
+    if (!Object.keys(keep).length) { toast('请至少选择一个用例', 'warning'); return; }
+    // 未勾选的用例等价于从规划中剔除，脑图与统计同步收敛
+    forEach(document.querySelectorAll('.mm [data-case]'), function (li) {
+      if (!keep[li.getAttribute('data-case')]) li.remove();
+    });
+    if (state.selected && !state.selected.isConnected) clearSelection();
+    $('rvCaseDialog').hidden = true;
+    refreshStats();
+    refreshToolbar();
+    toast('规划用例已更新', 'success');
+  });
+
+  /* ---------------- 弹层通用开关 ---------------- */
+
+  document.addEventListener('click', function (e) {
+    var closer = e.target.closest('[data-close]');
+    if (closer) { $(closer.getAttribute('data-close')).hidden = true; return; }
+    var opener = e.target.closest('[data-open]');
+    if (opener) $(opener.getAttribute('data-open')).hidden = false;
+  });
+
+  forEach(document.querySelectorAll('[data-mask-close]'), function (mask) {
+    mask.addEventListener('click', function (e) { if (e.target === mask) mask.hidden = true; });
+  });
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Escape') return;
+    hideCtx();
+    $('rvConfirm').hidden = true;
+    $('rvCaseDialog').hidden = true;
+    $('rvDrawer').hidden = true;
+  });
+
+  refreshStats();
+  refreshToolbar();
+})();
+</script>
 </body>
 </html>
