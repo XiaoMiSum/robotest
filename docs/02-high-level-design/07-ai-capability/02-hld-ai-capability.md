@@ -151,7 +151,7 @@ erDiagram
     AiUsageStat }o--|| AiTask : 聚合
     TraceEdge }o--|| Requirement : 派生源
     TraceEdge }o--o{ TestCaseNode : 派生目标
-    AiConversation ||--o{ AiMessage : 承载
+    AiAssistantConversation ||--o{ AiAssistantMessage : 承载
     VectorIndexEntry }o--|| Project : 归属
 ```
 
@@ -160,9 +160,10 @@ erDiagram
 | AiConfig / AiModelConfig / AiEmbeddingConfig / AiPromptTemplate | AI 配置中心四类配置的实体承载 |
 | AiTask | AI 任务（类型、输入来源、状态、进度、产物清单） |
 | AiArtifactConfirm | 生成物确认记录（采纳方式、操作人） |
-| TraceEdge | 追溯边（类型、目标版本、三态与待重新确认状态），矩阵的唯一事实源 |
+| TraceEdge | 追溯边（类型、目标版本、三态与待重新确认状态），业务领域资源（`trace_` 域），由矩阵服务唯一维护，是矩阵的唯一事实源 |
+| TraceCoverageResult | 需求覆盖分析结论（覆盖状态与判定依据），业务领域资源（`trace_` 域），供需求列表与矩阵视图读取 |
 | AiUsageStat | 按时间 / 模型 / 能力域聚合的用量统计 |
-| AiConversation / AiMessage | 智能助手会话与消息 |
+| AiAssistantConversation / AiAssistantMessage | 智能助手会话与消息（会话按登录用户归属） |
 | VectorIndexEntry | 向量索引条目（来源业务对象、所属工作空间、索引状态） |
 
 ## 6. 接口设计概要
@@ -209,3 +210,4 @@ erDiagram
 | ---- | ---- | ---- |
 | V1.0 | 2026-10-01 | 初始版本 |
 | V1.0 | 2026-10-02 | 快照机制引用改指功能测试概要设计分册 |
+| V1.0 | 2026-10-02 | 追溯两表标注为业务领域资源并补录覆盖结论实体，助手实体更名 |
